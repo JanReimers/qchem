@@ -934,7 +934,11 @@ SolidCalculation::Restart(const std::string& path, const Lattice_3D& lat, std::s
     if (!saved) return refuse(saved.Error());
 
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
-    const std::vector<int> siteSpins=c->BuildBasis(lat, mol, opts, acc);
+    // A restored density is at (or next to) the answer: a Ladder starts on its GDM rung (user 2026-10-21, OpenWork
+    // §3 "Ladder restart starts on the DIIS+Kerker rung").  For THIS stage only -- reset after Converge below.
+    SCFAccelerators::SolidAcceleratorOptions restartAcc=acc;
+    restartAcc.ladderStartOnGDM=true;
+    const std::vector<int> siteSpins=c->BuildBasis(lat, mol, opts, restartAcc);
     // Judged against the BUILT blocks (k, weight, size), not against a re-derivation of what they would be.
     auto warm=CompareFingerprints(saved->fingerprint, c->Fingerprint(params.SmearingkT));
     if (!warm) return refuse(warm.Error());
@@ -953,6 +957,7 @@ SolidCalculation::Restart(const std::string& path, const Lattice_3D& lat, std::s
     }
     c->BuildRun(lat, *mol, siteSpins, cd.TakeValue());
     (void)c->Converge(params);
+    c->itsImp->accOpts.ladderStartOnGDM=acc.ladderStartOnGDM;   // later stages on this calculation start as asked
     if (exact)
         std::cout << tag << "resumed E="<<std::setprecision(10)<<c->itsImp->scf->GetEnergy().GetTotalEnergy()
                   << " vs saved "<<saved->summary.energy<<"  dE="<<std::setprecision(3)

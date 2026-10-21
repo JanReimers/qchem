@@ -223,3 +223,14 @@ Result: polarized N LibXC SVWN5 vs DiracVWN 4.23 µHa, smaller than the same pai
 implementation floor) and unchanged under a 1000× tighter SCF gate.  Gates: `UTHamiltonian
 LDA_XC.LibxcWrapperPolarizedFace` (raw libxc, VWN5 and Slater faces incl. ρ 1e-8 and ζ→1; the only disagreement is
 v↓ at EXACTLY ζ=1, ~1e-5, zero-weight), `ITMain A_DFT_U_Consistency.PolarizedLibxcSVWN5MatchesInHouseDiracVWN`.
+
+## ✅ Ladder restart starts on the DIIS+Kerker rung (closed 2026-10-21)
+USER DECIDED (2026-10-21): `SolidCalculation::Restart` enters the Ladder at its GDM rung.  Mechanism:
+`SolidAcceleratorOptions::ladderStartOnGDM` → `SCFAcceleratorLadder(..., start)` (announced on the console);
+`Restart` sets it for ITS stage only and restores the caller's value afterwards, so later stages on the same
+calculation start as asked.  A smeared restart cannot engage GDM (D′ not idempotent): the Ladder's existing RETREAT
+rule drops to DIIS at the first projection step, loudly.  Gates: `GPW_NaF.Γ_Imp_eqExactResume` and
+`Γ_Imp_eqColdStart` now run the PRODUCTION Ladder (their GDM override removed): 2 iterations each (were 9 and 12 on
+the DIIS-first Ladder), exact resume dE −4e-10 Ha, first iterates within the 1e-7 / 1e-6 pins;
+`UTCalculation SolidState.LadderRestart_Smeared_RetreatsToDIIS` (Si k222, kT 0.02: enters GDM, retreats, lands on
+the cold smeared Ladder energy to 1e-6).  `rundeck`'s restart path goes through the same `Restart`.

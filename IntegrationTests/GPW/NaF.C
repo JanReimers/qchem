@@ -204,7 +204,7 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart)
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     const Lattice_3D lat=LatticeOf(naf);
     SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart fine");          // auto densityEcut = the production grid
-    o.accelerator=qchem::SCFAccelerators::Type::GDM;   // MEASURED 2026-10-02: 2 iterations vs the Ladder's 12 (below)
+    ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
     o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
     auto c=qchem::SolidCalculation::Restart(f.coarsePath, lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
@@ -215,9 +215,10 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart)
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
     EXPECT_NEAR(R->Energy(), f.coldEnergy, 1e-4) << "the restarted run reached a different state than the cold fine run";
     EXPECT_NEAR(R->Energy(), -24.4304, 0.01) << "and it is the banked NaF anchor";
-    // GDM, not the Ladder: from the coarse density the fine run STARTS 4e-8 Ha from the answer and GDM converges in 2
-    // iterations; the Ladder's DIIS+Kerker rung steps away (1.5e-4) and takes 12 (cold fine run: 21).  A restart whose
-    // density moved MORE (geometry, U) may favour the Ladder -- OpenWork §3 "Ladder restart starts on the DIIS+Kerker rung".
+    // THE LADDER ENTERS AT ITS GDM RUNG on a restart (user 2026-10-21).  MEASURED 2026-10-02 before that: from the
+    // coarse density the fine run STARTS 4e-8 Ha from the answer and GDM converges in 2 iterations, while the Ladder's
+    // DIIS+Kerker rung stepped away (1.5e-4) and took 12 (cold fine run: 21).  A restart whose density moved MORE
+    // (geometry, U) is unmeasured.
     EXPECT_LT(std::abs(E.front()-f.coldEnergy), 1e-6) << "the first fine iterate should already BE the answer";
     EXPECT_LE(R->IterationCount(), 4u) << "the coarse seed must save iterations on the fine grid (measured 2; cold fine run 21)";
 }
@@ -232,7 +233,7 @@ TEST(GPW_NaF, Γ_Imp_eqExactResume)
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     const Lattice_3D lat=LatticeOf(naf);
     SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart exact");
-    o.accelerator=qchem::SCFAccelerators::Type::GDM;   // a converged state wants GDM, not the DIIS+Kerker rung (see below)
+    ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
     o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
     auto c=qchem::SolidCalculation::Restart(f.finePath, lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
@@ -240,12 +241,12 @@ TEST(GPW_NaF, Γ_Imp_eqExactResume)
     auto R=(*c)->Result();
     ASSERT_TRUE(R) << Why(R);
     ASSERT_FALSE(E.empty());
-    // GDM, NOT the Ladder (user: restarts want GDM, or the Ladder's GDM rung).  MEASURED 2026-10-02: from the same file
-    // the Ladder's DIIS rung + Kerker(alpha=.25) STEPS the density before the first energy is read -- first iterate
-    // 1.3e-4 Ha off the saved state, 4 DIIS iterations until |dE/E|<1e-6 hands off to GDM, 9 in all -- whereas GDM
-    // starts at the answer (4e-10) and converges in 2.  The saved state was never the problem.
+    // THE LADDER'S GDM RUNG (user 2026-10-21: a restart enters there).  MEASURED 2026-10-02, before that: from the same
+    // file the Ladder's DIIS rung + Kerker(alpha=.25) STEPPED the density before the first energy was read -- first
+    // iterate 1.3e-4 Ha off the saved state, 4 DIIS iterations until |dE/E|<1e-6 handed off to GDM, 9 in all -- whereas
+    // GDM starts at the answer (4e-10) and converges in 2.  The saved state was never the problem.
     EXPECT_NEAR(E.front(), f.coldEnergy, 1e-7) << "the first iterate of an exact resume is the saved state";
-    EXPECT_LE(R->IterationCount(), 3u) << "an exact resume under GDM starts converged";
+    EXPECT_LE(R->IterationCount(), 3u) << "an exact resume on the Ladder's GDM rung starts converged";
     EXPECT_NEAR(R->Energy(), f.coldEnergy, 1e-7);
 }
 

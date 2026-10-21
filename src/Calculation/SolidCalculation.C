@@ -465,7 +465,9 @@ public:
     //! seed) is a decision only the caller can make.
     //!
     //! No mixer or accelerator history is carried: a restart is a fresh stage.  With \c opts.momFromSeed the
-    //! MOM reference is the restored density's own first fill, as for any seed.
+    //! MOM reference is the restored density's own first fill, as for any seed.  A \c Ladder accelerator STARTS
+    //! ON ITS GDM RUNG for the restart's stage (\c SolidAcceleratorOptions::ladderStartOnGDM): the DIIS rung's
+    //! mixing would step a converged density away before the first energy is read.
     static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
         Restart(const std::string& path, const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                 const SolidCalcOptions& opts, const SCFParams& params = {},

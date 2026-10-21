@@ -26,6 +26,7 @@ import qchem.Structure;
 import qchem.UnitCell;
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.SCFParams;
+import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type::Ladder (the restart-rung gate)
 import qchem.SCFIterator;   // SCFProgress (the first-iterate probe)
 import qchem.HDF5;
 import qchem.Types;
@@ -187,6 +188,35 @@ TEST(SolidState, WarmStart_OtherGrid_StartsAtTheAnswer)
     ASSERT_FALSE(E.empty());
     EXPECT_NEAR(r->Energy(), s.energy, 1e-3) << "a finer grid moves E a little, not a lot";
     EXPECT_NEAR(E.front(), r->Energy(), 1e-8) << "the first iterate on the new grid is already the answer";
+}
+
+// A restart enters the Ladder at its GDM rung (user 2026-10-21; the NaF gates GPW_NaF.Γ_Imp_eq{ExactResume,ColdStart}
+// pin the integer-occupation win).  A SMEARED run cannot engage GDM (D' is not idempotent), so the Ladder must say
+// so and RETREAT to DIIS -- and still land where a cold smeared Ladder run does.
+TEST(SolidState, LadderRestart_Smeared_RetreatsToDIIS)
+{
+    const Saved& s=SavedState(0, false);                     // a kT=0 state: the restart is a WARM start (kT differs)
+    SiRun si=Si(ivec3_t(2,2,2));
+    SolidCalcOptions o=Options(0, false, "");
+    o.accelerator=SCFAccelerators::Type::Ladder;
+    SCFParams p=Params();
+    p.SmearingkT=0.02;
+    double cold=0.0;
+    {
+        SolidCalculation calc(*si.lat, si.mol, o, p);
+        auto r=calc.Result();
+        ASSERT_TRUE(r) << "the cold smeared Ladder reference must converge";
+        cold=r->Energy();
+    }
+    testing::internal::CaptureStdout();
+    auto c=SolidCalculation::Restart(s.path, *si.lat, si.mol, o, p);
+    const std::string out=testing::internal::GetCapturedStdout();
+    ASSERT_TRUE(c) << c.Error().details;
+    auto r=(*c)->Result();
+    ASSERT_TRUE(r) << "a smeared Ladder restart must still converge";
+    EXPECT_NE(out.find("starting on rung 1 (GDM)"), std::string::npos) << "the restart enters at the GDM rung";
+    EXPECT_NE(out.find("RETREATING to rung 0"), std::string::npos) << "smeared occupations: GDM cannot engage";
+    EXPECT_NEAR(r->Energy(), cold, 1e-6);
 }
 
 TEST(SolidState, RealnessCrossesBothWays)
