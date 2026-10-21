@@ -91,6 +91,22 @@ struct QMeshResponse
     rmat_t Interaction() const;
     //! \f$U_c=W_{(c,\mathbf 0),(c,\mathbf 0)}\f$ (Hartree) per perturbed channel c: hp.x's definition.
     rvec_t U() const;
+    //! \name THE ORBITAL-RESOLVED INVERSIONS (OpenWork §2 "Response: REPORT orbital-resolved channels", 2026-10-21).
+    //! Inverting the full matrix over the resolved channels of ONE shell is the near-singular case (doc/Pins.md pin 24):
+    //! Macke et al. JCTC 20, 4824 (2024) invert "pointwise".  Both of their readings, beside hp.x's full one:
+    //!@{
+    //! \f$W\f$ with \f$\chi_0\f$ and \f$\chi\f$'s off-diagonals between perturbed channels of one GROUP in one cell
+    //! ZEROED before inverting (a group = one site's orbitals: inter-orbital off-diagonals dropped, inter-site kept;
+    //! each diagonal \f$\chi_{cc}\f$ still carries the intra-shell screening).  \a group: per PERTURBED channel.
+    rmat_t Interaction(const std::vector<size_t>& group) const;
+    rvec_t U(const std::vector<size_t>& group) const;
+    //! \f$U_c=1/\chi_{0,cc}-1/\chi_{cc}\f$ in the home cell -- a single channel perturbed and measured alone in the
+    //! q-mesh's supercell: what a \f$\pm\alpha\f$ finite difference on one orbital (pw.x orbital_resolved) measures.
+    rvec_t UScalar() const;
+    //!@}
+    //! Per MEASURED channel (the probe's): a caller's grouping key -- the facade's Hubbard MANIFOLD, so a resolved channel
+    //! can be put back on its site.  EMPTY = every channel its own (a manifold-resolved response).
+    std::vector<size_t> group;
     //! The supercell's real-space home-cell blocks, the time-reversal leak and U (eV, hp.x's unit).  (Each q's own table is
     //! printed by \c LinearResponse as that q finishes.)
     std::ostream& Write(std::ostream&) const;

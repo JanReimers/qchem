@@ -95,6 +95,9 @@ struct RunSpec
         double              tol      = 1e-8;      //!< hubbardLinearResponse / LR hubbardLoop: Krylov relative residual
         size_t              maxIter  = 200, restart = 40;   //!< hubbardLinearResponse / LR hubbardLoop: the GMRES budget and restart length
         double              alpha    = 0.0;       //!< hubbardFiniteDifference: the perturbation step, HARTREE in RAM (`alpha_eV` in the file)
+        //! hubbardLinearResponse: `"manifold"` (default, hp.x) | `"slot"` (the +U term's U slots) | `"eigen"` (occupation
+        //! eigen-orbitals inside each slot, QE orbital_resolved / Macke 2024) -- see Response::HubbardResolution
+        Response::HubbardResolution resolve = Response::HubbardResolution::Manifold;
         bool operator==(const PostAction&) const = default;
     };
 

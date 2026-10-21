@@ -183,3 +183,72 @@ Cause: `UseFD`'s idempotency test (Tr D′ = Tr D′²) and block-occupancy test
 
 ## ✅ Shifted-MP fold lowered Si by 1.02 mHa (closed 2026-10-01)
 `GPW_Si.k222s_Imp_CP2K`: imposed −7.868473 vs FREE −7.867453. Cause: a shifted MP mesh on fcc is not Oh-invariant; `FoldGrid` skips ops that do not map the mesh onto itself (8 → 2 irreducible via the subgroup), but `DetectPointOps` handed ρ's G-space/raster star-average all 48 ops, so ρ was symmetrized over an Oh-orbit k-set bigger than the one the bands were summed over. Fix: filter `recipDensity`/`directDensity` through `Fold::MapsMeshOntoItself` (BasisSet.C). Result −7.867453736 = FREE to µHa; test tolerance tightened 3e-3 → 1e-4. Diagnostic (a)-(c) were not needed. Γ-centred and TRIM meshes keep all 48 ops (full ctest 983/983).
+
+## ✅ valgen could not mint a fully-stripped ion (closed 2026-10-21)
+`--electrons 0` was the "unset" sentinel (`r.electrons > 0 ? r.electrons : Zion`), so Sr²⁺ at q2 silently came back
+NEUTRAL (charge 2.0003, found 2026-10-05 minting SrVO₃'s seeds).  Fix: `ValenceBasisRecipe::electrons` defaults to
+−1 (= neutral, Zion); 0 is a fully-stripped ion and is REFUSED (`std::invalid_argument` from Generate{ValenceBasis,
+SeedDensity,FloorEnergy}; valgen exits 1 with the reason).  Decision on "what is an empty-valence seed entry":
+NONE is needed -- `SeedCD`'s species rule seeds `target<=0` as nothing (scale 0) without consulting the library, and
+`MagneticDecoration` calls it non-magnetic; there is nothing to validate a basis in either (validate on the
+neutral).  The library's Sr entry (Nelec 2, q 2) is the genuine neutral, untouched.  Gate:
+`UTCalculation ValenceBasisGen.ElectronsUnsetIsNeutralAndZeroIsRefused`.
+
+## ✅ l=4 (g) shells in a lattice basis (closed 2026-10-21)
+TiO₂ + Ti g 1.2 failed three ways (vet "drops that map to no nameable shell"; CholeskyPivoted dropping ALL 18 Ti g;
+`Hubbard_U: shells of one l with different component counts`).  ONE cause: `Math::SphericalShell(l)` tabulated
+l=0..3 and `assert`ed above -- compiled out in Release, so l=4 returned `{}`.  `BuildCartToSphere` still counted
+2l+1 = 9 columns per g shell but filled none (9 all-zero view functions per shell → the Cholesky drops), and the
+view's `GetAoShells` built a 0-component `SphericalShellRep` (shifted offsets → unnameable drops, mismatched
+counts).  Fix: `Math::GenerateSolidHarmonics(l)` (Rodrigues/Legendre expansion, any l, m=−l..l sin/cos) as the
+`default:` of `SphericalShell`; the l≤3 tables are kept byte-identical and the generator reproduces them up to a
+positive scale per m.  Gates (UTGaussian_BS): `M_Spherical.{g,h}_orthogonal`,
+`generated_harmonics_match_tables_and_are_harmonic` (l≤6), `M_SphericalView.g_matches_native_family` (view ≡ native
+spherical family, eigen/pencil/span-projector probes), `g_shell_keeps_nine_unit_components`, and the user's
+"first check MnD vs libcint for Cartesian g": `M_LibCint.matrix_1E_matches_scalar_g` (S/T/V, LMax=4) PASSES -- the
+MnD g integrals were never the problem.  End-to-end: the CP2K/QE-gated TiO₂ Γ ortho-atomic deck on
+`valence_lowq_tm.bsd` + Ti g 1.2 (scratch) now vets clean (min eig S 8.3e-4, nothing trimmed), builds all twelve
++U manifolds, and converges in 35 iterations to −71.135687 Ha (−0.63 mHa vs no g).  The χ₀/U effect of g on b6 is a
+REMAINDER, kept on the OpenWork row.
+
+## ✅ LibXC-polarized (closed 2026-10-21)
+`Libxc_LDA` was scalar-only and `Factory(XCFunctional)` threw for Polarized + LibXC.  Now the wrapper inits each id
+twice (XC_UNPOLARIZED for the scalar face and exact ζ=0 -- byte-identical for every unpolarized run -- and
+XC_POLARIZED for the two-channel face); a negative channel is clamped to 0 on its own (libxc's rule).  ⚠ The
+per-channel SPLIT of ε matters, not just Σρ_σε^σ: the energy is Σ_σ Tr(D_σ ε^σ_fit), so with libxc's one-ε split for
+Dirac exchange polarized N came out 0.146 mHa off the in-house DiracVWN although every pointwise value matched to
+1e-9.  An exchange id (`info->kind==XC_EXCHANGE`) therefore uses the exact spin-scaling relation (the base class's
+channel-separable face, SlaterExchange's split); correlation ids use libxc's ε for both channels (VWN5's split).
+Result: polarized N LibXC SVWN5 vs DiracVWN 4.23 µHa, smaller than the same pair UNPOLARIZED (7.47 µHa, the
+implementation floor) and unchanged under a 1000× tighter SCF gate.  Gates: `UTHamiltonian
+LDA_XC.LibxcWrapperPolarizedFace` (raw libxc, VWN5 and Slater faces incl. ρ 1e-8 and ζ→1; the only disagreement is
+v↓ at EXACTLY ζ=1, ~1e-5, zero-weight), `ITMain A_DFT_U_Consistency.PolarizedLibxcSVWN5MatchesInHouseDiracVWN`.
+
+## ✅ Ladder restart starts on the DIIS+Kerker rung (closed 2026-10-21)
+USER DECIDED (2026-10-21): `SolidCalculation::Restart` enters the Ladder at its GDM rung.  Mechanism:
+`SolidAcceleratorOptions::ladderStartOnGDM` → `SCFAcceleratorLadder(..., start)` (announced on the console);
+`Restart` sets it for ITS stage only and restores the caller's value afterwards, so later stages on the same
+calculation start as asked.  A smeared restart cannot engage GDM (D′ not idempotent): the Ladder's existing RETREAT
+rule drops to DIIS at the first projection step, loudly.  Gates: `GPW_NaF.Γ_Imp_eqExactResume` and
+`Γ_Imp_eqColdStart` now run the PRODUCTION Ladder (their GDM override removed): 2 iterations each (were 9 and 12 on
+the DIIS-first Ladder), exact resume dE −4e-10 Ha, first iterates within the 1e-7 / 1e-6 pins;
+`UTCalculation SolidState.LadderRestart_Smeared_RetreatsToDIIS` (Si k222, kT 0.02: enters GDM, retreats, lands on
+the cold smeared Ladder energy to 1e-6).  `rundeck`'s restart path goes through the same `Restart`.
+
+## ✅ Response: REPORT orbital-resolved channels + inter-site V_IJ (closed 2026-10-21)
+V_IJ had already landed (`a18ef3dd`: `QMeshResponse::Interaction`, `SolidCalculation::InterSiteHubbardV`, the `[V]` lines); the
+row was stale on that half.  The resolved channels: the response channels can now be the +U term's own U SLOTS (site irrep x
+grey parent, `HubbardChannels::SlotProjectors` -- so a resolved U names a slot `Uirrep` can carry) or the occupation
+EIGEN-ORBITALS inside each slot (spin- and k-summed n, a multi-dimensional irrep's partners grouped: QE orbital_resolved /
+Macke JCTC 20, 4824 (2024)).  A channel is amplitudes Xᵀℓ on an orthonormal basis X of its subspace, so nothing below the
+probe changed.  Deck: `hubbardLinearResponse` `"resolve": "manifold"|"slot"|"eigen"`; `perturb` still names manifolds (all
+their channels perturbed).  Printed: a `[response] channel` table (label, n, composition on the named projector functions);
+U full (hp.x) / 1×1 (1/χ₀_cc − 1/χ_cc: one orbital alone in the q-mesh supercell, what a ±α FD on one orbital measures) /
+orbital-diagonal (χ₀, χ off-diagonals between one manifold's channels zeroed, inter-site kept -- Macke's pointwise
+inversion); the record carries `U1x1_eV`, `UorbitalDiagonal_eV`, `manifold`, V with labels.  Gate (UTResponse
+`ResponsePolarizability.GPW_Si_dManifold_SlotChannelsSpanTheManifold`, Si k211 + one d shell): Td d = E {z2, x2-y2} + T2
+{xy, yz, xz}; Σ_cc' χ_cc' over the slots = the manifold's χ (χ₀ and χ); eigen = slot when each irrep occurs once; 1×1 =
+orbital-diagonal for one site.  Measured there: U(E) 61 eV at n = 0.003 vs U(T2) 7.4 and the shell-averaged 7.1 eV -- a
+near-empty channel's resolved U is not a physical number.  TiO₂ Γ ortho-atomic smoke (scratch, `resolve: eigen`, Ti0 3d):
+D₂h d = 2A_g + B1g + B2g + B3g resolves into 5 channels (the two A_g mix xy/z² on the global axes; n 0.25 / 0.63), O p into
+z vs (x,y); full U 3.0–7.0 eV, 1×1 −0.6–2.2 eV (a 6-atom Γ cell: no isolation; the oracle needs a supercell/q-mesh).

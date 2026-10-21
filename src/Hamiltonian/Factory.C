@@ -115,8 +115,7 @@ export namespace qchem::Hamiltonian
 
     //! THE functional resolver -- the SINGLE place that builds a DFT Hamiltonian from a functional choice.
     //! Owns its functional(s); the Internal ExFunctional construction never leaks out.  Polarized is
-    //! supported for SlaterXalpha and DiracVWN (spin-native VWN5, OpenWork B); LibXC is unpolarized-only
-    //! (its libxc wrapper does not yet pass the two spin channels) and throws for SpinGroup::Polarized.
+    //! supported for every kind: SlaterXalpha, DiracVWN (spin-native VWN5) and LibXC (XC_POLARIZED, 2026-10-21).
     rHamiltonian* Factory(SpinGroup, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const rbs_t*);
 
     //! Unified one-call resolver: turn a Model token into the concrete polymorphic Hamiltonian.  HF/1-e/

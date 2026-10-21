@@ -37,6 +37,12 @@ export namespace qchem::SCFAccelerators
         //! \c EnergyChange, not the molecular \c Error default: on a solid, [F,D] is contaminated by
         //! charge-transfer slosh and may never settle while the total energy does (see \c ScheduleSignal).
         ScheduleSignal ladderSignal   = ScheduleSignal::EnergyChange;
+        //! Ladder only: START on the GDM rung instead of DIIS.  For a run whose seed is already at (or next to)
+        //! the answer -- \c SolidCalculation::Restart sets it for its own stage -- where the DIIS rung's density
+        //! mixing steps away before the first energy is read.  MEASURED (NaF, 2026-10-02): exact resume 9
+        //! iterations from DIIS (first iterate 1.3e-4 Ha off) vs 2 from GDM (4e-10); coarse→fine grid 12 vs 2.
+        //! A smeared run cannot engage GDM and drops back to DIIS (the Ladder's retreat rule).
+        bool           ladderStartOnGDM = false;
     };
 
     //! \brief Build the accelerator a solid run asks for -- the TYPED twin of the json door above.  Since

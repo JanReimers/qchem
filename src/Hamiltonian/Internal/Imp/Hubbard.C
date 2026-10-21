@@ -553,6 +553,24 @@ void Hubbard_U::BuildSymmetry(size_t M, const std::vector<Symmetry::Molecule::Ao
             +") has "+std::to_string(sym->Slots().size())+" U slots (site irreps x grey parents) but Uirrep carries "
             +std::to_string(man.Uirrep.size())+" -- see the [+U] label table");
     itsSym[M]=sym;
+    // The functions' names, for a report that must say what a slot IS: Cartesian monomials as written, real solid
+    // harmonics in SphericalShell's m = -l..l order.
+    if (itsComponents.size()<itsManifolds.size()) itsComponents.resize(itsManifolds.size());
+    static const std::vector<std::vector<std::string>> harmonic={{"s"},{"y","z","x"},{"xy","yz","z2","xz","x2-y2"},
+        {"y(3x2-y2)","xyz","yz2","z3","xz2","z(x2-y2)","x(x2-3y2)"}};
+    for (const auto& sh : shells)
+    {
+        const auto monos=sh.rep->Monomials();
+        const int l=sh.rep->L();
+        for (size_t c=0;c<sh.nComponents();c++)
+        {
+            std::string name;
+            if (!monos.empty()) { for (int i=0;i<monos[c].n;i++) name+="x"; for (int i=0;i<monos[c].l;i++) name+="y"; for (int i=0;i<monos[c].m;i++) name+="z"; if (name.empty()) name="s"; }
+            else if (l<int(harmonic.size())) name=harmonic[l][c];
+            else name="m"+std::to_string(int(c)-l);
+            itsComponents[M].push_back(name);
+        }
+    }
     // Say it once (pin 17): the table a user reads Uirrep against.  A DECLARATION, like the run banner,
     // so it goes to stdout as well as the console heartbeat.
     std::ostringstream os;
@@ -888,6 +906,23 @@ std::vector<HubbardChannel> Hubbard_U::Channels() const
         bool carries = (M.U!=0.0);
         for (double u : M.Uirrep) carries = carries || (u!=0.0);
         out.push_back({M.site, M.l, carries});
+    }
+    return out;
+}
+
+HubbardSlots Hubbard_U::SlotProjectors(size_t M) const
+{
+    if (M>=itsManifolds.size()) throw std::out_of_range("Hubbard_U::SlotProjectors: no such manifold");
+    HubbardSlots out;
+    if (!itsEigenForm) return out;                                   // the population form: no symmetry, one subspace
+    if (M>=itsSym.size() || !itsSym[M])
+        throw std::logic_error("Hubbard_U::SlotProjectors: the term has not seen a basis yet (slots are built in PrepareSlots)");
+    const ManifoldSymmetry& S=*itsSym[M];
+    out.components=itsComponents[M];
+    for (const auto& s : S.Slots())
+    {
+        std::ostringstream lab; lab<<"Γ"<<s.irrep; if (S.Graded()) lab<<"<"<<s.parent;
+        out.slots.push_back({lab.str(), S.Irreps()[s.irrep].dim, rmat_t(S.SiteProjector(s.irrep)*S.GreyProjector(s.parent))});
     }
     return out;
 }

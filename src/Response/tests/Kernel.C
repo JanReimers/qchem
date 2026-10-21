@@ -19,6 +19,11 @@
 #include <random>
 #include <stdexcept>
 #include <vector>
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include <nlohmann/json.hpp>
 #include "forward.H"
 import qchem.Hamiltonian.Factory;
@@ -37,6 +42,8 @@ import qchem.SCFParams;
 import qchem.Mesh;                                    // qcMesh::MeshParams (the LDA Hamiltonian's XC mesh)
 import qchem.Types;
 import qchem.Blaze;
+import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // the d-augmented Si (orbital-resolved gate)
+import qchem.BasisSet.Gaussian.Point.BasisFiles;           // BasisFile: the data path of sipp_sr.bsd
 
 using namespace qchem;
 using ChargeDensity::TransitionBlock;
@@ -548,6 +555,85 @@ TEST(ResponsePolarizability, GPW_Si_HubbardLinearResponse_Screened)
         chis.push_back(r->chi);
     }
     for (size_t I=0;I<chis[0].rows();I++) EXPECT_NEAR(std::abs(chis[0](I,I)-chis[1](I,I)), 0.0, 1e-6*std::abs(chis[0](I,I))) << "Pol != UnPol";
+}
+
+//! ORBITAL-RESOLVED CHANNELS (OpenWork §2 "Response: REPORT orbital-resolved channels", 2026-10-21).  Si with ONE added
+//! d shell (spherical view) and a U = 0 manifold on site 0's d: at the Td site d -> E + T2, the e_g / t2g pair.  Gates
+//! needing no oracle: (1) the slot channels are the +U term's two U slots, with the e_g / t2g COMPOSITIONS on the cubic
+//! axes; (2) they SPAN the manifold, so chi_MM = Sum_cc' chi_cc' over them, for chi0 AND chi; (3) each irrep occurs once,
+//! so the eigen channels are the slot channels.  (The 1x1 and orbital-diagonal U lines are printed beside.)
+namespace {
+std::unique_ptr<SolidCalculation> ConvergedSiWithD()
+{
+    // sipp_sr.bsd + one d shell on Si, as a scratch file.
+    const std::string src=BasisSet::Gaussian::BasisFile("sipp_sr.bsd");
+    std::ifstream in(src); std::stringstream all; all<<in.rdbuf();
+    std::string txt=all.str();
+    const size_t si=txt.find(" SI "); const size_t end=txt.find(" ****", si);
+    EXPECT_NE(si, std::string::npos); EXPECT_NE(end, std::string::npos);
+    txt.insert(end, " D   1  1.00\n      0.55000000      1.00000000\n");   // disjoint from the p exponents (the reader merges shared ones)
+    const std::string path=(std::filesystem::path(testing::TempDir())/"sipp_sr_plus_d.bsd").string();
+    std::ofstream(path)<<txt;
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,1,1));                      // k211: at Gamma alone the E channel carries no weight (chi0 ~ 1e-12)
+    std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::FactoryFromFile(path, &cell));
+    mol=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(mol));
+    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0,
+                       .hubbard={{.site=0, .l=2, .U=0.0}}, .forceComplex=true};
+    auto calc=std::make_unique<SolidCalculation>(lat, mol, o, SiParams());
+    EXPECT_TRUE(calc->DidConverge());
+    return calc;
+}
+} // namespace
+
+TEST(ResponsePolarizability, GPW_Si_dManifold_SlotChannelsSpanTheManifold)
+{
+    auto calc=ConvergedSiWithD();
+    const KrylovParams kp{.tol=1e-9};
+    auto rM=calc->HubbardLinearResponse(ivec3_t(1,1,1), kp, {}, Response::HubbardResolution::Manifold);
+    auto rS=calc->HubbardLinearResponse(ivec3_t(1,1,1), kp, {}, Response::HubbardResolution::Slot);
+    auto rE=calc->HubbardLinearResponse(ivec3_t(1,1,1), kp, {}, Response::HubbardResolution::Eigen);
+    ASSERT_TRUE(rM && rS && rE);
+    const auto& m=rM->atQ[0]; const auto& sl=rS->atQ[0]; const auto& ei=rE->atQ[0];
+    ASSERT_EQ(m.labels.size(), 1u);
+    ASSERT_EQ(sl.labels.size(), 2u) << "Td: d = E + T2";
+    ASSERT_EQ(sl.perturbed.size(), 2u);
+    EXPECT_EQ(rS->group, (std::vector<size_t>{0,0}));
+    // (2) the channels span the manifold: chi_MM = Sum over the slot block.
+    for (const char* which : {"chi0","chi"})
+    {
+        const bool c0=std::string(which)=="chi0";
+        dcmplx sum=0.0; for (size_t I=0;I<2;I++) for (size_t J=0;J<2;J++) sum += c0 ? sl.chi0(I,J) : sl.chi(I,J);
+        const dcmplx ref = c0 ? m.chi0(0,0) : m.chi(0,0);
+        EXPECT_NEAR(std::abs(sum-ref), 0.0, 1e-7*std::abs(ref)) << which << ": the slot channels must span the manifold";
+    }
+    // (3) one copy of each irrep: the eigen channels ARE the slot channels.
+    ASSERT_EQ(ei.labels.size(), 2u);
+    const double scale0=std::abs(m.chi0(0,0)), scale=std::abs(m.chi(0,0));
+    for (size_t I=0;I<2;I++) for (size_t J=0;J<2;J++)
+    {
+        EXPECT_NEAR(std::abs(ei.chi0(I,J)-sl.chi0(I,J)), 0.0, 1e-8*scale0);
+        EXPECT_NEAR(std::abs(ei.chi (I,J)-sl.chi (I,J)), 0.0, 1e-7*scale);
+    }
+    for (size_t c=0;c<2;c++) EXPECT_GT(std::abs(sl.chi0(c,c)), 1e-3*scale0) << sl.labels[c] << ": a channel with no response tests nothing";
+    // (1) what the slots ARE: e_g = {z2, x2-y2}, t2g = {xy, yz, xz} on the cubic axes, each fully inside its channel.
+    const auto& wf=ResponseFacadeTests::WF(*calc);
+    const auto* hub=ResponseFacadeTests::Ham(*calc).GetHubbardChannels();
+    const Response::Reference ref=Response::MakeReference(wf, OccupationConfig{}, {}, std::numeric_limits<double>::quiet_NaN());
+    const auto hp=Response::MakeHubbardProbe(ref, wf, *hub, Response::HubbardResolution::Slot);
+    ASSERT_EQ(hp.composition.size(), 2u);
+    std::vector<std::string> comp=hp.composition;
+    std::sort(comp.begin(), comp.end());
+    EXPECT_EQ(comp[0], "xy:1.00 yz:1.00 xz:1.00");
+    EXPECT_EQ(comp[1], "z2:1.00 x2-y2:1.00");
+    // The 1x1 and orbital-diagonal inversions exist beside the full one, and differ from it (the channels are coupled).
+    const rvec_t uF=rS->U(), u1=rS->UScalar(), uD=rS->U(std::vector<size_t>{0,0});
+    ASSERT_EQ(u1.size(), 2u);
+    for (size_t c=0;c<2;c++) EXPECT_NEAR(uD[c], u1[c], 1e-9*std::abs(u1[c])) << "one site: zeroing its off-diagonals IS the 1x1 inversion";
+    std::cout << "[gate] U(eV) full " << uF[0]*27.211386 << " " << uF[1]*27.211386 << "  1x1 " << u1[0]*27.211386 << " " << u1[1]*27.211386
+              << "  manifold " << rM->U()[0]*27.211386 << std::endl;
 }
 
 //! GATE (b), R2: the self-consistent chi is dn/dalpha -- LR-cDFT's own definition (Cococcioni & de Gironcoli 2005,

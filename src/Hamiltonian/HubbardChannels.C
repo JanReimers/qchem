@@ -12,6 +12,7 @@
 // boundary, the mechanism does not.
 module;
 #include <cstddef>
+#include <string>
 #include <vector>
 export module qchem.Hamiltonian.HubbardChannels;
 import qchem.BasisSet.Orbital_DFT_IBS;   // the block an orbital set lives on
@@ -31,6 +32,24 @@ struct HubbardChannel
     bool   carriesU=false;
 };
 
+//! One U SLOT of a manifold as a subspace of its projector functions: what an orbital-RESOLVED response perturbs and
+//! measures (OpenWork §2 "Response: REPORT orbital-resolved channels", 2026-10-21).  The slots are the +U term's own --
+//! the (site irrep, grey parent) isotypic components its \c Uirrep applies to -- so a resolved U maps onto a slot.
+struct HubbardSlot
+{
+    std::string label;      //!< "Γk" (site irrep k), with the grey parent when the run is magnetic: "Γk<p"
+    size_t      irrepDim=1; //!< the site irrep's dimension (the slot's dim is a multiple: the irrep's multiplicity)
+    rmat_t      P;          //!< \f$m_M\times m_M\f$ orthogonal projector onto the slot, in the amplitudes' row basis
+};
+//! A manifold's slots, and the names of its \f$m_M\f$ projector functions (amplitude rows) so a report can say what
+//! a slot IS ("z2 x2-y2" = e_g).  BOTH EMPTY when the term has no symmetry for the manifold (the population form):
+//! the manifold is then one subspace.
+struct HubbardSlots
+{
+    std::vector<std::string> components;
+    std::vector<HubbardSlot> slots;
+};
+
 //! \brief The projector set of the run's +U term, one CHANNEL per Hubbard manifold, in the term's manifold
 //! order.  \f$\hat P_J=\sum_\mu|w_\mu\rangle\langle w_\mu|\f$ over the manifold's projector functions
 //! \f$w_\mu\f$; a channel is described to a client entirely by the orbitals' AMPLITUDES on those functions.
@@ -48,6 +67,10 @@ public:
                                                            const mat_t<double>& C) const = 0;
     virtual std::vector<mat_t<dcmplx>> ProjectorAmplitudes(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block,
                                                            const mat_t<dcmplx>& C) const = 0;
+    //! \brief Manifold \a M's U slots as projectors on its projector functions (the rows of \c ProjectorAmplitudes):
+    //! a client splits a channel into the subspaces the +U term can give their own U.  THROWS before the term has
+    //! seen a basis (the slots are built with its blocks).
+    virtual HubbardSlots SlotProjectors(size_t M) const = 0;
 };
 
 } // namespace

@@ -17,6 +17,7 @@
 import qchem.Hamiltonian.Internal.VWN_Correlation;   // the production functional under test
 import qchem.Hamiltonian.Internal.ExFunctional;      // the kernel face (GetFxc, H3)
 import qchem.Hamiltonian.Internal.SlaterExchange;    // its analytic kernel override
+import qchem.Hamiltonian.Internal.Libxc_LDA;         // the libxc wrapper's XC_POLARIZED face
 import qchem.Symmetry.Spin;                          // Spin::Up / Spin::Down for the polarized face
 using namespace qchem;
 
@@ -159,6 +160,48 @@ TEST_F(LDA_XC, VWN5PolarizedMatchesLibxc)
         EXPECT_NEAR(vwn.GetVxc(rup,rdn,Spin::Up),     vup, 1e-9) << "rho="<<rho<<" zeta="<<zeta;
         EXPECT_NEAR(vwn.GetVxc(rup,rdn,Spin::Down),   vdn, 1e-9) << "rho="<<rho<<" zeta="<<zeta;
     }
+}
+
+// The libxc WRAPPER's two-channel face (2026-10-21; was zeta=0-only): VWN5 (id 7) must reproduce raw libxc
+// XC_POLARIZED AND the in-house spin-native VWN5; Dirac exchange (id 1) must give the in-house SlaterExchange's
+// per-channel potential and the same energy density.  Exact zeta=0 stays byte-identical to the scalar face, and
+// a negative channel is clamped to full polarization (finite), as VWN5 does.
+TEST_F(LDA_XC, LibxcWrapperPolarizedFace)
+{
+    qchem::Hamiltonian::Libxc_LDA lc(7), lx(1);
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    qchem::Hamiltonian::SlaterExchange slater(2.0/3.0);
+    for (double rho  : {1e-8, 1e-6, 1e-4, 0.01, 0.1, 0.5, 1.0, 5.0})       // atomic tails included
+    for (double zeta : {0.25, 0.5, 0.75, 0.95, 0.999, 1.0, -0.5})
+    {
+        const double rup=0.5*rho*(1.0+zeta), rdn=0.5*rho*(1.0-zeta);
+        double exc,vup,vdn; LibxcPol(7, rup, rdn, exc, vup, vdn);
+        EXPECT_DOUBLE_EQ(lc.GetEpsXc(rup,rdn,Spin::Up),   exc) << "rho="<<rho<<" zeta="<<zeta;
+        EXPECT_DOUBLE_EQ(lc.GetEpsXc(rup,rdn,Spin::Down), exc);
+        EXPECT_DOUBLE_EQ(lc.GetVxc(rup,rdn,Spin::Up),     vup);
+        EXPECT_DOUBLE_EQ(lc.GetVxc(rup,rdn,Spin::Down),   vdn);
+        EXPECT_NEAR(lc.GetVxc(rup,rdn,Spin::Up),   vwn.GetVxc(rup,rdn,Spin::Up),   1e-9);
+        // At EXACTLY zeta=1 (rho_dn=0) libxc's v_dn and the in-house VWN5's differ by ~1e-5 (a zero-density
+        // minority channel: no energy weight); libxc itself is still matched exactly above.
+        if (zeta<1.0) EXPECT_NEAR(lc.GetVxc(rup,rdn,Spin::Down), vwn.GetVxc(rup,rdn,Spin::Down), 1e-9);
+        EXPECT_NEAR(lc.GetExcDensity(rup,rdn),     vwn.GetExcDensity(rup,rdn),     1e-9);
+        EXPECT_NEAR(lx.GetVxc(rup,rdn,Spin::Up),   slater.GetVxc(rup,rdn,Spin::Up),   1e-9) << "rho="<<rho<<" zeta="<<zeta;
+        EXPECT_NEAR(lx.GetVxc(rup,rdn,Spin::Down), slater.GetVxc(rup,rdn,Spin::Down), 1e-9);
+        EXPECT_NEAR(lx.GetExcDensity(rup,rdn),     slater.GetExcDensity(rup,rdn),     1e-9);
+        // ...and the SAME per-channel split (the fitted energy Tr(D_s eps^s_fit) sees the split, not just the sum)
+        EXPECT_NEAR(lx.GetEpsXc(rup,rdn,Spin::Up),   slater.GetEpsXc(rup,rdn,Spin::Up),   1e-9);
+        EXPECT_NEAR(lx.GetEpsXc(rup,rdn,Spin::Down), slater.GetEpsXc(rup,rdn,Spin::Down), 1e-9);
+        EXPECT_NEAR(lc.GetEpsXc(rup,rdn,Spin::Down), vwn.GetEpsXc(rup,rdn,Spin::Down),   1e-9);
+    }
+    for (double rho : {0.01, 1.0})                                  // exact zeta=0: the scalar face, bit for bit
+    {
+        EXPECT_EQ(lc.GetVxc(0.5*rho,0.5*rho,Spin::Up), lc.GetVxc(rho));
+        EXPECT_EQ(lc.GetEpsXc(0.5*rho,0.5*rho,Spin::Down), lc.GetEpsXc(rho));
+    }
+    const double rdn=-1e-3, rup=1.0;                                // a ringing minority channel: clamped to 0
+    EXPECT_DOUBLE_EQ(lc.GetVxc(rup,rdn,Spin::Down), lc.GetVxc(rup,0.0,Spin::Down));
+    EXPECT_DOUBLE_EQ(lx.GetVxc(rup,rdn,Spin::Up),   slater.GetVxc(rup,rdn,Spin::Up));   // exchange: untouched
+    EXPECT_TRUE(std::isfinite(lc.GetEpsXc(rup,rdn,Spin::Up)));
 }
 
 // A NEGATIVE spin channel must not poison the functional (2026-08-07, doc/SymmetryUpgradePlan.md 7 step 7).

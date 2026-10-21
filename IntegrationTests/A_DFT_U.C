@@ -56,6 +56,22 @@ TEST(A_DFT_U_Consistency, LibxcSVWN5MatchesInHouseDiracVWN)
     AtomCalculation dirac(c.Z, 0, {.type = c.type, .accuracy = High, .model = Model::LDA}, MakeParams(c));
     EXPECT_NEAR(libxc.Energy(), dirac.Energy(), 1e-4);   // same SVWN5 + same correct E_c => agree (Kr ~ -2750)
 }
+// The same statement SPIN-POLARIZED (2026-10-21, when Libxc_LDA gained its XC_POLARIZED face): open-shell N
+// (quartet), so zeta != 0 almost everywhere and the libxc two-channel contract is what is exercised.
+TEST(A_DFT_U_Consistency, PolarizedLibxcSVWN5MatchesInHouseDiracVWN)
+{
+    const DFTCase c{AtomType::Slater, 7, 0.0, {50,1e-5,1e-7,2e-2,1e-6}};
+    AtomCalculation libxc(c.Z, 0, {.type = c.type, .accuracy = High, .model = Model::Xalpha, .spin = SpinGroup::Polarized,
+                                   .xc = XCFunctional{.kind = XC::LibXC, .libxcId = 7}}, MakeParams(c));
+    AtomCalculation dirac(c.Z, 0, {.type = c.type, .accuracy = High, .model = Model::LDA, .spin = SpinGroup::Polarized},
+                          MakeParams(c));
+    EXPECT_TRUE(libxc.IsConverged());
+    EXPECT_TRUE(dirac.IsConverged());
+    // MEASURED 2026-10-21: 4.23e-6 Ha, unchanged under a 1000x tighter SCF gate (so not convergence) and SMALLER
+    // than the same pair UNPOLARIZED on N (7.47e-6) -- the libxc-vs-in-house implementation floor, not the polarized
+    // face.  With libxc's one-eps split for exchange (before the spin-scaling face) it was 1.46e-4.
+    EXPECT_NEAR(libxc.Energy(), dirac.Energy(), 1e-5);   // N ~ -54.135
+}
 // Tolerance is the HONEST accuracy of the atomic libxc SVWN5 path vs the NIST LDA reference: ~1.5 ppm
 // (Gaussian) / ~0.7 ppm (Slater) at Z=36, with NO fudge.  History: the old `2e-6` match was faked by a
 // Z=36-tuned *1.006613 exchange fudge (removed); removing it alone left ~213 ppm -- which turned out to be

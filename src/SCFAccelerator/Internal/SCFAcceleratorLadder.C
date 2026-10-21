@@ -99,11 +99,16 @@ public:
     //             slot for a direct minimizer (GDM owns the loop), which is fast and robust
     //             near the minimum but useless far from it.  switchat<=0 disables this.  `signal`
     //             selects [F,D] (Error, molecular default) vs |ΔE/E| (EnergyChange, solids).
+    //   start   : the rung the run STARTS on (default 0).  A restart from a converged or near-converged
+    //             state starts on the last (direct-min) rung: the first rung's mixing would step the density
+    //             away from the answer before the first energy is read (NaF, 2026-10-02).  If that rung
+    //             cannot engage (smeared occupations), the RETREAT rule below drops back a rung, loudly.
     SCFAcceleratorLadder(std::vector<std::unique_ptr<SCFAccelerator>> rungs,
                          double ethresh=1e-8, int stall=5, double floor=1e-8, double switchat=0.0,
-                         ScheduleSignal signal=ScheduleSignal::Error)
+                         ScheduleSignal signal=ScheduleSignal::Error, size_t start=0)
         : itsRungs(std::move(rungs)), itsEThresh(ethresh), itsStall(stall),
-          itsFloor(floor), itsSwitchAt(switchat), itsSignal(signal) {}
+          itsFloor(floor), itsSwitchAt(switchat), itsSignal(signal), itsActive(start)
+    { assert(itsActive<itsRungs.size()); }
     virtual tSCFIrrepAccelerator<double>* Create(const LASolver<double>*,const Irrep&, int occ);
     virtual tSCFIrrepAccelerator<dcmplx>* Create(const LASolver<dcmplx>*,const Irrep&, int occ);
     virtual bool   CalculateProjections();

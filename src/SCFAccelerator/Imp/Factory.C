@@ -3,6 +3,7 @@ module;
 #include <cassert>
 #include <memory>
 #include <vector>
+#include <iostream>
 #include <nlohmann/json.hpp>
 module qchem.SCFAccelerator.Factory;
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
@@ -75,8 +76,11 @@ SCFAccelerator* Factory(Type type, const SolidAcceleratorOptions& o)
             std::vector<std::unique_ptr<SCFAccelerator>> rungs;
             rungs.emplace_back(new SCFAcceleratorDIIS(o.diis));
             rungs.emplace_back(new SCFAcceleratorGDM (o.ladderGdm));
+            const size_t start=o.ladderStartOnGDM ? rungs.size()-1 : 0;
+            if (start>0) std::cout << "  *** SCF accelerator ladder: starting on rung " << start
+                                   << " (GDM) -- the seed is a restored state ***" << std::endl;
             return new SCFAcceleratorLadder(std::move(rungs), o.ladderEThresh, o.ladderStall,
-                                            o.ladderFloor, o.ladderSwitchAt, o.ladderSignal);
+                                            o.ladderFloor, o.ladderSwitchAt, o.ladderSignal, start);
         }
     }
     assert(false && "SCFAccelerators::Factory: unhandled Type");
