@@ -52,6 +52,47 @@ static void check_orthogonal(int l)
 TEST(M_Spherical, p_orthogonal) { check_orthogonal(1); }
 TEST(M_Spherical, d_orthogonal) { check_orthogonal(2); }
 TEST(M_Spherical, f_orthogonal) { check_orthogonal(3); }
+TEST(M_Spherical, g_orthogonal) { check_orthogonal(4); }
+TEST(M_Spherical, h_orthogonal) { check_orthogonal(5); }
+
+// The GENERATED harmonics (l>=4's only source) reproduce the l<=3 tables up to a POSITIVE scale per m, and are
+// harmonic (Laplacian of each polynomial = 0) for l up to 6.
+TEST(M_Spherical, generated_harmonics_match_tables_and_are_harmonic)
+{
+    using qchem::Math::GenerateSolidHarmonics;
+    using qchem::Math::Monomial;
+    auto coef=[](const std::vector<qchem::Math::CartTerm>& h, const Monomial& p)
+    { for (const auto& t : h) if (t.p==p) return t.c; return 0.0; };
+    for (int l=0;l<=3;l++)
+    {
+        const auto tab=SphericalShell(l), gen=GenerateSolidHarmonics(l);
+        ASSERT_EQ(gen.size(), tab.size());
+        for (size_t m=0;m<tab.size();m++)
+        {
+            ASSERT_EQ(gen[m].size(), tab[m].size()) << "l="<<l<<" m-index "<<m;
+            const double scale=coef(gen[m], tab[m][0].p)/tab[m][0].c;
+            EXPECT_GT(scale, 0.0) << "l="<<l<<" m-index "<<m<<" sign flipped vs the table";
+            for (const auto& t : tab[m]) EXPECT_NEAR(coef(gen[m], t.p), scale*t.c, 1e-12) << "l="<<l<<" m-index "<<m;
+        }
+    }
+    for (int l=0;l<=6;l++)
+    {
+        const auto gen=GenerateSolidHarmonics(l);
+        ASSERT_EQ(gen.size(), size_t(2*l+1));
+        for (const auto& h : gen)
+        {
+            std::vector<std::pair<Monomial,double>> lap;                   // d2/dx2 + d2/dy2 + d2/dz2
+            for (const auto& t : h)
+                for (int ax=0;ax<3;ax++)
+                    if (t.p[ax]>=2) { Monomial q=t.p; q[ax]-=2; lap.push_back({q, t.c*t.p[ax]*(t.p[ax]-1)}); }
+            for (const auto& [q,c] : lap)
+            {
+                double sum=0.0; for (const auto& [q2,c2] : lap) if (q2==q) sum+=c2;
+                EXPECT_NEAR(sum, 0.0, 1e-10) << "l="<<l<<" not harmonic at x"<<q.n<<"y"<<q.l<<"z"<<q.m;
+            }
+        }
+    }
+}
 
 // --- Increment 2: the 1E spherical evaluator ------------------------------------------------------
 // Two centres on the z-axis, each carrying one s shell and one d shell.  Building the evaluator's
@@ -185,7 +226,7 @@ TEST(M_SphericalView, sp_null_test)
         }
 }
 
-TEST(M_SphericalView, d_matches_native_family)
+static void check_view_matches_native(size_t LMax)
 {
     Molecule mol;
     mol.Insert(new Atom(25, 0, Vector3D<double>(0,0,0)));
@@ -193,12 +234,12 @@ TEST(M_SphericalView, d_matches_native_family)
     const rvec_t ex{0.8,2.4};
 
     auto* cart=new qchem::BasisSet::Gaussian::PG_Cart::BasisSet;
-    cart->Insert(new qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(ex, 2, &mol));
+    cart->Insert(new qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(ex, LMax, &mol));
     std::shared_ptr<const qchem::BasisSet::Real_BS> cbs(cart);
     auto view=qchem::BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cbs);
 
     auto* nat=new qchem::BasisSet::Gaussian::PG_Spherical::BasisSet;
-    nat->Insert(new qchem::BasisSet::Gaussian::PG_Spherical::Orbital_IBS(ex, 2, &mol));
+    nat->Insert(new qchem::BasisSet::Gaussian::PG_Spherical::Orbital_IBS(ex, LMax, &mol));
     std::shared_ptr<const qchem::BasisSet::Real_BS> nbs(nat);
 
     const qchem::BasisSet::Real_OIBS* vi=nullptr;
@@ -253,4 +294,29 @@ TEST(M_SphericalView, d_matches_native_family)
         const double pv=blazem::dot(fv,Siv*fv), pn=blazem::dot(fn,Sin*fn);
         EXPECT_NEAR(pv, pn, 1e-10) << "span projector at r";
     }
+}
+
+TEST(M_SphericalView, d_matches_native_family) { check_view_matches_native(2); }
+// l=4 (OpenWork §3 "l=4 (g) shells in a lattice basis", 2026-10-21): SphericalShell(4) was EMPTY in Release, so
+// the view built 9 all-zero columns per g shell (CholeskyPivoted dropped all 18 Ti g on TiO2) and a 0-component
+// shell table (the vet's "drops that map to no nameable shell", +U's "different component counts").
+TEST(M_SphericalView, g_matches_native_family) { check_view_matches_native(4); }
+
+// The view's OWN shell table and normalisation for a g shell: 9 components, every view function unit-normalised.
+TEST(M_SphericalView, g_shell_keeps_nine_unit_components)
+{
+    Molecule mol;
+    mol.Insert(new Atom(22, 0, Vector3D<double>(0,0,0)));
+    auto* cart=new qchem::BasisSet::Gaussian::PG_Cart::BasisSet;
+    cart->Insert(new qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{1.2}, 4, &mol));
+    std::shared_ptr<const qchem::BasisSet::Real_BS> cbs(cart);
+    auto view=qchem::BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cbs);
+    const qchem::BasisSet::Real_OIBS* vi=nullptr;
+    for (auto b : const_cast<qchem::BasisSet::Real_BS&>(*view).Iterate<qchem::BasisSet::Real_OIBS>()) { vi=b; break; }
+    ASSERT_TRUE(vi);
+    ASSERT_EQ(vi->GetNumFunctions(), size_t(1+3+5+7+9));
+    const rmat_t S(vi->MakeOverlap());
+    for (size_t i=0;i<S.rows();i++)
+        for (size_t j=0;j<S.columns();j++)
+            EXPECT_NEAR(S(i,j), i==j ? 1.0 : 0.0, 1e-12) << "one-centre spherical S("<<i<<","<<j<<")";
 }

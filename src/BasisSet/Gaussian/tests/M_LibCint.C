@@ -53,6 +53,28 @@ TEST(M_LibCint, matrix_1E_matches_scalar)
         }
 }
 
+// Cartesian g (LMax=4) through the M&D engine vs libcint (OpenWork §3 "l=4 (g) shells", 2026-10-21): the g row is
+// the first one no CP2K/QE gate exercises, so libcint is its oracle before a g shell is trusted in a lattice run.
+TEST(M_LibCint, matrix_1E_matches_scalar_g)
+{
+    Molecule* h2o = MakeWater();
+    rvec_t exps{1.2, 0.4};
+    Orbital_IBS ibs(exps, 4, h2o);                           // s..g
+    LibCintEval lc(dynamic_cast<const PGData&>(ibs), h2o);
+    ASSERT_EQ(lc.size(), ibs.GetNumFunctions());
+
+    const BasisSet::Orbital_1E_IBS<double>& bs1e = ibs;
+    rsmat_t So=lc.OverlapMatrix(), Ko=lc.KineticMatrix(), Vo=lc.NuclearMatrix(h2o);
+    const auto S=bs1e.Overlap(), K=bs1e.Kinetic(), V=bs1e.Nuclear(h2o);
+    for (size_t i=0;i<lc.size();++i)
+        for (size_t j=i;j<lc.size();++j)
+        {
+            EXPECT_NEAR(So(i,j), S(i,j), 1e-10) << "overlap ("<<i<<","<<j<<")";
+            EXPECT_NEAR(Ko(i,j), K(i,j), 1e-9)  << "kinetic ("<<i<<","<<j<<")";
+            EXPECT_NEAR(Vo(i,j), V(i,j), 1e-9)  << "nuclear ("<<i<<","<<j<<")";
+        }
+}
+
 TEST(M_LibCint, matrix_3C_4C_match_scalar)
 {
     Molecule* h2o = MakeWater();

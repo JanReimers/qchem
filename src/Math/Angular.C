@@ -6,6 +6,8 @@
 // both -- hence the general name "Angular" rather than "Monomial".
 module;
 #include <vector>
+#include <map>
+#include <algorithm>
 #include <cassert>
 #include <ostream>
 export module qchem.Math.Angular;
@@ -60,9 +62,53 @@ struct CartTerm
 //! expansion.  \c c2s[m] is the m-th harmonic of a shell, ordered by the basis's own m-convention.
 using HarmonicC2S = std::vector<std::vector<CartTerm>>;
 
+//! \brief The \f$2l+1\f$ real regular solid harmonics \f$R_{l,m}\f$ of ANY \a l, generated (not tabulated):
+//! \f$r^lP_l^{|m|}(\cos\theta)\{\cos,\sin\}(|m|\phi) = \mathrm{Re/Im}\,(x+iy)^{|m|}\sum_k a_k z^{l-|m|-2k}r^{2k}\f$
+//! with \f$a_k=(-1)^k(2l-2k)!/(k!(l-k)!(l-|m|-2k)!)\f$ (the Rodrigues coefficients of
+//! \f$d^{|m|}P_l/dt^{|m|}\f$ up to the common \f$2^{-l}\f$), ordered \f$m=-l..+l\f$ (sin for \f$m<0\f$, cos for
+//! \f$m\ge0\f$).  Each harmonic equals \c SphericalShell's table for \f$l\le3\f$ up to a POSITIVE scale (gated in
+//! M_Spherical), which is all the callers rely on.  Zero terms (cancellations) are dropped.
+inline HarmonicC2S GenerateSolidHarmonics(int l)
+{
+    assert(l>=0);
+    auto fact=[](int n){ double f=1.0; for (int i=2;i<=n;i++) f*=i; return f; };
+    auto binom=[&](int n,int k){ return fact(n)/(fact(k)*fact(n-k)); };
+    HarmonicC2S out;
+    for (int m=-l;m<=l;m++)
+    {
+        const int am=m<0 ? -m : m;
+        std::map<Monomial,double> poly;
+        // (x+iy)^am = sum_j C(am,j) x^(am-j) (iy)^j: Re keeps j even, Im keeps j odd, sign i^j.
+        for (int j=0;j<=am;j++)
+        {
+            if ((m<0) != (j%2==1)) continue;                     // cos(m>=0) <- even j; sin(m<0) <- odd j
+            const double pre=binom(am,j)*(((m<0 ? (j-1)/2 : j/2)%2) ? -1.0 : 1.0);
+            for (int k=0;2*k<=l-am;k++)
+            {
+                const double a=((k%2) ? -1.0 : 1.0)*fact(2*l-2*k)/(fact(k)*fact(l-k)*fact(l-am-2*k));
+                // r^(2k) = (x^2+y^2+z^2)^k = sum_{p+q+s=k} k!/(p!q!s!) x^2p y^2q z^2s
+                for (int pp=0;pp<=k;pp++)
+                    for (int qq=0;pp+qq<=k;qq++)
+                    {
+                        const int ss=k-pp-qq;
+                        const double mult=fact(k)/(fact(pp)*fact(qq)*fact(ss));
+                        poly[Monomial{am-j+2*pp, j+2*qq, l-am-2*k+2*ss}] += pre*a*mult;
+                    }
+            }
+        }
+        double cmax=0.0;
+        for (const auto& [mono,c] : poly) cmax=std::max(cmax, c<0 ? -c : c);
+        std::vector<CartTerm> h;
+        for (const auto& [mono,c] : poly) if ((c<0 ? -c : c) > 1e-12*cmax) h.push_back({mono,c/cmax});
+        out.push_back(std::move(h));
+    }
+    return out;
+}
+
 //! \brief The \f$2l+1\f$ real regular solid harmonics \f$R_{l,m}\f$ (homogeneous degree-\f$l\f$ harmonic
 //! polynomials, \f$\nabla^2 R=0\f$) for shell \a l, ordered \f$m=-l..+l\f$, each as its Cartesian-monomial
-//! expansion (\c l=0..3 = s,p,d,f; \c l>=4 asserts).  RAW coefficients: only the RELATIVE weights within
+//! expansion (\c l=0..3 = s,p,d,f tabulated; \c l>=4 = \c GenerateSolidHarmonics -- until 2026-10-21 an assert,
+//! compiled out in Release, so a g shell came back EMPTY and broke the spherical lattice view three ways).  RAW coefficients: only the RELATIVE weights within
 //! each \f$m\f$ matter (the overall per-harmonic scale is fixed elsewhere by unit self-overlap).  Shared by
 //! the spherical-Gaussian basis evaluator (which folds in normalisation) and the qcSymmetry spherical
 //! operation-rep builder (which projects the Cartesian rep through this map).
@@ -96,8 +142,7 @@ inline HarmonicC2S SphericalShell(int l)
         { {M{3,0,0}, 1.0}, {M{1,2,0},-3.0} },                          // m=+3  x(x^2 - 3y^2)
     };
     default:
-        assert(false && "qchem::Math::SphericalShell: only l=0..3 (s,p,d,f) supported");
-        return {};
+        return GenerateSolidHarmonics(l);
     }
 }
 
