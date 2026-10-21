@@ -138,8 +138,10 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
   **Set up 2026-10-21** (`024bd682`; `IntegrationTests/QE/README.md` §S2): `materials.json` `MnO2_beta_A1AFM` (Bolzan 1993 neutron cell,
   a 4.4041 / c 2.8765 Å, u 0.3046; corner Mn +m, body-centre −m), QE step 1 at Γ and k 4×4×6.  ⛔ **Plain LDA has NO gapped reference**:
   Γ is a 10 meV two-level artifact at E_F (the parked-SrVO₃ shape), k446 a semimetal (Mn ±3.0 μB, 4 of 1680 occupations fractional).
-  So hp.x's fixed 2-step is out.  Options, NOT decided: (a) a matched SMEARED oracle at a chosen kT (Fermi–Dirac in both codes, the
-  SrVO₃ k4/q2 pattern) on a k-mesh; (b) wait for resolved channels and open the gap with U(O pz) at U_in, as Macke does.  Our side
+  So hp.x's fixed 2-step is out.  **RULED 2026-10-21 (user): route (b)** — wait for the OpenWork §2 row "Response: REPORT
+  orbital-resolved channels" to land (being built in a parallel session), then open the gap with U(O pz) at U_in, as Macke does
+  (PBEsol: U(O pz) 4.62 + U(Mn t2g) 1.64 eV → 1.01 eV gap), and run the matched oracle from that gapped reference.  Rejected:
+  (a) a matched smeared oracle — a semimetal's χ₀ is set by the smearing width.  ⛔ BLOCKED on that row.  Our side
   resolves the structure (`--check`: 38 e); its Mn basis is VA's MnO-conditioned block — the TiO₂ lesson (O p tail + f) applies first.
 - **S3 — fix `doc/OpenWork.md` §3 "A carried density is re-filled at kT = 0"** before any U_SC campaign: every `hubbardLoop` outer
   step is a `BuildStage` from the carried density, so on a smeared / near-degenerate magnetic state each step kicks the state
