@@ -12,7 +12,7 @@ basis, transition-metal oxides, 14 GB desktop.  A supercell-free U is the only k
 
 ---
 
-## 1. Status (2026-10-01)
+## 1. Status (2026-10-01; §2 updated 2026-10-21)
 
 **Built** (OpenWork step 5 increments 1–3; H·OW): `Hubbard_U` term (scalar-generic, spin-native, real-TRIM,
 `FreezeOccupations`); manifold = an INPUT list `HubbardManifold{site,l,U,...}` (pin 23); `ManifoldSymmetry`
@@ -67,19 +67,21 @@ not a solver artifact.
 Every action appears here once; if it is not here it is a finding, not a task.
 
 **Track A — the U value (decides whether the method is real)**
-- **A7 (the active build) — `doc/LinearResponsePlan.md` ▶ START HERE.**  R0 (χ₀(q) sum-over-states, NiO vs
-  hp.x), R1 (molecular CPHF, HF α == PySCF 1e-6), R2 (periodic q=0 kernel, χ_LR == dn/dα to 2.7e-6) and CK-1
-  (SaveState/Restart, HDF5) DONE; **R3 steps 1–3 DONE 2026-09-29** (kernel at any q); **NEXT = R3 step 4**:
-  `HubbardLinearResponse(qmesh)` loops `Reference::QMesh`, prints χ₀(q), χ(q) with Krylov residuals, forms
-  χ(R) and U = (χ₀⁻¹−χ⁻¹)_II over the q-mesh supercell; gate = primitive Si with k,q 2×1×1 == the 2×1×1 supercell
-  at Γ (MEASURE its tolerance first, LRP §3d gate table).  Oracles: hp.x NiO 5.267 (U_in=3, frozen +U), SrVO₃
-  6.2502.  NiO states saved under `~/Code/qchem6-runs/` (check `ls`; use the FREE one for FD cross-checks); NiO
-  free frozen χ(q=0) = −2.0700 Ha⁻¹.  Design constraints (user): interface changes are general perturbation
-  theory (must also serve MP2/Z-vector), not DFT-specific; plan interfaces before coding.  Intended scope
-  decisions still to make: same-site U only (hp.x-equivalent) vs inter-site V from day one (pin 23 generalises
-  one more level); wire the response weight through the existing `OccupationPolicy` (Integer vs Fermi(kT)),
-  never a second metal-detector; response density projected through the SAME projector object as the ground
-  state; k+q→k′+G map as a first-class mesh query (C2 adjacent).
+- **A7 (our own linear-response U) — `doc/LinearResponsePlan.md` ▶ START HERE.**  R0–R4, CK-1 and H5 are DONE
+  (2026-10-05): `hubbardLoop` with `"estimator":"linearResponse"` runs Timrov's outer loop over a q-mesh and prints
+  `[U table]`.  NiO U_SC 5.727/5.744 eV (2×2×2 q-mesh) vs hp.x 5.267; SrVO₃ U(V 3d) 6.818 vs the FD-matched hp.x
+  6.177 (+10 %) with χ/χ₀ matched to 1.2 % — the excess is χ₀'s magnitude, as on NiO.  Still open, none blocking:
+  inter-site V_IJ and orbital-resolved channels REPORTED (χ's real-space off-diagonals already hold them); the NiO
+  ground-state gap (1.30 vs 2.86 eV at U_in=3) that would move U toward hp.x; one q-mesh outer step is ~2.2 h if
+  U_SC becomes routine.  Design constraint unchanged: interface changes are general perturbation theory, not DFT-specific.
+- **Cross-code gate vs CP2K CK-alpha (the next run, committed 2026-10-21 `7f411887`, NOT yet run):** `rundeck
+  decks/campaigns/CrossCode/{tio2_Ti3d_G,fes2_Fe3d_G,srvo3_V3d_G}.json` — Γ-only, same cell/basis file/LOWDIN
+  manifold as the CP2K runs, post-SCF `hubbardLinearResponse` + `hubbardFiniteDifference` (α = 0.0272 eV) at site 0.  Fill
+  an "ours (Γ, LOWDIN)" figure beside the CP2K LRT column in §1 for TiO₂ (CP2K 4.86), FeS₂ (6.01), SrVO₃ (4.43);
+  compare χ/χ₀ ratios first (U is a small difference of two large inverses).  This separates the open
+  differences listed under the CP2K paragraph in §1 (Γ-only vs k/q mesh, LOWDIN-all vs ortho-atomic) from method
+  error.  FeS₂ is the big one (12 atoms, 360 functions; hp.x took ~5 h): check `free -g` and run it under
+  `scripts/memsafe`.  NiO in CP2K stays parked (§1).
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
 - **A6** is complete (table above).  Remaining nothing queued; β-MnO₂ (Macke's second material) never scoped.
 
