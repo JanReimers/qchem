@@ -223,3 +223,10 @@ into the terms), `R2.5b` (`throw` is a marker), `V1.20` (`.Internal.` = the FAMI
 - **D-THREADS (partly ✅, 2026-10-02)**: single reader of `GPW_OMP_THREADS` in qchem.Parallel + truthful `ThreadSummary()` on the banner + 2 unit tests; ctest 999/999.  Rename to QCHEM_OPENMP_THREADS, `=0` => physical cores (proposed), the omp audit and the `ps -L` check remain in CleanCode.
 - **D-THREADS rename + unification ✅ (2026-10-02)**: `QCHEM_OPENMP_THREADS` (0 = physical cores; unset = serial everywhere, Becke build included; `GPW_OMP_THREADS` alias); ctest 1000/1000, 150 s (was 136 s).  BLAS fold-in, omp audit, ps -L check remain in CleanCode.
 - **D-THREADS ✅ closed (2026-10-03)**: omp audit (12 regions, all via WorkerThreads), measured CPU/wall for default / OMP auto / BLAS=4 on NaF, BLAS+LAPACK confirmed OpenBLAS-pthread; BLAS deliberately NOT folded into the one knob (nesting), banner warns on BLAS>1 with OpenMP>1.  Long-term remainder = V-CALCNET.
+- **D5 ✅ (2026-10-21, anchor-moving batch)**: under `imposeSymmetry` the Becke angular request is resolved and SAID -- a stated
+  scheme (Lebedev / GaussLegendre) replaced by the site-adapted invariant rule now prints a one-time `[Becke grid] ⚠` warning
+  (it was silent); an unset degree (<= 0) takes the calibrated 29 (`BeckeXCParams`); `MakeInvariantAngularMesh`'s seed-pool
+  exhaustion is a `runtime_error` naming the way out (it was a bare `assert`, compiled out in Release, which returned an EMPTY
+  mesh).  Gate `UTStructure InvariantAngularMesh.ExhaustedSeedPoolThrows` (every seed direction on the avoid list).  Sweep vs
+  batch item 1: 1052/1052, nothing moved.
+

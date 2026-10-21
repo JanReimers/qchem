@@ -454,6 +454,22 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
     }
 
     // BECKE kind: site-adapted, invariant by construction (W2b) -- the rest of this function.
+    // D5 (anchor batch, 2026-10-21): the ANGULAR request, resolved and said.  The site-adapted builder consumes only the
+    // DEGREE: a stated scheme (Lebedev / GaussLegendre) cannot be honoured under an imposed group and is REPLACED by the
+    // invariant rule of the same degree -- say so once, as a warning (it used to be silent).  An UNSET degree (<= 0) takes the
+    // calibrated Becke default.
+    const int L = mp.angularDegree>0 ? mp.angularDegree : 29;   // 29 = qcMesh::BeckeXCParams' calibrated default (qcMesh XCPolicy, not imported here)
+    {
+        static bool warned=false;
+        if (!warned)
+        {
+            warned=true;
+            std::cout<<"[Becke grid] ⚠ imposed symmetry: the requested "
+                     <<(mp.angular==qcMesh::AngularKind::Lebedev ? "Lebedev" : "GaussLegendre")<<" angular rule"
+                     <<(mp.angularDegree>0 ? "" : " (degree unset -> the Becke default)")
+                     <<" is REPLACED by the site-adapted invariant rule of degree "<<L<<std::endl;
+        }
+    }
 
     std::vector<rvec3_t> F;                         // fractional atom sites
     for (auto a : *this) F.push_back(ToFractional(a->itsR));
@@ -504,7 +520,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
         const rvec3_t& fr = F[af.repRaw[o]];
         std::vector<Matrix3D<double>> siteOps;
         for (const auto& op : ops) if (fixes(op, fr)) siteOps.push_back(cart(op.W));
-        qcMesh::Mesh aq = MakeInvariantAngularMesh(siteOps, mp.angularDegree, bondDirs(fr));
+        qcMesh::Mesh aq = MakeInvariantAngularMesh(siteOps, L, bondDirs(fr));
         for (auto [mi, oi] : af.members[o])
         {
             assert(oi>=0 && "site-adapted Becke mesh: the imposed op set must be a group (edge op per partner)");

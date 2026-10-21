@@ -25,6 +25,8 @@
 // torus, so every entry point takes the cell matrix A (columns = lattice vectors, r = A f) -- or a
 // SpaceGroup, which carries both its ops and its cell (§2c: no ops at the call site).
 module;
+#include <string>
+#include <stdexcept>
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
@@ -543,8 +545,11 @@ qcMesh::Mesh MakeInvariantAngularMesh(const std::vector<Matrix3D<double>>& ops, 
         }
         if (nOrb < K) break;                              // seed pool exhausted (assert below)
     }
-    assert(false && "MakeInvariantAngularMesh: no positive exact rule found (seed pool exhausted)");
-    return qcMesh::Mesh();
+    // D5: a REAL error, not a bare assert (compiled out in Release, where it returned an EMPTY mesh): a low-symmetry site
+    // (C1/Cs) can exhaust the generic seed pool at high L.  The caller can choose a lower degree or a free run.
+    throw std::runtime_error("MakeInvariantAngularMesh: no positive exact rule of degree "+std::to_string(L)+" for a site group of "
+                             +std::to_string(ops.size())+" ops (generic seed pool exhausted) -- lower xcMesh.angularDegree, "
+                             "or run this structure FREE (imposeSymmetry false)");
 }
 
 } // namespace

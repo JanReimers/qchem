@@ -4,6 +4,7 @@
 // group-averaged invariant-mesh constructor, the compact weight fold, and the pointwise
 // star-average -- everything the site-adapted Becke grid needs BEFORE any XC wiring.
 #include "gtest/gtest.h"
+#include <stdexcept>
 #include <vector>
 #include <cmath>
 #include <array>
@@ -211,6 +212,21 @@ TEST(InvariantAngularMesh, TrivialGroupStillExact)
     Mesh q = MakeInvariantAngularMesh(onlyE, 5);
     ASSERT_GT(q.size(), 0u);
     CheckAngularQuadrature(q, onlyE, 5);
+}
+
+// D5 (anchor batch, 2026-10-21): an unreachable degree is a REAL error naming the way out, not a bare assert -- which is
+// compiled out in Release, where the builder returned an EMPTY mesh.  Exhausted cheaply: every direction of the builder's
+// 1024-point Fibonacci seed pool is on the AVOID (bond) list, so no candidate orbit survives (white-box: the pool formula).
+TEST(InvariantAngularMesh, ExhaustedSeedPoolThrows)
+{
+    std::vector<Matrix3D<double>> onlyE = {Matrix3D<double>()};
+    std::vector<rvec3_t> everySeed;
+    for (int i=0;i<1024;i++)
+    {
+        const double z=1.0-2.0*(i+0.5)/1024.0, phi=i*(Pi*(3.0-std::sqrt(5.0))), r=std::sqrt(1.0-z*z);
+        everySeed.push_back(rvec3_t(r*std::cos(phi), r*std::sin(phi), z));
+    }
+    EXPECT_THROW(MakeInvariantAngularMesh(onlyE, 5, everySeed), std::runtime_error);
 }
 
 //---------------------------------------------------------------------------------------
