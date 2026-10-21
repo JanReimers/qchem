@@ -120,7 +120,16 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
   at Γ** (same deck, perturb an O 2p manifold; the only O data point today is MnO, CP2K 7.77 vs hp.x ortho 11.15, unexplained).
 - **S2 — a Mn⁴⁺ d³ proxy in a small cell: β-MnO₂** (rutile, 6 atoms; needs a `materials.json` entry, a Mn hp.x deck, collinear AFM).
   Tests pin 24 on λ-MnO₂'s exact d count: t2g³ is a fully spin-polarised half shell, the MnO-d⁵ saturation shape.  Measure χ/χ₀ for
-  the total-d AND the resolved t2g/e_g channels before believing either.
+  the total-d AND the resolved t2g/e_g channels before believing either.  **Literature: Macke et al., JCTC 20, 4824 (2024)
+  §4.3** (`~/Code/reprints/ct3c01403.pdf`; PBEsol, SSSP PPs, OAO projectors, A1-AFM in a 48-atom 2×2×2 supercell, geometry RE-RELAXED
+  each outer step): orbital-resolved U(Mn t2g) 1.59 eV (gap 0), + U(O pz) 4.62 eV → gap 1.01 eV and V₀ within 1 %; shell-averaged
+  U(Mn 3d) 6.34 (gap 0.02), U+V 6.76 / V(Mn–O) 0.99, 1.10 (their ref 59); expt a 4.40, c 2.88 Å.  The resolved U is well posed there
+  because they invert POINTWISE (χ, χ₀ off-diagonals between orbitals zeroed first — intrashell screening kept); a full inversion
+  is the pin-24 singular case, so our resolved channels must use the same inversion to compare.  The ligand that matters is
+  O **pz** (normal to the Mn₃O plane, π to t2g) — for us a separate irrep of the O site's C₂ᵥ (the planar-environment fix
+  `305450f4` is what makes that site group computable).  NOT a matched oracle (PBEsol, different PP, relaxed geometry): build one
+  as A6 did — QE 7.6 (has `orbital_resolved` + orbital-resolved U/α in the HUBBARD card) with our `gth2upf` UPFs, LDA, EXPERIMENTAL
+  geometry, A1-AFM: hp.x DFPT for shell-averaged Mn 3d, pw.x ±α (FD) for Mn t2g and O pz with 1×1 inversion; then ours.
 - **S3 — fix `doc/OpenWork.md` §3 "A carried density is re-filled at kT = 0"** before any U_SC campaign: every `hubbardLoop` outer
   step is a `BuildStage` from the carried density, so on a smeared / near-degenerate magnetic state each step kicks the state
   (SrVO₃ landed on different fixed points, 2026-10-21).
