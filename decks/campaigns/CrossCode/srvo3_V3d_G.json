@@ -1,7 +1,8 @@
 {
  "_doc": [
   "CROSS-CODE gate vs CP2K CK-alpha (doc/HubbardUPlan.md, 2026-10-05): the SAME Gamma-only cell, basis file (valence_lowq_tm.bsd via basis.file), LOWDIN all-shells manifold (empty radial = CP2K's convention), U_in=0, kT as CP2K.",
-  "chi/chi0/U from the finite-difference and linear-response post-actions at site 0; CP2K numbers in the HubbardUPlan table."
+  "chi/chi0/U from the finite-difference and linear-response post-actions at site 0; CP2K numbers in the HubbardUPlan table.",
+  "multiplicity 0 (UNPOLARIZED) because CP2K ran this d1 cell RKS (25 e: a UKS singlet is impossible).  multiplicity 1 on an odd count is a 13up/12dn DOUBLET, which at Gamma polarizes (V +2.6, 0.16 Ha below RKS) and is multi-stable under the FD alpha -- not the CP2K state (2026-10-21, SrVO3.r007/r009)."
  ],
  "structure": "SrVO3",
  "kmesh": [
@@ -15,7 +16,7 @@
   "spherical": true
  },
  "solid": {
-  "multiplicity": 1,
+  "multiplicity": 0,
   "seed": "IonicSAD",
   "ortho": "CholeskyPivoted",
   "orthoTol": 0.0001,
