@@ -1,0 +1,130 @@
+{
+ "_doc": [
+  "CORNER CASE vs QE hp.x at the SAME Gamma point (2026-10-21): the CP2K-validated TiO2 Gamma deck (tio2_Ti3d_G.json: U 4.870 vs CP2K 4.864) with the manifold",
+  "switched from LOWDIN-all to QE's ORTHO-ATOMIC set: every atom's PSWFC (Ti 4S+3D, O 2S+2P; checkpoints/tio2_U0.save/*.UPF) as U=0 spectators, Ti0 3d perturbed.",
+  "multiplicity 0 = QE nspin 1.  Matched oracle: hp.x with k 1x1x1, nq 1x1x1 (~/Code/qe-runs/TiO2/tio2_G.*); the k4/q2 hp.x value is 4.637 eV."
+ ],
+ "structure": "TiO2_rutile",
+ "kmesh": [
+  1,
+  1,
+  1
+ ],
+ "basis": {
+  "data": "VALENCE_LOWQ_VA",
+  "file": "/home/janr/Code/qchem6/BasisSetData/valence_lowq_tm.bsd",
+  "spherical": true
+ },
+ "solid": {
+  "multiplicity": 0,
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "forceComplex": true,
+  "accelerator": "Null",
+  "hubbard": [
+   {
+    "site": 0,
+    "l": 2,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   },
+   {
+    "site": 1,
+    "l": 2,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   },
+   {
+    "site": 0,
+    "l": 0,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   },
+   {
+    "site": 1,
+    "l": 0,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   },
+   {
+    "site": 2,
+    "l": 0,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   },
+   {
+    "site": 2,
+    "l": 1,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   },
+   {
+    "site": 3,
+    "l": 0,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   },
+   {
+    "site": 3,
+    "l": 1,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   },
+   {
+    "site": 4,
+    "l": 0,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   },
+   {
+    "site": 4,
+    "l": 1,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   },
+   {
+    "site": 5,
+    "l": 0,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   },
+   {
+    "site": 5,
+    "l": 1,
+    "U_eV": 0.0,
+    "atomicRadial": true,
+    "orthoAtomic": true
+   }
+  ]
+ },
+ "scf": {
+  "NMaxIter": 200,
+  "minDeltaRho": 1e-06,
+  "pulayDepth": 8,
+  "pulayStart": 5,
+  "kerkerG0": 1.0,
+  "useMOM": false,
+  "smearingkT": 0.005
+ },
+ "postSCF": [
+  {
+   "hubbardLinearResponse": {
+    "perturb": [
+     0
+    ]
+   }
+  }
+ ]
+}
