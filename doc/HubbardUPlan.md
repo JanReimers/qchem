@@ -32,10 +32,11 @@ manifold/outer-loop machinery).  No ACBN0 number is quoted as physics.
 NMAX=80).  Gate 2 run sizing — NOT DONE.  Gate 3 oracle set — DONE (became A6).  Gate 4 supercell-vs-q-mesh +
 k-parallelism — NOT DONE.
 
-**Headline oracle numbers** (matched-PP hp.x LRT, U in eV, U_in = 0 unless noted; k 4³ / q 2³ except NiO/MnO k 2³;
-`ortho-atomic` projector unless noted; full decks/logs in `IntegrationTests/QE/README.md` §A6):
+**Headline oracle numbers** (U in eV, U_in = 0 unless noted; full decks/logs in `IntegrationTests/QE/README.md` §A6).  Three
+METHODS, never merged: **DFPT** = analytic linear response (hp.x's Sternheimer over a q-mesh; ours `hubbardLinearResponse`, a Krylov
+solve of the same equations), **FD** = finite difference (±α SCFs; CP2K CK-alpha, ours `hubbardFiniteDifference`).  Columns:
 
-| material | manifold | U | CP2K LRT U | note |
+| material | manifold | QE hp.x U — DFPT, matched-PP, ortho-atomic unless noted, k 4³ / q 2³ (NiO/MnO k 2³) | CP2K U — FD, Γ only, LOWDIN-all · ours — DFPT, same Γ/basis/LOWDIN | note |
 | --- | --- | --- | --- | --- |
 | NiO | Ni 3d | **5.267** (U_in=3) / 5.434 (U_in=0) | not converged ⛔ (U_in=0 ⇒ nonmagnetic; U_in=3 AFM never settles, 7 recipes) | the one SOLID gate point; different U_in ⇒ different number, never average |
 | NiO | O 2p | 8.514 | — | replaced an old cRPA *bound* ≳4 |
@@ -43,7 +44,7 @@ k-parallelism — NOT DONE.
 | MnO | O 2p | ~~26.56~~ → 11.150 (ortho) | **7.77** (χ/χ₀ 0.439) | atomic projector was the artifact here; redone 2026-09-30 |
 | SrVO₃ / KCuF₃ / Sr₂FeO₄ | V / Cu / Fe 3d | 6.250 / 8.163 / 8.012 | SrVO₃ **4.43** (χ/χ₀ 0.041; Γ-only metal) · ours 4.41–4.65 (Γ fixed points, parked) / — / — | KCuF₃, Sr₂FeO₄ geometry from Carta's own input files (`~/Code/reprints/materials_cloud_submission/`); their U is MLWF-based, not comparable |
 | LiMO₂ M=V,Cr,Fe,Co,Ni | M 3d | 5.953 / 5.811 / 7.592 / 7.307 / 9.173 | — | idealised R-3m template; LiNiO₂ U_in≈0 `.save` archived `IntegrationTests/QE/checkpoints/linio2_U0.save/` |
-| TiO₂ rutile | Ti 3d | 4.637 | **4.86** (χ/χ₀ 0.286) · ours **4.870** (0.286) | d⁰ gap, no 2-step |
+| TiO₂ rutile | Ti 3d | 4.637 | **4.86** (χ/χ₀ 0.286) · ours **4.870** (0.286) | d⁰ gap, no 2-step.  **At Γ, ortho-atomic, both DFPT: hp.x 5.019 (χ/χ₀ 0.330) vs ours 5.742 (0.248) — χ₀ +31 %, χ −1.6 %: OPEN corner case** (§2) |
 | FeS₂ pyrite | Fe 3d | **7.5351** | **6.01** (χ/χ₀ 0.119) · ours **6.007** (0.120) | identical to 4 s.f. on all 4 Fe sites; ~5 h run; original console log lost to a driver-bug rerun (`batch/recovered/` holds the Hubbard_parameters.dat) |
 | ZnO | Zn 3d | 35.34 | — | NOT AN ORACLE: closed d¹⁰ shell, χ₀≈χ≈0 |
 | Si (CP2K CK-alpha) | 3p | χ only | χ only (not a U) | χ_CP2K −14.5164 vs ours −14.5117 Ha⁻¹ (0.033 %) — validates our method |
@@ -81,9 +82,15 @@ Every action appears here once; if it is not here it is a finding, not a task.
   U_SC becomes routine.  Design constraint unchanged: interface changes are general perturbation theory, not DFT-specific.
 - ✅ **Cross-code gate vs CP2K CK-alpha — PASSED 2026-10-21** (§1; record H §"A7 cross-code gate"): TiO₂ and FeS₂ agree
   to 6 meV / <1 meV; SrVO₃ at Γ parked.  The goal stays CORNER CASES where our U or χ disagrees with CP2K/QE, without
-  getting bogged down in convergence heuristics (user 2026-10-21; why NiO-CP2K and SrVO₃-Γ are parked).  Candidate next
-  corner case, NOT committed to: the remaining hp.x differences one at a time on a non-degenerate insulator (TiO₂:
-  ortho-atomic at Γ, then the k/q mesh), against hp.x 4.637.
+  getting bogged down in convergence heuristics (user 2026-10-21; why NiO-CP2K and SrVO₃-Γ are parked).
+- **CORNER CASE FOUND 2026-10-21 — TiO₂ ortho-atomic at Γ vs hp.x at Γ** (both DFPT, same state, same PP and same
+  pseudo-atom radials: `gth2upf` writes OUR pseudo-atom orbitals as PP_CHI; record H §"TiO₂ ortho-atomic at Γ"): d
+  occupation 2.405 vs 2.208 (+9 %), **χ₀ −14.404 vs −10.969 Ha⁻¹ (+31 %)**, χ −3.566 vs −3.625 (−1.6 %), U 5.742 vs
+  5.019 eV.  Not a projector SCALE (χ/χ₀ 0.248 vs 0.330).  Lead: the ortho-atomic SPECTATORS are truncated in
+  `valence_lowq_tm.bsd` (Ti 4s captures 0.9675 of its norm, O 2p 0.9762; Ti 3d 0.9952), so Ti 3d is under-orthogonalised
+  against O 2p.  Next action: the same deck on a basis that captures the spectators (`VALENCE_LOWQ_VA` has no Ti — mint
+  Ti into it or add O p / Ti s shells to the TM file with valgen); if occupation and χ₀ move to QE, it is spectator
+  truncation, otherwise the Gaussian virtual space.  Then the k/q mesh (hp.x 4.637).
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
 - **A6** is complete (table above).  Remaining nothing queued; β-MnO₂ (Macke's second material) never scoped.
 

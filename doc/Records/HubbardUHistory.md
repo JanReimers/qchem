@@ -1708,3 +1708,28 @@ density does an iteration-0 Fock-diagonalize-and-fill on the occupation policy's
 TiO₂ (gap 1.8 eV) Δρ 4e-4; FeS₂ (gap 0.73 eV, kT 0.136 eV) Δρ 3.4e-3, E 0.93 Ha off, swinging to −116 Ha before returning; SrVO₃
 (metal) Δρ 2.7e-2, E 14 Ha off.  Pulay at relax 1.0 (the deck's ground-state params, passed straight to the FD re-converge) then
 amplifies it.  The LR numbers never pass through a restart, so the gate stands on them.
+
+## TiO₂ ortho-atomic at Γ vs hp.x at Γ (2026-10-21) — an OPEN corner case
+
+Ours: `rundeck decks/campaigns/CrossCode/tio2_Ti3d_G_ortho.json` = the CP2K-validated Γ deck (same state: Etot −71.1350613 Ha, as
+the LOWDIN run) with QE's ortho-atomic set (every atom's PSWFC: Ti 4S+3D, O 2S+2P as U = 0 spectators, Ti0 3d perturbed), multiplicity 0;
+record `~/Code/qchem6-runs/TiO2/TiO2_rutile.r005.json`, 1 min 44 s.  QE: the archived `IntegrationTests/QE/tio2.{scf,hp}.in` with k 1³,
+q 1³ (`~/Code/qe-runs/TiO2/tio2_G.*`, `mpirun -np 4`, 1 min 13 s); its UPFs' PP_CHI are OUR pseudo-atom orbitals (`CLIapps/gth2upf.C`),
+so both codes project onto the same radials.  QE prints the Ti1 column only; by symmetry the 2×2 inversion gives hp.x's 5.0191 eV, the
+1×1 scalar 5.026 (the matrix-vs-scalar difference is 7 meV, so our single-site χ is compared directly).
+
+| Ti 3d, Γ, ortho-atomic | ours | QE hp.x | ours/QE |
+|---|---|---|---|
+| d occupation (both spins) | 2.405 | 2.208 | +8.9 % |
+| χ₀(1,1) Ha⁻¹ | −14.404 | −10.969 (−0.40310 eV⁻¹) | +31 % |
+| χ(1,1) Ha⁻¹ | −3.566 | −3.625 (−0.13321 eV⁻¹) | −1.6 % |
+| χ₀(2,1), χ(2,1) eV⁻¹ | — | +0.02430, +0.00221 | |
+| χ/χ₀ | 0.248 | 0.330 | |
+| U eV (scalar) | 5.742 | 5.026 (2×2 5.019) | +14 % |
+
+Almost all of the 0.72 eV is the χ₀⁻¹ term; not a projector SCALE (that would leave χ/χ₀ alone).  Lead: the ortho-atomic spectators are
+truncated by `valence_lowq_tm.bsd` (captured norm Ti 4s 0.9675, O 2p 0.9762 on 4 p shells; Ti 3d 0.9952, O 2s 0.9971), so Ti 3d is
+under-orthogonalised against O 2p — consistent with a larger occupation and a larger bare response.  The discriminator (same deck on
+`VALENCE_LOWQ_VA`) could not run: that file has no Ti.  CP2K's LOWDIN-all has no spectators, which is why the CP2K gate could not see it.
+Found on the way: `SiteEnvironmentRotations` threw on rutile's coplanar O environment (fixed `305450f4`), and `Gaussian94Reader` reports a
+missing element as a garbage-byte angular-momentum label (OpenWork §3 row).
