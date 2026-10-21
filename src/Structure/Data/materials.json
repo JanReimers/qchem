@@ -446,5 +446,24 @@
     "atoms":   [ { "el": "V",  "frac": [0.0, 0.0, 0.0] }, { "el": "Sr", "frac": [0.5, 0.5, 0.5] },
                  { "el": "O",  "frac": [0.5, 0.0, 0.0] }, { "el": "O",  "frac": [0.0, 0.5, 0.0] }, { "el": "O", "frac": [0.0, 0.0, 0.5] } ],
     "species": { "V": 5, "Sr": 2, "O": 6 }
+  },
+  "TiO2_rutile": {
+    "comment": "TiO2 rutile, the QE hp.x oracle cell (IntegrationTests/QE/tio2.scf.in): a = 8.681591 bohr, c/a = 0.644065, u = 0.3057; 6 atoms.  d0 insulator, non-magnetic.  Ti q4 = the oracle's pseudopotential.  Site 0 = Ti at the origin.",
+    "lattice": { "type": "TetragonalP", "a": 8.681591, "c": 5.591509 },
+    "atoms":   [ { "el": "Ti", "frac": [0.0, 0.0, 0.0] }, { "el": "Ti", "frac": [0.5, 0.5, 0.5] },
+                 { "el": "O",  "frac": [0.3057, 0.3057, 0.0] }, { "el": "O", "frac": [0.8057, 0.1943, 0.5] },
+                 { "el": "O",  "frac": [0.1943, 0.8057, 0.5] }, { "el": "O", "frac": [0.6943, 0.6943, 0.0] } ],
+    "species": { "Ti": 4, "O": 6 }
+  },
+  "FeS2_pyrite": {
+    "comment": "FeS2 pyrite Pa-3, a = 5.418 A = 10.2385 bohr, S 8c x = 0.386: the A6 hp.x oracle cell (IntegrationTests/QE, batch 02_fes2_hpx).  Low-spin d6, non-magnetic.  Fe q8, S q6.  Site 0 = Fe at the origin.",
+    "lattice": { "type": "CubicP", "a": 10.238536143 },
+    "atoms":   [ { "el": "Fe", "frac": [0.0, 0.0, 0.0] }, { "el": "Fe", "frac": [0.0, 0.5, 0.5] },
+                 { "el": "Fe", "frac": [0.5, 0.0, 0.5] }, { "el": "Fe", "frac": [0.5, 0.5, 0.0] },
+                 { "el": "S", "frac": [0.386, 0.386, 0.386] }, { "el": "S", "frac": [0.614, 0.614, 0.614] },
+                 { "el": "S", "frac": [0.114, 0.614, 0.886] }, { "el": "S", "frac": [0.886, 0.386, 0.114] },
+                 { "el": "S", "frac": [0.614, 0.886, 0.114] }, { "el": "S", "frac": [0.386, 0.114, 0.886] },
+                 { "el": "S", "frac": [0.886, 0.114, 0.614] }, { "el": "S", "frac": [0.114, 0.886, 0.386] } ],
+    "species": { "Fe": 8, "S": 6 }
   }
 }

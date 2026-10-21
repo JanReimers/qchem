@@ -1,0 +1,58 @@
+{
+ "_doc": [
+  "CROSS-CODE gate vs CP2K CK-alpha (doc/HubbardUPlan.md, 2026-10-05): the SAME Gamma-only cell, basis file (valence_lowq_tm.bsd via basis.file), LOWDIN all-shells manifold (empty radial = CP2K's convention), U_in=0, kT as CP2K.",
+  "chi/chi0/U from the finite-difference and linear-response post-actions at site 0; CP2K numbers in the HubbardUPlan table."
+ ],
+ "structure": "FeS2_pyrite",
+ "kmesh": [
+  1,
+  1,
+  1
+ ],
+ "basis": {
+  "data": "VALENCE_LOWQ_VA",
+  "file": "/home/janr/Code/qchem6/BasisSetData/valence_lowq_tm.bsd",
+  "spherical": true
+ },
+ "solid": {
+  "multiplicity": 1,
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "forceComplex": true,
+  "accelerator": "Null",
+  "hubbard": [
+   {
+    "site": 0,
+    "l": 2,
+    "U_eV": 0.0
+   }
+  ]
+ },
+ "scf": {
+  "NMaxIter": 200,
+  "minDeltaRho": 1e-06,
+  "pulayDepth": 8,
+  "pulayStart": 5,
+  "kerkerG0": 1.0,
+  "useMOM": false,
+  "smearingkT": 0.005
+ },
+ "postSCF": [
+  {
+   "hubbardLinearResponse": {
+    "perturb": [
+     0
+    ]
+   }
+  },
+  {
+   "hubbardFiniteDifference": {
+    "perturb": [
+     0
+    ],
+    "alpha_eV": 0.027211386245987998
+   }
+  }
+ ]
+}
