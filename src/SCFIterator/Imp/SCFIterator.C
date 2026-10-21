@@ -154,7 +154,7 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
 
 // The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in
 // Init) instead of a strategy enum.  Shared construction body -- the SeedStrategy ctor delegates here.
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol,SeedRole role)
     : itsHamiltonian (H )
     , itsAccelerator (acc)
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator,basisOrtho,basisOrthoTol) )
@@ -177,11 +177,11 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
         assert((!st || isPeriodicCell(st)) && "the dcmplx SCF lineage is periodic: Structure must be a UnitCell");
         if (st) itsKerkerCell = st->Clone();
     }
-    Initialize(seedDensity, bs, st);   // Init owns the seed transiently (see Initialize)
+    Initialize(seedDensity, bs, st, role);   // Init owns the seed transiently (see Initialize)
 }
 
 
-template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st)
+template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st, SeedRole role)
 {
     // The seed is only needed to build the iteration-0 Fock; it is NOT a working density (it may be a fit
     // with no density matrix), so own it transiently here rather than storing it as itsOldCD.
@@ -226,6 +226,22 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     // now, where it used to be an accident of SetSmearing arriving only at Iterate (the D11 charge loss).
     SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, *itsOccPolicy, 0.0001))); //first real (matrix-backed) density
     assert(itsCD);
+    // A CARRIED seed -- a restored state (Restart), an anneal / +-alpha / U-loop stage; the CALLER says so (SeedRole).  The
+    // fill above runs on the policy's DEFAULT (integer aufbau, kT = 0, no MOM: this run's own policy is only set in Iterate),
+    // and iteration 1 used to start from that kT = 0 RE-FILL (OpenWork §3 "A carried density is re-filled at kT = 0",
+    // 2026-10-21): invisible on a gapped insulator; FeS2 (kT 0.136 eV) first iterate 0.93 Ha off, SrVO3 (metal) 14 Ha off,
+    // landing on different fixed points.  So the carried density is KEPT, and when the run's policy is not the default the
+    // first Iterate redoes this fill under it -- a restored fixed point then refills to ITSELF, and a perturbed stage
+    // (+-alpha, a new U) still takes its full first step.  At kT = 0 without MOM the fill above already IS the run's, and the
+    // path stays bit-identical.  (Making the carried density the working density outright was tried first: the +-alpha stages
+    // lost that first step and limit-cycled once the linear mixer grew relax 0.2 -> 1.0.)
+    if (role==SeedRole::WorkingDensity)
+    {
+        auto* carried=dynamic_cast<tDM_CD<T>*>(seed);
+        if (!carried) throw std::logic_error("SCFIterator: a WorkingDensity seed must be matrix-backed (a converged state of this graph)");
+        seedOwner.release();
+        itsCarried.reset(carried);
+    }
 }
 // R2.22: there is nothing left to free by hand.  The Hamiltonian and the accelerator are the CALLER's
 // (this class never made them, so it never deletes them -- the composition root owns both and outlives
@@ -290,6 +306,14 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     itsOccPolicy = qchem::MakeOccupationPolicy<T>(
         {.useMOM=ipar.UseMOM, .momStartIter=(int)ipar.MOMStartIter,
          .kT=ipar.SmearingkT, .momPenalty=ipar.MOMSmearPenalty}, itsOccState);
+    // A CARRIED seed's iteration-0 fill, redone under THIS run's policy when that is not the default (see SeedRole and
+    // Initialize).  Once per construction.
+    if (itsCarried)
+    {
+        if (ipar.SmearingkT>0.0 || ipar.UseMOM)
+            SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, itsCarried.get(), *itsOccPolicy, 0.0001)));
+        itsCarried.reset();
+    }
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     // V1.27: is the virial theorem meaningful for THIS Hamiltonian at all?  It needs a Coulombic (degree -1
     // homogeneous) potential, which a pseudopotential is not.  Asked ONCE, of the object that knows -- the

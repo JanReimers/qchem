@@ -252,3 +252,23 @@ orbital-diagonal for one site.  Measured there: U(E) 61 eV at n = 0.003 vs U(T2)
 near-empty channel's resolved U is not a physical number.  TiO₂ Γ ortho-atomic smoke (scratch, `resolve: eigen`, Ti0 3d):
 D₂h d = 2A_g + B1g + B2g + B3g resolves into 5 channels (the two A_g mix xy/z² on the global axes; n 0.25 / 0.63), O p into
 z vs (x,y); full U 3.0–7.0 eV, 1×1 −0.6–2.2 eV (a 6-atom Γ cell: no isolation; the oracle needs a supercell/q-mesh).
+
+## ✅ A carried density is re-filled at kT = 0 (closed 2026-10-21, anchor-moving batch item 1)
+Cause (`SCFIterator::Initialize`): every seed's iteration-0 Fock-diagonalize-and-fill ran on the occupation policy's DEFAULT
+(integer aufbau, kT = 0, no MOM) because the run's own policy is only assembled in `Iterate`; for a CARRIED converged density
+(a restart, an anneal / ±α / U-loop stage) iteration 1 started from that kT = 0 re-fill.  Fix: the caller says what a seed IS
+(`SCFIterator::SeedRole`, explicit-seed ctor): `Guess` (every strategy seed; unchanged) or `WorkingDensity` (set only by
+`SolidCalculation::BuildStage` and `Restart`).  A carried seed is held to the first `Iterate`, and when the run's policy is
+not the default (kT > 0 or MOM) its iteration-0 fill is REDONE under that policy -- a restored fixed point refills to itself.
+At kT = 0 without MOM the path is bit-identical.  Two dead ends, recorded so they are not retried: (1) "a matrix-backed seed
+is a carried one" is FALSE (the Uniform and plane-wave strategy seeds are matrix-backed, in other block layouts -- 11 tests
+threw on mismatched composites); (2) making the carried density the working density OUTRIGHT loses a perturbed stage's full
+first step: the ±α SCFs limit-cycled once the linear mixer grew relax 0.2 → 1.0.  Also: the ±α / restore stages of
+`HubbardFiniteDifferenceChi` take a restart recipe (LINEAR mixing's relax capped at 0.3 -- a Kerker/Pulay α is left alone: the
+k211 FD gate's ±α runs converge at 0.45 and not at 0.3; at kT = 0 a Ladder enters at its GDM rung), and
+`Restart` enters the GDM rung at kT = 0 ONLY -- a smeared stage restored from an integer state hands GDM an idempotent D′,
+which engages and never applies the smearing (Si k222 kT 0.02: 6 mHa off; gate `SolidState.LadderRestart_Smeared_StartsOnDIIS`).
+Gate: `SolidState.SmearedExactResume_StartsAtTheSavedState` (Si k222, kT 0.02): without the fix the first iterate is 5e-6 Ha
+off the saved state and the run needs > 3 iterations; with it, it starts on the state.  Sweep vs the batch baseline (HEAD
+`69a58211`): 1051/1051, ONE test moved -- `GPW_Al.Γ_Imp_Anneal_Anchor` 48 → 28 iterations, energy unchanged to 1e-9; the FD
+gate's χ is bit-identical (−14.41588683).

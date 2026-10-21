@@ -119,6 +119,17 @@ struct ColumnData
 // Templated on the matrix element type T (rX/cX); SCFIterator is the <double> alias (atoms/
 // molecules), cSCFIterator the <dcmplx> instantiation that drives single-k plane-wave DFT through
 // the same assemble->diagonalize->fill->build-density loop.
+//! What an explicit seed IS to the iterator (OpenWork §3 "A carried density is re-filled at kT = 0", 2026-10-21).  The
+//! caller says it: only the composition root knows whether a density is a converged state of THIS graph -- a matrix-backed
+//! seed is not enough (the Uniform and plane-wave strategy seeds are matrix-backed, in other block layouts).
+enum class SeedRole
+{
+    Guess,           //!< build the iteration-0 Fock from it; the first working density is that Fock's fill (every strategy seed)
+    WorkingDensity,  //!< a CONVERGED density of this basis and block layout (a restored state, an anneal / +-alpha / U-loop
+                     //!< stage): when the run's occupation policy is not the default (kT > 0 or MOM) its iteration-0 fill is
+                     //!< REDONE under that policy at the top of the first Iterate -- so a restored fixed point refills to itself
+};
+
 template <class T> class tSCFIterator
 {
     typedef qchem::Hamiltonian::tHamiltonian<T>  ham_t;
@@ -145,10 +156,12 @@ public:
     //! orbital one-body matrices are grid-independent (only the collocation grid differs), so the coarse
     //! density matrix transfers directly, with no re-projection.  \a seedDensity's own basis block must
     //! outlive this ctor (it is read once here, in Init).
+    //! \a role: \c SeedRole::WorkingDensity when \a seedDensity is a converged state of this graph (THROWS if it is not
+    //! matrix-backed); the default \c Guess is the old behaviour.
     tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
                  tChargeDensity<T>* seedDensity,
                  const Structure* st=nullptr,
-                 qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0);
+                 qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, SeedRole role=SeedRole::Guess);
     virtual ~tSCFIterator();
     virtual bool Iterate(const SCFParams& ipar);
 
@@ -237,7 +250,7 @@ private:
     //! the SAD seed; or null for the core guess), diagonalize, and take the first real (matrix) density.
     //! \a bs / \a st are forwarded for the HF/DHF bootstrap (build a DFT sibling when the seed has no matrix
     //! but the Hamiltonian needs one -- see project_numericcd_refactor); null is fine for the core guess.
-    void Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st);
+    void Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st, SeedRole role=SeedRole::Guess);
     //! The Hamiltonian's total energy for \a cd, with the wavefunction's Mermin −TS stamped into
     //! EnergyBreakdown::MinusTS so GetTotalEnergy() reads the free energy A=E−TS under Fermi smearing
     //! (0 with no smearing => plain E).  The entropy is a WF-side scalar (the Hamiltonian terms never
@@ -289,6 +302,7 @@ private:
 
     size_t          itsIterationCount;
     bool            itsConverged;
+    std::shared_ptr<tDM_CD<T>> itsCarried;   //!< a WorkingDensity seed, held to the first Iterate (see SeedRole)
     Observer        itsObserver;   //!< optional live-progress sink (default empty)
 
     // Density-face state.  The mixer (Linear / Kerker; see qchem.ChargeDensity.DensityMixer) is built per-run
