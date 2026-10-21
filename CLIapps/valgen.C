@@ -171,7 +171,7 @@ int main(int argc, char** argv)
 {
     // ---- defaults ----
     string element, functional = "LDA", out, seedOut, name, detail = "normal";
-    int    q = 0, electrons = 0;                         // q 0 => resolve by policy below (valence / --semicore)
+    int    q = 0, electrons = -1;                        // q 0 => resolve by policy below; electrons -1 => neutral (== q)
     bool   seed = false;                                 // also generate the seed valence density
     bool   spin = false;                                 // spin-resolved seed: polarized (Hund) run, emit rho_up/rho_dn
     bool   semicore = false;                             // pick the first semicore variant instead of valence
@@ -200,6 +200,8 @@ int main(int argc, char** argv)
         "  --electrons <int>  how many valence electrons to OCCUPY = the CHARGE STATE; default = q\n"
         "                       (neutral).  THIS is where an ion goes: F- => --electrons 8 (q stays 7),\n"
         "                       a cation => fewer.  Does not change which PP is used (--q/--semicore do).\n"
+        "                       0 (a fully-stripped ion, e.g. Sr2+ at q2) is refused: nothing to validate,\n"
+        "                       and IonicSAD seeds such a species as nothing without a library entry.\n"
         "  --functional <fn>  GTH parameter set                          (default LDA)\n"
         "  --shell <spec>     an even-tempered window l:N:emin:emax (REPEATABLE, >=1 required);\n"
         "                       N exponents geometric from emin to emax, e.g. --shell 0:8:0.12:40\n"
@@ -268,6 +270,14 @@ int main(int argc, char** argv)
 
     if (element.empty()) { cout << "valgen: --element is required\n"; usage(cout); return 1; }
     if (shells.empty())  { cout << "valgen: at least one --shell l:N:emin:emax is required\n"; usage(cout); return 1; }
+    if (electrons == 0 || electrons < -1)
+    {
+        cout << "valgen: --electrons " << electrons << (electrons == 0
+                ? " is a fully-stripped ion: there is no density to validate a basis in or to seed from, and\n"
+                  "  IonicSAD needs no library entry for it (SeedCD seeds a target<=0 species as nothing).\n"
+                : " is negative.\n");
+        return 1;
+    }
 
     // Resolve --element: accept a SYMBOL ("Al") or a numeric atomic number ("13").  Validate up front and
     // canonicalise to the table's symbol -- an unknown symbol / out-of-range Z otherwise resolves to Z=0 and
@@ -331,7 +341,7 @@ int main(int argc, char** argv)
             rpt::Set("q",          (long)q);               // the chosen PP variant (valence unless --semicore/--q)
             { std::ostringstream os; for (size_t i=0;i<variants.size();++i){ if(i) os<<","; os<<variants[i]; }
               rpt::Set("qAvailable", os.str()); }          // all tabulated variants (valence..semicore)
-            rpt::Set("electrons",  (long)(electrons>0?electrons:q));   // occupancy; 0 => neutral (== q)
+            rpt::Set("electrons",  (long)(electrons>=0?electrons:q));  // occupancy; unset (-1) => neutral (== q)
             rpt::Set("functional", functional);
             for (const auto& [l, es] : shells)
             {

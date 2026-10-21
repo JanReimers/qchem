@@ -7,6 +7,7 @@ module;
 #include <iomanip>
 #include <cmath>
 #include <cctype>
+#include <stdexcept>
 
 module qchem.ValenceBasisGen;
 
@@ -19,6 +20,19 @@ import qchem.Math;                             // Pi (the 4 pi in the charge int
 
 namespace qchem
 {
+
+// The recipe's valence-electron count: unset (-1) => Zion (neutral); a fully-stripped ion (0) or a negative
+// count is refused (see ValenceBasisRecipe::electrons).
+static int ValenceElectrons(const ValenceBasisRecipe& r, int Zion)
+{
+    if (r.electrons < 0) return Zion;
+    if (r.electrons == 0)
+        throw std::invalid_argument("valgen: " + r.element + " with 0 valence electrons is a fully-stripped ion -- "
+                                    "there is no density to validate a basis in or to seed from, and IonicSAD needs "
+                                    "no library entry for it (SeedCD seeds a target<=0 species as nothing).  "
+                                    "Validate the basis on the neutral atom (leave electrons unset).");
+    return r.electrons;
+}
 
 std::vector<double> EvenTemperedWindow(int N, double emin, double emax)
 {
@@ -45,7 +59,7 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r, bool showIterat
 {
     const int Z    = int(thePeriodicTable().GetZ(r.element));
     const int Zion = r.Zion > 0 ? r.Zion : Pseudopotential::GetGTH(r.element, r.functional).zion;
-    const int nel  = r.electrons > 0 ? r.electrons : Zion;      // neutral pseudo-atom by default
+    const int nel  = ValenceElectrons(r, Zion);      // neutral pseudo-atom by default
     const int charge = Z - nel;                                 // AtomCalculation: electrons = Z - charge
 
     // --- validate: run the spherical pseudo-atom SCF in EXACTLY these per-l shells (LDA XC, GTH q=Zion).
@@ -80,7 +94,7 @@ double GenerateFloorEnergy(const ValenceBasisRecipe& r)
 {
     const int Z    = int(thePeriodicTable().GetZ(r.element));
     const int Zion = r.Zion > 0 ? r.Zion : Pseudopotential::GetGTH(r.element, r.functional).zion;
-    const int nel  = r.electrons > 0 ? r.electrons : Zion;
+    const int nel  = ValenceElectrons(r, Zion);
     const int charge = Z - nel;
 
     // Same element/PP/charge, but a large accuracy-POOL Gaussian basis (no exponentsByL) -- the near-complete
@@ -100,7 +114,7 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
 {
     const int Z    = int(thePeriodicTable().GetZ(r.element));
     const int Zion = r.Zion > 0 ? r.Zion : Pseudopotential::GetGTH(r.element, r.functional).zion;
-    const int nel  = r.electrons > 0 ? r.electrons : Zion;      // valence electrons of THIS charge state
+    const int nel  = ValenceElectrons(r, Zion);      // valence electrons of THIS charge state
     const int charge = Z - nel;                                 // AtomCalculation: electrons = Z - charge
 
     // The SAME pseudo-atom SCF the basis generator runs (identical shells/PP/functional) -- one validated SCF.

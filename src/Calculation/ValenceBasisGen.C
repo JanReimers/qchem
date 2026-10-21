@@ -36,7 +36,12 @@ export namespace qchem
     {
         std::string  element;               //!< element symbol, e.g. "F", "Na"
         int          Zion        = 0;       //!< GTH valence charge (0 => the GTH database default)
-        int          electrons   = 0;       //!< valence electrons to occupy when validating (0 => Zion, neutral)
+        //! Valence electrons to occupy when validating: -1 (unset) => Zion, the neutral pseudo-atom.  0 means
+        //! ZERO -- a fully-stripped ion (Sr2+ at q2) -- and is REFUSED: there is no density to validate a basis
+        //! in or to sample a seed from, and none is needed (SeedCD seeds a target<=0 species as nothing,
+        //! without asking the library).  Until 2026-10-21 0 was the "unset" sentinel, so Sr2+ silently came
+        //! back NEUTRAL.
+        int          electrons   = -1;
         std::string  functional  = "LDA";   //!< GTH parameter set (the GPW/PP stack is LDA today)
         //! The per-l shells: (l, exponents), one uncontracted primitive each.  Validated AND emitted verbatim.
         //! Exponents DISJOINT across shells (see the class note).  Higher-l polarization shells go here too.

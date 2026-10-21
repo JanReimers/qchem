@@ -183,3 +183,13 @@ Cause: `UseFD`'s idempotency test (Tr D′ = Tr D′²) and block-occupancy test
 
 ## ✅ Shifted-MP fold lowered Si by 1.02 mHa (closed 2026-10-01)
 `GPW_Si.k222s_Imp_CP2K`: imposed −7.868473 vs FREE −7.867453. Cause: a shifted MP mesh on fcc is not Oh-invariant; `FoldGrid` skips ops that do not map the mesh onto itself (8 → 2 irreducible via the subgroup), but `DetectPointOps` handed ρ's G-space/raster star-average all 48 ops, so ρ was symmetrized over an Oh-orbit k-set bigger than the one the bands were summed over. Fix: filter `recipDensity`/`directDensity` through `Fold::MapsMeshOntoItself` (BasisSet.C). Result −7.867453736 = FREE to µHa; test tolerance tightened 3e-3 → 1e-4. Diagnostic (a)-(c) were not needed. Γ-centred and TRIM meshes keep all 48 ops (full ctest 983/983).
+
+## ✅ valgen could not mint a fully-stripped ion (closed 2026-10-21)
+`--electrons 0` was the "unset" sentinel (`r.electrons > 0 ? r.electrons : Zion`), so Sr²⁺ at q2 silently came back
+NEUTRAL (charge 2.0003, found 2026-10-05 minting SrVO₃'s seeds).  Fix: `ValenceBasisRecipe::electrons` defaults to
+−1 (= neutral, Zion); 0 is a fully-stripped ion and is REFUSED (`std::invalid_argument` from Generate{ValenceBasis,
+SeedDensity,FloorEnergy}; valgen exits 1 with the reason).  Decision on "what is an empty-valence seed entry":
+NONE is needed -- `SeedCD`'s species rule seeds `target<=0` as nothing (scale 0) without consulting the library, and
+`MagneticDecoration` calls it non-magnetic; there is nothing to validate a basis in either (validate on the
+neutral).  The library's Sr entry (Nelec 2, q 2) is the genuine neutral, untouched.  Gate:
+`UTCalculation ValenceBasisGen.ElectronsUnsetIsNeutralAndZeroIsRefused`.

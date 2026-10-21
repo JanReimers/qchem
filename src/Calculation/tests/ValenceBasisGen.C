@@ -14,6 +14,7 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include <stdexcept>
 #include "nlohmann/json.hpp"      // read report::GlobalReport() values (get<double>) across the module boundary
 
 import qchem.ValenceBasisGen;
@@ -79,6 +80,20 @@ TEST(ValenceBasisGen, SodiumSeedDensityUnpolarizedWithPolarizationShell)
     GeneratedSeedDensity g = GenerateSeedDensity(r);
     EXPECT_NEAR(g.charge, 1.0, 0.01);
     EXPECT_EQ(g.moment, 0.0);
+}
+
+// electrons UNSET is the neutral pseudo-atom; 0 is a fully-stripped ion (Na+ at q1, Sr2+ at q2) and is
+// REFUSED.  Until 2026-10-21 0 was the "unset" sentinel, so Sr2+ silently came back neutral (charge 2.0003).
+TEST(ValenceBasisGen, ElectronsUnsetIsNeutralAndZeroIsRefused)
+{
+    ValenceBasisRecipe r;
+    r.element="Na"; r.Zion=1;                                        // electrons left unset
+    r.shells={ {0, EvenTemperedWindow(5, 0.03, 2.0)} };
+    EXPECT_NEAR(GenerateSeedDensity(r).charge, 1.0, 0.01);          // neutral Na q1
+    r.electrons=0;                                                   // Na+: nothing to validate or seed
+    EXPECT_THROW(GenerateSeedDensity(r),  std::invalid_argument);
+    EXPECT_THROW(GenerateValenceBasis(r), std::invalid_argument);
+    EXPECT_THROW(GenerateFloorEnergy(r),  std::invalid_argument);
 }
 
 TEST(ValenceBasisGen, SodiumSeedDensitySpinResolved)             // V3.1: empty minority channel
