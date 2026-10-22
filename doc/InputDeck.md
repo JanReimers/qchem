@@ -58,7 +58,7 @@ cd build/Release && ninja rundeck                                  # the one CLI
     {"hubbardLinearResponse": {"perturb":[0], "resolve":"eigen"}},       // ORBITAL-RESOLVED: "manifold" (default, hp.x) | "slot" (one channel per +U slot = site irrep) |
                                                                          //   "eigen" (occupation eigen-orbitals inside each slot; QE orbital_resolved / Macke 2024).  perturb still names
                                                                          //   MANIFOLDS (all their channels are perturbed); prints a [response] channel table with each channel's composition
-                                                                         //   on the projector functions, and the U lines full / 1x1 / orbital-diagonal
+                                                                         //   on the projector functions, and the U lines full / 1x1
     {"hubbardFiniteDifference": {"perturb":[0], "alpha_eV":0.027}}       // the FD cross-check of the above
   ]
 }

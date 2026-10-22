@@ -824,16 +824,11 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
                 rj["chiR"] =mat(R->ChiRealSpace (),[](double x){return x;});
                 const rvec_t U=R->U(); std::vector<double> UeV; for (size_t c=0;c<U.size();++c) UeV.push_back(ToEV(U[c]));
                 rj["U_eV"]=UeV;
-                if (U.size()>1)                                   // the orbital-resolved inversions (Macke 2024) beside hp.x's
+                if (U.size()>1)                                   // the orbital-resolved 1x1 inversion (Macke 2024's pointwise) beside hp.x's
                 {
                     const rvec_t us=R->UScalar(); std::vector<double> u1; for (size_t c=0;c<us.size();++c) u1.push_back(ToEV(us[c]));
                     rj["U1x1_eV"]=u1;
-                    if (!R->group.empty())
-                    {
-                        std::vector<size_t> g; for (size_t j : s0.perturbed) g.push_back(R->group[j]);
-                        const rvec_t ug=R->U(g); std::vector<double> ud; for (size_t c=0;c<ug.size();++c) ud.push_back(ToEV(ug[c]));
-                        rj["UorbitalDiagonal_eV"]=ud; rj["manifold"]=R->group;
-                    }
+                    if (!R->group.empty()) rj["manifold"]=R->group;
                 }
                 json V=json::array();
                 for (const auto& v : calc->InterSiteHubbardV(*R))

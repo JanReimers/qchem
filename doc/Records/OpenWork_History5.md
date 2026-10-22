@@ -272,3 +272,14 @@ Gate: `SolidState.SmearedExactResume_StartsAtTheSavedState` (Si k222, kT 0.02): 
 off the saved state and the run needs > 3 iterations; with it, it starts on the state.  Sweep vs the batch baseline (HEAD
 `69a58211`): 1051/1051, ONE test moved -- `GPW_Al.Γ_Imp_Anneal_Anchor` 48 → 28 iterations, energy unchanged to 1e-9; the FD
 gate's χ is bit-identical (−14.41588683).
+**CORRECTION 2026-10-22 -- the "orbital-diagonal" U is REMOVED** (bug report from the β-MnO₂ oracle session: TiO₂ Γ, b6 basis,
+`resolve: eigen`, 22 channels -- every orbital-diagonal U −22 to −846 eV, while 1×1 sat at 1.3–4.3 eV).  Not mis-assembly: numpy on
+the logged χ₀/χ reproduces every printed number.  The CONSTRUCTION was ill-posed (it was my reading of Macke's "pointwise", which
+zeroes ALL off-diagonals = our 1×1): zeroing a site's inter-orbital off-diagonals while keeping the inter-site ones does not keep a
+negative-definite response definite -- the screened χ's same-site off-diagonals are large, and the modified χ had eigenvalues +0.44,
++0.55, so its inverse's diagonal went large and wrong-signed, worst on χ's near-null channels (exactly where the full inversion is
+largest).  Output, record field `UorbitalDiagonal_eV` and `QMeshResponse::Interaction/U(group)` are gone; full and 1×1 stay (1×1 on
+a q-mesh supercell is the isolated single-orbital number QE's orbital-resolved ±α FD measures).  The Si d gate now asserts the
+resolved χ₀ and χ are negative definite.  If inter-site screening in a resolved U is wanted: a PRINCIPAL submatrix (one orbital
+type on every site), which keeps definiteness.
+
