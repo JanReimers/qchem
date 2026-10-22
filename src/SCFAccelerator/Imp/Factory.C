@@ -4,6 +4,7 @@ module;
 #include <memory>
 #include <vector>
 #include <iostream>
+#include <stdexcept>
 #include <nlohmann/json.hpp>
 module qchem.SCFAccelerator.Factory;
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
@@ -53,6 +54,7 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
             break;
         }
         case Type::Null: acc=new SCFAcceleratorNull(); break;
+        case Type::Auto: throw std::invalid_argument("SCFAccelerators::Factory: Type::Auto must be resolved by the caller's policy first");
     }
     
     assert(acc);
@@ -65,6 +67,7 @@ SCFAccelerator* Factory(Type type, const SolidAcceleratorOptions& o)
 {
     switch (type)
     {
+        case Type::Auto: throw std::invalid_argument("SCFAccelerators::Factory: Type::Auto must be resolved by the caller's policy first");
         case Type::Null: return new SCFAcceleratorNull();
         case Type::DIIS: return new SCFAcceleratorDIIS(o.diis);
         case Type::GDM : return new SCFAcceleratorGDM (o.gdm);

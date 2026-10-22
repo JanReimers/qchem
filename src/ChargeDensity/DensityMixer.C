@@ -119,6 +119,10 @@ struct PulayParams : KerkerParams
 //! warning (a real configuration, not a broken precondition).
 //! \note The caller picks the RECIPE.  There is no "Pulay if depth>0 else Kerker" switch here any more: a
 //! caller that wants Kerker calls the Kerker factory and supplies Kerker's knobs, nothing else.
+//! Can a G-space mixer be built for this run?  Exactly the factories' precondition (a basis, a periodic cell, a seed with a
+//! Fourier face).  Asked by \c SCFParams::Mixing::Auto, which must pick a mixer that EXISTS for the run (e.g. an iterator
+//! built without its Structure has no cell, hence no reciprocal lattice -- PW_Si.k222_Anchor); an explicit Kerker/Pulay throws.
+bool CanMixInGSpace(const BasisSet::tBasisSet<dcmplx>* basis, const Structure* cell, const tChargeDensity<dcmplx>* seed);
 std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams&, const BasisSet::tBasisSet<dcmplx>* basis,
                                                           const Structure* cell, const tChargeDensity<dcmplx>* seed);
 std::unique_ptr<tDensityMixer<dcmplx>> PulayMixerFactory (const PulayParams&,  const BasisSet::tBasisSet<dcmplx>* basis,

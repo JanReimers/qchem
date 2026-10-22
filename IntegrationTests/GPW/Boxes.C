@@ -503,6 +503,7 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows)
     par.MergeTol=1e-4;
     par.PulayDepth=0; par.PulayStart=5;
     par.KerkerG0=0.0;
+    par.Mixer=SCFParams::Mixing::Linear;                      // the alpha sweep below is LINEAR D-mixing's step
 
     qchem::SolidCalcOptions o;
     o.label="Na2 AFM-seeded singlet";

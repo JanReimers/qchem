@@ -716,7 +716,8 @@ void FrozenChiEqFiniteDifference(ivec3_t kmesh, bool densityMixing, double tol, 
     // WHY U = 2 eV, not 4 (measured 2026-09-29): Dudarev's +U ANTI-screens (unfrozen chi -22.5 vs frozen -14.3 at
     // 4 eV), and at 4 eV the UNFROZEN Si SCF sits near that instability -- its convergence depended on the start
     // (the closing restore wandered for 200 iterations).  2 eV keeps the freeze's effect far above the tolerance.
-    SCFParams fdp=SiParams(); fdp.NMaxIter=200; fdp.StartingRelaxRo=0.2;
+    SCFParams fdp=SiParams(); fdp.NMaxIter=200; fdp.StartingRelaxRo=0.2; fdp.Mixer=SCFParams::Mixing::Linear;
+    if (densityMixing) {fdp.Mixer=SCFParams::Mixing::Pulay;}
     if (densityMixing) {fdp.PulayDepth=8; fdp.PulayStart=5; fdp.KerkerG0=1.0; fdp.StartingRelaxRo=0.45;}
     auto fd=c->HubbardFiniteDifferenceChi(0, a, fdp);
     ASSERT_TRUE(fd.IsOk()) << fd.Error().details;

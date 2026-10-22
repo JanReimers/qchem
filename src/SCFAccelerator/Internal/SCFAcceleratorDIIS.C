@@ -93,6 +93,7 @@ public:
     virtual void   ShowConvergence(std::ostream&) const;
     virtual double GetError() const;
     virtual const char* Tag  () const {return "DIIS";}
+    virtual bool ExtrapolatesFock() const {return true;}
     virtual int         Count() const {return (int)GetNProj();}   // projection depth = the accel column's number
     virtual double      MinSV() const {return itsLastSVMin;}       // conditioning of the bordered B
     // Out of steam: past FDMax but unable to extrapolate (singular/tiny B) for several steps.

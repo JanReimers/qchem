@@ -51,7 +51,7 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
     const tChargeDensity<dcmplx>* seed, const LeafBuilder& leaf)
 {
     auto* fd  = dynamic_cast<const FourierDensity*>(seed);
-    if (!basis || !isPeriodicCell(cell) || !fd)
+    if (!CanMixInGSpace(basis, cell, seed))
         throw std::runtime_error(std::string(tag)+"MixerFactory: a G-space mixer needs a periodic Orbital_DFT_IBS<dcmplx> "
                                  "basis, a UnitCell structure and a seed with a Fourier face.");
     // The WHOLE-SET fit factory (mixed-aware since doc/RealComplexPlan.md 3c-3): serves from the first block
@@ -102,6 +102,11 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
 }
 
 } // anonymous
+
+bool CanMixInGSpace(const BasisSet::tBasisSet<dcmplx>* basis, const Structure* cell, const tChargeDensity<dcmplx>* seed)
+{
+    return basis && isPeriodicCell(cell) && dynamic_cast<const FourierDensity*>(seed);
+}
 
 template <class T> std::unique_ptr<tDensityMixer<T>> LinearMixerFactory(double relax0)
 {

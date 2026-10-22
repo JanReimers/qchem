@@ -39,15 +39,16 @@ cd build/Release && ninja rundeck                                  # the one CLI
              "trim": [{"Z":28,"l":0,"alpha":0.06}],   // a STATED shell trim (exclusive with vet)
              "vet": true },                // the pin-22 vet-stage trim at solid.orthoTol
   "solid": {                              // SolidCalcOptions -- every field; Nelec/species/multiplicity default from the material
-    "multiplicity": 1, "seed": "IonicSAD", "ortho": "CholeskyPivoted", "orthoTol": 1e-4, "accelerator": "Null",
+    "multiplicity": 1, "seed": "IonicSAD", "ortho": "CholeskyPivoted", "orthoTol": 1e-4, "accelerator": "Null",   // Auto (default; = DIIS today) | DIIS | GDM | Ladder | Null
     "imposeSymmetry": false, "forceComplex": false, "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
     "xcMesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... },
     "tolerances": { "screenEps": 1e-10, "densityEps": 1e-10, "vlocEps": 1e-5, "fieldSharp": 0.667, "relCutoff": 0, "mgridEcuts": [], ... },
     "policy": { "cp2kCompat": false, "streamFold": true, ... },     // the declared CP2K deviations; ONLY stated routes are recorded
     "hubbard": [ { "site":0, "l":2, "U_eV":4.0, "atomicRadial":true, "orthoAtomic":true, "Uirrep_eV":[...], "alpha_eV":0 } ]
   },
-  "scf": { "NMaxIter":200, "minDeltaRhoPerElectron":1e-6, "deltaRhoMeasure":"L1PerElectron|MaxDeltaD", "pulayDepth":8, "pulayStart":5,
-           "kerkerG0":1.0, "useMOM":false, "smearingkT":5e-3, ... },     // SCFParams, one stage ...
+  "scf": { "NMaxIter":200, "minDeltaRhoPerElectron":1e-6, "deltaRhoMeasure":"L1PerElectron|MaxDeltaD",
+           "mixer":"Auto|Linear|Kerker|Pulay",   // Auto (default): a hand-set kerkerG0/pulayDepth recipe is kept; else linear today (see SCFParams::Mixing)
+           "pulayDepth":8, "pulayStart":5, "kerkerG0":1.0, "useMOM":false, "smearingkT":5e-3, ... },     // SCFParams, one stage ...
   "schedule": [ {"accelerator":"DIIS","scf":{...}}, {"accelerator":"GDM","scf":{...}} ],   // ... OR an annealed recipe (never both)
   "state":   { "save": "auto", "restartFrom": "NiO_AFM2.r003" },       // CK-1: auto = <outDir>/states/<stem>.h5; restartFrom = a revision stem (lineage) or a path; runs the FINAL stage only
   "postSCF": [                            // post-convergence actions on the converged calculation, IN ORDER; each reports itself; results go in the revision

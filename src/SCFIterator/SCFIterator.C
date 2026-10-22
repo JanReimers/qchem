@@ -163,7 +163,12 @@ public:
                  const Structure* st=nullptr,
                  qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, SeedRole role=SeedRole::Guess);
     virtual ~tSCFIterator();
+    //! Iterate resolves \c ipar.Mixer first (\c ResolveMixing), so \c Mixing::Auto becomes this run's mixer.
     virtual bool Iterate(const SCFParams& ipar);
+    //! \a p with \c Mixer resolved for THIS run (never \c Auto): the mixer \c Iterate will build.  Public for the
+    //! facade, which prints the mixer on its banner and caps a restart's LINEAR step -- both must see the resolved
+    //! mixer, not the caller's \c Auto.
+    SCFParams ResolveMixing(const SCFParams& p) const;
 
     // Watch convergence live: the observer (if set) fires once per SCF iteration with
     // the current SCFProgress.  Read-only telemetry -- the observer must not drive the loop.
@@ -243,6 +248,8 @@ protected:
     virtual std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>>
         CreateMixer(const SCFParams& ipar, const tbs_t<T>* bs, const Structure* cell,
                     const tDM_CD<T>* seed) const;
+    //! Can this run mix the density in G space (Kerker / Pulay)?  Decides what \c ResolveMixing turns \c Mixing::Auto into.
+    virtual bool MixesInGSpace(const tbs_t<T>*, const Structure*, const tDM_CD<T>*) const {return false;}
 
 private:
     typedef std::shared_ptr<tDM_CD<T>> cd_t;   //!< std-managed WORKING density (matrix-backed); no manual delete
@@ -354,12 +361,15 @@ protected:
     //! The solid column list: the base's, with the gate swapped to ΔE/E and ρ_lost/N inserted.
     void AccumulateColumns(std::vector<ColumnData>&, const SCFParams&, size_t idealVirial) const override;
     bool GapIsPermanent() const override {return true;}   //!< near-gapless flapping is a solid pathology
-    //! The periodic Kerker/Pulay G-space mixer when SCFParams asks for it (KerkerG0>0 or PulayDepth>0),
-    //! else the base linear D-mixer.  A solid run HAS the periodic basis/cell/density by construction, so
-    //! the G-space mixer factories treat them as preconditions -- no capability probe, no silent fallback.
+    //! The resolved \c SCFParams::Mixer: the periodic Kerker or Kerker/Pulay G-space mixer, or the base linear D-mixer.
+    //! A solid run HAS the periodic basis/cell/density by construction, so the G-space mixer factories treat them as
+    //! preconditions -- no capability probe, no silent fallback.
     std::unique_ptr<qchem::ChargeDensity::tDensityMixer<dcmplx>>
         CreateMixer(const SCFParams&, const tbs_t<dcmplx>*, const Structure*,
                     const tDM_CD<dcmplx>*) const override;
+    //! Yes when the G-space factories' precondition holds (basis, periodic cell, a density with a Fourier face) -- GPW and PW
+    //! alike; an iterator built without its Structure (no cell) mixes linearly under Auto.
+    bool MixesInGSpace(const tbs_t<dcmplx>*, const Structure*, const tDM_CD<dcmplx>*) const override;
 };
 
 } //namespace

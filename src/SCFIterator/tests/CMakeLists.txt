@@ -6,6 +6,7 @@
 
 add_executable(UTSCFIterator ../../Common/tests/gtestmain.C
     SCFTrace.C
+    MixingMode.C
 )
 
 target_compile_definitions(UTSCFIterator PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
