@@ -25,6 +25,9 @@ Brief notes about module/library conventions, naming, and includes.
     crawl, not a corpse.  Context: the box now has a 32G swapfile (`/swap2.img`); the Aug-13 `ITMain`
     OOM kills happened because the old 4G swap sat chronically full, leaving the kernel nothing but the
     kill.  The `-j` discipline above remains the first-line defense; memsafe is the safety net.
+- **To attribute anchor moves, diff two sweeps test by test**: keep each sweep's `build/Release/Testing/Temporary/LastTest.log`
+    and run `scripts/anchordiff BASE.log NEW.log --tol 1e-10` (per test: last printed `Etot` and summed SCF iterations).
+    The pass/fail line hides moves inside a tolerance; this does not (the 2026-10-22 anchor batch ran on it).
 - For a quick focused run, invoking the exe directly still works: `./IntegrationTests/ITMain`
     (filter `-A_*` for fast runs; a full `ctest -j8` pass is the regression anchor).
 - Calling ninja directly is fine. (I earlier suggested cmake only because ninja rebuilds were flaky —

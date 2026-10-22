@@ -41,6 +41,15 @@ route (CP2K/QE/ABINIT oracle, `doc/Benchmark.md`), never refreshed.  A failing c
 physics and cannot go stale.  Also in the batch but tracked in `doc/OpenWork.md` §3: **N4** (cusp-deficit XC feed,
 pin 18).  Suggested order (cheapest to attribute first): D-MINDRHO → V1.24(iii) → D5 → V1.22 → D12 → §K → D-FERMI-DEFAULT.
 
+**STATUS 2026-10-22 -- the window was RUN** (branch `anchor-batch`, merged to `openwork-sweep`): DONE, each swept ALONE against
+the step before (`ctest -j4` + `-L long`, test-by-test anchor diff): the carried-density refill (OpenWork §3), D5, V1.22, D12,
+D-FERMI-DEFAULT, D-MINDRHO -- records in `Records/CleanupHistory3.md` / `Records/OpenWork_History5.md`.  NO banked anchor moved
+beyond its own tolerance, so the RE-BANK step had nothing to re-judge against an oracle (the largest moves: the Kerker Si
+anchors −4.4e-5 Ha toward their true fixed point under D-MINDRHO; O₂-in-a-box −7.2e-5 Ha toward the finite molecule under
+V1.22).  LEFT: **V1.24(iii)** (needs the OT build), **§K** (deferred by the user), **N4** (measure (a)/(b) first, OpenWork §3),
+and **Kerker/Pulay as the default mixer** (OpenWork §3 row -- its plan is there).  The tool kept for the next window:
+`anchordiff.py` (per-test last-energy + iteration diff of two ctest `LastTest.log`s) -- copy at `scripts/anchordiff`.
+
 | id | what is open | next action · record |
 |---|---|---|
 | ✅ D-MINDRHO | DONE 2026-10-22 (anchor batch, option A): ONE gate, `MinΔρPerElectron` = ∫|ρ_out−ρ_in|/N on the run's quadrature (deck `minDeltaRhoPerElectron`; `MinΔρ` / `minDeltaRho` retired).  REMAINDER: FeS₂'s FD-vs-LR 1.3 % gap rerun under the new gate (`decks/campaigns/CrossCode/fes2_Fe3d_G.json`, in progress) | `Records/CleanupHistory3.md` |
