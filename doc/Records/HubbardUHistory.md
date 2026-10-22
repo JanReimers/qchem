@@ -1913,6 +1913,8 @@ The Track-A corner-case bullet and S1/S2, archived when §2 was condensed to a S
   Mn+1), so IonicSAD seeded one Mn as nothing and the other non-magnetic — the AFM order never formed (m0: non-magnetic, oscillating,
   200 iterations).  Tie-break + Mn⁴⁺ entry make the AFM form (Mn +3.04/−3.74, SURVIVED) but that run (U on σ) did not converge.
   Both changes are PARKED on branch `seed-tiebreak` (`2c4a7773`): they make `GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long` (MnO AFM-II SR Γ
-  imposed, smeared) LOSE its order (moment dead at iteration 30; passes at HEAD) — HEAD's pass rests on the buggy +4/0 Mn seed.
+  imposed, smeared) LOSE its order (moment dead at iteration 30; passes at HEAD) — HEAD's pass rests on the buggy seed.
+  ⚠ CORRECTION (same day): that seed is NOT "+4/0" — `IonicSADTargets` keeps one target per SPECIES (last atom wins), so HEAD seeds
+  MnO as NEUTRAL Mn d⁵4s² ×2; the fix gives the Mn²⁺ d⁵ the anchor's comment claims.  (The parked commit's message says "+4/0".)
 - QE β-MnO₂ at Γ with U(O pz) 4.62 eV only: gap 0.325 eV, E = −186.85322133 Ry (`~/Code/qe-runs/MnO2/mno2b_G_OpzU.scf.out`).
 - QE orbital-resolved FD on TiO₂ PARKED by the user (restart eigenstate tracking: x²−y² shows no first-iteration response).
