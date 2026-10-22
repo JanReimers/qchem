@@ -233,27 +233,6 @@ rmat_t QMeshResponse::Interaction() const
     return rmat_t(blazem::inv(Chi0RealSpace())-blazem::inv(ChiRealSpace()));
 }
 
-rmat_t QMeshResponse::Interaction(const std::vector<size_t>& grp) const
-{
-    const size_t nJ=atQ.empty() ? 0 : atQ[0].perturbed.size();
-    if (grp.size()!=nJ) throw std::invalid_argument("QMeshResponse::Interaction: one group key per perturbed channel");
-    rmat_t X0=Chi0RealSpace(), X=ChiRealSpace();
-    const size_t nR=nJ ? X0.rows()/nJ : 0;
-    for (size_t r=0;r<nR;r++)                                   // one cell's block: same R on both sides
-        for (size_t a=0;a<nJ;a++)
-            for (size_t b=0;b<nJ;b++)
-                if (a!=b && grp[a]==grp[b]) { X0(r*nJ+a, r*nJ+b)=0.0; X(r*nJ+a, r*nJ+b)=0.0; }
-    return rmat_t(blazem::inv(X0)-blazem::inv(X));
-}
-
-rvec_t QMeshResponse::U(const std::vector<size_t>& grp) const
-{
-    const rmat_t W=Interaction(grp);
-    rvec_t u(grp.size());
-    for (size_t c=0;c<u.size();c++) u[c]=W(c,c);
-    return u;
-}
-
 rvec_t QMeshResponse::UScalar() const
 {
     const rmat_t X0=Chi0RealSpace(), X=ChiRealSpace();
@@ -304,14 +283,6 @@ std::ostream& QMeshResponse::Write(std::ostream& os) const
         os << "[response] U 1x1 = 1/chi0_cc - 1/chi_cc (each channel alone in the supercell):";
         for (size_t c=0;c<nJ;c++) os << "  " << lab[J[c]] << " " << std::setprecision(6) << us[c]*27.211386245988 << " eV";
         os << std::endl;
-        if (group.size()==lab.size())
-        {
-            std::vector<size_t> g; for (size_t j : J) g.push_back(group[j]);
-            const rvec_t ug=U(g);
-            os << "[response] U orbital-diagonal (chi0, chi off-diagonals between one group's channels zeroed, inter-site kept):";
-            for (size_t c=0;c<nJ;c++) os << "  " << lab[J[c]] << " " << std::setprecision(6) << ug[c]*27.211386245988 << " eV";
-            os << std::endl;
-        }
     }
     os.precision(prec);
     return os;
