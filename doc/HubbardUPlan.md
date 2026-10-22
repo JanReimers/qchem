@@ -98,10 +98,17 @@ Every action appears here once; if it is not here it is a finding, not a task.
   3.051 vs 2.927 (+4 %), screened χ element by element (H, same section).  ✅ **k/q mesh PASSED**: hp.x k2/q2 = 4.6373 ≡ its k4/q2
   4.6368 (k converged at 2³); ours (b6, k2/q2, kT 0) **4.757 vs 4.637 (+2.6 %)**, χ₀ +0.5 %, χ −1.5 %, the Γ→q2 shift −0.368 vs −0.389 eV.
   **TiO₂ is CLOSED as a cross-code point.**  Left in S1: per-irrep O pz.  **First `resolve: eigen` run (TiO₂ Γ, b6, 2026-10-21)**: the 1×1 (Macke
-  pointwise) column is well behaved — Ti channels 1.77–2.06 eV, O p 3.96–4.31 eV (plane normal 3.96) — and full inversion is the
-  ill-posed 17–36 eV Macke warns of.  ⚠ For the resolved-channel owner: the ORBITAL-DIAGONAL variant is −22 to −846 eV on every
-  channel (indefinite by construction, or a sign/assembly defect?), and one 1×1 Ti channel (xy/z², n 0.23) is −0.20 eV.  QE's
-  orbital-resolved FD on TiO₂ would settle both.
+  pointwise) column is well behaved — Ti channels 1.77–2.06 eV, O p 3.96–4.31 eV (the [1̄10] plane normal is the MIDDLE channel,
+  n 1.629, 4.04 eV — not the most occupied, as it is in β-MnO₂) — and full inversion is the
+  ill-posed 17–36 eV Macke warns of.  The ORBITAL-DIAGONAL variant (−22 to −846 eV) was ill-posed by DEFINITION (zeroing a site's
+  inter-orbital off-diagonals leaves χ indefinite) and is REMOVED (`db09a3f4`, merged `1d33184c`, ctest 1050/1050).  ⚠ **QE
+  orbital-resolved FD (pw.x ±α_m restarts, 6-atom cell, Γ; `~/Code/qe-runs/TiO2/orfd/`) is NOT yet a reliable oracle**: channel
+  definitions agree (QE Ti eigenvectors xz/yz · 0.23 z²+0.77 xy · x²−y² · … vs ours 0.27/0.73), but on the pure x²−y² channel QE's
+  first iteration shows NO response (identical to 8 digits for ±α) and χ ends with the wrong sign — QE's eigenstate tracking appears
+  to start from a different basis at a restart, which would also shrink |χ₀| on k1/k2 (QE −0.418/−1.266 vs ours −0.455/−1.587 Ha⁻¹;
+  U₁ₓ₁ QE 2.29/+0.27 vs ours 2.03/−0.20 eV).  The −0.20 eV channel is anti-screened in ours (|χ| 1.606 > |χ₀| 1.587); QE's k2
+  is barely screened (1.251 vs 1.266) — both a difference of near-equal inverses.  Next: find how QE seeds the tracked eigenvectors
+  on a restart (`PW/src` tracking, ref 127 of Macke) or run the ±α from scratch, before trusting any QE resolved number.
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
 - **A6** is complete (table above).  β-MnO₂ (Macke's second material) is now item S2 below.
 
