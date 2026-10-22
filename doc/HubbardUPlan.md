@@ -97,7 +97,11 @@ Every action appears here once; if it is not here it is a finding, not a task.
   PW basis has no l limit).  ✅ **O 2p at Γ PASSED** (6×6 Hubbard-site matrix, b6): U(O 2p) 6.735 vs hp.x 6.758 eV (−0.3 %), U(Ti)
   3.051 vs 2.927 (+4 %), screened χ element by element (H, same section).  ✅ **k/q mesh PASSED**: hp.x k2/q2 = 4.6373 ≡ its k4/q2
   4.6368 (k converged at 2³); ours (b6, k2/q2, kT 0) **4.757 vs 4.637 (+2.6 %)**, χ₀ +0.5 %, χ −1.5 %, the Γ→q2 shift −0.368 vs −0.389 eV.
-  **TiO₂ is CLOSED as a cross-code point.**  Left in S1: per-irrep O pz (needs the OpenWork resolved-channel row first).
+  **TiO₂ is CLOSED as a cross-code point.**  Left in S1: per-irrep O pz.  **First `resolve: eigen` run (TiO₂ Γ, b6, 2026-10-21)**: the 1×1 (Macke
+  pointwise) column is well behaved — Ti channels 1.77–2.06 eV, O p 3.96–4.31 eV (plane normal 3.96) — and full inversion is the
+  ill-posed 17–36 eV Macke warns of.  ⚠ For the resolved-channel owner: the ORBITAL-DIAGONAL variant is −22 to −846 eV on every
+  channel (indefinite by construction, or a sign/assembly defect?), and one 1×1 Ti channel (xy/z², n 0.23) is −0.20 eV.  QE's
+  orbital-resolved FD on TiO₂ would settle both.
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
 - **A6** is complete (table above).  β-MnO₂ (Macke's second material) is now item S2 below.
 
@@ -141,7 +145,12 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
   So hp.x's fixed 2-step is out.  **RULED 2026-10-21 (user): route (b)** — wait for the OpenWork §2 row "Response: REPORT
   orbital-resolved channels" to land (being built in a parallel session), then open the gap with U(O pz) at U_in, as Macke does
   (PBEsol: U(O pz) 4.62 + U(Mn t2g) 1.64 eV → 1.01 eV gap), and run the matched oracle from that gapped reference.  Rejected:
-  (a) a matched smeared oracle — a semimetal's χ₀ is set by the smearing width.  ⛔ BLOCKED on that row.  Our side
+  (a) a matched smeared oracle — a semimetal's χ₀ is set by the smearing width.  ✅ **Unblocked 2026-10-21** (resolved channels merged,
+  `16528a14`; ctest 1050/1050).  **QE: U(O pz) 4.62 eV ALONE opens a 0.842 eV gap** at k 4×4×6 (+ U(Mn t2g) 1.64: 0.856 eV) —
+  `IntegrationTests/QE/README.md` §S2 has the eigen-indices.  O pz is a PURE irrep (plane normal of O's C₂ᵥ), so our `Uirrep_eV` can
+  set the same U_in; Mn t2g cannot be (one t2g state shares D₂h's a_g with an e_g one) and is not needed for the gap.  Next: the
+  matched oracle from that reference — QE pw.x ±α_m FD (orbital-resolved; hp.x is shell-averaged only) vs ours `resolve: eigen`, on a
+  k-mesh both can afford, after the Mn/O basis gets the TiO₂ treatment (O p tail + f, vetted in rutile).  Our side
   resolves the structure (`--check`: 38 e); its Mn basis is VA's MnO-conditioned block — the TiO₂ lesson (O p tail + f) applies first.
 - **S3 — fix `doc/OpenWork.md` §3 "A carried density is re-filled at kT = 0"** before any U_SC campaign: every `hubbardLoop` outer
   step is a `BuildStage` from the carried density, so on a smeared / near-degenerate magnetic state each step kicks the state
