@@ -28,9 +28,11 @@ namespace {
 //! One G-space LEAF, seeded from a field: the whole recipe in one place, so the polarized path composes two of
 //! these rather than duplicating it.  \a label names the arm in the one-time banner ("" / "↑" / "↓" / "ρ" ...),
 //! emitted HERE because this is where the ρ̃ map and the raw-raster shadow are in hand.
+//! \a cusp: does THIS leaf present the N4 correction?  Yes for an unpolarized or (ρ↑,ρ↓) leaf; no for a (ρ,m) leaf, whose
+//! channel is not a spin channel -- there the polarized mixer forms the per-spin corrections itself.
 using LeafBuilder = std::function<std::unique_ptr<tDensityMixer<dcmplx>>(
     GField seed0, double charge, double G0, const std::string& label,
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip)>;
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip, bool cusp)>;
 
 void Banner(const char* tag, const std::string& label, double G0, double charge, const GField& seed0)
 {
@@ -80,25 +82,23 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
         // CHARGE fluctuations; m has none.
         if (theRunPolicy().MixRhoM())
         {
-            // N4 x (ρ,m): the correction is derived PER CHANNEL from that channel's own rho_mix - rho_out, and
-            // this branch redefines what the channels ARE, so the two do not compose without new algebra.
-            if (p.cuspDeficit)
-                throw std::runtime_error(std::string(tag)+"MixerFactory: XCCuspDeficit is not defined for the (rho,m) "
-                    "channel basis (QCHEM_MIX_RHO_M) -- the correction is per-(up,dn) channel.");
+            // N4 x (ρ,m): the correction is per SPIN channel, rho_sigma,mix - rho_sigma,out, and both terms are linear in
+            // (ρ,m) -- so the polarized mixer forms it from the rebuilt channels and the latest outputs; the ρ and m
+            // leaves present none.
             const GField gu=FieldOf(fu,*fit), gd=FieldOf(fdn,*fit);
             auto mr=leaf(GField{gu.tilde+gd.tilde, RawCombine(gu.raster,gd.raster,+1.0,1.0)},
-                         up->GetTotalCharge()+dn->GetTotalCharge(), p.G0, "ρ", fit, recip);
+                         up->GetTotalCharge()+dn->GetTotalCharge(), p.G0, "ρ", fit, recip, /*cusp*/false);
             auto mm=leaf(GField{gu.tilde-gd.tilde, RawCombine(gu.raster,gd.raster,-1.0,1.0)},
-                         0.0, /*G0*/0.0, "m: LINEAR, undamped", fit, recip);
+                         0.0, /*G0*/0.0, "m: LINEAR, undamped", fit, recip, /*cusp*/false);
             return std::make_unique<PolarizedDensityMixer>(std::move(mr), std::move(mm), fit, recip,
-                                                           ChannelBasis::TotalAndMoment);
+                                                           ChannelBasis::TotalAndMoment, p.cuspDeficit);
         }
-        auto mu=leaf(FieldOf(fu ,*fit), up->GetTotalCharge(), p.G0, "↑", fit, recip);
-        auto md=leaf(FieldOf(fdn,*fit), dn->GetTotalCharge(), p.G0, "↓", fit, recip);
+        auto mu=leaf(FieldOf(fu ,*fit), up->GetTotalCharge(), p.G0, "↑", fit, recip, p.cuspDeficit);
+        auto md=leaf(FieldOf(fdn,*fit), dn->GetTotalCharge(), p.G0, "↓", fit, recip, p.cuspDeficit);
         return std::make_unique<PolarizedDensityMixer>(std::move(mu), std::move(md), fit, recip,
                                                        ChannelBasis::SpinChannels);
     }
-    return leaf(FieldOf(*fd,*fit), seed->GetTotalCharge(), p.G0, "", fit, recip);
+    return leaf(FieldOf(*fd,*fit), seed->GetTotalCharge(), p.G0, "", fit, recip, p.cuspDeficit);
 }
 
 } // anonymous
@@ -119,11 +119,11 @@ std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams& p,
                                                           const Structure* cell, const tChargeDensity<dcmplx>* seed)
 {
     LeafBuilder leaf=[&p](GField seed0, double charge, double G0, const std::string& label,
-                          std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip)
+                          std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip, bool cusp)
     {
         Banner("Kerker", label, G0, charge, seed0);
         return std::unique_ptr<tDensityMixer<dcmplx>>(
-            std::make_unique<KerkerMixer>(p.relax, G0, std::move(fit), recip, std::move(seed0), charge, p.cuspDeficit));
+            std::make_unique<KerkerMixer>(p.relax, G0, std::move(fit), recip, std::move(seed0), charge, cusp));
     };
     return ComposePeriodic(p, "Kerker", basis, cell, seed, leaf);
 }
@@ -131,19 +131,15 @@ std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams& p,
 std::unique_ptr<tDensityMixer<dcmplx>> PulayMixerFactory(const PulayParams& p, const BasisSet::tBasisSet<dcmplx>* basis,
                                                          const Structure* cell, const tChargeDensity<dcmplx>* seed)
 {
-    // N4 is wired on the KERKER arm only.  Pulay's step is an EXTRAPOLATION over a density history, so
-    // "rho_mix - rho_out" is not the single-step object the correction is derived from; deriving it there
-    // needs its own algebra.  Fail loudly rather than silently dropping the correction the caller asked for.
-    if (p.cuspDeficit)
-        throw std::runtime_error("PulayMixerFactory: XCCuspDeficit is not implemented for the Pulay "
-            "(density-history) mixer -- only for plain Kerker.");
+    // N4 (pin 28) on the Pulay arm: the correction is rho_mix - rho_fit of the LATEST output (PulayMixer::ApplyJoint), the
+    // D XC samples -- the extrapolation only changes which rho_mix is presented, not what the deficit is measured against.
     LeafBuilder leaf=[&p](GField seed0, double charge, double G0, const std::string& label,
-                          std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip)
+                          std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip, bool cusp)
     {
         Banner("Pulay", label, G0, charge, seed0);
         return std::unique_ptr<tDensityMixer<dcmplx>>(
             std::make_unique<PulayMixer>(p.relax, G0, p.depth, p.start, std::move(fit), recip,
-                                         std::move(seed0), charge));
+                                         std::move(seed0), charge, cusp));
     };
     return ComposePeriodic(p, "Pulay", basis, cell, seed, leaf);
 }

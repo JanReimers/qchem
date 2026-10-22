@@ -35,9 +35,10 @@ class PulayMixer : public tDensityMixer<dcmplx>, public virtual tFieldExtrapolat
 public:
     //! \a seed0 is the running field's starting value (read off the seed density by the factory); presented
     //! at once so iteration 0's Fock has a density to be driven from.
+    //! \a cusp (N4, pin 28): also present the cusp-deficit correction for XC (see \c ApplyJoint).
     PulayMixer(double relax, double G0, int depth, int start, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
-               ReciprocalLattice recip, GField seed0, double charge)
-        : itsRelax(relax), itsKerkerG0(G0), itsDepth(depth), itsStart(start), itsKerkerFit(std::move(fit))
+               ReciprocalLattice recip, GField seed0, double charge, bool cusp=false)
+        : itsRelax(relax), itsKerkerG0(G0), itsDepth(depth), itsStart(start), itsCuspDeficit(cusp), itsKerkerFit(std::move(fit))
         , itsRecip(recip), itsCharge(charge), itsIn(std::move(seed0))
         , itsMixedRho(Present(itsIn, itsRecip, itsCharge))
     {}
@@ -133,7 +134,12 @@ public:
         KerkerStepResult r = KerkerStep(inStar, outStar, itsRelax, itsKerkerG0, itsRecip);
         itsIn.tilde = std::move(r.mix);
         if (p.raw) itsIn.raster = RasterKerker(*RasterEvaluator(), rawInStar, rawOutStar, itsRelax, itsKerkerG0);
-        itsMixedRho = Present(itsIn, itsRecip, itsCharge, r.corr, r.alphaEff);
+        // N4 (pin 28): XC samples rho[D] + (rho_mix - rho_fit), with rho[D] the LATEST output's density matrix -- so the
+        // correction is taken against the latest out p.out, NOT the extrapolated out* the step used (that would leave
+        // XC a history-weighted D).  At the fixed point mix = out and XC sees rho[D] exactly.
+        ΔG_Map corr;
+        if (itsCuspDeficit) corr = itsIn.tilde - p.out;
+        itsMixedRho = Present(itsIn, itsRecip, itsCharge, corr, r.alphaEff);
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
@@ -148,6 +154,7 @@ private:
     struct Pending { ΔG_Map in, out; rvec_t rawIn, rawOut; bool raw=false; };
 
     double itsRelax, itsKerkerG0; int itsDepth, itsStart, itsCount=0;
+    bool   itsCuspDeficit=false;   //!< N4: present the cusp-deficit correction (a CONSTRUCTION policy, SCFParams::XCCuspDeficit)
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
     ReciprocalLattice itsRecip;
     double itsCharge;

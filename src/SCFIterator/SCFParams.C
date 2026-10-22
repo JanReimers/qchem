@@ -47,12 +47,14 @@ export struct SCFParams
     double StartingRelaxRo = 1.0;    //relaxation for mixing Ro.  Dynamically adjusted during iterations.
     double MergeTol        = 1e-4;   //Merge eigen levels (like Px,Py Pz) that are equal within +/- MergeTol
     bool   Verbose         = true;   //Display iteration details.  ON by default (user, 2026-10-05): a run's console without its iteration table hides where the time goes.
-    //! \brief Feed \f$V_{xc}\f$ the CUSP-DEFICIT correction \f$\rho[D]_{exact}-\rho[D]_{BL}\f$ on top of the
-    //! mixed density, instead of the band-limited \f$\tilde\rho_{mix}\f$ alone (doc/OpenWork.md N4).
+    //! \brief Feed \f$V_{xc}\f$ the CUSP-DEFICIT correction \f$\rho[D]-\tilde\rho_{fit}\f$ on top of the mixed density,
+    //! instead of the fitted \f$\tilde\rho_{mix}\f$ alone (doc/OpenWork.md N4) -- how a Kerker/Pulay run meets doc/Pins.md pin 28
+    //! (XC from ρ[D]): at the fixed point \f$\tilde\rho_{mix}=\tilde\rho_{fit}\f$ and XC sees ρ[D] exactly.
     //!
     //! A MIXER-CONSTRUCTION policy, deliberately, not a switch the XC code reads: CP2K parity is a property
-    //! of WHICH MIXER WAS BUILT, so it must be decidable at the factory and leave the plain Kerker mixer
-    //! bit-identical.  false (default) = CP2K-conforming plain Kerker; the correction is not even formed.
+    //! of WHICH MIXER WAS BUILT, so it must be decidable at the factory and leave the plain Kerker/Pulay mixer
+    //! bit-identical.  false (default) = CP2K-conforming; the correction is not even formed.  Wired on Kerker and Pulay,
+    //! unpolarized, (ρ↑,ρ↓) and (ρ,m); the PAIR XC sampler refuses it (DensitySampler_Pair.C).
     bool   XCCuspDeficit   = false;
     double KerkerG0        = 0.0;    //Kerker density-mixing screening wavevector G0 (a.u.^-1).  0 (default) =
                                      //  OFF -> classic linear density-matrix mixing (atoms/molecules unchanged).
@@ -174,7 +176,6 @@ export inline SCFParams ResolveMixing(const SCFParams& p, bool gSpace, bool fock
     if (p.KerkerG0>0.0)       { r.Mixer=M::Kerker; return r; }
     if (fockExtrapolates)     { r.Mixer=M::Linear; return r; }   // beside DIIS: today's linear + DIIS
     r.StartingRelaxRo=recipe.relax; r.KerkerG0=recipe.G0;
-    if (p.XCCuspDeficit)      { r.Mixer=M::Kerker; return r; }   // N4 is wired on the Kerker arm only
     r.Mixer=M::Pulay; r.PulayDepth=recipe.depth; r.PulayStart=recipe.start;
     return r;
 }

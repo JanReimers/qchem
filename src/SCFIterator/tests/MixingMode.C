@@ -50,13 +50,14 @@ TEST(MixingMode, AutoKeepsAHandSetRecipe)
     EXPECT_EQ(rh.StartingRelaxRo, 0.2);
 }
 
-TEST(MixingMode, AutoWithTheCuspDeficitIsPlainKerker)
+TEST(MixingMode, AutoWithTheCuspDeficitIsTheRecipe)
 {
-    SCFParams p; p.XCCuspDeficit=true;   // N4 is wired on the Kerker arm only; the Pulay factory throws on it
+    SCFParams p; p.XCCuspDeficit=true;   // N4 is wired on both G-space arms (pin 28), so the cusp deficit does not change the mixer
     const SCFParams r=ResolveMixing(p, true);
-    EXPECT_EQ(r.Mixer, M::Kerker);
+    EXPECT_EQ(r.Mixer, M::Pulay);
     EXPECT_EQ(r.KerkerG0, theAutoMixing.G0);
-    EXPECT_EQ(r.PulayDepth, 0);
+    EXPECT_EQ(r.PulayDepth, theAutoMixing.depth);
+    EXPECT_TRUE(r.XCCuspDeficit);
 }
 
 TEST(MixingMode, ExplicitLinearIgnoresTheGSpaceKnobs)

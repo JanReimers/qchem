@@ -300,9 +300,10 @@ every density through the fit INTERFACE; this pin says which ρ XC must see.)
   basis cannot hold.  The part inside the fit comes from the damped mixer; the part outside it from the current D -- and no
   mixer damps it anyway, because a mixer acts only inside the fit space.  At the fixed point \f$\tilde\rho_{mix}=\tilde\rho_{fit}\f$,
   so \f$\rho_{XC}\f$ IS ρ[D] (O₂ box: −30.71018173, the ρ[D] value to all digits), while the iteration keeps the mixer's damping.
-  Today it exists on the plain Kerker arm only (`SCFParams::XCCuspDeficit`, off); the Pulay arm and the (ρ,m) channel basis
-  refuse it -- so every Kerker/Pulay run in the tree (the MnO/NiO campaign decks included) currently VIOLATES this pin.  Open
-  work: OpenWork §3 N4.
+  Wired on Kerker AND Pulay, unpolarized, (ρ↑,ρ↓) and (ρ,m) (2026-10-22) -- but `SCFParams::XCCuspDeficit` is still OFF by
+  default, so a Kerker/Pulay run that does not set it (the MnO/NiO campaign decks included) VIOLATES this pin.  Measured
+  with it on: O₂ box −30.71018173 (= ρ[D]), free MnO AFM-II holds its order (moment 4.453, −61.41613923 vs −61.41608505
+  without).  Open work: OpenWork §3 N4 (the default).
 
 Records: `OpenWork_History4.md` "ITEM 1 MEASURED" (MnO negatives, the collapse), `OpenWork.md` §3 "Kerker/Pulay as the
 DEFAULT mixer" (the O₂ arms).
