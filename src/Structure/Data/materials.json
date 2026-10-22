@@ -465,5 +465,14 @@
                  { "el": "S", "frac": [0.614, 0.886, 0.114] }, { "el": "S", "frac": [0.386, 0.114, 0.886] },
                  { "el": "S", "frac": [0.886, 0.114, 0.614] }, { "el": "S", "frac": [0.114, 0.886, 0.386] } ],
     "species": { "Fe": 8, "S": 6 }
+  },
+  "MnO2_beta_A1AFM": {
+    "comment": "beta-MnO2 pyrolusite, rutile P4_2/mnm, the EXPERIMENTAL neutron cell of Bolzan et al., Aust. J. Chem. 46, 939 (1993): a = 4.4041 A = 8.322543 bohr, c = 2.8765 A = 5.435797 bohr, O u = 0.3046 (reproduces its Mn-O 2 x 1.894 / 4 x 1.882 A to 3 mA).  doc/HubbardUPlan.md S2: the Mn4+ d3 proxy for lambda-MnO2, oracle = matched-PP hp.x (IntegrationTests/QE/mno2b.*).  Collinear AFM: corner Mn +m, body-centre Mn -m (each [001] chain FM, neighbouring chains antiparallel) -- our reading of the 'A1-AFM' of Macke et al. JCTC 20, 4824 (2024) ref 59; check that definition before quoting a literature comparison.  The real order is a screw spiral (T_N 92 K) and the true cell is orthorhombically distorted (2019 high-resolution diffraction); the tetragonal cell is the common ground for a matched oracle.  Site order as TiO2_rutile.  Mn q7 (3d5 4s2) and O q6 = the UPFs of the MnO hp.x oracle.",
+    "lattice": { "type": "TetragonalP", "a": 8.322543, "c": 5.435797 },
+    "atoms":   [ { "el": "Mn", "frac": [0.0, 0.0, 0.0], "spin": 1 },
+                 { "el": "Mn", "frac": [0.5, 0.5, 0.5], "spin": -1 },
+                 { "el": "O",  "frac": [0.3046, 0.3046, 0.0] }, { "el": "O", "frac": [0.8046, 0.1954, 0.5] },
+                 { "el": "O",  "frac": [0.1954, 0.8046, 0.5] }, { "el": "O", "frac": [0.6954, 0.6954, 0.0] } ],
+    "species": { "Mn": 7, "O": 6 }
   }
 }

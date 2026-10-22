@@ -1823,3 +1823,22 @@ The screened χ matrix matches element by element; the residual is χ₀'s Ti bl
 inversion amplifies in U(Ti) (+2 % scalar → +4 %).  **And U(Ti 3d) is NOT a property of Ti alone: adding O 2p to the Hubbard set takes
 hp.x's U(Ti) 5.019 → 2.927 eV (ours 5.125 → 3.051)** — the Ti–O off-diagonals enter the inversion.  Per-irrep O pz (Macke) is not
 reported by our response yet (`doc/LinearResponsePlan.md` START HERE: orbital-resolved channels REPORTED).
+
+**The k/q mesh vs hp.x — PASSED, same day (S1's last item).**  hp.x re-run at k 2³ / q 2³ (`~/Code/qe-runs/TiO2/tio2_k2.*`, 70 min on 4
+ranks, 6 q): **U = 4.6373 eV — identical to its k 4³ / q 2³ 4.6368 (0.5 meV)**, so TiO₂'s k-mesh is converged at 2³ and the Γ → 4.637
+change is the q-mesh (supercell size).  Ours: b6 basis, k 2³ / q 2³ FREE (D5: an imposed rutile group would reduce the mesh), kT = 0 (QE
+`occupations='fixed'`; the pre-flight refuses a smeared q ≠ 0 response with per-k Fermi levels), Ti0 3d perturbed; record
+`TiO2_rutile.r027` (scratch dir), 1 h 50 min on 12 threads, peak RSS 3.2 GB, 13–15 kernel applications per q.
+
+| k 2³ / q 2³, home cell R = 0 | ours | hp.x | Δ |
+|---|---|---|---|
+| E_tot Ha | −71.60463 | −71.61246 (−143.22493 Ry) | 7.8 mHa (the b6 basis gap, as at Γ) |
+| d occupation | 2.297 | 2.283 | +0.6 % |
+| χ₀ Ha⁻¹ | −11.418 | −11.360 (−0.41746 eV⁻¹) | +0.5 % |
+| χ Ha⁻¹ | −3.809 | −3.867 (−0.14211 eV⁻¹) | −1.5 % |
+| **U eV** | **4.757** | **4.637** | **+2.6 %** |
+| Γ → q 2³ shift eV | −0.368 | −0.389 scalar / −0.382 2×2 | 0.02 eV |
+
+The q ≠ 0 machinery reproduces hp.x's finite-size shift to 0.02 eV; the residual is the Γ basis offset carried over (+0.10 → +0.12 eV).
+One definition difference left: ours perturbs the Ti0 sublattice only (8 of hp.x's 16 sites; 7 meV at Γ).  **TiO₂ is closed as a
+cross-code point: CP2K-matched on CP2K's basis, QE-matched on an l-converged one, at Γ, with O 2p, and on the q-mesh.**

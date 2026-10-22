@@ -18,7 +18,7 @@ links INSIDE moved files (`../src/…`) are one level off.
 
 | file | what it is |
 |---|---|
-| **`OpenWork.md`** | ★ **THE tracker (v4, ≤100 lines).  READ IT AT SESSION START.**  §1 NEXT · §2 MAJOR FEATURES · §3 ACCURACY / OPEN DEFECTS · §4 PERFORMANCE summary.  One row = next concrete action + the one record to read |
+| **`OpenWork.md`** | ★ **THE tracker (v4; ~100 lines is a TARGET, never a reason not to log a defect; past it = time for a session that works rows off — user 2026-10-22).  READ IT AT SESSION START.**  §1 NEXT · §2 MAJOR FEATURES · §3 ACCURACY / OPEN DEFECTS · §4 PERFORMANCE summary.  One row = next concrete action + the one record to read |
 | **`HubbardUPlan.md`** | ★ **UNDER EXECUTION** — DFT+U: status, oracle table, ▶ START HERE next actions, gotchas.  Full history: `Records/HubbardUHistory.md`.  Retires to `Records/` when the U-functional lands |
 | **`OOD-SOLID-Cleanup.md`** + **`CleanCode.md`** | the cleanup worklist (split 2026-10-01): OOD/SOLID debt vs non-SOLID hygiene, open rows only, original R/V/D ids citing `Records/CleanupHistory2.md` / `CleanupHistory3.md`.  `CleanupCandidates.md` is a 6-line redirect stub |
 | **`InputDeck.md`** | ★ **HOW A RUN IS DESCRIBED, RUN, RECORDED AND REPRODUCED** — the JSON input deck + `rundeck` (D-ENV, 2026-10-04).  Rules, schema, the numbered revision record, `--set`, `--check`, the shipped decks, what the retired env knobs became.  **Read before running or varying a solid calculation** |

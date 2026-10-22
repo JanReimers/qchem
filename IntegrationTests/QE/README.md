@@ -455,3 +455,33 @@ O-2p hole/ligand character — exactly the "entangled d-p" case Carta et al.'s o
 as).  Checkpoint archived: `checkpoints/sr2feo4_U0.save/`.  Decks: `sr2feo4.scf.in`, `sr2feo4.hp.in`.
 
 **Both of Dr. Carta's materials are now done — KCuF₃/Sr₂FeO₄ queue items closed.**
+
+## S2 (`doc/HubbardUPlan.md`): β-MnO₂ (pyrolusite), matched-PP, A1-AFM — 2026-10-21 — **set up; NO gapped reference in plain LDA**
+
+The Mn⁴⁺ d³ proxy for λ-MnO₂.  Cell = Bolzan et al., Aust. J. Chem. 46, 939 (1993) neutron refinement: P4₂/mnm, a = 4.4041 Å
+(8.322543 bohr), c = 2.8765 Å (c/a 0.653141), O u = 0.3046 — `materials.json` `MnO2_beta_A1AFM`, site order as TiO₂.  Collinear AFM:
+corner Mn +m, body-centre Mn −m (our reading of Macke et al. JCTC 2024's ref-59 "A1-AFM").  UPFs = the MnO oracle's `Mn.pz-gth-q7.UPF`,
+`O.pz-gth-q6.UPF`; LDA `sla+vwn`, 300/1200 Ry (as TiO₂), 38 valence electrons.
+
+**pw.x step 1 (smeared, gaussian 0.002 Ry):**
+- Γ (`mno2b.scf.in`, 33 s, 6 ranks): E = −186.93546944 Ry, |m| 7.87 μB/cell, Mn ±3.068 μB; **HOMO/LUMO 10 meV apart, straddling E_F**
+  (occupations 0.61 / 0.39 in each spin) — a Γ two-level artifact, the parked-SrVO₃ shape.
+- k 4×4×6 (`mno2b_k446.scf.in`, Macke's mesh, 28 k, 9.7 min, 8 ranks): E = −187.32829530 Ry, |m| 7.57 μB/cell; E_F in a 64 meV window,
+  4 of 1680 band-k occupations fractional ⇒ a **semimetal** (Macke's PBEsol: gap 0.00).
+
+hp.x NOT run: its fixed-occupation 2-step needs a gap; the smeared (metal) route needs a deliberately MATCHED kT in both codes, since a
+semimetal's χ₀ is set by the few states at E_F.  A gap opens only with U on O pz (Macke 1.01 eV) — orbital-resolved.  Runs:
+`~/Code/qe-runs/MnO2/`.
+
+**Orbital-resolved U at U_in opens the gap (QE 7.6 `orbital_resolved`, k 4×4×6, 2026-10-21).**  `mno2b_k446O.scf.in` (U 1e-8 on Mn 3d AND O 2p,
+`verbosity='high'`) prints the occupation eigenvectors (QE real harmonics: d = z², xz, yz, x²−y², xy; p = pz, px, py):
+- Mn1 majority (spin 1): t2g = eigen-indices **3 4 5** (0.987/0.989/0.992; 0.84 z²+0.54 xy, x²−y², (xz+yz)/√2), e_g = 1 2 (0.61, σ-hybridized);
+  minority t2g = **6 7 8**.  Mn2 is the mirror: **1 2 3** and **8 9 10**.
+- O (u,u,0): its three Mn span the plane ⟂ [1̄10]; the eigenvector (0, −0.707, 0.707) = (−px+py)/√2 = **the plane normal = Macke's "pz"**,
+  the MOST occupied O p in both spins (0.891 up / 0.946 down) ⇒ indices **3 6**; the σ state along [110] (to the apical Mn) is the most
+  hybridized (0.72–0.75).  Same ordering on all four O (spins swapped on two).
+- `mno2b_k446_orU.scf.in` (U Mn t2g 1.64 eV both spins + U O pz 4.62 eV, Macke's PBEsol SC values used as LDA U_in): **gap 0.856 eV**,
+  Mn ±3.12 μB, E = −187.22138975 Ry, 0 fractional occupations.
+- `mno2b_k446_OpzU.scf.in` (U O pz 4.62 eV ONLY): **gap 0.842 eV**, Mn ±3.08 μB, E = −187.24975107 Ry — the Mn t2g U is nearly irrelevant
+  to the gap.  O pz is a pure irrep (the plane normal of O's C₂ᵥ), so our per-irrep `Uirrep_eV` can carry the same U_in: this is the
+  gapped reference BOTH codes can reproduce.

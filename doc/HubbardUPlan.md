@@ -44,7 +44,7 @@ solve of the same equations), **FD** = finite difference (±α SCFs; CP2K CK-alp
 | MnO | O 2p | ~~26.56~~ → 11.150 (ortho) | **7.77** (χ/χ₀ 0.439) | atomic projector was the artifact here; redone 2026-09-30 |
 | SrVO₃ / KCuF₃ / Sr₂FeO₄ | V / Cu / Fe 3d | 6.250 / 8.163 / 8.012 | SrVO₃ **4.43** (χ/χ₀ 0.041; Γ-only metal) · ours 4.41–4.65 (Γ fixed points, parked) / — / — | KCuF₃, Sr₂FeO₄ geometry from Carta's own input files (`~/Code/reprints/materials_cloud_submission/`); their U is MLWF-based, not comparable |
 | LiMO₂ M=V,Cr,Fe,Co,Ni | M 3d | 5.953 / 5.811 / 7.592 / 7.307 / 9.173 | — | idealised R-3m template; LiNiO₂ U_in≈0 `.save` archived `IntegrationTests/QE/checkpoints/linio2_U0.save/` |
-| TiO₂ rutile | Ti 3d | 4.637 | **4.86** (χ/χ₀ 0.286) · ours **4.870** (0.286) | d⁰ gap, no 2-step.  **At Γ, ortho-atomic, both DFPT: hp.x 5.019 (χ/χ₀ 0.330) vs ours 5.742 (0.248) — χ₀ +31 %, χ −1.6 %: OPEN corner case** (§2) |
+| TiO₂ rutile | Ti 3d | 4.637 | **4.86** (χ/χ₀ 0.286) · ours **4.870** (0.286) | d⁰ gap, no 2-step.  **Ours (DFPT, ortho-atomic, l-converged basis b6): Γ 5.125 vs hp.x Γ 5.019–5.026; k2/q2 4.757 vs 4.637 (hp.x k2 ≡ k4)** — closed (§2 S1) |
 | FeS₂ pyrite | Fe 3d | **7.5351** | **6.01** (χ/χ₀ 0.119) · ours **6.007** (0.120) | identical to 4 s.f. on all 4 Fe sites; ~5 h run; original console log lost to a driver-bug rerun (`batch/recovered/` holds the Hubbard_parameters.dat) |
 | ZnO | Zn 3d | 35.34 | — | NOT AN ORACLE: closed d¹⁰ shell, χ₀≈χ≈0 |
 | Si (CP2K CK-alpha) | 3p | χ only | χ only (not a U) | χ_CP2K −14.5164 vs ours −14.5117 Ha⁻¹ (0.033 %) — validates our method |
@@ -95,8 +95,20 @@ Every action appears here once; if it is not here it is a finding, not a task.
   with f on Ti and O (`b6`, 6.9 mHa above QE's E) the occupation matches to 0.1 %, χ to 0.3 %, χ₀ +3.1 %, U 5.125 vs 5.026 (+2 %),
   and U tracks the energy gap toward ≈ 5.01 eV.  The cause was the truncated O 2p spectator plus missing angular momentum (a
   PW basis has no l limit).  ✅ **O 2p at Γ PASSED** (6×6 Hubbard-site matrix, b6): U(O 2p) 6.735 vs hp.x 6.758 eV (−0.3 %), U(Ti)
-  3.051 vs 2.927 (+4 %), screened χ element by element (H, same section).  Remaining in S1: the k/q mesh (hp.x 4.637) on a basis
-  with f; per-irrep O pz needs the resolved-channel report first.
+  3.051 vs 2.927 (+4 %), screened χ element by element (H, same section).  ✅ **k/q mesh PASSED**: hp.x k2/q2 = 4.6373 ≡ its k4/q2
+  4.6368 (k converged at 2³); ours (b6, k2/q2, kT 0) **4.757 vs 4.637 (+2.6 %)**, χ₀ +0.5 %, χ −1.5 %, the Γ→q2 shift −0.368 vs −0.389 eV.
+  **TiO₂ is CLOSED as a cross-code point.**  Left in S1: per-irrep O pz.  **First `resolve: eigen` run (TiO₂ Γ, b6, 2026-10-21)**: the 1×1 (Macke
+  pointwise) column is well behaved — Ti channels 1.77–2.06 eV, O p 3.96–4.31 eV (the [1̄10] plane normal is the MIDDLE channel,
+  n 1.629, 4.04 eV — not the most occupied, as it is in β-MnO₂) — and full inversion is the
+  ill-posed 17–36 eV Macke warns of.  The ORBITAL-DIAGONAL variant (−22 to −846 eV) was ill-posed by DEFINITION (zeroing a site's
+  inter-orbital off-diagonals leaves χ indefinite) and is REMOVED (`db09a3f4`, merged `1d33184c`, ctest 1050/1050).  ⚠ **QE
+  orbital-resolved FD (pw.x ±α_m restarts, 6-atom cell, Γ; `~/Code/qe-runs/TiO2/orfd/`) is NOT yet a reliable oracle**: channel
+  definitions agree (QE Ti eigenvectors xz/yz · 0.23 z²+0.77 xy · x²−y² · … vs ours 0.27/0.73), but on the pure x²−y² channel QE's
+  first iteration shows NO response (identical to 8 digits for ±α) and χ ends with the wrong sign — QE's eigenstate tracking appears
+  to start from a different basis at a restart, which would also shrink |χ₀| on k1/k2 (QE −0.418/−1.266 vs ours −0.455/−1.587 Ha⁻¹;
+  U₁ₓ₁ QE 2.29/+0.27 vs ours 2.03/−0.20 eV).  The −0.20 eV channel is anti-screened in ours (|χ| 1.606 > |χ₀| 1.587); QE's k2
+  is barely screened (1.251 vs 1.266) — both a difference of near-equal inverses.  Next: find how QE seeds the tracked eigenvectors
+  on a restart (`PW/src` tracking, ref 127 of Macke) or run the ±α from scratch, before trusting any QE resolved number.
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
 - **A6** is complete (table above).  β-MnO₂ (Macke's second material) is now item S2 below.
 
@@ -134,6 +146,19 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
   `305450f4` is what makes that site group computable).  NOT a matched oracle (PBEsol, different PP, relaxed geometry): build one
   as A6 did — QE 7.6 (has `orbital_resolved` + orbital-resolved U/α in the HUBBARD card) with our `gth2upf` UPFs, LDA, EXPERIMENTAL
   geometry, A1-AFM: hp.x DFPT for shell-averaged Mn 3d, pw.x ±α (FD) for Mn t2g and O pz with 1×1 inversion; then ours.
+  **Set up 2026-10-21** (`024bd682`; `IntegrationTests/QE/README.md` §S2): `materials.json` `MnO2_beta_A1AFM` (Bolzan 1993 neutron cell,
+  a 4.4041 / c 2.8765 Å, u 0.3046; corner Mn +m, body-centre −m), QE step 1 at Γ and k 4×4×6.  ⛔ **Plain LDA has NO gapped reference**:
+  Γ is a 10 meV two-level artifact at E_F (the parked-SrVO₃ shape), k446 a semimetal (Mn ±3.0 μB, 4 of 1680 occupations fractional).
+  So hp.x's fixed 2-step is out.  **RULED 2026-10-21 (user): route (b)** — wait for the OpenWork §2 row "Response: REPORT
+  orbital-resolved channels" to land (being built in a parallel session), then open the gap with U(O pz) at U_in, as Macke does
+  (PBEsol: U(O pz) 4.62 + U(Mn t2g) 1.64 eV → 1.01 eV gap), and run the matched oracle from that gapped reference.  Rejected:
+  (a) a matched smeared oracle — a semimetal's χ₀ is set by the smearing width.  ✅ **Unblocked 2026-10-21** (resolved channels merged,
+  `16528a14`; ctest 1050/1050).  **QE: U(O pz) 4.62 eV ALONE opens a 0.842 eV gap** at k 4×4×6 (+ U(Mn t2g) 1.64: 0.856 eV) —
+  `IntegrationTests/QE/README.md` §S2 has the eigen-indices.  O pz is a PURE irrep (plane normal of O's C₂ᵥ), so our `Uirrep_eV` can
+  set the same U_in; Mn t2g cannot be (one t2g state shares D₂h's a_g with an e_g one) and is not needed for the gap.  Next: the
+  matched oracle from that reference — QE pw.x ±α_m FD (orbital-resolved; hp.x is shell-averaged only) vs ours `resolve: eigen`, on a
+  k-mesh both can afford, after the Mn/O basis gets the TiO₂ treatment (O p tail + f, vetted in rutile).  Our side
+  resolves the structure (`--check`: 38 e); its Mn basis is VA's MnO-conditioned block — the TiO₂ lesson (O p tail + f) applies first.
 - **S3 — fix `doc/OpenWork.md` §3 "A carried density is re-filled at kT = 0"** before any U_SC campaign: every `hubbardLoop` outer
   step is a `BuildStage` from the carried density, so on a smeared / near-degenerate magnetic state each step kicks the state
   (SrVO₃ landed on different fixed points, 2026-10-21).

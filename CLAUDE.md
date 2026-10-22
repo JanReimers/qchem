@@ -243,7 +243,7 @@ than reconstructing it.
     and **it holds NO open work**: a residual backlog goes to `doc/OpenWork.md`, a durable ruling to
     `Pins.md`, a convention here.  **LIVE** is only the queues (`OpenWork.md`, `OOD-SOLID-Cleanup.md`, `CleanCode.md`), the
     instruments (`Benchmark.md`, CP2K) and a plan under active execution.
-- `doc/OpenWork.md` is THE tracker (v4, 2026-10-01, ≤100 lines): **§1 NEXT** (DFT+U pointer),
+- `doc/OpenWork.md` is THE tracker (v4, 2026-10-01; ~100 lines is a TARGET — **never let it stop you logging a defect**, user 2026-10-22: add the row; going past ~100 is the user's SIGNAL to start a session that WORKS rows off, not a cue to condense): **§1 NEXT** (DFT+U pointer),
     **§2 MAJOR FEATURES**, **§3 ACCURACY/OPEN DEFECTS**, **§4 PERFORMANCE** summary (levers: `doc/Benchmark.md` §10).  Every row
     names its next concrete action and the ONE record to read; the argument lives in the record
     (`OpenWork_History4.md` = v2, `OpenWork_History5.md` = v3, verbatim).  A ⛔ that is durable is a pin, one
