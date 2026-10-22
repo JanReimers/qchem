@@ -239,4 +239,13 @@ into the terms), `R2.5b` (`throw` is a marker), `V1.20` (`.Internal.` = the FAMI
   ones (the box-vs-finite gap went 0.02618 → 0.02611 Ha, i.e. toward the finite molecule); every other move ≤ 1e-7 Ha (MnO
   `_Long` anchors 5e-8; `GPW_Na2Box...OrderLostThrows` 165 → 159 iterations).  The FREE builder still decides per point (no
   orbit information there): the AFM translation-partner asymmetry noted in the item stands for unimposed runs.
+- **D12 ✅ (2026-10-21, anchor-moving batch; pin 1)**: `GPW_Evaluator`'s pointwise `Eval`/`EvalGradient` charged ONE reach
+  (the basis' most diffuse exponent) to every function, over an image list from a cell-shape formula already patched once
+  (`max(2·reach+2·maxEdge, reach+2·cellRad)`, the oblique-MnO under-enumeration).  Now each orbital CENTRE carries its own
+  ε reach sqrt(−ln 1e-10/α_min(centre)) (from `AoShellSource`), an image enters iff some centre's reach covers r−R
+  (`ImageReaches`), and the list is exactly what that test can accept for r in the cell, |R| ≤ cellRad + max_A(|A−ctr| +
+  reach_A) -- the triangle inequality, no shape formula.  The mesh-quadrature KB fallback (non-Gaussian projector models)
+  used the ORBITAL list for PROJECTOR images; it now enumerates |R| ≤ rad + r_β + |τ_a − ctr| itself.  (`EvalMany`, the
+  1E sums and the analytic KB already ran the seam's per-pair ε series; untouched.)  MEASURED vs V1.22: 1052/1052 + long 4/4,
+  NOTHING moved at 1e-10 Ha; per-test time summed 1913 → 1025 s (median 0.55× on tests > 2 s: fewer images).
 
