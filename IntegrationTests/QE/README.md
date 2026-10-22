@@ -472,3 +472,16 @@ corner Mn +m, body-centre Mn −m (our reading of Macke et al. JCTC 2024's ref-5
 hp.x NOT run: its fixed-occupation 2-step needs a gap; the smeared (metal) route needs a deliberately MATCHED kT in both codes, since a
 semimetal's χ₀ is set by the few states at E_F.  A gap opens only with U on O pz (Macke 1.01 eV) — orbital-resolved.  Runs:
 `~/Code/qe-runs/MnO2/`.
+
+**Orbital-resolved U at U_in opens the gap (QE 7.6 `orbital_resolved`, k 4×4×6, 2026-10-21).**  `mno2b_k446O.scf.in` (U 1e-8 on Mn 3d AND O 2p,
+`verbosity='high'`) prints the occupation eigenvectors (QE real harmonics: d = z², xz, yz, x²−y², xy; p = pz, px, py):
+- Mn1 majority (spin 1): t2g = eigen-indices **3 4 5** (0.987/0.989/0.992; 0.84 z²+0.54 xy, x²−y², (xz+yz)/√2), e_g = 1 2 (0.61, σ-hybridized);
+  minority t2g = **6 7 8**.  Mn2 is the mirror: **1 2 3** and **8 9 10**.
+- O (u,u,0): its three Mn span the plane ⟂ [1̄10]; the eigenvector (0, −0.707, 0.707) = (−px+py)/√2 = **the plane normal = Macke's "pz"**,
+  the MOST occupied O p in both spins (0.891 up / 0.946 down) ⇒ indices **3 6**; the σ state along [110] (to the apical Mn) is the most
+  hybridized (0.72–0.75).  Same ordering on all four O (spins swapped on two).
+- `mno2b_k446_orU.scf.in` (U Mn t2g 1.64 eV both spins + U O pz 4.62 eV, Macke's PBEsol SC values used as LDA U_in): **gap 0.856 eV**,
+  Mn ±3.12 μB, E = −187.22138975 Ry, 0 fractional occupations.
+- `mno2b_k446_OpzU.scf.in` (U O pz 4.62 eV ONLY): **gap 0.842 eV**, Mn ±3.08 μB, E = −187.24975107 Ry — the Mn t2g U is nearly irrelevant
+  to the gap.  O pz is a pure irrep (the plane normal of O's C₂ᵥ), so our per-irrep `Uirrep_eV` can carry the same U_in: this is the
+  gapped reference BOTH codes can reproduce.
