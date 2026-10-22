@@ -187,9 +187,21 @@ rmat_t RangeBasis(const rmat_t& P)
 }
 //! "z2:1.00 x2-y2:1.00": how much of each named projector function lies in the channel spanned by \a X's columns
 //! (\f$\sum_c X_{ac}^2\f$), names repeated across a multi-shell manifold averaged; weights below 0.005 left out.
+//! A ONE-dimensional channel over distinct names prints its SIGNED coefficients instead ("x:+0.71 y:-0.71"), the
+//! largest made positive (an eigenvector's overall sign is arbitrary): weights alone cannot tell (x+y)/sqrt2 from
+//! (x-y)/sqrt2 -- on rutile O that is the sigma bond vs the plane normal (beta-MnO2's "O pz", 2026-10-22).
 std::string Composition(const rmat_t& X, const std::vector<std::string>& names)
 {
     if (names.size()!=X.rows()) return "";
+    const bool distinct=[&]{ for (size_t a=0;a<names.size();a++) for (size_t b=a+1;b<names.size();b++) if (names[a]==names[b]) return false; return true; }();
+    if (X.columns()==1 && distinct)
+    {
+        size_t big=0; for (size_t a=1;a<X.rows();a++) if (std::abs(X(a,0))>std::abs(X(big,0))) big=a;
+        const double s = X(big,0)<0.0 ? -1.0 : 1.0;
+        std::ostringstream os; os<<std::fixed<<std::setprecision(2)<<std::showpos;
+        for (size_t a=0;a<X.rows();a++) if (X(a,0)*X(a,0)>=0.005) os<<(os.tellp()>0 ? " " : "")<<names[a]<<":"<<s*X(a,0);
+        return os.str();
+    }
     std::vector<std::string> order; std::vector<double> sum, count;
     for (size_t a=0;a<X.rows();a++)
     {

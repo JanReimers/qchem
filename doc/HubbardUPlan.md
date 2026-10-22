@@ -83,32 +83,11 @@ Every action appears here once; if it is not here it is a finding, not a task.
 - ✅ **Cross-code gate vs CP2K CK-alpha — PASSED 2026-10-21** (§1; record H §"A7 cross-code gate"): TiO₂ and FeS₂ agree
   to 6 meV / <1 meV; SrVO₃ at Γ parked.  The goal stays CORNER CASES where our U or χ disagrees with CP2K/QE, without
   getting bogged down in convergence heuristics (user 2026-10-21; why NiO-CP2K and SrVO₃-Γ are parked).
-- **CORNER CASE FOUND 2026-10-21 — TiO₂ ortho-atomic at Γ vs hp.x at Γ** (both DFPT, same state, same PP and same
-  pseudo-atom radials: `gth2upf` writes OUR pseudo-atom orbitals as PP_CHI; record H §"TiO₂ ortho-atomic at Γ"): d
-  occupation 2.405 vs 2.208 (+9 %), **χ₀ −14.404 vs −10.969 Ha⁻¹ (+31 %)**, χ −3.566 vs −3.625 (−1.6 %), U 5.742 vs
-  5.019 eV.  Not a projector SCALE (χ/χ₀ 0.248 vs 0.330).  Lead: the ortho-atomic SPECTATORS are truncated in
-  `valence_lowq_tm.bsd` (Ti 4s captures 0.9675 of its norm, O 2p 0.9762; Ti 3d 0.9952), so Ti 3d is under-orthogonalised
-  against O 2p.  **Discriminated the same day:** + O p 0.18 (vet keeps it in rutile; Ti s 0.05 is vet-TRIMMED) takes O 2p capture to
-  0.9994, the occupation to 2.230 (+1 %), χ₀ to +7 %, U to 5.561 eV — the truncated O 2p spectator was most of it.  But one O p
-  shell is worth 0.215 Ha: `valence_lowq_tm` is 288 mHa above QE's plane-wave E on this cell, so the CP2K gate validated the
-  method, never the basis.  **RESOLVED the same day — NO method disagreement** (H §"TiO₂ ortho-atomic at Γ", CORRECTION):
-  with f on Ti and O (`b6`, 6.9 mHa above QE's E) the occupation matches to 0.1 %, χ to 0.3 %, χ₀ +3.1 %, U 5.125 vs 5.026 (+2 %),
-  and U tracks the energy gap toward ≈ 5.01 eV.  The cause was the truncated O 2p spectator plus missing angular momentum (a
-  PW basis has no l limit).  ✅ **O 2p at Γ PASSED** (6×6 Hubbard-site matrix, b6): U(O 2p) 6.735 vs hp.x 6.758 eV (−0.3 %), U(Ti)
-  3.051 vs 2.927 (+4 %), screened χ element by element (H, same section).  ✅ **k/q mesh PASSED**: hp.x k2/q2 = 4.6373 ≡ its k4/q2
-  4.6368 (k converged at 2³); ours (b6, k2/q2, kT 0) **4.757 vs 4.637 (+2.6 %)**, χ₀ +0.5 %, χ −1.5 %, the Γ→q2 shift −0.368 vs −0.389 eV.
-  **TiO₂ is CLOSED as a cross-code point.**  Left in S1: per-irrep O pz.  **First `resolve: eigen` run (TiO₂ Γ, b6, 2026-10-21)**: the 1×1 (Macke
-  pointwise) column is well behaved — Ti channels 1.77–2.06 eV, O p 3.96–4.31 eV (the [1̄10] plane normal is the MIDDLE channel,
-  n 1.629, 4.04 eV — not the most occupied, as it is in β-MnO₂) — and full inversion is the
-  ill-posed 17–36 eV Macke warns of.  The ORBITAL-DIAGONAL variant (−22 to −846 eV) was ill-posed by DEFINITION (zeroing a site's
-  inter-orbital off-diagonals leaves χ indefinite) and is REMOVED (`db09a3f4`, merged `1d33184c`, ctest 1050/1050).  ⚠ **QE
-  orbital-resolved FD (pw.x ±α_m restarts, 6-atom cell, Γ; `~/Code/qe-runs/TiO2/orfd/`) is NOT yet a reliable oracle**: channel
-  definitions agree (QE Ti eigenvectors xz/yz · 0.23 z²+0.77 xy · x²−y² · … vs ours 0.27/0.73), but on the pure x²−y² channel QE's
-  first iteration shows NO response (identical to 8 digits for ±α) and χ ends with the wrong sign — QE's eigenstate tracking appears
-  to start from a different basis at a restart, which would also shrink |χ₀| on k1/k2 (QE −0.418/−1.266 vs ours −0.455/−1.587 Ha⁻¹;
-  U₁ₓ₁ QE 2.29/+0.27 vs ours 2.03/−0.20 eV).  The −0.20 eV channel is anti-screened in ours (|χ| 1.606 > |χ₀| 1.587); QE's k2
-  is barely screened (1.251 vs 1.266) — both a difference of near-equal inverses.  Next: find how QE seeds the tracked eigenvectors
-  on a restart (`PW/src` tracking, ref 127 of Macke) or run the ±α from scratch, before trusting any QE resolved number.
+- ✅ **TiO₂ CLOSED as a cross-code point (2026-10-21)** — QE-matched on an l-converged basis (`b6` = TM + O p/s tails, Ti p, tight O,
+  O d, f on Ti AND O; files in `~/Code/qchem6-runs/TiO2/basis_scan/`): at Γ U 5.125 vs hp.x 5.026 eV (U tracks the basis
+  energy gap toward ≈ 5.01), U(O 2p) 6.735 vs 6.758, k2/q2 4.757 vs 4.637 (Γ→q2 shift −0.368 vs −0.389).  Lessons: a Gaussian-vs-PW
+  χ₀ needs the basis converged in l, and a CP2K match on CP2K's basis cannot show it; a U belongs to its manifold SET (§5).
+  Full story: H §"TiO₂ ortho-atomic at Γ" and §"HubbardUPlan §2 as it stood on 2026-10-22".
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
 - **A6** is complete (table above).  β-MnO₂ (Macke's second material) is now item S2 below.
 
@@ -132,33 +111,45 @@ Every action appears here once; if it is not here it is a finding, not a task.
 
 **Step-3 readiness — the ORDER before (U, J) at λ-MnO₂ / Li₂Mn₂O₄ (§3), agreed 2026-10-21.**  Not ready yet: several items below
 change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.  Items already listed elsewhere are named, not repeated.
-- **S1 — finish the QE method checks**: the TiO₂ corner case above (basis scan running 2026-10-21), then **U(O 2p) on TiO₂ at Γ vs hp.x
-  at Γ** (same deck, perturb an O 2p manifold; the only O data point today is MnO, CP2K 7.77 vs hp.x ortho 11.15, unexplained).
-- **S2 — a Mn⁴⁺ d³ proxy in a small cell: β-MnO₂** (rutile, 6 atoms; needs a `materials.json` entry, a Mn hp.x deck, collinear AFM).
-  Tests pin 24 on λ-MnO₂'s exact d count: t2g³ is a fully spin-polarised half shell, the MnO-d⁵ saturation shape.  Measure χ/χ₀ for
-  the total-d AND the resolved t2g/e_g channels before believing either.  **Literature: Macke et al., JCTC 20, 4824 (2024)
-  §4.3** (`~/Code/reprints/ct3c01403.pdf`; PBEsol, SSSP PPs, OAO projectors, A1-AFM in a 48-atom 2×2×2 supercell, geometry RE-RELAXED
-  each outer step): orbital-resolved U(Mn t2g) 1.59 eV (gap 0), + U(O pz) 4.62 eV → gap 1.01 eV and V₀ within 1 %; shell-averaged
-  U(Mn 3d) 6.34 (gap 0.02), U+V 6.76 / V(Mn–O) 0.99, 1.10 (their ref 59); expt a 4.40, c 2.88 Å.  The resolved U is well posed there
-  because they invert POINTWISE (χ, χ₀ off-diagonals between orbitals zeroed first — intrashell screening kept); a full inversion
-  is the pin-24 singular case, so our resolved channels must use the same inversion to compare.  The ligand that matters is
-  O **pz** (normal to the Mn₃O plane, π to t2g) — for us a separate irrep of the O site's C₂ᵥ (the planar-environment fix
-  `305450f4` is what makes that site group computable).  NOT a matched oracle (PBEsol, different PP, relaxed geometry): build one
-  as A6 did — QE 7.6 (has `orbital_resolved` + orbital-resolved U/α in the HUBBARD card) with our `gth2upf` UPFs, LDA, EXPERIMENTAL
-  geometry, A1-AFM: hp.x DFPT for shell-averaged Mn 3d, pw.x ±α (FD) for Mn t2g and O pz with 1×1 inversion; then ours.
-  **Set up 2026-10-21** (`024bd682`; `IntegrationTests/QE/README.md` §S2): `materials.json` `MnO2_beta_A1AFM` (Bolzan 1993 neutron cell,
-  a 4.4041 / c 2.8765 Å, u 0.3046; corner Mn +m, body-centre −m), QE step 1 at Γ and k 4×4×6.  ⛔ **Plain LDA has NO gapped reference**:
-  Γ is a 10 meV two-level artifact at E_F (the parked-SrVO₃ shape), k446 a semimetal (Mn ±3.0 μB, 4 of 1680 occupations fractional).
-  So hp.x's fixed 2-step is out.  **RULED 2026-10-21 (user): route (b)** — wait for the OpenWork §2 row "Response: REPORT
-  orbital-resolved channels" to land (being built in a parallel session), then open the gap with U(O pz) at U_in, as Macke does
-  (PBEsol: U(O pz) 4.62 + U(Mn t2g) 1.64 eV → 1.01 eV gap), and run the matched oracle from that gapped reference.  Rejected:
-  (a) a matched smeared oracle — a semimetal's χ₀ is set by the smearing width.  ✅ **Unblocked 2026-10-21** (resolved channels merged,
-  `16528a14`; ctest 1050/1050).  **QE: U(O pz) 4.62 eV ALONE opens a 0.842 eV gap** at k 4×4×6 (+ U(Mn t2g) 1.64: 0.856 eV) —
-  `IntegrationTests/QE/README.md` §S2 has the eigen-indices.  O pz is a PURE irrep (plane normal of O's C₂ᵥ), so our `Uirrep_eV` can
-  set the same U_in; Mn t2g cannot be (one t2g state shares D₂h's a_g with an e_g one) and is not needed for the gap.  Next: the
-  matched oracle from that reference — QE pw.x ±α_m FD (orbital-resolved; hp.x is shell-averaged only) vs ours `resolve: eigen`, on a
-  k-mesh both can afford, after the Mn/O basis gets the TiO₂ treatment (O p tail + f, vetted in rutile).  Our side
-  resolves the structure (`--check`: 38 e); its Mn basis is VA's MnO-conditioned block — the TiO₂ lesson (O p tail + f) applies first.
+- ✅ **S1 — QE method checks: DONE 2026-10-21** (TiO₂ above).  Resolved channels (`resolve: slot|eigen`, full + 1×1 inversions,
+  SIGNED compositions for 1-d channels) are merged and in use.  ⏸ **PARKED (user 2026-10-22): the QE orbital-resolved FD oracle** —
+  pw.x ±α_m restarts mis-track the target eigenstate (TiO₂ x²−y²: no first-iteration response; driver + runs in
+  `~/Code/qe-runs/TiO2/orfd/`); resume by finding how QE seeds the tracked eigenvectors at a restart, or run ±α from scratch.
+- **S2 — β-MnO₂, the Mn⁴⁺ d³ proxy (▶ START HERE).**  Route ruled (user 2026-10-21): open the gap with U(O pz) at U_in, as Macke
+  JCTC 2024 §4.3 does, and build the matched oracle from that gapped state.  **What is established:**
+  - Cell `materials.json` `MnO2_beta_A1AFM` (Bolzan 1993; corner Mn +m, body-centre −m), matched GTH UPFs, QE decks
+    `IntegrationTests/QE/mno2b*` (README §S2 has the QE eigen-indices).  Plain LDA is GAPLESS here (Γ two-level artifact, k446 semimetal).
+  - **QE: U(O pz) 4.62 eV ALONE opens the gap** — 0.842 eV at k446, **0.325 eV at Γ, E(Γ) = −186.85322133 Ry = −93.42661 Ha**
+    (`~/Code/qe-runs/MnO2/mno2b_G_OpzU.scf.out`).  This Γ state is the basis-convergence target.
+  - **"O pz" = the [1̄10]-type plane normal = OUR O p SLOT Γ2** on every rutile O site (Γ0 = σ along the C₂ axis, Γ1 = z; signed
+    compositions `69778563`).  It is a pure irrep, so `Uirrep_eV: [0, 0, 4.62]` on each O l=1 manifold sets QE's U_in exactly.
+  **What blocks the first converged run — and THE MERGE SEQUENCE (spec'd 2026-10-22; user: batch FIRST, incremental merges preferred):**
+  ⛔ IonicSAD cannot seed β-MnO₂'s AFM on main (no Mn⁴⁺ entry + the formal-charge tie bug + per-species targets; OpenWork §3 rows
+  "IonicFormalCharges drains…" and "IonicSAD targets are per SPECIES").  The fix is PARKED on `seed-tiebreak` (`2c4a7773`) because it
+  gives MnO the Mn²⁺ d⁵ seed its SR Γ anchor claims, and that arm then loses AFM.  The seed fix MOVES ANCHORS (every IonicSAD cell with
+  repeated cations), so it lands ON TOP of the anchor batch's baseline and MnO is re-judged ONCE on the combined code:
+  1. **Merge `anchor-batch` into qchem6 main** (`git fetch ~/Code/qchem1 anchor-batch`; head `7591ec69` on 2026-10-22: refill-on-restart
+     `32b9d359`, D-MINDRHO `b60c9722`, D-FERMI-DEFAULT `45b4487d`, Becke/screening `99b3d1b6` `0aece9ca` `81dbb79e`, temp names
+     `7ebc4420`).  Only its DONE items: the Kerker/Pulay-default window is not needed (incremental merges are fine).  Expect doc
+     conflicts (OpenWork, HubbardUPlan, records: keep both).  D-FERMI-DEFAULT RETIRED the deck key `globalFermi`: run
+     `scripts/vet-decks` and migrate any deck still using it (e.g. `decks/campaigns/SrVO3/srvo3_k444_chi0.json`).  Build `allTests`;
+     `scripts/memsafe ctest -j8 -LE long` AND `ctest -j3 -L long` green (the batch's STATUS says nothing needed a re-judge).
+  2. **Rebase `seed-tiebreak` onto that main.**
+  3. **`IntegrationTests/GPW/MnO.C` `Γ_Shub_Pol_Smear_Anchor_Long`: `o.seed = SeedStrategy::SAD`** (neutral polarized SAD: Hund pairs +
+     flips, and the imposition decoration then uses neutral targets — what the arm really ran on), and correct its comment: the recipe's
+     "IonicSAD seed (Mn²⁺ d⁵ + O²⁻)" was in fact neutral Mn d⁵4s²; the true Mn²⁺ seed loses AFM on this SR Γ arm (moment dead at
+     iteration 30, −60.97044 Ha) — add that as a remainder on OpenWork §3 "MnO ordering at Γ/SR: FM lies BELOW AFM-II".
+  4. **Run that test ALONE**: expect E −61.41455 ± 2e-3 and the integrated Mn moment > 4.0 — bit-identical to main if SAD really is
+     main's effective seed.  If not: STOP and take it to the user (the fallback is a re-judge, not a recipe tune).
+  5. **Full sweep, both tiers** (the count goes up by the new UT `IonicFormalCharges.EquivalentDonorsShareTheTransfer`), note any
+     anchor the new seed moved in other IonicSAD tests (the VA MnO +U gate passed with it), then merge `seed-tiebreak` into main.
+  With the branch, β-MnO₂'s AFM forms (Mn +3.04/−3.74) — that run had U on the σ slot (Γ0) by mistake and did not converge; the
+  deck is fixed.
+  **Then (on main after step 5, `ninja rundeck`):** `scripts/memsafe build/Release/CLIapps/rundeck
+  ~/Code/qchem6-runs/MnO2/basis_scan/m0.json --out ~/Code/qchem6-runs/MnO2/basis_scan` (VA basis, U on slot Γ2).  Check: converged,
+  Mn ±equal, the four O equivalent, O slot Γ2 the most occupied (QE O3 at Γ: 0.961/0.972 per spin), gap > 0.  Then the TiO₂-style
+  basis scan (`mkmno2.py NAME "EL:L:alpha" …` + `runmno2.sh NAME THREADS` in the same dir; candidates: O p 0.18, O s 0.15, tight O,
+  O d 2.0, O/Mn f, Mn p, Mn d 0.18 — judged by the VET in rutile) toward −93.42661 Ha, then the matched resolved-U oracle.
 - **S3 — fix `doc/OpenWork.md` §3 "A carried density is re-filled at kT = 0"** before any U_SC campaign: every `hubbardLoop` outer
   step is a `BuildStage` from the carried density, so on a smeared / near-degenerate magnetic state each step kicks the state
   (SrVO₃ landed on different fixed points, 2026-10-21).

@@ -1847,3 +1847,79 @@ change is the q-mesh (supercell size).  Ours: b6 basis, k 2³ / q 2³ FREE (D5: 
 The q ≠ 0 machinery reproduces hp.x's finite-size shift to 0.02 eV; the residual is the Γ basis offset carried over (+0.10 → +0.12 eV).
 One definition difference left: ours perturbs the Ti0 sublattice only (8 of hp.x's 16 sites; 7 meV at Γ).  **TiO₂ is closed as a
 cross-code point: CP2K-matched on CP2K's basis, QE-matched on an l-converged one, at Γ, with O 2p, and on the q-mesh.**
+
+## HubbardUPlan §2 as it stood on 2026-10-22, before the handoff rewrite (verbatim)
+
+The Track-A corner-case bullet and S1/S2, archived when §2 was condensed to a START HERE for a new session.
+
+- **CORNER CASE FOUND 2026-10-21 — TiO₂ ortho-atomic at Γ vs hp.x at Γ** (both DFPT, same state, same PP and same
+  pseudo-atom radials: `gth2upf` writes OUR pseudo-atom orbitals as PP_CHI; record H §"TiO₂ ortho-atomic at Γ"): d
+  occupation 2.405 vs 2.208 (+9 %), **χ₀ −14.404 vs −10.969 Ha⁻¹ (+31 %)**, χ −3.566 vs −3.625 (−1.6 %), U 5.742 vs
+  5.019 eV.  Not a projector SCALE (χ/χ₀ 0.248 vs 0.330).  Lead: the ortho-atomic SPECTATORS are truncated in
+  `valence_lowq_tm.bsd` (Ti 4s captures 0.9675 of its norm, O 2p 0.9762; Ti 3d 0.9952), so Ti 3d is under-orthogonalised
+  against O 2p.  **Discriminated the same day:** + O p 0.18 (vet keeps it in rutile; Ti s 0.05 is vet-TRIMMED) takes O 2p capture to
+  0.9994, the occupation to 2.230 (+1 %), χ₀ to +7 %, U to 5.561 eV — the truncated O 2p spectator was most of it.  But one O p
+  shell is worth 0.215 Ha: `valence_lowq_tm` is 288 mHa above QE's plane-wave E on this cell, so the CP2K gate validated the
+  method, never the basis.  **RESOLVED the same day — NO method disagreement** (H §"TiO₂ ortho-atomic at Γ", CORRECTION):
+  with f on Ti and O (`b6`, 6.9 mHa above QE's E) the occupation matches to 0.1 %, χ to 0.3 %, χ₀ +3.1 %, U 5.125 vs 5.026 (+2 %),
+  and U tracks the energy gap toward ≈ 5.01 eV.  The cause was the truncated O 2p spectator plus missing angular momentum (a
+  PW basis has no l limit).  ✅ **O 2p at Γ PASSED** (6×6 Hubbard-site matrix, b6): U(O 2p) 6.735 vs hp.x 6.758 eV (−0.3 %), U(Ti)
+  3.051 vs 2.927 (+4 %), screened χ element by element (H, same section).  ✅ **k/q mesh PASSED**: hp.x k2/q2 = 4.6373 ≡ its k4/q2
+  4.6368 (k converged at 2³); ours (b6, k2/q2, kT 0) **4.757 vs 4.637 (+2.6 %)**, χ₀ +0.5 %, χ −1.5 %, the Γ→q2 shift −0.368 vs −0.389 eV.
+  **TiO₂ is CLOSED as a cross-code point.**  Left in S1: per-irrep O pz.  **First `resolve: eigen` run (TiO₂ Γ, b6, 2026-10-21)**: the 1×1 (Macke
+  pointwise) column is well behaved — Ti channels 1.77–2.06 eV, O p 3.96–4.31 eV (the [1̄10] plane normal is the MIDDLE channel,
+  n 1.629, 4.04 eV — not the most occupied, as it is in β-MnO₂) — and full inversion is the
+  ill-posed 17–36 eV Macke warns of.  The ORBITAL-DIAGONAL variant (−22 to −846 eV) was ill-posed by DEFINITION (zeroing a site's
+  inter-orbital off-diagonals leaves χ indefinite) and is REMOVED (`db09a3f4`, merged `1d33184c`, ctest 1050/1050).  ⚠ **QE
+  orbital-resolved FD (pw.x ±α_m restarts, 6-atom cell, Γ; `~/Code/qe-runs/TiO2/orfd/`) is NOT yet a reliable oracle**: channel
+  definitions agree (QE Ti eigenvectors xz/yz · 0.23 z²+0.77 xy · x²−y² · … vs ours 0.27/0.73), but on the pure x²−y² channel QE's
+  first iteration shows NO response (identical to 8 digits for ±α) and χ ends with the wrong sign — QE's eigenstate tracking appears
+  to start from a different basis at a restart, which would also shrink |χ₀| on k1/k2 (QE −0.418/−1.266 vs ours −0.455/−1.587 Ha⁻¹;
+  U₁ₓ₁ QE 2.29/+0.27 vs ours 2.03/−0.20 eV).  The −0.20 eV channel is anti-screened in ours (|χ| 1.606 > |χ₀| 1.587); QE's k2
+  is barely screened (1.251 vs 1.266) — both a difference of near-equal inverses.  Next: find how QE seeds the tracked eigenvectors
+  on a restart (`PW/src` tracking, ref 127 of Macke) or run the ±α from scratch, before trusting any QE resolved number.
+
+- **S1 — finish the QE method checks**: the TiO₂ corner case above (basis scan running 2026-10-21), then **U(O 2p) on TiO₂ at Γ vs hp.x
+  at Γ** (same deck, perturb an O 2p manifold; the only O data point today is MnO, CP2K 7.77 vs hp.x ortho 11.15, unexplained).
+- **S2 — a Mn⁴⁺ d³ proxy in a small cell: β-MnO₂** (rutile, 6 atoms; needs a `materials.json` entry, a Mn hp.x deck, collinear AFM).
+  Tests pin 24 on λ-MnO₂'s exact d count: t2g³ is a fully spin-polarised half shell, the MnO-d⁵ saturation shape.  Measure χ/χ₀ for
+  the total-d AND the resolved t2g/e_g channels before believing either.  **Literature: Macke et al., JCTC 20, 4824 (2024)
+  §4.3** (`~/Code/reprints/ct3c01403.pdf`; PBEsol, SSSP PPs, OAO projectors, A1-AFM in a 48-atom 2×2×2 supercell, geometry RE-RELAXED
+  each outer step): orbital-resolved U(Mn t2g) 1.59 eV (gap 0), + U(O pz) 4.62 eV → gap 1.01 eV and V₀ within 1 %; shell-averaged
+  U(Mn 3d) 6.34 (gap 0.02), U+V 6.76 / V(Mn–O) 0.99, 1.10 (their ref 59); expt a 4.40, c 2.88 Å.  The resolved U is well posed there
+  because they invert POINTWISE (χ, χ₀ off-diagonals between orbitals zeroed first — intrashell screening kept); a full inversion
+  is the pin-24 singular case, so our resolved channels must use the same inversion to compare.  The ligand that matters is
+  O **pz** (normal to the Mn₃O plane, π to t2g) — for us a separate irrep of the O site's C₂ᵥ (the planar-environment fix
+  `305450f4` is what makes that site group computable).  NOT a matched oracle (PBEsol, different PP, relaxed geometry): build one
+  as A6 did — QE 7.6 (has `orbital_resolved` + orbital-resolved U/α in the HUBBARD card) with our `gth2upf` UPFs, LDA, EXPERIMENTAL
+  geometry, A1-AFM: hp.x DFPT for shell-averaged Mn 3d, pw.x ±α (FD) for Mn t2g and O pz with 1×1 inversion; then ours.
+  **Set up 2026-10-21** (`024bd682`; `IntegrationTests/QE/README.md` §S2): `materials.json` `MnO2_beta_A1AFM` (Bolzan 1993 neutron cell,
+  a 4.4041 / c 2.8765 Å, u 0.3046; corner Mn +m, body-centre −m), QE step 1 at Γ and k 4×4×6.  ⛔ **Plain LDA has NO gapped reference**:
+  Γ is a 10 meV two-level artifact at E_F (the parked-SrVO₃ shape), k446 a semimetal (Mn ±3.0 μB, 4 of 1680 occupations fractional).
+  So hp.x's fixed 2-step is out.  **RULED 2026-10-21 (user): route (b)** — wait for the OpenWork §2 row "Response: REPORT
+  orbital-resolved channels" to land (being built in a parallel session), then open the gap with U(O pz) at U_in, as Macke does
+  (PBEsol: U(O pz) 4.62 + U(Mn t2g) 1.64 eV → 1.01 eV gap), and run the matched oracle from that gapped reference.  Rejected:
+  (a) a matched smeared oracle — a semimetal's χ₀ is set by the smearing width.  ✅ **Unblocked 2026-10-21** (resolved channels merged,
+  `16528a14`; ctest 1050/1050).  **QE: U(O pz) 4.62 eV ALONE opens a 0.842 eV gap** at k 4×4×6 (+ U(Mn t2g) 1.64: 0.856 eV) —
+  `IntegrationTests/QE/README.md` §S2 has the eigen-indices.  O pz is a PURE irrep (plane normal of O's C₂ᵥ), so our `Uirrep_eV` can
+  set the same U_in; Mn t2g cannot be (one t2g state shares D₂h's a_g with an e_g one) and is not needed for the gap.  Next: the
+  matched oracle from that reference — QE pw.x ±α_m FD (orbital-resolved; hp.x is shell-averaged only) vs ours `resolve: eigen`, on a
+  k-mesh both can afford, after the Mn/O basis gets the TiO₂ treatment (O p tail + f, vetted in rutile).  Our side
+  resolves the structure (`--check`: 38 e); its Mn basis is VA's MnO-conditioned block — the TiO₂ lesson (O p tail + f) applies first.
+
+**Corrections and findings of 2026-10-22, after the text above:**
+- ⚠ The "[1̄10] plane normal is the MIDDLE channel, n 1.629" correction above was WRONG — QE's eigenvector table was read by ROWS
+  where QE prints COLUMNS.  Signed compositions (`69778563`) settle it: on every rutile O site slot Γ0 = the σ orbital along the C₂
+  axis (O at (u,u,0): (x+y)/√2, n 1.629, 1×1 U 4.04 eV), Γ1 = z, Γ2 = the plane normal ((x−y)/√2, n 1.749, 1×1 U 3.96 eV) —
+  matching QE read by columns (σ 1.626, normal 1.738).  The normal is the MOST occupied O p channel in TiO₂ AND β-MnO₂.
+- ⚠ Consequently the β-MnO₂ m0 runs of 2026-10-22 put U(O pz) 4.62 eV on slot 0 = the σ BOND, not the normal; the deck
+  (`~/Code/qchem6-runs/MnO2/basis_scan/m0.json`) now targets slot 2.
+- β-MnO₂ seeding: the library had no Mn⁴⁺ (q7, 3 e) entry AND `IonicFormalCharges` drained the first of two equal donors (Mn+7 /
+  Mn+1), so IonicSAD seeded one Mn as nothing and the other non-magnetic — the AFM order never formed (m0: non-magnetic, oscillating,
+  200 iterations).  Tie-break + Mn⁴⁺ entry make the AFM form (Mn +3.04/−3.74, SURVIVED) but that run (U on σ) did not converge.
+  Both changes are PARKED on branch `seed-tiebreak` (`2c4a7773`): they make `GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long` (MnO AFM-II SR Γ
+  imposed, smeared) LOSE its order (moment dead at iteration 30; passes at HEAD) — HEAD's pass rests on the buggy seed.
+  ⚠ CORRECTION (same day): that seed is NOT "+4/0" — `IonicSADTargets` keeps one target per SPECIES (last atom wins), so HEAD seeds
+  MnO as NEUTRAL Mn d⁵4s² ×2; the fix gives the Mn²⁺ d⁵ the anchor's comment claims.  (The parked commit's message says "+4/0".)
+- QE β-MnO₂ at Γ with U(O pz) 4.62 eV only: gap 0.325 eV, E = −186.85322133 Ry (`~/Code/qe-runs/MnO2/mno2b_G_OpzU.scf.out`).
+- QE orbital-resolved FD on TiO₂ PARKED by the user (restart eigenstate tracking: x²−y² shows no first-iteration response).
