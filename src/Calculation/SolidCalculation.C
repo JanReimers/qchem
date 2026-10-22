@@ -612,7 +612,7 @@ public:
     //! FAILS as the q = 0 call does, and on a q-mesh that does not divide the k-mesh.
     //! \a res: how finely each manifold is split into channels (OpenWork §2 "Response: REPORT orbital-resolved channels"):
     //! \a perturbed still names MANIFOLDS, and every channel of a named manifold is perturbed; the result's \c group maps each
-    //! channel back to its manifold, and the U lines add the 1x1 and orbital-diagonal inversions (Macke 2024) to hp.x's full one.
+    //! channel back to its manifold, and the U lines add the 1x1 inversion (Macke 2024's pointwise) to hp.x's full one.
     Outcome<Response::QMeshResponse,Response::ResponseFailure> HubbardLinearResponse(
         ivec3_t Nq, const KrylovParams& krylov={.tol=1e-8}, std::vector<size_t> perturbed={},
         Response::HubbardResolution res=Response::HubbardResolution::Manifold) const;

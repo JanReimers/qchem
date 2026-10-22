@@ -561,7 +561,8 @@ TEST(ResponsePolarizability, GPW_Si_HubbardLinearResponse_Screened)
 //! d shell (spherical view) and a U = 0 manifold on site 0's d: at the Td site d -> E + T2, the e_g / t2g pair.  Gates
 //! needing no oracle: (1) the slot channels are the +U term's two U slots, with the e_g / t2g COMPOSITIONS on the cubic
 //! axes; (2) they SPAN the manifold, so chi_MM = Sum_cc' chi_cc' over them, for chi0 AND chi; (3) each irrep occurs once,
-//! so the eigen channels are the slot channels.  (The 1x1 and orbital-diagonal U lines are printed beside.)
+//! so the eigen channels are the slot channels; (4) the resolved chi0 and chi are NEGATIVE DEFINITE (a physical response;
+//! the invariant the removed "orbital-diagonal" inversion broke).
 namespace {
 std::unique_ptr<SolidCalculation> ConvergedSiWithD()
 {
@@ -628,10 +629,17 @@ TEST(ResponsePolarizability, GPW_Si_dManifold_SlotChannelsSpanTheManifold)
     std::sort(comp.begin(), comp.end());
     EXPECT_EQ(comp[0], "xy:1.00 yz:1.00 xz:1.00");
     EXPECT_EQ(comp[1], "z2:1.00 x2-y2:1.00");
-    // The 1x1 and orbital-diagonal inversions exist beside the full one, and differ from it (the channels are coupled).
-    const rvec_t uF=rS->U(), u1=rS->UScalar(), uD=rS->U(std::vector<size_t>{0,0});
+    // (4) negative definite, and the 1x1 inversion is 1/chi0_cc - 1/chi_cc of the real-space diagonal.
+    const rmat_t X0=rS->Chi0RealSpace(), X=rS->ChiRealSpace();
+    for (const rmat_t* M : {&X0, &X})
+    {
+        rsmat_t S(M->rows()); for (size_t a=0;a<M->rows();a++) for (size_t b=a;b<M->rows();b++) S(a,b)=0.5*((*M)(a,b)+(*M)(b,a));
+        rvec_t lam; rmat_t v; blazem::eigen(S, lam, v);
+        for (size_t i=0;i<lam.size();i++) EXPECT_LT(lam[i], 0.0) << "a response matrix must be negative definite";
+    }
+    const rvec_t uF=rS->U(), u1=rS->UScalar();
     ASSERT_EQ(u1.size(), 2u);
-    for (size_t c=0;c<2;c++) EXPECT_NEAR(uD[c], u1[c], 1e-9*std::abs(u1[c])) << "one site: zeroing its off-diagonals IS the 1x1 inversion";
+    for (size_t c=0;c<2;c++) EXPECT_NEAR(u1[c], 1.0/X0(c,c)-1.0/X(c,c), 1e-12*std::abs(u1[c]));
     std::cout << "[gate] U(eV) full " << uF[0]*27.211386 << " " << uF[1]*27.211386 << "  1x1 " << u1[0]*27.211386 << " " << u1[1]*27.211386
               << "  manifold " << rM->U()[0]*27.211386 << std::endl;
 }
