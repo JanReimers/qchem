@@ -45,14 +45,19 @@ std::vector<int> IonicFormalCharges(const std::vector<std::pair<int,int>>& atoms
     }
     // Greedy charge-conserving transfer: move one electron at a time from the lowest-EN atom that can still
     // donate to the highest-EN atom that can still accept, while a real EN gap remains.
+    // TIES (equal EN = the same element) go to the atom with the most capacity LEFT, so equivalent atoms share
+    // the transfer evenly.  A strict EN comparison alone drained the FIRST donor's whole valence before touching
+    // the next: beta-MnO2 came out Mn+7 / Mn+1 instead of Mn4+ / Mn4+ (2026-10-22), seeding one Mn as nothing and
+    // the other non-magnetic, so the A1-AFM order never formed.
     const double kGap=0.5;                          // min Pauling gap to call a pair ionic (NaF 3.0, CsI 1.9)
+    const double kTie=1e-9;
     while (true)
     {
         int d=-1, a=-1;
         for (size_t i=0;i<n;i++)
         {
-            if (giveCap[i]>0 && (d<0 || en[i]<en[d])) d=(int)i;
-            if (takeCap[i]>0 && (a<0 || en[i]>en[a])) a=(int)i;
+            if (giveCap[i]>0 && (d<0 || en[i]<en[d]-kTie || (std::abs(en[i]-en[d])<=kTie && giveCap[i]>giveCap[d]))) d=(int)i;
+            if (takeCap[i]>0 && (a<0 || en[i]>en[a]+kTie || (std::abs(en[i]-en[a])<=kTie && takeCap[i]>takeCap[a]))) a=(int)i;
         }
         if (d<0 || a<0 || d==a || en[a]-en[d]<kGap) break;
         q[d]+=1; q[a]-=1; giveCap[d]-=1; takeCap[a]-=1;   // donor +charge, acceptor -charge; charge conserved
