@@ -10,6 +10,7 @@
 // Si diamond, GTH SIPP_SR, densityEcut 20 -- the Response kernel gates' cell, on a 2x2x2 mesh so every block
 // is TRIM (real by default) and there is more than one block to get in the wrong order.
 #include <gtest/gtest.h>
+#include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
 #include <cmath>
 #include <complex>
 #include <cstdint>
@@ -34,7 +35,8 @@ import qchem.Types;
 using namespace qchem;
 namespace {
 
-std::string TempPath(const std::string& leaf) {return (std::filesystem::path(testing::TempDir())/leaf).string();}
+//! Per PROCESS (ctest runs each case as its own process, in parallel, and the cached saved states are rebuilt in each).
+std::string TempPath(const std::string& leaf) {return (std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_"+leaf)).string();}
 
 struct SiRun
 {

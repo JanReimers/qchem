@@ -1,5 +1,6 @@
 // File: UnitTests/AtomicDensityUT.C  Tests for the SAD atomic-density database reader + interpolation.
 #include "gtest/gtest.h"
+#include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -95,7 +96,7 @@ TEST(AtomicDensity, SpinPairAbsentForClosedShells)
 // and so is "the Nelec=1 Li" -- both must THROW rather than pick the first in file order; "Nelec=3" is unique.
 TEST(AtomicDensity, AmbiguousPseudopotentialVariantThrowsInsteadOfPickingTheFirst)
 {
-    const std::string path=(std::filesystem::path(testing::TempDir())/"seed_ambiguity.json").string();
+    const std::string path=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_seed_ambiguity.json")).string();
     {
         auto entry=[](int nelec, int q)
         {

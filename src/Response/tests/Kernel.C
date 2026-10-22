@@ -10,6 +10,7 @@
 // (to rounding) at ANY D0.  Random D0 and random δD therefore test the whole chain -- transition density ->
 // HF sweep face -> the term's response slot -> the kernel fold -> the TransitionFock -- on real ERIs.
 #include "gtest/gtest.h"
+#include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
 #include <cmath>
 #include <cstdlib>
 #include <complex>
@@ -572,7 +573,7 @@ std::unique_ptr<SolidCalculation> ConvergedSiWithD()
     const size_t si=txt.find(" SI "); const size_t end=txt.find(" ****", si);
     EXPECT_NE(si, std::string::npos); EXPECT_NE(end, std::string::npos);
     txt.insert(end, " D   1  1.00\n      0.55000000      1.00000000\n");   // disjoint from the p exponents (the reader merges shared ones)
-    const std::string path=(std::filesystem::path(testing::TempDir())/"sipp_sr_plus_d.bsd").string();
+    const std::string path=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_sipp_sr_plus_d.bsd")).string();
     std::ofstream(path)<<txt;
     FCCUnitCell cell(10.26);
     cell.AddAtom(14, {0,0,0});
