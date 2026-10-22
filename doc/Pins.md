@@ -283,27 +283,29 @@ rebuilt channels and v_xc.  Guard: `g2>0 ? … : 1.0` (full mixing, not frozen);
 > "Calculating XC from any 'fitted' ρ has caused massive problems in the past." (user, 2026-10-22)
 
 \f$V_{xc}\f$ and \f$E_{xc}\f$ see the density of the density matrix, \f$\rho[D](r)=\sum_{ij}D_{ij}\chi_i(r)\chi_j^*(r)\f$
-evaluated pointwise on the XC quadrature -- never the FIT's representation of it, whatever the fit basis (the mixer's
-\f$\tilde\rho_{mix}\f$, or any \f$\tilde\rho_{fit}\f$).  A fitted ρ misses whatever its basis cannot hold -- on a plane-wave fit,
-the core cusp, with Gibbs ringing (pin 1): 15% of MnO's XC points came out negative (min −0.154) against none on the ρ[D]
-route -- and it has a DIFFERENT fixed point: NaF 139 μHa, the O₂ box on O q6 **+7.72 mHa** (−30.70246 vs −30.71018;
-2026-10-22).  At kT = 0 the factored D (low rank, `policy.dmLowRank`) makes ρ[D] cheap -- 130× cheaper per sampling than the
-matrix-free fitted ρ on MnO.  Exception: the SAD seed has no D -- one iteration.  (Pin 2 is a different statement: it routes
-every density through the fit INTERFACE; this pin says which ρ XC must see.)
+evaluated pointwise on the XC quadrature -- never the FIT's representation of it, whatever the fit basis (\f$\tilde\rho_{fit}\f$,
+or a mixer's \f$\tilde\rho_{mix}\f$).  A fitted ρ misses whatever its basis cannot hold -- on a plane-wave fit, the core cusp,
+with Gibbs ringing (pin 1): 15% of MnO's XC points came out negative (min −0.154) against none on the ρ[D] route -- and it has
+a DIFFERENT fixed point: NaF 139 μHa, the O₂ box on O q6 **+7.72 mHa** (−30.70246 vs −30.71018; 2026-10-22).  At kT = 0 the
+factored D (low rank, `policy.dmLowRank`) makes ρ[D] cheap -- 130× cheaper per sampling than the matrix-free fitted ρ on MnO.
+(Pin 2 is a different statement: it routes every density through the fit INTERFACE; this pin says which ρ XC must see.)
 
-- Linear D-mixing and direct minimisation (GDM) already comply: the iterate IS a D (O₂ box: linear −30.71018167/173 =
-  ρ[D]-fed Pulay −30.71018173).
-- A FIELD mixer (Kerker/Pulay) iterates a fitted \f$\tilde\rho_{mix}\f$, not a D, and handing XC the raw OUTPUT ρ[D] instead
-  strips the mixer's damping from the XC channel -- MnO AFM-II collapsed to −45.5 Ha (−61.403; pin 18).  The route that meets
-  this pin there is the CUSP DEFICIT \f$\rho_{XC}=\tilde\rho_{mix}+(\rho[D]-\tilde\rho_{fit})\f$, where \f$\tilde\rho_{fit}\f$ is the fit's
-  representation of the current ρ[D] (the records write it \f$\rho[D]_{BL}\f$), so \f$\rho[D]-\tilde\rho_{fit}\f$ is exactly what the fit
-  basis cannot hold.  The part inside the fit comes from the damped mixer; the part outside it from the current D -- and no
-  mixer damps it anyway, because a mixer acts only inside the fit space.  At the fixed point \f$\tilde\rho_{mix}=\tilde\rho_{fit}\f$,
-  so \f$\rho_{XC}\f$ IS ρ[D] (O₂ box: −30.71018173, the ρ[D] value to all digits), while the iteration keeps the mixer's damping.
-  Wired on Kerker AND Pulay, unpolarized, (ρ↑,ρ↓) and (ρ,m) (2026-10-22) -- but `SCFParams::XCCuspDeficit` is still OFF by
-  default, so a Kerker/Pulay run that does not set it (the MnO/NiO campaign decks included) VIOLATES this pin.  Measured
-  with it on: O₂ box −30.71018173 (= ρ[D]), free MnO AFM-II holds its order (moment 4.453, −61.41613923 vs −61.41608505
-  without).  Open work: OpenWork §3 N4 (the default).
+**Two exceptions (user, 2026-10-22), both transient:**
+1. **The SAD seed** has no D -- one iteration.
+2. **A G-dependent (Kerker-type) preconditioner** exists only in the fit's {G} representation, so its step cannot be taken on D.
+   During such a step XC sees \f$\rho_{XC}=\tilde\rho_{mix}+(\rho[D]-\tilde\rho_{fit})\f$ (the CUSP DEFICIT, N4): the damped fitted
+   part plus what the fit cannot hold, taken from the current D.  At the fixed point \f$\tilde\rho_{mix}=\tilde\rho_{fit}\f$, so it IS
+   ρ[D] (O₂ box: −30.71018173, the ρ[D] value to all digits).  Bare \f$\tilde\rho_{mix}\f$ is NOT this exception -- that is the
+   +7.72 mHa.  Nor is the raw output ρ[D] alone: it strips the filter's damping from the XC channel (MnO AFM-II collapsed to
+   −45.5 Ha vs −61.403; pin 18).  The part outside the fit needs no damping: no mixer acts outside the fit space.
+
+- A mixer with NO G-dependent filter mixes D itself, history and all -- \f$\rho[\sum_i c_iD_i]=\sum_i c_i\rho[D_i]\f$ pointwise -- so XC
+  sees \f$\rho[D_{mix}]\f$ with no correction.  Linear D-mixing and direct minimisation (GDM) comply (O₂ box: linear −30.71018167/173).
+  A Pulay history without Kerker (G0 = 0) is in this class too, but today's `PulayMixer` still mixes the fitted ρ̃ (OpenWork §3).
+- The cusp deficit is wired on Kerker and Kerker-preconditioned Pulay, unpolarized and in both spin coordinates, (ρ↑,ρ↓) and
+  (ρ,m) (2026-10-22), but `SCFParams::XCCuspDeficit` is still OFF by default -- so a Kerker run that does not set it (the MnO/NiO
+  campaign decks included) VIOLATES this pin.  With it on, free MnO AFM-II holds its order (moment 4.453, −61.41613923 vs
+  −61.41608505 without).  Open work: OpenWork §3 N4 (the default).
 
 Records: `OpenWork_History4.md` "ITEM 1 MEASURED" (MnO negatives, the collapse), `OpenWork.md` §3 "Kerker/Pulay as the
-DEFAULT mixer" (the O₂ arms).
+DEFAULT mixer" and N4 (the O₂ and MnO arms).
