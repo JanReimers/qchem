@@ -41,6 +41,12 @@ int Crystal_EC::GetN(const Irrep& irr) const
     return itsGlobalFermi ? n : n*int(irr.sym->GetDegeneracy());
 }
 
+int Crystal_EC::PrescribedBlockN(const Irrep& irr) const
+{
+    const int n = irr.ms==Spin::Up ? itsNup : irr.ms==Spin::Down ? itsNdn : itsNup+itsNdn;
+    return n*int(irr.sym->GetDegeneracy());
+}
+
 ElectronConfiguration::syms_t Crystal_EC::GetIrreps() const {return itsSyms;}
 
 void Crystal_EC::Display() const

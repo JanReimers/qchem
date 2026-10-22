@@ -172,7 +172,6 @@ TEST(GPW_Al, k222_Smear_GlobalMu_Anchor)
     const Lattice_3D lat=LatticeOf(al, ivec3_t(2,2,2));       // 8-point Γ-centred Bloch mesh (weights sum to 1)
     SolidCalcOptions o=AlOptions(al, "Al FCC 2x2x2 global mu");
     o.imposeSymmetry=false;                    // the FULL mesh: the IBZ-folded sibling below must reproduce it
-    o.globalFermi=true;                        // ONE μ across the BZ (the metal)
     SCFParams par=AlGates(); par.SmearingkT=0.01;
     GpwReport report("Al "+o.label, false);
     qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
@@ -198,7 +197,7 @@ TEST(GPW_Al, k222_Imp_Smear_GlobalMu_eqFree)
     const Material al=qchem::Materials::Get("Al_fcc");
     const Lattice_3D lat=LatticeOf(al, ivec3_t(2,2,2));
     SolidCalcOptions o=AlOptions(al, "Al FCC 2x2x2 IBZ");
-    o.globalFermi=true; o.imposeSymmetry=true;       // fold to the irreducible wedge AND star-average the density
+    o.imposeSymmetry=true;       // fold to the irreducible wedge AND star-average the density
     SCFParams par=AlGates(); par.SmearingkT=0.01;
     GpwReport report("Al "+o.label, false);
     qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);

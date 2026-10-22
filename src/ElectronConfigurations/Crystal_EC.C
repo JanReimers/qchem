@@ -38,6 +38,8 @@ public:
     Crystal_EC(const std::vector<Irrep>& irreps, int nUp, int nDown, bool globalFermi=false,
                bool spinsShareFermi=false);
     virtual int    GetN(const Irrep&) const;
+    //! Always the block's own share, star x the per-cell count (the insulator count) -- in either mode.
+    virtual int    PrescribedBlockN(const Irrep&) const;
     virtual syms_t GetIrreps() const;
     virtual void   Display() const;
     //! Metal (\a globalFermi): one reservoir per channel spanning the k-mesh (one μ, charge sloshes between

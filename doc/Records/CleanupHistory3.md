@@ -248,4 +248,15 @@ into the terms), `R2.5b` (`throw` is a marker), `V1.20` (`.Internal.` = the FAMI
   used the ORBITAL list for PROJECTOR images; it now enumerates |R| ≤ rad + r_β + |τ_a − ctr| itself.  (`EvalMany`, the
   1E sums and the analytic KB already ran the seam's per-pair ε series; untouched.)  MEASURED vs V1.22: 1052/1052 + long 4/4,
   NOTHING moved at 1e-10 Ha; per-test time summed 1913 → 1025 s (median 0.55× on tests > 2 s: fewer images).
+- **D-FERMI-DEFAULT ✅ (2026-10-21, anchor-moving batch; user ruling 2026-10-05)**: `SolidCalcOptions::globalFermi` (default false =
+  per-k μ) became `perKFermiLevels` (default false = ONE μ across the k-mesh for a smeared run; kT = 0 keeps every block's
+  prescribed integer count either way).  The deck key `globalFermi` is RETIRED with a pointed error (never re-read with the
+  opposite default); the q-mesh-response pre-flight now refuses `perKFermiLevels` with smearing; `Reference::Gap`'s message names
+  the new key; the SrVO3 campaign deck and the Al/Na tests lost their now-default `globalFermi: true`.  FOUND by the flip: under a
+  pooled (global-μ) partition `Crystal_EC::GetN` is the reservoir TOTAL, but the kT = 0 per-block fill and the accelerator's
+  per-block occupied count asked it too -- so an IMPOSED (IBZ, star > 1) global-μ run at kT = 0 under-filled every multi-star
+  block (GPW_Si.k222{,s}_Imp_CP2K / k222_Becke_Imp_eqFree −0.55 Ha).  Fix: `ElectronConfiguration::PrescribedBlockN` (default
+  `GetN`; Crystal_EC: star × per-cell count in either mode), used by those two per-block paths.  MEASURED vs D12: 1052/1052 +
+  long 4/4; moved: the two smeared Si k222 SolidState tests −2.26 mHa (one μ lowers kT 0.02 Si), and iteration counts only on the
+  Al/Na global-μ anchors (energies unchanged) -- no banked smeared anchor ran per-k μ on a multi-k mesh, so nothing to re-judge.
 

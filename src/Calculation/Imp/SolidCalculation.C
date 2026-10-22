@@ -410,7 +410,7 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
                                  +" parity disagrees with Nelec "+std::to_string(opts.Nelec));
     auto irreps = itsImp->bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry Sum_k)
     itsImp->ec = std::make_unique<Crystal_EC>(irreps, (opts.Nelec+twoS)/2, (opts.Nelec-twoS)/2,
-                                              opts.globalFermi, opts.spinsShareFermi);
+                                              !opts.perKFermiLevels, opts.spinsShareFermi);
     // T2 is gated on the run having IMPOSED something (see Outcome_); the resolved value, stored once.
     itsImp->imposed = imposed;
     itsImp->hubbard = opts.hubbard;   // the U the run will carry (BuildRun fills the groups and radials)
@@ -1276,7 +1276,7 @@ SolidCalculation::IndependentResponse(ivec3_t Nq) const
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
                                                              : std::numeric_limits<double>::quiet_NaN();
     qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-        {.acrossK=itsImp->opts.globalFermi, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
+        {.acrossK=!itsImp->opts.perKFermiLevels, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
     qchem::Response::AmplitudeProbe probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
     auto r=qchem::Response::IndependentResponse(ref, probe, Nq);
     if (r) r->Write(std::cout, 27.211386245988, "1/eV");     // reported at its own activity (pin 17)
@@ -1308,7 +1308,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
                                                              : std::numeric_limits<double>::quiet_NaN();
     const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-        {.acrossK=itsImp->opts.globalFermi, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
+        {.acrossK=!itsImp->opts.perKFermiLevels, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
     const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf);
     const auto hp=qchem::Response::MakeHubbardProbe(ref, *wf, *hub, res);
     const bool resolved = res!=qchem::Response::HubbardResolution::Manifold;
@@ -1406,7 +1406,7 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
         const auto* wf=itsImp->scf->GetWaveFunction();
         if (!wf) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: no wave function");
         const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-            {.acrossK=itsImp->opts.globalFermi, .acrossSpin=itsImp->opts.spinsShareFermi}, std::numeric_limits<double>::quiet_NaN());
+            {.acrossK=!itsImp->opts.perKFermiLevels, .acrossSpin=itsImp->opts.spinsShareFermi}, std::numeric_limits<double>::quiet_NaN());
         const auto probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
         qchem::Response::BlockPairs D;                      // the state in its own MO basis: diag(occupation)
         for (const Irrep& ir : wf->GetQNs())

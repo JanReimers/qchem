@@ -40,6 +40,12 @@ public:
 
     virtual ~ElectronConfiguration() {};
     virtual int    GetN(const Irrep&) const=0;
+    //! \brief The count a block takes when it is filled ALONE -- the per-block prescribed fill (kT = 0 or a held fill
+    //! under a pooled partition) and the per-block occupied count an accelerator is built with.  Equal to \c GetN except
+    //! where a partition POOLS blocks: then \c GetN is the reservoir's total, and this is the block's own share
+    //! (a Bloch k-block: its star x the per-cell count, Crystal_EC).  Until 2026-10-21 the per-block paths asked \c GetN
+    //! and an IMPOSED (IBZ, star > 1) global-mu run at kT = 0 under-filled every multi-star block (-0.55 Ha on Si k222).
+    virtual int    PrescribedBlockN(const Irrep& irr) const {return GetN(irr);}
     virtual syms_t GetIrreps() const=0;
     virtual void   Display() const=0;
     //! \brief The reservoir partition (see \c ReservoirPartition).  Default: one reservoir per irrep,

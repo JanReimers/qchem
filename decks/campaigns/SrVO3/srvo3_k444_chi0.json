@@ -79,8 +79,7 @@
         "atomicRadial": true,
         "orthoAtomic": true
       }
-    ],
-    "globalFermi": true
+    ]
   },
   "scf": {
     "NMaxIter": 200,

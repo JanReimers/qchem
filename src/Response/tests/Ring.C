@@ -167,7 +167,7 @@ TEST(ResponseRing, SmearedResponseAcrossReservoirsIsAConfigurationFailure)
     auto q2=IndependentResponse(perK, probe, ivec3_t(2,1,1));
     ASSERT_FALSE(q2.IsOk()) << "a smeared q != 0 pair across reservoirs must refuse";
     EXPECT_EQ(q2.Error().why, ResponseFailure::Why::Configuration);
-    EXPECT_NE(q2.Error().detail.find("globalFermi"), std::string::npos) << "the message names the fix";
+    EXPECT_NE(q2.Error().detail.find("perKFermiLevels"), std::string::npos) << "the message names the fix";
     EXPECT_TRUE(IndependentResponse(perK, probe, ivec3_t(1,1,1)).IsOk()) << "q = 0 pairs a block with itself";
 }
 
