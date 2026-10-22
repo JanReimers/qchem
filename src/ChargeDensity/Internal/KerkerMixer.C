@@ -45,6 +45,14 @@ public:
         return MixField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
     }
     const GField&       Field() const override { return itsIn; }
+    //! The residual pair (D-MINDRHO): this mixer's input field and the fresh output's field, presented alike.
+    typename tDensityMixer<dcmplx>::ResidualPair ResidualDensities(const cd_t& out) const override
+    {
+        auto* fd = dynamic_cast<const FourierDensity*>(&out);
+        assert(fd);
+        const GField f{fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)};
+        return {Present(itsIn, itsRecip, itsCharge), Present(f, itsRecip, itsCharge)};
+    }
     const FourierMixCD& Mixed() const override { assert(itsMixedRho); return *itsMixedRho; }
 
     //! THE MIXER OWNS ITS FIELD (V1.18): the step is arithmetic on itsIn, and the density the Fock sees is a

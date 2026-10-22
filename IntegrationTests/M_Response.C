@@ -21,7 +21,7 @@ using namespace qchem;
 static const double alphaPySCF[3]={3.19770284, 7.11975051, 5.54545175};
 
 // A response linearises about a CONVERGED state (§4c): tight enough that the gates below measure the response.
-static const SCFParams tight = {.NMaxIter=80, .MinΔρ=1e-9, .MinΔFD=1e-10, .MinVirial=1e2};
+static const SCFParams tight = {.NMaxIter=80, .MinΔρPerElectron=1e-9, .MinΔFD=1e-10, .MinVirial=1e2};
 
 static rmat_t Alpha(const Calculation& calc)
 {

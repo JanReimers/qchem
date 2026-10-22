@@ -343,6 +343,9 @@ public:
     //! no site blocks (a uniform raster) or the run resolves no spin.  My ENERGY pass writes the same number
     //! into \c ChargeBreakdown::siteMoments, which is how it reaches the trace and the observer.
     virtual rvec_t        SiteMoments(const cChargeDensity* cd) const override;
+    //! \copydoc tDynamic_HT::RealSpaceL1Distance
+    //! On my quadrature, per spin channel for a polarized run (a moment still moving keeps the SCF unconverged).
+    virtual double        RealSpaceL1Distance(const cChargeDensity* a, const cChargeDensity* b) const override;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;

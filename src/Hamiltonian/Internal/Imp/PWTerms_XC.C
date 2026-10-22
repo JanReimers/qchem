@@ -8,6 +8,7 @@
 // nothing outside it.
 module;
 #include <algorithm>   // std::min (the threaded quadrature's output-column blocking)
+#include <cmath>       // std::fabs (the D-MINDRHO residual)
 #include <cassert>
 #include <complex>
 #include <cstdlib>
@@ -105,6 +106,26 @@ rvec_t Vxc_Quadrature::SiteMoments(const cChargeDensity* cd) const
 {
     if (itsGroup!=SpinGroup::Polarized) return rvec_t();
     return itsSampler->SiteIntegrals(rvec_t(itsSampler->RhoPol(cd,Spin::Up)-itsSampler->RhoPol(cd,Spin::Down)));
+}
+
+// D-MINDRHO: the sampler caches ONE density serial (both channels of it), so BOTH of a's channels are copied before b's
+// replace them -- two rasters per call, not four (the a-up, b-up, a-dn, b-dn order re-rastered each density).
+double Vxc_Quadrature::RealSpaceL1Distance(const cChargeDensity* a, const cChargeDensity* b) const
+{
+    auto l1=[&](const rvec_t& fa, const rvec_t& fb)
+    {
+        rvec_t d(fa.size());
+        for (size_t g=0; g<d.size(); g++) d[g]=std::fabs(fa[g]-fb[g]);
+        return itsSampler->Integrate(d);
+    };
+    if (itsGroup!=SpinGroup::Polarized)
+    {
+        const rvec_t fa=itsSampler->Rho(a);
+        return l1(fa, itsSampler->Rho(b));
+    }
+    const rvec_t au=itsSampler->RhoPol(a,Spin::Up), ad=itsSampler->RhoPol(a,Spin::Down);
+    const rvec_t bu=itsSampler->RhoPol(b,Spin::Up), bd=itsSampler->RhoPol(b,Spin::Down);
+    return l1(au,bu)+l1(ad,bd);
 }
 
 // THE RESPONSE (R2): the ALDA kernel at the linearisation density, times δρ_σ, gathered by the same adjoint.

@@ -25,7 +25,7 @@ namespace {
 // Shared per-Z atom-DFT SCF params (same formula the scaffold used for every atom-DFT group).
 static SCFParams dft_scf_params(int Z)
 {
-    return {.NMaxIter = 20, .MinΔρ = Z*1e-3, .MinΔFD = 1e-10, .MinVirial = 1e-13, .MinFD = Z*1e-4, .StartingRelaxRo = 0.1, .MergeTol = 1e-8, .Verbose = true};
+    return {.NMaxIter = 20, .MinΔρPerElectron = Z*1e-3, .MinΔFD = 1e-10, .MinVirial = 1e-13, .MinFD = Z*1e-4, .StartingRelaxRo = 0.1, .MergeTol = 1e-8, .Verbose = true};
 }
 static int slater_N(int Z) { return Z>50 ? 11 : Z>20 ? 10 : 8; }
 

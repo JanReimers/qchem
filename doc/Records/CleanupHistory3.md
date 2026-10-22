@@ -259,4 +259,25 @@ into the terms), `R2.5b` (`throw` is a marker), `V1.20` (`.Internal.` = the FAMI
   `GetN`; Crystal_EC: star × per-cell count in either mode), used by those two per-block paths.  MEASURED vs D12: 1052/1052 +
   long 4/4; moved: the two smeared Si k222 SolidState tests −2.26 mHa (one μ lowers kT 0.02 Si), and iteration counts only on the
   Al/Na global-μ anchors (energies unchanged) -- no banked smeared anchor ran per-k μ on a multi-k mesh, so nothing to re-judge.
+- **D-MINDRHO ✅ (2026-10-22, anchor-moving batch; user chose "option A")**: the density convergence gate is ONE intensive
+  measure, `SCFParams::MinΔρPerElectron` = ∫|ρ_out − ρ_in| d³r / N -- the fraction of the electrons the step would still
+  move -- computed ONCE in the SCF iterator on the run's own real-space quadrature: `tHamiltonian::RealSpaceL1Distance` (the
+  XC term's cached sampler, per spin channel for a polarized run; ~1 % of an SCF by the ledger, NaF 0.14 s of 13.3 s), else a
+  mesh built once from a copy of the structure (HF / 1-electron; zero-weight nodes skipped -- the atom mesh's r = 0 node is
+  0/0 for a u(r)/r B-spline basis -- any other non-finite sample throws).  LIKE FOR LIKE: a field mixer (Kerker/Pulay,
+  polarized composite) hands over BOTH its fields presented alike (`tDensityMixer::ResidualDensities`, no N4 correction);
+  comparing its Fock presentation with the raw ρ[D] measured the G-ball truncation (2 % of the electrons on Si), not the
+  distance to the fixed point.  The mixer's own number and the linear re-damp's are no longer the gate; `Measure::MaxΔD`
+  (CP2K's EPS_SCF) stays as the explicit parity option.  `MinΔρ` / deck `minDeltaRho` / measure `MixerResidual` RETIRED (the
+  deck refuses the old key: never re-read with a new meaning).  CALIBRATION (all 361 SCF runs of the suite, both measures
+  logged): median new/old 0.7 for linear mixing (305 runs) -- ~faithful -- but 49-121x for pure Kerker/Pulay: those runs had
+  "converged" with ~2 % of the electrons still moving.  So the RE-PIN kept the NUMBERS and changed the meaning.  MEASURED vs
+  D-FERMI: 1052/1052 + long 4/4 after two fixes; the Kerker Si anchors (`GPW_Si.Γ_Becke_Imp_Kerker{,_CuspDeficit}_CP2K`,
+  `Γ{,_U}_Imp_Pol_Kerker_eqUnpol`) now converge for real, 5 → 19 / 10 → 38 iterations, energies −4.4e-5 Ha (how far the old
+  stop was from the fixed point); linear runs mostly save an iteration (µHa moves).  RE-JUDGED: `GPW_Al.Γ_Imp_Stalls` claimed
+  integer aufbau "cannot converge" the degenerate 3p -- an artifact of the D-based measure (D rotates inside the manifold).
+  An imposed run star-averages the field, which is stationary: it converges (11 iterations, −1.9212152, 6.5e-5 below the
+  annealed anchor's internal energy) -- now `GPW_Al.Γ_Imp_Converges`.  ⚠ pybind/qchem_bridge.cpp builds SCFParams
+  POSITIONALLY ({maxiter, 1e-4, ...}): it compiles, but its 1e-4 now means 1e-4 electrons per electron -- FLAGGED for the
+  binding owner, not edited.
 

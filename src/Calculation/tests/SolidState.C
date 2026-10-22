@@ -58,7 +58,7 @@ SiRun Si(ivec3_t N)
 SCFParams Params()
 {
     SCFParams p;
-    p.NMaxIter=80; p.MinΔρ=1e-7; p.MinΔE=1e-10; p.MinΔFD=1e-7; p.MinVirial=1e30; p.MinFD=1e30;
+    p.NMaxIter=80; p.MinΔρPerElectron=1e-7; p.MinΔE=1e-10; p.MinΔFD=1e-7; p.MinVirial=1e30; p.MinFD=1e30;
     return p;
 }
 SolidCalcOptions Options(int multiplicity, bool forceComplex, const std::string& save)

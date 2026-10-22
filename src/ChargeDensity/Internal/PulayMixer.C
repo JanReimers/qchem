@@ -50,6 +50,14 @@ public:
         return MixField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
     }
     const GField&       Field() const override { return itsIn; }
+    //! The residual pair (D-MINDRHO): this mixer's input field and the fresh output's field, presented alike.
+    typename tDensityMixer<dcmplx>::ResidualPair ResidualDensities(const cd_t& out) const override
+    {
+        auto* fd = dynamic_cast<const FourierDensity*>(&out);
+        assert(fd);
+        const GField f{fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)};
+        return {Present(itsIn, itsRecip, itsCharge), Present(f, itsRecip, itsCharge)};
+    }
     const FourierMixCD& Mixed() const override { assert(itsMixedRho); return *itsMixedRho; }
 
     //! The single-channel step: stage, solve MY OWN B, apply.  Exactly \c MixJointly over one channel -- and

@@ -312,6 +312,13 @@ private:
     //! comes from a temporary (\c Lattice_3D::GetStructure returns a fresh \c make_shared), so it dangles by the
     //! time \c Iterate runs -- we deep-copy it here (periodic path only) so the Kerker mixer has a live cell.
     std::shared_ptr<const Structure> itsKerkerCell;
+    //! D-MINDRHO: \f$\int|\rho_{out}-\rho_{in}|\,d^3r/N\f$ -- the Hamiltonian's own quadrature when a term owns one (the
+    //! XC term), else a mesh built ONCE from a copy of the structure (HF, 1-electron).
+    double ResidualPerElectron(const tChargeDensity<T>& in, const tChargeDensity<T>& out) const;
+    std::shared_ptr<const Structure> itsResidualStructure;   //!< deep copy (the ctor's st may be a temporary)
+    mutable rvec3vec_t itsResidualPts;                       //!< the fallback mesh, built on first need
+    mutable rvec_t     itsResidualWts;
+    double             itsResidual=0.0;                      //!< this iteration's measure (the driver writes it)
     std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>> itsMixer;  //!< the density-face concrete for this run
     qchem::ChargeDensity::tAdaptiveMixer<T>* itsAdaptive=nullptr;      //!< its step-adapting face, if it has one (cross-cast once)
     // The two loop-face concretes (stateless).  Iterate selects one per macro-iteration by the accelerator's

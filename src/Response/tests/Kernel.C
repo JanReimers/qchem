@@ -239,7 +239,7 @@ TEST(ResponseKernel, MissingCapabilityThrowsAtConstruction)
 //=====================================================================================================
 namespace {
 
-const SCFParams tight = {.NMaxIter=80, .MinΔρ=1e-9, .MinΔFD=1e-10, .MinVirial=1e2};
+const SCFParams tight = {.NMaxIter=80, .MinΔρPerElectron=1e-9, .MinΔFD=1e-10, .MinVirial=1e2};
 const qcMesh::MeshParams dipoleMesh={.radial=qcMesh::RadialKind::MHL, .nRadial=80, .mhl_m=3, .mhl_alpha=2.0,
                                      .angular=qcMesh::AngularKind::Lebedev, .angularDegree=35, .beckeOrder=3};
 
@@ -335,7 +335,7 @@ SCFParams SiParams()
 {
     SCFParams par;
     // 200, not 80: the POLARIZED k211 ground state needs more than 80 (2026-09-29); a cap costs nothing unless hit (trap 3).
-    par.NMaxIter=200; par.MinΔρ=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
+    par.NMaxIter=200; par.MinΔρPerElectron=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
     return par;
 }
 std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, double U=0.0, bool spectator=false,

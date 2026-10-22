@@ -557,7 +557,7 @@ TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Ordering_Long)
     const nlohmann::json deck={
         {"structure","MnO_AFM2"}, {"basis",{{"data","VALENCE_LOWQ_SR"}}},
         {"solid",{{"multiplicity",1},{"seed","IonicSAD"},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4},{"accelerator","Null"},{"imposeSymmetry",true}}},
-        {"scf",{{"NMaxIter",200},{"minDeltaRho",1e-6},{"deltaRhoMeasure","MaxDeltaD"},{"minDeltaE",1e30},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},
+        {"scf",{{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-6},{"deltaRhoMeasure","MaxDeltaD"},{"minDeltaE",1e30},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},
                 {"startingRelaxRo",0.45},{"mergeTol",1e-4},{"pulayDepth",8},{"pulayStart",5},{"kerkerG0",1.0},{"useMOM",false},{"smearingkT",5e-3}}}};
     qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
     const fs::path dir=fs::temp_directory_path()/("qchem_it_mno_ordering_"+std::to_string(::getpid()));

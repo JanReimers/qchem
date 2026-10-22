@@ -23,7 +23,7 @@ using namespace qchem;
 
 // Tight convergence (== the old M_Sym RunHF/RunDFT SCFParams): drives Δρ/[F,D] to ~1e-9 so the
 // symmetric and non-symmetric energies agree to the 1e-6 invariance tolerance.
-static const SCFParams tight = {.NMaxIter = 60, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2,
+static const SCFParams tight = {.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2,
                                 .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false};
 
 

@@ -31,7 +31,7 @@
       "accelerator": "DIIS",
       "scf": {
         "NMaxIter": 100,
-        "minDeltaRho": 1e-05,
+        "minDeltaRhoPerElectron": 1e-05,
         "minDeltaE": 1e-09,
         "minDeltaFD": 1e+30,
         "minVirial": 1e+30,
@@ -49,7 +49,7 @@
       "accelerator": "GDM",
       "scf": {
         "NMaxIter": 100,
-        "minDeltaRho": 1e-05,
+        "minDeltaRhoPerElectron": 1e-05,
         "minDeltaE": 1e-09,
         "minDeltaFD": 1e+30,
         "minVirial": 1e+30,

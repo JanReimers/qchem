@@ -32,7 +32,7 @@ struct PinCase { AtomType type; BasisSetAccuracy acc; int Z; double pin; double 
 static SCFParams HFParams(const PinCase& c)
 {
     const bool heavy = c.Z >= 40;
-    return {.NMaxIter = 120, .MinΔρ = c.Z*1e-4, .MinΔFD = 1e-4, .MinVirial = 4e-2,
+    return {.NMaxIter = 120, .MinΔρPerElectron = c.Z*1e-4, .MinΔFD = 1e-4, .MinVirial = 4e-2,
             .MinFD = c.Z*1e-5, .StartingRelaxRo = heavy ? 0.2 : 0.5, .MergeTol = 1e-7, .Verbose = true};
 }
 

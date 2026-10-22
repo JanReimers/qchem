@@ -7,20 +7,25 @@ namespace qchem {
 // Defaults are the proven molecular-HF recipe (matches M_HF_U / the bridge): they converge a
 // neutral molecule (e.g. water/dzvp) out of the box, so a facade caller can write
 // `calc.Converge({.NMaxIter=60})` and override only what they care about.  Positional aggregate
-// init (`{20,1e-4,...}`) and per-field assignment (`par.MinΔρ=...`) both still work unchanged --
+// init (`{20,1e-4,...}`) and per-field assignment (`par.MinΔρPerElectron=...`) both still work unchanged --
 // default member initializers do not disqualify the aggregate.
 export struct SCFParams
 {
     size_t NMaxIter        = 20;     //Max allowed number of iterations
-    double MinΔρ           = 1e-4;   //Minimum delta in charge density for convergence (measured per Δρmeasure).
-    //! WHAT Δρ MEASURES.  MixerResidual (default) = whatever the run's density mixer reports: on the periodic
-    //  Kerker/Pulay path max|ρ̃_out(G)−ρ̃_in(G)| in G-space, on the linear-D path Σ_blocks‖ΔD‖_F/N_e -- two
-    //  different quantities behind one number.  MaxΔD = CP2K's EPS_SCF measure: max_ij|D_ij−D'_ij| between
-    //  successive OUTPUT density matrices over every block and spin, un-normalised (qs_scf_loop_utils.F,
-    //  self_consistency_check).  Select MaxΔD with MinΔρ=EPS_SCF when an iteration count is to be compared
-    //  with a CP2K deck's -- on MnO the mixer residual at 1e-5 is ~100x LOOSER than EPS_SCF 1e-6 (2026-09-20).
-    enum class Measure { MixerResidual, MaxΔD };
-    Measure Δρmeasure      = Measure::MixerResidual;
+    //! THE density convergence gate (D-MINDRHO, 2026-10-22; was \c MinΔρPerElectron, whose meaning depended on the mixer): converged
+    //! when the step would still move fewer than this many electrons PER ELECTRON, \f$\int|\rho_{out}-\rho_{in}|\,d^3r/N\f$
+    //! on the run's own real-space quadrature (per spin channel for a polarized run; see \c Δρmeasure).
+    double MinΔρPerElectron = 1e-4;
+    //! WHAT THE GATE MEASURES.  L1PerElectron (default) = the one intensive residual above, computed once in the SCF
+    //  iterator, the same number for every mixer, representation and system (a field mixer's in/out fields are presented
+    //  alike).  It REPLACED "MixerResidual" -- whatever the mixer reported: max|ρ̃_out(G)−ρ̃_in(G)| on the Kerker/Pulay
+    //  path, Σ‖ΔD‖_F/N on the linear-D path -- which the calibration (2026-10-22) found ~faithful for linear mixing but
+    //  50-120x LOOSE for Kerker/Pulay (runs "converged" with ~2 % of the electrons still moving).  MaxΔD = CP2K's EPS_SCF
+    //  measure: max_ij|D_ij−D'_ij| between successive OUTPUT density matrices, un-normalised (qs_scf_loop_utils.F); then
+    //  \c MinΔρPerElectron is compared with THAT -- select it with the EPS_SCF value when an iteration count is to be
+    //  compared with a CP2K deck's.
+    enum class Measure { L1PerElectron, MaxΔD };
+    Measure Δρmeasure      = Measure::L1PerElectron;
     double MinΔFD          = 1e-7;   //Minimum delta in [F,D] (|[F,D]-[F,D]_old|) for convergence.
     double MinΔE           = 1e30;   //Minimum RELATIVE total-energy change |ΔE/E| for convergence (default
                                      //  off).  The physical gate for a NON-variational SCF (density-fit /

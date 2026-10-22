@@ -261,7 +261,7 @@ SolidCalcOptions OptionsFor(const Material& m, const std::string& label)
 SCFParams Gates(size_t nmax, double minDrho, double minDE)
 {
     SCFParams par;
-    par.NMaxIter=nmax; par.MinΔρ=minDrho; par.MinΔE=minDE;
+    par.NMaxIter=nmax; par.MinΔρPerElectron=minDrho; par.MinΔE=minDE;
     par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
     return par;

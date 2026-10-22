@@ -20,7 +20,7 @@
   },
   "scf": {
     "NMaxIter": 60,
-    "minDeltaRho": 0.001,
+    "minDeltaRhoPerElectron": 0.001,
     "minDeltaE": 1e-06,
     "minDeltaFD": 1e+30,
     "minVirial": 1e+30,

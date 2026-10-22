@@ -43,6 +43,10 @@ template <class T> struct LoopContext
     double Eold;
     std::function<void(cd_t)>          installNew;    //!< itsOldCD=itsCD; SetWorkingCD(x)  (lineage-safe)
     std::function<cd_t(double,double)> directMinStep; //!< the iterator's geodesic line-search step (Eold, mergeTol)
+    //! THE convergence measure (D-MINDRHO, 2026-10-22): \f$\int|\rho_{out}-\rho_{in}|/N\f$ on the run's real-space quadrature
+    //! (in, out); the driver writes it to \c *residualOut, evaluated where both densities still exist.
+    std::function<double(const qchem::ChargeDensity::tChargeDensity<T>&, const qchem::ChargeDensity::tChargeDensity<T>&)> residual;
+    double* residualOut = nullptr;
 };
 
 //! The loop-face: perform one iteration's density update; returns ‖Δρ‖.
@@ -78,6 +82,15 @@ public:
             qchem::report::Timed timed("scf: new density from D (install + lineage)");
             c.installNew(typename LoopContext<T>::cd_t(c.wf->GetChargeDensity()));
         }
+        // THE RESIDUAL, before Mix replaces the field: rho_in is the density THIS Fock was built from (the mixer's
+        // presentation for Kerker/Pulay; the working D for linear mixing -- FockDensity of the previous working D).
+        if (c.residualOut)
+        {
+            qchem::report::Timed timed("scf: convergence residual (L1 on the quadrature)");
+            const auto pair=c.mixer->ResidualDensities(**c.cur);    // a field mixer's like-for-like pair; empty for a D-mixer
+            *c.residualOut = pair.in ? c.residual(*pair.in, *pair.out)
+                                     : c.residual(*c.mixer->FockDensity(**c.old), **c.cur);
+        }
         qchem::report::Timed timed("scf: density mix (Kerker/linear/Pulay)");
         const double d = c.mixer->Mix(**c.cur, **c.old);            // density-face: fold rho_out into rho_in
         SeatDMSource(*c.mixer, *c.cur);
@@ -92,6 +105,11 @@ public:
     double Step(const LoopContext<T>& c) const override
     {
         c.installNew(c.directMinStep(c.Eold, c.mergeTol));
+        if (c.residualOut)   // no mixing: the distance between successive iterates
+        {
+            qchem::report::Timed timed("scf: convergence residual (L1 on the quadrature)");
+            *c.residualOut=c.residual(**c.old, **c.cur);
+        }
         return (*c.cur)->GetChangeFrom(**c.old)/(*c.cur)->GetTotalCharge();
     }
 };
