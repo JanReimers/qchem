@@ -283,3 +283,32 @@ a q-mesh supercell is the isolated single-orbital number QE's orbital-resolved �
 resolved χ₀ and χ are negative definite.  If inter-site screening in a resolved U is wanted: a PRINCIPAL submatrix (one orbital
 type on every site), which keeps definiteness.
 
+## ✅ N4 — the cusp-deficit XC feed, made the DEFAULT (closed 2026-10-22; pin 28)
+
+The row as it stood before closing:
+
+| **N4 — cusp-deficit XC feed** (pin 18; REQUIRED by pin 28, user 2026-10-22) | ρ_XC = ρ̃_mix + (ρ[D] − ρ̃_fit) (ρ̃_fit = the fit's representation of ρ[D], any fit basis) is how a field mixer meets pin 28.  WIRED 2026-10-22 on Kerker AND Pulay, (ρ↑,ρ↓) and (ρ,m) (`PulayMixer`: correction against the LATEST out, not the extrapolated one; (ρ,m): per spin, formed by `PolarizedDensityMixer`; UT `KerkerMix.CuspDeficitIsPerSpinOnThePulayArmInEitherChannelBasis`); the PAIR XC sampler still refuses it.  `SCFParams::XCCuspDeficit` stays OFF.  MEASURED (Pulay + Null): O₂ box −30.70246 → **−30.71018173** (= ρ[D]; 24 → 25 it, both channel bases); Si k222 unchanged (12 it, 10 digits); free MnO AFM-II (`decks/MnO_AFM2_free.json`) 29 → 28 it, −61.41608505 → −61.41613923, order SURVIVED (4.455 → 4.453).  (a) ρ_XC ≥ 0? NOT mid-iteration (O₂ ≤ 13.5 % of points, min −4.5e-4; MnO ≤ 25 %, min −0.038) but → 0 at convergence (MnO 0 points, O₂ 1e-7 e), against the fitted ρ̃'s 20 % / −4.6 e (O₂) and 8.6 % at MnO's convergence.  (b) iteration-static: not measured | NEXT: make `XCCuspDeficit` the DEFAULT (pin 28) -- anchor-moving: sweep, re-judge every moved Kerker/Pulay anchor against its oracle (pin 10; the `_CP2K` Kerker cells compare to CP2K's grid-collocated ρ, so read them first), then the campaign decks.  Then lever B (needs this) · H4 "N4" |
+
+**Closed 2026-10-22 (user: "make XCCuspDeficit the default (pin 28)").**  `SCFParams::XCCuspDeficit` defaults to TRUE; false is the
+pre-pin-28 control (`GPW_Si.Γ_Becke_Imp_Kerker_FitXC_CP2K`, the former plain cell; the former `..._CuspDeficit_CP2K` is now the
+default-named `Γ_Becke_Imp_Kerker_CP2K` -- grammar token `CuspDeficit` retired, `FitXC` added).  The pair (raster) XC route
+needed no correction map: a Kerker/Pulay-mixed density answers RAW with its raster SHADOW -- ρ[D] collocated pointwise and mixed
+on the raster -- which is ρ[D] at every quadrature point at the fixed point; that route now accepts the flag and refuses it only on
+the BALL (fitted-ρ) fallback.  Hence the sweep moved only singles-route (Becke) Kerker runs.
+
+Sweep vs the 2026-10-22 baseline (`ctest -j4` + `-L long`, `scripts/anchordiff --tol 1e-10`): 1061/1061 + 4/4 pass; 7 movers,
+every one re-judged against its oracle, no verdict changed:
+
+| test | before → after (Ha) | oracle | gap to oracle |
+|---|---|---|---|
+| GPW_Si.Γ_Becke_Imp_Kerker_CP2K | −7.1149381244 → −7.1149381646 | CP2K −7.11505788 | +0.12 mHa (unchanged) |
+| GPW_NaF.Γ_Becke_Imp_eqUni | −24.4312534648 → −24.4312534677 | CP2K SR2 −24.4312134 | −0.04 mHa |
+| GPW_NaF.Γ_Imp_eqColdStart / Γ_Imp_Anchor | ≤ 1.8e-9 | same | +0.81 mHa |
+| GPW_NaF.Γ_Imp_eqExactResume | 0 (39 → 36 it) | — | — |
+| GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long | −61.4145468 → −61.4145709 | CP2K AFM-II −61.470570 | 56.02 → 56.00 mHa; moment 4.4506 → 4.4490 |
+| GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long | dE 0.6001933 → 0.6001958; E_U 0.5873195 → 0.5869510 | CP2K dE 0.6173543, E_U 0.6095092 | dE −17.16 mHa (unchanged); E_U 22.19 → 22.56 mHa (gate 0.05) |
+
+The renamed Kerker pair reproduces the old cells to all digits.  Measured before the flip (Pulay + Null): O₂ box −30.70246 →
+−30.71018173 (= ρ[D]); free MnO AFM-II −61.41608505 → −61.41613923, order SURVIVED; ρ_XC not pointwise ≥ 0 mid-iteration but → 0
+at convergence.
+

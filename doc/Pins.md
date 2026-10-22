@@ -303,9 +303,9 @@ factored D (low rank, `policy.dmLowRank`) makes ρ[D] cheap -- 130× cheaper per
   sees \f$\rho[D_{mix}]\f$ with no correction.  Linear D-mixing and direct minimisation (GDM) comply (O₂ box: linear −30.71018167/173).
   A Pulay history without Kerker (G0 = 0) is in this class too, but today's `PulayMixer` still mixes the fitted ρ̃ (OpenWork §3).
 - The cusp deficit is wired on Kerker and Kerker-preconditioned Pulay, unpolarized and in both spin coordinates, (ρ↑,ρ↓) and
-  (ρ,m) (2026-10-22), but `SCFParams::XCCuspDeficit` is still OFF by default -- so a Kerker run that does not set it (the MnO/NiO
-  campaign decks included) VIOLATES this pin.  With it on, free MnO AFM-II holds its order (moment 4.453, −61.41613923 vs
-  −61.41608505 without).  Open work: OpenWork §3 N4 (the default).
+  (ρ,m), and is the DEFAULT (`SCFParams::XCCuspDeficit` = true, 2026-10-22); false is a control, never a recipe.  The raster (pair)
+  XC route meets it with its raw shadow (ρ[D] collocated pointwise, mixed on the raster) and refuses the flag on its BALL (fitted)
+  fallback.  Free MnO AFM-II holds its order with it (moment 4.453); the flip moved no anchor's verdict (`OpenWork_History5.md`).
 
 Records: `OpenWork_History4.md` "ITEM 1 MEASURED" (MnO negatives, the collapse), `OpenWork.md` §3 "Kerker/Pulay as the
 DEFAULT mixer" and N4 (the O₂ and MnO arms).

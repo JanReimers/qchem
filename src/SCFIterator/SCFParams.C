@@ -52,10 +52,12 @@ export struct SCFParams
     //! (XC from ρ[D]): at the fixed point \f$\tilde\rho_{mix}=\tilde\rho_{fit}\f$ and XC sees ρ[D] exactly.
     //!
     //! A MIXER-CONSTRUCTION policy, deliberately, not a switch the XC code reads: CP2K parity is a property
-    //! of WHICH MIXER WAS BUILT, so it must be decidable at the factory and leave the plain Kerker/Pulay mixer
-    //! bit-identical.  false (default) = CP2K-conforming; the correction is not even formed.  Wired on Kerker and Pulay,
-    //! unpolarized, (ρ↑,ρ↓) and (ρ,m); the PAIR XC sampler refuses it (DensitySampler_Pair.C).
-    bool   XCCuspDeficit   = false;
+    //! of WHICH MIXER WAS BUILT, so it must be decidable at the factory.  TRUE BY DEFAULT since 2026-10-22 (pin 28; user);
+    //! false = the pre-pin-28 mixer, XC on the fitted ρ̃_mix (the correction is not even formed) -- a control, not a recipe.
+    //! Read only by the Kerker/Pulay mixers (linear D-mixing and GDM already feed XC ρ[D]).  Wired on Kerker and Pulay,
+    //! unpolarized and in both spin coordinates; the pair (raster) XC route serves it with its raw shadow and refuses it on
+    //! the BALL fallback (DensitySampler_Pair.C).
+    bool   XCCuspDeficit   = true;
     double KerkerG0        = 0.0;    //Kerker density-mixing screening wavevector G0 (a.u.^-1).  0 (default) =
                                      //  OFF -> classic linear density-matrix mixing (atoms/molecules unchanged).
                                      //  >0 -> preconditioned rho-mixing on the periodic (GPW/PW) path: damp the

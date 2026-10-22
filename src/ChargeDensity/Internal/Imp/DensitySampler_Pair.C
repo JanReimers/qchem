@@ -60,10 +60,22 @@ PairDensitySampler::~PairDensitySampler() = default;   // itsScalarFitter's abst
 // Declared rather than moved so the diff stays about the pair route (and so ONE definition still serves
 // both, which is the point).
 bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd);
+bool HasXCCorrection(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd);
 void ReportNegativeRho(const DensitySampler& q, const rvec_t& rho, const char* route);
 
 // ONE density object -> rho(r) on the raster.  RAW when it can collocate, BALL otherwise; extracted
 // 2026-08-28 so the scalar route and the two spin channels cannot make that decision differently.
+// PIN 28 ON THIS ROUTE.  A Kerker/Pulay-mixed density answers RAW with its raster SHADOW: rho[D] collocated pointwise on the
+// raster and mixed there (RasterKerker, the filter over the full raster FFT) -- at the fixed point that IS rho[D] at every
+// quadrature point, exception 2's form, so the N4 correction map the mixer also carries is not needed here.  BALL is the
+// fitted rho; a run that asked for the cusp deficit must never be served it (it would be the +7.7 mHa of the O2 box).
+void RequireRawForCusp(const cChargeDensity* cd, bool isRaw)
+{
+    if (!isRaw && HasXCCorrection(cd))
+        throw std::logic_error("PairDensitySampler: XCCuspDeficit asks for XC from rho[D] (doc/Pins.md pin 28), but this mixed density "
+            "has no raster shadow, so the pair route would feed XC the FITTED rho (BALL)");
+}
+
 rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) const
 {
     assert(cd);
@@ -71,6 +83,7 @@ rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) cons
     assert(fd && "PairDensitySampler requires a FourierDensity (periodic) charge density");
     rvec_t rho=fd->GetRhoOnGrid(*itsFitBasis);
     isRaw=(rho.size()!=0);
+    RequireRawForCusp(cd, isRaw);
     if (!isRaw)
     {
         auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
@@ -177,14 +190,14 @@ void PairDensitySampler::RefreshPol(const cChargeDensity* cd) const
         ReportNegativeRho(*this, itsRhoUp, "half-density seed");
         return;
     }
-    // ⚠ NOT WIRED HERE: the DM-source repair and the N4 cusp deficit (QCHEM_XC_DM_SOURCE, XCCuspDeficit),
-    // which the singles route applies per channel.  Both are default OFF.  Loud rather than silent,
-    // because silently sampling the MIXED field where the caller asked for the retained D would be a
-    // physics change wearing a performance change's clothes.
-    if (HasExactSource(up) || HasExactSource(dn))
-        throw std::logic_error("PairDensitySampler: QCHEM_XC_DM_SOURCE / XCCuspDeficit are not wired on the "
-            "collocation (pair) route -- its rho comes from applyRaw, not from a projector, so the "
-            "retained-D repair needs its own design.  Use the delta/singles quadrature for those flags.");
+    // ⚠ NOT WIRED HERE: the WHOLESALE DM-source repair (policy.xcFromDM), which the singles route applies per channel.
+    // Loud rather than silent, because silently sampling the MIXED field where the caller asked for the retained D would
+    // be a physics change wearing a performance change's clothes.  The N4 cusp deficit IS served (SampleOne: the raw
+    // shadow, pin 28).
+    if ((HasExactSource(up) && !HasXCCorrection(up)) || (HasExactSource(dn) && !HasXCCorrection(dn)))
+        throw std::logic_error("PairDensitySampler: policy.xcFromDM is not wired on the collocation (pair) route -- its rho "
+            "comes from applyRaw, not from a projector, so the retained-D repair needs its own design.  Use the delta/singles "
+            "quadrature for it.");
     bool rawUp=false, rawDn=false;
     itsRhoUp=SampleOne(up, rawUp);
     itsRhoDn=SampleOne(dn, rawDn);

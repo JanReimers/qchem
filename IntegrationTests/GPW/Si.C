@@ -19,7 +19,7 @@
 //   GPW_Si.Γ_Imp_eqUnfolded
 //   GPW_Si.Γ_Becke_Imp_eqUni
 //   GPW_Si.Γ_Becke_Imp_Kerker_CP2K
-//   GPW_Si.Γ_Becke_Imp_Kerker_CuspDeficit_CP2K
+//   GPW_Si.Γ_Becke_Imp_Kerker_FitXC_CP2K
 //   GPW_Si.Γ_Uni_DeltaFit_Imp_eqPWFit
 //   GPW_Si.Γ_Uni_PWFit_Imp_Pol_eqUnpol
 //   GPW_Si.k211_Imp_Anchor
@@ -620,8 +620,10 @@ bool XcServedFrom(const std::string& route)   // did the singles sampler note th
 }
 }
 
-// Plain Kerker: ρ̃ mixing on the Becke grid.  The mixed density is a FIELD, so the singles sampler projects
-// it ("matrix-free") -- the pre-N4 behaviour, and the arm the cusp-deficit cell below is measured against.
+// Kerker on the Becke grid, as a user gets it (pin 28, default since 2026-10-22): the mixed density is a FIELD, so XC is
+// served the N4 cusp-deficit route rho_XC = rho_mix + (rho[D] - rho_fit) -- the damped fitted part plus the current D's
+// cusp -- which IS rho[D] at the fixed point (doc/Pins.md pin 28).  It changes the SCF TRAJECTORY, not the answer, which is
+// what the anchor pins.
 TEST(GPW_Si, Γ_Becke_Imp_Kerker_CP2K)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
@@ -639,22 +641,23 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_CP2K)
         EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
         EXPECT_NEAR(R->Energy(), -7.11506, 2e-3) << "Kerker must not change the physics: the Γ_Imp_CP2K anchor";
     }                                                 // the run is filed into the global report at End()
-    EXPECT_TRUE (XcServedFrom("matrix-free")) << "plain Kerker feeds XC the projected FIELD";
-    EXPECT_FALSE(XcServedFrom("cusp-deficit")) << "...and never the DM reach-around (the sequence is matrix-free, DM, matrix-free..., DM)";
+    // The sequence is matrix-free (the SEED: a field with no density matrix behind it -- pin 28's exception 1), DM (the
+    // first Fock's own D), then cusp-deficit for every mixed field after -- and "DM" once more at the end, when the facade
+    // samples the converged density.  What must NOT happen is a mixed field being projected wholesale.
+    EXPECT_TRUE(XcServedFrom("cusp-deficit")) << "the DM-source reach-around must actually be ENTERED (V1.18e: it never was)";
 }
 
-// N4's cusp-deficit route: ρ_XC = ρ[D]_exact + IFT[ρ_mix − ρ[D]] -- exact cusps from the retained density
-// matrix, the band-limited difference from the field, no damping decision (doc/OpenWork.md N4).  The route
-// is decided when the MIXER is built (SCFParams::XCCuspDeficit -> KerkerMixerFactory), so this is the cell
-// where it exists; it changes the SCF TRAJECTORY, not the answer, which is what the anchor pins.
-TEST(GPW_Si, Γ_Becke_Imp_Kerker_CuspDeficit_CP2K)
+// THE PRE-PIN-28 CONTROL: XCCuspDeficit OFF, so the singles sampler projects the FIELD ("matrix-free") for XC -- the fitted
+// rho pin 28 forbids, kept as the A/B arm the default above is measured against.  On Si's soft PP the two agree to the
+// anchor window; on the O2 box (O q6) this arm is +7.72 mHa off rho[D].
+TEST(GPW_Si, Γ_Becke_Imp_Kerker_FitXC_CP2K)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker cusp-deficit");
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker fitted-XC control");
     o.densityEcut=20.0; o.imposeSymmetry=true;
     o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
-    SCFParams par=ProductionGates(); par.KerkerG0=1.0; par.XCCuspDeficit=true;
+    SCFParams par=ProductionGates(); par.KerkerG0=1.0; par.XCCuspDeficit=false;
     report::ClearGlobal();
     {
         GpwReport report("Si "+o.label, false);
@@ -662,12 +665,10 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_CuspDeficit_CP2K)
         auto R=calc.Result();
         ASSERT_TRUE(R) << Why(R);
         EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
-        EXPECT_NEAR(R->Energy(), -7.11506, 2e-3) << "the cusp-deficit route changes the trajectory, not the answer";
-    }                                                 // the run is filed into the global report at End()
-    // The sequence is matrix-free (the SEED: a field with no density matrix behind it), DM (the first Fock's
-    // own D), then cusp-deficit for every mixed field after -- and "DM" once more at the end, when the facade
-    // samples the converged density.  What must NOT happen is a mixed field being projected wholesale.
-    EXPECT_TRUE(XcServedFrom("cusp-deficit")) << "the DM-source reach-around must actually be ENTERED (V1.18e: it never was)";
+        EXPECT_NEAR(R->Energy(), -7.11506, 2e-3) << "the control lands in the same anchor window on Si";
+    }
+    EXPECT_TRUE (XcServedFrom("matrix-free")) << "the control feeds XC the projected FIELD";
+    EXPECT_FALSE(XcServedFrom("cusp-deficit")) << "...and never the cusp-deficit route";
 }
 
 
