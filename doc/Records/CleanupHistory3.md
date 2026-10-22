@@ -229,4 +229,14 @@ into the terms), `R2.5b` (`throw` is a marker), `V1.20` (`.Internal.` = the FAMI
   exhaustion is a `runtime_error` naming the way out (it was a bare `assert`, compiled out in Release, which returned an EMPTY
   mesh).  Gate `UTStructure InvariantAngularMesh.ExhaustedSeedPoolThrows` (every seed direction on the avoid list).  Sweep vs
   batch item 1: 1052/1052, nothing moved.
+- **V1.22 ✅ (2026-10-21, anchor-moving batch)**: `MakePeriodicBeckeMesh(..., angPerAtom, repOf)` partitions ONE atom per orbit
+  and gives every member the representative's keep decision and weight point for point (a member's angular set is the
+  representative's rotated by the orbit op, index for index, and the Becke partition is invariant under that space-group op).
+  The imposed mesh is orbit-consistent BY CONSTRUCTION, so the post-filter (a second full orbit fold over the pre-filter points,
+  dropping orbit-incomplete "eps-borderline" points) is gone, and the partition cost drops by ~|orbit| (`BeckeMesh` /
+  `InvariantAngularMesh.SupercellBeckeGridIsThePrimitiveGridReplicated` 34.9 s → 2.7 s under load).  MEASURED vs batch D5:
+  1052/1052 + long 4/4; `GPW_O2Box.Γ_Imp_M3_eqFinite` −7.2e-5 Ha -- the old filter dropped 456 points there, NOT eps-borderline
+  ones (the box-vs-finite gap went 0.02618 → 0.02611 Ha, i.e. toward the finite molecule); every other move ≤ 1e-7 Ha (MnO
+  `_Long` anchors 5e-8; `GPW_Na2Box...OrderLostThrows` 165 → 159 iterations).  The FREE builder still decides per point (no
+  orbit information there): the AFM translation-partner asymmetry noted in the item stands for unimposed runs.
 
