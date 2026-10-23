@@ -439,6 +439,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     o.accelerator=qchem::SCFAccelerators::Type::Null;      // the deck-shaped loop: the history is on the density side
     o.imposeSymmetry=true;                                  // S3: the Shubnikov group of the declared ordering
+    o.siteSpins={+1,-1,0,0};                                // the ordering is STATED (Mn up, Mn down, O non-magnetic): 24 Shubnikov ops
     SCFParams par=Gates(200, 1e-6, 1e30);
     par.Δρmeasure=SCFParams::Measure::MaxΔD;               // CP2K's EPS_SCF measure (rule 3f)
     par.PulayDepth=8; par.PulayStart=5;
