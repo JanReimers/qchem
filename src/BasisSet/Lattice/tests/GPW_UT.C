@@ -1929,6 +1929,61 @@ TEST(GPW, VshortIsTranslationInvariant)
     EXPECT_LT(maxMnPair, 1e-8) << "V_short differs between two translation-equivalent Mn";
 }
 
+// THE GENERAL FORM of VshortIsTranslationInvariant (pin 29): EVERY one-electron lattice-sum matrix must be EQUIVARIANT under a
+// translation that permutes the atoms.  In MnO AFM-II, (a,a,a) maps Mn1<->Mn2 and O1<->O2 (an FCC vector of the rocksalt, NOT a
+// lattice vector of the 2-f.u. cell), so M(Pi,Pj) == M(i,j) for S, T, V_long, V_short and the KB.  No oracle: a site-dependent
+// image list (the BuildOpTerms defect) breaks it at once, on s+p+d functions.
+TEST(GPW, LatticeSumsAreTranslationEquivariant)
+{
+    const double a=8.40;
+    Matrix3D<double> Amat(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    UnitCell cell(Amat);
+    cell.AddAtom(25, {0.0,0.0,0.0});
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    cell.AddAtom( 8, {0.25,0.25,0.25});
+    cell.AddAtom( 8, {0.75,0.75,0.75});
+    auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
+    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.6,3.0}, 2, &cell));   // s+p+d on every atom
+    std::shared_ptr<const Real_BS> mol(cbs);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    const GPW_Evaluator& ev=gpw;
+    const auto gthMn=Pseudopotential::GetGTH("Mn","LDA",7);
+    const auto gthO =Pseudopotential::GetGTH("O","LDA",6);
+    Pseudopotential::MultiSpecies_LocalPotential loc;
+    loc.Add(25, std::make_shared<const Pseudopotential::HGH_LocalPotential>(gthMn.local));
+    loc.Add( 8, std::make_shared<const Pseudopotential::HGH_LocalPotential>(gthO.local));
+    Pseudopotential::MultiSpecies_SeparablePotential sep;
+    sep.Add(25, std::make_shared<const Pseudopotential::HGH_SeparablePotential>(gthMn.nonlocal));
+    sep.Add( 8, std::make_shared<const Pseudopotential::HGH_SeparablePotential>(gthO.nonlocal));
+    const size_t n=ev.OverlapMatrix().rows(), per=n/4;
+    ASSERT_EQ(n%4, 0u);
+    auto P=[per](size_t i)->size_t { const size_t at=i/per, k=i%per; const size_t pa[4]={1,0,3,2}; return pa[at]*per+k; };
+    auto worst=[&](const chmat_t& M)
+    {
+        double w=0.0, sc=0.0;
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
+        {
+            w =std::max(w,  std::abs(dcmplx(M(P(i),P(j)))-dcmplx(M(i,j))));
+            sc=std::max(sc, std::abs(dcmplx(M(i,j))));
+        }
+        return std::make_pair(w, sc);
+    };
+    const std::pair<const char*, chmat_t> mats[5]={ {"S",       ev.OverlapMatrix()},
+                                                   {"T",       ev.KineticMatrix()},
+                                                   {"V_long",  ev.MakeLocalPPLong(&cell, loc)},
+                                                   {"V_short", ev.MakeLocalPPShort(&cell, loc)},
+                                                   {"KB",      ev.MakeSeparablePP(&cell, sep)} };
+    for (const auto& [name, M] : mats)
+    {
+        const auto [w, sc]=worst(M);
+        std::cout << "[translation equivariance] "<<name<<": max|M(Pi,Pj)-M(i,j)| = "<<w<<"  (max|M| = "<<sc<<")"<<std::endl;
+        // V_long is COLLOCATED on a raster, and a half-cell translation need not map the raster onto itself: grid class, 1e-6 relative
+        // (measured 8.7e-7 absolute on max|M| 8.6, 2026-10-23); the analytic sums are exact to roundoff.
+        const double tol = std::string(name)=="V_long" ? 1e-6 : 1e-8;
+        EXPECT_LT(w, tol*std::max(1.0,sc)) << name << " is not equivariant under the Mn1<->Mn2, O1<->O2 translation";
+    }
+}
+
 // ============ The KB NONLOCAL oracle gate (doc/SphericalLatticePlan.md, 2026-08-15) ============
 // The VA exact-span matrix left the KB assembly as the PRIME SUSPECT for the ~37 mHa configuration-
 // selective qchem-vs-CP2K bias (Δ_NL(AFM−FM) = −1.31 Ha on the VA span while CP2K's total Δ is
