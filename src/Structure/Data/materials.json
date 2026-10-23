@@ -416,6 +416,33 @@
     "atoms":   [ { "el": "O", "frac": [0.25, 0.25, 0.25] }, { "el": "O", "frac": [0.75, 0.75, 0.75] } ],
     "species": { "O": 6 }
   },
+  "MnO_AFM2_a9p5": {
+    "comment": "MnO_AFM2's rocksalt cell EXPANDED to a = 9.5 bohr (8.40 is the crystal): the lattice-constant scan of the MnO operator localizer -- how the qchem-vs-CP2K offset decays with distance names the operator class (IntegrationTests/CP2K/mno_fm_m10_a9p5.inp)",
+    "lattice": { "type": "CubicF", "a": 9.5, "T": [[0,1,1],[1,0,1],[1,1,0]] },
+    "atoms":   [ { "el": "Mn", "frac": [0.0, 0.0, 0.0],  "spin": 1 },
+                 { "el": "Mn", "frac": [0.5, 0.5, 0.5],  "spin": -1 },
+                 { "el": "O",  "frac": [0.25, 0.25, 0.25] },
+                 { "el": "O",  "frac": [0.75, 0.75, 0.75] } ],
+    "species": { "Mn": 7, "O": 6 }
+  },
+  "MnO_AFM2_a11": {
+    "comment": "MnO_AFM2's rocksalt cell EXPANDED to a = 11.0 bohr (8.40 is the crystal): the lattice-constant scan of the MnO operator localizer -- how the qchem-vs-CP2K offset decays with distance names the operator class (IntegrationTests/CP2K/mno_fm_m10_a11.inp)",
+    "lattice": { "type": "CubicF", "a": 11.0, "T": [[0,1,1],[1,0,1],[1,1,0]] },
+    "atoms":   [ { "el": "Mn", "frac": [0.0, 0.0, 0.0],  "spin": 1 },
+                 { "el": "Mn", "frac": [0.5, 0.5, 0.5],  "spin": -1 },
+                 { "el": "O",  "frac": [0.25, 0.25, 0.25] },
+                 { "el": "O",  "frac": [0.75, 0.75, 0.75] } ],
+    "species": { "Mn": 7, "O": 6 }
+  },
+  "MnO_AFM2_a13": {
+    "comment": "MnO_AFM2's rocksalt cell EXPANDED to a = 13.0 bohr (8.40 is the crystal): the lattice-constant scan of the MnO operator localizer -- how the qchem-vs-CP2K offset decays with distance names the operator class (IntegrationTests/CP2K/mno_fm_m10_a13.inp)",
+    "lattice": { "type": "CubicF", "a": 13.0, "T": [[0,1,1],[1,0,1],[1,1,0]] },
+    "atoms":   [ { "el": "Mn", "frac": [0.0, 0.0, 0.0],  "spin": 1 },
+                 { "el": "Mn", "frac": [0.5, 0.5, 0.5],  "spin": -1 },
+                 { "el": "O",  "frac": [0.25, 0.25, 0.25] },
+                 { "el": "O",  "frac": [0.75, 0.75, 0.75] } ],
+    "species": { "Mn": 7, "O": 6 }
+  },
   "Mn2_box7": {
     "comment": "two neutral Mn in a 7-bohr cubic box, CsCl/B2 arrangement, AFM flip on the second: the cheapest genuinely staggered crystal",
     "lattice": { "type": "CubicP", "a": 7.0 },
