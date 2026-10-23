@@ -309,3 +309,15 @@ factored D (low rank, `policy.dmLowRank`) makes ρ[D] cheap -- 130× cheaper per
 
 Records: `OpenWork_History4.md` "ITEM 1 MEASURED" (MnO negatives, the collapse), `OpenWork.md` §3 "Kerker/Pulay as the
 DEFAULT mixer" and N4 (the O₂ and MnO arms).
+
+## 29. An image list is centred where the integrand lives, never on the operator's home position
+
+A lattice sum that fixes one function in the home cell (\f$\chi_i\f$) and images the rest must keep every image of an operator
+(or of a partner function) that lies within reach of THAT home function -- a sphere about \f$\tau_i\f$, not about the operator's own
+\f$\tau_{op}\f$.  The two differ by \f$\tau_{op}-\tau_i\f$, so a list centred on the operator drops, for each \f$\chi_i\f$, the images on the
+far side of its neighbours, and drops DIFFERENT ones for translation-equivalent sites.  Measured 2026-10-23: `BuildOpTerms` did this
+for the short-range local PP; the two Mn of MnO AFM-II got V_short blocks 2e-3 Ha apart, the VA crystal carried a −61 mHa AFM /
+−97 mHa FM error and a −37 mHa spurious FM-favouring bias.  The cheapest guard is the symmetry itself: TRANSLATION-EQUIVALENT SITES
+MUST GET IDENTICAL BLOCKS (`GPW.VshortIsTranslationInvariant`) -- a rigid shift of the whole crystal does NOT catch it.  Record:
+`OpenWork.md` §3 "MnO accuracy".
+

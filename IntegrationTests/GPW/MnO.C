@@ -427,7 +427,14 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 // one).  |m-tilde(q_AFM)| Omega/2 = 3.13 e.  CP2K's AFM-II oracle is
 // -61.470570 (deck IntegrationTests/CP2K/mno_afm2_gpw_sr.inp): the 56 mHa gap is the banked ordering/d-selective
 // offset (doc/SymmetryUpgradePlan.md §7, doc/SphericalLatticePlan.md), so this pins OUR number as a did-E-move
-// anchor and states the oracle beside it.  LONG (ruling 5: over the 60 s budget), hence the `_Long` suffix: it runs in the
+// anchor and states the oracle beside it.
+// RE-JUDGED 2026-10-23 (pin 10) after the V_short operator-image fix (BuildOpTerms kept each operator image by its distance from the
+// OPERATOR's home position, not from the home basis centres, so a Mn function lost the O-well images on the far side of its
+// neighbours -- GPW.VshortIsTranslationInvariant): -61.41455 -> -61.35052 (+64.0 mHa).  Judged against the SAME-SPAN oracle, since
+// this 122-function span is not CP2K's 136 (OpenWork §3 "The 136-function span"): on VALENCE_LOWQ_VA (118, exactly CP2K's span) the
+// same fix moves AFM-II by +60.9 mHa and leaves it -47.1 mHa from CP2K's VA -61.30333 with the AFM-FM difference matching CP2K to
+// 0.02 mHa (was -37 mHa) -- the same operator correction, and what is left is configuration-blind (OpenWork §3 "MnO accuracy").
+// LONG (ruling 5: over the 60 s budget), hence the `_Long` suffix: it runs in the
 // `ctest -L long` tier (excluded by `ctest -LE long`), and in the TestMate tree like any other test.
 TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
 {
@@ -452,7 +459,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6);
-    EXPECT_NEAR(R->Energy(), -61.41455, 2e-3) << "did-E-move anchor (CP2K AFM-II oracle -61.470570: the banked 56 mHa ordering offset)";
+    EXPECT_NEAR(R->Energy(), -61.35052, 2e-3) << "did-E-move anchor, re-judged 2026-10-23 (see the header; CP2K's 136-function SR -61.470570 is a different span)";
     ASSERT_FALSE(trace.rows.empty());
     EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the INTEGRATED Mn site moment must be d^5-scale at convergence (measured 4.45)";
     EXPECT_NE(R->SpinDensity(), nullptr) << "a polarized run must hand back m(r)";
@@ -549,6 +556,8 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
 // energy built by hand, to its tolerance); the FM arm is built here, in the test, because FM-vs-AFM is a property of THIS test and not of the
 // calculation framework: the same Bravais cell with no spin flip, multiplicity 11 (two d^5 Mn).  LONG: two arms of ~7 min.
 // ⚠ DISABLED_ because the CLAIM IS CURRENTLY FALSE (CLAUDE.md: a real claim currently failing is an open tracker row, not a green test):
+// RE-MEASURED 2026-10-23 after the V_short image fix: E_AFM=-61.35052 vs E_FM=-61.35215 -- FM 1.63 mHa below (was 38 mHa), as CP2K on the
+// comparable VA span (FM below by 1.46); CP2K's 136-function SR puts AFM 8.87 mHa below, so the claim still fails on THIS 122-function span.
 // MEASURED 2026-10-04, E_AFM=-61.414547 vs E_FM=-61.452697 -- the FM arm is 38 mHa BELOW (doc/OpenWork.md §3, "MnO ordering at Γ/SR").  The
 // deck-vs-anchor assertion and the FM charge assertion below passed; only the ordering EXPECT failed.  Re-enable when the ordering is right.
 TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Ordering_Long)
@@ -566,7 +575,7 @@ TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Ordering_Long)
     const auto afm=qchem::deck::Run(spec, pv, dir);
     ASSERT_TRUE(afm.converged) << afm.summary;
     ASSERT_TRUE(afm.energy.has_value());
-    EXPECT_NEAR(*afm.energy, -61.41455, 2e-3) << "the deck run reproduces the hand-built anchor (GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long)";
+    EXPECT_NEAR(*afm.energy, -61.35052, 2e-3) << "the deck run reproduces the hand-built anchor (GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long)";
 
     // the FM arm: same cell, NO spin flip, multiplicity 11, the same recipe
     auto cellp=std::make_shared<UnitCell>(BravaisCell(Bravais::CubicF, {.a=8.4}, Matrix3D<int>(0,1,1, 1,0,1, 1,1,0)));

@@ -1,0 +1,84 @@
+# linear O-Mn-O (bond 4.20 bohr) in a 16-bohr box, kT = 0 OT, multiplicity 6 -- the three-centre rung of the MnO operator localizer (OpenWork §3); VA Mn / VB O, GTH-PADE q7/q6, 72 Ha.
+&GLOBAL
+  PROJECT omno_box16_ot
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ./VALENCE-LOWQ-BASIS
+    POTENTIAL_FILE_NAME /home/janr/Code/cp2k/data/GTH_POTENTIALS
+    UKS
+    MULTIPLICITY 6
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-14
+      EPS_PGF_ORB 1.0E-12
+    &END QS
+    &MGRID
+      CUTOFF 144
+      REL_CUTOFF 60
+      NGRIDS 4
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL
+        &LDA_X
+        &END LDA_X
+        &LDA_C_VWN
+        &END LDA_C_VWN
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+      PERIODIC XYZ
+    &END POISSON
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-6
+      MAX_SCF 300
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 10
+      &END OUTER_SCF
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [bohr] 16.0 16.0 16.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      SCALED
+      O  0.237500 0.50 0.50
+      Mn 0.50 0.50 0.50
+      O  0.762500 0.50 0.50
+    &END COORD
+    &KIND Mn
+      ELEMENT Mn
+      BASIS_SET VALENCE-LOWQ-VA
+      POTENTIAL GTH-PADE-q7
+      # Hund d^5: 5 unpaired d alpha
+      &BS
+        &ALPHA
+          NEL  5
+          L    2
+          N    3
+        &END ALPHA
+        &BETA
+          NEL -5
+          L    2
+          N    3
+        &END BETA
+      &END BS
+    &END KIND
+    &KIND O
+      ELEMENT O
+      BASIS_SET VALENCE-LOWQ-VB
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

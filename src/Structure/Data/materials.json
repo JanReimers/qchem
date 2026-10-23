@@ -443,6 +443,18 @@
                  { "el": "O",  "frac": [0.75, 0.75, 0.75] } ],
     "species": { "Mn": 7, "O": 6 }
   },
+  "OMnO_box16": {
+    "comment": "linear O-Mn-O at the rocksalt MnO bond length 4.20 bohr along x, Mn at the centre of a 16-bohr box: TWO O on one Mn, the three-centre rung of the MnO operator localizer (IntegrationTests/CP2K/omno_box16_ot.inp)",
+    "lattice": { "type": "CubicP", "a": 16.0 },
+    "atoms":   [ { "el": "O", "frac": [0.237500, 0.5, 0.5] }, { "el": "Mn", "frac": [0.5, 0.5, 0.5] }, { "el": "O", "frac": [0.762500, 0.5, 0.5] } ],
+    "species": { "Mn": 7, "O": 6 }
+  },
+  "MnOMn_box16": {
+    "comment": "linear Mn-O-Mn at the rocksalt MnO bond length 4.20 bohr along x, O at the centre of a 16-bohr box: TWO Mn on one O (IntegrationTests/CP2K/mnomn_box16_ot.inp)",
+    "lattice": { "type": "CubicP", "a": 16.0 },
+    "atoms":   [ { "el": "Mn", "frac": [0.237500, 0.5, 0.5] }, { "el": "O", "frac": [0.5, 0.5, 0.5] }, { "el": "Mn", "frac": [0.762500, 0.5, 0.5] } ],
+    "species": { "Mn": 7, "O": 6 }
+  },
   "Mn2_box7": {
     "comment": "two neutral Mn in a 7-bohr cubic box, CsCl/B2 arrangement, AFM flip on the second: the cheapest genuinely staggered crystal",
     "lattice": { "type": "CubicP", "a": 7.0 },
