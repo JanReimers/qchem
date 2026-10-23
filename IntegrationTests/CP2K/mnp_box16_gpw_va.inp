@@ -1,0 +1,91 @@
+# CHARGED-atom rung (OpenWork §3 MnO operator localizer): mn_box16_gpw_va.inp with CHARGE +1 over CP2K's implicit neutralizing background, moment fixed at 6.
+# Mn q7 SEXTET pseudo-atom at the centre of a 16-bohr cubic box: the same-basis, same-box GPW oracle for qchem's Mn_box16
+# (VALENCE-LOWQ-VA Mn, GTH-PADE-q7, LDA_X+VWN5, Gamma, PERIODIC XYZ) -- the localizer for OpenWork §3 "MnO accuracy -- name the
+# operator": a configuration-BLIND per-atom offset should show here term by term (the CP2K ATOM-code oracle -14.674425 is a
+# complete-basis number and cannot be compared block by block with a Gaussian basis).  Settings copied from mno_afm2_gpw_va.inp
+# (tight EPS, CUTOFF 144 Ry, Broyden + Kerker, Fermi-Dirac 5e-3 common mu); MULTIPLICITY 6, the Mn KIND seeded d5 alpha.
+&GLOBAL
+  PROJECT mnp_box16_gpw_va
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ./VALENCE-LOWQ-BASIS
+    POTENTIAL_FILE_NAME /home/janr/Code/cp2k/data/GTH_POTENTIALS
+    UKS
+    MULTIPLICITY 7
+    CHARGE 1
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-14
+      EPS_PGF_ORB 1.0E-12
+    &END QS
+    &MGRID
+      CUTOFF 144
+      REL_CUTOFF 60
+      NGRIDS 4
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL
+        &LDA_X
+        &END LDA_X
+        &LDA_C_VWN
+        &END LDA_C_VWN
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+      PERIODIC XYZ
+    &END POISSON
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-6
+      MAX_SCF 200
+      IGNORE_CONVERGENCE_FAILURE
+      ADDED_MOS 20
+      &DIAGONALIZATION T
+        ALGORITHM STANDARD
+      &END DIAGONALIZATION
+      &MIXING T
+        METHOD BROYDEN_MIXING
+        ALPHA 0.2
+        BETA 1.5
+        NBUFFER 8
+      &END MIXING
+      &SMEAR ON
+        METHOD FERMI_DIRAC
+        ELECTRONIC_TEMPERATURE [au_temp] 5.0E-3
+        FIXED_MAGNETIC_MOMENT 6.0
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [bohr] 16.0 16.0 16.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      SCALED
+      Mn 0.50 0.50 0.50
+    &END COORD
+    &KIND Mn
+      ELEMENT Mn
+      BASIS_SET VALENCE-LOWQ-VA
+      POTENTIAL GTH-PADE-q7
+      # Hund d^5: 5 unpaired d alpha
+      &BS
+        &ALPHA
+          NEL  5
+          L    2
+          N    3
+        &END ALPHA
+        &BETA
+          NEL -5
+          L    2
+          N    3
+        &END BETA
+      &END BS
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
