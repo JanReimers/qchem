@@ -333,4 +333,8 @@ Charged-cell aside (its own row): E_alphaZ uses N_e, CP2K's equivalent ΣZ.
 
 **Closed:** the V_short operator-image defect (pin 29).  Supercell gate after the fix: χ₀R rel 9.25e-6, χR 1.16e-5; U per site 2.079615 /
 2.079605 / 2.079615 / 2.079605 eV (q-mesh 2.079559 / 2.079520).  Tolerances tightened to 5e-5 relative and 3e-4 eV.
+Left unconverged and stopped (not needed once the crystal agreed): the linear O–Mn–O and Mn–O–Mn triatomics in a 16-bohr box (materials
+`OMnO_box16` / `MnOMn_box16`, CP2K OT decks `IntegrationTests/CP2K/{omno,mnomn}_box16_ot.inp`: CP2K −46.13211978 / −45.03771777).  Ours,
+with the V_short fix but before the Ewald fix, Pulay 0.2 + Null at kT = 0: O–Mn–O −46.1333 (Δρ 5e-3) after 99 iterations, Mn–O–Mn
+−44.979 (Δρ 5e-3, clearly another state) -- box SCFs with a near-degenerate open d frontier converge badly here (OpenWork §3 GDM row).
 

@@ -139,7 +139,9 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
      flips, and the imposition decoration then uses neutral targets — what the arm really ran on), and correct its comment: the recipe's
      "IonicSAD seed (Mn²⁺ d⁵ + O²⁻)" was in fact neutral Mn d⁵4s²; the true Mn²⁺ seed loses AFM on this SR Γ arm (moment dead at
      iteration 30, −60.97044 Ha) — add that as a remainder on OpenWork §3 "MnO ordering at Γ/SR: FM lies BELOW AFM-II".
-  4. **Run that test ALONE**: expect E −61.41455 ± 2e-3 and the integrated Mn moment > 4.0 — bit-identical to main if SAD really is
+  4. **Run that test ALONE**: expect E −61.30328 ± 2e-3 (⚠ was −61.41455 before the 2026-10-23 image-list fixes on `openwork-sweep`, pin 29:
+     the anchor moved +64.0 then +47.24 mHa; if main does not yet carry those commits, expect the OLD value there) and the integrated Mn
+     moment > 4.0 — bit-identical to main if SAD really is
      main's effective seed.  If not: STOP and take it to the user (the fallback is a re-judge, not a recipe tune).
   5. **Full sweep, both tiers** (the count goes up by the new UT `IonicFormalCharges.EquivalentDonorsShareTheTransfer`), note any
      anchor the new seed moved in other IonicSAD tests (the VA MnO +U gate passed with it), then merge `seed-tiebreak` into main.
