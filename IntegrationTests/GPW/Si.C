@@ -1275,7 +1275,9 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
         // TOLERANCE, MEASURED 2026-10-04 (both arms uniform XC, Kerker/Pulay): chi0R 1.6e-4, chiR 8.4e-5 relative.  The floor is the SUPERCELL arm's
         // own translation breaking -- sites 1 and 3 are images of one another yet their chi0 differ by 1.7e-4 relative (the q-mesh arm is translation-
         // symmetric by construction) -- and the ground states differ by 3e-5 Ha per primitive cell.  So 5e-4 is ~3x the arm's self-consistency.
-        EXPECT_LT(worst, 5e-4*scale) << key << ": the q-mesh real-space response is not the supercell's";
+        // TIGHTENED 2026-10-23 (5e-4 -> 5e-5): the floor WAS the supercell's own translation breaking, and it was the V_short operator-image
+        // defect (pin 29) -- with it fixed the supercell's image sites agree to the printed digits and chi0R / chiR sit at 9.3e-6 / 1.2e-5.
+        EXPECT_LT(worst, 5e-5*scale) << key << ": the q-mesh real-space response is not the supercell's";
     }
     // hp.x's U over the supercell: the q-mesh's home-cell U_I against every supercell image of I (measured: 4.7e-4 eV worst, the images spread 6.6e-4).
     const auto& Uq=prim.at("U_eV"); const auto& Us=sup.at("U_eV");
@@ -1283,7 +1285,7 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
     for (size_t a=0;a<4;a++)
     {
         std::cout << "[supercell gate] U site" << a << "  q-mesh " << std::setprecision(7) << Uq[a%2].get<double>() << " eV  supercell " << Us[a].get<double>() << " eV" << std::endl;
-        EXPECT_NEAR(Uq[a%2].get<double>(), Us[a].get<double>(), 1e-3) << "U (eV) of supercell atom " << a;
+        EXPECT_NEAR(Uq[a%2].get<double>(), Us[a].get<double>(), 3e-4) << "U (eV) of supercell atom " << a;   // was 1e-3 (measured <= 8.5e-5 after pin 29)
     }
     // The inter-site V (R4): from site 0, the q-mesh's (site, image) pairs and the supercell's own off-diagonal interactions are the SAME pairs
     // at the same minimum-image distances (both live in the one 2x1x1 supercell), so the distance-sorted lists must agree entry by entry.

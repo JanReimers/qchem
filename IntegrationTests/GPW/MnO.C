@@ -434,6 +434,10 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 // this 122-function span is not CP2K's 136 (OpenWork §3 "The 136-function span"): on VALENCE_LOWQ_VA (118, exactly CP2K's span) the
 // same fix moves AFM-II by +60.9 mHa and leaves it -47.1 mHa from CP2K's VA -61.30333 with the AFM-FM difference matching CP2K to
 // 0.02 mHa (was -37 mHa) -- the same operator correction, and what is left is configuration-blind (OpenWork §3 "MnO accuracy").
+// RE-JUDGED AGAIN 2026-10-23 after the EWALD real-space image fix (pin 29: the ion-ion sum enumerated |R| <= rcut, not the pair
+// distance, and lost 47.24 mHa on this cell): -61.35052 -> -61.30328.  This 122-function span now sits 0.05 mHa from CP2K's VA
+// (118, same-ish span) -61.30333, and the VA pair itself agrees with CP2K to +0.16 / +0.18 mHa (AFM / FM) -- the whole offset was
+// the two image-list defects.
 // LONG (ruling 5: over the 60 s budget), hence the `_Long` suffix: it runs in the
 // `ctest -L long` tier (excluded by `ctest -LE long`), and in the TestMate tree like any other test.
 TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
@@ -459,7 +463,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6);
-    EXPECT_NEAR(R->Energy(), -61.35052, 2e-3) << "did-E-move anchor, re-judged 2026-10-23 (see the header; CP2K's 136-function SR -61.470570 is a different span)";
+    EXPECT_NEAR(R->Energy(), -61.30328, 2e-3) << "did-E-move anchor, re-judged 2026-10-23 twice (see the header; CP2K's 136-function SR -61.470570 is a different span)";
     ASSERT_FALSE(trace.rows.empty());
     EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the INTEGRATED Mn site moment must be d^5-scale at convergence (measured 4.45)";
     EXPECT_NE(R->SpinDensity(), nullptr) << "a polarized run must hand back m(r)";
@@ -575,7 +579,7 @@ TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Ordering_Long)
     const auto afm=qchem::deck::Run(spec, pv, dir);
     ASSERT_TRUE(afm.converged) << afm.summary;
     ASSERT_TRUE(afm.energy.has_value());
-    EXPECT_NEAR(*afm.energy, -61.35052, 2e-3) << "the deck run reproduces the hand-built anchor (GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long)";
+    EXPECT_NEAR(*afm.energy, -61.30328, 2e-3) << "the deck run reproduces the hand-built anchor (GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long)";
 
     // the FM arm: same cell, NO spin flip, multiplicity 11, the same recipe
     auto cellp=std::make_shared<UnitCell>(BravaisCell(Bravais::CubicF, {.a=8.4}, Matrix3D<int>(0,1,1, 1,0,1, 1,1,0)));

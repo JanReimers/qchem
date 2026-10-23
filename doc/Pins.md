@@ -318,6 +318,9 @@ A lattice sum that fixes one function in the home cell (\f$\chi_i\f$) and images
 far side of its neighbours, and drops DIFFERENT ones for translation-equivalent sites.  Measured 2026-10-23: `BuildOpTerms` did this
 for the short-range local PP; the two Mn of MnO AFM-II got V_short blocks 2e-3 Ha apart, the VA crystal carried a −61 mHa AFM /
 −97 mHa FM error and a −37 mHa spurious FM-favouring bias.  The cheapest guard is the symmetry itself: TRANSLATION-EQUIVALENT SITES
-MUST GET IDENTICAL BLOCKS (`GPW.VshortIsTranslationInvariant`) -- a rigid shift of the whole crystal does NOT catch it.  Record:
-`OpenWork.md` §3 "MnO accuracy".
+MUST GET IDENTICAL BLOCKS (`GPW.VshortIsTranslationInvariant`, `GPW.LatticeSumsAreTranslationEquivariant`) -- a rigid shift of the
+whole crystal does NOT catch it.  The SAME defect, found the same day in the ion-ion Ewald real-space sum (|R| ≤ rcut instead of the
+pair distance; −47.24 mHa on the same cell, `StructureTests.EwaldFarApartHomeAtoms`): one-formula-unit test cells, whose atoms sit
+close together, cannot see this class -- gate on a cell whose home atoms are far apart.  Together the two were the whole MnO VA
+offset against CP2K (now +0.16 mHa).  Record: `OpenWork_History5.md` "MnO accuracy".
 
