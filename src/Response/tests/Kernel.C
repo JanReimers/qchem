@@ -10,6 +10,7 @@
 // (to rounding) at ANY D0.  Random D0 and random δD therefore test the whole chain -- transition density ->
 // HF sweep face -> the term's response slot -> the kernel fold -> the TransitionFock -- on real ERIs.
 #include "gtest/gtest.h"
+#include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
 #include <cmath>
 #include <cstdlib>
 #include <complex>
@@ -238,7 +239,7 @@ TEST(ResponseKernel, MissingCapabilityThrowsAtConstruction)
 //=====================================================================================================
 namespace {
 
-const SCFParams tight = {.NMaxIter=80, .MinΔρ=1e-9, .MinΔFD=1e-10, .MinVirial=1e2};
+const SCFParams tight = {.NMaxIter=80, .MinΔρPerElectron=1e-9, .MinΔFD=1e-10, .MinVirial=1e2};
 const qcMesh::MeshParams dipoleMesh={.radial=qcMesh::RadialKind::MHL, .nRadial=80, .mhl_m=3, .mhl_alpha=2.0,
                                      .angular=qcMesh::AngularKind::Lebedev, .angularDegree=35, .beckeOrder=3};
 
@@ -334,7 +335,7 @@ SCFParams SiParams()
 {
     SCFParams par;
     // 200, not 80: the POLARIZED k211 ground state needs more than 80 (2026-09-29); a cap costs nothing unless hit (trap 3).
-    par.NMaxIter=200; par.MinΔρ=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
+    par.NMaxIter=200; par.MinΔρPerElectron=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
     return par;
 }
 std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, double U=0.0, bool spectator=false,
@@ -573,7 +574,7 @@ std::unique_ptr<SolidCalculation> ConvergedSiWithD()
     const size_t si=txt.find(" SI "); const size_t end=txt.find(" ****", si);
     EXPECT_NE(si, std::string::npos); EXPECT_NE(end, std::string::npos);
     txt.insert(end, " D   1  1.00\n      0.55000000      1.00000000\n");   // disjoint from the p exponents (the reader merges shared ones)
-    const std::string path=(std::filesystem::path(testing::TempDir())/"sipp_sr_plus_d.bsd").string();
+    const std::string path=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_sipp_sr_plus_d.bsd")).string();
     std::ofstream(path)<<txt;
     FCCUnitCell cell(10.26);
     cell.AddAtom(14, {0,0,0});

@@ -145,7 +145,10 @@ and on a linear-D recipe it is a third thing (Σ_blocks‖ΔD‖_F/N_e).  Measur
 with Pulay(8) and lands on −7.115068 — 0.17 mHa lower, the true anchor.  On MnO +U the honest count was not
 "55 vs 104".  ⇒ `SCFParams::Measure::MaxΔD` puts CP2K's measure on our loop (successive D_out, max over blocks
 and spins); **a row that quotes an iteration count, a wall, or a "converges in" sets `Δρmeasure=MaxΔD`,
-`MinΔρ=EPS_SCF` and `NMaxIter=MAX_SCF` off the deck** — and states it.  ⚠ Every iteration-count column in §5
+`MinΔρPerElectron=EPS_SCF` and `NMaxIter=MAX_SCF` off the deck** — and states it.  (2026-10-22, D-MINDRHO: our OWN gate is
+now one intensive measure, ∫|ρ_out−ρ_in|/N on the run's quadrature, the same number for every mixer -- `MinΔρ` became
+`MinΔρPerElectron`, deck key `minDeltaRhoPerElectron`; the Kerker/Pulay looseness above is gone from it, but it is still
+not CP2K's EPS_SCF, so the MaxΔD rule stands for a like-for-like iteration count.)  ⚠ Every iteration-count column in §5
 written before this rule compares a looser qchem criterion with a tighter CP2K one; re-take before quoting.
 
 ---

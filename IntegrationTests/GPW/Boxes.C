@@ -482,7 +482,7 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows)
     //   alpha  0.4: 300              / never (oscillates)       comment said that against a 100 cap
     //   alpha  0.5:  66              / 290                    <- 0.5+walk is a lucky sweet spot
     // and five of those six share ONE mode: E is dead at -0.3320448527 (dE~1e-15) by iteration ~200
-    // while Δρ grinds down geometrically, every run stopping the instant it crosses MinΔρ.  So the long
+    // while Δρ grinds down geometrically, every run stopping the instant it crosses MinΔρPerElectron.  So the long
     // tail is not oscillation, it is a slow LINEAR density mode.
     // ⇒ SMALLER ALPHA DOES NOT HELP (0.3 is slower than 0.5, and 0.4 is worse than either).
     // ⇒ NEITHER DOES DENSITY-PULAY, and its failure is the instructive one: NA2_PULAY=5 converges in 8
@@ -498,7 +498,7 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows)
     // The fixture's convergence recipe is INSTRUMENTAL (it exists so the run converges, so NotConverged does not pre-empt the OrderLost this gate
     // is named for).  It used to be sweepable from the shell (NA2_NMAX / NA2_DRHO / NA2_PULAY / NA2_KERKER / NA2_ALPHA / NA2_TRACE); those
     // environment knobs are retired (D-ENV 6d.4) -- the values below are the recipe the sweep settled on, and a new sweep is a deck.
-    par.NMaxIter=400; par.MinΔρ=1e-6; par.MinΔE=1e30;
+    par.NMaxIter=400; par.MinΔρPerElectron=1e-6; par.MinΔE=1e30;
     par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.MergeTol=1e-4;
     par.PulayDepth=0; par.PulayStart=5;

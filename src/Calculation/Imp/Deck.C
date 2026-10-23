@@ -113,7 +113,7 @@ const auto kBasisData = NAMES(BasisSetData, {"DZVP",BasisSetData::DZVP}, {"DZVP2
     {"ORB1",BasisSetData::ORB1}, {"SIPP",BasisSetData::SIPP}, {"SIPP_SR",BasisSetData::SIPP_SR}, {"VALENCE_LOWQ",BasisSetData::VALENCE_LOWQ},
     {"VALENCE_LOWQ_SR",BasisSetData::VALENCE_LOWQ_SR}, {"VALENCE_LOWQ_SR2",BasisSetData::VALENCE_LOWQ_SR2}, {"VALENCE_LOWQ_SPH",BasisSetData::VALENCE_LOWQ_SPH},
     {"VALENCE_LOWQ_VA",BasisSetData::VALENCE_LOWQ_VA}, {"VALENCE_LOWQ_VB",BasisSetData::VALENCE_LOWQ_VB});
-const auto kMeasure= NAMES(Measure, {"MixerResidual",Measure::MixerResidual}, {"MaxDeltaD",Measure::MaxΔD});
+const auto kMeasure= NAMES(Measure, {"L1PerElectron",Measure::L1PerElectron}, {"MaxDeltaD",Measure::MaxΔD});
 
 //! The Gaussian basis a deck names: the registered data file, or the \c basis.file override when stated.
 BasisSet::Real_BS* MakeGaussianBasis(const RunSpec::Basis& b, const Structure* cell, const BasisSet::Gaussian::ShellTrim& trim)
@@ -143,7 +143,7 @@ void FromJson(const json& j, BasisSet::Gaussian::GPWTolerances& t)
 //=== SCFParams ==================================================================================
 json ToJson(const SCFParams& p)
 {
-    return {{"NMaxIter",p.NMaxIter},{"minDeltaRho",p.MinΔρ},{"deltaRhoMeasure",NameOf(p.Δρmeasure,kMeasure)},{"minDeltaFD",p.MinΔFD},
+    return {{"NMaxIter",p.NMaxIter},{"minDeltaRhoPerElectron",p.MinΔρPerElectron},{"deltaRhoMeasure",NameOf(p.Δρmeasure,kMeasure)},{"minDeltaFD",p.MinΔFD},
             {"minDeltaE",p.MinΔE},{"minVirial",p.MinVirial},{"minFD",p.MinFD},{"startingRelaxRo",p.StartingRelaxRo},{"mergeTol",p.MergeTol},
             {"verbose",p.Verbose},{"xcCuspDeficit",p.XCCuspDeficit},{"kerkerG0",p.KerkerG0},{"useMOM",p.UseMOM},{"pulayDepth",p.PulayDepth},
             {"pulayStart",p.PulayStart},{"momStartIter",p.MOMStartIter},{"smearingkT",p.SmearingkT},{"momSmearPenalty",p.MOMSmearPenalty},
@@ -153,7 +153,10 @@ json ToJson(const SCFParams& p)
 void FromJson(const json& j, SCFParams& p)
 {
     Fields f(j,"scf");
-    f.Get("NMaxIter",p.NMaxIter); f.Get("minDeltaRho",p.MinΔρ); f.GetEnum("deltaRhoMeasure",p.Δρmeasure,kMeasure);
+    if (j.contains("minDeltaRho"))           // RETIRED 2026-10-22 (D-MINDRHO): never silently re-read with a new meaning
+        throw std::runtime_error("deck: scf.minDeltaRho is RETIRED -- the gate is now scf.minDeltaRhoPerElectron, the L1 residual per "
+                                 "electron on the run's quadrature (the old number meant something different per mixer)");
+    f.Get("NMaxIter",p.NMaxIter); f.Get("minDeltaRhoPerElectron",p.MinΔρPerElectron); f.GetEnum("deltaRhoMeasure",p.Δρmeasure,kMeasure);
     f.Get("minDeltaFD",p.MinΔFD); f.Get("minDeltaE",p.MinΔE); f.Get("minVirial",p.MinVirial); f.Get("minFD",p.MinFD);
     f.Get("startingRelaxRo",p.StartingRelaxRo); f.Get("mergeTol",p.MergeTol); f.Get("verbose",p.Verbose);
     f.Get("xcCuspDeficit",p.XCCuspDeficit); f.Get("kerkerG0",p.KerkerG0); f.Get("useMOM",p.UseMOM);
@@ -256,7 +259,7 @@ json ToJson(const SolidCalcOptions& o)
             {"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
             {"raster",NameOf(o.raster,kRaster)},{"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
             {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},{"policy",ToJson(o.policy)},{"vxcFit",NameOf(o.vxcFit,kVxc)},{"hubbard",hub},
-            {"accelerator",NameOf(o.accelerator,kAcc)},{"globalFermi",o.globalFermi},{"imposeSymmetry",o.imposeSymmetry},
+            {"accelerator",NameOf(o.accelerator,kAcc)},{"perKFermiLevels",o.perKFermiLevels},{"imposeSymmetry",o.imposeSymmetry},
             {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho,kOrtho)},{"orthoTol",o.orthoTol},{"forceComplex",o.forceComplex},
             {"spinsShareFermi",o.spinsShareFermi},{"greyImposition",o.greyImposition},{"momFromSeed",o.momFromSeed},
             {"siteSpins",o.siteSpins},{"label",o.label},{"saveStateTo",o.saveStateTo}};
@@ -295,7 +298,10 @@ void FromJson(const json& j, SolidCalcOptions& o)
         for (const auto& h : f.At("hubbard")) { o.hubbard.emplace_back(); FromJson(h,o.hubbard.back(),"solid.hubbard."+std::to_string(i++)); }
     }
     else f.At("hubbard");
-    f.GetEnum("accelerator",o.accelerator,kAcc); f.Get("globalFermi",o.globalFermi); f.Get("imposeSymmetry",o.imposeSymmetry);
+    if (j.contains("globalFermi"))           // RETIRED 2026-10-21 (D-FERMI-DEFAULT): never silently re-read with the opposite default
+        throw std::runtime_error("deck: solid.globalFermi is RETIRED -- one Fermi level across the k-mesh is now the DEFAULT for a "
+                                 "smeared run; delete the key (true), or set solid.perKFermiLevels true for the old per-k default (false)");
+    f.GetEnum("accelerator",o.accelerator,kAcc); f.Get("perKFermiLevels",o.perKFermiLevels); f.Get("imposeSymmetry",o.imposeSymmetry);
     f.GetEnum("seed",o.seed,kSeed); f.GetEnum("ortho",o.ortho,kOrtho); f.Get("orthoTol",o.orthoTol); f.Get("forceComplex",o.forceComplex);
     f.Get("spinsShareFermi",o.spinsShareFermi); f.Get("greyImposition",o.greyImposition); f.Get("momFromSeed",o.momFromSeed);
     f.Get("siteSpins",o.siteSpins); f.Get("label",o.label); f.Get("saveStateTo",o.saveStateTo);
@@ -513,12 +519,12 @@ Materials::Material Resolve(RunSpec& spec)
             // really reduced (D5).  Vet() says so in a note.
             // A smeared (metal) response at q != 0 needs ONE Fermi level across the k-mesh (Reference::Gap refuses it at run time --
             // after the SCF; SrVO3 2026-10-05 ran two hours to find that out).  The FINAL stage's kT is the response's occupancy rule.
-            if (isResponse && spec.Stages().back().scf.SmearingkT>0.0 && !spec.solid.globalFermi)
+            if (isResponse && spec.Stages().back().scf.SmearingkT>0.0 && spec.solid.perKFermiLevels)
             {
                 const ivec3_t q = a.nq;
                 if (q.x*q.y*q.z>1)
                     throw std::runtime_error(who+"a SMEARED final stage (kT "+std::to_string(spec.Stages().back().scf.SmearingkT)+" Ha) with per-k "
-                                             "Fermi levels: a metal's response at q != 0 needs ONE Fermi level -- set solid.globalFermi true");
+                                             "Fermi levels: a metal's response at q != 0 needs ONE Fermi level -- drop solid.perKFermiLevels");
             }
             if ((a.kind==PostAction::Kind::HubbardLinearResponse || lrLoop) && !spec.solid.forceComplex)
                 throw std::runtime_error(who+"needs the complex ansatz (the real-TRIM response face is not built); set solid.forceComplex true");

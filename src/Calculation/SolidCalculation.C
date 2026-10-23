@@ -133,7 +133,12 @@ struct SolidCalcOptions
     //! \name Convergence machinery
     //!@{
     SCFAccelerators::Type accelerator = SCFAccelerators::Type::DIIS;
-    bool globalFermi    = false;  //!< metal: one μ across the k-mesh.
+    //! A SMEARED run fills each k-block to its OWN chemical potential -- the non-default (D-FERMI-DEFAULT, user 2026-10-05,
+    //! landed 2026-10-21; was \c globalFermi, default false).  A k-point is a label, not a reservoir: per-k μ has no physical
+    //! counterpart in a crystal ("a very obscure feature for anyone to want"), and it produced SrVO3's wrong-sign χ0(q≠0) and
+    //! a ground state 15 mHa too high.  Default false = ONE μ across the k-mesh.  At kT = 0 every block keeps its prescribed
+    //! integer count either way (Crystal_EC never ranks across k); per SPIN channel μ stays \c spinsShareFermi's business.
+    bool perKFermiLevels = false;
     //! Impose the detected space group (IBZ k-fold + per-iteration density star-average + site-adapted
     //! Becke mesh).  OPT-IN (default \c false): it roughly doubles the XC grid, and see the warning below.
     //!
@@ -466,8 +471,9 @@ public:
     //!
     //! No mixer or accelerator history is carried: a restart is a fresh stage.  With \c opts.momFromSeed the
     //! MOM reference is the restored density's own first fill, as for any seed.  A \c Ladder accelerator STARTS
-    //! ON ITS GDM RUNG for the restart's stage (\c SolidAcceleratorOptions::ladderStartOnGDM): the DIIS rung's
-    //! mixing would step a converged density away before the first energy is read.
+    //! ON ITS GDM RUNG for the restart's stage when \a params.SmearingkT is 0 (\c SolidAcceleratorOptions::ladderStartOnGDM):
+    //! the DIIS rung's mixing would step a converged density away before the first energy is read.  A smeared restart
+    //! starts on DIIS (GDM would engage on a restored integer D' and never apply the smearing).
     static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
         Restart(const std::string& path, const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                 const SolidCalcOptions& opts, const SCFParams& params = {},

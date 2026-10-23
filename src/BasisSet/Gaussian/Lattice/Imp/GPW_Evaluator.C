@@ -14,6 +14,7 @@ module;
 #include <chrono>    // std::chrono (timing the MakeLocalPP integrate-back at different kappa)
 #include <cstdlib>   // std::getenv/std::atof (GPW_LOCALPP_RELCUTOFF / QCHEM_OPENMP_THREADS knobs)
 module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
+import qchem.BasisSet.AoShellSource;  // the shell table: each centre's own most diffuse exponent (D12)
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.Blaze;       // rvec_t, rmat_t, rsmat_t, blazem::zeroH<dcmplx>
 import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, componentwise add)
@@ -279,12 +280,28 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
         rvec3_t corner=cell.ToCartesian(rvec3_t(double(cx),double(cy),double(cz)));
         itsCellRad=std::max(itsCellRad, norm(corner-itsCellCtr));
     }
-    // Image-list radius: Eval's keep test is |r - Rc - ctr| <= cellRad+maxReach with r in (or near) the
-    // cell, so the exact bound is |Rc| <= maxReach + 2*cellRad.  For an OBLIQUE cell (MnO rhombohedral)
-    // 2*cellRad (the cell DIAMETER) exceeds 2*maxCellEdge, so the historical formula under-enumerated;
-    // keep the max of both so every previously-enumerated case is unchanged.
-    BuildImages(cell, itsHomeOnly ? 0.0 : std::max(2.0*itsMaxReach+2.0*cell.GetMaximumCellEdge(),
-                                                   itsMaxReach+2.0*itsCellRad), itsk, itsTRIM, itsRc, itsPhaseC);
+    // D12 (anchor batch, 2026-10-21; pin 1): the PER-CENTRE eps reach, from each centre's OWN most diffuse exponent -- it
+    // used to be ONE global reach from the basis' most diffuse exponent, charged to every function, plus a cell-shape
+    // formula for the image list that had already under-enumerated once (the oblique MnO cell) and was patched with a
+    // max() of two formulas.  Now the list is exactly the R that the per-centre keep test (ImageReaches) can accept for r
+    // in the cell: |R| <= cellRad + max_A(|A-ctr| + reach(A)) by the triangle inequality.
+    {
+        const auto* src=dynamic_cast<const BasisSet::AoShellSource*>(itsOrb);   // abstract -> abstract
+        if (src)
+            for (const auto& sh : src->GetAoShells())
+            {
+                double amin=1e300; for (double a : sh.exponents) amin=std::min(amin,a);
+                const double reach=std::sqrt(-std::log(1e-10)/amin);
+                size_t c=0; while (c<itsCentre.size() && norm(itsCentre[c]-sh.center)>1e-10) c++;
+                if (c==itsCentre.size()) { itsCentre.push_back(sh.center); itsCentreReach.push_back(reach); }
+                else itsCentreReach[c]=std::max(itsCentreReach[c], reach);
+            }
+        else                                         // no shell table: every atom at the global reach (the old screen)
+            for (auto a : cell) { itsCentre.push_back(a->itsR); itsCentreReach.push_back(itsMaxReach); }
+    }
+    double imageBound=0.0;
+    for (size_t c=0;c<itsCentre.size();c++) imageBound=std::max(imageBound, norm(itsCentre[c]-itsCellCtr)+itsCentreReach[c]);
+    BuildImages(cell, itsHomeOnly ? 0.0 : itsCellRad+imageBound, itsk, itsTRIM, itsRc, itsPhaseC);
 
     // The DFT tier's density/collocation grid: GPW's ONLY grid cutoff (no orbital/wavefunction cutoff -- the
     // Gaussians are analytic).  IMPORTANT: densityEcut is a DENSITY-scale quantity: the sharpest feature is
@@ -1031,12 +1048,10 @@ void GPW_Evaluator::EmitGridsReport() const
 // imaginary part is exactly zero (the sum reduces to the real molecular sum).
 cvec_t GPW_Evaluator::Eval(const rvec3_t& r) const
 {
-    const double rr=itsCellRad+itsMaxReach;
     cvec_t v(itsN, dcmplx(0.0));
     for (size_t k=0;k<itsRc.size();k++)
     {
-        const rvec3_t d=r-itsRc[k]-itsCellCtr;
-        if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;   // image cannot reach r (every centre is in the cell)
+        if (!itsHomeOnly && !ImageReaches(r-itsRc[k])) continue;   // no centre's own eps reach covers r (D12)
         rvec_t chi=(*itsOrb)(r-itsRc[k]);
         for (size_t i=0;i<itsN;i++) v[i]+=itsPhaseC[k]*chi[i];
     }
@@ -1067,12 +1082,10 @@ mat_t<dcmplx> GPW_Evaluator::EvalMany(const rvec3vec_t& pts) const
 
 cvec3vec_t GPW_Evaluator::EvalGradient(const rvec3_t& r) const
 {
-    const double rr=itsCellRad+itsMaxReach;
     cvec3vec_t v(itsN, vec3_t<dcmplx>(dcmplx(0.0),dcmplx(0.0),dcmplx(0.0)));
     for (size_t k=0;k<itsRc.size();k++)
     {
-        const rvec3_t d=r-itsRc[k]-itsCellCtr;
-        if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;   // image cannot reach r
+        if (!itsHomeOnly && !ImageReaches(r-itsRc[k])) continue;   // no centre's own eps reach covers r (D12)
         rvec3vec_t g=itsOrb->Gradient(r-itsRc[k]);
         for (size_t i=0;i<itsN;i++)
             v[i]=v[i]+vec3_t<dcmplx>(itsPhaseC[k]*g[i].x, itsPhaseC[k]*g[i].y, itsPhaseC[k]*g[i].z);
@@ -1495,9 +1508,14 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
             for (int m=-l; m<=l; m++)
             {
                 cvec_t b(n, dcmplx(0.0));            // b_i = Sum_R e^{-ik.R} integral_cell chi_i^k* beta(.-(R_a-R))
-                for (size_t r=0; r<itsRc.size(); r++)   // orbital reach: the collocation image set
+                // D12: the PROJECTOR's own image set -- every R whose projector centre at_R - R can touch the mesh,
+                // |R| <= rad + rBeta + |at_R - ctr| (triangle inequality).  It used to walk the ORBITAL reach's list,
+                // which need not cover a projector support wider than that reach.
+                std::vector<rvec3_t> projRc; cvec_t projPhase;
+                BuildImages(itsCell, itsHomeOnly ? 0.0 : rad+rBeta+norm(at->itsR-ctr), itsk, itsTRIM, projRc, projPhase);
+                for (size_t r=0; r<projRc.size(); r++)
                 {
-                    rvec3_t c=at->itsR-itsRc[r];                 // this image's projector centre
+                    rvec3_t c=at->itsR-projRc[r];                // this image's projector centre
                     if (norm(c-ctr) > rad+rBeta) continue;       // (a) image too far to touch the mesh
                     BetaYlmField beta(c,sep,Z,p,l,m);
                     // The projector-image phase is CONJUGATED (e^{-ik.R}), NOT e^{+ik.R}.  b_i = <chi_i^k|beta_home>
@@ -1506,7 +1524,7 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
                     // e^{-ik.R} on conj(chi_i^k) against the R-shifted projector beta(.-(tau_a-R)).  At Gamma /
                     // half-integer k every phase is +-1 (self-conjugate) so this was inert -- the FIRST genuinely
                     // complex k (e.g. k=1/4) is where +ik.R halved the KB trace (Vnl 42->22) and over-bound.
-                    dcmplx ph=std::conj(itsPhaseC[r]);
+                    dcmplx ph=std::conj(projPhase[r]);
                     for (size_t k=0;k<npts;k++)
                     {
                         if (norm(R[k]-c) > rBeta) continue;      // (b) mesh point beyond the projector support

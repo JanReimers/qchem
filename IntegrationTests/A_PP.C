@@ -40,7 +40,7 @@ TEST(Si_PP_U, Medium)
 {
     const int Z=14, val=4;
     AtomCalculation calc(Z, Z-val, {.type = AtomType::Slater, .accuracy = Medium, .pseudopotential = true},
-        {.NMaxIter = 120, .MinΔρ = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});  // virial off (N/A to PP)
+        {.NMaxIter = 120, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});  // virial off (N/A to PP)
 
     EXPECT_NEAR(calc.Energy(),      -3.747078054, 1e-6);   // pinned (Slater/Medium); CP2K ATOM -3.747045
     EXPECT_NEAR(calc.Energy(),      -3.747045,     5e-4);   // ORACLE: CP2K numerically-exact pseudo-atom
@@ -58,7 +58,7 @@ TEST(Si2_PP_U, LargeSeparation)
 {
     const double R = 20.0;   // bohr -- large separation (near-isolated atoms)
     const CalcOptions opt{.basis = "sipp", .pseudopotential = true};
-    const SCFParams   par{.NMaxIter = 100, .MinΔρ = 1e-7, .MinΔFD = 1e-8, .MinFD = 1e-7};
+    const SCFParams   par{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-8, .MinFD = 1e-7};
 
     Molecule si1; si1.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,0)));
     Calculation c1(si1, opt); c1.Converge(par);
@@ -113,7 +113,7 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
 TEST(O_PP_U, SlaterHigh)
 {
     AtomCalculation calc(8, 8-6, {.type = AtomType::Slater, .accuracy = High, .pseudopotential = true},
-        {.NMaxIter = 150, .MinΔρ = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
+        {.NMaxIter = 150, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
          .StartingRelaxRo = 0.5, .MergeTol = 1e-7});
 
     EXPECT_NEAR(calc.Energy(),      -15.747863986, 1e-6);   // pinned (Slater/High); CP2K ATOM -15.748119
@@ -131,7 +131,7 @@ TEST(Si_PP_U, Polarized)
 {
     const int Z=14, val=4;
     const AtomCalcOptions opt{.type = AtomType::Slater, .accuracy = High, .spin = SpinGroup::Polarized, .pseudopotential = true};
-    const SCFParams       par{.NMaxIter = 150, .MinΔρ = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
+    const SCFParams       par{.NMaxIter = 150, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
                               .StartingRelaxRo = 0.5, .MergeTol = 1e-7};
     AtomCalculation cPol(Z, Z-val, opt, par);
 

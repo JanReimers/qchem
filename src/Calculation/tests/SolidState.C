@@ -10,6 +10,7 @@
 // Si diamond, GTH SIPP_SR, densityEcut 20 -- the Response kernel gates' cell, on a 2x2x2 mesh so every block
 // is TRIM (real by default) and there is more than one block to get in the wrong order.
 #include <gtest/gtest.h>
+#include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
 #include <cmath>
 #include <complex>
 #include <cstdint>
@@ -34,7 +35,8 @@ import qchem.Types;
 using namespace qchem;
 namespace {
 
-std::string TempPath(const std::string& leaf) {return (std::filesystem::path(testing::TempDir())/leaf).string();}
+//! Per PROCESS (ctest runs each case as its own process, in parallel, and the cached saved states are rebuilt in each).
+std::string TempPath(const std::string& leaf) {return (std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_"+leaf)).string();}
 
 struct SiRun
 {
@@ -56,7 +58,7 @@ SiRun Si(ivec3_t N)
 SCFParams Params()
 {
     SCFParams p;
-    p.NMaxIter=80; p.MinΔρ=1e-7; p.MinΔE=1e-10; p.MinΔFD=1e-7; p.MinVirial=1e30; p.MinFD=1e30;
+    p.NMaxIter=80; p.MinΔρPerElectron=1e-7; p.MinΔE=1e-10; p.MinΔFD=1e-7; p.MinVirial=1e30; p.MinFD=1e30;
     return p;
 }
 SolidCalcOptions Options(int multiplicity, bool forceComplex, const std::string& save)
@@ -190,10 +192,12 @@ TEST(SolidState, WarmStart_OtherGrid_StartsAtTheAnswer)
     EXPECT_NEAR(E.front(), r->Energy(), 1e-8) << "the first iterate on the new grid is already the answer";
 }
 
-// A restart enters the Ladder at its GDM rung (user 2026-10-21; the NaF gates GPW_NaF.Γ_Imp_eq{ExactResume,ColdStart}
-// pin the integer-occupation win).  A SMEARED run cannot engage GDM (D' is not idempotent), so the Ladder must say
-// so and RETREAT to DIIS -- and still land where a cold smeared Ladder run does.
-TEST(SolidState, LadderRestart_Smeared_RetreatsToDIIS)
+// A restart enters the Ladder at its GDM rung at kT = 0 only (user 2026-10-21; the NaF gates GPW_NaF.Γ_Imp_eq{ExactResume,
+// ColdStart} pin the integer-occupation win).  A SMEARED restart from a kT = 0 state must start on DIIS: the restored D' is
+// idempotent, so GDM would ENGAGE and minimise with integer occupations, never applying the smearing (measured 2026-10-21
+// once the carried density became the working density: 6 mHa off the cold smeared run).  It must land where a cold smeared
+// Ladder run does.
+TEST(SolidState, LadderRestart_Smeared_StartsOnDIIS)
 {
     const Saved& s=SavedState(0, false);                     // a kT=0 state: the restart is a WARM start (kT differs)
     SiRun si=Si(ivec3_t(2,2,2));
@@ -214,9 +218,37 @@ TEST(SolidState, LadderRestart_Smeared_RetreatsToDIIS)
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r) << "a smeared Ladder restart must still converge";
-    EXPECT_NE(out.find("starting on rung 1 (GDM)"), std::string::npos) << "the restart enters at the GDM rung";
-    EXPECT_NE(out.find("RETREATING to rung 0"), std::string::npos) << "smeared occupations: GDM cannot engage";
+    EXPECT_EQ(out.find("starting on rung 1 (GDM)"), std::string::npos) << "a smeared restart must not start on the GDM rung";
     EXPECT_NEAR(r->Energy(), cold, 1e-6);
+}
+
+// A CARRIED density is the working density (OpenWork §3 "A carried density is re-filled at kT = 0", 2026-10-21).  A SMEARED
+// converged state restarted EXACTLY (same kT) must start AT the saved energy: before the fix, iteration 0 re-filled the
+// restored density at kT = 0 (the occupation policy's default) and iteration 1 started from that integer re-fill.
+TEST(SolidState, SmearedExactResume_StartsAtTheSavedState)
+{
+    SiRun si=Si(ivec3_t(2,2,2));
+    SCFParams p=Params();
+    p.SmearingkT=0.02;                                       // Si's gap is ~0.02 Ha: the frontier is genuinely fractional
+    const std::string path=TempPath("ck1_si_smeared.h5");
+    double saved=0.0;
+    {
+        SolidCalculation calc(*si.lat, si.mol, Options(0, false, path), p);
+        auto r=calc.Result();
+        ASSERT_TRUE(r) << "the smeared Si reference must converge";
+        saved=r->Energy();
+    }
+    SolidCalcOptions o=Options(0, false, "");
+    std::vector<double> E;
+    o.onIteration=[&E](const SCFIterator::SCFProgress& pr){ E.push_back(pr.energy); };
+    auto c=SolidCalculation::Restart(path, *si.lat, si.mol, o, p);
+    ASSERT_TRUE(c) << c.Error().details;
+    auto r=(*c)->Result();
+    ASSERT_TRUE(r);
+    ASSERT_FALSE(E.empty());
+    EXPECT_NEAR(E.front(), saved, 1e-7) << "the first iterate of an exact smeared resume is the saved state, not a kT = 0 re-fill";
+    EXPECT_NEAR(r->Energy(), saved, 1e-8);
+    EXPECT_LE(r->IterationCount(), 3u);
 }
 
 TEST(SolidState, RealnessCrossesBothWays)

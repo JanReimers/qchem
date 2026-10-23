@@ -410,7 +410,7 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
                                  +" parity disagrees with Nelec "+std::to_string(opts.Nelec));
     auto irreps = itsImp->bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry Sum_k)
     itsImp->ec = std::make_unique<Crystal_EC>(irreps, (opts.Nelec+twoS)/2, (opts.Nelec-twoS)/2,
-                                              opts.globalFermi, opts.spinsShareFermi);
+                                              !opts.perKFermiLevels, opts.spinsShareFermi);
     // T2 is gated on the run having IMPOSED something (see Outcome_); the resolved value, stored once.
     itsImp->imposed = imposed;
     itsImp->hubbard = opts.hubbard;   // the U the run will carry (BuildRun fills the groups and radials)
@@ -484,6 +484,7 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
     // time Init hands its density back, which is below any honest floor and made the postcondition
     // silently skip.  Measured before it is consumed, the baseline is the seed's own.
     const bool polarizedHam = itsImp->ham->GetSpinGroup()==SpinGroup::Polarized;
+    const auto seedRole = seed ? qchem::SCFIterator::SeedRole::WorkingDensity : qchem::SCFIterator::SeedRole::Guess;   // restored = carried
     if (!seed)   // a RESTORED state arrives pre-built (Restart); otherwise the strategy the options name
     {
         qchem::report::Timed timed("setup: seed density (SAD/IonicSAD atomic solves)");
@@ -508,7 +509,7 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
         qchem::report::Timed timed("setup: seed + ortho (iterator ctor)");
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-            seed.release(), itsImp->st.get(), opts.ortho, opts.orthoTol);   // the iterator consumes it in Init
+            seed.release(), itsImp->st.get(), opts.ortho, opts.orthoTol, seedRole);   // the iterator consumes it in Init
     }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
@@ -748,7 +749,8 @@ void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
     itsImp->scf = carried
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              carried.release(), itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol)
+              carried.release(), itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol,
+              qchem::SCFIterator::SeedRole::WorkingDensity)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
               itsImp->opts.seed, itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol);
@@ -936,8 +938,11 @@ SolidCalculation::Restart(const std::string& path, const Lattice_3D& lat, std::s
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
     // A restored density is at (or next to) the answer: a Ladder starts on its GDM rung (user 2026-10-21, OpenWork
     // §3 "Ladder restart starts on the DIIS+Kerker rung").  For THIS stage only -- reset after Converge below.
+    // kT = 0 ONLY: a smeared stage restored from an integer state hands GDM an idempotent D', so GDM would ENGAGE and
+    // minimise with integer occupations, never applying the smearing (measured 2026-10-21, Si k222 kT 0.02: 6 mHa off the
+    // cold smeared run).  A smeared restart starts on DIIS, as it did before.
     SCFAccelerators::SolidAcceleratorOptions restartAcc=acc;
-    restartAcc.ladderStartOnGDM=true;
+    restartAcc.ladderStartOnGDM = params.SmearingkT==0.0;
     const std::vector<int> siteSpins=c->BuildBasis(lat, mol, opts, restartAcc);
     // Judged against the BUILT blocks (k, weight, size), not against a re-derivation of what they would be.
     auto warm=CompareFingerprints(saved->fingerprint, c->Fingerprint(params.SmearingkT));
@@ -1271,7 +1276,7 @@ SolidCalculation::IndependentResponse(ivec3_t Nq) const
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
                                                              : std::numeric_limits<double>::quiet_NaN();
     qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-        {.acrossK=itsImp->opts.globalFermi, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
+        {.acrossK=!itsImp->opts.perKFermiLevels, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
     qchem::Response::AmplitudeProbe probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
     auto r=qchem::Response::IndependentResponse(ref, probe, Nq);
     if (r) r->Write(std::cout, 27.211386245988, "1/eV");     // reported at its own activity (pin 17)
@@ -1303,7 +1308,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
                                                              : std::numeric_limits<double>::quiet_NaN();
     const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-        {.acrossK=itsImp->opts.globalFermi, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
+        {.acrossK=!itsImp->opts.perKFermiLevels, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
     const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf);
     const auto hp=qchem::Response::MakeHubbardProbe(ref, *wf, *hub, res);
     const bool resolved = res!=qchem::Response::HubbardResolution::Manifold;
@@ -1401,7 +1406,7 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
         const auto* wf=itsImp->scf->GetWaveFunction();
         if (!wf) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: no wave function");
         const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-            {.acrossK=itsImp->opts.globalFermi, .acrossSpin=itsImp->opts.spinsShareFermi}, std::numeric_limits<double>::quiet_NaN());
+            {.acrossK=!itsImp->opts.perKFermiLevels, .acrossSpin=itsImp->opts.spinsShareFermi}, std::numeric_limits<double>::quiet_NaN());
         const auto probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
         qchem::Response::BlockPairs D;                      // the state in its own MO basis: diag(occupation)
         for (const Irrep& ir : wf->GetQNs())
@@ -1427,6 +1432,18 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
     // the seed.
     std::unique_ptr<qchem::ChargeDensity::cDM_CD> ground;
     if (reseed) ground=std::move(itsImp->cd);
+    // THE RESTART RECIPE (OpenWork §3 "A carried density is re-filled at kT = 0", 2026-10-21): every stage below starts from a
+    // converged density (the restore always; the +-alpha runs unless reseeded), where the ground state's mixing step is wrong --
+    // a relax of 1.0 diverged on a restart (Si Γ 2026-09-29) and a Pulay relax 1.0 amplified FeS2's first-iterate kick.  So:
+    // the LINEAR step capped at 0.3 (CLAUDE.md: a restart's linear fallback runs at 0.2-0.3), and at kT = 0 a Ladder enters at its
+    // GDM rung (a smeared stage starts on DIIS: see Restart).  The caller's params and accelerator options are restored after.
+    // LINEAR D-mixing only: a Kerker/Pulay step is a different alpha (the k211 FD gate converges its +-alpha runs at 0.45 and
+    // NOT at 0.3 -- measured 2026-10-21).
+    SCFParams restart=params;
+    if (params.KerkerG0<=0.0 && params.PulayDepth==0) restart.StartingRelaxRo=std::min(restart.StartingRelaxRo, 0.3);
+    const bool startedOnGDM=itsImp->accOpts.ladderStartOnGDM;
+    itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;   // kT = 0 only (see Restart)
+    const SCFParams& stageParams = reseed ? params : restart;
     {
         const FrozenHubbard frozen(target);
         for (double a : {+alpha, -alpha})
@@ -1437,7 +1454,7 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
             // frozen at the GROUND STATE's n either way -- the freeze lives in the term, not in the density.
             if (reseed) BuildStage(itsImp->stageAccel, nullptr);
             else        BuildStage(itsImp->stageAccel, std::move(itsImp->cd));
-            auto out=Converge(params);
+            auto out=Converge(stageParams);
             if (!out) {failed=out.Error(); break;}
             (a>0 ? R.nPlus : R.nMinus)=occupations();
         }
@@ -1445,7 +1462,8 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
     }
     // RESTORE the unperturbed, unfrozen state -- the run is left as it was found, whatever happened above.
     BuildStage(itsImp->stageAccel, reseed ? std::move(ground) : std::move(itsImp->cd));
-    R.restored=bool(Converge(params));
+    R.restored=bool(Converge(restart));
+    itsImp->accOpts.ladderStartOnGDM=startedOnGDM;
     std::cout << "[LRT] unperturbed state restored: " << (R.restored ? "converged" : "NOT converged") << std::endl;
     if (failed) return O::Fail(*failed);
     R.chi=rvec_t(R.nPlus.size());

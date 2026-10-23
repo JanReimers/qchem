@@ -64,7 +64,7 @@ TEST(SCFTrace, MolecularNonPP_ShowsTheVirialColumn)
 {
     std::string trace = CapturedTrace([]{
         AtomCalculation calc(2, 0, {.type = AtomType::Slater, .accuracy = Low},
-            {.NMaxIter = 40, .MinΔρ = 1e-6, .MinΔFD = 1e-6, .MinVirial = 1e30,
+            {.NMaxIter = 40, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = 1e30,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
     });
@@ -83,7 +83,7 @@ TEST(SCFTrace, MolecularPP_HidesTheVirialColumn)
 {
     std::string trace = CapturedTrace([]{
         AtomCalculation calc(14, 10, {.type = AtomType::Slater, .accuracy = Medium, .pseudopotential = true},
-            {.NMaxIter = 60, .MinΔρ = 1e-6, .MinΔFD = 1e-6, .MinVirial = 1e30,
+            {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = 1e30,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
     });
@@ -99,7 +99,7 @@ TEST(SCFTrace, ThresholdSubLineMatchesTheColumns)
 {
     std::string trace = CapturedTrace([]{
         AtomCalculation calc(14, 10, {.type = AtomType::Slater, .accuracy = Medium, .pseudopotential = true},
-            {.NMaxIter = 60, .MinΔρ = 1e-6, .MinΔFD = 1e-6, .MinVirial = 1e30,
+            {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = 1e30,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
     });
@@ -132,7 +132,7 @@ TEST(SCFTrace, SolidPP_ShowsGridColumnsAndNoVirial)
                                         BasisSet::Gaussian::Engine::MnD,
                                         BasisSet::Gaussian::Angular::Cartesian));
         SCFParams par;
-        par.NMaxIter=2; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30;
+        par.NMaxIter=2; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30;
         par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
         SolidCalculation calc(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
         (void)calc.Result();   // NMaxIter=2: this deliberately does NOT converge -- the trace is the subject

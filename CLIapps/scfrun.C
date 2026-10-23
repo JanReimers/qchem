@@ -287,7 +287,7 @@ int main(int argc, char** argv)
     // which had frozen StartingRelaxRo to 1e-7 and MergeTol to 1.0: glacial convergence + m-merged open shells).
     auto makePar=[&](double mro,double mfd){
         qchem::SCFParams p;
-        p.NMaxIter=(size_t)maxiter; p.MinΔρ=mro; p.MinΔE=minde; p.MinVirial=virial; p.MinFD=mfd;
+        p.NMaxIter=(size_t)maxiter; p.MinΔρPerElectron=mro; p.MinΔE=minde; p.MinVirial=virial; p.MinFD=mfd;
         p.StartingRelaxRo=relax; p.MergeTol=mergetol; p.Verbose=true;
         p.UseMOM=useMOM; p.MOMStartIter=momStart; p.KerkerG0=kerkerG0; p.PulayDepth=pulayDepth; p.PulayStart=pulayStart;
         return p;

@@ -117,7 +117,7 @@ static void EmitScfSection(const SCFParams& p, const std::string& accelerator)
     namespace rpt = qchem::report;
     rpt::json standard;
     standard["nMaxIter"]    = long(p.NMaxIter);
-    standard["minDrho"]     = p.MinΔρ;
+    standard["minDrho"]     = p.MinΔρPerElectron;
     standard["minDFD"]      = p.MinΔFD;
     standard["minDE"]       = p.MinΔE;
     standard["minFD"]       = p.MinFD;

@@ -46,7 +46,7 @@ cd build/Release && ninja rundeck                                  # the one CLI
     "policy": { "cp2kCompat": false, "streamFold": true, ... },     // the declared CP2K deviations; ONLY stated routes are recorded
     "hubbard": [ { "site":0, "l":2, "U_eV":4.0, "atomicRadial":true, "orthoAtomic":true, "Uirrep_eV":[...], "alpha_eV":0 } ]
   },
-  "scf": { "NMaxIter":200, "minDeltaRho":1e-6, "deltaRhoMeasure":"MixerResidual|MaxDeltaD", "pulayDepth":8, "pulayStart":5,
+  "scf": { "NMaxIter":200, "minDeltaRhoPerElectron":1e-6, "deltaRhoMeasure":"L1PerElectron|MaxDeltaD", "pulayDepth":8, "pulayStart":5,
            "kerkerG0":1.0, "useMOM":false, "smearingkT":5e-3, ... },     // SCFParams, one stage ...
   "schedule": [ {"accelerator":"DIIS","scf":{...}}, {"accelerator":"GDM","scf":{...}} ],   // ... OR an annealed recipe (never both)
   "state":   { "save": "auto", "restartFrom": "NiO_AFM2.r003" },       // CK-1: auto = <outDir>/states/<stem>.h5; restartFrom = a revision stem (lineage) or a path; runs the FINAL stage only

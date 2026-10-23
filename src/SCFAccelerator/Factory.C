@@ -41,7 +41,8 @@ export namespace qchem::SCFAccelerators
         //! the answer -- \c SolidCalculation::Restart sets it for its own stage -- where the DIIS rung's density
         //! mixing steps away before the first energy is read.  MEASURED (NaF, 2026-10-02): exact resume 9
         //! iterations from DIIS (first iterate 1.3e-4 Ha off) vs 2 from GDM (4e-10); coarse→fine grid 12 vs 2.
-        //! A smeared run cannot engage GDM and drops back to DIIS (the Ladder's retreat rule).
+        //! kT = 0 only: the CALLER decides (a smeared stage seeded from an integer state hands GDM an idempotent D',
+        //! so GDM would engage and never apply the smearing -- \c SolidCalculation::Restart sets it only at kT = 0).
         bool           ladderStartOnGDM = false;
     };
 

@@ -211,7 +211,7 @@ template <class T> template <class U> void tCompositeWF<T>::MakeOneIrrepWF(const
                 rpt::Set("index", (long)idx);
             }
 
-        tSCFIrrepAccelerator<U>* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));   // §6 typed Create
+        tSCFIrrepAccelerator<U>* acc=itsAccelerator->Create(lasb,qns,itsEC->PrescribedBlockN(qns));   // §6 typed Create (the block's own count)
 
         std::unique_ptr<tIrrepWF<U>> wf(new tIrrepWF<U>(b,lasb,qns,acc));
         itsQNWFs[qns]=iwf_ref_t(wf.get());
@@ -463,7 +463,7 @@ template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, 
         else
             for (auto w : wfs)   // per-block prescribed count: atoms; held fills; μ-partitions at kT=0
             {
-                EnergyLevels els=FillChild<T>(w, pol, (double)itsEC->GetN(IrrepOf(w)));
+                EnergyLevels els=FillChild<T>(w, pol, (double)itsEC->PrescribedBlockN(IrrepOf(w)));
                 itsELevels.merge(els,mergeTol);
                 itsSpin_ELevels[IrrepOf(w).ms].merge(els,mergeTol);
             }

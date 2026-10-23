@@ -11,6 +11,7 @@
 //   GPW_NaF.Γ_Imp_eqExactResume     (same-grid Restart reproduces the converged state)
 
 #include "gtest/gtest.h"
+#include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
 #include <memory>
 #include <vector>
 #include <cmath>
@@ -166,8 +167,11 @@ const NaFRestartFixture& NaFRestart()
         const Material naf=qchem::Materials::Get("NaF_rocksalt");
         const Lattice_3D lat=LatticeOf(naf);
         const auto dir=std::filesystem::path(testing::TempDir());
-        r.coarsePath=(dir/"naf_restart_coarse.h5").string();
-        r.finePath  =(dir/"naf_restart_fine.h5").string();
+        // PER PROCESS: ctest runs Γ_Imp_eqColdStart and Γ_Imp_eqExactResume as separate processes, in parallel, each
+        // building this fixture -- a shared name let one restart from the other's half-written file (2026-10-21).
+        const std::string pid=std::to_string(::getpid());
+        r.coarsePath=(dir/("naf_restart_coarse."+pid+".h5")).string();
+        r.finePath  =(dir/("naf_restart_fine."+pid+".h5")).string();
         {   // the CHEAP coarse stage: Ecut=40 is SUB-FLOOR (below C*alpha_max=80), so it needs the alias-free raster
             SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart coarse");
             o.densityEcut=40.0;

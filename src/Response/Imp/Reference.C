@@ -71,7 +71,7 @@ Outcome<ResponseGap,ResponseFailure> Reference::Gap(const SelectionRule& rule) c
     {
         // A SMEARED pair across two different RESERVOIRS is meaningless: (f_n - f_m)/(e_n - e_m) assumes one f(e), and two blocks
         // filled to different chemical potentials need not even order their occupations by energy -- the weight changes SIGN.
-        // Found 2026-10-05 on SrVO3 run with per-k Fermi levels (SolidCalcOptions::globalFermi false): chi0(q != 0) came out
+        // Found 2026-10-05 on SrVO3 run with per-k Fermi levels (SolidCalcOptions::globalFermi false, now perKFermiLevels true): chi0(q != 0) came out
         // POSITIVE, sign-flipped against hp.x.  (q = 0 pairs a block with itself, and its per-reservoir δμ is consistent.)
         auto partial=[](const ReferenceBlock& b){ for (double f : b.f) if (f>1e-12 && f<1.0-1e-12) return true; return false; };
         for (size_t b=0;b<itsBlocks.size();b++)
@@ -82,7 +82,7 @@ Outcome<ResponseGap,ResponseFailure> Reference::Gap(const SelectionRule& rule) c
             std::ostringstream os;
             os << "a SMEARED response couples block " << k.irrep << " and block " << kq.irrep << ", which were filled to DIFFERENT "
                   "chemical potentials (reservoirs " << k.reservoir << " and " << kq.reservoir << ") -- a metal at q != 0 needs ONE "
-                  "Fermi level across the k-mesh: run the ground state with solid.globalFermi (and spinsShareFermi on a polarized metal)";
+                  "Fermi level across the k-mesh: run the ground state WITHOUT solid.perKFermiLevels (and with spinsShareFermi on a polarized metal)";
             return O::Fail({ResponseFailure::Why::Configuration, os.str()});
         }
         return O::Ok(r);

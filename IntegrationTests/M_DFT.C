@@ -79,7 +79,7 @@ TEST(M_DFT, WaterPolarizedSAD)
     // Polarized water Xalpha is the oscillatory case (commutator ~2-4; see M_Sym RunDFT) -- it needs more
     // iterations + damping than the facade's quick default, so re-Converge with tight params (DIIS already
     // drives from the start for DFT).
-    calc.Converge({.NMaxIter = 60, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+    calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1493013984)), 2e-3);   // == the unpolarized Xalpha anchor
 }
@@ -92,7 +92,7 @@ TEST(M_DFT, WaterPolarizedSAD)
 TEST(M_DFT, WaterPolarizedLDA)
 {
     Calculation calc(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA, .spin = SpinGroup::Polarized});
-    calc.Converge({.NMaxIter = 60, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+    calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
     EXPECT_NEAR(calc.Energy(), -75.9324615507, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
 }
@@ -105,7 +105,7 @@ TEST(M_DFT, WaterPolarizedLDA)
 TEST(M_DFT, OxygenTripletLDA)
 {
     Calculation calc(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 3});
-    calc.Converge({.NMaxIter = 80, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+    calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
     EXPECT_NEAR(calc.Energy(), -149.2562876393, 1e-4);   // converged spin-native LDA triplet (regression anchor)
 }
@@ -117,7 +117,7 @@ TEST(M_DFT, OxygenTripletLDA)
 TEST(M_DFT, OxygenTripletHF_VerboseDisplay)
 {
     Calculation calc(MakeO2(), {.basis = "dzvp", .model = Model::HF, .multiplicity = 3});
-    calc.Converge({.NMaxIter = 80, .MinΔρ = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
+    calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true});   // Verbose => DisplayEigen (the crash path)
     EXPECT_NEAR(calc.Energy(), -149.6295470276, 1e-4);   // converged HF triplet O2
 }
@@ -129,7 +129,7 @@ TEST(M_DFT, OxygenTripletBelowSinglet)
 {
     auto run = [](int mult) {
         Calculation c(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = mult});
-        c.Converge({.NMaxIter = 80, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+        c.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                     .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
         return c.Energy();
     };

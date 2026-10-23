@@ -35,7 +35,7 @@
   },
   "scf": {
     "NMaxIter": 200,
-    "minDeltaRho": 1e-06,
+    "minDeltaRhoPerElectron": 1e-06,
     "deltaRhoMeasure": "MaxDeltaD",
     "minDeltaE": 1e+30,
     "minDeltaFD": 1e+30,

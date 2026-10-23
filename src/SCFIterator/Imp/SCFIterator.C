@@ -2,6 +2,8 @@
 module;
 #include <optional>   // ColumnData::tolerance -- a column that gates nothing has no threshold cell
 #include <iostream>
+#include <cmath>
+#include <stdexcept>
 #include <iomanip>
 #include <complex>
 #include <cassert>
@@ -154,7 +156,7 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
 
 // The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in
 // Init) instead of a strategy enum.  Shared construction body -- the SeedStrategy ctor delegates here.
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol,SeedRole role)
     : itsHamiltonian (H )
     , itsAccelerator (acc)
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator,basisOrtho,basisOrthoTol) )
@@ -177,11 +179,12 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
         assert((!st || isPeriodicCell(st)) && "the dcmplx SCF lineage is periodic: Structure must be a UnitCell");
         if (st) itsKerkerCell = st->Clone();
     }
-    Initialize(seedDensity, bs, st);   // Init owns the seed transiently (see Initialize)
+    if (st) itsResidualStructure = st->Clone();   // D-MINDRHO's fallback mesh is built from it on first need
+    Initialize(seedDensity, bs, st, role);   // Init owns the seed transiently (see Initialize)
 }
 
 
-template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st)
+template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st, SeedRole role)
 {
     // The seed is only needed to build the iteration-0 Fock; it is NOT a working density (it may be a fit
     // with no density matrix), so own it transiently here rather than storing it as itsOldCD.
@@ -226,6 +229,22 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     // now, where it used to be an accident of SetSmearing arriving only at Iterate (the D11 charge loss).
     SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, *itsOccPolicy, 0.0001))); //first real (matrix-backed) density
     assert(itsCD);
+    // A CARRIED seed -- a restored state (Restart), an anneal / +-alpha / U-loop stage; the CALLER says so (SeedRole).  The
+    // fill above runs on the policy's DEFAULT (integer aufbau, kT = 0, no MOM: this run's own policy is only set in Iterate),
+    // and iteration 1 used to start from that kT = 0 RE-FILL (OpenWork §3 "A carried density is re-filled at kT = 0",
+    // 2026-10-21): invisible on a gapped insulator; FeS2 (kT 0.136 eV) first iterate 0.93 Ha off, SrVO3 (metal) 14 Ha off,
+    // landing on different fixed points.  So the carried density is KEPT, and when the run's policy is not the default the
+    // first Iterate redoes this fill under it -- a restored fixed point then refills to ITSELF, and a perturbed stage
+    // (+-alpha, a new U) still takes its full first step.  At kT = 0 without MOM the fill above already IS the run's, and the
+    // path stays bit-identical.  (Making the carried density the working density outright was tried first: the +-alpha stages
+    // lost that first step and limit-cycled once the linear mixer grew relax 0.2 -> 1.0.)
+    if (role==SeedRole::WorkingDensity)
+    {
+        auto* carried=dynamic_cast<tDM_CD<T>*>(seed);
+        if (!carried) throw std::logic_error("SCFIterator: a WorkingDensity seed must be matrix-backed (a converged state of this graph)");
+        seedOwner.release();
+        itsCarried.reset(carried);
+    }
 }
 // R2.22: there is nothing left to free by hand.  The Hamiltonian and the accelerator are the CALLER's
 // (this class never made them, so it never deletes them -- the composition root owns both and outlives
@@ -233,6 +252,38 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
 // shared_ptr.  The previous body deleted all three, which is what forced every anneal stage to rebuild
 // a Hamiltonian its owner still held.  (The old comment here claimed the wave function was NOT owned --
 // it was the one of the three that was.)
+// D-MINDRHO (2026-10-22, user: "option A"): ONE convergence measure, the L1 distance per electron on a real-space quadrature --
+// the fraction of the electrons the step would still move, 0 exactly at the fixed point, the same number for every mixer,
+// representation and system.  The run's own XC quadrature when the Hamiltonian has one (cached rasters: ~one extra raster per
+// iteration); otherwise (HF, 1-electron) a default mesh of the structure, built once, total density only.
+template <class T> double tSCFIterator<T>::ResidualPerElectron(const tChargeDensity<T>& in, const tChargeDensity<T>& out) const
+{
+    double d=itsHamiltonian->RealSpaceL1Distance(&in, &out);
+    if (!(d==d))
+    {
+        if (itsResidualPts.size()==0)
+        {
+            if (!itsResidualStructure) throw std::logic_error("SCFIterator: no real-space quadrature for the convergence residual "
+                                                              "(the Hamiltonian has none and no structure was given)");
+            const qcMesh::Mesh m=itsResidualStructure->CreateIntegrationMesh(qcMesh::MeshParams{});
+            itsResidualPts=m.Points(); itsResidualWts=m.Weights();
+        }
+        const rvec_t a=in(itsResidualPts), b=out(itsResidualPts);
+        d=0.0;
+        for (size_t g=0; g<a.size(); g++)
+        {
+            // A ZERO-weight node contributes nothing -- and the atom mesh's r = 0 node is exactly where a radial basis
+            // written u(r)/r (B-splines) evaluates 0/0.  Any OTHER non-finite sample is a broken density: say so.
+            if (itsResidualWts[g]==0.0) continue;
+            if (!std::isfinite(a[g]) || !std::isfinite(b[g]))
+                throw std::runtime_error("SCFIterator: a non-finite density sample on the convergence residual's mesh (nonzero weight)");
+            d+=itsResidualWts[g]*std::fabs(a[g]-b[g]);
+        }
+    }
+    const double N=out.GetTotalCharge();
+    return N!=0.0 ? d/N : d;
+}
+
 template <class T> tSCFIterator<T>::~tSCFIterator() = default;
 
 // The integrated site moments of this iteration's density, as REPORTED: one report entry (idempotent,
@@ -290,6 +341,14 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     itsOccPolicy = qchem::MakeOccupationPolicy<T>(
         {.useMOM=ipar.UseMOM, .momStartIter=(int)ipar.MOMStartIter,
          .kT=ipar.SmearingkT, .momPenalty=ipar.MOMSmearPenalty}, itsOccState);
+    // A CARRIED seed's iteration-0 fill, redone under THIS run's policy when that is not the default (see SeedRole and
+    // Initialize).  Once per construction.
+    if (itsCarried)
+    {
+        if (ipar.SmearingkT>0.0 || ipar.UseMOM)
+            SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, itsCarried.get(), *itsOccPolicy, 0.0001)));
+        itsCarried.reset();
+    }
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     // V1.27: is the virial theorem meaningful for THIS Hamiltonian at all?  It needs a Coulombic (degree -1
     // homogeneous) potential, which a pseudopotential is not.  Asked ONCE, of the object that knows -- the
@@ -327,7 +386,9 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         // BODY is virtual (was a mode `if`); the density LIFECYCLE stays here behind the context callbacks.
         LoopContext<T> lc{ itsHamiltonian, itsWaveFunction.get(), itsOccPolicy.get(), itsMixer.get(), &itsCD, &itsOldCD, ipar.MergeTol, Eold,
                            [this](cd_t x){ itsOldCD=itsCD; SetWorkingCD(std::move(x)); },
-                           [this](double e,double tol){ return DirectMinStep(e,tol); } };
+                           [this](double e,double tol){ return DirectMinStep(e,tol); },
+                           [this](const tChargeDensity<T>& a, const tChargeDensity<T>& b){ return ResidualPerElectron(a,b); },
+                           &itsResidual };
         // Direct-min (GDM/OT) OWNS the density update via its geodesic line search, so it must DISABLE the
         // density mixer entirely -- both the per-step Mix() (already: DirectMinDriver never calls it) AND the
         // post-step adaptive re-mix below (an adaptive mixer would otherwise re-mix
@@ -342,7 +403,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         ChargeDensityChange = driver.Step(lc);
         // CP2K's criterion on request (SCFParams::Measure): the largest element change between successive
         // OUTPUT density matrices, whatever the mixer reported -- cur/old are the D_out lineage in both drivers.
-        if (ipar.Δρmeasure==SCFParams::Measure::MaxΔD) ChargeDensityChange = itsCD->GetMaxChangeFrom(*itsOldCD);
+        // THE GATE (D-MINDRHO): the driver measured the L1 residual per electron (itsResidual); the mixer's own number is
+        // no longer read.  CP2K's criterion on request: the largest element change between successive OUTPUT density
+        // matrices -- cur/old are the D_out lineage in both drivers.
+        ChargeDensityChange = ipar.Δρmeasure==SCFParams::Measure::MaxΔD ? itsCD->GetMaxChangeFrom(*itsOldCD) : itsResidual;
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
         eb=TotalEnergy(itsCD.get());        // includes the Mermin −TS => E is the free energy A when smearing on
@@ -385,11 +449,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         // (LinearMixer::Adapt).  SKIPPED under direct-min: GDM/OT own the density update (see lineSearch).
         if (!lineSearch && itsAdaptive)
         {
-            double d=ChargeDensityChange;
+            double d=ChargeDensityChange;   // (the re-damp's own ‖Δρ‖ is not the gate any more -- D-MINDRHO)
             if (itsAdaptive->Adapt({E,FD,FDold}, *itsCD, *itsOldCD, d))
             {
                 qchem::report::Timed timed("scf: adaptive re-damp (re-mix + second energy)");
-                ChargeDensityChange=d;
                 eb=TotalEnergy(itsCD.get());
             }
         }
@@ -397,11 +460,11 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         // Eoldold=Eold;
         Eold=E;
         FDold=FD;
-        // cout << "ChargeDensityChange    < ipar.MinΔρ " << (ChargeDensityChange < ipar.MinΔρ) << endl;
+        // cout << "ChargeDensityChange    < ipar.MinΔρPerElectron " << (ChargeDensityChange < ipar.MinΔρPerElectron) << endl;
         // cout << "fabs(dFD)              < ipar.MinΔFD    " << (fabs(dFD)           < ipar.MinΔFD) << endl;
         // cout << "FD                     < ipar.MinFD   " << (FD                 < ipar.MinFD) << endl;
         // cout << "fabs(eb.GetVirial()+2) < ipar.MinVirial  " << (fabs(eb.GetVirial()+2) < ipar.MinVirial) << endl;
-        itsConverged=  ChargeDensityChange < ipar.MinΔρ
+        itsConverged=  ChargeDensityChange < ipar.MinΔρPerElectron
                  && fabs(dFD)              < ipar.MinΔFD
                  && fabs(dE)               < ipar.MinΔE      // relative total-energy change (default off)
                  && FD                     < ipar.MinFD
@@ -485,7 +548,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     // (The basis-usage heat map is NOT requested from here any more -- V1.14: the WF announces it from its own
     //  FillOrbitals, so the record's basis.usage is the last fill's, and the iterator tells nobody to report.)
 
-    return ChargeDensityChange <= ipar.MinΔρ;
+    return ChargeDensityChange <= ipar.MinΔρPerElectron;
 }
 
 // One direct-minimization step: build the Fock, compute each accelerator's geodesic step,
@@ -755,7 +818,7 @@ ColumnData GateDE(const SCFParams& p)
 //! Density change -- in every layout, hence no axis of its own.
 ColumnData RhoCol(const SCFParams& p)
 {
-    return {"Δρ", W_RHO, p.MinΔρ,
+    return {"Δρ", W_RHO, p.MinΔρPerElectron,
             [](std::ostream& os, const IterationTrace& tr)
             {os << std::scientific << setw(W_RHO) << setprecision(2) << tr.dRho << " ";}};
 }

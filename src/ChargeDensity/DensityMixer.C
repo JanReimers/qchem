@@ -41,6 +41,13 @@ public:
     //! The density that drives the NEXT Fock: the working density itself for a D-mixer, the running mixed
     //! field for a G-space mixer.
     virtual const tChargeDensity<T>* FockDensity(const cd_t& working) const = 0;
+    //! \brief The convergence residual's PAIR (D-MINDRHO, 2026-10-22): rho_in and rho_out in ONE representation, asked
+    //! BEFORE \c Mix.  EMPTY for a D-mixer: the caller compares \c FockDensity(old) with \a out directly (both density
+    //! matrices).  A field mixer presents BOTH of its fields the same way (rho-tilde + raw raster shadow, NO N4 correction)
+    //! -- comparing its Fock presentation with the raw rho[D] measured the G-ball truncation (2 % of the electrons on Si),
+    //! not the distance to the fixed point.
+    struct ResidualPair { std::shared_ptr<const tChargeDensity<T>> in, out; };
+    virtual ResidualPair ResidualDensities(const cd_t& /*out*/) const {return {};}
     // (No SetDMSource here -- V1.18: which D a mixed field was built from is PROVENANCE the loop driver seats
     //  on the Fock density itself, through tDM_SourceSink.  A mixer neither stashes nor replays it.)
     //! The current step size α (for the SCF trace only).

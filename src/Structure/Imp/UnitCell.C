@@ -100,8 +100,14 @@ void RequireSiteBlocks(const qcMesh::Mesh& m, const char* who)
 //! site-group-invariant sets, partners the op-rotated copies; the ops-taking CreateIntegrationMesh
 //! overload builds them).
 //! Null = the historical shared single-orientation angular grid.
+//! \a repOf (optional, with \a angPerAtom): per atom, its ORBIT REPRESENTATIVE (an atom index <= its own).  A member's angular
+//! set is its representative's rotated by the op that maps one onto the other, point for point, and the Becke partition is
+//! invariant under that space-group op -- so member point q carries EXACTLY the representative's weight and keep decision
+//! (V1.22, anchor batch 2026-10-21).  Partitioned once per orbit: the mesh is orbit-consistent BY CONSTRUCTION (the eps-tail
+//! drops used to be bit-different per member, so the caller post-filtered orbit-incomplete points) and ~|orbit| x cheaper.
 qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParams& mp,
-                                   const std::vector<qcMesh::AngularMesh>* angPerAtom = nullptr)
+                                   const std::vector<qcMesh::AngularMesh>* angPerAtom = nullptr,
+                                   const std::vector<size_t>* repOf = nullptr)
 {
     qchem::report::Timed timed("setup: becke mesh build");
     using qcMesh::BeckeCutoff;
@@ -149,6 +155,9 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     // GPW_BECKE_COUNT totals over the whole mesh; each atom's slot-indexed census folds in below.
     struct { size_t pts=0, live=0, im=0, pset=0, retest=0, final_=0, bound=0,
                     dead=0, deadWork=0, imMax=0, psetMax=0, shellMax=0; } tot;
+    assert(!repOf || (angPerAtom && repOf->size()==natom));
+    std::vector<std::vector<char>> keepOf(natom);     // per REPRESENTATIVE: its keep decisions and kept weights (V1.22)
+    std::vector<rvec_t>            kwtOf (natom);
     for (size_t ia=0; ia<natom; ia++)
     {
         // SITE BLOCK: this atom's surviving points, whose weights already carry ITS partition function
@@ -171,6 +180,22 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         rvec3vec_t        kpt(nq);
         rvec_t            kwt(nq);
         std::vector<BeckePointCost> cost(census ? nq : 0);
+        // A MEMBER of an orbit: the representative's decisions and weights, point for point; only the position is its own
+        // (wrapped into the home cell exactly as the partition below wraps a kept point).
+        if (repOf && (*repOf)[ia]!=ia)
+        {
+            const size_t r0=(*repOf)[ia];
+            if (r0>ia || keepOf[r0].size()!=nq)
+                throw std::logic_error("MakePeriodicBeckeMesh: an orbit member before its representative, or a member whose point "
+                                       "count differs from its representative's");
+            for (size_t q=0; q<nq; q++)
+            {
+                if (!keepOf[r0][q]) continue;
+                const rvec3_t f=cell.ToFractional(pts[q]);
+                out.Append(pts[q]-cell.ToCartesian(rvec3_t(floor(f.x),floor(f.y),floor(f.z))), kwtOf[r0][q]);
+            }
+            continue;
+        }
         auto partition=[&](size_t q)
         {
             BeckePointCost pc;            // recorded on every exit path when the census is on
@@ -282,6 +307,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         for (size_t q=0; q<nq; q++) partition(q);
 #endif
         for (size_t q=0; q<nq; q++) if (keep[q]) out.Append(kpt[q], kwt[q]);
+        if (repOf) { keepOf[ia]=keep; kwtOf[ia]=kwt; }
         for (size_t q=0; q<cost.size(); q++)
         {
             const BeckePointCost& c=cost[q];
@@ -454,6 +480,22 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
     }
 
     // BECKE kind: site-adapted, invariant by construction (W2b) -- the rest of this function.
+    // D5 (anchor batch, 2026-10-21): the ANGULAR request, resolved and said.  The site-adapted builder consumes only the
+    // DEGREE: a stated scheme (Lebedev / GaussLegendre) cannot be honoured under an imposed group and is REPLACED by the
+    // invariant rule of the same degree -- say so once, as a warning (it used to be silent).  An UNSET degree (<= 0) takes the
+    // calibrated Becke default.
+    const int L = mp.angularDegree>0 ? mp.angularDegree : 29;   // 29 = qcMesh::BeckeXCParams' calibrated default (qcMesh XCPolicy, not imported here)
+    {
+        static bool warned=false;
+        if (!warned)
+        {
+            warned=true;
+            std::cout<<"[Becke grid] ⚠ imposed symmetry: the requested "
+                     <<(mp.angular==qcMesh::AngularKind::Lebedev ? "Lebedev" : "GaussLegendre")<<" angular rule"
+                     <<(mp.angularDegree>0 ? "" : " (degree unset -> the Becke default)")
+                     <<" is REPLACED by the site-adapted invariant rule of degree "<<L<<std::endl;
+        }
+    }
 
     std::vector<rvec3_t> F;                         // fractional atom sites
     for (auto a : *this) F.push_back(ToFractional(a->itsR));
@@ -504,7 +546,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
         const rvec3_t& fr = F[af.repRaw[o]];
         std::vector<Matrix3D<double>> siteOps;
         for (const auto& op : ops) if (fixes(op, fr)) siteOps.push_back(cart(op.W));
-        qcMesh::Mesh aq = MakeInvariantAngularMesh(siteOps, mp.angularDegree, bondDirs(fr));
+        qcMesh::Mesh aq = MakeInvariantAngularMesh(siteOps, L, bondDirs(fr));
         for (auto [mi, oi] : af.members[o])
         {
             assert(oi>=0 && "site-adapted Becke mesh: the imposed op set must be a group (edge op per partner)");
@@ -516,57 +558,13 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
         }
     }
     angTimer.reset();                       // the site-adapted angular sets are built; stop that bucket
-    qcMesh::Mesh mesh = MakePeriodicBeckeMesh(*this, mp, &ang);
-
-    // The raw point set is op-covariant BY CONSTRUCTION, but the builder's eps-tail DROP decisions
-    // (the <eps screens and the w>0 keep) are computed from bit-DIFFERENT rotated distances, so a
-    // borderline far-tail point can be kept on one atom while its orbit partner is dropped -- measured
-    // at the production recipe (L=29, ~70k raw points).  Cure: drop every orbit-INCOMPLETE point
-    // (complete <=> |orbit| x |site stabilizer| == |ops|).  Only eps-borderline points -- weight ~eps
-    // or below -- can be incomplete, so this stays inside the eps-converged-series contract.
-    // ⚠ THIS IS THE RUN'S SECOND FULL ORBIT FOLD OVER THE SAME ~97k POINTS (bucketed 2026-09-06,
-    // doc/ParallelAndOraclePlan.md 1.1(b)).  The caller -- GPW_IBS::CreateXCQuadrature -- folds the
-    // FINISHED mesh again to get the fold it keeps, and the note below says so in as many words.  The two
-    // folds differ only in their input (this one runs on the pre-filter point list, at tol 1e-8) and in
-    // what they are used for.  Priced here so the duplication is a number, not a reading of the code.
-    std::vector<char> keep(mesh.size(), 0);
-    size_t nDropped = 0;
-    {
-        qchem::report::Timed timed("setup: XC mesh orbit-consistency fold (the FIRST of two folds)");
-        SL::Fold f = SL::FoldPointsPeriodic([&]{ std::vector<rvec3_t> fp;
-            for (size_t i = 0; i < mesh.size(); ++i) fp.push_back(ToFractional(mesh.Points()[i]));
-            return fp; }(), ops, 1e-8);
-        for (size_t o = 0; o < f.Reps(); ++o)
-        {
-            rvec3_t fr = ToFractional(mesh.Points()[f.repRaw[o]]);
-            size_t  stab = 0;
-            for (const auto& op : ops) if (fixes(op, fr)) ++stab;
-            if (f.members[o].size()*stab == ops.size())
-                for (auto [mi, oi] : f.members[o]) keep[mi] = 1;
-            else nDropped += f.members[o].size();
-        }
-    }
-    if (nDropped>0)
-        std::cout<<"[Becke grid] orbit-consistency: dropped "<<nDropped
-                 <<" eps-borderline points whose orbit partners were tail-dropped"<<std::endl;
-    // CARRY THE SITE BLOCKS THROUGH THE FILTER (doc/OpenWork.md, "the imposed XC mesh loses its site
-    // blocks").  This rebuild used to walk the ORBITS, which interleaves the atoms' points and destroys
-    // the contiguous per-centre blocks MakePeriodicBeckeMesh recorded -- so every imposed run handed the
-    // engine a mesh with NSites()==0 and the Becke site moment (the Step 0a instrument) silently printed
-    // nothing.  The filter is a per-point keep/drop, so walking the ORIGINAL order instead simply shrinks
-    // each block: the site partition survives, and nothing else cares about the point ORDER (the caller
-    // rebuilds its orbit fold FROM the finished mesh, GPW_IBS.C).
-    qcMesh::MeshBuilder out;
-    const size_t nSite = mesh.NSites();
-    for (size_t a = 0; a < nSite; ++a)
-    {
-        out.BeginSite();
-        for (size_t i = mesh.SiteBegin(a); i < mesh.SiteEnd(a); ++i)
-            if (keep[i]) out.Append(mesh.Points()[i], mesh.Weights()[i]);
-    }
-    if (nSite==0)   // a builder with no site structure: keep the points, say so, never silently
-        for (size_t i = 0; i < mesh.size(); ++i) if (keep[i]) out.Append(mesh.Points()[i], mesh.Weights()[i]);
-    qcMesh::Mesh mb=out.take();
+    // V1.22: one partition per ATOM ORBIT, copied to its members point for point (see MakePeriodicBeckeMesh) -- the mesh is
+    // orbit-consistent by construction.  This replaced the post-filter that dropped orbit-INCOMPLETE eps-borderline points
+    // (the builder's per-point tail drops were bit-different across an orbit) with a SECOND full orbit fold over ~97k points.
+    std::vector<size_t> repOf(F.size());
+    for (size_t o = 0; o < af.Reps(); ++o)
+        for (auto [mi, oi] : af.members[o]) repOf[mi] = size_t(af.repRaw[o]);
+    qcMesh::Mesh mb = MakePeriodicBeckeMesh(*this, mp, &ang, &repOf);
     RequireSiteBlocks(mb, "UnitCell::CreateIntegrationMesh(imposed, Becke)");
     ReportMeshPlaneWaveOrtho(*this, mb);   // the BECKE arm: built for cusps, asked about plane waves
     return mb;

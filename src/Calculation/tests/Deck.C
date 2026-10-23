@@ -158,7 +158,7 @@ TEST(Deck, ARunFromADeckEqualsTheSameRunBuiltByHand_Si_Gamma)
     const json payload={
         {"structure","Si_diamond"}, {"basis",{{"data","SIPP_SR"}}},
         {"solid",{{"densityEcut",20.0},{"imposeSymmetry",true}}},
-        {"scf",{{"NMaxIter",60},{"minDeltaRho",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
     deck::RunSpec spec; deck::FromJson(payload,spec);
 
     const fs::path dir=TmpDir("run");
@@ -283,7 +283,7 @@ TEST(Deck, ASavedStateRestartsAndTheRevisionNamesItsParent)
 {
     const fs::path dir=TmpDir("restart");
     const json base={{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"}}},{"solid",{{"densityEcut",20.0},{"imposeSymmetry",true}}},
-        {"scf",{{"NMaxIter",60},{"minDeltaRho",1e-6},{"minDeltaE",1e-10},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3}}}};
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-10},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3}}}};
     json d1=base; d1["state"]={{"save","auto"}};
     deck::RunSpec s1; deck::FromJson(d1,s1);
     deck::Provenance pv; pv.codeVersion="t";
@@ -363,9 +363,11 @@ TEST(Deck, HubbardLoopEstimatorRoundTripsAndOwnsItsKeys)
     EXPECT_NE(msg(deckWith(cplx,{{"estimator","linearResponse"},{"nq",2}},{3,3,3})).find("incommensurate"),std::string::npos);
     EXPECT_EQ(msg(deckWith(hub,json::object(),{1,1,1})),"NO THROW") << "an ACBN0 loop needs no complex ansatz";
     json smeared={{"structure","NiO_AFM2"},{"kmesh",{2,2,2}},{"solid",cplx},{"scf",{{"smearingkT",0.01}}},{"postSCF",{{{"independentResponse",{{"nq",2}}}}}}};
-    EXPECT_NE(msg(smeared).find("globalFermi"),std::string::npos) << "a smeared q-mesh response needs one Fermi level";
-    smeared["solid"]["globalFermi"]=true;
-    EXPECT_EQ(msg(smeared),"NO THROW");
+    EXPECT_EQ(msg(smeared),"NO THROW") << "one Fermi level across k is the default (D-FERMI-DEFAULT)";
+    smeared["solid"]["perKFermiLevels"]=true;
+    EXPECT_NE(msg(smeared).find("perKFermiLevels"),std::string::npos) << "a smeared q-mesh response needs one Fermi level";
+    smeared["solid"].erase("perKFermiLevels"); smeared["solid"]["globalFermi"]=true;
+    EXPECT_NE(msg(smeared).find("RETIRED"),std::string::npos) << "the old key is refused, never re-read with the opposite default";
 }
 
 TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
@@ -401,7 +403,7 @@ TEST(Deck, PostSCFRunsOnTheConvergedCalculationAndTheRecordKeepsTheResults)
     const fs::path dir=TmpDir("post");
     json d={{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"}}},
         {"solid",{{"densityEcut",20.0},{"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0}},{{"site",1},{"l",1},{"U_eV",0.0}}}}}},
-        {"scf",{{"NMaxIter",60},{"minDeltaRho",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3}}},
         {"postSCF",{{{"estimateHubbardU",json::object()}}}}};
     deck::RunSpec spec; deck::FromJson(d,spec);
     deck::Provenance pv; pv.codeVersion="t";

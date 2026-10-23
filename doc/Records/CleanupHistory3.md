@@ -223,3 +223,61 @@ into the terms), `R2.5b` (`throw` is a marker), `V1.20` (`.Internal.` = the FAMI
 - **D-THREADS (partly ✅, 2026-10-02)**: single reader of `GPW_OMP_THREADS` in qchem.Parallel + truthful `ThreadSummary()` on the banner + 2 unit tests; ctest 999/999.  Rename to QCHEM_OPENMP_THREADS, `=0` => physical cores (proposed), the omp audit and the `ps -L` check remain in CleanCode.
 - **D-THREADS rename + unification ✅ (2026-10-02)**: `QCHEM_OPENMP_THREADS` (0 = physical cores; unset = serial everywhere, Becke build included; `GPW_OMP_THREADS` alias); ctest 1000/1000, 150 s (was 136 s).  BLAS fold-in, omp audit, ps -L check remain in CleanCode.
 - **D-THREADS ✅ closed (2026-10-03)**: omp audit (12 regions, all via WorkerThreads), measured CPU/wall for default / OMP auto / BLAS=4 on NaF, BLAS+LAPACK confirmed OpenBLAS-pthread; BLAS deliberately NOT folded into the one knob (nesting), banner warns on BLAS>1 with OpenMP>1.  Long-term remainder = V-CALCNET.
+- **D5 ✅ (2026-10-21, anchor-moving batch)**: under `imposeSymmetry` the Becke angular request is resolved and SAID -- a stated
+  scheme (Lebedev / GaussLegendre) replaced by the site-adapted invariant rule now prints a one-time `[Becke grid] ⚠` warning
+  (it was silent); an unset degree (<= 0) takes the calibrated 29 (`BeckeXCParams`); `MakeInvariantAngularMesh`'s seed-pool
+  exhaustion is a `runtime_error` naming the way out (it was a bare `assert`, compiled out in Release, which returned an EMPTY
+  mesh).  Gate `UTStructure InvariantAngularMesh.ExhaustedSeedPoolThrows` (every seed direction on the avoid list).  Sweep vs
+  batch item 1: 1052/1052, nothing moved.
+- **V1.22 ✅ (2026-10-21, anchor-moving batch)**: `MakePeriodicBeckeMesh(..., angPerAtom, repOf)` partitions ONE atom per orbit
+  and gives every member the representative's keep decision and weight point for point (a member's angular set is the
+  representative's rotated by the orbit op, index for index, and the Becke partition is invariant under that space-group op).
+  The imposed mesh is orbit-consistent BY CONSTRUCTION, so the post-filter (a second full orbit fold over the pre-filter points,
+  dropping orbit-incomplete "eps-borderline" points) is gone, and the partition cost drops by ~|orbit| (`BeckeMesh` /
+  `InvariantAngularMesh.SupercellBeckeGridIsThePrimitiveGridReplicated` 34.9 s → 2.7 s under load).  MEASURED vs batch D5:
+  1052/1052 + long 4/4; `GPW_O2Box.Γ_Imp_M3_eqFinite` −7.2e-5 Ha -- the old filter dropped 456 points there, NOT eps-borderline
+  ones (the box-vs-finite gap went 0.02618 → 0.02611 Ha, i.e. toward the finite molecule); every other move ≤ 1e-7 Ha (MnO
+  `_Long` anchors 5e-8; `GPW_Na2Box...OrderLostThrows` 165 → 159 iterations).  The FREE builder still decides per point (no
+  orbit information there): the AFM translation-partner asymmetry noted in the item stands for unimposed runs.
+- **D12 ✅ (2026-10-21, anchor-moving batch; pin 1)**: `GPW_Evaluator`'s pointwise `Eval`/`EvalGradient` charged ONE reach
+  (the basis' most diffuse exponent) to every function, over an image list from a cell-shape formula already patched once
+  (`max(2·reach+2·maxEdge, reach+2·cellRad)`, the oblique-MnO under-enumeration).  Now each orbital CENTRE carries its own
+  ε reach sqrt(−ln 1e-10/α_min(centre)) (from `AoShellSource`), an image enters iff some centre's reach covers r−R
+  (`ImageReaches`), and the list is exactly what that test can accept for r in the cell, |R| ≤ cellRad + max_A(|A−ctr| +
+  reach_A) -- the triangle inequality, no shape formula.  The mesh-quadrature KB fallback (non-Gaussian projector models)
+  used the ORBITAL list for PROJECTOR images; it now enumerates |R| ≤ rad + r_β + |τ_a − ctr| itself.  (`EvalMany`, the
+  1E sums and the analytic KB already ran the seam's per-pair ε series; untouched.)  MEASURED vs V1.22: 1052/1052 + long 4/4,
+  NOTHING moved at 1e-10 Ha; per-test time summed 1913 → 1025 s (median 0.55× on tests > 2 s: fewer images).
+- **D-FERMI-DEFAULT ✅ (2026-10-21, anchor-moving batch; user ruling 2026-10-05)**: `SolidCalcOptions::globalFermi` (default false =
+  per-k μ) became `perKFermiLevels` (default false = ONE μ across the k-mesh for a smeared run; kT = 0 keeps every block's
+  prescribed integer count either way).  The deck key `globalFermi` is RETIRED with a pointed error (never re-read with the
+  opposite default); the q-mesh-response pre-flight now refuses `perKFermiLevels` with smearing; `Reference::Gap`'s message names
+  the new key; the SrVO3 campaign deck and the Al/Na tests lost their now-default `globalFermi: true`.  FOUND by the flip: under a
+  pooled (global-μ) partition `Crystal_EC::GetN` is the reservoir TOTAL, but the kT = 0 per-block fill and the accelerator's
+  per-block occupied count asked it too -- so an IMPOSED (IBZ, star > 1) global-μ run at kT = 0 under-filled every multi-star
+  block (GPW_Si.k222{,s}_Imp_CP2K / k222_Becke_Imp_eqFree −0.55 Ha).  Fix: `ElectronConfiguration::PrescribedBlockN` (default
+  `GetN`; Crystal_EC: star × per-cell count in either mode), used by those two per-block paths.  MEASURED vs D12: 1052/1052 +
+  long 4/4; moved: the two smeared Si k222 SolidState tests −2.26 mHa (one μ lowers kT 0.02 Si), and iteration counts only on the
+  Al/Na global-μ anchors (energies unchanged) -- no banked smeared anchor ran per-k μ on a multi-k mesh, so nothing to re-judge.
+- **D-MINDRHO ✅ (2026-10-22, anchor-moving batch; user chose "option A")**: the density convergence gate is ONE intensive
+  measure, `SCFParams::MinΔρPerElectron` = ∫|ρ_out − ρ_in| d³r / N -- the fraction of the electrons the step would still
+  move -- computed ONCE in the SCF iterator on the run's own real-space quadrature: `tHamiltonian::RealSpaceL1Distance` (the
+  XC term's cached sampler, per spin channel for a polarized run; ~1 % of an SCF by the ledger, NaF 0.14 s of 13.3 s), else a
+  mesh built once from a copy of the structure (HF / 1-electron; zero-weight nodes skipped -- the atom mesh's r = 0 node is
+  0/0 for a u(r)/r B-spline basis -- any other non-finite sample throws).  LIKE FOR LIKE: a field mixer (Kerker/Pulay,
+  polarized composite) hands over BOTH its fields presented alike (`tDensityMixer::ResidualDensities`, no N4 correction);
+  comparing its Fock presentation with the raw ρ[D] measured the G-ball truncation (2 % of the electrons on Si), not the
+  distance to the fixed point.  The mixer's own number and the linear re-damp's are no longer the gate; `Measure::MaxΔD`
+  (CP2K's EPS_SCF) stays as the explicit parity option.  `MinΔρ` / deck `minDeltaRho` / measure `MixerResidual` RETIRED (the
+  deck refuses the old key: never re-read with a new meaning).  CALIBRATION (all 361 SCF runs of the suite, both measures
+  logged): median new/old 0.7 for linear mixing (305 runs) -- ~faithful -- but 49-121x for pure Kerker/Pulay: those runs had
+  "converged" with ~2 % of the electrons still moving.  So the RE-PIN kept the NUMBERS and changed the meaning.  MEASURED vs
+  D-FERMI: 1052/1052 + long 4/4 after two fixes; the Kerker Si anchors (`GPW_Si.Γ_Becke_Imp_Kerker{,_CuspDeficit}_CP2K`,
+  `Γ{,_U}_Imp_Pol_Kerker_eqUnpol`) now converge for real, 5 → 19 / 10 → 38 iterations, energies −4.4e-5 Ha (how far the old
+  stop was from the fixed point); linear runs mostly save an iteration (µHa moves).  RE-JUDGED: `GPW_Al.Γ_Imp_Stalls` claimed
+  integer aufbau "cannot converge" the degenerate 3p -- an artifact of the D-based measure (D rotates inside the manifold).
+  An imposed run star-averages the field, which is stationary: it converges (11 iterations, −1.9212152, 6.5e-5 below the
+  annealed anchor's internal energy) -- now `GPW_Al.Γ_Imp_Converges`.  ⚠ pybind/qchem_bridge.cpp builds SCFParams
+  POSITIONALLY ({maxiter, 1e-4, ...}): it compiles, but its 1e-4 now means 1e-4 electrons per electron -- FLAGGED for the
+  binding owner, not edited.
+

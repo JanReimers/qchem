@@ -162,6 +162,16 @@ enum class ChannelBasis
                      //!< deliberately DIVERGE from CP2K, which damps m with the same filter as ρ.
 };
 
+//! A PolarizedMixCD that OWNS its two channels (the residual pair's presentations live only as long as the pair).
+class OwnedChannelPair : public PolarizedMixCD
+{
+public:
+    OwnedChannelPair(std::shared_ptr<FourierMixCD> up, std::shared_ptr<FourierMixCD> dn) : itsU(std::move(up)), itsD(std::move(dn))
+        { Seat(itsU.get(), itsD.get()); }
+private:
+    std::shared_ptr<FourierMixCD> itsU, itsD;
+};
+
 //! \brief The CHANNEL-BASIS PRECONDITIONER for a polarized ρ̃ run: two leaves that FILTER a pair of channels
 //! -- (ρ↑,ρ↓) or (ρ,m) -- plus the spin-resolved Fock view they feed.  When the leaves carry HISTORY it does
 //! NOT let them extrapolate independently: it stages both and runs ONE joint solve (see \c MixJointly).
@@ -231,6 +241,27 @@ public:
             RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge());
         }
         return &itsFock;
+    }
+    //! The residual pair (D-MINDRHO): the leaves' input fields and the fresh output's channels, each presented alike and
+    //! paired as an OWNING channel view (the spin-native quadrature measures both channels).
+    ResidualPair ResidualDensities(const cd_t& working) const override
+    {
+        auto [wu,wd]=Channels(working);
+        const FourierDensity& fu=FourierOf(wu);
+        const FourierDensity& fd=FourierOf(wd);
+        const double qUp=wu->GetTotalCharge(), qDn=wd->GetTotalCharge();
+        auto outUp=Present(GField{fu.GetFourierDensity(*itsFit), fu.GetRhoOnGrid(*itsFit)}, itsRecip, qUp);
+        auto outDn=Present(GField{fd.GetFourierDensity(*itsFit), fd.GetRhoOnGrid(*itsFit)}, itsRecip, qDn);
+        const GField& a=itsAF->Field();
+        const GField& b=itsBF->Field();
+        std::shared_ptr<FourierMixCD> inUp, inDn;
+        if (itsBasis==ChannelBasis::SpinChannels) { inUp=Present(a, itsRecip, qUp); inDn=Present(b, itsRecip, qDn); }
+        else
+        {
+            inUp=Present(GField{0.5*(a.tilde+b.tilde), RawCombine(a.raster,b.raster,+1.0,0.5)}, itsRecip, qUp);
+            inDn=Present(GField{0.5*(a.tilde-b.tilde), RawCombine(a.raster,b.raster,-1.0,0.5)}, itsRecip, qDn);
+        }
+        return {std::make_shared<OwnedChannelPair>(inUp, inDn), std::make_shared<OwnedChannelPair>(outUp, outDn)};
     }
     double      GetRelax() const override { return itsUp->GetRelax(); }
     const char* Tag     () const override { return itsUp->Tag(); }   // the trace reports the LEAF recipe

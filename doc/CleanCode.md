@@ -41,15 +41,24 @@ route (CP2K/QE/ABINIT oracle, `doc/Benchmark.md`), never refreshed.  A failing c
 physics and cannot go stale.  Also in the batch but tracked in `doc/OpenWork.md` §3: **N4** (cusp-deficit XC feed,
 pin 18).  Suggested order (cheapest to attribute first): D-MINDRHO → V1.24(iii) → D5 → V1.22 → D12 → §K → D-FERMI-DEFAULT.
 
+**STATUS 2026-10-22 -- the window was RUN** (branch `anchor-batch`, merged to `openwork-sweep`): DONE, each swept ALONE against
+the step before (`ctest -j4` + `-L long`, test-by-test anchor diff): the carried-density refill (OpenWork §3), D5, V1.22, D12,
+D-FERMI-DEFAULT, D-MINDRHO -- records in `Records/CleanupHistory3.md` / `Records/OpenWork_History5.md`.  NO banked anchor moved
+beyond its own tolerance, so the RE-BANK step had nothing to re-judge against an oracle (the largest moves: the Kerker Si
+anchors −4.4e-5 Ha toward their true fixed point under D-MINDRHO; O₂-in-a-box −7.2e-5 Ha toward the finite molecule under
+V1.22).  LEFT: **V1.24(iii)** (needs the OT build), **§K** (deferred by the user), **N4** (measure (a)/(b) first, OpenWork §3),
+and **Kerker/Pulay as the default mixer** (OpenWork §3 row -- its plan is there).  The tool kept for the next window:
+`anchordiff.py` (per-test last-energy + iteration diff of two ctest `LastTest.log`s) -- copy at `scripts/anchordiff`.
+
 | id | what is open | next action · record |
 |---|---|---|
-| **D-MINDRHO** | `MinΔρ` compares three quantities (`LinearMixer::Mix` /charge, `ReDampMix` not, `KerkerMixer::MixField` ∞-norm of G-coefficients) and measures the mixer's STEP not the distance to the answer; `DidConverge()` can disagree with the "DENSITY-DEGENERATE (benign)" fingerprint, whose "raise NMaxIter" advice is overconfident | one intensive gate Δρ/N in one place (`Records/SCFStrategyPlan.md`); anchor-moving ⇒ re-bank window |
+| ✅ D-MINDRHO | DONE 2026-10-22 (anchor batch, option A): ONE gate, `MinΔρPerElectron` = ∫|ρ_out−ρ_in|/N on the run's quadrature (deck `minDeltaRhoPerElectron`; `MinΔρ` / `minDeltaRho` retired).  REMAINDER: FeS₂'s FD-vs-LR 1.3 % gap rerun under the new gate (`decks/campaigns/CrossCode/fes2_Fe3d_G.json`, in progress) | `Records/CleanupHistory3.md` |
 | **V1.24 (iii)** | GDM soft-direction preconditioning of near-degenerate diffuse modes changes the GDM trajectory (iteration counts, and the last digits of a converged anchor at the tolerance floor).  The (i) rename of `FDMax` stays in the main table | With the OT build (OpenWork §2) · H2 V1.24 |
-| **D5** | Becke `MeshParams` under `imposeSymmetry`: `mp.angular` silently replaced; unachievable L is a bare assert | Auto-resolve, warn on scheme override, real error on exhaustion (with the `SymmetryPolicy`/facade pass) · H2 D5 |
-| **V1.22** | Becke partition drop decisions per-point/bit-sensitive; site-adapted caller post-filters orbit-incomplete points (up to ~23× partition cost) | Per-REPRESENTATIVE drop rule (angular dir × radial shell, whole orbit); sprint row A2, anchor-moving · H2 V1.22 |
-| **D12** | `GPW_Evaluator::Eval` truncates by RADIUS (`itsMaxReach` + geometric `BuildImages`) — pin 1 violation | Screen each (function, image) on its own magnitude per pair; radius becomes a reported consequence · H2 D12 |
+| ✅ D5 | DONE 2026-10-21 (anchor batch): imposed Becke warns on the scheme override, resolves an unset degree to 29, and an exhausted seed pool THROWS; moved nothing | `Records/CleanupHistory3.md` |
+| ✅ V1.22 | DONE 2026-10-21 (anchor batch): one Becke partition per ATOM ORBIT, copied to members point for point; post-filter fold deleted.  O2Box −7.2e-5 Ha (456 points no longer dropped), the rest ≤ 1e-7 | `Records/CleanupHistory3.md` |
+| ✅ D12 | DONE 2026-10-21 (anchor batch): per-centre ε reach + triangle-inequality image list (no cell-shape formula); the mesh-KB fallback enumerates its projector's own support; nothing moved at 1e-10, per-test time −45 % | `Records/CleanupHistory3.md` |
 | **§K** | fit-{G} densification (anchor-moving, deferred by user) | Sprint window · H2 header L60–75 |
-| **D-FERMI-DEFAULT** (user 2026-10-05) | `SolidCalcOptions::globalFermi` defaults to FALSE, so every SMEARED periodic run fills each k-block to its OWN chemical potential.  A k-point is a label, not a reservoir: per-k μ has no physical counterpart in a crystal and should never be the default (user: *"a very obscure feature for anyone to want"*).  It produced SrVO₃'s wrong-sign χ₀(q ≠ 0) and a ground state 15 mHa too high (`doc/LinearResponsePlan.md` §5f); the response now refuses it (`Reference::Gap` + deck pre-flight), but the SCF still defaults to it.  Per SPIN channel μ stays legitimate (fixed spin moment, set by the multiplicity: `spinsShareFermi`).  At kT = 0 per-block integer filling stays: user-specified per-irrep configurations already live in `src/ElectronConfigurations` (atoms with known ground-state terms -- Ce excepted), and a run that knows its configuration needs no smearing to converge (nothing hops) | default ONE μ across k for kT > 0; replace the bool with a name that says what the non-default does (e.g. `perKFermiLevels`, default false); re-bank the smeared anchors this moves (Si smear-vs-aufbau twin, the MnO smeared gates, NiO's kT 5e-3 anneal stage) against their oracles |
+| ✅ D-FERMI-DEFAULT | DONE 2026-10-21 (anchor batch): `SolidCalcOptions::perKFermiLevels` (default false = ONE μ across k; `globalFermi` retired, the deck refuses it); `ElectronConfiguration::PrescribedBlockN` fixes the kT = 0 per-block fill of an IBZ (star > 1) block under a pooled partition | `Records/CleanupHistory3.md` |
 
 Settled, not rows: Release `-O2` deliberate, `-march=native` default since 2026-09-04 (`QCHEM_ARCH_EXPERIMENT` = A/B); source comments citing old flat `doc/` paths are fine (resolve with `ls doc/*/File.md`).
 

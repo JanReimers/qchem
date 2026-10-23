@@ -44,7 +44,7 @@ static std::vector<HFCase> Cases(AtomType t, BasisSetAccuracy a, double tol, boo
 static SCFParams HFParams(const HFCase& c)
 {
     auto P = [&](size_t nmax, double dro, double dfd, double vir, double fd) {
-        return SCFParams{.NMaxIter = nmax, .MinΔρ = c.Z*dro, .MinΔFD = dfd, .MinVirial = vir,
+        return SCFParams{.NMaxIter = nmax, .MinΔρPerElectron = c.Z*dro, .MinΔFD = dfd, .MinVirial = vir,
                          .MinFD = c.Z*fd, .StartingRelaxRo = c.Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true};
     };
     const bool bspline = (c.type==AtomType::BSpline6 || c.type==AtomType::BSpliner6);

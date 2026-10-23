@@ -25,7 +25,7 @@ struct HFCase { AtomType type; BasisSetAccuracy acc; int Z; double tol; Knobs k;
 
 static SCFParams MakeParams(const HFCase& c)
 {
-    return {.NMaxIter = c.k.nmax, .MinΔρ = c.Z*c.k.droScale, .MinΔFD = c.k.dfd, .MinVirial = c.k.vir,
+    return {.NMaxIter = c.k.nmax, .MinΔρPerElectron = c.Z*c.k.droScale, .MinΔFD = c.k.dfd, .MinVirial = c.k.vir,
             .MinFD = c.Z*c.k.fdScale, .StartingRelaxRo = c.Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true};
 }
 

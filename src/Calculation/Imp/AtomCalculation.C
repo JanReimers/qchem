@@ -63,7 +63,7 @@ static void EmitScfSection(const AtomCalcOptions& o, int ne, const std::string& 
     standard["pol"]         = (o.spin == SpinGroup::Polarized) ? "P" : "U";
     standard["nElectrons"]  = ne;
     standard["nMaxIter"]    = long(p.NMaxIter);
-    standard["minDrho"]     = p.MinΔρ;
+    standard["minDrho"]     = p.MinΔρPerElectron;
     standard["minFD"]       = p.MinFD;
     standard["minDE"]       = p.MinΔE;
     standard["accelerator"] = accelerator;

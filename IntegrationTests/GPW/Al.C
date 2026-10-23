@@ -5,7 +5,7 @@
 // Anchor (did-E-move), eq<Token> (a ONE-axis twin: this point equals the same point with that axis moved) or a
 // property verb.  Tests are laid out in axis order.  `scripts/testgrid` renders the coverage table from these names.
 //
-//   GPW_Al.Γ_Imp_Stalls
+//   GPW_Al.Γ_Imp_Converges
 //   GPW_Al.Γ_Imp_Anneal_Anchor
 //   GPW_Al.k222_Smear_GlobalMu_Anchor
 //   GPW_Al.k222_Imp_Smear_GlobalMu_eqFree
@@ -93,13 +93,15 @@ using qchem::BasisSet::Gaussian::BasisSetData;
 using namespace qchem::tests::gpw;   // the harness: Materials cells, gates, recipes, probes (IntegrationTests/GPW/Harness.C)
 
 
-// (item 2a) THE MOTIVATION: integer aufbau CANNOT converge the degenerate 3p.  With smearing OFF, aufbau must
-// place the lone 3p electron in ONE of the three degenerate p orbitals -- an arbitrary, symmetry-broken pick.
-// The TOTAL ENERGY settles (|ΔE/E|~1e-13, the gap column ~0 => no frontier gap, the metallic signature) but
-// the DENSITY rotates freely within the degenerate manifold, so |Δρ| floors well above tolerance and never
-// converges.  This is the honest reason the smearing/annealing path below exists (mirrors the documented
-// GPW_SiBox.Γ_Uni_Imp_eqFinite degenerate-shell behaviour, now for a periodic lattice).
-TEST(GPW_Al, Γ_Imp_Stalls)
+// (item 2a) Integer aufbau on the degenerate 3p, IMPOSED.  It used to be THE MOTIVATION for smearing ("cannot converge"):
+// aufbau puts the lone 3p electron in ONE of three degenerate orbitals, the density MATRIX rotates freely inside the
+// manifold, and the old Δρ (a D-based number) floored above tolerance.  RE-JUDGED 2026-10-22 (D-MINDRHO): the gate is now
+// the L1 residual of the real-space density the Hamiltonian sees, and an imposed run star-averages that density every
+// iteration -- so the field is stationary and the run CONVERGES (11 iterations), to Etot -1.9212152, 6.5e-5 Ha below the
+// annealed anchor's kT-independent internal energy (-1.92115, Γ_Imp_Anneal_Anchor).  (A FREE aufbau run converges too,
+// to a symmetry-broken state with a small gap: -1.92294.)  Smearing stays the principled route for a metal; this gate pins
+// that the honest residual no longer mistakes a D rotation for an unconverged field.
+TEST(GPW_Al, Γ_Imp_Converges)
 {
     const Material al=qchem::Materials::Get("Al_fcc");        // Al (Zion=3): 3s^2 3p^1
     const Lattice_3D lat=LatticeOf(al);
@@ -108,8 +110,10 @@ TEST(GPW_Al, Γ_Imp_Stalls)
     GpwReport report("Al "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
 
-    EXPECT_FALSE(calc.Result()) << "integer aufbau cannot converge Δρ of a partially-filled degenerate 3p shell";
-    EXPECT_NEAR(calc.LastIterateCharge(), 3.0, 1e-6);       // charge is still conserved (3 valence e-)
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << "the star-averaged density of an imposed aufbau run is stationary: the residual gate converges";
+    EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);
+    EXPECT_NEAR(R->Energy(), -1.92115, 2e-4) << "near the annealed anchor's internal energy";
     EXPECT_NEAR(calc.LastIterateTerms()["MinusTS"], 0.0, 1e-12);   // no smearing => no entropy term
 }
 
@@ -172,7 +176,6 @@ TEST(GPW_Al, k222_Smear_GlobalMu_Anchor)
     const Lattice_3D lat=LatticeOf(al, ivec3_t(2,2,2));       // 8-point Γ-centred Bloch mesh (weights sum to 1)
     SolidCalcOptions o=AlOptions(al, "Al FCC 2x2x2 global mu");
     o.imposeSymmetry=false;                    // the FULL mesh: the IBZ-folded sibling below must reproduce it
-    o.globalFermi=true;                        // ONE μ across the BZ (the metal)
     SCFParams par=AlGates(); par.SmearingkT=0.01;
     GpwReport report("Al "+o.label, false);
     qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
@@ -198,7 +201,7 @@ TEST(GPW_Al, k222_Imp_Smear_GlobalMu_eqFree)
     const Material al=qchem::Materials::Get("Al_fcc");
     const Lattice_3D lat=LatticeOf(al, ivec3_t(2,2,2));
     SolidCalcOptions o=AlOptions(al, "Al FCC 2x2x2 IBZ");
-    o.globalFermi=true; o.imposeSymmetry=true;       // fold to the irreducible wedge AND star-average the density
+    o.imposeSymmetry=true;       // fold to the irreducible wedge AND star-average the density
     SCFParams par=AlGates(); par.SmearingkT=0.01;
     GpwReport report("Al "+o.label, false);
     qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);

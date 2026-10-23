@@ -268,7 +268,7 @@ TEST(PW_Si, Γ_Anchor)
 
         SCFParams par;
         par.NMaxIter      =80;
-        par.MinΔρ         =1e-7;   // tight convergence (complex DIIS damps the degenerate-manifold drift)
+        par.MinΔρPerElectron         =1e-7;   // tight convergence (complex DIIS damps the degenerate-manifold drift)
         par.MinΔFD        =1e30;
         par.MinVirial     =1e30;   // pseudopotential calc: the textbook -V/K=2 virial does not hold
         par.MinFD         =1e30;
@@ -397,7 +397,7 @@ TEST(PW_Si, k222_Anchor)
 
     SCFParams par;
     par.NMaxIter      =80;
-    par.MinΔρ         =1e-7;   // tight: the FFT XC/Hartree made the multi-k run cheap, so complex DIIS now
+    par.MinΔρPerElectron         =1e-7;   // tight: the FFT XC/Hartree made the multi-k run cheap, so complex DIIS now
                                // converges the BZ-sampled density fully (Etot=0.934176 exactly) in seconds.
     par.MinΔFD        =1e30;
     par.MinVirial     =1e30;

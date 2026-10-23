@@ -276,9 +276,24 @@ private:
     bool                                itsHomeOnly=false; //!< the finite-molecule MODE (no images anywhere)
     rvec3_t                             itsk;             //!< fractional crystal momentum k
     bool                                itsTRIM=true;     //!< k is TRIM (ctor's kIsReal, from the irrep; phases ±1)
-    double  itsMaxReach=0.0;   //!< max orbital reach sqrt(-ln eps/alpha_min) (Eval per-image screen)
-    rvec3_t itsCellCtr;        //!< cell centre + bounding radius: an image R contributes at r only if
-    double  itsCellRad=0.0;    //!< |(r-R)-ctr| <= rad+maxReach (every orbital centre sits inside the cell)
+    double  itsMaxReach=0.0;   //!< max orbital reach sqrt(-ln eps/alpha_min) (reported; no longer a screen -- D12)
+    rvec3_t itsCellCtr;        //!< cell centre + bounding radius (|r-ctr| <= rad for r in the cell)
+    double  itsCellRad=0.0;
+    //! D12 (pin 1: a magnitude screen, no radius charged to everything): every orbital CENTRE with ITS OWN eps reach
+    //! sqrt(-ln eps/alpha_min(centre)).  An image R contributes at r iff some centre A has |r-R-A| <= reach(A); the image
+    //! list is every R that can satisfy that for r in the cell -- |R| <= rad + max_A(|A-ctr|+reach(A)), the triangle
+    //! inequality, with no cell-shape formula to get wrong.
+    std::vector<rvec3_t> itsCentre;
+    std::vector<double>  itsCentreReach;
+    bool ImageReaches(const rvec3_t& rMinusR) const   //!< does any centre's eps reach cover r-R?
+    {
+        for (size_t c=0;c<itsCentre.size();c++)
+        {
+            const rvec3_t d=rMinusR-itsCentre[c];
+            if (d.x*d.x+d.y*d.y+d.z*d.z <= itsCentreReach[c]*itsCentreReach[c]) return true;
+        }
+        return false;
+    }
     UnitCell                            itsCell;          //!< the DIRECT cell (stored, NOT reconstructed by a
                                                           //!< double-reciprocal round trip -- that reconstruction
                                                           //!< can re-orient a non-cubic (FCC) primitive cell and

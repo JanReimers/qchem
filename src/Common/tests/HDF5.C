@@ -1,6 +1,7 @@
 // qchem.HDF5: the saved-SCF-state carrier (CK-1).  Round trips through a real file, the h5py-facing layout
 // facts (C order, the {r,i} complex compound), and the one fallible call (Open on a missing file).
 #include <gtest/gtest.h>
+#include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
 #include <complex>
 #include <cstdio>
 #include <cstdint>
@@ -13,7 +14,8 @@ import qchem.HDF5;
 using namespace qchem;
 namespace {
 
-std::string TempPath(const std::string& leaf) {return (std::filesystem::path(testing::TempDir())/leaf).string();}
+//! Per PROCESS (ctest runs each case as its own process, in parallel, and the cached saved states are rebuilt in each).
+std::string TempPath(const std::string& leaf) {return (std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_"+leaf)).string();}
 
 TEST(HDF5, DatasetsAttributesAndGroupsRoundTrip)
 {

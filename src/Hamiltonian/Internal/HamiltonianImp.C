@@ -1,5 +1,6 @@
 // File: HamiltonianImp.C  General matrix implementation of a Hamiltonian operator.
 module;
+#include <limits>
 #include <vector>
 #include <memory>
 export module qchem.Hamiltonian.Internal.Hamiltonian;
@@ -48,6 +49,13 @@ public:
         for (const auto& t : itsDHTs)
             if (rvec_t m=t->SiteMoments(cd); m.size()>0) return m;
         return rvec_t();
+    }
+    //! FIRST term with a real-space quadrature answers (the XC term); NaN when none does.
+    virtual double          RealSpaceL1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const
+    {
+        for (const auto& t : itsDHTs)
+            if (const double d=t->RealSpaceL1Distance(a,b); d==d) return d;
+        return std::numeric_limits<double>::quiet_NaN();
     }
     //! \copydoc tHamiltonian::MakeACBN0Estimator
     //! The FIRST dynamic term answering the \c HubbardProjection face (abstract->abstract); null when none does.
