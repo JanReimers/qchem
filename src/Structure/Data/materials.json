@@ -404,6 +404,18 @@
     "atoms":   [ { "el": "Mn", "frac": [0.36875, 0.5, 0.5] }, { "el": "O", "frac": [0.63125, 0.5, 0.5] } ],
     "species": { "Mn": 7, "O": 6 }
   },
+  "MnO_AFM2_Mnsub": {
+    "comment": "the Mn SUBLATTICE of MnO_AFM2 alone (same rhombohedral cell, a = 8.40, O removed, no spin flips): Mn-Mn images at the crystal's 5.94 bohr -- the lattice-sum rung of the MnO operator localizer (IntegrationTests/CP2K/mnsub_gpw_va.inp)",
+    "lattice": { "type": "CubicF", "a": 8.40, "T": [[0,1,1],[1,0,1],[1,1,0]] },
+    "atoms":   [ { "el": "Mn", "frac": [0.0, 0.0, 0.0] }, { "el": "Mn", "frac": [0.5, 0.5, 0.5] } ],
+    "species": { "Mn": 7 }
+  },
+  "MnO_AFM2_Osub": {
+    "comment": "the O SUBLATTICE of MnO_AFM2 alone (same rhombohedral cell, a = 8.40, Mn removed): O-O images at the crystal's 5.94 bohr -- the O rung of the MnO operator localizer (IntegrationTests/CP2K/osub_gpw_vb.inp)",
+    "lattice": { "type": "CubicF", "a": 8.40, "T": [[0,1,1],[1,0,1],[1,1,0]] },
+    "atoms":   [ { "el": "O", "frac": [0.25, 0.25, 0.25] }, { "el": "O", "frac": [0.75, 0.75, 0.75] } ],
+    "species": { "O": 6 }
+  },
   "Mn2_box7": {
     "comment": "two neutral Mn in a 7-bohr cubic box, CsCl/B2 arrangement, AFM flip on the second: the cheapest genuinely staggered crystal",
     "lattice": { "type": "CubicP", "a": 7.0 },
