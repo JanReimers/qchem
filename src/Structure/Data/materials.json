@@ -392,6 +392,18 @@
     "atoms":   [ { "el": "O", "frac": [0.4286875, 0.5, 0.5] }, { "el": "O", "frac": [0.5713125, 0.5, 0.5] } ],
     "species": { "O": 6 }
   },
+  "O_box16": {
+    "comment": "one O q6 pseudo-atom (2s2 2p4 triplet) at the centre of a 16-bohr box; the O side of the MnO operator localizer (IntegrationTests/CP2K/o_box16_gpw_vb.inp)",
+    "lattice": { "type": "CubicP", "a": 16.0 },
+    "atoms":   [ { "el": "O", "frac": [0.5, 0.5, 0.5] } ],
+    "species": { "O": 6 }
+  },
+  "MnO_box16": {
+    "comment": "an Mn-O dimer at the rocksalt MnO bond length a/2 = 4.20 bohr (MnO_AFM2's a = 8.40) along x, centred in a 16-bohr box: the cross-site rung of the MnO operator localizer (IntegrationTests/CP2K/mno_box16_gpw_va.inp)",
+    "lattice": { "type": "CubicP", "a": 16.0 },
+    "atoms":   [ { "el": "Mn", "frac": [0.36875, 0.5, 0.5] }, { "el": "O", "frac": [0.63125, 0.5, 0.5] } ],
+    "species": { "Mn": 7, "O": 6 }
+  },
   "Mn2_box7": {
     "comment": "two neutral Mn in a 7-bohr cubic box, CsCl/B2 arrangement, AFM flip on the second: the cheapest genuinely staggered crystal",
     "lattice": { "type": "CubicP", "a": 7.0 },
