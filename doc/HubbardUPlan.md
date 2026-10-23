@@ -123,26 +123,10 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
     (`~/Code/qe-runs/MnO2/mno2b_G_OpzU.scf.out`).  This Γ state is the basis-convergence target.
   - **"O pz" = the [1̄10]-type plane normal = OUR O p SLOT Γ2** on every rutile O site (Γ0 = σ along the C₂ axis, Γ1 = z; signed
     compositions `69778563`).  It is a pure irrep, so `Uirrep_eV: [0, 0, 4.62]` on each O l=1 manifold sets QE's U_in exactly.
-  **What blocks the first converged run — and THE MERGE SEQUENCE (spec'd 2026-10-22; user: batch FIRST, incremental merges preferred):**
-  ⛔ IonicSAD cannot seed β-MnO₂'s AFM on main (no Mn⁴⁺ entry + the formal-charge tie bug + per-species targets; OpenWork §3 rows
-  "IonicFormalCharges drains…" and "IonicSAD targets are per SPECIES").  The fix is PARKED on `seed-tiebreak` (`2c4a7773`) because it
-  gives MnO the Mn²⁺ d⁵ seed its SR Γ anchor claims, and that arm then loses AFM.  The seed fix MOVES ANCHORS (every IonicSAD cell with
-  repeated cations), so it lands ON TOP of the anchor batch's baseline and MnO is re-judged ONCE on the combined code:
-  1. **Merge `anchor-batch` into qchem6 main** (`git fetch ~/Code/qchem1 anchor-batch`; head `7591ec69` on 2026-10-22: refill-on-restart
-     `32b9d359`, D-MINDRHO `b60c9722`, D-FERMI-DEFAULT `45b4487d`, Becke/screening `99b3d1b6` `0aece9ca` `81dbb79e`, temp names
-     `7ebc4420`).  Only its DONE items: the Kerker/Pulay-default window is not needed (incremental merges are fine).  Expect doc
-     conflicts (OpenWork, HubbardUPlan, records: keep both).  D-FERMI-DEFAULT RETIRED the deck key `globalFermi`: run
-     `scripts/vet-decks` and migrate any deck still using it (e.g. `decks/campaigns/SrVO3/srvo3_k444_chi0.json`).  Build `allTests`;
-     `scripts/memsafe ctest -j8 -LE long` AND `ctest -j3 -L long` green (the batch's STATUS says nothing needed a re-judge).
-  2. **Rebase `seed-tiebreak` onto that main.**
-  3. **`IntegrationTests/GPW/MnO.C` `Γ_Shub_Pol_Smear_Anchor_Long`: `o.seed = SeedStrategy::SAD`** (neutral polarized SAD: Hund pairs +
-     flips, and the imposition decoration then uses neutral targets — what the arm really ran on), and correct its comment: the recipe's
-     "IonicSAD seed (Mn²⁺ d⁵ + O²⁻)" was in fact neutral Mn d⁵4s²; the true Mn²⁺ seed loses AFM on this SR Γ arm (moment dead at
-     iteration 30, −60.97044 Ha) — add that as a remainder on OpenWork §3 "MnO ordering at Γ/SR: FM lies BELOW AFM-II".
-  4. **Run that test ALONE**: expect E −61.41455 ± 2e-3 and the integrated Mn moment > 4.0 — bit-identical to main if SAD really is
-     main's effective seed.  If not: STOP and take it to the user (the fallback is a re-judge, not a recipe tune).
-  5. **Full sweep, both tiers** (the count goes up by the new UT `IonicFormalCharges.EquivalentDonorsShareTheTransfer`), note any
-     anchor the new seed moved in other IonicSAD tests (the VA MnO +U gate passed with it), then merge `seed-tiebreak` into main.
+  **The seed fix is MERGED (2026-10-23, main `beffb23b`; the five-step merge sequence ran as spec'd — record:
+  `doc/Records/HubbardUHistory.md` 2026-10-23).**  ⚠ Before trusting the β-MnO₂ IonicSAD seed: OpenWork §3 "The polarized
+  IonicSAD seed loses its spin" (the TRUE ionic seed gives MnO a first-iterate moment of 0.30), and state the ordering
+  explicitly (`siteSpins`; OpenWork §3 "The magnetic decoration is DERIVED FROM THE SEED").
   With the branch, β-MnO₂'s AFM forms (Mn +3.04/−3.74) — that run had U on the σ slot (Γ0) by mistake and did not converge; the
   deck is fixed.
   **Then (on main after step 5, `ninja rundeck`):** `scripts/memsafe build/Release/CLIapps/rundeck

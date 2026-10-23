@@ -1918,3 +1918,44 @@ The Track-A corner-case bullet and S1/S2, archived when §2 was condensed to a S
   MnO as NEUTRAL Mn d⁵4s² ×2; the fix gives the Mn²⁺ d⁵ the anchor's comment claims.  (The parked commit's message says "+4/0".)
 - QE β-MnO₂ at Γ with U(O pz) 4.62 eV only: gap 0.325 eV, E = −186.85322133 Ry (`~/Code/qe-runs/MnO2/mno2b_G_OpzU.scf.out`).
 - QE orbital-resolved FD on TiO₂ PARKED by the user (restart eigenstate tracking: x²−y² shows no first-iteration response).
+
+## 2026-10-23 — the S2 merge sequence, executed
+
+The spec as written (verbatim from `doc/HubbardUPlan.md` §2 S2):
+
+  **What blocks the first converged run — and THE MERGE SEQUENCE (spec'd 2026-10-22; user: batch FIRST, incremental merges preferred):**
+  ⛔ IonicSAD cannot seed β-MnO₂'s AFM on main (no Mn⁴⁺ entry + the formal-charge tie bug + per-species targets; OpenWork §3 rows
+  "IonicFormalCharges drains…" and "IonicSAD targets are per SPECIES").  The fix is PARKED on `seed-tiebreak` (`2c4a7773`) because it
+  gives MnO the Mn²⁺ d⁵ seed its SR Γ anchor claims, and that arm then loses AFM.  The seed fix MOVES ANCHORS (every IonicSAD cell with
+  repeated cations), so it lands ON TOP of the anchor batch's baseline and MnO is re-judged ONCE on the combined code:
+  1. **Merge `anchor-batch` into qchem6 main** (`git fetch ~/Code/qchem1 anchor-batch`; head `7591ec69` on 2026-10-22: refill-on-restart
+     `32b9d359`, D-MINDRHO `b60c9722`, D-FERMI-DEFAULT `45b4487d`, Becke/screening `99b3d1b6` `0aece9ca` `81dbb79e`, temp names
+     `7ebc4420`).  Only its DONE items: the Kerker/Pulay-default window is not needed (incremental merges are fine).  Expect doc
+     conflicts (OpenWork, HubbardUPlan, records: keep both).  D-FERMI-DEFAULT RETIRED the deck key `globalFermi`: run
+     `scripts/vet-decks` and migrate any deck still using it (e.g. `decks/campaigns/SrVO3/srvo3_k444_chi0.json`).  Build `allTests`;
+     `scripts/memsafe ctest -j8 -LE long` AND `ctest -j3 -L long` green (the batch's STATUS says nothing needed a re-judge).
+  2. **Rebase `seed-tiebreak` onto that main.**
+  3. **`IntegrationTests/GPW/MnO.C` `Γ_Shub_Pol_Smear_Anchor_Long`: `o.seed = SeedStrategy::SAD`** (neutral polarized SAD: Hund pairs +
+     flips, and the imposition decoration then uses neutral targets — what the arm really ran on), and correct its comment: the recipe's
+     "IonicSAD seed (Mn²⁺ d⁵ + O²⁻)" was in fact neutral Mn d⁵4s²; the true Mn²⁺ seed loses AFM on this SR Γ arm (moment dead at
+     iteration 30, −60.97044 Ha) — add that as a remainder on OpenWork §3 "MnO ordering at Γ/SR: FM lies BELOW AFM-II".
+  4. **Run that test ALONE**: expect E −61.41455 ± 2e-3 and the integrated Mn moment > 4.0 — bit-identical to main if SAD really is
+     main's effective seed.  If not: STOP and take it to the user (the fallback is a re-judge, not a recipe tune).
+  5. **Full sweep, both tiers** (the count goes up by the new UT `IonicFormalCharges.EquivalentDonorsShareTheTransfer`), note any
+     anchor the new seed moved in other IonicSAD tests (the VA MnO +U gate passed with it), then merge `seed-tiebreak` into main.
+
+**How it ran:**
+1. `anchor-batch` (7591ec69) merged into main as `cacea828`; OpenWork conflict resolved as in qchem1's 6f7c6578.  `scripts/vet-decks`
+   49/49 OK (no deck still used `globalFermi`: the SrVO3 hit was a comment string).  Fast 1052/1052, long 4/4.
+2. `seed-tiebreak` rebased (no conflicts).
+3–4. ⚠ Step 4 FAILED its premise first: with `SeedStrategy::SAD` the anchor landed at −61.41533 (0.78 mHa lower, Mn +4.4554/−4.4418,
+   O −0.0068) on a 12-op group.  Cause: the decoration is DERIVED from the seed's per-species targets, and neutral O (2p⁴) is labelled
+   UP on both sites → a ferrimagnet.  Main's IonicSAD had O²⁻ (non-magnetic) → 24 ops.  The CORRECTION of 2026-10-22 was half right:
+   main's IonicSAD seed was neutral Mn ×2 **+ O²⁻ ×2** (30 e for a 26 e cell), not neutral SAD.  User ruling: the ordering is
+   STATED, never inferred (OpenWork §3 row).  The anchor got `siteSpins {+1,-1,0,0}` on main (`52735109`, bit-identical: −61.4145467920,
+   17 iterations); on the branch, SAD + stated spins → −61.4145467920 in 15 iterations, Mn ±4.4506, O 0 — the same fixed point from a
+   different first iterate (pin 10).  The TRUE ionic seed (Mn²⁺ ×2 + O²⁻, 24 ops) loses AFM: iterate-1 moment 0.30, −60.97043 Ha,
+   unconverged at 82 iterations (OpenWork §3 row).
+5. Branch sweep: fast 1053/1053 (+1 UT), long 4/4; `anchordiff` at 1e-10 Ha: no energy moved; iterations moved only in the SR anchor
+   (17 → 15) and the VA +U gate's U=0 arm (18 → 38, the fixed IonicSAD seed's 0.30 start).  Merged as `beffb23b`.
+
