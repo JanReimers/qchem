@@ -52,7 +52,7 @@ and **Kerker/Pulay as the default mixer** (OpenWork §3 row -- its plan is there
 
 | id | what is open | next action · record |
 |---|---|---|
-| ✅ D-MINDRHO | DONE 2026-10-22 (anchor batch, option A): ONE gate, `MinΔρPerElectron` = ∫|ρ_out−ρ_in|/N on the run's quadrature (deck `minDeltaRhoPerElectron`; `MinΔρ` / `minDeltaRho` retired).  REMAINDER: FeS₂'s FD-vs-LR 1.3 % gap rerun under the new gate (`decks/campaigns/CrossCode/fes2_Fe3d_G.json`, in progress) | `Records/CleanupHistory3.md` |
+| ✅ D-MINDRHO | DONE 2026-10-22 (anchor batch, option A): ONE gate, `MinΔρPerElectron` = ∫|ρ_out−ρ_in|/N on the run's quadrature (deck `minDeltaRhoPerElectron`; `MinΔρ` / `minDeltaRho` retired).  FeS₂'s FD-vs-LR 1.3 % gap CLOSED under it (+0.04 %; `Records/HubbardUHistory.md` A7 cross-code gate) | `Records/CleanupHistory3.md` |
 | **V1.24 (iii)** | GDM soft-direction preconditioning of near-degenerate diffuse modes changes the GDM trajectory (iteration counts, and the last digits of a converged anchor at the tolerance floor).  The (i) rename of `FDMax` stays in the main table | With the OT build (OpenWork §2) · H2 V1.24 |
 | ✅ D5 | DONE 2026-10-21 (anchor batch): imposed Becke warns on the scheme override, resolves an unset degree to 29, and an exhausted seed pool THROWS; moved nothing | `Records/CleanupHistory3.md` |
 | ✅ V1.22 | DONE 2026-10-21 (anchor batch): one Becke partition per ATOM ORBIT, copied to members point for point; post-filter fold deleted.  O2Box −7.2e-5 Ha (456 points no longer dropped), the rest ≤ 1e-7 | `Records/CleanupHistory3.md` |

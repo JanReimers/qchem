@@ -173,6 +173,8 @@ void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
 //! Does \a cd carry a retained-D source (QCHEM_XC_DM_SOURCE / the N4 cusp deficit)?  A bool-returning
 //! wrapper so a caller declared ABOVE ExactSource's definition can still ask.
 bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {return bool(ExactSourceOf(cd));}
+//! ...and is it the N4 cusp-deficit route (a correction map), as opposed to the wholesale DM source?
+bool HasXCCorrection(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {return bool(ExactSourceOf(cd).corr);}
 
 //! The engine notes which ρ source it served XC from (the free helper below reports the sign census).
 void SinglesDensitySampler::NoteRoute(const char* route) const

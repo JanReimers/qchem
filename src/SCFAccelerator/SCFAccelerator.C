@@ -78,6 +78,11 @@ public:
     // Should the SCF iterator run its direct-minimization loop (geodesic line search, no
     // density mixing)?  True for a GDM-style minimizer; the ladder reports its active rung's.
     virtual bool WantsLineSearch() const {return false;}
+    //! Does this accelerator EXTRAPOLATE the Fock matrix over a history (DIIS)?  Asked by the density-mixer policy
+    //! (\c SCFParams::Mixing::Auto): a density history (Pulay) beside a Fock history fights -- measured 2026-10-22,
+    //! free Si k222 stalls and Si Γ diverges -- so Auto mixes linearly beside one.  A ladder answers for ANY rung it
+    //! may run, not only the active one (it can fall back to DIIS mid-run).  Default false.
+    virtual bool ExtrapolatesFock() const {return false;}
     // Is a geodesic step actually READY this iteration (seeded + residual under its engage threshold)?  The
     // iterator runs the direct-min driver only when WantsLineSearch() AND CanLineSearch(); otherwise it does a
     // MIXED fixed-point step -- so a not-yet-ready minimizer degrades to a stable mixed diagonalize, never an

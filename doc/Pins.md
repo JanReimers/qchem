@@ -201,17 +201,17 @@ is the defect (user, 2026-09-11; V1.5 deleted the `Emit*()` faces).  Corollary: 
 either physics or a gate the run consumes; printing \f$\alpha_{eff}\f$ implied it was used, so it was
 deleted (user, 2026-09-13).  Records: `RunReportPlan.md`, `CleanupHistory3.md` V1.5.
 
-## 18. XC is fed the mixer's density; a separately damped XC feed destroys Kerker's mode selectivity
+## 18. A separately damped XC feed destroys Kerker's mode selectivity
 
 Four collapsed MnO states (−45.5, −46.3, −56.4, −38.5 vs the converged −61.403) had one cause, a monotone
 dose-response in \f$E_{ee}\f$ (13.5 → 29.0 → 35.1): giving \f$V_{xc}\f$ a density damped by a flat
 \f$\alpha_{eff}\f$ un-damps the low-G charge mode 2.4× and barely touches the AFM mode.  Kerker's low-G
 charge-slosh damping is what holds the AFM basin; the moment collapse follows from the charge runaway and
 is not a spin effect.  So the XC feed is never a second, independently damped copy of the density.  The
-ρ≥0 goal survives (the DM route gives 0 negative points against 15% for the band-limited ρ̃) via the cusp
-deficit \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$, with no \f$\alpha_{eff}\f$ to choose (N4,
-still to be measured).  Also: \f$\tilde\rho_{mix}\f$ and \f$\rho[D]\f$ have different fixed points (ρ̃ is a
-band-limited fit projection; NaF 139 μHa), so "at convergence they agree" is false, and \f$E_{ee}\f$ is a
+ρ≥0 goal survives (the DM route gives 0 negative points against 15% for the fitted ρ̃) via the cusp
+deficit \f$\rho_{XC}=\tilde\rho_{mix}+(\rho[D]-\tilde\rho_{fit})\f$, with no \f$\alpha_{eff}\f$ to choose (N4,
+still to be measured; pin 28 makes it the RULE on a field mixer).  Also: \f$\tilde\rho_{mix}\f$ and \f$\rho[D]\f$ have different fixed points (ρ̃ is a
+fit projection; NaF 139 μHa), so "at convergence they agree" is false, and \f$E_{ee}\f$ is a
 validated charge-slosh detector (T3).  Record: `OpenWork_History4.md` "ITEM 1 MEASURED" + "N4".
 
 ## 19. Never density-screen the gather — \f$h_{ij}\f$ is diagonalised, not traced
@@ -277,3 +277,50 @@ Records: `HubbardUPlan.md`, `OpenWork_History5.md` §2.
 With a leaf's `G0=0` (the undamped m channel of (ρ,m) mixing) it is 0/0 at G=0 and the NaN rides into the
 rebuilt channels and v_xc.  Guard: `g2>0 ? … : 1.0` (full mixing, not frozen); gate
 `GPW_Si.Γ_Imp_Pol_Kerker_eqUnpol`.  Record: `OpenWork_History5.md` ("(ρ,m) Kerker on an exact SINGLET").
+
+## 28. XC is evaluated from ρ[D], never from a fitted ρ
+
+> "Calculating XC from any 'fitted' ρ has caused massive problems in the past." (user, 2026-10-22)
+
+\f$V_{xc}\f$ and \f$E_{xc}\f$ see the density of the density matrix, \f$\rho[D](r)=\sum_{ij}D_{ij}\chi_i(r)\chi_j^*(r)\f$
+evaluated pointwise on the XC quadrature -- never the FIT's representation of it, whatever the fit basis (\f$\tilde\rho_{fit}\f$,
+or a mixer's \f$\tilde\rho_{mix}\f$).  A fitted ρ misses whatever its basis cannot hold -- on a plane-wave fit, the core cusp,
+with Gibbs ringing (pin 1): 15% of MnO's XC points came out negative (min −0.154) against none on the ρ[D] route -- and it has
+a DIFFERENT fixed point: NaF 139 μHa, the O₂ box on O q6 **+7.72 mHa** (−30.70246 vs −30.71018; 2026-10-22).  At kT = 0 the
+factored D (low rank, `policy.dmLowRank`) makes ρ[D] cheap -- 130× cheaper per sampling than the matrix-free fitted ρ on MnO.
+(Pin 2 is a different statement: it routes every density through the fit INTERFACE; this pin says which ρ XC must see.)
+
+**Two exceptions (user, 2026-10-22), both transient:**
+1. **The SAD seed** has no D -- one iteration.
+2. **A G-dependent (Kerker-type) preconditioner** exists only in the fit's {G} representation, so its step cannot be taken on D.
+   During such a step XC sees \f$\rho_{XC}=\tilde\rho_{mix}+(\rho[D]-\tilde\rho_{fit})\f$ (the CUSP DEFICIT, N4): the damped fitted
+   part plus what the fit cannot hold, taken from the current D.  At the fixed point \f$\tilde\rho_{mix}=\tilde\rho_{fit}\f$, so it IS
+   ρ[D] (O₂ box: −30.71018173, the ρ[D] value to all digits).  Bare \f$\tilde\rho_{mix}\f$ is NOT this exception -- that is the
+   +7.72 mHa.  Nor is the raw output ρ[D] alone: it strips the filter's damping from the XC channel (MnO AFM-II collapsed to
+   −45.5 Ha vs −61.403; pin 18).  The part outside the fit needs no damping: no mixer acts outside the fit space.
+
+- A mixer with NO G-dependent filter mixes D itself, history and all -- \f$\rho[\sum_i c_iD_i]=\sum_i c_i\rho[D_i]\f$ pointwise -- so XC
+  sees \f$\rho[D_{mix}]\f$ with no correction.  Linear D-mixing and direct minimisation (GDM) comply (O₂ box: linear −30.71018167/173).
+  A Pulay history without Kerker (G0 = 0) is in this class too, but today's `PulayMixer` still mixes the fitted ρ̃ (OpenWork §3).
+- The cusp deficit is wired on Kerker and Kerker-preconditioned Pulay, unpolarized and in both spin coordinates, (ρ↑,ρ↓) and
+  (ρ,m), and is the DEFAULT (`SCFParams::XCCuspDeficit` = true, 2026-10-22); false is a control, never a recipe.  The raster (pair)
+  XC route meets it with its raw shadow (ρ[D] collocated pointwise, mixed on the raster) and refuses the flag on its BALL (fitted)
+  fallback.  Free MnO AFM-II holds its order with it (moment 4.453); the flip moved no anchor's verdict (`OpenWork_History5.md`).
+
+Records: `OpenWork_History4.md` "ITEM 1 MEASURED" (MnO negatives, the collapse), `OpenWork.md` §3 "Kerker/Pulay as the
+DEFAULT mixer" and N4 (the O₂ and MnO arms).
+
+## 29. An image list is centred where the integrand lives, never on the operator's home position
+
+A lattice sum that fixes one function in the home cell (\f$\chi_i\f$) and images the rest must keep every image of an operator
+(or of a partner function) that lies within reach of THAT home function -- a sphere about \f$\tau_i\f$, not about the operator's own
+\f$\tau_{op}\f$.  The two differ by \f$\tau_{op}-\tau_i\f$, so a list centred on the operator drops, for each \f$\chi_i\f$, the images on the
+far side of its neighbours, and drops DIFFERENT ones for translation-equivalent sites.  Measured 2026-10-23: `BuildOpTerms` did this
+for the short-range local PP; the two Mn of MnO AFM-II got V_short blocks 2e-3 Ha apart, the VA crystal carried a −61 mHa AFM /
+−97 mHa FM error and a −37 mHa spurious FM-favouring bias.  The cheapest guard is the symmetry itself: TRANSLATION-EQUIVALENT SITES
+MUST GET IDENTICAL BLOCKS (`GPW.VshortIsTranslationInvariant`, `GPW.LatticeSumsAreTranslationEquivariant`) -- a rigid shift of the
+whole crystal does NOT catch it.  The SAME defect, found the same day in the ion-ion Ewald real-space sum (|R| ≤ rcut instead of the
+pair distance; −47.24 mHa on the same cell, `StructureTests.EwaldFarApartHomeAtoms`): one-formula-unit test cells, whose atoms sit
+close together, cannot see this class -- gate on a cell whose home atoms are far apart.  Together the two were the whole MnO VA
+offset against CP2K (now +0.16 mHa).  Record: `OpenWork_History5.md` "MnO accuracy".
+

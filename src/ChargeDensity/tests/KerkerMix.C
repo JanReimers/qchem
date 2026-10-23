@@ -364,3 +364,60 @@ TEST(KerkerMix, SpinBlindValveCollapsesTheChannels)
     EXPECT_EQ(ChannelOf(fock, Spin::Down), nullptr);
     EXPECT_NEAR(fock->GetTotalCharge(), seed.GetTotalCharge(), 1e-12) << "...but the right total";
 }
+
+// N4 (doc/Pins.md pin 28) on the PULAY arm, in BOTH channel bases: XC is fed rho[D] + (rho_mix - rho_fit) PER SPIN, so each
+// presented spin channel carries the correction mix_sigma - out_sigma against the LATEST output -- in (rho,m) formed by the
+// polarized mixer from the rebuilt channels (its rho and m leaves present none).  At the fixed point (out = in) it vanishes,
+// which is what makes XC see rho[D] exactly there; and with the flag off no correction is built at all.
+TEST(KerkerMix, CuspDeficitIsPerSpinOnThePulayArmInEitherChannelBasis)
+{
+    auto corrOf=[](const cChargeDensity* ch, const auto& fit)
+    {
+        auto* src=dynamic_cast<const cDM_Sourced_CD*>(ch);
+        if (!src) throw std::runtime_error("test: a presented channel must carry the DM-sourced face");
+        auto c=src->XCCorrection();
+        return c ? FourierOf(c.get()).GetFourierDensity(fit) : ΔG_Map{};
+    };
+    for (bool rhoM : {false, true})
+        for (bool cusp : {true, false})
+        {
+            ScopedChannelBasis basis(rhoM);
+            MnBox box;
+            PolarizedSeedCD seed(box.fitCD, box.st.get());
+            PulayParams p; p.relax=0.5; p.G0=1.0; p.cuspDeficit=cusp; p.depth=8; p.start=3;   // step 1 primes: plain Kerker
+            auto mixer=PulayMixerFactory(p, box.bs.get(), box.st.get(), &seed);
+            const ΔG_Map up0=FourierOf(ChannelOf(&seed, Spin::Up  )).GetFourierDensity(*box.fitSF);
+            const ΔG_Map dn0=FourierOf(ChannelOf(&seed, Spin::Down)).GetFourierDensity(*box.fitSF);
+            const double qUp=ChannelOf(&seed, Spin::Up)->GetTotalCharge(), qDn=ChannelOf(&seed, Spin::Down)->GetTotalCharge();
+            const ivec3_t G0(0,0,0);
+            ΔG_Map upOut=up0, dnOut=dn0;
+            upOut[G0]=dcmplx(upOut[G0])+0.4;
+            dnOut[G0]=dcmplx(dnOut[G0])-0.1;
+            TwoChannelWorking out(upOut, dnOut, GetReciprocalLattice(box.st.get()), qUp, qDn);
+            (void)mixer->Mix(out, out);
+            const cChargeDensity* fock=mixer->FockDensity(out);
+            const std::string tag=std::string(rhoM ? "(rho,m)" : "(up,dn)")+(cusp ? " cusp" : " no cusp");
+            for (Spin s : {Spin::Up, Spin::Down})
+            {
+                const cChargeDensity* ch=ChannelOf(fock, s);
+                const ΔG_Map corr=corrOf(ch, *box.fitSF);
+                if (!cusp) { EXPECT_TRUE(corr.empty()) << tag << ": the correction must not even be formed"; continue; }
+                const ΔG_Map mix=FourierOf(ch).GetFourierDensity(*box.fitSF);
+                const ΔG_Map& o=(s==Spin::Up) ? upOut : dnOut;
+                ΔG_Map expect=mix;
+                for (const auto& [g,v] : o) expect[g]=dcmplx(expect[g])-dcmplx(v);
+                ExpectSameMap(corr, expect, 1e-12, (tag+": corr = mix - out").c_str());
+                EXPECT_GT(std::abs(dcmplx(corr.at(G0))), 1e-3) << tag << ": a real step leaves a real deficit";
+            }
+            if (!cusp) continue;
+            // THE FIXED POINT: feed back exactly what the mixer presented, so out = in -- the deficit is zero.
+            const ΔG_Map upIn=FourierOf(ChannelOf(fock, Spin::Up  )).GetFourierDensity(*box.fitSF);
+            const ΔG_Map dnIn=FourierOf(ChannelOf(fock, Spin::Down)).GetFourierDensity(*box.fitSF);
+            TwoChannelWorking same(upIn, dnIn, GetReciprocalLattice(box.st.get()), qUp, qDn);
+            (void)mixer->Mix(same, same);
+            const cChargeDensity* fock2=mixer->FockDensity(same);
+            for (Spin s : {Spin::Up, Spin::Down})
+                for (const auto& [g,v] : corrOf(ChannelOf(fock2, s), *box.fitSF))
+                    EXPECT_NEAR(std::abs(dcmplx(v)), 0.0, 1e-12) << tag << ": the deficit vanishes at the fixed point";
+        }
+}

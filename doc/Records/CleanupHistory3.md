@@ -280,4 +280,6 @@ into the terms), `R2.5b` (`throw` is a marker), `V1.20` (`.Internal.` = the FAMI
   annealed anchor's internal energy) -- now `GPW_Al.Γ_Imp_Converges`.  ⚠ pybind/qchem_bridge.cpp builds SCFParams
   POSITIONALLY ({maxiter, 1e-4, ...}): it compiles, but its 1e-4 now means 1e-4 electrons per electron -- FLAGGED for the
   binding owner, not edited.
+  FeS₂ FD rerun (the user's check, 2026-10-22): χ_FD −3.98893 vs χ_LR −3.98723 (+0.04 %, was −1.3 %), CP2K FD −3.98992 -- the gap is
+  closed; credit between this gate and the carried-density refill not separated.
 

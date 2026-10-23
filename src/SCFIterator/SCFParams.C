@@ -1,4 +1,6 @@
 // File: SCFParams.C Parameters used for controling SCF iteration and convergence.
+module;
+#include <stdexcept>
 export module qchem.SCFParams;
 import qchem.Types;
 
@@ -45,13 +47,17 @@ export struct SCFParams
     double StartingRelaxRo = 1.0;    //relaxation for mixing Ro.  Dynamically adjusted during iterations.
     double MergeTol        = 1e-4;   //Merge eigen levels (like Px,Py Pz) that are equal within +/- MergeTol
     bool   Verbose         = true;   //Display iteration details.  ON by default (user, 2026-10-05): a run's console without its iteration table hides where the time goes.
-    //! \brief Feed \f$V_{xc}\f$ the CUSP-DEFICIT correction \f$\rho[D]_{exact}-\rho[D]_{BL}\f$ on top of the
-    //! mixed density, instead of the band-limited \f$\tilde\rho_{mix}\f$ alone (doc/OpenWork.md N4).
+    //! \brief Feed \f$V_{xc}\f$ the CUSP-DEFICIT correction \f$\rho[D]-\tilde\rho_{fit}\f$ on top of the mixed density,
+    //! instead of the fitted \f$\tilde\rho_{mix}\f$ alone (doc/OpenWork.md N4) -- how a Kerker/Pulay run meets doc/Pins.md pin 28
+    //! (XC from ρ[D]): at the fixed point \f$\tilde\rho_{mix}=\tilde\rho_{fit}\f$ and XC sees ρ[D] exactly.
     //!
     //! A MIXER-CONSTRUCTION policy, deliberately, not a switch the XC code reads: CP2K parity is a property
-    //! of WHICH MIXER WAS BUILT, so it must be decidable at the factory and leave the plain Kerker mixer
-    //! bit-identical.  false (default) = CP2K-conforming plain Kerker; the correction is not even formed.
-    bool   XCCuspDeficit   = false;
+    //! of WHICH MIXER WAS BUILT, so it must be decidable at the factory.  TRUE BY DEFAULT since 2026-10-22 (pin 28; user);
+    //! false = the pre-pin-28 mixer, XC on the fitted ρ̃_mix (the correction is not even formed) -- a control, not a recipe.
+    //! Read only by the Kerker/Pulay mixers (linear D-mixing and GDM already feed XC ρ[D]).  Wired on Kerker and Pulay,
+    //! unpolarized and in both spin coordinates; the pair (raster) XC route serves it with its raw shadow and refuses it on
+    //! the BALL fallback (DensitySampler_Pair.C).
+    bool   XCCuspDeficit   = true;
     double KerkerG0        = 0.0;    //Kerker density-mixing screening wavevector G0 (a.u.^-1).  0 (default) =
                                      //  OFF -> classic linear density-matrix mixing (atoms/molecules unchanged).
                                      //  >0 -> preconditioned rho-mixing on the periodic (GPW/PW) path: damp the
@@ -108,7 +114,73 @@ export struct SCFParams
         int MaxReleases     = 2;     //Releases per run; a hole surviving them is WARNED loudly at run end.
     };
     MOMGuardParams Guard;            //Advanced: the MOM guard (only consulted when UseMOM).
+
+    //! \brief WHICH density mixer (OpenWork §3 "Kerker/Pulay as the DEFAULT mixer"; user 2026-10-04: *"in general
+    //! Kerker/Pulay should be the default mixer"*).
+    //!
+    //! \c Auto (default) is resolved by the ITERATOR, which knows whether it can mix in G space and whether its accelerator
+    //! keeps a Fock history (\c ResolveMixing below): a periodic run with NO Fock extrapolator gets Kerker-preconditioned
+    //! Pulay with ITS OWN recipe (\c theAutoMixing -- \c StartingRelaxRo's 1.0 default is LINEAR's step and is not read);
+    //! a molecule/atom, or a run beside DIIS, gets linear D-mixing at \c StartingRelaxRo (Pulay beside DIIS fights; the solid
+    //! facade's \c Auto accelerator is the other half of the pair).  A caller
+    //! that already set a G-space knob (\c KerkerG0>0, \c PulayDepth>0) keeps exactly that recipe under \c Auto, so
+    //! every hand-tuned recipe in the tree means what it meant.  The explicit modes say what they read: \c Linear =
+    //! \c StartingRelaxRo only (the G-space knobs are ignored); \c Kerker = \c KerkerG0 (>0), no history; \c Pulay =
+    //! \c PulayDepth (>0), \c PulayStart, \c KerkerG0 (0 = an unpreconditioned history).  Kerker and Pulay THROW on a
+    //! run that cannot mix in G space.
+    enum class Mixing { Auto, Linear, Kerker, Pulay };
+    Mixing Mixer           = Mixing::Auto;
 };
+
+//! The density-mixing recipe \c Mixing::Auto resolves to on a periodic run (\c ResolveMixing).
+export struct MixingRecipe
+{
+    double relax;   //!< the mixing step α (→ \c StartingRelaxRo)
+    double G0;      //!< Kerker screening wavevector, a.u.⁻¹ (→ \c KerkerG0)
+    int    depth;   //!< Pulay history depth (→ \c PulayDepth)
+    int    start;   //!< plain-Kerker priming iterations before the history engages (→ \c PulayStart)
+};
+//! THE default periodic mixer.  The banked recipe of the tree's Kerker/Pulay runs (free MnO AFM-II
+//! `decks/MnO_AFM2_free.json`, Si k211 FD gate, the Response kernel's density-mixing arm), close to VASP's
+//! AMIX 0.4 / BMIX 1 Å⁻¹ and CP2K's ALPHA 0.4 + NBUFFER.
+export inline constexpr MixingRecipe theAutoMixing{.relax=0.45, .G0=1.0, .depth=8, .start=5};
+
+//! \brief Resolve \c p.Mixer to a concrete mode with its knobs filled; the result's \c Mixer is never \c Auto.
+//! \a gSpace = can this run mix in G space (the periodic iterator asks its density); \a fockExtrapolates = the run's accelerator
+//! keeps a Fock history (DIIS, a ladder with a DIIS rung), beside which \c Auto stays LINEAR -- a density history next to a Fock
+//! history fights (measured 2026-10-22); \a recipe = what \c Auto becomes otherwise.
+//! Idempotent: resolving a resolved value returns it unchanged.  Throws on an explicit G-space mode without its knob,
+//! or without \a gSpace.
+export inline SCFParams ResolveMixing(const SCFParams& p, bool gSpace, bool fockExtrapolates=false,
+                                     const MixingRecipe& recipe=theAutoMixing)
+{
+    using M = SCFParams::Mixing;
+    SCFParams r=p;
+    switch (p.Mixer)
+    {
+    case M::Linear:
+        return r;
+    case M::Kerker:
+    case M::Pulay:
+        if (!gSpace)
+            throw std::invalid_argument("SCFParams: Kerker/Pulay mixing needs a periodic (G-space) run; use Mixing::Linear.");
+        if (p.Mixer==M::Kerker && p.KerkerG0<=0.0)
+            throw std::invalid_argument("SCFParams: Mixing::Kerker needs KerkerG0 > 0.");
+        if (p.Mixer==M::Pulay && p.PulayDepth<=0)
+            throw std::invalid_argument("SCFParams: Mixing::Pulay needs PulayDepth > 0.");
+        if (p.Mixer==M::Kerker) r.PulayDepth=0;
+        return r;
+    case M::Auto:
+        break;
+    }
+    if (!gSpace)              { r.Mixer=M::Linear; return r; }   // molecules / atoms: today's linear D-mixing
+    if (p.PulayDepth>0)       { r.Mixer=M::Pulay;  return r; }   // a hand-set recipe is kept as it was
+    if (p.KerkerG0>0.0)       { r.Mixer=M::Kerker; return r; }
+    if (fockExtrapolates)     { r.Mixer=M::Linear; return r; }   // beside DIIS: today's linear + DIIS
+    r.StartingRelaxRo=recipe.relax; r.KerkerG0=recipe.G0;
+    r.Mixer=M::Pulay; r.PulayDepth=recipe.depth; r.PulayStart=recipe.start;
+    return r;
+}
 
 
 

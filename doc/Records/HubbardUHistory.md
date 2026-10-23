@@ -1692,6 +1692,11 @@ CK-alpha pipelines (`~/Code/qchem6-runs/batch/lib_ckalpha_generic.sh`, logs `bat
 Agreement on the insulators: χ₀ 0.5–0.6 %, χ 0.07–0.3 %, U to 6 meV (TiO₂) and <1 meV (FeS₂); same-state checks pass (d traces,
 FeS₂ ±α SCFs ΔE = ±7.69e-3 Ha = α·n_d).  ⇒ The TiO₂ +5 % and FeS₂ −20 % gaps CP2K-vs-hp.x are SETUP (Γ vs k 4³/q 2³, LOWDIN-all vs
 ortho-atomic), not method.  Cost: TiO₂ 21.6 min wall / 715 MB (6 threads, LR + FD); FeS₂ 38.9 min / 2.6 GB (6 threads; SCF 28 iterations, LR 15 kernel applications).  OPEN, not chased: FeS₂'s OWN FD χ is 1.3 % below its LR (TiO₂: 3e-4) although the ±α SCFs stay on the ground-state branch and the restore returns to it (ΔE 5e-8 Ha); CP2K's FD agrees with our LR to 0.07 %, so the gap is in our FD path, not the response (candidates: the iteration-0 refill below, the FD SCF tolerance at Δn = χα ≈ 4e-3).
+**RESOLVED 2026-10-22 (anchor-moving batch):** rerun of `decks/campaigns/CrossCode/fes2_Fe3d_G.json` after the carried-density refill
+(±α stages refilled under the run's kT) and D-MINDRHO (the honest convergence gate; the old Kerker/Pulay gate stopped 50–120× early):
+χ_FD −3.98893 vs χ_LR −3.98723 (+0.04 %; was −1.3 %), CP2K's FD −3.98992 (now 0.025 % apart); ground state and LR unchanged
+(Etot −164.9113610, 28 iterations, U 6.007 eV); ±α SCFs 33 iterations each.  Which of the two changes closed it is not separated (an
+item-1-only rerun would).  Run data `~/Code/qchem6-runs/FeS2/fes2_Fe3d_G_newgate_20261022.{log,json}`.
 
 **SrVO₃ — why parked (user 2026-10-21: look for corner cases where U/χ disagree, do not get bogged down in convergence heuristics).**
 (1) The committed deck had `multiplicity 1`; on 25 e that is a 13↑/12↓ DOUBLET (`twoS = Nelec % 2`), which at Γ polarizes (V +2.60,

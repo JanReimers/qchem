@@ -1767,6 +1767,223 @@ TEST(GPW, DiffuseDVlongSharpFieldOracle)   // RE-ENABLED 2026-09-15 (TE phase 5)
     EXPECT_LT(worst, 1e-2) << "V_long integrate-back vs oracle with the SHARP O field: disagreement";
 }
 
+// ============ The SHORT-range local-PP oracle on a MIXED-species crystal (OpenWork §3 "MnO accuracy", 2026-10-23) ============
+// The MnO hunt left a SHORT-range (kappa ~1.7/bohr), mixed-species, >=3-centre term as the suspect for the -144 mHa VA offset: every
+// one-species / two-atom rung agrees with CP2K, the crystal does not.  Mn q7's local PP has NO C terms (V_short == 0, pinned below
+// in the Mn-only gate), so the live 3-centre short term is O's Gaussian well between basis functions on OTHER atoms -- two Mn on one
+// O.  The long-range local (DiffuseDVlongSharpFieldOracle) and the KB (DiffuseDKBOracle) already face an independent oracle on this
+// cell; the short range did not (its only cross-check, LocalPPKappaSelfConverged, is Si-only at 1e-2).  This gate holds production
+// MakeLocalPPShort (the analytic lattice-summed Overlap3C, minus the periodic cell mean v-bar*S) against a raster quadrature written
+// from the GTH parameters as CP2K's GTH_POTENTIALS lists them, sharing nothing with production but the cell and the basis:
+//     V_short^O(r) = exp(-x^2/2) [C1 + C2 x^2],  x = |r - tau_O - R| / rloc,   v-bar = (2 pi)^{3/2} rloc^3 (C1 + 3 C2) / Omega
+// The raster is spectrally exact for the sharp well (aliasing e^{-(2 pi rloc / h)^2 / 2} ~ e^{-47} at N=64); diffuse pairs only, as
+// in the long-range gate.  The per-pair-CLASS breakdown (both functions on Mn / mixed / both on O) is printed so a defect confined to
+// the Mn-Mn-on-O class -- the one a dimer cannot exercise -- is visible as such.
+TEST(GPW, DiffuseDVshortMixedSpeciesOracle)
+{
+    const double a=8.40;
+    Matrix3D<double> Amat(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    UnitCell cell(Amat);
+    cell.AddAtom(25, {0.0,0.0,0.0});
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    cell.AddAtom( 8, {0.25,0.25,0.25});
+    cell.AddAtom( 8, {0.75,0.75,0.75});
+    auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
+    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,1.2}, 1, &cell));   // s+p; shells on every atom
+    std::shared_ptr<const Real_BS> mol(cbs);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    const GPW_Evaluator& ev=gpw;
+    const auto gthMn=Pseudopotential::GetGTH("Mn","LDA",7);
+    const auto gthO =Pseudopotential::GetGTH("O","LDA",6);
+    Pseudopotential::MultiSpecies_LocalPotential loc;                 // as production wires it (Hamiltonians.C)
+    loc.Add(25, std::make_shared<const Pseudopotential::HGH_LocalPotential>(gthMn.local));
+    loc.Add( 8, std::make_shared<const Pseudopotential::HGH_LocalPotential>(gthO.local));
+    const chmat_t Vs=ev.MakeLocalPPShort(&cell, loc);                 // production: ANALYTIC (closed-Gaussian face)
+
+    const Real_OIBS* obs=nullptr;
+    for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
+    ASSERT_TRUE(obs);
+    const size_t n=obs->GetNumFunctions();
+    ASSERT_EQ(Vs.rows(), n);
+    const double Omega=cell.GetCellVolume();
+    const double rloc=0.24762086, C1=-16.58031797, C2=2.39570092;     // O GTH-PADE-q6, CP2K data/GTH_POTENTIALS
+    const rvec3_t tauO[2]={cell.ToCartesian(rvec3_t(0.25,0.25,0.25)), cell.ToCartesian(rvec3_t(0.75,0.75,0.75))};
+    const double vbar=2.0*std::pow(2.0*M_PI,1.5)*rloc*rloc*rloc*(C1+3.0*C2)/Omega;   // two O, Mn contributes 0
+
+    std::vector<rvec3_t> wellImages, orbImages;
+    const double wellReach=8.0*rloc, orbReach=13.5, cellDiag=2.0*std::sqrt(3.0)*a;
+    for (int i=-6;i<=6;i++) for (int j=-6;j<=6;j++) for (int k=-6;k<=6;k++)
+    {
+        const rvec3_t R=cell.ToCartesian(rvec3_t(i,j,k));
+        if (norm(R)<=wellReach+cellDiag) wellImages.push_back(R);
+        if (norm(R)<=orbReach+cellDiag)  orbImages.push_back(R);
+    }
+    // The atom each function sits on (shells are inserted on every atom of the cell, in atom order): read it off the orbital's own
+    // value pattern -- the function peaks at its centre -- rather than assuming a layout.
+    const rvec3_t centres[4]={cell.ToCartesian(rvec3_t(0,0,0)), cell.ToCartesian(rvec3_t(0.5,0.5,0.5)), tauO[0], tauO[1]};
+    std::vector<int> onO(n,0);
+    {
+        for (size_t p=0;p<n;p++)
+        {
+            double best=-1; int bi=0;
+            for (int c=0;c<4;c++)
+            {
+                const rvec3_t probe=centres[c]+rvec3_t(0.05,0.07,0.11);
+                const double v=std::fabs((*obs)(probe)[p]);
+                if (v>best) {best=v; bi=c;}
+            }
+            onO[p]= bi>=2;
+        }
+    }
+    const int N=64;
+    const double w=Omega/double(N*N*N);
+    rmat_t h(n,n,0.0), sOr(n,n,0.0);
+    rvec_t chi(n);
+    double wellInt=0.0;
+    for (int i=0;i<N;i++) for (int j=0;j<N;j++) for (int k=0;k<N;k++)
+    {
+        const rvec3_t r=cell.ToCartesian(rvec3_t(double(i)/N, double(j)/N, double(k)/N));
+        double V=0.0;
+        for (const auto& R : wellImages)
+            for (const auto& t : tauO)
+            {
+                const rvec3_t d=r-t-R; const double x2=(d*d)/(rloc*rloc);
+                if (x2<64.0) V+=std::exp(-0.5*x2)*(C1+C2*x2);
+            }
+        wellInt+=w*V;
+        chi=0.0;
+        for (const auto& R : orbImages) chi+=(*obs)(r-R);
+        for (size_t p=0;p<n;p++)
+            for (size_t q=p;q<n;q++) { h(p,q)+=w*chi[p]*chi[q]*V; sOr(p,q)+=w*chi[p]*chi[q]; }
+    }
+    // The ORACLE's own machinery against things production gets right: the Γ BLOCH overlap (production subtracts v-bar times THIS,
+    // GPW_Evaluator::OverlapMatrix -- not the home functions' molecular overlap, which was this gate's first defect) and the well's
+    // cell integral.
+    const chmat_t Sb=ev.OverlapMatrix();
+    double ws=0.0;
+    for (size_t p=0;p<n;p++) for (size_t q=p;q<n;q++) ws=std::max(ws, std::fabs(sOr(p,q)-std::real(dcmplx(Sb(p,q)))));
+    std::cout << "[Vshort oracle self-check] max|S_raster - S_Bloch| = "<<ws<<"   cell integral of V_short "<<wellInt
+              <<" vs vbar*Omega "<<vbar*Omega<<std::endl;
+    EXPECT_LT(ws, 1e-6) << "the oracle's Bloch sums / raster disagree with production's Bloch overlap";
+    double worst[3]={0,0,0};
+    for (size_t p=0;p<n;p++)
+        for (size_t q=p;q<n;q++)
+        {
+            const double orac=h(p,q)-vbar*sOr(p,q), prod=std::real(dcmplx(Vs(p,q)));
+            const double rel=std::fabs(prod-orac)/std::max(1e-6,std::fabs(orac));
+            if (std::fabs(orac)<1e-7) continue;
+            const int cls=onO[p]+onO[q];                               // 0: Mn-Mn (on an O well), 1: Mn-O, 2: O-O
+            worst[cls]=std::max(worst[cls], rel);
+        }
+    for (size_t p=0;p<n;p+=4)
+        std::cout << "  fn "<<p<<(onO[p]?" (O) ":" (Mn)")<<" prod="<<std::real(dcmplx(Vs(p,p)))<<"  oracle="<<h(p,p)-vbar*sOr(p,p)<<std::endl;
+    std::cout << "[Vshort mixed-species oracle] n="<<n<<"  worst rel by pair class: Mn-Mn "<<worst[0]
+              <<"  Mn-O "<<worst[1]<<"  O-O "<<worst[2]<<"  (v-bar="<<vbar<<")"<<std::endl;
+    EXPECT_LT(worst[0], 1e-4) << "V_short: two Mn functions on an O well (the 3-centre class a dimer cannot see)";
+    EXPECT_LT(worst[1], 1e-4) << "V_short: Mn-O pairs";
+    EXPECT_LT(worst[2], 1e-4) << "V_short: O-O pairs";
+}
+
+// TRANSLATION INVARIANCE of the short-range local PP (an exact symmetry, NO oracle needed; found 2026-10-23 by the oracle gate above:
+// the two Mn of MnO AFM-II -- related by an FCC lattice translation that maps O onto O -- got DIFFERENT diagonal elements, 0.0175 vs
+// 0.0161 for the same s function).  A rigid shift of every atom by the same vector maps each basis function to its image, so the
+// matrix in the shifted cell must equal the original element by element, and the two equivalent Mn must agree.
+TEST(GPW, VshortIsTranslationInvariant)
+{
+    const double a=8.40;
+    Matrix3D<double> Amat(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    const auto gthMn=Pseudopotential::GetGTH("Mn","LDA",7);
+    const auto gthO =Pseudopotential::GetGTH("O","LDA",6);
+    Pseudopotential::MultiSpecies_LocalPotential loc;
+    loc.Add(25, std::make_shared<const Pseudopotential::HGH_LocalPotential>(gthMn.local));
+    loc.Add( 8, std::make_shared<const Pseudopotential::HGH_LocalPotential>(gthO.local));
+    auto build=[&](const rvec3_t& shift, chmat_t& V)
+    {
+        UnitCell cell(Amat);
+        const rvec3_t f[4]={{0.0,0.0,0.0},{0.5,0.5,0.5},{0.25,0.25,0.25},{0.75,0.75,0.75}};
+        const int Z[4]={25,25,8,8};
+        for (int i=0;i<4;i++) cell.AddAtom(Z[i], f[i]+shift);
+        auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
+        cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,1.2}, 1, &cell));
+        std::shared_ptr<const Real_BS> mol(cbs);
+        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+        const GPW_Evaluator& ev=gpw;
+        V=ev.MakeLocalPPShort(&cell, loc);
+    };
+    chmat_t V0, V1;
+    build(rvec3_t(0,0,0), V0);
+    build(rvec3_t(0.11,0.07,0.13), V1);
+    const size_t n=V0.rows(), per=n/4;                                 // functions are laid out atom by atom
+    ASSERT_EQ(n%4, 0u);
+    double maxShift=0.0, maxMnPair=0.0, scale=0.0;
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
+    {
+        maxShift=std::max(maxShift, std::abs(dcmplx(V0(i,j))-dcmplx(V1(i,j))));
+        scale=std::max(scale, std::abs(dcmplx(V0(i,j))));
+    }
+    for (size_t p=0;p<per;p++) for (size_t q=0;q<per;q++)
+        maxMnPair=std::max(maxMnPair, std::abs(dcmplx(V0(p,q))-dcmplx(V0(per+p,per+q))));   // the Mn1 block vs the Mn2 block
+    std::cout << "[Vshort translation] max|V(shifted)-V| = "<<maxShift<<"  max|V(Mn1 block)-V(Mn2 block)| = "<<maxMnPair
+              <<"  (max|V| = "<<scale<<")"<<std::endl;
+    EXPECT_LT(maxShift,  1e-8) << "V_short changes under a rigid translation of the crystal";
+    EXPECT_LT(maxMnPair, 1e-8) << "V_short differs between two translation-equivalent Mn";
+}
+
+// THE GENERAL FORM of VshortIsTranslationInvariant (pin 29): EVERY one-electron lattice-sum matrix must be EQUIVARIANT under a
+// translation that permutes the atoms.  In MnO AFM-II, (a,a,a) maps Mn1<->Mn2 and O1<->O2 (an FCC vector of the rocksalt, NOT a
+// lattice vector of the 2-f.u. cell), so M(Pi,Pj) == M(i,j) for S, T, V_long, V_short and the KB.  No oracle: a site-dependent
+// image list (the BuildOpTerms defect) breaks it at once, on s+p+d functions.
+TEST(GPW, LatticeSumsAreTranslationEquivariant)
+{
+    const double a=8.40;
+    Matrix3D<double> Amat(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    UnitCell cell(Amat);
+    cell.AddAtom(25, {0.0,0.0,0.0});
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    cell.AddAtom( 8, {0.25,0.25,0.25});
+    cell.AddAtom( 8, {0.75,0.75,0.75});
+    auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
+    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.6,3.0}, 2, &cell));   // s+p+d on every atom
+    std::shared_ptr<const Real_BS> mol(cbs);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    const GPW_Evaluator& ev=gpw;
+    const auto gthMn=Pseudopotential::GetGTH("Mn","LDA",7);
+    const auto gthO =Pseudopotential::GetGTH("O","LDA",6);
+    Pseudopotential::MultiSpecies_LocalPotential loc;
+    loc.Add(25, std::make_shared<const Pseudopotential::HGH_LocalPotential>(gthMn.local));
+    loc.Add( 8, std::make_shared<const Pseudopotential::HGH_LocalPotential>(gthO.local));
+    Pseudopotential::MultiSpecies_SeparablePotential sep;
+    sep.Add(25, std::make_shared<const Pseudopotential::HGH_SeparablePotential>(gthMn.nonlocal));
+    sep.Add( 8, std::make_shared<const Pseudopotential::HGH_SeparablePotential>(gthO.nonlocal));
+    const size_t n=ev.OverlapMatrix().rows(), per=n/4;
+    ASSERT_EQ(n%4, 0u);
+    auto P=[per](size_t i)->size_t { const size_t at=i/per, k=i%per; const size_t pa[4]={1,0,3,2}; return pa[at]*per+k; };
+    auto worst=[&](const chmat_t& M)
+    {
+        double w=0.0, sc=0.0;
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
+        {
+            w =std::max(w,  std::abs(dcmplx(M(P(i),P(j)))-dcmplx(M(i,j))));
+            sc=std::max(sc, std::abs(dcmplx(M(i,j))));
+        }
+        return std::make_pair(w, sc);
+    };
+    const std::pair<const char*, chmat_t> mats[5]={ {"S",       ev.OverlapMatrix()},
+                                                   {"T",       ev.KineticMatrix()},
+                                                   {"V_long",  ev.MakeLocalPPLong(&cell, loc)},
+                                                   {"V_short", ev.MakeLocalPPShort(&cell, loc)},
+                                                   {"KB",      ev.MakeSeparablePP(&cell, sep)} };
+    for (const auto& [name, M] : mats)
+    {
+        const auto [w, sc]=worst(M);
+        std::cout << "[translation equivariance] "<<name<<": max|M(Pi,Pj)-M(i,j)| = "<<w<<"  (max|M| = "<<sc<<")"<<std::endl;
+        // V_long is COLLOCATED on a raster, and a half-cell translation need not map the raster onto itself: grid class, 1e-6 relative
+        // (measured 8.7e-7 absolute on max|M| 8.6, 2026-10-23); the analytic sums are exact to roundoff.
+        const double tol = std::string(name)=="V_long" ? 1e-6 : 1e-8;
+        EXPECT_LT(w, tol*std::max(1.0,sc)) << name << " is not equivariant under the Mn1<->Mn2, O1<->O2 translation";
+    }
+}
+
 // ============ The KB NONLOCAL oracle gate (doc/SphericalLatticePlan.md, 2026-08-15) ============
 // The VA exact-span matrix left the KB assembly as the PRIME SUSPECT for the ~37 mHa configuration-
 // selective qchem-vs-CP2K bias (Δ_NL(AFM−FM) = −1.31 Ha on the VA span while CP2K's total Δ is

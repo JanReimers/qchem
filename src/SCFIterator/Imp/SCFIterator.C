@@ -320,8 +320,14 @@ static void EmitSiteMoments(const EnergyBreakdown& eb)
     qchem::report::EmitAt("scf", "siteMoments", j, qchem::report::Detail::Verbose);
 }
 
-template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
+template <class T> SCFParams tSCFIterator<T>::ResolveMixing(const SCFParams& p) const
 {
+    return qchem::ResolveMixing(p, MixesInGSpace(itsBS, itsKerkerCell.get(), itsCD.get()), itsAccelerator->ExtrapolatesFock());
+}
+
+template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
+{
+    const SCFParams ipar=ResolveMixing(callerParams);   // Mixing::Auto -> this run's mixer (CreateMixer reads the result)
     // ★ THE RESIDUE BUCKET (doc/ParallelAndOraclePlan.md 1.1(a)).  report::Timed is EXCLUSIVE, so an outer
     // scope around the whole loop charges itself precisely what its children do NOT -- i.e. this bucket IS
     // the answer to "how much of the unbucketed time is inside Iterate", with no guessing about where to
@@ -364,9 +370,8 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     // double Eoldold=0;
     EnergyBreakdown eb;
     itsConverged=false;
-    // Density-face mixer for this run (the density-mixing policy + state; doc/SCFStrategyPlan.md):
-    // Kerker ρ̃-mixing when KerkerG0>0 AND the basis/cell/seed are periodic, else linear D-mixing.
-    // α=StartingRelaxRo (1.0 default = passthrough -- there is no NullMixer).
+    // Density-face mixer for this run (the density-mixing policy + state; doc/SCFStrategyPlan.md): the RESOLVED
+    // ipar.Mixer -- Kerker/Pulay ρ̃-mixing on a periodic run, else linear D-mixing at α=StartingRelaxRo (1.0 = passthrough).
     itsMixer = CreateMixer(ipar, itsBS, itsKerkerCell.get(), itsCD.get());
     itsAdaptive = dynamic_cast<qchem::ChargeDensity::tAdaptiveMixer<T>*>(itsMixer.get());   // null = fixed step
 
@@ -930,20 +935,33 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
 // geometry: being periodic is what this class IS, so the G-space factories take the Orbital_DFT_IBS<dcmplx>
 // basis, the UnitCell and the seed as preconditions rather than probing for them.  This caller KNOWS what it
 // wants, so it names the factory and supplies that recipe's knobs and nothing else (V1.18).
+bool SolidSCFIterator::MixesInGSpace(const tbs_t<dcmplx>* bs, const Structure* cell, const tDM_CD<dcmplx>* seed) const
+{
+    return qchem::ChargeDensity::CanMixInGSpace(bs, cell, seed);
+}
+
 std::unique_ptr<qchem::ChargeDensity::tDensityMixer<dcmplx>>
 SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, const Structure* cell,
                               const tDM_CD<dcmplx>* seed) const
 {
     namespace CD = qchem::ChargeDensity;
-    if (ipar.PulayDepth>0)
+    using M = SCFParams::Mixing;
+    assert(ipar.Mixer!=M::Auto && "CreateMixer: Iterate resolves SCFParams::Mixer first");
+    switch (ipar.Mixer)
+    {
+    case M::Pulay:
     {
         CD::PulayParams p;
         p.relax=ipar.StartingRelaxRo; p.G0=ipar.KerkerG0; p.cuspDeficit=ipar.XCCuspDeficit;
         p.depth=ipar.PulayDepth;      p.start=ipar.PulayStart;
         return CD::PulayMixerFactory(p, bs, cell, seed);
     }
-    if (ipar.KerkerG0>0.0)
+    case M::Kerker:
         return CD::KerkerMixerFactory({ipar.StartingRelaxRo, ipar.KerkerG0, ipar.XCCuspDeficit}, bs, cell, seed);
+    case M::Linear:
+    case M::Auto:
+        break;
+    }
     return CD::LinearMixerFactory<dcmplx>(ipar.StartingRelaxRo);
 }
 

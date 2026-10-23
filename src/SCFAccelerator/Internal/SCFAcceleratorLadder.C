@@ -120,6 +120,8 @@ public:
     virtual double      MinSV() const;
     virtual void   SetEnergy(double E);
     virtual bool   WantsLineSearch() const; //true once the active rung is a direct minimizer
+    virtual bool   ExtrapolatesFock() const //ANY rung: a ladder started on GDM can still retreat to DIIS
+    { for (const auto& r : itsRungs) if (r->ExtrapolatesFock()) return true; return false; }
     virtual bool   CanLineSearch() const;   //delegates to the active rung's readiness
     //! Bail-out: the ACTIVE rung proposed the step, so it is the one that must degrade or declare itself
     //! exhausted.  A rung that cannot retry leaves ITSELF forced-to-diagonalize; the ladder does not hand

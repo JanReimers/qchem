@@ -78,7 +78,7 @@ struct RunSpec
     //! stage only (a restart is one stage -- the earlier stages exist to deliver the density the file already holds).
     struct State { std::string save, restartFrom; };
     //! One stage of an annealed recipe: its SCF parameters and its accelerator (\c SCFStage, by name).
-    struct Stage { SCFParams scf; SCFAccelerators::Type accelerator = SCFAccelerators::Type::DIIS; };
+    struct Stage { SCFParams scf; SCFAccelerators::Type accelerator = SCFAccelerators::Type::Auto; };
 
     //! One post-convergence action, run IN ORDER on the converged calculation (the deck's `postSCF` list; each is `{"name":{params}}`).  Each reports
     //! itself to the console; its result summary goes in the revision record under `results`.  Prerequisites are checked by \c Resolve BEFORE the SCF starts.

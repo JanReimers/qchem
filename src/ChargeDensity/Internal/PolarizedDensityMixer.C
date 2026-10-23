@@ -192,8 +192,8 @@ public:
                           std::unique_ptr<tDensityMixer<dcmplx>> b,
                           std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
                           const ReciprocalLattice& recip,
-                          ChannelBasis basis)
-        : itsUp(std::move(a)), itsDn(std::move(b)), itsBasis(basis)
+                          ChannelBasis basis, bool cusp=false)
+        : itsUp(std::move(a)), itsDn(std::move(b)), itsBasis(basis), itsCuspDeficit(cusp)
         , itsFit(std::move(fit)), itsRecip(recip)
     {
         itsAF=dynamic_cast<tFieldMixer*>(itsUp.get());
@@ -228,7 +228,7 @@ public:
         if (itsAH) { hist.push_back(itsAH); histFields.push_back(fa); } else d=std::max(d,itsAF->MixField(fa));
         if (itsBH) { hist.push_back(itsBH); histFields.push_back(fb); } else d=std::max(d,itsBF->MixField(fb));
         if (!hist.empty()) d=std::max(d,MixJointly(hist,histFields));
-        if (!spin) RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge());
+        if (!spin) RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge(), &up, &dn);
         return d;
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t& working) const override
@@ -291,16 +291,24 @@ private:
     //! (ρ,m) mode only: rebuild the CHANNEL pair the Fock consumes, ρ̃_σ = (ρ̃ ± m̃)/2, from the two leaves'
     //! mixed combinations, and re-seat the view on them.  Rebuilt (rather than viewed) because a fresh
     //! FourierMixCD is what carries the batch evaluator, the Poisson kernel and a fresh logical-clock serial.
-    void RebuildChannels(double qUp, double qDn) const
+    //! \a outUp / \a outDn: the latest output's channel fields, for the N4 correction (pin 28); null before the first Mix
+    //! (the seed's iteration has no D to correct against).
+    void RebuildChannels(double qUp, double qDn, const ΔG_Map* outUp=nullptr, const ΔG_Map* outDn=nullptr) const
     {
         const GField& r=itsAF->Field();   // the leaves' own fields -- read, never edited (V1.18)
         const GField& m=itsBF->Field();
-        itsChUp=Present(GField{0.5*(r.tilde+m.tilde), RawCombine(r.raster,m.raster,+1.0,0.5)}, itsRecip, qUp);
-        itsChDn=Present(GField{0.5*(r.tilde-m.tilde), RawCombine(r.raster,m.raster,-1.0,0.5)}, itsRecip, qDn);
+        GField up{0.5*(r.tilde+m.tilde), RawCombine(r.raster,m.raster,+1.0,0.5)};
+        GField dn{0.5*(r.tilde-m.tilde), RawCombine(r.raster,m.raster,-1.0,0.5)};
+        // N4 per SPIN channel: rho_sigma,mix - rho_sigma,out (linear in (ρ,m), so formed here, not by the leaves).
+        ΔG_Map corrUp, corrDn;
+        if (itsCuspDeficit && outUp && outDn) { corrUp=up.tilde-*outUp; corrDn=dn.tilde-*outDn; }
+        itsChUp=Present(up, itsRecip, qUp, corrUp);
+        itsChDn=Present(dn, itsRecip, qDn, corrDn);
         itsFock.Seat(itsChUp.get(), itsChDn.get());
     }
     std::unique_ptr<tDensityMixer<dcmplx>> itsUp, itsDn;
     ChannelBasis itsBasis;
+    bool         itsCuspDeficit=false;   //!< (ρ,m) only: form the per-spin N4 corrections (a (ρ↑,ρ↓) leaf forms its own)
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFit;   //!< reads the working channels' ρ̃
     ReciprocalLattice itsRecip;                            //!< metric of the rebuilt channels ((ρ,m) mode)
     tFieldMixer *itsAF=nullptr, *itsBF=nullptr;            //!< the leaves' FIELD face

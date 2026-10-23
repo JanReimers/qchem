@@ -2777,11 +2777,22 @@ private:
                 for (const auto& t : g.terms) ops.push_back({gr, Polarization(t.p), t.c});
             };
             if (!A) { place(a->itsR); continue; }           // finite: home atom only
+            // The images that matter are those within (operator reach + orbital reach) of a HOME basis centre chi_i (the lattice
+            // sum fixes chi_i in the home cell), NOT of the operator's own home position: the two spheres differ by tau_op - tau_i.
+            // Filtering on |Roff| alone dropped, for each chi_i, the operator images on the far side of its neighbours -- and
+            // DIFFERENT ones for translation-equivalent sites at different tau_i (MnO AFM-II: the two Mn got V_short blocks 2e-3
+            // apart; GPW.VshortIsTranslationInvariant, OpenWork §3 "MnO accuracy", 2026-10-23).  So widen by the farthest home centre.
+            double homeSpan=0.0;
+            for (auto i:indices()) homeSpan=std::max(homeSpan, norm(radials[i]->GetCenter()-a->itsR));
             const double rEnum=std::sqrt(-std::log(kScreenEps())/g.alpha)+maxOrbReach;   // operator reach + orbital reach
-            for (const auto& n : A->CellsInSphere(rEnum + A->GetMaximumCellEdge()))
+            const double rKeep=rEnum+homeSpan;
+            for (const auto& n : A->CellsInSphere(rKeep + A->GetMaximumCellEdge()))
             {
                 const rvec3_t Roff=A->ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
-                if (Roff.x*Roff.x+Roff.y*Roff.y+Roff.z*Roff.z <= rEnum*rEnum) place(a->itsR+Roff);
+                const rvec3_t Rc=a->itsR+Roff;
+                bool near=false;                              // within rEnum of SOME home basis centre
+                for (auto i:indices()) if (norm(Rc-radials[i]->GetCenter())<=rEnum) {near=true; break;}
+                if (near) place(Rc);
             }
         }
         return ops;

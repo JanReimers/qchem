@@ -12,6 +12,7 @@ import qchem.Structure;
 import qchem.UnitCell;
 import qchem.Lattice_3D;
 import qchem.Ewald;
+import qchem.Matrix3D;   // Matrix3D (the rhombohedral MnO AFM-II cell, EwaldFarApartHomeAtoms)
 import qchem.Math;
 import qchem.Types;   // rvec_t
 using namespace qchem;
@@ -211,6 +212,33 @@ TEST_F(StructureTests, EwaldCsClMadelung)
     // η-independence holds for the neutral lattice too.
     EXPECT_NEAR(EwaldEnergy(cscl,q,0.3), eCell, 1e-8);
     EXPECT_NEAR(EwaldEnergy(cscl,q,0.9), eCell, 1e-8);
+}
+
+// FAR-APART HOME ATOMS (doc/Pins.md pin 29; OpenWork §3 "MnO accuracy", 2026-10-23).  The two tests above use one-formula-unit cells
+// whose atoms sit close together, so a real-space sum that enumerated |R| <= rcut instead of the PAIR distance |τa−τb+R| <= rcut
+// passed them -- and lost 47 mHa on MnO AFM-II's 2-f.u. rhombohedral cell, where the O at (¾,¾,¾) sits 21.8 bohr from the Mn at the
+// origin.  Two checks on that cell: rocksalt ±1 must give the textbook Madelung constant (1.747565, nearest-neighbour d = a/2, two
+// ion pairs per cell), and the Zion = 7,7,6,6 cell must be η-independent and equal an independent Ewald (Python, validated on the
+// same Madelung constant and η-independent to 8 digits): −57.2917665 Ha.
+TEST_F(StructureTests, EwaldFarApartHomeAtoms)
+{
+    const double a=8.40;
+    Matrix3D<double> Amat(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    UnitCell mno(Amat);
+    mno.AddAtom(25,{0.0,0.0,0.0});
+    mno.AddAtom(25,{0.5,0.5,0.5});
+    mno.AddAtom( 8,{0.25,0.25,0.25});
+    mno.AddAtom( 8,{0.75,0.75,0.75});
+    const rvec_t ionic{+1.0,+1.0,-1.0,-1.0};
+    const double eM=EwaldEnergy(mno,ionic);
+    cout << "MnO-cell rocksalt Madelung α=" << -eM/2*(a/2) << " (lit 1.747565)\n";
+    EXPECT_NEAR(-eM/2*(a/2), 1.747565, 1e-6);
+    const rvec_t zion{7.0,7.0,6.0,6.0};
+    const double e=EwaldEnergy(mno,zion);
+    cout << "MnO-cell Zion Ewald = " << e << " (independent -57.2917665)\n";
+    EXPECT_NEAR(e, -57.2917665, 1e-7);
+    EXPECT_NEAR(EwaldEnergy(mno,zion,0.15), e, 1e-8);
+    EXPECT_NEAR(EwaldEnergy(mno,zion,0.50), e, 1e-8);
 }
 
 // isFinite() distinguishes a bounded molecular structure from a periodic cell -- the predicate the IonIon

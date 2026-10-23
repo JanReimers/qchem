@@ -97,7 +97,7 @@ struct KerkerParams
 {
     double relax       = 0.25;    //!< α, the step
     double G0          = 1.0;     //!< Kerker's \f$G_0\f$ in \f$G^2/(G^2+G_0^2)\f$; 0 makes the filter identically 1 (plain linear G-space mixing)
-    bool   cuspDeficit = false;   //!< N4: ALSO form + deposit the cusp-deficit correction for \f$V_{xc}\f$ (Kerker only)
+    bool   cuspDeficit = false;   //!< N4: ALSO form + deposit the cusp-deficit correction for \f$V_{xc}\f$ (Kerker and Pulay; pin 28)
     //! TEST ONLY -- the negative control: take the SINGLE-MAP (spin-blind) path on a polarized density, which hands the
     //! Fock a total with no channels and collapses v_xc to the zeta=0 branch (the MnO AFM-II collapse, 2026-08-07).
     //! Was the env valve QCHEM_SPINBLIND_KERKER; a constructor argument now (D-ENV), so it cannot leak in from a shell.
@@ -119,6 +119,10 @@ struct PulayParams : KerkerParams
 //! warning (a real configuration, not a broken precondition).
 //! \note The caller picks the RECIPE.  There is no "Pulay if depth>0 else Kerker" switch here any more: a
 //! caller that wants Kerker calls the Kerker factory and supplies Kerker's knobs, nothing else.
+//! Can a G-space mixer be built for this run?  Exactly the factories' precondition (a basis, a periodic cell, a seed with a
+//! Fourier face).  Asked by \c SCFParams::Mixing::Auto, which must pick a mixer that EXISTS for the run (e.g. an iterator
+//! built without its Structure has no cell, hence no reciprocal lattice -- PW_Si.k222_Anchor); an explicit Kerker/Pulay throws.
+bool CanMixInGSpace(const BasisSet::tBasisSet<dcmplx>* basis, const Structure* cell, const tChargeDensity<dcmplx>* seed);
 std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams&, const BasisSet::tBasisSet<dcmplx>* basis,
                                                           const Structure* cell, const tChargeDensity<dcmplx>* seed);
 std::unique_ptr<tDensityMixer<dcmplx>> PulayMixerFactory (const PulayParams&,  const BasisSet::tBasisSet<dcmplx>* basis,

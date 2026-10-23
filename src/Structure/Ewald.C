@@ -17,6 +17,7 @@ module;
 #include <cassert>
 #include <functional>
 #include <vector>
+#include <algorithm>
 export module qchem.Ewald;
 import qchem.Types;     // rvec_t, rvec3_t, vec3_t
 import qchem.UnitCell;
@@ -54,9 +55,14 @@ export double EwaldEnergy(const UnitCell& cell, const rvec_t& q, double eta=0.0)
     const double gcut = 2.0*eta*sqrt(p);
 
     // --- Real-space sum: ½ Σ_R Σ_{a,b} qₐqᵦ erfc(η r)/r,  excluding the a=b,R=0 self term ----------
+    // The PAIR distance r = |τₐ−τᵦ+R| is what the cutoff bounds, so R must run to rcut + max|τₐ−τᵦ| (doc/Pins.md pin 29): enumerating
+    // |R| ≤ rcut alone dropped images with r < rcut whenever two home atoms sit far apart -- 47 mHa on MnO AFM-II, whose O at
+    // (¾,¾,¾) is 21.8 bohr from the Mn at the origin against rcut 21.9 (OpenWork §3 "MnO accuracy", 2026-10-23).
+    double span=0.0;
+    for (size_t a=0; a<N; a++) for (size_t b=0; b<N; b++) span=std::max(span, norm(τ[a]-τ[b]));
     double Er=0.0;
     const UnitCell& dir = cell;
-    for (const vec3_t<int>& n : dir.CellsInSphere(rcut))
+    for (const vec3_t<int>& n : dir.CellsInSphere(rcut+span))
     {
         rvec3_t R = dir.ToCartesian(rvec3_t(n.x,n.y,n.z));
         bool R0 = (n.x==0 && n.y==0 && n.z==0);
@@ -65,7 +71,7 @@ export double EwaldEnergy(const UnitCell& cell, const rvec_t& q, double eta=0.0)
             {
                 if (R0 && a==b) continue;          // drop the self term
                 double r = norm(τ[a]-τ[b]+R);
-                if (r<1e-12) continue;             // coincident images guard
+                if (r<1e-12 || r>rcut) continue;   // coincident images guard; beyond the cutoff erfc is below e^{-p}
                 Er += q[a]*q[b]*erfc(eta*r)/r;
             }
     }

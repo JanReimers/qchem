@@ -19,7 +19,7 @@
 //   GPW_Si.Γ_Imp_eqUnfolded
 //   GPW_Si.Γ_Becke_Imp_eqUni
 //   GPW_Si.Γ_Becke_Imp_Kerker_CP2K
-//   GPW_Si.Γ_Becke_Imp_Kerker_CuspDeficit_CP2K
+//   GPW_Si.Γ_Becke_Imp_Kerker_FitXC_CP2K
 //   GPW_Si.Γ_Uni_DeltaFit_Imp_eqPWFit
 //   GPW_Si.Γ_Uni_PWFit_Imp_Pol_eqUnpol
 //   GPW_Si.k211_Imp_Anchor
@@ -620,8 +620,10 @@ bool XcServedFrom(const std::string& route)   // did the singles sampler note th
 }
 }
 
-// Plain Kerker: ρ̃ mixing on the Becke grid.  The mixed density is a FIELD, so the singles sampler projects
-// it ("matrix-free") -- the pre-N4 behaviour, and the arm the cusp-deficit cell below is measured against.
+// Kerker on the Becke grid, as a user gets it (pin 28, default since 2026-10-22): the mixed density is a FIELD, so XC is
+// served the N4 cusp-deficit route rho_XC = rho_mix + (rho[D] - rho_fit) -- the damped fitted part plus the current D's
+// cusp -- which IS rho[D] at the fixed point (doc/Pins.md pin 28).  It changes the SCF TRAJECTORY, not the answer, which is
+// what the anchor pins.
 TEST(GPW_Si, Γ_Becke_Imp_Kerker_CP2K)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
@@ -639,22 +641,23 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_CP2K)
         EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
         EXPECT_NEAR(R->Energy(), -7.11506, 2e-3) << "Kerker must not change the physics: the Γ_Imp_CP2K anchor";
     }                                                 // the run is filed into the global report at End()
-    EXPECT_TRUE (XcServedFrom("matrix-free")) << "plain Kerker feeds XC the projected FIELD";
-    EXPECT_FALSE(XcServedFrom("cusp-deficit")) << "...and never the DM reach-around (the sequence is matrix-free, DM, matrix-free..., DM)";
+    // The sequence is matrix-free (the SEED: a field with no density matrix behind it -- pin 28's exception 1), DM (the
+    // first Fock's own D), then cusp-deficit for every mixed field after -- and "DM" once more at the end, when the facade
+    // samples the converged density.  What must NOT happen is a mixed field being projected wholesale.
+    EXPECT_TRUE(XcServedFrom("cusp-deficit")) << "the DM-source reach-around must actually be ENTERED (V1.18e: it never was)";
 }
 
-// N4's cusp-deficit route: ρ_XC = ρ[D]_exact + IFT[ρ_mix − ρ[D]] -- exact cusps from the retained density
-// matrix, the band-limited difference from the field, no damping decision (doc/OpenWork.md N4).  The route
-// is decided when the MIXER is built (SCFParams::XCCuspDeficit -> KerkerMixerFactory), so this is the cell
-// where it exists; it changes the SCF TRAJECTORY, not the answer, which is what the anchor pins.
-TEST(GPW_Si, Γ_Becke_Imp_Kerker_CuspDeficit_CP2K)
+// THE PRE-PIN-28 CONTROL: XCCuspDeficit OFF, so the singles sampler projects the FIELD ("matrix-free") for XC -- the fitted
+// rho pin 28 forbids, kept as the A/B arm the default above is measured against.  On Si's soft PP the two agree to the
+// anchor window; on the O2 box (O q6) this arm is +7.72 mHa off rho[D].
+TEST(GPW_Si, Γ_Becke_Imp_Kerker_FitXC_CP2K)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker cusp-deficit");
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker fitted-XC control");
     o.densityEcut=20.0; o.imposeSymmetry=true;
     o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
-    SCFParams par=ProductionGates(); par.KerkerG0=1.0; par.XCCuspDeficit=true;
+    SCFParams par=ProductionGates(); par.KerkerG0=1.0; par.XCCuspDeficit=false;
     report::ClearGlobal();
     {
         GpwReport report("Si "+o.label, false);
@@ -662,12 +665,10 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_CuspDeficit_CP2K)
         auto R=calc.Result();
         ASSERT_TRUE(R) << Why(R);
         EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
-        EXPECT_NEAR(R->Energy(), -7.11506, 2e-3) << "the cusp-deficit route changes the trajectory, not the answer";
-    }                                                 // the run is filed into the global report at End()
-    // The sequence is matrix-free (the SEED: a field with no density matrix behind it), DM (the first Fock's
-    // own D), then cusp-deficit for every mixed field after -- and "DM" once more at the end, when the facade
-    // samples the converged density.  What must NOT happen is a mixed field being projected wholesale.
-    EXPECT_TRUE(XcServedFrom("cusp-deficit")) << "the DM-source reach-around must actually be ENTERED (V1.18e: it never was)";
+        EXPECT_NEAR(R->Energy(), -7.11506, 2e-3) << "the control lands in the same anchor window on Si";
+    }
+    EXPECT_TRUE (XcServedFrom("matrix-free")) << "the control feeds XC the projected FIELD";
+    EXPECT_FALSE(XcServedFrom("cusp-deficit")) << "...and never the cusp-deficit route";
 }
 
 
@@ -1274,7 +1275,9 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
         // TOLERANCE, MEASURED 2026-10-04 (both arms uniform XC, Kerker/Pulay): chi0R 1.6e-4, chiR 8.4e-5 relative.  The floor is the SUPERCELL arm's
         // own translation breaking -- sites 1 and 3 are images of one another yet their chi0 differ by 1.7e-4 relative (the q-mesh arm is translation-
         // symmetric by construction) -- and the ground states differ by 3e-5 Ha per primitive cell.  So 5e-4 is ~3x the arm's self-consistency.
-        EXPECT_LT(worst, 5e-4*scale) << key << ": the q-mesh real-space response is not the supercell's";
+        // TIGHTENED 2026-10-23 (5e-4 -> 5e-5): the floor WAS the supercell's own translation breaking, and it was the V_short operator-image
+        // defect (pin 29) -- with it fixed the supercell's image sites agree to the printed digits and chi0R / chiR sit at 9.3e-6 / 1.2e-5.
+        EXPECT_LT(worst, 5e-5*scale) << key << ": the q-mesh real-space response is not the supercell's";
     }
     // hp.x's U over the supercell: the q-mesh's home-cell U_I against every supercell image of I (measured: 4.7e-4 eV worst, the images spread 6.6e-4).
     const auto& Uq=prim.at("U_eV"); const auto& Us=sup.at("U_eV");
@@ -1282,7 +1285,7 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
     for (size_t a=0;a<4;a++)
     {
         std::cout << "[supercell gate] U site" << a << "  q-mesh " << std::setprecision(7) << Uq[a%2].get<double>() << " eV  supercell " << Us[a].get<double>() << " eV" << std::endl;
-        EXPECT_NEAR(Uq[a%2].get<double>(), Us[a].get<double>(), 1e-3) << "U (eV) of supercell atom " << a;
+        EXPECT_NEAR(Uq[a%2].get<double>(), Us[a].get<double>(), 3e-4) << "U (eV) of supercell atom " << a;   // was 1e-3 (measured <= 8.5e-5 after pin 29)
     }
     // The inter-site V (R4): from site 0, the q-mesh's (site, image) pairs and the supercell's own off-diagonal interactions are the SAME pairs
     // at the same minimum-image distances (both live in the one 2x1x1 supercell), so the distance-sorted lists must agree entry by entry.

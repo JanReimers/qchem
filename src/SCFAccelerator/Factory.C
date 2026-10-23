@@ -8,7 +8,9 @@ export namespace qchem::SCFAccelerators
 {
     //! \c Null = no acceleration (plain damped iteration) -- a real policy for a run whose mixer does the
     //! work (NaF's pure damped Kerker), and the honest way to A/B an accelerator against none.
-    enum class Type {DIIS,GDM,Ladder,Null};
+    //! \c Auto = the CALLER's policy picks (the solid facade pairs it with \c SCFParams::Mixing, see
+    //! \c SolidCalcOptions::accelerator); the factories below never see it and throw if they do.
+    enum class Type {DIIS,GDM,Ladder,Null,Auto};
 
     //! The molecular (\c double) front door.  Stringly-typed by history: the json keys came from test
     //! scaffolding.  The typed \c SolidAcceleratorOptions below is the pattern to prefer for new callers.
