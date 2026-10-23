@@ -129,6 +129,7 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
   explicitly (`siteSpins`; OpenWork §3 "The magnetic decoration is DERIVED FROM THE SEED").
   With the branch, β-MnO₂'s AFM forms (Mn +3.04/−3.74) — that run had U on the σ slot (Γ0) by mistake and did not converge; the
   deck is fixed.
+  **m0 RAN 2026-10-23 (record: HubbardUHistory "β-MnO₂ m0"):** converged, Mn ±3.358, O equivalent, Γ2 0.954/0.972 (QE 0.961/0.972), E −93.01214 (0.414 Ha above QE); the GAP is not trustworthy — the kT = 0 GDM stage ends non-aufbau (OpenWork §3 "GDM crawls at a near-degenerate frontier").
   **Then (on main after step 5, `ninja rundeck`):** `scripts/memsafe build/Release/CLIapps/rundeck
   ~/Code/qchem6-runs/MnO2/basis_scan/m0.json --out ~/Code/qchem6-runs/MnO2/basis_scan` (VA basis, U on slot Γ2).  Check: converged,
   Mn ±equal, the four O equivalent, O slot Γ2 the most occupied (QE O3 at Γ: 0.961/0.972 per spin), gap > 0.  Then the TiO₂-style

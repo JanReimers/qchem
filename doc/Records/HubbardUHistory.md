@@ -1964,3 +1964,14 @@ The spec as written (verbatim from `doc/HubbardUPlan.md` §2 S2):
 5. Branch sweep: fast 1053/1053 (+1 UT), long 4/4; `anchordiff` at 1e-10 Ha: no energy moved; iterations moved only in the SR anchor
    (17 → 15) and the VA +U gate's U=0 arm (18 → 38, the fixed IonicSAD seed's 0.30 start).  Merged as `beffb23b`.
 
+## 2026-10-23 — β-MnO₂ m0 (VA, Γ, U(O pz) 4.62 eV on slot Γ2), after the V_short + Ewald fixes (main 768a4f70)
+
+Recipe found on the way (decks `~/Code/qchem6-runs/MnO2/basis_scan/m0{,_imp}.json`, logs beside them): `siteSpins` STATED; stage 1 Kerker+Pulay (8/5, α 0.45) at kT 1e-3 to Δρ 3e-4; stage 2 standalone GDM at kT 0 gated on |ΔE/E| < 1e-9 with Δρ 1e-4 and the [F,D] gates off.  Rejected: Kerker+Pulay alone (its history goes unstable near Δρ 1e-4: `m0_pulay_diverged.log`), relax 1.0 (`m0_relax1_stopped.log`), Ladder at kT 0 from the seed (aufbau 2-cycle: `m0_ladder_kT0_2cycle.log`).  Before the fixes the FREE run broke the symmetry (Mn +2.87/−3.79, O non-equivalent: `m0_free_twostage_prefix.log`) — a symptom of the V_short defect.
+
+| arm | stages | Etot (Ha) | Mn | O moments | O p slot Γ2 occ. up/dn | frontier at the end |
+|---|---|---|---|---|---|---|
+| imposed (16 ops) | 20 + 9 | −93.01214291 | ±3.3581 | ±0.1008 | 0.954 / 0.972 | hole on every other GDM row; aufbau (gap 1.9 eV) only at the LAST step, a configuration change |
+| free | 28 + 15 | −93.01215953 | +3.3586/−3.3592 | ±0.10 (4e-3) | 0.954 / 0.972 | NON-AUFBAU: hole, gap −2.35 mHa |
+
+QE (same U, Γ): Γ2 0.961 / 0.972, gap 0.325 eV, E −93.42661 Ha (ours 0.414 Ha high: the basis scan).  Stage 1 ends with −TS = −1.6 mHa at kT 1e-3: the smeared frontier is fractionally occupied, and the kT = 0 GDM stage keeps the occupied block it was handed — OpenWork §3 "GDM crawls at a near-degenerate frontier" (same mechanism as the Mn–O dimer).  No gap from a kT = 0 GDM stage is trustworthy until that is fixed.
+
