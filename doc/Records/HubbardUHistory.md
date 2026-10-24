@@ -1986,3 +1986,18 @@ User asked to let GDM re-pick its occupied block by aufbau when the frontier cro
 
 Late swaps are a near-degenerate pair that crosses back after every swap (no integer aufbau solution at kT 0); early swaps on m0 moved up to 5 orbitals across 0.4 Ha, from stage 1's rounded fill.  User: keep the code, DEFAULT OFF (`AufbauTol = 0`).
 
+## 2026-10-24 — β-MnO₂ Γ gap: the Hamiltonians AGREE at U = 0; the difference is in the U term
+
+| Γ, smeared kT 1e-3 Ha | QE | ours (VA, imposed) |
+|---|---|---|
+| U = 0: frontier pair (bands 19/20) | 8.3259 / 8.3362 eV (Δ 0.010 eV), occ 0.61/0.39 per spin, −TS −1.09 mHa | 0.2460 / 0.2464 Ha (Δ 0.011 eV), occ 0.6/0.4 — `m0_imp_U0.log` (`QCHEM_DIAGNOSTICS=frontier`) |
+| U = 0: next band | +1.75 eV | +1.78 eV |
+| U = 0: Etot | −93.46773 | −93.07477 (0.393 Ha: basis) |
+| U(O pz) 4.62: which orbital | eigenvector of ns with the LARGEST occupation, (−p_x+p_y)/√2 = plane normal | slot Γ2 (the same orbital) |
+| U(O pz): O p occupations up / dn | 0.791 0.831 **0.961** / 0.640 0.808 **0.972** | 0.774 0.816 **0.954** / 0.637 0.793 **0.972** |
+| U(O pz): O moment | 0.163 | 0.100 |
+| U(O pz): frontier | GAPPED 0.3255 eV, integer, −TS = 0 | pair 2.3 mHa apart, fractional (−TS −1.6 mHa in stage 1) |
+| U(O pz): E_U | 0.02216 Ha (= Dudarev Σ U/2 λ(1−λ) on the U'd eigenvalue, checked by hand: 0.02197) | NOT PRINTED in the energy breakdown |
+
+So: same LDA Hamiltonian, same U orbital, near-identical occupations, yet QE's U splits the pair and ours does not.  Suspects left: the U POTENTIAL's projector (QE: ortho-atomic over all UPF atomic wavefunctions; ours: our atomic radial, Löwdin over the deck's set) and its energy form; next: print our E_U and compare the frontier pair's O pz projection in both codes (QE `projwfc.x` on ortho-atomic).
+
