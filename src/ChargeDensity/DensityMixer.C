@@ -54,7 +54,9 @@ public:
     //! (No "effective α" beside it any more -- user ruling 2026-09-13: the fraction of a step that survived a
     //! preconditioner is not physics, nothing consumes it, and printing it implied something did.)
     virtual double GetRelax() const = 0;
-    //! A 3-char self-identifier for the per-iteration ρ_mix column (doc/GPWPlan1.md item 2).
+    //! A short self-identifier for the per-iteration ρ_mix column (doc/GPWPlan1.md item 2): "Lin", "Ker", "Pul" -- and
+    //! "Pul+K" for a Kerker-preconditioned history, so the column says what the banner says (2026-10-24: a reader checking
+    //! pin 28 pairs the XC ρ column's "cusp" with a Kerker filter here; "cusp" beside a bare "Pul" cannot happen -- it is "cusp*").
     virtual const char* Tag() const = 0;
     //! Does my step apply a G-DEPENDENT filter (a Kerker G0 > 0)?  Client: the SCF trace's pin-28 audit -- the N4 cusp
     //! deficit is pin 28's EXCUSED form only when such a filter forces the step into the fit's {G}; without one the

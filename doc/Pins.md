@@ -310,7 +310,8 @@ factored D (low rank, `policy.dmLowRank`) makes ρ[D] cheap -- 130× cheaper per
 
 **Audit it in the SCF trace:** the solid trace's `XC ρ` column names the ρ each iteration's V_xc was built from (DM, cusp, DMsrc,
 shadow, fitted); `fitted!` -- a fitted ρ after the first iteration -- is a violation of this pin, and `cusp*` is the cusp deficit with
-NO G-dependent filter to excuse it (pure Pulay: right at the fixed point, wrong in form) (2026-10-24).
+NO G-dependent filter to excuse it (pure Pulay: right at the fixed point, wrong in form) (2026-10-24).  The pairing to check by eye: `cusp`
+sits beside `Ker` or `Pul+K` in the `ρ_mix` column (the filter that excuses it); anything else is a defect.
 
 Records: `OpenWork_History4.md` "ITEM 1 MEASURED" (MnO negatives, the collapse), `OpenWork.md` §3 "Kerker/Pulay as the
 DEFAULT mixer" and N4 (the O₂ and MnO arms).
