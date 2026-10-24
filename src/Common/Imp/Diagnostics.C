@@ -25,6 +25,7 @@ const std::vector<Entry>& Registry()
         {"eh_trace",         "GPW_EH_TRACE",          "E_H G-space pairing trace"},
         {"field_spectrum",   "GPW_FIELD_SPECTRUM",    "cumulative |c|^2 spectrum of a fitted field"},
         {"gdm_trace",        "GPW_GDMTRACE",          "GDM line-search energy trace"},
+        {"frontier",         "",                      "the frontier level window e(occ/degen) on every SCF trace row (was test-only ReportBandGap)"},
         {"integrate_census", "GPW_INTEGRATE_CENSUS",  "NEW / REPEAT census of integrate-back calls"},
         {"kerker_spectrum",  "GPW_KERKER_SPECTRUM",   "Kerker residual power binned by G/G0"},
         {"localpp_timing",   "",                      "times the local-PP build"},   // no legacy alias: GPW_LOCALPP_RELCUTOFF is the numeric kappa knob

@@ -894,7 +894,8 @@ template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const 
     // (doc/Benchmark.md footnote 1) -- the one thing you need is the level list, and it was unreachable on
     // exactly the system class that had the bug.  A solid already shows the gap column, so it gets the
     // window WITHOUT the extra WriteGapColumn the molecular branch adds.
-    if (ReportBandGap())
+    static const bool frontierDiag=qchem::Diagnostics::Enabled("frontier");   // QCHEM_DIAGNOSTICS=frontier: a deck run can ask too
+    if (ReportBandGap() || frontierDiag)
     {
         if (!GapIsPermanent()) WriteGapColumn(os, tr);
         os << endl << "        frontier ε(occ): " << FrontierWindow(itsWaveFunction.get(), 4, 4);
