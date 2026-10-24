@@ -2038,3 +2038,21 @@ The increment-3 gate (decks `~/Code/qchem6-runs/MnO2/basis_scan/m0_imp_s1{,_Op01
 | Etot (Ha) | −93.01334 | −93.00879 | −93.34058 | −93.33536 | −93.42661 |
 
 **Verdict: the gate as written FAILS, and its premise is refuted.**  The projector is now QE's own function and is basis-independent (captured ≈ 1 in both bases), yet on plain VA the gap is unchanged to 0.001 eV and on VA + O p 0.18 to 0.003 eV.  So the 0.128 → 0.237 eV move that one diffuse O p shell made was the ORBITAL basis (the KS states, Etot −0.33 Ha), not the projector's tail; the 2026-10-24 "remainder is the tail's overlap with neighbours' functions" reading above is wrong.  What the projector DOES set is E_U: with the better basis the pseudo-atomic E_U is QE's to 0.1 % (site-shell route: 20 % low), and the O p occupations agree with QE's to ≤ 0.001 on the U'd slot.  The remaining gap and energy difference to QE (0.09 eV, 0.09 Ha) is the orbital basis — the S2 basis scan's job.  The basis-independence check of the occupations (VA vs VA + O p 0.18 to ~1e-3) cannot be read off these runs: the DENSITY changes with the basis (0.02 on slot 2 in both routes alike).
+
+## 2026-10-24 — β-MnO₂ diffuse/polarization basis scan (pseudo-atomic projector; decks + logs `~/Code/qchem6-runs/MnO2/basis_scan/scan/`)
+
+Base VA + O p 0.18 (gap 0.234 eV, Etot −93.33536); each row adds ONE shell; gap from the frontier window (stage 1, kT 1e-3 Ha, imposed):
+
+| added | gap (eV) | ΔE (mHa) | vet |
+|---|---|---|---|
+| Mn p 0.5 | 0.231 | −11.4 | nothing trimmed |
+| Mn d 0.18 | 0.229 | −0.45 | trimmed Mn s 0.1 instead |
+| O p 0.08 | 0.234 | 0 | trimmed O p 0.08 itself |
+| O s 0.15 | 0.242 | −20.9 | trimmed Mn s 0.1 |
+| O d 0.8 | 0.226 | −14.2 | nothing |
+| O d 1.25 | 0.220 | −8.9 | nothing |
+| O p 0.08, vet OFF, orthoTol 1e-7 (diagnostic) | **0.234** | −25.4 | 176 kept, min pivot 6.4e-6 |
+| (O d 1.2: INVALID — merged with O p 1.2 by the same-exponent bug, 172 functions, +753 mHa) | | | |
+
+The gap is FLAT (0.220–0.242) under every addition, including the diffuse O p kept past the conditioning wall.  So beyond O p 0.18 the residual 0.09 eV is NOT the Gaussian orbital basis.  Band by band (eV from Mn d; QE bands 13–22): ours −3.04 −2.95 −2.30 **−0.84** −0.41 −0.32 −0.23 | +1.92 +4.14 vs QE −3.10 −2.94 −2.39 **−1.06** −0.54 −0.45 −0.33 | +1.89 +4.11: within ~0.1 eV except the U'd O-normal band (+0.22: pushed down 80 % as far as QE's) and the in-plane bands that carry normal character (+0.13).  With projector, occupations and E_U matching QE, the residual is HOW STRONGLY U ACTS PER BAND — next: our bands' weights on the U'd projector vs QE's projwfc (band 16: 0.987).
+
