@@ -5,6 +5,21 @@
 entries); the tracker row is `OpenWork.md` §2 "+U projector independent of the orbital basis".  When this
 plan is done its text goes to `Records/HubbardUHistory.md` and this file is deleted.
 
+## 0. Status (2026-10-24, end of the first execution session)
+
+- **Increments 1–3 LANDED** (each sweep-green, 0 of 1071 anchors moved at 1e-10): D1–D4 as written, except O
+  comes from the BLOCK (`AtomCentredOverlapSource::MakeSetOverlap`) through a new engine pair kernel
+  `LatticeSum1E::MakeOverlap(phase,A,g,h)` — the k convention and the lattice sums are the block's side, and the
+  orbitals do not enter.  D5 = `qchem.PseudoAtomOrbital`; D6 energy/potential/slots via one synthetic
+  `SphericalShellRep` shell per manifold; D7 = `"projector": "pseudoAtomic"` (default still `siteShells`).
+  The set's m convention = `SphericalShell(l)[l+m]` at POSITIVE unit-sphere scale (GPW's `YlmCartesian` now
+  takes |N|; bitwise-neutral for the KB sum).
+- **The increment-3 gate FAILED and refuted §1's premise**: the gap does not move with the projector (VA 0.128
+  → 0.128 eV; QE 0.325); the diffuse-shell gain was the orbital basis.  The projector sets E_U (QE's to 0.1 % on
+  VA + O p 0.18).  Numbers: `Records/HubbardUHistory.md` 2026-10-24 "The pseudo-atomic +U projector".
+- **User, 2026-10-24**: the new projector flexibility is worth keeping; the gap is to be looked for elsewhere.
+  Increments 4–5 remain the plan (basis-independent U for ACBN0 / hp.x comparisons; QE's E_U).
+
 ## 1. Why
 
 A contracted +U manifold today is χ_m = Σ_s r_s φ_{s,m} over the **site's own orbital shells**

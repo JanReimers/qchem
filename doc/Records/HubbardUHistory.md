@@ -2022,3 +2022,19 @@ At U = 0 the same bands agree to ≤ 0.04 eV (QE: band 19 = pure O normal π, ba
 
 The remainder (0.09 eV of gap, 0.1–0.2 eV on the O p bands) is what a SITE-ONLY contracted projector cannot hold at any exponent: the tail's overlap with the NEIGHBOURS' functions.  → OpenWork §2 row "+U projector independent of the orbital basis".  And O p 0.18 is the basis scan's first big win: 0.33 of the 0.41 Ha to QE, both arms.
 
+
+## 2026-10-24 — The pseudo-atomic +U projector (HubbardProjectorPlan increments 1–3): it matches QE's, and the gap does not move
+
+Built (commits on main, this day): an atom-centred function set and the basis's overlap with it (`qchem.BasisSet.AtomCentredSet`; GPW through the KB projection seam, the set's own Bloch overlap through a new engine pair kernel `LatticeSum1E::MakeOverlap(phase,A,g,h)`), `LowdinProjector::Atomic(B,O,…)` (ortho-atomic in the TRUE metric O), the pseudo-atom builder `qchem.PseudoAtomOrbital` (moved out of the facade), and the deck field `"projector": "pseudoAtomic"`.  The O 2p projector is now the pseudo-atom orbital in its own 16-exponent pool: against the O UPF's `PP_CHI.2` (`~/Code/qe-runs/SrVO3/O.pz-gth-q6.UPF`) the normalised overlap is **1.00000000** and the norm beyond 2.5 bohr is 6.59 % in both.
+
+The increment-3 gate (decks `~/Code/qchem6-runs/MnO2/basis_scan/m0_imp_s1{,_Op018}_PA.json`, stage 1, kT 1e-3, `QCHEM_DIAGNOSTICS=frontier=16`):
+
+| Γ, U(O pz) 4.62 eV | VA site-shell | VA **pseudo-atomic** | VA+O p 0.18 site-shell | VA+O p 0.18 **pseudo-atomic** | QE |
+|---|---|---|---|---|---|
+| O 2p captured by the block (B†S⁻¹B/O) | 0.976 | 0.994 | 0.9994 | 1.000 | — |
+| gap (HOMO→LUMO, eV) | 0.128 | **0.128** | 0.237 | **0.234** | 0.325 |
+| E_U (Ha) | 0.02545 | 0.03014 | 0.01767 | **0.02214** | 0.02216 |
+| O p slot 2 (normal) up / dn | 0.949 / 0.972 | 0.940 / 0.966 | 0.968 / 0.978 | 0.960 / 0.972 | 0.961 / 0.972 |
+| Etot (Ha) | −93.01334 | −93.00879 | −93.34058 | −93.33536 | −93.42661 |
+
+**Verdict: the gate as written FAILS, and its premise is refuted.**  The projector is now QE's own function and is basis-independent (captured ≈ 1 in both bases), yet on plain VA the gap is unchanged to 0.001 eV and on VA + O p 0.18 to 0.003 eV.  So the 0.128 → 0.237 eV move that one diffuse O p shell made was the ORBITAL basis (the KS states, Etot −0.33 Ha), not the projector's tail; the 2026-10-24 "remainder is the tail's overlap with neighbours' functions" reading above is wrong.  What the projector DOES set is E_U: with the better basis the pseudo-atomic E_U is QE's to 0.1 % (site-shell route: 20 % low), and the O p occupations agree with QE's to ≤ 0.001 on the U'd slot.  The remaining gap and energy difference to QE (0.09 eV, 0.09 Ha) is the orbital basis — the S2 basis scan's job.  The basis-independence check of the occupations (VA vs VA + O p 0.18 to ~1e-3) cannot be read off these runs: the DENSITY changes with the basis (0.02 on slot 2 in both routes alike).
