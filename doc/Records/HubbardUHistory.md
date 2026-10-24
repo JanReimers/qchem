@@ -2069,3 +2069,23 @@ The gap is FLAT (0.220–0.242) under every addition, including the diffuse O p 
 
 Characters agree to ~0.01 on every band, so the first-order U shift per band is QE's (the "U acts more weakly per band" hypothesis is WRONG).  Energies from the deep pure-O-z band 15 (untouched by U): O normal +1.46 vs QE +1.33, HOMO O z +2.07 vs +2.06, LUMO Mn d +2.30 vs +2.39.  The gap is short because the Mn d LUMO sits 0.09 eV LOW (and the U'd band 0.13 eV high): same characters, different energies — the self-consistent response to U, not its action.  Open.
 
+
+## 2026-10-24 — The gap residual is the SELF-CONSISTENT RESPONSE of two bands to U; convergence and pin 28 cleared
+
+Decks `~/Code/qchem6-runs/MnO2/basis_scan/m0_imp_{,U0_}Op018_PA.json` (stage 1 + banked GDM stage 2, kT 0) and `m0_imp_s1t_{,U0_}Op018_PA.json` (stage 1 only, kT 1e-3 like QE, gated at Δρ 3e-5 just above the quadrature floor); VA + O p 0.18, pseudo-atomic projector, `QCHEM_DIAGNOSTICS=u_bands=10`.
+
+1. **Convergence: cleared.**  The GDM-converged U state (kT 0, |dE/E| < 1e-9) moves the bands ≤ 0.03 eV from the loose stage-1 run (O normal +1.456 vs +1.459, HOMO +2.069 vs +2.067, LUMO +2.274 vs +2.301, eV from the deep O z band).
+2. **Pin 28 (XC from ρ[D]): cleared.**  GDM mixes D itself, so its fixed point has XC on ρ[D_mix] with no fitted ρ̃ and no cusp-deficit correction; the residual is still there.
+3. **Trap: a U = 0 arm cannot take the kT-0 GDM stage.**  U = 0's frontier is a near-degenerate pair (QE occupations 0.61 / 0.39); integer occupations put it 20 mHa ABOVE the smeared state (−93.36180 vs −93.38443).  The U / U=0 difference is therefore read on the tight smeared pair.
+4. **Per band, matched by character, eV from the deep pure O z band (U-free):**
+
+| band | ours U=0 | QE U=0 | ours U | QE U | ΔU ours | ΔU QE |
+|---|---|---|---|---|---|---|
+| O normal (U'd slot) | +3.141 | +3.107 | +1.459 | +1.332 | **−1.682** | **−1.775** |
+| O z (HOMO under U) | +2.031 | +2.033 | +2.068 | +2.068 | +0.037 | +0.035 |
+| in-plane pair | +2.620 / 2.668 | +2.596 / 2.635 | +1.894 / 1.979 | +1.856 / 1.944 | −0.726 / −0.689 | −0.740 / −0.691 |
+| Mn d (LUMO) | +3.151 | +3.117 | +2.299 | +2.393 | **−0.852** | **−0.724** |
+
+At U = 0 every band is QE's to ≤ 0.04 eV on this basis (a near-uniform +0.03).  Under U two bands respond differently: the U'd O-normal band falls 0.09 eV LESS than QE's and the Mn d LUMO (no U on it) falls 0.13 eV MORE — exactly the gap deficit (0.034 − 0.128 = −0.094 eV).  The U'd slot's occupations are QE's (0.960 / 0.972 vs 0.961 / 0.972), the characters agree to 0.01 (previous entry), the ortho-atomic set is QE's (Mn 4s+3d, O 2s+2p per site, from `mno2b_G_OpzU.projwfc.out`) and E_U agrees to 0.1 %, so the FIRST-order shift U(½−λ) is QE's.  What differs is the second-order, self-consistent response of the rest of the Hamiltonian.  Hint (partition-dependent, not conclusive): the O moment falls 0.0276 under U in ours (Becke cells, 0.1467 → 0.1191) vs 0.0144 in QE (spheres R = 0.176 alat, 0.1499 → 0.1355); Mn rises +0.0034 vs +0.0084.
+
+Side defect found: after a GDM stage `u_bands` prints ~0 slot weight on every VIRTUAL band (energies right) → OpenWork §3 row.
