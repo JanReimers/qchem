@@ -2001,3 +2001,12 @@ Late swaps are a near-degenerate pair that crosses back after every swap (no int
 
 So: same LDA Hamiltonian, same U orbital, near-identical occupations, yet QE's U splits the pair and ours does not.  Suspects left: the U POTENTIAL's projector (QE: ortho-atomic over all UPF atomic wavefunctions; ours: our atomic radial, Löwdin over the deck's set) and its energy form; next: print our E_U and compare the frontier pair's O pz projection in both codes (QE `projwfc.x` on ortho-atomic).
 
+**Band characters (QE `projwfc.x`, ortho-atomic; run on copies of the saves with `<dftU>` stripped — projwfc 7.6 cannot read the orbital-resolved block) and our levels (`QCHEM_DIAGNOSTICS=frontier=16`), eV from the Mn d band (QE band 20):**
+
+| QE band (character) | 13 | 14 | 15 (O z) | 16 (O normal) | 17 (in-plane) | 18 (in-plane) | 19 HOMO (O z) | 20 Mn d | 21 | 22 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| QE U(O pz) | −3.10 | −2.94 | −2.39 | −1.06 | −0.54 | −0.45 | −0.33 | 0 | +1.89 | +4.11 |
+| ours U(O pz) | −2.88 | −2.56 | −1.89 | −0.67 | −0.27 | −0.13 | −0.13 | 0 | +1.95 | +3.98 |
+
+At U = 0 the same bands agree to ≤ 0.04 eV (QE: band 19 = pure O normal π, band 20 = Mn d, 0.010 eV apart).  With U, QE's normal band drops ~1.05 eV and its O z band rises 0.76 eV relative to Mn d; ours does the same thing ~0.3 eV less: EVERY occupied O p band sits 0.2–0.5 eV higher relative to Mn d.  E_U 0.02424 vs 0.02216 Ha, same Dudarev eigenbasis form, same orbital.  Suspect: the projector radial (QE: the UPF PSWFC; ours `atomicRadial`) and its Löwdin tails; QE's O moment 0.163 vs ours 0.100.  Also: the earlier "fractional frontier" was mostly FD smearing (kT 1e-3 Ha) of our 0.128 eV gap.
+
