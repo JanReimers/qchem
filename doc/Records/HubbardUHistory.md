@@ -2101,3 +2101,14 @@ Side defect found: after a GDM stage `u_bands` prints ~0 slot weight on every VI
 
 The CHARGE response (Mn d → O p) agrees to 5–7 %; the Mn SPIN response is ~60 % of QE's (the O-moment hint, now on shared projectors).  Order of magnitude: neither difference alone moves the Mn d LUMO 0.13 eV (spin ~0.01 eV via an Mn exchange splitting ~0.9 eV/μB; charge only through an unscreened on-site Coulomb) — so not an occupation effect; the clearly different ingredient is the Mn SPIN response → the Mn XC (exchange) potential's response is the lead suspect.  Open.
 
+**The three XC checks (user's list, same day; decks + logs `~/Code/qchem6-runs/MnO2/basis_scan/xc/`, U / U = 0 pairs on the tight smeared decks, bands named by `u_bands` character, eV from the deep O z band):**
+
+| U arm | gap | O normal | O z top | Mn d | Mn d moment |
+|---|---|---|---|---|---|
+| baseline (Becke nR 40, L 29, Delta fit, ρ_mix + cusp deficit) | 0.231 | +1.459 | +2.068 | +2.299 | +3.5407 |
+| 1. mesh nR 80, L 35 (425 k pts, ~3×) | 0.232 | +1.459 | +2.067 | +2.299 | +3.5406 |
+| 2. V_xc fit PlaneWave | 0.235 | +1.457 | +2.067 | +2.302 | +3.5409 |
+| 3. `policy.xcFromDM` ("XC rho source: rho[D] WHOLESALE") | 0.231 | +1.459 | +2.068 | +2.299 | +3.5407 |
+
+The U = 0 arms likewise (Mn d +3.151, moment +3.5176–3.5178).  ALL THREE RULED OUT: the mesh, the fit and the ρ route move nothing at the 1e-3 eV / 1e-4 e level (check 3 is identical to 1e-8 — at the fixed point the cusp-deficit route IS ρ[D]).  The Mn spin response (+0.023 vs QE +0.037) and the Mn d band's extra 0.13 eV drop remain unexplained; the decisive instrument is the plane-wave route (OpenWork §2 PW-1…4): same PP as QE, so any difference would be a Hamiltonian difference by construction.
+
