@@ -1745,6 +1745,25 @@ CP2K while U, a ratio, held.  Rutile's χ₀ moved TOWARD CP2K (0.5 % → 0.15 %
 CP2K's GPW evaluates XC on its REGULAR-GRID density, not on an atomic quadrature, so a 1–2 % χ₀ difference may be the XC-density
 convention; the discriminator is FeS₂ on our raster (pair) route, `--set solid.policy.beckeXC=false` -- collocated ρ[D] on a uniform grid, CP2K's way.
 
+**NiO at the cell level, same day** (`rundeck decks/campaigns/NiO/nio_q0_step3_newroute.json` -- the exact banked deck: free, k222, q = 0,
+U_in 3 eV frozen, ortho-atomic, Kerker-Pulay; restart from the saved FREE state, which re-converged in 11 iterations; binary `f3cce7ef`;
+record `~/Code/qchem6-runs/NiO/NiO_AFM2.r008`, log `nio_q0_step3_newroute_postpin29_20261024.log`):
+
+| NiO AFM-II, q = 0 | banked 2026-10-04 | 2026-10-24 |
+|---|---|---|
+| E_tot / E_nn / E_elec Ha | −106.2023644 / −95.7965 / −15.5775 | −106.1384955 / −95.7245 / −15.5856 |
+| χ₀ Ni0 / Ni1 | −4.1181 / −4.0644 | −4.02564 / −4.02549 |
+| χ Ni0 / Ni1 | −2.07002 / −2.05166 | −2.04332 / −2.04329 |
+| U (2×2) Ni0 / Ni1 eV | 6.4502 / 6.4793 | **6.4677 / 6.4677** (1×1 6.5577) |
+
+**Unlike rutile and pyrite, NiO's Hamiltonian moved** (E_elec −8.1 mHa; E_nn +72.0 mHa is the Ewald constant) -- rocksalt AFM-II, MnO's
+cell type -- **and the defect's signature is in the response: the two Ni, equivalent by the AFM-II symmetry, had χ₀ 1.3 % and U 29 meV
+apart; now 4e-5 and 2e-5 eV** (pin 29: equivalent sites got different V_short blocks).  The MEAN U moved +3 meV (6.4648 → 6.4677), the
+mean χ₀ −1.6 % (not separated between V_short and the N4 cusp deficit, which moved FeS₂'s χ₀ by the same amount; a
+`--set scf.xcCuspDeficit=false` control would split them).  So the banked NiO U numbers (cell 6.09-era loop, q-mesh 5.73) are not
+re-run now: their mean moves by meV, and step (3) re-runs them anyway after the projector decoupling (2b) -- which changes exactly these
+ortho-atomic projectors.  SrVO₃ (one V per cell, no equivalent-site pair to split) is skipped by the same rule.
+
 ## TiO₂ ortho-atomic at Γ vs hp.x at Γ (2026-10-21) — an OPEN corner case
 
 Ours: `rundeck decks/campaigns/CrossCode/tio2_Ti3d_G_ortho.json` = the CP2K-validated Γ deck (same state: Etot −71.1350613 Ha, as
