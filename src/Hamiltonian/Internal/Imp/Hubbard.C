@@ -23,6 +23,9 @@ import qchem.ChargeDensity;                     // cDM_CD, ChannelOf, tDM_Source
 import qchem.BasisSet.AoShellSource;
 import qchem.BasisSet.BareCoulombSource;        // the bare integrals a manifold is built over (ACBN0)            // the shell layout a manifold is selected from
 import qchem.Symmetry.Molecule.OperationRep;    // AoShell (+ ShellRep::L / Monomials)
+import qchem.Symmetry.Molecule.SphericalRep;    // SphericalShellRep -- the site group on a pseudo-atomic manifold's harmonics
+import qchem.Math.Angular;                      // Math::SphericalShell (the set's m convention)
+import qchem.BasisSet.AtomCentredSet;           // the pseudo-atomic projector functions + the block's overlaps with them
 import qchem.Reporting;                         // the term's own [+U] line (pin 17: contemporaneous)
 import qchem.Blaze;
 import qchem.Math;
@@ -221,6 +224,81 @@ template <class U> double LowdinProjector<U>::Integrate(const rvec_t& f) const
     return tr;
 }
 
+// THE ATOMIC-SET PAIR (HubbardProjectorPlan D4).  H^{-1/2} of a small Hermitian matrix by eigen-decomposition;
+// a (near-)singular ortho group is two manifolds spanning the same functions -- a broken input, thrown.
+template <class U> static mat_t<U> InverseSqrt(const hmat_t<U>& O, const char* what)
+{
+    const size_t m=O.rows();
+    rvec_t w; mat_t<U> V; blazem::eigen(O, w, V);
+    if (w[0]<=1e-8*w[m-1]) throw std::runtime_error(what);
+    mat_t<U> R(m,m);
+    for (size_t a=0;a<m;a++) for (size_t b=0;b<m;b++)
+    { U t=U(0); for (size_t k=0;k<m;k++) t+=V(a,k)*(1.0/std::sqrt(w[k]))*blazem::conjs(V(b,k)); R(a,b)=t; }
+    return R;
+}
+
+template <class U> LowdinProjector<U> LowdinProjector<U>::Atomic(const mat_t<U>& B, const hmat_t<U>& O,
+                                                              const std::vector<size_t>& sizes, const std::vector<bool>& ortho)
+{
+    const size_t n=B.rows();
+    size_t mtot=0; for (size_t m : sizes) mtot+=m;
+    if (mtot!=B.columns() || O.rows()!=B.columns())
+        throw std::invalid_argument("LowdinProjector::Atomic: the manifold sizes must partition B's columns, and O must be square over them");
+    if (!ortho.empty() && ortho.size()!=sizes.size())
+        throw std::invalid_argument("LowdinProjector::Atomic: one ortho flag per manifold (or none)");
+    std::vector<size_t> off(sizes.size(),0);
+    for (size_t M=1;M<sizes.size();M++) off[M]=off[M-1]+sizes[M-1];
+
+    LowdinProjector P;
+    for (size_t M=0;M<sizes.size();M++)                         // atomic: T_M = B_M
+    {
+        mat_t<U> T(n, sizes[M]);
+        for (size_t i=0;i<n;i++) for (size_t a=0;a<sizes[M];a++) T(i,a)=B(i,off[M]+a);
+        P.itsT.push_back(std::move(T));
+        P.itsV.emplace_back();
+        P.itsCols.emplace_back();
+        P.itsN+=sizes[M]*sizes[M];
+    }
+    std::vector<size_t> members;                                // ortho-atomic: T = B_o O~^{-1/2}
+    for (size_t M=0;M<sizes.size();M++) if (M<ortho.size() && ortho[M]) members.push_back(M);
+    if (!members.empty())
+    {
+        std::vector<size_t> c;                                  // the members' columns of B / O
+        for (size_t M : members) for (size_t a=0;a<sizes[M];a++) c.push_back(off[M]+a);
+        const size_t mo=c.size();
+        hmat_t<U> Ot(mo);
+        for (size_t a=0;a<mo;a++) for (size_t b=a;b<mo;b++) Ot(a,b)=O(c[a],c[b]);
+        const mat_t<U> Oih=InverseSqrt<U>(Ot, "LowdinProjector::Atomic: the ortho-atomic set is linearly dependent (two manifolds span the same functions?)");
+        mat_t<U> Bo(n,mo);
+        for (size_t i=0;i<n;i++) for (size_t a=0;a<mo;a++) Bo(i,a)=B(i,c[a]);
+        const mat_t<U> To=Bo*Oih;
+        size_t at=0;
+        for (size_t M : members)
+        {
+            for (size_t i=0;i<n;i++) for (size_t a=0;a<sizes[M];a++) P.itsT[M](i,a)=To(i,at+a);
+            at+=sizes[M];
+        }
+    }
+    for (const mat_t<U>& T : P.itsT) P.itsQ.push_back(blazem::ctrans(T));
+    return P;
+}
+
+template <class U> hmat_t<U> LowdinProjector<U>::Represented(const mat_t<U>& B, const hmat_t<U>& S)
+{
+    const size_t n=S.rows(), m=B.columns();
+    rvec_t w; mat_t<U> V; blazem::eigen(S, w, V);
+    const double floor=1e-12*w[n-1];
+    mat_t<U> X=blazem::ctrans(V)*B;                             // B in S's eigenbasis
+    hmat_t<U> R(m);
+    for (size_t a=0;a<m;a++) for (size_t b=a;b<m;b++)
+    {
+        U t=U(0);
+        for (size_t k=0;k<n;k++) if (w[k]>floor) t+=blazem::conjs(X(k,a))*X(k,b)/w[k];
+        R(a,b)= a==b ? U(RealPart(t)) : t;   // a Hermitian diagonal is real
+    }
+    return R;
+}
+
 template class LowdinProjector<double>;
 template class LowdinProjector<dcmplx>;
 
@@ -237,6 +315,27 @@ Hubbard_U::Hubbard_U(const std::shared_ptr<const Structure>& st, std::vector<Hub
             throw std::out_of_range("Hubbard_U: manifold site "+std::to_string(M.site)+" -- the cell has "
                                     +std::to_string(itsSites.size())+" sites");
         if (M.l<0) throw std::invalid_argument("Hubbard_U: negative l");
+    }
+    // THE PSEUDO-ATOMIC ROUTE (HubbardProjectorPlan D6): one projector kind per run -- the two pairs are built
+    // from different inputs (the block's own columns vs its overlaps with a set), so a mixed run would need a
+    // joint ortho-atomic metric across both, which no physics asks for.
+    size_t nAtomic=0;
+    for (const HubbardManifold& M : itsManifolds) if (M.projector==HubbardProjectorKind::PseudoAtomic) nAtomic++;
+    if (nAtomic>0)
+    {
+        if (nAtomic!=itsManifolds.size())
+            throw std::invalid_argument("Hubbard_U: every manifold of a run must use the same projector kind (PseudoAtomic or SiteShells)");
+        auto set=std::make_shared<BasisSet::GaussianAtomCentredSet>();
+        for (const HubbardManifold& M : itsManifolds)
+        {
+            if (M.atomicFunction.empty())
+                throw std::invalid_argument("Hubbard_U: pseudo-atomic manifold (site "+std::to_string(M.site)+", l="+std::to_string(M.l)
+                                            +") has no atomicFunction -- the facade fills it from the pseudo-atom");
+            if (!M.radial.empty() || M.atomicRadial)
+                throw std::invalid_argument("Hubbard_U: a pseudo-atomic manifold takes no site-shell radial (radial/atomicRadial)");
+            set->Add(itsSites[M.site], M.l, M.atomicFunction);
+        }
+        itsSet=set;
     }
     for (Spin s : SpinIrreps(g)) itsChannels[s];   // one slot per spin irrep, from construction (R1.0h)
     // itsNCoeff is fixed by the FIRST block seen (every block of one run has the same shell layout).
@@ -537,6 +636,69 @@ double DudarevInEigenbasis(const rvec_t& lam, const rmat_t& v, const std::vector
     return EU;
 }
 
+//------------------------------------------------------------------------------ the pseudo-atomic route (D6)
+namespace
+{
+// int over the unit sphere of x^a y^b z^c: 0 unless all even, else 2 G((a+1)/2) G((b+1)/2) G((c+1)/2) / G((a+b+c+3)/2).
+double SphereMoment(int a, int b, int c)
+{
+    if (a%2 || b%2 || c%2) return 0.0;
+    return 2.0*std::tgamma(0.5*(a+1))*std::tgamma(0.5*(b+1))*std::tgamma(0.5*(c+1))/std::tgamma(0.5*(a+b+c+3));
+}
+}
+
+// ONE synthetic shell per manifold: the set's functions are SphericalShell(l)[l+m] x (positive unit-sphere scale)
+// x R(r) -- an AoShell over that raw harmonic with norm[m] = 1/|raw_m| describes exactly them (the radial is
+// common to all m and cancels in ManifoldSymmetry::Rep's N_a/N_b), so the site group and the slots are built by
+// the SAME code a basis shell uses.
+std::vector<Symmetry::Molecule::AoShell> Hubbard_U::SetShells(size_t M) const
+{
+    const int l=itsSet->L(M);
+    Symmetry::Molecule::AoShell sh;
+    sh.shellType=l; sh.center=itsSet->Centre(M); sh.offset=0;
+    const auto harm=Math::SphericalShell(l);
+    sh.rep=std::make_shared<Symmetry::Molecule::SphericalShellRep>(harm);
+    sh.norm=rvec_t(size_t(2*l+1));
+    for (size_t c=0;c<sh.norm.size();c++)
+    {
+        double n2=0.0;
+        for (const auto& a : harm[c]) for (const auto& b : harm[c]) n2+=a.c*b.c*SphereMoment(a.p.n+b.p.n, a.p.l+b.p.l, a.p.m+b.p.m);
+        sh.norm[c]=1.0/std::sqrt(n2);
+    }
+    return {sh};
+}
+
+// D4 + D6: B and O from the block (AtomCentredOverlapSource, abstract->abstract), the pair from them; the
+// captured norm B^dag S^-1 B / O is said once -- how much of each projector the orbital basis spans, the number
+// that made the site-shell route basis-dependent.
+template <class U> LowdinProjector<U> Hubbard_U::AtomicProjector(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
+{
+    const auto* src=dynamic_cast<const BasisSet::AtomCentredOverlapSource<U>*>(&orb);
+    if (!src) throw std::runtime_error("Hubbard_U: a pseudo-atomic +U projector needs the block's overlap with an atom-centred set "
+                                       "(no AtomCentredOverlapSource face on this orbital block)");
+    const mat_t<U>  B=src->MakeAtomCentredOverlap(*itsSet);
+    const hmat_t<U> O=src->MakeSetOverlap(*itsSet);
+    std::vector<size_t> sizes; std::vector<bool> ortho;
+    for (size_t M=0;M<itsManifolds.size();M++) { sizes.push_back(itsSet->Size(M)); ortho.push_back(itsManifolds[M].orthoAtomic); }
+    if (!itsCapturedSaid)
+    {
+        itsCapturedSaid=true;
+        const hmat_t<U> R=LowdinProjector<U>::Represented(B, orb.Overlap());
+        std::ostringstream os;
+        os<<"[+U projector] pseudo-atomic (independent of the orbital basis); captured by the block, min over m of B'S^-1B/O:";
+        for (size_t M=0;M<itsManifolds.size();M++)
+        {
+            double mn=1e300;
+            for (size_t a=itsSet->Offset(M); a<itsSet->Offset(M)+itsSet->Size(M); a++) mn=std::min(mn, RealPart(R(a,a))/RealPart(O(a,a)));
+            os<<"  site "<<itsManifolds[M].site<<" l="<<itsManifolds[M].l<<(itsManifolds[M].orthoAtomic ? " (ortho)" : "")
+              <<" "<<std::fixed<<std::setprecision(4)<<mn;
+        }
+        std::cout<<os.str()<<std::endl;
+        report::Log(os.str());
+    }
+    return LowdinProjector<U>::Atomic(B, O, sizes, ortho);
+}
+
 //------------------------------------------------------------------------------ the manifold's functions (cont.)
 Hubbard_U::Selection Hubbard_U::Select(const BasisSet::Orbital_1E_IBS<double>& orb) const {return SelectOn<double>(orb, itsManifolds, itsSites);}
 Hubbard_U::Selection Hubbard_U::Select(const BasisSet::Orbital_1E_IBS<dcmplx>& orb) const {return SelectOn<dcmplx>(orb, itsManifolds, itsSites);}
@@ -612,6 +774,12 @@ template <class U> const LowdinProjector<U>& Hubbard_U::Projector(const BasisSet
     const sym_t& id=orb.GetSymt();
     auto it=cache.find(id);
     if (it!=cache.end()) return it->second;
+    if (PseudoAtomic())
+    {
+        LowdinProjector<U> p=AtomicProjector<U>(orb);
+        if (itsNCoeff==0) itsNCoeff=p.NumCoefficients();
+        return cache.emplace(id, std::move(p)).first->second;
+    }
     const Selection sel=Select(orb);
     std::vector<mat_t<U>> V;
     for (const rmat_t& v : sel.contraction) { mat_t<U> vu(v.rows(), v.columns()); for (size_t i=0;i<v.rows();i++) for (size_t j=0;j<v.columns();j++) vu(i,j)=U(v(i,j)); V.push_back(std::move(vu)); }
@@ -794,8 +962,13 @@ void Hubbard_U::PrepareSlots(const cbs_t* bs) const
     // block's shells give every manifold's representation.
     if (bs->GetNumIBS()>0 && itsEigenForm)
     {
-        const Selection sel = bs->GetRealIBS(0) ? Select(*bs->GetRealIBS(0)) : Select(*(*bs)[0]);
-        for (size_t M=0;M<itsManifolds.size();M++) BuildSymmetry(M, sel.shells[M]);
+        if (PseudoAtomic())
+            for (size_t M=0;M<itsManifolds.size();M++) BuildSymmetry(M, SetShells(M));
+        else
+        {
+            const Selection sel = bs->GetRealIBS(0) ? Select(*bs->GetRealIBS(0)) : Select(*(*bs)[0]);
+            for (size_t M=0;M<itsManifolds.size();M++) BuildSymmetry(M, sel.shells[M]);
+        }
     }
 }
 
@@ -820,6 +993,8 @@ template <class U> static std::vector<BasisSet::ERI4Block> IntegralsOf(const Low
     std::vector<BasisSet::ERI4Block> out;
     for (size_t M=0;M<P.NumManifolds();M++)
     {
+        if (P.Columns(M).empty())   // HubbardProjectorPlan increment 4: the set's own one-centre ERIs
+            throw std::logic_error("Hubbard_U::ManifoldIntegrals: a pseudo-atomic manifold's bare integrals are not built yet (HubbardProjectorPlan increment 4)");
         const BasisSet::ERI4Block cols=src->BareCoulomb(P.Columns(M));
         const rmat_t& V=P.Contraction(M);
         bool identity = V.rows()==V.columns();

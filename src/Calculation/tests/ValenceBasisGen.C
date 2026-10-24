@@ -18,6 +18,8 @@
 #include "nlohmann/json.hpp"      // read report::GlobalReport() values (get<double>) across the module boundary
 
 import qchem.ValenceBasisGen;
+import qchem.PseudoAtomOrbital;          // the +U projector's pseudo-atom orbital (HubbardProjectorPlan D5)
+import qchem.BasisSet.AtomCentredSet;    // GaussianAtomCentredSet::RadialNorm2 (the radial's normalisation)
 import qchem.AtomCalculation;            // the pseudo-atom vs CP2K ATOM gate
 import qchem.SCFParams;
 import qchem.Symmetry.Atom.Spherical;     // AtomicSymmetry::Getl
@@ -282,4 +284,23 @@ TEST(ValenceBasisGen, MnQ7PseudoAtomInALargePool)
     EXPECT_NEAR(atom.Energy(), -14.241357, 0.02);
     EXPECT_NEAR(eps[0], -0.194010, 0.01) << "4s";
     EXPECT_NEAR(eps[2], -0.257385, 0.01) << "3d";
+}
+
+// HubbardProjectorPlan D5: the +U projector IS this pseudo-atom's l orbital, in its own pool.  The builder must
+// reproduce the CP2K ATOM eigenvalue (the same gate as above, through the cached builder), hand back a radial
+// that is unit-normalised in the AtomCentredSet convention, and build each (element, valence, l) once.
+TEST(ValenceBasisGen, PseudoAtomOrbitalIsTheProjectorFunction)
+{
+    const qchem::PseudoAtomOrbital& d=qchem::PseudoAtomOrbitalOf("Mn", 7, 2);
+    std::cout << "[pseudo-atom Mn 3d] eps=" << d.eps << " E=" << d.Eatom << "   (CP2K ATOM: -0.257385, -14.241357)" << std::endl;
+    EXPECT_NEAR(d.eps,  -0.257385, 0.01);
+    EXPECT_NEAR(d.Eatom, -14.241357, 0.02);
+    EXPECT_NEAR(qchem::BasisSet::GaussianAtomCentredSet::RadialNorm2(2, d.Radial()), 1.0, 1e-9);
+    EXPECT_EQ(&qchem::PseudoAtomOrbitalOf("Mn", 7, 2), &d) << "one pseudo-atom per (element, valence, l, pool)";
+    const qchem::PseudoAtomOrbital& p=qchem::PseudoAtomOrbitalOf("O", 6, 1);
+    std::cout << "[pseudo-atom O 2p] eps=" << p.eps << "  radial (c n alpha):";
+    for (const auto& t : p.Radial()) std::cout << " " << t.c << " " << t.n << " " << t.alpha;   // for a PP_CHI comparison by hand
+    std::cout << std::endl;
+    EXPECT_NEAR(qchem::BasisSet::GaussianAtomCentredSet::RadialNorm2(1, p.Radial()), 1.0, 1e-9);
+    EXPECT_THROW(qchem::PseudoAtomOrbitalOf("O", 6, 2), std::runtime_error) << "O has no occupied d";
 }

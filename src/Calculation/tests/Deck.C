@@ -4,6 +4,7 @@
 #include <fstream>
 #include <set>
 #include <nlohmann/json.hpp>
+import qchem.Hamiltonian.Factory;   // HubbardProjectorKind (the manifold projector-kind round trip)
 import qchem.Deck;
 import qchem.SolidCalculation;
 import qchem.SCFParams;
@@ -47,6 +48,23 @@ TEST(Deck, NonDefaultValuesSurviveTheRoundTrip)
     EXPECT_EQ(deck::ToJson(back), j);
     EXPECT_EQ(back.species.size(),2u); EXPECT_EQ(back.species[0].first,"Mn"); EXPECT_EQ(back.tolerances.screenEps,1e-8);
     ASSERT_EQ(back.hubbard.size(),1u); EXPECT_TRUE(back.hubbard[0].orthoAtomic); EXPECT_NEAR(back.hubbard[0].U,4.0/27.211386245988,1e-15);
+}
+
+// HubbardProjectorPlan D7: a manifold names its projector kind; the default is the site-shell route until
+// increment 5, the name round-trips, and a misspelled kind is refused.
+TEST(Deck, AHubbardManifoldNamesItsProjectorKind)
+{
+    using qchem::Hamiltonian::HubbardProjectorKind;
+    SolidCalcOptions o;
+    deck::FromJson(json{{"hubbard",{{{"site",0},{"l",2},{"U_eV",4.0}},{{"site",1},{"l",1},{"projector","pseudoAtomic"},{"orthoAtomic",true}}}}}, o);
+    ASSERT_EQ(o.hubbard.size(),2u);
+    EXPECT_EQ(o.hubbard[0].projector, HubbardProjectorKind::SiteShells);
+    EXPECT_EQ(o.hubbard[1].projector, HubbardProjectorKind::PseudoAtomic);
+    const json j=deck::ToJson(o).at("hubbard");
+    EXPECT_EQ(j[1].at("projector"), "pseudoAtomic");
+    SolidCalcOptions back; deck::FromJson(json{{"hubbard",j}}, back);
+    EXPECT_EQ(back.hubbard[1].projector, HubbardProjectorKind::PseudoAtomic);
+    EXPECT_THROW(deck::FromJson(json{{"hubbard",{{{"site",0},{"projector","pseudoatomic"}}}}}, o), std::runtime_error);
 }
 
 TEST(Deck, AMissingKeyKeepsTheDefaultAndAnUnknownKeyThrowsNamingTheLegalOnes)

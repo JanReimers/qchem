@@ -1,7 +1,7 @@
 # qchem::Calculation -- the molecular SCF front-door facade.  Part of the top-level `qchem`
 # aggregate library (it leans on the basis/Hamiltonian/accelerator/iterator pieces already linked
 # there).  The Imp #includes nlohmann/json for the two json factories, so the json include lands here.
-target_sources(qchem PRIVATE Imp/Calculation.C Imp/AtomCalculation.C Imp/SolidCalculation.C Imp/ValenceBasisGen.C Imp/Materials.C Imp/SolidState.C Imp/Deck.C)
+target_sources(qchem PRIVATE Imp/Calculation.C Imp/AtomCalculation.C Imp/SolidCalculation.C Imp/ValenceBasisGen.C Imp/Materials.C Imp/SolidState.C Imp/Deck.C Imp/PseudoAtomOrbital.C)
 # qchem.Materials reads the `species` (valence-count) field of src/Structure/Data/materials.json at run time -- INTERIM,
 # D-STRUCTDATA step 2 moves it to its own pseudopotentials.json.  The structure fields are qcStructure's (qchem.StructureData).
 target_compile_definitions(qchem PRIVATE ${StructureDataPath})
@@ -15,6 +15,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     SolidCalculation.C
     SolidState.C
     ValenceBasisGen.C
+    PseudoAtomOrbital.C
     Materials.C
     Deck.C
 )

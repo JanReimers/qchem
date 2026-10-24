@@ -3,6 +3,7 @@ target_sources(qcBasisSet PRIVATE
     Imp/IntegralsCacheReport.C
   Imp/BasisSet.C
   Imp/BareCoulombSource.C
+  Imp/AtomCentredSet.C
   Imp/IrrepBasisSet.C
   Imp/Orbital_1E_IBS.C
   Imp/Orbital_DFT_IBS.C
@@ -29,6 +30,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Orbital_PP_IBS.C                      # the species-field INTEGRAL SERVICE + its ARGUMENT vocabulary (V1.2; absorbed SpeciesField.C 2026-09-15)
   BasisSet.C
   AoShellSource.C                       # 'I am built from atom-centred shells' (+U manifolds, SALC induction; 2026-09-19)
+  AtomCentredSet.C                      # an atom-centred function set + 'my overlap with it' (+U projectors, HubbardProjectorPlan D1/D2)
   BareCoulombSource.C                   # 'bare (m1m2|m3m4) over a function subset' -- the ACBN0 face (+U increment 3; 2026-09-21)
   IrrepBasisSet.C
   Orbital_1E_IBS.C

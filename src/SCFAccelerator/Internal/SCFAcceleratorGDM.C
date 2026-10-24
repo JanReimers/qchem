@@ -114,6 +114,12 @@ private:
     //! this rung ever diagonalizes.  Fermi smearing makes it false (fractional occupations over all states);
     //! a MOM occupation is a genuine projector and passes (itsBlockOccupied is what catches MOM).
     bool                    itsIdempotent=true;
+    //! Aufbau re-picks taken by this block (GDMParams::AufbauMaxRepicks caps it; see ComputeStep).
+    int                     itsRepicks=0;
+public:
+    //! How many times this block re-picked its occupied set by aufbau (the unit tests read it).
+    int Repicks() const {return itsRepicks;}
+private:
 
     // Conjugate-gradient state (Polak-Ribiere + parallel transport on the manifold).
     bool     itsHavePrev=false;

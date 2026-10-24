@@ -2006,3 +2006,97 @@ Recipe found on the way (decks `~/Code/qchem6-runs/MnO2/basis_scan/m0{,_imp}.jso
 
 QE (same U, Γ): Γ2 0.961 / 0.972, gap 0.325 eV, E −93.42661 Ha (ours 0.414 Ha high: the basis scan).  Stage 1 ends with −TS = −1.6 mHa at kT 1e-3: the smeared frontier is fractionally occupied, and the kT = 0 GDM stage keeps the occupied block it was handed — OpenWork §3 "GDM crawls at a near-degenerate frontier" (same mechanism as the Mn–O dimer).  No gap from a kT = 0 GDM stage is trustworthy until that is fixed.
 
+## 2026-10-24 — GDM aufbau re-pick: built, measured worse, kept OFF
+
+User asked to let GDM re-pick its occupied block by aufbau when the frontier crosses (OpenWork §3 "GDM crawls…").  Built in `tSCFIrrepAcceleratorGDM::ComputeStep`: after the pseudo-canonical split, if the block's lowest virtual is > `AufbauTol` below its highest occupied level, re-choose the lowest-energy `no` orbitals, restart CG; cap `AufbauMaxRepicks` = 8 per block, then a loud give-up.  Unit tests `ACrossedFrontierIsRepickedByAufbau`, `TheRepickCapLeavesTheBlockAlone`.
+
+| gate | without | with re-pick |
+|---|---|---|
+| Mn–O dimer (VA, kT 0, mult. 6, GDM from seed) | −30.342242 at iter 44, crawling, Mn 5.35 | −30.344618 at 200, Mn **4.54** (other state), still crawling; 8 + 8 re-picks then give-up; ends non-aufbau |
+| β-MnO₂ m0 imposed (stage 2) | 9 iterations, −93.01214291, aufbau only on the last step | 18 iterations, −93.0121424, ends non-aufbau (0.21464 below 0.21694) |
+
+Late swaps are a near-degenerate pair that crosses back after every swap (no integer aufbau solution at kT 0); early swaps on m0 moved up to 5 orbitals across 0.4 Ha, from stage 1's rounded fill.  User: keep the code, DEFAULT OFF (`AufbauTol = 0`).
+
+## 2026-10-24 — β-MnO₂ Γ gap: the Hamiltonians AGREE at U = 0; the difference is in the U term
+
+| Γ, smeared kT 1e-3 Ha | QE | ours (VA, imposed) |
+|---|---|---|
+| U = 0: frontier pair (bands 19/20) | 8.3259 / 8.3362 eV (Δ 0.010 eV), occ 0.61/0.39 per spin, −TS −1.09 mHa | 0.2460 / 0.2464 Ha (Δ 0.011 eV), occ 0.6/0.4 — `m0_imp_U0.log` (`QCHEM_DIAGNOSTICS=frontier`) |
+| U = 0: next band | +1.75 eV | +1.78 eV |
+| U = 0: Etot | −93.46773 | −93.07477 (0.393 Ha: basis) |
+| U(O pz) 4.62: which orbital | eigenvector of ns with the LARGEST occupation, (−p_x+p_y)/√2 = plane normal | slot Γ2 (the same orbital) |
+| U(O pz): O p occupations up / dn | 0.791 0.831 **0.961** / 0.640 0.808 **0.972** | 0.774 0.816 **0.954** / 0.637 0.793 **0.972** |
+| U(O pz): O moment | 0.163 | 0.100 |
+| U(O pz): frontier | GAPPED 0.3255 eV, integer, −TS = 0 | pair 2.3 mHa apart, fractional (−TS −1.6 mHa in stage 1) |
+| U(O pz): E_U | 0.02216 Ha (= Dudarev Σ U/2 λ(1−λ) on the U'd eigenvalue, checked by hand: 0.02197) | NOT PRINTED in the energy breakdown |
+
+So: same LDA Hamiltonian, same U orbital, near-identical occupations, yet QE's U splits the pair and ours does not.  Suspects left: the U POTENTIAL's projector (QE: ortho-atomic over all UPF atomic wavefunctions; ours: our atomic radial, Löwdin over the deck's set) and its energy form; next: print our E_U and compare the frontier pair's O pz projection in both codes (QE `projwfc.x` on ortho-atomic).
+
+**Band characters (QE `projwfc.x`, ortho-atomic; run on copies of the saves with `<dftU>` stripped — projwfc 7.6 cannot read the orbital-resolved block) and our levels (`QCHEM_DIAGNOSTICS=frontier=16`), eV from the Mn d band (QE band 20):**
+
+| QE band (character) | 13 | 14 | 15 (O z) | 16 (O normal) | 17 (in-plane) | 18 (in-plane) | 19 HOMO (O z) | 20 Mn d | 21 | 22 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| QE U(O pz) | −3.10 | −2.94 | −2.39 | −1.06 | −0.54 | −0.45 | −0.33 | 0 | +1.89 | +4.11 |
+| ours U(O pz) | −2.88 | −2.56 | −1.89 | −0.67 | −0.27 | −0.13 | −0.13 | 0 | +1.95 | +3.98 |
+
+At U = 0 the same bands agree to ≤ 0.04 eV (QE: band 19 = pure O normal π, band 20 = Mn d, 0.010 eV apart).  With U, QE's normal band drops ~1.05 eV and its O z band rises 0.76 eV relative to Mn d; ours does the same thing ~0.3 eV less: EVERY occupied O p band sits 0.2–0.5 eV higher relative to Mn d.  E_U 0.02424 vs 0.02216 Ha, same Dudarev eigenbasis form, same orbital.  Suspect: the projector radial (QE: the UPF PSWFC; ours `atomicRadial`) and its Löwdin tails; QE's O moment 0.163 vs ours 0.100.  Also: the earlier "fractional frontier" was mostly FD smearing (kT 1e-3 Ha) of our 0.128 eV gap.
+
+**The projector tail (same day).**  Our O 2p projector = the GTH pseudo-atom's 2p (the SAME function the UPF's PP_CHI holds — `gth2upf` wrote it) PROJECTED onto the O site's p shells: VA's stop at 0.465, so it captures 0.976 of the norm; ⟨r⟩ 1.186 vs 1.265 bohr, norm beyond 2.5 bohr 2.1 % vs 6.6 %, normalised overlap 0.988.  Adding ONE diffuse O p shell (0.18; decks `m0_imp_{s1,U0}_Op018.json`, `vaOp018.bsd`; vet: nothing trimmed, min eig S 2.7e-4):
+
+| Γ, U(O pz) 4.62 | VA | VA + O p 0.18 | QE |
+|---|---|---|---|
+| projector captured | 0.976 | 0.9994 | — |
+| gap | 0.128 eV (fractional at kT 1e-3) | 0.237 eV (integer) | 0.325 eV |
+| O normal band − Mn d | −0.67 | −0.88 | −1.06 |
+| E_U (Ha) | 0.02424 | 0.01767 | 0.02216 |
+| Etot U / U=0 (Ha) | −93.01214 / −93.07477 | −93.34058 / −93.38443 | −93.42661 / −93.46773 |
+
+The remainder (0.09 eV of gap, 0.1–0.2 eV on the O p bands) is what a SITE-ONLY contracted projector cannot hold at any exponent: the tail's overlap with the NEIGHBOURS' functions.  → OpenWork §2 row "+U projector independent of the orbital basis".  And O p 0.18 is the basis scan's first big win: 0.33 of the 0.41 Ha to QE, both arms.
+
+
+## 2026-10-24 — The pseudo-atomic +U projector (HubbardProjectorPlan increments 1–3): it matches QE's, and the gap does not move
+
+Built (commits on main, this day): an atom-centred function set and the basis's overlap with it (`qchem.BasisSet.AtomCentredSet`; GPW through the KB projection seam, the set's own Bloch overlap through a new engine pair kernel `LatticeSum1E::MakeOverlap(phase,A,g,h)`), `LowdinProjector::Atomic(B,O,…)` (ortho-atomic in the TRUE metric O), the pseudo-atom builder `qchem.PseudoAtomOrbital` (moved out of the facade), and the deck field `"projector": "pseudoAtomic"`.  The O 2p projector is now the pseudo-atom orbital in its own 16-exponent pool: against the O UPF's `PP_CHI.2` (`~/Code/qe-runs/SrVO3/O.pz-gth-q6.UPF`) the normalised overlap is **1.00000000** and the norm beyond 2.5 bohr is 6.59 % in both.
+
+The increment-3 gate (decks `~/Code/qchem6-runs/MnO2/basis_scan/m0_imp_s1{,_Op018}_PA.json`, stage 1, kT 1e-3, `QCHEM_DIAGNOSTICS=frontier=16`):
+
+| Γ, U(O pz) 4.62 eV | VA site-shell | VA **pseudo-atomic** | VA+O p 0.18 site-shell | VA+O p 0.18 **pseudo-atomic** | QE |
+|---|---|---|---|---|---|
+| O 2p captured by the block (B†S⁻¹B/O) | 0.976 | 0.994 | 0.9994 | 1.000 | — |
+| gap (HOMO→LUMO, eV) | 0.128 | **0.128** | 0.237 | **0.234** | 0.325 |
+| E_U (Ha) | 0.02545 | 0.03014 | 0.01767 | **0.02214** | 0.02216 |
+| O p slot 2 (normal) up / dn | 0.949 / 0.972 | 0.940 / 0.966 | 0.968 / 0.978 | 0.960 / 0.972 | 0.961 / 0.972 |
+| Etot (Ha) | −93.01334 | −93.00879 | −93.34058 | −93.33536 | −93.42661 |
+
+**Verdict: the gate as written FAILS, and its premise is refuted.**  The projector is now QE's own function and is basis-independent (captured ≈ 1 in both bases), yet on plain VA the gap is unchanged to 0.001 eV and on VA + O p 0.18 to 0.003 eV.  So the 0.128 → 0.237 eV move that one diffuse O p shell made was the ORBITAL basis (the KS states, Etot −0.33 Ha), not the projector's tail; the 2026-10-24 "remainder is the tail's overlap with neighbours' functions" reading above is wrong.  What the projector DOES set is E_U: with the better basis the pseudo-atomic E_U is QE's to 0.1 % (site-shell route: 20 % low), and the O p occupations agree with QE's to ≤ 0.001 on the U'd slot.  The remaining gap and energy difference to QE (0.09 eV, 0.09 Ha) is the orbital basis — the S2 basis scan's job.  The basis-independence check of the occupations (VA vs VA + O p 0.18 to ~1e-3) cannot be read off these runs: the DENSITY changes with the basis (0.02 on slot 2 in both routes alike).
+
+## 2026-10-24 — β-MnO₂ diffuse/polarization basis scan (pseudo-atomic projector; decks + logs `~/Code/qchem6-runs/MnO2/basis_scan/scan/`)
+
+Base VA + O p 0.18 (gap 0.234 eV, Etot −93.33536); each row adds ONE shell; gap from the frontier window (stage 1, kT 1e-3 Ha, imposed):
+
+| added | gap (eV) | ΔE (mHa) | vet |
+|---|---|---|---|
+| Mn p 0.5 | 0.231 | −11.4 | nothing trimmed |
+| Mn d 0.18 | 0.229 | −0.45 | trimmed Mn s 0.1 instead |
+| O p 0.08 | 0.234 | 0 | trimmed O p 0.08 itself |
+| O s 0.15 | 0.242 | −20.9 | trimmed Mn s 0.1 |
+| O d 0.8 | 0.226 | −14.2 | nothing |
+| O d 1.25 | 0.220 | −8.9 | nothing |
+| O p 0.08, vet OFF, orthoTol 1e-7 (diagnostic) | **0.234** | −25.4 | 176 kept, min pivot 6.4e-6 |
+| (O d 1.2: INVALID — merged with O p 1.2 by the same-exponent bug, 172 functions, +753 mHa) | | | |
+
+The gap is FLAT (0.220–0.242) under every addition, including the diffuse O p kept past the conditioning wall.  So beyond O p 0.18 the residual 0.09 eV is NOT the Gaussian orbital basis.  Band by band (eV from Mn d; QE bands 13–22): ours −3.04 −2.95 −2.30 **−0.84** −0.41 −0.32 −0.23 | +1.92 +4.14 vs QE −3.10 −2.94 −2.39 **−1.06** −0.54 −0.45 −0.33 | +1.89 +4.11: within ~0.1 eV except the U'd O-normal band (+0.22: pushed down 80 % as far as QE's) and the in-plane bands that carry normal character (+0.13).  With projector, occupations and E_U matching QE, the residual is HOW STRONGLY U ACTS PER BAND — next: our bands' weights on the U'd projector vs QE's projwfc (band 16: 0.987).
+
+**Per-band +U slot weights vs QE `projwfc.x` (same day; `QCHEM_DIAGNOSTICS=u_bands=10`, VA + O p 0.18, pseudo-atomic projector; log `m0_imp_s1_Op018_PA_ubands.log`).**  Slots: O p Γ2 = plane normal (U'd), Γ1 = z, Γ0 = in-plane σ.
+
+| QE band | character | QE | ours |
+|---|---|---|---|
+| 15 | O z | 0.991 | Γ1 0.993 |
+| 16 | O normal (U'd) | 0.987 | Γ2 0.988 |
+| 17 | in-plane / normal | 0.706 / 0.290 | 0.689 / 0.308 |
+| 18 | in-plane / normal | 0.738 / 0.257 | 0.724 / 0.273 |
+| 19 HOMO | O z | 0.994 | Γ1 0.996 |
+| 20 LUMO | Mn d / in-plane / O s | 0.649 / 0.245 / 0.082 | 0.652 / 0.242 / 0.083 |
+
+Characters agree to ~0.01 on every band, so the first-order U shift per band is QE's (the "U acts more weakly per band" hypothesis is WRONG).  Energies from the deep pure-O-z band 15 (untouched by U): O normal +1.46 vs QE +1.33, HOMO O z +2.07 vs +2.06, LUMO Mn d +2.30 vs +2.39.  The gap is short because the Mn d LUMO sits 0.09 eV LOW (and the U'd band 0.13 eV high): same characters, different energies — the self-consistent response to U, not its action.  Open.
+

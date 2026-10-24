@@ -241,6 +241,11 @@ public:
     { cvec_t b=itsLat->MakeOverlap(phase,A,g); cvec_t out=blazem::trans(itsTc)*b; return out; }
     virtual cvec_t  MakeOverlap(const GaussianFunction& g) const override
     { cvec_t b=itsLat->MakeOverlap(g); cvec_t out=blazem::trans(itsTc)*b; return out; }
+    //! Two caller functions: the inner engine's kernel as is (no view function enters, so no transform).
+    virtual dcmplx  MakeOverlap(const cellphase_t& phase, const UnitCell& A, const GaussianFunction& g, const GaussianFunction& h) const override
+    { return itsLat->MakeOverlap(phase,A,g,h); }
+    virtual double  MakeOverlap(const GaussianFunction& g, const GaussianFunction& h) const override
+    { return itsLat->MakeOverlap(g,h); }
     // ★ THE POINT OF THE POINT-SET SEAM.  The transform is LINEAR, so
     //       Sum_R phase_R T^T v_R  ==  T^T Sum_R phase_R v_R,
     // and the right-hand side applies T ONCE PER POINT where operator() applied it once per IMAGE (~150x

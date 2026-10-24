@@ -318,6 +318,39 @@ public:
         for (auto i:indices()) b[i]=ns[i]*GaussOverlapTerm(i, g, g.center, Lg);
         return b;
     }
+    // Gaussian::LatticeSum1E: the lattice-summed <g|h(.-R_n)> of two CALLER functions -- the same kernel
+    // (each monomial a Polarization on an uncontracted GaussianRF) and the same exact pair threshold as
+    // MakeOverlap(g), with g in the chi_i slot.  The basis's own functions do not enter.
+    dcmplx MakeOverlap(const cellphase_t& phase, const UnitCell& A,
+                       const Gaussian::LatticeSum1E::GaussianFunction& g, const Gaussian::LatticeSum1E::GaussianFunction& h) const
+    {
+        const double lne=-std::log(kScreenEps());
+        const double rr=std::sqrt(lne*(1.0/g.alpha+1.0/h.alpha));
+        const rvec3_t dgh=g.center-h.center;
+        dcmplx s(0.0);
+        for (const auto& n : A.CellsInSphere(rr+norm(dgh)))
+        {
+            const rvec3_t Roff=A.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
+            const rvec3_t d=dgh-Roff;
+            if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;
+            s += phase(n)*GaussPairTerm(g, h, h.center+Roff);
+        }
+        return s;
+    }
+    double MakeOverlap(const Gaussian::LatticeSum1E::GaussianFunction& g, const Gaussian::LatticeSum1E::GaussianFunction& h) const
+    {
+        return GaussPairTerm(g, h, h.center);
+    }
+    //! One raw \f$\langle g|h\,\text{at}\,c\rangle\f$.
+    static double GaussPairTerm(const Gaussian::LatticeSum1E::GaussianFunction& g,
+                                const Gaussian::LatticeSum1E::GaussianFunction& h, const rvec3_t& c)
+    {
+        GaussianRF rg(g.alpha, g.center, GaussDegree(g)), rh(h.alpha, c, GaussDegree(h));
+        double s=0.0;
+        for (const auto& tg : g.terms)
+            for (const auto& th : h.terms) s += tg.c*th.c*rg.Overlap2C(rh, Polarization(tg.p), Polarization(th.p));
+        return s;
+    }
     //! g's max polynomial degree (Hermite table sizing) and one raw \f$\langle\chi_i|g\,\text{at}\,c\rangle\f$
     //! term -- shared by the periodic and finite \c MakeOverlap(g) forms.
     static int GaussDegree(const Gaussian::LatticeSum1E::GaussianFunction& g)

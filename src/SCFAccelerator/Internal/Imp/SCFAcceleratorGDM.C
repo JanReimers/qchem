@@ -13,6 +13,8 @@ module;
 #include <iostream>
 #include <iomanip>
 #include <vector>
+#include <algorithm>   // std::stable_sort (the aufbau re-pick)
+#include <utility>     // std::pair
 module qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.Blaze;
@@ -165,20 +167,60 @@ template <class T> bool tSCFIrrepAcceleratorGDM<T>::ComputeStep()
     itsActive=true;
     size_t nv=n-no;
 
-    // Fock in the current MO (orthonormal) basis, and its blocks.
-    mat_t<T> FMO  = blazem::ctrans(itsCp)*itsFp*itsCp;
-    mat_t<T> Cocc = blazem::submatrix(itsCp,0,0 ,n,no);
-    mat_t<T> Cvir = blazem::submatrix(itsCp,0,no,n,nv);
-    hmat_t<T> Foo = hermpart<T>(blazem::submatrix(FMO,0 ,0 ,no,no));
-    hmat_t<T> Fvv = hermpart<T>(blazem::submatrix(FMO,no,no,nv,nv));
-    mat_t<T> Fov  = blazem::submatrix(FMO,no,0,nv,no);
-
-    // (1) Pseudo-canonicalize: diagonalize occ-occ and virt-virt blocks (Hermitian -> real energies).
-    rvec_t eo, ev; mat_t<T> Ro, Rv;
-    blazem::eigen(Foo, eo, Ro);
-    blazem::eigen(Fvv, ev, Rv);
-    mat_t<T> CoccPC = Cocc*Ro;
-    mat_t<T> CvirPC = Cvir*Rv;
+    rvec_t eo, ev; mat_t<T> Ro, Rv, CoccPC, CvirPC, Fov;
+    // Fock in the current MO (orthonormal) basis, its blocks, and (1) the pseudo-canonical split: diagonalize
+    // the occ-occ and virt-virt blocks (Hermitian -> real energies).  A lambda because the aufbau re-pick
+    // below redoes it once on the re-picked block.
+    auto pseudoCanonical=[&]()
+    {
+        mat_t<T> FMO  = blazem::ctrans(itsCp)*itsFp*itsCp;
+        hmat_t<T> Foo = hermpart<T>(blazem::submatrix(FMO,0 ,0 ,no,no));
+        hmat_t<T> Fvv = hermpart<T>(blazem::submatrix(FMO,no,no,nv,nv));
+        Fov = blazem::submatrix(FMO,no,0,nv,no);
+        blazem::eigen(Foo, eo, Ro);
+        blazem::eigen(Fvv, ev, Rv);
+        CoccPC = blazem::submatrix(itsCp,0,0 ,n,no)*Ro;
+        CvirPC = blazem::submatrix(itsCp,0,no,n,nv)*Rv;
+    };
+    pseudoCanonical();
+    // (1b) AUFBAU RE-PICK (GDMParams::AufbauTol).  The geodesic only ever rotates WITHIN the block it holds, so
+    // a virtual of this block lying below one of its occupied levels is never repaired by descent: GDM crawls
+    // to the best state OF THAT MANIFOLD.  Re-choose the occupied set as the lowest-energy `no` of the
+    // pseudo-canonical orbitals (both sets are orthonormal and span the whole space, so the re-picked columns
+    // are a valid orbital set), restart CG on the new manifold, and redo the split.  Eigenvalues come back
+    // ascending, so the test is one comparison: lowest virtual vs highest occupied.
+    if (itsParams.AufbauTol>0 && ev[0] < eo[no-1]-itsParams.AufbauTol)
+    {
+        if (itsRepicks < itsParams.AufbauMaxRepicks)
+        {
+            std::vector<std::pair<double,size_t>> all;          // (energy, column in [CoccPC | CvirPC])
+            for (size_t i=0;i<no;i++) all.push_back({eo[i],i});
+            for (size_t a=0;a<nv;a++) all.push_back({ev[a],no+a});
+            std::stable_sort(all.begin(),all.end(),[](const auto& x,const auto& y){return x.first<y.first;});
+            size_t moved=0;
+            mat_t<T> Cnew(n,n);
+            for (size_t k=0;k<n;k++)
+            {
+                const size_t c=all[k].second;
+                if (k<no && c>=no) moved++;                     // a virtual promoted into the occupied block
+                blazem::column(Cnew,k) = (c<no) ? blazem::column(CoccPC,c) : blazem::column(CvirPC,c-no);
+            }
+            std::cerr << "[GDM] AUFBAU RE-PICK (block occ " << no << "): lowest virtual " << ev[0]
+                      << " < highest occupied " << eo[no-1] << " Ha -- " << moved
+                      << " orbital(s) swapped into the occupied block, CG restarted" << std::endl;
+            itsCp = Cnew;
+            itsHavePrev = false;
+            itsRepicks++;
+            pseudoCanonical();
+        }
+        else if (itsRepicks == itsParams.AufbauMaxRepicks)
+        {
+            std::cerr << "[GDM] AUFBAU RE-PICK GAVE UP after " << itsRepicks << " swaps in this block (occ " << no
+                      << "): the frontier crosses back after every swap, so it has NO integer aufbau solution -- the"
+                         " ground state is fractional (use smearing).  Continuing on the non-aufbau manifold." << std::endl;
+            itsRepicks++;                                       // say it once
+        }
+    }
     mat_t<T> g = blazem::ctrans(Rv)*Fov*Ro;      // nv x no  orbital gradient (o-v block)
 
     // (2) Preconditioned gradient; lift gradient and PG to full ambient tangents at CoccPC.

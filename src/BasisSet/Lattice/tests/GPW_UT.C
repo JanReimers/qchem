@@ -30,6 +30,7 @@ import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + ca
 import qchem.BasisSet.Gaussian.Point.Factory;         // Gaussian::Factory, BasisSetData/Engine/Angular
 import qchem.BasisSet.Gaussian.PG_Cart;         // direct PG_Cart construction (the diffuse-d V_long oracle gate)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // GPW_IBS (the basis under test)
+import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView; // MakeSphericalLatticeView (the atom-centred overlap's d gate)
 import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential + the _R / _Gaussian faces (KB gate)
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 projector data)
 import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
@@ -884,6 +885,144 @@ TEST(GPW, TRIM_RealBlockMatchesComplexBitwise)
         // And the realness FACTS line up: the irrep says real, both blocks agree (Step 1's query).
         EXPECT_TRUE(gr.IsReal());
         EXPECT_TRUE(gc.IsReal());
+    }
+}
+
+// (c4) THE ATOM-CENTRED OVERLAP (doc/HubbardProjectorPlan.md D2): B_{i,(M,m)} = <chi_i^k | R_M Y_lm>.  The
+// brute-force oracle is a set whose functions ARE basis functions: build one manifold per shell from the
+// shell's own raw radial (AoShell exponents/coefficients), and every column of B must be +-ONE column of S
+// (Hermitian-consistent with MakeOverlap: chi_{M,m} = chi_j => B[:,c] = S[:,j]) -- the sign is the harmonic
+// table's, the column the shell's ordering of the same component.  s and p on a Cartesian basis (the
+// Cartesian p IS the real l=1 set), d on the spherical view; Gamma and a complex k=(1/4,0,0); the real TRIM
+// block is the complex block's real part bitwise.
+namespace
+{
+qchem::BasisSet::GaussianAtomCentredSet SetFromShells(const std::vector<Symmetry::Molecule::AoShell>& shells,
+                                                      int lmax, std::vector<size_t>& picked)
+{
+    qchem::BasisSet::GaussianAtomCentredSet set;
+    for (size_t s=0;s<shells.size();s++)
+    {
+        const auto& sh=shells[s];
+        const int l=sh.rep->L();
+        if (l>lmax || sh.rep->nComponents()!=size_t(2*l+1)) continue;   // a Cartesian d is 6 functions: not one manifold
+        std::vector<qchem::Math::Gaussian> radial;
+        for (size_t t=0;t<sh.exponents.size();t++) radial.push_back({sh.coefficients[t], 0, sh.exponents[t]});
+        set.Add(sh.center, l, radial);
+        picked.push_back(s);
+    }
+    return set;
+}
+// Max over the set's columns of min over the shell's columns j and signs of |B[:,c] -+ S[:,j]|, relative to
+// |S[:,j]|; \a match receives each column's best (j, sign).
+template <class T> double WorstColumnMatch(const mat_t<T>& B, const hmat_t<T>& S, const qchem::BasisSet::AtomCentredSet& set,
+                                           const std::vector<Symmetry::Molecule::AoShell>& shells, const std::vector<size_t>& picked,
+                                           std::vector<std::pair<size_t,double>>* match=nullptr)
+{
+    double worst=0.0;
+    if (match) match->assign(set.NumFunctions(), {0,1.0});
+    for (size_t M=0;M<set.Count();M++)
+    {
+        const auto& sh=shells[picked[M]];
+        for (size_t c=0;c<set.Size(M);c++)
+        {
+            double best=1e300;
+            for (size_t j=sh.offset;j<sh.offset+sh.nComponents();j++)
+                for (double sg : {1.0,-1.0})
+                {
+                    double num=0.0, den=0.0;
+                    for (size_t i=0;i<S.rows();i++) { num+=std::norm(B(i,set.Offset(M)+c)-sg*S(i,j)); den+=std::norm(S(i,j)); }
+                    if (std::sqrt(num/den)<best) { best=std::sqrt(num/den); if (match) (*match)[set.Offset(M)+c]={j,sg}; }
+                }
+            worst=std::max(worst,best);
+        }
+    }
+    return worst;
+}
+} //anon
+
+TEST(GPW, AtomCentredOverlapOfBasisFunctionsIsOverlapColumns)
+{
+    const double a=8.0;                          // small cell: the image sums are live
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+    using BasisSet::Gaussian::tGPW_IBS;
+
+    for (const ivec3_t ik : {ivec3_t(0,0,0), ivec3_t(1,0,0)})      // Gamma and the complex k=(1/4,0,0)
+    {
+        tGPW_IBS<dcmplx> cx(cell, ivec3_t(4,4,4), ik, molCell, /*densityEcut=*/0.0);
+        const auto shells=cx.GetAoShells();
+        std::vector<size_t> picked;
+        const auto set=SetFromShells(shells, 1, picked);
+        ASSERT_GT(set.Count(), 2u);
+        const mat_t<dcmplx> B=cx.MakeAtomCentredOverlap(set);
+        const Complex_OIBS& g=cx;
+        ASSERT_EQ(B.rows(), g.GetNumFunctions());
+        ASSERT_EQ(B.columns(), set.NumFunctions());
+        std::vector<std::pair<size_t,double>> match;
+        const double w=WorstColumnMatch(B, g.Overlap(), set, shells, picked, &match);
+        std::cout << "[atom-centred overlap] k index " << ik << ": worst |B[:,c] -+ S[:,j]|/|S[:,j]| = " << w << std::endl;
+        EXPECT_LT(w, 1e-12);
+        if (ik.x==1) EXPECT_GT(MaxImag(B), 1e-4) << "k!=0 with images: B must be genuinely complex";
+        // D3: the set's OWN overlap, from the engine's pair kernel (the orbitals do not enter), is the matched
+        // S sub-block with the matched signs: O(c,c') = s_c s_c' S(j_c, j_c').
+        const hmat_t<dcmplx> O=cx.MakeSetOverlap(set);
+        const auto& S=g.Overlap();
+        double oworst=0.0;
+        for (size_t c=0;c<O.rows();c++)
+            for (size_t d=0;d<O.columns();d++)
+                oworst=std::max(oworst, std::abs(O(c,d)-match[c].second*match[d].second*S(match[c].first,match[d].first)));
+        std::cout << "[atom-centred set overlap] k index " << ik << ": max |O - S_sub| = " << oworst << std::endl;
+        EXPECT_LT(oworst, 1e-12);
+    }
+    // The real TRIM block narrows exactly.
+    tGPW_IBS<double> re(cell, ivec3_t(2,2,2), ivec3_t(1,1,1), molCell, 0.0);
+    tGPW_IBS<dcmplx> cx(cell, ivec3_t(2,2,2), ivec3_t(1,1,1), molCell, 0.0);
+    std::vector<size_t> picked;
+    const auto set=SetFromShells(cx.GetAoShells(), 1, picked);
+    const mat_t<double> Br=re.MakeAtomCentredOverlap(set);
+    const mat_t<dcmplx> Bc=cx.MakeAtomCentredOverlap(set);
+    for (size_t i=0;i<Br.rows();i++)
+        for (size_t j=0;j<Br.columns();j++) EXPECT_EQ(Br(i,j), std::real(Bc(i,j)));
+    const hmat_t<double> Or=re.MakeSetOverlap(set);
+    const hmat_t<dcmplx> Oc=cx.MakeSetOverlap(set);
+    for (size_t i=0;i<Or.rows();i++)
+        for (size_t j=0;j<Or.columns();j++) EXPECT_EQ(Or(i,j), std::real(Oc(i,j)));
+}
+
+// The d sibling: the spherical view's 5 harmonic columns ARE an l=2 manifold (the view answers by congruence
+// beneath the evaluator's seam -- the "comes for free" claim of the plan, checked).  Mn, Gamma and k=(1/4,0,0).
+TEST(GPW, AtomCentredOverlapDChannelOnSphericalView)
+{
+    const double a=8.40;
+    FCCUnitCell cell(a);
+    cell.AddAtom(25, {0,0,0});
+    std::shared_ptr<const Real_BS> cart(
+        BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    auto view=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cart);
+    for (const ivec3_t ik : {ivec3_t(0,0,0), ivec3_t(1,0,0)})
+    {
+        GPW_IBS gpw(cell, ivec3_t(4,4,4), ik, view, /*densityEcut=*/0.0);
+        const auto shells=gpw.GetAoShells();
+        std::vector<size_t> picked;
+        const auto set=SetFromShells(shells, 2, picked);
+        size_t nd=0; for (size_t M=0;M<set.Count();M++) if (set.L(M)==2) nd++;
+        ASSERT_GT(nd, 0u) << "the view must expose 5-component d shells";
+        const Complex_OIBS& g=gpw;
+        std::vector<std::pair<size_t,double>> match;
+        const double w=WorstColumnMatch(gpw.MakeAtomCentredOverlap(set), g.Overlap(), set, shells, picked, &match);
+        std::cout << "[atom-centred overlap d] k index " << ik << ": worst = " << w << std::endl;
+        EXPECT_LT(w, 1e-11);
+        const hmat_t<dcmplx> O=gpw.MakeSetOverlap(set);
+        const auto& S=g.Overlap();
+        double oworst=0.0;
+        for (size_t c=0;c<O.rows();c++)
+            for (size_t d=0;d<O.columns();d++)
+                oworst=std::max(oworst, std::abs(O(c,d)-match[c].second*match[d].second*S(match[c].first,match[d].first)));
+        std::cout << "[atom-centred set overlap d] k index " << ik << ": max |O - S_sub| = " << oworst << std::endl;
+        EXPECT_LT(oworst, 1e-11);
     }
 }
 

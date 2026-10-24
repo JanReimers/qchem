@@ -106,6 +106,8 @@ const auto kResolution = NAMES(Response::HubbardResolution, {"manifold",Response
                                {"slot",Response::HubbardResolution::Slot}, {"eigen",Response::HubbardResolution::Eigen});
 const auto kLoopEstimator = NAMES(SolidCalculation::HubbardLoop::Estimator, {"ACBN0",SolidCalculation::HubbardLoop::Estimator::ACBN0},
                                   {"linearResponse",SolidCalculation::HubbardLoop::Estimator::LinearResponse});
+const auto kProjector = NAMES(Hamiltonian::HubbardProjectorKind, {"siteShells",Hamiltonian::HubbardProjectorKind::SiteShells},
+                              {"pseudoAtomic",Hamiltonian::HubbardProjectorKind::PseudoAtomic});
 const auto kRadial = NAMES(RadialKind, {"MHL",RadialKind::MHL}, {"Log",RadialKind::Log}, {"Linear",RadialKind::Linear});
 const auto kAngular= NAMES(AngularKind, {"Lebedev",AngularKind::Lebedev}, {"GaussLegendre",AngularKind::GaussLegendre});
 using Measure = SCFParams::Measure;
@@ -238,7 +240,8 @@ std::vector<double> FromEV(const std::vector<double>& v) { std::vector<double> o
 json ToJson(const Hamiltonian::HubbardManifold& h)
 {
     return {{"site",h.site},{"l",h.l},{"U_eV",ToEV(h.U)},{"Uirrep_eV",ToEV(h.Uirrep)},{"alpha_eV",ToEV(h.alpha)},{"radial",h.radial},
-            {"atomicRadial",h.atomicRadial},{"orthoAtomic",h.orthoAtomic}};
+            {"atomicRadial",h.atomicRadial},{"orthoAtomic",h.orthoAtomic},{"projector",NameOf(h.projector,kProjector)}};
+    // (atomicFunction is not written: the facade derives it from the pseudo-atom, deterministically.)
 }
 void FromJson(const json& j, Hamiltonian::HubbardManifold& h, const std::string& path)
 {
@@ -248,6 +251,7 @@ void FromJson(const json& j, Hamiltonian::HubbardManifold& h, const std::string&
     std::vector<double> ui=ToEV(h.Uirrep); f.Get("Uirrep_eV",ui); h.Uirrep=FromEV(ui);
     double al=h.alpha*kHaToEV; f.Get("alpha_eV",al); h.alpha=al/kHaToEV;
     f.Get("radial",h.radial); f.Get("atomicRadial",h.atomicRadial); f.Get("orthoAtomic",h.orthoAtomic);
+    f.GetEnum("projector",h.projector,kProjector);
     f.Done();
 }
 } // anon

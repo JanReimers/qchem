@@ -193,6 +193,19 @@ template <class T> std::map<int,hmat_t<T>> tGPW_IBS<T>::MakeProjectorMatrixByL(c
     return out;
 }
 
+template <class T> mat_t<T> tGPW_IBS<T>::MakeAtomCentredOverlap(const BasisSet::AtomCentredSet& set) const
+{
+    const auto* g=dynamic_cast<const BasisSet::AtomCentredSet_Gaussian*>(&set);
+    if (!g) throw std::invalid_argument("GPW MakeAtomCentredOverlap: the set must carry the closed-Gaussian face (AtomCentredSet_Gaussian)");
+    return Lattice::ToScalar<T>(GPW_Evaluator::MakeAtomCentredOverlap(*g));
+}
+template <class T> hmat_t<T> tGPW_IBS<T>::MakeSetOverlap(const BasisSet::AtomCentredSet& set) const
+{
+    const auto* g=dynamic_cast<const BasisSet::AtomCentredSet_Gaussian*>(&set);
+    if (!g) throw std::invalid_argument("GPW MakeSetOverlap: the set must carry the closed-Gaussian face (AtomCentredSet_Gaussian)");
+    return Lattice::ToScalar<T>(GPW_Evaluator::MakeSetOverlap(*g));
+}
+
 // The DFT 3-centre tables over the REQUESTED fit basis's grid (doc/GPWPlan §0e).  The fit basis \a c that the
 // Hartree/XC term hands us is the one CreateCD/VxcFitBasisSet produced -- a PlaneWave::PlaneWaveFit_IBS, which IS-A
 // PlaneWave::PW_Grid_Evaluator carrying the density-fit {G}/grid policy.  Cross-cast to that grid and build the tensor on
