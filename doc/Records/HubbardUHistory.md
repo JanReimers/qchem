@@ -1714,6 +1714,37 @@ TiO₂ (gap 1.8 eV) Δρ 4e-4; FeS₂ (gap 0.73 eV, kT 0.136 eV) Δρ 3.4e-3, E 
 (metal) Δρ 2.7e-2, E 14 Ha off.  Pulay at relax 1.0 (the deck's ground-state params, passed straight to the FD re-converge) then
 amplifies it.  The LR numbers never pass through a restart, so the gate stands on them.
 
+## The cross-code gate re-run after the pin-29 image-list fixes (2026-10-24)
+
+OpenWork §3 ORDER step 1 (the CHEAP tier).  Same decks (`decks/campaigns/CrossCode/{tio2,fes2}_*_G.json`, TiO₂ b6 6×6
+`~/Code/qchem6-runs/TiO2/basis_scan/b6_TiO_postpin29.json` = `b6_TiO.json` with the retired `minDeltaRho` → `minDeltaRhoPerElectron 1e-6`),
+binary = `openwork-sweep` at `30a41775` (image fixes + anchor batch + N4 default; NOT seed-tiebreak).  Logs `*_postpin29_20261024.log`
+in `~/Code/qchem6-runs/{TiO2,TiO2/basis_scan,FeS2}/`; records `TiO2_rutile.r006`, `basis_scan/TiO2_rutile.r002`, `FeS2_pyrite.r003`, the
+control `FeS2_pyrite.r004`.
+
+| | E_tot Ha | χ₀ | χ LR | χ FD | U eV |
+|---|---|---|---|---|---|
+| TiO₂ LOWDIN, banked 10-21 | −71.1350613 | −13.917 | −3.98688 | −3.98567 | 4.870 |
+| TiO₂ LOWDIN, 10-24 | −71.1350964 | −13.9727 | −3.99553 | — | **4.863** |
+| TiO₂ CP2K | | −13.993 | | −3.99651 | 4.864 |
+| TiO₂ b6 6×6, banked 10-21 | −71.41653 | | | | Ti 3.051 / O 6.735 (Ti 1×1 5.125) |
+| TiO₂ b6 6×6, 10-24 | −71.4165332 | | | | Ti 3.0504 / O 6.7345 (Ti 1×1 5.1265) |
+| FeS₂, 10-22 (anchor tree; XC from ρ_mix) | −164.9113610 | −33.2807 | −3.98723 | −3.98893 | 6.0070 |
+| FeS₂, 10-24 CONTROL (`xcCuspDeficit=false`) | −164.9113609 | −33.2793 | −3.98720 | −3.99322 | 6.0070 |
+| FeS₂, 10-24 (cusp deficit, the default) | −164.9114008 | **−32.7800** | −3.98059 | −3.98469 | **6.0059** |
+| FeS₂ CP2K | | −33.457 | | −3.98992 | 6.007 |
+
+**The V_short fix did NOT move these cells.**  FeS₂ is the clean witness: the control (today's code, the 10-22 XC route) reproduces the
+10-22 run to 1e-7 Ha, χ₀ 4e-5 relative, U to 2e-5 eV.  Rutile: E within 0.04 mHa, U within 2 meV (an upper bound -- the 10-21 runs predate
+the anchor batch too).  Pin 29's own prediction: the defect grows with the home-atom separation, so compact cells see little of it --
+MnO AFM-II's −61 mHa is the other end.  ⚠ So a small move here does NOT clear NiO: rocksalt AFM-II is MnO's own cell type.
+
+**What did move FeS₂ is the N4 cusp deficit (pin 28): χ₀ −1.5 % (0.53 % → 2.0 % from CP2K), χ −0.17 %, U −1 meV** -- the banked gate was
+measured with XC on the bare ρ̃_mix (the log's "XC rho source: rho_mix", a pin-28 violation), and moving XC to ρ[D] moved χ₀ AWAY from
+CP2K while U, a ratio, held.  Rutile's χ₀ moved TOWARD CP2K (0.5 % → 0.15 %), so it is not one sign.  Open (OpenWork §3 re-run row):
+CP2K's GPW evaluates XC on its REGULAR-GRID density, not on an atomic quadrature, so a 1–2 % χ₀ difference may be the XC-density
+convention; the discriminator is FeS₂ on our raster (pair) route, `--set solid.policy.beckeXC=false` -- collocated ρ[D] on a uniform grid, CP2K's way.
+
 ## TiO₂ ortho-atomic at Γ vs hp.x at Γ (2026-10-21) — an OPEN corner case
 
 Ours: `rundeck decks/campaigns/CrossCode/tio2_Ti3d_G_ortho.json` = the CP2K-validated Γ deck (same state: Etot −71.1350613 Ha, as
