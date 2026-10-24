@@ -29,6 +29,7 @@ export import qchem.BasisSet.Orbital_PP_IBS;          // the species-field integ
 export import qchem.BasisSet;                      // Real_BS (the molecular Gaussian basis handed to the ctor)
 export import qchem.BasisSet.AoShellSource;          // the shell-layout face this block forwards to its molecular block
 export import qchem.BasisSet.BareCoulombSource;      // the ACBN0 face it forwards too (+U increment 3, 2026-09-21)
+export import qchem.BasisSet.AtomCentredSet;         // the +U projector functions' overlap face (HubbardProjectorPlan D2)
 export import qchem.BasisSet.Transition_DFT_IBS;     // the (k+q, k) transition pair (LinearResponsePlan B2)
 export import qchem.UnitCell;                      // UnitCell (the direct lattice handed to the ctor)
 import qchem.Symmetry;                            // sym_t (the Bloch irrep)
@@ -69,6 +70,7 @@ template <class T> class tGPW_IBS
     , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
     , public virtual BasisSet::AoShellSource        // built from the molecular block's shells, same order (+U, 2026-09-19)
     , public virtual BasisSet::BareCoulombSource    // the molecular block's bare (m1m2|m3m4): central cell only (ACBN0, 2026-09-21)
+    , public virtual BasisSet::AtomCentredOverlapSource<T>   // <chi_i^k|an atom-centred function> (+U projectors, HubbardProjectorPlan D2)
     , public virtual BasisSet::Transition_DFT_IBS   // the (k+q, k) transition density, this block the ket (LinearResponsePlan B2)
 {
 public:
@@ -101,6 +103,11 @@ public:
         const auto& src=dynamic_cast<const BasisSet::BareCoulombSource&>(GPW_Evaluator::MolecularBlock());
         return src.BareCoulomb(cols);
     }
+    //! \copydoc BasisSet::AtomCentredOverlapSource::MakeAtomCentredOverlap
+    //! Analytic, through the evaluator's KB projection seam (the spherical view answers by congruence beneath
+    //! it); THROWS for a set without the closed-Gaussian face.  Real on a TRIM block (the exact narrow).
+    virtual mat_t<T> MakeAtomCentredOverlap(const BasisSet::AtomCentredSet& set) const override;
+    virtual hmat_t<T> MakeSetOverlap(const BasisSet::AtomCentredSet& set) const override;
     // (The old MakeOverlap overload-set merge is gone with the field bridge -- V1.1(iii): only the no-arg
     //  <i|j> build exists now, and the 1E mixin's override dominates the shared virtual base's.)
 

@@ -166,6 +166,14 @@ public:
     //! \brief The FINITE (home-term-only) overlap \f$b_i=\langle\chi_i|g\rangle\f$ -- the molecule/box limit
     //! (no lattice), used by the finite-mode KB assembly and any finite \f$\langle\chi|g\rangle\f$ consumer.
     virtual cvec_t MakeOverlap(const GaussianFunction& g) const = 0;
+    //! \brief The lattice-summed overlap of TWO caller functions, \f$\sum_n\mathrm{phase}(n)\,\langle g|\,h(\cdot-R_n)\rangle\f$,
+    //! both integrated RAW -- the engine's own 2-centre kernel and magnitude-screened enumeration; this basis's
+    //! functions do not enter.  What an atom-centred set's own Bloch metric is made of (doc/HubbardProjectorPlan.md
+    //! D3): asked of the block because the kernel is the engine's and the k convention is the lattice side's.
+    virtual dcmplx MakeOverlap(const cellphase_t& phase, const UnitCell& A,
+                               const GaussianFunction& g, const GaussianFunction& h) const = 0;
+    //! The FINITE \f$\langle g|h\rangle\f$ (home-only mode).
+    virtual double MakeOverlap(const GaussianFunction& g, const GaussianFunction& h) const = 0;
     //! \f$\langle p^2\rangle_{ij}=\sum_R e^{ik\cdot R}\langle\chi_i|-\nabla^2|\chi_j(\cdot-R)\rangle\f$ (NO 1/2 --
     //! the Hamiltonian applies it, matching \c Integrals_Kinetic).
     virtual chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const = 0;

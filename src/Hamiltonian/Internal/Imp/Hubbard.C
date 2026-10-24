@@ -221,6 +221,81 @@ template <class U> double LowdinProjector<U>::Integrate(const rvec_t& f) const
     return tr;
 }
 
+// THE ATOMIC-SET PAIR (HubbardProjectorPlan D4).  H^{-1/2} of a small Hermitian matrix by eigen-decomposition;
+// a (near-)singular ortho group is two manifolds spanning the same functions -- a broken input, thrown.
+template <class U> static mat_t<U> InverseSqrt(const hmat_t<U>& O, const char* what)
+{
+    const size_t m=O.rows();
+    rvec_t w; mat_t<U> V; blazem::eigen(O, w, V);
+    if (w[0]<=1e-8*w[m-1]) throw std::runtime_error(what);
+    mat_t<U> R(m,m);
+    for (size_t a=0;a<m;a++) for (size_t b=0;b<m;b++)
+    { U t=U(0); for (size_t k=0;k<m;k++) t+=V(a,k)*(1.0/std::sqrt(w[k]))*blazem::conjs(V(b,k)); R(a,b)=t; }
+    return R;
+}
+
+template <class U> LowdinProjector<U> LowdinProjector<U>::Atomic(const mat_t<U>& B, const hmat_t<U>& O,
+                                                              const std::vector<size_t>& sizes, const std::vector<bool>& ortho)
+{
+    const size_t n=B.rows();
+    size_t mtot=0; for (size_t m : sizes) mtot+=m;
+    if (mtot!=B.columns() || O.rows()!=B.columns())
+        throw std::invalid_argument("LowdinProjector::Atomic: the manifold sizes must partition B's columns, and O must be square over them");
+    if (!ortho.empty() && ortho.size()!=sizes.size())
+        throw std::invalid_argument("LowdinProjector::Atomic: one ortho flag per manifold (or none)");
+    std::vector<size_t> off(sizes.size(),0);
+    for (size_t M=1;M<sizes.size();M++) off[M]=off[M-1]+sizes[M-1];
+
+    LowdinProjector P;
+    for (size_t M=0;M<sizes.size();M++)                         // atomic: T_M = B_M
+    {
+        mat_t<U> T(n, sizes[M]);
+        for (size_t i=0;i<n;i++) for (size_t a=0;a<sizes[M];a++) T(i,a)=B(i,off[M]+a);
+        P.itsT.push_back(std::move(T));
+        P.itsV.emplace_back();
+        P.itsCols.emplace_back();
+        P.itsN+=sizes[M]*sizes[M];
+    }
+    std::vector<size_t> members;                                // ortho-atomic: T = B_o O~^{-1/2}
+    for (size_t M=0;M<sizes.size();M++) if (M<ortho.size() && ortho[M]) members.push_back(M);
+    if (!members.empty())
+    {
+        std::vector<size_t> c;                                  // the members' columns of B / O
+        for (size_t M : members) for (size_t a=0;a<sizes[M];a++) c.push_back(off[M]+a);
+        const size_t mo=c.size();
+        hmat_t<U> Ot(mo);
+        for (size_t a=0;a<mo;a++) for (size_t b=a;b<mo;b++) Ot(a,b)=O(c[a],c[b]);
+        const mat_t<U> Oih=InverseSqrt<U>(Ot, "LowdinProjector::Atomic: the ortho-atomic set is linearly dependent (two manifolds span the same functions?)");
+        mat_t<U> Bo(n,mo);
+        for (size_t i=0;i<n;i++) for (size_t a=0;a<mo;a++) Bo(i,a)=B(i,c[a]);
+        const mat_t<U> To=Bo*Oih;
+        size_t at=0;
+        for (size_t M : members)
+        {
+            for (size_t i=0;i<n;i++) for (size_t a=0;a<sizes[M];a++) P.itsT[M](i,a)=To(i,at+a);
+            at+=sizes[M];
+        }
+    }
+    for (const mat_t<U>& T : P.itsT) P.itsQ.push_back(blazem::ctrans(T));
+    return P;
+}
+
+template <class U> hmat_t<U> LowdinProjector<U>::Represented(const mat_t<U>& B, const hmat_t<U>& S)
+{
+    const size_t n=S.rows(), m=B.columns();
+    rvec_t w; mat_t<U> V; blazem::eigen(S, w, V);
+    const double floor=1e-12*w[n-1];
+    mat_t<U> X=blazem::ctrans(V)*B;                             // B in S's eigenbasis
+    hmat_t<U> R(m);
+    for (size_t a=0;a<m;a++) for (size_t b=a;b<m;b++)
+    {
+        U t=U(0);
+        for (size_t k=0;k<n;k++) if (w[k]>floor) t+=blazem::conjs(X(k,a))*X(k,b)/w[k];
+        R(a,b)= a==b ? U(RealPart(t)) : t;   // a Hermitian diagonal is real
+    }
+    return R;
+}
+
 template class LowdinProjector<double>;
 template class LowdinProjector<dcmplx>;
 

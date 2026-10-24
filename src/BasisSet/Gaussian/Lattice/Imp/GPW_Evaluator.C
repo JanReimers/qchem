@@ -1392,6 +1392,81 @@ chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const SpeciesRadial
 // chi_i^k is precomputed on the mesh ONCE (Eval re-sums the image set per point, so evaluating it inside the
 // per-projector-image loop would be O(images^2)); the projection then reuses it.  V_ij = Sum D b_i conj(b_j)
 // is Hermitian by construction.
+// One analytic projection b_i = <chi_i^k | R Y_lm(. - C)>: R Y_lm = Sum_t c_t r^{2n_t} e^{-a_t r^2} x [r^l Y_lm],
+// r^l Y_lm a degree-l Cartesian polynomial (YlmCartesian, pinned to this file's RealYlm convention) -- one
+// GaussianFunction per radial term, one lattice-sum seam call each.  Shared by the KB assembly and the
+// atom-centred overlap (+U projectors), so the two cannot drift.
+std::vector<Gaussian::LatticeSum1E::GaussianFunction> GPW_Evaluator::GaussianYlmTerms(const rvec3_t& C, int l, int m,
+                                                                                      const std::vector<Math::Gaussian>& radial)
+{
+    auto ylm=YlmCartesian(l,m);
+    std::vector<Gaussian::LatticeSum1E::GaussianFunction> gs;
+    for (const auto& rt : radial)               // one function per radial term c r^{2n} e^{-ar^2}
+    {
+        Gaussian::LatticeSum1E::GaussianFunction g;
+        g.center=C;
+        g.alpha =rt.alpha;
+        g.terms =MultiplyR2(ylm, rt.n);
+        for (auto& t : g.terms) t.c*=rt.c;
+        gs.push_back(std::move(g));
+    }
+    return gs;
+}
+
+cvec_t GPW_Evaluator::ProjectOntoGaussianYlm(const rvec3_t& C, int l, int m, const std::vector<Math::Gaussian>& radial,
+                                             const Gaussian::LatticeSum1E::cellphase_t& phase) const
+{
+    const size_t n=itsN;
+    cvec_t b(n, dcmplx(0.0));
+    for (const auto& g : GaussianYlmTerms(C,l,m,radial))   // one seam call per radial term
+    {
+        cvec_t bt = itsHomeOnly ? itsLat->MakeOverlap(g) : itsLat->MakeOverlap(phase, itsCell, g);
+        for (size_t i=0;i<n;i++) b[i]+=bt[i];
+    }
+    return b;
+}
+
+// HubbardProjectorPlan D2: column (M,m) is the projection of the set's function -- the SAME seam as the KB b.
+mat_t<dcmplx> GPW_Evaluator::MakeAtomCentredOverlap(const AtomCentredSet_Gaussian& set) const
+{
+    qchem::report::Timed timed("setup: atom-centred overlap (+U projectors)");
+    mat_t<dcmplx> B(itsN, set.NumFunctions(), dcmplx(0.0));
+    auto phase=CellPhase();
+    for (size_t M=0; M<set.Count(); M++)
+    {
+        const int l=set.L(M);
+        const size_t off=set.Offset(M);
+        for (int m=-l; m<=l; m++)
+        {
+            const cvec_t b=ProjectOntoGaussianYlm(set.Centre(M), l, m, set.AsGaussians(M), phase);
+            for (size_t i=0;i<itsN;i++) B(i, off+size_t(l+m))=b[i];
+        }
+    }
+    return B;
+}
+
+// D3: O_ab = Sum_n phase(n) <chi_a | chi_b(.-R_n)>, term by term through the engine's pair kernel.  Upper
+// triangle (Hermitian by the phase law phase(-n) = conj phase(n)).
+chmat_t GPW_Evaluator::MakeSetOverlap(const AtomCentredSet_Gaussian& set) const
+{
+    qchem::report::Timed timed("setup: atom-centred set overlap (+U projectors)");
+    std::vector<std::vector<Gaussian::LatticeSum1E::GaussianFunction>> f;   // per column: its radial terms
+    for (size_t M=0; M<set.Count(); M++)
+        for (int m=-set.L(M); m<=set.L(M); m++) f.push_back(GaussianYlmTerms(set.Centre(M), set.L(M), m, set.AsGaussians(M)));
+    const size_t N=f.size();
+    auto phase=CellPhase();
+    chmat_t O=blazem::zeroH<dcmplx>(N);
+    for (size_t a=0;a<N;a++)
+        for (size_t b=a;b<N;b++)
+        {
+            dcmplx s(0.0);
+            for (const auto& g : f[a])
+                for (const auto& h : f[b]) s += itsHomeOnly ? dcmplx(itsLat->MakeOverlap(g,h)) : itsLat->MakeOverlap(phase, itsCell, g, h);
+            O(a,b) = a==b ? dcmplx(std::real(s),0.0) : s;
+        }
+    return O;
+}
+
 chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const SpeciesProjectorSet_R& sep) const
 {
     // The lumped matrix == the exact sum of the per-channel decomposition (ONE assembly, two faces).
@@ -1456,18 +1531,7 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
                 auto   radial=gsep->AsGaussians(Z,p);
                 for (int m=-l; m<=l; m++)
                 {
-                    auto ylm=YlmCartesian(l,m);
-                    cvec_t b(n, dcmplx(0.0));
-                    for (const auto& rt : radial)               // one seam call per radial term c r^{2n} e^{-ar^2}
-                    {
-                        Gaussian::LatticeSum1E::GaussianFunction g;
-                        g.center=at->itsR;
-                        g.alpha =rt.alpha;
-                        g.terms =MultiplyR2(ylm, rt.n);
-                        for (auto& t : g.terms) t.c*=rt.c;
-                        cvec_t bt = itsHomeOnly ? itsLat->MakeOverlap(g) : itsLat->MakeOverlap(phase, itsCell, g);
-                        for (size_t i=0;i<n;i++) b[i]+=bt[i];
-                    }
+                    const cvec_t b=ProjectOntoGaussianYlm(at->itsR, l, m, radial, phase);
                     mat_t<dcmplx>& V=Vof(l);
                     for (size_t i=0;i<n;i++)
                         for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*std::conj(b[j]);

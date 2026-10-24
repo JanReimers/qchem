@@ -31,6 +31,7 @@ export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::PW_Grid_Evaluat
                                                        // (re-exported since 0.5(a): RasterPolicy is a public knob)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;       // Gaussian::LatticeSum1E (the periodic-1E capability we call)
 import qchem.BasisSet.Orbital_PP_IBS;              // SpeciesRadialField / SpeciesProjectorSet(_R): the species-field arguments (V1.2)
+import qchem.BasisSet.AtomCentredSet;              // AtomCentredSet_Gaussian (the +U projector functions, HubbardProjectorPlan D2)
 import qchem.Mesh;                                 // qcMesh::MeshParams (the PP-quadrature integration mesh)
 import qchem.BasisSet;                             // Real_BS (the molecular Gaussian basis we own)
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)
@@ -187,6 +188,13 @@ public:
     //! summing exactly to the full \f$V_{NL}\f$ (the l loop is the SAME assembly, accumulated per channel).
     //! Diagnostic face for \f$E_{NL}^{(l)}\f$ (doc/SphericalLatticePlan.md I0).
     std::map<int,chmat_t> MakeSeparablePPByL(const Structure* cl, const SpeciesProjectorSet_R& sep) const;
+    //! \brief The overlap of every Bloch orbital with every function of an atom-centred set (HubbardProjectorPlan
+    //! D2): \f$B_{i,(M,m)}=\sum_Re^{ik\cdot R}\langle\chi_i|R_MY_{lm}(\cdot-C_M-R)\rangle\f$, \f$n\times\f$ \c NumFunctions(),
+    //! analytic -- the SAME per-function seam the KB projections use (\c ProjectOntoGaussianYlm).
+    mat_t<dcmplx> MakeAtomCentredOverlap(const AtomCentredSet_Gaussian& set) const;
+    //! \brief The set's own Bloch overlap \f$O_{ab}=\sum_Re^{ik\cdot R}\langle\chi_a|\chi_b(\cdot-R)\rangle\f$ (D3), from the
+    //! engine's pair kernel (\c LatticeSum1E::MakeOverlap(phase,A,g,h)); the orbitals do not enter.
+    chmat_t MakeSetOverlap(const AtomCentredSet_Gaussian& set) const;
 
     //! \brief The density/collocation grid engine — ONE object carrying TWO layers (don't let the member
     //! name mislead): it IS-A \c PlaneWave::PW_Evaluator = the Ecut BALL \f$\{G:\tfrac12|G|^2<E_{cut}\}\f$ (its
@@ -406,6 +414,14 @@ private:
     //! analytic kernels call back for each screened cross-cell pair offset (the k-CONVENTION stays here,
     //! lattice-side; the molecular basis never sees \f$k\f$).
     Gaussian::LatticeSum1E::cellphase_t CellPhase() const;
+    //! \f$b_i=\langle\chi_i^k|R\,Y_{lm}(\cdot-C)\rangle\f$ for \f$R=\sum_tc_tr^{l+2n_t}e^{-\alpha_tr^2}\f$: one analytic
+    //! lattice-sum seam call per radial term (home term only in home-only mode).  THE shared projection of the
+    //! KB assembly and of \c MakeAtomCentredOverlap.
+    //! The function \f$R\,Y_{lm}(\cdot-C)\f$ as one \c GaussianFunction per radial term (their sum).
+    static std::vector<Gaussian::LatticeSum1E::GaussianFunction> GaussianYlmTerms(const rvec3_t& C, int l, int m,
+                                                                                 const std::vector<Math::Gaussian>& radial);
+    cvec_t ProjectOntoGaussianYlm(const rvec3_t& C, int l, int m, const std::vector<Math::Gaussian>& radial,
+                                  const Gaussian::LatticeSum1E::cellphase_t& phase) const;
     //! The matrix-free density->\f$\tilde\rho\f$ (\a coulomb=false) or ->\f$V_H\f$ (\a coulomb=true,
     //! \f$4\pi/G^2\f$ folded in) map, as a closure: ANALYTIC per-pair collocation on the multi-grid ladder
     //! (\c LatticeSum1E::CollocateDensity), one FFT per level, \f$\tilde\rho\f$ combined NESTED in G-space --

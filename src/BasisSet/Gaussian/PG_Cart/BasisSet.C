@@ -90,6 +90,9 @@ public:
     virtual cvec_t  MakeOverlap(const cellphase_t& phase, const UnitCell& A,
                                 const Gaussian::LatticeSum1E::GaussianFunction& g) const override;
     virtual cvec_t  MakeOverlap(const Gaussian::LatticeSum1E::GaussianFunction& g) const override;
+    virtual dcmplx  MakeOverlap(const cellphase_t& phase, const UnitCell& A, const Gaussian::LatticeSum1E::GaussianFunction& g,
+                                const Gaussian::LatticeSum1E::GaussianFunction& h) const override;
+    virtual double  MakeOverlap(const Gaussian::LatticeSum1E::GaussianFunction& g, const Gaussian::LatticeSum1E::GaussianFunction& h) const override;
     virtual chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const override;
     virtual chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const override;
     //! The Bloch orbitals on a point set (the XC-mesh \f$\Phi\f$ table) -- see LatticeSum1E for WHY the

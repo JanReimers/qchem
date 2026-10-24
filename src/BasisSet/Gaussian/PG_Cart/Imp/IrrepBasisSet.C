@@ -326,6 +326,10 @@ chmat_t Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A) co
 cvec_t  Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A,
                                  const Gaussian::LatticeSum1E::GaussianFunction& g) const {return NR_Evaluator::MakeOverlap(phase,A,g);}
 cvec_t  Orbital_IBS::MakeOverlap(const Gaussian::LatticeSum1E::GaussianFunction& g) const {return NR_Evaluator::MakeOverlap(g);}
+dcmplx  Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A, const Gaussian::LatticeSum1E::GaussianFunction& g,
+                                 const Gaussian::LatticeSum1E::GaussianFunction& h) const {return NR_Evaluator::MakeOverlap(phase,A,g,h);}
+double  Orbital_IBS::MakeOverlap(const Gaussian::LatticeSum1E::GaussianFunction& g,
+                                 const Gaussian::LatticeSum1E::GaussianFunction& h) const {return NR_Evaluator::MakeOverlap(g,h);}
 chmat_t Orbital_IBS::MakeKinetic(const cellphase_t& phase, const UnitCell& A) const {return NR_Evaluator::MakeKinetic(phase,A);}
 chmat_t Orbital_IBS::MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const {return NR_Evaluator::MakeNuclear(phase,A,cl);}
 chmat_t Orbital_IBS::MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,

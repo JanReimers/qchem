@@ -87,6 +87,22 @@ public:
     //! bare-integral map \c Contraction(M) keeps the on-site \f$\tilde V_M\f$.
     LowdinProjector(const hmat_t<U>& S, const std::vector<std::vector<size_t>>& columns,
                     const std::vector<mat_t<U>>& contraction = {}, const std::vector<bool>& ortho = {});
+    //! \brief THE ATOMIC-SET PAIR (doc/HubbardProjectorPlan.md D4): projector functions that are NOT basis
+    //! functions -- an \c BasisSet::AtomCentredSet, independent of the orbital basis.  \a B (\f$n\times\sum m\f$) is
+    //! the block's overlap with the set (\c AtomCentredOverlapSource::MakeAtomCentredOverlap), \a O the set's own
+    //! TRUE overlap (\c MakeSetOverlap), \a sizes each manifold's \f$m\f$ (partitioning B's columns in order) and
+    //! \a ortho per manifold.  An ATOMIC manifold projects onto its functions as they are, \f$T_M=B_M\f$
+    //! (\f$T^\dagger c=\langle\chi|\psi\rangle\f$, QE's `atomic`); the ORTHO-ATOMIC manifolds are Löwdin-orthogonalised
+    //! together in their TRUE metric, \f$T=B_o\,\tilde O^{-1/2}\f$ with \f$\tilde O\f$ = \a O over their columns (QE's
+    //! `ortho-atomic`).  \f$Q_M=T_M^\dagger\f$.  Ruled: \f$\tilde O\f$ is the true overlap (QE semantics), never the
+    //! represented \f$B^\dagger S^{-1}B\f$ (\c Represented, a diagnostic: how much of each function the block spans).
+    //! The trace of \f$n\f$ over all manifolds is NOT bounded by \f$N\f$ (QE's is not either).  No columns, no
+    //! contraction: \c Columns / \c Contraction are empty for every manifold.
+    static LowdinProjector Atomic(const mat_t<U>& B, const hmat_t<U>& O, const std::vector<size_t>& sizes,
+                                  const std::vector<bool>& ortho);
+    //! \f$B^\dagger S^{-1}B\f$: the part of the set's overlap the block REPRESENTS (\f$=O\f$ for a set inside the block's
+    //! span; its diagonal is each function's captured norm).  \f$S^{-1}\f$ is the pseudo-inverse over \f$w>10^{-12}w_{\max}\f$.
+    static hmat_t<U> Represented(const mat_t<U>& B, const hmat_t<U>& S);
 
     using qcMesh::MatrixForward<U>::Forward;   // un-hide the factored overload (qchem.Mesh.Integrator)
     virtual rvec_t    Forward(const hmat_t<U>& D) const override;
@@ -112,6 +128,7 @@ private:
     std::vector<rmat_t>   itsV;   //!< per manifold: \f$\tilde V\f$ over the columns (real: a radial contraction)
     std::vector<std::vector<size_t>> itsCols;
     size_t                itsN;   //!< \f$\sum_M m_M^2\f$
+    LowdinProjector() : itsN(0) {}   //!< for \c Atomic
 };
 
 //! \brief THE SITE GROUP ON ONE HUBBARD MANIFOLD, and the names it gives the occupation eigenvectors

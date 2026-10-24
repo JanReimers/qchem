@@ -14,6 +14,7 @@
 #include <complex>
 #include <cmath>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 import qchem.Hamiltonian.Internal.Hubbard;   // LowdinProjector, ManifoldSymmetry (unit tests may import Internal)
 import qchem.Symmetry.Molecule.SphericalRep;  // SphericalShellRep (a d shell's operation rep)
@@ -108,6 +109,116 @@ TEST(LowdinProjector, TheFactoredForwardAgreesWithTheUnfactoredOne)
     const rvec_t a=P.Forward(D), b=P.Forward(L);
     ASSERT_EQ(a.size(), b.size());
     for (size_t k=0;k<a.size();k++) EXPECT_NEAR(a[k], b[k], 1e-13);
+}
+
+//=============================================================================== the ATOMIC-SET pair (D4)
+// doc/HubbardProjectorPlan.md D4: projector functions that are NOT basis functions, handed over as B = <chi|set>
+// and the set's own overlap O.  A set INSIDE the block's span (chi_set = phi X0) makes the oracle exact:
+// B = S X0, O = X0^dag S X0, and the ortho-atomic functions are phi X0 O^{-1/2}.
+namespace
+{
+// Three set functions over the 4-function complex block: manifold 0 = {0} (m=1), manifold 1 = {1,2} (m=2).
+mat_t<dcmplx> SetCoefficients()
+{
+    mat_t<dcmplx> X0(4,3);
+    X0(0,0)=0.9;              X0(0,1)=dcmplx(0.1,0.2);  X0(0,2)=0.0;
+    X0(1,0)=dcmplx(0.2,-0.1); X0(1,1)=0.8;              X0(1,2)=dcmplx(-0.3,0.1);
+    X0(2,0)=0.1;              X0(2,1)=dcmplx(0.0,0.3);  X0(2,2)=1.1;
+    X0(3,0)=-0.2;             X0(3,1)=0.4;              X0(3,2)=dcmplx(0.2,0.2);
+    return X0;
+}
+hmat_t<dcmplx> Gram(const mat_t<dcmplx>& X, const hmat_t<dcmplx>& S)   // X^dag S X
+{
+    const mat_t<dcmplx> G=blazem::ctrans(X)*mat_t<dcmplx>(S)*X;
+    hmat_t<dcmplx> H(G.rows());
+    for (size_t a=0;a<G.rows();a++) for (size_t b=a;b<G.rows();b++) H(a,b)= a==b ? dcmplx(std::real(G(a,a)),0.0) : G(a,b);
+    return H;
+}
+mat_t<dcmplx> InvSqrt(const hmat_t<dcmplx>& O)
+{
+    rvec_t w; mat_t<dcmplx> V; blazem::eigen(O, w, V);
+    mat_t<dcmplx> R(O.rows(),O.rows(),dcmplx(0.0));
+    for (size_t a=0;a<O.rows();a++) for (size_t b=0;b<O.rows();b++) for (size_t k=0;k<O.rows();k++) R(a,b)+=V(a,k)*std::conj(V(b,k))/std::sqrt(w[k]);
+    return R;
+}
+const std::vector<size_t> setSizes{1,2};
+}
+
+TEST(LowdinProjector, AtomicSet_ForwardAndAdjointAreExactlyAdjoint)
+{
+    const hmat_t<dcmplx> S=OverlapC();
+    const mat_t<dcmplx> X0=SetCoefficients();
+    const mat_t<dcmplx> B=mat_t<dcmplx>(S)*X0;
+    for (const std::vector<bool>& ortho : {std::vector<bool>{}, std::vector<bool>{true,true}, std::vector<bool>{false,true}})
+    {
+        const auto P=LowdinProjector<dcmplx>::Atomic(B, Gram(X0,S), setSizes, ortho);
+        ASSERT_EQ(P.NumCoefficients(), 5u);          // 1 + 4
+        hmat_t<dcmplx> D(4);
+        D(0,0)=1.3; D(0,1)=dcmplx(-0.7,0.2); D(0,2)=dcmplx(0.2,-0.1); D(0,3)=0.1; D(1,1)=2.1; D(1,2)=dcmplx(0.4,0.3); D(1,3)=-0.3; D(2,2)=0.6; D(2,3)=dcmplx(0.05,0.02); D(3,3)=0.9;
+        const rvec_t W{0.7, 0.9, -0.4, -0.4, 1.7};
+        const rvec_t n=P.Forward(D);
+        double lhs=0.0; for (size_t a=0;a<W.size();a++) lhs+=W[a]*n[a];
+        const hmat_t<dcmplx> V=P.Adjoint(W);
+        dcmplx rhs=0.0; for (size_t i=0;i<4;i++) for (size_t j=0;j<4;j++) rhs+=V(i,j)*std::conj(dcmplx(D(i,j)));
+        EXPECT_NEAR(lhs, std::real(rhs), 1e-13);
+        // Q = T^dagger: an orbital's coefficients on the manifold functions are its projector amplitudes.
+        for (size_t M=0;M<P.NumManifolds();M++)
+            for (size_t a=0;a<P.Size(M);a++) for (size_t i=0;i<4;i++) EXPECT_EQ(P.Coefficients(M)(a,i), std::conj(P.T(M)(i,a)));
+    }
+}
+
+// The ortho-atomic functions phi X0 O^{-1/2} are S-orthonormal AS A SET; an idempotent density holding one
+// electron in the second of them gives manifold 1 the occupations {1, 0} and manifold 0 nothing -- exactly.
+TEST(LowdinProjector, AtomicSet_OrthoAtomicOccupationsAre0And1)
+{
+    const hmat_t<dcmplx> S=OverlapC();
+    const mat_t<dcmplx> X0=SetCoefficients();
+    const mat_t<dcmplx> B=mat_t<dcmplx>(S)*X0;
+    const hmat_t<dcmplx> O=Gram(X0,S);
+    const auto P=LowdinProjector<dcmplx>::Atomic(B, O, setSizes, {true,true});
+
+    mat_t<dcmplx> T(4,3);                                   // all the set's T columns: S X, X = X0 O^{-1/2}
+    for (size_t i=0;i<4;i++) { T(i,0)=P.T(0)(i,0); T(i,1)=P.T(1)(i,0); T(i,2)=P.T(1)(i,1); }
+    const hmat_t<dcmplx> I3=LowdinProjector<dcmplx>::Represented(T, S);   // X^dag S X
+    for (size_t a=0;a<3;a++) for (size_t b=0;b<3;b++) EXPECT_NEAR(std::abs(I3(a,b)-dcmplx(a==b?1.0:0.0)), 0.0, 1e-12);
+
+    const mat_t<dcmplx> X=X0*InvSqrt(O);
+    hmat_t<dcmplx> D(4);
+    for (size_t i=0;i<4;i++) for (size_t j=i;j<4;j++) D(i,j)= i==j ? dcmplx(std::norm(X(i,1)),0.0) : X(i,1)*std::conj(X(j,1));
+    const rvec_t n=P.Forward(D);                            // [n0 | n1 (2x2)]
+    EXPECT_NEAR(n[0], 0.0, 1e-12);
+    EXPECT_NEAR(n[1], 1.0, 1e-12);
+    EXPECT_NEAR(n[2], 0.0, 1e-12);
+    EXPECT_NEAR(n[3], 0.0, 1e-12);
+    EXPECT_NEAR(n[4], 0.0, 1e-12);
+    EXPECT_NEAR(P.Integrate(n), 1.0, 1e-12);
+}
+
+// Represented == O for a set inside the span (the "captured" diagnostic reads 1); a set function OUTSIDE the
+// span is captured only in part, and the atomic manifold's T is B itself.
+TEST(LowdinProjector, AtomicSet_RepresentedOverlap)
+{
+    const hmat_t<dcmplx> S=OverlapC();
+    const mat_t<dcmplx> X0=SetCoefficients();
+    const hmat_t<dcmplx> O=Gram(X0,S);
+    const hmat_t<dcmplx> R=LowdinProjector<dcmplx>::Represented(mat_t<dcmplx>(S)*X0, S);
+    for (size_t a=0;a<3;a++) for (size_t b=0;b<3;b++) EXPECT_NEAR(std::abs(R(a,b)-O(a,b)), 0.0, 1e-12);
+
+    const mat_t<dcmplx> B=mat_t<dcmplx>(S)*X0;
+    const auto P=LowdinProjector<dcmplx>::Atomic(B, O, setSizes, {});
+    for (size_t i=0;i<4;i++) EXPECT_EQ(P.T(1)(i,1), B(i,2));
+    EXPECT_TRUE(P.Columns(0).empty());
+    EXPECT_EQ(P.Contraction(1).rows(), 0u);
+}
+
+TEST(LowdinProjector, AtomicSet_RefusesABrokenInput)
+{
+    const hmat_t<dcmplx> S=OverlapC();
+    const mat_t<dcmplx> X0=SetCoefficients();
+    const mat_t<dcmplx> B=mat_t<dcmplx>(S)*X0;
+    EXPECT_THROW(LowdinProjector<dcmplx>::Atomic(B, Gram(X0,S), {1,1}, {}), std::invalid_argument);   // sizes != columns
+    mat_t<dcmplx> Xdup=X0; for (size_t i=0;i<4;i++) Xdup(i,2)=Xdup(i,1);                              // two equal functions
+    EXPECT_THROW(LowdinProjector<dcmplx>::Atomic(mat_t<dcmplx>(S)*Xdup, Gram(Xdup,S), setSizes, {true,true}), std::runtime_error);
 }
 
 //=============================================================================================== increment 2
