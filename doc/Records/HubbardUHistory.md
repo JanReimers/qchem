@@ -2010,3 +2010,15 @@ So: same LDA Hamiltonian, same U orbital, near-identical occupations, yet QE's U
 
 At U = 0 the same bands agree to ≤ 0.04 eV (QE: band 19 = pure O normal π, band 20 = Mn d, 0.010 eV apart).  With U, QE's normal band drops ~1.05 eV and its O z band rises 0.76 eV relative to Mn d; ours does the same thing ~0.3 eV less: EVERY occupied O p band sits 0.2–0.5 eV higher relative to Mn d.  E_U 0.02424 vs 0.02216 Ha, same Dudarev eigenbasis form, same orbital.  Suspect: the projector radial (QE: the UPF PSWFC; ours `atomicRadial`) and its Löwdin tails; QE's O moment 0.163 vs ours 0.100.  Also: the earlier "fractional frontier" was mostly FD smearing (kT 1e-3 Ha) of our 0.128 eV gap.
 
+**The projector tail (same day).**  Our O 2p projector = the GTH pseudo-atom's 2p (the SAME function the UPF's PP_CHI holds — `gth2upf` wrote it) PROJECTED onto the O site's p shells: VA's stop at 0.465, so it captures 0.976 of the norm; ⟨r⟩ 1.186 vs 1.265 bohr, norm beyond 2.5 bohr 2.1 % vs 6.6 %, normalised overlap 0.988.  Adding ONE diffuse O p shell (0.18; decks `m0_imp_{s1,U0}_Op018.json`, `vaOp018.bsd`; vet: nothing trimmed, min eig S 2.7e-4):
+
+| Γ, U(O pz) 4.62 | VA | VA + O p 0.18 | QE |
+|---|---|---|---|
+| projector captured | 0.976 | 0.9994 | — |
+| gap | 0.128 eV (fractional at kT 1e-3) | 0.237 eV (integer) | 0.325 eV |
+| O normal band − Mn d | −0.67 | −0.88 | −1.06 |
+| E_U (Ha) | 0.02424 | 0.01767 | 0.02216 |
+| Etot U / U=0 (Ha) | −93.01214 / −93.07477 | −93.34058 / −93.38443 | −93.42661 / −93.46773 |
+
+The remainder (0.09 eV of gap, 0.1–0.2 eV on the O p bands) is what a SITE-ONLY contracted projector cannot hold at any exponent: the tail's overlap with the NEIGHBOURS' functions.  → OpenWork §2 row "+U projector independent of the orbital basis".  And O p 0.18 is the basis scan's first big win: 0.33 of the 0.41 Ha to QE, both arms.
+
