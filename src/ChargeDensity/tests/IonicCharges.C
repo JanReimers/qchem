@@ -45,6 +45,25 @@ TEST(IonicFormalCharges, Na2O_multiplicity)
     EXPECT_EQ(Sum(q), 0);
 }
 
+TEST(IonicFormalCharges, EquivalentDonorsShareTheTransfer)
+{
+    // beta-MnO2: 2 Mn (Zion=7) + 4 O (Zion=6).  The acceptors take 8 of the donors' 14, so the donors are NOT
+    // each drained -- the case the ties used to break wrongly (Mn+7 / Mn+1, 2026-10-22).  Equivalent atoms
+    // must carry equal charges: Mn4+ x2, O2- x4.
+    auto q = IonicFormalCharges({{25,7},{25,7},{8,6},{8,6},{8,6},{8,6}});
+    ASSERT_EQ(q.size(), 6u);
+    EXPECT_EQ(q[0], +4);
+    EXPECT_EQ(q[1], +4);
+    for (size_t i=2;i<6;i++) EXPECT_EQ(q[i], -2) << "O " << i;
+    EXPECT_EQ(Sum(q), 0);
+    // Rock-salt MnO in its AFM-II cell (2 Mn + 2 O): Mn2+ x2, O2- x2.
+    auto r = IonicFormalCharges({{25,7},{25,7},{8,6},{8,6}});
+    EXPECT_EQ(r[0], +2);
+    EXPECT_EQ(r[1], +2);
+    EXPECT_EQ(r[2], -2);
+    EXPECT_EQ(r[3], -2);
+}
+
 TEST(IonicFormalCharges, SingleSpeciesNeutral)
 {
     // Si-Si (same element): no electronegativity gap -> no transfer -> neutral, falls back to neutral SAD.

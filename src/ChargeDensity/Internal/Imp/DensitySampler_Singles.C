@@ -182,7 +182,7 @@ void SinglesDensitySampler::NoteRoute(const char* route) const
     if (!itsRoutes.empty() && itsRoutes.back()==route) return;
     itsRoutes.push_back(route);
     // Contemporaneous, its own activity, inert without an open run report (the reporting rule).
-    qchem::report::EmitAt("scf", "xcRhoRoutes", qchem::report::json(itsRoutes));
+    qchem::report::EmitAt("scf", "xcRhoRoutes", qchem::report::json(itsRoutes), qchem::report::Detail::Verbose);   // the json always records it (the Si gate reads it); the console only at Verbose -- it re-renders on every Fock build
 }
 
 void ReportNegativeRho(const DensitySampler& q, const rvec_t& rho, const char* route)

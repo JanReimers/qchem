@@ -411,8 +411,12 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 // The old DISABLED_MnO_AFM2_RhombohedralGamma carried two things: the CAMPAIGN INSTRUMENT (a cell with three
 // geometry discriminators, a knob-driven recipe, the FM arm, the ordering comparison -- now `gpwprobe mno`) and
 // the GATE hidden inside it: does the converged AFM-II state reproduce?  This is the gate, and nothing else.
-// THE RECIPE (re-judged 2026-09-20 under doc/Benchmark.md rule 3f -- the DECK-SHAPED loop): IonicSAD seed
-// (Mn2+ d^5 + O2-), pivoted Cholesky at 1e-4 (cond(S)~7e8), Kerker G0=1 against the low-G charge-transfer
+// THE RECIPE (re-judged 2026-09-20 under doc/Benchmark.md rule 3f -- the DECK-SHAPED loop): the NEUTRAL polarized
+// SAD seed (Mn d^5 4s^2 Hund pairs flipped by the material's spin bits; O neutral).  Until 2026-10-23 this arm ran
+// IonicSAD, which was NOT the "Mn2+ d^5 + O2-" it was described as: the per-species targets gave neutral Mn on
+// both sites + O2- (30 e for a 26 e cell).  The TRUE ionic seed (Mn2+ x2 + O2-, seed-tiebreak) LOSES AFM on
+// this arm: iterate-1 moment 0.30, dead by iteration 30, -60.97043 Ha (OpenWork §3 "The polarized IonicSAD
+// seed loses its spin"), so the anchor moved to SAD, judged below.  Pivoted Cholesky at 1e-4 (cond(S)~7e8), Kerker G0=1 against the low-G charge-transfer
 // slosh with ONE density-side history (Pulay depth 8 after 5 priming steps) and NOTHING on the Fock side, no
 // MOM, kT=5e-3 riding the open d manifold, alpha=0.45, CP2K's convergence measure max|dD| < 1e-6 -- and the
 // SHUBNIKOV group of the seed's decoration imposed (S3), which is what holds the staggering exactly mirrored
@@ -446,10 +450,11 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
     const Lattice_3D lat=LatticeOf(mno);
     SolidCalcOptions o=OptionsFor(mno, "MnO AFM-II Gamma (imposed)");
     o.multiplicity=1;                                       // the explicit two-channel singlet: nUp=nDn=13
-    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.seed=qchem::ChargeDensity::SeedStrategy::SAD;                  // neutral Hund pairs, flipped by the material's per-atom spin bits
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     o.accelerator=qchem::SCFAccelerators::Type::Null;      // the deck-shaped loop: the history is on the density side
     o.imposeSymmetry=true;                                  // S3: the Shubnikov group of the declared ordering
+    o.siteSpins={+1,-1,0,0};                                // the ordering is STATED (Mn up, Mn down, O non-magnetic): 24 Shubnikov ops
     SCFParams par=Gates(200, 1e-6, 1e30);
     par.Δρmeasure=SCFParams::Measure::MaxΔD;               // CP2K's EPS_SCF measure (rule 3f)
     par.PulayDepth=8; par.PulayStart=5;
