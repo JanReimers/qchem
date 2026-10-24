@@ -295,6 +295,64 @@ TEST(SCFAcceleratorGDM, ASmearedDensityIsNotEngageable)
     delete las;
 }
 
+// THE AUFBAU RE-PICK (GDMParams::AufbauTol; OpenWork §3 "GDM crawls at a near-degenerate frontier").  Seed on
+// F1 (aufbau: orbitals 0,1 occupied), then MOVE to a Fock on which orbital 1 has risen ABOVE orbital 2: the held
+// block {0,1} is now non-aufbau INSIDE this block (eo = {-2, 0.8}, ev = {-0.5, 1.5}).  The geodesic only rotates
+// within the block it holds, so without the re-pick GDM would descend to the best state of the WRONG manifold.
+namespace
+{
+rsmat_t MakeCrossedFock()
+{
+    rsmat_t F(N);
+    F(0,0)=-2.0; F(1,1)=0.8; F(2,2)=-0.5; F(3,3)=1.5;
+    F(0,2)=0.02; F(1,3)=0.02;      // weak occ-virt coupling: the crossing, not the gradient, is the story
+    return F;
+}
+struct CrossedRig
+{
+    GDMParams                    params;
+    LASolver<double>*            las = LASolver<double>::Factory(qchem::Cholesky);
+    SCFAcceleratorGDM            acc;
+    tSCFIrrepAccelerator<double>* irrep=nullptr;
+    tSCFIrrepAcceleratorGDM<double>* gdm=nullptr;   // tests may cheat: the repick counter
+    rsmat_t Fx=MakeCrossedFock();
+    explicit CrossedRig(int maxRepicks)
+    : params{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4, .AufbauTol=1e-5, .AufbauMaxRepicks=maxRepicks }   // the re-pick is OFF by default
+    , acc{params}
+    {
+        las->SetBasisOverlap(Identity(N));
+        irrep = acc.Create(las, Irrep(), (int)NOCC);
+        gdm   = dynamic_cast<tSCFIrrepAcceleratorGDM<double>*>(irrep);
+        irrep->UseFD(MakeFock(), MakeDPrime(rmat_t(Identity(N))));
+        auto [U,Up,e] = irrep->NextOrbitals();     // aufbau on F1: columns 0,1 occupied
+        irrep->UseFD(Fx, MakeDPrime(Up));          // the held block {0,1} is now crossed on Fx
+    }
+    ~CrossedRig() { delete las; }
+};
+} //anon
+
+TEST(SCFAcceleratorGDM, ACrossedFrontierIsRepickedByAufbau)
+{
+    CrossedRig r(8);
+    ASSERT_NE(r.gdm, nullptr);
+    ASSERT_TRUE(r.irrep->ComputeStep());
+    EXPECT_EQ(r.gdm->Repicks(), 1) << "a virtual 1.3 Ha below an occupied level of the same block must be re-picked";
+    // The block the step starts from (t=0) is now the lowest-energy pair: band energy ~ -2.0 + -0.5.
+    auto [U0,Cp0,e0] = r.irrep->OrbitalsAt(0.0,false);
+    EXPECT_NEAR(BandEnergy(Cp0,r.Fx), -2.5, 1e-2) << "the re-picked block is {-2.0, -0.5}, not the held {-2.0, +0.8}";
+    // ...and a second ComputeStep on the same Fock finds nothing left to re-pick.
+    ASSERT_TRUE(r.irrep->ComputeStep());
+    EXPECT_EQ(r.gdm->Repicks(), 1);
+}
+
+TEST(SCFAcceleratorGDM, TheRepickCapLeavesTheBlockAlone)
+{
+    CrossedRig r(0);   // AufbauMaxRepicks=0: "no integer aufbau solution" already declared
+    ASSERT_TRUE(r.irrep->ComputeStep());
+    auto [U0,Cp0,e0] = r.irrep->OrbitalsAt(0.0,false);
+    EXPECT_NEAR(BandEnergy(Cp0,r.Fx), -1.2, 1e-2) << "past the cap the held (non-aufbau) block is kept";
+}
+
 TEST(SCFAcceleratorLadder, HandOffIsVetoedAndRetreatsOnANonEngageableRung)
 {
     std::vector<std::unique_ptr<SCFAccelerator>> rungs;

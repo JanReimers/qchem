@@ -1975,3 +1975,14 @@ Recipe found on the way (decks `~/Code/qchem6-runs/MnO2/basis_scan/m0{,_imp}.jso
 
 QE (same U, Γ): Γ2 0.961 / 0.972, gap 0.325 eV, E −93.42661 Ha (ours 0.414 Ha high: the basis scan).  Stage 1 ends with −TS = −1.6 mHa at kT 1e-3: the smeared frontier is fractionally occupied, and the kT = 0 GDM stage keeps the occupied block it was handed — OpenWork §3 "GDM crawls at a near-degenerate frontier" (same mechanism as the Mn–O dimer).  No gap from a kT = 0 GDM stage is trustworthy until that is fixed.
 
+## 2026-10-24 — GDM aufbau re-pick: built, measured worse, kept OFF
+
+User asked to let GDM re-pick its occupied block by aufbau when the frontier crosses (OpenWork §3 "GDM crawls…").  Built in `tSCFIrrepAcceleratorGDM::ComputeStep`: after the pseudo-canonical split, if the block's lowest virtual is > `AufbauTol` below its highest occupied level, re-choose the lowest-energy `no` orbitals, restart CG; cap `AufbauMaxRepicks` = 8 per block, then a loud give-up.  Unit tests `ACrossedFrontierIsRepickedByAufbau`, `TheRepickCapLeavesTheBlockAlone`.
+
+| gate | without | with re-pick |
+|---|---|---|
+| Mn–O dimer (VA, kT 0, mult. 6, GDM from seed) | −30.342242 at iter 44, crawling, Mn 5.35 | −30.344618 at 200, Mn **4.54** (other state), still crawling; 8 + 8 re-picks then give-up; ends non-aufbau |
+| β-MnO₂ m0 imposed (stage 2) | 9 iterations, −93.01214291, aufbau only on the last step | 18 iterations, −93.0121424, ends non-aufbau (0.21464 below 0.21694) |
+
+Late swaps are a near-degenerate pair that crosses back after every swap (no integer aufbau solution at kT 0); early swaps on m0 moved up to 5 orbitals across 0.4 Ha, from stage 1's rounded fill.  User: keep the code, DEFAULT OFF (`AufbauTol = 0`).
+

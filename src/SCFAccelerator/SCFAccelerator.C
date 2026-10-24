@@ -180,6 +180,25 @@ struct GDMParams
     //! to be: it is a METRIC, not the Hessian, so a floored gap changes the step LENGTH along stiff modes and
     //! never the descent property.  0.1 Ha is well below a real HOMO-LUMO gap and well above the ties.
     double PCFloor=0.1;
+    //! AUFBAU RE-PICK (OpenWork §3 "GDM crawls at a near-degenerate frontier", 2026-10-24).  GDM rotates the
+    //! occupied block it was handed and never re-chooses it, so once a virtual of the SAME block drops below
+    //! an occupied level the minimizer descends inside a non-aufbau manifold -- linearly, to a state above
+    //! the ground state (the Mn-O dimer: 90 crawling steps, 5.65 mHa high).  When the block's lowest
+    //! pseudo-canonical virtual sits more than \c AufbauTol below its highest occupied level, the block is
+    //! re-picked as the lowest-energy set of the same size (first-order energy change eps_a - eps_i < 0,
+    //! Janak) and the CG history restarts.  Only WITHIN a block: a cross-spin "hole" at fixed multiplicity, or
+    //! a crossing between irreps, is a constraint the run asked for, not a defect.  0 disables.
+    //! DEFAULT OFF (user 2026-10-24) because it MEASURED WORSE on both gates it was built for: β-MnO₂ m0 (GDM
+    //! stage 9 -> 18 iterations, same energy, still ends non-aufbau) and the Mn-O dimer (a different state,
+    //! still crawling).  Both frontiers are a near-degenerate pair with NO integer aufbau solution -- the swap
+    //! crosses back once the density relaxes -- so at kT = 0 the honest answers are the smeared state or the
+    //! non-aufbau integer minimum GDM already finds.  Kept as an option (set e.g. 1e-5) for a frontier that
+    //! does have one; OpenWork §3 "GDM crawls at a near-degenerate frontier" has the numbers.
+    double AufbauTol=0.0;
+    //! Re-picks allowed per block before GDM concludes the frontier has NO integer aufbau solution (a
+    //! degenerate pair that crosses back after every swap -- the ground state is then fractional, i.e. needs
+    //! smearing) and stops re-picking, loudly.
+    int    AufbauMaxRepicks=8;
 };
 
 //! Which convergence signal drives the TAIL hand-off (see the design notes above + doc/SCFStrategyPlan.md).
