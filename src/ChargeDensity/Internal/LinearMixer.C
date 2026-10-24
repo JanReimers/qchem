@@ -24,6 +24,7 @@ public:
     const tChargeDensity<T>* FockDensity(const cd_t& working) const override { return &working; }   // D-mixing: the mixed D IS the Fock density
     double GetRelax() const override { return itsRelax; }
     const char* Tag() const override { return "Lin"; }
+    bool HasGFilter() const override { return false; }   // mixes D itself
 
     //! The legacy [F,D]-keyed policy, in one place: if this step made [F,D] WORSE, retract it to a quarter step
     //! and shrink α; if it improved, grow α (clamped).

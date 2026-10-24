@@ -56,6 +56,10 @@ public:
     virtual double GetRelax() const = 0;
     //! A 3-char self-identifier for the per-iteration ρ_mix column (doc/GPWPlan1.md item 2).
     virtual const char* Tag() const = 0;
+    //! Does my step apply a G-DEPENDENT filter (a Kerker G0 > 0)?  Client: the SCF trace's pin-28 audit -- the N4 cusp
+    //! deficit is pin 28's EXCUSED form only when such a filter forces the step into the fit's {G}; without one the
+    //! history could live on D (doc/Pins.md pin 28), so the trace marks that cusp route distinctly.
+    virtual bool HasGFilter() const = 0;
 };
 
 //! \brief Capability face: a mixer whose STEP SIZE adapts to the loop's signals.  Only the linear D-mixer has

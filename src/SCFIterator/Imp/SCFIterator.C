@@ -440,7 +440,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
                                itsAccelerator->MinSV(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
                                itsIterationCount>1 && config!=prevConfig, lineSearch,
-                               (N!=0.0 ? eb.charge.lost/N : 0.0),
+                               (N!=0.0 ? eb.charge.lost/N : 0.0), itsMixer->HasGFilter(),
                                g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole,
                                hasOrder, order };
             DisplayColumns(cout, ipar, tr);
@@ -849,7 +849,8 @@ ColumnData GridLossCol()
 
 //! THE PIN-28 AUDIT (doc/Pins.md pin 28): which rho this iteration's V_xc was built from -- DM, cusp (N4), DMsrc,
 //! shadow (the raster route's mixed RAW shadow) or fitted -- with a trailing '!' on a FITTED rho after the first
-//! iteration, the one place a fitted rho is legal (the seed has no D).  A GRID column like ρ_lost/N, and a probe:
+//! iteration, the one place a fitted rho is legal (the seed has no D), and "cusp*" for the cusp deficit WITHOUT a
+//! G-dependent filter (pin 28 excuses it only beside one; with none the history belongs on D -- OpenWork §3).  A GRID column like ρ_lost/N, and a probe:
 //! no tolerance cell.  It replaces reading the `scf.xcRhoRoutes` sequence by eye (still recorded in the json).
 ColumnData XCRhoCol()
 {
@@ -859,6 +860,7 @@ ColumnData XCRhoCol()
                 const auto& c=tr.eb.charge;
                 std::string v = c.xcRho.empty() ? std::string("----") : c.xcRho;
                 if (c.xcRhoFitted && tr.iteration>1) v+="!";
+                else if (v=="cusp" && !tr.gFilter && !tr.lineSearch) v+="*";   // legal only beside a G filter: D-space mixing would do
                 os << PadR(v,W_XCR) << " ";
             }};
 }
