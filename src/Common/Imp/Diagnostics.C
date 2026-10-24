@@ -41,6 +41,7 @@ const std::vector<Entry>& Registry()
         {"dump_h",           "QCHEM_DUMP_H",          "||F||, trace and max imaginary part of each Hamiltonian"},
         {"mom_scores",       "QCHEM_MOM_SCORES",      "sorted head of the MOM scores at each fill"},
         {"u_trace",          "QCHEM_U_TRACE",         "per-refresh +U occupation line on stdout"},
+        {"u_bands",          "",                      "per-band weight on each +U slot for the bands either side of the frontier (value = bands each side, default 8) -- the projwfc comparison"},
     };
     return r;
 }

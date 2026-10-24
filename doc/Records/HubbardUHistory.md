@@ -2056,3 +2056,16 @@ Base VA + O p 0.18 (gap 0.234 eV, Etot −93.33536); each row adds ONE shell; ga
 
 The gap is FLAT (0.220–0.242) under every addition, including the diffuse O p kept past the conditioning wall.  So beyond O p 0.18 the residual 0.09 eV is NOT the Gaussian orbital basis.  Band by band (eV from Mn d; QE bands 13–22): ours −3.04 −2.95 −2.30 **−0.84** −0.41 −0.32 −0.23 | +1.92 +4.14 vs QE −3.10 −2.94 −2.39 **−1.06** −0.54 −0.45 −0.33 | +1.89 +4.11: within ~0.1 eV except the U'd O-normal band (+0.22: pushed down 80 % as far as QE's) and the in-plane bands that carry normal character (+0.13).  With projector, occupations and E_U matching QE, the residual is HOW STRONGLY U ACTS PER BAND — next: our bands' weights on the U'd projector vs QE's projwfc (band 16: 0.987).
 
+**Per-band +U slot weights vs QE `projwfc.x` (same day; `QCHEM_DIAGNOSTICS=u_bands=10`, VA + O p 0.18, pseudo-atomic projector; log `m0_imp_s1_Op018_PA_ubands.log`).**  Slots: O p Γ2 = plane normal (U'd), Γ1 = z, Γ0 = in-plane σ.
+
+| QE band | character | QE | ours |
+|---|---|---|---|
+| 15 | O z | 0.991 | Γ1 0.993 |
+| 16 | O normal (U'd) | 0.987 | Γ2 0.988 |
+| 17 | in-plane / normal | 0.706 / 0.290 | 0.689 / 0.308 |
+| 18 | in-plane / normal | 0.738 / 0.257 | 0.724 / 0.273 |
+| 19 HOMO | O z | 0.994 | Γ1 0.996 |
+| 20 LUMO | Mn d / in-plane / O s | 0.649 / 0.245 / 0.082 | 0.652 / 0.242 / 0.083 |
+
+Characters agree to ~0.01 on every band, so the first-order U shift per band is QE's (the "U acts more weakly per band" hypothesis is WRONG).  Energies from the deep pure-O-z band 15 (untouched by U): O normal +1.46 vs QE +1.33, HOMO O z +2.07 vs +2.06, LUMO Mn d +2.30 vs +2.39.  The gap is short because the Mn d LUMO sits 0.09 eV LOW (and the U'd band 0.13 eV high): same characters, different energies — the self-consistent response to U, not its action.  Open.
+

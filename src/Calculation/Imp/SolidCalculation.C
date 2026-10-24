@@ -34,6 +34,7 @@ import qchem.AtomCalculation;                  // AtomCalculation (the facade's 
 import qchem.PseudoAtomOrbital;                // the pseudo-atom l orbital: the +U projector (HubbardProjectorPlan D5) and the site-shell radial
 import qchem.BasisSet.AoShellSource;           // the site's shells (their exponents) for that pseudo-atom
 import qchem.Orbitals;                         // TOrbitals/TOrbital -- the ACBN0 feed (EstimateHubbardU)
+import qchem.Diagnostics;                      // u_bands: the per-band +U slot weights (QCHEM_DIAGNOSTICS=u_bands[=N])
 import qchem.BasisSet.Orbital_DFT_IBS;         // the block an orbital set lives on (EstimateHubbardU)
 import qchem.Environment;                   // WarnRetiredEnvironment (D-ENV step 6a)
 import qchem.RunPolicy;                        // the declared CP2K deviations (doc/OpenWork.md N5/T5)
@@ -838,6 +839,93 @@ SolidCalculation::Converge(const std::vector<SCFStage>& schedule)
     return last;   // the FINAL stage's -- the earlier ones exist to feed it
 }
 
+namespace {
+//! \brief THE PER-BAND +U SLOT WEIGHTS (QCHEM_DIAGNOSTICS=u_bands[=N], 2026-10-24): for the N bands either side of each spin
+//! channel's frontier, each band's weight \f$w=\ell^\dagger P_{\rm slot}\ell\f$ on every U slot of every Hubbard manifold,
+//! \f$\ell=\langle w_\mu|\psi\rangle\f$ through the +U term's OWN projectors (HubbardChannels) -- the comparison with QE's
+//! projwfc.x on ortho-atomic projectors (doc/Records/HubbardUHistory.md, β-MnO₂ 2026-10-24: does our U'd band carry the
+//! projector weight QE's does?).  Summed over the sites of one (element, l, slot): one column per such triple, so a band reads
+//! "how much O-p-normal / Mn-d is it".  A manifold the term has no symmetry for is one column (its total).  Energies in eV
+//! from the channel's LUMO (the lowest level less than half full).  Print only: no state, no return value.
+void ReportBandSlotWeights(const std::string& label, const qchem::WaveFunction::cWaveFunction& wf,
+                           const qchem::Hamiltonian::HubbardChannels& hub, const Structure& st, int nEach)
+{
+    const double eV=27.211386245988;
+    std::vector<std::string> el; st.ForEachSite([&](int Z, const rvec3_t&, bool){ el.push_back(thePeriodicTable().GetSymbol(Z)); });
+    const auto chans=hub.Channels();
+    const char* lname="spdfgh";
+    // Column per (element, l, slot label); remember which manifold slot feeds which column.
+    std::vector<std::string> cols;
+    std::vector<std::vector<std::pair<size_t,const rmat_t*>>> feeds(chans.size());   // per manifold: (column, slot projector | null = total)
+    std::vector<qchem::Hamiltonian::HubbardSlots> slots(chans.size());
+    auto col=[&](const std::string& k){ auto it=std::find(cols.begin(),cols.end(),k); if (it!=cols.end()) return size_t(it-cols.begin()); cols.push_back(k); return cols.size()-1; };
+    for (size_t M=0;M<chans.size();M++)
+    {
+        slots[M]=hub.SlotProjectors(M);
+        const std::string base=el.at(chans[M].site)+" "+std::string(1,lname[chans[M].l]);
+        if (slots[M].slots.empty()) feeds[M].push_back({col(base),nullptr});
+        else for (const auto& sl : slots[M].slots) feeds[M].push_back({col(base+" "+sl.label),&sl.P});
+    }
+    struct Band { double e, occ; std::vector<double> w; };
+    std::map<int,std::vector<Band>> bySpin;            // Spin as int: None folds into one channel list
+    std::map<int,double> cap;
+    auto walk=[&]<class U>(const qchem::Orbitals::TOrbitals<U>& os, const qchem::Irrep& ir)
+    {
+        const auto* blk=dynamic_cast<const qchem::BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(os.GetBasisSet());
+        if (!blk) throw std::logic_error("ReportBandSlotWeights: an orbital block that is not an Orbital_DFT_IBS");
+        std::vector<const qchem::Orbitals::TOrbital<U>*> all;
+        for (const auto* o : os.template Iterate<qchem::Orbitals::TOrbital<U>>()) all.push_back(o);
+        if (all.empty()) return;
+        mat_t<U> C(blk->GetNumFunctions(), all.size());
+        for (size_t i=0;i<all.size();i++) { const vec_t<U>& c=all[i]->GetCoeff(); for (size_t a=0;a<c.size();a++) C(a,i)=c[a]; }
+        const auto amp=hub.ProjectorAmplitudes(*blk, C);
+        const int s=int(ir.ms);
+        cap[s] = ir.ms==qchem::Spin::None ? 2.0 : 1.0;
+        for (size_t i=0;i<all.size();i++)
+        {
+            Band b{all[i]->GetEigenEnergy(), all[i]->GetOccupation(), std::vector<double>(cols.size(),0.0)};
+            for (size_t M=0;M<amp.size();M++)
+                for (const auto& [c,P] : feeds[M])
+                {
+                    double w=0.0;
+                    const size_t m=amp[M].rows();
+                    if (!P) for (size_t a=0;a<m;a++) w+=std::norm(amp[M](a,i));
+                    else    for (size_t a=0;a<m;a++) for (size_t b2=0;b2<m;b2++) w+=std::real(blazem::conjs(amp[M](a,i))*(*P)(a,b2)*amp[M](b2,i));
+                    b.w[c]+=w;
+                }
+            bySpin[s].push_back(std::move(b));
+        }
+    };
+    for (const qchem::Irrep& ir : wf.GetQNs())
+    {
+        const qchem::Orbitals::Orbitals* os=wf.GetOrbitals(ir);
+        if (const auto* c=dynamic_cast<const qchem::Orbitals::TOrbitals<dcmplx>*>(os)) walk(*c, ir);
+        else if (const auto* r=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(os)) walk(*r, ir);
+        else throw std::logic_error("ReportBandSlotWeights: an orbital set of unknown scalar");
+    }
+    const std::streamsize prec0=std::cout.precision();
+    for (auto& [s,bands] : bySpin)
+    {
+        std::sort(bands.begin(), bands.end(), [](const Band& a, const Band& b){ return a.e<b.e; });
+        size_t lumo=0; while (lumo<bands.size() && bands[lumo].occ>0.5*cap[s]) lumo++;
+        if (lumo==bands.size()) continue;
+        const double ref=bands[lumo].e;
+        const char* sn = s==int(qchem::Spin::Up) ? "up" : s==int(qchem::Spin::Down) ? "down" : "both";
+        std::cout<<"["<<label<<" u_bands] spin "<<sn<<": eV from the LUMO, occupation, weight on each +U slot (summed over sites)\n   e(eV)    occ";
+        for (const auto& c : cols) std::cout<<" | "<<c;
+        std::cout<<"\n";
+        const size_t from = lumo>size_t(nEach) ? lumo-nEach : 0, to=std::min(bands.size(), lumo+size_t(nEach));
+        for (size_t i=from;i<to;i++)
+        {
+            std::cout<<std::fixed<<std::setprecision(3)<<std::setw(8)<<(bands[i].e-ref)*eV<<std::setw(7)<<bands[i].occ;
+            for (size_t c=0;c<cols.size();c++) std::cout<<" | "<<std::setw(std::max<int>(5,int(cols[c].size())))<<bands[i].w[c];
+            std::cout<<(i+1==lumo ? "   <- HOMO" : i==lumo ? "   <- LUMO" : "")<<"\n";
+        }
+        std::cout<<std::defaultfloat<<std::setprecision(prec0)<<std::flush;
+    }
+}
+} // namespace
+
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(const SCFParams& params)
 {
     assert(itsImp->scf);
@@ -906,6 +994,12 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
                             : "n/a (the uniform XC mesh has no site partition)")<<std::endl;
         }
     }
+    if (auto v=qchem::Diagnostics::Value("u_bands"))
+        if (const auto* hub=itsImp->ham->GetHubbardChannels())
+        {
+            const int n=std::atoi(v->c_str());
+            ReportBandSlotWeights(itsImp->opts.label, *itsImp->scf->GetWaveFunction(), *hub, *itsImp->st, n>1 ? n : 8);
+        }
     // THE CHECKPOINT (CK-1), converged or not: the unattended run's safety net.  A failed WRITE warns and the run
     // goes on -- losing a finished SCF to a full disk would make the net the hazard (SaveState itself throws).
     if (!itsImp->opts.saveStateTo.empty())
