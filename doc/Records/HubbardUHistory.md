@@ -2089,3 +2089,15 @@ Decks `~/Code/qchem6-runs/MnO2/basis_scan/m0_imp_{,U0_}Op018_PA.json` (stage 1 +
 At U = 0 every band is QE's to ≤ 0.04 eV on this basis (a near-uniform +0.03).  Under U two bands respond differently: the U'd O-normal band falls 0.09 eV LESS than QE's and the Mn d LUMO (no U on it) falls 0.13 eV MORE — exactly the gap deficit (0.034 − 0.128 = −0.094 eV).  The U'd slot's occupations are QE's (0.960 / 0.972 vs 0.961 / 0.972), the characters agree to 0.01 (previous entry), the ortho-atomic set is QE's (Mn 4s+3d, O 2s+2p per site, from `mno2b_G_OpzU.projwfc.out`) and E_U agrees to 0.1 %, so the FIRST-order shift U(½−λ) is QE's.  What differs is the second-order, self-consistent response of the rest of the Hamiltonian.  Hint (partition-dependent, not conclusive): the O moment falls 0.0276 under U in ours (Becke cells, 0.1467 → 0.1191) vs 0.0144 in QE (spheres R = 0.176 alat, 0.1499 → 0.1355); Mn rises +0.0034 vs +0.0084.
 
 Side defect found: after a GDM stage `u_bands` prints ~0 slot weight on every VIRTUAL band (energies right) → OpenWork §3 row.
+
+**The occupation response to U, on the shared ortho-atomic projectors (same day).**  QE: `mno2b_U0_tok` and `mno2b_G_OpzU_Mn` (`~/Code/qe-runs/MnO2/`; token U = 1e-8 on Mn 3d and O 2p so ns is printed — orbital-resolved form, QE refuses to mix it with shell-averaged U; energies unchanged to 1e-8 Ry).  Ours: the tight smeared pair `m0_imp_s1t_{U0_,}Op018_PA` (`[+U]` lines).
+
+| | U=0 QE / ours | U QE / ours | Δ QE / ours |
+|---|---|---|---|
+| Mn d total | 5.0411 / 5.0708 | 4.9187 / 4.9423 | −0.122 / −0.129 |
+| Mn d moment | 3.514 / 3.518 | 3.551 / 3.541 | +0.037 / +0.023 |
+| O p total | 4.924 / 4.911 | 5.002 / 4.994 | +0.078 / +0.083 |
+| O p moment | 0.180 / 0.183 | 0.163 / 0.161 | −0.017 / −0.022 |
+
+The CHARGE response (Mn d → O p) agrees to 5–7 %; the Mn SPIN response is ~60 % of QE's (the O-moment hint, now on shared projectors).  Order of magnitude: neither difference alone moves the Mn d LUMO 0.13 eV (spin ~0.01 eV via an Mn exchange splitting ~0.9 eV/μB; charge only through an unscreened on-site Coulomb) — so not an occupation effect; the clearly different ingredient is the Mn SPIN response → the Mn XC (exchange) potential's response is the lead suspect.  Open.
+
