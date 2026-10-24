@@ -11,6 +11,7 @@ export import qchem.Symmetry.Spin;   // SpinGroup -- the imposed spin subgroup e
 import qchem.Mesh;
 import qchem.Structure;
 import qchem.Types;                  // rmat3d_t (the site rotations)
+export import qchem.Math.Gaussian;   // Math::Gaussian (a pseudo-atomic +U projector's radial)
 
 
 export namespace qchem::Hamiltonian
@@ -76,6 +77,13 @@ export namespace qchem::Hamiltonian
     //! order -- EMPTY = every slot takes \c U (shell-averaged, increment 1); a wrong count throws.  Three
     //! levels are three levels: a1g + eg + eg on a D_3d Mn are LISTED separately even when their U's come
     //! out equal (user, 2026-09-20).
+    //! \brief WHAT A +U MANIFOLD PROJECTS ONTO (doc/HubbardProjectorPlan.md D7).  \c SiteShells: functions of the
+    //! orbital basis on the site -- every \f$l\f$-shell (CP2K's LOWDIN columns) or one contraction over them
+    //! (\c radial / \c atomicRadial).  \c PseudoAtomic: the GTH pseudo-atom's own \f$l\f$ orbital in its own
+    //! exponents (\c atomicFunction), NOT projected onto the basis -- the projector QE/hp.x use, independent of the
+    //! orbital basis (an \c BasisSet::AtomCentredSet; the block supplies only overlaps with it).
+    enum class HubbardProjectorKind { SiteShells, PseudoAtomic };
+
     struct HubbardManifold
     {
         size_t              site = 0;     //!< atom index in the cell (the order Structure::ForEachSite walks)
@@ -104,6 +112,10 @@ export namespace qchem::Hamiltonian
         //! its own ACBN0 estimate for free.  The bare integrals stay those of the on-site \f$\chi\f$ (the
         //! orthogonalisation tails are not carried into them).
         bool                orthoAtomic  = false;
+        HubbardProjectorKind projector = HubbardProjectorKind::SiteShells;   //!< see the enum; one kind per run
+        //! \c PseudoAtomic: the radial \f$R(r)=\sum_tc_tr^{l+2n_t}e^{-\alpha_tr^2}\f$ (any scale; the term normalises).
+        //! The facade fills it from the pseudo-atom (\c PseudoAtomOrbitals) when empty.
+        std::vector<Math::Gaussian> atomicFunction;
         std::vector<rmat3d_t> siteOps;    //!< the site group's Cartesian rotations; empty = C_1
         std::vector<rmat3d_t> greyOps;    //!< the PARENT group (the coordination's point group), for PARENTAGE
                                           //!< labels only (which parent irrep a site level descends from); empty = siteOps

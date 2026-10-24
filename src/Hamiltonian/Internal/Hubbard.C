@@ -54,6 +54,7 @@ export import qchem.Hamiltonian.HubbardChannels; // the public projector face Hu
 export import qchem.Hamiltonian.HubbardUTarget;  // the public write face HubbardProjection extends (LinearResponsePlan §3d Q6)
 import qchem.Fitting.FunctionFitter;            // Fitting::ScalarProjector (the forward vendor face)
 import qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.BasisSet.AtomCentredSet;            // the pseudo-atomic projector functions (HubbardProjectorPlan D1/D2)
 import qchem.BasisSet.BareCoulombSource;         // ERI4Block (ManifoldIntegrals)          // Orbital_DFT_IBS<U,dcmplx> (what ProjectOnto hands the vendor)
 import qchem.Mesh.Integrator;                   // qcMesh::MatrixForward / MatrixAdjoint
 import qchem.Symmetry;                          // sym_t, SymMap
@@ -352,12 +353,22 @@ private:
     struct Channel;
     double Analyse(Channel& ch) const;
 
+    //! \name THE PSEUDO-ATOMIC ROUTE (doc/HubbardProjectorPlan.md D4/D6): the manifolds' functions are an
+    //! atom-centred set, not basis functions.  The pair comes from the block's overlaps with the set; the site
+    //! group acts on the set's own real harmonics (one synthetic shell per manifold).
+    //!@{
+    bool PseudoAtomic() const {return bool(itsSet);}
+    template <class U> LowdinProjector<U> AtomicProjector(const BasisSet::Orbital_DFT_IBS<U,dcmplx>&) const;
+    std::vector<Symmetry::Molecule::AoShell> SetShells(size_t M) const;
+    //!@}
     //! Build \c itsSym[M] from the manifold's shells and its \c siteOps / \c greyOps (once, in PrepareSlots),
     //! and say the slot table once (pin 17).
     void BuildSymmetry(size_t M, const std::vector<Symmetry::Molecule::AoShell>& shells) const;
 
     std::shared_ptr<const Structure> itsSt;
     std::vector<HubbardManifold>     itsManifolds;
+    std::shared_ptr<const BasisSet::GaussianAtomCentredSet> itsSet;   //!< the manifolds' functions when PseudoAtomic (null otherwise)
+    mutable bool                     itsCapturedSaid = false;          //!< the captured-norm line, said once (pin 17)
     std::vector<rvec3_t>             itsSites;          //!< the cell's site positions, ForEachSite order
     std::vector<int>                 itsSiteZ;          //!< their species (EquivalentManifolds)
     SpinGroup                        itsGroup;

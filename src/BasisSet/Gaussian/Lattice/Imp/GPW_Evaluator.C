@@ -188,7 +188,10 @@ std::vector<qchem::Math::CartTerm> YlmCartesian(int l, int m)
     const double N=fix(0.3,0.5,0.7);                               // generic direction (no raw zeros, l<=3)
     assert(std::fabs(fix(0.9,-0.2,0.4)-N)<1e-10*std::fabs(N)+1e-14 &&
            "YlmCartesian: raw solid harmonic is not proportional to RealYlm (convention drift)");
-    for (auto& t : terms) t.c*=N;
+    // POSITIVE scale: the harmonic is SphericalShell's raw polynomial times a positive unit-sphere norm -- the
+    // convention an atom-centred set declares (BasisSet.AtomCentredSet) and a SphericalShellRep shell describes.
+    // RealYlm up to a sign per m; the KB sum |b|^2 over m cannot see a sign (and negation is exact in IEEE).
+    for (auto& t : terms) t.c*=std::fabs(N);
     return terms;
 }
 

@@ -12,9 +12,10 @@
 // It is per SITE (a manifold is), not per species like \c SpeciesProjectorSet; no common base was forced:
 // the two share the radial convention (Math::Gaussian with \f$r^l\f$ carried by the owner) and nothing else.
 //
-// THE ANGULAR CONVENTION is the real (tesseral) harmonics of the GPW KB projectors, m = -l..l in that order
-// (l=1: y, z, x; l=2: xy, yz, 3z²-r², xz, x²-y²), unit-normalised on the sphere.  A consumer that needs the
-// site-group action on the set (+U slots) builds it from (centre, l) and this convention.
+// THE ANGULAR CONVENTION: real solid harmonics, \c Math::SphericalShell(l)[l+m] for m = -l..l in that order
+// (l=1: y, z, x; l=2: xy, yz, 3z²-r², xz, x²-y²), each scaled by a POSITIVE factor to unit norm on the sphere
+// (the GPW KB projectors' RealYlm table up to a sign per m).  A consumer that needs the site-group action on the
+// set (+U slots) builds it from (centre, l) and this convention: a SphericalShellRep over the same raw harmonic.
 module;
 #include <cstddef>
 #include <stdexcept>
