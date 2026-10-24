@@ -177,8 +177,9 @@ bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {ret
 bool HasXCCorrection(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {return bool(ExactSourceOf(cd).corr);}
 
 //! The engine notes which ρ source it served XC from (the free helper below reports the sign census).
-void SinglesDensitySampler::NoteRoute(const char* route) const
+void SinglesDensitySampler::NoteRoute(const char* route, XCRhoSource src) const
 {
+    itsSource=src;   // before the de-dup: a repeat route is still THIS sampling's source
     if (!itsRoutes.empty() && itsRoutes.back()==route) return;
     itsRoutes.push_back(route);
     // Contemporaneous, its own activity, inert without an open run report (the reporting rule).
@@ -222,7 +223,7 @@ const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
     if (auto dm=dynamic_cast<const cDM_CD*>(cd))
     {
         itsRho=dm->ProjectOnto(Projector());   // the density contracts its D into the fitter's handles
-        NoteRoute("DM");
+        NoteRoute("DM", XCRhoSource::DM);
         ReportNegativeRho(*this, itsRho, "DM");
     }
     else if (auto ex=ExactSourceOf(cd))
@@ -239,21 +240,21 @@ const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
             const rvec_t c=Projector().Project(*ex.corr);
             assert(c.size()==itsRho.size() && "XC cusp-deficit: correction and rho must share the mesh");
             for (size_t g=0; g<itsRho.size(); ++g) itsRho[g]+=c[g];
-            NoteRoute("cusp-deficit");
+            NoteRoute("cusp-deficit", XCRhoSource::CuspDeficit);
             ReportNegativeRho(*this, itsRho, "cusp-deficit");
         }
         else
         {
             DampXCChannel(itsXCMix, ex.cd->ProjectOnto(Projector()), ex.alpha);
             itsRho=itsXCMix;   // the running mix lives in its OWN buffer -- see the \warning on itsXCMix
-            NoteRoute("DM-source");
+            NoteRoute("DM-source", XCRhoSource::DMSource);
             ReportNegativeRho(*this, itsRho, "DM-source");
         }
     }
     else
     {
         itsRho=Projector().Project(*cd);   // non-DM (mixed rho-tilde / seed): the fitter projects the FIELD
-        NoteRoute("matrix-free");
+        NoteRoute("matrix-free", XCRhoSource::Fitted);
         ReportNegativeRho(*this, itsRho, "matrix-free");
     }
     itsQuad.Symmetrize(itsRho);   // §6a W1: the orbit-mean projector, straight off the FoldedMesh I hold
@@ -333,9 +334,9 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
             assert(dmDn && "a D-backed Up channel beside a matrix-free Down channel");
             itsRhoUp=dmUp->ProjectOnto(Projector());
             itsRhoDn=dmDn->ProjectOnto(Projector());
-            NoteRoute("DM(up)");
+            NoteRoute("DM(up)", XCRhoSource::DM);
             ReportNegativeRho(*this, itsRhoUp, "DM(up)");
-            NoteRoute("DM(dn)");
+            NoteRoute("DM(dn)", XCRhoSource::DM);
             ReportNegativeRho(*this, itsRhoDn, "DM(dn)");
         }
         else if (up && dn)
@@ -370,9 +371,9 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
                     assert(cu.size()==up.size() && cd_.size()==dn.size());
                     for (size_t g=0; g<up.size(); ++g) {up[g]+=cu[g]; dn[g]+=cd_[g];}
                     itsRhoUp=up; itsRhoDn=dn;
-                    NoteRoute("cusp-deficit(up)");
+                    NoteRoute("cusp-deficit(up)", XCRhoSource::CuspDeficit);
                     ReportNegativeRho(*this, itsRhoUp, "cusp-deficit(up)");
-                    NoteRoute("cusp-deficit(dn)");
+                    NoteRoute("cusp-deficit(dn)", XCRhoSource::CuspDeficit);
                     ReportNegativeRho(*this, itsRhoDn, "cusp-deficit(dn)");
                 }
                 else
@@ -380,9 +381,9 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
                     DampXCChannel(itsXCMixUp, up, exUp.alpha);   // match the damping Hartree gets, so the map
                     DampXCChannel(itsXCMixDn, dn, exDn.alpha);   //   is not half-damped
                     itsRhoUp=itsXCMixUp; itsRhoDn=itsXCMixDn;
-                    NoteRoute("DM-source(up)");
+                    NoteRoute("DM-source(up)", XCRhoSource::DMSource);
                     ReportNegativeRho(*this, itsRhoUp, "DM-source(up)");
-                    NoteRoute("DM-source(dn)");
+                    NoteRoute("DM-source(dn)", XCRhoSource::DMSource);
                     ReportNegativeRho(*this, itsRhoDn, "DM-source(dn)");
                 }
             }
@@ -391,18 +392,24 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
             qchem::report::Timed seed("scf: XC-mesh rho sampling (matrix-free density)");
             itsRhoUp=Projector().Project(*up);
             itsRhoDn=Projector().Project(*dn);
-            NoteRoute("matrix-free(up)");
+            NoteRoute("matrix-free(up)", XCRhoSource::Fitted);
             ReportNegativeRho(*this, itsRhoUp, "matrix-free(up)");
-            NoteRoute("matrix-free(dn)");
+            NoteRoute("matrix-free(dn)", XCRhoSource::Fitted);
             ReportNegativeRho(*this, itsRhoDn, "matrix-free(dn)");
             }
         }
         else
         {   // spin-agnostic seed: rho_up=rho_down=rho/2 (the molecular HalfDensity rule, cd85d13c)
             if (auto dm=dynamic_cast<const cDM_CD*>(cd))
+            {
                 itsRhoUp=dm->ProjectOnto(Projector());
+                itsSource=XCRhoSource::DM;
+            }
             else
+            {
                 itsRhoUp=Projector().Project(*cd);
+                itsSource=XCRhoSource::Fitted;
+            }
             itsRhoUp*=0.5;
             itsRhoDn=itsRhoUp;
         }

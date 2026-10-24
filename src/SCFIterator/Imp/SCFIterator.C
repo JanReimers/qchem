@@ -718,7 +718,7 @@ template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>*
 
 // --- Column-width constants: the header labels and the value rows share these, so they line up exactly
 //     regardless of the UTF-8 label glyphs (Δ, ρ, ε are multi-byte but one display column). --------------
-namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=13, W_ACC=7, W_SV=8, W_CFG=3, W_GAP=9, W_ORD=12 }; }
+namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=13, W_ACC=7, W_SV=8, W_CFG=3, W_GAP=9, W_ORD=12, W_XCR=7 }; }
 
 // Display width of a UTF-8 string (counts leading bytes only, so Δ/ρ/ε each count as one column).
 static size_t VisWidth(const std::string& s)
@@ -847,6 +847,22 @@ ColumnData GridLossCol()
             {os << std::scientific << setw(W_LOST) << setprecision(2) << tr.gridLostRel << " ";}};
 }
 
+//! THE PIN-28 AUDIT (doc/Pins.md pin 28): which rho this iteration's V_xc was built from -- DM, cusp (N4), DMsrc,
+//! shadow (the raster route's mixed RAW shadow) or fitted -- with a trailing '!' on a FITTED rho after the first
+//! iteration, the one place a fitted rho is legal (the seed has no D).  A GRID column like ρ_lost/N, and a probe:
+//! no tolerance cell.  It replaces reading the `scf.xcRhoRoutes` sequence by eye (still recorded in the json).
+ColumnData XCRhoCol()
+{
+    return {"XC ρ", W_XCR, std::nullopt,
+            [](std::ostream& os, const IterationTrace& tr)
+            {
+                const auto& c=tr.eb.charge;
+                std::string v = c.xcRho.empty() ? std::string("----") : c.xcRho;
+                if (c.xcRhoFitted && tr.iteration>1) v+="!";
+                os << PadR(v,W_XCR) << " ";
+            }};
+}
+
 } //anon namespace
 
 // --- Base: the MOLECULAR column list -----------------------------------------------------------------
@@ -929,6 +945,7 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
     tSCFIterator<dcmplx>::AccumulateColumns(cols,ipar,idealVirial);   // gate, Δρ, [virial]
     cols[0]=GateDE(ipar);                                             // a collocation SCF is ENERGY-gated
     cols.insert(cols.begin()+2, GridLossCol());                       // ...and carries the grid-charge leak
+    cols.insert(cols.begin()+3, XCRhoCol());                          // ...and which rho its XC saw (pin 28)
 }
 
 // The solid mixer.  The branch here is on the KNOBS -- which RECIPE did the caller ask for? -- not on the

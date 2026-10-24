@@ -307,6 +307,9 @@ factored D (low rank, `policy.dmLowRank`) makes ρ[D] cheap -- 130× cheaper per
   XC route meets it with its raw shadow (ρ[D] collocated pointwise, mixed on the raster) and refuses the flag on its BALL (fitted)
   fallback.  Free MnO AFM-II holds its order with it (moment 4.453); the flip moved no anchor's verdict (`OpenWork_History5.md`).
 
+**Audit it in the SCF trace:** the solid trace's `XC ρ` column names the ρ each iteration's V_xc was built from (DM, cusp, DMsrc,
+shadow, fitted); `fitted!` -- a fitted ρ after the first iteration -- is a violation of this pin (2026-10-24).
+
 Records: `OpenWork_History4.md` "ITEM 1 MEASURED" (MnO negatives, the collapse), `OpenWork.md` §3 "Kerker/Pulay as the
 DEFAULT mixer" and N4 (the O₂ and MnO arms).
 

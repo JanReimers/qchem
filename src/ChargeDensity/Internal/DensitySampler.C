@@ -124,6 +124,7 @@ public:
     //! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ (the HalfDensity rule -- \f$v^\sigma(\tfrac\rho2,\tfrac\rho2)
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
+    XCRhoSource RhoSource() const override {return itsSource;}
     //! δρ_σ at my points, pair by pair through the δ basis's Φ tables (\c Transition_Overlap3C) -- the same
     //! tables as Rho, no cache, no orbit mean.
     cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
@@ -204,7 +205,9 @@ private:
     //! route under test lives mid-trajectory.  The DM-source routes had zero coverage until 2026-09-15
     //! precisely because nothing could see them (doc/OpenWork.md TE, V1.18e).
     mutable std::vector<std::string> itsRoutes;
-    void NoteRoute(const char* route) const;
+    //! Notes \a route in \c itsRoutes AND sets \c itsSource -- one call, so the two cannot disagree.
+    void NoteRoute(const char* route, XCRhoSource src) const;
+    mutable XCRhoSource itsSource=XCRhoSource::Fitted;   //!< the source of the cached rasters (\c RhoSource)
     //! \brief The DM-source RUNNING MIX (QCHEM_XC_DM_MIX), in its OWN storage.
     //! \warning It must NOT live in itsRho/itsRhoUp/itsRhoDn.  Those are written by BOTH sampling routes,
     //! and the interleaving is adversarial: per iteration the Fock build blends through the DM-SOURCE
@@ -266,6 +269,7 @@ public:
     //! takes a bare field, which is exactly what \f$v_{xc,\sigma}\to H_{xc,\sigma}\f$ wants.  What was
     //! missing was the per-channel CACHE and the channel walk, both of which the singles route already had.
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
+    XCRhoSource RhoSource() const override {return itsSource;}
     //! δρ_σ on the raster through the transition density's G-space face (RAW collocation, else the BALL).
     //! The periodic part \f$e^{-iq\cdot r}\delta\rho_\sigma\f$ on my raster, pair by pair through each KET block's RAW
     //! transition collocation (\c Transition_DFT_IBS::TransitionOnGrid) -- the RAW route the ground state latched;
@@ -296,6 +300,7 @@ private:
     mutable rvec_t itsRho;                        //!< ρ(r) on the raster for the current density serial
     mutable size_t itsRhoVersion=size_t(-1);      //!< density logical-clock serial itsRho was built for
     mutable bool   itsRhoIsRaw=false;             //!< is itsRho the RAW collocated ρ_DM (vs the ball round trip)?
+    mutable XCRhoSource itsSource=XCRhoSource::Fitted;   //!< the source of the cached rasters (\c RhoSource)
     mutable bool   itsRouteLatched=false;         //!< has a matrix-backed density fixed the route yet?
     mutable bool   itsLatchedRaw=false;           //!< ... and to which one
     //! \warning The scalar cache (\c itsRho) and the spin pair have NO cross-invalidation -- the same
