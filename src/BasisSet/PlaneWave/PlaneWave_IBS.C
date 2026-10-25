@@ -25,6 +25,7 @@ import qchem.BasisSet.Lattice_IBS;              // the G=T spec: isLattice_{1E,D
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
 export import qchem.BasisSet.Orbital_PP_IBS;             // the species-field integral service (V1.2)
+export import qchem.BasisSet.AtomCentredSet;             // the +U projector functions' overlap face (HubbardProjectorPlan D2; OpenWork PW-3)
 import qchem.Structure;
 import qchem.Symmetry;                             // sym_t (the Bloch irrep handed to the ctor)
 import qchem.Types;
@@ -42,6 +43,7 @@ class PlaneWave_IBS
     : public Lattice::Orbital_1E_IBS<PW_Evaluator>    // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
     , public Lattice::Orbital_DFT_IBS<PW_Evaluator>   // G-space DFT: MakeRepulsion3C/MakeOverlap3C (IS-A Orbital_DFT_IBS<dcmplx>)
     , public virtual Orbital_PP_IBS<dcmplx>              // G-space species-field assembly (a local field + a projector set)
+    , public virtual AtomCentredOverlapSource<dcmplx>    // <k+G | an atom-centred function> (+U pseudo-atomic projectors)
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
     , public         PW_Evaluator                     // the shared grid engine (Cast() target for the mixins)
 {
@@ -85,6 +87,17 @@ public:
     virtual chmat_t MakeSpeciesFieldMatrix(const Structure* cl, const SpeciesRadialField& f, FieldRange) const override;
     //! \brief Assemble the separable (Kleinman-Bylander) nonlocal potential (rank-1 per atom, projector, m).
     virtual chmat_t MakeProjectorMatrix(const Structure* cl, const SpeciesProjectorSet& v) const override;
+
+    //! \brief \f$B_{G,a}=\langle k+G|\chi_a\rangle=\tilde\chi_a(k+G)/\sqrt\Omega\f$, the Bloch sum's Fourier transform: a
+    //! set function \f$c\,r^{l+2n}e^{-\alpha r^2}Y(\hat r)\f$ about \f$C\f$ transforms in closed form,
+    //! \f$\tilde\chi(q)=e^{-iq\cdot C}\,4\pi(-i)^l\,q^lY(\hat q)\,c\sqrt\pi\,n!\,L_n^{(l+1/2)}(x)e^{-x}/(2^{l+2}\alpha^{l+n+3/2})\f$,
+    //! \f$x=q^2/4\alpha\f$ (the separable-PP pattern, explicit \f$Y\f$ instead of the addition theorem).
+    //! \copydoc BasisSet::AtomCentredOverlapSource::MakeAtomCentredOverlap
+    virtual mat_t<dcmplx> MakeAtomCentredOverlap(const AtomCentredSet& set) const override;
+    //! The set's TRUE lattice-summed overlap at this \f$k\f$, by Parseval: \f$O_{ab}=\frac1\Omega\sum_G
+    //! \tilde\chi_a^*(k+G)\tilde\chi_b(k+G)\f$ over a G sphere ENLARGED (doubling its cutoff) until O moves by
+    //! < 1e-12 -- not \f$B^\dagger B\f$, the part this cutoff represents (the term prints that ratio as "captured").
+    virtual chmat_t MakeSetOverlap(const AtomCentredSet& set) const override;
 
     //! \brief Create this basis's auxiliary plane-wave density-fit basis (a distinct PlaneWaveFit_IBS over
     //! the same \f$\{G\}\f$ grid): the Orbital_DFT_IBS<dcmplx> factory seam a Hartree term obtains its fitter through.

@@ -150,16 +150,16 @@ template <class T> static std::string ConfigString(const qchem::WaveFunction::tW
 // The SeedStrategy ctor resolves the strategy into a concrete (heap, owned) density -- nullptr for
 // CoreGuess -- then DELEGATES to the explicit-seed ctor below.  \a st (the structure) is consumed only by
 // the SAD seeds; bs/st are also forwarded (by the target ctor) for the HF/DHF bootstrap.
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol)
-    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec, H&&H->GetSpinGroup()==SpinGroup::Polarized), st, basisOrtho, basisOrthoTol)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol,size_t numBands)
+    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec, H&&H->GetSpinGroup()==SpinGroup::Polarized), st, basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
 {}
 
 // The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in
 // Init) instead of a strategy enum.  Shared construction body -- the SeedStrategy ctor delegates here.
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol,SeedRole role)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol,SeedRole role,size_t numBands)
     : itsHamiltonian (H )
     , itsAccelerator (acc)
-    , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator,basisOrtho,basisOrthoTol) )
+    , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator,basisOrtho,basisOrthoTol,numBands) )
     , itsCD          (nullptr)
     , itsOldCD       (nullptr)
     , itsIterationCount(0)
@@ -553,6 +553,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     // (The basis-usage heat map is NOT requested from here any more -- V1.14: the WF announces it from its own
     //  FillOrbitals, so the record's basis.usage is the last fill's, and the iterator tells nobody to report.)
 
+    // The previous working density is read only INSIDE the loop, after each step's install has refreshed it, so it is dead
+    // here.  Released, because the caller's next act is usually to take the converged density OUT (a third generation of
+    // n×n density matrices): with this one held, the end of a stage was the plane-wave run's memory peak (2026-10-25).
+    itsOldCD.reset();
     return ChargeDensityChange <= ipar.MinΔρPerElectron;
 }
 

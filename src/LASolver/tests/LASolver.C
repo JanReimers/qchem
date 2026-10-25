@@ -6,6 +6,10 @@
 //   H3: 3x3 symmetric "Hamiltonian", diagonally dominant
 //       → H = [[6,2,0],[2,8,2],[0,2,10]]
 #include <gtest/gtest.h>
+#include <memory>
+#include <complex>
+#include <cmath>
+#include <stdexcept>
 import qchem.LASolver;
 import qchem.Blaze;
 using namespace qchem;
@@ -282,4 +286,85 @@ TEST(LASolverAuto, CholeskyPivotedAutoGapMiddle)
     std::unique_ptr<LASolver<double>> s2(LASolver<double>::Factory(qchem::CholeskyPivoted, -1.0));
     s2->SetBasisOverlap(make_S3());
     EXPECT_EQ(s2->GetOrthoDim(), 3u);       // no gap -> keep all
+}
+
+// ---------------------------------------------------------------------------
+//  Ortho::Orthonormal (S = I, the plane-wave basis) and its PARTIAL eigensolve (numBands, QE's nbnd)
+// ---------------------------------------------------------------------------
+
+// A dense complex Hermitian matrix with a spread spectrum (no degeneracy at the cut).
+static chmat_t make_Hc(size_t n)
+{
+    chmat_t H(n);
+    for (size_t i=0;i<n;i++)
+    {
+        H(i,i)=dcmplx(double(i)*0.37 + 0.01*double(i*i%7), 0.0);
+        for (size_t j=i+1;j<n;j++) H(i,j)=dcmplx(0.05/(1.0+double(j-i)), 0.02*double((i+2*j)%5)-0.04);
+    }
+    return H;
+}
+static double cnorm(const cvec_t& v) { double s=0; for (size_t i=0;i<v.size();i++) s+=std::norm(v[i]); return std::sqrt(s); }
+static chmat_t make_Ic(size_t n) { chmat_t I(n); for (size_t i=0;i<n;i++) I(i,i)=dcmplx(1.0,0.0); return I; }
+
+TEST(LASolverOrthonormal, RefusesANonIdentityOverlap)
+{
+    std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::Orthonormal));
+    EXPECT_THROW(s->SetBasisOverlap(make_S3()), std::invalid_argument);
+}
+// The full solve on S = I is the Cholesky one (V = I), eigenpair for eigenpair.
+TEST(LASolverOrthonormal, FullSolveEqualsCholeskyOnIdentityOverlap)
+{
+    const size_t n=12;
+    std::unique_ptr<LASolver<dcmplx>> o(LASolver<dcmplx>::Factory(qchem::Orthonormal)), c(LASolver<dcmplx>::Factory(qchem::Cholesky));
+    o->SetBasisOverlap(make_Ic(n)); c->SetBasisOverlap(make_Ic(n));
+    auto [Uo,eo]=o->Solve(make_Hc(n));
+    auto [Uc,ec]=c->Solve(make_Hc(n));
+    ASSERT_EQ(eo.size(), n);
+    EXPECT_LT(blazem::norm(eo-ec), 1e-12);
+}
+// The lowest numBands eigenpairs: the SAME values as the full solve, eigenvectors satisfying H u = e u and normalised.
+TEST(LASolverOrthonormal, PartialSolveIsTheLowestEigenpairsOfTheFullOne)
+{
+    const size_t n=40, nb=7;
+    const chmat_t H=make_Hc(n);
+    std::unique_ptr<LASolver<dcmplx>> full(LASolver<dcmplx>::Factory(qchem::Orthonormal)), part(LASolver<dcmplx>::Factory(qchem::Orthonormal, 0.0, nb));
+    full->SetBasisOverlap(make_Ic(n)); part->SetBasisOverlap(make_Ic(n));
+    auto [Uf,ef]=full->Solve(H);
+    for (auto [U,Up,e] : {part->SolveOrtho(H)})
+    {
+        ASSERT_EQ(e.size(), nb);
+        ASSERT_EQ(U.rows(), n);
+        ASSERT_EQ(U.columns(), nb);
+        for (size_t j=0;j<nb;j++)
+        {
+            EXPECT_NEAR(e[j], ef[j], 1e-12) << "band " << j;
+            const cvec_t u=blazem::column(U,j);
+            EXPECT_NEAR(cnorm(u), 1.0, 1e-12) << "band " << j;
+            EXPECT_LT(cnorm(cvec_t(mat_t<dcmplx>(H)*u - e[j]*u)), 1e-10) << "band " << j;
+            EXPECT_LT(cnorm(cvec_t(cvec_t(blazem::column(Up,j)) - u)), 1e-14) << "U' = U on S = I, band " << j;
+        }
+    }
+}
+TEST(LASolverOrthonormal, BandCountIsRefusedByEveryOtherOrtho)
+{
+    EXPECT_THROW(std::unique_ptr<LASolver<double>>(LASolver<double>::Factory(qchem::Cholesky, 0.0, 5)), std::invalid_argument);
+}
+// The real (TRIM-block) branch of the same partial solve: syevx.
+TEST(LASolverOrthonormal, PartialSolveRealBlock)
+{
+    const size_t n=30, nb=5;
+    rsmat_t H(n), I(n);
+    for (size_t i=0;i<n;i++) { I(i,i)=1.0; H(i,i)=0.4*double(i)-0.01*double(i*i%5); for (size_t j=i+1;j<n;j++) H(i,j)=0.07/(1.0+double(j-i)); }
+    std::unique_ptr<LASolver<double>> full(LASolver<double>::Factory(qchem::Orthonormal)), part(LASolver<double>::Factory(qchem::Orthonormal, 0.0, nb));
+    full->SetBasisOverlap(I); part->SetBasisOverlap(I);
+    auto [Uf,ef]=full->Solve(H);
+    auto [U,e]=part->Solve(H);
+    ASSERT_EQ(e.size(), nb);
+    for (size_t j=0;j<nb;j++)
+    {
+        EXPECT_NEAR(e[j], ef[j], 1e-12) << "band " << j;
+        const rvec_t u=blazem::column(U,j);
+        EXPECT_NEAR(blazem::norm(u), 1.0, 1e-12) << "band " << j;
+        EXPECT_LT(blazem::norm(rvec_t(rmat_t(H)*u - e[j]*u)), 1e-10) << "band " << j;
+    }
 }

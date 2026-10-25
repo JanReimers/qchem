@@ -225,7 +225,7 @@ template <class T> std::unique_ptr<tDM_CD<T>> TOrbitalsImp<T>::GetChargeDensity(
     // accelerator works on the unscaled D'); only the charge-density object carries the weight.
     double w=GetQNs().sym->GetWeight();
     hmat_t<T> Dw = (w==1.0) ? itsD : hmat_t<T>(w*itsD);
-    return std::unique_ptr<tDM_CD<T>>(qchem::ChargeDensity::IrrepCD_Factory(Dw,itsBasisSet,GetQNs()));
+    return std::unique_ptr<tDM_CD<T>>(qchem::ChargeDensity::IrrepCD_Factory(std::move(Dw),itsBasisSet,GetQNs()));   // moved: one n×n copy, not two
 }
 
 

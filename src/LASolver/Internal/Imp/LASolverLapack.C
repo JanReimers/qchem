@@ -4,9 +4,12 @@ module;
 #include <iostream>
 #include <type_traits>
 #include <cmath>
+#include <complex>
 #include <algorithm>
 #include <memory>
 #include <vector>
+#include <string>
+#include <stdexcept>
 module qchem.LASolver.Internal.Lapack;
 import qchem.Blaze;
 import qchem.Reporting;                              // the run report -- conditioning lands in basis.perIrrep
@@ -258,6 +261,83 @@ template <class T> void LASolverSVD<T>::Truncate(mat_t<T>& U, rvec_t& s, mat_t<T
 }
 
 //=============================================================================
+//  LASolverOrthonormal
+//=============================================================================
+
+template <class T> void LASolverOrthonormal<T>::SetBasisOverlap(const hmat_t<T>& S)
+{
+    // A broken invariant no caller can act on: the family that chose this solver said S = I.
+    const size_t n=S.rows();
+    double worst=0.0;
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++)
+            {
+                const T sij=S(i,j);
+                worst=std::max(worst, std::abs(sij-(i==j ? T(1.0) : T(0.0))));
+            }
+    if (worst>1e-12)
+        throw std::invalid_argument("LASolverOrthonormal: Ortho::Orthonormal on a basis whose overlap is not the identity (max |S-I| = "
+                                    +std::to_string(worst)+")");
+    itsN=n;
+}
+
+// THE PARTIAL EIGENSOLVE (QE's nbnd): an SCF occupies the lowest few bands of a plane-wave block thousands wide, and the
+// n-n-1 virtual eigenvectors it would otherwise carry (in U, U', every orbital's two coefficient vectors and heevd's
+// n^2 workspace) were ~10 of the ~31 full-size matrices of the β-MnO₂ PW run.
+template <class T> void LASolverOrthonormal<T>::Lowest(const hmat_t<T>& H, rvec_t& d, mat_t<T>& U) const
+{
+    const size_t n=H.rows();
+    if (itsNumBands==0 || itsNumBands>=n) { blazem::eigen(H, d, U); return; }
+    // ⚠ THE RAW LAPACK-LEVEL WRAPPER, not blaze's (A,w,Z,...) heevx/syevx: that overload passes jobz='N' to LAPACK
+    // (submodules/blaze heevx.h/syevx.h, both call sites) and returns Z UNTOUCHED -- correct eigenvalues, zero
+    // eigenvectors (UTLASolver LASolverOrthonormal.PartialSolveIsTheLowestEigenpairsOfTheFullOne caught it).
+    using blas_int_t = int;
+    mat_t<T> A(H);                      // destroyed by LAPACK; column-major, lda = spacing
+    const blas_int_t N=blas_int_t(n), lda=blas_int_t(A.spacing()), il=0, iu=blas_int_t(itsNumBands)-1;   // 0-based: the wrapper adds 1
+    d.resize(n); U.resize(n, itsNumBands);
+    const blas_int_t ldz=blas_int_t(U.spacing());
+    blas_int_t m=0, info=0;
+    std::vector<blas_int_t> iwork(5*n), ifail(n);
+    if constexpr (std::is_floating_point_v<T>)
+    {
+        double q=0; blas_int_t lwork=-1;   // workspace query
+        blazem::syevx('V','I','L',N,A.data(),lda,0.0,0.0,il,iu,0.0,&m,d.data(),U.data(),ldz,&q,lwork,iwork.data(),ifail.data(),&info);
+        lwork=std::max<blas_int_t>(blas_int_t(q), 8*N);
+        std::vector<double> work(lwork);
+        blazem::syevx('V','I','L',N,A.data(),lda,0.0,0.0,il,iu,0.0,&m,d.data(),U.data(),ldz,work.data(),lwork,iwork.data(),ifail.data(),&info);
+    }
+    else
+    {
+        T q=0; blas_int_t lwork=-1;
+        std::vector<double> rwork(7*n);
+        blazem::heevx('V','I','L',N,A.data(),lda,0.0,0.0,il,iu,0.0,&m,d.data(),U.data(),ldz,&q,lwork,rwork.data(),iwork.data(),ifail.data(),&info);
+        lwork=std::max<blas_int_t>(blas_int_t(std::real(q)), 2*N);
+        std::vector<T> work(lwork);
+        blazem::heevx('V','I','L',N,A.data(),lda,0.0,0.0,il,iu,0.0,&m,d.data(),U.data(),ldz,work.data(),lwork,rwork.data(),iwork.data(),ifail.data(),&info);
+    }
+    if (info!=0 || size_t(m)!=itsNumBands)
+        throw std::runtime_error("LASolverOrthonormal: partial eigensolve failed (info="+std::to_string(info)+", found "
+                                 +std::to_string(m)+" of "+std::to_string(itsNumBands)+" eigenpairs)");
+    d.resize(itsNumBands, true);
+}
+
+template <class T> typename LASolver<T>::Ud_t
+LASolverOrthonormal<T>::Solve(const hmat_t<T>& H) const
+{
+    rvec_t d; mat_t<T> U;
+    Lowest(H, d, U);
+    return {U, d};
+}
+
+template <class T> typename LASolver<T>::UUd_t
+LASolverOrthonormal<T>::SolveOrtho(const hmat_t<T>& Hprime) const
+{
+    rvec_t d; mat_t<T> Up;
+    Lowest(Hprime, d, Up);
+    return {Up, Up, d};
+}
+
+//=============================================================================
 //  LASolverCholesky
 //=============================================================================
 
@@ -411,10 +491,12 @@ template class LASolverSVD    <double>;
 template class LASolverCholesky<double>;
 template class LASolverCholeskyPivoted<double>;
 template class LASolverAuto    <double>;
+template class LASolverOrthonormal<double>;
 template class LASolverEigen  <dcmplx>;
 template class LASolverSVD    <dcmplx>;
 template class LASolverCholesky<dcmplx>;
 template class LASolverCholeskyPivoted<dcmplx>;
 template class LASolverAuto    <dcmplx>;
+template class LASolverOrthonormal<dcmplx>;
 
 } // namespace qchem

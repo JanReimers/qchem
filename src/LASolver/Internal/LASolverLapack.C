@@ -79,6 +79,29 @@ private:
     rvec_t   itsD;
 };
 
+// ORTHONORMAL basis (S = I): V = I.  Stores no n×n matrix -- the two Cholesky factors of an identity S were 2 of
+// the ~16 full-size matrices per spin a plane-wave run held (doc/OpenWork.md "Dense PW cost", 2026-10-25).
+export template <class T> class LASolverOrthonormal : public virtual LASolver<T>
+{
+    typedef LASolver<T> Base;
+    typedef typename Base::Ud_t  Ud_t;
+    typedef typename Base::UUd_t UUd_t;
+public:
+    //! \a numBands > 0: return only the lowest \a numBands eigenpairs (heevx/syevx); 0 = all of them.
+    explicit LASolverOrthonormal(size_t numBands=0) : itsNumBands(numBands) {}
+    void       SetBasisOverlap(const hmat_t<T>& S)          override;
+    size_t     GetOrthoDim()                           const override { return itsN; }
+    rvec_t     Get_BS_Diagonal()                       const override { return rvec_t(itsN, 1.0); }
+    Ud_t       Solve      (const hmat_t<T>& H)         const override;
+    UUd_t      SolveOrtho (const hmat_t<T>& Hprime)   const override;
+    hmat_t<T>  Transform  (const hmat_t<T>& M)         const override { return M; }
+    mat_t<T>   BackTransform(const mat_t<T>& Uprime)   const override { return Uprime; }
+private:
+    void Lowest(const hmat_t<T>& H, rvec_t& d, mat_t<T>& U) const;   //!< every eigenpair, or the lowest itsNumBands
+    size_t itsN=0;
+    size_t itsNumBands=0;
+};
+
 // PIVOTED Cholesky (rank-revealing, LAPACK pstrf): SELECTS the m most-independent raw AO functions and DROPS
 // the k redundant ones outright, so the transform V is SPARSE (zero rows on the dropped AOs).  Unlike Eigen/SVD
 // (which rotate -> dense V -> same collocation cost), dropping functions makes D=V·D'·Vᵀ exactly zero on the

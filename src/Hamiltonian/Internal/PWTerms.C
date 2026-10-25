@@ -82,6 +82,8 @@ public:
     { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
+    //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
+    virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
     virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc);
@@ -116,6 +118,8 @@ public:
     { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
+    //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
+    virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
     virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     //! \a nl is REQUIRED (non-owning).  A local-only pseudopotential does not construct this term at all.
@@ -160,6 +164,8 @@ public:
     { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
+    //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
+    virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
     virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     //! \a loc is REQUIRED (non-owning).  A run with no local PP does not construct this term at all.
