@@ -1078,52 +1078,10 @@ TEST(GPW_Si, Γ_U_ACBN0_Imp_Pol_eqUnpol)
               << "; bare " << a[0].UbarBare*eV << "/" << a[0].JbarBare*eV << ")" << std::endl;
 }
 
-// THE CONTRACTED MANIFOLD (increment 3 slice C, 2026-09-21): ONE pseudo-atom 3p radial per Si instead of every
-// p shell (CP2K's convention).  The atomic projector <chi|psi> onto an S-orthonormal 3p triple: at Γ the
-// Γ25' band is p-only but spread over the three radial shells, so the single-radial manifold captures LESS
-// than the whole span -- 0 < E_U < 1.5U (the column manifold's exact value), the manifold reports 3
-// functions and one T_d slot, and ACBN0 on it is finite with 0 < J < U.  The unpolarized/polarized twins agree.
-TEST(GPW_Si, Γ_U_Atomic3p_Imp_Pol_eqUnpol)
-{
-    const Material si=qchem::Materials::Get("Si_diamond");
-    const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma U=2 eV on the pseudo-atom 3p");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU_Atomic(0,1,2.0), HubbardU_Atomic(1,1,2.0)};
-    SCFParams par=ProductionGates();
-    qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
-    o.multiplicity=1; o.label="Si SR Gamma U=2 eV on the pseudo-atom 3p, pol-singlet";
-    qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
-    auto a=unpol.Result(), b=pol.Result();
-    ASSERT_TRUE(a) << Why(a);
-    ASSERT_TRUE(b) << Why(b);
-    const double U=2.0/27.211386245988;
-    EXPECT_GT(a->EnergyTerms()["E_U"], 0.0);
-    EXPECT_LT(a->EnergyTerms()["E_U"], 1.5*U) << "one radial captures less of the Γ25' band than the three-shell span (which gives exactly 1.5U)";
-    EXPECT_NEAR(b->EnergyTerms()["E_U"], a->EnergyTerms()["E_U"], 1e-6);
-    EXPECT_NEAR(b->Energy(), a->Energy(), 1e-6);
-    const auto ea=unpol.EstimateHubbardU(), eb=pol.EstimateHubbardU();
-    ASSERT_EQ(ea.size(), 2u);
-    for (size_t M=0;M<2;M++)
-    {
-        EXPECT_GT(ea[M].Jbar, 0.0); EXPECT_GT(ea[M].Ubar, ea[M].Jbar);
-        EXPECT_LT(ea[M].chargeUpBare, 3.0) << "at most the 3 p electrons per site per channel";
-        // ⚠ The RENORMALISED charge EXCEEDS the bare one here (2.24 vs 1.83): the pseudo-atom 3p is nearly unbound
-        // (eps = -0.019 Ha, 95% on alpha = 0.16) and the two sites' atomic chi's overlap strongly, so an orbital's
-        // Sum over sites of |<chi|psi>|^2 exceeds 1 -- the known weakness of NON-orthogonalised atomic projectors
-        // and why hp.x prefers ortho-atomic (the remainder filed in OpenWork).  Mn 3d is compact and unaffected
-        // (3.62 < 4.83).  Pinned here as the fact it is, not as a target.
-        EXPECT_GT(ea[M].chargeUp, ea[M].chargeUpBare) << "diffuse overlapping atomic projectors over-count";
-        EXPECT_NEAR(eb[M].Ubar, ea[M].Ubar, 1e-5); EXPECT_NEAR(eb[M].Jbar, ea[M].Jbar, 1e-5);
-    }
-    std::cout << "[ACBN0 Si atomic 3p] U_eff = " << ea[0].Ueff()*27.211386245988 << " eV (bare " << ea[0].UbarBare*27.211386245988
-              << "/" << ea[0].JbarBare*27.211386245988 << "), N_p up = " << ea[0].chargeUpBare << " (renormalised " << ea[0].chargeUp << ")" << std::endl;
-}
-
-// THE PSEUDO-ATOMIC PROJECTOR through ACBN0 (doc/HubbardProjectorPlan.md increment 4, 2026-10-25): the same
-// pseudo-atom 3p as the test above, but as an ATOM-CENTRED FUNCTION (its own 16 exponents, not contracted onto the
-// site's shells), so the bare (m1m2|m3m4) come from the set's own one-centre closed form and the coefficients
-// from B = <chi|set>.  Claims: the run carries U, ACBN0 on it is finite and sane (0 < J < U, bare charge at most
+// THE PSEUDO-ATOMIC PROJECTOR through ACBN0 (doc/HubbardProjectorPlan.md increments 4-5): the DEFAULT projector, the
+// pseudo-atom 3p as an ATOM-CENTRED FUNCTION in its own 16 exponents, so the bare (m1m2|m3m4) come from the set's own
+// one-centre closed form and the coefficients from B = <chi|set>.  (It replaced Γ_U_Atomic3p_Imp_Pol_eqUnpol, the same
+// orbital CONTRACTED onto the SR p shells -- bare U 23.6 eV there against 10.6 here: the truncation the plan removed.)  Claims: the run carries U, ACBN0 on it is finite and sane (0 < J < U, bare charge at most
 // 3 per site per channel), and the polarized singlet twin gives the same E, E_U and estimate (pin 5).
 TEST(GPW_Si, Γ_U_PseudoAtomic3p_Imp_Pol_eqUnpol)
 {
@@ -1131,8 +1089,7 @@ TEST(GPW_Si, Γ_U_PseudoAtomic3p_Imp_Pol_eqUnpol)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma U=2 eV on the pseudo-atomic 3p projector");
     o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};
-    for (auto& M : o.hubbard) M.projector=Hamiltonian::HubbardProjectorKind::PseudoAtomic;
+    o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};                                  // the default projector: pseudo-atomic
     SCFParams par=ProductionGates();
     qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
     o.multiplicity=1; o.label="Si SR Gamma U=2 eV on the pseudo-atomic 3p projector, pol-singlet";
@@ -1271,7 +1228,7 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
     auto run=[](const std::string& structure, nlohmann::json kmesh, size_t nAtoms, nlohmann::json nq)
     {
         nlohmann::json hub=nlohmann::json::array();
-        for (size_t a=0;a<nAtoms;a++) hub.push_back({{"site",a},{"l",1},{"U_eV",0.0}});
+        for (size_t a=0;a<nAtoms;a++) hub.push_back({{"site",a},{"l",1},{"U_eV",0.0},{"projector","siteShells"}});
         const nlohmann::json deck={
             {"structure",structure}, {"kmesh",kmesh}, {"basis",{{"data","SIPP_SR"}}},
             // xcMesh STATED: Auto resolves to the uniform raster on the multi-k primitive arm but to BECKE on the Γ supercell arm (measured
@@ -1370,7 +1327,7 @@ TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint)
         scf.update(mixing);
         const nlohmann::json deck={
             {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
-            {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"hubbard",{{{"site",0},{"l",1},{"U_eV",U_eV}}}}}},
+            {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"hubbard",{{{"site",0},{"l",1},{"U_eV",U_eV},{"projector","siteShells"}}}}}},
             {"scf",scf}, {"postSCF",post}};
         qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
         const fs::path dir=fs::temp_directory_path()/("qchem_it_si_lrloop_"+tag+"_"+std::to_string(::getpid()));

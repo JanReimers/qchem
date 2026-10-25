@@ -240,8 +240,8 @@ std::vector<double> FromEV(const std::vector<double>& v) { std::vector<double> o
 
 json ToJson(const Hamiltonian::HubbardManifold& h)
 {
-    return {{"site",h.site},{"l",h.l},{"U_eV",ToEV(h.U)},{"Uirrep_eV",ToEV(h.Uirrep)},{"alpha_eV",ToEV(h.alpha)},{"radial",h.radial},
-            {"atomicRadial",h.atomicRadial},{"orthoAtomic",h.orthoAtomic},{"projector",NameOf(h.projector,kProjector)}};
+    return {{"site",h.site},{"l",h.l},{"U_eV",ToEV(h.U)},{"Uirrep_eV",ToEV(h.Uirrep)},{"alpha_eV",ToEV(h.alpha)},
+            {"orthoAtomic",h.orthoAtomic},{"projector",NameOf(h.projector,kProjector)}};
     // (atomicFunction is not written: the facade derives it from the pseudo-atom, deterministically.)
 }
 void FromJson(const json& j, Hamiltonian::HubbardManifold& h, const std::string& path)
@@ -251,7 +251,14 @@ void FromJson(const json& j, Hamiltonian::HubbardManifold& h, const std::string&
     double u=h.U*kHaToEV; f.Get("U_eV",u); h.U=u/kHaToEV;                                   // eV in the file, a.u. in RAM
     std::vector<double> ui=ToEV(h.Uirrep); f.Get("Uirrep_eV",ui); h.Uirrep=FromEV(ui);
     double al=h.alpha*kHaToEV; f.Get("alpha_eV",al); h.alpha=al/kHaToEV;
-    f.Get("radial",h.radial); f.Get("atomicRadial",h.atomicRadial); f.Get("orthoAtomic",h.orthoAtomic);
+    // RETIRED 2026-10-25 (HubbardProjectorPlan increment 5): the site-shell contraction.  A record written before then
+    // carries the inert defaults ("radial": [], "atomicRadial": false), which still load; asking for a contraction does not.
+    std::vector<double> radial; bool atomicRadial=false;
+    f.Get("radial",radial); f.Get("atomicRadial",atomicRadial);
+    if (!radial.empty() || atomicRadial)
+        throw std::runtime_error("deck: "+path+": \"radial\" / \"atomicRadial\" are retired (2026-10-25) -- the +U projector is the "
+                                 "pseudo-atom orbital by default (\"projector\": \"pseudoAtomic\"); \"siteShells\" names CP2K's LOWDIN manifold");
+    f.Get("orthoAtomic",h.orthoAtomic);
     f.GetEnum("projector",h.projector,kProjector);
     f.Done();
 }

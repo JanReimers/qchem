@@ -60,33 +60,26 @@ export namespace qchem
 
 //! \brief How to set up a periodic calculation.  Designated-initializer friendly:
 //!     SolidCalculation calc(lattice, basis, {.Nelec=8, .species={{"Si",4}}});
-//! A Hubbard manifold spelled the way the literature quotes it: \a U in eV.  (0.147 Ha = 4.0 eV.)
+//! A Hubbard manifold spelled the way the literature quotes it: \a U in eV.  (0.147 Ha = 4.0 eV.)  The projector is
+//! the DEFAULT one -- the pseudo-atom's own \f$l\f$ orbital, independent of the orbital basis (HubbardProjectorPlan
+//! increment 5, 2026-10-25; atomic, i.e. QE's `atomic`).
 inline Hamiltonian::HubbardManifold HubbardU(size_t site, int l, double U_eV)
 {
     return Hamiltonian::HubbardManifold{site, l, U_eV/27.211386245988};
 }
 //! CP2K's LOWDIN manifold, NAMED: every shell of angular momentum \a l on the site, \f$T=S^{1/2}[:,M]\f$ (the block's
-//! own columns).  The CP2K-parity route (the CP2K-gated +U tests and the CrossCode decks name it), kept explicit so a
-//! change of the default projector never moves them (HubbardProjectorPlan increment 5).
+//! own columns).  The CP2K-parity route (the CP2K-gated +U tests and the CrossCode decks name it).
 inline Hamiltonian::HubbardManifold HubbardU_SiteShells(size_t site, int l, double U_eV)
 {
     Hamiltonian::HubbardManifold M{site, l, U_eV/27.211386245988};
     M.projector=Hamiltonian::HubbardProjectorKind::SiteShells;
     return M;
 }
-//! The same manifold on ONE contracted radial -- the pseudo-atom's own \f$l\f$ orbital in the block's
-//! primitives (the facade fills it): the physically meaningful +U manifold and the one ACBN0 can screen.
-inline Hamiltonian::HubbardManifold HubbardU_Atomic(size_t site, int l, double U_eV)
-{
-    Hamiltonian::HubbardManifold M{site, l, U_eV/27.211386245988};
-    M.atomicRadial=true;
-    return M;
-}
-//! The atomic manifold, Löwdin-orthogonalised among every ortho-atomic manifold of the run (QE's
-//! `ortho-atomic`); list the spectators (O 2p, O 2s, Mn 4s) at U=0 to reproduce QE's full set.
+//! The pseudo-atomic manifold, Löwdin-orthogonalised in the TRUE overlap among every ortho-atomic manifold of the run
+//! (QE's `ortho-atomic`); list the spectators (O 2p, O 2s, Mn 4s) at U=0 to reproduce QE's full set.
 inline Hamiltonian::HubbardManifold HubbardU_OrthoAtomic(size_t site, int l, double U_eV)
 {
-    Hamiltonian::HubbardManifold M=HubbardU_Atomic(site, l, U_eV);
+    Hamiltonian::HubbardManifold M=HubbardU(site, l, U_eV);
     M.orthoAtomic=true;
     return M;
 }
@@ -111,7 +104,7 @@ struct SolidCalcOptions
     //! \c GPW (default): periodic Gaussians over the ctor's molecular basis.  \c PlaneWave: plane waves at
     //! \c planeWaveEcut, the SAME Hamiltonian stack (the terms ask the basis, never its family) -- with QE's
     //! pseudopotential that makes a QE comparison a Hamiltonian-only one.  A PW run ignores the molecular
-    //! basis except where a +U manifold asks for its \c atomicRadial; the grid knobs below are GPW's.
+    //! basis (its +U projectors are pseudo-atomic, basis-independent); the grid knobs below are GPW's.
     //! First increment: Γ only, no imposition (the PW factory builds one Bloch block and no symmetry).
     enum class OrbitalBasis { GPW, PlaneWave };
     OrbitalBasis orbitalBasis = OrbitalBasis::GPW;

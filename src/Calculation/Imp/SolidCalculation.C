@@ -28,11 +28,8 @@ import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (eleme
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
 import qchem.ElectronConfiguration.Crystal;    // Crystal_EC
 import qchem.Symmetry.Irrep;                   // Irrep, Spin
-import qchem.Blaze;                            // blazem::eigen (the atomic radial projection)
-import qchem.Symmetry.Atom.Spherical;          // AtomicSymmetry::Getl -- the pseudo-atom's l-orbital (the atomic +U radial)
-import qchem.AtomCalculation;                  // AtomCalculation (the facade's own atom uses)
-import qchem.PseudoAtomOrbital;                // the pseudo-atom l orbital: the +U projector (HubbardProjectorPlan D5) and the site-shell radial
-import qchem.BasisSet.AoShellSource;           // the site's shells (their exponents) for that pseudo-atom
+import qchem.Blaze;                            // blazem::conjs (the u_bands weights)
+import qchem.PseudoAtomOrbital;                // the pseudo-atom l orbital: the +U projector (HubbardProjectorPlan D5)
 import qchem.Orbitals;                         // TOrbitals/TOrbital -- the ACBN0 feed (EstimateHubbardU)
 import qchem.Diagnostics;                      // u_bands: the per-band +U slot weights (QCHEM_DIAGNOSTICS=u_bands[=N])
 import qchem.BasisSet.Orbital_DFT_IBS;         // the block an orbital set lives on (EstimateHubbardU)
@@ -248,7 +245,7 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
             if (M.projector==qchem::Hamiltonian::HubbardProjectorKind::PseudoAtomic)
                 std::cout<<", projector: PSEUDO-ATOMIC* ("<<(M.orthoAtomic ? "ORTHO-atomic" : "atomic")<<", independent of the orbital basis)";
             else
-                std::cout<<(M.radial.empty() ? ", radial: every shell (CP2K)" : ", radial: ONE contracted ("+std::to_string(M.radial.size())+" shells"+(M.atomicRadial ? ", pseudo-atom" : "")+(M.orthoAtomic ? ", ORTHO-atomic" : ", atomic")+")");
+                std::cout<<", projector: site shells (CP2K's LOWDIN, every shell)";
             std::cout
                      <<", site group "<<(M.siteOps.empty() ? 1 : M.siteOps.size())<<" ops / grey "
                      <<(M.greyOps.empty() ? (M.siteOps.empty() ? 1 : M.siteOps.size()) : M.greyOps.size())<<")";
@@ -301,8 +298,6 @@ void EmitStageSummary(const std::string& label, size_t s, size_t n, double kT,
 }
 
 //---------------------------------------------------------------------------------------------------
-static std::vector<double> AtomicRadial(const BasisSet::Real_BS& mol, const Structure& st, size_t site, int l,
-                                        const std::vector<std::pair<std::string,int>>& species);
 static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, size_t site, int l,
                                                         const std::vector<std::pair<std::string,int>>& species);
 
@@ -496,7 +491,6 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
         }
         for (auto& M : hubbard)
         {
-            if (M.atomicRadial && M.radial.empty()) M.radial=AtomicRadial(mol, *itsImp->st, M.site, M.l, opts.species);
             if (M.projector==qchem::Hamiltonian::HubbardProjectorKind::PseudoAtomic && M.atomicFunction.empty())
                 M.atomicFunction=PseudoAtomicFunction(*itsImp->st, M.site, M.l, opts.species);
             if (M.siteOps.empty()) M.siteOps=lat.SiteRotations(M.site, decoration);
@@ -1142,19 +1136,11 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Result() cons
 
 qchem::EnergyBreakdown SolidCalculation::LastIterateTerms()  const {return itsImp->scf->GetEnergy();}
 double                 SolidCalculation::LastIterateCharge() const {return itsImp->charge;}
-// THE ATOMIC RADIAL OF A HUBBARD MANIFOLD (DFT+U increment 3, 2026-09-21).  The physically meaningful +U
-// manifold is ONE radial d (p) function, not every shell of that l on the site (CP2K's mechanism manifold,
-// on which an ACBN0 U comes out near-bare because the KS states live entirely inside it).  The radial hp.x
-// uses is the pseudo-atom's own l orbital, so that is what is built here -- the SAME GTH pseudo-atom the
-// valence-basis generator validated, LDA, unpolarized -- and then PROJECTED onto the site's shells.
-//
-// ⚠ IN A COMPLETE POOL, NOT IN THE SITE'S OWN SHELLS (found 2026-09-21).  A solid's valence basis is trimmed
-// for the SOLID: the MnO VA span dropped the diffuse 0.18 d shell, and the free 4s2 3d5 atom run in those
-// shells has eps(3d) 77 mHa too shallow and a too-compact "3d" (the SR span, with two s exponents, has no 4s
-// at all and puts the 3d at -1.04 Ha).  In a 16+16 even-tempered pool the same pseudo-atom reproduces CP2K's
-// ATOM code to 3 / 0.3 / 0.1 mHa (E, eps 4s, eps 3d; UTCalculation ValenceBasisGen.MnQ7PseudoAtomInALargePool).
-// So: the TRUE pseudo-atom orbital from the pool, projected in the overlap metric onto the site's l shells --
-// the best the basis can hold of it -- with the captured norm printed (1 = the basis holds it exactly).
+// WHY A COMPLETE POOL (found 2026-09-21, when the projector was still contracted onto the site's shells -- the route
+// HubbardProjectorPlan increment 5 retired).  A solid's valence basis is trimmed for the SOLID: the MnO VA span dropped
+// the diffuse 0.18 d shell, and the free 4s2 3d5 atom run in those shells has eps(3d) 77 mHa too shallow and a too-compact
+// "3d".  In a 16+16 even-tempered pool the same pseudo-atom reproduces CP2K's ATOM code to 3 / 0.3 / 0.1 mHa (E, eps 4s,
+// eps 3d; UTCalculation ValenceBasisGen.MnQ7PseudoAtomInALargePool) -- so the projector is the pool's orbital, as is.
 // THE PSEUDO-ATOMIC +U PROJECTOR (HubbardProjectorPlan D5/D6): the site species' pseudo-atom l orbital in its OWN
 // pool, handed over as is -- no projection onto the site's shells, no knowledge of the orbital basis.
 static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, size_t site, int l,
@@ -1171,68 +1157,6 @@ static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, siz
       <<"), in its own exponents";
     std::cout<<os.str()<<std::endl;
     return pa.Radial();
-}
-
-static std::vector<double> AtomicRadial(const BasisSet::Real_BS& mol, const Structure& st, size_t site, int l,
-                                        const std::vector<std::pair<std::string,int>>& species)
-{
-    // The site: position, Z, element, valence.
-    rvec3_t R; int Z=0; { size_t i=0; st.ForEachSite([&](int z, const rvec3_t& r, bool){ if (i==site) { R=r; Z=z; } i++; }); }
-    const std::string element=thePeriodicTable().GetSymbol(Z);
-    int Zion=0; for (const auto& [el,val] : species) if (el==element) Zion=val;
-    if (Zion==0) Zion=Pseudopotential::GetGTH(element, "LDA").zion;
-    // The site's shells by l, in the block's shell order (the order Hubbard_U::Select walks too).
-    std::map<int,std::vector<double>> byL;
-    for (auto ibs : const_cast<BasisSet::Real_BS&>(mol).Iterate<BasisSet::Real_OIBS>())
-    {
-        const auto* src=dynamic_cast<const BasisSet::AoShellSource*>(ibs);
-        if (!src) continue;
-        for (const auto& sh : src->GetAoShells())
-        {
-            if (norm(sh.center-R)>1e-8) continue;
-            if (sh.exponents.size()!=1)
-                throw std::runtime_error("SolidCalculation: the atomic +U radial needs UNCONTRACTED primitives on site "
-                                         +std::to_string(site)+" (a contracted shell: not this increment)");
-            byL[sh.rep->L()].push_back(sh.exponents[0]);
-        }
-        break;                                                  // every block carries the same shells
-    }
-    if (!byL.count(l)) throw std::runtime_error("SolidCalculation: no l="+std::to_string(l)+" shell on site "+std::to_string(site));
-    // The pseudo-atom in a COMPLETE even-tempered pool, every l up to the highest the site carries (the
-    // builder, HubbardProjectorPlan D5; this projection onto the site's shells is the route that plan retires).
-    int lmax=0; for (const auto& [ll,es] : byL) lmax=std::max(lmax,ll);
-    const PseudoAtomOrbital& pa=PseudoAtomOrbitalOf(element, Zion, l, lmax);
-    const std::vector<double>& cpool=pa.coefficients;
-    const std::vector<double>& ep=pa.exponents;
-    const double eBest=pa.eps;
-    auto ov=[l](double a, double b){ return std::pow(2.0*std::sqrt(a*b)/(a+b), l+1.5); };   // unit-normalised r^l e^{-a r^2}
-    // PROJECT onto the site's l shells (overlap metric): S_site r = b, b_s = <g_s|chi>.
-    const std::vector<double>& es=byL[l];
-    const size_t ns=es.size();
-    rsmat_t Ss(ns); rvec_t b(ns);
-    for (size_t s=0;s<ns;s++)
-    {
-        for (size_t t=s;t<ns;t++) Ss(s,t)=ov(es[s],es[t]);
-        double bs=0.0; for (size_t k=0;k<ep.size();k++) bs+=cpool[k]*ov(es[s],ep[k]);
-        b[s]=bs;
-    }
-    rvec_t w; rmat_t V; blazem::eigen(Ss, w, V);
-    rvec_t r(ns, 0.0);
-    for (size_t k=0;k<ns;k++)
-    {
-        if (w[k]<1e-10*w[ns-1]) continue;                       // a near-dependent direction of the site's shells: skipped
-        double vb=0.0; for (size_t s=0;s<ns;s++) vb+=V(s,k)*b[s];
-        for (size_t s=0;s<ns;s++) r[s]+=V(s,k)*vb/w[k];
-    }
-    double captured=0.0; for (size_t s=0;s<ns;s++) captured+=r[s]*b[s];   // |P chi|^2 = b^T S^-1 b
-    std::ostringstream os;
-    os<<"[+U radial] site "<<site<<" ("<<element<<", q"<<Zion<<") l="<<l<<": pseudo-atom "<<(l==0?"s":l==1?"p":l==2?"d":"f")
-      <<" orbital eps="<<std::setprecision(4)<<eBest<<" Ha (16-exponent pool, E="<<std::setprecision(6)<<pa.Eatom
-      <<") projected onto "<<ns<<" shells: captured "<<std::fixed<<std::setprecision(4)<<captured<<" of its norm; coefficients";
-    for (size_t k=0;k<ns;k++) os<<" "<<std::setprecision(3)<<r[k]<<"@"<<es[k];
-    std::cout<<os.str()<<std::endl;
-    std::vector<double> out(ns); for (size_t s=0;s<ns;s++) out[s]=r[s];
-    return out;
 }
 
 namespace {
