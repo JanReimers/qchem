@@ -2486,13 +2486,19 @@ TEST(GPW, TightPrimitiveVlongOracle)
             auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
             cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{alpha}, l, &cell));
             std::shared_ptr<const Real_BS> mol(cbs);
-            // densityEcut = 6 x the PAIR exponent p = 2 alpha: the measured convergence point.  The ladder (2026-10-25, alpha 36 /
-            // 76.68, d x^2 diagonal V/S; oracle -6.59073 / -6.67893): E_cut/p ~ 1 (the AUTO floor 2 alpha_max) -8.145 / -8.784 (+-1.5 Ha,
-            // the xy partner off the other way); E_cut/p ~ 2.7  -6.598 / -6.718; E_cut/p >= 5.5  the oracle to <= 1e-5.  So the AUTO
-            // density floor is ~5x too coarse for the V_long integrate-back of a tight pair -- OpenWork §3, a decision (anchor-moving).
+            // BallOnly (the default raster) at densityEcut = 6 x the PAIR exponent p = 2 alpha: its measured convergence point.  The
+            // ladder (2026-10-25, alpha 36 / 76.68, d x^2 diagonal V/S; oracle -6.59073 / -6.67893): E_cut/p ~ 1 (the AUTO floor 2
+            // alpha_max) -8.145 / -8.784 (+-1.5 Ha, the xy partner off the other way); E_cut/p ~ 2.7  -6.598 / -6.718; E_cut/p >= 5.5
+            // the oracle to <= 1e-5.  The AUTO floor itself is RIGHT with the ALIAS-FREE raster (<= 3e-4 Ha, asserted below): the
+            // defect is the BallOnly + C = 2 pairing, not C -- OpenWork §3, a decision (anchor-moving).
             GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0*alpha);
             const GPW_Evaluator& ev=gpw;
             const chmat_t Vl=ev.MakeLocalPPLong(&cell, gth.local);
+            // ...and the RIGHT PAIRING at the AUTO floor: C = 2 with the ALIAS-FREE raster (the BallOnly raster's fold-back is
+            // what the auto floor cannot afford; BallOnly + C = 2 = the +-1.5 Ha above).
+            GPW_IBS gaf(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*AUTO*/-1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
+                        BasisSet::PlaneWave::RasterPolicy::AliasFree);
+            const chmat_t Vaf=static_cast<const GPW_Evaluator&>(gaf).MakeLocalPPLong(&cell, gth.local);
             const Real_OIBS* obs=nullptr;
             for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
             ASSERT_TRUE(obs);
@@ -2508,6 +2514,12 @@ TEST(GPW, TightPrimitiveVlongOracle)
                             *FT1DEven(2*n.x,pp,G.x)*FT1DEven(2*n.y,pp,G.y)*FT1DEven(2*n.z,pp,G.z);
                 const double norm0=FT1DEven(2*n.x,pp,0.0)*FT1DEven(2*n.y,pp,0.0)*FT1DEven(2*n.z,pp,0.0);
                 const double oracle=orac/norm0, prod=std::real(Vl(p,p))/std::real(S(p,p));
+                // Only where the BASIS sets the floor: at alpha = 2 the AUTO floor (4 Ha) is below the erf FIELD's own bandwidth
+                // (Mn rloc 0.64: |G| ~ 12, ~70 Ha) and is off by 0.03 Ha even alias-free -- the floor ignores the local-PP field's
+                // sharpness (OpenWork §3: max(2 alpha_max, the PP field's need)); latent in real bases, where alpha_max >> beta_pp.
+                if (alpha>=10.0)
+                    EXPECT_NEAR(std::real(Vaf(p,p))/std::real(S(p,p)), oracle, 1e-3)
+                        << "AliasFree at the AUTO floor: l="<<l<<" alpha="<<alpha<<" fn "<<p;
                 EXPECT_NEAR(prod, oracle, 1e-5*std::max(1.0,std::fabs(oracle)))
                     << "l="<<l<<" alpha="<<alpha<<" fn "<<p<<" (x^"<<n.x<<" y^"<<n.y<<" z^"<<n.z<<")";
             }
@@ -2517,20 +2529,22 @@ TEST(GPW, TightPrimitiveVlongOracle)
 // THE TIGHT-PAIR COLLOCATION ORACLE: the DENSITY of one tight primitive -- what Hartree (and every density-grid term)
 // sees -- against its closed form at low G, at the AUTO density floor and at 6 x the pair exponent.  A unit load on fn p:
 // |rho~(G) / rho~(0)| = prod_axis FT1D(2n, 2 alpha, G_axis) / FT1D(2n, 2 alpha, 0) (the V_long oracle's transforms).
-// Reports both cutoffs; ASSERTS the converged one (the AUTO floor's error is an OpenWork §3 decision, not a gate).
+// Asserts BallOnly at 6p and AliasFree at the AUTO floor; REPORTS BallOnly at the AUTO floor (0.04-0.16: the production
+// default pairing, an OpenWork §3 decision, not a gate).
 TEST(GPW, TightPrimitiveCollocationOracle)
 {
     const double a=10.0;
     UnitCell cell(a);
     cell.AddAtom(25, {0.5,0.5,0.5});
     const rvec3_t C(a/2,a/2,a/2);
+    using RP=BasisSet::PlaneWave::RasterPolicy;
     for (double alpha : {10.0, 36.0, 76.68})
-        for (double ecut : {-1.0, 12.0*alpha})
+        for (auto [ecut, rp] : {std::pair{-1.0, RP::BallOnly}, std::pair{12.0*alpha, RP::BallOnly}, std::pair{-1.0, RP::AliasFree}})
         {
             auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
             cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{alpha}, 2, &cell));
             std::shared_ptr<const Real_BS> mol(cbs);
-            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut);
+            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut, BasisSet::Gaussian::CellImages::Periodic, 2.0, rp);
             const GPW_Evaluator& ev=gpw;
             const Complex_OIBS&  g  =gpw;
             const Real_OIBS* obs=nullptr;
@@ -2558,7 +2572,9 @@ TEST(GPW, TightPrimitiveCollocationOracle)
                 }
             }
             std::cout<<"[tight collocation] alpha="<<alpha<<" densityEcut="<<(ecut<0 ? "AUTO" : std::to_string(ecut))
+                     <<(rp==RP::AliasFree ? " AliasFree" : " BallOnly ")
                      <<"  worst |rho~(G)/rho~(0) - exact| over s,x^2,xy x 5 G = "<<worst<<std::endl;
-            if (ecut>0) EXPECT_LT(worst, 1e-6) << "alpha="<<alpha;
+            if (ecut>0)              EXPECT_LT(worst, 1e-6) << "BallOnly at 6p, alpha="<<alpha;
+            if (rp==RP::AliasFree)   EXPECT_LT(worst, 1e-4) << "AliasFree at the AUTO floor, alpha="<<alpha;
         }
 }
