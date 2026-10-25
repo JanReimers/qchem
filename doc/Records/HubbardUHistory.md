@@ -2112,3 +2112,20 @@ The CHARGE response (Mn d → O p) agrees to 5–7 %; the Mn SPIN response is ~6
 
 The U = 0 arms likewise (Mn d +3.151, moment +3.5176–3.5178).  ALL THREE RULED OUT: the mesh, the fit and the ρ route move nothing at the 1e-3 eV / 1e-4 e level (check 3 is identical to 1e-8 — at the fixed point the cusp-deficit route IS ρ[D]).  The Mn spin response (+0.023 vs QE +0.037) and the Mn d band's extra 0.13 eV drop remain unexplained; the decisive instrument is the plane-wave route (OpenWork §2 PW-1…4): same PP as QE, so any difference would be a Hamiltonian difference by construction.
 
+
+## 2026-10-25 — QE cutoff ladder: both residuals survive at a cutoff a DENSE plane-wave solve can reach
+
+Question: can the plane-wave instrument (OpenWork §2 PW-1…4) run DENSE, at a cutoff matched with QE, instead of waiting on a sparse/matrix-free route (PW-2)?  Only if QE's own response to U is already converged at that low cutoff.  Decks + outputs `~/Code/qe-runs/MnO2/ladder/` (`mno2b_lad<Ry>_{U0,U}`; ecutrho = 4 × ecutwfc; otherwise the 300 Ry `mno2b_U0_tok` / `mno2b_G_OpzU_Mn` decks verbatim, token Mn 3d U so ns is printed); extractor reproduces the banked 300 Ry numbers exactly.  Moments from the ortho-atomic ns (up − down), bands from `projwfc.x` (spin 1, eV from the deep pure O z band; O normal = the odd one of the three O pxy bands, Mn d = the Mn d + O s frontier band).
+
+| ecutwfc (Ry) | N_PW (Γ) | Δ Mn d moment | Δ Mn d total | Δ O p total | Δ O normal (eV) | Δ Mn d band (eV) | gap U (eV) |
+|---|---|---|---|---|---|---|---|
+| 60 | ~2.9 k | +0.058 | −0.120 | +0.075 | −1.767 | −0.629 | 0.601 |
+| 80 | ~4.5 k | +0.039 | −0.131 | +0.083 | −1.736 | −0.773 | 0.271 |
+| 100 | ~6.4 k | +0.037 | −0.127 | +0.081 | −1.751 | −0.752 | 0.289 |
+| 150 | ~11.7 k | +0.037 | −0.124 | +0.079 | −1.768 | −0.732 | 0.318 |
+| 300 (banked) | 33 k | +0.037 | −0.122 | +0.078 | −1.774 | −0.723 | 0.325 |
+| **ours** (VA + O p 0.18) | — | **+0.023** | −0.129 | +0.083 | **−1.682** | **−0.852** | 0.231 |
+
+From 80 Ry up both residuals are QE's at the 300 Ry level within a fraction of their size: the Mn spin response is +0.037–0.039 (ours +0.023), the Mn d band falls 0.72–0.77 eV (ours 0.85), the U'd O-normal band 1.74–1.77 (ours 1.68).  60 Ry is NOT converged (even the U = 0 bands are 0.3 eV off).  ⇒ **a dense PW run at 40–50 Ha (4.5–6.4 k PWs, real TRIM block) matched to QE at 80–100 Ry discriminates basis vs Hamiltonian; PW-2 is off this diagnosis's critical path.**
+
+**Trap: QE's orbital-resolved U has several self-consistent fixed points.**  From the atomic start the 100 and 150 Ry U arms converged to OTHER states — spin-down O ns off-diagonal sign flipped (+0.026 vs −0.082), the U'd orbital's occupation 0.83–0.88 instead of 0.97, E_U doubled (0.091 vs 0.044 Ry), at 150 Ry even the O moment reversed — 23 / 9 mHa ABOVE the state reached by seeding from the 300 Ry U run (`startingpot='file'` with its charge-density + `occup.txt` + `Hubbard_m_order.txt`).  The 80 Ry atomic start did not converge in 100 iterations.  All U rows above are SEEDED (9–13 iterations); the atomic-start outputs are kept as `*.atomicseed.scf.out` / `*.capped100.scf.out`.  A cross-code U comparison must name the basin (E_U and the U'd slot's ns), not just Etot.
