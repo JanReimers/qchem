@@ -85,8 +85,12 @@ open, in order: "The magnetic decoration is DERIVED FROM THE SEED" (36 decks to 
 are per SPECIES", "The polarized IonicSAD seed loses its spin" (before β-MnO₂); then the Kerker/Pulay default pair with row "Pulay without
 Kerker" -- one re-bank window.  **(2b) +U projector decoupling, `doc/HubbardProjectorPlan.md` increments 1–5** (§2 row "+U projector
 independent of the orbital basis"; the plan's executor owns that row): it moves every +U occupation, E_U, χ₀ and U but no U = 0 number, so
-it gates only U-bearing work -- (3) and every +U campaign re-run -- and it is now the gate before β-MnO₂'s gap (the gap defect is mainly the
-projector tail, 2026-10-24; "GDM crawls…" stays open on its own, no longer blocking the gap).  (3) NiO / SrVO₃ U fused with row
+it gates only U-bearing work -- (3) and every +U campaign re-run.  Increments 1–3 LANDED 2026-10-24 (opt-in); 4 (ACBN0 + response
+through the new projector; TiO₂ / NiO vs hp.x re-judged) and 5 (the default; retire `radial`/`atomicRadial`; re-judge every +U anchor)
+remain.  ⚠ It does NOT gate β-MnO₂'s gap: increment 3's gate refuted that (the gap does not move with the projector, VA 0.128 → 0.128 eV;
+QE 0.325).  Convergence / GDM and pin 28 / the XC mesh are cleared too (HubbardUHistory 2026-10-24); the gap now waits on the ORBITAL
+basis -- §2 "A plane-wave orbital-basis route through the facade, matched to QE" (basis vs Hamiltonian).  "GDM crawls…" stays open on
+its own.  (3) NiO / SrVO₃ U fused with row
 "l-converged basis", then `doc/CleanCode.md` D-ENV-RERUN stage 2 LAST.  Independent (any time): the O auto cutoff, linear α re-damp, charged cells, seed `q` /
 valgen `--seed-into`, the Δρ quadrature floor, the 136-function span, Na₂, valgen diffuse.
 
