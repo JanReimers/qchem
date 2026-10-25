@@ -22,6 +22,7 @@ import qchem.LASolver;
 import qchem.Types;
 import qchem.Blaze;
 import qchem.Math;           // Pi
+import qchem.Math.Angular;   // SphericalShell (the +U set's harmonic convention, the reference side of the PW-3 gates)
 using namespace qchem;
 
 using BasisSet::PlaneWave::PlaneWave_IBS;
@@ -536,4 +537,111 @@ TEST_F(PlaneWaveTests, FitBasisAnswersPoissonKernelAndVolume)
     auto* rt=dynamic_cast<const BasisSet::G_RasterTransform*>(fit.get());
     ASSERT_TRUE(rt) << "the CD fit basis must carry the raster seam (Vee_Hartree's Omega)";
     EXPECT_NEAR(rt->Integral(rvec_t(rt->RasterSize(),1.0)), a*a*a, 1e-9*a*a*a);   // Omega = integral of 1
+}
+
+//------------------------------------------------------------------------------------------------------------
+//  The +U projector set on plane waves (AtomCentredOverlapSource; OpenWork PW-3).  The set's convention
+//  (BasisSet.AtomCentredSet): chi(r) = R(|r-C|) Y(r-C), Y = SphericalShell(l)[l+m] scaled positively to unit norm
+//  on the sphere, R = sum c r^{l+2n} e^{-alpha r^2} normalised.
+//------------------------------------------------------------------------------------------------------------
+namespace
+{
+double SetSphereMoment(int a, int b, int c)
+{
+    if (a%2 || b%2 || c%2) return 0.0;
+    return 2.0*std::tgamma(0.5*(a+1))*std::tgamma(0.5*(b+1))*std::tgamma(0.5*(c+1))/std::tgamma(0.5*(a+b+c+3));
+}
+// chi_{M,m}(r) evaluated directly from the set's definition (the reference the transform must reproduce).
+double SetFunctionAt(const BasisSet::GaussianAtomCentredSet& s, size_t M, int m, const rvec3_t& r)
+{
+    const int l=s.L(M);
+    auto harm=Math::SphericalShell(l)[size_t(l+m)];
+    double n2=0.0;
+    for (const auto& a : harm) for (const auto& b : harm) n2+=a.c*b.c*SetSphereMoment(a.p.n+b.p.n, a.p.l+b.p.l, a.p.m+b.p.m);
+    const rvec3_t d=r-s.Centre(M);
+    double poly=0.0;
+    for (const auto& t : harm) poly+=t.c*std::pow(d.x,t.p.n)*std::pow(d.y,t.p.l)*std::pow(d.z,t.p.m);
+    const double r2=d*d;
+    double rad=0.0;
+    for (const auto& g : s.AsGaussians(M)) rad+=g.c*std::pow(r2,g.n)*std::exp(-g.alpha*r2);
+    return rad*poly/std::sqrt(n2);
+}
+}
+
+// An isolated normalised s, p and d manifold in a big box: O = I within each manifold (the images are e^{-alpha a^2/2}
+// ~ 1e-30 away), and the transform's own Parseval sum says so.
+TEST(PlaneWave_AtomCentredSet, IsolatedManifoldsAreOrthonormal)
+{
+    const double a=24.0;
+    UnitCell cell(a); Lattice_3D lat(cell, ivec3_t(1,1,1));
+    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 8.0);
+    BasisSet::GaussianAtomCentredSet s;
+    s.Add(rvec3_t(1.0,2.0,3.0), 0, {{1.0,0,0.6},{0.4,0,0.2}});
+    s.Add(rvec3_t(1.0,2.0,3.0), 1, {{1.0,0,0.5},{-0.3,1,0.9}});        // an n=1 term exercises the Laguerre factor
+    s.Add(rvec3_t(-2.0,0.5,1.0), 2, {{1.0,0,0.7}});
+    const chmat_t O=pw.MakeSetOverlap(s);
+    for (size_t M=0;M<s.Count();M++)
+        for (size_t i=s.Offset(M); i<s.Offset(M)+s.Size(M); i++)
+            for (size_t j=s.Offset(M); j<s.Offset(M)+s.Size(M); j++)
+                EXPECT_NEAR(std::abs(dcmplx(O(i,j))-dcmplx(i==j ? 1.0 : 0.0)), 0.0, 1e-10) << "manifold " << M << " (" << i << "," << j << ")";
+}
+// Two s Gaussians a distance d apart: <a|b> = (2 sqrt(ab)/(a+b))^{3/2} e^{-ab d^2/(a+b)} for normalised Gaussians.
+TEST(PlaneWave_AtomCentredSet, TwoCentreOverlapIsAnalytic)
+{
+    const double a=22.0, al=0.7, be=0.4, d=1.9;
+    UnitCell cell(a); Lattice_3D lat(cell, ivec3_t(1,1,1));
+    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 6.0);
+    BasisSet::GaussianAtomCentredSet s;
+    s.Add(rvec3_t(0.0,0.0,0.0), 0, {{1.0,0,al}});
+    s.Add(rvec3_t(0.3,d,0.0)-rvec3_t(0.3,0.0,0.0), 0, {{1.0,0,be}});
+    const chmat_t O=pw.MakeSetOverlap(s);
+    const double ref=std::pow(2.0*std::sqrt(al*be)/(al+be),1.5)*std::exp(-al*be*d*d/(al+be));
+    EXPECT_NEAR(std::real(dcmplx(O(0,1))), ref, 1e-11);
+    EXPECT_NEAR(std::imag(dcmplx(O(0,1))), 0.0, 1e-11);
+}
+// THE CONVENTION GATE: the plane-wave synthesis sum_G B_{G,a} e^{iG.r}/sqrt(Omega) reproduces chi_a(r) itself -- the
+// (-i)^l, the harmonic convention and the e^{-iG.C} phase in one check, at points around an off-origin centre.
+TEST(PlaneWave_AtomCentredSet, PlaneWaveSynthesisReproducesTheFunction)
+{
+    const double a=14.0;
+    UnitCell cell(a); Lattice_3D lat(cell, ivec3_t(1,1,1));
+    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 40.0);
+    BasisSet::GaussianAtomCentredSet s;
+    s.Add(rvec3_t(0.7,-1.1,2.3), 1, {{1.0,0,0.9}});
+    s.Add(rvec3_t(0.7,-1.1,2.3), 2, {{1.0,0,1.1},{0.2,1,0.6}});
+    s.Add(rvec3_t(-1.5,0.4,-0.8), 3, {{1.0,0,1.0}});
+    const mat_t<dcmplx> B=pw.MakeAtomCentredOverlap(s);
+    const double V=a*a*a;   // (the basis's own G -> Cartesian map: lat.Reciprocal() is a TEMPORARY, so a reference into it dangles)
+    for (const rvec3_t& r : {rvec3_t(0.9,-0.6,2.0), rvec3_t(0.2,-1.4,2.9), rvec3_t(-1.1,0.9,-0.5)})
+        for (size_t M=0;M<s.Count();M++)
+            for (int m=-s.L(M); m<=s.L(M); m++)
+            {
+                const size_t c=s.Offset(M)+size_t(s.L(M)+m);
+                dcmplx sum(0.0);
+                for (size_t i=0;i<pw.GetNumFunctions();i++)
+                    sum+=B(i,c)*std::exp(dcmplx(0.0, pw.GetGCartesian(pw.Gs()[i])*r))/std::sqrt(V);
+                EXPECT_NEAR(std::real(sum), SetFunctionAt(s,M,m,r), 1e-7) << "M=" << M << " m=" << m;
+                EXPECT_NEAR(std::imag(sum), 0.0, 1e-7) << "M=" << M << " m=" << m;
+            }
+}
+// What the cutoff captures: B^dag B <= O on the diagonal, -> O as the cutoff grows (the term's "captured" print).
+TEST(PlaneWave_AtomCentredSet, CapturedFractionRisesToOne)
+{
+    const double a=10.0;
+    UnitCell cell(a); Lattice_3D lat(cell, ivec3_t(1,1,1));
+    BasisSet::GaussianAtomCentredSet s;
+    s.Add(rvec3_t(0.0,0.0,0.0), 2, {{1.0,0,2.5}});
+    double prev=0.0;
+    for (double Ecut : {5.0, 15.0, 45.0})
+    {
+        PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), Ecut);
+        const mat_t<dcmplx> B=pw.MakeAtomCentredOverlap(s);
+        const chmat_t O=pw.MakeSetOverlap(s);
+        const mat_t<dcmplx> R=blazem::ctrans(B)*B;
+        const double cap=std::real(R(0,0))/std::real(dcmplx(O(0,0)));
+        EXPECT_LE(cap, 1.0+1e-12) << "Ecut " << Ecut;
+        EXPECT_GT(cap, prev) << "Ecut " << Ecut;
+        prev=cap;
+    }
+    EXPECT_GT(prev, 0.9999);
 }

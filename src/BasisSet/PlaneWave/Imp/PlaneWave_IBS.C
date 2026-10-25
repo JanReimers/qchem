@@ -8,7 +8,9 @@
 module;
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <complex>
+#include <stdexcept>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -23,6 +25,8 @@ import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeN
 import qchem.Math;               // Pi, FourPi, cos, sin
 import qchem.SpecialFunctions;   // LegendreP (the (2l+1)P_l angular factor)
 import qchem.BasisSet.PlaneWave.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
+import qchem.BasisSet.PlaneWave.Internal.GVectors;   // BuildGs (the enlarged sphere of MakeSetOverlap)
+import qchem.Math.Angular;       // SphericalShell (the set's raw solid harmonics)
 import qchem.Blaze;
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
@@ -96,6 +100,118 @@ chmat_t PlaneWave_IBS::MakeProjectorMatrix(const Structure* cl, const SpeciesPro
             V(i,j)=acc/Volume();
         }
     return V;
+}
+
+//------------------------------------------------------------------------------ the +U projector set (OpenWork PW-3)
+namespace
+{
+// int over the unit sphere of x^a y^b z^c: 0 unless all even, else 2 G((a+1)/2) G((b+1)/2) G((c+1)/2) / G((a+b+c+3)/2).
+double SphereMoment(int a, int b, int c)
+{
+    if (a%2 || b%2 || c%2) return 0.0;
+    return 2.0*std::tgamma(0.5*(a+1))*std::tgamma(0.5*(b+1))*std::tgamma(0.5*(c+1))/std::tgamma(0.5*(a+b+c+3));
+}
+// Generalised Laguerre L_n^{(a)}(x) by the three-term recurrence.
+double Laguerre(int n, double a, double x)
+{
+    double L0=1.0, L1=1.0+a-x;
+    if (n==0) return L0;
+    for (int k=1;k<n;k++) { const double L2=((2*k+1+a-x)*L1-(k+a)*L0)/(k+1); L0=L1; L1=L2; }
+    return L1;
+}
+// One set function in the form its transform needs: the raw solid harmonic of the set's convention
+// (SphericalShell(l)[l+m], scaled POSITIVELY to unit norm on the sphere -- BasisSet.AtomCentredSet) and its radial.
+struct SetFunction
+{
+    rvec3_t centre; int l;
+    std::vector<qchem::Math::CartTerm> harm;   // scale folded in: harm(q) = q^l Y(q-hat)
+    std::vector<Math::Gaussian> radial;
+    // chi-tilde(q) for Cartesian q (no 1/sqrt(Omega)).
+    dcmplx FT(const rvec3_t& q) const
+    {
+        double poly=0.0;
+        for (const auto& t : harm) poly += t.c*std::pow(q.x,t.p.n)*std::pow(q.y,t.p.l)*std::pow(q.z,t.p.m);
+        if (poly==0.0) return dcmplx(0.0);
+        const double q2=q*q;
+        double rad=0.0;
+        for (const auto& g : radial)
+        {
+            const double x=q2/(4.0*g.alpha);
+            rad += g.c*std::sqrt(Pi)*std::tgamma(g.n+1.0)*Laguerre(g.n, l+0.5, x)*std::exp(-x)
+                   /(std::pow(2.0,l+2)*std::pow(g.alpha, l+g.n+1.5));
+        }
+        static const dcmplx mi(0.0,-1.0);
+        dcmplx il(1.0); for (int k=0;k<l;k++) il*=mi;   // (-i)^l
+        return FourPi*il*poly*rad*std::exp(dcmplx(0.0,-(q*centre)));
+    }
+};
+std::vector<SetFunction> Functions(const BasisSet::AtomCentredSet& set)
+{
+    const auto* g=dynamic_cast<const BasisSet::AtomCentredSet_Gaussian*>(&set);
+    if (!g) throw std::invalid_argument("PlaneWave_IBS: the +U set must carry the closed-Gaussian face (AtomCentredSet_Gaussian)");
+    std::vector<SetFunction> f;
+    for (size_t M=0;M<set.Count();M++)
+    {
+        const int l=set.L(M);
+        const auto shell=qchem::Math::SphericalShell(l);
+        for (int m=-l;m<=l;m++)
+        {
+            auto harm=shell[size_t(l+m)];
+            double n2=0.0;
+            for (const auto& a : harm) for (const auto& b : harm) n2+=a.c*b.c*SphereMoment(a.p.n+b.p.n, a.p.l+b.p.l, a.p.m+b.p.m);
+            for (auto& t : harm) t.c/=std::sqrt(n2);
+            f.push_back({set.Centre(M), l, std::move(harm), g->AsGaussians(M)});
+        }
+    }
+    return f;
+}
+// F(G,a) = chi-tilde_a(k+G) over a G list.
+mat_t<dcmplx> Transforms(const std::vector<SetFunction>& f, const UnitCell& B, const rvec3_t& k, const std::vector<ivec3_t>& G)
+{
+    mat_t<dcmplx> F(G.size(), f.size());
+    for (size_t i=0;i<G.size();i++)
+    {
+        const rvec3_t q=B.ToCartesian(k+rvec3_t(G[i]));
+        for (size_t a=0;a<f.size();a++) F(i,a)=f[a].FT(q);
+    }
+    return F;
+}
+} //anon
+
+mat_t<dcmplx> PlaneWave_IBS::MakeAtomCentredOverlap(const AtomCentredSet& set) const
+{
+    mat_t<dcmplx> B=Transforms(Functions(set), Recip().GetCell(), kFrac(), Gs());
+    B*=1.0/std::sqrt(Volume());
+    return B;
+}
+
+chmat_t PlaneWave_IBS::MakeSetOverlap(const AtomCentredSet& set) const
+{
+    const auto f=Functions(set);
+    const size_t N=f.size();
+    auto overlap=[&](double Ecut)
+    {
+        const std::vector<ivec3_t> G=Internal::BuildGs(Recip(), kFrac(), Ecut);
+        if (G.size()>20000000)
+            throw std::runtime_error("PlaneWave_IBS::MakeSetOverlap: the +U set's overlap needs > 2e7 G vectors (Ecut "
+                                     +std::to_string(Ecut)+" Ha) and has not converged -- a radial too sharp for a Parseval sum");
+        const mat_t<dcmplx> F=Transforms(f, Recip().GetCell(), kFrac(), G);
+        const mat_t<dcmplx> O=blazem::ctrans(F)*F;
+        chmat_t H=blazem::zeroH<dcmplx>(N);
+        for (size_t a=0;a<N;a++) for (size_t b=a;b<N;b++) H(a,b)= a==b ? dcmplx(std::real(O(a,b))/Volume(),0.0) : O(a,b)/Volume();
+        return H;
+    };
+    double E=std::max(Ecut(), 10.0);
+    chmat_t O=overlap(E);
+    for (;;)   // doubling; the G-count guard in overlap() ends a sum that cannot converge
+    {
+        E*=2.0;
+        chmat_t O2=overlap(E);
+        double d=0.0;
+        for (size_t a=0;a<N;a++) for (size_t b=a;b<N;b++) d=std::max(d, std::abs(dcmplx(O2(a,b))-dcmplx(O(a,b))));
+        O=std::move(O2);
+        if (d<1e-12) return O;
+    }
 }
 
 // The Orbital_DFT_IBS<dcmplx> factory seam: hand back a distinct auxiliary DENSITY-fit basis.  The density is
