@@ -100,7 +100,9 @@ struct SolidCalculation::Imp
     std::unique_ptr<qchem::ChargeDensity::cDM_CD>         cd;    // the converged density (outlives the WF)
     //! m(r) of the converged state.  OWNED: WaveFunction::GetSpinDensity() BUILDS it and hands over the
     //! unique_ptr (V1.25).  EMPTY on an unpolarized run -- that WF does not implement the face at all (V1.17).
-    std::unique_ptr<SolidCalculation::sf_t>               spin;
+    //! m(r), built on the FIRST \c Converged::SpinDensity() call (reset by each Converge): built eagerly it re-collocated
+    //! both spin channels' D at the end of every stage, two n×n copies beside the iterator's own state -- the run's peak.
+    mutable std::unique_ptr<SolidCalculation::sf_t>       spin;
     SCFAccelerators::SolidAcceleratorOptions    accOpts;
     SCFAccelerators::Type                       stageAccel = SCFAccelerators::Type::DIIS;  //!< the CURRENT stage's, RESOLVED (banner, [F,D])
     SCFAccelerators::Type                       stageAccelAsked = SCFAccelerators::Type::Auto;  //!< ...as ASKED: what an FD/U-loop stage re-resolves
@@ -381,6 +383,9 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
             throw std::invalid_argument("SolidCalcOptions: the plane-wave family is Γ-only so far (k-mesh 1x1x1, no shift)");
         if (imposed)
             throw std::invalid_argument("SolidCalcOptions: the plane-wave family has no symmetry imposition yet");
+        // Plane waves ARE orthonormal: the default Cholesky would factor an identity S into two dense identity
+        // factors per spin block.  A stated non-default ortho is obeyed (an A/B door).
+        if (itsImp->opts.ortho==qchem::Cholesky) itsImp->opts.ortho=qchem::Orthonormal;
         qchem::report::Timed timed("setup: PW basis build");
         itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.planeWaveEcut));
         std::cout<<"["<<opts.label<<" run] plane-wave orbital basis: Ecut "<<opts.planeWaveEcut<<" Ha, "
@@ -446,6 +451,10 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     if ((opts.Nelec-twoS)%2!=0 || twoS>opts.Nelec)
         throw std::runtime_error("SolidCalcOptions: multiplicity "+std::to_string(opts.multiplicity)
                                  +" parity disagrees with Nelec "+std::to_string(opts.Nelec));
+    // A partial eigensolve must leave EMPTY bands above the fuller channel (smearing and the gap need them).
+    if (opts.numBands>0 && opts.numBands<=size_t((opts.Nelec+twoS)/2))
+        throw std::invalid_argument("SolidCalcOptions: numBands "+std::to_string(opts.numBands)+" must exceed the larger spin channel's "
+                                    +std::to_string((opts.Nelec+twoS)/2)+" electrons");
     auto irreps = itsImp->bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry Sum_k)
     itsImp->ec = std::make_unique<Crystal_EC>(irreps, (opts.Nelec+twoS)/2, (opts.Nelec-twoS)/2,
                                               !opts.perKFermiLevels, opts.spinsShareFermi);
@@ -548,7 +557,7 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
         qchem::report::Timed timed("setup: seed + ortho (iterator ctor)");
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-            seed.release(), itsImp->st.get(), opts.ortho, opts.orthoTol, seedRole);   // the iterator consumes it in Init
+            seed.release(), itsImp->st.get(), opts.ortho, opts.orthoTol, seedRole, opts.numBands);   // the iterator consumes it in Init
     }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
@@ -606,7 +615,12 @@ qchem::EnergyBreakdown SolidCalculation::Converged::EnergyTerms() const {return 
 double SolidCalculation::Converged::TotalCharge() const {return itsImp->charge;}
 size_t SolidCalculation::Converged::IterationCount() const {return itsImp->scf->GetIterationCount();}
 
-const ScalarFunction<double>* SolidCalculation::Converged::SpinDensity() const {return itsImp->spin.get();}
+const ScalarFunction<double>* SolidCalculation::Converged::SpinDensity() const
+{
+    const auto* wf=itsImp->scf->GetWaveFunction();
+    if (!itsImp->spin && wf->GetSpinGroup()==SpinGroup::Polarized) itsImp->spin=wf->GetSpinDensity();
+    return itsImp->spin.get();
+}
 const qchem::ChargeDensity::cDM_CD& SolidCalculation::Converged::DensityMatrix() const {return *itsImp->cd;}
 
 const ScalarFunction<double>& SolidCalculation::Converged::Density() const
@@ -774,6 +788,10 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, [[maybe_unus
     // It waits on N4 (pin 28: a Kerker/Pulay run's XC does not yet see rho[D]) and three more blockers listed there; \a params and
     // \a carried are the inputs it will read.
     const T t = asked==T::Auto ? T::DIIS : asked;
+    // A direct minimiser rotates the occupied block into the WHOLE virtual space, which a partial eigensolve never built.
+    if (itsImp->opts.numBands>0 && (t==T::GDM || t==T::Ladder))
+        throw std::invalid_argument("SolidCalcOptions: numBands (a partial eigensolve) beside the GDM / Ladder accelerator -- "
+                                    "they need every virtual; use Null or DIIS, or numBands 0");
     itsImp->stageAccelAsked = asked;
     itsImp->stageAccel      = t;
     itsImp->accel.reset(SCFAccelerators::Factory(t, itsImp->accOpts));
@@ -805,10 +823,10 @@ void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
               carried.release(), itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol,
-              qchem::SCFIterator::SeedRole::WorkingDensity)
+              qchem::SCFIterator::SeedRole::WorkingDensity, itsImp->opts.numBands)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->opts.seed, itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol);
+              itsImp->opts.seed, itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol, itsImp->opts.numBands);
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
     // survives the fresh wavefunction, exactly as the density does.
@@ -980,10 +998,8 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
     // type to cross-cast for).  RESET on the unpolarized branch: Converge runs once per anneal STAGE, so a
     // stale m(r) from an earlier stage must not survive into a run that no longer has one.
     const auto* wf = itsImp->scf->GetWaveFunction();
-    if (wf->GetSpinGroup()==SpinGroup::Polarized)
-        itsImp->spin = wf->GetSpinDensity();   // BUILT for us; we take it
-    else
-        itsImp->spin.reset();
+    itsImp->spin.reset();   // built on demand by Converged::SpinDensity()
+    const bool polarizedRun = wf->GetSpinGroup()==SpinGroup::Polarized;
     // THE RESULT LINE -- the run reports its own outcome, contemporaneously, at the stated precision
     // (doc/Benchmark.md compares codes at the 1e-5 Ha level; the terms stay at default width, they are read
     // for structure).  Was the integration-test driver's line until TE phase 2 (2026-09-15).
@@ -1001,7 +1017,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
         // rho_dn) per site -- never a point sample (doc/ feedback_integrated_observables).  A polarized run on an
         // atom-centred mesh that has NO site blocks is a DEFECT and is said so; on a uniform mesh the partition does not
         // exist, which is a configuration, said once.
-        if (itsImp->spin)
+        if (polarizedRun)
         {
             const rvec_t& mu=E.charge.siteMoments;
             double absSum=0.0, net=0.0; for (size_t a=0;a<mu.size();a++) { absSum+=std::fabs(mu[a]); net+=mu[a]; }

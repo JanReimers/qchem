@@ -1,6 +1,7 @@
 // File: LASolver/Imp/Factory.C
 module;
 #include <cassert>
+#include <stdexcept>
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -12,6 +13,7 @@ import qchem.Blaze;
 using qchem::LASolverEigen;
 using qchem::LASolverSVD;
 using qchem::LASolverCholesky;
+using qchem::LASolverOrthonormal;
 using qchem::LASolverCholeskyPivoted;
 using qchem::LASolverAuto;
 
@@ -67,8 +69,10 @@ template std::vector<size_t> qchem::PivotedCholeskyDrops<dcmplx>(const hmat_t<dc
 template std::vector<size_t> qchem::PivotedCholeskyDrops<dcmplx>(const hmat_t<dcmplx>&);
 
 template <class T> LASolver<T>* LASolver<T>::
-    Factory(qchem::Ortho ortho, double TruncationTolerance)
+    Factory(qchem::Ortho ortho, double TruncationTolerance, size_t numBands)
 {
+    if (numBands>0 && ortho!=qchem::Orthonormal)
+        throw std::invalid_argument("LASolver::Factory: a band count (partial eigensolve) is implemented for Ortho::Orthonormal only");
     LASolver<T>* ret = nullptr;
     switch (ortho)
     {
@@ -83,6 +87,7 @@ template <class T> LASolver<T>* LASolver<T>::
     case qchem::Eigen:   ret = new LASolverEigen<T>(TruncationTolerance); break;
     case qchem::SVD:     ret = new LASolverSVD  <T>(TruncationTolerance); break;
     case qchem::CholeskyPivoted: ret = new LASolverCholeskyPivoted<T>(TruncationTolerance); break;
+    case qchem::Orthonormal: ret = new LASolverOrthonormal<T>(numBands); break;
     case qchem::Auto:
         if (TruncationTolerance != 0)
             std::cerr << "Warning: LASolverAuto ignores TruncationTolerance (" << TruncationTolerance
@@ -94,5 +99,5 @@ template <class T> LASolver<T>* LASolver<T>::
     return ret;
 }
 
-template LASolver<double>* LASolver<double>::Factory(qchem::Ortho, double);
-template LASolver<dcmplx>* LASolver<dcmplx>::Factory(qchem::Ortho, double);
+template LASolver<double>* LASolver<double>::Factory(qchem::Ortho, double, size_t);
+template LASolver<dcmplx>* LASolver<dcmplx>::Factory(qchem::Ortho, double, size_t);

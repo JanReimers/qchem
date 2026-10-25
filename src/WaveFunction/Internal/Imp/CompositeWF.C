@@ -46,12 +46,13 @@ using SCFAccelerators::tSCFIrrepAccelerator;
 
 
 template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,SpinGroup g,
-                                                 SCFAccelerator* acc, qchem::Ortho basisOrtho, double basisOrthoTol )
+                                                 SCFAccelerator* acc, qchem::Ortho basisOrtho, double basisOrthoTol, size_t numBands )
     : itsBS(bs)
     , itsEC(ec)
     , itsSpinGroup(g)
     , itsBasisOrtho(basisOrtho)
     , itsBasisOrthoTol(basisOrthoTol)
+    , itsNumBands(numBands)
     , itsPartition(ec->GetPartition())
     , itsAccelerator(acc)
 {
@@ -179,7 +180,7 @@ template <class T> template <class U> void tCompositeWF<T>::MakeOneIrrepWF(const
     namespace rpt = qchem::report;
     {
         const hmat_t<U>& S = b->Overlap();
-        LASolver<U>* lasb=LASolver<U>::Factory(itsBasisOrtho, itsBasisOrthoTol);
+        LASolver<U>* lasb=LASolver<U>::Factory(itsBasisOrtho, itsBasisOrthoTol, itsNumBands);
         Irrep qns(b->GetIrrep(s));
 
         // Emit the report's basis.perIrrep row ONLY when an ancestor opened a "basis" section (the

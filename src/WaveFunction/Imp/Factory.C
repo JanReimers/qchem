@@ -15,20 +15,20 @@ namespace qchem::WaveFunction
         const tbs_t<T>* bs,
         const ElectronConfiguration* ec,
         SCFAccelerators::SCFAccelerator* acc,
-        qchem::Ortho basisOrtho, double basisOrthoTol)
+        qchem::Ortho basisOrtho, double basisOrthoTol, size_t numBands)
     {
         // ONE wave-function class (V1.37), built under the SAME imposed spin subgroup as the Hamiltonian,
         // for both lineages (SymmetryUpgradePlan §4 tier 4b: a polarized Ham_PW_DFT gets the two-channel
         // Bloch composite just like the molecular path).
-        return new tCompositeWF<T>(bs,ec,h->GetSpinGroup(),acc,basisOrtho,basisOrthoTol);
+        return new tCompositeWF<T>(bs,ec,h->GetSpinGroup(),acc,basisOrtho,basisOrthoTol,numBands);
     }
 
     template tSCFWaveFunction<double>* Factory(const qchem::Hamiltonian::tHamiltonian<double>*,
         const tbs_t<double>*, const ElectronConfiguration*, SCFAccelerators::SCFAccelerator*,
-        qchem::Ortho, double);
+        qchem::Ortho, double, size_t);
     template tSCFWaveFunction<dcmplx>* Factory(const qchem::Hamiltonian::tHamiltonian<dcmplx>*,
         const tbs_t<dcmplx>*, const ElectronConfiguration*, SCFAccelerators::SCFAccelerator*,
-        qchem::Ortho, double);
+        qchem::Ortho, double, size_t);
 }
 
 

@@ -26,7 +26,10 @@ export namespace qchem
     //!        the diffuse-basis "just works" path -- doc/GPWPlan1.md §4a).  Lossless exactly in the near-null
     //!        regime (a dropped AO is ~reproducible by the kept ones); slightly lossier than Eigen for MARGINAL
     //!        modes.  Tolerance: <0 = LAPACK default (n·eps·max diag), >0 = explicit absolute pivot floor.
-    enum Ortho {Cholesky, Eigen, SVD, Auto, CholeskyPivoted};
+    //!  - \c Orthonormal: the basis IS orthonormal (S = I, e.g. plane waves): V = I, so nothing is stored and
+    //!        Transform/BackTransform are the identity.  SetBasisOverlap THROWS unless S is the identity -- it is
+    //!        a statement about the basis, chosen by whoever knows the family, never a guess from S.
+    enum Ortho {Cholesky, Eigen, SVD, Auto, CholeskyPivoted, Orthonormal};
 
     //! \brief BASIS-NEUTRAL linear-dependence detector: which basis functions are redundant in overlap S.
     //! Eigen-analyses S to find the near-null/physical spectral GAP -> the exact COUNT k of redundant
@@ -70,7 +73,9 @@ public:
     typedef std::tuple<mat_t<T>         ,rvec_t> Ud_t;
     typedef std::tuple<mat_t<T>,mat_t<T>,rvec_t> UUd_t; //U,U',E  where U' has not been back transformed, U=V*Uprime.
 
-    static  LASolver* Factory(qchem::Ortho ortho, double TruncationTolerance=0.0);
+    //! \a numBands > 0: keep only the lowest \a numBands eigenpairs (QE's nbnd) -- a partial eigensolve; only
+    //! \c Ortho::Orthonormal implements it today, any other ortho THROWS on it.  0 = every eigenpair.
+    static  LASolver* Factory(qchem::Ortho ortho, double TruncationTolerance=0.0, size_t numBands=0);
 
     //! Factor S=U*Ud then invert U, V=U^-1  and store V and Vd.
     virtual void       SetBasisOverlap(const hmat_t<T>& S)=0;

@@ -4,6 +4,7 @@ module;
 #include <iomanip>
 #include <complex>
 #include <cassert>
+#include <type_traits>
 module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.Blaze;
 
@@ -29,10 +30,19 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(hmat_t<T>& D, hmat_t<T>
     // fills a HermitianMatrix; the diagonal occ*|C_i|^2 is real.
     if (IsOccupied())
     {
-        hmat_t<T> CCd=blazem::outer(itsCoeff,blazem::conj(itsCoeff))*GetOccupation();
-        D+=CCd;
-        hmat_t<T> CCd_prime=blazem::outer(itsCoeffPrime,blazem::conj(itsCoeffPrime))*GetOccupation();
-        DPrime+=CCd_prime;
+        // DECLARED Hermitian/symmetric, so the rank-1 update lands in D directly: materialising each orbital's n×n outer
+        // product first put two full-size temporaries at the peak of a plane-wave run (2026-10-25).
+        const double f=GetOccupation();
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            D     +=blazem::declsym(blazem::outer(itsCoeff,itsCoeff)*f);
+            DPrime+=blazem::declsym(blazem::outer(itsCoeffPrime,itsCoeffPrime)*f);
+        }
+        else
+        {
+            D     +=blazem::declherm(blazem::outer(itsCoeff,blazem::conj(itsCoeff))*f);
+            DPrime+=blazem::declherm(blazem::outer(itsCoeffPrime,blazem::conj(itsCoeffPrime))*f);
+        }
     }
 }
 

@@ -94,6 +94,10 @@ export namespace qchem::blazem
     using blaze::IdentityMatrix;
     using blaze::Subvector;
     using blaze::eigen;
+    using blaze::heevx;   // the LOWEST-N eigenpairs (index range) -- LASolverOrthonormal's band count
+    using blaze::syevx;
+    using blaze::declherm;   // declare an expression Hermitian/symmetric: += into an hmat_t with no materialised temporary
+    using blaze::declsym;
     using blaze::svd;
     using blaze::inv;
     using blaze::solve;

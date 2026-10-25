@@ -42,8 +42,8 @@ template <class T> IrrepCD_Core<T>::IrrepCD_Core()
     : itsVersion(NextDensityVersion())
 {};
 
-template <class T> IrrepCD_Core<T>::IrrepCD_Core(const DenSMat& D,const tobs_t<T>* theBasisSet,Irrep qns)
-    : itsDensityMatrix(D)
+template <class T> IrrepCD_Core<T>::IrrepCD_Core(DenSMat D,const tobs_t<T>* theBasisSet,Irrep qns)
+    : itsDensityMatrix(std::move(D))
     , itsBasisSet(theBasisSet)
     , itsSpin(qns.ms)
     , itsIrrep(qns)
@@ -596,7 +596,7 @@ template class IrrepCD_HFPair<FiniteIrrepCD>;   // the finite leaf itself is no 
 template <class T> double PeriodicIrrepCD<T>::GetTotalCharge() const
 {
     if constexpr (std::is_same_v<T,dcmplx>)
-        return std::real(blazem::sum(this->itsDensityMatrix % blazem::trans(this->itsBasisSet->MakeOverlap())));
+        return std::real(blazem::sum(this->itsDensityMatrix % blazem::trans(this->itsBasisSet->Overlap())));   // the CACHED S: Make built two n×n temporaries per call
     else
         return IrrepCD_Core<T>::GetTotalCharge();
 }

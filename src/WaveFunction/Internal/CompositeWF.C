@@ -56,7 +56,7 @@ public:
     //! eigen/singular values -- canonical orthogonalisation for a linearly-dependent basis (e.g. diffuse
     //! Gaussians on a dense lattice).  \a basisOrthoTol\f$\le0\f$ = keep all.
     tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,SpinGroup g,SCFAccelerator*,
-                 qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0);
+                 qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0);
     ~tCompositeWF();
 
     virtual void            DoSCFIteration  (tHamiltonian<T>&,const tChargeDensity<T>*   )      ;
@@ -116,6 +116,7 @@ private:
     SpinGroup                    itsSpinGroup;     //the imposed spin subgroup (V1.37)
     qchem::Ortho                 itsBasisOrtho;    //S-orthogonalisation mode for the generalised eigenproblem
     double                       itsBasisOrthoTol; //near-null eigen/singular-value cutoff (Eigen/SVD; 0 = keep all)
+    size_t                       itsNumBands;      //lowest eigenpairs kept per block (0 = all; LASolver::Factory)
     ReservoirPartition           itsPartition;     //how the EC pools its electrons (V1.11 increment 2)
     SCFAccelerator*              itsAccelerator;   // NON-template manager (RealComplexPlan §6)
     EnergyLevels                 itsELevels;

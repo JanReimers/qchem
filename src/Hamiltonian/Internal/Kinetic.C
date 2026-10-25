@@ -51,6 +51,8 @@ public:
         tStatic_HT_Imp<T>::PrepareSlots(bs);
         if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T>::PrepareSlots(bs);
     }
+    //! Kinetic energy is spin-blind: ONE cached block for every channel.
+    virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
     Kinetic() : tStatic_HT_Imp<T>() {}
 
     virtual void GetEnergy(EnergyBreakdown& te, const tDM_CD<T>* cd) const override

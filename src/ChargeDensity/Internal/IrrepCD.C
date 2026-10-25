@@ -89,7 +89,7 @@ public:
     using scalar_t = T;        //!< the block scalar (the Fourier mixin's basis cast is keyed on it)
 
     IrrepCD_Core();
-    IrrepCD_Core(const DenSMat&,const tobs_t<T>*, Irrep);
+    IrrepCD_Core(DenSMat,const tobs_t<T>*, Irrep);   //!< D BY VALUE: an rvalue is moved in (a density is n×n)
 
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;

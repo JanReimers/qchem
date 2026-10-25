@@ -180,6 +180,11 @@ struct SolidCalcOptions
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::IonicSAD;
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
+    //! Bands (eigenpairs) kept per Bloch block, QE's nbnd: 0 (default) = all of them.  > 0 = a PARTIAL eigensolve of the
+    //! lowest \c numBands -- a plane-wave block is thousands wide and the SCF occupies a few dozen.  Orthonormal basis only
+    //! (the plane-wave family); must exceed the larger spin channel's electron count; refused beside a direct minimiser
+    //! (GDM / the Ladder's GDM rung), which rotates into the WHOLE virtual space.
+    size_t       numBands = 0;
     //! ANSATZ POLICY (doc/RealComplexPlan.md §6): force every Bloch block COMPLEX even where the run
     //! admits real ones (a TRIM k-point under a realness-preserving Hamiltonian -- with the default
     //! LDA stack every Γ / zone-boundary block runs REAL: real S/T/V/KB, real eigensolve, real

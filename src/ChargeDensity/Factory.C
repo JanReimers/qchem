@@ -30,10 +30,10 @@ export namespace qchem::ChargeDensity
     RhoRoute DefaultRhoRoute();
 
     //! \a route defaults (via \c DefaultRhoRoute) to the factored \f$\rho\f$; \c Direct is the plain leaf.
-    template <class T> tDM_CD<T>* IrrepCD_Factory(const hmat_t<T>& DM,const tobs_t<T>* bs, Irrep,
+    template <class T> tDM_CD<T>* IrrepCD_Factory(hmat_t<T> DM,const tobs_t<T>* bs, Irrep,
                                                   RhoRoute route);
     //! Same, taking the default route -- so every existing call site is untouched.
-    template <class T> tDM_CD<T>* IrrepCD_Factory(const hmat_t<T>& DM,const tobs_t<T>* bs, Irrep); // DM Hermitian
+    template <class T> tDM_CD<T>* IrrepCD_Factory(hmat_t<T> DM,const tobs_t<T>* bs, Irrep); // DM Hermitian; BY VALUE: pass an rvalue and it is moved in, not copied
     std::unique_ptr<FittedCD> FittedCD_Factory(fbs_t&, double totalCharge); //!< caller owns the result
 
 } //namespace

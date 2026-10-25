@@ -51,6 +51,8 @@ public:
         tStatic_HT_Imp<T>::PrepareSlots(bs);
         if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T>::PrepareSlots(bs);
     }
+    //! A constant energy: its (zero) block is the same for every spin channel, so ONE cached slot.
+    virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
     typedef std::shared_ptr<const Structure> st_t;
 
     //! All-electron: the ion charge IS the true nuclear charge \c itsZ (identity map).
