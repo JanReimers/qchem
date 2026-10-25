@@ -2187,3 +2187,25 @@ Question: can the plane-wave instrument (OpenWork §2 PW-1…4) run DENSE, at a 
 From 80 Ry up both residuals are QE's at the 300 Ry level within a fraction of their size: the Mn spin response is +0.037–0.039 (ours +0.023), the Mn d band falls 0.72–0.77 eV (ours 0.85), the U'd O-normal band 1.74–1.77 (ours 1.68).  60 Ry is NOT converged (even the U = 0 bands are 0.3 eV off).  ⇒ **a dense PW run at 40–50 Ha (4.5–6.4 k PWs, real TRIM block) matched to QE at 80–100 Ry discriminates basis vs Hamiltonian; PW-2 is off this diagnosis's critical path.**
 
 **Trap: QE's orbital-resolved U has several self-consistent fixed points.**  From the atomic start the 100 and 150 Ry U arms converged to OTHER states — spin-down O ns off-diagonal sign flipped (+0.026 vs −0.082), the U'd orbital's occupation 0.83–0.88 instead of 0.97, E_U doubled (0.091 vs 0.044 Ry), at 150 Ry even the O moment reversed — 23 / 9 mHa ABOVE the state reached by seeding from the 300 Ry U run (`startingpot='file'` with its charge-density + `occup.txt` + `Hubbard_m_order.txt`).  The 80 Ry atomic start did not converge in 100 iterations.  All U rows above are SEEDED (9–13 iterations); the atomic-start outputs are kept as `*.atomicseed.scf.out` / `*.capped100.scf.out`.  A cross-code U comparison must name the basin (E_U and the U'd slot's ns), not just Etot.
+
+## 2026-10-25 — HubbardProjectorPlan increment 4: ACBN0 + response through the pseudo-atomic projector, re-judged
+
+Code `b4cfc789` (`GaussianAtomCentredSet::BareCoulomb`, exact one-centre).  Decks + logs: `~/Code/qchem6-runs/TiO2/basis_scan/
+b6_TiO_pseudoAtomic{.json,_20261025.log}` (record `TiO2_rutile.r003`), `~/Code/qchem6-runs/NiO/nio_q0_pseudoAtomic{.json,_20261025.log}`
+(`NiO_AFM2.r009`, warm start from the saved FREE state, 11 iterations).  Each is its site-shell twin with `atomicRadial` → `"projector":
+"pseudoAtomic"` (ortho-atomic over the set), same binary otherwise.
+
+| | site-shell (10-24) | pseudo-atomic | hp.x / QE |
+|---|---|---|---|
+| TiO₂ b6 Γ, U(Ti 3d) 6×6 eV | 3.0504 | **2.9945** | 2.927 |
+| TiO₂ b6 Γ, U(O 2p) 6×6 eV | 6.7345 | **6.8226** | 6.758 |
+| TiO₂ b6 Γ, U(Ti 3d) 1×1 eV | 5.1265 | **5.0880** | 5.026 |
+| TiO₂ occupation Ti 3d / O 2p | 2.211 / 4.937 | **2.210 / 4.931** | 2.208 / 4.931 |
+| NiO q = 0, U 2×2 eV (Ni0 / Ni1) | 6.4677 / 6.4677 | 6.4793 / 6.4792 | (q-mesh: step 3) |
+| NiO χ₀ Ni0 / E_tot | −4.02564 / −106.1384955 | −4.03786 / −106.1385368 | |
+
+Captured norms B†S⁻¹B/O: TiO₂ 0.9999 (Ti 3d) / 1.0000 (s, O), NiO 0.9998 -- so the projectors are close to the site-shell ones on these
+bases and the moves are small; TiO₂'s Ti halved its hp.x excess and the occupations reached QE's.  Si p (ACBN0, SR basis): bare U 10.6 eV
+pseudo-atomic vs 23.6 eV for the site-shell contraction -- there the SR p shells could NOT hold the pseudo-atom 3p, and the contraction
+was a different, compact function: the basis dependence the plan removes.
+

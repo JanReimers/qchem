@@ -19,6 +19,19 @@ plan is done its text goes to `Records/HubbardUHistory.md` and this file is dele
   VA + O p 0.18).  Numbers: `Records/HubbardUHistory.md` 2026-10-24 "The pseudo-atomic +U projector".
 - **User, 2026-10-24**: the new projector flexibility is worth keeping; the gap is to be looked for elsewhere.
   Increments 4–5 remain the plan (basis-independent U for ACBN0 / hp.x comparisons; QE's E_U).
+- **Increment 4 LANDED 2026-10-25** (`b4cfc789`, fast tier 1081/1081, 0 anchors can move: the site-shell path is untouched).
+  D6's ACBN0 bare integrals are the SET's own `BareCoulombSource` (one centre, exact: multipole expansion + real Gaunt
+  factors + Slater integrals of Gaussian densities in closed form) -- NOT the molecular engine, which can only reach a
+  pseudo-atomic radial primitive by primitive (~10^7 ERIs; CleanCode D-CONTRACTED-SHELL), and it duplicates `RkEngine`
+  (CleanCode D-RK-ONCE).  The engine is the oracle: element by element to 1e-12 (d primitive, contracted d, p+d).
+  `ManifoldCoefficients` and the response needed nothing (`Atomic`'s Q = T^dagger is the site-shell route's ortho convention).
+  Gates: `BareCoulomb.TheAtomCentredSet*`, `GPW_Si.Γ_U_PseudoAtomic3p_Imp_Pol_eqUnpol`; physics re-judged
+  (`Records/HubbardUHistory.md` 2026-10-25): **TiO₂ b6 6×6 vs hp.x -- U(Ti) 2.994 eV (+2.3 %, was +4.2 % site-shell),
+  U(O 2p) 6.823 (+1.0 %, was −0.35 %), Ti 1×1 5.088 (+1.2 %, was +2.0 %); occupations Ti 3d 2.210 / O 2p 4.931 vs QE
+  2.208 / 4.931.  NiO cell (q = 0, U_in 3): U 6.479 eV vs site-shell 6.468 (+11 meV; the VA site shells already
+  capture 0.9998 of the 3d).**  The NiO-vs-hp.x q-mesh comparison is step (3) of OpenWork §3's ORDER.
+- **Increment 5 is next**: before the flip, every CP2K-gated / LOWDIN manifold (`HubbardU` with no radial, the
+  CrossCode decks) names `siteShells` explicitly, so the flip moves exactly the `atomicRadial` manifolds.
 
 ## 1. Why
 
