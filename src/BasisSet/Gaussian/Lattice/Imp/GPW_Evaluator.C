@@ -1,5 +1,6 @@
 // File: BasisSet/Gaussian/Lattice/Imp/GPW_Evaluator.C  GPW_Evaluator implementation.
 module;
+#include <sstream>
 #include <cassert>
 #include <cmath>
 #include <complex>
@@ -214,6 +215,60 @@ std::vector<qchem::Math::CartTerm> MultiplyR2(std::vector<qchem::Math::CartTerm>
     }
     return terms;
 }
+// THE GRID AUDIT (user 2026-10-25: "the max effective exponent and the ideal max G for every relevant H term ... quickly see
+// that all grids are correct").  A term that integrates (or collocates) Gaussian PAIRS on a raster has TWO requirements:
+//   BALL   -- its G-space sum must reach where the integrand's transform dies: a pair p against a field of Gaussian exponent
+//             beta sums e^{-G^2 (1/4p + 1/4beta)}, the harmonic exponent p_h = p beta/(p+beta) (beta = 0: no field, p_h = p);
+//             the tail at the ball edge is e^{-G_b^2/4p_h}.
+//   RASTER -- the pair is SAMPLED in real space, so its spectrum beyond the raster's Nyquist G_N aliases back: the first
+//             image sits at 2 G_N, relative amplitude e^{-(2G_N)^2/4p} = e^{-G_N^2/p}.  BallOnly puts G_N at the ball edge
+//             (G_N^2 = 2 E_cut); AliasFree doubles it.  G_N here = the raster's inscribed Nyquist radius min_i pi N_i/|a_i|.
+// The tightest pair (p = 2 alpha_max) is routed to the finest level, so the finest raster is the one that must pass.
+// Flags UNDER at alias > 1e-6 (the oracle gates: BallOnly at E_cut/p = 2 is 4% on a tight pair's density and 1.5 Ha on its
+// V_loc-long diagonal; AliasFree there is <= 4e-5 / 3e-4 Ha -- UTLattice_BS GPW.TightPrimitive*).
+double RasterNyquist(const ivec3_t& N, const UnitCell& A)
+{
+    const double a1=norm(A.ToCartesian(rvec3_t(1,0,0))), a2=norm(A.ToCartesian(rvec3_t(0,1,0))), a3=norm(A.ToCartesian(rvec3_t(0,0,1)));
+    return std::min({Pi*N.x/a1, Pi*N.y/a2, Pi*N.z/a3});
+}
+void EmitGridAudit(const std::string& key, const std::string& term, double p, double beta,
+                   double ecutBall, const ivec3_t& N, const UnitCell& A, bool judgeBall, double ballTol=1e-6)
+{
+    namespace rpt = qchem::report;
+    const double ph   = beta>0.0 ? p*beta/(p+beta) : p;
+    const double Gb   = std::sqrt(2.0*ecutBall);
+    const double tail = std::exp(-Gb*Gb/(4.0*ph));
+    const double GN   = RasterNyquist(N, A);
+    const double alias= std::exp(-GN*GN/p);
+    const double kTol = 1e-6;
+    const bool   ok   = alias<=kTol && (!judgeBall || tail<=ballTol*(1.0+1e-9));   // the ball by the tolerance it was BUILT to
+    rpt::json r;
+    r["term"]        = term;
+    r["pPair"]       = p;                                   // the tightest pair sampled on this raster (2 alpha_max)
+    r["betaField"]   = beta;                                // the field's own Gaussian exponent (0 = none)
+    r["ballEcut"]    = ecutBall;
+    r["ballGneed"]   = std::sqrt(4.0*ph*std::log(1.0/ballTol));
+    r["ballTol"]     = ballTol;
+    r["ballGhave"]   = Gb;
+    r["ballTail"]    = tail;
+    r["ballJudged"]  = judgeBall;
+    r["rasterN"]     = { N.x, N.y, N.z };
+    r["rasterGneed"] = std::sqrt(p*std::log(1.0/kTol));
+    r["rasterGhave"] = GN;
+    r["alias"]       = alias;
+    r["status"]      = ok ? "OK" : "UNDER";
+    rpt::EmitAt("grids", key, r);
+    if (!ok)
+    {
+        std::ostringstream os;
+        os<<"[grid audit] UNDER: "<<term<<" -- tightest pair p="<<p<<" on raster "<<N.x<<"x"<<N.y<<"x"<<N.z<<" (G_N="<<GN
+          <<", needs "<<std::sqrt(p*std::log(1.0/kTol))<<"): alias e^{-G_N^2/p}="<<alias
+          <<(judgeBall ? "; ball tail "+std::to_string(tail)+" (ball tolerance "+std::to_string(ballTol)+")" : std::string())<<" (alias tolerance 1e-6)";
+        std::cout<<os.str()<<std::endl;
+        rpt::Log(os.str());
+    }
+}
+
 } //anon
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
@@ -1040,6 +1095,16 @@ void GPW_Evaluator::EmitGridsReport() const
         g["localPP"] = { { "kappa", itsTol.localPPRelCutoff } };
     }
     rpt::EmitSection("grids", g);
+    if (itsFFT_R_G_Grids)
+    {
+        size_t Lf=0;
+        for (size_t L=1;L<itsLevels.size();L++) if (itsLevels[L]->Ecut()>itsLevels[Lf]->Ecut()) Lf=L;
+        const double beta = itsRelFieldSharp>=0.0 ? itsRelFieldSharp : (2.0/3.0)*itsLat->MaxExponent();   // the routing field
+        // Hartree's 1/G^2 kernel suppresses the ball tail, and the ball is the density's own (accepted e^{-E/2p} tail, by
+        // design): the RASTER is what this row judges.
+        EmitGridAudit("auditDensity", "density collocation (Hartree + XC raster)", 2.0*itsLat->MaxExponent(), beta,
+                      itsLevels[Lf]->Ecut(), itsLevels[Lf]->FFTGrid(), itsCell, /*judgeBall*/false);
+    }
     // The lattice-sum economy readout (grids.latticeSums + the [lattice sums] console line): the numbers
     // that JUMP when diffuse functions are added -- the owner of the screens (the molecular evaluator)
     // reports them, so the eps values never leak through the face.
@@ -1307,6 +1372,11 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
         levels.push_back(g); N_L.push_back(g->FFTGrid()); ecut_L.push_back(g->Ecut());
     }
     const std::vector<size_t> lv=itsLat->StaticFieldPairLevels(ecut_L, beta, lnE);
+    {
+        size_t Lf=0;
+        for (size_t L=1;L<ecut_L.size();L++) if (ecut_L[L]>ecut_L[Lf]) Lf=L;
+        EmitGridAudit("auditVlocLong", "V_loc long (integrate-back)", p2, beta, ecut_L[Lf], N_L[Lf], itsCell, /*judgeBall*/true, eps);
+    }
     // Vtilde(dm) = (1/Omega) Sum_a f_long(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 DROPPED (the E_alphaZ
     // alignment carries the mean -- the same convention as MakeLocalPP's form-factor closure).
     const UnitCell& B=itsFFT_R_G_Grids->Recip().GetCell();
