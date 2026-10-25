@@ -1745,6 +1745,14 @@ CP2K while U, a ratio, held.  Rutile's χ₀ moved TOWARD CP2K (0.5 % → 0.15 %
 CP2K's GPW evaluates XC on its REGULAR-GRID density, not on an atomic quadrature, so a 1–2 % χ₀ difference may be the XC-density
 convention; the discriminator is FeS₂ on our raster (pair) route, `--set solid.policy.beckeXC=false` -- collocated ρ[D] on a uniform grid, CP2K's way.
 
+**RESOLVED 2026-10-25 -- it IS the XC quadrature** (`FeS2_pyrite.r005`, log `fes2_Fe3d_G_raster_20261025.log`; trace `shadow` / `Pul+K` on all
+135 rows, pin-28 clean): raster E −164.9077261 Ha (3.7 mHa above Becke), **χ₀ −33.3333 (0.37 % from CP2K; Becke + cusp 2.0 %)**, χ LR
+−3.98767 (0.06 % from CP2K's FD), U 6.0075 eV; own FD χ −3.97862 (0.23 % from its LR; Becke 0.10 %).  Like-for-like with CP2K (ρ[D] on
+a uniform grid at the density cutoff), χ₀ agrees; the Becke atomic grid resolves the core density a uniform grid cannot, and χ₀ -- not
+U -- feels that at the 2 % level.  The fitted-ρ̃ control sat near CP2K for the same reason (band-limited).  U is route-independent:
+6.0059 / 6.0070 / 6.0075 eV on Becke+cusp / Becke-fitted / raster vs CP2K 6.007.  ⇒ a χ₀ comparison against CP2K is a RASTER-route
+comparison; a Becke χ₀ is compared with CP2K only through U.
+
 **NiO at the cell level, same day** (`rundeck decks/campaigns/NiO/nio_q0_step3_newroute.json` -- the exact banked deck: free, k222, q = 0,
 U_in 3 eV frozen, ortho-atomic, Kerker-Pulay; restart from the saved FREE state, which re-converged in 11 iterations; binary `f3cce7ef`;
 record `~/Code/qchem6-runs/NiO/NiO_AFM2.r008`, log `nio_q0_step3_newroute_postpin29_20261024.log`):
