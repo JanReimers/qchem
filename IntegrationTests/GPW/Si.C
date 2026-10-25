@@ -977,7 +977,7 @@ TEST(GPW_Si, Γ_U_ZeroUIsExactlyAbsent)
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free)");
     o.densityEcut=20.0;
     qchem::SolidCalculation plain(lat, MakeBasisSR(*si.cell), o, ProductionGates());
-    o.hubbard={HubbardU(0,1,0.0), HubbardU(1,1,0.0)};   // the term is BUILT, with U=0 on both Si p shells
+    o.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};   // the term is BUILT, with U=0 on both Si p shells
     o.label="Si SR Gamma (free, U=0)";
     qchem::SolidCalculation withU(lat, MakeBasisSR(*si.cell), o, ProductionGates());
     auto a=plain.Result(), b=withU.Result();
@@ -993,7 +993,7 @@ TEST(GPW_Si, Γ_U_IsAPositiveSelfConsistentFunctional)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free, U=2 eV on p)");
     o.densityEcut=20.0;
-    o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};
+    o.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
     auto r=calc.Result();
     ASSERT_TRUE(r) << (r ? std::string() : r.Error().details);
@@ -1016,7 +1016,7 @@ TEST(GPW_Si, Γ_U_Imp_Pol_Kerker_eqUnpol)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Kerker U=2 eV");
     o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};
+    o.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;                                 // the rho-tilde mixer
     qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
     o.multiplicity=1; o.label="Si SR Gamma Kerker U=2 eV pol-singlet";                // PolarizedMixCD in the loop
@@ -1043,7 +1043,7 @@ TEST(GPW_Si, Γ_U_ACBN0_Imp_Pol_eqUnpol)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma ACBN0 on p");
     o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU(0,1,0.0), HubbardU(1,1,0.0)};                                  // U=0: a plain LDA run that carries the manifolds
+    o.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};                                  // U=0: a plain LDA run that carries the manifolds
     SCFParams par=ProductionGates();
     qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
     o.multiplicity=1; o.label="Si SR Gamma ACBN0 on p, pol-singlet";
@@ -1170,7 +1170,7 @@ TEST(GPW_Si, Γ_U_ACBN0_OuterLoopFeelsTheNewU)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma ACBN0 outer loop from U=0");
     o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU(0,1,0.0), HubbardU(1,1,0.0)};
+    o.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};
     SCFParams par=ProductionGates();
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
     ASSERT_TRUE(calc.Result()) << Why(calc.Result());

@@ -65,6 +65,15 @@ inline Hamiltonian::HubbardManifold HubbardU(size_t site, int l, double U_eV)
 {
     return Hamiltonian::HubbardManifold{site, l, U_eV/27.211386245988};
 }
+//! CP2K's LOWDIN manifold, NAMED: every shell of angular momentum \a l on the site, \f$T=S^{1/2}[:,M]\f$ (the block's
+//! own columns).  The CP2K-parity route (the CP2K-gated +U tests and the CrossCode decks name it), kept explicit so a
+//! change of the default projector never moves them (HubbardProjectorPlan increment 5).
+inline Hamiltonian::HubbardManifold HubbardU_SiteShells(size_t site, int l, double U_eV)
+{
+    Hamiltonian::HubbardManifold M{site, l, U_eV/27.211386245988};
+    M.projector=Hamiltonian::HubbardProjectorKind::SiteShells;
+    return M;
+}
 //! The same manifold on ONE contracted radial -- the pseudo-atom's own \f$l\f$ orbital in the block's
 //! primitives (the facade fills it): the physically meaningful +U manifold and the one ACBN0 can screen.
 inline Hamiltonian::HubbardManifold HubbardU_Atomic(size_t site, int l, double U_eV)

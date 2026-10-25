@@ -24,22 +24,26 @@
       {
         "site": 0,
         "l": 2,
-        "U_eV": 0.0
+        "U_eV": 0.0,
+        "projector": "siteShells"
       },
       {
         "site": 1,
         "l": 2,
-        "U_eV": 0.0
+        "U_eV": 0.0,
+        "projector": "siteShells"
       },
       {
         "site": 2,
         "l": 2,
-        "U_eV": 0.0
+        "U_eV": 0.0,
+        "projector": "siteShells"
       },
       {
         "site": 3,
         "l": 2,
-        "U_eV": 0.0
+        "U_eV": 0.0,
+        "projector": "siteShells"
       }
     ]
   },

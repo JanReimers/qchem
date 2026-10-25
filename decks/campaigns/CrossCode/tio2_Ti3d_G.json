@@ -25,7 +25,8 @@
    {
     "site": 0,
     "l": 2,
-    "U_eV": 0.0
+    "U_eV": 0.0,
+    "projector": "siteShells"
    }
   ]
  },

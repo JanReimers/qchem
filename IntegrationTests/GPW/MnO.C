@@ -527,7 +527,7 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
         o.accelerator=qchem::SCFAccelerators::Type::Null;
         o.imposeSymmetry=true;
         o.policy.hubbardEigen=false;   // CP2K's form, a declared deviation: stated in the options (D-ENV 6b), not in the environment
-        if (U_eV>0.0) o.hubbard={HubbardU(0,2,U_eV), HubbardU(1,2,U_eV)};
+        if (U_eV>0.0) o.hubbard={HubbardU_SiteShells(0,2,U_eV), HubbardU_SiteShells(1,2,U_eV)};
         SCFParams par=Gates(200, 1e-6, 1e30);
         par.Δρmeasure=SCFParams::Measure::MaxΔD;             // CP2K's EPS_SCF measure (doc/Benchmark.md rule 3f)
         par.PulayDepth=8; par.PulayStart=5;                   // the density history, as NBUFFER 8

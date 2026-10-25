@@ -26,22 +26,26 @@
       {
         "site": 2,
         "l": 2,
-        "U_eV": 4.0
+        "U_eV": 4.0,
+        "projector": "siteShells"
       },
       {
         "site": 3,
         "l": 2,
-        "U_eV": 4.0
+        "U_eV": 4.0,
+        "projector": "siteShells"
       },
       {
         "site": 4,
         "l": 2,
-        "U_eV": 4.0
+        "U_eV": 4.0,
+        "projector": "siteShells"
       },
       {
         "site": 5,
         "l": 2,
-        "U_eV": 4.0
+        "U_eV": 4.0,
+        "projector": "siteShells"
       }
     ],
     "accelerator": "Null"
