@@ -1120,6 +1120,45 @@ TEST(GPW_Si, Γ_U_Atomic3p_Imp_Pol_eqUnpol)
               << "/" << ea[0].JbarBare*27.211386245988 << "), N_p up = " << ea[0].chargeUpBare << " (renormalised " << ea[0].chargeUp << ")" << std::endl;
 }
 
+// THE PSEUDO-ATOMIC PROJECTOR through ACBN0 (doc/HubbardProjectorPlan.md increment 4, 2026-10-25): the same
+// pseudo-atom 3p as the test above, but as an ATOM-CENTRED FUNCTION (its own 16 exponents, not contracted onto the
+// site's shells), so the bare (m1m2|m3m4) come from the set's own one-centre closed form and the coefficients
+// from B = <chi|set>.  Claims: the run carries U, ACBN0 on it is finite and sane (0 < J < U, bare charge at most
+// 3 per site per channel), and the polarized singlet twin gives the same E, E_U and estimate (pin 5).
+TEST(GPW_Si, Γ_U_PseudoAtomic3p_Imp_Pol_eqUnpol)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma U=2 eV on the pseudo-atomic 3p projector");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};
+    for (auto& M : o.hubbard) M.projector=Hamiltonian::HubbardProjectorKind::PseudoAtomic;
+    SCFParams par=ProductionGates();
+    qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
+    o.multiplicity=1; o.label="Si SR Gamma U=2 eV on the pseudo-atomic 3p projector, pol-singlet";
+    qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
+    auto a=unpol.Result(), b=pol.Result();
+    ASSERT_TRUE(a) << Why(a);
+    ASSERT_TRUE(b) << Why(b);
+    const double U=2.0/27.211386245988;
+    EXPECT_GT(a->EnergyTerms()["E_U"], 0.0);
+    EXPECT_LT(a->EnergyTerms()["E_U"], 1.5*U) << "Sum U/2 lambda(1-lambda) per site is below the half-filled p's 3U/4";
+    EXPECT_NEAR(b->EnergyTerms()["E_U"], a->EnergyTerms()["E_U"], 1e-6);
+    EXPECT_NEAR(b->Energy(), a->Energy(), 1e-6);
+    const auto ea=unpol.EstimateHubbardU(), eb=pol.EstimateHubbardU();
+    ASSERT_EQ(ea.size(), 2u); ASSERT_EQ(eb.size(), 2u);
+    for (size_t M=0;M<2;M++)
+    {
+        EXPECT_GT(ea[M].Jbar, 0.0); EXPECT_GT(ea[M].Ubar, ea[M].Jbar) << "U-bar > J-bar on the one-centre 3p";
+        EXPECT_GT(ea[M].chargeUpBare, 0.0); EXPECT_LT(ea[M].chargeUpBare, 3.0) << "at most the 3 p electrons per site per channel";
+        EXPECT_NEAR(eb[M].Ubar, ea[M].Ubar, 1e-5); EXPECT_NEAR(eb[M].Jbar, ea[M].Jbar, 1e-5);
+        EXPECT_NEAR(eb[M].chargeUp, ea[M].chargeUp, 1e-6);
+    }
+    EXPECT_NEAR(ea[0].Ubar, ea[1].Ubar, 1e-8) << "the two Si sites are equivalent";
+    std::cout << "[ACBN0 Si pseudo-atomic 3p] U_eff = " << ea[0].Ueff()*27.211386245988 << " eV (bare " << ea[0].UbarBare*27.211386245988
+              << "/" << ea[0].JbarBare*27.211386245988 << "), N_p up = " << ea[0].chargeUpBare << " (renormalised " << ea[0].chargeUp << ")" << std::endl;
+}
+
 // THE ACBN0 OUTER LOOP (increment 3, 2026-09-21): estimate, write U_eff into the term ON THE SAME HAMILTONIAN,
 // re-converge from the current density, repeat.  What this gate claims on Si p: the second SCF actually FEELS
 // the new U (E_U > 0 where the U=0 start had none -- this is the cache-invalidation contract: SetU must drop

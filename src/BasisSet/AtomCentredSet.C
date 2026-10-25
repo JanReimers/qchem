@@ -22,6 +22,7 @@ module;
 #include <vector>
 export module qchem.BasisSet.AtomCentredSet;
 export import qchem.Math.Gaussian;            // Math::Gaussian -- one c r^{2n} e^{-alpha r^2} term
+export import qchem.BasisSet.BareCoulombSource; // the set's own bare integrals (ACBN0 over a pseudo-atomic manifold, HubbardProjectorPlan D6)
 import qchem.Types;                           // rvec3_t, mat_t<T>
 
 export namespace qchem::BasisSet
@@ -57,7 +58,11 @@ public:
 
 //! \brief The value type: manifolds added one by one, each radial NORMALISED on entry (so a caller hands over
 //! a shape, e.g. an atomic orbital's raw contraction, and the set's contract holds by construction).
-class GaussianAtomCentredSet : public virtual AtomCentredSet_Gaussian
+//! It answers its OWN bare two-electron integrals (\c BareCoulombSource, over set column indices) for
+//! functions on ONE centre -- what ACBN0 needs over a manifold (HubbardProjectorPlan D6, increment 4).
+class GaussianAtomCentredSet
+    : public virtual AtomCentredSet_Gaussian
+    , public virtual BareCoulombSource
 {
 public:
     //! Add manifold (\a centre, \a l) with radial shape \a radial (any overall scale; \f$r^l\f$ implied).
@@ -70,6 +75,13 @@ public:
     virtual rvec3_t Centre(size_t M) const override {return itsM[M].centre;}
     virtual int     L     (size_t M) const override {return itsM[M].l;}
     virtual const std::vector<Math::Gaussian>& AsGaussians(size_t M) const override {return itsM[M].radial;}
+    //! \brief \f$(ab|cd)\f$ over set columns \a cols, all on ONE centre (throws otherwise: a two-centre integral
+    //! has no business here).  EXACT, no quadrature: the one-centre multipole expansion
+    //! \f$(ab|cd)=\sum_k\frac{4\pi}{2k+1}R^k(ab;cd)\sum_qG_{ab}^{kq}G_{cd}^{kq}\f$, with the real Gaunt factors
+    //! \f$G\f$ from sphere-monomial integrals of the set's own harmonics and the Slater integrals \f$R^k\f$ of
+    //! Gaussian radial densities in closed form (an incomplete beta \f$B_x(a,b)\f$ with INTEGER \f$b\f$, a finite
+    //! sum).  Central cell, no lattice sum -- the \c BareCoulombSource contract.
+    virtual ERI4Block BareCoulomb(const std::vector<size_t>& cols) const override;
 private:
     struct Manifold { rvec3_t centre; int l; std::vector<Math::Gaussian> radial; };
     std::vector<Manifold> itsM;

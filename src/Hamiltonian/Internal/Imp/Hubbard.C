@@ -985,16 +985,29 @@ std::vector<size_t> Hubbard_U::EquivalentManifolds(size_t M) const
         if (itsManifolds[K].l==itsManifolds[M].l && itsSiteZ[itsManifolds[K].site]==itsSiteZ[itsManifolds[M].site]) eq.push_back(K);
     return eq;
 }
-template <class U> static std::vector<BasisSet::ERI4Block> IntegralsOf(const LowdinProjector<U>& P, const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb)
+// The bare integrals pair with ManifoldCoefficients: over the functions Q_M c is expressed on.  A SITE-SHELL manifold's are
+// the block's columns carried through the on-site contraction; a PSEUDO-ATOMIC manifold's are the set's own functions (one
+// centre, orthonormal within the manifold, central cell -- HubbardProjectorPlan D6), which the set answers itself.
+template <class U> static std::vector<BasisSet::ERI4Block> IntegralsOf(const LowdinProjector<U>& P, const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb,
+                                                                      const BasisSet::GaussianAtomCentredSet* set)
 {
+    if (set)
+    {
+        std::vector<BasisSet::ERI4Block> out;
+        for (size_t M=0;M<P.NumManifolds();M++)
+        {
+            std::vector<size_t> cols(set->Size(M));
+            for (size_t a=0;a<cols.size();a++) cols[a]=set->Offset(M)+a;
+            out.push_back(set->BareCoulomb(cols));
+        }
+        return out;
+    }
     const auto* src=dynamic_cast<const BasisSet::BareCoulombSource*>(&orb);
     if (!src) throw std::runtime_error("Hubbard_U::ManifoldIntegrals: the orbital block cannot deliver bare two-electron "
                                        "integrals over a function subset (no BareCoulombSource face)");
     std::vector<BasisSet::ERI4Block> out;
     for (size_t M=0;M<P.NumManifolds();M++)
     {
-        if (P.Columns(M).empty())   // HubbardProjectorPlan increment 4: the set's own one-centre ERIs
-            throw std::logic_error("Hubbard_U::ManifoldIntegrals: a pseudo-atomic manifold's bare integrals are not built yet (HubbardProjectorPlan increment 4)");
         const BasisSet::ERI4Block cols=src->BareCoulomb(P.Columns(M));
         const rmat_t& V=P.Contraction(M);
         bool identity = V.rows()==V.columns();
@@ -1004,9 +1017,9 @@ template <class U> static std::vector<BasisSet::ERI4Block> IntegralsOf(const Low
     return out;
 }
 std::vector<BasisSet::ERI4Block> Hubbard_U::ManifoldIntegrals(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const
-{return IntegralsOf<double>(Projector<double>(orb), orb);}
+{return IntegralsOf<double>(Projector<double>(orb), orb, itsSet.get());}
 std::vector<BasisSet::ERI4Block> Hubbard_U::ManifoldIntegrals(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const
-{return IntegralsOf<dcmplx>(Projector<dcmplx>(orb), orb);}
+{return IntegralsOf<dcmplx>(Projector<dcmplx>(orb), orb, itsSet.get());}
 template <class U> static std::vector<mat_t<U>> CoefficientsOf(const LowdinProjector<U>& P, const mat_t<U>& C)
 {
     std::vector<mat_t<U>> out;
