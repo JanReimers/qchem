@@ -72,6 +72,10 @@ struct RunSpec
         bool spherical=false;
         std::vector<Trim> trim;     //!< a STATED trim (built once, no vet loop)
         bool vet=false;             //!< the vet-stage trim at \c solid.orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)
+        //! The orbital basis FAMILY ("gaussian" | "planeWave", OpenWork §2 PW-1); copied into \c solid at run time.  A plane-wave run still
+        //! builds the Gaussian \c data basis (the facade takes one; only a +U \c atomicRadial manifold reads it).
+        SolidCalcOptions::OrbitalBasis family = SolidCalcOptions::OrbitalBasis::GPW;
+        double ecut=0.0;            //!< Ha, the plane-wave orbital cutoff (QE's ecutwfc / 2); planeWave only
     };
     //! Saved states (CK-1).  \c save: empty = never, "auto" = `<outDir>/states/<stem>.h5` after every stage, else a path.  \c restartFrom: a REVISION
     //! STEM (`MnO_AFM2.r003` -> `<outDir>/states/MnO_AFM2.r003.h5`, and that revision becomes this run's \c parent) or a path; runs the schedule's FINAL

@@ -95,6 +95,7 @@ using qcMesh::UnitCellKind; using qcMesh::RadialKind; using qcMesh::AngularKind;
 #define NAMES(T,...) std::initializer_list<std::pair<const char*,T>>{__VA_ARGS__}
 const auto kRaster = NAMES(RasterPolicy, {"AliasFree",RasterPolicy::AliasFree}, {"BallOnly",RasterPolicy::BallOnly});
 const auto kImages = NAMES(CellImages,   {"Periodic",CellImages::Periodic}, {"HomeCellOnly",CellImages::HomeCellOnly});
+const auto kFamily = NAMES(SolidCalcOptions::OrbitalBasis, {"gaussian",SolidCalcOptions::OrbitalBasis::GPW}, {"planeWave",SolidCalcOptions::OrbitalBasis::PlaneWave});
 const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Auto}, {"PlaneWave",Hamiltonian::VxcFit::PlaneWave}, {"Delta",Hamiltonian::VxcFit::Delta});
 const auto kAcc    = NAMES(AccType, {"DIIS",AccType::DIIS}, {"GDM",AccType::GDM}, {"Ladder",AccType::Ladder}, {"Null",AccType::Null},
                          {"Auto",AccType::Auto});
@@ -397,6 +398,7 @@ json BasisJson(const RunSpec::Basis& b)
     json j={{"data",NameOf(b.data,kBasisData)},{"spherical",b.spherical}};
     if (!b.file.empty()) j["file"]=b.file;
     if (b.vet) j["vet"]=true;
+    if (b.family!=SolidCalcOptions::OrbitalBasis::GPW) { j["family"]=NameOf(b.family,kFamily); j["ecut"]=b.ecut; }
     if (!b.trim.empty())
     {
         json t=json::array();
@@ -409,6 +411,7 @@ void BasisFromJson(const json& j, RunSpec::Basis& b)
 {
     Fields f(j,"basis");
     f.GetEnum("data",b.data,kBasisData); f.Get("spherical",b.spherical); f.Get("file",b.file); f.Get("vet",b.vet);
+    f.GetEnum("family",b.family,kFamily); f.Get("ecut",b.ecut);
     if (j.contains("trim"))
     {
         b.trim.clear(); size_t i=0;
@@ -714,6 +717,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     const std::string stem=out.revision.stem().string(); // <structure>.rNNN -- the run's name in its own output
 
     if (spec.solid.label=="gpw") spec.solid.label=stem;
+    spec.solid.orbitalBasis=spec.basis.family; spec.solid.planeWaveEcut=spec.basis.ecut;   // the basis block names the family; the facade reads it from solid
     if (!spec.state.save.empty())
     {
         if (spec.state.save=="auto") { fs::create_directories(outDir/"states"); spec.solid.saveStateTo=(outDir/"states"/(stem+".h5")).string(); }

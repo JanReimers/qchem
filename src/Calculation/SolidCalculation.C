@@ -97,6 +97,18 @@ struct SolidCalcOptions
     std::vector<std::pair<std::string,int>> species;
     //!@}
 
+    //! \name The orbital basis FAMILY (doc/OpenWork.md §2 PW-1)
+    //!@{
+    //! \c GPW (default): periodic Gaussians over the ctor's molecular basis.  \c PlaneWave: plane waves at
+    //! \c planeWaveEcut, the SAME Hamiltonian stack (the terms ask the basis, never its family) -- with QE's
+    //! pseudopotential that makes a QE comparison a Hamiltonian-only one.  A PW run ignores the molecular
+    //! basis except where a +U manifold asks for its \c atomicRadial; the grid knobs below are GPW's.
+    //! First increment: Γ only, no imposition (the PW factory builds one Bloch block and no symmetry).
+    enum class OrbitalBasis { GPW, PlaneWave };
+    OrbitalBasis orbitalBasis = OrbitalBasis::GPW;
+    double planeWaveEcut = 0.0;   //!< Ha, the orbital cutoff \f$\tfrac12|k+G|^2<E_{cut}\f$ (QE's ecutwfc/2); PlaneWave only
+    //!@}
+
     //! \name Grids (the efficiency lever for ionic systems)
     //!@{
     double densityEcut  = -1.0;   //!< <0 AUTO: floor at \c cutoffFactor*alpha_max (recommended).

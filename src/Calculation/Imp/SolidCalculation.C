@@ -370,6 +370,23 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     // build, the Hamiltonian ctor's non-mesh half, the seed and the ortho landed in no bucket at all.  That
     // was ~48 s of a 119 s threaded MnO run, i.e. the largest non-scaling block in it, and unnamed.  Labels
     // match the GPW_SCF harness's so the two paths' ledgers read the same.
+    const bool planeWave = opts.orbitalBasis==SolidCalcOptions::OrbitalBasis::PlaneWave;
+    if (planeWave)
+    {
+        // THE PLANE-WAVE FAMILY (OpenWork §2 PW-1).  The factory builds ONE Γ block and knows no symmetry, so
+        // anything else is refused here rather than silently run as Γ / unimposed.
+        if (!(opts.planeWaveEcut>0.0))
+            throw std::invalid_argument("SolidCalcOptions: orbitalBasis PlaneWave needs planeWaveEcut > 0 (Ha)");
+        if (lat.MakeKMesh(opts.kShift).size()!=1 || opts.kShift!=rvec3_t(0,0,0))
+            throw std::invalid_argument("SolidCalcOptions: the plane-wave family is Γ-only so far (k-mesh 1x1x1, no shift)");
+        if (imposed)
+            throw std::invalid_argument("SolidCalcOptions: the plane-wave family has no symmetry imposition yet");
+        qchem::report::Timed timed("setup: PW basis build");
+        itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.planeWaveEcut));
+        std::cout<<"["<<opts.label<<" run] plane-wave orbital basis: Ecut "<<opts.planeWaveEcut<<" Ha, "
+                 <<itsImp->bs->GetNumFunctions()<<" PWs at Γ"<<std::endl;
+    }
+    else
     {
         qchem::report::Timed timed("setup: GPW basis build");
         // THE TOLERANCES are the typed value and nothing else (D-ENV step 6a: the environment is no longer an override layer; the retired
@@ -391,7 +408,9 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     // needed), then the grid ladder (EmitGpwGrids is what forces EnsureLevels).  Only when a run report is
     // open -- the emitters are inert otherwise -- and never an abort: a dependent basis is the caller's to
     // handle through a pivoted ortho, and an unhandled one fails loudly in the iterator.
-    if (qchem::report::Depth()>0)
+    // (Plane waves are orthonormal and grid-free: neither section has anything to say about them.)
+    if (planeWave) {}
+    else if (qchem::report::Depth()>0)
     {
         qchem::report::Timed timed("setup: vet basis (analytic S) + grids report");
         size_t nRemoved=0;
@@ -412,8 +431,13 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     // point the spec enters the Hamiltonian is what makes that impossible.
     // The XC-mesh route is a DECLARED CP2K deviation (RunPolicy::BeckeXC), resolved here beside the
     // imposition for the same reason: the policy belongs to the run, the sizing belongs to qcMesh.
-    itsImp->xcMesh = qcMesh::ResolveXCMesh(opts.xcMesh, GatherSharpness(lat, *mol, opts, imposed),
-                                           theRunPolicy().BeckeXC());
+    // A plane-wave run's Auto is its own FFT raster (QE's route): the sharpness gather prices Gaussians, and a
+    // delta fit would collocate every PW at every mesh point.  A STATED grid is obeyed, as for GPW.
+    if (planeWave && opts.xcMesh.cellKind==qcMesh::UnitCellKind::Auto)
+        itsImp->xcMesh = qcMesh::MeshParams{.cellKind=qcMesh::UnitCellKind::Uniform};
+    else
+        itsImp->xcMesh = qcMesh::ResolveXCMesh(opts.xcMesh, GatherSharpness(lat, *mol, opts, imposed),
+                                               theRunPolicy().BeckeXC());
 
     // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches
     // a singlet asked of an odd electron count BEFORE integer division silently empties a channel.
