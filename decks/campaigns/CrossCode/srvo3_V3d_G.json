@@ -55,5 +55,8 @@
     "alpha_eV": 0.027211386245987998
    }
   }
- ]
+ ],
+ "state": {
+  "save": "/home/janr/Code/qchem6-runs/SrVO3/states/srvo3_lowqtm_G_U0.h5"
+ }
 }

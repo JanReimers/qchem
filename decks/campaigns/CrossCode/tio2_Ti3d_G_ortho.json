@@ -126,5 +126,8 @@
     ]
    }
   }
- ]
+ ],
+ "state": {
+  "save": "/home/janr/Code/qchem6-runs/TiO2/states/tio2_lowqtm_G_U0.h5"
+ }
 }
