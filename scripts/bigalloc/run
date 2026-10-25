@@ -1,0 +1,6 @@
+#!/bin/bash
+# usage: scripts/bigalloc/run TRACE_OUT [MIN_BYTES] -- command args...   (then: scripts/bigalloc/live.py TRACE_OUT)
+d="$(cd "$(dirname "$0")" && pwd)"; out="$1"; shift; min=1000000
+if [ "$1" != "--" ]; then min="$1"; shift; fi; [ "$1" = "--" ] && shift
+so="$d/bigalloc.so"; [ "$so" -nt "$d/bigalloc.c" ] || gcc -O2 -shared -fPIC -o "$so" "$d/bigalloc.c" -ldl -lpthread || exit 1
+BIGALLOC_OUT="$out" BIGALLOC_MIN="$min" LD_PRELOAD="$so" "$@"
