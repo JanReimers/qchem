@@ -2513,3 +2513,52 @@ TEST(GPW, TightPrimitiveVlongOracle)
             }
         }
 }
+
+// THE TIGHT-PAIR COLLOCATION ORACLE: the DENSITY of one tight primitive -- what Hartree (and every density-grid term)
+// sees -- against its closed form at low G, at the AUTO density floor and at 6 x the pair exponent.  A unit load on fn p:
+// |rho~(G) / rho~(0)| = prod_axis FT1D(2n, 2 alpha, G_axis) / FT1D(2n, 2 alpha, 0) (the V_long oracle's transforms).
+// Reports both cutoffs; ASSERTS the converged one (the AUTO floor's error is an OpenWork §3 decision, not a gate).
+TEST(GPW, TightPrimitiveCollocationOracle)
+{
+    const double a=10.0;
+    UnitCell cell(a);
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    const rvec3_t C(a/2,a/2,a/2);
+    for (double alpha : {10.0, 36.0, 76.68})
+        for (double ecut : {-1.0, 12.0*alpha})
+        {
+            auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
+            cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{alpha}, 2, &cell));
+            std::shared_ptr<const Real_BS> mol(cbs);
+            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut);
+            const GPW_Evaluator& ev=gpw;
+            const Complex_OIBS&  g  =gpw;
+            const Real_OIBS* obs=nullptr;
+            for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
+            const size_t nf=g.GetNumFunctions();
+            const Projector3<dcmplx> ov=ev.Overlap3CTensor();
+            double worst=0.0;
+            for (size_t p : {size_t(0), size_t(4), size_t(5)})   // s, x^2, xy
+            {
+                const ivec3_t n=MonomialOf(*obs, p, C, alpha, 2);
+                ASSERT_GE(n.x,0);
+                chmat_t D(nf);
+                for (size_t i=0;i<nf;i++) for (size_t j=i;j<nf;j++) D(i,j)=dcmplx(0.0);
+                D(p,p)=dcmplx(1.0);
+                ΔG_Map rho=Contract(ov, D);
+                const double r0=std::abs(rho[ivec3_t(0,0,0)]);
+                const double pp=2.0*alpha;
+                const double f0=FT1DEven(2*n.x,pp,0.0)*FT1DEven(2*n.y,pp,0.0)*FT1DEven(2*n.z,pp,0.0);
+                for (const ivec3_t m : {ivec3_t(1,0,0), ivec3_t(1,1,0), ivec3_t(2,1,1), ivec3_t(3,0,2), ivec3_t(4,4,0)})
+                {
+                    const rvec3_t G(2*Pi*m.x/a, 2*Pi*m.y/a, 2*Pi*m.z/a);
+                    const double exact=std::fabs(FT1DEven(2*n.x,pp,G.x)*FT1DEven(2*n.y,pp,G.y)*FT1DEven(2*n.z,pp,G.z)/f0);
+                    const double got=std::abs(rho[m])/r0;
+                    worst=std::max(worst, std::fabs(got-exact));
+                }
+            }
+            std::cout<<"[tight collocation] alpha="<<alpha<<" densityEcut="<<(ecut<0 ? "AUTO" : std::to_string(ecut))
+                     <<"  worst |rho~(G)/rho~(0) - exact| over s,x^2,xy x 5 G = "<<worst<<std::endl;
+            if (ecut>0) EXPECT_LT(worst, 1e-6) << "alpha="<<alpha;
+        }
+}
