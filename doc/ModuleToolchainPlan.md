@@ -56,6 +56,11 @@ green before the next.
 - **Step 4 — Modularize the Blaze fork.** The big BMI/compile-time lever, uniquely feasible because we own the
   fork. Do it LAST: on top of C++23 (so modular Blaze can `import std;` itself) and after json has de-risked the
   modular-3rd-party path. Expect expression-template/ADL visibility quirks — Clang 22 handles these best.
+  **Batch the fork's pending fixes into this step** (user, 2026-10-25: several Blaze fixes are wanted; do them all at once):
+  - `blaze/math/lapack/heevx.h` + `syevx.h`: the eigenvector backends (`(A, w, Z, …)`) call LAPACK with `jobz='N'` at both
+    call sites each, so Z comes back as allocated — right eigenvalues, ZERO eigenvectors, no error.  Fix: `'V'`.  Worked around in
+    `LASolverOrthonormal::Lowest` (raw lapack wrapper, 0-based il/iu); after the fix it can use the high-level overload, gate
+    `UTLASolver LASolverOrthonormal.PartialSolve*` (OpenWork §3 row "Blaze fork: heevx/syevx").
 
 - **Step 5 — REPLACE googletest (action item, user, 2026-09-21).**  Two reasons, one of them disqualifying:
   **(a) gtest silently passes an empty selection.**  On 2026-09-20 we found that every ctest sweep since the
