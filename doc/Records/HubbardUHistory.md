@@ -2127,3 +2127,63 @@ The gap is FLAT (0.220–0.242) under every addition, including the diffuse O p 
 
 Characters agree to ~0.01 on every band, so the first-order U shift per band is QE's (the "U acts more weakly per band" hypothesis is WRONG).  Energies from the deep pure-O-z band 15 (untouched by U): O normal +1.46 vs QE +1.33, HOMO O z +2.07 vs +2.06, LUMO Mn d +2.30 vs +2.39.  The gap is short because the Mn d LUMO sits 0.09 eV LOW (and the U'd band 0.13 eV high): same characters, different energies — the self-consistent response to U, not its action.  Open.
 
+
+## 2026-10-24 — The gap residual is the SELF-CONSISTENT RESPONSE of two bands to U; convergence and pin 28 cleared
+
+Decks `~/Code/qchem6-runs/MnO2/basis_scan/m0_imp_{,U0_}Op018_PA.json` (stage 1 + banked GDM stage 2, kT 0) and `m0_imp_s1t_{,U0_}Op018_PA.json` (stage 1 only, kT 1e-3 like QE, gated at Δρ 3e-5 just above the quadrature floor); VA + O p 0.18, pseudo-atomic projector, `QCHEM_DIAGNOSTICS=u_bands=10`.
+
+1. **Convergence: cleared.**  The GDM-converged U state (kT 0, |dE/E| < 1e-9) moves the bands ≤ 0.03 eV from the loose stage-1 run (O normal +1.456 vs +1.459, HOMO +2.069 vs +2.067, LUMO +2.274 vs +2.301, eV from the deep O z band).
+2. **Pin 28 (XC from ρ[D]): cleared.**  GDM mixes D itself, so its fixed point has XC on ρ[D_mix] with no fitted ρ̃ and no cusp-deficit correction; the residual is still there.
+3. **Trap: a U = 0 arm cannot take the kT-0 GDM stage.**  U = 0's frontier is a near-degenerate pair (QE occupations 0.61 / 0.39); integer occupations put it 20 mHa ABOVE the smeared state (−93.36180 vs −93.38443).  The U / U=0 difference is therefore read on the tight smeared pair.
+4. **Per band, matched by character, eV from the deep pure O z band (U-free):**
+
+| band | ours U=0 | QE U=0 | ours U | QE U | ΔU ours | ΔU QE |
+|---|---|---|---|---|---|---|
+| O normal (U'd slot) | +3.141 | +3.107 | +1.459 | +1.332 | **−1.682** | **−1.775** |
+| O z (HOMO under U) | +2.031 | +2.033 | +2.068 | +2.068 | +0.037 | +0.035 |
+| in-plane pair | +2.620 / 2.668 | +2.596 / 2.635 | +1.894 / 1.979 | +1.856 / 1.944 | −0.726 / −0.689 | −0.740 / −0.691 |
+| Mn d (LUMO) | +3.151 | +3.117 | +2.299 | +2.393 | **−0.852** | **−0.724** |
+
+At U = 0 every band is QE's to ≤ 0.04 eV on this basis (a near-uniform +0.03).  Under U two bands respond differently: the U'd O-normal band falls 0.09 eV LESS than QE's and the Mn d LUMO (no U on it) falls 0.13 eV MORE — exactly the gap deficit (0.034 − 0.128 = −0.094 eV).  The U'd slot's occupations are QE's (0.960 / 0.972 vs 0.961 / 0.972), the characters agree to 0.01 (previous entry), the ortho-atomic set is QE's (Mn 4s+3d, O 2s+2p per site, from `mno2b_G_OpzU.projwfc.out`) and E_U agrees to 0.1 %, so the FIRST-order shift U(½−λ) is QE's.  What differs is the second-order, self-consistent response of the rest of the Hamiltonian.  Hint (partition-dependent, not conclusive): the O moment falls 0.0276 under U in ours (Becke cells, 0.1467 → 0.1191) vs 0.0144 in QE (spheres R = 0.176 alat, 0.1499 → 0.1355); Mn rises +0.0034 vs +0.0084.
+
+Side defect found: after a GDM stage `u_bands` prints ~0 slot weight on every VIRTUAL band (energies right) → OpenWork §3 row.
+
+**The occupation response to U, on the shared ortho-atomic projectors (same day).**  QE: `mno2b_U0_tok` and `mno2b_G_OpzU_Mn` (`~/Code/qe-runs/MnO2/`; token U = 1e-8 on Mn 3d and O 2p so ns is printed — orbital-resolved form, QE refuses to mix it with shell-averaged U; energies unchanged to 1e-8 Ry).  Ours: the tight smeared pair `m0_imp_s1t_{U0_,}Op018_PA` (`[+U]` lines).
+
+| | U=0 QE / ours | U QE / ours | Δ QE / ours |
+|---|---|---|---|
+| Mn d total | 5.0411 / 5.0708 | 4.9187 / 4.9423 | −0.122 / −0.129 |
+| Mn d moment | 3.514 / 3.518 | 3.551 / 3.541 | +0.037 / +0.023 |
+| O p total | 4.924 / 4.911 | 5.002 / 4.994 | +0.078 / +0.083 |
+| O p moment | 0.180 / 0.183 | 0.163 / 0.161 | −0.017 / −0.022 |
+
+The CHARGE response (Mn d → O p) agrees to 5–7 %; the Mn SPIN response is ~60 % of QE's (the O-moment hint, now on shared projectors).  Order of magnitude: neither difference alone moves the Mn d LUMO 0.13 eV (spin ~0.01 eV via an Mn exchange splitting ~0.9 eV/μB; charge only through an unscreened on-site Coulomb) — so not an occupation effect; the clearly different ingredient is the Mn SPIN response → the Mn XC (exchange) potential's response is the lead suspect.  Open.
+
+**The three XC checks (user's list, same day; decks + logs `~/Code/qchem6-runs/MnO2/basis_scan/xc/`, U / U = 0 pairs on the tight smeared decks, bands named by `u_bands` character, eV from the deep O z band):**
+
+| U arm | gap | O normal | O z top | Mn d | Mn d moment |
+|---|---|---|---|---|---|
+| baseline (Becke nR 40, L 29, Delta fit, ρ_mix + cusp deficit) | 0.231 | +1.459 | +2.068 | +2.299 | +3.5407 |
+| 1. mesh nR 80, L 35 (425 k pts, ~3×) | 0.232 | +1.459 | +2.067 | +2.299 | +3.5406 |
+| 2. V_xc fit PlaneWave | 0.235 | +1.457 | +2.067 | +2.302 | +3.5409 |
+| 3. `policy.xcFromDM` ("XC rho source: rho[D] WHOLESALE") | 0.231 | +1.459 | +2.068 | +2.299 | +3.5407 |
+
+The U = 0 arms likewise (Mn d +3.151, moment +3.5176–3.5178).  ALL THREE RULED OUT: the mesh, the fit and the ρ route move nothing at the 1e-3 eV / 1e-4 e level (check 3 is identical to 1e-8 — at the fixed point the cusp-deficit route IS ρ[D]).  The Mn spin response (+0.023 vs QE +0.037) and the Mn d band's extra 0.13 eV drop remain unexplained; the decisive instrument is the plane-wave route (OpenWork §2 PW-1…4): same PP as QE, so any difference would be a Hamiltonian difference by construction.
+
+
+## 2026-10-25 — QE cutoff ladder: both residuals survive at a cutoff a DENSE plane-wave solve can reach
+
+Question: can the plane-wave instrument (OpenWork §2 PW-1…4) run DENSE, at a cutoff matched with QE, instead of waiting on a sparse/matrix-free route (PW-2)?  Only if QE's own response to U is already converged at that low cutoff.  Decks + outputs `~/Code/qe-runs/MnO2/ladder/` (`mno2b_lad<Ry>_{U0,U}`; ecutrho = 4 × ecutwfc; otherwise the 300 Ry `mno2b_U0_tok` / `mno2b_G_OpzU_Mn` decks verbatim, token Mn 3d U so ns is printed); extractor reproduces the banked 300 Ry numbers exactly.  Moments from the ortho-atomic ns (up − down), bands from `projwfc.x` (spin 1, eV from the deep pure O z band; O normal = the odd one of the three O pxy bands, Mn d = the Mn d + O s frontier band).
+
+| ecutwfc (Ry) | N_PW (Γ) | Δ Mn d moment | Δ Mn d total | Δ O p total | Δ O normal (eV) | Δ Mn d band (eV) | gap U (eV) |
+|---|---|---|---|---|---|---|---|
+| 60 | ~2.9 k | +0.058 | −0.120 | +0.075 | −1.767 | −0.629 | 0.601 |
+| 80 | ~4.5 k | +0.039 | −0.131 | +0.083 | −1.736 | −0.773 | 0.271 |
+| 100 | ~6.4 k | +0.037 | −0.127 | +0.081 | −1.751 | −0.752 | 0.289 |
+| 150 | ~11.7 k | +0.037 | −0.124 | +0.079 | −1.768 | −0.732 | 0.318 |
+| 300 (banked) | 33 k | +0.037 | −0.122 | +0.078 | −1.774 | −0.723 | 0.325 |
+| **ours** (VA + O p 0.18) | — | **+0.023** | −0.129 | +0.083 | **−1.682** | **−0.852** | 0.231 |
+
+From 80 Ry up both residuals are QE's at the 300 Ry level within a fraction of their size: the Mn spin response is +0.037–0.039 (ours +0.023), the Mn d band falls 0.72–0.77 eV (ours 0.85), the U'd O-normal band 1.74–1.77 (ours 1.68).  60 Ry is NOT converged (even the U = 0 bands are 0.3 eV off).  ⇒ **a dense PW run at 40–50 Ha (4.5–6.4 k PWs, real TRIM block) matched to QE at 80–100 Ry discriminates basis vs Hamiltonian; PW-2 is off this diagnosis's critical path.**
+
+**Trap: QE's orbital-resolved U has several self-consistent fixed points.**  From the atomic start the 100 and 150 Ry U arms converged to OTHER states — spin-down O ns off-diagonal sign flipped (+0.026 vs −0.082), the U'd orbital's occupation 0.83–0.88 instead of 0.97, E_U doubled (0.091 vs 0.044 Ry), at 150 Ry even the O moment reversed — 23 / 9 mHa ABOVE the state reached by seeding from the 300 Ry U run (`startingpot='file'` with its charge-density + `occup.txt` + `Hubbard_m_order.txt`).  The 80 Ry atomic start did not converge in 100 iterations.  All U rows above are SEEDED (9–13 iterations); the atomic-start outputs are kept as `*.atomicseed.scf.out` / `*.capped100.scf.out`.  A cross-code U comparison must name the basin (E_U and the U'd slot's ns), not just Etot.
