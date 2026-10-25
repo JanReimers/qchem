@@ -49,7 +49,7 @@ cd build/Release && ninja rundeck                                  # the one CLI
     //              independent of the orbital basis -- QE/hp.x's projector; "orthoAtomic" = QE's ortho-atomic over the set)
     //            | "siteShells" (CP2K's LOWDIN: every l-shell of the orbital basis on the site; the CP2K-parity route, say it
     //              where it is meant).  One kind per run.  "radial" / "atomicRadial" are RETIRED (a deck asking for a
-    //              contraction is refused; an old record's inert defaults still load).  doc/HubbardProjectorPlan.md
+    //              contraction is refused; an old record's inert defaults still load).  Record: Records/HubbardUHistory.md (HubbardProjectorPlan, retired)
   },
   "scf": { "NMaxIter":200, "minDeltaRhoPerElectron":1e-6, "deltaRhoMeasure":"L1PerElectron|MaxDeltaD",
            "mixer":"Auto|Linear|Kerker|Pulay",   // Auto (default): a hand-set kerkerG0/pulayDepth recipe is kept; else linear today (see SCFParams::Mixing)
