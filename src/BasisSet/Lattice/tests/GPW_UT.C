@@ -2420,3 +2420,96 @@ TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
     GPW_IBS foreign(cell2, N, ivec3_t(2,0,0), MakeBasis(cell2), 6.0);
     EXPECT_THROW(ket.TransitionRepulsion(*cd, foreign, dD, q), std::invalid_argument);
 }
+
+//------------------------------------------------------------------------------------------------------------
+// THE TIGHT-PRIMITIVE V_long ORACLE (2026-10-25, OpenWork §3 "GPW local-PP matrix elements wrong for a tight
+// primitive").  beta-MnO2 + ONE Mn d at alpha = 76.7 collapsed the SCF to Eloc = -8764 Ha.  Mn q7's GTH local is a
+// PURE erf-Coulomb (V_short = 0, gated above), so the defect is in V_long, and V_long has an exact closed form at
+// ANY exponent: for a primitive chi = x^a y^b z^c e^{-alpha r^2} on the Mn site,
+//   <chi|V_long|chi> = sum_{G != 0} v(G) rho~(G),   v(G) = -4 pi Z e^{-G^2 rloc^2/2} / (G^2 Omega),
+// rho~ = FT of chi^2 = prod_axis FT1D(2n, 2 alpha, G_axis), FT1D(m,p,g) = int x^m e^{-p x^2 - i g x} dx (m even)
+//   = sqrt(pi/p) (-1)^{m/2} (2 sqrt p)^{-m} H_m(u) e^{-u^2},  u = g / (2 sqrt p).
+// v(G) is negligible past |G| ~ 14 (rloc 0.64), so the sum is short; a tight pair has NO Bloch image overlap in a
+// 10-bohr box.  (The raster oracles above skip tight functions; this one does not need a raster.)
+//------------------------------------------------------------------------------------------------------------
+namespace
+{
+double HermiteH(int n, double x)
+{
+    double h0=1.0, h1=2.0*x;
+    if (n==0) return h0;
+    for (int k=1;k<n;k++) { const double h2=2.0*x*h1-2.0*k*h0; h0=h1; h1=h2; }
+    return h1;
+}
+double FT1DEven(int m, double p, double g)
+{
+    const double u=g/(2.0*std::sqrt(p));
+    return std::sqrt(Pi/p)*((m/2)%2 ? -1.0 : 1.0)*std::pow(2.0*std::sqrt(p),-m)*HermiteH(m,u)*std::exp(-u*u);
+}
+// Which Cartesian monomial (degree <= l) is basis function p?  Probe the value against each candidate at two points.
+ivec3_t MonomialOf(const Real_OIBS& obs, size_t p, const rvec3_t& C, double alpha, int l)
+{
+    const rvec3_t r1=C+rvec3_t(0.031,0.047,0.019), r2=C+rvec3_t(-0.023,0.041,0.037);
+    const double v1=obs(r1)[p], v2=obs(r2)[p];
+    for (int deg=0;deg<=l;deg++)   // the PG_Cart (exponents, LMax, cell) ctor builds EVERY L <= LMax
+    for (int a=deg;a>=0;a--) for (int b=deg-a;b>=0;b--)
+    {
+        const int c=deg-a-b;
+        auto m=[&](const rvec3_t& r){ const rvec3_t d=r-C; return std::pow(d.x,a)*std::pow(d.y,b)*std::pow(d.z,c)*std::exp(-alpha*(d*d)); };
+        const double q1=v1/m(r1), q2=v2/m(r2);
+        if (std::isfinite(q1) && std::fabs(q1-q2)<1e-8*std::fabs(q1)) return ivec3_t(a,b,c);
+    }
+    return ivec3_t(-1,-1,-1);
+}
+}
+
+TEST(GPW, TightPrimitiveVlongOracle)
+{
+    const double a=10.0;
+    UnitCell cell(a);
+    cell.AddAtom(25, {0.5,0.5,0.5});                                  // ONE Mn q7, off-corner (the r=0 imaging lesson)
+    const rvec3_t C(a/2,a/2,a/2);
+    const double Z=7.0, rloc=0.64, Omega=a*a*a;
+    const auto gth=Pseudopotential::GetGTH("Mn","LDA",7);
+    // the oracle's G list (cubic: G = 2 pi m / a), |G| <= 16
+    std::vector<rvec3_t> Gs;
+    const int M=int(16.0*a/(2*Pi))+1;
+    for (int i=-M;i<=M;i++) for (int j=-M;j<=M;j++) for (int k=-M;k<=M;k++)
+    {
+        if (!i && !j && !k) continue;
+        const rvec3_t G(2*Pi*i/a, 2*Pi*j/a, 2*Pi*k/a);
+        if (G*G<=256.0) Gs.push_back(G);
+    }
+    for (int l : {2})              // LMax 2: s + p + d at each exponent
+        for (double alpha : {2.0, 10.0, 36.0, 76.68})
+        {
+            auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
+            cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{alpha}, l, &cell));
+            std::shared_ptr<const Real_BS> mol(cbs);
+            // densityEcut = 6 x the PAIR exponent p = 2 alpha: the measured convergence point.  The ladder (2026-10-25, alpha 36 /
+            // 76.68, d x^2 diagonal V/S; oracle -6.59073 / -6.67893): E_cut/p ~ 1 (the AUTO floor 2 alpha_max) -8.145 / -8.784 (+-1.5 Ha,
+            // the xy partner off the other way); E_cut/p ~ 2.7  -6.598 / -6.718; E_cut/p >= 5.5  the oracle to <= 1e-5.  So the AUTO
+            // density floor is ~5x too coarse for the V_long integrate-back of a tight pair -- OpenWork §3, a decision (anchor-moving).
+            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0*alpha);
+            const GPW_Evaluator& ev=gpw;
+            const chmat_t Vl=ev.MakeLocalPPLong(&cell, gth.local);
+            const Real_OIBS* obs=nullptr;
+            for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
+            ASSERT_TRUE(obs);
+            const auto& S=obs->Overlap();
+            for (size_t p=0;p<obs->GetNumFunctions();p++)
+            {
+                const ivec3_t n=MonomialOf(*obs, p, C, alpha, l);
+                ASSERT_GE(n.x,0) << "could not identify fn "<<p;
+                const double pp=2.0*alpha;
+                double orac=0.0;
+                for (const auto& G : Gs)
+                    orac += -FourPi*Z*std::exp(-0.5*(G*G)*rloc*rloc)/((G*G)*Omega)
+                            *FT1DEven(2*n.x,pp,G.x)*FT1DEven(2*n.y,pp,G.y)*FT1DEven(2*n.z,pp,G.z);
+                const double norm0=FT1DEven(2*n.x,pp,0.0)*FT1DEven(2*n.y,pp,0.0)*FT1DEven(2*n.z,pp,0.0);
+                const double oracle=orac/norm0, prod=std::real(Vl(p,p))/std::real(S(p,p));
+                EXPECT_NEAR(prod, oracle, 1e-5*std::max(1.0,std::fabs(oracle)))
+                    << "l="<<l<<" alpha="<<alpha<<" fn "<<p<<" (x^"<<n.x<<" y^"<<n.y<<" z^"<<n.z<<")";
+            }
+        }
+}
