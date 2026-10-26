@@ -148,7 +148,7 @@ public:
     virtual rvec_t GetRepulsion3C(const Fitting::DensityProjector&) const;
 
     virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor
-    virtual void   MixIn        (const tMixableDensity<T>&,double)      ;  //this = (1-c)*this + c*that.
+    virtual void   Axpy         (double c, const tMixableDensity<T>&)   ;  //this += c*that.
     virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //Sum over blocks of Frobenius(delta density matrix)
     virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const;  //Max over blocks of MaxAbs(delta density matrix)
 

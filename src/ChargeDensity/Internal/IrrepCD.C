@@ -100,7 +100,7 @@ public:
     virtual size_t Version() const {return itsVersion;}
 
     virtual void   ReScale      (double factor              )      ; // No UT coverage
-    virtual void   MixIn        (const tMixableDensity<T>&,double)      ;  //this = (1-c)*this + c*that.
+    virtual void   Axpy         (double c, const tMixableDensity<T>&)   ;  //this += c*that.
     virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //Frobenius(delta density matrix)
     virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const;  //MaxAbs(delta density matrix) -- CP2K's EPS_SCF measure
 

@@ -332,7 +332,21 @@ template <class T> class tMixableDensity
 : public virtual tChargeDensity<T>
 {
 public:
-    virtual void   MixIn        (const tMixableDensity<T>&,double)      =0;  //!< this = (1-c)*this + c*that
+    //! \brief this += c*that -- the ONE binary mutation (2026-10-26): with \c ReScale (this *= f) it spans every linear
+    //! combination a mixer forms, the convex \c MixIn below and a Pulay extrapolation \f$\sum_i c_i D_i\f$ with negative
+    //! coefficients alike.  \a that must be the same representation (same blocks, same basis).  c = 0 is a no-op: no
+    //! version bump, so caches keyed on \c Version() stay valid.
+    virtual void   Axpy         (double c, const tMixableDensity<T>&)   =0;
+    //! \brief this = (1-c)*this + c*that, as \c ReScale(1-c) then \c Axpy(c).  NOT bit-identical to the one-expression
+    //! \f$D(1-c)+D'c\f$ it replaced: clang's default -ffp-contract=on fuses that into an FMA (one rounding fewer).  Measured
+    //! 2026-10-26: every energy within 1e-10, three iteration counts moved by 3 (GPW_SiBox x2, GPW_Al).  c = 0 (a linear mixer
+    //! at relax 1, the molecular default) is a no-op with no version bump.
+    void           MixIn        (const tMixableDensity<T>& that, double c)
+    {
+        if (c==0.0) return;
+        this->ReScale(1.0-c);
+        this->Axpy(c, that);
+    }
     //! \brief \f$\lVert D-D'\rVert_F\f$ per block, SUMMED over blocks by a composite (the historic Δρ; the
     //! loop divides it by the electron count).  ⚠ Not a max-abs, whatever older comments said.
     virtual double GetChangeFrom(const tMixableDensity<T>&       ) const=0;  //!< convergence check
