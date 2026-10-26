@@ -12,6 +12,9 @@
 #include <string>
 
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
+import qchem.BasisSet.Gaussian.Point.Reader;    // ReadShells / ShellMerge
+import qchem.BasisSet.Gaussian.Point.Factory;   // FactoryFromFile -- the orbital bases end to end
+import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Structure;
 import qchem.Types;
@@ -57,4 +60,54 @@ TEST(Gaussian94Reader, AnElementThatIsNotInTheFileThrowsNamingTheElementAndTheFi
         EXPECT_NE(what.find("Ti"), std::string::npos) << what;
         EXPECT_NE(what.find(file.string()), std::string::npos) << what;
     }
+}
+
+
+// TWO SHELLS OF DIFFERENT l SHARING ONE EXPONENT ON ONE ATOM (OpenWork §3, fixed 2026-10-26).  GaussianRF::operator== ignores L, so
+// the s and the p below are "the same radial"; the historical merge (kept for the density-fit bases) never added the new l and
+// loaded ONE function where an orbital basis needs four.  Bit NiO's scan the same day: Ni p 0.30 beside the Ni d window starting
+// at 0.30 loaded +2 functions, not +12.
+namespace
+{
+std::filesystem::path SharedExponentFile()
+{
+    const auto p=std::filesystem::temp_directory_path() / "qchem_UT_Gaussian94Reader_H_sp_shared.bsd";
+    std::ofstream f(p);
+    f << "header\n!\nBASIS=\"UT: H s + p at ONE exponent\"\n H   0\n S   1  1.00\n      1.0   1.0\n P   1  1.00\n      1.0   1.0\n****\n";
+    return p;
+}
+}
+
+TEST(Gaussian94Reader, ReadShellsKeepsEachLForAnOrbitalBasisAndMergesForAFitBasis)
+{
+    Molecule m; m.Insert(new Atom(1, 0.0, Vector3D(0,0,0)));
+    {
+        Gaussian94Reader reader(SharedExponentFile().string());
+        const auto sh=ReadShells(reader, m, ShellMerge::KeepEachL);
+        ASSERT_EQ(sh.size(), 2u) << "the s and the p are two blocks";
+        EXPECT_EQ(sh[0].Ls, std::vector<int>{0});
+        EXPECT_EQ(sh[1].Ls, std::vector<int>{1});
+    }
+    {
+        Gaussian94Reader reader(SharedExponentFile().string());
+        const auto sh=ReadShells(reader, m, ShellMerge::LegacyMerge);
+        ASSERT_EQ(sh.size(), 1u) << "the fit bases' historical merge, kept bit-identical";
+        EXPECT_EQ(sh[0].Ls, std::vector<int>{0}) << "...which never adds the new l (the documented quirk)";
+    }
+}
+
+TEST(Gaussian94Reader, AnOrbitalBasisLoadsEveryShellOfASharedExponent)
+{
+    Molecule m; m.Insert(new Atom(1, 0.0, Vector3D(0,0,0)));
+    const std::string file=SharedExponentFile().string();
+    auto count=[&](Engine e, Angular a)
+    {
+        std::unique_ptr<qchem::BasisSet::tBasisSet<double>> bs(FactoryFromFile(file, &m, e, a));
+        size_t n=0;
+        for (auto ibs : bs->template Iterate<qchem::BasisSet::Real_OIBS>()) n+=ibs->GetNumFunctions();
+        return n;
+    };
+    EXPECT_EQ(count(Engine::MnD,     Angular::Cartesian), 4u) << "1 s + 3 p";
+    EXPECT_EQ(count(Engine::MnD,     Angular::Spherical), 4u);
+    EXPECT_EQ(count(Engine::LibCint, Angular::Cartesian), 4u);
 }

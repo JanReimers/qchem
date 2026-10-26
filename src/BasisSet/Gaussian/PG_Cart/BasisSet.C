@@ -39,7 +39,8 @@ class IrrepBasisSet
     public:
         typedef std::vector<std::unique_ptr<Block>> bv_t;
     
-        IrrepBasisSet(Reader *, const Structure *);
+        //! \a merge: how same-radial shells on one atom combine (\c ShellMerge) -- \c KeepEachL for an orbital basis.
+        IrrepBasisSet(Reader *, const Structure *, ShellMerge merge=ShellMerge::LegacyMerge);
         IrrepBasisSet(const rvec_t &exponents, size_t L, const Structure *);
         IrrepBasisSet(const rvec_t &exponents, size_t L);
         virtual ~IrrepBasisSet(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.

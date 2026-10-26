@@ -37,7 +37,7 @@ class IrrepBasisSet
           public Sph::NR_Evaluator                 // IS-A spherical evaluator, which IS-A SphData
     {
     public:
-        IrrepBasisSet(Reader*, const Structure*);
+        IrrepBasisSet(Reader*, const Structure*, ShellMerge merge=ShellMerge::LegacyMerge);   //!< \c KeepEachL for an orbital basis
         IrrepBasisSet(const rvec_t& exponents, size_t L, const Structure*);
         virtual ~IrrepBasisSet();
 

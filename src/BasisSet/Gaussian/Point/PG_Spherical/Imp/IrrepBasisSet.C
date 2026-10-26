@@ -32,41 +32,17 @@ template <class T> T Max(const std::vector<T>& v) {return *std::max_element(v.be
 //
 //  Orbital spherical-Gaussian basis set.
 //
-IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
+IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl, ShellMerge merge)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
     //
-    //  Read in all the radial functions (contracted or single Gaussians), de-duplicating by exponent and
-    //  accumulating the L list.  Copied verbatim from PG_Cart so the (radial, Ls) set is identical -- the
-    //  only divergence is the angular expansion below (real solid harmonics, not Cartesian monomials).
+    //  Read in all the radial functions and their l-sets, de-duplicated per \a merge -- the SAME ReadShells as PG_Cart, so the
+    //  (radial, Ls) set is identical; the only divergence is the angular expansion below.
     //
-    std::vector<std::unique_ptr<GaussianRF>> radials;   // owns the radials: no manual delete, leak-proof
+    std::vector<ReadShell> shells=ReadShells(*bsr, *cl, merge);
+    std::vector<std::unique_ptr<GaussianRF>> radials;
     std::vector<std::vector<int> >    Ls;
-    for (auto atom:*cl) //Loop over atoms.
-    {
-        bsr->FindAtom(*atom);
-        while (std::unique_ptr<GaussianRF> rf{bsr->ReadNext(*atom)}) //Read in the radial function.
-        {
-            bool duplicate=false;
-            for (size_t i=0; i<radials.size(); i++)
-                if (*radials[i]==*rf) //Check for a duplicate, ignoring Lmax.
-                {
-                    duplicate=true;
-                    std::vector<int> newLs=bsr->GetLs();
-                    bool UseNewRF=Max(newLs) > Max(Ls[i]);
-                    for (auto l:newLs)
-                        if (std::find(Ls[i].begin(),Ls[i].end(),l)!=Ls[i].end()) Ls[i].push_back(l); //Add elements not in common.
-                    if (UseNewRF) radials[i]=std::move(rf);  // replace lower-Lmax dup: old freed, new owned (no erase/insert/delete)
-                    // else: rf is the lower-Lmax duplicate -> freed automatically at scope exit
-                    break;                                   // a radial appears at most once in radials (deduped)
-                }
-            if(!duplicate)
-            {
-                radials.push_back(std::move(rf));
-                Ls     .push_back(bsr->GetLs());
-            }
-        }
-    }
+    for (auto& sh : shells) { radials.push_back(std::move(sh.rf)); Ls.push_back(sh.Ls); }
     //
     //  Expand each radial into the 2l+1 real solid harmonics for each of its L's.  itsRadials owns the
     //  GaussianRF objects; comps hold borrowed pointers (the heap objects never move as itsRadials grows).
@@ -137,7 +113,7 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 //
 // Orbital spherical-Gaussian basis set (1E + HF + DFT 3-centre fit).
 //
-Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)            : IrrepBasisSet(bsr,cl) {};
+Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)            : IrrepBasisSet(bsr,cl,ShellMerge::KeepEachL) {};
 Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl) : IrrepBasisSet(es,L,cl) {};
 
 rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const

@@ -417,3 +417,15 @@ the rest capped / expect-throw tests.  `GPW_Si.Γ_U_ACBN0_OuterLoopFeelsTheNewU`
 loose-SCF slop (the +U potential commutes with D on Si's half-filled p) -- tolU 0 now forces maxOuter.  (5) Found by the crash:
 the plane-wave XC ball (§3 "Every plane-wave number predates the 4× XC ball"): `G_OrbitalPairBall` (stated by `PlaneWave_IBS`), the
 `fit=` source (an EXACT fit, user's definition: ρ always goes through the fit), the three PW unit tests rewritten to the density grid.
+
+## ✅ Same-exponent shells of different l merged silently (OpenWork §3; orbital half closed 2026-10-26) -- the row as it stood
+
+| **Two shells of DIFFERENT l sharing one exponent on one atom are MERGED -- silently** (bit 2026-10-24) | the known, flagged-not-fixed inverted condition in `PG_Cart/Imp/IrrepBasisSet.C` ~76 (and the duplicate check in `PG_Spherical`/`PG_LibCint`): `GaussianRF::operator==` ignores L, so a same-exponent shell is a "duplicate", the new l is never added, and the higher-Lmax radial REPLACES the old one.  β-MnO₂ scan: VA + O d 1.2 (VA already has O p 1.2) loaded 172 functions instead of 184 (Cartesian +12 not +24) and Etot came out +0.75 Ha ABOVE the smaller basis; O d 2.0 loads 184 correctly.  No error, no warning: any hand-built or scanned .bsd can hit it (CleanCode R1.0b is blocked on the same merge).  The code comment: the naive flip fixes ORBITAL bases but moves the DENSITY-FIT bases (Si₂ size-consistency 0.0026 → 0.024 Ha) | NOW: make it LOUD for orbital bases (throw on a same-exponent different-l pair on one atom, naming both shells) while the fit-basis path is understood; then the real fix (keep each l its own shell; the fit path's non-additivity) with a reader test that counts functions · `src/BasisSet/Gaussian/PG_Cart/Imp/IrrepBasisSet.C` |
+
+**Closed for orbital bases 2026-10-26.**  `ReadShells(Reader&, const Structure&, ShellMerge)` replaces the three verbatim copies of the
+reading loop (the libcint copy also erased-then-inserted through an invalidated iterator).  `KeepEachL` (every `Orbital_IBS`): a shell is a
+duplicate only when its radial AND l-set match; a same-exponent shell of another l is its own block.  `LegacyMerge` (the default, so every fit
+basis): the historical loop verbatim.  UTs `Gaussian94Reader.ReadShellsKeepsEachL…` / `AnOrbitalBasisLoadsEveryShellOfASharedExponent`
+(H s + p at one exponent: 4 functions on MnD Cartesian, MnD spherical and libcint -- was 1).  Found live: NiO's step-3 scan v2 (Ni p 0.30 /
+0.90 on the TM file, whose Ni d window starts at 0.30) loaded 146 functions for 156; v3 188 for 198.  Sweep: 0 of 1092 moved.  Shipped-file
+audit: every shared-exponent pair is in a fit file (A1/A2 coul+exch, cd, x) except `dzvp_test.bsd` Be s/p.
