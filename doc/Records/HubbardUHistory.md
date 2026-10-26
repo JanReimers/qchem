@@ -2178,3 +2178,21 @@ Mn vs O × sharp vs diffuse, each variant = VA + O p 0.18 plus shells on ONE ele
 | + Mn f 1.0, 2.5 | +0.0235 | −0.1281 | +0.0829 | −0.0215 | −1.691 | −0.847 | −8 mHa |
 
 The two residuals SEPARATE.  The BAND responses move with Mn p (the basis has none: −35 mHa, and half of both band residuals closes) and a little with Mn f; sharp Mn d does nothing (variationally 9 μHa).  The Mn SPIN response does not move with ANY variant (+0.0228…+0.0241 vs +0.0385) — after O p (both sides), diffuse/dense Mn d, sharp Mn d, Mn p, Mn f — and the read-out is not it (Mn d projector captured 0.9998).  What still differs between the Gaussian runs and the PW ones besides the basis: the Gaussian runs IMPOSE the A1-AFM Shubnikov group, the PW ones ran free; and the XC route (Becke vs FFT raster — three XC variants moved nothing, 2026-10-24).  Next: the control pair FREE (imposeSymmetry false), and a larger Mn p (+ f) set to see where the band responses saturate.
+
+## 2026-10-26 — Mn polarization closes the BAND residuals; the imposition is ruled out; the Mn SPIN response stays short
+
+Same settings as the polarization arms (vet off, CholeskyPivoted 1e-7, AliasFree); `~/Code/qchem6-runs/MnO2/basis_scan/pol/`.  Every arm independently from IonicSAD, every arm in the SAME basin (U: Mn d ±3.540–3.549, U'd O slot 0.960–0.961 / 0.972 = QE's seeded ground basin 0.958 / 0.969, not its metastable one; U0: Mn ±3.516–3.525, slot 0.861–0.865 / 0.835–0.840) — including the FREE control, which finds the imposed A1-AFM state unaided (Becke Mn ±3.4131 vs ±3.4130; the old "free lands at Mn +2.87/−3.79" predates the V_short/Ewald fixes).
+
+| U − U0 | Mn d moment | Mn d total | O p total | O normal (eV) | Mn d band (eV) | A(U0) vs control |
+|---|---|---|---|---|---|---|
+| PW 80 Ry (reference) | +0.0385 | −0.1307 | +0.0825 | −1.725 | −0.769 | — |
+| control (imposed) | +0.0229 | −0.1281 | +0.0830 | −1.683 | −0.851 | 0 |
+| control (FREE) | +0.0228 | −0.1284 | +0.0832 | −1.683 | −0.851 | −27 μHa |
+| + Mn p 0.4, 1.0, 2.5 | +0.0241 | −0.1269 | +0.0816 | −1.704 | −0.815 | −32.8 mHa |
+| + Mn p 0.25 … 4.0 (5) | +0.0240 | −0.1258 | +0.0810 | −1.708 | −0.806 | −41.2 mHa |
+| + Mn f 1.0, 2.5 | +0.0235 | −0.1281 | +0.0829 | −1.691 | −0.847 | −7.4 mHa |
+| + Mn p (5) + f 0.7, 1.4, 2.8 | +0.0262 | −0.1228 | +0.0786 | −1.729 | −0.773 | −55.1 mHa |
+
+1. **The imposition is ruled out**: free = imposed to 1e-4 in every column.
+2. **The BAND residuals are Mn POLARIZATION**, and they CLOSE: p alone saturates near −0.806 / −1.708; p + f lands on PW to 4 meV (−0.773 vs −0.769, −1.729 vs −1.725).  f helps little alone (−0.847) but a lot on top of a complete p (−0.806 → −0.773).  The basis had NO Mn p or f; the U0 energy falls 55 mHa.
+3. **The Mn SPIN response stays short**: +0.0262 at best (68 % of PW's +0.0385), and the CHARGE response (Mn d total, O p total) moves slightly AWAY from PW as the bands converge (−0.1228 vs −0.1307; +0.0786 vs +0.0825).  So the spin/charge response is a different deficit from the band one — still the basis by the PW verdict, but not O p, not Mn d (sharp or diffuse), not the imposition, not the grid, and only partly Mn p/f.  Next candidates: Mn d flexibility ON TOP of p5f3 (the d radial's freedom may only matter once the polarization is complete), Mn g, and the O side with Mn polarization present (O d).
