@@ -10,6 +10,8 @@
 //       alpha_max at all, which is what makes the crossover exist.
 #include "gtest/gtest.h"
 #include <cmath>
+#include <stdexcept>
+#include <string>
 import qchem.Mesh.XCPolicy;
 import qchem.Math;                // Pi
 
@@ -174,6 +176,22 @@ TEST(XCPolicy, AutoWithoutSharpnessTakesTheSafeGrid)
     MeshParams a; a.cellKind=UnitCellKind::Auto;
     EXPECT_EQ(ResolveXCMesh(a, XCMeshSharpness{}).cellKind, UnitCellKind::Becke);
     EXPECT_EQ(ResolveXCMesh(a).cellKind,                    UnitCellKind::Becke);
+}
+
+// AUTO PICKS THE KIND, NOT THE RECIPE (OpenWork §3, 2026-10-26): a grid field set beside Auto used to be DROPPED (a β-MnO₂ mesh-
+// convergence run came back bit-identical).  It now throws, naming the field; stating the kind honours the same field.
+TEST(XCPolicy, AGridFieldSetUnderAutoThrowsNamingIt)
+{
+    MeshParams a; a.cellKind=UnitCellKind::Auto; a.nRadial=60;
+    try { (void)ResolveXCMesh(a); FAIL() << "nRadial under Auto must throw"; }
+    catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find("nRadial"), std::string::npos) << e.what(); }
+    EXPECT_THROW((void)ResolveXCMesh(a, XCMeshSharpness{}), std::invalid_argument) << "the sharpness overload too";
+    MeshParams u; u.cellKind=UnitCellKind::Auto; u.eCut=50.0;
+    EXPECT_THROW((void)ResolveXCMesh(u), std::invalid_argument) << "a uniform recipe field is dropped by Auto as well";
+    MeshParams b=a; b.cellKind=UnitCellKind::Becke;
+    EXPECT_EQ(ResolveXCMesh(b).nRadial, 60) << "stating the kind: the field is honoured";
+    MeshParams d; d.cellKind=UnitCellKind::Auto;
+    EXPECT_NO_THROW((void)ResolveXCMesh(d)) << "nothing set: Auto as before";
 }
 
 // ARMED 2026-08-08 (V2.4): Auto now ACTS on the cost verdict.  The margin was validated by converged-run

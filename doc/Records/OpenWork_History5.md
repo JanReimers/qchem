@@ -429,3 +429,34 @@ basis): the historical loop verbatim.  UTs `Gaussian94Reader.ReadShellsKeepsEach
 (H s + p at one exponent: 4 functions on MnD Cartesian, MnD spherical and libcint -- was 1).  Found live: NiO's step-3 scan v2 (Ni p 0.30 /
 0.90 on the TM file, whose Ni d window starts at 0.30) loaded 146 functions for 156; v3 188 for 198.  Sweep: 0 of 1092 moved.  Shipped-file
 audit: every shared-exponent pair is in a fit file (A1/A2 coul+exch, cd, x) except `dzvp_test.bsd` Be s/p.
+
+
+## ✅ xcMesh recipe fields dropped under cellKind Auto (OpenWork §3; closed 2026-10-26) -- the row as it stood
+
+| **`xcMesh` knobs are DROPPED SILENTLY when `cellKind` is Auto** (2026-10-24) | `qcMesh::ResolveXCMesh(mp)` returns `BeckeXCParams()` (nR 40, L 29) whenever `cellKind==Auto` — the default — discarding any `nRadial` / `angularDegree` / radial kind the deck set; a β-MnO₂ mesh-convergence run came back bit-identical before this was noticed | honour the given fields when resolving Auto to Becke (Auto picks the KIND, not the recipe), or throw when a recipe field is set under Auto; a deck test that a set `nRadial` reaches the `[Becke grid]` line · `src/Mesh/XCPolicy.C` ~423 |
+
+**Closed 2026-10-26** by refusal, not by honouring: the recipe fields' defaults (`MeshParams{}`) are not the Becke recipe's, so "honour what
+was set" cannot tell a stated field from a default.  `RequireNoRecipeUnderAuto` (`src/Mesh/XCPolicy.C`) throws `std::invalid_argument`
+naming every recipe field that differs from `MeshParams{}` under Auto, at the top of both `ResolveXCMesh` overloads; deck `Resolve` calls
+it so `rundeck --check` refuses the deck (the run-time throw alone passed `--check`).  Rundeck's echoed records carry every field AT its
+default, so they still parse.  UTs `XCPolicy.AGridFieldSetUnderAutoThrowsNamingIt`, `Deck.AnXCMeshRecipeFieldUnderAutoIsRefusedAtResolve`.
+
+## ✅ The cusp-deficit guard refused an exact-fit basis (OpenWork §3; closed 2026-10-26) -- the row as it stood
+
+| **The cusp-deficit guard refuses an EXACT-fit basis** (2026-10-25) | `SCFParams::XCCuspDeficit` (default on) makes `PairDensitySampler` throw at iteration 2 of a plane-wave run ("asks for XC from ρ[D] … this mixed density has no raster shadow") — but on plane waves the BALL ρ IS ρ[D] (the {G} ball holds every G_i − G_j), so the deficit is identically zero.  Workaround: deck `scf.xcCuspDeficit false` | the fit basis answers what the sampler consumes — "is my fitted ρ exactly ρ[D]?" (true for PW, false for GPW) — and the guard asks it; gate: the PW-1 smoke deck converges with the default `SCFParams` · `src/ChargeDensity/Internal/Imp/DensitySampler_Pair.C` |
+
+**Closed 2026-10-26.**  `RequireRawForCusp(cd, isRaw, ballHoldsPairs)` (`DensitySampler_Pair.C`) skips the throw when the fit basis
+answers `G_OrbitalPairBall::HoldsEveryOrbitalPair()` -- plane waves since the 4× XC ball (same day) -- because the BALL ρ there IS ρ[D]
+and the deficit is identically zero; the XC column reads `fit=`.  Gate: the PW-1 smoke deck (`~/Code/qchem6-runs/MnO2/pw/MnO2_beta_A1AFM.r007.json`)
+with `scf.xcCuspDeficit true` (the default) converges.
+
+## Δρ gate "below the quadrature floor" (OpenWork §3, 2026-10-23) -- REFUTED 2026-10-26; the row as it stood
+
+| **A Δρ gate below the quadrature floor can never pass, silently** (2026-10-23) | β-MnO₂ (VA, Γ, GDM stage at kT 0): the energy fell monotonically to −93.0237884 Ha while Δρ (`minDeltaRhoPerElectron`) sat at 2e-5…7e-5 — its minimum, 2.34e-5, is EXACTLY the `ρ_lost/N` column, the run quadrature's own error integrating the charge, constant all run.  The L1 gate is measured on that quadrature, so a `1e-6` gate on this cell only ever waits for `NMaxIter`.  Same family: a deck stage that does not set the [F,D] gates inherits `MinFD 1e-5` / `MinΔFD 1e-7`, which a non-variational GPW GDM stage (‖[F,D]‖ ~5e-4) cannot meet either | confirm the floor (Δρ of a converged state re-sampled: ≥ ρ_lost/N?), then make it LOUD: the iterator (or `deck::Vet` once the mesh is known) warns when a gate sits below ρ_lost/N, and the trace marks a Δρ that has hit it.  Gate such stages on ΔE (the `MinΔE` comment already says so for GPW) · `src/SCFIterator/Imp/SCFIterator.C` ~467 |
+
+**The floor half is refuted (2026-10-26), from the code and the sweep log, no new run.**  The gate (`ResidualPerElectron` →
+`Vxc_Quadrature::RealSpaceL1Distance`) is ∫|ρ_a−ρ_b| sampled on ONE quadrature: a constant charge-integration error (ρ_lost) is common
+to both densities and cancels, so it is no floor.  Measured on `~/Code/qchem6-runs/anchors/r11_short.log` (every gridded trace row with
+ρ_lost/N ≠ 0): GDM 28 of 49 rows below ρ_lost/N, min ratio 2e-4; PulD 126 of 984 and Null 131 of 1235, min ratio 1e-7; DIIS 0 of 30.  The
+β-MnO₂ stall (Δρ 2e-5…7e-5, minimum 2.34e-5 = ρ_lost/N) is the GDM crawl the direct-min driver measures as successive-iterate distance.
+The REMAINDER (the inherited [F,D] gates a GPW GDM stage cannot meet) stays in the tracker under its own name.

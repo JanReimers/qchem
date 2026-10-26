@@ -69,9 +69,16 @@ void ReportNegativeRho(const DensitySampler& q, const rvec_t& rho, const char* r
 // raster and mixed there (RasterKerker, the filter over the full raster FFT) -- at the fixed point that IS rho[D] at every
 // quadrature point, exception 2's form, so the N4 correction map the mixer also carries is not needed here.  BALL is the
 // fitted rho; a run that asked for the cusp deficit must never be served it (it would be the +7.7 mHa of the O2 box).
-void RequireRawForCusp(const cChargeDensity* cd, bool isRaw)
+bool BallHoldsPairs(const BasisSet::cFIT_SF_ABS& fit)
 {
-    if (!isRaw && HasXCCorrection(cd))
+    auto* b=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(&fit);   // abstract -> abstract
+    return b && b->HoldsEveryOrbitalPair();
+}
+void RequireRawForCusp(const cChargeDensity* cd, bool isRaw, bool ballHoldsPairs)
+{
+    // An EXACT-fit ball (G_OrbitalPairBall: plane waves at >= 4 Ecut) IS rho[D]: the cusp deficit is identically zero there, so the BALL
+    // route is what the flag asks for (OpenWork §3 "The cusp-deficit guard refuses an EXACT-fit basis", fixed 2026-10-26).
+    if (!isRaw && HasXCCorrection(cd) && !ballHoldsPairs)
         throw std::logic_error("PairDensitySampler: XCCuspDeficit asks for XC from rho[D] (doc/Pins.md pin 28), but this mixed density "
             "has no raster shadow, so the pair route would feed XC the FITTED rho (BALL)");
 }
@@ -87,11 +94,6 @@ XCRhoSource PairSource(const cChargeDensity* cd, bool isRaw, bool ballHoldsPairs
     if (!isRaw) return ballHoldsPairs ? XCRhoSource::ExactFit : XCRhoSource::Fitted;
     return dm ? XCRhoSource::DM : XCRhoSource::Shadow;
 }
-bool BallHoldsPairs(const BasisSet::cFIT_SF_ABS& fit)
-{
-    auto* b=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(&fit);   // abstract -> abstract
-    return b && b->HoldsEveryOrbitalPair();
-}
 
 rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) const
 {
@@ -100,7 +102,7 @@ rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) cons
     assert(fd && "PairDensitySampler requires a FourierDensity (periodic) charge density");
     rvec_t rho=fd->GetRhoOnGrid(*itsFitBasis);
     isRaw=(rho.size()!=0);
-    RequireRawForCusp(cd, isRaw);
+    RequireRawForCusp(cd, isRaw, BallHoldsPairs(*itsFitBasis));
     if (!isRaw)
     {
         auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());

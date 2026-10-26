@@ -37,6 +37,7 @@ import qchem.Outcome;
 import qchem.BasisSet.Lattice.BasisSet;   // VetStageTrim, GPWParams
 import qchem.BasisSet.Gaussian.Point.ShellTrim;
 import qchem.RunPolicy;
+import qchem.Mesh.XCPolicy;                 // ResolveXCMesh (a recipe field under cellKind Auto is refused at resolve)
 
 namespace qchem::deck
 {
@@ -522,6 +523,9 @@ Materials::Material Resolve(RunSpec& spec)
     // THE MAGNETIC ORDERING IS STATED (OpenWork §3, 2026-10-26): the facade's own check, run here so a deck is refused BEFORE a revision is claimed.
     try { RequireStatedMagneticOrdering(spec.solid, *m.cell); }
     catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.siteSpins -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
+    // AUTO PICKS THE KIND, NOT THE RECIPE (OpenWork §3, 2026-10-26): the mesh policy's own refusal, run here so --check catches it too.
+    try { (void)qcMesh::ResolveXCMesh(spec.solid.xcMesh); }
+    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid."+std::string(e.what())); }
 
     // PRE-FLIGHT of the postSCF list (each message names the action and what to change): the old probes found these out AFTER the SCF.
     {

@@ -440,6 +440,21 @@ TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
     EXPECT_NE(msg({{"siteSpins",{2,-1,0,0}}}).find("-1, 0 or +1"),std::string::npos);
 }
 
+//! A grid field set beside cellKind Auto used to be DROPPED (Auto resolves to a calibrated recipe): a β-MnO₂ mesh-convergence run came
+//! back bit-identical.  Resolve refuses it, naming the field, so --check catches it before a revision is claimed.
+TEST(Deck, AnXCMeshRecipeFieldUnderAutoIsRefusedAtResolve)
+{
+    auto msg=[](json xcMesh)
+    {
+        deck::RunSpec s; deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"xcMesh",xcMesh}}}},s);
+        try { deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); }
+        return std::string("NO THROW");
+    };
+    EXPECT_NE(msg({{"nRadial",60}}).find("nRadial"),std::string::npos);
+    EXPECT_EQ(msg({{"cellKind","Becke"},{"nRadial",60}}),"NO THROW") << "a stated kind takes its recipe";
+    EXPECT_EQ(msg(json::object()),"NO THROW") << "Auto with nothing set";
+}
+
 TEST(Deck, PostSCFRunsOnTheConvergedCalculationAndTheRecordKeepsTheResults)
 {
     const fs::path dir=TmpDir("post");
