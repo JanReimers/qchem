@@ -39,6 +39,7 @@ links INSIDE moved files (`../src/…`) are one level off.
 | **`SCFStrategyPlan.md`** / **`OTNotes.md`** | convergence-acceleration boundaries; the 2026-07 GDM investigation (prior for row OT) |
 | **`ParallelAndOraclePlan.md`** | the road to +U; residuals → row PAR |
 | **`GPWPlan1.md`** / **`GPWGrids.md`** | GPW evidence trail; the table of every grid usage |
+| **`GridSharpTerms.md`** | which Hamiltonian terms carry a Gaussian/erf feature and what each needs from a grid (ball vs raster, the alias formula, the 2026-10-25 measurements, the grid audit) — companion to `GPWGrids.md` |
 | **`SphericalLatticePlan.md`** | 2026-08 MnO accuracy campaign (moment numbers are point probes, pin 4) |
 | **`SymmetryUpgradePlan.md`** | executed; §9 is design questions, not a backlog |
 | **`BasisSetTaxonomyPlan.md`** | the argument behind pin 14 |

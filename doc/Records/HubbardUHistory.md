@@ -2209,6 +2209,64 @@ Levels too: U=0 Mn d moment 3.4902 / total 5.0568 vs QE 3.4905 / 5.0569; U arm O
 
 **Verdict.**  With QE's pseudopotential and a plane-wave basis, the same Hamiltonian stack (local + KB, Hartree, polarized LDA, Ewald, ortho-atomic +U) responds to U as QE does, to 1–2 %.  The two residuals of the Gaussian runs — the Mn spin response at 60 % of QE's and the Mn d band falling 0.08–0.13 eV too far — are therefore the GAUSSIAN ORBITAL BASIS.  This REVISES the 2026-10-24 basis-scan reading ("beyond O p 0.18 the residual is not the Gaussian orbital basis"): that scan added one diffuse/polarization shell at a time and watched the GAP, which stayed flat; the deficit is in the Mn d radial freedom to respond to SPIN and to U, which a single added shell did not supply.  Next: a Gaussian basis aimed at the Mn d response (uncontracted / tight d, a second d radial), judged on the U − U0 table above against the PW column — the PW run is now the reference at this PP.
 
+## 2026-10-25 — the basis bisection: neither O p (either side) nor diffuse Mn d moves the residual; sharp Mn d is BLOCKED by a local-PP defect
+
+Mn vs O × sharp vs diffuse, each variant = VA + O p 0.18 plus shells on ONE element on ONE side of its ladder, as a U / U0 pair on the banked imposed recipe (`m0_imp_s1t_{,U0_}Op018_PA`), judged on U − U0 against the PW 80 Ry column.  Decks, bases, logs: `~/Code/qchem6-runs/MnO2/basis_scan/bisect/`; extractor = the `[+U]`-line / `u_bands` parse that reproduces the baseline row exactly.
+
+| U − U0 | Mn d moment | Mn d total | O p total | O p moment | O normal (eV) | Mn d band (eV) |
+|---|---|---|---|---|---|---|
+| PW 80 Ry (reference) | +0.0385 | −0.1307 | +0.0825 | −0.0189 | −1.725 | −0.769 |
+| baseline VA + O p 0.18 | +0.0229 | −0.1285 | +0.0833 | −0.0217 | −1.682 | −0.852 |
+| + Mn d 0.56, 1.19, 2.55, 0.18 (no trim, pivoted 1e-7) | +0.0245 | −0.1307 | +0.0846 | −0.0216 | −1.679 | −0.852 |
+| + O p 1.93, 4.98, 20.6 | +0.0230 | −0.1284 | +0.0832 | −0.0218 | −1.686 | −0.847 |
+| + O p 0.29, 0.75, 0.11 (vet trimmed O p 0.11, 0.18) | +0.0235 | −0.1283 | +0.0831 | −0.0219 | −1.679 | −0.852 |
+
+**O is ruled out in both directions; the diffuse / mid-low Mn d side is ruled out.**  Two runs were not interpretable and taught two defects (OpenWork §3, 2026-10-25): (1) the vet trim at orthoTol 1e-4 deleted the VALENCE core of the densified Mn d ladder (sharp arm: d 0.38, 0.82, 1.74, 3.72; diffuse arm: s 0.1, d 0.18, 0.38, 0.56 — the diffuse U energy went UP 94 mHa after ADDING shells), hence the no-trim rerun above; (2) **a Mn d primitive at α = 76.7 makes the SCF COLLAPSE** — −6917 Ha "converged" after the trim, −15 000 → −21 000 Ha with the full valence d kept — with **Eloc = −8764 Ha** (EenNL +4.8): the GPW LOCAL-PP matrix elements are wrong for a tight pair, which no variational basis can do with correct integrals.  So the sharp Mn d side is UNTESTED, and the same defect is now a SUSPECT for the residual itself: it acts on exactly the tight Mn d pairs, and a milder error at the ladder's α = 36 (pair 72) could bias the Mn d level and its response while leaving the U = 0 bands within 0.04 eV.  Next: isolate the local-PP defect in a unit test (one Mn site, one d primitive, α = 36 vs 77, GPW Ven_PP vs the analytic molecular GTH local PP in a box) — it unblocks the sharp arm and tests the suspicion on the baseline in one step.
+
+**The grid is NOT the residual (same day; decks + logs `~/Code/qchem6-runs/MnO2/basis_scan/ecut/base_E300_*`).**  The tight-pair aliasing (OpenWork §3; `Records/GridSharpTerms.md`) put the baseline's Mn d 36 pairs at E_cut/p ≈ 2 on a `BallOnly` raster (audit: density alias 1.8e-2, V_loc long 7.1e-3).  Rerun of the baseline pair at `densityEcut` 300 Ha (E_cut/p ≈ 4): U − U0 Mn d moment **+0.0229** (72 Ha: +0.0229), Mn d total −0.1281 (−0.1285), O p total +0.0831, O normal −1.682 (−1.682), Mn d band −0.851 (−0.852); energies moved ~1 mHa (U0 −93.38443 → −93.38337).  The defect is real (it collapses a basis with a tight d) but the α = 36 primitive carries too little weight here: the residual stays the GAUSSIAN BASIS, with O p and diffuse Mn d ruled out.  The sharp Mn d arm is now testable on `AliasFree` (≤ 3e-4 Ha on a d at 77 in the unit oracle).
+
+**Sharp Mn d, Mn p, Mn f (same day; `~/Code/qchem6-runs/MnO2/basis_scan/pol/`; all four arms share basis.vet false, CholeskyPivoted 1e-7, raster AliasFree; the sharp arm no longer collapses on AliasFree).**
+
+| U − U0 | Mn d moment | Mn d total | O p total | O p moment | O normal (eV) | Mn d band (eV) | ΔE(U) vs control |
+|---|---|---|---|---|---|---|---|
+| PW 80 Ry (reference) | +0.0385 | −0.1307 | +0.0825 | −0.0189 | −1.725 | −0.769 | — |
+| control (baseline basis on these settings) | +0.0229 | −0.1281 | +0.0830 | −0.0216 | −1.683 | −0.851 | 0 |
+| + Mn d 5.43, 11.6, 24.7, 76.7 | +0.0228 | −0.1284 | +0.0832 | −0.0216 | −1.683 | −0.851 | −9 μHa |
+| + Mn p 0.4, 1.0, 2.5 | +0.0241 | −0.1269 | +0.0816 | −0.0208 | −1.704 | −0.815 | −35 mHa |
+| + Mn f 1.0, 2.5 | +0.0235 | −0.1281 | +0.0829 | −0.0215 | −1.691 | −0.847 | −8 mHa |
+
+The two residuals SEPARATE.  The BAND responses move with Mn p (the basis has none: −35 mHa, and half of both band residuals closes) and a little with Mn f; sharp Mn d does nothing (variationally 9 μHa).  The Mn SPIN response does not move with ANY variant (+0.0228…+0.0241 vs +0.0385) — after O p (both sides), diffuse/dense Mn d, sharp Mn d, Mn p, Mn f — and the read-out is not it (Mn d projector captured 0.9998).  What still differs between the Gaussian runs and the PW ones besides the basis: the Gaussian runs IMPOSE the A1-AFM Shubnikov group, the PW ones ran free; and the XC route (Becke vs FFT raster — three XC variants moved nothing, 2026-10-24).  Next: the control pair FREE (imposeSymmetry false), and a larger Mn p (+ f) set to see where the band responses saturate.
+
+## 2026-10-26 — Mn polarization closes the BAND residuals; the imposition is ruled out; the Mn SPIN response stays short
+
+Same settings as the polarization arms (vet off, CholeskyPivoted 1e-7, AliasFree); `~/Code/qchem6-runs/MnO2/basis_scan/pol/`.  Every arm independently from IonicSAD, every arm in the SAME basin (U: Mn d ±3.540–3.549, U'd O slot 0.960–0.961 / 0.972 = QE's seeded ground basin 0.958 / 0.969, not its metastable one; U0: Mn ±3.516–3.525, slot 0.861–0.865 / 0.835–0.840) — including the FREE control, which finds the imposed A1-AFM state unaided (Becke Mn ±3.4131 vs ±3.4130; the old "free lands at Mn +2.87/−3.79" predates the V_short/Ewald fixes).
+
+| U − U0 | Mn d moment | Mn d total | O p total | O normal (eV) | Mn d band (eV) | A(U0) vs control |
+|---|---|---|---|---|---|---|
+| PW 80 Ry (reference) | +0.0385 | −0.1307 | +0.0825 | −1.725 | −0.769 | — |
+| control (imposed) | +0.0229 | −0.1281 | +0.0830 | −1.683 | −0.851 | 0 |
+| control (FREE) | +0.0228 | −0.1284 | +0.0832 | −1.683 | −0.851 | −27 μHa |
+| + Mn p 0.4, 1.0, 2.5 | +0.0241 | −0.1269 | +0.0816 | −1.704 | −0.815 | −32.8 mHa |
+| + Mn p 0.25 … 4.0 (5) | +0.0240 | −0.1258 | +0.0810 | −1.708 | −0.806 | −41.2 mHa |
+| + Mn f 1.0, 2.5 | +0.0235 | −0.1281 | +0.0829 | −1.691 | −0.847 | −7.4 mHa |
+| + Mn p (5) + f 0.7, 1.4, 2.8 | +0.0262 | −0.1228 | +0.0786 | −1.729 | −0.773 | −55.1 mHa |
+
+1. **The imposition is ruled out**: free = imposed to 1e-4 in every column.
+2. **The BAND residuals are Mn POLARIZATION**, and they CLOSE: p alone saturates near −0.806 / −1.708; p + f lands on PW to 4 meV (−0.773 vs −0.769, −1.729 vs −1.725).  f helps little alone (−0.847) but a lot on top of a complete p (−0.806 → −0.773).  The basis had NO Mn p or f; the U0 energy falls 55 mHa.
+3. **The Mn SPIN response stays short**: +0.0262 at best (68 % of PW's +0.0385), and the CHARGE response (Mn d total, O p total) moves slightly AWAY from PW as the bands converge (−0.1228 vs −0.1307; +0.0786 vs +0.0825).  So the spin/charge response is a different deficit from the band one — still the basis by the PW verdict, but not O p, not Mn d (sharp or diffuse), not the imposition, not the grid, and only partly Mn p/f.  Next candidates: Mn d flexibility ON TOP of p5f3 (the d radial's freedom may only matter once the polarization is complete), Mn g, and the O side with Mn polarization present (O d).
+
+**On top of p5 f3: dense Mn d, O d, Mn g (same day, same settings; `pol/p5f3_{dD,Od,g}_*`; every arm in the same basin).**
+
+| U − U0 | Mn d moment | Mn d total | O p total | O normal (eV) | Mn d band (eV) | A(U0) vs p5f3 |
+|---|---|---|---|---|---|---|
+| PW 80 Ry (reference) | +0.0385 | −0.1307 | +0.0825 | −1.725 | −0.769 | — |
+| p5 f3 | +0.0262 | −0.1228 | +0.0786 | −1.729 | −0.773 | 0 |
+| + Mn d midpoints 0.56 … 24.7 | +0.0274 | −0.1252 | +0.0801 | −1.724 | −0.776 | −3.1 mHa |
+| + O d 0.8, 2.0 | +0.0303 | −0.1255 | +0.0804 | −1.736 | −0.772 | −7.6 mHa |
+| + Mn g 1.0, 2.5 | +0.0261 | −0.1229 | +0.0786 | −1.729 | −0.772 | −0.1 mHa |
+
+**The Mn spin response climbs MONOTONICALLY as the basis completes**: +0.0229 (baseline) → +0.0241 (Mn p) → +0.0262 (Mn p5 f3) → +0.0303 (+ O d), with dense Mn d a further +0.0012 and Mn g (which cannot contribute) nothing; the charge columns track toward PW in step and the bands stay on PW.  That is the signature of orbital-basis incompleteness — each polarization / radial function that CAN carry the response closes part of the gap — and the first spin-response mover is O d, i.e. the Mn–O bonding region's polarization, which a single-element bisection on the minimal basis could not see (O p alone, without Mn polarization, moved nothing).  Remaining 0.008: plausibly the combination (O d + dense Mn d, untested together) and further O polarization.
+
 ## 2026-10-25 — HubbardProjectorPlan increment 4: ACBN0 + response through the pseudo-atomic projector, re-judged
 
 Code `b4cfc789` (`GaussianAtomCentredSet::BareCoulomb`, exact one-centre).  Decks + logs: `~/Code/qchem6-runs/TiO2/basis_scan/

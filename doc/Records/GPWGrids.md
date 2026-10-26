@@ -1,5 +1,7 @@
 # GPW grid inventory — every grid, what sizes it, knob vs algorithm
 
+> 2026-10-25: companion `GridSharpTerms.md` — which TERMS put sharp features on these grids and what each requires.  Two defaults below have changed since this was written (cutoffFactor 8 → 2, raster alias-free → `BallOnly`); their combination aliases tight pairs (see there).
+
 Written 2026-07-21 in answer to the user story in `doc/OldPlans/GPWPlan.md` §0e ("table of all grid usages, how
 grid range/spacing is decided, and if it is a user knob or decided by a sensible algo").  Verified
 against the code as of branch `gpw-0e-pp-local-split`; the run-start `[GPW grid]` diagnostic
