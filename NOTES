@@ -11,6 +11,18 @@ source .venv/bin/activate
 export QCHEM_BUILD=~/Code/qchem-viz/build/PIC
 python app_desktop.py 
 
+# DFT+U survey:
+
+Materials list: MnO, NiO, Si, Li{V,Cr,Mn,Ni,Co,Cu}O₂ (R-3m) SrVO₃, Sr₂FeO4, KCuF₃, TiO₂, ZnO, FeS₂
+DFPT3-timrov2018.pdf demonstrates with NiO, LiCoO₂ and Cu₂O.  Suggesting we add Cu₂O to our list.
+First battery U series: Li₂Mn₂O4, LiMn₂O4, lambda Mn₂O4. How does U(Mn) and U(O) change? Assuming we don't need U(Li) ... should we prove this out?
+
+Three things will make the table more useful to the chemist in you:
+
+Record the state at both ends, not just the two numbers. U_0 is a linear response of the U=0 ground state, and that state can be a different animal. LDA NiO at U=0 loses its AFM-II order (trap 3), and d⁵ MnO's χ₀⁻¹ − χ⁻¹ nearly cancels. When U_0 and U_SC differ a lot, the reason is usually that U changed the ground state's character (metal → insulator, moment switching on). So the columns I'd suggest are U_0, U_SC, the number of outer steps, and the gap and site moment at U=0 and at U_SC. The gap and moment are where the "feel" comes from.
+Which estimator fills the table matters. Today our in-house loop runs on ACBN0, which the plan has already refuted as the value (it overshoots 2–3×). So those rows would show behaviour, not trustworthy U. The trustworthy in-house version is A7's linear-response estimator (stage R4), which plugs into the same loop. On the QE side, the A6 hp.x values are single-shot U_LR(U_in), mostly U_in = 0, so those are U_0. NiO's is conditioned on U_in = 3 eV. hp.x has no built-in outer loop; Timrov 2021 scripted it around pw.x + hp.x.
+Make plucking trivial. When R4 lands, the loop can print one greppable summary line per manifold, for example [U table] NiO site0 l=2 U_0=… U_SC=… outer=… gap 0→SC … m 0→SC …. Then the table is a grep.
+
 # Cleanup status
 Here's the standing inventory, reconciled against the current branch copy (which has all of this weekend's closures folded in):
 
