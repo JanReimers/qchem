@@ -2276,6 +2276,16 @@ Same settings as the polarization arms (vet off, CholeskyPivoted 1e-7, AliasFree
 
 ΔA ≈ α·Tr n (0.5 eV × ~5 e = 92 mHa), as it must be.  The Gaussian response to a fixed potential is nearly BASIS-INSENSITIVE between the two (≈10 %), unlike the U response (+0.0229 vs +0.0262).  **The PW half did not converge**: `alpha_pw` (80 Ry, same α) sloshed for 59 iterations at Δρ 1–6e-2, ~0.3 Ha above its expected −92.59, under the Kerker/Pulay recipe that converged every SYMMETRIC PW run — the site-asymmetric perturbation needs a gentler recipe.  Stopped.  NEXT (OpenWork row): rerun PW α with startingRelaxRo ~0.2 (or a smaller α, 0.1–0.2 eV, read as the linear response), ideally seeded from the PW U0h state (`state.save` on the U0h deck, `restartFrom` on the α deck); the decisive comparison is Δm / Δn per unit α, GPW vs PW.
 
+**The U-free α·P test, second half: PW (same day, after the PW XC-ball fix `c1ffd6ad`; `~/Code/qchem6-runs/MnO2/alpha/{pw_U0h_fix,alpha_pw_fix}`).**  Same α·P = 0.5 eV, 80 Ry, the U0h recipe; cold IonicSAD at `startingRelaxRo` 0.2 (the 0.45 run sloshed; a PW state cannot be saved yet, so no seed).  α = 0: −92.6795194582 Ha in 36 iterations (pre-fix −92.6795194034: the XC-ball fix is 0.05 μHa and ≤ 5e-4 e in ns on this cell at 40 Ha); α: −92.5870916146 in 41, converged without sloshing.  Same extraction as the Gaussian rows (the last `[+U]` line, Mn d manifold, m = N↑ − N↓; reproduces both rows above exactly):
+
+| α·P, U = 0 | Δm(Mn0, perturbed) | Δ\|m\|(Mn1) | Δn(Mn0 d) | Δn(Mn1 d) | ΔA |
+|---|---|---|---|---|---|
+| **PW 80 Ry** | −0.0006 | +0.0206 | −0.0532 | −0.0064 | +92.4 mHa |
+| GPW control | −0.0023 | +0.0215 | −0.0501 | −0.0067 | +92.7 mHa |
+| GPW p5 f3 | −0.0025 | +0.0196 | −0.0517 | −0.0060 | +92.1 mHa |
+
+**The Gaussian response to a plain potential on Mn d is PW's**: the induced moment on the unperturbed Mn is 104 % / 95 % of PW's, the perturbed site's charge 94 % / 97 %, the neighbour's charge 105 % / 94 % — against 60–79 % for the U spin response (+0.0229 … +0.0303 vs +0.0385).  (Δm on the perturbed site is a small difference of two near-equal spin channels, −0.0006 vs −0.0024; the one column that does not match, and the smallest.)  So the U deficit is NOT a generic incompleteness of the basis's response in the Mn d charge channel.  What α·P does not excite and U does: α·P is spin-INDEPENDENT and uniform over the d manifold; the U potential U(½ − n_mσ) is spin- and orbital-RESOLVED — larger on the minority / empty slots.  The deficit lives in that channel: a spin- (or slot-) resolved α (α on site 0 Mn d ↑ only) is the discriminating test, and needs a deck/HT extension (`alpha_eV` is a scalar on the manifold today).
+
 ## 2026-10-25 — HubbardProjectorPlan increment 4: ACBN0 + response through the pseudo-atomic projector, re-judged
 
 Code `b4cfc789` (`GaussianAtomCentredSet::BareCoulomb`, exact one-centre).  Decks + logs: `~/Code/qchem6-runs/TiO2/basis_scan/
