@@ -2196,3 +2196,15 @@ Same settings as the polarization arms (vet off, CholeskyPivoted 1e-7, AliasFree
 1. **The imposition is ruled out**: free = imposed to 1e-4 in every column.
 2. **The BAND residuals are Mn POLARIZATION**, and they CLOSE: p alone saturates near −0.806 / −1.708; p + f lands on PW to 4 meV (−0.773 vs −0.769, −1.729 vs −1.725).  f helps little alone (−0.847) but a lot on top of a complete p (−0.806 → −0.773).  The basis had NO Mn p or f; the U0 energy falls 55 mHa.
 3. **The Mn SPIN response stays short**: +0.0262 at best (68 % of PW's +0.0385), and the CHARGE response (Mn d total, O p total) moves slightly AWAY from PW as the bands converge (−0.1228 vs −0.1307; +0.0786 vs +0.0825).  So the spin/charge response is a different deficit from the band one — still the basis by the PW verdict, but not O p, not Mn d (sharp or diffuse), not the imposition, not the grid, and only partly Mn p/f.  Next candidates: Mn d flexibility ON TOP of p5f3 (the d radial's freedom may only matter once the polarization is complete), Mn g, and the O side with Mn polarization present (O d).
+
+**On top of p5 f3: dense Mn d, O d, Mn g (same day, same settings; `pol/p5f3_{dD,Od,g}_*`; every arm in the same basin).**
+
+| U − U0 | Mn d moment | Mn d total | O p total | O normal (eV) | Mn d band (eV) | A(U0) vs p5f3 |
+|---|---|---|---|---|---|---|
+| PW 80 Ry (reference) | +0.0385 | −0.1307 | +0.0825 | −1.725 | −0.769 | — |
+| p5 f3 | +0.0262 | −0.1228 | +0.0786 | −1.729 | −0.773 | 0 |
+| + Mn d midpoints 0.56 … 24.7 | +0.0274 | −0.1252 | +0.0801 | −1.724 | −0.776 | −3.1 mHa |
+| + O d 0.8, 2.0 | +0.0303 | −0.1255 | +0.0804 | −1.736 | −0.772 | −7.6 mHa |
+| + Mn g 1.0, 2.5 | +0.0261 | −0.1229 | +0.0786 | −1.729 | −0.772 | −0.1 mHa |
+
+**The Mn spin response climbs MONOTONICALLY as the basis completes**: +0.0229 (baseline) → +0.0241 (Mn p) → +0.0262 (Mn p5 f3) → +0.0303 (+ O d), with dense Mn d a further +0.0012 and Mn g (which cannot contribute) nothing; the charge columns track toward PW in step and the bands stay on PW.  That is the signature of orbital-basis incompleteness — each polarization / radial function that CAN carry the response closes part of the gap — and the first spin-response mover is O d, i.e. the Mn–O bonding region's polarization, which a single-element bisection on the minimal basis could not see (O p alone, without Mn polarization, moved nothing).  Remaining 0.008: plausibly the combination (O d + dense Mn d, untested together) and further O polarization.
