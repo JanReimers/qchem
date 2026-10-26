@@ -2208,3 +2208,12 @@ Same settings as the polarization arms (vet off, CholeskyPivoted 1e-7, AliasFree
 | + Mn g 1.0, 2.5 | +0.0261 | −0.1229 | +0.0786 | −1.729 | −0.772 | −0.1 mHa |
 
 **The Mn spin response climbs MONOTONICALLY as the basis completes**: +0.0229 (baseline) → +0.0241 (Mn p) → +0.0262 (Mn p5 f3) → +0.0303 (+ O d), with dense Mn d a further +0.0012 and Mn g (which cannot contribute) nothing; the charge columns track toward PW in step and the bands stay on PW.  That is the signature of orbital-basis incompleteness — each polarization / radial function that CAN carry the response closes part of the gap — and the first spin-response mover is O d, i.e. the Mn–O bonding region's polarization, which a single-element bisection on the minimal basis could not see (O p alone, without Mn polarization, moved nothing).  Remaining 0.008: plausibly the combination (O d + dense Mn d, untested together) and further O polarization.
+
+**The U-free α·P test, first half (same day; `~/Code/qchem6-runs/MnO2/alpha/`).**  A static α·P = 0.5 eV on site 0's Mn d manifold (`alpha_eV`, QE's Hubbard_alpha), every U = 0, FREE (an imposition would star-average the two Mn sites), against the α = 0 references `control_free_U0` / `Mn_p5f3_U0`:
+
+| α·P, U = 0 | Δm(Mn0, perturbed) | Δ\|m\|(Mn1) | Δn(Mn0 d) | Δn(Mn1 d) | ΔA |
+|---|---|---|---|---|---|
+| GPW control | −0.0023 | +0.0215 | −0.0501 | −0.0067 | +92.7 mHa |
+| GPW p5 f3 | −0.0025 | +0.0196 | −0.0517 | −0.0060 | +92.1 mHa |
+
+ΔA ≈ α·Tr n (0.5 eV × ~5 e = 92 mHa), as it must be.  The Gaussian response to a fixed potential is nearly BASIS-INSENSITIVE between the two (≈10 %), unlike the U response (+0.0229 vs +0.0262).  **The PW half did not converge**: `alpha_pw` (80 Ry, same α) sloshed for 59 iterations at Δρ 1–6e-2, ~0.3 Ha above its expected −92.59, under the Kerker/Pulay recipe that converged every SYMMETRIC PW run — the site-asymmetric perturbation needs a gentler recipe.  Stopped.  NEXT (OpenWork row): rerun PW α with startingRelaxRo ~0.2 (or a smaller α, 0.1–0.2 eV, read as the linear response), ideally seeded from the PW U0h state (`state.save` on the U0h deck, `restartFrom` on the α deck); the decisive comparison is Δm / Δn per unit α, GPW vs PW.
