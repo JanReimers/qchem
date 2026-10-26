@@ -119,8 +119,8 @@ export struct SCFParams
     //! Kerker/Pulay should be the default mixer"*).
     //!
     //! \c Auto (default) is resolved by the ITERATOR, which knows whether it can mix in G space and whether its accelerator
-    //! keeps a Fock history (\c ResolveMixing below): a periodic run with NO Fock extrapolator gets Kerker-preconditioned
-    //! Pulay with ITS OWN recipe (\c theAutoMixing -- \c StartingRelaxRo's 1.0 default is LINEAR's step and is not read);
+    //! keeps a Fock history (\c ResolveMixing below): a periodic run with NO Fock extrapolator gets Pulay on D (no Kerker:
+    //! user 2026-10-26, pin 28) with ITS OWN recipe (\c theAutoMixing -- \c StartingRelaxRo's 1.0 default is LINEAR's step);
     //! a molecule/atom, or a run beside DIIS, gets linear D-mixing at \c StartingRelaxRo (Pulay beside DIIS fights; the solid
     //! facade's \c Auto accelerator is the other half of the pair).  A caller
     //! that already set a G-space knob (\c KerkerG0>0, \c PulayDepth>0) keeps exactly that recipe under \c Auto, so
@@ -140,10 +140,11 @@ export struct MixingRecipe
     int    depth;   //!< Pulay history depth (→ \c PulayDepth)
     int    start;   //!< plain-Kerker priming iterations before the history engages (→ \c PulayStart)
 };
-//! THE default periodic mixer.  The banked recipe of the tree's Kerker/Pulay runs (free MnO AFM-II
-//! `decks/MnO_AFM2_free.json`, Si k211 FD gate, the Response kernel's density-mixing arm), close to VASP's
-//! AMIX 0.4 / BMIX 1 Å⁻¹ and CP2K's ALPHA 0.4 + NBUFFER.
-export inline constexpr MixingRecipe theAutoMixing{.relax=0.45, .G0=1.0, .depth=8, .start=5};
+//! THE default periodic mixer: PULAY ON D (user 2026-10-26) -- the history on density matrices, so V_xc sees rho[D] with no
+//! fit and no cusp deficit (pin 28), and no rho-tilde is built per iteration (the Kerker arm cost a vacuum box 20x per
+//! iteration).  The step/history are the banked Kerker/Pulay recipe's (free MnO AFM-II, Si k211 FD gate), close to VASP's
+//! AMIX 0.4 and CP2K's ALPHA 0.4 + NBUFFER; Kerker (G0 > 0) is a stated choice, not the default.
+export inline constexpr MixingRecipe theAutoMixing{.relax=0.45, .G0=0.0, .depth=8, .start=5};
 
 //! \brief Resolve \c p.Mixer to a concrete mode with its knobs filled; the result's \c Mixer is never \c Auto.
 //! \a gSpace = can this run mix in G space (the periodic iterator asks its density); \a fockExtrapolates = the run's accelerator
@@ -162,8 +163,9 @@ export inline SCFParams ResolveMixing(const SCFParams& p, bool gSpace, bool fock
         return r;
     case M::Kerker:
     case M::Pulay:
-        if (!gSpace)
-            throw std::invalid_argument("SCFParams: Kerker/Pulay mixing needs a periodic (G-space) run; use Mixing::Linear.");
+        if (!gSpace && !(p.Mixer==M::Pulay && p.KerkerG0<=0.0))   // Pulay at G0 = 0 mixes D: any run (PulayDMixer)
+            throw std::invalid_argument("SCFParams: Kerker / Kerker-preconditioned Pulay mixing needs a periodic (G-space) run; "
+                                        "use Mixing::Linear, or Mixing::Pulay with KerkerG0 = 0 (Pulay on D).");
         if (p.Mixer==M::Kerker && p.KerkerG0<=0.0)
             throw std::invalid_argument("SCFParams: Mixing::Kerker needs KerkerG0 > 0.");
         if (p.Mixer==M::Pulay && p.PulayDepth<=0)

@@ -289,6 +289,13 @@ with Gibbs ringing (pin 1): 15% of MnO's XC points came out negative (min −0.1
 a DIFFERENT fixed point: NaF 139 μHa, the O₂ box on O q6 **+7.72 mHa** (−30.70246 vs −30.71018; 2026-10-22).  At kT = 0 the
 factored D (low rank, `policy.dmLowRank`) makes ρ[D] cheap -- 130× cheaper per sampling than the matrix-free fitted ρ on MnO.
 (Pin 2 is a different statement: it routes every density through the fit INTERFACE; this pin says which ρ XC must see.)
+**"Fitted" here means an INEXACT fit** (user, 2026-10-26): ρ always goes through the fit -- that is what keeps the SCF loop
+basis-independent -- and a fit can be EXACT (a plane-wave orbital basis whose fit ball holds every pair difference, |G_i−G_j| ≤
+2 G_max, i.e. Ecut_fit ≥ 4 Ecut: Parseval; trace `fit=`) or merely land on an orthonormal fit basis.  The pin forbids the INEXACT
+one.  ⚠ Found by this pin's crash (2026-10-26): the plane-wave XC fit was built at Ecut × relCutoff = 1× Ecut (the WAVEFUNCTION
+ball), so every PW run's XC saw ρ[D] with its G_max..2G_max shell cut off; floored at 4× (as the Hartree fit always was).
+β-MnO₂ U = 0, 20 Ha: −87.8140996 → −87.8140395 (+60 μHa), now 33 μHa from QE converged on its XC grid (QE's DEFAULT
+36×36×24 grid is itself 107 μHa off its 72³ value -- the old "13 μHa" agreement was two errors cancelling).
 
 **Two exceptions (user, 2026-10-22), both transient:**
 1. **The SAD seed** has no D -- one iteration.
@@ -301,11 +308,20 @@ factored D (low rank, `policy.dmLowRank`) makes ρ[D] cheap -- 130× cheaper per
 
 - A mixer with NO G-dependent filter mixes D itself, history and all -- \f$\rho[\sum_i c_iD_i]=\sum_i c_i\rho[D_i]\f$ pointwise -- so XC
   sees \f$\rho[D_{mix}]\f$ with no correction.  Linear D-mixing and direct minimisation (GDM) comply (O₂ box: linear −30.71018167/173).
-  A Pulay history without Kerker (G0 = 0) is in this class too, but today's `PulayMixer` still mixes the fitted ρ̃ (OpenWork §3).
+  A Pulay history without Kerker (G0 = 0) is in this class too: `PulayDMixer` (2026-10-26) keeps its history on density MATRICES
+  (`tMixableDensity::MakeCopy/Axpy/Dot`), so XC sees ρ[D_mix] -- O₂ box −30.7101817 with `XC ρ = DM` every iteration
+  (`GPW_O2Box.Γ_Imp_M3_Pulay_Anchor`).  It is the facade's `Auto` mixer since 2026-10-26.
 - The cusp deficit is wired on Kerker and Kerker-preconditioned Pulay, unpolarized and in both spin coordinates, (ρ↑,ρ↓) and
   (ρ,m), and is the DEFAULT (`SCFParams::XCCuspDeficit` = true, 2026-10-22); false is a control, never a recipe.  The raster (pair)
   XC route meets it with its raw shadow (ρ[D] collocated pointwise, mixed on the raster) and refuses the flag on its BALL (fitted)
   fallback.  Free MnO AFM-II holds its order with it (moment 4.453); the flip moved no anchor's verdict (`OpenWork_History5.md`).
+
+**ENFORCED, not audited (user 2026-10-26: "simply crash the run").**  `RequirePin28` (the SCF loop, every iteration, traced or not)
+THROWS on the two violations the `XC ρ` column used to only mark: an inexact `fitted` ρ after the first iteration, and the `cusp`
+deficit beside a mixer with NO G-dependent filter (pure Pulay: right at the fixed point, wrong in form).  The gate that the crash
+works is `GPW_Si.Γ_Becke_Imp_Kerker_FitXC_Pin28Throws` (the old fitted-XC control).  The column now just names the source
+(DM, cusp, DMsrc, shadow, fit=); by-eye pairing: `cusp` sits beside `Ker` or `Pul+K` in `ρ_mix`.  Why a crash: this defect class
+(fitted ρ / cut G into XC) came back several times while believed gone -- a mark is read by nobody, a throw by everyone.
 
 Records: `OpenWork_History4.md` "ITEM 1 MEASURED" (MnO negatives, the collapse), `OpenWork.md` §3 "Kerker/Pulay as the
 DEFAULT mixer" and N4 (the O₂ and MnO arms).

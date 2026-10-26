@@ -233,7 +233,9 @@ public:
     double  GetTotalCharge() const override { return itsUp.GetTotalCharge()+itsDn.GetTotalCharge(); }
     size_t  Version() const override { return itsVersion; }
     void    ReScale(double) override { throw std::logic_error("TwoChannelWorking: not a mixable target"); }
-    void    MixIn(const tMixableDensity<dcmplx>&, double) override { throw std::logic_error("TwoChannelWorking: the G-space mixers never MixIn"); }
+    void    Axpy(double, const tMixableDensity<dcmplx>&) override { throw std::logic_error("TwoChannelWorking: the G-space mixers never Axpy"); }
+    std::unique_ptr<tMixableDensity<dcmplx>> MakeCopy() const override { throw std::logic_error("TwoChannelWorking: the G-space mixers never copy D"); }
+    double  Dot(const tMixableDensity<dcmplx>&) const override { throw std::logic_error("TwoChannelWorking: the G-space mixers never Dot"); }
     double  GetChangeFrom(const tMixableDensity<dcmplx>&) const override { throw std::logic_error("TwoChannelWorking: the G-space mixers never GetChangeFrom"); }
     double  GetMaxChangeFrom(const tMixableDensity<dcmplx>&) const override { throw std::logic_error("TwoChannelWorking: the G-space mixers never GetMaxChangeFrom"); }
 private:

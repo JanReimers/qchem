@@ -350,9 +350,10 @@ std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, dou
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     const SCFParams par=SiParams();
     SolidCalcOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .species={{"Si",4}},
-                       .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=U, .alpha=alpha}}, .forceComplex=true};
-    if (spectator) o.hubbard.push_back({.site=1, .l=1, .U=0.0});
+                       .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=U, .alpha=alpha, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true};
+    if (spectator) o.hubbard.push_back({.site=1, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells});
     o.imposeSymmetry=impose;
+    o.siteSpins={0,0};   // Si is non-magnetic: the polarized +U arm states it (OpenWork §3, 2026-10-26)
     auto calc=std::make_unique<SolidCalculation>(lat, mol, o, par);
     EXPECT_TRUE(calc->DidConverge());
     return calc;
@@ -583,7 +584,7 @@ std::unique_ptr<SolidCalculation> ConvergedSiWithD()
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::FactoryFromFile(path, &cell));
     mol=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(mol));
     SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0,
-                       .hubbard={{.site=0, .l=2, .U=0.0}}, .forceComplex=true};
+                       .hubbard={{.site=0, .l=2, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true};
     auto calc=std::make_unique<SolidCalculation>(lat, mol, o, SiParams());
     EXPECT_TRUE(calc->DidConverge());
     return calc;

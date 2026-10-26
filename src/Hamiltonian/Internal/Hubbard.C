@@ -75,19 +75,11 @@ template <class U> class LowdinProjector
     , public virtual qcMesh::MatrixAdjoint<U>
 {
 public:
-    //! \a S is the block's overlap; \a columns[M] the block's function indices of manifold M; \a contraction[M]
-    //! is EMPTY (the manifold's functions ARE those columns: \f$T=S^{1/2}[:,M]\f$, CP2K's convention) or a
-    //! \f$|{\rm cols}_M|\times m_M\f$ matrix \f$V\f$ whose columns are the manifold's functions as combinations
-    //! of those columns (a CONTRACTED radial, increment 3) -- the pair then S-orthonormalises them within the
-    //! manifold, \f$\tilde V=V\,(V^\dagger S_{cc}V)^{-1/2}\f$, and projects onto THOSE functions: the ATOMIC
-    //! projector \f$T=S[:,{\rm cols}]\tilde V\f$ (\f$T^\dagger c=\langle\chi|\psi\rangle\f$, QE's `atomic`), where a
-    //! column manifold is LÖWDIN (\f$S^{1/2}\f$) -- see the ctor for why the two are not one formula.
-    //! \a ortho[M] (contracted manifolds only): join the ORTHO-ATOMIC set -- after each manifold's own
-    //! S-orthonormalisation, the functions of every flagged manifold are Löwdin-orthogonalised among
-    //! themselves, \f$\tilde W=W\,(W^\dagger SW)^{-1/2}\f$, and projected: \f$T_M=S\tilde W_M\f$.  The
-    //! bare-integral map \c Contraction(M) keeps the on-site \f$\tilde V_M\f$.
-    LowdinProjector(const hmat_t<U>& S, const std::vector<std::vector<size_t>>& columns,
-                    const std::vector<mat_t<U>>& contraction = {}, const std::vector<bool>& ortho = {});
+    //! CP2K's LOWDIN pair (a SITE-SHELL manifold): \a S is the block's overlap, \a columns[M] the block's function
+    //! indices of manifold M -- every \f$l\f$-shell on the site -- and \f$T=S^{1/2}[:,M]\f$.  (The site-shell
+    //! CONTRACTION that used to ride here, \c radial / \c atomicRadial, retired at HubbardProjectorPlan increment 5:
+    //! an atomic projector is \c Atomic below.)
+    LowdinProjector(const hmat_t<U>& S, const std::vector<std::vector<size_t>>& columns);
     //! \brief THE ATOMIC-SET PAIR (doc/HubbardProjectorPlan.md D4): projector functions that are NOT basis
     //! functions -- an \c BasisSet::AtomCentredSet, independent of the orbital basis.  \a B (\f$n\times\sum m\f$) is
     //! the block's overlap with the set (\c AtomCentredOverlapSource::MakeAtomCentredOverlap), \a O the set's own
@@ -98,7 +90,7 @@ public:
     //! `ortho-atomic`).  \f$Q_M=T_M^\dagger\f$.  Ruled: \f$\tilde O\f$ is the true overlap (QE semantics), never the
     //! represented \f$B^\dagger S^{-1}B\f$ (\c Represented, a diagnostic: how much of each function the block spans).
     //! The trace of \f$n\f$ over all manifolds is NOT bounded by \f$N\f$ (QE's is not either).  No columns, no
-    //! contraction: \c Columns / \c Contraction are empty for every manifold.
+    //! columns: \c Columns is empty for every manifold.
     static LowdinProjector Atomic(const mat_t<U>& B, const hmat_t<U>& O, const std::vector<size_t>& sizes,
                                   const std::vector<bool>& ortho);
     //! \f$B^\dagger S^{-1}B\f$: the part of the set's overlap the block REPRESENTS (\f$=O\f$ for a set inside the block's
@@ -113,20 +105,16 @@ public:
     virtual size_t    NumCoefficients() const override {return itsN;}
     size_t NumManifolds() const {return itsT.size();}
     size_t Size(size_t M) const {return itsT[M].columns();}   //!< \f$m_M=2l+1\f$
-    const mat_t<U>& T(size_t M) const {return itsT[M];}       //!< the manifold's \f$S^{1/2}\tilde V\f$ (the ACBN0 estimator's Löwdin coefficients \f$\ell=T^\dagger c\f$)
+    const mat_t<U>& T(size_t M) const {return itsT[M];}       //!< the manifold's \f$T\f$ (the ACBN0 estimator's Löwdin coefficients \f$\ell=T^\dagger c\f$)
     //! THE COEFFICIENT MAP \f$Q_M\f$ (\f$m\times n\f$): an orbital's AO coefficients \f$c\f$ → its coefficients on the
-    //! manifold's functions, \f$Q_Mc\f$.  Column manifold: the selector (the raw coefficients on those columns --
-    //! the ACBN0 paper's eq 9); contracted manifold: \f$\tilde V^\dagger S[{\rm cols},:]\f$, the S-metric
-    //! projection onto the S-orthonormal \f$\chi_m\f$ (exact for a function in their span).
+    //! manifold's functions, \f$Q_Mc\f$.  Site-shell manifold: the selector (the raw coefficients on those columns --
+    //! the ACBN0 paper's eq 9); atomic set: \f$T^\dagger\f$.
     const mat_t<U>& Coefficients(size_t M) const {return itsQ[M];}
-    //! The manifold's functions over its columns (\f$\tilde V\f$; the identity selector for a column manifold) --
-    //! what carries the columns' bare integrals to the manifold's (ERI4Block::Transform).
-    const rmat_t& Contraction(size_t M) const {return itsV[M];}
+    //! A site-shell manifold's block columns (its functions); EMPTY for an atomic-set manifold.
     const std::vector<size_t>& Columns(size_t M) const {return itsCols[M];}
 private:
-    std::vector<mat_t<U>> itsT;   //!< per manifold: \f$S^{1/2}\tilde V\f$, \f$n\times m\f$
+    std::vector<mat_t<U>> itsT;   //!< per manifold: \f$T\f$, \f$n\times m\f$
     std::vector<mat_t<U>> itsQ;   //!< per manifold: the coefficient map, \f$m\times n\f$
-    std::vector<rmat_t>   itsV;   //!< per manifold: \f$\tilde V\f$ over the columns (real: a radial contraction)
     std::vector<std::vector<size_t>> itsCols;
     size_t                itsN;   //!< \f$\sum_M m_M^2\f$
     LowdinProjector() : itsN(0) {}   //!< for \c Atomic
@@ -230,7 +218,7 @@ public:
     //! The manifolds of the same (species, l) as \a M, \a M itself included.
     virtual std::vector<size_t> EquivalentManifolds(size_t M) const = 0;
     //! Per manifold: the BARE two-electron integrals over the manifold's functions on \a block (a column
-    //! manifold: the block's own; a contracted one: carried through the contraction on all four indices).
+    //! manifold: the block's own; a pseudo-atomic one: the set's own, one-centre).
     virtual std::vector<BasisSet::ERI4Block> ManifoldIntegrals(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& block) const = 0;
     virtual std::vector<BasisSet::ERI4Block> ManifoldIntegrals(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block) const = 0;
     //! Per manifold: the orbitals' COEFFICIENTS on the manifold's functions, \f$Q_MC\f$ (\f$m_M\times n_{\rm orb}\f$;
@@ -267,12 +255,10 @@ public:
                              const TransitionDensity<dcmplx>& delta) const override;
     //!@}
     //! What a manifold is on a block: its column indices (from the AoShellSource face; throws on a Cartesian
-    //! d), the raw contraction over them (empty = the columns themselves), and the shells that carry its
-    //! angular rep (ALL the selected shells for a column manifold; ONE for a contracted one -- they share it).
+    //! d) and the shells that carry its angular rep (ALL the selected shells: a LOWDIN manifold is every l-shell).
     struct Selection
     {
         std::vector<std::vector<size_t>>                      cols;
-        std::vector<rmat_t>                                   contraction;
         std::vector<std::vector<Symmetry::Molecule::AoShell>> shells;
     };
     Selection Select(const BasisSet::Orbital_1E_IBS<double>&) const;

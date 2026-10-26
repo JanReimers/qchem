@@ -143,7 +143,8 @@ public:
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
-    const char* Tag() const override { return "Pul"; }
+    const char* Tag() const override { return itsKerkerG0>0.0 ? "Pul+K" : "Pul"; }   // the preconditioner is half the recipe: say it
+    bool HasGFilter() const override { return itsKerkerG0>0.0; }   // G0 = 0: an unpreconditioned history
 private:
     //! The raster-shadow evaluator, or nullptr when the fit basis cannot raster (⇒ the raw pipeline is off).
     const BasisSet::G_SpectralFilter* RasterEvaluator() const

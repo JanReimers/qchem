@@ -18,6 +18,7 @@
   },
   "solid": {
     "multiplicity": 1,
+    "siteSpins": [1,-1,0,0],
     "seed": "IonicSAD",
     "imposeSymmetry": true,
     "ortho": "CholeskyPivoted",
@@ -32,56 +33,48 @@
         "site": 0,
         "l": 2,
         "U_eV": 3.0,
-        "atomicRadial": true,
         "orthoAtomic": true
       },
       {
         "site": 1,
         "l": 2,
         "U_eV": 3.0,
-        "atomicRadial": true,
         "orthoAtomic": true
       },
       {
         "site": 0,
         "l": 0,
         "U_eV": 0.0,
-        "atomicRadial": true,
         "orthoAtomic": true
       },
       {
         "site": 1,
         "l": 0,
         "U_eV": 0.0,
-        "atomicRadial": true,
         "orthoAtomic": true
       },
       {
         "site": 2,
         "l": 0,
         "U_eV": 0.0,
-        "atomicRadial": true,
         "orthoAtomic": true
       },
       {
         "site": 3,
         "l": 0,
         "U_eV": 0.0,
-        "atomicRadial": true,
         "orthoAtomic": true
       },
       {
         "site": 2,
         "l": 1,
         "U_eV": 0.0,
-        "atomicRadial": true,
         "orthoAtomic": true
       },
       {
         "site": 3,
         "l": 1,
         "U_eV": 0.0,
-        "atomicRadial": true,
         "orthoAtomic": true
       }
     ]

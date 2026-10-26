@@ -27,84 +27,72 @@
     "site": 0,
     "l": 2,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    },
    {
     "site": 1,
     "l": 2,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    },
    {
     "site": 0,
     "l": 0,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    },
    {
     "site": 1,
     "l": 0,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    },
    {
     "site": 2,
     "l": 0,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    },
    {
     "site": 2,
     "l": 1,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    },
    {
     "site": 3,
     "l": 0,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    },
    {
     "site": 3,
     "l": 1,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    },
    {
     "site": 4,
     "l": 0,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    },
    {
     "site": 4,
     "l": 1,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    },
    {
     "site": 5,
     "l": 0,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    },
    {
     "site": 5,
     "l": 1,
     "U_eV": 0.0,
-    "atomicRadial": true,
     "orthoAtomic": true
    }
   ]
@@ -126,5 +114,8 @@
     ]
    }
   }
- ]
+ ],
+ "state": {
+  "save": "/home/janr/Code/qchem6-runs/TiO2/states/tio2_lowqtm_G_U0.h5"
+ }
 }

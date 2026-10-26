@@ -1714,6 +1714,64 @@ TiO₂ (gap 1.8 eV) Δρ 4e-4; FeS₂ (gap 0.73 eV, kT 0.136 eV) Δρ 3.4e-3, E 
 (metal) Δρ 2.7e-2, E 14 Ha off.  Pulay at relax 1.0 (the deck's ground-state params, passed straight to the FD re-converge) then
 amplifies it.  The LR numbers never pass through a restart, so the gate stands on them.
 
+## The cross-code gate re-run after the pin-29 image-list fixes (2026-10-24)
+
+OpenWork §3 ORDER step 1 (the CHEAP tier).  Same decks (`decks/campaigns/CrossCode/{tio2,fes2}_*_G.json`, TiO₂ b6 6×6
+`~/Code/qchem6-runs/TiO2/basis_scan/b6_TiO_postpin29.json` = `b6_TiO.json` with the retired `minDeltaRho` → `minDeltaRhoPerElectron 1e-6`),
+binary = `openwork-sweep` at `30a41775` (image fixes + anchor batch + N4 default; NOT seed-tiebreak).  Logs `*_postpin29_20261024.log`
+in `~/Code/qchem6-runs/{TiO2,TiO2/basis_scan,FeS2}/`; records `TiO2_rutile.r006`, `basis_scan/TiO2_rutile.r002`, `FeS2_pyrite.r003`, the
+control `FeS2_pyrite.r004`.
+
+| | E_tot Ha | χ₀ | χ LR | χ FD | U eV |
+|---|---|---|---|---|---|
+| TiO₂ LOWDIN, banked 10-21 | −71.1350613 | −13.917 | −3.98688 | −3.98567 | 4.870 |
+| TiO₂ LOWDIN, 10-24 | −71.1350964 | −13.9727 | −3.99553 | — | **4.863** |
+| TiO₂ CP2K | | −13.993 | | −3.99651 | 4.864 |
+| TiO₂ b6 6×6, banked 10-21 | −71.41653 | | | | Ti 3.051 / O 6.735 (Ti 1×1 5.125) |
+| TiO₂ b6 6×6, 10-24 | −71.4165332 | | | | Ti 3.0504 / O 6.7345 (Ti 1×1 5.1265) |
+| FeS₂, 10-22 (anchor tree; XC from ρ_mix) | −164.9113610 | −33.2807 | −3.98723 | −3.98893 | 6.0070 |
+| FeS₂, 10-24 CONTROL (`xcCuspDeficit=false`) | −164.9113609 | −33.2793 | −3.98720 | −3.99322 | 6.0070 |
+| FeS₂, 10-24 (cusp deficit, the default) | −164.9114008 | **−32.7800** | −3.98059 | −3.98469 | **6.0059** |
+| FeS₂ CP2K | | −33.457 | | −3.98992 | 6.007 |
+
+**The V_short fix did NOT move these cells.**  FeS₂ is the clean witness: the control (today's code, the 10-22 XC route) reproduces the
+10-22 run to 1e-7 Ha, χ₀ 4e-5 relative, U to 2e-5 eV.  Rutile: E within 0.04 mHa, U within 2 meV (an upper bound -- the 10-21 runs predate
+the anchor batch too).  Pin 29's own prediction: the defect grows with the home-atom separation, so compact cells see little of it --
+MnO AFM-II's −61 mHa is the other end.  ⚠ So a small move here does NOT clear NiO: rocksalt AFM-II is MnO's own cell type.
+
+**What did move FeS₂ is the N4 cusp deficit (pin 28): χ₀ −1.5 % (0.53 % → 2.0 % from CP2K), χ −0.17 %, U −1 meV** -- the banked gate was
+measured with XC on the bare ρ̃_mix (the log's "XC rho source: rho_mix", a pin-28 violation), and moving XC to ρ[D] moved χ₀ AWAY from
+CP2K while U, a ratio, held.  Rutile's χ₀ moved TOWARD CP2K (0.5 % → 0.15 %), so it is not one sign.  Open (OpenWork §3 re-run row):
+CP2K's GPW evaluates XC on its REGULAR-GRID density, not on an atomic quadrature, so a 1–2 % χ₀ difference may be the XC-density
+convention; the discriminator is FeS₂ on our raster (pair) route, `--set solid.policy.beckeXC=false` -- collocated ρ[D] on a uniform grid, CP2K's way.
+
+**RESOLVED 2026-10-25 -- it IS the XC quadrature** (`FeS2_pyrite.r005`, log `fes2_Fe3d_G_raster_20261025.log`; trace `shadow` / `Pul+K` on all
+135 rows, pin-28 clean): raster E −164.9077261 Ha (3.7 mHa above Becke), **χ₀ −33.3333 (0.37 % from CP2K; Becke + cusp 2.0 %)**, χ LR
+−3.98767 (0.06 % from CP2K's FD), U 6.0075 eV; own FD χ −3.97862 (0.23 % from its LR; Becke 0.10 %).  Like-for-like with CP2K (ρ[D] on
+a uniform grid at the density cutoff), χ₀ agrees; the Becke atomic grid resolves the core density a uniform grid cannot, and χ₀ -- not
+U -- feels that at the 2 % level.  The fitted-ρ̃ control sat near CP2K for the same reason (band-limited).  U is route-independent:
+6.0059 / 6.0070 / 6.0075 eV on Becke+cusp / Becke-fitted / raster vs CP2K 6.007.  ⇒ a χ₀ comparison against CP2K is a RASTER-route
+comparison; a Becke χ₀ is compared with CP2K only through U.
+
+**NiO at the cell level, same day** (`rundeck decks/campaigns/NiO/nio_q0_step3_newroute.json` -- the exact banked deck: free, k222, q = 0,
+U_in 3 eV frozen, ortho-atomic, Kerker-Pulay; restart from the saved FREE state, which re-converged in 11 iterations; binary `f3cce7ef`;
+record `~/Code/qchem6-runs/NiO/NiO_AFM2.r008`, log `nio_q0_step3_newroute_postpin29_20261024.log`):
+
+| NiO AFM-II, q = 0 | banked 2026-10-04 | 2026-10-24 |
+|---|---|---|
+| E_tot / E_nn / E_elec Ha | −106.2023644 / −95.7965 / −15.5775 | −106.1384955 / −95.7245 / −15.5856 |
+| χ₀ Ni0 / Ni1 | −4.1181 / −4.0644 | −4.02564 / −4.02549 |
+| χ Ni0 / Ni1 | −2.07002 / −2.05166 | −2.04332 / −2.04329 |
+| U (2×2) Ni0 / Ni1 eV | 6.4502 / 6.4793 | **6.4677 / 6.4677** (1×1 6.5577) |
+
+**Unlike rutile and pyrite, NiO's Hamiltonian moved** (E_elec −8.1 mHa; E_nn +72.0 mHa is the Ewald constant) -- rocksalt AFM-II, MnO's
+cell type -- **and the defect's signature is in the response: the two Ni, equivalent by the AFM-II symmetry, had χ₀ 1.3 % and U 29 meV
+apart; now 4e-5 and 2e-5 eV** (pin 29: equivalent sites got different V_short blocks).  The MEAN U moved +3 meV (6.4648 → 6.4677), the
+mean χ₀ −1.6 % (not separated between V_short and the N4 cusp deficit, which moved FeS₂'s χ₀ by the same amount; a
+`--set scf.xcCuspDeficit=false` control would split them).  So the banked NiO U numbers (cell 6.09-era loop, q-mesh 5.73) are not
+re-run now: their mean moves by meV, and step (3) re-runs them anyway after the projector decoupling (2b) -- which changes exactly these
+ortho-atomic projectors.  SrVO₃ (one V per cell, no equivalent-site pair to split) is skipped by the same rule.
+
 ## TiO₂ ortho-atomic at Γ vs hp.x at Γ (2026-10-21) — an OPEN corner case
 
 Ours: `rundeck decks/campaigns/CrossCode/tio2_Ti3d_G_ortho.json` = the CP2K-validated Γ deck (same state: Etot −71.1350613 Ha, as
@@ -2217,3 +2275,178 @@ Same settings as the polarization arms (vet off, CholeskyPivoted 1e-7, AliasFree
 | GPW p5 f3 | −0.0025 | +0.0196 | −0.0517 | −0.0060 | +92.1 mHa |
 
 ΔA ≈ α·Tr n (0.5 eV × ~5 e = 92 mHa), as it must be.  The Gaussian response to a fixed potential is nearly BASIS-INSENSITIVE between the two (≈10 %), unlike the U response (+0.0229 vs +0.0262).  **The PW half did not converge**: `alpha_pw` (80 Ry, same α) sloshed for 59 iterations at Δρ 1–6e-2, ~0.3 Ha above its expected −92.59, under the Kerker/Pulay recipe that converged every SYMMETRIC PW run — the site-asymmetric perturbation needs a gentler recipe.  Stopped.  NEXT (OpenWork row): rerun PW α with startingRelaxRo ~0.2 (or a smaller α, 0.1–0.2 eV, read as the linear response), ideally seeded from the PW U0h state (`state.save` on the U0h deck, `restartFrom` on the α deck); the decisive comparison is Δm / Δn per unit α, GPW vs PW.
+
+## 2026-10-25 — HubbardProjectorPlan increment 4: ACBN0 + response through the pseudo-atomic projector, re-judged
+
+Code `b4cfc789` (`GaussianAtomCentredSet::BareCoulomb`, exact one-centre).  Decks + logs: `~/Code/qchem6-runs/TiO2/basis_scan/
+b6_TiO_pseudoAtomic{.json,_20261025.log}` (record `TiO2_rutile.r003`), `~/Code/qchem6-runs/NiO/nio_q0_pseudoAtomic{.json,_20261025.log}`
+(`NiO_AFM2.r009`, warm start from the saved FREE state, 11 iterations).  Each is its site-shell twin with `atomicRadial` → `"projector":
+"pseudoAtomic"` (ortho-atomic over the set), same binary otherwise.
+
+| | site-shell (10-24) | pseudo-atomic | hp.x / QE |
+|---|---|---|---|
+| TiO₂ b6 Γ, U(Ti 3d) 6×6 eV | 3.0504 | **2.9945** | 2.927 |
+| TiO₂ b6 Γ, U(O 2p) 6×6 eV | 6.7345 | **6.8226** | 6.758 |
+| TiO₂ b6 Γ, U(Ti 3d) 1×1 eV | 5.1265 | **5.0880** | 5.026 |
+| TiO₂ occupation Ti 3d / O 2p | 2.211 / 4.937 | **2.210 / 4.931** | 2.208 / 4.931 |
+| NiO q = 0, U 2×2 eV (Ni0 / Ni1) | 6.4677 / 6.4677 | 6.4793 / 6.4792 | (q-mesh: step 3) |
+| NiO χ₀ Ni0 / E_tot | −4.02564 / −106.1384955 | −4.03786 / −106.1385368 | |
+
+Captured norms B†S⁻¹B/O: TiO₂ 0.9999 (Ti 3d) / 1.0000 (s, O), NiO 0.9998 -- so the projectors are close to the site-shell ones on these
+bases and the moves are small; TiO₂'s Ti halved its hp.x excess and the occupations reached QE's.  Si p (ACBN0, SR basis): bare U 10.6 eV
+pseudo-atomic vs 23.6 eV for the site-shell contraction -- there the SR p shells could NOT hold the pseudo-atom 3p, and the contraction
+was a different, compact function: the basis dependence the plan removes.
+
+## doc/HubbardProjectorPlan.md -- retired 2026-10-25 (increments 1–5 landed), verbatim
+
+(Source comments still cite `doc/HubbardProjectorPlan.md` D1–D7 / increment N: this is that text.)
+
+### +U projectors independent of the orbital basis
+
+**Born 2026-10-24, RETIRED 2026-10-25 (increments 1–5 landed)** (user: *"clean code is MUCH higher priority"* than a cheap route;
+*"if we have to redo some runs that is fine"*).  The evidence is in `Records/HubbardUHistory.md` (2026-10-24
+entries); the tracker row is `OpenWork.md` §2 "+U projector independent of the orbital basis".  When this
+plan is done its text goes to `Records/HubbardUHistory.md` and this file is deleted.
+
+#### 0. Status (2026-10-24, end of the first execution session)
+
+- **Increments 1–3 LANDED** (each sweep-green, 0 of 1071 anchors moved at 1e-10): D1–D4 as written, except O
+  comes from the BLOCK (`AtomCentredOverlapSource::MakeSetOverlap`) through a new engine pair kernel
+  `LatticeSum1E::MakeOverlap(phase,A,g,h)` — the k convention and the lattice sums are the block's side, and the
+  orbitals do not enter.  D5 = `qchem.PseudoAtomOrbital`; D6 energy/potential/slots via one synthetic
+  `SphericalShellRep` shell per manifold; D7 = `"projector": "pseudoAtomic"` (default still `siteShells`).
+  The set's m convention = `SphericalShell(l)[l+m]` at POSITIVE unit-sphere scale (GPW's `YlmCartesian` now
+  takes |N|; bitwise-neutral for the KB sum).
+- **The increment-3 gate FAILED and refuted §1's premise**: the gap does not move with the projector (VA 0.128
+  → 0.128 eV; QE 0.325); the diffuse-shell gain was the orbital basis.  The projector sets E_U (QE's to 0.1 % on
+  VA + O p 0.18).  Numbers: `Records/HubbardUHistory.md` 2026-10-24 "The pseudo-atomic +U projector".
+- **User, 2026-10-24**: the new projector flexibility is worth keeping; the gap is to be looked for elsewhere.
+  Increments 4–5 remain the plan (basis-independent U for ACBN0 / hp.x comparisons; QE's E_U).
+- **Increment 4 LANDED 2026-10-25** (`b4cfc789`, fast tier 1081/1081, 0 anchors can move: the site-shell path is untouched).
+  D6's ACBN0 bare integrals are the SET's own `BareCoulombSource` (one centre, exact: multipole expansion + real Gaunt
+  factors + Slater integrals of Gaussian densities in closed form) -- NOT the molecular engine, which can only reach a
+  pseudo-atomic radial primitive by primitive (~10^7 ERIs; CleanCode D-CONTRACTED-SHELL), and it duplicates `RkEngine`
+  (CleanCode D-RK-ONCE).  The engine is the oracle: element by element to 1e-12 (d primitive, contracted d, p+d).
+  `ManifoldCoefficients` and the response needed nothing (`Atomic`'s Q = T^dagger is the site-shell route's ortho convention).
+  Gates: `BareCoulomb.TheAtomCentredSet*`, `GPW_Si.Γ_U_PseudoAtomic3p_Imp_Pol_eqUnpol`; physics re-judged
+  (`Records/HubbardUHistory.md` 2026-10-25): **TiO₂ b6 6×6 vs hp.x -- U(Ti) 2.994 eV (+2.3 %, was +4.2 % site-shell),
+  U(O 2p) 6.823 (+1.0 %, was −0.35 %), Ti 1×1 5.088 (+1.2 %, was +2.0 %); occupations Ti 3d 2.210 / O 2p 4.931 vs QE
+  2.208 / 4.931.  NiO cell (q = 0, U_in 3): U 6.479 eV vs site-shell 6.468 (+11 meV; the VA site shells already
+  capture 0.9998 of the 3d).**  The NiO-vs-hp.x q-mesh comparison is step (3) of OpenWork §3's ORDER.
+- **Increment 5 LANDED 2026-10-25 -- THE PLAN IS DONE.**  Part A `095f0bec`: every CP2K-gated / LOWDIN manifold names
+  `siteShells` (`HubbardU_SiteShells`; 14 decks); 0 of 1089 / 5 moved.  Part B `94ed536f`: `PseudoAtomic` is the default,
+  `radial` / `atomicRadial` and the whole contraction path retired, 38 decks / 338 manifolds migrated, a deck asking for a
+  contraction is refused, WARM `hubbard.projector` replaces `hubbard.atomicRadial`.  0 of 1084 / 5 moved vs part A (the
+  first sweep caught two Si INLINE JSON decks that the part-A search missed: a LOWDIN manifold had turned pseudo-atomic).
+  `GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long` did not move (it names `siteShells`).  REMAINDERS, all elsewhere: CleanCode
+  D-RK-ONCE, D-CONTRACTED-SHELL; the campaign re-runs = OpenWork §3 ORDER step (3).
+
+#### 1. Why
+
+A contracted +U manifold today is χ_m = Σ_s r_s φ_{s,m} over the **site's own orbital shells**
+(`HubbardManifold::radial`, `Hubbard_U::SelectOn`), and `SolidCalculation::AtomicRadial` fits the GTH
+pseudo-atom orbital onto those shells.  So the projector is whatever the site's shells can hold:
+
+- **β-MnO₂ (VA, Γ, U(O pz) 4.62 eV).**  The O 2p projector captures **0.976** of the pseudo-atom orbital
+  (norm beyond 2.5 bohr: 2.1 % vs the orbital's 6.6 %).  The gap is 0.128 eV against QE's 0.325, and every
+  occupied O p band sits 0.2–0.5 eV too high relative to Mn d.  U = 0 agrees with QE to 0.04 eV.  Orbital,
+  energy form (Dudarev in the eigenbasis) and E_U all match QE.
+- **One diffuse O p shell (0.18)** raises the captured norm to 0.9994 and the gap to 0.237 eV.  The rest is
+  the projector tail's overlap with the **neighbours'** functions, which no site-only contraction can hold.
+- **The diffuse shells are the ones conditioning removes**: MnO VA dropped d 0.18 (Mn 3d captures 0.991),
+  and the NiO vet trims Ni s 0.06 and d 0.18.  A projector never enters S, so it need not lose them.
+- **Today U changes with the basis**, which confounds the S2 basis scan and any hp.x comparison.
+
+QE and hp.x define the projector as an atomic function (the UPF's `PP_CHI`, which our own `gth2upf` wrote
+from the same pseudo-atom).  We should define it the same way.
+
+#### 2. The design: the separable-PP pattern, applied to +U
+
+The precedent already exists in this tree.  The nonlocal PP's projectors β are **not** basis functions:
+`SpeciesProjectorSet_Gaussian` holds them as Gaussians × Y_lm, and `GPW_Evaluator` builds
+b_i = ⟨χ_i^k|β⟩ per block through `LatticeSum1E::MakeOverlap(phase, cell, GaussianFunction)`
+(`GPW_Evaluator.C` ~1440).  The magnitude-screened lattice sum follows pin 1 (no r-space cut), and the
+symmetry-adapted and spherical blocks come for free: the block's own lattice face, including
+`SphericalLatticeView`'s congruence, returns b over the block's functions.  A +U projector is the same kind
+of object.
+
+**D1. A vocabulary type: the atom-centred function set** (`BasisSet` library, beside `Orbital_PP_IBS.C`'s
+vocabulary; data-free abstract face plus a Gaussian capability, the house style).  It holds, per manifold:
+the centre, l, the real-harmonic m convention (the same as the spherical view's), and the radial as a
+closed sum of Gaussians (`AsGaussians`).  No weights: that is the difference from `SpeciesProjectorSet`.
+It is per **site** rather than per species, because manifolds are per site.  Check first whether a common
+base with `SpeciesProjectorSet` falls out naturally; don't force one.
+
+**D2. A new orbital-basis service, named for what the client consumes**: *"the overlap of every basis
+function with each function of an atom-centred set"*, B (n × m) per block, Hermitian-consistent with
+`MakeOverlap`.  Like `Orbital_PP_IBS`, it is an integral a basis can compute knowing nothing about
+Hubbard.  Implementors: the GPW block (through `LatticeSum1E::MakeOverlap(phase, cell, g)` per Gaussian
+term, as the separable PP does; refactor that loop into the shared helper rather than copy it) and the
+spherical view (congruence).  A block without the face throws cleanly (pin: a call that can legitimately
+fail returns an Outcome; this one is a broken invariant, so it throws).
+
+**D3. The projectors' own overlap O (m × m), for ortho-atomic.**  QE's ortho-atomic is
+φ̃ = φ O^{-1/2} with O the functions' **true** mutual overlap, lattice-summed.  Build the set's own lattice
+overlap from the same analytic Gaussian lattice sums.  The clean route is to let the function set realise
+a lattice overlap face over itself, which must not reach into an orbital basis.  Also report the
+represented overlap B^† S^{-1} B beside it, as the "captured" diagnostic: how much of each projector the
+orbital basis spans.  **Decision for the session**: confirm true-O (QE semantics) as the definition; the
+represented O is a diagnostic only.
+
+**D4. `LowdinProjector` from B and O**: T_M = B_M Õ^{-1/2}, Q_M = T_M^† (⟨φ̃|ψ⟩ = T^† c).
+Forward (n = T^† D T) and Adjoint (V = T W T^†) are unchanged in form.  The column manifold
+(T = S^{1/2}[:,M], CP2K's LOWDIN convention) stays as the CP2K-parity path.  **The site-contracted
+radial (`radial`, `atomicRadial`) retires**: the atomic function set supersedes it.  Pin the ctor's two
+contracts in unit tests: Forward/Adjoint exactly adjoint, and an idempotent density inside the projector
+span giving occupations 0/1.
+
+**D5. Who builds the function set**: the GTH pseudo-atom orbital in **its own** exponents (today's
+16-exponent pool, `AtomCalculation`, LDA, unpolarized), with no projection onto the site.  It moves out of
+the `SolidCalculation` facade into a builder of its own (one pseudo-atom per species, cached), reachable
+from the deck.  The pool's adequacy is a gate (§4), not an assumption.
+
+**D6. The consumers, all through the term's existing faces**:
+- energy and potential (`Analyse`/Dudarev, `Forward`/`Adjoint`): no change beyond T;
+- **site symmetry and slots** (`ManifoldSymmetry`): built today from the picked shells' rep matrices.
+  Build it from the function set's (centre, l, m convention) instead;
+- **ACBN0 bare integrals** (`ManifoldIntegrals` → `BareCoulombSource::BareCoulomb(cols)` + `Contraction`):
+  the on-site ERI4 over the projector functions themselves.  The function set is a one-centre Gaussian set,
+  so its 4-centre integrals come from the molecular ERI engine.  Give it the `BareCoulombSource` face rather
+  than a special path;
+- **ACBN0 coefficients** (`ManifoldCoefficients` = Q C) and the **response kernel** (`SlotProjectors`,
+  Forward/Adjoint): no change beyond T and Q.
+
+**D7. Deck**: a manifold names its projector kind (pseudo-atomic, the new default; site columns for CP2K
+parity).  `radial` and `atomicRadial` retire.  The decks that use them migrate, found with `scripts/vet-decks`
+plus a grep of `~/Code/*-runs` decks.  `doc/InputDeck.md` is updated.
+
+#### 3. Increments (each one sweep-green and committed before the next)
+
+1. **D1 + D2 + unit tests.**  B against a brute-force check: a basis that *contains* the projector
+   function must give B = S c exactly; the separable-PP refactor must be bit-identical (gate:
+   `AnalyticSeparablePPMatchesMesh` plus the full sweep with 0 moves).
+2. **D3 + D4**, with `LowdinProjector` tests (adjointness, 0/1 occupations, ortho-atomic orthonormal as a
+   set).  Not wired into a run yet.
+3. **D5 + D6 (energy, potential, symmetry/slots) + D7**, behind the new projector kind, opt-in.
+   **Gate: β-MnO₂ Γ on plain VA (no diffuse shell): gap → 0.325 eV (QE), O p bands within ~0.05 eV of QE's
+   relative to Mn d** (`QCHEM_DIAGNOSTICS=frontier=16`; QE band characters in HubbardUHistory 2026-10-24).
+   And basis independence: VA vs VA + O p 0.18 give the same occupations to ~1e-3.
+4. **D6 (ACBN0 bare integrals + response)**.  Gates: the ACBN0 unit tests, and TiO₂ / NiO U vs hp.x
+   re-judged (OpenWork §3 "NiO / SrVO₃ U vs hp.x").
+5. **Make it the default; retire `radial`/`atomicRadial`**; re-judge every +U anchor (pin 10: against an
+   independent route, never refreshed): `GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long` stays on the CP2K-parity
+   column path, so it should **not** move; any anchor that does move needs a reason.
+   Then the campaign runs the other session re-ran on 2026-10-24 are redone (user: fine).
+
+#### 4. Risks and open questions (settle in the increment that meets them)
+
+- **Is the 16-exponent pool good enough as the projector?**  It reproduces CP2K's ATOM to 3 / 0.3 / 0.1 mHa
+  (Mn; `UTCalculation ValenceBasisGen.MnQ7PseudoAtomInALargePool`).  Check the O 2p tail against the UPF's
+  `PP_CHI`, which this tree generated from the same pseudo-atom: normalized overlap ≈ 1.
+- **Screening**: a diffuse projector widens the lattice sum.  The magnitude screen handles it, but measure
+  the setup cost on MnO (Benchmark's ledger, a setup bucket of its own).
+- **Real TRIM blocks / the spherical view**: B must come back real on real blocks, as `MakeOverlap` does.
+- **Charge conservation of n**: with true-O ortho-atomic, the trace of n over all manifolds is no longer
+  bounded by N.  This is expected (QE's is not either); don't assert it.
+- **`dynamic_cast` discipline**: the new service is reached abstract→abstract (the `Orbital_PP_IBS`
+  pattern); flag any concrete cast.

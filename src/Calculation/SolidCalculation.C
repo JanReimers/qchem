@@ -60,24 +60,26 @@ export namespace qchem
 
 //! \brief How to set up a periodic calculation.  Designated-initializer friendly:
 //!     SolidCalculation calc(lattice, basis, {.Nelec=8, .species={{"Si",4}}});
-//! A Hubbard manifold spelled the way the literature quotes it: \a U in eV.  (0.147 Ha = 4.0 eV.)
+//! A Hubbard manifold spelled the way the literature quotes it: \a U in eV.  (0.147 Ha = 4.0 eV.)  The projector is
+//! the DEFAULT one -- the pseudo-atom's own \f$l\f$ orbital, independent of the orbital basis (HubbardProjectorPlan
+//! increment 5, 2026-10-25; atomic, i.e. QE's `atomic`).
 inline Hamiltonian::HubbardManifold HubbardU(size_t site, int l, double U_eV)
 {
     return Hamiltonian::HubbardManifold{site, l, U_eV/27.211386245988};
 }
-//! The same manifold on ONE contracted radial -- the pseudo-atom's own \f$l\f$ orbital in the block's
-//! primitives (the facade fills it): the physically meaningful +U manifold and the one ACBN0 can screen.
-inline Hamiltonian::HubbardManifold HubbardU_Atomic(size_t site, int l, double U_eV)
+//! CP2K's LOWDIN manifold, NAMED: every shell of angular momentum \a l on the site, \f$T=S^{1/2}[:,M]\f$ (the block's
+//! own columns).  The CP2K-parity route (the CP2K-gated +U tests and the CrossCode decks name it).
+inline Hamiltonian::HubbardManifold HubbardU_SiteShells(size_t site, int l, double U_eV)
 {
     Hamiltonian::HubbardManifold M{site, l, U_eV/27.211386245988};
-    M.atomicRadial=true;
+    M.projector=Hamiltonian::HubbardProjectorKind::SiteShells;
     return M;
 }
-//! The atomic manifold, Löwdin-orthogonalised among every ortho-atomic manifold of the run (QE's
-//! `ortho-atomic`); list the spectators (O 2p, O 2s, Mn 4s) at U=0 to reproduce QE's full set.
+//! The pseudo-atomic manifold, Löwdin-orthogonalised in the TRUE overlap among every ortho-atomic manifold of the run
+//! (QE's `ortho-atomic`); list the spectators (O 2p, O 2s, Mn 4s) at U=0 to reproduce QE's full set.
 inline Hamiltonian::HubbardManifold HubbardU_OrthoAtomic(size_t site, int l, double U_eV)
 {
-    Hamiltonian::HubbardManifold M=HubbardU_Atomic(site, l, U_eV);
+    Hamiltonian::HubbardManifold M=HubbardU(site, l, U_eV);
     M.orthoAtomic=true;
     return M;
 }
@@ -102,7 +104,7 @@ struct SolidCalcOptions
     //! \c GPW (default): periodic Gaussians over the ctor's molecular basis.  \c PlaneWave: plane waves at
     //! \c planeWaveEcut, the SAME Hamiltonian stack (the terms ask the basis, never its family) -- with QE's
     //! pseudopotential that makes a QE comparison a Hamiltonian-only one.  A PW run ignores the molecular
-    //! basis except where a +U manifold asks for its \c atomicRadial; the grid knobs below are GPW's.
+    //! basis (its +U projectors are pseudo-atomic, basis-independent); the grid knobs below are GPW's.
     //! First increment: Γ only, no imposition (the PW factory builds one Bloch block and no symmetry).
     enum class OrbitalBasis { GPW, PlaneWave };
     OrbitalBasis orbitalBasis = OrbitalBasis::GPW;
@@ -144,11 +146,12 @@ struct SolidCalcOptions
 
     //! \name Convergence machinery
     //!@{
-    //! The Fock-side accelerator.  \c Auto (default) is the facade's policy, resolved per stage, and TODAY resolves to \c DIIS
-    //! (the default before Auto existed), beside which an \c Auto mixer stays linear.  It is the seam for PAIRING the two
+    //! The Fock-side accelerator.  \c Auto (default) is the facade's policy, resolved per stage, PAIRED with an \c Auto mixer
     //! (OpenWork §3 "Kerker/Pulay as the DEFAULT mixer", measured 2026-10-22: Pulay on ρ beside DIIS on F fights -- free Si
-    //! k222 stalls, Si Γ diverges -- while Kerker/Pulay with NO Fock extrapolator beat linear + DIIS on every probe): seeded
-    //! -> \c Null + Kerker/Pulay, carried at kT = 0 -> the Ladder on its GDM rung.  That switch waits on N4 (pin 28).
+    //! k222 stalls, Si Γ diverges -- while Kerker/Pulay with NO Fock extrapolator beat linear + DIIS on every probe; the
+    //! DEFAULT since 2026-10-26): a seeded or carried stage -> \c Null + Pulay on D (no Kerker, no fit: pin 28); a RESTORED
+    //! stage (Restart, same Hamiltonian) at kT = 0 -> the Ladder on its GDM rung, a restored smeared one -> \c DIIS, either
+    //! beside a linear step capped at 0.3.
     SCFAccelerators::Type accelerator = SCFAccelerators::Type::Auto;
     //! A SMEARED run fills each k-block to its OWN chemical potential -- the non-default (D-FERMI-DEFAULT, user 2026-10-05,
     //! landed 2026-10-21; was \c globalFermi, default false).  A k-point is a label, not a reservoir: per-k μ has no physical
@@ -223,6 +226,10 @@ struct SolidCalcOptions
     //! is the whole point of a magnetic campaign.  Ignored unless \c imposeSymmetry.
     //! \note \c greyImposition forces the empty decoration regardless -- that arm is the erasure control.
     std::vector<int> siteSpins = {};
+    //! \note MANDATORY for a polarized run that carries a Hubbard manifold (OpenWork §3 "The magnetic decoration is
+    //! DERIVED FROM THE SEED", ruled 2026-10-23: the ordering is chemistry, stated like the Hubbard subspace, never
+    //! inferred -- a seed change must never change the imposed symmetry or the manifolds' site groups).  A
+    //! non-magnetic polarized run states all zeros.  See \c RequireStatedMagneticOrdering.
     // NB: the test driver's `realTRIMBlocks` is NOT added here -- it is \c forceComplex with the opposite
     // polarity (both feed GPWParams::hamPreservesReal).  One decision, one field.
     //! Names this run in its own console output -- the fingerprint, the stage banners, the order trace.
@@ -246,6 +253,12 @@ struct SolidCalcOptions
     //!@}
     //!@}
 };
+
+//! \brief THROWS unless \a o states its magnetic ordering where the run needs one: a polarized run carrying a
+//! Hubbard manifold must give \c siteSpins (\c greyImposition, the erasure control, is exempt), and a stated
+//! \c siteSpins must have one entry per site of \a st, each -1, 0 or +1.  A broken invariant, not an Outcome: the
+//! facade calls it first thing, and \c deck::Vet calls it so \c scripts/vet-decks catches a deck before it runs.
+void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& st);
 
 //! \brief WHY an SCF attempt produced no usable answer (doc/OpenWork.md N1).
 //!
@@ -733,8 +746,11 @@ private:
     //! stage's (an \c Auto accelerator is resolved against them).
     void BuildStage(SCFAccelerators::Type, std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried, const SCFParams& params);
     //! Build this stage's accelerator: resolve \a asked (\c Auto, see \c SolidCalcOptions::accelerator) for \a params and
-    //! a \a carried (converged) or seeded start, and record both for the banner and for the stages that re-resolve it.
-    void MakeAccelerator(SCFAccelerators::Type asked, const SCFParams& params, bool carried);
+    //! a \a restored (Restart: same Hamiltonian) or seeded / carried start, and record both for the banner and for the stages
+    //! that re-resolve it.
+    void MakeAccelerator(SCFAccelerators::Type asked, const SCFParams& params, bool restored);
+    //! \c Converge(params) after the stage's own adjustment (a restored Auto stage's linear step capped at 0.3).
+    Outcome<Converged, SCFFailure> ConvergeStage(const SCFParams& params);
     //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift
     //! apart in what they call a success.
     Outcome<Converged, SCFFailure> Outcome_() const;

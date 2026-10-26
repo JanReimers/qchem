@@ -184,4 +184,17 @@ public:
                                        const std::function<double(double g2)>& k) const=0;
 };
 
+//! \brief Does this fit's G-ball hold EVERY pair difference \f$G_i-G_j\f$ of the orbital basis that built it -- so that
+//! \f$\tilde\rho(G)\f$ on the ball, and its raster transform, ARE \f$\rho[D]\f$ exactly, with nothing truncated?
+//! The client is the pin-28 audit (the XC sampler's BALL route, doc/Pins.md pin 28): a BALL rho is then rho[D], not a fitted
+//! rho.  True for a plane-wave orbital basis whose fit radius is >= 2 G_max (Ecut_fit >= 4 Ecut: the triangle inequality,
+//! QE's density grid); never for a Gaussian (GPW) block, whose pair products have no finite ball.  A CONSTRUCTION fact,
+//! stated by the orbital basis that creates the fit (PlaneWave_IBS), not inferred from the ball's size.
+class G_OrbitalPairBall
+{
+public:
+    virtual ~G_OrbitalPairBall() = default;
+    virtual bool HoldsEveryOrbitalPair() const=0;
+};
+
 } //namespace

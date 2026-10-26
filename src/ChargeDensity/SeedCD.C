@@ -39,9 +39,9 @@ class SeedCD
 public:
     //! Build the seed for density-fit basis \a fitBasis (from the orbital basis's CreateCDFitBasisSet) and
     //! structure \a st: read each element's pseudo-valence radial density (\a functional, from
-    //! atomic_valence_densities.json) and prepare the form-factor sum.  \a ionicNvalByZ is the per-species
-    //! IonicSAD TARGET valence-electron count (empty => neutral SAD): species \c Z should carry \c Nval-q_Z
-    //! electrons (Na+ -> 0, F- -> 8).  For each species we prefer the library's CHARGE-STATE density with that
+    //! atomic_valence_densities.json) and prepare the form-factor sum.  \a ionicNvalBySite is the per-SITE
+    //! IonicSAD TARGET valence-electron count, one per atom (empty => neutral SAD): site \c i should carry
+    //! \c Nval-q_i electrons (Na+ -> 0, F- -> 8; LiMn2O4's Mn3+ and Mn4+ apart).  For each (species, target) we prefer the library's CHARGE-STATE density with that
     //! \c Nelec (a DIFFUSE F- anion -- what makes the ionic seed actually converge), scale 1; if the library
     //! lacks it we fall back to the neutral density amplitude-scaled by \c target/Nval (the old compact seed);
     //! a target of 0 (a stripped cation) is the zero density.  The total integrates to the cell electron count.
@@ -52,7 +52,7 @@ public:
     //! sublattice) -- and a species without a pair contributes the spin-agnostic half density (rho/2, both
     //! channels alike; the flip is then a no-op).  \c None ignores flips entirely (the total is flip-blind).
     SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
-                  const std::string& functional="LDA", const std::map<size_t,int>& ionicNvalByZ = {},
+                  const std::string& functional="LDA", const std::vector<int>& ionicNvalBySite = {},
                   const Spin& channel = Spin::None);
 
     // FourierDensity -- the native G-space representation the PW Hartree/XC terms consume.  The seed carries
@@ -79,19 +79,25 @@ public:
 
 private:
     ΔG_Map StructureFactorDensity() const;        //!< the seed's rho-tilde = per-species structure-factor sum
-    //! One flip-group's structure-factor sum: \a group's atoms against \a radByZ's per-species radial.
-    ΔG_Map GroupDensity(const Structure* group, const std::map<size_t,std::shared_ptr<const RadialDensity>>& radByZ) const;
+    //! One G-assembly GROUP: a sub-cell in which every species has ONE radial and ONE multiplier.  The basis's
+    //! \c MakeFourierDensity is SPECIES-keyed (formFactor(Z, g2)), so sites of one species that carry DIFFERENT
+    //! radials -- the flipped -m sublattice of a channel seed, or a different IonicSAD charge state (Mn3+ / Mn4+)
+    //! -- must be summed in separate calls.  Group \c k holds each species' \c k-th radial class (classes ranked
+    //! unflipped first, then by target), so the common cases keep today's calls: one group (no split) or the
+    //! unflipped / flipped pair.
+    struct Group
+    {
+        std::shared_ptr<UnitCell> cell;   //!< null = the whole structure (the single-group case: no copy)
+        std::map<size_t,std::shared_ptr<const RadialDensity>> radByZ;   //!< per-element channel radial in this group
+        std::map<size_t,double>                               scaleByZ; //!< per-element multiplier (IonicSAD fallback x the pairless rho/2)
+    };
+    ΔG_Map GroupDensity(const Group&) const;
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> itsFitBasis; //!< density-fit basis (its grid engine builds rho-tilde); owned
     const Structure*             itsStructure;    //!< atom Z + positions (+ spin-flip bits); not owned
     ReciprocalLattice            itsRecip;        //!< the cell's reciprocal lattice (B): the seed's Poisson metric
     const UnitCell*              itsCell;         //!< == itsStructure (checked at construction): the direct cell, for the periodic real-space image sums
     Spin                         itsChannel;      //!< None = spin-agnostic total; Up/Down = one polarized channel
-    std::map<size_t,std::shared_ptr<const RadialDensity>> itsRadByZ;     //!< per-element channel radial, UNFLIPPED sites
-    std::map<size_t,std::shared_ptr<const RadialDensity>> itsRadFlipByZ; //!< per-element channel radial, FLIPPED sites (== itsRadByZ unless a spin pair)
-    std::map<size_t,double>                            itsScaleByZ; //!< per-element multiplier (IonicSAD fallback x the pairless rho/2)
-    //! Flip-partitioned sub-cells for the G assembly (built only when a channel seed has flipped atoms --
-    //! the basis's MakeFourierDensity is species-keyed, so each flip group gets its own call).
-    std::shared_ptr<UnitCell>                          itsGroupA, itsGroupB;
+    std::vector<Group>           itsGroups;       //!< the G-assembly partition (see \c Group); at least one
     std::vector<RecentredAtomicDensity>                itsRecentred; //!< per-atom rho_atom(|r-R|) for op(r), flip-aware
     std::vector<double>                                itsScalePerAtom; //!< per-atom multiplier, parallel to itsRecentred (keeps op(r) off the structure)
     double itsCharge;     //!< total (post-ionic-scale) valence electron count, pre-ReScale
@@ -113,7 +119,7 @@ class PolarizedSeedCD
 public:
     //! Same arguments as SeedCD; builds the Up + Down channel pair (flip bits read from \a st's atoms).
     PolarizedSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
-                    const std::string& functional="LDA", const std::map<size_t,int>& ionicNvalByZ = {});
+                    const std::string& functional="LDA", const std::vector<int>& ionicNvalBySite = {});
 
     // cSpinResolved_CD -- the spin-native XC engine's channel access.
     virtual const cChargeDensity* GetChannel(const Spin&) const;

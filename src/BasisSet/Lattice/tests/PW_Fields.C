@@ -163,11 +163,18 @@ inline double IntegralField(const PlaneWave_IBS& pw, const ScalarFunction<double
 // production-dead (the Vxc term assembles through the fit basis's seam); kept here as a test oracle: one
 // ForwardFFT (the G_FieldEvaluator grid engine), then the orbital's OverlapMatrix lookup takes each
 // reciprocal-index difference up in the grid.  (The orbital is both faces, so the PlaneWave_IBS supplies both.)
-inline chmat_t OverlapOnGrid(const PlaneWave_IBS& pw, const rvec_t& V)
+inline chmat_t OverlapOnGrid(const PlaneWave_IBS& pw, const rvec_t& V, const PW_Grid_Evaluator& grid)
 {
-    PW_Grid_Evaluator grid=GridOf(pw);
     cvec_t Vt=grid.ForwardFFT(V);
     return pw.OverlapMatrix([&](const ivec3_t& dm)->dcmplx {return grid.GridCoeff(Vt, dm);});
+}
+inline chmat_t OverlapOnGrid(const PlaneWave_IBS& pw, const rvec_t& V) { return OverlapOnGrid(pw, V, GridOf(pw)); }
+
+// The DENSITY grid of an orbital block: the ball of every pair difference, Ecut x 4 (|G_i-G_j| <= 2 G_max) -- the grid the XC
+// term samples rho[D] on since the 4x floor (pin 28, 2026-10-26: the orbital grid GridOf cuts rho[D]'s G_max..2G_max shell).
+inline qchem::BasisSet::PlaneWave::PW_Grid_Evaluator DensityGridOf(const PlaneWave_IBS& pw)
+{
+    return qchem::BasisSet::PlaneWave::PW_Grid_Evaluator(pw.Recip(), pw.kFrac(), 4.0*pw.Ecut());
 }
 
 // Order ivec3_t lexicographically so it can key the rho~ map.

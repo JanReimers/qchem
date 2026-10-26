@@ -23,19 +23,21 @@ std::vector<int> IonicFormalCharges(const std::vector<std::pair<int,int>>& atoms
 //! \brief The COLLINEAR magnetic decoration of a structure -- Shubnikov S3, doc/SymmetryUpgradePlan.md
 //! §7 step 7: one label per atom, \f$\pm1\f$ = the site's majority-channel sign (the atom's
 //! \c itsSpinFlip bit), \f$0\f$ = non-magnetic.  MAGNETIC-OR-NOT follows the SEED's OWN resolution rule
-//! (\c SeedCD): a species is magnetic iff the library carries a spin-resolved pair at its TARGET
-//! electron count (\a ionicNvalByZ entry, else the neutral valence count) -- so the decoration and the
+//! (\c SeedCD): a SITE is magnetic iff the library carries a spin-resolved pair at its TARGET
+//! electron count (\a ionicNvalBySite entry, else the neutral valence count) -- so the decoration and the
 //! seed that plants the moments cannot drift apart.  Assembled HERE, beside that rule, and threaded to
 //! the basis factory's symmetry-policy resolution (\c GPWParams::siteSpins): the factory then imposes
 //! the SHUBNIKOV group of this decoration instead of the grey group, which would erase the order.
 std::vector<int> MagneticDecoration(const Structure* st, const std::string& functional = "LDA",
-                                    const std::map<size_t,int>& ionicNvalByZ = {});
+                                    const std::vector<int>& ionicNvalBySite = {});
 
-//! \brief The IonicSAD per-species TARGET valence counts, derived from the structure exactly as the
-//! IonicSAD seed derives them (formal charges from \c IonicFormalCharges, \f$N_{val}\f$ from the
-//! neutral valence density) -- the ONE resolution the seed and the S3 \c MagneticDecoration share, so
-//! a driver decorating an IonicSAD run passes \c IonicSADTargets(st) and cannot drift from its seed.
-std::map<size_t,int> IonicSADTargets(const Structure* st, const std::string& functional = "LDA");
+//! \brief The IonicSAD per-SITE TARGET valence counts (one per atom, in atom-index order), derived from the
+//! structure exactly as the IonicSAD seed derives them (formal charges from \c IonicFormalCharges,
+//! \f$N_{val}\f$ from the neutral valence density) -- the ONE resolution the seed and the S3
+//! \c MagneticDecoration share, so a driver decorating an IonicSAD run passes \c IonicSADTargets(st) and
+//! cannot drift from its seed.  PER SITE, not per species (OpenWork §3, 2026-10-26): a mixed-valence cell
+//! (LiMn2O4: Mn3+ and Mn4+) keeps each atom's own charge state, and the targets sum to the cell's charge.
+std::vector<int> IonicSADTargets(const Structure* st, const std::string& functional = "LDA");
 
 
 //! How the SCF loop is seeded with an initial charge density.

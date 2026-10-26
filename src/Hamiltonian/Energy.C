@@ -66,6 +66,12 @@ struct ChargeBreakdown
 {
     double lost = 0.0;
     rvec_t siteMoments;
+    //! THE PIN-28 AUDIT (doc/Pins.md pin 28): which \f$\rho\f$ the XC term's most recent \f$V_{xc}\f$ build was
+    //! sampled from -- "DM", "cusp", "DMsrc", "shadow", "fitted" (\c ChargeDensity::XCRhoSource); EMPTY when no
+    //! quadrature XC term has built a \f$V_{xc}\f$.  A label, not the enum, because this module stays below
+    //! qcChargeDensity; the one bit a reader JUDGES travels beside it: a fitted \f$\rho\f$ is legal only for the seed.
+    std::string xcRho;
+    bool        xcRhoFitted = false;
 };
 
 //! \brief The energy breakdown of one density: keyed, role-tagged, insertion-ORDERED contributions (Display

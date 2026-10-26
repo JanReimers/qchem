@@ -44,10 +44,12 @@ cd build/Release && ninja rundeck                                  # the one CLI
     "xcMesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... },
     "tolerances": { "screenEps": 1e-10, "densityEps": 1e-10, "vlocEps": 1e-5, "fieldSharp": 0.667, "relCutoff": 0, "mgridEcuts": [], ... },
     "policy": { "cp2kCompat": false, "streamFold": true, ... },     // the declared CP2K deviations; ONLY stated routes are recorded
-    "hubbard": [ { "site":0, "l":2, "U_eV":4.0, "atomicRadial":true, "orthoAtomic":true, "Uirrep_eV":[...], "alpha_eV":0 } ],
-    // "projector": "siteShells" (default: basis functions on the site -- every l-shell, or ONE contraction via radial/atomicRadial)
-    //            | "pseudoAtomic" (the GTH pseudo-atom's l orbital in its OWN 16-exponent pool, independent of the orbital
-    //              basis -- QE/hp.x's projector; takes no radial/atomicRadial; one kind per run).  doc/HubbardProjectorPlan.md
+    "hubbard": [ { "site":0, "l":2, "U_eV":4.0, "orthoAtomic":true, "Uirrep_eV":[...], "alpha_eV":0 } ],
+    // "projector": "pseudoAtomic" (DEFAULT since 2026-10-25: the GTH pseudo-atom's l orbital in its OWN 16-exponent pool,
+    //              independent of the orbital basis -- QE/hp.x's projector; "orthoAtomic" = QE's ortho-atomic over the set)
+    //            | "siteShells" (CP2K's LOWDIN: every l-shell of the orbital basis on the site; the CP2K-parity route, say it
+    //              where it is meant).  One kind per run.  "radial" / "atomicRadial" are RETIRED (a deck asking for a
+    //              contraction is refused; an old record's inert defaults still load).  Record: Records/HubbardUHistory.md (HubbardProjectorPlan, retired)
   },
   "scf": { "NMaxIter":200, "minDeltaRhoPerElectron":1e-6, "deltaRhoMeasure":"L1PerElectron|MaxDeltaD",
            "mixer":"Auto|Linear|Kerker|Pulay",   // Auto (default): a hand-set kerkerG0/pulayDepth recipe is kept; else linear today (see SCFParams::Mixing)

@@ -50,21 +50,26 @@ TEST(Deck, NonDefaultValuesSurviveTheRoundTrip)
     ASSERT_EQ(back.hubbard.size(),1u); EXPECT_TRUE(back.hubbard[0].orthoAtomic); EXPECT_NEAR(back.hubbard[0].U,4.0/27.211386245988,1e-15);
 }
 
-// HubbardProjectorPlan D7: a manifold names its projector kind; the default is the site-shell route until
-// increment 5, the name round-trips, and a misspelled kind is refused.
+// HubbardProjectorPlan D7 + increment 5: a manifold names its projector kind; the DEFAULT is pseudo-atomic, siteShells
+// is said, the name round-trips, and a misspelled kind is refused.  The retired site-shell contraction: an old record's
+// inert defaults ("radial": [], "atomicRadial": false) still load; asking for a contraction is refused, naming the fix.
 TEST(Deck, AHubbardManifoldNamesItsProjectorKind)
 {
     using qchem::Hamiltonian::HubbardProjectorKind;
     SolidCalcOptions o;
-    deck::FromJson(json{{"hubbard",{{{"site",0},{"l",2},{"U_eV",4.0}},{{"site",1},{"l",1},{"projector","pseudoAtomic"},{"orthoAtomic",true}}}}}, o);
+    deck::FromJson(json{{"hubbard",{{{"site",0},{"l",2},{"U_eV",4.0}},{{"site",1},{"l",1},{"projector","siteShells"}}}}}, o);
     ASSERT_EQ(o.hubbard.size(),2u);
-    EXPECT_EQ(o.hubbard[0].projector, HubbardProjectorKind::SiteShells);
-    EXPECT_EQ(o.hubbard[1].projector, HubbardProjectorKind::PseudoAtomic);
+    EXPECT_EQ(o.hubbard[0].projector, HubbardProjectorKind::PseudoAtomic) << "the default since increment 5";
+    EXPECT_EQ(o.hubbard[1].projector, HubbardProjectorKind::SiteShells);
     const json j=deck::ToJson(o).at("hubbard");
-    EXPECT_EQ(j[1].at("projector"), "pseudoAtomic");
+    EXPECT_EQ(j[0].at("projector"), "pseudoAtomic");
+    EXPECT_EQ(j[1].at("projector"), "siteShells");
     SolidCalcOptions back; deck::FromJson(json{{"hubbard",j}}, back);
-    EXPECT_EQ(back.hubbard[1].projector, HubbardProjectorKind::PseudoAtomic);
+    EXPECT_EQ(back.hubbard[1].projector, HubbardProjectorKind::SiteShells);
     EXPECT_THROW(deck::FromJson(json{{"hubbard",{{{"site",0},{"projector","pseudoatomic"}}}}}, o), std::runtime_error);
+    EXPECT_NO_THROW(deck::FromJson(json{{"hubbard",{{{"site",0},{"radial",json::array()},{"atomicRadial",false}}}}}, o));
+    EXPECT_THROW(deck::FromJson(json{{"hubbard",{{{"site",0},{"atomicRadial",true}}}}}, o), std::runtime_error);
+    EXPECT_THROW(deck::FromJson(json{{"hubbard",{{{"site",0},{"radial",{0.5,0.5}}}}}}, o), std::runtime_error);
 }
 
 TEST(Deck, AMissingKeyKeepsTheDefaultAndAnUnknownKeyThrowsNamingTheLegalOnes)
@@ -414,6 +419,25 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",json::object()}}},hub)).find("alpha_eV must be nonzero"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardLoop",{{"maxOuter",0}}}}},hub)).find("maxOuter >= 1"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardLoop",json::object()}}},json::object())).find("postSCF.0 (hubbardLoop)"),std::string::npos) << "the message names the entry and the action";
+}
+
+TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
+{
+    auto msg=[](json solid)
+    {
+        deck::RunSpec s; deck::FromJson(json{{"structure","NiO_AFM2"},{"solid",solid}},s);
+        try { deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); }
+        return std::string("NO THROW");
+    };
+    const json H={{"site",0},{"l",2},{"U_eV",4.0}};
+    EXPECT_NE(msg({{"multiplicity",1},{"hubbard",{H}}}).find("siteSpins"),std::string::npos) << "never derived from the seed any more";
+    EXPECT_NE(msg({{"multiplicity",1},{"hubbard",{H}}}).find("Ni Ni O O"),std::string::npos) << "the message names the sites";
+    EXPECT_EQ(msg({{"multiplicity",1},{"hubbard",{H}},{"siteSpins",{1,-1,0,0}}}),"NO THROW");
+    EXPECT_EQ(msg({{"multiplicity",1},{"hubbard",{H}},{"greyImposition",true}}),"NO THROW") << "the erasure control states 'no decoration'";
+    EXPECT_EQ(msg({{"hubbard",{H}}}),"NO THROW") << "unpolarized: nothing to order";
+    EXPECT_EQ(msg({{"multiplicity",1}}),"NO THROW") << "no +U: the imposed-without-U path is not (yet) covered";
+    EXPECT_NE(msg({{"multiplicity",1},{"hubbard",{H}},{"siteSpins",{1,-1}}}).find("2 entries for 4 sites"),std::string::npos);
+    EXPECT_NE(msg({{"siteSpins",{2,-1,0,0}}}).find("-1, 0 or +1"),std::string::npos);
 }
 
 TEST(Deck, PostSCFRunsOnTheConvergedCalculationAndTheRecordKeepsTheResults)

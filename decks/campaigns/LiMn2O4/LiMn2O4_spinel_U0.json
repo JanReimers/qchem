@@ -18,6 +18,7 @@
   },
   "solid": {
     "multiplicity": 17,
+    "siteSpins": [0,0,1,1,1,1,0,0,0,0,0,0,0,0],
     "seed": "IonicSAD",
     "imposeSymmetry": false,
     "ortho": "CholeskyPivoted",
@@ -26,22 +27,26 @@
       {
         "site": 2,
         "l": 2,
-        "U_eV": 0.0
+        "U_eV": 0.0,
+        "projector": "siteShells"
       },
       {
         "site": 3,
         "l": 2,
-        "U_eV": 0.0
+        "U_eV": 0.0,
+        "projector": "siteShells"
       },
       {
         "site": 4,
         "l": 2,
-        "U_eV": 0.0
+        "U_eV": 0.0,
+        "projector": "siteShells"
       },
       {
         "site": 5,
         "l": 2,
-        "U_eV": 0.0
+        "U_eV": 0.0,
+        "projector": "siteShells"
       }
     ],
     "accelerator": "Null"

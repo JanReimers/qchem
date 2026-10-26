@@ -71,6 +71,7 @@ template <class U> hmat_t<U> Vxc_Quadrature::MakeMatrixT(const tobs_t<U>* bs, co
 {
     rvec_t half;
     const Rasters r=ChannelRasters(cd, half);
+    itsFockSource=itsSampler->RhoSource();   // what THIS V_xc saw (pin 28), read while the sampler's cache is cd's
     const Spin fs = s==Spin::None ? Spin::Up : s;
     rvec_t v(r.up.size());
     for (size_t g=0; g<v.size(); g++) v[g]=itsXc->GetVxc(r.up[g], r.dn[g], fs);
@@ -94,6 +95,11 @@ void Vxc_Quadrature::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // integrated site moments are the observable, where both rasters are in hand (R1.0h).
     te.charge.lost        = itsSampler->Integrate(rho) - cd->GetTotalCharge();
     te.charge.siteMoments = SiteMoments(cd);
+    if (itsFockSource)
+    {
+        te.charge.xcRho       = ChargeDensity::ShortName(*itsFockSource);
+        te.charge.xcRhoFitted = *itsFockSource==ChargeDensity::XCRhoSource::Fitted;
+    }
 }
 
 // THE OBSERVABLE (doc/OpenWork.md N1/T2; R1.0h): mu_A = Integral w_A (rho_up - rho_dn), in electrons, over the

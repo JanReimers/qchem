@@ -19,7 +19,7 @@
 //   GPW_Si.Γ_Imp_eqUnfolded
 //   GPW_Si.Γ_Becke_Imp_eqUni
 //   GPW_Si.Γ_Becke_Imp_Kerker_CP2K
-//   GPW_Si.Γ_Becke_Imp_Kerker_FitXC_CP2K
+//   GPW_Si.Γ_Becke_Imp_Kerker_FitXC_Pin28Throws
 //   GPW_Si.Γ_Uni_DeltaFit_Imp_eqPWFit
 //   GPW_Si.Γ_Uni_PWFit_Imp_Pol_eqUnpol
 //   GPW_Si.k211_Imp_Anchor
@@ -647,10 +647,11 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_CP2K)
     EXPECT_TRUE(XcServedFrom("cusp-deficit")) << "the DM-source reach-around must actually be ENTERED (V1.18e: it never was)";
 }
 
-// THE PRE-PIN-28 CONTROL: XCCuspDeficit OFF, so the singles sampler projects the FIELD ("matrix-free") for XC -- the fitted
-// rho pin 28 forbids, kept as the A/B arm the default above is measured against.  On Si's soft PP the two agree to the
-// anchor window; on the O2 box (O q6) this arm is +7.72 mHa off rho[D].
-TEST(GPW_Si, Γ_Becke_Imp_Kerker_FitXC_CP2K)
+// PIN 28 IS A CRASH, NOT A MARK (user 2026-10-26: "simply crash the run if cusp* or fitted! appears in that column").  This was
+// the pre-pin-28 CONTROL -- XCCuspDeficit OFF, so the singles sampler projects the mixed FIELD ("matrix-free") for XC, the fitted
+// rho pin 28 forbids (+7.72 mHa on the O2 box; within the anchor window on Si's soft PP).  It is now the gate that the loop
+// REFUSES it: iteration 2 is the first built from a mixed field, and RequirePin28 throws there, naming the pin.
+TEST(GPW_Si, Γ_Becke_Imp_Kerker_FitXC_Pin28Throws)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
@@ -659,16 +660,15 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_FitXC_CP2K)
     o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
     SCFParams par=ProductionGates(); par.KerkerG0=1.0; par.XCCuspDeficit=false;
     report::ClearGlobal();
+    std::string what;
     {
         GpwReport report("Si "+o.label, false);
-        qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
-        auto R=calc.Result();
-        ASSERT_TRUE(R) << Why(R);
-        EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
-        EXPECT_NEAR(R->Energy(), -7.11506, 2e-3) << "the control lands in the same anchor window on Si";
+        try { qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par); }
+        catch (const std::logic_error& e) { what=e.what(); }
     }
-    EXPECT_TRUE (XcServedFrom("matrix-free")) << "the control feeds XC the projected FIELD";
-    EXPECT_FALSE(XcServedFrom("cusp-deficit")) << "...and never the cusp-deficit route";
+    EXPECT_NE(what.find("pin 28"), std::string::npos) << "the fitted-XC run must THROW, naming pin 28 (got: '" << what << "')";
+    EXPECT_NE(what.find("iteration 2"), std::string::npos) << "...at the first iteration built from a mixed field (the seed's is legal)";
+    EXPECT_TRUE(XcServedFrom("matrix-free")) << "the route that was refused is the projected FIELD";
 }
 
 
@@ -977,7 +977,7 @@ TEST(GPW_Si, Γ_U_ZeroUIsExactlyAbsent)
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free)");
     o.densityEcut=20.0;
     qchem::SolidCalculation plain(lat, MakeBasisSR(*si.cell), o, ProductionGates());
-    o.hubbard={HubbardU(0,1,0.0), HubbardU(1,1,0.0)};   // the term is BUILT, with U=0 on both Si p shells
+    o.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};   // the term is BUILT, with U=0 on both Si p shells
     o.label="Si SR Gamma (free, U=0)";
     qchem::SolidCalculation withU(lat, MakeBasisSR(*si.cell), o, ProductionGates());
     auto a=plain.Result(), b=withU.Result();
@@ -993,7 +993,7 @@ TEST(GPW_Si, Γ_U_IsAPositiveSelfConsistentFunctional)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free, U=2 eV on p)");
     o.densityEcut=20.0;
-    o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};
+    o.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
     auto r=calc.Result();
     ASSERT_TRUE(r) << (r ? std::string() : r.Error().details);
@@ -1016,10 +1016,10 @@ TEST(GPW_Si, Γ_U_Imp_Pol_Kerker_eqUnpol)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Kerker U=2 eV");
     o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};
+    o.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;                                 // the rho-tilde mixer
     qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
-    o.multiplicity=1; o.label="Si SR Gamma Kerker U=2 eV pol-singlet";                // PolarizedMixCD in the loop
+    o.multiplicity=1; o.siteSpins={0,0}; o.label="Si SR Gamma Kerker U=2 eV pol-singlet";                // PolarizedMixCD in the loop
     qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
     auto a=unpol.Result(), b=pol.Result();
     ASSERT_TRUE(a) << Why(a);
@@ -1043,10 +1043,10 @@ TEST(GPW_Si, Γ_U_ACBN0_Imp_Pol_eqUnpol)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma ACBN0 on p");
     o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU(0,1,0.0), HubbardU(1,1,0.0)};                                  // U=0: a plain LDA run that carries the manifolds
+    o.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};                                  // U=0: a plain LDA run that carries the manifolds
     SCFParams par=ProductionGates();
     qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
-    o.multiplicity=1; o.label="Si SR Gamma ACBN0 on p, pol-singlet";
+    o.multiplicity=1; o.siteSpins={0,0}; o.label="Si SR Gamma ACBN0 on p, pol-singlet";
     qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
     ASSERT_TRUE(unpol.Result()) << Why(unpol.Result());
     ASSERT_TRUE(pol.Result())   << Why(pol.Result());
@@ -1078,45 +1078,41 @@ TEST(GPW_Si, Γ_U_ACBN0_Imp_Pol_eqUnpol)
               << "; bare " << a[0].UbarBare*eV << "/" << a[0].JbarBare*eV << ")" << std::endl;
 }
 
-// THE CONTRACTED MANIFOLD (increment 3 slice C, 2026-09-21): ONE pseudo-atom 3p radial per Si instead of every
-// p shell (CP2K's convention).  The atomic projector <chi|psi> onto an S-orthonormal 3p triple: at Γ the
-// Γ25' band is p-only but spread over the three radial shells, so the single-radial manifold captures LESS
-// than the whole span -- 0 < E_U < 1.5U (the column manifold's exact value), the manifold reports 3
-// functions and one T_d slot, and ACBN0 on it is finite with 0 < J < U.  The unpolarized/polarized twins agree.
-TEST(GPW_Si, Γ_U_Atomic3p_Imp_Pol_eqUnpol)
+// THE PSEUDO-ATOMIC PROJECTOR through ACBN0 (doc/HubbardProjectorPlan.md increments 4-5): the DEFAULT projector, the
+// pseudo-atom 3p as an ATOM-CENTRED FUNCTION in its own 16 exponents, so the bare (m1m2|m3m4) come from the set's own
+// one-centre closed form and the coefficients from B = <chi|set>.  (It replaced Γ_U_Atomic3p_Imp_Pol_eqUnpol, the same
+// orbital CONTRACTED onto the SR p shells -- bare U 23.6 eV there against 10.6 here: the truncation the plan removed.)  Claims: the run carries U, ACBN0 on it is finite and sane (0 < J < U, bare charge at most
+// 3 per site per channel), and the polarized singlet twin gives the same E, E_U and estimate (pin 5).
+TEST(GPW_Si, Γ_U_PseudoAtomic3p_Imp_Pol_eqUnpol)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma U=2 eV on the pseudo-atom 3p");
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma U=2 eV on the pseudo-atomic 3p projector");
     o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU_Atomic(0,1,2.0), HubbardU_Atomic(1,1,2.0)};
+    o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};                                  // the default projector: pseudo-atomic
     SCFParams par=ProductionGates();
     qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
-    o.multiplicity=1; o.label="Si SR Gamma U=2 eV on the pseudo-atom 3p, pol-singlet";
+    o.multiplicity=1; o.siteSpins={0,0}; o.label="Si SR Gamma U=2 eV on the pseudo-atomic 3p projector, pol-singlet";
     qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
     auto a=unpol.Result(), b=pol.Result();
     ASSERT_TRUE(a) << Why(a);
     ASSERT_TRUE(b) << Why(b);
     const double U=2.0/27.211386245988;
     EXPECT_GT(a->EnergyTerms()["E_U"], 0.0);
-    EXPECT_LT(a->EnergyTerms()["E_U"], 1.5*U) << "one radial captures less of the Γ25' band than the three-shell span (which gives exactly 1.5U)";
+    EXPECT_LT(a->EnergyTerms()["E_U"], 1.5*U) << "Sum U/2 lambda(1-lambda) per site is below the half-filled p's 3U/4";
     EXPECT_NEAR(b->EnergyTerms()["E_U"], a->EnergyTerms()["E_U"], 1e-6);
     EXPECT_NEAR(b->Energy(), a->Energy(), 1e-6);
     const auto ea=unpol.EstimateHubbardU(), eb=pol.EstimateHubbardU();
-    ASSERT_EQ(ea.size(), 2u);
+    ASSERT_EQ(ea.size(), 2u); ASSERT_EQ(eb.size(), 2u);
     for (size_t M=0;M<2;M++)
     {
-        EXPECT_GT(ea[M].Jbar, 0.0); EXPECT_GT(ea[M].Ubar, ea[M].Jbar);
-        EXPECT_LT(ea[M].chargeUpBare, 3.0) << "at most the 3 p electrons per site per channel";
-        // ⚠ The RENORMALISED charge EXCEEDS the bare one here (2.24 vs 1.83): the pseudo-atom 3p is nearly unbound
-        // (eps = -0.019 Ha, 95% on alpha = 0.16) and the two sites' atomic chi's overlap strongly, so an orbital's
-        // Sum over sites of |<chi|psi>|^2 exceeds 1 -- the known weakness of NON-orthogonalised atomic projectors
-        // and why hp.x prefers ortho-atomic (the remainder filed in OpenWork).  Mn 3d is compact and unaffected
-        // (3.62 < 4.83).  Pinned here as the fact it is, not as a target.
-        EXPECT_GT(ea[M].chargeUp, ea[M].chargeUpBare) << "diffuse overlapping atomic projectors over-count";
+        EXPECT_GT(ea[M].Jbar, 0.0); EXPECT_GT(ea[M].Ubar, ea[M].Jbar) << "U-bar > J-bar on the one-centre 3p";
+        EXPECT_GT(ea[M].chargeUpBare, 0.0); EXPECT_LT(ea[M].chargeUpBare, 3.0) << "at most the 3 p electrons per site per channel";
         EXPECT_NEAR(eb[M].Ubar, ea[M].Ubar, 1e-5); EXPECT_NEAR(eb[M].Jbar, ea[M].Jbar, 1e-5);
+        EXPECT_NEAR(eb[M].chargeUp, ea[M].chargeUp, 1e-6);
     }
-    std::cout << "[ACBN0 Si atomic 3p] U_eff = " << ea[0].Ueff()*27.211386245988 << " eV (bare " << ea[0].UbarBare*27.211386245988
+    EXPECT_NEAR(ea[0].Ubar, ea[1].Ubar, 1e-8) << "the two Si sites are equivalent";
+    std::cout << "[ACBN0 Si pseudo-atomic 3p] U_eff = " << ea[0].Ueff()*27.211386245988 << " eV (bare " << ea[0].UbarBare*27.211386245988
               << "/" << ea[0].JbarBare*27.211386245988 << "), N_p up = " << ea[0].chargeUpBare << " (renormalised " << ea[0].chargeUp << ")" << std::endl;
 }
 
@@ -1131,12 +1127,15 @@ TEST(GPW_Si, Γ_U_ACBN0_OuterLoopFeelsTheNewU)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma ACBN0 outer loop from U=0");
     o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU(0,1,0.0), HubbardU(1,1,0.0)};
+    o.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};
     SCFParams par=ProductionGates();
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
     ASSERT_TRUE(calc.Result()) << Why(calc.Result());
     EXPECT_NEAR(calc.Result()->EnergyTerms()["E_U"], 0.0, 1e-12) << "U=0 start";
-    qchem::SolidCalculation::HubbardLoop lp; lp.maxOuter=3; lp.tolU_eV=1e-6;   // too tight to converge in 3: the loop must stop at maxOuter
+    // tolU 0 can never be met (dmax < 0), so the loop must stop at maxOuter.  (It was 1e-6, "too tight to converge in 3" -- true only
+    // while the first SCF stopped loose: on this exactly half-filled p manifold the +U potential commutes with D, the re-converged
+    // state is the same state, and a tight first SCF gives U_SC = U_0 to < 1e-6 at step 2 -- measured 2026-10-26, Pulay on D.)
+    qchem::SolidCalculation::HubbardLoop lp; lp.maxOuter=3; lp.tolU_eV=0.0;
     const auto R=calc.ConvergeHubbardU(par, lp);
     EXPECT_EQ(R.outer, 3u);
     ASSERT_EQ(R.U_eV.size(), 3u);
@@ -1232,7 +1231,7 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
     auto run=[](const std::string& structure, nlohmann::json kmesh, size_t nAtoms, nlohmann::json nq)
     {
         nlohmann::json hub=nlohmann::json::array();
-        for (size_t a=0;a<nAtoms;a++) hub.push_back({{"site",a},{"l",1},{"U_eV",0.0}});
+        for (size_t a=0;a<nAtoms;a++) hub.push_back({{"site",a},{"l",1},{"U_eV",0.0},{"projector","siteShells"}});
         const nlohmann::json deck={
             {"structure",structure}, {"kmesh",kmesh}, {"basis",{{"data","SIPP_SR"}}},
             // xcMesh STATED: Auto resolves to the uniform raster on the multi-k primitive arm but to BECKE on the Γ supercell arm (measured
@@ -1331,7 +1330,7 @@ TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint)
         scf.update(mixing);
         const nlohmann::json deck={
             {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
-            {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"hubbard",{{{"site",0},{"l",1},{"U_eV",U_eV}}}}}},
+            {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"hubbard",{{{"site",0},{"l",1},{"U_eV",U_eV},{"projector","siteShells"}}}}}},
             {"scf",scf}, {"postSCF",post}};
         qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
         const fs::path dir=fs::temp_directory_path()/("qchem_it_si_lrloop_"+tag+"_"+std::to_string(::getpid()));

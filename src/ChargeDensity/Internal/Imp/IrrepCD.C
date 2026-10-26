@@ -487,19 +487,21 @@ template <class T> double IrrepCD_Core<T>::GetTotalCharge() const
 //
 template <class T> void IrrepCD_Core<T>::ReScale(double factor)
 {
-    // No UT coverage
+    if (factor==1.0) return;           // exact identity: no mutation, no version bump
     itsDensityMatrix*=factor;
     itsVersion=NextDensityVersion();   // a mutation is logically a new density
 }
 
-template <class T> void IrrepCD_Core<T>::MixIn(const tMixableDensity<T>& cd,double c)
+template <class T> void IrrepCD_Core<T>::Axpy(double c, const tMixableDensity<T>& cd)
 {
+    if (c==0.0) return;                // exact identity: no mutation, no version bump
     // Same-KIND cast to the CORE: both leaves (finite, periodic) mix identically -- D is D.  The
     // basis-ID assert below still pins that only matching blocks ever pair.
     const IrrepCD_Core<T>* eicd = dynamic_cast<const IrrepCD_Core<T>*>(&cd);
     assert(eicd);
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
-    itsDensityMatrix = itsDensityMatrix*(1-c) + eicd->itsDensityMatrix*c;
+    if (eicd==this) itsDensityMatrix*=(1.0+c);             // this += c*this
+    else            itsDensityMatrix+=eicd->itsDensityMatrix*c;
     itsVersion=NextDensityVersion();   // a mutation is logically a new density
 }
 
@@ -509,6 +511,17 @@ template <class T> double IrrepCD_Core<T>::GetChangeFrom(const tMixableDensity<T
     assert(eicd);
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
     return std::real(blazem::norm(itsDensityMatrix - eicd->itsDensityMatrix));
+}
+template <class T> double IrrepCD_Core<T>::Dot(const tMixableDensity<T>& cd) const
+{
+    const IrrepCD_Core<T>* eicd = dynamic_cast<const IrrepCD_Core<T>*>(&cd);
+    assert(eicd);
+    assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
+    double d=0.0;
+    const size_t n=itsDensityMatrix.rows();
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
+        d+=std::real(std::conj(T(itsDensityMatrix(i,j)))*T(eicd->itsDensityMatrix(i,j)));
+    return d;
 }
 template <class T> double IrrepCD_Core<T>::GetMaxChangeFrom(const tMixableDensity<T>& cd) const
 {

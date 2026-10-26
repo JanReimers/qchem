@@ -28,11 +28,8 @@ import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (eleme
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
 import qchem.ElectronConfiguration.Crystal;    // Crystal_EC
 import qchem.Symmetry.Irrep;                   // Irrep, Spin
-import qchem.Blaze;                            // blazem::eigen (the atomic radial projection)
-import qchem.Symmetry.Atom.Spherical;          // AtomicSymmetry::Getl -- the pseudo-atom's l-orbital (the atomic +U radial)
-import qchem.AtomCalculation;                  // AtomCalculation (the facade's own atom uses)
-import qchem.PseudoAtomOrbital;                // the pseudo-atom l orbital: the +U projector (HubbardProjectorPlan D5) and the site-shell radial
-import qchem.BasisSet.AoShellSource;           // the site's shells (their exponents) for that pseudo-atom
+import qchem.Blaze;                            // blazem::conjs (the u_bands weights)
+import qchem.PseudoAtomOrbital;                // the pseudo-atom l orbital: the +U projector (HubbardProjectorPlan D5)
 import qchem.Orbitals;                         // TOrbitals/TOrbital -- the ACBN0 feed (EstimateHubbardU)
 import qchem.Diagnostics;                      // u_bands: the per-band +U slot weights (QCHEM_DIAGNOSTICS=u_bands[=N])
 import qchem.BasisSet.Orbital_DFT_IBS;         // the block an orbital set lives on (EstimateHubbardU)
@@ -106,6 +103,7 @@ struct SolidCalculation::Imp
     SCFAccelerators::SolidAcceleratorOptions    accOpts;
     SCFAccelerators::Type                       stageAccel = SCFAccelerators::Type::DIIS;  //!< the CURRENT stage's, RESOLVED (banner, [F,D])
     SCFAccelerators::Type                       stageAccelAsked = SCFAccelerators::Type::Auto;  //!< ...as ASKED: what an FD/U-loop stage re-resolves
+    bool                                        stageRestored = false;  //!< the CURRENT stage starts from a RESTORED state (Restart: same Hamiltonian)
     bool   converged = false;
     //! What the LAST converge stage filled with and how well it converged its eigenvalues -- the linear
     //! response's reference is built over the SAME occupancy rule, gated against the SAME measured noise
@@ -248,7 +246,7 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
             if (M.projector==qchem::Hamiltonian::HubbardProjectorKind::PseudoAtomic)
                 std::cout<<", projector: PSEUDO-ATOMIC* ("<<(M.orthoAtomic ? "ORTHO-atomic" : "atomic")<<", independent of the orbital basis)";
             else
-                std::cout<<(M.radial.empty() ? ", radial: every shell (CP2K)" : ", radial: ONE contracted ("+std::to_string(M.radial.size())+" shells"+(M.atomicRadial ? ", pseudo-atom" : "")+(M.orthoAtomic ? ", ORTHO-atomic" : ", atomic")+")");
+                std::cout<<", projector: site shells (CP2K's LOWDIN, every shell)";
             std::cout
                      <<", site group "<<(M.siteOps.empty() ? 1 : M.siteOps.size())<<" ops / grey "
                      <<(M.greyOps.empty() ? (M.siteOps.empty() ? 1 : M.siteOps.size()) : M.greyOps.size())<<")";
@@ -269,16 +267,19 @@ static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccel
     // because that composition is exactly CP2K's own recipe (its &MIXING BETA is the Kerker damping
     // denominator, applied alongside BROYDEN_MIXING).  This line is the one doc/Benchmark.md tells people
     // to copy beside a row, so it has to say both.
+    // A D-MIXER (linear, or Pulay at KerkerG0 = 0 -- PulayDMixer) hands the Fock the mixed density MATRIX: XC sees rho[D].
+    const bool dMixer = p.Mixer==M::Linear || (p.Mixer==M::Pulay && p.KerkerG0<=0.0);
     std::cout<<"["<<label<<" scf] mixer: "
              <<(p.Mixer==M::Linear ? std::string("LINEAR D-mixing (no G-space preconditioner)")
-              : p.KerkerG0>0.0     ? "Kerker(G0="+std::to_string(p.KerkerG0)+")"
-              :                      std::string("rho-mixing (no G-space preconditioner)"))
+              : dMixer             ? std::string("D-mixing (no G-space preconditioner)")
+              :                      "Kerker(G0="+std::to_string(p.KerkerG0)+")")
              <<(p.Mixer==M::Pulay ? " + Pulay history(depth "+std::to_string(p.PulayDepth)+", start "
                                     +std::to_string(p.PulayStart)+")"
                                   : std::string())
              <<(autoMixer ? " [mixer: Auto]" : "")
              <<" alpha="<<p.StartingRelaxRo
-             <<";  XC rho source: "<<(theRunPolicy().XCFromDM() ? "rho[D] WHOLESALE"
+             <<";  XC rho source: "<<(dMixer                   ? "rho[D] (D-mixing)"
+                                     : theRunPolicy().XCFromDM() ? "rho[D] WHOLESALE"
                                      : p.XCCuspDeficit         ? "rho_mix + cusp deficit"
                                      :                           "rho_mix")
              <<";  accel: "<<AccelName(acc)<<(autoAccel ? " [accel: Auto]" : "")
@@ -301,8 +302,30 @@ void EmitStageSummary(const std::string& label, size_t s, size_t n, double kT,
 }
 
 //---------------------------------------------------------------------------------------------------
-static std::vector<double> AtomicRadial(const BasisSet::Real_BS& mol, const Structure& st, size_t site, int l,
-                                        const std::vector<std::pair<std::string,int>>& species);
+//  THE MAGNETIC ORDERING IS STATED (OpenWork §3 "The magnetic decoration is DERIVED FROM THE SEED", 2026-10-26).
+//  The message names the sites, not a derived guess: the ordering is the caller's chemistry.
+void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& st)
+{
+    std::string sites;
+    st.ForEachSite([&](int Z, const rvec3_t&, bool){ sites+=(sites.empty()?"":" ")+thePeriodicTable().GetSymbol(Z); });
+    const size_t nAtoms=st.GetNumAtoms();
+    if (!o.siteSpins.empty())
+    {
+        if (o.siteSpins.size()!=nAtoms)
+            throw std::invalid_argument("SolidCalcOptions: siteSpins has "+std::to_string(o.siteSpins.size())
+                                        +" entries for "+std::to_string(nAtoms)+" sites ("+sites+")");
+        for (int s : o.siteSpins)
+            if (s<-1 || s>1) throw std::invalid_argument("SolidCalcOptions: siteSpins entries are -1, 0 or +1, got "+std::to_string(s));
+        return;
+    }
+    const bool polarized = o.multiplicity>=1;
+    if (polarized && !o.hubbard.empty() && !o.greyImposition)
+        throw std::invalid_argument("SolidCalcOptions: a polarized run with a Hubbard manifold must STATE its magnetic ordering --"
+                                    " siteSpins, one of +1/-1/0 per site ("+sites+"); all zeros for a non-magnetic cell."
+                                    "  It is no longer derived from the seed (doc/OpenWork.md §3)");
+}
+
+//---------------------------------------------------------------------------------------------------
 static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, size_t site, int l,
                                                         const std::vector<std::pair<std::string,int>>& species);
 
@@ -334,6 +357,7 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     itsImp->opts    = opts;
     itsImp->accOpts = acc;
     itsImp->st      = lat.GetStructure();
+    RequireStatedMagneticOrdering(opts, *itsImp->st);
     itsImp->cellMatrix = lat.GetUnitCell().GetCellMatrix();
 
     namespace L3 = BasisSet::Lattice;
@@ -351,9 +375,10 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     const bool hamPreservesReal = !opts.forceComplex;
     // THE MAGNETIC DECORATION (S3).  An imposition is only SHUBNIKOV if the factory is told which sites
     // carry which spin; without it an "imposed AFM" run star-averages under the SPATIAL group and the
-    // order is erased.  DERIVED here rather than passed in: every input is already an option this class
-    // owns, so a caller cannot get it inconsistent with the seed it asked for (the IonicSAD targets are
-    // the same resolution the seed itself uses -- see ChargeDensity::IonicSADTargets).
+    // order is erased.  STATED (siteSpins) wherever a Hubbard manifold rides along -- RequireStatedMagneticOrdering
+    // above refused the run otherwise.  The derivation from the seed below survives ONLY for an imposed polarized
+    // run WITHOUT +U, and it is the defect OpenWork §3 names: with SeedStrategy::SAD it labels neutral O (2p4)
+    // magnetic and MnO AFM-II imposes a ferrimagnet (12 Shubnikov ops, not 24).
     //   unpolarized  -> {} (no channels to decorate)
     //   greyImposition -> {} DELIBERATELY: that arm is the erasure NEGATIVE CONTROL
     std::vector<int> siteSpins;
@@ -362,9 +387,9 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
         siteSpins = opts.siteSpins;                 // STATED: a specific ordering, not the seed's guess
     else if (opts.multiplicity>=1 && !opts.greyImposition)
     {
-        const std::map<size_t,int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
-                                           ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), "LDA")
-                                           : std::map<size_t,int>{};
+        const std::vector<int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
+                                       ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), "LDA")
+                                       : std::vector<int>{};
         siteSpins = qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), "LDA", targets);
     }
     // ★ THE FACADE'S SETUP IS BUCKETED (doc/ParallelAndOraclePlan.md 1.1, 2026-09-06).  Every MnO row drives
@@ -475,28 +500,18 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
     const bool imposed          = itsImp->imposed;
 
     // THE HUBBARD MANIFOLDS' SITE GROUPS (step 5 increment 2): each manifold is labelled by the stabiliser of
-    // its site in the DECLARED DECORATION's Shubnikov group (sigma=None ops), grey parentage beside it.  The
-    // decoration is the same one the imposition would use, derived here whether or not the run imposes: the
-    // site symmetry of the ordered state is the physical question either way.  A caller who filled siteOps
-    // by hand keeps them.
+    // its site in the STATED DECORATION's Shubnikov group (sigma=None ops), grey parentage beside it -- the
+    // same decoration the imposition uses, whether or not the run imposes: the site symmetry of the ordered
+    // state is the physical question either way.  No longer derived from the seed (OpenWork §3, 2026-10-26):
+    // a polarized +U run was refused at BuildBasis without siteSpins.  A caller who filled siteOps by hand keeps them.
     std::vector<qchem::Hamiltonian::HubbardManifold> hubbard=opts.hubbard;
     if (!hubbard.empty())
     {
         std::vector<int> decoration=siteSpins;
-        if (decoration.empty() && polarized && !opts.greyImposition)
-        {
-            if (!opts.siteSpins.empty()) decoration=opts.siteSpins;
-            else
-            {
-                const std::map<size_t,int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
-                                                   ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), "LDA")
-                                                   : std::map<size_t,int>{};
-                decoration=qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), "LDA", targets);
-            }
-        }
+        if (decoration.empty() && polarized && !opts.greyImposition) decoration=opts.siteSpins;
+        assert(!polarized || opts.greyImposition || !decoration.empty());
         for (auto& M : hubbard)
         {
-            if (M.atomicRadial && M.radial.empty()) M.radial=AtomicRadial(mol, *itsImp->st, M.site, M.l, opts.species);
             if (M.projector==qchem::Hamiltonian::HubbardProjectorKind::PseudoAtomic && M.atomicFunction.empty())
                 M.atomicFunction=PseudoAtomicFunction(*itsImp->st, M.site, M.l, opts.species);
             if (M.siteOps.empty()) M.siteOps=lat.SiteRotations(M.site, decoration);
@@ -520,7 +535,7 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
            "SolidCalculation: the term stack no longer preserves realness -- update the forecast above");
 
     // DECISION 3 -- the accelerator, by policy (Auto pairs it with the mixer), through the public typed door.
-    MakeAccelerator(opts.accelerator, params, /*carried*/bool(seed));
+    MakeAccelerator(opts.accelerator, params, /*restored*/bool(seed));   // a pre-built seed here is Restart's restored state
 
     // THE SEED IS BUILT HERE, not inside the iterator -- the same factory call the SeedStrategy ctor
     // would have made (ChargeDensity::MakeSeedDensity with the Hamiltonian's own polarization), handed
@@ -778,23 +793,33 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
 
 // THE ACCELERATOR: the caller's, or the Auto policy's (SolidCalcOptions::accelerator).  The iterator then resolves an Auto mixer
 // against the accelerator built here (tSCFIterator::ResolveMixing asks ExtrapolatesFock()), so the two halves cannot disagree.
-void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, [[maybe_unused]] const SCFParams& params,
-                                       [[maybe_unused]] bool carried)
+void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, const SCFParams& params, bool restored)
 {
     using T=SCFAccelerators::Type;
-    // THE Auto POLICY -- today NEUTRAL: DIIS, the default before Auto existed (and an Auto mixer stays linear beside it).  The
-    // MEASURED PAIR (OpenWork §3 "Kerker/Pulay as the DEFAULT mixer", sweep P1) is: a carried stage at kT = 0 -> the Ladder on its
-    // GDM rung (ao.ladderStartOnGDM) with a linear step capped at 0.3; a seeded stage -> Null, so ResolveMixing picks Kerker/Pulay.
-    // It waits on N4 (pin 28: a Kerker/Pulay run's XC does not yet see rho[D]) and three more blockers listed there; \a params and
-    // \a carried are the inputs it will read.
-    const T t = asked==T::Auto ? T::DIIS : asked;
+    // THE Auto POLICY (OpenWork §3 "Kerker/Pulay as the DEFAULT mixer"; DEFAULT 2026-10-26, user: D-space Pulay):
+    //   a SEEDED or CARRIED stage  -> Null, so an Auto mixer resolves to Pulay on D (ResolveMixing: no Fock history beside a
+    //                                 density history -- they extrapolate at once and fight, measured 2026-10-22).  A CARRIED
+    //                                 stage (anneal, U loop, +-alpha) may have a NEW Hamiltonian or kT: its density is a good
+    //                                 start, not the answer -- GDM there false-converges on its own small steps (OpenWork §3).
+    //   a RESTORED stage at kT = 0 -> the Ladder on its GDM rung: SAME Hamiltonian, the density IS the answer (NaF 9 -> 2);
+    //   a RESTORED smeared stage   -> DIIS (GDM would minimise an integer D' and never apply the smearing -- see Restart).
+    // Beside either Fock extrapolator an Auto mixer stays LINEAR, its step capped at 0.3 (Converge: a restart's linear step).
+    SCFAccelerators::SolidAcceleratorOptions ao=itsImp->accOpts;
+    T t = asked;
+    if (asked==T::Auto)
+    {
+        if (!restored)                    t=T::Null;
+        else if (params.SmearingkT==0.0) { t=T::Ladder; ao.ladderStartOnGDM=true; }
+        else                              t=T::DIIS;
+    }
     // A direct minimiser rotates the occupied block into the WHOLE virtual space, which a partial eigensolve never built.
     if (itsImp->opts.numBands>0 && (t==T::GDM || t==T::Ladder))
         throw std::invalid_argument("SolidCalcOptions: numBands (a partial eigensolve) beside the GDM / Ladder accelerator -- "
                                     "they need every virtual; use Null or DIIS, or numBands 0");
     itsImp->stageAccelAsked = asked;
     itsImp->stageAccel      = t;
-    itsImp->accel.reset(SCFAccelerators::Factory(t, itsImp->accOpts));
+    itsImp->stageRestored   = restored;
+    itsImp->accel.reset(SCFAccelerators::Factory(t, ao));
 }
 
 // ONE STAGE: a FRESH Hamiltonian + accelerator (a kT change must not carry stale DIIS history across the
@@ -816,7 +841,7 @@ void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
     // ITERATOR (whose ctor Inits, so the stage's first Fock is a child of this bucket).  Both are cheap;
     // the residue bucket below measures exactly that and has stayed ~0.36 s of a 121 s run.
     qchem::report::Timed residue("setup: anneal stage rebuild (residue -- accel + iterator + MOM adopt)");
-    MakeAccelerator(accType, params, /*carried*/bool(carried));
+    MakeAccelerator(accType, params, /*restored*/false);   // a carried stage may have a new Hamiltonian / kT: not a restore
 
     auto prev = std::move(itsImp->scf);      // held ONLY until the new stage has copied its MOM reference
     itsImp->scf = carried
@@ -971,6 +996,17 @@ void ReportBandSlotWeights(const std::string& label, const qchem::WaveFunction::
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(const SCFParams& params)
 {
     assert(itsImp->scf);
+    // THE RESTORED STAGE'S STEP (the Auto policy, MakeAccelerator): an Auto accelerator on a restored density pairs with a LINEAR
+    // mixer, and a converged density wants a restart's step, not the ground state's (relax 1.0 diverged a restart, Si Γ 2026-09-29).
+    SCFParams own=params;
+    if (itsImp->stageRestored && itsImp->stageAccelAsked==SCFAccelerators::Type::Auto
+        && itsImp->scf->ResolveMixing(params).Mixer==SCFParams::Mixing::Linear)
+        own.StartingRelaxRo=std::min(own.StartingRelaxRo, 0.3);
+    return ConvergeStage(own);
+}
+
+Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage(const SCFParams& params)
+{
     // ★ THE CONVERGE RESIDUE (doc/ParallelAndOraclePlan.md 1.1(a)).  The work AFTER Iterate returns is not
     // bookkeeping: GetChargeDensity() builds a fresh composite density and GetSpinDensity() rasters BOTH
     // spin channels, once per stage -- and an annealed run has a stage per schedule entry.
@@ -1142,19 +1178,11 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Result() cons
 
 qchem::EnergyBreakdown SolidCalculation::LastIterateTerms()  const {return itsImp->scf->GetEnergy();}
 double                 SolidCalculation::LastIterateCharge() const {return itsImp->charge;}
-// THE ATOMIC RADIAL OF A HUBBARD MANIFOLD (DFT+U increment 3, 2026-09-21).  The physically meaningful +U
-// manifold is ONE radial d (p) function, not every shell of that l on the site (CP2K's mechanism manifold,
-// on which an ACBN0 U comes out near-bare because the KS states live entirely inside it).  The radial hp.x
-// uses is the pseudo-atom's own l orbital, so that is what is built here -- the SAME GTH pseudo-atom the
-// valence-basis generator validated, LDA, unpolarized -- and then PROJECTED onto the site's shells.
-//
-// ⚠ IN A COMPLETE POOL, NOT IN THE SITE'S OWN SHELLS (found 2026-09-21).  A solid's valence basis is trimmed
-// for the SOLID: the MnO VA span dropped the diffuse 0.18 d shell, and the free 4s2 3d5 atom run in those
-// shells has eps(3d) 77 mHa too shallow and a too-compact "3d" (the SR span, with two s exponents, has no 4s
-// at all and puts the 3d at -1.04 Ha).  In a 16+16 even-tempered pool the same pseudo-atom reproduces CP2K's
-// ATOM code to 3 / 0.3 / 0.1 mHa (E, eps 4s, eps 3d; UTCalculation ValenceBasisGen.MnQ7PseudoAtomInALargePool).
-// So: the TRUE pseudo-atom orbital from the pool, projected in the overlap metric onto the site's l shells --
-// the best the basis can hold of it -- with the captured norm printed (1 = the basis holds it exactly).
+// WHY A COMPLETE POOL (found 2026-09-21, when the projector was still contracted onto the site's shells -- the route
+// HubbardProjectorPlan increment 5 retired).  A solid's valence basis is trimmed for the SOLID: the MnO VA span dropped
+// the diffuse 0.18 d shell, and the free 4s2 3d5 atom run in those shells has eps(3d) 77 mHa too shallow and a too-compact
+// "3d".  In a 16+16 even-tempered pool the same pseudo-atom reproduces CP2K's ATOM code to 3 / 0.3 / 0.1 mHa (E, eps 4s,
+// eps 3d; UTCalculation ValenceBasisGen.MnQ7PseudoAtomInALargePool) -- so the projector is the pool's orbital, as is.
 // THE PSEUDO-ATOMIC +U PROJECTOR (HubbardProjectorPlan D5/D6): the site species' pseudo-atom l orbital in its OWN
 // pool, handed over as is -- no projection onto the site's shells, no knowledge of the orbital basis.
 static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, size_t site, int l,
@@ -1171,68 +1199,6 @@ static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, siz
       <<"), in its own exponents";
     std::cout<<os.str()<<std::endl;
     return pa.Radial();
-}
-
-static std::vector<double> AtomicRadial(const BasisSet::Real_BS& mol, const Structure& st, size_t site, int l,
-                                        const std::vector<std::pair<std::string,int>>& species)
-{
-    // The site: position, Z, element, valence.
-    rvec3_t R; int Z=0; { size_t i=0; st.ForEachSite([&](int z, const rvec3_t& r, bool){ if (i==site) { R=r; Z=z; } i++; }); }
-    const std::string element=thePeriodicTable().GetSymbol(Z);
-    int Zion=0; for (const auto& [el,val] : species) if (el==element) Zion=val;
-    if (Zion==0) Zion=Pseudopotential::GetGTH(element, "LDA").zion;
-    // The site's shells by l, in the block's shell order (the order Hubbard_U::Select walks too).
-    std::map<int,std::vector<double>> byL;
-    for (auto ibs : const_cast<BasisSet::Real_BS&>(mol).Iterate<BasisSet::Real_OIBS>())
-    {
-        const auto* src=dynamic_cast<const BasisSet::AoShellSource*>(ibs);
-        if (!src) continue;
-        for (const auto& sh : src->GetAoShells())
-        {
-            if (norm(sh.center-R)>1e-8) continue;
-            if (sh.exponents.size()!=1)
-                throw std::runtime_error("SolidCalculation: the atomic +U radial needs UNCONTRACTED primitives on site "
-                                         +std::to_string(site)+" (a contracted shell: not this increment)");
-            byL[sh.rep->L()].push_back(sh.exponents[0]);
-        }
-        break;                                                  // every block carries the same shells
-    }
-    if (!byL.count(l)) throw std::runtime_error("SolidCalculation: no l="+std::to_string(l)+" shell on site "+std::to_string(site));
-    // The pseudo-atom in a COMPLETE even-tempered pool, every l up to the highest the site carries (the
-    // builder, HubbardProjectorPlan D5; this projection onto the site's shells is the route that plan retires).
-    int lmax=0; for (const auto& [ll,es] : byL) lmax=std::max(lmax,ll);
-    const PseudoAtomOrbital& pa=PseudoAtomOrbitalOf(element, Zion, l, lmax);
-    const std::vector<double>& cpool=pa.coefficients;
-    const std::vector<double>& ep=pa.exponents;
-    const double eBest=pa.eps;
-    auto ov=[l](double a, double b){ return std::pow(2.0*std::sqrt(a*b)/(a+b), l+1.5); };   // unit-normalised r^l e^{-a r^2}
-    // PROJECT onto the site's l shells (overlap metric): S_site r = b, b_s = <g_s|chi>.
-    const std::vector<double>& es=byL[l];
-    const size_t ns=es.size();
-    rsmat_t Ss(ns); rvec_t b(ns);
-    for (size_t s=0;s<ns;s++)
-    {
-        for (size_t t=s;t<ns;t++) Ss(s,t)=ov(es[s],es[t]);
-        double bs=0.0; for (size_t k=0;k<ep.size();k++) bs+=cpool[k]*ov(es[s],ep[k]);
-        b[s]=bs;
-    }
-    rvec_t w; rmat_t V; blazem::eigen(Ss, w, V);
-    rvec_t r(ns, 0.0);
-    for (size_t k=0;k<ns;k++)
-    {
-        if (w[k]<1e-10*w[ns-1]) continue;                       // a near-dependent direction of the site's shells: skipped
-        double vb=0.0; for (size_t s=0;s<ns;s++) vb+=V(s,k)*b[s];
-        for (size_t s=0;s<ns;s++) r[s]+=V(s,k)*vb/w[k];
-    }
-    double captured=0.0; for (size_t s=0;s<ns;s++) captured+=r[s]*b[s];   // |P chi|^2 = b^T S^-1 b
-    std::ostringstream os;
-    os<<"[+U radial] site "<<site<<" ("<<element<<", q"<<Zion<<") l="<<l<<": pseudo-atom "<<(l==0?"s":l==1?"p":l==2?"d":"f")
-      <<" orbital eps="<<std::setprecision(4)<<eBest<<" Ha (16-exponent pool, E="<<std::setprecision(6)<<pa.Eatom
-      <<") projected onto "<<ns<<" shells: captured "<<std::fixed<<std::setprecision(4)<<captured<<" of its norm; coefficients";
-    for (size_t k=0;k<ns;k++) os<<" "<<std::setprecision(3)<<r[k]<<"@"<<es[k];
-    std::cout<<os.str()<<std::endl;
-    std::vector<double> out(ns); for (size_t s=0;s<ns;s++) out[s]=r[s];
-    return out;
 }
 
 namespace {

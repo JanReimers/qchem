@@ -26,7 +26,8 @@
    {
     "site": 0,
     "l": 2,
-    "U_eV": 0.0
+    "U_eV": 0.0,
+    "projector": "siteShells"
    }
   ]
  },
@@ -55,5 +56,8 @@
     "alpha_eV": 0.027211386245987998
    }
   }
- ]
+ ],
+ "state": {
+  "save": "/home/janr/Code/qchem6-runs/SrVO3/states/srvo3_lowqtm_G_U0.h5"
+ }
 }

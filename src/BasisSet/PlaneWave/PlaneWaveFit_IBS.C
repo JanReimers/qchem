@@ -40,6 +40,7 @@ class PlaneWaveFit_IBS
     , public         Lattice::Irrep_IBS<PW_Grid_Evaluator> // op()/Gradient/GetNumFunctions from the evaluator
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // GetSymmetry/GetSymt/GetIrrep
     , public         PW_Grid_Evaluator                // the DENSITY/FIT evaluator (grid + G_FieldEvaluator); Cast() target
+    , public virtual BasisSet::G_OrbitalPairBall      // the pin-28 audit's question (see there)
 {
 public:
     //! Build over a density/fit grid evaluator (the FFT/Poisson grid the XC + SAD paths quadrature on),
@@ -50,12 +51,16 @@ public:
     //! fact only the creating factory knows (CreateVxcFitBasisSet vs CreateCDFitBasisSet), stamped here so the
     //! basis can SELF-report: every created grid announces at birth, labeled, and a grid that is never used
     //! still shows up -- deliberately, so stale grid construction is visible (user ruling 2026-08-16).
+    //! \a holdsOrbitalPairs: the creating ORBITAL basis states that this ball holds every one of its pair differences
+    //! (\c G_OrbitalPairBall) -- only \c PlaneWave_IBS at >= 4 Ecut does; a GPW block's fit never can.
     PlaneWaveFit_IBS(const PW_Grid_Evaluator& e, const sym_t& sym, const std::string& role,
-                     std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {})
+                     std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {}, bool holdsOrbitalPairs=false)
         : BasisSet::IrrepBasisSetImp<dcmplx>(sym)
         , PW_Grid_Evaluator(e)
         , itsDirectOps(std::move(directOps))
+        , itsHoldsOrbitalPairs(holdsOrbitalPairs)
     { AnnounceGrid(role); }
+    virtual bool HoldsEveryOrbitalPair() const override {return itsHoldsOrbitalPairs;}
 
     //! \copydoc BasisSet::FIT_SF_ABS::Overlap
     //! \f$\langle e^{iG_a\cdot r}/\sqrt\Omega\,|\,f\rangle=\sqrt\Omega\,\tilde f(G_a)\f$ over THIS basis's
@@ -175,6 +180,7 @@ public:
 
 private:
     std::vector<Symmetry::Lattice_3D::DirectOp> itsDirectOps;   //!< crystal direct ops {W|τ} for the IBZ raster star-average ({} = no-op)
+    bool itsHoldsOrbitalPairs=false;   //!< see HoldsEveryOrbitalPair (stated by the creating orbital basis)
 };
 
 } //namespace

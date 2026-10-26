@@ -286,13 +286,13 @@ template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const Fitting::Densit
 //
 template <class T> void tComposite_CD<T>::ReScale(double factor)
 {
-    // No UT coverage
+    if (factor==1.0) return;   // exact identity: no mutation, no version bump
     for (const Block& b:itsBlocks) std::visit([&](auto* c){c->ReScale(factor);}, b.cd);
     this->AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
 // ★ WHY THIS THROWS (R2.5's remainder, closed 2026-09-09; generalized from the polarized container by
-// V1.37).  `MixIn`/`GetChangeFrom` are BINARY operations on a hierarchy: `this` and `cd` must be the SAME
+// V1.37).  `Axpy` (hence `MixIn`)/`GetChangeFrom` are BINARY operations on a hierarchy: `this` and `cd` must be the SAME
 // representation -- a composite over the same blocks, in the same order -- before the algebra means
 // anything, and no single-dispatch signature can express that.  (Double dispatch would move the same
 // run-time check into a visitor and buy nothing.)  So the cast stays and it is the mixer's LINEAGE
@@ -311,21 +311,56 @@ template <class T> static const tComposite_CD<T>& RequireCompositePartner(const 
     return *ecd;
 }
 
-template <class T> void tComposite_CD<T>::MixIn(const tMixableDensity<T>& cd,double f)
+template <class T> void tComposite_CD<T>::Axpy(double f, const tMixableDensity<T>& cd)
 {
-    const tComposite_CD& ecd=RequireCompositePartner<T>(cd, "tComposite_CD::MixIn");
+    if (f==0.0) return;   // exact identity: no mutation, no version bump
+    const tComposite_CD& ecd=RequireCompositePartner<T>(cd, "tComposite_CD::Axpy");
     if (itsBlocks.size()!=ecd.itsBlocks.size())
-        throw std::runtime_error("tComposite_CD::MixIn: the two composites hold different block counts -- "
+        throw std::runtime_error("tComposite_CD::Axpy: the two composites hold different block counts -- "
                                  "not the same irrep set (or the same imposed spin subgroup)");
     for (size_t i=0;i<itsBlocks.size();++i)
         std::visit([&](auto* mine, auto* theirs)
         {
             if constexpr (std::is_same_v<std::decay_t<decltype(mine)>,std::decay_t<decltype(theirs)>>)
-                mine->MixIn(*theirs,f);
+                mine->Axpy(f,*theirs);
             else
-                throw std::logic_error("tComposite_CD::MixIn: the two composites' child scalars differ per block");
+                throw std::logic_error("tComposite_CD::Axpy: the two composites' child scalars differ per block");
         }, itsBlocks[i].cd, ecd.itsBlocks[i].cd);
     this->AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
+}
+
+template <class T> double tComposite_CD<T>::Dot(const tMixableDensity<T>& cd) const
+{
+    const tComposite_CD& ecd=RequireCompositePartner<T>(cd, "tComposite_CD::Dot");
+    if (itsBlocks.size()!=ecd.itsBlocks.size())
+        throw std::runtime_error("tComposite_CD::Dot: the two composites hold different block counts -- "
+                                 "not the same irrep set (or the same imposed spin subgroup)");
+    double ret=0;
+    for (size_t i=0;i<itsBlocks.size();++i)
+        ret += std::visit([&](const auto* mine, const auto* theirs) -> double
+        {
+            if constexpr (std::is_same_v<std::decay_t<decltype(mine)>,std::decay_t<decltype(theirs)>>)
+                return mine->Dot(*theirs);
+            else
+                throw std::logic_error("tComposite_CD::Dot: the two composites' child scalars differ per block");
+        }, itsBlocks[i].cd, ecd.itsBlocks[i].cd);
+    return ret;
+}
+
+template <class T> std::unique_ptr<tMixableDensity<T>> tComposite_CD<T>::MakeCopy() const
+{
+    auto c=std::make_unique<tComposite_CD<T>>(itsPointOps);
+    for (const Block& b : itsBlocks)
+        std::visit([&](const auto* child)
+        {
+            using child_t = std::remove_cvref_t<decltype(*child)>;          // tDM_CD<U>
+            auto copy=child->MakeCopy();                                     // unique_ptr<tMixableDensity<U>>
+            auto* dm=dynamic_cast<child_t*>(copy.get());                     // abstract -> abstract
+            if (!dm) throw std::logic_error("tComposite_CD::MakeCopy: a block's copy is not a density-matrix density");
+            copy.release();
+            c->Insert(std::unique_ptr<child_t>(dm), b.qns);
+        }, b.cd);
+    return c;
 }
 
 template <class T> double tComposite_CD<T>::GetChangeFrom(const tMixableDensity<T>& cd) const

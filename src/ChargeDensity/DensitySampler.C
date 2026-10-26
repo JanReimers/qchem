@@ -61,6 +61,36 @@ using ChargeDensity::cDM_CD;
 //! `qchem::ChargeDensity::ReportGridCharge() = true;`.
 bool& ReportGridCharge();
 
+//! \brief WHICH \f$\rho\f$ a sampled raster came from -- the pin-28 audit (doc/Pins.md pin 28: XC sees \f$\rho[D]\f$,
+//! never a fitted \f$\rho\f$).  One value per sampling; the XC term records the one its \f$V_{xc}\f$ build saw.
+enum class XCRhoSource
+{
+    DM,           //!< \f$\rho[D]\f$ of a density matrix, pointwise
+    CuspDeficit,  //!< N4: \f$\tilde\rho_{mix}+(\rho[D]-\tilde\rho_{fit})\f$ -- pin 28's exception 2, in its legal form
+    DMSource,     //!< the wholesale retained-D route (policy.xcFromDM): a damped mix of \f$\rho[D]\f$
+    Shadow,       //!< the raster route's RAW shadow of a mixed density: \f$\rho[D]\f$ collocated, Kerker-mixed on the raster
+    //! An EXACT fit of \f$\rho[D]\f$: rho always goes through the fit (user's definition, 2026-10-26: that keeps the SCF loop
+    //! basis-independent), and for a plane-wave orbital basis whose fit ball holds every pair difference (\c G_OrbitalPairBall,
+    //! >= 4 Ecut) the fit is Parseval-exact -- \f$\rho[D]\f$ to roundoff.  Legal under pin 28.
+    ExactFit,
+    Fitted,       //!< an INEXACT fit / projected field (the seed, a bare \f$\tilde\rho_{mix}\f$, a truncated ball) -- legal only for the seed
+};
+//! The short label the SCF trace's "XC ρ" column prints for \a s.
+inline const char* ShortName(XCRhoSource s)
+{
+    switch (s)
+    {
+        case XCRhoSource::DM:          return "DM";
+        case XCRhoSource::CuspDeficit: return "cusp";
+        case XCRhoSource::DMSource:    return "DMsrc";
+        case XCRhoSource::Shadow:      return "shadow";
+        case XCRhoSource::ExactFit:    return "fit=";
+        case XCRhoSource::Fitted:      return "fitted";
+    }
+    assert(false && "ShortName: unhandled XCRhoSource");
+    return "?";
+}
+
 //! \brief THE XC QUADRATURE: ONE OBJECT WITH TWO ADJOINT-PAIRED FACES -- \f$\rho\f$ at the points from
 //! the density, and \f$\langle i|v|j\rangle\f$ from a field at those SAME points.
 //!
@@ -99,6 +129,11 @@ public:
     //! quadrature can answer it (the pair route has no per-spin collocation): those THROW, and the
     //! Hamiltonian's Auto rule keeps a polarized run off them.
     virtual const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const=0;
+    //! The source of the \f$\rho\f$ I have CACHED -- i.e. what the last \c Rho / \c RhoPol call served, hit or miss.
+    //! Client: the XC term, right after it sampled for a \f$V_{xc}\f$ build, so the SCF trace can show what the
+    //! Fock matrix's XC saw each iteration (pin 28).  Asked of the term's own build rather than logged here, because
+    //! this engine also samples for the energy pass and the residual, which would bury the one sampling that matters.
+    virtual XCRhoSource RhoSource() const=0;
     //! \brief \f$\delta\rho_\sigma(r_g)\f$ of a TRANSITION density at my points (doc/LinearResponsePlan.md R2) --
     //! through the SAME route and projector as \c Rho, so a response samples on exactly the quadrature its
     //! ground state did.  \a s = \c Spin::None asks for the total (the folded doublet).

@@ -252,6 +252,24 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
 // shared_ptr.  The previous body deleted all three, which is what forced every anneal stage to rebuild
 // a Hamiltonian its owner still held.  (The old comment here claimed the wave function was NOT owned --
 // it was the one of the three that was.)
+// PIN 28 IS ENFORCED, NOT AUDITED (user 2026-10-26: "simply crash the run if cusp* or fitted! appears in that column").
+// V_xc must see rho[D] (doc/Pins.md pin 28).  Two states break it, and both used to be only MARKS in the trace's XC ρ column:
+//   fitted after iteration 1 -- a fitted / projected field fed XC (iteration 1 is the seed's, which has no D: legal);
+//   cusp without a G filter  -- N4's cusp deficit is pin 28's excused form ONLY beside a G-dependent (Kerker) filter; with
+//                               none the history belongs on D (a D-space mixer), and the excuse does not apply.
+// A broken invariant no caller can act on -> throw (CLAUDE.md), with the recipe named so the fix is obvious.
+static void RequirePin28(const EnergyBreakdown& eb, size_t iteration, bool gFilter, bool lineSearch)
+{
+    const auto& c=eb.charge;
+    if (c.xcRhoFitted && iteration>1)
+        throw std::logic_error("SCF pin 28: iteration "+std::to_string(iteration)+" built V_xc from a FITTED density (XC ρ '"+c.xcRho
+                               +"') -- XC must see rho[D]; only the seed (iteration 1) may be fitted.  doc/Pins.md pin 28");
+    if (c.xcRho=="cusp" && !gFilter && !lineSearch)
+        throw std::logic_error("SCF pin 28: iteration "+std::to_string(iteration)+" built V_xc from the CUSP DEFICIT beside a mixer with "
+                               "NO G filter -- that form is excused only beside Kerker; with KerkerG0 = 0 mix D (the D-space Pulay).  "
+                               "doc/Pins.md pin 28");
+}
+
 // D-MINDRHO (2026-10-22, user: "option A"): ONE convergence measure, the L1 distance per electron on a real-space quadrature --
 // the fraction of the electrons the step would still move, 0 exactly at the fixed point, the same number for every mixer,
 // representation and system.  The run's own XC quadrature when the Hamiltonian has one (cached rasters: ~one extra raster per
@@ -415,6 +433,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
         eb=TotalEnergy(itsCD.get());        // includes the Mermin −TS => E is the free energy A when smearing on
+        RequirePin28(eb, itsIterationCount, itsMixer->HasGFilter(), lineSearch);
         E=eb.GetTotalEnergy();
         dE=(E-Eold)/fabs(E);
         itsAccelerator->SetEnergy(E); //the ladder gates its hand-off on the energy change
@@ -440,7 +459,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
                                itsAccelerator->MinSV(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
                                itsIterationCount>1 && config!=prevConfig, lineSearch,
-                               (N!=0.0 ? eb.charge.lost/N : 0.0),
+                               (N!=0.0 ? eb.charge.lost/N : 0.0), itsMixer->HasGFilter(),
                                g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole,
                                hasOrder, order };
             DisplayColumns(cout, ipar, tr);
@@ -722,7 +741,7 @@ template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>*
 
 // --- Column-width constants: the header labels and the value rows share these, so they line up exactly
 //     regardless of the UTF-8 label glyphs (Δ, ρ, ε are multi-byte but one display column). --------------
-namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=13, W_ACC=7, W_SV=8, W_CFG=3, W_GAP=9, W_ORD=12 }; }
+namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=13, W_ACC=7, W_SV=8, W_CFG=3, W_GAP=9, W_ORD=12, W_XCR=7 }; }
 
 // Display width of a UTF-8 string (counts leading bytes only, so Δ/ρ/ε each count as one column).
 static size_t VisWidth(const std::string& s)
@@ -851,6 +870,20 @@ ColumnData GridLossCol()
             {os << std::scientific << setw(W_LOST) << setprecision(2) << tr.gridLostRel << " ";}};
 }
 
+//! THE PIN-28 AUDIT (doc/Pins.md pin 28): which rho this iteration's V_xc was built from -- DM, cusp (N4), DMsrc,
+//! shadow (the raster route's mixed RAW shadow) or fitted.  The two ILLEGAL states it used to mark ("fitted!", "cusp*")
+//! now THROW in the loop (RequirePin28), so the column only names the source.  A GRID column like ρ_lost/N, and a probe:
+//! no tolerance cell.  It replaces reading the `scf.xcRhoRoutes` sequence by eye (still recorded in the json).
+ColumnData XCRhoCol()
+{
+    return {"XC ρ", W_XCR, std::nullopt,
+            [](std::ostream& os, const IterationTrace& tr)
+            {
+                const auto& c=tr.eb.charge;
+                os << PadR(c.xcRho.empty() ? std::string("----") : c.xcRho, W_XCR) << " ";
+            }};
+}
+
 } //anon namespace
 
 // --- Base: the MOLECULAR column list -----------------------------------------------------------------
@@ -919,6 +952,8 @@ template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const 
 template <class T> std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>>
 tSCFIterator<T>::CreateMixer(const SCFParams& ipar, const tbs_t<T>*, const Structure*, const tDM_CD<T>*) const
 {
+    if (ipar.Mixer==SCFParams::Mixing::Pulay)   // ResolveMixing let it through only at KerkerG0 = 0: Pulay on D
+        return qchem::ChargeDensity::PulayDMixerFactory<T>(ipar.StartingRelaxRo, ipar.PulayDepth, ipar.PulayStart);
     return qchem::ChargeDensity::LinearMixerFactory<T>(ipar.StartingRelaxRo);
 }
 
@@ -938,6 +973,7 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
     tSCFIterator<dcmplx>::AccumulateColumns(cols,ipar,idealVirial);   // gate, Δρ, [virial]
     cols[0]=GateDE(ipar);                                             // a collocation SCF is ENERGY-gated
     cols.insert(cols.begin()+2, GridLossCol());                       // ...and carries the grid-charge leak
+    cols.insert(cols.begin()+3, XCRhoCol());                          // ...and which rho its XC saw (pin 28)
 }
 
 // The solid mixer.  The branch here is on the KNOBS -- which RECIPE did the caller ask for? -- not on the
@@ -960,6 +996,8 @@ SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, co
     {
     case M::Pulay:
     {
+        // "Pulay without Kerker" mixes D, never a fitted ρ̃ (OpenWork §3, pin 28): the history lives on density matrices.
+        if (ipar.KerkerG0<=0.0) return CD::PulayDMixerFactory<dcmplx>(ipar.StartingRelaxRo, ipar.PulayDepth, ipar.PulayStart);
         CD::PulayParams p;
         p.relax=ipar.StartingRelaxRo; p.G0=ipar.KerkerG0; p.cuspDeficit=ipar.XCCuspDeficit;
         p.depth=ipar.PulayDepth;      p.start=ipar.PulayStart;

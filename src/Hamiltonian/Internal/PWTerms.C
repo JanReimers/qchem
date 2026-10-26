@@ -15,6 +15,7 @@ module;
 #include <set>      // Ven_PP_NonLocal::itsByLSeen (the GPW_NL_PER_L diagnostic)
 #include <vector>   // SinglesDensitySampler sigmas/flipFixed (Shubnikov S3)
 #include <memory>
+#include <optional>
 #include <string>
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
@@ -372,6 +373,10 @@ private:
     mutable size_t  itsDeltaVersion=size_t(-1);
     mutable cvec_t  itsDvUp, itsDvDn;
     mutable rvec3_t itsDeltaQ{0,0,0};   //!< the wave vector δv was sampled at (the raster adjoint needs it)
+    //! The pin-28 audit: the source of the rho my most recent V_xc BUILD sampled (MakeMatrixT), which my energy pass
+    //! reports in \c ChargeBreakdown::xcRho.  The latest build, not a drained log: GDM's line search calls the energy
+    //! many times per iteration, and a log emptied by each call would hand the trace an empty cell.
+    mutable std::optional<ChargeDensity::XCRhoSource> itsFockSource;
 };
 
 //! \brief THE XC term for a run whose \f$v_{xc}\f$ fit basis is \a fb -- ready to \c Add (ownership

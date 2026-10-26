@@ -184,7 +184,7 @@ TEST(PW_Cosine, Γ_Prototype_VxcFitConverges)
               << "  relCutoff | nG_fit |   FFT pts |      E_xc(∫ε ρ) | ‖v_xc−v_xc,fit‖\n"
               <<   "  ----------+--------+-----------+-----------------+----------------\n";
     std::vector<double> Excs, resids;
-    for (double rc : {1.0, 2.0, 4.0})
+    for (double rc : {4.0, 8.0, 16.0})   // 4 = the floor (the density ball, pin 28); below it is the same grid
     {
         qcMesh::MeshParams mp; mp.relCutoff=rc;
         auto fb=qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, mp));

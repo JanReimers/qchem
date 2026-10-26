@@ -79,6 +79,7 @@ public:
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
     const char* Tag() const override { return "Ker"; }
+    bool HasGFilter() const override { return itsKerkerG0>0.0; }   // G0 = 0 is the plain linear G-space mixer
 private:
     double itsRelax, itsKerkerG0;
     //! N4: form + deposit the cusp-deficit correction for XC.  A CONSTRUCTION policy (see

@@ -76,6 +76,23 @@ void RequireRawForCusp(const cChargeDensity* cd, bool isRaw)
             "has no raster shadow, so the pair route would feed XC the FITTED rho (BALL)");
 }
 
+// The pin-28 source of ONE sampled density object (see XCRhoSource): RAW is rho[D] itself for a D-backed density and its mixed
+// raster SHADOW otherwise; BALL is the fit of rho -- an EXACT one when the fit's ball holds every orbital pair (\a ballHoldsPairs,
+// a plane-wave orbital basis at >= 4 Ecut, Parseval), an inexact (pin-28-illegal) one otherwise.  On an exact ball a MIXED field
+// is exact too: a (Kerker-filtered) linear combination of exact rho[D_i] truncates nothing -- QE's density mixing, the plane-wave
+// counterpart of the GPW raster shadow.
+XCRhoSource PairSource(const cChargeDensity* cd, bool isRaw, bool ballHoldsPairs)
+{
+    const bool dm=dynamic_cast<const ChargeDensity::cDM_CD*>(cd)!=nullptr;
+    if (!isRaw) return ballHoldsPairs ? XCRhoSource::ExactFit : XCRhoSource::Fitted;
+    return dm ? XCRhoSource::DM : XCRhoSource::Shadow;
+}
+bool BallHoldsPairs(const BasisSet::cFIT_SF_ABS& fit)
+{
+    auto* b=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(&fit);   // abstract -> abstract
+    return b && b->HoldsEveryOrbitalPair();
+}
+
 rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) const
 {
     assert(cd);
@@ -187,6 +204,7 @@ void PairDensitySampler::RefreshPol(const cChargeDensity* cd) const
         // the first density-matrix-backed density both sides are RAW and the pairing is exact again --
         // and the latch makes that a checked property, not a hope.
         itsRhoIsRaw=raw;
+        itsSource=PairSource(cd, raw, BallHoldsPairs(*itsFitBasis));
         ReportNegativeRho(*this, itsRhoUp, "half-density seed");
         return;
     }
@@ -204,6 +222,7 @@ void PairDensitySampler::RefreshPol(const cChargeDensity* cd) const
     assert(rawUp==rawDn && "the two channels of one density must take the same XC route");
     LatchRoute(cd, rawUp);
     itsRhoIsRaw=rawUp;
+    itsSource=PairSource(up, rawUp, BallHoldsPairs(*itsFitBasis));
     ReportNegativeRho(*this, itsRhoUp, "raw(up)");
     ReportNegativeRho(*this, itsRhoDn, "raw(dn)");
 }
@@ -227,6 +246,7 @@ void PairDensitySampler::Refresh(const cChargeDensity* cd) const
     // face.  Iteration 0's energy is discarded and the latch below never fires on it, so the pairing is
     // exact from the first matrix-backed density onward.
     itsRhoIsRaw = raw;
+    itsSource=PairSource(cd, raw, BallHoldsPairs(*itsFitBasis));
     LatchRoute(cd, raw);
     // DIAGNOSTIC (env GPW_XCROUTE): which V_xc route fires this iteration -- RAW (applyRawAdjoint, FD-exact/
     // variational; gate GPW.RawXCConsistencyFD) vs BALL (DoFit/Overlap, non-variational under BallOnly;

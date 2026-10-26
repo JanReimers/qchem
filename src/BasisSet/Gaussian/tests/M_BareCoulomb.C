@@ -22,6 +22,7 @@ import qchem.BasisSet;                                          // Real_BS / Rea
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.BareCoulombSource;
 import qchem.BasisSet.AoShellSource;                        // the face under test (+ ERI4Block)
+import qchem.BasisSet.AtomCentredSet;                       // the pseudo-atomic set's own one-centre integrals (HubbardProjectorPlan inc 4)
 import qchem.BasisSet.Gaussian.PG_Cart;                         // the Cartesian family
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;    // MakeSphericalLatticeView
 import qchem.Structure;
@@ -125,3 +126,95 @@ TEST(BareCoulomb, TheCartesianBlockAnswersDirectlyAndASubsetIsASubTensor)
     // {xy,xz,yz} (a Cartesian xx is not a pure harmonic) -- the view is where the five harmonics live.
 }
 
+// --- the ATOM-CENTRED SET's own bare integrals (HubbardProjectorPlan increment 4) ------------------------------
+// The set answers one-centre integrals in closed form (multipole expansion, real Gaunt factors, Slater integrals of
+// Gaussian densities as a finite incomplete-beta sum).  The ORACLE is the M&D engine above: the same functions built
+// as basis functions and carried to the set's functions on all four indices.
+namespace
+{
+//! The engine's spherical-view block over \a exps with every shell 0..\a LMax at the origin.
+std::shared_ptr<const BasisSet::Real_BS> EngineView(const rvec_t& exps, int LMax)
+{
+    static Molecule mol; static bool once=false;
+    if (!once) { mol.Insert(new Atom(25, 0, Vector3D<double>(0,0,0))); once=true; }
+    auto* cart=new BasisSet::Gaussian::PG_Cart::BasisSet;
+    cart->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(exps, size_t(LMax), &mol));
+    std::shared_ptr<const BasisSet::Real_BS> cbs(cart);
+    return BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cbs);
+}
+//! The view's columns of the l=\a L shell with exponent \a alpha, in the SET's m order (p: y,z,x; the view keeps a
+//! pass-through p shell in its Cartesian x,y,z order).
+std::vector<size_t> ViewShell(const BasisSet::Real_OIBS& blk, int L, double alpha)
+{
+    for (const auto& sh : dynamic_cast<const BasisSet::AoShellSource&>(blk).GetAoShells())
+        if (sh.rep->L()==L && sh.exponents.size()==1 && std::fabs(sh.exponents[0]-alpha)<1e-12)
+        {
+            std::vector<size_t> c;
+            for (size_t k=0;k<sh.nComponents();k++) c.push_back(sh.offset+k);
+            if (L==1) c={c[1],c[2],c[0]};
+            return c;
+        }
+    throw std::logic_error("ViewShell: no such shell");
+}
+void ExpectSameTensor(const BasisSet::ERI4Block& a, const BasisSet::ERI4Block& b, double tol)
+{
+    ASSERT_EQ(a.Size(), b.Size());
+    const size_t m=a.Size();
+    double big=0.0; for (size_t n=0;n<b.Data().size();n++) big=std::max(big,std::fabs(b.Data()[n]));
+    for (size_t i=0;i<m;i++) for (size_t j=0;j<m;j++) for (size_t k=0;k<m;k++) for (size_t l=0;l<m;l++)
+        EXPECT_NEAR(a(i,j,k,l), b(i,j,k,l), tol*big) << i << j << k << l;
+}
+}
+
+TEST(BareCoulomb, TheAtomCentredSetMatchesTheEngineOnOnePrimitiveDShell)
+{
+    const double a=0.9;
+    BasisSet::GaussianAtomCentredSet set; set.Add(rvec3_t{0,0,0}, 2, {Math::Gaussian{1.0,0,a}});
+    auto view=EngineView(rvec_t{a}, 2);
+    const auto& blk=FirstBlock(view);
+    const BasisSet::ERI4Block eng=dynamic_cast<const BasisSet::BareCoulombSource&>(blk).BareCoulomb(ViewShell(blk,2,a));
+    ExpectSameTensor(set.BareCoulomb({0,1,2,3,4}), eng, 1e-12);
+}
+
+TEST(BareCoulomb, TheAtomCentredSetMatchesTheEngineOnAContractedDShell)
+{
+    // R = 0.6 r^2 e^{-0.9 r^2} + 0.4 r^2 e^{-2.5 r^2} (normalised by the set); the engine's two unit-normalised d shells
+    // carry it through T(s m, m) = c_s / (N_s Nset), N_s the shell's own radial norm.
+    const rvec_t al{0.9, 2.5}, c{0.6, 0.4};
+    BasisSet::GaussianAtomCentredSet set; set.Add(rvec3_t{0,0,0}, 2, {Math::Gaussian{c[0],0,al[0]}, Math::Gaussian{c[1],0,al[1]}});
+    const double nset=std::sqrt(BasisSet::GaussianAtomCentredSet::RadialNorm2(2, {Math::Gaussian{c[0],0,al[0]}, Math::Gaussian{c[1],0,al[1]}}));
+    auto view=EngineView(al, 2);
+    const auto& blk=FirstBlock(view);
+    std::vector<size_t> cols; rmat_t T(10, 5, 0.0);
+    for (size_t s=0;s<2;s++)
+    {
+        const std::vector<size_t> sh=ViewShell(blk, 2, al[s]);
+        const double ns=1.0/std::sqrt(BasisSet::GaussianAtomCentredSet::RadialNorm2(2, {Math::Gaussian{1.0,0,al[s]}}));
+        for (size_t mm=0;mm<5;mm++) { cols.push_back(sh[mm]); T(5*s+mm, mm)=c[s]/(ns*nset); }
+    }
+    const BasisSet::ERI4Block eng=dynamic_cast<const BasisSet::BareCoulombSource&>(blk).BareCoulomb(cols).Transform(T);
+    ExpectSameTensor(set.BareCoulomb({0,1,2,3,4}), eng, 1e-12);
+}
+
+TEST(BareCoulomb, TheAtomCentredSetMatchesTheEngineAcrossPAndDOnOneCentre)
+{
+    // Mixed l on one centre: the odd-k multipoles and the p-d Gaunt factors.  Set manifolds: p (0..2), d (3..7).
+    const double a=1.3;
+    BasisSet::GaussianAtomCentredSet set;
+    set.Add(rvec3_t{0,0,0}, 1, {Math::Gaussian{1.0,0,a}});
+    set.Add(rvec3_t{0,0,0}, 2, {Math::Gaussian{1.0,0,a}});
+    auto view=EngineView(rvec_t{a}, 2);
+    const auto& blk=FirstBlock(view);
+    std::vector<size_t> cols=ViewShell(blk,1,a); for (size_t x : ViewShell(blk,2,a)) cols.push_back(x);
+    const BasisSet::ERI4Block eng=dynamic_cast<const BasisSet::BareCoulombSource&>(blk).BareCoulomb(cols);
+    ExpectSameTensor(set.BareCoulomb({0,1,2,3,4,5,6,7}), eng, 1e-12);
+}
+
+TEST(BareCoulomb, TheAtomCentredSetRefusesTwoCentres)
+{
+    BasisSet::GaussianAtomCentredSet set;
+    set.Add(rvec3_t{0,0,0}, 2, {Math::Gaussian{1.0,0,0.9}});
+    set.Add(rvec3_t{0,0,2}, 2, {Math::Gaussian{1.0,0,0.9}});
+    EXPECT_THROW(set.BareCoulomb({0,5}), std::invalid_argument);
+    EXPECT_NO_THROW(set.BareCoulomb({5,6,7}));
+}

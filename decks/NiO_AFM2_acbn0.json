@@ -11,6 +11,7 @@
   },
   "solid": {
     "multiplicity": 1,
+    "siteSpins": [1,-1,0,0],
     "seed": "IonicSAD",
     "ortho": "CholeskyPivoted",
     "orthoTol": 0.0001,
@@ -21,14 +22,12 @@
         "site": 0,
         "l": 2,
         "U_eV": 0.0,
-        "atomicRadial": true,
         "orthoAtomic": true
       },
       {
         "site": 1,
         "l": 2,
         "U_eV": 0.0,
-        "atomicRadial": true,
         "orthoAtomic": true
       }
     ]

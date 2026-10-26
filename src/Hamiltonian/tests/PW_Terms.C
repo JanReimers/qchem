@@ -185,27 +185,27 @@ TEST(PW_Terms, PWDynamicTermsMatchBasis)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(Mh(i,j))-dcmplx(refh(i,j))), 0.0, 1e-10);
 
-    // XC term (Dirac exchange) matrix == the basis's FFT route: rho(r) via inverse FFT of rho-tilde,
-    // v_xc applied pointwise on the grid, forward FFT to the matrix (what the term itself does).
+    // XC term (Dirac exchange) matrix == the basis's FFT route ON THE DENSITY GRID (4x Ecut: every pair difference, so
+    // rho(r) IS rho[D] -- pin 28): rho(r) via inverse FFT of rho-tilde, v_xc pointwise, forward FFT to the matrix.
     auto dirac=std::make_shared<qchem::Hamiltonian::SlaterExchange>(2.0/3.0);
     std::unique_ptr<qchem::Hamiltonian::Vxc_Quadrature> xc(NewPWXC(F.pw, dirac));
     qchem::Hamiltonian::cDynamic_HT* xt=xc.get();
     const chmat_t& Mx = xt->GetMatrix(&F.pw, Spin::None, &cd);
-    rvec_t rho=GridOf(F.pw).RhoOnGrid(RhoTilde(F.pw, D));
+    rvec_t rho=DensityGridOf(F.pw).RhoOnGrid(RhoTilde(F.pw, D));
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
-    chmat_t refx = OverlapOnGrid(F.pw, vxc);
+    chmat_t refx = OverlapOnGrid(F.pw, vxc, DensityGridOf(F.pw));
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(Mx(i,j))-dcmplx(refx(i,j))), 0.0, 1e-10);
 }
 
 
-// Item K: the XC quadrature grid now comes from the FIT basis, so relCutoff (the CP2K REL_CUTOFF density-
-// cutoff idea) is the genuine fit-accuracy lever.  (1) a larger relCutoff yields a DENSER fit {G}; (2) it
-// feeds through to the Vxc matrix (relCutoff=1 -> the orbital grid, bit-identical to the FFT route; >1 -> a
-// finer, less-aliased quadrature); (3) the matrix GRID-CONVERGES (successive refinements shrink).  The fit is
-// non-variational, so acceptance is convergence of the matrix, NEVER an energy anchor.
+// Item K: the XC quadrature grid comes from the FIT basis, so relCutoff (the CP2K REL_CUTOFF density-cutoff idea) is the
+// fit-accuracy lever ABOVE the density ball.  (1) relCutoff <= 4 is the FLOOR -- the density ball, every pair difference
+// (pin 28, 2026-10-26; it used to start at the orbital ball, which cut rho[D]) -- and a larger one yields a DENSER fit {G};
+// (2) the floor reproduces the density-grid FFT route exactly; (3) above it the matrix GRID-CONVERGES (successive refinements
+// shrink: the nonlinear v_xc's quadrature, not rho, is what still aliases).  Acceptance is convergence, NEVER an energy anchor.
 TEST(PW_Terms, ItemK_RelCutoffDensifiesAndConvergesVxc)
 {
     PWFixture F;
@@ -232,24 +232,25 @@ TEST(PW_Terms, ItemK_RelCutoffDensifiesAndConvergesVxc)
         return std::sqrt(s);
     };
 
-    size_t n1,n4,n16;
-    chmat_t M1=vxcAt(1.0,n1), M4=vxcAt(4.0,n4), M16=vxcAt(16.0,n16);
+    size_t n1,n4,n8,n16;
+    chmat_t M1=vxcAt(1.0,n1), M4=vxcAt(4.0,n4), M8=vxcAt(8.0,n8), M16=vxcAt(16.0,n16);
 
-    // (1) relCutoff densifies the fit {G}.
-    EXPECT_GT(n4, n1);
-    EXPECT_GT(n16, n4);
+    // (1) relCutoff <= 4 is the floor (the density ball); above it relCutoff densifies the fit {G}.
+    EXPECT_EQ(n1, n4) << "relCutoff below 4 must not cut rho[D] (pin 28)";
+    EXPECT_GT(n8, n4);
+    EXPECT_GT(n16, n8);
 
-    // (2) relCutoff=1 reproduces the orbital-grid FFT route exactly (the fix is inert at Gamma).
-    rvec_t rho=GridOf(F.pw).RhoOnGrid(RhoTilde(F.pw, D));
+    // (2) the floor reproduces the density-grid FFT route exactly.
+    rvec_t rho=DensityGridOf(F.pw).RhoOnGrid(RhoTilde(F.pw, D));
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
-    chmat_t refx=OverlapOnGrid(F.pw, vxc);
+    chmat_t refx=OverlapOnGrid(F.pw, vxc, DensityGridOf(F.pw));
     for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
         EXPECT_NEAR(std::abs(dcmplx(M1(i,j))-dcmplx(refx(i,j))), 0.0, 1e-10);
 
-    // (3) the denser grid CHANGES the matrix (relCutoff is live) and it GRID-CONVERGES (Cauchy: the later,
+    // (3) the denser grid CHANGES the matrix (relCutoff is live above the floor) and it GRID-CONVERGES (Cauchy: the later,
     //     finer refinement moves the matrix less than the earlier one).
-    double d1=froDiff(M4,M1), d2=froDiff(M16,M4);
+    double d1=froDiff(M8,M4), d2=froDiff(M16,M8);
     EXPECT_GT(d1, 1e-9);      // the fit grid actually feeds through to the quadrature
     EXPECT_LT(d2, d1);        // convergence
 }

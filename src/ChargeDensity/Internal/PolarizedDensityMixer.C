@@ -265,6 +265,7 @@ public:
     }
     double      GetRelax() const override { return itsUp->GetRelax(); }
     const char* Tag     () const override { return itsUp->Tag(); }   // the trace reports the LEAF recipe
+    bool  HasGFilter    () const override { return itsUp->HasGFilter(); }
     // (No adaptive hooks: the leaves are G-space mixers, none of which adapts its step -- V1.18.)
 
 private:

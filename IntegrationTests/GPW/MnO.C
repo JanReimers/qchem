@@ -131,7 +131,7 @@ TEST(GPW_MnO, Γ_Pol_SeedMirror)
     // (Mn2+ => 5 of the q7 valence, O2- => 8 of the q6).  Built directly -- no SCF, no Hamiltonian.
     qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
-    const std::map<size_t,int> ionic{{25,5},{8,8}};
+    const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
     qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
     const auto* up=seedCD.GetChannel(Spin::Up);
     const auto* dn=seedCD.GetChannel(Spin::Down);
@@ -223,7 +223,7 @@ TEST(GPW_MnO, Γ_Becke_Pol_SeedVxcMirror)
     // The seed the run uses (identical to GPW_MnO.Γ_Pol_SeedMirror).
     qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
-    const std::map<size_t,int> ionic{{25,5},{8,8}};
+    const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
     qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
 
     // The run's Becke recipe, shrunk (nR=20, GL-11) -- wrapping is generic, it needs no production density.
@@ -366,7 +366,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
     // The seed (the same PolarizedSeedCD the run uses), through the engine's channel-pair projector.
     qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
-    const std::map<size_t,int> ionic{{25,5},{8,8}};
+    const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
     PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
 
     auto engine=SinglesEngineOver(q);
@@ -512,7 +512,7 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
     auto run=[&](double U_eV, const std::string& label)
     {
         SolidCalcOptions o=OptionsFor(mno, label);
-        o.multiplicity=1;
+        o.multiplicity=1; o.siteSpins={+1,-1,0,0};   // stated (Mn up, Mn down, O non-magnetic): what IonicSAD derived, now the chemistry
         o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
         o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
         // THE CP2K-SHAPED LOOP (user, 2026-09-20: "we need 1) very close converged energies 2) similar SCF
@@ -527,7 +527,7 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
         o.accelerator=qchem::SCFAccelerators::Type::Null;
         o.imposeSymmetry=true;
         o.policy.hubbardEigen=false;   // CP2K's form, a declared deviation: stated in the options (D-ENV 6b), not in the environment
-        if (U_eV>0.0) o.hubbard={HubbardU(0,2,U_eV), HubbardU(1,2,U_eV)};
+        if (U_eV>0.0) o.hubbard={HubbardU_SiteShells(0,2,U_eV), HubbardU_SiteShells(1,2,U_eV)};
         SCFParams par=Gates(200, 1e-6, 1e30);
         par.Δρmeasure=SCFParams::Measure::MaxΔD;             // CP2K's EPS_SCF measure (doc/Benchmark.md rule 3f)
         par.PulayDepth=8; par.PulayStart=5;                   // the density history, as NBUFFER 8

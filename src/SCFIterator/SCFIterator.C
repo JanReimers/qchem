@@ -86,6 +86,7 @@ struct IterationTrace
     bool   configChanged;    //!< did the occupied configuration change since the previous iteration? (the cfg '*')
     bool   lineSearch;       //!< this step ran the direct-min driver (GDM/OT): NO density mixing -> ρ_mix shows "----"
     double gridLostRel;      //!< signed grid-charge leak per electron, (∫ρ̃ − Tr(DS))/N (solids; 0 with no grid)
+    bool   gFilter;          //!< the mixer's step applies a G-dependent filter (tDensityMixer::HasGFilter; the XC ρ column)
     // Frontier spectrum -- the gap column (solids show it always; molecules only under ReportBandGap()):
     double eHomo=0, eLumo=0, gap=0;
     bool   haveHomo=false, haveLumo=false, metallic=false, hole=false;

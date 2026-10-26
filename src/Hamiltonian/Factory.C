@@ -77,11 +77,14 @@ export namespace qchem::Hamiltonian
     //! order -- EMPTY = every slot takes \c U (shell-averaged, increment 1); a wrong count throws.  Three
     //! levels are three levels: a1g + eg + eg on a D_3d Mn are LISTED separately even when their U's come
     //! out equal (user, 2026-09-20).
-    //! \brief WHAT A +U MANIFOLD PROJECTS ONTO (doc/HubbardProjectorPlan.md D7).  \c SiteShells: functions of the
-    //! orbital basis on the site -- every \f$l\f$-shell (CP2K's LOWDIN columns) or one contraction over them
-    //! (\c radial / \c atomicRadial).  \c PseudoAtomic: the GTH pseudo-atom's own \f$l\f$ orbital in its own
-    //! exponents (\c atomicFunction), NOT projected onto the basis -- the projector QE/hp.x use, independent of the
-    //! orbital basis (an \c BasisSet::AtomCentredSet; the block supplies only overlaps with it).
+    //! \brief WHAT A +U MANIFOLD PROJECTS ONTO (doc/HubbardProjectorPlan.md D7).  \c PseudoAtomic (THE DEFAULT since
+    //! increment 5, 2026-10-25): the GTH pseudo-atom's own \f$l\f$ orbital in its own exponents (\c atomicFunction),
+    //! NOT projected onto the basis -- the projector QE/hp.x use, independent of the orbital basis (an
+    //! \c BasisSet::AtomCentredSet; the block supplies only overlaps with it).  \c SiteShells: CP2K's LOWDIN manifold,
+    //! every \f$l\f$-shell of the orbital basis on the site, \f$T=S^{1/2}[:,M]\f$ -- the CP2K-parity route, named
+    //! explicitly where it is meant (a MECHANISM manifold: 7 d shells ⇒ 35 functions, whose ACBN0 U is near-bare
+    //! because the KS d states live entirely inside it).  The site-shell CONTRACTION (\c radial / \c atomicRadial,
+    //! 2026-09-21 .. 10-25) is retired: the pseudo-atomic set is the same pseudo-atom orbital without the basis truncation.
     enum class HubbardProjectorKind { SiteShells, PseudoAtomic };
 
     struct HubbardManifold
@@ -96,23 +99,15 @@ export namespace qchem::Hamiltonian
         //! use is the finite-difference oracle of the linear response: \f$\chi_{IJ}=dn_I/d\alpha_J\f$ from SCFs at
         //! \f$\pm\alpha\f$ (doc/LinearResponsePlan.md R2 gate b).  0 = no shift (the default).
         double              alpha = 0.0;
-        //! THE RADIAL (increment 3, 2026-09-21).  EMPTY = every \f$l\f$-shell on the site is a manifold function
-        //! (CP2K's LOWDIN convention: 7 d shells ⇒ 35 functions -- a MECHANISM manifold, whose ACBN0 U is
-        //! near-bare because the KS d states live entirely inside it).  Non-empty = ONE contracted radial
-        //! \f$\chi_m=\sum_s r_s\,\phi_{s,m}\f$ over the site's \f$l\f$-shells in the block's shell order (one
-        //! coefficient per shell; the term S-orthonormalises the \f$2l+1\f$ \f$\chi_m\f$), the physically
-        //! meaningful manifold: the atom's own \f$3d\f$, the projector hp.x uses.  \c atomicRadial asks the
-        //! FACADE to fill it from the pseudo-atom run in the block's own primitives.
-        std::vector<double> radial;
-        bool                atomicRadial = false;
-        //! ORTHO-ATOMIC (QE's `ortho-atomic`, hp.x's preferred projector): this contracted manifold's functions
-        //! are Löwdin-orthogonalised AMONG every ortho-atomic manifold in the run before projecting -- the
+        //! ORTHO-ATOMIC (QE's `ortho-atomic`, hp.x's preferred projector; pseudo-atomic manifolds only -- a site-shell
+        //! manifold is Löwdin over the whole block already): this manifold's functions are Löwdin-orthogonalised in
+        //! their TRUE overlap AMONG every ortho-atomic manifold in the run before projecting -- the
         //! two Mn 3d sets against each other, and against any SPECTATOR listed at U=0 (O 2p, O 2s, Mn 4s:
         //! QE's set is every atom's pseudo-wavefunction).  A spectator is just a manifold with U=0 -- and gets
         //! its own ACBN0 estimate for free.  The bare integrals stay those of the on-site \f$\chi\f$ (the
         //! orthogonalisation tails are not carried into them).
         bool                orthoAtomic  = false;
-        HubbardProjectorKind projector = HubbardProjectorKind::SiteShells;   //!< see the enum; one kind per run
+        HubbardProjectorKind projector = HubbardProjectorKind::PseudoAtomic;   //!< see the enum; one kind per run
         //! \c PseudoAtomic: the radial \f$R(r)=\sum_tc_tr^{l+2n_t}e^{-\alpha_tr^2}\f$ (any scale; the term normalises).
         //! The facade fills it from the pseudo-atom (\c PseudoAtomOrbitals) when empty.
         std::vector<Math::Gaussian> atomicFunction;
