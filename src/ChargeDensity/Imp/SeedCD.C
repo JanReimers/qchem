@@ -10,6 +10,8 @@ module;
 #include <vector>
 #include <cstddef>
 #include <utility>
+#include <tuple>
+#include <algorithm>
 
 module qchem.ChargeDensity.SeedCD;
 import qchem.ReciprocalLattice;        // ReciprocalLattice + UnitCell::MakeReciprocalCell (the seed's own Poisson metric)
@@ -26,7 +28,7 @@ namespace qchem::ChargeDensity
 // when the Structure is not periodic, which is exactly this class's precondition.
 
 SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
-                             const std::string& functional, const std::map<size_t,int>& ionicNvalByZ,
+                             const std::string& functional, const std::vector<int>& ionicNvalBySite,
                              const Spin& channel)
     : itsFitBasis(fitBasis), itsStructure(st), itsRecip(GetReciprocalLattice(st)), itsCell(&GetUnitCell(st))
     , itsChannel(channel), itsCharge(0.0)
@@ -34,116 +36,125 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
 {
     assert(fitBasis);
     assert(st);
+    assert(ionicNvalBySite.empty() || ionicNvalBySite.size()==st->GetNumAtoms());
     const bool chan = IsPolarized(channel);   // Up/Down = one channel of the polarized seed
     const std::string db = "atomic_valence_densities.json";
-    bool anyFlip=false;                       // any -m sublattice site (drives the flip-group split below)
+    // One RADIAL CLASS per (Z, target, flipped-in-this-channel): its channel radial and multiplier, built once.
+    // Per SITE targets (OpenWork §3, 2026-10-26): two atoms of one element with different IonicSAD charge states
+    // (LiMn2O4's Mn3+ / Mn4+) are two classes -- a per-species key kept only the LAST atom's target.
+    using Class = std::tuple<size_t,int,bool>;
+    struct Radial { std::shared_ptr<const RadialDensity> rad; double scale; };
+    std::map<Class,Radial> classes;
+    std::vector<Class> classOfAtom;
+    std::map<size_t,int> neutralNvalByZ;
     st->ForEachSite([&](int iZ, const rvec3_t& R, bool spinFlip)
     {
         const size_t Z = size_t(iZ);
-        anyFlip |= spinFlip;
-        if (itsRadByZ.find(Z)==itsRadByZ.end())
+        if (!neutralNvalByZ.count(Z))
         {
-            // The NEUTRAL density fixes this species' neutral valence count; the IonicSAD target (Nval-q) is
-            // ionicNvalByZ (default: neutral, i.e. no charge transfer).  A species the library does not
-            // have is a THROW with the way out named: since V2.2 this seed is the periodic DEFAULT, so the
-            // first thing a new element hits is this line.
+            // A species the library does not have is a THROW with the way out named: since V2.2 this seed is the
+            // periodic DEFAULT, so the first thing a new element hits is this line.
             if (!HasAtomicDensity((int)Z, functional, db))
                 throw std::runtime_error("SeedCD: no valence density for Z=" + std::to_string(Z) + " (" + functional
                                          + ") in " + db + " -- the SAD/IonicSAD seed cannot be built for this "
                                          "species.  Either state SeedStrategy::Uniform (the explicit opt-in) or "
                                          "generate the entry with CLIapps/valgen.");
-            RadialDensity neutral = GetAtomicDensity((int)Z, functional, db);       // Nval<0 => neutral
-            const int neutralNval = (int)std::lround(neutral.Charge());
-            auto ti = ionicNvalByZ.find(Z);
-            const int target = (ti!=ionicNvalByZ.end()) ? ti->second : neutralNval;
-
-            std::shared_ptr<const RadialDensity> rad, radFlip;
-            double scale;
+            neutralNvalByZ[Z] = (int)std::lround(GetAtomicDensity((int)Z, functional, db).Charge());   // Nval<0 => neutral
+        }
+        // The NEUTRAL density fixes this species' neutral valence count; the IonicSAD target (Nval-q) is the site's
+        // ionicNvalBySite entry (default: neutral, i.e. no charge transfer).
+        const int  neutralNval = neutralNvalByZ.at(Z);
+        const int  target = ionicNvalBySite.empty() ? neutralNval : ionicNvalBySite[classOfAtom.size()];
+        const bool flip   = chan && spinFlip;                          // None: the total is flip-blind
+        const Class key{Z, target, flip};
+        if (!classes.count(key))
+        {
+            Radial c;
             if (target<=0)                                                          // stripped cation -> nothing
-                { rad=radFlip=std::make_shared<const RadialDensity>(std::move(neutral)); scale=0.0; }
+                { c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z, functional, db)); c.scale=0.0; }
             else if (chan && HasAtomicSpinPair((int)Z, functional, db, target))     // the Hund (majority, minority) pair
             {
                 auto [maj,min] = GetAtomicSpinPair((int)Z, functional, db, target);
-                auto majp = std::make_shared<const RadialDensity>(std::move(maj));
-                auto minp = std::make_shared<const RadialDensity>(std::move(min));
-                rad     = (channel==Spin::Up) ? majp : minp;                        // unflipped: up = majority
-                radFlip = (channel==Spin::Up) ? minp : majp;                        // flipped: the pair swapped (-m site)
-                scale   = 1.0;
+                // unflipped: up = majority; flipped (-m site): the pair swapped
+                const bool takeMaj = (channel==Spin::Up)!=flip;
+                c.rad   = std::make_shared<const RadialDensity>(takeMaj ? std::move(maj) : std::move(min));
+                c.scale = 1.0;
             }
             else if (HasAtomicDensity((int)Z, functional, db, target))              // library has the charge state
-                { rad=radFlip=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z,functional,db,target));
-                  scale = chan ? 0.5 : 1.0; }                                       // pairless channel: rho/2
+                { c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z,functional,db,target));
+                  c.scale = chan ? 0.5 : 1.0; }                                     // pairless channel: rho/2
             else                                                                    // fall back: amplitude-scale neutral
-                { scale = (chan ? 0.5 : 1.0)*double(target)/double(neutralNval);
-                  rad=radFlip=std::make_shared<const RadialDensity>(std::move(neutral)); }
-
-            itsRadByZ[Z]     = rad;
-            itsRadFlipByZ[Z] = radFlip;
-            itsScaleByZ[Z]   = scale;
+                { c.scale = (chan ? 0.5 : 1.0)*double(target)/double(neutralNval);
+                  c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z, functional, db)); }
+            classes[key]=c;
         }
-        const bool flip = chan && spinFlip;                            // None: the total is flip-blind
-        const auto& rc = flip ? itsRadFlipByZ.at(Z) : itsRadByZ.at(Z);
-        itsCharge += itsScaleByZ.at(Z) * rc->Charge();                // this atom's (scaled) electron count
-        itsRecentred.emplace_back(rc, R);                             // for real-space op(r), flip-aware
-        itsScalePerAtom.push_back(itsScaleByZ.at(Z));                 // parallel table: op(r) never re-asks the structure
+        const Radial& c = classes.at(key);
+        classOfAtom.push_back(key);
+        itsCharge += c.scale * c.rad->Charge();                       // this atom's (scaled) electron count
+        itsRecentred.emplace_back(c.rad, R);                          // for real-space op(r), flip-aware
+        itsScalePerAtom.push_back(c.scale);                           // parallel table: op(r) never re-asks the structure
     });
-    // Flip-partitioned sub-cells for the G assembly: the basis's MakeFourierDensity is SPECIES-keyed
-    // (formFactor(Z, g2)), so flipped and unflipped sites of one species -- which carry DIFFERENT channel
-    // radials -- must be summed in separate calls.  Only a channel seed with at least one flipped atom
-    // needs the split; everything else keeps the single full-structure call.
-    // (V1.19's OTHER half -- removing this sub-cell duplication outright -- needs a per-SITE form-factor
-    //  overload on the basis face, a change the item itself weighs against the pseudo-wall pin.  Deferred;
-    //  this block is the one remaining concrete-atom consumer in the seed.)
-    if (chan && anyFlip)
+    // THE G-ASSEMBLY GROUPS (see Group): rank each species' classes -- unflipped before flipped, then by target
+    // (std::map order on (flip, target)) -- and put class rank k in group k.  One group needs no sub-cell.
+    std::map<size_t,std::map<std::pair<bool,int>,size_t>> rankOf;   // Z -> (flip, target) -> rank
+    for (const auto& [key,c] : classes) rankOf[std::get<0>(key)][{std::get<2>(key), std::get<1>(key)}];
+    size_t nGroups=1;
+    for (auto& [Z,ranks] : rankOf) { size_t k=0; for (auto& [ft,r] : ranks) r=k++; nGroups=std::max(nGroups,k); }
+    itsGroups.resize(nGroups);
+    for (const auto& [key,c] : classes)
+    {
+        const auto& [Z,target,flip] = key;
+        Group& g=itsGroups[rankOf.at(Z).at({flip,target})];
+        g.radByZ[Z]=c.rad; g.scaleByZ[Z]=c.scale;
+    }
+    if (nGroups>1)
     {
         const UnitCell& cell=GetUnitCell(st);   // checked precondition (periodic seed)
-        itsGroupA=std::make_shared<UnitCell>(cell.GetCellMatrix());
-        itsGroupB=std::make_shared<UnitCell>(cell.GetCellMatrix());
+        for (Group& g : itsGroups) g.cell=std::make_shared<UnitCell>(cell.GetCellMatrix());
         for (size_t i=0;i<st->GetNumAtoms();i++)
         {
-            const Atom* a=(*st)[i];
-            (a->itsSpinFlip ? itsGroupB : itsGroupA)->Insert(new Atom(*a));
+            const auto& [Z,target,flip] = classOfAtom[i];
+            itsGroups[rankOf.at(Z).at({flip,target})].cell->Insert(new Atom(*(*st)[i]));
         }
     }
     assert(itsCharge >= 0);
     assert(chan || itsCharge > 0);   // a lone CHANNEL may be legitimately empty (a fully-polarized minority)
 }
 
-// One flip-group's rho-tilde(G) = (1/Omega) Sum_{atoms in group} F(Z,|B.G|) e^{-i(B.G).R}: the seed's OWN
+// One group's rho-tilde(G) = (1/Omega) Sum_{atoms in group} F(Z,|B.G|) e^{-i(B.G).R}: the seed's OWN
 // density-fit basis (its grid engine) does the analytic structure-factor assembly over its {G}; we supply
 // the per-species form factor (the group's radial 1-D Fourier transform).  Memoize the FT per (Z,g2) --
 // many G share |G|.
-ΔG_Map SeedCD::GroupDensity(const Structure* group,
-                            const std::map<size_t,std::shared_ptr<const RadialDensity>>& radByZ) const
+ΔG_Map SeedCD::GroupDensity(const Group& group) const
 {
-    if (group->GetNumAtoms()==0) return {};
+    const Structure* cell = group.cell ? group.cell.get() : itsStructure;
+    if (cell->GetNumAtoms()==0) return {};
     auto memo = std::make_shared<std::map<std::pair<int,double>,double>>();
-    auto formFactor = [this,&radByZ,memo](int Z, double g2)->double
+    auto formFactor = [this,&group,memo](int Z, double g2)->double
     {
-        // The memo holds the RAW species form factor; the uniform ReScale (itsScale) and the per-species
-        // multiplier (itsScaleByZ) are applied on the way out.
-        double s = itsScale * itsScaleByZ.at(Z);
+        // The memo holds the RAW species form factor; the uniform ReScale (itsScale) and the group's
+        // per-species multiplier are applied on the way out.
+        double s = itsScale * group.scaleByZ.at(Z);
         auto key = std::make_pair(Z,g2);
         auto it = memo->find(key);
         if (it!=memo->end()) return s*it->second;
-        double ff = radByZ.at(Z)->FormFactor(std::sqrt(g2));
+        double ff = group.radByZ.at(Z)->FormFactor(std::sqrt(g2));
         (*memo)[key]=ff;
         return s*ff;
     };
     auto* ge=dynamic_cast<const BasisSet::G_StructureFactor*>(itsFitBasis.get());
     assert(ge && "SeedCD's density-fit basis must be a G_StructureFactor (plane-wave grid engine)");
-    return ge->MakeFourierDensity(group, formFactor);
+    return ge->MakeFourierDensity(cell, formFactor);
 }
 
-// The whole seed's rho-tilde: one full-structure sweep for the spin-agnostic total (and for a channel with
-// no flipped sites); a flip-staggered channel sums its two group sweeps (unflipped x this channel's radial
-// + flipped x the swapped one).
+// The whole seed's rho-tilde: one full-structure sweep when every species has a single radial class; else the
+// sum of the group sweeps (a flip-staggered channel: unflipped x this channel's radial + flipped x the swapped
+// one; a mixed-valence cell: one sweep per charge-state rank).
 ΔG_Map SeedCD::StructureFactorDensity() const
 {
-    if (!itsGroupA)
-        return GroupDensity(itsStructure, itsRadByZ);
-    ΔG_Map ro = GroupDensity(itsGroupA.get(), itsRadByZ);
-    for (const auto& [dm,rt] : GroupDensity(itsGroupB.get(), itsRadFlipByZ)) ro[dm]+=rt;
+    ΔG_Map ro = GroupDensity(itsGroups[0]);
+    for (size_t k=1;k<itsGroups.size();k++)
+        for (const auto& [dm,rt] : GroupDensity(itsGroups[k])) ro[dm]+=rt;
     return ro;
 }
 
@@ -263,9 +274,9 @@ void SeedCD::ReScale(double factor)
 //------------------------------------------------------------------------------- PolarizedSeedCD
 
 PolarizedSeedCD::PolarizedSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
-                                 const std::string& functional, const std::map<size_t,int>& ionicNvalByZ)
-    : itsUp(fitBasis, st, functional, ionicNvalByZ, Spin::Up  )
-    , itsDn(fitBasis, st, functional, ionicNvalByZ, Spin::Down)
+                                 const std::string& functional, const std::vector<int>& ionicNvalBySite)
+    : itsUp(fitBasis, st, functional, ionicNvalBySite, Spin::Up  )
+    , itsDn(fitBasis, st, functional, ionicNvalBySite, Spin::Down)
     , itsVersion(NextDensityVersion())   // one serial for the pair (the channels mutate together)
 {
     assert(GetTotalCharge()>0);

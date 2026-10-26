@@ -383,9 +383,9 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
         siteSpins = opts.siteSpins;                 // STATED: a specific ordering, not the seed's guess
     else if (opts.multiplicity>=1 && !opts.greyImposition)
     {
-        const std::map<size_t,int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
-                                           ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), "LDA")
-                                           : std::map<size_t,int>{};
+        const std::vector<int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
+                                       ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), "LDA")
+                                       : std::vector<int>{};
         siteSpins = qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), "LDA", targets);
     }
     // ★ THE FACADE'S SETUP IS BUCKETED (doc/ParallelAndOraclePlan.md 1.1, 2026-09-06).  Every MnO row drives

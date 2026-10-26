@@ -372,3 +372,26 @@ LiMn₂O₄ result is evidence for §3 "IonicSAD targets are per SPECIES" / "The
 updated: `GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long` (`{+1,-1,0,0}`), three `GPW_Si` pol-singlet +U tests and `UTResponse` Kernel (`{0,0}`).
 
 **REMAINDER (kept in the live row):** an imposed polarized run WITHOUT +U still derives its decoration from the seed.
+
+## ✅ IonicSAD targets are per SPECIES, not per SITE (OpenWork §3; closed 2026-10-26) -- the row as it stood
+
+| **IonicSAD targets are per SPECIES, not per SITE** (2026-10-22) | `IonicSADTargets` returns `std::map<Z,int>` and the loop overwrites it atom by atom, so every atom of an element gets the LAST one's target; `MagneticDecoration` and `SeedCD`/`PolarizedSeedCD` consume that map.  Harmless once equivalent atoms get equal charges (the tie-break above), WRONG for inequivalent atoms of one element: a charge-ordered cell (§3's LiMn₂O₄, Mn³⁺/Mn⁴⁺; any mixed-valence cathode) collapses to one Mn charge state.  MEASURED 2026-10-26: on LiMn₂O₄ the per-species Mn target has NO library spin pair, so IonicSAD's derived decoration was ALL ZEROS (Mn non-magnetic; λ-MnO₂ gets Mn +1) -- the spinel's seed spin is suspect too (row "The polarized IonicSAD seed loses its spin") | per-SITE targets (`std::vector<int>` parallel to the structure's atoms) through `IonicSADTargets` → `MagneticDecoration` → the seed ctors; a UT on a two-valence cell.  Before the spinel campaign (HubbardUPlan S5/S6) · `src/ChargeDensity/Imp/{Seed,SeedCD}.C` |
+
+**Closed 2026-10-26.**  `IonicSADTargets` returns `std::vector<int>`, one target per atom (atom-index order), and the targets sum to
+the cell's charge.  `MagneticDecoration(st, functional, ionicNvalBySite)` reads each site's own target.  `SeedCD` builds one RADIAL
+CLASS per (Z, target, flipped-in-this-channel) and partitions the G assembly into groups: group k holds each species' k-th class,
+ranked unflipped first and then by target.  A single-valence cell therefore makes exactly the old calls: one full-structure sweep, or
+the unflipped/flipped pair of a channel seed.  UTs `IonicSADSeed.*` (UTChargeDensity) on an Mn₃O₄-like box (Mn³⁺ Mn³⁺ Mn²⁺): the targets
+conserve charge site by site; the decoration reads each site's target; and the seed's ρ̃(G), total and polarized, equals the SUM of two
+seeds that each hold one charge state (1e-12 relative).  The seed charge matches the site targets only to 0.016 e (45.016 for 45: the
+library radials, the diffuse O²⁻ entry); the per-species map was 2 e heavy.
+
+**What moved.**  Full `ctest -LE long` sweep against the 0f353ff5 baseline: `scripts/anchordiff --tol 1e-10` reports **0 of 1087 tests
+moved** (energy and iteration count).  An audit of every material in `materials.json` finds only ONE whose per-site targets differ from
+the old per-species ones: **LiMn₂O₄_spinel**, Mn 3,3,4,4 (2 Mn⁴⁺ + 2 Mn³⁺) where every Mn used to get 4.  Its 4 decks
+(`campaigns/LiMn2O4/*_U{0,2,4}`, `probes/LiMn2O4_spinel_gate1`) now run on a charge-ordered seed, so their banked numbers are stale.
+(Al_fcc and CsI_cscl have no library entry and were skipped by the audit.)
+
+**REMAINDER (kept in the live row):** the electronegativity tie-break puts the two Mn charge states on symmetry-equivalent 16d sites by
+atom index, so the charge order is CHOSEN rather than derived; state it the way `siteSpins` is stated if the spinel campaign needs a
+specific one.

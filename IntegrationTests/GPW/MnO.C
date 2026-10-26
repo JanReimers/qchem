@@ -131,7 +131,7 @@ TEST(GPW_MnO, Γ_Pol_SeedMirror)
     // (Mn2+ => 5 of the q7 valence, O2- => 8 of the q6).  Built directly -- no SCF, no Hamiltonian.
     qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
-    const std::map<size_t,int> ionic{{25,5},{8,8}};
+    const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
     qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
     const auto* up=seedCD.GetChannel(Spin::Up);
     const auto* dn=seedCD.GetChannel(Spin::Down);
@@ -223,7 +223,7 @@ TEST(GPW_MnO, Γ_Becke_Pol_SeedVxcMirror)
     // The seed the run uses (identical to GPW_MnO.Γ_Pol_SeedMirror).
     qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
-    const std::map<size_t,int> ionic{{25,5},{8,8}};
+    const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
     qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
 
     // The run's Becke recipe, shrunk (nR=20, GL-11) -- wrapping is generic, it needs no production density.
@@ -366,7 +366,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
     // The seed (the same PolarizedSeedCD the run uses), through the engine's channel-pair projector.
     qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
-    const std::map<size_t,int> ionic{{25,5},{8,8}};
+    const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
     PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
 
     auto engine=SinglesEngineOver(q);
