@@ -298,6 +298,30 @@ void EmitStageSummary(const std::string& label, size_t s, size_t n, double kT,
 }
 
 //---------------------------------------------------------------------------------------------------
+//  THE MAGNETIC ORDERING IS STATED (OpenWork §3 "The magnetic decoration is DERIVED FROM THE SEED", 2026-10-26).
+//  The message names the sites, not a derived guess: the ordering is the caller's chemistry.
+void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& st)
+{
+    std::string sites;
+    st.ForEachSite([&](int Z, const rvec3_t&, bool){ sites+=(sites.empty()?"":" ")+thePeriodicTable().GetSymbol(Z); });
+    const size_t nAtoms=st.GetNumAtoms();
+    if (!o.siteSpins.empty())
+    {
+        if (o.siteSpins.size()!=nAtoms)
+            throw std::invalid_argument("SolidCalcOptions: siteSpins has "+std::to_string(o.siteSpins.size())
+                                        +" entries for "+std::to_string(nAtoms)+" sites ("+sites+")");
+        for (int s : o.siteSpins)
+            if (s<-1 || s>1) throw std::invalid_argument("SolidCalcOptions: siteSpins entries are -1, 0 or +1, got "+std::to_string(s));
+        return;
+    }
+    const bool polarized = o.multiplicity>=1;
+    if (polarized && !o.hubbard.empty() && !o.greyImposition)
+        throw std::invalid_argument("SolidCalcOptions: a polarized run with a Hubbard manifold must STATE its magnetic ordering --"
+                                    " siteSpins, one of +1/-1/0 per site ("+sites+"); all zeros for a non-magnetic cell."
+                                    "  It is no longer derived from the seed (doc/OpenWork.md §3)");
+}
+
+//---------------------------------------------------------------------------------------------------
 static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, size_t site, int l,
                                                         const std::vector<std::pair<std::string,int>>& species);
 
@@ -329,6 +353,7 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     itsImp->opts    = opts;
     itsImp->accOpts = acc;
     itsImp->st      = lat.GetStructure();
+    RequireStatedMagneticOrdering(opts, *itsImp->st);
     itsImp->cellMatrix = lat.GetUnitCell().GetCellMatrix();
 
     namespace L3 = BasisSet::Lattice;
@@ -346,9 +371,10 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     const bool hamPreservesReal = !opts.forceComplex;
     // THE MAGNETIC DECORATION (S3).  An imposition is only SHUBNIKOV if the factory is told which sites
     // carry which spin; without it an "imposed AFM" run star-averages under the SPATIAL group and the
-    // order is erased.  DERIVED here rather than passed in: every input is already an option this class
-    // owns, so a caller cannot get it inconsistent with the seed it asked for (the IonicSAD targets are
-    // the same resolution the seed itself uses -- see ChargeDensity::IonicSADTargets).
+    // order is erased.  STATED (siteSpins) wherever a Hubbard manifold rides along -- RequireStatedMagneticOrdering
+    // above refused the run otherwise.  The derivation from the seed below survives ONLY for an imposed polarized
+    // run WITHOUT +U, and it is the defect OpenWork §3 names: with SeedStrategy::SAD it labels neutral O (2p4)
+    // magnetic and MnO AFM-II imposes a ferrimagnet (12 Shubnikov ops, not 24).
     //   unpolarized  -> {} (no channels to decorate)
     //   greyImposition -> {} DELIBERATELY: that arm is the erasure NEGATIVE CONTROL
     std::vector<int> siteSpins;
@@ -470,25 +496,16 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
     const bool imposed          = itsImp->imposed;
 
     // THE HUBBARD MANIFOLDS' SITE GROUPS (step 5 increment 2): each manifold is labelled by the stabiliser of
-    // its site in the DECLARED DECORATION's Shubnikov group (sigma=None ops), grey parentage beside it.  The
-    // decoration is the same one the imposition would use, derived here whether or not the run imposes: the
-    // site symmetry of the ordered state is the physical question either way.  A caller who filled siteOps
-    // by hand keeps them.
+    // its site in the STATED DECORATION's Shubnikov group (sigma=None ops), grey parentage beside it -- the
+    // same decoration the imposition uses, whether or not the run imposes: the site symmetry of the ordered
+    // state is the physical question either way.  No longer derived from the seed (OpenWork §3, 2026-10-26):
+    // a polarized +U run was refused at BuildBasis without siteSpins.  A caller who filled siteOps by hand keeps them.
     std::vector<qchem::Hamiltonian::HubbardManifold> hubbard=opts.hubbard;
     if (!hubbard.empty())
     {
         std::vector<int> decoration=siteSpins;
-        if (decoration.empty() && polarized && !opts.greyImposition)
-        {
-            if (!opts.siteSpins.empty()) decoration=opts.siteSpins;
-            else
-            {
-                const std::map<size_t,int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
-                                                   ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), "LDA")
-                                                   : std::map<size_t,int>{};
-                decoration=qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), "LDA", targets);
-            }
-        }
+        if (decoration.empty() && polarized && !opts.greyImposition) decoration=opts.siteSpins;
+        assert(!polarized || opts.greyImposition || !decoration.empty());
         for (auto& M : hubbard)
         {
             if (M.projector==qchem::Hamiltonian::HubbardProjectorKind::PseudoAtomic && M.atomicFunction.empty())

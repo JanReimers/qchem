@@ -421,6 +421,25 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
     EXPECT_NE(msg(base({{{"hubbardLoop",json::object()}}},json::object())).find("postSCF.0 (hubbardLoop)"),std::string::npos) << "the message names the entry and the action";
 }
 
+TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
+{
+    auto msg=[](json solid)
+    {
+        deck::RunSpec s; deck::FromJson(json{{"structure","NiO_AFM2"},{"solid",solid}},s);
+        try { deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); }
+        return std::string("NO THROW");
+    };
+    const json H={{"site",0},{"l",2},{"U_eV",4.0}};
+    EXPECT_NE(msg({{"multiplicity",1},{"hubbard",{H}}}).find("siteSpins"),std::string::npos) << "never derived from the seed any more";
+    EXPECT_NE(msg({{"multiplicity",1},{"hubbard",{H}}}).find("Ni Ni O O"),std::string::npos) << "the message names the sites";
+    EXPECT_EQ(msg({{"multiplicity",1},{"hubbard",{H}},{"siteSpins",{1,-1,0,0}}}),"NO THROW");
+    EXPECT_EQ(msg({{"multiplicity",1},{"hubbard",{H}},{"greyImposition",true}}),"NO THROW") << "the erasure control states 'no decoration'";
+    EXPECT_EQ(msg({{"hubbard",{H}}}),"NO THROW") << "unpolarized: nothing to order";
+    EXPECT_EQ(msg({{"multiplicity",1}}),"NO THROW") << "no +U: the imposed-without-U path is not (yet) covered";
+    EXPECT_NE(msg({{"multiplicity",1},{"hubbard",{H}},{"siteSpins",{1,-1}}}).find("2 entries for 4 sites"),std::string::npos);
+    EXPECT_NE(msg({{"siteSpins",{2,-1,0,0}}}).find("-1, 0 or +1"),std::string::npos);
+}
+
 TEST(Deck, PostSCFRunsOnTheConvergedCalculationAndTheRecordKeepsTheResults)
 {
     const fs::path dir=TmpDir("post");

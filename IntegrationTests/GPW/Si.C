@@ -1019,7 +1019,7 @@ TEST(GPW_Si, Γ_U_Imp_Pol_Kerker_eqUnpol)
     o.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;                                 // the rho-tilde mixer
     qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
-    o.multiplicity=1; o.label="Si SR Gamma Kerker U=2 eV pol-singlet";                // PolarizedMixCD in the loop
+    o.multiplicity=1; o.siteSpins={0,0}; o.label="Si SR Gamma Kerker U=2 eV pol-singlet";                // PolarizedMixCD in the loop
     qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
     auto a=unpol.Result(), b=pol.Result();
     ASSERT_TRUE(a) << Why(a);
@@ -1046,7 +1046,7 @@ TEST(GPW_Si, Γ_U_ACBN0_Imp_Pol_eqUnpol)
     o.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};                                  // U=0: a plain LDA run that carries the manifolds
     SCFParams par=ProductionGates();
     qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
-    o.multiplicity=1; o.label="Si SR Gamma ACBN0 on p, pol-singlet";
+    o.multiplicity=1; o.siteSpins={0,0}; o.label="Si SR Gamma ACBN0 on p, pol-singlet";
     qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
     ASSERT_TRUE(unpol.Result()) << Why(unpol.Result());
     ASSERT_TRUE(pol.Result())   << Why(pol.Result());
@@ -1092,7 +1092,7 @@ TEST(GPW_Si, Γ_U_PseudoAtomic3p_Imp_Pol_eqUnpol)
     o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};                                  // the default projector: pseudo-atomic
     SCFParams par=ProductionGates();
     qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
-    o.multiplicity=1; o.label="Si SR Gamma U=2 eV on the pseudo-atomic 3p projector, pol-singlet";
+    o.multiplicity=1; o.siteSpins={0,0}; o.label="Si SR Gamma U=2 eV on the pseudo-atomic 3p projector, pol-singlet";
     qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
     auto a=unpol.Result(), b=pol.Result();
     ASSERT_TRUE(a) << Why(a);

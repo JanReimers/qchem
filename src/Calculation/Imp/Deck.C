@@ -519,6 +519,9 @@ Materials::Material Resolve(RunSpec& spec)
         if (tm) throw std::runtime_error("deck: basis.spherical with VALENCE_LOWQ_SR -- the SR transition-metal block's s span lives in the Cartesian d "
                                          "contaminants, which the spherical view removes; use VALENCE_LOWQ_VA or VALENCE_LOWQ_SPH");
     }
+    // THE MAGNETIC ORDERING IS STATED (OpenWork §3, 2026-10-26): the facade's own check, run here so a deck is refused BEFORE a revision is claimed.
+    try { RequireStatedMagneticOrdering(spec.solid, *m.cell); }
+    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.siteSpins -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
 
     // PRE-FLIGHT of the postSCF list (each message names the action and what to change): the old probes found these out AFTER the SCF.
     {

@@ -343,3 +343,32 @@ with the V_short fix but before the Ewald fix, Pulay 0.2 + Null at kT = 0: O–M
 | **+U projector independent of the orbital basis** (user 2026-10-24) | increments 1–3 of `doc/HubbardProjectorPlan.md` LANDED 2026-10-24 (opt-in deck `"projector": "pseudoAtomic"`; the O 2p projector = QE's `PP_CHI` to 1e-8).  **Increment 4 LANDED 2026-10-25** (`b4cfc789`: ACBN0 over the pseudo-atomic set via its own exact one-centre integrals; TiO₂ b6 vs hp.x U(Ti) +4.2 % → +2.3 %, occupations = QE's; NiO cell +11 meV).  NEXT: increment 5 (name `siteShells` on the CP2K-gated manifolds first, then flip the default).  The gate FAILED and refuted its premise: the β-MnO₂ Γ gap does not move with the projector (VA 0.128 → 0.128 eV, VA + O p 0.18 0.237 → 0.234; QE 0.325) — the gap is the ORBITAL basis.  What the projector sets is E_U: VA + O p 0.18 pseudo-atomic 0.02214 Ha vs QE 0.02216 (site-shell 0.01767) | **USER 2026-10-24: keep the flexibility; look elsewhere for the gap.**  Increment 4 is done (above); increment 5 (make it the default, retire `radial`/`atomicRadial`, re-judge +U anchors) is in progress.  The β-MnO₂ gap discrepancy (0.231 vs 0.325 eV on VA + O p 0.18) is NOT the projector, the basis (flat under every addition), convergence or pin 28: at U = 0 every band is QE's to 0.04 eV, and under U only the U'd O-normal band (falls 0.09 eV less) and the Mn d LUMO (falls 0.13 eV more) respond differently — the self-consistent response to U (HubbardUHistory 2026-10-24 "gap residual") **RESOLVED 2026-10-25 by the plane-wave route: on QE's PP and a PW basis the U response is QE's to 1–2 % (Mn spin response +0.0385 vs +0.0391, Mn d band −0.769 vs −0.773 eV), so the Gaussian residuals (+0.023, −0.852) are the GAUSSIAN ORBITAL BASIS** — next: a Mn-d-response-aimed Gaussian basis judged against the PW U − U0 table (HubbardUHistory 2026-10-25 "THE PLANE-WAVE VERDICT") · record `Records/HubbardUHistory.md` 2026-10-24 (pseudo-atomic projector) |
 
 Closed by increment 5 (`095f0bec` + `94ed536f`, both tiers 0 anchors moved vs the pre-flip sweep).  Plan text: `Records/HubbardUHistory.md` "doc/HubbardProjectorPlan.md -- retired 2026-10-25".
+
+## ✅ The magnetic decoration is DERIVED FROM THE SEED (OpenWork §3; +U half closed 2026-10-26) -- the row as it stood
+
+| **The magnetic decoration is DERIVED FROM THE SEED** (2026-10-23) | With `siteSpins` empty, `SolidCalculation` labels each atom magnetic iff the atomic library holds a spin pair at the SEED's per-species target (`MagneticDecoration`, `src/Calculation/Imp/SolidCalculation.C` ~348 and the Hubbard site-group path ~447).  So the seed strategy picks the imposed ordering: MnO AFM-II with `SeedStrategy::SAD` labels neutral O (2p⁴) UP on both sites → decoration Mn↑ Mn↓ O↑ O↑, a FERRIMAGNET → 12 Shubnikov ops instead of 24 → the run lands 0.78 mHa lower with Mn +4.4554/−4.4418, O −0.0068 (IonicSAD: O²⁻ non-magnetic, 24 ops, Mn ±4.4506, O exactly 0).  User ruling: the ordering is chemistry, stated like the Hubbard subspace, never inferred; a seed change must never change the imposed symmetry | make `siteSpins` MANDATORY for a polarized run that imposes or carries a Hubbard manifold (throw in `SolidCalculation`, same check in `deck::Vet` so `scripts/vet-decks` catches decks); retire the auto path.  **36 decks** (polarized + Hubbard, 13 also imposed: NiO, MnO, MnO₂, LiMn₂O₄, FeS₂, TiO₂) state none: judge each (a non-IonicSAD seed may have run on a mislabelled decoration — its recorded number may move), don't copy the derived one.  The SR MnO anchor already states `{+1,-1,0,0}` · `src/Calculation/Imp/SolidCalculation.C` |
+
+**Closed for +U (2026-10-26).**  `RequireStatedMagneticOrdering` (exported beside `SolidCalcOptions`) throws for a polarized run with a
+Hubbard manifold and no `siteSpins` (`greyImposition` exempt: it is the stated "no decoration" control), and for a `siteSpins` of the
+wrong length or with an entry outside {−1,0,+1}.  The facade calls it first in `BuildBasis` (so `Restart` too); `deck::Resolve` calls it
+so `scripts/vet-decks` refuses the deck and `Run` refuses before claiming a revision.  The +U site-group path no longer derives from the
+seed (`BuildRun`).  UT `Deck.APolarizedPlusUDeckMustStateItsMagneticOrdering`.
+
+**The 36 decks, judged.**  All 36 ran `seed: IonicSAD`.  What IonicSAD derived, measured per structure on the current code (and what neutral
+SAD would have derived -- the defect's other arm):
+
+| structure | decks | IonicSAD derived | SAD would derive | stated now |
+|---|---|---|---|---|
+| NiO_AFM2 | 22 (13 imposed) | Ni +1 −1, O 0 0 | O +1 +1 (ferrimagnet) | `[1,-1,0,0]` = derived |
+| MnO_AFM2 | 4 | Mn +1 −1, O 0 0 | O +1 +1 | `[1,-1,0,0]` = derived |
+| MnO2_lambda_spinel | 4 | Mn +1 ×4, O 0 | all +1 | `[1,1,1,1,0×8]` = derived |
+| LiMn2O4_spinel | 4 | **all 0** (the per-species Mn target has no library spin pair) | all +1 | `[0,0,1,1,1,1,0×8]` (materials.json's deliberate FM gate-1 order) |
+| FeS2_pyrite | 1 | all 0 | all 0 | all 0 (low-spin d⁶) |
+| TiO2_rutile | 1 | all 0 | O +1 | all 0 (d⁰) |
+
+No recorded number moves: the stated decoration equals the derived one everywhere except LiMn₂O₄, and those four decks are unimposed, where
+the decoration only selects the +U site groups -- the σ=None stabiliser of a uniform (FM) decoration is the grey one, as for all zeros.  The
+LiMn₂O₄ result is evidence for §3 "IonicSAD targets are per SPECIES" / "The polarized IonicSAD seed loses its spin".  Code-side callers
+updated: `GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long` (`{+1,-1,0,0}`), three `GPW_Si` pol-singlet +U tests and `UTResponse` Kernel (`{0,0}`).
+
+**REMAINDER (kept in the live row):** an imposed polarized run WITHOUT +U still derives its decoration from the seed.

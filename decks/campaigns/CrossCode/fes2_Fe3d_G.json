@@ -16,6 +16,7 @@
  },
  "solid": {
   "multiplicity": 1,
+  "siteSpins": [0,0,0,0,0,0,0,0,0,0,0,0],
   "seed": "IonicSAD",
   "ortho": "CholeskyPivoted",
   "orthoTol": 0.0001,

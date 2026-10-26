@@ -225,6 +225,10 @@ struct SolidCalcOptions
     //! is the whole point of a magnetic campaign.  Ignored unless \c imposeSymmetry.
     //! \note \c greyImposition forces the empty decoration regardless -- that arm is the erasure control.
     std::vector<int> siteSpins = {};
+    //! \note MANDATORY for a polarized run that carries a Hubbard manifold (OpenWork §3 "The magnetic decoration is
+    //! DERIVED FROM THE SEED", ruled 2026-10-23: the ordering is chemistry, stated like the Hubbard subspace, never
+    //! inferred -- a seed change must never change the imposed symmetry or the manifolds' site groups).  A
+    //! non-magnetic polarized run states all zeros.  See \c RequireStatedMagneticOrdering.
     // NB: the test driver's `realTRIMBlocks` is NOT added here -- it is \c forceComplex with the opposite
     // polarity (both feed GPWParams::hamPreservesReal).  One decision, one field.
     //! Names this run in its own console output -- the fingerprint, the stage banners, the order trace.
@@ -248,6 +252,12 @@ struct SolidCalcOptions
     //!@}
     //!@}
 };
+
+//! \brief THROWS unless \a o states its magnetic ordering where the run needs one: a polarized run carrying a
+//! Hubbard manifold must give \c siteSpins (\c greyImposition, the erasure control, is exempt), and a stated
+//! \c siteSpins must have one entry per site of \a st, each -1, 0 or +1.  A broken invariant, not an Outcome: the
+//! facade calls it first thing, and \c deck::Vet calls it so \c scripts/vet-decks catches a deck before it runs.
+void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& st);
 
 //! \brief WHY an SCF attempt produced no usable answer (doc/OpenWork.md N1).
 //!

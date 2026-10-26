@@ -512,7 +512,7 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
     auto run=[&](double U_eV, const std::string& label)
     {
         SolidCalcOptions o=OptionsFor(mno, label);
-        o.multiplicity=1;
+        o.multiplicity=1; o.siteSpins={+1,-1,0,0};   // stated (Mn up, Mn down, O non-magnetic): what IonicSAD derived, now the chemistry
         o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
         o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
         // THE CP2K-SHAPED LOOP (user, 2026-09-20: "we need 1) very close converged energies 2) similar SCF

@@ -353,6 +353,7 @@ std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, dou
                        .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=U, .alpha=alpha, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true};
     if (spectator) o.hubbard.push_back({.site=1, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells});
     o.imposeSymmetry=impose;
+    o.siteSpins={0,0};   // Si is non-magnetic: the polarized +U arm states it (OpenWork §3, 2026-10-26)
     auto calc=std::make_unique<SolidCalculation>(lat, mol, o, par);
     EXPECT_TRUE(calc->DidConverge());
     return calc;
