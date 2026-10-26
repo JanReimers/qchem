@@ -115,6 +115,13 @@ template <class T> std::unique_ptr<tDensityMixer<T>> LinearMixerFactory(double r
 template std::unique_ptr<tDensityMixer<double>> LinearMixerFactory<double>(double);
 template std::unique_ptr<tDensityMixer<dcmplx>> LinearMixerFactory<dcmplx>(double);
 
+template <class T> std::unique_ptr<tDensityMixer<T>> PulayDMixerFactory(double relax, int depth, int start)
+{
+    return std::make_unique<PulayDMixer<T>>(relax, depth, start);
+}
+template std::unique_ptr<tDensityMixer<double>> PulayDMixerFactory<double>(double,int,int);
+template std::unique_ptr<tDensityMixer<dcmplx>> PulayDMixerFactory<dcmplx>(double,int,int);
+
 std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams& p, const BasisSet::tBasisSet<dcmplx>* basis,
                                                           const Structure* cell, const tChargeDensity<dcmplx>* seed)
 {

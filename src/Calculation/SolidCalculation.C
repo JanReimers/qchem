@@ -146,11 +146,12 @@ struct SolidCalcOptions
 
     //! \name Convergence machinery
     //!@{
-    //! The Fock-side accelerator.  \c Auto (default) is the facade's policy, resolved per stage, and TODAY resolves to \c DIIS
-    //! (the default before Auto existed), beside which an \c Auto mixer stays linear.  It is the seam for PAIRING the two
+    //! The Fock-side accelerator.  \c Auto (default) is the facade's policy, resolved per stage, PAIRED with an \c Auto mixer
     //! (OpenWork §3 "Kerker/Pulay as the DEFAULT mixer", measured 2026-10-22: Pulay on ρ beside DIIS on F fights -- free Si
-    //! k222 stalls, Si Γ diverges -- while Kerker/Pulay with NO Fock extrapolator beat linear + DIIS on every probe): seeded
-    //! -> \c Null + Kerker/Pulay, carried at kT = 0 -> the Ladder on its GDM rung.  That switch waits on N4 (pin 28).
+    //! k222 stalls, Si Γ diverges -- while Kerker/Pulay with NO Fock extrapolator beat linear + DIIS on every probe; the
+    //! DEFAULT since 2026-10-26): a seeded or carried stage -> \c Null + Pulay on D (no Kerker, no fit: pin 28); a RESTORED
+    //! stage (Restart, same Hamiltonian) at kT = 0 -> the Ladder on its GDM rung, a restored smeared one -> \c DIIS, either
+    //! beside a linear step capped at 0.3.
     SCFAccelerators::Type accelerator = SCFAccelerators::Type::Auto;
     //! A SMEARED run fills each k-block to its OWN chemical potential -- the non-default (D-FERMI-DEFAULT, user 2026-10-05,
     //! landed 2026-10-21; was \c globalFermi, default false).  A k-point is a label, not a reservoir: per-k μ has no physical
@@ -745,8 +746,11 @@ private:
     //! stage's (an \c Auto accelerator is resolved against them).
     void BuildStage(SCFAccelerators::Type, std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried, const SCFParams& params);
     //! Build this stage's accelerator: resolve \a asked (\c Auto, see \c SolidCalcOptions::accelerator) for \a params and
-    //! a \a carried (converged) or seeded start, and record both for the banner and for the stages that re-resolve it.
-    void MakeAccelerator(SCFAccelerators::Type asked, const SCFParams& params, bool carried);
+    //! a \a restored (Restart: same Hamiltonian) or seeded / carried start, and record both for the banner and for the stages
+    //! that re-resolve it.
+    void MakeAccelerator(SCFAccelerators::Type asked, const SCFParams& params, bool restored);
+    //! \c Converge(params) after the stage's own adjustment (a restored Auto stage's linear step capped at 0.3).
+    Outcome<Converged, SCFFailure> ConvergeStage(const SCFParams& params);
     //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift
     //! apart in what they call a success.
     Outcome<Converged, SCFFailure> Outcome_() const;

@@ -10,6 +10,7 @@
 //   GPW_SiBox.Γ_Uni_Imp_eqUnfolded
 //   GPW_NaBox.Γ_Imp_M2_eqFinite
 //   GPW_O2Box.Γ_Imp_M3_eqFinite
+//   GPW_O2Box.Γ_Imp_M3_Pulay_Anchor
 //   GPW_MnBox.Γ_M6_Smear_eqFinite
 //   GPW_Mn2Box.Γ_Becke_Shub_Pol_Smear_KeepsOrder
 //   GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows
@@ -310,6 +311,33 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     EXPECT_NEAR(calc.LastIterateTerms().GetTotalEnergy(), Eref, 5e-2) << "GPW-in-box triplet vs finite molecular LSDA triplet";
 }
 
+
+// PULAY WITHOUT KERKER MIXES D (OpenWork §3, 2026-10-26; pin 28).  Mixing::Pulay at KerkerG0 = 0 is the D-space Pulay
+// (PulayDMixer): its history is density matrices, so V_xc sees rho[D_mix] through the DM route on EVERY iteration -- no fit,
+// no rho-tilde, no cusp deficit -- and the fixed point is the rho[D] one.  The O2 box is the instrument that SEPARATED the two:
+// a fitted rho-tilde fed to XC lands +7.72 mHa high (-30.70246), rho[D] gives -30.71018173 (linear D-mixing, GDM, and Kerker
+// with the N4 cusp deficit all agree; doc/Pins.md pin 28).  Measured 2026-10-26: -30.7101817389 in 21 iterations, XC ρ = DM x21.
+TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor)
+{
+    const Material box=qchem::Materials::Get("O2_box16");
+    const Lattice_3D lat=LatticeOf(box);
+    SolidCalcOptions o=OptionsFor(box, "O2 in-box triplet, Pulay on D");
+    o.imposeSymmetry=true; o.multiplicity=3;
+    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
+    o.accelerator=qchem::SCFAccelerators::Type::Null;   // no Fock history beside a density history
+    std::vector<std::string> xcRho;
+    o.onIteration=[&xcRho](const qchem::SCFIterator::SCFProgress& p){ xcRho.push_back(p.eb.charge.xcRho); };
+    SCFParams par=Gates(150, 1e-8, 1e30);
+    par.Mixer=SCFParams::Mixing::Pulay; par.KerkerG0=0.0;   // Pulay WITHOUT Kerker -> the D-space mixer
+    par.PulayDepth=8; par.PulayStart=5; par.StartingRelaxRo=0.45;
+    GpwReport report("O "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    ASSERT_FALSE(xcRho.empty());
+    for (size_t i=0;i<xcRho.size();i++) EXPECT_EQ(xcRho[i], "DM") << "iteration " << i+1 << ": V_xc must see rho[D] (pin 28)";
+    EXPECT_NEAR(R->Energy(), -30.71018173, 2e-8) << "the rho[D] fixed point (a fitted rho-tilde gives -30.70246)";
+}
 
 // Mn PSEUDO-ATOM IN A BOX through the CRYSTAL (GPW) path vs the molecular facade -- the d-channel sibling
 // of GPW_SiBox.Γ_Uni_Imp_eqFinite, and the cheap localiser for MnO's ~356 Ha over-binding.  Both

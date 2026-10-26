@@ -19,7 +19,7 @@
 //   GPW_Si.Γ_Imp_eqUnfolded
 //   GPW_Si.Γ_Becke_Imp_eqUni
 //   GPW_Si.Γ_Becke_Imp_Kerker_CP2K
-//   GPW_Si.Γ_Becke_Imp_Kerker_FitXC_CP2K
+//   GPW_Si.Γ_Becke_Imp_Kerker_FitXC_Pin28Throws
 //   GPW_Si.Γ_Uni_DeltaFit_Imp_eqPWFit
 //   GPW_Si.Γ_Uni_PWFit_Imp_Pol_eqUnpol
 //   GPW_Si.k211_Imp_Anchor
@@ -647,10 +647,11 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_CP2K)
     EXPECT_TRUE(XcServedFrom("cusp-deficit")) << "the DM-source reach-around must actually be ENTERED (V1.18e: it never was)";
 }
 
-// THE PRE-PIN-28 CONTROL: XCCuspDeficit OFF, so the singles sampler projects the FIELD ("matrix-free") for XC -- the fitted
-// rho pin 28 forbids, kept as the A/B arm the default above is measured against.  On Si's soft PP the two agree to the
-// anchor window; on the O2 box (O q6) this arm is +7.72 mHa off rho[D].
-TEST(GPW_Si, Γ_Becke_Imp_Kerker_FitXC_CP2K)
+// PIN 28 IS A CRASH, NOT A MARK (user 2026-10-26: "simply crash the run if cusp* or fitted! appears in that column").  This was
+// the pre-pin-28 CONTROL -- XCCuspDeficit OFF, so the singles sampler projects the mixed FIELD ("matrix-free") for XC, the fitted
+// rho pin 28 forbids (+7.72 mHa on the O2 box; within the anchor window on Si's soft PP).  It is now the gate that the loop
+// REFUSES it: iteration 2 is the first built from a mixed field, and RequirePin28 throws there, naming the pin.
+TEST(GPW_Si, Γ_Becke_Imp_Kerker_FitXC_Pin28Throws)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
@@ -659,16 +660,15 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_FitXC_CP2K)
     o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
     SCFParams par=ProductionGates(); par.KerkerG0=1.0; par.XCCuspDeficit=false;
     report::ClearGlobal();
+    std::string what;
     {
         GpwReport report("Si "+o.label, false);
-        qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
-        auto R=calc.Result();
-        ASSERT_TRUE(R) << Why(R);
-        EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
-        EXPECT_NEAR(R->Energy(), -7.11506, 2e-3) << "the control lands in the same anchor window on Si";
+        try { qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par); }
+        catch (const std::logic_error& e) { what=e.what(); }
     }
-    EXPECT_TRUE (XcServedFrom("matrix-free")) << "the control feeds XC the projected FIELD";
-    EXPECT_FALSE(XcServedFrom("cusp-deficit")) << "...and never the cusp-deficit route";
+    EXPECT_NE(what.find("pin 28"), std::string::npos) << "the fitted-XC run must THROW, naming pin 28 (got: '" << what << "')";
+    EXPECT_NE(what.find("iteration 2"), std::string::npos) << "...at the first iteration built from a mixed field (the seed's is legal)";
+    EXPECT_TRUE(XcServedFrom("matrix-free")) << "the route that was refused is the projected FIELD";
 }
 
 
@@ -1132,7 +1132,10 @@ TEST(GPW_Si, Γ_U_ACBN0_OuterLoopFeelsTheNewU)
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
     ASSERT_TRUE(calc.Result()) << Why(calc.Result());
     EXPECT_NEAR(calc.Result()->EnergyTerms()["E_U"], 0.0, 1e-12) << "U=0 start";
-    qchem::SolidCalculation::HubbardLoop lp; lp.maxOuter=3; lp.tolU_eV=1e-6;   // too tight to converge in 3: the loop must stop at maxOuter
+    // tolU 0 can never be met (dmax < 0), so the loop must stop at maxOuter.  (It was 1e-6, "too tight to converge in 3" -- true only
+    // while the first SCF stopped loose: on this exactly half-filled p manifold the +U potential commutes with D, the re-converged
+    // state is the same state, and a tight first SCF gives U_SC = U_0 to < 1e-6 at step 2 -- measured 2026-10-26, Pulay on D.)
+    qchem::SolidCalculation::HubbardLoop lp; lp.maxOuter=3; lp.tolU_eV=0.0;
     const auto R=calc.ConvergeHubbardU(par, lp);
     EXPECT_EQ(R.outer, 3u);
     ASSERT_EQ(R.U_eV.size(), 3u);

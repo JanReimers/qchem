@@ -103,6 +103,7 @@ struct SolidCalculation::Imp
     SCFAccelerators::SolidAcceleratorOptions    accOpts;
     SCFAccelerators::Type                       stageAccel = SCFAccelerators::Type::DIIS;  //!< the CURRENT stage's, RESOLVED (banner, [F,D])
     SCFAccelerators::Type                       stageAccelAsked = SCFAccelerators::Type::Auto;  //!< ...as ASKED: what an FD/U-loop stage re-resolves
+    bool                                        stageRestored = false;  //!< the CURRENT stage starts from a RESTORED state (Restart: same Hamiltonian)
     bool   converged = false;
     //! What the LAST converge stage filled with and how well it converged its eigenvalues -- the linear
     //! response's reference is built over the SAME occupancy rule, gated against the SAME measured noise
@@ -266,16 +267,19 @@ static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccel
     // because that composition is exactly CP2K's own recipe (its &MIXING BETA is the Kerker damping
     // denominator, applied alongside BROYDEN_MIXING).  This line is the one doc/Benchmark.md tells people
     // to copy beside a row, so it has to say both.
+    // A D-MIXER (linear, or Pulay at KerkerG0 = 0 -- PulayDMixer) hands the Fock the mixed density MATRIX: XC sees rho[D].
+    const bool dMixer = p.Mixer==M::Linear || (p.Mixer==M::Pulay && p.KerkerG0<=0.0);
     std::cout<<"["<<label<<" scf] mixer: "
              <<(p.Mixer==M::Linear ? std::string("LINEAR D-mixing (no G-space preconditioner)")
-              : p.KerkerG0>0.0     ? "Kerker(G0="+std::to_string(p.KerkerG0)+")"
-              :                      std::string("rho-mixing (no G-space preconditioner)"))
+              : dMixer             ? std::string("D-mixing (no G-space preconditioner)")
+              :                      "Kerker(G0="+std::to_string(p.KerkerG0)+")")
              <<(p.Mixer==M::Pulay ? " + Pulay history(depth "+std::to_string(p.PulayDepth)+", start "
                                     +std::to_string(p.PulayStart)+")"
                                   : std::string())
              <<(autoMixer ? " [mixer: Auto]" : "")
              <<" alpha="<<p.StartingRelaxRo
-             <<";  XC rho source: "<<(theRunPolicy().XCFromDM() ? "rho[D] WHOLESALE"
+             <<";  XC rho source: "<<(dMixer                   ? "rho[D] (D-mixing)"
+                                     : theRunPolicy().XCFromDM() ? "rho[D] WHOLESALE"
                                      : p.XCCuspDeficit         ? "rho_mix + cusp deficit"
                                      :                           "rho_mix")
              <<";  accel: "<<AccelName(acc)<<(autoAccel ? " [accel: Auto]" : "")
@@ -531,7 +535,7 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
            "SolidCalculation: the term stack no longer preserves realness -- update the forecast above");
 
     // DECISION 3 -- the accelerator, by policy (Auto pairs it with the mixer), through the public typed door.
-    MakeAccelerator(opts.accelerator, params, /*carried*/bool(seed));
+    MakeAccelerator(opts.accelerator, params, /*restored*/bool(seed));   // a pre-built seed here is Restart's restored state
 
     // THE SEED IS BUILT HERE, not inside the iterator -- the same factory call the SeedStrategy ctor
     // would have made (ChargeDensity::MakeSeedDensity with the Hamiltonian's own polarization), handed
@@ -789,23 +793,33 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
 
 // THE ACCELERATOR: the caller's, or the Auto policy's (SolidCalcOptions::accelerator).  The iterator then resolves an Auto mixer
 // against the accelerator built here (tSCFIterator::ResolveMixing asks ExtrapolatesFock()), so the two halves cannot disagree.
-void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, [[maybe_unused]] const SCFParams& params,
-                                       [[maybe_unused]] bool carried)
+void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, const SCFParams& params, bool restored)
 {
     using T=SCFAccelerators::Type;
-    // THE Auto POLICY -- today NEUTRAL: DIIS, the default before Auto existed (and an Auto mixer stays linear beside it).  The
-    // MEASURED PAIR (OpenWork §3 "Kerker/Pulay as the DEFAULT mixer", sweep P1) is: a carried stage at kT = 0 -> the Ladder on its
-    // GDM rung (ao.ladderStartOnGDM) with a linear step capped at 0.3; a seeded stage -> Null, so ResolveMixing picks Kerker/Pulay.
-    // It waits on N4 (pin 28: a Kerker/Pulay run's XC does not yet see rho[D]) and three more blockers listed there; \a params and
-    // \a carried are the inputs it will read.
-    const T t = asked==T::Auto ? T::DIIS : asked;
+    // THE Auto POLICY (OpenWork §3 "Kerker/Pulay as the DEFAULT mixer"; DEFAULT 2026-10-26, user: D-space Pulay):
+    //   a SEEDED or CARRIED stage  -> Null, so an Auto mixer resolves to Pulay on D (ResolveMixing: no Fock history beside a
+    //                                 density history -- they extrapolate at once and fight, measured 2026-10-22).  A CARRIED
+    //                                 stage (anneal, U loop, +-alpha) may have a NEW Hamiltonian or kT: its density is a good
+    //                                 start, not the answer -- GDM there false-converges on its own small steps (OpenWork §3).
+    //   a RESTORED stage at kT = 0 -> the Ladder on its GDM rung: SAME Hamiltonian, the density IS the answer (NaF 9 -> 2);
+    //   a RESTORED smeared stage   -> DIIS (GDM would minimise an integer D' and never apply the smearing -- see Restart).
+    // Beside either Fock extrapolator an Auto mixer stays LINEAR, its step capped at 0.3 (Converge: a restart's linear step).
+    SCFAccelerators::SolidAcceleratorOptions ao=itsImp->accOpts;
+    T t = asked;
+    if (asked==T::Auto)
+    {
+        if (!restored)                    t=T::Null;
+        else if (params.SmearingkT==0.0) { t=T::Ladder; ao.ladderStartOnGDM=true; }
+        else                              t=T::DIIS;
+    }
     // A direct minimiser rotates the occupied block into the WHOLE virtual space, which a partial eigensolve never built.
     if (itsImp->opts.numBands>0 && (t==T::GDM || t==T::Ladder))
         throw std::invalid_argument("SolidCalcOptions: numBands (a partial eigensolve) beside the GDM / Ladder accelerator -- "
                                     "they need every virtual; use Null or DIIS, or numBands 0");
     itsImp->stageAccelAsked = asked;
     itsImp->stageAccel      = t;
-    itsImp->accel.reset(SCFAccelerators::Factory(t, itsImp->accOpts));
+    itsImp->stageRestored   = restored;
+    itsImp->accel.reset(SCFAccelerators::Factory(t, ao));
 }
 
 // ONE STAGE: a FRESH Hamiltonian + accelerator (a kT change must not carry stale DIIS history across the
@@ -827,7 +841,7 @@ void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
     // ITERATOR (whose ctor Inits, so the stage's first Fock is a child of this bucket).  Both are cheap;
     // the residue bucket below measures exactly that and has stayed ~0.36 s of a 121 s run.
     qchem::report::Timed residue("setup: anneal stage rebuild (residue -- accel + iterator + MOM adopt)");
-    MakeAccelerator(accType, params, /*carried*/bool(carried));
+    MakeAccelerator(accType, params, /*restored*/false);   // a carried stage may have a new Hamiltonian / kT: not a restore
 
     auto prev = std::move(itsImp->scf);      // held ONLY until the new stage has copied its MOM reference
     itsImp->scf = carried
@@ -982,6 +996,17 @@ void ReportBandSlotWeights(const std::string& label, const qchem::WaveFunction::
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(const SCFParams& params)
 {
     assert(itsImp->scf);
+    // THE RESTORED STAGE'S STEP (the Auto policy, MakeAccelerator): an Auto accelerator on a restored density pairs with a LINEAR
+    // mixer, and a converged density wants a restart's step, not the ground state's (relax 1.0 diverged a restart, Si Γ 2026-09-29).
+    SCFParams own=params;
+    if (itsImp->stageRestored && itsImp->stageAccelAsked==SCFAccelerators::Type::Auto
+        && itsImp->scf->ResolveMixing(params).Mixer==SCFParams::Mixing::Linear)
+        own.StartingRelaxRo=std::min(own.StartingRelaxRo, 0.3);
+    return ConvergeStage(own);
+}
+
+Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage(const SCFParams& params)
+{
     // ★ THE CONVERGE RESIDUE (doc/ParallelAndOraclePlan.md 1.1(a)).  The work AFTER Iterate returns is not
     // bookkeeping: GetChargeDensity() builds a fresh composite density and GetSpinDensity() rasters BOTH
     // spin channels, once per stage -- and an annealed run has a stage per schedule entry.

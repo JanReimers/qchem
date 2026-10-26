@@ -329,6 +329,40 @@ template <class T> void tComposite_CD<T>::Axpy(double f, const tMixableDensity<T
     this->AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
+template <class T> double tComposite_CD<T>::Dot(const tMixableDensity<T>& cd) const
+{
+    const tComposite_CD& ecd=RequireCompositePartner<T>(cd, "tComposite_CD::Dot");
+    if (itsBlocks.size()!=ecd.itsBlocks.size())
+        throw std::runtime_error("tComposite_CD::Dot: the two composites hold different block counts -- "
+                                 "not the same irrep set (or the same imposed spin subgroup)");
+    double ret=0;
+    for (size_t i=0;i<itsBlocks.size();++i)
+        ret += std::visit([&](const auto* mine, const auto* theirs) -> double
+        {
+            if constexpr (std::is_same_v<std::decay_t<decltype(mine)>,std::decay_t<decltype(theirs)>>)
+                return mine->Dot(*theirs);
+            else
+                throw std::logic_error("tComposite_CD::Dot: the two composites' child scalars differ per block");
+        }, itsBlocks[i].cd, ecd.itsBlocks[i].cd);
+    return ret;
+}
+
+template <class T> std::unique_ptr<tMixableDensity<T>> tComposite_CD<T>::MakeCopy() const
+{
+    auto c=std::make_unique<tComposite_CD<T>>(itsPointOps);
+    for (const Block& b : itsBlocks)
+        std::visit([&](const auto* child)
+        {
+            using child_t = std::remove_cvref_t<decltype(*child)>;          // tDM_CD<U>
+            auto copy=child->MakeCopy();                                     // unique_ptr<tMixableDensity<U>>
+            auto* dm=dynamic_cast<child_t*>(copy.get());                     // abstract -> abstract
+            if (!dm) throw std::logic_error("tComposite_CD::MakeCopy: a block's copy is not a density-matrix density");
+            copy.release();
+            c->Insert(std::unique_ptr<child_t>(dm), b.qns);
+        }, b.cd);
+    return c;
+}
+
 template <class T> double tComposite_CD<T>::GetChangeFrom(const tMixableDensity<T>& cd) const
 {
     const tComposite_CD& ecd=RequireCompositePartner<T>(cd, "tComposite_CD::GetChangeFrom");

@@ -26,6 +26,7 @@ module;
 #include <map>
 #include <string>
 #include <type_traits>
+#include <memory>
 export module qchem.ChargeDensity.Imp.IrrepCD;
 
 export import qchem.ChargeDensity;
@@ -103,6 +104,7 @@ public:
     virtual void   Axpy         (double c, const tMixableDensity<T>&)   ;  //this += c*that.
     virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //Frobenius(delta density matrix)
     virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const;  //MaxAbs(delta density matrix) -- CP2K's EPS_SCF measure
+    virtual double Dot          (const tMixableDensity<T>&       ) const;  //Re Tr(this^dagger that)
 
     virtual double operator()(const rvec3_t&) const;
 
@@ -129,6 +131,8 @@ class FiniteIrrepCD
 {
 public:
     using IrrepCD_Core<double>::IrrepCD_Core;   // the core's ctors are the leaf's
+    virtual std::unique_ptr<tMixableDensity<double>> MakeCopy() const
+        {return std::make_unique<FiniteIrrepCD>(this->itsDensityMatrix, this->itsBasisSet, this->itsIrrep);}
 
     //! V1.31 whole-system route: this block's basis answers the capability, and the block folds its own
     //! density up to AO.
@@ -167,6 +171,9 @@ template <class T> class PeriodicIrrepCD
 {
 public:
     using IrrepCD_Core<T>::IrrepCD_Core;
+    //! A plain periodic leaf, also for a \c FactoredRho one: a history copy is only ever Axpy'd / Dot'd, never sampled.
+    virtual std::unique_ptr<tMixableDensity<T>> MakeCopy() const
+        {return std::make_unique<PeriodicIrrepCD<T>>(this->itsDensityMatrix, this->itsBasisSet, this->itsIrrep);}
 
     //! Periodic overlap is uncached-complex or cached-real by scalar; one body, if-constexpr split.
     virtual double GetTotalCharge() const;

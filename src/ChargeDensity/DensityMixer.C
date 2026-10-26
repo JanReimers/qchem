@@ -97,6 +97,10 @@ public:
 //! Linear D-mixing: any run, any scalar -- it asks nothing of the geometry.  \a relax0 = α (StartingRelaxRo;
 //! α=1, the molecular default, is passthrough).
 template <class T> std::unique_ptr<tDensityMixer<T>> LinearMixerFactory(double relax0);
+//! \brief Pulay on the density MATRIX (no G filter, no fit): any run, any scalar.  The factory's answer to \c Mixing::Pulay
+//! at \c KerkerG0 = 0 -- "Pulay without Kerker" mixes D, never a fitted ρ̃ (pin 28).  \a relax = α, \a depth = history,
+//! \a start = plain linear steps before the history engages.
+template <class T> std::unique_ptr<tDensityMixer<T>> PulayDMixerFactory(double relax, int depth, int start);
 
 //! The recipe of a Kerker-preconditioned ρ̃ mixer.
 struct KerkerParams

@@ -210,7 +210,8 @@ two-minute timeout every time somebody forgets, so it is written here rather tha
 ⚠ **AND AN ORACLE IS ONLY AS GOOD AS ITS SETTINGS.**  CP2K's own `EPS_PGF_ORB` default once produced a
 3.5 Ha "oracle" that was retracted (`doc/OldPlans/GPWPlan.md`); on ill-conditioned bases always re-run tight-eps and
 converge the real density before quoting a number.  Copy the run command from `doc/Benchmark.md` §5a rather
-than reconstructing it.
+than reconstructing it.  **QE's XC grid too** (2026-10-26): pw.x evaluates E_xc on its minimal FFT grid, and on β-MnO₂ (40 Ry) the
+default 36×36×24 is 107 μHa off the grid-converged 72³ value -- state `nr1..3` at a converged grid before quoting a μHa comparison.
 
 - **Run data has ONE home** (D-RUNDATA): `~/Code/<app>-runs/<Material>/<name>.<ext>` with `<app>` = cp2k | qe | abinit | qchem6, saved SCF states in `<Material>/states/`.  A batch job script gets its directory from `scripts/rundir <app> <Material>` (template: `scripts/queue_job_template.sh`) instead of a `batch/work/<job>` dir, so results never need graduating; give files a self-describing prefix (several jobs share a Material dir); QE `tmp/` and wavefunction dumps are scratch.  `scripts/rundir --audit` lists strays, un-graduated batch work and big scratch -- run it after a batch.
 - **Source builds are the DEFAULT for every comparison code** (user, 2026-09-06: *"we always want to look

@@ -151,6 +151,9 @@ public:
     virtual void   Axpy         (double c, const tMixableDensity<T>&)   ;  //this += c*that.
     virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //Sum over blocks of Frobenius(delta density matrix)
     virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const;  //Max over blocks of MaxAbs(delta density matrix)
+    virtual double Dot          (const tMixableDensity<T>&       ) const;  //Sum over blocks of Re Tr(A^dagger B)
+    //! A deep, untracked copy: same point ops, a copy of every block (a view copies into an OWNING composite).
+    virtual std::unique_ptr<tMixableDensity<T>> MakeCopy() const;
 
     virtual double operator()(const rvec3_t&) const;
     virtual rvec3_t  Gradient  (const rvec3_t&) const;

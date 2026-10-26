@@ -310,7 +310,10 @@ TEST(PW_Si, Γ_Anchor)
     // STRICT win over Uniform appears once the density has real structure -- e.g. Ecut=9/Gamma gives SAD 10
     // vs Uniform 11 (verified manually) -- but a 1-iter margin behind an ~18s high-Ecut SCF is too slow and
     // brittle to gate CI.  See doc/SCFSeedingPlan.md section 9.7.
-    EXPECT_LE(sad.iters, 13u) << "smooth pseudo-valence SAD should converge in <=13 iters (was ~15 all-electron)";
+    // ⚠ RE-MEASURED 2026-10-26 (pin 28, the 4x XC ball): the <=13 above was measured while XC saw rho[D] CUT to the wavefunction
+    // ball.  With XC on the exact density ball (Ecut x 4) this coarse Ecut=4 cell takes SAD 20 / Uniform 15 -- same energy
+    // (-7.2273); the seed's edge over Uniform is gone at this cutoff.  Kept as a regression guard at the measured value.
+    EXPECT_LE(sad.iters, 20u) << "SAD at Ecut 4 with XC on the exact density ball: 20 iters (2026-10-26; 12 on the old truncated ball)";
 }
 
 

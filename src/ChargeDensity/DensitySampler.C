@@ -69,7 +69,11 @@ enum class XCRhoSource
     CuspDeficit,  //!< N4: \f$\tilde\rho_{mix}+(\rho[D]-\tilde\rho_{fit})\f$ -- pin 28's exception 2, in its legal form
     DMSource,     //!< the wholesale retained-D route (policy.xcFromDM): a damped mix of \f$\rho[D]\f$
     Shadow,       //!< the raster route's RAW shadow of a mixed density: \f$\rho[D]\f$ collocated, Kerker-mixed on the raster
-    Fitted,       //!< a FITTED / projected field (the seed, or a bare \f$\tilde\rho_{mix}\f$) -- legal only for the seed
+    //! An EXACT fit of \f$\rho[D]\f$: rho always goes through the fit (user's definition, 2026-10-26: that keeps the SCF loop
+    //! basis-independent), and for a plane-wave orbital basis whose fit ball holds every pair difference (\c G_OrbitalPairBall,
+    //! >= 4 Ecut) the fit is Parseval-exact -- \f$\rho[D]\f$ to roundoff.  Legal under pin 28.
+    ExactFit,
+    Fitted,       //!< an INEXACT fit / projected field (the seed, a bare \f$\tilde\rho_{mix}\f$, a truncated ball) -- legal only for the seed
 };
 //! The short label the SCF trace's "XC ρ" column prints for \a s.
 inline const char* ShortName(XCRhoSource s)
@@ -80,6 +84,7 @@ inline const char* ShortName(XCRhoSource s)
         case XCRhoSource::CuspDeficit: return "cusp";
         case XCRhoSource::DMSource:    return "DMsrc";
         case XCRhoSource::Shadow:      return "shadow";
+        case XCRhoSource::ExactFit:    return "fit=";
         case XCRhoSource::Fitted:      return "fitted";
     }
     assert(false && "ShortName: unhandled XCRhoSource");
