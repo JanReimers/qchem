@@ -7,7 +7,7 @@ export namespace qchem::Gaussian
 {
 //
 // Store exponents and derivative tables for a 4 electron charge distribution ab|cd
-// formed from a product of slater orbitals.
+// formed from a product of Gaussian orbitals.
 // eab = ea + eb
 // ecd = ec + ed
 //
