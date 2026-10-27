@@ -21,6 +21,7 @@ export import qchem.Response.Probe;
 export import qchem.Response.OrbitalFrame;
 export import qchem.LASolver.Krylov;
 export import qchem.Hamiltonian;   // ResponseKernel
+export import qchem.Response.QStars;   // one q per star (KAxisPlan P3)
 
 export namespace qchem::Response
 {
@@ -128,8 +129,12 @@ private:
 //! \brief \c LinearResponse at every q of the \a Nq mesh (\c Reference::QMesh), each its own Krylov solve on the
 //! SAME reference, frame and kernel.  FAILS on an incommensurate q-mesh, or with the first q whose response fails
 //! (the q is named in the reason).
+//! \a stars (KAxisPlan P3, Q9): solve only each star's REPRESENTATIVE and generate the other members by \c QStars' channel
+//! permutation and phase.  It asserts the ground state has the group, so ONE non-representative member is also solved
+//! directly and compared: a disagreement beyond \a starTol (relative, chi0 and chi) FAILS (Why::Configuration).
 template <class T> Outcome<QMeshResponse,ResponseFailure>
 LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& kernel,
-               const ChannelProbe& probe, ivec3_t Nq, const KrylovParams& kp, std::vector<size_t> perturbed = {});
+               const ChannelProbe& probe, ivec3_t Nq, const KrylovParams& kp, std::vector<size_t> perturbed = {},
+               const QStars* stars = nullptr, double starTol = 1e-6);
 
 } // namespace

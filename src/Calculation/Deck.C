@@ -102,6 +102,7 @@ struct RunSpec
         //! hubbardLinearResponse: `"manifold"` (default, hp.x) | `"slot"` (the +U term's U slots) | `"eigen"` (occupation
         //! eigen-orbitals inside each slot, QE orbital_resolved / Macke 2024) -- see Response::HubbardResolution
         Response::HubbardResolution resolve = Response::HubbardResolution::Manifold;
+        bool        qStars = false;    //!< hubbardLinearResponse: one q per star of the ground state's group (KAxisPlan P3; audited)
         bool operator==(const PostAction&) const = default;
     };
 

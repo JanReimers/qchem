@@ -173,6 +173,17 @@ Reconfigured with the flags in the root `CMakeLists.txt` comment; CLAUDE.md now 
 Payoff on today's workload is small (NiO: the SCF was ~3% of a q-mesh run; the response is P1-threaded).  Both fixes land more
 naturally inside V1.41's immutable `H.At(cd)` value, which owns exactly this density-derived state.  **PARKED 2026-10-27 (user): the SCF threading rides V1.41**; the plan continues with P3 (Q9).
 
+**P3 (Q9) DONE 2026-10-27: one q per star.**  `qchem.Response.QStars` (`FoldQMesh`: the q-mesh under the ground state's ops;
+each member = a representative + a channel permutation + per-channel lattice shifts) and `LinearResponse(Nq, …, const QStars*)`:
+solve the representatives and ONE audit member, generate the rest by X_{q'}(gI,gJ) = e^{−2πi q'·(t_I−t_J)} X_q(I,J),
+q' = W^{−T}q, and REFUSE (Why::Configuration) if the audit disagrees beyond 1e-6.  Facade: `HubbardLinearResponse(…, qStars)`,
+deck `postSCF.hubbardLinearResponse.qStars: true` (the opt-in of ruling 1); Manifold resolution only.  The ground state's group
+is the Shubnikov group of the decoration the run was BUILT with (all-zero spins = the space group).  Gate, Si k222 q222 (both
+sites perturbed): 3 of 8 q solved + 1 audit; audit 1.5e-15–5.5e-15; U 2.07451 / 2.07444 eV identical to the full mesh; wall
+287 → 189 s.  UT `ResponseQStars.SiQ222FoldsIntoThreeStars`.  **Also: the facade now HOLDS its lattice** (user: "SolidCalculation
+lacks the lattice -- this seems very strange"): it kept only fragments (`cellMatrix` for the fingerprint, then the fold's op list
+and site positions); now `std::optional<Lattice_3D>` + the resolved decoration, and every former fragment is asked of it.
+
 ## 5. Rulings (user, 2026-10-27)
 
 1. **Assertion policy.**  A free run is reduced only by the subgroup its ground state is MEASURED to have: once D_AO exists (P4),

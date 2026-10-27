@@ -43,6 +43,7 @@ import qchem.SCFParams;
 import qchem.Mesh;                                    // qcMesh::MeshParams (the LDA Hamiltonian's XC mesh)
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Symmetry.Factory;                           // BlochFactory (the q-star fold test's k-point)
 import qchem.SCFAccelerator.Factory;                    // SCFAccelerators::Type (the GDM-finished-stage audit)
 import qchem.Parallel;                                 // ScopedWorkerThreads (the serial-vs-threaded bit gate)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // the d-augmented Si (orbital-resolved gate)
@@ -978,6 +979,35 @@ TEST(ResponseKernel, GPW_Si_k211_GDMFinishedStage_OrbitalsAreEigenpairs)
         EXPECT_LT(a.orth, 1e-10) << who;
         EXPECT_LT(a.gradient, 1e-6) << who << ": the occupied-virtual coupling is the converged gradient";
         EXPECT_LT(std::max(a.epsOcc, a.epsVir), 1e-6) << who << ": eps must be F's diagonal (measured before the fix: GDM vir 2.7 Ha)";
+    }
+}
+
+//! KAxisPlan P3 (Q9): the q-star FOLD itself, no SCF.  Si (Fd-3m) on a 2x2x2 q-mesh: Γ, the three X-type points (one star) and
+//! the four L-type points (one star) -- 3 representatives.  The audit of a real response is the gate on the PHASE convention
+//! (Si k222 q222: generated == solved to 5e-15, U identical to the full mesh); this pins the folding.
+TEST(ResponseQStars, SiQ222FoldsIntoThreeStars)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    const auto ops=lat.ShubnikovOps({0,0});
+    const rmat3d_t Ainv=Invert(cell.GetCellMatrix());
+    std::vector<rvec3_t> frac;
+    lat.GetStructure()->ForEachSite([&](int, const rvec3_t& r, bool)
+    { frac.push_back(rvec3_t(Ainv(1,1)*r.x+Ainv(1,2)*r.y+Ainv(1,3)*r.z, Ainv(2,1)*r.x+Ainv(2,2)*r.y+Ainv(2,3)*r.z,
+                             Ainv(3,1)*r.x+Ainv(3,2)*r.y+Ainv(3,3)*r.z)); });
+    auto qs=Symmetry::Lattice_3D::CommensurateShifts(*Symmetry::BlochFactory(ivec3_t(2,2,2), ivec3_t(0,0,0)), ivec3_t(2,2,2));
+    ASSERT_TRUE(qs.IsOk());
+    const std::vector<Symmetry::Lattice_3D::MeshShift>& q=qs.Value();
+    const Response::QStars st=Response::FoldQMesh(q, ops, frac, {{0,1},{1,1}}, {0,1});
+    EXPECT_EQ(st.NumReps(), 3u);
+    EXPECT_TRUE(st.IsRep(0)) << "Γ is its own star";
+    for (size_t i=0;i<q.size();i++)                       // every member: a PERMUTATION of the channels, from a solved rep
+    {
+        EXPECT_TRUE(st.IsRep(st.member[i].rep)) << "q " << i << " points at a non-representative";
+        const auto& P=st.member[i].perm;
+        EXPECT_TRUE(P.size()==2 && P[0]!=P[1]) << "q " << i;
     }
 }
 

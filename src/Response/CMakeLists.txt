@@ -9,6 +9,7 @@ target_sources(qcResponse PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Probe.C
     OrbitalFrame.C
     Solver.C
+    QStars.C
     Response.C
 )
 target_include_directories(qcResponse PRIVATE

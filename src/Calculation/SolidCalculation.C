@@ -656,7 +656,10 @@ public:
     //! channel back to its manifold, and the U lines add the 1x1 inversion (Macke 2024's pointwise) to hp.x's full one.
     Outcome<Response::QMeshResponse,Response::ResponseFailure> HubbardLinearResponse(
         ivec3_t Nq, const KrylovParams& krylov={.tol=1e-8}, std::vector<size_t> perturbed={},
-        Response::HubbardResolution res=Response::HubbardResolution::Manifold) const;
+        Response::HubbardResolution res=Response::HubbardResolution::Manifold,
+        //! \a qStars (doc/KAxisPlan.md P3, Q9): solve ONE q per star of the ground state's group and generate the rest; asserts
+        //! the state has that group, so one member is solved directly as an audit (a disagreement FAILS).  Manifold only.
+        bool qStars=false) const;
     //! \brief The INTER-SITE \f$V_{IJ}\f$ of a q-mesh response (doc/LinearResponsePlan.md §5 R4 row): every home-cell row of
     //! \c QMeshResponse::Interaction off its diagonal, with the PAIR's geometry -- what a reader of a V needs is "between which two
     //! atoms, how far apart".  Sorted by distance.
