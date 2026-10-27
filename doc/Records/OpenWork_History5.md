@@ -460,3 +460,16 @@ to both densities and cancels, so it is no floor.  Measured on `~/Code/qchem6-ru
 ρ_lost/N ≠ 0): GDM 28 of 49 rows below ρ_lost/N, min ratio 2e-4; PulD 126 of 984 and Null 131 of 1235, min ratio 1e-7; DIIS 0 of 30.  The
 β-MnO₂ stall (Δρ 2e-5…7e-5, minimum 2.34e-5 = ρ_lost/N) is the GDM crawl the direct-min driver measures as successive-iterate distance.
 The REMAINDER (the inherited [F,D] gates a GPW GDM stage cannot meet) stays in the tracker under its own name.
+
+
+## Inherited [F,D] gates on a GDM stage (OpenWork §3, 2026-10-23) -- REFUTED 2026-10-27; the row as it stood
+
+| **A deck stage that does not set the [F,D] gates inherits `MinFD 1e-5` / `MinΔFD 1e-7`** (2026-10-23; the row's Δρ-floor half REFUTED 2026-10-26) | a non-variational GPW GDM stage (‖[F,D]‖ ~5e-4) cannot meet them, so it only waits for `NMaxIter`.  The Δρ "quadrature floor" was not one: the gate is ∫\|ρ_a−ρ_b\| on ONE quadrature, so a constant charge-integration error cancels, and in the 2026-10-26 sweep log Δρ falls through ρ_lost/N on GDM rows (down to 2e-4 × ρ_lost/N) and on Pulay/Null rows (1e-7 ×); β-MnO₂'s stall at 2.34e-5 was GDM crawling (rows "GDM crawls…", "GDM false-converges…") | warn (iterator, at stage start) when a direct-min stage carries an [F,D] gate it cannot meet, or default a GDM stage's [F,D] gates off and gate it on ΔE · `src/SCFIterator/SCFParams.C` ~31/46 · history `Records/OpenWork_History5.md` |
+
+**Refuted 2026-10-27 (both halves; the Δρ half on 2026-10-26).**  There is no GPW [F,D] floor under GDM: in the `fecad6be` sweep log
+(`~/Code/qchem6-runs/anchors/r10r23_short.log`) every NaF GPW GDM stage is still falling ~3×/iteration when its ΔE/Δρ gates stop it
+(`Γ_Imp_Anchor` cold fine: 1.39e-2 → 1.88e-3 → 7.76e-4; coarse: 3.6e-2 → 7.9e-3 → 2.5e-3 → 5.3e-4), and the Si GPW restarts
+(`SolidState.ExactResume_*`, `WarmStart_OtherGrid_*`) reach 1e-7 … 1e-12.  `minFD 1e-5` is a few iterations further at that rate
+(extrapolated, not run).  The β-MnO₂ stage that ran to `NMaxIter` (`basis_scan/m0_free_twostage_prefix.log` stage 2, open gap 2.3e-2)
+decays LINEARLY, ~7 %/iteration -- the crawl of row "GDM crawls…", where the evidence now sits.  And the [F,D] gate is the RIGHT one for a
+direct minimiser: row "GDM false-converges…" wants GDM gated on its gradient, not on its own step.  Nothing to change in the defaults.
