@@ -184,6 +184,23 @@ sites perturbed): 3 of 8 q solved + 1 audit; audit 1.5e-15–5.5e-15; U 2.07451 
 lacks the lattice -- this seems very strange"): it kept only fragments (`cellMatrix` for the fingerprint, then the fold's op list
 and site positions); now `std::optional<Lattice_3D>` + the resolved decoration, and every former fragment is asked of it.
 
+**P4 DONE 2026-10-27: `OrbitalImage(g)` — the D_AO primitive.**  `qchem.Symmetry.Lattice_3D.BlochOperationRep`
+(`BuildBlochOperationRep`, `ImageOfK`): the lattice sibling of the molecular `BuildOperationRep` — shell permutation × each
+shell's own angular rep (Cartesian or spherical, so the view needs no `Tc` composition of its own) × norms × the Bloch phase
+e^{−2πi k′·t} of the image centre's lattice wrap, k′ = W^{−T}k.  The face `BasisSet::OrbitalImageSource` (one method, per
+BLOCK: the block knows its own k and cell, so the ruled `OrbitalImage(g,k)` became `OrbitalImage(g)` on block k); `tGPW_IBS`
+answers it.  σ is NOT applied (it swaps spin blocks, the caller's).  Gates:
+- S-unitarity M^H S_{k′} M = S_k, every op, general k (so every target block differs), plus the representation property
+  M(g₂;k′)M(g₁;k) = M(g₂g₁;k) and a refused non-symmetry: diamond Si (48 ops) 2e-15; rutile β-MnO₂ and TiO₂
+  (`valence_lowq_tm.bsd`), 16 ops, Cartesian AND spherical, 5e-15 / 4e-15 (`UTLattice_BS GPW.OrbitalImage_*`).  KB and
+  V_short carry over to 1e-14 (`GPW.OrbitalImage_SiDiamond_PPMatricesCarryOver`).
+- F-invariance on an imposed converged state: Si k222, Becke mesh, 76 (block, op) pairs (Γ/X/L little groups 48 + 16 + 12):
+  F 2.9e-9, D 7.5e-8 (`UTResponse OrbitalImage.GPW_Si_k222_ImposedBecke_FockAndDensityCarryOver`).
+- **Two findings, both OpenWork §3 rows:** (a) on the DEFAULT uniform-raster XC route the same imposed state fails F by
+  2.8e-4 / 7.4e-3 Ha (ops off the primitive-axis permutations / the glides) — a raster-XC equivariance defect, not M;
+  (b) a FREE run's XC mesh is not invariant (Becke F 5e-4, D 2e-3), so ruling 1's measurement as written would reject every
+  op on every free run — a decision before P5.
+
 ## 5. Rulings (user, 2026-10-27)
 
 1. **Assertion policy.**  A free run is reduced only by the subgroup its ground state is MEASURED to have: once D_AO exists (P4),

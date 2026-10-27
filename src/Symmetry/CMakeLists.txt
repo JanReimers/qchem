@@ -23,6 +23,7 @@ target_sources(qcSymmetry PRIVATE
     Lattice_3D/Imp/Fold.C
     Lattice_3D/Imp/SpaceGroup.C
     Lattice_3D/Imp/BZReduction.C
+    Lattice_3D/Imp/BlochOperationRep.C
     )
 target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     # --- root: shared sym_t spine ---
@@ -52,6 +53,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Lattice_3D/Fold.C
     Lattice_3D/SpaceGroup.C
     Lattice_3D/BZReduction.C
+    Lattice_3D/BlochOperationRep.C
     )
 
 target_compile_definitions(qcSymmetry PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})

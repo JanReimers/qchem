@@ -47,6 +47,9 @@ import qchem.Symmetry.Factory;                           // BlochFactory (the q-
 import qchem.SCFAccelerator.Factory;                    // SCFAccelerators::Type (the GDM-finished-stage audit)
 import qchem.Parallel;                                 // ScopedWorkerThreads (the serial-vs-threaded bit gate)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // the d-augmented Si (orbital-resolved gate)
+import qchem.BasisSet.OrbitalImageSource;               // OrbitalImage (KAxisPlan P4: the converged-state gate)
+import qchem.Symmetry.Lattice_3D.BlochOperationRep;      // ImageOfK
+import qchem.Symmetry.Lattice_3D.BlochQN;                // Getk (a block's fractional k)
 import qchem.BasisSet.Gaussian.Point.BasisFiles;           // BasisFile: the data path of sipp_sr.bsd
 
 using namespace qchem;
@@ -980,6 +983,82 @@ TEST(ResponseKernel, GPW_Si_k211_GDMFinishedStage_OrbitalsAreEigenpairs)
         EXPECT_LT(a.gradient, 1e-6) << who << ": the occupied-virtual coupling is the converged gradient";
         EXPECT_LT(std::max(a.epsOcc, a.epsVir), 1e-6) << who << ": eps must be F's diagonal (measured before the fix: GDM vir 2.7 Ha)";
     }
+}
+
+//! KAxisPlan P4: the orbital image on a CONVERGED state.  Si k222 with Fd-3m IMPOSED on the Becke XC mesh (an imposed run
+//! folds the mesh to an invariant one): for every stored block k and every op g whose image block k' = W^{-T}k is stored, the
+//! converged Fock and density matrices carry over, M^H F_{k'} M = F_k and D_{k'} = M D_k M^H (D = C f C^H in the AO basis) --
+//! the second is the MEASUREMENT KAxisPlan ruling 1 reduces a run by.  Both hold to the SCF's convergence (measured 2.9e-9 /
+//! 7.5e-8).  ⚠ Measured 2026-10-27 and logged in doc/OpenWork.md §3: the SAME state on the default uniform-raster XC route
+//! breaks F by 7.4e-3 Ha (ops off the primitive-axis permutations), and a FREE run on either mesh by 5e-4 (Becke) -- the
+//! XC numerics, not M (S, T, KB and V_short carry over to 1e-14 on every op).
+TEST(OrbitalImage, GPW_Si_k222_ImposedBecke_FockAndDensityCarryOver)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    const auto ops=lat.ShubnikovOps({0,0});
+    ASSERT_EQ(ops.size(), 48u);
+    auto mol=std::shared_ptr<const BasisSet::Real_BS>(
+        BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true};
+    o.imposeSymmetry=true;
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
+    SolidCalculation calc(lat, mol, o, SiParams());
+
+    const auto& wf=ResponseFacadeTests::WF(calc);
+    auto& H=ResponseFacadeTests::Ham(calc);
+    const auto cd=wf.GetChargeDensity();
+    H.RefreshForDensity(&calc.Basis(), cd.get());
+    struct Block { rvec3_t k; const BasisSet::OrbitalImageSource* img; mat_t<dcmplx> F, D; };
+    std::vector<Block> blocks;
+    for (const Irrep& ir : wf.GetQNs())
+    {
+        const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir));
+        const auto* bs=dynamic_cast<const Hamiltonian::cobs_t*>(os->GetBasisSet());
+        const size_t n=bs->GetNumFunctions();
+        mat_t<dcmplx> D(n, n, dcmplx(0.0));
+        for (const auto* orb : os->template Iterate<Orbitals::TOrbital<dcmplx>>())
+        {
+            const auto& c=orb->GetCoeff();
+            const double f=orb->GetOccupation();
+            if (f==0.0) continue;
+            for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) D(i,j)+=f*c[i]*std::conj(c[j]);
+        }
+        blocks.push_back({Symmetry::Lattice_3D::Getk(ir.sym), dynamic_cast<const BasisSet::OrbitalImageSource*>(bs),
+                          mat_t<dcmplx>(H.GetMatrix(bs, ir.ms, cd.get(), &calc.Basis())), D});
+        ASSERT_TRUE(blocks.back().img) << "a GPW block must answer OrbitalImage";
+    }
+    auto stored=[&](const rvec3_t& k)->const Block*          // the IBZ of an imposed run: an image may not be stored
+    {
+        for (const auto& b : blocks)
+        {
+            const rvec3_t d=b.k-k;
+            if (std::abs(d.x-std::round(d.x))<1e-9 && std::abs(d.y-std::round(d.y))<1e-9 && std::abs(d.z-std::round(d.z))<1e-9) return &b;
+        }
+        return nullptr;
+    };
+    auto maxAbs=[](const mat_t<dcmplx>& A)
+    { double m=0; for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.columns();j++) m=std::max(m, std::abs(A(i,j))); return m; };
+    double dF=0, dD=0;
+    size_t checked=0;
+    for (const auto& b : blocks)
+        for (const auto& g : ops)
+        {
+            const Block* bp=stored(Symmetry::Lattice_3D::ImageOfK(g, b.k));
+            if (!bp) continue;
+            const mat_t<dcmplx> M=b.img->OrbitalImage(g);
+            dF=std::max(dF, maxAbs(mat_t<dcmplx>(blazem::ctrans(M)*bp->F*M-b.F)));
+            dD=std::max(dD, maxAbs(mat_t<dcmplx>(bp->D-M*b.D*blazem::ctrans(M))));
+            checked++;
+        }
+    std::cout << "[orbital image, imposed Si k222 Becke] " << blocks.size() << " blocks, " << checked << " (block, op) pairs:"
+              << "  max|M^H F_k' M - F_k| " << dF << "  max|D_k' - M D_k M^H| " << dD << std::endl;
+    EXPECT_EQ(checked, 76u) << "the IBZ is Γ, X, L: little groups of order 48 + 16 + 12";
+    EXPECT_LT(dF, 1e-7) << "the converged Fock matrix must carry over under every op";
+    EXPECT_LT(dD, 1e-6) << "the converged density matrix must carry over under every op";
 }
 
 //! KAxisPlan P3 (Q9): the q-star FOLD itself, no SCF.  Si (Fd-3m) on a 2x2x2 q-mesh: Γ, the three X-type points (one star) and

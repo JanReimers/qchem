@@ -28,6 +28,7 @@ export import qchem.BasisSet.Orbital_DFT_IBS;          // Orbital_DFT_IBS<T,dcmp
 export import qchem.BasisSet.Orbital_PP_IBS;          // the species-field integral service (V1.2)
 export import qchem.BasisSet;                      // Real_BS (the molecular Gaussian basis handed to the ctor)
 export import qchem.BasisSet.AoShellSource;          // the shell-layout face this block forwards to its molecular block
+export import qchem.BasisSet.OrbitalImageSource;     // the image of this block's orbitals under a crystal op (KAxisPlan P4)
 export import qchem.BasisSet.BareCoulombSource;      // the ACBN0 face it forwards too (+U increment 3, 2026-09-21)
 export import qchem.BasisSet.AtomCentredSet;         // the +U projector functions' overlap face (HubbardProjectorPlan D2)
 export import qchem.BasisSet.Transition_DFT_IBS;     // the (k+q, k) transition pair (LinearResponsePlan B2)
@@ -69,6 +70,7 @@ template <class T> class tGPW_IBS
     , public Orbital_PP_IBS<T>                     // species-field assembly (real-space); PW_Pseudo casts ACROSS to this
     , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
     , public virtual BasisSet::AoShellSource        // built from the molecular block's shells, same order (+U, 2026-09-19)
+    , public virtual BasisSet::OrbitalImageSource   // C_{gk} = M C_k under a crystal op (KAxisPlan P4)
     , public virtual BasisSet::BareCoulombSource    // the molecular block's bare (m1m2|m3m4): central cell only (ACBN0, 2026-09-21)
     , public virtual BasisSet::AtomCentredOverlapSource<T>   // <chi_i^k|an atom-centred function> (+U projectors, HubbardProjectorPlan D2)
     , public virtual BasisSet::Transition_DFT_IBS   // the (k+q, k) transition density, this block the ket (LinearResponsePlan B2)
@@ -95,6 +97,9 @@ public:
         const auto& src=dynamic_cast<const BasisSet::AoShellSource&>(GPW_Evaluator::MolecularBlock());
         return src.GetAoShells();
     }
+    //! \copydoc BasisSet::OrbitalImageSource::OrbitalImage
+    //! The Bloch sum keeps the molecular block's shells, so the image is that shell list's, on this block's cell and k.
+    virtual mat_t<dcmplx> OrbitalImage(const Symmetry::SymOp& g) const override;
     //! \copydoc BasisSet::BareCoulombSource::BareCoulomb
     //! ACBN0 wants the AO in the CENTRAL CELL, unscreened and un-summed (Agapito et al. eq 4, g=l=m=0): that
     //! is the molecular block's integral, so forward -- the Bloch phase and the image sum are deliberately absent.

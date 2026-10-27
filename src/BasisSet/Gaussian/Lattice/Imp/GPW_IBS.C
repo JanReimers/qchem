@@ -12,6 +12,7 @@ module qchem.BasisSet.Gaussian.Lattice.GPW_IBS;
 import qchem.BasisSet.Lattice_IBS;          // Lattice::ToScalar (the Step-3 exact TRIM narrow; identity for dcmplx)
 import qchem.Symmetry.Factory;              // BlochFactory (the convenience ctor + the k=0 fit-basis irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (pry k out of the abstract Bloch irrep)
+import qchem.Symmetry.Lattice_3D.BlochOperationRep; // BuildBlochOperationRep (OrbitalImage, KAxisPlan P4)
 import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ raster ops param type)
 import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
                                             // (qcMolecule_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
@@ -43,6 +44,12 @@ template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const ivec3_t& N,
     : tGPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor,
               raster, ladderFactor, {}, rasterFields)
 {}
+
+template <class T> mat_t<dcmplx> tGPW_IBS<T>::OrbitalImage(const Symmetry::SymOp& g) const
+{
+    return Symmetry::Lattice_3D::BuildBlochOperationRep(GetAoShells(), GPW_Evaluator::Cell().GetCellMatrix(), g,
+                                                        Symmetry::Lattice_3D::Getk(this->GetSymmetry()));
+}
 
 // THE DFT FIT BASES -- the {G} sets the density (CD) and the XC potential (Vxc) are represented / quadratured on.
 // There is exactly ONE density FFT grid in GPW: GPW_Evaluator::DensityGrid() (== itsFFT_R_G_Grids), the {r}<->{G}
