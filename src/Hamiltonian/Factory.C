@@ -99,6 +99,13 @@ export namespace qchem::Hamiltonian
         //! use is the finite-difference oracle of the linear response: \f$\chi_{IJ}=dn_I/d\alpha_J\f$ from SCFs at
         //! \f$\pm\alpha\f$ (doc/LinearResponsePlan.md R2 gate b).  0 = no shift (the default).
         double              alpha = 0.0;
+        //! \brief SPIN-RESOLVED parts of the static shift (HARTREE), ADDED to \c alpha in their own spin channel only:
+        //! \f$W_\uparrow\mathrel{+}=\alpha_\uparrow\mathbb 1\f$, \f$E\mathrel{+}=\alpha_\uparrow{\rm Tr}\,n_\uparrow\f$ (and \f$\downarrow\f$).
+        //! The probe of the SPIN channel the spin-independent \c alpha does not excite (the +U potential
+        //! \f$U(\tfrac12-n_{m\sigma})\f$ is spin-resolved; β-MnO₂ 2026-10-26).  Polarized runs only (the term throws
+        //! on an unpolarized run that sets them).  0 = none (the default).
+        double              alphaUp   = 0.0;
+        double              alphaDown = 0.0;
         //! ORTHO-ATOMIC (QE's `ortho-atomic`, hp.x's preferred projector; pseudo-atomic manifolds only -- a site-shell
         //! manifold is Löwdin over the whole block already): this manifold's functions are Löwdin-orthogonalised in
         //! their TRUE overlap AMONG every ortho-atomic manifold in the run before projecting -- the

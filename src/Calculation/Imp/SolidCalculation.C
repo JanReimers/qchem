@@ -243,6 +243,8 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
             std::cout<<" (site "<<M.site<<", l="<<M.l;
             if (M.Uirrep.empty()) std::cout<<", U="<<M.U*27.211386245988<<" eV";
             else { std::cout<<", Uirrep="; for (size_t k=0;k<M.Uirrep.size();k++) std::cout<<(k?",":"")<<M.Uirrep[k]*27.211386245988; std::cout<<" eV"; }
+            if (M.alpha!=0.0 || M.alphaUp!=0.0 || M.alphaDown!=0.0)   // the static alpha*P perturbation: say it, per spin
+                std::cout<<", alpha*P="<<M.alpha*27.211386245988<<" eV (up +"<<M.alphaUp*27.211386245988<<", down +"<<M.alphaDown*27.211386245988<<")";
             if (M.projector==qchem::Hamiltonian::HubbardProjectorKind::PseudoAtomic)
                 std::cout<<", projector: PSEUDO-ATOMIC* ("<<(M.orthoAtomic ? "ORTHO-atomic" : "atomic")<<", independent of the orbital basis)";
             else

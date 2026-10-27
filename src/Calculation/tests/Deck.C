@@ -245,7 +245,7 @@ TEST(Deck, PolicyRecordsOnlyWhatWasStatedSoTheUmbrellaStillMeansWhatItSays)
 TEST(Deck, UIsEvInTheFileAndAtomicUnitsInRamAndTheRecordReproducesTheBits)
 {
     SolidCalcOptions o;
-    deck::FromJson(json{{"hubbard",{{{"site",0},{"l",2},{"U_eV",4.0},{"Uirrep_eV",{3.0,4.5}},{"alpha_eV",0.1}}}}}, o);
+    deck::FromJson(json{{"hubbard",{{{"site",0},{"l",2},{"U_eV",4.0},{"Uirrep_eV",{3.0,4.5}},{"alpha_eV",0.1},{"alphaUp_eV",0.25}}}}}, o);
     ASSERT_EQ(o.hubbard.size(),1u);
     EXPECT_DOUBLE_EQ(o.hubbard[0].U, 4.0/27.211386245988) << "RAM is atomic units";
     EXPECT_DOUBLE_EQ(o.hubbard[0].Uirrep[1], 4.5/27.211386245988);
@@ -256,6 +256,8 @@ TEST(Deck, UIsEvInTheFileAndAtomicUnitsInRamAndTheRecordReproducesTheBits)
     EXPECT_EQ(back.hubbard[0].U, o.hubbard[0].U) << "bit-for-bit: a revision file re-runs with the SAME U";
     EXPECT_EQ(back.hubbard[0].Uirrep, o.hubbard[0].Uirrep);
     EXPECT_EQ(back.hubbard[0].alpha, o.hubbard[0].alpha);
+    EXPECT_DOUBLE_EQ(o.hubbard[0].alphaUp, 0.25/27.211386245988); EXPECT_EQ(o.hubbard[0].alphaDown, 0.0);
+    EXPECT_EQ(back.hubbard[0].alphaUp, o.hubbard[0].alphaUp);
     EXPECT_THROW(deck::FromJson(json{{"hubbard",{{{"site",0},{"U_Ha",0.1}}}}},o), std::runtime_error) << "the old spelling is refused, not guessed";
     // an arbitrary value round-trips exactly too
     for (double eV : {3.1,5.27,0.0,1e-3,7.123456789})

@@ -186,16 +186,18 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
 
     // ---- WARM: a restart across these is what the mechanism is FOR ----
     {
-        std::vector<double> site, l, U, alpha, projector, ortho, nUirrep, Uirrep;
+        std::vector<double> site, l, U, alpha, alphaUp, alphaDown, projector, ortho, nUirrep, Uirrep;
         for (const auto& M : id.hubbard)
         {
-            site.push_back(M.site); l.push_back(M.l); U.push_back(M.U); alpha.push_back(M.alpha);
+            site.push_back(M.site); l.push_back(M.l); U.push_back(M.U); alpha.push_back(M.alpha); alphaUp.push_back(M.alphaUp); alphaDown.push_back(M.alphaDown);
             projector.push_back(M.projector==Hamiltonian::HubbardProjectorKind::PseudoAtomic ? 1 : 0); ortho.push_back(M.orthoAtomic ? 1 : 0);
             nUirrep.push_back(M.Uirrep.size());
             for (double u : M.Uirrep) Uirrep.push_back(u);
         }
         fp.warmNum["hubbard.site"]=site;   fp.warmNum["hubbard.l"]=l;
         fp.warmNum["hubbard.U"]=U;         fp.warmNum["hubbard.alpha"]=alpha;
+        bool spinAlpha=false; for (const auto& M : id.hubbard) spinAlpha|=(M.alphaUp!=0.0 || M.alphaDown!=0.0);
+        if (spinAlpha) { fp.warmNum["hubbard.alphaUp"]=alphaUp; fp.warmNum["hubbard.alphaDown"]=alphaDown; }   // only when set: older states stay EXACT
         fp.warmNum["hubbard.projector"]=projector; fp.warmNum["hubbard.orthoAtomic"]=ortho;   // 1 = pseudo-atomic (was hubbard.atomicRadial until 2026-10-25)
         fp.warmNum["hubbard.nUirrep"]=nUirrep;     fp.warmNum["hubbard.Uirrep"]=Uirrep;
     }

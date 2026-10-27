@@ -221,6 +221,8 @@ Hubbard_U::Hubbard_U(const std::shared_ptr<const Structure>& st, std::vector<Hub
             throw std::out_of_range("Hubbard_U: manifold site "+std::to_string(M.site)+" -- the cell has "
                                     +std::to_string(itsSites.size())+" sites");
         if (M.l<0) throw std::invalid_argument("Hubbard_U: negative l");
+        if ((M.alphaUp!=0.0 || M.alphaDown!=0.0) && g!=SpinGroup::Polarized)
+            throw std::invalid_argument("Hubbard_U: manifold site "+std::to_string(M.site)+" sets a spin-resolved alpha on an UNPOLARIZED run");
     }
     // THE PSEUDO-ATOMIC ROUTE (HubbardProjectorPlan D6): one projector kind per run -- the two pairs are built
     // from different inputs (the block's own columns vs its overlaps with a set), so a mixed run would need a
@@ -689,7 +691,7 @@ const qcMesh::MatrixForward<dcmplx>& Hubbard_U::Forward(const BasisSet::Orbital_
 {return Projector<dcmplx>(orb);}
 
 //------------------------------------------------------------------------------------ the occupations
-double Hubbard_U::Analyse(Channel& ch) const
+double Hubbard_U::Analyse(Spin s, Channel& ch) const
 {
     const rvec_t& n=ch.n;
     ch.occ.clear();     ch.occ.resize(itsManifolds.size());
@@ -729,9 +731,10 @@ double Hubbard_U::Analyse(Channel& ch) const
         // Dudarev in the eigenbasis (Macke eq 6), one U per slot (Uirrep) or the manifold's U.
         rmat_t W;
         EU+=DudarevInEigenbasis(lam, v, slot, man.Uirrep, man.U, W);
-        if (man.alpha!=0.0)
+        const double alpha=man.alpha + (s==Spin::Up ? man.alphaUp : s==Spin::Down ? man.alphaDown : 0.0);
+        if (alpha!=0.0)
         {   // the STATIC shift alpha*P (QE's Hubbard_alpha): W += alpha*1, E += alpha*Tr n -- the LR-cDFT perturbation
-            for (size_t a=0;a<m;a++) {W(a,a)+=man.alpha; EU+=man.alpha*nM(a,a);}
+            for (size_t a=0;a<m;a++) {W(a,a)+=alpha; EU+=alpha*nM(a,a);}
         }
         for (size_t a=0;a<m;a++) for (size_t b=0;b<m;b++) ch.W[at+a*m+b]=W(a,b);
         at+=m*m;
@@ -796,7 +799,7 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
         for (const auto& [s,ch] : itsChannels) if (ch.W.size()==NumCoefficients()) return;   // keep the last n
         // nothing yet: n = 0 in every channel (V = U/2 P, E_U = 0); the version is NOT stamped so the first
         // DM-backed density does the real work.
-        for (auto& [s,ch] : itsChannels) { ch.n=rvec_t(NumCoefficients(),0.0); Analyse(ch); }
+        for (auto& [s,ch] : itsChannels) { ch.n=rvec_t(NumCoefficients(),0.0); Analyse(s,ch); }
         return;
     }
     itsEU=0.0;
@@ -805,7 +808,7 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
         const rvec_t& n=dn.at(s);
         if (n.size()>0) ch.n=n;                                // a source-less channel keeps its n
         if (ch.n.size()!=NumCoefficients()) ch.n=rvec_t(NumCoefficients(),0.0);
-        itsEU+=Analyse(ch);
+        itsEU+=Analyse(s,ch);
     }
     if (itsGroup==SpinGroup::UnPolarized) itsEU*=2.0;    // both (identical) channels
     itsOccVersion=cd->Version();
@@ -957,7 +960,7 @@ void Hubbard_U::ApplyWrite()
         if (held)
         {
             itsEU=0.0;
-            for (auto& [s,ch] : itsChannels) itsEU+=Analyse(ch);
+            for (auto& [s,ch] : itsChannels) itsEU+=Analyse(s,ch);
             if (itsGroup==SpinGroup::UnPolarized) itsEU*=2.0;
         }
     }

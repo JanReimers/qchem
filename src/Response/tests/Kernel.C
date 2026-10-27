@@ -339,7 +339,8 @@ SCFParams SiParams()
     return par;
 }
 std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, double U=0.0, bool spectator=false,
-                                              ivec3_t kmesh=ivec3_t(1,1,1), bool impose=false)
+                                              ivec3_t kmesh=ivec3_t(1,1,1), bool impose=false,
+                                              double alphaUp=0.0, double alphaDown=0.0)
 {
     FCCUnitCell cell(10.26);
     cell.AddAtom(14, {0,0,0});
@@ -350,7 +351,7 @@ std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, dou
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     const SCFParams par=SiParams();
     SolidCalcOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .species={{"Si",4}},
-                       .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=U, .alpha=alpha, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true};
+                       .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=U, .alpha=alpha, .alphaUp=alphaUp, .alphaDown=alphaDown, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true};
     if (spectator) o.hubbard.push_back({.site=1, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells});
     o.imposeSymmetry=impose;
     o.siteSpins={0,0};   // Si is non-magnetic: the polarized +U arm states it (OpenWork §3, 2026-10-26)
@@ -684,6 +685,35 @@ TEST(ResponsePolarizability, GPW_Si_Chi_eqFiniteDifferenceCDFT)
     std::cout << "[R2 cDFT] n(-a) " << nm << "  n(0) " << n0 << "  n(+a) " << np << "  chi FD " << chiFD
               << "  chi LR " << chiLR << "  rel " << (chiLR-chiFD)/chiFD << std::endl;
     EXPECT_NEAR(chiLR, chiFD, 1e-4*std::fabs(chiFD));
+}
+
+//=====================================================================================================
+//  THE SPIN-RESOLVED alpha*P (2026-10-26, beta-MnO2 spin-channel probe): alphaUp / alphaDown shift ONE spin
+//  channel's manifold.  On non-magnetic Si (polarized, siteSpins 0) three claims: (1) up = down = a IS alpha = a
+//  (the same shift, digit-for-digit); (2) up-only and down-only are spin MIRRORS (same energy); (3) a one-spin
+//  shift costs HALF the energy of the both-spin one to first order (dE = a Tr n_sigma, Tr n_up = Tr n_down) --
+//  so it reached exactly one channel, neither none nor both.  a = 1e-5 Ha, the LINEAR regime: at a one-spin
+//  a = 1e-3 this cell JUMPS to a spin-polarized state 46 uHa below the m = 0 one in E_KS (measured 2026-10-26:
+//  up-only +-1e-3 give the same KS density, mirrored; +-1e-5 give chi_upup ~ -6 / Ha, stable) -- OpenWork §3.
+//=====================================================================================================
+TEST(ResponsePolarizability, GPW_Si_SpinResolvedAlpha_ShiftsOneChannel)
+{
+    const double a=1e-5;                                       // Ha -- the linear regime, see above
+    const auto Pol=SpinGroup::Polarized;
+    const ivec3_t G(1,1,1);
+    auto c0  =ConvergedSi(Pol);
+    auto both=ConvergedSi(Pol, a);
+    auto pair=ConvergedSi(Pol, 0.0, 0.0, false, G, false, a, a);
+    auto up  =ConvergedSi(Pol, 0.0, 0.0, false, G, false, a, 0.0);
+    auto dn  =ConvergedSi(Pol, 0.0, 0.0, false, G, false, 0.0, a);
+    auto E=[](const SolidCalculation& c) { auto r=c.Result(); EXPECT_TRUE(r.IsOk()); return r ? r->Energy() : 0.0; };
+    const double E0=E(*c0), dBoth=E(*both)-E0, dPair=E(*pair)-E0, dUp=E(*up)-E0, dDn=E(*dn)-E0;
+    std::cout << "[spin alpha] dE both " << dBoth << "  up=down " << dPair << "  up " << dUp << "  down " << dDn << std::endl;
+    EXPECT_GT(dBoth, 1e-6) << "alpha*P on an occupied manifold must cost a*Tr n";
+    EXPECT_NEAR(dPair, dBoth, 1e-11) << "alphaUp = alphaDown = a is alpha = a";
+    EXPECT_NEAR(dUp, dDn, 1e-10) << "non-magnetic Si: the up-only and down-only shifts are spin mirrors";
+    EXPECT_NEAR(dUp, 0.5*dBoth, 1e-3*dBoth) << "a one-spin shift reaches ONE channel (first order: half the both-spin cost)";
+    EXPECT_ANY_THROW(ConvergedSi(SpinGroup::UnPolarized, 0.0, 0.0, false, G, false, a, 0.0)) << "a spin-resolved alpha on an unpolarized run";
 }
 
 //=====================================================================================================

@@ -337,7 +337,7 @@ private:
     //! Per channel: eigen-decompose \a n (flattened, all manifolds), fill the channel's occupations, slot
     //! sums, labelling and \f$W\f$, return its \f$E_U\f$.
     struct Channel;
-    double Analyse(Channel& ch) const;
+    double Analyse(Spin s, Channel& ch) const;   //!< \a s picks the spin-resolved part of alpha
 
     //! \name THE PSEUDO-ATOMIC ROUTE (doc/HubbardProjectorPlan.md D4/D6): the manifolds' functions are an
     //! atom-centred set, not basis functions.  The pair comes from the block's overlaps with the set; the site
