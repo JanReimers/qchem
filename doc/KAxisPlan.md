@@ -171,7 +171,7 @@ Reconfigured with the flags in the root `CMakeLists.txt` comment; CLAUDE.md now 
   work, so disabling it under threads costs ×n_k.  Fix: build it in the refresh phase (each term's refresh warms its field's
   memo), the blocks only read -- plumbing from the term refresh to the evaluator.
 Payoff on today's workload is small (NiO: the SCF was ~3% of a q-mesh run; the response is P1-threaded).  Both fixes land more
-naturally inside V1.41's immutable `H.At(cd)` value, which owns exactly this density-derived state.
+naturally inside V1.41's immutable `H.At(cd)` value, which owns exactly this density-derived state.  **PARKED 2026-10-27 (user): the SCF threading rides V1.41**; the plan continues with P3 (Q9).
 
 ## 5. Rulings (user, 2026-10-27)
 
