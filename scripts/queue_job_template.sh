@@ -8,6 +8,9 @@
 # Prefix every output with what it is (mno_ckalpha_a0.out, not run1.out): several jobs share a Material directory.
 # Put scratch (QE tmp/, wavefunction dumps) under tmp/ -- `scripts/rundir --audit` reports it by size.
 set -euo pipefail
+# THREADS: qchem is SERIAL unless QCHEM_OPENMP_THREADS is set (qchem.Parallel; 0 = physical cores).  A batch job must say so --
+# the 2026-10-26 overnight NiO q-mesh U run forgot, and ran its pair loops on one core for ~20 h.
+export QCHEM_OPENMP_THREADS=${QCHEM_OPENMP_THREADS:-0}
 WORK=$(/home/janr/Code/qchem6/scripts/rundir qe FeS2)      # <- app, Material
 cd "$WORK"
 
