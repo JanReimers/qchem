@@ -198,6 +198,9 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
         fp.warmNum["hubbard.U"]=U;         fp.warmNum["hubbard.alpha"]=alpha;
         bool spinAlpha=false; for (const auto& M : id.hubbard) spinAlpha|=(M.alphaUp!=0.0 || M.alphaDown!=0.0);
         if (spinAlpha) { fp.warmNum["hubbard.alphaUp"]=alphaUp; fp.warmNum["hubbard.alphaDown"]=alphaDown; }   // only when set: older states stay EXACT
+        std::vector<double> nAlphaSlot, alphaSlot; bool slotAlpha=false;
+        for (const auto& M : id.hubbard) { nAlphaSlot.push_back(M.alphaSlot.size()); for (double a : M.alphaSlot) alphaSlot.push_back(a); slotAlpha|=!M.alphaSlot.empty(); }
+        if (slotAlpha) { fp.warmNum["hubbard.nAlphaSlot"]=nAlphaSlot; fp.warmNum["hubbard.alphaSlot"]=alphaSlot; }        // likewise
         fp.warmNum["hubbard.projector"]=projector; fp.warmNum["hubbard.orthoAtomic"]=ortho;   // 1 = pseudo-atomic (was hubbard.atomicRadial until 2026-10-25)
         fp.warmNum["hubbard.nUirrep"]=nUirrep;     fp.warmNum["hubbard.Uirrep"]=Uirrep;
     }

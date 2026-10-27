@@ -106,6 +106,14 @@ export namespace qchem::Hamiltonian
         //! on an unpolarized run that sets them).  0 = none (the default).
         double              alphaUp   = 0.0;
         double              alphaDown = 0.0;
+        //! \brief SLOT-RESOLVED parts of the static shift (HARTREE), one per U SLOT in the term's printed slot order (the
+        //! \c Uirrep order), ADDED to \c alpha in every spin channel: \f$W\mathrel{+}=\sum_k\alpha_k P_k\f$,
+        //! \f$E\mathrel{+}=\sum_k\alpha_k{\rm Tr}\,P_k n\f$ with \f$P_k\f$ the slot's FIXED isotypic projector (site irrep x
+        //! grey parent) -- a static external potential, never the density's own eigenvectors, so Hellmann-Feynman holds.
+        //! The probe of the ORBITAL channel neither \c alpha nor \c alphaUp excites (the +U potential
+        //! \f$U(\tfrac12-n_{m\sigma})\f$ is orbital-resolved; β-MnO₂ 2026-10-27).  EMPTY = none (the default); a wrong
+        //! count throws, as does a manifold with no site symmetry (no slots to address).
+        std::vector<double> alphaSlot;
         //! ORTHO-ATOMIC (QE's `ortho-atomic`, hp.x's preferred projector; pseudo-atomic manifolds only -- a site-shell
         //! manifold is Löwdin over the whole block already): this manifold's functions are Löwdin-orthogonalised in
         //! their TRUE overlap AMONG every ortho-atomic manifold in the run before projecting -- the

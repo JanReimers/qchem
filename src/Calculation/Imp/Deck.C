@@ -241,7 +241,7 @@ std::vector<double> FromEV(const std::vector<double>& v) { std::vector<double> o
 json ToJson(const Hamiltonian::HubbardManifold& h)
 {
     return {{"site",h.site},{"l",h.l},{"U_eV",ToEV(h.U)},{"Uirrep_eV",ToEV(h.Uirrep)},{"alpha_eV",ToEV(h.alpha)},
-            {"alphaUp_eV",ToEV(h.alphaUp)},{"alphaDown_eV",ToEV(h.alphaDown)},
+            {"alphaUp_eV",ToEV(h.alphaUp)},{"alphaDown_eV",ToEV(h.alphaDown)},{"alphaSlot_eV",ToEV(h.alphaSlot)},
             {"orthoAtomic",h.orthoAtomic},{"projector",NameOf(h.projector,kProjector)}};
     // (atomicFunction is not written: the facade derives it from the pseudo-atom, deterministically.)
 }
@@ -254,6 +254,7 @@ void FromJson(const json& j, Hamiltonian::HubbardManifold& h, const std::string&
     double al=h.alpha*kHaToEV; f.Get("alpha_eV",al); h.alpha=al/kHaToEV;
     double au=h.alphaUp*kHaToEV;   f.Get("alphaUp_eV",au);   h.alphaUp=au/kHaToEV;     // spin-resolved parts, ADDED to alpha_eV
     double ad=h.alphaDown*kHaToEV; f.Get("alphaDown_eV",ad); h.alphaDown=ad/kHaToEV;
+    std::vector<double> as=ToEV(h.alphaSlot); f.Get("alphaSlot_eV",as); h.alphaSlot=FromEV(as);   // per U slot, ADDED to alpha_eV
     // RETIRED 2026-10-25 (HubbardProjectorPlan increment 5): the site-shell contraction.  A record written before then
     // carries the inert defaults ("radial": [], "atomicRadial": false), which still load; asking for a contraction does not.
     std::vector<double> radial; bool atomicRadial=false;

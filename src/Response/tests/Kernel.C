@@ -340,7 +340,8 @@ SCFParams SiParams()
 }
 std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, double U=0.0, bool spectator=false,
                                               ivec3_t kmesh=ivec3_t(1,1,1), bool impose=false,
-                                              double alphaUp=0.0, double alphaDown=0.0)
+                                              double alphaUp=0.0, double alphaDown=0.0,
+                                              std::vector<double> alphaSlot={})
 {
     FCCUnitCell cell(10.26);
     cell.AddAtom(14, {0,0,0});
@@ -351,7 +352,7 @@ std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, dou
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     const SCFParams par=SiParams();
     SolidCalcOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .species={{"Si",4}},
-                       .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=U, .alpha=alpha, .alphaUp=alphaUp, .alphaDown=alphaDown, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true};
+                       .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=U, .alpha=alpha, .alphaUp=alphaUp, .alphaDown=alphaDown, .alphaSlot=alphaSlot, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true};
     if (spectator) o.hubbard.push_back({.site=1, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells});
     o.imposeSymmetry=impose;
     o.siteSpins={0,0};   // Si is non-magnetic: the polarized +U arm states it (OpenWork §3, 2026-10-26)
@@ -714,6 +715,30 @@ TEST(ResponsePolarizability, GPW_Si_SpinResolvedAlpha_ShiftsOneChannel)
     EXPECT_NEAR(dUp, dDn, 1e-10) << "non-magnetic Si: the up-only and down-only shifts are spin mirrors";
     EXPECT_NEAR(dUp, 0.5*dBoth, 1e-3*dBoth) << "a one-spin shift reaches ONE channel (first order: half the both-spin cost)";
     EXPECT_ANY_THROW(ConvergedSi(SpinGroup::UnPolarized, 0.0, 0.0, false, G, false, a, 0.0)) << "a spin-resolved alpha on an unpolarized run";
+}
+
+//=====================================================================================================
+//  THE SLOT-RESOLVED alpha*P (2026-10-27, beta-MnO2 orbital-channel probe): alphaSlot puts alpha_k on each U slot's
+//  FIXED isotypic projector P_k.  The slots partition the manifold (Sum_k P_k = 1), so every slot at the same a IS
+//  alpha = a -- on Si's p (3 site shells) under T_d that is ONE slot of dim 9; and a count that does not match the [+U]
+//  slot table throws.  W agrees with alpha's to roundoff, but a 1e-16 difference in W walks a different SCF path: the
+//  two energies agree to the SCF's convergence floor (~4e-9 Ha measured), not digit-for-digit -- hence a = 1e-4
+//  (unpolarized Si is linear there; the 1e-3 jump is a polarized-run one) and a 1e-4 relative tolerance.
+//=====================================================================================================
+TEST(ResponsePolarizability, GPW_Si_SlotResolvedAlpha_PartitionsTheManifold)
+{
+    const double a=1e-4;
+    const auto UnPol=SpinGroup::UnPolarized;
+    const ivec3_t G(1,1,1);
+    auto c0  =ConvergedSi(UnPol);
+    auto both=ConvergedSi(UnPol, a);
+    auto slot=ConvergedSi(UnPol, 0.0, 0.0, false, G, false, 0.0, 0.0, {a});
+    auto E=[](const SolidCalculation& c) { auto r=c.Result(); EXPECT_TRUE(r.IsOk()); return r ? r->Energy() : 0.0; };
+    const double E0=E(*c0), dBoth=E(*both)-E0, dSlot=E(*slot)-E0;
+    std::cout << "[slot alpha] dE alpha " << dBoth << "  alphaSlot " << dSlot << std::endl;
+    EXPECT_GT(dBoth, 1e-5) << "alpha*P on an occupied manifold must cost a*Tr n";
+    EXPECT_NEAR(dSlot, dBoth, 1e-4*dBoth) << "every slot at a is alpha = a (the slots partition the manifold)";
+    EXPECT_ANY_THROW(ConvergedSi(UnPol, 0.0, 0.0, false, G, false, 0.0, 0.0, {a, a})) << "alphaSlot count != the slot table's";
 }
 
 //=====================================================================================================

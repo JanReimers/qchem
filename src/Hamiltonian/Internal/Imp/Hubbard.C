@@ -611,6 +611,10 @@ void Hubbard_U::BuildSymmetry(size_t M, const std::vector<Symmetry::Molecule::Ao
         throw std::invalid_argument("Hubbard_U: manifold (site "+std::to_string(man.site)+", l="+std::to_string(man.l)
             +") has "+std::to_string(sym->Slots().size())+" U slots (site irreps x grey parents) but Uirrep carries "
             +std::to_string(man.Uirrep.size())+" -- see the [+U] label table");
+    if (!man.alphaSlot.empty() && man.alphaSlot.size()!=sym->Slots().size())
+        throw std::invalid_argument("Hubbard_U: manifold (site "+std::to_string(man.site)+", l="+std::to_string(man.l)
+            +") has "+std::to_string(sym->Slots().size())+" U slots but alphaSlot carries "
+            +std::to_string(man.alphaSlot.size())+" -- see the [+U] label table");
     itsSym[M]=sym;
     // The functions' names, for a report that must say what a slot IS: Cartesian monomials as written, real solid
     // harmonics in SphericalShell's m = -l..l order.
@@ -735,6 +739,21 @@ double Hubbard_U::Analyse(Spin s, Channel& ch) const
         if (alpha!=0.0)
         {   // the STATIC shift alpha*P (QE's Hubbard_alpha): W += alpha*1, E += alpha*Tr n -- the LR-cDFT perturbation
             for (size_t a=0;a<m;a++) {W(a,a)+=alpha; EU+=alpha*nM(a,a);}
+        }
+        if (!man.alphaSlot.empty())
+        {   // the SLOT-resolved static shift: W += alpha_k P_k on each slot's FIXED isotypic projector, E += alpha_k Tr P_k n
+            if (!itsEigenForm || M>=itsSym.size() || !itsSym[M])
+                throw std::logic_error("Hubbard_U: manifold site "+std::to_string(man.site)+" sets alphaSlot but has no slots (no site symmetry, or CP2K's population form)");
+            const ManifoldSymmetry& S=*itsSym[M];
+            assert(man.alphaSlot.size()==S.Slots().size());
+            for (size_t k=0;k<S.Slots().size();k++)
+            {
+                const double ak=man.alphaSlot[k];
+                if (ak==0.0) continue;
+                const rmat_t P=S.SiteProjector(S.Slots()[k].irrep)*S.GreyProjector(S.Slots()[k].parent);
+                assert(P.rows()==m && P.columns()==m);
+                for (size_t a=0;a<m;a++) for (size_t b=0;b<m;b++) {W(a,b)+=ak*P(a,b); EU+=ak*P(a,b)*nM(b,a);}
+            }
         }
         for (size_t a=0;a<m;a++) for (size_t b=0;b<m;b++) ch.W[at+a*m+b]=W(a,b);
         at+=m*m;
