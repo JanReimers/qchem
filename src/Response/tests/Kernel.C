@@ -115,7 +115,7 @@ public:
         auto D1p=Displaced(dD, +itsH_), D1m=Displaced(dD, -itsH_), D2p=Displaced(dD, +2*itsH_), D2m=Displaced(dD, -2*itsH_);
         for (const auto& b : itsD0)
         {
-            auto F=[&](const auto& D){return mat_t<T>(itsH->GetMatrix(b.bs, b.irrep.ms, D.get(), itsWB));};
+            auto F=[&](const auto& D){itsH->RefreshForDensity(itsWB, D.get()); return mat_t<T>(itsH->GetMatrix(b.bs, b.irrep.ms, D.get(), itsWB));};
             const mat_t<T> d1=F(D1p)-F(D1m), d2=F(D2p)-F(D2m);
             dF->Add(b.irrep, b.irrep, mat_t<T>((T(8.0)*d1-d2)/T(12.0*itsH_)));
         }
@@ -936,6 +936,7 @@ BlockAudit AuditReference(const SolidCalculation& calc)
     const auto& wf=ResponseFacadeTests::WF(calc);
     auto& H=ResponseFacadeTests::Ham(calc);
     const auto D=wf.GetChargeDensity();
+    H.RefreshForDensity(&calc.Basis(), D.get());   // the contract (KAxisPlan P2)
     BlockAudit a;
     for (const Irrep& ir : wf.GetQNs())
     {

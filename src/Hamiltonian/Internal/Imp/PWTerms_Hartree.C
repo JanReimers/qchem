@@ -46,8 +46,7 @@ Vee_Hartree::Vee_Hartree(fbs_t fb)
 
 template <class U> hmat_t<U> Vee_Hartree::MakeMatrixT(const tobs_t<U>* bs, const Spin&, const cChargeDensity* cd) const
 {
-    newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
-    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
+    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);   // (V_H itself: built by the refresh, KAxisPlan P2)
     assert(fd && "Vee_Hartree requires a FourierDensity (periodic) charge density");
     // The two-axis DFT face (V1.1): a real TRIM block is Orbital_DFT_IBS<double,dcmplx> -- same complex
     // fit side, so the SAME Repulsion3C tensor serves both; only the final block is narrowed.

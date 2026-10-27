@@ -211,6 +211,7 @@ template <class T> EnergyBreakdown tHamiltonianImp<T>::GetTotalEnergy( const tDM
 {
     assert(cd);
     assert(cd->isActive() && "Hamiltonian::GetTotalEnergy computing with a superseded charge density");
+    RefreshForDensity(nullptr, cd);   // the contract (KAxisPlan P2): every term is refreshed for cd before it is asked
     EnergyBreakdown e;
     for (auto& t:itsSHTs)  t->GetEnergy(e,cd);
     for (auto& t:itsDHTs)  t->GetEnergy(e,cd);

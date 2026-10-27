@@ -149,11 +149,29 @@ Reconfigured with the flags in the root `CMakeLists.txt` comment; CLAUDE.md now 
   `SinglesDensitySampler::MatrixT` refits the XC potential on a change of v (`itsFittedV`) — ↑ and ↓ blocks ask with different v.
 - What is already right: `Vxc_Quadrature` warms its ρ in the eager refresh (`RefreshForDensity` → `WarmForDensity`), and
   `CompositeWF` calls `ham.RefreshForDensity(itsBS, cd)` before the block loop — the hook exists.
-- **The design change P2 needs (for the user)**: make the eager phase the ONLY place a term looks at a new density.
+- **RULED + BUILT (user 2026-10-27: "Require RefreshForDensity before any GetMatrix everywhere; GetMatrix only asserts the
+  stamped version").**  `HT_SlotOwner::PrepareSlots(bs, cd)` stamps the density (a dynamic cache drops its values on a NEW one;
+  idempotent for the same); `tHamiltonian::RefreshForDensity(bs, cd)` = PrepareSlots + every term's refit; every `GetMatrix`
+  (dynamic, no-cache, real-block) THROWS on an unstamped density; `GetTotalEnergy` refreshes first; the in-loop `newCD` writes
+  in Hubbard/Hartree `MakeMatrix` are gone.  The sweep found the callers: 28 failures, all TESTS driving terms directly (plus a
+  null-basis segfault in `Hubbard_U::PrepareSlots`) -- no production path skipped the refresh.  Sweep 1102 pass, 0 of 1100 moved.
+  The stateful design itself is OOD debt **V1.41** (`doc/OOD-SOLID-Cleanup.md`): the cure is an immutable `H.At(cd)` value.
+- *(the question as it was put)*: make the eager phase the ONLY place a term looks at a new density.
   `RefreshForDensity(bs, cd)` refits (Hubbard occupations, V_H, the XC fit per spin) and STAMPS the cache version; `GetMatrix`
   then only fills its own pre-created slot, and asserts the version instead of resetting.  That turns R1.0h's "a pre-warm,
   not a replacement" into a contract, so a caller outside the SCF loop (energy evaluation, unit tests) must refresh first — the
   question is whether to keep the self-correcting fallback for those callers (serial only) or require the refresh everywhere.
+
+**P2 threading — what remains after the refresh contract (2026-10-27), two hazards one level down, each needing design:**
+- **The XC refit**: `SinglesDensitySampler::MatrixT` holds ONE fitter and refits whenever v changes; ↑ and ↓ blocks ask with
+  different v, so concurrent blocks would refit each other's fitter mid-contraction.  Fix: per-spin fits prepared in
+  `Vxc_Quadrature::RefreshForDensity`, `MatrixT` a read (a small sampler face, or a v-keyed fitter set).
+- **The gather memo**: PG_Cart `itsIntegrateMemos` (LRU of B_ij(n) per exact field) is written during the SCF gathers, and an
+  insert ERASES the oldest -- freeing a memo another thread may be reading.  It exists so the k-blocks share one field's
+  work, so disabling it under threads costs ×n_k.  Fix: build it in the refresh phase (each term's refresh warms its field's
+  memo), the blocks only read -- plumbing from the term refresh to the evaluator.
+Payoff on today's workload is small (NiO: the SCF was ~3% of a q-mesh run; the response is P1-threaded).  Both fixes land more
+naturally inside V1.41's immutable `H.At(cd)` value, which owns exactly this density-derived state.
 
 ## 5. Rulings (user, 2026-10-27)
 

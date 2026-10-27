@@ -78,8 +78,8 @@ public:
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
     //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
+    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -114,8 +114,8 @@ public:
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
     //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
+    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -160,8 +160,8 @@ public:
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
     //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
+    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -241,8 +241,8 @@ public:
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
     //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
+    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cDynamic_HT_Imp::PrepareSlots(bs, cd); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
     typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
     //! Built with the density-fit basis (from the orbital basis's factory, exactly as \c FittedVee is).
     //! No structure and no pseudopotential model: pure \f$V_H[\rho]\f$ has no use for either.
@@ -334,8 +334,8 @@ public:
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
     //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
+    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cDynamic_HT_Imp::PrepareSlots(bs, cd); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
     typedef std::shared_ptr<ExFunctional> xc_t;
     typedef std::shared_ptr<const ChargeDensity::DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
     //! \a g is the imposed spin subgroup: which rasters the sampler is asked for (its Rho / RhoPol caches

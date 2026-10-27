@@ -85,8 +85,8 @@ public:
         // SEPARATE hook on a SEPARATE face.  Both faces now inherit `HT_SlotOwner<T>` virtually, so a term
         // with two caches presents ONE `PrepareSlots` that prepares both -- the fold stopped needing to know
         // that two caches are even possible.
-        for (const auto& t : itsSHTs) t->PrepareSlots(bs);
-        for (const auto& t : itsDHTs) t->PrepareSlots(bs);
+        for (const auto& t : itsSHTs) t->PrepareSlots(bs, cd);
+        for (const auto& t : itsDHTs) t->PrepareSlots(bs, cd);   // ...and STAMPS cd: GetMatrix throws without it (KAxisPlan P2)
         if (!cd) return;
         for (const auto& t : itsDHTs) t->RefreshForDensity(cd);
     }

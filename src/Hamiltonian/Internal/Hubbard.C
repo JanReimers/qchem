@@ -294,7 +294,7 @@ public:
     //! \copydoc HT_SlotOwner::PrepareSlots  (two caches: the Bloch one and the real TRIM one) -- AND the
     //! geometry phase of this term: every block's pair is built here, so \c NumCoefficients is known before
     //! the first density asks for its occupations (the composite sizes its sum by it BEFORE any block runs).
-    virtual void PrepareSlots(const cbs_t* bs) const override;
+    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override;
     //! THE EAGER PHASE: the occupations are k-independent, so they are taken here, once per density.
     virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const override;

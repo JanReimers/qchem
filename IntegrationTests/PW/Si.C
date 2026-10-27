@@ -188,6 +188,7 @@ TEST(PW_Si, Γ_eqPrototype)
     qchem::EnergyBreakdown E;
     for (int it=0; it<400; it++)
     {
+        ham.RefreshForDensity(nullptr, cd.get());              // the contract (KAxisPlan P2)
         chmat_t H=ham.GetMatrix(&pw, Spin::None, cd.get());      // sums the framework terms for the current density
         LASolver<dcmplx>* las=LASolver<dcmplx>::Factory(qchem::Eigen);
         las->SetBasisOverlap(S);

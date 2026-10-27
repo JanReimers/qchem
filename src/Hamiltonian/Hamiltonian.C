@@ -77,13 +77,18 @@ public:
     //! hoisted the k-INDEPENDENT memos out of the loop; this hoists the per-block INSERTIONS, which is what
     //! was left -- and unlike those memos these are k-DEPENDENT, so they cannot be warmed, only pre-slotted.
     //!
-    //! ⚠ A PRE-CREATE, NOT A CONTRACT.  \c GetMatrix still creates a missing slot on demand, because energy
-    //! evaluation and the unit tests drive terms outside any prologue.  What the phase buys is that in the
-    //! ORDINARY path the loop performs no insertion.
+    //! ★ AND IT STAMPS THE DENSITY (doc/KAxisPlan.md P2, user 2026-10-27: "require RefreshForDensity before any GetMatrix
+    //! everywhere; GetMatrix only asserts the stamped version").  A dynamic cache that sees a NEW \a cd (its Version) drops its
+    //! values and records that version HERE, once, before the block loop; \c GetMatrix then only fills its own pre-created slot
+    //! and THROWS for a density it was not stamped with.  It used to reset itself on first use -- the first block of every
+    //! iteration wiping the map the other blocks would be filling, which made the loop impossible to run concurrently.  Every
+    //! caller therefore refreshes first: \c tHamiltonian::RefreshForDensity(bs, cd) (the SCF's eager phase; energy evaluation
+    //! does it inside \c GetTotalEnergy).  Idempotent for the same density.  \a cd null (no density yet): slots only.
+    //! A STATIC term ignores \a cd (its cache is density-independent and never cleared).
     //!
     //! ⛔ PURE, never defaulted: a defaulted no-op is how a term silently skips a phase it needs, which is
     //! exactly what happened while \c RefreshForDensity had one (see there).
-    virtual void PrepareSlots(const tbs_t<TRun>* bs) const=0;
+    virtual void PrepareSlots(const tbs_t<TRun>* bs, const tChargeDensity<TRun>* cd) const=0;
 };
 
 //! \brief A density-INDEPENDENT Hamiltonian term (kinetic, nuclear attraction, ...): built once and reused

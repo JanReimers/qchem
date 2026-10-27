@@ -46,10 +46,10 @@ public:
     //! which has no slots and no such method -- so the second call is compiled out rather than guarded at
     //! run time.  The ambiguity that forces this override on the complex instantiation is the shared
     //! \c HT_SlotOwner base doing its job (see it).
-    virtual void PrepareSlots(const tbs_t<T>* bs) const override
+    virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
     {
-        tStatic_HT_Imp<T>::PrepareSlots(bs);
-        if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T>::PrepareSlots(bs);
+        tStatic_HT_Imp<T>::PrepareSlots(bs, cd);
+        if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T>::PrepareSlots(bs, cd);
     }
     //! Kinetic energy is spin-blind: ONE cached block for every channel.
     virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}

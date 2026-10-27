@@ -113,6 +113,7 @@ double EigenpairResidual(const WaveFunction::cWaveFunction& wf, Hamiltonian::cHa
                          const BasisSet::tBasisSet<dcmplx>* wholeBasis)
 {
     const auto D=wf.GetChargeDensity();
+    H.RefreshForDensity(wholeBasis, D.get());   // the contract: refresh before any GetMatrix (KAxisPlan P2)
     double worst=0.0;
     ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
     {
