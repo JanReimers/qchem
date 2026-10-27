@@ -54,6 +54,14 @@ public:
         return {Present(itsIn, itsRecip, itsCharge), Present(f, itsRecip, itsCharge)};
     }
     const FourierMixCD& Mixed() const override { assert(itsMixedRho); return *itsMixedRho; }
+    bool Reseat(const cd_t& current) override
+    {
+        auto* fd = dynamic_cast<const FourierDensity*>(&current);
+        assert(fd);
+        ReseatField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
+        return true;
+    }
+    void ReseatField(const GField& current) override { itsIn=current; itsMixedRho=Present(itsIn, itsRecip, itsCharge); }
 
     //! THE MIXER OWNS ITS FIELD (V1.18): the step is arithmetic on itsIn, and the density the Fock sees is a
     //! presentation built from the result -- nothing is read back out of a density, nothing deposited into one.

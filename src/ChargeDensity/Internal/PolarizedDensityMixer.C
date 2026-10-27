@@ -211,13 +211,9 @@ public:
     double Mix(cd_t& working, const cd_t& /*old*/) override
     {
         auto [wu,wd]=Channels(working);
-        const FourierDensity& fu=FourierOf(wu);
-        const FourierDensity& fd=FourierOf(wd);
-        const ΔG_Map up=fu.GetFourierDensity(*itsFit), dn=fd.GetFourierDensity(*itsFit);
-        const rvec_t rup=fu.GetRhoOnGrid(*itsFit),     rdn=fd.GetRhoOnGrid(*itsFit);
+        const LeafFields lf=LeafFieldsOf(wu,wd);
+        const GField& fa=lf.a; const GField& fb=lf.b;
         const bool spin=(itsBasis==ChannelBasis::SpinChannels);
-        const GField fa = spin ? GField{up, rup} : GField{up+dn, RawCombine(rup,rdn,+1.0,1.0)};
-        const GField fb = spin ? GField{dn, rdn} : GField{up-dn, RawCombine(rup,rdn,-1.0,1.0)};
         // Every HISTORY-carrying channel goes into ONE extrapolation; a memoryless leaf just filters its own
         // channel, which for a channel-diagonal filter is the same operator either way.  (All four leaf
         // combinations are legitimate -- history on ρ with a plain filter on m is a real recipe -- and none
@@ -228,8 +224,19 @@ public:
         if (itsAH) { hist.push_back(itsAH); histFields.push_back(fa); } else d=std::max(d,itsAF->MixField(fa));
         if (itsBH) { hist.push_back(itsBH); histFields.push_back(fb); } else d=std::max(d,itsBF->MixField(fb));
         if (!hist.empty()) d=std::max(d,MixJointly(hist,histFields));
-        if (!spin) RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge(), &up, &dn);
+        if (!spin) RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge(), &lf.up, &lf.dn);
         return d;
+    }
+    //! Each leaf takes its channel of \a current (in the leaf basis) and drops its history; in (ρ,m) mode the channel pair is
+    //! rebuilt from the re-seated leaves (no N4 correction: the field IS ρ[D]'s).
+    bool Reseat(const cd_t& current) override
+    {
+        auto [wu,wd]=Channels(current);
+        const LeafFields lf=LeafFieldsOf(wu,wd);
+        itsAF->ReseatField(lf.a);
+        itsBF->ReseatField(lf.b);
+        if (itsBasis!=ChannelBasis::SpinChannels) RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge());
+        return true;
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t& working) const override
     {
@@ -282,6 +289,19 @@ private:
             throw std::runtime_error("PolarizedDensityMixer: the working density does not resolve spin -- a "
                                      "per-channel mixer can only be driven with a polarized (Up/Down) density.");
         return {up, dn};
+    }
+    //! The two leaves' fields of a polarized density -- (ρ↑, ρ↓) or (ρ, m), each with its raster shadow -- plus the channel maps.
+    struct LeafFields { GField a, b; ΔG_Map up, dn; };
+    LeafFields LeafFieldsOf(const cChargeDensity* wu, const cChargeDensity* wd) const
+    {
+        const FourierDensity& fu=FourierOf(wu);
+        const FourierDensity& fd=FourierOf(wd);
+        LeafFields l;
+        l.up=fu.GetFourierDensity(*itsFit); l.dn=fd.GetFourierDensity(*itsFit);
+        const rvec_t rup=fu.GetRhoOnGrid(*itsFit), rdn=fd.GetRhoOnGrid(*itsFit);
+        if (itsBasis==ChannelBasis::SpinChannels) { l.a=GField{l.up, rup}; l.b=GField{l.dn, rdn}; }
+        else { l.a=GField{l.up+l.dn, RawCombine(rup,rdn,+1.0,1.0)}; l.b=GField{l.up-l.dn, RawCombine(rup,rdn,-1.0,1.0)}; }
+        return l;
     }
     static const FourierDensity& FourierOf(const tChargeDensity<dcmplx>* cd)
     {

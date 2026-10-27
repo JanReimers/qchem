@@ -491,3 +491,20 @@ The loss is gone.  The 2026-10-23 measurement predates the V_short image fix (pi
 IonicSAD targets (`aca82fd4`) and the stated ordering (`0f353ff5`); which of them removed it was not bisected.  The ionic seed's first
 iterate is still the worse start (1.06 vs the seed's own 4.79 -- one diagonalization in the Mn²⁺/O²⁻ potential), but the order is back by
 iteration 3 and costs one iteration.  Not gated by a new test: it would be a ~10-minute `_Long` twin of `Γ_Shub_Pol_Smear_Anchor_Long`.
+
+
+## ✅ GDM's mixed fallback used the field mixer's stale density (OpenWork §3; found and fixed 2026-10-27) -- the row as it stood
+
+| **GDM's mixed FALLBACK step builds its Fock from the field mixer's STALE density** (2026-10-27) | when GDM's line search is exhausted (`RejectStep` below `TrustMin` -- at a small gradient the energy decrease drops under the E noise), `DirectMinStep`'s `mixedStep` builds the Fock from `itsMixer->FockDensity(*itsCD)` -- and the Kerker/Pulay mixers IGNORE the argument and return their own running field `itsIn`, which nothing updates while GDM moves D.  So the "stable degradation" jumps back to the density of the mixer's LAST mix (at a restart: the restored state).  Measured, NaF SR2 Γ (GPW + GTH), GDM resumed from a loose state (`~/Code/qchem6-runs/NaF/naf_fdprobe_{L,D}*`): ‖[F,D]‖ 1.4e-1 → 1.4e-6 in 10 iterations, then iteration 14 (XC column `shadow` = the mixer's field) jumps +2.6 mHa to −24.42781, back at the loose start (−24.42979), [F,D] 2e-1; again near 29 and 44 -- three `direct-min MIXED fallback` calls, no console message.  From a TIGHT state (probe C) the same fallbacks are small (the stale field is near the answer) and [F,D] still reaches 5e-11 | re-seat a field mixer on the CURRENT density before the fallback uses it (a `tDensityMixer` face: present the working D as the running field, drop the history; a D-mixer needs nothing), and say so on the console; then decide whether an exhausted line search at a gradient below the E-noise floor should END the stage (converged at the noise floor) rather than step at all · `src/SCFIterator/Imp/SCFIterator.C` `DirectMinStep`, `src/ChargeDensity/Internal/{Kerker,Pulay}Mixer.C` |
+
+**Fixed 2026-10-27.**  `tDensityMixer::Reseat(const cd_t& current)` (no-op default for a D-mixer, whose `FockDensity` IS the working D;
+returns whether anything was re-seated) and `tFieldMixer::ReseatField(const GField&)`: `KerkerMixer` takes the current field and
+re-presents it; `PulayMixer` also drops its history and restarts priming (residuals measured about densities the run has left would
+extrapolate toward a mix of stale states); `PolarizedDensityMixer` re-seats each leaf in its channel basis (one `LeafFieldsOf` helper now
+shared with `Mix`) and rebuilds the (ρ,m) channel pair.  `DirectMinStep`'s `mixedStep(why)` re-seats before building the Fock and prints
+`[gdm] iteration N: <reason> -> one MIXED fixed-point step from the current D (field mixer re-seated on it, history dropped)` -- always,
+not only under `gdm_trace`.  UT `JointPulay.ReseatFieldMakesAFreshMixerAtTheCurrentDensity` (a re-seated Pulay / Kerker steps exactly as
+a fresh mixer seeded there).  GATE, `~/Code/qchem6-runs/NaF/naf_fdprobe_D*` (NaF SR2 Γ, GPW + GTH, GDM resumed from the loose state L,
+gated on minFD 1e-7 alone): before, ‖[F,D]‖ 1.4e-6 at iteration 10, then kicks at 14 / ~29 / ~44 (+2.6 mHa, back to the loose start),
+NOT converged at 60; after, two announced fallbacks (iterations 14, 19) with E flat to 1e-14 relative, CONVERGED at 23 (6.1e-8),
+Etot −24.4303949715 = stage A's.  Short sweep: 1099 pass, 0 of 1097 moved (no existing gate falls back mid-GDM).

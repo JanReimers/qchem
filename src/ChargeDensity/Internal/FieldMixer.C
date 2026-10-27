@@ -106,6 +106,9 @@ public:
     virtual const GField& Field() const = 0;
     //! ...and its PRESENTATION as a density (what \c FockDensity returns).
     virtual const FourierMixCD& Mixed() const = 0;
+    //! \a current becomes the running field (and its presentation, with no N4 correction: it IS ρ[D]'s field); any history is
+    //! dropped and priming restarts.  The field-level half of \c tDensityMixer::Reseat (a polarized caller re-seats each leaf).
+    virtual void ReseatField(const GField& current) = 0;
     //! \brief DOES THIS MIXER CARRY HISTORY? -- the property that decides whether a multi-channel caller may
     //! run one of these PER CHANNEL.  Returns the staging face (below), or \c nullptr for a memoryless filter.
     //!

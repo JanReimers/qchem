@@ -592,11 +592,17 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     // SAFE ONLY WHEN THE ACCELERATOR HOLDS NO LIVE STEP: DoSCFIteration calls NextOrbitals(), and a minimizer
     // with a computed step TAKES it there (GDM: OrbitalsAt(1.0,true)).  Both call sites below satisfy that --
     // one because ComputeStep FAILED, the other because an exhausted RejectStep armed a forced diagonalize.
-    auto mixedStep=[&]()
+    auto mixedStep=[&](const char* why)
     {
         // The FALLBACK is a whole fixed-point step taken inside a direct-min iteration, so it must be
         // visible as one: without this bucket a stalled geodesic silently doubles the iteration's cost.
         qchem::report::Timed timed("scf: direct-min MIXED fallback step (whole fixed-point step)");
+        // RE-SEAT FIRST (OpenWork §3, 2026-10-27): the geodesic steps moved D without passing through Mix, so a FIELD mixer's
+        // running field is still its LAST mix's -- at a restart the restored state -- and a Fock driven from it jumped the run
+        // back there (NaF SR2 Γ, GDM from a loose state: +2.6 mHa at [F,D] 3e-7, three times in 60 iterations, silently).
+        const bool reseated=itsMixer->Reseat(*itsCD);
+        std::cout << "[gdm] iteration " << itsIterationCount << ": " << why << " -> one MIXED fixed-point step from the current D"
+                  << (reseated ? " (field mixer re-seated on it, history dropped)" : "") << std::endl;
         itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(*itsCD));
         itsWaveFunction->FillOrbitals(*itsOccPolicy, mergeTol);
         cd_t fresh(itsWaveFunction->GetChargeDensity());
@@ -606,7 +612,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     };
     // Seed / bail: no geodesic this step (normally pre-empted by CanLineSearch() -> FixedPointDriver, but
     // reachable if [F,D] jumps above FDMax between that check and the fresh Fock).
-    if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD.get())) return mixedStep();
+    if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD.get())) return mixedStep("no geodesic step (seed, or [F,D] above the engage threshold)");
 
     // THE LINE-SEARCH REFERENCE MUST BE MEASURED IN THE TRIALS' OWN OCCUPATION CONVENTION.
     // \a Ecur is the PREVIOUS iteration's energy, and that iteration may have filled by a different rule --
@@ -689,14 +695,13 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
                                     "failure); abandoning the geodesic" << std::endl;
             itsAccelerator->RejectStep();   // still tell the accelerator, so it arms its forced diagonalize
             while (itsAccelerator->RejectStep()) {}   // ...and drive it to exhaustion, cheaply (no line search)
-            return mixedStep();
+            return mixedStep("line search STALLED");
         }
         if (!itsAccelerator->RejectStep())
         {
             // EXHAUSTED.  By contract the accelerator has armed a diagonalizing step, so NextOrbitals()
             // will NOT re-take the rejected geodesic and the mixed fallback is now safe.
-            if (trace) std::cout << "[gdm] EXHAUSTED -> mixed fallback step" << std::endl;
-            return mixedStep();
+            return mixedStep("line search EXHAUSTED (trust radius below its floor)");
         }
         if (trace) std::cout << "[gdm] RETRY (direction rebuilt, trust shrunk)" << std::endl;
     }

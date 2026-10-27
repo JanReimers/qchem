@@ -48,6 +48,12 @@ public:
     //! not the distance to the fixed point.
     struct ResidualPair { std::shared_ptr<const tChargeDensity<T>> in, out; };
     virtual ResidualPair ResidualDensities(const cd_t& /*out*/) const {return {};}
+    //! \brief THE DENSITY MOVED UNDER THE MIXER: make \a current the running density and forget the history.  Client: the
+    //! direct-min loop's MIXED FALLBACK step (\c tSCFIterator::DirectMinStep) -- GDM moves D through geodesic steps that never
+    //! pass through \c Mix, so a field mixer's running field is still the density of its LAST mix (at a restart: the restored
+    //! state), and a Fock driven from it jumps back there (+2.6 mHa on NaF, OpenWork §3, 2026-10-27).  A no-op for a D-mixer:
+    //! its \c FockDensity IS the working D.  Returns true when something was re-seated (the caller says so on the console).
+    virtual bool Reseat(const cd_t& /*current*/) {return false;}
     // (No SetDMSource here -- V1.18: which D a mixed field was built from is PROVENANCE the loop driver seats
     //  on the Fock density itself, through tDM_SourceSink.  A mixer neither stashes nor replays it.)
     //! The current step size α (for the SCF trace only).
