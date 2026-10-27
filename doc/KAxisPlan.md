@@ -139,6 +139,22 @@ Reconfigured with the flags in the root `CMakeLists.txt` comment; CLAUDE.md now 
   caches `itsFittedV` — the two spins' blocks ask with different v, so concurrent Fock blocks would race on the fit.  Hoist the
   per-spin fit into the eager refresh before P2 threads `CalcH`.
 
+**P2 audit (2026-10-27) — what `CompositeWF`'s Fock loop WRITES, so it cannot run concurrently as is.**
+- **The per-irrep Fock cache resets on first use.**  `tDynamic_HT_Imp::GetMatrix` clears its whole `itsCache` map and records
+  the density version when it first sees a new `cd`.  The R1.0h pre-create phase (`PrepareSlots`) clears the map and makes
+  every irrep's node, but does NOT record the version, so the first block of every iteration still wipes the map: concurrent
+  blocks would be filling nodes another block is erasing.
+- **Terms refit their shared state on first use** through `newCD(cd)` inside `MakeMatrix`: `Hubbard_U` (the occupation
+  matrices, `Hubbard.C` ~1017), `Vee_Hartree` (`PWTerms_Hartree.C` ~49, ~135), `FittedVee` (molecular).  And
+  `SinglesDensitySampler::MatrixT` refits the XC potential on a change of v (`itsFittedV`) — ↑ and ↓ blocks ask with different v.
+- What is already right: `Vxc_Quadrature` warms its ρ in the eager refresh (`RefreshForDensity` → `WarmForDensity`), and
+  `CompositeWF` calls `ham.RefreshForDensity(itsBS, cd)` before the block loop — the hook exists.
+- **The design change P2 needs (for the user)**: make the eager phase the ONLY place a term looks at a new density.
+  `RefreshForDensity(bs, cd)` refits (Hubbard occupations, V_H, the XC fit per spin) and STAMPS the cache version; `GetMatrix`
+  then only fills its own pre-created slot, and asserts the version instead of resetting.  That turns R1.0h's "a pre-warm,
+  not a replacement" into a contract, so a caller outside the SCF loop (energy evaluation, unit tests) must refresh first — the
+  question is whether to keep the self-correcting fallback for those callers (serial only) or require the refresh everywhere.
+
 ## 5. Rulings (user, 2026-10-27)
 
 1. **Assertion policy.**  A free run is reduced only by the subgroup its ground state is MEASURED to have: once D_AO exists (P4),
