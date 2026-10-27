@@ -846,7 +846,7 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
                 if (ch.byLabel.size()>M && ch.byLabel[M].size()>0)
                 {   // the orbital resolution: Sum lambda per U slot, in the [+U] label table's order
                     os<<" by slot:";
-                    for (size_t k=0;k<ch.byLabel[M].size();k++) os<<" ["<<k<<"]"<<std::setprecision(3)<<ch.byLabel[M][k];
+                    for (size_t k=0;k<ch.byLabel[M].size();k++) os<<" ["<<k<<"]"<<std::setprecision(4)<<ch.byLabel[M][k];
                     os<<" purity "<<std::setprecision(3)<<ch.lab[M].purity;
                     if (itsSym[M]->Graded())
                     {   // parentage: how much of each slot's eigenvectors sits in the grey parent it is named by
