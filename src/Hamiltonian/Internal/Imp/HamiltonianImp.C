@@ -14,6 +14,7 @@ import qchem.ChargeDensity;
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Blaze;
+import qchem.Parallel;   // OuterFor (InducedFock's coupled pairs, KAxisPlan P1)
 
 namespace qchem::Hamiltonian
 {
@@ -75,15 +76,24 @@ public:
         auto rule=delta.Coupling();
         auto dF=std::make_unique<AO_TransitionFock<T>>(rule);
         const auto blocks=itsWholeBasis->template Iterate<tobs_t<T>>();
+        // THE COUPLED PAIRS RUN CONCURRENTLY (doc/KAxisPlan.md P1).  The refresh above filled every term's δ-derived state, so
+        // GetMatrix(bra, ket, s, δ) is a READ (the concurrency contract on RefreshForDensity); each pair's δF goes to its own
+        // slot and is added IN THE SERIAL ORDER below, so the result is bit-identical at any thread count.
+        struct Pair { Spin s; const tobs_t<T>* bra; const tobs_t<T>* ket; };
+        std::vector<Pair> pairs;
         for (const Spin& s : spins)
             for (const auto* ket : blocks)
                 for (const auto* bra : blocks)
-                {
-                    if (!rule->Couples(bra->GetSymmetry(), ket->GetSymmetry())) continue;
-                    mat_t<T> m(bra->GetNumFunctions(), ket->GetNumFunctions(), T(0));
-                    for (const auto* t : itsTerms) m+=t->GetMatrix(bra, ket, s, delta);
-                    dF->Add(bra->GetIrrep(s), ket->GetIrrep(s), m);
-                }
+                    if (rule->Couples(bra->GetSymmetry(), ket->GetSymmetry())) pairs.push_back({s, bra, ket});
+        std::vector<mat_t<T>> each(pairs.size());
+        qchem::OuterFor(pairs.size(), [&](size_t i)
+        {
+            const Pair& p=pairs[i];
+            mat_t<T> m(p.bra->GetNumFunctions(), p.ket->GetNumFunctions(), T(0));
+            for (const auto* t : itsTerms) m+=t->GetMatrix(p.bra, p.ket, p.s, delta);
+            each[i]=std::move(m);
+        });
+        for (size_t i=0;i<pairs.size();i++) dF->Add(pairs[i].bra->GetIrrep(pairs[i].s), pairs[i].ket->GetIrrep(pairs[i].s), each[i]);
         return dF;
     }
 private:

@@ -34,6 +34,7 @@ import qchem.ChargeDensity;
 import qchem.ChargeDensity.Factory;   // IrrepCD_Factory, RhoRoute
 import qchem.CompositeCD;
 import qchem.BasisSet.Transition_DFT_IBS;     // the KET block's B2 pair capability (Hartree), cross-cast to
+import qchem.Parallel;                // OuterFor (the pair loops run concurrently, KAxisPlan P1)
 import qchem.Streamable;              // Irrep's operator<< (the failure message names the block)
 
 export namespace qchem::ChargeDensity
@@ -70,18 +71,30 @@ public:
         const Self& me=static_cast<const Self&>(*this);
         ΔGq_Map out;
         out.q=me.WaveVector();
-        for (const auto* p : me.Pairs())
+        // THE PAIRS RUN CONCURRENTLY (doc/KAxisPlan.md P1): each pair's field into its own slot, then summed IN PAIR ORDER --
+        // the serial loop's order, so the sum is bit-identical at any thread count.
+        const auto& pairs=me.Pairs();
+        std::vector<ΔGq_Map> each(pairs.size());
+        qchem::OuterFor(pairs.size(), [&](size_t i)
         {
-            const ΔGq_Map v=Ket(*p).TransitionRepulsion(fit, Bra(*p), p->dD, out.q);
-            for (const auto& [dm,c] : v.c) out.c[dm]+=c;
-        }
+            const auto* p=pairs[i];
+            each[i]=Ket(*p).TransitionRepulsion(fit, Bra(*p), p->dD, out.q);
+        });
+        for (const ΔGq_Map& v : each) for (const auto& [dm,c] : v.c) out.c[dm]+=c;
         return out;
     }
     virtual cvec_t ProjectOnto(const TransitionProjector& P) const override
     {
         const Self& me=static_cast<const Self&>(*this);
         cvec_t out(P.NumCoefficients(), dcmplx(0.0));
-        for (const auto* p : me.Pairs()) out+=P.Forward(*p->braBs, *p->ketBs, p->dD, me.WaveVector());
+        const auto& pairs=me.Pairs();
+        std::vector<cvec_t> each(pairs.size());   // per pair, summed in pair order below (bit-identical; KAxisPlan P1)
+        qchem::OuterFor(pairs.size(), [&](size_t i)
+        {
+            const auto* p=pairs[i];
+            each[i]=P.Forward(*p->braBs, *p->ketBs, p->dD, me.WaveVector());
+        });
+        for (const cvec_t& v : each) out+=v;
         return out;
     }
 private:

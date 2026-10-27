@@ -32,7 +32,6 @@ import qchem.BasisSet.Transition_DFT_IBS;    // the (k+q, k) pair faces the tran
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
-import qchem.Parallel;                         // WorkerThreads (QCHEM_OPENMP_THREADS -- the XC-mesh table + quadrature loops)
 
 
 namespace qchem::ChargeDensity

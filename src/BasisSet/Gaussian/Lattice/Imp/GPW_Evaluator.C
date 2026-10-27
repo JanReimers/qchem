@@ -1,5 +1,6 @@
 // File: BasisSet/Gaussian/Lattice/Imp/GPW_Evaluator.C  GPW_Evaluator implementation.
 module;
+#include <mutex>
 #include <sstream>
 #include <cassert>
 #include <cmath>
@@ -778,6 +779,7 @@ const Gaussian::TransitionCollocation& GPW_Evaluator::Transition() const
 
 const GPW_Evaluator::TransitionLadder& GPW_Evaluator::Ladder(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid) const
 {
+    std::lock_guard<std::mutex> lock(itsLadderLock.m);   // std::map references stay valid after the insert; the LOOKUP races
     auto it=itsTransitionLadders.find(key);
     if (it!=itsTransitionLadders.end()) return it->second;
     TransitionLadder L;

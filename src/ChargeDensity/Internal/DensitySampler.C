@@ -23,6 +23,7 @@ export module qchem.ChargeDensity.Internal.DensitySampler;
 export import qchem.ChargeDensity.DensitySampler;   // the abstract face these realise
 import qchem.BasisSet.Orbital_DFT_IBS;      // the fit-basis faces + FitQuadrature
 import qchem.BasisSet.G_FieldEvaluator;     // G_RasterTransform -- the pair route asks its raster for size/quadrature
+import qchem.Parallel;                       // LazyLock (lazy per-block caches filled from outer-loop workers)
 import qchem.Fitting.FunctionFitter;        // FunctionFitter_Scalar / ScalarProjector
 import qchem.ChargeDensity.Types;           // tobs_t/cobs_t/robs_t -- this library has its OWN, identical to the
                                             // qcHamiltonian typedefs the engine used to borrow (R1.0e, 2026-09-10)
@@ -325,6 +326,7 @@ private:
     template <class U> const qcMesh::MatrixAdjoint<dcmplx>*
     BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const;
     mutable SymMap<ScreenedMatrixIntegrator<dcmplx>> itsAdj;   //!< per block, by its SPATIAL symmetry
+    qchem::LazyLock itsAdjLock;                                  //!< itsAdj is filled lazily, possibly by k-block workers
 };
 
 } //namespace

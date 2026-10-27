@@ -114,6 +114,31 @@ the rotation's rounding (1e-12).
 | **P5** | D5-a | TiO₂ k2/q2 reduced == full; NiO imposed == free |
 | **P6** | D5-b (+ CK-3a) | D5-b == D5-a; CK-3a: a free run restarted from an imposed state starts at the answer |
 
+## 4a. Execution log
+
+**P0 (2026-10-27) found the build, not the loop.**  qchem1's `build/Release` had NO OpenMP: the /opt clang has no `omp.h`, so
+`find_package(OpenMP)` failed quietly and every `#pragma omp` compiled serial — `QCHEM_OPENMP_THREADS` was a no-op (the "5.4×"
+numbers in `Records/ParallelAndOraclePlan.md` were measured in `~/Code/qchem6/build/Release`, configured with apt's libomp).
+Reconfigured with the flags in the root `CMakeLists.txt` comment; CLAUDE.md now says how to check (`ldd rundeck | grep omp`).
+
+**P1 (2026-10-27): the response kernel application threads over its block pairs.**
+- `qchem.Parallel`: `OuterFor(n, f)` (items concurrently when `OuterThreads(n)` > 1, each into its own slot; first worker
+  exception rethrown), `InnerThreads()` (1 inside an outer item — every inner region now asks it), `OuterLoopScope`
+  (thread_local marker), `LazyLock`, and the TEST-ONLY `ScopedWorkerThreads`.
+- Threaded: the transition density's two pair sums (`GetTransitionRepulsion`, `ProjectOnto`) and `InducedFock`'s coupled-pair
+  gather — slots summed in the serial order.
+- Lazy caches a worker can fill, now `LazyLock`ed: `GPW_Evaluator::Ladder`, PG_Cart `Shells()` / `BoxTasks()`, the pair
+  sampler's `itsAdj`.  The concurrency contract is written on `tResponse_HT::GetMatrix(…, δ)`.
+- `report::Timed`: per-thread nesting stack, mutex on the ledger.  Under an outer loop a per-block bucket is THREAD-seconds
+  (summed over workers) and the master's enclosing bucket charges the loop's wall.
+- **The bit-identity bound**: identical to serial when the thread count ≤ the NARROWEST outer loop's width.  The polarized XC
+  refresh projects each spin channel separately, so on a polarized run that width is the per-spin pair count; above it a loop
+  hands its threads to the inner regions (§5.2), which sum in arrival order (measured 2e-15, run to run).  Gate:
+  `ResponseKernel.GPW_Si_k311_q13_KernelIsBitIdenticalAcrossThreads_{Raster_Pol,Becke_UnPol}` (== on every element of δF).
+- **For P2, found during the P1 audit**: `SinglesDensitySampler::MatrixT` (the SCF Fock's XC matrix) REFITS on a change of v and
+  caches `itsFittedV` — the two spins' blocks ask with different v, so concurrent Fock blocks would race on the fit.  Hoist the
+  per-spin fit into the eager refresh before P2 threads `CalcH`.
+
 ## 5. Rulings (user, 2026-10-27)
 
 1. **Assertion policy.**  A free run is reduced only by the subgroup its ground state is MEASURED to have: once D_AO exists (P4),

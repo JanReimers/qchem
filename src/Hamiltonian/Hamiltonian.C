@@ -268,6 +268,9 @@ public:
                                        const TransitionDensity<T>& delta) const=0;
     //! This term's \f$\delta F=(\partial F_{\rm term}/\partial D)\,\delta D\f$ on ONE coupled block pair
     //! (\a bra <- \a ket) for spin \a s, AO basis: bra rows x ket columns.
+    //! \par THE CONCURRENCY CONTRACT (doc/KAxisPlan.md P1, 2026-10-27): after \c RefreshForDensity(…, \a delta) this is a READ --
+    //! the kernel calls it for different pairs CONCURRENTLY.  A term whose answer needs per-block state built on first use
+    //! guards that cache itself (\c qchem::LazyLock); it never mutates δ-derived state here.
     virtual mat_t<T> GetMatrix(const tobs_t<T>* bra, const tobs_t<T>* ket, const Spin& s,
                                const TransitionDensity<T>& delta) const=0;
 };

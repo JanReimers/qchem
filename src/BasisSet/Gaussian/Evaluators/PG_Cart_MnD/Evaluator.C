@@ -13,6 +13,7 @@
 // Sibling evaluators anticipated: PG_Spherical_MnD, PG_Cart_PRISM, ... each a new Evaluator over (mostly)
 // the same shared PGData -- which is why PGData is kept separate, not absorbed here.
 module;
+#include <mutex>
 #include <cassert>
 #include <optional>   // ContractCubeOverride (the unit-test route switch)
 #include <stdexcept> // the transition collocation's refusals
@@ -39,7 +40,7 @@ module;
 export module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.BasisSet.Gaussian.Evaluators;                             // Evaluator + concepts
-import qchem.Parallel;                                                // WorkerThreads -- THE reader of QCHEM_OPENMP_THREADS (D-THREADS)
+import qchem.Parallel;                                                // InnerThreads (QCHEM_OPENMP_THREADS) + LazyLock
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;      // PGData
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF named kernels
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;// Polarization
@@ -398,7 +399,7 @@ public:
     static int PairThreads()
     {
 #ifdef QCHEM_OPENMP
-        return qchem::WorkerThreads();     // THE one reader of QCHEM_OPENMP_THREADS (qchem.Parallel; D-THREADS)
+        return qchem::InnerThreads();      // QCHEM_OPENMP_THREADS (qchem.Parallel), or 1 inside an OUTER-loop item (KAxisPlan P1)
 #else
         return 1;
 #endif
@@ -426,6 +427,7 @@ public:
     //! for runs of the same object.  NOT a pointer-keyed container -- an adjacency scan over a flat vector.
     const std::vector<Shell>& Shells() const
     {
+        std::lock_guard<std::mutex> lock(itsShellsLock.m);   // lazy, and k-block workers may arrive first (KAxisPlan P1)
         if (!itsShells.empty() || size()==0) return itsShells;
         const GaussianRF* last=nullptr;
         for (size_t i=0;i<size();i++)
@@ -1428,6 +1430,7 @@ public:
     //! the same assumption the integrate-back memo makes.
     const std::vector<ShellPairTasks>& BoxTasks(const UnitCell& A) const
     {
+        std::lock_guard<std::mutex> lock(itsBoxTasksLock.m);   // lazy (KAxisPlan P1); Shells() below takes its OWN lock
         if (!itsBoxTasks.empty()) return itsBoxTasks;
         qchem::report::Timed timer("setup: box task list");
         const std::vector<Shell>& shells=Shells();
@@ -2833,6 +2836,7 @@ private:
 
     mutable GPWTolerances              itsPGTol;           //!< the pair-loop tolerances (ApplyTolerances); defaults = historical
     mutable std::vector<Shell>         itsShells;          //!< the shell partition (lazy; geometry-fixed)
+    qchem::LazyLock                    itsShellsLock, itsBoxTasksLock;   //!< the two lazies above/below (outer-loop workers)
     mutable std::vector<std::pair<size_t,size_t>> itsFieldHistory;  //!< GPW_INTEGRATE_CENSUS (field, screen) hashes
     mutable std::vector<ShellPairTasks> itsBoxTasks;      //!< the (shell pair, offset) geometry, derived once
     mutable std::vector<size_t>        itsBoxTaskOrder;  //!< its longest-first permutation (threaded loops)

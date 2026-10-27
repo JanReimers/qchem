@@ -43,6 +43,7 @@ import qchem.SCFParams;
 import qchem.Mesh;                                    // qcMesh::MeshParams (the LDA Hamiltonian's XC mesh)
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Parallel;                                 // ScopedWorkerThreads (the serial-vs-threaded bit gate)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // the d-augmented Si (orbital-resolved gate)
 import qchem.BasisSet.Gaussian.Point.BasisFiles;           // BasisFile: the data path of sipp_sr.bsd
 
@@ -836,6 +837,77 @@ void KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind xc, SpinGroup g)
 }
 } // namespace
 
+//=====================================================================================================
+//  doc/KAxisPlan.md P1: THE KERNEL APPLICATION THREADED OVER ITS BLOCK PAIRS IS BIT-IDENTICAL TO SERIAL.  One ground state,
+//  one δD; InducedFock serial (1 worker) and threaded with the worker count <= the NARROWEST outer loop's width, which is the
+//  per-SPIN pair count (the polarized XC refresh projects each spin channel's pairs on their own).  Then every threaded region
+//  inside InducedFock is an OUTER loop -- per-pair slots summed in pair order -- and the inner regions run serial.  Above that
+//  bound a loop narrower than the thread count hands the threads to its inner regions (the ruled policy, KAxisPlan §5.2), which
+//  sum in arrival order: rounding-level, run-to-run (measured 2e-15 at 6 workers on 3-pair channels).  Compared with
+//  ==, not a tolerance: a data race or an order-dependent sum shows up as a differing bit.  A FRESH δ per application, since
+//  the terms key their refresh on its Version().
+//=====================================================================================================
+namespace {
+void KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind xc, SpinGroup g)
+{
+    auto calc=SiState(ivec3_t(3,1,1), xc, g);
+    const auto& wf=ResponseFacadeTests::WF(*calc);
+    auto& H=ResponseFacadeTests::Ham(*calc);
+    const auto D0cd=wf.GetChargeDensity();
+    auto K=H.MakeResponseKernel(&calc->Basis(), D0cd.get());
+    const Response::Reference ref=Response::MakeReference(wf, OccupationConfig{}, {.acrossK=true, .acrossSpin=false},
+                                                          std::numeric_limits<double>::quiet_NaN());
+    auto qs=ref.QMesh(ivec3_t(3,1,1));
+    ASSERT_TRUE(qs.IsOk()) << qs.Error().detail;
+    std::shared_ptr<const Symmetry::Lattice_3D::MeshShift> rule;
+    for (const auto& q : qs.Value()) if (q.Steps().x==1) rule=std::make_shared<const Symmetry::Lattice_3D::MeshShift>(q);
+    ASSERT_TRUE(rule);
+    std::mt19937 rng(20261027);
+    std::uniform_real_distribution<double> u(-0.05, 0.05);
+    std::vector<TransitionBlock<dcmplx>> X;
+    for (const Irrep& ket : wf.GetQNs())
+        for (const Irrep& bra : wf.GetQNs())
+        {
+            if (bra.ms!=ket.ms || !rule->Couples(*bra.sym, *ket.sym)) continue;
+            auto bs=[&](const Irrep& ir){return dynamic_cast<const Hamiltonian::cobs_t*>(
+                                             dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir))->GetBasisSet());};
+            mat_t<dcmplx> M(bs(bra)->GetNumFunctions(), bs(ket)->GetNumFunctions());
+            for (size_t i=0;i<M.rows();i++) for (size_t j=0;j<M.columns();j++) M(i,j)=dcmplx(u(rng),u(rng));
+            X.push_back({bra, ket, bs(bra), bs(ket), M});
+        }
+    const int nPairs=int(X.size());
+    const int perSpin = g==SpinGroup::Polarized ? nPairs/2 : nPairs;   // the narrowest outer loop (a spin channel's pairs)
+    ASSERT_GE(perSpin, 3);
+    auto apply=[&](int workers)
+    {
+        qchem::ScopedWorkerThreads scope(workers);
+        return K->InducedFock(*ChargeDensity::AO_TransitionDensity_Factory<dcmplx>(X, rule));
+    };
+    const auto F1=apply(1);
+    for (int workers : {perSpin, 2})
+    {
+        const auto Fn=apply(workers);
+        size_t differing=0;
+        double worst=0.0, scale=0.0;
+        for (const auto& p : X)
+        {
+            const mat_t<dcmplx> a=F1->Matrix(p.bra, p.ket), b=Fn->Matrix(p.bra, p.ket);
+            for (size_t i=0;i<a.rows();i++) for (size_t j=0;j<a.columns();j++)
+            {
+                differing += (a(i,j)!=b(i,j));
+                worst=std::max(worst, std::abs(a(i,j)-b(i,j)));
+                scale=std::max(scale, std::abs(a(i,j)));
+            }
+        }
+        EXPECT_EQ(differing, 0u) << workers << " workers over " << perSpin << " pairs per spin: δF differs from serial in " << differing
+                                 << " elements, max |Δ|/max|δF| = " << worst/scale
+                                 << " (rounding-level = an order-dependent sum; large = a race)";
+    }
+}
+} // namespace
+
+TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsBitIdenticalAcrossThreads_Raster_Pol)  {KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Uniform, SpinGroup::Polarized);}
+TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsBitIdenticalAcrossThreads_Becke_UnPol) {KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Becke,   SpinGroup::UnPolarized);}
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Raster_UnPol) {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Uniform, SpinGroup::UnPolarized);}
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Raster_Pol)   {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Uniform, SpinGroup::Polarized);}
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Becke_UnPol)  {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Becke,   SpinGroup::UnPolarized);}

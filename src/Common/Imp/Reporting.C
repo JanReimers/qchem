@@ -18,6 +18,7 @@ module;
 #include <chrono>
 #include <ctime>
 #include <cassert>
+#include <mutex>      // the ledger is written from OUTER-loop worker threads (doc/KAxisPlan.md P1)
 #include <nlohmann/json.hpp>
 #include "tabulate/table.hpp"
 
@@ -525,9 +526,12 @@ FormatHint HintFor(const std::string& field)
 }
 
 //============================================================================
-// Timing ledger (see the interface doc).  Setup + the SCF loop are single-threaded (OMP parallelism
-// lives INSIDE timed regions and never calls AddTime), so a plain map suffices -- same reasoning as
-// the sink itself.  Insertion order is irrelevant; EmitTimings sorts by cost.
+// Timing ledger (see the interface doc).  Until 2026-10-27 every Timed ran on the master thread (OMP lived INSIDE
+// timed regions).  An OUTER loop over k-blocks (doc/KAxisPlan.md P1, qchem::OuterFor) runs timed per-block work on
+// worker threads, so the ledger is MUTEX-guarded and the nesting stack is per THREAD.  Consequence, stated where
+// it is read (EmitTimings' footer): a bucket filled by outer-loop workers is THREAD-seconds, summed over workers,
+// and the master's enclosing bucket charges the loop's wall as its own exclusive time.  Insertion order is
+// irrelevant; EmitTimings sorts by cost.
 //============================================================================
 namespace
 {
@@ -540,8 +544,10 @@ std::map<std::string,double> g_times;
 std::map<std::string,size_t> g_calls;
 // Nesting stack for EXCLUSIVE times: each open Timed accumulates its children's ELAPSED here, and
 // charges only (elapsed - children) to its own bucket -- so buckets are disjoint (see the interface doc).
-// Setup + the SCF loop are single-threaded (OMP lives INSIDE timed regions), so a plain stack suffices.
-std::vector<double> g_tchildren;
+// PER THREAD: a worker's Timed nests only under that worker's own open scopes (a worker starts with an empty stack,
+// so it is nobody's child -- its time is not subtracted from the master's enclosing bucket).
+thread_local std::vector<double> g_tchildren;
+std::mutex g_timesMutex;   //!< guards g_times / g_calls
 }
 
 // COUNT ONLY THE ENTRIES THAT ACTUALLY DID WORK.  The time charged here is EXCLUSIVE (my elapsed minus my
@@ -552,6 +558,7 @@ std::vector<double> g_tchildren;
 // with nothing to charge is not a call, for the purpose of the question this number exists to answer.
 void AddTime(const std::string& key, double seconds)
 {
+    std::lock_guard<std::mutex> lock(g_timesMutex);
     g_times[key]+=seconds;
     if (seconds > 1e-9) g_calls[key]++;    // sub-ns == a pass-through entry, not a unit of work
 }
@@ -576,6 +583,7 @@ Timed::~Timed()
 
 void EmitTimings(const std::string& name, size_t nIterations)
 {
+    std::lock_guard<std::mutex> lock(g_timesMutex);   // a ledger dump never races a late worker's AddTime
     if (g_times.empty()) return;
     // The two PERFORMANCE numbers, computed before the ledger is cleared (see the declaration).  The split
     // is by bucket PREFIX, which is why every bucket in the tree is named "setup: …" or "scf: …" -- that

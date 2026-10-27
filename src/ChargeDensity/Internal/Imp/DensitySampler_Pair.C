@@ -9,6 +9,7 @@
 // exactly what module-internal linkage is for -- they are visible to every unit of this module and to
 // nothing outside it.
 module;
+#include <mutex>
 #include <algorithm>   // std::min (the threaded quadrature's output-column blocking)
 #include <cassert>
 #include <complex>
@@ -32,7 +33,6 @@ import qchem.BasisSet.Transition_DFT_IBS;    // the (k+q, k) pair faces the tran
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
-import qchem.Parallel;                         // WorkerThreads (QCHEM_OPENMP_THREADS -- the XC-mesh table + quadrature loops)
 
 
 namespace qchem::ChargeDensity
@@ -389,6 +389,7 @@ template <class U> const qcMesh::MatrixAdjoint<dcmplx>*
 PairDensitySampler::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
 {
     const sym_t& id=orb.GetSymt();                    // the block's SPATIAL symmetry, as the basis's own table cache uses
+    std::lock_guard<std::mutex> lock(itsAdjLock.m);  // k-block workers (KAxisPlan P1): the ↑ and ↓ pairs share a block
     auto it=itsAdj.find(id);
     if (it!=itsAdj.end()) return &it->second;
     const Projector3<dcmplx>& g=orb.Overlap3C(*itsFitBasis);

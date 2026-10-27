@@ -20,6 +20,9 @@
 module;
 #include <cstdlib>   // std::getenv/std::atoi
 #include <string>    // ThreadSummary
+#include <cstddef>
+#include <exception> // OuterFor carries a worker's exception back to the caller
+#include <mutex>     // LazyLock
 export module qchem.Parallel;
 
 export namespace qchem {
@@ -52,8 +55,10 @@ inline int ParseThreadCount(const char* s, int dflt, int autoCount)
 //! ONE rule for every region (2026-10-02, user): the Becke-mesh build used to default to ALL cores while the others
 //! defaulted to 1, which made a "serial" run show 500% CPU.  The old name \c GPW_OMP_THREADS (it had nothing to do
 //! with basis sets) is still read as a DEPRECATED ALIAS when \c QCHEM_OPENMP_THREADS is absent.
+namespace detail { inline int g_workerOverride=0; }   //!< >0: a test's ScopedWorkerThreads (see below)
 inline int WorkerThreads()
 {
+    if (detail::g_workerOverride>0) return detail::g_workerOverride;
     static const int n=[]
     {
         const char* s=std::getenv("QCHEM_OPENMP_THREADS");
@@ -62,6 +67,80 @@ inline int WorkerThreads()
     }();
     return n;
 }
+
+//--------------------------------------------------------------------------------------------------------------------
+//  ONE LEVEL OF THREADS AT A TIME (doc/KAxisPlan.md §5 ruling 2, 2026-10-27).
+//
+//  An OUTER loop runs independent items (k-blocks, block pairs) concurrently when it is at least as wide as the thread
+//  count; otherwise it runs serially and the INNER loops (shell pairs, mesh points) keep the threads, as before.  Never
+//  both: a worker thread of an outer loop is marked (OuterLoopScope), and every inner region asks InnerThreads(), which
+//  answers 1 there.  Explicit rather than left to the OpenMP runtime's nesting default.
+//
+//  DETERMINISM: OuterFor only computes item i into the caller's slot i; the caller reduces the slots IN ITEM ORDER,
+//  serially.  So an outer-threaded loop is BIT-IDENTICAL to the serial one -- unlike an inner region that partitions a
+//  reduction (per-thread buffers combined in arrival order), which is not.
+//--------------------------------------------------------------------------------------------------------------------
+namespace detail { inline thread_local int g_outerDepth=0; }
+//! Is this thread running an item of an outer loop?
+inline bool InOuterLoop() {return detail::g_outerDepth>0;}
+//! Marks the current thread as running an outer-loop item for its lifetime (RAII; nests).
+struct OuterLoopScope
+{
+    OuterLoopScope()  {++detail::g_outerDepth;}
+    ~OuterLoopScope() {--detail::g_outerDepth;}
+    OuterLoopScope(const OuterLoopScope&)=delete;
+    OuterLoopScope& operator=(const OuterLoopScope&)=delete;
+};
+//! The thread count for an INNER region (pairs, points): 1 inside an outer-loop item, else \c WorkerThreads().
+inline int InnerThreads() {return InOuterLoop() ? 1 : WorkerThreads();}
+//! The thread count for an OUTER loop over \a width independent items: \c WorkerThreads() when the loop is at least
+//! that wide (and not itself inside an outer item), else 1 -- the inner regions then keep the threads.
+inline int OuterThreads(size_t width)
+{
+    const int n=WorkerThreads();
+    return (n>1 && !InOuterLoop() && width>=size_t(n)) ? n : 1;
+}
+//! \brief Run \a f(i) for i in [0, n): concurrently when \c OuterThreads(n) > 1, else in order.  \a f writes ONLY its
+//! own result slot (the caller reduces in item order afterwards, which is what keeps the loop bit-identical to serial).
+//! The FIRST exception a worker throws is rethrown here, after the loop; later ones are dropped.
+template <class F> void OuterFor(size_t n, F&& f)
+{
+    const int nt=OuterThreads(n);
+    if (nt<=1) { for (size_t i=0;i<n;i++) f(i); return; }
+    std::exception_ptr first;
+    std::mutex         firstLock;
+#ifdef QCHEM_OPENMP
+    #pragma omp parallel for num_threads(nt) schedule(dynamic,1)
+#endif
+    for (size_t i=0;i<n;i++)
+    {
+        OuterLoopScope scope;
+        try { f(i); }
+        catch (...) { std::lock_guard<std::mutex> g(firstLock); if (!first) first=std::current_exception(); }
+    }
+    if (first) std::rethrow_exception(first);
+}
+//! \brief TEST-ONLY: \c WorkerThreads() answers \a n for this scope (restored on destruction) -- so ONE process can run the same
+//! computation serial and threaded and compare the bits (KAxisPlan P1's gate).  Set and cleared on the main thread, outside
+//! any parallel region, like \c Diagnostics::Scoped.  A production run never constructs one: its count is the environment's.
+struct ScopedWorkerThreads
+{
+    explicit ScopedWorkerThreads(int n) : itsOld(detail::g_workerOverride) {detail::g_workerOverride=n;}
+    ~ScopedWorkerThreads() {detail::g_workerOverride=itsOld;}
+    ScopedWorkerThreads(const ScopedWorkerThreads&)=delete;
+    ScopedWorkerThreads& operator=(const ScopedWorkerThreads&)=delete;
+private:
+    int itsOld;
+};
+//! \brief A mutex for a LAZY cache that an outer-loop worker may fill (\c std::lock_guard on \c m).  Copying the owner
+//! gives the copy a FRESH lock -- a copied cache is a different cache, so it never shares the original's mutex.
+struct LazyLock
+{
+    mutable std::mutex m;
+    LazyLock() {}
+    LazyLock(const LazyLock&) {}
+    LazyLock& operator=(const LazyLock&) {return *this;}
+};
 
 //! \brief BLAS worker threads: \c QCHEM_BLAS_THREADS (read ONCE per process), clamped to >=1.
 //! **Default 1** -- i.e. the historical pin, so every banked number is unchanged unless a run asks.
