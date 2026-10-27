@@ -1,6 +1,6 @@
 # The k axis: block threading (KP), one q per star (Q9), the little group of q (D5)
 
-**Status: DESIGN, 2026-10-27 — for the user's review; no code yet.**  Born at the top of `doc/` because it is about to be
+**Status: DESIGN RULED 2026-10-27** (user: §5 recommendations agreed; §6 interface design "looks very nice").  No code yet.  Born at the top of `doc/` because it is about to be
 executed.  It merges three open rows that all act on the SAME loop — the per-(k, σ)-block loop of an SCF iteration and of a
 response kernel application: OpenWork §2 "k-point parallelism (KP)", "Response on the little group of q: revisit D5", and the
 q-star half of "LR efficiency ledger" (`Records/LinearResponsePlan.md` Q9, D5).
@@ -114,14 +114,41 @@ the rotation's rounding (1e-12).
 | **P5** | D5-a | TiO₂ k2/q2 reduced == full; NiO imposed == free |
 | **P6** | D5-b (+ CK-3a) | D5-b == D5-a; CK-3a: a free run restarted from an imposed state starts at the answer |
 
-## 5. Questions for the user (each changes the design)
+## 5. Rulings (user, 2026-10-27)
 
-1. **Assertion policy for Q9/D5 on a FREE run.**  Reducing by a group asserts the ground state has it.  On an imposed run that
-   holds by construction.  On a free run (tonight's NiO) the options are: (a) never reduce — impose the group to get the
-   speed; (b) an explicit deck opt-in (`response.assumeSymmetry`), audited by computing TWO members of one q-star and comparing
-   (the §5b measurement that found 1e-5, made routine).  Recommendation: (b) — it keeps "imposition is opt-in" and makes the
-   audit automatic.
-2. **Threading level rule** (§3.1): outer-or-inner per loop (recommended: simple, no nested OMP), or a split budget
-   (outer × inner ≈ cores, needs `max-active-levels` 2 and is harder to keep deterministic)?
-3. **Order.**  P1–P2 (KP) first because every multi-k run gains and it is independent of symmetry; Q9 before D5 because it is
-   small and tonight's NiO is its gate.  Or is the rutile/spinel RAM (D5-b) the priority?
+1. **Assertion policy.**  A free run is reduced only by the subgroup its ground state is MEASURED to have: once D_AO exists (P4),
+   check ‖D_{gk} − D_AO D_k D_AO†‖ per op per block and reduce by the ops that pass (tolerance ~ the SCF's, 1e-6; the console
+   names the ops kept and their residuals; none pass → full mesh, said so).  Before P4 (i.e. for Q9) an explicit deck opt-in,
+   audited by computing two members of one q-star.  An imposed run passes by construction.  This is MEASUREMENT, not imposition:
+   nothing projects the SCF.
+2. **Threading level: one level per loop.**  Outer (blocks) when the width ≥ the thread count, else inner (pairs) as today; no
+   nested OpenMP.  Outer threading with the fixed-order block sum is BIT-IDENTICAL to serial (today's inner scatter is not:
+   its per-thread buffers combine in arrival order).
+3. **Order: P0 → P1–P2 (KP) → P3 (Q9) → P4–P6 (D5)**, re-checked against the 2026-10-27 SrVO₃ k444 run's peak RAM: if it is
+   RAM-bound, P4 → P5 → P6 move ahead of P3 (only D5-b reduces RAM).
+
+## 6. Interfaces (ruled 2026-10-27): symmetry enters as VALUES and DECORATORS, never as accessors
+
+| phase | refused (implementation details on an interface) | instead | interface change |
+|---|---|---|---|
+| P1–P2 | `IsThreadSafe()` on terms; `GetBlock(i)` on `CompositeWF` | thread the loops where they already are | none; the CONTRACT "after `RefreshForDensity` a term's const queries are concurrency-safe" is written down; a `mutable` memo that breaks it is fixed inside its class |
+| P3 | `GetSymmetryOps()` on `Reference`/WF; site positions on `HubbardChannels` | a q-star fold VALUE (members as op + channel permutation + Bloch phases), built by the `Response.C` adapter | none on a face; the q-mesh response takes the fold as an argument |
+| P4 | `GetShells()`/`GetCenters()`/Cartesian powers on the orbital basis | the basis ANSWERS: a new cross-cast capability face, one method, "the matrix carrying block k's orbitals to gk under g" (Gaussian lattice basis; the spherical view composes `Tc`; a PW basis would permute G) | one new face |
+| P5 | `Symmetrize(ops, q)` on every term; `GetBlocks()` on `TransitionDensity`; `GetFold()` on `TransitionProjector` | a DECORATOR implementing the existing transition-density faces, built where δ is built (a sibling of `AO_TransitionDensity_Factory`): scatters the reduced blocks, symmetrizes each RESULT (Hartree ΔGq_Map: free G algebra; XC values: the sampler's face below; Hubbard rows: δD rotated with P4).  The kernel, the terms and `ResponseKernel::InducedFock` never learn about symmetry | one new face on the XC sampler, one method: "average this sampled q-field over these ops, with these phases" (it owns its `FoldedMesh`) |
+| P6 | `GetIrreducibleBlocks()`/`GetStarOf(k)` on the WF | a DECORATOR over the const WF face: an UNFOLDED view answering `GetQNs()`/`GetOrbitals()` for every mesh point (rebuilt with P4, cached); `MakeReference`, the response and a CK-3a restart walk it like a full-mesh run | none |
+
+Already true, so nothing to build: the +U response is frozen-only (`Hubbard_U::RefreshForDensity` throws otherwise), so δF has no
++U part to symmetrize; only the measured χ rows are orbit-averaged (reusing P3's channel permutation).  `TransitionDensity.C`'s
+"NEVER symmetrized" stays true of the FULL group; it gains the qualification (the decorator uses the subgroup that leaves THIS
+perturbation invariant).
+
+**LSP watch-points.**  (a) `TransitionDensity::Channel(spin)` of the decorator under a σ-op (δρ↑ ↔ δρ↓): a symmetrized channel
+depends on BOTH inner channels — the views must symmetrize across them, never wrap one.  (b) The unfolded WF view is read-only
+and post-SCF: it refuses to be iterated by an SCF rather than pretending to be updatable.
+
+**Naming** (the client-consumes rule): `OrbitalImage(g, k)` for the basis face, `AverageOverOps(field, action)` for the sampler
+face (not `RotationMatrix` / `Symmetrize`, which name mechanisms).  The little-group ACTION value lives in
+`qchem.Symmetry.Lattice_3D` beside `BZReduction` and `Fold` (values about groups acting on meshes and sites).
+
+**A temporary SOLID violation is allowed when stuck** (user, 2026-10-27) — but it is LOGGED the same day in
+`doc/OOD-SOLID-Cleanup.md` (what, where, why, the intended shape), to be judged later in a wider context.
