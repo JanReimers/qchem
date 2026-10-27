@@ -2297,6 +2297,19 @@ Same settings as the polarization arms (vet off, CholeskyPivoted 1e-7, AliasFree
 
 **But 0.5 eV of α↑ is NOT linear response — both codes leave the reference state.**  The response is huge (a 0.5 eV push on the up channel moves 0.39 e INTO the minority down channel of the same site; m0 3.52 → 2.80, \|m1\| 3.52 → 3.90: ferrimagnetic, the two Mn no longer equivalent), and the energy says it is another state: Hellmann–Feynman along any continuous branch gives ΔE = ∫ N↑(α′) dα′ ≥ α·min N↑ = 0.018375 × 3.972 = 72.99 mHa (GPW), 72.80 (PW), but the runs give 61.90 / 61.67 mHa.  Equivalently the α-FREE energy E_tot − α·N↑ of the perturbed state is **11.1 mHa BELOW the α = 0 reference, in both codes** (−11.09 / −11.13 mHa).  The same signature as polarized Γ Si under a one-spin α of 1e-3 Ha (OpenWork §3).  So the 0.5 eV comparison is a comparison of the two codes' FERRI states (and they agree), not of the linear spin susceptibility; the U spin response (+0.023 … +0.030 vs +0.0385) is still unexplained by any channel measured so far.  **RESTART CHECK (GPW, `alphaUp_gpw_save` → `alpha0_from_up`, records r010 → r011): α = 0 warm-started from the α↑ state STAYS ferrimagnetic and converges in 15 iterations to −93.3954227401 Ha, 11.69 mHa BELOW the AFM reference (−93.3837352286)** — Mn0 d N↑/N↓ 4.0365 / 1.1189 (m +2.918), Mn1 0.5688 / 4.4844 (m −3.916).  So at U = 0 the β-MnO₂ A1AFM state every U / α run has been measured from is NOT the LDA ground state of this cell: a ferrimagnetic state with the two Mn inequivalent lies 0.32 eV/cell lower, and a one-spin push of 0.5 eV is enough to cross into it.  (PW agrees on the perturbed state to 0.04 mHa in its α-free energy; a PW α = 0 restart is impossible until PW states can be saved.)  Physics or a shared defect is OPEN: both codes share the polarized LDA XC, and polarized Γ Si shows the same kind of jump — an independent code (QE, unequal `starting_magnetization`) settles it.
 
+**2026-10-27 — both follow-ups, run in parallel.**
+
+*QE settles it: the ferrimagnetic state is LDA PHYSICS, not a qchem6 polarized-XC defect.*  `~/Code/qe-runs/MnO2/mno2b_U0_ferri{,_m0}.scf.{in,out}` — twins of `mno2b_U0_tok` (300 Ry, same GTH PPs and cell, Gaussian smearing 0.002 Ry) seeded Mn1 +0.5 / Mn2 −0.9.  With `tot_magnetization = 0` (like our multiplicity-1 deck): −186.96074763 Ry vs the AFM −186.93546944, **ΔE = −12.64 mHa** (ours −11.69 mHa, GPW control), sphere moments Mn +2.57 / −3.40, O +0.37 / +0.09 (×2 each) — the pattern of ours (Becke: Mn +2.84 / −3.78, O +0.37 / +0.10).  Net moment free: −12.70 mHa with a net −2.00 μB/cell (O moments flip sign).  So the A1AFM state of this cell is a LOCAL minimum at U = 0, and a 0.5 eV one-spin push crosses the barrier in all three codes.
+
+*Linear spin response (α↑ = 0.05 eV, decks `alphaUp005_{gpw_control,pw}`), on the AFM branch:* ΔE = 7.8887 mHa (GPW) vs α·N̄↑ = 7.8888, and 7.8511 (PW) vs 7.8510 — first order to 0.1 μHa, so no jump.
+
+| α↑·P 0.05 eV, U = 0 | ΔN↑(Mn0 d) | ΔN↓(Mn0 d) | Δm(Mn0) | Δ\|m\|(Mn1) | Δn(Mn0 d) | Δn(Mn1 d) |
+|---|---|---|---|---|---|---|
+| **PW 80 Ry** | −0.0016 | −0.0010 | −0.0006 | −0.0091 | −0.0026 | +0.0009 |
+| GPW control | −0.0014 | −0.0012 | −0.0002 | −0.0097 | −0.0026 | +0.0007 |
+
+The perturbed site's moment barely moves (both spin channels empty together: the on-site spin channel is stiff); the response is on the NEIGHBOUR's moment, Gaussian 107 % of PW, and the site charge 100 %.  **So in linear response too, the Gaussian spin channel is PW's.**  Charge (α), spin (α↑) — neither carries the 60–79 % U deficit; what U excites and neither probe does is the ORBITAL (slot) resolution of U(½ − n_mσ): next, a per-slot α.
+
 ## 2026-10-25 — HubbardProjectorPlan increment 4: ACBN0 + response through the pseudo-atomic projector, re-judged
 
 Code `b4cfc789` (`GaussianAtomCentredSet::BareCoulomb`, exact one-centre).  Decks + logs: `~/Code/qchem6-runs/TiO2/basis_scan/
