@@ -416,7 +416,8 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 // IonicSAD, which was NOT the "Mn2+ d^5 + O2-" it was described as: the per-species targets gave neutral Mn on
 // both sites + O2- (30 e for a 26 e cell).  The TRUE ionic seed (Mn2+ x2 + O2-, seed-tiebreak) LOSES AFM on
 // this arm: iterate-1 moment 0.30, dead by iteration 30, -60.97043 Ha (OpenWork §3 "The polarized IonicSAD
-// seed loses its spin"), so the anchor moved to SAD, judged below.  Pivoted Cholesky at 1e-4 (cond(S)~7e8), Kerker G0=1 against the low-G charge-transfer
+// seed loses its spin"), so the anchor moved to SAD, judged below.  RE-MEASURED 2026-10-27: on the fixed code (pin 29, per-SITE
+// targets) the ionic seed keeps AFM-II and lands on the same state as SAD to 1e-10 in 15 iterations (OpenWork_History5).  Pivoted Cholesky at 1e-4 (cond(S)~7e8), Kerker G0=1 against the low-G charge-transfer
 // slosh with ONE density-side history (Pulay depth 8 after 5 priming steps) and NOTHING on the Fock side, no
 // MOM, kT=5e-3 riding the open d manifold, alpha=0.45, CP2K's convergence measure max|dD| < 1e-6 -- and the
 // SHUBNIKOV group of the seed's decoration imposed (S3), which is what holds the staggering exactly mirrored

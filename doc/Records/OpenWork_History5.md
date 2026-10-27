@@ -473,3 +473,21 @@ The REMAINDER (the inherited [F,D] gates a GPW GDM stage cannot meet) stays in t
 (extrapolated, not run).  The β-MnO₂ stage that ran to `NMaxIter` (`basis_scan/m0_free_twostage_prefix.log` stage 2, open gap 2.3e-2)
 decays LINEARLY, ~7 %/iteration -- the crawl of row "GDM crawls…", where the evidence now sits.  And the [F,D] gate is the RIGHT one for a
 direct minimiser: row "GDM false-converges…" wants GDM gated on its gradient, not on its own step.  Nothing to change in the defaults.
+
+
+## ✅ The polarized IonicSAD seed lost its spin (OpenWork §3, 2026-10-23) -- RESOLVED by re-measure 2026-10-27; the row as it stood
+
+| **The polarized IonicSAD seed loses its spin** (2026-10-23) | MnO AFM-II SR Γ, 24-op group, seed-tiebreak's TRUE ionic seed (Mn²⁺ d⁵ ×2 + O²⁻ ×2, 26 e): iterate 1 is −42.20 Ha with Mn moment **0.30** (neutral SAD: −59.85 Ha, 3.93); the moment peaks at 2.86 (iteration 14), dies by iteration 30, and the run ends non-magnetic at −60.97043 Ha, unconverged at iteration 82.  Two Mn²⁺ Hund pairs should give ~5 after one diagonalization.  Two more data points (2026-10-23): the VA +U gate's U=0 arm (`Γ_U_Shub_Pol_Smear_CP2K_Long`, same seed) also starts at 0.30, keeps the order but takes 38 iterations (18 on the old seed; energy unmoved, 3e-10); and the OLD per-species seed (neutral Mn + O²⁻, 30 e for 26) started −52.75 Ha / 1.80, neutral SAD −59.32 / 3.68 — the true ionic seed is the WORST start of the three | check the seed's OWN m(r) before the first Fock build (is the Mn²⁺ pair at target 5 found and its spin channels kept?), then whether O²⁻ (unbound in LDA, the diffuse charge-state entry) wrecks the first iterate.  BEFORE β-MnO₂ (HubbardUPlan S2): the seed-tiebreak fix exists to make IonicSAD seed its AFM · `src/ChargeDensity/Imp/{Seed,SeedCD}.C` |
+
+**Re-measured 2026-10-27 on `3941b9e3`** (decks + logs `~/Code/qchem6-runs/MnO/mno_afm2_shub_seed_{IonicSAD,SAD}*`: `decks/MnO_AFM2_free.json`
+with `siteSpins [1,-1,0,0]`, `imposeSymmetry true` → the 24-op Shubnikov group, SR, Γ, Kerker + Pulay 8/5, kT 5e-3):
+
+| seed | seed moment | iterate 1 | converged |
+|---|---|---|---|
+| IonicSAD (Mn²⁺ ×2 + O²⁻ ×2) | 4.794 | −48.96 Ha, m 1.06 | 15 iterations, −61.3032807795, m 4.459 |
+| neutral SAD | 4.781 | −59.54 Ha, m 3.85 | 14 iterations, −61.3032807795, m 4.459 |
+
+The loss is gone.  The 2026-10-23 measurement predates the V_short image fix (pin 29, whose bias favoured FM), the Ewald fix, the per-SITE
+IonicSAD targets (`aca82fd4`) and the stated ordering (`0f353ff5`); which of them removed it was not bisected.  The ionic seed's first
+iterate is still the worse start (1.06 vs the seed's own 4.79 -- one diagonalization in the Mn²⁺/O²⁻ potential), but the order is back by
+iteration 3 and costs one iteration.  Not gated by a new test: it would be a ~10-minute `_Long` twin of `Γ_Shub_Pol_Smear_Anchor_Long`.
