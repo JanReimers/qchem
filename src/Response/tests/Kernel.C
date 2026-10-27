@@ -43,6 +43,7 @@ import qchem.SCFParams;
 import qchem.Mesh;                                    // qcMesh::MeshParams (the LDA Hamiltonian's XC mesh)
 import qchem.Types;
 import qchem.Blaze;
+import qchem.SCFAccelerator.Factory;                    // SCFAccelerators::Type (the GDM-finished-stage audit)
 import qchem.Parallel;                                 // ScopedWorkerThreads (the serial-vs-threaded bit gate)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // the d-augmented Si (orbital-resolved gate)
 import qchem.BasisSet.Gaussian.Point.BasisFiles;           // BasisFile: the data path of sipp_sr.bsd
@@ -908,6 +909,77 @@ void KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind xc, SpinGroup g)
 
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsBitIdenticalAcrossThreads_Raster_Pol)  {KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Uniform, SpinGroup::Polarized);}
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsBitIdenticalAcrossThreads_Becke_UnPol) {KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Becke,   SpinGroup::UnPolarized);}
+//=====================================================================================================
+//  OpenWork §3 "After a stage that ENDS ON A GDM STEP, the live orbitals and ε are not a valid reference" (2026-10-27).
+//  The SAME Si k211 ground state reached by a diagonalizing stage (Null) and by a stage that ends on a GDM step: the
+//  response's reference must not care.  Per block, what each leaves in the wave function: C†SC − I, the occupied-virtual
+//  block of C†FC (the gradient), and diag(C†FC) − ε -- the sum over states R0 assumes C are eigenvectors of F with ε.
+//=====================================================================================================
+namespace {
+std::unique_ptr<SolidCalculation> SiK211(SCFAccelerators::Type acc)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,1,1));
+    auto mol=std::shared_ptr<const BasisSet::Real_BS>(
+        BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true};
+    o.accelerator=acc;
+    o.hubbard={{.site=0,.l=1,.U=0.0},{.site=1,.l=1,.U=0.0}};
+    return std::make_unique<SolidCalculation>(lat, mol, o, SiParams());
+}
+struct BlockAudit { double orth=0, gradient=0, epsOcc=0, epsVir=0; };
+BlockAudit AuditReference(const SolidCalculation& calc)
+{
+    const auto& wf=ResponseFacadeTests::WF(calc);
+    auto& H=ResponseFacadeTests::Ham(calc);
+    const auto D=wf.GetChargeDensity();
+    BlockAudit a;
+    for (const Irrep& ir : wf.GetQNs())
+    {
+        const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir));
+        const auto* bs=dynamic_cast<const Hamiltonian::cobs_t*>(os->GetBasisSet());
+        const size_t n=bs->GetNumFunctions();
+        std::vector<const Orbitals::TOrbital<dcmplx>*> orbs;
+        for (const auto* o : os->template Iterate<Orbitals::TOrbital<dcmplx>>()) orbs.push_back(o);
+        mat_t<dcmplx> C(n, orbs.size());
+        for (size_t i=0;i<orbs.size();i++) for (size_t m=0;m<n;m++) C(m,i)=orbs[i]->GetCoeff()[m];
+        const mat_t<dcmplx> S(bs->Overlap()), F(H.GetMatrix(bs, ir.ms, D.get(), &calc.Basis()));
+        const mat_t<dcmplx> CSC=blazem::ctrans(C)*S*C, CFC=blazem::ctrans(C)*F*C;
+        for (size_t i=0;i<orbs.size();i++)
+        {
+            const bool iOcc=orbs[i]->GetOccupation()>0.5;
+            const double de=std::abs(CFC(i,i).real()-orbs[i]->GetEigenEnergy());
+            (iOcc ? a.epsOcc : a.epsVir)=std::max(iOcc ? a.epsOcc : a.epsVir, de);
+            for (size_t j=0;j<orbs.size();j++)
+            {
+                a.orth=std::max(a.orth, std::abs(CSC(i,j)-dcmplx(i==j)));
+                if (iOcc!=(orbs[j]->GetOccupation()>0.5)) a.gradient=std::max(a.gradient, std::abs(CFC(i,j)));
+            }
+        }
+    }
+    return a;
+}
+} // namespace
+
+TEST(ResponseKernel, GPW_Si_k211_GDMFinishedStage_OrbitalsAreEigenpairs)
+{
+    for (auto acc : {SCFAccelerators::Type::Null, SCFAccelerators::Type::GDM})
+    {
+        auto calc=SiK211(acc);
+        const BlockAudit a=AuditReference(*calc);
+        const char* who = acc==SCFAccelerators::Type::GDM ? "GDM " : "Null";
+        std::cout << "[audit " << who << "] max|C†SC-I| " << a.orth
+                  << "  max|occ-vir C†FC| " << a.gradient << "  max|diag C†FC - eps| occ " << a.epsOcc
+                  << " vir " << a.epsVir << std::endl;
+        EXPECT_LT(a.orth, 1e-10) << who;
+        EXPECT_LT(a.gradient, 1e-6) << who << ": the occupied-virtual coupling is the converged gradient";
+        EXPECT_LT(std::max(a.epsOcc, a.epsVir), 1e-6) << who << ": eps must be F's diagonal (measured before the fix: GDM vir 2.7 Ha)";
+    }
+}
+
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Raster_UnPol) {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Uniform, SpinGroup::UnPolarized);}
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Raster_Pol)   {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Uniform, SpinGroup::Polarized);}
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Becke_UnPol)  {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Becke,   SpinGroup::UnPolarized);}

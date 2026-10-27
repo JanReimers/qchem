@@ -38,6 +38,13 @@ struct Reservoirs
 template <class T> Reference MakeReference(const WaveFunction::tWaveFunction<T>& wf, const OccupationConfig& occ,
                                            Reservoirs res, double eigenNoise);
 
+//! \brief How far \a wf's orbitals are from EIGENPAIRS of the Fock their own density builds: the largest
+//! \f$|(C^\dagger F C)_{ij}-\varepsilon_i\delta_{ij}|\f$ over every complex block (Hartree), with \f$F=F[D]\f$ built by \a H over
+//! \a wholeBasis.  The sum over states R0 ASSUMES zero; a converged SCF gives its convergence noise.  Consumed by the response,
+//! which REFUSES a reference far from that (OpenWork §3, 2026-10-27: GDM once handed out virtuals labelled with other virtuals'
+//! energies, 2.7 Ha off, and chi0 came out 400x too small).  A real (TRIM) block is skipped: the response refuses those anyway.
+double EigenpairResidual(const WaveFunction::cWaveFunction& wf, Hamiltonian::cHamiltonian& H,
+                         const BasisSet::tBasisSet<dcmplx>* wholeBasis);
 //! \brief The AO <-> MO bridge of \a wf, block-aligned with \a ref (which must be \a wf's reference, and outlive
 //! the frame).  THROWS on a block whose scalar or basis is not the run's T (a real TRIM block inside a complex run
 //! is R2's business).

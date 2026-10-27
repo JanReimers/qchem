@@ -1422,6 +1422,24 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     const FrozenHubbard frozen(itsImp->ham->GetHubbardUTarget());
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
                                                              : std::numeric_limits<double>::quiet_NaN();
+    // THE REFERENCE MUST BE EIGENPAIRS OF ITS OWN FOCK (OpenWork §3, 2026-10-27): R0 is a sum over states.  GDM once handed out
+    // virtuals labelled with other virtuals' energies (2.7 Ha off) and chi0 came out 400x too small with nothing complaining.
+    // THE BOUND: chi0's relative error is ~ residual / response gap.  1e-4 Ha keeps it <~1e-3 on a 0.1 Ha gap and still refuses
+    // a mislabel (O(0.1-1) Ha) by >1000x.  Measured: Si k211 1e-10 (diagonalizing) / 8e-9 (GDM-finished); NiO k222 GDM restart
+    // 1.03e-5 (its [F,D] noise 2.4e-6) -- a 1e-5 bound refused that healthy state.
+    {
+        const double resid=qchem::Response::EigenpairResidual(*wf, *itsImp->ham, itsImp->bs.get());
+        std::cout << "[response] reference eigenpair residual max|C^H F C - diag eps| = " << resid << " Ha" << std::endl;
+        if (!(resid<=1e-4))
+        {
+            std::ostringstream os;
+            os << "the wave function's orbitals are not eigenpairs of their own Fock (max|C^H F C - diag eps| = " << resid
+               << " Ha > 1e-4): the sum-over-states response would be wrong.  Converge the stage to a diagonalized state first.";
+            std::cout << "[response] REFUSED: " << os.str() << std::endl;
+            return Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>::Fail(
+                {qchem::Response::ResponseFailure::Why::NotConverged, os.str()});
+        }
+    }
     const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
         {.acrossK=!itsImp->opts.perKFermiLevels, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
     const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf);

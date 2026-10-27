@@ -508,3 +508,30 @@ a fresh mixer seeded there).  GATE, `~/Code/qchem6-runs/NaF/naf_fdprobe_D*` (NaF
 gated on minFD 1e-7 alone): before, ‖[F,D]‖ 1.4e-6 at iteration 10, then kicks at 14 / ~29 / ~44 (+2.6 mHa, back to the loose start),
 NOT converged at 60; after, two announced fallbacks (iterations 14, 19) with E flat to 1e-14 relative, CONVERGED at 23 (6.1e-8),
 Etot −24.4303949715 = stage A's.  Short sweep: 1099 pass, 0 of 1097 moved (no existing gate falls back mid-GDM).
+
+
+## ✅ After a stage that ended on a GDM step, the live orbitals and ε were not a valid reference (OpenWork §3; found and fixed 2026-10-27) -- the row as it stood
+
+| **⛔ After a stage that ENDS ON A GDM STEP, the live orbitals and ε are not a valid reference: χ₀ is garbage** (2026-10-27) | NiO k222 (v3 basis, U_in 3), restarted from the converged overnight state (`states/NiO_AFM2.r010.h5`, EXACT RESUME, 1 iteration): χ₀(site 0, q=Γ) = **−0.00703** /Ha with the restart's default Ladder@GDM (−0.00714 on a second run: not even reproducible), **−2.89940** when the stage's last step is a diagonalization (`accelerator Null`) -- the overnight non-restarted run gave −2.89938.  Energy, moments, response gap identical in all three.  Mechanism, in part: GDM's `OrbitalsAt` returns the geodesically ROTATED orbitals with the PREVIOUS Fock's pseudo-canonical energies attached (`itsSeo`/`itsSev`), so the wave function's (C, ε) are not eigenpairs of F[D]; the sum-over-states R0 (and any other consumer of orbitals: gaps, ACBN0's occupied set, band printouts) assumes they are.  UNEXPLAINED: why a near-zero final step costs a factor 400.  The SAVED FILE is not affected (D is rebuilt from the written C at save; a restart reads only D) | (1) explain the factor 400 (compare C†FC with diag ε per block after the GDM step); (2) end every direct-min stage with a PSEUDO-CANONICALIZATION (diagonalize F within the occupied and within the virtual space: D unchanged to the bit, ε become F's) -- or a full diagonalization, the user's call; (3) make the response REFUSE a reference whose blocks are not eigenpairs of F to a stated tolerance (loud, like pin 28's throw); gate: the restart probe's χ₀ == the diagonalizing arm's · decks/logs `~/Code/qchem6-runs/NiO/kaxis/p0_{diag,gdm,t6}*` · `src/SCFAccelerator/Internal/Imp/SCFAcceleratorGDM.C` ~302 |
+
+**The factor 400, explained.**  Audit (`ResponseKernel.GPW_Si_k211_GDMFinishedStage_OrbitalsAreEigenpairs`, per block: C†SC−I, the
+occupied-virtual block of C†FC, diag(C†FC)−ε) on Si k211: a diagonalizing stage 1e-10 everywhere; the GDM-finished stage had exact
+OCCUPIED ε, a 1e-8 gradient -- and VIRTUAL ε off by up to **2.7 Ha**.  `OrbitalsAt` moved the occupied block along the geodesic, then
+COMPLETED the virtuals by an SVD of the projected old virtuals: their singular values are all ~1, so the SVD returned an arbitrary
+rotation and reordering of the virtual space, and `e[no+a]=itsSev[a]` labelled each virtual with another one's energy.  Harmless to
+GDM (each step re-derives its energies from F); fatal to every consumer of (C, ε): R0's denominators ε_occ−ε_vir came out far too
+large, so χ₀ came out too small -- 5.4× on Si (−1.348 vs −7.271), 400× on NiO (−0.00703 vs −2.8994), and not even reproducible.
+
+**Fixed.**  (1) `SCFAcceleratorGDM.C` `OrbitalsAt`: the virtuals ride the same unitary exp(A) as the occupied block,
+X_v(θ) = X_v + U(cos θ − 1)U†X_v − Y V sin θ U†X_v, so column a stays pseudo-canonical virtual a and keeps its energy to O(θ):
+Si virtual ε error 2.7 Ha → 8e-9, χ₀ −7.2705593 (diagonalizing arm −7.2705592); GDM 31 → 26 iterations (its virtual basis no
+longer jumps).  (2) `Response::EigenpairResidual` (max|C†FC − diag ε| over the complex blocks) and `SolidCalculation::
+HubbardLinearResponse` REFUSES (Outcome, Why::NotConverged) above **1e-4 Ha** -- χ₀'s relative error ~ residual/gap, so <~1e-3 on a
+0.1 Ha gap while a mislabel is refused by >1000×.  Measured residuals: Si 1e-10 (diag) / 8e-9 (GDM); every response test in the
+sweep ≤ 3.9e-8; NiO k222 GDM restart **1.03e-5** (its [F,D] noise 2.4e-6) -- an initial 1e-5 bound refused that healthy state.
+The end-of-stage PSEUDO-CANONICALIZATION the row proposed was NOT built: with the root cause gone the residual is O(final step),
+and the refusal measures it on every response.  Gates: the Si eigenpair test; NiO restart probe
+(`~/Code/qchem6-runs/NiO/kaxis/p0_gdm_fixed2.log`) χ₀ −2.8993982 / χ −1.8254405 == the diagonalizing arm (`p0_diag.log`) to the
+printed digits.  The SAVED FILE was never affected (D is rebuilt from the written C at save; a restart reads only D).
+Sweep: 1102 pass; moved: `GPW_NaF.Γ_Imp_eqColdStart` −8.9e-9 Ha (38 → 37 iterations) and `Γ_Imp_eqExactResume` −2e-10 Ha --
+the GDM rung's trajectory, within convergence noise, judged expected.

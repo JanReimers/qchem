@@ -109,6 +109,31 @@ template <class T> Reference MakeReference(const WaveFunction::tWaveFunction<T>&
 template Reference MakeReference<double>(const WaveFunction::tWaveFunction<double>&, const OccupationConfig&, Reservoirs, double);
 template Reference MakeReference<dcmplx>(const WaveFunction::tWaveFunction<dcmplx>&, const OccupationConfig&, Reservoirs, double);
 
+double EigenpairResidual(const WaveFunction::cWaveFunction& wf, Hamiltonian::cHamiltonian& H,
+                         const BasisSet::tBasisSet<dcmplx>* wholeBasis)
+{
+    const auto D=wf.GetChargeDensity();
+    double worst=0.0;
+    ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
+    {
+        if constexpr (std::is_same_v<U,dcmplx>)
+        {
+            const auto* bs=dynamic_cast<const ChargeDensity::tobs_t<dcmplx>*>(os.GetBasisSet());
+            if (!bs) throw std::logic_error("Response::EigenpairResidual: an orbital block that is not an Orbital_1E_IBS");
+            const cmat_t C=Coefficients(os, bs->GetNumFunctions());
+            const cmat_t CFC=blazem::ctrans(C)*cmat_t(H.GetMatrix(bs, ir.ms, D.get(), wholeBasis))*C;
+            size_t i=0;
+            for (const auto* o : os.Iterate())
+            {
+                for (size_t j=0;j<CFC.columns();j++)
+                    worst=std::max(worst, std::abs(CFC(i,j)-(i==j ? dcmplx(o->GetEigenEnergy()) : dcmplx(0.0))));
+                i++;
+            }
+        }
+    });
+    return worst;
+}
+
 template <class T> OrbitalFrame<T> MakeOrbitalFrame(const Reference& ref, const WaveFunction::tWaveFunction<T>& wf)
 {
     std::vector<FrameBlock<T>> blocks;
