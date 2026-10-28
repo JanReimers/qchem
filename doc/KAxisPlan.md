@@ -220,7 +220,7 @@ answers it.  σ is NOT applied (it swaps spin blocks, the caller's).  Gates:
 - ⚠ COLLINEAR: a σ op relabels ↑/↓ blocks with the spatial U (comments at `MakeOrbitalImages`, `LittleGroup.C`, P4's face).
 - **TiO₂ GATE PASSED 2026-10-28** (`decks/campaigns/TiO2/tio2_k222_q222_littleGroupGate.json`, full and reduced on ONE ground state;
   log `~/Code/qchem6-runs/TiO2/tio2_k222_q222_littleGroupGate_20261028.log`, record r007): all 8 χ₀(q), χ(q) equal to every printed
-  digit (8 sig.), U 4.09898 eV both, kernel applications 97 → 86.  ⚠ BUT the reduction was weak: the measurement kept only 8 of the 16
+  digit (8 sig.), U 4.09898 eV both, kernel applications 97 → 83.  ⚠ BUT the reduction was weak: the measurement kept only 8 of the 16
   P4₂/mnm ops — the other 8 missed by 1.37e-6 against tol 1e-6, while the reference's OWN eigenpair residual is 5.4e-6 Ha (SCF stopped at
   Δρ 1e-6).  So 12–16 of 16 blocks were solved.  The tolerance is tighter than the reference it measures: OPEN (OpenWork handoff).
 - NOT YET: time reversal (q → −q); the NiO free AFM gate (the first σ-op exercise); STAGE 2 (scatter the representatives only and symmetrize each result inside `RestrictCoupling` — the |G|-fold
