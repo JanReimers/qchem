@@ -992,19 +992,23 @@ TEST(ResponseKernel, GPW_Si_k211_GDMFinishedStage_OrbitalsAreEigenpairs)
 //! 7.5e-8).  ⚠ Measured 2026-10-27 and logged in doc/OpenWork.md §3: the SAME state on the default uniform-raster XC route
 //! breaks F by 7.4e-3 Ha (ops off the primitive-axis permutations), and a FREE run on either mesh by 5e-4 (Becke) -- the
 //! XC numerics, not M (S, T, KB and V_short carry over to 1e-14 on every op).
-TEST(OrbitalImage, GPW_Si_k222_ImposedBecke_FockAndDensityCarryOver)
+namespace
+{
+struct CarryOver { size_t blocks, checked; double dF, dD; };
+//! The converged Si k222 Becke state's F and D carried over by M under every op whose image block is stored.
+CarryOver SiK222BeckeCarryOver(bool impose)
 {
     FCCUnitCell cell(10.26);
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D lat(cell, ivec3_t(2,2,2));
     const auto ops=lat.ShubnikovOps({0,0});
-    ASSERT_EQ(ops.size(), 48u);
+    if (ops.size()!=48u) throw std::runtime_error("Si: expected the 48 ops of Fd-3m");
     auto mol=std::shared_ptr<const BasisSet::Real_BS>(
         BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true};
-    o.imposeSymmetry=true;
+    o.imposeSymmetry=impose;
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
     SolidCalculation calc(lat, mol, o, SiParams());
 
@@ -1029,7 +1033,7 @@ TEST(OrbitalImage, GPW_Si_k222_ImposedBecke_FockAndDensityCarryOver)
         }
         blocks.push_back({Symmetry::Lattice_3D::Getk(ir.sym), dynamic_cast<const BasisSet::OrbitalImageSource*>(bs),
                           mat_t<dcmplx>(H.GetMatrix(bs, ir.ms, cd.get(), &calc.Basis())), D});
-        ASSERT_TRUE(blocks.back().img) << "a GPW block must answer OrbitalImage";
+        if (!blocks.back().img) throw std::runtime_error("a GPW block must answer OrbitalImage");
     }
     auto stored=[&](const rvec3_t& k)->const Block*          // the IBZ of an imposed run: an image may not be stored
     {
@@ -1054,11 +1058,31 @@ TEST(OrbitalImage, GPW_Si_k222_ImposedBecke_FockAndDensityCarryOver)
             dD=std::max(dD, maxAbs(mat_t<dcmplx>(bp->D-M*b.D*blazem::ctrans(M))));
             checked++;
         }
-    std::cout << "[orbital image, imposed Si k222 Becke] " << blocks.size() << " blocks, " << checked << " (block, op) pairs:"
-              << "  max|M^H F_k' M - F_k| " << dF << "  max|D_k' - M D_k M^H| " << dD << std::endl;
-    EXPECT_EQ(checked, 76u) << "the IBZ is Γ, X, L: little groups of order 48 + 16 + 12";
-    EXPECT_LT(dF, 1e-7) << "the converged Fock matrix must carry over under every op";
-    EXPECT_LT(dD, 1e-6) << "the converged density matrix must carry over under every op";
+    return {blocks.size(), checked, dF, dD};
+}
+} // namespace
+
+TEST(OrbitalImage, GPW_Si_k222_ImposedBecke_FockAndDensityCarryOver)
+{
+    const CarryOver c=SiK222BeckeCarryOver(true);
+    std::cout << "[orbital image, imposed Si k222 Becke] " << c.blocks << " blocks, " << c.checked << " (block, op) pairs:"
+              << "  max|M^H F_k' M - F_k| " << c.dF << "  max|D_k' - M D_k M^H| " << c.dD << std::endl;
+    EXPECT_EQ(c.checked, 76u) << "the IBZ is Γ, X, L: little groups of order 48 + 16 + 12";
+    EXPECT_LT(c.dF, 1e-7) << "the converged Fock matrix must carry over under every op";
+    EXPECT_LT(c.dD, 1e-6) << "the converged density matrix must carry over under every op";
+}
+
+//! KAxisPlan ruling 1's precondition (user, 2026-10-27): a FREE run's XC mesh is built invariant under the detected group
+//! (symmetric numerics, the density NOT averaged), so a state that keeps the symmetry passes the ~1e-6 measurement under
+//! every op of every block.  Measured before the invariant free mesh: F 5.1e-4, D 2.3e-3 -- every op would be rejected.
+TEST(OrbitalImage, GPW_Si_k222_Becke_FreeRunCarriesOver)
+{
+    const CarryOver c=SiK222BeckeCarryOver(false);
+    std::cout << "[orbital image, FREE Si k222 Becke] " << c.blocks << " blocks, " << c.checked << " (block, op) pairs:"
+              << "  max|M^H F_k' M - F_k| " << c.dF << "  max|D_k' - M D_k M^H| " << c.dD << std::endl;
+    EXPECT_EQ(c.checked, 8u*48u) << "a free run stores every block of the mesh, so every op's image is stored";
+    EXPECT_LT(c.dF, 1e-6) << "ruling 1: a symmetric free state must pass under every op";
+    EXPECT_LT(c.dD, 1e-6) << "ruling 1: a symmetric free state must pass under every op";
 }
 
 //! KAxisPlan P3 (Q9): the q-star FOLD itself, no SCF.  Si (Fd-3m) on a 2x2x2 q-mesh: Γ, the three X-type points (one star) and

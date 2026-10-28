@@ -208,6 +208,12 @@ answers it.  σ is NOT applied (it swaps spin blocks, the caller's).  Gates:
    names the ops kept and their residuals; none pass → full mesh, said so).  Before P4 (i.e. for Q9) an explicit deck opt-in,
    audited by computing two members of one q-star.  An imposed run passes by construction.  This is MEASUREMENT, not imposition:
    nothing projects the SCF.
+   **1a (user, 2026-10-27, after P4's finding (b)): a free run gets symmetric NUMERICS, not a symmetric answer.**  Its XC mesh is
+   built invariant under the DETECTED group (the same `UnitCell::CreateIntegrationMesh(mp, ops)` an imposed run uses) but with
+   NO fold, so nothing averages the density; a measurement failure is then physics, never the integrator.  Rejected: loosening
+   the tolerance to the grid's asymmetry (it would hide the small breaking the test exists to catch); reducing imposed runs only
+   (free runs second-class).  Landed: `GPW_IBS::itsMeshOps` (`UTResponse OrbitalImage.GPW_Si_k222_Becke_FreeRunCarriesOver`,
+   384 pairs, F 2.6e-9 / D 3.4e-8 — was 5.1e-4 / 2.3e-3).  The uniform-raster route still fails (OpenWork §3, its own defect).
 2. **Threading level: one level per loop.**  Outer (blocks) when the width ≥ the thread count, else inner (pairs) as today; no
    nested OpenMP.  Outer threading with the fixed-order block sum is BIT-IDENTICAL to serial (today's inner scatter is not:
    its per-thread buffers combine in arrival order).

@@ -93,6 +93,8 @@ struct CrystalPointOps
     //! the detected one-coset-per-W group misses -- and serve every EVEN (total-density) consumer
     //! unchanged; σ itself is consumed only by the channel-pair (ρ,m) machinery in the XC quadrature.
     std::vector<Symmetry::Lattice_3D::SymOp>             magneticDirect;
+    //! FREE run only: the detected spatial group, for the XC mesh's invariance (no density average; {} when imposing).
+    std::vector<Symmetry::Lattice_3D::SymOp>             meshInvariance;
 };
 //! ONE place resolves the run's symmetry policy (doc/SymmetryUpgradePlan.md §3): detection ALWAYS runs
 //! (cheap, and a free run needs the full group as the order-parameter diagnostic's reference), but the
@@ -114,7 +116,12 @@ static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWP
     ops.policy.impose = p.imposeSymmetry ? SL::SymmetryPolicy::Impose::FullGroup
                                    : SL::SymmetryPolicy::Impose::None;
     ops.recipDetected = sg.ReciprocalOps();                                        // full {U|τ}: the diagnostic reference
-    if (!ops.policy.Imposes()) return ops;
+    if (!ops.policy.Imposes())
+    {
+        // KAxisPlan ruling 1 (user, 2026-10-27): a free run gets symmetric NUMERICS, not a symmetric answer.
+        for (const auto& op : sg.DirectOps()) ops.meshInvariance.push_back({op.W, op.tau});
+        return ops;
+    }
 
     const bool magnetic = [&]{ for (int s : p.siteSpins) if (s!=0) return true; return false; }();
     if (magnetic)
@@ -272,6 +279,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
                                     ops.directDensity,    // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
                                     p.rasterFields,       // field-sharpness routing (HartreeOnly = the Becke-XC partner)
                                     ops.magneticDirect,   // Shubnikov {W|τ,σ} on a magnetic imposition (S3; {} = grey)
+                                    ops.meshInvariance,   // free run: the detected group the XC mesh is invariant under
                                     p.tol);               // the typed GPW tolerances (D-ENV step 5)
             if (!first) first=b;
             Insert(b);
