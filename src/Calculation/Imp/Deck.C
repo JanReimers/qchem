@@ -328,6 +328,8 @@ void FromJson(const json& j, SolidCalcOptions& o)
 namespace
 {
 using PostAction=RunSpec::PostAction;
+//! The density gate a response REFERENCE converges to (user ruling 2026-10-28; the [F,D] gate replaces it once [F,D] has one home).
+constexpr double kResponseReferenceMinΔρ=1e-9;
 const char* PostName(PostAction::Kind k)
 {
     switch (k)
@@ -550,6 +552,12 @@ Materials::Material Resolve(RunSpec& spec)
                     throw std::runtime_error(who+"a SMEARED final stage (kT "+std::to_string(spec.Stages().back().scf.SmearingkT)+" Ha) with per-k "
                                              "Fermi levels: a metal's response at q != 0 needs ONE Fermi level -- drop solid.perKFermiLevels");
             }
+            // littleGroupK MEASURES the ground state's group on the reference's orbitals to 1e-6 (KAxisPlan §5 ruling 1): a reference
+            // stopped at Δρ/N 1e-6 sits AT that tolerance and keeps a random subset of ops (TiO2 k221 2026-10-28: 4..16 of 16 at 1e-6;
+            // 16 of 16, worst 9e-9, at 1e-9).  Not floored by ρ_lost/N: Δρ is a difference on ONE quadrature, the charge error cancels.
+            if (a.kind==PostAction::Kind::HubbardLinearResponse && a.littleGroupK && spec.Stages().back().scf.MinΔρPerElectron>kResponseReferenceMinΔρ)
+                throw std::runtime_error(who+"littleGroupK measures the reference's symmetry to 1e-6, so the final SCF stage must converge to "
+                                         "scf.minDeltaRhoPerElectron <= 1e-9 (it is "+std::to_string(spec.Stages().back().scf.MinΔρPerElectron)+")");
             if ((a.kind==PostAction::Kind::HubbardLinearResponse || lrLoop) && !spec.solid.forceComplex)
                 throw std::runtime_error(who+"needs the complex ansatz (the real-TRIM response face is not built); set solid.forceComplex true");
             if (isResponse)             // the q points loop INSIDE the response, on the k-mesh's own differences
@@ -696,6 +704,9 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
         bool resp=false; for (const auto& a : spec.postSCF) resp = resp || a.kind==RunSpec::PostAction::Kind::IndependentResponse || a.kind==RunSpec::PostAction::Kind::HubbardLinearResponse;
         if (resp && spec.solid.imposeSymmetry && spec.kmesh.x*spec.kmesh.y*spec.kmesh.z>1)
             v.notes.push_back("a response with solid.imposeSymmetry on a k-mesh: if the imposed group REDUCES the mesh the response throws at run time (D5); the NiO AFM-II 2x2x2 Shubnikov group does not reduce it");
+        if (resp && spec.Stages().back().scf.MinΔρPerElectron>kResponseReferenceMinΔρ)
+            v.notes.push_back("a response reference should converge to scf.minDeltaRhoPerElectron <= 1e-9 (a few more iterations; ρ_lost/N does not floor it): "
+                              "at 1e-6 its orbitals carry ~1e-6 symmetry and eigenpair residuals");
     }
     if (spec.basis.vet) v.notes.push_back("basis.vet: the vet-stage trim loop is NOT run by --check (function count is the untrimmed one)");
     std::ostringstream os;

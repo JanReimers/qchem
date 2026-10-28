@@ -414,6 +414,12 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
     EXPECT_EQ(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({4,4,2}))),"NO THROW");
     EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",2}}}}},cplx,json::array({2,1,1}))).find("incommensurate"),std::string::npos) << "the q loop shares the pre-flight";
     EXPECT_EQ(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1,1}}}}}},cplx,json::array({2,1,1}))),"NO THROW");
+    {
+        json lg=base({{{"hubbardLinearResponse",{{"littleGroupK",true}}}}},cplx);
+        EXPECT_NE(msg(lg).find("minDeltaRhoPerElectron <= 1e-9"),std::string::npos) << "littleGroupK on a reference converged only to the default gate";
+        lg["scf"]={{"minDeltaRhoPerElectron",1e-9}};
+        EXPECT_EQ(msg(lg),"NO THROW");
+    }
     EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1}}}}}},cplx)).find("must be n or [n1,n2,n3]"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",{{"perturb",{5}},{"alpha_eV",0.1}}}}},hub)).find("past the 1 manifolds"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",json::object()}}},hub)).find("alpha_eV must be nonzero"),std::string::npos);
