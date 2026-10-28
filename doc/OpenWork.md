@@ -154,3 +154,7 @@ the parity routes; 262 vs 217 whole-run); threaded 4.14 vs 5.90 s/step.  QE: no 
 Open levers (one-liners; Benchmark §10): lever B (one gather/spin, behind N4) · lever C (behind OT) · cross-k
 gather memo (Si 6.9× Γ→8k vs CP2K 1.03×) · Becke grid sizing (policy call) · ρ̃-sampling bucket · per-iteration
 G-space folds · re-take §5a on rule 3f.  Rule: COPY the run command from §5a, never reconstruct it.
+· **Plane-wave runs get NOTHING from OpenMP** (2026-10-28): β-MnO₂ PW 40 Ha, Γ, 30 bands: `QCHEM_OPENMP_THREADS=8` ran 308 s/iteration
+(`alphaOz_pw`, 44 it, 3.8 h) vs 254 s serial (`alphaSlot0_pw`, 42 it) -- slower, while the GPW twin on 8 threads ran 11 min.  Next: one
+perf profile of a PW iteration (which bucket is 250 s: the H·ψ FFTs, the dense diagonalisation, the XC 4× ball?) before threading anything ·
+logs `~/Code/qchem6-runs/MnO2/alpha/`.
