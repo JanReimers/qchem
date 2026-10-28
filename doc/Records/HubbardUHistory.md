@@ -2323,6 +2323,17 @@ The perturbed site's moment barely moves (both spin channels empty together: the
 
 **But that was the wrong row of χ.**  Re-reading the deficit's own record (2026-10-25, "THE PLANE-WAVE VERDICT"): the U arm carries U = 4.62 eV on the **O p slot Γ2 (the plane normal)** and U = 0 on Mn d.  The "Mn d moment" deficit (+0.023 … +0.030 vs +0.0385) is therefore a CROSS response — the Mn d moment's response to a potential on O p_z — which no Mn d α probes.  The discriminating probe is α on the O p Γ2 slot (all four O, as the U arm), reading the Mn d moment; and since that U is 4.62 eV, compare its linear response before blaming a nonlinear one.
 
+**The O p_z probe (2026-10-28).**  `alphaSlot_eV` [0, 0, −0.1] on the O p Γ2 slot of all four O (the U arm's manifolds and sign: U(½ − n) on n ≈ 0.85 LOWERS O p_z), both spins, U = 0; GPW control vs PW 40 Ha, against the α = 0 `_r4` references.  Decks + logs `~/Code/qchem6-runs/MnO2/alpha/alphaOz_{gpw_control,pw}` (records r026/r027; 8 OpenMP threads, 11 min / 3.8 h).  Both linear and on the AFM branch: ΔE = α·Tr P₂n to 1e-4 (−25.05 / −25.21 mHa).
+
+| α = −0.1 eV on O p_z | GPW | PW |
+|---|---|---|
+| Δ\|m\| Mn d (site 0 / 1) | −0.0028 / −0.0023 | −0.0013 / −0.0013 |
+| ΔN Mn d | −0.0088 | −0.0093 |
+| Δn O p_z, majority-O / minority-O spin | +0.0062 / +0.0094 | +0.0063 / +0.0096 |
+| n O p_z at α = 0 (up / dn on O2) | 0.8614 / 0.8348 | 0.8648 / 0.8419 |
+
+The CHARGE cross response (Mn d N, O p_z n) is PW's to 3–5 %.  The Mn MOMENT's response to a spin-independent O p_z shift is the wrong SIGN for the deficit (lowering O p_z SHRINKS \|m\|, while U grows it) and GPW's is about TWICE PW's, not short; the Mn0/Mn1 asymmetry (5e-4) is GPW's free-run floor.  So the U arm's +0.0385 is not this channel: U's potential U(½ − n_σ) also carries a SPIN-dependent part −U(n_σ − n̄) on O p_z, and the O p_z spin splitting at α = 0 is 0.0266 (GPW) vs 0.0229 (PW).  A naive 16× extrapolation to U's spin-averaged shift (≈ −1.6 eV) gives Δ\|m\| ≈ −0.04 (GPW) vs −0.02 (PW) from this channel, the same size as the deficit (0.0155) — suggestive only; the 16× is outside the linear window tested here.  Next: split the U arm into its charge and spin parts — a SPIN-resolved per-slot α on O p_z (needs `alphaSlot` per spin) or, with no new code, the U arm at reduced U (≈ 1 eV) GPW vs PW to see whether the deficit is linear at all.
+
 ## 2026-10-25 — HubbardProjectorPlan increment 4: ACBN0 + response through the pseudo-atomic projector, re-judged
 
 Code `b4cfc789` (`GaussianAtomCentredSet::BareCoulomb`, exact one-centre).  Decks + logs: `~/Code/qchem6-runs/TiO2/basis_scan/
