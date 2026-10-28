@@ -44,7 +44,9 @@ re-bank window ran, baselines in `~/Code/qchem6-runs/anchors/`); it also found t
   P5 STAGE 1 (deck `hubbardLinearResponse.littleGroupK: true`): each (q, J) solved on its little group's k-blocks, the group
   MEASURED on the orbitals (ruling 1); Si k222 q222 χ == full to 7e-9, 106 → 30 s; on the raster route the measurement keeps
   only the 6 ops it does not break.  Ruling 1a: a free run's XC mesh is invariant under the detected group (no density average).
-  NEXT: the P5 gates on real cells (TiO₂ k2/q2 vs the banked full run; NiO), then P5 STAGE 2 (scatter only the
+  TiO₂ k2/q2 gate PASSED 2026-10-28 (χ == full to every digit) but kept only 8 of 16 ops: the 8 others miss the 1e-6 orbital test
+  by 1.37e-6 while the reference's own eigenpair residual is 5.4e-6 Ha -- decide: tighter SCF for a response reference, or a tolerance
+  scaled by the measured reference residual (KAxisPlan §4a).  NEXT: that, the NiO gate, then P5 STAGE 2 (scatter only the
   representatives, symmetrize the results -- same `RestrictCoupling` view), then P6.  §6 = the RULED design.
 - **Fixed today, re-judge before trusting older numbers**: GDM's virtuals carried other virtuals' energies (χ₀ 5×–400× too small after
   ANY GDM-finished stage, restarts included; fixed `7fb46357`, the response now refuses a non-eigenpair reference).  Any χ/U/gap/ACBN0
