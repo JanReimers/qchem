@@ -45,7 +45,10 @@ struct OrbitalImages
     std::vector<OrbitalOp> ops;           //!< the KEPT ops (the identity among them)
     size_t                 tried=0;       //!< ops offered
     double                 worstKept=0;   //!< the largest residual among the kept ops
-    std::vector<double>    rejected;      //!< per rejected op: its residual (inf = an image block that is not stored)
+    //! One rejected op: what it missed by, on which test and source block (inf = an image block that is not stored, or an op the
+    //! basis cannot image) -- named so a systematic split (e.g. every op with a fractional translation) is readable off the log.
+    struct Rejection { Symmetry::SymOp op; double resid; const char* test; size_t block; };
+    std::vector<Rejection> rejected;
     double                 tol=1e-6;
     std::ostream& Write(std::ostream&) const;
 };

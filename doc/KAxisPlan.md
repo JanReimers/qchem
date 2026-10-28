@@ -223,6 +223,11 @@ answers it.  σ is NOT applied (it swaps spin blocks, the caller's).  Gates:
   digit (8 sig.), U 4.09898 eV both, kernel applications 97 → 83.  ⚠ BUT the reduction was weak: the measurement kept only 8 of the 16
   P4₂/mnm ops — the other 8 missed by 1.37e-6 against tol 1e-6, while the reference's OWN eigenpair residual is 5.4e-6 Ha (SCF stopped at
   Δρ 1e-6).  So 12–16 of 16 blocks were solved.  The tolerance is tighter than the reference it measures: OPEN (OpenWork handoff).
+  **DIAGNOSED 2026-10-28** on the k221 ladder (same deck at k 2×2×1, q Γ; `~/Code/qchem6-runs/TiO2/k221_symmetryLadder/`), worst kept /
+  ops kept: BallOnly Δρ 1e-6 → 7.0e-7, 4 kept (rejects all ≈1.0e-6 on the M-block eigenvalue, τ and non-τ ops alike); Pulay-on-D
+  (no Kerker/cusp fit) → 8 kept, same Etot; manifold on both Ti → identical (Hubbard projector cleared); AliasFree Δρ 1e-6 → 16, 3.5e-7;
+  **AliasFree Δρ 1e-9 → 16, 9.0e-9** (Si-level); **BallOnly Δρ 1e-9 → 16, 9.96e-7**.  Two causes: the SCF stopping level, and a ~1e-6
+  equivariance floor from BallOnly aliasing (also 0.54 mHa in Etot; the OpenWork ⛔ raster row).  Nothing wrong in the image machinery.
 - NOT YET: time reversal (q → −q); the NiO free AFM gate (the first σ-op exercise); STAGE 2 (scatter the representatives only and symmetrize each result inside `RestrictCoupling` — the |G|-fold
   scatter saving; stage 1 is its oracle).
 

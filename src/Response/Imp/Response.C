@@ -149,8 +149,9 @@ OrbitalImages MakeOrbitalImages(const Reference& ref, const WaveFunction::cWaveF
     for (const auto& g : ops)
     {
         OrbitalOp image{g, {}, {}};
-        double worst=0.0;
-        for (size_t b=0;b<blocks.size() && worst<=tol;b++)
+        OrbitalImages::Rejection worst{g, 0.0, "", 0};
+        auto note=[&](double r, const char* test, size_t b) {if (r>worst.resid) worst={g, r, test, b};};
+        for (size_t b=0;b<blocks.size() && worst.resid<inf;b++)   // every block: a rejection names its WORST test
         {
             const Block& src=blocks[b];
             // ⚠ COLLINEAR: a σ op only relabels the up/down blocks (the spatial U below serves both).  Non-collinear order needs the
@@ -160,24 +161,25 @@ OrbitalImages MakeOrbitalImages(const Reference& ref, const WaveFunction::cWaveF
             const rvec3_t kp=Symmetry::Lattice_3D::ImageOfK(g, src.k);
             size_t t=blocks.size();
             for (size_t c=0;c<blocks.size();c++) if (blocks[c].s==s && same(blocks[c].k, kp)) {t=c; break;}
-            if (t==blocks.size()) {worst=inf; break;}       // the image k is not stored: the mesh does not have this op
+            if (t==blocks.size()) {note(inf, "image k not stored", b); break;}   // the mesh does not have this op
             const Block& dst=blocks[t];
             cmat_t M;
             try { M=src.img->OrbitalImage(g); }
-            catch (const std::runtime_error&) { worst=inf; break; }   // not a symmetry of the basis
+            catch (const std::runtime_error&) { note(inf, "basis cannot image", b); break; }   // not a symmetry of the basis
             const cmat_t U=blazem::ctrans(dst.C)*dst.S*M*src.C;
             const cmat_t UU=blazem::ctrans(U)*U;
             for (size_t i=0;i<U.rows();i++)
                 for (size_t j=0;j<U.columns();j++)
                 {
                     const double u=std::abs(U(i,j));
-                    worst=std::max({worst, u*std::fabs(dst.e[i]-src.e[j]), u*std::fabs(dst.f[i]-src.f[j]),
-                                    std::abs(UU(i,j)-(i==j ? 1.0 : 0.0))});
+                    note(u*std::fabs(dst.e[i]-src.e[j]), "eigenvalue", b);
+                    note(u*std::fabs(dst.f[i]-src.f[j]), "occupation", b);
+                    note(std::abs(UU(i,j)-(i==j ? 1.0 : 0.0)), "unitarity", b);
                 }
             image.target.push_back(t);
             image.U.push_back(U);
         }
-        if (worst<=tol) {out.ops.push_back(std::move(image)); out.worstKept=std::max(out.worstKept, worst);}
+        if (worst.resid<=tol) {out.ops.push_back(std::move(image)); out.worstKept=std::max(out.worstKept, worst.resid);}
         else out.rejected.push_back(worst);
     }
     return out;

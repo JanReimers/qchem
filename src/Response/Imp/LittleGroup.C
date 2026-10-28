@@ -28,13 +28,18 @@ double MaxAbs(const cmat_t& A)
 std::ostream& OrbitalImages::Write(std::ostream& os) const
 {
     os << "[little group] the ground state keeps " << ops.size() << " of " << tried << " ops (measured on the orbitals: "
-       << "eigenvalue, occupation and unitarity residuals <= " << tol << "; worst kept " << std::setprecision(3) << worstKept << ")";
-    if (!rejected.empty())
+       << "eigenvalue, occupation and unitarity residuals <= " << std::scientific << std::setprecision(1) << tol << "; worst kept "
+       << std::setprecision(3) << worstKept << ")";
+    os << std::endl;
+    for (const auto& r : rejected)
     {
-        os << "; rejected:";
-        for (double r : rejected) os << " " << r;
+        os << std::defaultfloat << "[little group]   rejected  W=";
+        for (size_t i=1;i<=3;i++) {os << (i>1 ? "," : "["); for (size_t j=1;j<=3;j++) os << (j>1 ? " " : "") << std::lround(r.op.W(i,j));}   // Matrix3D is 1-based
+        os << "]  tau=(" << std::setprecision(4) << r.op.tau.x << "," << r.op.tau.y << "," << r.op.tau.z << ")"
+           << (r.op.sigma==Symmetry::SpinAction::Flip ? " sigma" : "") << "  " << std::scientific << std::setprecision(3) << r.resid
+           << " on " << r.test << " (block " << r.block << ")" << std::endl;
     }
-    return os << std::setprecision(6) << std::endl;
+    return os << std::defaultfloat << std::setprecision(6);
 }
 
 LittleGroupReduction::LittleGroupReduction(const Reference& ref, const OrbitalImages& images, const SelectionRule& rule,
