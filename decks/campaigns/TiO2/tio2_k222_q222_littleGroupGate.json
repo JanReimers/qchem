@@ -1,0 +1,81 @@
+{
+ "_doc": [
+  "KAxisPlan P5 stage-1 GATE (2026-10-28): TiO2 rutile k2^3, Ti0 3d, U_in=0 -- the q 2^3 linear response solved TWICE on ONE ground state,",
+  "full k-mesh then littleGroupK (one k-block per orbit of each (q,J)'s little group).  Pass: chi(q), chi0(q) agree to ~1e-8 relative; iterations within 1.",
+  "Derived from decks/campaigns/CrossCode/tio2_Ti3d_G.json (same cell, basis, manifold, kT)."
+ ],
+ "structure": "TiO2_rutile",
+ "kmesh": [
+  2,
+  2,
+  2
+ ],
+ "basis": {
+  "data": "VALENCE_LOWQ_VA",
+  "file": "/home/janr/Code/qchem6/BasisSetData/valence_lowq_tm.bsd",
+  "spherical": true
+ },
+ "solid": {
+  "multiplicity": 1,
+  "siteSpins": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "forceComplex": true,
+  "accelerator": "Null",
+  "hubbard": [
+   {
+    "site": 0,
+    "l": 2,
+    "U_eV": 0.0,
+    "projector": "siteShells"
+   }
+  ]
+ },
+ "scf": {
+  "NMaxIter": 200,
+  "minDeltaRhoPerElectron": 1e-06,
+  "pulayDepth": 8,
+  "pulayStart": 5,
+  "kerkerG0": 1.0,
+  "useMOM": false,
+  "smearingkT": 0.005
+ },
+ "postSCF": [
+  {
+   "hubbardLinearResponse": {
+    "nq": [
+     2,
+     2,
+     2
+    ],
+    "perturb": [
+     0
+    ]
+   }
+  },
+  {
+   "hubbardLinearResponse": {
+    "nq": [
+     2,
+     2,
+     2
+    ],
+    "perturb": [
+     0
+    ],
+    "littleGroupK": true
+   }
+  }
+ ],
+ "state": {
+  "save": "/home/janr/Code/qchem6-runs/TiO2/states/tio2_lowqtm_k222_U0.h5"
+ }
+}
