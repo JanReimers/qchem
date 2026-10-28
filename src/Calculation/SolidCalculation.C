@@ -659,7 +659,11 @@ public:
         Response::HubbardResolution res=Response::HubbardResolution::Manifold,
         //! \a qStars (doc/KAxisPlan.md P3, Q9): solve ONE q per star of the ground state's group and generate the rest; asserts
         //! the state has that group, so one member is solved directly as an audit (a disagreement FAILS).  Manifold only.
-        bool qStars=false) const;
+        bool qStars=false,
+        //! \a littleGroupK (doc/KAxisPlan.md P5, D5-a): solve each (q, perturbed channel) on one k-block per orbit of its little
+        //! group -- the ops of the ground state's group that keep q and the perturbation, each MEASURED on the orbitals first
+        //! (§5 ruling 1: a state that broke an op loses it; none kept = the full mesh).  Exact: χ equals the full-mesh χ.
+        bool littleGroupK=false) const;
     //! \brief The INTER-SITE \f$V_{IJ}\f$ of a q-mesh response (doc/LinearResponsePlan.md §5 R4 row): every home-cell row of
     //! \c QMeshResponse::Interaction off its diagonal, with the PAIR's geometry -- what a reader of a V needs is "between which two
     //! atoms, how far apart".  Sorted by distance.

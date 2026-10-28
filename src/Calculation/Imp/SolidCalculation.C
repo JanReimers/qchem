@@ -1414,7 +1414,7 @@ SolidCalculation::IndependentResponse(ivec3_t Nq) const
 // Q10), over the q-mesh's supercell.
 Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>
 SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, std::vector<size_t> perturbed,
-                                        qchem::Response::HubbardResolution res, bool qStars) const
+                                        qchem::Response::HubbardResolution res, bool qStars, bool littleGroupK) const
 {
     const auto* hub=itsImp->ham->GetHubbardChannels();
     if (!hub) throw std::logic_error("SolidCalculation::HubbardLinearResponse: this run carries no Hubbard manifold -- the "
@@ -1483,8 +1483,16 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
         const auto qmesh=ref.QMesh(Nq);
         if (qmesh) stars=qchem::Response::FoldQMesh(*qmesh, itsImp->lat->ShubnikovOps(itsImp->decoration), siteFrac, cs, perturbed);
     }
+    // THE LITTLE GROUP of each (q, J) (KAxisPlan P5): the ground state's group MEASURED on the orbitals (ruling 1), offered the
+    // Shubnikov ops of the decoration the run was built with.  ⚠ COLLINEAR: a σ op relabels the up/down blocks (MakeOrbitalImages).
+    std::optional<qchem::Response::OrbitalImages> images;
+    if (littleGroupK)
+    {
+        images=qchem::Response::MakeOrbitalImages(ref, *wf, itsImp->lat->ShubnikovOps(itsImp->decoration));
+        images->Write(std::cout);
+    }
     auto solved=qchem::Response::LinearResponse(ref, frame, *kernel, hp.probe, Nq, krylov, resolved ? channels : perturbed,
-                                                stars ? &*stars : nullptr);
+                                                stars ? &*stars : nullptr, 1e-6, images ? &*images : nullptr);
     if (!solved) { std::cout << "[response] FAILED: " << solved.Error().detail << std::endl; return solved; }
     qchem::Response::QMeshResponse r=solved.TakeValue();
     if (resolved) r.group=hp.manifold;

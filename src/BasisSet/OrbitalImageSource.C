@@ -21,7 +21,9 @@ public:
     //! carried by \a g onto the block at \f$k'=W^{-T}k\f$ (\c Symmetry::Lattice_3D::ImageOfK; any stored block equal to it
     //! mod G -- the Bloch functions are periodic in k).  Orbital coefficients map as \f$C_{k'}=MC_k\f$; an operator matrix
     //! as \f$F_k=M^\dagger F_{k'}M\f$ when \a g is a symmetry of it.  \a g's spin action is NOT applied: it swaps the spin
-    //! BLOCKS, which the caller owns.  THROWS when \a g is not a symmetry of this basis on its cell.  Complex on every
+    //! BLOCKS, which the caller owns.  ⚠ COLLINEAR ONLY: "σ = a swap of the ↑/↓ blocks" assumes a collinear spin basis with
+    //! no spinor mixing.  Non-collinear magnetism needs the SU(2) spin rep on a 2n spinor block (M ⊗ U(g)), which changes
+    //! this face and every caller that swaps blocks.  THROWS when \a g is not a symmetry of this basis on its cell.  Complex on every
     //! block (a real TRIM block's image is real only when \f$k'\f$ is TRIM too, which the caller can check).
     virtual mat_t<dcmplx> OrbitalImage(const Symmetry::SymOp& g) const = 0;
 };

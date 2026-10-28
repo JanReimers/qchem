@@ -108,6 +108,15 @@ inline rvec3_t WaveVectorOf(const Symmetry::SelectionRule& rule)
 template <class T> std::unique_ptr<TransitionDensity<T>>
 AO_TransitionDensity_Factory(std::vector<TransitionBlock<T>> blocks, std::shared_ptr<const Symmetry::SelectionRule> rule);
 
+//! \brief THE SAME transition density with a NARROWER coupling (doc/KAxisPlan.md P5, D5-a): \a inner's content and every face
+//! (Hartree, pair projection, its spin channels), but \c Coupling() answers \a rule -- which must couple a SUBSET of \a inner's
+//! pairs and keep its wave vector.  What it is for: the response kernel gathers \f$\delta F\f$ on the pairs a density's rule
+//! couples, so a little-group reduction asks this view for \f$\delta F\f$ on its orbit representatives only, while the induced
+//! potential is still built from the whole \f$\delta\rho\f$.  (P5 stage 2 moves the reduction into the density itself:
+//! scatter only the representatives' pairs and symmetrize each result, behind this same factory.)
+std::unique_ptr<TransitionDensity<dcmplx>> RestrictCoupling(std::unique_ptr<TransitionDensity<dcmplx>> inner,
+                                                            std::shared_ptr<const Symmetry::SelectionRule> rule);
+
 using rTransitionDensity=TransitionDensity<double>;   using cTransitionDensity=TransitionDensity<dcmplx>;
 
 } // namespace

@@ -41,9 +41,11 @@ re-bank window ran, baselines in `~/Code/qchem6-runs/anchors/`); it also found t
   CLAUDE.md says how to check), P1 (response kernel threaded, bit-identical; NiO one-q 6735 → 1488 s at 6 threads), P3 (Q9: deck
   `qStars: true`, audited; Si q222 3 of 8 q, U identical), P4 (`OrbitalImage(g)` on the Bloch block; S-unitary to 1e-15 on
   Si/β-MnO₂/TiO₂, F/D carry over to 3e-9/8e-8 on an imposed Becke state).  PARKED: P2's SCF threading → OOD **V1.41**.  NEXT:
-  P5 (D5-a).  Ruling 1a (user, 2026-10-27): a free run's XC mesh is now built invariant under the detected group, no density
-  average (Becke free Si: F/D carry over to 3e-9/3e-8).  Still open first: §3 "The uniform-raster XC route is not equivariant"
-  (P5's symmetrizer would inherit it on the default route).  §6 = the RULED design.
+  P5 STAGE 1 (deck `hubbardLinearResponse.littleGroupK: true`): each (q, J) solved on its little group's k-blocks, the group
+  MEASURED on the orbitals (ruling 1); Si k222 q222 χ == full to 7e-9, 106 → 30 s; on the raster route the measurement keeps
+  only the 6 ops it does not break.  Ruling 1a: a free run's XC mesh is invariant under the detected group (no density average).
+  NEXT: the P5 gates on real cells (TiO₂ k2/q2 vs the banked full run; NiO), then P5 STAGE 2 (scatter only the
+  representatives, symmetrize the results -- same `RestrictCoupling` view), then P6.  §6 = the RULED design.
 - **Fixed today, re-judge before trusting older numbers**: GDM's virtuals carried other virtuals' energies (χ₀ 5×–400× too small after
   ANY GDM-finished stage, restarts included; fixed `7fb46357`, the response now refuses a non-eigenpair reference).  Any χ/U/gap/ACBN0
   produced right after a GDM-finished stage before 2026-10-27 is suspect.

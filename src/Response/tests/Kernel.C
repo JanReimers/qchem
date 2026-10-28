@@ -18,6 +18,7 @@
 #include <limits>
 #include <memory>
 #include <random>
+#include <chrono>
 #include <stdexcept>
 #include <vector>
 #include <algorithm>
@@ -1139,3 +1140,64 @@ TEST(ResponsePolarizability, GPW_Si_ImposedGamma_Raster_eqFreeChi)
     EXPECT_NEAR(c0i, c0f, 5e-5*std::fabs(c0f));
     EXPECT_NEAR(ci,  cf,  5e-5*std::fabs(cf)) << "an imposed run's response differs from the free run's";
 }
+
+namespace
+{
+//! KAxisPlan P5 (D5-a): the response on the LITTLE GROUP of (q, J) equals the full-mesh response.  Free Si k222 on the (now
+//! invariant) Becke mesh, a Si-p manifold on site 0 perturbed, the whole q222 mesh: the reduced solve works on one k-block per
+//! orbit of the ops that keep q and the site, and unfolds.  Its packing is an isometry of the full problem's symmetric subspace,
+//! so GMRES takes the SAME steps -- the iteration counts must match, and chi0 / chi to the solve's tolerance.
+void LittleGroupEqualsFull(ivec3_t Nq, qcMesh::UnitCellKind xc=qcMesh::UnitCellKind::Becke)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    auto mol=std::shared_ptr<const BasisSet::Real_BS>(
+        BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0,
+                       .hubbard={{.site=0, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}},
+                       .forceComplex=true};
+    o.siteSpins={0,0};
+    o.xcMesh.cellKind=xc;
+    SolidCalculation calc(lat, mol, o, SiParams());
+    ASSERT_TRUE(calc.DidConverge());
+    const KrylovParams kp{.tol=1e-9};
+    const auto t0=std::chrono::steady_clock::now();
+    auto full=calc.HubbardLinearResponse(Nq, kp, {}, Response::HubbardResolution::Manifold, false, false);
+    const auto t1=std::chrono::steady_clock::now();
+    auto red =calc.HubbardLinearResponse(Nq, kp, {}, Response::HubbardResolution::Manifold, false, true);
+    const auto t2=std::chrono::steady_clock::now();
+    std::cout << "[little group gate] wall: full " << std::chrono::duration<double>(t1-t0).count() << " s, reduced "
+              << std::chrono::duration<double>(t2-t1).count() << " s" << std::endl;
+    ASSERT_TRUE(full.IsOk()) << full.Error().detail;
+    ASSERT_TRUE(red .IsOk()) << red .Error().detail;
+    ASSERT_EQ(full->atQ.size(), red->atQ.size());
+    double d0=0, d1=0, s0=0, s1=0;
+    for (size_t i=0;i<full->atQ.size();i++)
+    {
+        const auto& f=full->atQ[i]; const auto& r=red->atQ[i];
+        for (size_t I=0;I<f.chi.rows();I++) for (size_t J=0;J<f.chi.columns();J++)
+        {
+            d0=std::max(d0, std::abs(f.chi0(I,J)-r.chi0(I,J))); s0=std::max(s0, std::abs(f.chi0(I,J)));
+            d1=std::max(d1, std::abs(f.chi (I,J)-r.chi (I,J))); s1=std::max(s1, std::abs(f.chi (I,J)));
+        }
+        // The packing is an isometry, so GMRES takes the same steps up to rounding at the stopping threshold (measured: 2 of
+        // 8 q stop one application earlier, 7 vs 8).
+        for (size_t c=0;c<f.iterations.size();c++)
+            EXPECT_LE(std::abs(int(f.iterations[c])-int(r.iterations[c])), 1) << "q " << i << ": the reduced solve takes the full solve's steps";
+    }
+    std::cout << "[little group gate] max|chi0 red - full|/max|chi0| " << d0/s0 << "  max|chi red - full|/max|chi| " << d1/s1 << std::endl;
+    EXPECT_LT(d0/s0, 1e-8) << "chi0 needs no kernel: only the unfolding";
+    EXPECT_LT(d1/s1, 1e-7) << "the reduced response must equal the full-mesh response";
+}
+} // namespace
+
+//! The whole q222 mesh (measured 2026-10-27: chi 6.7e-9 relative, chi0 exact; wall 106 s full vs 30 s reduced at 4 threads).
+TEST(ResponseLittleGroup, GPW_Si_k222_q222_Becke_ReducedEqualsFull_Long) {LittleGroupEqualsFull(ivec3_t(2,2,2));}
+//! The short-tier twin: Γ (Td of the site, 24 ops) and X.
+TEST(ResponseLittleGroup, GPW_Si_k222_q211_Becke_ReducedEqualsFull)      {LittleGroupEqualsFull(ivec3_t(2,1,1));}
+//! The SAFETY NET (ruling 1): the uniform-raster XC route breaks the group numerically (OpenWork §3, F off by up to 7e-3 Ha), so
+//! the orbital measurement must REJECT the ops it breaks -- and the reduced answer still equals the full one.
+TEST(ResponseLittleGroup, GPW_Si_k222_q211_ReducedEqualsFull_Long) {LittleGroupEqualsFull(ivec3_t(2,1,1), qcMesh::UnitCellKind::Uniform);}

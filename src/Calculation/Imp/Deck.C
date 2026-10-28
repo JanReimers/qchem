@@ -369,7 +369,7 @@ json PostJson(const PostAction& a)
         break;
     case PostAction::Kind::IndependentResponse:     p={{"nq",QMeshJson(a.nq)}}; break;
     case PostAction::Kind::HubbardLinearResponse:   p={{"nq",QMeshJson(a.nq)},{"perturb",a.perturb},{"tol",a.tol},{"maxIter",a.maxIter},{"restart",a.restart},
-                                                       {"resolve",NameOf(a.resolve,kResolution)},{"qStars",a.qStars}}; break;
+                                                       {"resolve",NameOf(a.resolve,kResolution)},{"qStars",a.qStars},{"littleGroupK",a.littleGroupK}}; break;
     case PostAction::Kind::HubbardFiniteDifference: p={{"perturb",a.perturb},{"alpha_eV",ToEV(a.alpha)}}; break;
     }
     return json::object({{PostName(a.kind),p}});
@@ -393,7 +393,7 @@ PostAction PostFromJson(const json& j, const std::string& path)
     else if (name=="independentResponse"){ a.kind=PostAction::Kind::IndependentResponse; GetQMesh(f,a.nq,path+"."+name); }
     else if (name=="hubbardLinearResponse")
     { a.kind=PostAction::Kind::HubbardLinearResponse; GetQMesh(f,a.nq,path+"."+name); f.Get("perturb",a.perturb); f.Get("tol",a.tol); f.Get("maxIter",a.maxIter); f.Get("restart",a.restart);
-      f.GetEnum("resolve",a.resolve,kResolution); f.Get("qStars",a.qStars); }
+      f.GetEnum("resolve",a.resolve,kResolution); f.Get("qStars",a.qStars); f.Get("littleGroupK",a.littleGroupK); }
     else if (name=="hubbardFiniteDifference")
     { a.kind=PostAction::Kind::HubbardFiniteDifference; f.Get("perturb",a.perturb); double eV=ToEV(a.alpha); f.Get("alpha_eV",eV); a.alpha=eV/kHaToEV; }
     else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference)");
@@ -828,7 +828,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         case K::HubbardLinearResponse:
         {
             KrylovParams kp{.tol=a.tol}; kp.maxIter=a.maxIter; kp.restart=a.restart;
-            auto R=calc->HubbardLinearResponse(a.nq, kp, a.perturb, a.resolve, a.qStars);
+            auto R=calc->HubbardLinearResponse(a.nq, kp, a.perturb, a.resolve, a.qStars, a.littleGroupK);
             pr.ok=bool(R);
             if (R)
             {

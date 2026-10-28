@@ -201,6 +201,27 @@ answers it.  σ is NOT applied (it swaps spin blocks, the caller's).  Gates:
   (b) a FREE run's XC mesh is not invariant (Becke F 5e-4, D 2e-3), so ruling 1's measurement as written would reject every
   op on every free run — a decision before P5.
 
+**P5 STAGE 1 DONE 2026-10-27: the little group of (q, J) on the GATHER side.**  Deck `hubbardLinearResponse.littleGroupK: true`
+(`SolidCalculation::HubbardLinearResponse(…, littleGroupK)`), opt-in until the real-cell gates below pass.
+- `Response::MakeOrbitalImages` (ruling 1, measured): every op of the run's Shubnikov set, on every block, as the orbital-basis
+  image U = C_{k'}† S_{k'} M_g(k) C_k; KEPT only if U maps orbitals onto orbitals of the same ε and f and is unitary, to 1e-6.
+  Console: kept / tried and every rejected op's residual.
+- `Response::LittleGroupReduction` (one per (q, J)): of those, the ops that keep q (pair → pair) and the perturbation up to ONE
+  phase χ_g, MEASURED (residual ~1e-14), never derived; the orbits; the reduced packing — √orbit per representative (an
+  ISOMETRY of the full symmetric subspace, so GMRES takes the full solve's steps) and the stabilizer projection on every pack.
+- The solver's reduced operator: unfold → ToAO (the WHOLE δρ is still scattered) → `ChargeDensity::RestrictCoupling` (the §6
+  decorator; this stage only narrows the coupling, so the kernel's pair loop gathers δF on the representatives) → ToMO on the
+  representatives → unfold δF → R0 (its q = 0 δμ sums every block) → pack.  Measurement on the unfolded δD (exact for every
+  row).  The kernel, the terms and `InducedFock` are untouched.
+- **Gates** (`UTResponse ResponseLittleGroup.*`): Si k222 free Becke, Si-p on site 0 — q211 χ 1.7e-10 (short tier), q222 χ
+  6.7e-9, χ₀ exact, iterations within 1 (`_Long`; wall 106 s full → 30 s reduced at 4 threads; little groups 24 at Γ, 6–8
+  elsewhere; 3–4 of 8 blocks solved).  **The safety net**: on the uniform-raster route the measurement keeps only the 6
+  primitive-axis permutations (the 42 others rejected at 4e-4–9e-3 — the §3 raster defect), and χ still equals full to 3e-15.
+- ⚠ COLLINEAR: a σ op relabels ↑/↓ blocks with the spatial U (comments at `MakeOrbitalImages`, `LittleGroup.C`, P4's face).
+- NOT YET: time reversal (q → −q); the real-cell gates (TiO₂ k2/q2 vs the banked full run, NiO free AFM — the first σ-op
+  exercise); STAGE 2 (scatter the representatives only and symmetrize each result inside `RestrictCoupling` — the |G|-fold
+  scatter saving; stage 1 is its oracle).
+
 ## 5. Rulings (user, 2026-10-27)
 
 1. **Assertion policy.**  A free run is reduced only by the subgroup its ground state is MEASURED to have: once D_AO exists (P4),

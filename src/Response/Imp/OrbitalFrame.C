@@ -120,6 +120,23 @@ template <class T> BlockPairs OrbitalFrame<T>::ToMO(const Hamiltonian::Transitio
     return X;
 }
 
+template <class T> BlockPairs OrbitalFrame<T>::ToMO(const Hamiltonian::TransitionFock<T>& dF, const Symmetry::SelectionRule& rule,
+                                                   const std::vector<size_t>& kets) const
+{
+    const std::vector<size_t> p=itsRef.Partners(rule);
+    BlockPairs X;
+    X.m.resize(itsBlocks.size());
+    for (size_t b : kets)
+    {
+        if (b>=itsBlocks.size()) throw std::out_of_range("OrbitalFrame::ToMO: a ket block beyond the frame");
+        const auto& ket=itsBlocks[b];
+        const auto& bra=itsBlocks[p[b]];
+        const cmat_t F=Complexify(dF.Matrix(bra.irrep, ket.irrep));
+        X.m[b]=cmat_t(blazem::ctrans(Complexify(bra.C))*F*Complexify(ket.C));
+    }
+    return X;
+}
+
 template class OrbitalFrame<double>;
 template class OrbitalFrame<dcmplx>;
 

@@ -10,6 +10,8 @@
 //
 // with \f$k'_f=W^{-T}k_f\f$ fractional and \f$W_c=AWA^{-1}\f$.  Pure math on the shell list and the cell: no basis, no
 // integrals.  The spin action sigma is NOT applied here -- it swaps the spin BLOCKS, which the caller owns.
+// ⚠ That split ASSUMES COLLINEAR order: a spin op is then only a relabel of the up/down blocks.  Non-collinear support needs the
+// SU(2) rep acting on a 2n spinor block (M (x) U(g), with time reversal antiunitary), and the callers that swap blocks change.
 module;
 #include <vector>
 export module qchem.Symmetry.Lattice_3D.BlochOperationRep;
