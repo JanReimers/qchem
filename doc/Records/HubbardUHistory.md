@@ -2310,6 +2310,19 @@ Same settings as the polarization arms (vet off, CholeskyPivoted 1e-7, AliasFree
 
 The perturbed site's moment barely moves (both spin channels empty together: the on-site spin channel is stiff); the response is on the NEIGHBOUR's moment, Gaussian 107 % of PW, and the site charge 100 %.  **So in linear response too, the Gaussian spin channel is PW's.**  Charge (α), spin (α↑) — neither carries the 60–79 % U deficit; what U excites and neither probe does is the ORBITAL (slot) resolution of U(½ − n_mσ): next, a per-slot α.
 
+**The slot-resolved α (same day; code `ef056880` + `63d7ea36`: `alphaSlot_eV`, one static α_k on each U slot's FIXED isotypic projector P_k, both spins; slot occupations now printed to 4 decimals).**  0.05 eV on ONE slot of site-0 Mn d at a time (slots [0],[1],[2] dim 1, [3] dim 2), U = 0, GPW control vs PW 80 Ry, decks `alphaSlot{0..3}_{gpw_control,pw}`, references re-run on the same binary for the 4-decimal print (`alpha0_gpw_control_r4` −93.3837352286, `pw_U0h_fix_r4` −92.6795194582: both reproduce exactly).  All eight on the AFM branch: ΔE = α·Tr P_k n to first order (GPW 2.051 / 1.837 / 1.703 / 3.714 mHa vs 2.053 / 1.837 / 1.706 / 3.720; PW 2.055 / 1.836 / 1.714 / 3.676 vs 2.056 / 1.837 / 1.717 / 3.682).  Responses (units 1e-4 e; the print resolution is 1e-4):
+
+| α on slot | Δm(Mn0) GPW / PW | Δ\|m\|(Mn1) GPW / PW | ΔN(Mn0 d) GPW / PW | own slot ΔN↑ + ΔN↓ GPW / PW |
+|---|---|---|---|---|
+| [0] dim 1 | +3 / +6 | +17 / +17 | −7 / −4 | −15 / −16 |
+| [1] dim 1 | −1 / 0 | +2 / +2 | −1 / +2 | 0 / −1 |
+| [2] dim 1 | −14 / −13 | +17 / +18 | −12 / −11 | −36 / −37 |
+| [3] dim 2 | +9 / +7 | −13 / −10 | −31 / −35 | −62 / −65 |
+
+**The Gaussian ORBITAL response of Mn d is PW's too**, entry by entry within the print resolution (every per-slot, per-spin, per-site change agrees to ≤ 3e-4).  So the Mn d → Mn d response is PW's in every channel probed: charge (α), spin (α↑), orbital (α_k).
+
+**But that was the wrong row of χ.**  Re-reading the deficit's own record (2026-10-25, "THE PLANE-WAVE VERDICT"): the U arm carries U = 4.62 eV on the **O p slot Γ2 (the plane normal)** and U = 0 on Mn d.  The "Mn d moment" deficit (+0.023 … +0.030 vs +0.0385) is therefore a CROSS response — the Mn d moment's response to a potential on O p_z — which no Mn d α probes.  The discriminating probe is α on the O p Γ2 slot (all four O, as the U arm), reading the Mn d moment; and since that U is 4.62 eV, compare its linear response before blaming a nonlinear one.
+
 ## 2026-10-25 — HubbardProjectorPlan increment 4: ACBN0 + response through the pseudo-atomic projector, re-judged
 
 Code `b4cfc789` (`GaussianAtomCentredSet::BareCoulomb`, exact one-centre).  Decks + logs: `~/Code/qchem6-runs/TiO2/basis_scan/
