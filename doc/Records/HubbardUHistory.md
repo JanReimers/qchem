@@ -2344,6 +2344,28 @@ The charge columns move TO PW with the basis; the Mn moment's response to the sp
 
 The CHARGE cross response (Mn d N, O p_z n) is PW's to 3–5 %.  The Mn MOMENT's response to a spin-independent O p_z shift is the wrong SIGN for the deficit (lowering O p_z SHRINKS \|m\|, while U grows it) and GPW's is about TWICE PW's, not short; the Mn0/Mn1 asymmetry (5e-4) is GPW's free-run floor.  So the U arm's +0.0385 is not this channel: U's potential U(½ − n_σ) also carries a SPIN-dependent part −U(n_σ − n̄) on O p_z, and the O p_z spin splitting at α = 0 is 0.0266 (GPW) vs 0.0229 (PW).  A naive 16× extrapolation to U's spin-averaged shift (≈ −1.6 eV) gives Δ\|m\| ≈ −0.04 (GPW) vs −0.02 (PW) from this channel, the same size as the deficit (0.0155) — suggestive only; the 16× is outside the linear window tested here.  Next: split the U arm into its charge and spin parts — a SPIN-resolved per-slot α on O p_z (needs `alphaSlot` per spin) or, with no new code, the U arm at reduced U (≈ 1 eV) GPW vs PW to see whether the deficit is linear at all.
 
+**The small-U ladder, rerun (2026-10-29): the Mn moment's U response is NON-MONOTONIC, and its small-U slope is the spin-averaged channel.**  Two defects stood in the way and are fixed or bypassed:
+- **The leak:** the flip ops were projected only inside XC, seeded by the odd coarse multigrid levels. It was fixed by projecting the (D↑, D↓) pair on Γ (`3b2a163a`, `tBasisSet::ProjectSpinPair`). Diagnosis in `OpenWork_History5.md`.
+- **The overshoot:** Kerker+Pulay overshoots the U = 1 eV basin (`OpenWork.md` §3 row), so the ladder ran plain Kerker α 0.1 (cap 300, 8 threads), each rung restarted from the one below.
+
+The binary is merged main `06260200` + `e9765e33`. The restart fix `91032167` is not on it, but it does not apply: every rung is a WARM restart. Decks + logs: `~/Code/qchem6-runs/MnO2/uscan/*_U{0s,0.5a,1a,2a}` (runner `run_uladder2.sh`, records r013–r023). All rungs converged in 22–86 iterations, with the two Mn exactly equal, except **control U = 2 eV**. That rung sits in a plain-Kerker LIMIT CYCLE: E −93.336 … −93.352 and cell moment 3.35–3.44 over 300 iterations, with no drift. Its row below is the last iterate, NOT a fixed point.
+
+| U(O p_z) eV | m_d Mn (control) | N_d Mn | n̄ O p_z | O p_z m per site | m_d Mn (p5f3_Od) | N_d Mn | n̄ O p_z | O p_z m per site |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 3.5178 | 5.0702 | 0.8481 | ±0.0266 | 3.5191 | 5.0463 | 0.8569 | ±0.0234 |
+| 0.5 | 3.5136 | 5.0548 | 0.8619 | ±0.0215 | 3.5154 | 5.0298 | 0.8717 | ±0.0179 |
+| 1 | 3.5102 | 5.0382 | 0.8772 | ±0.0156 | 3.5130 | 5.0114 | 0.8881 | ±0.0117 |
+| 2 | (3.5220, cycle) | (5.0740) | (0.8906) | (±0.0077) | 3.5132 | 4.9700 | 0.9258 | ∓0.0021 |
+| 4.62 | 3.5406 | 4.9418 | 0.9663 | ∓0.0115 | 3.5493 | 4.9211 | 0.9664 | ∓0.0107 |
+
+(m = up − dn of the +U projector's slots, last `[+U]` print. The O p_z sign is relative to O2's U = 0 majority: the four O carry ± in pairs, and ∓ means REVERSED.)
+
+1. **The moment first FALLS, then rises.** Δm_d at U = 1 eV is −0.0076 (control) and −0.0061 (p5f3_Od). It is +0.0228 / +0.0302 at 4.62 eV.
+2. **The small-U slope is the spin-AVERAGED channel, linear.** U(½ − n̄) at n̄ ≈ 0.85 is a ≈ −0.35 U shift, so U = 1 eV ≈ 3.5 × the α = −0.1 eV probe. 3.5 × (−0.0024 / −0.0022) = −0.0084 / −0.0077 against the −0.0076 / −0.0061 measured. The spin-dependent part −U(n_σ − n̄) is small there: ±13 meV on a ±0.013 splitting at U = 1.
+3. **The rise is nonlinear.** O p_z fills toward 0.97, its spin polarization shrinks through ZERO and REVERSES sign. The reversal falls between U = 2 and 4.62 eV on control, and before U = 2 eV on p5f3_Od. The U = 4.62 eV states of the two bases agree on n̄ O p_z (0.9663 / 0.9664) and on the reversed O moment (0.0115 / 0.0107).
+4. **The basis difference grows with U.** It is 0.0015 at U = 1 and 0.0074 at 4.62 eV. The U = 4.62 eV "spin response" is therefore a small difference of a dip and a rise, not a linear response.
+5. **A suggestion, not a verdict.** PW's probe slope was −0.0013 (≈ half GPW's). Continued over 4.62 eV, that half-size dip differs from GPW's by ≈ 0.017, the size of the deficit (0.0155). Testing it needs the PW U = 1 eV point (prediction: Δm_d ≈ −0.005), and control's U = 2 eV rung needs a recipe that escapes the limit cycle.
+
 ## 2026-10-25 — HubbardProjectorPlan increment 4: ACBN0 + response through the pseudo-atomic projector, re-judged
 
 Code `b4cfc789` (`GaussianAtomCentredSet::BareCoulomb`, exact one-centre).  Decks + logs: `~/Code/qchem6-runs/TiO2/basis_scan/
