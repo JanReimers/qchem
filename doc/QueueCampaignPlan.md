@@ -1,0 +1,212 @@
+# Queue campaign — clear the critical path before forces (DRAFT v2 2026-10-29, user comments on v1 folded in)
+
+Born at the top of `doc/` because it is about to be executed; retires to `doc/Records/` when the forces design note starts.
+Scope: `doc/OpenWork.md` §2–§3, `doc/CleanCode.md`, `doc/OOD-SOLID-Cleanup.md`, `doc/ModuleToolchainPlan.md`.
+The HubbardUPlan / KAxisPlan sequence continues in its own lane (H) and is not re-planned here.
+
+## 1. The finish line: the CRITICAL PATH is clear, not the queues empty
+
+Most new rows are born from campaign work (β-MnO₂, NiO, the PW route): every measurement finds a corner, so a zero-row goal is
+unreachable while campaigns run.  The finish line is instead: **no open row tagged F, V or S.**
+
+| tag | meaning | counts? |
+|---|---|---|
+| **F** | blocks or corrupts forces / geometry optimization (grid aliasing, SCF robustness, restart after a geometry step, basis that changes with geometry) | yes |
+| **V** | blocks the spinel voltage curve (Li / PP / basis plumbing, conditioning of Li cells, GGA, the functional recorded truthfully) | yes |
+| **S** | structural debt IN THE CODE THE FEATURES WILL TOUCH: Hamiltonian terms (V1.41, V1.35, R1.0q, V1.34, §I.1, V1.39), SCF iterator / accelerators / mixers (D9, V-MIXER-GBALL, V1.27, V1.24(i), D-DIIS-FDMIN), the Lattice basis + GPW evaluator (D-GPWPAIR, D3, D4, D13, D-ENV-TOL), the facade (D-ENV typed fields, D-PW-FACADE, and **V-CALCNET — see below**), plus D-WARNINGS (it finds bugs) | yes |
+| **H** | owned by the Hubbard / KAxis lane | no |
+| **X** | hygiene far from the feature path (R2.24, R2.23, R2.21, D10, R1.0f, D-RK-ONCE, D-CONTRACTED-SHELL, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH) | no — but see the quota |
+| **P** | parked / trigger-only / a feature, not debt | no |
+
+**The compromise on clean code (user: "the cleaner the code, the easier anything big").**  v1 put all OOD/clean rows on the back
+burner; that was wrong.  Two rules instead:
+1. **Clean before you build**: every S row in the files a feature will touch closes before that feature starts.  That is why S counts.
+2. **A standing hygiene quota**: lane B spends at least one chunk in three on X rows, so the far-away debt also shrinks, at a known rate.
+
+**V-CALCNET, re-opened (user 2026-10-29: "a design review any time you deem appropriate")**: a geometry optimizer is a NEW CLIENT
+that drives a Calculation many times at moving positions — `MoleculeCalculation` AND `SolidCalculation` (user), so it needs one face
+over both — keeping the basis, the PP set, the grids and the previous density.  That is the network's placement question, and so is
+C4's "where is PP data read" (D-STRUCTDATA step 2).  So the review runs FIRST in lane B, before C4 (§5).
+
+The controller reports the **open F+V+S count** at every merge.
+
+## 2. What the zoom-out found
+
+- **25 ✅ rows still sit in `OpenWork.md`** (4 in §2, ~21 in §3) against the same-day rule; with their REMAINDERs about a third of the
+  tracker's lines.  A remainder that is not F/V/S becomes a one-line CleanCode row or is dropped.
+- **§2 rows that are not features**: PW-1 remainder (= OOD `D-PW-FACADE`), "Dense PW cost" + "LR efficiency ledger" + "LR on REAL
+  TRIM blocks" (→ §4), "CP2K finite-α LRT" automation (→ CleanCode), "Second oracle" (a rule, in CLAUDE.md → delete), "Diffuse-basis
+  ACTUATOR" (a defect with a ruling, pin 22 → §3).
+- **Duplicates**: §3 "Seed library keyed by q" ⊂ D-STRUCTDATA step 2; §3 "`u_bands` after a GDM stage" is very likely the
+  GDM-virtuals defect fixed in `7fb46357` (re-measure, then close).
+- **Already done since v1 (checked in git 2026-10-29)**: [F,D] has one home + the SCF cap guard (`1e0b2069`, `2b7fc2ca`, merged
+  `48f2e02f`); the converge-once `Calculation` constructor (D-CALC-DOUBLE-SCF's core); the linear mixer's irrational grow ratio +
+  `MaxRelaxRo` (part of "Linear D-mixing never re-damps").  V1.41 stage 1 is on main (`78ff59de`); stages 2–3 are open.
+- **Forces concerns not yet written down** (go into the forces design note): (a) pin 22's vet trim depends on λ_min(S(R)) — along a
+  relaxation the basis must be FROZEN or the PES is discontinuous; (b) GPW aliasing is an egg-box force error; (c) a geometry step is a
+  restart from a moved density (the Ladder row's unmeasured remainder; CK-3); (d) `H.At(cd)` is the natural carrier of dE/dR at a
+  converged D; (e) R1.0r (§7) — a density symmetrized under more symmetry than the k-sample has is not variational, so its forces are not
+  the derivative of its energy.
+- **GGA goes before forces** (agreed): forces design note → GGA → forces → relax → voltage.
+
+## 3. Convergence — stop and design (user 2026-10-29)
+
+**The evidence.**  Most of the last month's lost time is SCF convergence, and the causes are a short list: pin 28 violations (XC fed a
+fitted ρ); the BallOnly raster where AliasFree was needed; restarts (stale history, refill, the GDM rung); imposed symmetry that leaked
+(the Shubnikov flip ops projected only in XC); GDM (stale virtuals, false convergence on a changed Hamiltonian, the crawl); and a ρ
+mixer and a Fock accelerator each keeping a HISTORY of a different object.  And the β-MnO₂ discrepancy hunt is now stalled on convergence too.
+
+**What the list has in common.**  None was a missing algorithm.  Each was an ASSUMPTION one component made about another that nothing
+checked, found late (often hundreds of iterations, or days, after it went wrong) and diagnosed by elimination.  So the cure is policy +
+instrumentation, not another mixer.  Five candidate policies (C1's design note decides):
+
+| # | policy | today | what it would have saved |
+|---|---|---|---|
+| **P1** | **One history per run.**  Exactly one object extrapolates (DIIS on F, Pulay on ρ or D, or GDM's own); a ladder HANDS OFF (re-seat, drop the other's history) and says so.  Illegal pairs are unrepresentable at the facade, not warned about.  This is `Records/SCFStrategyPlan.md`'s "one shared extrapolator" — designed, not finished (OOD D9) | Kerker/Pulay + DIIS can both run | the competing-histories episodes, GDM's stale-mixer fallback |
+| **P2** | **Invariants are measured every iteration and fail at iteration 1, not 300.**  A small fixed set, cheap, silent unless violated: the imposed group's residual ‖P_G D − D‖ (and on m), the XC ρ source (pin 28 — already a throw), the reference eigenpair residual, charge, aufbau holes.  A violation names the object that broke it | some exist as columns or one-off throws | the Shubnikov leak (found at iteration 300), pin 28, stale virtuals |
+| **P3** | **Precision contracts.**  A consumer DECLARES the accuracy it needs (littleGroupK: orbital equivariance 1e-6; a response: reference Δρ 1e-9; a force: …); a producer REPORTS what it delivers (the raster's alias estimate — `[grid audit]` already measures it; the SCF stop level; the Becke mesh).  Pre-flight compares and refuses with the cause, or escalates the producer (BallOnly → AliasFree) on its own.  The response-reference refusal (`a2e664f1`) is the first instance; generalize it | ad hoc, one case | **the AliasFree day**: speed stays the default, the one consumer that needs AliasFree gets it, and nobody spends hours finding out |
+| **P4** | **Named recipes, gated by a convergence PANEL.**  Campaign decks pick a named recipe (`Auto`, `MagneticOxide`, `Restart`, …), not free knob combinations.  A panel of the known-hard cases (MnO AFM-II free, β-MnO₂ A1AFM at U = 1, the Mn–O dimer, Na₂ AFM, NiO, O₂ box, the Si +U loop, exact and coarse→fine restarts, a TiO₂ little-group reference) runs as a ctest label with ITERATION BUDGETS: a change that helps one case and hurts another goes red before a campaign finds it | hard cases live in campaign logs | the "fix one, break another" cycle |
+| **P4a** | **The regime matrix** (user 2026-10-29: "best practices by kT = 0 / kT > 0, metal / insulator").  One table: rows = regime (insulator kT = 0; magnetic insulator with a near-degenerate d frontier; metal / smeared kT > 0; restart, same Hamiltonian; carried stage, changed Hamiltonian (+U loop, geometry step)), columns = accelerator, mixer, preconditioner (Kerker for metals' long-wavelength sloshing, none for insulators), occupation policy, stop gate.  Each cell cites its panel case, or says UNMEASURED.  Seeds already banked: pin 15 (GDM is fixed-occupation: kT = 0 only), `Auto` = Pulay on D for seeded stages and Ladder@GDM for restores (2026-10-26), Kerker + Pulay for free rocksalt TMOs (CLAUDE.md), plain Kerker holds β-MnO₂'s U = 1 basin where Kerker + Pulay overshoots (e9765e33's row).  The matrix IS the `Auto` policy's spec (the code chooses, the table documents); a cell that was earned by a wrong number becomes a pin | scattered over CLAUDE.md, pin 15, OpenWork rows | choosing a recipe by trial and error per campaign deck |
+| **P5** | **The stop rule for campaign lanes.**  A campaign session that spends more than ~2 h on one run's convergence STOPS: it files a row with the deck and the trace, and the run joins the panel.  Convergence is debugged in the convergence lane, on the panel, never by knob-tuning one campaign deck | — | β-MnO₂ stalls; keeps H on physics |
+
+## 4. The chunks
+
+Each chunk = one branch, one merge, one sweep + `scripts/anchordiff` against the main baseline.  "Touches" is for conflict planning.
+
+| # | chunk | rows | tag | touches | anchors move? | model · effort |
+|---|---|---|---|---|---|---|
+| **C0** | Tracker hygiene | 25 ✅ rows → History5; §2 misfits moved; duplicates merged; every open row tagged F/V/S/H/X/P | — | `doc/` | no | controller |
+| **C1** | **SCF robustness: design, then build** (replaces v1's C1+C2) | step 1 = a design note `doc/SCFRobustnessPlan.md`: classify every convergence incident in History5 / HubbardUHistory since 2026-09 by root cause, rule on P1–P5.  Then build in the order ruled: the panel (P4) FIRST so every later step is measured; P2 invariants; P1 (D9, V-MIXER-GBALL); then the open rows on the panel: "GDM crawls", "GDM false-converges", "Linear D-mixing" remainder, "Na₂ AFM seed", "Polarized Γ Si jumps"; D-DIIS-FDMIN, V1.24(i), V1.27, D-CALC-DOUBLE-SCF migration | F/S | `src/SCFAccelerator`, `src/SCFIterator`, mixers, `Calculation` | iteration counts | Opus · high (design); Opus · medium (build) |
+| **C2** | Grid anchor window (re-bank ONCE) | design note first (§7): one accuracy target → every grid tolerance derived; the raster N sized from ε (`BallOnly`/`AliasFree` retired); V_loc long analytic or folded into Hartree; §K's one ball for ρ and v_xc + the XC-raster audit.  Then: AUTO density cutoff folds the PP sharpness; uniform-raster XC not equivariant; free-run Becke mesh cost lever; R1.0r (§7, ruled) | F | `GPW_Evaluator`, `Lattice`, mesh code | every GPW anchor — judged vs CP2K (pin 10) | Opus · high; holds the heavy slot |
+| **C3** | Stateless Hamiltonian | V1.41 stages 2–3, then the V1.35 plan; §I.1 + V1.39 with GGA; exit deliverable = **the forces design note** | F/S | `src/Hamiltonian` terms (incl. `Hubbard_U` — coordinate with H) | no (bit-identical, staged) | Opus · high |
+| **C4** | Inputs & provenance | D-STRUCTDATA step 2 + seed keyed by `q` + D-BASIS-PP + D-BASIS-REGISTRY + "valgen --seed-into"; HubbardUPlan B4 (Li q3, with the basis-vs-PP check); restart fingerprint (functional hard-coded "LDA" → recorded, WARM; consequences printed); PW `state.save` refused up front; D-ENV step 5 typed fields + D-ENV-TOL | V/S | `Calculation/Imp`, seeds, `BasisSet` factory, `Deck.C`, `valgen` | no (expect 0 moved) | Sonnet · high |
+| **C5** | Basis conditioning | "Diffuse-basis ACTUATOR" (`Prune`, pin 22); "vet trim deletes the valence core of a densified ladder"; "valgen is optimistic about diffuse functions" (`--env`) — Li is the customer | V/F | `BasisSet/Lattice` vet, `valgen` | possibly | Opus · high |
+| **C6** | Warnings + hygiene quota | D-WARNINGS first (count, then `[[clang::lifetimebound]]`); then X rows, one chunk in three | S/X | scattered | no | Sonnet · medium |
+| **C7** | Toolchain, the safe half | ModuleToolchain Step 0 (Clang 22) + Step 1 spike + Step 5 gate (1) (does Boost.UT fail on an empty selection?) | X | CMake, one lib | no | Sonnet · high |
+
+**Not in this campaign (P)**: ModuleToolchain Steps 2–5 (whole-tree: a FREEZE window with no other lane open, between this campaign
+and forces, if at all before forces); V1.24(iii) (needs OT); D-ENV-RERUN stage 2 (H, last); D-CLOUD (your account); NiO KB ghost,
+MnO span / ordering, charged-cell convention (H or P); every §2 feature row.  The Blaze heevx fix waits for Step 4 as ruled.
+
+## 5. Sequencing
+
+- **Lane A (critical path, Opus)**: C1 → C2 → C3 → forces design note.  C1's design step comes first because P3 decides HOW C2's raster
+  default lands, and P4's panel is the instrument for everything after it.
+- **Lane B (V + S + quota)**: V-CALCNET design review (doc only, Opus · high) → C4 → C6 → C5 → C7, X rows between.
+- **Lane H** continues HubbardUPlan / KAxisPlan.  Under P5 it hands any convergence stall to lane A's panel instead of tuning.
+
+H, A and B run concurrently; the controller, not the user, tracks them (user 2026-10-29: "2" was what a human can follow, not a
+session cap).  The real cap is the BOX: two module builds at once plus one heavy job fills 14 GB, so a fourth lane is worth it only
+if it mostly edits rather than builds.  The user talks to the controller; lanes talk to the controller.  C3 starts only after
+KAxisPlan P5 lands, since H owns V1.41 so far.
+
+## 6. Controller protocol (this session's job)
+
+**Working copies.**  The repo of record is `~/Code/qchem6`, and lane H works IN it (2026-10-29: committing on `main`).  Each new lane
+gets a `git worktree` of qchem6 — `git -C ~/Code/qchem6 worktree add ~/Code/qchem2 -b lane-a main` (and qchem3 / `lane-b`) — so every
+branch is visible in one repo and merging needs no fetch.  Each gets its own `build/Release`, configured WITH OpenMP (CLAUDE.md flags;
+check `ldd … | grep omp`).  Disk is no issue (317 G free; a build tree is 4–9 G).
+**H is on its own branch** (done 2026-10-29), so `main` is no one's working branch.  `main` then advances ONLY by fast-forward to a lane's swept merge commit (below), which needs no
+build of `main` and no checkout of it in a working tree H is using.
+**qchem1** (`openwork-sweep`): its work is merged into main (`48f2e02f`); it holds only `TODO` edits and this draft.  Retire it, or
+reuse it as qchem2.
+
+**Merging.**  At chunk START a lane merges `main`.  At chunk END: build `allTests`, take the heavy slot, `ctest -j4 -LE long` and
+`-L long`, keep `LastTest.log`, `scripts/anchordiff` against the controller's main baseline.  Because the lane merged main FIRST, the
+swept commit IS the merge result: the controller fast-forwards main to it (`git merge --ff-only lane-a`), stores that sweep as the new
+baseline `~/Code/qchem6-runs/anchors/main-<sha>.log`, and tells the other lanes to merge main.  If main moved in between, the lane
+re-merges (a docs-only move needs no re-sweep — the controller's call).  Nothing is pushed anywhere.  H lands the same way, so every
+baseline step has one named cause.
+
+**Docs conflicts.**  Workers ADD a new row at the END of its table, close a row by moving it to the history file the same day, and
+never reformat a table.  The controller resolves doc conflicts at merge time.
+
+**Intake of new rows.**  At each merge the controller diffs the three queues (`git diff main...lane -- doc/OpenWork.md
+doc/CleanCode.md doc/OOD-SOLID-Cleanup.md`), tags each new row, slots F/V/S rows into a pending chunk (or opens one), and reports the
+open F+V+S count.  A new CONVERGENCE row also gets its case added to the panel (P4).
+
+**Box resources (i7-10700: 8 cores / 16 threads, 14 GB + 32 G swap).**  RAM is the constraint, not cores.
+- **One HEAVY slot**: a full ctest sweep, the long tier, the panel, or any calculation over ~2 GB or ~30 min, taken with
+  `flock ~/Code/qchem6-runs/.heavy.lock scripts/memsafe <cmd>` — a second heavy job simply waits.  Overnight campaign runs hold it.
+- **Builds**: `scripts/memsafe -H 5G ninja -j4 <target>` in each lane.
+- **Threads**: a lane's targeted runs use `QCHEM_OPENMP_THREADS=4`; the heavy-slot holder gets 8 when alone; never two jobs at 8.
+  `QCHEM_BLAS_THREADS` stays 1.  Every batch script exports its count.
+
+**Models.**  Controller: Opus · medium.  Design and physics chunks (C1 design, C2, C3, C5): Opus · high.  C1 build: Opus · medium.
+Plumbing and mechanical chunks (C4, C6, C7): Sonnet · high / medium.  No Haiku.  A Sonnet chunk that hits a physics surprise (an
+anchor moves unexpectedly) is handed to Opus.
+
+## 7. The three grid-and-symmetry decisions, with context
+
+**Raster default (agreed: AliasFree — with your caveat).**  BallOnly is much faster and was right for weeks; the loss was the HOURS
+spent before anyone suspected the raster.  So the decision has two halves: (a) C2 MEASURES AliasFree's wall cost on the
+`doc/Benchmark.md` §5a rows; (b) whatever the default, P3 makes the choice self-announcing: a consumer that needs equivariance or
+force accuracy below the audit's alias estimate either escalates to AliasFree itself or refuses with the reason.  If (a) shows ≲ 1.3×
+wall, AliasFree is the default and BallOnly a stated speed choice; if it is much dearer, BallOnly stays the default under (b).
+Forces will be such a consumer either way.
+
+**R1.0r — which group the density is star-averaged under.  RULED 2026-10-29 (user): the INTERSECTION.**  (C0 records the ruling on the
+OOD row; C2 builds it.)  The density
+is symmetrized under the FULL crystal group even when the k-MESH has less symmetry (Si 2×1×1: the mesh keeps 2 ops, ρ is averaged under
+48).  A BZ sum over that mesh is only invariant under the mesh's ops, so today's fixed point is not the one that sampling defines: it
+is arguably a nicer answer (the sampling error is symmetrized away), which is why it was left as a judgement.  VASP/QE use the
+INTERSECTION (crystal ∩ mesh).  Why it matters now: with forces, the energy must be stationary in the density at the given sampling,
+or the Hellmann–Feynman force is not dE/dR; and a relaxation that lowers the symmetry (Jahn–Teller in Li₂Mn₂O₄) needs the group to
+follow the sampling and the structure, not a fixed big group.  Cost: small (`FoldGrid` already computes the mesh test; expose it,
+intersect in `DetectPointOps`); Γ and isotropic meshes are unaffected, so nothing banked moves.  Only anisotropic meshes change.
+
+**§K — the "perfectly tuned" fit balls.  RULED 2026-10-29 (user): yes, if a perfect XC fit can be defined like the AliasFree
+ball — it can, to a stated tolerance, and it is the SAME ball.**  The reasoning, for C2 to verify against the code:
+- *Two separate things set a density fit's error*: the BALL (which G are kept) and the RASTER (how finely r is sampled to get those
+  G).  AliasFree fixes the raster: every G inside the ball comes out exact.  It does not size the ball.  On a PW orbital basis the
+  ball can be exact (pin 28: Ecut_fit ≥ 4 Ecut, Parseval).  On Gaussians it cannot: a pair φ_iφ_j with exponent sum p has the
+  spectrum e^{−G²/4p}, never exactly zero.  So "perfect" = **the ball is sized from a tolerance ε and the tightest pair**,
+  e^{−G_max²/4p_max} ≤ ε (per multigrid level), not from `cutoffFactor · α_max` alone.  That is also the "AUTO density cutoff misses
+  O q6" row's cure, with the PP's own sharpness as one more "pair".
+- *For XC the ball needed is the SAME ball.*  The Fock matrix needs ⟨i|v_xc|j⟩ = Σ_G (φ_iφ_j)*(G) v_xc(G), and the pair spectrum is
+  ≤ ε outside the density ball, so v_xc's components outside it do not reach H_ij.  A v_xc fit on the density ball is therefore
+  perfect for the Fock matrix (to ε) — which is why §K always said "Vxc and CD in lockstep".
+- *The one real knob left is the XC RASTER.*  v_xc(ρ(r)) is NOT band-limited (ρ^{1/3} where ρ is small), so sampling it on a finite
+  raster folds its high-G content into the ball, and E_xc = ∫ε_xc(ρ) is a quadrature with the same error.  That is a convergence
+  parameter, not a fit — QE has the same one (its default XC grid was 107 μHa off on β-MnO₂).  Make it self-reporting like the grid
+  audit: evaluate on N and 2N rasters once, print the difference, escalate (P3) when a consumer needs better.  The Becke route stays
+  the alternative quadrature.
+- So C2's §K step = one tolerance-sized ball for ρ AND v_xc + an XC-raster audit, in the same re-bank window as the raster default.
+  Acceptance is grid-convergence of ρ and of a property, never ΔE (pin 3).  (Seen in passing: `GPW_IBS`'s constructor defaults
+  `raster = BallOnly` while `GPW_Evaluator`'s member initializer says `AliasFree` — C2 makes one default.)
+
+**Refinement after reading `Records/GridSharpTerms.md` (2026-10-29) — the ε is on the TERM'S ERROR, not on the raw spectral tail.**
+- Sizing the ball from the raw pair tail e^{−G²/4p} ≤ 1e-10 would cost Ecut ≈ 46 p — a ~250× larger raster.  What a term needs is
+  its MATRIX ELEMENTS right to ε, and each kernel converts that differently: Hartree's 4π/G² suppresses the tail (its ball is
+  forgiving); V_loc long uses the harmonic rule p β/(p+β) — **already ε-sized today** (`vlocEps` 1e-5); the local-PP sweeps already
+  use a κ rule (`localPPRelCutoff` 30 Ha = e^{−15}, CP2K's REL_CUTOFF).  So the ε method already exists for two terms.
+- The measured failure (GridSharpTerms §3) was the RASTER, not the ball: alias e^{−G_N²/p}.  `BallOnly` at the auto floor C = 2 gives
+  ±1.5–2.7 Ha on a tight pair's V_long diagonal; Ecut/p ≥ 5.5 (alias ≈ e^{−11}) gives ≤ 1e-5 Ha.  So **the raster N is what ε must
+  size**: G_N² ≥ p · ln(1/ε) for the tightest pair on each multigrid level (ε = 1e-6: G_N² ≥ 13.8 p; `BallOnly` gives 2p at C = 2,
+  `AliasFree` 8p).  Per level, a pair-to-level routing rule in the REL_CUTOFF style, derived from ε.
+- **The names go.**  With N derived from ε, `RasterPolicy {BallOnly, AliasFree}` has no job: the raster is whatever meets ε, and
+  the audit becomes an assert that it did.  The explicit CP2K-parity overrides (`mgridEcuts`, `relCutoff`) stay as stated choices.
+- **Is it the lattice-sum ε?  Same PRINCIPLE, not the same NUMBER.**  `screenEps` (1e-10) drops r-space terms whose Gaussian
+  prefactor is below it; the reach grows like √ln(1/ε), so a tight value is nearly free.  A grid's cost grows like (ln 1/ε)^{3/2} in
+  points, so the grid ε must be the loosest that meets the accuracy target.  The code's own comment already says they are "not converged
+  by one tolerance".  Proposal: ONE user-facing accuracy target (Ha per matrix element), from which every mechanism derives its
+  internal tolerance by a stated formula (screenEps, densityEps, vlocEps, κ, the raster N), printed together on the banner.  Today's
+  six or so independent knobs become derived quantities.
+- **V_loc long analytic?  Yes, it can be, and there are two routes.**  −Z erf(√β r)/r is the potential of a Gaussian ion charge, so
+  ⟨χ_i|V|χ_j⟩ is a smeared-nucleus attraction integral (a Boys function; libcint has the erf-attenuated 1/r).  The lattice sum is
+  conditionally convergent, so it needs an Ewald split: erf(√β r)/r − erf(√η r)/r is short-ranged (an analytic real-space lattice sum,
+  like the GTH short part already is), and erf(√η r)/r with a small η is so smooth that its G-sum Σ_G ρ_ij(G) V(G) needs only a tiny
+  ball, with analytic pair transforms — no raster at all.  The other route is CP2K's: add the ions' Gaussian charges to ρ̃ and solve
+  ONE Hartree problem for the neutral total, so V_loc long is no longer a separate raster-integrated term, though it still uses Hartree's
+  raster.  Either removes the term with the biggest measured alias error, and an analytic route gives exact force derivatives
+  (no egg-box from that term).  Hartree and XC stay on the raster either way.  C2 decides by measuring cost, first a design note.
+
+## 8. Decisions waiting on you
+
+1. ~~Does lane H count toward your two sessions?~~  Settled: no session cap; the box is the limit (§5).
+2. ~~AliasFree default~~  Agreed, with the measure-then-decide caveat (§7).
+3. ~~R1.0r~~  Ruled: the intersection (§7).
+4. ~~GGA before forces~~  Agreed.
+5. ~~§K~~  Ruled: one tolerance-sized ball for ρ and v_xc + an XC-raster audit, in C2 (§7).
+6. ~~P1–P5~~  Accepted ("very sensible"), plus P4a, the regime matrix (§3).
+7. ~~V-CALCNET~~  Review it first in lane B, covering Molecule and Solid (§1, §5).
