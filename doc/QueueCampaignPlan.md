@@ -129,7 +129,8 @@ open F+V+S count.  A new CONVERGENCE row also gets its case added to the panel (
 **Box resources (i7-10700: 8 cores / 16 threads, 14 GB + 32 G swap).**  RAM is the constraint, not cores.
 - **One HEAVY slot**: a full ctest sweep, the long tier, the panel, or any calculation over ~2 GB or ~30 min, taken with
   `flock ~/Code/qchem6-runs/.heavy.lock scripts/memsafe <cmd>` — a second heavy job simply waits.  Overnight campaign runs hold it.
-- **Builds**: `scripts/memsafe -H 5G ninja -j4 <target>` in each lane.
+- **Builds**: ONE lane compiles at a time: `flock ~/Code/qchem6-runs/.build.lock scripts/memsafe -H 5G ninja -C build/Release -j4 <targets>`
+  (2026-10-29: two lanes compiling at once beside a 5.7 GB PW run put the box at 12/14 GB with 8 GB swapped; a module TU peaks ~1.8 GB).
 - **Threads**: a lane's targeted runs use `QCHEM_OPENMP_THREADS=4`; the heavy-slot holder gets 8 when alone; never two jobs at 8.
   `QCHEM_BLAS_THREADS` stays 1.  Every batch script exports its count.
 
