@@ -248,3 +248,10 @@ space-group irreps, SSB descent, smearing finished, molecular SAD seed, spherica
 D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
 
 **Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.**
+
+## 10. Landing log (controller)
+
+| main | from | sweep | anchors moved | baseline kept |
+|---|---|---|---|---|
+| `a3f4b50f` (2026-10-29) | lane-b C4 step 1 (`a2439643`: `PseudopotentialSet`, `pseudopotentials.json`) | serial short 1121 + long 7/7 | 0 / 1114 short, 0 / 8 long vs `capguard_*` | `~/Code/qchem6-runs/anchors/main-a3f4b50f_{short,long}.log` |
+
