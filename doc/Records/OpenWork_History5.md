@@ -557,3 +557,25 @@ proposed `Reseat` route was not needed.  Gates: UTCalculation `SolidState.ExactR
 `GPW_NaF.Γ_Becke_Imp_eqUni` +2.9e-8 (12 -> 10 iterations), `GPW_NaF.Γ_Imp_Anchor` +3.7e-9, `GPW_Si.Γ_U_Imp_Pol_Kerker_eqUnpol`
 +8e-10, `GPW_NaF.Γ_Imp_eqExactResume` +3e-10, `GPW_Si.Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint` (67 -> 66) -- the SCF
 path, within convergence; banked `~/Code/qchem6-runs/anchors/firstfield_short.log`.
+
+## ✅ An IMPOSED Shubnikov group did not hold the Mn0 ↔ Mn1 spin flip (OpenWork §3, 2026-10-28) -- FIXED 2026-10-29; the row as it stood
+
+| **An IMPOSED Shubnikov group does not hold the Mn0 ↔ Mn1 spin flip: β-MnO₂ sites drift apart under imposition** (2026-10-28) | `~/Code/qchem6-runs/MnO2/uscan/control_U1.log` (A1AFM, 16 ops = 8 spatial + 8 spin-flip imposed, U on O p Γ2 = 1 eV, Pulay+Kerker 0.45, kT 1e-3): the [+U] Mn d occupations are site-equal to 1e-4 for the first iterations, then the two Mn sites' charges differ by up to 0.1 e and moments by 0.43 (+3.65 / −3.40 at iteration 300); U = 0.5, 2 eV and the p5f3_Od basis likewise, and converged U = 0 passes through 1e-4.  An imposed group should hold that to roundoff on every iterate.  Suspect: the G-space mixed density (the m channel, `ρ_mix` feeding XC and Hartree) or the [+U] occupations from D_out are not symmetrised under the spin-flip ops, so a near-soft ferrimagnetic mode grows | find the first iterate with a nonzero site asymmetry and which object (ρ̃ mixed, D_in, D_out, W_U) breaks it first; then rerun the uscan small-U leg · `Records/HubbardUHistory.md` 2026-10-28 |
+
+**Diagnosis and fix (2026-10-29, `3b2a163a`).**  A 60-iteration trace of `uscan/control_U1` on a local build printing the [+U]
+occupations to 12 digits (`~/Code/qchem6-runs/MnO2/uscan/leak/trace_U1.log`): at iteration 1 the FLIP-partner residual
+(n(Mn0,↑) − n(Mn1,↓), n(O2,↑) − n(O3,↓)) is already 4e-9 while the σ=None partners (O2 ↔ O5, same spin) sit at 1e-11; it then grows
+1e-8 (it 10) → 1e-6 (27) → 6e-2 (56), and the σ=None residual follows late (1e-11 → 1e-5) through the unprojected +U occupations.
+SEED: the multigrid's coarse levels 15³ and 5³ (odd N) cannot hold τ = (½,½,½), which every Mn0 ↔ Mn1 flip op carries, while all
+eight σ=None ops have τ = 0.  AMPLIFIER: by design (`BasisSet/Lattice/Imp/BasisSet.C`, the 2026-08-11 MnO run-37 note) only the XC
+engine's (ρ,m) star-average imposed the flip ops; every per-channel consumer (Hartree, the mixer, the +U occupations) got the σ=None
+subgroup -- "a PARTIAL projector is legal".  It is not, when the unprojected direction is SCF-unstable: intermediate U on O p_z
+softens A1AFM toward the ferrimagnetic state (11.7 mHa below it at U = 0), so the seed grew.  FIX: `tBasisSet::ProjectSpinPair`
+-- the GPW basis builds M_g on the Γ block's AOs (BuildOperationRep's shell permutation × angular rep, image centre matched modulo
+the lattice) and `tCompositeWF` projects each block's (D↑, D↓) pair, D_s ← |G|⁻¹ Σ_g M_g D_{σ_g(s)} M_gᵀ, before building the
+density, so ρ, m, the mixer history and the +U occupations are all imposed at once.  Re-traced: every flip and σ=None residual is
+EXACTLY 0 over 60 iterations.  Gates: `UTLattice_BS ShubnikovPair.*` (two Mn bcc AFM, spherical d: the projected pair obeys
+ρ↑(r) = ρ↓(r + a(½,½,½)) and a σ=None 4-fold pointwise; idempotent; charge conserved; a free run untouched).  Multi-k magnetic runs
+keep the partial projection.  The leak was NOT why U = 0.5–2 eV fail to converge: with it fixed, Kerker+Pulay still cycles at
+U = 1 eV (reaches −93.3663 at Δρ 4.5e-4, then a smooth ~10-iteration runaway, 0.1 Ha UP) -- a mixer problem, `HubbardUHistory.md`
+2026-10-29.
