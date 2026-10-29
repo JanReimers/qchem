@@ -2325,6 +2325,16 @@ The perturbed site's moment barely moves (both spin channels empty together: the
 
 **The O p_z probe (2026-10-28).**  `alphaSlot_eV` [0, 0, −0.1] on the O p Γ2 slot of all four O (the U arm's manifolds and sign: U(½ − n) on n ≈ 0.85 LOWERS O p_z), both spins, U = 0; GPW control vs PW 40 Ha, against the α = 0 `_r4` references.  Decks + logs `~/Code/qchem6-runs/MnO2/alpha/alphaOz_{gpw_control,pw}` (records r026/r027; 8 OpenMP threads, 11 min / 3.8 h).  Both linear and on the AFM branch: ΔE = α·Tr P₂n to 1e-4 (−25.05 / −25.21 mHa).
 
+**The GPW-only U scan (2026-10-28): the small-U leg FAILED to converge; the probe and endpoints stand.**  Plan: U on O p Γ2 at 0, 0.5, 1, 2, 4.62 eV plus the α = −0.1 eV O p_z probe, on `control` and `p5f3_Od` (the basis that closes half the spin deficit), the 2026-10-25 IMPOSED pol recipe, current binary, 8 threads.  Decks + logs `~/Code/qchem6-runs/MnO2/uscan/` (runner `run_uscan.sh`, records r001–r012).  U = 0 and 4.62 reproduce 2026-10-25 to 1e-9 Ha (control U4.62 −93.334706380, +0.0229; p5f3_Od +0.0302).  **U = 0.5, 1, 2 eV: NOT converged in 300 iterations on either basis** (Δρ oscillating 1e-2…6e-2, 1–1.7 h each), and the two Mn sites drift apart (charge asymmetry 0 for the first iterations, then up to 0.1 e, moment asymmetry to 0.43) although the 16-op Shubnikov group, with the Mn0↔Mn1 spin flips, is IMPOSED — even converged U = 0 passes through 1e-4.  The drift is the ferrimagnetic direction (unequal Mn moments; U = 0 ferri state 11.7 mHa below A1AFM), so intermediate U on O p_z softens the AFM state and a symmetry LEAK lets the SCF fall toward it.  Defect row in `OpenWork.md` §3.
+
+| O p_z probe α = −0.1 eV (imposed) | control | p5f3_Od | PW (free) |
+|---|---|---|---|
+| Δ\|m\| Mn d | −0.0024 | −0.0022 | −0.0013 |
+| ΔN Mn d | −0.0084 | −0.0091 | −0.0093 |
+| Δn̄ O p_z | +0.0076 | +0.0080 | +0.0080 |
+
+The charge columns move TO PW with the basis; the Mn moment's response to the spin-averaged O p_z shift does NOT (1.8× / 1.7× PW's on both bases; the free control run gave −0.0026), while the U arm's moment response does move (+0.0229 → +0.0302).  So the basis-sensitive part of the U response is not the spin-averaged channel.  Its spin-dependent part could not be isolated: the small-U runs that would have separated them did not converge.
+
 | α = −0.1 eV on O p_z | GPW | PW |
 |---|---|---|
 | Δ\|m\| Mn d (site 0 / 1) | −0.0028 / −0.0023 | −0.0013 / −0.0013 |
