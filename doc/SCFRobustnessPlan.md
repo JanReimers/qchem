@@ -355,3 +355,14 @@ B5 so each fix lands as a change to ONE recipe cell; B7 late because its main pr
 8. **Reject or keep**: I recommend dropping "aufbau holes" from P2 (it is a report, J5) and moving "reference eigenpair residual"
    from P2 to P3.  Everything else in P1–P5 is supported by the evidence, with the sequencing note on P1 (type-level
    unrepresentability waits for R4.1) and the added "three variants" trigger on P5.
+
+### Rulings (user via the controller, 2026-10-29: "Everything looks good")
+
+1. RULED 2026-10-29: fast panel cases (`_Panel`) STAY in the regular sweep; the full tier is `_Panel_Long`, which is `long`-labelled and so excluded from `-LE long`.  Both carry the label `panel` (`ctest -L panel`).
+2. RULED 2026-10-29: a known-failing panel case is `WILL_FAIL` with its open tracker row, not `DISABLED_` (CLAUDE.md's DISABLED_ rule says so).
+3. RULED 2026-10-29: an exhausted GDM line search below the noise floor ends the stage with a distinct `NoiseFloor` outcome, which fails a test unless the gate was met or a `BoundedSCF` says why (B6(b)).
+4. RULED 2026-10-29 (pending a measurement): B1 measures Pulay-D vs K+P on Al (SrVO₃ if affordable) and brings it back; leaning: `Auto` detects a metal.
+5. RULED 2026-10-29: MOM beside kT > 0 is refused.
+6. OPEN: the P3 split (the controller is explaining it).  Does not block B0–B6; B7 waits for it.
+7. RULED 2026-10-29 (provisional): compare our crawl state's moments and occupations with CP2K OT's first; provisionally CP2K's lower-energy state is #15's target; report the comparison before #15's budget is fixed.
+8. RULED 2026-10-29: "aufbau holes" leave P2 (an end-of-stage report); "reference eigenpair residual" moves to P3.

@@ -8,7 +8,7 @@ Brief notes about module/library conventions, naming, and includes.
 
 ## Build & test
 
-- Build & test: `cd build/Release && ninja ITMain`, then `ctest -j8 -LE long` from `build/Release` (the 60 s-CPU `_Long` tier is `ctest -j3 -L long`, ~6 min; a test whose name ENDS in `_Long` is in it, ruled 2026-10-02; plain `ctest` runs both) — every
+- Build & test: `cd build/Release && ninja ITMain`, then `ctest -j8 -LE long` from `build/Release` (the 60 s-CPU `_Long` tier is `ctest -j3 -L long`, ~6 min; a test whose name ENDS in `_Long` is in it, ruled 2026-10-02; plain `ctest` runs both; the SCF convergence PANEL, `doc/SCFRobustnessPlan.md` §4, is `ctest -L panel`: its fast `_Panel` cases ride the regular sweep, its full tier `_Panel_Long` is `long`-labelled, ruled 2026-10-29) — every
     gtest case (integration + library unit tests) runs as its own ctest test, load-balanced across
     cores with longest-first scheduling after the first run.  **Use -j8, not -j16, on this 14 GB
     box**: several GPW integration tests peak at 1-2 GB each, and a 16-way fan-out beside the
@@ -80,7 +80,9 @@ Brief notes about module/library conventions, naming, and includes.
 - **`DISABLED_` is not a token.**  A disabled test is one of: an INSTRUMENT (ladder/sweep a human reads) →
     a `CLIapps/` probe binary (`gpwprobe`), not gtest; a gate parked for COST → re-enable, `_Long`-tagged if
     needed; a campaign whose verdict is BANKED in `doc/` → delete; a real claim currently FAILING → an open
-    tracker row.  Zero-assert tests are campaign leftovers: delete them.
+    tracker row.  Zero-assert tests are campaign leftovers: delete them.  **Exception (ruled 2026-10-29): a failing claim ON THE
+    PANEL (`_Panel`/`_Panel_Long`) is NOT disabled -- it runs as `WILL_FAIL` (CMake) beside its open tracker row, so the panel goes red
+    the day it is fixed and forces the row closed.**
 - **An SCF that hits NMaxIter FAILS its test** (user, 2026-10-29).  `qchem.SCFCap`: the SCF reports every cap hit and
     both gtest mains turn it into `ADD_FAILURE` of the running test -- no per-test assert to forget.  A test whose subject
     is a deliberately bounded loop says so with `qchem::BoundedSCF bounded("why")` (rare; grep for it).  The cap is a
