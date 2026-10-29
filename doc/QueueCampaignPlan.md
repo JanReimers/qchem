@@ -103,13 +103,14 @@ KAxisPlan P5 lands, since H owns V1.41 so far.
 ## 6. Controller protocol (this session's job)
 
 **Working copies.**  The repo of record is `~/Code/qchem6`, and lane H works IN it (2026-10-29: committing on `main`).  Each new lane
-gets a `git worktree` of qchem6 — `git -C ~/Code/qchem6 worktree add ~/Code/qchem2 -b lane-a main` (and qchem3 / `lane-b`) — so every
+gets a `git worktree` of qchem6 named for its branch — `~/Code/qchem-lane-a` (`lane-a`), `~/Code/qchem-lane-b` (`lane-b`), and
+`~/Code/qchem-main` (`main`, the controller's: docs + fast-forwards, no build).  NB a worktree with submodules cannot be `git worktree
+move`d: `mv` it, `git worktree repair`, then fix `core.worktree` in `.git/worktrees/<name>/modules/*/config` — so every
 branch is visible in one repo and merging needs no fetch.  Each gets its own `build/Release`, configured WITH OpenMP (CLAUDE.md flags;
 check `ldd … | grep omp`).  Disk is no issue (317 G free; a build tree is 4–9 G).
 **H is on its own branch** (done 2026-10-29), so `main` is no one's working branch.  `main` then advances ONLY by fast-forward to a lane's swept merge commit (below), which needs no
 build of `main` and no checkout of it in a working tree H is using.
-**qchem1** (`openwork-sweep`): its work is merged into main (`48f2e02f`); it holds only `TODO` edits and this draft.  Retire it, or
-reuse it as qchem2.
+**qchem1** (`openwork-sweep`): its work is merged into main (`48f2e02f`); it holds only `TODO` edits and this draft.  Retire it when convenient.
 
 **Merging.**  At chunk START a lane merges `main`.  At chunk END: build `allTests`, take the heavy slot, `ctest -j4 -LE long` and
 `-L long`, keep `LastTest.log`, `scripts/anchordiff` against the controller's main baseline.  Because the lane merged main FIRST, the
