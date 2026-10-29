@@ -915,6 +915,57 @@ void KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind xc, SpinGroup g)
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsBitIdenticalAcrossThreads_Raster_Pol)  {KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Uniform, SpinGroup::Polarized);}
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsBitIdenticalAcrossThreads_Becke_UnPol) {KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Becke,   SpinGroup::UnPolarized);}
 //=====================================================================================================
+//  doc/KAxisPlan.md P2 / OOD V1.41 stage 1: THE SCF FOCK LOOP THREADED OVER ITS BASIS BLOCKS IS BIT-IDENTICAL TO SERIAL.  The
+//  loop of tCompositeWF::AssembleFock, read through the Hamiltonian AT a density (H.At): one task per basis block with its spin
+//  children together, the first block alone (it builds the shared memos), the rest an OUTER loop.  Threaded FIRST, so the
+//  concurrent blocks find memos the serial pass then replays (a hit is bit-identical to recomputing).  A FRESH density per pass:
+//  the terms' per-block caches refill.  Compared with ==: a race, or a memo freed under a reader, shows up as a differing bit.
+//=====================================================================================================
+namespace {
+void FockIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind xc, SpinGroup g)
+{
+    auto calc=SiState(ivec3_t(3,1,1), xc, g);
+    const auto& wf=ResponseFacadeTests::WF(*calc);
+    const auto& H=ResponseFacadeTests::Ham(*calc);
+    std::vector<std::vector<std::pair<const Hamiltonian::cobs_t*,Spin>>> blocks;   // per basis block: (block, spin) per child
+    for (const Irrep& ir : wf.GetQNs())
+    {
+        auto* bs=dynamic_cast<const Hamiltonian::cobs_t*>(dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir))->GetBasisSet());
+        ASSERT_TRUE(bs);
+        auto it=std::find_if(blocks.begin(), blocks.end(), [&](const auto& b){return b.front().first==bs;});
+        if (it==blocks.end()) blocks.push_back({{bs, ir.ms}}); else it->push_back({bs, ir.ms});
+    }
+    const int width=int(blocks.size())-1;   // the outer loop's width (the first block runs alone)
+    ASSERT_GE(width, 2);
+    auto fock=[&](int workers)
+    {
+        qchem::ScopedWorkerThreads scope(workers);
+        const auto cd=wf.GetChargeDensity();
+        const auto At=H.At(&calc->Basis(), cd.get());
+        std::vector<std::vector<chmat_t>> F(blocks.size());
+        auto block=[&](size_t b){for (const auto& [bs,s] : blocks[b]) F[b].push_back(At.GetMatrix(bs, s));};
+        block(0);
+        qchem::OuterFor(blocks.size()-1, [&](size_t i){block(i+1);});
+        return F;
+    };
+    const auto Fn=fock(width), F1=fock(1);
+    size_t differing=0, compared=0;
+    for (size_t b=0;b<F1.size();b++)
+        for (size_t c=0;c<F1[b].size();c++)
+            for (size_t i=0;i<F1[b][c].rows();i++) for (size_t j=0;j<F1[b][c].columns();j++)
+            {
+                differing += (dcmplx(F1[b][c](i,j))!=dcmplx(Fn[b][c](i,j)));
+                compared++;
+            }
+    EXPECT_GT(compared, 0u);
+    EXPECT_EQ(differing, 0u) << width << " workers over " << blocks.size() << " blocks: F differs from serial in " << differing
+                             << " of " << compared << " elements (a race, or a memo freed under a reader)";
+}
+} // namespace
+
+TEST(ResponseKernel, GPW_Si_k311_FockIsBitIdenticalAcrossThreads_Raster_Pol)  {FockIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Uniform, SpinGroup::Polarized);}
+TEST(ResponseKernel, GPW_Si_k311_FockIsBitIdenticalAcrossThreads_Becke_UnPol) {FockIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Becke,   SpinGroup::UnPolarized);}
+//=====================================================================================================
 //  OpenWork §3 "After a stage that ENDS ON A GDM STEP, the live orbitals and ε are not a valid reference" (2026-10-27).
 //  The SAME Si k211 ground state reached by a diagonalizing stage (Null) and by a stage that ends on a GDM step: the
 //  response's reference must not care.  Per block, what each leaves in the wave function: C†SC − I, the occupied-virtual

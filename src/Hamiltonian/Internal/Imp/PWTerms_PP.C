@@ -7,6 +7,7 @@
 // exactly what module-internal linkage is for -- they are visible to every unit of this module and to
 // nothing outside it.
 module;
+#include <mutex>
 #include <algorithm>   // std::min (the threaded quadrature's output-column blocking)
 #include <cassert>
 #include <complex>
@@ -124,6 +125,7 @@ chmat_t Ven_PP_NonLocal::MakeMatrix(const cobs_t* bs, const Spin& s) const
         auto pw=dynamic_cast<const BasisSet::Orbital_PP_IBS<dcmplx>*>(bs);
         assert(pw);
         const std::string id=bs->BasisSetID();
+        std::lock_guard<std::mutex> lock(itsByLLock.m);
         if (itsByLSeen.insert(id).second)
             for (auto& lH : pw->MakeProjectorMatrixByL(&*theStructure, *itsSep))
                 itsByL[lH.first].emplace(id, std::move(lH.second));

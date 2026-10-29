@@ -631,7 +631,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     itsWaveFunction->MoveOrbitals(held,0.0,false,mergeTol);
     const double E0 = [&]{ qchem::report::Timed timed("scf: line-search energy E(t) (density build + all terms)");
                            cd_t cd0(itsWaveFunction->GetChargeDensity());
-                           return itsHamiltonian->GetTotalEnergy(cd0.get()).GetTotalEnergy()
+                           return itsHamiltonian->At(nullptr, cd0.get()).GetTotalEnergy().GetTotalEnergy()
                                 + itsOccPolicy->EntropyTerm(); }();
     const bool trace=qchem::Diagnostics::Enabled("gdm_trace");
     if (trace && std::fabs(E0-Ecur)>1e-6)
@@ -652,7 +652,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
             cd_t cdt(itsWaveFunction->GetChargeDensity());                //std-managed (no freed-address reuse)
             // Minimize the FREE energy A=E−TS under smearing (MoveOrbitals refilled, so GetEntropyTerm is
             // current); GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  GPWPlan1 4b.
-            Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy()+itsOccPolicy->EntropyTerm();
+            Et=itsHamiltonian->At(nullptr, cdt.get()).GetTotalEnergy().GetTotalEnergy()+itsOccPolicy->EntropyTerm();
             best=std::min(best,Et);
             if (Et<E0) { found=true; break; }
             t*=0.5;
@@ -728,7 +728,7 @@ template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>*
     // Bucketed because a term's GetEnergy is real per-iteration work, not bookkeeping: the Hartree pairing
     // and the XC energies both live under here (doc/ParallelAndOraclePlan.md 1.1).
     qchem::report::Timed timed("scf: total energy (all terms)");
-    EnergyBreakdown eb=itsHamiltonian->GetTotalEnergy(cd);
+    EnergyBreakdown eb=itsHamiltonian->At(nullptr, cd).GetTotalEnergy();   // the Hamiltonian AT cd (OOD V1.41)
     eb.Add("MinusTS", itsOccPolicy->EntropyTerm(), EnergyRole::Entropy, 0.0);   // the Mermin -TS: an energy, not in any eigenvalue
     return eb;
 }

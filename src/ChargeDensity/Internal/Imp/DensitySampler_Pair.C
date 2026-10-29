@@ -356,6 +356,7 @@ template <class U> hmat_t<U> PairDensitySampler::MatrixT(const tobs_t<U>* bs, co
         return blazem::NarrowExact<U>(adj->Adjoint(v));
     if constexpr (std::is_same_v<U,dcmplx>)
     {
+        std::lock_guard<std::mutex> lock(itsScalarFitterLock.m);   // ONE fitter refit per call: concurrent blocks take turns
         itsScalarFitter->DoFit(SampledField(v, NumPoints()));
         // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks on a complex
         // fit axis.  The DFT cross-cast is THIS strategy's to make (2026-08-24): the contraction face takes

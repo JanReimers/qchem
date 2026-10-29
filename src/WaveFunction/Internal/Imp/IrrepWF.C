@@ -6,6 +6,7 @@ module;
 #include <cassert>
 #include <complex>
 #include <memory>
+#include <mutex>
 #include <vector>
 #include <algorithm>
 #include <functional>
@@ -52,6 +53,7 @@ template <class M> static void DumpH(const M& F)   // on the MATRIX type: hmat_t
 {
     static const bool on=qchem::Diagnostics::Enabled("dump_h");
     if (!on) return;
+    static std::mutex lock; std::lock_guard<std::mutex> g(lock);   // a diagnostic with static state; the Fock blocks may be concurrent
     double fro=0.0, maxIm=0.0; dcmplx tr(0.0);
     for (size_t i=0;i<F.rows();i++)
     {
@@ -80,30 +82,27 @@ template <class M> static void DumpH(const M& F)   // on the MATRIX type: hmat_t
     prev.swap(cur); prevN=F.rows();
 }
 
-template <class T> void tIrrepWF<T>::CalculateH(tHamiltonian<T>& ham,const tChargeDensity<T>* cd,const tbs_t<T>* wholeBasis)
+template <class T> template <class TRun> void tIrrepWF<T>::CalculateH(const qchem::Hamiltonian::tHamiltonianAt<TRun>& H)
 {
     assert(itsOrbitals);
-    itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd,wholeBasis); //Hamiltonian or Fock matrix in the non-orthogonal basis.
-    DumpH(itsF);
-    itsAccelerator->UseFD(itsF,itsDPrime); //Feed non-ortho F into the accelerator with the (orthogonal-basis) density matrix.
-}
-
-// The REAL child's Fock build inside a COMPLEX run (Step 3c-2): same two lines as the native path, but
-// through the Ham_RealBlock assembly face -- the fold over the terms' real-block capabilities -- with the
-// RUN's density/whole-basis view.  itsF is hmat_t<double>; everything downstream (the accelerator child,
-// the eigensolve, C/D) is already real.
-template <class T> void tIrrepWF<T>::CalculateH(qchem::Hamiltonian::Ham_RealBlock& ham,
-                                                const tChargeDensity<dcmplx>* cd,const tbs_t<dcmplx>* wholeBasis)
-{
-    if constexpr (std::is_same_v<T,double>)
+    if constexpr (std::is_same_v<T,TRun>)
     {
-        assert(itsOrbitals);
-        itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd,wholeBasis);
-        itsAccelerator->UseFD(itsF,itsDPrime);
+        itsF=H.GetMatrix(itsBasisSet,itsIrrep.ms); //Hamiltonian or Fock matrix in the non-orthogonal basis.
+        DumpH(itsF);
     }
     else
-        throw std::logic_error("tIrrepWF: a complex child never consumes the real-block assembly face");
+    {
+        // The REAL child's Fock build inside a COMPLEX run (Step 3c-2): the value's real-block query -- the fold over
+        // the terms' real-block capabilities.  itsF is hmat_t<double>; everything downstream (the accelerator child,
+        // the eigensolve, C/D) is already real.
+        static_assert(std::is_same_v<T,double> && std::is_same_v<TRun,dcmplx>, "a complex child inside a real-faced run is impossible");
+        itsF=H.GetMatrix(itsBasisSet,itsIrrep.ms);
+    }
+    itsAccelerator->UseFD(itsF,itsDPrime); //Feed non-ortho F into the accelerator with the (orthogonal-basis) density matrix.
 }
+template void tIrrepWF<double>::CalculateH<double>(const qchem::Hamiltonian::tHamiltonianAt<double>&);
+template void tIrrepWF<dcmplx>::CalculateH<dcmplx>(const qchem::Hamiltonian::tHamiltonianAt<dcmplx>&);
+template void tIrrepWF<double>::CalculateH<dcmplx>(const qchem::Hamiltonian::tHamiltonianAt<dcmplx>&);
 
 //----------------------------------------------------------------------------
 //

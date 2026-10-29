@@ -173,6 +173,28 @@ Reconfigured with the flags in the root `CMakeLists.txt` comment; CLAUDE.md now 
 Payoff on today's workload is small (NiO: the SCF was ~3% of a q-mesh run; the response is P1-threaded).  Both fixes land more
 naturally inside V1.41's immutable `H.At(cd)` value, which owns exactly this density-derived state.  **PARKED 2026-10-27 (user): the SCF threading rides V1.41**; the plan continues with P3 (Q9).
 
+**P2 LANDED 2026-10-28 on V1.41 stage 1** (`tHamiltonian::At(bs, cd)` -> `tHamiltonianAt`, OOD-SOLID-Cleanup V1.41).
+`tCompositeWF::AssembleFock` runs ONE TASK PER BASIS BLOCK (its spin children together: a spin-independent term keys one slot per
+block), the FIRST block alone (it builds the shared memos with the inner threads), the rest through `OuterFor`; and the wave
+function's FIRST assembly is wholly serial -- found by the 2-thread sweep: concurrent `MakeKinetic -> findΩ -> Cache2` segfaulted
+on every multi-k test, because the integral cache DB (Cache2/3/4, keep-newest eviction on the lattice) is not thread-safe and every
+geometry-fixed lazy (statics, 3-centre tensors, projectors, Phi tables) is filled on that first build.  The two hazards above,
+fixed: the XC refit -> a field-fit POOL (`SinglesDensitySampler::FitFor`, one fitter per v, recycled only when unheld; the Pair
+sampler's ball fallback locked); the gather memo -> `IntegrateMemo` entries are locked `shared_ptr`s, a miss builds privately and
+publishes when complete (so no reader is freed under, and a throw leaves nothing half-built).  Also locked: the Hubbard projector
+lazy (the seed iteration's blocks fill it), XC `itsFockSource`, the KB per-l diagnostic bank, `DumpH`.
+- Gates: UTResponse `ResponseKernel.GPW_Si_k311_FockIsBitIdenticalAcrossThreads_{Raster_Pol,Becke_UnPol}` (the loop, serial vs
+  threaded, `==` on every element; from a CONVERGED state, so it cannot see first-build lazies -- the threaded sweep does).
+  Serial short sweep 1112/1112, 0 moved (vs `q9_short` less `e280baec`'s 3; banked `~/Code/qchem6-runs/anchors/v141a_short.log`).
+  2-thread sweep: no crash; moves <= 3e-10 and a few restart iteration counts, Γ tests included (width-0 outer loop) -- the inner
+  regions' arrival-order sums; `Deck.ARunFromADeckEqualsTheSameRunBuiltByHand_Si_Gamma` (EXPECT_DOUBLE_EQ of two runs) varies run to
+  run at 2 threads for the same reason: it holds serially only.
+- Measured, TiO₂ k222 free (8 blocks), 6 iterations, Etot identical to every digit: 1 thread 906 s; 6 threads with the outer loop
+  459 s vs 481 s inner-only (A/B in one binary) -- −4 %, the Fock assembly being a few s of a ~65 s iteration here (diagonalize +
+  density dominate).  Inside an outer item the `h ball closure` (per-level `ΔG_Map` restriction + inverse FFT) costs 6.6× per call
+  (0.052 -> 0.34 s): contention (allocation-heavy maps), not oversubscription (pocketfft is single-threaded) -- a lever if the
+  outer loop is to pay on a gather-bound run.  Not yet measured at 0 moved / 8 threads on the LONG tier.
+
 **P3 (Q9) DONE 2026-10-27: one q per star.**  `qchem.Response.QStars` (`FoldQMesh`: the q-mesh under the ground state's ops;
 each member = a representative + a channel permutation + per-channel lattice shifts) and `LinearResponse(Nq, …, const QStars*)`:
 solve the representatives and ONE audit member, generate the rest by X_{q'}(gI,gJ) = e^{−2πi q'·(t_I−t_J)} X_q(I,J),

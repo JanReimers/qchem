@@ -40,7 +40,7 @@ re-bank window ran, baselines in `~/Code/qchem6-runs/anchors/`); it also found t
 - **`doc/KAxisPlan.md` is the plan under execution** (block loop: KP threading, Q9, D5).  DONE: P0 (the build had no OpenMP — fixed,
   CLAUDE.md says how to check), P1 (response kernel threaded, bit-identical; NiO one-q 6735 → 1488 s at 6 threads), P3 (Q9: deck
   `qStars: true`, audited; Si q222 3 of 8 q, U identical), P4 (`OrbitalImage(g)` on the Bloch block; S-unitary to 1e-15 on
-  Si/β-MnO₂/TiO₂, F/D carry over to 3e-9/8e-8 on an imposed Becke state).  PARKED: P2's SCF threading → OOD **V1.41**.  NEXT:
+  Si/β-MnO₂/TiO₂, F/D carry over to 3e-9/8e-8 on an imposed Becke state).  P2 LANDED 2026-10-28 on OOD **V1.41** stage 1 (`H.At(cd)`; the Fock loop over basis blocks, bit-identical, −4 % wall on TiO₂ k222 at 6 threads -- KAxisPlan §4).  NEXT:
   P5 STAGE 1 (deck `hubbardLinearResponse.littleGroupK: true`): each (q, J) solved on its little group's k-blocks, the group
   MEASURED on the orbitals (ruling 1); Si k222 q222 χ == full to 7e-9, 106 → 30 s; on the raster route the measurement keeps
   only the 6 ops it does not break.  Ruling 1a: a free run's XC mesh is invariant under the detected group (no density average).

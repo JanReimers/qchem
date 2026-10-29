@@ -2117,6 +2117,7 @@ public:
     void CensusIntegrateCall(const std::vector<rvec_t>& V_L, const chmat_t* screenD) const
     {
         const size_t fh=FieldHash(V_L), sh=ScreenHash(screenD);
+        std::lock_guard<std::mutex> lock(itsIntegrateMemosLock.m);   // a diagnostic, but reached from concurrent blocks too
         bool sameBoth=false, sameField=false;
         for (const auto& [f,c] : itsFieldHistory)
             if (f==fh) { sameField=true; if (c==sh) { sameBoth=true; break; } }
@@ -2172,10 +2173,18 @@ public:
         // the screen magnitude.  See FoldScreenMax for why this is NOT the signed FoldProjectedD.
         const std::vector<double> Dscreen = (sf && screenD) ? FoldScreenMax(*screenD) : std::vector<double>{};
         // Memo hit: the per-offset reductions are already computed for this exact field -- contract phases only.
+        // The lookup takes the lock and HOLDS the entry (shared_ptr), so a concurrent block's eviction cannot free it
+        // mid-contraction (OOD V1.41 / doc/KAxisPlan.md P2: the k-blocks of one Fock loop share this basis).
+        std::shared_ptr<const IntegrateMemo> hit;
         if (memoize)
+        {
+            std::lock_guard<std::mutex> lock(itsIntegrateMemosLock.m);
             for (const auto& m : itsIntegrateMemos)
-                if (SameShape(m,N_L,ecut_L,absRelCutoff,relFieldSharp) && SameField(m.V_L,V_L))
+                if (SameShape(*m,N_L,ecut_L,absRelCutoff,relFieldSharp) && SameField(m->V_L,V_L)) {hit=m; break;}
+        }
+        if (hit)
                 {
+                    const IntegrateMemo& m=*hit;
                     for (auto i:indices()) for (auto j:indices(i))
                     {
                         const PairB& pb=m.B[i*nn+j];
@@ -2191,12 +2200,23 @@ public:
         // no value cache any more (plan step 7) -- the TASK LIST supplies the geometry and the contraction
         // kernel supplies the arithmetic, in both directions.
         const std::vector<ShellPairTasks>& tl=BoxTasks(A);
+        // A miss builds into a PRIVATE memo, published (under the lock, evicting the oldest) only once complete -- so no
+        // reader ever sees a half-built one, and a throw mid-sweep leaves nothing behind.  Two blocks missing on the same
+        // field concurrently both build it (correct, duplicated work); the SCF's Fock loop avoids that by assembling its
+        // first block alone (CompositeWF::AssembleFock).
+        std::shared_ptr<IntegrateMemo> built;
         IntegrateMemo* memo=nullptr;
+        auto publish=[&]()
+        {
+            if (!built) return;
+            std::lock_guard<std::mutex> lock(itsIntegrateMemosLock.m);
+            if (itsIntegrateMemos.size()>=kMaxIntegrateMemos) itsIntegrateMemos.erase(itsIntegrateMemos.begin());
+            itsIntegrateMemos.push_back(std::move(built));
+        };
         if (memoize)
         {
-            if (itsIntegrateMemos.size()>=kMaxIntegrateMemos) itsIntegrateMemos.erase(itsIntegrateMemos.begin());
-            itsIntegrateMemos.emplace_back();
-            memo=&itsIntegrateMemos.back();
+            built=std::make_shared<IntegrateMemo>();
+            memo=built.get();
             memo->N_L=N_L; memo->ecut_L=ecut_L; memo->absRelCutoff=absRelCutoff;
             memo->relFieldSharp=relFieldSharp; memo->V_L=V_L;
             memo->B.resize(nn*nn);
@@ -2386,11 +2406,13 @@ public:
             }
             if (firstEx) std::rethrow_exception(firstEx);
             fillImages();
+            publish();
             return h;
         }
 #endif
         for (size_t sp=0;sp<sprs.size();sp++) integrateShell(sp);           // serial (byte-identical default)
         fillImages();
+        publish();
         return h;
     }
 
@@ -2841,7 +2863,8 @@ private:
     mutable std::vector<ShellPairTasks> itsBoxTasks;      //!< the (shell pair, offset) geometry, derived once
     mutable std::vector<size_t>        itsBoxTaskOrder;  //!< its longest-first permutation (threaded loops)
     mutable bool                       itsFoldReported=false;  //!< the [fold] line is emitted once per run
-    mutable std::vector<IntegrateMemo> itsIntegrateMemos;  //!< phase-independent B_ij(n) per exact field (LRU)
+    mutable std::vector<std::shared_ptr<const IntegrateMemo>> itsIntegrateMemos;  //!< phase-independent B_ij(n) per exact field (LRU)
+    qchem::LazyLock                    itsIntegrateMemosLock;   //!< the LRU is read and published from concurrent Fock blocks
     mutable std::unique_ptr<StreamFold> itsStreamFold;     //!< T3 route (b) (pair, R) orbit fold (null = free run)
 };
 

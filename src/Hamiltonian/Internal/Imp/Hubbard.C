@@ -8,6 +8,7 @@ module;
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -665,6 +666,9 @@ template <> SymMap<LowdinProjector<dcmplx>>& Hubbard_U::Cache<dcmplx>() const {r
 
 template <class U> const LowdinProjector<U>& Hubbard_U::Projector(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
 {
+    // LOCKED: normally the refresh's occupation pass builds every block's projector first, but the SEED iteration has no D,
+    // so its (concurrent) Fock blocks are the first to ask.  std::map nodes are address-stable: the reference outlives the lock.
+    std::lock_guard<std::mutex> lock(itsProjLock.m);
     SymMap<LowdinProjector<U>>& cache=Cache<U>();
     const sym_t& id=orb.GetSymt();
     auto it=cache.find(id);

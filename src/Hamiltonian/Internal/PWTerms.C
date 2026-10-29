@@ -19,6 +19,7 @@ module;
 #include <string>
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
+import qchem.Parallel;                          // LazyLock (per-block writes from concurrent Fock blocks)
 import qchem.ChargeDensity.DensitySampler; // the XC SAMPLING ENGINE the three XC terms compose with.
                                                 // NOT re-exported: it is an .Internal. module, so a client
                                                 // that wants MakeDensitySampler imports it by name (CLAUDE.md).
@@ -137,6 +138,7 @@ private:
     //! \f$E_{NL}^{(l)}\f$ decomposition prints beside the lumped \c EenNL.  Empty when the knob is off.
     mutable std::map<int,std::map<std::string,chmat_t>> itsByL;
     mutable std::set<std::string>                       itsByLSeen;   //!< irrep blocks already decomposed
+    qchem::LazyLock                                     itsByLLock;   //!< the bank is filled from concurrent Fock blocks
 };
 
 //! LONG-range half of the local pseudopotential (static, density-independent): the softened-Coulomb /
@@ -377,6 +379,7 @@ private:
     //! reports in \c ChargeBreakdown::xcRho.  The latest build, not a drained log: GDM's line search calls the energy
     //! many times per iteration, and a log emptied by each call would hand the trace an empty cell.
     mutable std::optional<ChargeDensity::XCRhoSource> itsFockSource;
+    qchem::LazyLock itsFockSourceLock;   //!< every Fock block writes it (the same value): concurrent blocks take turns
 };
 
 //! \brief THE XC term for a run whose \f$v_{xc}\f$ fit basis is \a fb -- ready to \c Add (ownership

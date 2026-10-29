@@ -146,7 +146,7 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HF_HT<T>* p)
     itsPreservesReal  = itsPreservesReal  && p->PreservesReal();   // AND: one SOC/A-field term flips all blocks complex
 }
 
-template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd,const tbs_t<T>* wholeBasis)
+template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd,const tbs_t<T>* wholeBasis) const
 {
     // Layer-2 lineage guard: never build a Fock from a SUPERSEDED density (a previous iteration's, or a stale
     // copy).  The active (live-head) density is trivially active; a superseded one trips here at the exact
@@ -189,7 +189,7 @@ template <class HT> const Dynamic_HT_RealBlock& DynamicRealOf(const HT& t)
 
 template <class T> hmat_t<double> tHamiltonianImp<T>::GetMatrix(const tobs_t<double>* bs,const Spin& S,
                                                                 const tChargeDensity<dcmplx>* cd,
-                                                                const tbs_t<dcmplx>*)
+                                                                const tbs_t<dcmplx>*) const
 {
     assert((!cd || cd->isActive()) && "Hamiltonian::GetMatrix computing with a superseded charge density");
     int n=bs->GetNumFunctions();

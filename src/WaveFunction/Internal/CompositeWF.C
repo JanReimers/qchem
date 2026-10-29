@@ -95,6 +95,8 @@ protected:
     template <class U> void MakeOneIrrepWF(const tobs_t<U>*, Spin);
 
 private:
+    //! The per-block Fock loop: every child reads its block from \a H and feeds its own accelerator (OOD V1.41).
+    void AssembleFock(const qchem::Hamiltonian::tHamiltonianAt<T>& H);
     //! Announce the run report's `basis.usage` block (per-function occupation-weighted populations) -- called
     //! by FillOrbitals ITSELF, at the moment the occupations exist (V1.14: providers self-report at their
     //! own trigger; nobody tells this class when).  EmitAt is idempotent and run-scoped, so announcing on
@@ -124,6 +126,8 @@ private:
     std::map<Spin,std::map<Irrep,double>> itsAufbauNe; //per-irrep electron count, keyed by irrep (recomputed each iteration)
 
     std::vector<iwf_child_t>                itsIWFs;   // the §4 child slot: per-block scalar
+    std::vector<size_t>                     itsBlockOf;   //!< per child: its basis block's index in itsBS (AssembleFock's task)
+    bool                                    itsFockWarm=false;   //!< has a Fock assembly filled the geometry lazies? (AssembleFock)
     std::map<Irrep,iwf_ref_t>               itsQNWFs;  //sort by Irrep for easy lookup.
     std::map<Spin,std::vector<iwf_ref_t>>   itsSpinWFs; //Sort by spin.
 };

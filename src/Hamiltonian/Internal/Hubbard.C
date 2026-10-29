@@ -62,6 +62,7 @@ import qchem.Symmetry.Molecule.OperationRep;    // AoShell (rep + per-component 
 import qchem.Symmetry.Irrep;                    // Spin, SpinGroup, SpinIrreps
 import qchem.Structure;
 import qchem.Blaze;
+import qchem.Parallel;                           // LazyLock (the per-block projector lazy; concurrent Fock blocks)
 
 export namespace qchem::Hamiltonian
 {
@@ -383,6 +384,7 @@ private:
     mutable double itsEU = 0.0;
     mutable SymMap<LowdinProjector<dcmplx>> itsProj;    //!< per Bloch block
     mutable SymMap<LowdinProjector<double>> itsProjR;   //!< per real TRIM block
+    qchem::LazyLock itsProjLock;                         //!< the two lazies above: the seed iteration's Fock blocks fill them concurrently
 };
 
 } // namespace

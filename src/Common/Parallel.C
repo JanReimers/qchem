@@ -169,6 +169,9 @@ std::string ThreadSummary();
 //! core with eleven idle, and letting BLAS have them oversubscribes nothing: our OpenMP regions and
 //! this GEMM never overlap in TIME.  (doc/Benchmark.md §7c read the same 1.21× as "the level above is
 //! only 2 wide"; the level above is not 2 wide, it is not parallel at all.)
+//! ⚠ NO LONGER TRUE WHEN AN OUTER LOOP ENGAGES (2026-10-28): the Fock assembly now runs its basis blocks concurrently
+//! (\c OuterFor, doc/KAxisPlan.md P2) whenever the blocks are at least as many as the worker threads, and the response's
+//! pair loops have since P1.  Inside such an item a BLAS > 1 oversubscribes -- the banner's WARNING stands.
 //! ⇒ Raise this only where that holds.  A future concurrent outer level over k-blocks/spins would make
 //! `outer_width x BlasThreads() ~ cores` the rule instead, which is why the count is a NUMBER here and
 //! not a bool.
