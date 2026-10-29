@@ -189,9 +189,11 @@ ball — it can, to a stated tolerance, and it is the SAME ball.**  The reasonin
 - **Is it the lattice-sum ε?  Same PRINCIPLE, not the same NUMBER.**  `screenEps` (1e-10) drops r-space terms whose Gaussian
   prefactor is below it; the reach grows like √ln(1/ε), so a tight value is nearly free.  A grid's cost grows like (ln 1/ε)^{3/2} in
   points, so the grid ε must be the loosest that meets the accuracy target.  The code's own comment already says they are "not converged
-  by one tolerance".  Proposal: ONE user-facing accuracy target (Ha per matrix element), from which every mechanism derives its
-  internal tolerance by a stated formula (screenEps, densityEps, vlocEps, κ, the raster N), printed together on the banner.  Today's
-  six or so independent knobs become derived quantities.
+  by one tolerance".  **RULED 2026-10-29 (user): ONE user-facing accuracy target** (Ha per matrix element), from which every mechanism
+  derives its internal tolerance by a stated formula (screenEps, densityEps, vlocEps, κ, the raster N), printed together on the
+  banner.  Two reasons: (1) simple for the user; (2) **CONSISTENT error across terms** -- "there is no point in having one term
+  accurate to 1e-10 and another only good to 1e-4".  So each formula is judged by the error it DELIVERS on its term, measured, and a
+  term far tighter than the target is wasted cost just as one looser is a defect.  Candidate for a pin once built.
 - **V_loc long analytic?  Yes, it can be, and there are two routes.**  −Z erf(√β r)/r is the potential of a Gaussian ion charge, so
   ⟨χ_i|V|χ_j⟩ is a smeared-nucleus attraction integral (a Boys function; libcint has the erf-attenuated 1/r).  The lattice sum is
   conditionally convergent, so it needs an Ewald split: erf(√β r)/r − erf(√η r)/r is short-ranged (an analytic real-space lattice sum,
@@ -210,3 +212,37 @@ ball — it can, to a stated tolerance, and it is the SAME ball.**  The reasonin
 5. ~~§K~~  Ruled: one tolerance-sized ball for ρ and v_xc + an XC-raster audit, in C2 (§7).
 6. ~~P1–P5~~  Accepted ("very sensible"), plus P4a, the regime matrix (§3).
 7. ~~V-CALCNET~~  Review it first in lane B, covering Molecule and Solid (§1, §5).
+
+## 9. Tag index (C0, 2026-10-29) — every open row, by tag and chunk
+
+Row names abbreviated; the row itself lives in its queue.  The controller updates this index at each merge, and the open F+V+S count
+is read from it.
+
+**F (16)** — C1: "Linear D-mixing diverges" (remainder), "Na₂ AFM seed", "GDM crawls", "GDM false-converges on a carried stage",
+"Kerker+Pulay overshoots β-MnO₂'s U = 1 basin" (a panel case), "Polarized Γ Si jumps", "GDM: should an exhausted line search END the
+stage?", §2 "`MixingPolicy`" (becomes P4a's regime matrix).  C2: "BallOnly raster aliases tight pairs", "AUTO density cutoff misses O
+q6", "uniform-raster XC not equivariant", "a FREE run's XC mesh" (cost remainder), OOD R1.0r, CleanCode §K.  Forces note: §2 "SCF
+checkpoint/restart" (CK-3 = restart across a geometry step).  Check first: "`u_bands` after a GDM stage" (probably closed by `7fb46357`).
+
+**V (11)** — C4: "valgen --seed-into", "PW states cannot be saved", "restart fingerprint incomplete", "spinel charge order chosen by
+atom index", CleanCode D-BASIS-PP, D-BASIS-REGISTRY, D-STRUCTDATA step 2 (+ the seed-by-`q` scope), D-STATE-SCHEMA.  C5: "valgen is
+optimistic about diffuse functions", "vet trim deletes the valence core", "Diffuse-basis ACTUATOR".  Feature on the path: §2 "PBE / GGA".
+
+**S (27)** — C1: CleanCode V1.24(i), D-CALC-DOUBLE-SCF (migration), D-DIIS-FDMIN; OOD V1.27, D9, V-MIXER-GBALL; OpenWork "`ρ_lost/N` dead
+column" (rides V1.27).  C2: OOD R1.0 (metric axis), V1.1b, BM(1), D2, D3, D4, D13, D-GPWPAIR, R1.0n/o.  C3: OOD V1.41, V1.35, R1.0q,
+V1.34.  With GGA: OOD §I.1, V1.39.  C4: CleanCode D-ENV, D-ENV-TOL; OpenWork "an IMPOSED polarized run without +U derives its decoration".
+Lane B design review: OOD V-CALCNET.  C6: CleanCode D-WARNINGS.
+
+**H (lane H)** — §1; §2 DFT+U, A7 estimators, D5 little group, the PW umbrella + PW-1/2/4, KP; §3 NiO ghost, MnO ordering, the campaign
+re-run, NiO/SrVO₃ vs hp.x, the PW 4× XC ball re-run, the three β-MnO₂ rows; §4 LR ledger, dense PW cost, LR on real TRIM; OOD V1.40;
+CleanCode D-ENV-RERUN, D-CKALPHA-AUTO.
+
+**X (12, the quota)** — CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
+D-CONTRACTED-SHELL, D-FIT-MERGE; OpenWork "Blaze heevx/syevx" (rides ModuleToolchain Step 4).
+
+**P (parked / features / triggers)** — §2 B-spline basis, hybrids, GW, transport/MD, USPP/PAW, OT (and with it CleanCode V1.24(iii)),
+space-group irreps, SSB descent, smearing finished, molecular SAD seed, spherical SALC, valgen --auto, run report, lattice gas; §3 the
+136-function span, ‖V_xc − V_xc_fit‖, charged cells, the anchor-batch pointer; CleanCode R1.0b, V1.29, D-MODTOOL (Steps 2–5),
+D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
+
+**Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.**
