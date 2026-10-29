@@ -88,10 +88,15 @@ TEST_P(A_PG_DFT, Energy)
     const auto& pt = thePeriodicTable();
     Molecule atom;
     atom.Insert(new Atom(c.Z, 0.0, Vector3D<double>(0,0,0)));
+    // A partly filled DEGENERATE shell (B 2p^1) is occupied EVENLY -- a tiny smearing, which for an exactly degenerate level gives
+    // equal fractions at any kT, and is the spherical atom NIST's reference describes.  Integer aufbau flipped the one p
+    // electron between the three p orbitals and never converged (2026-10-29, the cap guard).  No-op on the s^1 atoms.
+    SCFParams p=dft_scf_params(c.Z);
+    if (c.spin==SpinGroup::Polarized) p.SmearingkT=1e-4;
     Calculation calc(atom, {.basis = "dzvp", .model = Model::Xalpha, .spin = c.spin,
                             .xalpha = pt.GetSlaterAlpha(c.Z), .seed = ChargeDensity::SeedStrategy::CoreGuess},
-                           {.eMax = c.Z*c.Z*0.1/32});
-    calc.Converge(dft_scf_params(c.Z));
+                     p, {.eMax = c.Z*c.Z*0.08/32});
+    ASSERT_TRUE(calc.IsConverged());
     EXPECT_LT(RelativeError(calc.Energy(), pt.GetEnergyDFT(c.Z)), c.tol);
 }
 INSTANTIATE_TEST_SUITE_P(U, A_PG_DFT, ::testing::ValuesIn(WithZ({2,4,10,18,36}, PGCase{0,SpinGroup::UnPolarized,3e-3})),   ZName<PGCase>);   // Ar(18) ~2.94e-3 vs NIST

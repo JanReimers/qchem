@@ -1,5 +1,7 @@
 // File: ChargeDensity/Internal/LinearMixer.C  The density-MATRIX mixers: linear (legacy adaptive α) and D-space Pulay.
 module;
+#include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <deque>
 #include <memory>
@@ -17,12 +19,14 @@ template <class T> class LinearMixer : public tDensityMixer<T>, public virtual t
 {
 public:
     typedef typename tDensityMixer<T>::cd_t cd_t;
-    explicit LinearMixer(double relax0) : itsRelax(relax0) {}
+    //! \a relaxMax: the CEILING the adaptive step may grow to (SCFParams::MaxRelaxRo; a restart recipe sets 0.3).
+    LinearMixer(double relax0, double relaxMax) : itsRelax(std::min(relax0, relaxMax)), itsRelMax(relaxMax)
+    { assert(relaxMax>0.0 && relaxMax<=1.0); }
 
     double Mix(cd_t& working, const cd_t& old) override
     {
         double dcd = working.GetChangeFrom(old)/working.GetTotalCharge();      // relative MaxAbs change
-        if (dcd<1e-5) itsRelMax=0.5;
+        if (dcd<1e-5) itsRelMax=std::min(itsRelMax, 0.5);
         working.MixIn(old, 1.0-itsRelax);                                      // (1−relax)ρ_in + relax ρ_out
         return dcd;
     }
@@ -31,8 +35,15 @@ public:
     const char* Tag() const override { return "Lin"; }
     bool HasGFilter() const override { return false; }   // mixes D itself
 
-    //! The legacy [F,D]-keyed policy, in one place: if this step made [F,D] WORSE, retract it to a quarter step
-    //! and shrink α; if it improved, grow α (clamped).
+    //! The [F,D]-keyed policy, in one place: if this step made [F,D] WORSE, retract it to a quarter step and shrink α by 0.8;
+    //! if it improved, grow α by the GOLDEN RATIO -- and approach the ceiling without ever landing on it.
+    //!
+    //! ⚠ WHY IRRATIONAL (user, 2026-10-29: "the ratio of shrink and grow factors should be an irrational number").  With
+    //! commensurate factors and a hard clamp the step RETURNS to exactly the same α -- 1.0 x0.8 x1.5 -> clamp 1.0 -- and the
+    //! density map follows it into an EXACT cycle: the Si frozen-χ ±α restarts sat on a period-3 limit cycle for 200
+    //! iterations (Null accelerator, the moment its [F,D] became real).  ln(phi)/ln(1/0.8) is irrational, and a step that
+    //! would cross the ceiling closes only 1/phi^2 of the remaining gap, so α never repeats.  (Measured alternatives: a
+    //! ceiling at the last retracted α broke 43 atom/molecule tests; sqrt(2) growth with a 1/phi approach left two too slow.)
     //!
     //! THE RETRACTION NEEDS NO REBUILT ρ_out.  \a working already holds ρ_w = (1−α)ρ_in + αρ_out, and the mix
     //! is linear, so the quarter step (1−α')ρ_in + α'ρ_out with α' = α/4 is
@@ -51,13 +62,14 @@ public:
             itsRelax*=0.8;
             remixed=true;
         }
-        if (s.FD<s.FDold) itsRelax*=1.5;
+        constexpr double phi=1.6180339887498949;   // (1+sqrt 5)/2
+        if (s.FD<s.FDold) itsRelax = phi*itsRelax<itsRelMax ? phi*itsRelax : itsRelMax-(itsRelMax-itsRelax)/(phi*phi);
         if (itsRelax>itsRelMax) itsRelax=itsRelMax;
         return remixed;
     }
 private:
     double itsRelax;
-    double itsRelMax=1.0;
+    double itsRelMax;   //!< the ceiling (SCFParams::MaxRelaxRo; lowered to 0.5 once the density is nearly converged)
 };
 
 //! \brief PULAY (density-DIIS) ON THE DENSITY MATRIX -- "Pulay without Kerker" (OpenWork §3, 2026-10-26).

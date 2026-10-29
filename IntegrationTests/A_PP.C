@@ -88,16 +88,18 @@ TEST(Si2_PP_U, LargeSeparation)
 //   Enn = Zion_O * Zion_Si / R = 6*4/R.
 // A single-species mis-route would give 16/R (both treated as Si) or 36/R (both O); the exact 24/R confirms
 // O->Zion6 and Si->Zion4 are routed independently (and the local/nonlocal potentials use the SAME per-Z map).
-// NOTE: absolute hetero-molecule ENERGIES are NOT asserted -- a good closed-shell value needs GTH-optimized
-// valence bases + molecular-PP SCF convergence for harder (e.g. 2p^4 O) elements, a documented follow-up
-// (the ad-hoc "sipp" O valence basis over-binds and the closed-shell O state does not fully converge here).
+// NOTE: absolute hetero-molecule ENERGIES are NOT asserted -- a good value needs GTH-optimized valence bases (the
+// ad-hoc "sipp" O valence basis over-binds).  The run is the separated atoms' high-spin state (see below).
 TEST(OSi_PP_U, MultiSpeciesRouting)
 {
     const double R = 20.0;   // bohr
     Molecule osi;
     osi.Insert(new Atom(8,  0.0, Vector3D<double>(0,0,0)));   // O  : GTH q6 -> Zion 6
     osi.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,R)));   // Si : GTH q4 -> Zion 4
-    Calculation cOSi(osi, {.basis = "sipp", .pseudopotential = true});   // ctor builds the per-species PP + converges
+    // The QUINTET: at R = 20 bohr the pair is two open-shell atoms, O 2p^4 (3P) and Si 3p^2 (3P), aligned.  The default
+    // closed-shell SINGLET forced half-filled degenerate p shells into one determinant and never converged (Δρ 0.26 at the
+    // cap; it "passed" on that iterate until the cap guard, 2026-10-29); the quintet converges in 13 iterations.
+    Calculation cOSi(osi, {.basis = "sipp", .pseudopotential = true, .multiplicity = 5});
 
     EXPECT_NEAR(cOSi.EnergyTerms()["Enn"], 24.0/R, 1e-6);   // per-species Zion routing: 6*4/R (not 16/R or 36/R)
     EXPECT_LT(cOSi.Energy(), 0.0);                       // a finite, bound total (sanity; not an accuracy claim)

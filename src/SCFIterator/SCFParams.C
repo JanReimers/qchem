@@ -53,6 +53,10 @@ export struct SCFParams
                                      //  automatically, so no caller has to remember.
     double MinFD           = 1e-5;   //Minimum error from SCF accelerator.  i.e. [F,D] (orbital gradient).
     double StartingRelaxRo = 1.0;    //relaxation for mixing Ro.  Dynamically adjusted during iterations.
+    //! The CEILING of linear D-mixing's adaptive step (\c StartingRelaxRo is only where it starts).  1.0 = passthrough allowed.
+    //! A RESTART recipe sets 0.3 (CLAUDE.md: a restart's linear fallback runs at 0.2-0.3, not 1.0) -- capping only the start
+    //! let the adaptive rule grow straight back to 1.0 (the Si frozen-χ ±α runs, 2026-10-29).
+    double MaxRelaxRo      = 1.0;
     double MergeTol        = 1e-4;   //Merge eigen levels (like Px,Py Pz) that are equal within +/- MergeTol
     bool   Verbose         = true;   //Display iteration details.  ON by default (user, 2026-10-05): a run's console without its iteration table hides where the time goes.
     //! \brief Feed \f$V_{xc}\f$ the CUSP-DEFICIT correction \f$\rho[D]-\tilde\rho_{fit}\f$ on top of the mixed density,

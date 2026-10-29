@@ -151,7 +151,7 @@ void FromJson(const json& j, BasisSet::Gaussian::GPWTolerances& t)
 json ToJson(const SCFParams& p)
 {
     return {{"NMaxIter",p.NMaxIter},{"minDeltaRhoPerElectron",p.MinΔρPerElectron},{"deltaRhoMeasure",NameOf(p.Δρmeasure,kMeasure)},{"minDeltaFD",p.MinΔFD},
-            {"minDeltaE",p.MinΔE},{"minVirial",p.MinVirial},{"minFD",p.MinFD},{"mixer",NameOf(p.Mixer,kMixing)},{"startingRelaxRo",p.StartingRelaxRo},{"mergeTol",p.MergeTol},
+            {"minDeltaE",p.MinΔE},{"minVirial",p.MinVirial},{"minFD",p.MinFD},{"mixer",NameOf(p.Mixer,kMixing)},{"startingRelaxRo",p.StartingRelaxRo},{"maxRelaxRo",p.MaxRelaxRo},{"mergeTol",p.MergeTol},
             {"verbose",p.Verbose},{"xcCuspDeficit",p.XCCuspDeficit},{"kerkerG0",p.KerkerG0},{"useMOM",p.UseMOM},{"pulayDepth",p.PulayDepth},
             {"pulayStart",p.PulayStart},{"momStartIter",p.MOMStartIter},{"smearingkT",p.SmearingkT},{"momSmearPenalty",p.MOMSmearPenalty},
             {"stopOnAccelExhausted",p.StopOnAccelExhausted},
@@ -165,7 +165,7 @@ void FromJson(const json& j, SCFParams& p)
                                  "electron on the run's quadrature (the old number meant something different per mixer)");
     f.Get("NMaxIter",p.NMaxIter); f.Get("minDeltaRhoPerElectron",p.MinΔρPerElectron); f.GetEnum("deltaRhoMeasure",p.Δρmeasure,kMeasure);
     f.Get("minDeltaFD",p.MinΔFD); f.Get("minDeltaE",p.MinΔE); f.Get("minVirial",p.MinVirial); f.Get("minFD",p.MinFD);
-    f.GetEnum("mixer",p.Mixer,kMixing); f.Get("startingRelaxRo",p.StartingRelaxRo); f.Get("mergeTol",p.MergeTol); f.Get("verbose",p.Verbose);
+    f.GetEnum("mixer",p.Mixer,kMixing); f.Get("startingRelaxRo",p.StartingRelaxRo); f.Get("maxRelaxRo",p.MaxRelaxRo); f.Get("mergeTol",p.MergeTol); f.Get("verbose",p.Verbose);
     f.Get("xcCuspDeficit",p.XCCuspDeficit); f.Get("kerkerG0",p.KerkerG0); f.Get("useMOM",p.UseMOM);
     f.Get("pulayDepth",p.PulayDepth); f.Get("pulayStart",p.PulayStart); f.Get("momStartIter",p.MOMStartIter);
     f.Get("smearingkT",p.SmearingkT); f.Get("momSmearPenalty",p.MOMSmearPenalty); f.Get("stopOnAccelExhausted",p.StopOnAccelExhausted);

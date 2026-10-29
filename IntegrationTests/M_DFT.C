@@ -14,6 +14,7 @@
 #include <stdexcept>
 
 import qchem.Calculation;            // Calculation, CalcOptions, Model, Angular
+import qchem.SCFParams;              // SCFParams (the O2 runs converge once, on their own recipe)
 import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
@@ -127,10 +128,16 @@ TEST(M_DFT, OxygenTripletHF_VerboseDisplay)
 // collapsed to closed shell -- the failure mode B3/B4 exist to prevent.
 TEST(M_DFT, OxygenTripletBelowSinglet)
 {
+    // The closed-shell SINGLET has two electrons for the exactly degenerate pi*x / pi*y pair: a single integer determinant
+    // flips them between the two every iteration and never converged (2026-10-29, the cap guard).  A tiny smearing occupies
+    // the pair EVENLY (equal fractions at any kT for a degenerate level) -- the symmetric closed-shell singlet, still above
+    // the triplet by the exchange the triplet gains.  Integer occupations for the triplet (pi*x up, pi*y up: no tie).
     auto run = [](int mult) {
-        Calculation c(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = mult});
-        c.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
-                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
+        SCFParams p{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinVirial = 1e2, .MinFD = 1e-7,
+                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false};
+        if (mult==1) p.SmearingkT=1e-4;
+        Calculation c(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = mult}, p);
+        EXPECT_TRUE(c.IsConverged()) << "multiplicity " << mult;
         return c.Energy();
     };
     const double triplet = run(3);   // nUp=9, nDown=7  (SpinGroup::Polarized, auto)

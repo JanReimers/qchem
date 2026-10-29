@@ -593,3 +593,28 @@ rescaled Z²·0.1/32 -> Z²·0.08/32 (the [F,D] unit changed; Kr Libxc went chao
 it is a stagnation measure, 1e-7 silently demanded [F,D] ~ 1e-7 and overrode MinFD); default NMaxIter 20 -> 100.  And the ruling "an SCF
 test fails if it hits NMaxIter" (user), enforced at the main level (`qchem.SCFCap` + `BoundedSCF`; CLAUDE.md): 54 offenders found, 46
 fixed or honestly bounded, 8 open (the row above).
+
+
+## Eight SCF tests failed the cap guard (OpenWork §3, 2026-10-29) -- FIXED 2026-10-29; the row as it stood
+| **Eight SCF tests fail the cap guard: they never converged** (2026-10-29; the guard `qchem.SCFCap` found 54, the rest fixed or honestly bounded) | `ValenceBasisGen.{Fluorine_q7, FluorineSeedDensityAnionIsDiffuse, AssembleValenceLowqFile}` (ONE F⁻ pseudo-atom SCF: [F,D] stalls at 9e-3, Δρ 3e-4); `OSi_PP_U.MultiSpeciesRouting` ([F,D] 2.1, diverging); `M_DFT.OxygenTripletBelowSinglet` (Δρ ~0.13, open-shell π*²); `P/A_PG_DFT.Energy/Z5` (B, Δρ 0.17, open 2p¹); `ResponsePolarizability.GPW_Si_U2_FrozenChi_eqFiniteDifferenceLRT` (±α SCFs diverge: 140 -> 264 iterations, 3 mHa); `f_U/A_HF_dfPin.SelfPin/BSpline_Z92` (converges 1.4e-8 from a 1e-8 pin its own gates cannot resolve).  All "passed" before by measuring an unconverged iterate | work each to a converged fixed point (the next session step); the U pin: tighten its gates until its energy is a fixed point, then re-judge the pin (pin 10) · this row, `CLAUDE.md` (the cap rule) |
+
+**Verdict, one cause each -- none was the SCF code being wrong, each was a test (or recipe) asking for something its run could not deliver:**
+- **U self-pin** (`A_HF_dfPin`): a 1e-8 pin under gates ([F,D] < Z·1e-5) that only resolve ~1e-8.  Recipe -> [F,D] < Z·1e-9, Δρ/N < Z·1e-8:
+  every one of the nine cases sits on its fixed point and **every pin stands as written** (worst 4.7e-9, Eu; U 1.6e-9).  No re-pin.
+- **OSi +U**: a closed-shell SINGLET for two open-shell atoms (O 2p⁴ ³P, Si 3p² ³P) at R = 20 bohr -> the quintet; 13 iterations.
+- **O₂ singlet / B atom**: an integer determinant over an exactly DEGENERATE partly filled level (π*ˣ/π*ʸ; B 2p¹) flips every
+  iteration -> smearing kT 1e-4 (equal fractions at any kT for a degenerate level; NIST's spherical atom).  Needed the
+  converge-once `Calculation(st, opts, SCFParams, acc)` constructor (CleanCode D-CALC-DOUBLE-SCF, done for these callers): the old
+  constructor ran its own SCF on DEFAULT params before the test's recipe could apply.
+- **F⁻ pseudo-atom** (3 ValenceBasisGen tests): the pseudo-atom Hamiltonian is FITTED, so [F,D] floors (3e-5) while E is flat to 1e-9;
+  the generator now gates its validating SCFs on the ENERGY (ΔE/E 1e-10), and a recipe can name its accelerator -- F⁻ (closed shell,
+  2p unbound in the window, ε +0.07) runs GDM, where DIIS jittered 5e-6 Ha forever.
+- **Si frozen-χ FD**: the ±α restarts run linear D-mixing on the Null accelerator; with its [F,D] now real, `LinearMixer::Adapt`'s
+  ×0.8 / ×1.5-with-a-clamp rule returned to EXACTLY α = 1.0 and the run sat on a period-3 limit cycle.  Two fixes: (1) the user's --
+  the shrink/grow ratio is IRRATIONAL (grow ×φ, and a step that would cross the ceiling closes only 1/φ² of the gap, so α never
+  repeats); (2) `SCFParams::MaxRelaxRo`, the CEILING of the adaptive step, which the facade's restart recipe caps at 0.3 beside the
+  start (CLAUDE.md's restart rule -- capping only the start let it grow back to 1.0).  Deck key `maxRelaxRo`.  Measured and rejected:
+  a ceiling at the last retracted α (43 atom/molecule failures); √2 growth with a 1/φ approach (two atoms too slow).
+Sweep (cap guard on) 1119/1119; no energy moved by more than 1e-8 except the FD test returning to its pre-change value (264 -> 160
+iterations); iteration counts moved on PW_Si/NaF/CsI anchors, GPW_Al anneal and the Na₂ box (the new adaptive step).  Banked
+`~/Code/qchem6-runs/anchors/capguard_short.log`.

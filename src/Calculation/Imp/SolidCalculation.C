@@ -1616,7 +1616,11 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
     // NOT at 0.3 -- measured 2026-10-21).
     assert(itsImp->scf);
     SCFParams restart=params;   // the caller's Mixer is kept (an Auto one is resolved per stage, against that stage's accelerator)
-    if (itsImp->scf->ResolveMixing(params).Mixer==SCFParams::Mixing::Linear) restart.StartingRelaxRo=std::min(restart.StartingRelaxRo, 0.3);
+    if (itsImp->scf->ResolveMixing(params).Mixer==SCFParams::Mixing::Linear)
+    {   // the START and the CEILING: capping only the start let the adaptive step grow back to 1.0 (SCFParams::MaxRelaxRo)
+        restart.StartingRelaxRo=std::min(restart.StartingRelaxRo, 0.3);
+        restart.MaxRelaxRo     =std::min(restart.MaxRelaxRo,      0.3);
+    }
     const bool startedOnGDM=itsImp->accOpts.ladderStartOnGDM;
     itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;   // kT = 0 only (see Restart)
     const SCFParams& stageParams = reseed ? params : restart;

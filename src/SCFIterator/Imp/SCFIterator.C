@@ -996,7 +996,7 @@ tSCFIterator<T>::CreateMixer(const SCFParams& ipar, const tbs_t<T>*, const Struc
 {
     if (ipar.Mixer==SCFParams::Mixing::Pulay)   // ResolveMixing let it through only at KerkerG0 = 0: Pulay on D
         return qchem::ChargeDensity::PulayDMixerFactory<T>(ipar.StartingRelaxRo, ipar.PulayDepth, ipar.PulayStart);
-    return qchem::ChargeDensity::LinearMixerFactory<T>(ipar.StartingRelaxRo);
+    return qchem::ChargeDensity::LinearMixerFactory<T>(ipar.StartingRelaxRo, ipar.MaxRelaxRo);
 }
 
 template class tSCFIterator<double>;
@@ -1051,7 +1051,7 @@ SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, co
     case M::Auto:
         break;
     }
-    return CD::LinearMixerFactory<dcmplx>(ipar.StartingRelaxRo);
+    return CD::LinearMixerFactory<dcmplx>(ipar.StartingRelaxRo, ipar.MaxRelaxRo);
 }
 
 } //namespace

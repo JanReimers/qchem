@@ -108,12 +108,12 @@ bool CanMixInGSpace(const BasisSet::tBasisSet<dcmplx>* basis, const Structure* c
     return basis && isPeriodicCell(cell) && dynamic_cast<const FourierDensity*>(seed);
 }
 
-template <class T> std::unique_ptr<tDensityMixer<T>> LinearMixerFactory(double relax0)
+template <class T> std::unique_ptr<tDensityMixer<T>> LinearMixerFactory(double relax0, double relaxMax)
 {
-    return std::make_unique<LinearMixer<T>>(relax0);
+    return std::make_unique<LinearMixer<T>>(relax0, relaxMax);
 }
-template std::unique_ptr<tDensityMixer<double>> LinearMixerFactory<double>(double);
-template std::unique_ptr<tDensityMixer<dcmplx>> LinearMixerFactory<dcmplx>(double);
+template std::unique_ptr<tDensityMixer<double>> LinearMixerFactory<double>(double,double);
+template std::unique_ptr<tDensityMixer<dcmplx>> LinearMixerFactory<dcmplx>(double,double);
 
 template <class T> std::unique_ptr<tDensityMixer<T>> PulayDMixerFactory(double relax, int depth, int start)
 {

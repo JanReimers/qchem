@@ -143,6 +143,10 @@ static void EmitScfSection(const SCFParams& p, const std::string& accelerator)
 }
 
 Calculation::Calculation(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
+    : Calculation(st, opts, SCFParams{}, acc)
+{}
+
+Calculation::Calculation(const Structure& st, const CalcOptions& opts, const SCFParams& scf, const AcceleratorOptions& acc)
     : itsStructure(st.Clone())   // polymorphic deep copy: the facade owns its own structure AND keeps its
                                  // concrete geometry (a UnitCell stays periodic, not sliced to a Molecule)
     , itsOpts(opts)
@@ -158,7 +162,7 @@ Calculation::Calculation(const Structure& st, const CalcOptions& opts, const Acc
     itsEC    = MakeMoleculeEC(int(itsStructure->GetNumElectrons()), itsOpts.multiplicity);
     // The basis is NOT built here: the first Converge builds it INSIDE its run report's "basis" section, so a
     // basis with something to announce does so as it is constructed (V1.14).
-    Converge();                                       // so Energy()/Density() are ready on return
+    Converge(scf);                                    // so Energy()/Density() are ready on return
 }
 
 Calculation::~Calculation()
@@ -177,7 +181,7 @@ bool Calculation::Converge(const SCFParams& params)
     // keeps DIIS off and the SCF limit-cycles to a non-converged snapshot (the "M_Sym layout UB" mechanism,
     // see M_DFT).  So default them to a high EMax ("DIIS from start") unless the caller pinned one.
     const bool dftLike = dft || itsOpts.pseudopotential;
-    const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : (dftLike ? 100.0 : Z*Z*0.1/32);
+    const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : (dftLike ? 100.0 : Z*Z*0.08/32);
     nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
                             {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
     using AType = qchem::SCFAccelerators::Type;

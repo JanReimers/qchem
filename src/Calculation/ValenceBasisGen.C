@@ -53,7 +53,11 @@ export namespace qchem
         //! UP-MAJORITY convention.  Default off: spin-agnostic recipes stay bit-identical (closed shells and
         //! the pre-existing library entries).
         bool         spinResolved = false;
-        //! Max SCF iterations for the validating pseudo-atom (0 => the SCFParams default, 20).  A heavier
+        //! The validating SCF's accelerator ("" = the default DIIS; "GDM" = direct minimization, for a CLOSED shell at kT 0
+        //! whose DIIS energy will not settle -- F- has its 2p level unbound in a finite window, eps +0.07 Ha, and DIIS
+        //! jittered 5e-6 Ha forever while GDM holds it to 1e-9).
+        std::string  accelerator;
+        //! Max SCF iterations for the validating pseudo-atom (0 => the SCFParams default, 100).  A heavier
         //! atom is a longer descent and the cap is not a basis verdict: neutral Ni q10 in the 16-exponent
         //! accuracy pool was still at Δρ = 2e-4 on iteration 20, DESCENDING smoothly, and reported
         //! \c converged=false -- which reads exactly like a bad window (2026-09-22).  Raise it before
