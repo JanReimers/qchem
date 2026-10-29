@@ -190,9 +190,21 @@ public:
     //! The full DETECTED \f${U|\tau}\f$ set -- populated imposed or not (detection always runs; it is the
     //! §3 order-parameter diagnostic's reference group, doc/SymmetryUpgradePlan.md).
     virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetDetectedReciprocalOps() const override {return itsDetectedOps;}
+    //! The Shubnikov pair projection on the Γ block (see tBasisSet).  Active only on a MAGNETIC imposition
+    //! of a single Γ block: there every op maps the block onto itself and its AO rep is a signed shell
+    //! permutation (no Bloch phase).  A multi-k magnetic run keeps the partial (σ=None) projection.
+    virtual void ProjectSpinPair(hmat_t<double>& Dup, hmat_t<double>& Ddn) const override;
+    virtual void ProjectSpinPair(hmat_t<dcmplx>& Dup, hmat_t<dcmplx>& Ddn) const override;
 private:
+    template <class T> void ProjectPair(hmat_t<T>& Dup, hmat_t<T>& Ddn) const;
+    //! The Shubnikov ops' AO reps on the Γ block, built on first use (the shells come off the block).
+    const std::vector<std::pair<rmat_t,bool>>& PairReps() const;
+
     std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsReciprocalOps;   //!< {} unless imposeSymmetry (doc/GPWPlan1.md items 3+5)
     std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsDetectedOps;     //!< the full detected group, always (§3 diagnostic)
+    std::vector<Symmetry::Lattice_3D::SymOp>        itsPairOps;         //!< Shubnikov {W|τ,σ}; {} unless a magnetic Γ-only imposition
+    Matrix3D<double>                                itsCellA;           //!< direct cell matrix (lattice → Cartesian for the AO reps)
+    mutable std::vector<std::pair<rmat_t,bool>>     itsPairReps;        //!< (M_g, flips) per op, lazily built
 };
 
 } //namespace

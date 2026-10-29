@@ -422,6 +422,18 @@ public:
     //! (\c SymmetryDefects).  Default {} = no lattice / nothing detected.
     virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetDetectedReciprocalOps() const {return {};}
 
+    //! \brief Impose the run's MAGNETIC (Shubnikov) group on a SPIN PAIR of block density matrices, in place:
+    //! \f$D_s \leftarrow |G|^{-1}\sum_g M_g D_{\sigma_g(s)} M_g^\top\f$, where \f$M_g\f$ is \a g on the AO
+    //! basis and \f$\sigma_g\f$ swaps the channels on a spin-flip op.  The flip ops (the ones that map one
+    //! magnetic sublattice onto the other) relate \f$D_\uparrow\f$ to \f$D_\downarrow\f$, so no single-channel
+    //! star-average can impose them -- only a caller holding BOTH channels can, and the composite wave
+    //! function is that caller.  Without it the flip content was projected only inside the XC engine, and a
+    //! soft ferrimagnetic mode grew from 1e-9 to 0.4 on β-MnO₂ (OpenWork §3, 2026-10-28).  Default: no-op
+    //! (no magnetic imposition, or a basis that cannot represent the ops on its AOs).  Both overloads exist
+    //! because a block's scalar is its own (a real TRIM child inside a complex run).
+    virtual void ProjectSpinPair(hmat_t<double>& /*Dup*/, hmat_t<double>& /*Ddn*/) const {}
+    virtual void ProjectSpinPair(hmat_t<dcmplx>& /*Dup*/, hmat_t<dcmplx>& /*Ddn*/) const {}
+
     // Iterate() with no type argument yields the base obs_t* directly (no cast);
     // Iterate<D>() dynamic_cast's each IBS to the requested derived type D.
     // Built on the two primitives below, so storage stays private to the

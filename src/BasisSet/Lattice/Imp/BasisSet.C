@@ -285,7 +285,83 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     // here forced EnsureLevels before the eigen-analysis could veto the basis).  So only the legacy unbracketed
     // console path stays here; ReportGrids also forces the grid build, which is exactly what we must NOT do early.
     if (first && report::Depth() == 0) first->ReportGrids(std::cout);
+    // The Shubnikov PAIR projection (tBasisSet::ProjectSpinPair): only where every op maps the one block onto
+    // itself with no Bloch phase -- a magnetic imposition of a single Γ block.  A multi-k magnetic run keeps
+    // the partial (σ=None) projection it always had.
+    if (!ops.magneticDirect.empty() && blocks.size()==1
+        && blocks[0].ik.x==0 && blocks[0].ik.y==0 && blocks[0].ik.z==0
+        && kShift.x==0.0 && kShift.y==0.0 && kShift.z==0.0)
+    {
+        itsPairOps=ops.magneticDirect;
+        itsCellA  =lat.GetUnitCell().GetCellMatrix();
+    }
 }
+
+// M_g on the Γ block's AOs for every Shubnikov op g = {W|τ,σ}: BuildOperationRep's shell permutation × angular
+// rep, with the image centre R c + Aτ matched MODULO THE LATTICE (a Γ Bloch sum is the same function at every
+// image, so the match needs no phase).  Convention as BuildOperationRep: φ_J(g⁻¹r) = Σ_I M(I,J) φ_I(r), hence
+// ρ(g⁻¹r) has density matrix M D Mᵀ (M is real).
+const std::vector<std::pair<rmat_t,bool>>& GPW_BasisSet::PairReps() const
+{
+    namespace SL = qchem::Symmetry::Lattice_3D;
+    if (!itsPairReps.empty() || itsPairOps.empty()) return itsPairReps;
+    assert(GetNumIBS()==1);
+    const AoShellSource* src=std::visit([](const auto& b){return dynamic_cast<const AoShellSource*>(b.get());}, GetChild(0));
+    if (!src) throw std::logic_error("GPW_BasisSet::ProjectSpinPair: the Γ block does not report its AO shells (AoShellSource)");
+    const std::vector<Symmetry::Molecule::AoShell> shells=src->GetAoShells();
+    size_t nAO=0; for (const auto& s : shells) nAO=std::max(nAO, s.offset+s.nComponents());
+    const Matrix3D<double> Ainv=Invert(itsCellA);
+    constexpr double tol=1e-6;   // fractional coordinates: sites sit on exact rationals, so this is roundoff-level
+    for (const SL::SymOp& op : itsPairOps)
+    {
+        const rmat3d_t R=itsCellA*op.W*Ainv;                 // the Cartesian rotation R = A W A⁻¹
+        const rvec3_t  t=itsCellA*op.tau;
+        rmat_t M(nAO,nAO,0.0);
+        for (const auto& B : shells)
+        {
+            const rvec3_t img=R*B.center+t;
+            const Symmetry::Molecule::AoShell* Bp=nullptr;
+            for (const auto& C : shells)
+            {
+                if (C.shellType!=B.shellType) continue;
+                const rvec3_t f=Ainv*(C.center-img);
+                if (std::fabs(f.x-std::round(f.x))<tol && std::fabs(f.y-std::round(f.y))<tol && std::fabs(f.z-std::round(f.z))<tol)
+                    { Bp=&C; break; }
+            }
+            if (!Bp) throw std::logic_error("GPW_BasisSet::ProjectSpinPair: a Shubnikov op maps a shell onto no shell -- the op is not a symmetry of the basis");
+            const rmat_t Dl=B.rep->Rep(R);
+            const size_t nc=B.nComponents();
+            for (size_t a=0;a<nc;a++) for (size_t b=0;b<nc;b++)
+                M(Bp->offset+b, B.offset+a)=(B.norm[a]/Bp->norm[b])*Dl(b,a);
+        }
+        itsPairReps.push_back({std::move(M), op.sigma==SL::SpinAction::Flip});
+    }
+    return itsPairReps;
+}
+
+// D_s ← |G|⁻¹ Σ_g M_g D_{σ_g(s)} M_gᵀ: the group average over the FULL Shubnikov set, a flip op reading the
+// OTHER channel.  A projector because the set is a closed group (RequireClosedGroup at imposition) and g ↦ M_g
+// a representation on the Γ block.  It commutes with every Hamiltonian term built from D, so imposing it here
+// imposes it on ρ, m, the mixer's history and the +U occupations at once.
+template <class T> void GPW_BasisSet::ProjectPair(hmat_t<T>& Dup, hmat_t<T>& Ddn) const
+{
+    const auto& reps=PairReps();
+    if (reps.empty()) return;
+    assert(Dup.rows()==reps[0].first.rows() && Ddn.rows()==Dup.rows());
+    const size_t n=Dup.rows();
+    mat_t<T> up(n,n,T(0)), dn(n,n,T(0));
+    for (const auto& [M,flip] : reps)
+    {
+        up += M*(flip ? mat_t<T>(Ddn) : mat_t<T>(Dup))*blazem::trans(M);
+        dn += M*(flip ? mat_t<T>(Dup) : mat_t<T>(Ddn))*blazem::trans(M);
+    }
+    const double w=1.0/double(reps.size());
+    // Hermitian to roundoff by construction; store the Hermitian part (an hmat_t refuses a 1e-16 asymmetry).
+    Dup=blazem::declherm(0.5*w*(up+blazem::ctrans(up)));
+    Ddn=blazem::declherm(0.5*w*(dn+blazem::ctrans(dn)));
+}
+void GPW_BasisSet::ProjectSpinPair(hmat_t<double>& Dup, hmat_t<double>& Ddn) const {ProjectPair<double>(Dup,Ddn);}
+void GPW_BasisSet::ProjectSpinPair(hmat_t<dcmplx>& Dup, hmat_t<dcmplx>& Ddn) const {ProjectPair<dcmplx>(Dup,Ddn);}
 
 // Compact irrep label for the report (symmetry symbol + spin arrow), via the Streamable Write().
 

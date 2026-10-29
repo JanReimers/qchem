@@ -168,6 +168,14 @@ public:
     //! caller had to know otherwise, and AtomCalculation::TotalCharge did not, leaking a whole composite
     //! per call.  Ownership now lives in the TYPE.
     virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const=0;
+    //! \brief The density matrix \f$D=\sum_i n_i|C_i\rangle\langle C_i|\f$ (BZ weight NOT applied) -- the cached
+    //! member.  Loosened for ONE client (2026-10-29): the composite wave function's Shubnikov PAIR projection
+    //! (\c tBasisSet::ProjectSpinPair) needs \f$D_\uparrow\f$ and \f$D_\downarrow\f$ of one spatial block
+    //! TOGETHER, which no single block's \c GetChargeDensity can supply.  Everyone else asks for the density.
+    virtual const hmat_t<T>& GetDensityMatrix() const=0;
+    //! \brief BUILDS the density of a GIVEN density matrix \a D on this block (BZ weight applied, exactly as
+    //! \c GetChargeDensity does for its own \f$D\f$) -- the projected pair's way back in.
+    virtual std::unique_ptr<tDM_CD<T>> MakeChargeDensity(const hmat_t<T>& D) const=0;
 
     //! Per-basis-function occupation-weighted Mulliken gross population \f$P_i=(DS)_{ii}\f$, given this irrep's
     //! AO overlap \a S (supplied by the caller's IrrepBasisSet).  The density \f$D=\sum_{occ} n|C\rangle\langle

@@ -220,11 +220,16 @@ template <class T> rvec_t TOrbitalsImp<T>::GetBasisPopulations(const hmat_t<T>& 
 
 template <class T> std::unique_ptr<tDM_CD<T>> TOrbitalsImp<T>::GetChargeDensity() const
 {
+    return MakeChargeDensity(itsD);
+}
+
+template <class T> std::unique_ptr<tDM_CD<T>> TOrbitalsImp<T>::MakeChargeDensity(const hmat_t<T>& D) const
+{
     // Scale by the irrep's BZ weight (1 for atoms/molecules; w_k for a Bloch k-point) so the composite
     // density sums to the BZ average Sum_k w_k rho_k.  The orbitals' occupations stay physical (the
     // accelerator works on the unscaled D'); only the charge-density object carries the weight.
     double w=GetQNs().sym->GetWeight();
-    hmat_t<T> Dw = (w==1.0) ? itsD : hmat_t<T>(w*itsD);
+    hmat_t<T> Dw = (w==1.0) ? D : hmat_t<T>(w*D);
     return std::unique_ptr<tDM_CD<T>>(qchem::ChargeDensity::IrrepCD_Factory(std::move(Dw),itsBasisSet,GetQNs()));   // moved: one n×n copy, not two
 }
 

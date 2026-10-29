@@ -34,6 +34,8 @@ public:
     virtual size_t    GetNumOccOrbitals  (               ) const;
     virtual double    GetEigenValueChange(const Orbitals&) const;
     virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const;   //!< BUILDS it (V1.25: owning return)
+    virtual const hmat_t<T>& GetDensityMatrix() const override {return itsD;}
+    virtual std::unique_ptr<tDM_CD<T>> MakeChargeDensity(const hmat_t<T>& D) const override;
     virtual rvec_t    GetBasisPopulations(const hmat_t<T>& S) const;
     virtual void      UpdateOrbitals     (const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e);
     virtual Irrep GetQNs() const;
