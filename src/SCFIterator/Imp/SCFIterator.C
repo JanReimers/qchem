@@ -392,6 +392,12 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     // ipar.Mixer -- Kerker/Pulay ρ̃-mixing on a periodic run, else linear D-mixing at α=StartingRelaxRo (1.0 = passthrough).
     itsMixer = CreateMixer(ipar, itsBS, itsKerkerCell.get(), itsCD.get());
     itsAdaptive = dynamic_cast<qchem::ChargeDensity::tAdaptiveMixer<T>*>(itsMixer.get());   // null = fixed step
+    // THE FIRST FIELD'S PROVENANCE (OpenWork §3 "A CARRIED density's first iteration feeds XC the FITTED rho", 2026-10-28): a
+    // field mixer PRESENTS the working D as its first field, but the D it came from was only ever seated after a Mix -- so
+    // iteration 1's XC found no DM source and took the FITTED rho (the trace's `fitted`), on every Kerker/Pulay run.  On a
+    // restart that cost the most: the saved fixed point re-opened at drho 6e-4 (TiO2 k222) and took 15 iterations back.
+    // The working D IS this field's source -- seat it, so iteration 1 samples rho[D] (pin 28) like every later one.
+    SeatDMSource(*itsMixer, itsCD);
 
     // The order parameter at the STARTING point (the seed's diagonalized density, "iteration 0") -- the
     // reference every later value is judged against.  A probe that already reads ~0 here means the SEED never

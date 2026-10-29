@@ -40,7 +40,7 @@ public:
                ReciprocalLattice recip, GField seed0, double charge, bool cusp=false)
         : itsRelax(relax), itsKerkerG0(G0), itsDepth(depth), itsStart(start), itsCuspDeficit(cusp), itsKerkerFit(std::move(fit))
         , itsRecip(recip), itsCharge(charge), itsIn(std::move(seed0))
-        , itsMixedRho(Present(itsIn, itsRecip, itsCharge))
+        , itsMixedRho(PresentFromD(itsIn, itsRecip, itsCharge, itsCuspDeficit))
     {}
 
     //! The density-face entry: extract ρ̃_out + the raster shadow, then do the G-space arithmetic below.
@@ -75,7 +75,7 @@ public:
         itsIn=current;
         itsIns.clear(); itsOuts.clear(); itsResiduals.clear(); itsRawIns.clear(); itsRawOuts.clear();
         itsCount=0;
-        itsMixedRho=Present(itsIn, itsRecip, itsCharge);
+        itsMixedRho=PresentFromD(itsIn, itsRecip, itsCharge, itsCuspDeficit);
     }
 
     //! The single-channel step: stage, solve MY OWN B, apply.  Exactly \c MixJointly over one channel -- and

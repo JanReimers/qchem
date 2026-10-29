@@ -91,6 +91,15 @@ inline std::shared_ptr<FourierMixCD> Present(const GField& f, const ReciprocalLa
     return std::make_shared<FourierMixCD>(f.tilde, recip, charge, std::move(x));
 }
 
+//! The presentation of a field taken STRAIGHT FROM A D -- a mixer's seed, a re-seat.  With the cusp deficit armed its N4
+//! correction rho_mix - rho_out is identically ZERO, but it must be PRESENT: the correction is what routes XC to rho[D]
+//! (pin 28; ExactSourceOf), so without it such a field's first Fock fed XC the FITTED rho -- every restart, every re-seat
+//! (OpenWork §3 "A CARRIED density's first iteration feeds XC the FITTED rho", 2026-10-28).
+inline std::shared_ptr<FourierMixCD> PresentFromD(const GField& f, const ReciprocalLattice& recip, double charge, bool cusp)
+{
+    return Present(f, recip, charge, cusp ? ΔG_Map(0.0*f.tilde) : ΔG_Map{});
+}
+
 class tFieldExtrapolator;   // the HISTORY face, below
 
 //! A mixer whose subject is a \c GField -- i.e. one that works purely in G space (Kerker, Pulay; NOT the

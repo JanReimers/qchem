@@ -535,3 +535,20 @@ and the refusal measures it on every response.  Gates: the Si eigenpair test; Ni
 printed digits.  The SAVED FILE was never affected (D is rebuilt from the written C at save; a restart reads only D).
 Sweep: 1102 pass; moved: `GPW_NaF.Γ_Imp_eqColdStart` −8.9e-9 Ha (38 → 37 iterations) and `Γ_Imp_eqExactResume` −2e-10 Ha --
 the GDM rung's trajectory, within convergence noise, judged expected.
+
+
+## A CARRIED density's first iteration fed XC the FITTED ρ (OpenWork §3, 2026-10-28) -- FIXED 2026-10-29; the row as it stood
+| **A CARRIED density's first iteration feeds XC the FITTED ρ, so an "EXACT RESUME" does not start at its own fixed point** (2026-10-28) | TiO₂ k222 Kerker+Pulay (Null accel, kT 5 mHa) restart from a state converged at Δρ 1e-6: iteration 1 opens at Δρ 6.2e-4 and E 1.9e-5 Ha off, XC ρ column `fitted`, then `cusp` from iteration 2; the fresh Pulay history at α 1 amplifies it (Δρ to 2e-2) and the resume takes 15 iterations.  The saved D is fine: `SCFIterator`'s `SeedRole::WorkingDensity` path keeps the D-backed density (`itsCarried`), but the mixer's first field has no raster shadow, so `PairSource` returns `Fitted` -- legal under pin 28 only for a seed WITHOUT a D.  Hits every carried density: restarts, anneal stages, ±α, the U loop | seed the mixer FROM the carried D (`tDensityMixer::Reseat`: the D becomes the running field, so iteration 1 samples ρ[D] / cusp); gate: an exact resume's iteration 1 at Δρ ≤ the saved one · `src/SCFIterator/Imp/SCFIterator.C` l.236–246 / 370 |
+
+**Verdict.**  Not a restart-only defect: EVERY field-mixer run's first Fock (and every GDM fallback re-seat) fed XC the fitted ρ
+on the singles (Becke) route, because that route reaches ρ[D] only through the field's N4 cusp correction (ρ_mix − ρ_out,
+`ExactSourceOf`), which the mixers formed only inside `Mix` -- a field taken straight from a D (the seed field, `ReseatField`, the
+(ρ,m) channels' first rebuild) carried none.  A restart showed it worst: the saved fixed point re-opened off itself.  FIX: such a
+field is presented WITH its correction, identically zero (`PresentFromD`, `FieldMixer.C`; the polarized (ρ,m) mixer forms it against
+the working channels), and the working D is seated as the first field's DM source (`SCFIterator`, after `CreateMixer`).  The
+proposed `Reseat` route was not needed.  Gates: UTCalculation `SolidState.ExactResume_{Pulay,KerkerPulay}_Null_StartsAtTheSavedState`
+(Si k222 polarized, Becke, Null accelerator): Kerker-Pulay resume `fitted` / Δρ 8.6e-5 / 6 iterations BEFORE, `cusp` / Δρ 7.3e-10 /
+2 AFTER; TiO₂ Γ deck iteration 1 `fitted` -> `cusp`.  Sweep 1114/1114; moved 5, all Kerker runs whose iteration 1 changed:
+`GPW_NaF.Γ_Becke_Imp_eqUni` +2.9e-8 (12 -> 10 iterations), `GPW_NaF.Γ_Imp_Anchor` +3.7e-9, `GPW_Si.Γ_U_Imp_Pol_Kerker_eqUnpol`
++8e-10, `GPW_NaF.Γ_Imp_eqExactResume` +3e-10, `GPW_Si.Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint` (67 -> 66) -- the SCF
+path, within convergence; banked `~/Code/qchem6-runs/anchors/firstfield_short.log`.

@@ -228,14 +228,15 @@ public:
         return d;
     }
     //! Each leaf takes its channel of \a current (in the leaf basis) and drops its history; in (ρ,m) mode the channel pair is
-    //! rebuilt from the re-seated leaves (no N4 correction: the field IS ρ[D]'s).
+    //! rebuilt from the re-seated leaves, its N4 correction formed against \a current itself -- ~zero, since the field IS
+    //! ρ[D]'s, but PRESENT: it is what routes XC to ρ[D] (see PresentFromD).
     bool Reseat(const cd_t& current) override
     {
         auto [wu,wd]=Channels(current);
         const LeafFields lf=LeafFieldsOf(wu,wd);
         itsAF->ReseatField(lf.a);
         itsBF->ReseatField(lf.b);
-        if (itsBasis!=ChannelBasis::SpinChannels) RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge());
+        if (itsBasis!=ChannelBasis::SpinChannels) RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge(), &lf.up, &lf.dn);
         return true;
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t& working) const override
@@ -243,9 +244,10 @@ public:
         if (itsBasis==ChannelBasis::SpinChannels)
             itsFock.Seat(&itsAF->Mixed(), &itsBF->Mixed());   // re-seat: each mix allocates a fresh mixed ρ̃
         else if (!itsChUp)                        // iteration 1: FockDensity runs BEFORE the first Mix
-        {
+        {   // the leaves were seeded FROM `working`: its channels are the output the N4 correction is formed against (~zero)
             auto [wu,wd]=Channels(working);
-            RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge());
+            const LeafFields lf=LeafFieldsOf(wu,wd);
+            RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge(), &lf.up, &lf.dn);
         }
         return &itsFock;
     }
@@ -312,8 +314,8 @@ private:
     //! (ρ,m) mode only: rebuild the CHANNEL pair the Fock consumes, ρ̃_σ = (ρ̃ ± m̃)/2, from the two leaves'
     //! mixed combinations, and re-seat the view on them.  Rebuilt (rather than viewed) because a fresh
     //! FourierMixCD is what carries the batch evaluator, the Poisson kernel and a fresh logical-clock serial.
-    //! \a outUp / \a outDn: the latest output's channel fields, for the N4 correction (pin 28); null before the first Mix
-    //! (the seed's iteration has no D to correct against).
+    //! \a outUp / \a outDn: the latest output's channel fields, for the N4 correction (pin 28) -- after a Mix the fresh
+    //! output; on the first field and a re-seat, the D the leaves were taken from.  Null = no correction.
     void RebuildChannels(double qUp, double qDn, const ΔG_Map* outUp=nullptr, const ΔG_Map* outDn=nullptr) const
     {
         const GField& r=itsAF->Field();   // the leaves' own fields -- read, never edited (V1.18)
