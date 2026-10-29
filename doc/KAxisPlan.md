@@ -193,7 +193,12 @@ lazy (the seed iteration's blocks fill it), XC `itsFockSource`, the KB per-l dia
   459 s vs 481 s inner-only (A/B in one binary) -- −4 %, the Fock assembly being a few s of a ~65 s iteration here (diagonalize +
   density dominate).  Inside an outer item the `h ball closure` (per-level `ΔG_Map` restriction + inverse FFT) costs 6.6× per call
   (0.052 -> 0.34 s): contention (allocation-heavy maps), not oversubscription (pocketfft is single-threaded) -- a lever if the
-  outer loop is to pay on a gather-bound run.  Not yet measured at 0 moved / 8 threads on the LONG tier.
+  outer loop is to pay on a gather-bound run.
+- LONG tier (2026-10-28): serial 7/7, 0 moved of 5 comparable vs `dpulay2_long` (banked `v141b_long.log`); 8 threads 7/7 pass, wall
+  686 -> 265 s, 3 moved -- Si k222 q211 −6.2e-9 (iters 13 -> 15), k222 q222 Becke −6e-10 (13 -> 14), k211 χ FD +2 iters -- none with
+  the outer Fock loop engaged (2..8 blocks at 8 threads: width < threads), so the inner regions' arrival-order sums again.  The P2
+  gate as written ("0 moved at 8 threads") cannot be met by ANY threaded run while the inner regions reduce in arrival order; what
+  holds is: serial 0 moved, the outer loop bit-identical to serial (the UT gate), threaded runs within the SCF tolerance.
 
 **P3 (Q9) DONE 2026-10-27: one q per star.**  `qchem.Response.QStars` (`FoldQMesh`: the q-mesh under the ground state's ops;
 each member = a representative + a channel permutation + per-channel lattice shifts) and `LinearResponse(Nq, …, const QStars*)`:
