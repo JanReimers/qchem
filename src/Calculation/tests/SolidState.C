@@ -31,6 +31,7 @@ import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type::Ladder (the res
 import qchem.SCFIterator;   // SCFProgress (the first-iterate probe)
 import qchem.HDF5;
 import qchem.Types;
+import qchem.Mesh;   // qcMesh::UnitCellKind (the field-mixer restart gate's XC mesh)
 
 using namespace qchem;
 namespace {
@@ -250,6 +251,47 @@ TEST(SolidState, SmearedExactResume_StartsAtTheSavedState)
     EXPECT_NEAR(r->Energy(), saved, 1e-8);
     EXPECT_LE(r->IterationCount(), 3u);
 }
+
+// A FIELD-MIXER restart starts at its own fixed point (OpenWork §3 "A CARRIED density's first iteration feeds XC the FITTED
+// rho", 2026-10-28).  With the Null accelerator the Fock is built from the mixer's PRESENTED field; under a Kerker filter that
+// field's first iterate had no DM source seated, so iteration 1's XC took the fitted rho and the exact resume re-opened off its
+// fixed point (TiO2 k222: drho 6e-4, 15 iterations back).  Pulay with and without the Kerker filter: the first iterate is the
+// saved energy, XC sees rho[D] from iteration 1, and the resume confirms in <= 3 iterations.  Polarized on the Becke mesh: the
+// singles sampler reaches rho[D] only through the field's N4 correction, which a mixer formed only inside Mix -- so a field
+// taken straight from a D (the seed, a re-seat) had none.
+namespace {
+void ExpectFieldMixerExactResume(double kerkerG0)
+{
+    SiRun si=Si(ivec3_t(2,2,2));
+    SCFParams p=Params();
+    p.Mixer=SCFParams::Mixing::Pulay; p.PulayDepth=8; p.PulayStart=2; p.KerkerG0=kerkerG0;
+    const std::string path=TempPath("ck1_si_fieldmix_m1_"+std::to_string(int(kerkerG0*10))+".h5");
+    SolidCalcOptions o=Options(1, true, path);         // POLARIZED: the (ρ,m) mixer, as on the TiO2 / NiO campaign decks
+    o.accelerator=SCFAccelerators::Type::Null;
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;     // the singles route: rho[D] only through the N4 correction
+    double saved=0.0;
+    {
+        SolidCalculation calc(*si.lat, si.mol, o, p);
+        auto r=calc.Result();
+        ASSERT_TRUE(r) << "the Si field-mixer reference must converge";
+        saved=r->Energy();
+    }
+    o.saveStateTo="";
+    std::vector<SCFIterator::SCFProgress> it;
+    o.onIteration=[&it](const SCFIterator::SCFProgress& pr){ it.push_back(pr); };
+    auto c=SolidCalculation::Restart(path, *si.lat, si.mol, o, p);
+    ASSERT_TRUE(c) << c.Error().details;
+    auto r=(*c)->Result();
+    ASSERT_TRUE(r);
+    ASSERT_FALSE(it.empty());
+    EXPECT_NE(it.front().eb.charge.xcRho, "fitted") << "iteration 1's XC must see rho[D] (pin 28), not the fitted field";
+    EXPECT_NEAR(it.front().energy, saved, 1e-7) << "the first iterate of an exact resume is the saved state";
+    EXPECT_NEAR(r->Energy(), saved, 1e-7) << "the reference stopped at drho/N 1e-7: its energy is that far from the fixed point";
+    EXPECT_LE(r->IterationCount(), 3u);
+}
+} // namespace
+TEST(SolidState, ExactResume_Pulay_Null_StartsAtTheSavedState)       {ExpectFieldMixerExactResume(0.0);}
+TEST(SolidState, ExactResume_KerkerPulay_Null_StartsAtTheSavedState) {ExpectFieldMixerExactResume(1.0);}
 
 TEST(SolidState, RealnessCrossesBothWays)
 {

@@ -146,7 +146,7 @@ rvec_t FourierMixCD::operator()(const rvec3vec_t& r) const
         ro[g]=itsScale*std::real(s);
     };
 #ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1)
+    if (const int nthreads=qchem::InnerThreads(); nthreads>1)
     {
         #pragma omp parallel num_threads(nthreads)
         {

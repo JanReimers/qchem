@@ -49,6 +49,7 @@ module;
 #include <iostream>
 #include <limits>    // infinity (RadialResolutionRatio's no-claim value off-MHL)
 #include <string>
+#include <stdexcept>
 export module qchem.Mesh.XCPolicy;
 export import qchem.Mesh;
 export import qchem.Mesh.Angular;   // LebedevMenu (the degree -> direction-count table)
@@ -349,8 +350,31 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s, bool al
     return u;
 }
 
+// AUTO PICKS THE KIND, NOT THE RECIPE (OpenWork §3 "xcMesh knobs are DROPPED SILENTLY when cellKind is Auto", 2026-10-26).  Auto
+// resolves to a CALIBRATED recipe (BeckeXCParams, or a uniform mesh sized to the system), so a grid field the caller set beside Auto
+// used to be discarded -- a β-MnO₂ mesh-convergence run came back bit-identical.  The recipe fields' defaults (MeshParams{}) are not
+// the Becke recipe's, so "honour what was set" cannot tell a stated field from a default: a set field THROWS instead, naming it.
+static void RequireNoRecipeUnderAuto(const MeshParams& mp)
+{
+    if (mp.cellKind!=UnitCellKind::Auto) return;
+    const MeshParams d;
+    std::string set;
+    auto note=[&set](bool differs, const char* name){ if (differs) set+=(set.empty()?"":", ")+std::string(name); };
+    note(mp.radial!=d.radial,"radial");           note(mp.nRadial!=d.nRadial,"nRadial");
+    note(mp.mhl_m!=d.mhl_m,"mhlM");               note(mp.mhl_alpha!=d.mhl_alpha,"mhlAlpha");
+    note(mp.logStart!=d.logStart,"logStart");     note(mp.logStop!=d.logStop,"logStop");
+    note(mp.angular!=d.angular,"angular");        note(mp.angularDegree!=d.angularDegree,"angularDegree");
+    note(mp.angRot!=d.angRot,"angRot");           note(mp.beckeOrder!=d.beckeOrder,"beckeOrder");
+    note(mp.nUniform!=d.nUniform,"nUniform");     note(mp.eCut!=d.eCut,"eCut");
+    note(mp.beckeEps!=d.beckeEps,"beckeEps");
+    if (!set.empty())
+        throw std::invalid_argument("xcMesh: cellKind Auto picks the grid KIND and its calibrated recipe, so the grid field(s) set here ("
+                                    +set+") would be IGNORED.  State cellKind Becke or Uniform to set a recipe.");
+}
+
 MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s)
 {
+    RequireNoRecipeUnderAuto(mp);
     if (!s.Known()) return ResolveXCMesh(mp);   // caller could not state the sharpness -> the safe grid
 
     const MeshParams becke  =BeckeXCParams();
@@ -421,6 +445,7 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s)
 
 MeshParams ResolveXCMesh(const MeshParams& mp)
 {
+    RequireNoRecipeUnderAuto(mp);
     if (mp.cellKind!=UnitCellKind::Auto) return mp;
     return BeckeXCParams();   // the calibrated default recipe (nR=40, alpha=2, GL degree 29; GPW_BECKE_* sweepable)
 }

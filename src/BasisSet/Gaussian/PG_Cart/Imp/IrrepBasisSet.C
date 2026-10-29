@@ -57,48 +57,17 @@ std::vector<Polarization> MakePolarizations(int L)
 //
 //  Common implementation for orbital and fit basis sets.
 //
-IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
+IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl, ShellMerge merge)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
     //
-    //  Read in all the radial functions.  These are usually contracted Gaussians, but could also
-    //  be single Gaussians.
+    //  Read in all the radial functions (contracted or single Gaussians) and their l-sets, de-duplicated per \a merge
+    //  (ReadShells: KeepEachL for an orbital basis, the historical merge for a fit basis).
     //
-    std::vector<std::unique_ptr<GaussianRF>> radials;   // owns the radials: no manual delete, leak-proof
+    std::vector<ReadShell> shells=ReadShells(*bsr, *cl, merge);
+    std::vector<std::unique_ptr<GaussianRF>> radials;
     std::vector<std::vector<int> >    Ls;
-    for (auto atom:*cl) //Loop over atoms.
-    {
-        bsr->FindAtom(*atom);
-        while (std::unique_ptr<GaussianRF> rf{bsr->ReadNext(*atom)}) //Read in the radial function.
-        {
-            bool duplicate=false;
-            for (size_t i=0; i<radials.size(); i++)
-                if (*radials[i]==*rf) //Check for a duplicate, ignoring Lmax.
-                {
-                    duplicate=true;
-                    std::vector<int> newLs=bsr->GetLs();
-                    bool UseNewRF=Max(newLs) > Max(Ls[i]);
-                    for (auto l:newLs)
-                        if (std::find(Ls[i].begin(),Ls[i].end(),l)!=Ls[i].end()) Ls[i].push_back(l); //Add elements not in common.
-                        // KNOWN BUG (flagged, NOT fixed -- needs a careful pass): this condition is INVERTED (should be
-                        // `==`).  A genuinely-new L is never added, so a same-exponent multi-L shell (s+p sharing one
-                        // even-tempered window, or a shared-exponent density-fit shell) silently drops its higher L.
-                        // Naively flipping it to `==` is correct for the ORBITAL basis (F loads 8s+8p=32 not 8) but
-                        // it changes the DENSITY-FIT bases and DEGRADES Si2 pseudo-atom size-consistency 0.0026->0.024
-                        // Ha (the isolated-atom and molecular fits shift by DIFFERENT amounts) -> the merged-shell fit
-                        // path is non-additive and must be understood before flipping.  The valence generator
-                        // sidesteps this by emitting DISJOINT per-l exponent windows (qchem.ValenceBasisGen).
-                    if (UseNewRF) radials[i]=std::move(rf);  // replace lower-Lmax dup: old freed, new owned (no erase/insert/delete)
-                    // else: rf is the lower-Lmax duplicate -> freed automatically at scope exit
-                    break;                                   // a radial appears at most once in radials (deduped)
-                }
-            if(!duplicate)
-            {
-                radials.push_back(std::move(rf));
-                Ls     .push_back(bsr->GetLs());
-            }
-        }
-    }
+    for (auto& sh : shells) { radials.push_back(std::move(sh.rf)); Ls.push_back(sh.Ls); }
 
 //
 //  Automatically build the basis set from a list of atoms and a basis function reader.
@@ -248,7 +217,7 @@ std::string IrrepBasisSet::Name() const
 // Orbital PG basis set.
 //
 Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)
-    : IrrepBasisSet(bsr,cl)
+    : IrrepBasisSet(bsr,cl,ShellMerge::KeepEachL)
 {};
 Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L, const Structure* cl)
     : IrrepBasisSet(exponents,L,cl)

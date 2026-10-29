@@ -1,5 +1,6 @@
 // File: Response/Imp/Solver.C  The self-consistent linear response by GMRES.
 module;
+#include <optional>
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -9,8 +10,10 @@ module;
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 module qchem.Response.Solver;
+import qchem.Math;    // Pi (the q-star phases)
 import qchem.Blaze;
 
 namespace qchem::Response
@@ -44,6 +47,63 @@ private:
     size_t                                           itsN;
 };
 
+//! The rule a little-group reduction hands the kernel: \a inner's pairs whose KET is an orbit representative (by its spatial
+//! block identity -- both spins of a representative k are gathered), with \a inner's wave vector.
+class RepresentativeKets : public virtual Symmetry::SelectionRule, public virtual Symmetry::WaveVectorShift
+{
+public:
+    RepresentativeKets(std::shared_ptr<const Symmetry::SelectionRule> inner, std::vector<size_t> kets)
+        : itsInner(std::move(inner)), itsKets(std::move(kets)) {}
+    virtual bool Couples(const Symmetry::Symmetry& bra, const Symmetry::Symmetry& ket) const override
+    {
+        return itsInner->Couples(bra, ket)
+            && std::find(itsKets.begin(), itsKets.end(), ket.SequenceIndex())!=itsKets.end();
+    }
+    virtual rvec3_t q() const override {return ChargeDensity::WaveVectorOf(*itsInner);}
+private:
+    std::shared_ptr<const Symmetry::SelectionRule> itsInner;
+    std::vector<size_t>                            itsKets;
+};
+
+//! \f$x\mapsto x-\mathcal R_0\mathcal K\,{\rm Herm}(x)\f$ on a LITTLE-GROUP packing (doc/KAxisPlan.md P5): x is unfolded onto every
+//! block (the scatter builds the whole δρ), the kernel gathers δF on the orbit representatives only, and δF is unfolded
+//! again for R0 (whose q = 0 Fermi shift sums over every block).  The kernel and its terms never see the group.
+class ReducedResponseOperator : public LinearOperator<dcmplx>
+{
+public:
+    ReducedResponseOperator(const Reference& ref, const OrbitalFrame<dcmplx>& frame, const Hamiltonian::ResponseKernel<dcmplx>& K,
+                            std::shared_ptr<const Symmetry::SelectionRule> rule, const LittleGroupReduction& red, size_t n)
+        : itsRef(ref), itsFrame(frame), itsK(K), itsRule(std::move(rule)), itsRed(red), itsN(n)
+    {
+        std::vector<size_t> kets;
+        for (size_t b : red.Representatives()) kets.push_back(ref.BlockIrrep(b).sym->SequenceIndex());
+        itsReps=std::make_shared<RepresentativeKets>(itsRule, std::move(kets));
+    }
+    virtual size_t Dimension() const override {return itsN;}
+    virtual cvec_t Apply(const cvec_t& x, double) const override
+    {
+        BlockPairs dD=itsRef.HermitianPart(itsRed.Unpack(x), *itsRule);
+        double s=0.0;                                   // InducedFockMO's unit-scale guard (see its declaration)
+        for (const auto& m : dD.m)
+            for (size_t i=0;i<m.rows();i++) for (size_t j=0;j<m.columns();j++) s=std::max(s, std::abs(m(i,j)));
+        if (s==0.0) return x;
+        for (auto& m : dD.m) m/=s;
+        const auto delta=ChargeDensity::RestrictCoupling(itsFrame.ToAO(dD, itsRule), itsReps);
+        const auto dF=itsK.InducedFock(*delta);
+        BlockPairs X=itsRed.Unfold(itsFrame.ToMO(*dF, *itsRule, itsRed.Representatives()));
+        for (auto& m : X.m) m*=s;
+        return x-itsRed.Pack(itsRef.ApplyR0(*itsRule, X));
+    }
+private:
+    const Reference&                                 itsRef;
+    const OrbitalFrame<dcmplx>&                      itsFrame;
+    const Hamiltonian::ResponseKernel<dcmplx>&       itsK;
+    std::shared_ptr<const Symmetry::SelectionRule>   itsRule;
+    std::shared_ptr<const Symmetry::SelectionRule>   itsReps;
+    const LittleGroupReduction&                      itsRed;
+    size_t                                           itsN;
+};
+
 } // namespace
 
 template <class T> BlockPairs InducedFockMO(const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& K, const BlockPairs& dD,
@@ -74,8 +134,10 @@ template BlockPairs InducedFockMO<dcmplx>(const OrbitalFrame<dcmplx>&, const Ham
 template <class T> Outcome<SelfConsistentResponse,ResponseFailure>
 LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& kernel,
                const ChannelProbe& probe, std::shared_ptr<const Symmetry::SelectionRule> rule, const KrylovParams& kp,
-               std::vector<size_t> perturbed)
+               std::vector<size_t> perturbed, const OrbitalImages* images)
 {
+    if constexpr (!std::is_same_v<T,dcmplx>)
+        if (images) throw std::logic_error("LinearResponse: a little-group reduction needs complex (Bloch) blocks");
     using O=Outcome<SelfConsistentResponse,ResponseFailure>;
     auto g=ref.Gap(*rule);                          // E1: gate BEFORE any weight is formed
     if (!g) return O::Fail(g.Error());
@@ -114,7 +176,27 @@ LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamilto
                           << st.residual << std::defaultfloat << (st.trueResidual ? "   (TRUE, restart)" : "") << std::endl;
             };
         }
-        auto s=SolveGMRES<dcmplx>(A, b, nullptr, kpc);
+        // THE LITTLE GROUP of (q, J) (KAxisPlan P5): solve on its orbit representatives, measure on the unfolded δD.
+        std::optional<LittleGroupReduction> red;
+        if constexpr (std::is_same_v<T,dcmplx>)
+            if (images)
+            {
+                red.emplace(ref, *images, *rule, probe.Perturbation(perturbed[c], *rule));
+                std::cout << "[little group] channel " << probe.Label(perturbed[c]) << ": ";
+                red->Write(std::cout);
+            }
+        auto solve=[&]()
+        {
+            if constexpr (std::is_same_v<T,dcmplx>)
+                if (red)
+                {
+                    const cvec_t br=red->Pack(R0V[c]);
+                    ReducedResponseOperator Ar(ref, frame, kernel, rule, *red, br.size());
+                    return SolveGMRES<dcmplx>(Ar, br, nullptr, kpc);
+                }
+            return SolveGMRES<dcmplx>(A, b, nullptr, kpc);
+        };
+        auto s=solve();
         if (!s)
         {
             std::ostringstream os;
@@ -124,7 +206,7 @@ LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamilto
         r.residual  .push_back(s->residual);
         r.iterations.push_back(s->iterations);
         const cvec_t n0=probe.Measure(*rule, R0V[c]);
-        const cvec_t n1=probe.Measure(*rule, ref.Unpack(s->x, *rule));
+        const cvec_t n1=probe.Measure(*rule, red ? red->Unpack(s->x) : ref.Unpack(s->x, *rule));
         for (size_t I=0;I<nch;I++) {r.chi0(I,c)=n0[I]; r.chi(I,c)=n1[I];}
     }
     return O::Ok(std::move(r));
@@ -180,17 +262,28 @@ std::ostream& SelfConsistentResponse::Write(std::ostream& os) const
 
 template <class T> Outcome<QMeshResponse,ResponseFailure>
 LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& kernel,
-               const ChannelProbe& probe, ivec3_t Nq, const KrylovParams& kp, std::vector<size_t> perturbed)
+               const ChannelProbe& probe, ivec3_t Nq, const KrylovParams& kp, std::vector<size_t> perturbed,
+               const QStars* stars, double starTol, const OrbitalImages* images)
 {
     using O=Outcome<QMeshResponse,ResponseFailure>;
     auto qs=ref.QMesh(Nq);
     if (!qs) return O::Fail(qs.Error());
+    if (stars && stars->member.size()!=qs->size()) throw std::logic_error("LinearResponse: the q-star fold is not over this q-mesh");
     QMeshResponse r;
     r.Nq=Nq;
-    for (const MeshShift& q : *qs)
+    const size_t nq=qs->size();
+    std::vector<std::optional<SelfConsistentResponse>> solved(nq);
+    // THE AUDIT member (KAxisPlan §5 ruling 1): the first non-representative q, solved directly as well.
+    size_t audit=nq;
+    if (stars) for (size_t i=0;i<nq && audit==nq;i++) if (!stars->IsRep(i)) audit=i;
+    if (stars) std::cout << "[response] q-stars: " << stars->NumReps() << " of " << nq << " q solved (one per star)"
+                         << (audit<nq ? ", plus one member as the symmetry audit" : "") << std::endl;
+    for (size_t i=0;i<nq;i++)
     {
-        std::cout << "[response] q = " << q << "  (" << r.q.size()+1 << " of " << qs->size() << ")" << std::endl;
-        auto s=LinearResponse(ref, frame, kernel, probe, std::make_shared<MeshShift>(q), kp, perturbed);
+        const MeshShift& q=(*qs)[i];
+        if (stars && !stars->IsRep(i) && i!=audit) continue;
+        std::cout << "[response] q = " << q << "  (" << i+1 << " of " << nq << ")" << (i==audit ? "  [audit]" : "") << std::endl;
+        auto s=LinearResponse(ref, frame, kernel, probe, std::make_shared<MeshShift>(q), kp, perturbed, images);
         if (!s)
         {
             std::ostringstream os;
@@ -198,8 +291,55 @@ LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamilto
             return O::Fail({s.Error().why, os.str()});
         }
         s->Write(std::cout);                     // reported at its own activity (pin 17), before the next q starts
-        r.q.push_back(q);
-        r.atQ.push_back(std::move(*s));
+        solved[i]=std::move(*s);
+    }
+    // GENERATE the other members: X_{q'}(perm I, perm J) = e^{-2 pi i q'.(t_I - t_J)} X_q(I, J)  (QStars.C).
+    auto generate=[&](size_t i)
+    {
+        const StarMember& m=stars->member[i];
+        const SelfConsistentResponse& src=*solved[m.rep];
+        SelfConsistentResponse out=src;
+        const rvec3_t qq=(*qs)[i].q();
+        const std::vector<size_t>& P=src.perturbed;
+        auto col=[&](size_t channel){ for (size_t k=0;k<P.size();k++) if (P[k]==channel) return k;
+                                      throw std::logic_error("LinearResponse: a star op leaves the perturbed set"); };
+        for (size_t I=0;I<src.chi0.rows();I++)
+            for (size_t J=0;J<P.size();J++)
+            {
+                const ivec3_t dt=m.shift[I]-m.shift[P[J]];
+                const double ph=-2.0*Pi*(qq.x*dt.x+qq.y*dt.y+qq.z*dt.z);
+                const dcmplx e(std::cos(ph), std::sin(ph));
+                out.chi0(m.perm[I], col(m.perm[P[J]]))=e*src.chi0(I,J);
+                out.chi (m.perm[I], col(m.perm[P[J]]))=e*src.chi (I,J);
+            }
+        return out;
+    };
+    if (audit<nq)
+    {
+        const SelfConsistentResponse g=generate(audit), &d=*solved[audit];
+        double worst=0.0, scale=0.0;
+        for (size_t I=0;I<d.chi0.rows();I++) for (size_t J=0;J<d.chi0.columns();J++)
+        {
+            worst=std::max({worst, std::abs(g.chi0(I,J)-d.chi0(I,J)), std::abs(g.chi(I,J)-d.chi(I,J))});
+            scale=std::max({scale, std::abs(d.chi0(I,J)), std::abs(d.chi(I,J))});
+        }
+        std::cout << "[response] q-star audit at q = " << (*qs)[audit] << ": max|generated - solved| / max|chi| = "
+                  << worst/scale << "  (tolerance " << starTol << ")" << std::endl;
+        if (!(worst<=starTol*scale))
+        {
+            std::ostringstream os;
+            os << "the q-star audit FAILED at q = " << (*qs)[audit] << " (relative " << worst/scale << " > " << starTol
+               << "): the ground state does not have the group the star fold assumed -- run without qStars";
+            return O::Fail({ResponseFailure::Why::Configuration, os.str()});
+        }
+    }
+    // Generate EVERY member before moving any representative out (a generated member reads its representative).
+    std::vector<SelfConsistentResponse> all(nq);
+    for (size_t i=0;i<nq;i++) if (!solved[i]) all[i]=generate(i);
+    for (size_t i=0;i<nq;i++)
+    {
+        r.q.push_back((*qs)[i]);
+        r.atQ.push_back(solved[i] ? std::move(*solved[i]) : std::move(all[i]));
     }
     return O::Ok(std::move(r));
 }
@@ -316,13 +456,13 @@ std::ostream& LR_HubbardU::Write(std::ostream& os) const
 }
 
 template Outcome<SelfConsistentResponse,ResponseFailure> LinearResponse<double>(const Reference&, const OrbitalFrame<double>&,
-    const Hamiltonian::ResponseKernel<double>&, const ChannelProbe&, std::shared_ptr<const Symmetry::SelectionRule>, const KrylovParams&, std::vector<size_t>);
+    const Hamiltonian::ResponseKernel<double>&, const ChannelProbe&, std::shared_ptr<const Symmetry::SelectionRule>, const KrylovParams&, std::vector<size_t>, const OrbitalImages*);
 template Outcome<SelfConsistentResponse,ResponseFailure> LinearResponse<dcmplx>(const Reference&, const OrbitalFrame<dcmplx>&,
-    const Hamiltonian::ResponseKernel<dcmplx>&, const ChannelProbe&, std::shared_ptr<const Symmetry::SelectionRule>, const KrylovParams&, std::vector<size_t>);
+    const Hamiltonian::ResponseKernel<dcmplx>&, const ChannelProbe&, std::shared_ptr<const Symmetry::SelectionRule>, const KrylovParams&, std::vector<size_t>, const OrbitalImages*);
 
 template Outcome<QMeshResponse,ResponseFailure> LinearResponse<double>(const Reference&, const OrbitalFrame<double>&,
-    const Hamiltonian::ResponseKernel<double>&, const ChannelProbe&, ivec3_t, const KrylovParams&, std::vector<size_t>);
+    const Hamiltonian::ResponseKernel<double>&, const ChannelProbe&, ivec3_t, const KrylovParams&, std::vector<size_t>, const QStars*, double, const OrbitalImages*);
 template Outcome<QMeshResponse,ResponseFailure> LinearResponse<dcmplx>(const Reference&, const OrbitalFrame<dcmplx>&,
-    const Hamiltonian::ResponseKernel<dcmplx>&, const ChannelProbe&, ivec3_t, const KrylovParams&, std::vector<size_t>);
+    const Hamiltonian::ResponseKernel<dcmplx>&, const ChannelProbe&, ivec3_t, const KrylovParams&, std::vector<size_t>, const QStars*, double, const OrbitalImages*);
 
 } // namespace

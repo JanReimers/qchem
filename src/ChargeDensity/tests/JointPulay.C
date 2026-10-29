@@ -202,3 +202,32 @@ TEST(JointPulay, OnlyExtrapolatorsCarryHistory)
     EXPECT_NE(pulay->History(),  nullptr);
     EXPECT_EQ(kerker.History(),  nullptr);
 }
+
+// RE-SEAT (OpenWork §3, 2026-10-27): GDM moves D without passing through Mix, so before its mixed fallback step the loop
+// re-seats the field mixer on the CURRENT density.  After ReseatField the mixer must be indistinguishable from a FRESH one
+// seeded there: its field IS the current one, and its next step uses none of the history it had (whose residuals were
+// measured about densities the run has left).  Without it the fallback's Fock came from the LAST mix -- +2.6 mHa on NaF.
+TEST(JointPulay, ReseatFieldMakesAFreshMixerAtTheCurrentDensity)
+{
+    const ReciprocalLattice recip=Recip(10.0);
+    const Trajectory t;
+    const ΔG_Map current=t.up[2], next=t.dn[0];   // any two fields: where GDM left D, and the fallback's fresh output
+
+    PulayMixer used(0.4, 0.0, 8, 0, nullptr, recip, GField{t.seedUp, rvec_t{}}, 8.0);
+    used.MixField(GField{t.up[0],rvec_t{}});
+    used.MixField(GField{t.up[1],rvec_t{}});       // two steps: a history Pulay WOULD extrapolate through
+    used.ReseatField(GField{current,rvec_t{}});
+    EXPECT_LT(MaxDiff(used.Field().tilde, current), 1e-15) << "the running field is the current density";
+    PulayMixer fresh(0.4, 0.0, 8, 0, nullptr, recip, GField{current, rvec_t{}}, 8.0);
+    used.MixField(GField{next,rvec_t{}});
+    fresh.MixField(GField{next,rvec_t{}});
+    EXPECT_LT(MaxDiff(used.Field().tilde, fresh.Field().tilde), 1e-15) << "the next step ignores the dropped history";
+
+    KerkerMixer k(0.4, 1.0, nullptr, recip, GField{t.seedUp, rvec_t{}}, 8.0);
+    k.MixField(GField{t.up[0],rvec_t{}});
+    k.ReseatField(GField{current,rvec_t{}});
+    KerkerMixer kFresh(0.4, 1.0, nullptr, recip, GField{current, rvec_t{}}, 8.0);
+    k.MixField(GField{next,rvec_t{}});
+    kFresh.MixField(GField{next,rvec_t{}});
+    EXPECT_LT(MaxDiff(k.Field().tilde, kFresh.Field().tilde), 1e-15);
+}

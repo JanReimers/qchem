@@ -34,7 +34,7 @@ public:
                 const ReciprocalLattice& recip, GField seed0, double charge, bool cusp=false)
         : itsRelax(relax), itsKerkerG0(G0), itsCuspDeficit(cusp), itsKerkerFit(std::move(fit))
         , itsRecip(recip), itsCharge(charge), itsIn(std::move(seed0))
-        , itsMixedRho(Present(itsIn, itsRecip, itsCharge))
+        , itsMixedRho(PresentFromD(itsIn, itsRecip, itsCharge, itsCuspDeficit))
     {}
 
     //! The density-face entry: extract ρ̃_out + the raster shadow, then do the G-space arithmetic below.
@@ -54,6 +54,14 @@ public:
         return {Present(itsIn, itsRecip, itsCharge), Present(f, itsRecip, itsCharge)};
     }
     const FourierMixCD& Mixed() const override { assert(itsMixedRho); return *itsMixedRho; }
+    bool Reseat(const cd_t& current) override
+    {
+        auto* fd = dynamic_cast<const FourierDensity*>(&current);
+        assert(fd);
+        ReseatField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
+        return true;
+    }
+    void ReseatField(const GField& current) override { itsIn=current; itsMixedRho=PresentFromD(itsIn, itsRecip, itsCharge, itsCuspDeficit); }
 
     //! THE MIXER OWNS ITS FIELD (V1.18): the step is arithmetic on itsIn, and the density the Fock sees is a
     //! presentation built from the result -- nothing is read back out of a density, nothing deposited into one.

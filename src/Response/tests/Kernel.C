@@ -18,6 +18,7 @@
 #include <limits>
 #include <memory>
 #include <random>
+#include <chrono>
 #include <stdexcept>
 #include <vector>
 #include <algorithm>
@@ -43,7 +44,13 @@ import qchem.SCFParams;
 import qchem.Mesh;                                    // qcMesh::MeshParams (the LDA Hamiltonian's XC mesh)
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Symmetry.Factory;                           // BlochFactory (the q-star fold test's k-point)
+import qchem.SCFAccelerator.Factory;                    // SCFAccelerators::Type (the GDM-finished-stage audit)
+import qchem.Parallel;                                 // ScopedWorkerThreads (the serial-vs-threaded bit gate)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // the d-augmented Si (orbital-resolved gate)
+import qchem.BasisSet.OrbitalImageSource;               // OrbitalImage (KAxisPlan P4: the converged-state gate)
+import qchem.Symmetry.Lattice_3D.BlochOperationRep;      // ImageOfK
+import qchem.Symmetry.Lattice_3D.BlochQN;                // Getk (a block's fractional k)
 import qchem.BasisSet.Gaussian.Point.BasisFiles;           // BasisFile: the data path of sipp_sr.bsd
 
 using namespace qchem;
@@ -113,7 +120,7 @@ public:
         auto D1p=Displaced(dD, +itsH_), D1m=Displaced(dD, -itsH_), D2p=Displaced(dD, +2*itsH_), D2m=Displaced(dD, -2*itsH_);
         for (const auto& b : itsD0)
         {
-            auto F=[&](const auto& D){return mat_t<T>(itsH->GetMatrix(b.bs, b.irrep.ms, D.get(), itsWB));};
+            auto F=[&](const auto& D){itsH->RefreshForDensity(itsWB, D.get()); return mat_t<T>(itsH->GetMatrix(b.bs, b.irrep.ms, D.get(), itsWB));};
             const mat_t<T> d1=F(D1p)-F(D1m), d2=F(D2p)-F(D2m);
             dF->Add(b.irrep, b.irrep, mat_t<T>((T(8.0)*d1-d2)/T(12.0*itsH_)));
         }
@@ -891,6 +898,329 @@ void KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind xc, SpinGroup g)
 }
 } // namespace
 
+//=====================================================================================================
+//  doc/KAxisPlan.md P1: THE KERNEL APPLICATION THREADED OVER ITS BLOCK PAIRS IS BIT-IDENTICAL TO SERIAL.  One ground state,
+//  one δD; InducedFock serial (1 worker) and threaded with the worker count <= the NARROWEST outer loop's width, which is the
+//  per-SPIN pair count (the polarized XC refresh projects each spin channel's pairs on their own).  Then every threaded region
+//  inside InducedFock is an OUTER loop -- per-pair slots summed in pair order -- and the inner regions run serial.  Above that
+//  bound a loop narrower than the thread count hands the threads to its inner regions (the ruled policy, KAxisPlan §5.2), which
+//  sum in arrival order: rounding-level, run-to-run (measured 2e-15 at 6 workers on 3-pair channels).  Compared with
+//  ==, not a tolerance: a data race or an order-dependent sum shows up as a differing bit.  A FRESH δ per application, since
+//  the terms key their refresh on its Version().
+//=====================================================================================================
+namespace {
+void KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind xc, SpinGroup g)
+{
+    auto calc=SiState(ivec3_t(3,1,1), xc, g);
+    const auto& wf=ResponseFacadeTests::WF(*calc);
+    auto& H=ResponseFacadeTests::Ham(*calc);
+    const auto D0cd=wf.GetChargeDensity();
+    auto K=H.MakeResponseKernel(&calc->Basis(), D0cd.get());
+    const Response::Reference ref=Response::MakeReference(wf, OccupationConfig{}, {.acrossK=true, .acrossSpin=false},
+                                                          std::numeric_limits<double>::quiet_NaN());
+    auto qs=ref.QMesh(ivec3_t(3,1,1));
+    ASSERT_TRUE(qs.IsOk()) << qs.Error().detail;
+    std::shared_ptr<const Symmetry::Lattice_3D::MeshShift> rule;
+    for (const auto& q : qs.Value()) if (q.Steps().x==1) rule=std::make_shared<const Symmetry::Lattice_3D::MeshShift>(q);
+    ASSERT_TRUE(rule);
+    std::mt19937 rng(20261027);
+    std::uniform_real_distribution<double> u(-0.05, 0.05);
+    std::vector<TransitionBlock<dcmplx>> X;
+    for (const Irrep& ket : wf.GetQNs())
+        for (const Irrep& bra : wf.GetQNs())
+        {
+            if (bra.ms!=ket.ms || !rule->Couples(*bra.sym, *ket.sym)) continue;
+            auto bs=[&](const Irrep& ir){return dynamic_cast<const Hamiltonian::cobs_t*>(
+                                             dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir))->GetBasisSet());};
+            mat_t<dcmplx> M(bs(bra)->GetNumFunctions(), bs(ket)->GetNumFunctions());
+            for (size_t i=0;i<M.rows();i++) for (size_t j=0;j<M.columns();j++) M(i,j)=dcmplx(u(rng),u(rng));
+            X.push_back({bra, ket, bs(bra), bs(ket), M});
+        }
+    const int nPairs=int(X.size());
+    const int perSpin = g==SpinGroup::Polarized ? nPairs/2 : nPairs;   // the narrowest outer loop (a spin channel's pairs)
+    ASSERT_GE(perSpin, 3);
+    auto apply=[&](int workers)
+    {
+        qchem::ScopedWorkerThreads scope(workers);
+        return K->InducedFock(*ChargeDensity::AO_TransitionDensity_Factory<dcmplx>(X, rule));
+    };
+    const auto F1=apply(1);
+    for (int workers : {perSpin, 2})
+    {
+        const auto Fn=apply(workers);
+        size_t differing=0;
+        double worst=0.0, scale=0.0;
+        for (const auto& p : X)
+        {
+            const mat_t<dcmplx> a=F1->Matrix(p.bra, p.ket), b=Fn->Matrix(p.bra, p.ket);
+            for (size_t i=0;i<a.rows();i++) for (size_t j=0;j<a.columns();j++)
+            {
+                differing += (a(i,j)!=b(i,j));
+                worst=std::max(worst, std::abs(a(i,j)-b(i,j)));
+                scale=std::max(scale, std::abs(a(i,j)));
+            }
+        }
+        EXPECT_EQ(differing, 0u) << workers << " workers over " << perSpin << " pairs per spin: δF differs from serial in " << differing
+                                 << " elements, max |Δ|/max|δF| = " << worst/scale
+                                 << " (rounding-level = an order-dependent sum; large = a race)";
+    }
+}
+} // namespace
+
+TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsBitIdenticalAcrossThreads_Raster_Pol)  {KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Uniform, SpinGroup::Polarized);}
+TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsBitIdenticalAcrossThreads_Becke_UnPol) {KernelIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Becke,   SpinGroup::UnPolarized);}
+//=====================================================================================================
+//  doc/KAxisPlan.md P2 / OOD V1.41 stage 1: THE SCF FOCK LOOP THREADED OVER ITS BASIS BLOCKS IS BIT-IDENTICAL TO SERIAL.  The
+//  loop of tCompositeWF::AssembleFock, read through the Hamiltonian AT a density (H.At): one task per basis block with its spin
+//  children together, the first block alone (it builds the shared memos), the rest an OUTER loop.  Threaded FIRST, so the
+//  concurrent blocks find memos the serial pass then replays (a hit is bit-identical to recomputing).  A FRESH density per pass:
+//  the terms' per-block caches refill.  Compared with ==: a race, or a memo freed under a reader, shows up as a differing bit.
+//=====================================================================================================
+namespace {
+void FockIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind xc, SpinGroup g)
+{
+    auto calc=SiState(ivec3_t(3,1,1), xc, g);
+    const auto& wf=ResponseFacadeTests::WF(*calc);
+    const auto& H=ResponseFacadeTests::Ham(*calc);
+    std::vector<std::vector<std::pair<const Hamiltonian::cobs_t*,Spin>>> blocks;   // per basis block: (block, spin) per child
+    for (const Irrep& ir : wf.GetQNs())
+    {
+        auto* bs=dynamic_cast<const Hamiltonian::cobs_t*>(dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir))->GetBasisSet());
+        ASSERT_TRUE(bs);
+        auto it=std::find_if(blocks.begin(), blocks.end(), [&](const auto& b){return b.front().first==bs;});
+        if (it==blocks.end()) blocks.push_back({{bs, ir.ms}}); else it->push_back({bs, ir.ms});
+    }
+    const int width=int(blocks.size())-1;   // the outer loop's width (the first block runs alone)
+    ASSERT_GE(width, 2);
+    auto fock=[&](int workers)
+    {
+        qchem::ScopedWorkerThreads scope(workers);
+        const auto cd=wf.GetChargeDensity();
+        const auto At=H.At(&calc->Basis(), cd.get());
+        std::vector<std::vector<chmat_t>> F(blocks.size());
+        auto block=[&](size_t b){for (const auto& [bs,s] : blocks[b]) F[b].push_back(At.GetMatrix(bs, s));};
+        block(0);
+        qchem::OuterFor(blocks.size()-1, [&](size_t i){block(i+1);});
+        return F;
+    };
+    const auto Fn=fock(width), F1=fock(1);
+    size_t differing=0, compared=0;
+    for (size_t b=0;b<F1.size();b++)
+        for (size_t c=0;c<F1[b].size();c++)
+            for (size_t i=0;i<F1[b][c].rows();i++) for (size_t j=0;j<F1[b][c].columns();j++)
+            {
+                differing += (dcmplx(F1[b][c](i,j))!=dcmplx(Fn[b][c](i,j)));
+                compared++;
+            }
+    EXPECT_GT(compared, 0u);
+    EXPECT_EQ(differing, 0u) << width << " workers over " << blocks.size() << " blocks: F differs from serial in " << differing
+                             << " of " << compared << " elements (a race, or a memo freed under a reader)";
+}
+} // namespace
+
+TEST(ResponseKernel, GPW_Si_k311_FockIsBitIdenticalAcrossThreads_Raster_Pol)  {FockIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Uniform, SpinGroup::Polarized);}
+TEST(ResponseKernel, GPW_Si_k311_FockIsBitIdenticalAcrossThreads_Becke_UnPol) {FockIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Becke,   SpinGroup::UnPolarized);}
+//=====================================================================================================
+//  OpenWork §3 "After a stage that ENDS ON A GDM STEP, the live orbitals and ε are not a valid reference" (2026-10-27).
+//  The SAME Si k211 ground state reached by a diagonalizing stage (Null) and by a stage that ends on a GDM step: the
+//  response's reference must not care.  Per block, what each leaves in the wave function: C†SC − I, the occupied-virtual
+//  block of C†FC (the gradient), and diag(C†FC) − ε -- the sum over states R0 assumes C are eigenvectors of F with ε.
+//=====================================================================================================
+namespace {
+std::unique_ptr<SolidCalculation> SiK211(SCFAccelerators::Type acc)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,1,1));
+    auto mol=std::shared_ptr<const BasisSet::Real_BS>(
+        BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true};
+    o.accelerator=acc;
+    o.hubbard={{.site=0,.l=1,.U=0.0},{.site=1,.l=1,.U=0.0}};
+    return std::make_unique<SolidCalculation>(lat, mol, o, SiParams());
+}
+struct BlockAudit { double orth=0, gradient=0, epsOcc=0, epsVir=0; };
+BlockAudit AuditReference(const SolidCalculation& calc)
+{
+    const auto& wf=ResponseFacadeTests::WF(calc);
+    auto& H=ResponseFacadeTests::Ham(calc);
+    const auto D=wf.GetChargeDensity();
+    H.RefreshForDensity(&calc.Basis(), D.get());   // the contract (KAxisPlan P2)
+    BlockAudit a;
+    for (const Irrep& ir : wf.GetQNs())
+    {
+        const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir));
+        const auto* bs=dynamic_cast<const Hamiltonian::cobs_t*>(os->GetBasisSet());
+        const size_t n=bs->GetNumFunctions();
+        std::vector<const Orbitals::TOrbital<dcmplx>*> orbs;
+        for (const auto* o : os->template Iterate<Orbitals::TOrbital<dcmplx>>()) orbs.push_back(o);
+        mat_t<dcmplx> C(n, orbs.size());
+        for (size_t i=0;i<orbs.size();i++) for (size_t m=0;m<n;m++) C(m,i)=orbs[i]->GetCoeff()[m];
+        const mat_t<dcmplx> S(bs->Overlap()), F(H.GetMatrix(bs, ir.ms, D.get(), &calc.Basis()));
+        const mat_t<dcmplx> CSC=blazem::ctrans(C)*S*C, CFC=blazem::ctrans(C)*F*C;
+        for (size_t i=0;i<orbs.size();i++)
+        {
+            const bool iOcc=orbs[i]->GetOccupation()>0.5;
+            const double de=std::abs(CFC(i,i).real()-orbs[i]->GetEigenEnergy());
+            (iOcc ? a.epsOcc : a.epsVir)=std::max(iOcc ? a.epsOcc : a.epsVir, de);
+            for (size_t j=0;j<orbs.size();j++)
+            {
+                a.orth=std::max(a.orth, std::abs(CSC(i,j)-dcmplx(i==j)));
+                if (iOcc!=(orbs[j]->GetOccupation()>0.5)) a.gradient=std::max(a.gradient, std::abs(CFC(i,j)));
+            }
+        }
+    }
+    return a;
+}
+} // namespace
+
+TEST(ResponseKernel, GPW_Si_k211_GDMFinishedStage_OrbitalsAreEigenpairs)
+{
+    for (auto acc : {SCFAccelerators::Type::Null, SCFAccelerators::Type::GDM})
+    {
+        auto calc=SiK211(acc);
+        const BlockAudit a=AuditReference(*calc);
+        const char* who = acc==SCFAccelerators::Type::GDM ? "GDM " : "Null";
+        std::cout << "[audit " << who << "] max|C†SC-I| " << a.orth
+                  << "  max|occ-vir C†FC| " << a.gradient << "  max|diag C†FC - eps| occ " << a.epsOcc
+                  << " vir " << a.epsVir << std::endl;
+        EXPECT_LT(a.orth, 1e-10) << who;
+        EXPECT_LT(a.gradient, 1e-6) << who << ": the occupied-virtual coupling is the converged gradient";
+        EXPECT_LT(std::max(a.epsOcc, a.epsVir), 1e-6) << who << ": eps must be F's diagonal (measured before the fix: GDM vir 2.7 Ha)";
+    }
+}
+
+//! KAxisPlan P4: the orbital image on a CONVERGED state.  Si k222 with Fd-3m IMPOSED on the Becke XC mesh (an imposed run
+//! folds the mesh to an invariant one): for every stored block k and every op g whose image block k' = W^{-T}k is stored, the
+//! converged Fock and density matrices carry over, M^H F_{k'} M = F_k and D_{k'} = M D_k M^H (D = C f C^H in the AO basis) --
+//! the second is the MEASUREMENT KAxisPlan ruling 1 reduces a run by.  Both hold to the SCF's convergence (measured 2.9e-9 /
+//! 7.5e-8).  ⚠ Measured 2026-10-27 and logged in doc/OpenWork.md §3: the SAME state on the default uniform-raster XC route
+//! breaks F by 7.4e-3 Ha (ops off the primitive-axis permutations), and a FREE run on either mesh by 5e-4 (Becke) -- the
+//! XC numerics, not M (S, T, KB and V_short carry over to 1e-14 on every op).
+namespace
+{
+struct CarryOver { size_t blocks, checked; double dF, dD; };
+//! The converged Si k222 Becke state's F and D carried over by M under every op whose image block is stored.
+CarryOver SiK222BeckeCarryOver(bool impose)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    const auto ops=lat.ShubnikovOps({0,0});
+    if (ops.size()!=48u) throw std::runtime_error("Si: expected the 48 ops of Fd-3m");
+    auto mol=std::shared_ptr<const BasisSet::Real_BS>(
+        BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true};
+    o.imposeSymmetry=impose;
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
+    SolidCalculation calc(lat, mol, o, SiParams());
+
+    const auto& wf=ResponseFacadeTests::WF(calc);
+    auto& H=ResponseFacadeTests::Ham(calc);
+    const auto cd=wf.GetChargeDensity();
+    H.RefreshForDensity(&calc.Basis(), cd.get());
+    struct Block { rvec3_t k; const BasisSet::OrbitalImageSource* img; mat_t<dcmplx> F, D; };
+    std::vector<Block> blocks;
+    for (const Irrep& ir : wf.GetQNs())
+    {
+        const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir));
+        const auto* bs=dynamic_cast<const Hamiltonian::cobs_t*>(os->GetBasisSet());
+        const size_t n=bs->GetNumFunctions();
+        mat_t<dcmplx> D(n, n, dcmplx(0.0));
+        for (const auto* orb : os->template Iterate<Orbitals::TOrbital<dcmplx>>())
+        {
+            const auto& c=orb->GetCoeff();
+            const double f=orb->GetOccupation();
+            if (f==0.0) continue;
+            for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) D(i,j)+=f*c[i]*std::conj(c[j]);
+        }
+        blocks.push_back({Symmetry::Lattice_3D::Getk(ir.sym), dynamic_cast<const BasisSet::OrbitalImageSource*>(bs),
+                          mat_t<dcmplx>(H.GetMatrix(bs, ir.ms, cd.get(), &calc.Basis())), D});
+        if (!blocks.back().img) throw std::runtime_error("a GPW block must answer OrbitalImage");
+    }
+    auto stored=[&](const rvec3_t& k)->const Block*          // the IBZ of an imposed run: an image may not be stored
+    {
+        for (const auto& b : blocks)
+        {
+            const rvec3_t d=b.k-k;
+            if (std::abs(d.x-std::round(d.x))<1e-9 && std::abs(d.y-std::round(d.y))<1e-9 && std::abs(d.z-std::round(d.z))<1e-9) return &b;
+        }
+        return nullptr;
+    };
+    auto maxAbs=[](const mat_t<dcmplx>& A)
+    { double m=0; for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.columns();j++) m=std::max(m, std::abs(A(i,j))); return m; };
+    double dF=0, dD=0;
+    size_t checked=0;
+    for (const auto& b : blocks)
+        for (const auto& g : ops)
+        {
+            const Block* bp=stored(Symmetry::Lattice_3D::ImageOfK(g, b.k));
+            if (!bp) continue;
+            const mat_t<dcmplx> M=b.img->OrbitalImage(g);
+            dF=std::max(dF, maxAbs(mat_t<dcmplx>(blazem::ctrans(M)*bp->F*M-b.F)));
+            dD=std::max(dD, maxAbs(mat_t<dcmplx>(bp->D-M*b.D*blazem::ctrans(M))));
+            checked++;
+        }
+    return {blocks.size(), checked, dF, dD};
+}
+} // namespace
+
+TEST(OrbitalImage, GPW_Si_k222_ImposedBecke_FockAndDensityCarryOver)
+{
+    const CarryOver c=SiK222BeckeCarryOver(true);
+    std::cout << "[orbital image, imposed Si k222 Becke] " << c.blocks << " blocks, " << c.checked << " (block, op) pairs:"
+              << "  max|M^H F_k' M - F_k| " << c.dF << "  max|D_k' - M D_k M^H| " << c.dD << std::endl;
+    EXPECT_EQ(c.checked, 76u) << "the IBZ is Γ, X, L: little groups of order 48 + 16 + 12";
+    EXPECT_LT(c.dF, 1e-7) << "the converged Fock matrix must carry over under every op";
+    EXPECT_LT(c.dD, 1e-6) << "the converged density matrix must carry over under every op";
+}
+
+//! KAxisPlan ruling 1's precondition (user, 2026-10-27): a FREE run's XC mesh is built invariant under the detected group
+//! (symmetric numerics, the density NOT averaged), so a state that keeps the symmetry passes the ~1e-6 measurement under
+//! every op of every block.  Measured before the invariant free mesh: F 5.1e-4, D 2.3e-3 -- every op would be rejected.
+TEST(OrbitalImage, GPW_Si_k222_Becke_FreeRunCarriesOver)
+{
+    const CarryOver c=SiK222BeckeCarryOver(false);
+    std::cout << "[orbital image, FREE Si k222 Becke] " << c.blocks << " blocks, " << c.checked << " (block, op) pairs:"
+              << "  max|M^H F_k' M - F_k| " << c.dF << "  max|D_k' - M D_k M^H| " << c.dD << std::endl;
+    EXPECT_EQ(c.checked, 8u*48u) << "a free run stores every block of the mesh, so every op's image is stored";
+    EXPECT_LT(c.dF, 1e-6) << "ruling 1: a symmetric free state must pass under every op";
+    EXPECT_LT(c.dD, 1e-6) << "ruling 1: a symmetric free state must pass under every op";
+}
+
+//! KAxisPlan P3 (Q9): the q-star FOLD itself, no SCF.  Si (Fd-3m) on a 2x2x2 q-mesh: Γ, the three X-type points (one star) and
+//! the four L-type points (one star) -- 3 representatives.  The audit of a real response is the gate on the PHASE convention
+//! (Si k222 q222: generated == solved to 5e-15, U identical to the full mesh); this pins the folding.
+TEST(ResponseQStars, SiQ222FoldsIntoThreeStars)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    const auto ops=lat.ShubnikovOps({0,0});
+    const rmat3d_t Ainv=Invert(cell.GetCellMatrix());
+    std::vector<rvec3_t> frac;
+    lat.GetStructure()->ForEachSite([&](int, const rvec3_t& r, bool)
+    { frac.push_back(rvec3_t(Ainv(1,1)*r.x+Ainv(1,2)*r.y+Ainv(1,3)*r.z, Ainv(2,1)*r.x+Ainv(2,2)*r.y+Ainv(2,3)*r.z,
+                             Ainv(3,1)*r.x+Ainv(3,2)*r.y+Ainv(3,3)*r.z)); });
+    auto qs=Symmetry::Lattice_3D::CommensurateShifts(*Symmetry::BlochFactory(ivec3_t(2,2,2), ivec3_t(0,0,0)), ivec3_t(2,2,2));
+    ASSERT_TRUE(qs.IsOk());
+    const std::vector<Symmetry::Lattice_3D::MeshShift>& q=qs.Value();
+    const Response::QStars st=Response::FoldQMesh(q, ops, frac, {{0,1},{1,1}}, {0,1});
+    EXPECT_EQ(st.NumReps(), 3u);
+    EXPECT_TRUE(st.IsRep(0)) << "Γ is its own star";
+    for (size_t i=0;i<q.size();i++)                       // every member: a PERMUTATION of the channels, from a solved rep
+    {
+        EXPECT_TRUE(st.IsRep(st.member[i].rep)) << "q " << i << " points at a non-representative";
+        const auto& P=st.member[i].perm;
+        EXPECT_TRUE(P.size()==2 && P[0]!=P[1]) << "q " << i;
+    }
+}
+
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Raster_UnPol) {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Uniform, SpinGroup::UnPolarized);}
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Raster_Pol)   {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Uniform, SpinGroup::Polarized);}
 TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Becke_UnPol)  {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Becke,   SpinGroup::UnPolarized);}
@@ -916,3 +1246,64 @@ TEST(ResponsePolarizability, GPW_Si_ImposedGamma_Raster_eqFreeChi)
     EXPECT_NEAR(c0i, c0f, 5e-5*std::fabs(c0f));
     EXPECT_NEAR(ci,  cf,  5e-5*std::fabs(cf)) << "an imposed run's response differs from the free run's";
 }
+
+namespace
+{
+//! KAxisPlan P5 (D5-a): the response on the LITTLE GROUP of (q, J) equals the full-mesh response.  Free Si k222 on the (now
+//! invariant) Becke mesh, a Si-p manifold on site 0 perturbed, the whole q222 mesh: the reduced solve works on one k-block per
+//! orbit of the ops that keep q and the site, and unfolds.  Its packing is an isometry of the full problem's symmetric subspace,
+//! so GMRES takes the SAME steps -- the iteration counts must match, and chi0 / chi to the solve's tolerance.
+void LittleGroupEqualsFull(ivec3_t Nq, qcMesh::UnitCellKind xc=qcMesh::UnitCellKind::Becke)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    auto mol=std::shared_ptr<const BasisSet::Real_BS>(
+        BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0,
+                       .hubbard={{.site=0, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}},
+                       .forceComplex=true};
+    o.siteSpins={0,0};
+    o.xcMesh.cellKind=xc;
+    SolidCalculation calc(lat, mol, o, SiParams());
+    ASSERT_TRUE(calc.DidConverge());
+    const KrylovParams kp{.tol=1e-9};
+    const auto t0=std::chrono::steady_clock::now();
+    auto full=calc.HubbardLinearResponse(Nq, kp, {}, Response::HubbardResolution::Manifold, false, false);
+    const auto t1=std::chrono::steady_clock::now();
+    auto red =calc.HubbardLinearResponse(Nq, kp, {}, Response::HubbardResolution::Manifold, false, true);
+    const auto t2=std::chrono::steady_clock::now();
+    std::cout << "[little group gate] wall: full " << std::chrono::duration<double>(t1-t0).count() << " s, reduced "
+              << std::chrono::duration<double>(t2-t1).count() << " s" << std::endl;
+    ASSERT_TRUE(full.IsOk()) << full.Error().detail;
+    ASSERT_TRUE(red .IsOk()) << red .Error().detail;
+    ASSERT_EQ(full->atQ.size(), red->atQ.size());
+    double d0=0, d1=0, s0=0, s1=0;
+    for (size_t i=0;i<full->atQ.size();i++)
+    {
+        const auto& f=full->atQ[i]; const auto& r=red->atQ[i];
+        for (size_t I=0;I<f.chi.rows();I++) for (size_t J=0;J<f.chi.columns();J++)
+        {
+            d0=std::max(d0, std::abs(f.chi0(I,J)-r.chi0(I,J))); s0=std::max(s0, std::abs(f.chi0(I,J)));
+            d1=std::max(d1, std::abs(f.chi (I,J)-r.chi (I,J))); s1=std::max(s1, std::abs(f.chi (I,J)));
+        }
+        // The packing is an isometry, so GMRES takes the same steps up to rounding at the stopping threshold (measured: 2 of
+        // 8 q stop one application earlier, 7 vs 8).
+        for (size_t c=0;c<f.iterations.size();c++)
+            EXPECT_LE(std::abs(int(f.iterations[c])-int(r.iterations[c])), 1) << "q " << i << ": the reduced solve takes the full solve's steps";
+    }
+    std::cout << "[little group gate] max|chi0 red - full|/max|chi0| " << d0/s0 << "  max|chi red - full|/max|chi| " << d1/s1 << std::endl;
+    EXPECT_LT(d0/s0, 1e-8) << "chi0 needs no kernel: only the unfolding";
+    EXPECT_LT(d1/s1, 1e-7) << "the reduced response must equal the full-mesh response";
+}
+} // namespace
+
+//! The whole q222 mesh (measured 2026-10-27: chi 6.7e-9 relative, chi0 exact; wall 106 s full vs 30 s reduced at 4 threads).
+TEST(ResponseLittleGroup, GPW_Si_k222_q222_Becke_ReducedEqualsFull_Long) {LittleGroupEqualsFull(ivec3_t(2,2,2));}
+//! The short-tier twin: Γ (Td of the site, 24 ops) and X.
+TEST(ResponseLittleGroup, GPW_Si_k222_q211_Becke_ReducedEqualsFull)      {LittleGroupEqualsFull(ivec3_t(2,1,1));}
+//! The SAFETY NET (ruling 1): the uniform-raster XC route breaks the group numerically (OpenWork §3, F off by up to 7e-3 Ha), so
+//! the orbital measurement must REJECT the ops it breaks -- and the reduced answer still equals the full one.
+TEST(ResponseLittleGroup, GPW_Si_k222_q211_ReducedEqualsFull_Long) {LittleGroupEqualsFull(ivec3_t(2,1,1), qcMesh::UnitCellKind::Uniform);}

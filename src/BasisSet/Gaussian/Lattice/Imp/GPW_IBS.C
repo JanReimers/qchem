@@ -12,6 +12,7 @@ module qchem.BasisSet.Gaussian.Lattice.GPW_IBS;
 import qchem.BasisSet.Lattice_IBS;          // Lattice::ToScalar (the Step-3 exact TRIM narrow; identity for dcmplx)
 import qchem.Symmetry.Factory;              // BlochFactory (the convenience ctor + the k=0 fit-basis irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (pry k out of the abstract Bloch irrep)
+import qchem.Symmetry.Lattice_3D.BlochOperationRep; // BuildBlochOperationRep (OrbitalImage, KAxisPlan P4)
 import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ raster ops param type)
 import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
                                             // (qcMolecule_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
@@ -26,14 +27,18 @@ template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irre
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, RasterPolicy raster, double ladderFactor,
                  std::vector<Symmetry::Lattice_3D::DirectOp> directOps, RasterFields rasterFields,
-                 std::vector<Symmetry::Lattice_3D::SymOp> magneticOps, const GPWTolerances& tol)
+                 std::vector<Symmetry::Lattice_3D::SymOp> magneticOps,
+                 std::vector<Symmetry::Lattice_3D::SymOp> meshOps, const GPWTolerances& tol)
     : BasisSet::IrrepBasisSetImp<T>(irrep)
     , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
                     images==CellImages::HomeCellOnly, cutoffFactor, raster, ladderFactor,
                     rasterFields, tol) // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1)
     , itsMagneticOps(std::move(magneticOps))
+    , itsMeshOps(std::move(meshOps))
 {
     SetSymmetryOps(std::move(directOps));   // ONE storage (the evaluator): T1 {G} fold + Vxc-raster star ops
+    assert((itsMeshOps.empty() || (SymmetryOps().empty() && itsMagneticOps.empty()))
+           && "GPW_IBS: meshOps is the FREE-run face; an imposed run's mesh already comes from its imposed ops");
 }
 
 // Convenience: build the Bloch irrep from BZ-grid indices and delegate to the primary constructor.
@@ -43,6 +48,12 @@ template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const ivec3_t& N,
     : tGPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor,
               raster, ladderFactor, {}, rasterFields)
 {}
+
+template <class T> mat_t<dcmplx> tGPW_IBS<T>::OrbitalImage(const Symmetry::SymOp& g) const
+{
+    return Symmetry::Lattice_3D::BuildBlochOperationRep(GetAoShells(), GPW_Evaluator::Cell().GetCellMatrix(), g,
+                                                        Symmetry::Lattice_3D::Getk(this->GetSymmetry()));
+}
 
 // THE DFT FIT BASES -- the {G} sets the density (CD) and the XC potential (Vxc) are represented / quadratured on.
 // There is exactly ONE density FFT grid in GPW: GPW_Evaluator::DensityGrid() (== itsFFT_R_G_Grids), the {r}<->{G}
@@ -97,8 +108,16 @@ template <class T> BasisSet::FitQuadrature tGPW_IBS<T>::CreateXCQuadrature(const
     // Either way the geometry-fixed orbit fold feeds the engine's per-iteration rho star-average.
     assert(cl && "GPW: the XC quadrature needs the Structure to build its mesh");
     const auto& dops = SymmetryOps();
-    if (dops.empty())
+    if (dops.empty() && itsMeshOps.empty())
         return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};
+    // FREE run: the same invariant mesh an imposed run gets, but NO fold -- nothing averages the density.
+    if (dops.empty())
+    {
+        qcMesh::Mesh mesh = Cell().CreateIntegrationMesh(mp, itsMeshOps);
+        std::cout << "[XC mesh] free run: mesh invariant under the " << itsMeshOps.size() << " detected ops, "
+                  << mesh.size() << " points; the density is NOT averaged" << std::endl;
+        return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), {}};
+    }
 
     // On a MAGNETICALLY imposed run (S3) the σ-carrying Shubnikov set drives the quadrature; its
     // SPATIAL parts equal the evaluator's DirectOps (the factory filled both from one group), so the

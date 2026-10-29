@@ -21,6 +21,8 @@ export import qchem.Response.Probe;
 export import qchem.Response.OrbitalFrame;
 export import qchem.LASolver.Krylov;
 export import qchem.Hamiltonian;   // ResponseKernel
+export import qchem.Response.QStars;   // one q per star (KAxisPlan P3)
+export import qchem.Response.LittleGroup;   // the k-mesh reduced by the little group of (q, J) (KAxisPlan P5)
 
 export namespace qchem::Response
 {
@@ -63,10 +65,13 @@ template <class T> BlockPairs InducedFockMO(const OrbitalFrame<T>& frame, const 
 //! every channel.  \a perturbed EMPTY = all of them (the molecular dipole, R2's single-manifold runs).  THROWS on
 //! an index out of range.  FAILS on an inverted or unresolved coupled pair (E1) or a Krylov solve that does not
 //! reach \a kp.tol (the residual is in the reason).
+//! \a images (doc/KAxisPlan.md P5, D5-a; complex blocks only): the ground state's MEASURED group on the orbitals
+//! (\c MakeOrbitalImages).  Each perturbed channel is then solved on one k-block per orbit of its little group (the ops that
+//! keep q and the perturbation) and unfolded; the kernel gathers δF on those blocks only.  Null = every block.
 template <class T> Outcome<SelfConsistentResponse,ResponseFailure>
 LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& kernel,
                const ChannelProbe& probe, std::shared_ptr<const Symmetry::SelectionRule> rule, const KrylovParams& kp,
-               std::vector<size_t> perturbed = {});
+               std::vector<size_t> perturbed = {}, const OrbitalImages* images = nullptr);
 
 //! \brief The self-consistent channel response over a q-MESH (doc/LinearResponsePlan.md §3d, R3 step 4): one
 //! \c SelfConsistentResponse per q (one ground state, one kernel; the q points loop INSIDE the response), and hp.x's
@@ -128,8 +133,12 @@ private:
 //! \brief \c LinearResponse at every q of the \a Nq mesh (\c Reference::QMesh), each its own Krylov solve on the
 //! SAME reference, frame and kernel.  FAILS on an incommensurate q-mesh, or with the first q whose response fails
 //! (the q is named in the reason).
+//! \a stars (KAxisPlan P3, Q9): solve only each star's REPRESENTATIVE and generate the other members by \c QStars' channel
+//! permutation and phase.  It asserts the ground state has the group, so ONE non-representative member is also solved
+//! directly and compared: a disagreement beyond \a starTol (relative, chi0 and chi) FAILS (Why::Configuration).
 template <class T> Outcome<QMeshResponse,ResponseFailure>
 LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& kernel,
-               const ChannelProbe& probe, ivec3_t Nq, const KrylovParams& kp, std::vector<size_t> perturbed = {});
+               const ChannelProbe& probe, ivec3_t Nq, const KrylovParams& kp, std::vector<size_t> perturbed = {},
+               const QStars* stars = nullptr, double starTol = 1e-6, const OrbitalImages* images = nullptr);
 
 } // namespace

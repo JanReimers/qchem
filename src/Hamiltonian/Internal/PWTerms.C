@@ -19,6 +19,7 @@ module;
 #include <string>
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
+import qchem.Parallel;                          // LazyLock (per-block writes from concurrent Fock blocks)
 import qchem.ChargeDensity.DensitySampler; // the XC SAMPLING ENGINE the three XC terms compose with.
                                                 // NOT re-exported: it is an .Internal. module, so a client
                                                 // that wants MakeDensitySampler imports it by name (CLAUDE.md).
@@ -78,8 +79,8 @@ public:
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
     //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
+    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -114,8 +115,8 @@ public:
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
     //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
+    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -137,6 +138,7 @@ private:
     //! \f$E_{NL}^{(l)}\f$ decomposition prints beside the lumped \c EenNL.  Empty when the knob is off.
     mutable std::map<int,std::map<std::string,chmat_t>> itsByL;
     mutable std::set<std::string>                       itsByLSeen;   //!< irrep blocks already decomposed
+    qchem::LazyLock                                     itsByLLock;   //!< the bank is filled from concurrent Fock blocks
 };
 
 //! LONG-range half of the local pseudopotential (static, density-independent): the softened-Coulomb /
@@ -160,8 +162,8 @@ public:
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
     //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
+    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -241,8 +243,8 @@ public:
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
     //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
+    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cDynamic_HT_Imp::PrepareSlots(bs, cd); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
     typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
     //! Built with the density-fit basis (from the orbital basis's factory, exactly as \c FittedVee is).
     //! No structure and no pseudopotential model: pure \f$V_H[\rho]\f$ has no use for either.
@@ -334,8 +336,8 @@ public:
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
     //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
+    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cDynamic_HT_Imp::PrepareSlots(bs, cd); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
     typedef std::shared_ptr<ExFunctional> xc_t;
     typedef std::shared_ptr<const ChargeDensity::DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
     //! \a g is the imposed spin subgroup: which rasters the sampler is asked for (its Rho / RhoPol caches
@@ -377,6 +379,7 @@ private:
     //! reports in \c ChargeBreakdown::xcRho.  The latest build, not a drained log: GDM's line search calls the energy
     //! many times per iteration, and a log emptied by each call would hand the trace an empty cell.
     mutable std::optional<ChargeDensity::XCRhoSource> itsFockSource;
+    qchem::LazyLock itsFockSourceLock;   //!< every Fock block writes it (the same value): concurrent blocks take turns
 };
 
 //! \brief THE XC term for a run whose \f$v_{xc}\f$ fit basis is \a fb -- ready to \c Add (ownership

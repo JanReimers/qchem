@@ -37,6 +37,7 @@ import qchem.Outcome;
 import qchem.BasisSet.Lattice.BasisSet;   // VetStageTrim, GPWParams
 import qchem.BasisSet.Gaussian.Point.ShellTrim;
 import qchem.RunPolicy;
+import qchem.Mesh.XCPolicy;                 // ResolveXCMesh (a recipe field under cellKind Auto is refused at resolve)
 
 namespace qchem::deck
 {
@@ -331,6 +332,8 @@ void FromJson(const json& j, SolidCalcOptions& o)
 namespace
 {
 using PostAction=RunSpec::PostAction;
+//! The density gate a response REFERENCE converges to (user ruling 2026-10-28; the [F,D] gate replaces it once [F,D] has one home).
+constexpr double kResponseReferenceMinΔρ=1e-9;
 const char* PostName(PostAction::Kind k)
 {
     switch (k)
@@ -372,7 +375,7 @@ json PostJson(const PostAction& a)
         break;
     case PostAction::Kind::IndependentResponse:     p={{"nq",QMeshJson(a.nq)}}; break;
     case PostAction::Kind::HubbardLinearResponse:   p={{"nq",QMeshJson(a.nq)},{"perturb",a.perturb},{"tol",a.tol},{"maxIter",a.maxIter},{"restart",a.restart},
-                                                       {"resolve",NameOf(a.resolve,kResolution)}}; break;
+                                                       {"resolve",NameOf(a.resolve,kResolution)},{"qStars",a.qStars},{"littleGroupK",a.littleGroupK}}; break;
     case PostAction::Kind::HubbardFiniteDifference: p={{"perturb",a.perturb},{"alpha_eV",ToEV(a.alpha)}}; break;
     }
     return json::object({{PostName(a.kind),p}});
@@ -396,7 +399,7 @@ PostAction PostFromJson(const json& j, const std::string& path)
     else if (name=="independentResponse"){ a.kind=PostAction::Kind::IndependentResponse; GetQMesh(f,a.nq,path+"."+name); }
     else if (name=="hubbardLinearResponse")
     { a.kind=PostAction::Kind::HubbardLinearResponse; GetQMesh(f,a.nq,path+"."+name); f.Get("perturb",a.perturb); f.Get("tol",a.tol); f.Get("maxIter",a.maxIter); f.Get("restart",a.restart);
-      f.GetEnum("resolve",a.resolve,kResolution); }
+      f.GetEnum("resolve",a.resolve,kResolution); f.Get("qStars",a.qStars); f.Get("littleGroupK",a.littleGroupK); }
     else if (name=="hubbardFiniteDifference")
     { a.kind=PostAction::Kind::HubbardFiniteDifference; f.Get("perturb",a.perturb); double eV=ToEV(a.alpha); f.Get("alpha_eV",eV); a.alpha=eV/kHaToEV; }
     else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference)");
@@ -526,6 +529,9 @@ Materials::Material Resolve(RunSpec& spec)
     // THE MAGNETIC ORDERING IS STATED (OpenWork §3, 2026-10-26): the facade's own check, run here so a deck is refused BEFORE a revision is claimed.
     try { RequireStatedMagneticOrdering(spec.solid, *m.cell); }
     catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.siteSpins -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
+    // AUTO PICKS THE KIND, NOT THE RECIPE (OpenWork §3, 2026-10-26): the mesh policy's own refusal, run here so --check catches it too.
+    try { (void)qcMesh::ResolveXCMesh(spec.solid.xcMesh); }
+    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid."+std::string(e.what())); }
 
     // PRE-FLIGHT of the postSCF list (each message names the action and what to change): the old probes found these out AFTER the SCF.
     {
@@ -550,6 +556,12 @@ Materials::Material Resolve(RunSpec& spec)
                     throw std::runtime_error(who+"a SMEARED final stage (kT "+std::to_string(spec.Stages().back().scf.SmearingkT)+" Ha) with per-k "
                                              "Fermi levels: a metal's response at q != 0 needs ONE Fermi level -- drop solid.perKFermiLevels");
             }
+            // littleGroupK MEASURES the ground state's group on the reference's orbitals to 1e-6 (KAxisPlan §5 ruling 1): a reference
+            // stopped at Δρ/N 1e-6 sits AT that tolerance and keeps a random subset of ops (TiO2 k221 2026-10-28: 4..16 of 16 at 1e-6;
+            // 16 of 16, worst 9e-9, at 1e-9).  Not floored by ρ_lost/N: Δρ is a difference on ONE quadrature, the charge error cancels.
+            if (a.kind==PostAction::Kind::HubbardLinearResponse && a.littleGroupK && spec.Stages().back().scf.MinΔρPerElectron>kResponseReferenceMinΔρ)
+                throw std::runtime_error(who+"littleGroupK measures the reference's symmetry to 1e-6, so the final SCF stage must converge to "
+                                         "scf.minDeltaRhoPerElectron <= 1e-9 (it is "+std::to_string(spec.Stages().back().scf.MinΔρPerElectron)+")");
             if ((a.kind==PostAction::Kind::HubbardLinearResponse || lrLoop) && !spec.solid.forceComplex)
                 throw std::runtime_error(who+"needs the complex ansatz (the real-TRIM response face is not built); set solid.forceComplex true");
             if (isResponse)             // the q points loop INSIDE the response, on the k-mesh's own differences
@@ -696,6 +708,9 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
         bool resp=false; for (const auto& a : spec.postSCF) resp = resp || a.kind==RunSpec::PostAction::Kind::IndependentResponse || a.kind==RunSpec::PostAction::Kind::HubbardLinearResponse;
         if (resp && spec.solid.imposeSymmetry && spec.kmesh.x*spec.kmesh.y*spec.kmesh.z>1)
             v.notes.push_back("a response with solid.imposeSymmetry on a k-mesh: if the imposed group REDUCES the mesh the response throws at run time (D5); the NiO AFM-II 2x2x2 Shubnikov group does not reduce it");
+        if (resp && spec.Stages().back().scf.MinΔρPerElectron>kResponseReferenceMinΔρ)
+            v.notes.push_back("a response reference should converge to scf.minDeltaRhoPerElectron <= 1e-9 (a few more iterations; ρ_lost/N does not floor it): "
+                              "at 1e-6 its orbitals carry ~1e-6 symmetry and eigenpair residuals");
     }
     if (spec.basis.vet) v.notes.push_back("basis.vet: the vet-stage trim loop is NOT run by --check (function count is the untrimmed one)");
     std::ostringstream os;
@@ -828,7 +843,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         case K::HubbardLinearResponse:
         {
             KrylovParams kp{.tol=a.tol}; kp.maxIter=a.maxIter; kp.restart=a.restart;
-            auto R=calc->HubbardLinearResponse(a.nq, kp, a.perturb, a.resolve);
+            auto R=calc->HubbardLinearResponse(a.nq, kp, a.perturb, a.resolve, a.qStars, a.littleGroupK);
             pr.ok=bool(R);
             if (R)
             {

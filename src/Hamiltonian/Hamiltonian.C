@@ -3,6 +3,7 @@ module;
 #include <limits>
 #include <memory>
 #include <type_traits>   // std::conditional_t/is_same_v (HamRealBlockBase -- Step 3c-2)
+#include <stdexcept>     // tHamiltonianAt::GetTotalEnergy
 export module qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 import qchem.Streamable;
@@ -77,13 +78,18 @@ public:
     //! hoisted the k-INDEPENDENT memos out of the loop; this hoists the per-block INSERTIONS, which is what
     //! was left -- and unlike those memos these are k-DEPENDENT, so they cannot be warmed, only pre-slotted.
     //!
-    //! ⚠ A PRE-CREATE, NOT A CONTRACT.  \c GetMatrix still creates a missing slot on demand, because energy
-    //! evaluation and the unit tests drive terms outside any prologue.  What the phase buys is that in the
-    //! ORDINARY path the loop performs no insertion.
+    //! ★ AND IT STAMPS THE DENSITY (doc/KAxisPlan.md P2, user 2026-10-27: "require RefreshForDensity before any GetMatrix
+    //! everywhere; GetMatrix only asserts the stamped version").  A dynamic cache that sees a NEW \a cd (its Version) drops its
+    //! values and records that version HERE, once, before the block loop; \c GetMatrix then only fills its own pre-created slot
+    //! and THROWS for a density it was not stamped with.  It used to reset itself on first use -- the first block of every
+    //! iteration wiping the map the other blocks would be filling, which made the loop impossible to run concurrently.  Every
+    //! caller therefore refreshes first: \c tHamiltonian::RefreshForDensity(bs, cd) (the SCF's eager phase; energy evaluation
+    //! does it inside \c GetTotalEnergy).  Idempotent for the same density.  \a cd null (no density yet): slots only.
+    //! A STATIC term ignores \a cd (its cache is density-independent and never cleared).
     //!
     //! ⛔ PURE, never defaulted: a defaulted no-op is how a term silently skips a phase it needs, which is
     //! exactly what happened while \c RefreshForDensity had one (see there).
-    virtual void PrepareSlots(const tbs_t<TRun>* bs) const=0;
+    virtual void PrepareSlots(const tbs_t<TRun>* bs, const tChargeDensity<TRun>* cd) const=0;
 };
 
 //! \brief A density-INDEPENDENT Hamiltonian term (kinetic, nuclear attraction, ...): built once and reused
@@ -268,6 +274,9 @@ public:
                                        const TransitionDensity<T>& delta) const=0;
     //! This term's \f$\delta F=(\partial F_{\rm term}/\partial D)\,\delta D\f$ on ONE coupled block pair
     //! (\a bra <- \a ket) for spin \a s, AO basis: bra rows x ket columns.
+    //! \par THE CONCURRENCY CONTRACT (doc/KAxisPlan.md P1, 2026-10-27): after \c RefreshForDensity(…, \a delta) this is a READ --
+    //! the kernel calls it for different pairs CONCURRENTLY.  A term whose answer needs per-block state built on first use
+    //! guards that cache itself (\c qchem::LazyLock); it never mutates δ-derived state here.
     virtual mat_t<T> GetMatrix(const tobs_t<T>* bra, const tobs_t<T>* ket, const Spin& s,
                                const TransitionDensity<T>& delta) const=0;
 };
@@ -334,11 +343,55 @@ class Ham_RealBlock
 public:
     virtual ~Ham_RealBlock() {};
     virtual hmat_t<double> GetMatrix(const tobs_t<double>*,const Spin&,const tChargeDensity<dcmplx>*,
-                                     const tbs_t<dcmplx>* wholeBasis)=0;
+                                     const tbs_t<dcmplx>* wholeBasis) const=0;
 };
 struct NoHam_RealBlock {};
 template <class T> using HamRealBlockBase =
     std::conditional_t<std::is_same_v<T,dcmplx>, Ham_RealBlock, NoHam_RealBlock>;
+
+//! \brief THE IDENTITY of one density state (OOD V1.41, ruled 2026-10-27): it wraps \c Version() and is constructible
+//! ONLY from a density, so a block query that carries one can LOOK UP what the refresh built for that density but cannot
+//! compute from rho.  A null density (the iteration-0 core guess: no dynamic terms) has an identity too -- "no density".
+class DensityID
+{
+public:
+    template <class T> explicit DensityID(const tChargeDensity<T>* cd) : itsVersion(cd ? cd->Version() : kNone) {}
+    bool operator==(const DensityID&) const=default;
+    bool IsNone() const {return itsVersion==kNone;}
+private:
+    static constexpr size_t kNone=size_t(-1);
+    size_t itsVersion;
+};
+
+template <class T> class tHamiltonian;
+//! \brief THE HAMILTONIAN AT ONE DENSITY (OOD V1.41 stage 1): what the SCF consumes -- the Fock/KS blocks and the energy
+//! at that density -- as a VALUE, made by \c tHamiltonian::At (which runs the refresh).  The block query is \c (bs, spin):
+//! everything density-derived was built before the value existed, so every query is a READ and blocks may be assembled
+//! concurrently (\c tCompositeWF's Fock loop).
+//!
+//! ⚠ STAGE 1 IS AN ADAPTER over today's refreshed + stamped term caches: its identity IS the stamp, so making a value at
+//! ANOTHER density invalidates this one (a block query then throws, the stamp contract of doc/KAxisPlan.md P2).  Stage 2
+//! moves each term's density-derived state INTO the value (then two values coexist); stage 3 deletes the caches.  Holds
+//! pointers: the Hamiltonian, the composite basis and the density must outlive it (lifetime = the density's).
+template <class T> class tHamiltonianAt
+{
+public:
+    //! One irrep's Fock/KS block.
+    hmat_t<T>       GetMatrix(const tobs_t<T>* bs, const Spin& s) const;
+    //! One REAL TRIM block of a complex run (Step 3c-2's Ham_RealBlock face).
+    hmat_t<double>  GetMatrix(const tobs_t<double>* bs, const Spin& s) const requires std::is_same_v<T,dcmplx>;
+    //! The energy at this density.  THROWS unless the density is a density-MATRIX one (a seed has no energy).
+    EnergyBreakdown GetTotalEnergy() const;
+    const DensityID& ID() const {return itsID;}
+private:
+    friend class tHamiltonian<T>;
+    tHamiltonianAt(const tHamiltonian<T>& h, const tbs_t<T>* wholeBasis, const tChargeDensity<T>* cd)
+        : itsH(&h), itsWholeBasis(wholeBasis), itsCD(cd), itsID(cd) {}
+    const tHamiltonian<T>*   itsH;
+    const tbs_t<T>*          itsWholeBasis;   //!< the cross-irrep view the HF terms consume (may be null)
+    const tChargeDensity<T>* itsCD;           //!< ⚠ stage 1 only: the adapter forwards it; the ID is the contract
+    DensityID                itsID;
+};
 
 //! \brief The assembled Hamiltonian: owns its term lists and assembles the per-irrep Fock/KS matrix the SCF
 //! diagonalizes.  Built by the \c Factory; driven by \c CompositeWF / \c IrrepWF (see the \ref tDynamic_HF_HT
@@ -354,10 +407,10 @@ public:
     //! Assemble the Fock/Hamiltonian for one irrep \a bs, given \a wholeBasis (the composite basis, threaded
     //! to the dynamic terms as the cross-irrep view).  This is the primary form the SCF (CompositeWF/IrrepWF)
     //! drives.
-    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*,const tbs_t<T>* wholeBasis)=0;
+    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*,const tbs_t<T>* wholeBasis) const=0;
     //! Convenience for callers with no cross-irrep view (e.g. stand-alone tests): null whole-basis, so every
     //! dynamic term takes its default (context-ignoring) path.
-    virtual hmat_t<T>       GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd)
+    virtual hmat_t<T>       GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const
     { return GetMatrix(bs,s,cd,nullptr); }
     virtual EnergyBreakdown GetTotalEnergy  (  const tDM_CD<T>*    ) const=0;
     //! \brief THE IMPOSED SPIN SUBGROUP this Hamiltonian was built for (V1.37 step 3).  A property of the
@@ -437,7 +490,31 @@ public:
     //! the same object to the Fock loop on the very next line).  Two duties, ONE phase, because they are
     //! one thing: everything that must happen before the block loop so the loop can be read-only.
     virtual void            RefreshForDensity(const tbs_t<T>*, const tChargeDensity<T>*) const {}
+    //! \brief THE HAMILTONIAN AT \a cd (OOD V1.41): run the refresh over \a wholeBasis (null = no slots to pre-create,
+    //! e.g. an energy evaluation) and hand back the value the SCF reads its Fock blocks and energy from.
+    //! The preferred entry for every SCF caller; \c GetMatrix / \c GetTotalEnergy above remain for the term-level tests.
+    tHamiltonianAt<T>       At(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* cd) const
+    {
+        RefreshForDensity(wholeBasis, cd);
+        return tHamiltonianAt<T>(*this, wholeBasis, cd);
+    }
 };
+
+template <class T> hmat_t<T> tHamiltonianAt<T>::GetMatrix(const tobs_t<T>* bs, const Spin& s) const
+{
+    return itsH->GetMatrix(bs, s, itsCD, itsWholeBasis);
+}
+template <class T> hmat_t<double> tHamiltonianAt<T>::GetMatrix(const tobs_t<double>* bs, const Spin& s) const
+    requires std::is_same_v<T,dcmplx>
+{
+    return static_cast<const Ham_RealBlock&>(*itsH).GetMatrix(bs, s, itsCD, itsWholeBasis);
+}
+template <class T> EnergyBreakdown tHamiltonianAt<T>::GetTotalEnergy() const
+{
+    auto* dm=dynamic_cast<const tDM_CD<T>*>(itsCD);   // abstract -> abstract
+    if (!dm) throw std::logic_error("tHamiltonianAt::GetTotalEnergy: the energy needs a density-MATRIX density (this one is a seed or a fit)");
+    return itsH->GetTotalEnergy(dm);
+}
 
 // r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t).  No bare (prefix-less) alias: it would shadow the
 // enclosing qchem::Hamiltonian namespace -- clients name the type rHamiltonian / cHamiltonian / tHamiltonian<T>.
@@ -445,6 +522,7 @@ using rStatic_HT    = tStatic_HT<double>;    using cStatic_HT    = tStatic_HT<dc
 using rDynamic_HT   = tDynamic_HT<double>;   using cDynamic_HT   = tDynamic_HT<dcmplx>;
 using rDynamic_HF_HT= tDynamic_HF_HT<double>;using cDynamic_HF_HT= tDynamic_HF_HT<dcmplx>;
 using rHamiltonian = tHamiltonian<double>; using cHamiltonian = tHamiltonian<dcmplx>;
+using rHamiltonianAt = tHamiltonianAt<double>; using cHamiltonianAt = tHamiltonianAt<dcmplx>;
 
 } //namespace
 

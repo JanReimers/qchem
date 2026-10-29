@@ -7,6 +7,7 @@
 // exactly what module-internal linkage is for -- they are visible to every unit of this module and to
 // nothing outside it.
 module;
+#include <mutex>
 #include <algorithm>   // std::min (the threaded quadrature's output-column blocking)
 #include <cmath>       // std::fabs (the D-MINDRHO residual)
 #include <cassert>
@@ -32,7 +33,6 @@ import qchem.Structure;                       // Structure::isFinite()/SumFormFa
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
-import qchem.Parallel;                         // WorkerThreads (QCHEM_OPENMP_THREADS -- the XC-mesh table + quadrature loops)
 
 
 namespace qchem::Hamiltonian
@@ -71,7 +71,10 @@ template <class U> hmat_t<U> Vxc_Quadrature::MakeMatrixT(const tobs_t<U>* bs, co
 {
     rvec_t half;
     const Rasters r=ChannelRasters(cd, half);
-    itsFockSource=itsSampler->RhoSource();   // what THIS V_xc saw (pin 28), read while the sampler's cache is cd's
+    {
+        std::lock_guard<std::mutex> lock(itsFockSourceLock.m);
+        itsFockSource=itsSampler->RhoSource();   // what THIS V_xc saw (pin 28), read while the sampler's cache is cd's
+    }
     const Spin fs = s==Spin::None ? Spin::Up : s;
     rvec_t v(r.up.size());
     for (size_t g=0; g<v.size(); g++) v[g]=itsXc->GetVxc(r.up[g], r.dn[g], fs);

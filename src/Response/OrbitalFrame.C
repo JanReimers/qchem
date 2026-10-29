@@ -44,6 +44,9 @@ public:
                                                               std::shared_ptr<const Symmetry::SelectionRule> rule) const;
     //! δF (AO basis) -> MO block pairs on \a rule's pairs: \f$C_{\rm bra}^\dagger\,\delta F\,C_{\rm ket}\f$.
     BlockPairs ToMO(const Hamiltonian::TransitionFock<T>& dF, const Symmetry::SelectionRule& rule) const;
+    //! The same on the ket blocks \a kets only (a little-group reduction's representatives, doc/KAxisPlan.md P5); every other
+    //! entry is 0 x 0.  \a dF need answer only those pairs.
+    BlockPairs ToMO(const Hamiltonian::TransitionFock<T>& dF, const Symmetry::SelectionRule& rule, const std::vector<size_t>& kets) const;
     size_t NumBlocks() const {return itsBlocks.size();}
 private:
     const Reference&             itsRef;

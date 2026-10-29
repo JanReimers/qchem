@@ -39,6 +39,7 @@ export import qchem.BasisSet.GMap;        // Projector3<dcmplx> (the DFT 3-centr
 import qchem.UnitCell;                             // UnitCell (the direct lattice; CellsInSphere/ToCartesian)
 import qchem.Structure;                            // Structure (the nuclear-attraction centres)
 import qchem.Types;                                // rvec3_t, cvec_t, cvec3vec_t, chmat_t, rmat_t
+import qchem.Parallel;                             // LazyLock (the transition ladders, filled from outer-loop workers)
 
 export namespace qchem::BasisSet::Gaussian
 {
@@ -408,6 +409,7 @@ private:
     };
     const TransitionLadder& Ladder(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid) const;
     mutable std::map<std::string,TransitionLadder> itsTransitionLadders;
+    qchem::LazyLock                                itsLadderLock;   //!< Ladder() is called from k-block workers (KAxisPlan P1)
     //! The B1 kernel on the molecular block (abstract -> abstract cross-cast; THROWS if the block has none).
     const Gaussian::TransitionCollocation& Transition() const;
     //! The Bloch phase of an integer cell offset \f$n\f$: \f$e^{2\pi i\,k_{frac}\cdot n}\f$ -- the closure the

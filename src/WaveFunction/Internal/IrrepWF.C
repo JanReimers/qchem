@@ -35,13 +35,11 @@ public:
     tIrrepWF(const tobs_t<T>*, LASolver<T>*, const Irrep& ,tSCFIrrepAccelerator<T>*);
     ~tIrrepWF();
 
-    void                CalculateH      (tHamiltonian<T>&,const tChargeDensity<T>*,const tbs_t<T>* wholeBasis);
-    //! Step 3c-2: the REAL child's Fock build inside a COMPLEX run -- drives the Hamiltonian's
-    //! Ham_RealBlock assembly face with the run's (complex) density and whole-basis view; itsF comes back
-    //! real.  Declared for every T (the <dcmplx> instantiation's body throws -- a complex child never
-    //! consumes this face); MEANINGFUL only on tIrrepWF<double>.
-    void                CalculateH      (qchem::Hamiltonian::Ham_RealBlock&,
-                                         const tChargeDensity<dcmplx>*,const tbs_t<dcmplx>* wholeBasis);
+    //! Read this block's Fock from the Hamiltonian AT the iteration's density (OOD V1.41) and feed (F, D') to the
+    //! accelerator.  \a TRun is the RUN's scalar: \c T for the native path; \c dcmplx for a REAL child inside a complex
+    //! run (Step 3c-2: the value's real-block query; itsF comes back real).  Touches only this block's state, so the
+    //! blocks of one iteration may run concurrently (tCompositeWF).
+    template <class TRun> void CalculateH(const qchem::Hamiltonian::tHamiltonianAt<TRun>&);
     void                DoSCFIteration  ()      ;
     bool                ComputeStep     ()      ; //direct-min: accelerator computes its step
     void                MoveOrbitals    (double t, bool commit)      ; //move to geodesic fraction t

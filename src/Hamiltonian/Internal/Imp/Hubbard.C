@@ -8,6 +8,7 @@ module;
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -671,6 +672,9 @@ template <> SymMap<LowdinProjector<dcmplx>>& Hubbard_U::Cache<dcmplx>() const {r
 
 template <class U> const LowdinProjector<U>& Hubbard_U::Projector(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
 {
+    // LOCKED: normally the refresh's occupation pass builds every block's projector first, but the SEED iteration has no D,
+    // so its (concurrent) Fock blocks are the first to ask.  std::map nodes are address-stable: the reference outlives the lock.
+    std::lock_guard<std::mutex> lock(itsProjLock.m);
     SymMap<LowdinProjector<U>>& cache=Cache<U>();
     const sym_t& id=orb.GetSymt();
     auto it=cache.find(id);
@@ -863,10 +867,11 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
     }
 }
 
-void Hubbard_U::PrepareSlots(const cbs_t* bs) const
+void Hubbard_U::PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const
 {
-    cDynamic_HT_Imp::PrepareSlots(bs);
-    Dynamic_HT_RealBlock_Imp::PrepareSlots(bs);
+    cDynamic_HT_Imp::PrepareSlots(bs, cd);
+    Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd);
+    if (!bs) return;   // a refresh with no block list (energy evaluation): the stamp only (KAxisPlan P2)
     // The mixed-aware walk (RealComplexPlan step 3c-2): a real TRIM block inside the complex-faced set
     // answers GetRealIBS; every other block is a Bloch block.  The pairs are geometry-fixed, so build them all now.
     for (size_t i=0;i<bs->GetNumIBS();i++)
@@ -1036,8 +1041,7 @@ const rvec_t& Hubbard_U::Occupations(size_t M, const Spin& s) const
 //------------------------------------------------------------------------------------------ the matrix
 template <class U> hmat_t<U> Hubbard_U::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
 {
-    newCD(cd);
-    EnsureOccupations(cd);                                       // ordinarily a lookup: the phase warmed it
+    EnsureOccupations(cd);   // a LOOKUP: the refresh (the contract, KAxisPlan P2) filled it for this density
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);
     const Spin chan = (itsGroup==SpinGroup::UnPolarized) ? Spin::None : s;
     auto it=itsChannels.find(chan);

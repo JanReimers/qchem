@@ -44,7 +44,7 @@ public:
     virtual const rsmat_t& GetMatrix(const robs_t*, const Spin&, const rChargeDensity*) const override
     { ++matrices; return itsM; }
     virtual void RefreshForDensity(const rChargeDensity*) const override {++refreshes;}
-    virtual void PrepareSlots(const rbs_t*) const override {++slotPreps;}
+    virtual void PrepareSlots(const rbs_t*, const rChargeDensity*) const override {++slotPreps;}
     virtual void GetEnergy(EnergyBreakdown&, const rDM_CD*) const override {}
     virtual std::ostream& Write(std::ostream& os) const override {return os;}
 private:
@@ -64,7 +64,7 @@ public:
     virtual const rsmat_t& GetMatrix(const robs_t*, const Spin&, const rChargeDensity*) const override
     { return itsM; }
     virtual void RefreshForDensity(const rChargeDensity*) const override {}   // no memo: nothing to warm
-    virtual void PrepareSlots(const rbs_t*) const override {}                 // no cache: no slots
+    virtual void PrepareSlots(const rbs_t*, const rChargeDensity*) const override {}                 // no cache: no slots
     virtual void GetEnergy(EnergyBreakdown&, const rDM_CD*) const override {}
     virtual std::ostream& Write(std::ostream& os) const override {return os;}
 private:
@@ -78,7 +78,7 @@ public:
     mutable int touched=0;
     mutable int slotPreps=0;
     virtual const rsmat_t& GetMatrix(const robs_t*, const Spin&) const override {++touched; return itsM;}
-    virtual void PrepareSlots(const rbs_t*) const override {++slotPreps;}
+    virtual void PrepareSlots(const rbs_t*, const rChargeDensity*) const override {++slotPreps;}
     virtual void GetEnergy(EnergyBreakdown&, const rDM_CD*) const override {}
     virtual std::ostream& Write(std::ostream& os) const override {return os;}
 private:

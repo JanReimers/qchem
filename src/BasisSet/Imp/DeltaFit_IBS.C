@@ -141,7 +141,7 @@ template <class U> static mat_t<U> MakePhiAt(const Orbital_1E_IBS<U>* bs, const 
         for (size_t g=lo; g<hi; g++) for (size_t i=0; i<n; i++) P(g,i)=B(g-lo,i);
     };
 #ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1)
+    if (const int nthreads=qchem::InnerThreads(); nthreads>1)
     {
         std::exception_ptr firstEx;                 // throw containment (an escape = std::terminate)
         #pragma omp parallel for schedule(static) num_threads(nthreads)
@@ -275,7 +275,7 @@ template <class U> hmat_t<U> DeltaFit_IBS::AdjointT(const mat_t<U>& P, const rve
     // roundoff alone (w and v are real, so M is Hermitian in exact arithmetic).
 #ifdef BLAZE_BLAS_MODE
 #ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1)
+    if (const int nthreads=qchem::InnerThreads(); nthreads>1)
     {
         #pragma omp parallel for schedule(static) num_threads(nthreads)
         for (size_t g=0; g<npts; g++) scale(g);
@@ -292,7 +292,7 @@ template <class U> hmat_t<U> DeltaFit_IBS::AdjointT(const mat_t<U>& P, const rve
                                         * blazem::submatrix(WP,0,j0,npts,nj);
     };
 #ifdef QCHEM_OPENMP
-    const int nthreads=qchem::WorkerThreads();
+    const int nthreads=qchem::InnerThreads();
     if (nthreads>1)
     {
         #pragma omp parallel for schedule(static) num_threads(nthreads)
@@ -344,7 +344,7 @@ template <class U> rvec_t DeltaFit_IBS::ForwardT(const mat_t<U>& P, const hmat_t
         }
     };
 #ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && npts>size_t(nthreads))
+    if (const int nthreads=qchem::InnerThreads(); nthreads>1 && npts>size_t(nthreads))
     {
         const size_t blk=(npts+size_t(nthreads)-1)/size_t(nthreads);
         std::exception_ptr firstEx;                   // throw containment (an escape = std::terminate)
@@ -397,7 +397,7 @@ template <class U> rvec_t DeltaFit_IBS::ForwardFactoredT(const mat_t<U>& P, cons
         }
     };
 #ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && npts>size_t(nthreads))
+    if (const int nthreads=qchem::InnerThreads(); nthreads>1 && npts>size_t(nthreads))
     {
         const size_t blk=(npts+size_t(nthreads)-1)/size_t(nthreads);
         std::exception_ptr firstEx;

@@ -3,12 +3,14 @@
 # and BELOW the qchem aggregate (the SolidCalculation facade drives it).  Stage R0: the independent-particle
 # response chi0 by sum over states, over the +U projectors.
 add_library(qcResponse)
-target_sources(qcResponse PRIVATE Imp/Reference.C Imp/Probe.C Imp/OrbitalFrame.C Imp/Solver.C Imp/Response.C)
+target_sources(qcResponse PRIVATE Imp/Reference.C Imp/Probe.C Imp/OrbitalFrame.C Imp/Solver.C Imp/Response.C Imp/LittleGroup.C)
 target_sources(qcResponse PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Reference.C
     Probe.C
     OrbitalFrame.C
     Solver.C
+    QStars.C
+    LittleGroup.C
     Response.C
 )
 target_include_directories(qcResponse PRIVATE

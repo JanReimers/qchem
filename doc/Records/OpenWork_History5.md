@@ -422,3 +422,138 @@ the plane-wave XC ball (§3 "Every plane-wave number predates the 4× XC ball"):
 ### ✅ 2026-10-26 β-MnO₂: finish the U-free α·P test on PW (closed same day; verdict: `Records/HubbardUHistory.md` 2026-10-26 "second half: PW")
 
 | **β-MnO₂: finish the U-free α·P test on PW** (2026-10-26) | the Gaussian half is in (HubbardUHistory 2026-10-26: Δm / Δn per α nearly basis-insensitive, control vs p5 f3), and the Gaussian U spin response climbs monotonically with basis completeness (+0.0229 → +0.0303 vs PW +0.0385, O d the first mover).  The PW α run (`~/Code/qchem6-runs/MnO2/alpha/alpha_pw.json`, 80 Ry, α 0.5 eV on site-0 Mn d) SLOSHED (59 iterations at Δρ 1–6e-2) and was stopped | **ON HOLD for the PW XC-density fix** (user 2026-10-26: PW XC sees ρ truncated to the wavefunction bandwidth, not the full ρ[D] — so the PW U − U0 table, +0.0385, is re-JUDGED after the fix (pin 10), not refreshed).  NO seed could be banked: a PW state cannot be saved yet (row "PW states cannot be saved" below; the U0h rerun `alpha/pw_U0h_save` reproduced −92.6795194 Ha in 31 iterations and saved nothing).  Ready deck `alpha/alpha_pw2.json` (α 0.5 eV, startingRelaxRo 0.2; drop its `restartFrom` until PW save lands).  After the fix: rerun the U0h reference, then α (and the U arm) on the fixed binary, rerun with startingRelaxRo ~0.2 and/or α 0.1–0.2 eV, seeded from the PW U0h state (`state.save` → `restartFrom`); compare Δm(Mn0), Δ\|m\|(Mn1), Δn per unit α against the GPW control / p5 f3 rows — matching ⇒ the U deficit is the basis's RESPONSE, not the U functional.  Also: O d + dense Mn d together on p5 f3 (the remaining 0.008) · `Records/HubbardUHistory.md` 2026-10-26 |
+
+## ✅ Same-exponent shells of different l merged silently (OpenWork §3; orbital half closed 2026-10-26) -- the row as it stood
+
+| **Two shells of DIFFERENT l sharing one exponent on one atom are MERGED -- silently** (bit 2026-10-24) | the known, flagged-not-fixed inverted condition in `PG_Cart/Imp/IrrepBasisSet.C` ~76 (and the duplicate check in `PG_Spherical`/`PG_LibCint`): `GaussianRF::operator==` ignores L, so a same-exponent shell is a "duplicate", the new l is never added, and the higher-Lmax radial REPLACES the old one.  β-MnO₂ scan: VA + O d 1.2 (VA already has O p 1.2) loaded 172 functions instead of 184 (Cartesian +12 not +24) and Etot came out +0.75 Ha ABOVE the smaller basis; O d 2.0 loads 184 correctly.  No error, no warning: any hand-built or scanned .bsd can hit it (CleanCode R1.0b is blocked on the same merge).  The code comment: the naive flip fixes ORBITAL bases but moves the DENSITY-FIT bases (Si₂ size-consistency 0.0026 → 0.024 Ha) | NOW: make it LOUD for orbital bases (throw on a same-exponent different-l pair on one atom, naming both shells) while the fit-basis path is understood; then the real fix (keep each l its own shell; the fit path's non-additivity) with a reader test that counts functions · `src/BasisSet/Gaussian/PG_Cart/Imp/IrrepBasisSet.C` |
+
+**Closed for orbital bases 2026-10-26.**  `ReadShells(Reader&, const Structure&, ShellMerge)` replaces the three verbatim copies of the
+reading loop (the libcint copy also erased-then-inserted through an invalidated iterator).  `KeepEachL` (every `Orbital_IBS`): a shell is a
+duplicate only when its radial AND l-set match; a same-exponent shell of another l is its own block.  `LegacyMerge` (the default, so every fit
+basis): the historical loop verbatim.  UTs `Gaussian94Reader.ReadShellsKeepsEachL…` / `AnOrbitalBasisLoadsEveryShellOfASharedExponent`
+(H s + p at one exponent: 4 functions on MnD Cartesian, MnD spherical and libcint -- was 1).  Found live: NiO's step-3 scan v2 (Ni p 0.30 /
+0.90 on the TM file, whose Ni d window starts at 0.30) loaded 146 functions for 156; v3 188 for 198.  Sweep: 0 of 1092 moved.  Shipped-file
+audit: every shared-exponent pair is in a fit file (A1/A2 coul+exch, cd, x) except `dzvp_test.bsd` Be s/p.
+
+
+## ✅ xcMesh recipe fields dropped under cellKind Auto (OpenWork §3; closed 2026-10-26) -- the row as it stood
+
+| **`xcMesh` knobs are DROPPED SILENTLY when `cellKind` is Auto** (2026-10-24) | `qcMesh::ResolveXCMesh(mp)` returns `BeckeXCParams()` (nR 40, L 29) whenever `cellKind==Auto` — the default — discarding any `nRadial` / `angularDegree` / radial kind the deck set; a β-MnO₂ mesh-convergence run came back bit-identical before this was noticed | honour the given fields when resolving Auto to Becke (Auto picks the KIND, not the recipe), or throw when a recipe field is set under Auto; a deck test that a set `nRadial` reaches the `[Becke grid]` line · `src/Mesh/XCPolicy.C` ~423 |
+
+**Closed 2026-10-26** by refusal, not by honouring: the recipe fields' defaults (`MeshParams{}`) are not the Becke recipe's, so "honour what
+was set" cannot tell a stated field from a default.  `RequireNoRecipeUnderAuto` (`src/Mesh/XCPolicy.C`) throws `std::invalid_argument`
+naming every recipe field that differs from `MeshParams{}` under Auto, at the top of both `ResolveXCMesh` overloads; deck `Resolve` calls
+it so `rundeck --check` refuses the deck (the run-time throw alone passed `--check`).  Rundeck's echoed records carry every field AT its
+default, so they still parse.  UTs `XCPolicy.AGridFieldSetUnderAutoThrowsNamingIt`, `Deck.AnXCMeshRecipeFieldUnderAutoIsRefusedAtResolve`.
+
+## ✅ The cusp-deficit guard refused an exact-fit basis (OpenWork §3; closed 2026-10-26) -- the row as it stood
+
+| **The cusp-deficit guard refuses an EXACT-fit basis** (2026-10-25) | `SCFParams::XCCuspDeficit` (default on) makes `PairDensitySampler` throw at iteration 2 of a plane-wave run ("asks for XC from ρ[D] … this mixed density has no raster shadow") — but on plane waves the BALL ρ IS ρ[D] (the {G} ball holds every G_i − G_j), so the deficit is identically zero.  Workaround: deck `scf.xcCuspDeficit false` | the fit basis answers what the sampler consumes — "is my fitted ρ exactly ρ[D]?" (true for PW, false for GPW) — and the guard asks it; gate: the PW-1 smoke deck converges with the default `SCFParams` · `src/ChargeDensity/Internal/Imp/DensitySampler_Pair.C` |
+
+**Closed 2026-10-26.**  `RequireRawForCusp(cd, isRaw, ballHoldsPairs)` (`DensitySampler_Pair.C`) skips the throw when the fit basis
+answers `G_OrbitalPairBall::HoldsEveryOrbitalPair()` -- plane waves since the 4× XC ball (same day) -- because the BALL ρ there IS ρ[D]
+and the deficit is identically zero; the XC column reads `fit=`.  Gate: the PW-1 smoke deck (`~/Code/qchem6-runs/MnO2/pw/MnO2_beta_A1AFM.r007.json`)
+with `scf.xcCuspDeficit true` (the default) converges.
+
+## Δρ gate "below the quadrature floor" (OpenWork §3, 2026-10-23) -- REFUTED 2026-10-26; the row as it stood
+
+| **A Δρ gate below the quadrature floor can never pass, silently** (2026-10-23) | β-MnO₂ (VA, Γ, GDM stage at kT 0): the energy fell monotonically to −93.0237884 Ha while Δρ (`minDeltaRhoPerElectron`) sat at 2e-5…7e-5 — its minimum, 2.34e-5, is EXACTLY the `ρ_lost/N` column, the run quadrature's own error integrating the charge, constant all run.  The L1 gate is measured on that quadrature, so a `1e-6` gate on this cell only ever waits for `NMaxIter`.  Same family: a deck stage that does not set the [F,D] gates inherits `MinFD 1e-5` / `MinΔFD 1e-7`, which a non-variational GPW GDM stage (‖[F,D]‖ ~5e-4) cannot meet either | confirm the floor (Δρ of a converged state re-sampled: ≥ ρ_lost/N?), then make it LOUD: the iterator (or `deck::Vet` once the mesh is known) warns when a gate sits below ρ_lost/N, and the trace marks a Δρ that has hit it.  Gate such stages on ΔE (the `MinΔE` comment already says so for GPW) · `src/SCFIterator/Imp/SCFIterator.C` ~467 |
+
+**The floor half is refuted (2026-10-26), from the code and the sweep log, no new run.**  The gate (`ResidualPerElectron` →
+`Vxc_Quadrature::RealSpaceL1Distance`) is ∫|ρ_a−ρ_b| sampled on ONE quadrature: a constant charge-integration error (ρ_lost) is common
+to both densities and cancels, so it is no floor.  Measured on `~/Code/qchem6-runs/anchors/r11_short.log` (every gridded trace row with
+ρ_lost/N ≠ 0): GDM 28 of 49 rows below ρ_lost/N, min ratio 2e-4; PulD 126 of 984 and Null 131 of 1235, min ratio 1e-7; DIIS 0 of 30.  The
+β-MnO₂ stall (Δρ 2e-5…7e-5, minimum 2.34e-5 = ρ_lost/N) is the GDM crawl the direct-min driver measures as successive-iterate distance.
+The REMAINDER (the inherited [F,D] gates a GPW GDM stage cannot meet) stays in the tracker under its own name.
+
+
+## Inherited [F,D] gates on a GDM stage (OpenWork §3, 2026-10-23) -- REFUTED 2026-10-27; the row as it stood
+
+| **A deck stage that does not set the [F,D] gates inherits `MinFD 1e-5` / `MinΔFD 1e-7`** (2026-10-23; the row's Δρ-floor half REFUTED 2026-10-26) | a non-variational GPW GDM stage (‖[F,D]‖ ~5e-4) cannot meet them, so it only waits for `NMaxIter`.  The Δρ "quadrature floor" was not one: the gate is ∫\|ρ_a−ρ_b\| on ONE quadrature, so a constant charge-integration error cancels, and in the 2026-10-26 sweep log Δρ falls through ρ_lost/N on GDM rows (down to 2e-4 × ρ_lost/N) and on Pulay/Null rows (1e-7 ×); β-MnO₂'s stall at 2.34e-5 was GDM crawling (rows "GDM crawls…", "GDM false-converges…") | warn (iterator, at stage start) when a direct-min stage carries an [F,D] gate it cannot meet, or default a GDM stage's [F,D] gates off and gate it on ΔE · `src/SCFIterator/SCFParams.C` ~31/46 · history `Records/OpenWork_History5.md` |
+
+**Refuted 2026-10-27 (both halves; the Δρ half on 2026-10-26).**  There is no GPW [F,D] floor under GDM: in the `fecad6be` sweep log
+(`~/Code/qchem6-runs/anchors/r10r23_short.log`) every NaF GPW GDM stage is still falling ~3×/iteration when its ΔE/Δρ gates stop it
+(`Γ_Imp_Anchor` cold fine: 1.39e-2 → 1.88e-3 → 7.76e-4; coarse: 3.6e-2 → 7.9e-3 → 2.5e-3 → 5.3e-4), and the Si GPW restarts
+(`SolidState.ExactResume_*`, `WarmStart_OtherGrid_*`) reach 1e-7 … 1e-12.  ⚠ CORRECTED 2026-10-27: those restart numbers say how tightly the SAVED state was converged (the tests gate Δρ 1e-7 / ΔE 1e-10 before saving), not what GDM can reach -- and both are GTH pseudopotential runs, as is NaF.  MEASURED the same day instead (`~/Code/qchem6-runs/NaF/naf_fdprobe_*`, NaF SR2 Γ, GPW + GTH): the Kerker+Pulay state converged to max|dD| 1e-6 / ΔE 1e-11 has ‖[F,D]‖ 2.8e-7; GDM from it, gated on minFD alone, reaches 5e-11 in 58 iterations (wandering 3e-8…9e-8 on the way); GDM from a loose state (ΔE/E 1e-4) reaches 1.4e-6 in 10 iterations -- and is then kicked back by the stale-field fallback (OpenWork row "GDM's mixed FALLBACK step…").  No PP [F,D] floor above 1e-10 on this cell.  `minFD 1e-5` is a few iterations further at that rate
+(extrapolated, not run).  The β-MnO₂ stage that ran to `NMaxIter` (`basis_scan/m0_free_twostage_prefix.log` stage 2, open gap 2.3e-2)
+decays LINEARLY, ~7 %/iteration -- the crawl of row "GDM crawls…", where the evidence now sits.  And the [F,D] gate is the RIGHT one for a
+direct minimiser: row "GDM false-converges…" wants GDM gated on its gradient, not on its own step.  Nothing to change in the defaults.
+
+
+## ✅ The polarized IonicSAD seed lost its spin (OpenWork §3, 2026-10-23) -- RESOLVED by re-measure 2026-10-27; the row as it stood
+
+| **The polarized IonicSAD seed loses its spin** (2026-10-23) | MnO AFM-II SR Γ, 24-op group, seed-tiebreak's TRUE ionic seed (Mn²⁺ d⁵ ×2 + O²⁻ ×2, 26 e): iterate 1 is −42.20 Ha with Mn moment **0.30** (neutral SAD: −59.85 Ha, 3.93); the moment peaks at 2.86 (iteration 14), dies by iteration 30, and the run ends non-magnetic at −60.97043 Ha, unconverged at iteration 82.  Two Mn²⁺ Hund pairs should give ~5 after one diagonalization.  Two more data points (2026-10-23): the VA +U gate's U=0 arm (`Γ_U_Shub_Pol_Smear_CP2K_Long`, same seed) also starts at 0.30, keeps the order but takes 38 iterations (18 on the old seed; energy unmoved, 3e-10); and the OLD per-species seed (neutral Mn + O²⁻, 30 e for 26) started −52.75 Ha / 1.80, neutral SAD −59.32 / 3.68 — the true ionic seed is the WORST start of the three | check the seed's OWN m(r) before the first Fock build (is the Mn²⁺ pair at target 5 found and its spin channels kept?), then whether O²⁻ (unbound in LDA, the diffuse charge-state entry) wrecks the first iterate.  BEFORE β-MnO₂ (HubbardUPlan S2): the seed-tiebreak fix exists to make IonicSAD seed its AFM · `src/ChargeDensity/Imp/{Seed,SeedCD}.C` |
+
+**Re-measured 2026-10-27 on `3941b9e3`** (decks + logs `~/Code/qchem6-runs/MnO/mno_afm2_shub_seed_{IonicSAD,SAD}*`: `decks/MnO_AFM2_free.json`
+with `siteSpins [1,-1,0,0]`, `imposeSymmetry true` → the 24-op Shubnikov group, SR, Γ, Kerker + Pulay 8/5, kT 5e-3):
+
+| seed | seed moment | iterate 1 | converged |
+|---|---|---|---|
+| IonicSAD (Mn²⁺ ×2 + O²⁻ ×2) | 4.794 | −48.96 Ha, m 1.06 | 15 iterations, −61.3032807795, m 4.459 |
+| neutral SAD | 4.781 | −59.54 Ha, m 3.85 | 14 iterations, −61.3032807795, m 4.459 |
+
+The loss is gone.  The 2026-10-23 measurement predates the V_short image fix (pin 29, whose bias favoured FM), the Ewald fix, the per-SITE
+IonicSAD targets (`aca82fd4`) and the stated ordering (`0f353ff5`); which of them removed it was not bisected.  The ionic seed's first
+iterate is still the worse start (1.06 vs the seed's own 4.79 -- one diagonalization in the Mn²⁺/O²⁻ potential), but the order is back by
+iteration 3 and costs one iteration.  Not gated by a new test: it would be a ~10-minute `_Long` twin of `Γ_Shub_Pol_Smear_Anchor_Long`.
+
+
+## ✅ GDM's mixed fallback used the field mixer's stale density (OpenWork §3; found and fixed 2026-10-27) -- the row as it stood
+
+| **GDM's mixed FALLBACK step builds its Fock from the field mixer's STALE density** (2026-10-27) | when GDM's line search is exhausted (`RejectStep` below `TrustMin` -- at a small gradient the energy decrease drops under the E noise), `DirectMinStep`'s `mixedStep` builds the Fock from `itsMixer->FockDensity(*itsCD)` -- and the Kerker/Pulay mixers IGNORE the argument and return their own running field `itsIn`, which nothing updates while GDM moves D.  So the "stable degradation" jumps back to the density of the mixer's LAST mix (at a restart: the restored state).  Measured, NaF SR2 Γ (GPW + GTH), GDM resumed from a loose state (`~/Code/qchem6-runs/NaF/naf_fdprobe_{L,D}*`): ‖[F,D]‖ 1.4e-1 → 1.4e-6 in 10 iterations, then iteration 14 (XC column `shadow` = the mixer's field) jumps +2.6 mHa to −24.42781, back at the loose start (−24.42979), [F,D] 2e-1; again near 29 and 44 -- three `direct-min MIXED fallback` calls, no console message.  From a TIGHT state (probe C) the same fallbacks are small (the stale field is near the answer) and [F,D] still reaches 5e-11 | re-seat a field mixer on the CURRENT density before the fallback uses it (a `tDensityMixer` face: present the working D as the running field, drop the history; a D-mixer needs nothing), and say so on the console; then decide whether an exhausted line search at a gradient below the E-noise floor should END the stage (converged at the noise floor) rather than step at all · `src/SCFIterator/Imp/SCFIterator.C` `DirectMinStep`, `src/ChargeDensity/Internal/{Kerker,Pulay}Mixer.C` |
+
+**Fixed 2026-10-27.**  `tDensityMixer::Reseat(const cd_t& current)` (no-op default for a D-mixer, whose `FockDensity` IS the working D;
+returns whether anything was re-seated) and `tFieldMixer::ReseatField(const GField&)`: `KerkerMixer` takes the current field and
+re-presents it; `PulayMixer` also drops its history and restarts priming (residuals measured about densities the run has left would
+extrapolate toward a mix of stale states); `PolarizedDensityMixer` re-seats each leaf in its channel basis (one `LeafFieldsOf` helper now
+shared with `Mix`) and rebuilds the (ρ,m) channel pair.  `DirectMinStep`'s `mixedStep(why)` re-seats before building the Fock and prints
+`[gdm] iteration N: <reason> -> one MIXED fixed-point step from the current D (field mixer re-seated on it, history dropped)` -- always,
+not only under `gdm_trace`.  UT `JointPulay.ReseatFieldMakesAFreshMixerAtTheCurrentDensity` (a re-seated Pulay / Kerker steps exactly as
+a fresh mixer seeded there).  GATE, `~/Code/qchem6-runs/NaF/naf_fdprobe_D*` (NaF SR2 Γ, GPW + GTH, GDM resumed from the loose state L,
+gated on minFD 1e-7 alone): before, ‖[F,D]‖ 1.4e-6 at iteration 10, then kicks at 14 / ~29 / ~44 (+2.6 mHa, back to the loose start),
+NOT converged at 60; after, two announced fallbacks (iterations 14, 19) with E flat to 1e-14 relative, CONVERGED at 23 (6.1e-8),
+Etot −24.4303949715 = stage A's.  Short sweep: 1099 pass, 0 of 1097 moved (no existing gate falls back mid-GDM).
+
+
+## ✅ After a stage that ended on a GDM step, the live orbitals and ε were not a valid reference (OpenWork §3; found and fixed 2026-10-27) -- the row as it stood
+
+| **⛔ After a stage that ENDS ON A GDM STEP, the live orbitals and ε are not a valid reference: χ₀ is garbage** (2026-10-27) | NiO k222 (v3 basis, U_in 3), restarted from the converged overnight state (`states/NiO_AFM2.r010.h5`, EXACT RESUME, 1 iteration): χ₀(site 0, q=Γ) = **−0.00703** /Ha with the restart's default Ladder@GDM (−0.00714 on a second run: not even reproducible), **−2.89940** when the stage's last step is a diagonalization (`accelerator Null`) -- the overnight non-restarted run gave −2.89938.  Energy, moments, response gap identical in all three.  Mechanism, in part: GDM's `OrbitalsAt` returns the geodesically ROTATED orbitals with the PREVIOUS Fock's pseudo-canonical energies attached (`itsSeo`/`itsSev`), so the wave function's (C, ε) are not eigenpairs of F[D]; the sum-over-states R0 (and any other consumer of orbitals: gaps, ACBN0's occupied set, band printouts) assumes they are.  UNEXPLAINED: why a near-zero final step costs a factor 400.  The SAVED FILE is not affected (D is rebuilt from the written C at save; a restart reads only D) | (1) explain the factor 400 (compare C†FC with diag ε per block after the GDM step); (2) end every direct-min stage with a PSEUDO-CANONICALIZATION (diagonalize F within the occupied and within the virtual space: D unchanged to the bit, ε become F's) -- or a full diagonalization, the user's call; (3) make the response REFUSE a reference whose blocks are not eigenpairs of F to a stated tolerance (loud, like pin 28's throw); gate: the restart probe's χ₀ == the diagonalizing arm's · decks/logs `~/Code/qchem6-runs/NiO/kaxis/p0_{diag,gdm,t6}*` · `src/SCFAccelerator/Internal/Imp/SCFAcceleratorGDM.C` ~302 |
+
+**The factor 400, explained.**  Audit (`ResponseKernel.GPW_Si_k211_GDMFinishedStage_OrbitalsAreEigenpairs`, per block: C†SC−I, the
+occupied-virtual block of C†FC, diag(C†FC)−ε) on Si k211: a diagonalizing stage 1e-10 everywhere; the GDM-finished stage had exact
+OCCUPIED ε, a 1e-8 gradient -- and VIRTUAL ε off by up to **2.7 Ha**.  `OrbitalsAt` moved the occupied block along the geodesic, then
+COMPLETED the virtuals by an SVD of the projected old virtuals: their singular values are all ~1, so the SVD returned an arbitrary
+rotation and reordering of the virtual space, and `e[no+a]=itsSev[a]` labelled each virtual with another one's energy.  Harmless to
+GDM (each step re-derives its energies from F); fatal to every consumer of (C, ε): R0's denominators ε_occ−ε_vir came out far too
+large, so χ₀ came out too small -- 5.4× on Si (−1.348 vs −7.271), 400× on NiO (−0.00703 vs −2.8994), and not even reproducible.
+
+**Fixed.**  (1) `SCFAcceleratorGDM.C` `OrbitalsAt`: the virtuals ride the same unitary exp(A) as the occupied block,
+X_v(θ) = X_v + U(cos θ − 1)U†X_v − Y V sin θ U†X_v, so column a stays pseudo-canonical virtual a and keeps its energy to O(θ):
+Si virtual ε error 2.7 Ha → 8e-9, χ₀ −7.2705593 (diagonalizing arm −7.2705592); GDM 31 → 26 iterations (its virtual basis no
+longer jumps).  (2) `Response::EigenpairResidual` (max|C†FC − diag ε| over the complex blocks) and `SolidCalculation::
+HubbardLinearResponse` REFUSES (Outcome, Why::NotConverged) above **1e-4 Ha** -- χ₀'s relative error ~ residual/gap, so <~1e-3 on a
+0.1 Ha gap while a mislabel is refused by >1000×.  Measured residuals: Si 1e-10 (diag) / 8e-9 (GDM); every response test in the
+sweep ≤ 3.9e-8; NiO k222 GDM restart **1.03e-5** (its [F,D] noise 2.4e-6) -- an initial 1e-5 bound refused that healthy state.
+The end-of-stage PSEUDO-CANONICALIZATION the row proposed was NOT built: with the root cause gone the residual is O(final step),
+and the refusal measures it on every response.  Gates: the Si eigenpair test; NiO restart probe
+(`~/Code/qchem6-runs/NiO/kaxis/p0_gdm_fixed2.log`) χ₀ −2.8993982 / χ −1.8254405 == the diagonalizing arm (`p0_diag.log`) to the
+printed digits.  The SAVED FILE was never affected (D is rebuilt from the written C at save; a restart reads only D).
+Sweep: 1102 pass; moved: `GPW_NaF.Γ_Imp_eqColdStart` −8.9e-9 Ha (38 → 37 iterations) and `Γ_Imp_eqExactResume` −2e-10 Ha --
+the GDM rung's trajectory, within convergence noise, judged expected.
+
+
+## A CARRIED density's first iteration fed XC the FITTED ρ (OpenWork §3, 2026-10-28) -- FIXED 2026-10-29; the row as it stood
+| **A CARRIED density's first iteration feeds XC the FITTED ρ, so an "EXACT RESUME" does not start at its own fixed point** (2026-10-28) | TiO₂ k222 Kerker+Pulay (Null accel, kT 5 mHa) restart from a state converged at Δρ 1e-6: iteration 1 opens at Δρ 6.2e-4 and E 1.9e-5 Ha off, XC ρ column `fitted`, then `cusp` from iteration 2; the fresh Pulay history at α 1 amplifies it (Δρ to 2e-2) and the resume takes 15 iterations.  The saved D is fine: `SCFIterator`'s `SeedRole::WorkingDensity` path keeps the D-backed density (`itsCarried`), but the mixer's first field has no raster shadow, so `PairSource` returns `Fitted` -- legal under pin 28 only for a seed WITHOUT a D.  Hits every carried density: restarts, anneal stages, ±α, the U loop | seed the mixer FROM the carried D (`tDensityMixer::Reseat`: the D becomes the running field, so iteration 1 samples ρ[D] / cusp); gate: an exact resume's iteration 1 at Δρ ≤ the saved one · `src/SCFIterator/Imp/SCFIterator.C` l.236–246 / 370 |
+
+**Verdict.**  Not a restart-only defect: EVERY field-mixer run's first Fock (and every GDM fallback re-seat) fed XC the fitted ρ
+on the singles (Becke) route, because that route reaches ρ[D] only through the field's N4 cusp correction (ρ_mix − ρ_out,
+`ExactSourceOf`), which the mixers formed only inside `Mix` -- a field taken straight from a D (the seed field, `ReseatField`, the
+(ρ,m) channels' first rebuild) carried none.  A restart showed it worst: the saved fixed point re-opened off itself.  FIX: such a
+field is presented WITH its correction, identically zero (`PresentFromD`, `FieldMixer.C`; the polarized (ρ,m) mixer forms it against
+the working channels), and the working D is seated as the first field's DM source (`SCFIterator`, after `CreateMixer`).  The
+proposed `Reseat` route was not needed.  Gates: UTCalculation `SolidState.ExactResume_{Pulay,KerkerPulay}_Null_StartsAtTheSavedState`
+(Si k222 polarized, Becke, Null accelerator): Kerker-Pulay resume `fitted` / Δρ 8.6e-5 / 6 iterations BEFORE, `cusp` / Δρ 7.3e-10 /
+2 AFTER; TiO₂ Γ deck iteration 1 `fitted` -> `cusp`.  Sweep 1114/1114; moved 5, all Kerker runs whose iteration 1 changed:
+`GPW_NaF.Γ_Becke_Imp_eqUni` +2.9e-8 (12 -> 10 iterations), `GPW_NaF.Γ_Imp_Anchor` +3.7e-9, `GPW_Si.Γ_U_Imp_Pol_Kerker_eqUnpol`
++8e-10, `GPW_NaF.Γ_Imp_eqExactResume` +3e-10, `GPW_Si.Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint` (67 -> 66) -- the SCF
+path, within convergence; banked `~/Code/qchem6-runs/anchors/firstfield_short.log`.

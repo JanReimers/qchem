@@ -9,6 +9,7 @@
 // exactly what module-internal linkage is for -- they are visible to every unit of this module and to
 // nothing outside it.
 module;
+#include <mutex>
 #include <algorithm>   // std::min (the threaded quadrature's output-column blocking)
 #include <cassert>
 #include <complex>
@@ -32,7 +33,6 @@ import qchem.BasisSet.Transition_DFT_IBS;    // the (k+q, k) pair faces the tran
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
-import qchem.Parallel;                         // WorkerThreads (QCHEM_OPENMP_THREADS -- the XC-mesh table + quadrature loops)
 
 
 namespace qchem::ChargeDensity
@@ -69,9 +69,16 @@ void ReportNegativeRho(const DensitySampler& q, const rvec_t& rho, const char* r
 // raster and mixed there (RasterKerker, the filter over the full raster FFT) -- at the fixed point that IS rho[D] at every
 // quadrature point, exception 2's form, so the N4 correction map the mixer also carries is not needed here.  BALL is the
 // fitted rho; a run that asked for the cusp deficit must never be served it (it would be the +7.7 mHa of the O2 box).
-void RequireRawForCusp(const cChargeDensity* cd, bool isRaw)
+bool BallHoldsPairs(const BasisSet::cFIT_SF_ABS& fit)
 {
-    if (!isRaw && HasXCCorrection(cd))
+    auto* b=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(&fit);   // abstract -> abstract
+    return b && b->HoldsEveryOrbitalPair();
+}
+void RequireRawForCusp(const cChargeDensity* cd, bool isRaw, bool ballHoldsPairs)
+{
+    // An EXACT-fit ball (G_OrbitalPairBall: plane waves at >= 4 Ecut) IS rho[D]: the cusp deficit is identically zero there, so the BALL
+    // route is what the flag asks for (OpenWork §3 "The cusp-deficit guard refuses an EXACT-fit basis", fixed 2026-10-26).
+    if (!isRaw && HasXCCorrection(cd) && !ballHoldsPairs)
         throw std::logic_error("PairDensitySampler: XCCuspDeficit asks for XC from rho[D] (doc/Pins.md pin 28), but this mixed density "
             "has no raster shadow, so the pair route would feed XC the FITTED rho (BALL)");
 }
@@ -87,11 +94,6 @@ XCRhoSource PairSource(const cChargeDensity* cd, bool isRaw, bool ballHoldsPairs
     if (!isRaw) return ballHoldsPairs ? XCRhoSource::ExactFit : XCRhoSource::Fitted;
     return dm ? XCRhoSource::DM : XCRhoSource::Shadow;
 }
-bool BallHoldsPairs(const BasisSet::cFIT_SF_ABS& fit)
-{
-    auto* b=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(&fit);   // abstract -> abstract
-    return b && b->HoldsEveryOrbitalPair();
-}
 
 rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) const
 {
@@ -100,7 +102,7 @@ rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) cons
     assert(fd && "PairDensitySampler requires a FourierDensity (periodic) charge density");
     rvec_t rho=fd->GetRhoOnGrid(*itsFitBasis);
     isRaw=(rho.size()!=0);
-    RequireRawForCusp(cd, isRaw);
+    RequireRawForCusp(cd, isRaw, BallHoldsPairs(*itsFitBasis));
     if (!isRaw)
     {
         auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
@@ -354,6 +356,7 @@ template <class U> hmat_t<U> PairDensitySampler::MatrixT(const tobs_t<U>* bs, co
         return blazem::NarrowExact<U>(adj->Adjoint(v));
     if constexpr (std::is_same_v<U,dcmplx>)
     {
+        std::lock_guard<std::mutex> lock(itsScalarFitterLock.m);   // ONE fitter refit per call: concurrent blocks take turns
         itsScalarFitter->DoFit(SampledField(v, NumPoints()));
         // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks on a complex
         // fit axis.  The DFT cross-cast is THIS strategy's to make (2026-08-24): the contraction face takes
@@ -387,6 +390,7 @@ template <class U> const qcMesh::MatrixAdjoint<dcmplx>*
 PairDensitySampler::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
 {
     const sym_t& id=orb.GetSymt();                    // the block's SPATIAL symmetry, as the basis's own table cache uses
+    std::lock_guard<std::mutex> lock(itsAdjLock.m);  // k-block workers (KAxisPlan P1): the ↑ and ↓ pairs share a block
     auto it=itsAdj.find(id);
     if (it!=itsAdj.end()) return &it->second;
     const Projector3<dcmplx>& g=orb.Overlap3C(*itsFitBasis);

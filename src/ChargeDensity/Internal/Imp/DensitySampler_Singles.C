@@ -18,6 +18,7 @@ module;
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <mutex>     // FitFor: the field-fit pool is shared by concurrent Fock blocks
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
 module qchem.ChargeDensity.Internal.DensitySampler;
@@ -32,7 +33,6 @@ import qchem.BasisSet.Transition_DFT_IBS;    // the (k+q, k) pair faces the tran
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
-import qchem.Parallel;                         // WorkerThreads (QCHEM_OPENMP_THREADS -- the XC-mesh table + quadrature loops)
 
 
 namespace qchem::ChargeDensity
@@ -449,22 +449,41 @@ rvec_t SinglesDensitySampler::SiteIntegrals(const rvec_t& f) const
 // <i|v|j> THROUGH THE FITTER, exactly as the molecular XC term does it (the Liskov conformance,
 // doc/CleanupCandidates.md R1.0): fit the sampled field, then contract against this block.  The fit is
 // re-done only when v CHANGES -- the Fock build calls this once per block with the same v, and DoFit
-// on a delta basis is a copy, but re-copying per block would still be per-block work for nothing.
+// on a delta basis is a copy, but re-copying per block would still be per-block work for nothing.  One fit PER v
+// (FitFor), so the up and down blocks of a concurrent Fock loop never refit each other's fitter mid-contraction.
+std::shared_ptr<const Fitting::FunctionFitter_Scalar> SinglesDensitySampler::FitFor(const rvec_t& v) const
+{
+    auto same=[&](const rvec_t& a)
+    {
+        if (a.size()!=v.size()) return false;
+        for (size_t g=0; g<v.size(); g++) if (a[g]!=v[g]) return false;
+        return true;
+    };
+    std::lock_guard<std::mutex> lock(itsFieldFitsLock.m);
+    for (const auto& f : itsFieldFits) if (same(f.v)) return f.fitter;
+    std::shared_ptr<Fitting::FunctionFitter_Scalar> fitter;
+    if (itsFieldFits.size()>=kFieldFits)                       // recycle the OLDEST slot no block is reading
+        for (auto i=itsFieldFits.begin(); i!=itsFieldFits.end(); ++i)
+            if (i->fitter.use_count()==1) {fitter=std::move(i->fitter); itsFieldFits.erase(i); break;}
+    if (!fitter)
+    {
+        std::shared_ptr<const BasisSet::cFIT_SF_ABS> fb=itsFit;   // Factory takes a non-const lvalue (see the ctor)
+        fitter=Fitting::Factory(fb);
+    }
+    fitter->DoFit(SampledField(v, NumPoints()));                // under the lock: on a delta basis the fit is a copy
+    itsFieldFits.push_back({v, fitter});
+    return fitter;
+}
+
 template <class U> hmat_t<U> SinglesDensitySampler::MatrixT(const tobs_t<U>* bs, const rvec_t& v) const
 {
-    bool same = itsFittedV.size()==v.size();
-    for (size_t g=0; same && g<v.size(); g++) same = (itsFittedV[g]==v[g]);
-    if (!same)
-    {
-        itsScalarFitter->DoFit(SampledField(v, NumPoints()));
-        itsFittedV=v;
-    }
+    const std::shared_ptr<const Fitting::FunctionFitter_Scalar> fitter=FitFor(v);   // held: its slot cannot be recycled
     // TWO scalars on the face, and they DIFFER here (3c-3): the block is U, but the delta fit basis this
     // strategy holds is the run's periodic one, so the fit axis is dcmplx for both.  <U> alone would name
     // <U,U>, which for a real TRIM block is a face no fitter in the tree declares.  And the DFT cross-cast
     // is the XC strategy's, for the reason given on FitContraction: this layer is DFT by construction.
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);
-    return dynamic_cast<const Fitting::FitContraction<U,dcmplx>&>(*itsScalarFitter).Overlap(orb);
+    return dynamic_cast<const Fitting::FitContraction<U,dcmplx>&>(*fitter).Overlap(orb);
 }
 chmat_t SinglesDensitySampler::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
 rsmat_t SinglesDensitySampler::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}

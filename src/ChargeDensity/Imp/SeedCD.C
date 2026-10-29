@@ -239,7 +239,7 @@ rvec_t SeedCD::operator()(const rvec3vec_t& rs) const
         out[q]=itsScale*rho;
     };
 #ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1)
+    if (const int nthreads=qchem::InnerThreads(); nthreads>1)
     {
         #pragma omp parallel for schedule(static) num_threads(nthreads)
         for (size_t q=0;q<rs.size();q++) at(q);      // pure per-point work: no throw path, no reduction

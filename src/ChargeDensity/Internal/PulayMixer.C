@@ -40,7 +40,7 @@ public:
                ReciprocalLattice recip, GField seed0, double charge, bool cusp=false)
         : itsRelax(relax), itsKerkerG0(G0), itsDepth(depth), itsStart(start), itsCuspDeficit(cusp), itsKerkerFit(std::move(fit))
         , itsRecip(recip), itsCharge(charge), itsIn(std::move(seed0))
-        , itsMixedRho(Present(itsIn, itsRecip, itsCharge))
+        , itsMixedRho(PresentFromD(itsIn, itsRecip, itsCharge, itsCuspDeficit))
     {}
 
     //! The density-face entry: extract ρ̃_out + the raster shadow, then do the G-space arithmetic below.
@@ -60,6 +60,23 @@ public:
         return {Present(itsIn, itsRecip, itsCharge), Present(f, itsRecip, itsCharge)};
     }
     const FourierMixCD& Mixed() const override { assert(itsMixedRho); return *itsMixedRho; }
+    bool Reseat(const cd_t& current) override
+    {
+        auto* fd = dynamic_cast<const FourierDensity*>(&current);
+        assert(fd);
+        ReseatField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
+        return true;
+    }
+    //! The history is dropped, not kept: its residuals were measured about densities the run has since LEFT, so extrapolating
+    //! through them would step toward a mixture of stale states -- the same defect one level up.
+    void ReseatField(const GField& current) override
+    {
+        assert(!itsStaged && "PulayMixer::ReseatField between StageResidual and ApplyJoint");
+        itsIn=current;
+        itsIns.clear(); itsOuts.clear(); itsResiduals.clear(); itsRawIns.clear(); itsRawOuts.clear();
+        itsCount=0;
+        itsMixedRho=PresentFromD(itsIn, itsRecip, itsCharge, itsCuspDeficit);
+    }
 
     //! The single-channel step: stage, solve MY OWN B, apply.  Exactly \c MixJointly over one channel -- and
     //! written as such, so the unpolarized path cannot drift from the polarized one.

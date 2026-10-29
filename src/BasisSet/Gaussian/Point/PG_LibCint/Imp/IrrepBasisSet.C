@@ -57,30 +57,12 @@ static std::vector<Polarization> MakePolarizations(int L)
 IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl, bool spherical)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN)), itsSpherical(spherical)
 {
+    // An ORBITAL basis only (no libcint fit tree): KeepEachL.  (The copy of the loop this replaces also erased-then-inserted
+    // through an invalidated iterator and never broke out of its search.)
+    std::vector<ReadShell> shells=ReadShells(*bsr, *cl, ShellMerge::KeepEachL);
     std::vector<GaussianRF*> radials;
     std::vector<std::vector<int> >    Ls;
-    for (auto atom:*cl)
-    {
-        bsr->FindAtom(*atom);
-        GaussianRF* rf=0;
-        while ((rf=bsr->ReadNext(*atom)))
-        {
-            bool duplicate=false;
-            std::vector<GaussianRF*>::iterator b(radials.begin());
-            for (size_t i=0; b!=radials.end(); i++,b++)
-                if (**b==*rf) //Check for a duplicate, ignoring Lmax.
-                {
-                    duplicate=true;
-                    std::vector<int> newLs=bsr->GetLs();
-                    bool UseNewRF=Max(newLs) > Max(Ls[i]);
-                    for (auto l:newLs)
-                        if (std::find(Ls[i].begin(),Ls[i].end(),l)!=Ls[i].end()) Ls[i].push_back(l);
-                    if (UseNewRF) { radials.erase(b); radials.insert(b,rf); }
-                    else          { delete rf; }
-                }
-            if(!duplicate) { radials.push_back(rf); Ls.push_back(bsr->GetLs()); }
-        }
-    }
+    for (auto& sh : shells) { radials.push_back(sh.rf.release()); Ls.push_back(sh.Ls); }   // Block takes ownership below
 
     int i=0;
     for (auto r:radials)

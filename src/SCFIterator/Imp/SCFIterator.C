@@ -392,6 +392,12 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     // ipar.Mixer -- Kerker/Pulay ρ̃-mixing on a periodic run, else linear D-mixing at α=StartingRelaxRo (1.0 = passthrough).
     itsMixer = CreateMixer(ipar, itsBS, itsKerkerCell.get(), itsCD.get());
     itsAdaptive = dynamic_cast<qchem::ChargeDensity::tAdaptiveMixer<T>*>(itsMixer.get());   // null = fixed step
+    // THE FIRST FIELD'S PROVENANCE (OpenWork §3 "A CARRIED density's first iteration feeds XC the FITTED rho", 2026-10-28): a
+    // field mixer PRESENTS the working D as its first field, but the D it came from was only ever seated after a Mix -- so
+    // iteration 1's XC found no DM source and took the FITTED rho (the trace's `fitted`), on every Kerker/Pulay run.  On a
+    // restart that cost the most: the saved fixed point re-opened at drho 6e-4 (TiO2 k222) and took 15 iterations back.
+    // The working D IS this field's source -- seat it, so iteration 1 samples rho[D] (pin 28) like every later one.
+    SeatDMSource(*itsMixer, itsCD);
 
     // The order parameter at the STARTING point (the seed's diagonalized density, "iteration 0") -- the
     // reference every later value is judged against.  A probe that already reads ~0 here means the SEED never
@@ -592,11 +598,17 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     // SAFE ONLY WHEN THE ACCELERATOR HOLDS NO LIVE STEP: DoSCFIteration calls NextOrbitals(), and a minimizer
     // with a computed step TAKES it there (GDM: OrbitalsAt(1.0,true)).  Both call sites below satisfy that --
     // one because ComputeStep FAILED, the other because an exhausted RejectStep armed a forced diagonalize.
-    auto mixedStep=[&]()
+    auto mixedStep=[&](const char* why)
     {
         // The FALLBACK is a whole fixed-point step taken inside a direct-min iteration, so it must be
         // visible as one: without this bucket a stalled geodesic silently doubles the iteration's cost.
         qchem::report::Timed timed("scf: direct-min MIXED fallback step (whole fixed-point step)");
+        // RE-SEAT FIRST (OpenWork §3, 2026-10-27): the geodesic steps moved D without passing through Mix, so a FIELD mixer's
+        // running field is still its LAST mix's -- at a restart the restored state -- and a Fock driven from it jumped the run
+        // back there (NaF SR2 Γ, GDM from a loose state: +2.6 mHa at [F,D] 3e-7, three times in 60 iterations, silently).
+        const bool reseated=itsMixer->Reseat(*itsCD);
+        std::cout << "[gdm] iteration " << itsIterationCount << ": " << why << " -> one MIXED fixed-point step from the current D"
+                  << (reseated ? " (field mixer re-seated on it, history dropped)" : "") << std::endl;
         itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(*itsCD));
         itsWaveFunction->FillOrbitals(*itsOccPolicy, mergeTol);
         cd_t fresh(itsWaveFunction->GetChargeDensity());
@@ -606,7 +618,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     };
     // Seed / bail: no geodesic this step (normally pre-empted by CanLineSearch() -> FixedPointDriver, but
     // reachable if [F,D] jumps above FDMax between that check and the fresh Fock).
-    if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD.get())) return mixedStep();
+    if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD.get())) return mixedStep("no geodesic step (seed, or [F,D] above the engage threshold)");
 
     // THE LINE-SEARCH REFERENCE MUST BE MEASURED IN THE TRIALS' OWN OCCUPATION CONVENTION.
     // \a Ecur is the PREVIOUS iteration's energy, and that iteration may have filled by a different rule --
@@ -625,7 +637,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     itsWaveFunction->MoveOrbitals(held,0.0,false,mergeTol);
     const double E0 = [&]{ qchem::report::Timed timed("scf: line-search energy E(t) (density build + all terms)");
                            cd_t cd0(itsWaveFunction->GetChargeDensity());
-                           return itsHamiltonian->GetTotalEnergy(cd0.get()).GetTotalEnergy()
+                           return itsHamiltonian->At(nullptr, cd0.get()).GetTotalEnergy().GetTotalEnergy()
                                 + itsOccPolicy->EntropyTerm(); }();
     const bool trace=qchem::Diagnostics::Enabled("gdm_trace");
     if (trace && std::fabs(E0-Ecur)>1e-6)
@@ -646,7 +658,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
             cd_t cdt(itsWaveFunction->GetChargeDensity());                //std-managed (no freed-address reuse)
             // Minimize the FREE energy A=E−TS under smearing (MoveOrbitals refilled, so GetEntropyTerm is
             // current); GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  GPWPlan1 4b.
-            Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy()+itsOccPolicy->EntropyTerm();
+            Et=itsHamiltonian->At(nullptr, cdt.get()).GetTotalEnergy().GetTotalEnergy()+itsOccPolicy->EntropyTerm();
             best=std::min(best,Et);
             if (Et<E0) { found=true; break; }
             t*=0.5;
@@ -689,14 +701,13 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
                                     "failure); abandoning the geodesic" << std::endl;
             itsAccelerator->RejectStep();   // still tell the accelerator, so it arms its forced diagonalize
             while (itsAccelerator->RejectStep()) {}   // ...and drive it to exhaustion, cheaply (no line search)
-            return mixedStep();
+            return mixedStep("line search STALLED");
         }
         if (!itsAccelerator->RejectStep())
         {
             // EXHAUSTED.  By contract the accelerator has armed a diagonalizing step, so NextOrbitals()
             // will NOT re-take the rejected geodesic and the mixed fallback is now safe.
-            if (trace) std::cout << "[gdm] EXHAUSTED -> mixed fallback step" << std::endl;
-            return mixedStep();
+            return mixedStep("line search EXHAUSTED (trust radius below its floor)");
         }
         if (trace) std::cout << "[gdm] RETRY (direction rebuilt, trust shrunk)" << std::endl;
     }
@@ -723,7 +734,7 @@ template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>*
     // Bucketed because a term's GetEnergy is real per-iteration work, not bookkeeping: the Hartree pairing
     // and the XC energies both live under here (doc/ParallelAndOraclePlan.md 1.1).
     qchem::report::Timed timed("scf: total energy (all terms)");
-    EnergyBreakdown eb=itsHamiltonian->GetTotalEnergy(cd);
+    EnergyBreakdown eb=itsHamiltonian->At(nullptr, cd).GetTotalEnergy();   // the Hamiltonian AT cd (OOD V1.41)
     eb.Add("MinusTS", itsOccPolicy->EntropyTerm(), EnergyRole::Entropy, 0.0);   // the Mermin -TS: an energy, not in any eigenvalue
     return eb;
 }

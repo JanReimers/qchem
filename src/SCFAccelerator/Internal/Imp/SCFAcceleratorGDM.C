@@ -313,14 +313,21 @@ template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorGDM<T>::Orbit
     // Geodesic Y(t) = Y V cos(theta) V^H + U sin(theta) V^H, with V = itsSVt^H (SVD H = U s itsSVt).
     mat_t<T> Co = itsScoccPC*blazem::ctrans(itsSVt)*Dc*itsSVt + itsSU*Ds*itsSVt;   // new occupied
 
-    // Complete to a full orthonormal set: virtuals orthogonal to the new occupied block.
-    mat_t<T> W0 = itsScvirPC - Co*(blazem::ctrans(Co)*itsScvirPC);
-    mat_t<T> Uw,Vtw; rvec_t sw;
-    blazem::svd(W0,Uw,sw,Vtw);
+    // THE VIRTUALS RIDE THE SAME GEODESIC (OpenWork §3, fixed 2026-10-27).  The step is the unitary exp(A) whose occ->vir
+    // block is H = U s V^H; on the virtual block it acts as  X_v(theta) = X_v + U (cos theta - 1) U^H X_v - Y V sin theta U^H X_v,
+    // so virtual column a stays the continuation of pseudo-canonical virtual a and keeps its energy itsSev[a] to O(theta).
+    // It USED TO complete the set by an SVD of the projected virtuals: their singular values are all ~1, so the SVD returned
+    // an ARBITRARY rotation and reordering of the virtual space, and e[no+a]=itsSev[a] then labelled each virtual with another
+    // one's energy (up to 2.7 Ha on Si k211) -- harmless to GDM (every step re-derives its energies from F) but fatal to every
+    // consumer of the wave function's (C, eps): the response's sum over states (chi0 5x too small on Si, 400x on NiO), the gap.
+    blazem::DiagonalMatrix<mat_t<T>> Dcm1(no);
+    for (size_t k=0;k<no;k++) Dcm1(k,k)=std::cos(theta[k])-1.0;
+    const mat_t<T> UhXv = blazem::ctrans(itsSU)*itsScvirPC;                                   // no x nv
+    mat_t<T> Cv = itsScvirPC + itsSU*Dcm1*UhXv - itsScoccPC*blazem::ctrans(itsSVt)*Ds*UhXv;   // new virtuals
 
     mat_t<T> Cnew(n,n);
     blazem::submatrix(Cnew,0,0 ,n,no) = Co;
-    blazem::submatrix(Cnew,0,no,n,nv) = Uw;
+    blazem::submatrix(Cnew,0,no,n,nv) = Cv;
     rvec_t e(n);
     for (size_t i=0;i<no;i++) e[i]    = itsSeo[i];
     for (size_t a=0;a<nv;a++) e[no+a] = itsSev[a];

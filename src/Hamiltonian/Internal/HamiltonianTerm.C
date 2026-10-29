@@ -6,6 +6,7 @@
 // separate Imp unit) because the dcmplx terms instantiate these templates in other translation units
 // and so need the definitions visible.
 module;
+#include <stdexcept>
 #include <map>
 #include <cassert>
 #include <cstddef>
@@ -100,7 +101,7 @@ public:
 
     //! \copydoc HT_SlotOwner::PrepareSlots
     //! No clear: a static term's blocks are geometry-fixed, so a slot once filled stays valid for the run.
-    virtual void PrepareSlots(const tbs_t<T>* bs) const override {this->PrepareCacheSlots(bs);}
+    virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>*) const override {this->PrepareCacheSlots(bs);}
 
 protected:
     // Unconditional calculation, does not use cache.
@@ -123,16 +124,15 @@ public:
         // intrinsic to the density, stamped at construction/mutation), not just densities the SCFIterator
         // hands us -- which is why a plain density-pointer key, or an SCFIterator-only stamp, both failed.
         // This is now the SOLE owner of cache-freshness; newCD() only signals the concrete term to refit.
+        // THE STAMP IS THE CONTRACT (doc/KAxisPlan.md P2): PrepareSlots(bs, cd) -- the refresh -- recorded this density;
+        // GetMatrix never resets the cache itself (it used to, on first use, which the concurrent block loop cannot have).
         if (cd->Version()!=itsCacheVersion)
-        {
-            this->itsCache.clear();
-            itsCacheVersion=cd->Version();
-        }
+            throw std::logic_error("Hamiltonian term GetMatrix for a density it was not refreshed for -- call "
+                                   "tHamiltonian::RefreshForDensity(bs, cd) first (doc/KAxisPlan.md P2)");
         Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
-        // FILL-IF-EMPTY (R1.0h): the pre-create phase has normally already made this node, so operator[]
-        // finds it and mutates nothing; a 0x0 matrix means "slot exists, not filled this iteration".
-        // Outside the phase (energy evaluation, unit tests) it still creates on demand -- a pre-create is
-        // not a contract, exactly as RefreshForDensity is a pre-warm and not a replacement.
+        // FILL-IF-EMPTY (R1.0h): the refresh pre-created this node, so operator[] finds it and mutates nothing; a 0x0
+        // matrix means "slot exists, not filled for this density".  A serial caller that refreshed with bs = null (energy
+        // evaluation) still creates the node here -- an insertion, so never from inside a concurrent loop.
         hmat_t<T>& slot=this->itsCache[qns];
         if (slot.rows()==0) slot=MakeMatrix(bs,s,cd);
         return slot;   //Cache hit (same density serial, already computed for this Irrep)
@@ -142,9 +142,13 @@ public:
     //! Drops the previous iteration's blocks first (the same density-serial test \c GetMatrix makes, and
     //! it must stay in BOTH: this phase is optional, that one is the correctness mechanism), then creates
     //! this iteration's empty slots.
-    virtual void PrepareSlots(const tbs_t<T>* bs) const override
+    virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
     {
-        this->itsCache.clear();       // a new iteration's blocks: last iteration's values are all stale
+        if (cd && cd->Version()!=itsCacheVersion)   // a NEW density: last one's values are stale -- drop them, stamp this one
+        {
+            this->itsCache.clear();
+            itsCacheVersion=cd->Version();
+        }
         this->PrepareCacheSlots(bs);
     }
 
@@ -195,11 +199,18 @@ public:
     //! \copydoc HT_SlotOwner::PrepareSlots
     //! The scratch slots are pre-created too: this class recomputes unconditionally, but it still WRITES
     //! into a per-Irrep map node, and an absent node is an insertion like any other.
-    virtual void PrepareSlots(const tbs_t<T>* bs) const override {this->PrepareCacheSlots(bs);}
+    virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
+    {
+        if (cd) itsStampVersion=cd->Version();   // nothing to drop (recomputed every call); the stamp is the contract
+        this->PrepareCacheSlots(bs);
+    }
 
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const
     {
         assert(bs);
+        if (!cd || cd->Version()!=itsStampVersion)
+            throw std::logic_error("Hamiltonian term (no-cache) GetMatrix for a density it was not refreshed for -- call "
+                                   "tHamiltonian::RefreshForDensity(bs, cd) first (doc/KAxisPlan.md P2)");
         // ⛔ DELIBERATELY NOT CacheSpin(s) -- see R2.9(ii) above.  Here `qns` keys a SCRATCH SLOT whose job
         // is the returned reference's LIFETIME, not the avoidance of an evaluation (this class recomputes
         // unconditionally, by definition).  Folding two channels onto one key would make Up and Down alias
@@ -211,6 +222,7 @@ public:
 
 protected:
     virtual hmat_t<T> MakeMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>* cd) const=0;
+    mutable size_t itsStampVersion=size_t(-1);   //!< the density PrepareSlots last stamped
 };
 
 //====================================================================================================
@@ -237,7 +249,7 @@ public:
     //! \copydoc HT_SlotOwner::PrepareSlots
     //! MY (real) cache's slots.  A term that also has a scalar cache overrides this once and calls BOTH
     //! mixins -- see HT_SlotOwner for why the ambiguity until it does is the point.
-    virtual void PrepareSlots(const tbs_t<dcmplx>* bs) const override
+    virtual void PrepareSlots(const tbs_t<dcmplx>* bs, const tChargeDensity<dcmplx>*) const override
     {
         if (!bs) return;                                // no clear: geometry-fixed, like the scalar sibling
         for (size_t i=0;i<bs->GetNumIBS();++i)
@@ -258,12 +270,10 @@ public:
     {
         assert(bs);
         assert(cd);
-        // The same density-serial self-correction as tDynamic_HT_Imp::GetMatrix (its doc applies verbatim).
+        // The same contract as tDynamic_HT_Imp::GetMatrix: the refresh stamped the density; never reset here.
         if (cd->Version()!=itsRealCacheVersion)
-        {
-            itsRealCache.clear();
-            itsRealCacheVersion=cd->Version();
-        }
+            throw std::logic_error("Hamiltonian term (real block) GetMatrix for a density it was not refreshed for -- call "
+                                   "tHamiltonian::RefreshForDensity(bs, cd) first (doc/KAxisPlan.md P2)");
         Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
         hmat_t<double>& slot=itsRealCache[qns];        // FILL-IF-EMPTY (R1.0h) -- see tDynamic_HT_Imp
         if (slot.rows()==0) slot=MakeMatrixR(bs,s,cd);
@@ -272,9 +282,13 @@ public:
     //! \copydoc HT_SlotOwner::PrepareSlots
     //! The REAL blocks of \a bs -- \c GetRealIBS, not \c operator[]: this cache serves the real TRIM
     //! blocks of a complex-faced set (3c-3), and those are exactly the indices that answer non-null there.
-    virtual void PrepareSlots(const tbs_t<dcmplx>* bs) const override
+    virtual void PrepareSlots(const tbs_t<dcmplx>* bs, const tChargeDensity<dcmplx>* cd) const override
     {
-        itsRealCache.clear();
+        if (cd && cd->Version()!=itsRealCacheVersion)   // a NEW density: drop the old values, stamp this one
+        {
+            itsRealCache.clear();
+            itsRealCacheVersion=cd->Version();
+        }
         if (!bs) return;
         for (size_t i=0;i<bs->GetNumIBS();++i)
             if (const tobs_t<double>* b=bs->GetRealIBS(i))

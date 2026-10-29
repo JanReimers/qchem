@@ -30,6 +30,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Orbital_PP_IBS.C                      # the species-field INTEGRAL SERVICE + its ARGUMENT vocabulary (V1.2; absorbed SpeciesField.C 2026-09-15)
   BasisSet.C
   AoShellSource.C                       # 'I am built from atom-centred shells' (+U manifolds, SALC induction; 2026-09-19)
+  OrbitalImageSource.C                  # 'the image of my Bloch orbitals under a crystal op' (KAxisPlan P4, D5/CK-3a; 2026-10-27)
   AtomCentredSet.C                      # an atom-centred function set + 'my overlap with it' (+U projectors, HubbardProjectorPlan D1/D2)
   BareCoulombSource.C                   # 'bare (m1m2|m3m4) over a function subset' -- the ACBN0 face (+U increment 3; 2026-09-21)
   IrrepBasisSet.C

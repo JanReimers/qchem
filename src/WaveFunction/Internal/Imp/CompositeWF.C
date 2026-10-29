@@ -13,6 +13,7 @@ module;
 #include <iomanip>
 #include <cstdlib>
 #include <variant>
+#include <optional>
 #include <stdexcept>
 #include "tabulate/table.hpp"
 module qchem.WaveFunction.Internal.CompositeWF;
@@ -23,6 +24,7 @@ import qchem.CompositeCD;
 import qchem.ElectronConfiguration;
 import qchem.LASolver;
 import qchem.Orbitals;          // Orbital (eigen-energy, degeneracy) for the aufbau
+import qchem.Parallel;          // OuterFor (the Fock loop over basis blocks, KAxisPlan P2)
 import qchem.Reporting;         // the run report -- this loop owns the basis.perIrrep / basis.removed rows
 import qchem.Math;              // std::round/abs for the fractional-occupation formatting (the level tables)
 import qchem.Streamable;
@@ -93,24 +95,16 @@ template <class T> static tIrrepWF<T>& SameT(const iwf_ref_t& c)
     throw std::logic_error("tCompositeWF: a child block's scalar differs from the composite face -- "
                            "T-typed operations cannot cross scalars until RealComplexPlan Step 2c/3 land");
 }
-// The Fock-build dispatch over the child slot (Step 3c-2): a same-scalar child takes the native path; a
-// REAL child inside a complex run drives the Hamiltonian's Ham_RealBlock assembly face -- 2b's reserved
-// cross arm, now live.  (A complex child inside a real-faced run stays impossible.)
-template <class T> static void CalcH(const iwf_child_t& w, tHamiltonian<T>& ham,
-                                     const ChargeDensity::tChargeDensity<T>* cd, const tbs_t<T>* bs)
+// The Fock-build dispatch over the child slot (Step 3c-2): a same-scalar child reads its native block from the value; a
+// REAL child inside a complex run reads the value's real-block query.  (A complex child inside a real-faced run stays
+// impossible.)
+template <class T> static void CalcH(const iwf_child_t& w, const qchem::Hamiltonian::tHamiltonianAt<T>& H)
 {
     std::visit([&](const auto& p)
     {
         using WT=std::decay_t<decltype(*p)>;
-        if constexpr (std::is_same_v<WT,tIrrepWF<T>>)
-            p->CalculateH(ham,cd,bs);
-        else if constexpr (std::is_same_v<T,dcmplx>)
-        {
-            auto* rb=dynamic_cast<qchem::Hamiltonian::Ham_RealBlock*>(&ham);
-            if (!rb) throw std::logic_error("tCompositeWF: a real child needs the Hamiltonian's "
-                                            "real-block assembly face (RealComplexPlan Step 3c-2)");
-            p->CalculateH(*rb,cd,bs);
-        }
+        if constexpr (std::is_same_v<WT,tIrrepWF<T>> || std::is_same_v<T,dcmplx>)
+            p->CalculateH(H);
         else
             throw std::logic_error("tCompositeWF: a complex child inside a real-faced run is impossible");
     }, w);
@@ -171,8 +165,11 @@ template <class T> static EnergyLevels FillChildAtMu(const iwf_ref_t& w, Occupat
 template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
 {
     for (size_t i=0;i<itsBS->GetNumIBS();++i)
+    {
         if (const auto* rb=itsBS->GetRealIBS(i)) MakeOneIrrepWF<double>(rb,s);
         else                                     MakeOneIrrepWF<T>((*itsBS)[i],s);
+        itsBlockOf.push_back(i);   // MakeOneIrrepWF appends exactly one child
+    }
 }
 
 template <class T> template <class U> void tCompositeWF<T>::MakeOneIrrepWF(const tobs_t<U>* b, Spin s)
@@ -227,6 +224,43 @@ template <class T> tCompositeWF<T>::~tCompositeWF()
     // one tSCFIrrepAccelerator per irrep at construction.
 };
 
+// The per-block Fock loop over the Hamiltonian AT this iteration's density: each block reads its F and feeds its own
+// accelerator, touching nothing another block touches.
+//
+// THREADED OVER BASIS BLOCKS (doc/KAxisPlan.md P2, OOD V1.41 stage 1), and BIT-IDENTICAL to serial: each block writes only
+// its own children (F, the accelerator's F' and [F',D']), every term's per-block slot is its own, and a memo hit is
+// bit-identical to recomputing (the gather's B_ij(n), the XC field fits), so neither the thread count nor the order moves a
+// digit.  Two rules make it safe:
+//   * ONE TASK PER BASIS BLOCK, its spin children together: a spin-INDEPENDENT term (Hartree, the statics) keys ONE cache
+//     slot per block (CacheSpin), which two children of that block must never fill concurrently.
+//   * THE FIRST BLOCK RUNS ALONE, with the inner loops' threads (qchem::OuterFor's one-level rule): it builds the shared,
+//     k-independent memos the later blocks only read -- above all the lattice gather's B_ij(n) per field, the expensive
+//     half of the integrate-back.  Concurrent blocks would otherwise all miss it at once and each build it on one thread.
+//   * THE FIRST ASSEMBLY OF THIS WAVE FUNCTION IS SERIAL.  It fills every block's GEOMETRY-fixed lazies -- the static terms'
+//     matrices, the 3-centre tensors, the per-block projectors and Phi tables -- and those are built through the integral
+//     cache database (Cache2/3/4), which is NOT thread-safe: its lattice keep-newest eviction frees entries another caller
+//     may hold (measured 2026-10-28: concurrent MakeKinetic -> findΩ -> Cache2 segfaulted on every multi-k test at 2
+//     threads).  Every later assembly does only density-derived work, which the refresh built or the locked memos serve.
+// The outer loop engages only when the remaining blocks are at least as many as the worker threads; otherwise the inner
+// loops keep the threads, as before (QCHEM_OPENMP_THREADS; serial by default).
+template <class T> void tCompositeWF<T>::AssembleFock(const qchem::Hamiltonian::tHamiltonianAt<T>& H)
+{
+    assert(itsBlockOf.size()==itsIWFs.size());
+    const size_t nb=itsBS->GetNumIBS();
+    if (nb==0) return;
+    std::vector<std::vector<size_t>> children(nb);
+    for (size_t c=0;c<itsIWFs.size();c++) children[itsBlockOf[c]].push_back(c);
+    auto block=[&](size_t b){for (size_t c : children[b]) CalcH<T>(itsIWFs[c],H);};
+    if (!itsFockWarm)
+    {
+        for (size_t b=0;b<nb;b++) block(b);
+        itsFockWarm=true;
+        return;
+    }
+    block(0);
+    qchem::OuterFor(nb-1, [&](size_t i){block(i+1);});
+}
+
 //----------------------------------------------------------------------------
 //
 //  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
@@ -239,6 +273,7 @@ template <class T> tCompositeWF<T>::~tCompositeWF()
 // as the assembly overhead around them, and "next orbitals" is the eigensolve that nothing was measuring.
 template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
+    std::optional<qchem::Hamiltonian::tHamiltonianAt<T>> H;
     {
         // ★ THE EAGER REFRESH PHASE, BEFORE THE BLOCK LOOP (doc/OpenWork.md item KP, 2026-09-07).
         //
@@ -254,13 +289,13 @@ template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,con
         // guards remain the correctness mechanism; this only means that in the ordinary path nothing is
         // written below.  See tDynamic_HT::RefreshForDensity for why a stronger claim would be false.
         qchem::report::Timed timed("scf: eager refresh (density-derived, k-independent)");
-        ham.RefreshForDensity(itsBS, cd);
+        H.emplace(ham.At(itsBS, cd));   // THE HAMILTONIAN AT cd (OOD V1.41): the refresh runs here, the blocks below only read
     }
     {
         // itsBS (the whole/composite basis) IS the cross-irrep view a dynamic term may exploit: Iterate<tobs_t>()
         // over it yields every irrep block (doc/ERI4Rework.md §5.4).  Static terms and most dynamic terms ignore it.
         qchem::report::Timed timed("scf: Fock assembly (its term buckets are children)");
-        for (auto& w:itsIWFs) CalcH<T>(w,ham,cd,itsBS); //Feed F,D' into all the irrep accelerators.
+        AssembleFock(*H); //Feed F,D' into all the irrep accelerators.
     }
     {
         // CalculateProjections() has the DIIS side effect (it accumulates the extrapolation history) so it
@@ -288,13 +323,14 @@ template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::Init(tHamiltonian
 // (the seed step) -- the caller should fall back to DoSCFIteration().
 template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
+    std::optional<qchem::Hamiltonian::tHamiltonianAt<T>> H;
     {   // the same eager refresh the fixed-point path runs -- see DoSCFIteration for why
         qchem::report::Timed timed("scf: eager refresh (density-derived, k-independent)");
-        ham.RefreshForDensity(itsBS, cd);
+        H.emplace(ham.At(itsBS, cd));
     }
     {
         qchem::report::Timed timed("scf: Fock assembly (its term buckets are children)");
-        for (auto& w:itsIWFs) CalcH<T>(w,ham,cd,itsBS);
+        AssembleFock(*H);
     }
     qchem::report::Timed timed("scf: direct-min step (gradient + geodesic)");
     bool allStepped=true;

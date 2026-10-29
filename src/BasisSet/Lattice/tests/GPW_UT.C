@@ -16,6 +16,9 @@
 // nuclear attraction (Ewald), general-k Bloch phases, and the full periodic SCF energy are later increments.)
 #include "gtest/gtest.h"
 #include <memory>
+#include <map>
+#include <array>
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <chrono>
@@ -46,6 +49,8 @@ import qchem.Blaze;                             // hmat_t element access / rows(
 import qchem.Math;                              // Pi (the Bloch-phase e^{2 pi i k.n})
 import qchem.Vector3D;                          // rvec3_t arithmetic (r + R0)
 import qchem.Types;
+import qchem.Symmetry.Lattice_3D.BlochOperationRep; // BuildBlochOperationRep / ImageOfK (the P4 OrbitalImage gates)
+import qchem.Symmetry.Lattice_3D.BlochQN;           // Getk (a block's fractional k)
 
 using namespace qchem;
 using BasisSet::Real_BS;
@@ -2577,4 +2582,181 @@ TEST(GPW, TightPrimitiveCollocationOracle)
             if (ecut>0)              EXPECT_LT(worst, 1e-6) << "BallOnly at 6p, alpha="<<alpha;
             if (rp==RP::AliasFree)   EXPECT_LT(worst, 1e-4) << "AliasFree at the AUTO floor, alpha="<<alpha;
         }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// THE ORBITAL IMAGE (doc/KAxisPlan.md P4): an op g of the structure carries block k's Bloch orbitals onto block
+// k' = W^{-T}k, phi_k -> phi_{k'} M.  Gates that need no SCF to be right:
+//   (1) M is unitary in the overlap metric: M^H S_{k'} M == S_k, for EVERY op of the group, at a general k (the whole
+//       group then moves k, so every target block is a different one);
+//   (2) it is a REPRESENTATION, phases included: M(g2; k') M(g1; k) == M(g2 g1; k), with g2 g1 = {W2 W1 | W2 tau1 + tau2};
+//   (3) an op that is NOT a symmetry of the cell is refused.
+// A non-symmorphic group (diamond, rutile) makes the shell images wrap by lattice vectors t, so the Bloch phase
+// e^{-2 pi i k'.t} is exercised; Cartesian AND spherical (the view) shells.
+namespace
+{
+using qchem::Symmetry::SymOp;
+namespace SL3=qchem::Symmetry::Lattice_3D;
+
+double MaxAbs(const mat_t<dcmplx>& A)
+{
+    double m=0; for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.columns();j++) m=std::max(m, std::abs(A(i,j))); return m;
+}
+
+void OrbitalImageGate(const UnitCell& cell, const std::vector<SL3::AtomSite>& sites, std::shared_ptr<const Real_BS> mol,
+                      const ivec3_t& N, const ivec3_t& kIndex, size_t expectedOps, const char* tag)
+{
+    const SL3::SpaceGroup sg=SL3::SpaceGroup::Detect(cell.GetCellMatrix(), sites);
+    std::vector<SymOp> ops;
+    for (const auto& d : sg.DirectOps()) ops.push_back(SymOp{d.W, d.tau});
+    ASSERT_EQ(ops.size(), expectedOps) << tag;
+
+    std::map<std::array<int,3>, std::unique_ptr<GPW_IBS>> blocks;    // one block per mesh index, built on demand
+    auto block=[&](const rvec3_t& kFrac)->const GPW_IBS&
+    {
+        std::array<int,3> m;
+        const double kf[3]={kFrac.x*N.x, kFrac.y*N.y, kFrac.z*N.z};
+        const int    nn[3]={N.x, N.y, N.z};
+        for (int a=0;a<3;a++)
+        {
+            m[a]=int(std::lround(kf[a]));
+            EXPECT_NEAR(kf[a], double(m[a]), 1e-9) << tag << ": the image k must lie on the mesh";
+            m[a]=((m[a]%nn[a])+nn[a])%nn[a];
+        }
+        auto& b=blocks[m];
+        if (!b) b=std::make_unique<GPW_IBS>(cell, N, ivec3_t(m[0],m[1],m[2]), mol, /*densityEcut=*/0.0);
+        return *b;
+    };
+    auto S=[](const GPW_IBS& b){ return mat_t<dcmplx>(static_cast<const Complex_OIBS&>(b).Overlap()); };
+
+    const GPW_IBS& bk=block(rvec3_t(double(kIndex.x)/N.x, double(kIndex.y)/N.y, double(kIndex.z)/N.z));
+    const rvec3_t k=SL3::Getk(bk.GetSymmetry());
+    const mat_t<dcmplx> Sk=S(bk);
+    const double scale=MaxAbs(Sk);
+
+    // (1) S-unitarity, every op.
+    double worst=0.0;
+    for (const auto& g : ops)
+    {
+        const mat_t<dcmplx> M=bk.OrbitalImage(g);
+        const mat_t<dcmplx> R=blazem::ctrans(M)*S(block(SL3::ImageOfK(g, k)))*M-Sk;
+        worst=std::max(worst, MaxAbs(R));
+    }
+    std::cout << "[orbital image " << tag << "] |ops|=" << ops.size() << " k=" << k << " n=" << Sk.rows() << " blocks=" << blocks.size()
+              << "  max|M^H S_k' M - S_k|=" << worst << " (scale " << scale << ")" << std::endl;
+    EXPECT_LT(worst, 1e-11*scale) << tag << ": the orbital image must be unitary in the overlap metric";
+
+    // (2) the representation property, phases included: every g2 after one fixed non-symmorphic g1 (if any).
+    size_t i1=0;
+    for (size_t o=0;o<ops.size();o++) if (ops[o].tau*ops[o].tau>1e-12) {i1=o; break;}
+    const SymOp& g1=ops[i1];
+    const mat_t<dcmplx> M1=bk.OrbitalImage(g1);
+    const GPW_IBS& bk1=block(SL3::ImageOfK(g1, k));
+    double worstRep=0.0;
+    for (const auto& g2 : ops)
+    {
+        const SymOp g21{g2.W*g1.W, g2.W*g1.tau+g2.tau};
+        const mat_t<dcmplx> lhs=bk1.OrbitalImage(g2)*M1;
+        worstRep=std::max(worstRep, MaxAbs(mat_t<dcmplx>(lhs-bk.OrbitalImage(g21))));
+    }
+    EXPECT_LT(worstRep, 1e-12) << tag << ": M(g2;k') M(g1;k) must equal M(g2 g1;k)";
+
+    // (3) a non-symmetry is refused.
+    const SymOp shift{ops[0].W, rvec3_t(0.1,0.0,0.0)};
+    EXPECT_THROW(bk.OrbitalImage(shift), std::runtime_error) << tag;
+}
+} // anon
+
+TEST(GPW, OrbitalImage_SiDiamond_Cartesian_GeneralK)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
+    OrbitalImageGate(cell, {{14,{0,0,0}},{14,{0.25,0.25,0.25}}}, mol, ivec3_t(4,4,4), ivec3_t(1,2,0), 48, "diamond Si");
+}
+
+//! Rutile beta-MnO2 (P4_2/mnm, 16 ops, half with the (1/2,1/2,1/2) glide): Mn d shells, Cartesian and on the spherical view.
+TEST(GPW, OrbitalImage_RutileMnO2_CartesianAndSpherical_GeneralK)
+{
+    UnitCell cell=BravaisCell(Bravais::TetragonalP, {.a=8.31, .c=5.42});
+    const double u=0.305;
+    const std::vector<rvec3_t> f={{0,0,0},{0.5,0.5,0.5},{u,u,0},{0.5+u,0.5-u,0.5},{0.5-u,0.5+u,0.5},{1-u,1-u,0}};
+    std::vector<SL3::AtomSite> sites;
+    for (size_t a=0;a<f.size();a++)
+    {
+        const int Z = a<2 ? 25 : 8;
+        cell.AddAtom(Z, f[a]);
+        sites.push_back({Z, f[a]});
+    }
+    std::shared_ptr<const Real_BS> cart(
+        BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    OrbitalImageGate(cell, sites, cart, ivec3_t(4,4,4), ivec3_t(1,2,1), 16, "rutile MnO2 Cartesian");
+    OrbitalImageGate(cell, sites, BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cart),
+                     ivec3_t(4,4,4), ivec3_t(1,2,1), 16, "rutile MnO2 spherical");
+}
+
+//! Rutile TiO2 (the hp.x oracle cell) on the basis its decks run: valence_lowq_tm.bsd (not a registered BasisSetData).
+TEST(GPW, OrbitalImage_RutileTiO2_CartesianAndSpherical_GeneralK)
+{
+    UnitCell cell=BravaisCell(Bravais::TetragonalP, {.a=8.681591, .c=5.591509});
+    const double u=0.3057;
+    const std::vector<rvec3_t> f={{0,0,0},{0.5,0.5,0.5},{u,u,0},{0.5+u,0.5-u,0.5},{0.5-u,0.5+u,0.5},{1-u,1-u,0}};
+    std::vector<SL3::AtomSite> sites;
+    for (size_t a=0;a<f.size();a++)
+    {
+        const int Z = a<2 ? 22 : 8;
+        cell.AddAtom(Z, f[a]);
+        sites.push_back({Z, f[a]});
+    }
+    std::shared_ptr<const Real_BS> cart(
+        BasisSet::Gaussian::FactoryFromFile("valence_lowq_tm.bsd", &cell,
+                                            BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    OrbitalImageGate(cell, sites, cart, ivec3_t(4,4,4), ivec3_t(1,2,1), 16, "rutile TiO2 Cartesian");
+    OrbitalImageGate(cell, sites, BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cart),
+                     ivec3_t(4,4,4), ivec3_t(1,2,1), 16, "rutile TiO2 spherical");
+}
+
+// The static PP matrices carry over too: KB and the short-range local field, M^H V_{k'} M == V_k for every op (Γ and an X
+// point).  What localised the 2026-10-27 converged-Fock asymmetry to the XC numerics (doc/OpenWork.md §3).
+TEST(GPW, OrbitalImage_SiDiamond_PPMatricesCarryOver)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
+    const auto gth=Pseudopotential::GetGTH("Si","LDA",4);
+    const SL3::SpaceGroup sg=SL3::SpaceGroup::Detect(cell.GetCellMatrix(), {{14,{0,0,0}},{14,{0.25,0.25,0.25}}});
+    const ivec3_t N(2,2,2);
+    std::map<std::array<int,3>, std::unique_ptr<GPW_IBS>> blocks;
+    auto block=[&](const rvec3_t& k)->GPW_IBS&
+    {
+        std::array<int,3> m={int(std::lround(k.x*2)), int(std::lround(k.y*2)), int(std::lround(k.z*2))};
+        for (int& x : m) x=((x%2)+2)%2;
+        auto& b=blocks[m];
+        if (!b) b=std::make_unique<GPW_IBS>(cell, N, ivec3_t(m[0],m[1],m[2]), mol, /*densityEcut=*/0.0);
+        return *b;
+    };
+    for (const rvec3_t k : {rvec3_t(0,0,0), rvec3_t(0.5,0,0)})
+    {
+        GPW_IBS& bk=block(k);
+        const mat_t<dcmplx> K(bk.MakeProjectorMatrix(&cell, gth.nonlocal));
+        const mat_t<dcmplx> L(bk.MakeSpeciesFieldMatrix(&cell, gth.local, qchem::BasisSet::FieldRange::Short));
+        double dK=0, dL=0;
+        for (const auto& d : sg.DirectOps())
+        {
+            const SymOp g{d.W, d.tau};
+            GPW_IBS& bp=block(SL3::ImageOfK(g, k));
+            const mat_t<dcmplx> M=bk.OrbitalImage(g);
+            const mat_t<dcmplx> Kp(bp.MakeProjectorMatrix(&cell, gth.nonlocal));
+            const mat_t<dcmplx> Lp(bp.MakeSpeciesFieldMatrix(&cell, gth.local, qchem::BasisSet::FieldRange::Short));
+            dK=std::max(dK, MaxAbs(mat_t<dcmplx>(blazem::ctrans(M)*Kp*M-K)));
+            dL=std::max(dL, MaxAbs(mat_t<dcmplx>(blazem::ctrans(M)*Lp*M-L)));
+        }
+        std::cout << "[PP image] k=" << k << " max dKB=" << dK << " (scale " << MaxAbs(K) << ")  max dVshort=" << dL
+                  << " (scale " << MaxAbs(L) << ")" << std::endl;
+        EXPECT_LT(dK, 1e-12*MaxAbs(K)) << "KB at k=" << k;
+        EXPECT_LT(dL, 1e-12*MaxAbs(L)) << "V_short at k=" << k;
+    }
 }

@@ -28,6 +28,7 @@ export import qchem.BasisSet.Orbital_DFT_IBS;          // Orbital_DFT_IBS<T,dcmp
 export import qchem.BasisSet.Orbital_PP_IBS;          // the species-field integral service (V1.2)
 export import qchem.BasisSet;                      // Real_BS (the molecular Gaussian basis handed to the ctor)
 export import qchem.BasisSet.AoShellSource;          // the shell-layout face this block forwards to its molecular block
+export import qchem.BasisSet.OrbitalImageSource;     // the image of this block's orbitals under a crystal op (KAxisPlan P4)
 export import qchem.BasisSet.BareCoulombSource;      // the ACBN0 face it forwards too (+U increment 3, 2026-09-21)
 export import qchem.BasisSet.AtomCentredSet;         // the +U projector functions' overlap face (HubbardProjectorPlan D2)
 export import qchem.BasisSet.Transition_DFT_IBS;     // the (k+q, k) transition pair (LinearResponsePlan B2)
@@ -69,6 +70,7 @@ template <class T> class tGPW_IBS
     , public Orbital_PP_IBS<T>                     // species-field assembly (real-space); PW_Pseudo casts ACROSS to this
     , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
     , public virtual BasisSet::AoShellSource        // built from the molecular block's shells, same order (+U, 2026-09-19)
+    , public virtual BasisSet::OrbitalImageSource   // C_{gk} = M C_k under a crystal op (KAxisPlan P4)
     , public virtual BasisSet::BareCoulombSource    // the molecular block's bare (m1m2|m3m4): central cell only (ACBN0, 2026-09-21)
     , public virtual BasisSet::AtomCentredOverlapSource<T>   // <chi_i^k|an atom-centred function> (+U projectors, HubbardProjectorPlan D2)
     , public virtual BasisSet::Transition_DFT_IBS   // the (k+q, k) transition density, this block the ket (LinearResponsePlan B2)
@@ -95,6 +97,9 @@ public:
         const auto& src=dynamic_cast<const BasisSet::AoShellSource&>(GPW_Evaluator::MolecularBlock());
         return src.GetAoShells();
     }
+    //! \copydoc BasisSet::OrbitalImageSource::OrbitalImage
+    //! The Bloch sum keeps the molecular block's shells, so the image is that shell list's, on this block's cell and k.
+    virtual mat_t<dcmplx> OrbitalImage(const Symmetry::SymOp& g) const override;
     //! \copydoc BasisSet::BareCoulombSource::BareCoulomb
     //! ACBN0 wants the AO in the CENTRAL CELL, unscreened and un-summed (Agapito et al. eq 4, g=l=m=0): that
     //! is the molecular block's integral, so forward -- the Bloch phase and the image sum are deliberately absent.
@@ -129,6 +134,8 @@ public:
             RasterFields rasterFields = RasterFields::HartreeXC,          //!< field-sharpness routing (HartreeOnly = Becke-XC partner)
             std::vector<Symmetry::Lattice_3D::SymOp> magneticOps = {},    //!< Shubnikov {W|τ,σ} when imposing a MAGNETIC decoration (S3):
                                                                           //!< the XC quadrature then folds under σ (the (ρ,m) channel pair)
+            std::vector<Symmetry::Lattice_3D::SymOp> meshOps = {},        //!< FREE run: the detected group the XC MESH is built invariant
+                                                                          //!< under -- symmetric numerics, NO density star-average
             const GPWTolerances& tol = {});                               //!< the typed numerical tolerances (D-ENV step 5)
 
     //! \brief Convenience constructor in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
@@ -198,6 +205,11 @@ private:
     //! (T1, raster) take the evaluator's spatial DirectOps as always; only CreateXCQuadrature reads
     //! this, to hand the engine the per-op spin actions + the odd-field zero flags.
     std::vector<Symmetry::Lattice_3D::SymOp> itsMagneticOps;
+    //! FREE run only ({} when imposing): the detected spatial group.  CreateXCQuadrature builds the XC mesh invariant
+    //! under it but returns NO fold, so the density is never averaged -- the run stays free to break symmetry, and
+    //! only the integrator stops breaking it.  Consumer: KAxisPlan ruling 1, which reduces a free run by the ops whose
+    //! measured \f$\|D_{gk}-MD_kM^\dagger\|\f$ passes ~1e-6; on a non-invariant mesh no op ever passed (F 5e-4, D 2e-3).
+    std::vector<Symmetry::Lattice_3D::SymOp> itsMeshOps;
     //! The instance-scoped 3C tensor memo (see Overlap3C/Repulsion3C above).  Key = "O|"/"R|" + the fit
     //! basis's BasisSetID (content identity, never a pointer).
     mutable std::map<std::string,Projector3<dcmplx>> its3Cs;

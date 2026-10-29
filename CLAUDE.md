@@ -25,6 +25,7 @@ Brief notes about module/library conventions, naming, and includes.
     crawl, not a corpse.  Context: the box now has a 32G swapfile (`/swap2.img`); the Aug-13 `ITMain`
     OOM kills happened because the old 4G swap sat chronically full, leaving the kernel nothing but the
     kill.  The `-j` discipline above remains the first-line defense; memsafe is the safety net.
+- **A build tree WITHOUT OpenMP silently ignores `QCHEM_OPENMP_THREADS`.**  The /opt clang has no `omp.h`, so `find_package(OpenMP)` fails QUIETLY and every threaded region compiles serial; configure with apt's libomp (the flags in the root `CMakeLists.txt` comment: `-DOpenMP_CXX_FLAGS="-fopenmp -I/usr/lib/llvm-21/lib/clang/21/include" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=/usr/lib/x86_64-linux-gnu/libomp.so`).  Check: `ldd build/Release/CLIapps/rundeck | grep omp`, and the run banner's `OpenMP regions=N`.  (qchem1's Release lacked it until 2026-10-27; the 2026-10-26 overnight NiO run is serial because of it.)
 - **To attribute anchor moves, diff two sweeps test by test**: keep each sweep's `build/Release/Testing/Temporary/LastTest.log`
     and run `scripts/anchordiff BASE.log NEW.log --tol 1e-10` (per test: last printed `Etot` and summed SCF iterations).
     The pass/fail line hides moves inside a tolerance; this does not (the 2026-10-22 anchor batch ran on it).

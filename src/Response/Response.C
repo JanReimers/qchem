@@ -14,6 +14,7 @@ export import qchem.Response.Reference;
 export import qchem.Response.Probe;
 export import qchem.Response.OrbitalFrame;
 export import qchem.Response.Solver;
+export import qchem.Response.LittleGroup;
 export import qchem.WaveFunction;                       // tWaveFunction
 export import qchem.Mesh;                               // qcMesh::Mesh (the dipole probe's quadrature)
 export import qchem.Hamiltonian.HubbardChannels;        // the +U projectors
@@ -38,6 +39,13 @@ struct Reservoirs
 template <class T> Reference MakeReference(const WaveFunction::tWaveFunction<T>& wf, const OccupationConfig& occ,
                                            Reservoirs res, double eigenNoise);
 
+//! \brief How far \a wf's orbitals are from EIGENPAIRS of the Fock their own density builds: the largest
+//! \f$|(C^\dagger F C)_{ij}-\varepsilon_i\delta_{ij}|\f$ over every complex block (Hartree), with \f$F=F[D]\f$ built by \a H over
+//! \a wholeBasis.  The sum over states R0 ASSUMES zero; a converged SCF gives its convergence noise.  Consumed by the response,
+//! which REFUSES a reference far from that (OpenWork §3, 2026-10-27: GDM once handed out virtuals labelled with other virtuals'
+//! energies, 2.7 Ha off, and chi0 came out 400x too small).  A real (TRIM) block is skipped: the response refuses those anyway.
+double EigenpairResidual(const WaveFunction::cWaveFunction& wf, Hamiltonian::cHamiltonian& H,
+                         const BasisSet::tBasisSet<dcmplx>* wholeBasis);
 //! \brief The AO <-> MO bridge of \a wf, block-aligned with \a ref (which must be \a wf's reference, and outlive
 //! the frame).  THROWS on a block whose scalar or basis is not the run's T (a real TRIM block inside a complex run
 //! is R2's business).
@@ -81,6 +89,14 @@ struct HubbardProbe
 //! \a wf's reference.  Eigen: the occupation matrix is \f$\sum_k w_k\sum_i f_i\,\ell_i\ell_i^\dagger\f$ over both spins.
 HubbardProbe MakeHubbardProbe(const Reference& ref, const WaveFunction::cWaveFunction& wf,
                               const Hamiltonian::HubbardChannels& hub, HubbardResolution res);
+
+//! \brief THE GROUND STATE'S GROUP, MEASURED on \a wf's orbitals (doc/KAxisPlan.md §5 ruling 1, P5): each of \a ops is tried on
+//! every block -- the image block \f$k'=W^{-T}k\f$ (spin flipped by a σ op), \f$U=C_{k'}^\dagger S_{k'}M_g(k)C_k\f$ from the basis's
+//! \c OrbitalImage -- and KEPT only if U maps orbitals onto orbitals of the same eigenvalue and occupation and is unitary, each
+//! to \a tol.  Measurement, not imposition: a state that broke an op loses it here.  \a ref must be \a wf's reference.
+//! THROWS on a real (TRIM) block (the response serves complex blocks only) or a block basis without the \c OrbitalImage face.
+OrbitalImages MakeOrbitalImages(const Reference& ref, const WaveFunction::cWaveFunction& wf,
+                                const std::vector<Symmetry::SymOp>& ops, double tol=1e-6);
 
 //! \brief FEED \a est the occupied orbitals of every block of \a wf (coefficients, physical occupations, BZ weight, spin) -- ACBN0's
 //! input (doc/LinearResponsePlan.md ruling D4: the orbital walk lives here, beside \c MakeReference, which walks the same blocks).

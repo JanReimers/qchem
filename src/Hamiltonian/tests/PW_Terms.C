@@ -81,6 +81,12 @@ qchem::Hamiltonian::Vxc_Quadrature* NewPWXC(const PlaneWave_IBS& pw, const qchem
 // The generalized IonIon Hamiltonian term: for a periodic Structure (isFinite()==false) it routes the
 // ion-ion energy through the Ewald lattice sum (charges = the cell atoms' itsZ = the ion/valence charge),
 // rather than the conditionally-convergent direct pair sum used for finite molecules.
+namespace {
+//! THE CONTRACT (doc/KAxisPlan.md P2, 2026-10-27): a term is refreshed for a density -- slots stamped, refits done -- before
+//! GetMatrix is asked of it; GetMatrix THROWS otherwise.  A test that drives a term directly does what the eager phase does.
+template <class Term, class CD> void RefreshTerm(const Term& t, const CD* cd) { t.PrepareSlots(nullptr, cd); t.RefreshForDensity(cd); }
+}
+
 TEST(PW_Terms, VnnPeriodicUsesEwald)
 {
     const double a=10.26, h=0.5*a;
@@ -179,6 +185,7 @@ TEST(PW_Terms, PWDynamicTermsMatchBasis)
     // Hartree term matrix == basis Repulsion of the same density.
     std::unique_ptr<qchem::Hamiltonian::Vee_Hartree> h(NewPWHartree(F.pw));
     qchem::Hamiltonian::cDynamic_HT* ht=h.get();
+    RefreshTerm(*ht, static_cast<const qchem::ChargeDensity::cChargeDensity*>(&cd));
     const chmat_t& Mh = ht->GetMatrix(&F.pw, Spin::None, &cd);
     chmat_t refh = RepulsionField(F.pw, cd);
     for (size_t i=0;i<n;i++)
@@ -190,6 +197,7 @@ TEST(PW_Terms, PWDynamicTermsMatchBasis)
     auto dirac=std::make_shared<qchem::Hamiltonian::SlaterExchange>(2.0/3.0);
     std::unique_ptr<qchem::Hamiltonian::Vxc_Quadrature> xc(NewPWXC(F.pw, dirac));
     qchem::Hamiltonian::cDynamic_HT* xt=xc.get();
+    RefreshTerm(*xt, static_cast<const qchem::ChargeDensity::cChargeDensity*>(&cd));
     const chmat_t& Mx = xt->GetMatrix(&F.pw, Spin::None, &cd);
     rvec_t rho=DensityGridOf(F.pw).RhoOnGrid(RhoTilde(F.pw, D));
     rvec_t vxc(rho.size());
@@ -223,7 +231,9 @@ TEST(PW_Terms, ItemK_RelCutoffDensifiesAndConvergesVxc)
         nGfit=fb->GetNumFunctions();
         std::unique_ptr<qchem::Hamiltonian::Vxc_Quadrature> xc(
             new qchem::Hamiltonian::Vxc_Quadrature(dirac, qchem::ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized));
-        return chmat_t(static_cast<qchem::Hamiltonian::cDynamic_HT*>(xc.get())->GetMatrix(&F.pw, Spin::None, &cd));
+        qchem::Hamiltonian::cDynamic_HT* t=xc.get();
+        RefreshTerm(*t, static_cast<const qchem::ChargeDensity::cChargeDensity*>(&cd));
+        return chmat_t(t->GetMatrix(&F.pw, Spin::None, &cd));
     };
     auto froDiff=[&](const chmat_t& A, const chmat_t& B)
     {
@@ -273,15 +283,21 @@ TEST(PW_Terms, DynamicTermCacheFreshAcrossDensity)
 
     std::unique_ptr<qchem::Hamiltonian::Vee_Hartree> hart(NewPWHartree(F.pw));
     qchem::Hamiltonian::cDynamic_HT* ht=hart.get();
-    ht->GetMatrix(&F.pw, Spin::None, &cd1);                       // populates the cache for cd1
-    const chmat_t& M2 = ht->GetMatrix(&F.pw, Spin::None, &cd2);   // BUG: returns cd1's stale matrix
+    using qchem::ChargeDensity::cChargeDensity;
+    RefreshTerm(*ht, static_cast<const cChargeDensity*>(&cd1));
+    ht->GetMatrix(&F.pw, Spin::None, &cd1);                       // fills the cache for cd1
+    // THE CONTRACT (KAxisPlan P2): a density the term was not refreshed for is REFUSED -- it used to be served by a
+    // self-resetting cache, and before that (the original bug) by cd1's stale matrix.
+    EXPECT_THROW(ht->GetMatrix(&F.pw, Spin::None, &cd2), std::logic_error);
+    RefreshTerm(*ht, static_cast<const cChargeDensity*>(&cd2));
+    const chmat_t& M2 = ht->GetMatrix(&F.pw, Spin::None, &cd2);   // ...and after the refresh, cd2's own matrix
 
     chmat_t ref2=RepulsionField(F.pw, cd2);                            // the correct V_H for cd2
     double  diff=0.0;
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             diff=std::max(diff, std::abs(dcmplx(M2(i,j))-dcmplx(ref2(i,j))));
-    EXPECT_NEAR(diff, 0.0, 1e-10);   // fails today (M2 is cd1's matrix); passes after the cache-invalidation fix
+    EXPECT_NEAR(diff, 0.0, 1e-10);
 }
 
 

@@ -23,12 +23,12 @@ public:
     virtual void Add(tDynamic_HF_HT<T>*);
 
     using tHamiltonian<T>::GetMatrix;   // keep the base 3-arg (null-basis) convenience overload visible
-    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin& S,const tChargeDensity<T>*,const tbs_t<T>* wholeBasis);
+    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin& S,const tChargeDensity<T>*,const tbs_t<T>* wholeBasis) const;
     //! The REAL-BLOCK assembly (Step 3c-2): fold the terms' Static/Dynamic_HT_RealBlock capability faces.
     //! Declared unconditionally (on the <double> instantiation it overrides nothing and is never called);
     //! on <dcmplx> it is the Ham_RealBlock face the real WF children drive.
     virtual hmat_t<double>  GetMatrix(const tobs_t<double>*,const Spin& S,const tChargeDensity<dcmplx>*,
-                                      const tbs_t<dcmplx>* wholeBasis);
+                                      const tbs_t<dcmplx>* wholeBasis) const;
     virtual EnergyBreakdown GetTotalEnergy  (const tDM_CD<T>* ) const;
     virtual SpinGroup       GetSpinGroup() const {return itsSpinGroup;}
     virtual bool            IsRelativistic() const {return itsIsRelativistic;}
@@ -85,8 +85,8 @@ public:
         // SEPARATE hook on a SEPARATE face.  Both faces now inherit `HT_SlotOwner<T>` virtually, so a term
         // with two caches presents ONE `PrepareSlots` that prepares both -- the fold stopped needing to know
         // that two caches are even possible.
-        for (const auto& t : itsSHTs) t->PrepareSlots(bs);
-        for (const auto& t : itsDHTs) t->PrepareSlots(bs);
+        for (const auto& t : itsSHTs) t->PrepareSlots(bs, cd);
+        for (const auto& t : itsDHTs) t->PrepareSlots(bs, cd);   // ...and STAMPS cd: GetMatrix throws without it (KAxisPlan P2)
         if (!cd) return;
         for (const auto& t : itsDHTs) t->RefreshForDensity(cd);
     }

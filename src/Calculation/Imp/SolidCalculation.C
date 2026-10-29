@@ -123,7 +123,12 @@ struct SolidCalculation::Imp
     //! The last Converge's recipe (kT, and the banner facts, for the saved state's summary).
     double      lastkT = 0.0;
     std::string lastRecipe;
-    rmat3d_t    cellMatrix;   //!< the lattice's A, for the fingerprint (Structure alone does not carry it)
+    //! THE LATTICE, HELD (2026-10-27, user: "SolidCalculation lacks the lattice -- this seems very strange").  It used to be
+    //! taken by const& at construction and kept only in FRAGMENTS (the cell matrix for the fingerprint, then a group op list
+    //! and site positions for the q-star fold), each later need re-deriving a piece of what the lattice answers.  A copy:
+    //! Lattice_3D is an immutable value (copies share its space-group cache).  optional only because the Imp is built first.
+    std::optional<Lattice_3D> lat;
+    std::vector<int>          decoration;   //!< the RESOLVED per-site spins the run was built with (all 0 = non-magnetic)
 };
 
 //---------------------------------------------------------------------------------------------------
@@ -362,7 +367,7 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     itsImp->accOpts = acc;
     itsImp->st      = lat.GetStructure();
     RequireStatedMagneticOrdering(opts, *itsImp->st);
-    itsImp->cellMatrix = lat.GetUnitCell().GetCellMatrix();
+    itsImp->lat.emplace(lat);
 
     namespace L3 = BasisSet::Lattice;
     // THE RESOLVED IMPOSITION (doc/OpenWork.md N5, user 2026-08-26).  The caller's flag AND the policy's
@@ -491,6 +496,8 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     itsImp->imposed = imposed;
     itsImp->hubbard = opts.hubbard;   // the U the run will carry (BuildRun fills the groups and radials)
     (void)polarized;
+    itsImp->decoration=siteSpins;
+    if (itsImp->decoration.empty()) itsImp->decoration.assign(lat.GetUnitCell().GetNumAtoms(), 0);
     return siteSpins;
 }
 
@@ -1107,7 +1114,7 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     const RunIdentity id{.species=o.species, .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional="LDA",
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
                          .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT};
-    return MakeStateFingerprint(itsImp->cellMatrix, *itsImp->st, *itsImp->bs,
+    return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,
                                 o.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, id);
 }
 
@@ -1411,7 +1418,7 @@ SolidCalculation::IndependentResponse(ivec3_t Nq) const
 // Q10), over the q-mesh's supercell.
 Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>
 SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, std::vector<size_t> perturbed,
-                                        qchem::Response::HubbardResolution res) const
+                                        qchem::Response::HubbardResolution res, bool qStars, bool littleGroupK) const
 {
     const auto* hub=itsImp->ham->GetHubbardChannels();
     if (!hub) throw std::logic_error("SolidCalculation::HubbardLinearResponse: this run carries no Hubbard manifold -- the "
@@ -1426,6 +1433,24 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     const FrozenHubbard frozen(itsImp->ham->GetHubbardUTarget());
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
                                                              : std::numeric_limits<double>::quiet_NaN();
+    // THE REFERENCE MUST BE EIGENPAIRS OF ITS OWN FOCK (OpenWork §3, 2026-10-27): R0 is a sum over states.  GDM once handed out
+    // virtuals labelled with other virtuals' energies (2.7 Ha off) and chi0 came out 400x too small with nothing complaining.
+    // THE BOUND: chi0's relative error is ~ residual / response gap.  1e-4 Ha keeps it <~1e-3 on a 0.1 Ha gap and still refuses
+    // a mislabel (O(0.1-1) Ha) by >1000x.  Measured: Si k211 1e-10 (diagonalizing) / 8e-9 (GDM-finished); NiO k222 GDM restart
+    // 1.03e-5 (its [F,D] noise 2.4e-6) -- a 1e-5 bound refused that healthy state.
+    {
+        const double resid=qchem::Response::EigenpairResidual(*wf, *itsImp->ham, itsImp->bs.get());
+        std::cout << "[response] reference eigenpair residual max|C^H F C - diag eps| = " << resid << " Ha" << std::endl;
+        if (!(resid<=1e-4))
+        {
+            std::ostringstream os;
+            os << "the wave function's orbitals are not eigenpairs of their own Fock (max|C^H F C - diag eps| = " << resid
+               << " Ha > 1e-4): the sum-over-states response would be wrong.  Converge the stage to a diagonalized state first.";
+            std::cout << "[response] REFUSED: " << os.str() << std::endl;
+            return Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>::Fail(
+                {qchem::Response::ResponseFailure::Why::NotConverged, os.str()});
+        }
+    }
     const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
         {.acrossK=!itsImp->opts.perKFermiLevels, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
     const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf);
@@ -1443,7 +1468,35 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     // Each q's table is printed as that q finishes; the supercell summary (real-space blocks, U) once all are in.
     // U is printed, never consumed here (R4 owns consumption).
     using O=Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>;
-    auto solved=qchem::Response::LinearResponse(ref, frame, *kernel, hp.probe, Nq, krylov, resolved ? channels : perturbed);
+    // ONE q PER STAR (KAxisPlan P3, Q9), on request: it ASSERTS the ground state has the captured group, so the response
+    // audits one member.  Manifold resolution only (a channel per manifold: a site permutation and a phase, no D^l).
+    std::optional<qchem::Response::QStars> stars;
+    if (qStars)
+    {
+        if (resolved) throw std::invalid_argument("SolidCalculation::HubbardLinearResponse: qStars needs HubbardResolution::Manifold "
+                                                  "(a resolved channel rotates within its manifold -- D^l, KAxisPlan P4)");
+        std::vector<qchem::Response::ChannelSite> cs;
+        for (const auto& m : hub->Channels()) cs.push_back({m.site, m.l});
+        // The ground state's group: the Shubnikov ops of the decoration the run was BUILT with (all-zero = the space group),
+        // and the sites' fractional positions -- both asked of the held lattice.
+        const rmat3d_t Ainv=Invert(itsImp->lat->GetUnitCell().GetCellMatrix());
+        std::vector<rvec3_t> siteFrac;
+        itsImp->st->ForEachSite([&](int, const rvec3_t& r, bool)
+        { siteFrac.push_back(rvec3_t(Ainv(1,1)*r.x+Ainv(1,2)*r.y+Ainv(1,3)*r.z, Ainv(2,1)*r.x+Ainv(2,2)*r.y+Ainv(2,3)*r.z,
+                                     Ainv(3,1)*r.x+Ainv(3,2)*r.y+Ainv(3,3)*r.z)); });
+        const auto qmesh=ref.QMesh(Nq);
+        if (qmesh) stars=qchem::Response::FoldQMesh(*qmesh, itsImp->lat->ShubnikovOps(itsImp->decoration), siteFrac, cs, perturbed);
+    }
+    // THE LITTLE GROUP of each (q, J) (KAxisPlan P5): the ground state's group MEASURED on the orbitals (ruling 1), offered the
+    // Shubnikov ops of the decoration the run was built with.  ⚠ COLLINEAR: a σ op relabels the up/down blocks (MakeOrbitalImages).
+    std::optional<qchem::Response::OrbitalImages> images;
+    if (littleGroupK)
+    {
+        images=qchem::Response::MakeOrbitalImages(ref, *wf, itsImp->lat->ShubnikovOps(itsImp->decoration));
+        images->Write(std::cout);
+    }
+    auto solved=qchem::Response::LinearResponse(ref, frame, *kernel, hp.probe, Nq, krylov, resolved ? channels : perturbed,
+                                                stars ? &*stars : nullptr, 1e-6, images ? &*images : nullptr);
     if (!solved) { std::cout << "[response] FAILED: " << solved.Error().detail << std::endl; return solved; }
     qchem::Response::QMeshResponse r=solved.TakeValue();
     if (resolved) r.group=hp.manifold;
@@ -1468,7 +1521,7 @@ std::vector<SolidCalculation::InterSiteV> SolidCalculation::InterSiteHubbardV(co
     auto manifold=[&](size_t c){ return r.group.empty() ? c : r.group[c]; };   // a resolved response's channel -> its manifold
     std::vector<rvec3_t> tau;                                     // the cell's site positions (Cartesian, a.u.)
     itsImp->st->ForEachSite([&](int, const rvec3_t& x, bool){ tau.push_back(x); });
-    const auto& A=itsImp->cellMatrix;                             // columns = a_1..a_3 (Matrix3D is 1-based)
+    const auto A=itsImp->lat->GetUnitCell().GetCellMatrix();      // columns = a_1..a_3 (Matrix3D is 1-based)
     auto cart=[&](double f1, double f2, double f3)
     { return rvec3_t(A(1,1)*f1+A(1,2)*f2+A(1,3)*f3, A(2,1)*f1+A(2,2)*f2+A(2,3)*f3, A(3,1)*f1+A(3,2)*f2+A(3,3)*f3); };
     std::vector<ivec3_t> Rs;                                      // ToRealSpace's image order

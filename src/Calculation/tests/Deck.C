@@ -418,6 +418,12 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
     EXPECT_EQ(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({4,4,2}))),"NO THROW");
     EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",2}}}}},cplx,json::array({2,1,1}))).find("incommensurate"),std::string::npos) << "the q loop shares the pre-flight";
     EXPECT_EQ(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1,1}}}}}},cplx,json::array({2,1,1}))),"NO THROW");
+    {
+        json lg=base({{{"hubbardLinearResponse",{{"littleGroupK",true}}}}},cplx);
+        EXPECT_NE(msg(lg).find("minDeltaRhoPerElectron <= 1e-9"),std::string::npos) << "littleGroupK on a reference converged only to the default gate";
+        lg["scf"]={{"minDeltaRhoPerElectron",1e-9}};
+        EXPECT_EQ(msg(lg),"NO THROW");
+    }
     EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1}}}}}},cplx)).find("must be n or [n1,n2,n3]"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",{{"perturb",{5}},{"alpha_eV",0.1}}}}},hub)).find("past the 1 manifolds"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",json::object()}}},hub)).find("alpha_eV must be nonzero"),std::string::npos);
@@ -442,6 +448,21 @@ TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
     EXPECT_EQ(msg({{"multiplicity",1}}),"NO THROW") << "no +U: the imposed-without-U path is not (yet) covered";
     EXPECT_NE(msg({{"multiplicity",1},{"hubbard",{H}},{"siteSpins",{1,-1}}}).find("2 entries for 4 sites"),std::string::npos);
     EXPECT_NE(msg({{"siteSpins",{2,-1,0,0}}}).find("-1, 0 or +1"),std::string::npos);
+}
+
+//! A grid field set beside cellKind Auto used to be DROPPED (Auto resolves to a calibrated recipe): a β-MnO₂ mesh-convergence run came
+//! back bit-identical.  Resolve refuses it, naming the field, so --check catches it before a revision is claimed.
+TEST(Deck, AnXCMeshRecipeFieldUnderAutoIsRefusedAtResolve)
+{
+    auto msg=[](json xcMesh)
+    {
+        deck::RunSpec s; deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"xcMesh",xcMesh}}}},s);
+        try { deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); }
+        return std::string("NO THROW");
+    };
+    EXPECT_NE(msg({{"nRadial",60}}).find("nRadial"),std::string::npos);
+    EXPECT_EQ(msg({{"cellKind","Becke"},{"nRadial",60}}),"NO THROW") << "a stated kind takes its recipe";
+    EXPECT_EQ(msg(json::object()),"NO THROW") << "Auto with nothing set";
 }
 
 TEST(Deck, PostSCFRunsOnTheConvergedCalculationAndTheRecordKeepsTheResults)

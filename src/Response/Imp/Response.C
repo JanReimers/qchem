@@ -1,6 +1,9 @@
 // File: Response/Imp/Response.C  Walk a converged Bloch wave function into the response vocabulary.
 module;
+#include <algorithm>
 #include <iomanip>
+#include <iostream>
+#include <limits>
 #include <cmath>
 #include <complex>
 #include <memory>
@@ -14,6 +17,8 @@ import qchem.Orbitals;                   // TOrbitals / TOrbital (the per-block 
 import qchem.BasisSet.Orbital_DFT_IBS;   // the block basis the projector amplitudes are asked on
 import qchem.Mesh.Quadrature;            // MatrixOverlap: <chi_a| r_i |chi_b> on a mesh (the dipole probe)
 import qchem.ScalarFunction;
+import qchem.BasisSet.OrbitalImageSource;          // M_g(k): an op on a Bloch orbital block (KAxisPlan P4)
+import qchem.Symmetry.Lattice_3D.BlochOperationRep; // ImageOfK
 import qchem.Blaze;
 
 namespace qchem::Response
@@ -108,6 +113,103 @@ template <class T> Reference MakeReference(const WaveFunction::tWaveFunction<T>&
 }
 template Reference MakeReference<double>(const WaveFunction::tWaveFunction<double>&, const OccupationConfig&, Reservoirs, double);
 template Reference MakeReference<dcmplx>(const WaveFunction::tWaveFunction<dcmplx>&, const OccupationConfig&, Reservoirs, double);
+
+OrbitalImages MakeOrbitalImages(const Reference& ref, const WaveFunction::cWaveFunction& wf,
+                                const std::vector<Symmetry::SymOp>& ops, double tol)
+{
+    struct Block { rvec3_t k; Spin s; const ChargeDensity::tobs_t<dcmplx>* bs; const BasisSet::OrbitalImageSource* img;
+                   cmat_t C, S; rvec_t e, f; };
+    std::vector<Block> blocks;
+    ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
+    {
+        if constexpr (!std::is_same_v<U,dcmplx>)
+            throw std::logic_error("Response::MakeOrbitalImages: a REAL TRIM block -- run the ground state with forceComplex");
+        else
+        {
+            const auto* bs=dynamic_cast<const ChargeDensity::tobs_t<dcmplx>*>(os.GetBasisSet());
+            const auto* img=dynamic_cast<const BasisSet::OrbitalImageSource*>(os.GetBasisSet());   // abstract -> abstract
+            if (!bs || !img) throw std::logic_error("Response::MakeOrbitalImages: a block basis that cannot image its orbitals");
+            Block b{Symmetry::Lattice_3D::Getk(ir.sym), ir.ms, bs, img, Coefficients(os, bs->GetNumFunctions()),
+                    cmat_t(bs->Overlap()), rvec_t(os.GetNumOrbitals()), rvec_t(os.GetNumOrbitals())};
+            size_t i=0;
+            for (const auto* o : os.Iterate()) {b.e[i]=o->GetEigenEnergy(); b.f[i]=o->GetOccupation()/o->GetDegeneracy(); i++;}
+            blocks.push_back(std::move(b));
+        }
+    });
+    if (blocks.size()!=ref.NumBlocks()) throw std::invalid_argument("Response::MakeOrbitalImages: wf is not ref's wave function");
+    auto same=[](const rvec3_t& a, const rvec3_t& b)
+    {
+        const rvec3_t d=a-b;
+        return std::abs(d.x-std::round(d.x))<1e-9 && std::abs(d.y-std::round(d.y))<1e-9 && std::abs(d.z-std::round(d.z))<1e-9;
+    };
+    OrbitalImages out;
+    out.tol=tol;
+    out.tried=ops.size();
+    const double inf=std::numeric_limits<double>::infinity();
+    for (const auto& g : ops)
+    {
+        OrbitalOp image{g, {}, {}};
+        OrbitalImages::Rejection worst{g, 0.0, "", 0};
+        auto note=[&](double r, const char* test, size_t b) {if (r>worst.resid) worst={g, r, test, b};};
+        for (size_t b=0;b<blocks.size() && worst.resid<inf;b++)   // every block: a rejection names its WORST test
+        {
+            const Block& src=blocks[b];
+            // ⚠ COLLINEAR: a σ op only relabels the up/down blocks (the spatial U below serves both).  Non-collinear order needs the
+            // SU(2) rep on a spinor block here (doc/KAxisPlan.md P4).
+            Spin s=src.s;
+            if (g.sigma==Symmetry::SpinAction::Flip && s!=Spin::None) s = s==Spin::Up ? Spin::Down : Spin::Up;
+            const rvec3_t kp=Symmetry::Lattice_3D::ImageOfK(g, src.k);
+            size_t t=blocks.size();
+            for (size_t c=0;c<blocks.size();c++) if (blocks[c].s==s && same(blocks[c].k, kp)) {t=c; break;}
+            if (t==blocks.size()) {note(inf, "image k not stored", b); break;}   // the mesh does not have this op
+            const Block& dst=blocks[t];
+            cmat_t M;
+            try { M=src.img->OrbitalImage(g); }
+            catch (const std::runtime_error&) { note(inf, "basis cannot image", b); break; }   // not a symmetry of the basis
+            const cmat_t U=blazem::ctrans(dst.C)*dst.S*M*src.C;
+            const cmat_t UU=blazem::ctrans(U)*U;
+            for (size_t i=0;i<U.rows();i++)
+                for (size_t j=0;j<U.columns();j++)
+                {
+                    const double u=std::abs(U(i,j));
+                    note(u*std::fabs(dst.e[i]-src.e[j]), "eigenvalue", b);
+                    note(u*std::fabs(dst.f[i]-src.f[j]), "occupation", b);
+                    note(std::abs(UU(i,j)-(i==j ? 1.0 : 0.0)), "unitarity", b);
+                }
+            image.target.push_back(t);
+            image.U.push_back(U);
+        }
+        if (worst.resid<=tol) {out.ops.push_back(std::move(image)); out.worstKept=std::max(out.worstKept, worst.resid);}
+        else out.rejected.push_back(worst);
+    }
+    return out;
+}
+
+double EigenpairResidual(const WaveFunction::cWaveFunction& wf, Hamiltonian::cHamiltonian& H,
+                         const BasisSet::tBasisSet<dcmplx>* wholeBasis)
+{
+    const auto D=wf.GetChargeDensity();
+    H.RefreshForDensity(wholeBasis, D.get());   // the contract: refresh before any GetMatrix (KAxisPlan P2)
+    double worst=0.0;
+    ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
+    {
+        if constexpr (std::is_same_v<U,dcmplx>)
+        {
+            const auto* bs=dynamic_cast<const ChargeDensity::tobs_t<dcmplx>*>(os.GetBasisSet());
+            if (!bs) throw std::logic_error("Response::EigenpairResidual: an orbital block that is not an Orbital_1E_IBS");
+            const cmat_t C=Coefficients(os, bs->GetNumFunctions());
+            const cmat_t CFC=blazem::ctrans(C)*cmat_t(H.GetMatrix(bs, ir.ms, D.get(), wholeBasis))*C;
+            size_t i=0;
+            for (const auto* o : os.Iterate())
+            {
+                for (size_t j=0;j<CFC.columns();j++)
+                    worst=std::max(worst, std::abs(CFC(i,j)-(i==j ? dcmplx(o->GetEigenEnergy()) : dcmplx(0.0))));
+                i++;
+            }
+        }
+    });
+    return worst;
+}
 
 template <class T> OrbitalFrame<T> MakeOrbitalFrame(const Reference& ref, const WaveFunction::tWaveFunction<T>& wf)
 {

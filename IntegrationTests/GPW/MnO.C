@@ -416,7 +416,8 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 // IonicSAD, which was NOT the "Mn2+ d^5 + O2-" it was described as: the per-species targets gave neutral Mn on
 // both sites + O2- (30 e for a 26 e cell).  The TRUE ionic seed (Mn2+ x2 + O2-, seed-tiebreak) LOSES AFM on
 // this arm: iterate-1 moment 0.30, dead by iteration 30, -60.97043 Ha (OpenWork §3 "The polarized IonicSAD
-// seed loses its spin"), so the anchor moved to SAD, judged below.  Pivoted Cholesky at 1e-4 (cond(S)~7e8), Kerker G0=1 against the low-G charge-transfer
+// seed loses its spin"), so the anchor moved to SAD, judged below.  RE-MEASURED 2026-10-27: on the fixed code (pin 29, per-SITE
+// targets) the ionic seed keeps AFM-II and lands on the same state as SAD to 1e-10 in 15 iterations (OpenWork_History5).  Pivoted Cholesky at 1e-4 (cond(S)~7e8), Kerker G0=1 against the low-G charge-transfer
 // slosh with ONE density-side history (Pulay depth 8 after 5 priming steps) and NOTHING on the Fock side, no
 // MOM, kT=5e-3 riding the open d manifold, alpha=0.45, CP2K's convergence measure max|dD| < 1e-6 -- and the
 // SHUBNIKOV group of the seed's decoration imposed (S3), which is what holds the staggering exactly mirrored
@@ -444,13 +445,12 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 // the two image-list defects.
 // LONG (ruling 5: over the 60 s budget), hence the `_Long` suffix: it runs in the
 // `ctest -L long` tier (excluded by `ctest -LE long`), and in the TestMate tree like any other test.
-TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
+//! The anchor's recipe (above), seeded by \a seed -- ONE copy, so the IonicSAD twin below cannot drift from it.
+std::pair<SolidCalcOptions,SCFParams> ShubAnchorRecipe(const Material& mno, qchem::ChargeDensity::SeedStrategy seed, const std::string& label)
 {
-    const Material mno=qchem::Materials::Get("MnO_AFM2");   // Mn +m at 0, Mn -m at 1/2 (the decoration), O at 1/4, 3/4
-    const Lattice_3D lat=LatticeOf(mno);
-    SolidCalcOptions o=OptionsFor(mno, "MnO AFM-II Gamma (imposed)");
+    SolidCalcOptions o=OptionsFor(mno, label);
     o.multiplicity=1;                                       // the explicit two-channel singlet: nUp=nDn=13
-    o.seed=qchem::ChargeDensity::SeedStrategy::SAD;                  // neutral Hund pairs, flipped by the material's per-atom spin bits
+    o.seed=seed;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     o.accelerator=qchem::SCFAccelerators::Type::Null;      // the deck-shaped loop: the history is on the density side
     o.imposeSymmetry=true;                                  // S3: the Shubnikov group of the declared ordering
@@ -461,6 +461,14 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
     par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
     par.UseMOM=false;
     par.SmearingkT=5e-3;
+    return {o,par};
+}
+
+TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
+{
+    const Material mno=qchem::Materials::Get("MnO_AFM2");   // Mn +m at 0, Mn -m at 1/2 (the decoration), O at 1/4, 3/4
+    const Lattice_3D lat=LatticeOf(mno);
+    auto [o,par]=ShubAnchorRecipe(mno, qchem::ChargeDensity::SeedStrategy::SAD, "MnO AFM-II Gamma (imposed)");   // neutral Hund pairs, flipped by siteSpins
     Trace trace; o.onIteration=trace.Observer();
     GpwReport report("MnO "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
@@ -472,6 +480,27 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
     ASSERT_FALSE(trace.rows.empty());
     EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the INTEGRATED Mn site moment must be d^5-scale at convergence (measured 4.45)";
     EXPECT_NE(R->SpinDensity(), nullptr) << "a polarized run must hand back m(r)";
+}
+
+// CLAIM (twin of the anchor): the TRUE ionic seed -- Mn2+ d^5 x2 + O2- x2 (IonicSAD, per-SITE targets) -- converges to the SAME
+// AFM-II state as the neutral SAD anchor.  On 2026-10-23 it did not: iterate-1 moment 0.30, the order dead by iteration 30,
+// -60.97043 Ha non-magnetic (OpenWork §3 "The polarized IonicSAD seed loses its spin").  Re-measured 2026-10-27 on the fixed code
+// (pin 29, per-site targets): seed 4.79, iterate 1 m 1.06, 15 iterations to -61.3032807795, m 4.459 -- SAD's state to 1e-10.
+// This gate holds that.  LONG for the anchor's reason.
+TEST(GPW_MnO, Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long)
+{
+    const Material mno=qchem::Materials::Get("MnO_AFM2");
+    const Lattice_3D lat=LatticeOf(mno);
+    auto [o,par]=ShubAnchorRecipe(mno, qchem::ChargeDensity::SeedStrategy::IonicSAD, "MnO AFM-II Gamma (imposed, ionic seed)");
+    Trace trace; o.onIteration=trace.Observer();
+    GpwReport report("MnO "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    trace.Print(o.label, /*polarized*/true);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->Energy(), -61.3032807795, 1e-7) << "the SAD anchor's state (both measured -61.3032807795, 2026-10-27)";
+    ASSERT_FALSE(trace.rows.empty());
+    EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the AFM order survives the ionic seed (measured 4.459, = SAD's)";
 }
 
 // ============================ THE SHELL-AVERAGED DFT+U ORACLE GATE (programme step 5.1) ============================

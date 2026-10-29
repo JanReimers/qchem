@@ -23,6 +23,7 @@ export module qchem.ChargeDensity.Internal.DensitySampler;
 export import qchem.ChargeDensity.DensitySampler;   // the abstract face these realise
 import qchem.BasisSet.Orbital_DFT_IBS;      // the fit-basis faces + FitQuadrature
 import qchem.BasisSet.G_FieldEvaluator;     // G_RasterTransform -- the pair route asks its raster for size/quadrature
+import qchem.Parallel;                       // LazyLock (lazy per-block caches filled from outer-loop workers)
 import qchem.Fitting.FunctionFitter;        // FunctionFitter_Scalar / ScalarProjector
 import qchem.ChargeDensity.Types;           // tobs_t/cobs_t/robs_t -- this library has its OWN, identical to the
                                             // qcHamiltonian typedefs the engine used to borrow (R1.0e, 2026-09-10)
@@ -170,8 +171,15 @@ private:
     //! (R1.0 Liskov conformance, 2026-08-22).  H_xc is now "fit the field, contract against this block",
     //! the same two calls on either representation -- so this strategy no longer performs a quadrature
     //! itself, it composes one.
-    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsScalarFitter;
-    mutable rvec_t itsFittedV;                    //!< the v the fitter currently holds (refit only on change)
+    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsScalarFitter;   //!< the PROJECTION face only (holds no field)
+    //! The FIELD fits \c MatrixT contracts against: one fitter per distinct v (an iteration asks with v_up and v_dn), so
+    //! concurrent Fock blocks (OOD V1.41 / doc/KAxisPlan.md P2) never refit a fitter another block is reading.  A slot is
+    //! recycled only when no block holds its fitter; v is compared exactly (the fit is re-done only when v CHANGES).
+    struct FieldFit { rvec_t v; std::shared_ptr<Fitting::FunctionFitter_Scalar> fitter; };
+    mutable std::vector<FieldFit> itsFieldFits;
+    qchem::LazyLock               itsFieldFitsLock;
+    static constexpr size_t       kFieldFits=2;   //!< the two spin channels of one iteration
+    std::shared_ptr<const Fitting::FunctionFitter_Scalar> FitFor(const rvec_t& v) const;
     //! \f$\langle f_a|1\rangle\f$ from the fit basis -- what \c Integrate dots the coefficients against.
     //! Cached because it is geometry-fixed and ~100k entries wide, and \c Integrate runs a few times per
     //! SCF iteration; REAL because a \f$\delta\f$ basis's own integrals are its (real) weights, widened to
@@ -297,6 +305,7 @@ private:
     //! The ortho scalar fitter over that basis -- used ONLY by the BALL fallback (the RAW route fits
     //! nothing: "no ball fit anywhere").  Built once; its own grid is this basis's raster.
     std::unique_ptr<Fitting::FunctionFitter_Scalar> itsScalarFitter;
+    qchem::LazyLock itsScalarFitterLock;          //!< the BALL fallback refits per call: concurrent blocks take turns
     mutable rvec_t itsRho;                        //!< ρ(r) on the raster for the current density serial
     mutable size_t itsRhoVersion=size_t(-1);      //!< density logical-clock serial itsRho was built for
     mutable bool   itsRhoIsRaw=false;             //!< is itsRho the RAW collocated ρ_DM (vs the ball round trip)?
@@ -325,6 +334,7 @@ private:
     template <class U> const qcMesh::MatrixAdjoint<dcmplx>*
     BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const;
     mutable SymMap<ScreenedMatrixIntegrator<dcmplx>> itsAdj;   //!< per block, by its SPATIAL symmetry
+    qchem::LazyLock itsAdjLock;                                  //!< itsAdj is filled lazily, possibly by k-block workers
 };
 
 } //namespace

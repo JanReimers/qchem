@@ -7,6 +7,7 @@
 // exactly what module-internal linkage is for -- they are visible to every unit of this module and to
 // nothing outside it.
 module;
+#include <mutex>
 #include <algorithm>   // std::min (the threaded quadrature's output-column blocking)
 #include <cassert>
 #include <complex>
@@ -32,7 +33,6 @@ import qchem.Structure;                       // Structure::isFinite()/SumFormFa
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
-import qchem.Parallel;                         // WorkerThreads (QCHEM_OPENMP_THREADS -- the XC-mesh table + quadrature loops)
 
 
 namespace qchem::Hamiltonian
@@ -125,6 +125,7 @@ chmat_t Ven_PP_NonLocal::MakeMatrix(const cobs_t* bs, const Spin& s) const
         auto pw=dynamic_cast<const BasisSet::Orbital_PP_IBS<dcmplx>*>(bs);
         assert(pw);
         const std::string id=bs->BasisSetID();
+        std::lock_guard<std::mutex> lock(itsByLLock.m);
         if (itsByLSeen.insert(id).second)
             for (auto& lH : pw->MakeProjectorMatrixByL(&*theStructure, *itsSep))
                 itsByL[lH.first].emplace(id, std::move(lH.second));

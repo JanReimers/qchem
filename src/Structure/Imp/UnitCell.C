@@ -295,7 +295,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
             record();
         };
 #ifdef QCHEM_OPENMP
-        const int nthreads=qchem::WorkerThreads();    // THE one thread count (qchem.Parallel; D-THREADS)
+        const int nthreads=qchem::InnerThreads();     // THE one thread count (qchem.Parallel; 1 inside an outer-loop item)
         if (nthreads>1)
         {
             #pragma omp parallel for schedule(dynamic, 8) num_threads(nthreads)
