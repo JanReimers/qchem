@@ -47,6 +47,7 @@
 #include <nlohmann/json.hpp>  // the deck the supercell gate is run from
 
 import qchem.Structure;                          // Molecule, Atom
+import qchem.SCFCap;                             // BoundedSCF (one-iteration and setup-only arms)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
 import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
 import qchem.Lattice_3D;                         // Lattice_3D
@@ -180,6 +181,7 @@ TEST(GPW_Si, Γ_Imp_Schema)
     report::ClearGlobal();                          // isolate this test's run
     {
         GpwReport report("Si "+o.label, false);
+        qchem::BoundedSCF bounded("the run report's SETUP schema is the subject (basis, grids): a couple of iterations is plenty");
         qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, Gates(4, 1e-3, 1e-6));
     }
 
@@ -230,7 +232,9 @@ TEST(GPW_Si, Γ_RunsReal)
     SolidCalcOptions o=OptionsFor(si, "Si real-block report");
     o.densityEcut=20.0;
     const SCFParams par=Gates(3, 1e-3, 1e-6);
-    auto run=[&]{ GpwReport report("Si "+o.label, false); qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par); };
+    auto run=[&]{ GpwReport report("Si "+o.label, false);
+                  qchem::BoundedSCF bounded("the report's per-block SETUP rows are the subject; 3 iterations run the loop once over");
+                  qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par); };
 
     report::ClearGlobal();
     o.forceComplex=false;                            // real TRIM blocks (the shipped default)
@@ -327,6 +331,7 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const Material& si, co
     one.MinΔFD=1e30; one.MinVirial=1e30; one.MinFD=1e30; one.StartingRelaxRo=0.3; one.MergeTol=1e-4;
 
     {   // (1) the arithmetic arm: exactly one iteration each
+        qchem::BoundedSCF bounded("arm (1) compares the real and complex FIRST iterates term by term at roundoff; arm (2) converges");
         qchem::SolidCalculation on(lat, MakeBasisSR(*si.cell), optOn, one), off(lat, MakeBasisSR(*si.cell), optOff, one);
         // ONE iteration by construction, so these are LAST-ITERATE diagnostics, not answers (N1/T1).
         const qchem::EnergyBreakdown En=on.LastIterateTerms(), Ec=off.LastIterateTerms();

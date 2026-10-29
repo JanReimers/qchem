@@ -129,6 +129,12 @@ enum class SeedRole
     WorkingDensity,  //!< a CONVERGED density of this basis and block layout (a restored state, an anneal / +-alpha / U-loop
                      //!< stage): when the run's occupation policy is not the default (kT > 0 or MOM) its iteration-0 fill is
                      //!< REDONE under that policy at the top of the first Iterate -- so a restored fixed point refills to itself
+    ExactResume,     //!< a restored state with NO difference from this run (no WARM fingerprint entry): as WorkingDensity, and the
+                     //!< carried D then IS the first working density -- the first Fock is built from the saved state itself, not
+                     //!< from a diagonalization of it.  (OpenWork §3, 2026-10-29: as WorkingDensity, beta-MnO2's exact resume took
+                     //!< two undamped steps before the mixer saw it -- the iteration-0 fill and iteration 1 -- and a 6e-6 residual
+                     //!< came back as drho 1e-2; the fresh mixer then walked 0.25 Ha away.)  Not for a PERTURBED stage (+-alpha, a
+                     //!< new U, an anneal): those need that first step (see Initialize).
 };
 
 template <class T> class tSCFIterator
@@ -311,7 +317,8 @@ private:
 
     size_t          itsIterationCount;
     bool            itsConverged;
-    std::shared_ptr<tDM_CD<T>> itsCarried;   //!< a WorkingDensity seed, held to the first Iterate (see SeedRole)
+    std::shared_ptr<tDM_CD<T>> itsCarried;   //!< a WorkingDensity / ExactResume seed, held to the first Iterate (see SeedRole)
+    bool            itsCarriedIsWorking=false;   //!< ExactResume: the carried D becomes the working density there
     Observer        itsObserver;   //!< optional live-progress sink (default empty)
 
     // Density-face state.  The mixer (Linear / Kerker; see qchem.ChargeDensity.DensityMixer) is built per-run

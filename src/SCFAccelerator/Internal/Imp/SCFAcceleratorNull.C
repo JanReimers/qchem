@@ -6,6 +6,7 @@ namespace qchem::SCFAccelerators
 template <class T> void tSCFIrrepAcceleratorNull<T>::UseFD(const hmat_t<T>& F, const hmat_t<T>& DPrime)
 {
     itsFPrime=itsLASolver->Transform(F);
+    itsEn=GradientNorm<T>(OrbitalGradient<T>(itsFPrime, DPrime));
 }
 
 template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorNull<T>::NextOrbitals()

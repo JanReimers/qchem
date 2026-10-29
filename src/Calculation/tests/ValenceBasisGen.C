@@ -41,9 +41,10 @@ TEST(ValenceBasisGen, Fluorine_q7)
     r.element        = "F";
     r.Zion           = 7;
     r.electrons      = 8;                                   // F-
+    r.accelerator    = "GDM";   // closed shell, 2p unbound in this window (eps +0.07): DIIS's energy never settles
     r.shells         = { {0, EvenTemperedWindow(8, 0.12, 40.0)},
                          {1, EvenTemperedWindow(6, 0.14, 12.0)} };
-    GeneratedBasis g = GenerateValenceBasis(r);
+    GeneratedBasis g = GenerateValenceBasis(r, /*TMPTRACE*/true);
     std::cout << "[gen F] E=" << g.energy << " conv=" << g.converged << "\n" << g.block << std::endl;
     // ORACLE-PINNED (2026-08-06, after the KB radial-assembly fix): CP2K's numerically-exact ATOM code
     // gives -24.213540 for this F- pseudo-ion (deck ~/Code/cp2k-runs/fminus_q7.inp); we land 29 mHa above
@@ -131,7 +132,7 @@ TEST(ValenceBasisGen, FluorineSeedDensityAnionIsDiffuse)
     auto window = []{ return std::vector<std::pair<int,std::vector<double>>>{
         {0, EvenTemperedWindow(8, 0.12, 40.0)}, {1, EvenTemperedWindow(6, 0.14, 12.0)} }; };
     ValenceBasisRecipe neutral; neutral.element="F"; neutral.Zion=7; neutral.electrons=7; neutral.shells=window();
-    ValenceBasisRecipe anion;   anion.element  ="F"; anion.Zion  =7; anion.electrons  =8; anion.shells  =window();
+    ValenceBasisRecipe anion;   anion.element  ="F"; anion.Zion  =7; anion.electrons  =8; anion.shells  =window(); anion.accelerator="GDM";
 
     GeneratedSeedDensity n = GenerateSeedDensity(neutral);
     GeneratedSeedDensity a = GenerateSeedDensity(anion);
@@ -150,7 +151,7 @@ TEST(ValenceBasisGen, FluorineSeedDensityAnionIsDiffuse)
 TEST(ValenceBasisGen, AssembleValenceLowqFile)
 {
     ValenceBasisRecipe f;
-    f.element="F"; f.Zion=7; f.electrons=8;
+    f.element="F"; f.Zion=7; f.electrons=8; f.accelerator="GDM";   // F-: see Fluorine_q7
     f.shells={ {0, EvenTemperedWindow(8, 0.12, 40.0)}, {1, EvenTemperedWindow(6, 0.14, 12.0)} };
     ValenceBasisRecipe na;
     na.element="Na"; na.Zion=1; na.electrons=1;

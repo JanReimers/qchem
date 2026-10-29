@@ -29,6 +29,7 @@ import qchem.Hamiltonian;
 import qchem.Hamiltonian.Factory;  // build a DFT sibling for the HF/DHF SAD bootstrap (molecular, double-only)
 import qchem.Mesh;                 // qcMesh::MeshParams (defaulted -- a seed-quality mesh for the sibling)
 import qchem.Reporting;             // report::Timed -- the SCF loop's own buckets (ParallelAndOraclePlan 1.1)
+import qchem.SCFCap;                // ReportSCFCapHit: an SCF that ends at its cap (the test mains fail on it)
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
@@ -238,12 +239,13 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     // (+-alpha, a new U) still takes its full first step.  At kT = 0 without MOM the fill above already IS the run's, and the
     // path stays bit-identical.  (Making the carried density the working density outright was tried first: the +-alpha stages
     // lost that first step and limit-cycled once the linear mixer grew relax 0.2 -> 1.0.)
-    if (role==SeedRole::WorkingDensity)
+    if (role==SeedRole::WorkingDensity || role==SeedRole::ExactResume)
     {
         auto* carried=dynamic_cast<tDM_CD<T>*>(seed);
         if (!carried) throw std::logic_error("SCFIterator: a WorkingDensity seed must be matrix-backed (a converged state of this graph)");
         seedOwner.release();
         itsCarried.reset(carried);
+        itsCarriedIsWorking = role==SeedRole::ExactResume;
     }
 }
 // R2.22: there is nothing left to free by hand.  The Hamiltonian and the accelerator are the CALLER's
@@ -345,7 +347,22 @@ template <class T> SCFParams tSCFIterator<T>::ResolveMixing(const SCFParams& p) 
 
 template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
 {
-    const SCFParams ipar=ResolveMixing(callerParams);   // Mixing::Auto -> this run's mixer (CreateMixer reads the result)
+    const SCFParams ipar=[&]
+    {
+        SCFParams r=ResolveMixing(callerParams);   // Mixing::Auto -> this run's mixer (CreateMixer reads the result)
+        // AN EXACT RESUME STARTS PULAY AT ONCE (OpenWork §3, 2026-10-29; the field-mixer twin of "a restart enters the Ladder at
+        // its GDM rung").  Plain-Kerker priming exists because a history built far from the fixed point is unstable; an exact
+        // resume starts AT it, where priming only hands a soft mode five undamped-ish steps: beta-MnO2 A1AFM r015 walked 0.29 Ha
+        // away and took 23 iterations back with pulayStart 5, 4 with 0.  The history itself is NOT saved (qchem.SolidState: a
+        // WARM restart's old residuals extrapolate onto the old fixed point); an exact resume rebuilds it in two steps.
+        if (itsCarriedIsWorking && r.PulayDepth>0 && r.PulayStart>0)
+        {
+            std::cout << "[restart] exact resume: Pulay history from iteration 1 (pulayStart " << r.PulayStart
+                      << " -> 0 -- priming is for a start far from the fixed point)" << std::endl;
+            r.PulayStart=0;
+        }
+        return r;
+    }();
     // ★ THE RESIDUE BUCKET (doc/ParallelAndOraclePlan.md 1.1(a)).  report::Timed is EXCLUSIVE, so an outer
     // scope around the whole loop charges itself precisely what its children do NOT -- i.e. this bucket IS
     // the answer to "how much of the unbucketed time is inside Iterate", with no guessing about where to
@@ -371,7 +388,9 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     {
         if (ipar.SmearingkT>0.0 || ipar.UseMOM)
             SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, itsCarried.get(), *itsOccPolicy, 0.0001)));
+        if (itsCarriedIsWorking) SetWorkingCD(itsCarried);   // EXACT RESUME: the saved state itself drives the first Fock
         itsCarried.reset();
+        itsCarriedIsWorking=false;
     }
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     // V1.27: is the virial theorem meaningful for THIS Hamiltonian at all?  It needs a Coulombic (degree -1
@@ -404,6 +423,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     // carried the order, which is a DIFFERENT bug from the loop losing it.
 
     int holeRun=0, momReleases=0;   // 0h MOM-guard state (per run): consecutive hole iterations + releases
+    bool exhaustedStop=false;       // the opt-in ladder-exhaustion stage end (a deliberate early stop, not a cap)
     std::string prevConfig;         // previous occupied configuration (the cfg '*' change flag; item 2)
     for (itsIterationCount=1;
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
@@ -535,6 +555,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
             cout << "  *** SCF stage END: accelerator ladder EXHAUSTED (hand-off fired, no engageable rung)"
                     " -- stopping this stage (StopOnAccelExhausted) ***" << endl;
             itsIterationCount++;   // match the for-increment the break skips (the -- below assumes it ran)
+            exhaustedStop=true;
             break;
         }
         // DisplayEigen();
@@ -548,6 +569,17 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
 //             Etotal       2+V/K    Del(E)  Del(Ro) [F,D]   Nproj    SVMin   Bail      relax
 // │ │                      (1e+05)  (1e-02) (2e-05) (2e-06) 
     itsIterationCount--;
+    // AN SCF THAT ENDS AT ITS CAP IS REPORTED (qchem.SCFCap; user 2026-10-29: "All SCF tests should fail if they hit max
+    // iterations") -- the test mains make it a failure of the running test; a production driver installs no hook.
+    if (!itsConverged && !exhaustedStop)
+    {
+        std::ostringstream os;
+        os << "the SCF ended at its iteration cap (NMaxIter " << ipar.NMaxIter << ") UNCONVERGED: last drho/N "
+           << std::scientific << std::setprecision(2) << ChargeDensityChange << " (gate " << ipar.MinΔρPerElectron << "), [F,D] "
+           << FD << " (gate " << ipar.MinFD << "), E " << std::setprecision(10) << E
+           << " -- assert convergence with gates the run can meet, or wrap a deliberately bounded loop in qchem::BoundedSCF";
+        qchem::ReportSCFCapHit(os.str());
+    }
     size_t nprec=12,ndigits=log10(-eb["Een"])+1,w=1+ndigits+1+nprec;
     nprec-=ndigits;
     if (ipar.Verbose)
@@ -775,15 +807,14 @@ static void WriteHeadMixAccelCfg(std::ostream& os)     // "ρ_mix  accel  svMin 
 static void WriteThreshLead(std::ostream& os)
 { os << PadR("",W_ITER) << " " << PadR("",W_E) << " "; }
 
-// Row prefix shared by every system: # , Etotal (fixed, 12 dp), [F,D] (the accelerator's orbital gradient;
-// "----" for a Null accelerator, which has no [F,D] -- e.g. a pure density-mixing run).
+// Row prefix shared by every system: # , Etotal (fixed, 12 dp), [F,D] (the accelerator's orbital gradient, its worst irrep --
+// every accelerator, Null included, measures it: OrbitalGradient in qchem.SCFAccelerator).
 template <class T> void tSCFIterator<T>::WriteRowPrefix(std::ostream& os, const IterationTrace& tr) const
 {
     os.setf(ios::fixed,ios::floatfield);
     os << setw(W_ITER) << tr.iteration << " ";
     os << setw(W_E) << setprecision(12) << tr.eb.GetTotalEnergy() << " ";
-    if (std::string(tr.accelTag)=="Null") os << PadR("----",W_FD) << " ";
-    else os << std::scientific << setw(W_FD) << setprecision(2) << tr.FD << " ";
+    os << std::scientific << setw(W_FD) << setprecision(2) << tr.FD << " ";
 }
 
 // The three columns common to the END of every row: ρ_mix (Lin/Ker/Pul + α), accel (tag[:count]), cfg ('*'
@@ -965,7 +996,7 @@ tSCFIterator<T>::CreateMixer(const SCFParams& ipar, const tbs_t<T>*, const Struc
 {
     if (ipar.Mixer==SCFParams::Mixing::Pulay)   // ResolveMixing let it through only at KerkerG0 = 0: Pulay on D
         return qchem::ChargeDensity::PulayDMixerFactory<T>(ipar.StartingRelaxRo, ipar.PulayDepth, ipar.PulayStart);
-    return qchem::ChargeDensity::LinearMixerFactory<T>(ipar.StartingRelaxRo);
+    return qchem::ChargeDensity::LinearMixerFactory<T>(ipar.StartingRelaxRo, ipar.MaxRelaxRo);
 }
 
 template class tSCFIterator<double>;
@@ -1020,7 +1051,7 @@ SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, co
     case M::Auto:
         break;
     }
-    return CD::LinearMixerFactory<dcmplx>(ipar.StartingRelaxRo);
+    return CD::LinearMixerFactory<dcmplx>(ipar.StartingRelaxRo, ipar.MaxRelaxRo);
 }
 
 } //namespace

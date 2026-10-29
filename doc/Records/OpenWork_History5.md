@@ -579,3 +579,64 @@ EXACTLY 0 over 60 iterations.  Gates: `UTLattice_BS ShubnikovPair.*` (two Mn bcc
 keep the partial projection.  The leak was NOT why U = 0.5–2 eV fail to converge: with it fixed, Kerker+Pulay still cycles at
 U = 1 eV (reaches −93.3663 at Δρ 4.5e-4, then a smooth ~10-iteration runaway, 0.1 Ha UP) -- a mixer problem, `HubbardUHistory.md`
 2026-10-29.
+
+
+## An EXACT RESUME of a field-mixer state walked away (β-MnO₂ A1AFM r015, U = 0; reported 2026-10-29) -- FIXED 2026-10-29
+Probe `~/Code/qchem6-runs/MnO2/uscan/leak/resume_U0.json` (Kerker/Pulay, Null accel, kT 1e-3, imposed A1AFM): iteration 1 A −93.3798733
+(saved −93.3837082), Δρ 9.8e-3, then −93.130 after 3 iterations.  Ruled out: the restore (E[D_saved] = −93.3809516 == the saved run's
+E(internal); the 2.76 mHa difference to the saved A is its −TS) and the Shubnikov pair projection (the saved pair is symmetric; projecting
+it changes nothing).  TWO causes, both in the restart's first steps: (1) a carried density was never the working density -- the
+iteration-0 fill diagonalized F[D_saved] and THAT seeded the mixer, so the first mixed iterate sat two undamped Fock steps from the saved
+state (a 6.4e-6 residual -> 1e-2 on this soft magnetic system); (2) the fresh mixer PRIMED with plain Kerker (pulayStart 5) AT the fixed
+point and walked 0.29 Ha away before Pulay brought it back (23 iterations).  FIX: `SeedRole::ExactResume` (a restore with no WARM
+difference; `SolidCalculation::Restart` passes it): the carried D IS the first working density; and an exact resume engages Pulay from
+iteration 1 (`tSCFIterator::Iterate`, announced on the console).  r015: iteration 1 A −93.3837059 (2.3 μHa off), converged in 4
+iterations to 1.3e-8.  NOT met, and cannot be: "iteration 1 at Δρ <= the saved state's" -- the saved D is the last OUTPUT density, one
+residual from the fixed point, so its first Fock measures J·δ (2.4e-4 here, ~40x the saved 6.4e-6); the energy holds.  The Pulay
+history is still not saved (a WARM restart's old residuals extrapolate onto the old fixed point; an exact resume rebuilds it in 2
+steps).  Gates: UTCalculation `SolidState.ExactResume_{Pulay,KerkerPulay}_Null_StartsAtTheSavedState` (+ the immediate-Pulay line).
+Sweep 1119/1119; moved vs `firstfield_short`: the restart tests (fewer iterations) and four Shubnikov box tests that move identically
+on the 06260200 build without this change (the merge's, e.g. `GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows` 105 -> 2835 iterations).
+Banked `~/Code/qchem6-runs/anchors/exactresume_short.log`.  The saved state's own convergence belongs in the restart line: OpenWork row
+"A restart's fingerprint is incomplete", item (4).
+
+
+## [F,D] has no single home (OpenWork §3, 2026-10-28) -- DONE 2026-10-29; the row as it stood
+| **[F,D] has no single home: the Null accelerator computes none, and DIIS and GDM each compute their own and COMBINE them differently** (2026-10-28) | (1) `SCFAcceleratorNull::GetError()` returns 0, so `FD < MinFD` always passes and Δρ alone decides convergence on every Kerker/Pulay run (the NiO / SrVO₃ / TiO₂ campaign decks); the trace's threshold cell still prints the default `(1e-05)` when `minFD` is unset, reading as a live criterion.  (2) Two copies of [F′,D′]: `tSCFIrrepAcceleratorDIIS::UseFD` and `tSCFIrrepAcceleratorGDM::UseFD`, same formula -- but the managers combine the irreps differently: DIIS √Σ‖E_k‖², GDM max_k ‖E_k‖.  So `minFD` is a different gate depending on the active rung, the Ladder's column jumps at the DIIS→GDM hand-off, and on N k-blocks DIIS's number is up to √N larger.  One place is EASY (user wanted it, 2026-10-28): every irrep accelerator, Null included, is already handed (F, D′) through `UseFD` | one free function `OrbitalGradient(F′, D′)` in `qchem.SCFAccelerator` used by all three `UseFD`s, and ONE irrep combination on the manager base: **max_k ‖E_k‖** (ruled by the user 2026-10-28: a convergence metric is judged on its WORST irrep, for any metric -- not for k-mesh independence, which a 1/N_k would give √Σ as well; DIIS's √Σ goes); Null keeps its irreps and reports it; then the `----` / `(n/a)` special cases in `SCFIterator.C` (l.779, 917) go away.  SCOPE (user 2026-10-28): one CONSISTENT treatment for every convergence metric, not just [F,D] -- the per-irrep ones ([F,D]; Δρ, today a whole-cell ∫|ρ_out−ρ_in|, measured per block from ΔD) are GATED on the worst irrep; the whole-cell scalars (ΔE/E, ρ_lost/N) have no per-irrep piece and get one normalization/threshold convention instead.  Display: the max; an RMS beside it only if it earns its column (each trace column must earn its width -- an error-entropy column was considered and declined as unreadable for most users).  Expect GDM-run iteration counts to move (the gate changes) -- anchordiff the sweep.  Then the RESPONSE-REFERENCE gate (today `kResponseReferenceMinΔρ` 1e-9 in `Deck.C`, refused for littleGroupK, a `--check` note otherwise; user 2026-10-28) becomes the worst irrep's ‖[F,D]‖ -- the orbital residual the symmetry measurement and R0 actually need, with no quadrature in it · `src/SCFAccelerator/Internal/Imp/SCFAccelerator{DIIS,GDM,Null}.C` |
+
+**Verdict.**  One gradient (`OrbitalGradient` / `GradientNorm` in `qchem.SCFAccelerator`, used by the DIIS, GDM and Null `UseFD`s) and ONE
+irrep combination, the WORST irrep (`WorstIrrep`; DIIS's √Σ gone, GDM already max).  The Null accelerator measures and reports its [F,D]
+(its blocks register with the manager, as DIIS's do); no Null special case is left in the iterator, and its runs gate on `MinFD` like
+any other (user: the real fix, no carve-out).  WHY IT MATTERED: `LinearMixer::Adapt` sets its step from [F,D] -- on a Null run it read 0, so
+alpha grew x1.5 at iteration 1 (clamped to 1.0) and never moved again; the "coin-flip" `GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows` was
+an undamped symmetric 2-cycle that roundoff asymmetry used to break and the exact Shubnikov pair projection (3b2a163a) no longer did
+(2835 iterations; now 210, single alpha, and every alpha of its old sweep converges in 208-211).  KNOCK-ONS: the atom DIIS engage gate
+rescaled Z²·0.1/32 -> Z²·0.08/32 (the [F,D] unit changed; Kr Libxc went chaotic unrescaled); Δ[F,D] RETIRED as a default gate (user:
+it is a stagnation measure, 1e-7 silently demanded [F,D] ~ 1e-7 and overrode MinFD); default NMaxIter 20 -> 100.  And the ruling "an SCF
+test fails if it hits NMaxIter" (user), enforced at the main level (`qchem.SCFCap` + `BoundedSCF`; CLAUDE.md): 54 offenders found, 46
+fixed or honestly bounded, 8 open (the row above).
+
+
+## Eight SCF tests failed the cap guard (OpenWork §3, 2026-10-29) -- FIXED 2026-10-29; the row as it stood
+| **Eight SCF tests fail the cap guard: they never converged** (2026-10-29; the guard `qchem.SCFCap` found 54, the rest fixed or honestly bounded) | `ValenceBasisGen.{Fluorine_q7, FluorineSeedDensityAnionIsDiffuse, AssembleValenceLowqFile}` (ONE F⁻ pseudo-atom SCF: [F,D] stalls at 9e-3, Δρ 3e-4); `OSi_PP_U.MultiSpeciesRouting` ([F,D] 2.1, diverging); `M_DFT.OxygenTripletBelowSinglet` (Δρ ~0.13, open-shell π*²); `P/A_PG_DFT.Energy/Z5` (B, Δρ 0.17, open 2p¹); `ResponsePolarizability.GPW_Si_U2_FrozenChi_eqFiniteDifferenceLRT` (±α SCFs diverge: 140 -> 264 iterations, 3 mHa); `f_U/A_HF_dfPin.SelfPin/BSpline_Z92` (converges 1.4e-8 from a 1e-8 pin its own gates cannot resolve).  All "passed" before by measuring an unconverged iterate | work each to a converged fixed point (the next session step); the U pin: tighten its gates until its energy is a fixed point, then re-judge the pin (pin 10) · this row, `CLAUDE.md` (the cap rule) |
+
+**Verdict, one cause each -- none was the SCF code being wrong, each was a test (or recipe) asking for something its run could not deliver:**
+- **U self-pin** (`A_HF_dfPin`): a 1e-8 pin under gates ([F,D] < Z·1e-5) that only resolve ~1e-8.  Recipe -> [F,D] < Z·1e-9, Δρ/N < Z·1e-8:
+  every one of the nine cases sits on its fixed point and **every pin stands as written** (worst 4.7e-9, Eu; U 1.6e-9).  No re-pin.
+- **OSi +U**: a closed-shell SINGLET for two open-shell atoms (O 2p⁴ ³P, Si 3p² ³P) at R = 20 bohr -> the quintet; 13 iterations.
+- **O₂ singlet / B atom**: an integer determinant over an exactly DEGENERATE partly filled level (π*ˣ/π*ʸ; B 2p¹) flips every
+  iteration -> smearing kT 1e-4 (equal fractions at any kT for a degenerate level; NIST's spherical atom).  Needed the
+  converge-once `Calculation(st, opts, SCFParams, acc)` constructor (CleanCode D-CALC-DOUBLE-SCF, done for these callers): the old
+  constructor ran its own SCF on DEFAULT params before the test's recipe could apply.
+- **F⁻ pseudo-atom** (3 ValenceBasisGen tests): the pseudo-atom Hamiltonian is FITTED, so [F,D] floors (3e-5) while E is flat to 1e-9;
+  the generator now gates its validating SCFs on the ENERGY (ΔE/E 1e-10), and a recipe can name its accelerator -- F⁻ (closed shell,
+  2p unbound in the window, ε +0.07) runs GDM, where DIIS jittered 5e-6 Ha forever.
+- **Si frozen-χ FD**: the ±α restarts run linear D-mixing on the Null accelerator; with its [F,D] now real, `LinearMixer::Adapt`'s
+  ×0.8 / ×1.5-with-a-clamp rule returned to EXACTLY α = 1.0 and the run sat on a period-3 limit cycle.  Two fixes: (1) the user's --
+  the shrink/grow ratio is IRRATIONAL (grow ×φ, and a step that would cross the ceiling closes only 1/φ² of the gap, so α never
+  repeats); (2) `SCFParams::MaxRelaxRo`, the CEILING of the adaptive step, which the facade's restart recipe caps at 0.3 beside the
+  start (CLAUDE.md's restart rule -- capping only the start let it grow back to 1.0).  Deck key `maxRelaxRo`.  Measured and rejected:
+  a ceiling at the last retracted α (43 atom/molecule failures); √2 growth with a 1/φ approach (two atoms too slow).
+Sweep (cap guard on) 1119/1119; no energy moved by more than 1e-8 except the FD test returning to its pre-change value (264 -> 160
+iterations); iteration counts moved on PW_Si/NaF/CsI anchors, GPW_Al anneal and the Na₂ box (the new adaptive step).  Banked
+`~/Code/qchem6-runs/anchors/capguard_short.log`.

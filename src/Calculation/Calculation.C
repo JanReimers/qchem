@@ -120,6 +120,12 @@ public:
     explicit Calculation(const Structure&          st,
                          const CalcOptions&         opts = {},
                          const AcceleratorOptions&  acc  = {});
+    //! Build the whole graph and converge ONCE, on \a scf (CleanCode D-CALC-DOUBLE-SCF): a caller with its own recipe used to
+    //! construct (an SCF on the defaults) and then Converge(par) -- two full SCFs, and the first one's cap was out of its reach.
+    Calculation(const Structure&          st,
+                const CalcOptions&         opts,
+                const SCFParams&           scf,
+                const AcceleratorOptions&  acc  = {});
     ~Calculation();
 
     Calculation(const Calculation&)            = delete;  // owns raw resources; non-copyable

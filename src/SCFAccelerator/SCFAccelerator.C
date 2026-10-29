@@ -1,13 +1,25 @@
 // FIle: SCFAccelerator.C  Interface for an SCF accelerator alogrithm
 module;
+#include <complex>
 #include <limits>
 #include <iosfwd>
 export module qchem.SCFAccelerator;
 export import qchem.Symmetry.Irrep;
 export import qchem.LASolver;
+import qchem.Blaze;   // the gradient below is a TEMPLATE using Blaze operators: its definition context must see them
 
 export namespace qchem::SCFAccelerators
 {
+
+//! \brief THE ORBITAL GRADIENT of one irrep block: the commutator \f$E=[F',D']=F'D'-D'F'\f$ in the orthonormal basis
+//! (anti-Hermitian; zero exactly at a self-consistent block).  ONE definition for every accelerator -- DIIS keeps E for
+//! its B matrix, GDM and Null only its norm (OpenWork §3 "[F,D] has no single home", 2026-10-28/29).
+template <class T> mat_t<T> OrbitalGradient(const hmat_t<T>& Fp, const hmat_t<T>& Dp) {return mat_t<T>(Fp*Dp-Dp*Fp);}
+//! Its size, the per-irrep [F,D] every accelerator reports: the Frobenius norm of \c OrbitalGradient.
+template <class T> double GradientNorm(const mat_t<T>& E) {return std::real(blazem::norm(E));}
+//! \brief THE ONE IRREP COMBINATION (user ruling 2026-10-28): a convergence metric is judged on its WORST irrep -- for
+//! [F,D] the max over the blocks, in every manager.  Fold one block's norm into the running worst.
+inline double WorstIrrep(double worst, double blockNorm) {return blockNorm>worst ? blockNorm : worst;}
 
 // The PER-IRREP accelerator is templated on the BLOCK's matrix element type T (rX/cX convention); the
 // run-level manager below is NON-template (doc/RealComplexPlan.md §6).  For T=double, hmat_t<double> IS

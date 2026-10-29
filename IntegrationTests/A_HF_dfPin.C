@@ -29,11 +29,15 @@ struct PinCase { AtomType type; BasisSetAccuracy acc; int Z; double pin; double 
 
 //! Robust SCF knobs for the (heavy, open-shell f) atoms at Low grade.  Z-scaled thresholds, generous iter
 //! budget + slow relaxation for the Z>40 f-shell atoms (near-degenerate, oscillation-prone).
+//! ⚠ THE GATES MUST RESOLVE THE PIN (2026-10-29): a 1e-8 Ha pin needs the FIXED POINT, and the energy is only good to
+//! ~[F,D]^2 x the Fock scale.  At the old [F,D] < Z*1e-5 the U/BSpline energy depended on which iteration crossed the gate
+//! (1.4e-8 off its pin after the [F,D] worst-irrep change); at Z*1e-9 every case sits on its fixed point and all nine
+//! pins stand as written (worst 4.7e-9, Eu).  The Δ[F,D] gate is gone (retired: a stagnation measure).
 static SCFParams HFParams(const PinCase& c)
 {
     const bool heavy = c.Z >= 40;
-    return {.NMaxIter = 120, .MinΔρPerElectron = c.Z*1e-4, .MinΔFD = 1e-4, .MinVirial = 4e-2,
-            .MinFD = c.Z*1e-5, .StartingRelaxRo = heavy ? 0.2 : 0.5, .MergeTol = 1e-7, .Verbose = true};
+    return {.NMaxIter = 400, .MinΔρPerElectron = c.Z*1e-8, .MinVirial = 4e-2,
+            .MinFD = c.Z*1e-9, .StartingRelaxRo = heavy ? 0.2 : 0.5, .MergeTol = 1e-7, .Verbose = true};
 }
 
 static std::string FamilyName(AtomType t)

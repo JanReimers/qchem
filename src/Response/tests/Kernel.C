@@ -47,6 +47,7 @@ import qchem.Blaze;
 import qchem.Symmetry.Factory;                           // BlochFactory (the q-star fold test's k-point)
 import qchem.SCFAccelerator.Factory;                    // SCFAccelerators::Type (the GDM-finished-stage audit)
 import qchem.Parallel;                                 // ScopedWorkerThreads (the serial-vs-threaded bit gate)
+import qchem.SCFCap;                                   // BoundedSCF (SiState: a deliberately bounded reference)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // the d-augmented Si (orbital-resolved gate)
 import qchem.BasisSet.OrbitalImageSource;               // OrbitalImage (KAxisPlan P4: the converged-state gate)
 import qchem.Symmetry.Lattice_3D.BlochOperationRep;      // ImageOfK
@@ -835,6 +836,8 @@ std::unique_ptr<SolidCalculation> SiState(ivec3_t kmesh, qcMesh::UnitCellKind xc
     SolidCalcOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .species={{"Si",4}},
                        .densityEcut=20.0, .forceComplex=true};
     o.xcMesh.cellKind=xc;
+    qchem::BoundedSCF bounded("the kernel identities (Hermiticity, linearity, thread identity) hold about ANY positive rho0: "
+                              "12 iterations only supply one");
     return std::make_unique<SolidCalculation>(lat, mol, o, par);
 }
 

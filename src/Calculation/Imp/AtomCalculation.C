@@ -131,10 +131,12 @@ AtomCalculation::~AtomCalculation()
 bool AtomCalculation::Converge(const SCFParams& params)
 {
     namespace H = qchem::Hamiltonian;
-    // Atoms use the proven Z-scaled DIIS gate (EMax = Z^2*0.1/32) unless the caller pins one.  The json
-    // escape hatch (opts.accelerator) then merges over these defaults and selects the accelerator TYPE --
-    // the accelerator-tuning surface the scfrun driver needs (DIIS/GDM/Ladder/directmin).
-    const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : itsZ*itsZ*0.1/32;
+    // Atoms use the proven Z-scaled DIIS engage gate unless the caller pins one.  The json escape hatch (opts.accelerator)
+    // then merges over these defaults and selects the accelerator TYPE -- the accelerator-tuning surface the scfrun driver
+    // needs (DIIS/GDM/Ladder/directmin).  Z^2*0.08/32, was 0.1/32: the [F,D] it is compared against changed UNIT on
+    // 2026-10-29 (the worst irrep, was sqrt(sum of squares) over the l-blocks -- user ruling), and on Kr the two differ by
+    // ~0.8 at the engage step; unrescaled, DIIS engaged one step early and the Kr Libxc run went chaotic.
+    const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : itsZ*itsZ*0.08/32;
     nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
                             {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
     std::string ts = "DIIS";

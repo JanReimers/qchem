@@ -743,9 +743,11 @@ private:
     std::vector<int> BuildBasis(const Lattice_3D&, std::shared_ptr<const BasisSet::Real_BS> mol, const SolidCalcOptions&,
                                 const SCFAccelerators::SolidAcceleratorOptions&);
     //! The +U manifolds' groups and radials, the Hamiltonian, the accelerator, the seed (\a seed, or
-    //! \c opts.seed when null), the iterator and the run banner.
+    //! \c opts.seed when null), the iterator and the run banner.  \a exactResume: \a seed is a restored state with no
+    //! WARM difference (SeedRole::ExactResume -- it becomes the first working density, not just the first Fock's).
     void BuildRun(const Lattice_3D&, const BasisSet::Real_BS& mol, const std::vector<int>& siteSpins,
-                  std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params);
+                  std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
+                  bool exactResume=false);
     //! This run's saved-state fingerprint, with \a kT the recipe's temperature.
     StateFingerprint Fingerprint(double kT) const;
     //!@}
