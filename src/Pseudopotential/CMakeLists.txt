@@ -1,11 +1,13 @@
 add_library(qcPseudopotential)
 target_sources(qcPseudopotential PRIVATE
     Imp/GTH_Potentials.C
+    Imp/PseudopotentialSet.C
     )
 target_sources(qcPseudopotential PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     LocalPotential.C
     SeparablePotential.C
     GTH_Potentials.C
+    PseudopotentialSet.C
     )
 target_include_directories(qcPseudopotential PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include

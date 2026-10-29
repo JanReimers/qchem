@@ -1,0 +1,14 @@
+{
+  "_doc": [
+    "PSEUDOPOTENTIAL SETS (doc/CalcNetworkReview.md section 4, D-STRUCTDATA step 2, ruled 2026-10-02/2026-10-29).  One entry = a NAME a material",
+    "(materials.json `pp`) or a deck can refer to, and for each element in it the pseudopotential VARIANT: `valence` = q, the number of",
+    "valence electrons the GTH entry keeps (Zion), a key into gth_potentials.json for the entry's `functional`.  PP data is a property of",
+    "(element, pseudopotential), NOT of the material: q7 vs q15 Mn is the same crystal.  The ONE reader is qchem.Pseudopotential.Set;",
+    "everyone else is handed the value.  A pseudopotential is generated for a specific functional, so the set names it."
+  ],
+  "gth-lda-valence": {
+    "comment": "The smallest-q (valence-only, largest core) GTH-LDA entry of every element the shipped materials use; the recipe every banked anchor was run at.",
+    "functional": "LDA",
+    "valence": { "Al": 3, "Cs": 1, "F": 7, "Fe": 8, "I": 7, "Li": 1, "Mn": 7, "Na": 1, "Ni": 10, "O": 6, "S": 6, "Si": 4, "Sr": 2, "Ti": 4, "V": 5 }
+  }
+}

@@ -1,5 +1,6 @@
 // File: Calculation/Imp/Materials.C  The JSON readers behind qchem.Materials.
 module;
+#include <algorithm>
 #include <fstream>
 #include <filesystem>
 #include <stdexcept>
@@ -11,6 +12,7 @@ module qchem.Materials;
 import qchem.PeriodicTable;   // thePeriodicTable().GetZ(symbol)
 import qchem.Matrix3D;
 import qchem.Types;
+import qchem.Pseudopotential.Set;   // the pseudopotential vocabulary a material names
 import qchem.StructureData;   // GetCell/AtomInBox/DimerInBox -- the structure half of an entry
 
 namespace qchem::Materials
@@ -59,14 +61,21 @@ int ZOf(const std::string& el)
     return int(Z);
 }
 
-// The PSEUDOPOTENTIAL half of an entry (valence counts).  INTERIM: still read from materials.json's `species`
-// field; D-STRUCTDATA step 2 moves it to its own pseudopotentials.json.  The structure half is qcStructure's.
+// The PSEUDOPOTENTIAL half of an entry: the NAME of a set (`pp`), resolved against the cell's elements -- PP data is a property of
+// (element, pseudopotential), not of the material (D-STRUCTDATA step 2).  The structure half is qcStructure's.
 Material FromEntry(const std::string& name, const json& e, double aOverride)
 {
     Material m;
     m.name=name;
     m.cell=std::make_shared<UnitCell>(StructureData::GetCell(name, aOverride));
-    for (const auto& [el,val] : e.at("species").items()) m.species.emplace_back(el, val.get<int>());
+    m.pp=e.at("pp").get<std::string>();
+    std::vector<std::string> elements;   // in order of first appearance in the cell
+    m.cell->ForEachSite([&](int Z, const rvec3_t&, bool)
+    {
+        const std::string el=thePeriodicTable().GetSymbol(Z);
+        if (std::find(elements.begin(), elements.end(), el)==elements.end()) elements.push_back(el);
+    });
+    m.species=Pseudopotential::PseudopotentialSet::Get(m.pp).Species(elements);
     return m;
 }
 } // anonymous

@@ -239,19 +239,15 @@ PW save/restore (its own OpenWork row; a PW session carries in memory regardless
 
 ---
 
-## 6. Questions for the user
+## 6. Questions for the user — RULED 2026-10-29 ("Everything looks good.")
 
-- **Q1 — PP placement.**  Is option D right: qcPseudopotential READS, the run setup CHOOSES, everything else is HANDED the
-  value?  (C4 is built on this answer.)
-- **Q2 — the face.**  `PotentialEnergySurface::ConvergeAt(R, want)` over a fixed setup, with the single-point facades
-  recomposed on top and `Calculation`'s API kept for the GUI: agreed?  (Name welcome.)
-- **Q3 — basis leaving its window.**  Frozen recipe along a relaxation (pin 22).  If λ_min(S(R)) falls below the trim's
-  threshold mid-relaxation: REFUSE that point (recommended: the PES would be discontinuous anyway), or continue
-  untrimmed under pivoted Cholesky and warn?
-- **Q4 — symmetry along a relaxation.**  Keep the setup's imposed group for the whole trajectory (forces symmetrized,
-  a broken R refused), with symmetry lowering = a new setup chosen by you?  Or always relax FREE?
-- **Q5 — +U along a relaxation.**  U held fixed at the setup's values (recommended; the ACBN0 loop is a separate,
-  outer question), or re-estimated per geometry?
-- **Q6 — molecular PP fields.**  Replace `CalcOptions::pseudopotential` / `ppValence` with a set name + per-element
-  override (keeping the old fields as deprecated aliases)?  It is visible to pybind — flagged for the binding owner,
-  no pybind edit by lane B.
+- **Q1 — PP placement: option D.**  qcPseudopotential READS, the run setup CHOOSES, everything else is HANDED the value.  RULED: agreed.
+- **Q2 — the face.**  `PotentialEnergySurface::ConvergeAt(R, want)` over a fixed setup, single-point facades recomposed on top,
+  `Calculation`'s API kept.  RULED: agreed, name accepted.
+- **Q3 — basis leaving its conditioning window mid-relaxation.**  RULED: REFUSE that point (`BasisConditioning`).
+- **Q4 — symmetry along a relaxation.**  RULED: keep the setup's imposed group (forces symmetrized, a broken R refused); symmetry
+  lowering is a NEW setup the user chooses; a FREE relaxation stays available as a setup choice.
+- **Q5 — +U along a relaxation.**  RULED: U held fixed at the setup's values.
+- **Q6 — molecular PP fields** (`CalcOptions::pseudopotential` / `ppValence`: deprecated alias, or clean replace).  RULED: **clean
+  replace** ("I vote for clean replace") -- a set name + a per-element override, NO deprecated aliases.  pybind is not edited by
+  lane B; the exact `pybind/` lines referencing the old fields are listed in the step-2 report for the binding owner.
