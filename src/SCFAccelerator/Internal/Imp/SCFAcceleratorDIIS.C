@@ -38,8 +38,8 @@ template <class T> void tSCFIrrepAcceleratorDIIS<T>::UseFD(const hmat_t<T>& F, c
     assert(itsFPrime.rows()==DPrime.rows());
     assert(itsFPrime.columns()==DPrime.columns());
     itsDPrime=DPrime;
-    itsE=itsFPrime*itsDPrime-itsDPrime*itsFPrime; // [F',D'] (anti-Hermitian)
-    itsEn=std::real(blazem::norm(itsE));
+    itsE=OrbitalGradient<T>(itsFPrime, itsDPrime);   // [F',D'] (anti-Hermitian)
+    itsEn=GradientNorm<T>(itsE);
 }
 
 template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorDIIS<T>::NextOrbitals()
@@ -181,9 +181,8 @@ bool SCFAcceleratorDIIS::CalculateProjections()
             bailoutReason="Enk==0.0    ";       // not yet seeded (zero-density start): must bail
             return false;
         }
-        itsEn+=Enk*Enk;
+        itsEn=WorstIrrep(itsEn, Enk);   // the WORST irrep (was sqrt(sum of squares): user ruling 2026-10-28)
     }
-    itsEn=sqrt(itsEn);
     // cout << "itsEn=" << itsEn << endl;
     if (itsEn>itsParams.FDMax)
     {

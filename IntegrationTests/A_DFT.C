@@ -22,10 +22,13 @@ using namespace qchem;
 
 namespace {
 
-// Shared per-Z atom-DFT SCF params (same formula the scaffold used for every atom-DFT group).
+// Shared per-Z atom-DFT SCF params.  The run CONVERGES and the test asserts it: gated on the worst irrep's [F,D] (Z*1e-4)
+// and Δρ (Z*1e-3).  ⚠ It used to stop at NMaxIter=20 behind gates it could never pass (Δ[F,D] 1e-10, and a 1e-13 virial on
+// an incomplete basis, where 2+V/K plateaus near 5e-3), so the "energy" was iteration 20 of an unconverged run -- 38 Ha off
+// on Rb -- and any change to the accelerator's signals moved it past the oracle tolerance (2026-10-29, the [F,D] row).
 static SCFParams dft_scf_params(int Z)
 {
-    return {.NMaxIter = 20, .MinΔρPerElectron = Z*1e-3, .MinΔFD = 1e-10, .MinVirial = 1e-13, .MinFD = Z*1e-4, .StartingRelaxRo = 0.1, .MergeTol = 1e-8, .Verbose = true};
+    return {.NMaxIter = 100, .MinΔρPerElectron = Z*1e-3, .MinΔFD = 1e30, .MinVirial = 1e30, .MinFD = Z*1e-4, .StartingRelaxRo = 0.1, .MergeTol = 1e-8, .Verbose = true};
 }
 static int slater_N(int Z) { return Z>50 ? 11 : Z>20 ? 10 : 8; }
 
@@ -63,6 +66,7 @@ TEST_P(A_DFT_atom, Energy)
     AtomCalculation calc(c.Z, 0, {.type = c.type, .N = p.N, .emin = p.emin, .emax = p.emax,
                                   .model = c.model, .spin = c.spin, .xalpha = pt.GetSlaterAlpha(c.Z)},
                          dft_scf_params(c.Z));
+    ASSERT_TRUE(calc.IsConverged()) << "the oracle comparison needs a converged energy";
     const double err = RelativeDFTError(calc.Energy(), c.Z);
     if (c.model==Model::LDA) printf("LSDA(Dirac+VWN) Z=%2d  RelativeDFTError = %.3e\n", c.Z, err);
     EXPECT_LT(err, c.tol);

@@ -76,8 +76,8 @@ template <class T> tSCFIrrepAcceleratorGDM<T>::~tSCFIrrepAcceleratorGDM() {}
 template <class T> void tSCFIrrepAcceleratorGDM<T>::UseFD(const hmat_t<T>& F, const hmat_t<T>& DPrime)
 {
     itsFp = itsLASolver->Transform(F);           // F' = Vd F V (orthonormal basis)
-    mat_t<T> E = itsFp*DPrime - DPrime*itsFp;    // [F',D'] commutator (anti-Hermitian)
-    itsEn = std::real(blazem::norm(E));
+    const mat_t<T> E = OrbitalGradient<T>(itsFp, DPrime);   // [F',D'] commutator (anti-Hermitian)
+    itsEn = GradientNorm<T>(E);
     // STANDING-PRECONDITION half 1 (Engageable): is D' IDEMPOTENT, i.e. integer occupations?  For Hermitian
     // D', Tr(D'^2) = sum_ij |D'_ij|^2, so the defect Tr(D') - Tr(D'^2) is >= 0 and vanishes iff every
     // occupation is 0 or 1.  Fermi smearing makes it O(kT * N_frontier) -- enormous beside the tolerance --
@@ -369,7 +369,7 @@ tSCFIrrepAccelerator<dcmplx>* SCFAcceleratorGDM::Create(const LASolver<dcmplx>* 
 double SCFAcceleratorGDM::GetError() const
 {
     double e=0.0;
-    for (auto k:itsIrreps) e=std::max(e,k->GetError());
+    for (auto k:itsIrreps) e=WorstIrrep(e, k->GetError());
     return e;
 }
 

@@ -30,6 +30,7 @@
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 
 import qchem.Structure;                          // Molecule, Atom
+import qchem.SCFCap;                             // BoundedSCF (a deliberately bounded symmetry gate)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
 import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
 import qchem.Lattice_3D;                         // Lattice_3D
@@ -432,6 +433,7 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     par.SmearingkT=5e-3;                                  // the open-d-manifold tie smoother
     par.StartingRelaxRo=0.45;
     GpwReport report("Mn "+o.label, par.Verbose);
+    qchem::BoundedSCF bounded("the gate tests symmetry THROUGH the loop (6 iterations), not convergence");
     qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
     const GpwHandles h=LastIterateHandles(calc);
     ASSERT_TRUE(h.cd) << "the run must produce a final density";
@@ -493,45 +495,25 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows)
     const Lattice_3D lat=LatticeOf(box);
 
     SCFParams par;
-    // alpha=0.5 and a generous cap are LOAD-BEARING, not decoration: this gate needs a run that
-    // CONVERGES, because a run that merely hits the cap trips NotConverged first and leaves the
-    // postcondition unexercised all over again.
+    // THE RECIPE IS INSTRUMENTAL: this gate needs a run that CONVERGES -- one that hits the cap trips NotConverged first and
+    // leaves the OrderLost postcondition unexercised.  The detector RULES are unit-tested on synthetic trajectories
+    // (src/Calculation/tests/RunDiagnostics.C); what remains here is the WIRING.  Linear D-mixing at alpha 0.7, Null
+    // accelerator, 400 iterations: the moment dies (~step 66) and the slow density tail converges at ~210.
     //
-    // ⚠ THIS WAS A FLAKY TEST, and the 2026-08-27 sweep says why (user: "textbook example of a flaky
-    // test ... much more flaky than average+3sigma").  It binds a DETERMINISTIC subject -- does
-    // OrderLost get minted -- to a NON-deterministic precondition: whether a marginal SCF converges
-    // inside the cap.  A 100-iteration cap left 34 iterations of margin, and a change four layers down
-    // in the collocation kernel spent all of it.  The detector RULES are now unit-tested on synthetic
-    // trajectories (src/Calculation/tests/RunDiagnostics.C), so this gate is no longer the only thing
-    // standing between us and an untested postcondition; what remains here is the WIRING.
-    //
-    // MEASURED 2026-08-27, sweeping alpha x criterion x kernel (NA2_* knobs below), NMaxIter=400:
-    //   alpha  0.3: 311 iters (walk) / 306 (contracted)      <- NOT "oscillates forever"; the earlier
-    //   alpha  0.4: 300              / never (oscillates)       comment said that against a 100 cap
-    //   alpha  0.5:  66              / 290                    <- 0.5+walk is a lucky sweet spot
-    // and five of those six share ONE mode: E is dead at -0.3320448527 (dE~1e-15) by iteration ~200
-    // while Δρ grinds down geometrically, every run stopping the instant it crosses MinΔρPerElectron.  So the long
-    // tail is not oscillation, it is a slow LINEAR density mode.
-    // ⇒ SMALLER ALPHA DOES NOT HELP (0.3 is slower than 0.5, and 0.4 is worse than either).
-    // ⇒ NEITHER DOES DENSITY-PULAY, and its failure is the instructive one: NA2_PULAY=5 converges in 8
-    //   iterations (walk) / 14 (contracted) -- but to a DIFFERENT state, E 4.4e-5 higher with the moment
-    //   still alive at 0.031 e, so OrderLost never fires and the gate is defeated a third way.  The
-    //   SCFParams note about history mixing being unstable far from the fixed point applies here.
-    // ⇒ THE LONG RUN IS NOT SLOP: the fixture NEEDS it, because the MOMENT is a slower mode than Δρ and
-    //   has to fall below 1% of its peak before the postcondition can fire at all.
-    // So the cap is raised to 400 -- the minimal honest change, buying margin without altering what is
-    // tested.  Cost: ~3 s on the walk, ~13 s on the contracted kernel.  Unwinding an AFM seed that the
-    // answer does not want is simply harder than starting unpolarized: the same cell unpolarized
-    // converges in 30.
-    // The fixture's convergence recipe is INSTRUMENTAL (it exists so the run converges, so NotConverged does not pre-empt the OrderLost this gate
-    // is named for).  It used to be sweepable from the shell (NA2_NMAX / NA2_DRHO / NA2_PULAY / NA2_KERKER / NA2_ALPHA / NA2_TRACE); those
-    // environment knobs are retired (D-ENV 6d.4) -- the values below are the recipe the sweep settled on, and a new sweep is a deck.
+    // ⚠ HISTORY, because this was "a flaky test" for two months (2026-08-27 ... 2026-10-29) and the diagnosis was wrong.  It
+    // swept alpha over {0.7, 0.8, 0.65, 0.5} as "a coin flip on the truncation" -- but the linear mixer adapts alpha from
+    // [F,D], and the Null accelerator REPORTED 0: the first iteration's "improvement" (FDold 1e10 -> 0) grew alpha x1.5,
+    // clamped, and it never moved again.  So the sweep ran undamped (1.0, 1.0, 0.975) or at 0.75, never what it named, and
+    // whether a run escaped its symmetric 2-cycle hung on roundoff asymmetry.  The exact Shubnikov pair projection (3b2a163a)
+    // removed that asymmetry: 400 + 400 + 400 + 145 iterations.  With the Null accelerator measuring [F,D] (OpenWork §3, the
+    // [F,D] row) the mixer damps as designed: every alpha of the old sweep converges in 208-211 iterations.
     par.NMaxIter=400; par.MinΔρPerElectron=1e-6; par.MinΔE=1e30;
     par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.MergeTol=1e-4;
     par.PulayDepth=0; par.PulayStart=5;
     par.KerkerG0=0.0;
-    par.Mixer=SCFParams::Mixing::Linear;                      // the alpha sweep below is LINEAR D-mixing's step
+    par.Mixer=SCFParams::Mixing::Linear;
+    par.StartingRelaxRo=0.7;
 
     qchem::SolidCalcOptions o;
     o.label="Na2 AFM-seeded singlet";
@@ -542,52 +524,14 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows)
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);             // coarse: this gate tests the POSTCONDITION
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;            // PINNED -- see the header (Auto would pick Uniform)
 
-    // ★★★ THE MIXING STEP IS SWEPT, NOT PINNED (2026-08-27, plan step 7) -- and that is the fix for the
-    // flakiness, not another lucky constant.  Deleting the pair-stream cache changed the D-aware ACTIVE SET
-    // (an eps-level change, both sets eps-valid), and re-measuring alpha against it found NO PLATEAU at all:
-    //
-    //   alpha        0.35   0.5    0.65   0.7    0.75   0.8
-    //   contracted   cap    cap    264 ✔  221 ✔  cap    248 ✔
-    //   walk (=0)    cap    cap    cap    cap    cap    cap     <- ALL FOUR swept steps cap on the walk
-    //
-    // ⇒ WHETHER THIS FIXTURE CONVERGES IS A COIN FLIP ON THE TRUNCATION, and tuning alpha is chasing noise.
-    // What is NOT a coin flip is the PHYSICS the gate is named for: in EVERY arm above -- converged or
-    // capped, walk or contracted -- the moment DIES (step 23-69) and E settles on the same
-    // -0.33204 state.  The instability is one slow, nearly-degenerate DENSITY mode that E cannot see: the
-    // run's own fingerprint calls it "DENSITY-DEGENERATE (E settled, rho rotates -- benign)" while
-    // DidConverge() calls it a failure.  ⇒ THE DURABLE FIX IS THE Δρ/N CONVERGENCE GATE
-    // (doc/SCFStrategyPlan.md; item A4 on doc/OpenWork.md's anchor-moving roster), which would let this
-    // state converge on its merits.  Until that lands, the honest thing is to stop betting the gate on ONE
-    // draw: try the measured-good steps in order and take the first that converges.  The recipe is
-    // INSTRUMENTAL (it exists so NotConverged does not pre-empt the OrderLost this gate is named for), so
-    // sweeping it changes nothing about what is under test.  NA2_ALPHA pins a single value for an
-    // investigation.
-    // ⚠ AND BE HONEST ABOUT WHAT THE SWEEP BUYS: four draws instead of one on the DEFAULT (contracted)
-    // path.  It does NOT rescue GPW_CONTRACT_CUBE=0, where all four steps hit the cap -- the reference
-    // walk simply does not settle this fixture's density mode any more.  That is a property of the mode,
-    // not of the kernel (the moment still dies at step 9 and E still lands on -0.332045), and it is the
-    // same thing A4 would fix.
-    std::vector<double> alphas{0.7, 0.8, 0.65, 0.5};
-    std::unique_ptr<qchem::SolidCalculation> calcp;
-    for (double alpha : alphas)
-    {
-        par.StartingRelaxRo=alpha;
-        calcp=std::make_unique<qchem::SolidCalculation>(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR),
-                                                       o, par);
-        std::cout << "[Na2 T2] alpha="<<alpha<<" converged="<<calcp->DidConverge()
-                  << " iters="<<calcp->IterationCount() << std::endl;
-        if (calcp->DidConverge()) break;
-    }
-    const qchem::SolidCalculation& calc=*calcp;
+    const qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
     auto r=calc.Result();
     std::cout << "[Na2 T2] converged="<<calc.DidConverge()<<" iters="<<calc.IterationCount()
               << " E(last iterate)="<<calc.LastIterateTerms().GetTotalEnergy()
               << "\n[Na2 T2] "<<calc.Diagnostics().Summary() << std::endl;
 
-    // THE RUN MUST CONVERGE -- otherwise this gate silently stops testing what it is named for.  With the
-    // sweep above this asserts that NOT ONE of four measured-good mixing steps settled it, which is a real
-    // regression signal rather than one unlucky draw.
-    ASSERT_TRUE(calc.DidConverge()) << "no swept mixing step converged, so the postcondition below is "
+    // THE RUN MUST CONVERGE -- otherwise this gate silently stops testing what it is named for.
+    ASSERT_TRUE(calc.DidConverge()) << "the run did not converge, so the postcondition below is "
                                        "unexercised again: " << calc.Diagnostics().Summary();
     ASSERT_FALSE(r) << "an imposed, magnetically-seeded run that relaxes to m=0 must NOT hand back an energy";
     EXPECT_EQ(r.Error().why, qchem::SCFFailure::Why::OrderLost)

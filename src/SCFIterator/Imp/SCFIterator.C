@@ -29,6 +29,7 @@ import qchem.Hamiltonian;
 import qchem.Hamiltonian.Factory;  // build a DFT sibling for the HF/DHF SAD bootstrap (molecular, double-only)
 import qchem.Mesh;                 // qcMesh::MeshParams (defaulted -- a seed-quality mesh for the sibling)
 import qchem.Reporting;             // report::Timed -- the SCF loop's own buckets (ParallelAndOraclePlan 1.1)
+import qchem.SCFCap;                // ReportSCFCapHit: an SCF that ends at its cap (the test mains fail on it)
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
@@ -422,6 +423,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     // carried the order, which is a DIFFERENT bug from the loop losing it.
 
     int holeRun=0, momReleases=0;   // 0h MOM-guard state (per run): consecutive hole iterations + releases
+    bool exhaustedStop=false;       // the opt-in ladder-exhaustion stage end (a deliberate early stop, not a cap)
     std::string prevConfig;         // previous occupied configuration (the cfg '*' change flag; item 2)
     for (itsIterationCount=1;
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
@@ -553,6 +555,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
             cout << "  *** SCF stage END: accelerator ladder EXHAUSTED (hand-off fired, no engageable rung)"
                     " -- stopping this stage (StopOnAccelExhausted) ***" << endl;
             itsIterationCount++;   // match the for-increment the break skips (the -- below assumes it ran)
+            exhaustedStop=true;
             break;
         }
         // DisplayEigen();
@@ -566,6 +569,17 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
 //             Etotal       2+V/K    Del(E)  Del(Ro) [F,D]   Nproj    SVMin   Bail      relax
 // │ │                      (1e+05)  (1e-02) (2e-05) (2e-06) 
     itsIterationCount--;
+    // AN SCF THAT ENDS AT ITS CAP IS REPORTED (qchem.SCFCap; user 2026-10-29: "All SCF tests should fail if they hit max
+    // iterations") -- the test mains make it a failure of the running test; a production driver installs no hook.
+    if (!itsConverged && !exhaustedStop)
+    {
+        std::ostringstream os;
+        os << "the SCF ended at its iteration cap (NMaxIter " << ipar.NMaxIter << ") UNCONVERGED: last drho/N "
+           << std::scientific << std::setprecision(2) << ChargeDensityChange << " (gate " << ipar.MinΔρPerElectron << "), [F,D] "
+           << FD << " (gate " << ipar.MinFD << "), E " << std::setprecision(10) << E
+           << " -- assert convergence with gates the run can meet, or wrap a deliberately bounded loop in qchem::BoundedSCF";
+        qchem::ReportSCFCapHit(os.str());
+    }
     size_t nprec=12,ndigits=log10(-eb["Een"])+1,w=1+ndigits+1+nprec;
     nprec-=ndigits;
     if (ipar.Verbose)
@@ -793,15 +807,14 @@ static void WriteHeadMixAccelCfg(std::ostream& os)     // "ρ_mix  accel  svMin 
 static void WriteThreshLead(std::ostream& os)
 { os << PadR("",W_ITER) << " " << PadR("",W_E) << " "; }
 
-// Row prefix shared by every system: # , Etotal (fixed, 12 dp), [F,D] (the accelerator's orbital gradient;
-// "----" for a Null accelerator, which has no [F,D] -- e.g. a pure density-mixing run).
+// Row prefix shared by every system: # , Etotal (fixed, 12 dp), [F,D] (the accelerator's orbital gradient, its worst irrep --
+// every accelerator, Null included, measures it: OrbitalGradient in qchem.SCFAccelerator).
 template <class T> void tSCFIterator<T>::WriteRowPrefix(std::ostream& os, const IterationTrace& tr) const
 {
     os.setf(ios::fixed,ios::floatfield);
     os << setw(W_ITER) << tr.iteration << " ";
     os << setw(W_E) << setprecision(12) << tr.eb.GetTotalEnergy() << " ";
-    if (std::string(tr.accelTag)=="Null") os << PadR("----",W_FD) << " ";
-    else os << std::scientific << setw(W_FD) << setprecision(2) << tr.FD << " ";
+    os << std::scientific << setw(W_FD) << setprecision(2) << tr.FD << " ";
 }
 
 // The three columns common to the END of every row: ρ_mix (Lin/Ker/Pul + α), accel (tag[:count]), cfg ('*'

@@ -81,6 +81,11 @@ Brief notes about module/library conventions, naming, and includes.
     a `CLIapps/` probe binary (`gpwprobe`), not gtest; a gate parked for COST → re-enable, `_Long`-tagged if
     needed; a campaign whose verdict is BANKED in `doc/` → delete; a real claim currently FAILING → an open
     tracker row.  Zero-assert tests are campaign leftovers: delete them.
+- **An SCF that hits NMaxIter FAILS its test** (user, 2026-10-29).  `qchem.SCFCap`: the SCF reports every cap hit and
+    both gtest mains turn it into `ADD_FAILURE` of the running test -- no per-test assert to forget.  A test whose subject
+    is a deliberately bounded loop says so with `qchem::BoundedSCF bounded("why")` (rare; grep for it).  The cap is a
+    safety net (default 100), never the recipe: gate on what the run can meet ([F,D] = `MinFD`, Δρ; Δ[F,D] is retired as
+    a default gate, and the virial measures basis completeness, not convergence).
 - An energy anchor that moves is RE-JUDGED against an independent route, never refreshed (`doc/Pins.md`
     pin 10); a failing charge / count / weight sum is physics and cannot go stale.
 

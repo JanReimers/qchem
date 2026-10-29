@@ -13,7 +13,10 @@ namespace qchem {
 // default member initializers do not disqualify the aggregate.
 export struct SCFParams
 {
-    size_t NMaxIter        = 20;     //Max allowed number of iterations
+    //! Max allowed iterations -- a SAFETY NET, never the recipe: a run that ends here is reported (qchem.SCFCap) and fails a
+    //! test (user 2026-10-29).  100 (was 20): the facade constructors converge on these defaults, and 20 stopped real runs
+    //! just short of their gates (the Si PP atom at [F,D] 1.6e-5 vs 1e-5).
+    size_t NMaxIter        = 100;
     //! THE density convergence gate (D-MINDRHO, 2026-10-22; was \c MinΔρPerElectron, whose meaning depended on the mixer): converged
     //! when the step would still move fewer than this many electrons PER ELECTRON, \f$\int|\rho_{out}-\rho_{in}|\,d^3r/N\f$
     //! on the run's own real-space quadrature (per spin channel for a polarized run; see \c Δρmeasure).
@@ -28,7 +31,12 @@ export struct SCFParams
     //  compared with a CP2K deck's.
     enum class Measure { L1PerElectron, MaxΔD };
     Measure Δρmeasure      = Measure::L1PerElectron;
-    double MinΔFD          = 1e-7;   //Minimum delta in [F,D] (|[F,D]-[F,D]_old|) for convergence.
+    //! |[F,D] - [F,D]_old| for convergence -- RETIRED AS A DEFAULT GATE (user 2026-10-29): off (1e30) unless a run sets it.
+    //! It is a STAGNATION measure, not the orbital gradient: near convergence it is as large as [F,D] itself, so the old
+    //! 1e-7 default silently demanded [F,D] ~ 1e-7 and overrode MinFD (1e-5) -- converged water runs ([F,D] 3.8e-7, still
+    //! shrinking 1.5e-7 a step) never met it and ran out their caps -- and it passes by accident when [F,D] STALLS high.
+    //! Orbital convergence is MinFD (the worst irrep's [F,D]); tighten that for a run that needs more.
+    double MinΔFD          = 1e30;
     double MinΔE           = 1e30;   //Minimum RELATIVE total-energy change |ΔE/E| for convergence (default
                                      //  off).  The physical gate for a NON-variational SCF (density-fit /
                                      //  GPW collocation) whose [F,D]/Δρ limit-cycle above the fit floor while
