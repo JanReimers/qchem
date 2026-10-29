@@ -557,3 +557,23 @@ proposed `Reseat` route was not needed.  Gates: UTCalculation `SolidState.ExactR
 `GPW_NaF.Γ_Becke_Imp_eqUni` +2.9e-8 (12 -> 10 iterations), `GPW_NaF.Γ_Imp_Anchor` +3.7e-9, `GPW_Si.Γ_U_Imp_Pol_Kerker_eqUnpol`
 +8e-10, `GPW_NaF.Γ_Imp_eqExactResume` +3e-10, `GPW_Si.Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint` (67 -> 66) -- the SCF
 path, within convergence; banked `~/Code/qchem6-runs/anchors/firstfield_short.log`.
+
+
+## An EXACT RESUME of a field-mixer state walked away (β-MnO₂ A1AFM r015, U = 0; reported 2026-10-29) -- FIXED 2026-10-29
+Probe `~/Code/qchem6-runs/MnO2/uscan/leak/resume_U0.json` (Kerker/Pulay, Null accel, kT 1e-3, imposed A1AFM): iteration 1 A −93.3798733
+(saved −93.3837082), Δρ 9.8e-3, then −93.130 after 3 iterations.  Ruled out: the restore (E[D_saved] = −93.3809516 == the saved run's
+E(internal); the 2.76 mHa difference to the saved A is its −TS) and the Shubnikov pair projection (the saved pair is symmetric; projecting
+it changes nothing).  TWO causes, both in the restart's first steps: (1) a carried density was never the working density -- the
+iteration-0 fill diagonalized F[D_saved] and THAT seeded the mixer, so the first mixed iterate sat two undamped Fock steps from the saved
+state (a 6.4e-6 residual -> 1e-2 on this soft magnetic system); (2) the fresh mixer PRIMED with plain Kerker (pulayStart 5) AT the fixed
+point and walked 0.29 Ha away before Pulay brought it back (23 iterations).  FIX: `SeedRole::ExactResume` (a restore with no WARM
+difference; `SolidCalculation::Restart` passes it): the carried D IS the first working density; and an exact resume engages Pulay from
+iteration 1 (`tSCFIterator::Iterate`, announced on the console).  r015: iteration 1 A −93.3837059 (2.3 μHa off), converged in 4
+iterations to 1.3e-8.  NOT met, and cannot be: "iteration 1 at Δρ <= the saved state's" -- the saved D is the last OUTPUT density, one
+residual from the fixed point, so its first Fock measures J·δ (2.4e-4 here, ~40x the saved 6.4e-6); the energy holds.  The Pulay
+history is still not saved (a WARM restart's old residuals extrapolate onto the old fixed point; an exact resume rebuilds it in 2
+steps).  Gates: UTCalculation `SolidState.ExactResume_{Pulay,KerkerPulay}_Null_StartsAtTheSavedState` (+ the immediate-Pulay line).
+Sweep 1119/1119; moved vs `firstfield_short`: the restart tests (fewer iterations) and four Shubnikov box tests that move identically
+on the 06260200 build without this change (the merge's, e.g. `GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows` 105 -> 2835 iterations).
+Banked `~/Code/qchem6-runs/anchors/exactresume_short.log`.  The saved state's own convergence belongs in the restart line: OpenWork row
+"A restart's fingerprint is incomplete", item (4).

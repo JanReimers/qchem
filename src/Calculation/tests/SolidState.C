@@ -279,11 +279,15 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     o.saveStateTo="";
     std::vector<SCFIterator::SCFProgress> it;
     o.onIteration=[&it](const SCFIterator::SCFProgress& pr){ it.push_back(pr); };
+    testing::internal::CaptureStdout();
     auto c=SolidCalculation::Restart(path, *si.lat, si.mol, o, p);
+    const std::string out=testing::internal::GetCapturedStdout();
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
     ASSERT_FALSE(it.empty());
+    EXPECT_NE(out.find("exact resume: Pulay history from iteration 1"), std::string::npos)
+        << "an exact resume starts AT the fixed point: no plain-Kerker priming (beta-MnO2 r015: 23 -> 4 iterations)";
     EXPECT_NE(it.front().eb.charge.xcRho, "fitted") << "iteration 1's XC must see rho[D] (pin 28), not the fitted field";
     EXPECT_NEAR(it.front().energy, saved, 1e-7) << "the first iterate of an exact resume is the saved state";
     EXPECT_NEAR(r->Energy(), saved, 1e-7) << "the reference stopped at drho/N 1e-7: its energy is that far from the fixed point";

@@ -399,7 +399,9 @@ RestoreDensity(const SavedState& st, const BasisSet::Complex_BS& bs, SpinGroup g
     if (refs.size()!=st.blocks.size())
         throw std::logic_error("RestoreDensity: "+std::to_string(st.blocks.size())+" saved blocks for "
                                +std::to_string(refs.size())+" in this run -- the fingerprint should have refused");
-    auto cd=std::make_unique<tComposite_CD<dcmplx>>(bs.GetReciprocalPointOps());
+    // Pass 1: every block's weighted D, as saved.
+    std::vector<hmat_t<double>> Dr(refs.size());
+    std::vector<hmat_t<dcmplx>> Dc(refs.size());
     for (size_t b=0;b<refs.size();b++)
     {
         const BlockRef& r=refs[b];
@@ -421,7 +423,7 @@ RestoreDensity(const SavedState& st, const BasisSet::Complex_BS& bs, SpinGroup g
                                 "has |Im D| up to "+std::to_string(imax)+" (run with forceComplex, or resave)"});
             hmat_t<double> Dw(n);
             for (size_t a=0;a<n;a++) for (size_t c=a;c<n;c++) Dw(a,c)=0.5*w*(sb.D(a,c).real()+sb.D(c,a).real());
-            cd->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(Dw, r.real, r.irrep)), r.irrep);
+            Dr[b]=std::move(Dw);
         }
         else
         {
@@ -431,8 +433,28 @@ RestoreDensity(const SavedState& st, const BasisSet::Complex_BS& bs, SpinGroup g
                 Dw(a,a)=dcmplx(w*sb.D(a,a).real(), 0.0);           // a HermitianMatrix diagonal must be real
                 for (size_t c=a+1;c<n;c++) Dw(a,c)=0.5*w*(sb.D(a,c)+std::conj(sb.D(c,a)));
             }
-            cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(IrrepCD_Factory<dcmplx>(Dw, r.cplx, r.irrep)), r.irrep);
+            Dc[b]=std::move(Dw);
         }
+    }
+    // Pass 2: THE DENSITY THE RUN USED.  A polarized run's density is the Shubnikov PAIR projection of each block's
+    // (D_up, D_dn) (tCompositeWF::GetChargeDensity, 3b2a163a), but the file holds the ORBITALS' D (Sigma f c c^dag).  At a
+    // converged imposed state the two agree (beta-MnO2 A1AFM r015: E[D_saved] reproduced the saved E(internal) to 1e-10 with
+    // and without this), so this is the contract, not a measured repair: the restored density is the projected one, as every
+    // later density is.  Blocks are spin-major (Blocks), so block i's twin is i + N.  A no-op without a magnetic group.
+    if (g==SpinGroup::Polarized)
+    {
+        const size_t N=refs.size()/2;
+        assert(2*N==refs.size());
+        for (size_t b=0;b<N;b++)
+            if (refs[b].real) bs.ProjectSpinPair(Dr[b], Dr[b+N]);
+            else              bs.ProjectSpinPair(Dc[b], Dc[b+N]);
+    }
+    auto cd=std::make_unique<tComposite_CD<dcmplx>>(bs.GetReciprocalPointOps());
+    for (size_t b=0;b<refs.size();b++)
+    {
+        const BlockRef& r=refs[b];
+        if (r.real) cd->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(Dr[b], r.real, r.irrep)), r.irrep);
+        else        cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(IrrepCD_Factory<dcmplx>(Dc[b], r.cplx, r.irrep)), r.irrep);
     }
     return O::Ok(std::unique_ptr<cDM_CD>(std::move(cd)));
 }

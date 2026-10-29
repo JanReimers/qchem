@@ -503,7 +503,8 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
 
 // THE SECOND HALF: the Hamiltonian, the seed (the caller's when given -- a restored state), the iterator.
 void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& mol, const std::vector<int>& siteSpins,
-                                std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params)
+                                std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
+                                bool exactResume)
 {
     const SolidCalcOptions& opts=itsImp->opts;
     const bool polarized        = opts.multiplicity>=1;
@@ -558,7 +559,9 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
     // time Init hands its density back, which is below any honest floor and made the postcondition
     // silently skip.  Measured before it is consumed, the baseline is the seed's own.
     const bool polarizedHam = itsImp->ham->GetSpinGroup()==SpinGroup::Polarized;
-    const auto seedRole = seed ? qchem::SCFIterator::SeedRole::WorkingDensity : qchem::SCFIterator::SeedRole::Guess;   // restored = carried
+    const auto seedRole = !seed       ? qchem::SCFIterator::SeedRole::Guess
+                        : exactResume ? qchem::SCFIterator::SeedRole::ExactResume
+                        :               qchem::SCFIterator::SeedRole::WorkingDensity;   // restored = carried
     if (!seed)   // a RESTORED state arrives pre-built (Restart); otherwise the strategy the options name
     {
         qchem::report::Timed timed("setup: seed density (SAD/IonicSAD atomic solves)");
@@ -1174,7 +1177,7 @@ SolidCalculation::Restart(const std::string& path, const Lattice_3D& lat, std::s
         for (const std::string& d : *warm) os<<"\n"<<tag<<"  differs: "<<d;
         std::cout<<os.str()<<std::endl;
     }
-    c->BuildRun(lat, *mol, siteSpins, cd.TakeValue(), params);
+    c->BuildRun(lat, *mol, siteSpins, cd.TakeValue(), params, exact);
     (void)c->Converge(params);
     c->itsImp->accOpts.ladderStartOnGDM=acc.ladderStartOnGDM;   // later stages on this calculation start as asked
     if (exact)

@@ -238,12 +238,13 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     // (+-alpha, a new U) still takes its full first step.  At kT = 0 without MOM the fill above already IS the run's, and the
     // path stays bit-identical.  (Making the carried density the working density outright was tried first: the +-alpha stages
     // lost that first step and limit-cycled once the linear mixer grew relax 0.2 -> 1.0.)
-    if (role==SeedRole::WorkingDensity)
+    if (role==SeedRole::WorkingDensity || role==SeedRole::ExactResume)
     {
         auto* carried=dynamic_cast<tDM_CD<T>*>(seed);
         if (!carried) throw std::logic_error("SCFIterator: a WorkingDensity seed must be matrix-backed (a converged state of this graph)");
         seedOwner.release();
         itsCarried.reset(carried);
+        itsCarriedIsWorking = role==SeedRole::ExactResume;
     }
 }
 // R2.22: there is nothing left to free by hand.  The Hamiltonian and the accelerator are the CALLER's
@@ -345,7 +346,22 @@ template <class T> SCFParams tSCFIterator<T>::ResolveMixing(const SCFParams& p) 
 
 template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
 {
-    const SCFParams ipar=ResolveMixing(callerParams);   // Mixing::Auto -> this run's mixer (CreateMixer reads the result)
+    const SCFParams ipar=[&]
+    {
+        SCFParams r=ResolveMixing(callerParams);   // Mixing::Auto -> this run's mixer (CreateMixer reads the result)
+        // AN EXACT RESUME STARTS PULAY AT ONCE (OpenWork §3, 2026-10-29; the field-mixer twin of "a restart enters the Ladder at
+        // its GDM rung").  Plain-Kerker priming exists because a history built far from the fixed point is unstable; an exact
+        // resume starts AT it, where priming only hands a soft mode five undamped-ish steps: beta-MnO2 A1AFM r015 walked 0.29 Ha
+        // away and took 23 iterations back with pulayStart 5, 4 with 0.  The history itself is NOT saved (qchem.SolidState: a
+        // WARM restart's old residuals extrapolate onto the old fixed point); an exact resume rebuilds it in two steps.
+        if (itsCarriedIsWorking && r.PulayDepth>0 && r.PulayStart>0)
+        {
+            std::cout << "[restart] exact resume: Pulay history from iteration 1 (pulayStart " << r.PulayStart
+                      << " -> 0 -- priming is for a start far from the fixed point)" << std::endl;
+            r.PulayStart=0;
+        }
+        return r;
+    }();
     // ★ THE RESIDUE BUCKET (doc/ParallelAndOraclePlan.md 1.1(a)).  report::Timed is EXCLUSIVE, so an outer
     // scope around the whole loop charges itself precisely what its children do NOT -- i.e. this bucket IS
     // the answer to "how much of the unbucketed time is inside Iterate", with no guessing about where to
@@ -371,7 +387,9 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     {
         if (ipar.SmearingkT>0.0 || ipar.UseMOM)
             SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, itsCarried.get(), *itsOccPolicy, 0.0001)));
+        if (itsCarriedIsWorking) SetWorkingCD(itsCarried);   // EXACT RESUME: the saved state itself drives the first Fock
         itsCarried.reset();
+        itsCarriedIsWorking=false;
     }
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     // V1.27: is the virial theorem meaningful for THIS Hamiltonian at all?  It needs a Coulombic (degree -1
