@@ -5,16 +5,21 @@
 // FindAtom now THROWS, naming the element and the file.  The file here is written by the test, so no data-file edit can move it.
 
 #include "gtest/gtest.h"
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <unistd.h>
+#include <vector>
+#include <nlohmann/json.hpp>
 
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
 import qchem.BasisSet.Gaussian.Point.Reader;    // ReadShells / ShellMerge
 import qchem.BasisSet.Gaussian.Point.Factory;   // FactoryFromFile -- the orbital bases end to end
+import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisNames / BasisFileOfName / BasisFileChecksum (D-BASIS-REGISTRY)
 import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Structure;
@@ -136,4 +141,45 @@ TEST(PPProvenance, AQ3RunOnAQ1BlockThrowsNamingBoth)
     const std::string bare=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_noprov.bsd")).string();
     { std::ofstream f(bare); f<<"title\n\n!\nBASIS=\"t\"\n"; }
     EXPECT_NO_THROW(CheckPPProvenance(bare, {{"Li",3}})) << "an untagged (legacy) file declares nothing";
+}
+
+// D-BASIS-REGISTRY (CleanCode, 2026-10-30): a basis is NAMED by its file stem in the data directory -- every .bsd there is
+// usable by name with no registration; the enum is only the C++ handle of the files code names directly, and each handle's
+// name is a stem that is there.  A name that is not there throws, listing the names that are.
+TEST(BasisNames, ABasisIsAFileStemAndEveryHandleNamesOneThatIsThere)
+{
+    const std::vector<std::string> names=BasisNames();
+    auto has=[&](const std::string& n){ return std::find(names.begin(), names.end(), n)!=names.end(); };
+    EXPECT_TRUE(has("valence_lowq_tm")) << "a file with no handle is still a name";
+    for (BasisSetData d : {BasisSetData::DZVP, BasisSetData::DZVP2, BasisSetData::TZVP, BasisSetData::ORB, BasisSetData::ORB1,
+                           BasisSetData::SIPP, BasisSetData::SIPP_SR, BasisSetData::VALENCE_LOWQ, BasisSetData::VALENCE_LOWQ_SR,
+                           BasisSetData::VALENCE_LOWQ_SR2, BasisSetData::VALENCE_LOWQ_SPH, BasisSetData::VALENCE_LOWQ_VA,
+                           BasisSetData::VALENCE_LOWQ_VB})
+    {
+        const std::string stem=BasisName(d);
+        EXPECT_TRUE(has(stem)) << stem << ": a handle names a file that is not in the data directory";
+        std::string upper=stem; for (char& c : upper) c=(char)std::toupper((unsigned char)c);
+        BasisSetData back{};
+        ASSERT_TRUE(RegisteredBasis(upper, back)) << upper;
+        EXPECT_EQ(back, d) << "the handle's name, in any case, gives the handle back";
+    }
+    BasisSetData unused{};
+    EXPECT_FALSE(RegisteredBasis("valence_lowq_tm", unused));
+    EXPECT_EQ(BasisFileOfName("Valence_LowQ_TM"), "valence_lowq_tm.bsd") << "any case";
+    try { (void)BasisFileOfName("valence_lowq_typo"); FAIL() << "an unknown name must throw"; }
+    catch (const std::runtime_error& e)
+    {
+        const std::string m=e.what();
+        EXPECT_NE(m.find("valence_lowq_typo"), std::string::npos) << m;
+        EXPECT_NE(m.find("valence_lowq_tm"),   std::string::npos) << "the names that ARE there are listed: " << m;
+    }
+    // The json door resolves the same names: one H atom on the dzvp file, by stem.
+    Molecule m; m.Insert(new Atom(1, 0.0, Vector3D(0,0,0)));
+    std::unique_ptr<qchem::BasisSet::tBasisSet<double>> bs(Factory(nlohmann::json{{"basis","DZVP"}}, &m));
+    EXPECT_GT(bs->GetNumFunctions(), 0u);
+    EXPECT_THROW((void)Factory(nlohmann::json{{"basis","nope"}}, &m), std::runtime_error);
+    // The checksum is of the CONTENTS: stable, and different for a different file.
+    EXPECT_EQ(BasisFileChecksum("dzvp.bsd"), BasisFileChecksum("dzvp.bsd"));
+    EXPECT_NE(BasisFileChecksum("dzvp.bsd"), BasisFileChecksum("dzvp2.bsd"));
+    EXPECT_EQ(BasisFileChecksum("dzvp.bsd").size(), 16u);
 }
