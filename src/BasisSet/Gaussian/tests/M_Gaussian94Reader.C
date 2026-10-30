@@ -10,6 +10,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <unistd.h>
 
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
 import qchem.BasisSet.Gaussian.Point.Reader;    // ReadShells / ShellMerge
@@ -110,4 +111,29 @@ TEST(Gaussian94Reader, AnOrbitalBasisLoadsEveryShellOfASharedExponent)
     EXPECT_EQ(count(Engine::MnD,     Angular::Cartesian), 4u) << "1 s + 3 p";
     EXPECT_EQ(count(Engine::MnD,     Angular::Spherical), 4u);
     EXPECT_EQ(count(Engine::LibCint, Angular::Cartesian), 4u);
+}
+
+// C4 step 4 (D-BASIS-PP): a file's PP-PROVENANCE preamble line is checked against the run's {element, q}.  A q3 run on a q1
+// block THROWS naming file, element and both q; an element or a file that declares nothing is accepted; the tag is invisible
+// to the reader (it sits before the lone `!`).
+TEST(PPProvenance, AQ3RunOnAQ1BlockThrowsNamingBoth)
+{
+    const std::string path=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_provenance.bsd")).string();
+    {
+        std::ofstream f(path);
+        f<<"title\nPP-PROVENANCE LI=1 F=7\n\n!\nBASIS=\"t\"\n";
+    }
+    EXPECT_NO_THROW(CheckPPProvenance(path, {{"Li",1},{"F",7}}));
+    EXPECT_NO_THROW(CheckPPProvenance(path, {{"Na",9}})) << "an element the file does not declare is accepted";
+    try { CheckPPProvenance(path, {{"Li",3}}); FAIL() << "q3 on a q1 block must throw"; }
+    catch (const std::runtime_error& e)
+    {
+        const std::string m=e.what();
+        EXPECT_NE(m.find("Li"),std::string::npos) << m;
+        EXPECT_NE(m.find("q1"),std::string::npos) << m;
+        EXPECT_NE(m.find("q3"),std::string::npos) << m;
+    }
+    const std::string bare=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_noprov.bsd")).string();
+    { std::ofstream f(bare); f<<"title\n\n!\nBASIS=\"t\"\n"; }
+    EXPECT_NO_THROW(CheckPPProvenance(bare, {{"Li",3}})) << "an untagged (legacy) file declares nothing";
 }

@@ -128,7 +128,7 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
         std::vector<double> Z, R;
         st.ForEachSite([&](int z, const rvec3_t& r, bool){ Z.push_back(z); R.push_back(r.x); R.push_back(r.y); R.push_back(r.z); });
         fp.refuseNum["structure.Z"]=Z;
-        fp.refuseNum["structure.positions"]=R;
+        fp.warmNum["structure.positions"]=R;                     // WARM: a geometry step carries D (the basis centres follow)
     }
     {
         // Canonical (sorted) so listing the same species in another order is not a "different run".
@@ -137,6 +137,7 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
         std::string s;
         for (const auto& [el,val] : sp) s += (s.empty() ? "" : ",") + el + ":" + std::to_string(val);
         fp.refuseStr["species"]=s;
+        fp.refuseStr["pp.set"]=id.ppSet;
     }
     {
         // The ORBITAL basis, shell by shell in block order: every Bloch block is the Bloch sum of these shells
@@ -159,7 +160,7 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
         fp.refuseNum["basis.shellL"]=L;
         fp.refuseNum["basis.shellComponents"]=nc;
         fp.refuseNum["basis.shellPrimitives"]=np;
-        fp.refuseNum["basis.shellCenters"]=cen;
+        fp.warmNum["basis.shellCenters"]=cen;
         fp.refuseNum["basis.exponents"]=ex;
         fp.refuseNum["basis.coefficients"]=co;
     }
@@ -182,7 +183,7 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
     }
     fp.refuseNum["electrons.Nelec"]={double(id.Nelec)};
     fp.refuseStr["spinGroup"]=SpinGroupName(g);
-    fp.refuseStr["functional"]=id.functional;
+    fp.warmStr["functional"]=id.functional;
 
     // ---- WARM: a restart across these is what the mechanism is FOR ----
     {
@@ -214,10 +215,33 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
     return fp;
 }
 
-Outcome<std::vector<std::string>, RestartRefusal> CompareFingerprints(const StateFingerprint& saved,
+//! A state written before C4 step 5 filed the functional, the atom positions and the shell centres under REFUSE and had no
+//! pp.set: move them to the class they belong to now, and take the run's pp.set for a state that never recorded one (its
+//! species string, still REFUSE, carries the q per element).  Additive: an old file keeps loading.
+static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now)
+{
+    for (const char* k : {"structure.positions", "basis.shellCenters"})
+        if (auto it=s.refuseNum.find(k); it!=s.refuseNum.end()) { s.warmNum[k]=std::move(it->second); s.refuseNum.erase(it); }
+    if (auto it=s.refuseStr.find("functional"); it!=s.refuseStr.end()) { s.warmStr["functional"]=std::move(it->second); s.refuseStr.erase(it); }
+    if (!s.refuseStr.count("pp.set") && now.refuseStr.count("pp.set")) s.refuseStr["pp.set"]=now.refuseStr.at("pp.set");
+    return s;
+}
+
+//! Largest atom displacement between two flattened position lists, or -1 if they are not comparable.
+static double MaxDisplacement(const std::vector<double>& a, const std::vector<double>& b)
+{
+    if (a.size()!=b.size() || a.size()%3!=0) return -1.0;
+    double m=0.0;
+    for (size_t i=0;i<a.size();i+=3)
+        m=std::max(m, std::sqrt((a[i]-b[i])*(a[i]-b[i]) + (a[i+1]-b[i+1])*(a[i+1]-b[i+1]) + (a[i+2]-b[i+2])*(a[i+2]-b[i+2])));
+    return m;
+}
+
+Outcome<std::vector<std::string>, RestartRefusal> CompareFingerprints(const StateFingerprint& savedAsWritten,
                                                                      const StateFingerprint& now)
 {
     using O=Outcome<std::vector<std::string>, RestartRefusal>;
+    const StateFingerprint saved=Migrated(savedAsWritten, now);
     const std::vector<std::string> refuse=Differences(saved.refuseNum, now.refuseNum, saved.refuseStr, now.refuseStr);
     if (!refuse.empty())
     {
@@ -225,7 +249,18 @@ Outcome<std::vector<std::string>, RestartRefusal> CompareFingerprints(const Stat
         for (const std::string& r : refuse) d+="\n    "+r;
         return O::Fail({RestartRefusal::Why::Mismatch, d});
     }
-    return O::Ok(Differences(saved.warmNum, now.warmNum, saved.warmStr, now.warmStr));
+    std::vector<std::string> warm=Differences(saved.warmNum, now.warmNum, saved.warmStr, now.warmStr);
+    // A moved atom is ONE fact: say how far, and drop the basis-centre line that is only its consequence.
+    const auto sp=saved.warmNum.find("structure.positions"), np=now.warmNum.find("structure.positions");
+    if (sp!=saved.warmNum.end() && np!=now.warmNum.end())
+        if (const double d=MaxDisplacement(sp->second, np->second); d>1e-10)
+        {
+            std::erase_if(warm, [](const std::string& l){ return l.rfind("structure.positions:",0)==0 || l.rfind("basis.shellCenters:",0)==0; });
+            std::ostringstream os;
+            os<<"structure.positions: atoms moved, max displacement "<<std::setprecision(6)<<d<<" bohr (the basis follows)";
+            warm.push_back(os.str());
+        }
+    return O::Ok(std::move(warm));
 }
 
 //---------------------------------------------------------------------------------------------------

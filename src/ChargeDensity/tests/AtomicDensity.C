@@ -111,3 +111,27 @@ TEST(AtomicDensity, AmbiguousPseudopotentialVariantThrowsInsteadOfPickingTheFirs
     EXPECT_NO_THROW(GetAtomicDensity(3, "LDA", path, 3)) << "Nelec=3 is unique";
     EXPECT_FALSE(HasAtomicDensity(3, "LDA", path, 4)) << "no such state is absence, not an error";
 }
+
+// C4 step 3: the same fixture, now asked WITH the PP variant q (SeedKey::Q) -- the ambiguities dissolve and q1 / q3
+// pick different entries (different rho), and a q the library lacks is absence.
+TEST(AtomicDensity, TheQKeyPicksTheVariantsOwnEntry)
+{
+    const std::string path=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_seed_qkey.json")).string();
+    {
+        auto entry=[](int nelec, int q, double rho0)
+        {
+            return "{\"Z\":3,\"functional\":\"LDA\",\"Nelec\":"+std::to_string(nelec)+",\"q\":"+std::to_string(q)
+                 + ",\"grid\":{\"rmin\":1e-3,\"rmax\":10.0},\"rho\":["+std::to_string(rho0)+",0.05,0.01]}";
+        };
+        std::ofstream f(path);
+        f<<"["<<entry(1,1,0.1)<<","<<entry(3,3,0.3)<<","<<entry(1,3,0.7)<<"]";
+    }
+    const double r1=GetAtomicDensity(3,"LDA",path,-1,1)(1e-3), r3=GetAtomicDensity(3,"LDA",path,-1,3)(1e-3);
+    EXPECT_NEAR(r1,0.1,1e-12) << "q1's neutral";
+    EXPECT_NEAR(r3,0.3,1e-12) << "q3's neutral (Nelec==q), not the q3 +2 ion";
+    EXPECT_NEAR(GetAtomicDensity(3,"LDA",path,1,3)(1e-3),0.7,1e-12) << "q3's +2 ion (Nelec 1) is addressable once q says which Nelec=1";
+    EXPECT_FALSE(HasAtomicDensity(3,"LDA",path,-1,5)) << "a q the library lacks is absence";
+    const SeedKey key("LDA",{{3,1}});
+    EXPECT_EQ(key.Q(3),1);
+    EXPECT_EQ(key.Q(8),-1);
+}

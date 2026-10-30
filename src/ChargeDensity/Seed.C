@@ -7,6 +7,7 @@ module;
 
 export module qchem.ChargeDensity.Seed;
 export import qchem.ChargeDensity;   // tDM_CD<T>
+export import qchem.ChargeDensity.AtomicDensity;   // SeedKey (the functional + per-Z PP variant the seeds are keyed by)
 import qchem.BasisSet;               // tBasisSet<T>, and (re-exported) Structure / ElectronConfiguration
 
 export namespace qchem::ChargeDensity
@@ -28,7 +29,7 @@ std::vector<int> IonicFormalCharges(const std::vector<std::pair<int,int>>& atoms
 //! seed that plants the moments cannot drift apart.  Assembled HERE, beside that rule, and threaded to
 //! the basis factory's symmetry-policy resolution (\c GPWParams::siteSpins): the factory then imposes
 //! the SHUBNIKOV group of this decoration instead of the grey group, which would erase the order.
-std::vector<int> MagneticDecoration(const Structure* st, const std::string& functional = "LDA",
+std::vector<int> MagneticDecoration(const Structure* st, const SeedKey& key = SeedKey{},
                                     const std::vector<int>& ionicNvalBySite = {});
 
 //! \brief The IonicSAD per-SITE TARGET valence counts (one per atom, in atom-index order), derived from the
@@ -37,7 +38,7 @@ std::vector<int> MagneticDecoration(const Structure* st, const std::string& func
 //! \c MagneticDecoration share, so a driver decorating an IonicSAD run passes \c IonicSADTargets(st) and
 //! cannot drift from its seed.  PER SITE, not per species (OpenWork §3, 2026-10-26): a mixed-valence cell
 //! (LiMn2O4: Mn3+ and Mn4+) keeps each atom's own charge state, and the targets sum to the cell's charge.
-std::vector<int> IonicSADTargets(const Structure* st, const std::string& functional = "LDA");
+std::vector<int> IonicSADTargets(const Structure* st, const SeedKey& key = SeedKey{});
 
 
 //! How the SCF loop is seeded with an initial charge density.
@@ -68,8 +69,11 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //! library's per-species Hund pairs + the structure's per-atom \c itsSpinFlip bits assemble a genuinely
 //! spin-resolved seed (an AFM staggering, a doublet's majority channel), instead of the spin-agnostic
 //! total that collapses to rho/2 in the polarized terms.  Ignored (harmless) on unpolarized runs.
+//!
+//! \a key names the functional and, per Z, the pseudopotential variant q whose seed densities the
+//! plane-wave seeds read (the run setup builds it from its \c PseudopotentialSet); the default is unkeyed LDA.
 template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<T>* bs,
                                                       const Structure* st, const ElectronConfiguration* ec,
-                                                      bool polarized=false);
+                                                      bool polarized=false, const SeedKey& key=SeedKey{});
 
 } //namespace

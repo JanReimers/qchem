@@ -1,4 +1,5 @@
 valence_lowq_va: the EXACT-SPAN variant VA -- the span BOTH codes hold at FULL RANK (N=118 on the
+PP-PROVENANCE F=7 Na=1 Al=3 Li=1 Mn=7 Ni=10 O=6 V=5 Sr=2
 MnO 2-f.u. magnetic cell), and the basis of the doc/Benchmark.md MnO rows.  It is valence_lowq_sph.bsd
 minus THREE diffuse shells: Mn d 0.18, O s 0.15, O p 0.18.  Its CP2K counterpart is the
 VALENCE-LOWQ-VA (Mn) + VALENCE-LOWQ-VB (O) pair in IntegrationTests/CP2K/VALENCE-LOWQ-BASIS, used by

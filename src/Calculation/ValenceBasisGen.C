@@ -100,8 +100,10 @@ export namespace qchem
                                              int Ngrid=400, double rmin=1e-4, double rmax=20.0);
 
     //! Wrap element \a blocks into a complete Gaussian94 .bsd file (the shared comment/`!`/`BASIS=` header,
-    //! then every block).  \a name is the file's descriptive title + BASIS= tag.
-    std::string AssembleBasisFile(const std::string& name, const std::vector<std::string>& blocks);
+    //! then every block).  \a name is the file's descriptive title + BASIS= tag.  \a ppValence = {element, q} of each
+    //! block: written as the `PP-PROVENANCE` preamble line that \c BasisSet::Gaussian::CheckPPProvenance reads (D-BASIS-PP).
+    std::string AssembleBasisFile(const std::string& name, const std::vector<std::string>& blocks,
+                                  const std::vector<std::pair<std::string,int>>& ppValence={});
 
     //! A geometric (even-tempered) window: \a N exponents from \a emin to \a emax inclusive.
     std::vector<double> EvenTemperedWindow(int N, double emin, double emax);

@@ -1,4 +1,5 @@
 valence_lowq_sph: the SR basis with the Mn TRUE-s WINDOW RESTORED -- for SPHERICAL-d runs ONLY
+PP-PROVENANCE F=7 Na=1 Al=3 Li=1 Mn=7 Ni=10 O=6 V=5 Sr=2
 (doc/SphericalLatticePlan.md I3, 2026-08-13).  Identical to valence_lowq_sr.bsd in every entry except
 Mn/O, restored to the EXACT span of the CP2K transcription (IntegrationTests/CP2K/VALENCE-LOWQ-BASIS):
 Mn s back to the 7-point window {0.10 .. 24}, Mn d back to 8 (the diffuse 0.18 the SR cell-trim

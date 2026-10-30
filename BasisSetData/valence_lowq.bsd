@@ -1,4 +1,5 @@
 Low-q GTH-pseudopotential valence basis, generated from atomic pseudo-atom SCFs (doc/GPWPlan sec 1)
+PP-PROVENANCE F=7 Na=1 Al=3
 
 !
 BASIS="Low-q GTH-pseudopotential valence basis, generated from atomic pseudo-atom SCFs (doc/GPWPlan sec 1)"
