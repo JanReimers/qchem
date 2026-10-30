@@ -140,6 +140,8 @@ anchor moves unexpectedly) is handed to Opus.
 
 **Sweeps that are compared run SERIAL** (`QCHEM_OPENMP_THREADS` unset), like every main baseline: several tests are not thread-count invariant (lane A 2026-10-29: 57 anchor moves up to 2.8e-6 at 4 threads; OpenWork row).  Threads are for panel and campaign runs, never a landing sweep.
 
+**Landing sweep = short serial (`-LE long`) + routine long serial (`-L long -LE panel`, ~6 min); the convergence panel (`-L panel`, hours) runs only when a lane touches SCFAccelerator / SCFIterator / mixers / the Calculation SCF path, and is judged against its iteration budgets, not by anchordiff** (user 2026-10-30).
+
 ## 7. The three grid-and-symmetry decisions, with context
 
 **Raster default (agreed: AliasFree — with your caveat).**  BallOnly is much faster and was right for weeks; the loss was the HOURS
@@ -241,7 +243,7 @@ Lane B design review: OOD V-CALCNET.  C6: CleanCode D-WARNINGS.  Forces prerequi
 re-run, NiO/SrVO₃ vs hp.x, the PW 4× XC ball re-run, the three β-MnO₂ rows; §4 LR ledger, dense PW cost, LR on real TRIM; OOD V1.40;
 CleanCode D-ENV-RERUN, D-CKALPHA-AUTO.
 
-**X (12, the quota)** — CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
+**X (13, the quota)** — OpenWork "every `_Long` test re-proves its claim at the cheapest resolution" (lane A, right after C1 B2 lands; it shares the vendored-state mechanism with panel #19); CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
 D-CONTRACTED-SHELL, D-FIT-MERGE; OpenWork "Blaze heevx/syevx" (rides ModuleToolchain Step 4).
 
 **P (parked / features / triggers)** — §2 B-spline basis, hybrids, GW, transport/MD, USPP/PAW, OT (and with it CleanCode V1.24(iii)),
