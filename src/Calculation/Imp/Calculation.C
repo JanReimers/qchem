@@ -33,6 +33,13 @@ namespace qchem
 namespace PG = ::qchem::BasisSet::Gaussian::PG_Cart;
 using SCFIter = qchem::SCFIterator::MolecularSCFIterator;   // item 2: the atom/molecule display subclass
 
+//! The spin density of an unpolarized run: m(r) = 0 everywhere (GetSpinDensity).
+struct ZeroField : public virtual ScalarFunction<double>
+{
+    double         operator()(const rvec3_t&) const override {return 0.0;}
+    vec3_t<double> Gradient  (const rvec3_t&) const override {return vec3_t<double>(0.0, 0.0, 0.0);}
+};
+
 // Build the molecular orbital basis, optionally SALC point-group-blocked.  When symmetry is off the
 // caller owns the raw basis directly; when on, the raw basis is handed to PG::SymmetryAdapt as a
 // shared_ptr that the returned SymmetryAdaptedBasisSet keep-alives -- so the facade owns (and deletes)
@@ -101,17 +108,18 @@ static void EmitScfSection(const SCFParams& p, const std::string& accelerator)
     rpt::EmitSection("scf", scf);
 }
 
-Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf)
-    : Calculation(setup, *setup->reference, nullptr, scf)
+Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
+    : Calculation(setup, *setup->reference, nullptr, scf, std::move(onIteration))
 {}
 
 Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
-                         const SCFParams& scf)
+                         const SCFParams& scf, Observer onIteration)
     : itsSetup(std::move(setup))
     // A pseudopotential run works on the VALENCE ions (Z-Zion charge) so the electron count is the valence count -- the
     // structure the basis and the EC both read.
     , itsStructure(itsSetup->PointStructure(at))
     , itsCarry(std::move(carry))
+    , itsObserver(std::move(onIteration))
 {
     itsEC    = MakeMoleculeEC(itsSetup->Ne, itsSetup->opts.multiplicity);
     // The basis is NOT built here: the first Converge builds it INSIDE its run report's "basis" section, so a
@@ -254,6 +262,21 @@ void Calculation::RebuildSampling()
             }
     std::sort(itsOccupied.begin(), itsOccupied.end(),
               [](const occ_t& a, const occ_t& b){ return a.first < b.first; });   // ascending energy
+
+    itsLevels.clear();
+    for (const Irrep& irr : wf->GetQNs())
+        for (const auto* o : wf->GetOrbitals(irr)->Iterate())
+        {
+            const auto* phi = dynamic_cast<const sf_t*>(o);   // abstract -> abstract, as above
+            assert(phi);
+            itsLevels.push_back({o->GetEigenEnergy(), o->GetOccupation(), irr.ms, o->GetLabel(), phi});
+        }
+    std::stable_sort(itsLevels.begin(), itsLevels.end(), [](const Level& a, const Level& b){ return a.e < b.e; });
+
+    if (wf->GetSpinGroup()==SpinGroup::Polarized)
+        itsSpinDensity = wf->GetSpinDensity();
+    else
+        itsSpinDensity = std::make_unique<ZeroField>();   // m == 0 under imposed SU(2): a field, not an absence
 }
 
 void Calculation::OnIteration(Observer obs) {itsObserver = std::move(obs);}
@@ -286,8 +309,8 @@ Calculation::Carry Calculation::MakeCarry() const
 //====================================================================================================
 //  THE MOLECULAR SESSION (doc/CalcNetworkReview.md §7, step 8)
 //====================================================================================================
-MoleculeSession::MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf)
-    : itsSetup(std::move(setup)), itsSCF(scf) {}
+MoleculeSession::MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Calculation::Observer onIteration)
+    : itsSetup(std::move(setup)), itsSCF(scf), itsObserver(std::move(onIteration)) {}
 MoleculeSession::~MoleculeSession() = default;
 
 PESGeometry MoleculeSession::Reference() const
@@ -332,7 +355,7 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
     std::unique_ptr<const Calculation::Carry> carry;
     if (itsPoint) carry=std::make_unique<const Calculation::Carry>(itsPoint->MakeCarry());
     itsPoint.reset();   // one point's memory at a time
-    itsPoint.reset(new Calculation(itsSetup, *at, std::move(carry), itsSCF));
+    itsPoint.reset(new Calculation(itsSetup, *at, std::move(carry), itsSCF, itsObserver));
     if (!itsPoint->IsConverged())
         return O::Fail({Why::SCF, "the SCF did not converge in "+std::to_string(itsPoint->IterationCount())+" iterations"});
     return O::Ok(PESPoint{.energy=itsPoint->Energy(), .forces={}, .iterations=itsPoint->IterationCount()});
@@ -351,6 +374,14 @@ const Calculation::sf_t& Calculation::HOMO() const
 {
     assert(!itsOccupied.empty());
     return *itsOccupied.back().second;
+}
+
+const std::vector<Calculation::Level>& Calculation::GetLevels() const {return itsLevels;}
+
+const Calculation::sf_t& Calculation::GetSpinDensity() const
+{
+    assert(itsSpinDensity);
+    return *itsSpinDensity;
 }
 
 const Calculation::sf_t& Calculation::Orbital(size_t i) const
