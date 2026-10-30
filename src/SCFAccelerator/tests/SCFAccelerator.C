@@ -370,18 +370,31 @@ TEST(SCFAcceleratorLadder, HandOffIsVetoedAndRetreatsOnANonEngageableRung)
     lad.SetEnergy(-1.0); lad.SetEnergy(-1.0-1e-9);
     lad.CalculateProjections();
     EXPECT_STREQ(lad.Tag(), "Null") << "the tail hand-off must be VETOED onto a non-engageable rung";
+    EXPECT_FALSE(lad.TakeHandOff()) << "a vetoed advance is not a hand-off (R1.3)";
 
     // Integer occupations restore the precondition: the same trigger may now advance.
     irrep->UseFD(MakeFock(), MakeDPrime(rmat_t(Identity(N))));
     lad.SetEnergy(-1.0-2e-9);
     lad.CalculateProjections();
     EXPECT_STREQ(lad.Tag(), "GDM") << "with an idempotent D' the tail hand-off proceeds";
+    {   // R1.3: the advance is REPORTED to the owner (the iterator prints it), once
+        const auto h=lad.TakeHandOff();
+        ASSERT_TRUE(h);
+        EXPECT_EQ(h->from, "Null"); EXPECT_EQ(h->to, "GDM");
+        EXPECT_FALSE(lad.TakeHandOff()) << "taking it clears it";
+    }
 
     // The occupation turns smeared UNDER the active rung (late discovery): the ladder must retreat.
     irrep->UseFD(MakeFock(), MakeSmearedDPrime());
     lad.SetEnergy(-1.0-3e-9);
     lad.CalculateProjections();
     EXPECT_STREQ(lad.Tag(), "Null") << "an active rung whose standing precondition failed must be RETREATED from";
+    {
+        const auto h=lad.TakeHandOff();
+        ASSERT_TRUE(h) << "a retreat is a hand-off too";
+        EXPECT_EQ(h->from, "GDM"); EXPECT_EQ(h->to, "Null");
+        EXPECT_NE(h->why.find("RETREAT"), std::string::npos);
+    }
     delete las;
 }
 

@@ -231,3 +231,28 @@ TEST(JointPulay, ReseatFieldMakesAFreshMixerAtTheCurrentDensity)
     kFresh.MixField(GField{next,rvec_t{}});
     EXPECT_LT(MaxDiff(k.Field().tilde, kFresh.Field().tilde), 1e-15);
 }
+
+// R1.3 (doc/SCFRobustnessPlan.md): Pulay's priming steps giving way to its history is a HAND-OFF, decided inside the mixer and
+// REPORTED to the iterator (which owns the console line): exactly once, on the first history step, and taking it clears it.  A
+// mixer that starts its history at once (pulayStart 0, the exact resume) reports nothing -- the iterator said so itself.
+TEST(JointPulay, PrimingToHistoryIsReportedOnceAsAHandOff)
+{
+    const ReciprocalLattice recip=Recip(10.0);
+    const Trajectory t;
+    PulayMixer p(0.4, 0.0, 8, /*start*/2, nullptr, recip, GField{t.seedUp, rvec_t{}}, 8.0);
+    p.MixField(GField{t.up[0],rvec_t{}});
+    EXPECT_FALSE(p.TakeHandOff()) << "priming step 1";
+    p.MixField(GField{t.up[1],rvec_t{}});
+    EXPECT_FALSE(p.TakeHandOff()) << "priming step 2";
+    p.MixField(GField{t.up[2],rvec_t{}});
+    const auto h=p.TakeHandOff();
+    ASSERT_TRUE(h) << "the first history step hands off";
+    EXPECT_EQ(h->from, "Kerker priming");
+    EXPECT_NE(h->to.find("Pulay history"), std::string::npos);
+    EXPECT_FALSE(p.TakeHandOff()) << "taking it clears it";
+    p.MixField(GField{t.dn[0],rvec_t{}});
+    EXPECT_FALSE(p.TakeHandOff()) << "once per regime change, not per step";
+
+    PulayMixer now(0.4, 0.0, 8, /*start*/0, nullptr, recip, GField{t.seedUp, rvec_t{}}, 8.0);
+    for (const auto& f : t.up) { now.MixField(GField{f,rvec_t{}}); EXPECT_FALSE(now.TakeHandOff()); }
+}
