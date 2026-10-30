@@ -288,3 +288,14 @@ the iteration count; the molecular side needs the same per-block D → `tDM_CD<d
 - **7a** -- `MoleculeSetup` + `Attempt`.  Gate: M_* bit-identical.  **7b** -- molecular decks (`structure` from
   `molecules.json`): the `RunSpec` grows a molecular arm.  Gate: a molecular deck vets and runs.
 - **8** -- the face + both sessions, energy only.  Gates (a)–(c) of §5 on H₂O and NaF Γ.
+
+**As built (lane B, 2026-10-30)** -- `7d980306` 6a, `301f28fb` 6b, `34dc9205` 7a, `d5835f33` 8a, `2174cab5` 8b:
+- 6a/6b as designed.  `SolidCalculation(setup, params | schedule)` and `Restart(path, setup, stage)` are the doors; the old
+  constructors resolve and delegate.  `deck::Run` resolves one setup; its trim code is gone.
+- 7a as designed, without `Attempt` (its failure type, `SCFFailure`, needs a home both facades can import -- OpenWork row).
+- 8: the face; `SolidSession` refuses a broken imposed group (space-group / Shubnikov order), a basis the vet loop would
+  trim further at `orthoTol` (Q3), and forces/stress; `MoleculeSession` refuses a change of the SALC abelian group.
+  MEASURED (UTs): (a) the reference point is the single point bit for bit on both; (b) a carried step equals a fresh run --
+  Si Γ, 0.05 bohr: 11 vs 13 iterations at Δρ/N 1e-8 (energies within the two stops' 1e-8 errors; at 1e-9 Si Γ sits on its
+  Δρ quadrature floor, ρ_lost/N 1.8e-9, and neither run is meaningful); H₂O HF/DZVP: 25 vs 34, equal to 1e-12 Ha.
+  Gate (c), NaF Γ, the Q3 UT and the Löwdin lever are the OpenWork row "PES / run-setup remainders".
