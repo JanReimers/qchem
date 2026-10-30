@@ -1,6 +1,7 @@
 // File: SCFParams.C Parameters used for controling SCF iteration and convergence.
 module;
 #include <stdexcept>
+#include <string>
 export module qchem.SCFParams;
 import qchem.Types;
 
@@ -158,12 +159,24 @@ export struct MixingRecipe
 //! AMIX 0.4 and CP2K's ALPHA 0.4 + NBUFFER; Kerker (G0 > 0) is a stated choice, not the default.
 export inline constexpr MixingRecipe theAutoMixing{.relax=0.45, .G0=0.0, .depth=8, .start=5};
 
+//! R1.1 (doc/SCFRobustnessPlan.md P1): THROWS when a density history (Pulay) would run beside a Fock history.  Evidence: free MnO
+//! with Ladder DIIS + density Pulay never took max|ΔD| below 1e-2 (A1, 2026-09-20); Pulay on ρ beside DIIS stalled Si k222 and
+//! diverged Si Γ (A2, 2026-10-22).  Two extrapolators each extrapolate the other's output.
+inline void RequireOneExtrapolator(bool fockExtrapolates, const char* densityHistory)
+{
+    if (fockExtrapolates)
+        throw std::invalid_argument(std::string("SCFParams (R1.1): ")+densityHistory+" keeps a density HISTORY, and the run's "
+            "accelerator keeps a FOCK history (DIIS, or a Ladder with a DIIS rung) -- at most one extrapolator may be live "
+            "(doc/SCFRobustnessPlan.md A1, A2).  Use the Null accelerator (or GDM) with Pulay, or linear/Kerker mixing beside DIIS.");
+}
+
 //! \brief Resolve \c p.Mixer to a concrete mode with its knobs filled; the result's \c Mixer is never \c Auto.
 //! \a gSpace = can this run mix in G space (the periodic iterator asks its density); \a fockExtrapolates = the run's accelerator
 //! keeps a Fock history (DIIS, a ladder with a DIIS rung), beside which \c Auto stays LINEAR -- a density history next to a Fock
 //! history fights (measured 2026-10-22); \a recipe = what \c Auto becomes otherwise.
 //! Idempotent: resolving a resolved value returns it unchanged.  Throws on an explicit G-space mode without its knob,
-//! or without \a gSpace.
+//! or without \a gSpace, and on a density HISTORY beside a Fock history (doc/SCFRobustnessPlan.md R1.1: at most ONE
+//! extrapolator is live -- Pulay is a history, Kerker and linear α are not).
 export inline SCFParams ResolveMixing(const SCFParams& p, bool gSpace, bool fockExtrapolates=false,
                                      const MixingRecipe& recipe=theAutoMixing)
 {
@@ -183,12 +196,17 @@ export inline SCFParams ResolveMixing(const SCFParams& p, bool gSpace, bool fock
         if (p.Mixer==M::Pulay && p.PulayDepth<=0)
             throw std::invalid_argument("SCFParams: Mixing::Pulay needs PulayDepth > 0.");
         if (p.Mixer==M::Kerker) r.PulayDepth=0;
+        if (p.Mixer==M::Pulay) RequireOneExtrapolator(fockExtrapolates, "Mixing::Pulay");
         return r;
     case M::Auto:
         break;
     }
     if (!gSpace)              { r.Mixer=M::Linear; return r; }   // molecules / atoms: today's linear D-mixing
-    if (p.PulayDepth>0)       { r.Mixer=M::Pulay;  return r; }   // a hand-set recipe is kept as it was
+    if (p.PulayDepth>0)                                          // a hand-set recipe is kept as it was -- unless it is illegal
+    {
+        RequireOneExtrapolator(fockExtrapolates, "Mixing::Auto with a hand-set PulayDepth");
+        r.Mixer=M::Pulay; return r;
+    }
     if (p.KerkerG0>0.0)       { r.Mixer=M::Kerker; return r; }
     if (fockExtrapolates)     { r.Mixer=M::Linear; return r; }   // beside DIIS: today's linear + DIIS
     r.StartingRelaxRo=recipe.relax; r.KerkerG0=recipe.G0;
