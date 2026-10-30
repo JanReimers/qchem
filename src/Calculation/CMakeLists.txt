@@ -15,6 +15,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     SolidCalculation.C
     SolidSetup.C
     MoleculeSetup.C
+    PotentialEnergySurface.C
     SolidState.C
     ValenceBasisGen.C
     PseudoAtomOrbital.C

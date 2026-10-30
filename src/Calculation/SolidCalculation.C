@@ -55,6 +55,7 @@ import qchem.LASolver;                        // qchem::Ortho
 import qchem.Outcome;                         // Outcome<T,E> -- the fallible-call vocabulary (N1/T1)
 export import qchem.SolidState;               // RestartRefusal (Restart's failure), the saved-state layer (CK-1)
 export import qchem.SolidSetup;               // SolidCalcOptions + the resolved SolidSetup a run is built from (step 6)
+export import qchem.PotentialEnergySurface;   // the face SolidSession implements (step 8)
 
 export namespace qchem
 {
@@ -548,13 +549,26 @@ private:
     explicit SolidCalculation(BuildOnly);
     //! THE GEOMETRY POINT over \a setup (doc/CalcNetworkReview.md §2): the Bloch basis at \a lat's geometry, its vetting report,
     //! and the electron configuration over its k-blocks.  Every DECISION was made by \c SolidSetup::Resolve; this only builds.
-    void BuildPoint(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat);
+    //! \a mol: the molecular basis AT \a lat's geometry (the setup's own at the reference; a geometry step's, made from its recipe).
+    void BuildPoint(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol);
     //! The +U manifolds' groups and radials, the Hamiltonian, the accelerator, the seed (\a seed, or
     //! \c opts.seed when null), the iterator and the run banner.  \a exactResume: \a seed is a restored state with no
     //! WARM difference (SeedRole::ExactResume -- it becomes the first working density, not just the first Fock's).
-    //! \a accel: the first stage's accelerator, as asked.
+    //! \a accel: the first stage's accelerator, as asked.  \a restored: \a seed is a SAVED state of this same Hamiltonian (Restart);
+    //! false for a carried one (a geometry step: the Hamiltonian moved with the atoms) -- the Auto accelerator policy reads it.
     void BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
-                  SCFAccelerators::Type accel, bool exactResume=false);
+                  SCFAccelerators::Type accel, bool restored, bool exactResume);
+    //! \name THE GEOMETRY POINT a SolidSession steps to (step 8)
+    //!@{
+    friend class SolidSession;
+    //! \a lat: the setup's cell with the atoms at new positions; \a mol: the molecular basis made there from the setup's frozen
+    //! recipe.  \a carry null: the setup's seed strategy and the whole \a schedule (the first point); else seeded from \a carry and
+    //! converged on the schedule's FINAL stage only (the earlier stages exist to deliver a density the carry already is).
+    static std::unique_ptr<SolidCalculation> AtGeometry(std::shared_ptr<const SolidSetup>, const Lattice_3D& lat,
+                                                        std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
+                                                        const std::vector<SCFStage>& schedule);
+    SavedState Carry() const;   //!< the last iterate's per-block D, for the next point
+    //!@}
     //! Point + run + the first Converge (the constructors' common body), and the rest of an annealed schedule.
     void Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
     void RunRestOf(const std::vector<SCFStage>& schedule);
@@ -577,6 +591,36 @@ private:
     //! facade takes both hooks and hands the caller's back through them).
     void AttachProbes();
     std::unique_ptr<Imp> itsImp;
+};
+
+//! \brief THE SOLID POTENTIAL ENERGY SURFACE (doc/CalcNetworkReview.md §3.1, §7; step 8): one fixed \c SolidSetup, sampled at
+//! positions the caller chooses.  Each \c ConvergeAt builds a new geometry point -- the setup's cell with the atoms moved, its
+//! molecular basis remade from the setup's frozen recipe (the trim is NOT re-vetted) -- seeded from the previous point's density
+//! carried onto it.
+//!
+//! WHAT A POINT REFUSES (each a \c PESFailure, never a crash): positions that break the setup's IMPOSED group (ruling Q4); a
+//! basis that, at these positions, would lose functions in the ortho step the trim was decided to avoid (ruling Q3: the frozen
+//! basis left its conditioning window -- checked when the setup states an \c orthoTol); forces or stress (no term has its
+//! gradient yet: step 9).  +U is held at the setup's values along the surface (ruling Q5).
+class SolidSession : public virtual PotentialEnergySurface
+{
+public:
+    //! \a schedule: the SCF recipe -- the first point runs all of it from the setup's seed, every later point its FINAL stage
+    //! from the carried density.
+    SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule);
+    ~SolidSession();
+    const Structure& Reference() const override;
+    //! THROWS when \a R has not one position per atom, or when the atoms MOVED on a setup resolved from a pre-built basis (no
+    //! recipe to remake it with -- resolve the setup from a \c GaussianBasisRecipe).
+    Outcome<PESPoint, PESFailure> ConvergeAt(const std::vector<rvec3_t>& R, const PESRequest& want = {}) override;
+    //! The current point (the last \c ConvergeAt's), for a caller that wants its rich answers; null before the first.  Replaced
+    //! by the next \c ConvergeAt.
+    const SolidCalculation* Current() const;
+private:
+    struct Point;
+    std::shared_ptr<const SolidSetup> itsSetup;
+    std::vector<SCFStage>             itsSchedule;
+    std::unique_ptr<Point>            itsPoint;
 };
 
 } //export namespace qchem

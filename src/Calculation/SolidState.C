@@ -143,6 +143,12 @@ struct SavedState
     std::vector<SavedBlock> blocks;       //!< in the canonical order (spin irreps outer, basis blocks inner)
 };
 
+//! \brief The IN-MEMORY half of \c WriteSolidState: every (k,σ) block's D from \a wf over \a bs, in the canonical block order,
+//! exactly as \c RestoreDensity reads it -- the CARRY a geometry step seeds its next point with (a restart from memory, whose
+//! basis is the same recipe at moved atoms).  The fingerprint and summary are left empty: the caller built both points from one
+//! setup, which is the comparison a file's fingerprint stands in for.
+SavedState SnapshotState(const BasisSet::Complex_BS& bs, const WaveFunction::cWaveFunction& wf);
+
 //! \brief LOAD.  FAILS on an absent/foreign file or an unreadable format; THROWS on a file that claims to be
 //! a qchem state and is internally inconsistent (a broken invariant: somebody edited it).
 Outcome<SavedState, RestartRefusal> ReadSolidState(const std::string& path);

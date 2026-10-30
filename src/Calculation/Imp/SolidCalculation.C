@@ -311,15 +311,17 @@ SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, cons
 void SolidCalculation::Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel)
 {
     const Lattice_3D& reference=setup->reference;   // held by the setup, which the point keeps alive
-    BuildPoint(std::move(setup), reference);
-    BuildRun(nullptr, params, accel);
+    auto mol=setup->mol;
+    BuildPoint(std::move(setup), reference, std::move(mol));
+    BuildRun(nullptr, params, accel, /*restored*/false, /*exactResume*/false);
     (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
 }
 
 // THE FIRST HALF OF THE BUILD: the GEOMETRY POINT over a resolved setup -- everything the saved-state fingerprint is judged
 // against (the Bloch blocks), and nothing that depends on the seed.  Restart stops here to compare before paying for the
 // Hamiltonian.  Every DECISION is the setup's (SolidSetup::Resolve); this builds.
-void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat)
+void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat,
+                                  std::shared_ptr<const BasisSet::Real_BS> mol)
 {
     itsImp->setup       = std::move(setup);
     itsImp->accOpts     = itsImp->setup->acc;
@@ -357,7 +359,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         const auto& tol=opts.tolerances;
         if (!tol.Describe().empty())
             std::cout<<"["<<opts.label<<" run] GPW tolerances (non-default):"<<tol.Describe()<<std::endl;
-        itsImp->bs.reset(L3::GPWFactory(lat, S.mol, L3::GPWParams{
+        itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
             .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .tol = tol,
@@ -397,7 +399,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
 
 // THE SECOND HALF: the Hamiltonian, the seed (the caller's when given -- a restored state), the iterator.
 void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
-                                SCFAccelerators::Type accel, bool exactResume)
+                                SCFAccelerators::Type accel, bool restored, bool exactResume)
 {
     const SolidSetup&       S    = *itsImp->setup;
     const SolidCalcOptions& opts = S.opts;
@@ -443,7 +445,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
            "SolidCalculation: the term stack no longer preserves realness -- update the forecast above");
 
     // DECISION 3 -- the accelerator, by policy (Auto pairs it with the mixer), through the public typed door.
-    MakeAccelerator(accel, params, /*restored*/bool(seed));   // a pre-built seed here is Restart's restored state
+    MakeAccelerator(accel, params, restored);
 
     // THE SEED IS BUILT HERE, not inside the iterator -- the same factory call the SeedStrategy ctor
     // would have made (ChargeDensity::MakeSeedDensity with the Hamiltonian's own polarization), handed
@@ -1079,7 +1081,8 @@ SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSe
     // minimise with integer occupations, never applying the smearing (measured 2026-10-21, Si k222 kT 0.02: 6 mHa off the
     // cold smeared run).  A smeared restart starts on DIIS, as it did before.
     const Lattice_3D& reference=setup->reference;
-    c->BuildPoint(std::move(setup), reference);
+    auto mol=setup->mol;
+    c->BuildPoint(std::move(setup), reference, std::move(mol));
     c->itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
     // Judged against the BUILT blocks (k, weight, size), not against a re-derivation of what they would be.
     auto warm=CompareFingerprints(saved->fingerprint, c->Fingerprint(params.SmearingkT));
@@ -1096,7 +1099,7 @@ SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSe
         for (const std::string& d : *warm) os<<"\n"<<tag<<"  differs: "<<d;
         std::cout<<os.str()<<std::endl;
     }
-    c->BuildRun(cd.TakeValue(), params, stage.accelerator, exact);
+    c->BuildRun(cd.TakeValue(), params, stage.accelerator, /*restored*/true, exact);
     (void)c->Converge(params);
     c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;   // later stages on this calculation start as asked
     if (exact)
@@ -1598,5 +1601,144 @@ const RunDiagnostics& SolidCalculation::Diagnostics() const { return itsImp->dia
 
 const qcMesh::MeshParams& SolidCalculation::ResolvedXCMesh() const { return itsImp->setup->xcMesh; }
 const BasisSet::Complex_BS& SolidCalculation::Basis() const { return *itsImp->bs; }
+
+
+//====================================================================================================
+//  THE GEOMETRY POINT and THE SOLID SESSION (doc/CalcNetworkReview.md §7, step 8)
+//====================================================================================================
+std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat,
+                                                               std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
+                                                               const std::vector<SCFStage>& schedule)
+{
+    if (schedule.empty())
+        throw std::runtime_error("SolidCalculation: an EMPTY schedule has no meaning -- pass at least one stage.");
+    std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
+    {
+        qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
+        c->BuildPoint(std::move(setup), lat, std::move(mol));
+        if (!carry)
+        {
+            c->BuildRun(nullptr, schedule.front().params, schedule.front().accelerator, /*restored*/false, /*exactResume*/false);
+            (void)c->Converge(schedule.front().params);
+        }
+        else
+        {
+            // THE CARRY: the previous point's D, block for block, onto this point's basis -- the same recipe at moved atoms, so the
+            // block layout (k, size, realness) is the one RestoreDensity asserts.  A WorkingDensity, NOT a restored one: the
+            // Hamiltonian moved with the atoms, so the Auto policy's carried-stage branch (Null + Pulay on D) applies.
+            auto cd=RestoreDensity(*carry, *c->itsImp->bs, c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized);
+            if (!cd) throw std::logic_error("SolidCalculation::AtGeometry: the carried density does not fit the new point: "+cd.Error().details);
+            const SCFStage& last=schedule.back();
+            c->BuildRun(cd.TakeValue(), last.params, last.accelerator, /*restored*/false, /*exactResume*/false);
+            (void)c->Converge(last.params);
+        }
+    }
+    if (!carry && schedule.size()>1) c->RunRestOf(schedule);
+    return c;
+}
+
+SavedState SolidCalculation::Carry() const
+{
+    const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
+    if (!wf) throw std::logic_error("SolidCalculation::Carry: no wave function yet");
+    return SnapshotState(*itsImp->bs, *wf);
+}
+
+//! One geometry point: the structure its molecular basis is built over, that basis, and the calculation -- declared in that
+//! order so the calculation (which holds the Bloch basis over \c mol) dies first and the atoms last.
+struct SolidSession::Point
+{
+    std::shared_ptr<const Structure>         cell;
+    std::shared_ptr<const BasisSet::Real_BS> mol;
+    std::unique_ptr<SolidCalculation>        calc;
+};
+
+SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule)
+    : itsSetup(std::move(setup)), itsSchedule(std::move(schedule))
+{
+    if (itsSchedule.empty()) throw std::invalid_argument("SolidSession: an EMPTY schedule has no meaning -- pass at least one stage.");
+}
+SolidSession::~SolidSession() = default;
+
+const Structure& SolidSession::Reference() const {return *itsSetup->cell;}
+const SolidCalculation* SolidSession::Current() const {return itsPoint ? itsPoint->calc.get() : nullptr;}
+
+Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::vector<rvec3_t>& R, const PESRequest& want)
+{
+    using O=Outcome<PESPoint, PESFailure>;
+    using Why=PESFailure::Why;
+    const SolidSetup& S=*itsSetup;
+    const UnitCell&   ref=S.reference.GetUnitCell();
+    const size_t      nAtoms=ref.GetNumAtoms();
+    if (R.size()!=nAtoms)
+        throw std::invalid_argument("SolidSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
+    if (want.forces || want.stress)
+        return O::Fail({Why::NoGradient, std::string(want.stress ? "stress" : "forces")+": no term implements its geometry gradient yet "
+                        "(doc/CalcNetworkReview.md §3.3, step 9) -- difference ConvergeAt energies meanwhile"});
+
+    // THE POINT'S CELL: the setup's, atoms at R.
+    UnitCell cellR(ref);
+    double moved=0.0;
+    for (size_t a=0;a<nAtoms;a++)
+    {
+        moved=std::max(moved, norm(R[a]-cellR[a]->itsR));
+        cellR[a]->itsR=R[a];
+    }
+    const Lattice_3D latR(cellR, S.reference.GetLimits());
+
+    // THE IMPOSED GROUP must survive (Q4): a geometry that lowers it is a NEW setup, the user's choice -- never a silent re-fold.
+    if (S.imposed && moved>0.0)
+    {
+        auto order=[&](const Lattice_3D& l){ return S.siteSpins.empty() ? l.GetSpaceGroup().Order() : l.ShubnikovOps(S.siteSpins).size(); };
+        if (const size_t now=order(latR), was=order(S.reference); now<was)
+            return O::Fail({Why::SymmetryBroken, "these positions keep "+std::to_string(now)+" of the imposed group's "+std::to_string(was)
+                            +" operations -- symmetrize the step, or resolve a new setup with the lower group"});
+    }
+
+    auto point=std::make_unique<Point>();
+    point->cell=latR.GetStructure();
+    if (moved==0.0)          point->mol=S.mol;   // the reference itself: the setup's own basis, bit for bit
+    else if (S.planeWave)    point->mol=S.mol;   // a plane-wave basis does not follow the atoms (the Gaussian one is unread)
+    else if (!S.recipe)
+        throw std::invalid_argument("SolidSession: the atoms moved, but the setup was resolved from a PRE-BUILT basis that cannot follow "
+                                    "them -- resolve it from a GaussianBasisRecipe");
+    else
+    {
+        // THE FROZEN RECIPE at R -- and the conditioning window it was trimmed in (Q3).  The vet loop, asked about this geometry
+        // with the frozen trim as its base, must find NOTHING more to drop at the run's orthoTol; if it does, the point is refused
+        // rather than silently run on a different basis (re-trimming per step would make the surface discontinuous).
+        const GaussianBasisRecipe& recipe=*S.recipe;
+        if (S.opts.orthoTol>0.0)
+        {
+            auto make=[&](const BasisSet::Gaussian::ShellTrim& t)
+            {
+                GaussianBasisRecipe r=recipe;
+                r.trim.shells.insert(r.trim.shells.end(), t.shells.begin(), t.shells.end());
+                return r.Make(*point->cell, S.pp);
+            };
+            auto vet=BasisSet::Lattice::VetStageTrim(latR, make, {.images=S.opts.images, .kShift=S.opts.kShift}, S.opts.orthoTol);
+            if (!vet.trim.empty())
+            {
+                std::ostringstream os; vet.trim.Write(os);
+                return O::Fail({Why::BasisConditioning, "at these positions the frozen basis is near-dependent at orthoTol "
+                                +std::to_string(S.opts.orthoTol)+": the ortho step would drop "+os.str()+" -- the basis left the window "
+                                "its trim was decided in (resolve a new setup at a geometry nearer this one)"});
+            }
+            point->mol=std::move(vet.mol);
+        }
+        else point->mol=recipe.Make(*point->cell, S.pp);
+    }
+
+    // THE CARRY, then release the previous point before building the next (one point's memory at a time).
+    std::optional<SavedState> carry;
+    if (itsPoint) carry=itsPoint->calc->Carry();
+    itsPoint.reset();
+    point->calc=SolidCalculation::AtGeometry(itsSetup, latR, point->mol, carry ? &*carry : nullptr, itsSchedule);
+    itsPoint=std::move(point);
+
+    auto out=itsPoint->calc->Result();
+    if (!out) return O::Fail({Why::SCF, out.Error().details});
+    return O::Ok(PESPoint{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()});
+}
 
 } //namespace qchem
