@@ -8,6 +8,7 @@ module;
 #include <cmath>
 #include <cctype>
 #include <stdexcept>
+#include <nlohmann/json.hpp>
 
 module qchem.ValenceBasisGen;
 
@@ -194,7 +195,7 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     std::string sym = r.element;
     std::ostringstream os;
     os << std::setprecision(12);
-    os << "{\"symbol\": \"" << sym << "\", \"Z\": " << Z << ", \"Nelec\": " << nel
+    os << "{\"symbol\": \"" << sym << "\", \"Z\": " << Z << ", \"q\": " << Zion << ", \"Nelec\": " << nel
        << ", \"charge\": " << q << ", \"functional\": \"" << r.functional << "\", \"kind\": \"valence\", "
        << "\"grid\": {\"kind\": \"log\", \"N\": " << Ngrid << ", \"rmin\": " << rmin << ", \"rmax\": " << rmax << "}, "
        << "\"rho\": [";
@@ -209,6 +210,67 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     os << "}";
 
     return { q, meanR, atom.IsConverged(), os.str(), moment };
+}
+
+SplicedLibrary SpliceSeedEntry(const std::string& library, const std::string& entry)
+{
+    using ojson=nlohmann::ordered_json;
+    const ojson e=ojson::parse(entry);
+    for (const char* k : {"Z","q","Nelec","functional"})
+        if (!e.contains(k)) throw std::runtime_error(std::string("SpliceSeedEntry: the entry has no \"")+k+"\" (its identity is Z, q, Nelec, functional)");
+    auto same=[&](const nlohmann::json& x)
+    {
+        return x.contains("q") && x.value("Z",-1)==e["Z"].get<int>() && x["q"].get<int>()==e["q"].get<int>()
+            && x.value("Nelec",-1)==e["Nelec"].get<int>() && x.value("functional",std::string())==e["functional"].get<std::string>();
+    };
+    // The entry in the file's style: one tab per level, nested one level in (the array's).
+    std::string rendered;
+    {
+        std::istringstream in(e.dump(1,'\t'));
+        std::string line;
+        for (bool first=true; std::getline(in,line); first=false) rendered+=(first?"":"\n")+std::string("\t")+line;
+    }
+    // The top-level objects of the array, as [line start, one past '}'] spans; strings are skipped, so a brace in one is inert.
+    const size_t open=library.find_first_not_of(" \t\r\n");
+    if (open==std::string::npos || library[open]!='[') throw std::runtime_error("SpliceSeedEntry: the library is not a JSON array");
+    std::vector<std::pair<size_t,size_t>> spans;
+    int depth=0; bool inString=false; size_t start=0;
+    for (size_t i=open+1; i<library.size(); ++i)
+    {
+        const char c=library[i];
+        if (inString) { if (c=='\\') ++i; else if (c=='"') inString=false; continue; }
+        if (c=='"') inString=true;
+        else if (c=='{' || c=='[') { if (depth++==0) start=i; }
+        else if (c=='}' || c==']')
+        {
+            if (depth==0) break;   // the array's own ']'
+            if (--depth==0) spans.push_back({start, i+1});
+        }
+    }
+    SplicedLibrary out;
+    std::vector<size_t> hits;
+    for (size_t k=0;k<spans.size();++k)
+        if (same(nlohmann::json::parse(library.substr(spans[k].first, spans[k].second-spans[k].first)))) hits.push_back(k);
+    if (hits.size()>1) throw std::runtime_error("SpliceSeedEntry: the library already holds this (Z, q, Nelec, functional) "+std::to_string(hits.size())+" times");
+    if (hits.size()==1)
+    {
+        // Replace from the start of the object's LINE (its indentation is in \c rendered) to its closing brace.
+        const auto [b,f]=spans[hits[0]];
+        // A spin pair is DATA the IonicSAD seed reads (HasAtomicSpinPair): an unpolarized run must not silently drop it.
+        if (nlohmann::json::parse(library.substr(b, f-b)).contains("rho_up") && !e.contains("rho_up"))
+            throw std::runtime_error("SpliceSeedEntry: the library's "+e.value("symbol",std::string("?"))+" entry (Z "+std::to_string(e["Z"].get<int>())
+                                     +", q "+std::to_string(e["q"].get<int>())+", Nelec "+std::to_string(e["Nelec"].get<int>())
+                                     +") is SPIN-RESOLVED and this one is not: replacing it would drop rho_up/rho_dn -- regenerate with --spin");
+        const size_t lineStart=library.rfind('\n', b)+1;
+        if (library.find_first_not_of(" \t", lineStart)!=b) throw std::runtime_error("SpliceSeedEntry: an entry does not start its own line");
+        out.text=library.substr(0,lineStart)+rendered+library.substr(f);
+        out.replaced=true;
+    }
+    else if (!spans.empty())
+        out.text=library.substr(0,spans.back().second)+",\n"+rendered+library.substr(spans.back().second);
+    else
+        out.text=library.substr(0,open+1)+"\n"+rendered+library.substr(open+1);
+    return out;
 }
 
 std::string AssembleBasisFile(const std::string& name, const std::vector<std::string>& blocks,
