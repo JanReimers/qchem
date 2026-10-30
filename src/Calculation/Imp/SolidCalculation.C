@@ -43,6 +43,15 @@ import qchem.Reporting;                       // report::Timed -- the facade's o
 namespace qchem
 {
 
+//! The seed library key for this run: the set's functional and, for each element of the structure, the
+//! GTH variant q its Hamiltonian uses -- so the seed density is the SAME pseudo-atom as the terms (C4 step 3).
+static ChargeDensity::SeedKey SeedKeyOf(const Pseudopotential::PseudopotentialSet& pp, const Structure& st)
+{
+    ChargeDensity::SeedKey key(pp.Functional());
+    for (const auto& [element, q] : pp.Species(st)) key.q[(int)thePeriodicTable().GetZ(element)] = q;
+    return key;
+}
+
 //---------------------------------------------------------------------------------------------------
 //  The run's SHARPNESS -- an above-SCFIterator decision input.
 //
@@ -402,9 +411,9 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     else if (opts.multiplicity>=1 && !opts.greyImposition)
     {
         const std::vector<int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
-                                       ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), itsImp->pp->Functional())
+                                       ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), SeedKeyOf(*itsImp->pp, *itsImp->st))
                                        : std::vector<int>{};
-        siteSpins = qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), itsImp->pp->Functional(), targets);
+        siteSpins = qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), SeedKeyOf(*itsImp->pp, *itsImp->st), targets);
     }
     // ★ THE FACADE'S SETUP IS BUCKETED (doc/ParallelAndOraclePlan.md 1.1, 2026-09-06).  Every MnO row drives
     // SolidCalculation directly, and until now only the phases INSIDE these calls were timed -- so the basis
@@ -572,7 +581,8 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
         qchem::report::Timed timed("setup: seed density (SAD/IonicSAD atomic solves)");
         qchem::SetupSCF setup;   // the atomic solves are setup, not the run's convergence (a panel budget does not count them)
         seed.reset(qchem::ChargeDensity::MakeSeedDensity<dcmplx>(opts.seed, itsImp->bs.get(), itsImp->st.get(),
-                                                                 itsImp->ec.get(), polarizedHam));
+                                                                 itsImp->ec.get(), polarizedHam,
+                                                                 SeedKeyOf(*itsImp->pp, *itsImp->st)));
     }
     // MEASURED ONLY WHERE IT CAN MEAN SOMETHING.  SiteMoments rasters BOTH spin channels before it can
     // discover it has no basins to integrate over, and unlike the per-iteration probe -- which rides a
@@ -1120,7 +1130,7 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     xc<<MeshName(itsImp->xcMesh.cellKind);
     if (itsImp->xcMesh.cellKind==qcMesh::UnitCellKind::Becke) xc<<" nR="<<itsImp->xcMesh.nRadial<<" L="<<itsImp->xcMesh.angularDegree;
     else                                                      xc<<" eCut="<<itsImp->xcMesh.eCut;
-    const RunIdentity id{.species=itsImp->pp->Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->pp->Functional(),
+    const RunIdentity id{.species=itsImp->pp->Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->pp->Functional(), .ppSet=itsImp->pp->Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
                          .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT};
     return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,

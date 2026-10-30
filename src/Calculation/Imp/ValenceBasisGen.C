@@ -211,10 +211,18 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     return { q, meanR, atom.IsConverged(), os.str(), moment };
 }
 
-std::string AssembleBasisFile(const std::string& name, const std::vector<std::string>& blocks)
+std::string AssembleBasisFile(const std::string& name, const std::vector<std::string>& blocks,
+                              const std::vector<std::pair<std::string,int>>& ppValence)
 {
     std::ostringstream os;
-    os << name << "\n\n!\nBASIS=\"" << name << "\"\n";
+    os << name << "\n";
+    if (!ppValence.empty())
+    {
+        os << "PP-PROVENANCE";
+        for (const auto& [el,q] : ppValence) os << " " << el << "=" << q;
+        os << "\n";
+    }
+    os << "\n!\nBASIS=\"" << name << "\"\n";
     for (const std::string& b : blocks) os << b;
     return os.str();
 }

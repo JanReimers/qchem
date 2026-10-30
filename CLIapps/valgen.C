@@ -418,7 +418,7 @@ int main(int argc, char** argv)
         const string title = name.empty()
             ? ("Low-q GTH-pseudopotential valence basis for " + element + " (valgen, doc/GPWPlan1 sec 1)")
             : name;
-        const string file = AssembleBasisFile(title, { g.block });
+        const string file = AssembleBasisFile(title, { g.block }, {{element, q}});
         std::ofstream(out) << file;
         cout << "valgen: wrote " << out << " (" << element << " single-element .bsd)" << endl;
     }

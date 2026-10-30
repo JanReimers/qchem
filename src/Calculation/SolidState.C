@@ -22,12 +22,16 @@
 //
 // THE FINGERPRINT has two classes, and the split IS the design:
 //   REFUSE  the saved D is a matrix over THESE functions at THESE k-points for THIS many electrons: the
-//           structure, the species/PP, the orbital basis's shells, the k-mesh blocks, Nelec, the spin
-//           group, the functional.  Any difference and the state means nothing here -- a REFUSED Outcome,
-//           never a silently wrong start.
+//           cell, the atom kinds, the species/PP (set + q per element), the orbital basis's shells, the k-mesh
+//           blocks, Nelec, the spin group.  Any difference and the state means nothing here -- a REFUSED
+//           Outcome, never a silently wrong start.
 //   WARM    a restart ACROSS these is exactly what the mechanism is for: +U (the SCU loop), the density
 //           grids and XC mesh (grid continuation), the multiplicity, the orthogonaliser, kT and the recipe
-//           (anneals), a block's real/complex working type.  No difference at all = an EXACT RESUME.
+//           (anneals), a block's real/complex working type, the FUNCTIONAL (LDA -> PBE), and the atom POSITIONS
+//           with the basis centres that follow them (a geometry step; the max displacement is printed).
+//           No difference at all = an EXACT RESUME.
+//   (C4 step 5: positions, shell centres and the functional used to be REFUSE; a state written under that
+//   schema is migrated on comparison, so it still loads.)
 //
 // The file is read in Python by h5py (the Viz plan's carrier): complex arrays arrive as complex128, and the
 // layout is written out below the classes.
@@ -81,7 +85,8 @@ struct RunIdentity
     std::vector<std::pair<std::string,int>>      species;      //!< (element, valence)
     int                                          Nelec = 0;
     int                                          multiplicity = 0;
-    std::string                                  functional = "LDA";
+    std::string                                  functional = "LDA";   //!< recorded, WARM (an LDA->PBE restart is a legitimate continuation)
+    std::string                                  ppSet;        //!< the pseudopotential SET's name (the family; q per Z is in \c species)
     std::vector<Hamiltonian::HubbardManifold>    hubbard;      //!< the U the Hamiltonian CURRENTLY carries
     double                                       densityEcut = 0.0, cutoffFactor = 0.0;
     std::string                                  xcMesh;       //!< the RESOLVED XC quadrature, named

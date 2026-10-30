@@ -85,7 +85,7 @@ double RadialDensity::FormFactor(double G) const
 // physically different seed densities is how a wrong number gets banked.  A caller that MEANS a particular
 // variant says so with Nval.
 static const nlohmann::json* FindAtomicEntry(int Z, const std::string& functional,
-                                             const std::string& dbfile, int Nval)
+                                             const std::string& dbfile, int Nval, int q)
 {
     const nlohmann::json* hit = nullptr;
     std::string ambiguous;
@@ -93,6 +93,7 @@ static const nlohmann::json* FindAtomicEntry(int Z, const std::string& functiona
     {
         if (e.value("Z",-1)!=Z || e.value("functional",std::string())!=functional) continue;
         const int nelec = e.value("Nelec",-1);
+        if (q>=0 && e.value("q", nelec)!=q) continue;     // keyed: only this PP variant's entries
         if (Nval>=0)
         {
             // An explicit charge state is ambiguous too when two PP variants share it (Li q3's ion holds 1 electron,
@@ -117,9 +118,9 @@ static const nlohmann::json* FindAtomicEntry(int Z, const std::string& functiona
     return hit;
 }
 
-RadialDensity GetAtomicDensity(int Z, const std::string& functional, const std::string& dbfile, int Nval)
+RadialDensity GetAtomicDensity(int Z, const std::string& functional, const std::string& dbfile, int Nval, int q)
 {
-    if (const nlohmann::json* e = FindAtomicEntry(Z, functional, dbfile, Nval))
+    if (const nlohmann::json* e = FindAtomicEntry(Z, functional, dbfile, Nval, q))
     {
         const nlohmann::json& g = e->at("grid");
         return RadialDensity(g.at("rmin").get<double>(), g.at("rmax").get<double>(),
@@ -128,18 +129,19 @@ RadialDensity GetAtomicDensity(int Z, const std::string& functional, const std::
     throw std::runtime_error("AtomicDensity: no entry for Z=" + std::to_string(Z)
                              + " functional='" + functional + "'"
                              + (Nval>=0 ? " Nelec=" + std::to_string(Nval) : std::string())
+                             + (q>=0 ? " q=" + std::to_string(q) : std::string())
                              + " in " + dbfile);
 }
 
-bool HasAtomicDensity(int Z, const std::string& functional, const std::string& dbfile, int Nval)
+bool HasAtomicDensity(int Z, const std::string& functional, const std::string& dbfile, int Nval, int q)
 {
-    return FindAtomicEntry(Z, functional, dbfile, Nval) != nullptr;
+    return FindAtomicEntry(Z, functional, dbfile, Nval, q) != nullptr;
 }
 
 std::pair<RadialDensity,RadialDensity>
-GetAtomicSpinPair(int Z, const std::string& functional, const std::string& dbfile, int Nval)
+GetAtomicSpinPair(int Z, const std::string& functional, const std::string& dbfile, int Nval, int q)
 {
-    const nlohmann::json* e = FindAtomicEntry(Z, functional, dbfile, Nval);
+    const nlohmann::json* e = FindAtomicEntry(Z, functional, dbfile, Nval, q);
     if (!e || !e->contains("rho_up"))
         throw std::runtime_error("AtomicDensity: no spin-resolved pair for Z=" + std::to_string(Z)
                                  + " functional='" + functional + "'"
@@ -153,9 +155,9 @@ GetAtomicSpinPair(int Z, const std::string& functional, const std::string& dbfil
     return {std::move(up), std::move(dn)};
 }
 
-bool HasAtomicSpinPair(int Z, const std::string& functional, const std::string& dbfile, int Nval)
+bool HasAtomicSpinPair(int Z, const std::string& functional, const std::string& dbfile, int Nval, int q)
 {
-    const nlohmann::json* e = FindAtomicEntry(Z, functional, dbfile, Nval);
+    const nlohmann::json* e = FindAtomicEntry(Z, functional, dbfile, Nval, q);
     return e && e->contains("rho_up") && e->contains("rho_dn");
 }
 

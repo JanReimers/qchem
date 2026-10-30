@@ -1,4 +1,5 @@
 valence_lowq_tm: GTH-pseudopotential valence bases for the elements of the Hubbard-U oracle set, minted 2026-10-04
+PP-PROVENANCE Li=1 Ti=4 V=5 Fe=8 Ni=10 Sr=2 S=6 O=6 F=7
 for the CP2K finite-alpha LRT comparison (doc/HubbardUPlan.md) and conditioned for the SOLID, not the free atom.
 Each window is the most diffuse one (smallest valgen gap to the complete-basis PP floor) whose overlap S(k)
 keeps lambda_min >= 4e-4 on every host crystal of the element (idealised geometries: rutile TiO2, cubic SrVO3 and

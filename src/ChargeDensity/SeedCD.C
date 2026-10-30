@@ -22,7 +22,7 @@ module;
 export module qchem.ChargeDensity.SeedCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>, cSpinResolved_CD, Spin
 export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, ΔG_Map
-import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAtomicDensity, GetAtomicDensity
+export import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAtomicDensity, GetAtomicDensity
 import qchem.BasisSet.Orbital_DFT_IBS;                      // cFIT_CD_ABS (the density-fit basis it builds rho-tilde through)
 import qchem.Structure;                             // Structure, Atom
 import qchem.UnitCell;                              // UnitCell (the flip-group sub-cells of a channel seed)
@@ -52,7 +52,7 @@ public:
     //! sublattice) -- and a species without a pair contributes the spin-agnostic half density (rho/2, both
     //! channels alike; the flip is then a no-op).  \c None ignores flips entirely (the total is flip-blind).
     SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
-                  const std::string& functional="LDA", const std::vector<int>& ionicNvalBySite = {},
+                  const SeedKey& key=SeedKey{}, const std::vector<int>& ionicNvalBySite = {},
                   const Spin& channel = Spin::None);
 
     // FourierDensity -- the native G-space representation the PW Hartree/XC terms consume.  The seed carries
@@ -119,7 +119,7 @@ class PolarizedSeedCD
 public:
     //! Same arguments as SeedCD; builds the Up + Down channel pair (flip bits read from \a st's atoms).
     PolarizedSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
-                    const std::string& functional="LDA", const std::vector<int>& ionicNvalBySite = {});
+                    const SeedKey& key=SeedKey{}, const std::vector<int>& ionicNvalBySite = {});
 
     // cSpinResolved_CD -- the spin-native XC engine's channel access.
     virtual const cChargeDensity* GetChannel(const Spin&) const;

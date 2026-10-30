@@ -140,6 +140,8 @@ anchor moves unexpectedly) is handed to Opus.
 
 **Sweeps that are compared run SERIAL** (`QCHEM_OPENMP_THREADS` unset), like every main baseline: several tests are not thread-count invariant (lane A 2026-10-29: 57 anchor moves up to 2.8e-6 at 4 threads; OpenWork row).  Threads are for panel and campaign runs, never a landing sweep.
 
+**Landing sweep = short serial (`-LE long`) + routine long serial (`-L long -LE panel`, ~6 min); the convergence panel (`-L panel`, hours) runs only when a lane touches SCFAccelerator / SCFIterator / mixers / the Calculation SCF path, and is judged against its iteration budgets, not by anchordiff** (user 2026-10-30).
+
 ## 7. The three grid-and-symmetry decisions, with context
 
 **Raster default (agreed: AliasFree — with your caveat).**  BallOnly is much faster and was right for weeks; the loss was the HOURS
@@ -241,7 +243,7 @@ Lane B design review: OOD V-CALCNET.  C6: CleanCode D-WARNINGS.  Forces prerequi
 re-run, NiO/SrVO₃ vs hp.x, the PW 4× XC ball re-run, the three β-MnO₂ rows; §4 LR ledger, dense PW cost, LR on real TRIM; OOD V1.40;
 CleanCode D-ENV-RERUN, D-CKALPHA-AUTO.
 
-**X (12, the quota)** — CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
+**X (13, the quota)** — OpenWork "every `_Long` test re-proves its claim at the cheapest resolution" (lane A, right after C1 B2 lands; it shares the vendored-state mechanism with panel #19); CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
 D-CONTRACTED-SHELL, D-FIT-MERGE; OpenWork "Blaze heevx/syevx" (rides ModuleToolchain Step 4).
 
 **P (parked / features / triggers)** — §2 B-spline basis, hybrids, GW, transport/MD, USPP/PAW, OT (and with it CleanCode V1.24(iii)),
@@ -258,4 +260,5 @@ D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
 | `a3f4b50f` (2026-10-29) | lane-b C4 step 1 (`a2439643`: `PseudopotentialSet`, `pseudopotentials.json`) | serial short 1121 + long 7/7 | 0 / 1114 short, 0 / 8 long vs `capguard_*` | `~/Code/qchem6-runs/anchors/main-a3f4b50f_{short,long}.log` |
 | `e9955ebf` (2026-10-29) | lane-b C4 step 2 (inject the `PseudopotentialSet`; clean replace of the molecular PP fields) | serial short 1123 + long 8 | 0 / 1119 short, 0 / 8 long vs `main-a3f4b50f` | `~/Code/qchem6-runs/anchors/main-e9955ebf_{short,long}.log` |
 | `87493dd9` (2026-10-29) | lane-a C1 B0+B1 (the convergence panel, 19 cases, RED as WILL_FAIL; u_bands + GDM false-converges closed; thread-invariance row) | serial short 1126; long 13/13 at 28fe4a31 (4 threads, panel incl.) | 0 / 1112 short vs `main-e9955ebf` | `~/Code/qchem6-runs/anchors/main-87493dd9_{short,long}.log` (long = 4-thread, re-baseline serial at the next long sweep) |
+| `20873b21` (2026-10-30) | lane-b C4 steps 3–5 (`84d5569f` seed library keyed by PP variant q; `47f0816a` basis provenance PP-PROVENANCE + CheckPPProvenance) | serial short 1130 (merged) + serial long 7/8 pre-merge | 0 / 1124 short vs `main-87493dd9`, 0 / 8 long | `~/Code/qchem6-runs/anchors/main-20873b21_{short,long}.log` (long = SERIAL baseline) |
 

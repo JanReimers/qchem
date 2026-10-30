@@ -1,4 +1,5 @@
 Low-q GTH-pseudopotential valence basis, SHORT-RANGE -- valence_lowq with the most diffuse primitive dropped
+PP-PROVENANCE F=7 Na=1 Al=3 Mn=7 O=6
 from each shell (F s 0.12 + p 0.14; Na s 0.03; Al s 0.04 + p 0.05), so the Bloch-summed overlap stays
 positive-definite in a solid at a modest Rcut (the SIPP->SIPP_SR lesson: ill-conditioning is a BASIS problem).
 For GPW crystals.  (Al: the FCC-Al degenerate-shell metal test, doc/GPWPlan1.md item 2 -- the full valence_lowq
