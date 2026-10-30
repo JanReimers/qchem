@@ -151,6 +151,9 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
    bit-identical).  Unit test: the table's formulas against hand values.
 3. Raster N per level from ε; `RasterPolicy` deleted (one default, the two ctor defaults gone); the audit asserts.  Routing rule from
    the same condition.  ← the anchor-moving step.
+   **Also here (controller, 2026-10-30): thread-COUNT invariance of the collocation scatter** -- a FIXED accumulator count
+   independent of `QCHEM_OPENMP_THREADS` (5ec26b06 made it reproducible at a fixed count only; OpenWork §3 "The short tier is NOT
+   green at QCHEM_OPENMP_THREADS=4").  It moves the serial bits once, so it rides this window's re-judgement rather than its own.
 4. Balls + vlocEps + κ + screenEps + densityEps from ε (whichever M2 shows bind).
 5. §K: XC ball = density ball as a stated rule; the N-vs-2N XC audit.
 6. R1.0r intersection.  7. R1.5 mixer G-space face.  8. V_loc long route (a) (ruled 2026-10-30; M4 sizes it).
