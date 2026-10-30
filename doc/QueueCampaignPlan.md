@@ -138,6 +138,8 @@ open F+V+S count.  A new CONVERGENCE row also gets its case added to the panel (
 Plumbing and mechanical chunks (C4, C6, C7): Sonnet · high / medium.  No Haiku.  A Sonnet chunk that hits a physics surprise (an
 anchor moves unexpectedly) is handed to Opus.
 
+**No backward-compatibility doors** (user 2026-10-30): an API change migrates every caller and deletes the old entry point in the same chunk -- never "the old ctor delegates, so no caller changes".  `pybind/` is the one exception: flag a break for the binding owner.
+
 **Sweeps that are compared run SERIAL** (`QCHEM_OPENMP_THREADS` unset), like every main baseline: several tests are not thread-count invariant (lane A 2026-10-29: 57 anchor moves up to 2.8e-6 at 4 threads; OpenWork row).  Threads are for panel and campaign runs, never a landing sweep.
 
 **Landing sweep = short serial (`-LE long`) + routine long serial (`-L long -LE panel`, ~6 min); the convergence panel (`-L panel`, hours) runs only when a lane touches SCFAccelerator / SCFIterator / mixers / the Calculation SCF path, and is judged against its iteration budgets, not by anchordiff** (user 2026-10-30).
