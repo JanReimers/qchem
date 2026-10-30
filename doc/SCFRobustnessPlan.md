@@ -338,7 +338,7 @@ GREEN budget = ⌈1.25 × baseline⌉.  A budget counts every SCF stage inside t
 | 16 | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` | 40 = cap, Δρ/N 5.2e-2 | 40 | RED |
 | 17 | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Converges_Panel_Long` | 143 (E −93.36627496) | 179 (deck cap 180) | GREEN — but 143, not the record's ≈ 60: the record's run was WARM |
 | 18 | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long` | 80 = cap | 80 | RED |
-| 19 | — β-MnO₂ r015 resume | — | — | NOT BUILT (needs a vendored saved state) |
+| 19 | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_Saved_eqExactResume_Panel_Long` (built 2026-10-30, lane A: r015 vendored in `decks/states/`) | 5 (4 threads; iteration 1 at −93.3837059, 2e-6 off the saved E; iteration 2 steps 3e-4 away and returns) | 5 | GREEN, at its budget |
 | 20 | `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` | 39 | 49 | GREEN |
 | 21 | — NiO cold | — | — | NOT BUILT (no arm fits the tier as banked) |
 
