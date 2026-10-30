@@ -1,7 +1,7 @@
 // File: Calculation/tests/SolidSession.C  The SOLID potential energy surface (doc/CalcNetworkReview.md §5 step 8, §7): a
 // session over one setup, sampled at positions the caller chooses.  Si Γ (two atoms, eight electrons, ~1 s an SCF) carries
 // the gates: (a) ConvergeAt the reference == the single point, bit for bit; (b) a step from the carried density == a fresh run
-// at the new positions, in fewer iterations; and the refusals that are outcomes, not crashes.
+// at the new positions, in fewer iterations; and the refusals that are outcomes, not crashes (Q3 BasisConditioning included).
 #include <gtest/gtest.h>
 #include <cmath>
 #include <memory>
@@ -17,6 +17,7 @@ import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.SCFParams;
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type
+import qchem.LASolver;                 // qchem::CholeskyPivoted (the Q3 conditioning window)
 import qchem.Types;
 
 using namespace qchem;
@@ -109,4 +110,29 @@ TEST(SolidSession, RefusalsAreOutcomesAndAWrongCountThrows)
     const PESGeometry fr=fixed.Reference();
     std::vector<rvec3_t> moved=fr.R; moved[1].x+=0.05;
     EXPECT_THROW((void)fixed.ConvergeAt(fr.cell, moved), std::invalid_argument);
+}
+
+// Q3 (doc/CalcNetworkReview.md §7): the trim is decided ONCE, at the reference, and frozen.  A step that pushes the frozen basis
+// out of the conditioning window it was trimmed in -- here one Si squeezed to a quarter of the bond, where its diffuse shells and
+// its neighbour's become near-dependent -- is REFUSED, never run on a silently re-trimmed (different) basis: a per-step re-trim
+// would make the surface discontinuous.  A modest step inside the window still converges.
+TEST(SolidSession, AStepOutOfTheTrimWindowIsRefusedAsBasisConditioning)
+{
+    const auto mat=Materials::Get("Si_diamond");
+    SolidCalcOptions o=SiGamma();
+    // The window: measured 2026-10-30, min eig S at Γ = 0.027 at the reference and 4.5e-4 squeezed to a quarter bond, so 1e-3
+    // sits between them -- the reference vets clean, the squeezed point does not.
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-3;
+    GaussianBasisRecipe vetted=kSiBasis; vetted.vet=true;
+    SolidSession pes(SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), vetted, o), {SCFStage{Tight(), SCFAccelerators::Type::Auto}});
+    const PESGeometry ref=pes.Reference();
+
+    std::vector<rvec3_t> squeezed=ref.R; squeezed[1]=ref.R[0]+0.25*(ref.R[1]-ref.R[0]);
+    auto B=pes.ConvergeAt(ref.cell, squeezed);
+    ASSERT_FALSE(B) << "a near-dependent frozen basis must not run";
+    EXPECT_EQ(B.Error().why, PESFailure::Why::BasisConditioning) << B.Error().details;
+
+    std::vector<rvec3_t> step=ref.R; step[1].x+=0.05;
+    auto P=pes.ConvergeAt(ref.cell, step);
+    ASSERT_TRUE(P) << P.Error().details;
 }
