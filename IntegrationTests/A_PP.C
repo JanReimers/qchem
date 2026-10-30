@@ -61,12 +61,12 @@ TEST(Si2_PP_U, LargeSeparation)
     const SCFParams   par{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-8, .MinFD = 1e-7};
 
     Molecule si1; si1.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,0)));
-    Calculation c1(si1, opt); c1.Converge(par);
+    Calculation c1(MoleculeSetup::Resolve(si1, opt)); c1.Converge(par);
 
     Molecule si2;
     si2.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,0)));
     si2.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,R)));
-    Calculation c2(si2, opt); c2.Converge(par);
+    Calculation c2(MoleculeSetup::Resolve(si2, opt)); c2.Converge(par);
 
     const auto   eb = c2.EnergyTerms();
     const double E1 = c1.Energy();
@@ -99,7 +99,7 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
     // The QUINTET: at R = 20 bohr the pair is two open-shell atoms, O 2p^4 (3P) and Si 3p^2 (3P), aligned.  The default
     // closed-shell SINGLET forced half-filled degenerate p shells into one determinant and never converged (Δρ 0.26 at the
     // cap; it "passed" on that iterate until the cap guard, 2026-10-29); the quintet converges in 13 iterations.
-    Calculation cOSi(osi, {.basis = "sipp", .pp = "gth-lda-valence", .multiplicity = 5});
+    Calculation cOSi(MoleculeSetup::Resolve(osi, {.basis = "sipp", .pp = "gth-lda-valence", .multiplicity = 5}));
 
     EXPECT_NEAR(cOSi.EnergyTerms()["Enn"], 24.0/R, 1e-6);   // per-species Zion routing: 6*4/R (not 16/R or 36/R)
     EXPECT_LT(cOSi.Energy(), 0.0);                       // a finite, bound total (sanity; not an accuracy claim)

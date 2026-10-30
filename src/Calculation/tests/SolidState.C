@@ -84,7 +84,7 @@ Saved& SavedState(int multiplicity, bool forceComplex)
     Saved s;
     s.path=TempPath("ck1_si_m"+std::to_string(multiplicity)+(forceComplex?"_c":"_r")+".h5");
     SiRun si=Si(ivec3_t(2,2,2));
-    SolidCalculation calc(*si.lat, si.mol, Options(multiplicity, forceComplex, s.path), Params());
+    SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, Options(multiplicity, forceComplex, s.path)), Params());
     auto r=calc.Result();
     EXPECT_TRUE(r) << "the Si reference run must converge";
     if (r) { s.energy=r->Energy(); s.iterations=r->IterationCount(); }
@@ -96,7 +96,7 @@ void ExpectExactResume(int multiplicity, bool forceComplex)
     const Saved& s=SavedState(multiplicity, forceComplex);
     ASSERT_TRUE(std::filesystem::exists(s.path));
     SiRun si=Si(ivec3_t(2,2,2));
-    auto c=SolidCalculation::Restart(s.path, *si.lat, si.mol, Options(multiplicity, forceComplex, ""), Params());
+    auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, Options(multiplicity, forceComplex, "")), Params());
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
@@ -217,7 +217,7 @@ TEST(SolidState, WarmStart_OtherGrid_StartsAtTheAnswer)
     o.densityEcut=30.0;
     std::vector<double> E;
     o.onIteration=[&E](const SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
-    auto c=SolidCalculation::Restart(s.path, *si.lat, si.mol, o, Params());
+    auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), Params());
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
@@ -241,13 +241,13 @@ TEST(SolidState, LadderRestart_Smeared_StartsOnDIIS)
     p.SmearingkT=0.02;
     double cold=0.0;
     {
-        SolidCalculation calc(*si.lat, si.mol, o, p);
+        SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p);
         auto r=calc.Result();
         ASSERT_TRUE(r) << "the cold smeared Ladder reference must converge";
         cold=r->Energy();
     }
     testing::internal::CaptureStdout();
-    auto c=SolidCalculation::Restart(s.path, *si.lat, si.mol, o, p);
+    auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), p);
     const std::string out=testing::internal::GetCapturedStdout();
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
@@ -267,7 +267,7 @@ TEST(SolidState, SmearedExactResume_StartsAtTheSavedState)
     const std::string path=TempPath("ck1_si_smeared.h5");
     double saved=0.0;
     {
-        SolidCalculation calc(*si.lat, si.mol, Options(0, false, path), p);
+        SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, Options(0, false, path)), p);
         auto r=calc.Result();
         ASSERT_TRUE(r) << "the smeared Si reference must converge";
         saved=r->Energy();
@@ -275,7 +275,7 @@ TEST(SolidState, SmearedExactResume_StartsAtTheSavedState)
     SolidCalcOptions o=Options(0, false, "");
     std::vector<double> E;
     o.onIteration=[&E](const SCFIterator::SCFProgress& pr){ E.push_back(pr.energy); };
-    auto c=SolidCalculation::Restart(path, *si.lat, si.mol, o, p);
+    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p);
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
@@ -304,7 +304,7 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;     // the singles route: rho[D] only through the N4 correction
     double saved=0.0;
     {
-        SolidCalculation calc(*si.lat, si.mol, o, p);
+        SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p);
         auto r=calc.Result();
         ASSERT_TRUE(r) << "the Si field-mixer reference must converge";
         saved=r->Energy();
@@ -314,7 +314,7 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     o.onIteration=[&it](const SCFIterator::SCFProgress& pr){ it.push_back(pr); };
     qchem::IterationBudget budget(3, "field-mixer exact resume (regime 4)");   // the PANEL case: the resume only
     testing::internal::CaptureStdout();
-    auto c=SolidCalculation::Restart(path, *si.lat, si.mol, o, p);
+    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p);
     const std::string out=testing::internal::GetCapturedStdout();
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
@@ -339,7 +339,7 @@ TEST(SolidState, RealnessCrossesBothWays)
     {
         const Saved& s=SavedState(savedComplex ? 1 : 0, savedComplex);
         SiRun si=Si(ivec3_t(2,2,2));
-        auto c=SolidCalculation::Restart(s.path, *si.lat, si.mol, Options(savedComplex ? 1 : 0, !savedComplex, ""), Params());
+        auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, Options(savedComplex ? 1 : 0, !savedComplex, "")), Params());
         ASSERT_TRUE(c) << c.Error().details;
         auto r=(*c)->Result();
         ASSERT_TRUE(r);
@@ -353,23 +353,58 @@ TEST(SolidState, RefusedOnAnotherKMesh_OrSpinGroup_OrMissingFile)
     const Saved& s=SavedState(0, false);
     {
         SiRun si=Si(ivec3_t(1,1,1));
-        auto c=SolidCalculation::Restart(s.path, *si.lat, si.mol, Options(0, false, ""), Params());
+        auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, Options(0, false, "")), Params());
         ASSERT_FALSE(c);
         EXPECT_EQ(c.Error().why, RestartRefusal::Why::Mismatch);
         EXPECT_NE(c.Error().details.find("blocks.k"), std::string::npos);
     }
     {
         SiRun si=Si(ivec3_t(2,2,2));
-        auto c=SolidCalculation::Restart(s.path, *si.lat, si.mol, Options(1, false, ""), Params());
+        auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, Options(1, false, "")), Params());
         ASSERT_FALSE(c);
         EXPECT_NE(c.Error().details.find("spinGroup"), std::string::npos);
     }
     {
         SiRun si=Si(ivec3_t(2,2,2));
-        auto c=SolidCalculation::Restart(TempPath("ck1_no_such_state.h5"), *si.lat, si.mol, Options(0, false, ""), Params());
+        auto c=SolidCalculation::Restart(TempPath("ck1_no_such_state.h5"), SolidSetup::Resolve(*si.lat, si.mol, Options(0, false, "")), Params());
         ASSERT_FALSE(c);
         EXPECT_EQ(c.Error().why, RestartRefusal::Why::Unreadable);
     }
 }
+
+//! A PLANE-WAVE state (OpenWork §3 "PW states cannot be saved (or restarted)", 2026-10-30): saved through the same fingerprint and
+//! block path as a Gaussian one, the cutoff standing in for the shells.  \a numBands > 0 is the partial eigensolve a production
+//! PW run uses, whose restored stage starts on DIIS (GDM needs every virtual).
+SolidCalcOptions PWOptions(size_t numBands, const std::string& save)
+{
+    SolidCalcOptions o=Options(0, false, save);
+    o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0; o.numBands=numBands; o.label="ck1pw";
+    return o;
+}
+void ExpectPlaneWaveExactResume(size_t numBands)
+{
+    const std::string path=TempPath("ck1_si_pw_"+std::to_string(numBands)+".h5");
+    SiRun si=Si(ivec3_t(1,1,1));
+    SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, PWOptions(numBands, path)), Params());
+    auto r=calc.Result();
+    ASSERT_TRUE(r) << "the Si plane-wave reference run must converge";
+    ASSERT_TRUE(std::filesystem::exists(path)) << "a plane-wave state must be SAVED";
+
+    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, PWOptions(numBands, "")), Params());
+    ASSERT_TRUE(c) << c.Error().details;
+    auto rr=(*c)->Result();
+    ASSERT_TRUE(rr);
+    // Full eigensolve: the restored stage starts on the Ladder's GDM rung, AT the saved state.  Partial: it starts on DIIS, which
+    // takes one real step from an iterate the saved run stopped at Δρ/N 1e-7 -- measured 1.2e-8 Ha (2026-10-30), inside that stop.
+    EXPECT_NEAR(rr->Energy(), r->Energy(), numBands==0 ? 1e-8 : 5e-8);
+    EXPECT_LE(rr->IterationCount(), 3u) << "the reference run took " << r->IterationCount();
+
+    // The family is REFUSE: a plane-wave state cannot seed a Gaussian run, nor the other way round.
+    auto g=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, Options(0, false, "")), Params());
+    ASSERT_FALSE(g);
+    EXPECT_NE(g.Error().details.find("basis.family"), std::string::npos) << g.Error().details;
+}
+TEST(SolidState, ExactResume_PlaneWave)                 {ExpectPlaneWaveExactResume(0);}
+TEST(SolidState, ExactResume_PlaneWave_PartialEigensolve) {ExpectPlaneWaveExactResume(8);}
 
 } //namespace

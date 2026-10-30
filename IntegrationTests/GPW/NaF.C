@@ -125,7 +125,7 @@ TEST(GPW_NaF, Γ_Imp_Anchor)   // RE-ENABLED 2026-09-15: 15 s, converged in 23 i
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
     SCFParams par=NaFGates(); par.StartingRelaxRo=0.25; par.MergeTol=1e-4;
     GpwReport report("NaF "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(lat, MakeBasisNaFSR2(*naf.cell), o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), par);
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);           // 1 (Na) + 7 (F) valence electrons, conserved
@@ -178,7 +178,7 @@ const NaFRestartFixture& NaFRestart()
             o.densityEcut=40.0;
             o.raster=BasisSet::PlaneWave::RasterPolicy::AliasFree;
             o.saveStateTo=r.coarsePath;
-            qchem::SolidCalculation calc(lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
+            qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
             auto R=calc.Result();
             if (!R) { r.why="coarse: "+Why(R); return r; }
             r.coarseEnergy=R->Energy();
@@ -186,7 +186,7 @@ const NaFRestartFixture& NaFRestart()
         {   // the COLD fine reference (what Γ_Imp_Anchor runs), also saved for the exact-resume claim
             SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart cold fine");
             o.saveStateTo=r.finePath;
-            qchem::SolidCalculation calc(lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
+            qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
             auto R=calc.Result();
             if (!R) { r.why="cold fine: "+Why(R); return r; }
             r.coldEnergy=R->Energy(); r.coldIterations=R->IterationCount();
@@ -213,7 +213,7 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart_Panel)   // PANEL case 2 (regime 5, WARM coarse
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
     o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
-    auto c=qchem::SolidCalculation::Restart(f.coarsePath, lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
+    auto c=qchem::SolidCalculation::Restart(f.coarsePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();
     ASSERT_TRUE(R) << Why(R);
@@ -247,7 +247,7 @@ TEST(GPW_NaF, Γ_Imp_eqExactResume_Panel)   // PANEL case 1 (regime 4, exact res
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
     o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
-    auto c=qchem::SolidCalculation::Restart(f.finePath, lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
+    auto c=qchem::SolidCalculation::Restart(f.finePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();
     ASSERT_TRUE(R) << Why(R);
@@ -284,7 +284,7 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
     SolidCalcOptions o=NaFOptions(naf, "NaF Becke gate");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     GpwReport report("NaF "+o.label, false);
-    qchem::SolidCalculation calc(lat, MakeBasisNaFSR2(*naf.cell), o, NaFGates());
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFGates());
     ASSERT_TRUE(calc.Result()) << Why(calc.Result());
     EXPECT_NEAR(calc.Result()->TotalCharge(), 8.0, 1e-6);
     const GpwHandles h=Handles(calc);

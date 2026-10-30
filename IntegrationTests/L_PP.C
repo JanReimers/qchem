@@ -150,7 +150,7 @@ TEST(L_PP, FacadePreservesUnitCell)
 {
     // Finite reference through the facade: He at the origin (Enn = 0 for one atom -- no ion-ion pair).
     Molecule he; he.Insert(new Atom(2, 0.0, {0,0,0}));
-    Calculation cFin(he, {.basis = "dzvp"});
+    Calculation cFin(MoleculeSetup::Resolve(he, {.basis = "dzvp"}));
     EXPECT_TRUE(cFin.GetStructure().isFinite());          // a Molecule stays finite
     EXPECT_NEAR(cFin.EnergyTerms()["Enn"], 0.0, 1e-12);      // single finite atom -> no ion-ion
 
@@ -158,7 +158,7 @@ TEST(L_PP, FacadePreservesUnitCell)
     const double a = 10.0;
     UnitCell cell(a);
     cell.AddAtom(2, {0.5,0.5,0.5});
-    Calculation cCell(cell, {.basis = "dzvp"});
+    Calculation cCell(MoleculeSetup::Resolve(cell, {.basis = "dzvp"}));
 
     EXPECT_FALSE(cCell.GetStructure().isFinite());                    // periodic, not sliced to a Molecule
     EXPECT_NEAR(cCell.GetStructure().GetNumElectrons(), 2.0, 1e-12);  // He, charge preserved by Clone

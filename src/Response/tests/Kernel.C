@@ -297,7 +297,7 @@ rmat_t FD_Polarizability(Calculation& calc, double h)
 //! The FD kernel INSIDE the solver reproduces the analytic HF polarisability (and so PySCF's).
 TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
 {
-    Calculation calc(*Water(), {.basis="dzvp"});
+    Calculation calc(MoleculeSetup::Resolve(*Water(), {.basis="dzvp"}));
     ASSERT_TRUE(calc.Converge(tight));
     auto analytic=calc.StaticPolarizability(dipoleMesh);
     ASSERT_TRUE(analytic.IsOk()) << analytic.Error().detail;
@@ -316,7 +316,7 @@ TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
 TEST(ResponsePolarizability, LDA_FD_Kernel_vsPySCF)
 {
     const double pyscf[3]={3.44581010, 7.33075620, 5.91599197};   // PySCF RKS lda,vwn / dzvp(cart) CPKS
-    Calculation calc(*Water(), {.basis="dzvp", .model=Hamiltonian::Model::LDA});
+    Calculation calc(MoleculeSetup::Resolve(*Water(), {.basis="dzvp", .model=Hamiltonian::Model::LDA}));
     ASSERT_TRUE(calc.Converge(tight));
     const rmat_t a=FD_Polarizability(calc, 1e-4);
     const rmat_t b=FD_Polarizability(calc, 1e-3);
@@ -364,7 +364,7 @@ std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, dou
     if (spectator) o.hubbard.push_back({.site=1, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells});
     o.imposeSymmetry=impose;
     o.siteSpins={0,0};   // Si is non-magnetic: the polarized +U arm states it (OpenWork §3, 2026-10-26)
-    auto calc=std::make_unique<SolidCalculation>(lat, mol, o, par);
+    auto calc=std::make_unique<SolidCalculation>(SolidSetup::Resolve(lat, mol, o), par);
     EXPECT_TRUE(calc->DidConverge());
     return calc;
 }
@@ -595,7 +595,7 @@ std::unique_ptr<SolidCalculation> ConvergedSiWithD()
     mol=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(mol));
     SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0,
                        .hubbard={{.site=0, .l=2, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true};
-    auto calc=std::make_unique<SolidCalculation>(lat, mol, o, SiParams());
+    auto calc=std::make_unique<SolidCalculation>(SolidSetup::Resolve(lat, mol, o), SiParams());
     EXPECT_TRUE(calc->DidConverge());
     return calc;
 }
@@ -854,7 +854,7 @@ std::unique_ptr<SolidCalculation> SiState(ivec3_t kmesh, qcMesh::UnitCellKind xc
     o.xcMesh.cellKind=xc;
     qchem::BoundedSCF bounded("the kernel identities (Hermiticity, linearity, thread identity) hold about ANY positive rho0: "
                               "12 iterations only supply one");
-    return std::make_unique<SolidCalculation>(lat, mol, o, par);
+    return std::make_unique<SolidCalculation>(SolidSetup::Resolve(lat, mol, o), par);
 }
 
 void KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind xc, SpinGroup g)
@@ -1058,7 +1058,7 @@ std::unique_ptr<SolidCalculation> SiK211(SCFAccelerators::Type acc)
     SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true};
     o.accelerator=acc;
     o.hubbard={{.site=0,.l=1,.U=0.0},{.site=1,.l=1,.U=0.0}};
-    return std::make_unique<SolidCalculation>(lat, mol, o, SiParams());
+    return std::make_unique<SolidCalculation>(SolidSetup::Resolve(lat, mol, o), SiParams());
 }
 struct BlockAudit { double orth=0, gradient=0, epsOcc=0, epsVir=0; };
 BlockAudit AuditReference(const SolidCalculation& calc)
@@ -1136,7 +1136,7 @@ CarryOver SiK222BeckeCarryOver(bool impose)
     SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true};
     o.imposeSymmetry=impose;
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
-    SolidCalculation calc(lat, mol, o, SiParams());
+    SolidCalculation calc(SolidSetup::Resolve(lat, mol, o), SiParams());
 
     const auto& wf=ResponseFacadeTests::WF(calc);
     auto& H=ResponseFacadeTests::Ham(calc);
@@ -1286,7 +1286,7 @@ void LittleGroupEqualsFull(ivec3_t Nq, qcMesh::UnitCellKind xc=qcMesh::UnitCellK
                        .forceComplex=true};
     o.siteSpins={0,0};
     o.xcMesh.cellKind=xc;
-    SolidCalculation calc(lat, mol, o, SiParams());
+    SolidCalculation calc(SolidSetup::Resolve(lat, mol, o), SiParams());
     ASSERT_TRUE(calc.DidConverge());
     const KrylovParams kp{.tol=1e-9};
     const auto t0=std::chrono::steady_clock::now();

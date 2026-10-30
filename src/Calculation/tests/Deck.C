@@ -201,7 +201,7 @@ TEST(Deck, ARunFromADeckEqualsTheSameRunBuiltByHand_Si_Gamma)
     Lattice_3D lat(*mat.cell, ivec3_t(1,1,1));
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, mat.cell.get()));
     SolidCalcOptions o; o.Nelec=8; o.species=mat.species; o.densityEcut=20.0; o.imposeSymmetry=true; o.label=out.revision.stem().string();
-    SolidCalculation calc(lat,mol,o,spec.scf);
+    SolidCalculation calc(SolidSetup::Resolve(lat, mol, o), spec.scf);
     auto R=calc.Result(); ASSERT_TRUE(R);
     EXPECT_DOUBLE_EQ(R->Energy(), *out.energy);
     fs::remove_all(dir);
