@@ -1,6 +1,7 @@
 // File: Calculation/Imp/SolidSetup.C  The periodic run setup: every decision made ONCE, before a geometry point is built.
 module;
 #include <algorithm>   // std::max (alpha_pp)
+#include <iostream>    // the stated-trim line
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -12,6 +13,7 @@ import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS (the per-irrep bases
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH -> HGH local PP -> alpha_pp
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
+import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::spherical)
 
 namespace qchem
 {
@@ -92,11 +94,51 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, std
                                                       const SCFAccelerators::SolidAcceleratorOptions& acc)
 {
     qchem::SetRunPolicy(opts.policy);   // D-ENV 6b: the policy is part of the run's options, installed ONCE here, before any factory consults it
-    std::shared_ptr<SolidSetup> s(new SolidSetup(Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.species)));
+    return Decide(lat, std::move(mol), opts, acc);
+}
+
+std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
+                                                      const SolidCalcOptions& opts,
+                                                      const SCFAccelerators::SolidAcceleratorOptions& acc)
+{
+    qchem::SetRunPolicy(opts.policy);   // before the vet loop builds its Bloch blocks, as before every other factory
+    const auto pp=Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.species);
+    // THE BASIS, made over a structure the setup will hold (Decide's setup keeps its own copy of the same cell, and the basis is
+    // built over THAT copy below so it cannot outlive its atoms).
+    GaussianBasisRecipe frozen=recipe;
+    const std::shared_ptr<const Structure> cell=lat.GetStructure();
+    std::shared_ptr<const BasisSet::Real_BS> mol;
+    if (recipe.vet)
+    {
+        if (!recipe.trim.empty())
+            throw std::invalid_argument("GaussianBasisRecipe: vet and a stated trim are exclusive -- state one");
+        // THE VET-STAGE TRIM, ONCE, at the reference geometry (pin 22); frozen below so a geometry step rebuilds the SAME shells.
+        auto make=[&](const BasisSet::Gaussian::ShellTrim& t){ GaussianBasisRecipe r=recipe; r.trim=t; return r.Make(*cell, pp); };
+        auto r=BasisSet::Lattice::VetStageTrim(lat, make, {.images=opts.images, .kShift=opts.kShift}, opts.orthoTol);
+        frozen.trim=std::move(r.trim);
+        frozen.vet =false;
+        mol=std::move(r.mol);
+    }
+    else
+    {
+        if (!recipe.trim.empty()) { std::cout<<"[basis trim] STATED (no vet loop): "; recipe.trim.Write(std::cout); std::cout<<std::endl; }
+        mol=recipe.Make(*cell, pp);
+    }
+    std::shared_ptr<SolidSetup> s=Decide(lat, std::move(mol), opts, acc);
+    s->cell  =cell;     // the structure the basis was built over: the setup holds it as long as it holds the basis
+    s->recipe=std::move(frozen);
+    return s;
+}
+
+std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                               const SolidCalcOptions& opts,
+                                               const SCFAccelerators::SolidAcceleratorOptions& acc)
+{
+    std::shared_ptr<SolidSetup> s(new SolidSetup(Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.species), lat));
     s->opts=opts;
     s->acc =acc;
     s->mol =std::move(mol);
-    const std::shared_ptr<const Structure> st=lat.GetStructure();
+    const std::shared_ptr<const Structure> st=s->cell;
     RequireStatedMagneticOrdering(opts, *st);
     s->seedKey=SeedKeyOf(s->pp, *st);
 
@@ -171,6 +213,19 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, std
     s->nUp  =(opts.Nelec+twoS)/2;
     s->nDown=(opts.Nelec-twoS)/2;
     return s;
+}
+
+std::shared_ptr<const BasisSet::Real_BS> GaussianBasisRecipe::Make(const Structure& cell,
+                                                                  const Pseudopotential::PseudopotentialSet& pp) const
+{
+    using namespace BasisSet::Gaussian;
+    // D-BASIS-PP: the basis file's declared pseudopotential q per element must be the q this run's terms use.
+    const auto species=pp.Species(cell);
+    if (file.empty()) CheckPPProvenance(data, species); else CheckPPProvenance(file, species);
+    std::shared_ptr<const BasisSet::Real_BS> b(file.empty() ? Factory(data, &cell, Engine::MnD, Angular::Cartesian, trim)
+                                                            : FactoryFromFile(file, &cell, Engine::MnD, Angular::Cartesian, trim));
+    if (spherical) b=PG_Spherical::MakeSphericalLatticeView(std::move(b));
+    return b;
 }
 
 } //namespace qchem

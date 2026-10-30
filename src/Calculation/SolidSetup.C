@@ -7,6 +7,7 @@
 // fixed setup (step 8).  SolidCalcOptions lives here because the setup is what reads it; qchem.SolidCalculation re-exports it.
 module;
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -15,7 +16,8 @@ export module qchem.SolidSetup;
 import qchem.Lattice_3D;                      // Lattice_3D (crystal + BZ mesh)
 import qchem.Structure;                       // Structure
 import qchem.BasisSet;                        // Real_BS (the molecular orbital basis)
-import qchem.BasisSet.Lattice.BasisSet;       // RasterPolicy, CellImages, GPWTolerances
+import qchem.BasisSet.Lattice.BasisSet;       // RasterPolicy, CellImages, GPWTolerances, ShellTrim
+import qchem.BasisSet.Gaussian.Point.Factory; // BasisSetData (the registered basis files)
 import qchem.Hamiltonian.Factory;             // HubbardManifold, VxcFit
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions
 import qchem.SCFIterator;                     // SolidSCFIterator::Observer
@@ -236,6 +238,28 @@ struct SolidCalcOptions
 //! facade calls it first thing, and \c deck::Vet calls it so \c scripts/vet-decks catches a deck before it runs.
 void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& st);
 
+//! \brief HOW the molecular orbital basis of a GPW run is made at a geometry: the frozen RECIPE a geometry step rebuilds
+//! (doc/CalcNetworkReview.md §3.2 item 2, §7).
+//!
+//! The trim (doc/Pins.md pin 22) is STATED, or decided ONCE by the vet-stage loop when the setup is resolved -- at the
+//! REFERENCE geometry -- and then FROZEN into \c trim: re-vetting at every geometry would make the energy surface
+//! discontinuous.  It used to be the deck's (\c deck::Run) and nothing else's, so a calculation built in code got no trim
+//! at all; the recipe is its one home now.
+struct GaussianBasisRecipe
+{
+    BasisSet::Gaussian::BasisSetData data = BasisSet::Gaussian::BasisSetData::VALENCE_LOWQ_SR;   //!< the registered basis file
+    std::string                       file;   //!< a .bsd path (or a bare name in the shipped directory) used INSTEAD of \c data; empty = \c data
+    BasisSet::Gaussian::ShellTrim     trim;   //!< shells read the file WITHOUT (element, l, exponent); empty = the file as written
+    //! Decide \c trim by the vet-stage loop at the run's \c orthoTol on the reference geometry's full k-mesh -- EXCLUSIVE with a
+    //! stated \c trim.  \c SolidSetup::Resolve runs it once and stores the frozen result (\c vet false, \c trim filled).
+    bool                              vet = false;
+    bool                              spherical = false;   //!< wrap in the spherical lattice view (contaminant-free d/f)
+
+    //! The basis over \a cell's atoms.  CHECKS the file's declared pseudopotential provenance against \a pp first (D-BASIS-PP):
+    //! THROWS naming the file, the element and both q on a mismatch.  \a cell must outlive the basis.
+    std::shared_ptr<const BasisSet::Real_BS> Make(const Structure& cell, const Pseudopotential::PseudopotentialSet& pp) const;
+};
+
 //! \brief THE RUN SETUP of a periodic calculation: \c SolidCalcOptions as asked, plus every decision resolved from them ONCE.
 //!
 //! WHAT IS HERE, AND WHAT IS NOT (doc/CalcNetworkReview.md §2).  A run splits into three lifetimes: the SETUP (the choices and
@@ -257,13 +281,25 @@ struct SolidSetup
     static std::shared_ptr<const SolidSetup> Resolve(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                                                      const SolidCalcOptions& opts,
                                                      const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+    //! The same from a basis RECIPE: the molecular basis is made at \a lat's geometry by \a recipe (its provenance checked against
+    //! the run's set), after the vet-stage loop -- if the recipe asks for it -- has decided the trim, which is then frozen in
+    //! \c recipe.  A setup with a recipe can rebuild its basis at moved atoms (a geometry step); one from a pre-built \a mol cannot.
+    static std::shared_ptr<const SolidSetup> Resolve(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
+                                                     const SolidCalcOptions& opts,
+                                                     const SCFAccelerators::SolidAcceleratorOptions& acc = {});
 
     SolidCalcOptions                         opts;   //!< as asked, except \c ortho: a plane-wave run's default Cholesky becomes Orthonormal
     SCFAccelerators::SolidAcceleratorOptions acc;    //!< as asked; a stage derives its own from it (a restored stage's Ladder rung)
     Pseudopotential::PseudopotentialSet      pp;     //!< \c opts.pp with the \c opts.species overrides applied
+    //! The REFERENCE geometry: the lattice the setup was resolved at (the trim vetted, the imposed group detected), and its
+    //! structure -- the one the reference basis is built over, held so it outlives that basis.
+    Lattice_3D                               reference;
+    std::shared_ptr<const Structure>         cell;
     //! The seed library's key: \c pp's functional and, per element of the structure, its q (the seed is the SAME pseudo-atom as the terms).
     ChargeDensity::SeedKey                   seedKey;
     std::shared_ptr<const BasisSet::Real_BS> mol;    //!< the molecular orbital basis at the REFERENCE geometry
+    //! How \c mol was made, the trim FROZEN; empty when the caller handed a pre-built basis (that setup cannot follow moved atoms).
+    std::optional<GaussianBasisRecipe>       recipe;
     bool planeWave = false;   //!< \c opts.orbitalBasis is PlaneWave
     bool polarized = false;   //!< the spin-native two-channel run (\c opts.multiplicity >= 1)
     //! The caller's \c imposeSymmetry AND the run policy's permission (CP2K parity vetoes the capability).  Nothing reads
@@ -277,7 +313,11 @@ struct SolidSetup
     int nUp = 0, nDown = 0;        //!< the electron counts per spin channel (decision 2: multiplicity -> (nUp, nDown))
 
 private:
-    explicit SolidSetup(Pseudopotential::PseudopotentialSet p) : pp(std::move(p)) {}
+    SolidSetup(Pseudopotential::PseudopotentialSet p, const Lattice_3D& lat)
+        : pp(std::move(p)), reference(lat), cell(lat.GetStructure()) {}
+    //! The decisions, shared by both \c Resolve overloads (the policy is already installed).
+    static std::shared_ptr<SolidSetup> Decide(const Lattice_3D&, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                              const SolidCalcOptions&, const SCFAccelerators::SolidAcceleratorOptions&);
 };
 
 } //export namespace qchem

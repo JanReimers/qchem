@@ -297,8 +297,22 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     // banner).  With the same bracket on Converge and on Iterate, the ledger PARTITIONS the run and
     // "everything not in a bucket" stops being a place time can hide.
     qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
-    BuildPoint(SolidSetup::Resolve(lat, mol, opts, acc), lat);
-    BuildRun(nullptr, params);
+    Start(SolidSetup::Resolve(lat, mol, opts, acc), params, opts.accelerator);
+}
+
+SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params)
+    : itsImp(std::make_unique<Imp>())
+{
+    qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
+    const SCFAccelerators::Type accel=setup->opts.accelerator;
+    Start(std::move(setup), params, accel);
+}
+
+void SolidCalculation::Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel)
+{
+    const Lattice_3D& reference=setup->reference;   // held by the setup, which the point keeps alive
+    BuildPoint(std::move(setup), reference);
+    BuildRun(nullptr, params, accel);
     (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
 }
 
@@ -383,7 +397,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
 
 // THE SECOND HALF: the Hamiltonian, the seed (the caller's when given -- a restored state), the iterator.
 void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
-                                bool exactResume)
+                                SCFAccelerators::Type accel, bool exactResume)
 {
     const SolidSetup&       S    = *itsImp->setup;
     const SolidCalcOptions& opts = S.opts;
@@ -429,7 +443,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
            "SolidCalculation: the term stack no longer preserves realness -- update the forecast above");
 
     // DECISION 3 -- the accelerator, by policy (Auto pairs it with the mixer), through the public typed door.
-    MakeAccelerator(opts.accelerator, params, /*restored*/bool(seed));   // a pre-built seed here is Restart's restored state
+    MakeAccelerator(accel, params, /*restored*/bool(seed));   // a pre-built seed here is Restart's restored state
 
     // THE SEED IS BUILT HERE, not inside the iterator -- the same factory call the SeedStrategy ctor
     // would have made (ChargeDensity::MakeSeedDensity with the Hamiltonian's own polarization), handed
@@ -496,15 +510,30 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
 SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                                    const SolidCalcOptions& opts, const std::vector<SCFStage>& schedule,
                                    const SCFAccelerators::SolidAcceleratorOptions& acc)
-    : SolidCalculation(lat, mol,
-                       schedule.empty() ? opts : [&]{ SolidCalcOptions o=opts;
-                                                      o.accelerator=schedule.front().accelerator; return o; }(),
-                       schedule.empty() ? SCFParams{} : schedule.front().params, acc)
+    : SolidCalculation(SolidSetup::Resolve(lat, mol,
+                                           schedule.empty() ? opts : [&]{ SolidCalcOptions o=opts;
+                                                                          o.accelerator=schedule.front().accelerator; return o; }(),
+                                           acc),
+                       schedule)
+{}
+
+SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule)
+    : itsImp(std::make_unique<Imp>())
 {
     if (schedule.empty())
         throw std::runtime_error("SolidCalculation: an EMPTY anneal schedule has no meaning -- pass at "
                                  "least one stage, or use the single-SCFParams constructor.");
-    // Stage 0 has already run (the delegated ctor converged it) -- report it, then continue.
+    {
+        qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
+        Start(std::move(setup), schedule.front().params, schedule.front().accelerator);
+    }
+    RunRestOf(schedule);
+}
+
+// Stage 0 has already run (Start converged it) -- report it, then continue through the rest, each stage seeded from the one
+// before it.
+void SolidCalculation::RunRestOf(const std::vector<SCFStage>& schedule)
+{
     EmitStageSummary(itsImp->setup->opts.label, 0, schedule.size(), schedule.front().params.SmearingkT,
                      itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
     for (size_t s=1; s<schedule.size(); ++s)
@@ -1026,8 +1055,15 @@ SolidCalculation::Restart(const std::string& path, const Lattice_3D& lat, std::s
                           const SolidCalcOptions& opts, const SCFParams& params,
                           const SCFAccelerators::SolidAcceleratorOptions& acc)
 {
+    return Restart(path, SolidSetup::Resolve(lat, mol, opts, acc), SCFStage{params, opts.accelerator});
+}
+
+Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFStage& stage)
+{
     using O=Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>;
-    const std::string tag="["+opts.label+" restart] ";
+    const SCFParams& params=stage.params;
+    const std::string tag="["+setup->opts.label+" restart] ";
     auto refuse=[&](RestartRefusal r)
     {
         std::cout << tag << "REFUSED ("<<path<<"): "<<r.details<<std::endl;
@@ -1042,13 +1078,13 @@ SolidCalculation::Restart(const std::string& path, const Lattice_3D& lat, std::s
     // kT = 0 ONLY: a smeared stage restored from an integer state hands GDM an idempotent D', so GDM would ENGAGE and
     // minimise with integer occupations, never applying the smearing (measured 2026-10-21, Si k222 kT 0.02: 6 mHa off the
     // cold smeared run).  A smeared restart starts on DIIS, as it did before.
-    c->BuildPoint(SolidSetup::Resolve(lat, mol, opts, acc), lat);
+    const Lattice_3D& reference=setup->reference;
+    c->BuildPoint(std::move(setup), reference);
     c->itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
     // Judged against the BUILT blocks (k, weight, size), not against a re-derivation of what they would be.
     auto warm=CompareFingerprints(saved->fingerprint, c->Fingerprint(params.SmearingkT));
     if (!warm) return refuse(warm.Error());
-    auto cd=RestoreDensity(*saved, *c->itsImp->bs,
-                           opts.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized);
+    auto cd=RestoreDensity(*saved, *c->itsImp->bs, c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized);
     if (!cd) return refuse(cd.Error());
 
     const bool exact=warm->empty();
@@ -1060,9 +1096,9 @@ SolidCalculation::Restart(const std::string& path, const Lattice_3D& lat, std::s
         for (const std::string& d : *warm) os<<"\n"<<tag<<"  differs: "<<d;
         std::cout<<os.str()<<std::endl;
     }
-    c->BuildRun(cd.TakeValue(), params, exact);
+    c->BuildRun(cd.TakeValue(), params, stage.accelerator, exact);
     (void)c->Converge(params);
-    c->itsImp->accOpts.ladderStartOnGDM=acc.ladderStartOnGDM;   // later stages on this calculation start as asked
+    c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;   // later stages on this calculation start as asked
     if (exact)
         std::cout << tag << "resumed E="<<std::setprecision(10)<<c->itsImp->scf->GetEnergy().GetTotalEnergy()
                   << " vs saved "<<saved->summary.energy<<"  dE="<<std::setprecision(3)

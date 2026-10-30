@@ -290,6 +290,12 @@ public:
                      const SolidCalcOptions& opts,
                      const std::vector<SCFStage>& schedule,
                      const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+    //! \brief A run over a RESOLVED setup (doc/CalcNetworkReview.md §7, step 6): the geometry point at the setup's reference
+    //! lattice, converged once with \a params and the setup's accelerator.  The two constructors above are this with
+    //! \c SolidSetup::Resolve in front.
+    explicit SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {});
+    //! ...and the ANNEALED one: stage 0 on its own accelerator, then the rest of \a schedule.
+    SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule);
     ~SolidCalculation();
 
     //! \brief START FROM A SAVED STATE (CK-1; doc/OpenWork.md §2 "SCF checkpoint/restart"): build the graph for
@@ -312,6 +318,9 @@ public:
         Restart(const std::string& path, const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                 const SolidCalcOptions& opts, const SCFParams& params = {},
                 const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+    //! The same over a RESOLVED setup: one stage, \a stage's parameters and accelerator.
+    static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+        Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFStage& stage);
 
     //! \brief Write the LAST ITERATE's state -- every (k,σ) block's D, C, ε, f, the fingerprint and the run
     //! summary -- to \a path (HDF5, layout in qchem.SolidState; atomic: written aside, renamed into place).
@@ -543,7 +552,12 @@ private:
     //! The +U manifolds' groups and radials, the Hamiltonian, the accelerator, the seed (\a seed, or
     //! \c opts.seed when null), the iterator and the run banner.  \a exactResume: \a seed is a restored state with no
     //! WARM difference (SeedRole::ExactResume -- it becomes the first working density, not just the first Fock's).
-    void BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params, bool exactResume=false);
+    //! \a accel: the first stage's accelerator, as asked.
+    void BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
+                  SCFAccelerators::Type accel, bool exactResume=false);
+    //! Point + run + the first Converge (the constructors' common body), and the rest of an annealed schedule.
+    void Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
+    void RunRestOf(const std::vector<SCFStage>& schedule);
     //! This run's saved-state fingerprint, with \a kT the recipe's temperature.
     StateFingerprint Fingerprint(double kT) const;
     //!@}
