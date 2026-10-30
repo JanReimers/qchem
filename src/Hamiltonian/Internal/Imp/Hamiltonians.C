@@ -97,28 +97,28 @@ Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::
 
 namespace {
 std::shared_ptr<const Pseudopotential::LocalPotential>
-BuildMultiSpeciesLocal(const std::vector<std::pair<std::string,int>>& species)
+BuildMultiSpeciesLocal(const std::vector<std::pair<std::string,int>>& species, const std::string& functional)
 {
     auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
     for (const auto& [element, q] : species)
         loc->Add(thePeriodicTable().GetZ(element),
-                 std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local));
+                 std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,functional,q).local));
     return loc;
 }
 std::shared_ptr<const BasisSet::SpeciesProjectorSet_R>
-BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species)
+BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species, const std::string& functional)
 {
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
     for (const auto& [element, q] : species)
         sep->Add(thePeriodicTable().GetZ(element),
-                 std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal));
+                 std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,functional,q).nonlocal));
     return sep;
 }
 } //anon
 
-Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
                const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g)
-    : Ham_PP(st, BuildMultiSpeciesLocal(species), BuildMultiSpeciesSep(species), mp, bs, g)
+    : Ham_PP(st, BuildMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g)
 {}
 
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,

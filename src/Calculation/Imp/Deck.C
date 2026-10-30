@@ -275,7 +275,7 @@ json ToJson(const SolidCalcOptions& o)
     for (const auto& s : o.species) species.push_back({s.first,s.second});
     json hub=json::array();
     for (const auto& h : o.hubbard) hub.push_back(ToJson(h));
-    return {{"Nelec",o.Nelec},{"multiplicity",o.multiplicity},{"species",species},
+    return {{"Nelec",o.Nelec},{"multiplicity",o.multiplicity},{"pp",o.pp},{"species",species},
             {"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
             {"raster",NameOf(o.raster,kRaster)},{"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
             {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},{"policy",ToJson(o.policy)},{"vxcFit",NameOf(o.vxcFit,kVxc)},{"hubbard",hub},
@@ -287,7 +287,7 @@ json ToJson(const SolidCalcOptions& o)
 void FromJson(const json& j, SolidCalcOptions& o)
 {
     Fields f(j,"solid");
-    f.Get("Nelec",o.Nelec); f.Get("multiplicity",o.multiplicity);
+    f.Get("Nelec",o.Nelec); f.Get("multiplicity",o.multiplicity); f.Get("pp",o.pp);
     if (j.contains("species"))
     {
         o.species.clear();
@@ -583,6 +583,9 @@ Materials::Material Resolve(RunSpec& spec)
                     throw std::runtime_error(who+"perturb index "+std::to_string(j)+" is past the "+std::to_string(spec.solid.hubbard.size())+" manifolds in solid.hubbard");
         }
     }
+    // The material NAMES its pseudopotential set; a deck that left `solid.pp` at the facade default takes the material's.  `species` (the
+    // per-element overrides) is filled with the resolved vocabulary so the record states every valence actually used.
+    if (spec.solid.pp==SolidCalcOptions{}.pp) spec.solid.pp=m.pp;
     if (spec.solid.species.empty()) spec.solid.species=m.species;
     if (spec.solid.Nelec==0)        spec.solid.Nelec=m.Nelec();
     return m;

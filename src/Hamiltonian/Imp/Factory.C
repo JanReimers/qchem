@@ -101,19 +101,18 @@ namespace qchem::Hamiltonian
     }
 
     // Multi-species pseudopotential front door: per-Z router PP so each atom gets its own GTH pseudopotential.
-    rHamiltonian* Factory(SpinGroup p, const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+    rHamiltonian* Factory(SpinGroup p, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
                          const qcMesh::MeshParams& mp, const rbs_t* bs)
     {
-        return new Ham_PP(st, species, mp, bs, p);
+        return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, bs, p);
     }
 
     // The SOLID front door (Step 4): the cHamiltonian twin of the PP factory above.
     cHamiltonian* Factory(SpinGroup p, const st_t& st, const cbs_t* bs,
-                          const std::vector<std::pair<std::string,int>>& species,
-                          const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit,
+                          const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh, VxcFit fit,
                           std::vector<HubbardManifold> hubbard)
     {
-        return new Ham_PW_DFT(st, bs, species, functional, xcMesh, fit, p, std::move(hubbard));
+        return new Ham_PW_DFT(st, bs, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard));
     }
 
 }

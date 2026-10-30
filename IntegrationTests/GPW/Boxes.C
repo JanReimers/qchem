@@ -112,7 +112,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     // Basis-MATCHED reference: the SAME SIPP Gaussian basis + GTH-LDA PP as a finite molecule (density-fit
     // Hartree, Becke XC).  This is the tight cross-check: GPW-in-box == finite molecular DFT (doc/GPWPlan sec 3.4).
     Molecule si; si.Insert(new Atom(14, 0.0, {0,0,0}));
-    Calculation cSipp(si, {.basis = "sipp", .pseudopotential = true});
+    Calculation cSipp(si, {.basis = "sipp", .pp = "gth-lda-valence"});
     const double Esipp=cSipp.Energy();
     // Physical oracle (near-complete Slater/High, for context -- a different basis, not the GPW-correctness gate).
     AtomCalculation cHi(14, 14-4, {.type=AtomType::Slater, .accuracy=BasisSetAccuracy::High, .pseudopotential=true});
@@ -162,7 +162,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
 TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
 {
     Molecule si; si.Insert(new Atom(14, 0.0, {0,0,0}));
-    Calculation cSipp(si, {.basis = "sipp", .pseudopotential = true});
+    Calculation cSipp(si, {.basis = "sipp", .pp = "gth-lda-valence"});
     const double Esipp=cSipp.Energy();   // finite SIPP molecular DFT (symmetric occupation): -3.759
 
     const Material box=qchem::Materials::Get("Si_box16");
@@ -251,12 +251,12 @@ TEST(GPW_NaBox, Γ_Imp_M2_eqFinite)
 {
     // Basis-MATCHED finite reference: the SAME valence_lowq_sr Na basis + GTH-LDA q1 PP through the
     // molecular facade, spin-native LSDA doublet (Ham_PP polarized: FittedVxcPol + FittedVcorrPol).
-    // ppValence=1 overrides Na's GTH DEFAULT-valence entry, which is the SEMICORE q9 -- the q1 entry is
+    // The gth-lda-valence set gives Na its q1 entry (the GTH DEFAULT-valence entry is the SEMICORE q9) -- q1 is
     // the valence_lowq bases' convention.  (The Slater/High atom path is NOT a good oracle here: Slater
     // functions fit the smooth nodeless pseudo-orbitals poorly -- same reason the Si gate anchors on the
     // basis-matched sipp facade run.)
     Molecule na; na.Insert(new Atom(11, 0.0, {0,0,0}));
-    Calculation cRef(na, {.basis="valence_lowq_sr", .multiplicity=2, .pseudopotential=true, .ppValence=1});
+    Calculation cRef(na, {.basis="valence_lowq_sr", .multiplicity=2, .pp="gth-lda-valence"});
     const double Eref=cRef.Energy();
     std::cout << "[Na finite] valence_lowq_sr LSDA doublet (q1)="<<Eref<<std::endl;
 
@@ -289,7 +289,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     Molecule o2mol;
     o2mol.Insert(new Atom(8, 0.0, {-d/2,0,0}));
     o2mol.Insert(new Atom(8, 0.0, { d/2,0,0}));
-    Calculation cRef(o2mol, {.basis="sipp", .multiplicity=3, .pseudopotential=true});
+    Calculation cRef(o2mol, {.basis="sipp", .multiplicity=3, .pp="gth-lda-valence"});
     const double Eref=cRef.Energy();
     {
         auto E=cRef.EnergyTerms();
@@ -375,7 +375,7 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     const bool sphBasis =false;
     Molecule mnmol; mnmol.Insert(new Atom(25, 0.0, {0,0,0}));
     Calculation cRef(mnmol, {.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr",
-                             .multiplicity=6, .pseudopotential=true, .ppValence=7,
+                             .multiplicity=6, .pp="gth-lda-valence",
                              .angular = spherical ? Angular::Spherical : Angular::Cartesian});
     const double Eref=cRef.Energy();
     std::cout << "[Mn finite] "<<(sphBasis?"valence_lowq_sph":"valence_lowq_sr")<<" LSDA sextet (q7, "

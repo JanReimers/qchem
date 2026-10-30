@@ -73,7 +73,7 @@ public:
            const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g);
     Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const rbs_t* bs,
            SpinGroup g);
-    Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+    Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
            const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g);
 };
 

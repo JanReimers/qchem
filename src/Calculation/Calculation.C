@@ -21,6 +21,7 @@ import qchem.Structure;            // Structure, Molecule, Atom
 import qchem.ScalarFunction;       // ::ScalarFunction<double>
 import qchem.BasisSet;             // BasisSet::Real_BS
 import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, IsDFT, the unified resolver
+import qchem.Pseudopotential.Set; // PseudopotentialSet -- the run's chosen pseudopotential (CalcOptions::pp)
 export import qchem.Symmetry.Spin;  // SpinGroup -- the imposed spin subgroup, a CalcOptions field
 import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ElectronConfiguration;// ElectronConfiguration
@@ -74,18 +75,17 @@ struct CalcOptions
     bool        symmetry    = false;
     double      symmetryTol = 1e-4;   //!< geometry tolerance for point-group detection
     //! Replace the bare nuclear attraction with the GTH/HGH pseudopotential (valence-only): the atoms keep
-    //! only their Zion valence electrons and the Hamiltonian gets V_loc(r) + the KB-separable projectors +
-    //! Zion ion-ion, in place of Ven.  SINGLE-SPECIES for now (all atoms the same element; multi-species is
-    //! the next increment).  Requires a valence basis in \c basis (an all-electron basis has spurious core
-    //! shells under a PP) -- e.g. {.basis="sipp", .pseudopotential=true} for silicon.  Ignores \c model
-    //! (the PP front door is always LSDA today).  See doc/MolecularPseudopotentialPlan.md.
-    bool        pseudopotential = false;
-    //! Pseudopotential VALENCE override (electrons kept per atom): 0 (default) = each element's GTH
-    //! default-valence entry.  Set when the database default is not the wanted pseudization -- e.g. Na's
-    //! default is the SEMICORE q9; a {.pseudopotential=true, .ppValence=1} run uses the q1 entry (the
-    //! valence_lowq bases' convention).  Applies to EVERY atom, so it is a single-species (or
-    //! same-valence-choice) knob; the per-species map is the multi-species increment.
-    int         ppValence = 0;
+    //! only their valence electrons and the Hamiltonian gets V_loc(r) + the KB-separable projectors +
+    //! the ion-ion term, in place of Ven.  \c pp NAMES the pseudopotential set (src/Pseudopotential/Data/pseudopotentials.json,
+    //! e.g. "gth-lda-valence": each element's smallest-q GTH-LDA entry); EMPTY (default) = all-electron.  The set also fixes the
+    //! functional the entries were generated for.  Multi-species is native (a per-Z router over the molecule's elements).
+    //! Requires a valence basis in \c basis (an all-electron basis has spurious core shells under a PP) -- e.g.
+    //! {.basis="sipp", .pp="gth-lda-valence"} for silicon.  Ignores \c model (the PP front door is always LSDA today).
+    //! See doc/MolecularPseudopotentialPlan.md and doc/CalcNetworkReview.md §4.
+    std::string pp;
+    //! Per-element valence overrides on top of \c pp's set: `(element, q)` replaces the set's q for that element (or adds the element).
+    //! E.g. a semicore Na q9 run: {.pp="gth-lda-valence", .ppOverride={{"Na",9}}}.
+    std::vector<std::pair<std::string,int>> ppOverride;
     //! SCF seed.  Default == auto: DFT seeds from SAD (superposition of atomic densities), HF/1-e take
     //! the core guess.  Set explicitly to override -- e.g. {.seed=SAD} drives HF's matrix-free-seed
     //! bootstrap (the iterator manufactures a D0 via a one-step LDA sibling).
@@ -175,6 +175,7 @@ private:
     std::shared_ptr<const Structure>     itsStructure;  //!< facade's own copy (Hamiltonian shares it)
     CalcOptions                          itsOpts;
     AcceleratorOptions                   itsAcc;
+    std::unique_ptr<Pseudopotential::PseudopotentialSet> itsPP;   //!< the resolved choice (CalcOptions::pp + ppOverride); null = all-electron
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
     //! R2.22: the iterator no longer deletes what it is handed, so this facade owns the Hamiltonian and

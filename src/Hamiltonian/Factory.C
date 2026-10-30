@@ -11,6 +11,7 @@ export import qchem.Symmetry.Spin;   // SpinGroup -- the imposed spin subgroup e
 import qchem.Mesh;
 import qchem.Structure;
 import qchem.Types;                  // rmat3d_t (the site rotations)
+export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the PP factories take the run's chosen set
 export import qchem.Math.Gaussian;   // Math::Gaussian (a pseudo-atomic +U projector's radial)
 
 
@@ -157,15 +158,17 @@ export namespace qchem::Hamiltonian
     rHamiltonian* Factory(SpinGroup, const st_t& st, const std::string& element, int valence,
                          const qcMesh::MeshParams&, const rbs_t*);
 
-    //! Multi-species pseudopotential Hamiltonian: name each `(element, valence)` and a per-Z router PP is
-    //! built so each atom gets its own GTH pseudopotential (single species = a 1-element list).
-    rHamiltonian* Factory(SpinGroup, const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+    //! Pseudopotential Hamiltonian from the run's CHOSEN \a pp set (doc/CalcNetworkReview.md §4): a per-Z router PP is built over the
+    //! distinct elements of \a st, each with the set's valence variant for the set's functional.  The set is handed in, never
+    //! re-derived here -- every other consumer of the run's pseudopotential choice holds the same value.
+    rHamiltonian* Factory(SpinGroup, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
                          const qcMesh::MeshParams&, const rbs_t*);
 
     //=== The SOLID (periodic, dcmplx) front door ======================================================
     //! \brief The periodic Kohn-Sham Hamiltonian for a lattice run: kinetic + the range-split local PP
     //! (\c Ven_PP_Short / \c Ven_PP_Long) + optional KB projectors + Hartree + XC + Ewald ion-ion, over a
-    //! COMPLEX (Bloch) basis.  Multi-species: name each `(element, valence)` and a per-Z router PP is built.
+    //! COMPLEX (Bloch) basis.  Multi-species: a per-Z router PP is built over the distinct elements of \a st from the chosen \a pp set
+    //! (valence variant and functional both come from it -- the set is the run's one pseudopotential choice).
     //!
     //! WHY THIS EXISTS (Step 4, 2026-08-08).  It is the \c cHamiltonian twin of the \c rHamiltonian
     //! pseudopotential factory above, and until now it did not exist: the only way to build a solid
@@ -178,8 +181,7 @@ export namespace qchem::Hamiltonian
     //! calling -- \c qcMesh::ResolveXCMesh is the policy, and an unresolved \c Auto reads as \c Uniform here.
     //! \a hubbard: the DFT+U manifold list (empty = no Hubbard term).
     cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs,
-                          const std::vector<std::pair<std::string,int>>& species,
-                          const std::string& functional, const qcMesh::MeshParams& xcMesh,
+                          const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh,
                           VxcFit fit = VxcFit::Auto, std::vector<HubbardManifold> hubbard = {});
 
 } // namespace

@@ -1,5 +1,6 @@
 // File: Pseudopotential/Imp/PseudopotentialSet.C  The reader behind qchem.Pseudopotential.Set.
 module;
+#include <algorithm>
 #include <fstream>
 #include <filesystem>
 #include <map>
@@ -9,6 +10,9 @@ module;
 #include <vector>
 #include <nlohmann/json.hpp>
 module qchem.Pseudopotential.Set;
+
+import qchem.PeriodicTable;   // GetSymbol(Z)
+import qchem.Structure;
 
 #ifndef PSEUDO_DATA_PATH
 #error "PSEUDO_DATA_PATH must be defined by CMake"
@@ -75,11 +79,33 @@ int PseudopotentialSet::Valence(const std::string& element) const
     throw std::runtime_error("PseudopotentialSet '" + itsName + "' has no entry for element '" + element + "'");
 }
 
+PseudopotentialSet PseudopotentialSet::With(const std::vector<std::pair<std::string,int>>& overrides) const
+{
+    PseudopotentialSet s=*this;
+    for (const auto& [el,q] : overrides)
+    {
+        auto it=std::find_if(s.itsValence.begin(), s.itsValence.end(), [&](const auto& p){return p.first==el;});
+        if (it!=s.itsValence.end()) it->second=q; else s.itsValence.emplace_back(el,q);
+    }
+    return s;
+}
+
 std::vector<std::pair<std::string,int>> PseudopotentialSet::Species(const std::vector<std::string>& elements) const
 {
     std::vector<std::pair<std::string,int>> s;
     for (const auto& el : elements) s.emplace_back(el, Valence(el));
     return s;
+}
+
+std::vector<std::pair<std::string,int>> PseudopotentialSet::Species(const Structure& st) const
+{
+    std::vector<std::string> elements;
+    for (size_t a=0; a<st.GetNumAtoms(); a++)
+    {
+        const std::string el=thePeriodicTable().GetSymbol(st[a]->itsZ);
+        if (std::find(elements.begin(), elements.end(), el)==elements.end()) elements.push_back(el);
+    }
+    return Species(elements);
 }
 
 } // namespace qchem::Pseudopotential

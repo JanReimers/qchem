@@ -94,8 +94,13 @@ struct SolidCalcOptions
     //! facade, 1 here means the EXPLICIT two-channel singlet (nUp=nDn) -- the ζ=0 cross-check of the
     //! polarized machinery against the unpolarized anchors, not a shortcut to it.
     int multiplicity = 0;
-    //! Pseudopotential species as `(element, valence)`.  Multi-species is the norm for a compound; a
-    //! per-Z router PP is built so each atom gets its own GTH entry.
+    //! The pseudopotential SET the run uses (src/Pseudopotential/Data/pseudopotentials.json; doc/CalcNetworkReview.md §4): per element
+    //! the GTH valence variant, and the XC functional the entries were generated for.  Chosen ONCE here; the Hamiltonian's PP terms,
+    //! the XC-grid sharpness gather, the +U projector and the saved-state fingerprint are all handed the same resolved value.
+    std::string pp = "gth-lda-valence";
+    //! Per-element valence overrides on top of \c pp's set, as `(element, valence)`: replaces the set's q for that element (a
+    //! semicore Mn q15 run) or adds it.  Empty (default) = the set as is.  Multi-species is the norm for a compound; a per-Z
+    //! router PP is built over the elements of the structure so each atom gets its own GTH entry.
     std::vector<std::pair<std::string,int>> species;
     //!@}
 
