@@ -1,0 +1,160 @@
+{
+ "_doc": [
+  "CONVERGENCE PANEL (doc/SCFRobustnessPlan.md §4) case 19, regime 4 (exact resume): beta-MnO2 A1AFM imposed, Gamma, control basis (decks/panel/MnO2_control.bsd), U = 0 on every channel, kT 1e-3, Null accelerator, Kerker+Pulay.  From ~/Code/qchem6-runs/MnO2/uscan/leak/resume_U0.json (2026-10-29).",
+  "Restarts from its OWN converged state r015 (24 iterations, E -93.3837082), VENDORED as decks/states/MnO2_beta_A1AFM_r015_U0.h5 (the test resolves the relative path).  Before D5 (2026-10-29) iteration 1 opened 4 mHa off the saved E and the resume took 23; fixed: 4.  NMaxIter is above the budget so a slow resume fails on the BUDGET, not the cap."
+ ],
+ "structure": "MnO2_beta_A1AFM",
+ "kmesh": [
+  1,
+  1,
+  1
+ ],
+ "basis": {
+  "data": "VALENCE_LOWQ_VA",
+  "file": "MnO2_control.bsd",
+  "spherical": true,
+  "vet": false
+ },
+ "solid": {
+  "multiplicity": 1,
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 1e-07,
+  "forceComplex": true,
+  "hubbard": [
+   {
+    "site": 0,
+    "l": 2,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 1,
+    "l": 2,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 0,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 1,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 2,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 2,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 3,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 3,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 4,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 4,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 5,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 5,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   }
+  ],
+  "siteSpins": [
+   1,
+   -1,
+   0,
+   0,
+   0,
+   0
+  ],
+  "imposeSymmetry": true,
+  "raster": "AliasFree"
+ },
+ "postSCF": [],
+ "schedule": [
+  {
+   "accelerator": "Null",
+   "scf": {
+    "NMaxIter": 20,
+    "minDeltaRhoPerElectron": 3e-05,
+    "pulayDepth": 8,
+    "kerkerG0": 1.0,
+    "startingRelaxRo": 0.45,
+    "useMOM": false,
+    "smearingkT": 0.001,
+    "pulayStart": 5
+   }
+  }
+ ],
+ "state": {
+  "restartFrom": "MnO2_beta_A1AFM_r015_U0.h5"
+ }
+}
