@@ -477,6 +477,7 @@ TEST(GPW_Si, Γ_Imp_Pol_eqUnpol)
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma pol-singlet");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.multiplicity=1;                                  // EXPLICIT two-channel singlet (nUp=nDn=4)
+    o.siteSpins={0,0};   // stated (R2.5): Si is non-magnetic
     o.densityEcut=20.0;
     GpwReport report("Si "+o.label, false);
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
@@ -494,6 +495,7 @@ TEST(GPW_Si, Γ_Imp_Pol_SpinSeed_eqUnpol)
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma pol-singlet spin-SAD");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.multiplicity=1;                                  // EXPLICIT two-channel singlet (nUp=nDn=4)
+    o.siteSpins={0,0};   // stated (R2.5): Si is non-magnetic
     o.densityEcut=20.0;
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;    // -> PolarizedSeedCD (rho/2 channels for pairless Si)
     GpwReport report("Si "+o.label, false);
@@ -532,6 +534,7 @@ TEST(GPW_Si, Γ_Imp_M3_Smear_ShFermi_MomentRelaxes)
         SolidCalcOptions o=OptionsFor(si, shared ? "Si Gamma triplet, shared mu" : "Si Gamma triplet, per-channel mu");
         o.imposeSymmetry=true;
         o.multiplicity=3;                              // SEEDED as a triplet (nUp=5, nDn=3)
+        o.siteSpins={0,0};                             // stated (R2.5): Si is non-magnetic -- the triplet is a SEED, not an ordering
         o.densityEcut=20.0;
         o.spinsShareFermi=shared;
         SCFParams par=ProductionGates();
@@ -754,7 +757,7 @@ TEST(GPW_Si, Γ_Uni_PWFit_Imp_Pol_eqUnpol)
                             return r ? Arm{r->TotalCharge(), r->Energy()} : Arm{0,0}; };
     const Arm U=arm();
 
-    o.label="Si PW-fit pol-singlet"; o.multiplicity=1;   // the explicit two-channel singlet on the SAME route
+    o.label="Si PW-fit pol-singlet"; o.multiplicity=1; o.siteSpins={0,0};   // the explicit two-channel singlet on the SAME route
     const Arm P=arm();
     EXPECT_NEAR(P.charge, 8.0, 1e-6);
     EXPECT_NEAR(P.E, U.E, 1e-6)                            // measured 6e-9 on 2026-09-14, same 17 iterations
@@ -1210,7 +1213,7 @@ TEST(GPW_Si, Γ_Imp_Pol_Kerker_eqUnpol)
     o.densityEcut=20.0; o.imposeSymmetry=true;
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;
     qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
-    o.multiplicity=1; o.label="Si SR Gamma Kerker pol-singlet";
+    o.multiplicity=1; o.siteSpins={0,0}; o.label="Si SR Gamma Kerker pol-singlet";
     qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
     auto a=unpol.Result(), b=pol.Result();
     ASSERT_TRUE(a) << Why(a);

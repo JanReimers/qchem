@@ -113,8 +113,14 @@ include(GoogleTest)
 #      per-test default-off.)  The two filters are disjoint, so the ctest count is the same as one pass.
 #   4. THE CONVERGENCE PANEL (doc/SCFRobustnessPlan.md §4, ruled 2026-10-29): a name ending `_Panel` is a fast panel case (label
 #      `panel`, still in the regular sweep); `_Panel_Long` is the full tier (labels `long;panel`, so `-LE long` skips it).
-#      `ctest -L panel` runs the panel.  A panel case that FAILS today (an open tracker row) is listed in QCHEM_PANEL_RED below,
-#      with its row: it runs every time and PASSES only while gtest reports it failed -- the WILL_FAIL semantics (CLAUDE.md), but
+#      `ctest -L panel` runs the panel -- ON DEMAND, under the heavy lock, and not in the routine long tier (user ruling
+#      2026-10-30): the routine long tier is `ctest -j3 -L long -LE panel` (~6 min), and a landing adds `-L panel` only when it
+#      touches the SCF path (SCFAccelerator / SCFIterator / mixers / Calculation's SCF).  The `_Panel_Long` passes carry TIMEOUT
+#      14400 (4 h): serial `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Converges_Panel_Long` outran 7200 s (4268 s at 4 threads).  The
+#      plain `_Long` pass carries TIMEOUT 3600: its slowest case, `GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long`, took 1294-1347 s serial,
+#      too close to ctest's 1500 s default -- an explicit margin until the cheap twins replace these (OpenWork §3 "Every `_Long`
+#      test re-proves its claim at the cheapest resolution").
+#      A panel case that FAILS today (an open tracker row) is listed in QCHEM_PANEL_RED below, with its row: it runs every time and PASSES only while gtest reports it failed -- the WILL_FAIL semantics (CLAUDE.md), but
 #      as a PASS_REGULAR_EXPRESSION on gtest's own "[  FAILED  ] 1 test", so a red case whose filter matched nothing, or that
 #      crashed, is red too (bare WILL_FAIL would invert "no tests were run" into a pass).  When one is fixed it goes red: remove
 #      it from the list and close its row.
@@ -123,6 +129,7 @@ set(QCHEM_PANEL_RED
     "GPW_MnOBox.Γ_M6_GDM_Converges_Panel_Long"                # OpenWork §3 "GDM crawls at a near-degenerate frontier"
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_Converges_Panel_Long" # OpenWork §3 "Kerker+Pulay overshoots β-MnO₂'s U = 1 eV basin"
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long"     # same row: control U = 2 eV limit-cycles under plain Kerker
+    "ResponsePolarizability.GPW_Si_Γ_Pol_OneSpinAlpha_KeepsZeroMoment_Panel" # OpenWork §3 "Polarized Γ Si JUMPS" (panel #10)
 )
 list(JOIN QCHEM_PANEL_RED ":" _qchemPanelRed)
 set(_qchemPanelRedFast ${QCHEM_PANEL_RED})
@@ -139,7 +146,7 @@ function(qchem_discover_tests target)
     gtest_discover_tests(${target}
         TEST_FILTER *_Long-*_Panel_Long
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS long)
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS long TIMEOUT 3600)
     gtest_discover_tests(${target}
         TEST_FILTER *_Panel-${_qchemPanelRed}
         DISCOVERY_EXTRA_ARGS --gtest_output=
@@ -147,7 +154,7 @@ function(qchem_discover_tests target)
     gtest_discover_tests(${target}
         TEST_FILTER *_Panel_Long-${_qchemPanelRed}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS "long\;panel")
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS "long\;panel" TIMEOUT 14400)
     gtest_discover_tests(${target}
         TEST_FILTER ${_qchemPanelRedFast}
         DISCOVERY_EXTRA_ARGS --gtest_output=
@@ -155,7 +162,7 @@ function(qchem_discover_tests target)
     gtest_discover_tests(${target}
         TEST_FILTER ${_qchemPanelRedLong}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" LABELS "long\;panel\;panelRed")
+        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" LABELS "long\;panel\;panelRed" TIMEOUT 14400)
 endfunction()
 set(BUILD_GMOCK OFF CACHE BOOL "Disable GoogleMock for this project" FORCE)
 add_subdirectory(./submodules/googletest)
