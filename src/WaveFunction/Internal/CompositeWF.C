@@ -4,6 +4,7 @@ module;
 #include <map>
 #include <memory>
 #include <variant>
+#include <string>
 export module qchem.WaveFunction.Internal.CompositeWF;
 export import qchem.WaveFunction.SCF;
 import qchem.SCFAccelerator;
@@ -19,6 +20,10 @@ using SCFAccelerators::SCFAccelerator;
 using qchem::Hamiltonian::tHamiltonian;
 using ChargeDensity::tDM_CD;
 using ChargeDensity::tChargeDensity;
+
+//! R2.4 (doc/SCFRobustnessPlan.md P2): throw unless a reservoir's filled charge \a n (Σ w·n) is its count \a N to 1e-10·N
+//! (\a where names the reservoir).  A broken invariant no caller can act on -> throw.  Exported for the unit test.
+void RequireReservoirCharge(double n, double N, const std::string& where);
 
 //! \brief THE WF CHILD SLOT (doc/RealComplexPlan.md §4, Step 2b): one per-irrep wave function, typed by
 //! ITS block's scalar rather than the composite's face -- the WF twin of tComposite_CD's cd_child_t, so a

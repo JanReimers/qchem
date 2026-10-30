@@ -11,6 +11,7 @@
 module;
 #include <algorithm>   // std::min (the threaded quadrature's output-column blocking)
 #include <cassert>
+#include <cmath>       // std::abs (GroupResidualOf)
 #include <complex>
 #include <cstdlib>
 #include <exception>   // std::exception_ptr (throw containment across the threaded Phi build)
@@ -37,6 +38,19 @@ import qchem.Reporting;                       // Timed (the setup/scf timing led
 
 namespace qchem::ChargeDensity
 {
+
+namespace {
+// R2.1 (doc/SCFRobustnessPlan.md P2): max|f - Pf| over rho (and m), relative to max|rho| -- the PROJECTED rho \a scale, which a
+// projector cannot inflate.  Empty m vectors = an unpolarized raster.
+double GroupResidualOf(const rvec_t& rho0, const rvec_t& rho, const rvec_t& m0, const rvec_t& m, const rvec_t& scale)
+{
+    double d=0.0, r=0.0;
+    for (size_t g=0; g<rho.size(); g++) d=std::max(d, std::abs(rho0[g]-rho[g]));
+    for (size_t g=0; g<m.size();   g++) d=std::max(d, std::abs(m0[g]-m[g]));
+    for (size_t g=0; g<scale.size(); g++) r=std::max(r, std::abs(scale[g]));
+    return r>0.0 ? d/r : d;
+}
+} // namespace
 
 // ---- SinglesDensitySampler: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------
 
@@ -257,8 +271,12 @@ const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
         NoteRoute("matrix-free", XCRhoSource::Fitted);
         ReportNegativeRho(*this, itsRho, "matrix-free");
     }
-    itsQuad.Symmetrize(itsRho);   // §6a W1: the orbit-mean projector, straight off the FoldedMesh I hold
-                                  // (no-op on a free run, so no caller asks whether symmetry was imposed)
+    {
+        const rvec_t raw=itsRho;      // R2.1: what XC was handed, measured against the projector it is about to apply
+        itsQuad.Symmetrize(itsRho);   // §6a W1: the orbit-mean projector, straight off the FoldedMesh I hold
+                                      // (no-op on a free run, so no caller asks whether symmetry was imposed)
+        itsGroupResidual=GroupResidualOf(raw, itsRho, {}, {}, itsRho);
+    }
     return itsRho;
 }
 
@@ -420,7 +438,9 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
             // flip-fixed audit -- this class only knows WHICH pair to hand it.
             rvec_t rho = itsRhoUp + itsRhoDn;
             rvec_t m   = itsRhoUp - itsRhoDn;
+            const rvec_t rho0=rho, m0=m;   // R2.1: the pair XC was handed, measured against the projector it is about to apply
             itsQuad.SymmetrizeSpin(rho, m);
+            itsGroupResidual=GroupResidualOf(rho0, rho, m0, m, rho);
             itsRhoUp = 0.5*(rho + m);
             itsRhoDn = 0.5*(rho - m);
         }

@@ -340,11 +340,13 @@ void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& s
             if (s<-1 || s>1) throw std::invalid_argument("SolidCalcOptions: siteSpins entries are -1, 0 or +1, got "+std::to_string(s));
         return;
     }
+    // R2.5 (doc/SCFRobustnessPlan.md P2, 2026-10-30): an IMPOSED polarized run states it too, +U or not -- the imposition IS
+    // the decoration (the Shubnikov group), and deriving it from the seed let SAD impose a ferrimagnet on MnO AFM-II.
     const bool polarized = o.multiplicity>=1;
-    if (polarized && !o.hubbard.empty() && !o.greyImposition)
-        throw std::invalid_argument("SolidCalcOptions: a polarized run with a Hubbard manifold must STATE its magnetic ordering --"
-                                    " siteSpins, one of +1/-1/0 per site ("+sites+"); all zeros for a non-magnetic cell."
-                                    "  It is no longer derived from the seed (doc/OpenWork.md §3)");
+    if (polarized && (!o.hubbard.empty() || o.imposeSymmetry) && !o.greyImposition)
+        throw std::invalid_argument("SolidCalcOptions: a polarized run with a Hubbard manifold or an imposed symmetry must STATE its"
+                                    " magnetic ordering -- siteSpins, one of +1/-1/0 per site ("+sites+"); all zeros for a"
+                                    " non-magnetic cell.  It is no longer derived from the seed (doc/OpenWork.md §3, R2.5)");
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -398,23 +400,12 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     const bool hamPreservesReal = !opts.forceComplex;
     // THE MAGNETIC DECORATION (S3).  An imposition is only SHUBNIKOV if the factory is told which sites
     // carry which spin; without it an "imposed AFM" run star-averages under the SPATIAL group and the
-    // order is erased.  STATED (siteSpins) wherever a Hubbard manifold rides along -- RequireStatedMagneticOrdering
-    // above refused the run otherwise.  The derivation from the seed below survives ONLY for an imposed polarized
-    // run WITHOUT +U, and it is the defect OpenWork §3 names: with SeedStrategy::SAD it labels neutral O (2p4)
-    // magnetic and MnO AFM-II imposes a ferrimagnet (12 Shubnikov ops, not 24).
-    //   unpolarized  -> {} (no channels to decorate)
+    // order is erased.  ALWAYS STATED (siteSpins) on an imposed polarized run -- RequireStatedMagneticOrdering above
+    // refused the run otherwise (R2.5, 2026-10-30: the seed-derived decoration is gone; with SeedStrategy::SAD it
+    // labelled neutral O (2p4) magnetic and MnO AFM-II imposed a ferrimagnet, 12 Shubnikov ops, not 24).
     //   greyImposition -> {} DELIBERATELY: that arm is the erasure NEGATIVE CONTROL
     std::vector<int> siteSpins;
-    if (!imposed) { /* nothing to decorate: siteSpins are meaningless without an imposition */ }
-    else if (!opts.siteSpins.empty() && !opts.greyImposition)
-        siteSpins = opts.siteSpins;                 // STATED: a specific ordering, not the seed's guess
-    else if (opts.multiplicity>=1 && !opts.greyImposition)
-    {
-        const std::vector<int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
-                                       ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), SeedKeyOf(*itsImp->pp, *itsImp->st))
-                                       : std::vector<int>{};
-        siteSpins = qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), SeedKeyOf(*itsImp->pp, *itsImp->st), targets);
-    }
+    if (imposed && !opts.greyImposition) siteSpins = opts.siteSpins;   // {} on an unpolarized run that states none
     // ★ THE FACADE'S SETUP IS BUCKETED (doc/ParallelAndOraclePlan.md 1.1, 2026-09-06).  Every MnO row drives
     // SolidCalculation directly, and until now only the phases INSIDE these calls were timed -- so the basis
     // build, the Hamiltonian ctor's non-mesh half, the seed and the ortho landed in no bucket at all.  That
@@ -1272,6 +1263,70 @@ std::vector<qchem::Hamiltonian::ACBN0Estimate> SolidCalculation::EstimateHubbard
     return est->Details();
 }
 
+//---------------------------------------------------------------------------------------------------
+//  THE MANIFOLD WALK (hoisted from ConvergeHubbardU's [U table] snapshot, 2026-10-30, for panel #10): the frontier (homo, lumo)
+//  and each +U manifold's spin-resolved occupation sum_i f_i |<w_mu|psi_i>|^2 (k-weighted), through the +U term's OWN projectors
+//  -- so it works on any XC mesh (the Becke-basin site moment needs basins).  Integrated observables, never a point sample.
+namespace {
+struct ManifoldWalk
+{
+    double homo=-std::numeric_limits<double>::infinity(), lumo=std::numeric_limits<double>::infinity();
+    std::vector<double> up, dn;   //!< per manifold
+};
+ManifoldWalk WalkManifolds(const qchem::WaveFunction::cWaveFunction& wf, const qchem::Hamiltonian::HubbardChannels& hub)
+{
+    const size_t nM=hub.Channels().size();
+    ManifoldWalk W; W.up.assign(nM,0.0); W.dn.assign(nM,0.0);
+    auto walk=[&]<class U>(const qchem::Orbitals::TOrbitals<U>& os, const qchem::Irrep& ir)
+    {
+        const auto* blk=dynamic_cast<const qchem::BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(os.GetBasisSet());
+        if (!blk) throw std::logic_error("SolidCalculation::WalkManifolds: an orbital block that is not an Orbital_DFT_IBS");
+        const double cap = ir.ms==qchem::Spin::None ? 2.0 : 1.0;   // a level is OCCUPIED when more than half full
+        std::vector<const qchem::Orbitals::TOrbital<U>*> occ;
+        for (const auto* o : os.template Iterate<qchem::Orbitals::TOrbital<U>>())
+        {
+            if (o->GetOccupation()>0.5*cap) W.homo=std::max(W.homo, o->GetEigenEnergy());
+            else                            W.lumo=std::min(W.lumo, o->GetEigenEnergy());
+            if (o->GetOccupation()>0.0) occ.push_back(o);
+        }
+        if (occ.empty()) return;
+        mat_t<U> C(blk->GetNumFunctions(), occ.size());
+        for (size_t i=0;i<occ.size();i++) { const vec_t<U>& c=occ[i]->GetCoeff(); for (size_t a=0;a<c.size();a++) C(a,i)=c[a]; }
+        const auto amp=hub.ProjectorAmplitudes(*blk, C);
+        const double w=ir.sym->GetWeight();
+        for (size_t M=0;M<nM;M++)
+        {
+            double n=0.0;
+            for (size_t i=0;i<occ.size();i++) for (size_t mu=0;mu<amp[M].rows();mu++) n+=occ[i]->GetOccupation()*std::norm(amp[M](mu,i));
+            n*=w;
+            if      (ir.ms==qchem::Spin::Up)   W.up[M]+=n;
+            else if (ir.ms==qchem::Spin::Down) W.dn[M]+=n;
+            else { W.up[M]+=0.5*n; W.dn[M]+=0.5*n; }        // the folded doublet: half in each channel
+        }
+    };
+    for (const qchem::Irrep& ir : wf.GetQNs())
+    {
+        const qchem::Orbitals::Orbitals* os=wf.GetOrbitals(ir);
+        if (const auto* c=dynamic_cast<const qchem::Orbitals::TOrbitals<dcmplx>*>(os)) walk(*c, ir);
+        else if (const auto* r=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(os)) walk(*r, ir);
+        else throw std::logic_error("SolidCalculation::WalkManifolds: an orbital set of unknown scalar");
+    }
+    return W;
+}
+} // namespace
+
+std::vector<double> SolidCalculation::MakeHubbardMoments() const
+{
+    const auto* hub=itsImp->ham ? itsImp->ham->GetHubbardChannels() : nullptr;
+    if (!hub) throw std::logic_error("SolidCalculation::MakeHubbardMoments: this run carries no Hubbard manifold (SolidCalcOptions::hubbard)");
+    const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
+    if (!wf) throw std::logic_error("SolidCalculation::MakeHubbardMoments: no wave function yet");
+    const ManifoldWalk W=WalkManifolds(*wf, *hub);
+    std::vector<double> m(W.up.size());
+    for (size_t M=0;M<m.size();M++) m[M]=W.up[M]-W.dn[M];
+    return m;
+}
+
 SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCFParams& params, const HubbardLoop& loop)
 {
     using Est=HubbardLoop::Estimator;
@@ -1303,44 +1358,9 @@ SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCF
     {
         const auto* wf=itsImp->scf->GetWaveFunction();
         if (!wf) throw std::logic_error("SolidCalculation::ConvergeHubbardU: no wave function");
-        double homo=-std::numeric_limits<double>::infinity(), lumo=std::numeric_limits<double>::infinity();
-        std::vector<double> up(nM,0.0), dn(nM,0.0);
-        auto walk=[&]<class U>(const qchem::Orbitals::TOrbitals<U>& os, const qchem::Irrep& ir)
-        {
-            const auto* blk=dynamic_cast<const qchem::BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(os.GetBasisSet());
-            if (!blk) throw std::logic_error("SolidCalculation::ConvergeHubbardU: an orbital block that is not an Orbital_DFT_IBS");
-            const double cap = ir.ms==qchem::Spin::None ? 2.0 : 1.0;   // a level is OCCUPIED when more than half full
-            std::vector<const qchem::Orbitals::TOrbital<U>*> occ;
-            for (const auto* o : os.template Iterate<qchem::Orbitals::TOrbital<U>>())
-            {
-                if (o->GetOccupation()>0.5*cap) homo=std::max(homo, o->GetEigenEnergy());
-                else                            lumo=std::min(lumo, o->GetEigenEnergy());
-                if (o->GetOccupation()>0.0) occ.push_back(o);
-            }
-            if (occ.empty()) return;
-            mat_t<U> C(blk->GetNumFunctions(), occ.size());
-            for (size_t i=0;i<occ.size();i++) { const vec_t<U>& c=occ[i]->GetCoeff(); for (size_t a=0;a<c.size();a++) C(a,i)=c[a]; }
-            const auto amp=hub->ProjectorAmplitudes(*blk, C);
-            const double w=ir.sym->GetWeight();
-            for (size_t M=0;M<nM;M++)
-            {
-                double n=0.0;
-                for (size_t i=0;i<occ.size();i++) for (size_t mu=0;mu<amp[M].rows();mu++) n+=occ[i]->GetOccupation()*std::norm(amp[M](mu,i));
-                n*=w;
-                if      (ir.ms==qchem::Spin::Up)   up[M]+=n;
-                else if (ir.ms==qchem::Spin::Down) dn[M]+=n;
-                else { up[M]+=0.5*n; dn[M]+=0.5*n; }        // the folded doublet: half in each channel
-            }
-        };
-        for (const qchem::Irrep& ir : wf->GetQNs())
-        {
-            const qchem::Orbitals::Orbitals* os=wf->GetOrbitals(ir);
-            if (const auto* c=dynamic_cast<const qchem::Orbitals::TOrbitals<dcmplx>*>(os)) walk(*c, ir);
-            else if (const auto* r=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(os)) walk(*r, ir);
-            else throw std::logic_error("SolidCalculation::ConvergeHubbardU: an orbital set of unknown scalar");
-        }
-        R.gap_eV.push_back(std::isfinite(lumo) && std::isfinite(homo) ? (lumo-homo)*eV : std::numeric_limits<double>::quiet_NaN());
-        std::vector<double> m(nM); for (size_t M=0;M<nM;M++) m[M]=up[M]-dn[M];
+        const ManifoldWalk W=WalkManifolds(*wf, *hub);
+        R.gap_eV.push_back(std::isfinite(W.lumo) && std::isfinite(W.homo) ? (W.lumo-W.homo)*eV : std::numeric_limits<double>::quiet_NaN());
+        std::vector<double> m(nM); for (size_t M=0;M<nM;M++) m[M]=W.up[M]-W.dn[M];
         R.moment.push_back(m);
     };
 

@@ -89,6 +89,7 @@ EnergyBreakdown& EnergyBreakdown::operator+=(const EnergyBreakdown& e1)
     // exactly one atom-partitioned XC term).
     if (charge.siteMoments.size()==0) charge.siteMoments=e1.charge.siteMoments;
     if (charge.xcRho.empty()) {charge.xcRho=e1.charge.xcRho; charge.xcRhoFitted=e1.charge.xcRhoFitted;}   // likewise one XC term
+    if (!charge.xcGroupResidual) charge.xcGroupResidual=e1.charge.xcGroupResidual;                         // ...and its R2.1 residual
     return *this;
 }
 

@@ -621,6 +621,12 @@ public:
         bool   scfConverged=false;                 //!< the LAST SCF converged (an unconverged SCF poisons the estimate)
         std::string failure;                       //!< LinearResponse: the response that FAILED and ended the loop (empty = none)
     };
+    //! \brief Each +U manifold's integrated spin moment \f$\mathrm{Tr}\,n^\uparrow-\mathrm{Tr}\,n^\downarrow\f$ (electrons, k-weighted) of
+    //! the CURRENT orbitals, through the +U term's own projectors -- the same number the [U table] reports per outer step, and
+    //! valid on ANY XC mesh (\c RunDiagnostics' order needs Becke basins).  THROWS when the run carries no Hubbard manifold.
+    //! PUBLIC because a moment the panel asserts on (doc/SCFRobustnessPlan.md §4 #10: non-magnetic Si must keep m = 0 under a
+    //! one-spin alpha*P) is an observable a caller judges a run by, and a uniform-mesh run has no other integrated moment.
+    std::vector<double> MakeHubbardMoments() const;
     HubbardLoopResult ConvergeHubbardU(const SCFParams& params, const HubbardLoop& loop);
     HubbardLoopResult ConvergeHubbardU(const SCFParams& params) {return ConvergeHubbardU(params, HubbardLoop{});}
 

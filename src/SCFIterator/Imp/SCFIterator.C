@@ -272,6 +272,29 @@ static void RequirePin28(const EnergyBreakdown& eb, size_t iteration, bool gFilt
                                "doc/Pins.md pin 28");
 }
 
+// R2.1 (doc/SCFRobustnessPlan.md P2): how far the density XC was handed this iteration sat from the imposed group, before
+// XC's own projector (ChargeBreakdown::xcGroupResidual), printed under QCHEM_DIAGNOSTICS=group.  REPORT ONLY, not a throw: on a
+// REDUCED evaluation (the T3 stream fold scatters orbit representatives; an IBZ k-sum) the pre-projector field is incomplete BY
+// CONSTRUCTION and the projector completes it (NaF Γ 0.51, Si k222 0.21 on correct runs, 2026-10-30) -- the throw needs a
+// measure that holds there too (OpenWork row "R2.1 as a throw").
+static void ReportImposedGroup(std::optional<double> r, size_t iteration)
+{
+    if (!qchem::Diagnostics::Enabled("group")) return;
+    std::ostringstream os;
+    if (r) os << std::scientific << std::setprecision(2) << *r;
+    else   os << "(not measured: this XC route does not project)";
+    std::cout << "[R2.1] iteration " << iteration << ": the density XC was handed sits " << os.str()
+              << " from the imposed group (max|f-Pf|/max|rho|, before XC's projector)" << std::endl;
+}
+
+// R2.7: a live [F,D] gate that reads exactly 0.0 at convergence passed because nothing computed it (see the declaration).
+void RequireLiveGates(double FD, double minFD, size_t iteration)
+{
+    if (!(minFD<1e30 && FD==0.0)) return;
+    throw std::logic_error("SCF R2.7: iteration "+std::to_string(iteration)+" declared convergence on a DEAD gate -- [F,D] (MinFD) "
+                           "read exactly 0, i.e. the accelerator never computed it, so it passed by absence.  doc/SCFRobustnessPlan.md R2.7");
+}
+
 // D-MINDRHO (2026-10-22, user: "option A"): ONE convergence measure, the L1 distance per electron on a real-space quadrature --
 // the fraction of the electrons the step would still move, 0 exactly at the fixed point, the same number for every mixer,
 // representation and system.  The run's own XC quadrature when the Hamiltonian has one (cached rasters: ~one extra raster per
@@ -460,6 +483,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
 
         eb=TotalEnergy(itsCD.get());        // includes the Mermin −TS => E is the free energy A when smearing on
         RequirePin28(eb, itsIterationCount, itsMixer->HasGFilter(), lineSearch);
+        ReportImposedGroup(eb.charge.xcGroupResidual, itsIterationCount);
         E=eb.GetTotalEnergy();
         dE=(E-Eold)/fabs(E);
         itsAccelerator->SetEnergy(E); //the ladder gates its hand-off on the energy change
@@ -521,6 +545,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
                  && (!virialValid ||                                  // V1.27: no gate when the theorem
                      fabs(eb.GetVirial()+idealVirial) < ipar.MinVirial)  //   does not hold (PP runs)
                   ;
+        if (itsConverged) RequireLiveGates(FD, ipar.MinFD, itsIterationCount);
         // 0h MOM GUARD (doc/GPWPlan 0h): a MOM reference is TRUSTED, never verified -- a stale/wrong one
         // (the grid-continuation transfer; a reference captured mid-transient) pins an EXCITED state whose
         // signature is a PERSISTENT HOLE: an unoccupied ε sitting below an occupied ε, iteration after
