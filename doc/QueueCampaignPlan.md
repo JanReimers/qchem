@@ -238,8 +238,8 @@ checkpoint/restart" (CK-3 = restart across a geometry step).  (Closed on main: "
 atom index", CleanCode D-BASIS-PP, D-BASIS-REGISTRY, D-STRUCTDATA step 2 (+ the seed-by-`q` scope), D-STATE-SCHEMA.  C5: "valgen is
 optimistic about diffuse functions", "vet trim deletes the valence core", "Diffuse-basis ACTUATOR".  Feature on the path: §2 "PBE / GGA".
 
-**S (28)** — C1: CleanCode V1.24(i), D-CALC-DOUBLE-SCF (migration), D-DIIS-FDMIN; OOD V1.27, D9, V-MIXER-GBALL; OpenWork "`ρ_lost/N` dead
-column" (rides V1.27).  C2: OOD R1.0 (metric axis), V1.1b, BM(1), D2, D3, D4, D13, D-GPWPAIR, R1.0n/o.  C3: OOD V1.41, V1.35, R1.0q,
+**S (28)** — C1: CleanCode V1.24(i), D-CALC-DOUBLE-SCF (migration), D-DIIS-FDMIN; OOD V1.27, D9; OpenWork "`ρ_lost/N` dead
+column" (rides V1.27).  C2: OOD V-MIXER-GBALL (= R1.5, moved from C1 2026-10-30), R1.0 (metric axis), V1.1b, BM(1), D2, D3, D4, D13, D-GPWPAIR, R1.0n/o.  C3: OOD V1.41, V1.35, R1.0q,
 V1.34.  With GGA: OOD §I.1, V1.39.  C4: CleanCode D-ENV, D-ENV-TOL;
 Lane B design review: OOD V-CALCNET.  C1: OpenWork "R2.1 as a throw needs a measure that holds on a REDUCED evaluation".  C6: CleanCode D-WARNINGS.  Forces prerequisite (lane A C1/C3, 2026-10-29): OpenWork "short tier not green at `QCHEM_OPENMP_THREADS=4`" (thread-count invariance: forces and a relaxation need energies independent of the thread count).
 
