@@ -93,6 +93,11 @@ struct RunIdentity
     int                                          ortho = 0;
     double                                       orthoTol = 0.0;
     double                                       kT = 0.0;     //!< the recipe's temperature (warm)
+    //! The orbital basis FAMILY, "gaussian" or "planeWave" (REFUSE: D is a matrix over one family's functions).  A Gaussian
+    //! basis is identified by its shells (AoShellSource); a plane-wave basis by \c planeWaveEcut -- with the cell and each
+    //! block's k and size (both already REFUSE) that fixes its G-set.
+    std::string                                  orbitalBasis = "gaussian";
+    double                                       planeWaveEcut = 0.0;   //!< Ha, the plane-wave orbital cutoff (planeWave only)
 };
 
 //! The fingerprint of a run: the cell matrix \a A (columns = lattice vectors), the sites of \a st, the built

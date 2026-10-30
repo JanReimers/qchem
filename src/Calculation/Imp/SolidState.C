@@ -139,6 +139,12 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
         fp.refuseStr["species"]=s;
         fp.refuseStr["pp.set"]=id.ppSet;
     }
+    fp.refuseStr["basis.family"]=id.orbitalBasis;
+    if (id.orbitalBasis=="planeWave")
+        // A PLANE-WAVE basis has no shells: its functions are the G-vectors with |k+G|^2/2 < Ecut, so the cutoff -- with the cell
+        // and each block's k and size, all REFUSE -- names them.  (OpenWork §3 "PW states cannot be saved", 2026-10-30.)
+        fp.refuseNum["basis.planeWaveEcut"]={id.planeWaveEcut};
+    else
     {
         // The ORBITAL basis, shell by shell in block order: every Bloch block is the Bloch sum of these shells
         // (AoShellSource's own contract), so block 0 speaks for all of them.
@@ -216,7 +222,7 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
 }
 
 //! A state written before C4 step 5 filed the functional, the atom positions and the shell centres under REFUSE and had no
-//! pp.set: move them to the class they belong to now, and take the run's pp.set for a state that never recorded one (its
+//! pp.set (nor, before 2026-10-30, basis.family): move them to the class they belong to now, and take the run's pp.set for a state that never recorded one (its
 //! species string, still REFUSE, carries the q per element).  Additive: an old file keeps loading.
 static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now)
 {
@@ -224,6 +230,8 @@ static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now
         if (auto it=s.refuseNum.find(k); it!=s.refuseNum.end()) { s.warmNum[k]=std::move(it->second); s.refuseNum.erase(it); }
     if (auto it=s.refuseStr.find("functional"); it!=s.refuseStr.end()) { s.warmStr["functional"]=std::move(it->second); s.refuseStr.erase(it); }
     if (!s.refuseStr.count("pp.set") && now.refuseStr.count("pp.set")) s.refuseStr["pp.set"]=now.refuseStr.at("pp.set");
+    // basis.family (2026-10-30): every state written before it was Gaussian -- a plane-wave state could not be written at all.
+    if (!s.refuseStr.count("basis.family")) s.refuseStr["basis.family"]="gaussian";
     return s;
 }
 

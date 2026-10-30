@@ -394,6 +394,15 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     auto irreps = itsImp->bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry Sum_k)
     itsImp->ec = std::make_unique<Crystal_EC>(irreps, S.nUp, S.nDown, !opts.perKFermiLevels, opts.spinsShareFermi);
     itsImp->hubbard = opts.hubbard;   // the U the run will carry (BuildRun fills the groups and radials)
+    // A run that will SAVE its state must be able to, and must say so NOW -- not after the SCF it was asked to protect (OpenWork
+    // §3 "PW states cannot be saved", 2026-10-26: a 52-minute converged run banked nothing).  The fingerprint is exactly what a
+    // save writes first, and everything it reads is built by this point.
+    if (!opts.saveStateTo.empty())
+        try { (void)Fingerprint(0.0); }
+        catch (const std::logic_error& e)
+        {
+            throw std::invalid_argument("SolidCalcOptions.saveStateTo: this run cannot save its state ("+std::string(e.what())+")");
+        }
 }
 
 
@@ -731,15 +740,16 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, const SCFPar
     //                                 stage (anneal, U loop, +-alpha) may have a NEW Hamiltonian or kT: its density is a good
     //                                 start, not the answer -- GDM there false-converges on its own small steps (OpenWork §3).
     //   a RESTORED stage at kT = 0 -> the Ladder on its GDM rung: SAME Hamiltonian, the density IS the answer (NaF 9 -> 2);
-    //   a RESTORED smeared stage   -> DIIS (GDM would minimise an integer D' and never apply the smearing -- see Restart).
+    //   a RESTORED smeared stage   -> DIIS (GDM would minimise an integer D' and never apply the smearing -- see Restart);
+    //   a RESTORED partial-eigensolve stage (numBands > 0, a plane-wave run) -> DIIS: GDM rotates into virtuals never built.
     // Beside either Fock extrapolator an Auto mixer stays LINEAR, its step capped at 0.3 (Converge: a restart's linear step).
     SCFAccelerators::SolidAcceleratorOptions ao=itsImp->accOpts;
     T t = asked;
     if (asked==T::Auto)
     {
         if (!restored)                    t=T::Null;
-        else if (params.SmearingkT==0.0) { t=T::Ladder; ao.ladderStartOnGDM=true; }
-        else                              t=T::DIIS;
+        else if (params.SmearingkT==0.0 && itsImp->setup->opts.numBands==0) { t=T::Ladder; ao.ladderStartOnGDM=true; }
+        else                              t=T::DIIS;   // smeared, or a PARTIAL eigensolve (GDM needs every virtual)
     }
     // A direct minimiser rotates the occupied block into the WHOLE virtual space, which a partial eigensolve never built.
     if (itsImp->setup->opts.numBands>0 && (t==T::GDM || t==T::Ladder))
@@ -1031,7 +1041,8 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     else                                                      xc<<" eCut="<<itsImp->setup->xcMesh.eCut;
     const RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .ppSet=itsImp->setup->pp.Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
-                         .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT};
+                         .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT,
+                         .orbitalBasis=itsImp->setup->planeWave ? "planeWave" : "gaussian", .planeWaveEcut=o.planeWaveEcut};
     return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,
                                 o.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, id);
 }

@@ -372,4 +372,39 @@ TEST(SolidState, RefusedOnAnotherKMesh_OrSpinGroup_OrMissingFile)
     }
 }
 
+//! A PLANE-WAVE state (OpenWork §3 "PW states cannot be saved (or restarted)", 2026-10-30): saved through the same fingerprint and
+//! block path as a Gaussian one, the cutoff standing in for the shells.  \a numBands > 0 is the partial eigensolve a production
+//! PW run uses, whose restored stage starts on DIIS (GDM needs every virtual).
+SolidCalcOptions PWOptions(size_t numBands, const std::string& save)
+{
+    SolidCalcOptions o=Options(0, false, save);
+    o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0; o.numBands=numBands; o.label="ck1pw";
+    return o;
+}
+void ExpectPlaneWaveExactResume(size_t numBands)
+{
+    const std::string path=TempPath("ck1_si_pw_"+std::to_string(numBands)+".h5");
+    SiRun si=Si(ivec3_t(1,1,1));
+    SolidCalculation calc(*si.lat, si.mol, PWOptions(numBands, path), Params());
+    auto r=calc.Result();
+    ASSERT_TRUE(r) << "the Si plane-wave reference run must converge";
+    ASSERT_TRUE(std::filesystem::exists(path)) << "a plane-wave state must be SAVED";
+
+    auto c=SolidCalculation::Restart(path, *si.lat, si.mol, PWOptions(numBands, ""), Params());
+    ASSERT_TRUE(c) << c.Error().details;
+    auto rr=(*c)->Result();
+    ASSERT_TRUE(rr);
+    // Full eigensolve: the restored stage starts on the Ladder's GDM rung, AT the saved state.  Partial: it starts on DIIS, which
+    // takes one real step from an iterate the saved run stopped at Δρ/N 1e-7 -- measured 1.2e-8 Ha (2026-10-30), inside that stop.
+    EXPECT_NEAR(rr->Energy(), r->Energy(), numBands==0 ? 1e-8 : 5e-8);
+    EXPECT_LE(rr->IterationCount(), 3u) << "the reference run took " << r->IterationCount();
+
+    // The family is REFUSE: a plane-wave state cannot seed a Gaussian run, nor the other way round.
+    auto g=SolidCalculation::Restart(path, *si.lat, si.mol, Options(0, false, ""), Params());
+    ASSERT_FALSE(g);
+    EXPECT_NE(g.Error().details.find("basis.family"), std::string::npos) << g.Error().details;
+}
+TEST(SolidState, ExactResume_PlaneWave)                 {ExpectPlaneWaveExactResume(0);}
+TEST(SolidState, ExactResume_PlaneWave_PartialEigensolve) {ExpectPlaneWaveExactResume(8);}
+
 } //namespace
