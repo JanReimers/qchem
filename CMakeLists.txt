@@ -114,12 +114,18 @@ include(GoogleTest)
 #   4. THE CONVERGENCE PANEL (doc/SCFRobustnessPlan.md §4, ruled 2026-10-29): a name ending `_Panel` is a fast panel case (label
 #      `panel`, still in the regular sweep); `_Panel_Long` is the full tier (labels `long;panel`, so `-LE long` skips it).
 #      `ctest -L panel` runs the panel -- ON DEMAND, under the heavy lock, and not in the routine long tier (user ruling
-#      2026-10-30): the routine long tier is `ctest -j3 -L long -LE panel` (~6 min), and a landing adds `-L panel` only when it
+#      2026-10-30): the routine long tier is `ctest -j3 -L long -LE "panel|periodic"` (item 5), and a landing adds `-L panel` only when it
 #      touches the SCF path (SCFAccelerator / SCFIterator / mixers / Calculation's SCF).  The `_Panel_Long` passes carry TIMEOUT
 #      14400 (4 h): serial `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Converges_Panel_Long` outran 7200 s (4268 s at 4 threads).  The
 #      plain `_Long` pass carries TIMEOUT 3600: its slowest case, `GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long`, took 1294-1347 s serial,
 #      too close to ctest's 1500 s default -- an explicit margin until the cheap twins replace these (OpenWork §3 "Every `_Long`
 #      test re-proves its claim at the cheapest resolution").
+#   5. THE PERIODIC TIER (OpenWork §3 "Every `_Long` test re-proves its claim at the cheapest resolution", controller ruling
+#      2026-10-30): a COLD `_Long` gate whose claim a cheap twin now carries -- an energy anchor resumed from a vendored state
+#      (decks/states/), an identity at a smaller q-mesh -- is listed in QCHEM_PERIODIC below beside its twin.  It keeps the
+#      claim honest end to end and is the only thing that REFRESHES a vendored state (by an explicit cp, never as a sweep side
+#      effect), so it is labelled `long;periodic` and runs with the panel: `ctest -L "panel|periodic"`.  The routine long tier
+#      is `ctest -j3 -L long -LE "panel|periodic"`.
 #      A panel case that FAILS today (an open tracker row) is listed in QCHEM_PANEL_RED below, with its row: it runs every time and PASSES only while gtest reports it failed -- the WILL_FAIL semantics (CLAUDE.md), but
 #      as a PASS_REGULAR_EXPRESSION on gtest's own "[  FAILED  ] 1 test", so a red case whose filter matched nothing, or that
 #      crashed, is red too (bare WILL_FAIL would invert "no tests were run" into a pass).  When one is fixed it goes red: remove
@@ -131,6 +137,12 @@ set(QCHEM_PANEL_RED
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long"     # same row: control U = 2 eV limit-cycles under plain Kerker
     "ResponsePolarizability.GPW_Si_Γ_Pol_OneSpinAlpha_KeepsZeroMoment_Panel" # OpenWork §3 "Polarized Γ Si JUMPS" (panel #10)
 )
+set(QCHEM_PERIODIC
+    "GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long"                                   # twin: GPW_MnO.Γ_U_Shub_Pol_Smear_Saved_CP2K_Long (vendored states)
+    "ResponseLittleGroup.GPW_Si_k222_q222_Becke_ReducedEqualsFull_Long"     # twin: ResponseLittleGroup.GPW_Si_k222_q211_Becke_ReducedEqualsFull
+    "ResponseLittleGroup.GPW_Si_k222_q211_ReducedEqualsFull_Long"           # (uniform raster) same twin: the cost is per q per solve
+)
+list(JOIN QCHEM_PERIODIC ":" _qchemPeriodic)
 list(JOIN QCHEM_PANEL_RED ":" _qchemPanelRed)
 set(_qchemPanelRedFast ${QCHEM_PANEL_RED})
 list(FILTER _qchemPanelRedFast EXCLUDE REGEX "_Panel_Long$")
@@ -144,9 +156,13 @@ function(qchem_discover_tests target)
         DISCOVERY_EXTRA_ARGS --gtest_output=
         PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run")
     gtest_discover_tests(${target}
-        TEST_FILTER *_Long-*_Panel_Long
+        TEST_FILTER *_Long-*_Panel_Long:${_qchemPeriodic}
         DISCOVERY_EXTRA_ARGS --gtest_output=
         PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS long TIMEOUT 3600)
+    gtest_discover_tests(${target}
+        TEST_FILTER ${_qchemPeriodic}
+        DISCOVERY_EXTRA_ARGS --gtest_output=
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS "long\;periodic" TIMEOUT 3600)
     gtest_discover_tests(${target}
         TEST_FILTER *_Panel-${_qchemPanelRed}
         DISCOVERY_EXTRA_ARGS --gtest_output=

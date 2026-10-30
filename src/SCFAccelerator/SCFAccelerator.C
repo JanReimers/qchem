@@ -2,10 +2,12 @@
 module;
 #include <complex>
 #include <limits>
+#include <optional>
 #include <iosfwd>
 export module qchem.SCFAccelerator;
 export import qchem.Symmetry.Irrep;
 export import qchem.LASolver;
+export import qchem.HandOff;   // HandOffRequest (TakeHandOff, R1.3)
 import qchem.Blaze;   // the gradient below is a TEMPLATE using Blaze operators: its definition context must see them
 
 export namespace qchem::SCFAccelerators
@@ -95,6 +97,10 @@ public:
     //! free Si k222 stalls and Si Γ diverges -- so Auto mixes linearly beside one.  A ladder answers for ANY rung it
     //! may run, not only the active one (it can fall back to DIIS mid-run).  Default false.
     virtual bool ExtrapolatesFock() const {return false;}
+    //! R1.3 (doc/SCFRobustnessPlan.md): a change of extrapolator INSIDE this accelerator since the last call (a ladder's rung
+    //! advance or retreat), handed to the owner, which prints it and acts on what it owns (the mixer this library cannot see).
+    //! Taking it clears it.  Default: none.
+    virtual std::optional<HandOffRequest> TakeHandOff() {return std::nullopt;}
     // Is a geodesic step actually READY this iteration (seeded + residual under its engage threshold)?  The
     // iterator runs the direct-min driver only when WantsLineSearch() AND CanLineSearch(); otherwise it does a
     // MIXED fixed-point step -- so a not-yet-ready minimizer degrades to a stable mixed diagonalize, never an
@@ -148,9 +154,10 @@ public:
 struct DIISParams
 {
     size_t Nproj;  //Number of terms to keep for proections.
-    double FDMax;  //DIIS STARTS extrapolating once the residual [F,D] < FDMax.  (Named for the residual it
-                   //  gates on -- the DIIS error IS [F,D], NOT the energy; the old "EMax" name was a trap.)
-    double FDMin;  //DIIS STOPS once [F,D] < FDMin (converged; hand back to plain diagonalization).
+    double EngageBelowFD;  //DIIS STARTS extrapolating once the residual [F,D] < EngageBelowFD.  (Named for what it DOES with
+                           //  the residual it gates on -- the DIIS error IS [F,D], NOT the energy; the old "EMax" name was a trap,
+                           //  and "FDMax" read as a convergence bound, V1.24(i).)  The FDMin field beside it was never read and
+                           //  is gone (D-DIIS-FDMIN): convergence is the SCF's gate, not the accelerator's.
     double SVTol;  //DIIS bails out when the minimum singular value of B matrix is < SVTol;
     //! RELATIVE conditioning prune: purge the oldest history entry while svMin(B) < SVTolRel * max_i B_ii.
     //! The ABSOLUTE SVTol above is applied to a matrix whose scale is |[F,D]|^2, so it really detects "the
@@ -165,7 +172,7 @@ struct DIISParams
 
 struct GDMParams
 {
-    double FDMax;         //Engage the geodesic step once the residual [F,D] < FDMax (below that, run a
+    double EngageBelowFD;         //Engage the geodesic step once the residual [F,D] < EngageBelowFD (below that, run a
                           //  diagonalizing step).  Named for what it gates on -- [F,D], NOT the energy.
     double Trust=0.1;     //Trust radius: cap the largest geodesic rotation angle (radians) per step.
     //! Step-REJECTION policy (the \c RejectStep bail-out above).  On a rejected step the minimizer drops its

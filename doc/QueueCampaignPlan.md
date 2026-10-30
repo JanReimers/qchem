@@ -115,7 +115,7 @@ build of `main` and no checkout of it in a working tree H is using.
 **qchem1** (`openwork-sweep`): its work is merged into main (`48f2e02f`); it holds only `TODO` edits and this draft.  Retire it when convenient.
 
 **Merging.**  At chunk START a lane merges `main`.  At chunk END: build `allTests`, take the heavy slot, `ctest -j4 -LE long` and
-`-L long`, keep `LastTest.log`, `scripts/anchordiff` against the controller's main baseline.  Because the lane merged main FIRST, the
+`-L long -LE "panel|periodic"` (serial), plus `-L "panel|periodic"` when the chunk touches the SCF path (CLAUDE.md, ruled 2026-10-30), keep `LastTest.log`, `scripts/anchordiff` against the controller's main baseline.  Because the lane merged main FIRST, the
 swept commit IS the merge result: the controller fast-forwards main to it (`git merge --ff-only lane-a`), stores that sweep as the new
 baseline `~/Code/qchem6-runs/anchors/main-<sha>.log`, and tells the other lanes to merge main.  If main moved in between, the lane
 re-merges (a docs-only move needs no re-sweep — the controller's call).  Nothing is pushed anywhere.  H lands the same way, so every
@@ -238,10 +238,10 @@ checkpoint/restart" (CK-3 = restart across a geometry step).  (Closed on main: "
 atom index", CleanCode D-BASIS-REGISTRY, D-STATE-SCHEMA (narrowed).  (Closed by lane B, ce639536: "PW states cannot be saved", D-BASIS-PP, D-STRUCTDATA step 2.)  C5: "valgen is
 optimistic about diffuse functions", "vet trim deletes the valence core", "Diffuse-basis ACTUATOR".  Feature on the path: §2 "PBE / GGA".
 
-**S (27)** — C1: CleanCode V1.24(i), D-CALC-DOUBLE-SCF (migration), D-DIIS-FDMIN; OOD V1.27, D9; OpenWork "`ρ_lost/N` dead
+**S (26)** — C1: CleanCode D-CALC-DOUBLE-SCF (migration) (V1.24(i), D-DIIS-FDMIN closed by B3, 2a3852c9); OOD V1.27, D9; OpenWork "`ρ_lost/N` dead
 column" (rides V1.27).  C2: OOD V-MIXER-GBALL (= R1.5, moved from C1 2026-10-30), R1.0 (metric axis), V1.1b, BM(1), D2, D3, D4, D13, D-GPWPAIR, R1.0n/o.  C3: OOD V1.41, V1.35, R1.0q,
 V1.34.  With GGA: OOD §I.1, V1.39.  C4: CleanCode D-ENV, D-ENV-TOL;
-Lane B design review: OOD V-CALCNET -- now counted under F as "PES / run-setup remainders".  C1: OpenWork "R2.1 as a throw needs a measure that holds on a REDUCED evaluation".  C6: CleanCode D-WARNINGS.  Forces prerequisite (lane A C1/C3, 2026-10-29): OpenWork "short tier not green at `QCHEM_OPENMP_THREADS=4`" (thread-count invariance: forces and a relaxation need energies independent of the thread count).
+Lane B design review: OOD V-CALCNET -- now counted under F as "PES / run-setup remainders".  OpenWork "The SCF observer has two homes" (controller 2026-10-30, lane B).  C1: OpenWork "R2.1 as a throw needs a measure that holds on a REDUCED evaluation".  C6: CleanCode D-WARNINGS.  Forces prerequisite (lane A C1/C3, 2026-10-29): OpenWork "short tier not green at `QCHEM_OPENMP_THREADS=4`" (thread-count invariance: forces and a relaxation need energies independent of the thread count).
 
 **H (lane H)** — §1; §2 DFT+U, A7 estimators, D5 little group, the PW umbrella + PW-1/2/4, KP; §3 NiO ghost, MnO ordering, the campaign
 re-run, NiO/SrVO₃ vs hp.x, the PW 4× XC ball re-run, the three β-MnO₂ rows; §4 LR ledger, dense PW cost, LR on real TRIM; OOD V1.40;
@@ -255,7 +255,7 @@ space-group irreps, SSB descent, smearing finished, molecular SAD seed, spherica
 136-function span, ‖V_xc − V_xc_fit‖, charged cells, the anchor-batch pointer; CleanCode R1.0b, V1.29, D-MODTOOL (Steps 2–5),
 D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
 
-**Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.  Then (18ab4db5): F 16 · V 11 · S 28 = 55; b8a36fd3 +1 F = 56.  Now (ce639536): F 18 · V 8 · S 27 = 53** -- B2 closed one S and its R2.1 measurement found three critical-path defects (2 F, 1 S): the instrument working, not slippage.  Lane B steps 6–8 closed three V; V-CALCNET's remainder re-tagged S → F (the relaxation's path gate).
+**Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.  Then (18ab4db5): F 16 · V 11 · S 28 = 55; b8a36fd3 +1 F = 56.  Then (ce639536): F 18 · V 8 · S 27 = 53; +1 S (observer's two homes) = 54.  Now (2a3852c9, lane A B3): F 18 · V 8 · S 26 = 52** -- B2 closed one S and its R2.1 measurement found three critical-path defects (2 F, 1 S): the instrument working, not slippage.  Lane B steps 6–8 closed three V; V-CALCNET's remainder re-tagged S → F (the relaxation's path gate).
 
 ## 10. Landing log (controller)
 
@@ -267,3 +267,4 @@ D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
 | `20873b21` (2026-10-30) | lane-b C4 steps 3–5 (`84d5569f` seed library keyed by PP variant q; `47f0816a` basis provenance PP-PROVENANCE + CheckPPProvenance) | serial short 1130 (merged) + serial long 7/8 pre-merge | 0 / 1124 short vs `main-87493dd9`, 0 / 8 long | `~/Code/qchem6-runs/anchors/main-20873b21_{short,long}.log` (long = SERIAL baseline) |
 | `18ab4db5` (2026-10-30) | lane-a C1 B2 (`f6bb5996` + `77a99402`: R2.1 group residual REPORTED, R2.4, R2.5 siteSpins required, R2.7, panel #10 RED; panel out of the routine long tier) -- a merge commit, main's delta since the lane's base was docs only | serial short 1133; serial long `-L long -LE panel` 6/6; panel 20/20 at 4 threads | 0 / 1128 short, 0 / 7 long vs `main-20873b21` | `~/Code/qchem6-runs/anchors/main-18ab4db5_{short,long,panel4t}.log` |
 | `ce639536` (2026-10-30) | lane-b C4 steps 6–8 (`SolidSetup`/`MoleculeSetup::Resolve`, `GaussianBasisRecipe`, `PotentialEnergySurface::ConvergeAt(cell, R)` + both sessions), PW state save, clean replace (old ctors deleted, 148 callers migrated) -- a merge commit, main's delta docs only | serial short 1147/1147; serial long `-L long -LE panel` 6/6; long panel 7/7 at 4 threads inside budget (MnO₂ K-P 4.4e-7 Ha / TiO₂ 76→84 it vs the threaded baseline: thread variance, the invariance row) | 0 / 1131 short, 0 / 7 long vs `main-18ab4db5` | `~/Code/qchem6-runs/anchors/main-ce639536_{short,long,panel4t}.log` |
+| `2a3852c9` (2026-10-30) | lane-a C1 B3 (R1.1 joint Pulay hand-off, R1.3, R1.4 `EngageBelowFD`, FDMin deleted + the positional-DIIS-init fix `7d6222b0`; vendored-state twins; deterministic threaded collocation `5ec26b06`; GridEpsilonPlan doc) -- a merge commit, main's delta docs only | serial short 1149/1149; serial long `-L long -LE "panel|periodic"` 5/5; periodic 3/3; long panel 8/8 at 4 threads inside budget (MnO₂ ×3, TiO₂ moves: the now-deterministic threaded partition vs main's random draw) | 0 / 1144 short, 0 / 4 long, 0 periodic vs `main-ce639536` | `~/Code/qchem6-runs/anchors/main-2a3852c9_{short,long,panel4t,periodic}.log` |

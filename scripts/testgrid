@@ -26,7 +26,7 @@ AXES = [
     ("reservoir",{"GlobalMu":"one μ over k", "ShFermi":"one μ over spin"},                   "per block/channel"),
     ("machinery",{"GDM":"GDM", "Ladder":"Ladder", "Kerker":"Kerker", "FitXC":"XC on the fitted ρ̃ (pre-pin-28 control)", "Pulay":"Pulay", "MOM":"MOM", "SeedMOM":"seed MOM", "Prototype":"prototype loop", "Null":"no Fock accelerator", "Linear":"linear D-mixing"}, "DIIS"),
     ("ansatz",   {"Cplx":"complex"},                                                        "real TRIM"),
-    ("seed",     {"UniSeed":"uniform seed", "SpinSeed":"spin-SAD seed"},                    "IonicSAD"),
+    ("seed",     {"UniSeed":"uniform seed", "SpinSeed":"spin-SAD seed", "Saved":"a vendored converged state (decks/states/)"},                    "IonicSAD"),
 ]
 K_TOKENS   = set(AXES[0][1])
 MULTI      = {"machinery"}                       # axes that may carry more than one token

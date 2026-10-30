@@ -1,6 +1,7 @@
 // File: ChargeDensity/Internal/PolarizedDensityMixer.C  The polarized ρ̃ mixer: one G-space leaf per channel
 // ((ρ↑,ρ↓) or (ρ,m)), one JOINT history, and the spin-resolved Fock presentation they feed.
 module;
+#include <optional>
 #include <memory>
 #include <iostream>
 #include <complex>
@@ -239,6 +240,9 @@ public:
         if (itsBasis!=ChannelBasis::SpinChannels) RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge(), &lf.up, &lf.dn);
         return true;
     }
+    //! The leaves prime and engage their history TOGETHER (one joint step), so the up leaf speaks for both; the down leaf's copy
+    //! is taken and dropped (R1.3: one line per hand-off).
+    std::optional<HandOffRequest> TakeHandOff() override { auto h=itsUp->TakeHandOff(); itsDn->TakeHandOff(); return h; }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t& working) const override
     {
         if (itsBasis==ChannelBasis::SpinChannels)

@@ -100,6 +100,44 @@ inline std::shared_ptr<FourierMixCD> PresentFromD(const GField& f, const Recipro
     return Present(f, recip, charge, cusp ? ΔG_Map(0.0*f.tilde) : ΔG_Map{});
 }
 
+//! \brief THE PRECONDITIONER (doc/SCFRobustnessPlan.md R1.4, OOD D9): residual -> per-channel filter -> the step.
+//!
+//! The Kerker filter \f$\alpha\,G^2/(G^2+G_0^2)\f$ is NOT a history -- it is memoryless and channel-diagonal -- so it is
+//! a value the ONE extrapolator holds and applies to whatever pair it hands it (the plain pair while priming, the
+//! extrapolated pair after), never a second mixer.  \c KerkerMixer is (this, no history); \c PulayMixer is (this, a Pulay
+//! history); a Broyden is a drop-in sibling that holds one too.  G0 = 0 is the linear filter (the (ρ,m) basis's m leaf).
+//! It also owns the mixer's G-SPACE (the fit basis a density's field is read on, and the raster shadow's evaluator) --
+//! today the Vxc fit set's (OOD V-MIXER-GBALL: which object should own it is the open half of R1.5).
+class KerkerPreconditioner
+{
+public:
+    KerkerPreconditioner(double relax, double G0, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, ReciprocalLattice recip)
+        : itsRelax(relax), itsG0(G0), itsFit(std::move(fit)), itsRecip(std::move(recip)) {}
+    //! \a d's field on this mixer's G-space: ρ̃(G) and its raster shadow.
+    GField FieldOf(const tChargeDensity<dcmplx>& d) const
+    {
+        auto* fd = dynamic_cast<const FourierDensity*>(&d);
+        assert(fd);
+        return {fd->GetFourierDensity(*itsFit), fd->GetRhoOnGrid(*itsFit)};
+    }
+    //! The filtered step on the (in, out) pair the extrapolator chose (\c KerkerStep; \a cusp forms the N4 correction).
+    KerkerStepResult Step(const ΔG_Map& in, const ΔG_Map& out, bool cusp=false) const
+    { return KerkerStep(in, out, itsRelax, itsG0, itsRecip, cusp); }
+    //! The raster shadow's evaluator, or nullptr when the G-space cannot raster (⇒ the raw pipeline is off).
+    const BasisSet::G_SpectralFilter* RasterEvaluator() const
+    { return dynamic_cast<const BasisSet::G_SpectralFilter*>(itsFit.get()); }
+    //! The same filtered step on the raster shadow (\c RasterKerker).  Only with a \c RasterEvaluator.
+    rvec_t RasterStep(const rvec_t& in, const rvec_t& out) const
+    { assert(RasterEvaluator()); return RasterKerker(*RasterEvaluator(), in, out, itsRelax, itsG0); }
+    double                   Relax()      const { return itsRelax; }
+    bool                     HasGFilter() const { return itsG0>0.0; }   //!< G0 = 0 is the linear filter
+    const ReciprocalLattice& Recip()      const { return itsRecip; }
+private:
+    double itsRelax, itsG0;
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFit;
+    ReciprocalLattice itsRecip;
+};
+
 class tFieldExtrapolator;   // the HISTORY face, below
 
 //! A mixer whose subject is a \c GField -- i.e. one that works purely in G space (Kerker, Pulay; NOT the
