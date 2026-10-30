@@ -329,7 +329,7 @@ GREEN budget = ⌈1.25 × baseline⌉.  A budget counts every SCF stage inside t
 | 7 | `GPW_Si.Γ_Null_Linear_Converges_Panel` (now under `policy.cp2kCompat`, the row's condition) | 17 | 22 | **GREEN — RED claim not reproduced**: the re-damp holds (α 0.89 ↔ 0.50); the row's Mn–O dimer witness stays open |
 | 8 | `GPW_Na2Box.Γ_Pol_Null_Linear_SpinSeed_Converges_Panel` | 38 = cap, unconverged (E 3e-6 above the twin) | 38 | RED |
 | 9 | `GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows_Panel` | 232 | 290 | GREEN |
-| 10 | — polarized Si jump | — | — | NOT BUILT (needs a manifold-moment readout; B2) |
+| 10 | `ResponsePolarizability.GPW_Si_Γ_Pol_OneSpinAlpha_KeepsZeroMoment_Panel` (UTResponse) | Si-p moment 0.191 e (jumped) | 1 run | RED (built 2026-10-30, B2: readout `SolidCalculation::MakeHubbardMoments`) |
 | 11 | `M_DFT.OxygenTripletBelowSinglet_Panel` (the B atom arm not built) | 26 | 33 | GREEN |
 | 12 | `GPW_Al.Γ_Imp_Anneal_Anchor_Panel` | 15 (13+1+1) | 19 | GREEN |
 | 13 | `GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Panel_Long` | 14 | 18 | GREEN |
@@ -370,6 +370,64 @@ Each step: one commit (or a short series), sweep-green, panel re-run, `anchordif
 Order rationale: B1 before everything (every later step is measured on it); B2 before B3 because the invariants catch a P1
 refactor's mistakes at iteration 1; B4 before B5 because it removes the only reason `Auto` must tell row 4 from row 5; B6 after
 B5 so each fix lands as a change to ONE recipe cell; B7 late because its main producer is C2's.
+
+### B2 as built (started 2026-10-29 on 28fe4a31; R2.1 measured + reported, R2.4 + R2.5 + R2.7 landed, #10 built)
+
+**R2.1 is measured where a projector already runs, not by a second projection.**  Every consumer that imposes the group
+already applies a projector P to its input; \|f − Pf\| / \|ρ\| on that input is nearly free (one raster copy) and is exactly
+the number that found E1 (the 4e-9 flip residual at iteration 1).  The D pair is NOT a measuring point: `tCompositeWF`
+projects (D↑, D↓) by construction (3b2a163a), and a raw D_out at a partly filled degenerate shell is legitimately not
+invariant.  Wiring: `DensitySampler::GroupResidual()` (singles: measured before `Symmetrize` / `SymmetrizeSpin`) →
+`Vxc_Quadrature` records it with the Fock build's pin-28 source → `ChargeBreakdown::xcGroupResidual` → the iterator.
+**Two stages**: (1) MEASURE: `QCHEM_DIAGNOSTICS=group` prints it every iteration; run it on panel #13 (MnO imposed) and on
+β-MnO₂ A1AFM imposed, Kerker and Pulay-D; (2) THROW at the tolerance those runs set.  The plan's 1e-10 is a guess, and if
+the odd coarse multigrid levels still leave a τ-break at ~1e-9 on every iteration (3b2a163a removed the AMPLIFIER, not
+necessarily the SEED), a 1e-10 throw would fail every imposed magnetic Kerker run.
+**Finding while wiring it**: the raster (pair) XC route does not star-average ρ at all.  An imposed run on that route
+(`cp2kCompat` vetoes Becke) feeds XC an UNPROJECTED density, and R2.1 can only answer "not measured" there.  Whether that is
+a hole (imposition silently partial on the CP2K-parity route) is the first question the measurement stage answers.
+**R2.1 MEASURED 2026-10-30** (B2 build on 83f04c23, `QCHEM_DIAGNOSTICS=group`, every iteration):
+
+| case | route / mixer | residual max\|f−Pf\|/max\|ρ\| |
+|---|---|---|
+| `GPW_NaBox.Γ_Imp_M2_eqFinite` | Becke singles, Pulay-D | 2e-15 … 7.6e-15 |
+| `GPW_O2Box.Γ_Imp_M3_Pulay_Anchor_Panel` (#4) | Becke singles, Pulay-D | 1.6e-15 … 1.9e-15, **one 7.6e-11 at iteration 12** |
+| `GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Panel_Long` (#13) | Becke singles, Kerker+Pulay field | 4e-15 (it. 1), **3.15e-10 (it. 2)**, then decaying with the step to 1.5e-12 |
+| `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Converges_Panel_Long` (#9) | Becke singles, Kerker field | 2.5e-12 … 9.9e-11 throughout (143 SCF iterations; the 122 pseudo-atom solves report "not measured") |
+| `GPW_Si.Γ_Imp_Pol_eqUnpol` | raster | not measured (the route does not project) |
+
+Readings: (a) the D-space mixer is exact (roundoff 1e-15); its one spike is the low-rank D factor — at O₂ iteration 12 the
+Pulay-D mix grows a 5e-9…1e-13 eigenvalue tail with DEGENERATE pivot pairs (`dm_rank`: rank 7 → 20 of 24), and the
+pivoted-Cholesky cut through such a pair splits an orbit; 7.6e-11 is the size of the dropped tail.  (b) The Kerker field
+mixer is NOT exactly equivariant: it leaves 1e-12…3e-10 every iteration, scaling with the step — the τ-break the 3b2a163a
+fix left behind as a SEED (the AMPLIFIER is gone: nothing grows).  (c) The E1 leak read 4e-9.  **Stage 2 TRIED AND WITHDRAWN (2026-10-30)**: a throw at 1e-9 failed 8 CORRECT short-tier
+runs (anchors unmoved) -- `GPW_NaF.Γ_Imp_*` read 0.10…0.51 from iteration 2 on, `GPW_Si.k222_Becke_Imp_*` 0.21 at iteration 1.
+Split on NaF: the cusp-deficit correction field is clean (1e-14), ρ[D] itself is 0.51 off.  Not a defect: those runs EVALUATE
+REDUCED -- the T3 stream fold scatters orbit-representative pair triples with their orbit multiplicity, "and the caller's dense
+group-average ... reproduces the full collocation" (`PG_Cart_MnD/Evaluator.C`), and an IBZ k-sum is a star-representative sum
+the same way -- so the pre-projector field is incomplete BY CONSTRUCTION and P is part of the evaluation, not a guard.  The
+four measured cases above happen to evaluate full.  **So the pre-projector residual is a valid measure only on a full
+evaluation**; R2.1 stays a `QCHEM_DIAGNOSTICS=group` report (`ReportImposedGroup`), and the throw waits for a measure that
+holds on both routes: the D-side residual \|D − P D\| / \|D\| where the reduced route already forms P D (`FoldProjectedD`) --
+a symmetric D is exactly the precondition the reduced scatter states.  OpenWork row "R2.1 as a throw".  (a), (b) and the
+unmeasured raster route are OpenWork rows too.
+**R2.4 (charge per reservoir)**: `RequireReservoirCharge` at the end of `tCompositeWF::FillOrbitals` -- each occupation
+reservoir's filled electrons (k-weighted Σ occ) equal its prescribed N to 1e-10·max(N,1) (NaN throws); UT
+`ReservoirCharge.R2_4_ALostElectronThrows`.  **R2.7 (no dead gate)**: `RequireLiveGates` at the iteration that declares
+convergence -- a live [F,D] gate reading exactly 0.0 was never computed (it arrives from the accelerator's `GetError()`;
+evidence G3) and throws; UT `SCFTrace.R2_7_ADeadGateThrows`.  **Not Δρ/N**: the first build also checked it and failed 13
+correct one-electron atom tests (`A_*_E1`/`DE1`) -- a density-independent Hamiltonian reproduces its seed bit for bit, so an
+exact 0 there is a verdict.  Value-based detection is the stopgap; the durable form is a gate that was not computed SAYING so
+(an optional), which is the "[F,D] has no single home" remainder.
+**R2.5 (stated decoration), 2026-10-30**: `RequireStatedMagneticOrdering` now refuses an IMPOSED polarized run without
+`siteSpins` (+U or not; `greyImposition` exempt), and the seed-derived decoration in `SolidCalculation::BuildBasis` is GONE.  The
+short tier was first run with an instrument in the derive branch: 10 tests derived, every one a sensible ordering (Si {0,0} ×6,
+O₂ {+1,+1} ×2, Na {+1}, Na₂ / Mn₂ {+1,−1}); each now STATES exactly what it derived (anchors cannot move), and every shipped
+deck already vets.  The plan's second clause (the seed's site moments match the stated signs at iteration 0) is NOT built.
+**#10 (the polarized Si jump)**: the readout is `SolidCalculation::MakeHubbardMoments()` -- each +U manifold's Tr n↑ − Tr n↓
+through the term's own projectors, hoisted from `ConvergeHubbardU`'s [U table] snapshot (one walk, both callers), because the
+UTResponse Si fixture runs a UNIFORM XC mesh (no Becke basins, so `RunDiagnostics::OrderFinal` reads 0 by absence -- the first
+draft of the case caught that).  RED as recorded: 0.191 e (n↑ 1.59 / n↓ 1.41), listed in `QCHEM_PANEL_RED`.
 
 ---
 

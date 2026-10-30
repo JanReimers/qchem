@@ -138,6 +138,8 @@ open F+V+S count.  A new CONVERGENCE row also gets its case added to the panel (
 Plumbing and mechanical chunks (C4, C6, C7): Sonnet · high / medium.  No Haiku.  A Sonnet chunk that hits a physics surprise (an
 anchor moves unexpectedly) is handed to Opus.
 
+**No backward-compatibility doors** (user 2026-10-30): an API change migrates every caller and deletes the old entry point in the same chunk -- never "the old ctor delegates, so no caller changes".  `pybind/` is the one exception: flag a break for the binding owner.
+
 **Sweeps that are compared run SERIAL** (`QCHEM_OPENMP_THREADS` unset), like every main baseline: several tests are not thread-count invariant (lane A 2026-10-29: 57 anchor moves up to 2.8e-6 at 4 threads; OpenWork row).  Threads are for panel and campaign runs, never a landing sweep.
 
 **Landing sweep = short serial (`-LE long`) + routine long serial (`-L long -LE panel`, ~6 min); the convergence panel (`-L panel`, hours) runs only when a lane touches SCFAccelerator / SCFIterator / mixers / the Calculation SCF path, and is judged against its iteration budgets, not by anchordiff** (user 2026-10-30).
@@ -224,9 +226,9 @@ ball — it can, to a stated tolerance, and it is the SAME ball.**  The reasonin
 Row names abbreviated; the row itself lives in its queue.  The controller updates this index at each merge, and the open F+V+S count
 is read from it.
 
-**F (14)** — C1: "Linear D-mixing diverges" (remainder), "Na₂ AFM seed", "GDM crawls",
+**F (16)** — C1: "Linear D-mixing diverges" (remainder), "Na₂ AFM seed", "GDM crawls",
 "Kerker+Pulay overshoots β-MnO₂'s U = 1 basin" (a panel case), "Polarized Γ Si jumps", "GDM: should an exhausted line search END the
-stage?", §2 "`MixingPolicy`" (becomes P4a's regime matrix).  C2: "BallOnly raster aliases tight pairs", "AUTO density cutoff misses O
+stage?", §2 "`MixingPolicy`" (becomes P4a's regime matrix); "the Kerker field mixer is not exactly group-equivariant", "the low-rank D factor can split a symmetry orbit" (B2 R2.1, 2026-10-30: a density that leaves its group is not variational, so its forces are not dE/dR).  C2: "BallOnly raster aliases tight pairs", "AUTO density cutoff misses O
 q6", "uniform-raster XC not equivariant", "a FREE run's XC mesh" (cost remainder), OOD R1.0r, CleanCode §K.  Forces note: §2 "SCF
 checkpoint/restart" (CK-3 = restart across a geometry step).  (Closed on main: "`u_bands` after a GDM stage" 07af0909, "GDM false-converges" ab1c206a.)
 
@@ -236,14 +238,14 @@ optimistic about diffuse functions", "vet trim deletes the valence core", "Diffu
 
 **S (28)** — C1: CleanCode V1.24(i), D-CALC-DOUBLE-SCF (migration), D-DIIS-FDMIN; OOD V1.27, D9, V-MIXER-GBALL; OpenWork "`ρ_lost/N` dead
 column" (rides V1.27).  C2: OOD R1.0 (metric axis), V1.1b, BM(1), D2, D3, D4, D13, D-GPWPAIR, R1.0n/o.  C3: OOD V1.41, V1.35, R1.0q,
-V1.34.  With GGA: OOD §I.1, V1.39.  C4: CleanCode D-ENV, D-ENV-TOL; OpenWork "an IMPOSED polarized run without +U derives its decoration".
-Lane B design review: OOD V-CALCNET.  C6: CleanCode D-WARNINGS.  Forces prerequisite (lane A C1/C3, 2026-10-29): OpenWork "short tier not green at `QCHEM_OPENMP_THREADS=4`" (thread-count invariance: forces and a relaxation need energies independent of the thread count).
+V1.34.  With GGA: OOD §I.1, V1.39.  C4: CleanCode D-ENV, D-ENV-TOL;
+Lane B design review: OOD V-CALCNET.  C1: OpenWork "R2.1 as a throw needs a measure that holds on a REDUCED evaluation".  C6: CleanCode D-WARNINGS.  Forces prerequisite (lane A C1/C3, 2026-10-29): OpenWork "short tier not green at `QCHEM_OPENMP_THREADS=4`" (thread-count invariance: forces and a relaxation need energies independent of the thread count).
 
 **H (lane H)** — §1; §2 DFT+U, A7 estimators, D5 little group, the PW umbrella + PW-1/2/4, KP; §3 NiO ghost, MnO ordering, the campaign
 re-run, NiO/SrVO₃ vs hp.x, the PW 4× XC ball re-run, the three β-MnO₂ rows; §4 LR ledger, dense PW cost, LR on real TRIM; OOD V1.40;
 CleanCode D-ENV-RERUN, D-CKALPHA-AUTO.
 
-**X (13, the quota)** — OpenWork "every `_Long` test re-proves its claim at the cheapest resolution" (lane A, right after C1 B2 lands; it shares the vendored-state mechanism with panel #19); CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
+**X (14, the quota)** — OpenWork "R2.1 cannot measure the raster XC route" (rides C2); OpenWork "every `_Long` test re-proves its claim at the cheapest resolution" (lane A, right after C1 B2 lands; it shares the vendored-state mechanism with panel #19); CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
 D-CONTRACTED-SHELL, D-FIT-MERGE; OpenWork "Blaze heevx/syevx" (rides ModuleToolchain Step 4).
 
 **P (parked / features / triggers)** — §2 B-spline basis, hybrids, GW, transport/MD, USPP/PAW, OT (and with it CleanCode V1.24(iii)),
@@ -251,7 +253,7 @@ space-group irreps, SSB descent, smearing finished, molecular SAD seed, spherica
 136-function span, ‖V_xc − V_xc_fit‖, charged cells, the anchor-batch pointer; CleanCode R1.0b, V1.29, D-MODTOOL (Steps 2–5),
 D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
 
-**Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.  Now (87493dd9): F 14 · V 11 · S 28 = 53.**
+**Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.  Now (18ab4db5): F 16 · V 11 · S 28 = 55** -- B2 closed one S and its R2.1 measurement found three critical-path defects (2 F, 1 S): the instrument working, not slippage.
 
 ## 10. Landing log (controller)
 
@@ -261,4 +263,5 @@ D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
 | `e9955ebf` (2026-10-29) | lane-b C4 step 2 (inject the `PseudopotentialSet`; clean replace of the molecular PP fields) | serial short 1123 + long 8 | 0 / 1119 short, 0 / 8 long vs `main-a3f4b50f` | `~/Code/qchem6-runs/anchors/main-e9955ebf_{short,long}.log` |
 | `87493dd9` (2026-10-29) | lane-a C1 B0+B1 (the convergence panel, 19 cases, RED as WILL_FAIL; u_bands + GDM false-converges closed; thread-invariance row) | serial short 1126; long 13/13 at 28fe4a31 (4 threads, panel incl.) | 0 / 1112 short vs `main-e9955ebf` | `~/Code/qchem6-runs/anchors/main-87493dd9_{short,long}.log` (long = 4-thread, re-baseline serial at the next long sweep) |
 | `20873b21` (2026-10-30) | lane-b C4 steps 3–5 (`84d5569f` seed library keyed by PP variant q; `47f0816a` basis provenance PP-PROVENANCE + CheckPPProvenance) | serial short 1130 (merged) + serial long 7/8 pre-merge | 0 / 1124 short vs `main-87493dd9`, 0 / 8 long | `~/Code/qchem6-runs/anchors/main-20873b21_{short,long}.log` (long = SERIAL baseline) |
+| `18ab4db5` (2026-10-30) | lane-a C1 B2 (`f6bb5996` + `77a99402`: R2.1 group residual REPORTED, R2.4, R2.5 siteSpins required, R2.7, panel #10 RED; panel out of the routine long tier) -- a merge commit, main's delta since the lane's base was docs only | serial short 1133; serial long `-L long -LE panel` 6/6; panel 20/20 at 4 threads | 0 / 1128 short, 0 / 7 long vs `main-20873b21` | `~/Code/qchem6-runs/anchors/main-18ab4db5_{short,long,panel4t}.log` |
 

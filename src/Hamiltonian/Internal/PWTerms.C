@@ -379,6 +379,7 @@ private:
     //! reports in \c ChargeBreakdown::xcRho.  The latest build, not a drained log: GDM's line search calls the energy
     //! many times per iteration, and a log emptied by each call would hand the trace an empty cell.
     mutable std::optional<ChargeDensity::XCRhoSource> itsFockSource;
+    mutable std::optional<double> itsFockGroupResidual;   //!< R2.1: the same build's density vs the imposed group (\c xcGroupResidual)
     qchem::LazyLock itsFockSourceLock;   //!< every Fock block writes it (the same value): concurrent blocks take turns
 };
 

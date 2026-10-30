@@ -16,6 +16,7 @@ module;
 #include <stdexcept>
 #include <iosfwd>
 #include <map>
+#include <optional>   // GroupResidual (R2.1)
 #include <memory>
 #include <string>
 #include <vector>   // SinglesDensitySampler sigmas/flipFixed (Shubnikov S3)
@@ -126,6 +127,9 @@ public:
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
     XCRhoSource RhoSource() const override {return itsSource;}
+    //! R2.1: measured at the two projector calls (\c Rho, \c RhoPol), on the density just sampled -- the cost is one copy of the
+    //! raster per refresh.  0 on a free run.
+    std::optional<double> GroupResidual() const override {return itsGroupResidual;}
     //! δρ_σ at my points, pair by pair through the δ basis's Φ tables (\c Transition_Overlap3C) -- the same
     //! tables as Rho, no cache, no orbit mean.
     cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
@@ -216,6 +220,7 @@ private:
     //! Notes \a route in \c itsRoutes AND sets \c itsSource -- one call, so the two cannot disagree.
     void NoteRoute(const char* route, XCRhoSource src) const;
     mutable XCRhoSource itsSource=XCRhoSource::Fitted;   //!< the source of the cached rasters (\c RhoSource)
+    mutable double itsGroupResidual=0.0;                 //!< R2.1: the cached density vs the group, before projection
     //! \brief The DM-source RUNNING MIX (QCHEM_XC_DM_MIX), in its OWN storage.
     //! \warning It must NOT live in itsRho/itsRhoUp/itsRhoDn.  Those are written by BOTH sampling routes,
     //! and the interleaving is adversarial: per iteration the Fock build blends through the DM-SOURCE
@@ -278,6 +283,9 @@ public:
     //! missing was the per-channel CACHE and the channel walk, both of which the singles route already had.
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
     XCRhoSource RhoSource() const override {return itsSource;}
+    //! R2.1: the raster route does not star-average \f$\rho\f$ at all, so it cannot say how far from the group its input sat --
+    //! and an imposed run on this route feeds XC an UNPROJECTED density (the Becke singles route is the one that projects).
+    std::optional<double> GroupResidual() const override {return std::nullopt;}
     //! δρ_σ on the raster through the transition density's G-space face (RAW collocation, else the BALL).
     //! The periodic part \f$e^{-iq\cdot r}\delta\rho_\sigma\f$ on my raster, pair by pair through each KET block's RAW
     //! transition collocation (\c Transition_DFT_IBS::TransitionOnGrid) -- the RAW route the ground state latched;

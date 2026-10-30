@@ -726,6 +726,22 @@ TEST(ResponsePolarizability, GPW_Si_SpinResolvedAlpha_ShiftsOneChannel)
 }
 
 //=====================================================================================================
+//  PANEL #10 (doc/SCFRobustnessPlan.md §4; OpenWork §3 "Polarized Γ Si JUMPS"): non-magnetic Si under a one-spin
+//  alphaUp = 1e-3 Ha on site 0's p must KEEP the m = 0 state -- the shift is a small static field on one channel of a
+//  0.07 Ha-gap sp insulator.  RED today: the cell jumps to a spin-polarized state (n_up 1.59 / n_dn 1.41, measured
+//  2026-10-26).  The readout is the Si-p manifold's integrated spin moment through the +U term's own projectors
+//  (SolidCalculation::MakeHubbardMoments): this fixture's XC mesh is UNIFORM, so there are no Becke basins to integrate over.
+//=====================================================================================================
+TEST(ResponsePolarizability, GPW_Si_Γ_Pol_OneSpinAlpha_KeepsZeroMoment_Panel)
+{
+    auto c=ConvergedSi(SpinGroup::Polarized, 0.0, 0.0, false, ivec3_t(1,1,1), false, 1e-3, 0.0);
+    const std::vector<double> m=c->MakeHubbardMoments();
+    ASSERT_EQ(m.size(), 1u) << "one manifold: site 0's p";
+    std::cout << "[panel #10] Si one-spin alpha 1e-3 Ha: Si-p manifold moment " << m[0] << " e" << std::endl;
+    EXPECT_LT(std::abs(m[0]), 1e-4) << "Si must keep m = 0 under a 1e-3 Ha one-spin shift (OpenWork §3 \"Polarized Γ Si JUMPS\")";
+}
+
+//=====================================================================================================
 //  THE SLOT-RESOLVED alpha*P (2026-10-27, beta-MnO2 orbital-channel probe): alphaSlot puts alpha_k on each U slot's
 //  FIXED isotypic projector P_k.  The slots partition the manifold (Sum_k P_k = 1), so every slot at the same a IS
 //  alpha = a -- on Si's p (3 site shells) under T_d that is ONE slot of dim 9; and a count that does not match the [+U]
