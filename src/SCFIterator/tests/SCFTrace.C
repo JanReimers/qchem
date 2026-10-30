@@ -137,7 +137,7 @@ TEST(SCFTrace, SolidPP_ShowsGridColumnsAndNoVirial)
         par.NMaxIter=2; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30;
         par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
         qchem::BoundedSCF bounded("the trace's columns are the subject: 2 iterations print them");
-        SolidCalculation calc(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
+        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}), par);
         (void)calc.Result();   // NMaxIter=2: this deliberately does NOT converge -- the trace is the subject
     });
     const std::string h = HeaderLine(trace);

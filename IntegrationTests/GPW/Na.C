@@ -111,7 +111,7 @@ TEST(GPW_Na, k222s_Imp_Smear_GlobalMu_Anchor)
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     SCFParams par=Gates(60, 1e-5, 1e30); par.SmearingkT=0.01;
     GpwReport report("Na "+o.label, false);
-    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*na.cell, BasisSetData::VALENCE_LOWQ_SR2), o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*na.cell, BasisSetData::VALENCE_LOWQ_SR2), o), par);
     auto R=calc.Result();
     ASSERT_TRUE(R) << "global μ + smearing converges the half-filled-band metal: " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 1.0, 1e-6);  // one valence electron, BZ-weighted Σ_k w_k n_k = 1

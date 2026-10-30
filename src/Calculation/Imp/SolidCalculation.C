@@ -286,23 +286,13 @@ static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, siz
 
 SolidCalculation::SolidCalculation(BuildOnly) : itsImp(std::make_unique<Imp>()) {}
 
-SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                                   const SolidCalcOptions& opts, const SCFParams& params,
-                                   const SCFAccelerators::SolidAcceleratorOptions& acc)
+SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params)
     : itsImp(std::make_unique<Imp>())
 {
     // ★ THE CTOR'S RESIDUE BUCKET (doc/ParallelAndOraclePlan.md 1.1(a)).  Timed is EXCLUSIVE, so this
     // outer scope charges itself exactly what the named setup buckets below do NOT -- the decisions
-    // between them (sharpness gather, magnetic decoration, IonicSAD targets, the irrep/EC build, the
-    // banner).  With the same bracket on Converge and on Iterate, the ledger PARTITIONS the run and
-    // "everything not in a bucket" stops being a place time can hide.
-    qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
-    Start(SolidSetup::Resolve(lat, mol, opts, acc), params, opts.accelerator);
-}
-
-SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params)
-    : itsImp(std::make_unique<Imp>())
-{
+    // between them (the irrep/EC build, the banner).  With the same bracket on Converge and on Iterate, the ledger
+    // PARTITIONS the run and "everything not in a bucket" stops being a place time can hide.
     qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
     const SCFAccelerators::Type accel=setup->opts.accelerator;
     Start(std::move(setup), params, accel);
@@ -518,16 +508,6 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
 // so the graph is built exactly once and stage 0 runs as the plain ctor's convergence -- then continues
 // through the rest of the schedule.  (Delegating rather than duplicating the build is what keeps the two
 // ctors from drifting; every DECISION in the build is made in one place.)
-SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                                   const SolidCalcOptions& opts, const std::vector<SCFStage>& schedule,
-                                   const SCFAccelerators::SolidAcceleratorOptions& acc)
-    : SolidCalculation(SolidSetup::Resolve(lat, mol,
-                                           schedule.empty() ? opts : [&]{ SolidCalcOptions o=opts;
-                                                                          o.accelerator=schedule.front().accelerator; return o; }(),
-                                           acc),
-                       schedule)
-{}
-
 SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule)
     : itsImp(std::make_unique<Imp>())
 {
@@ -1064,18 +1044,10 @@ void SolidCalculation::SaveState(const std::string& path) const
 }
 
 Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
-SolidCalculation::Restart(const std::string& path, const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                          const SolidCalcOptions& opts, const SCFParams& params,
-                          const SCFAccelerators::SolidAcceleratorOptions& acc)
-{
-    return Restart(path, SolidSetup::Resolve(lat, mol, opts, acc), SCFStage{params, opts.accelerator});
-}
-
-Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
-SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFStage& stage)
+SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params)
 {
     using O=Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>;
-    const SCFParams& params=stage.params;
+    const SCFAccelerators::Type accel=setup->opts.accelerator;
     const std::string tag="["+setup->opts.label+" restart] ";
     auto refuse=[&](RestartRefusal r)
     {
@@ -1110,7 +1082,7 @@ SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSe
         for (const std::string& d : *warm) os<<"\n"<<tag<<"  differs: "<<d;
         std::cout<<os.str()<<std::endl;
     }
-    c->BuildRun(cd.TakeValue(), params, stage.accelerator, /*restored*/true, exact);
+    c->BuildRun(cd.TakeValue(), params, accel, /*restored*/true, exact);
     (void)c->Converge(params);
     c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;   // later stages on this calculation start as asked
     if (exact)
@@ -1700,10 +1672,17 @@ SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<
 }
 SolidSession::~SolidSession() = default;
 
-const Structure& SolidSession::Reference() const {return *itsSetup->cell;}
+PESGeometry SolidSession::Reference() const
+{
+    PESGeometry g;
+    g.cell=itsSetup->reference.GetUnitCell().GetCellMatrix();
+    itsSetup->cell->ForEachSite([&](int Z, const rvec3_t& r, bool){ g.R.push_back(r); g.Z.push_back(Z); });
+    return g;
+}
 const SolidCalculation* SolidSession::Current() const {return itsPoint ? itsPoint->calc.get() : nullptr;}
 
-Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::vector<rvec3_t>& R, const PESRequest& want)
+Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3d_t>& cell, const std::vector<rvec3_t>& R,
+                                                      const PESRequest& want)
 {
     using O=Outcome<PESPoint, PESFailure>;
     using Why=PESFailure::Why;
@@ -1712,9 +1691,21 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::vector<rvec3_t
     const size_t      nAtoms=ref.GetNumAtoms();
     if (R.size()!=nAtoms)
         throw std::invalid_argument("SolidSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
+    if (!cell)
+        throw std::invalid_argument("SolidSession::ConvergeAt: a solid's geometry has a cell -- pass Reference().cell for a fixed-cell step");
     if (want.forces || want.stress)
         return O::Fail({Why::NoGradient, std::string(want.stress ? "stress" : "forces")+": no term implements its geometry gradient yet "
                         "(doc/CalcNetworkReview.md §3.3, step 9) -- difference ConvergeAt energies meanwhile"});
+    // THE CELL IS THE SETUP'S, for now: the Bloch basis, the grids (sized from the cell) and the imposed group were all built for it.
+    // The signature takes the cell so a variable-cell driver needs no new face when the basis/grid side can follow one.
+    {
+        const rmat3d_t& A=ref.GetCellMatrix();
+        double dA=0.0, scale=0.0;
+        for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) { dA=std::max(dA, std::fabs((*cell)(i,j)-A(i,j))); scale=std::max(scale, std::fabs(A(i,j))); }
+        if (dA>1e-12*scale)
+            return O::Fail({Why::CellChange, "the cell moved (max |dA| = "+std::to_string(dA)+" bohr): a setup's basis and grids are built for "
+                            "ONE cell, and a variable-cell step is not supported yet -- resolve a new setup at that cell"});
+    }
 
     // THE POINT'S CELL: the setup's, atoms at R.
     UnitCell cellR(ref);

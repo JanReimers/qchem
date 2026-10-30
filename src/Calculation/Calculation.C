@@ -11,6 +11,7 @@
 // extraction is the clean future move when a plane-wave/crystal front door is needed.
 module;
 #include <memory>
+#include <optional>
 #include <vector>
 #include <string>
 #include <utility>
@@ -41,20 +42,10 @@ public:
     using orbitals_t = qchem::Orbitals::Orbitals;
     using Observer   = qchem::SCFIterator::SCFIterator::Observer; //!< void(const SCFProgress&)
 
-    //! Build the whole graph and converge.  \a st is DEEP-COPIED via Structure::Clone (which PRESERVES the
-    //! concrete geometry -- a periodic UnitCell stays periodic, not sliced to a Molecule), so the caller's
-    //! Molecule/Atom/UnitCell is left untouched and may be freed immediately.
-    explicit Calculation(const Structure&          st,
-                         const CalcOptions&         opts = {},
-                         const AcceleratorOptions&  acc  = {});
-    //! Build the whole graph and converge ONCE, on \a scf (CleanCode D-CALC-DOUBLE-SCF): a caller with its own recipe used to
-    //! construct (an SCF on the defaults) and then Converge(par) -- two full SCFs, and the first one's cap was out of its reach.
-    Calculation(const Structure&          st,
-                const CalcOptions&         opts,
-                const SCFParams&           scf,
-                const AcceleratorOptions&  acc  = {});
-    //! \brief A run over a RESOLVED setup (doc/CalcNetworkReview.md §7, step 7): the geometry point at the setup's reference
-    //! structure, converged once on \a scf.  The constructors above are this with \c MoleculeSetup::Resolve in front.
+    //! \brief Build the whole graph over a RESOLVED setup (doc/CalcNetworkReview.md §7, step 7) -- the geometry point at the
+    //! setup's reference structure -- and converge ONCE on \a scf.  The setup is \c MoleculeSetup::Resolve(structure, options,
+    //! accelerator options), which deep-copies the structure (a periodic UnitCell stays periodic), so the caller's may be freed
+    //! at once.  The only door (user ruling 2026-10-30: clean replace, no (structure, options) constructors).
     explicit Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf = {});
     ~Calculation();
 
@@ -145,9 +136,10 @@ class MoleculeSession : public virtual PotentialEnergySurface
 public:
     MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf);
     ~MoleculeSession();
-    const Structure& Reference() const override;
-    //! THROWS when \a R has not one position per atom.
-    Outcome<PESPoint, PESFailure> ConvergeAt(const std::vector<rvec3_t>& R, const PESRequest& want = {}) override;
+    PESGeometry Reference() const override;
+    //! THROWS when \a cell is given (a molecule has none) or when \a R has not one position per atom.
+    Outcome<PESPoint, PESFailure> ConvergeAt(const std::optional<rmat3d_t>& cell, const std::vector<rvec3_t>& R,
+                                             const PESRequest& want = {}) override;
     //! The current point (the last \c ConvergeAt's); null before the first.  Replaced by the next \c ConvergeAt.
     const Calculation* Current() const {return itsPoint.get();}
 private:

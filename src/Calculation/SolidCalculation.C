@@ -30,6 +30,7 @@ module;
 #include "forward.H"   // RunDiagnosticsTests, ResponseFacadeTests -- the unit-test friends (CLAUDE.md: tests may cheat)
 #include <functional>  // the order-parameter probe
 #include <memory>
+#include <optional>
 #include <vector>     // the anneal schedule
 #include <string>    // SCFFailure::details
 #include <vector>
@@ -277,30 +278,18 @@ public:
     using sf_t     = ScalarFunction<double>;
     using Observer = qchem::SCFIterator::SolidSCFIterator::Observer;
 
-    //! Build the whole graph and converge once with \a params.  \a mol is the MOLECULAR orbital basis the
-    //! GPW basis is built over (shared: one per k-block).  \a acc tunes the chosen accelerator; its
-    //! defaults are the GPW production recipe.
-    SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                     const SolidCalcOptions& opts = {},
-                     const SCFParams& params = {},
-                     const SCFAccelerators::SolidAcceleratorOptions& acc = {});
-    //! \brief The ANNEALED constructor: build the graph and run \a schedule end to end.  The peer of the
-    //! single-stage ctor above, and the shape an annealed recipe wants -- one options block, one list of
-    //! stages, nothing assembled by the caller in between.
-    SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                     const SolidCalcOptions& opts,
-                     const std::vector<SCFStage>& schedule,
-                     const SCFAccelerators::SolidAcceleratorOptions& acc = {});
-    //! \brief A run over a RESOLVED setup (doc/CalcNetworkReview.md §7, step 6): the geometry point at the setup's reference
-    //! lattice, converged once with \a params and the setup's accelerator.  The two constructors above are this with
-    //! \c SolidSetup::Resolve in front.
+    //! \brief Build the whole graph over a RESOLVED setup (doc/CalcNetworkReview.md §7, step 6) -- the geometry point at the
+    //! setup's reference lattice -- and converge once with \a params and the setup's accelerator.  The setup is
+    //! \c SolidSetup::Resolve(lattice, molecular basis | recipe, options, accelerator options); the only door (user ruling
+    //! 2026-10-30: clean replace, no (lattice, basis, options) constructors).
     explicit SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {});
-    //! ...and the ANNEALED one: stage 0 on its own accelerator, then the rest of \a schedule.
+    //! \brief The ANNEALED constructor: stage 0 on its own accelerator, then the rest of \a schedule, each stage seeded from the one
+    //! before it.  An empty schedule throws.
     SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule);
     ~SolidCalculation();
 
     //! \brief START FROM A SAVED STATE (CK-1; doc/OpenWork.md §2 "SCF checkpoint/restart"): build the graph for
-    //! \a opts exactly as the constructor does, check the file's fingerprint against the BUILT basis, seed the
+    //! \a setup exactly as the constructor does, check the file's fingerprint against the BUILT basis, seed the
     //! SCF with the saved density matrices instead of \c opts.seed, and converge with \a params.
     //!
     //! EXACT RESUME when nothing in the fingerprint differs; WARM START when only the warm class does (+U, the
@@ -315,13 +304,9 @@ public:
     //! ON ITS GDM RUNG for the restart's stage when \a params.SmearingkT is 0 (\c SolidAcceleratorOptions::ladderStartOnGDM):
     //! the DIIS rung's mixing would step a converged density away before the first energy is read.  A smeared restart
     //! starts on DIIS (GDM would engage on a restored integer D' and never apply the smearing).
+    //! The setup's accelerator (\c opts.accelerator) drives the restored stage.
     static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
-        Restart(const std::string& path, const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                const SolidCalcOptions& opts, const SCFParams& params = {},
-                const SCFAccelerators::SolidAcceleratorOptions& acc = {});
-    //! The same over a RESOLVED setup: one stage, \a stage's parameters and accelerator.
-    static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
-        Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFStage& stage);
+        Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {});
 
     //! \brief Write the LAST ITERATE's state -- every (k,σ) block's D, C, ε, f, the fingerprint and the run
     //! summary -- to \a path (HDF5, layout in qchem.SolidState; atomic: written aside, renamed into place).
@@ -606,8 +591,8 @@ private:
 //!
 //! WHAT A POINT REFUSES (each a \c PESFailure, never a crash): positions that break the setup's IMPOSED group (ruling Q4); a
 //! basis that, at these positions, would lose functions in the ortho step the trim was decided to avoid (ruling Q3: the frozen
-//! basis left its conditioning window -- checked when the setup states an \c orthoTol); forces or stress (no term has its
-//! gradient yet: step 9).  +U is held at the setup's values along the surface (ruling Q5).
+//! basis left its conditioning window -- checked when the setup states an \c orthoTol); a moved cell (the basis and grids
+//! are built for one); forces or stress (no term has its gradient yet: step 9).  +U is held at the setup's values along the surface (ruling Q5).
 class SolidSession : public virtual PotentialEnergySurface
 {
 public:
@@ -615,10 +600,12 @@ public:
     //! from the carried density.
     SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule);
     ~SolidSession();
-    const Structure& Reference() const override;
-    //! THROWS when \a R has not one position per atom, or when the atoms MOVED on a setup resolved from a pre-built basis (no
-    //! recipe to remake it with -- resolve the setup from a \c GaussianBasisRecipe).
-    Outcome<PESPoint, PESFailure> ConvergeAt(const std::vector<rvec3_t>& R, const PESRequest& want = {}) override;
+    PESGeometry Reference() const override;
+    //! THROWS when \a cell is empty, when \a R has not one position per atom, or when the atoms MOVED on a setup resolved from a
+    //! pre-built basis (no recipe to remake it with -- resolve the setup from a \c GaussianBasisRecipe).  A cell that differs
+    //! from the setup's is \c PESFailure::CellChange (the basis and grids are built for one cell).
+    Outcome<PESPoint, PESFailure> ConvergeAt(const std::optional<rmat3d_t>& cell, const std::vector<rvec3_t>& R,
+                                             const PESRequest& want = {}) override;
     //! The current point (the last \c ConvergeAt's), for a caller that wants its rich answers; null before the first.  Replaced
     //! by the next \c ConvergeAt.
     const SolidCalculation* Current() const;

@@ -101,14 +101,6 @@ static void EmitScfSection(const SCFParams& p, const std::string& accelerator)
     rpt::EmitSection("scf", scf);
 }
 
-Calculation::Calculation(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
-    : Calculation(st, opts, SCFParams{}, acc)
-{}
-
-Calculation::Calculation(const Structure& st, const CalcOptions& opts, const SCFParams& scf, const AcceleratorOptions& acc)
-    : Calculation(MoleculeSetup::Resolve(st, opts, acc), scf)
-{}
-
 Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf)
     : Calculation(setup, *setup->reference, nullptr, scf)
 {}
@@ -298,12 +290,19 @@ MoleculeSession::MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, con
     : itsSetup(std::move(setup)), itsSCF(scf) {}
 MoleculeSession::~MoleculeSession() = default;
 
-const Structure& MoleculeSession::Reference() const {return *itsSetup->reference;}
+PESGeometry MoleculeSession::Reference() const
+{
+    PESGeometry g;   // no cell
+    itsSetup->reference->ForEachSite([&](int Z, const rvec3_t& r, bool){ g.R.push_back(r); g.Z.push_back(Z); });
+    return g;
+}
 
-Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::vector<rvec3_t>& R, const PESRequest& want)
+Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rmat3d_t>& cell, const std::vector<rvec3_t>& R,
+                                                         const PESRequest& want)
 {
     using O=Outcome<PESPoint, PESFailure>;
     using Why=PESFailure::Why;
+    if (cell) throw std::invalid_argument("MoleculeSession::ConvergeAt: a molecule has no cell -- pass an empty one (Reference().cell)");
     const Structure& ref=*itsSetup->reference;
     const size_t nAtoms=ref.GetNumAtoms();
     if (R.size()!=nAtoms)

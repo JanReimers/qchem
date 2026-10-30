@@ -474,7 +474,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Panel_Long)   // PANEL case 13 (regime 2,
     auto [o,par]=ShubAnchorRecipe(mno, qchem::ChargeDensity::SeedStrategy::SAD, "MnO AFM-II Gamma (imposed)");   // neutral Hund pairs, flipped by siteSpins
     Trace trace; o.onIteration=trace.Observer();
     GpwReport report("MnO "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
     trace.Print(o.label, /*polarized*/true);
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
@@ -497,7 +497,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long)
     auto [o,par]=ShubAnchorRecipe(mno, qchem::ChargeDensity::SeedStrategy::IonicSAD, "MnO AFM-II Gamma (imposed, ionic seed)");
     Trace trace; o.onIteration=trace.Observer();
     GpwReport report("MnO "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
     trace.Print(o.label, /*polarized*/true);
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
@@ -568,7 +568,7 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
         par.SmearingkT=5e-3;
         Trace trace; o.onIteration=trace.Observer();
         GpwReport report("MnO "+o.label, par.Verbose);
-        arms.push_back(std::make_unique<qchem::SolidCalculation>(lat, basis(), o, par));
+        arms.push_back(std::make_unique<qchem::SolidCalculation>(SolidSetup::Resolve(lat, basis(), o), par));
         trace.Print(o.label, /*polarized*/true);
         return arms.back()->Result();
     };
@@ -627,7 +627,7 @@ TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Ordering_Long)
     SolidCalcOptions o=resolved.solid; o.multiplicity=11; o.label="MnO FM Gamma (imposed)";
     const SCFParams par=spec.scf;
     GpwReport report("MnO FM", false);
-    qchem::SolidCalculation fm(lat, MakeBasisLowQ(*cellp, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    qchem::SolidCalculation fm(SolidSetup::Resolve(lat, MakeBasisLowQ(*cellp, BasisSetData::VALENCE_LOWQ_SR), o), par);
     auto R=fm.Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6);

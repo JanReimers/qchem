@@ -770,7 +770,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     if (restartPath.empty()) calc=std::make_unique<SolidCalculation>(setup, stages);
     else
     {   // one stage: the schedule's FINAL one (its params and accelerator); a refusal THROWS -- a deck run never silently re-seeds
-        auto R=SolidCalculation::Restart(restartPath, setup, stages.back());
+        auto R=SolidCalculation::Restart(restartPath, setup, stages.back().params);
         if (!R) throw std::runtime_error("deck: state.restartFrom "+restartPath+" refused: "+R.Error().details);
         calc=R.TakeValue();
     }

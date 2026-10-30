@@ -32,7 +32,7 @@ enum class Engine  { MnD, LibCint };
 enum class Angular { Cartesian, Spherical };
 
 //! How to set up the calculation.  Designated-initializer friendly:
-//!     Calculation calc(water, {.basis="dzvp"});
+//!     Calculation calc(MoleculeSetup::Resolve(water, {.basis="dzvp"}));
 //! `model` selects the Hamiltonian; pass 1 wires the non-DFT factory path (HF is the default).
 struct CalcOptions
 {

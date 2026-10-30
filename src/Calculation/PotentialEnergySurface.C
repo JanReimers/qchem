@@ -10,12 +10,21 @@ module;
 #include <vector>
 export module qchem.PotentialEnergySurface;
 
-export import qchem.Structure;   // Structure -- the frame the positions are given in
 export import qchem.Outcome;     // Outcome<T,E>
-import qchem.Types;              // rvec3_t
+export import qchem.Types;       // rvec3_t, rmat3d_t
 
 export namespace qchem
 {
+
+//! \brief A GEOMETRY on the surface: what \c Reference() returns and what \c ConvergeAt is given back, in the same units.
+struct PESGeometry
+{
+    //! The CELL: lattice vectors a1, a2, a3 as the COLUMNS of a 3x3 matrix, in BOHR -- the \c UnitCell's own cell matrix
+    //! (\c GetCellMatrix).  EMPTY for a molecule.
+    std::optional<rmat3d_t> cell;
+    std::vector<rvec3_t>    R;   //!< atom positions, CARTESIAN, in BOHR, one per atom in the reference's order
+    std::vector<int>        Z;   //!< the atomic number of each atom, in that order (fixed by the setup: a driver reads, never sets, it)
+};
 
 //! What a point is asked for besides the energy.  \c stress is the variable-cell seam (not implemented: a request refuses).
 struct PESRequest
@@ -41,6 +50,7 @@ struct PESFailure
         SCF,                 //!< the point's SCF did not converge (details: the SCF's own failure)
         BasisConditioning,   //!< at these positions the frozen basis leaves the conditioning window it was trimmed in (ruling Q3)
         SymmetryBroken,      //!< the positions break the setup's imposed group (ruling Q4: lowering it is a NEW setup)
+        CellChange,          //!< a solid's cell differs from the setup's: the basis and grids cannot follow a cell yet (variable cell)
         NoGradient           //!< forces or stress were asked of a setup whose terms cannot supply them yet
     };
     Why         why = Why::SCF;
@@ -56,11 +66,15 @@ class PotentialEnergySurface
 {
 public:
     virtual ~PotentialEnergySurface() = default;
-    //! The reference geometry: the species, the atom ORDER the positions follow, and (a solid) the cell, which the setup fixes.
-    virtual const Structure& Reference() const = 0;
-    //! \brief Converge at \a R (Cartesian bohr, \c Reference()'s atom order), seeded from the LAST converged density carried onto
-    //! \a R.  Non-const: it advances the surface's state.  THROWS when \a R does not have one position per atom.
-    virtual Outcome<PESPoint, PESFailure> ConvergeAt(const std::vector<rvec3_t>& R, const PESRequest& want = {}) = 0;
+    //! The REFERENCE geometry the setup was resolved at: its cell (a solid's) and positions, units as \c PESGeometry says.
+    virtual PESGeometry Reference() const = 0;
+    //! \brief Converge at the geometry (\a cell, \a R), seeded from the LAST converged density carried onto it.  Non-const: it
+    //! advances the surface's state.
+    //! \param cell  lattice vectors as the COLUMNS of a 3x3 matrix, in BOHR; EMPTY for a molecule.  A molecule given a cell, or a
+    //!               solid given none, is a broken invariant (throws); a solid's cell that moved is \c PESFailure::CellChange today.
+    //! \param R     atom positions, CARTESIAN, in BOHR, \c Reference()'s atom order.  THROWS unless one per atom.
+    virtual Outcome<PESPoint, PESFailure> ConvergeAt(const std::optional<rmat3d_t>& cell, const std::vector<rvec3_t>& R,
+                                                     const PESRequest& want = {}) = 0;
 };
 
 } // namespace qchem
