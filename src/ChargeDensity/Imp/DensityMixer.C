@@ -130,7 +130,7 @@ std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams& p,
     {
         Banner("Kerker", label, G0, charge, seed0);
         return std::unique_ptr<tDensityMixer<dcmplx>>(
-            std::make_unique<KerkerMixer>(p.relax, G0, std::move(fit), recip, std::move(seed0), charge, cusp));
+            std::make_unique<KerkerMixer>(KerkerPreconditioner(p.relax, G0, std::move(fit), recip), std::move(seed0), charge, cusp));
     };
     return ComposePeriodic(p, "Kerker", basis, cell, seed, leaf);
 }
@@ -145,7 +145,7 @@ std::unique_ptr<tDensityMixer<dcmplx>> PulayMixerFactory(const PulayParams& p, c
     {
         Banner("Pulay", label, G0, charge, seed0);
         return std::unique_ptr<tDensityMixer<dcmplx>>(
-            std::make_unique<PulayMixer>(p.relax, G0, p.depth, p.start, std::move(fit), recip,
+            std::make_unique<PulayMixer>(KerkerPreconditioner(p.relax, G0, std::move(fit), recip), p.depth, p.start,
                                          std::move(seed0), charge, cusp));
     };
     return ComposePeriodic(p, "Pulay", basis, cell, seed, leaf);

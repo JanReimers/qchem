@@ -134,7 +134,7 @@ struct Reference
 
 std::unique_ptr<PulayMixer> MakePulay(const ReciprocalLattice& r, const ΔG_Map& seed, double charge)
 {   // alpha=1, G0=0 (filter == 1), depth 8, start 0 (no priming); no fit basis => no raw-raster shadow.
-    return std::make_unique<PulayMixer>(1.0, 0.0, 8, 0, nullptr, r, GField{seed, rvec_t{}}, charge);
+    return std::make_unique<PulayMixer>(KerkerPreconditioner(1.0, 0.0, nullptr, r), 8, 0, GField{seed, rvec_t{}}, charge);
 }
 
 } //namespace
@@ -198,7 +198,7 @@ TEST(JointPulay, OnlyExtrapolatorsCarryHistory)
     const ReciprocalLattice recip=Recip(10.0);
     const ΔG_Map seed=Field(0.5,0.3,0.1,0.05);
     auto pulay=MakePulay(recip,seed,8.0);
-    KerkerMixer kerker(0.4, 1.0, nullptr, recip, GField{seed, rvec_t{}}, 8.0);
+    KerkerMixer kerker(KerkerPreconditioner(0.4, 1.0, nullptr, recip), GField{seed, rvec_t{}}, 8.0);
     EXPECT_NE(pulay->History(),  nullptr);
     EXPECT_EQ(kerker.History(),  nullptr);
 }
@@ -213,20 +213,20 @@ TEST(JointPulay, ReseatFieldMakesAFreshMixerAtTheCurrentDensity)
     const Trajectory t;
     const ΔG_Map current=t.up[2], next=t.dn[0];   // any two fields: where GDM left D, and the fallback's fresh output
 
-    PulayMixer used(0.4, 0.0, 8, 0, nullptr, recip, GField{t.seedUp, rvec_t{}}, 8.0);
+    PulayMixer used(KerkerPreconditioner(0.4, 0.0, nullptr, recip), 8, 0, GField{t.seedUp, rvec_t{}}, 8.0);
     used.MixField(GField{t.up[0],rvec_t{}});
     used.MixField(GField{t.up[1],rvec_t{}});       // two steps: a history Pulay WOULD extrapolate through
     used.ReseatField(GField{current,rvec_t{}});
     EXPECT_LT(MaxDiff(used.Field().tilde, current), 1e-15) << "the running field is the current density";
-    PulayMixer fresh(0.4, 0.0, 8, 0, nullptr, recip, GField{current, rvec_t{}}, 8.0);
+    PulayMixer fresh(KerkerPreconditioner(0.4, 0.0, nullptr, recip), 8, 0, GField{current, rvec_t{}}, 8.0);
     used.MixField(GField{next,rvec_t{}});
     fresh.MixField(GField{next,rvec_t{}});
     EXPECT_LT(MaxDiff(used.Field().tilde, fresh.Field().tilde), 1e-15) << "the next step ignores the dropped history";
 
-    KerkerMixer k(0.4, 1.0, nullptr, recip, GField{t.seedUp, rvec_t{}}, 8.0);
+    KerkerMixer k(KerkerPreconditioner(0.4, 1.0, nullptr, recip), GField{t.seedUp, rvec_t{}}, 8.0);
     k.MixField(GField{t.up[0],rvec_t{}});
     k.ReseatField(GField{current,rvec_t{}});
-    KerkerMixer kFresh(0.4, 1.0, nullptr, recip, GField{current, rvec_t{}}, 8.0);
+    KerkerMixer kFresh(KerkerPreconditioner(0.4, 1.0, nullptr, recip), GField{current, rvec_t{}}, 8.0);
     k.MixField(GField{next,rvec_t{}});
     kFresh.MixField(GField{next,rvec_t{}});
     EXPECT_LT(MaxDiff(k.Field().tilde, kFresh.Field().tilde), 1e-15);
@@ -239,7 +239,7 @@ TEST(JointPulay, PrimingToHistoryIsReportedOnceAsAHandOff)
 {
     const ReciprocalLattice recip=Recip(10.0);
     const Trajectory t;
-    PulayMixer p(0.4, 0.0, 8, /*start*/2, nullptr, recip, GField{t.seedUp, rvec_t{}}, 8.0);
+    PulayMixer p(KerkerPreconditioner(0.4, 0.0, nullptr, recip), 8, /*start*/2, GField{t.seedUp, rvec_t{}}, 8.0);
     p.MixField(GField{t.up[0],rvec_t{}});
     EXPECT_FALSE(p.TakeHandOff()) << "priming step 1";
     p.MixField(GField{t.up[1],rvec_t{}});
@@ -253,6 +253,6 @@ TEST(JointPulay, PrimingToHistoryIsReportedOnceAsAHandOff)
     p.MixField(GField{t.dn[0],rvec_t{}});
     EXPECT_FALSE(p.TakeHandOff()) << "once per regime change, not per step";
 
-    PulayMixer now(0.4, 0.0, 8, /*start*/0, nullptr, recip, GField{t.seedUp, rvec_t{}}, 8.0);
+    PulayMixer now(KerkerPreconditioner(0.4, 0.0, nullptr, recip), 8, /*start*/0, GField{t.seedUp, rvec_t{}}, 8.0);
     for (const auto& f : t.up) { now.MixField(GField{f,rvec_t{}}); EXPECT_FALSE(now.TakeHandOff()); }
 }

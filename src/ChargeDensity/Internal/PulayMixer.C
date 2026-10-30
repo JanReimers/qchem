@@ -38,37 +38,20 @@ public:
     //! \a seed0 is the running field's starting value (read off the seed density by the factory); presented
     //! at once so iteration 0's Fock has a density to be driven from.
     //! \a cusp (N4, pin 28): also present the cusp-deficit correction for XC (see \c ApplyJoint).
-    PulayMixer(double relax, double G0, int depth, int start, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
-               ReciprocalLattice recip, GField seed0, double charge, bool cusp=false)
-        : itsRelax(relax), itsKerkerG0(G0), itsDepth(depth), itsStart(start), itsCuspDeficit(cusp), itsKerkerFit(std::move(fit))
-        , itsRecip(recip), itsCharge(charge), itsIn(std::move(seed0))
-        , itsMixedRho(PresentFromD(itsIn, itsRecip, itsCharge, itsCuspDeficit))
+    PulayMixer(KerkerPreconditioner pc, int depth, int start, GField seed0, double charge, bool cusp=false)
+        : itsPC(std::move(pc)), itsDepth(depth), itsStart(start), itsCuspDeficit(cusp)
+        , itsCharge(charge), itsIn(std::move(seed0))
+        , itsMixedRho(PresentFromD(itsIn, itsPC.Recip(), itsCharge, itsCuspDeficit))
     {}
 
     //! The density-face entry: extract ρ̃_out + the raster shadow, then do the G-space arithmetic below.
-    double Mix(cd_t& working, const cd_t&) override
-    {
-        auto* fd = dynamic_cast<const FourierDensity*>(&working);
-        assert(fd);
-        return MixField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
-    }
+    double Mix(cd_t& working, const cd_t&) override { return MixField(itsPC.FieldOf(working)); }
     const GField&       Field() const override { return itsIn; }
     //! The residual pair (D-MINDRHO): this mixer's input field and the fresh output's field, presented alike.
     typename tDensityMixer<dcmplx>::ResidualPair ResidualDensities(const cd_t& out) const override
-    {
-        auto* fd = dynamic_cast<const FourierDensity*>(&out);
-        assert(fd);
-        const GField f{fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)};
-        return {Present(itsIn, itsRecip, itsCharge), Present(f, itsRecip, itsCharge)};
-    }
+    { return {Present(itsIn, itsPC.Recip(), itsCharge), Present(itsPC.FieldOf(out), itsPC.Recip(), itsCharge)}; }
     const FourierMixCD& Mixed() const override { assert(itsMixedRho); return *itsMixedRho; }
-    bool Reseat(const cd_t& current) override
-    {
-        auto* fd = dynamic_cast<const FourierDensity*>(&current);
-        assert(fd);
-        ReseatField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
-        return true;
-    }
+    bool Reseat(const cd_t& current) override { ReseatField(itsPC.FieldOf(current)); return true; }
     //! The history is dropped, not kept: its residuals were measured about densities the run has since LEFT, so extrapolating
     //! through them would step toward a mixture of stale states -- the same defect one level up.
     void ReseatField(const GField& current) override
@@ -77,7 +60,7 @@ public:
         itsIn=current;
         itsIns.clear(); itsOuts.clear(); itsResiduals.clear(); itsRawIns.clear(); itsRawOuts.clear();
         itsCount=0;
-        itsMixedRho=PresentFromD(itsIn, itsRecip, itsCharge, itsCuspDeficit);
+        itsMixedRho=PresentFromD(itsIn, itsPC.Recip(), itsCharge, itsCuspDeficit);
     }
 
     //! The single-channel step: stage, solve MY OWN B, apply.  Exactly \c MixJointly over one channel -- and
@@ -99,7 +82,7 @@ public:
         StagedResidual sr;
         sr.resid = MaxAbs(res);
         // RAW-raster shadow inputs (0.5(f2)); late-activates like KerkerMixer, drops out if answers stop.
-        const bool raw = rawOut.size() && RasterEvaluator();
+        const bool raw = rawOut.size() && itsPC.RasterEvaluator();
         if (raw && itsIn.raster.size()!=rawOut.size()) itsIn.raster=rawOut;            // bootstrap/late-activate
         if (!raw) { itsIn.raster=rvec_t{}; itsRawIns.clear(); itsRawOuts.clear(); }
         itsPending = Pending{in, out, itsIn.raster, rawOut, raw};   // rawIn = the shadow of `in`, before the update
@@ -153,37 +136,32 @@ public:
         }
         // THE MIXER OWNS ITS FIELD (V1.18): the Kerker step on the DIIS-extrapolated pair updates itsIn, and
         // the density the Fock sees is a presentation of the result.
-        KerkerStepResult r = KerkerStep(inStar, outStar, itsRelax, itsKerkerG0, itsRecip);
+        KerkerStepResult r = itsPC.Step(inStar, outStar);
         itsIn.tilde = std::move(r.mix);
-        if (p.raw) itsIn.raster = RasterKerker(*RasterEvaluator(), rawInStar, rawOutStar, itsRelax, itsKerkerG0);
+        if (p.raw) itsIn.raster = itsPC.RasterStep(rawInStar, rawOutStar);
         // N4 (pin 28): XC samples rho[D] + (rho_mix - rho_fit), with rho[D] the LATEST output's density matrix -- so the
         // correction is taken against the latest out p.out, NOT the extrapolated out* the step used (that would leave
         // XC a history-weighted D).  At the fixed point mix = out and XC sees rho[D] exactly.
         ΔG_Map corr;
         if (itsCuspDeficit) corr = itsIn.tilde - p.out;
-        itsMixedRho = Present(itsIn, itsRecip, itsCharge, corr, r.alphaEff);
+        itsMixedRho = Present(itsIn, itsPC.Recip(), itsCharge, corr, r.alphaEff);
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
-    double GetRelax() const override { return itsRelax; }
-    const char* Tag() const override { return itsKerkerG0>0.0 ? "Pul+K" : "Pul"; }   // the preconditioner is half the recipe: say it
-    bool HasGFilter() const override { return itsKerkerG0>0.0; }   // G0 = 0: an unpreconditioned history
+    double GetRelax() const override { return itsPC.Relax(); }
+    const char* Tag() const override { return itsPC.HasGFilter() ? "Pul+K" : "Pul"; }   // the preconditioner is half the recipe: say it
+    bool HasGFilter() const override { return itsPC.HasGFilter(); }   // G0 = 0: an unpreconditioned history
 private:
-    //! The raster-shadow evaluator, or nullptr when the fit basis cannot raster (⇒ the raw pipeline is off).
-    const BasisSet::G_SpectralFilter* RasterEvaluator() const
-    { return dynamic_cast<const BasisSet::G_SpectralFilter*>(itsKerkerFit.get()); }
-
     //! The (in,out) pair staged by \c StageResidual and consumed by \c ApplyJoint -- the state the two-phase
     //! split needs and the old single-phase \c MixField kept in locals.
     struct Pending { ΔG_Map in, out; rvec_t rawIn, rawOut; bool raw=false; };
 
-    double itsRelax, itsKerkerG0; int itsDepth, itsStart, itsCount=0;
+    KerkerPreconditioner itsPC;   //!< R1.4: the filter (and the G-space) applied to the pair the history chose
+    int itsDepth, itsStart, itsCount=0;
     std::optional<HandOffRequest> itsHandOff;   //!< the priming -> history change, until the owner takes it (R1.3)
 public:
     std::optional<HandOffRequest> TakeHandOff() override {auto h=std::move(itsHandOff); itsHandOff.reset(); return h;}
 private:
     bool   itsCuspDeficit=false;   //!< N4: present the cusp-deficit correction (a CONSTRUCTION policy, SCFParams::XCCuspDeficit)
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
-    ReciprocalLattice itsRecip;
     double itsCharge;
     GField itsIn;                                          //!< THE running mixed field (+ its raster shadow; empty = off)
     std::shared_ptr<FourierMixCD> itsMixedRho;             //!< its presentation, rebuilt each step

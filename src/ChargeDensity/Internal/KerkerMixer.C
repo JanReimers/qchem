@@ -30,38 +30,20 @@ class KerkerMixer : public tDensityMixer<dcmplx>, public virtual tFieldMixer
 public:
     //! \a seed0 is the running field's starting value (read off the seed density by the factory); the
     //! presentation is built from it at once so iteration 0's Fock has a density to be driven from.
-    KerkerMixer(double relax, double G0, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
-                const ReciprocalLattice& recip, GField seed0, double charge, bool cusp=false)
-        : itsRelax(relax), itsKerkerG0(G0), itsCuspDeficit(cusp), itsKerkerFit(std::move(fit))
-        , itsRecip(recip), itsCharge(charge), itsIn(std::move(seed0))
-        , itsMixedRho(PresentFromD(itsIn, itsRecip, itsCharge, itsCuspDeficit))
+    KerkerMixer(KerkerPreconditioner pc, GField seed0, double charge, bool cusp=false)
+        : itsPC(std::move(pc)), itsCuspDeficit(cusp), itsCharge(charge), itsIn(std::move(seed0))
+        , itsMixedRho(PresentFromD(itsIn, itsPC.Recip(), itsCharge, itsCuspDeficit))
     {}
 
     //! The density-face entry: extract ρ̃_out + the raster shadow, then do the G-space arithmetic below.
-    double Mix(cd_t& working, const cd_t& /*old*/) override
-    {
-        auto* fd = dynamic_cast<const FourierDensity*>(&working);
-        assert(fd);
-        return MixField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
-    }
+    double Mix(cd_t& working, const cd_t& /*old*/) override { return MixField(itsPC.FieldOf(working)); }
     const GField&       Field() const override { return itsIn; }
     //! The residual pair (D-MINDRHO): this mixer's input field and the fresh output's field, presented alike.
     typename tDensityMixer<dcmplx>::ResidualPair ResidualDensities(const cd_t& out) const override
-    {
-        auto* fd = dynamic_cast<const FourierDensity*>(&out);
-        assert(fd);
-        const GField f{fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)};
-        return {Present(itsIn, itsRecip, itsCharge), Present(f, itsRecip, itsCharge)};
-    }
+    { return {Present(itsIn, itsPC.Recip(), itsCharge), Present(itsPC.FieldOf(out), itsPC.Recip(), itsCharge)}; }
     const FourierMixCD& Mixed() const override { assert(itsMixedRho); return *itsMixedRho; }
-    bool Reseat(const cd_t& current) override
-    {
-        auto* fd = dynamic_cast<const FourierDensity*>(&current);
-        assert(fd);
-        ReseatField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
-        return true;
-    }
-    void ReseatField(const GField& current) override { itsIn=current; itsMixedRho=PresentFromD(itsIn, itsRecip, itsCharge, itsCuspDeficit); }
+    bool Reseat(const cd_t& current) override { ReseatField(itsPC.FieldOf(current)); return true; }
+    void ReseatField(const GField& current) override { itsIn=current; itsMixedRho=PresentFromD(itsIn, itsPC.Recip(), itsCharge, itsCuspDeficit); }
 
     //! THE MIXER OWNS ITS FIELD (V1.18): the step is arithmetic on itsIn, and the density the Fock sees is a
     //! presentation built from the result -- nothing is read back out of a density, nothing deposited into one.
@@ -69,32 +51,29 @@ public:
     {
         // SCF residual ‖ρ̃_out − ρ̃_in‖_∞ -- the RIGHT ρ-mixing gate (0 at the fixed point).
         const double resid = MaxAbs(out.tilde - itsIn.tilde);
-        KerkerStepResult r = KerkerStep(itsIn.tilde, out.tilde, itsRelax, itsKerkerG0, itsRecip, itsCuspDeficit);
+        KerkerStepResult r = itsPC.Step(itsIn.tilde, out.tilde, itsCuspDeficit);
         itsIn.tilde = std::move(r.mix);
         // RAW-raster shadow (0.5(f2)): the same Kerker step on rho_raw(r), so the XC feed stays raw through the
         // DYNAMICS.  Late-activates the first time the working density answers raw (a SAD-seeded run's
         // iteration 1); deactivates for the run if a raw answer stops coming or changes raster.
-        auto* ge = dynamic_cast<const BasisSet::G_SpectralFilter*>(itsKerkerFit.get());
-        if (out.raster.size() && ge)
+        if (out.raster.size() && itsPC.RasterEvaluator())
         {
             if (itsIn.raster.size()!=out.raster.size()) itsIn.raster=out.raster;      // bootstrap/late-activate
-            itsIn.raster=RasterKerker(*ge, itsIn.raster, out.raster, itsRelax, itsKerkerG0);
+            itsIn.raster=itsPC.RasterStep(itsIn.raster, out.raster);
         }
         else itsIn.raster=rvec_t{};
-        itsMixedRho = Present(itsIn, itsRecip, itsCharge, r.corr, r.alphaEff);
+        itsMixedRho = Present(itsIn, itsPC.Recip(), itsCharge, r.corr, r.alphaEff);
         return resid;
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
-    double GetRelax() const override { return itsRelax; }
+    double GetRelax() const override { return itsPC.Relax(); }
     const char* Tag() const override { return "Ker"; }
-    bool HasGFilter() const override { return itsKerkerG0>0.0; }   // G0 = 0 is the plain linear G-space mixer
+    bool HasGFilter() const override { return itsPC.HasGFilter(); }   // G0 = 0 is the plain linear G-space mixer
 private:
-    double itsRelax, itsKerkerG0;
+    KerkerPreconditioner itsPC;      //!< R1.4: the filter (and the G-space) -- this mixer is (filter, no history)
     //! N4: form + deposit the cusp-deficit correction for XC.  A CONSTRUCTION policy (see
     //! SCFParams::XCCuspDeficit) -- false leaves this mixer bit-identical to its pre-N4 self.
     bool   itsCuspDeficit=false;
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
-    ReciprocalLattice itsRecip;
     double            itsCharge;
     GField            itsIn;         //!< THE running mixed field (ρ̃_in for the next step + its raster shadow)
     std::shared_ptr<FourierMixCD> itsMixedRho;   //!< its presentation, rebuilt each step
