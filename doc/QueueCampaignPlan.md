@@ -140,6 +140,8 @@ anchor moves unexpectedly) is handed to Opus.
 
 **Sweeps that are compared run SERIAL** (`QCHEM_OPENMP_THREADS` unset), like every main baseline: several tests are not thread-count invariant (lane A 2026-10-29: 57 anchor moves up to 2.8e-6 at 4 threads; OpenWork row).  Threads are for panel and campaign runs, never a landing sweep.
 
+**Landing sweep = short serial (`-LE long`) + routine long serial (`-L long -LE panel`, ~6 min); the convergence panel (`-L panel`, hours) runs only when a lane touches SCFAccelerator / SCFIterator / mixers / the Calculation SCF path, and is judged against its iteration budgets, not by anchordiff** (user 2026-10-30).
+
 ## 7. The three grid-and-symmetry decisions, with context
 
 **Raster default (agreed: AliasFree — with your caveat).**  BallOnly is much faster and was right for weeks; the loss was the HOURS
