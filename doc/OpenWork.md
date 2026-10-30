@@ -91,7 +91,6 @@ PPs; Tier 2 = USPP/PAW + k-point throughput).  Full prose of every row: `OpenWor
 | **Run report for the GUI** | `qchem.Reporting` complete; wishlist waits on a consumer (meta section, field-metadata registry incl. per-field "literature units" toggle, detail filter, HDF5 sidecar) | `Records/RunReportPlan.md` |
 | **Lattice gas / CE / MC** | specced, deliberately not built | `doc/LatticeGasPlan.md` |
 | **`MixingPolicy` from (ordering, cell, functional)** ⏸ | "user says AFM MnO, not `G0=1.0, Pulay=0`"; detectors T1–T3 built | N1/T4 shape; expert overrides behind a named policy · H5 Parked |
-| **Rename the project: SOLID² (ASCII `Solid2` / `solid2`)** (user 2026-10-30) | `qchem` is taken, and this is not strictly a chemistry app (solid-state physics, batteries); SOLID² = solids + the SOLID principles.  Footprint (main 50d1c7f0): 637 .C files mention `qchem`, 287 `export module qchem.*`, 1605 `qchem::`; plus CMake targets (`libqchem`, `qchem_py`), `pybind/` + qchem-GUI, worktree and `~/Code/qchem6-runs` paths, docs.  A superscript cannot appear in an identifier, so code/repo use one ASCII spelling | check the name is free (GitHub, PyPI, the literature); then ONE mechanical commit in a FREEZE WINDOW with every lane landed -- pair it with ModuleToolchainPlan's freeze (both touch every module interface unit and force a full rebuild) · `doc/QueueCampaignPlan.md` §5 (P) |
 
 ---
 
