@@ -27,11 +27,11 @@ export namespace qchem::SCFAccelerators
     {
         //! Nproj, the [F,D] gates, the absolute SV prune, and -- ON for solids (see DIISParams::SVTolRel;
         //! the MnO run-32 dependent-history blow-up) -- the RELATIVE conditioning prune at 1e-4.
-        DIISParams diis {8, 0.1, 1e-10, 1e-9, 1e-4};
-        GDMParams  gdm  {1.0, 0.1};              //!< standalone GDM.
+        DIISParams diis {.Nproj=8, .EngageBelowFD=0.1, .SVTol=1e-9, .SVTolRel=1e-4};
+        GDMParams  gdm  {.EngageBelowFD=1.0, .Trust=0.1};              //!< standalone GDM.
         //! Ladder only: the GDM rung takes a larger trust radius than standalone, because it is polishing a
         //! tail DIIS has already brought close rather than descending from far away.
-        GDMParams      ladderGdm      {1.0, 0.5};
+        GDMParams      ladderGdm      {.EngageBelowFD=1.0, .Trust=0.5};
         double         ladderEThresh  = 1e-8;    //!< STALL trigger: energy still moving by more than this.
         int            ladderStall    = 5;       //!< ...for this many non-improving steps.
         double         ladderFloor    = 1e-8;    //!< low backstop on the stall trigger.

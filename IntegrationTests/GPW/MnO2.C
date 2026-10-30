@@ -46,3 +46,15 @@ TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long)
                                    "beta-MnO2 U(O p_z) = 2 eV, plain Kerker 0.1, cold (regime 2''; OpenWork §3 overshoot row)");
     ASSERT_TRUE(o.run.converged) << o.run.summary;
 }
+
+// PANEL case 19 (regime 4, EXACT RESUME): the control-basis U = 0 state r015, vendored (decks/states/), resumed on its own recipe.  Iteration 1 must
+// open AT the saved state and the resume must not wander: before D5 (2026-10-29, the carried D was not the working density) iteration 1 opened
+// 4 mHa off and the resume took 23 iterations; fixed: 4.
+TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_Saved_eqExactResume_Panel_Long)
+{
+    const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO2_U0_ExactResume.json"), 5,
+                                   "beta-MnO2 U = 0 exact resume of the vendored r015 state (regime 4; 4 measured, 2026-10-29)");
+    ASSERT_TRUE(o.run.converged) << o.run.summary;
+    ASSERT_TRUE(o.run.energy);
+    EXPECT_NEAR(*o.run.energy, -93.3837082, 1e-6) << "an exact resume lands on the state it resumed";
+}

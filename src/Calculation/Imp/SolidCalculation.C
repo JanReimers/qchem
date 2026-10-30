@@ -529,7 +529,7 @@ void SolidCalculation::RunRestOf(const std::vector<SCFStage>& schedule)
                      itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
     for (size_t s=1; s<schedule.size(); ++s)
     {
-        BuildStage(schedule[s].accelerator, std::move(itsImp->cd), schedule[s].params);
+        BuildStage("annealed schedule stage "+std::to_string(s), schedule[s].accelerator, std::move(itsImp->cd), schedule[s].params);
         (void)Converge(schedule[s].params);
         EmitStageSummary(itsImp->setup->opts.label, s, schedule.size(), schedule[s].params.SmearingkT,
                          itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
@@ -745,7 +745,7 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, const SCFPar
 // re-seed), an iterator seeded from \a carried when there is one, and MOM continuation from \a prev.
 // Ownership: the iterator OWNS ham and accel and deletes them, so \a prev must outlive the adoption and is
 // released immediately after it -- the same ordering the driver this replaces used.
-void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
+void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type accType,
                                   std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried, const SCFParams& params)
 {
     // ★ R2.22: A STAGE NO LONGER REBUILDS THE HAMILTONIAN.  It used to, and NOT for a physics reason --
@@ -760,6 +760,9 @@ void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
     // ITERATOR (whose ctor Inits, so the stage's first Fock is a child of this bucket).  Both are cheap;
     // the residue bucket below measures exactly that and has stayed ~0.36 s of a 121 s run.
     qchem::report::Timed residue("setup: anneal stage rebuild (residue -- accel + iterator + MOM adopt)");
+    // R1.3: a stage boundary is a hand-off -- every history (accelerator, mixer) is dropped and rebuilt over the carried D.
+    PrintHandOff(0, {"stage "+std::string(AccelName(itsImp->stageAccel)), "fresh stage", why},
+                 " [accelerator, mixer and iterator rebuilt over the carried density]");
     MakeAccelerator(accType, params, /*restored*/false);   // a carried stage may have a new Hamiltonian / kT: not a restore
 
     auto prev = std::move(itsImp->scf);      // held ONLY until the new stage has copied its MOM reference
@@ -817,7 +820,7 @@ SolidCalculation::Converge(const std::vector<SCFStage>& schedule)
     for (size_t s=0; s<schedule.size(); ++s)
     {
         if (s>0)   // stage 0's graph is already standing (the ctor built it); later stages re-seed from it
-            BuildStage(schedule[s].accelerator, std::move(itsImp->cd), schedule[s].params);
+            BuildStage("annealed schedule stage "+std::to_string(s), schedule[s].accelerator, std::move(itsImp->cd), schedule[s].params);
         last = Converge(schedule[s].params);
         EmitStageSummary(itsImp->setup->opts.label, s, schedule.size(), schedule[s].params.SmearingkT,
                          itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
@@ -1306,7 +1309,7 @@ SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCF
         // in one iteration (measured 2026-09-21: E moved by exactly E_U, the orbitals not at all).  Re-seeding
         // through BuildStage gives a fresh iterator, mixer and accelerator over the current density -- exactly
         // what an annealed schedule does between its stages.
-        BuildStage(itsImp->stageAccelAsked, std::move(itsImp->cd), params);
+        BuildStage("+U self-consistency: U changed, a fresh history over the current density", itsImp->stageAccelAsked, std::move(itsImp->cd), params);
         auto out=Converge(params);
         R.scfConverged=bool(out);
     }
@@ -1569,8 +1572,8 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
             std::cout << "[LRT] manifold " << R.labels[J] << ": alpha = " << alpha0+a << " Ha, +U frozen -- re-converging" << std::endl;
             // A FRESH stage (see ConvergeHubbardU): from the SEED, or from the current state.  The +U term stays
             // frozen at the GROUND STATE's n either way -- the freeze lives in the term, not in the density.
-            if (reseed) BuildStage(itsImp->stageAccelAsked, nullptr, stageParams);
-            else        BuildStage(itsImp->stageAccelAsked, std::move(itsImp->cd), stageParams);
+            if (reseed) BuildStage("finite-difference LRT: alpha "+std::to_string(alpha0+a)+" Ha, from the seed", itsImp->stageAccelAsked, nullptr, stageParams);
+            else        BuildStage("finite-difference LRT: alpha "+std::to_string(alpha0+a)+" Ha", itsImp->stageAccelAsked, std::move(itsImp->cd), stageParams);
             auto out=Converge(stageParams);
             if (!out) {failed=out.Error(); break;}
             (a>0 ? R.nPlus : R.nMinus)=occupations();
@@ -1578,7 +1581,7 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
         target->SetPerturbation(J, alpha0);
     }
     // RESTORE the unperturbed, unfrozen state -- the run is left as it was found, whatever happened above.
-    BuildStage(itsImp->stageAccelAsked, reseed ? std::move(ground) : std::move(itsImp->cd), restart);
+    BuildStage("finite-difference LRT: restore the unperturbed state", itsImp->stageAccelAsked, reseed ? std::move(ground) : std::move(itsImp->cd), restart);
     R.restored=bool(Converge(restart));
     itsImp->accOpts.ladderStartOnGDM=startedOnGDM;
     std::cout << "[LRT] unperturbed state restored: " << (R.restored ? "converged" : "NOT converged") << std::endl;

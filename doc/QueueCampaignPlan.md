@@ -115,7 +115,7 @@ build of `main` and no checkout of it in a working tree H is using.
 **qchem1** (`openwork-sweep`): its work is merged into main (`48f2e02f`); it holds only `TODO` edits and this draft.  Retire it when convenient.
 
 **Merging.**  At chunk START a lane merges `main`.  At chunk END: build `allTests`, take the heavy slot, `ctest -j4 -LE long` and
-`-L long`, keep `LastTest.log`, `scripts/anchordiff` against the controller's main baseline.  Because the lane merged main FIRST, the
+`-L long -LE "panel|periodic"` (serial), plus `-L "panel|periodic"` when the chunk touches the SCF path (CLAUDE.md, ruled 2026-10-30), keep `LastTest.log`, `scripts/anchordiff` against the controller's main baseline.  Because the lane merged main FIRST, the
 swept commit IS the merge result: the controller fast-forwards main to it (`git merge --ff-only lane-a`), stores that sweep as the new
 baseline `~/Code/qchem6-runs/anchors/main-<sha>.log`, and tells the other lanes to merge main.  If main moved in between, the lane
 re-merges (a docs-only move needs no re-sweep — the controller's call).  Nothing is pushed anywhere.  H lands the same way, so every

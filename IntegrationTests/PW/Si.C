@@ -263,7 +263,7 @@ TEST(PW_Si, Γ_Anchor)
         // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D] history; damps the marginal drift
         // within Si's degenerate Gamma_25' manifold so it converges to a tight |Delta rho|.
         using qchem::SCFAccelerators::DIISParams;
-        auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
+        auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{.Nproj=8, .EngageBelowFD=0.5, .SVTol=1e-9});
         std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
         qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
 
@@ -390,7 +390,7 @@ TEST(PW_Si, k222_Anchor)
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
     std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
     using qchem::SCFAccelerators::DIISParams;
-    auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
+    auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{.Nproj=8, .EngageBelowFD=0.5, .SVTol=1e-9});
     std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
 
     // Uniform-density seed on the first block: D=(N/n0)I gives rho(r)=N/V (uniform), the total density

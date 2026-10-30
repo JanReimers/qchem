@@ -158,7 +158,9 @@ support the policy as worded in `QueueCampaignPlan.md` §3; the change is stated
 - **R1.4 D9: residual → per-channel preconditioner → the one extrapolator.**  `PulayMixer` today OWNS Kerker; split it into a
   `KerkerPreconditioner` decorator over a preconditioner-free extrapolator (SCFStrategyPlan §3 "a decorator, not a hand-off").  Then
   Broyden is a drop-in sibling and "plain Kerker" is (Kerker, linear) with no special class.
-- **R1.5 V-MIXER-GBALL**: the mixer's G-space comes from the density's own representation through a face named for what the mixer
+- **R1.5 V-MIXER-GBALL** (MOVED TO C2, controller ruling 2026-10-30: C2 re-sizes the density/pair ball from the one accuracy
+  target and re-judges every moved anchor once -- the mixer's G-space is chosen there, with the FourierDensity face it needs):
+  the mixer's G-space comes from the density's own representation through a face named for what the mixer
   consumes, not from `CreateVxcFitBasisSet`.  (Structural, rides R1.4.)
 - ⚠ **Not "unrepresentable at the facade" yet.**  Making the illegal pair a type error means merging `SolidCalcOptions::accelerator`
   and `SCFParams`' mixer fields into one recipe value; that is P4's named-recipe work (R4.1).  Until then R1.1's throw is the guard.
@@ -338,7 +340,7 @@ GREEN budget = ⌈1.25 × baseline⌉.  A budget counts every SCF stage inside t
 | 16 | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` | 40 = cap, Δρ/N 5.2e-2 | 40 | RED |
 | 17 | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Converges_Panel_Long` | 143 (E −93.36627496) | 179 (deck cap 180) | GREEN — but 143, not the record's ≈ 60: the record's run was WARM |
 | 18 | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long` | 80 = cap | 80 | RED |
-| 19 | — β-MnO₂ r015 resume | — | — | NOT BUILT (needs a vendored saved state) |
+| 19 | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_Saved_eqExactResume_Panel_Long` (built 2026-10-30, lane A: r015 vendored in `decks/states/`) | 5 (4 threads; iteration 1 at −93.3837059, 2e-6 off the saved E; iteration 2 steps 3e-4 away and returns) | 5 | GREEN, at its budget |
 | 20 | `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` | 39 | 49 | GREEN |
 | 21 | — NiO cold | — | — | NOT BUILT (no arm fits the tier as banked) |
 
@@ -360,7 +362,7 @@ Each step: one commit (or a short series), sweep-green, panel re-run, `anchordif
 | **B0** | Re-measure the check-first row: `m0_imp_Op018_PA` stage 2 virtual slot weights after `7fb46357` | "`u_bands` after a GDM stage" (F) — close if fixed | virtuals carry slot weight |
 | **B1** | **The panel**: `_Panel` discovery pass + label; `qchem::IterationBudget`; vendor the out-of-tree bases/decks into `decks/panel/`; write cases 1–21; first baseline run sets the GREEN budgets; RED cases `WILL_FAIL` | instrument for everything below | panel green with the RED list as expected |
 | **B2** | **P2 invariants** R2.1–R2.7 (each a throw; R2.1 first — it is E1) | "an IMPOSED polarized run without +U derives its decoration" (S) via R2.5 | each throw has a UT that breaks the invariant on purpose (the `Pin28Throws` pattern); panel unmoved |
-| **B3** | **P1**: R1.1 throw in `ResolveMixing`; R1.3 `HandOff`; R1.4 Kerker as a decorator (D9); R1.5 the mixer's own G-space (V-MIXER-GBALL); delete `DIISParams::FDMin` (D-DIIS-FDMIN); rename `FDMax` → `EngageBelowFD` (V1.24(i)) | D9, V-MIXER-GBALL, D-DIIS-FDMIN, V1.24(i) (S) | bit-identical on the sweep except where a test used an illegal pair (each judged); panel unmoved |
+| **B3** | **P1**: R1.1 throw in `ResolveMixing`; R1.3 `HandOff`; R1.4 Kerker as a decorator (D9); ~~R1.5~~ (→ C2, 2026-10-30); delete `DIISParams::FDMin` (D-DIIS-FDMIN); rename `FDMax` → `EngageBelowFD` (V1.24(i)) | D9, V-MIXER-GBALL, D-DIIS-FDMIN, V1.24(i) (S) | bit-identical on the sweep except where a test used an illegal pair (each judged); panel unmoved |
 | **B4** | **R4.2** — a direct-min stage gates on worst-irrep [F,D] | "GDM false-converges" (F) → panel #6 GREEN | #6 within #5's budget at #5's fixed point |
 | **B5** | **P4 / P4a**: the recipe value (R4.1) + `Auto` as the §3 chooser, printed; deck key `scf.recipe`; refuse row 2′ | §2 "`MixingPolicy`" (F); the CLAUDE.md recipe paragraphs become pointers to §3 | panel: every GREEN case ≤ budget under `Auto` |
 | **B6** | Work the RED cases, one at a time, each judged on the WHOLE panel: (a) GDM crawl — `PCFloor` 1e-2/1e-3 and a line search that extends t (#15); (b) "GDM: should an exhausted line search END the stage?" (after Q3); (c) linear D-mixing re-damp on rising E (#7, G1/G2); (d) K+P overshoot — residual-norm safeguard / Pulay restart on rising E (#16, #18); (e) Na₂ AFM seed (#8); (f) polarized Si jump (#10) | "GDM crawls", "GDM exhausted line search", "Linear D-mixing" remainder, "Kerker+Pulay overshoots", "Na₂ AFM seed", "Polarized Γ Si jumps" (F) | each RED → GREEN with no GREEN case over budget |
@@ -449,6 +451,30 @@ draft of the case caught that).  RED as recorded: 0.191 e (n↑ 1.59 / n↓ 1.41
 8. **Reject or keep**: I recommend dropping "aufbau holes" from P2 (it is a report, J5) and moving "reference eigenpair residual"
    from P2 to P3.  Everything else in P1–P5 is supported by the evidence, with the sequencing note on P1 (type-level
    unrepresentability waits for R4.1) and the added "three variants" trigger on P5.
+
+### B3 as built (2026-10-30, lane A, on the lane-b pre-merge 3f22991c; NOT YET SWEPT -- sweeps with the twins after lane B lands)
+
+- **R1.1** (`00cd6f98`): `ResolveMixing` throws (`RequireOneExtrapolator`) on Mixing::Pulay, or Auto with a hand-set
+  `PulayDepth`, beside an accelerator that `ExtrapolatesFock()`.  Plain Kerker / linear α still compose with DIIS.  UT
+  `MixingMode.R1_1_ADensityHistoryBesideAFockHistoryThrows`.  Static scan: no test or deck uses the pair.
+- **V1.24(i) + D-DIIS-FDMIN** (`6240130e`): `FDMax` → `EngageBelowFD` (DIIS and GDM), `FDMin` deleted (never read); every
+  positional `DIISParams`/`GDMParams` initialiser now designated.
+- **R1.3** (`7a452e8d`, UTs `95d0b23e`): `qchem.HandOff` (qcCommon) -- `HandOffRequest` + the one line `[handoff] iteration N:
+  <from> -> <to> (<why>)`.  Deciders that cannot act REPORT through their own face: `SCFAccelerator::TakeHandOff` (the ladder's
+  advance / retreat; its own `***` prints are gone), `tDensityMixer::TakeHandOff` (Pulay priming → history, field and D-space;
+  the polarized pair forwards its up leaf).  `tSCFIterator::HandOff` prints them and is the ONLY `Reseat` call (the GDM mixed
+  fallback); the exact-resume Pulay-from-1 line goes through it; `SolidCalculation::BuildStage(why, …)` prints every stage
+  boundary (anneal stages, the +U loop, the FD-LRT arms + restore).  Of the seven hand-offs, "restart → first iteration" keeps
+  its `[restart] EXACT RESUME / WARM START` banner (a report of the restore, not a change of extrapolator).  Console-only:
+  `SolidState`'s exact-resume test now reads the new line (`38496064`).
+- **R1.4** (`02de08b2`): `KerkerPreconditioner` (FieldMixer) holds relax, G0, the step, the raster step and the G-space;
+  `KerkerMixer` = (filter, no history), `PulayMixer` = (filter, Pulay history).  Bit-identical Etot sequences vs the B2 sweep
+  on Si Kerker pol, Si +U Kerker+Pulay, O2Box Pulay-on-D, the SolidState Kerker+Pulay exact resume.
+- **R1.5 MOVED TO C2** (controller ruling 2026-10-30, so B3 stays bit-identical).  The preconditioner OWNS the mixer's G-space
+  (one constructor argument); the proposed owner (the density's own Coulomb/CD fit) is a different type (`FIT_CD_ABS`) from the
+  face the mixer reads ρ̃ through (`FIT_SF_ABS`, `FourierDensity::GetFourierDensity`), and a different ball moves every
+  Kerker/Pulay anchor -- C2 re-sizes that ball from the one accuracy target and re-judges the moved anchors ONCE, designing the
+  face with the ball it serves.
 
 ### Rulings (user via the controller, 2026-10-29: "Everything looks good")
 

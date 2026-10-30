@@ -318,3 +318,11 @@ Narrowed (the remainder stays in the live file) -- the rows as they stood:
 And from `doc/OOD-SOLID-Cleanup.md` (V-CALCNET narrowed to steps 6–8):
 
 | **V-CALCNET** | The `{Atom,Molecule,Solid}Calculation` class network is an EMERGING phenomenon, not a designed one.  Open placement questions it raises: where PP data (valence counts, basis provenance, seed variant) is read -- the Calculation level (current plan for `pseudopotentials.json`, `doc/CleanCode.md` D-STRUCTDATA step 2) may be too HIGH; it may be an implementation detail of the Hamiltonian PP terms or of `BasisSet::Orbital_PP` (user, 2026-10-02) | **DEFERRED by user**: do a full design review of the whole Calculation network AFTER the major `doc/OpenWork.md` §2 features land; do not litigate piecemeal.  Until then D-STRUCTDATA step 2 may proceed at the Calculation level knowing it can move |
+
+## B3 (lane A, 2026-10-30, `doc/SCFRobustnessPlan.md` step B3) -- rows closed verbatim
+
+| **V1.24** (i) | GDM: `FDMax` is the ENGAGEMENT gate on ‖[F′,D′]‖, not a step size — rename (`EngageBelowFD`) (the (iii) soft-direction preconditioning is in the ANCHOR-MOVING BATCH below) | With the OT build (OpenWork §2) · H2 V1.24 |
+| **D-DIIS-FDMIN** (found 2026-10-29) | `DIISParams::FDMin` is documented "DIIS STOPS once [F,D] < FDMin" but is READ NOWHERE (`SCFAcceleratorDIIS` never consults it); every DIIS constructor still passes a value | delete the field and its constructor slot (or wire it, if a run is shown to need DIIS to hand back to plain diagonalization) · `src/SCFAccelerator/SCFAccelerator.C` DIISParams |
+
+**Verdict (2026-10-30, `6240130e`):** `DIISParams::FDMin` deleted (never read; convergence is the SCF's gate); `FDMax` renamed
+`EngageBelowFD` on both `DIISParams` and `GDMParams`, every positional initialiser made designated.  No behaviour change.

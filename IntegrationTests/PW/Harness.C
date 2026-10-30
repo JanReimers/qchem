@@ -362,7 +362,7 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     using qchem::SCFAccelerators::DIISParams;
     // EMax must exceed the ionic [F,D] error (~1.4-3) or DIIS bails ("En>EMax") and linear mixing
     // oscillates on the strong Madelung field.  Engage DIIS from the start (EMax large).
-    auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{10, 8.0, 1e-10, 1e-9});
+    auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{.Nproj=10, .EngageBelowFD=8.0, .SVTol=1e-9});
     std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
     // \a seed defaults to Uniform rho(r)=N/V; IonicSAD pre-bakes the formal-charge transfer (Na+ + F-).
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());

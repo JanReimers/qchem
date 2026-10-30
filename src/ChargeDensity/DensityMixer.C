@@ -9,7 +9,9 @@
 // talks to it through tDensityMixer alone.
 module;
 #include <memory>
+#include <optional>
 export module qchem.ChargeDensity.DensityMixer;
+export import qchem.HandOff;                       // HandOffRequest (TakeHandOff, R1.3)
 export import qchem.ChargeDensity;                 // tChargeDensity<T>, tDM_CD<T>, tMixableDensity<T>
 import qchem.BasisSet;                             // tBasisSet<T> (the periodic factory's fit-basis source)
 import qchem.Structure;                            // Structure (the periodic factory's cell)
@@ -54,6 +56,9 @@ public:
     //! state), and a Fock driven from it jumps back there (+2.6 mHa on NaF, OpenWork §3, 2026-10-27).  A no-op for a D-mixer:
     //! its \c FockDensity IS the working D.  Returns true when something was re-seated (the caller says so on the console).
     virtual bool Reseat(const cd_t& /*current*/) {return false;}
+    //! R1.3 (doc/SCFRobustnessPlan.md): a regime change INSIDE this mixer since the last call (Pulay's priming steps giving way
+    //! to its history), handed to the owner (the iterator), which prints it in the one hand-off format.  Taking it clears it.
+    virtual std::optional<HandOffRequest> TakeHandOff() {return std::nullopt;}
     // (No SetDMSource here -- V1.18: which D a mixed field was built from is PROVENANCE the loop driver seats
     //  on the Fock density itself, through tDM_SourceSink.  A mixer neither stashes nor replays it.)
     //! The current step size α (for the SCF trace only).

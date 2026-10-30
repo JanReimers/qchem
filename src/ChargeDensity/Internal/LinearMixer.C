@@ -5,6 +5,8 @@ module;
 #include <cmath>
 #include <deque>
 #include <memory>
+#include <optional>
+#include <string>
 #include <cassert>
 export module qchem.ChargeDensity.Internal.LinearMixer;
 export import qchem.ChargeDensity.DensityMixer;
@@ -94,6 +96,9 @@ public:
     {
         const double dcd = working.GetChangeFrom(old)/working.GetTotalCharge();   // the legacy number (not the gate: D-MINDRHO)
         if (++itsCount<=itsStart) { working.MixIn(old, 1.0-itsRelax); return dcd; }  // priming: the linear step
+        if (itsStart>0 && itsCount==itsStart+1)                                      // R1.3: priming gives way to the history
+            itsHandOff=HandOffRequest{"linear priming", "Pulay history on D (depth "+std::to_string(itsDepth)+")",
+                                      "pulayStart "+std::to_string(itsStart)+" priming steps done"};
         itsIns.push_back(old.MakeCopy());                                            // D_in  of this step
         itsOuts.push_back(working.MakeCopy());                                       // D_out of this step
         while ((int)itsIns.size()>itsDepth) { itsIns.pop_front(); itsOuts.pop_front(); }
@@ -119,6 +124,10 @@ public:
     bool HasGFilter() const override { return false; }   // mixes D itself
 private:
     double itsRelax; int itsDepth, itsStart, itsCount=0;
+    std::optional<HandOffRequest> itsHandOff;   //!< the priming -> history change, until the owner takes it (R1.3)
+public:
+    std::optional<HandOffRequest> TakeHandOff() override {auto h=std::move(itsHandOff); itsHandOff.reset(); return h;}
+private:
     std::deque<std::unique_ptr<tMixableDensity<T>>> itsIns, itsOuts;   //!< the history (aligned index-wise)
 };
 
