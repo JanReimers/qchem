@@ -158,7 +158,9 @@ support the policy as worded in `QueueCampaignPlan.md` §3; the change is stated
 - **R1.4 D9: residual → per-channel preconditioner → the one extrapolator.**  `PulayMixer` today OWNS Kerker; split it into a
   `KerkerPreconditioner` decorator over a preconditioner-free extrapolator (SCFStrategyPlan §3 "a decorator, not a hand-off").  Then
   Broyden is a drop-in sibling and "plain Kerker" is (Kerker, linear) with no special class.
-- **R1.5 V-MIXER-GBALL**: the mixer's G-space comes from the density's own representation through a face named for what the mixer
+- **R1.5 V-MIXER-GBALL** (MOVED TO C2, controller ruling 2026-10-30: C2 re-sizes the density/pair ball from the one accuracy
+  target and re-judges every moved anchor once -- the mixer's G-space is chosen there, with the FourierDensity face it needs):
+  the mixer's G-space comes from the density's own representation through a face named for what the mixer
   consumes, not from `CreateVxcFitBasisSet`.  (Structural, rides R1.4.)
 - ⚠ **Not "unrepresentable at the facade" yet.**  Making the illegal pair a type error means merging `SolidCalcOptions::accelerator`
   and `SCFParams`' mixer fields into one recipe value; that is P4's named-recipe work (R4.1).  Until then R1.1's throw is the guard.
@@ -360,7 +362,7 @@ Each step: one commit (or a short series), sweep-green, panel re-run, `anchordif
 | **B0** | Re-measure the check-first row: `m0_imp_Op018_PA` stage 2 virtual slot weights after `7fb46357` | "`u_bands` after a GDM stage" (F) — close if fixed | virtuals carry slot weight |
 | **B1** | **The panel**: `_Panel` discovery pass + label; `qchem::IterationBudget`; vendor the out-of-tree bases/decks into `decks/panel/`; write cases 1–21; first baseline run sets the GREEN budgets; RED cases `WILL_FAIL` | instrument for everything below | panel green with the RED list as expected |
 | **B2** | **P2 invariants** R2.1–R2.7 (each a throw; R2.1 first — it is E1) | "an IMPOSED polarized run without +U derives its decoration" (S) via R2.5 | each throw has a UT that breaks the invariant on purpose (the `Pin28Throws` pattern); panel unmoved |
-| **B3** | **P1**: R1.1 throw in `ResolveMixing`; R1.3 `HandOff`; R1.4 Kerker as a decorator (D9); R1.5 the mixer's own G-space (V-MIXER-GBALL); delete `DIISParams::FDMin` (D-DIIS-FDMIN); rename `FDMax` → `EngageBelowFD` (V1.24(i)) | D9, V-MIXER-GBALL, D-DIIS-FDMIN, V1.24(i) (S) | bit-identical on the sweep except where a test used an illegal pair (each judged); panel unmoved |
+| **B3** | **P1**: R1.1 throw in `ResolveMixing`; R1.3 `HandOff`; R1.4 Kerker as a decorator (D9); ~~R1.5~~ (→ C2, 2026-10-30); delete `DIISParams::FDMin` (D-DIIS-FDMIN); rename `FDMax` → `EngageBelowFD` (V1.24(i)) | D9, V-MIXER-GBALL, D-DIIS-FDMIN, V1.24(i) (S) | bit-identical on the sweep except where a test used an illegal pair (each judged); panel unmoved |
 | **B4** | **R4.2** — a direct-min stage gates on worst-irrep [F,D] | "GDM false-converges" (F) → panel #6 GREEN | #6 within #5's budget at #5's fixed point |
 | **B5** | **P4 / P4a**: the recipe value (R4.1) + `Auto` as the §3 chooser, printed; deck key `scf.recipe`; refuse row 2′ | §2 "`MixingPolicy`" (F); the CLAUDE.md recipe paragraphs become pointers to §3 | panel: every GREEN case ≤ budget under `Auto` |
 | **B6** | Work the RED cases, one at a time, each judged on the WHOLE panel: (a) GDM crawl — `PCFloor` 1e-2/1e-3 and a line search that extends t (#15); (b) "GDM: should an exhausted line search END the stage?" (after Q3); (c) linear D-mixing re-damp on rising E (#7, G1/G2); (d) K+P overshoot — residual-norm safeguard / Pulay restart on rising E (#16, #18); (e) Na₂ AFM seed (#8); (f) polarized Si jump (#10) | "GDM crawls", "GDM exhausted line search", "Linear D-mixing" remainder, "Kerker+Pulay overshoots", "Na₂ AFM seed", "Polarized Γ Si jumps" (F) | each RED → GREEN with no GREEN case over budget |
@@ -468,11 +470,11 @@ draft of the case caught that).  RED as recorded: 0.191 e (n↑ 1.59 / n↓ 1.41
 - **R1.4** (`02de08b2`): `KerkerPreconditioner` (FieldMixer) holds relax, G0, the step, the raster step and the G-space;
   `KerkerMixer` = (filter, no history), `PulayMixer` = (filter, Pulay history).  Bit-identical Etot sequences vs the B2 sweep
   on Si Kerker pol, Si +U Kerker+Pulay, O2Box Pulay-on-D, the SolidState Kerker+Pulay exact resume.
-- **R1.5 NOT DONE -- needs a ruling.**  The preconditioner now OWNS the mixer's G-space, so the seam is one constructor
-  argument; but WHICH ball (V-MIXER-GBALL's proposal: the density's own Coulomb/CD fit ball, not the Vxc fit set) is a choice
-  that moves every Kerker/Pulay anchor unless the two balls coincide, and B3's gate is bit-identical.  Next: measure whether
-  the CD fit ball equals the Vxc fit ball on Si / NaF / MnO; if yes, swap with no anchor move; if no, it is a B5-or-later
-  anchor batch.
+- **R1.5 MOVED TO C2** (controller ruling 2026-10-30, so B3 stays bit-identical).  The preconditioner OWNS the mixer's G-space
+  (one constructor argument); the proposed owner (the density's own Coulomb/CD fit) is a different type (`FIT_CD_ABS`) from the
+  face the mixer reads ρ̃ through (`FIT_SF_ABS`, `FourierDensity::GetFourierDensity`), and a different ball moves every
+  Kerker/Pulay anchor -- C2 re-sizes that ball from the one accuracy target and re-judges the moved anchors ONCE, designing the
+  face with the ball it serves.
 
 ### Rulings (user via the controller, 2026-10-29: "Everything looks good")
 
