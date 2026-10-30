@@ -238,10 +238,10 @@ checkpoint/restart" (CK-3 = restart across a geometry step).  (Closed on main: "
 atom index", CleanCode D-BASIS-REGISTRY, D-STATE-SCHEMA (narrowed).  (Closed by lane B, ce639536: "PW states cannot be saved", D-BASIS-PP, D-STRUCTDATA step 2.)  C5: "valgen is
 optimistic about diffuse functions", "vet trim deletes the valence core", "Diffuse-basis ACTUATOR".  Feature on the path: §2 "PBE / GGA".
 
-**S (27)** — C1: CleanCode V1.24(i), D-CALC-DOUBLE-SCF (migration), D-DIIS-FDMIN; OOD V1.27, D9; OpenWork "`ρ_lost/N` dead
+**S (28)** — C1: CleanCode V1.24(i), D-CALC-DOUBLE-SCF (migration), D-DIIS-FDMIN; OOD V1.27, D9; OpenWork "`ρ_lost/N` dead
 column" (rides V1.27).  C2: OOD V-MIXER-GBALL (= R1.5, moved from C1 2026-10-30), R1.0 (metric axis), V1.1b, BM(1), D2, D3, D4, D13, D-GPWPAIR, R1.0n/o.  C3: OOD V1.41, V1.35, R1.0q,
 V1.34.  With GGA: OOD §I.1, V1.39.  C4: CleanCode D-ENV, D-ENV-TOL;
-Lane B design review: OOD V-CALCNET -- now counted under F as "PES / run-setup remainders".  C1: OpenWork "R2.1 as a throw needs a measure that holds on a REDUCED evaluation".  C6: CleanCode D-WARNINGS.  Forces prerequisite (lane A C1/C3, 2026-10-29): OpenWork "short tier not green at `QCHEM_OPENMP_THREADS=4`" (thread-count invariance: forces and a relaxation need energies independent of the thread count).
+Lane B design review: OOD V-CALCNET -- now counted under F as "PES / run-setup remainders".  OpenWork "The SCF observer has two homes" (controller 2026-10-30, lane B).  C1: OpenWork "R2.1 as a throw needs a measure that holds on a REDUCED evaluation".  C6: CleanCode D-WARNINGS.  Forces prerequisite (lane A C1/C3, 2026-10-29): OpenWork "short tier not green at `QCHEM_OPENMP_THREADS=4`" (thread-count invariance: forces and a relaxation need energies independent of the thread count).
 
 **H (lane H)** — §1; §2 DFT+U, A7 estimators, D5 little group, the PW umbrella + PW-1/2/4, KP; §3 NiO ghost, MnO ordering, the campaign
 re-run, NiO/SrVO₃ vs hp.x, the PW 4× XC ball re-run, the three β-MnO₂ rows; §4 LR ledger, dense PW cost, LR on real TRIM; OOD V1.40;
@@ -255,7 +255,7 @@ space-group irreps, SSB descent, smearing finished, molecular SAD seed, spherica
 136-function span, ‖V_xc − V_xc_fit‖, charged cells, the anchor-batch pointer; CleanCode R1.0b, V1.29, D-MODTOOL (Steps 2–5),
 D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
 
-**Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.  Then (18ab4db5): F 16 · V 11 · S 28 = 55; b8a36fd3 +1 F = 56.  Now (ce639536): F 18 · V 8 · S 27 = 53** -- B2 closed one S and its R2.1 measurement found three critical-path defects (2 F, 1 S): the instrument working, not slippage.  Lane B steps 6–8 closed three V; V-CALCNET's remainder re-tagged S → F (the relaxation's path gate).
+**Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.  Then (18ab4db5): F 16 · V 11 · S 28 = 55; b8a36fd3 +1 F = 56.  Then (ce639536): F 18 · V 8 · S 27 = 53; +1 S (observer's two homes) = 54** -- B2 closed one S and its R2.1 measurement found three critical-path defects (2 F, 1 S): the instrument working, not slippage.  Lane B steps 6–8 closed three V; V-CALCNET's remainder re-tagged S → F (the relaxation's path gate).
 
 ## 10. Landing log (controller)
 
