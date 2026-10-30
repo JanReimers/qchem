@@ -165,6 +165,7 @@ G-space folds · re-take §5a on rule 3f.  Rule: COPY the run command from §5a,
 (`alphaOz_pw`, 44 it, 3.8 h) vs 254 s serial (`alphaSlot0_pw`, 42 it) -- slower, while the GPW twin on 8 threads ran 11 min.  Next: one
 perf profile of a PW iteration (which bucket is 250 s: the H·ψ FFTs, the dense diagonalisation, the XC 4× ball?) before threading anything ·
 logs `~/Code/qchem6-runs/MnO2/alpha/`.
+· **PW "fill orbitals" is 33 % of the SCF: it is the nG² DENSITY BUILD, not the occupations** (2026-10-30, lane H): β-MnO₂ PW 40 Ha U = 4.62 ledger (`~/Code/qchem6-runs/MnO2/pw/pw_E40_U.log`): fill 3.0 s/call vs diagonalize 3.3, Fock 0.94.  `TOrbitalsImp::BuildDensity` zeroes D (n×n) AND D′ (m×m) and adds every occupied orbital as its own rank-1 update into both (`TOrbital::AddDensityMatrix`) -- DRAM-bound: ~25 orbitals × 2 matrices × 2 spins × 0.67 GB ≈ 70 GB of traffic per fill at 4571 PWs (estimate, not yet measured alone).  Levers, independent of PW-2: (1) one rank-k C·diag(f)·C† over the occupied columns per block (touches D once); (2) skip D′ when no consumer needs it (Null + density mixing: DIIS/GDM/MOM read D′) -- half the traffic and one nG² matrix off the 9.0 GB peak.  Next: time BuildDensity alone (a child bucket), then (1); GPW blocks (~150–500) gain little, so gate on PW_Si/NaF bit-identical · `src/Orbitals/Internal/Imp/TOrbitals.C`, `TOrbital.C`.
 
 
 Performance rows moved from §2 (2026-10-29, C0):
