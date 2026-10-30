@@ -19,6 +19,8 @@
 //     "angular": "cartesian" | "spherical" }  // Angular, default "cartesian"
 module;
 #include <string>
+#include <utility>
+#include <vector>
 #include <nlohmann/json_fwd.hpp>
 export module qchem.BasisSet.Gaussian.Point.Factory;
 export import qchem.BasisSet;
@@ -43,6 +45,15 @@ export namespace qchem::BasisSet::Gaussian
     //! (its VALENCE-LOWQ-V{A,B} entries) -- VA = N 118 on the MnO magnetic cell, VB = N 128.  Both codes
     //! hold VA at FULL RANK, which is what makes doc/Benchmark.md's MnO rows a comparison.  Spherical-d only.
     enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP, SIPP_SR, VALENCE_LOWQ, VALENCE_LOWQ_SR, VALENCE_LOWQ_SR2, VALENCE_LOWQ_SPH, VALENCE_LOWQ_VA, VALENCE_LOWQ_VB };
+
+    //! PROVENANCE (C4 step 4, D-BASIS-PP): a valence basis file may declare, in its preamble (before the first lone `!`),
+    //! the pseudopotential valence count each element block was generated for -- the line
+    //! `PP-PROVENANCE F=7 O=6 Mn=7` (valgen writes it).  \c CheckPPProvenance THROWS, naming file, element, declared
+    //! and requested q, when \a species asks for a different q than a block declares; an element or a whole file
+    //! that declares nothing is accepted (legacy all-electron files carry no tag).  Pure parse of the file's
+    //! own header: the BasisSet library does not know the pseudopotential library, the caller passes {element, q}.
+    void CheckPPProvenance(const std::string& bsdFile, const std::vector<std::pair<std::string,int>>& species);
+    void CheckPPProvenance(BasisSetData data,          const std::vector<std::pair<std::string,int>>& species);
 
     // Axis 2 -- the integral engine (orthogonal to the data set and the angular representation).
     enum class Engine { MnD, LibCint };

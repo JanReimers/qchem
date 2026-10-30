@@ -1,4 +1,5 @@
 valence_lowq_vb: the EXACT-SPAN variant VB (N=128 on the MnO 2-f.u. magnetic cell) -- VA plus the
+PP-PROVENANCE F=7 Na=1 Al=3 Mn=7 O=6
 diffuse Mn d 0.18 that VA drops; the O diffuse pair (s 0.15, p 0.18) is dropped as in VA.  The
 VA/VB pair is the span BISECTION: the difference between the two rows isolates what the diffuse Mn d
 does, in both codes (CP2K puts ~10 mHa of AFM stabilization there -- doc/SphericalLatticePlan.md).

@@ -1,4 +1,5 @@
 Low-q GTH-pseudopotential valence basis, SHORT-RANGE-2 -- valence_lowq_sr with sodium's diffuse tail
+PP-PROVENANCE F=7 Na=1
 trimmed further (drop Na p 0.05 + Na s 0.0857; F kept intact -- the anion needs its diffuse functions,
 the Na+ cation does not).  Target: the COMPLETE-enumeration Bloch overlap is well-conditioned
 (lambda_min >= ~1e-3) so the near-null Rayleigh instability (doc/GPWPlan.md 0b': ||dF||/lambda band

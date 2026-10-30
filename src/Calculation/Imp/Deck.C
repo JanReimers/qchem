@@ -33,6 +33,7 @@ import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;
 import qchem.Reporting;
+import qchem.Pseudopotential.Set;           // PseudopotentialSet -- the run's PP, which the basis file's provenance is checked against
 import qchem.Outcome;
 import qchem.BasisSet.Lattice.BasisSet;   // VetStageTrim, GPWParams
 import qchem.BasisSet.Gaussian.Point.ShellTrim;
@@ -123,9 +124,13 @@ const auto kMixing = NAMES(SCFParams::Mixing, {"Auto",SCFParams::Mixing::Auto}, 
                             {"Kerker",SCFParams::Mixing::Kerker}, {"Pulay",SCFParams::Mixing::Pulay});
 
 //! The Gaussian basis a deck names: the registered data file, or the \c basis.file override when stated.
-BasisSet::Real_BS* MakeGaussianBasis(const RunSpec::Basis& b, const Structure* cell, const BasisSet::Gaussian::ShellTrim& trim)
+BasisSet::Real_BS* MakeGaussianBasis(const RunSpec::Basis& b, const Structure* cell, const BasisSet::Gaussian::ShellTrim& trim,
+                                     const SolidCalcOptions& solid)
 {
     using namespace BasisSet::Gaussian;
+    // D-BASIS-PP: the basis file's declared pseudopotential q per element must be the q this run's terms use.
+    const auto species = Pseudopotential::PseudopotentialSet::Get(solid.pp).With(solid.species).Species(*cell);
+    if (b.file.empty()) CheckPPProvenance(b.data, species); else CheckPPProvenance(b.file, species);
     return b.file.empty() ? Factory(b.data, cell, Engine::MnD, Angular::Cartesian, trim)
                           : FactoryFromFile(b.file, cell, Engine::MnD, Angular::Cartesian, trim);
 }
@@ -703,7 +708,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
     Lattice_3D lat(*mat.cell, spec.kmesh);
     BasisSet::Gaussian::ShellTrim trim;
     for (const auto& t : spec.basis.trim) trim.shells.push_back({t.Z, t.l, rvec_t(1,t.alpha)});
-    std::shared_ptr<const BasisSet::Real_BS> b(MakeGaussianBasis(spec.basis, mat.cell.get(), trim));
+    std::shared_ptr<const BasisSet::Real_BS> b(MakeGaussianBasis(spec.basis, mat.cell.get(), trim, spec.solid));
     if (spec.basis.spherical) b=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(b));
     size_t nf=0;
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*b).Iterate<BasisSet::Real_OIBS>()) nf+=ibs->GetNumFunctions();
@@ -759,7 +764,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     // THE BASIS: the data file, optionally trimmed (stated, or by the vet loop at the run's own orthoTol), optionally in the spherical lattice view.
     auto make=[&](const BasisSet::Gaussian::ShellTrim& trim)
     {
-        std::shared_ptr<const BasisSet::Real_BS> b(MakeGaussianBasis(spec.basis, mat.cell.get(), trim));
+        std::shared_ptr<const BasisSet::Real_BS> b(MakeGaussianBasis(spec.basis, mat.cell.get(), trim, spec.solid));
         if (spec.basis.spherical) b=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(b));
         return b;
     };

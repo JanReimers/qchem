@@ -1128,7 +1128,7 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     xc<<MeshName(itsImp->xcMesh.cellKind);
     if (itsImp->xcMesh.cellKind==qcMesh::UnitCellKind::Becke) xc<<" nR="<<itsImp->xcMesh.nRadial<<" L="<<itsImp->xcMesh.angularDegree;
     else                                                      xc<<" eCut="<<itsImp->xcMesh.eCut;
-    const RunIdentity id{.species=itsImp->pp->Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->pp->Functional(),
+    const RunIdentity id{.species=itsImp->pp->Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->pp->Functional(), .ppSet=itsImp->pp->Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
                          .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT};
     return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,

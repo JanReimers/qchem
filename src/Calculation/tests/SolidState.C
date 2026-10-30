@@ -162,13 +162,45 @@ TEST(SolidState, WarmClassDifferencesRestartAndAreNamed)
     ASSERT_EQ(warm->size(), 2u);
     EXPECT_NE((*warm)[0].find("hubbard.U"), std::string::npos);
     EXPECT_NE((*warm)[1].find("scf.kT"), std::string::npos);
-    now.refuseNum["structure.positions"][0]+=0.01;
-    now.refuseStr["functional"]="PBE";
+    now.refuseNum["structure.cell"][0]+=0.01;
+    now.refuseStr["pp.set"]="some-other-family";
     auto refused=CompareFingerprints(st->fingerprint, now);
     ASSERT_FALSE(refused);
     EXPECT_EQ(refused.Error().why, RestartRefusal::Why::Mismatch);
-    EXPECT_NE(refused.Error().details.find("structure.positions"), std::string::npos);
-    EXPECT_NE(refused.Error().details.find("functional"), std::string::npos);
+    EXPECT_NE(refused.Error().details.find("structure.cell"), std::string::npos);
+    EXPECT_NE(refused.Error().details.find("pp.set"), std::string::npos);
+}
+
+// C4 step 5: the functional and the atom positions are WARM (an LDA->PBE restart, a geometry step), and a moved atom is
+// reported as ONE line that says how far.
+TEST(SolidState, AFunctionalChangeAndAMovedAtomAreWarmAndSayHowFar)
+{
+    auto st=ReadSolidState(SavedState(0, false).path);
+    ASSERT_TRUE(st) << st.Error().details;
+    StateFingerprint now=st->fingerprint;
+    now.warmStr["functional"]="PBE";
+    now.warmNum["structure.positions"][0]+=0.03;
+    now.warmNum["structure.positions"][1]+=0.04;
+    now.warmNum["basis.shellCenters"][0]+=0.03;
+    auto warm=CompareFingerprints(st->fingerprint, now);
+    ASSERT_TRUE(warm) << warm.Error().details;
+    ASSERT_EQ(warm->size(), 2u);
+    EXPECT_NE((*warm)[0].find("functional"), std::string::npos);
+    EXPECT_NE((*warm)[1].find("max displacement 0.05"), std::string::npos) << (*warm)[1];
+}
+
+// ...and a state written under the OLD schema (functional, positions and shell centres filed under REFUSE, no pp.set) still loads.
+TEST(SolidState, AStateFromBeforeStep5StillLoads)
+{
+    auto st=ReadSolidState(SavedState(0, false).path);
+    ASSERT_TRUE(st) << st.Error().details;
+    StateFingerprint old=st->fingerprint;
+    for (const char* k : {"structure.positions","basis.shellCenters"}) { old.refuseNum[k]=old.warmNum.at(k); old.warmNum.erase(k); }
+    old.refuseStr["functional"]=old.warmStr.at("functional"); old.warmStr.erase("functional");
+    old.refuseStr.erase("pp.set");
+    auto same=CompareFingerprints(old, st->fingerprint);
+    ASSERT_TRUE(same) << same.Error().details;
+    EXPECT_TRUE(same->empty()) << "an old file against the same run is an EXACT resume";
 }
 
 TEST(SolidState, WarmStart_OtherGrid_StartsAtTheAnswer)

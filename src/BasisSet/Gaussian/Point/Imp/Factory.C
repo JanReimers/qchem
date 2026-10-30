@@ -1,7 +1,11 @@
 // File: BasisSet/Gaussian/Point/Imp/Factory.C  Factory function for molecular basis sets (see Factory.C for the
 // three orthogonal axes: BasisSetData x Engine x Angular).
 module;
+#include <algorithm>
+#include <cctype>
+#include <fstream>
 #include <map>
+#include <sstream>
 #include <string>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
@@ -67,6 +71,53 @@ namespace qchem::BasisSet::Gaussian
                 + "; valid: " + valid);
         }
         return it->second;
+    }
+
+    // The declared {ELEMENT (upper-cased), q} of a file's `PP-PROVENANCE` preamble line; empty = nothing declared.
+    // The preamble is everything before the first lone `!` (the Gaussian94 reader skips it, so the tag is invisible to it).
+    static std::map<std::string,int> DeclaredPPProvenance(const std::string& path)
+    {
+        const auto upper=[](std::string s){ for (char& c : s) c=(char)std::toupper((unsigned char)c); return s; };
+        std::ifstream f(path);
+        if (!f) throw std::runtime_error("CheckPPProvenance: cannot open basis file " + path);
+        std::map<std::string,int> declared;
+        std::string line;
+        while (std::getline(f,line))
+        {
+            std::istringstream is(line);
+            std::string tok;
+            if (!(is>>tok)) continue;
+            if (tok=="!") break;                                   // end of the preamble
+            if (tok!="PP-PROVENANCE") continue;
+            while (is>>tok)
+            {
+                const size_t eq=tok.find('=');
+                if (eq==std::string::npos || eq==0 || eq+1>=tok.size())
+                    throw std::runtime_error("CheckPPProvenance: malformed PP-PROVENANCE entry '" + tok + "' in " + path + " (want Element=q)");
+                declared[upper(tok.substr(0,eq))] = std::stoi(tok.substr(eq+1));
+            }
+        }
+        return declared;
+    }
+
+    void CheckPPProvenance(const std::string& bsdFile, const std::vector<std::pair<std::string,int>>& species)
+    {
+        const std::string path=BasisFile(bsdFile);
+        const std::map<std::string,int> declared=DeclaredPPProvenance(path);
+        for (const auto& [element,q] : species)
+        {
+            std::string key=element; for (char& c : key) c=(char)std::toupper((unsigned char)c);
+            const auto it=declared.find(key);
+            if (it!=declared.end() && it->second!=q)
+                throw std::runtime_error("basis/pseudopotential mismatch: " + bsdFile + " declares its " + element + " block for q"
+                    + std::to_string(it->second) + " but the run's pseudopotential for " + element + " is q" + std::to_string(q)
+                    + " -- regenerate the block with valgen, or choose the pseudopotential variant the file was made for");
+        }
+    }
+
+    void CheckPPProvenance(BasisSetData data, const std::vector<std::pair<std::string,int>>& species)
+    {
+        CheckPPProvenance(theFiles.at(data), species);
     }
 
     tBasisSet<double>* Factory(BasisSetData data, const Structure* cl, Engine engine, Angular angular,
