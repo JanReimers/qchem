@@ -44,7 +44,8 @@ typedef struct qcb_request
     const char*   pp;             //!< pseudopotential set name, "" = all-electron
     const char*   accelerator;    //!< "DIIS" | "GDM" | "Ladder"
     int           symmetry;       //!< point-group SALC blocking
-    int           multiplicity;   //!< 2S+1, 0 = minimal spin
+    int           polarized;      //!< spin-native two-channel run (SpinGroup::Polarized) even for a closed shell
+    int           multiplicity;   //!< 2S+1, 0 = minimal spin; > 1 promotes to polarized anyway
     int           maxIter;
 } qcb_request;
 
