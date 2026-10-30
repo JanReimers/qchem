@@ -6,6 +6,7 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     Materials.C
     ValenceBasisGen.C   # the valence-basis generator (from IntegrationTests 2026-09-15, TE phase 5)
     SolidState.C        # saved periodic SCF states: save / exact resume / warm start / refusal (CK-1)
+    MoleculeSetup.C     # the molecular run setup: spin promotion, valence count, refusals (step 7)
     SolidSetup.C        # the periodic run setup: the frozen basis recipe, provenance without a deck (step 6)
 )
 
