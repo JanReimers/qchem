@@ -100,6 +100,8 @@ session cap).  The real cap is the BOX: two module builds at once plus one heavy
 if it mostly edits rather than builds.  The user talks to the controller; lanes talk to the controller.  C3 starts only after
 KAxisPlan P5 lands, since H owns V1.41 so far.
 
+**Lane G (GUI, ruled 2026-10-30, starts when lane B's steps 6–8 land):** worktree `~/Code/qchem-lane-g` on `lane-g` + a clone of `github.com/JanReimers/qchem-GUI` at `~/Code/qchem-GUI`; Sonnet.  Owns `pybind/` (the binding owner the lib lanes flag breaks to).  Step 1: a FRESH bridge on main (not a merge of the stale `origin/viz`, 1512 behind): bind only `MoleculeSetup::Resolve` + `Calculation` (later `MoleculeSession`), an opaque handle type (no `void*`), keep the module-unit / plain-C-header split; then make qchem-GUI's `QChemBackend` run on it, checking first whether `stream_scf` needs a per-iteration hook on the facade.  Off the critical-path count; build under the build lock.  **Requirements added (user 2026-10-30):** (1) an AI agent inside the app that helps build the structure and choose Hamiltonian, basis, U (incl. computing it), convergence criteria and methods; (2) a front end for SOLID², CP2K, QE, ABINIT and VASP -- **option 2.2 (user's pick): the user states WHAT they want, and the back ends that can do it are enabled** (not 2.1, features toggled by the chosen back end).  Consequence: the GUI's seam becomes a back-end-NEUTRAL run spec (structure, physics, task, ONE accuracy target) + a `Backend` capability/translate/run/parse interface; the agent's product is a spec, so order = spec → back ends (SOLID² + CP2K first) → agent.  Step 0 of lane G is that design note, in the qchem-GUI repo, on Opus; plumbing on Sonnet.
+
 ## 6. Controller protocol (this session's job)
 
 **Working copies.**  The repo of record is `~/Code/qchem6`, and lane H works IN it (2026-10-29: committing on `main`).  Each new lane
@@ -138,9 +140,11 @@ open F+V+S count.  A new CONVERGENCE row also gets its case added to the panel (
 Plumbing and mechanical chunks (C4, C6, C7): Sonnet · high / medium.  No Haiku.  A Sonnet chunk that hits a physics surprise (an
 anchor moves unexpectedly) is handed to Opus.
 
+**No backward-compatibility doors** (user 2026-10-30): an API change migrates every caller and deletes the old entry point in the same chunk -- never "the old ctor delegates, so no caller changes".  `pybind/` is the one exception: flag a break for the binding owner.
+
 **Sweeps that are compared run SERIAL** (`QCHEM_OPENMP_THREADS` unset), like every main baseline: several tests are not thread-count invariant (lane A 2026-10-29: 57 anchor moves up to 2.8e-6 at 4 threads; OpenWork row).  Threads are for panel and campaign runs, never a landing sweep.
 
-**Landing sweep = short serial (`-LE long`) + routine long serial (`-L long -LE panel`, ~6 min); the convergence panel (`-L panel`, hours) runs only when a lane touches SCFAccelerator / SCFIterator / mixers / the Calculation SCF path, and is judged against its iteration budgets, not by anchordiff** (user 2026-10-30).
+**Landing sweep = short serial (`-LE long`) + routine long serial (`-L long -LE panel`, ~6 min); the convergence panel (`-L panel`, hours) runs only when a lane touches SCFAccelerator / SCFIterator / mixers / the Calculation SCF path, and is judged against its iteration budgets, not by anchordiff** (user 2026-10-30).  The threaded panel pass runs the LONG panel only (`ctest -L panel -L long`, both labels required); the fast `_Panel` cases are judged from the SERIAL short tier, because two of them (NaF exact resume 5 vs 3, O2Box anchor 7e-7) fail at 4 threads on one run and pass on another -- the thread-invariance row (2026-10-30, lane B gate).
 
 ## 7. The three grid-and-symmetry decisions, with context
 
@@ -224,26 +228,26 @@ ball — it can, to a stated tolerance, and it is the SAME ball.**  The reasonin
 Row names abbreviated; the row itself lives in its queue.  The controller updates this index at each merge, and the open F+V+S count
 is read from it.
 
-**F (16)** — C1: "Linear D-mixing diverges" (remainder), "Na₂ AFM seed", "GDM crawls",
+**F (18)** — C1: "Linear D-mixing diverges" (remainder), "Na₂ AFM seed", "GDM crawls",
 "Kerker+Pulay overshoots β-MnO₂'s U = 1 basin" (a panel case), "Polarized Γ Si jumps", "GDM: should an exhausted line search END the
-stage?", §2 "`MixingPolicy`" (becomes P4a's regime matrix); "the Kerker field mixer is not exactly group-equivariant", "the low-rank D factor can split a symmetry orbit" (B2 R2.1, 2026-10-30: a density that leaves its group is not variational, so its forces are not dE/dR).  C2: "BallOnly raster aliases tight pairs", "AUTO density cutoff misses O
+stage?", §2 "`MixingPolicy`" (becomes P4a's regime matrix); "the Kerker field mixer is not exactly group-equivariant", "the low-rank D factor can split a symmetry orbit" (B2 R2.1, 2026-10-30: a density that leaves its group is not variational, so its forces are not dE/dR).  "A threaded NaF exact resume STALLS GDM at iteration 1, and its mixed fallback feeds XC the FITTED ρ" (lane A 2026-10-30; the pin-28 routing half may be a real defect on any re-seat).  Lane B: OpenWork "PES / run-setup remainders" (landed ce639536; gate (c) = E continuous along a geometry path, the NaF Γ path test, the Löwdin C carry -- the relaxation's own prerequisites; it now holds all of OOD V-CALCNET's open work, so V-CALCNET is counted here, not under S).  C2: "BallOnly raster aliases tight pairs", "AUTO density cutoff misses O
 q6", "uniform-raster XC not equivariant", "a FREE run's XC mesh" (cost remainder), OOD R1.0r, CleanCode §K.  Forces note: §2 "SCF
 checkpoint/restart" (CK-3 = restart across a geometry step).  (Closed on main: "`u_bands` after a GDM stage" 07af0909, "GDM false-converges" ab1c206a.)
 
-**V (11)** — C4: "valgen --seed-into", "PW states cannot be saved", "restart fingerprint incomplete", "spinel charge order chosen by
-atom index", CleanCode D-BASIS-PP, D-BASIS-REGISTRY, D-STRUCTDATA step 2 (+ the seed-by-`q` scope), D-STATE-SCHEMA.  C5: "valgen is
+**V (8)** — C4: "valgen --seed-into", "restart fingerprint incomplete" (narrowed), "spinel charge order chosen by
+atom index", CleanCode D-BASIS-REGISTRY, D-STATE-SCHEMA (narrowed).  (Closed by lane B, ce639536: "PW states cannot be saved", D-BASIS-PP, D-STRUCTDATA step 2.)  C5: "valgen is
 optimistic about diffuse functions", "vet trim deletes the valence core", "Diffuse-basis ACTUATOR".  Feature on the path: §2 "PBE / GGA".
 
-**S (28)** — C1: CleanCode V1.24(i), D-CALC-DOUBLE-SCF (migration), D-DIIS-FDMIN; OOD V1.27, D9, V-MIXER-GBALL; OpenWork "`ρ_lost/N` dead
-column" (rides V1.27).  C2: OOD R1.0 (metric axis), V1.1b, BM(1), D2, D3, D4, D13, D-GPWPAIR, R1.0n/o.  C3: OOD V1.41, V1.35, R1.0q,
+**S (27)** — C1: CleanCode V1.24(i), D-CALC-DOUBLE-SCF (migration), D-DIIS-FDMIN; OOD V1.27, D9; OpenWork "`ρ_lost/N` dead
+column" (rides V1.27).  C2: OOD V-MIXER-GBALL (= R1.5, moved from C1 2026-10-30), R1.0 (metric axis), V1.1b, BM(1), D2, D3, D4, D13, D-GPWPAIR, R1.0n/o.  C3: OOD V1.41, V1.35, R1.0q,
 V1.34.  With GGA: OOD §I.1, V1.39.  C4: CleanCode D-ENV, D-ENV-TOL;
-Lane B design review: OOD V-CALCNET.  C1: OpenWork "R2.1 as a throw needs a measure that holds on a REDUCED evaluation".  C6: CleanCode D-WARNINGS.  Forces prerequisite (lane A C1/C3, 2026-10-29): OpenWork "short tier not green at `QCHEM_OPENMP_THREADS=4`" (thread-count invariance: forces and a relaxation need energies independent of the thread count).
+Lane B design review: OOD V-CALCNET -- now counted under F as "PES / run-setup remainders".  C1: OpenWork "R2.1 as a throw needs a measure that holds on a REDUCED evaluation".  C6: CleanCode D-WARNINGS.  Forces prerequisite (lane A C1/C3, 2026-10-29): OpenWork "short tier not green at `QCHEM_OPENMP_THREADS=4`" (thread-count invariance: forces and a relaxation need energies independent of the thread count).
 
 **H (lane H)** — §1; §2 DFT+U, A7 estimators, D5 little group, the PW umbrella + PW-1/2/4, KP; §3 NiO ghost, MnO ordering, the campaign
 re-run, NiO/SrVO₃ vs hp.x, the PW 4× XC ball re-run, the three β-MnO₂ rows; §4 LR ledger, dense PW cost, LR on real TRIM; OOD V1.40;
 CleanCode D-ENV-RERUN, D-CKALPHA-AUTO.
 
-**X (14, the quota)** — OpenWork "R2.1 cannot measure the raster XC route" (rides C2); OpenWork "every `_Long` test re-proves its claim at the cheapest resolution" (lane A, right after C1 B2 lands; it shares the vendored-state mechanism with panel #19); CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
+**X (15, the quota)** — OpenWork "`CalcOptions`'s default basis `sto-3g` is not registered" (lane B 2026-10-30, user's call: register STO-3G or default to `dzvp`); OpenWork "R2.1 cannot measure the raster XC route" (rides C2); OpenWork "every `_Long` test re-proves its claim at the cheapest resolution" (lane A, right after C1 B2 lands; it shares the vendored-state mechanism with panel #19); CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
 D-CONTRACTED-SHELL, D-FIT-MERGE; OpenWork "Blaze heevx/syevx" (rides ModuleToolchain Step 4).
 
 **P (parked / features / triggers)** — §2 B-spline basis, hybrids, GW, transport/MD, USPP/PAW, OT (and with it CleanCode V1.24(iii)),
@@ -251,7 +255,7 @@ space-group irreps, SSB descent, smearing finished, molecular SAD seed, spherica
 136-function span, ‖V_xc − V_xc_fit‖, charged cells, the anchor-batch pointer; CleanCode R1.0b, V1.29, D-MODTOOL (Steps 2–5),
 D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
 
-**Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.  Now (18ab4db5): F 16 · V 11 · S 28 = 55** -- B2 closed one S and its R2.1 measurement found three critical-path defects (2 F, 1 S): the instrument working, not slippage.
+**Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.  Then (18ab4db5): F 16 · V 11 · S 28 = 55; b8a36fd3 +1 F = 56.  Now (ce639536): F 18 · V 8 · S 27 = 53** -- B2 closed one S and its R2.1 measurement found three critical-path defects (2 F, 1 S): the instrument working, not slippage.  Lane B steps 6–8 closed three V; V-CALCNET's remainder re-tagged S → F (the relaxation's path gate).
 
 ## 10. Landing log (controller)
 
@@ -262,4 +266,4 @@ D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
 | `87493dd9` (2026-10-29) | lane-a C1 B0+B1 (the convergence panel, 19 cases, RED as WILL_FAIL; u_bands + GDM false-converges closed; thread-invariance row) | serial short 1126; long 13/13 at 28fe4a31 (4 threads, panel incl.) | 0 / 1112 short vs `main-e9955ebf` | `~/Code/qchem6-runs/anchors/main-87493dd9_{short,long}.log` (long = 4-thread, re-baseline serial at the next long sweep) |
 | `20873b21` (2026-10-30) | lane-b C4 steps 3–5 (`84d5569f` seed library keyed by PP variant q; `47f0816a` basis provenance PP-PROVENANCE + CheckPPProvenance) | serial short 1130 (merged) + serial long 7/8 pre-merge | 0 / 1124 short vs `main-87493dd9`, 0 / 8 long | `~/Code/qchem6-runs/anchors/main-20873b21_{short,long}.log` (long = SERIAL baseline) |
 | `18ab4db5` (2026-10-30) | lane-a C1 B2 (`f6bb5996` + `77a99402`: R2.1 group residual REPORTED, R2.4, R2.5 siteSpins required, R2.7, panel #10 RED; panel out of the routine long tier) -- a merge commit, main's delta since the lane's base was docs only | serial short 1133; serial long `-L long -LE panel` 6/6; panel 20/20 at 4 threads | 0 / 1128 short, 0 / 7 long vs `main-20873b21` | `~/Code/qchem6-runs/anchors/main-18ab4db5_{short,long,panel4t}.log` |
-
+| `ce639536` (2026-10-30) | lane-b C4 steps 6–8 (`SolidSetup`/`MoleculeSetup::Resolve`, `GaussianBasisRecipe`, `PotentialEnergySurface::ConvergeAt(cell, R)` + both sessions), PW state save, clean replace (old ctors deleted, 148 callers migrated) -- a merge commit, main's delta docs only | serial short 1147/1147; serial long `-L long -LE panel` 6/6; long panel 7/7 at 4 threads inside budget (MnO₂ K-P 4.4e-7 Ha / TiO₂ 76→84 it vs the threaded baseline: thread variance, the invariance row) | 0 / 1131 short, 0 / 7 long vs `main-18ab4db5` | `~/Code/qchem6-runs/anchors/main-ce639536_{short,long,panel4t}.log` |
