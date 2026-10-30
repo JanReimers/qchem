@@ -450,6 +450,30 @@ draft of the case caught that).  RED as recorded: 0.191 e (n↑ 1.59 / n↓ 1.41
    from P2 to P3.  Everything else in P1–P5 is supported by the evidence, with the sequencing note on P1 (type-level
    unrepresentability waits for R4.1) and the added "three variants" trigger on P5.
 
+### B3 as built (2026-10-30, lane A, on the lane-b pre-merge 3f22991c; NOT YET SWEPT -- sweeps with the twins after lane B lands)
+
+- **R1.1** (`00cd6f98`): `ResolveMixing` throws (`RequireOneExtrapolator`) on Mixing::Pulay, or Auto with a hand-set
+  `PulayDepth`, beside an accelerator that `ExtrapolatesFock()`.  Plain Kerker / linear α still compose with DIIS.  UT
+  `MixingMode.R1_1_ADensityHistoryBesideAFockHistoryThrows`.  Static scan: no test or deck uses the pair.
+- **V1.24(i) + D-DIIS-FDMIN** (`6240130e`): `FDMax` → `EngageBelowFD` (DIIS and GDM), `FDMin` deleted (never read); every
+  positional `DIISParams`/`GDMParams` initialiser now designated.
+- **R1.3** (`7a452e8d`, UTs `95d0b23e`): `qchem.HandOff` (qcCommon) -- `HandOffRequest` + the one line `[handoff] iteration N:
+  <from> -> <to> (<why>)`.  Deciders that cannot act REPORT through their own face: `SCFAccelerator::TakeHandOff` (the ladder's
+  advance / retreat; its own `***` prints are gone), `tDensityMixer::TakeHandOff` (Pulay priming → history, field and D-space;
+  the polarized pair forwards its up leaf).  `tSCFIterator::HandOff` prints them and is the ONLY `Reseat` call (the GDM mixed
+  fallback); the exact-resume Pulay-from-1 line goes through it; `SolidCalculation::BuildStage(why, …)` prints every stage
+  boundary (anneal stages, the +U loop, the FD-LRT arms + restore).  Of the seven hand-offs, "restart → first iteration" keeps
+  its `[restart] EXACT RESUME / WARM START` banner (a report of the restore, not a change of extrapolator).  Console-only:
+  `SolidState`'s exact-resume test now reads the new line (`38496064`).
+- **R1.4** (`02de08b2`): `KerkerPreconditioner` (FieldMixer) holds relax, G0, the step, the raster step and the G-space;
+  `KerkerMixer` = (filter, no history), `PulayMixer` = (filter, Pulay history).  Bit-identical Etot sequences vs the B2 sweep
+  on Si Kerker pol, Si +U Kerker+Pulay, O2Box Pulay-on-D, the SolidState Kerker+Pulay exact resume.
+- **R1.5 NOT DONE -- needs a ruling.**  The preconditioner now OWNS the mixer's G-space, so the seam is one constructor
+  argument; but WHICH ball (V-MIXER-GBALL's proposal: the density's own Coulomb/CD fit ball, not the Vxc fit set) is a choice
+  that moves every Kerker/Pulay anchor unless the two balls coincide, and B3's gate is bit-identical.  Next: measure whether
+  the CD fit ball equals the Vxc fit ball on Si / NaF / MnO; if yes, swap with no anchor move; if no, it is a B5-or-later
+  anchor batch.
+
 ### Rulings (user via the controller, 2026-10-29: "Everything looks good")
 
 1. RULED 2026-10-29: fast panel cases (`_Panel`) STAY in the regular sweep; the full tier is `_Panel_Long`, which is `long`-labelled and so excluded from `-LE long`.  Both carry the label `panel` (`ctest -L panel`).
