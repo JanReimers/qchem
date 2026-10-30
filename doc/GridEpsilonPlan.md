@@ -30,13 +30,13 @@ Two of nine already follow the ε principle (vlocEps, κ); two are magnitude scr
 
 ## 1. The one target and the derivation
 
-**The target.**  τ = the error the user accepts **per Hamiltonian matrix element** (Ha), deck `solid.accuracy` (proposed default
-below, §6).  Every mechanism converts τ into its own internal tolerance by a STATED formula, and the run banner prints τ and every
-derived value on one line (`[accuracy] τ=… → raster G_N²/p=…, ball …, κ=…, screenEps=…, densityEps=…`).  Each formula is judged by
-the error it DELIVERS on its term, measured (§5), not by its form: a term far tighter than τ is wasted cost, one looser is a defect
+**The target.**  ε = the error the user accepts **per Hamiltonian matrix element** (Ha; user ruling 2026-10-30: the name is ε, the user's own -- τ is the symmetry code's fractional translation).  Deck `solid.accuracy`, code member `accuracyEps` (beside the per-knob `screenEps`/`densityEps`/`vlocEps` it derives) (proposed default
+below, §6).  Every mechanism converts ε into its own internal tolerance by a STATED formula, and the run banner prints ε and every
+derived value on one line (`[accuracy] ε=… → raster G_N²/p=…, ball …, κ=…, screenEps=…, densityEps=…`).  Each formula is judged by
+the error it DELIVERS on its term, measured (§5), not by its form: a term far tighter than ε is wasted cost, one looser is a defect
 (user ruling: "no point in one term accurate to 1e-10 and another only to 1e-4").
 
-**The scale constant.**  Every rule below has the shape *tail amplitude × term scale ≤ τ*, i.e. `ln(S_term/τ)` where S_term is the
+**The scale constant.**  Every rule below has the shape *tail amplitude × term scale ≤ ε*, i.e. `ln(S_term/ε)` where S_term is the
 size of the term's field at its sharpest (the factor that turns a relative spectral tail into Ha).  Proposed scales — each to be
 CALIBRATED once against the closed-form oracles (`GPW.TightPrimitiveVlongOracle` / `…CollocationOracle`, M2 below) and then fixed:
 
@@ -45,30 +45,30 @@ CALIBRATED once against the closed-form oracles (`GPW.TightPrimitiveVlongOracle`
 | V_loc long | the erf well depth Z_ion·2√(β/π) of the sharpest species | Mn q7, β 1.22: S ≈ 19 Ha; BallOnly Ecut/p ≈ 1 → tail e^{−2} ≈ 0.14 → 2.6 Ha predicted, ±1.5–2.7 measured ✓ |
 | Hartree | V_H's depth ≈ the same well scale (the density's own) | to calibrate (M2) |
 | XC (uniform raster) | max v_xc ≈ ρ_max^{1/3} at the sharpest atom | to calibrate (M2) |
-| local-PP sweeps | the short-range C₁…C₄ magnitude | κ = 30 ⇒ ln(S/τ) = 15 already |
+| local-PP sweeps | the short-range C₁…C₄ magnitude | κ = 30 ⇒ ln(S/ε) = 15 already |
 
-**The derived tolerances** (L(τ) ≡ ln(S_term/τ)):
+**The derived tolerances** (L(ε) ≡ ln(S_term/ε)):
 
 1. **Raster N, per multigrid level** (the one that failed).  A pair p sampled on a raster of inscribed Nyquist radius G_N aliases
    with amplitude e^{−G_N²/p} (GridSharpTerms §2).  So level l's raster is the smallest FFT-friendly N with
-   **G_N,l² ≥ p_eff,max(l) · L(τ)**, p_eff = max(p, β_field) of the tightest pair ROUTED to l.  Today, on the finest level at C = 2 (its
+   **G_N,l² ≥ p_eff,max(l) · L(ε)**, p_eff = max(p, β_field) of the tightest pair ROUTED to l.  Today, on the finest level at C = 2 (its
    tightest pair p = 2α_max = Ecut): BallOnly G_N² = 2Ecut = 2p (alias e^{−2}: the ±2 Ha of GridSharpTerms §3), AliasFree 8p (e^{−8}).
    ⚠ The S·e^{−G_N²/p} bound is PESSIMISTIC away from small G_N²/p: it predicts 19·e^{−8} ≈ 6e-3 Ha for AliasFree at the floor and
    19·e^{−11} ≈ 3e-4 Ha at Ecut/p = 5.5, against ≤ 3e-4 and ≤ 1e-5 Ha measured (the alias image carries the pair's overlap with the
    field, not the field's full depth).  So M2 calibrates an EFFECTIVE L per term from the oracles; the form stays.  On every level
    whose tightest routed pair is diffuser than the level's own ball, the ε-sized N is SMALLER than AliasFree's.  **`RasterPolicy {BallOnly, AliasFree}` is deleted**; the grid audit becomes an assert that each level met its own row.
-2. **Pair → level routing.**  The coarsest level whose raster meets row 1 for THIS pair: G_N,l² ≥ p_eff(i,j)·L(τ).  It replaces
+2. **Pair → level routing.**  The coarsest level whose raster meets row 1 for THIS pair: G_N,l² ≥ p_eff(i,j)·L(ε).  It replaces
    `kRelSafety`·Ecut₀·p/(2α_max) (a calibration tied to C) with the same alias condition the raster is built to, so the ladder and the
    routing cannot disagree.  The ABSOLUTE rule κ·max(p, β_PP) is this rule with L = κ/2 — the local-PP sweeps keep their form,
-   **κ = 2·L(τ)** (30 Ha ⇔ L = 15).  The level spacing (ladderFactor 4) stays a cost choice, not an accuracy one: any spacing works
+   **κ = 2·L(ε)** (30 Ha ⇔ L = 15).  The level spacing (ladderFactor 4) stays a cost choice, not an accuracy one: any spacing works
    because each pair goes to a level that meets ITS requirement.
-3. **Balls.**  A pair p against a field β sums e^{−G²/4p_h}, p_h = pβ/(p+β) (β = 0: p_h = p).  Ball edge **Ecut_b ≥ 2 p_h · L(τ)**.
-   V_loc long already uses exactly this with `vlocEps` ⇒ **vlocEps = τ/S_Vlong**.  Hartree's 4π/G² suppresses its tail by a further
+3. **Balls.**  A pair p against a field β sums e^{−G²/4p_h}, p_h = pβ/(p+β) (β = 0: p_h = p).  Ball edge **Ecut_b ≥ 2 p_h · L(ε)**.
+   V_loc long already uses exactly this with `vlocEps` ⇒ **vlocEps = ε/S_Vlong**.  Hartree's 4π/G² suppresses its tail by a further
    1/G_b², so its ball may stay looser (report, as today; judge it once M2 shows by how much).  §K: XC uses the SAME ball (§3).
 4. **Magnitude screens.**  `screenEps` drops r-space lattice-sum terms whose Gaussian prefactor is below it; the number of dropped
    terms in the tail shell grows like the shell volume, but the reach grows only as √ln(1/ε), so a tight value is nearly free:
-   **screenEps = τ·10⁻³** (proposal; today 1e-10 ⇔ τ = 1e-7).  `densityEps` (the collocation floor) is a density, so its error on a
-   matrix element is ε_ρ × |v|max × the point weight: **densityEps = τ / S_term** of the field it is integrated against.  Both are to be
+   **screenEps = ε·10⁻³** (proposal; today 1e-10 ⇔ ε = 1e-7).  `densityEps` (the collocation floor) is a density, so its error on a
+   matrix element is ε_ρ × |v|max × the point weight: **densityEps = ε / S_term** of the field it is integrated against.  Both are to be
    confirmed by the delivered-error measurement (M2): a screen is a cost lever only where it binds.
 
 ## 2. V_loc long: analytic, or folded into Hartree
@@ -85,18 +85,18 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
   real-space lattice sum, like the GTH short part already is), the second so smooth that Σ_G ρ_ij(G)V(G) needs only a tiny ball with
   ANALYTIC pair transforms — no raster at all.  Cost: a new integral family (erf-attenuated nuclear attraction; libcint has it).
   Gain: exact force derivatives from this term (no egg-box).
-- **Decision rule (M4):** build (a) first if its delivered error at the C2 raster meets τ — it is a small change and keeps one
-  Poisson solve; (b) is the forces-era upgrade, decided when forces need it.  Either way Hartree and XC stay on the raster.
+- **RULED 2026-10-30 (user): route (a) first** -- "so far CP2K has not steered us wrong".  M4 measures its delivered error and wall
+  at the C2 raster; route (b) waits until forces need exact derivatives from this term.  Either way Hartree and XC stay on the raster.
 
 ## 3. §K: the XC ball IS the pair ball, plus an N-vs-2N XC-raster audit
 
-- ⟨i|v_xc|j⟩ = Σ_G (φ_iφ_j)*(G) v_xc(G), and the pair spectrum is ≤ τ/S outside the density ball (row 3), so v_xc components outside
-  it do not reach H_ij: a v_xc fit on the density ball is perfect for the Fock matrix to τ.  `GPW_IBS::CreateVxcFitBasisSet` already
+- ⟨i|v_xc|j⟩ = Σ_G (φ_iφ_j)*(G) v_xc(G), and the pair spectrum is ≤ ε/S outside the density ball (row 3), so v_xc components outside
+  it do not reach H_ij: a v_xc fit on the density ball is perfect for the Fock matrix to ε.  `GPW_IBS::CreateVxcFitBasisSet` already
   returns {G}_ρ for LDA (GPWGrids row 3); C2 makes "the XC ball = the density ball" the stated rule, and a GGA's relCutoff > 1 becomes a
   RASTER requirement (∇ρ bandwidth on the sampling), not a bigger fit ball.
 - **The real knob is the XC raster** (v_xc(ρ(r)) is not band-limited: ρ^{1/3} where ρ is small).  Audit, once per run at the first
-  converged density (and on demand): evaluate E_xc and the v_xc matrix on N and on 2N, print max|ΔH_ij| and ΔE_xc beside τ; if
-  max|ΔH_ij| > τ, a consumer that needs τ escalates (P3) or refuses with the number.  Cost: one XC evaluation on 8× points per run.
+  converged density (and on demand): evaluate E_xc and the v_xc matrix on N and on 2N, print max|ΔH_ij| and ΔE_xc beside ε; if
+  max|ΔH_ij| > ε, a consumer that needs ε escalates (P3) or refuses with the number.  Cost: one XC evaluation on 8× points per run.
   QE has the same parameter (its default XC grid was 107 μHa off on β-MnO₂, CLAUDE.md).  The Becke route stays the alternative
   quadrature, with its own radial/angular audit (not this one).
 
@@ -121,22 +121,23 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
 
 - **M1 — AliasFree's wall cost** on the `doc/Benchmark.md` §5a rows, serial, COPYING the §5a commands (ruling: ≲ 1.3× ⇒ AliasFree
   default; dearer ⇒ BallOnly stays default and P3 escalates).  Under §1 row 1 the question becomes "the ε-sized N's cost at the
-  default τ", which is ≤ AliasFree's.
+  default ε", which is ≤ AliasFree's.
 - **M2 — the scale constants and delivered errors**: on the TightPrimitive oracles (closed forms at any exponent), sweep G_N²/p and
   the ball, fit S_term per term, then confirm on Si / NaF / MnO / β-MnO₂ that every term's delivered max|ΔH_ij| sits within a factor
-  ~3 of τ (neither far tighter nor looser).
+  ~3 of ε (neither far tighter nor looser).
 - **M3 — the XC raster N vs 2N** on the same four, as §3's audit would print it.
 - **M4 — V_loc long route (a)**: delivered error and wall at the C2 raster vs the present term.
 - **M5 — R1.0r**: list every banked test on an anisotropic mesh (the re-bank set) before flipping.
 
-## 6. The default τ and the re-bank
+## 6. The default ε and the re-bank
 
-- **Proposed default τ = 1e-6 Ha per element**, to be confirmed by M1/M2.  With the pessimistic S ≈ 20 Ha, L ≈ 17: the finest level
-  would need G_N² ≥ 17p, i.e. √(17/8) ≈ 1.46× AliasFree's N per dimension (≈ 3× its points) — too dear if the bound were tight.  The
-  measured delivered errors (≤ 1e-5 Ha already at G_N² = 11p) say the effective L is several units lower, so the calibrated
-  requirement is expected near AliasFree's 8–11p on the finest level and well below it on the coarser ones.  The default is fixed by
-  M2's calibration + M1's wall cost, not by this estimate.  vlocEps would go 1e-5 → ~5e-8 (the ball: cheap), κ 30 → ~34 Ha.  Fallback
-  τ = 1e-5 (κ = 30: exactly today's local-PP choice).
+- **The default ε is DECIDED AFTER M1–M4** (user ruling 2026-10-30).  Until then -- and for the existing tests after it -- every unit
+  and integration test runs at **ε = 1e-5, which is today's κ = 30 Ha** (L = 15 on the local-PP sweeps), so choosing a default moves
+  no anchor by itself.  A test that needs tighter states its own ε (e.g. the geometry-optimization integration tests, whose forces
+  need the energy converged below the force tolerance).  Estimate for the eventual default, to be replaced by M1/M2's numbers: with
+  the pessimistic S ≈ 20 Ha, ε = 1e-6 gives L ≈ 17, i.e. G_N² ≥ 17p on the finest level, √(17/8) ≈ 1.46× AliasFree's N per dimension
+  (≈ 3× its points) if the bound were tight; the measured delivered errors (≤ 1e-5 Ha already at G_N² = 11p) put the effective L
+  several units lower, near AliasFree's 8–11p on the finest level and below it on the coarser ones.
 - **One re-bank window** (pin 10: every moved anchor re-judged against an INDEPENDENT route, never refreshed): the raster N, the
   routing rule, the ball/vlocEps, κ, R1.0r and R1.5 move together, so every anchor moves at most ONCE.  Acceptance is the grid
   convergence of ρ (ρ_lost/N; ρ under N → 2N) and of a property — never ΔE (pin 3).  Independent routes: CP2K at matched grids
@@ -146,12 +147,12 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
 ## 7. Steps (each one commit or a short series)
 
 1. M1–M5 (probes only; numbers into §5/§6).
-2. `solid.accuracy` τ + the derivation table + the banner line; every derived value still EQUAL to today's (a pure re-plumbing:
+2. `solid.accuracy` ε + the derivation table + the banner line; at the tests' ε = 1e-5 every derived value still EQUAL to today's (a pure re-plumbing:
    bit-identical).  Unit test: the table's formulas against hand values.
-3. Raster N per level from τ; `RasterPolicy` deleted (one default, the two ctor defaults gone); the audit asserts.  Routing rule from
+3. Raster N per level from ε; `RasterPolicy` deleted (one default, the two ctor defaults gone); the audit asserts.  Routing rule from
    the same condition.  ← the anchor-moving step.
-4. Balls + vlocEps + κ + screenEps + densityEps from τ (whichever M2 shows bind).
+4. Balls + vlocEps + κ + screenEps + densityEps from ε (whichever M2 shows bind).
 5. §K: XC ball = density ball as a stated rule; the N-vs-2N XC audit.
-6. R1.0r intersection.  7. R1.5 mixer G-space face.  8. V_loc long route (a) if M4 says so.
+6. R1.0r intersection.  7. R1.5 mixer G-space face.  8. V_loc long route (a) (ruled 2026-10-30; M4 sizes it).
 9. The re-bank: one sweep, every moved anchor re-judged, vendored states refreshed.  Then a pin: "one accuracy target; each
    mechanism's tolerance derived from it and judged by its delivered error".
