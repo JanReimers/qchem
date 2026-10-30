@@ -152,6 +152,9 @@ struct SavedBlock
     double                weight = 0.0;   //!< the block's BZ weight
     bool                  real = false;   //!< the SAVING run's working type for this block
     mat_t<dcmplx>         D;              //!< physical (unweighted) AO density matrix
+    //! The SAVING basis's overlap -- IN MEMORY ONLY (\c SnapshotState fills it, a file never carries it): what \c LowdinCarry
+    //! needs to take D from one geometry's basis to the next.  Empty after \c ReadSolidState.
+    mat_t<dcmplx>         S;
 };
 
 //! A state read from disk.
@@ -166,8 +169,15 @@ struct SavedState
 //! \brief The IN-MEMORY half of \c WriteSolidState: every (k,σ) block's D from \a wf over \a bs, in the canonical block order,
 //! exactly as \c RestoreDensity reads it -- the CARRY a geometry step seeds its next point with (a restart from memory, whose
 //! basis is the same recipe at moved atoms).  The fingerprint and summary are left empty: the caller built both points from one
-//! setup, which is the comparison a file's fingerprint stands in for.
+//! setup, which is the comparison a file's fingerprint stands in for.  Each block also keeps its overlap S (\c LowdinCarry).
 SavedState SnapshotState(const BasisSet::Complex_BS& bs, const WaveFunction::cWaveFunction& wf);
+
+//! \brief THE LÖWDIN CARRY (doc/CalcNetworkReview.md §5 step 8): take a snapshot's D from the basis it was made on to \a bs -- the SAME
+//! recipe at moved atoms -- through the Löwdin-orthonormal frame, \f$D' = A D A^\dagger,\ A = S_{new}^{-1/2} S_{old}^{1/2}\f$, block for
+//! block.  The orbitals' Löwdin coefficients \f$S^{1/2}C\f$ are held fixed, so D' stays idempotent in the NEW metric
+//! (\f$D'S'D' = D'\f$, \f$\mathrm{Tr}\,D'S' = N\f$), which the verbatim AO carry is not once the centres move.  THROWS if a block
+//! has no saved overlap (a state read from a file) or its size differs from \a bs's.  The block walk is \c SnapshotState's.
+void LowdinCarry(SavedState& carry, const BasisSet::Complex_BS& bs, SpinGroup g);
 
 //! \brief LOAD.  FAILS on an absent/foreign file or an unreadable format; THROWS on a file that claims to be
 //! a qchem state and is internally inconsistent (a broken invariant: somebody edited it).

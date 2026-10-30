@@ -4,6 +4,9 @@
 // at the new positions, in fewer iterations; and the refusals that are outcomes, not crashes (Q3 BasisConditioning included).
 #include <gtest/gtest.h>
 #include <cmath>
+#include <iomanip>
+#include <iostream>
+#include <utility>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -135,4 +138,37 @@ TEST(SolidSession, AStepOutOfTheTrimWindowIsRefusedAsBasisConditioning)
     std::vector<rvec3_t> step=ref.R; step[1].x+=0.05;
     auto P=pes.ConvergeAt(ref.cell, step);
     ASSERT_TRUE(P) << P.Error().details;
+}
+
+// THE LÖWDIN CARRY (OpenWork "PES / run-setup remainders" item 3): along one displacement path, a session that carries D through
+// the Löwdin frame lands on the SAME energies as one that carries the AO coefficients verbatim -- the carry is a seed, never the
+// answer -- and is measured, not assumed, to save iterations.  Si Γ, one atom walked 0.05 bohr at a time.
+TEST(SolidSession, TheLowdinCarryLandsOnTheSameSurface)
+{
+    const auto setup=SiSetup();
+    const PESGeometry ref=SolidSession(setup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}}).Reference();
+    auto walk=[&](SolidSession::Carry how)
+    {
+        SolidSession pes(setup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}}, how);
+        std::vector<std::pair<double,size_t>> out;
+        std::vector<rvec3_t> R=ref.R;
+        for (int i=0;i<5;i++)
+        {
+            auto P=pes.ConvergeAt(ref.cell, R);
+            EXPECT_TRUE(P) << P.Error().details;
+            out.push_back(P ? std::make_pair(P->energy, P->iterations) : std::make_pair(0.0, size_t(0)));
+            R[1].x+=0.05;
+        }
+        return out;
+    };
+    const auto ao=walk(SolidSession::Carry::AO), lw=walk(SolidSession::Carry::Lowdin);
+    size_t nAO=0, nLW=0;
+    for (size_t i=0;i<ao.size();i++)
+    {
+        std::cout << "[Si Γ carry] step " << i << "  E(AO)=" << std::setprecision(12) << ao[i].first << " (" << ao[i].second
+                  << " it)  E(Löwdin)=" << lw[i].first << " (" << lw[i].second << " it)" << std::endl;
+        EXPECT_NEAR(lw[i].first, ao[i].first, 2e-8) << "step " << i << ": each stop is good to ~1e-8 Ha, two agree to their sum";
+        if (i>0) { nAO+=ao[i].second; nLW+=lw[i].second; }
+    }
+    std::cout << "[Si Γ carry] carried steps: AO " << nAO << " iterations, Löwdin " << nLW << std::endl;
 }

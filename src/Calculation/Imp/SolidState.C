@@ -26,6 +26,7 @@ import qchem.BasisSet.AoShellSource;            // the orbital shells (the basis
 import qchem.Orbitals;                          // TOrbitals/TOrbital (C, ε, f)
 import qchem.CompositeCD;                       // tComposite_CD (the restored density's shape)
 import qchem.ChargeDensity.Factory;             // IrrepCD_Factory
+import qchem.Blaze;                             // blazem::eigen (the Löwdin carry's S^{±1/2})
 
 namespace qchem
 {
@@ -435,6 +436,52 @@ void WriteSolidState(const std::string& path, const StateFingerprint& fp, const 
     std::filesystem::rename(tmp, path);   // atomic on one filesystem: the previous state survives a crash above
 }
 
+namespace
+{
+//! A block's overlap, promoted to complex (a real block's exactly).
+mat_t<dcmplx> BlockOverlap(const BlockRef& r)
+{
+    mat_t<dcmplx> S(r.n, r.n);
+    if (r.real) { const auto& s=r.real->Overlap(); for (size_t a=0;a<r.n;a++) for (size_t b=0;b<r.n;b++) S(a,b)=dcmplx(s(a,b)); }
+    else        { const auto& s=r.cplx->Overlap(); for (size_t a=0;a<r.n;a++) for (size_t b=0;b<r.n;b++) S(a,b)=s(a,b); }
+    return S;
+}
+//! \f$S^p\f$ of a Hermitian positive (semi)definite S, through its eigenpairs.  An eigenvalue below 1e-12 of the largest is a null
+//! direction: it contributes NOTHING (the inverse root would amplify noise there; the ortho step drops those functions anyway).
+mat_t<dcmplx> HermitianPower(const mat_t<dcmplx>& S, double p)
+{
+    const size_t n=S.rows();
+    hmat_t<dcmplx> H(n);
+    for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) H(a,b)=0.5*(S(a,b)+std::conj(S(b,a)));
+    rvec_t w; mat_t<dcmplx> U;
+    blazem::eigen(H, w, U);
+    const double floor=1e-12*w[n-1];
+    mat_t<dcmplx> Uf(U);
+    for (size_t k=0;k<n;k++)
+    {
+        const double f = w[k]>floor ? std::pow(w[k], p) : 0.0;
+        for (size_t a=0;a<n;a++) Uf(a,k)*=f;
+    }
+    return Uf*blazem::ctrans(U);
+}
+} //anonymous namespace
+
+void LowdinCarry(SavedState& carry, const BasisSet::Complex_BS& bs, SpinGroup g)
+{
+    const std::vector<BlockRef> refs=Blocks(bs, g);
+    if (refs.size()!=carry.blocks.size())
+        throw std::logic_error("LowdinCarry: the carry has "+std::to_string(carry.blocks.size())+" blocks, the basis "+std::to_string(refs.size()));
+    for (size_t b=0;b<refs.size();b++)
+    {
+        SavedBlock& sb=carry.blocks[b];
+        if (sb.S.rows()!=refs[b].n || sb.D.rows()!=refs[b].n)
+            throw std::logic_error("LowdinCarry: block "+std::to_string(b)+" has no saved overlap of its size (a carry from a FILE has none)");
+        const mat_t<dcmplx> A=HermitianPower(BlockOverlap(refs[b]), -0.5)*HermitianPower(sb.S, 0.5);
+        sb.D=A*sb.D*blazem::ctrans(A);
+        sb.S=BlockOverlap(refs[b]);   // the carry now lives on the new basis
+    }
+}
+
 SavedState SnapshotState(const BasisSet::Complex_BS& bs, const WaveFunction::cWaveFunction& wf)
 {
     SavedState st;
@@ -450,6 +497,7 @@ SavedState SnapshotState(const BasisSet::Complex_BS& bs, const WaveFunction::cWa
         if      (const auto* ro=dynamic_cast<const Orbitals::TOrbitals<double>*>(os); ro && r.real) sb.D=BlockD(*ro, r.n);
         else if (const auto* co=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(os); co && r.cplx) sb.D=BlockD(*co, r.n);
         else throw std::logic_error("SnapshotState: a block's orbitals are not of its basis block's scalar");
+        sb.S=BlockOverlap(r);
         st.blocks.push_back(std::move(sb));
     }
     return st;
