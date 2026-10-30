@@ -740,3 +740,29 @@ large PW state is a large file; ρ(G) stays the lever if that bites.  `BuildPoin
 eigensolve; a PW state refused by a Gaussian run on `basis.family`.
 
 | **PW states cannot be saved (or restarted) -- and the deck says so only AFTER the SCF** (2026-10-26) | `state.save` on a `basis.family "planeWave"` deck: `SolidCalculation::SaveState` → `MakeStateFingerprint` throws "the Bloch block does not report its AO shells (AoShellSource)"; the CK-1 net catches it and prints `WARNING: state NOT saved` after the SCF.  β-MnO₂ 80 Ry U0h: 52 min, converged, nothing banked.  So no PW run can seed another (a site-asymmetric α·P from the α = 0 state, a cutoff ladder, the U arm), and `restartFrom` on PW cannot work either | a PW fingerprint (cell, Ecut, the G-set / k, spin) beside the AO one, and save/restore of the PW density (ρ(G) is the natural, size-agnostic carrier — D_ij is nG², 0.3 GB+ per spin at 40 Ha, cf. PW-2); meanwhile make it LOUD UP FRONT: `deck::Vet` / the facade refuse `state.save` on the PW family before the SCF · `src/Calculation/Imp/SolidCalculation.C` (SaveState, Fingerprint), `qchem.SolidState` |
+
+## ✅ "valgen cannot add a seed entry diff-friendly" (OpenWork §3, 2026-10-22) -- FIXED 2026-10-30 (lane B, d10d38cc); the row as it stood
+
+`valgen --seed-into <library>` inserts or replaces ONE entry by (Z, q, Nelec, functional) as TEXT (`SpliceSeedEntry`,
+`qchem.ValenceBasisGen`): a match is replaced in place, otherwise the entry is appended after the last one, in the file's tab
+indentation; every other byte is kept (UT `ValenceBasisGen.SeedIntoChangesTheEntryAndNoOtherByte`, on the shipped 12.7k-line
+library).  `GenerateSeedDensity` writes `q`.  Refused: an entry with no `q`, a library holding the identity twice, and replacing
+a SPIN-RESOLVED entry with an unpolarized one -- the CLI smoke on Na would have silently dropped the shipped Na entry's
+`rho_up`/`rho_dn` (the IonicSAD seed reads them); regenerate with `--spin`.
+
+| **valgen cannot add a seed entry diff-friendly** (2026-10-22, the Mn⁴⁺ seed) | `valgen --seed-out` writes a standalone entry WITHOUT `q` (the PP variant every library entry carries, and the key the row above needs), and nothing inserts it into `atomic_valence_densities.json`: re-serializing the library re-formats all 12.7k lines (a 26k-line diff for one entry), so the Mn⁴⁺ entry went in by a hand-written text splice | `valgen --seed-into <library>`: insert or replace ONE entry by (Z, q, Nelec, functional) as TEXT, keeping the file's tab indentation and number format (diff = the entry only), always writing `q`; a UT that the round trip leaves every other byte unchanged · `CLIapps/valgen.C`, `src/ChargeDensity/Data/` |
+
+## ✅ "A restart's fingerprint is incomplete" gaps (2)-(4) -- DONE 2026-10-30 (lane B, ce6b1f94); the row as it stood
+
+(2) WARM now records the RESOLVED v_xc fit (`xc.fit`), the raster (`grids.raster`), `grids.ladderFactor`, the Becke eps
+(`grids.beckeEps`, Becke mesh only) and every GPW tolerance (`gpw.<name>`; Gaussian family only); a state written before them
+compares as agreeing (`Migrated`, keyed on the absent `xc.fit`).  (3) every WARM line ends in its meaning and consequence, from a
+table keyed on the fingerprint name (prefix match; an unknown key prints raw), e.g. `grids.densityEcut: saved [20], now [30] --
+the density grid changed: the converged ground state moves -- expect iterations to reach the new one`.  (4) the summary records
+the final Δρ (`densityChange`, format 1.1) and the restart prints it, saying when a density-MIXED run (no [F,D]) saved it.  Found
+on the way: `Same()` compared entries below 1 to an ABSOLUTE 1e-10, so screenEps 1e-10 vs 1e-12 read as the same run (now 1e-10
+relative, 1e-14 floor).  Gate: `SolidState.ARestartAcrossTheLadderPrintsItsLineAndConverges` (the raster arm costs ~230 s on the
+UT cell, so the ladder carries the gate), `TheNumericsKeysAreWarmAndAnOlderStateIsStillExact`.  REMAINDER (new row): the run
+POLICY is not recorded.
+
+| **A restart's fingerprint is incomplete, and its WARM line names keys, not consequences** (user 2026-10-29: grids, fit bases, U, the functional all move the converged ground state -- a restart across them MUST iterate, and should say so) | Today (`qchem.SolidState`, `MakeStateFingerprint`): WARM records +U (site/l/U/α/projector/U per irrep), densityEcut, cutoffFactor, the XC mesh kind+size, multiplicity, ortho kind/tol, kT, block realness; each difference prints `differs: <key>: saved <a>, now <b>`.  GAPS: (1) DONE 2026-10-30 (C4 step 5: functional WARM and truthful, `pp.set` REFUSE, positions WARM with max displacement; `Records/OpenWork_History5.md`).  (2) NOT recorded: the XC fit basis (`VxcFit`), the raster (BallOnly/AliasFree), the GPW tolerances (screenEps, mgridEcuts, relCutoff), the Becke eps.  (3) the WARM line gives the values but not WHAT they mean: user wants specifics, e.g. "XC fit basis changed (Delta -> PWFit) between the saved state and this run: the ground state moves, expect more iterations to reach the new one".  (4) (user 2026-10-29) the saved state's OWN convergence: the summary keeps the iteration count but not the final Δρ / [F,D] or which mixer converged it -- a state saved at Δρ 6e-6 by a Kerker/Pulay mixer on a soft system (β-MnO₂ A1AFM r015) re-opens one undamped Fock away at Δρ ~40× that, so even an EXACT resume should say "saved at Δρ 6.4e-6 by a mixed run: the first Fock amplifies that residual; expect iterations" | add the missing keys of (2) to WARM; give each WARM key a one-line meaning + consequence beside its saved/now values (a table keyed on the fingerprint name, so an unknown key still prints raw); gate: a restart across each new key prints its line and converges · `src/Calculation/Imp/SolidState.C` (MakeStateFingerprint, Differences), `src/Calculation/Imp/SolidCalculation.C` (Fingerprint, the WARM print l.~1167) |
