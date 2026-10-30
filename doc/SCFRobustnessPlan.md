@@ -329,7 +329,7 @@ GREEN budget = ⌈1.25 × baseline⌉.  A budget counts every SCF stage inside t
 | 7 | `GPW_Si.Γ_Null_Linear_Converges_Panel` (now under `policy.cp2kCompat`, the row's condition) | 17 | 22 | **GREEN — RED claim not reproduced**: the re-damp holds (α 0.89 ↔ 0.50); the row's Mn–O dimer witness stays open |
 | 8 | `GPW_Na2Box.Γ_Pol_Null_Linear_SpinSeed_Converges_Panel` | 38 = cap, unconverged (E 3e-6 above the twin) | 38 | RED |
 | 9 | `GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows_Panel` | 232 | 290 | GREEN |
-| 10 | — polarized Si jump | — | — | NOT BUILT (needs a manifold-moment readout; B2) |
+| 10 | `ResponsePolarizability.GPW_Si_Γ_Pol_OneSpinAlpha_KeepsZeroMoment_Panel` (UTResponse) | Si-p moment 0.191 e (jumped) | 1 run | RED (built 2026-10-30, B2: readout `SolidCalculation::MakeHubbardMoments`) |
 | 11 | `M_DFT.OxygenTripletBelowSinglet_Panel` (the B atom arm not built) | 26 | 33 | GREEN |
 | 12 | `GPW_Al.Γ_Imp_Anneal_Anchor_Panel` | 15 (13+1+1) | 19 | GREEN |
 | 13 | `GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Panel_Long` | 14 | 18 | GREEN |
@@ -371,7 +371,7 @@ Order rationale: B1 before everything (every later step is measured on it); B2 b
 refactor's mistakes at iteration 1; B4 before B5 because it removes the only reason `Auto` must tell row 4 from row 5; B6 after
 B5 so each fix lands as a change to ONE recipe cell; B7 late because its main producer is C2's.
 
-### B2 as built (started 2026-10-29 on 28fe4a31; R2.1 measured + reported, R2.4 + R2.7 landed, the rest in progress)
+### B2 as built (started 2026-10-29 on 28fe4a31; R2.1 measured + reported, R2.4 + R2.5 + R2.7 landed, #10 built)
 
 **R2.1 is measured where a projector already runs, not by a second projection.**  Every consumer that imposes the group
 already applies a projector P to its input; \|f − Pf\| / \|ρ\| on that input is nearly free (one raster copy) and is exactly
@@ -419,8 +419,15 @@ evidence G3) and throws; UT `SCFTrace.R2_7_ADeadGateThrows`.  **Not Δρ/N**: th
 correct one-electron atom tests (`A_*_E1`/`DE1`) -- a density-independent Hamiltonian reproduces its seed bit for bit, so an
 exact 0 there is a verdict.  Value-based detection is the stopgap; the durable form is a gate that was not computed SAYING so
 (an optional), which is the "[F,D] has no single home" remainder.
-Next after R2.1: R2.4 (charge per reservoir) and R2.7 (dead gate), then R2.5 (decoration without +U, the open row) and the
-#10 manifold-moment readout.
+**R2.5 (stated decoration), 2026-10-30**: `RequireStatedMagneticOrdering` now refuses an IMPOSED polarized run without
+`siteSpins` (+U or not; `greyImposition` exempt), and the seed-derived decoration in `SolidCalculation::BuildBasis` is GONE.  The
+short tier was first run with an instrument in the derive branch: 10 tests derived, every one a sensible ordering (Si {0,0} ×6,
+O₂ {+1,+1} ×2, Na {+1}, Na₂ / Mn₂ {+1,−1}); each now STATES exactly what it derived (anchors cannot move), and every shipped
+deck already vets.  The plan's second clause (the seed's site moments match the stated signs at iteration 0) is NOT built.
+**#10 (the polarized Si jump)**: the readout is `SolidCalculation::MakeHubbardMoments()` -- each +U manifold's Tr n↑ − Tr n↓
+through the term's own projectors, hoisted from `ConvergeHubbardU`'s [U table] snapshot (one walk, both callers), because the
+UTResponse Si fixture runs a UNIFORM XC mesh (no Becke basins, so `RunDiagnostics::OrderFinal` reads 0 by absence -- the first
+draft of the case caught that).  RED as recorded: 0.191 e (n↑ 1.59 / n↓ 1.41), listed in `QCHEM_PANEL_RED`.
 
 ---
 

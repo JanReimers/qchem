@@ -8,7 +8,7 @@ Brief notes about module/library conventions, naming, and includes.
 
 ## Build & test
 
-- Build & test: `cd build/Release && ninja ITMain`, then `ctest -j8 -LE long` from `build/Release` (the 60 s-CPU `_Long` tier is `ctest -j3 -L long`, ~6 min; a test whose name ENDS in `_Long` is in it, ruled 2026-10-02; plain `ctest` runs both; the SCF convergence PANEL, `doc/SCFRobustnessPlan.md` §4, is `ctest -L panel`: its fast `_Panel` cases ride the regular sweep, its full tier `_Panel_Long` is `long`-labelled, ruled 2026-10-29 -- so `-L long` now includes the ~1.5 h panel tier, and the old long tier alone is `ctest -j3 -L long -LE panel`) — every
+- Build & test: `cd build/Release && ninja ITMain`, then `ctest -j8 -LE long` from `build/Release` (the 60 s-CPU `_Long` tier is `ctest -j3 -L long -LE panel`, ~6 min; a test whose name ENDS in `_Long` is in it, ruled 2026-10-02; plain `ctest` runs everything; the SCF convergence PANEL, `doc/SCFRobustnessPlan.md` §4, is `ctest -L panel`, run ON DEMAND under `~/Code/qchem6-runs/.heavy.lock` (hours; its `_Panel_Long` cases carry a 4 h ctest TIMEOUT), not in the routine long tier (user ruling 2026-10-30): its fast `_Panel` cases ride the regular sweep, its full tier `_Panel_Long` is labelled `long;panel`.  A LANDING sweep = short serial + `-L long -LE panel` serial, plus `-L panel` only when the lane touches SCFAccelerator / SCFIterator / the mixers / Calculation's SCF path) — every
     gtest case (integration + library unit tests) runs as its own ctest test, load-balanced across
     cores with longest-first scheduling after the first run.  **Use -j8, not -j16, on this 14 GB
     box**: several GPW integration tests peak at 1-2 GB each, and a 16-way fan-out beside the
