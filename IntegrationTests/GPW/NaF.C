@@ -27,6 +27,7 @@
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 
 import qchem.Structure;                          // Molecule, Atom
+import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
 import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
 import qchem.Lattice_3D;                         // Lattice_3D
@@ -200,10 +201,11 @@ const NaFRestartFixture& NaFRestart()
 // CLAIM: converge coarse, Restart onto the fine grid, and land on the SAME ground state a cold fine run reaches --
 // not an excited-state pin, not the -40 Ha basin.  The first iterate is judged too: the whole point of the seed is
 // that the fine SCF STARTS near the answer (a count of iterations is the accelerator's business, SolidState.C).
-TEST(GPW_NaF, Γ_Imp_eqColdStart)
+TEST(GPW_NaF, Γ_Imp_eqColdStart_Panel)   // PANEL case 2 (regime 5, WARM coarse -> fine): the fine stage's budget
 {
     const NaFRestartFixture& f=NaFRestart();
     ASSERT_TRUE(f.ok) << f.why;
+    qchem::IterationBudget budget(5, "NaF coarse -> fine restart, the fine stage (regime 5; 3 and 4 measured 2026-10-29)");
     EXPECT_NEAR(f.coarseEnergy, -24.4357, 0.01) << "the coarse seed stage must itself be the physical fixed point";
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     const Lattice_3D lat=LatticeOf(naf);
@@ -234,10 +236,11 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart)
 // CLAIM: the SAME grid resumes EXACTLY -- Restart from the converged fine state reproduces its energy and needs
 // (almost) no iterations.  The control for the claim above: if this fails the file round-trip is lossy on a hard
 // material, and the grid-continuation result means nothing.
-TEST(GPW_NaF, Γ_Imp_eqExactResume)
+TEST(GPW_NaF, Γ_Imp_eqExactResume_Panel)   // PANEL case 1 (regime 4, exact resume)
 {
     const NaFRestartFixture& f=NaFRestart();
     ASSERT_TRUE(f.ok) << f.why;
+    qchem::IterationBudget budget(3, "NaF exact resume (regime 4)");
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     const Lattice_3D lat=LatticeOf(naf);
     SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart exact");

@@ -28,6 +28,7 @@
 #include <nlohmann/json.hpp>  // the deck the AFM arm is run from
 
 import qchem.Structure;                          // Molecule, Atom
+import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
 import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
 import qchem.Lattice_3D;                         // Lattice_3D
@@ -43,6 +44,7 @@ import qchem.Outcome;                           // Outcome<Converged,SCFFailure>
 import qchem.RunPolicy;                         // SetRunPolicy / SolidCalcOptions::policy -- the declared-deviation A/B hatch (N5)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Deck;                            // deck::Run -- the AFM arm below is run FROM A DECK (D-ENV step 6d.3)
+import qchem.Tests.Panel;                        // the convergence PANEL's deck runner (doc/SCFRobustnessPlan.md §4)
 import qchem.Tests.GPW_Harness;                   // THE HARNESS (IntegrationTests/GPW/Harness.C): Materials cells, gates, recipes, the XC probes
 import qchem.Materials;                           // Materials::Get -- the cells come from src/Structure/Data/materials.json (row MD)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
@@ -464,8 +466,9 @@ std::pair<SolidCalcOptions,SCFParams> ShubAnchorRecipe(const Material& mno, qche
     return {o,par};
 }
 
-TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
+TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Panel_Long)   // PANEL case 13 (regime 2, imposed)
 {
+    qchem::IterationBudget budget(18, "MnO AFM-II imposed, smeared (regime 2; 14 measured, 2026-10-29 panel baseline)");
     const Material mno=qchem::Materials::Get("MnO_AFM2");   // Mn +m at 0, Mn -m at 1/2 (the decoration), O at 1/4, 3/4
     const Lattice_3D lat=LatticeOf(mno);
     auto [o,par]=ShubAnchorRecipe(mno, qchem::ChargeDensity::SeedStrategy::SAD, "MnO AFM-II Gamma (imposed)");   // neutral Hund pairs, flipped by siteSpins
@@ -632,4 +635,20 @@ TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Ordering_Long)
               << "  dE=" << (R->Energy()-*afm.energy)*1000 << " mHa" << std::endl;
     EXPECT_LT(*afm.energy, R->Energy()) << "AFM-II is the LSDA ground-state ordering";
     fs::remove_all(dir);
+}
+
+
+// PANEL case 14 (regime 2, FREE): the banked free MnO AFM-II recipe, `decks/MnO_AFM2_free.json` (Kerker + Pulay 8/5, Null
+// accelerator, kT 5e-3, no MOM; CLAUDE.md).  Converged means the order SURVIVED (an OrderLost run hands back no energy), and the
+// fixed point is the imposed arm's (`Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long`, re-measured 2026-10-27: -61.3032807795).  33 iterations
+// at CP2K_COMPAT (doc/Benchmark.md CP2K-LOOP rows); the budget is re-set by the first panel baseline.
+TEST(GPW_MnO, Γ_Pol_Smear_Kerker_Pulay_Converges_Panel_Long)
+{
+    std::ifstream in(qchem::panel::DeckDir().parent_path()/"MnO_AFM2_free.json");
+    ASSERT_TRUE(in) << "decks/MnO_AFM2_free.json";
+    const nlohmann::json deck=nlohmann::json::parse(in);
+    const auto o=qchem::panel::Run(deck, 19, "MnO AFM-II FREE, the banked Kerker+Pulay recipe (regime 2; 15 measured, 2026-10-29 panel baseline)");
+    ASSERT_TRUE(o.run.converged) << o.run.summary;
+    ASSERT_TRUE(o.run.energy);
+    EXPECT_NEAR(*o.run.energy, -61.3032807795, 1e-5) << "the AFM-II fixed point of the imposed arm";
 }

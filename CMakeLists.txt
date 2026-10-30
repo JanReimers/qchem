@@ -110,15 +110,51 @@ include(GoogleTest)
 #      It is discovered by a second pass and labelled `long`, so the regression sweep is `ctest -j8 -LE long` and
 #      the long gates run as `ctest -j8 -L long`.  (A plain `ctest` still runs both tiers; ctest has no
 #      per-test default-off.)  The two filters are disjoint, so the ctest count is the same as one pass.
+#   4. THE CONVERGENCE PANEL (doc/SCFRobustnessPlan.md §4, ruled 2026-10-29): a name ending `_Panel` is a fast panel case (label
+#      `panel`, still in the regular sweep); `_Panel_Long` is the full tier (labels `long;panel`, so `-LE long` skips it).
+#      `ctest -L panel` runs the panel.  A panel case that FAILS today (an open tracker row) is listed in QCHEM_PANEL_RED below,
+#      with its row: it runs every time and PASSES only while gtest reports it failed -- the WILL_FAIL semantics (CLAUDE.md), but
+#      as a PASS_REGULAR_EXPRESSION on gtest's own "[  FAILED  ] 1 test", so a red case whose filter matched nothing, or that
+#      crashed, is red too (bare WILL_FAIL would invert "no tests were run" into a pass).  When one is fixed it goes red: remove
+#      it from the list and close its row.
+set(QCHEM_PANEL_RED
+    "GPW_Na2Box.Γ_Pol_Null_Linear_SpinSeed_Converges_Panel"                # OpenWork §3 "Na₂ polarized singlet won't converge from AFM seed"
+    "GPW_MnOBox.Γ_M6_GDM_Converges_Panel_Long"                # OpenWork §3 "GDM crawls at a near-degenerate frontier"
+    "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_Converges_Panel_Long" # OpenWork §3 "Kerker+Pulay overshoots β-MnO₂'s U = 1 eV basin"
+    "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long"     # same row: control U = 2 eV limit-cycles under plain Kerker
+)
+list(JOIN QCHEM_PANEL_RED ":" _qchemPanelRed)
+set(_qchemPanelRedFast ${QCHEM_PANEL_RED})
+list(FILTER _qchemPanelRedFast EXCLUDE REGEX "_Panel_Long$")
+set(_qchemPanelRedLong ${QCHEM_PANEL_RED})
+list(FILTER _qchemPanelRedLong INCLUDE REGEX "_Panel_Long$")
+list(JOIN _qchemPanelRedFast ":" _qchemPanelRedFast)
+list(JOIN _qchemPanelRedLong ":" _qchemPanelRedLong)
 function(qchem_discover_tests target)
     gtest_discover_tests(${target}
-        TEST_FILTER -*_Long
+        TEST_FILTER -*_Long:*_Panel
         DISCOVERY_EXTRA_ARGS --gtest_output=
         PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run")
     gtest_discover_tests(${target}
-        TEST_FILTER *_Long
+        TEST_FILTER *_Long-*_Panel_Long
         DISCOVERY_EXTRA_ARGS --gtest_output=
         PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS long)
+    gtest_discover_tests(${target}
+        TEST_FILTER *_Panel-${_qchemPanelRed}
+        DISCOVERY_EXTRA_ARGS --gtest_output=
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS panel)
+    gtest_discover_tests(${target}
+        TEST_FILTER *_Panel_Long-${_qchemPanelRed}
+        DISCOVERY_EXTRA_ARGS --gtest_output=
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS "long\;panel")
+    gtest_discover_tests(${target}
+        TEST_FILTER ${_qchemPanelRedFast}
+        DISCOVERY_EXTRA_ARGS --gtest_output=
+        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" LABELS "panel\;panelRed")
+    gtest_discover_tests(${target}
+        TEST_FILTER ${_qchemPanelRedLong}
+        DISCOVERY_EXTRA_ARGS --gtest_output=
+        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" LABELS "long\;panel\;panelRed")
 endfunction()
 set(BUILD_GMOCK OFF CACHE BOOL "Disable GoogleMock for this project" FORCE)
 add_subdirectory(./submodules/googletest)

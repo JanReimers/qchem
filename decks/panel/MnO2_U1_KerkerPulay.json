@@ -1,0 +1,156 @@
+{
+ "_doc": [
+  "CONVERGENCE PANEL (doc/SCFRobustnessPlan.md §4), regime 2'' (U on a soft direction).  beta-MnO2 A1AFM imposed (16-op Shubnikov group), Gamma, control basis (decks/panel/MnO2_control.bsd = ~/Code/qchem6-runs/MnO2/basis_scan/pol/control.bsd, vendored 2026-10-29; the test resolves the relative path), U on O p slot Gamma2, kT 1e-3, Null accelerator, cold IonicSAD seed.  From ~/Code/qchem6-runs/MnO2/uscan/control_U1.json.",
+  "RED case: Kerker+Pulay (history 8, alpha 0.45) at U = 1 eV overshoots the converged basin (OpenWork §3 'Kerker+Pulay overshoots'); cap = the target budget 40 (U = 0 / 4.62 converge in 16-24)."
+ ],
+ "structure": "MnO2_beta_A1AFM",
+ "kmesh": [
+  1,
+  1,
+  1
+ ],
+ "basis": {
+  "data": "VALENCE_LOWQ_VA",
+  "file": "MnO2_control.bsd",
+  "spherical": true,
+  "vet": false
+ },
+ "solid": {
+  "multiplicity": 1,
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 1e-07,
+  "forceComplex": true,
+  "hubbard": [
+   {
+    "site": 0,
+    "l": 2,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 1,
+    "l": 2,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 0,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 1,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 2,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 2,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 3,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 3,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 4,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 4,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 5,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 5,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "projector": "pseudoAtomic"
+   }
+  ],
+  "siteSpins": [
+   1,
+   -1,
+   0,
+   0,
+   0,
+   0
+  ],
+  "imposeSymmetry": true,
+  "raster": "AliasFree"
+ },
+ "schedule": [
+  {
+   "accelerator": "Null",
+   "scf": {
+    "NMaxIter": 40,
+    "minDeltaRhoPerElectron": 3e-05,
+    "pulayDepth": 8,
+    "kerkerG0": 1.0,
+    "startingRelaxRo": 0.45,
+    "useMOM": false,
+    "smearingkT": 0.001,
+    "pulayStart": 5
+   }
+  }
+ ]
+}

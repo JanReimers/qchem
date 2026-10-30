@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 import qchem.SolidCalculation;
+import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
 import qchem.SolidState;
 import qchem.Lattice_3D;
 import qchem.Structure;
@@ -279,6 +280,7 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     o.saveStateTo="";
     std::vector<SCFIterator::SCFProgress> it;
     o.onIteration=[&it](const SCFIterator::SCFProgress& pr){ it.push_back(pr); };
+    qchem::IterationBudget budget(3, "field-mixer exact resume (regime 4)");   // the PANEL case: the resume only
     testing::internal::CaptureStdout();
     auto c=SolidCalculation::Restart(path, *si.lat, si.mol, o, p);
     const std::string out=testing::internal::GetCapturedStdout();
@@ -294,8 +296,8 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     EXPECT_LE(r->IterationCount(), 3u);
 }
 } // namespace
-TEST(SolidState, ExactResume_Pulay_Null_StartsAtTheSavedState)       {ExpectFieldMixerExactResume(0.0);}
-TEST(SolidState, ExactResume_KerkerPulay_Null_StartsAtTheSavedState) {ExpectFieldMixerExactResume(1.0);}
+TEST(SolidState, ExactResume_Pulay_Null_StartsAtTheSavedState_Panel)       {ExpectFieldMixerExactResume(0.0);}   // PANEL case 3
+TEST(SolidState, ExactResume_KerkerPulay_Null_StartsAtTheSavedState_Panel) {ExpectFieldMixerExactResume(1.0);}
 
 TEST(SolidState, RealnessCrossesBothWays)
 {
