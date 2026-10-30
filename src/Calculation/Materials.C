@@ -1,5 +1,5 @@
 // File: Calculation/Materials.C  Pre-defined materials and molecules -- DATA, read from
-// src/Structure/Data/materials.json (structure: qchem.StructureData; valence counts: here, interim) (doc/OpenWork.md row MD, 2026-09-15).
+// src/Structure/Data/materials.json (structure: qchem.StructureData; pseudopotential vocabulary: the named set of qchem.Pseudopotential.Set) (doc/OpenWork.md row MD, 2026-09-15).
 module;
 #include <memory>
 #include <string>
@@ -24,7 +24,11 @@ struct Material
 {
     std::string                              name;
     std::shared_ptr<UnitCell>                cell;      //!< the (primitive, possibly re-based) cell with its atoms + spin flips
-    std::vector<std::pair<std::string,int>>  species;   //!< {element, valence electrons} -- \c SolidCalcOptions::species verbatim
+    //! The pseudopotential SET this material names (src/Pseudopotential/Data/pseudopotentials.json); empty for a box built from an explicit valence.
+    std::string                              pp;
+    //! {element, valence electrons} for the elements of the cell in order of first appearance, taken from \c pp --
+    //! \c SolidCalcOptions::species verbatim.
+    std::vector<std::pair<std::string,int>>  species;
     //! Valence electrons per cell, DERIVED from the atoms and the species list (never stored: a stored
     //! count that disagreed with the species list would be exactly the defect a data file invites).
     int Nelec() const;

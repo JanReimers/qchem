@@ -2,6 +2,7 @@
 
 add_executable(UTPseudopotential ../../Common/tests/gtestmain.C
    SeparableViews.C
+   PseudopotentialSet.C
 )
 
 target_compile_definitions(UTPseudopotential PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

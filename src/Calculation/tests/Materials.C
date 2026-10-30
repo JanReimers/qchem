@@ -12,6 +12,7 @@
 #include <vector>
 
 import qchem.Materials;
+import qchem.Pseudopotential.Set;
 import qchem.Types;
 
 using namespace qchem;
@@ -45,6 +46,10 @@ TEST(Materials, EveryEntryLoadsAndDerivesItsElectronCount)
         EXPECT_GT(m.cell->GetNumAtoms(), 0u) << n;
         EXPECT_FALSE(m.species.empty()) << n;
         EXPECT_GT(m.Nelec(), 0) << n;
+        // The vocabulary comes FROM the named set (D-STRUCTDATA step 2): every species is the set's own variant for that element.
+        EXPECT_FALSE(m.pp.empty()) << n;
+        const auto set=qchem::Pseudopotential::PseudopotentialSet::Get(m.pp);
+        for (const auto& [el,q] : m.species) EXPECT_EQ(q, set.Valence(el)) << n << ' ' << el;
     }
 }
 
