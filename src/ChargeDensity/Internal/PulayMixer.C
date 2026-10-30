@@ -7,6 +7,8 @@ module;
 #include <cassert>
 #include <deque>
 #include <vector>
+#include <optional>
+#include <string>
 export module qchem.ChargeDensity.Internal.PulayMixer;
 export import qchem.ChargeDensity.DensityMixer;
 export import qchem.ChargeDensity.Internal.FieldMixer;
@@ -106,6 +108,9 @@ public:
         // PRIME with plain Kerker until we are near the fixed point (history-based mixing is unstable far
         // out).  No history is accumulated during priming, so Pulay starts with clean, linear-regime residuals.
         if (++itsCount<=itsStart) return sr;                // no history ⇒ no B ⇒ ApplyJoint takes the plain step
+        if (itsStart>0 && itsCount==itsStart+1)             // R1.3: the priming regime gives way to the history
+            itsHandOff=HandOffRequest{"Kerker priming", "Pulay history (depth "+std::to_string(itsDepth)+")",
+                                      "pulayStart "+std::to_string(itsStart)+" priming steps done"};
 
         itsIns.push_back(in); itsOuts.push_back(out); itsResiduals.push_back(std::move(res));  // grow the history
         if (raw) { itsRawIns.push_back(itsPending.rawIn); itsRawOuts.push_back(rawOut); }
@@ -172,6 +177,10 @@ private:
     struct Pending { ΔG_Map in, out; rvec_t rawIn, rawOut; bool raw=false; };
 
     double itsRelax, itsKerkerG0; int itsDepth, itsStart, itsCount=0;
+    std::optional<HandOffRequest> itsHandOff;   //!< the priming -> history change, until the owner takes it (R1.3)
+public:
+    std::optional<HandOffRequest> TakeHandOff() override {auto h=std::move(itsHandOff); itsHandOff.reset(); return h;}
+private:
     bool   itsCuspDeficit=false;   //!< N4: present the cusp-deficit correction (a CONSTRUCTION policy, SCFParams::XCCuspDeficit)
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
     ReciprocalLattice itsRecip;

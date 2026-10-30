@@ -185,6 +185,9 @@ public:
     //! facade, which prints the mixer on its banner and caps a restart's LINEAR step -- both must see the resolved
     //! mixer, not the caller's \c Auto.
     SCFParams ResolveMixing(const SCFParams& p) const;
+    //! R1.3: print \a h in the one hand-off format; \a reseat re-seats the field mixer on the current D (history dropped).
+    //! Returns whether anything was re-seated.
+    bool HandOff(const HandOffRequest& h, bool reseat);
 
     // Watch convergence live: the observer (if set) fires once per SCF iteration with
     // the current SCFProgress.  Read-only telemetry -- the observer must not drive the loop.

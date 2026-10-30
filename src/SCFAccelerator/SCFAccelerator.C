@@ -2,10 +2,12 @@
 module;
 #include <complex>
 #include <limits>
+#include <optional>
 #include <iosfwd>
 export module qchem.SCFAccelerator;
 export import qchem.Symmetry.Irrep;
 export import qchem.LASolver;
+export import qchem.HandOff;   // HandOffRequest (TakeHandOff, R1.3)
 import qchem.Blaze;   // the gradient below is a TEMPLATE using Blaze operators: its definition context must see them
 
 export namespace qchem::SCFAccelerators
@@ -95,6 +97,10 @@ public:
     //! free Si k222 stalls and Si Γ diverges -- so Auto mixes linearly beside one.  A ladder answers for ANY rung it
     //! may run, not only the active one (it can fall back to DIIS mid-run).  Default false.
     virtual bool ExtrapolatesFock() const {return false;}
+    //! R1.3 (doc/SCFRobustnessPlan.md): a change of extrapolator INSIDE this accelerator since the last call (a ladder's rung
+    //! advance or retreat), handed to the owner, which prints it and acts on what it owns (the mixer this library cannot see).
+    //! Taking it clears it.  Default: none.
+    virtual std::optional<HandOffRequest> TakeHandOff() {return std::nullopt;}
     // Is a geodesic step actually READY this iteration (seeded + residual under its engage threshold)?  The
     // iterator runs the direct-min driver only when WantsLineSearch() AND CanLineSearch(); otherwise it does a
     // MIXED fixed-point step -- so a not-yet-ready minimizer degrades to a stable mixed diagonalize, never an

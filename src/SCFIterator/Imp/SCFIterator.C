@@ -363,6 +363,16 @@ static void EmitSiteMoments(const EnergyBreakdown& eb)
     qchem::report::EmitAt("scf", "siteMoments", j, qchem::report::Detail::Verbose);
 }
 
+// R1.3 (doc/SCFRobustnessPlan.md P1): THE in-loop hand-off.  ONE line in the shared format (qchem.HandOff); with \a reseat the field
+// mixer re-seats on the CURRENT working D and drops its history -- the only Reseat call in the tree.  The rung changes of a ladder
+// and Pulay's priming -> history are decided where this cannot be acted on, so their objects report and the loop calls this.
+template <class T> bool tSCFIterator<T>::HandOff(const HandOffRequest& h, bool reseat)
+{
+    const bool reseated = reseat && itsMixer->Reseat(*itsCD);
+    PrintHandOff(itsIterationCount, h, reseated ? " [field mixer re-seated on the current D, history dropped]" : "");
+    return reseated;
+}
+
 template <class T> SCFParams tSCFIterator<T>::ResolveMixing(const SCFParams& p) const
 {
     return qchem::ResolveMixing(p, MixesInGSpace(itsBS, itsKerkerCell.get(), itsCD.get()), itsAccelerator->ExtrapolatesFock());
@@ -370,6 +380,7 @@ template <class T> SCFParams tSCFIterator<T>::ResolveMixing(const SCFParams& p) 
 
 template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
 {
+    itsIterationCount=0;   // a hand-off decided before the first iteration (the exact resume below) reads iteration 0
     const SCFParams ipar=[&]
     {
         SCFParams r=ResolveMixing(callerParams);   // Mixing::Auto -> this run's mixer (CreateMixer reads the result)
@@ -380,8 +391,8 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         // WARM restart's old residuals extrapolate onto the old fixed point); an exact resume rebuilds it in two steps.
         if (itsCarriedIsWorking && r.PulayDepth>0 && r.PulayStart>0)
         {
-            std::cout << "[restart] exact resume: Pulay history from iteration 1 (pulayStart " << r.PulayStart
-                      << " -> 0 -- priming is for a start far from the fixed point)" << std::endl;
+            HandOff({"restored state", "Pulay history from iteration 1",
+                     "exact resume: pulayStart "+std::to_string(r.PulayStart)+" -> 0, priming is for a start far from the fixed point"}, false);
             r.PulayStart=0;
         }
         return r;
@@ -473,6 +484,9 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
                                      ? static_cast<const tLoopDriver<T>&>(itsDirectDriver)
                                      : static_cast<const tLoopDriver<T>&>(itsFixedDriver);
         ChargeDensityChange = driver.Step(lc);
+        // R1.3: the deciders that cannot act (the accelerator cannot see the mixer) REPORT; the iterator, which owns both, prints.
+        if (auto h=itsAccelerator->TakeHandOff()) HandOff(*h, false);
+        if (auto h=itsMixer->TakeHandOff())       HandOff(*h, false);
         // CP2K's criterion on request (SCFParams::Measure): the largest element change between successive
         // OUTPUT density matrices, whatever the mixer reported -- cur/old are the D_out lineage in both drivers.
         // THE GATE (D-MINDRHO): the driver measured the L1 residual per electron (itsResidual); the mixer's own number is
@@ -664,9 +678,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         // RE-SEAT FIRST (OpenWork §3, 2026-10-27): the geodesic steps moved D without passing through Mix, so a FIELD mixer's
         // running field is still its LAST mix's -- at a restart the restored state -- and a Fock driven from it jumped the run
         // back there (NaF SR2 Γ, GDM from a loose state: +2.6 mHa at [F,D] 3e-7, three times in 60 iterations, silently).
-        const bool reseated=itsMixer->Reseat(*itsCD);
-        std::cout << "[gdm] iteration " << itsIterationCount << ": " << why << " -> one MIXED fixed-point step from the current D"
-                  << (reseated ? " (field mixer re-seated on it, history dropped)" : "") << std::endl;
+        HandOff({"GDM", "one MIXED fixed-point step from the current D", why}, /*reseat*/true);
         itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(*itsCD));
         itsWaveFunction->FillOrbitals(*itsOccPolicy, mergeTol);
         cd_t fresh(itsWaveFunction->GetChargeDensity());
