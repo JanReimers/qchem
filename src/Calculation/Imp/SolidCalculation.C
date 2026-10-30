@@ -21,12 +21,9 @@ module;
 #include <vector>
 module qchem.SolidCalculation;
 
-import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;   // GaussianSharpness::MaxExponent -- alpha_max (the NARROW face)
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
-import qchem.Pseudopotential.GTH_Potentials;   // GetGTH -> HGH local PP -> alpha_pp
-import qchem.Pseudopotential.Set;             // PseudopotentialSet -- the run's chosen pseudopotential, resolved once in BuildBasis
+import qchem.Pseudopotential.Set;             // PseudopotentialSet -- the run's chosen pseudopotential, resolved once by SolidSetup::Resolve
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
-import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
 import qchem.ElectronConfiguration.Crystal;    // Crystal_EC
 import qchem.Symmetry.Irrep;                   // Irrep, Spin
 import qchem.Blaze;                            // blazem::conjs (the u_bands weights)
@@ -43,56 +40,19 @@ import qchem.Reporting;                       // report::Timed -- the facade's o
 namespace qchem
 {
 
-//! The seed library key for this run: the set's functional and, for each element of the structure, the
-//! GTH variant q its Hamiltonian uses -- so the seed density is the SAME pseudo-atom as the terms (C4 step 3).
-static ChargeDensity::SeedKey SeedKeyOf(const Pseudopotential::PseudopotentialSet& pp, const Structure& st)
-{
-    ChargeDensity::SeedKey key(pp.Functional());
-    for (const auto& [element, q] : pp.Species(st)) key.q[(int)thePeriodicTable().GetZ(element)] = q;
-    return key;
-}
-
-//---------------------------------------------------------------------------------------------------
-//  The run's SHARPNESS -- an above-SCFIterator decision input.
-//
-//  Both sources come off ABSTRACT capability faces via the sanctioned abstract->abstract cross-cast, so
-//  nothing here touches a concrete basis or a concrete PP model:
-//    alpha_max -- BasisSet::Gaussian::LatticeSum1E::MaxExponent(), documented there as "the GPW
-//                 density-grid cutoff floor".
-//    alpha_pp  -- BasisSet::SpeciesRadialField_Gaussian::AsGaussians(Z, Short), whose terms carry
-//                 alpha = 1/(2 r_loc^2).  A model with no closed-Gaussian short part does not implement
-//                 the face; that leaves alpha_pp at 0, which the selector reads as "not measurable" --
-//                 NOT as "smooth".
-//---------------------------------------------------------------------------------------------------
-static qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const BasisSet::Real_BS& mol,
-                                               const Pseudopotential::PseudopotentialSet& pp, bool imposed)
-{
-    qcMesh::XCMeshSharpness s;
-    s.cellEdge = lat.GetUnitCell().GetMaximumCellEdge();
-    s.nAtoms   = int(lat.GetUnitCell().GetNumAtoms());
-    s.imposed  = imposed;   // the RESOLVED value: CP2K_COMPAT can veto it, and the grid cost follows
-    for (auto ibs : const_cast<BasisSet::Real_BS&>(mol).Iterate<BasisSet::Real_OIBS>())
-        // THE NARROW FACE, since the 2026-09-08 ISP split: this asks for ONE number, so it names the
-        // three-method GaussianSharpness capability and not the seventeen-method periodic aggregate it
-        // used to cross-cast to.  Nothing here wants a lattice sum, a collocation or a stream fold.
-        if (const auto* sh=dynamic_cast<const BasisSet::Gaussian::GaussianSharpness*>(ibs))
-            { s.alphaMax = sh->MaxExponent(); break; }
-    for (const auto& [element, valence] : pp.Species(*lat.GetStructure()))   // the structure's elements, never the whole set
-    {
-        const int Z = int(thePeriodicTable().GetZ(element));
-        const Pseudopotential::HGH_LocalPotential loc = Pseudopotential::GetGTH(element,pp.Functional(),valence).local;
-        const auto* g = static_cast<const BasisSet::SpeciesRadialField_Gaussian*>(&loc);
-        for (const auto& t : g->AsGaussians(Z, BasisSet::FieldRange::Short)) s.alphaPP = std::max(s.alphaPP, t.alpha);
-    }
-    return s;
-}
 
 //---------------------------------------------------------------------------------------------------
 struct SolidCalculation::Imp
 {
-    SolidCalcOptions opts;
-    //! THE RUN'S PSEUDOPOTENTIAL CHOICE, resolved ONCE (BuildBasis: \c opts.pp + \c opts.species overrides) and handed to every consumer.
-    std::optional<Pseudopotential::PseudopotentialSet> pp;
+    //! THE RUN SETUP (doc/CalcNetworkReview.md §2, step 6): the options and every decision resolved from them ONCE -- the
+    //! pseudopotential set, the imposition, the decoration, the XC quadrature, the spin counts.  Shared and immutable: everything
+    //! below it is this GEOMETRY POINT (structure, Bloch basis, EC, Hamiltonian) or its SCF STATE.
+    std::shared_ptr<const SolidSetup>           setup;
+    //! The accelerator options a STAGE starts from: \c setup->acc, except where a caller's stage overrides the Ladder's starting
+    //! rung for its own duration (the FD chi's restart-like stages).  Per-run state, not a decision of the setup.
+    SCFAccelerators::SolidAcceleratorOptions    accOpts;
+    //! The caller's per-iteration telemetry: \c setup->opts.onIteration, replaced by \c OnIteration.
+    Observer                                    onIteration;
     std::shared_ptr<const Structure>            st;
     std::unique_ptr<BasisSet::Complex_BS>       bs;
     std::unique_ptr<Crystal_EC>                 ec;
@@ -105,7 +65,6 @@ struct SolidCalculation::Imp
     //! change the accelerator TYPE outright (anneal on Ladder, finish on GDM).  Cheap to build, so that is
     //! correct -- unlike the Hamiltonian above, which was only ever rebuilt because of the `delete`.
     std::unique_ptr<SCFAccelerators::SCFAccelerator>      accel;
-    qcMesh::MeshParams                          xcMesh;          // AFTER Auto resolution
     std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf;
     std::unique_ptr<qchem::ChargeDensity::cDM_CD>         cd;    // the converged density (outlives the WF)
     //! m(r) of the converged state.  OWNED: WaveFunction::GetSpinDensity() BUILDS it and hands over the
@@ -113,7 +72,6 @@ struct SolidCalculation::Imp
     //! m(r), built on the FIRST \c Converged::SpinDensity() call (reset by each Converge): built eagerly it re-collocated
     //! both spin channels' D at the end of every stage, two n×n copies beside the iterator's own state -- the run's peak.
     mutable std::unique_ptr<SolidCalculation::sf_t>       spin;
-    SCFAccelerators::SolidAcceleratorOptions    accOpts;
     SCFAccelerators::Type                       stageAccel = SCFAccelerators::Type::DIIS;  //!< the CURRENT stage's, RESOLVED (banner, [F,D])
     SCFAccelerators::Type                       stageAccelAsked = SCFAccelerators::Type::Auto;  //!< ...as ASKED: what an FD/U-loop stage re-resolves
     bool                                        stageRestored = false;  //!< the CURRENT stage starts from a RESTORED state (Restart: same Hamiltonian)
@@ -123,7 +81,6 @@ struct SolidCalculation::Imp
     //! (doc/LinearResponsePlan.md E1).  The commutator is the final iteration's [F,D].
     qchem::OccupationConfig lastOccupation;
     double lastCommutator = std::numeric_limits<double>::quiet_NaN();
-    bool   imposed   = false;   //!< the run imposed a symmetry, so its solution must still carry it (T2)
     double charge    = 0.0;
     //! The OUTCOME DETECTORS' record (N1/T3-T4).  Accumulates across every attempt this object makes --
     //! an annealed schedule and a re-Converge are CONTINUATIONS of one SCF, and an order that died in
@@ -141,7 +98,6 @@ struct SolidCalculation::Imp
     //! and site positions for the q-star fold), each later need re-deriving a piece of what the lattice answers.  A copy:
     //! Lattice_3D is an immutable value (copies share its space-group cache).  optional only because the Imp is built first.
     std::optional<Lattice_3D> lat;
-    std::vector<int>          decoration;   //!< the RESOLVED per-site spins the run was built with (all 0 = non-magnetic)
 };
 
 //---------------------------------------------------------------------------------------------------
@@ -323,29 +279,6 @@ void EmitStageSummary(const std::string& label, size_t s, size_t n, double kT,
               << std::setprecision(prec0) << std::endl;
 }
 
-//---------------------------------------------------------------------------------------------------
-//  THE MAGNETIC ORDERING IS STATED (OpenWork §3 "The magnetic decoration is DERIVED FROM THE SEED", 2026-10-26).
-//  The message names the sites, not a derived guess: the ordering is the caller's chemistry.
-void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& st)
-{
-    std::string sites;
-    st.ForEachSite([&](int Z, const rvec3_t&, bool){ sites+=(sites.empty()?"":" ")+thePeriodicTable().GetSymbol(Z); });
-    const size_t nAtoms=st.GetNumAtoms();
-    if (!o.siteSpins.empty())
-    {
-        if (o.siteSpins.size()!=nAtoms)
-            throw std::invalid_argument("SolidCalcOptions: siteSpins has "+std::to_string(o.siteSpins.size())
-                                        +" entries for "+std::to_string(nAtoms)+" sites ("+sites+")");
-        for (int s : o.siteSpins)
-            if (s<-1 || s>1) throw std::invalid_argument("SolidCalcOptions: siteSpins entries are -1, 0 or +1, got "+std::to_string(s));
-        return;
-    }
-    const bool polarized = o.multiplicity>=1;
-    if (polarized && !o.hubbard.empty() && !o.greyImposition)
-        throw std::invalid_argument("SolidCalcOptions: a polarized run with a Hubbard manifold must STATE its magnetic ordering --"
-                                    " siteSpins, one of +1/-1/0 per site ("+sites+"); all zeros for a non-magnetic cell."
-                                    "  It is no longer derived from the seed (doc/OpenWork.md §3)");
-}
 
 //---------------------------------------------------------------------------------------------------
 static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, size_t site, int l,
@@ -364,76 +297,38 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     // banner).  With the same bracket on Converge and on Iterate, the ledger PARTITIONS the run and
     // "everything not in a bucket" stops being a place time can hide.
     qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
-    const std::vector<int> siteSpins=BuildBasis(lat, mol, opts, acc);
-    BuildRun(lat, *mol, siteSpins, nullptr, params);
+    BuildPoint(SolidSetup::Resolve(lat, mol, opts, acc), lat);
+    BuildRun(nullptr, params);
     (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
 }
 
-// THE FIRST HALF OF THE BUILD: everything the saved-state fingerprint is judged against (the Bloch blocks), and
-// nothing that depends on the seed.  Restart stops here to compare before paying for the Hamiltonian.
-std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                                              const SolidCalcOptions& opts,
-                                              const SCFAccelerators::SolidAcceleratorOptions& acc)
+// THE FIRST HALF OF THE BUILD: the GEOMETRY POINT over a resolved setup -- everything the saved-state fingerprint is judged
+// against (the Bloch blocks), and nothing that depends on the seed.  Restart stops here to compare before paying for the
+// Hamiltonian.  Every DECISION is the setup's (SolidSetup::Resolve); this builds.
+void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat)
 {
-    qchem::SetRunPolicy(opts.policy);   // D-ENV 6b: the policy is part of the run's options, installed ONCE here, before any factory consults it
-    itsImp->opts    = opts;
-    itsImp->accOpts = acc;
-    itsImp->st      = lat.GetStructure();
-    itsImp->pp.emplace(Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.species));
-    RequireStatedMagneticOrdering(opts, *itsImp->st);
+    itsImp->setup       = std::move(setup);
+    itsImp->accOpts     = itsImp->setup->acc;
+    itsImp->onIteration = itsImp->setup->opts.onIteration;
+    itsImp->st          = lat.GetStructure();
     itsImp->lat.emplace(lat);
+    const SolidSetup&       S    = *itsImp->setup;
+    const SolidCalcOptions& opts = S.opts;
 
     namespace L3 = BasisSet::Lattice;
-    // THE RESOLVED IMPOSITION (doc/OpenWork.md N5, user 2026-08-26).  The caller's flag AND the policy's
-    // permission: CP2K parity forbids the capability outright, because CP2K does no symmetry work at all
-    // (see RunPolicy::SymmetryImposition for the evidence), and every banked recipe asks for it -- so the
-    // veto has to live here rather than in each recipe.  ONE name from here on; nothing below reads
-    // opts.imposeSymmetry again, or the two would drift.
-    const bool imposed = opts.imposeSymmetry && theRunPolicy().SymmetryImposition();
     // THE WORKING-TYPE DECISION (doc/RealComplexPlan.md §3, Step 3c-3): a block is real ⇔ its irrep is
     // (TRIM) ∧ every term preserves realness.  This composition root builds the LDA GPW stack --
     // kinetic, the PP trio, Hartree, XC -- every member of which PreservesReal(), so the term half is
     // TRUE here; it is asserted against the constructed Hamiltonian below, so a future term that
     // breaks realness must also flip this forecast.  forceComplex is the §6 ansatz-policy downgrade.
     const bool hamPreservesReal = !opts.forceComplex;
-    // THE MAGNETIC DECORATION (S3).  An imposition is only SHUBNIKOV if the factory is told which sites
-    // carry which spin; without it an "imposed AFM" run star-averages under the SPATIAL group and the
-    // order is erased.  STATED (siteSpins) wherever a Hubbard manifold rides along -- RequireStatedMagneticOrdering
-    // above refused the run otherwise.  The derivation from the seed below survives ONLY for an imposed polarized
-    // run WITHOUT +U, and it is the defect OpenWork §3 names: with SeedStrategy::SAD it labels neutral O (2p4)
-    // magnetic and MnO AFM-II imposes a ferrimagnet (12 Shubnikov ops, not 24).
-    //   unpolarized  -> {} (no channels to decorate)
-    //   greyImposition -> {} DELIBERATELY: that arm is the erasure NEGATIVE CONTROL
-    std::vector<int> siteSpins;
-    if (!imposed) { /* nothing to decorate: siteSpins are meaningless without an imposition */ }
-    else if (!opts.siteSpins.empty() && !opts.greyImposition)
-        siteSpins = opts.siteSpins;                 // STATED: a specific ordering, not the seed's guess
-    else if (opts.multiplicity>=1 && !opts.greyImposition)
-    {
-        const std::vector<int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
-                                       ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), SeedKeyOf(*itsImp->pp, *itsImp->st))
-                                       : std::vector<int>{};
-        siteSpins = qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), SeedKeyOf(*itsImp->pp, *itsImp->st), targets);
-    }
     // ★ THE FACADE'S SETUP IS BUCKETED (doc/ParallelAndOraclePlan.md 1.1, 2026-09-06).  Every MnO row drives
     // SolidCalculation directly, and until now only the phases INSIDE these calls were timed -- so the basis
     // build, the Hamiltonian ctor's non-mesh half, the seed and the ortho landed in no bucket at all.  That
     // was ~48 s of a 119 s threaded MnO run, i.e. the largest non-scaling block in it, and unnamed.  Labels
     // match the GPW_SCF harness's so the two paths' ledgers read the same.
-    const bool planeWave = opts.orbitalBasis==SolidCalcOptions::OrbitalBasis::PlaneWave;
-    if (planeWave)
+    if (S.planeWave)
     {
-        // THE PLANE-WAVE FAMILY (OpenWork §2 PW-1).  The factory builds ONE Γ block and knows no symmetry, so
-        // anything else is refused here rather than silently run as Γ / unimposed.
-        if (!(opts.planeWaveEcut>0.0))
-            throw std::invalid_argument("SolidCalcOptions: orbitalBasis PlaneWave needs planeWaveEcut > 0 (Ha)");
-        if (lat.MakeKMesh(opts.kShift).size()!=1 || opts.kShift!=rvec3_t(0,0,0))
-            throw std::invalid_argument("SolidCalcOptions: the plane-wave family is Γ-only so far (k-mesh 1x1x1, no shift)");
-        if (imposed)
-            throw std::invalid_argument("SolidCalcOptions: the plane-wave family has no symmetry imposition yet");
-        // Plane waves ARE orthonormal: the default Cholesky would factor an identity S into two dense identity
-        // factors per spin block.  A stated non-default ortho is obeyed (an A/B door).
-        if (itsImp->opts.ortho==qchem::Cholesky) itsImp->opts.ortho=qchem::Orthonormal;
         qchem::report::Timed timed("setup: PW basis build");
         itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.planeWaveEcut));
         std::cout<<"["<<opts.label<<" run] plane-wave orbital basis: Ecut "<<opts.planeWaveEcut<<" Ha, "
@@ -448,10 +343,10 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
         const auto& tol=opts.tolerances;
         if (!tol.Describe().empty())
             std::cout<<"["<<opts.label<<" run] GPW tolerances (non-default):"<<tol.Describe()<<std::endl;
-        itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
+        itsImp->bs.reset(L3::GPWFactory(lat, S.mol, L3::GPWParams{
             .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-            .imposeSymmetry = imposed, .siteSpins = siteSpins, .tol = tol,
+            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .tol = tol,
             .hamPreservesReal = hamPreservesReal}));
     }
     // THE RUN REPORTS ITS OWN BASIS AND GRIDS (TE phase 2, 2026-09-15; the reporting rule: each class emits
@@ -462,7 +357,7 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     // open -- the emitters are inert otherwise -- and never an abort: a dependent basis is the caller's to
     // handle through a pivoted ortho, and an unhandled one fails loudly in the iterator.
     // (Plane waves are orthonormal and grid-free: neither section has anything to say about them.)
-    if (planeWave) {}
+    if (S.planeWave) {}
     else if (qchem::report::Depth()>0)
     {
         qchem::report::Timed timed("setup: vet basis (analytic S) + grids report");
@@ -479,57 +374,30 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     }
     else L3::PrintGpwConditioning(*itsImp->bs);   // no report open: still say how conditioned S(k) is
 
-    // DECISION 1 -- the XC quadrature.  Resolve Auto HERE, once, from facts about the run.  Downstream
-    // consumers compare ==Becke, so an unresolved Auto would silently read as Uniform; resolving it at the
-    // point the spec enters the Hamiltonian is what makes that impossible.
-    // The XC-mesh route is a DECLARED CP2K deviation (RunPolicy::BeckeXC), resolved here beside the
-    // imposition for the same reason: the policy belongs to the run, the sizing belongs to qcMesh.
-    // A plane-wave run's Auto is its own FFT raster (QE's route): the sharpness gather prices Gaussians, and a
-    // delta fit would collocate every PW at every mesh point.  A STATED grid is obeyed, as for GPW.
-    if (planeWave && opts.xcMesh.cellKind==qcMesh::UnitCellKind::Auto)
-        itsImp->xcMesh = qcMesh::MeshParams{.cellKind=qcMesh::UnitCellKind::Uniform};
-    else
-        itsImp->xcMesh = qcMesh::ResolveXCMesh(opts.xcMesh, GatherSharpness(lat, *mol, *itsImp->pp, imposed),
-                                               theRunPolicy().BeckeXC());
-
-    // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches
-    // a singlet asked of an odd electron count BEFORE integer division silently empties a channel.
-    const int twoS = opts.multiplicity>1 ? opts.multiplicity-1 : opts.Nelec%2;
-    const bool polarized = opts.multiplicity>=1;
-    if ((opts.Nelec-twoS)%2!=0 || twoS>opts.Nelec)
-        throw std::runtime_error("SolidCalcOptions: multiplicity "+std::to_string(opts.multiplicity)
-                                 +" parity disagrees with Nelec "+std::to_string(opts.Nelec));
-    // A partial eigensolve must leave EMPTY bands above the fuller channel (smearing and the gap need them).
-    if (opts.numBands>0 && opts.numBands<=size_t((opts.Nelec+twoS)/2))
-        throw std::invalid_argument("SolidCalcOptions: numBands "+std::to_string(opts.numBands)+" must exceed the larger spin channel's "
-                                    +std::to_string((opts.Nelec+twoS)/2)+" electrons");
+    // The electron configuration over THIS basis's k-blocks, from the setup's spin counts (decision 2).
     auto irreps = itsImp->bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry Sum_k)
-    itsImp->ec = std::make_unique<Crystal_EC>(irreps, (opts.Nelec+twoS)/2, (opts.Nelec-twoS)/2,
-                                              !opts.perKFermiLevels, opts.spinsShareFermi);
-    // T2 is gated on the run having IMPOSED something (see Outcome_); the resolved value, stored once.
-    itsImp->imposed = imposed;
+    itsImp->ec = std::make_unique<Crystal_EC>(irreps, S.nUp, S.nDown, !opts.perKFermiLevels, opts.spinsShareFermi);
     itsImp->hubbard = opts.hubbard;   // the U the run will carry (BuildRun fills the groups and radials)
-    (void)polarized;
-    itsImp->decoration=siteSpins;
-    if (itsImp->decoration.empty()) itsImp->decoration.assign(lat.GetUnitCell().GetNumAtoms(), 0);
-    return siteSpins;
 }
 
+
 // THE SECOND HALF: the Hamiltonian, the seed (the caller's when given -- a restored state), the iterator.
-void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& mol, const std::vector<int>& siteSpins,
-                                std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
+void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
                                 bool exactResume)
 {
-    const SolidCalcOptions& opts=itsImp->opts;
-    const bool polarized        = opts.multiplicity>=1;
-    const bool hamPreservesReal = !opts.forceComplex;   // the BuildBasis forecast, restated for the assert below
-    const bool imposed          = itsImp->imposed;
+    const SolidSetup&       S    = *itsImp->setup;
+    const SolidCalcOptions& opts = S.opts;
+    const Lattice_3D&       lat  = *itsImp->lat;
+    const std::vector<int>& siteSpins = S.siteSpins;
+    const bool polarized        = S.polarized;
+    const bool hamPreservesReal = !opts.forceComplex;   // the BuildPoint forecast, restated for the assert below
+    const bool imposed          = S.imposed;
 
     // THE HUBBARD MANIFOLDS' SITE GROUPS (step 5 increment 2): each manifold is labelled by the stabiliser of
     // its site in the STATED DECORATION's Shubnikov group (sigma=None ops), grey parentage beside it -- the
     // same decoration the imposition uses, whether or not the run imposes: the site symmetry of the ordered
     // state is the physical question either way.  No longer derived from the seed (OpenWork §3, 2026-10-26):
-    // a polarized +U run was refused at BuildBasis without siteSpins.  A caller who filled siteOps by hand keeps them.
+    // a polarized +U run was refused at SolidSetup::Resolve without siteSpins.  A caller who filled siteOps by hand keeps them.
     std::vector<qchem::Hamiltonian::HubbardManifold> hubbard=opts.hubbard;
     if (!hubbard.empty())
     {
@@ -539,7 +407,7 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
         for (auto& M : hubbard)
         {
             if (M.projector==qchem::Hamiltonian::HubbardProjectorKind::PseudoAtomic && M.atomicFunction.empty())
-                M.atomicFunction=PseudoAtomicFunction(*itsImp->st, M.site, M.l, *itsImp->pp);
+                M.atomicFunction=PseudoAtomicFunction(*itsImp->st, M.site, M.l, itsImp->setup->pp);
             if (M.siteOps.empty()) M.siteOps=lat.SiteRotations(M.site, decoration);
             // PARENTAGE is chemistry: the point group of the site's coordination polyhedron, not the
             // cell's grey stabiliser (which on the rhombohedral AFM-II supercell is D_3d too, and would
@@ -552,7 +420,7 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), *itsImp->pp, itsImp->xcMesh, opts.vxcFit, hubbard));
+            itsImp->st, itsImp->bs.get(), itsImp->setup->pp, itsImp->setup->xcMesh, opts.vxcFit, hubbard));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -582,14 +450,14 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
         qchem::SetupSCF setup;   // the atomic solves are setup, not the run's convergence (a panel budget does not count them)
         seed.reset(qchem::ChargeDensity::MakeSeedDensity<dcmplx>(opts.seed, itsImp->bs.get(), itsImp->st.get(),
                                                                  itsImp->ec.get(), polarizedHam,
-                                                                 SeedKeyOf(*itsImp->pp, *itsImp->st)));
+                                                                 itsImp->setup->seedKey));
     }
     // MEASURED ONLY WHERE IT CAN MEAN SOMETHING.  SiteMoments rasters BOTH spin channels before it can
     // discover it has no basins to integrate over, and unlike the per-iteration probe -- which rides a
     // raster the Fock build has already made for this density serial -- nothing has been built yet at
     // seed time, so this one would be paid in full.  An unpolarized run has m == 0 identically and a
     // uniform XC mesh has no basins at all, and the facade knows both facts here without asking.
-    if (seed && polarizedHam && itsImp->xcMesh.cellKind==qcMesh::UnitCellKind::Becke)
+    if (seed && polarizedHam && itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke)
     {
         // "paid in full" (see above) -- so it gets its own bucket rather than hiding inside the seed's.
         qchem::report::Timed timed("setup: seed order probe (site moments)");
@@ -614,10 +482,10 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
     // No-op unless SCFParams::UseMOM is also set.
     if (opts.momFromSeed) itsImp->scf->AdoptMOMReference(*itsImp->scf->GetWaveFunction());
 
-    // (T2's gate -- itsImp->imposed -- was stored by BuildBasis: an imposition is an ASSERTION about the answer,
+    // (T2's gate -- itsImp->setup->imposed -- was resolved by SolidSetup::Resolve: an imposition is an ASSERTION about the answer,
     // and only then is losing the order a contradiction rather than physics.)
 
-    EmitRunBanner(opts, itsImp->xcMesh, itsImp->st->GetNumAtoms(), imposed, hubbard);
+    EmitRunBanner(opts, itsImp->setup->xcMesh, itsImp->st->GetNumAtoms(), imposed, hubbard);
     itsImp->hubbard = hubbard;        // RESOLVED (groups, radials): what the Hamiltonian carries and a save records
 }
 
@@ -637,13 +505,13 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
         throw std::runtime_error("SolidCalculation: an EMPTY anneal schedule has no meaning -- pass at "
                                  "least one stage, or use the single-SCFParams constructor.");
     // Stage 0 has already run (the delegated ctor converged it) -- report it, then continue.
-    EmitStageSummary(itsImp->opts.label, 0, schedule.size(), schedule.front().params.SmearingkT,
+    EmitStageSummary(itsImp->setup->opts.label, 0, schedule.size(), schedule.front().params.SmearingkT,
                      itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
     for (size_t s=1; s<schedule.size(); ++s)
     {
         BuildStage(schedule[s].accelerator, std::move(itsImp->cd), schedule[s].params);
         (void)Converge(schedule[s].params);
-        EmitStageSummary(itsImp->opts.label, s, schedule.size(), schedule[s].params.SmearingkT,
+        EmitStageSummary(itsImp->setup->opts.label, s, schedule.size(), schedule[s].params.SmearingkT,
                          itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
     }
 }
@@ -810,7 +678,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
     // T4 is the same detector doing the second half of its job: the trajectory rule ("rose, then stayed
     // below 1% of its peak") is what the MnO test used to compute for itself, so a moment that dies
     // MID-RUN is caught even when the final iterate is not the evidence.
-    if (itsImp->imposed && d.OrderCollapsed())
+    if (itsImp->setup->imposed && d.OrderCollapsed())
         return fail(SCFFailure::Why::OrderLost,
                     "the run IMPOSED a magnetic symmetry and did not keep it: the integrated site moment "
                     "peaked at "+std::to_string(d.OrderPeak())+" e and was dead ( < "
@@ -843,7 +711,7 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, const SCFPar
         else                              t=T::DIIS;
     }
     // A direct minimiser rotates the occupied block into the WHOLE virtual space, which a partial eigensolve never built.
-    if (itsImp->opts.numBands>0 && (t==T::GDM || t==T::Ladder))
+    if (itsImp->setup->opts.numBands>0 && (t==T::GDM || t==T::Ladder))
         throw std::invalid_argument("SolidCalcOptions: numBands (a partial eigensolve) beside the GDM / Ladder accelerator -- "
                                     "they need every virtual; use Null or DIIS, or numBands 0");
     itsImp->stageAccelAsked = asked;
@@ -877,15 +745,15 @@ void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
     itsImp->scf = carried
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              carried.release(), itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol,
-              qchem::SCFIterator::SeedRole::WorkingDensity, itsImp->opts.numBands)
+              carried.release(), itsImp->st.get(), itsImp->setup->opts.ortho, itsImp->setup->opts.orthoTol,
+              qchem::SCFIterator::SeedRole::WorkingDensity, itsImp->setup->opts.numBands)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->opts.seed, itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol, itsImp->opts.numBands);
+              itsImp->setup->opts.seed, itsImp->st.get(), itsImp->setup->opts.ortho, itsImp->setup->opts.orthoTol, itsImp->setup->opts.numBands);
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
     // survives the fresh wavefunction, exactly as the density does.
-    if (itsImp->opts.momFromSeed)
+    if (itsImp->setup->opts.momFromSeed)
         itsImp->scf->AdoptMOMReference(prev ? *prev->GetWaveFunction() : *itsImp->scf->GetWaveFunction());
     prev.reset();                            // the adoption copied what it needed
     // EVERY stage is observed, not just the first: this iterator is brand new, so the telemetry has to be
@@ -903,7 +771,7 @@ void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
 //! caller's observer is composed behind the facade's own, so attaching telemetry late cannot disarm them.
 void SolidCalculation::AttachProbes()
 {
-    auto userObs = itsImp->opts.onIteration;
+    auto userObs = itsImp->onIteration;
     itsImp->scf->SetObserver([this,userObs](const qchem::SCFIterator::SCFProgress& p)
     {
         // The detectors read the observable off the breakdown the iteration produced (R1.0h) -- the same
@@ -930,7 +798,7 @@ SolidCalculation::Converge(const std::vector<SCFStage>& schedule)
         if (s>0)   // stage 0's graph is already standing (the ctor built it); later stages re-seed from it
             BuildStage(schedule[s].accelerator, std::move(itsImp->cd), schedule[s].params);
         last = Converge(schedule[s].params);
-        EmitStageSummary(itsImp->opts.label, s, schedule.size(), schedule[s].params.SmearingkT,
+        EmitStageSummary(itsImp->setup->opts.label, s, schedule.size(), schedule[s].params.SmearingkT,
                          itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
     }
     return last;   // the FINAL stage's -- the earlier ones exist to feed it
@@ -1043,7 +911,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
     qchem::report::Timed residue("scf: converge (residue -- final density + m(r) extraction)");
     // The banner and the recipe say what the iterator WILL build: SCFParams::Mixing::Auto resolved by the iterator itself.
     const SCFParams resolved=itsImp->scf->ResolveMixing(params);
-    EmitSCFBanner(itsImp->opts.label, resolved, itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
+    EmitSCFBanner(itsImp->setup->opts.label, resolved, itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
                   itsImp->stageAccelAsked==SCFAccelerators::Type::Auto);
     itsImp->lastOccupation = {.useMOM=params.UseMOM, .momStartIter=(int)params.MOMStartIter,
                               .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty};   // the iterator's own conversion
@@ -1072,7 +940,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
     {
         const qchem::EnergyBreakdown& E=itsImp->scf->GetEnergy();
         const std::streamsize prec0=std::cout.precision();
-        std::cout << "["<<itsImp->opts.label<<"] "<<(itsImp->converged ? "CONVERGED" : "NOT converged")
+        std::cout << "["<<itsImp->setup->opts.label<<"] "<<(itsImp->converged ? "CONVERGED" : "NOT converged")
                   << " iters="<<itsImp->scf->GetIterationCount()<<" charge="<<itsImp->charge
                   << " Eelec="<<E.GetElectronicEnergy()
                   << " Etot="<<std::setprecision(10)<<E.GetTotalEnergy()<<std::setprecision(prec0)
@@ -1089,13 +957,13 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
             double absSum=0.0, net=0.0; for (size_t a=0;a<mu.size();a++) { absSum+=std::fabs(mu[a]); net+=mu[a]; }
             if (mu.size()>0 && absSum>=1e-8)
             {
-                std::cout<<"["<<itsImp->opts.label<<"] site moments (Becke-partitioned Integral w (rho_up-rho_dn) d3r) [e]:";
+                std::cout<<"["<<itsImp->setup->opts.label<<"] site moments (Becke-partitioned Integral w (rho_up-rho_dn) d3r) [e]:";
                 for (size_t a=0;a<mu.size();a++) std::cout<<"  "<<a<<":"<<std::showpos<<std::fixed<<std::setprecision(4)<<mu[a]<<std::noshowpos;
                 std::cout<<"   net="<<std::showpos<<net<<std::noshowpos<<std::defaultfloat<<std::setprecision(prec0)<<std::endl;
             }
             else if (mu.size()==0)
-                std::cout<<"["<<itsImp->opts.label<<"] site moments: "
-                         <<(itsImp->xcMesh.cellKind==qcMesh::UnitCellKind::Becke
+                std::cout<<"["<<itsImp->setup->opts.label<<"] site moments: "
+                         <<(itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke
                             ? "UNAVAILABLE -- the atom-centred (Becke) XC mesh carries no site blocks: a DEFECT, not a configuration"
                             : "n/a (the uniform XC mesh has no site partition)")<<std::endl;
         }
@@ -1104,16 +972,16 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
         if (const auto* hub=itsImp->ham->GetHubbardChannels())
         {
             const int n=std::atoi(v->c_str());
-            ReportBandSlotWeights(itsImp->opts.label, *itsImp->scf->GetWaveFunction(), *hub, *itsImp->st, n>1 ? n : 8);
+            ReportBandSlotWeights(itsImp->setup->opts.label, *itsImp->scf->GetWaveFunction(), *hub, *itsImp->st, n>1 ? n : 8);
         }
     // THE CHECKPOINT (CK-1), converged or not: the unattended run's safety net.  A failed WRITE warns and the run
     // goes on -- losing a finished SCF to a full disk would make the net the hazard (SaveState itself throws).
-    if (!itsImp->opts.saveStateTo.empty())
+    if (!itsImp->setup->opts.saveStateTo.empty())
     {
-        try { SaveState(itsImp->opts.saveStateTo); }
+        try { SaveState(itsImp->setup->opts.saveStateTo); }
         catch (const std::exception& e)
         {
-            std::cout << "["<<itsImp->opts.label<<"] WARNING: state NOT saved to "<<itsImp->opts.saveStateTo
+            std::cout << "["<<itsImp->setup->opts.label<<"] WARNING: state NOT saved to "<<itsImp->setup->opts.saveStateTo
                       << ": "<<e.what()<<std::endl;
         }
     }
@@ -1125,12 +993,12 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
 //====================================================================================================
 StateFingerprint SolidCalculation::Fingerprint(double kT) const
 {
-    const auto& o=itsImp->opts;
+    const auto& o=itsImp->setup->opts;
     std::ostringstream xc;
-    xc<<MeshName(itsImp->xcMesh.cellKind);
-    if (itsImp->xcMesh.cellKind==qcMesh::UnitCellKind::Becke) xc<<" nR="<<itsImp->xcMesh.nRadial<<" L="<<itsImp->xcMesh.angularDegree;
-    else                                                      xc<<" eCut="<<itsImp->xcMesh.eCut;
-    const RunIdentity id{.species=itsImp->pp->Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->pp->Functional(), .ppSet=itsImp->pp->Name(),
+    xc<<MeshName(itsImp->setup->xcMesh.cellKind);
+    if (itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke) xc<<" nR="<<itsImp->setup->xcMesh.nRadial<<" L="<<itsImp->setup->xcMesh.angularDegree;
+    else                                                      xc<<" eCut="<<itsImp->setup->xcMesh.eCut;
+    const RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .ppSet=itsImp->setup->pp.Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
                          .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT};
     return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,
@@ -1141,7 +1009,7 @@ void SolidCalculation::SaveState(const std::string& path) const
 {
     const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
     if (!wf) throw std::logic_error("SolidCalculation::SaveState: no wave function yet");
-    const StateSummary sum{.label=itsImp->opts.label, .converged=itsImp->converged,
+    const StateSummary sum{.label=itsImp->setup->opts.label, .converged=itsImp->converged,
                            .iterations=itsImp->scf->GetIterationCount(),
                            .energy=itsImp->scf->GetEnergy().GetTotalEnergy(), .charge=itsImp->charge,
                            .commutator=itsImp->lastCommutator, .recipe=itsImp->lastRecipe};
@@ -1149,7 +1017,7 @@ void SolidCalculation::SaveState(const std::string& path) const
         qchem::report::Timed timed("state: save (HDF5)");
         WriteSolidState(path, Fingerprint(itsImp->lastkT), sum, *itsImp->bs, *wf);
     }
-    std::cout << "["<<itsImp->opts.label<<"] state saved to "<<path
+    std::cout << "["<<itsImp->setup->opts.label<<"] state saved to "<<path
               << (itsImp->converged ? "" : "  (NOT converged -- a restart will say so)") << std::endl;
 }
 
@@ -1174,9 +1042,8 @@ SolidCalculation::Restart(const std::string& path, const Lattice_3D& lat, std::s
     // kT = 0 ONLY: a smeared stage restored from an integer state hands GDM an idempotent D', so GDM would ENGAGE and
     // minimise with integer occupations, never applying the smearing (measured 2026-10-21, Si k222 kT 0.02: 6 mHa off the
     // cold smeared run).  A smeared restart starts on DIIS, as it did before.
-    SCFAccelerators::SolidAcceleratorOptions restartAcc=acc;
-    restartAcc.ladderStartOnGDM = params.SmearingkT==0.0;
-    const std::vector<int> siteSpins=c->BuildBasis(lat, mol, opts, restartAcc);
+    c->BuildPoint(SolidSetup::Resolve(lat, mol, opts, acc), lat);
+    c->itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
     // Judged against the BUILT blocks (k, weight, size), not against a re-derivation of what they would be.
     auto warm=CompareFingerprints(saved->fingerprint, c->Fingerprint(params.SmearingkT));
     if (!warm) return refuse(warm.Error());
@@ -1193,7 +1060,7 @@ SolidCalculation::Restart(const std::string& path, const Lattice_3D& lat, std::s
         for (const std::string& d : *warm) os<<"\n"<<tag<<"  differs: "<<d;
         std::cout<<os.str()<<std::endl;
     }
-    c->BuildRun(lat, *mol, siteSpins, cd.TakeValue(), params, exact);
+    c->BuildRun(cd.TakeValue(), params, exact);
     (void)c->Converge(params);
     c->itsImp->accOpts.ladderStartOnGDM=acc.ladderStartOnGDM;   // later stages on this calculation start as asked
     if (exact)
@@ -1400,7 +1267,7 @@ SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCF
         for (size_t M : R.estimated)
         {
             std::ostringstream os;
-            os<<std::fixed<<std::setprecision(4)<<"[U table] "<<who<<" "<<itsImp->opts.label<<(itsImp->opts.label.empty()?"":" ")
+            os<<std::fixed<<std::setprecision(4)<<"[U table] "<<who<<" "<<itsImp->setup->opts.label<<(itsImp->setup->opts.label.empty()?"":" ")
               <<"site"<<ch[M].site<<" l="<<ch[M].l<<"  U_in="<<R.Uin_eV[M]<<"  U_0="<<R.U_eV.front()[M]<<"  U_SC="<<R.U_eV.back()[M]
               <<" eV  outer="<<R.outer<<(R.converged?" CONVERGED":" NOT-converged")
               <<"  gap "<<R.gap_eV.front()<<" -> "<<R.gap_eV.back()<<" eV  m "<<R.moment.front()[M]<<" -> "<<R.moment.back()[M];
@@ -1424,7 +1291,7 @@ SolidCalculation::IndependentResponse(ivec3_t Nq) const
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
                                                              : std::numeric_limits<double>::quiet_NaN();
     qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-        {.acrossK=!itsImp->opts.perKFermiLevels, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
+        {.acrossK=!itsImp->setup->opts.perKFermiLevels, .acrossSpin=itsImp->setup->opts.spinsShareFermi}, noise);
     qchem::Response::AmplitudeProbe probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
     auto r=qchem::Response::IndependentResponse(ref, probe, Nq);
     if (r) r->Write(std::cout, 27.211386245988, "1/eV");     // reported at its own activity (pin 17)
@@ -1474,7 +1341,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
         }
     }
     const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-        {.acrossK=!itsImp->opts.perKFermiLevels, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
+        {.acrossK=!itsImp->setup->opts.perKFermiLevels, .acrossSpin=itsImp->setup->opts.spinsShareFermi}, noise);
     const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf);
     const auto hp=qchem::Response::MakeHubbardProbe(ref, *wf, *hub, res);
     const bool resolved = res!=qchem::Response::HubbardResolution::Manifold;
@@ -1507,14 +1374,14 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
         { siteFrac.push_back(rvec3_t(Ainv(1,1)*r.x+Ainv(1,2)*r.y+Ainv(1,3)*r.z, Ainv(2,1)*r.x+Ainv(2,2)*r.y+Ainv(2,3)*r.z,
                                      Ainv(3,1)*r.x+Ainv(3,2)*r.y+Ainv(3,3)*r.z)); });
         const auto qmesh=ref.QMesh(Nq);
-        if (qmesh) stars=qchem::Response::FoldQMesh(*qmesh, itsImp->lat->ShubnikovOps(itsImp->decoration), siteFrac, cs, perturbed);
+        if (qmesh) stars=qchem::Response::FoldQMesh(*qmesh, itsImp->lat->ShubnikovOps(itsImp->setup->decoration), siteFrac, cs, perturbed);
     }
     // THE LITTLE GROUP of each (q, J) (KAxisPlan P5): the ground state's group MEASURED on the orbitals (ruling 1), offered the
     // Shubnikov ops of the decoration the run was built with.  ⚠ COLLINEAR: a σ op relabels the up/down blocks (MakeOrbitalImages).
     std::optional<qchem::Response::OrbitalImages> images;
     if (littleGroupK)
     {
-        images=qchem::Response::MakeOrbitalImages(ref, *wf, itsImp->lat->ShubnikovOps(itsImp->decoration));
+        images=qchem::Response::MakeOrbitalImages(ref, *wf, itsImp->lat->ShubnikovOps(itsImp->setup->decoration));
         images->Write(std::cout);
     }
     auto solved=qchem::Response::LinearResponse(ref, frame, *kernel, hp.probe, Nq, krylov, resolved ? channels : perturbed,
@@ -1590,7 +1457,7 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
     // ⛔ An IMPOSED run's SCF star-averages the XC density every iteration (the Becke (ρ, m) projector, the raster
     // average) -- so a +-alpha run on one site would respond with a SYMMETRIZED XC potential and an unsymmetrized
     // Hartree one: neither the physical response nor the linear response's.  Found 2026-09-29 on NiO AFM-II.
-    if (itsImp->imposed)
+    if (itsImp->setup->imposed)
         throw std::invalid_argument("SolidCalculation::HubbardFiniteDifferenceChi: an IMPOSED run symmetrizes the XC density "
                                     "every SCF iteration, and the alpha*P perturbation breaks the group -- run the cross-check FREE");
     const double alpha0 = J<itsImp->hubbard.size() ? itsImp->hubbard[J].alpha : 0.0;   // restored at the end
@@ -1600,7 +1467,7 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
         const auto* wf=itsImp->scf->GetWaveFunction();
         if (!wf) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: no wave function");
         const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-            {.acrossK=!itsImp->opts.perKFermiLevels, .acrossSpin=itsImp->opts.spinsShareFermi}, std::numeric_limits<double>::quiet_NaN());
+            {.acrossK=!itsImp->setup->opts.perKFermiLevels, .acrossSpin=itsImp->setup->opts.spinsShareFermi}, std::numeric_limits<double>::quiet_NaN());
         const auto probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
         qchem::Response::BlockPairs D;                      // the state in its own MO basis: diag(occupation)
         for (const Irrep& ir : wf->GetQNs())
@@ -1687,13 +1554,13 @@ const WaveFunction::cWaveFunction& SolidCalculation::ResponseWaveFunction() cons
 
 // The caller's observer is SWAPPED IN behind the facade's own (AttachProbes composes the two), so
 // attaching telemetry late cannot silently disarm the outcome detectors.
-void   SolidCalculation::OnIteration(Observer obs)      { itsImp->opts.onIteration=std::move(obs); AttachProbes(); }
+void   SolidCalculation::OnIteration(Observer obs)      { itsImp->onIteration=std::move(obs); AttachProbes(); }
 bool   SolidCalculation::DidConverge()    const         { return itsImp->converged; }
 size_t SolidCalculation::IterationCount() const         { return itsImp->scf->GetIterationCount(); }
 
 const RunDiagnostics& SolidCalculation::Diagnostics() const { return itsImp->diag; }
 
-const qcMesh::MeshParams& SolidCalculation::ResolvedXCMesh() const { return itsImp->xcMesh; }
+const qcMesh::MeshParams& SolidCalculation::ResolvedXCMesh() const { return itsImp->setup->xcMesh; }
 const BasisSet::Complex_BS& SolidCalculation::Basis() const { return *itsImp->bs; }
 
 } //namespace qchem
