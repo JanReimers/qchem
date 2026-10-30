@@ -22,6 +22,7 @@ import qchem.ScalarFunction;       // ::ScalarFunction<double>
 import qchem.BasisSet;             // BasisSet::Real_BS
 import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, IsDFT, the unified resolver
 export import qchem.MoleculeSetup; // CalcOptions + the resolved MoleculeSetup a run is built from (step 7)
+export import qchem.PotentialEnergySurface;   // the face MoleculeSession implements (step 8)
 import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ElectronConfiguration;// ElectronConfiguration
 import qchem.SCFIterator;          // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
@@ -98,6 +99,19 @@ private:
     //! probe/solver as StaticPolarizability with its own kernel, so it needs this run's Hamiltonian, wave
     //! function and basis -- which the facade deliberately does not expose.
     friend class ::ResponseFacadeTests;
+    //! \name THE GEOMETRY POINT a MoleculeSession steps to (step 8)
+    //!@{
+    friend class MoleculeSession;
+    //! What crosses from one point to the next: every block's physical D = Σ f c cᵀ, spin irreps outer, basis blocks inner --
+    //! the SAME basis recipe at moved atoms has the same blocks, so block b of one point is block b of the next.
+    struct Carry { std::vector<hmat_t<double>> D; };
+    //! The point at \a at (\c setup->reference's atoms, moved), seeded from \a carry when given (a WorkingDensity), else from the
+    //! setup's seed strategy.  The public setup constructor is this at the reference with no carry.
+    Calculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
+                const SCFParams& scf);
+    Carry MakeCarry() const;
+    std::unique_ptr<const Carry> itsCarry;   //!< consumed by the first Converge, which builds the basis it is re-homed onto
+    //!@}
     typedef std::pair<double, const sf_t*> occ_t;   //!< (eigen-energy, orbital) for HOMO/Orbital(i)
     void RebuildSampling();   //!< after a Converge: own a fresh density + sort the occupied MOs
 
@@ -117,6 +131,29 @@ private:
     std::unique_ptr<qchem::ChargeDensity::rDM_CD> itsDensity;  //!< owned converged rho(r)
     std::vector<occ_t>                   itsOccupied;          //!< non-owning, into the wave function
     Observer                             itsObserver;          //!< optional live-progress sink
+};
+
+//! \brief THE MOLECULAR POTENTIAL ENERGY SURFACE (doc/CalcNetworkReview.md §3.1, §7; step 8): one fixed \c MoleculeSetup,
+//! sampled at positions the caller chooses.  Each \c ConvergeAt builds a new point -- the reference's atoms moved, its basis
+//! made there (the same named basis) -- seeded from the previous point's density carried onto it, block for block.
+//!
+//! WHAT A POINT REFUSES (a \c PESFailure, never a crash): positions that change the abelian point group the SALC blocks are
+//! built on, when the setup imposes one (\c CalcOptions::symmetry; ruling Q4); forces (step 9).  The molecular basis is
+//! neither trimmed nor given an ortho tolerance by this facade, so it has no conditioning window to leave (Q3 is solid-only today).
+class MoleculeSession : public virtual PotentialEnergySurface
+{
+public:
+    MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf);
+    ~MoleculeSession();
+    const Structure& Reference() const override;
+    //! THROWS when \a R has not one position per atom.
+    Outcome<PESPoint, PESFailure> ConvergeAt(const std::vector<rvec3_t>& R, const PESRequest& want = {}) override;
+    //! The current point (the last \c ConvergeAt's); null before the first.  Replaced by the next \c ConvergeAt.
+    const Calculation* Current() const {return itsPoint.get();}
+private:
+    std::shared_ptr<const MoleculeSetup> itsSetup;
+    SCFParams                            itsSCF;
+    std::unique_ptr<Calculation>         itsPoint;
 };
 
 } // namespace qchem

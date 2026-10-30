@@ -22,6 +22,10 @@ import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Fa
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
+import qchem.BasisSet.Orbital_1E_IBS;                // Real_OIBS -- the per-irrep blocks a carry is re-homed onto
+import qchem.CompositeCD;                            // tComposite_CD (the carried density's shape)
+import qchem.ChargeDensity.Factory;                  // IrrepCD_Factory
+import qchem.Symmetry.Molecule.PointGroup;           // DetectPointGroup (a session step must keep the SALC group)
 
 namespace qchem
 {
@@ -106,10 +110,16 @@ Calculation::Calculation(const Structure& st, const CalcOptions& opts, const SCF
 {}
 
 Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf)
+    : Calculation(setup, *setup->reference, nullptr, scf)
+{}
+
+Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
+                         const SCFParams& scf)
     : itsSetup(std::move(setup))
     // A pseudopotential run works on the VALENCE ions (Z-Zion charge) so the electron count is the valence count -- the
     // structure the basis and the EC both read.
-    , itsStructure(itsSetup->PointStructure(*itsSetup->reference))
+    , itsStructure(itsSetup->PointStructure(at))
+    , itsCarry(std::move(carry))
 {
     itsEC    = MakeMoleculeEC(itsSetup->Ne, itsSetup->opts.multiplicity);
     // The basis is NOT built here: the first Converge builds it INSIDE its run report's "basis" section, so a
@@ -168,7 +178,29 @@ bool Calculation::Converge(const SCFParams& params)
         delete itsScf; itsScf = nullptr;
         itsHam.reset(ham);
         itsAccel.reset(accel);
-        itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get());
+        if (!itsCarry)
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get());
+        else
+        {
+            // THE CARRY (a MoleculeSession step): the previous point's D, block for block, onto THIS point's basis -- a
+            // WorkingDensity of the moved Hamiltonian, consumed here once.
+            using namespace qchem::ChargeDensity;
+            auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetReciprocalPointOps());
+            size_t b=0;
+            for (Spin s : SpinIrreps(opts.spin))
+                for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
+                {
+                    if (b>=itsCarry->D.size() || itsCarry->D[b].rows()!=ibs->GetNumFunctions())
+                        throw std::logic_error("qchem::Calculation: the carried density's blocks do not match this point's basis");
+                    const Irrep irr=ibs->GetIrrep(s);
+                    cd->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(itsCarry->D[b++], ibs, irr)), irr);
+                }
+            if (b!=itsCarry->D.size())
+                throw std::logic_error("qchem::Calculation: the carried density has more blocks than this point's basis");
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), cd.release(), itsStructure.get(),
+                                 qchem::Auto, 0.0, qchem::SCFIterator::SeedRole::WorkingDensity);
+            itsCarry.reset();
+        }
     }
 
     if (itsObserver) itsScf->SetObserver(itsObserver);
@@ -233,6 +265,79 @@ void Calculation::RebuildSampling()
 }
 
 void Calculation::OnIteration(Observer obs) {itsObserver = std::move(obs);}
+
+Calculation::Carry Calculation::MakeCarry() const
+{
+    const auto* wf = itsScf ? itsScf->GetWaveFunction() : nullptr;
+    if (!wf) throw std::logic_error("qchem::Calculation::MakeCarry: no wave function yet");
+    Carry c;
+    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+        for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
+        {
+            const size_t n=ibs->GetNumFunctions();
+            const auto* os=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(wf->GetOrbitals(ibs->GetIrrep(s)));
+            if (!os) throw std::logic_error("qchem::Calculation::MakeCarry: a block's orbitals are not real");
+            hmat_t<double> D(n);
+            for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) D(a,b)=0.0;
+            for (const auto* o : os->Iterate<qchem::Orbitals::TOrbital<double>>())
+            {
+                const double f=o->GetOccupation();
+                if (f==0.0) continue;
+                const auto& v=o->GetCoeff();
+                for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) D(a,b)+=f*v[a]*v[b];
+            }
+            c.D.push_back(std::move(D));
+        }
+    return c;
+}
+
+//====================================================================================================
+//  THE MOLECULAR SESSION (doc/CalcNetworkReview.md §7, step 8)
+//====================================================================================================
+MoleculeSession::MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf)
+    : itsSetup(std::move(setup)), itsSCF(scf) {}
+MoleculeSession::~MoleculeSession() = default;
+
+const Structure& MoleculeSession::Reference() const {return *itsSetup->reference;}
+
+Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::vector<rvec3_t>& R, const PESRequest& want)
+{
+    using O=Outcome<PESPoint, PESFailure>;
+    using Why=PESFailure::Why;
+    const Structure& ref=*itsSetup->reference;
+    const size_t nAtoms=ref.GetNumAtoms();
+    if (R.size()!=nAtoms)
+        throw std::invalid_argument("MoleculeSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
+    if (want.forces || want.stress)
+        return O::Fail({Why::NoGradient, std::string(want.stress ? "stress" : "forces")+": no term implements its geometry gradient yet "
+                        "(doc/CalcNetworkReview.md §3.3, step 9) -- difference ConvergeAt energies meanwhile"});
+
+    std::shared_ptr<Structure> at=ref.Clone();
+    for (size_t a=0;a<nAtoms;a++) (*at)[a]->itsR=R[a];
+
+    // THE IMPOSED GROUP must survive (Q4): the SALC blocks are built on the abelian point group, so a step that changes it changes
+    // the blocks the carry and the energy surface are written in -- a NEW setup, the user's choice.
+    if (itsSetup->opts.symmetry)
+    {
+        auto abelian=[&](const Structure& st)
+        {
+            std::vector<qchem::Symmetry::Molecule::SymPoint> pts;
+            st.ForEachSite([&](int Z, const rvec3_t& r, bool){ pts.push_back({Z, r}); });
+            return qchem::Symmetry::Molecule::DetectPointGroup(pts, itsSetup->opts.symmetryTol).abelian;
+        };
+        if (const std::string now=abelian(*at), was=abelian(ref); now!=was)
+            return O::Fail({Why::SymmetryBroken, "these positions lower the imposed abelian group "+was+" to "+now
+                            +" -- symmetrize the step, or resolve a new setup without the symmetry"});
+    }
+
+    std::unique_ptr<const Calculation::Carry> carry;
+    if (itsPoint) carry=std::make_unique<const Calculation::Carry>(itsPoint->MakeCarry());
+    itsPoint.reset();   // one point's memory at a time
+    itsPoint.reset(new Calculation(itsSetup, *at, std::move(carry), itsSCF));
+    if (!itsPoint->IsConverged())
+        return O::Fail({Why::SCF, "the SCF did not converge in "+std::to_string(itsPoint->IterationCount())+" iterations"});
+    return O::Ok(PESPoint{.energy=itsPoint->Energy(), .forces={}, .iterations=itsPoint->IterationCount()});
+}
 
 double                 Calculation::Energy()      const {return itsScf->GetEnergy().GetTotalEnergy();}
 qchem::EnergyBreakdown Calculation::EnergyTerms() const {return itsScf->GetEnergy();}
