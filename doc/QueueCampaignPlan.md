@@ -100,6 +100,8 @@ session cap).  The real cap is the BOX: two module builds at once plus one heavy
 if it mostly edits rather than builds.  The user talks to the controller; lanes talk to the controller.  C3 starts only after
 KAxisPlan P5 lands, since H owns V1.41 so far.
 
+**Lane G (GUI, ruled 2026-10-30, starts when lane B's steps 6–8 land):** worktree `~/Code/qchem-lane-g` on `lane-g` + a clone of `github.com/JanReimers/qchem-GUI` at `~/Code/qchem-GUI`; Sonnet.  Owns `pybind/` (the binding owner the lib lanes flag breaks to).  Step 1: a FRESH bridge on main (not a merge of the stale `origin/viz`, 1512 behind): bind only `MoleculeSetup::Resolve` + `Calculation` (later `MoleculeSession`), an opaque handle type (no `void*`), keep the module-unit / plain-C-header split; then make qchem-GUI's `QChemBackend` run on it, checking first whether `stream_scf` needs a per-iteration hook on the facade.  Off the critical-path count; build under the build lock.
+
 ## 6. Controller protocol (this session's job)
 
 **Working copies.**  The repo of record is `~/Code/qchem6`, and lane H works IN it (2026-10-29: committing on `main`).  Each new lane
