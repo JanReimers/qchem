@@ -313,6 +313,42 @@ it is a cheap witness of the linear step (G3).  NiO (#21) is in on the plan's li
 **The plan's candidate list had no METAL**; #12 is added because row 3 of the matrix is otherwise unmeasured, and a larger metallic
 cell (SrVO₃ k444) is the case that would test "Pulay-D without Kerker" on long-wavelength sloshing — UNMEASURED cost, full tier if it fits.
 
+### B1 as built — the first baseline (2026-10-29, lane-a at 07af0909 + B1; log `~/Code/qchem6-runs/anchors/panel-07af0909-lane-a.log`)
+
+GREEN budget = ⌈1.25 × baseline⌉.  A budget counts every SCF stage inside the case; the facade's atomic solves (the seed's, and the
++U projector's pseudo-atom) are SETUP and run under `qchem::SetupSCF`, uncounted — the first baseline counted them, +122 on each β-MnO₂ case.
+
+| # | test (`_Panel` = fast tier, `_Panel_Long` = long) | baseline | budget | status |
+|---|---|---|---|---|
+| 1 | `GPW_NaF.Γ_Imp_eqExactResume_Panel` | 2 | 3 | GREEN |
+| 2 | `GPW_NaF.Γ_Imp_eqColdStart_Panel` (the fine stage only) | 3 (4 on the re-check) | 5 | GREEN |
+| 3 | `SolidState.ExactResume_{Pulay,KerkerPulay}_Null_StartsAtTheSavedState_Panel` | 2, 2 | 3 | GREEN |
+| 4 | `GPW_O2Box.Γ_Imp_M3_Pulay_Anchor_Panel` | 25 | 32 | GREEN |
+| 5 | `GPW_Si.Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint_Panel` | 36 (15+3+2+16) | 45 | GREEN |
+| 6 | `GPW_Si.Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel` | 100 (cold 79 + 11 + 10) | 125 | **GREEN — RED claim not reproduced**: outer = 3, U_SC 1.2399 (= the DIIS route); the row closes |
+| 7 | `GPW_Si.Γ_Null_Linear_Converges_Panel` (now under `policy.cp2kCompat`, the row's condition) | 17 | 22 | **GREEN — RED claim not reproduced**: the re-damp holds (α 0.89 ↔ 0.50); the row's Mn–O dimer witness stays open |
+| 8 | `GPW_Na2Box.Γ_Pol_Null_Linear_SpinSeed_Converges_Panel` | 38 = cap, unconverged (E 3e-6 above the twin) | 38 | RED |
+| 9 | `GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows_Panel` | 232 | 290 | GREEN |
+| 10 | — polarized Si jump | — | — | NOT BUILT (needs a manifold-moment readout; B2) |
+| 11 | `M_DFT.OxygenTripletBelowSinglet_Panel` (the B atom arm not built) | 26 | 33 | GREEN |
+| 12 | `GPW_Al.Γ_Imp_Anneal_Anchor_Panel` | 15 (13+1+1) | 19 | GREEN |
+| 13 | `GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Panel_Long` | 14 | 18 | GREEN |
+| 14 | `GPW_MnO.Γ_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` | 15 | 19 | GREEN (E −61.3032807797) |
+| 15 | `GPW_MnOBox.Γ_M6_GDM_Converges_Panel_Long` | 15 = cap, Δρ/N 6.7e-2 | 15 (provisional: ruling 7, the CP2K OT state comparison first) | RED |
+| 16 | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` | 40 = cap, Δρ/N 5.2e-2 | 40 | RED |
+| 17 | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Converges_Panel_Long` | 143 (E −93.36627496) | 179 (deck cap 180) | GREEN — but 143, not the record's ≈ 60: the record's run was WARM |
+| 18 | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long` | 80 = cap | 80 | RED |
+| 19 | — β-MnO₂ r015 resume | — | — | NOT BUILT (needs a vendored saved state) |
+| 20 | `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` | 39 | 49 | GREEN |
+| 21 | — NiO cold | — | — | NOT BUILT (no arm fits the tier as banked) |
+
+Wall: the whole panel ran 1 h 48 min at `-j2` (fast tier ≈ 2 min; #17 alone 82 min, #18 44 min).
+
+**The metal measurement (ruling 4)**: Al fcc k444 (one atom), kT 10 mHa, Null, Pulay 8/5, α 0.45, Uniform seed, imposed —
+Pulay on D **11** iterations, Kerker+Pulay **14**, same fixed point (−2.0774499094 / −2.0774499091).  A one-atom cell has no
+long-wavelength sloshing for Kerker to damp, so this says only that Pulay-D is not WORSE on a small metal; the SrVO₃ k444 arm
+(the larger cell) is unmeasured.  Decks: `~/Code/qchem6-runs/Al/al_k444_metal_{pulayD,kerkerpulay}.{json,log}`.
+
 ---
 
 ## 5. Build order inside C1 (panel first)

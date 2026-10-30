@@ -693,3 +693,16 @@ step): the LUMO is Mn d Γ0 0.651 / O p Γ0 0.243 / O s 0.084, LUMO+1 Mn d 0.53 
 the stage-1 (smeared, diagonalizing) characters the row quoted, energies unchanged (LUMO→+1.92→+4.14 eV).  Seen on the way, for the
 panel: that GDM restart stage is the linear crawl ([F,D] 1.40e-3 → 6.29e-4 in 6 steps, ~14 %/step) stopped by its ΔE/E gate (OpenWork
 "GDM crawls…", the open-gap witness).
+
+## ✅ GDM false-converges on a carried stage whose Hamiltonian CHANGED (OpenWork §3, 2026-10-26) -- CLOSED 2026-10-29 by re-measure (C1 B1)
+
+VERDICT: the C1 B1 panel case #6, `GPW_Si.Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel` (the row's own setup: the Si +U
+linear-response loop under an EXPLICIT `Ladder`), no longer false-converges: the loop runs **outer = 3, CONVERGED, U_SC
+1.2399 eV** -- the DIIS route's value -- with the carried stages at 11 and 10 iterations (the cold first stage 79).  The row's
+symptom was 12 outer steps NOT converged with U never moving the state.  Consistent with 1e0b2069 (2026-10-29: the default gate
+carries [F,D] = MinFD, which is the row's own proposed fix, "gate a GDM stage on its GRADIENT"); NOT bisected.  The case stays on
+the panel, GREEN, budget 125 (100 measured); log `~/Code/qchem6-runs/anchors/panel-07af0909-lane-a.log`.
+
+The row as it stood:
+
+| **GDM false-converges on a carried stage whose Hamiltonian CHANGED** (2026-10-26) | D-MINDRHO's Δρ = ∫|ρ_out−ρ_in| measures a DIRECT MINIMISER's own step, not its distance to the fixed point: a U-loop outer stage on Ladder@GDM (`GPW_Si.Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint` under the Auto pair) starts at [F,D] 4.6e-7 (Si p λ = ½: the new U's potential is small), GDM's preconditioned steps decay ~0.7×/iteration and the Δρ < 1e-7 gate passes in 2–10 iterations with Ekin/Een/Eee/Exc unchanged to 1e-10 -- U never moves the state, the loop runs 12 outer steps NOT converged (DIIS stages: 3 outer, U_SC 1.2399).  MITIGATED 2026-10-26: the `Auto` policy puts GDM only on a RESTORED stage (same Hamiltonian); an EXPLICIT Ladder on a carried stage still has it | gate a GDM stage on its GRADIENT ([F,D]) or on the aufbau density of F[ρ_in] rather than on its step; meanwhile the Auto pair puts GDM only on a true RESTART (same Hamiltonian) · `src/SCFIterator/Imp/SCFIterator.C`, `src/SCFAccelerator/` |
