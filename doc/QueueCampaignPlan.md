@@ -228,9 +228,9 @@ ball — it can, to a stated tolerance, and it is the SAME ball.**  The reasonin
 Row names abbreviated; the row itself lives in its queue.  The controller updates this index at each merge, and the open F+V+S count
 is read from it.
 
-**F (16)** — C1: "Linear D-mixing diverges" (remainder), "Na₂ AFM seed", "GDM crawls",
+**F (17)** — C1: "Linear D-mixing diverges" (remainder), "Na₂ AFM seed", "GDM crawls",
 "Kerker+Pulay overshoots β-MnO₂'s U = 1 basin" (a panel case), "Polarized Γ Si jumps", "GDM: should an exhausted line search END the
-stage?", §2 "`MixingPolicy`" (becomes P4a's regime matrix); "the Kerker field mixer is not exactly group-equivariant", "the low-rank D factor can split a symmetry orbit" (B2 R2.1, 2026-10-30: a density that leaves its group is not variational, so its forces are not dE/dR).  C2: "BallOnly raster aliases tight pairs", "AUTO density cutoff misses O
+stage?", §2 "`MixingPolicy`" (becomes P4a's regime matrix); "the Kerker field mixer is not exactly group-equivariant", "the low-rank D factor can split a symmetry orbit" (B2 R2.1, 2026-10-30: a density that leaves its group is not variational, so its forces are not dE/dR).  "A threaded NaF exact resume STALLS GDM at iteration 1, and its mixed fallback feeds XC the FITTED ρ" (lane A 2026-10-30; the pin-28 routing half may be a real defect on any re-seat).  C2: "BallOnly raster aliases tight pairs", "AUTO density cutoff misses O
 q6", "uniform-raster XC not equivariant", "a FREE run's XC mesh" (cost remainder), OOD R1.0r, CleanCode §K.  Forces note: §2 "SCF
 checkpoint/restart" (CK-3 = restart across a geometry step).  (Closed on main: "`u_bands` after a GDM stage" 07af0909, "GDM false-converges" ab1c206a.)
 
