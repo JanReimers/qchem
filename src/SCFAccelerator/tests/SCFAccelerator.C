@@ -94,11 +94,11 @@ double BandEnergy(const rmat_t& Cp, const rsmat_t& F)
 }
 
 // A GDM accelerator seeded far enough to hold a live geodesic step: one diagonalizing NextOrbitals (which
-// caches the orbitals), then a second UseFD so the residual is current.  FDMax is set high so the [F,D]
+// caches the orbitals), then a second UseFD so the residual is current.  EngageBelowFD is set high so the [F,D]
 // gate never blocks the step -- this test is about rejection, not about engagement.
 struct Rig
 {
-    GDMParams                    params{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
+    GDMParams                    params{ .EngageBelowFD=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
     LASolver<double>*            las = LASolver<double>::Factory(qchem::Cholesky);
     SCFAcceleratorGDM            acc{params};
     tSCFIrrepAccelerator<double>* irrep=nullptr;
@@ -120,7 +120,7 @@ struct Rig
 TEST(SCFAcceleratorGDM, RigHoldsALiveGeodesicStep)
 {
     Rig r;
-    EXPECT_TRUE(r.acc.CanLineSearch()) << "the [F,D] gate should be open (FDMax=1e30)";
+    EXPECT_TRUE(r.acc.CanLineSearch()) << "the [F,D] gate should be open (EngageBelowFD=1e30)";
     EXPECT_TRUE(r.irrep->ComputeStep()) << "a seeded GDM must offer a step";
     // ...and the step must be REAL: on a Fock the orbitals do not diagonalize, the band energy
     // must actually move.  Without this the whole file could pass on a zero gradient.
@@ -138,7 +138,7 @@ TEST(SCFAcceleratorGDM, AFoldedDoubletEngagesAndStepsLikeItsPolarizedTwin)
     Rig twin;
     ASSERT_TRUE(twin.irrep->ComputeStep());
 
-    GDMParams params{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
+    GDMParams params{ .EngageBelowFD=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
     std::unique_ptr<LASolver<double>> las(LASolver<double>::Factory(qchem::Cholesky));
     las->SetBasisOverlap(Identity(N));
     SCFAcceleratorGDM acc{params};
@@ -280,7 +280,7 @@ rsmat_t MakeSmearedDPrime()
 
 TEST(SCFAcceleratorGDM, ASmearedDensityIsNotEngageable)
 {
-    GDMParams params{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
+    GDMParams params{ .EngageBelowFD=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
     LASolver<double>* las = LASolver<double>::Factory(qchem::Cholesky);
     las->SetBasisOverlap(Identity(N));
     SCFAcceleratorGDM acc{params};
@@ -317,7 +317,7 @@ struct CrossedRig
     tSCFIrrepAcceleratorGDM<double>* gdm=nullptr;   // tests may cheat: the repick counter
     rsmat_t Fx=MakeCrossedFock();
     explicit CrossedRig(int maxRepicks)
-    : params{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4, .AufbauTol=1e-5, .AufbauMaxRepicks=maxRepicks }   // the re-pick is OFF by default
+    : params{ .EngageBelowFD=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4, .AufbauTol=1e-5, .AufbauMaxRepicks=maxRepicks }   // the re-pick is OFF by default
     , acc{params}
     {
         las->SetBasisOverlap(Identity(N));
@@ -358,7 +358,7 @@ TEST(SCFAcceleratorLadder, HandOffIsVetoedAndRetreatsOnANonEngageableRung)
     std::vector<std::unique_ptr<SCFAccelerator>> rungs;
     rungs.emplace_back(new SCFAcceleratorNull);
     rungs.emplace_back(new SCFAcceleratorGDM(
-        GDMParams{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 }));
+        GDMParams{ .EngageBelowFD=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 }));
     SCFAcceleratorLadder lad(std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8,
                                       /*switchat*/1e-3, ScheduleSignal::EnergyChange);
     LASolver<double>* las = LASolver<double>::Factory(qchem::Cholesky);
@@ -400,7 +400,7 @@ size_t DriveDegenerateHistory(double svTolRel)
     // The PRODUCTION absolute SVTol (1e-9), and a history dependent at a level ABOVE it -- the MnO
     // arrangement: svMin small relative to B's own scale yet above the absolute gate, so only the
     // relative test can see the dependence.
-    DIISParams p{ .Nproj=6, .FDMax=1e30, .FDMin=1e-30, .SVTol=1e-9, .SVTolRel=svTolRel };
+    DIISParams p{ .Nproj=6, .EngageBelowFD=1e30, .SVTol=1e-9, .SVTolRel=svTolRel };
     LASolver<double>* las = LASolver<double>::Factory(qchem::Cholesky);
     las->SetBasisOverlap(Identity(N));
     SCFAcceleratorDIIS acc{p};

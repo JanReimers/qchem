@@ -163,7 +163,7 @@ template <class T> bool tSCFIrrepAcceleratorGDM<T>::ComputeStep()
     // gate ComputeStep and not merely Ready(), because NextOrbitals() TAKES the step whenever ComputeStep
     // succeeds -- a check only in Ready() would still let the fallback path commit a full geodesic step.
     if (!itsBlockOccupied) return false;
-    if (!itsHaveC || no==0 || no>=n || itsEn>=itsParams.FDMax) return false;
+    if (!itsHaveC || no==0 || no>=n || itsEn>=itsParams.EngageBelowFD) return false;
     itsActive=true;
     size_t nv=n-no;
 
@@ -374,7 +374,7 @@ double SCFAcceleratorGDM::GetError() const
 }
 
 // The direct-min driver runs only when EVERY irrep can take a geodesic step; if any is still seeding or
-// above FDMax, the iterator falls back to a stable MIXED fixed-point step instead.
+// above EngageBelowFD, the iterator falls back to a stable MIXED fixed-point step instead.
 bool SCFAcceleratorGDM::RejectStep()
 {
     // Reject in EVERY irrep -- they all contributed to the step the caller rejected, and every one of them

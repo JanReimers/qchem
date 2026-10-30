@@ -466,7 +466,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         // post-step adaptive re-mix below (an adaptive mixer would otherwise re-mix
         // AFTER a geodesic step, corrupting it).  One query drives the driver choice, the mixer bypass, and
         // the honest ρ_mix="----" display.  CanLineSearch() gates the ACTUALITY: a minimizer that WantsLineSearch
-        // but is not yet READY (still seeding, or [F,D] above its FDMax engage threshold) takes a MIXED
+        // but is not yet READY (still seeding, or [F,D] above its EngageBelowFD engage threshold) takes a MIXED
         // fixed-point step this iteration instead of the unmixed diagonalize that runs away when ill-conditioned.
         const bool lineSearch = itsAccelerator->WantsLineSearch() && itsAccelerator->CanLineSearch();
         const tLoopDriver<T>& driver = lineSearch
@@ -675,7 +675,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         return fresh;
     };
     // Seed / bail: no geodesic this step (normally pre-empted by CanLineSearch() -> FixedPointDriver, but
-    // reachable if [F,D] jumps above FDMax between that check and the fresh Fock).
+    // reachable if [F,D] jumps above EngageBelowFD between that check and the fresh Fock).
     if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD.get())) return mixedStep("no geodesic step (seed, or [F,D] above the engage threshold)");
 
     // THE LINE-SEARCH REFERENCE MUST BE MEASURED IN THE TRIALS' OWN OCCUPATION CONVENTION.
