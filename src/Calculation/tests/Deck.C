@@ -516,7 +516,14 @@ TEST(Deck, EveryShippedDeckVets)
     for (const auto& e : fs::recursive_directory_iterator(fs::path(DECKS_DIR)))
         if (e.path().extension()==".json")
         {
-            deck::RunSpec d; ASSERT_NO_THROW(deck::FromJson(deck::LoadDeck(e.path(),"x"),d)) << e.path();
+            json j=deck::LoadDeck(e.path(),"x");
+            // a panel deck vendors its basis beside itself (decks/panel/, resolved by IntegrationTests/GPW/Panel.C the same way)
+            if (j.contains("basis") && j["basis"].contains("file"))
+            {
+                const fs::path f=j["basis"]["file"].get<std::string>(), beside=e.path().parent_path()/f;
+                if (f.is_relative() && fs::exists(beside)) j["basis"]["file"]=beside.string();
+            }
+            deck::RunSpec d; ASSERT_NO_THROW(deck::FromJson(j,d)) << e.path();
             deck::VetReport v;
             ASSERT_NO_THROW(v=deck::Vet(d, fs::temp_directory_path())) << e.path();
             EXPECT_FALSE(v.summary.empty()) << e.path();

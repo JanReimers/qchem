@@ -25,6 +25,7 @@
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 
 import qchem.Structure;                          // Molecule, Atom
+import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
 import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
 import qchem.Lattice_3D;                         // Lattice_3D
@@ -126,8 +127,9 @@ TEST(GPW_Al, Γ_Imp_Converges)
 // the free energy A=E−TS (below the internal E); the INTERNAL energy E=A−(−TS) is kT-INDEPENDENT to ~1e-7
 // across all three stages (−1.92115) -- the physical T→0 answer, and a strong self-consistency check on the
 // smearing thermodynamics (gate iii).
-TEST(GPW_Al, Γ_Imp_Anneal_Anchor)
+TEST(GPW_Al, Γ_Imp_Anneal_Anchor_Panel)   // PANEL case 12 (regime 3, metal kT > 0): the three-stage anneal's budget
 {
+    qchem::IterationBudget budget(19, "Al fcc anneal, three smeared stages (regime 3; 15 = 13+1+1 measured, 2026-10-29 panel baseline)");
     const Material al=qchem::Materials::Get("Al_fcc");        // Al (Zion=3): 3s^2 3p^1
     const Lattice_3D lat=LatticeOf(al);
     SolidCalcOptions o=AlOptions(al);

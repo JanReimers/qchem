@@ -31,6 +31,7 @@
 
 import qchem.Structure;                          // Molecule, Atom
 import qchem.SCFCap;                             // BoundedSCF (a deliberately bounded symmetry gate)
+import qchem.Tests.Panel;                        // the convergence PANEL's deck runner (doc/SCFRobustnessPlan.md §4)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
 import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
 import qchem.Lattice_3D;                         // Lattice_3D
@@ -318,8 +319,9 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
 // no rho-tilde, no cusp deficit -- and the fixed point is the rho[D] one.  The O2 box is the instrument that SEPARATED the two:
 // a fitted rho-tilde fed to XC lands +7.72 mHa high (-30.70246), rho[D] gives -30.71018173 (linear D-mixing, GDM, and Kerker
 // with the N4 cusp deficit all agree; doc/Pins.md pin 28).  Measured 2026-10-26: -30.7101817389 in 21 iterations, XC ρ = DM x21.
-TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor)
+TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor_Panel)   // PANEL case 4 (regime 1, Pulay on D)
 {
+    qchem::IterationBudget budget(32, "O2 box triplet, Pulay on D (regime 1; 25 measured, 2026-10-29 panel baseline)");
     const Material box=qchem::Materials::Get("O2_box16");
     const Lattice_3D lat=LatticeOf(box);
     SolidCalcOptions o=OptionsFor(box, "O2 in-box triplet, Pulay on D");
@@ -480,8 +482,9 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
 //     so the check silently skips.  Auto would route this soft cell to the uniform mesh.
 // The mirror-image gate is GPW_Mn2Box.Γ_Becke_Shub_Pol_Smear_KeepsOrder above: same shape, real magnet,
 // order SURVIVES.  The two together say the detector discriminates rather than always firing.
-TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows)
+TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows_Panel)   // PANEL case 9: a cheap witness of the linear step (G3)
 {
+    qchem::IterationBudget budget(290, "Na2 box Shubnikov order-lost (232 measured, 2026-10-29 panel baseline)");
     // ⛔ THIS GATE CANNOT RUN WITHOUT THE BECKE MESH, and the header above already says why: the
     // postcondition reads the INTEGRATED SITE MOMENT, whose basins ARE the Becke site blocks.  Vetoing the
     // atom-centred mesh (QCHEM_BECKE_XC=0 / CP2K_COMPAT=1) leaves SiteMoments correctly empty, the run is
@@ -547,4 +550,61 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows)
     // The charge channel must stay QUIET on a run that is merely non-magnetic -- the two detectors have
     // to discriminate, or the more specific one is worthless.
     EXPECT_FALSE(diag.ChargeSloshed()) << "a healthy converged run must not read as a charge runaway";
+}
+
+
+// ============================ THE CONVERGENCE PANEL (doc/SCFRobustnessPlan.md §4): the box cases ============================
+
+// PANEL case 15, RED (QCHEM_PANEL_RED; OpenWork §3 "GDM crawls at a near-degenerate frontier"): the Mn-O dimer at kT = 0,
+// multiplicity 6, standalone GDM from the seed -- -30.342242 at iteration 44, a linear tail with the frontier flipping every step,
+// 5.65 mHa above CP2K OT (-30.34790).  User: "GDM should only take 5-10 iterations to hit the noise floor".  Target: 15 iterations
+// at CP2K's lower-energy state (ruling 7, 2026-10-29, PROVISIONAL until our state's moments/occupations are compared with OT's).
+TEST(GPW_MnOBox, Γ_M6_GDM_Converges_Panel_Long)
+{
+    const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO_box16_GDM.json"), 15,
+                                   "Mn-O dimer, kT 0, multiplicity 6, GDM (regime 2'; OpenWork §3 GDM crawls)");
+    ASSERT_TRUE(o.run.converged) << o.run.summary;
+    ASSERT_TRUE(o.run.energy);
+    EXPECT_NEAR(*o.run.energy, -30.34790, 1e-3) << "CP2K OT's state (provisional target)";
+}
+
+// PANEL case 8, RED (OpenWork §3 "Na₂ polarized singlet won't converge from AFM seed at α=0.3"): the two-channel singlet of a
+// zeta = 0 system, seeded +m/-m, FREE, linear D-mixing at alpha 0.3 on the Null accelerator.  Measured 2026-08 (History4 "TWO
+// SMALLER LOOSE ENDS"): drho parks at ~1e-2 and oscillates while E is flat to 1e-9, on every accelerator; alpha 0.5 converges
+// in 66; the UNPOLARIZED twin converges in 30 at alpha 0.3.  Target: within 1.25x the unpolarized twin, at its energy.
+TEST(GPW_Na2Box, Γ_Pol_Null_Linear_SpinSeed_Converges_Panel)
+{
+    const Material box=qchem::Materials::Get("Na2_box16");
+    const Lattice_3D lat=LatticeOf(box);
+    SCFParams par;
+    par.NMaxIter=38; par.MinΔρPerElectron=1e-6; par.MinΔE=1e30;
+    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
+    par.MergeTol=1e-4;
+    par.Mixer=SCFParams::Mixing::Linear; par.StartingRelaxRo=0.3;
+    auto options=[](int mult, const char* label)
+    {
+        qchem::SolidCalcOptions o;
+        o.label=label;
+        o.Nelec=2; o.multiplicity=mult;
+        o.species={{"Na",1}};
+        o.seed=qchem::ChargeDensity::SeedStrategy::SAD;      // neutral Na: the library's 3s^1 spin pair, the +m/-m seed
+        o.accelerator=qchem::SCFAccelerators::Type::Null;
+        return o;
+    };
+    double Eunpol=0.0;
+    {
+        const qchem::SolidCalcOptions o=options(0, "Na2 UNPOLARIZED twin");   // multiplicity 0 = the zeta = 0 collapse
+        SCFParams p=par; p.NMaxIter=100;
+        const qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, p);
+        auto r=calc.Result();
+        ASSERT_TRUE(r) << "the unpolarized twin must converge: " << Why(r);
+        Eunpol=r->Energy();
+    }
+    qchem::IterationBudget budget(38, "Na2 box, polarized singlet from the AFM seed, linear 0.3 (OpenWork §3 Na2 row)");
+    qchem::SolidCalcOptions o=options(1, "Na2 AFM-seeded singlet, free");   // 1 = the EXPLICIT two-channel singlet
+    o.siteSpins={1,-1};                                                       // the +m/-m seed, stated
+    const qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    auto r=calc.Result();
+    ASSERT_TRUE(r) << Why(r);
+    EXPECT_NEAR(r->Energy(), Eunpol, 1e-6) << "a zeta = 0 singlet's polarized fixed point is its unpolarized one";
 }

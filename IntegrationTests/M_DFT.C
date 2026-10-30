@@ -14,6 +14,7 @@
 #include <stdexcept>
 
 import qchem.Calculation;            // Calculation, CalcOptions, Model, Angular
+import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
 import qchem.SCFParams;              // SCFParams (the O2 runs converge once, on their own recipe)
 import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;              // Molecule, Atom
@@ -126,8 +127,9 @@ TEST(M_DFT, OxygenTripletHF_VerboseDisplay)
 // Physics check that the spin channel is doing real work: the triplet ground state must lie BELOW the
 // closed-shell singlet (Hund's rule).  A flat/zero gap would mean the open-shell occupation silently
 // collapsed to closed shell -- the failure mode B3/B4 exist to prevent.
-TEST(M_DFT, OxygenTripletBelowSinglet)
+TEST(M_DFT, OxygenTripletBelowSinglet_Panel)   // PANEL case 11: a degenerate partly filled level (smeared singlet)
 {
+    qchem::IterationBudget budget(33, "O2 triplet + smeared singlet (molecular, degenerate pi*; 26 measured, 2026-10-29 panel baseline)");
     // The closed-shell SINGLET has two electrons for the exactly degenerate pi*x / pi*y pair: a single integer determinant
     // flips them between the two every iteration and never converged (2026-10-29, the cap guard).  A tiny smearing occupies
     // the pair EVENLY (equal fractions at any kT for a degenerate level) -- the symmetric closed-shell singlet, still above

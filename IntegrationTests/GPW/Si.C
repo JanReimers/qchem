@@ -167,6 +167,27 @@ TEST(GPW_Si, Γ_CP2K)
 }
 
 
+// PANEL case 7 (OpenWork §3 "Linear D-mixing diverges on free Si, no Fock accelerator"): plain linear D-mixing at alpha 0.30 on
+// the Null accelerator, under the row's own condition (cp2kCompat).  Found 2026-09-20 (descends to -7.11505 by iteration 19, then
+// diverges; DIIS had been masking it).  GREEN since the first panel baseline (2026-10-29): 17 iterations, the adaptive re-damp holds
+// (alpha 0.89 <-> 0.50) -- the row stays open on its Mn-O dimer witness.  CP2K's DIRECT_P_MIXING alpha 0.4 takes 12.
+TEST(GPW_Si, Γ_Null_Linear_Converges_Panel)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma, linear D-mixing, Null accelerator");
+    o.densityEcut=20.0;
+    o.accelerator=qchem::SCFAccelerators::Type::Null;
+    o.policy.cp2kCompat=true;   // the row's condition (CP2K_COMPAT=1): without it the adaptive re-damp holds and it converges, slowly
+    SCFParams par=Gates(60, 1e-6, 1e30);
+    par.Mixer=SCFParams::Mixing::Linear; par.StartingRelaxRo=0.30;
+    qchem::IterationBudget budget(22, "free Si Gamma, linear D-mixing alpha 0.3, Null, cp2kCompat (regime 1; OpenWork §3 linear row; 17 measured 2026-10-29)");
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+    auto r=calc.Result();
+    ASSERT_TRUE(r) << Why(r);
+    EXPECT_NEAR(r->Energy(), -7.115067447, 1e-5) << "the free Si Gamma fixed point (Kerker+Pulay 8: -7.115067447)";
+}
+
 // The GPW run-report SCHEMA CHECK (RunReportPlan step 3).  Under an open run report the facade emits the
 // `basis` (conditioning pre-flight) and `grids` (the ladder) sections itself during construction, and
 // MakeIrrepWFs fills basis.perIrrep (per-Bloch-block conditioning) via the cursor.  Only the SETUP matters
@@ -1321,8 +1342,9 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
 //   (1) step 1 IS U_0: the loop's first estimate == a stand-alone hubbardLinearResponse on the same converged U = 0 state;
 //   (2) the loop MOVED U (a loop whose SetU did nothing would "converge" at step 2 with U_SC = U_0);
 //   (3) U_SC is a FIXED POINT: a second deck, started from the SEED at U_in = U_SC, answers U_out = U_SC.
-TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint)
+TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint_Panel)   // PANEL case 5 (regime 5, the +U loop)
 {
+    qchem::IterationBudget budget(45, "Si +U linear-response loop + fixed-point arm (regime 5; 36 measured, 2026-10-29 panel baseline)");
     namespace fs=std::filesystem;
     // The SCF recipes, MEASURED 2026-10-04 on free Si Γ with U on site 0's p: the loop arm restarts from a converged state, where
     // Kerker/Pulay converges in 2-3 iterations (linear relax 1.0 diverges on a restart, LinearResponsePlan §3e finding 5); the fixed-point
@@ -1368,4 +1390,36 @@ TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint)
     // MEASURED 2026-10-04: U_0 1.2335018 -> U_SC 1.2399187 eV in 3 outer steps; from the seed, U_out(U_SC) = 1.2399189 (1.7e-7 eV).
     // Gated at the loop's own tolU_eV (the last step moved 3e-5).
     EXPECT_NEAR(Uout, USC, 1e-4) << "(3) U_SC is not a fixed point of U_out(U_in)";
+}
+
+
+// PANEL case 6 (OpenWork §3 "GDM false-converges on a carried stage whose Hamiltonian CHANGED", CLOSED 2026-10-29): the loop arm
+// of Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint_Panel under an EXPLICIT Ladder (DIIS -> GDM).  On 2026-10-26 a carried stage
+// started at [F,D] ~5e-7, GDM's drho gate passed with the state unmoved, and the loop ran 12 outer steps NOT converged.  The first
+// panel baseline (2026-10-29) runs 3 outer steps to U_SC 1.2399 (consistent with 1e0b2069: [F,D] in the default gate); GREEN, kept
+// so a gate change that lets a direct minimiser pass on its own step goes red here.
+TEST(GPW_Si, Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel)
+{
+    namespace fs=std::filesystem;
+    qchem::IterationBudget budget(125, "Si +U linear-response loop under an explicit Ladder (regime 5; 100 = cold 79 + carried 11 + 10, 2026-10-29 panel baseline)");
+    const nlohmann::json scf={{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial",1e30},{"minFD",1e30}};
+    const nlohmann::json deck={
+        {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
+        {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"accelerator","Ladder"},
+                  {"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0},{"projector","siteShells"}}}}}},
+        {"scf",scf},
+        {"postSCF",{{{"hubbardLoop",{{"estimator","linearResponse"},{"perturb",{0}},{"tolU_eV",1e-4},{"maxOuter",12}}}}}}};
+    qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+    const fs::path dir=fs::temp_directory_path()/("qchem_it_si_lrloop_ladder_"+std::to_string(::getpid()));
+    fs::remove_all(dir);
+    qchem::deck::Provenance pv; pv.codeVersion="it";
+    const auto out=qchem::deck::Run(spec, pv, dir);
+    ASSERT_TRUE(out.converged) << out.summary;
+    std::ifstream in(out.revision);
+    const nlohmann::json rec=nlohmann::json::parse(in);
+    fs::remove_all(dir);
+    const auto& loop=rec.at("results").at("postSCF").at(0);
+    ASSERT_TRUE(loop.at("ok").get<bool>()) << loop.at("summary");
+    const double USC=loop.at("U_eV").back().at(0).get<double>();
+    EXPECT_NEAR(USC, 1.2399187, 1e-3) << "the Kerker/Pulay arm's self-consistent U";
 }

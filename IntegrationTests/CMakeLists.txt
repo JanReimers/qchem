@@ -35,7 +35,7 @@ add_executable(ITMain gtestmain.C
     PW/Model.C PW/Si.C PW/NaF.C PW/CsI.C PW/Boxes.C
     A_HF_U.C A_HF_P.C A_HF_dfPin.C A_DHF.C A_DFT.C A_DFT_U.C A_PP.C L_PP.C M_HF_U.C M_DFT.C M_Sym.C
     # THE GPW SCF GRID (doc/TestSuitePlan.md §4): directory per basis family, file per material, ONE exe.
-    GPW/Si.C GPW/Al.C GPW/Na.C GPW/NaF.C GPW/MnO.C GPW/Boxes.C
+    GPW/Si.C GPW/Al.C GPW/Na.C GPW/NaF.C GPW/MnO.C GPW/MnO2.C GPW/TiO2.C GPW/Boxes.C
     M_Calculation.C
     M_Response.C
     M_Umbrella.C
@@ -50,6 +50,8 @@ add_executable(ITMain gtestmain.C
 
 target_compile_definitions(ITMain PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(ITMain PRIVATE ${BasisDataPath})
+# THE CONVERGENCE PANEL's deck runner (doc/SCFRobustnessPlan.md §4): a module of ITMain itself (it needs BASISSET_DATA_PATH).
+target_sources(ITMain PRIVATE FILE_SET panel_modules TYPE CXX_MODULES FILES GPW/Panel.C)
 set_property(TARGET ITMain PROPERTY CXX_STANDARD 20)
 
 target_include_directories(ITMain PRIVATE

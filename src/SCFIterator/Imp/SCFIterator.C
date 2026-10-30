@@ -569,6 +569,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
 //             Etotal       2+V/K    Del(E)  Del(Ro) [F,D]   Nproj    SVMin   Bail      relax
 // │ │                      (1e+05)  (1e-02) (2e-05) (2e-06) 
     itsIterationCount--;
+    qchem::ReportSCFIterations(itsIterationCount);   // the convergence panel's IterationBudget counts every Iterate
     // AN SCF THAT ENDS AT ITS CAP IS REPORTED (qchem.SCFCap; user 2026-10-29: "All SCF tests should fail if they hit max
     // iterations") -- the test mains make it a failure of the running test; a production driver installs no hook.
     if (!itsConverged && !exhaustedStop)

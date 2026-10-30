@@ -37,6 +37,7 @@ import qchem.BasisSet.Orbital_DFT_IBS;         // the block an orbital set lives
 import qchem.Environment;                   // WarnRetiredEnvironment (D-ENV step 6a)
 import qchem.RunPolicy;                        // the declared CP2K deviations (doc/OpenWork.md N5/T5)
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
+import qchem.SCFCap;                           // SetupSCF -- the seed's atomic solves are not the run's iterations
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
 
 namespace qchem
@@ -578,6 +579,7 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
     if (!seed)   // a RESTORED state arrives pre-built (Restart); otherwise the strategy the options name
     {
         qchem::report::Timed timed("setup: seed density (SAD/IonicSAD atomic solves)");
+        qchem::SetupSCF setup;   // the atomic solves are setup, not the run's convergence (a panel budget does not count them)
         seed.reset(qchem::ChargeDensity::MakeSeedDensity<dcmplx>(opts.seed, itsImp->bs.get(), itsImp->st.get(),
                                                                  itsImp->ec.get(), polarizedHam,
                                                                  SeedKeyOf(*itsImp->pp, *itsImp->st)));
@@ -1219,7 +1221,11 @@ static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, siz
     int Z=0; { size_t i=0; st.ForEachSite([&](int z, const rvec3_t&, bool){ if (i==site) Z=z; i++; }); }
     const std::string element=thePeriodicTable().GetSymbol(Z);
     const int Zion=pp.Valence(element);
-    const PseudoAtomOrbital& pa=PseudoAtomOrbitalOf(element, Zion, l);
+    const PseudoAtomOrbital& pa=[&]() -> const PseudoAtomOrbital&
+    {
+        qchem::SetupSCF setup;   // the pseudo-atom solve is setup, not the run's convergence (+122 on every beta-MnO2 panel case)
+        return PseudoAtomOrbitalOf(element, Zion, l);
+    }();
     std::ostringstream os;
     os<<"[+U projector] site "<<site<<" ("<<element<<", q"<<Zion<<") l="<<l<<": pseudo-atom "<<(l==0?"s":l==1?"p":l==2?"d":"f")
       <<" orbital eps="<<std::setprecision(4)<<pa.eps<<" Ha (16-exponent pool, E="<<std::setprecision(6)<<pa.Eatom

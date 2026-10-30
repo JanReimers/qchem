@@ -310,7 +310,7 @@ ball), so every PW run's XC saw ρ[D] with its G_max..2G_max shell cut off; floo
   sees \f$\rho[D_{mix}]\f$ with no correction.  Linear D-mixing and direct minimisation (GDM) comply (O₂ box: linear −30.71018167/173).
   A Pulay history without Kerker (G0 = 0) is in this class too: `PulayDMixer` (2026-10-26) keeps its history on density MATRICES
   (`tMixableDensity::MakeCopy/Axpy/Dot`), so XC sees ρ[D_mix] -- O₂ box −30.7101817 with `XC ρ = DM` every iteration
-  (`GPW_O2Box.Γ_Imp_M3_Pulay_Anchor`).  It is the facade's `Auto` mixer since 2026-10-26.
+  (`GPW_O2Box.Γ_Imp_M3_Pulay_Anchor_Panel`).  It is the facade's `Auto` mixer since 2026-10-26.
 - The cusp deficit is wired on Kerker and Kerker-preconditioned Pulay, unpolarized and in both spin coordinates, (ρ↑,ρ↓) and
   (ρ,m), and is the DEFAULT (`SCFParams::XCCuspDeficit` = true, 2026-10-22); false is a control, never a recipe.  The raster (pair)
   XC route meets it with its raw shadow (ρ[D] collocated pointwise, mixed on the raster) and refuses the flag on its BALL (fitted)
