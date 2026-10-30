@@ -138,6 +138,8 @@ open F+V+S count.  A new CONVERGENCE row also gets its case added to the panel (
 Plumbing and mechanical chunks (C4, C6, C7): Sonnet · high / medium.  No Haiku.  A Sonnet chunk that hits a physics surprise (an
 anchor moves unexpectedly) is handed to Opus.
 
+**Sweeps that are compared run SERIAL** (`QCHEM_OPENMP_THREADS` unset), like every main baseline: several tests are not thread-count invariant (lane A 2026-10-29: 57 anchor moves up to 2.8e-6 at 4 threads; OpenWork row).  Threads are for panel and campaign runs, never a landing sweep.
+
 ## 7. The three grid-and-symmetry decisions, with context
 
 **Raster default (agreed: AliasFree — with your caveat).**  BallOnly is much faster and was right for weeks; the loss was the HOURS
@@ -254,4 +256,5 @@ D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
 | main | from | sweep | anchors moved | baseline kept |
 |---|---|---|---|---|
 | `a3f4b50f` (2026-10-29) | lane-b C4 step 1 (`a2439643`: `PseudopotentialSet`, `pseudopotentials.json`) | serial short 1121 + long 7/7 | 0 / 1114 short, 0 / 8 long vs `capguard_*` | `~/Code/qchem6-runs/anchors/main-a3f4b50f_{short,long}.log` |
+| `e9955ebf` (2026-10-29) | lane-b C4 step 2 (inject the `PseudopotentialSet`; clean replace of the molecular PP fields) | serial short 1123 + long 8 | 0 / 1119 short, 0 / 8 long vs `main-a3f4b50f` | `~/Code/qchem6-runs/anchors/main-e9955ebf_{short,long}.log` |
 

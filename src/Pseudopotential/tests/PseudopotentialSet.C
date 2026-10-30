@@ -43,3 +43,13 @@ TEST(PseudopotentialSet, SpeciesFollowTheRequestedOrderAndAnUncoveredElementThro
     try { PseudopotentialSet::Get("nope"); FAIL() << "expected a throw"; }
     catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("known:"), std::string::npos); }
 }
+
+TEST(PseudopotentialSet, WithReplacesOrAddsAndKeepsNameAndFunctional)
+{
+    const PseudopotentialSet base=PseudopotentialSet::Get("gth-lda-valence");
+    const PseudopotentialSet s=base.With({{"Mn",15},{"Xe",8}});
+    EXPECT_EQ(s.Valence("Mn"), 15);  EXPECT_EQ(s.Valence("Xe"), 8);   // replaced / added
+    EXPECT_EQ(s.Valence("O"), base.Valence("O"));                     // the rest untouched
+    EXPECT_EQ(s.Name(), base.Name());  EXPECT_EQ(s.Functional(), base.Functional());
+    EXPECT_EQ(base.Valence("Mn"), 7) << "With returns a new set; the original is not modified";
+}

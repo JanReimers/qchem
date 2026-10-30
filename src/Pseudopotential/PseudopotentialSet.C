@@ -12,6 +12,8 @@ module;
 #include <vector>
 export module qchem.Pseudopotential.Set;
 
+import qchem.Structure;   // Structure -- the atoms a run's vocabulary is read off
+
 export namespace qchem::Pseudopotential
 {
 
@@ -29,8 +31,14 @@ public:
     bool Covers(const std::string& element) const;
     //! q, the valence electrons kept per atom of \a element (a key of GetGTH).  THROWS naming the set when it does not cover \a element.
     int  Valence(const std::string& element) const;
+    //! This set with \a overrides applied: each `(element, q)` replaces the set's q for that element, or ADDS the element when the set lacks it
+    //! (a stated pseudopotential valence, e.g. Mn q15 semicore for one run).  The set's name and functional are kept.
+    PseudopotentialSet With(const std::vector<std::pair<std::string,int>>& overrides) const;
     //! `(element, q)` for each of \a elements, in that order -- the \c SolidCalcOptions::species form.  THROWS on an uncovered element.
     std::vector<std::pair<std::string,int>> Species(const std::vector<std::string>& elements) const;
+    //! `(element, q)` for the distinct elements of \a st's atoms, in order of first appearance -- what the PP terms, the sharpness
+    //! gather and the electron count of a run over \a st need (never the whole set).  THROWS on an uncovered element.
+    std::vector<std::pair<std::string,int>> Species(const Structure& st) const;
 
 private:
     PseudopotentialSet(std::string name, std::string functional, std::vector<std::pair<std::string,int>> valence)

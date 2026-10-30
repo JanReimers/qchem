@@ -24,6 +24,7 @@ module qchem.SolidCalculation;
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;   // GaussianSharpness::MaxExponent -- alpha_max (the NARROW face)
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH -> HGH local PP -> alpha_pp
+import qchem.Pseudopotential.Set;             // PseudopotentialSet -- the run's chosen pseudopotential, resolved once in BuildBasis
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
 import qchem.ElectronConfiguration.Crystal;    // Crystal_EC
@@ -55,7 +56,7 @@ namespace qchem
 //                 NOT as "smooth".
 //---------------------------------------------------------------------------------------------------
 static qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const BasisSet::Real_BS& mol,
-                                               const SolidCalcOptions& o, bool imposed)
+                                               const Pseudopotential::PseudopotentialSet& pp, bool imposed)
 {
     qcMesh::XCMeshSharpness s;
     s.cellEdge = lat.GetUnitCell().GetMaximumCellEdge();
@@ -67,10 +68,10 @@ static qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Basi
         // used to cross-cast to.  Nothing here wants a lattice sum, a collocation or a stream fold.
         if (const auto* sh=dynamic_cast<const BasisSet::Gaussian::GaussianSharpness*>(ibs))
             { s.alphaMax = sh->MaxExponent(); break; }
-    for (const auto& [element, valence] : o.species)
+    for (const auto& [element, valence] : pp.Species(*lat.GetStructure()))   // the structure's elements, never the whole set
     {
         const int Z = int(thePeriodicTable().GetZ(element));
-        const Pseudopotential::HGH_LocalPotential loc = Pseudopotential::GetGTH(element,"LDA",valence).local;
+        const Pseudopotential::HGH_LocalPotential loc = Pseudopotential::GetGTH(element,pp.Functional(),valence).local;
         const auto* g = static_cast<const BasisSet::SpeciesRadialField_Gaussian*>(&loc);
         for (const auto& t : g->AsGaussians(Z, BasisSet::FieldRange::Short)) s.alphaPP = std::max(s.alphaPP, t.alpha);
     }
@@ -81,6 +82,8 @@ static qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Basi
 struct SolidCalculation::Imp
 {
     SolidCalcOptions opts;
+    //! THE RUN'S PSEUDOPOTENTIAL CHOICE, resolved ONCE (BuildBasis: \c opts.pp + \c opts.species overrides) and handed to every consumer.
+    std::optional<Pseudopotential::PseudopotentialSet> pp;
     std::shared_ptr<const Structure>            st;
     std::unique_ptr<BasisSet::Complex_BS>       bs;
     std::unique_ptr<Crystal_EC>                 ec;
@@ -337,7 +340,7 @@ void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& s
 
 //---------------------------------------------------------------------------------------------------
 static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, size_t site, int l,
-                                                        const std::vector<std::pair<std::string,int>>& species);
+                                                        const Pseudopotential::PseudopotentialSet& pp);
 
 SolidCalculation::SolidCalculation(BuildOnly) : itsImp(std::make_unique<Imp>()) {}
 
@@ -367,6 +370,7 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     itsImp->opts    = opts;
     itsImp->accOpts = acc;
     itsImp->st      = lat.GetStructure();
+    itsImp->pp.emplace(Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.species));
     RequireStatedMagneticOrdering(opts, *itsImp->st);
     itsImp->lat.emplace(lat);
 
@@ -398,9 +402,9 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     else if (opts.multiplicity>=1 && !opts.greyImposition)
     {
         const std::vector<int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
-                                       ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), "LDA")
+                                       ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), itsImp->pp->Functional())
                                        : std::vector<int>{};
-        siteSpins = qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), "LDA", targets);
+        siteSpins = qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), itsImp->pp->Functional(), targets);
     }
     // ★ THE FACADE'S SETUP IS BUCKETED (doc/ParallelAndOraclePlan.md 1.1, 2026-09-06).  Every MnO row drives
     // SolidCalculation directly, and until now only the phases INSIDE these calls were timed -- so the basis
@@ -476,7 +480,7 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     if (planeWave && opts.xcMesh.cellKind==qcMesh::UnitCellKind::Auto)
         itsImp->xcMesh = qcMesh::MeshParams{.cellKind=qcMesh::UnitCellKind::Uniform};
     else
-        itsImp->xcMesh = qcMesh::ResolveXCMesh(opts.xcMesh, GatherSharpness(lat, *mol, opts, imposed),
+        itsImp->xcMesh = qcMesh::ResolveXCMesh(opts.xcMesh, GatherSharpness(lat, *mol, *itsImp->pp, imposed),
                                                theRunPolicy().BeckeXC());
 
     // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches
@@ -526,7 +530,7 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
         for (auto& M : hubbard)
         {
             if (M.projector==qchem::Hamiltonian::HubbardProjectorKind::PseudoAtomic && M.atomicFunction.empty())
-                M.atomicFunction=PseudoAtomicFunction(*itsImp->st, M.site, M.l, opts.species);
+                M.atomicFunction=PseudoAtomicFunction(*itsImp->st, M.site, M.l, *itsImp->pp);
             if (M.siteOps.empty()) M.siteOps=lat.SiteRotations(M.site, decoration);
             // PARENTAGE is chemistry: the point group of the site's coordination polyhedron, not the
             // cell's grey stabiliser (which on the rhombohedral AFM-II supercell is D_3d too, and would
@@ -539,7 +543,7 @@ void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& 
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), opts.species, "LDA", itsImp->xcMesh, opts.vxcFit, hubbard));
+            itsImp->st, itsImp->bs.get(), *itsImp->pp, itsImp->xcMesh, opts.vxcFit, hubbard));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -1116,7 +1120,7 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     xc<<MeshName(itsImp->xcMesh.cellKind);
     if (itsImp->xcMesh.cellKind==qcMesh::UnitCellKind::Becke) xc<<" nR="<<itsImp->xcMesh.nRadial<<" L="<<itsImp->xcMesh.angularDegree;
     else                                                      xc<<" eCut="<<itsImp->xcMesh.eCut;
-    const RunIdentity id{.species=o.species, .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional="LDA",
+    const RunIdentity id{.species=itsImp->pp->Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->pp->Functional(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
                          .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT};
     return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,
@@ -1202,12 +1206,11 @@ double                 SolidCalculation::LastIterateCharge() const {return itsIm
 // THE PSEUDO-ATOMIC +U PROJECTOR (HubbardProjectorPlan D5/D6): the site species' pseudo-atom l orbital in its OWN
 // pool, handed over as is -- no projection onto the site's shells, no knowledge of the orbital basis.
 static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, size_t site, int l,
-                                                        const std::vector<std::pair<std::string,int>>& species)
+                                                        const Pseudopotential::PseudopotentialSet& pp)
 {
     int Z=0; { size_t i=0; st.ForEachSite([&](int z, const rvec3_t&, bool){ if (i==site) Z=z; i++; }); }
     const std::string element=thePeriodicTable().GetSymbol(Z);
-    int Zion=0; for (const auto& [el,val] : species) if (el==element) Zion=val;
-    if (Zion==0) Zion=Pseudopotential::GetGTH(element, "LDA").zion;
+    const int Zion=pp.Valence(element);
     const PseudoAtomOrbital& pa=[&]() -> const PseudoAtomOrbital&
     {
         qchem::SetupSCF setup;   // the pseudo-atom solve is setup, not the run's convergence (+122 on every beta-MnO2 panel case)

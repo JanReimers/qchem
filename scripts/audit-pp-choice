@@ -1,0 +1,12 @@
+#!/bin/bash
+# audit-pp-choice -- the run's pseudopotential CHOICE (set + functional) is made once, by qchem.Pseudopotential.Set, and handed to
+# every consumer (doc/CalcNetworkReview.md section 4, C4 step 2).  The solid and molecular facades must therefore never spell a
+# functional or a hard-coded valence themselves: a `"LDA"` literal in them is a second, silent choice.  (ChargeDensity/Imp/Seed.C
+# still has three until C4 step 3 keys the seed on the set.)
+set -eu
+SRC="${1:-$(dirname "$0")/../src}"
+bad=0
+for f in "$SRC/Calculation/Imp/SolidCalculation.C" "$SRC/Calculation/Imp/Calculation.C"; do
+    if grep -n '"LDA"' "$f" | grep -v '^\s*[0-9]*:\s*//' ; then echo "audit-pp-choice: functional literal in $f (take it from the PseudopotentialSet)"; bad=1; fi
+done
+exit $bad
