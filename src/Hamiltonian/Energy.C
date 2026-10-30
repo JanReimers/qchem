@@ -72,6 +72,12 @@ struct ChargeBreakdown
     //! qcChargeDensity; the one bit a reader JUDGES travels beside it: a fitted \f$\rho\f$ is legal only for the seed.
     std::string xcRho;
     bool        xcRhoFitted = false;
+    //! R2.1 (doc/SCFRobustnessPlan.md P2): how far the density the XC term's most recent \f$V_{xc}\f$ build was HANDED sat from
+    //! the imposed group, \f$\max|f-Pf|/\max|\rho|\f$ over \f$(\rho,m)\f$, measured at XC's own projector just before it projects.  XC
+    //! reads \f$Pf\f$, so this is not what XC saw: it is what every consumer that does NOT project (Hartree under the \f$\sigma\f$=None
+    //! subgroup, the mixer) was handed -- the 4e-9 that seeded the β-MnO₂ flip leak (2026-10-28) was this number.  0 on a free run;
+    //! nullopt when the XC route does not project (the raster pair route) and so cannot say.
+    std::optional<double> xcGroupResidual;
 };
 
 //! \brief The energy breakdown of one density: keyed, role-tagged, insertion-ORDERED contributions (Display

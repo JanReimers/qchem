@@ -482,6 +482,13 @@ template <class T> void tCompositeWF<T>::AnnounceBasisUsage() const
 // SCFIterator's OccupationPolicy slot owns that configuration and state, V1.11 inc 3.  The iterator's
 // AdoptMOMReference loops this WF's GetQNs() against the source's GetOrbitals(irrep), feeding the policy.)
 
+void RequireReservoirCharge(double n, double N, const std::string& where)
+{
+    if (std::fabs(n-N)<=1e-10*std::max(N,1.0)) return;   // a NaN n falls through to the throw
+    std::ostringstream os; os<<std::setprecision(12)<<"Σ w·n = "<<n<<" against N = "<<N<<" ("<<where<<")";
+    throw std::logic_error("SCF R2.4: an occupation reservoir lost or gained charge -- "+os.str()+".  doc/SCFRobustnessPlan.md R2.4");
+}
+
 // ONE loop over the RESERVOIR PARTITION (V1.11 increment 2, SCFStrategyPlan §5b): group the blocks by the
 // EC's partition, then fill each reservoir by the rule it supports.  This replaced a three-way decision
 // tree over three mode bools + two hand-rolled strategy methods.  The partition DEGRADES to per-block
@@ -537,6 +544,27 @@ template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, 
     // it has NOT been re-validated against the new delayed reference capture (tIrrepWF captures at
     // MOMStartIter, so useMOM would score against empty references for the first few fills).  The ACTIVE,
     // tested path is the crystal's WITHIN-irrep MOM in tIrrepWF::FillOrbitals.  Kept for the hard cases.
+    // R2.4 (doc/SCFRobustnessPlan.md P2): every reservoir holds its electrons.  Σ_blocks w·Σ_orbitals n against the count
+    // the reservoir was filled to -- the 2026-08-10 seed fill lost charge silently (Al Σw·n = 2.25 vs 3) because the only
+    // guard was an assert compiled out in Release.  Same weights and counts as the fills above (per-block prescribed counts
+    // when degraded; else each spin channel's GetN once, k-weights when the spatial blocks pool).  A HELD fill is skipped: it
+    // re-applies the occupations the stage before it filled (and checked), which need not be the per-block prescribed counts.
+    if (!pol.HoldsStoredBlocks())
+    for (const auto& [key,wfs] : reservoirs)
+    {
+        double n=0.0, N=0.0;
+        std::set<Spin> counted;
+        for (auto w : wfs)
+        {
+            const double wk=(itsPartition.spansSpatial && !degrade) ? IrrepOf(w).sym->GetWeight() : 1.0;
+            double nb=0.0; for (auto o : OrbitalsOf(w)->Iterate()) nb+=o->GetOccupation();
+            n+=wk*nb;
+            if (degrade) N+=(double)itsEC->PrescribedBlockN(IrrepOf(w));
+            else if (counted.insert(IrrepOf(w).ms).second) N+=(double)itsEC->GetN(IrrepOf(w));
+        }
+        std::ostringstream where; where<<"block "<<IrrepOf(wfs.front())<<", "<<wfs.size()<<" block(s) in the reservoir";
+        RequireReservoirCharge(n, N, where.str());
+    }
     if (!degrade && p.ranksIntegerFill) pol.ArmCrossIrrepMOM();   // no-op unless the run enables MOM
     AnnounceBasisUsage();   // the occupations now exist -- report them HERE, not when somebody else asks (V1.14)
 }

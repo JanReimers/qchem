@@ -74,6 +74,7 @@ template <class U> hmat_t<U> Vxc_Quadrature::MakeMatrixT(const tobs_t<U>* bs, co
     {
         std::lock_guard<std::mutex> lock(itsFockSourceLock.m);
         itsFockSource=itsSampler->RhoSource();   // what THIS V_xc saw (pin 28), read while the sampler's cache is cd's
+        itsFockGroupResidual=itsSampler->GroupResidual();   // ...and how far from the group it was handed (R2.1)
     }
     const Spin fs = s==Spin::None ? Spin::Up : s;
     rvec_t v(r.up.size());
@@ -103,6 +104,7 @@ void Vxc_Quadrature::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
         te.charge.xcRho       = ChargeDensity::ShortName(*itsFockSource);
         te.charge.xcRhoFitted = *itsFockSource==ChargeDensity::XCRhoSource::Fitted;
     }
+    te.charge.xcGroupResidual = itsFockGroupResidual;
 }
 
 // THE OBSERVABLE (doc/OpenWork.md N1/T2; R1.0h): mu_A = Integral w_A (rho_up - rho_dn), in electrons, over the

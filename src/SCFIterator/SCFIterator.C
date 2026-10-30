@@ -36,6 +36,14 @@ export namespace qchem::SCFIterator
 //! \c Iterate and reset it (it is a static, so it leaks between tests otherwise).
 bool& ReportBandGap();
 
+//! R2.7 (doc/SCFRobustnessPlan.md P2): NO DEAD GATE.  At the iteration that declares convergence, a LIVE [F,D] gate (MinFD not
+//! the "off" 1e30) reading EXACTLY 0.0 was never computed -- [F,D] arrives from the accelerator's GetError(), and a commutator
+//! FDS-SDF is never exactly zero in floating point -- so the pass is the gate's absence, not its verdict (evidence G3: the Null
+//! accelerator's [F,D] = 0 passed MinFD on every Kerker/Pulay run for months).  Throws.  Exported for the unit test.
+//! NOT applied to Δρ/N: an exact 0 there is legitimate -- a density-INDEPENDENT Hamiltonian (a one-electron atom, A_*_E1/DE1)
+//! reproduces its seed bit for bit at iteration 1 (measured 2026-10-30: 13 atom tests).
+void RequireLiveGates(double FD, double minFD, size_t iteration);
+
 //! Per-iteration progress, handed to an Observer each SCF step so a client (a GUI,
 //! a logger) can watch convergence live without owning the loop.  All real-valued
 //! (energies/residuals are real for both the rX and cX paths).

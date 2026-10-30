@@ -1,6 +1,7 @@
-# Tests for qcWaveFunction -- the level-table ROW builders (D10).
+# Tests for qcWaveFunction -- the level-table ROW builders (D10) and the R2.4 reservoir-charge check.
 add_executable(UTWaveFunction ../../Common/tests/gtestmain.C
     EigenRowsUT.C
+    ReservoirChargeUT.C
 )
 target_compile_definitions(UTWaveFunction PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTWaveFunction PROPERTY CXX_STANDARD 20)
