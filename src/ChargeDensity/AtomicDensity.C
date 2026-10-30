@@ -10,12 +10,29 @@ module;
 #include <vector>
 #include <memory>
 #include <utility>
+#include <map>
 export module qchem.ChargeDensity.AtomicDensity;
 import qchem.ScalarFunction;   // ScalarFunction<double>, rvec3_t
 import qchem.Mesh.Quadrature;  // qcMesh::RadialMesh, MakeRadial, Integrate (radial quadrature)
 
 export namespace qchem::ChargeDensity
 {
+
+//! WHICH seed densities a run asks the library for: the XC \a functional and, per atomic number, the
+//! pseudopotential variant \c q (valence electron count of the GTH potential the run's Hamiltonian uses).
+//! The run setup builds it from its \c PseudopotentialSet, so the seed, the terms and the basis cannot
+//! disagree about which pseudo-atom they are (C4 step 3; Li q1 and q3 are different seed densities).  A Z with no
+//! \c q entry is unkeyed (today's neutral-discovery rule, which THROWS when two variants are neutral).
+//! Implicitly built from a bare functional name, which keeps unkeyed callers (tests, molecular) unchanged.
+struct SeedKey
+{
+    std::string      functional = "LDA";
+    std::map<int,int> q;                                   //!< Z -> pseudopotential valence count
+    SeedKey() = default;
+    SeedKey(const char* f) : functional(f) {}
+    SeedKey(std::string f, std::map<int,int> qByZ={}) : functional(std::move(f)), q(std::move(qByZ)) {}
+    int Q(int Z) const {auto it=q.find(Z); return it==q.end() ? -1 : it->second;}   //!< -1 = unkeyed
+};
 
 //! A neutral atom's spherically-averaged radial density rho(r), read from the SAD database.  It lives on a
 //! qcMesh::RadialMesh (a Log mesh: nodes r_i = rmin*q^i, with the r^2 jacobian folded into the weights), so
@@ -47,13 +64,14 @@ private:
 //! for the pseudo-valence densities (the plane-wave SAD source).  \a Nval selects a CHARGE STATE by valence
 //! electron count (the entry's \c Nelec): \f$<0\f$ (default) = the first \a Z match (the neutral atom);
 //! \f$\ge0\f$ = the entry with \c Nelec==Nval (e.g. \c Nval=8 for F\f$^-\f$).  The seed-density library holds
-//! neutral + chemically-plausible ion entries (generated offline by \c qchem::ValenceBasisGen).
+//! \a q >= 0 keeps only the entries generated under PP variant q (the entry's \c q), which resolves the Li q1/q3 ambiguity.
+//! The library holds neutral + chemically-plausible ion entries (generated offline by \c qchem::ValenceBasisGen).
 RadialDensity GetAtomicDensity(int Z, const std::string& functional="LDA",
-                               const std::string& dbfile="atomic_densities.json", int Nval=-1);
+                               const std::string& dbfile="atomic_densities.json", int Nval=-1, int q=-1);
 //! Is there an entry for \a Z / \a functional (and \c Nelec==Nval if \a Nval>=0) in \a dbfile?  Lets a caller
 //! (IonicSAD) prefer a charge-state density when the library has it and fall back cleanly when it does not.
 bool          HasAtomicDensity(int Z, const std::string& functional="LDA",
-                               const std::string& dbfile="atomic_densities.json", int Nval=-1);
+                               const std::string& dbfile="atomic_densities.json", int Nval=-1, int q=-1);
 
 //! SPIN-RESOLVED pair {rho_up, rho_dn} for an open-shell (Hund ground state) entry -- the spin-polarized
 //! SAD source (doc/SCFSeedingPlan.md section 10).  Stored in the UP-MAJORITY convention: \c first is the
@@ -64,10 +82,10 @@ bool          HasAtomicDensity(int Z, const std::string& functional="LDA",
 //! callers gate on HasAtomicSpinPair and fall back to the rho/2 split.
 std::pair<RadialDensity,RadialDensity>
               GetAtomicSpinPair(int Z, const std::string& functional="LDA",
-                                const std::string& dbfile="atomic_valence_densities.json", int Nval=-1);
+                                const std::string& dbfile="atomic_valence_densities.json", int Nval=-1, int q=-1);
 //! Does the (Z, functional[, Nelec==Nval]) entry exist AND carry a spin-resolved pair?
 bool          HasAtomicSpinPair(int Z, const std::string& functional="LDA",
-                                const std::string& dbfile="atomic_valence_densities.json", int Nval=-1);
+                                const std::string& dbfile="atomic_valence_densities.json", int Nval=-1, int q=-1);
 
 //! A RadialDensity recentred at a nucleus \a R: a 3-D ScalarFunction rho(|r-R|) for the function-fitter.
 class RecentredAtomicDensity : public virtual ScalarFunction<double>

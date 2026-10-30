@@ -28,7 +28,7 @@ namespace qchem::ChargeDensity
 // when the Structure is not periodic, which is exactly this class's precondition.
 
 SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
-                             const std::string& functional, const std::vector<int>& ionicNvalBySite,
+                             const SeedKey& seedKey, const std::vector<int>& ionicNvalBySite,
                              const Spin& channel)
     : itsFitBasis(fitBasis), itsStructure(st), itsRecip(GetReciprocalLattice(st)), itsCell(&GetUnitCell(st))
     , itsChannel(channel), itsCharge(0.0)
@@ -50,16 +50,18 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
     st->ForEachSite([&](int iZ, const rvec3_t& R, bool spinFlip)
     {
         const size_t Z = size_t(iZ);
+        const std::string& functional = seedKey.functional;
+        const int qz = seedKey.Q(iZ);                                      // -1 = unkeyed
         if (!neutralNvalByZ.count(Z))
         {
             // A species the library does not have is a THROW with the way out named: since V2.2 this seed is the
             // periodic DEFAULT, so the first thing a new element hits is this line.
-            if (!HasAtomicDensity((int)Z, functional, db))
+            if (!HasAtomicDensity((int)Z, functional, db, -1, qz))
                 throw std::runtime_error("SeedCD: no valence density for Z=" + std::to_string(Z) + " (" + functional
                                          + ") in " + db + " -- the SAD/IonicSAD seed cannot be built for this "
                                          "species.  Either state SeedStrategy::Uniform (the explicit opt-in) or "
                                          "generate the entry with CLIapps/valgen.");
-            neutralNvalByZ[Z] = (int)std::lround(GetAtomicDensity((int)Z, functional, db).Charge());   // Nval<0 => neutral
+            neutralNvalByZ[Z] = (int)std::lround(GetAtomicDensity((int)Z, functional, db, -1, qz).Charge());   // Nval<0 => neutral
         }
         // The NEUTRAL density fixes this species' neutral valence count; the IonicSAD target (Nval-q) is the site's
         // ionicNvalBySite entry (default: neutral, i.e. no charge transfer).
@@ -71,21 +73,21 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
         {
             Radial c;
             if (target<=0)                                                          // stripped cation -> nothing
-                { c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z, functional, db)); c.scale=0.0; }
-            else if (chan && HasAtomicSpinPair((int)Z, functional, db, target))     // the Hund (majority, minority) pair
+                { c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z, functional, db, -1, qz)); c.scale=0.0; }
+            else if (chan && HasAtomicSpinPair((int)Z, functional, db, target, qz))     // the Hund (majority, minority) pair
             {
-                auto [maj,min] = GetAtomicSpinPair((int)Z, functional, db, target);
+                auto [maj,min] = GetAtomicSpinPair((int)Z, functional, db, target, qz);
                 // unflipped: up = majority; flipped (-m site): the pair swapped
                 const bool takeMaj = (channel==Spin::Up)!=flip;
                 c.rad   = std::make_shared<const RadialDensity>(takeMaj ? std::move(maj) : std::move(min));
                 c.scale = 1.0;
             }
-            else if (HasAtomicDensity((int)Z, functional, db, target))              // library has the charge state
-                { c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z,functional,db,target));
+            else if (HasAtomicDensity((int)Z, functional, db, target, qz))              // library has the charge state
+                { c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z,functional,db,target,qz));
                   c.scale = chan ? 0.5 : 1.0; }                                     // pairless channel: rho/2
             else                                                                    // fall back: amplitude-scale neutral
                 { c.scale = (chan ? 0.5 : 1.0)*double(target)/double(neutralNval);
-                  c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z, functional, db)); }
+                  c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z, functional, db, -1, qz)); }
             classes[key]=c;
         }
         const Radial& c = classes.at(key);
@@ -274,9 +276,9 @@ void SeedCD::ReScale(double factor)
 //------------------------------------------------------------------------------- PolarizedSeedCD
 
 PolarizedSeedCD::PolarizedSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
-                                 const std::string& functional, const std::vector<int>& ionicNvalBySite)
-    : itsUp(fitBasis, st, functional, ionicNvalBySite, Spin::Up  )
-    , itsDn(fitBasis, st, functional, ionicNvalBySite, Spin::Down)
+                                 const SeedKey& seedKey, const std::vector<int>& ionicNvalBySite)
+    : itsUp(fitBasis, st, seedKey, ionicNvalBySite, Spin::Up  )
+    , itsDn(fitBasis, st, seedKey, ionicNvalBySite, Spin::Down)
     , itsVersion(NextDensityVersion())   // one serial for the pair (the channels mutate together)
 {
     assert(GetTotalCharge()>0);
