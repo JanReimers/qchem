@@ -80,7 +80,7 @@ int BeckeRecipeLadder(const std::string& system)
         o.imposeSymmetry=false;                            // free mesh: the ladder measures the RULE, not the fold
         SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
         GpwReport report("Si "+o.label, false);
-        SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+        SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
         Check(bool(calc.Result()), "converged");
         BeckeLadder(Handles(calc), lat.GetStructure(), "Si-covalent");
     }
@@ -91,7 +91,7 @@ int BeckeRecipeLadder(const std::string& system)
         SolidCalcOptions o=NaFOptions(naf, "NaF V2.6 ladder");
         o.imposeSymmetry=false;
         GpwReport report("NaF "+o.label, false);
-        SolidCalculation calc(lat, MakeBasisNaFSR2(*naf.cell), o, NaFGates());
+        SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFGates());
         Check(bool(calc.Result()), "converged");
         BeckeLadder(Handles(calc), lat.GetStructure(), "NaF-ionic");
     }
@@ -107,7 +107,7 @@ int BeckeRecipeLadder(const std::string& system)
             BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_SR, box.cell.get(), BasisSet::Gaussian::Engine::MnD,
                                         BasisSet::Gaussian::Angular::Cartesian));
         GpwReport report("Mn "+o.label, false);
-        SolidCalculation calc(lat, mnbasis, o, par);
+        SolidCalculation calc(SolidSetup::Resolve(lat, mnbasis, o), par);
         Check(bool(calc.Result()), "converged");
         BeckeLadder(Handles(calc), lat.GetStructure(), "Mn-openshell-d");
     }
@@ -119,7 +119,7 @@ int BeckeRecipeLadder(const std::string& system)
         o.imposeSymmetry=false;
         SCFParams par=AlGates(); par.SmearingkT=0.02;      // smeared: a converged, non-rotating density to freeze
         GpwReport report("Al "+o.label, false);
-        SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+        SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
         Check(bool(calc.Result()), "converged");
         BeckeLadder(Handles(calc), lat.GetStructure(), "Al-metal");
     }

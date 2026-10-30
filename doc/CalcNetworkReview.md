@@ -251,3 +251,56 @@ PW save/restore (its own OpenWork row; a PW session carries in memory regardless
 - **Q6 — molecular PP fields** (`CalcOptions::pseudopotential` / `ppValence`: deprecated alias, or clean replace).  RULED: **clean
   replace** ("I vote for clean replace") -- a set name + a per-element override, NO deprecated aliases.  pybind is not edited by
   lane B; the exact `pybind/` lines referencing the old fields are listed in the step-2 report for the binding owner.
+
+---
+
+## 7. Steps 6–8 as designed (lane B, 2026-10-30; C4 steps 1–5 landed)
+
+**One deviation from §3.1's drawing, and why.**  §3.1 drew `SolidCalculation` = setup + session + one `ConvergeAt`.
+The composition runs the OTHER way here: a SESSION is a sequence of single-point calculations over ONE shared setup.
+The three lifetimes of §2 are unchanged -- the setup is a shared immutable value; the single-point object
+(`SolidCalculation` / `Calculation`) IS the geometry point plus its SCF state; the session owns only what crosses
+geometries (the carried density, later the extrapolation history).  What this buys: the whole rich single-point API
+(`Converged` proof, +U loop, responses, FD χ, `SaveState`) stays on the per-point object untouched, and a session
+step is "build the next point from the setup, seeded with the carry" -- the same act as `Restart`, from memory
+instead of disk (CK-3's geometry half falls out of it).
+
+| type | module | holds | built by |
+|---|---|---|---|
+| `SolidSetup` | `qchem.SolidSetup` (new; `SolidCalcOptions` + its helpers MOVE here, re-exported by `qchem.SolidCalculation`) | the options as asked; the RESOLVED decisions: `PseudopotentialSet`, imposition (the policy veto applied), magnetic decoration, XC mesh (`Auto` resolved), (nUp, nDn), ortho (PW → Orthonormal), the accelerator options; the molecular basis at the reference geometry; (6b) its recipe | `SolidSetup::Resolve(lat, mol \| recipe, opts, acc)` -- the ONE explicit phase (pin 11); installs the run policy first |
+| `GaussianBasisRecipe` (6b) | `qchem.SolidSetup` | source (registered data \| file), the trim -- STATED, or decided ONCE by the vet loop at the reference geometry and then frozen (§3.2 item 2) --, spherical view, the GPW tolerances (D-ENV-TOL option A) | `Make(structure)` checks PP provenance (closes the "Deck path only" gap) and builds; the deck's `MakeGaussianBasis` + trim code move here |
+| `MoleculeSetup` (7) | `qchem.MoleculeSetup` (new; `CalcOptions` moves) | PP set or all-electron, the valence structure rule, (nUp, nDn) + the polarized promotion, the basis recipe (name, engine, angular, SALC on/off), model, resolved seed, resolved accelerator | `MoleculeSetup::Resolve(st, opts, acc)`; `Calculation` keeps its API, gains `Attempt(params) -> Outcome<Converged, SCFFailure>` beside `bool Converge` |
+| `PotentialEnergySurface` (8) | `qchem.PotentialEnergySurface` (new) | the face of §3.1, verbatim; a wrong atom count is a broken invariant (throws), not a `PESFailure` | -- |
+| `SolidSession`, `MoleculeSession` (8) | in their facades' modules | `shared_ptr<const Setup>`, the reference structure, the CURRENT point (`unique_ptr<SolidCalculation>` / `<Calculation>`), the carried density | `ConvergeAt(R)`: check R (count, species order; imposed group → `SymmetryBroken`) → structure at R (clone, set positions) → `Make` the basis from the frozen recipe → λ_min(S(R)) vs the setup's window (`BasisConditioning`, Q3) → a new point seeded `WorkingDensity` from the carry → `PESPoint` |
+
+**The carry, first increment: D, not C.**  The solid side already has the vehicle: `RestoreDensity` rebuilds per-block
+D over a basis of the same block shape.  A `SnapshotState(bs, wf)` (the in-memory half of `WriteSolidState`) makes the
+step a restart from memory.  D carried verbatim onto S(R) is not idempotent there; the first fill makes it so (a seed,
+it does not enter any derivative).  The Löwdin carry of C (§3.2 item 3) is the measured lever after gate (b) shows
+the iteration count; the molecular side needs the same per-block D → `tDM_CD<double>` composition, built beside it.
+
+**Increments, each its own commit series and gate** (serial sweeps + `anchordiff --tol 1e-10`):
+
+- **6a** -- `SolidSetup` extracted; `BuildBasis` = `Resolve` + build the geometry point; no API change.  Gate: bit-identical.
+- **6b** -- `GaussianBasisRecipe` + ctor overloads that take it; the deck builds through it (its trim code deleted);
+  the tolerances bound in the recipe (D-ENV-TOL option A).  Gate: bit-identical; a recipe-built run with `vet` gets the
+  deck twin's trim; a q mismatch throws without a deck.
+- **7a** -- `MoleculeSetup` + `Attempt`.  Gate: M_* bit-identical.  **7b** -- molecular decks (`structure` from
+  `molecules.json`): the `RunSpec` grows a molecular arm.  Gate: a molecular deck vets and runs.
+- **8** -- the face + both sessions, energy only.  Gates (a)–(c) of §5 on H₂O and NaF Γ.
+
+**As built (lane B, 2026-10-30)** -- `7d980306` 6a, `301f28fb` 6b, `34dc9205` 7a, `d5835f33` 8a, `2174cab5` 8b:
+- 6a/6b as designed.  `SolidCalculation(setup, params | schedule)` and `Restart(path, setup, params)` (the setup's accelerator) are
+  the ONLY doors: user ruling 2026-10-30, CLEAN REPLACE -- every caller (ITMain, unit tests, CLIapps, `deck::Run`) migrated and the
+  (lattice, basis, options) constructors and old `Restart` deleted; likewise `Calculation(setup, scf)` is the only molecular door.
+  `deck::Run` resolves one setup; its trim code is gone.
+- 7a as designed, without `Attempt` (its failure type, `SCFFailure`, needs a home both facades can import -- OpenWork row).
+- 8: the face TAKES THE CELL (user ruling 2026-10-30): `ConvergeAt(cell, R, want)` with the cell as the `UnitCell`'s 3x3 cell
+  matrix (lattice vectors as columns, bohr; empty for a molecule) and R Cartesian bohr; `Reference()` returns the same
+  `PESGeometry{cell, R, Z}`.  A molecule given a cell, or a solid given none, throws; a solid's moved cell is `PESFailure::CellChange`
+  until the basis/grid side can follow one.  `SolidSession` refuses a broken imposed group (space-group / Shubnikov order), a basis the vet loop would
+  trim further at `orthoTol` (Q3), and forces/stress; `MoleculeSession` refuses a change of the SALC abelian group.
+  MEASURED (UTs): (a) the reference point is the single point bit for bit on both; (b) a carried step equals a fresh run --
+  Si Γ, 0.05 bohr: 11 vs 13 iterations at Δρ/N 1e-8 (energies within the two stops' 1e-8 errors; at 1e-9 Si Γ sits on its
+  Δρ quadrature floor, ρ_lost/N 1.8e-9, and neither run is meaningful); H₂O HF/DZVP: 25 vs 34, equal to 1e-12 Ha.
+  Gate (c), NaF Γ, the Q3 UT and the Löwdin lever are the OpenWork row "PES / run-setup remainders".

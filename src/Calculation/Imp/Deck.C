@@ -123,16 +123,12 @@ const auto kMeasure= NAMES(Measure, {"L1PerElectron",Measure::L1PerElectron}, {"
 const auto kMixing = NAMES(SCFParams::Mixing, {"Auto",SCFParams::Mixing::Auto}, {"Linear",SCFParams::Mixing::Linear},
                             {"Kerker",SCFParams::Mixing::Kerker}, {"Pulay",SCFParams::Mixing::Pulay});
 
-//! The Gaussian basis a deck names: the registered data file, or the \c basis.file override when stated.
-BasisSet::Real_BS* MakeGaussianBasis(const RunSpec::Basis& b, const Structure* cell, const BasisSet::Gaussian::ShellTrim& trim,
-                                     const SolidCalcOptions& solid)
+//! The deck's basis block as the setup's RECIPE (the trim stated, or vetted once by SolidSetup::Resolve).
+GaussianBasisRecipe RecipeOf(const RunSpec::Basis& b)
 {
-    using namespace BasisSet::Gaussian;
-    // D-BASIS-PP: the basis file's declared pseudopotential q per element must be the q this run's terms use.
-    const auto species = Pseudopotential::PseudopotentialSet::Get(solid.pp).With(solid.species).Species(*cell);
-    if (b.file.empty()) CheckPPProvenance(b.data, species); else CheckPPProvenance(b.file, species);
-    return b.file.empty() ? Factory(b.data, cell, Engine::MnD, Angular::Cartesian, trim)
-                          : FactoryFromFile(b.file, cell, Engine::MnD, Angular::Cartesian, trim);
+    GaussianBasisRecipe r{.data=b.data, .file=b.file, .vet=b.vet, .spherical=b.spherical};
+    for (const auto& t : b.trim) r.trim.shells.push_back({t.Z, t.l, rvec_t(1,t.alpha)});
+    return r;
 }
 
 } // anon
@@ -706,10 +702,8 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
         if (!fs::exists(path)) v.notes.push_back("state.restartFrom: no saved state at "+path+" (a run would refuse)");
     }
     Lattice_3D lat(*mat.cell, spec.kmesh);
-    BasisSet::Gaussian::ShellTrim trim;
-    for (const auto& t : spec.basis.trim) trim.shells.push_back({t.Z, t.l, rvec_t(1,t.alpha)});
-    std::shared_ptr<const BasisSet::Real_BS> b(MakeGaussianBasis(spec.basis, mat.cell.get(), trim, spec.solid));
-    if (spec.basis.spherical) b=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(b));
+    GaussianBasisRecipe recipe=RecipeOf(spec.basis); recipe.vet=false;   // --check builds the stated basis; the vet loop is a run's
+    std::shared_ptr<const BasisSet::Real_BS> b=recipe.Make(*mat.cell, Pseudopotential::PseudopotentialSet::Get(spec.solid.pp).With(spec.solid.species));
     size_t nf=0;
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*b).Iterate<BasisSet::Real_OIBS>()) nf+=ibs->GetNumFunctions();
     {
@@ -761,36 +755,22 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         else spec.solid.saveStateTo=spec.state.save;
     }
     Lattice_3D lat(*mat.cell, spec.kmesh);
-    // THE BASIS: the data file, optionally trimmed (stated, or by the vet loop at the run's own orthoTol), optionally in the spherical lattice view.
-    auto make=[&](const BasisSet::Gaussian::ShellTrim& trim)
-    {
-        std::shared_ptr<const BasisSet::Real_BS> b(MakeGaussianBasis(spec.basis, mat.cell.get(), trim, spec.solid));
-        if (spec.basis.spherical) b=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(b));
-        return b;
-    };
-    std::shared_ptr<const BasisSet::Real_BS> mol;
-    if (spec.basis.vet)
-        mol=BasisSet::Lattice::VetStageTrim(lat, make, {.images=spec.solid.images, .kShift=spec.solid.kShift}, spec.solid.orthoTol).mol;
-    else
-    {
-        BasisSet::Gaussian::ShellTrim trim;
-        for (const auto& t : spec.basis.trim) trim.shells.push_back({t.Z, t.l, rvec_t(1,t.alpha)});
-        if (!trim.empty()) { std::cout<<"[basis trim] STATED (no vet loop): "; trim.Write(std::cout); std::cout<<std::endl; }
-        mol=make(trim);
-    }
-
     std::vector<SCFStage> stages;
     for (const auto& s : spec.Stages()) stages.push_back({s.scf,s.accelerator});
 
     qchem::report::Begin(stem);
     qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
     struct Close { ~Close() { qchem::report::ClearConsole(); qchem::report::End(); } } close;
+    // THE SETUP, resolved ONCE: the basis from the deck's recipe (the trim stated, or vetted at the run's own orthoTol and frozen), and
+    // every decision the run makes before it builds anything.  The first stage's accelerator (a restart's: the final stage's) is the
+    // setup's; each later stage names its own.
+    SolidCalcOptions so=spec.solid; so.accelerator=(restartPath.empty() ? stages.front() : stages.back()).accelerator;
+    const auto setup=SolidSetup::Resolve(lat, RecipeOf(spec.basis), so);
     std::unique_ptr<SolidCalculation> calc;
-    if (restartPath.empty()) calc=std::make_unique<SolidCalculation>(lat, mol, spec.solid, stages);
+    if (restartPath.empty()) calc=std::make_unique<SolidCalculation>(setup, stages);
     else
     {   // one stage: the schedule's FINAL one (its params and accelerator); a refusal THROWS -- a deck run never silently re-seeds
-        SolidCalcOptions ro=spec.solid; ro.accelerator=stages.back().accelerator;
-        auto R=SolidCalculation::Restart(restartPath, lat, mol, ro, stages.back().params);
+        auto R=SolidCalculation::Restart(restartPath, setup, stages.back().params);
         if (!R) throw std::runtime_error("deck: state.restartFrom "+restartPath+" refused: "+R.Error().details);
         calc=R.TakeValue();
     }

@@ -109,7 +109,7 @@ TEST(GPW_Al, Γ_Imp_Converges)
     SolidCalcOptions o=AlOptions(al);
     SCFParams par=AlGates(40); par.SmearingkT=0.0; par.Verbose=true;   // aufbau (no smearing)
     GpwReport report("Al "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
 
     auto R=calc.Result();
     ASSERT_TRUE(R) << "the star-averaged density of an imposed aufbau run is stationary: the residual gate converges";
@@ -149,7 +149,7 @@ TEST(GPW_Al, Γ_Imp_Anneal_Anchor_Panel)   // PANEL case 12 (regime 3, metal kT 
         schedule.push_back({par, qchem::SCFAccelerators::Type::DIIS});
     }
     GpwReport report("Al "+o.label, false);
-    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, schedule);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o), schedule);
     auto R=calc.Result();
     ASSERT_TRUE(R) << "Fermi-smearing annealing converges Δρ where integer aufbau cannot (degenerate 3p): " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);
@@ -180,7 +180,7 @@ TEST(GPW_Al, k222_Smear_GlobalMu_Anchor)
     o.imposeSymmetry=false;                    // the FULL mesh: the IBZ-folded sibling below must reproduce it
     SCFParams par=AlGates(); par.SmearingkT=0.01;
     GpwReport report("Al "+o.label, false);
-    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
     auto R=calc.Result();
     ASSERT_TRUE(R) << "one μ across the BZ converges the dispersive metal (per-block filling cannot): " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);  // BZ-weighted Σ_k w_k n_k = 3 (weight-consistency guard)
@@ -206,7 +206,7 @@ TEST(GPW_Al, k222_Imp_Smear_GlobalMu_eqFree)
     o.imposeSymmetry=true;       // fold to the irreducible wedge AND star-average the density
     SCFParams par=AlGates(); par.SmearingkT=0.01;
     GpwReport report("Al "+o.label, false);
-    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);

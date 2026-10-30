@@ -139,6 +139,12 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
         fp.refuseStr["species"]=s;
         fp.refuseStr["pp.set"]=id.ppSet;
     }
+    fp.refuseStr["basis.family"]=id.orbitalBasis;
+    if (id.orbitalBasis=="planeWave")
+        // A PLANE-WAVE basis has no shells: its functions are the G-vectors with |k+G|^2/2 < Ecut, so the cutoff -- with the cell
+        // and each block's k and size, all REFUSE -- names them.  (OpenWork §3 "PW states cannot be saved", 2026-10-30.)
+        fp.refuseNum["basis.planeWaveEcut"]={id.planeWaveEcut};
+    else
     {
         // The ORBITAL basis, shell by shell in block order: every Bloch block is the Bloch sum of these shells
         // (AoShellSource's own contract), so block 0 speaks for all of them.
@@ -216,7 +222,7 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
 }
 
 //! A state written before C4 step 5 filed the functional, the atom positions and the shell centres under REFUSE and had no
-//! pp.set: move them to the class they belong to now, and take the run's pp.set for a state that never recorded one (its
+//! pp.set (nor, before 2026-10-30, basis.family): move them to the class they belong to now, and take the run's pp.set for a state that never recorded one (its
 //! species string, still REFUSE, carries the q per element).  Additive: an old file keeps loading.
 static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now)
 {
@@ -224,6 +230,8 @@ static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now
         if (auto it=s.refuseNum.find(k); it!=s.refuseNum.end()) { s.warmNum[k]=std::move(it->second); s.refuseNum.erase(it); }
     if (auto it=s.refuseStr.find("functional"); it!=s.refuseStr.end()) { s.warmStr["functional"]=std::move(it->second); s.refuseStr.erase(it); }
     if (!s.refuseStr.count("pp.set") && now.refuseStr.count("pp.set")) s.refuseStr["pp.set"]=now.refuseStr.at("pp.set");
+    // basis.family (2026-10-30): every state written before it was Gaussian -- a plane-wave state could not be written at all.
+    if (!s.refuseStr.count("basis.family")) s.refuseStr["basis.family"]="gaussian";
     return s;
 }
 
@@ -272,6 +280,27 @@ void WriteMaps(H5::Group g, const std::map<std::string,std::vector<double>>& num
 {
     for (const auto& [k,v] : num) g.Write(k, v);
     for (const auto& [k,v] : str) g.SetAttr(k, v);
+}
+
+// One block's physical D = Σ_i f_i c_i c_i^† exactly as TOrbital::AddDensityMatrix, held complex (a real block's promotes exactly).
+template <class U> mat_t<dcmplx> BlockD(const Orbitals::TOrbitals<U>& os, size_t n)
+{
+    mat_t<dcmplx> D(n,n);
+    for (size_t a=0;a<n;a++) for (size_t b=0;b<n;b++) D(a,b)=dcmplx(0.0);
+    for (const auto* o : os.template Iterate<Orbitals::TOrbital<U>>())
+    {
+        const double f=o->GetOccupation();
+        if (f==0.0) continue;
+        const vec_t<U>& c=o->GetCoeff();
+        if (c.size()!=n) throw std::logic_error("SnapshotState: an orbital's coefficient count differs from its block's size");
+        for (size_t a=0;a<n;a++)
+            for (size_t b=0;b<n;b++)
+            {
+                if constexpr (std::is_same_v<U,double>) D(a,b)+=f*c[a]*c[b];
+                else                                    D(a,b)+=f*c[a]*std::conj(c[b]);
+            }
+    }
+    return D;
 }
 
 // One block's D, C, ε, f.  C and D in C order; D = Σ_i f_i c_i c_i^† exactly as TOrbital::AddDensityMatrix.
@@ -353,6 +382,26 @@ void WriteSolidState(const std::string& path, const StateFingerprint& fp, const 
         f.Flush();
     }
     std::filesystem::rename(tmp, path);   // atomic on one filesystem: the previous state survives a crash above
+}
+
+SavedState SnapshotState(const BasisSet::Complex_BS& bs, const WaveFunction::cWaveFunction& wf)
+{
+    SavedState st;
+    st.path="(in memory)";
+    for (const BlockRef& r : Blocks(bs, wf.GetSpinGroup()))
+    {
+        SavedBlock sb;
+        sb.ms    =int(r.irrep.ms);
+        sb.k     =Symmetry::Lattice_3D::Getk(*r.irrep.sym);
+        sb.weight=r.irrep.sym->GetWeight();
+        sb.real  =r.real!=nullptr;
+        const Orbitals::Orbitals* os=wf.GetOrbitals(r.irrep);
+        if      (const auto* ro=dynamic_cast<const Orbitals::TOrbitals<double>*>(os); ro && r.real) sb.D=BlockD(*ro, r.n);
+        else if (const auto* co=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(os); co && r.cplx) sb.D=BlockD(*co, r.n);
+        else throw std::logic_error("SnapshotState: a block's orbitals are not of its basis block's scalar");
+        st.blocks.push_back(std::move(sb));
+    }
+    return st;
 }
 
 //---------------------------------------------------------------------------------------------------
