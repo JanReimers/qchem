@@ -81,6 +81,7 @@ struct SolidCalculation::Imp
     //! (doc/LinearResponsePlan.md E1).  The commutator is the final iteration's [F,D].
     qchem::OccupationConfig lastOccupation;
     double lastCommutator = std::numeric_limits<double>::quiet_NaN();
+    double lastDensityChange = std::numeric_limits<double>::quiet_NaN();   //!< the last iteration's Δρ (the saved state's residual)
     double charge    = 0.0;
     //! The OUTCOME DETECTORS' record (N1/T3-T4).  Accumulates across every attempt this object makes --
     //! an annealed schedule and a re-Converge are CONTINUATIONS of one SCF, and an order that died in
@@ -803,6 +804,7 @@ void SolidCalculation::AttachProbes()
         // must not read as a MEASURED zero eigenvalue noise (found 2026-09-27, the NiO R0 gate) -- NaN instead.
         itsImp->lastCommutator = itsImp->stageAccel==SCFAccelerators::Type::Null
                                ? std::numeric_limits<double>::quiet_NaN() : p.commutator;
+        itsImp->lastDensityChange = p.drho;
         if (userObs) userObs(p);
     });
 }
@@ -1019,10 +1021,24 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     xc<<MeshName(itsImp->setup->xcMesh.cellKind);
     if (itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke) xc<<" nR="<<itsImp->setup->xcMesh.nRadial<<" L="<<itsImp->setup->xcMesh.angularDegree;
     else                                                      xc<<" eCut="<<itsImp->setup->xcMesh.eCut;
-    const RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .ppSet=itsImp->setup->pp.Name(),
+    RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .ppSet=itsImp->setup->pp.Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
                          .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT,
                          .orbitalBasis=itsImp->setup->planeWave ? "planeWave" : "gaussian", .planeWaveEcut=o.planeWaveEcut};
+    // The numerics that move the ground state (OpenWork §3 "A restart's fingerprint is incomplete" gap 2).  The fit is the one the
+    // Hamiltonian RESOLVES (Ham_PW_DFT: Auto -> Delta on a Becke mesh, else the plane-wave fit).
+    const bool becke=itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
+    id.vxcFit= o.vxcFit==Hamiltonian::VxcFit::Delta || (o.vxcFit==Hamiltonian::VxcFit::Auto && becke) ? "Delta" : "PlaneWave";
+    if (becke) id.beckeEps=itsImp->setup->xcMesh.beckeEps;
+    if (!itsImp->setup->planeWave)
+    {
+        const auto& t=o.tolerances;
+        id.raster      =o.raster==BasisSet::PlaneWave::RasterPolicy::AliasFree ? "AliasFree" : "BallOnly";
+        id.ladderFactor=o.ladderFactor;
+        id.gpwTolerances={{"vlocEps",{t.vlocEps}}, {"localPPRelCutoff",{t.localPPRelCutoff}}, {"relFieldSharp",{t.relFieldSharp}},
+                          {"screenEps",{t.screenEps}}, {"fieldSharp",{t.fieldSharp}}, {"relCutoff",{t.relCutoff}},
+                          {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts}};
+    }
     return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,
                                 o.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, id);
 }
@@ -1034,7 +1050,8 @@ void SolidCalculation::SaveState(const std::string& path) const
     const StateSummary sum{.label=itsImp->setup->opts.label, .converged=itsImp->converged,
                            .iterations=itsImp->scf->GetIterationCount(),
                            .energy=itsImp->scf->GetEnergy().GetTotalEnergy(), .charge=itsImp->charge,
-                           .commutator=itsImp->lastCommutator, .recipe=itsImp->lastRecipe};
+                           .commutator=itsImp->lastCommutator, .recipe=itsImp->lastRecipe,
+                           .densityChange=itsImp->lastDensityChange};
     {
         qchem::report::Timed timed("state: save (HDF5)");
         WriteSolidState(path, Fingerprint(itsImp->lastkT), sum, *itsImp->bs, *wf);
@@ -1080,6 +1097,18 @@ SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSe
           <<(saved->summary.converged ? "converged" : "NOT converged")<<" after "<<saved->summary.iterations
           <<" iterations, E="<<std::setprecision(10)<<saved->summary.energy<<"; "<<saved->summary.recipe<<")";
         for (const std::string& d : *warm) os<<"\n"<<tag<<"  differs: "<<d;
+        // THE SAVED STATE'S OWN RESIDUAL (gap 4, user 2026-10-29): even an exact resume starts where the state was SAVED, not at
+        // the fixed point.  A density-MIXED run (Null accelerator: no [F,D] measured) stops with D a mixture, one undamped Fock
+        // away from self-consistency, so its first iteration re-opens that residual (amplified on a soft system).
+        const StateSummary& ss=saved->summary;
+        if (std::isfinite(ss.densityChange))
+        {
+            os<<"\n"<<tag<<"  saved at Δρ "<<std::setprecision(3)<<ss.densityChange;
+            if (std::isfinite(ss.commutator)) os<<", [F,D] "<<ss.commutator;
+            else os<<" by a density-MIXED run (no [F,D]): D is a mixture, so the first Fock re-opens a residual of about that size -- "
+                     "amplified on a soft system (β-MnO₂ r015: 40x), where even an exact resume iterates";
+        }
+        else os<<"\n"<<tag<<"  saved residual not recorded (a format-1.0 state, before 2026-10-30)";
         std::cout<<os.str()<<std::endl;
     }
     c->BuildRun(cd.TakeValue(), params, accel, /*restored*/true, exact);

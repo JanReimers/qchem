@@ -37,6 +37,7 @@
 // layout is written out below the classes.
 module;
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -98,6 +99,17 @@ struct RunIdentity
     //! block's k and size (both already REFUSE) that fixes its G-set.
     std::string                                  orbitalBasis = "gaussian";
     double                                       planeWaveEcut = 0.0;   //!< Ha, the plane-wave orbital cutoff (planeWave only)
+    //! \name The numerics that move the converged ground state without changing what D is a matrix OVER (all WARM; added
+    //! 2026-10-30, OpenWork §3 "A restart's fingerprint is incomplete" gap 2).  A state written before them compares as agreeing.
+    //!@{
+    std::string                                  vxcFit;       //!< the RESOLVED v_xc fit basis ("Delta" | "PlaneWave")
+    double                                       beckeEps = 0.0;   //!< the periodic Becke competitor-series eps (Becke mesh only, else 0)
+    std::string                                  raster;       //!< the density raster policy (Gaussian family only)
+    double                                       ladderFactor = 0.0;   //!< the multigrid ladder gradation (Gaussian family only)
+    //! The GPW tolerances by name (vlocEps, screenEps, relCutoff, mgridEcuts, ...; Gaussian family only), each recorded as
+    //! \c gpw.<name>: the facade knows the typed struct, this module only the values.
+    std::map<std::string, std::vector<double>>   gpwTolerances;
+    //!@}
 };
 
 //! The fingerprint of a run: the cell matrix \a A (columns = lattice vectors), the sites of \a st, the built
@@ -119,8 +131,11 @@ struct StateSummary
     size_t      iterations = 0;
     double      energy     = 0.0;     //!< total energy, hartree (the LAST iterate's when not converged)
     double      charge     = 0.0;
-    double      commutator = 0.0;     //!< the final iteration's [F,D] (NaN = unmeasured)
+    double      commutator = 0.0;     //!< the final iteration's [F,D] (NaN = unmeasured: a Null accelerator, i.e. a density-MIXED run)
     std::string recipe;               //!< the last stage's SCF banner facts, human-readable
+    //! The final iteration's relative density change -- the residual the state was SAVED at (format 1.1, 2026-10-30).  NaN in a
+    //! format-1.0 state, which did not record it: an OPTIONAL payload field, the first one (CleanCode D-STATE-SCHEMA).
+    double      densityChange = std::numeric_limits<double>::quiet_NaN();
 };
 
 //! \brief SAVE: the fingerprint, the summary, and every (k,σ) block's D, C, ε, f from \a wf over \a bs.
@@ -165,9 +180,9 @@ Outcome<SavedState, RestartRefusal> ReadSolidState(const std::string& path);
 Outcome<std::unique_ptr<ChargeDensity::cDM_CD>, RestartRefusal>
     RestoreDensity(const SavedState&, const BasisSet::Complex_BS& bs, SpinGroup g);
 
-//  THE FILE LAYOUT (format "qchem-solid-state 1"):
+//  THE FILE LAYOUT (format "qchem-solid-state 1.1"; the reader takes any 1.x -- a minor version only ADDS optional fields):
 //    /                     attrs format, created (UTC), label, converged, iterations, energy, charge,
-//                                commutator, recipe
+//                                commutator, recipe, densityChange (1.1; absent in 1.0)
 //    /fingerprint/refuse   one dataset per numeric entry; string entries as attributes
 //    /fingerprint/warm     the same
 //    /blocks/<b>           attrs ms, weight, real, n, nmo; datasets k[3], D[n,n], C[n,nmo], eps[nmo], f[nmo]

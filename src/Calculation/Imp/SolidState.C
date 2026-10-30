@@ -30,7 +30,8 @@ import qchem.ChargeDensity.Factory;             // IrrepCD_Factory
 namespace qchem
 {
 
-static const char* kFormat = "qchem-solid-state 1";
+static const char* kFormat = "qchem-solid-state 1.1";   //!< 1.1 (2026-10-30): + densityChange
+static const char* kFormatMajor = "qchem-solid-state 1"; //!< every 1.x is read: a minor version only ADDS optional fields
 
 //---------------------------------------------------------------------------------------------------
 //  The canonical BLOCK WALK -- spin irreps outer, basis blocks inner: the order tCompositeWF builds its
@@ -76,12 +77,44 @@ std::string Show(const std::vector<double>& v)
     os<<"]";
     return os.str();
 }
+//! Equal to 1e-10 RELATIVE, with a 1e-14 absolute floor for entries at zero.  (Was 1e-10*max(1,|a|): an ABSOLUTE 1e-10 below 1,
+//! so a tolerance recorded as a value -- screenEps 1e-10 vs 1e-12 -- compared as the same run.  Found 2026-10-30 by the gpw.* keys.)
 bool Same(const std::vector<double>& a, const std::vector<double>& b)
 {
     if (a.size()!=b.size()) return false;
     for (size_t k=0;k<a.size();k++)
-        if (std::fabs(a[k]-b[k]) > 1e-10*std::max(1.0, std::fabs(a[k]))) return false;
+        if (std::fabs(a[k]-b[k]) > std::max(1e-14, 1e-10*std::max(std::fabs(a[k]), std::fabs(b[k])))) return false;
     return true;
+}
+
+//! WHAT a warm difference MEANS for the restart, keyed on the fingerprint name (exact, else the longest matching prefix ending
+//! in '.'): the user's ask (2026-10-29) was the consequence, not only the two values.  An unknown key prints raw.
+std::string Consequence(const std::string& key)
+{
+    static const std::string moves=": the converged ground state moves -- expect iterations to reach the new one";
+    static const std::map<std::string, std::string> table=
+    {
+        {"functional",            "a different XC functional"+moves},
+        {"hubbard.",              "the +U term changed"+moves},
+        {"spin.multiplicity",     "a different spin state: the occupations are re-filled, expect iterations"},
+        {"grids.densityEcut",     "the density grid changed"+moves},
+        {"grids.cutoffFactor",    "the density grid's floor changed"+moves},
+        {"grids.ladderFactor",    "the multigrid ladder changed"+moves},
+        {"grids.raster",          "the density raster changed"+moves},
+        {"grids.xcMesh",          "the XC quadrature changed"+moves},
+        {"grids.beckeEps",        "the Becke partition tolerance changed"+moves},
+        {"xc.fit",                "the v_xc fit basis changed"+moves},
+        {"gpw.",                  "a GPW numerical tolerance changed"+moves},
+        {"ortho.",                "the basis orthogonalisation changed: functions may be dropped or kept differently"+moves},
+        {"scf.kT",                "the smearing changed: the occupations are re-filled at the new temperature"+moves},
+        {"blocks.real",           "a block's working type changed: D is promoted/demoted exactly, the physics does not move"},
+        {"basis.shellCenters",    "the basis centres moved with the atoms"+moves},
+    };
+    if (auto it=table.find(key); it!=table.end()) return it->second;
+    std::string best;
+    for (const auto& [k,v] : table)
+        if (k.back()=='.' && key.rfind(k,0)==0 && k.size()>best.size()) best=k;
+    return best.empty() ? std::string() : table.at(best);
 }
 
 //! Every differing entry of one class, one line each.
@@ -111,6 +144,8 @@ std::vector<std::string> Differences(const std::map<std::string,std::vector<doub
         const std::string sb = b==ns.end() ? "(absent)" : "'"+b->second+"'";
         if (sa!=sb) out.push_back(k+": saved "+sa+", now "+sb);
     }
+    for (std::string& l : out)
+        if (const std::string c=Consequence(l.substr(0, l.find(':'))); !c.empty()) l+=" -- "+c;
     return out;
 }
 } //anonymous namespace
@@ -218,6 +253,13 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
     fp.warmNum["ortho.kind"]={double(id.ortho)};
     fp.warmNum["ortho.tol"]={id.orthoTol};
     fp.warmNum["scf.kT"]={id.kT};
+    // The numerics that move the ground state (gap 2, 2026-10-30).  Each key exists only where it means something, so a
+    // plane-wave state carries no GPW key and a uniform-mesh state no Becke eps.
+    if (!id.vxcFit.empty())     fp.warmStr["xc.fit"]=id.vxcFit;
+    if (id.beckeEps>0.0)        fp.warmNum["grids.beckeEps"]={id.beckeEps};
+    if (!id.raster.empty())     fp.warmStr["grids.raster"]=id.raster;
+    if (id.ladderFactor>0.0)    fp.warmNum["grids.ladderFactor"]={id.ladderFactor};
+    for (const auto& [k,v] : id.gpwTolerances) fp.warmNum["gpw."+k]=v;
     return fp;
 }
 
@@ -232,6 +274,14 @@ static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now
     if (!s.refuseStr.count("pp.set") && now.refuseStr.count("pp.set")) s.refuseStr["pp.set"]=now.refuseStr.at("pp.set");
     // basis.family (2026-10-30): every state written before it was Gaussian -- a plane-wave state could not be written at all.
     if (!s.refuseStr.count("basis.family")) s.refuseStr["basis.family"]="gaussian";
+    // The numerics keys (2026-10-30): a state written before them recorded none, so none of them is compared -- the run's value
+    // stands in.  Only when the state lacks the WHOLE set: a newer state missing one of them really was made without it.
+    const bool predatesNumerics=!s.warmStr.count("xc.fit");
+    if (predatesNumerics)
+    {
+        for (const auto& [k,v] : now.warmStr) if (k=="xc.fit" || k=="grids.raster") s.warmStr[k]=v;
+        for (const auto& [k,v] : now.warmNum) if (k=="grids.beckeEps" || k=="grids.ladderFactor" || k.rfind("gpw.",0)==0) s.warmNum[k]=v;
+    }
     return s;
 }
 
@@ -358,6 +408,7 @@ void WriteSolidState(const std::string& path, const StateFingerprint& fp, const 
         f.SetAttr("charge",     sum.charge);
         f.SetAttr("commutator", sum.commutator);
         f.SetAttr("recipe",     sum.recipe);
+        f.SetAttr("densityChange", sum.densityChange);
         {
             H5::Group g=f.CreateGroup("fingerprint");
             WriteMaps(g.CreateGroup("refuse"), fp.refuseNum, fp.refuseStr);
@@ -424,8 +475,10 @@ Outcome<SavedState, RestartRefusal> ReadSolidState(const std::string& path)
     H5::File f=opened.TakeValue();
     if (!f.HasAttr("format") || !f.AttrIsString("format"))
         return O::Fail({RestartRefusal::Why::Unreadable, "'"+path+"' is HDF5 but not a qchem solid state (no format attribute)"});
-    if (const std::string fmt=f.AttrString("format"); fmt!=kFormat)
-        return O::Fail({RestartRefusal::Why::Format, "'"+path+"' is format '"+fmt+"'; this build reads '"+kFormat+"'"});
+    // Any 1.x: the major version is the one that may break a reader, a minor version only adds OPTIONAL fields (read with
+    // HasAttr first, below).  "qchem-solid-state 1" itself is 1.0.
+    if (const std::string fmt=f.AttrString("format"); fmt!=kFormatMajor && fmt.rfind(std::string(kFormatMajor)+".",0)!=0)
+        return O::Fail({RestartRefusal::Why::Format, "'"+path+"' is format '"+fmt+"'; this build reads '"+kFormatMajor+".x'"});
 
     // Past the format check the file CLAIMS to be ours, so a missing piece is a broken file, not a
     // legitimate "no state" -- the H5 layer's throws are allowed through.
@@ -438,6 +491,8 @@ Outcome<SavedState, RestartRefusal> ReadSolidState(const std::string& path)
     st.summary.charge     =f.AttrReal("charge");
     st.summary.commutator =f.AttrReal("commutator");
     st.summary.recipe     =f.AttrString("recipe");
+    // OPTIONAL fields: absent = a state written before they existed (the default stands, and says so where it is used).
+    if (f.HasAttr("densityChange")) st.summary.densityChange=f.AttrReal("densityChange");   // 1.1
     {
         H5::Group g=f.OpenGroup("fingerprint");
         ReadMaps(g.OpenGroup("refuse"), st.fingerprint.refuseNum, st.fingerprint.refuseStr);
