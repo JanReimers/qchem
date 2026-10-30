@@ -19,6 +19,7 @@
 #include <iostream>
 #include <string>
 #include <functional>
+#include <stdexcept>
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, SpinGroup
 import qchem.SCFCap;                 // BoundedSCF (the trace test runs a deliberately bounded SCF)
 import qchem.SolidCalculation;       // SolidCalculation -- the NAMED periodic front door (Step 4)
@@ -155,3 +156,14 @@ TEST(SCFTrace, SolidPP_ShowsGridColumnsAndNoVirial)
 // hard-codes the virial's absence instead of deriving it from IsVirialValid() the way the base layout now
 // does.  Closing that gap is the point of the {Molecular,Solid}x{PP,Non-PP} mixin decomposition (V1.27).
 TEST(SCFTrace, DISABLED_SolidNonPP_ShouldBringTheVirialColumnBack) {}
+
+// R2.7: a live [F,D] gate reading exactly 0 at convergence throws (the G3 shape: the Null accelerator's [F,D] = 0); a gate that is
+// off (1e30) may read 0, and a tiny but COMPUTED value is a verdict, not an absence.
+TEST(SCFTrace, R2_7_ADeadGateThrows)
+{
+    using qchem::SCFIterator::RequireLiveGates;
+    EXPECT_NO_THROW(RequireLiveGates(3e-7, 1e-5, 12));
+    EXPECT_NO_THROW(RequireLiveGates(1e-300, 1e-5, 12));   // computed, just small
+    EXPECT_NO_THROW(RequireLiveGates(0.0, 1e30, 12));      // [F,D] gate off
+    EXPECT_THROW(RequireLiveGates(0.0, 1e-5, 12), std::logic_error);   // G3
+}

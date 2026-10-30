@@ -1189,6 +1189,70 @@ std::vector<qchem::Hamiltonian::ACBN0Estimate> SolidCalculation::EstimateHubbard
     return est->Details();
 }
 
+//---------------------------------------------------------------------------------------------------
+//  THE MANIFOLD WALK (hoisted from ConvergeHubbardU's [U table] snapshot, 2026-10-30, for panel #10): the frontier (homo, lumo)
+//  and each +U manifold's spin-resolved occupation sum_i f_i |<w_mu|psi_i>|^2 (k-weighted), through the +U term's OWN projectors
+//  -- so it works on any XC mesh (the Becke-basin site moment needs basins).  Integrated observables, never a point sample.
+namespace {
+struct ManifoldWalk
+{
+    double homo=-std::numeric_limits<double>::infinity(), lumo=std::numeric_limits<double>::infinity();
+    std::vector<double> up, dn;   //!< per manifold
+};
+ManifoldWalk WalkManifolds(const qchem::WaveFunction::cWaveFunction& wf, const qchem::Hamiltonian::HubbardChannels& hub)
+{
+    const size_t nM=hub.Channels().size();
+    ManifoldWalk W; W.up.assign(nM,0.0); W.dn.assign(nM,0.0);
+    auto walk=[&]<class U>(const qchem::Orbitals::TOrbitals<U>& os, const qchem::Irrep& ir)
+    {
+        const auto* blk=dynamic_cast<const qchem::BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(os.GetBasisSet());
+        if (!blk) throw std::logic_error("SolidCalculation::WalkManifolds: an orbital block that is not an Orbital_DFT_IBS");
+        const double cap = ir.ms==qchem::Spin::None ? 2.0 : 1.0;   // a level is OCCUPIED when more than half full
+        std::vector<const qchem::Orbitals::TOrbital<U>*> occ;
+        for (const auto* o : os.template Iterate<qchem::Orbitals::TOrbital<U>>())
+        {
+            if (o->GetOccupation()>0.5*cap) W.homo=std::max(W.homo, o->GetEigenEnergy());
+            else                            W.lumo=std::min(W.lumo, o->GetEigenEnergy());
+            if (o->GetOccupation()>0.0) occ.push_back(o);
+        }
+        if (occ.empty()) return;
+        mat_t<U> C(blk->GetNumFunctions(), occ.size());
+        for (size_t i=0;i<occ.size();i++) { const vec_t<U>& c=occ[i]->GetCoeff(); for (size_t a=0;a<c.size();a++) C(a,i)=c[a]; }
+        const auto amp=hub.ProjectorAmplitudes(*blk, C);
+        const double w=ir.sym->GetWeight();
+        for (size_t M=0;M<nM;M++)
+        {
+            double n=0.0;
+            for (size_t i=0;i<occ.size();i++) for (size_t mu=0;mu<amp[M].rows();mu++) n+=occ[i]->GetOccupation()*std::norm(amp[M](mu,i));
+            n*=w;
+            if      (ir.ms==qchem::Spin::Up)   W.up[M]+=n;
+            else if (ir.ms==qchem::Spin::Down) W.dn[M]+=n;
+            else { W.up[M]+=0.5*n; W.dn[M]+=0.5*n; }        // the folded doublet: half in each channel
+        }
+    };
+    for (const qchem::Irrep& ir : wf.GetQNs())
+    {
+        const qchem::Orbitals::Orbitals* os=wf.GetOrbitals(ir);
+        if (const auto* c=dynamic_cast<const qchem::Orbitals::TOrbitals<dcmplx>*>(os)) walk(*c, ir);
+        else if (const auto* r=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(os)) walk(*r, ir);
+        else throw std::logic_error("SolidCalculation::WalkManifolds: an orbital set of unknown scalar");
+    }
+    return W;
+}
+} // namespace
+
+std::vector<double> SolidCalculation::MakeHubbardMoments() const
+{
+    const auto* hub=itsImp->ham ? itsImp->ham->GetHubbardChannels() : nullptr;
+    if (!hub) throw std::logic_error("SolidCalculation::MakeHubbardMoments: this run carries no Hubbard manifold (SolidCalcOptions::hubbard)");
+    const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
+    if (!wf) throw std::logic_error("SolidCalculation::MakeHubbardMoments: no wave function yet");
+    const ManifoldWalk W=WalkManifolds(*wf, *hub);
+    std::vector<double> m(W.up.size());
+    for (size_t M=0;M<m.size();M++) m[M]=W.up[M]-W.dn[M];
+    return m;
+}
+
 SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCFParams& params, const HubbardLoop& loop)
 {
     using Est=HubbardLoop::Estimator;
@@ -1220,44 +1284,9 @@ SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCF
     {
         const auto* wf=itsImp->scf->GetWaveFunction();
         if (!wf) throw std::logic_error("SolidCalculation::ConvergeHubbardU: no wave function");
-        double homo=-std::numeric_limits<double>::infinity(), lumo=std::numeric_limits<double>::infinity();
-        std::vector<double> up(nM,0.0), dn(nM,0.0);
-        auto walk=[&]<class U>(const qchem::Orbitals::TOrbitals<U>& os, const qchem::Irrep& ir)
-        {
-            const auto* blk=dynamic_cast<const qchem::BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(os.GetBasisSet());
-            if (!blk) throw std::logic_error("SolidCalculation::ConvergeHubbardU: an orbital block that is not an Orbital_DFT_IBS");
-            const double cap = ir.ms==qchem::Spin::None ? 2.0 : 1.0;   // a level is OCCUPIED when more than half full
-            std::vector<const qchem::Orbitals::TOrbital<U>*> occ;
-            for (const auto* o : os.template Iterate<qchem::Orbitals::TOrbital<U>>())
-            {
-                if (o->GetOccupation()>0.5*cap) homo=std::max(homo, o->GetEigenEnergy());
-                else                            lumo=std::min(lumo, o->GetEigenEnergy());
-                if (o->GetOccupation()>0.0) occ.push_back(o);
-            }
-            if (occ.empty()) return;
-            mat_t<U> C(blk->GetNumFunctions(), occ.size());
-            for (size_t i=0;i<occ.size();i++) { const vec_t<U>& c=occ[i]->GetCoeff(); for (size_t a=0;a<c.size();a++) C(a,i)=c[a]; }
-            const auto amp=hub->ProjectorAmplitudes(*blk, C);
-            const double w=ir.sym->GetWeight();
-            for (size_t M=0;M<nM;M++)
-            {
-                double n=0.0;
-                for (size_t i=0;i<occ.size();i++) for (size_t mu=0;mu<amp[M].rows();mu++) n+=occ[i]->GetOccupation()*std::norm(amp[M](mu,i));
-                n*=w;
-                if      (ir.ms==qchem::Spin::Up)   up[M]+=n;
-                else if (ir.ms==qchem::Spin::Down) dn[M]+=n;
-                else { up[M]+=0.5*n; dn[M]+=0.5*n; }        // the folded doublet: half in each channel
-            }
-        };
-        for (const qchem::Irrep& ir : wf->GetQNs())
-        {
-            const qchem::Orbitals::Orbitals* os=wf->GetOrbitals(ir);
-            if (const auto* c=dynamic_cast<const qchem::Orbitals::TOrbitals<dcmplx>*>(os)) walk(*c, ir);
-            else if (const auto* r=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(os)) walk(*r, ir);
-            else throw std::logic_error("SolidCalculation::ConvergeHubbardU: an orbital set of unknown scalar");
-        }
-        R.gap_eV.push_back(std::isfinite(lumo) && std::isfinite(homo) ? (lumo-homo)*eV : std::numeric_limits<double>::quiet_NaN());
-        std::vector<double> m(nM); for (size_t M=0;M<nM;M++) m[M]=up[M]-dn[M];
+        const ManifoldWalk W=WalkManifolds(*wf, *hub);
+        R.gap_eV.push_back(std::isfinite(W.lumo) && std::isfinite(W.homo) ? (W.lumo-W.homo)*eV : std::numeric_limits<double>::quiet_NaN());
+        std::vector<double> m(nM); for (size_t M=0;M<nM;M++) m[M]=W.up[M]-W.dn[M];
         R.moment.push_back(m);
     };
 

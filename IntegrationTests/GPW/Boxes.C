@@ -267,6 +267,7 @@ TEST(GPW_NaBox, Γ_Imp_M2_eqFinite)
     SolidCalcOptions o=OptionsFor(box, "Na atom-in-box doublet");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.multiplicity=2;                                          // S=1/2: nUp=1, nDown=0
+    o.siteSpins={+1}; // stated (R2.5): the decoration the seed used to derive
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;   // the finite-molecule mode
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;       // SEED PIN: Uniform has a stable wrong basin (header)
     GpwReport report("Na "+o.label, false);
@@ -304,6 +305,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     SolidCalcOptions o=OptionsFor(box, "O2 in-box triplet");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.multiplicity=3;                                  // S=1: nUp=7, nDown=5; densityEcut stays AUTO: O q6 is hard (alpha_max rules)
+    o.siteSpins={+1,+1}; // stated (R2.5): the decoration the seed used to derive (the triplet's two O, parallel)
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     GpwReport report("O "+o.label, false);
     qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, TightGates(60));
@@ -326,6 +328,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor_Panel)   // PANEL case 4 (regime 1, Pulay
     const Lattice_3D lat=LatticeOf(box);
     SolidCalcOptions o=OptionsFor(box, "O2 in-box triplet, Pulay on D");
     o.imposeSymmetry=true; o.multiplicity=3;
+    o.siteSpins={+1,+1}; // stated (R2.5): the decoration the seed used to derive (the triplet's two O, parallel)
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     o.accelerator=qchem::SCFAccelerators::Type::Null;   // no Fock history beside a density history
     std::vector<std::string> xcRho;
@@ -426,6 +429,7 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     const Lattice_3D lat=LatticeOf(box);
     SolidCalcOptions o=OptionsFor(box, "Mn2 B2 AFM imposed");
     o.multiplicity=1;
+    o.siteSpins={+1,-1}; // stated (R2.5): the decoration the seed used to derive (Mn up, Mn down)
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;      // neutral Mn: the library's d5s2 spin pair
     o.imposeSymmetry=true;                                // S3 resolves the SHUBNIKOV group from the flips
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
@@ -521,6 +525,7 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows_Panel)   // PANEL case 9: a c
     qchem::SolidCalcOptions o;
     o.label="Na2 AFM-seeded singlet";
     o.Nelec=2; o.multiplicity=1;                              // the explicit two-channel singlet, nUp=nDn=1
+    o.siteSpins={+1,-1}; // stated (R2.5): the decoration the seed used to derive (the AFM +m/-m pair)
     o.species={{"Na",1}};
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;           // neutral Na: the library's 3s^1 spin pair
     o.imposeSymmetry=true;                                    // S3 resolves the SHUBNIKOV group from the flips

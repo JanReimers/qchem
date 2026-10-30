@@ -79,11 +79,13 @@ void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& s
             if (s<-1 || s>1) throw std::invalid_argument("SolidCalcOptions: siteSpins entries are -1, 0 or +1, got "+std::to_string(s));
         return;
     }
+    // R2.5 (doc/SCFRobustnessPlan.md P2, 2026-10-30): an IMPOSED polarized run states it too, +U or not -- the imposition IS
+    // the decoration (the Shubnikov group), and deriving it from the seed let SAD impose a ferrimagnet on MnO AFM-II.
     const bool polarized = o.multiplicity>=1;
-    if (polarized && !o.hubbard.empty() && !o.greyImposition)
-        throw std::invalid_argument("SolidCalcOptions: a polarized run with a Hubbard manifold must STATE its magnetic ordering --"
-                                    " siteSpins, one of +1/-1/0 per site ("+sites+"); all zeros for a non-magnetic cell."
-                                    "  It is no longer derived from the seed (doc/OpenWork.md §3)");
+    if (polarized && (!o.hubbard.empty() || o.imposeSymmetry) && !o.greyImposition)
+        throw std::invalid_argument("SolidCalcOptions: a polarized run with a Hubbard manifold or an imposed symmetry must STATE its"
+                                    " magnetic ordering -- siteSpins, one of +1/-1/0 per site ("+sites+"); all zeros for a"
+                                    " non-magnetic cell.  It is no longer derived from the seed (doc/OpenWork.md §3, R2.5)");
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -150,22 +152,11 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     s->imposed = opts.imposeSymmetry && theRunPolicy().SymmetryImposition();
     // THE MAGNETIC DECORATION (S3).  An imposition is only SHUBNIKOV if the factory is told which sites
     // carry which spin; without it an "imposed AFM" run star-averages under the SPATIAL group and the
-    // order is erased.  STATED (siteSpins) wherever a Hubbard manifold rides along -- RequireStatedMagneticOrdering
-    // above refused the run otherwise.  The derivation from the seed below survives ONLY for an imposed polarized
-    // run WITHOUT +U, and it is the defect OpenWork §3 names: with SeedStrategy::SAD it labels neutral O (2p4)
-    // magnetic and MnO AFM-II imposes a ferrimagnet (12 Shubnikov ops, not 24).
-    //   unpolarized  -> {} (no channels to decorate)
+    // order is erased.  ALWAYS STATED (siteSpins) on an imposed polarized run -- RequireStatedMagneticOrdering above
+    // refused the run otherwise (R2.5, 2026-10-30: the seed-derived decoration is gone; with SeedStrategy::SAD it
+    // labelled neutral O (2p4) magnetic and MnO AFM-II imposed a ferrimagnet, 12 Shubnikov ops, not 24).
     //   greyImposition -> {} DELIBERATELY: that arm is the erasure NEGATIVE CONTROL
-    if (!s->imposed) { /* nothing to decorate: siteSpins are meaningless without an imposition */ }
-    else if (!opts.siteSpins.empty() && !opts.greyImposition)
-        s->siteSpins = opts.siteSpins;              // STATED: a specific ordering, not the seed's guess
-    else if (opts.multiplicity>=1 && !opts.greyImposition)
-    {
-        const std::vector<int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
-                                       ? qchem::ChargeDensity::IonicSADTargets(st.get(), s->seedKey)
-                                       : std::vector<int>{};
-        s->siteSpins = qchem::ChargeDensity::MagneticDecoration(st.get(), s->seedKey, targets);
-    }
+    if (s->imposed && !opts.greyImposition) s->siteSpins = opts.siteSpins;   // {} on an unpolarized run that states none
     s->decoration=s->siteSpins;
     if (s->decoration.empty()) s->decoration.assign(lat.GetUnitCell().GetNumAtoms(), 0);
 

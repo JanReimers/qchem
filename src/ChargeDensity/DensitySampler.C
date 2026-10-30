@@ -28,6 +28,7 @@ module;
 #include <stdexcept>
 #include <iosfwd>
 #include <map>
+#include <optional>   // GroupResidual (R2.1)
 #include <memory>
 #include <string>
 #include <vector>   // SinglesDensitySampler sigmas/flipFixed (Shubnikov S3)
@@ -134,6 +135,11 @@ public:
     //! Fock matrix's XC saw each iteration (pin 28).  Asked of the term's own build rather than logged here, because
     //! this engine also samples for the energy pass and the residual, which would bury the one sampling that matters.
     virtual XCRhoSource RhoSource() const=0;
+    //! \brief R2.1 (doc/SCFRobustnessPlan.md P2): the density this sampler last cached, measured against the imposed group
+    //! BEFORE its own projector -- \f$\max|f-Pf|/\max|\rho|\f$ over \f$\rho\f$ (and \f$m\f$ on a polarized run).  What XC reads is
+    //! \f$Pf\f$; the number says how far from invariant the density it was HANDED was.  0 on a free run (P is the identity);
+    //! nullopt from a sampler that does not project at all, which therefore cannot answer.
+    virtual std::optional<double> GroupResidual() const=0;
     //! \brief \f$\delta\rho_\sigma(r_g)\f$ of a TRANSITION density at my points (doc/LinearResponsePlan.md R2) --
     //! through the SAME route and projector as \c Rho, so a response samples on exactly the quadrature its
     //! ground state did.  \a s = \c Spin::None asks for the total (the folded doublet).

@@ -707,6 +707,18 @@ The row as it stood:
 
 | **GDM false-converges on a carried stage whose Hamiltonian CHANGED** (2026-10-26) | D-MINDRHO's Δρ = ∫|ρ_out−ρ_in| measures a DIRECT MINIMISER's own step, not its distance to the fixed point: a U-loop outer stage on Ladder@GDM (`GPW_Si.Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint` under the Auto pair) starts at [F,D] 4.6e-7 (Si p λ = ½: the new U's potential is small), GDM's preconditioned steps decay ~0.7×/iteration and the Δρ < 1e-7 gate passes in 2–10 iterations with Ekin/Een/Eee/Exc unchanged to 1e-10 -- U never moves the state, the loop runs 12 outer steps NOT converged (DIIS stages: 3 outer, U_SC 1.2399).  MITIGATED 2026-10-26: the `Auto` policy puts GDM only on a RESTORED stage (same Hamiltonian); an EXPLICIT Ladder on a carried stage still has it | gate a GDM stage on its GRADIENT ([F,D]) or on the aufbau density of F[ρ_in] rather than on its step; meanwhile the Auto pair puts GDM only on a true RESTART (same Hamiltonian) · `src/SCFIterator/Imp/SCFIterator.C`, `src/SCFAccelerator/` |
 
+## Closed 2026-10-30 (lane A, B2 R2.5): the imposed no-+U decoration
+
+Verdict: `RequireStatedMagneticOrdering` refuses an imposed polarized run without `siteSpins`; the seed derivation in `SolidCalculation::BuildBasis` is deleted; the 10 short-tier tests that derived now state the same values (`doc/SCFRobustnessPlan.md` "B2 as built").  The row, verbatim:
+
+| **An IMPOSED polarized run WITHOUT +U still derives its magnetic decoration from the seed** (remainder of the closed "The magnetic decoration is DERIVED FROM THE SEED", 2026-10-26) | the +U path throws without `siteSpins`; the no-+U imposed path still derives it (the MnO SAD ferrimagnet of the original row) | extend `RequireStatedMagneticOrdering` to it, judging the integration tests that rely on it · `src/Calculation/Imp/SolidCalculation.C` |
+
+## Closed 2026-10-30 (lane A, B2): the serial long tier timeout
+
+Verdict: user ruling 2026-10-30 -- the routine long tier is `ctest -L long -LE panel` (default timeout); the panel runs on demand and its `_Panel_Long` passes carry TIMEOUT 14400 (root `CMakeLists.txt`).  The row, verbatim:
+
+| **The serial long tier exceeds the ctest timeout** (lane A, 2026-10-30) | `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Converges_Panel_Long` TIMED OUT at 7200 s serial (4268 s at 4 threads; its U2eV twin passed serial in 6410 s) -- so the serial long baseline the campaign now compares against cannot be green | raise that test's TIMEOUT (or the panel tier's) to ~3 h, or let the long tier run threaded with its own baseline · log `~/Code/qchem6-runs/anchors/lane-a-b2r21_long.out` |
+
 ## "A restart's fingerprint is incomplete" (OpenWork §3, 2026-10-29) -- gap (1) DONE 2026-10-30 (C4 step 5); the row as it stood
 
 The functional is recorded from the run's `PseudopotentialSet` and sits in WARM; `pp.set` is REFUSE; atom positions and shell
