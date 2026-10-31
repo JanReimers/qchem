@@ -809,3 +809,26 @@ point); `OnIteration` still REPLACES it for a later `Converge`.  Callers migrate
 restart gates; the deck never serialised it.  No number moves (the observer only reads).
 
 | **The SCF observer has two homes** (controller 2026-10-30, from lane G's molecular hook) | `Calculation` / `MoleculeSession` take the per-iteration observer as a CONSTRUCTOR argument (lane G: an observer is not a resolved decision); the solid side still carries `SolidCalcOptions::onIteration` inside the resolved options | move it to a `SolidCalculation` / `SolidSession` constructor argument, migrate every caller, delete the field (lane B) · `src/Calculation/` |
+
+## ✅ "A restart's fingerprint does not record the run POLICY" — DONE 2026-10-30 (lane B, 21fe6e27)
+
+`Deviation` gains `movesState`: the routes that change the Hamiltonian or its quadrature (dmLowRank, streamFold, xcFromDM,
+beckeXC, dAwareScreen, hubbardEigen) are recorded as `policy.<route>` WARM keys from the run's OWN `RunPolicy(o.policy)`;
+mixRhoM (mixing channels, identical energies) and imposeSymmetry (a permission; the imposition itself is resolved) are not,
+so they cannot turn an exact resume into a warm start.  A flipped route prints "policy.xcFromDM: saved 'off', now 'on' -- a
+declared CP2K-deviation route changed the Hamiltonian"; a state saved before the keys existed resumes exactly (`Migrated`).
+UT `SolidState.ThePolicyRoutesAreWarmAndAnOlderStateIsStillExact`.  Not covered: the RESOLVED imposition (`setup->imposed`)
+is not itself a fingerprint key.
+
+| **A restart's fingerprint does not record the run POLICY** (remainder of "A restart's fingerprint is incomplete", gaps 1–4 DONE 2026-10-30) | the declared CP2K-deviation routes (`SolidCalcOptions::policy`: xcFromDM, beckeXC, dmLowRank, ...) change the Hamiltonian, so they move the converged ground state like a grid does, but `MakeStateFingerprint` records none of them: a restart across a policy change is called an EXACT resume | record the RESOLVED route table WARM (one key per route, `policy.<route>`, so a banner reformat is not a difference) with its consequence line; a state without them compares as agreeing · `src/Calculation/Imp/SolidState.C`, `Records/OpenWork_History5.md` |
+
+## ✅ "Spinel charge order is CHOSEN by atom index" — DONE 2026-10-30 (lane B, 4badf3eb)
+
+`SolidCalcOptions::siteCharges` (deck `solid.siteCharges`), one integer per site like `siteSpins`: empty = derived (the
+electronegativity tie-break by atom index, unchanged); Resolve refuses a wrong count, a non-neutral list, or a seed other
+than IonicSAD.  It reaches `SeedKey::siteCharges`, so `IonicSADTargets` feeds the seed AND the magnetic decoration from it.
+`decks/probes/LiMn2O4_spinel_gate1.json` states the order the tie-break derived ([1,1,4,4,3,3,-2×8]: Mn⁴⁺ on Mn0/Mn1), so no
+number moves; λ-MnO₂ has no tie.  UTs `IonicSADSeed.AStatedChargeOrderReplacesTheTieBreak`,
+`Deck.AStatedChargeOrderIsOnePerSiteNeutralAndIonicSAD`.
+
+| **Spinel charge order is CHOSEN by atom index** (remainder of the closed "IonicSAD targets are per SPECIES", 2026-10-26) | the tie-break puts LiMn₂O₄'s Mn³⁺/Mn⁴⁺ on symmetry-equivalent 16d sites by atom index -- a chosen charge order, not a derived one | state it in the deck like `siteSpins` when the spinel campaign needs a specific order · `src/ChargeDensity/Imp/Seed.C` |
