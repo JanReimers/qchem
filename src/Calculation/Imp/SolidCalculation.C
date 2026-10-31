@@ -51,7 +51,7 @@ struct SolidCalculation::Imp
     //! The accelerator options a STAGE starts from: \c setup->acc, except where a caller's stage overrides the Ladder's starting
     //! rung for its own duration (the FD chi's restart-like stages).  Per-run state, not a decision of the setup.
     SCFAccelerators::SolidAcceleratorOptions    accOpts;
-    //! The caller's per-iteration telemetry: \c setup->opts.onIteration, replaced by \c OnIteration.
+    //! The caller's per-iteration telemetry: the constructor's (or \c Restart's) \a onIteration, replaced by \c OnIteration.
     Observer                                    onIteration;
     std::shared_ptr<const Structure>            st;
     std::unique_ptr<BasisSet::Complex_BS>       bs;
@@ -75,12 +75,16 @@ struct SolidCalculation::Imp
     SCFAccelerators::Type                       stageAccel = SCFAccelerators::Type::DIIS;  //!< the CURRENT stage's, RESOLVED (banner, [F,D])
     SCFAccelerators::Type                       stageAccelAsked = SCFAccelerators::Type::Auto;  //!< ...as ASKED: what an FD/U-loop stage re-resolves
     bool                                        stageRestored = false;  //!< the CURRENT stage starts from a RESTORED state (Restart: same Hamiltonian)
+    //! An EXACT RESUME's saved energy, until the first Converge reports the resumed one beside it (then cleared): the line
+    //! belongs to the restored stage's convergence, whoever runs it (\c Restart, or a \c PrepareRestart caller).
+    std::optional<double>                       resumedFrom;
     bool   converged = false;
     //! What the LAST converge stage filled with and how well it converged its eigenvalues -- the linear
     //! response's reference is built over the SAME occupancy rule, gated against the SAME measured noise
     //! (doc/LinearResponsePlan.md E1).  The commutator is the final iteration's [F,D].
     qchem::OccupationConfig lastOccupation;
     double lastCommutator = std::numeric_limits<double>::quiet_NaN();
+    double lastDensityChange = std::numeric_limits<double>::quiet_NaN();   //!< the last iteration's Δρ (the saved state's residual)
     double charge    = 0.0;
     //! The OUTCOME DETECTORS' record (N1/T3-T4).  Accumulates across every attempt this object makes --
     //! an annealed schedule and a re-Converge are CONTINUATIONS of one SCF, and an order that died in
@@ -98,6 +102,8 @@ struct SolidCalculation::Imp
     //! and site positions for the q-star fold), each later need re-deriving a piece of what the lattice answers.  A copy:
     //! Lattice_3D is an immutable value (copies share its space-group cache).  optional only because the Imp is built first.
     std::optional<Lattice_3D> lat;
+    //! The MOLECULAR orbital basis the Bloch basis was built over: held for the grid audit, which rebuilds the Bloch basis on another raster.
+    std::shared_ptr<const BasisSet::Real_BS> mol;
 };
 
 //---------------------------------------------------------------------------------------------------
@@ -286,9 +292,10 @@ static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, siz
 
 SolidCalculation::SolidCalculation(BuildOnly) : itsImp(std::make_unique<Imp>()) {}
 
-SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params)
+SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, Observer onIteration)
     : itsImp(std::make_unique<Imp>())
 {
+    itsImp->onIteration=std::move(onIteration);   // before Start: BuildRun attaches it ahead of iteration 1
     // ★ THE CTOR'S RESIDUE BUCKET (doc/ParallelAndOraclePlan.md 1.1(a)).  Timed is EXCLUSIVE, so this
     // outer scope charges itself exactly what the named setup buckets below do NOT -- the decisions
     // between them (the irrep/EC build, the banner).  With the same bracket on Converge and on Iterate, the ledger
@@ -300,11 +307,28 @@ SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, cons
 
 void SolidCalculation::Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel)
 {
+    BuildFirstStage(std::move(setup), params, accel);
+    (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
+}
+
+void SolidCalculation::BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel)
+{
     const Lattice_3D& reference=setup->reference;   // held by the setup, which the point keeps alive
     auto mol=setup->mol;
     BuildPoint(std::move(setup), reference, std::move(mol));
     BuildRun(nullptr, params, accel, /*restored*/false, /*exactResume*/false);
-    (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
+}
+
+std::unique_ptr<SolidCalculation> SolidCalculation::Prepare(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule,
+                                                            Observer onIteration)
+{
+    if (schedule.empty())
+        throw std::runtime_error("SolidCalculation::Prepare: an EMPTY schedule has no meaning -- pass at least one stage.");
+    std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
+    c->itsImp->onIteration=std::move(onIteration);   // before BuildRun: it attaches the observer ahead of iteration 1
+    qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
+    c->BuildFirstStage(std::move(setup), schedule.front().params, schedule.front().accelerator);
+    return c;
 }
 
 // THE FIRST HALF OF THE BUILD: the GEOMETRY POINT over a resolved setup -- everything the saved-state fingerprint is judged
@@ -315,9 +339,9 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
 {
     itsImp->setup       = std::move(setup);
     itsImp->accOpts     = itsImp->setup->acc;
-    itsImp->onIteration = itsImp->setup->opts.onIteration;
     itsImp->st          = lat.GetStructure();
     itsImp->lat.emplace(lat);
+    itsImp->mol         = mol;
     const SolidSetup&       S    = *itsImp->setup;
     const SolidCalcOptions& opts = S.opts;
 
@@ -352,7 +376,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
             .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .tol = tol,
+            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = tol,
             .hamPreservesReal = hamPreservesReal}));
     }
     // THE RUN REPORTS ITS OWN BASIS AND GRIDS (TE phase 2, 2026-09-15; the reporting rule: each class emits
@@ -489,7 +513,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
-    // missed stage 0 (see SolidCalcOptions::onIteration).
+    // missed stage 0 (hence the constructors' onIteration argument).
     AttachProbes();
 
     // MOM CONTINUATION FROM THE SEED (S0e): pin the reference to the seed's OWN freshly-filled occupied
@@ -508,9 +532,10 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
 // so the graph is built exactly once and stage 0 runs as the plain ctor's convergence -- then continues
 // through the rest of the schedule.  (Delegating rather than duplicating the build is what keeps the two
 // ctors from drifting; every DECISION in the build is made in one place.)
-SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule)
+SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule, Observer onIteration)
     : itsImp(std::make_unique<Imp>())
 {
+    itsImp->onIteration=std::move(onIteration);
     if (schedule.empty())
         throw std::runtime_error("SolidCalculation: an EMPTY anneal schedule has no meaning -- pass at "
                                  "least one stage, or use the single-SCFParams constructor.");
@@ -796,17 +821,18 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
 void SolidCalculation::AttachProbes()
 {
     auto userObs = itsImp->onIteration;
-    itsImp->scf->SetObserver([this,userObs](const qchem::SCFIterator::SCFProgress& p)
+    itsImp->scf->SetObserver([this,userObs](const qchem::SCFIterator::IterationRow& row)
     {
         // The detectors read the observable off the breakdown the iteration produced (R1.0h) -- the same
         // number the trace reported, not a second pull.
-        itsImp->diag.itsOrder.push_back(MaxSiteMoment(p.eb.charge.siteMoments, itsImp->diag.itsHasBasins));
-        itsImp->diag.itsEee  .push_back(p.eb["Eee"]);
-        // A Null accelerator computes NO [F,D]: SCFProgress then carries 0 (the trace hides it by tag), which
+        itsImp->diag.itsOrder.push_back(MaxSiteMoment(row.eb.charge.siteMoments, itsImp->diag.itsHasBasins));
+        itsImp->diag.itsEee  .push_back(row.eb["Eee"]);
+        // A Null accelerator computes NO [F,D]: its cell carries 0 (the trace hides it by tag), which
         // must not read as a MEASURED zero eigenvalue noise (found 2026-09-27, the NiO R0 gate) -- NaN instead.
         itsImp->lastCommutator = itsImp->stageAccel==SCFAccelerators::Type::Null
-                               ? std::numeric_limits<double>::quiet_NaN() : p.commutator;
-        if (userObs) userObs(p);
+                               ? std::numeric_limits<double>::quiet_NaN() : row.ValueOf("[F,D]");
+        itsImp->lastDensityChange = row.ValueOf("Δρ");
+        if (userObs) userObs(row);
     });
 }
 
@@ -924,7 +950,15 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
     if (itsImp->stageRestored && itsImp->stageAccelAsked==SCFAccelerators::Type::Auto
         && itsImp->scf->ResolveMixing(params).Mixer==SCFParams::Mixing::Linear)
         own.StartingRelaxRo=std::min(own.StartingRelaxRo, 0.3);
-    return ConvergeStage(own);
+    auto R=ConvergeStage(own);
+    if (itsImp->resumedFrom)   // an EXACT RESUME's first convergence: judged against the energy the state was saved at
+    {
+        const double E=itsImp->scf->GetEnergy().GetTotalEnergy();
+        std::cout << "["<<itsImp->setup->opts.label<<" restart] resumed E="<<std::setprecision(10)<<E<<" vs saved "<<*itsImp->resumedFrom
+                  << "  dE="<<std::setprecision(3)<<E-*itsImp->resumedFrom<<" after "<<itsImp->scf->GetIterationCount()<<" iterations"<<std::endl;
+        itsImp->resumedFrom.reset();
+    }
+    return R;
 }
 
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage(const SCFParams& params)
@@ -1022,10 +1056,30 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     xc<<MeshName(itsImp->setup->xcMesh.cellKind);
     if (itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke) xc<<" nR="<<itsImp->setup->xcMesh.nRadial<<" L="<<itsImp->setup->xcMesh.angularDegree;
     else                                                      xc<<" eCut="<<itsImp->setup->xcMesh.eCut;
-    const RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .ppSet=itsImp->setup->pp.Name(),
+    // A free run on the PLAIN mesh (xcMeshSymmetric=false, what a SolidSession needs) quadratures on different points: name it, so a
+    // restart across the choice says the quadrature changed.  Only then -- every state written before the option keeps its string.
+    if (!itsImp->setup->imposed && !itsImp->setup->planeWave && !o.xcMeshSymmetric) xc<<" plain";
+    RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .ppSet=itsImp->setup->pp.Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
                          .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT,
                          .orbitalBasis=itsImp->setup->planeWave ? "planeWave" : "gaussian", .planeWaveEcut=o.planeWaveEcut};
+    // The numerics that move the ground state (OpenWork §3 "A restart's fingerprint is incomplete" gap 2).  The fit is the one the
+    // Hamiltonian RESOLVES (Ham_PW_DFT: Auto -> Delta on a Becke mesh, else the plane-wave fit).
+    const bool becke=itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
+    id.vxcFit= o.vxcFit==Hamiltonian::VxcFit::Delta || (o.vxcFit==Hamiltonian::VxcFit::Auto && becke) ? "Delta" : "PlaneWave";
+    if (becke) id.beckeEps=itsImp->setup->xcMesh.beckeEps;
+    if (!itsImp->setup->planeWave)
+    {
+        const auto& t=o.tolerances;
+        id.raster      =o.raster==BasisSet::PlaneWave::RasterPolicy::AliasFree ? "AliasFree" : "BallOnly";
+        id.ladderFactor=o.ladderFactor;
+        id.gpwTolerances={{"vlocEps",{t.vlocEps}}, {"localPPRelCutoff",{t.localPPRelCutoff}}, {"relFieldSharp",{t.relFieldSharp}},
+                          {"screenEps",{t.screenEps}}, {"fieldSharp",{t.fieldSharp}}, {"relCutoff",{t.relCutoff}},
+                          {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts}};
+    }
+    // The run's OWN policy table, resolved from its stated spec (not the process's installed one, which a later run may have replaced).
+    for (const Deviation& d : RunPolicy(o.policy).Deviations())
+        if (d.movesState) id.policy[d.knob]=d.value;
     return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,
                                 o.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, id);
 }
@@ -1037,7 +1091,8 @@ void SolidCalculation::SaveState(const std::string& path) const
     const StateSummary sum{.label=itsImp->setup->opts.label, .converged=itsImp->converged,
                            .iterations=itsImp->scf->GetIterationCount(),
                            .energy=itsImp->scf->GetEnergy().GetTotalEnergy(), .charge=itsImp->charge,
-                           .commutator=itsImp->lastCommutator, .recipe=itsImp->lastRecipe};
+                           .commutator=itsImp->lastCommutator, .recipe=itsImp->lastRecipe,
+                           .densityChange=itsImp->lastDensityChange};
     {
         qchem::report::Timed timed("state: save (HDF5)");
         WriteSolidState(path, Fingerprint(itsImp->lastkT), sum, *itsImp->bs, *wf);
@@ -1047,7 +1102,17 @@ void SolidCalculation::SaveState(const std::string& path) const
 }
 
 Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
-SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params)
+SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params,
+                          Observer onIteration)
+{
+    auto R=PrepareRestart(path, std::move(setup), params, std::move(onIteration));
+    if (R) (void)R.Value()->Converge(params);   // the restored stage, as PrepareRestart stood it up
+    return R;
+}
+
+Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params,
+                                 Observer onIteration)
 {
     using O=Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>;
     const SCFAccelerators::Type accel=setup->opts.accelerator;
@@ -1061,6 +1126,7 @@ SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSe
     if (!saved) return refuse(saved.Error());
 
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
+    c->itsImp->onIteration=std::move(onIteration);
     // A restored density is at (or next to) the answer: a Ladder starts on its GDM rung (user 2026-10-21, OpenWork
     // §3 "Ladder restart starts on the DIIS+Kerker rung").  For THIS stage only -- reset after Converge below.
     // kT = 0 ONLY: a smeared stage restored from an integer state hands GDM an idempotent D', so GDM would ENGAGE and
@@ -1083,16 +1149,24 @@ SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSe
           <<(saved->summary.converged ? "converged" : "NOT converged")<<" after "<<saved->summary.iterations
           <<" iterations, E="<<std::setprecision(10)<<saved->summary.energy<<"; "<<saved->summary.recipe<<")";
         for (const std::string& d : *warm) os<<"\n"<<tag<<"  differs: "<<d;
+        // THE SAVED STATE'S OWN RESIDUAL (gap 4, user 2026-10-29): even an exact resume starts where the state was SAVED, not at
+        // the fixed point.  A density-MIXED run (Null accelerator: no [F,D] measured) stops with D a mixture, one undamped Fock
+        // away from self-consistency, so its first iteration re-opens that residual (amplified on a soft system).
+        const StateSummary& ss=saved->summary;
+        if (std::isfinite(ss.densityChange))
+        {
+            os<<"\n"<<tag<<"  saved at Δρ "<<std::setprecision(3)<<ss.densityChange;
+            if (std::isfinite(ss.commutator)) os<<", [F,D] "<<ss.commutator;
+            else os<<" by a density-MIXED run (no [F,D]): D is a mixture, so the first Fock re-opens a residual of about that size -- "
+                     "amplified on a soft system (β-MnO₂ r015: 40x), where even an exact resume iterates";
+        }
+        else os<<"\n"<<tag<<"  saved residual not recorded (a format-1.0 state, before 2026-10-30)";
         std::cout<<os.str()<<std::endl;
     }
     c->BuildRun(cd.TakeValue(), params, accel, /*restored*/true, exact);
-    (void)c->Converge(params);
-    c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;   // later stages on this calculation start as asked
-    if (exact)
-        std::cout << tag << "resumed E="<<std::setprecision(10)<<c->itsImp->scf->GetEnergy().GetTotalEnergy()
-                  << " vs saved "<<saved->summary.energy<<"  dE="<<std::setprecision(3)
-                  << c->itsImp->scf->GetEnergy().GetTotalEnergy()-saved->summary.energy
-                  << " after "<<c->itsImp->scf->GetIterationCount()<<" iterations"<<std::endl;
+    // The restored stage's accelerator is BUILT (BuildRun consumed the GDM-rung start); later stages on this calculation start as asked.
+    c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;
+    if (exact) c->itsImp->resumedFrom=saved->summary.energy;   // the first Converge reports the resumed energy beside it
     return O::Ok(std::move(c));
 }
 
@@ -1152,6 +1226,134 @@ std::vector<size_t> DefaultPerturbed(const qchem::Hamiltonian::HubbardChannels& 
     return J;
 }
 } // namespace
+
+//---------------------------------------------------------------------------------------------------
+//  THE GRID AUDIT (doc/GridEpsilonPlan.md §3)
+//---------------------------------------------------------------------------------------------------
+namespace
+{
+const char* RasterName(BasisSet::PlaneWave::RasterPolicy r) {return r==BasisSet::PlaneWave::RasterPolicy::AliasFree ? "AliasFree" : "BallOnly";}
+//! The largest |a_ij - b_ij| of two term lists of one block, folded into \a terms (by position: one term order on both Hamiltonians).
+template <class M> void FoldΔH(const std::vector<M>& a, const std::vector<M>& b, std::vector<SolidCalculation::GridAuditTerm>& terms)
+{
+    if (a.size()!=terms.size() || b.size()!=terms.size()) throw std::logic_error("GridAudit: a block's term list differs from the energies'");
+    for (size_t t=0;t<a.size();t++)
+        for (size_t i=0;i<a[t].rows();i++) for (size_t j=i;j<a[t].columns();j++)
+            terms[t].maxAbsΔH=std::max(terms[t].maxAbsΔH, std::abs(a[t](i,j)-b[t](i,j)));
+}
+} //anon
+
+SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWave::RasterPolicy reference) const
+{
+    namespace rpt=qchem::report;
+    const SolidSetup&       S    = *itsImp->setup;
+    const SolidCalcOptions& opts = S.opts;
+    if (S.planeWave) throw std::invalid_argument("SolidCalculation::GridAudit: a plane-wave run has no raster to audit");
+    if (reference==opts.raster)
+        throw std::invalid_argument(std::string("SolidCalculation::GridAudit: the reference raster is the run's own (")+RasterName(reference)+")");
+    const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
+    if (!wf) throw std::logic_error("SolidCalculation::GridAudit: no wave function yet");
+    qchem::report::Timed timed("postSCF: grid audit (reference basis + Hamiltonian + term matrices)");
+    const SpinGroup g = S.polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+    // The grid-audit verdicts of the report in scope: the run's own here, the reference's inside the fence below (both are printed, so
+    // the predicted alias of whichever side is the coarse one can be read -- the run need not be the BallOnly side).
+    auto readVerdicts=[]()
+    {
+        rpt::json v=rpt::json::object();
+        if (rpt::Depth()>0 && rpt::CurrentRunReport().contains("grids"))
+            for (const char* k : {"auditDensity","auditVlocLong"})
+                if (rpt::CurrentRunReport()["grids"].contains(k))
+                {
+                    const auto& a=rpt::CurrentRunReport()["grids"][k];
+                    v[k]={{"status",a.value("status","")},{"alias",a.value("alias",0.0)}};
+                }
+        return v;
+    };
+    const rpt::json verdicts=readVerdicts();
+    rpt::json refVerdicts=rpt::json::object();
+
+    const SavedState st=SnapshotState(*itsImp->bs, *wf);
+    std::unique_ptr<BasisSet::Complex_BS> bsRef;
+    std::unique_ptr<qchem::Hamiltonian::cHamiltonian> hamRef;
+    // FENCED from here to the fold: the reference basis and Hamiltonian report their grids (and grid audits) as they BUILD AND FIRST
+    // EVALUATE (the raster levels and the V_long sweep are lazy); a nested run keeps that out of this run's `grids` section, which must keep
+    // describing the rasters the run USED.  (The run's own evaluator emitted its audits once, at its own first use, so nothing of the
+    // run's lands in the fence.)  RAII: an exception mid-audit must not leave the report nested.
+    struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} };
+    std::optional<Fence> fence(std::in_place, "gridAudit reference ("+std::string(RasterName(reference))+")");
+    {
+        namespace L3 = BasisSet::Lattice;
+        bsRef.reset(L3::GPWFactory(*itsImp->lat, itsImp->mol, L3::GPWParams{
+            .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = reference,
+            .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
+            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = opts.tolerances,
+            .hamPreservesReal = !opts.forceComplex}));
+        if (rpt::Depth()>0) L3::EmitGpwGrids(*bsRef);   // the reference's grids + density verdict, as setup emits the run's (it forces EnsureLevels)
+        hamRef.reset(qchem::Hamiltonian::Factory(g, itsImp->st, bsRef.get(), S.pp, S.xcMesh, opts.vxcFit, itsImp->hubbard));
+    }
+    auto cdRun=RestoreDensity(st, *itsImp->bs, g);
+    auto cdRef=RestoreDensity(st, *bsRef, g);
+    if (!cdRun || !cdRef) throw std::logic_error("GridAudit: the converged D does not restore onto "+std::string(cdRun ? "the reference" : "its own")+" basis");
+    const qchem::ChargeDensity::cDM_CD* dRun=cdRun->get();
+    const qchem::ChargeDensity::cDM_CD* dRef=cdRef->get();
+    itsImp->ham->RefreshForDensity(itsImp->bs.get(), dRun);
+    hamRef     ->RefreshForDensity(bsRef.get(),       dRef);
+
+    GridAuditResult R; R.reference=RasterName(reference);
+    auto toVerdicts=[](const rpt::json& v)
+    {
+        std::vector<GridAuditVerdict> out;
+        for (auto it=v.begin(); it!=v.end(); ++it) out.push_back({it.key(), it.value().value("status",std::string()), it.value().value("alias",0.0)});
+        return out;
+    };
+    const std::vector<qchem::Hamiltonian::TermEnergy> eRun=itsImp->ham->MakeTermEnergies(dRun), eRef=hamRef->MakeTermEnergies(dRef);
+    if (eRun.size()!=eRef.size()) throw std::logic_error("GridAudit: the reference Hamiltonian has a different term list");
+    for (size_t t=0;t<eRun.size();t++)
+    {
+        // Matched by the ENERGY ENTRIES, not the label: a raster term's description states its own point count, which is what differs.
+        if (eRun[t].entries!=eRef[t].entries)
+            throw std::logic_error("GridAudit: term "+std::to_string(t)+" reports '"+eRun[t].entries+"' here, '"+eRef[t].entries+"' on the reference");
+        R.terms.push_back({eRun[t].label, eRun[t].entries, 0.0, eRun[t].E-eRef[t].E, eRun[t].E});
+        R.ΔE+=eRun[t].E-eRef[t].E;
+    }
+    const std::vector<Spin> spins = g==SpinGroup::Polarized ? std::vector<Spin>{Spin::Up,Spin::Down} : std::vector<Spin>{Spin::None};
+    for (Spin s : spins)
+        for (size_t i=0;i<itsImp->bs->GetNumIBS();++i)
+        {
+            const auto* rb=itsImp->bs->GetRealIBS(i);
+            const auto* rr=bsRef->GetRealIBS(i);
+            if (bool(rb)!=bool(rr)) throw std::logic_error("GridAudit: block "+std::to_string(i)+" is real on one basis and complex on the other");
+            if (rb) FoldΔH(itsImp->ham->MakeTermMatrices(rb,s,dRun), hamRef->MakeTermMatrices(rr,s,dRef), R.terms);
+            else    FoldΔH(itsImp->ham->MakeTermMatrices((*itsImp->bs)[i],s,dRun), hamRef->MakeTermMatrices((*bsRef)[i],s,dRef), R.terms);
+        }
+    for (const auto& t : R.terms) R.maxAbsΔH=std::max(R.maxAbsΔH, t.maxAbsΔH);
+    refVerdicts=readVerdicts();
+    fence.reset();
+    R.runVerdicts=toVerdicts(verdicts); R.referenceVerdicts=toVerdicts(refVerdicts);
+
+    // REPORT, contemporaneously (pin 17): console table + the run report's `gridAudit` section.
+    const std::streamsize prec0=std::cout.precision();
+    std::cout<<"[grid audit] delivered error at the converged D: "<<RasterName(opts.raster)<<" (this run) vs "<<R.reference<<" (reference)"<<std::endl;
+    std::cout<<std::scientific<<std::setprecision(3);
+    rpt::json rows=rpt::json::array();
+    for (const auto& t : R.terms)
+    {
+        std::cout<<"[grid audit]   max|ΔH_ij| "<<std::setw(10)<<t.maxAbsΔH<<"  ΔE "<<std::setw(11)<<t.ΔE<<" Ha  "
+                 <<t.label<<" ["<<t.entries<<"]"<<std::endl;
+        rows.push_back({{"term",t.label},{"entries",t.entries},{"maxAbsDH",t.maxAbsΔH},{"dE",t.ΔE},{"E",t.E}});
+    }
+    std::cout<<"[grid audit]   max|ΔH_ij| "<<std::setw(10)<<R.maxAbsΔH<<"  ΔE "<<std::setw(11)<<R.ΔE<<" Ha  TOTAL"<<std::endl;
+    for (const auto& [who,vs] : {std::pair<const char*,const rpt::json*>{"the run's own",&verdicts},{"the reference's",&refVerdicts}})
+        for (auto it=vs->begin(); it!=vs->end(); ++it)
+            std::cout<<"[grid audit]   "<<who<<" "<<it.key()<<": "<<it.value().value("status",std::string())
+                     <<" (predicted alias "<<it.value().value("alias",0.0)<<")"<<std::endl;
+    std::cout<<std::defaultfloat<<std::setprecision(prec0);
+    if (rpt::Depth()>0)
+        rpt::EmitAt("gridAudit", RasterName(opts.raster)+std::string("_vs_")+R.reference,
+                    rpt::json{{"run",RasterName(opts.raster)},{"reference",R.reference},{"terms",rows},
+                         {"maxAbsDH",R.maxAbsΔH},{"dE",R.ΔE},{"verdicts",verdicts},{"referenceVerdicts",refVerdicts}});
+    return R;
+}
 
 std::vector<qchem::Hamiltonian::ACBN0Estimate> SolidCalculation::EstimateHubbardU() const
 {
@@ -1623,11 +1825,12 @@ const BasisSet::Complex_BS& SolidCalculation::Basis() const { return *itsImp->bs
 //====================================================================================================
 std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat,
                                                                std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
-                                                               const std::vector<SCFStage>& schedule)
+                                                               const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration)
 {
     if (schedule.empty())
         throw std::runtime_error("SolidCalculation: an EMPTY schedule has no meaning -- pass at least one stage.");
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
+    c->itsImp->onIteration=std::move(onIteration);
     {
         qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
         c->BuildPoint(std::move(setup), lat, std::move(mol));
@@ -1641,7 +1844,10 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
             // THE CARRY: the previous point's D, block for block, onto this point's basis -- the same recipe at moved atoms, so the
             // block layout (k, size, realness) is the one RestoreDensity asserts.  A WorkingDensity, NOT a restored one: the
             // Hamiltonian moved with the atoms, so the Auto policy's carried-stage branch (Null + Pulay on D) applies.
-            auto cd=RestoreDensity(*carry, *c->itsImp->bs, c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized);
+            const SpinGroup g=c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+            std::optional<SavedState> moved;
+            if (lowdin) { moved=*carry; LowdinCarry(*moved, *c->itsImp->bs, g); carry=&*moved; }
+            auto cd=RestoreDensity(*carry, *c->itsImp->bs, g);
             if (!cd) throw std::logic_error("SolidCalculation::AtGeometry: the carried density does not fit the new point: "+cd.Error().details);
             const SCFStage& last=schedule.back();
             c->BuildRun(cd.TakeValue(), last.params, last.accelerator, /*restored*/false, /*exactResume*/false);
@@ -1668,10 +1874,15 @@ struct SolidSession::Point
     std::unique_ptr<SolidCalculation>        calc;
 };
 
-SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule)
-    : itsSetup(std::move(setup)), itsSchedule(std::move(schedule))
+SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule, SolidCalculation::Observer onIteration,
+                           Carry carry)
+    : itsSetup(std::move(setup)), itsSchedule(std::move(schedule)), itsObserver(std::move(onIteration)), itsCarry(carry)
 {
     if (itsSchedule.empty()) throw std::invalid_argument("SolidSession: an EMPTY schedule has no meaning -- pass at least one stage.");
+    if (!itsSetup->imposed && !itsSetup->planeWave && itsSetup->opts.xcMeshSymmetric)
+        throw std::invalid_argument("SolidSession: a FREE setup with xcMeshSymmetric=true builds its XC mesh invariant under the group "
+                                    "detected at EACH geometry, so the mesh switches as the atoms move and the surface jumps -- resolve "
+                                    "the setup with SolidCalcOptions::xcMeshSymmetric=false (the plain atom-centred mesh)");
 }
 SolidSession::~SolidSession() = default;
 
@@ -1767,11 +1978,12 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     std::optional<SavedState> carry;
     if (itsPoint) carry=itsPoint->calc->Carry();
     itsPoint.reset();
-    point->calc=SolidCalculation::AtGeometry(itsSetup, latR, point->mol, carry ? &*carry : nullptr, itsSchedule);
+    point->calc=SolidCalculation::AtGeometry(itsSetup, latR, point->mol, carry ? &*carry : nullptr, itsSchedule, itsCarry==Carry::Lowdin,
+                                         itsObserver);
     itsPoint=std::move(point);
 
     auto out=itsPoint->calc->Result();
-    if (!out) return O::Fail({Why::SCF, out.Error().details});
+    if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
     return O::Ok(PESPoint{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()});
 }
 

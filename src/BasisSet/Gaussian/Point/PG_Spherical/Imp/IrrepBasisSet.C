@@ -32,14 +32,14 @@ template <class T> T Max(const std::vector<T>& v) {return *std::max_element(v.be
 //
 //  Orbital spherical-Gaussian basis set.
 //
-IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl, ShellMerge merge)
+IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
     //
-    //  Read in all the radial functions and their l-sets, de-duplicated per \a merge -- the SAME ReadShells as PG_Cart, so the
+    //  Read in all the radial functions and their l-sets -- the SAME ReadShells as PG_Cart, so the
     //  (radial, Ls) set is identical; the only divergence is the angular expansion below.
     //
-    std::vector<ReadShell> shells=ReadShells(*bsr, *cl, merge);
+    std::vector<ReadShell> shells=ReadShells(*bsr, *cl);
     std::vector<std::unique_ptr<GaussianRF>> radials;
     std::vector<std::vector<int> >    Ls;
     for (auto& sh : shells) { radials.push_back(std::move(sh.rf)); Ls.push_back(sh.Ls); }
@@ -113,7 +113,7 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 //
 // Orbital spherical-Gaussian basis set (1E + HF + DFT 3-centre fit).
 //
-Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)            : IrrepBasisSet(bsr,cl,ShellMerge::KeepEachL) {};
+Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)            : IrrepBasisSet(bsr,cl) {};
 Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl) : IrrepBasisSet(es,L,cl) {};
 
 rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const

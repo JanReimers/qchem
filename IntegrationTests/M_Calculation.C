@@ -126,8 +126,13 @@ TEST(M_Calculation, WaterLDA)
     // ~585 ppm HF-before-DFT drift was a fit-basis Normalization cached without a mesh key (the HF SAD
     // bootstrap's coarse seed mesh poisoned the production run); fixed by mesh-keying Fit_IBS::Norm().
     // So the anchor can stay tight (1e-5) -- if it moves, something regressed.
-    const double E_ref = -75.9324615507;
+    // THE LDA MOLECULE ANCHOR AT A CONVERGED MESH (2026-10-31): the default mesh is MHL 80 / Lebedev 29, the default Vxc fit the
+    // δ basis (user ruling "δ default, A1 kept"), and the fit bases keep their D shells.  Was -75.9324615507 on the 30/5 mesh
+    // (60 mHa LOW) and -75.8726517 on the A1 Vxc fit with a d-less Coulomb fit.  Independent route: PySCF with the SAME A1_coul
+    // Coulomb fit and exact XC, -75.879447 (8 μHa); PySCF exact J -75.877299 (the Coulomb fit itself lowers 2.1 mHa).
+    const double E_ref = -75.8794551388;
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
+    EXPECT_NEAR(calc.Energy(), -75.87944736, 1e-4) << "ORACLE: PySCF lda,vwn/dzvp, the same A1_coul Coulomb fit, exact XC";
     EXPECT_GT(calc.IterationCount(), 0u);
 }
 

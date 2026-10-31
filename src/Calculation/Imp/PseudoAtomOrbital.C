@@ -16,6 +16,7 @@ import qchem.Symmetry.Atom.Spherical;          // AtomicSymmetry::Getl
 import qchem.Symmetry.Irrep;                   // Irrep, Spin
 import qchem.Orbitals;                         // TOrbitals / TOrbital
 import qchem.SCFParams;                         // SCFParams (the atom solve)
+import qchem.Hamiltonian.Factory;              // Hamiltonian::VxcFit (the stated route)
 import qchem.Types;
 
 namespace qchem
@@ -50,6 +51,10 @@ PseudoAtomOrbital Build(const std::string& element, int Zion, int l, int lmax)
     const std::vector<double> ep=Pool(16, 0.05, 200.0);
     AtomCalcOptions o;
     o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=Zion;
+    // THE ROUTE IS STATED, not the default's (2026-10-31): this orbital is the +U PROJECTOR every +U solid consumes, so a change of
+    // the atom Vxc default must not silently move every +U anchor.  The radial auxiliary fit is what it was built and validated on
+    // (CP2K's ATOM code to 3 / 0.3 / 0.1 mHa, UTCalculation ValenceBasisGen.MnQ7PseudoAtomInALargePool).
+    o.vxcFit=Hamiltonian::VxcFit::Auxiliary;
     for (int ll=0; ll<=lmax; ll++) o.exponentsByL.push_back({ll, ep});
     SCFParams p; p.MinVirial=1e30;                              // no virial under a PP (the valence generator's rule)
     // 120, not the default 20: the 16-exponent pool is a big basis and a late-3d atom is a long descent.  Ni q10

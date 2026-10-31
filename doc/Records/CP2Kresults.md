@@ -192,9 +192,9 @@ with ONE change: `&DFT_PLUS_U L 2, U_MINUS_J [eV] 4.0` on both Mn kinds, `PLUS_U
 
 | quantity | value |
 |---|---|
-| Total energy | **−60.68597087953861 Ha** |
-| DFT+U energy | **0.60950923227552 Ha** |
-| SCF steps | 104 (converged; 44 without U) |
+| Total energy | **−60.685888159562445 Ha** (re-banked 2026-10-31 at EPS_SCF 1e-8, 136 steps -- the deck now carries EPS_SCF 1e-8, MAX_SCF 500; the 1e-6 run below stopped 83 μHa low) |
+| DFT+U energy | **0.60950778051938 Ha** |
+| SCF steps | 104 at EPS_SCF 1e-6 (converged; 44 without U): −60.68597087953861 / E_U 0.60950923227552 -- SUPERSEDED, a ±15 μHa Broyden oscillation at the stop (`OpenWork_History5.md`, ADDED_MOS row) |
 | Mulliken spin moments | Mn ±4.765 (was ±4.65 without U); order AFM-II kept |
 | Hartree / XC / core H | 35.44889540 / −14.50555084 / 42.98537883 |
 

@@ -32,7 +32,7 @@ struct GPWTolerances
     //! reproduce.  Empty = the automatic ladder.   Deck: `"mgridEcuts":[53.33,17.78,5.926]`.
     std::vector<double> mgridEcuts = {};
     //! Magnitude screen of the ANALYTIC 1E lattice sums (S, <p^2>, V_local) and of the collocation boxes' reach: a pair whose
-    //! Gaussian product is below this is dropped (CP2K's EPS_PGF_ORB analogue).  Drops only sub-eps terms, so S stays PSD.  Applied to the pair-loop evaluator by \c Periodic_Gaussian_IBS::ApplyTolerances.
+    //! Gaussian product is below this is dropped (CP2K's EPS_PGF_ORB analogue).  Drops only sub-eps terms, so S stays PSD.  Bound on the molecular basis by its builder (\c ToleranceBinding, D-ENV-TOL option A).
     double screenEps = 1.0e-10;
     //! KS-field core exponent as a FRACTION of alpha_max (the raster sharpness; pin by rho_lost/N, not wall-clock).
     double fieldSharp = 2.0/3.0;

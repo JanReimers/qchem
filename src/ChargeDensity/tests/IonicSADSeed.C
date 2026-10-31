@@ -65,6 +65,22 @@ TEST(IonicSADSeed, TargetsArePerSiteAndConserveTheCellCharge)
     EXPECT_EQ(mn, (std::vector<int>{nMn-3, nMn-3, nMn-2})) << "Mn3+ Mn3+ Mn2+: two charge states of one element";
 }
 
+// A STATED charge order (SeedKey::siteCharges, from SolidCalcOptions::siteCharges) replaces the tie-break: the derived order puts
+// the box's Mn2+ on the LAST equivalent-capacity Mn (atom index decides); stating it on the FIRST moves it there, and the
+// decoration follows the targets it is handed.
+TEST(IonicSADSeed, AStatedChargeOrderReplacesTheTieBreak)
+{
+    bool all[3]={true,true,true};
+    Box box(Cell(all,true));
+    const int nMn=NeutralNval(25);
+    const std::vector<int> derived=IonicSADTargets(box.st.get(), "LDA");
+    SeedKey key("LDA"); key.siteCharges={2,3,3,-2,-2,-2,-2};
+    const std::vector<int> t=IonicSADTargets(box.st.get(), key);
+    EXPECT_EQ(t, (std::vector<int>{nMn-2, nMn-3, nMn-3, 8, 8, 8, 8})) << "each site takes its STATED charge";
+    EXPECT_NE(t, derived) << "the derived order put Mn2+ elsewhere -- else this test states nothing";
+    EXPECT_EQ(std::accumulate(t.begin(),t.end(),0), std::accumulate(derived.begin(),derived.end(),0)) << "the same cell charge";
+}
+
 TEST(IonicSADSeed, TheDecorationReadsEachSitesOwnTarget)
 {
     bool all[3]={true,true,true};

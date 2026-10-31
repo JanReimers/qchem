@@ -305,47 +305,50 @@ TEST(GPWTolerances, DefaultsAreTodaysBehaviourAndTheRetiredEnvironmentIsIgnoredA
     unsetenv("GPW_SCREEN_EPS"); unsetenv("QCHEM_BECKE_NR");
 }
 
-// Option B: a tolerance handed to the molecular evaluator through ApplyTolerances REACHES its pair loops (a looser analytic screen
-// moves the lattice-summed overlap, a little), and restoring the default restores the bits -- the tolerance-dependent caches are dropped
-// and rebuilt, none of it leaks across settings.
-TEST(GPWTolerances, ApplyTolerancesReachesThePairLoopsAndIsReversible)
+// A tolerance BOUND on the molecular basis (ToleranceBinding, the builder's door -- D-ENV-TOL option A) REACHES its pair loops (a looser
+// analytic screen moves the lattice-summed overlap, a little), and re-binding the default restores the bits -- the tolerance-dependent
+// caches are dropped and rebuilt, none of it leaks across settings.  (The test binds after building, as a builder would; it cheats
+// with a const_cast because the fixture hands out the const basis.)
+TEST(GPWTolerances, BindTolerancesReachesThePairLoopsAndIsReversible)
 {
     const UnitCell cell=SiCell();
     const Periodic p=Make(BasisSetData::SIPP_SR, cell, false);
     const Periodic_Gaussian_IBS* pg=nullptr;
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*p.bs).Iterate<BasisSet::Real_OIBS>()) { pg=dynamic_cast<const Periodic_Gaussian_IBS*>(ibs); break; }
     ASSERT_NE(pg, nullptr);
+    auto* bind=dynamic_cast<ToleranceBinding*>(const_cast<BasisSet::Real_BS*>(p.bs.get()));
+    ASSERT_NE(bind, nullptr) << "the MnD Cartesian set offers the builder's door";
     const auto phase=PhaseOf(rvec3_t(0.25,0.0,0.125));
     auto diff=[&](const chmat_t& a, const chmat_t& b)
     { double d=0; for (size_t i=0;i<p.n;i++) for (size_t j=i;j<p.n;j++) d=std::max(d,std::abs(dcmplx(a(i,j))-dcmplx(b(i,j)))); return d; };
     const chmat_t S0=pg->MakeOverlap(phase,cell);
     GPWTolerances loose; loose.screenEps=1e-3;
-    pg->ApplyTolerances(loose);
+    bind->BindTolerances(loose);
+    EXPECT_EQ(pg->Tolerances().screenEps, 1e-3);
     const chmat_t S1=pg->MakeOverlap(phase,cell);
     EXPECT_GT(diff(S0,S1), 1e-9) << "a 1e-3 screen must drop terms the 1e-10 screen kept";
     EXPECT_LT(diff(S0,S1), 1e-1);
-    pg->ApplyTolerances(GPWTolerances{});
+    bind->BindTolerances(GPWTolerances{});
     EXPECT_EQ(diff(S0,pg->MakeOverlap(phase,cell)), 0.0) << "restoring the default restores the bits";
 }
 
 // The guard: once a basis has built collocation work, a DIFFERENT tolerance is a broken invariant (two evaluators sharing one basis),
 // so it throws; the same tolerance is a no-op.
-TEST(GPWTolerances, ApplyTolerancesThrowsIfChangedAfterCollocationWork)
+TEST(GPWTolerances, BindTolerancesThrowsIfChangedAfterCollocationWork)
 {
     const UnitCell cell=SiCell();
     const Periodic p=Make(BasisSetData::SIPP_SR, cell, false);
-    const Periodic_Gaussian_IBS* pg=nullptr;
-    for (auto ibs : const_cast<BasisSet::Real_BS&>(*p.bs).Iterate<BasisSet::Real_OIBS>()) { pg=dynamic_cast<const Periodic_Gaussian_IBS*>(ibs); break; }
-    ASSERT_NE(pg, nullptr);
+    auto* bind=dynamic_cast<ToleranceBinding*>(const_cast<BasisSet::Real_BS*>(p.bs.get()));
+    ASSERT_NE(bind, nullptr);
     GPWTolerances loose; loose.screenEps=1e-6;
-    pg->ApplyTolerances(loose);                    // before any work: fine
+    bind->BindTolerances(loose);                   // before any work: fine
     const Ladder L=One();
     chmat_t D(p.n);
     for (size_t i=0;i<p.n;i++) for (size_t j=i;j<p.n;j++) D(i,j)=(i==j);
     const GeometryOnlyScreener screen(loose.densityEps);
     (void)p.lc->CollocateDensity(D, PhaseOf(rvec3_t(0,0,0)), cell, L.N, L.ecut, screen);   // builds the task list
-    EXPECT_NO_THROW(pg->ApplyTolerances(loose));   // equal: no-op
-    EXPECT_THROW(pg->ApplyTolerances(GPWTolerances{}), std::runtime_error);
+    EXPECT_NO_THROW(bind->BindTolerances(loose));   // equal: no-op
+    EXPECT_THROW(bind->BindTolerances(GPWTolerances{}), std::runtime_error);
 }
 
 // D-ENV 6c: the retired A/B switches survive as unit-test hooks.  The exp recurrence is ulp-level against direct evaluation, and the

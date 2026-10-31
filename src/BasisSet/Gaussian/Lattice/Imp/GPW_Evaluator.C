@@ -236,6 +236,12 @@ void EmitGridAudit(const std::string& key, const std::string& term, double p, do
                    double ecutBall, const ivec3_t& N, const UnitCell& A, bool judgeBall, double ballTol=1e-6)
 {
     namespace rpt = qchem::report;
+    // The verdict is the RASTER's, fixed at setup, but V_long's is reached once per k-block evaluator (Al k222 printed it 8x, OpenWork
+    // 'GPW verdict lines repeat every SCF refresh'): ONE verdict per run report -- the first emitter speaks (the raster is k-independent).
+    // With no report open there is nothing to de-duplicate against, so it always speaks.
+    static std::mutex onceLock;
+    std::lock_guard<std::mutex> lock(onceLock);
+    if (rpt::Depth()>0 && rpt::CurrentRunReport().contains("grids") && rpt::CurrentRunReport()["grids"].contains(key)) return;
     const double ph   = beta>0.0 ? p*beta/(p+beta) : p;
     const double Gb   = std::sqrt(2.0*ecutBall);
     const double tail = std::exp(-Gb*Gb/(4.0*ph));
@@ -308,7 +314,14 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     itsLat=dynamic_cast<const Gaussian::Periodic_Gaussian_IBS*>(itsOrb);
     if (!itsLat) throw std::runtime_error(
         "GPW_Evaluator: the orbital basis is not a molecular Gaussian basis (no Gaussian::LatticeSum1E)");
-    itsLat->ApplyTolerances(itsTol);   // option B (D-ENV step 5): the pair-loop evaluator takes the run's tolerances
+    // D-ENV-TOL option A (2026-10-31): the basis was BUILT with its pair-loop tolerances (GaussianBasisRecipe::Make binds the run's);
+    // this evaluator only CHECKS them.  A pre-built basis carries the defaults, so a run asking for others must build it from a recipe.
+    {
+        const GPWTolerances& b=itsLat->Tolerances();
+        if (b.screenEps!=itsTol.screenEps || b.fieldSharp!=itsTol.fieldSharp || b.relCutoff!=itsTol.relCutoff || b.densityEps!=itsTol.densityEps)
+            throw std::invalid_argument("GPW_Evaluator: the molecular basis was built with pair-loop tolerances "+b.Describe()+" but the run asks "
+                                        +itsTol.Describe()+" -- build the basis through a GaussianBasisRecipe (it binds the run's), not pre-built");
+    }
 
     // THERE IS NO CUT IN r SPACE -- Gibbs ringing is like a wrecking ball (user pin; doc/Pins.md pin 1): every lattice sum is an eps-CONVERGED SERIES enumerated
     // INSIDE the molecular seam per shell pair (1E matrices, analytic KB, collocation) -- no radius
@@ -1699,6 +1712,10 @@ std::string GPW_Evaluator::IDFragment() const
          +(itsHomeOnly?"|home":"")
          +(sfold?"|sfold="+std::to_string(sfold):"")
          +"|dEcut="+(itsFFT_R_G_Grids?std::to_string(itsFFT_R_G_Grids->Ecut()):std::string("0"))
+         // The RASTER and the LADDER are grid facts too: two bases differing only in raster sampled V_loc long (and every key-cached grid
+         // term) on different rasters, but shared one cache entry -- the grid audit's reference read the run's own V_long (2026-10-31).
+         +(itsRaster==RasterPolicy::AliasFree ? "|raster=AF" : "|raster=BO")
+         +(itsLadderFactor==4.0 ? std::string() : "|ladder="+std::to_string(itsLadderFactor))
          +(itsTol==GPWTolerances{} ? std::string() : "|tol="+itsTol.Describe());   // a non-default tolerance is a different basis for caching
 }
 

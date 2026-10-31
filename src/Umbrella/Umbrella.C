@@ -2,7 +2,7 @@
 //
 // `import qchem;` brings the whole molecule front door into scope at once: the Calculation facade and
 // its options (+ qchem::Model/SpinGroup), the Molecule/Atom builders, ScalarFunction sampling, and -- via
-// qchem.SCFIterator -- SCFParams, the live SCFProgress trace, and the WaveFunction/Orbitals/
+// qchem.SCFIterator -- SCFParams, the live IterationRow trace, and the WaveFunction/Orbitals/
 // ChargeDensity/Irrep/EnergyBreakdown query surface.  End-user and binding code should prefer this;
 // library-internal code keeps importing the granular modules (e.g. `import qchem.Calculation;`) to
 // minimise recompile coupling.  Internals (*.Internal.*) are deliberately NOT re-exported.
@@ -13,7 +13,7 @@
 export module qchem;
 
 export import qchem.Calculation;     // Calculation, CalcOptions, AcceleratorOptions, qchem::Model/SpinGroup
-export import qchem.SCFIterator;     // SCFParams, SCFProgress, SCFIterator + (transitive) WaveFunction,
+export import qchem.SCFIterator;     // SCFParams, IterationRow, SCFIterator + (transitive) WaveFunction,
                                      //   Orbitals, ChargeDensity, Irrep, EnergyBreakdown, Hamiltonian
 export import qchem.Structure;       // Molecule, Atom, Structure
 export import qchem.ScalarFunction;  // qchem::ScalarFunction<double> (the density and every MO)

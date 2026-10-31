@@ -28,6 +28,10 @@ struct SeedKey
 {
     std::string      functional = "LDA";
     std::map<int,int> q;                                   //!< Z -> pseudopotential valence count
+    //! The IonicSAD seed's per-SITE formal charges, in atom order, when the run STATES them (\c SolidCalcOptions::siteCharges); EMPTY =
+    //! derived by \c IonicFormalCharges, whose tie-break puts the charge states of symmetry-equivalent sites by ATOM INDEX (a mixed-
+    //! valence spinel's Mn3+/Mn4+ order is then a choice nobody made).
+    std::vector<int>  siteCharges;
     SeedKey() = default;
     SeedKey(const char* f) : functional(f) {}
     SeedKey(std::string f, std::map<int,int> qByZ={}) : functional(std::move(f)), q(std::move(qByZ)) {}

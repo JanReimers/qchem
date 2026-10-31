@@ -27,11 +27,24 @@ struct qcb_sink
 
 namespace {
 
-void step_trampoline(qcb_sink* s, const qcb_step* st)
+//! on_iteration(iteration, energy, cells): cells is a list of (title, value, text, tolerance | None, "log" | "linear"),
+//! one per console column in display order -- generic, so a column the lib adds needs no change here.
+void step_trampoline(qcb_sink* s, const qcb_row* r)
 {
     nb::gil_scoped_acquire gil;
     if (s->error) return;
-    try { s->fn(st->iteration, st->energy, st->dE, st->commutator, st->drho); }
+    try
+    {
+        nb::list cells;
+        for (int k = 0; k < r->ncells; ++k)
+        {
+            const qcb_cell& c = r->cells[k];
+            cells.append(nb::make_tuple(nb::str(c.title), c.value, nb::str(c.text),
+                                        c.tolerance == c.tolerance ? nb::object(nb::float_(c.tolerance)) : nb::none(),
+                                        c.logScale ? "log" : "linear"));
+        }
+        s->fn(r->iteration, r->energy, cells);
+    }
     catch (nb::python_error& e) { s->error.emplace(std::move(e)); }
 }
 
@@ -82,7 +95,7 @@ public:
     Calculator(const Calculator&)            = delete;
     Calculator& operator=(const Calculator&) = delete;
 
-    //! Re-run the SCF from the seed, calling on_iteration(iter, E, dE, [F,D], drho) live.  Returns converged.
+    //! Re-run the SCF from the seed, calling on_iteration(iter, E, cells) live.  Returns converged (failure() says why not).
     bool RunSCF(nb::object onIteration, int maxIter)
     {
         qcb_sink sink{onIteration, std::nullopt};
@@ -95,6 +108,13 @@ public:
         if (sink.error) throw std::move(*sink.error);
         if (rc < 0) throw std::runtime_error(err);
         return rc == 1;
+    }
+
+    //! Why the last SCF did not converge (the facade's SCFFailure as one line); None when it converged.
+    nb::object Failure() const
+    {
+        char out[errlen] = {0};
+        return qcb_failure(h, out, errlen) ? nb::object(nb::str(out)) : nb::none();
     }
 
     double TotalEnergy() const { return qcb_energy(h); }
@@ -176,12 +196,15 @@ NB_MODULE(qchem_py, mod)
              nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("max_iter") = 100,
              nb::arg("pp") = "", nb::arg("accelerator") = "DIIS", nb::arg("mesh_radial") = 0, nb::arg("mesh_angular") = 0,
              nb::arg("on_iteration") = nb::none(),
-             "MoleculeSetup::Resolve + converge.  Atomic numbers + flat 3N bohr positions.  on_iteration(iter, E, dE, "
-             "[F,D], drho), if given, streams the SCF live (the GIL is released during the solve).")
+             "MoleculeSetup::Resolve + converge.  Atomic numbers + flat 3N bohr positions.  on_iteration(iter, E, cells), "
+             "if given, streams the SCF live (the GIL is released during the solve); cells = [(title, value, text, "
+             "tolerance|None, 'log'|'linear')], the console's columns in display order.")
         .def("run_scf", &Calculator::RunSCF, nb::arg("on_iteration"), nb::arg("max_iter") = 100,
              "Re-run the SCF from the seed, streaming each iteration; returns converged.")
         .def("total_energy", &Calculator::TotalEnergy)
         .def("converged",    &Calculator::Converged)
+        .def("failure",      &Calculator::Failure, "Why the last SCF did not converge (SCFFailure: why, iterations, "
+             "residual, details); None when it converged.")
         .def("iterations",   &Calculator::Iterations)
         .def("structure",    &Calculator::Structure)
         .def("levels",       &Calculator::Levels, "Every MO, lowest first: [{'e','occ','spin','label'}].")

@@ -124,7 +124,7 @@ Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const Struc
     itsEC    = MakeMoleculeEC(itsSetup->Ne, itsSetup->opts.multiplicity);
     // The basis is NOT built here: the first Converge builds it INSIDE its run report's "basis" section, so a
     // basis with something to announce does so as it is constructed (V1.14).
-    Converge(scf);                                    // so Energy()/Density() are ready on return
+    (void)Converge(scf);                              // so Energy()/Density() are ready on return; Result() is its outcome
 }
 
 Calculation::~Calculation()
@@ -134,7 +134,7 @@ Calculation::~Calculation()
     delete itsEC;
 }
 
-bool Calculation::Converge(const SCFParams& params)
+Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParams& params)
 {
     const CalcOptions& opts=itsSetup->opts;
     nlohmann::json jsacc = {{"NProj", itsSetup->acc.nProj}, {"EMax", itsSetup->eMax},
@@ -169,9 +169,9 @@ bool Calculation::Converge(const SCFParams& params)
         // orbital basis, xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door
         // instead (LSDA valence Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
         auto* ham = itsSetup->pp
-            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis)
+            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis, opts.vxcFit)
             : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure,
-                                          opts.mesh, itsBasis, opts.xalpha);
+                                          opts.mesh, itsBasis, opts.xalpha, opts.vxcFit);
         // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
         // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
         // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
@@ -204,7 +204,7 @@ bool Calculation::Converge(const SCFParams& params)
     }
 
     if (itsObserver) itsScf->SetObserver(itsObserver);
-    bool ok = itsScf->Iterate(params);
+    (void)itsScf->Iterate(params);   // the outcome is the iterator's Converged(), minted below
 
     // Snapshot the integrals cache into the run's `cache` section (RunReportPlan step 4), inside the bracket.
     // The cache is a process-wide singleton NEVER cleared between runs, so this is cumulative-to-this-point --
@@ -212,8 +212,27 @@ bool Calculation::Converge(const SCFParams& params)
     qchem::BasisSet::EmitIntegralsCacheReport();
 
     RebuildSampling();
-    return ok;
+    return Outcome_();
 }
+
+Outcome<Calculation::Converged, SCFFailure> Calculation::Result() const {return Outcome_();}
+
+Outcome<Calculation::Converged, SCFFailure> Calculation::Outcome_() const
+{
+    using O=Outcome<Converged, SCFFailure>;
+    if (itsScf->Converged()) return O::Ok(Converged(this));
+    SCFFailure f;   // the molecular facade has no outcome detectors yet: a failure is a run out of iterations
+    f.why        = SCFFailure::Why::NotConverged;
+    f.iterations = itsScf->GetIterationCount();
+    f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
+    f.details    = "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
+    return O::Fail(std::move(f));
+}
+
+double                 Calculation::Converged::Energy()         const {return itsCalc->itsScf->GetEnergy().GetTotalEnergy();}
+qchem::EnergyBreakdown Calculation::Converged::EnergyTerms()    const {return itsCalc->itsScf->GetEnergy();}
+size_t                 Calculation::Converged::IterationCount() const {return itsCalc->itsScf->GetIterationCount();}
+const Calculation::sf_t& Calculation::Converged::Density()      const {return itsCalc->Density();}
 
 // The linear response of the converged state: Reference (R0, orbital basis) + frame (AO <-> MO) + the
 // Hamiltonian's kernel + the dipole probe, solved together by GMRES (qcResponse).  The facade is the one place
@@ -356,9 +375,9 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
     if (itsPoint) carry=std::make_unique<const Calculation::Carry>(itsPoint->MakeCarry());
     itsPoint.reset();   // one point's memory at a time
     itsPoint.reset(new Calculation(itsSetup, *at, std::move(carry), itsSCF, itsObserver));
-    if (!itsPoint->IsConverged())
-        return O::Fail({Why::SCF, "the SCF did not converge in "+std::to_string(itsPoint->IterationCount())+" iterations"});
-    return O::Ok(PESPoint{.energy=itsPoint->Energy(), .forces={}, .iterations=itsPoint->IterationCount()});
+    auto out=itsPoint->Result();
+    if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
+    return O::Ok(PESPoint{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()});
 }
 
 double                 Calculation::Energy()      const {return itsScf->GetEnergy().GetTotalEnergy();}

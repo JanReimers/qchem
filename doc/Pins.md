@@ -340,3 +340,57 @@ pair distance; −47.24 mHa on the same cell, `StructureTests.EwaldFarApartHomeA
 close together, cannot see this class -- gate on a cell whose home atoms are far apart.  Together the two were the whole MnO VA
 offset against CP2K (now +0.16 mHa).  Record: `OpenWork_History5.md` "MnO accuracy".
 
+
+## 30. Vxc is a full product space: {solid, molecule, atom} × {any fit basis} × {any integration grid}
+
+**Ruled by the user, 2026-10-31.**  Every combination of system kind, v_xc fit basis (δ on the quadrature points, the
+A1 Gaussian auxiliary fit, plane waves on the raster, and any future one) and integration grid (Becke atom-centred,
+uniform cell mesh, the {G} raster) must assemble through the SAME XC term and the SAME fit-basis faces, with no type
+tests.  **A combination that throws or fails is an OOD DESIGN FLAW, never an unsupported option**: fix the interface
+it exposed, don't add a carve-out.  **The ONE legitimate refusal is SYMMETRY INCOMPATIBILITY** (user, 2026-10-31): the
+fit basis must be able to represent a field with the structure's symmetry.  A spherical (atom) fit basis cannot serve a
+molecule or a solid, and a Bloch/periodic basis needs a lattice.  That refusal is stated, not stumbled into: it is
+answered by a symmetry-compatibility question at the factory, before anything is built, and it names both symmetries.
+Anything else, such as a throw deep inside, an assert, a wrong number, or a refusal for any reason other than symmetry,
+is the flaw.  The A1 Gaussian fit is KEPT for this reason even if δ wins on accuracy and cost.
+It is a STRATEGY whose job includes keeping the framework honest, so "δ is better, delete A1" is not an available
+cleanup.  Earned by: on 2026-10-31 a δ fit on the molecular path threw (`tBasisSet<T>::CreateVxcFitBasisSet`).  The
+cause was that `DeltaFit_IBS` was hard-wired to `dcmplx`, and that `Fitting::Factory` used the scalar type as a proxy
+for the metric (real ⇒ non-orthogonal, complex ⇒ orthogonal; both wrong).  The molecular A1 route also carried 4–8 mHa
+(closed shell) and 35 mHa (polarized O₂) against PySCF exact, which nobody could isolate because no second
+representation could run there.  Corollary: the scalar type T, the metric (`isOrtho`), the transform
+(`G_RasterTransform`) and the system kind are independent axes.  A factory dispatches on CAPABILITY, never on T or on
+what a class IS.  Gate: a parameterized UT over the product space (OOD V-XC-ONE-TERM).  Each cell either ASSEMBLES, or is REFUSED for
+symmetry incompatibility at the factory (a permanent, expected answer), or is an EXPECTED FAILURE naming its open
+defect row.  Only that last list may change, and it may only shrink.
+
+**The symmetry rule, stated precisely** (user, 2026-10-31: "a representation may not impose a symmetry the structure
+lacks").  Let **G** be the group the CALCULATION imposes on ρ, and hence on v_xc.  It is not the symmetry of the nuclear
+frame:
+- the atom path (`Atom_EC`, spherical) has G = O(3) about the nucleus;
+- the molecular path has G = the imposed point group, C₁ when the run is free;
+- the solid path has G = the imposed space group, which always contains the lattice translations T.
+
+Every representation R has an **imposed group H_R**:
+- for a fit space V, H_R is the largest group that fixes EVERY element of V (h·f = f for all f ∈ V, h ∈ H_R, i.e. the
+  kernel of the action on V);
+- for a quadrature rule, H_R is the group whose invariance the rule assumes of its integrand.
+
+Examples:
+- l = 0 functions about one centre, or a radial-only ∫ f(r) 4πr² dr: H_R = O(3);
+- plane waves, lattice-summed functions, or a periodic uniform mesh: H_R = T;
+- atom-centred Gaussians, or δ on a Becke mesh: H_R = {e}.
+
+**R is admissible if and only if H_R ≤ G.**  Every field the calculation can produce is G-invariant, hence
+H_R-invariant, so R constrains nothing the calculation has not already fixed.  When H_R ≰ G the factory REFUSES,
+naming H_R and G.
+
+Consequences:
+- **Less symmetry is fine.**  H_R < G is admissible; restoring G is the calculation's symmetrisation (the R1.0r
+  intersection ruling).
+- **G belongs to the calculation, not the nuclei.**  One Si nucleus may use a spherical fit or a radial grid on the atom
+  path (G = O(3)), but not on the molecular path (G = D₂ₕ or C₁).  There the density may break the spherical symmetry,
+  as boron 2p¹ does on 2026-10-31.  A box twin is a solid because the user STATES a cell.
+- **The rule is necessary, not sufficient.**  Completeness (a fit missing an l, a grid that is too coarse) is an
+  accuracy matter for ε and the audit, never a refusal.
+- **The gate's R cells are derived, not listed:** R exactly when H_R ≰ G.

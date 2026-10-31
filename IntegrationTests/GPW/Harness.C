@@ -28,7 +28,7 @@ export import qchem.Lattice_3D;                          // Lattice_3D, UnitCell
 export import qchem.BasisSet;                            // Complex_BS, Real_BS
 export import qchem.BasisSet.Gaussian.Point.Factory;     // Gaussian::Factory, BasisSetData/Engine/Angular
 export import qchem.SCFParams;                           // SCFParams
-export import qchem.SCFIterator;                         // SCFProgress, SolidSCFIterator::Observer
+export import qchem.SCFIterator;                         // IterationRow, SolidSCFIterator::Observer
 export import qchem.Reporting;                           // report:: (the run bracket)
 export import qchem.Mesh;                                // qcMesh::MeshParams / UnitCellKind
 export import qchem.Mesh.XCPolicy;                       // BeckeXCParams
@@ -61,9 +61,9 @@ using qchem::BasisSet::Gaussian::BasisSetData;
 
 //---------------------------------- the quadrature bundle ----------------------------------
 // The delta fit basis the SINGLES quadrature runs on: it owns the mesh's points, weights and functions.
-std::shared_ptr<const qchem::BasisSet::DeltaFit_IBS> DeltaFitOver(qchem::BasisSet::FitQuadrature q)
+std::shared_ptr<const qchem::BasisSet::DeltaFit_IBS<dcmplx>> DeltaFitOver(qchem::BasisSet::FitQuadrature q)
 {
-    return std::make_shared<const qchem::BasisSet::DeltaFit_IBS>(std::move(q),
+    return std::make_shared<const qchem::BasisSet::DeltaFit_IBS<dcmplx>>(std::move(q),
                qchem::Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 
@@ -149,7 +149,7 @@ struct GpwReport
 // PROBE (dynamics fingerprint, doc/GPWPlan §0): classify an SCF trajectory captured via the Observer hook.
 // Three pathologies have DISTINCT time-series signatures, so one line names which regime the run is in --
 // separating "the iteration can't find the min" (dynamics: sloshing/divergence) from "the min is a fit floor"
-// (functional).  Captured from qchem::SCFIterator::SCFProgress {iteration, energy, dE=|ΔE|, [F,D], Δρ}.
+// (functional).  Captured from qchem::SCFIterator::IterationRow (Etotal, [F,D], Δρ, m_site cells; |ΔE| from consecutive energies).
 struct FpRow { size_t it; double E, dEabs, fd, drho, order=0, eee=0; };
 
 // The ORDER-PARAMETER trajectory, one compact line (printed only when a probe was set).  The per-iteration
@@ -272,7 +272,7 @@ SCFParams TightGates(size_t nmax=120) { return Gates(nmax, 1e-6, 1e30); }
 // (EnvOverrides -- 14 GPW_* variables that re-shaped any test's recipe from the shell -- is DELETED, D-ENV step 6d.4.  A test states its recipe in code;
 //  a benchmark row or a variation is a DECK: decks/bench/*.json + `rundeck --set key=value`, doc/Records/EnvKnobInventory.md §10.)
 
-//! The per-iteration trace a test can attach through \c SolidCalcOptions::onIteration -- live from the
+//! The per-iteration trace a test hands the \c SolidCalculation constructor (\c trace.Observer()) -- live from the
 //! constructor, so stage 0 is in it -- and read back as the fingerprint / order trajectory the campaign
 //! instruments print.  (The assertions stay on the facade's answers; this is the human-readable side.)
 struct Trace
@@ -280,8 +280,14 @@ struct Trace
     std::vector<FpRow> rows;
     qchem::SCFIterator::SolidSCFIterator::Observer Observer()
     {
-        return [this](const qchem::SCFIterator::SCFProgress& p)
-               { rows.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho, p.order}); };
+        return [this](const qchem::SCFIterator::IterationRow& p)
+        {
+            // The row is exactly the console's (2026-10-31): |ΔE| is this instrument's own, from consecutive energies; the
+            // order parameter is the m_site cell (0 where the run has no basins, as before).
+            const double E=p.eb.GetTotalEnergy(), m=p.ValueOf("m_site");
+            rows.push_back({p.iteration, E, rows.empty() ? std::fabs(E) : std::fabs(E-rows.back().E), p.ValueOf("[F,D]"),
+                            p.ValueOf("Δρ"), std::isnan(m) ? 0.0 : m});
+        };
     }
     void Print(const std::string& label, bool polarized=false) const
     {

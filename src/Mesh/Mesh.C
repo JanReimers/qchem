@@ -162,7 +162,11 @@ struct MeshParams
     int         nUniform  = 20;  //!< Uniform periodic real-space grid: points per cell axis (lattice mesh only; \f$n^3\f$ total). Manual fallback when \c eCut<=0.
     double      eCut      = 0.0;  //!< Real-space integration-mesh energy cutoff (a.u.). If >0, the uniform lattice mesh DERIVES its \c nUniform from the Nyquist bound \f$n\gtrsim 2a\sqrt{2E_{cut}}/\pi\f$ (\f$a\f$=longest cell edge; the \f$\times2\f$ is the density bandwidth), and \c nUniform is ignored. 0=use the manual \c nUniform.
     double      relCutoff = 1.0;  //!< Fit-grid density multiplier (CP2K \c REL_CUTOFF): the fit basis scales its \f$E_{cut}\f$ by this. 1=wavefunction bandwidth (LDA); GGA wants >1. Set by the Hamiltonian from the functional's \c GridCutoffFactor().
-    UnitCellKind cellKind = UnitCellKind::Uniform;  //!< Lattice mesh only: which quadrature a UnitCell builds (uniform midpoint grid vs periodic Becke).
+    //! Which quadrature the STRUCTURE builds: a lattice resolves \c Auto by policy (\c ResolveXCMesh; unresolved, it reads as
+    //! \c Uniform); a molecule or an atom builds its atom-centred mesh for \c Auto or \c Becke and REFUSES a stated \c Uniform
+    //! (a cell mesh imposes a translation group the structure lacks).  Default \c Auto (2026-10-31; was \c Uniform, which every
+    //! molecular run carried while building Becke anyway -- the default could not be told from a request).
+    UnitCellKind cellKind = UnitCellKind::Auto;
     //! \brief Becke competitor-series TOLERANCE (periodic Becke only): the magnitude screen that fixes how many cell images each
     //! partition weight sums.  1e-6 holds the equivalent-site-share gate (site shares equal to 1e-8 relative) with a decade of
     //! margin; 1e-5 breaks it.  A TOLERANCE trade, not a bit-identical restructuring -- the weights move at ~1e-6 relative.

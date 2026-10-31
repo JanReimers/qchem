@@ -2,6 +2,7 @@
 module;
 #include <memory>
 #include <cassert>
+#include <variant>
 #include <vector>
 
 // namespace qchem::BasisSet::Gaussian::PG_Cart{class Reader;} /* g++-15.2 BUG? not handling forward class decs as well as clang++ 20,21*/
@@ -18,6 +19,12 @@ namespace qchem::BasisSet::Gaussian::PG_Cart
 BasisSet::BasisSet( Reader* reader, const Structure* cl)
 {
     Insert(new ::qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(reader,cl));
+}
+
+void BasisSet::BindTolerances(const GPWTolerances& t)
+{
+    for (auto& c : itsBasisSets)
+        std::visit([&](auto& b){ if (auto* tb=dynamic_cast<Gaussian::ToleranceBinding*>(b.get())) tb->BindTolerances(t); }, c);
 }
 
 void BasisSet::Insert(obs_t* bs)

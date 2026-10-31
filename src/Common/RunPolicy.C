@@ -62,6 +62,10 @@ struct Deviation
     bool cp2kValue;      //!< the value CP2K parity requires
     bool value;          //!< what THIS process resolved to
     bool stated;         //!< the user named this knob explicitly (so CP2K_COMPAT did not overrule it)
+    //! The route changes the HAMILTONIAN or its quadrature, so the converged state moves with it: a saved state's fingerprint records
+    //! it (WARM).  false = it changes only how the SCF gets there (a mixing basis), or it is a PERMISSION whose resolved effect is the
+    //! setup's own decision (the imposition).
+    bool movesState;
     bool Deviates() const {return value!=cp2kValue;}
 };
 
@@ -152,7 +156,8 @@ public:
     std::string Banner() const;
 
 private:
-    Deviation Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault, const std::optional<bool>& stated);
+    Deviation Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault, const std::optional<bool>& stated,
+                      bool movesState);
     RunPolicySpec itsSpec;
     bool      itsCP2KCompat = false;
     Deviation itsDMLowRank{}, itsStreamFold{}, itsMixRhoM{}, itsXCFromDM{}, itsImpose{}, itsBeckeXC{},

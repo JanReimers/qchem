@@ -20,8 +20,16 @@ cd build/Release && ninja rundeck                                  # the one CLI
    `provenance.ignoredEnvironment`.  What stays in the environment cannot change a number: threads (`QCHEM_OPENMP_THREADS`, `QCHEM_BLAS_THREADS`), `GPW_COLLOC_MEMO`, `QCHEM_DIAGNOSTICS=...`.  `scripts/audit-getenv` (ctest `GetenvAudit`) enforces it.
 2. **The structure is just a NAME** — a key of `src/Structure/Data/materials.json` (`molecules.json` is not driven by decks yet).  Lattice, atoms, spin decoration and the pseudopotential vocabulary come from it and are never restated.  A supercell is a
    materials entry (`Si_diamond_2x2x2`), not a deck key.  Nothing FM/AFM-specific lives in the framework: an "arm" is built by the integration test that wants it.
+   **The one exception, an INLINE structure** (2026-10-31, the GUI's door: a cell a user built has no registry name): `structure` is an OBJECT,
+   the entry itself -- `lattice` (the Bravais `type`/`a`..`gamma`/`T`, or `vectors_bohr` [[a],[b],[c]]), `atoms` (`el`, `frac`, optional `spin`), optional
+   `name` (a file stem: it names the revisions; default `inline`), `pp` (default `solid.pp`) and `comment` -- built by the data file's own parser, so an
+   inline copy of a named entry IS that material (`Deck.AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint`; template `decks/Si_diamond_inline.json`).
+   The magnetic decoration and charge order stay in `solid` (`siteSpins`, `siteCharges`).
 3. **The file you wrote is never the record of what ran.**  Every run writes `<outDir>/<structure>.rNNN.json` BEFORE the SCF (so a crash still leaves it): the deck + every `--set` + every default filled in + a header + `provenance`
-   (command line, input deck path + checksum, the `--set` strings, code version, the resolved CP2K-deviation table, ignored env vars, `restartedFrom`), and after the run `results` (converged, energy, the `postSCF` results).  `rNNN` is the next free number,
+   (command line, input deck path + checksum, the `--set` strings, code version, the resolved CP2K-deviation table, ignored env vars, `restartedFrom`), and after the run `results` (converged, energy, the `postSCF` results).
+   A host that must HOLD the calculation before its SCF (the GUI's worker thread) calls `qchem::deck::Build(spec, observer)` -- resolved and built, NO SCF, no
+   revision -- then `calc->Converge(deck::ScheduleToRun(spec))`.  `Run` is exactly that plus the record and the console: one path.  `Build` takes
+   `state.restartFrom` and `state.save` as PATHS (a revision stem and `"auto"` name files under `Run`'s outDir).  `rNNN` is the next free number,
    claimed atomically (parallel jobs cannot collide; a number is never reused).  **To reproduce:** `rundeck X.r003.json` (no `--set`).  **To reproduce with one intentional change:** `rundeck X.r003.json --set key=value` → writes `X.r004.json`.
 4. **Units:** energies a person quotes are **eV in the file** (`U_eV`, `Uirrep_eV`, `alpha_eV`); **atomic units in RAM**.  The writer picks the eV value that converts back to the same double, so a record re-runs bit-identically.
 5. **A reader is strict**: an unknown key throws, naming the path and the legal keys (a typo must not silently run the default); a missing key keeps the default (so an old deck survives a new field).  A key beginning with `_` is a comment (`_doc`), ignored and not kept.
@@ -31,7 +39,8 @@ cd build/Release && ninja rundeck                                  # the one CLI
 
 ```jsonc
 {
-  "structure": "NiO_AFM2",                // REQUIRED: a name in materials.json
+  "structure": "NiO_AFM2",                // a name in materials.json -- OR the cell itself, an object:
+  // "structure": {"name":"NiO_mine", "lattice":{"vectors_bohr":[[a1],[a2],[a3]]}, "atoms":[{"el":"Ni","frac":[0,0,0]}, ...]},
   "kmesh": [2,2,2],
   "basis": { "data": "VALENCE_LOWQ_VA",   // a BasisSetData name: SIPP_SR, VALENCE_LOWQ_{SR,SR2,SPH,VA,VB}, DZVP, ...
              "file": "/path/x.bsd",         // OVERRIDE: a .bsd path used instead of the file "data" names (no registry entry, no rebuild); `--set basis.file=...`
@@ -41,6 +50,7 @@ cd build/Release && ninja rundeck                                  # the one CLI
   "solid": {                              // SolidCalcOptions -- every field; Nelec/species/multiplicity default from the material
     "multiplicity": 1, "seed": "IonicSAD", "ortho": "CholeskyPivoted", "orthoTol": 1e-4, "accelerator": "Null",   // Auto (default; = DIIS today) | DIIS | GDM | Ladder | Null
     "imposeSymmetry": false, "forceComplex": false, "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
+    "xcMeshSymmetric": true,              // FREE run: XC mesh invariant under the group detected at THIS geometry; false = the plain atom-centred mesh (a displacement path needs false)
     "xcMesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... },
     "tolerances": { "screenEps": 1e-10, "densityEps": 1e-10, "vlocEps": 1e-5, "fieldSharp": 0.667, "relCutoff": 0, "mgridEcuts": [], ... },
     "policy": { "cp2kCompat": false, "streamFold": true, ... },     // the declared CP2K deviations; ONLY stated routes are recorded
@@ -65,7 +75,10 @@ cd build/Release && ninja rundeck                                  # the one CLI
                                                                          //   "eigen" (occupation eigen-orbitals inside each slot; QE orbital_resolved / Macke 2024).  perturb still names
                                                                          //   MANIFOLDS (all their channels are perturbed); prints a [response] channel table with each channel's composition
                                                                          //   on the projector functions, and the U lines full / 1x1
-    {"hubbardFiniteDifference": {"perturb":[0], "alpha_eV":0.027}}       // the FD cross-check of the above
+    {"hubbardFiniteDifference": {"perturb":[0], "alpha_eV":0.027}},      // the FD cross-check of the above
+    {"gridAudit": {"reference":"AliasFree"}}                             // GRID AUDIT (doc/GridEpsilonPlan.md §3): every term rebuilt on the reference raster at the
+                                                                         //   converged D; per term max|dH_ij| and dE + the run's own grid-audit verdicts (console, report
+                                                                         //   section `gridAudit`, `results`).  Needs no +U; the reference must differ from solid.raster
   ]
 }
 ```

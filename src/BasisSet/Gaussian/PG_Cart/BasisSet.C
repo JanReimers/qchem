@@ -39,8 +39,7 @@ class IrrepBasisSet
     public:
         typedef std::vector<std::unique_ptr<Block>> bv_t;
     
-        //! \a merge: how same-radial shells on one atom combine (\c ShellMerge) -- \c KeepEachL for an orbital basis.
-        IrrepBasisSet(Reader *, const Structure *, ShellMerge merge=ShellMerge::LegacyMerge);
+        IrrepBasisSet(Reader *, const Structure *);
         IrrepBasisSet(const rvec_t &exponents, size_t L, const Structure *);
         IrrepBasisSet(const rvec_t &exponents, size_t L);
         virtual ~IrrepBasisSet(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
@@ -71,6 +70,7 @@ class Orbital_IBS
     , public Gaussian::Orbital_DFT_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public virtual Gaussian::Periodic_Gaussian_IBS   // the GPW periodic seam: all four faces (ISP split 2026-09-08)
     , public virtual Gaussian::TransitionCollocation   // the (k+q, k) transition density + adjoint (LinearResponsePlan B1)
+    , public virtual Gaussian::ToleranceBinding        // the builder binds the pair-loop tolerances (D-ENV-TOL option A)
     , public IrrepBasisSet
 {
 public:
@@ -107,7 +107,8 @@ public:
     virtual double  MaxExponent() const override;   // finest exponent -> the GPW density-grid cutoff floor
     virtual double  MinExponent() const override;   // coarsest exponent -> the multi-grid coarsest level
     virtual double  RelCutoffSafety() const override; // pair->level stiffness -> the ladder completion rung
-    virtual void    ApplyTolerances(const GPWTolerances& t) const override;
+    virtual const GPWTolerances& Tolerances() const override;
+    virtual void    BindTolerances(const GPWTolerances& t) override;   // ToleranceBinding (the builder's door)
     // CP2K analytic multi-grid collocation + its exact adjoint (the GPW density/KS bridge).
     virtual std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                  const std::vector<ivec3_t>& N_L,
@@ -151,11 +152,13 @@ public:
 class BasisSet 
     : public virtual ::qchem::BasisSet::tBasisSet<double>
     , public ::qchem::BasisSet::BasisSetImp<double>
+    , public virtual Gaussian::ToleranceBinding   // the builder binds every block's pair-loop tolerances (D-ENV-TOL option A)
 {
 public:
     BasisSet() {};
     BasisSet( Reader*, const Structure*);
     virtual void Insert(obs_t* bs);
+    virtual void BindTolerances(const GPWTolerances& t) override;   //!< each block that can take them
 
 };
 

@@ -473,9 +473,9 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Panel_Long)   // PANEL case 13 (regime 2,
     const Material mno=qchem::Materials::Get("MnO_AFM2");   // Mn +m at 0, Mn -m at 1/2 (the decoration), O at 1/4, 3/4
     const Lattice_3D lat=LatticeOf(mno);
     auto [o,par]=ShubAnchorRecipe(mno, qchem::ChargeDensity::SeedStrategy::SAD, "MnO AFM-II Gamma (imposed)");   // neutral Hund pairs, flipped by siteSpins
-    Trace trace; o.onIteration=trace.Observer();
+    Trace trace;
     GpwReport report("MnO "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o), par, trace.Observer());
     trace.Print(o.label, /*polarized*/true);
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
@@ -496,9 +496,9 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long)
     const Material mno=qchem::Materials::Get("MnO_AFM2");
     const Lattice_3D lat=LatticeOf(mno);
     auto [o,par]=ShubAnchorRecipe(mno, qchem::ChargeDensity::SeedStrategy::IonicSAD, "MnO AFM-II Gamma (imposed, ionic seed)");
-    Trace trace; o.onIteration=trace.Observer();
+    Trace trace;
     GpwReport report("MnO "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o), par, trace.Observer());
     trace.Print(o.label, /*polarized*/true);
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
@@ -564,8 +564,9 @@ std::pair<SolidCalcOptions,SCFParams> CP2KPlusURecipe(const Material& mno, doubl
     par.SmearingkT=5e-3;
     return {o,par};
 }
-//! CP2K's +U oracle (doc/Records/CP2Kresults.md, 2026-09-19): the U-induced shift and E_U, the gate's two numbers.
-constexpr double CP2K_PlusU_dE=-60.68597087953861-(-61.30332518), CP2K_PlusU_EU=0.60950923227552;
+//! CP2K's +U oracle (doc/Records/CP2Kresults.md, 2026-09-19; re-banked 2026-10-31 at EPS_SCF 1e-8 -- the 1e-6 run
+//! stopped 83 μHa low): the U-induced shift and E_U, the gate's two numbers.
+constexpr double CP2K_PlusU_dE=-60.685888159562445-(-61.30332518), CP2K_PlusU_EU=0.60950778051938;
 //! The vendored states of the gate's two arms (decks/states/<name>.h5), written by the cold gate.
 const char* CP2KPlusUState(double U_eV) { return U_eV>0.0 ? "MnO_AFM2_VA_sph_Shub_U4" : "MnO_AFM2_VA_sph_Shub_U0"; }
 
@@ -583,9 +584,9 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
     {
         auto [o,par]=CP2KPlusURecipe(mno, U_eV, label);
         o.saveStateTo=qchem::panel::RefreshPath(CP2KPlusUState(U_eV));   // this cold gate OWNS the twin's vendored state
-        Trace trace; o.onIteration=trace.Observer();
+        Trace trace;
         GpwReport report("MnO "+o.label, par.Verbose);
-        arms.push_back(std::make_unique<qchem::SolidCalculation>(SolidSetup::Resolve(lat, CP2KPlusUBasis(mno), o), par));
+        arms.push_back(std::make_unique<qchem::SolidCalculation>(SolidSetup::Resolve(lat, CP2KPlusUBasis(mno), o), par, trace.Observer()));
         trace.Print(o.label, /*polarized*/true);
         if (arms.back()->Result()) qchem::panel::PrintRefresh(CP2KPlusUState(U_eV), o.saveStateTo);
         return arms.back()->Result();
@@ -619,9 +620,9 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_Saved_CP2K_Long)   // ~5.5 min serial: ~150 s 
     {
         auto [o,par]=CP2KPlusURecipe(mno, U_eV, label);
         std::vector<double> E;
-        o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
         qchem::IterationBudget budget(3, "exact resume of a vendored converged +U state");
-        auto c=qchem::SolidCalculation::Restart(qchem::panel::VendoredState(CP2KPlusUState(U_eV)), SolidSetup::Resolve(lat, CP2KPlusUBasis(mno), o), par);
+        auto c=qchem::SolidCalculation::Restart(qchem::panel::VendoredState(CP2KPlusUState(U_eV)), SolidSetup::Resolve(lat, CP2KPlusUBasis(mno), o), par,
+                                                [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
         if (!c) { ADD_FAILURE() << label << ": " << c.Error().details; return std::optional<double>{}; }
         arms.push_back(c.TakeValue());
         auto R=arms.back()->Result();

@@ -5,20 +5,26 @@
 // FindAtom now THROWS, naming the element and the file.  The file here is written by the test, so no data-file edit can move it.
 
 #include "gtest/gtest.h"
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <unistd.h>
+#include <vector>
+#include <nlohmann/json.hpp>
 
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
-import qchem.BasisSet.Gaussian.Point.Reader;    // ReadShells / ShellMerge
+import qchem.BasisSet.Gaussian.Point.Reader;    // ReadShells
 import qchem.BasisSet.Gaussian.Point.Factory;   // FactoryFromFile -- the orbital bases end to end
+import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisNames / BasisFileOfName / BasisFileChecksum (D-BASIS-REGISTRY)
 import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Structure;
 import qchem.Types;
+import qchem.Mesh;                               // qcMesh::MeshParams (the fit bases' factories take one)
 
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian;
@@ -79,22 +85,42 @@ std::filesystem::path SharedExponentFile()
 }
 }
 
-TEST(Gaussian94Reader, ReadShellsKeepsEachLForAnOrbitalBasisAndMergesForAFitBasis)
+TEST(Gaussian94Reader, ReadShellsKeepsEachLOfASharedExponent)
 {
     Molecule m; m.Insert(new Atom(1, 0.0, Vector3D(0,0,0)));
+    Gaussian94Reader reader(SharedExponentFile().string());
+    const auto sh=ReadShells(reader, m);
+    ASSERT_EQ(sh.size(), 2u) << "the s and the p are two blocks";
+    EXPECT_EQ(sh[0].Ls, std::vector<int>{0});
+    EXPECT_EQ(sh[1].Ls, std::vector<int>{1});
+}
+
+// THE FIT BASES READ EVERY SHELL (2026-10-31, OpenWork "The molecular FIT bases drop their D shells"): every A1 file puts SP and D
+// shells on the SAME exponents, and the fit bases' old merge never added the new l -- N2's A1_coul loaded 32 functions, not 68, and
+// the Coulomb fit sat 4-62 mHa low against PySCF's own A1_coul density fit.  Invariant: the fit basis has exactly the Cartesian
+// functions of the file's shells for each atom, counted here from the file through the reader, independently of the basis.
+TEST(Gaussian94Reader, TheFitBasesCarryEveryShellOfTheirFile)
+{
+    Molecule n2;
+    n2.Insert(new Atom(7, 0.0, Vector3D(-1.03,0.0,0.0)));
+    n2.Insert(new Atom(7, 0.0, Vector3D( 1.04,0.0,0.0)));
+    auto cartesianCount=[&](const std::string& file)
     {
-        Gaussian94Reader reader(SharedExponentFile().string());
-        const auto sh=ReadShells(reader, m, ShellMerge::KeepEachL);
-        ASSERT_EQ(sh.size(), 2u) << "the s and the p are two blocks";
-        EXPECT_EQ(sh[0].Ls, std::vector<int>{0});
-        EXPECT_EQ(sh[1].Ls, std::vector<int>{1});
-    }
-    {
-        Gaussian94Reader reader(SharedExponentFile().string());
-        const auto sh=ReadShells(reader, m, ShellMerge::LegacyMerge);
-        ASSERT_EQ(sh.size(), 1u) << "the fit bases' historical merge, kept bit-identical";
-        EXPECT_EQ(sh[0].Ls, std::vector<int>{0}) << "...which never adds the new l (the documented quirk)";
-    }
+        Gaussian94Reader reader(BasisFile(file));
+        size_t n=0;
+        for (const auto& sh : ReadShells(reader, n2)) for (int l : sh.Ls) n+=size_t((l+1)*(l+2)/2);
+        return n;
+    };
+    std::unique_ptr<BasisSet::Real_BS> bs(Factory(BasisSetData::DZVP, &n2));
+    const qcMesh::MeshParams mp{};
+    std::unique_ptr<BasisSet::rFIT_CD_ABS> cd(bs->CreateCDFitBasisSet(&n2, mp));
+    std::unique_ptr<BasisSet::rFIT_SF_ABS> sf(bs->CreateVxcFitBasisSet(&n2, mp));
+    EXPECT_EQ(cd->GetNumFunctions(), cartesianCount("A1_coul.bsd")) << "the Coulomb fit basis dropped shells of its file";
+    EXPECT_EQ(sf->GetNumFunctions(), cartesianCount("A1_exch.bsd")) << "the Vxc fit basis dropped shells of its file";
+    // ...and the d shells are really there: a d shell on a shared exponent adds 6 Cartesian functions per atom
+    Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
+    size_t nd=0; for (const auto& sh : ReadShells(reader, n2)) for (int l : sh.Ls) if (l==2) ++nd;
+    EXPECT_GT(nd, 0u) << "A1_coul N has d shells (on the SP exponents) -- else this test tests nothing";
 }
 
 TEST(Gaussian94Reader, AnOrbitalBasisLoadsEveryShellOfASharedExponent)
@@ -136,4 +162,45 @@ TEST(PPProvenance, AQ3RunOnAQ1BlockThrowsNamingBoth)
     const std::string bare=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_noprov.bsd")).string();
     { std::ofstream f(bare); f<<"title\n\n!\nBASIS=\"t\"\n"; }
     EXPECT_NO_THROW(CheckPPProvenance(bare, {{"Li",3}})) << "an untagged (legacy) file declares nothing";
+}
+
+// D-BASIS-REGISTRY (CleanCode, 2026-10-30): a basis is NAMED by its file stem in the data directory -- every .bsd there is
+// usable by name with no registration; the enum is only the C++ handle of the files code names directly, and each handle's
+// name is a stem that is there.  A name that is not there throws, listing the names that are.
+TEST(BasisNames, ABasisIsAFileStemAndEveryHandleNamesOneThatIsThere)
+{
+    const std::vector<std::string> names=BasisNames();
+    auto has=[&](const std::string& n){ return std::find(names.begin(), names.end(), n)!=names.end(); };
+    EXPECT_TRUE(has("valence_lowq_tm")) << "a file with no handle is still a name";
+    for (BasisSetData d : {BasisSetData::DZVP, BasisSetData::DZVP2, BasisSetData::TZVP, BasisSetData::ORB, BasisSetData::ORB1,
+                           BasisSetData::SIPP, BasisSetData::SIPP_SR, BasisSetData::VALENCE_LOWQ, BasisSetData::VALENCE_LOWQ_SR,
+                           BasisSetData::VALENCE_LOWQ_SR2, BasisSetData::VALENCE_LOWQ_SPH, BasisSetData::VALENCE_LOWQ_VA,
+                           BasisSetData::VALENCE_LOWQ_VB})
+    {
+        const std::string stem=BasisName(d);
+        EXPECT_TRUE(has(stem)) << stem << ": a handle names a file that is not in the data directory";
+        std::string upper=stem; for (char& c : upper) c=(char)std::toupper((unsigned char)c);
+        BasisSetData back{};
+        ASSERT_TRUE(RegisteredBasis(upper, back)) << upper;
+        EXPECT_EQ(back, d) << "the handle's name, in any case, gives the handle back";
+    }
+    BasisSetData unused{};
+    EXPECT_FALSE(RegisteredBasis("valence_lowq_tm", unused));
+    EXPECT_EQ(BasisFileOfName("Valence_LowQ_TM"), "valence_lowq_tm.bsd") << "any case";
+    try { (void)BasisFileOfName("valence_lowq_typo"); FAIL() << "an unknown name must throw"; }
+    catch (const std::runtime_error& e)
+    {
+        const std::string m=e.what();
+        EXPECT_NE(m.find("valence_lowq_typo"), std::string::npos) << m;
+        EXPECT_NE(m.find("valence_lowq_tm"),   std::string::npos) << "the names that ARE there are listed: " << m;
+    }
+    // The json door resolves the same names: one H atom on the dzvp file, by stem.
+    Molecule m; m.Insert(new Atom(1, 0.0, Vector3D(0,0,0)));
+    std::unique_ptr<qchem::BasisSet::tBasisSet<double>> bs(Factory(nlohmann::json{{"basis","DZVP"}}, &m));
+    EXPECT_GT(bs->GetNumFunctions(), 0u);
+    EXPECT_THROW((void)Factory(nlohmann::json{{"basis","nope"}}, &m), std::runtime_error);
+    // The checksum is of the CONTENTS: stable, and different for a different file.
+    EXPECT_EQ(BasisFileChecksum("dzvp.bsd"), BasisFileChecksum("dzvp.bsd"));
+    EXPECT_NE(BasisFileChecksum("dzvp.bsd"), BasisFileChecksum("dzvp2.bsd"));
+    EXPECT_EQ(BasisFileChecksum("dzvp.bsd").size(), 16u);
 }

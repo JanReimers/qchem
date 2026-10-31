@@ -11,5 +11,7 @@ class RunDiagnosticsTests;   // src/Calculation/tests/RunDiagnostics.C -- the T2
 class TransitionDensityTests;   // src/Response/tests -- the finite-difference response-kernel ORACLE reads the
                                 // AO blocks of a transition density (doc/LinearResponsePlan.md ruling D6);
                                 // the TransitionDensity face never hands its matrices out.
+class DeckTests;                // src/Calculation/tests/Deck.C -- an inline-structure deck and its named twin must build the
+                                // SAME restart fingerprint (SolidCalculation::Fingerprint is private).
 class ResponseFacadeTests;      // src/Response/tests -- the same oracle, driven through a converged
                                 // qchem::Calculation (its Hamiltonian / wave function / basis).

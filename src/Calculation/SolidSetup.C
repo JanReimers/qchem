@@ -150,6 +150,20 @@ struct SolidCalcOptions
     //! so star-averaging each channel under it averages the magnetic sublattices together and silently
     //! demagnetises the run (doc/CleanupCandidates.md V1.28).
     bool imposeSymmetry = false;
+    //! FREE run: build the XC mesh invariant under the space group DETECTED at the run's geometry (KAxisPlan ruling 1: a free run
+    //! gets symmetric numerics, not a symmetric answer).  \c false = the plain atom-centred mesh, whatever the geometry's group --
+    //! what a \c SolidSession REQUIRES of a free setup: a step re-detects the group, so the invariant mesh would SWITCH along a path
+    //! (measured, NaF Γ, F along x, Becke(20,2,24): 48 ops / 16752 points on the site, 8 ops / 17536 off it; a 2.5e-5 Ha step at the
+    //! site and a 9.4e-5 Ha/bohr odd term the mirror forbids).  The plain mesh moves with the atoms and is the same kind of mesh at
+    //! every point; it is also ~2.2x fewer points there (7.6k).  Ignored on an imposed run (the imposed group's mesh is the run's).
+    //! WHY TWO MESHES (for whoever decides whether one can serve both): the INVARIANT mesh keeps a single-geometry free run's
+    //! INTEGRATOR group-equivariant, which ruling 1 consumes -- it reduces a free run by the ops whose measured
+    //! \f$\|D_{gk}-MD_kM^\dagger\|\f$ passes ~1e-6, and on a non-invariant mesh no op ever passed (F 5e-4, D 2e-3; GPW_IBS
+    //! itsMeshOps) -- so a session on the plain mesh gives that reduction up.  The PLAIN mesh keeps E continuous along a path that
+    //! BREAKS the group, which the invariant mesh cannot: its group, and so its points, change with the geometry.  The open question
+    //! (OpenWork, X): a session invariant under the group the WHOLE session keeps (a symmetry-preserving relaxation keeps its space
+    //! group), so one mesh serves both.
+    bool xcMeshSymmetric = true;
     //! The SCF seed.  Default \c IonicSAD (V2.2, 2026-09-14): a superposition of the library's per-species
     //! valence densities at their formal charges (Na+ F-, Mn2+ O2-; an elemental solid is the neutral SAD).
     //! \c Uniform (\f$\rho=N/V\f$, the old default) is an explicit OPT-IN, because it has a STABLE WRONG
@@ -208,6 +222,13 @@ struct SolidCalcOptions
     //! DERIVED FROM THE SEED", ruled 2026-10-23: the ordering is chemistry, stated like the Hubbard subspace, never
     //! inferred -- a seed change must never change the imposed symmetry or the manifolds' site groups).  A
     //! non-magnetic polarized run states all zeros.  See \c RequireStatedMagneticOrdering.
+    //! \brief THE CHARGE ORDER of an \c IonicSAD seed: one formal charge per cell site (Li +1, Mn +3 / +4, O -2 ...), summing to
+    //! zero.  EMPTY (the default) = DERIVED by the electronegativity heuristic (\c ChargeDensity::IonicFormalCharges), which is
+    //! right where every site of an element takes the same charge, but on a MIXED-VALENCE cell puts the charge states of
+    //! symmetry-equivalent sites by ATOM INDEX (LiMn₂O₄'s Mn³⁺/Mn⁴⁺ on the 16d sites): a charge order nobody chose.  State it, like
+    //! \c siteSpins, when the order matters.  Only the IonicSAD seed reads it (a stated order on another seed THROWS: nothing would
+    //! consume it).  See \c RequireConsistentSiteCharges.
+    std::vector<int> siteCharges = {};
     // NB: the test driver's `realTRIMBlocks` is NOT added here -- it is \c forceComplex with the opposite
     // polarity (both feed GPWParams::hamPreservesReal).  One decision, one field.
     //! Names this run in its own console output -- the fingerprint, the stage banners, the order trace.
@@ -218,15 +239,10 @@ struct SolidCalcOptions
     //! failure here WARNS and the run continues -- a checkpoint must never cost the computation it protects
     //! (\c SaveState called directly throws as usual).
     std::string saveStateTo;
-    //! \brief Per-iteration telemetry, live FROM CONSTRUCTION.
-    //!
-    //! It belongs in the options block rather than only on \c OnIteration because the constructor
-    //! CONVERGES: an observer attached afterwards has already missed stage 0 -- which, on an annealed
-    //! recipe, is the stage whose trajectory the fingerprint most wants.  Put it here and the run is
-    //! observed from its first iteration, with the rest of the recipe, in one place.
-    qchem::SCFIterator::SolidSCFIterator::Observer onIteration = nullptr;
+    // (No onIteration any more -- 2026-10-30.  The per-iteration observer is a SolidCalculation / Restart / SolidSession
+    //  CONSTRUCTOR argument, as on the molecular Calculation: an observer is not a resolved decision.)
     // (No orderName/orderProbe any more -- 2026-09-14.  The order parameter is the INTEGRATED site moment
-    //  every polarized run carries on its EnergyBreakdown (SCFProgress::order, the m_site column); the
+    //  every polarized run carries on its EnergyBreakdown (the m_site cell of the iteration row); the
     //  caller-supplied POINT probe it replaced was a spin density, not a moment.)
     //!@}
     //!@}
@@ -237,6 +253,10 @@ struct SolidCalcOptions
 //! \c siteSpins must have one entry per site of \a st, each -1, 0 or +1.  A broken invariant, not an Outcome: the
 //! facade calls it first thing, and \c deck::Vet calls it so \c scripts/vet-decks catches a deck before it runs.
 void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& st);
+//! \brief THROWS unless a stated \c o.siteCharges has one entry per site of \a st, sums to zero (formal charges conserve the
+//! cell's charge, as the derived ones do), and seeds an \c IonicSAD run.  Empty passes.  Called by the facade and by \c deck::Vet,
+//! as \c RequireStatedMagneticOrdering is.
+void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st);
 
 //! \brief HOW the molecular orbital basis of a GPW run is made at a geometry: the frozen RECIPE a geometry step rebuilds
 //! (doc/CalcNetworkReview.md §3.2 item 2, §7).
@@ -254,9 +274,14 @@ struct GaussianBasisRecipe
     //! stated \c trim.  \c SolidSetup::Resolve runs it once and stores the frozen result (\c vet false, \c trim filled).
     bool                              vet = false;
     bool                              spherical = false;   //!< wrap in the spherical lattice view (contaminant-free d/f)
+    //! The pair-loop tolerances \c Make BINDS on the basis it builds (D-ENV-TOL option A, 2026-10-31): set by \c SolidSetup::Resolve
+    //! from \c SolidCalcOptions::tolerances (the one source -- a caller's value here is replaced), frozen with the trim so a geometry
+    //! step's basis computes at the same setting.  The GPW evaluator checks them; it no longer sets them.
+    BasisSet::Gaussian::GPWTolerances tolerances;
 
-    //! The basis over \a cell's atoms.  CHECKS the file's declared pseudopotential provenance against \a pp first (D-BASIS-PP):
-    //! THROWS naming the file, the element and both q on a mismatch.  \a cell must outlive the basis.
+    //! The basis over \a cell's atoms, its pair-loop \c tolerances bound before anything can compute from it.  CHECKS the file's
+    //! declared pseudopotential provenance against \a pp first (D-BASIS-PP): THROWS naming the file, the element and both q on a
+    //! mismatch.  \a cell must outlive the basis.
     std::shared_ptr<const BasisSet::Real_BS> Make(const Structure& cell, const Pseudopotential::PseudopotentialSet& pp) const;
 };
 

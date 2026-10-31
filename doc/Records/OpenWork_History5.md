@@ -740,3 +740,266 @@ large PW state is a large file; ρ(G) stays the lever if that bites.  `BuildPoin
 eigensolve; a PW state refused by a Gaussian run on `basis.family`.
 
 | **PW states cannot be saved (or restarted) -- and the deck says so only AFTER the SCF** (2026-10-26) | `state.save` on a `basis.family "planeWave"` deck: `SolidCalculation::SaveState` → `MakeStateFingerprint` throws "the Bloch block does not report its AO shells (AoShellSource)"; the CK-1 net catches it and prints `WARNING: state NOT saved` after the SCF.  β-MnO₂ 80 Ry U0h: 52 min, converged, nothing banked.  So no PW run can seed another (a site-asymmetric α·P from the α = 0 state, a cutoff ladder, the U arm), and `restartFrom` on PW cannot work either | a PW fingerprint (cell, Ecut, the G-set / k, spin) beside the AO one, and save/restore of the PW density (ρ(G) is the natural, size-agnostic carrier — D_ij is nG², 0.3 GB+ per spin at 40 Ha, cf. PW-2); meanwhile make it LOUD UP FRONT: `deck::Vet` / the facade refuse `state.save` on the PW family before the SCF · `src/Calculation/Imp/SolidCalculation.C` (SaveState, Fingerprint), `qchem.SolidState` |
+
+| **A threaded NaF exact resume STALLS GDM at iteration 1, and its mixed fallback feeds XC the FITTED ρ** (lane A, 2026-10-30, found by the reproducibility fix) | `GPW_NaF.Γ_Imp_eqExactResume_Panel` at `QCHEM_OPENMP_THREADS=4`, now deterministic: 5 iterations vs budget 3 every run.  Iteration 1's GDM line search STALLS on the restored (4-thread-converged) state → `[handoff] GDM -> one MIXED fixed-point step (line search STALLED)` → that step's XC ρ column reads `fitted` although the banner says `rho_mix + cusp deficit` → first iterate 1.3e-4 Ha off the saved E (serial: no stall, first iterate at the saved E, ≤ 3 iterations).  Two questions: why does the line search find no descent from a converged state only when threaded (threaded collocation vs serial-order integrate-back no longer exact adjoints at ULP level?), and why does the RE-SEATED presentation route XC to the fit (`PresentFromD` with cusp should carry the zero N4 correction, pin 28; the 2026-10-28 carried-density fix) | print E(t) of iteration 1's line search at 1 vs 4 threads (`QCHEM_DIAGNOSTICS=gdm_trace`), and the XC source of the re-seated `FockDensity` · `src/SCFIterator/Imp/SCFIterator.C` `DirectMinStep`, `src/ChargeDensity/Internal/FieldMixer.C` `PresentFromD` |
+
+**✅ VERDICT 2026-10-30 (lane A, 7a016d0b).** `gdm_trace` at 1 vs 4 threads: the cold runs are identical, and at the restored state ([F,D] 7e-15) BOTH thread counts find E(t) == E(0) TO THE BIT at all 12 backtracks -- there is no descent to find at a fixed point.  The retry then landed on a rounding coin-flip (-3.6e-15 serial = "descent"; 0 at 4 threads = STALLED), so threading only chose the side.  Two defects: (1) the STALL -- strict descent is ill-posed at the fixed point; a t=1 trial whose rise is <= 64 eps |E0| is now taken (`DirectMinStep`); (2) the FITTED ρ -- `HandOff`'s re-seat built a new presentation with no DM provenance, and the fallback's Fock ran before the next Mix seated it, so XC sampled the fit (pin 28); `HandOff` now seats the current D after a re-seat.  (2) was the walk-off on its own: with only (2) the stalled fallback reads `cusp`, stays at the answer and converges in 2.  Both fixes: 2 iterations at 1 and 4 threads.  No sweep test re-seats (grep `re-seated` in the main-2a3852c9 logs: none), so (2) has only this measurement.
+
+**AMENDED 2026-10-30 (8650f2d2): fix (1) REVERTED.**  The rounding-level accept fired long before the fixed point: once |g| ~ 1e-7 the true descent g² ~ 1e-14 is already under 64 eps|E| ~ 1e-13, so GDM took every full step unbacktracked and limit-cycled ([F,D] 2e-7 ↔ 4e-7; the landing sweep caught `ResponseKernel.GPW_Si_k211_GDMFinishedStage` 41 → 220 and `GPW_Si.Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel` 179 → 400 = cap).  Fix (2), the re-seat seat, stands alone and is sufficient: the fixed-point stall still happens at 4 threads, but the fallback now stays on the answer.  `eqExactResume_Panel` passes at 4t; the four cases are 0 moved vs main-2a3852c9 serially.  Lesson: a "no descent is possible" test must look at the GRADIENT (or predicted descent), not at |ΔE| against the energy's rounding.
+
+## ✅ "valgen cannot add a seed entry diff-friendly" (OpenWork §3, 2026-10-22) -- FIXED 2026-10-30 (lane B, d10d38cc); the row as it stood
+
+`valgen --seed-into <library>` inserts or replaces ONE entry by (Z, q, Nelec, functional) as TEXT (`SpliceSeedEntry`,
+`qchem.ValenceBasisGen`): a match is replaced in place, otherwise the entry is appended after the last one, in the file's tab
+indentation; every other byte is kept (UT `ValenceBasisGen.SeedIntoChangesTheEntryAndNoOtherByte`, on the shipped 12.7k-line
+library).  `GenerateSeedDensity` writes `q`.  Refused: an entry with no `q`, a library holding the identity twice, and replacing
+a SPIN-RESOLVED entry with an unpolarized one -- the CLI smoke on Na would have silently dropped the shipped Na entry's
+`rho_up`/`rho_dn` (the IonicSAD seed reads them); regenerate with `--spin`.
+
+| **valgen cannot add a seed entry diff-friendly** (2026-10-22, the Mn⁴⁺ seed) | `valgen --seed-out` writes a standalone entry WITHOUT `q` (the PP variant every library entry carries, and the key the row above needs), and nothing inserts it into `atomic_valence_densities.json`: re-serializing the library re-formats all 12.7k lines (a 26k-line diff for one entry), so the Mn⁴⁺ entry went in by a hand-written text splice | `valgen --seed-into <library>`: insert or replace ONE entry by (Z, q, Nelec, functional) as TEXT, keeping the file's tab indentation and number format (diff = the entry only), always writing `q`; a UT that the round trip leaves every other byte unchanged · `CLIapps/valgen.C`, `src/ChargeDensity/Data/` |
+
+## ✅ "A restart's fingerprint is incomplete" gaps (2)-(4) -- DONE 2026-10-30 (lane B, ce6b1f94); the row as it stood
+
+(2) WARM now records the RESOLVED v_xc fit (`xc.fit`), the raster (`grids.raster`), `grids.ladderFactor`, the Becke eps
+(`grids.beckeEps`, Becke mesh only) and every GPW tolerance (`gpw.<name>`; Gaussian family only); a state written before them
+compares as agreeing (`Migrated`, keyed on the absent `xc.fit`).  (3) every WARM line ends in its meaning and consequence, from a
+table keyed on the fingerprint name (prefix match; an unknown key prints raw), e.g. `grids.densityEcut: saved [20], now [30] --
+the density grid changed: the converged ground state moves -- expect iterations to reach the new one`.  (4) the summary records
+the final Δρ (`densityChange`, format 1.1) and the restart prints it, saying when a density-MIXED run (no [F,D]) saved it.  Found
+on the way: `Same()` compared entries below 1 to an ABSOLUTE 1e-10, so screenEps 1e-10 vs 1e-12 read as the same run (now 1e-10
+relative, 1e-14 floor).  Gate: `SolidState.ARestartAcrossTheLadderPrintsItsLineAndConverges` (the raster arm costs ~230 s on the
+UT cell, so the ladder carries the gate), `TheNumericsKeysAreWarmAndAnOlderStateIsStillExact`.  REMAINDER (new row): the run
+POLICY is not recorded.
+
+| **A restart's fingerprint is incomplete, and its WARM line names keys, not consequences** (user 2026-10-29: grids, fit bases, U, the functional all move the converged ground state -- a restart across them MUST iterate, and should say so) | Today (`qchem.SolidState`, `MakeStateFingerprint`): WARM records +U (site/l/U/α/projector/U per irrep), densityEcut, cutoffFactor, the XC mesh kind+size, multiplicity, ortho kind/tol, kT, block realness; each difference prints `differs: <key>: saved <a>, now <b>`.  GAPS: (1) DONE 2026-10-30 (C4 step 5: functional WARM and truthful, `pp.set` REFUSE, positions WARM with max displacement; `Records/OpenWork_History5.md`).  (2) NOT recorded: the XC fit basis (`VxcFit`), the raster (BallOnly/AliasFree), the GPW tolerances (screenEps, mgridEcuts, relCutoff), the Becke eps.  (3) the WARM line gives the values but not WHAT they mean: user wants specifics, e.g. "XC fit basis changed (Delta -> PWFit) between the saved state and this run: the ground state moves, expect more iterations to reach the new one".  (4) (user 2026-10-29) the saved state's OWN convergence: the summary keeps the iteration count but not the final Δρ / [F,D] or which mixer converged it -- a state saved at Δρ 6e-6 by a Kerker/Pulay mixer on a soft system (β-MnO₂ A1AFM r015) re-opens one undamped Fock away at Δρ ~40× that, so even an EXACT resume should say "saved at Δρ 6.4e-6 by a mixed run: the first Fock amplifies that residual; expect iterations" | add the missing keys of (2) to WARM; give each WARM key a one-line meaning + consequence beside its saved/now values (a table keyed on the fingerprint name, so an unknown key still prints raw); gate: a restart across each new key prints its line and converges · `src/Calculation/Imp/SolidState.C` (MakeStateFingerprint, Differences), `src/Calculation/Imp/SolidCalculation.C` (Fingerprint, the WARM print l.~1167) |
+
+## ✅ "A free run's XC mesh follows the group detected at EACH geometry, so a surface jumps" (F, opened and closed 2026-10-30, lane B)
+
+FOUND by the first run of PES gate (c), `GPW_NaF.Γ_PathIsContinuous_Long` (F walked along x, δ = −0.095 … +0.095, h = 0.01 bohr,
+Γ, VALENCE_LOWQ_SR2, Becke(20,2,24), free).  Both carries (AO, Löwdin) agreed to ~1e-11, so the SCF was not the cause.  The path:
+the 16 points with |δ| ≥ 0.025 sat on a smooth sextic to 2e-9, the two at ±0.005 1.1e-6 Ha ABOVE it; E(δ) − E(−δ) grew exactly
+linearly (an odd term of 9.4e-5 Ha/bohr at a site where rocksalt's mirror through F forbids one).  Cold starts (no carry):
+δ = 0 sat 2.5e-5 Ha BELOW the curve (1.15e-4 at k222); the default Becke mesh (Lebedev 29) shrank both effects ~20× (step ~1.5e-6,
+asymmetry 6e-8…1e-7); the UNIFORM XC mesh was exactly mirror-symmetric (1e-13) and smooth; the AliasFree raster changed nothing
+(asymmetry 1.00e-6 vs BallOnly 9.85e-7, the same δ = 0 step).  CAUSE: KAxisPlan ruling 1 (a free run gets symmetric NUMERICS)
+built the free run's XC mesh invariant under the space group DETECTED at its geometry -- 48 ops / 16752 points on the site, 8 ops /
+17536 (52696 on the default mesh) off it -- so the quadrature switched as F moved, and off the site the 8-op group's site-adapted
+angular set is not mirror-symmetric, so ±δ were quadratured on sets that are not mirror images.  None of the C2 rows (uniform-raster
+equivariance, BallOnly aliasing, Kerker equivariance, the low-rank D factor, R1.0r) covers it: they are about one geometry.
+FIX: `SolidCalcOptions::xcMeshSymmetric` (default true = ruling 1, unchanged for a standalone run; false = the plain atom-centred
+mesh, `GPWParams::freeMeshInvariant`), resolved into the setup, so a session and `SolidCalculation(setup)` agree bit for bit;
+`SolidSession` THROWS on a free Gaussian setup with it true (no silent override); the fingerprint's `grids.xcMesh` gains " plain"
+(states written before keep their string).  The session ops are not knowable in advance for an arbitrary path, so the plain mesh is
+the only frozen choice no path can invalidate -- and the cheaper one: 7.6k points against 16.7–17.5k on NaF.  AFTER: mirror 5e-10
+over the whole path; the k-th differences fall geometrically (Δ³ 4.5e-7, Δ⁴ 1.0e-7, Δ⁵ 2.0e-8), the signature of a smooth curve.
+The gate's jump measure moved from Δ³ (which conflates a jump with the curve's own E'''h³) to Δ⁵ < 1e-7 (a step s shows as up to
+10 s); on the OLD code it reads 5.9e-6 (mirror 1.7e-5), so the gate catches this defect ~60× over.  Gates: the path test;
+`SolidSession.RefusalsAreOutcomesAndAWrongCountThrows` (the throw).  REMAINDER (own row): the F site is a MAXIMUM at this level.
+
+## PES / run-setup remainders (1)–(3) -- DONE 2026-10-30 (lane B); the items as they stood
+
+(1) gate (c) -- E along a 20-point path has no jump above the SCF tolerance -- and the NaF Γ instance: `GPW_NaF.Γ_PathIsContinuous_Long`
+(3.8 min serial, 71 MB), the item above.  (2) the Q3 `BasisConditioning` refusal UT: `SolidSession.AStepOutOfTheTrimWindowIsRefusedAsBasisConditioning`
+(9f1889f9; Si Γ at orthoTol 1e-3: min eig S 0.027 at the reference, 4.5e-4 at a quarter-bond squeeze -> refused; a 0.05 bohr step
+converges).  (3) the LÖWDIN carry of C, built and measured (3c940a3c, `SolidSession::Carry::Lowdin`): Si Γ 4 carried steps 41 vs 42
+iterations (AO), energies equal to 1e-11; NaF Γ 19 carried points 110 vs 96 iterations (AO), energies equal to ~1e-11 -- no lever,
+so the default stays AO.
+
+## ✅ "The SCF observer has two homes" (OpenWork §3, 2026-10-30) -- DONE 2026-10-30 (lane B); the row as it stood
+
+`SolidCalcOptions::onIteration` is deleted.  The per-iteration observer is the last argument of both `SolidCalculation`
+constructors, of `SolidCalculation::Restart` and of `SolidSession` (before `Carry`), exactly as the molecular
+`Calculation(setup, scf, observer)` / `MoleculeSession` take it: an observer is not a resolved decision, so it has no place in
+the setup.  Attached before iteration 1 as before (stage 0 of an annealed recipe, a restart's first iterate, every session
+point); `OnIteration` still REPLACES it for a later `Converge`.  Callers migrated: 3 `SolidState` UTs, 4 MnO, 1 O₂ box, 2 NaF
+restart gates; the deck never serialised it.  No number moves (the observer only reads).
+
+| **The SCF observer has two homes** (controller 2026-10-30, from lane G's molecular hook) | `Calculation` / `MoleculeSession` take the per-iteration observer as a CONSTRUCTOR argument (lane G: an observer is not a resolved decision); the solid side still carries `SolidCalcOptions::onIteration` inside the resolved options | move it to a `SolidCalculation` / `SolidSession` constructor argument, migrate every caller, delete the field (lane B) · `src/Calculation/` |
+
+## ✅ "A restart's fingerprint does not record the run POLICY" — DONE 2026-10-30 (lane B, 21fe6e27)
+
+`Deviation` gains `movesState`: the routes that change the Hamiltonian or its quadrature (dmLowRank, streamFold, xcFromDM,
+beckeXC, dAwareScreen, hubbardEigen) are recorded as `policy.<route>` WARM keys from the run's OWN `RunPolicy(o.policy)`;
+mixRhoM (mixing channels, identical energies) and imposeSymmetry (a permission; the imposition itself is resolved) are not,
+so they cannot turn an exact resume into a warm start.  A flipped route prints "policy.xcFromDM: saved 'off', now 'on' -- a
+declared CP2K-deviation route changed the Hamiltonian"; a state saved before the keys existed resumes exactly (`Migrated`).
+UT `SolidState.ThePolicyRoutesAreWarmAndAnOlderStateIsStillExact`.  Not covered: the RESOLVED imposition (`setup->imposed`)
+is not itself a fingerprint key.
+
+| **A restart's fingerprint does not record the run POLICY** (remainder of "A restart's fingerprint is incomplete", gaps 1–4 DONE 2026-10-30) | the declared CP2K-deviation routes (`SolidCalcOptions::policy`: xcFromDM, beckeXC, dmLowRank, ...) change the Hamiltonian, so they move the converged ground state like a grid does, but `MakeStateFingerprint` records none of them: a restart across a policy change is called an EXACT resume | record the RESOLVED route table WARM (one key per route, `policy.<route>`, so a banner reformat is not a difference) with its consequence line; a state without them compares as agreeing · `src/Calculation/Imp/SolidState.C`, `Records/OpenWork_History5.md` |
+
+## ✅ "Spinel charge order is CHOSEN by atom index" — DONE 2026-10-30 (lane B, 4badf3eb)
+
+`SolidCalcOptions::siteCharges` (deck `solid.siteCharges`), one integer per site like `siteSpins`: empty = derived (the
+electronegativity tie-break by atom index, unchanged); Resolve refuses a wrong count, a non-neutral list, or a seed other
+than IonicSAD.  It reaches `SeedKey::siteCharges`, so `IonicSADTargets` feeds the seed AND the magnetic decoration from it.
+`decks/probes/LiMn2O4_spinel_gate1.json` states the order the tie-break derived ([1,1,4,4,3,3,-2×8]: Mn⁴⁺ on Mn0/Mn1), so no
+number moves; λ-MnO₂ has no tie.  UTs `IonicSADSeed.AStatedChargeOrderReplacesTheTieBreak`,
+`Deck.AStatedChargeOrderIsOnePerSiteNeutralAndIonicSAD`.
+
+| **Spinel charge order is CHOSEN by atom index** (remainder of the closed "IonicSAD targets are per SPECIES", 2026-10-26) | the tie-break puts LiMn₂O₄'s Mn³⁺/Mn⁴⁺ on symmetry-equivalent 16d sites by atom index -- a chosen charge order, not a derived one | state it in the deck like `siteSpins` when the spinel campaign needs a specific order · `src/ChargeDensity/Imp/Seed.C` |
+
+## ✅ "The molecular facade's default XC mesh (30 radial / Lebedev 5) is 0.5 Ha/atom off" — DONE 2026-10-31 (lane B, 8a8e39b8)
+
+`CalcOptions::mesh` is now MHL 80 / Lebedev 29 (302 directions; m 3, α 2, Becke 2 unchanged).  Scan (single thread),
+reference MHL 150 / Lebedev 35, error per atom at 80/29: water LDA 1 μHa, N₂ Xα 3, F₂ GTH q7 27, Si atom 0.1, Si₂ at
+R 20 bohr 53 (the slowest case: the far-separated pair).  The 30/5 error was ANGULAR -- water LDA 30/29 is 0.7 mHa from
+converged, 80/5 still 65 mHa -- and NOT variational.  Cost: water LDA SCF 0.14 s → 2.8 s (20x); 100/35 would buy ~1 μHa/atom
+for 1.75x more.  60/17 measured as good on these four (≤ 18 μHa/atom, 1/3 the cost) but non-monotone at the 50 μHa level
+(F₂ 80/23 +74 μHa), so the default is the controller's 80/29.
+
+Every moved anchor, re-judged against PySCF (`scripts/pyscf_molecule_oracle.py`: exact J and XC, the same Cartesian dzvp, 200/590 grid; PySCF HF reproduces our
+HF water and O₂ anchors to 1e-8, so basis and geometry are identical):
+
+| anchor | 30/5 (old) | 80/29 (new) | 150/35 | PySCF exact | new − PySCF |
+|---|---|---|---|---|---|
+| M_Calculation.WaterLDA (+ M_DFT.WaterPolarizedLDA) | −75.932462 | −75.872652 | −75.872648 | −75.877299 | +4.65 mHa |
+| M_DFT.Water (+ WaterPolarizedSAD), Xα 0.74 | −76.149301 | −76.100897 | −76.100894 | −76.104768 | +3.87 |
+| M_DFT.WaterSpherical, Xα 0.74 | −76.148556 | −76.100121 | −76.100117 | −76.104104 (sph) | +3.98 |
+| M_DFT.N2, Xα 0.75197 | −109.217602 (pin −109.21679 at 2e-3 rel) | −109.225960 | −109.225954 | −109.227199 | +1.24 |
+| M_DFT.OxygenTripletLDA | −149.256288 | −149.263716 | −149.263710 | −149.299178 (UKS) | **+35.5** ⚠ |
+| Si2_PP_U E1 (Si pseudo-atom) | −3.759439 | −3.761718 | −3.761718 | -- | additivity |
+| Si2_PP_U E2 (Si₂, R 20) | −7.516293 | −7.523336 | −7.523443 | -- | E2−2E1 2.6 → 0.10 mHa |
+| F₂ GTH q7 valence_lowq_vb (lane G, no test) | −49.236805 | −48.192616 | −48.192561 | −48.200545 (CP2K −48.20058) | +8.0 |
+
+The closed-shell rows sit 1-5 mHa ABOVE exact: PySCF's A1_coul J-fit alone moves 2 mHa DOWN, so the fitted Vxc (`A1_exch`)
+carries it -- and the F₂ "PP route" row reads the same offset (re-attributed in OpenWork §3).  The O₂ triplet's +35.5 mHa
+(+28.3 exchange-only) is a separate defect of the POLARIZED path: new §3 row.  The 30/5 values sat 10-55 mHa BELOW exact.
+Test-side consequences: M_DFT.N2/Water drop the 2e-3 RELATIVE tolerance (0.2 Ha) that hid the mesh; M_Calculation.WaterLDA
+gains a 6 mHa PySCF oracle line; M_Sym's same-mesh invariance runs keep 30/5 explicitly (107 + 175 s on the default) and drop
+the retired Δ[F,D] gate (never met at the converged mesh's 1e-8 [F,D] wobble); OSi_PP_U gets kT 1e-4 (on a converged mesh the
+O 2p triple is exactly degenerate and integer aufbau flipped it to the cap -- 30/5's 12 directions had split it); the
+UTResponse LDA polarizability gate is 22 s on the new default (+0.6 / +1.4 / +0.7 percent vs PySCF CPKS).  A_PG_DFT (atoms vs
+NIST) unchanged in pass/fail.
+
+| **The molecular facade's default XC mesh (30 radial / Lebedev 5) is 0.5 Ha/atom off** (lane G S4, 2026-10-30) | `CalcOptions::mesh` (`src/Calculation/MoleculeSetup.C`: MHL, m 3, α 2.0, Becke 2; doc calls it "the proven molecular values" -- proven on HF only?).  F₂ LDA / GTH q7 / valence_lowq_vb: default −49.236805 vs converged −48.19259 (± 3e-5 from 80/29 up) = 1.044 Ha LOW; all-electron LDA water dzvp: −75.932462 vs −75.872652 = 60 mHa low.  Too LOW = the quadrature error is not variational; HF unaffected | recalibrate the default (80/29 converges both to < 2e-5/atom, measure the cost), gate it with an LDA molecule anchor at a converged mesh; re-judge any molecular DFT anchor banked on 30/5 (pin 10) · lane B · `src/Calculation/MoleculeSetup.C` |
+
+## ✅ "Molecular PP route is 4 mHa/atom off CP2K on F₂" and "Molecular POLARIZED DFT is 35 mHa above PySCF on the O₂ triplet" — VERDICT 2026-10-31 (lane B, the δ-fit gate)
+
+Neither route is defective.  Both numbers are the molecular A1 Gaussian FIT, in two parts: (1) the A1 Vxc fit, (2) the fit
+bases' missing D shells (`LegacyMerge`, now OpenWork §3 "The molecular FIT bases drop their D shells").  The instrument was the new
+δ Vxc fit basis on the molecular path (`DeltaFit_IBS<double>`, `CalcOptions::vxcFit = Delta`): exact XC on the mesh, so with the
+SAME A1_coul Coulomb fit our energy must equal PySCF's density-fit route.  Measured (80/29; δ mesh-converged to < 1 μHa by 300/35;
+energies in Ha, PySCF from `scripts/pyscf_molecule_oracle.py`):
+
+| case | A1 (today) | δ (today) | A1, D kept | δ, D kept | PySCF A1_coul J-fit | PySCF exact |
+|---|---|---|---|---|---|---|
+| H₂O LDA dzvp | −75.872652 | −75.883203 | −75.880837 | −75.879455 | −75.879447 | −75.877299 |
+| H₂O Xα 0.74 | −76.100897 | −76.110816 | −76.108315 | −76.106988 | −76.106980 | −76.104768 |
+| N₂ Xα 0.75197 | −109.225960 | −109.248504 | −109.221696 | −109.228113 | −109.228107 | −109.227199 |
+| F₂ GTH q7 vb | −48.192616 | −48.264376 | −48.197111 | −48.201937 | −48.201880 | −48.200545 (CP2K −48.20058) |
+| O₂ LDA triplet | −149.263716 | −149.305761 | −149.301882 | −149.300684 | −149.300675 | −149.299178 |
+| O₂ Xα 0.7 triplet | −148.902318 | −148.937147 | −148.933472 | −148.932130 | −148.932120 | −148.930624 |
+
+("D kept" = the fit bases read with `KeepEachL`, an experiment, NOT landed: it breaks the Si pseudo-atom -- see the new row.)
+With the D shells kept the δ route is PySCF's to 6-10 μHa (57 μHa on F₂): the molecular PP operators and the polarized machinery
+are right.  The O₂ triplet's 35 mHa excess was the A1 per-spin Vxc fit on a d-less fit basis; with D kept, A1 is within 1-6 mHa
+of PySCF on every case (the A1 Vxc-fit error proper).  The N₂ per-term check (δ, today): E_xc −13.39074 vs PySCF −13.39001, the
+Hartree energy 26 mHa below -- the Coulomb fit, not XC.
+
+COST, δ vs A1 (single thread, SCF wall / iterations; "today" | "D kept"):  H₂O LDA 2.67/13 vs 2.84/13 | 2.36/12 vs 2.80/12;  H₂O Xα
+8.30/39 vs 3.32/16 | 2.71/14 vs 3.87/17;  N₂ 1.09/6 vs 1.11/6 | 1.10/6 vs 1.46/6;  F₂ 1.97/8 vs 1.75/8 | 1.97/8 vs 2.13/8;  O₂ LDA
+10.0/22 vs 7.9/16 | 13.5/28 vs 14.7/24;  O₂ Xα 10.2/25 vs 19.8/41 | 15.6/29 vs 15.7/25.  Per iteration δ costs the same as A1 or
+less on these molecules at 80/29.  The molecular DEFAULT stays A1 (Auto) in this chunk -- the user's call (pin 30 keeps A1 either way).
+
+| **Molecular PP route is 4 mHa/atom off CP2K on F₂** (lane G S4, 2026-10-30; RE-ATTRIBUTED lane B 2026-10-31: probably NOT the PP) | PySCF with the SAME GTH-PADE-q7 + valence_lowq_vb, EXACT J and XC (no fit), gives −48.200545 (lda,vwn): CP2K's −48.20058 to 37 μHa, so the PP data and basis agree across two codes.  Ours −48.19256 (converged mesh) is 8.0 mHa ABOVE -- the same sign and size as all-electron water with NO PP (+4.65 mHa above PySCF exact, +6.8 above PySCF's A1_coul J-fit route): the DGauss A1 fitted-Vxc route (`A1_exch`), which the crystal route (GPW, no A1 fit) does not use.  Closed-shell sizes: water LDA +4.65, water Xα +3.9, N₂ Xα +1.2, F₂ +8.0 mHa | split the molecular E_xc: evaluate E_xc of the converged density ON THE GRID (no Vxc fit) beside the fitted value -- if that closes the 8 mHa the row becomes 'the fitted-Vxc route is 1-4 mHa/atom high', else gate E_loc/E_NL on the isolated F atom as first planned · oracle `scripts/pyscf_molecule_oracle.py` · `~/Code/cp2k-runs/F2/` |
+
+| **Molecular POLARIZED DFT is 35 mHa above PySCF on the O₂ triplet** (lane B, 2026-10-31) | dzvp O₂ (R 2.282 bohr), multiplicity 3, converged mesh: LDA −149.263716 vs PySCF UKS lda,vwn exact −149.299178 (+35.5 mHa; +37.0 vs its A1_coul J-fit); exchange-only Xα 0.7 −148.902318 vs −148.930624 (+28.3) -- so exchange/fit, not VWN.  Our UHF triplet = PySCF to 1e-8 (state, basis, geometry fine); closed-shell water carries only +4 mHa, so ~30 mHa is the POLARIZED path (`FittedVxcPol`, the per-spin fit) | same split as the F₂ row: grid E_xc of the converged spin densities vs the fitted value; then the per-spin Vxc fit against a closed-shell ζ=0 run of the same molecule · oracle `scripts/pyscf_molecule_oracle.py`; `IntegrationTests/M_DFT.C` OxygenTripletLDA carries the ⚠ |
+
+## ✅ "The molecular FIT bases drop their D shells" (D-FIT-MERGE) + the δ Vxc DEFAULT — DONE 2026-10-31 (lane B, f8e5848d)
+
+**User ruling 2026-10-31: "δ default, A1 kept."**  The molecular and atom Vxc default is the δ basis (exact XC quadrature on
+the run's own mesh); the fitted auxiliary basis stays selectable as `VxcFit::Auxiliary` (A1 Gaussians on a molecule, the radial
+set on an atom) -- pin 30 keeps it as a strategy that holds the framework honest.  The numbers behind the ruling are the δ-vs-A1
+table above.  `PseudoAtomOrbital` (the +U projector every +U solid consumes) STATES `Auxiliary`, so no +U anchor moves; the SAD /
+IonicSAD seeds use the stored atomic densities and never run an atom SCF; ValenceBasisGen follows the default (an offline accuracy
+tool: its UTs pass unchanged).
+
+**D-FIT-MERGE.**  `ReadShells` has one rule for every Gaussian basis: a shared-exponent shell of another l is its own block;
+`ShellMerge::LegacyMerge` is deleted.  N₂'s A1_coul now loads 68 functions (it loaded 32), UT
+`Gaussian94Reader.TheFitBasesCarryEveryShellOfTheirFile`.  The Si fit metrics are well-conditioned with the D shells (normalised
+min eigenvalue 1.2e-4 Coulomb, 2.7e-3 overlap): no conditioning rule was needed.  The "Si₂ size-consistency 0.0026 → 0.024 Ha" that
+kept the merge was an ill-posed SCF: Si 3p² at integer occupation has no fixed point -- PySCF agrees with EXACT integrals -- and only
+the d-less (spherical) Hartree hid it.  Degenerate open shells (the Si pseudo-atom, the O-Si quintet, the smeared O₂ singlet of
+panel case 11) run at **kT 1e-2**, stated at each test: kT 1e-4 / 1e-3 slosh under DIIS, GDM and Ladder alike once the Hartree is
+anisotropic (the rule GPW_SiBox already stated for the box).  Si₂ additivity at 20 bohr has no converging recipe (nor in PySCF):
+an OpenWork §3 row; its routing check reads Enn on a bounded run.  Panel case 11's iteration budget 33 → 55 (46 measured at
+kT 1e-2) -- lane A's panel, flagged.
+
+**THE ANCHORS, judged once (pin 10).**  Independent route: PySCF with the SAME A1_coul Coulomb fit and exact XC
+(`scripts/pyscf_molecule_oracle.py`); for the atoms, CP2K's ATOM code.
+
+| gate | before | now | independent route | Δ |
+|---|---|---|---|---|
+| M_Calculation.WaterLDA (+ M_DFT.WaterPolarizedLDA) | −75.8726517 | −75.8794551 | −75.8794474 | 8 μHa |
+| M_DFT.Water (+ WaterPolarizedSAD), Xα 0.74 | −76.1008972 | −76.1069880 | −76.1069799 | 8 μHa |
+| M_DFT.WaterSpherical | −76.1001208 | −76.1075981 | −76.1075818 (Cartesian aux) | 16 μHa |
+| M_DFT.N2, Xα 0.75197 | −109.2259604 | −109.2281129 | −109.2281074 | 6 μHa |
+| M_DFT.OxygenTripletLDA | −149.2637158 | −149.3006843 | −149.3006746 | 10 μHa |
+| M_DFT.F2_PP (was the δ gate −48.264376) | -- | −48.2019367 | −48.2018797 (CP2K −48.20058) | 57 μHa |
+| M_DFT.WaterLDA_AuxiliaryFit (A1) | -- | −75.8808369 | −75.8794474 | −1.39 mHa |
+| M_DFT.OxygenTripletLDA_AuxiliaryFit (A1) | -- | −149.3018824 | −149.3006746 | −1.21 mHa |
+| M_DFT.F2_PP_AuxiliaryFit (A1) | -- | −48.1971113 | −48.2018797 | +4.77 mHa |
+| Si_PP_U.Medium (Slater atom) | −3.7470781 | −3.7470398 | CP2K ATOM −3.747045 | 5 μHa (was 33) |
+| Si_PP_U.Polarized | −3.7733032 | −3.7732782 | -- | |
+| O_PP_U.SlaterHigh | −15.7478640 | −15.7478193 | CP2K ATOM −15.748119 | 300 μHa (was 255) |
+| Si2_PP_U E1 (Si atom) | −3.7617185 (unsmeared artefact) | A −3.7818599, E −3.743669 (kT 1e-2) | −3.7436684 (smeared) | 1 μHa |
+| GPW_O2Box finite twin (δ) | −30.0116800 | −29.9994810 | −29.9994536 (CP2K box −29.998761) | 27 μHa |
+| GPW_MnBox finite twin (δ) | −14.6382750 | −14.6365281 | GPW box −14.6380455 / converged −14.63650 | 1.5 / 0.03 mHa |
+| GPW_SiBox finite twins | −3.7617 (unsmeared) | internal −3.743669 (kT 1e-2) | -- | |
+
+Also: the LDA FD polarizability (UTResponse) is 0.6 / 0.4 / 0.1 percent from PySCF CPKS (was 0.6 / 1.4 / 0.7); its GMRES tol is 1e-8
+(the h = 1e-4 FD noise floor sits just above 1e-9 with the larger fit basis).  Measured in a scratch tree: ITMain molecular / atom /
+PP / box set 156/156, UTCalculation 96/96, UTGaussian_BS 85/85, UTResponse LDA/HF 2/2; the solid anchors are the landing sweep's.
+
+| **The molecular FIT bases drop their D shells: the Coulomb fit is 4-62 mHa LOW** (lane B 2026-10-31, the δ-fit gate; promoted from CleanCode D-FIT-MERGE) | `ReadShells(..., ShellMerge::LegacyMerge)` (`src/BasisSet/Gaussian/Point/Reader.C`) never adds a new l to a shared-exponent radial, and every A1 file has `SP` + `D` shells on the SAME exponents: N₂'s A1_coul loads 32 functions, not 68.  MEASURED with the δ Vxc route (exact XC on the mesh) against PySCF with the SAME A1_coul Coulomb fit: LegacyMerge -3.8 (H₂O) / -20 (N₂) / -62 (F₂ q7) mHa; KeepEachL 6-10 μHa (H₂O, N₂, O₂ triplet) and 57 μHa (F₂) -- quadrature level.  BUT KeepEachL breaks the Si pseudo-atom (sipp, A1 and δ alike: 100 iterations unconverged, E -3.7436 vs -3.7617) and Si₂ (E -2.4 / -5.6): the old 'size-consistency' symptom is a Si-specific CD-fit pathology, still unexplained | diagnose the Si fit (conditioning of the A1_coul Si block's Coulomb metric with its d shells; ConstrainedFF) before flipping the fit merge; then re-anchor every molecular DFT test against `scripts/pyscf_molecule_oracle.py` · CleanCode D-FIT-MERGE |
+
+## ✅ "The SCF iteration row has two homes" — DONE 2026-10-31 (lane B)
+
+ONE `IterationRow{iteration, cells, eb}` per iteration, built from the ONE column list (`tSCFIterator::RowColumns`) the
+console formats: the invariant frame (Etotal, [F,D], ρ_mix, accel, svMin, cfg, gap, m_site) became `ColumnData` cells beside
+the variable ones (their text writers are the old fixed writers' exact output), and `ColumnData` gained the cell's number and
+plot scale.  The observer receives `IterationCell{title, tolerance, value (NaN for a "----"), text (padding stripped), scale}`
+for every column, in display order; `IterationRow::ValueOf(title)` reads one by name.  Built when the run prints OR observes.
+`SCFProgress` is retired with no shim, and its absolute |ΔE| with it (the row is exactly the console's, controller ruling): the
+GPW harness computes its own.  Byte-identical console proven by goldens committed BEFORE the refactor
+(`SCFTrace.MolecularConsoleIsByteIdentical`, `SCFTrace.SolidConsoleIsByteIdentical`: the trace block plus the tables printed after
+it, which inherit the stream state the rows leave) and `SCFTrace.TheObserverReceivesTheConsoleRow` (titles in header order, each
+cell text in its console line).  The console HEADER lines are still written by their own writers (unchanged, byte-identical) --
+the row's cells carry the same titles.  ⚠ `pybind/qchem_bridge.cpp` still names `SCFProgress` (2 sites): lane G migrates the
+bridge (flagged).  The ρ_lost/N "dead column" row is untouched: that column is one list entry, so if it goes, it goes from both.
+
+| **The SCF iteration row has two homes** (lane G, 2026-10-31; for the GUI's live per-column plots, user 2026-10-31) | the console row (`IterationTrace` / `DisplayColumns`, molecular and solid layouts) and the observer's `SCFProgress{iteration, energy, dE, commutator, drho, order, eb}` are separate: the observer lacks Δ[F,D], ρ_lost/N, the XC-ρ flag, virial, ρ_mix, accel, svMin, cfg, gap/HOMO/LUMO and every column's title/tolerance; its `dE` is absolute while the solid console's is ΔE/E; the trace is built only under `Verbose` | ONE `IterationRow{iteration, cells[{title, tol?, value, text, scale}], eb}` built once per iteration when Verbose OR an observer is set; `DisplayColumns` formats it, the observer receives it; `SCFProgress` retired (≈23 consumers incl. pybind, which lane G migrates); the absolute \|ΔE\| is DROPPED (the row is exactly the console's).  Lane B, after `deck::Build`; design in lane G's note `lane-g-iteration-row.md` · `src/SCFIterator/Imp/SCFIterator.C` |
+
+### anchordiff double-counts a solid stage's iterations (X; closed 2026-10-31, lane B)
+
+`scripts/anchordiff` summed every `iters=` a test printed.  A `SolidCalculation` stage prints it TWICE: the result line
+(`[label] CONVERGED iters=N ...`) and the per-stage summary (`[label stage k/n] kT=... iters=N A=E-TS=...`).  A test
+that gained a stage summary between two sweeps therefore read as a doubled iteration count -- the 8ab42909 panel's only
+"move" (a MnO2 resume, 5 -> 10) was this, not the SCF.  Fix: lines matching ` stage \d+/\d+\] ` are not counted (the result
+line always prints).  Both logs are parsed by the same rule, so old baselines stay comparable.
+
+## ✅ "CP2K oracle: is `ADDED_MOS` converged on the smeared TMO decks?" (lane G 2026-10-30) -- CLOSED 2026-10-31 (lane H); the row as it stood
+
+| **CP2K oracle: is `ADDED_MOS` converged on the smeared TMO decks?** (lane G 2026-10-30) | the GUI's CP2K translator first sized `ADDED_MOS` at 16 vs the banked MnO AFM-II +U deck's 20 and came out 15 μHa high: too few added MOs truncate the Fermi-Dirac occupations.  Nobody has shown 20 is itself converged | re-run the banked smeared decks (MnO, NiO, β-MnO₂ +U) at 2× `ADDED_MOS`; a move > 1 μHa re-banks per pin 10 · `doc/Records/CP2Kresults.md` |
+
+**Verdict.**  MnO AFM-II GPW VA (kT as banked), `~/Code/cp2k-runs/MnO_AFM2/`:
+
+| deck | EPS_SCF | ADDED_MOS | steps | E (Ha) | E_U (Ha) |
+|---|---|---|---|---|---|
+| U = 0 | 1e-6 | 20 (banked) | 44 | −61.30332518 | — |
+| U = 0 | 1e-6 | 40 | 44 | −61.303325178 | — |
+| +U 4 eV | 1e-6 | 16 (GUI, r001) | — | −60.6859558 | — |
+| +U 4 eV | 1e-6 | 20 (banked) | 104 | −60.68597088 | 0.60950923 |
+| +U 4 eV | 1e-6 | 40 | 103 | −60.68595142 | 0.60950893 |
+| +U 4 eV | 1e-8 | 20 | 136 | **−60.68588816** | 0.60950778 |
+| +U 4 eV | 1e-8 | 40 | 117 | −60.68588676 | 0.60950785 |
+
+U = 0 does not move at 2× ADDED_MOS.  At EPS_SCF 1e-6 the +U SCF (Broyden) stops on a ±15 μHa step-to-step oscillation, so the 16/20/40 spread does not follow ADDED_MOS; tightened to 1e-8, 20 and 40 agree to 1.4 μHa and both sit **83 μHa above the banked value**.  Re-judged per pin 10 against our own route (`GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long`, dE = 0.6174645): 110 μHa from the banked CP2K shift, 27 μHa from the tight one -- the independent route supports the move, so the +U anchor is re-banked at the 1e-8 ADDED_MOS 20 value (same deck as banked, EPS_SCF only) in `CP2Kresults.md` and `IntegrationTests/GPW/MnO.C` (gate tolerance 0.05 Ha, unchanged).  NiO has no banked CP2K energy; β-MnO₂'s oracle is QE (no CP2K deck) -- nothing else to re-run.  Lesson for the translator: a +U CP2K oracle quoted at μHa needs EPS_SCF ≤ 1e-8.
+
+
+### Closed 2026-10-31 (lane A): GPW verdict lines repeat every SCF refresh
+
+| **GPW verdict lines repeat every SCF refresh** (lane A, 2026-10-31) | Al fcc k222 smeared (`VALENCE_LOWQ_SR`): the `[grid audit] UNDER: V_loc long` verdict prints ~10× (once per iteration, as a console line + its `·` progress twin); the verdict is a property of the raster, fixed at setup | emit it once at setup (pin: emit contemporaneously with the activity, and the activity is the sizing) · `src/BasisSet/Gaussian/Lattice/Imp/GPW_Evaluator.C` |
+
+**✅ FIXED f3f6ccdc:** `EmitGridAudit` speaks once per run report (the first k-block evaluator; the raster is k-independent): Al fcc k222 8 identical `UNDER: V_loc long` lines → 1.  The same commit has `gridAudit` state the reference raster's verdicts (its fence spans the reference's lazy first evaluation).

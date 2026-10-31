@@ -30,6 +30,9 @@ public:
     virtual hmat_t<double>  GetMatrix(const tobs_t<double>*,const Spin& S,const tChargeDensity<dcmplx>*,
                                       const tbs_t<dcmplx>* wholeBasis) const;
     virtual EnergyBreakdown GetTotalEnergy  (const tDM_CD<T>* ) const;
+    virtual std::vector<TermEnergy>     MakeTermEnergies(const tDM_CD<T>*) const override;
+    virtual std::vector<hmat_t<T>>      MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const override;
+    virtual std::vector<hmat_t<double>> MakeTermMatrices(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const override;
     virtual SpinGroup       GetSpinGroup() const {return itsSpinGroup;}
     virtual bool            IsRelativistic() const {return itsIsRelativistic;}
     //! CONJUNCTIVE over the terms -- see the base declaration.  One non-Coulombic term (a PP) invalidates

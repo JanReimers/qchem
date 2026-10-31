@@ -8,7 +8,13 @@
 // Migrated off the QchemTester/TestMolecule scaffold (OpenWork D).  The facade auto-selects the SAD seed
 // AND DIIS-from-start for DFT (CalcOptions: model is DFT -> EMax=100 so the [F,D] gate never blocks DIIS),
 // which is exactly the DIIS_FromStart + SAD recipe the scaffold set by hand here -- so anchors are
-// byte-for-byte the scaffold values; the default mesh matches TestMolecule::GetMeshParams() exactly.
+// byte-for-byte the scaffold values.
+//
+// RE-ANCHORED TWICE on 2026-10-31 (lane B), each move judged per pin 10 against PySCF (scripts/pyscf_molecule_oracle.py):
+//   1. the CONVERGED default XC mesh (MHL 80 / Lebedev 29; 30 / 5 was 20 mHa/atom low on water);
+//   2. the fit bases keep their D shells (they dropped them: the Coulomb fit 4-62 mHa low) AND the Vxc default is the δ basis
+//      (user ruling "δ default, A1 kept").  The INDEPENDENT ROUTE is PySCF with the SAME A1_coul Coulomb fit and exact XC: the
+//      default (δ) anchors sit on it to 6-16 μHa.  The A1 Vxc fit (VxcFit::Auxiliary) keeps its own gates below, 1-6 mHa off.
 #include "gtest/gtest.h"
 #include <cmath>
 #include <stdexcept>
@@ -42,7 +48,10 @@ static Molecule MakeO2()         // O2 at the experimental bond length ~1.208 An
 TEST(M_DFT, N2)
 {
     Calculation calc(MoleculeSetup::Resolve(MakeN2(), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.75197}));
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -109.21679)), 2e-3);
+    // δ default, D shells kept: -109.228113.  Was -109.225960 (A1 Vxc fit, d-less Coulomb fit) and -109.21679 at 2e-3 RELATIVE
+    // (0.2 Ha!) on the 30/5 mesh.
+    EXPECT_NEAR(calc.Energy(), -109.2281129068, 1e-5);
+    EXPECT_NEAR(calc.Energy(), -109.22810738, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC";
 }
 
 TEST(M_DFT, Water)
@@ -50,8 +59,10 @@ TEST(M_DFT, Water)
     Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.74000}));
     // CONVERGED Xalpha total energy (the facade's auto DIIS-from-start): [F,D] and Δρ reach ~1e-13 by
     // ~iter 14, virial V/K = -2.006 (the correct ~-2, vs the buggy -2.11).  A true converged regression
-    // sentinel.  (Was -76.123348 interim limit-cycle, and -79.414120 stale-cache.)
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1493013984)), 2e-3);
+    // sentinel.  (Was -76.123348 interim limit-cycle, -79.414120 stale-cache, -76.149301 on the 30/5 mesh -- 48 mHa low, inside
+    // the old 2e-3 relative -- and -76.100897 on the A1 Vxc fit with a d-less Coulomb fit.)
+    EXPECT_NEAR(calc.Energy(), -76.1069880486, 1e-5);
+    EXPECT_NEAR(calc.Energy(), -76.10697987, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC";
 }
 
 // --- The spherical-Gaussian (PG_Spherical) basis through the DFT path -----------------------------
@@ -65,8 +76,10 @@ TEST(M_DFT, WaterSpherical)
 {
     Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis   = "dzvp", .model   = Model::Xalpha,
                                    .angular = Angular::Spherical, .xalpha  = 0.74000}));
-    EXPECT_NEAR(calc.Energy(), -76.1493013984, 0.05);                 // sanity: same ballpark as Cartesian
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1485556624)), 2e-3);  // CONVERGED anchor (DIIS from start)
+    EXPECT_NEAR(calc.Energy(), -76.1069880486, 0.05);                 // sanity: same ballpark as Cartesian
+    // CONVERGED anchor (δ default, D shells kept).  PySCF spherical dzvp with the Cartesian A1_coul J-fit: -76.10758175 (16 μHa;
+    // our spherical fit basis is the spherical view, so not the identical aux set).  0.6 mHa BELOW the Cartesian.
+    EXPECT_NEAR(calc.Energy(), -76.1075980849, 1e-5);
 }
 
 // Polarized Xalpha water through the facade's DEFAULT (auto SAD) seed.  This used to SEGFAULT: the SAD seed
@@ -81,22 +94,22 @@ TEST(M_DFT, WaterPolarizedSAD)
     // Polarized water Xalpha is the oscillatory case (commutator ~2-4; see M_Sym RunDFT) -- it needs more
     // iterations + damping than the facade's quick default, so re-Converge with tight params (DIIS already
     // drives from the start for DFT).
-    calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
-                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1493013984)), 2e-3);   // == the unpolarized Xalpha anchor
+    ASSERT_TRUE(calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
+    EXPECT_NEAR(calc.Energy(), -76.1069880486, 1e-5);   // == the unpolarized Xalpha anchor
 }
 
 // Spin-native (polarized) parameter-free LDA water (Dirac exchange + spin-native VWN5 correlation) through
 // the facade's auto SAD seed -- OpenWork B2: Ham_DFTcorr_P + FittedVcorrPol.  Water is closed shell, so at
 // convergence zeta=0 everywhere and the polarized run must collapse to the UNPOLARIZED LDA anchor
-// (M_Calculation.WaterLDA = -75.9324615507).  This exercises the new polarized correlation term end to end:
+// (M_Calculation.WaterLDA = -75.8794551).  This exercises the new polarized correlation term end to end:
 // the SAD-seed fallback (rho_up=rho_down=rho/2), the per-spin v_c^sigma fit, and the two-channel E_c.
 TEST(M_DFT, WaterPolarizedLDA)
 {
     Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA, .spin = SpinGroup::Polarized}));
-    calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
-                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
-    EXPECT_NEAR(calc.Energy(), -75.9324615507, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
+    ASSERT_TRUE(calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
+    EXPECT_NEAR(calc.Energy(), -75.8794551388, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
 }
 
 // OPEN-SHELL through the facade multiplicity knob (OpenWork B4): triplet O2 (16 e-, multiplicity 3 =>
@@ -107,9 +120,12 @@ TEST(M_DFT, WaterPolarizedLDA)
 TEST(M_DFT, OxygenTripletLDA)
 {
     Calculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 3}));
-    calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
-                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
-    EXPECT_NEAR(calc.Energy(), -149.2562876393, 1e-4);   // converged spin-native LDA triplet (regression anchor)
+    ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
+    // Converged spin-native LDA triplet (δ default, D shells kept).  Was -149.263716 on the A1 per-spin Vxc fit with a d-less
+    // Coulomb fit -- 35.5 mHa above PySCF exact, which a row once blamed on the polarized machinery; it was the fit.
+    EXPECT_NEAR(calc.Energy(), -149.3006843396, 1e-4);
+    EXPECT_NEAR(calc.Energy(), -149.30067460, 1e-4) << "ORACLE: PySCF UKS, the same A1_coul Coulomb fit, exact XC";
 }
 
 // REGRESSION for the O2-HF-triplet SEGV: the polarized level display (tCompositeWF::DisplayEigenPolarized) crashed on
@@ -119,8 +135,8 @@ TEST(M_DFT, OxygenTripletLDA)
 TEST(M_DFT, OxygenTripletHF_VerboseDisplay)
 {
     Calculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::HF, .multiplicity = 3}));
-    calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
-                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true});   // Verbose => DisplayEigen (the crash path)
+    ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true}));   // Verbose => DisplayEigen (the crash path)
     EXPECT_NEAR(calc.Energy(), -149.6295470276, 1e-4);   // converged HF triplet O2
 }
 
@@ -129,18 +145,24 @@ TEST(M_DFT, OxygenTripletHF_VerboseDisplay)
 // collapsed to closed shell -- the failure mode B3/B4 exist to prevent.
 TEST(M_DFT, OxygenTripletBelowSinglet_Panel)   // PANEL case 11: a degenerate partly filled level (smeared singlet)
 {
-    qchem::IterationBudget budget(33, "O2 triplet + smeared singlet (molecular, degenerate pi*; 26 measured, 2026-10-29 panel baseline)");
+    qchem::IterationBudget budget(55, "O2 triplet + smeared singlet (molecular, degenerate pi*; 46 measured at kT 1e-2, 2026-10-31 -- "
+                                      "was 26 at kT 1e-4 with the d-less Coulomb fit)");
     // The closed-shell SINGLET has two electrons for the exactly degenerate pi*x / pi*y pair: a single integer determinant
-    // flips them between the two every iteration and never converged (2026-10-29, the cap guard).  A tiny smearing occupies
-    // the pair EVENLY (equal fractions at any kT for a degenerate level) -- the symmetric closed-shell singlet, still above
-    // the triplet by the exchange the triplet gains.  Integer occupations for the triplet (pi*x up, pi*y up: no tie).
+    // flips them between the two every iteration and never converged (2026-10-29, the cap guard).  A smearing occupies the
+    // pair EVENLY -- the symmetric closed-shell singlet, still above the triplet by the exchange the triplet gains.  kT 1e-2,
+    // NOT a fudge (2026-10-31): an exactly degenerate open shell has no integer-aufbau fixed point, and kT must exceed the
+    // splitting the anisotropic Hartree re-opens -- kT 1e-4 converged only while the fit basis lacked its D shells (a spherical
+    // Hartree); with them it sloshes at kT 1e-4 and 1e-3 under DIIS, GDM and Ladder alike ("smear wider than the splitting you
+    // are curing", GPW_SiBox).  Compared on the INTERNAL energy E = A - (-TS), the free energy's entropy left out.
+    // Integer occupations for the triplet (pi*x up, pi*y up: no tie).
     auto run = [](int mult) {
         SCFParams p{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinVirial = 1e2, .MinFD = 1e-7,
                     .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false};
-        if (mult==1) p.SmearingkT=1e-4;
+        if (mult==1) p.SmearingkT=1e-2;   // open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT"
         Calculation c(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = mult}), p);
         EXPECT_TRUE(c.IsConverged()) << "multiplicity " << mult;
-        return c.Energy();
+        const auto E=c.EnergyTerms();
+        return E.GetTotalEnergy()-E["MinusTS"];   // the internal energy (the -TS of a smeared run left out; 0 for the triplet)
     };
     const double triplet = run(3);   // nUp=9, nDown=7  (SpinGroup::Polarized, auto)
     const double singlet = run(1);   // nUp=8, nDown=8  (closed shell)
@@ -153,4 +175,52 @@ TEST(M_DFT, BadMultiplicityThrows)
 {
     EXPECT_THROW(Calculation(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "sto-3g", .model = Model::LDA, .multiplicity = 2})),
                  std::runtime_error);
+}
+
+// THE AUXILIARY Vxc FIT (VxcFit::Auxiliary -- the Gaussian A1 set), kept as a strategy since δ became the default (user ruling
+// "δ default, A1 kept"; pin 30: it keeps the ONE XC term honest over every fit basis).  The same FittedVxc consumes it through
+// the fit face.  Its error is the A1 fit of v_xc AND eps_xc: 1-6 mHa against PySCF with the SAME A1_coul Coulomb fit and exact XC.
+static Molecule MakeF2()   // ~/Code/cp2k-runs/F2 geometry (bohr)
+{
+    Molecule m;
+    m.Insert(new Atom(9, 0, Vector3D<double>(0, 0, -1.3343)));
+    m.Insert(new Atom(9, 0, Vector3D<double>(0, 0,  1.3343)));
+    return m;
+}
+
+TEST(M_DFT, WaterLDA_AuxiliaryFit)
+{
+    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
+                                                                                       .vxcFit = Hamiltonian::VxcFit::Auxiliary}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -75.8808368818, 1e-5);   // anchor
+    EXPECT_NEAR(calc.Energy(), -75.87944736, 3e-3) << "ORACLE: PySCF A1_coul J-fit route; the gap (-1.4 mHa) is the A1 Vxc fit";
+}
+
+TEST(M_DFT, OxygenTripletLDA_AuxiliaryFit)
+{
+    Calculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 3,
+                                                       .vxcFit = Hamiltonian::VxcFit::Auxiliary}));
+    ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                               .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
+    EXPECT_NEAR(calc.Energy(), -149.3018824495, 1e-4);   // anchor
+    EXPECT_NEAR(calc.Energy(), -149.30067460, 3e-3) << "ORACLE: PySCF UKS A1_coul J-fit route; the gap (-1.2 mHa) is the A1 Vxc fit";
+}
+
+// F2 GTH q7 (the case the "Molecular PP route is 4 mHa/atom off CP2K" row was filed on) on BOTH routes: the δ default is CP2K's
+// number to 1.4 mHa (PySCF's own A1_coul J-fit route to 57 μHa) -- the PP route was never the defect.
+TEST(M_DFT, F2_PP)
+{
+    Calculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .pp = "gth-lda-valence"}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -48.2019366975, 1e-5);   // anchor (δ default)
+    EXPECT_NEAR(calc.Energy(), -48.20187971, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC (CP2K -48.20058)";
+}
+TEST(M_DFT, F2_PP_AuxiliaryFit)
+{
+    Calculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .vxcFit = Hamiltonian::VxcFit::Auxiliary,
+                                                       .pp = "gth-lda-valence"}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -48.1971112700, 1e-5);   // anchor
+    EXPECT_NEAR(calc.Energy(), -48.20187971, 7e-3) << "ORACLE: PySCF A1_coul J-fit route; the gap (+4.8 mHa) is the A1 Vxc fit";
 }

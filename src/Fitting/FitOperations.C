@@ -47,7 +47,11 @@ template <class T> inline rvec_t OrthogonalFit(const BasisSet::FIT_SF_ABS<T>& b,
     const vec_t<T> p=b.Overlap(f), d=b.OverlapDiagonal();
     assert(p.size()==d.size() && "OrthogonalFit: one projection and one metric entry per fit function");
     rvec_t c(p.size());
-    for (size_t a=0; a<p.size(); a++) c[a]=blazem::real(p[a])/blazem::real(d[a]);
+    // A function with ZERO self-overlap is the zero function: no coefficient can change the fit, so it gets 0 (the
+    // minimum-norm choice) rather than 0/0.  Real on the molecular δ basis -- the Becke partition gives ~1% of a molecule's
+    // mesh points an exactly-zero weight (906 of 72250 on water at 80/29), and a NaN coefficient there poisoned the whole
+    // Fock matrix through w_g*c_g (2026-10-31); no periodic mesh has one, so that path is bit-identical.
+    for (size_t a=0; a<p.size(); a++) c[a] = blazem::real(d[a])==0.0 ? 0.0 : blazem::real(p[a])/blazem::real(d[a]);
     return c;
 }
 

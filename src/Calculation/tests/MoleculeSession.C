@@ -11,6 +11,7 @@ import qchem.StructureData;
 import qchem.Structure;
 import qchem.SCFParams;
 import qchem.Types;
+import qchem.SCFCap;   // BoundedSCF: the SCF-failure arm
 
 using namespace qchem;
 using StructureData::GetMolecule;
@@ -70,4 +71,19 @@ TEST(MoleculeSession, RefusalsAreOutcomesAndAWrongCountThrows)
     EXPECT_THROW((void)pes.ConvergeAt(std::nullopt, {R[0]}), std::invalid_argument);
     rmat3d_t box; for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) box(i,j)= i==j ? 20.0 : 0.0;
     EXPECT_THROW((void)pes.ConvergeAt(box, R), std::invalid_argument) << "a molecule has no cell";
+}
+
+// A point whose SCF fails is Why::SCF CARRYING the SCF's own failure (the shared SCFFailure, 2026-10-31), so a driver can see
+// why and retry with another recipe.
+TEST(MoleculeSession, AnSCFFailureIsAnOutcomeCarryingTheSCFsOwnReason)
+{
+    qchem::BoundedSCF bounded("the failure arm is the subject: one iteration cannot converge water");
+    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), {.NMaxIter=1});
+    auto F=pes.ConvergeAt(std::nullopt, pes.Reference().R);
+    ASSERT_FALSE(F);
+    EXPECT_EQ(F.Error().why, PESFailure::Why::SCF);
+    ASSERT_TRUE(F.Error().scf.has_value());
+    EXPECT_EQ(F.Error().scf->why, SCFFailure::Why::NotConverged);
+    EXPECT_EQ(F.Error().scf->iterations, 1u);
+    EXPECT_EQ(F.Error().details, F.Error().scf->details);
 }

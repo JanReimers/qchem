@@ -24,9 +24,10 @@ import qchem.BasisSet;             // BasisSet::Real_BS
 import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, IsDFT, the unified resolver
 export import qchem.MoleculeSetup; // CalcOptions + the resolved MoleculeSetup a run is built from (step 7)
 export import qchem.PotentialEnergySurface;   // the face MoleculeSession implements (step 8)
+export import qchem.SCFFailure;               // SCFFailure: the failure half of the Outcome door (shared with the solid facade)
 import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ElectronConfiguration;// ElectronConfiguration
-import qchem.SCFIterator;          // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
+import qchem.SCFIterator;          // SCFIterator, SCFParams, IterationRow, EnergyBreakdown
 import qchem.Symmetry.Irrep;       // Irrep
 import qchem.ChargeDensity;        // rDM_CD
 import qchem.ChargeDensity.Seed;   // SeedStrategy
@@ -40,7 +41,25 @@ class Calculation
 public:
     using sf_t       = ScalarFunction<double>;
     using orbitals_t = qchem::Orbitals::Orbitals;
-    using Observer   = qchem::SCFIterator::SCFIterator::Observer; //!< void(const SCFProgress&)
+    using Observer   = qchem::SCFIterator::SCFIterator::Observer; //!< void(const IterationRow&): the console's own cells
+
+    //! \brief PROOF that the SCF converged (2026-10-31, the molecular half of the Outcome door -- \c SolidCalculation::Converged's
+    //! twin; see its WHY).  \c Converge() and \c Result() hand one out only for a converged run, so a caller that takes its
+    //! answers from here cannot read a failed run's number.  The facade's own \c Energy() / \c Density() ... still exist beside it
+    //! (the pybind bridge and the GUI read them): moving them onto the proof is the next step, not done here.
+    //! \warning NON-OWNING, and invalidated by the next \c Converge() -- take it fresh from each attempt.
+    class Converged
+    {
+    public:
+        double                 Energy()         const;   //!< total energy (hartree)
+        qchem::EnergyBreakdown EnergyTerms()    const;
+        size_t                 IterationCount() const;
+        const sf_t&            Density()        const;   //!< rho(r) of the converged state
+    private:
+        friend class Calculation;
+        explicit Converged(const Calculation* c) : itsCalc(c) {}
+        const Calculation* itsCalc;
+    };
 
     //! \brief Build the whole graph over a RESOLVED setup (doc/CalcNetworkReview.md §7, step 7) -- the geometry point at the
     //! setup's reference structure -- and converge ONCE on \a scf.  The setup is \c MoleculeSetup::Resolve(structure, options,
@@ -55,9 +74,13 @@ public:
     Calculation(const Calculation&)            = delete;  // owns raw resources; non-copyable
     Calculation& operator=(const Calculation&) = delete;
 
-    //! Re-run the SCF (e.g. with tighter tolerances).  Invalidates references previously handed out
-    //! by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is rebuilt.
-    bool Converge(const SCFParams& params = {});
+    //! Re-run the SCF (e.g. with tighter tolerances) and hand back the ANSWERS or the REASON (it was a bool until 2026-10-31).
+    //! Invalidates references previously handed out by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is rebuilt --
+    //! and any \c Converged from an earlier attempt.  \c [[nodiscard]] via \c Outcome.
+    Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
+    //! The outcome of the attempt the CONSTRUCTOR made (it converges on construction), so a caller that never re-converges
+    //! still faces it.
+    Outcome<Converged, SCFFailure> Result() const;
 
     //! Live per-iteration telemetry.  Set BEFORE a Converge() call to observe it (the ctor's initial
     //! convergence runs before any observer can be attached).
@@ -122,6 +145,8 @@ private:
     Carry MakeCarry() const;
     std::unique_ptr<const Carry> itsCarry;   //!< consumed by the first Converge, which builds the basis it is re-homed onto
     //!@}
+    //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift.
+    Outcome<Converged, SCFFailure> Outcome_() const;
     typedef std::pair<double, const sf_t*> occ_t;   //!< (eigen-energy, orbital) for HOMO/Orbital(i)
     void RebuildSampling();   //!< after a Converge: own a fresh density + sort the occupied MOs
 

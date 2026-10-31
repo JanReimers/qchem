@@ -1,6 +1,8 @@
 // File: SCFIterator/Imp/SCFIterator.C  Partial common implementation for an object that manages SCF convergence.
 module;
 #include <optional>   // ColumnData::tolerance -- a column that gates nothing has no threshold cell
+#include <limits>     // the NaN of a cell with no number
+#include <string_view>
 #include <iostream>
 #include <cmath>
 #include <stdexcept>
@@ -335,7 +337,7 @@ template <class T> tSCFIterator<T>::~tSCFIterator() = default;
 // (R1.0h); this loop is the one actor that fires exactly once per iteration with that breakdown in hand,
 // which is why the emission lives here and not inside a sampler's cache-advance branch.  Silent when the
 // run has no atom-centred partition (empty) or nothing to say (an unpolarized density).
-// The signed site moment of largest magnitude: the order-parameter scalar (see SCFProgress::order).
+// The signed site moment of largest magnitude: the order-parameter scalar (the m_site cell).
 static double SignedMaxSiteMoment(const rvec_t& mu)
 {
     double m=0.0;
@@ -369,6 +371,9 @@ static void EmitSiteMoments(const EnergyBreakdown& eb)
 template <class T> bool tSCFIterator<T>::HandOff(const HandOffRequest& h, bool reseat)
 {
     const bool reseated = reseat && itsMixer->Reseat(*itsCD);
+    // The re-seated field is a NEW presentation, built from the current D but not yet told so: without the provenance a Fock built
+    // from it before the next Mix samples XC on the FITTED rho (pin 28; the NaF exact resume's GDM fallback read "fitted", 2026-10-30).
+    if (reseated) SeatDMSource(*itsMixer, itsCD);
     PrintHandOff(itsIterationCount, h, reseated ? " [field mixer re-seated on the current D, history dropped]" : "");
     return reseated;
 }
@@ -507,7 +512,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         // breakdown the energy pass just filled (R1.0h) -- no probe, no second sampling.
         const bool   hasOrder = eb.charge.siteMoments.size()>0;
         const double order    = SignedMaxSiteMoment(eb.charge.siteMoments);
-        if (ipar.Verbose)
+        // THE ROW (2026-10-31): built when the run prints a trace OR has an observer -- the console formats it, the observer
+        // receives it, both from the ONE column list (RowColumns).  The cfg '*' needs the previous configuration in either case.
+        std::optional<IterationTrace> tr;
+        if (ipar.Verbose || itsObserver)
         {
             // "all fields, all cheap" is a CLAIM -- HomoLumo and ConfigString both walk every irrep's
             // spectrum and occupations, once per iteration, and nothing was measuring them.
@@ -518,7 +526,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
             std::string config = ConfigString(itsWaveFunction.get());
             const GapInfo g=HomoLumo(itsWaveFunction.get());   // frontier spectrum for the gap column
             const double N=itsCD->GetTotalCharge();      // Tr(DS); normalise the grid-charge leak per electron
-            IterationTrace tr{ itsIterationCount, eb, itsMixer->GetRelax(),
+            tr=IterationTrace{ itsIterationCount, eb, itsMixer->GetRelax(),
                                itsMixer->Tag(), itsAccelerator->Tag(), itsAccelerator->Count(),
                                itsAccelerator->MinSV(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
@@ -526,11 +534,11 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
                                (N!=0.0 ? eb.charge.lost/N : 0.0), itsMixer->HasGFilter(),
                                g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole,
                                hasOrder, order };
-            DisplayColumns(cout, ipar, tr);
+            if (ipar.Verbose) DisplayColumns(cout, ipar, *tr);
             prevConfig=std::move(config);
         }
         EmitSiteMoments(eb);   // the iteration's integrated site moments, reported with the iteration
-        if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange, order, eb});
+        if (itsObserver) itsObserver(MakeRow(ipar, *tr));
         // A mixer that ADAPTS its step (the linear D-mixer's [F,D]-keyed α) is told this step's signals and may
         // re-mix the working density under us -- then the energy is recomputed HERE (the mixer is not an
         // energy service).  No second density build any more: the re-mix is algebraic on the mixed density
@@ -845,34 +853,6 @@ static void WriteHeadMixAccelCfg(std::ostream& os)     // "ρ_mix  accel  svMin 
 static void WriteThreshLead(std::ostream& os)
 { os << PadR("",W_ITER) << " " << PadR("",W_E) << " "; }
 
-// Row prefix shared by every system: # , Etotal (fixed, 12 dp), [F,D] (the accelerator's orbital gradient, its worst irrep --
-// every accelerator, Null included, measures it: OrbitalGradient in qchem.SCFAccelerator).
-template <class T> void tSCFIterator<T>::WriteRowPrefix(std::ostream& os, const IterationTrace& tr) const
-{
-    os.setf(ios::fixed,ios::floatfield);
-    os << setw(W_ITER) << tr.iteration << " ";
-    os << setw(W_E) << setprecision(12) << tr.eb.GetTotalEnergy() << " ";
-    os << std::scientific << setw(W_FD) << setprecision(2) << tr.FD << " ";
-}
-
-// The three columns common to the END of every row: ρ_mix (Lin/Ker/Pul + α), accel (tag[:count]), cfg ('*'
-// when the occupied configuration changed).  Compact, fixed-width, self-identifying (item 2).
-template <class T> void tSCFIterator<T>::WriteMixAccelCfg(std::ostream& os, const IterationTrace& tr) const
-{
-    std::ostringstream mix;                                     // ρ_mix: "Lin 1.00" -- or "----" under direct-min
-    if (tr.lineSearch) mix << "----";                           //   (GDM/OT own the density update; NO mixing)
-    else mix << tr.mixTag << " " << std::fixed << setprecision(2) << tr.relax;   // "Ker 0.45"
-    std::ostringstream acc; acc << tr.accelTag; if (tr.accelCount>0) acc << ":" << tr.accelCount;    // "DIIS:3"
-    // svMin: the DIIS history's conditioning -- what SVTol is compared against.  Judge it against the [F,D]
-    // column: B scales as [F,D]², so svMin ≪ [F,D]² is a DEPENDENT history that the absolute SVTol did not
-    // prune (see tSCFAccelerator::MinSV).  "----" when the live accelerator keeps no history.
-    std::ostringstream sv;
-    if (std::isnan(tr.accelMinSV)) sv << "----";
-    else                           sv << std::scientific << setprecision(1) << tr.accelMinSV;
-    os << " " << PadL(mix.str(),W_MIX) << " " << PadL(acc.str(),W_ACC) << " " << PadL(sv.str(),W_SV)
-       << " " << PadR(std::string(1, tr.configChanged ? '*' : ' '), W_CFG);
-}
-
 // The frontier gap column: ε_LUMO−ε_HOMO (honestly negative for a hole), with a compact flag -- 'h' a
 // non-aufbau HOLE, 'm' a partial-occupancy (near-degenerate/metallic) frontier -- else blank.
 template <class T> void tSCFIterator<T>::WriteGapColumn(std::ostream& os, const IterationTrace& tr) const
@@ -883,17 +863,6 @@ template <class T> void tSCFIterator<T>::WriteGapColumn(std::ostream& os, const 
     os << ' ' << (tr.hole ? 'h' : tr.metallic ? 'm' : ' ');
 }
 
-// The ORDER-PARAMETER column (§9): the signed max-|μ| integrated site moment of this iteration's density,
-// in FIXED notation -- the point of the column is to watch a value DECAY toward zero (or flip sign), which
-// scientific notation hides behind a shrinking exponent.  Polarized run => column; no basins => "----".
-template <class T> void tSCFIterator<T>::WriteOrderColumn(std::ostream& os, const IterationTrace& tr) const
-{
-    if (itsHamiltonian->GetSpinGroup()!=SpinGroup::Polarized) return;
-    std::ostringstream v;
-    if (tr.hasOrder) v << std::fixed << setprecision(6) << std::showpos << tr.order;
-    else             v << "----";                     // polarized, but no basins to integrate over
-    os << " " << PadR(v.str(),W_ORD);
-}
 template <class T> void tSCFIterator<T>::WriteHeadOrder(std::ostream& os) const
 {
     if (itsHamiltonian->GetSpinGroup()!=SpinGroup::Polarized) return;
@@ -908,12 +877,106 @@ template <class T> void tSCFIterator<T>::WriteHeadOrder(std::ostream& os) const
 // tolerance line.  A subclass picks the ORDER by when it delegates to its base.
 namespace {
 
+using Scale=IterationCell::Scale;
+constexpr double kNoValue=std::numeric_limits<double>::quiet_NaN();
+
+// --- THE INVARIANT FRAME (2026-10-31: these were the fixed writers WriteRowPrefix / WriteMixAccelCfg / WriteGapColumn /
+//     WriteOrderColumn; each is now one cell of the same list, its text writer the old writer's exact output, so the console
+//     is byte-identical -- SCFTrace.*ConsoleIsByteIdentical) ---------------------------------------------------------------
+//! Etotal (fixed, 12 dp).  Sets the fixed float field itself, as the old row prefix did before "#".
+ColumnData EtotalCol()
+{
+    return {"Etotal", W_E, std::nullopt,
+            [](std::ostream& os, const IterationTrace& tr)
+            {os.setf(ios::fixed,ios::floatfield); os << setw(W_E) << setprecision(12) << tr.eb.GetTotalEnergy() << " ";},
+            [](const IterationTrace& tr){return tr.eb.GetTotalEnergy();}};
+}
+//! [F,D]: the accelerator's orbital gradient, its worst irrep -- every accelerator, Null included, measures it (OrbitalGradient).
+ColumnData FDCol(const SCFParams& p)
+{
+    return {"[F,D]", W_FD, p.MinFD,
+            [](std::ostream& os, const IterationTrace& tr)
+            {os << std::scientific << setw(W_FD) << setprecision(2) << tr.FD << " ";},
+            [](const IterationTrace& tr){return tr.FD;}, Scale::Log};
+}
+//! ρ_mix: "Lin 1.00" (Lin/Ker/Pul + α) -- or "----" under direct-min (GDM/OT own the density update; NO mixing).
+ColumnData MixCol()
+{
+    return {"ρ_mix", W_MIX, std::nullopt,
+            [](std::ostream& os, const IterationTrace& tr)
+            {
+                std::ostringstream mix;
+                if (tr.lineSearch) mix << "----";
+                else mix << tr.mixTag << " " << std::fixed << setprecision(2) << tr.relax;   // "Ker 0.45"
+                os << " " << PadL(mix.str(),W_MIX);
+            },
+            [](const IterationTrace& tr){return tr.lineSearch ? kNoValue : tr.relax;}};
+}
+//! accel: tag[:count], e.g. "DIIS:3" -- the number is the count (DIIS projection depth), absent when not meaningful.
+ColumnData AccelCol()
+{
+    return {"accel", W_ACC, std::nullopt,
+            [](std::ostream& os, const IterationTrace& tr)
+            {std::ostringstream acc; acc << tr.accelTag; if (tr.accelCount>0) acc << ":" << tr.accelCount; os << " " << PadL(acc.str(),W_ACC);},
+            [](const IterationTrace& tr){return tr.accelCount>0 ? double(tr.accelCount) : kNoValue;}};
+}
+//! svMin: the DIIS history's conditioning -- what SVTol is compared against.  Judge it against the [F,D] column: B scales as
+//! [F,D]², so svMin ≪ [F,D]² is a DEPENDENT history that the absolute SVTol did not prune (see tSCFAccelerator::MinSV).
+//! "----" when the live accelerator keeps no history.
+ColumnData SvCol()
+{
+    return {"svMin", W_SV, std::nullopt,
+            [](std::ostream& os, const IterationTrace& tr)
+            {
+                std::ostringstream sv;
+                if (std::isnan(tr.accelMinSV)) sv << "----";
+                else                           sv << std::scientific << setprecision(1) << tr.accelMinSV;
+                os << " " << PadL(sv.str(),W_SV);
+            },
+            [](const IterationTrace& tr){return tr.accelMinSV;}, Scale::Log};
+}
+//! cfg: '*' when the occupied configuration changed since the previous iteration (1, else 0).
+ColumnData CfgCol()
+{
+    return {"cfg", W_CFG, std::nullopt,
+            [](std::ostream& os, const IterationTrace& tr){os << " " << PadR(std::string(1, tr.configChanged ? '*' : ' '), W_CFG);},
+            [](const IterationTrace& tr){return tr.configChanged ? 1.0 : 0.0;}};
+}
+//! gap: ε_LUMO−ε_HOMO (honestly negative for a hole) + a flag, 'h' a non-aufbau HOLE, 'm' a partial-occupancy frontier.
+ColumnData GapCol()
+{
+    return {"gap", W_GAP, std::nullopt,
+            [](std::ostream& os, const IterationTrace& tr)
+            {
+                os << " ";
+                if (tr.haveHomo && tr.haveLumo) os << std::scientific << setw(W_GAP) << setprecision(2) << tr.gap;
+                else                            os << PadR("----",W_GAP);
+                os << ' ' << (tr.hole ? 'h' : tr.metallic ? 'm' : ' ');
+            },
+            [](const IterationTrace& tr){return tr.haveHomo && tr.haveLumo ? tr.gap : kNoValue;}};
+}
+//! m_site (§9): the signed max-|μ| integrated site moment, in FIXED notation -- the point of the column is to watch a value DECAY
+//! toward zero (or flip sign), which scientific notation hides behind a shrinking exponent.  "----" with no basins.
+ColumnData OrderCol()
+{
+    return {"m_site", W_ORD, std::nullopt,
+            [](std::ostream& os, const IterationTrace& tr)
+            {
+                std::ostringstream v;
+                if (tr.hasOrder) v << std::fixed << setprecision(6) << std::showpos << tr.order;
+                else             v << "----";
+                os << " " << PadR(v.str(),W_ORD);
+            },
+            [](const IterationTrace& tr){return tr.hasOrder ? tr.order : kNoValue;}};
+}
+
 //! The gate column, molecular: a VARIATIONAL SCF drives the orbital gradient [F,D] to zero.
 ColumnData GateFD(const SCFParams& p)
 {
     return {"Δ[F,D]", W_DELTA, p.MinΔFD,
             [](std::ostream& os, const IterationTrace& tr)
-            {os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dFD << " ";}};
+            {os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dFD << " ";},
+            [](const IterationTrace& tr){return tr.dFD;}, Scale::Log};
 }
 //! The gate column, collocation: a NON-variational SCF (density-fit / GPW) limit-cycles in [F,D]/Δρ above
 //! the fit floor while the total energy is already settled, so the relative ΔE gates instead.
@@ -921,14 +984,16 @@ ColumnData GateDE(const SCFParams& p)
 {
     return {"ΔE/E", W_DELTA, p.MinΔE,
             [](std::ostream& os, const IterationTrace& tr)
-            {os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dE << " ";}};
+            {os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dE << " ";},
+            [](const IterationTrace& tr){return tr.dE;}, Scale::Log};
 }
 //! Density change -- in every layout, hence no axis of its own.
 ColumnData RhoCol(const SCFParams& p)
 {
     return {"Δρ", W_RHO, p.MinΔρPerElectron,
             [](std::ostream& os, const IterationTrace& tr)
-            {os << std::scientific << setw(W_RHO) << setprecision(2) << tr.dRho << " ";}};
+            {os << std::scientific << setw(W_RHO) << setprecision(2) << tr.dRho << " ";},
+            [](const IterationTrace& tr){return tr.dRho;}, Scale::Log};
 }
 //! The virial.  Present iff the theorem is MEANINGFUL for this Hamiltonian -- a derived bool, not a class
 //! axis (user 2026-08-12): PP-ness is not the discriminator, IsVirialValid() is, and it already answers it.
@@ -937,7 +1002,8 @@ ColumnData VirialCol(const SCFParams& p, size_t ideal)
     return {std::to_string(ideal)+"+V/K", W_VIR, p.MinVirial,
             [](std::ostream& os, const IterationTrace& tr)
             {os << std::scientific << setw(W_VIR) << setprecision(2)
-                << (tr.eb.GetVirial()+(double)tr.idealVirial) << " ";}};
+                << (tr.eb.GetVirial()+(double)tr.idealVirial) << " ";},
+            [](const IterationTrace& tr){return tr.eb.GetVirial()+(double)tr.idealVirial;}};
 }
 //! The collocation charge leak per electron.  A GRID column, NOT a PP one (user 2026-08-12): only the
 //! grid-based XC terms set GridChargeLost, and it is ∫ρ̃−Tr(DS), i.e. what a finite grid loses.  Today every
@@ -947,7 +1013,8 @@ ColumnData GridLossCol()
 {
     return {"ρ_lost/N", W_LOST, std::nullopt,
             [](std::ostream& os, const IterationTrace& tr)
-            {os << std::scientific << setw(W_LOST) << setprecision(2) << tr.gridLostRel << " ";}};
+            {os << std::scientific << setw(W_LOST) << setprecision(2) << tr.gridLostRel << " ";},
+            [](const IterationTrace& tr){return tr.gridLostRel;}, Scale::Log};
 }
 
 //! THE PIN-28 AUDIT (doc/Pins.md pin 28): which rho this iteration's V_xc was built from -- DM, cusp (N4), DMsrc,
@@ -961,7 +1028,8 @@ ColumnData XCRhoCol()
             {
                 const auto& c=tr.eb.charge;
                 os << PadR(c.xcRho.empty() ? std::string("----") : c.xcRho, W_XCR) << " ";
-            }};
+            },
+            [](const IterationTrace&){return kNoValue;}};   // a NAME (which rho), not a number: the text carries it
 }
 
 } //anon namespace
@@ -995,15 +1063,44 @@ void tSCFIterator<T>::DisplayColumnHeaders(std::ostream& os, const SCFParams& ip
     os << std::string(100,'-') << endl;
 }
 
+// --- THE ROW: one list, two consumers (2026-10-31) --------------------------------------------------------------------------
+double IterationRow::ValueOf(std::string_view title) const
+{
+    for (const auto& c : cells) if (c.title==title) return c.value;
+    return std::numeric_limits<double>::quiet_NaN();
+}
+
+template <class T> std::vector<ColumnData> tSCFIterator<T>::RowColumns(const SCFParams& ipar, size_t idealVirial) const
+{
+    std::vector<ColumnData> var; AccumulateColumns(var, ipar, idealVirial);   // this layout's VARIABLE columns (a subclass edits
+    std::vector<ColumnData> cols{EtotalCol(), FDCol(ipar)};                   //  them by POSITION, so they are built on their own)
+    cols.insert(cols.end(), var.begin(), var.end());
+    cols.push_back(MixCol()); cols.push_back(AccelCol()); cols.push_back(SvCol()); cols.push_back(CfgCol());
+    if (GapIsPermanent()) cols.push_back(GapCol());       // solids show it always (folds the old ReportBandGap)
+    if (itsHamiltonian->GetSpinGroup()==SpinGroup::Polarized) cols.push_back(OrderCol());
+    return cols;
+}
+
+template <class T> IterationRow tSCFIterator<T>::MakeRow(const SCFParams& ipar, const IterationTrace& tr) const
+{
+    IterationRow row{tr.iteration, {}, tr.eb};
+    for (const auto& c : RowColumns(ipar, tr.idealVirial))
+    {
+        std::ostringstream os; c.value(os,tr);            // the console's own cell text, on a fresh stream
+        std::string t=os.str();
+        const size_t b=t.find_first_not_of(' '), e=t.find_last_not_of(' ');
+        t = b==std::string::npos ? std::string() : t.substr(b, e-b+1);
+        row.cells.push_back({c.title, c.tolerance, c.number ? c.number(tr) : kNoValue, std::move(t), c.scale});
+    }
+    return row;
+}
+
 template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const SCFParams& ipar,
                                                        const IterationTrace& tr) const
 {
-    std::vector<ColumnData> cols; AccumulateColumns(cols,ipar,tr.idealVirial);
-    WriteRowPrefix(os, tr);
-    for (const auto& c:cols) c.value(os,tr);
-    WriteMixAccelCfg(os, tr);
-    if (GapIsPermanent()) WriteGapColumn(os, tr);   // solids show it always (folds the old ReportBandGap)
-    WriteOrderColumn(os, tr);
+    os.setf(ios::fixed,ios::floatfield);
+    os << setw(W_ITER) << tr.iteration << " ";            // "#" -- the row's key, not a cell
+    for (const auto& c : RowColumns(ipar, tr.idealVirial)) c.value(os,tr);   // the ONE list the observer's row is built from
     // The frontier block is an OPTIONAL diagnostic behind ReportBandGap() -- for SOLIDS TOO.  It used to be
     // molecular-only (the condition was !GapIsPermanent() && ReportBandGap()), which left a solid printing a
     // gap NUMBER with no way to see the levels behind it: when that number is wrong -- the k=1/4 defect,

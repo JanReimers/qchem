@@ -319,6 +319,16 @@ And from `doc/OOD-SOLID-Cleanup.md` (V-CALCNET narrowed to steps 6–8):
 
 | **V-CALCNET** | The `{Atom,Molecule,Solid}Calculation` class network is an EMERGING phenomenon, not a designed one.  Open placement questions it raises: where PP data (valence counts, basis provenance, seed variant) is read -- the Calculation level (current plan for `pseudopotentials.json`, `doc/CleanCode.md` D-STRUCTDATA step 2) may be too HIGH; it may be an implementation detail of the Hamiltonian PP terms or of `BasisSet::Orbital_PP` (user, 2026-10-02) | **DEFERRED by user**: do a full design review of the whole Calculation network AFTER the major `doc/OpenWork.md` §2 features land; do not litigate piecemeal.  Until then D-STRUCTDATA step 2 may proceed at the Calculation level knowing it can move |
 
+## C4 lane B, after landing (2026-10-30): D-BASIS-REGISTRY and D-STATE-SCHEMA closed
+
+| ✅ D-BASIS-REGISTRY | DONE 2026-10-30 (lane B, 48a2a577): a basis is NAMED by its file stem -- `BasisNames()` / `BasisFileOfName()` (`qchem.BasisSet.Gaussian.Point.BasisFiles`) discover every `.bsd` in the data directory, so `valence_lowq_tm` and any new file work by name (json `basis`, the deck's `basis.data`, any case) with NO registration; an unknown name throws listing the names there.  The four hand registrations became one: `theStems` (enum -> stem); `theFiles`, `theBasisNames` and the deck's `kBasisData` are deleted.  DEVIATION from the row: the `BasisSetData` enum is KEPT, as the compile-time-checked handle the ~100 code call sites use (compile time over run time) -- only code that names a file directly needs one.  The run record's provenance carries `basisFile` + `basisChecksum` (FNV-1a of the contents).  UTs `BasisNames.ABasisIsAFileStemAndEveryHandleNamesOneThatIsThere`, `Deck.TheBasisIsAFileStemAndAnUnknownOneIsRefusedListingTheNames` | `src/BasisSet/Gaussian/Point/` |
+| ✅ D-STATE-SCHEMA | DONE 2026-10-30 (lane B, ce6b1f94): format `qchem-solid-state 1.1`; the reader takes any `1.x` (a minor version only ADDS optional fields, read with `HasAttr` first) and refuses another major.  The first payload field is `densityChange` (the saved residual), absent in 1.0 = "not recorded", said in the restart log.  Gate `SolidState.AFormat10StateStillRestores`: a 1.0 file (built by copying a 1.1 one without the field) reads, says so, and resumes exactly | `src/Calculation/Imp/SolidState.C` |
+
+The rows as they stood:
+
+| **D-BASIS-REGISTRY** (user 2026-10-05) | A basis data file is registered FOUR times by hand: the `BasisSetData` enum (`src/BasisSet/Gaussian/Point/Factory.C`), `theFiles` + `theBasisNames` (`Imp/Factory.C`), and `kBasisData` (`src/Calculation/Imp/Deck.C`), so a new `.bsd` costs an enum value, three map lines and a rebuild of `qcGaussian_BS`/`qchem`, and a name typo is a compile-time-invisible mismatch.  STOPGAP LANDED 2026-10-05: deck key `basis.file` (path to any `.bsd`; `--set basis.file=...` on the rundeck command line; `FactoryFromFile`; recorded in the resolved deck) -- it does NOT retire the registry, and the record stores the PATH, not a checksum of the file's contents | Replace the enum with the file STEM discovered from `BasisSetData/` (a name = the stem, one source of truth; the deck and `Factory(json)` resolve it, an unknown name lists the directory); record the file's checksum in `provenance`; then `valence_lowq_tm.bsd` (committed 2026-10-05, not registered; its Ni/Li blocks clash by ELEMENT key with `valence_lowq_va.bsd` -- see D-BASIS-PP) becomes usable by name · `doc/OpenWork.md` §3 row 'valgen is optimistic about diffuse functions' |
+| **D-STATE-SCHEMA** (found 2026-10-25; REFUSE half done 2026-10-30) | the saved SCF state (`qchem-solid-state 1`) still cannot grow a PAYLOAD field: one the reader needs throws (strict past the format check), and the format test is exact string equality (no minor version).  The fingerprint half is DONE (C4 step 5, H3 §"C4"): `Migrated` in `src/Calculation/Imp/SolidState.C` reclassifies or legacy-defaults entries of an older file before comparison (new REFUSE `pp.set` absent ⇒ compared as agreeing) | when the first payload field arrives (the frozen +U occupation matrix), not before: optional payload reads (`Has` first; "absent = files before X" said in the restart log); format major.minor.  Gate: a UT that writes a file WITHOUT the new field and restores it · `src/Calculation/Imp/SolidState.C` |
+
 ## B3 (lane A, 2026-10-30, `doc/SCFRobustnessPlan.md` step B3) -- rows closed verbatim
 
 | **V1.24** (i) | GDM: `FDMax` is the ENGAGEMENT gate on ‖[F′,D′]‖, not a step size — rename (`EngageBelowFD`) (the (iii) soft-direction preconditioning is in the ANCHOR-MOVING BATCH below) | With the OT build (OpenWork §2) · H2 V1.24 |
@@ -326,3 +336,20 @@ And from `doc/OOD-SOLID-Cleanup.md` (V-CALCNET narrowed to steps 6–8):
 
 **Verdict (2026-10-30, `6240130e`):** `DIISParams::FDMin` deleted (never read; convergence is the SCF's gate); `FDMax` renamed
 `EngageBelowFD` on both `DIISParams` and `GDMParams`, every positional initialiser made designated.  No behaviour change.
+
+## D-ENV-TOL — DONE 2026-10-31 (lane B, option A, `fea23e1a`)
+
+`GaussianSharpness::ApplyTolerances` (const; every `GPW_Evaluator` re-set the pair-loop tolerances on the CALLER's basis
+through a const face) is gone.  The face keeps a const `Tolerances()` query; the builder's capability is a separate
+non-const `ToleranceBinding::BindTolerances`, implemented by the MnD Cartesian basis SET (it binds each block) and its
+`Orbital_IBS` blocks, NOT by the spherical lattice view (bind before wrapping).  `GaussianBasisRecipe` carries
+`tolerances` -- set by `SolidSetup::Resolve` from `SolidCalcOptions::tolerances`, the one source, and frozen with the
+trim so a geometry step's basis computes at the same setting -- and `Make` binds them on the basis it has just built.
+`GPW_Evaluator` now THROWS (`std::invalid_argument`) when the basis's tolerances differ from the run's: a pre-built
+(default) basis under a run that asks for others is refused, not silently re-tuned.  The guard against re-binding
+after collocation work stays.  Only decks set non-default tolerances, and decks build through the recipe, so no
+number moves.  UTs: `GPWTolerances.BindTolerances*` (UTGaussian_BS), `SolidSetup.ARecipeBindsTheRunsGPWTolerancesAndAPreBuiltBasisCannotTakeOthers`.
+
+Row as it stood:
+
+| **D-ENV-TOL** (born 2026-10-03, D-ENV step 5 follow-up) | `NR_Evaluator::ApplyTolerances` MUTATES the caller-built molecular basis through a const face (option B built without cloning the virtual-diamond IBS stack); one basis can serve only ONE tolerance setting -- a runtime GUARD throws if the values change after collocation work was built (`GPWTolerances.ApplyTolerancesThrowsIfChangedAfterCollocationWork`).  **Structural fix**: bind the tolerances where the molecular basis is built (option A, `Factory(..., tol)`), OR give each `GPW_Evaluator` a cheap VIEW of the basis carrying its own tolerances and sharing the geometry-only data (shells, reaches) -- removes the shared mutable state.  Do it when a convergence study needs two screens on one basis, or with the deck (step 6) | read `doc/Records/EnvKnobInventory.md` §8 ("Step 5 (ii)") |

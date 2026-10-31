@@ -57,14 +57,14 @@ std::vector<Polarization> MakePolarizations(int L)
 //
 //  Common implementation for orbital and fit basis sets.
 //
-IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl, ShellMerge merge)
+IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
     //
-    //  Read in all the radial functions (contracted or single Gaussians) and their l-sets, de-duplicated per \a merge
-    //  (ReadShells: KeepEachL for an orbital basis, the historical merge for a fit basis).
+    //  Read in all the radial functions (contracted or single Gaussians) and their l-sets (ReadShells: a shared-exponent
+    //  shell of another l is its own block, for orbital and fit bases alike).
     //
-    std::vector<ReadShell> shells=ReadShells(*bsr, *cl, merge);
+    std::vector<ReadShell> shells=ReadShells(*bsr, *cl);
     std::vector<std::unique_ptr<GaussianRF>> radials;
     std::vector<std::vector<int> >    Ls;
     for (auto& sh : shells) { radials.push_back(std::move(sh.rf)); Ls.push_back(sh.Ls); }
@@ -217,7 +217,7 @@ std::string IrrepBasisSet::Name() const
 // Orbital PG basis set.
 //
 Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)
-    : IrrepBasisSet(bsr,cl,ShellMerge::KeepEachL)
+    : IrrepBasisSet(bsr,cl)
 {};
 Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L, const Structure* cl)
     : IrrepBasisSet(exponents,L,cl)
@@ -310,7 +310,8 @@ chmat_t Orbital_IBS::MakeLocalGaussian(const Structure* cl,
 double  Orbital_IBS::MaxExponent() const {return NR_Evaluator::MaxExponent();}
 double  Orbital_IBS::MinExponent() const {return NR_Evaluator::MinExponent();}
 double  Orbital_IBS::RelCutoffSafety() const {return NR_Evaluator::RelCutoffSafety();}
-void    Orbital_IBS::ApplyTolerances(const GPWTolerances& t) const {NR_Evaluator::ApplyTolerances(t);}
+const GPWTolerances& Orbital_IBS::Tolerances() const {return NR_Evaluator::Tolerances();}
+void    Orbital_IBS::BindTolerances(const GPWTolerances& t) {NR_Evaluator::BindTolerances(t);}
 std::vector<rvec_t> Orbital_IBS::CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                   const std::vector<ivec3_t>& N_L,
                                                   const std::vector<double>& ecut_L,

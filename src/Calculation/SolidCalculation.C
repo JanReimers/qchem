@@ -32,7 +32,6 @@ module;
 #include <memory>
 #include <optional>
 #include <vector>     // the anneal schedule
-#include <string>    // SCFFailure::details
 #include <vector>
 #include <string>
 #include <utility>
@@ -47,7 +46,7 @@ import qchem.Hamiltonian.Factory;             // SpinGroup, VxcFit, the cHamilto
 export import qchem.Hamiltonian.HubbardEstimator;   // ACBN0Estimate (EstimateHubbardU), HubbardEstimate (the loop)
 export import qchem.Response;                  // ChannelResponse / ResponseFailure (IndependentResponse, LinearResponsePlan R0)
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the typed solid door
-import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, SCFProgress, EnergyBreakdown
+import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, IterationRow, EnergyBreakdown
 import qchem.ChargeDensity;                   // cDM_CD
 import qchem.ChargeDensity.Seed;              // SeedStrategy
 import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKind
@@ -57,37 +56,10 @@ import qchem.Outcome;                         // Outcome<T,E> -- the fallible-ca
 export import qchem.SolidState;               // RestartRefusal (Restart's failure), the saved-state layer (CK-1)
 export import qchem.SolidSetup;               // SolidCalcOptions + the resolved SolidSetup a run is built from (step 6)
 export import qchem.PotentialEnergySurface;   // the face SolidSession implements (step 8)
+export import qchem.SCFFailure;               // SCFFailure: why an attempt has no answer (shared with the molecular facade)
 
 export namespace qchem
 {
-
-//! \brief WHY an SCF attempt produced no usable answer (doc/OpenWork.md N1).
-//!
-//! Carried as a VALUE, not thrown: a non-convergent SCF is a legitimate outcome the caller must act on,
-//! not a broken invariant.  \c why exists because the detectors distinguish cases that look identical from
-//! the energy alone -- a run that simply ran out of iterations, one whose Hartree term ran away
-//! (measured 2026-08-25: Eee 13.5 -> 29.0 Ha), and one that converged to the WRONG STATE, e.g. an imposed
-//! AFM cell that relaxed to zero moment, which contradicts its own constraint.
-struct SCFFailure
-{
-    enum class Why
-    {
-        NotConverged,   //!< ran to the iteration limit with the residual still above tolerance
-        ChargeSlosh,    //!< the Hartree term ran away (the low-G charge mode un-damped)
-        //! \brief the run did NOT keep the magnetic order it was set up to carry -- either it converged
-        //! to zero moment, or the moment rose and then collapsed mid-run.  An imposed Shubnikov group is
-        //! an ASSERTION about the answer, so contradicting it is a failed postcondition, not a diagnostic.
-        OrderLost
-    };
-    Why         why        = Why::NotConverged;
-    size_t      iterations = 0;
-    double      residual   = 0.0;
-    //! The last iterate's energy.  DIAGNOSTIC ONLY -- it is deliberately not reachable as "the energy",
-    //! because handing back a plausible number from a failed run is the defect this whole type exists to
-    //! prevent (four such numbers were produced in one session: -45.5, -46.3, -56.4, -38.5).
-    double      lastEnergy = 0.0;
-    std::string details;
-};
 
 //! \brief WHAT THE RUN DID, iteration by iteration, in the two quantities the OUTCOME DETECTORS judge
 //! (doc/OpenWork.md N1/T3-T4).  Measured by the facade itself, so a library user gets the detectors the
@@ -282,10 +254,14 @@ public:
     //! setup's reference lattice -- and converge once with \a params and the setup's accelerator.  The setup is
     //! \c SolidSetup::Resolve(lattice, molecular basis | recipe, options, accelerator options); the only door (user ruling
     //! 2026-10-30: clean replace, no (lattice, basis, options) constructors).
-    explicit SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {});
+    //! \a onIteration, when given, observes THIS constructor's SCF from its first iteration -- the constructor converges, so an
+    //! observer attached afterwards (\c OnIteration) has already missed stage 0, the stage an annealed recipe's trace most wants;
+    //! it stays attached for later \c Converge calls.  A constructor argument, not a setup field: an observer is not a resolved
+    //! decision (the molecular \c Calculation takes it the same way).
+    explicit SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {}, Observer onIteration = nullptr);
     //! \brief The ANNEALED constructor: stage 0 on its own accelerator, then the rest of \a schedule, each stage seeded from the one
-    //! before it.  An empty schedule throws.
-    SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule);
+    //! before it.  An empty schedule throws.  \a onIteration observes every stage, from stage 0's first iteration.
+    SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule, Observer onIteration = nullptr);
     ~SolidCalculation();
 
     //! \brief START FROM A SAVED STATE (CK-1; doc/OpenWork.md §2 "SCF checkpoint/restart"): build the graph for
@@ -304,9 +280,28 @@ public:
     //! ON ITS GDM RUNG for the restart's stage when \a params.SmearingkT is 0 (\c SolidAcceleratorOptions::ladderStartOnGDM):
     //! the DIIS rung's mixing would step a converged density away before the first energy is read.  A smeared restart
     //! starts on DIIS (GDM would engage on a restored integer D' and never apply the smearing).
-    //! The setup's accelerator (\c opts.accelerator) drives the restored stage.
+    //! The setup's accelerator (\c opts.accelerator) drives the restored stage.  \a onIteration observes the restored stage from
+    //! its first iteration (a restart's first iterate is what an exact resume is judged by).
     static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
-        Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {});
+        Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {},
+                Observer onIteration = nullptr);
+
+    //! \name BUILT, NOT CONVERGED (2026-10-31, the deck's \c deck::Build: lane G binds the GUI to the deck)
+    //! For a caller that must HOLD the calculation before its SCF starts -- a GUI hands it to a worker thread and watches it.
+    //! The graph is built exactly as the constructors build it; the caller runs the SCF.  ONE path: the annealed constructor
+    //! is \c Prepare + \c Converge(schedule), \c Restart is \c PrepareRestart + \c Converge(params).
+    //!@{
+    //! \a schedule's stage 0 standing (its parameters, accelerator and seed) and no SCF; run it with \c Converge(schedule).
+    //! \a onIteration observes from that first iteration.  An empty schedule throws.
+    static std::unique_ptr<SolidCalculation> Prepare(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule,
+                                                     Observer onIteration = nullptr);
+    //! \c Restart up to its SCF: the fingerprint judged, the saved density restored, the restored stage standing for \a params;
+    //! run it with \c Converge(params).  Refused exactly when \c Restart is; an exact resume's first convergence prints the resumed
+    //! energy beside the saved one, whoever runs it.
+    static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+        PrepareRestart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {},
+                       Observer onIteration = nullptr);
+    //!@}
 
     //! \brief Write the LAST ITERATE's state -- every (k,σ) block's D, C, ε, f, the fingerprint and the run
     //! summary -- to \a path (HDF5, layout in qchem.SolidState; atomic: written aside, renamed into place).
@@ -330,8 +325,8 @@ public:
     //! has to face it.  (The ctor converges on construction; without this, its result would be silently
     //! unreachable and the old \c Energy() would happily serve a failed run.)
     Outcome<Converged, SCFFailure> Result() const;
-    //! Live per-iteration telemetry.  Set BEFORE a Converge() call to observe it (the ctor's initial
-    //! convergence runs before any observer can be attached).
+    //! Live per-iteration telemetry, REPLACING the constructor's.  Set BEFORE a Converge() call to observe it (the ctor's
+    //! initial convergence has run by then: to observe it, pass the observer to the constructor).
     void OnIteration(Observer obs);
 
     //! Did it converge?  A cheap STATUS question, kept because reporting and tests ask it without wanting
@@ -429,6 +424,24 @@ public:
     //! no +U manifold (list the channels at U=0 to probe a run without +U) or reduced its k-mesh (D5: run
     //! without \c imposeSymmetry).  A diagnostic of the last iterate, like \c EstimateHubbardU.
     Outcome<Response::ChannelResponse,Response::ResponseFailure> IndependentResponse(ivec3_t Nq) const;
+    //! \brief THE GRID AUDIT (doc/GridEpsilonPlan.md §3; C2 M2c/M3): every raster term's DELIVERED error at the converged density.
+    //! Rebuilds the GPW basis and the Hamiltonian on the \a reference raster (AliasFree = 2N per dimension of a BallOnly run), carries
+    //! the converged D onto it (\c SnapshotState / \c RestoreDensity: the orbital functions are the same Gaussians), and compares term by
+    //! term: max|ΔH_ij| over every block, and ΔE.  A FIXED-D evaluator: no SCF step, the run's result is untouched (its own Hamiltonian
+    //! is re-refreshed for the restored D; every later caller refreshes for its own).  Beside each row it states the run's own grid-audit
+    //! verdict (grids.auditDensity / auditVlocLong) AND the reference's, so the predicted alias of whichever side is the coarse one can be
+    //! read against the delivered difference.  Reports to the
+    //! console and to the run report (section `gridAudit`).  THROWS on a plane-wave run (no raster) or a reference equal to the run's.
+    struct GridAuditTerm { std::string label, entries; double maxAbsΔH=0.0, ΔE=0.0, E=0.0; };   //!< label/entries: \c TermEnergy's
+    struct GridAuditVerdict { std::string audit, status; double alias=0.0; };   //!< one grids.audit* entry (audit = its key)
+    struct GridAuditResult
+    {
+        std::string reference;                 //!< the reference raster's name
+        std::vector<GridAuditVerdict> runVerdicts, referenceVerdicts;   //!< each side's own grid-audit verdicts
+        std::vector<GridAuditTerm> terms;      //!< every term, in the Hamiltonian's order (analytic terms read 0)
+        double maxAbsΔH=0.0, ΔE=0.0;           //!< the whole Hamiltonian's (ΔE = E_run - E_reference)
+    };
+    GridAuditResult GridAudit(BasisSet::PlaneWave::RasterPolicy reference) const;
     //! \brief The SELF-CONSISTENT channel response at q = 0 over the run's Hubbard manifolds
     //! (doc/LinearResponsePlan.md stage R2): \f$(1-\mathcal R_0\mathcal K)\,\delta D=\mathcal R_0V_J\f$ with the
     //! Hamiltonian's ANALYTIC kernel (Hartree + ALDA f_xc; +U frozen or at U = 0 answers zero, H4), linearised
@@ -555,13 +568,18 @@ private:
     //! \a lat: the setup's cell with the atoms at new positions; \a mol: the molecular basis made there from the setup's frozen
     //! recipe.  \a carry null: the setup's seed strategy and the whole \a schedule (the first point); else seeded from \a carry and
     //! converged on the schedule's FINAL stage only (the earlier stages exist to deliver a density the carry already is).
+    //! \a lowdin: move \a carry onto this point's basis through the Löwdin frame (\c LowdinCarry) before it seeds the run.
+    //! \a onIteration: the session's observer, attached before the point's first iteration.
     static std::unique_ptr<SolidCalculation> AtGeometry(std::shared_ptr<const SolidSetup>, const Lattice_3D& lat,
                                                         std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
-                                                        const std::vector<SCFStage>& schedule);
+                                                        const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration);
     SavedState Carry() const;   //!< the last iterate's per-block D, for the next point
     //!@}
     //! Point + run + the first Converge (the constructors' common body), and the rest of an annealed schedule.
     void Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
+    //! Point + run, no SCF: \c Start's build half (and \c Prepare's whole body).
+    void BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
+    friend class ::DeckTests;   //!< tests/Deck.C: an inline deck and its named twin build the same fingerprint
     void RunRestOf(const std::vector<SCFStage>& schedule);
     //! This run's saved-state fingerprint, with \a kT the recipe's temperature.
     StateFingerprint Fingerprint(double kT) const;
@@ -596,9 +614,16 @@ private:
 class SolidSession : public virtual PotentialEnergySurface
 {
 public:
+    //! HOW the previous point's density reaches the next point's basis (the same recipe, its centres moved).  \c AO hands D over
+    //! verbatim, as AO coefficients; \c Lowdin holds the orbitals' Löwdin coefficients \f$S^{1/2}C\f$ fixed (\c LowdinCarry), so the
+    //! carried D stays idempotent with the right electron count in the new metric.
+    enum class Carry { AO, Lowdin };
     //! \a schedule: the SCF recipe -- the first point runs all of it from the setup's seed, every later point its FINAL stage
-    //! from the carried density.
-    SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule);
+    //! from the carried density, moved onto the new basis as \a carry says.  THROWS on a free Gaussian setup resolved with
+    //! \c SolidCalcOptions::xcMeshSymmetric (the XC mesh would follow the group detected at each geometry and switch along a path).
+    //! \a onIteration observes every point's SCF (each \c ConvergeAt), from its first iteration -- as \c MoleculeSession.
+    SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule, SolidCalculation::Observer onIteration = nullptr,
+                 Carry carry=Carry::AO);
     ~SolidSession();
     PESGeometry Reference() const override;
     //! THROWS when \a cell is empty, when \a R has not one position per atom, or when the atoms MOVED on a setup resolved from a
@@ -613,6 +638,8 @@ private:
     struct Point;
     std::shared_ptr<const SolidSetup> itsSetup;
     std::vector<SCFStage>             itsSchedule;
+    SolidCalculation::Observer        itsObserver;
+    Carry                             itsCarry;
     std::unique_ptr<Point>            itsPoint;
 };
 

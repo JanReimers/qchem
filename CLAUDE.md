@@ -184,6 +184,12 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     ```
 - Liberal use of asserts is encouraged — you know the reasons. And if you ever have to fire up the debugger,
     consider that this is usually an indication that there is a missing assert somewhere!
+    **But an assert guards INTERNAL invariants only** (user, 2026-10-31): anything a user can reach -- a deck key, a
+    facade option, a combination of them -- is refused with an Outcome (or a throw for a broken invariant no caller can
+    act on), never an assert.  Every sweep build (Release, and the lanes' Dev trees) defines `NDEBUG`, so an assert is
+    DEAD there: a user-reachable choice guarded only by an assert becomes a SILENT SUBSTITUTION in Release.  Earned by
+    `VxcProductSpace` (2026-10-31): PW fit × Becke mesh was an assert, so Release quietly sampled on the raster instead.
+    Asserts are live only in a Debug tree or a `-DQCHEM_RELCHECKED=ON` Release tree (asserts + Blaze bounds checks).
 - Avoid the preprocessor as much as possible. An example of good use is getting info from the compile command
     line (`-DXXX`); as far as I know c++ does not have a modern way of doing this.
 

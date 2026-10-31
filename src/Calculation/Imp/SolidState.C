@@ -26,11 +26,13 @@ import qchem.BasisSet.AoShellSource;            // the orbital shells (the basis
 import qchem.Orbitals;                          // TOrbitals/TOrbital (C, ε, f)
 import qchem.CompositeCD;                       // tComposite_CD (the restored density's shape)
 import qchem.ChargeDensity.Factory;             // IrrepCD_Factory
+import qchem.Blaze;                             // blazem::eigen (the Löwdin carry's S^{±1/2})
 
 namespace qchem
 {
 
-static const char* kFormat = "qchem-solid-state 1";
+static const char* kFormat = "qchem-solid-state 1.1";   //!< 1.1 (2026-10-30): + densityChange
+static const char* kFormatMajor = "qchem-solid-state 1"; //!< every 1.x is read: a minor version only ADDS optional fields
 
 //---------------------------------------------------------------------------------------------------
 //  The canonical BLOCK WALK -- spin irreps outer, basis blocks inner: the order tCompositeWF builds its
@@ -76,12 +78,45 @@ std::string Show(const std::vector<double>& v)
     os<<"]";
     return os.str();
 }
+//! Equal to 1e-10 RELATIVE, with a 1e-14 absolute floor for entries at zero.  (Was 1e-10*max(1,|a|): an ABSOLUTE 1e-10 below 1,
+//! so a tolerance recorded as a value -- screenEps 1e-10 vs 1e-12 -- compared as the same run.  Found 2026-10-30 by the gpw.* keys.)
 bool Same(const std::vector<double>& a, const std::vector<double>& b)
 {
     if (a.size()!=b.size()) return false;
     for (size_t k=0;k<a.size();k++)
-        if (std::fabs(a[k]-b[k]) > 1e-10*std::max(1.0, std::fabs(a[k]))) return false;
+        if (std::fabs(a[k]-b[k]) > std::max(1e-14, 1e-10*std::max(std::fabs(a[k]), std::fabs(b[k])))) return false;
     return true;
+}
+
+//! WHAT a warm difference MEANS for the restart, keyed on the fingerprint name (exact, else the longest matching prefix ending
+//! in '.'): the user's ask (2026-10-29) was the consequence, not only the two values.  An unknown key prints raw.
+std::string Consequence(const std::string& key)
+{
+    static const std::string moves=": the converged ground state moves -- expect iterations to reach the new one";
+    static const std::map<std::string, std::string> table=
+    {
+        {"functional",            "a different XC functional"+moves},
+        {"hubbard.",              "the +U term changed"+moves},
+        {"spin.multiplicity",     "a different spin state: the occupations are re-filled, expect iterations"},
+        {"grids.densityEcut",     "the density grid changed"+moves},
+        {"grids.cutoffFactor",    "the density grid's floor changed"+moves},
+        {"grids.ladderFactor",    "the multigrid ladder changed"+moves},
+        {"grids.raster",          "the density raster changed"+moves},
+        {"grids.xcMesh",          "the XC quadrature changed"+moves},
+        {"grids.beckeEps",        "the Becke partition tolerance changed"+moves},
+        {"xc.fit",                "the v_xc fit basis changed"+moves},
+        {"gpw.",                  "a GPW numerical tolerance changed"+moves},
+        {"policy.",               "a declared CP2K-deviation route changed the Hamiltonian"+moves},
+        {"ortho.",                "the basis orthogonalisation changed: functions may be dropped or kept differently"+moves},
+        {"scf.kT",                "the smearing changed: the occupations are re-filled at the new temperature"+moves},
+        {"blocks.real",           "a block's working type changed: D is promoted/demoted exactly, the physics does not move"},
+        {"basis.shellCenters",    "the basis centres moved with the atoms"+moves},
+    };
+    if (auto it=table.find(key); it!=table.end()) return it->second;
+    std::string best;
+    for (const auto& [k,v] : table)
+        if (k.back()=='.' && key.rfind(k,0)==0 && k.size()>best.size()) best=k;
+    return best.empty() ? std::string() : table.at(best);
 }
 
 //! Every differing entry of one class, one line each.
@@ -111,6 +146,8 @@ std::vector<std::string> Differences(const std::map<std::string,std::vector<doub
         const std::string sb = b==ns.end() ? "(absent)" : "'"+b->second+"'";
         if (sa!=sb) out.push_back(k+": saved "+sa+", now "+sb);
     }
+    for (std::string& l : out)
+        if (const std::string c=Consequence(l.substr(0, l.find(':'))); !c.empty()) l+=" -- "+c;
     return out;
 }
 } //anonymous namespace
@@ -218,6 +255,14 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
     fp.warmNum["ortho.kind"]={double(id.ortho)};
     fp.warmNum["ortho.tol"]={id.orthoTol};
     fp.warmNum["scf.kT"]={id.kT};
+    // The numerics that move the ground state (gap 2, 2026-10-30).  Each key exists only where it means something, so a
+    // plane-wave state carries no GPW key and a uniform-mesh state no Becke eps.
+    if (!id.vxcFit.empty())     fp.warmStr["xc.fit"]=id.vxcFit;
+    if (id.beckeEps>0.0)        fp.warmNum["grids.beckeEps"]={id.beckeEps};
+    if (!id.raster.empty())     fp.warmStr["grids.raster"]=id.raster;
+    if (id.ladderFactor>0.0)    fp.warmNum["grids.ladderFactor"]={id.ladderFactor};
+    for (const auto& [k,v] : id.gpwTolerances) fp.warmNum["gpw."+k]=v;
+    for (const auto& [knob,on] : id.policy)    fp.warmStr[knob]=on ? "on" : "off";
     return fp;
 }
 
@@ -232,6 +277,18 @@ static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now
     if (!s.refuseStr.count("pp.set") && now.refuseStr.count("pp.set")) s.refuseStr["pp.set"]=now.refuseStr.at("pp.set");
     // basis.family (2026-10-30): every state written before it was Gaussian -- a plane-wave state could not be written at all.
     if (!s.refuseStr.count("basis.family")) s.refuseStr["basis.family"]="gaussian";
+    // The numerics keys (2026-10-30): a state written before them recorded none, so none of them is compared -- the run's value
+    // stands in.  Only when the state lacks the WHOLE set: a newer state missing one of them really was made without it.
+    const bool predatesNumerics=!s.warmStr.count("xc.fit");
+    if (predatesNumerics)
+    {
+        for (const auto& [k,v] : now.warmStr) if (k=="xc.fit" || k=="grids.raster") s.warmStr[k]=v;
+        for (const auto& [k,v] : now.warmNum) if (k=="grids.beckeEps" || k=="grids.ladderFactor" || k.rfind("gpw.",0)==0) s.warmNum[k]=v;
+    }
+    // The policy routes (2026-10-30): likewise, all or none -- a state that records any route was written with the whole table.
+    auto isPolicy=[](const auto& e){ return e.first.rfind("policy.",0)==0; };
+    if (std::none_of(s.warmStr.begin(), s.warmStr.end(), isPolicy))
+        for (const auto& e : now.warmStr) if (isPolicy(e)) s.warmStr.insert(e);
     return s;
 }
 
@@ -358,6 +415,7 @@ void WriteSolidState(const std::string& path, const StateFingerprint& fp, const 
         f.SetAttr("charge",     sum.charge);
         f.SetAttr("commutator", sum.commutator);
         f.SetAttr("recipe",     sum.recipe);
+        f.SetAttr("densityChange", sum.densityChange);
         {
             H5::Group g=f.CreateGroup("fingerprint");
             WriteMaps(g.CreateGroup("refuse"), fp.refuseNum, fp.refuseStr);
@@ -384,6 +442,52 @@ void WriteSolidState(const std::string& path, const StateFingerprint& fp, const 
     std::filesystem::rename(tmp, path);   // atomic on one filesystem: the previous state survives a crash above
 }
 
+namespace
+{
+//! A block's overlap, promoted to complex (a real block's exactly).
+mat_t<dcmplx> BlockOverlap(const BlockRef& r)
+{
+    mat_t<dcmplx> S(r.n, r.n);
+    if (r.real) { const auto& s=r.real->Overlap(); for (size_t a=0;a<r.n;a++) for (size_t b=0;b<r.n;b++) S(a,b)=dcmplx(s(a,b)); }
+    else        { const auto& s=r.cplx->Overlap(); for (size_t a=0;a<r.n;a++) for (size_t b=0;b<r.n;b++) S(a,b)=s(a,b); }
+    return S;
+}
+//! \f$S^p\f$ of a Hermitian positive (semi)definite S, through its eigenpairs.  An eigenvalue below 1e-12 of the largest is a null
+//! direction: it contributes NOTHING (the inverse root would amplify noise there; the ortho step drops those functions anyway).
+mat_t<dcmplx> HermitianPower(const mat_t<dcmplx>& S, double p)
+{
+    const size_t n=S.rows();
+    hmat_t<dcmplx> H(n);
+    for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) H(a,b)=0.5*(S(a,b)+std::conj(S(b,a)));
+    rvec_t w; mat_t<dcmplx> U;
+    blazem::eigen(H, w, U);
+    const double floor=1e-12*w[n-1];
+    mat_t<dcmplx> Uf(U);
+    for (size_t k=0;k<n;k++)
+    {
+        const double f = w[k]>floor ? std::pow(w[k], p) : 0.0;
+        for (size_t a=0;a<n;a++) Uf(a,k)*=f;
+    }
+    return Uf*blazem::ctrans(U);
+}
+} //anonymous namespace
+
+void LowdinCarry(SavedState& carry, const BasisSet::Complex_BS& bs, SpinGroup g)
+{
+    const std::vector<BlockRef> refs=Blocks(bs, g);
+    if (refs.size()!=carry.blocks.size())
+        throw std::logic_error("LowdinCarry: the carry has "+std::to_string(carry.blocks.size())+" blocks, the basis "+std::to_string(refs.size()));
+    for (size_t b=0;b<refs.size();b++)
+    {
+        SavedBlock& sb=carry.blocks[b];
+        if (sb.S.rows()!=refs[b].n || sb.D.rows()!=refs[b].n)
+            throw std::logic_error("LowdinCarry: block "+std::to_string(b)+" has no saved overlap of its size (a carry from a FILE has none)");
+        const mat_t<dcmplx> A=HermitianPower(BlockOverlap(refs[b]), -0.5)*HermitianPower(sb.S, 0.5);
+        sb.D=A*sb.D*blazem::ctrans(A);
+        sb.S=BlockOverlap(refs[b]);   // the carry now lives on the new basis
+    }
+}
+
 SavedState SnapshotState(const BasisSet::Complex_BS& bs, const WaveFunction::cWaveFunction& wf)
 {
     SavedState st;
@@ -399,6 +503,7 @@ SavedState SnapshotState(const BasisSet::Complex_BS& bs, const WaveFunction::cWa
         if      (const auto* ro=dynamic_cast<const Orbitals::TOrbitals<double>*>(os); ro && r.real) sb.D=BlockD(*ro, r.n);
         else if (const auto* co=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(os); co && r.cplx) sb.D=BlockD(*co, r.n);
         else throw std::logic_error("SnapshotState: a block's orbitals are not of its basis block's scalar");
+        sb.S=BlockOverlap(r);
         st.blocks.push_back(std::move(sb));
     }
     return st;
@@ -424,8 +529,10 @@ Outcome<SavedState, RestartRefusal> ReadSolidState(const std::string& path)
     H5::File f=opened.TakeValue();
     if (!f.HasAttr("format") || !f.AttrIsString("format"))
         return O::Fail({RestartRefusal::Why::Unreadable, "'"+path+"' is HDF5 but not a qchem solid state (no format attribute)"});
-    if (const std::string fmt=f.AttrString("format"); fmt!=kFormat)
-        return O::Fail({RestartRefusal::Why::Format, "'"+path+"' is format '"+fmt+"'; this build reads '"+kFormat+"'"});
+    // Any 1.x: the major version is the one that may break a reader, a minor version only adds OPTIONAL fields (read with
+    // HasAttr first, below).  "qchem-solid-state 1" itself is 1.0.
+    if (const std::string fmt=f.AttrString("format"); fmt!=kFormatMajor && fmt.rfind(std::string(kFormatMajor)+".",0)!=0)
+        return O::Fail({RestartRefusal::Why::Format, "'"+path+"' is format '"+fmt+"'; this build reads '"+kFormatMajor+".x'"});
 
     // Past the format check the file CLAIMS to be ours, so a missing piece is a broken file, not a
     // legitimate "no state" -- the H5 layer's throws are allowed through.
@@ -438,6 +545,8 @@ Outcome<SavedState, RestartRefusal> ReadSolidState(const std::string& path)
     st.summary.charge     =f.AttrReal("charge");
     st.summary.commutator =f.AttrReal("commutator");
     st.summary.recipe     =f.AttrString("recipe");
+    // OPTIONAL fields: absent = a state written before they existed (the default stands, and says so where it is used).
+    if (f.HasAttr("densityChange")) st.summary.densityChange=f.AttrReal("densityChange");   // 1.1
     {
         H5::Group g=f.OpenGroup("fingerprint");
         ReadMaps(g.OpenGroup("refuse"), st.fingerprint.refuseNum, st.fingerprint.refuseStr);

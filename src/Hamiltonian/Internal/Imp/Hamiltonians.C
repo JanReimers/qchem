@@ -45,12 +45,17 @@ Ham_HF::Ham_HF(const st_t& st, SpinGroup g)
     Add(new Vxc);                  // same-spin exchange: -1/2 K on a folded doublet, -K per channel
 }
 
-Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g)
-    : Ham_DFT(st, {std::make_shared<SlaterExchange>(alpha_ex)}, mp, bs, g)
+//! THE MOLECULAR / ATOM Vxc DEFAULT (user ruling 2026-10-31, "δ default, A1 kept"): an unresolved \c Auto is the δ basis on the
+//! run's own XC mesh -- exact XC quadrature, no fit; PySCF agrees to ~10 μHa where the Gaussian A1 fit is 1-6 mHa off
+//! (doc/Records/OpenWork_History5.md, the δ-vs-A1 table).  The fit stays one stated choice away (\c VxcFit::Auxiliary).
+static VxcFit MolecularVxcFit(VxcFit fit) {return fit==VxcFit::Auto ? VxcFit::Delta : fit;}
+
+Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit)
+    : Ham_DFT(st, {std::make_shared<SlaterExchange>(alpha_ex)}, mp, bs, g, fit)
 {};
 
 Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> parts,
-                 const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g)
+                 const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
@@ -62,14 +67,14 @@ Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> part
 
     // ONE XC term over the SUM of functionals (a fit is linear, so fit(a+b) is fit(a)+fit(b) for half the
     // work); its energy is the functionals' own eps -- correlation's is NOT the exchange virial.
-    FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
+    FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp, MolecularVxcFit(fit)));
     FittedVxc::ex_t  xc(std::make_shared<CompositeExFunctional>(std::move(parts)));
     Add(new FittedVxc(XFitBasis, xc, g));
 }
 
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
                std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
@@ -81,18 +86,18 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     Add(new FittedVee(CFitBasis, st->GetNumElectrons()));
 
     // LDA: Dirac exchange (alpha = 2/3) + VWN5 correlation, ONE XC term over their sum (see Ham_DFT).
-    FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
+    FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp, MolecularVxcFit(fit)));
     FittedVxc::ex_t  xc(std::make_shared<CompositeExFunctional>(std::vector<std::shared_ptr<ExFunctional>>{
                           std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<VWN_Correlation>()}));
     Add(new FittedVxc(XFitBasis, xc, g));
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
-               const rbs_t* bs, SpinGroup g)
+               const rbs_t* bs, SpinGroup g, VxcFit fit)
     : Ham_PP(st,
              std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
              std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
-             mp, bs, g)
+             mp, bs, g, fit)
 {}
 
 namespace {
@@ -117,8 +122,8 @@ BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species, con
 } //anon
 
 Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g)
-    : Ham_PP(st, BuildMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit)
+    : Ham_PP(st, BuildMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g, fit)
 {}
 
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
@@ -177,10 +182,18 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // Delta remains available on EITHER grid -- it is the general route, and the only one on a Becke mesh
     // (no G-space raster).  What is gone is the run PROPERTY steering the grid decision.
     const bool delta = fit==VxcFit::Delta || (fit==VxcFit::Auto && becke);
-    // A PlaneWave fit ON a Becke grid (I3) is asserted out until its one-functional E/H derivative pairing
+    // A STATED fit that is neither δ nor PlaneWave (Auxiliary) is not resolved here: it reaches the fit-basis factory
+    // as stated, which refuses it (a pin-30 gap).  Until 2026-10-31 the `delta ? Delta : PlaneWave` below turned it
+    // into the plane-wave route SILENTLY -- found by the Vxc product-space UT (UTHamiltonian VxcProductSpace).
+    const VxcFit resolved = fit==VxcFit::Auxiliary ? fit : (delta ? VxcFit::Delta : VxcFit::PlaneWave);
+    // A PlaneWave fit ON a Becke grid (I3) is refused until its one-functional E/H derivative pairing
     // is designed (the projection sum is trivial; the DISCIPLINE is that H must be the exact derivative of
-    // the quadratured E -- the user's GDM-after-DIIS audit would expose any mismatch).
-    assert((delta || !becke) && "VxcFit::PlaneWave on a Becke grid (I3): the E/H one-functional pairing is not designed yet");
+    // the quadratured E -- the user's GDM-after-DIIS audit would expose any mismatch).  A THROW, not an assert
+    // (2026-10-31): compiled out under NDEBUG the assert let a Release run take the raster instead, silently --
+    // and it is a cell of the Vxc product space (UTHamiltonian VxcProductSpace), an open gap of pin 30.
+    if (resolved==VxcFit::PlaneWave && becke)
+        throw std::logic_error("Ham_PW_DFT: VxcFit::PlaneWave on a Becke XC mesh (I3) -- the E/H one-functional pairing is not "
+                               "designed yet; an open gap of the Vxc product space (pin 30)");
 
     qcMesh::MeshParams xc=xcMesh;   // the user's mesh knobs (WHICH POINTS) + the functional's fit-grid density
     xc.relCutoff=mp.relCutoff;      // the REPRESENTATION travels as its own argument, not folded in here
@@ -215,7 +228,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
         // EXCLUSIVE of "setup: becke mesh build", which happens inside here and has its own bucket -- so
         // this one reads as the fit basis's OWN construction over an already-built mesh.
         qchem::report::Timed timed("setup: Vxc fit basis (mesh build is its child)");
-        XFitBasis.reset(bs->CreateVxcFitBasisSet(st.get(), xc, delta ? VxcFit::Delta : VxcFit::PlaneWave,
+        XFitBasis.reset(bs->CreateVxcFitBasisSet(st.get(), xc, resolved,
                                                  &quadrature));
     }
     // SPIN-NATIVE (tier 4b) exchange must be channel-native: a spin-tagged SlaterExchange does NOT halve

@@ -9,6 +9,7 @@
 //   GPW_NaF.Γ_Becke_Imp_eqUni
 //   GPW_NaF.Γ_Imp_eqColdStart       (coarse -> Restart onto the fine grid == a cold fine run)
 //   GPW_NaF.Γ_Imp_eqExactResume     (same-grid Restart reproduces the converged state)
+//   GPW_NaF.Γ_PathIsContinuous_Long (a SolidSession's 20-point displacement path has no jump: CalcNetworkReview gate (c))
 
 #include "gtest/gtest.h"
 #include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
@@ -212,8 +213,8 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart_Panel)   // PANEL case 2 (regime 5, WARM coarse
     SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart fine");          // auto densityEcut = the production grid
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
-    o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
-    auto c=qchem::SolidCalculation::Restart(f.coarsePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
+    auto c=qchem::SolidCalculation::Restart(f.coarsePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams(),
+                                            [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();
     ASSERT_TRUE(R) << Why(R);
@@ -246,8 +247,8 @@ TEST(GPW_NaF, Γ_Imp_eqExactResume_Panel)   // PANEL case 1 (regime 4, exact res
     SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart exact");
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
-    o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
-    auto c=qchem::SolidCalculation::Restart(f.finePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
+    auto c=qchem::SolidCalculation::Restart(f.finePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams(),
+                                            [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();
     ASSERT_TRUE(R) << Why(R);
@@ -304,3 +305,56 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
 // knobs -- was DELETED 2026-10-02 (D-NAFGRID): its basin-avoidance premise (the direct fine run diving to -40 Ha) no
 // longer reproduces, and its incremental-convergence claim lives in Γ_Imp_eqColdStart / Γ_Imp_eqExactResume above.
 // History: doc/Records/OpenWork_History*.md, doc/OldPlans/GPWPlan.md §0e.)
+
+// CLAIM (doc/CalcNetworkReview.md §5 step 8, gate (c)): the potential energy surface is CONTINUOUS along a displacement path.  A
+// SolidSession walks F through 20 points of a Γ optical-phonon path, each point seeded from the previous one's density, every point
+// on the basis the setup FROZE at the reference (the recipe's trim, never re-decided per step).  A re-trim, a re-folded group, a
+// carried density that lands in another basin, or a stale geometry term would each show as a JUMP.  The jump measure is the FIFTH
+// difference: on a smooth anharmonic curve the k-th differences fall geometrically with k (measured here: Δ³ 4.5e-7, Δ⁴ 1.0e-7,
+// Δ⁵ 2.0e-8 Ha), while a step s at one point shows in Δ⁵ as up to 10 s -- so 1e-7 catches any jump of ~1e-8 Ha.  (A third
+// difference conflates the jump with the curve's own E'''h³, which is 4.5e-7 at the path's ends.)  The path is symmetric about the
+// site, and rocksalt's mirror through F makes E(+δ) = E(−δ) -- a second invariant that a path walked in ONE direction (carry from
+// −δ toward +δ) has to meet.  CAUGHT (2026-10-30, the claim's first run): a free run's XC mesh was built invariant under the group
+// DETECTED at each geometry -- 48 ops on the site, 8 off it -- so the mesh switched along the path: mirror 1.7e-5 Ha, Δ⁵ 5.9e-6;
+// a SolidSession now requires the plain atom-centred mesh (SolidCalcOptions::xcMeshSymmetric=false): 5e-10 and 2.0e-8.
+// NOT claimed: that the site is a minimum.  With GTH-q1 Na it is not, in CP2K either (a weak maximum, E'' ≈ -0.005 Ha/bohr² at k222
+// on a resolved grid; q9 Na gives the experimental +0.02) -- doc/OpenWork.md "NaF with the q1 Na pseudopotential has NO restoring
+// force on the F site".  (The -0.03 once quoted here was this run's raster egg-box: its rigid-translation control moves E 1e-5.)
+TEST(GPW_NaF, Γ_PathIsContinuous_Long)
+{
+    const Material naf=qchem::Materials::Get("NaF_rocksalt");
+    SolidCalcOptions o=NaFOptions(naf, "NaF PES path");
+    o.imposeSymmetry=false;   // a displaced F lowers the group: an imposed session refuses the step (SymmetryBroken)
+    o.xcMeshSymmetric=false;  // ... and a free session's XC mesh must not follow the group detected at each point (see above)
+    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);
+    o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
+    SCFParams par=NaFAnchorParams(); par.MinΔρPerElectron=1e-6;
+    const GaussianBasisRecipe sr2{.data=BasisSetData::VALENCE_LOWQ_SR2};
+    qchem::SolidSession pes(SolidSetup::Resolve(LatticeOf(naf), sr2, o), {SCFStage{par, o.accelerator}});
+    const PESGeometry ref=pes.Reference();
+    const auto f=std::find(ref.Z.begin(), ref.Z.end(), 9);
+    ASSERT_NE(f, ref.Z.end());
+    const size_t iF=f-ref.Z.begin();
+
+    constexpr size_t N=20;
+    constexpr double h=0.01;   // bohr, Cartesian x; the path runs δ = -0.095 ... +0.095
+    std::vector<double> E(N), d(N);
+    std::vector<size_t> it(N);
+    for (size_t i=0;i<N;i++)
+    {
+        d[i]=(double(i)-0.5*(N-1))*h;
+        std::vector<rvec3_t> R=ref.R;
+        R[iF].x+=d[i];
+        auto P=pes.ConvergeAt(ref.cell, R);
+        ASSERT_TRUE(P) << "δ=" << d[i] << ": " << P.Error().details;
+        E[i]=P->energy; it[i]=P->iterations;
+        std::cout << "[PES path] δ=" << std::setw(7) << d[i] << "  E=" << std::setprecision(12) << E[i] << "  iterations=" << it[i] << std::endl;
+    }
+    for (size_t i=0;i<N/2;i++)
+        EXPECT_NEAR(E[i], E[N-1-i], 1e-7) << "the mirror through F: E(δ) == E(-δ) at δ=" << d[N-1-i];
+    for (size_t i=0;i+5<N;i++)
+    {
+        const double d5=E[i+5]-5*E[i+4]+10*E[i+3]-10*E[i+2]+5*E[i+1]-E[i];
+        EXPECT_LT(std::abs(d5), 1e-7) << "a jump between δ=" << d[i] << " and δ=" << d[i+5];
+    }
+}
