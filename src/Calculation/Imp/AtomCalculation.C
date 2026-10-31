@@ -113,7 +113,7 @@ AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,
     // The EC follows the model: a pseudo-atom uses the valence-only PseudoAtom_EC (keyed by the full Z and
     // the net charge Zion-electrons); relativistic models need the Dirac (j-coupled) configuration;
     // everything else is a plain Atom_EC.
-    itsEC = opts.pseudopotential ? static_cast<ElectronConfiguration*>(new PseudoAtom_EC(itsZ, PPZion(opts,itsNe)-itsNe))
+    itsEC = opts.pseudopotential ? static_cast<ElectronConfiguration*>(new PseudoAtom_EC(itsZ, PPZion(opts,itsNe)-itsNe, PPZion(opts,itsNe)))
           : IsDirac(opts.model)  ? static_cast<ElectronConfiguration*>(new AtomDirac_EC(itsNe))
           :                        static_cast<ElectronConfiguration*>(new Atom_EC(itsNe));
     // The basis is NOT built here: the first Converge builds it INSIDE its run report's "basis" section, so
