@@ -979,3 +979,10 @@ line always prints).  Both logs are parsed by the same rule, so old baselines st
 | +U 4 eV | 1e-8 | 40 | 117 | −60.68588676 | 0.60950785 |
 
 U = 0 does not move at 2× ADDED_MOS.  At EPS_SCF 1e-6 the +U SCF (Broyden) stops on a ±15 μHa step-to-step oscillation, so the 16/20/40 spread does not follow ADDED_MOS; tightened to 1e-8, 20 and 40 agree to 1.4 μHa and both sit **83 μHa above the banked value**.  Re-judged per pin 10 against our own route (`GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long`, dE = 0.6174645): 110 μHa from the banked CP2K shift, 27 μHa from the tight one -- the independent route supports the move, so the +U anchor is re-banked at the 1e-8 ADDED_MOS 20 value (same deck as banked, EPS_SCF only) in `CP2Kresults.md` and `IntegrationTests/GPW/MnO.C` (gate tolerance 0.05 Ha, unchanged).  NiO has no banked CP2K energy; β-MnO₂'s oracle is QE (no CP2K deck) -- nothing else to re-run.  Lesson for the translator: a +U CP2K oracle quoted at μHa needs EPS_SCF ≤ 1e-8.
+
+
+### Closed 2026-10-31 (lane A): GPW verdict lines repeat every SCF refresh
+
+| **GPW verdict lines repeat every SCF refresh** (lane A, 2026-10-31) | Al fcc k222 smeared (`VALENCE_LOWQ_SR`): the `[grid audit] UNDER: V_loc long` verdict prints ~10× (once per iteration, as a console line + its `·` progress twin); the verdict is a property of the raster, fixed at setup | emit it once at setup (pin: emit contemporaneously with the activity, and the activity is the sizing) · `src/BasisSet/Gaussian/Lattice/Imp/GPW_Evaluator.C` |
+
+**✅ FIXED f3f6ccdc:** `EmitGridAudit` speaks once per run report (the first k-block evaluator; the raster is k-independent): Al fcc k222 8 identical `UNDER: V_loc long` lines → 1.  The same commit has `gridAudit` state the reference raster's verdicts (its fence spans the reference's lazy first evaluation).

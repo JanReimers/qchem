@@ -1243,6 +1243,53 @@ TEST(GPW_Si, Γ_Imp_eqK211)
 }
 
 
+// ============================ THE GRID AUDIT (doc/GridEpsilonPlan.md §3, C2 M2c) ============================
+// The postSCF `gridAudit` rebuilds every term on the reference raster (AliasFree = 2N per dimension) at the converged D and reports each term's
+// delivered max|dH_ij| and dE.  What must hold whatever the numbers: the ANALYTIC terms (kinetic, KB nonlocal, the short local PP, Ewald) do not
+// touch the raster and come out EXACTLY equal; the raster terms (Hartree, XC) do not; the per-term dE sum to the total.  Read from the revision's
+// `results`, i.e. the record a GUI or anchordiff-style tool sees.
+TEST(GPW_Si, Γ_GridAuditSeparatesTheRasterTerms)
+{
+    namespace fs=std::filesystem;
+    const nlohmann::json deck={
+        {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
+        {"solid",{{"densityEcut",20.0},{"seed","Uniform"}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-9},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}},
+        {"postSCF",{{{"gridAudit",nlohmann::json::object()}}}}};
+    qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+    const fs::path dir=fs::temp_directory_path()/("qchem_it_si_gridaudit_"+std::to_string(::getpid()));
+    fs::remove_all(dir);
+    qchem::deck::Provenance pv; pv.codeVersion="it";
+    const auto out=qchem::deck::Run(spec, pv, dir);
+    ASSERT_TRUE(out.converged) << out.summary;
+    std::ifstream in(out.revision); const nlohmann::json rec=nlohmann::json::parse(in);
+    const auto& a=rec["results"]["postSCF"][0];
+    ASSERT_EQ(a["action"], "gridAudit");
+    EXPECT_EQ(a["reference"], "AliasFree");
+    double sum=0.0;
+    bool sawRaster=false;
+    for (const auto& t : a["terms"])
+    {
+        const std::string e=t["entries"], label=t["term"];
+        sum+=t["dE"].get<double>();
+        const bool analytic = e=="Kinetic" || e=="Enn" || label.find("SHORT")!=std::string::npos || label.find("nonlocal")!=std::string::npos;
+        const bool raster   = e=="Eee" || e=="Exc";
+        if (analytic) EXPECT_EQ(t["maxAbsDH"].get<double>(), 0.0) << label << ": an analytic term must not see the raster";
+        if (raster) { sawRaster=true; EXPECT_GT(t["maxAbsDH"].get<double>(), 0.0) << label << ": a raster term on a different raster"; }
+    }
+    EXPECT_TRUE(sawRaster);
+    EXPECT_NEAR(sum, a["dE"].get<double>(), 1e-12) << "the per-term dE are the total's parts";
+    // Both sides state their predicted alias, so the coarse side's can be read whichever side the run is.
+    for (const char* side : {"verdicts","referenceVerdicts"})
+    {
+        ASSERT_TRUE(a.contains(side) && a[side].contains("auditDensity")) << side;
+        EXPECT_FALSE(a[side]["auditDensity"]["status"].get<std::string>().empty()) << side;
+    }
+    EXPECT_LT(a["referenceVerdicts"]["auditDensity"]["alias"].get<double>(), a["verdicts"]["auditDensity"]["alias"].get<double>())
+        << "the AliasFree reference predicts a smaller alias than the BallOnly run";
+    fs::remove_all(dir);
+}
+
 // ============================ THE SUPERCELL-EQUIVALENCE GATE (doc/LinearResponsePlan.md §3d, R3 step 4) ============================
 // The q-mesh response is the response to an ISOLATED perturbation in the q-mesh's supercell: chi_{IR,JR'} = N_q^-1 sum_q e^{iq.(R-R')} chi_IJ(q).  So
 // primitive Si on a 2x1x1 k-mesh with a 2x1x1 q-mesh must give, element for element, the q = 0 response of the 2x1x1 SUPERCELL at Γ (the R2 route,

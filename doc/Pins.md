@@ -363,3 +363,34 @@ representation could run there.  Corollary: the scalar type T, the metric (`isOr
 what a class IS.  Gate: a parameterized UT over the product space (OOD V-XC-ONE-TERM).  Each cell either ASSEMBLES, or is REFUSED for
 symmetry incompatibility at the factory (a permanent, expected answer), or is an EXPECTED FAILURE naming its open
 defect row.  Only that last list may change, and it may only shrink.
+
+**The symmetry rule, stated precisely** (user, 2026-10-31: "a representation may not impose a symmetry the structure
+lacks").  Let **G** be the group the CALCULATION imposes on ρ, and hence on v_xc.  It is not the symmetry of the nuclear
+frame:
+- the atom path (`Atom_EC`, spherical) has G = O(3) about the nucleus;
+- the molecular path has G = the imposed point group, C₁ when the run is free;
+- the solid path has G = the imposed space group, which always contains the lattice translations T.
+
+Every representation R has an **imposed group H_R**:
+- for a fit space V, H_R is the largest group that fixes EVERY element of V (h·f = f for all f ∈ V, h ∈ H_R, i.e. the
+  kernel of the action on V);
+- for a quadrature rule, H_R is the group whose invariance the rule assumes of its integrand.
+
+Examples:
+- l = 0 functions about one centre, or a radial-only ∫ f(r) 4πr² dr: H_R = O(3);
+- plane waves, lattice-summed functions, or a periodic uniform mesh: H_R = T;
+- atom-centred Gaussians, or δ on a Becke mesh: H_R = {e}.
+
+**R is admissible if and only if H_R ≤ G.**  Every field the calculation can produce is G-invariant, hence
+H_R-invariant, so R constrains nothing the calculation has not already fixed.  When H_R ≰ G the factory REFUSES,
+naming H_R and G.
+
+Consequences:
+- **Less symmetry is fine.**  H_R < G is admissible; restoring G is the calculation's symmetrisation (the R1.0r
+  intersection ruling).
+- **G belongs to the calculation, not the nuclei.**  One Si nucleus may use a spherical fit or a radial grid on the atom
+  path (G = O(3)), but not on the molecular path (G = D₂ₕ or C₁).  There the density may break the spherical symmetry,
+  as boron 2p¹ does on 2026-10-31.  A box twin is a solid because the user STATES a cell.
+- **The rule is necessary, not sufficient.**  Completeness (a fit missing an l, a grid that is too coarse) is an
+  accuracy matter for ε and the audit, never a refusal.
+- **The gate's R cells are derived, not listed:** R exactly when H_R ≰ G.

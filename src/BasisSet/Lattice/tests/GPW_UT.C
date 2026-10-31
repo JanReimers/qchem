@@ -49,6 +49,7 @@ import qchem.Blaze;                             // hmat_t element access / rows(
 import qchem.Math;                              // Pi (the Bloch-phase e^{2 pi i k.n})
 import qchem.Vector3D;                          // rvec3_t arithmetic (r + R0)
 import qchem.Types;
+import qchem.Reporting;                         // report::Begin/End + CurrentRunReport (the alias calibration reads the grid audit)
 import qchem.Symmetry.Lattice_3D.BlochOperationRep; // BuildBlochOperationRep / ImageOfK (the P4 OrbitalImage gates)
 import qchem.Symmetry.Lattice_3D.BlochQN;           // Getk (a block's fractional k)
 
@@ -2582,6 +2583,103 @@ TEST(GPW, TightPrimitiveCollocationOracle)
             if (ecut>0)              EXPECT_LT(worst, 1e-6) << "BallOnly at 6p, alpha="<<alpha;
             if (rp==RP::AliasFree)   EXPECT_LT(worst, 1e-4) << "AliasFree at the AUTO floor, alpha="<<alpha;
         }
+}
+
+// THE RASTER ALIAS CALIBRATION (C2 M2, doc/GridEpsilonPlan.md §1 row 1): a pair p sampled on a raster of inscribed Nyquist
+// radius G_N aliases with amplitude e^{-x}, x = G_N^2/p, so a term's delivered error is S_term e^{-x} with S_term the term's scale.
+// Sweeps the raster (BallOnly at densityEcut = c p, plus AliasFree at the AUTO floor) on ONE tight primitive, reads x off the run's
+// own grid audit (grids.auditDensity / auditVlocLong: the raster the term actually used), and measures the delivered error of
+//   rho  -- worst |rho~(G)/rho~(0) - exact| (dimensionless, the collocation oracle's measure), and
+//   Vlong -- worst |<V_long>_pp/S_pp - closed form| (Ha, the V_long oracle's measure),
+// against the closed forms above.  MEASURED 2026-10-30 (alpha 10 / 36 / 76.68, s+p+d): the tail is NOT the bare e^{-x} -- err e^x grows
+// with x (the d pair's Hermite prefactor is a polynomial in G^2/p) -- and a fit ln err = ln S + n ln x - x gives n = 2.3-2.6 (V_long),
+// 3.3-3.7 (rho) at every alpha.  At n = 3: S_Vlong = 2.35 Ha, S_rho = 0.35 (the max over the sweep); at n = 2 S_Vlong ~ 20 Ha = the Mn
+// erf well depth §1 proposed.  The CLAIM, at every point with x >= 4 (below it the alias image is not a small tail):
+//   err <= S x^3 e^{-x},   S_Vlong = 2.5 Ha, S_rho = 0.4.
+TEST(GPW, RasterAliasCalibration)
+{
+    namespace rpt=qchem::report;
+    const double a=10.0;
+    UnitCell cell(a);
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    const rvec3_t C(a/2,a/2,a/2);
+    const double Z=7.0, rloc=0.64, Omega=a*a*a;
+    const auto gth=Pseudopotential::GetGTH("Mn","LDA",7);
+    std::vector<rvec3_t> Gs;
+    const int M=int(16.0*a/(2*Pi))+1;
+    for (int i=-M;i<=M;i++) for (int j=-M;j<=M;j++) for (int k=-M;k<=M;k++)
+    {
+        if (!i && !j && !k) continue;
+        const rvec3_t G(2*Pi*i/a, 2*Pi*j/a, 2*Pi*k/a);
+        if (G*G<=256.0) Gs.push_back(G);
+    }
+    using RP=BasisSet::PlaneWave::RasterPolicy;
+    double Srho=0.0, Svl=0.0;
+    struct Row { double alpha, c; bool af; double xr, er, xv, ev; };
+    for (double alpha : {10.0, 36.0, 76.68})
+        for (auto [c, rp] : {std::pair{0.5, RP::BallOnly}, std::pair{1.0, RP::BallOnly}, std::pair{1.5, RP::BallOnly},
+                             std::pair{2.0, RP::BallOnly}, std::pair{3.0, RP::BallOnly}, std::pair{-1.0, RP::AliasFree}})
+        {
+            const double pp=2.0*alpha;
+            auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
+            cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{alpha}, 2, &cell));
+            std::shared_ptr<const Real_BS> mol(cbs);
+            rpt::ClearGlobal();
+            rpt::Begin("RasterAliasCalibration", "fixed");
+            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, c>0 ? c*pp : -1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0, rp);
+            const GPW_Evaluator& ev=gpw;
+            ev.EmitGridsReport();
+            const chmat_t Vl=ev.MakeLocalPPLong(&cell, gth.local);
+            const qchem::report::json& g=rpt::CurrentRunReport()["grids"];
+            ASSERT_TRUE(g.contains("auditDensity")) << "the grid audit did not run";
+            const double GNr=g["auditDensity"]["rasterGhave"].get<double>(), pr=g["auditDensity"]["pPair"].get<double>();
+            // Mn q7's local is a pure erf (no short Gaussian, no closed beta), so V_long takes the kappa-sweep path, whose
+            // requirement kappa*max(p, beta_PP) puts the tight pair on the FINEST level -- the density audit's raster.
+            const bool vAudit=g.contains("auditVlocLong");
+            const double GNv=vAudit ? g["auditVlocLong"]["rasterGhave"].get<double>() : GNr;
+            const double pv =vAudit ? g["auditVlocLong"]["pPair"].get<double>()       : pr;
+            rpt::End();
+            const Complex_OIBS& gc=gpw;
+            const Real_OIBS* obs=nullptr;
+            for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
+            ASSERT_TRUE(obs);
+            const auto& S=obs->Overlap();
+            const size_t nf=gc.GetNumFunctions();
+            const Projector3<dcmplx> ov=ev.Overlap3CTensor();
+            double er=0.0, evl=0.0;
+            for (size_t p=0;p<obs->GetNumFunctions();p++)
+            {
+                const ivec3_t n=MonomialOf(*obs, p, C, alpha, 2);
+                ASSERT_GE(n.x,0);
+                const double f0=FT1DEven(2*n.x,pp,0.0)*FT1DEven(2*n.y,pp,0.0)*FT1DEven(2*n.z,pp,0.0);
+                double orac=0.0;
+                for (const auto& G : Gs)
+                    orac += -FourPi*Z*std::exp(-0.5*(G*G)*rloc*rloc)/((G*G)*Omega)
+                            *FT1DEven(2*n.x,pp,G.x)*FT1DEven(2*n.y,pp,G.y)*FT1DEven(2*n.z,pp,G.z);
+                evl=std::max(evl, std::fabs(std::real(Vl(p,p))/std::real(S(p,p)) - orac/f0));
+                chmat_t D(nf);
+                for (size_t i=0;i<nf;i++) for (size_t j=i;j<nf;j++) D(i,j)=dcmplx(0.0);
+                D(p,p)=dcmplx(1.0);
+                ΔG_Map rho=Contract(ov, D);
+                const double r0=std::abs(rho[ivec3_t(0,0,0)]);
+                for (const ivec3_t m : {ivec3_t(1,0,0), ivec3_t(1,1,0), ivec3_t(2,1,1), ivec3_t(3,0,2), ivec3_t(4,4,0)})
+                {
+                    const rvec3_t G(2*Pi*m.x/a, 2*Pi*m.y/a, 2*Pi*m.z/a);
+                    const double exact=std::fabs(FT1DEven(2*n.x,pp,G.x)*FT1DEven(2*n.y,pp,G.y)*FT1DEven(2*n.z,pp,G.z)/f0);
+                    er=std::max(er, std::fabs(std::abs(rho[m])/r0-exact));
+                }
+            }
+            const Row r{alpha, c, rp==RP::AliasFree, GNr*GNr/pr, er, GNv*GNv/pv, evl};
+            Srho=std::max(Srho, r.er*std::exp(r.xr));
+            Svl =std::max(Svl,  r.ev*std::exp(r.xv));
+            auto bound=[](double S, double x){ return S*x*x*x*std::exp(-x); };
+            if (r.xr>=4.0) EXPECT_LE(r.er, bound(0.4, r.xr)) << "rho tail, alpha="<<alpha<<" c="<<c;
+            if (r.xv>=4.0) EXPECT_LE(r.ev, bound(2.5, r.xv)) << "V_long tail, alpha="<<alpha<<" c="<<c;
+            std::cout<<"[alias calib] alpha="<<alpha<<(r.af ? " AliasFree AUTO" : " BallOnly c="+std::to_string(c))
+                     <<"  rho: x="<<r.xr<<" err="<<r.er<<" err*e^x="<<r.er*std::exp(r.xr)
+                     <<"   Vlong: x="<<r.xv<<" err="<<r.ev<<" Ha  err*e^x="<<r.ev*std::exp(r.xv)<<std::endl;
+        }
+    std::cout<<"[alias calib] max err*e^x: rho "<<Srho<<", V_long "<<Svl<<" Ha (grows with x: the x^3 prefactor)"<<std::endl;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
