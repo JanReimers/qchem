@@ -179,7 +179,7 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
   | term | n = 3 (the gate) | n = 2 | x for ε = 1e-4 / 1e-5 / 1e-6 / 1e-7 | AliasFree delivers |
   |---|---|---|---|---|
   | V_long ⟨χ\|V\|χ⟩ (Ha) | S = 2.35 Ha | S ≈ 20 Ha (= §1's Mn erf well depth 19 Ha ✓) | 18.9 / 21.6 / 24.2 / 26.8 | x 16.5–19.7: 1.3e-4 … 1.8e-5 Ha |
-  | ρ̃ at low G (relative) | S = 0.35 | — | 16.6 / 19.4 / 22.1 / 24.7 | x 16.5–19.7: 4e-5 … 2e-6 |
+  | ρ̃ at low G (relative) | S = 0.35 | — | 16.6 / 19.4 / 22.0 / 24.7 | x 16.5–19.7: 4e-5 … 2e-6 |
 
   Gate (x ≥ 4, below it the image is not a small tail): err ≤ S·x³·e^{−x}, S_Vlong = 2.5 Ha, S_ρ = 0.4.  **Consequences for §1 row 1:**
   (i) L(ε) is the root of S·L³e^{−L} = ε, not ln(S/ε) -- at ε = 1e-5, L ≈ 21.6 (V_long) vs ln(20/1e-5) = 14.5 from the bare form;
@@ -229,6 +229,17 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
      (the egg-box force IS the raster's ΔH seen through dE/dR).  Build it as a `gridAudit` companion (a postSCF `eggBox {shift}` re-evaluates E at
      the converged D on the shifted cell's basis, fixed-D like the audit, plus a self-consistent variant for the gate) and a test.  C2 sizes the
      defaults so a geometry deck passes it at its ε.
+     **BUILT 2026-10-31 (17e089e6, `SolidCalculation::EggBox` + postSCF `eggBox {shift}`; fixed D, the same per-term table as `gridAudit`).**
+     Every analytic term reads 0 to roundoff (Si Γ ≤ 6e-15, NaF ≤ 1e-13: a built-in check that the comparison is sound).  E(shifted) − E(run):
+     | system (run data) | shift (bohr) | Hartree | V_long ΔE / max\|ΔH\| | XC | total |
+     |---|---|---|---|---|---|
+     | Si Γ densityEcut 20, uniform XC raster (test) | (0.11, 0.07, 0.03) | −8.6e-11 | −5.6e-10 / 1.1e-10 | **+4.5 μHa** / 9.5e-3 | +4.5 μHa |
+     | NaF k222 free, auto densityEcut, BallOnly, Becke XC (`NaF/C2_eggbox_k222.log`) | (0.03, 0, 0) | **−8.25 μHa** | −8e-10 / **6.1e-3** | −5e-12 | −8.25 μHa |
+     |  | (0.03, 0.02, 0.01) | **−12.3 μHa** | −2e-9 / 7.9e-3 | −5e-12 | −12.3 μHa |
+     NaF reproduces lane B's SCF −1.0e-5 at 0.03 bohr (fixed-D −8.25e-6: second order apart, plus a different XC mesh), and LOCATES it: the
+     density raster (Hartree, alias 1.5e-2 at x = 4.2), not V_long (its ΔE cancels: 6e-3 Ha in H, 1e-9 in E -- verdict 3 again) nor XC
+     (Becke follows the atoms).  Si's is the uniform XC raster.  So the egg-box gate checks the same terms the audit flags UNDER, and a
+     geometry deck's default must size the DENSITY raster (and, on a uniform-XC run, the XC raster) to pass it.
   4. The bound is safe (η ≤ 0.15) on every LINEAR term measured; delivered errors sit 10–10⁵× under it, which is the room the
      self-calibrated η recovers.
 - **M3 — the XC raster N vs 2N** on the same four, as §3's audit would print it.
@@ -253,7 +264,7 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
 ## 7. Steps (each one commit or a short series)
 
 1. M1–M5 (probes only; numbers into §5/§6).
-2. `solid.accuracy` ε + the derivation table + the banner line; at the tests' ε = 1e-5 every derived value still EQUAL to today's (a pure re-plumbing:
+2. ✅ BUILT 2026-10-31 (17e089e6): `solid.accuracy` ε + the expert calibration η, the rigorous `AliasTail` math isolated (GPWTolerances), the banner's `accuracy:` line (rigorous / calibrated / used; XC MEASURED), gridAudit's bound + measured η per term, the egg-box gate.  Original text: `solid.accuracy` ε + the derivation table + the banner line; at the tests' ε = 1e-5 every derived value still EQUAL to today's (a pure re-plumbing:
    bit-identical).  Unit test: the table's formulas against hand values.
 3. Raster N per level from ε; `RasterPolicy` deleted (one default, the two ctor defaults gone); the audit asserts.  Routing rule from
    the same condition.  ← the anchor-moving step.
