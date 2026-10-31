@@ -47,6 +47,8 @@ typedef struct qcb_request
     int           polarized;      //!< spin-native two-channel run (SpinGroup::Polarized) even for a closed shell
     int           multiplicity;   //!< 2S+1, 0 = minimal spin; > 1 promotes to polarized anyway
     int           maxIter;
+    int           meshRadial;     //!< XC mesh radial points per atom, 0 = the facade's default (CalcOptions::mesh)
+    int           meshAngular;    //!< XC mesh Lebedev degree, 0 = the facade's default
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
