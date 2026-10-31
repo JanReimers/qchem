@@ -45,7 +45,10 @@ std::string ThreadSummary()
          + (q ? "QCHEM_OPENMP_THREADS="+std::string(q)
               : g ? "deprecated GPW_OMP_THREADS="+std::string(g)+" -- use QCHEM_OPENMP_THREADS"
                   : std::string("QCHEM_OPENMP_THREADS unset => serial")) + "), BLAS="
-         + std::to_string(BlasThreads()) + " (QCHEM_BLAS_THREADS)"
+         // The count OpenBLAS ACTUALLY runs, not the request: an unpinned pool printed "BLAS=1" here while 16 threads ran (2026-10-31).
+         + std::to_string(openblas_get_num_threads()) + " (QCHEM_BLAS_THREADS"
+         + (std::getenv("QCHEM_BLAS_THREADS") ? "="+std::string(std::getenv("QCHEM_BLAS_THREADS")) : std::string(" unset => 1")) + ")"
+         + (openblas_get_num_threads()!=BlasThreads() ? "  [WARNING: BLAS is NOT pinned to the requested "+std::to_string(BlasThreads())+"]" : "")
          // ⚠ N BLAS threads INSIDE each of N OpenMP threads is the nesting that measured as a net loss (oversubscription;
          // the OpenBLAS workers spin against our regions).  Say so on the line a benchmark row copies.
          + ((WorkerThreads()>1 && BlasThreads()>1) ? "  [WARNING: threaded BLAS under threaded OpenMP regions -- oversubscribes]" : "");
@@ -79,6 +82,15 @@ void StopOmpThreadsBusyWaiting()
     // overwrite=0: an explicit setting in the environment WINS, so the A/B in the header stays runnable.
     setenv("KMP_BLOCKTIME",   "0",       0);   // libomp: spin 0 ms, then sleep (default is 200 ms)
     setenv("OMP_WAIT_POLICY", "PASSIVE", 0);   // the standard spelling, for any other runtime
+}
+
+namespace {
+// ★ THE PIN RUNS WHEN qcCommon LOADS, so EVERY executable gets it -- rundeck, gpwprobe, ITMain, the UT mains and the pybind
+// module -- not only the mains that remember to call it.  rundeck and gpwprobe never did: OpenBLAS ran its default pool
+// (16 spinning threads, ~1300% CPU beside a 6-thread run) while the banner said BLAS=1 (2026-10-31 perf of a β-MnO₂ PW run).
+// Load order is safe: libopenblas is a dependency of qcCommon, so its own constructor (the pool) has run, and the libraries
+// that call BLAS depend on qcCommon, so they load after this.  This is the ONE home: no main() calls these.
+[[maybe_unused]] const bool theThreadPolicyIsSet=[]{ FixBlasThreads(); StopOmpThreadsBusyWaiting(); return true; }();
 }
 
 } // namespace qchem

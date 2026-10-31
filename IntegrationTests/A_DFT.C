@@ -25,13 +25,16 @@ using namespace qchem;
 
 namespace {
 
-// Shared per-Z atom-DFT SCF params.  The run CONVERGES and the test asserts it: gated on the worst irrep's [F,D] (Z*1e-4)
-// and Δρ (Z*1e-3).  ⚠ It used to stop at NMaxIter=20 behind gates it could never pass (Δ[F,D] 1e-10, and a 1e-13 virial on
+// Shared atom-DFT SCF params.  The run CONVERGES and the test asserts it: gated on the worst irrep's [F,D] and Δρ per electron,
+// both 1e-6 and Z-INDEPENDENT (2026-10-31, controller ruling): the Z-scaled gates (Δρ/e Z*1e-3, [F,D] Z*1e-4) stopped Ar mid-crawl
+// with E still falling 0.08 Ha per iteration, so the banked energy was a stopping point that moved by 0.27 Ha the day the Δρ
+// MEASURE moved (the molecular XC term began answering it on its own mesh, V-XC-ONE-TERM).  At 1e-6 the energy is converged, so
+// the measure cannot move an anchor.  ⚠ It used to stop at NMaxIter=20 behind gates it could never pass (Δ[F,D] 1e-10, and a 1e-13 virial on
 // an incomplete basis, where 2+V/K plateaus near 5e-3), so the "energy" was iteration 20 of an unconverged run -- 38 Ha off
 // on Rb -- and any change to the accelerator's signals moved it past the oracle tolerance (2026-10-29, the [F,D] row).
-static SCFParams dft_scf_params(int Z)
+static SCFParams dft_scf_params(int /*Z: no longer scales the gate*/)
 {
-    return {.NMaxIter = 100, .MinΔρPerElectron = Z*1e-3, .MinΔFD = 1e30, .MinVirial = 1e30, .MinFD = Z*1e-4, .StartingRelaxRo = 0.1, .MergeTol = 1e-8, .Verbose = true};
+    return {.NMaxIter = 100, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e30, .MinVirial = 1e30, .MinFD = 1e-6, .StartingRelaxRo = 0.1, .MergeTol = 1e-8, .Verbose = true};
 }
 static int slater_N(int Z) { return Z>50 ? 11 : Z>20 ? 10 : 8; }
 

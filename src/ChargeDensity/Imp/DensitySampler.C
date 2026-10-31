@@ -8,6 +8,7 @@
 module;
 #include <cassert>
 #include <memory>
+#include <stdexcept>
 module qchem.ChargeDensity.DensitySampler;
 import qchem.ChargeDensity.Internal.DensitySampler;   // the two strategies this chooses between
 import qchem.BasisSet.G_FieldEvaluator;               // G_RasterTransform -- the capability that decides
@@ -38,6 +39,16 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
     if (dynamic_cast<const BasisSet::G_RasterTransform*>(fb.get()))
         return std::make_shared<const PairDensitySampler>(fb);
     return std::make_shared<const SinglesDensitySampler>(fb, std::move(quad));
+}
+
+std::shared_ptr<const tDensitySampler<double>>
+MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad)
+{
+    assert(fb);
+    if (!fb->isOrtho())
+        throw std::logic_error("MakeDensitySampler: a non-orthogonal (A1 auxiliary) Vxc fit has no sampler strategy yet -- an open "
+                               "gap of the Vxc product space (V-XC-ONE-TERM, pin 30)");
+    return std::make_shared<const tSinglesDensitySampler<double>>(fb, std::move(quad));
 }
 
 } //namespace

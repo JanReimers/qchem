@@ -309,9 +309,55 @@ private:
 //! (\c PWFittedVxc) that duplicated this logic around its own ρ/H pair.  Two terms for one formula
 //! \f$H_{ij}=\sum_g w_g v(r_g)\chi_i\chi_j\f$: the difference between them was never the physics, only the
 //! evaluation order, which is exactly what \c DensitySampler's two implementations now hold.
+template <class T> class tVxc_Quadrature
+    : public virtual tDynamic_HT<T>
+    , protected      tDynamic_HT_Imp<T>
+{
+public:
+    typedef std::shared_ptr<ExFunctional> xc_t;
+    typedef std::shared_ptr<const ChargeDensity::tDensitySampler<T>> sampler_t;   //!< const: every accessor is const (R2.9(i))
+    //! \a g is the imposed spin subgroup: which rasters the sampler is asked for (its Rho / RhoPol caches
+    //! are mutually exclusive on one engine, so the choice is fixed for the run).
+    tVxc_Quadrature(const xc_t&, sampler_t, SpinGroup g);
+    //! Pre-warm the channel raster(s) on the quadrature's points for \a cd (the EAGER REFRESH PHASE).
+    virtual void          RefreshForDensity(const tChargeDensity<T>* cd) const override;
+    virtual void          GetEnergy(EnergyBreakdown&, const tDM_CD<T>*) const override;
+    //! \copydoc tDynamic_HT::SiteMoments
+    //! The atom-centred partition lives on my quadrature and both channel rasters are my working data, so
+    //! I am the term that computes the observable (doc/OpenWork.md N1/T2).  Empty when the quadrature has
+    //! no site blocks (a uniform raster) or the run resolves no spin.  My ENERGY pass writes the same number
+    //! into \c ChargeBreakdown::siteMoments, which is how it reaches the trace and the observer.
+    virtual rvec_t        SiteMoments(const tChargeDensity<T>* cd) const override;
+    //! \copydoc tDynamic_HT::RealSpaceL1Distance
+    //! On my quadrature, per spin channel for a polarized run (a moment still moving keeps the SCF unconverged).
+    virtual double        RealSpaceL1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const override;
+    virtual std::ostream& Write(std::ostream&) const override;
+protected:
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const override;
+    //! \f$v^\sigma\f$ at my points for the block of spin \a s, recording the pin-28 source of the \f$\rho\f$ it saw -- what
+    //! every \f$V_{xc}\f$ build (Bloch block or real TRIM block) contracts against.
+    rvec_t PotentialAt(const Spin& s, const tChargeDensity<T>* cd) const;
+    //! The two channel rasters of \a cd as the functional sees them: the sampler's Up/Down pair, or the
+    //! folded doublet's one raster halved (borrowed reference + scratch, hence the pair of references).
+    struct Rasters { const rvec_t& up; const rvec_t& dn; };
+    Rasters ChannelRasters(const tChargeDensity<T>* cd, rvec_t& scratch) const;
+
+
+    xc_t      itsXc;
+    sampler_t itsSampler;   //!< the shared mesh + Phi tables + per-serial rho (one per Hamiltonian)
+    SpinGroup itsGroup;     //!< the imposed subgroup this term was built for
+    //! The pin-28 audit: the source of the rho my most recent V_xc BUILD sampled (MakeMatrixT), which my energy pass
+    //! reports in \c ChargeBreakdown::xcRho.  The latest build, not a drained log: GDM's line search calls the energy
+    //! many times per iteration, and a log emptied by each call would hand the trace an empty cell.
+    mutable std::optional<ChargeDensity::XCRhoSource> itsFockSource;
+    mutable std::optional<double> itsFockGroupResidual;   //!< R2.1: the same build's density vs the imposed group (\c xcGroupResidual)
+    qchem::LazyLock itsFockSourceLock;   //!< every Fock block writes it (the same value): concurrent blocks take turns
+};
+
+//! \brief The PERIODIC XC term: \c tVxc_Quadrature<dcmplx> plus what only a Bloch run has -- the real TRIM block's cache
+//! (Step 3c) and the ALDA response kernel (R2).  The name every periodic builder and test already spells.
 class Vxc_Quadrature
-    : public virtual cDynamic_HT
-    , private        cDynamic_HT_Imp
+    : public         tVxc_Quadrature<dcmplx>
     , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
     , public virtual tResponse_HT<dcmplx>       // the ALDA kernel f_xc(rho0) on the same quadrature (R2)
 {
@@ -325,7 +371,7 @@ public:
     //! function (\c DensitySampler::Sample), and f_xc is periodic, so the pointwise product is too; the pair
     //! adjoint \c DensitySampler::Matrix(bra, ket, ·, q) gathers it.  Complex blocks only.
     //!@{
-    using cDynamic_HT::RefreshForDensity;
+    using tVxc_Quadrature<dcmplx>::RefreshForDensity;
     virtual void   RefreshForDensity(const cbs_t* wholeBasis, const cChargeDensity* D0,
                                      const TransitionDensity<dcmplx>& delta) const override;
     virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s,
@@ -337,37 +383,11 @@ public:
     //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
     virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
-    { cDynamic_HT_Imp::PrepareSlots(bs, cd); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
-    typedef std::shared_ptr<ExFunctional> xc_t;
-    typedef std::shared_ptr<const ChargeDensity::DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
-    //! \a g is the imposed spin subgroup: which rasters the sampler is asked for (its Rho / RhoPol caches
-    //! are mutually exclusive on one engine, so the choice is fixed for the run).
-    Vxc_Quadrature(const xc_t&, sampler_t, SpinGroup g);
-    //! Pre-warm the channel raster(s) on the quadrature's points for \a cd (the EAGER REFRESH PHASE).
-    virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
-    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
-    //! \copydoc tDynamic_HT::SiteMoments
-    //! The atom-centred partition lives on my quadrature and both channel rasters are my working data, so
-    //! I am the term that computes the observable (doc/OpenWork.md N1/T2).  Empty when the quadrature has
-    //! no site blocks (a uniform raster) or the run resolves no spin.  My ENERGY pass writes the same number
-    //! into \c ChargeBreakdown::siteMoments, which is how it reaches the trace and the observer.
-    virtual rvec_t        SiteMoments(const cChargeDensity* cd) const override;
-    //! \copydoc tDynamic_HT::RealSpaceL1Distance
-    //! On my quadrature, per spin channel for a polarized run (a moment still moving keeps the SCF unconverged).
-    virtual double        RealSpaceL1Distance(const cChargeDensity* a, const cChargeDensity* b) const override;
-    virtual std::ostream& Write(std::ostream&) const;
+    { tDynamic_HT_Imp<dcmplx>::PrepareSlots(bs, cd); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
+    Vxc_Quadrature(const xc_t&, std::shared_ptr<const ChargeDensity::DensitySampler>, SpinGroup g);
 private:
-    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
-    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
-    //! The two channel rasters of \a cd as the functional sees them: the sampler's Up/Down pair, or the
-    //! folded doublet's one raster halved (borrowed reference + scratch, hence the pair of references).
-    struct Rasters { const rvec_t& up; const rvec_t& dn; };
-    Rasters ChannelRasters(const cChargeDensity* cd, rvec_t& scratch) const;
-
-    xc_t      itsXc;
-    sampler_t itsSampler;   //!< the shared mesh + Phi tables + per-serial rho (one per Hamiltonian)
-    SpinGroup itsGroup;     //!< the imposed subgroup this term was built for
+    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const override;   // Step 3c
+    std::shared_ptr<const ChargeDensity::DensitySampler> itsPeriodic;   //!< the same sampler, through its periodic face
     //! The response state (R2): \f$f_{xc}^{\sigma\sigma'}\f$ at the linearisation density, per point, and the
     //! last δ's \f$\delta v^\sigma\f$.
     mutable size_t itsKernelVersion=size_t(-1);
@@ -375,12 +395,6 @@ private:
     mutable size_t  itsDeltaVersion=size_t(-1);
     mutable cvec_t  itsDvUp, itsDvDn;
     mutable rvec3_t itsDeltaQ{0,0,0};   //!< the wave vector δv was sampled at (the raster adjoint needs it)
-    //! The pin-28 audit: the source of the rho my most recent V_xc BUILD sampled (MakeMatrixT), which my energy pass
-    //! reports in \c ChargeBreakdown::xcRho.  The latest build, not a drained log: GDM's line search calls the energy
-    //! many times per iteration, and a log emptied by each call would hand the trace an empty cell.
-    mutable std::optional<ChargeDensity::XCRhoSource> itsFockSource;
-    mutable std::optional<double> itsFockGroupResidual;   //!< R2.1: the same build's density vs the imposed group (\c xcGroupResidual)
-    qchem::LazyLock itsFockSourceLock;   //!< every Fock block writes it (the same value): concurrent blocks take turns
 };
 
 //! \brief THE XC term for a run whose \f$v_{xc}\f$ fit basis is \a fb -- ready to \c Add (ownership
@@ -404,6 +418,19 @@ MakeVxcTerm(std::vector<std::shared_ptr<ExFunctional>> parts,
     std::shared_ptr<const ChargeDensity::DensitySampler> q=ChargeDensity::MakeDensitySampler(fb, std::move(quad));
     auto sum=std::make_shared<CompositeExFunctional>(std::move(parts));
     return std::make_unique<Vxc_Quadrature>(sum, q, g);
+}
+
+//! \brief The XC term on the REAL (molecular / atom) path -- the SAME term as the periodic one (V-XC-ONE-TERM, 2026-10-31):
+//! \c tVxc_Quadrature<double> over the sampler \a fb's capability selects (a δ basis: singles).  \a quad is the bundle the δ
+//! basis was built over.
+inline std::unique_ptr<rDynamic_HT>
+MakeVxcTerm(std::vector<std::shared_ptr<ExFunctional>> parts,
+            const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, SpinGroup g,
+            BasisSet::FitQuadrature quad={})
+{
+    std::shared_ptr<const ChargeDensity::tDensitySampler<double>> q=ChargeDensity::MakeDensitySampler(fb, std::move(quad));
+    auto sum=std::make_shared<CompositeExFunctional>(std::move(parts));
+    return std::make_unique<tVxc_Quadrature<double>>(sum, q, g);
 }
 
 } //namespace

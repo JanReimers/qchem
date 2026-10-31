@@ -190,8 +190,11 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
             throw std::invalid_argument("SolidCalcOptions: orbitalBasis PlaneWave needs planeWaveEcut > 0 (Ha)");
         if (lat.MakeKMesh(opts.kShift).size()!=1 || opts.kShift!=rvec3_t(0,0,0))
             throw std::invalid_argument("SolidCalcOptions: the plane-wave family is Γ-only so far (k-mesh 1x1x1, no shift)");
-        if (s->imposed)
-            throw std::invalid_argument("SolidCalcOptions: the plane-wave family has no symmetry imposition yet");
+        // A MAGNETIC imposition is the (D_up, D_dn) pair projection on the one Γ block (PW_BasisSet, OpenWork §2 PW-5).  A
+        // grey / spatial imposition would need the per-channel density star-average the plane-wave route does not have.
+        const bool magnetic=std::any_of(s->siteSpins.begin(), s->siteSpins.end(), [](int v){return v!=0;});
+        if (s->imposed && !magnetic)
+            throw std::invalid_argument("SolidCalcOptions: the plane-wave family imposes only a MAGNETIC (Shubnikov) group so far -- state siteSpins");
         // Plane waves ARE orthonormal: the default Cholesky would factor an identity S into two dense identity
         // factors per spin block.  A stated non-default ortho is obeyed (an A/B door).
         if (s->opts.ortho==qchem::Cholesky) s->opts.ortho=qchem::Orthonormal;

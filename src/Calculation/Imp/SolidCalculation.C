@@ -362,7 +362,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     if (S.planeWave)
     {
         qchem::report::Timed timed("setup: PW basis build");
-        itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.planeWaveEcut));
+        itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.planeWaveEcut, S.siteSpins));   // {} unless a magnetic imposition
         std::cout<<"["<<opts.label<<" run] plane-wave orbital basis: Ecut "<<opts.planeWaveEcut<<" Ha, "
                  <<itsImp->bs->GetNumFunctions()<<" PWs at Γ"<<std::endl;
     }

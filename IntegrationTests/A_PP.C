@@ -81,6 +81,8 @@ TEST(Si2_PP_U, LargeSeparation)
     Molecule si2;
     si2.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,0)));
     si2.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,R)));
+    // Its Etotal is a BOUNDED iterate, not a measurement: it moves with anything that steers the step (it moved 1.5e-5 when the
+    // Δρ measure moved onto the XC mesh, V-XC-ONE-TERM 2026-10-31), so anchordiff may flag this test while its claim (Enn) holds.
     qchem::BoundedSCF bounded("the routing claim reads Enn, which no iteration changes; the separated pair does not converge (open row)");
     Calculation c2(MoleculeSetup::Resolve(si2, opt), {.NMaxIter = 2});
     EXPECT_NEAR(c2.EnergyTerms()["Enn"], 16.0/R, 1e-6);   // Zion=4 ion-ion (Z=14 -> 196/R would fail): the routing check

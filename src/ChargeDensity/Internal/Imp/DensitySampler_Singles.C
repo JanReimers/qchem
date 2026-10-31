@@ -54,14 +54,14 @@ double GroupResidualOf(const rvec_t& rho0, const rvec_t& rho, const rvec_t& m0, 
 
 // ---- SinglesDensitySampler: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------
 
-SinglesDensitySampler::SinglesDensitySampler(fit_t fit, BasisSet::FitQuadrature quad)
+template <class T> tSinglesDensitySampler<T>::tSinglesDensitySampler(fit_t fit, BasisSet::FitQuadrature quad)
     : itsFit(std::move(fit))
     , itsQuad(std::move(quad))
 {
     // The fitter comes from the SAME Factory the molecular XC term uses; it inspects the basis and hands
     // back the delta fitter (R1.0 conformance).  A named lvalue because Factory takes its argument by
     // non-const reference, as its siblings do.
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> fb=itsFit;
+    std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> fb=itsFit;
     itsScalarFitter=Fitting::Factory(fb);
     assert(itsFit && "SinglesDensitySampler: the delta fit basis IS the quadrature -- it cannot be null");
     // The bundle's own invariants (fold partitions the mesh, sigmas need a fold, flags cover it) are
@@ -79,11 +79,20 @@ SinglesDensitySampler::SinglesDensitySampler(fit_t fit, BasisSet::FitQuadrature 
 // for the adjoint direction (user).  So both directions of the SAME tensor now come off ONE object, which
 // is the invariant this class's own header argues for one level up.  The cross-cast is the sanctioned
 // "I want more" ask, made once per call on a face the delta fitter always carries.
-const Fitting::ScalarProjector& SinglesDensitySampler::Projector() const
+template <class T> const Fitting::ScalarProjector* tSinglesDensitySampler<T>::MatrixProjector() const
 {
-    auto* sp=dynamic_cast<const Fitting::ScalarProjector*>(itsScalarFitter.get());
-    assert(sp && "SinglesDensitySampler: the delta scalar fitter must carry the projection face");
-    return *sp;
+    return dynamic_cast<const Fitting::ScalarProjector*>(itsScalarFitter.get());   // the periodic δ fitter's; null on the real axis
+}
+template <class T> const Fitting::FieldProjector& tSinglesDensitySampler<T>::FieldProjection() const
+{
+    auto* fp=dynamic_cast<const Fitting::FieldProjector*>(itsScalarFitter.get());
+    if (!fp) throw std::logic_error("SinglesDensitySampler: a delta scalar fitter must carry the field projection face");
+    return *fp;
+}
+template <class T> rvec_t tSinglesDensitySampler<T>::ProjectDM(const tDM_CD<T>& dm) const
+{
+    if (const Fitting::ScalarProjector* sp=MatrixProjector()) return dm.ProjectOnto(*sp);
+    return FieldProjection().Project(dm);
 }
 
 // The quadrature questions go THROUGH the basis, and since 2026-08-23 in its own FUNCTION vocabulary:
@@ -92,17 +101,17 @@ const Fitting::ScalarProjector& SinglesDensitySampler::Projector() const
 // Integral(sum_g c_g delta_g) = sum_g c_g <delta_g|1> = sum_g c_g w_g.  Algebraically the old
 // Integrate(values) and, written as this loop, the SAME summation order as qcMesh::Integrate was -- which
 // is what keeps the pinned energies bit-unmoved.
-const rvec_t& SinglesDensitySampler::FunctionIntegrals() const
+template <class T> const rvec_t& tSinglesDensitySampler<T>::FunctionIntegrals() const
 {
     if (itsIntegrals.size()==0)
     {
-        const vec_t<dcmplx> I=itsFit->Charge();
+        const vec_t<T> I=itsFit->Charge();
         itsIntegrals.resize(I.size());
         for (size_t a=0; a<I.size(); a++) itsIntegrals[a]=std::real(I[a]);
     }
     return itsIntegrals;
 }
-double SinglesDensitySampler::Integrate(const rvec_t& f) const
+template <class T> double tSinglesDensitySampler<T>::Integrate(const rvec_t& f) const
 {
     const rvec_t& I=FunctionIntegrals();
     assert(f.size()==I.size() && "SinglesDensitySampler::Integrate: one coefficient per fit function");
@@ -110,7 +119,7 @@ double SinglesDensitySampler::Integrate(const rvec_t& f) const
     for (size_t a=0; a<f.size(); a++) s+=I[a]*f[a];
     return s;
 }
-size_t SinglesDensitySampler::NumPoints() const {return itsFit->GetNumFunctions();}
+template <class T> size_t tSinglesDensitySampler<T>::NumPoints() const {return itsFit->GetNumFunctions();}
 
 // THE XC DM-rho REPAIR (doc/OpenWork.md, the factored-rho section).  Under rho-tilde mixing the density
 // driving the Fock build is a G-space FIELD, so XC has to inverse-transform a truncated series at every
@@ -124,10 +133,10 @@ size_t SinglesDensitySampler::NumPoints() const {return itsFit->GetNumFunctions(
 bool UseDMSource() {return theRunPolicy().XCFromDM();}
 //! The exact density behind a field-backed one + THE DAMPING THAT FIELD APPLIED -- always together, because
 //! taking the first without the second is the half-damped map (see cDM_Sourced_CD::EffectiveAlpha).
-struct ExactSource
+template <class T> struct ExactSource
 {
-    const cDM_CD* cd=nullptr; double alpha=0.0;
-    std::shared_ptr<const cChargeDensity> corr;   //!< N4: rho_mix - rho[D] as a field (null = wholesale route)
+    const tDM_CD<T>* cd=nullptr; double alpha=0.0;
+    std::shared_ptr<const tChargeDensity<T>> corr;   //!< N4: rho_mix - rho[D] as a field (null = wholesale route)
     explicit operator bool() const {return cd;}
 };
 // THE CUSP-DEFICIT ROUTE (doc/OpenWork.md N4):
@@ -141,10 +150,10 @@ struct ExactSource
 // BUILT (SCFParams::XCCuspDeficit -> KerkerMixerFactory), so CP2K parity is a property of the constructed
 // object and the plain Kerker mixer stays bit-identical.  This code just uses what it was handed: a
 // non-null XCCorrection() means the run asked for the correction route.
-ExactSource ExactSourceOf(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd)
+template <class T> ExactSource<T> ExactSourceOf(const qchem::ChargeDensity::tChargeDensity<T>* cd)
 {
     if (!cd) return {};
-    auto* src=dynamic_cast<const qchem::ChargeDensity::cDM_Sourced_CD*>(cd);
+    auto* src=dynamic_cast<const qchem::ChargeDensity::tDM_Sourced_CD<T>*>(cd);
     if (!src) return {};
     auto corr=src->XCCorrection();
     if (!corr && !UseDMSource()) return {};      // neither route armed
@@ -191,7 +200,7 @@ bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {ret
 bool HasXCCorrection(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {return bool(ExactSourceOf(cd).corr);}
 
 //! The engine notes which ρ source it served XC from (the free helper below reports the sign census).
-void SinglesDensitySampler::NoteRoute(const char* route, XCRhoSource src) const
+template <class T> void tSinglesDensitySampler<T>::NoteRoute(const char* route, XCRhoSource src) const
 {
     itsSource=src;   // before the de-dup: a repeat route is still THIS sampling's source
     if (!itsRoutes.empty() && itsRoutes.back()==route) return;
@@ -200,7 +209,7 @@ void SinglesDensitySampler::NoteRoute(const char* route, XCRhoSource src) const
     qchem::report::EmitAt("scf", "xcRhoRoutes", qchem::report::json(itsRoutes), qchem::report::Detail::Verbose);   // the json always records it (the Si gate reads it); the console only at Verbose -- it re-renders on every Fock build
 }
 
-void ReportNegativeRho(const DensitySampler& q, const rvec_t& rho, const char* route)
+void ReportNegativeRho(const DensitySamplerBase& q, const rvec_t& rho, const char* route)
 {
     static const bool on=qchem::Diagnostics::Enabled("rho_negative");
     if (!on || rho.size()==0) return;
@@ -223,7 +232,7 @@ void ReportNegativeRho(const DensitySampler& q, const rvec_t& rho, const char* r
 // rho at the mesh points, once per density serial for the WHOLE pair: the density GEMMs the cached
 // tables against its private D (ProjectOnto; blocks not yet tabled self-evaluate pointwise -- first
 // pass only).  A non-DM density (no DM face) falls back to the pointwise ScalarFunction sweep.
-const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
+template <class T> const rvec_t& tSinglesDensitySampler<T>::Rho(const tChargeDensity<T>* cd) const
 {
     assert(cd);
     // R2.9(i): the scalar and spin-resolved caches do not cross-invalidate (see the \warning on the
@@ -234,9 +243,9 @@ const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
     if (cd->Version()==itsRhoVersion) return itsRho;
     itsRhoVersion=cd->Version();
     qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
-    if (auto dm=dynamic_cast<const cDM_CD*>(cd))
+    if (auto dm=dynamic_cast<const tDM_CD<T>*>(cd))
     {
-        itsRho=dm->ProjectOnto(Projector());   // the density contracts its D into the fitter's handles
+        itsRho=ProjectDM(*dm);   // the density contracts its D into the fitter's handles
         NoteRoute("DM", XCRhoSource::DM);
         ReportNegativeRho(*this, itsRho, "DM");
     }
@@ -250,8 +259,8 @@ const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
         itsSrcVersion=ex.cd->Version();
         if (ex.corr)
         {   // N4: exact cusps + the band-limited difference.  No damping decision exists here by design.
-            itsRho=ex.cd->ProjectOnto(Projector());
-            const rvec_t c=Projector().Project(*ex.corr);
+            itsRho=ProjectDM(*ex.cd);
+            const rvec_t c=FieldProjection().Project(*ex.corr);
             assert(c.size()==itsRho.size() && "XC cusp-deficit: correction and rho must share the mesh");
             for (size_t g=0; g<itsRho.size(); ++g) itsRho[g]+=c[g];
             NoteRoute("cusp-deficit", XCRhoSource::CuspDeficit);
@@ -259,7 +268,7 @@ const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
         }
         else
         {
-            DampXCChannel(itsXCMix, ex.cd->ProjectOnto(Projector()), ex.alpha);
+            DampXCChannel(itsXCMix, ProjectDM(*ex.cd), ex.alpha);
             itsRho=itsXCMix;   // the running mix lives in its OWN buffer -- see the \warning on itsXCMix
             NoteRoute("DM-source", XCRhoSource::DMSource);
             ReportNegativeRho(*this, itsRho, "DM-source");
@@ -267,7 +276,7 @@ const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
     }
     else
     {
-        itsRho=Projector().Project(*cd);   // non-DM (mixed rho-tilde / seed): the fitter projects the FIELD
+        itsRho=FieldProjection().Project(*cd);   // non-DM (mixed rho-tilde / seed): the fitter projects the FIELD
         NoteRoute("matrix-free", XCRhoSource::Fitted);
         ReportNegativeRho(*this, itsRho, "matrix-free");
     }
@@ -331,7 +340,7 @@ mat_t<dcmplx> SinglesDensitySampler::Matrix(const cobs_t* bra, const cobs_t* ket
 // Down channel).  A polarized composite answers per channel VIEW (each channel GEMMs its own D against the
 // SHARED Phi tables); a spin-agnostic density (the seed) collapses to rho/2 per channel, so the first
 // iterations run the exact unpolarized collapse (v^sigma(rho/2,rho/2)=v^P(rho)).
-const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin& s) const
+template <class T> const rvec_t& tSinglesDensitySampler<T>::RhoPol(const tChargeDensity<T>* cd, const Spin& s) const
 {
     assert(cd);
     assert(itsRhoVersion==size_t(-1) && "SinglesDensitySampler: this engine already served the scalar Rho -- the "
@@ -342,16 +351,16 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
         itsPolVersion=cd->Version();
         qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
         // THE CHANNELS THROUGH THE FACE (V1.37): a polarized composite answers its Up/Down VIEWS, each a
-        // cDM_CD that GEMMs its own D against the SHARED Phi tables; the matrix-free pair below answers its
+        // tDM_CD<T> that GEMMs its own D against the SHARED Phi tables; the matrix-free pair below answers its
         // channel objects; a spin-agnostic density answers null and collapses to rho/2 per channel.
-        const cChargeDensity* up=ChannelOf(cd, Spin::Up  );
-        const cChargeDensity* dn=ChannelOf(cd, Spin::Down);
-        if (auto* dmUp=dynamic_cast<const cDM_CD*>(up))
+        const tChargeDensity<T>* up=ChannelOf(cd, Spin::Up  );
+        const tChargeDensity<T>* dn=ChannelOf(cd, Spin::Down);
+        if (auto* dmUp=dynamic_cast<const tDM_CD<T>*>(up))
         {
-            auto* dmDn=dynamic_cast<const cDM_CD*>(dn);
+            auto* dmDn=dynamic_cast<const tDM_CD<T>*>(dn);
             assert(dmDn && "a D-backed Up channel beside a matrix-free Down channel");
-            itsRhoUp=dmUp->ProjectOnto(Projector());
-            itsRhoDn=dmDn->ProjectOnto(Projector());
+            itsRhoUp=ProjectDM(*dmUp);
+            itsRhoDn=ProjectDM(*dmDn);
             NoteRoute("DM(up)", XCRhoSource::DM);
             ReportNegativeRho(*this, itsRhoUp, "DM(up)");
             NoteRoute("DM(dn)", XCRhoSource::DM);
@@ -369,8 +378,8 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
             // mixed from, so ask for the exact one FIRST and fall back per CHANNEL -- the seed has no source
             // on either while a mixed density has one on both, so a pair-level test would be right today and
             // wrong the first time they differ.
-            const ExactSource exUp=ExactSourceOf(up);
-            const ExactSource exDn=ExactSourceOf(dn);
+            const ExactSource<T> exUp=ExactSourceOf(up);
+            const ExactSource<T> exDn=ExactSourceOf(dn);
             if (exUp && exDn)
             {
                 // STALENESS GUARD (see itsSrcVersion): the field's serial just advanced, so the SOURCE's
@@ -380,12 +389,12 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
                              <<" but its retained density matrix did NOT (still "<<itsSrcVersion
                              <<") -- V_xc is being built from the PREVIOUS iteration's D."<<std::endl;
                 itsSrcVersion=exUp.cd->Version();
-                rvec_t up=exUp.cd->ProjectOnto(Projector());
-                rvec_t dn=exDn.cd->ProjectOnto(Projector());
+                rvec_t up=ProjectDM(*exUp.cd);
+                rvec_t dn=ProjectDM(*exDn.cd);
                 if (exUp.corr && exDn.corr)
                 {   // N4, per channel: each channel's own rho_mix - rho[D] (the polarized split gives the
                     // mixer one FourierMixCD per spin, so the corrections are already channel-private).
-                    const rvec_t cu=Projector().Project(*exUp.corr), cd_=Projector().Project(*exDn.corr);
+                    const rvec_t cu=FieldProjection().Project(*exUp.corr), cd_=FieldProjection().Project(*exDn.corr);
                     assert(cu.size()==up.size() && cd_.size()==dn.size());
                     for (size_t g=0; g<up.size(); ++g) {up[g]+=cu[g]; dn[g]+=cd_[g];}
                     itsRhoUp=up; itsRhoDn=dn;
@@ -408,8 +417,8 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
             else
             {
             qchem::report::Timed seed("scf: XC-mesh rho sampling (matrix-free density)");
-            itsRhoUp=Projector().Project(*up);
-            itsRhoDn=Projector().Project(*dn);
+            itsRhoUp=FieldProjection().Project(*up);
+            itsRhoDn=FieldProjection().Project(*dn);
             NoteRoute("matrix-free(up)", XCRhoSource::Fitted);
             ReportNegativeRho(*this, itsRhoUp, "matrix-free(up)");
             NoteRoute("matrix-free(dn)", XCRhoSource::Fitted);
@@ -418,14 +427,14 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
         }
         else
         {   // spin-agnostic seed: rho_up=rho_down=rho/2 (the molecular HalfDensity rule, cd85d13c)
-            if (auto dm=dynamic_cast<const cDM_CD*>(cd))
+            if (auto dm=dynamic_cast<const tDM_CD<T>*>(cd))
             {
-                itsRhoUp=dm->ProjectOnto(Projector());
+                itsRhoUp=ProjectDM(*dm);
                 itsSource=XCRhoSource::DM;
             }
             else
             {
-                itsRhoUp=Projector().Project(*cd);
+                itsRhoUp=FieldProjection().Project(*cd);
                 itsSource=XCRhoSource::Fitted;
             }
             itsRhoUp*=0.5;
@@ -451,7 +460,7 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
 // The ONE place the injected partition is read: Integral w_A f over each site block.  Not a fit-basis
 // question and no longer asked of one -- the mesh arrives from the factory that built it for the basis,
 // so this and the basis index the SAME points in the SAME order (one object, two collaborators).
-rvec_t SinglesDensitySampler::SiteIntegrals(const rvec_t& f) const
+template <class T> rvec_t tSinglesDensitySampler<T>::SiteIntegrals(const rvec_t& f) const
 {
     if (!itsQuad.GetMesh() || itsQuad.GetMesh()->NSites()==0)
     {   // No site partition on this mesh -- legitimate for a uniform grid, a DEFECT for an atom-centred one.  The facade's
@@ -471,7 +480,7 @@ rvec_t SinglesDensitySampler::SiteIntegrals(const rvec_t& f) const
 // re-done only when v CHANGES -- the Fock build calls this once per block with the same v, and DoFit
 // on a delta basis is a copy, but re-copying per block would still be per-block work for nothing.  One fit PER v
 // (FitFor), so the up and down blocks of a concurrent Fock loop never refit each other's fitter mid-contraction.
-std::shared_ptr<const Fitting::FunctionFitter_Scalar> SinglesDensitySampler::FitFor(const rvec_t& v) const
+template <class T> std::shared_ptr<const Fitting::FunctionFitter_Scalar> tSinglesDensitySampler<T>::FitFor(const rvec_t& v) const
 {
     auto same=[&](const rvec_t& a)
     {
@@ -487,7 +496,7 @@ std::shared_ptr<const Fitting::FunctionFitter_Scalar> SinglesDensitySampler::Fit
             if (i->fitter.use_count()==1) {fitter=std::move(i->fitter); itsFieldFits.erase(i); break;}
     if (!fitter)
     {
-        std::shared_ptr<const BasisSet::cFIT_SF_ABS> fb=itsFit;   // Factory takes a non-const lvalue (see the ctor)
+        std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> fb=itsFit;   // Factory takes a non-const lvalue (see the ctor)
         fitter=Fitting::Factory(fb);
     }
     fitter->DoFit(SampledField(v, NumPoints()));                // under the lock: on a delta basis the fit is a copy
@@ -495,17 +504,20 @@ std::shared_ptr<const Fitting::FunctionFitter_Scalar> SinglesDensitySampler::Fit
     return fitter;
 }
 
-template <class U> hmat_t<U> SinglesDensitySampler::MatrixT(const tobs_t<U>* bs, const rvec_t& v) const
+template <class T> template <class U> hmat_t<U> tSinglesDensitySampler<T>::MatrixT(const tobs_t<U>* bs, const rvec_t& v) const
 {
     const std::shared_ptr<const Fitting::FunctionFitter_Scalar> fitter=FitFor(v);   // held: its slot cannot be recycled
     // TWO scalars on the face, and they DIFFER here (3c-3): the block is U, but the delta fit basis this
     // strategy holds is the run's periodic one, so the fit axis is dcmplx for both.  <U> alone would name
     // <U,U>, which for a real TRIM block is a face no fitter in the tree declares.  And the DFT cross-cast
     // is the XC strategy's, for the reason given on FitContraction: this layer is DFT by construction.
-    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);
-    return dynamic_cast<const Fitting::FitContraction<U,dcmplx>&>(*fitter).Overlap(orb);
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,T>&>(*bs);
+    return dynamic_cast<const Fitting::FitContraction<U,T>&>(*fitter).Overlap(orb);
 }
-chmat_t SinglesDensitySampler::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
+template <class T> hmat_t<T> tSinglesDensitySampler<T>::Matrix(const tobs_t<T>* bs, const rvec_t& v) const {return MatrixT<T>(bs,v);}
 rsmat_t SinglesDensitySampler::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
+
+template class tSinglesDensitySampler<double>;   // the molecular / atom path (V-XC-ONE-TERM)
+template class tSinglesDensitySampler<dcmplx>;   // the periodic path
 
 } //namespace
