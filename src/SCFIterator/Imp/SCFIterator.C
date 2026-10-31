@@ -16,7 +16,6 @@ module;
 #include <cctype>
 #include <memory>
 #include <type_traits>
-#include <limits>
 
 module qchem.SCFIterator;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
@@ -735,11 +734,6 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
             Et=itsHamiltonian->At(nullptr, cdt.get()).GetTotalEnergy().GetTotalEnergy()+itsOccPolicy->EntropyTerm();
             best=std::min(best,Et);
             if (Et<E0) { found=true; break; }
-            // AT THE FIXED POINT there is no descent to find: a restored converged state (NaF exact resume, [F,D] 7e-15) gives
-            // E(t) == E(0) TO THE BIT at every backtrack, so strict descent failed, the retry landed on a rounding coin-flip
-            // (-3.6e-15 serial, 0 at 4 threads) and the losing side STALLED into a mixed step that walked off the answer (5
-            // iterations, not 2).  A full step whose rise is below the energy's own rounding is not a rejection: take it.
-            if (k==0 && Et-E0 <= 64*std::numeric_limits<double>::epsilon()*std::fabs(E0)) { found=true; break; }
             t*=0.5;
         }
         // DIAGNOSTIC (env GPW_GDMTRACE): did the geodesic line search find a DESCENT (some t lowers Ecur) or
