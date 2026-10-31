@@ -11,6 +11,10 @@ module;
 #include <algorithm> // std::min (min singular value)
 #include <cstdlib>   // std::getenv/std::atoi
 #include <vector>    // std::vector (the k-block list + the space-group atom basis)
+#include <map>       // the PW G-list index (the Shubnikov pair reps)
+#include <tuple>
+#include <numbers>   // std::numbers::pi (the PW pair-rep phases)
+#include <complex>   // std::exp / std::conj on the PW pair-rep phases
 module qchem.BasisSet.Lattice.BasisSet;
 import qchem.Symmetry.Lattice_3D.Fold;   // RequireClosedGroup -- the imposition gate
 import qchem.RunPolicy;   // theRunPolicy().StreamFold() -- the T3.2 fold, declared with the deviations (N5)
@@ -39,23 +43,89 @@ namespace qchem::BasisSet::Lattice
 // the framework's per-irrep loop (each k IS a Bloch irrep) becomes the BZ sum Sum_k w_k.  The KMesh carries
 // the points + weights (uniform 1/Nk for an unreduced grid; symmetry-reduced points/weights will plug in
 // here later).  N=(1,1,1) -> a single Gamma block.
-PW_BasisSet::PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut)
+PW_BasisSet::PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut, const std::vector<int>& siteSpins)
 {
+    namespace SL = qchem::Symmetry::Lattice_3D;
     ReciprocalLattice recip=lat.Reciprocal();
     const ivec3_t N=lat.GetLimits();
+    std::vector<ivec3_t> Gs;   // the Γ block's G list, for the pair reps below
     for (const auto& kp : lat.MakeKMesh())
     {
         ivec3_t ik(std::lround(kp.k.x*N.x), std::lround(kp.k.y*N.y), std::lround(kp.k.z*N.z));
         auto* pw=new PlaneWave::PlaneWave_IBS(recip, Symmetry::BlochFactory(N, ik, kp.weight), Ecut);
+        Gs=pw->Gs();
         Insert(pw);                                 // BasisSetImp takes ownership (no PP: the Vpseudo
                                                     // Hamiltonian term owns the pseudopotential model)
     }
+    const bool magnetic=std::any_of(siteSpins.begin(), siteSpins.end(), [](int s){return s!=0;});
+    if (!magnetic) return;
+    if (GetNumIBS()!=1 || N!=ivec3_t(1,1,1))
+        throw std::invalid_argument("PW_BasisSet: a magnetic imposition is Γ-only (one block, no Bloch phase per op)");
+    const std::vector<SL::SymOp> ops=lat.ShubnikovOps(siteSpins);
+    SL::RequireClosedGroup(ops, "PW imposition (Shubnikov group)");
+    size_t nFlip=0; for (const auto& op : ops) if (op.sigma==SL::SpinAction::Flip) nFlip++;
+    std::cout << "[symmetry] IMPOSING the SHUBNIKOV group of the declared ordering on the plane-wave block: " << ops.size()
+              << " ops (" << ops.size()-nFlip << " spatial + " << nFlip << " spin-flip), by the (D_up, D_dn) pair projection" << std::endl;
+    // φ_m(r) = e^{2πi m·f}/√Ω (f fractional).  g⁻¹r has fractional W⁻¹(f−τ), so φ_m(g⁻¹r) = e^{2πi m'·(f−τ)}/√Ω with
+    // m' = W⁻ᵀm: the ball ½|Bm|² < Ecut is mapped onto itself (W is orthogonal in Cartesians), so m' is in the list.
+    std::map<std::tuple<int,int,int>,size_t> index;
+    for (size_t i=0;i<Gs.size();i++) index[{Gs[i].x,Gs[i].y,Gs[i].z}]=i;
+    for (const SL::SymOp& op : ops)
+    {
+        const Matrix3D<double> WinvT=Transpose(Invert(op.W));
+        PairRep rep{std::vector<size_t>(Gs.size()), cvec_t(Gs.size()), op.sigma==SL::SpinAction::Flip};
+        for (size_t i=0;i<Gs.size();i++)
+        {
+            const rvec3_t m=WinvT*rvec3_t(Gs[i].x,Gs[i].y,Gs[i].z);
+            const ivec3_t mi(std::lround(m.x),std::lround(m.y),std::lround(m.z));
+            assert(std::fabs(m.x-mi.x)+std::fabs(m.y-mi.y)+std::fabs(m.z-mi.z)<1e-8 && "W is not a lattice operation");
+            auto it=index.find({mi.x,mi.y,mi.z});
+            if (it==index.end()) throw std::logic_error("PW_BasisSet: a Shubnikov op maps a plane wave out of the cutoff ball -- the op is not a symmetry of the lattice");
+            rep.perm[i]=it->second;
+            rep.phase[i]=std::exp(dcmplx(0.0,-2.0*std::numbers::pi*(mi.x*op.tau.x+mi.y*op.tau.y+mi.z*op.tau.z)));
+        }
+        itsPairReps.push_back(std::move(rep));
+    }
 }
 
-Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
+// D_s ← |G|⁻¹ Σ_g M_g D_{σ_g(s)} M_g† with (M_g)_{perm(i),i} = phase(i): ρ(g⁻¹r) = Σ D_ij φ_i(g⁻¹r) φ_j(g⁻¹r)* has density
+// matrix D'(perm i, perm j) = phase_i D_ij phase_j*.  As GPW_BasisSet::ProjectPair, a projector because the op set is a closed
+// group; O(|G| n²) with no matrix product.
+void PW_BasisSet::ProjectSpinPair(hmat_t<dcmplx>& Dup, hmat_t<dcmplx>& Ddn) const
+{
+    if (itsPairReps.empty()) return;
+    const size_t n=Dup.rows();
+    assert(n==itsPairReps[0].perm.size() && Ddn.rows()==n);
+    const mat_t<dcmplx> U(Dup), D(Ddn);
+    mat_t<dcmplx> up(n,n,dcmplx(0)), dn(n,n,dcmplx(0));
+    for (const PairRep& r : itsPairReps)
+    {
+        const mat_t<dcmplx>& Su=r.flip ? D : U;
+        const mat_t<dcmplx>& Sd=r.flip ? U : D;
+        for (size_t i=0;i<n;i++)
+        {
+            const size_t pi=r.perm[i];
+            for (size_t j=0;j<n;j++)
+            {
+                const dcmplx f=r.phase[i]*std::conj(r.phase[j]);
+                up(pi,r.perm[j])+=f*Su(i,j);
+                dn(pi,r.perm[j])+=f*Sd(i,j);
+            }
+        }
+    }
+    const double w=1.0/double(itsPairReps.size());
+    Dup=blazem::declherm(0.5*w*(up+blazem::ctrans(up)));
+    Ddn=blazem::declherm(0.5*w*(dn+blazem::ctrans(dn)));
+}
+void PW_BasisSet::ProjectSpinPair(hmat_t<double>&, hmat_t<double>&) const
+{
+    if (!itsPairReps.empty()) throw std::logic_error("PW_BasisSet::ProjectSpinPair: a plane-wave block is complex; a REAL density matrix cannot be one of its");
+}
+
+Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut, const std::vector<int>& siteSpins)
 {
     assert(type==Type::PW);
-    return new PW_BasisSet(lat, Ecut);
+    return new PW_BasisSet(lat, Ecut, siteSpins);
 }
 
 // GPW: one Bloch block of periodic Gaussians per Brillouin-zone k-point, built from the molecular basis over

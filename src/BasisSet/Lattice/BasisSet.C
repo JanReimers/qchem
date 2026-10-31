@@ -31,7 +31,9 @@ enum class Type { PW };
 //!   (the pseudo-wall), which calls the basis's MakeSpeciesFieldMatrix/MakeProjectorMatrix assembly.
 //! \note Single-k for now: the returned basis holds ONE Bloch block at \f$\Gamma\f$.  Phase 2
 //!   generalises this to the full BZ k-list (intended to be the only k-loop in the framework).
-Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);
+//! \param siteSpins a MAGNETIC decoration (+1/-1/0 per site) to IMPOSE as a Shubnikov group on the Γ block, by the
+//!   (D↑, D↓) pair projection (\c tBasisSet::ProjectSpinPair, OpenWork §2 PW-5); {} = a free run.  Γ-only.
+Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut, const std::vector<int>& siteSpins={});
 
 //! \brief Build a GPW basis (periodic Gaussians on the lattice) over \a lat from a molecular Gaussian basis
 //! \a mol built on the cell's atoms, at density-collocation cutoff \a densityEcut.
@@ -180,7 +182,18 @@ public:
     //! Build one PlaneWave::PlaneWave_IBS per Brillouin-zone k-point of \a lat at cutoff \a Ecut (a single Gamma block
     //! for an N=(1,1,1) mesh).  The basis ctor is the sole place that enumerates k -- the framework's
     //! per-irrep loop then IS the BZ sum \f$\sum_k w_k\f$.
-    PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut);
+    //! \a siteSpins: a magnetic decoration to impose as a Shubnikov group (Γ only; {} = free) -- see \c Factory.
+    PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut, const std::vector<int>& siteSpins={});
+    //! The Shubnikov pair projection on the Γ block (see tBasisSet), the plane-wave sibling of GPW_BasisSet's.  An
+    //! op \f$g=\{W|\tau,\sigma\}\f$ maps a plane wave onto ONE plane wave times a phase,
+    //! \f$\phi_m(g^{-1}r)=e^{-2\pi i\,m'\cdot\tau}\phi_{m'}(r)\f$ with \f$m'=W^{-\top}m\f$, so its rep is a phased
+    //! permutation of the G list (never a dense matrix).  Inert on a free run.
+    virtual void ProjectSpinPair(hmat_t<double>& Dup, hmat_t<double>& Ddn) const override;
+    virtual void ProjectSpinPair(hmat_t<dcmplx>& Dup, hmat_t<dcmplx>& Ddn) const override;
+private:
+    //! One op's rep: wave i goes to wave perm[i] with amplitude phase[i]; flip = the op swaps the spin channels.
+    struct PairRep { std::vector<size_t> perm; cvec_t phase; bool flip; };
+    std::vector<PairRep> itsPairReps;   //!< {} unless a magnetic imposition (built in the ctor: the G list is in hand there)
 };
 
 //! A tBasisSet<dcmplx> holding ONE \f$\Gamma\f$ GPW block (periodic Gaussians), built from a molecular
