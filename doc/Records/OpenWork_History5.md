@@ -953,3 +953,11 @@ Also: the LDA FD polarizability (UTResponse) is 0.6 / 0.4 / 0.1 percent from PyS
 PP / box set 156/156, UTCalculation 96/96, UTGaussian_BS 85/85, UTResponse LDA/HF 2/2; the solid anchors are the landing sweep's.
 
 | **The molecular FIT bases drop their D shells: the Coulomb fit is 4-62 mHa LOW** (lane B 2026-10-31, the δ-fit gate; promoted from CleanCode D-FIT-MERGE) | `ReadShells(..., ShellMerge::LegacyMerge)` (`src/BasisSet/Gaussian/Point/Reader.C`) never adds a new l to a shared-exponent radial, and every A1 file has `SP` + `D` shells on the SAME exponents: N₂'s A1_coul loads 32 functions, not 68.  MEASURED with the δ Vxc route (exact XC on the mesh) against PySCF with the SAME A1_coul Coulomb fit: LegacyMerge -3.8 (H₂O) / -20 (N₂) / -62 (F₂ q7) mHa; KeepEachL 6-10 μHa (H₂O, N₂, O₂ triplet) and 57 μHa (F₂) -- quadrature level.  BUT KeepEachL breaks the Si pseudo-atom (sipp, A1 and δ alike: 100 iterations unconverged, E -3.7436 vs -3.7617) and Si₂ (E -2.4 / -5.6): the old 'size-consistency' symptom is a Si-specific CD-fit pathology, still unexplained | diagnose the Si fit (conditioning of the A1_coul Si block's Coulomb metric with its d shells; ConstrainedFF) before flipping the fit merge; then re-anchor every molecular DFT test against `scripts/pyscf_molecule_oracle.py` · CleanCode D-FIT-MERGE |
+
+### anchordiff double-counts a solid stage's iterations (X; closed 2026-10-31, lane B)
+
+`scripts/anchordiff` summed every `iters=` a test printed.  A `SolidCalculation` stage prints it TWICE: the result line
+(`[label] CONVERGED iters=N ...`) and the per-stage summary (`[label stage k/n] kT=... iters=N A=E-TS=...`).  A test
+that gained a stage summary between two sweeps therefore read as a doubled iteration count -- the 8ab42909 panel's only
+"move" (a MnO2 resume, 5 -> 10) was this, not the SCF.  Fix: lines matching ` stage \d+/\d+\] ` are not counted (the result
+line always prints).  Both logs are parsed by the same rule, so old baselines stay comparable.
