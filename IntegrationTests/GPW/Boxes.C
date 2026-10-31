@@ -291,7 +291,10 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     Molecule o2mol;
     o2mol.Insert(new Atom(8, 0.0, {-d/2,0,0}));
     o2mol.Insert(new Atom(8, 0.0, { d/2,0,0}));
-    Calculation cRef(MoleculeSetup::Resolve(o2mol, {.basis="sipp", .multiplicity=3, .pp="gth-lda-valence"}));
+    // The finite twin is the δ route (2026-10-31): no Vxc fit, like the GPW it is compared with.  The A1 route sits 98 mHa above
+    // it here (the A1 Vxc fit on this basis); δ sits 13 mHa below CP2K (the fit bases' missing D shells, OpenWork §3).
+    Calculation cRef(MoleculeSetup::Resolve(o2mol, {.basis="sipp", .multiplicity=3, .vxcFit=Hamiltonian::VxcFit::Delta,
+                                                    .pp="gth-lda-valence"}));
     const double Eref=cRef.Energy();
     {
         auto E=cRef.EnergyTerms();
@@ -304,7 +307,13 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     const Lattice_3D lat=LatticeOf(box);
     SolidCalcOptions o=OptionsFor(box, "O2 in-box triplet");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.multiplicity=3;                                  // S=1: nUp=7, nDown=5; densityEcut stays AUTO: O q6 is hard (alpha_max rules)
+    o.multiplicity=3;                                  // S=1: nUp=7, nDown=5
+    // THE DENSITY CUTOFF IS STATED (2026-10-31): AUTO picks 4 Ha here -- from the basis's alpha_max = 2, ignoring the PP core
+    // (alpha_pp = 8.15) and running past its own grid audit's UNDER (alias 3.9e-3) -- and the box landed 0.711 Ha LOW (-30.71018,
+    // non-variational), which this gate "matched" only because the old 30/5 molecular mesh was as wrong (-30.736).  Measured:
+    // 60 Ha -29.998793, 120 / 240 Ha -29.998767 = CP2K's -29.998761 (GPW, the same sipp O + GTH-PADE-q6, 16-bohr box, 400 Ry;
+    // ~/Code/cp2k-runs/O2/O2_sipp_box16_*).  The auto rule is OpenWork §3 "Auto densityEcut ignores the PP core".
+    o.densityEcut=120.0;
     o.siteSpins={+1,+1}; // stated (R2.5): the decoration the seed used to derive (the triplet's two O, parallel)
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     GpwReport report("O "+o.label, false);
@@ -312,7 +321,8 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     // No convergence guard (as before): the box's energy is what is compared, and it is compared as the
     // last iterate, which is what this gate has always read.
     EXPECT_NEAR(calc.LastIterateCharge(), 12.0, 1e-6);
-    EXPECT_NEAR(calc.LastIterateTerms().GetTotalEnergy(), Eref, 5e-2) << "GPW-in-box triplet vs finite molecular LSDA triplet";
+    EXPECT_NEAR(calc.LastIterateTerms().GetTotalEnergy(), Eref, 5e-2) << "GPW-in-box triplet vs finite molecular LSDA triplet (δ; 13 mHa measured)";
+    EXPECT_NEAR(calc.LastIterateTerms().GetTotalEnergy(), -29.998761, 1e-4) << "ORACLE: CP2K GPW, the same basis + PP + box";
 }
 
 
@@ -379,9 +389,11 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     const bool spherical=false;
     const bool sphBasis =false;
     Molecule mnmol; mnmol.Insert(new Atom(25, 0.0, {0,0,0}));
+    // The finite twin is the δ route (2026-10-31): no Vxc fit, like the GPW.  It lands 0.2 mHa from the box; the A1 route sits
+    // 35 mHa above both (the A1 Vxc fit on this sextet), which this gate stopped meeting when the molecular mesh was converged.
     Calculation cRef(MoleculeSetup::Resolve(mnmol, {.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr",
-                             .multiplicity=6, .pp="gth-lda-valence",
-                             .angular = spherical ? Angular::Spherical : Angular::Cartesian}));
+                             .multiplicity=6, .angular = spherical ? Angular::Spherical : Angular::Cartesian,
+                             .vxcFit=Hamiltonian::VxcFit::Delta, .pp="gth-lda-valence"}));
     const double Eref=cRef.Energy();
     std::cout << "[Mn finite] "<<(sphBasis?"valence_lowq_sph":"valence_lowq_sr")<<" LSDA sextet (q7, "
               <<(spherical?"SPHERICAL":"CARTESIAN")
@@ -408,7 +420,7 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     const double E=calc.LastIterateTerms().GetTotalEnergy();   // as before: the energy is pinned, convergence is not asserted
     std::cout << "[Mn in-box] GPW="<<E<<"  facade="<<Eref<<"  diff="<<(E-Eref)<<std::endl;
     EXPECT_NEAR(calc.LastIterateCharge(), 7.0, 1e-6);
-    EXPECT_NEAR(E, Eref, 3e-2) << "GPW d-channel vs the molecular facade (measured 12 mHa)";
+    EXPECT_NEAR(E, Eref, 3e-2) << "GPW d-channel vs the molecular facade, δ route (measured 0.2 mHa)";
     if (!spherical)
         EXPECT_NEAR(E, -14.6380, 1e-3);                      // did-E-move anchor (2s+7d, the SR-trimmed cell basis)
 }
