@@ -4,6 +4,8 @@ module;
 #include <memory>
 #include <type_traits>   // std::conditional_t/is_same_v (HamRealBlockBase -- Step 3c-2)
 #include <stdexcept>     // tHamiltonianAt::GetTotalEnergy
+#include <string>        // NamedTermMatrix (the grid audit)
+#include <vector>
 export module qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 import qchem.Streamable;
@@ -363,6 +365,12 @@ private:
     size_t itsVersion;
 };
 
+//! \brief ONE TERM's identity and OWN energy at a density -- the GRID AUDIT's row (\c SolidCalculation::GridAudit,
+//! doc/GridEpsilonPlan.md §3): two rasters' SUMMED Fock can agree by cancellation while one term is off (which is what forces see), so
+//! the audit compares term by term.  \c label = the term's own description (its Write's first line); \c entries = the
+//! \c EnergyBreakdown names it reports (two terms may share one, e.g. the local-PP halves both report Een); \c E = its own sum.
+struct TermEnergy { std::string label, entries; double E=0.0; };
+
 template <class T> class tHamiltonian;
 //! \brief THE HAMILTONIAN AT ONE DENSITY (OOD V1.41 stage 1): what the SCF consumes -- the Fock/KS blocks and the energy
 //! at that density -- as a VALUE, made by \c tHamiltonian::At (which runs the refresh).  The block query is \c (bs, spin):
@@ -498,6 +506,14 @@ public:
         RefreshForDensity(wholeBasis, cd);
         return tHamiltonianAt<T>(*this, wholeBasis, cd);
     }
+    //! \brief The GRID AUDIT's two faces (doc/GridEpsilonPlan.md §3): every term's own energy at \a cd, and its own block -- the SAME
+    //! assembly as \c GetMatrix / \c GetTotalEnergy, NOT summed, in ONE term order (static terms first: V_loc long is one).  For the
+    //! audit only (it compares each term across two rasters at one D); \a cd must have been refreshed for (\c At / RefreshForDensity).
+    //! Empty for a Hamiltonian with no term list.
+    virtual std::vector<TermEnergy>     MakeTermEnergies(const tDM_CD<T>*) const {return {};}
+    virtual std::vector<hmat_t<T>>      MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const {return {};}
+    //! The REAL-TRIM-block twin (a real block of a complex run; see the real-block \c GetMatrix).
+    virtual std::vector<hmat_t<double>> MakeTermMatrices(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const {return {};}
 };
 
 template <class T> hmat_t<T> tHamiltonianAt<T>::GetMatrix(const tobs_t<T>* bs, const Spin& s) const

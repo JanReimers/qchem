@@ -7,6 +7,7 @@ module;
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <type_traits>   // is_same_v (MakeTermMatrices real-block twin)
 module qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Internal.ACBN0;    // ACBN0 + HubbardProjection (MakeACBN0Estimator)
 import qchem.Energy;
@@ -219,6 +220,58 @@ template <class T> EnergyBreakdown tHamiltonianImp<T>::GetTotalEnergy( const tDM
     return e;
 }
 
+
+// THE GRID AUDIT's per-term fold (doc/GridEpsilonPlan.md §3): GetTotalEnergy's / GetMatrix's loops, one entry per term instead of a sum.
+namespace
+{
+template <class HT, class CD> TermEnergy EnergyOfTerm(const HT& t, const CD* cd)
+{
+    EnergyBreakdown e;
+    t.GetEnergy(e,cd);
+    TermEnergy r;
+    for (const auto& [name,term] : e.Terms()) r.entries += (r.entries.empty() ? "" : "+") + name;
+    r.E=e.GetTotalEnergy();
+    std::ostringstream os; os<<t;                                          // the term's own description, first line, trimmed
+    std::string l=os.str(); l=l.substr(0,l.find('\n'));
+    const size_t a=l.find_first_not_of(" \t"); r.label = a==std::string::npos ? r.entries : l.substr(a);
+    return r;
+}
+} //anon
+
+template <class T> std::vector<TermEnergy> tHamiltonianImp<T>::MakeTermEnergies(const tDM_CD<T>* cd) const
+{
+    assert(cd && cd->isActive());
+    if (!itsHF_HTs.empty()) throw std::logic_error("Hamiltonian::MakeTermEnergies: whole-system HF terms are not audited (no raster in them)");
+    std::vector<TermEnergy> out;
+    for (auto& t:itsSHTs) out.push_back(EnergyOfTerm(*t,cd));
+    for (auto& t:itsDHTs) out.push_back(EnergyOfTerm(*t,cd));
+    return out;
+}
+
+template <class T> std::vector<hmat_t<T>> tHamiltonianImp<T>::MakeTermMatrices(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd) const
+{
+    assert(cd && cd->isActive());
+    if (!itsHF_HTs.empty()) throw std::logic_error("Hamiltonian::MakeTermMatrices: whole-system HF terms are not audited (no raster in them)");
+    std::vector<hmat_t<T>> out;
+    for (auto& t:itsSHTs) out.push_back(t->GetMatrix(bs,S));
+    for (auto& t:itsDHTs) out.push_back(t->GetMatrix(bs,S,cd));
+    return out;
+}
+
+template <class T> std::vector<hmat_t<double>> tHamiltonianImp<T>::MakeTermMatrices(const tobs_t<double>* bs,const Spin& S,
+                                                                                   const tChargeDensity<dcmplx>* cd) const
+{
+    if constexpr (std::is_same_v<T,dcmplx>)
+    {
+        assert(cd && cd->isActive());
+        if (!itsHF_HTs.empty()) throw std::logic_error("Hamiltonian::MakeTermMatrices: whole-system HF terms cannot serve a real TRIM block");
+        std::vector<hmat_t<double>> out;
+        for (auto& t:itsSHTs) out.push_back(StaticRealOf(*t).GetMatrix(bs,S));
+        for (auto& t:itsDHTs) out.push_back(DynamicRealOf(*t).GetMatrix(bs,S,cd));
+        return out;
+    }
+    else throw std::logic_error("Hamiltonian::MakeTermMatrices: a real block of a REAL Hamiltonian is the native overload");
+}
 
 template <class T> std::ostream& tHamiltonianImp<T>::Write(std::ostream& os) const
 {
