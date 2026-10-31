@@ -953,3 +953,20 @@ Also: the LDA FD polarizability (UTResponse) is 0.6 / 0.4 / 0.1 percent from PyS
 PP / box set 156/156, UTCalculation 96/96, UTGaussian_BS 85/85, UTResponse LDA/HF 2/2; the solid anchors are the landing sweep's.
 
 | **The molecular FIT bases drop their D shells: the Coulomb fit is 4-62 mHa LOW** (lane B 2026-10-31, the δ-fit gate; promoted from CleanCode D-FIT-MERGE) | `ReadShells(..., ShellMerge::LegacyMerge)` (`src/BasisSet/Gaussian/Point/Reader.C`) never adds a new l to a shared-exponent radial, and every A1 file has `SP` + `D` shells on the SAME exponents: N₂'s A1_coul loads 32 functions, not 68.  MEASURED with the δ Vxc route (exact XC on the mesh) against PySCF with the SAME A1_coul Coulomb fit: LegacyMerge -3.8 (H₂O) / -20 (N₂) / -62 (F₂ q7) mHa; KeepEachL 6-10 μHa (H₂O, N₂, O₂ triplet) and 57 μHa (F₂) -- quadrature level.  BUT KeepEachL breaks the Si pseudo-atom (sipp, A1 and δ alike: 100 iterations unconverged, E -3.7436 vs -3.7617) and Si₂ (E -2.4 / -5.6): the old 'size-consistency' symptom is a Si-specific CD-fit pathology, still unexplained | diagnose the Si fit (conditioning of the A1_coul Si block's Coulomb metric with its d shells; ConstrainedFF) before flipping the fit merge; then re-anchor every molecular DFT test against `scripts/pyscf_molecule_oracle.py` · CleanCode D-FIT-MERGE |
+
+## ✅ "The SCF iteration row has two homes" — DONE 2026-10-31 (lane B)
+
+ONE `IterationRow{iteration, cells, eb}` per iteration, built from the ONE column list (`tSCFIterator::RowColumns`) the
+console formats: the invariant frame (Etotal, [F,D], ρ_mix, accel, svMin, cfg, gap, m_site) became `ColumnData` cells beside
+the variable ones (their text writers are the old fixed writers' exact output), and `ColumnData` gained the cell's number and
+plot scale.  The observer receives `IterationCell{title, tolerance, value (NaN for a "----"), text (padding stripped), scale}`
+for every column, in display order; `IterationRow::ValueOf(title)` reads one by name.  Built when the run prints OR observes.
+`SCFProgress` is retired with no shim, and its absolute |ΔE| with it (the row is exactly the console's, controller ruling): the
+GPW harness computes its own.  Byte-identical console proven by goldens committed BEFORE the refactor
+(`SCFTrace.MolecularConsoleIsByteIdentical`, `SCFTrace.SolidConsoleIsByteIdentical`: the trace block plus the tables printed after
+it, which inherit the stream state the rows leave) and `SCFTrace.TheObserverReceivesTheConsoleRow` (titles in header order, each
+cell text in its console line).  The console HEADER lines are still written by their own writers (unchanged, byte-identical) --
+the row's cells carry the same titles.  ⚠ `pybind/qchem_bridge.cpp` still names `SCFProgress` (2 sites): lane G migrates the
+bridge (flagged).  The ρ_lost/N "dead column" row is untouched: that column is one list entry, so if it goes, it goes from both.
+
+| **The SCF iteration row has two homes** (lane G, 2026-10-31; for the GUI's live per-column plots, user 2026-10-31) | the console row (`IterationTrace` / `DisplayColumns`, molecular and solid layouts) and the observer's `SCFProgress{iteration, energy, dE, commutator, drho, order, eb}` are separate: the observer lacks Δ[F,D], ρ_lost/N, the XC-ρ flag, virial, ρ_mix, accel, svMin, cfg, gap/HOMO/LUMO and every column's title/tolerance; its `dE` is absolute while the solid console's is ΔE/E; the trace is built only under `Verbose` | ONE `IterationRow{iteration, cells[{title, tol?, value, text, scale}], eb}` built once per iteration when Verbose OR an observer is set; `DisplayColumns` formats it, the observer receives it; `SCFProgress` retired (≈23 consumers incl. pybind, which lane G migrates); the absolute \|ΔE\| is DROPPED (the row is exactly the console's).  Lane B, after `deck::Build`; design in lane G's note `lane-g-iteration-row.md` · `src/SCFIterator/Imp/SCFIterator.C` |
