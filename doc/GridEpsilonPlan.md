@@ -221,6 +221,14 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
   (β-MnO₂ η n/m: `gridAudit` prints the RUN's own predicted alias, not the reference's, and here the run is the alias-free one (1.1e-7 / 2.5e-9);
   the audit should report the reference raster's verdicts too -- a small follow-up.  Its V_long max|ΔH_ij| 1.96 Ha against ΔE 2.6 μHa is verdict 3's
   strongest case.)
+  5. **Rigid-translation (egg-box) gate** (lane B's NaF F-site work, via the controller 2026-10-31).  Free NaF rocksalt k222, auto densityEcut
+     80 Ha BallOnly (audit UNDER, collocation alias 1.5 %): translating the WHOLE crystal by 0.03 bohr moves Etot by −1.0e-5 Ha.  That is most
+     of the "F-site curvature" signal (−1.27e-5 at δ = 0.03): the concave F site was largely our grid.  CP2K shows the same physics: its egg-box
+     falls to 2e-8 only at ≥ 2000 Ry, and at 600 Ry it fakes a minimum.  RULE: **E invariant under a rigid translation to within ε is a NECESSARY
+     gate for any grid used for geometry.**  It is cheap (one extra point), needs no oracle, and is the energy-side twin of verdict 3's max|ΔH| rule
+     (the egg-box force IS the raster's ΔH seen through dE/dR).  Build it as a `gridAudit` companion (a postSCF `eggBox {shift}` re-evaluates E at
+     the converged D on the shifted cell's basis, fixed-D like the audit, plus a self-consistent variant for the gate) and a test.  C2 sizes the
+     defaults so a geometry deck passes it at its ε.
   4. The bound is safe (η ≤ 0.15) on every LINEAR term measured; delivered errors sit 10–10⁵× under it, which is the room the
      self-calibrated η recovers.
 - **M3 — the XC raster N vs 2N** on the same four, as §3's audit would print it.

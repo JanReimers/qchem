@@ -546,3 +546,30 @@ Judge each against PySCF at the SAME fixed occupation (`scripts/pyscf_molecule_o
   - The DETECTOR covers it: (i) aufbau violation inside the set and (ii) the swap counter are exactly the `h` rows.  The dimer joins the trace as its d-shell case.
   - The FIX is step 2's: the stated state by irrep in C2v (π_x b1 / π_y b2, δ a1 / a2), or IMOM in C1.  The 2026-10-24 re-pick found a DIFFERENT state (Mn moment 4.54 vs 5.35), so stating which state is asked for is what makes the gate well posed.  CP2K OT's −30.34790 is at fixed N without aufbau, so it may BE such a state: check which.
 - **The linear tail is NOT C1-DEG.**  ‖[F,D]‖ falls 5–10 %/step for 90+ steps, and it also appears at an OPEN gap (β-MnO₂ m0 stage 2, gap 2.3e-2, no holes).  The row's own hypothesis stands: `PCFloor` 0.1 Ha against mHa soft modes, plus a line search that never extends.  It stays in that row as its remainder (the GDM step-size work, F).
+
+**C1-DEG step 1 MEASURED on D-FIT-MERGE (lane A, 2026-10-31, lane-a at f3f6ccdc + main 450f2ee0; molecular path, Molecule_EC, C1).**
+Probe: capped reruns (n = 1…30, deterministic), reading `GetLevels()` (frontier occupations, splits) plus an ORIENTATION read-out: |φ|² of the lowest frontier orbital sampled 1 bohr out along x, y, z.  Si: sipp / gth-lda-valence, unpolarized 3p².  O₂ singlet: dzvp / LDA, π\*².
+
+| case | kT | what the fill does | split (mHa) | result |
+|---|---|---|---|---|
+| Si 3p² | 1e-4 | HOPS between two INEQUIVALENT integer configurations: closed {2,0,0} (the filled p along y, 0.98) and open {1,1,0} (the pair in the x–z plane), every 1–9 iterations | 3–45, ≫ kT | no convergence |
+| Si 3p² | 1e-3 | the same hops, plus fractional excursions (0.68 / 0.68 / 0.63 …) | 0.1–17 | no convergence in 30 |
+| O₂ π\*² singlet | 1e-4 | always {2,0}, but the FILLED partner SWAPS: orientation 0.67/0.33 ↔ 0.33/0.67 every 2–8 iterations | 4–125, ≫ kT | no convergence |
+| O₂ π\*² singlet | 1e-3 | swaps until iteration ~18, then collapses into the even 1/1 ensemble | → 0.002 | converging (−149.265942) |
+
+**MOM at kT 0 (UseMOM, MOMStartIter 2 / 4 / 8):** BOTH reach a self-consistent FIXED POINT (Si −3.724235305, O₂ −149.242465875, the same to 1e-9 whatever the capture iteration; [F,D] 2.5e-8, Δρ floor 3.6e-7 / 1.4e-7) that is **NON-AUFBAU**: the doubly filled orbital sits **+29 mHa (Si) / +40 mHa (O₂) ABOVE** its empty partner.
+
+**VERDICT: occupation FEEDBACK (the swap reading), not a saddle.**  Filling an orbital RAISES its own eigenvalue (dε/dn ≈ +30–40 mHa per electron: the self-Hartree of a localized p / π\*, which the LDA exchange does not cancel).  So integer aufbau has NO fixed point: the filled member is always pushed above its empty partner, and the next fill moves the electrons.  The Kohn–Sham fixed point is the FRACTIONAL fill with the partners' ε equal (Janak).  It exists, and it is stiff: the refill gain is ~(dε/dn)/kT ≈ 300 at kT 1e-4, so smearing stabilizes it only once kT is comparable to the self-split.  O₂ crosses that point at 1e-3; Si needs ~1e-2, which is lane B's stated kT.  The broken-symmetry integer states are legitimate self-consistent states but NON-AUFBAU (excited-flavoured), which is what MOM finds.
+
+**Consequences:**
+- **(a) The detector** (§C1-DEG-DETECT): (i) fires on every MOM-held state (occupied above empty, inside a set).  (ii) the swap counter must use the orientation / projection, because the energy order is by construction "filled lowest" at each fill.  The probe's orientation read-out is the prototype; the library version projects the occupied subspace onto the set.
+- **(b) Step 2 (stated states):**
+  - A stated integer state in such a set is NON-AUFBAU by physics, so the **MOM guard's "persistent hole → release the reference"** (it released twice on each case here) defeats exactly the route we want.  A STATED state must switch the guard off; the guard is for an UNSTATED run that drifted.
+  - Its gate is Δρ at its own floor (3.6e-7 here, not 1e-7).
+  - Its energy is an excited-flavoured determinant, ~19 mHa above Si's ensemble internal energy (−3.7437).  Judge it against PySCF at the SAME occupation and never call it the ground state.
+- **(c) Step 3 (finite kT):** the target IS the stiff fractional fixed point.
+  - Ensemble DM (Marzari–Vanderbilt–Payne, Freysoldt–Boeck–Neugebauer) removes the 1/kT refill gain by construction, so it is now the principled cure.
+  - Annealing (Rabuck–Scuseria) is the cheap first try: start at kT ≥ the self-split, and lower kT while the ensemble holds.
+  - Order unchanged: annealing first, then ensemble DM.
+
+**Step 2 RULE (controller, 2026-10-31): a STATED state turns OFF the MOM guard's "persistent hole → release the reference".**  In a degenerate set a stated integer state is non-aufbau by physics (above), so the guard's release is a defect against it.  Its gate is Δρ at its own floor, never a fixed 1e-7.  The facade's stated-occupation path SETS this; it is not an extra flag the user must know.  The guard stays on for an UNSTATED run (it catches a reference that drifted).
