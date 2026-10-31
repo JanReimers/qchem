@@ -369,6 +369,9 @@ static void EmitSiteMoments(const EnergyBreakdown& eb)
 template <class T> bool tSCFIterator<T>::HandOff(const HandOffRequest& h, bool reseat)
 {
     const bool reseated = reseat && itsMixer->Reseat(*itsCD);
+    // The re-seated field is a NEW presentation, built from the current D but not yet told so: without the provenance a Fock built
+    // from it before the next Mix samples XC on the FITTED rho (pin 28; the NaF exact resume's GDM fallback read "fitted", 2026-10-30).
+    if (reseated) SeatDMSource(*itsMixer, itsCD);
     PrintHandOff(itsIterationCount, h, reseated ? " [field mixer re-seated on the current D, history dropped]" : "");
     return reseated;
 }

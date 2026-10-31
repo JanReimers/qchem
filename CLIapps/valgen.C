@@ -19,6 +19,8 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <filesystem>
+#include <iterator>
 #include <string>
 #include <vector>
 #include <optional>
@@ -170,7 +172,7 @@ static void RenderUsageHeatMap()
 int main(int argc, char** argv)
 {
     // ---- defaults ----
-    string element, functional = "LDA", out, seedOut, name, detail = "normal";
+    string element, functional = "LDA", out, seedOut, seedInto, name, detail = "normal";
     int    q = 0, electrons = -1;                        // q 0 => resolve by policy below; electrons -1 => neutral (== q)
     bool   seed = false;                                 // also generate the seed valence density
     bool   spin = false;                                 // spin-resolved seed: polarized (Hund) run, emit rho_up/rho_dn
@@ -220,6 +222,9 @@ int main(int argc, char** argv)
         " Output:\n"
         "  --out <file>       write the assembled single-element .bsd to <file> (also printed to stdout)\n"
         "  --seed-out <file>  write the seed-density JSON library entry to <file> (implies --seed)\n"
+        "  --seed-into <lib>  INSERT the entry into a seed library (e.g. src/ChargeDensity/Data/atomic_valence_densities.json),\n"
+        "                       or REPLACE the entry with the same (Z, q, Nelec, functional) -- as text: every\n"
+        "                       other byte of the file is kept, so the diff is the entry alone (implies --seed)\n"
         "  --name <title>     .bsd file title / BASIS= tag               (default: auto)\n"
         "  --detail <lvl>     console verbosity: terse | normal | verbose (default normal;\n"
         "                       verbose also dumps the raw basis.usage/basis.exponents blocks)\n"
@@ -263,6 +268,7 @@ int main(int argc, char** argv)
         else if (a=="--rmax")       rmax       = std::stod(need(i));
         else if (a=="--out")        out        = need(i);
         else if (a=="--seed-out") { seedOut    = need(i); seed = true; }
+        else if (a=="--seed-into"){ seedInto   = need(i); seed = true; }
         else if (a=="--name")       name       = need(i);
         else if (a=="--detail")     detail     = need(i);
         else { cout << "unknown option " << argv[i] << endl; usage(cout); return 1; }
@@ -426,6 +432,17 @@ int main(int argc, char** argv)
     {
         std::ofstream(seedOut) << s->jsonEntry << endl;
         cout << "valgen: wrote " << seedOut << " (seed valence-density library entry)" << endl;
+    }
+    if (s && !seedInto.empty())
+    {
+        std::ifstream in(seedInto);
+        if (!in) { cout << "valgen: cannot read the seed library " << seedInto << endl; return 1; }
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        const auto spliced=qchem::SpliceSeedEntry(text, s->jsonEntry);
+        const std::string tmp=seedInto+".tmp";
+        std::ofstream(tmp) << spliced.text;
+        std::filesystem::rename(tmp, seedInto);   // the library is never left half-written
+        cout << "valgen: " << (spliced.replaced ? "replaced" : "inserted") << " the " << element << " entry in " << seedInto << endl;
     }
     // Always succeed: the ENERGY is the validation metric (reported in `result`), not the density gate --
     // a degenerate open-shell valence density need not settle (see qchem.ValenceBasisGen / doc/GPWPlan.md),

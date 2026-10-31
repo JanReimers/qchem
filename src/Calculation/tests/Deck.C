@@ -306,6 +306,18 @@ TEST(Deck, BasisFileOverridesTheRegisteredDataFileAndABadPathFails)
     EXPECT_ANY_THROW(deck::Vet(bad,std::filesystem::temp_directory_path()));
 }
 
+// D-BASIS-REGISTRY: basis.data is a file STEM, any case -- an unregistered file is usable by name; a name that is not in the data
+// directory is refused when the deck is read, listing the names; the record keeps the name as written.
+TEST(Deck, TheBasisIsAFileStemAndAnUnknownOneIsRefusedListingTheNames)
+{
+    deck::RunSpec r;
+    EXPECT_NO_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"basis",{{"data","valence_lowq_tm"}}}}, r)) << "unregistered, still a name";
+    EXPECT_EQ(deck::ToJson(r)["basis"]["data"], "valence_lowq_tm");
+    EXPECT_NO_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"basis",{{"data","sipp_sr"}}}}, r)) << "any case";
+    try { deck::FromJson(json{{"structure","Si_diamond"},{"basis",{{"data","SIPP_SRR"}}}}, r); FAIL() << "a typo must throw"; }
+    catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("sipp_sr"), std::string::npos) << e.what(); }
+}
+
 TEST(Deck, ASavedStateRestartsAndTheRevisionNamesItsParent)
 {
     const fs::path dir=TmpDir("restart");
@@ -326,6 +338,10 @@ TEST(Deck, ASavedStateRestartsAndTheRevisionNamesItsParent)
     EXPECT_EQ(r2.revision.filename(),"Si_diamond.r002.json");
     EXPECT_NEAR(*r2.energy,*r1.energy,1e-8) << "a restart from the converged state stays at the answer";
     EXPECT_EQ(json::parse(std::ifstream(r2.revision)).at("provenance").at("restartedFrom"),"Si_diamond.r001.json");
+    // D-BASIS-REGISTRY: the record names the basis FILE and the checksum of its contents (a name is not an identity).
+    const json pv2=json::parse(std::ifstream(r2.revision)).at("provenance");
+    EXPECT_EQ(pv2.at("basisFile"),"sipp_sr.bsd");
+    EXPECT_EQ(pv2.at("basisChecksum").get<std::string>().size(),16u);
 
     json d3=base; d3["state"]={{"restartFrom","Si_diamond.r099"}};
     deck::RunSpec s3; deck::FromJson(d3,s3);

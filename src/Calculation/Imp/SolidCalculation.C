@@ -81,6 +81,7 @@ struct SolidCalculation::Imp
     //! (doc/LinearResponsePlan.md E1).  The commutator is the final iteration's [F,D].
     qchem::OccupationConfig lastOccupation;
     double lastCommutator = std::numeric_limits<double>::quiet_NaN();
+    double lastDensityChange = std::numeric_limits<double>::quiet_NaN();   //!< the last iteration's Δρ (the saved state's residual)
     double charge    = 0.0;
     //! The OUTCOME DETECTORS' record (N1/T3-T4).  Accumulates across every attempt this object makes --
     //! an annealed schedule and a re-Converge are CONTINUATIONS of one SCF, and an order that died in
@@ -352,7 +353,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
             .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .tol = tol,
+            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = tol,
             .hamPreservesReal = hamPreservesReal}));
     }
     // THE RUN REPORTS ITS OWN BASIS AND GRIDS (TE phase 2, 2026-09-15; the reporting rule: each class emits
@@ -806,6 +807,7 @@ void SolidCalculation::AttachProbes()
         // must not read as a MEASURED zero eigenvalue noise (found 2026-09-27, the NiO R0 gate) -- NaN instead.
         itsImp->lastCommutator = itsImp->stageAccel==SCFAccelerators::Type::Null
                                ? std::numeric_limits<double>::quiet_NaN() : p.commutator;
+        itsImp->lastDensityChange = p.drho;
         if (userObs) userObs(p);
     });
 }
@@ -1022,10 +1024,27 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     xc<<MeshName(itsImp->setup->xcMesh.cellKind);
     if (itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke) xc<<" nR="<<itsImp->setup->xcMesh.nRadial<<" L="<<itsImp->setup->xcMesh.angularDegree;
     else                                                      xc<<" eCut="<<itsImp->setup->xcMesh.eCut;
-    const RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .ppSet=itsImp->setup->pp.Name(),
+    // A free run on the PLAIN mesh (xcMeshSymmetric=false, what a SolidSession needs) quadratures on different points: name it, so a
+    // restart across the choice says the quadrature changed.  Only then -- every state written before the option keeps its string.
+    if (!itsImp->setup->imposed && !itsImp->setup->planeWave && !o.xcMeshSymmetric) xc<<" plain";
+    RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .ppSet=itsImp->setup->pp.Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
                          .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT,
                          .orbitalBasis=itsImp->setup->planeWave ? "planeWave" : "gaussian", .planeWaveEcut=o.planeWaveEcut};
+    // The numerics that move the ground state (OpenWork §3 "A restart's fingerprint is incomplete" gap 2).  The fit is the one the
+    // Hamiltonian RESOLVES (Ham_PW_DFT: Auto -> Delta on a Becke mesh, else the plane-wave fit).
+    const bool becke=itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
+    id.vxcFit= o.vxcFit==Hamiltonian::VxcFit::Delta || (o.vxcFit==Hamiltonian::VxcFit::Auto && becke) ? "Delta" : "PlaneWave";
+    if (becke) id.beckeEps=itsImp->setup->xcMesh.beckeEps;
+    if (!itsImp->setup->planeWave)
+    {
+        const auto& t=o.tolerances;
+        id.raster      =o.raster==BasisSet::PlaneWave::RasterPolicy::AliasFree ? "AliasFree" : "BallOnly";
+        id.ladderFactor=o.ladderFactor;
+        id.gpwTolerances={{"vlocEps",{t.vlocEps}}, {"localPPRelCutoff",{t.localPPRelCutoff}}, {"relFieldSharp",{t.relFieldSharp}},
+                          {"screenEps",{t.screenEps}}, {"fieldSharp",{t.fieldSharp}}, {"relCutoff",{t.relCutoff}},
+                          {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts}};
+    }
     return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,
                                 o.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, id);
 }
@@ -1037,7 +1056,8 @@ void SolidCalculation::SaveState(const std::string& path) const
     const StateSummary sum{.label=itsImp->setup->opts.label, .converged=itsImp->converged,
                            .iterations=itsImp->scf->GetIterationCount(),
                            .energy=itsImp->scf->GetEnergy().GetTotalEnergy(), .charge=itsImp->charge,
-                           .commutator=itsImp->lastCommutator, .recipe=itsImp->lastRecipe};
+                           .commutator=itsImp->lastCommutator, .recipe=itsImp->lastRecipe,
+                           .densityChange=itsImp->lastDensityChange};
     {
         qchem::report::Timed timed("state: save (HDF5)");
         WriteSolidState(path, Fingerprint(itsImp->lastkT), sum, *itsImp->bs, *wf);
@@ -1083,6 +1103,18 @@ SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSe
           <<(saved->summary.converged ? "converged" : "NOT converged")<<" after "<<saved->summary.iterations
           <<" iterations, E="<<std::setprecision(10)<<saved->summary.energy<<"; "<<saved->summary.recipe<<")";
         for (const std::string& d : *warm) os<<"\n"<<tag<<"  differs: "<<d;
+        // THE SAVED STATE'S OWN RESIDUAL (gap 4, user 2026-10-29): even an exact resume starts where the state was SAVED, not at
+        // the fixed point.  A density-MIXED run (Null accelerator: no [F,D] measured) stops with D a mixture, one undamped Fock
+        // away from self-consistency, so its first iteration re-opens that residual (amplified on a soft system).
+        const StateSummary& ss=saved->summary;
+        if (std::isfinite(ss.densityChange))
+        {
+            os<<"\n"<<tag<<"  saved at Δρ "<<std::setprecision(3)<<ss.densityChange;
+            if (std::isfinite(ss.commutator)) os<<", [F,D] "<<ss.commutator;
+            else os<<" by a density-MIXED run (no [F,D]): D is a mixture, so the first Fock re-opens a residual of about that size -- "
+                     "amplified on a soft system (β-MnO₂ r015: 40x), where even an exact resume iterates";
+        }
+        else os<<"\n"<<tag<<"  saved residual not recorded (a format-1.0 state, before 2026-10-30)";
         std::cout<<os.str()<<std::endl;
     }
     c->BuildRun(cd.TakeValue(), params, accel, /*restored*/true, exact);
@@ -1623,7 +1655,7 @@ const BasisSet::Complex_BS& SolidCalculation::Basis() const { return *itsImp->bs
 //====================================================================================================
 std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat,
                                                                std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
-                                                               const std::vector<SCFStage>& schedule)
+                                                               const std::vector<SCFStage>& schedule, bool lowdin)
 {
     if (schedule.empty())
         throw std::runtime_error("SolidCalculation: an EMPTY schedule has no meaning -- pass at least one stage.");
@@ -1641,7 +1673,10 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
             // THE CARRY: the previous point's D, block for block, onto this point's basis -- the same recipe at moved atoms, so the
             // block layout (k, size, realness) is the one RestoreDensity asserts.  A WorkingDensity, NOT a restored one: the
             // Hamiltonian moved with the atoms, so the Auto policy's carried-stage branch (Null + Pulay on D) applies.
-            auto cd=RestoreDensity(*carry, *c->itsImp->bs, c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized);
+            const SpinGroup g=c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+            std::optional<SavedState> moved;
+            if (lowdin) { moved=*carry; LowdinCarry(*moved, *c->itsImp->bs, g); carry=&*moved; }
+            auto cd=RestoreDensity(*carry, *c->itsImp->bs, g);
             if (!cd) throw std::logic_error("SolidCalculation::AtGeometry: the carried density does not fit the new point: "+cd.Error().details);
             const SCFStage& last=schedule.back();
             c->BuildRun(cd.TakeValue(), last.params, last.accelerator, /*restored*/false, /*exactResume*/false);
@@ -1668,10 +1703,14 @@ struct SolidSession::Point
     std::unique_ptr<SolidCalculation>        calc;
 };
 
-SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule)
-    : itsSetup(std::move(setup)), itsSchedule(std::move(schedule))
+SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule, Carry carry)
+    : itsSetup(std::move(setup)), itsSchedule(std::move(schedule)), itsCarry(carry)
 {
     if (itsSchedule.empty()) throw std::invalid_argument("SolidSession: an EMPTY schedule has no meaning -- pass at least one stage.");
+    if (!itsSetup->imposed && !itsSetup->planeWave && itsSetup->opts.xcMeshSymmetric)
+        throw std::invalid_argument("SolidSession: a FREE setup with xcMeshSymmetric=true builds its XC mesh invariant under the group "
+                                    "detected at EACH geometry, so the mesh switches as the atoms move and the surface jumps -- resolve "
+                                    "the setup with SolidCalcOptions::xcMeshSymmetric=false (the plain atom-centred mesh)");
 }
 SolidSession::~SolidSession() = default;
 
@@ -1767,7 +1806,7 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     std::optional<SavedState> carry;
     if (itsPoint) carry=itsPoint->calc->Carry();
     itsPoint.reset();
-    point->calc=SolidCalculation::AtGeometry(itsSetup, latR, point->mol, carry ? &*carry : nullptr, itsSchedule);
+    point->calc=SolidCalculation::AtGeometry(itsSetup, latR, point->mol, carry ? &*carry : nullptr, itsSchedule, itsCarry==Carry::Lowdin);
     itsPoint=std::move(point);
 
     auto out=itsPoint->calc->Result();

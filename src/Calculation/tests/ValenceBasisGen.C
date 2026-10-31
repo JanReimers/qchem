@@ -6,6 +6,8 @@
 // PRINT the emitted .bsd so it can be captured into BasisSetData/.  The energies are "did-it-move" anchors
 // (near the radial oracle, but oracle-matching is explicitly NOT the objective -- see doc/GPWPlan.md).
 #include "gtest/gtest.h"
+#include <fstream>
+#include <iterator>
 #include <map>
 #include <cmath>
 #include <iostream>
@@ -143,6 +145,9 @@ TEST(ValenceBasisGen, FluorineSeedDensityAnionIsDiffuse)
     EXPECT_NEAR(n.charge, 7.0, 0.1);          // neutral F: 7 valence e-
     EXPECT_NEAR(a.charge, 8.0, 0.1);          // F-: 8 valence e- (charge conserved by construction)
     EXPECT_GT(a.meanR, n.meanR);              // THE POINT: the anion density is more diffuse than the neutral
+    const nlohmann::json e=nlohmann::json::parse(a.jsonEntry);
+    EXPECT_EQ(e.at("q"), 7) << "the entry names its pseudopotential variant: the seed lookup's key (--seed-into)";
+    EXPECT_EQ(e.at("Nelec"), 8);
 }
 
 // Assemble the full valence_lowq.bsd (organised by TYPE, all elements in one file, per the BasisSetData
@@ -304,4 +309,61 @@ TEST(ValenceBasisGen, PseudoAtomOrbitalIsTheProjectorFunction)
     std::cout << std::endl;
     EXPECT_NEAR(qchem::BasisSet::GaussianAtomCentredSet::RadialNorm2(1, p.Radial()), 1.0, 1e-9);
     EXPECT_THROW(qchem::PseudoAtomOrbitalOf("O", 6, 2), std::runtime_error) << "O has no occupied d";
+}
+
+// valgen --seed-into (OpenWork §3 "valgen cannot add a seed entry diff-friendly"): one entry is inserted or replaced AS TEXT, so
+// every other byte of the library is unchanged -- checked on the SHIPPED library, whose entries are hand-formatted.
+TEST(ValenceBasisGen, SeedIntoChangesTheEntryAndNoOtherByte)
+{
+    const std::string path=std::string(DECKS_DIR)+"/../src/ChargeDensity/Data/atomic_valence_densities.json";
+    std::ifstream in(path);
+    ASSERT_TRUE(in) << path;
+    const std::string lib((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    const nlohmann::json all=nlohmann::json::parse(lib);
+    ASSERT_TRUE(all.is_array());
+
+    // INSERT a new identity: the old text is untouched up to the end of the last entry, and the tail ("\n]\n") follows the new one.
+    nlohmann::json fresh={{"symbol","Xx"},{"Z",9},{"q",7},{"Nelec",99},{"functional","LDA"},{"rho",{1.5,0.25}}};
+    const auto ins=SpliceSeedEntry(lib, fresh.dump());
+    EXPECT_FALSE(ins.replaced);
+    const size_t tail=lib.rfind('}')+1;
+    EXPECT_EQ(ins.text.substr(0,tail), lib.substr(0,tail)) << "every byte before the insertion is kept";
+    EXPECT_EQ(ins.text.substr(ins.text.size()-(lib.size()-tail)), lib.substr(tail)) << "and the file's tail after it";
+    const nlohmann::json after=nlohmann::json::parse(ins.text);
+    ASSERT_EQ(after.size(), all.size()+1);
+    EXPECT_EQ(after.back()["Nelec"], 99);
+    EXPECT_NE(ins.text.find(",\n\t{\n\t\t\"Nelec\": 99,\n"), std::string::npos) << "the entry is in the file's tab indentation, keys in the entry's order";
+
+    // REPLACE it: same identity, new rho -- the entry count does not grow, and only the entry changes.
+    fresh["rho"]={2.0};
+    const auto rep=SpliceSeedEntry(ins.text, fresh.dump());
+    EXPECT_TRUE(rep.replaced);
+    const nlohmann::json again=nlohmann::json::parse(rep.text);
+    ASSERT_EQ(again.size(), after.size());
+    EXPECT_EQ(again.back()["rho"].size(), 1u);
+    EXPECT_EQ(rep.text.substr(0,tail), lib.substr(0,tail));
+    // ...and replacing it back with the first version is the insertion's text exactly (the splice is its own inverse).
+    fresh["rho"]={1.5,0.25};
+    EXPECT_EQ(SpliceSeedEntry(rep.text, fresh.dump()).text, ins.text);
+
+    // REPLACE an EXISTING shipped entry with itself: every OTHER entry is byte-identical (only its own formatting may change).
+    nlohmann::json first=all.front();
+    ASSERT_TRUE(first.contains("q")) << "every shipped entry carries q";
+    const auto self=SpliceSeedEntry(lib, first.dump());
+    EXPECT_TRUE(self.replaced);
+    EXPECT_EQ(nlohmann::json::parse(self.text), all) << "the same data";
+    const size_t second=lib.find("\n\t{", lib.find("\n\t{")+1);
+    EXPECT_EQ(self.text.substr(self.text.size()-(lib.size()-second)), lib.substr(second)) << "every entry after the replaced one is untouched";
+
+    // A spin-resolved entry is not downgraded by an unpolarized one with the same identity.
+    for (const auto& x : all)
+        if (x.contains("rho_up") && x.contains("q"))
+        {
+            nlohmann::json flat=x; flat.erase("rho_up"); flat.erase("rho_dn"); flat.erase("moment");
+            EXPECT_THROW((void)SpliceSeedEntry(lib, flat.dump()), std::runtime_error) << "Z " << x["Z"];
+            break;
+        }
+
+    nlohmann::json noQ=fresh; noQ.erase("q");
+    EXPECT_THROW((void)SpliceSeedEntry(lib, noQ.dump()), std::runtime_error) << "an entry without q has no identity";
 }

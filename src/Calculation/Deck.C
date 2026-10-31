@@ -59,13 +59,15 @@ json ToJson(const SolidCalcOptions&);                    void FromJson(const jso
 //! (a charged cell, a different pseudopotential valence) -- and the resolved deck always records the values actually used.
 struct RunSpec
 {
-    //! The basis the GPW basis is built over: WHICH data file (an exact \c BasisSetData name, e.g. "VALENCE_LOWQ_VA"), and whether
+    //! The basis the GPW basis is built over: WHICH data file (a file stem, any case, e.g. "VALENCE_LOWQ_VA"), and whether
     //! it is wrapped in the spherical lattice view (contaminant-free d/f).  (Shell trims are not in the deck yet.)
     struct Basis
     {
         //! One shell removed from the basis (pin 22): element, the angular momentum dropped, and the shell's (single) exponent that names it.
         struct Trim { int Z=0; int l=0; double alpha=0.0; };
-        BasisSet::Gaussian::BasisSetData data = BasisSet::Gaussian::BasisSetData::VALENCE_LOWQ_SR;
+        //! The basis NAME: a file stem in the shipped BasisSetData directory, any case (D-BASIS-REGISTRY: every .bsd there is
+        //! usable by name, registered or not; a name that is not there THROWS when the deck is read, listing the names).
+        std::string data = "VALENCE_LOWQ_SR";
         //! OVERRIDE: a path to a .bsd file used INSTEAD of the file \c data names (\c data is then only a label).  Empty = use \c data.
         //! Lets a new basis be tried from the command line (`--set basis.file=/path/x.bsd`) with no registry entry or rebuild.
         std::string file;
@@ -152,6 +154,8 @@ struct Provenance
     std::string           codeVersion;               //!< git hash (+"-dirty"), supplied by the caller
     std::vector<std::string> ignoredEnvironment;     //!< retired env variables found set (recorded, never honoured; from step 6a on)
     std::vector<std::string> activeEnvironment;      //!< INTERIM (until 6a retires the hooks): env overrides still HONOURED by the library, so the record is honest
+    std::string           basisFile;                 //!< the Gaussian basis FILE the run read (set by Run): a name is not an identity...
+    std::string           basisChecksum;             //!< ...so its contents' checksum goes in the record too (D-BASIS-REGISTRY)
 };
 //! Write \a resolved + header + provenance to \a path (a claimed revision).  Header: schema version, \c codeVersion, the input
 //! deck's checksum.  The file is the COMPLETE record: loading it reproduces the run with no \c --set.
