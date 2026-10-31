@@ -47,6 +47,17 @@ CALIBRATED once against the closed-form oracles (`GPW.TightPrimitiveVlongOracle`
 | XC (uniform raster) | max v_xc ≈ ρ_max^{1/3} at the sharpest atom | to calibrate (M2) |
 | local-PP sweeps | the short-range C₁…C₄ magnitude | κ = 30 ⇒ ln(S/ε) = 15 already |
 
+**RULED 2026-10-31 (user, via the controller): the RIGOROUS bound and the HEURISTIC calibration are isolated in code** -- "the
+rigorous math aspect well isolated from the heuristic part; the latter could easily become an advanced/expert user knob."
+1. **Rigorous (the bound).**  Per term class, the oracle-fitted tail model (S_term, n) and L(ε) = the root of S·Lⁿ·e^{−L} = ε: pure
+   math, gated by `GPW.RasterAliasCalibration`, no fudge inside it.  At η = 1 it guarantees the single-pair worst case.
+2. **Heuristic (the calibration).**  ONE explicit factor per term class, η_term = how far the delivered error undershoots the bound,
+   MEASURED by `gridAudit` on the real systems; the sizing uses L(η·ε).  Its defaults live in ONE place with a comment citing the
+   gridAudit measurement that set them, exposed as an expert deck key (e.g. `solid.accuracyCalibration`) defaulting to the measured
+   value; η = 1 = "rigorous mode" (geometry/forces validation runs ask for it).
+3. **Reporting.**  The `[accuracy]` line prints L_rigorous AND L_used with η; the grid audit reports the delivered error against both,
+   so a material where η is too optimistic shows at once.  Nothing in the sizing code may mix the two (no constant buried in a formula).
+
 **The derived tolerances.**  **L(ε) is the root of S_term·L³·e^{−L} = ε** (MEASURED, M2b: the alias tail of an s+p+d pair carries a
 Hermite prefactor ~ x³; S_Vlong = 2.35 Ha, S_ρ = 0.35 ⇒ L(1e-5) ≈ 21.6 / 19.4).  ⚠ NOT the bare ln(S_term/ε) (≈ 14.5 at 1e-5), which
 under-sizes every raster by ~7 units of x; the bare form survives only where a row says so (the balls, row 3, are pure Gaussians in G):
