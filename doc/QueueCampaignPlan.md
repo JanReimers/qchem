@@ -228,7 +228,7 @@ ball — it can, to a stated tolerance, and it is the SAME ball.**  The reasonin
 Row names abbreviated; the row itself lives in its queue.  The controller updates this index at each merge, and the open F+V+S count
 is read from it.
 
-**F (19)** — C1: "Linear D-mixing diverges" (remainder), "Na₂ AFM seed", "GDM crawls",
+**F (20)** — C1: "O₂ triplet does not converge on the molecular facade" (lane G S4 2026-10-30; a panel case), "Linear D-mixing diverges" (remainder), "Na₂ AFM seed", "GDM crawls",
 "Kerker+Pulay overshoots β-MnO₂'s U = 1 basin" (a panel case), "Polarized Γ Si jumps", "GDM: should an exhausted line search END the
 stage?", §2 "`MixingPolicy`" (becomes P4a's regime matrix); "the Kerker field mixer is not exactly group-equivariant", "the low-rank D factor can split a symmetry orbit" (B2 R2.1, 2026-10-30: a density that leaves its group is not variational, so its forces are not dE/dR).  "A threaded NaF exact resume STALLS GDM at iteration 1, and its mixed fallback feeds XC the FITTED ρ" (lane A 2026-10-30; the pin-28 routing half may be a real defect on any re-seat).  Lane B: OpenWork "PES / run-setup remainders" (landed ce639536; gate (c) = E continuous along a geometry path, the NaF Γ path test, the Löwdin C carry -- the relaxation's own prerequisites; it now holds all of OOD V-CALCNET's open work, so V-CALCNET is counted here, not under S).  "NaF's F site is a MAXIMUM at the path test's level" (lane B 2026-10-30; suspect: the q1 Na PP lacks the semicore's Pauli repulsion; CP2K q1/q9 k222 arms next).  C2: "BallOnly raster aliases tight pairs", "AUTO density cutoff misses O
 q6", "uniform-raster XC not equivariant", "a FREE run's XC mesh" (cost remainder), OOD R1.0r, CleanCode §K.  Forces note: §2 "SCF
@@ -247,7 +247,7 @@ Lane B design review: OOD V-CALCNET -- now counted under F as "PES / run-setup r
 re-run, NiO/SrVO₃ vs hp.x, the PW 4× XC ball re-run, the three β-MnO₂ rows; §4 LR ledger, dense PW cost, LR on real TRIM; OOD V1.40;
 CleanCode D-ENV-RERUN, D-CKALPHA-AUTO.  OpenWork "CP2K oracle: is `ADDED_MOS` converged on the smeared TMO decks?" (lane G 2026-10-30).
 
-**X (17, the quota)** — OpenWork "one XC mesh for standalone runs and sessions?" (lane B 2026-10-30); OpenWork "`A_HF_dfPin.SelfPin` parameter names are raw bytes" (lane G 2026-10-30); OpenWork "`CalcOptions`'s default basis `sto-3g` is not registered" (lane B 2026-10-30, user's call: register STO-3G or default to `dzvp`); OpenWork "R2.1 cannot measure the raster XC route" (rides C2); OpenWork "every `_Long` test re-proves its claim at the cheapest resolution" (lane A, right after C1 B2 lands; it shares the vendored-state mechanism with panel #19); CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
+**X (19, the quota)** — OpenWork "molecular facade default XC mesh 0.5 Ha/atom off" (lane B, FIRST in its quota: a wrong default every GUI molecule hits), "molecular PP route 4 mHa/atom off CP2K on F₂" (suspect-operator gate); OpenWork "one XC mesh for standalone runs and sessions?" (lane B 2026-10-30); OpenWork "`A_HF_dfPin.SelfPin` parameter names are raw bytes" (lane G 2026-10-30); OpenWork "`CalcOptions`'s default basis `sto-3g` is not registered" (lane B 2026-10-30, user's call: register STO-3G or default to `dzvp`); OpenWork "R2.1 cannot measure the raster XC route" (rides C2); OpenWork "every `_Long` test re-proves its claim at the cheapest resolution" (lane A, right after C1 B2 lands; it shares the vendored-state mechanism with panel #19); CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
 D-CONTRACTED-SHELL, D-FIT-MERGE; OpenWork "Blaze heevx/syevx" (rides ModuleToolchain Step 4).
 
 **P (parked / features / triggers)** — §2 B-spline basis, hybrids, GW, transport/MD, USPP/PAW, OT (and with it CleanCode V1.24(iii)),
@@ -255,7 +255,7 @@ space-group irreps, SSB descent, smearing finished, molecular SAD seed, spherica
 136-function span, ‖V_xc − V_xc_fit‖, charged cells, the anchor-batch pointer; CleanCode R1.0b, V1.29, D-MODTOOL (Steps 2–5),
 D-CLOUD (yours), D-CP2K-LIBXC; OOD R1.0 step 2, V1.38, V4.1/V4.2, R2.18, V1.19.
 
-**Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.  Then (18ab4db5): F 16 · V 11 · S 28 = 55; b8a36fd3 +1 F = 56.  Then (ce639536): F 18 · V 8 · S 27 = 53; +1 S (observer's two homes) = 54.  Then (2a3852c9, lane A B3): F 18 · V 8 · S 26 = 52.  Now (827d0e47, lane B): F 19 · V 5 · S 26 = 50** -- B2 closed one S and its R2.1 measurement found three critical-path defects (2 F, 1 S): the instrument working, not slippage.  Lane B steps 6–8 closed three V; V-CALCNET's remainder re-tagged S → F (the relaxation's path gate).
+**Count at C0: F 16 · V 11 · S 27 = 54 on the critical path.  Then (18ab4db5): F 16 · V 11 · S 28 = 55; b8a36fd3 +1 F = 56.  Then (ce639536): F 18 · V 8 · S 27 = 53; +1 S (observer's two homes) = 54.  Then (2a3852c9, lane A B3): F 18 · V 8 · S 26 = 52.  Then (827d0e47, lane B): F 19 · V 5 · S 26 = 50; +1 F (O₂ triplet) = 51** -- B2 closed one S and its R2.1 measurement found three critical-path defects (2 F, 1 S): the instrument working, not slippage.  Lane B steps 6–8 closed three V; V-CALCNET's remainder re-tagged S → F (the relaxation's path gate).
 
 ## 10. Landing log (controller)
 
