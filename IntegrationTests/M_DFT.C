@@ -158,7 +158,7 @@ TEST(M_DFT, OxygenTripletBelowSinglet_Panel)   // PANEL case 11: a degenerate pa
     auto run = [](int mult) {
         SCFParams p{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinVirial = 1e2, .MinFD = 1e-7,
                     .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false};
-        if (mult==1) p.SmearingkT=1e-2;
+        if (mult==1) p.SmearingkT=1e-2;   // open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT"
         Calculation c(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = mult}), p);
         EXPECT_TRUE(c.IsConverged()) << "multiplicity " << mult;
         const auto E=c.EnergyTerms();
