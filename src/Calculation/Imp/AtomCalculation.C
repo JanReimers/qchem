@@ -186,10 +186,11 @@ bool AtomCalculation::Converge(const SCFParams& params)
         // Three DFT/HF routes: a pseudopotential (PP front door, valence electrons = itsNe), an explicit XC
         // functional override (the public selector, e.g. libxc), or the model's built-in Hamiltonian/functional.
         auto* ham = itsOpts.pseudopotential
-            ? H::Factory(itsOpts.spin, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis)
+            ? H::Factory(itsOpts.spin, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis,
+                         itsOpts.vxcFit)
             : itsOpts.xc.has_value()
-                ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis)
-                : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha);
+                ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis, itsOpts.vxcFit)
+                : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha, itsOpts.vxcFit);
         // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
         // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
         // at are freed by these resets, which is exactly when `delete itsScf` used to free them.

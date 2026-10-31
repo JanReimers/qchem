@@ -106,6 +106,7 @@ std::string Consequence(const std::string& key)
         {"grids.beckeEps",        "the Becke partition tolerance changed"+moves},
         {"xc.fit",                "the v_xc fit basis changed"+moves},
         {"gpw.",                  "a GPW numerical tolerance changed"+moves},
+        {"policy.",               "a declared CP2K-deviation route changed the Hamiltonian"+moves},
         {"ortho.",                "the basis orthogonalisation changed: functions may be dropped or kept differently"+moves},
         {"scf.kT",                "the smearing changed: the occupations are re-filled at the new temperature"+moves},
         {"blocks.real",           "a block's working type changed: D is promoted/demoted exactly, the physics does not move"},
@@ -261,6 +262,7 @@ StateFingerprint MakeStateFingerprint(const rmat3d_t& M, const Structure& st, co
     if (!id.raster.empty())     fp.warmStr["grids.raster"]=id.raster;
     if (id.ladderFactor>0.0)    fp.warmNum["grids.ladderFactor"]={id.ladderFactor};
     for (const auto& [k,v] : id.gpwTolerances) fp.warmNum["gpw."+k]=v;
+    for (const auto& [knob,on] : id.policy)    fp.warmStr[knob]=on ? "on" : "off";
     return fp;
 }
 
@@ -283,6 +285,10 @@ static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now
         for (const auto& [k,v] : now.warmStr) if (k=="xc.fit" || k=="grids.raster") s.warmStr[k]=v;
         for (const auto& [k,v] : now.warmNum) if (k=="grids.beckeEps" || k=="grids.ladderFactor" || k.rfind("gpw.",0)==0) s.warmNum[k]=v;
     }
+    // The policy routes (2026-10-30): likewise, all or none -- a state that records any route was written with the whole table.
+    auto isPolicy=[](const auto& e){ return e.first.rfind("policy.",0)==0; };
+    if (std::none_of(s.warmStr.begin(), s.warmStr.end(), isPolicy))
+        for (const auto& e : now.warmStr) if (isPolicy(e)) s.warmStr.insert(e);
     return s;
 }
 

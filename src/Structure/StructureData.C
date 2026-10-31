@@ -32,6 +32,12 @@ std::vector<std::string> MoleculeNames();
 //! superlattice-re-based cell).  \a a overrides the entry's primary lattice constant (a ladder or equation-of-
 //! state scan), 0 = the banked value.  Throws if \a name is unknown or is a MOLECULE.
 UnitCell GetCell(const std::string& name, double a=0.0);
+//! \brief A cell from ONE entry in the \c materials.json schema (`lattice`, `atoms` with `el`/`frac`/optional `spin`; other
+//! keys are the caller's), given as JSON TEXT -- the same parser \c GetCell uses, for an entry stated INLINE (a deck's object
+//! `structure`, so a GUI can run a cell it built without a registry entry).  The lattice is the Bravais description (`type`,
+//! `a`..`gamma`, `T`) or, exclusively, `vectors_bohr` [[a],[b],[c]] (the three lattice vectors, bohr).  \a who names it in
+//! errors.  Throws on malformed JSON, an unknown lattice or atom key, or an unknown element / Bravais type.
+UnitCell CellFromEntry(const std::string& entryJson, const std::string& who);
 //! \brief Every cell name, in file order -- the GUI's pick-list.
 std::vector<std::string> CellNames();
 

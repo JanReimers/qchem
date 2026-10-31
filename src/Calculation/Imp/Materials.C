@@ -63,12 +63,12 @@ int ZOf(const std::string& el)
 
 // The PSEUDOPOTENTIAL half of an entry: the NAME of a set (`pp`), resolved against the cell's elements -- PP data is a property of
 // (element, pseudopotential), not of the material (D-STRUCTDATA step 2).  The structure half is qcStructure's.
-Material FromEntry(const std::string& name, const json& e, double aOverride)
+Material FromCell(const std::string& name, UnitCell cell, const std::string& pp)
 {
     Material m;
     m.name=name;
-    m.cell=std::make_shared<UnitCell>(StructureData::GetCell(name, aOverride));
-    m.pp=e.at("pp").get<std::string>();
+    m.cell=std::make_shared<UnitCell>(std::move(cell));
+    m.pp=pp;
     std::vector<std::string> elements;   // in order of first appearance in the cell
     m.cell->ForEachSite([&](int Z, const rvec3_t&, bool)
     {
@@ -92,7 +92,32 @@ int Material::Nelec() const
     return n;
 }
 
+namespace
+{
+Material FromEntry(const std::string& name, const json& e, double aOverride)
+{
+    return FromCell(name, StructureData::GetCell(name, aOverride), e.at("pp").get<std::string>());
+}
+} // anonymous
+
 Material Get(const std::string& name, double a) { return FromEntry(name, Entry("materials.json", name), a); }
+
+Material Inline(const std::string& entryJson, const std::string& pp)
+{
+    json e;
+    try { e=json::parse(entryJson); }
+    catch (const json::exception& x) { throw std::runtime_error(std::string("Materials: an inline structure is not JSON: ") + x.what()); }
+    if (!e.is_object()) throw std::runtime_error("Materials: an inline structure must be an object (a materials.json entry)");
+    for (const auto& [k,v] : e.items())
+        if (k!="name" && k!="comment" && k!="lattice" && k!="atoms" && k!="pp")
+            throw std::runtime_error("Materials: unknown key '" + k + "' in an inline structure (known: name, comment, lattice, atoms, pp)");
+    const std::string name = e.contains("name") ? e.at("name").get<std::string>() : std::string("inline");
+    if (name.empty() || name[0]=='_' || name.find('/')!=std::string::npos)
+        throw std::runtime_error("Materials: inline structure name '" + name + "' must be non-empty, not start with '_' and not contain '/' (it is a file stem)");
+    const std::string set = e.contains("pp") ? e.at("pp").get<std::string>() : pp;
+    if (set.empty()) throw std::runtime_error("Materials: inline structure '" + name + "' names no pseudopotential set (its 'pp', or the caller's)");
+    return FromCell(name, StructureData::CellFromEntry(entryJson, name), set);
+}
 std::vector<std::string> Names() { return StructureData::CellNames(); }
 
 Material AtomInBox(const std::string& element, int valence, double a)

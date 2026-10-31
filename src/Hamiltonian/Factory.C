@@ -139,12 +139,16 @@ export namespace qchem::Hamiltonian
     //! THE functional resolver -- the SINGLE place that builds a DFT Hamiltonian from a functional choice.
     //! Owns its functional(s); the Internal ExFunctional construction never leaks out.  Polarized is
     //! supported for every kind: SlaterXalpha, DiracVWN (spin-native VWN5) and LibXC (XC_POLARIZED, 2026-10-21).
-    rHamiltonian* Factory(SpinGroup, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const rbs_t*);
+    //! \a fit: the Vxc fit basis (\c Delta = the δ basis on \a mesh's points, which \c Auto resolves to -- the default;
+    //! \c Auxiliary = the lineage's own fitted auxiliary basis, A1 on a molecule).
+    rHamiltonian* Factory(SpinGroup, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const rbs_t*,
+                          VxcFit fit=VxcFit::Auto);
 
     //! Unified one-call resolver: turn a Model token into the concrete polymorphic Hamiltonian.  HF/1-e/
     //! Dirac ignore mesh/basis/xalpha; the DFT members map to an XCFunctional and delegate to the resolver
     //! above.  The compact "default Hamiltonian" entry the unit tests want -- no manual functional assembly.
-    rHamiltonian* Factory(Model,SpinGroup,const st_t& st, const qcMesh::MeshParams&, const rbs_t*, double xalpha);
+    rHamiltonian* Factory(Model,SpinGroup,const st_t& st, const qcMesh::MeshParams&, const rbs_t*, double xalpha,
+                          VxcFit fit=VxcFit::Auto);
 
     //! Convenience for the most common DFT functional: Slater-Dirac exchange scaled by \a alpha (alpha=2/3
     //! is pure Dirac).  Equivalent to the XCFunctional resolver with XC::SlaterXalpha.
@@ -156,13 +160,13 @@ export namespace qchem::Hamiltonian
     //! pseudopotential, with LSDA exchange-correlation.  \a pol selects spin-native (open-shell) vs the
     //! unpolarized collapse.  The public front door to Ham_PP.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const std::string& element, int valence,
-                         const qcMesh::MeshParams&, const rbs_t*);
+                         const qcMesh::MeshParams&, const rbs_t*, VxcFit fit=VxcFit::Auto);
 
     //! Pseudopotential Hamiltonian from the run's CHOSEN \a pp set (doc/CalcNetworkReview.md §4): a per-Z router PP is built over the
     //! distinct elements of \a st, each with the set's valence variant for the set's functional.  The set is handed in, never
     //! re-derived here -- every other consumer of the run's pseudopotential choice holds the same value.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
-                         const qcMesh::MeshParams&, const rbs_t*);
+                         const qcMesh::MeshParams&, const rbs_t*, VxcFit fit=VxcFit::Auto);
 
     //=== The SOLID (periodic, dcmplx) front door ======================================================
     //! \brief The periodic Kohn-Sham Hamiltonian for a lattice run: kinetic + the range-split local PP

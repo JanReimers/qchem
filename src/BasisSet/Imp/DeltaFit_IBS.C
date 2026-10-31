@@ -163,7 +163,7 @@ template <class U> static mat_t<U> MakePhiAt(const Orbital_1E_IBS<U>* bs, const 
 }
 
 // The two Collocation::Values overloads: same body, own cache per scalar.
-template <class U> const mat_t<U>& DeltaFit_IBS::Table(SymMap<mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const
+template <class T> template <class U> const mat_t<U>& DeltaFit_IBS<T>::Table(SymMap<mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const
 {
     const sym_t& id=orb.GetSymt();                 // the block's SPATIAL symmetry: the two spin channels share one table
     auto it=cache.find(id);
@@ -177,7 +177,7 @@ template <class U> const mat_t<U>& DeltaFit_IBS::Table(SymMap<mat_t<U>>& cache, 
 // object: rank-3 and never materialised, so what the caller gets is the two contractions of it (three, once
 // the density's factored form is counted -- one integral, two representations of D).  Phi and w stay in
 // here; the caller supplies only what it owns, its coefficients or its density matrix.
-template <class U> const Projector3<U>& DeltaFit_IBS::Tensor(SymMap<Projector3<U>>& cache,
+template <class T> template <class U> const Projector3<U>& DeltaFit_IBS<T>::Tensor(SymMap<Projector3<U>>& cache,
                                                              SymMap<mat_t<U>>& phis,
                                                              const Orbital_1E_IBS<U>& orb) const
 {
@@ -194,15 +194,18 @@ template <class U> const Projector3<U>& DeltaFit_IBS::Tensor(SymMap<Projector3<U
     return cache.emplace(id, std::move(g)).first->second;
 }
 
-const Projector3<double>& DeltaFit_IBS::Overlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const {return Tensor(itsO3R, itsPhiR, orb);}
-const Projector3<dcmplx>& DeltaFit_IBS::Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const {return Tensor(itsO3 , itsPhi , orb);}
+template <class T> const Projector3<T>& DeltaFit_IBS<T>::Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const
+{
+    if constexpr (std::is_same_v<T,double>) return Tensor(itsO3R, itsPhiR, orb);   // a block's table is typed by the BLOCK's scalar
+    else                                    return Tensor(itsO3 , itsPhi , orb);
+}
 
 // THE TRANSITION PAIR (doc/LinearResponsePlan.md §3d B2, finding 4): the ground-state forward and adjoint with the
 // bra's table on one side and the ket's on the other.  δρ_a = Σ_j [Φ^bra δD]_aj conj(Φ^ket_aj), and its adjoint
 // Φ^bra† diag(w v) Φ^ket -- so Σ_ij conj(δD_ij) h_ij = Σ_a w_a conj(δρ_a) v_a exactly.  Complex point values (a
 // Bloch-q function), not Hermitian, never folded.  Serial and unscreened: a response applies this a few hundred
 // times per material, and the tables are the ground state's (efficiency is the deferred ledger's, §3d).
-cvec_t DeltaFit_IBS::TransitionForward(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
+template <class T> cvec_t DeltaFit_IBS<T>::TransitionForwardImp(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
                                        const mat_t<dcmplx>& dD) const
 {
     qchem::report::Timed timed("response: XC-mesh transition forward");
@@ -221,7 +224,7 @@ cvec_t DeltaFit_IBS::TransitionForward(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra
     }
     return ro;
 }
-mat_t<dcmplx> DeltaFit_IBS::TransitionAdjoint(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
+template <class T> mat_t<dcmplx> DeltaFit_IBS<T>::TransitionAdjointImp(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
                                               const cvec_t& v) const
 {
     qchem::report::Timed timed("response: XC-mesh transition adjoint");
@@ -240,7 +243,7 @@ mat_t<dcmplx> DeltaFit_IBS::TransitionAdjoint(const Orbital_DFT_IBS<dcmplx,dcmpl
 
 // THE ADJOINT: <i|Sum_g c_g delta_g|j> = Phi^dag diag(w c) Phi -- scale the rows, one zgemm, hermitize.
 // (The GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)
-template <class U> hmat_t<U> DeltaFit_IBS::AdjointT(const mat_t<U>& P, const rvec_t& v) const
+template <class T> template <class U> hmat_t<U> DeltaFit_IBS<T>::AdjointT(const mat_t<U>& P, const rvec_t& v) const
 {
     const rvec_t&        w=itsQuad.GetMesh()->Weights();  // my weights -- they never leave
     assert(v.size()==P.rows());
@@ -321,7 +324,7 @@ template <class U> hmat_t<U> DeltaFit_IBS::AdjointT(const mat_t<U>& P, const rve
 // MY integral, so it belongs beside its adjoint, and having the two GEMMs in one file is also where the
 // shared BLAS-dispatch reasoning above belongs.  Threaded by OUTPUT BLOCK -- row g depends on row g alone,
 // so the result is bit-identical at any thread count.  Opt-in via QCHEM_OPENMP_THREADS (qchem.Parallel).
-template <class U> rvec_t DeltaFit_IBS::ForwardT(const mat_t<U>& P, const hmat_t<U>& D) const
+template <class T> template <class U> rvec_t DeltaFit_IBS<T>::ForwardT(const mat_t<U>& P, const hmat_t<U>& D) const
 {
     const size_t npts=P.rows();
     assert(P.columns()==D.rows());
@@ -380,7 +383,7 @@ template <class U> rvec_t DeltaFit_IBS::ForwardT(const mat_t<U>& P, const hmat_t
 // (npts x r) GEMM plus a row norm instead of the square one.  Non-negative BY CONSTRUCTION.  WHICH form
 // the caller has -- and whether the rank pays -- is its business (ChargeDensity::FactoredRho owns the
 // factor, its memo and the pays-for-itself test); this only knows how to contract against my table.
-template <class U> rvec_t DeltaFit_IBS::ForwardFactoredT(const mat_t<U>& P, const mat_t<U>& L) const
+template <class T> template <class U> rvec_t DeltaFit_IBS<T>::ForwardFactoredT(const mat_t<U>& P, const mat_t<U>& L) const
 {
     const size_t npts=P.rows();
     assert(P.columns()==L.rows());
@@ -418,5 +421,9 @@ template <class U> rvec_t DeltaFit_IBS::ForwardFactoredT(const mat_t<U>& P, cons
     block(0, npts);
     return ro;
 }
+
+// The two fit axes (2026-10-31): the periodic (Bloch) one and the molecular one.
+template class DeltaFit_IBS<dcmplx>;
+template class DeltaFit_IBS<double>;
 
 } //namespace

@@ -29,6 +29,7 @@ module;
 #include <map>
 #include <ostream>
 #include <string>
+#include <type_traits> // std::is_same_v (the same-scalar table cache)
 #include <utility>
 export module qchem.BasisSet.DeltaFit_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;
@@ -43,20 +44,52 @@ import qchem.Reporting;                                  // EmitFold -- this bas
 export namespace qchem::BasisSet
 {
 
-//! \brief The \f$\delta\f$-basis realization of the periodic \f$v_{xc}\f$ fit face: it holds the finished
-//! XC quadrature and answers nothing else.
-//!
-//! Symmetry is the \f$\Gamma\f$ Bloch irrep (user ruling): the mesh is cell-periodic and carries no
-//! crystal momentum of its own, exactly as \c PlaneWaveFit_IBS's fit block is built at \f$k=0\f$.
-//! \c BasisSetID folds in the point count and the fold's orbit count -- the only things that distinguish
-//! two of these -- but nothing keys an integral cache on a \f$\delta\f$ basis today: it has no 3-centre
-//! tensor, because the quadrature route never forms one.
-class DeltaFit_IBS
-    : public virtual cFIT_SF_ABS                     // the neutral scalar-fit face (+ Integrals_Overlap3C<dcmplx>)
-    , public virtual Integrals_Overlap3C<double,dcmplx>  // ...and a REAL TRIM block (3c-3), in real arithmetic
+//! \brief THE PERIODIC FIT AXIS'S TWO EXTRA FACES, which only a \f$\delta\f$ basis on the complex (Bloch) axis has
+//! (2026-10-31): a REAL TRIM block contracted in real arithmetic (3c-3, \c Integrals_Overlap3C<double,dcmplx>) and the
+//! \f$(k+q,k)\f$ transition pair (\c Transition_Overlap3C).  A base that EXISTS only for \c dcmplx, so the real
+//! (molecular) instantiation does not carry capabilities it has no use for.  CRTP: the bodies are the δ basis's own
+//! (its tables, its weights), reached through \a Self.
+template <class Self, class T> class DeltaPeriodicFaces {};
+template <class Self> class DeltaPeriodicFaces<Self,dcmplx>
+    : public virtual Integrals_Overlap3C<double,dcmplx>  // a REAL TRIM block (3c-3), in real arithmetic
     , public virtual Transition_Overlap3C            // a (k+q, k) transition density on my points (the Becke/δ XC route)
-    , public         IrrepBasisSetImp<dcmplx>        // GetSymmetry/GetSymt/GetIrrep
 {
+public:
+    //! \copydoc BasisSet::Integrals_Overlap3C::Overlap3C
+    const Projector3<double>& Overlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Self_().RealTensor(orb);}
+    //! \copydoc BasisSet::Transition_Overlap3C::TransitionForward
+    //! Two Φ tables from the same per-block cache the ground state fills, so a response adds no table build.
+    cvec_t TransitionForward(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
+                             const mat_t<dcmplx>& dD) const override {return Self_().TransitionForwardImp(bra,ket,dD);}
+    //! \copydoc BasisSet::Transition_Overlap3C::TransitionAdjoint
+    mat_t<dcmplx> TransitionAdjoint(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
+                                    const cvec_t& v) const override {return Self_().TransitionAdjointImp(bra,ket,v);}
+private:
+    const Self& Self_() const {return static_cast<const Self&>(*this);}
+};
+
+//! \brief The \f$\delta\f$-basis realization of the \f$v_{xc}\f$ fit face: it holds the finished XC quadrature and
+//! answers nothing else.
+//!
+//! ONE CLASS TEMPLATE ON THE FIT AXIS'S SCALAR \a T (2026-10-31, user: "replace the Vxc fit basis with delta functions ...
+//! if our OOD design (LSP) is working correctly, this should just work").  \a T is the scalar of the orbital blocks I am
+//! contracted against -- \c dcmplx on the periodic (Bloch) path, \c double on the molecular one -- NOT what my own functions
+//! are made of: a \f$\delta\f$ function and its weight are real either way, and widen to \a T in one place (\c AsT).
+//! Until then the class was \c cFIT_SF_ABS only, so the real path THREW for VxcFit::Delta: the scalar axis had been welded
+//! to the class (its old comment blamed the Bloch irrep, which is incidental -- every IrrepBasisSet names one).
+//!
+//! Symmetry: the CALLER's -- \f$\Gamma\f$ Bloch irrep on the periodic path (the mesh is cell-periodic and carries no crystal
+//! momentum of its own, exactly as \c PlaneWaveFit_IBS's fit block is built at \f$k=0\f$), the molecular fit lineage's
+//! trivial irrep on the molecular one (\f$v_{xc}\f$ is totally symmetric).
+//! \c BasisSetID folds in the point count and the fold's orbit count -- the only things that distinguish two of these --
+//! but nothing keys an integral cache on a \f$\delta\f$ basis today: it has no 3-centre tensor, because the quadrature
+//! route never forms one.
+template <class T> class DeltaFit_IBS
+    : public virtual FIT_SF_ABS<T>                   // the neutral scalar-fit face (+ Integrals_Overlap3C<T,T>)
+    , public         DeltaPeriodicFaces<DeltaFit_IBS<T>,T>   // dcmplx only: the real TRIM block + the transition pair
+    , public         IrrepBasisSetImp<T>             // GetSymmetry/GetSymt/GetIrrep
+{
+    friend class DeltaPeriodicFaces<DeltaFit_IBS<T>,T>;
 public:
     //! ORTHOGONAL, with \f$\langle\delta_g|\delta_g\rangle=w_g\f$ -- diagonal, so no metric SOLVE, which
     //! is what \c isOrtho asks.  (Not orthoNORMAL: a fit through this basis divides by that diagonal,
@@ -65,9 +98,9 @@ public:
     //! implementation, not a type other code needs to name.
     bool isOrtho() const override {return true;}
     //! \a q is the FINISHED quadrature (mesh + fold + Shubnikov tags) from the owning basis's
-    //! \c CreateXCQuadrature, and \a sym the \f$\Gamma\f$ Bloch irrep.
+    //! \c CreateXCQuadrature, and \a sym the irrep the caller's lineage gives a fit block (see the class note).
     DeltaFit_IBS(FitQuadrature q, const sym_t& sym)
-        : IrrepBasisSetImp<dcmplx>(sym)
+        : IrrepBasisSetImp<T>(sym)
         , itsQuad(std::move(q))
     {
         assert(itsQuad.GetMesh() && itsQuad.GetMesh()->size()>0 && "DeltaFit_IBS: a delta basis IS its mesh -- it cannot be empty");
@@ -86,41 +119,32 @@ public:
 
     //! \copydoc BasisSet::Integrals_Overlap3C::Overlap3C
     //! \f$\langle\chi_i|\delta_g|\chi_j\rangle=w_g\overline{\chi_i(r_g)}\chi_j(r_g)\f$, built from the
-    //! orbital basis's own \c op(r) -- no orbital-side 3-centre machinery is asked for or needed.  BOTH
-    //! block scalars, which is the whole of what a \f$\delta\f$ representation adds: its \f$\Phi\f$ table
-    //! is typed by the ORBITAL block, so a real TRIM block contracts in real arithmetic.  (Bodies in Imp/;
-    //! ONE templated body serves both.)
-    const Projector3<double>& Overlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const override;
-    const Projector3<dcmplx>& Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override;
-    //! \copydoc BasisSet::Transition_Overlap3C::TransitionForward
-    //! Two Φ tables from the same per-block cache the ground state fills, so a response adds no table build.
-    cvec_t TransitionForward(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
-                             const mat_t<dcmplx>& dD) const override;
-    //! \copydoc BasisSet::Transition_Overlap3C::TransitionAdjoint
-    mat_t<dcmplx> TransitionAdjoint(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
-                                    const cvec_t& v) const override;
+    //! orbital basis's own \c op(r) -- no orbital-side 3-centre machinery is asked for or needed.  The SAME-scalar block
+    //! here; on the periodic axis a real TRIM block takes \c DeltaPeriodicFaces' overload, through the same templated
+    //! body (its \f$\Phi\f$ table is typed by the ORBITAL block, so a real block contracts in real arithmetic).
+    const Projector3<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
 
     // ---- the integrals over my own functions, one entry per FUNCTION (FIT_SF_ABS) ---------------------
     //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal
     //! \f$\langle\delta_g|\delta_g\rangle=w_g\f$: orthogonal, NOT orthonormal -- so a general fit
     //! through this basis divides by these, giving \f$c_g=w_g f_g/w_g=f(r_g)\f$, the point values.
-    vec_t<dcmplx> OverlapDiagonal() const override {return AsComplex(itsQuad.GetMesh()->Weights());}
+    vec_t<T> OverlapDiagonal() const override {return AsT(itsQuad.GetMesh()->Weights());}
     //! \copydoc BasisSet::FIT_SF_ABS::Charge
     //! \f$\langle\delta_g|1\rangle=\int\delta_g\,d^3r=w_g\f$.  Same numbers as \c OverlapDiagonal here
     //! and NOT the same question: that one is \f$\langle\delta_g|\delta_g\rangle\f$ (a metric), this is
     //! \f$\langle\delta_g|1\rangle\f$ (an integral).  They coincide because \f$\delta\f$ is idempotent
     //! under this quadrature -- a fact about this representation, not a shared definition.
-    vec_t<dcmplx> Charge() const override {return AsComplex(itsQuad.GetMesh()->Weights());}
+    vec_t<T> Charge() const override {return AsT(itsQuad.GetMesh()->Weights());}
     //! \copydoc BasisSet::FIT_SF_ABS::Overlap
     //! \f$\langle\delta_g|f\rangle=w_g f(r_g)\f$ -- I evaluate the field at MY points (the field's own
     //! bulk fast path does the work) and weight it.  The caller sees only a vector indexed by FUNCTION.
-    vec_t<dcmplx> Overlap(const ScalarFunction<double>& f) const override
+    vec_t<T> Overlap(const ScalarFunction<double>& f) const override
     {
         const rvec_t  v=f(itsQuad.GetMesh()->Points());
         const rvec_t& w=itsQuad.GetMesh()->Weights();
         assert(v.size()==w.size());
-        vec_t<dcmplx> p(v.size());
-        for (size_t g=0; g<v.size(); g++) p[g]=dcmplx(w[g]*v[g]);
+        vec_t<T> p(v.size());
+        for (size_t g=0; g<v.size(); g++) p[g]=T(w[g]*v[g]);
         return p;
     }
 
@@ -151,13 +175,20 @@ public:
 private:
     //! The face is templated on the scalar of the ORBITAL blocks I contract against (Bloch => dcmplx), not
     //! on what my own functions are made of -- and a \f$\delta\f$ function and its weight are real.  So
-    //! every integral over my own functions widens here, in one place.
-    static vec_t<dcmplx> AsComplex(const rvec_t& r)
+    //! every integral over my own functions widens here, in one place (a copy on the real axis).
+    static vec_t<T> AsT(const rvec_t& r)
     {
-        vec_t<dcmplx> c(r.size());
-        for (size_t g=0; g<r.size(); g++) c[g]=dcmplx(r[g]);
+        vec_t<T> c(r.size());
+        for (size_t g=0; g<r.size(); g++) c[g]=T(r[g]);
         return c;
     }
+    //! The real-block tensor (\c DeltaPeriodicFaces' 3c-3 overload) and the transition pair's bodies: periodic-axis work,
+    //! reached only through that base.
+    const Projector3<double>& RealTensor(const Orbital_DFT_IBS<double,dcmplx>& orb) const {return Tensor(itsO3R, itsPhiR, orb);}
+    cvec_t        TransitionForwardImp(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
+                                       const mat_t<dcmplx>& dD) const;
+    mat_t<dcmplx> TransitionAdjointImp(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
+                                       const cvec_t& v) const;
     //! ONE body for both \c Overlap3C overloads, each with its own typed cache.  R2.9(i) idiom: the
     //! accessor is const and the tensor is a lazily-built, geometry-fixed cache, so the maps are \c mutable.
     template <class U> const Projector3<U>& Tensor(SymMap<Projector3<U>>& cache,

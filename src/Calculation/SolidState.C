@@ -110,6 +110,10 @@ struct RunIdentity
     //! \c gpw.<name>: the facade knows the typed struct, this module only the values.
     std::map<std::string, std::vector<double>>   gpwTolerances;
     //!@}
+    //! The RESOLVED CP2K-deviation routes that move the converged state (\c Deviation::movesState), keyed by their deck knob
+    //! (\c policy.<route>) -> on/off; all WARM, recorded one key per route so a banner reformat is not a difference (added
+    //! 2026-10-30, OpenWork §3 "A restart's fingerprint does not record the run POLICY").  A state without them compares as agreeing.
+    std::map<std::string, bool>                  policy;
 };
 
 //! The fingerprint of a run: the cell matrix \a A (columns = lattice vectors), the sites of \a st, the built

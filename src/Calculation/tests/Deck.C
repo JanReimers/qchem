@@ -4,6 +4,7 @@
 #include <fstream>
 #include <set>
 #include <nlohmann/json.hpp>
+#include "forward.H"   // DeckTests: the restart fingerprint of a built calculation (SolidCalculation::Fingerprint is private)
 import qchem.Hamiltonian.Factory;   // HubbardProjectorKind (the manifold projector-kind round trip)
 import qchem.Deck;
 import qchem.BasisSet.PlaneWave.Evaluators;   // RasterPolicy (the gridAudit reference)
@@ -13,6 +14,7 @@ import qchem.Mesh;
 import qchem.Materials;
 import qchem.ChargeDensity.Seed;
 import qchem.LASolver;
+import qchem.SolidState;          // StateFingerprint, CompareFingerprints
 
 using namespace qchem;
 using qchem::deck::json;
@@ -42,12 +44,14 @@ TEST(Deck, NonDefaultValuesSurviveTheRoundTrip)
     SolidCalcOptions o;
     o.Nelec=48; o.multiplicity=1; o.species={{"Mn",15},{"O",6}}; o.kShift=rvec3_t(0.25,0,0.5);
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::CholeskyPivoted; o.imposeSymmetry=true; o.siteSpins={1,-1,0,0};
+    o.siteCharges={2,2,-2,-2};
     o.tolerances.screenEps=1e-8; o.tolerances.mgridEcuts={53.3,17.8}; o.xcMesh.beckeEps=1e-7; o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
     o.hubbard.push_back(HubbardU_OrthoAtomic(0,2,4.0));
     const json j=deck::ToJson(o);
     SolidCalcOptions back; deck::FromJson(j,back);
     EXPECT_EQ(deck::ToJson(back), j);
     EXPECT_EQ(back.species.size(),2u); EXPECT_EQ(back.species[0].first,"Mn"); EXPECT_EQ(back.tolerances.screenEps,1e-8);
+    EXPECT_EQ(back.siteCharges,(std::vector<int>{2,2,-2,-2}));
     ASSERT_EQ(back.hubbard.size(),1u); EXPECT_TRUE(back.hubbard[0].orthoAtomic); EXPECT_NEAR(back.hubbard[0].U,4.0/27.211386245988,1e-15);
 }
 
@@ -485,6 +489,22 @@ TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
     EXPECT_NE(msg({{"siteSpins",{2,-1,0,0}}}).find("-1, 0 or +1"),std::string::npos);
 }
 
+// The IonicSAD charge order is STATED or derived (OpenWork §3 "Spinel charge order is CHOSEN by atom index", 2026-10-30): a stated
+// order is one charge per site, conserves the cell's charge, and seeds an IonicSAD run -- else the deck is refused at resolve.
+TEST(Deck, AStatedChargeOrderIsOnePerSiteNeutralAndIonicSAD)
+{
+    auto msg=[](json solid)
+    {
+        deck::RunSpec s; deck::FromJson(json{{"structure","NiO_AFM2"},{"solid",solid}},s);
+        try { deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); }
+        return std::string("NO THROW");
+    };
+    EXPECT_EQ(msg({{"siteCharges",{2,2,-2,-2}}}),"NO THROW") << "IonicSAD is the default seed";
+    EXPECT_NE(msg({{"siteCharges",{2,-2}}}).find("solid.siteCharges -- siteCharges has 2 entries for 4 sites (Ni Ni O O)"),std::string::npos);
+    EXPECT_NE(msg({{"siteCharges",{3,2,-2,-2}}}).find("sum to 1, not 0"),std::string::npos);
+    EXPECT_NE(msg({{"siteCharges",{2,2,-2,-2}},{"seed","SAD"}}).find("not IonicSAD"),std::string::npos) << "nothing else reads it";
+}
+
 //! A grid field set beside cellKind Auto used to be DROPPED (Auto resolves to a calibrated recipe): a β-MnO₂ mesh-convergence run came
 //! back bit-identical.  Resolve refuses it, naming the field, so --check catches it before a revision is claimed.
 TEST(Deck, AnXCMeshRecipeFieldUnderAutoIsRefusedAtResolve)
@@ -565,4 +585,112 @@ TEST(Deck, EveryShippedDeckVets)
             ++n;
         }
     EXPECT_GE(n,1u);
+}
+
+// ---- an INLINE structure (2026-10-31, the GUI's door): the deck states the cell instead of naming it ----
+//! THE FRIEND (src/forward.H): the restart fingerprint a built calculation would save -- what "the same run" means to a restart.
+class DeckTests
+{
+public:
+    static StateFingerprint Fingerprint(const SolidCalculation& c) { return c.Fingerprint(0.0); }
+};
+
+namespace {
+// Si_diamond stated inline in the shape lane G's translator writes: explicit lattice vectors (CubicF a = 10.26: the a/2 columns),
+// no name, no pp (solid.pp's default, gth-lda-valence, is the material's set).  Copied, not read: the test states what it means.
+json SiInline()
+{
+    return {{"lattice",{{"vectors_bohr",{{0.0,5.13,5.13},{5.13,0.0,5.13},{5.13,5.13,0.0}}}}},
+            {"atoms",json::array({{{"el","Si"},{"frac",{0.0,0.0,0.0}}}, {{"el","Si"},{"frac",{0.25,0.25,0.25}}}})}};
+}
+const json kSiRecipe={{"basis",{{"data","SIPP_SR"}}},{"solid",{{"densityEcut",20.0},{"imposeSymmetry",true}}},
+                      {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
+deck::RunSpec SiDeck(const json& structure)
+{
+    json d=kSiRecipe; d["structure"]=structure;
+    deck::RunSpec r; deck::FromJson(d,r); return r;
+}
+}
+
+TEST(Deck, AnInlineStructureIsTheStructureKeyAsAnObjectAndRoundTrips)
+{
+    deck::RunSpec r;
+    EXPECT_THROW(deck::FromJson(json{{"kmesh",{1,1,1}}},r),std::runtime_error) << "no structure";
+    EXPECT_THROW(deck::FromJson(json{{"structure",42}},r),std::runtime_error) << "a name or an object";
+    EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"inlineStructure",SiInline()}},r),std::runtime_error) << "no second key";
+    deck::RunSpec both=SiDeck("Si_diamond"); both.inlineStructure=SiInline();
+    EXPECT_THROW((void)deck::Resolve(both),std::runtime_error) << "a name AND an inline cell, built in C++";
+
+    deck::RunSpec in=SiDeck(SiInline());
+    EXPECT_TRUE(in.structure.empty());
+    EXPECT_EQ(in.StructureName(),"inline") << "an inline cell with no name";
+    json named=SiInline(); named["name"]="Si_mine";
+    EXPECT_EQ(SiDeck(named).StructureName(),"Si_mine");
+    const json j=deck::ToJson(in);
+    EXPECT_TRUE(j.at("structure").is_object()) << "the record states the cell, not a name it does not have";
+    deck::RunSpec back; deck::FromJson(j,back); EXPECT_EQ(deck::ToJson(back),j);
+
+    // resolved like a named one: the species and Nelec are derived from the set (solid.pp here; the entry's own `pp` if it has one)
+    deck::RunSpec ref=SiDeck("Si_diamond");
+    const auto mi=deck::Resolve(in), mn=deck::Resolve(ref);
+    EXPECT_EQ(in.solid.Nelec,ref.solid.Nelec); EXPECT_EQ(in.solid.species,ref.solid.species); EXPECT_EQ(in.solid.pp,ref.solid.pp);
+    EXPECT_EQ(mi.cell->GetNumAtoms(),mn.cell->GetNumAtoms());
+
+    // strict: a typo in the entry would build a DIFFERENT cell silently
+    auto refused=[](json entry, const std::string& what)
+    {
+        deck::RunSpec x=SiDeck(entry);
+        try { (void)deck::Resolve(x); ADD_FAILURE() << "no throw for " << what; }
+        catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find(what),std::string::npos) << e.what(); }
+    };
+    json both2=SiInline(); both2["lattice"]["type"]="CubicF";      refused(both2,"unknown key 'type'");
+    json bravais=SiInline(); bravais["lattice"]={{"type","CubicF"},{"alfa",60.0}}; refused(bravais,"unknown key 'alfa'");
+    json short3=SiInline(); short3["lattice"]["vectors_bohr"]={{1,0,0},{0,1,0}}; refused(short3,"three 3-vectors");
+    json extra=SiInline(); extra["kmesh"]={2,2,2};                  refused(extra,"unknown key 'kmesh'");
+    json badAtom=SiInline(); badAtom["atoms"][0]["fracs"]={0,0,0};  refused(badAtom,"unknown key 'fracs'");
+    json badName=SiInline(); badName["name"]="a/b";                 refused(badName,"file stem");
+}
+
+// The claim lane G binds to: an inline deck -- in lane G's shape, explicit lattice vectors -- and its named twin are the SAME run:
+// the fingerprint a saved state would carry, built by deck::Build (which stops before the SCF), agrees with no difference at all,
+// so either one's state resumes the other EXACTLY.
+TEST(Deck, AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint)
+{
+    const auto a=deck::Build(SiDeck("Si_diamond"));
+    const auto b=deck::Build(SiDeck(SiInline()));
+    auto cmp=CompareFingerprints(DeckTests::Fingerprint(*a), DeckTests::Fingerprint(*b));
+    ASSERT_TRUE(cmp) << cmp.Error().details;
+    EXPECT_TRUE(cmp->empty()) << "a warm difference: " << (cmp->empty() ? "" : cmp->front());
+    // and a moved atom IS a different cell (the comparison is not vacuous)
+    json moved=SiInline(); moved["atoms"][1]["frac"]={0.25,0.25,0.26};
+    const auto c=deck::Build(SiDeck(moved));
+    auto cmp2=CompareFingerprints(DeckTests::Fingerprint(*a), DeckTests::Fingerprint(*c));
+    EXPECT_TRUE(!cmp2 || !cmp2->empty()) << "a moved atom left the fingerprint unchanged";
+}
+
+// deck::Build STOPS BEFORE THE SCF, and Run is Build + Converge: the observer has seen nothing until the caller converges, and the
+// converged energy is Run's own, bit for bit (ONE path).
+TEST(Deck, BuildStopsBeforeTheSCFAndRunIsBuildPlusConverge)
+{
+    deck::RunSpec spec=SiDeck("Si_diamond");
+    size_t seen=0;
+    const auto calc=deck::Build(spec, [&](const auto&){ ++seen; });
+    EXPECT_EQ(seen,0u) << "Build ran an SCF";
+    EXPECT_FALSE(calc->DidConverge());
+    auto R=calc->Converge(deck::ScheduleToRun(spec));
+    ASSERT_TRUE(R);
+    EXPECT_GT(seen,0u) << "the observer was not attached before the first iteration";
+
+    const fs::path dir=TmpDir("build");
+    deck::Provenance pv; pv.commandLine="test"; pv.codeVersion="t";
+    const deck::RunOutcome out=deck::Run(spec,pv,dir);
+    ASSERT_TRUE(out.converged) << out.summary;
+    EXPECT_DOUBLE_EQ(R->Energy(), *out.energy);
+    fs::remove_all(dir);
+
+    deck::RunSpec stem=spec; stem.state.restartFrom="Si_diamond.r001";
+    EXPECT_THROW((void)deck::Build(stem),std::runtime_error) << "a revision stem needs Run's outDir";
+    deck::RunSpec missing=spec; missing.state.restartFrom="/nonexistent/x.h5";
+    EXPECT_THROW((void)deck::Build(missing),std::runtime_error);
+    EXPECT_EQ(deck::ScheduleToRun(stem).size(),1u) << "a restart runs the final stage only";
 }

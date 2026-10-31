@@ -61,9 +61,9 @@ using qchem::BasisSet::Gaussian::BasisSetData;
 
 //---------------------------------- the quadrature bundle ----------------------------------
 // The delta fit basis the SINGLES quadrature runs on: it owns the mesh's points, weights and functions.
-std::shared_ptr<const qchem::BasisSet::DeltaFit_IBS> DeltaFitOver(qchem::BasisSet::FitQuadrature q)
+std::shared_ptr<const qchem::BasisSet::DeltaFit_IBS<dcmplx>> DeltaFitOver(qchem::BasisSet::FitQuadrature q)
 {
-    return std::make_shared<const qchem::BasisSet::DeltaFit_IBS>(std::move(q),
+    return std::make_shared<const qchem::BasisSet::DeltaFit_IBS<dcmplx>>(std::move(q),
                qchem::Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 
@@ -272,7 +272,7 @@ SCFParams TightGates(size_t nmax=120) { return Gates(nmax, 1e-6, 1e30); }
 // (EnvOverrides -- 14 GPW_* variables that re-shaped any test's recipe from the shell -- is DELETED, D-ENV step 6d.4.  A test states its recipe in code;
 //  a benchmark row or a variation is a DECK: decks/bench/*.json + `rundeck --set key=value`, doc/Records/EnvKnobInventory.md §10.)
 
-//! The per-iteration trace a test can attach through \c SolidCalcOptions::onIteration -- live from the
+//! The per-iteration trace a test hands the \c SolidCalculation constructor (\c trace.Observer()) -- live from the
 //! constructor, so stage 0 is in it -- and read back as the fingerprint / order trajectory the campaign
 //! instruments print.  (The assertions stay on the facade's answers; this is the human-readable side.)
 struct Trace

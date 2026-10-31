@@ -84,6 +84,10 @@ struct AtomCalcOptions
                               .mhl_m    = 3,                         .mhl_alpha = 2.0,
                               .angular  = qcMesh::AngularKind::Lebedev, .angularDegree = 0,   // the 1-direction rule
                               .beckeOrder = 2};
+    //! The Vxc FIT BASIS (2026-10-31): \c Auto = \c Delta, the DEFAULT (user ruling "δ default, A1 kept"; as the molecular facade) --
+    //! the δ basis on \c mesh's points; \c Auxiliary = the radial fit set.  The Si pseudo-atom (Slater/Medium) moves 33 -> 5 μHa
+    //! from CP2K's ATOM code on δ.  A caller whose result is an INPUT to other runs states its route (\c PseudoAtomOrbital).
+    qchem::Hamiltonian::VxcFit vxcFit = qchem::Hamiltonian::VxcFit::Auto;
     //! SCF seed.  Default == auto: CoreGuess (atoms never use the molecular SAD seed).
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
 

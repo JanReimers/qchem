@@ -9,6 +9,7 @@ import qchem.StructureData;
 import qchem.SCFParams;
 import qchem.SCFIterator;
 import qchem.Types;
+import qchem.SCFCap;   // BoundedSCF: the failure arm runs a deliberately bounded SCF
 
 using namespace qchem;
 using StructureData::GetMolecule;
@@ -64,4 +65,29 @@ TEST(CalculationFacade, AnUnpolarizedSpinDensityIsTheZeroFieldAndAPolarizedOneIs
     }
     EXPECT_EQ(up, down) << "both channels listed";
     EXPECT_NEAR(nUp-nDown, 2.0, 1e-12) << "2S = multiplicity - 1";
+}
+
+// THE OUTCOME DOOR (2026-10-31): Converge and Result hand back the answers only on a PROOF of convergence, and a failure
+// carries the SCFFailure both facades share -- never a plausible energy as "the answer".
+TEST(CalculationFacade, ConvergeIsAnOutcomeTheAnswersLiveOnTheProof)
+{
+    Calculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << R.Error().details;
+    EXPECT_EQ(R->Energy(), calc.Energy());
+    EXPECT_EQ(R->IterationCount(), calc.IterationCount());
+    EXPECT_EQ(&R->Density(), &calc.Density());
+
+    auto again=calc.Converge({.NMaxIter=60});
+    ASSERT_TRUE(again);
+    EXPECT_NEAR(again->Energy(), R->Energy(), 1e-8) << "a re-converge from the converged state stays there";
+
+    qchem::BoundedSCF bounded("the failure arm is the subject: one iteration cannot converge water");
+    Calculation cut(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), {.NMaxIter=1});
+    auto F=cut.Result();
+    ASSERT_FALSE(F);
+    EXPECT_EQ(F.Error().why, SCFFailure::Why::NotConverged);
+    EXPECT_EQ(F.Error().iterations, 1u);
+    EXPECT_TRUE(std::isfinite(F.Error().lastEnergy)) << "the last iterate is kept as a DIAGNOSTIC";
+    EXPECT_FALSE(F.Error().details.empty());
 }

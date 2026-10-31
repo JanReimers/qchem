@@ -33,6 +33,7 @@ import qchem.SCFIterator;   // SCFProgress (the first-iterate probe)
 import qchem.HDF5;
 import qchem.Types;
 import qchem.Mesh;   // qcMesh::UnitCellKind (the field-mixer restart gate's XC mesh)
+import qchem.RunPolicy;   // RunPolicy::Deviations (the policy-keys gate)
 
 using namespace qchem;
 namespace {
@@ -238,6 +239,36 @@ TEST(SolidState, TheNumericsKeysAreWarmAndAnOlderStateIsStillExact)
     EXPECT_NE((*warm)[1].find("v_xc fit basis changed: the converged ground state moves"), std::string::npos) << (*warm)[1];
 }
 
+// The run POLICY (2026-10-30): every route that moves the converged state is recorded WARM, one key per route; the mixing basis
+// and the imposition PERMISSION are not (they move nothing the state is).  A state from before the keys is still exact.
+TEST(SolidState, ThePolicyRoutesAreWarmAndAnOlderStateIsStillExact)
+{
+    auto st=ReadSolidState(SavedState(0, false).path);
+    ASSERT_TRUE(st) << st.Error().details;
+    const StateFingerprint& fp=st->fingerprint;
+    for (const Deviation& d : RunPolicy().Deviations())
+    {
+        auto it=fp.warmStr.find(d.knob);
+        if (!d.movesState) { EXPECT_TRUE(it==fp.warmStr.end()) << d.knob << " moves no state, so it is not recorded"; continue; }
+        ASSERT_TRUE(it!=fp.warmStr.end()) << d.knob;
+        EXPECT_EQ(it->second, d.value ? "on" : "off") << d.knob << ": the fixture runs the default policy";
+    }
+
+    StateFingerprint old=fp;
+    std::erase_if(old.warmStr, [](const auto& e){ return e.first.rfind("policy.",0)==0; });
+    auto same=CompareFingerprints(old, fp);
+    ASSERT_TRUE(same) << same.Error().details;
+    EXPECT_TRUE(same->empty()) << "a state written before the policy keys is an EXACT resume of the same run";
+
+    StateFingerprint now=fp;
+    now.warmStr.at("policy.xcFromDM")="on";
+    auto warm=CompareFingerprints(fp, now);
+    ASSERT_TRUE(warm) << warm.Error().details;
+    ASSERT_EQ(warm->size(), 1u);
+    EXPECT_NE((*warm)[0].find("policy.xcFromDM: saved 'off', now 'on' -- a declared CP2K-deviation route changed the Hamiltonian"),
+              std::string::npos) << (*warm)[0];
+}
+
 // A restart ACROSS one of the new keys (the multigrid ladder) is a warm start that says so, and converges to the new run's answer.
 // (The raster was the first choice: AliasFree on this cell costs ~230 s, far over a unit test's budget.)
 TEST(SolidState, ARestartAcrossTheLadderPrintsItsLineAndConverges)
@@ -322,8 +353,8 @@ TEST(SolidState, WarmStart_OtherGrid_StartsAtTheAnswer)
     SolidCalcOptions o=Options(0, false, "");
     o.densityEcut=30.0;
     std::vector<double> E;
-    o.onIteration=[&E](const SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
-    auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), Params());
+    auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), Params(),
+                                     [&E](const SCFIterator::SCFProgress& p){ E.push_back(p.energy); });
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
@@ -380,8 +411,8 @@ TEST(SolidState, SmearedExactResume_StartsAtTheSavedState)
     }
     SolidCalcOptions o=Options(0, false, "");
     std::vector<double> E;
-    o.onIteration=[&E](const SCFIterator::SCFProgress& pr){ E.push_back(pr.energy); };
-    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p);
+    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p,
+                                     [&E](const SCFIterator::SCFProgress& pr){ E.push_back(pr.energy); });
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
@@ -417,10 +448,10 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     }
     o.saveStateTo="";
     std::vector<SCFIterator::SCFProgress> it;
-    o.onIteration=[&it](const SCFIterator::SCFProgress& pr){ it.push_back(pr); };
     qchem::IterationBudget budget(3, "field-mixer exact resume (regime 4)");   // the PANEL case: the resume only
     testing::internal::CaptureStdout();
-    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p);
+    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p,
+                                     [&it](const SCFIterator::SCFProgress& pr){ it.push_back(pr); });
     const std::string out=testing::internal::GetCapturedStdout();
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();

@@ -155,7 +155,7 @@ TEST(SolidSession, TheLowdinCarryLandsOnTheSameSurface)
     const PESGeometry ref=SolidSession(setup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}}).Reference();
     auto walk=[&](SolidSession::Carry how)
     {
-        SolidSession pes(setup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}}, how);
+        SolidSession pes(setup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}}, nullptr, how);
         std::vector<std::pair<double,size_t>> out;
         std::vector<rvec3_t> R=ref.R;
         for (int i=0;i<5;i++)

@@ -12,6 +12,7 @@ export module qchem.PotentialEnergySurface;
 
 export import qchem.Outcome;     // Outcome<T,E>
 export import qchem.Types;       // rvec3_t, rmat3d_t
+export import qchem.SCFFailure;  // the SCF's own failure, carried by Why::SCF
 
 export namespace qchem
 {
@@ -55,6 +56,9 @@ struct PESFailure
     };
     Why         why = Why::SCF;
     std::string details;
+    //! The point's SCF failure itself, when \c why is \c SCF (its \c why, iterations and last-iterate energy, for a driver that
+    //! retries with another recipe); empty for the setup refusals.
+    std::optional<SCFFailure> scf;
 };
 
 //! \brief The energy surface of one fixed run setup, sampled at positions the caller chooses.

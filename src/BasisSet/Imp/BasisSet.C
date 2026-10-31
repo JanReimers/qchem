@@ -7,6 +7,7 @@ module qchem.BasisSet;
 import qchem.BasisSet.Orbital_DFT_IBS;   // the per-block fit factories this whole-set layer delegates to
 import qchem.BasisSet.DeltaFit_IBS;      // DeltaFit_IBS -- the delta representation this layer builds itself
 import qchem.Symmetry.Factory;           // BlochFactory (the delta basis's Gamma irrep)
+import qchem.Symmetry.Unit;              // UnitQN: the molecular fit lineage's trivial irrep (the real delta basis's)
 import qchem.Reporting;                  // report::Timed -- splitting the delta-fit build (ParallelAndOraclePlan 1.1(b))
 
 namespace qchem::BasisSet
@@ -59,15 +60,26 @@ template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Struc
                                                                     VxcFit fit,
                                                                     FitQuadrature* quad) const
 {
-    // No quadrature on the real path: the Gaussian auxiliary basis keeps its own private quadrature mesh
-    // (Fit_IBS::itsMesh, by value), and nothing molecular asks for atom-partitioned observables yet.
     if (quad) *quad=FitQuadrature();
-    // The REAL (molecular) path has exactly one representation -- the Gaussian auxiliary basis -- so a
-    // delta request has nothing to build here: DeltaFit_IBS carries a Bloch irrep and the molecular XC
-    // quadrature route is not wired to it.  Loud, not silent, so "it quietly fitted Gaussians" cannot happen.
+    // The REAL (molecular) path's two representations (2026-10-31, user: "replace the Vxc fit basis with delta functions
+    // ... if our OOD design (LSP) is working correctly, this should just work"):
+    //   Delta -- the delta basis over this structure's own XC mesh (the Becke build at \a mp), with the molecular fit
+    //            lineage's trivial irrep (v_xc is totally symmetric).  It was a THROW until the class was templated on the
+    //            fit axis's scalar: DeltaFit_IBS was complex-only, which its comment blamed on the Bloch irrep.  The quadrature
+    //            goes to the caller too, exactly as on the periodic path.
+    //   Auxiliary (and an unresolved Auto) -- the lineage's own fitted auxiliary basis (A1 Gaussians on a molecule, the radial
+    //            fit set on an atom), which keeps its own private quadrature mesh.  The molecular / atom Hamiltonians resolve
+    //            Auto to Delta (the default, user 2026-10-31).
+    //   PlaneWave -- no realization on this lineage: an open gap of the product space (pin 30), named, not substituted.
     if (fit==VxcFit::Delta)
-        throw std::logic_error("tBasisSet: VxcFit::Delta has no real (molecular) realization -- there is no "
-            "delta fit basis on the double path; the molecular Vxc route fits the Gaussian auxiliary basis.");
+    {
+        FitQuadrature q=CreateXCQuadrature(cl,mp);
+        if (quad) *quad=q;
+        return new DeltaFit_IBS<double>(std::move(q), sym_t(new UnitQN));
+    }
+    if (fit==VxcFit::PlaneWave)
+        throw std::logic_error("tBasisSet: VxcFit::PlaneWave has no realization on a non-periodic (molecular / atom) basis -- an open "
+                               "gap of the Vxc product space (pin 30); use Delta or Auxiliary");
     return FirstRealDFT(*this, "tBasisSet::CreateVxcFitBasisSet")->CreateVxcFitBasisSet(cl,mp);
 }
 
@@ -110,6 +122,9 @@ template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const St
                                                                        FitQuadrature* quad) const
 {
     if (quad) *quad=FitQuadrature();
+    if (fit==VxcFit::Auxiliary)
+        throw std::logic_error("tBasisSet<dcmplx>: VxcFit::Auxiliary (a molecular / atom auxiliary fit) has no realization on a periodic basis -- an "
+                               "open gap of the Vxc product space (pin 30); use Delta or PlaneWave");
     if (fit==VxcFit::Delta)
     {
         // ONE quadrature, built ONCE, INJECTED into both collaborators that need it (user, 2026-08-23):
@@ -137,7 +152,7 @@ template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const St
             *quad=q;
         }
         qchem::report::Timed timed("setup: DeltaFit_IBS ctor");
-        return new DeltaFit_IBS(std::move(q),
+        return new DeltaFit_IBS<dcmplx>(std::move(q),
                                 Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     }
     return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateVxcFitBasisSet(cl,mp);});

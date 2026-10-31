@@ -2,7 +2,8 @@
   "_doc": [
     "GATE 1 (doc/HubbardUPlan.md track B, B2) on LiMn2O4_spinel: does a CHOSEN ferromagnetic order on the spinel Mn (pyrochlore) sublattice survive a change in U?  Was `gpwprobe gate1 LiMn2O4_spinel <U_eV>`.",
     "NOT a ground-state search (the NiO lesson, HubbardUPlan S1: seeding cannot buy an order the fixed point lacks) -- what matters is whether the order SURVIVES.  Every Mn site gets the SAME U (site, l=2); vary it:  --set solid.hubbard.0.U_eV=...  (one --set per site),",
-    "or regenerate the list.  Multiplicity = n_Mn*4+1 (FM, d-count derived; GATE1_MULT overrides).  U starts at 0."
+    "or regenerate the list.  Multiplicity = n_Mn*4+1 (FM, d-count derived; GATE1_MULT overrides).  U starts at 0.",
+    "siteCharges STATES the IonicSAD charge order (2026-10-30): Mn4+ on Mn0/Mn1, Mn3+ on Mn2/Mn3 -- the order the electronegativity tie-break derived by ATOM INDEX before, so no number moves; edit it to seed another order."
   ],
   "structure": "LiMn2O4_spinel",
   "kmesh": [
@@ -17,6 +18,7 @@
   "solid": {
     "multiplicity": 17,
     "siteSpins": [0,0,1,1,1,1,0,0,0,0,0,0,0,0],
+    "siteCharges": [1,1,4,4,3,3,-2,-2,-2,-2,-2,-2,-2,-2],
     "seed": "IonicSAD",
     "ortho": "CholeskyPivoted",
     "orthoTol": 0.0001,

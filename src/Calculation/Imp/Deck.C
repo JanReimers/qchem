@@ -99,7 +99,7 @@ using qcMesh::UnitCellKind; using qcMesh::RadialKind; using qcMesh::AngularKind;
 const auto kRaster = NAMES(RasterPolicy, {"AliasFree",RasterPolicy::AliasFree}, {"BallOnly",RasterPolicy::BallOnly});
 const auto kImages = NAMES(CellImages,   {"Periodic",CellImages::Periodic}, {"HomeCellOnly",CellImages::HomeCellOnly});
 const auto kFamily = NAMES(SolidCalcOptions::OrbitalBasis, {"gaussian",SolidCalcOptions::OrbitalBasis::GPW}, {"planeWave",SolidCalcOptions::OrbitalBasis::PlaneWave});
-const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Auto}, {"PlaneWave",Hamiltonian::VxcFit::PlaneWave}, {"Delta",Hamiltonian::VxcFit::Delta});
+const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Auto}, {"PlaneWave",Hamiltonian::VxcFit::PlaneWave}, {"Delta",Hamiltonian::VxcFit::Delta}, {"Auxiliary",Hamiltonian::VxcFit::Auxiliary});
 const auto kAcc    = NAMES(AccType, {"DIIS",AccType::DIIS}, {"GDM",AccType::GDM}, {"Ladder",AccType::Ladder}, {"Null",AccType::Null},
                          {"Auto",AccType::Auto});
 const auto kSeed   = NAMES(SeedStrategy, {"Default",SeedStrategy::Default}, {"CoreGuess",SeedStrategy::CoreGuess}, {"Uniform",SeedStrategy::Uniform},
@@ -282,7 +282,7 @@ json ToJson(const SolidCalcOptions& o)
             {"accelerator",NameOf(o.accelerator,kAcc)},{"perKFermiLevels",o.perKFermiLevels},{"imposeSymmetry",o.imposeSymmetry},
             {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho,kOrtho)},{"orthoTol",o.orthoTol},{"numBands",o.numBands},{"forceComplex",o.forceComplex},
             {"spinsShareFermi",o.spinsShareFermi},{"greyImposition",o.greyImposition},{"momFromSeed",o.momFromSeed},
-            {"siteSpins",o.siteSpins},{"label",o.label},{"saveStateTo",o.saveStateTo}};
+            {"siteSpins",o.siteSpins},{"siteCharges",o.siteCharges},{"label",o.label},{"saveStateTo",o.saveStateTo}};
 }
 void FromJson(const json& j, SolidCalcOptions& o)
 {
@@ -324,7 +324,7 @@ void FromJson(const json& j, SolidCalcOptions& o)
     f.GetEnum("accelerator",o.accelerator,kAcc); f.Get("perKFermiLevels",o.perKFermiLevels); f.Get("imposeSymmetry",o.imposeSymmetry);
     f.GetEnum("seed",o.seed,kSeed); f.GetEnum("ortho",o.ortho,kOrtho); f.Get("orthoTol",o.orthoTol); f.Get("numBands",o.numBands); f.Get("forceComplex",o.forceComplex);
     f.Get("spinsShareFermi",o.spinsShareFermi); f.Get("greyImposition",o.greyImposition); f.Get("momFromSeed",o.momFromSeed);
-    f.Get("siteSpins",o.siteSpins); f.Get("label",o.label); f.Get("saveStateTo",o.saveStateTo);
+    f.Get("siteSpins",o.siteSpins); f.Get("siteCharges",o.siteCharges); f.Get("label",o.label); f.Get("saveStateTo",o.saveStateTo);
     f.Done();
 }
 
@@ -447,8 +447,8 @@ void BasisFromJson(const json& j, RunSpec::Basis& b)
 
 json ToJson(const RunSpec& r)
 {
-    json j={{"structure",r.structure},{"kmesh",{r.kmesh.x,r.kmesh.y,r.kmesh.z}},
-            {"basis",BasisJson(r.basis)},{"solid",ToJson(r.solid)}};
+    json j={{"structure", r.inlineStructure.is_null() ? json(r.structure) : r.inlineStructure}};
+    j["kmesh"]={r.kmesh.x,r.kmesh.y,r.kmesh.z}; j["basis"]=BasisJson(r.basis); j["solid"]=ToJson(r.solid);
     if (!r.state.save.empty() || !r.state.restartFrom.empty())
     {
         json st=json::object();
@@ -469,9 +469,11 @@ json ToJson(const RunSpec& r)
 void FromJson(const json& j, RunSpec& r)
 {
     Fields f(j,"run");
-    if (!j.contains("structure") || !j.at("structure").is_string())
-        throw std::runtime_error("deck: 'structure' is required and must be a NAME from materials.json or molecules.json");
-    f.Get("structure",r.structure);
+    if (!j.contains("structure") || !(j.at("structure").is_string() || j.at("structure").is_object()))
+        throw std::runtime_error("deck: 'structure' is required: a NAME from materials.json or molecules.json, or the cell itself "
+                                 "(an object: lattice, atoms, optional name / pp)");
+    if (j.at("structure").is_object()) { r.inlineStructure=f.At("structure"); r.structure.clear(); }
+    else                               { f.Get("structure",r.structure); r.inlineStructure=json(); }
     if (j.contains("kmesh"))
     {
         const json& k=f.At("kmesh");
@@ -518,10 +520,21 @@ void FromJson(const json& j, RunSpec& r)
 }
 Materials::Material Resolve(RunSpec& spec)
 {
-    if (StructureData::KindOf(spec.structure)==StructureData::Kind::Molecule)      // KindOf THROWS, listing every known name, on a miss
-        throw std::runtime_error("deck: structure '"+spec.structure+"' is a molecule (molecules.json); the deck currently drives "
-                                 "periodic runs only (a cell from materials.json)");
-    Materials::Material m=Materials::Get(spec.structure);
+    if (!spec.inlineStructure.is_null() && !spec.structure.empty())
+        throw std::runtime_error("deck: a structure NAME ("+spec.structure+") AND an inline structure -- state one, not both");
+    Materials::Material m;
+    if (!spec.inlineStructure.is_null())
+    {
+        try { m=Materials::Inline(spec.inlineStructure.dump(), spec.solid.pp); }
+        catch (const std::runtime_error& e) { throw std::runtime_error("deck: structure (inline) -- "+std::string(e.what())); }
+    }
+    else
+    {
+        if (StructureData::KindOf(spec.structure)==StructureData::Kind::Molecule)      // KindOf THROWS, listing every known name, on a miss
+            throw std::runtime_error("deck: structure '"+spec.structure+"' is a molecule (molecules.json); the deck currently drives "
+                                     "periodic runs only (a cell from materials.json)");
+        m=Materials::Get(spec.structure);
+    }
     if (spec.basis.vet && !spec.basis.trim.empty())
         throw std::runtime_error("deck: basis.vet and basis.trim are exclusive (a vet computes the trim; a stated trim is the A/B for it)");
     if (spec.basis.spherical && BasisSet::Gaussian::BasisFileOfName(spec.basis.data)=="valence_lowq_sr.bsd")
@@ -533,6 +546,8 @@ Materials::Material Resolve(RunSpec& spec)
     // THE MAGNETIC ORDERING IS STATED (OpenWork §3, 2026-10-26): the facade's own check, run here so a deck is refused BEFORE a revision is claimed.
     try { RequireStatedMagneticOrdering(spec.solid, *m.cell); }
     catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.siteSpins -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
+    try { RequireConsistentSiteCharges(spec.solid, *m.cell); }
+    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.siteCharges -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
     // AUTO PICKS THE KIND, NOT THE RECIPE (OpenWork §3, 2026-10-26): the mesh policy's own refusal, run here so --check catches it too.
     try { (void)qcMesh::ResolveXCMesh(spec.solid.xcMesh); }
     catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid."+std::string(e.what())); }
@@ -727,7 +742,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
     }
     if (spec.basis.vet) v.notes.push_back("basis.vet: the vet-stage trim loop is NOT run by --check (function count is the untrimmed one)");
     std::ostringstream os;
-    os<<spec.structure<<": "<<mat.cell->GetNumAtoms()<<" atoms, Nelec "<<spec.solid.Nelec<<", multiplicity "<<spec.solid.multiplicity
+    os<<spec.StructureName()<<(spec.inlineStructure.is_null() ? "" : " (inline)")<<": "<<mat.cell->GetNumAtoms()<<" atoms, Nelec "<<spec.solid.Nelec<<", multiplicity "<<spec.solid.multiplicity
       <<", k-mesh "<<spec.kmesh.x<<"x"<<spec.kmesh.y<<"x"<<spec.kmesh.z<<", basis "<<(spec.basis.file.empty()?spec.basis.data:spec.basis.file)<<(spec.basis.spherical?" (spherical)":"")
       <<" "<<nf<<" functions, "<<spec.Stages().size()<<" SCF stage(s), "<<spec.solid.hubbard.size()<<" Hubbard manifold(s), "<<spec.postSCF.size()<<" postSCF action(s)"
       <<(spec.solid.imposeSymmetry?", symmetry IMPOSED":", symmetry FREE");
@@ -738,7 +753,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
 RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir)
 {
     namespace fs=std::filesystem;
-    const Materials::Material mat=Resolve(spec);
+    (void)Resolve(spec);   // the record states the derived Nelec / species; Build resolves its own copy
 
     // RESTART: resolve (and check) the saved state BEFORE claiming a revision, so a typo leaves no half-record.  A bare stem names a revision of this
     // outDir (-> its states/<stem>.h5, and it becomes this run's lineage); anything with a '/' or an .h5 suffix is a path.
@@ -753,7 +768,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     }
 
     RunOutcome out;
-    out.revision=ClaimRevision(outDir, spec.structure);
+    out.revision=ClaimRevision(outDir, spec.StructureName());
     prov.policyResolved=RunPolicy(spec.solid.policy).Banner();   // the stated policy is in the deck; what it RESOLVED to is the record
     prov.basisFile=spec.basis.file.empty() ? BasisSet::Gaussian::BasisFileOfName(spec.basis.data) : spec.basis.file;
     prov.basisChecksum=BasisSet::Gaussian::BasisFileChecksum(prov.basisFile);
@@ -761,32 +776,18 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     const std::string stem=out.revision.stem().string(); // <structure>.rNNN -- the run's name in its own output
 
     if (spec.solid.label=="gpw") spec.solid.label=stem;
-    spec.solid.orbitalBasis=spec.basis.family; spec.solid.planeWaveEcut=spec.basis.ecut;   // the basis block names the family; the facade reads it from solid
     if (!spec.state.save.empty())
     {
-        if (spec.state.save=="auto") { fs::create_directories(outDir/"states"); spec.solid.saveStateTo=(outDir/"states"/(stem+".h5")).string(); }
-        else spec.solid.saveStateTo=spec.state.save;
+        if (spec.state.save=="auto") { fs::create_directories(outDir/"states"); spec.state.save=(outDir/"states"/(stem+".h5")).string(); }
     }
-    Lattice_3D lat(*mat.cell, spec.kmesh);
-    std::vector<SCFStage> stages;
-    for (const auto& s : spec.Stages()) stages.push_back({s.scf,s.accelerator});
+    if (!restartPath.empty()) spec.state.restartFrom=restartPath;   // Build takes a path: the stem was this outDir's
+    const std::vector<SCFStage> stages=ScheduleToRun(spec);
 
     qchem::report::Begin(stem);
     qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
     struct Close { ~Close() { qchem::report::ClearConsole(); qchem::report::End(); } } close;
-    // THE SETUP, resolved ONCE: the basis from the deck's recipe (the trim stated, or vetted at the run's own orthoTol and frozen), and
-    // every decision the run makes before it builds anything.  The first stage's accelerator (a restart's: the final stage's) is the
-    // setup's; each later stage names its own.
-    SolidCalcOptions so=spec.solid; so.accelerator=(restartPath.empty() ? stages.front() : stages.back()).accelerator;
-    const auto setup=SolidSetup::Resolve(lat, RecipeOf(spec.basis), so);
-    std::unique_ptr<SolidCalculation> calc;
-    if (restartPath.empty()) calc=std::make_unique<SolidCalculation>(setup, stages);
-    else
-    {   // one stage: the schedule's FINAL one (its params and accelerator); a refusal THROWS -- a deck run never silently re-seeds
-        auto R=SolidCalculation::Restart(restartPath, setup, stages.back().params);
-        if (!R) throw std::runtime_error("deck: state.restartFrom "+restartPath+" refused: "+R.Error().details);
-        calc=R.TakeValue();
-    }
+    const std::unique_ptr<SolidCalculation> calc=Build(spec);   // ONE path with the GUI's: built, then converged here
+    (void)calc->Converge(stages);
     if (auto R=calc->Result())
     {
         out.converged=true; out.energy=calc->LastIterateTerms().GetTotalEnergy();
@@ -919,6 +920,48 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         std::ofstream os(out.revision,std::ios::trunc); os<<rec.dump(2)<<"\n";
     }
     return out;
+}
+
+//=== Build: the calculation a deck states, stopped before its SCF =====================================
+std::vector<SCFStage> ScheduleToRun(const RunSpec& spec)
+{
+    std::vector<SCFStage> stages;
+    for (const auto& s : spec.Stages()) stages.push_back({s.scf,s.accelerator});
+    if (!spec.state.restartFrom.empty()) stages={stages.back()};   // a restart is ONE stage: the schedule's final one
+    return stages;
+}
+
+std::unique_ptr<SolidCalculation> Build(const RunSpec& specIn, SolidCalculation::Observer onIteration)
+{
+    namespace fs=std::filesystem;
+    RunSpec spec=specIn;
+    const Materials::Material mat=Resolve(spec);
+    const std::string& r=spec.state.restartFrom;
+    if (!r.empty())
+    {
+        const bool isPath = r.find('/')!=std::string::npos || (r.size()>3 && r.substr(r.size()-3)==".h5");
+        if (!isPath) throw std::runtime_error("deck: state.restartFrom '"+r+"' is a revision STEM, which only Run (with its outDir) can resolve; "
+                                              "Build takes the saved state's path");
+        if (!fs::exists(r)) throw std::runtime_error("deck: state.restartFrom '"+r+"': no saved state there");
+    }
+    spec.solid.orbitalBasis=spec.basis.family; spec.solid.planeWaveEcut=spec.basis.ecut;   // the basis block names the family; the facade reads it from solid
+    if (!spec.state.save.empty())
+    {
+        if (spec.state.save=="auto") throw std::runtime_error("deck: state.save 'auto' names a file under Run's outDir; Build takes a path");
+        spec.solid.saveStateTo=spec.state.save;
+    }
+    Lattice_3D lat(*mat.cell, spec.kmesh);
+    const std::vector<SCFStage> stages=ScheduleToRun(spec);
+    // THE SETUP, resolved ONCE: the basis from the deck's recipe (the trim stated, or vetted at the run's own orthoTol and frozen), and
+    // every decision the run makes before it builds anything.  The first stage's accelerator (a restart's: its one stage's) is the
+    // setup's; each later stage names its own.
+    SolidCalcOptions so=spec.solid; so.accelerator=stages.front().accelerator;
+    const auto setup=SolidSetup::Resolve(lat, RecipeOf(spec.basis), so);
+    if (r.empty()) return SolidCalculation::Prepare(setup, stages, std::move(onIteration));
+    // a refusal THROWS -- a deck never silently re-seeds
+    auto R=SolidCalculation::PrepareRestart(r, setup, stages.front().params, std::move(onIteration));
+    if (!R) throw std::runtime_error("deck: state.restartFrom "+r+" refused: "+R.Error().details);
+    return R.TakeValue();
 }
 
 } // namespace qchem::deck

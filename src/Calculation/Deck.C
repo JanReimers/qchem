@@ -14,6 +14,7 @@
 // This unit is the DATA LAYER: the typed option structs <-> JSON, the dotted-path `--set`, the revision claim.
 module;
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -46,7 +47,7 @@ inline constexpr int kSchemaVersion = 1;
 json ToJson(const BasisSet::Gaussian::GPWTolerances&);   void FromJson(const json&, BasisSet::Gaussian::GPWTolerances&);
 json ToJson(const SCFParams&);                           void FromJson(const json&, SCFParams&);
 json ToJson(const qcMesh::MeshParams&);                  void FromJson(const json&, qcMesh::MeshParams&);
-//! The solid options.  NOT serialized (not choices): \c onIteration (a callback).  \c Hubbard manifold \c siteOps / \c greyOps
+//! The solid options.  NOT serialized (not choices): \c Hubbard manifold \c siteOps / \c greyOps
 //! (derived by the facade from the structure).  A manifold's U is \c U_eV (and \c Uirrep_eV, \c alpha_eV): eV in the file, converted to Hartree on read; the writer picks the eV value that converts back to the SAME double.
 json ToJson(const RunPolicySpec&);                       void FromJson(const json&, RunPolicySpec&);
 json ToJson(const SolidCalcOptions&);                    void FromJson(const json&, SolidCalcOptions&);
@@ -55,7 +56,10 @@ json ToJson(const SolidCalcOptions&);                    void FromJson(const jso
 //! \brief One run, as the deck states it.  The STRUCTURE is just a NAME (user, 2026-10-03): the key into `materials.json` (a
 //! crystal or box -> a solid run) or `molecules.json` (a molecule -> a molecular run, not yet supported by the deck).  Everything
 //! the structure files own -- lattice, atoms, spin decoration, the pseudopotential vocabulary -- is resolved FROM the name, never
-//! restated in the deck.
+//! restated in the deck.  OR (2026-10-31, the GUI's door: a cell the user built has no registry name) `structure` is an OBJECT,
+//! the entry itself -- one \c materials.json entry (`lattice` as Bravais parameters or `vectors_bohr`, `atoms`; optional `name`,
+//! `pp`), built by the data file's own parser, so an inline copy of a named entry IS that material.  One key, so a deck cannot
+//! state both.
 //! \c solid.Nelec / \c solid.species left at their defaults (0 / empty) are DERIVED from the material; stated, they are honoured
 //! (a charged cell, a different pseudopotential valence) -- and the resolved deck always records the values actually used.
 struct RunSpec
@@ -112,7 +116,15 @@ struct RunSpec
         bool operator==(const PostAction&) const = default;
     };
 
-    std::string      structure;       //!< REQUIRED: a name in materials.json or molecules.json
+    std::string      structure;       //!< a name in materials.json or molecules.json (the file's `structure` as a STRING) ...
+    //! ... OR the entry itself (the file's `structure` as an OBJECT; null = a name): `{"lattice", "atoms", "name"?, "pp"?,
+    //! "comment"?}`; `pp` absent = \c solid.pp.  The magnetic decoration and charge order stay in \c solid (siteSpins,
+    //! siteCharges), as for a named structure.  Never both (\c Resolve throws).
+    json             inlineStructure;
+    //! The structure's name: \c structure, or the inline entry's `name` ("inline" when it has none) -- what the revisions and
+    //! the run's output are called.
+    std::string StructureName() const
+    { return inlineStructure.is_null() ? structure : inlineStructure.value("name", std::string("inline")); }
     ivec3_t          kmesh{1,1,1};    //!< Monkhorst-Pack divisions of the Brillouin zone
     Basis            basis;
     State            state;
@@ -125,9 +137,9 @@ struct RunSpec
     { return schedule.empty() ? std::vector<Stage>{{scf,solid.accelerator}} : schedule; }
 };
 json ToJson(const RunSpec&);
-//! Strict like the other readers: \c structure is required; an unknown top-level key (or any nested one) throws.
+//! Strict like the other readers: \c structure (a name or an inline object) is required; an unknown top-level key (or any nested one) throws.
 void FromJson(const json&, RunSpec&);
-//! \brief Resolve \a spec against the structure files: returns the Material (cell + atoms + species) and FILLS \c spec.solid.Nelec /
+//! \brief Resolve \a spec against the structure files (or its inline entry): returns the Material (cell + atoms + species) and FILLS \c spec.solid.Nelec /
 //! \c species when they were left to derive, so \c ToJson(spec) afterwards is the complete record.  THROWS (listing the known names)
 //! on an unknown structure, and for a molecule name (molecular decks are the next increment).  Also PRE-FLIGHT-VALIDATES the deck's `postSCF` against
 //! the run (a response needs +U manifolds, a full k-mesh, the complex ansatz, a q-mesh dividing the k-mesh ...) so a deck that cannot work fails in
@@ -192,5 +204,17 @@ struct RunOutcome
 //! run leaves its record), build the lattice, basis and \c SolidCalculation, converge the schedule, and report to the console.
 //! The caller supplies the provenance (command line, \c --set strings, input deck); the code version is the caller's too.
 RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir);
+
+//! \brief BUILD a deck's calculation and STOP BEFORE ITS SCF (2026-10-31: lane G binds the GUI to the deck -- the GUI translates
+//! its own run spec into deck JSON, so the library never knows the GUI's types).  Resolves \a spec, builds the lattice, the basis,
+//! the \c SolidSetup and the calculation (\c SolidCalculation::Prepare, or \c PrepareRestart for \c state.restartFrom), with
+//! \a onIteration attached before the first iteration; the caller runs it with \c Converge(ScheduleToRun(spec)).  \c Run is
+//! this plus that Converge plus the record and the console: ONE path.  Claims no revision and writes nothing (\c state.save,
+//! when the caller states a path, is the facade's).  \c state.restartFrom must be a PATH here (a revision stem needs \c Run's
+//! outDir); a refused restart THROWS, as in \c Run -- a deck never silently re-seeds.
+std::unique_ptr<SolidCalculation> Build(const RunSpec& spec, SolidCalculation::Observer onIteration = nullptr);
+//! The stages a \c Build calculation converges: the deck's whole schedule, or its FINAL stage alone for a restart (the earlier
+//! stages exist to deliver the density the saved state already holds).
+std::vector<SCFStage> ScheduleToRun(const RunSpec& spec);
 
 } // namespace qchem::deck

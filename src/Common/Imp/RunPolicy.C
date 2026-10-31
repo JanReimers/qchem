@@ -28,39 +28,40 @@ RunPolicy::RunPolicy(const RunPolicySpec& spec)
     : itsSpec(spec), itsCP2KCompat(spec.cp2kCompat)
 {
     itsDMLowRank  = Resolve("policy.dmLowRank", "factored/low-rank rho route",
-                            /*cp2k*/false, /*qchem default*/true, spec.dmLowRank);
+                            /*cp2k*/false, /*qchem default*/true, spec.dmLowRank, /*movesState*/true);
     itsStreamFold = Resolve("policy.streamFold",  "orbit fold on the GPW collocation pair streams",
-                            /*cp2k*/false, /*qchem default*/true, spec.streamFold);
+                            /*cp2k*/false, /*qchem default*/true, spec.streamFold, /*movesState*/true);
     // N3 PROMOTED 2026-09-20 (OpenWork section 4): measured on MnO AFM-II with the deck's loop shape, (rho,m)
     // takes 18 / 21 iterations where (up,dn) takes 22 / 24 (U=0 / U=4 eV), energies identical to 1e-10 Ha --
     // Kerker's 4pi/G^2 has no business damping the magnetisation channel.  Still off under CP2K_COMPAT.
     itsMixRhoM    = Resolve("policy.mixRhoM",  "(rho,m) mixing channels instead of (up,dn)",
-                            /*cp2k*/false, /*qchem default*/true, spec.mixRhoM);
+                            /*cp2k*/false, /*qchem default*/true, spec.mixRhoM, /*movesState*/false);
     itsXCFromDM   = Resolve("policy.xcFromDM", "Vxc fed rho[D] wholesale instead of rho_mix",
-                            /*cp2k*/false, /*qchem default*/false, spec.xcFromDM);
+                            /*cp2k*/false, /*qchem default*/false, spec.xcFromDM, /*movesState*/true);
     // NB the qchem default here is TRUE meaning "obey the caller", not "impose": the option itself
     // defaults off in SolidCalcOptions.  What CP2K parity forbids is the CAPABILITY, so that is what is
     // tabled -- and the facade ANDs this with the caller's own flag.
     itsImpose     = Resolve("policy.imposeSymmetry", "space-group imposition available to the caller",
-                            /*cp2k*/false, /*qchem default*/true, spec.imposeSymmetry);
+                            /*cp2k*/false, /*qchem default*/true, spec.imposeSymmetry, /*movesState*/false);
     itsBeckeXC    = Resolve("policy.beckeXC", "atom-centred (Becke) XC quadrature instead of the uniform grid",
-                            /*cp2k*/false, /*qchem default*/true, spec.beckeXC);
+                            /*cp2k*/false, /*qchem default*/true, spec.beckeXC, /*movesState*/true);
     // (It selects a screener OBJECT, not a branch.)
     itsDAware     = Resolve("policy.dAwareScreen", "D-aware collocation box tolerance eps/|c_ij| instead of flat eps",
-                            /*cp2k*/false, /*qchem default*/true, spec.dAwareScreen);
+                            /*cp2k*/false, /*qchem default*/true, spec.dAwareScreen, /*movesState*/true);
     itsUEigen     = Resolve("policy.hubbardEigen", "DFT+U on the Lowdin block's eigenvalues (Dudarev) instead of its diagonal populations",
-                            /*cp2k*/false, /*qchem default*/true, spec.hubbardEigen);
+                            /*cp2k*/false, /*qchem default*/true, spec.hubbardEigen, /*movesState*/true);
 }
 
 // EXPLICIT BEATS THE UMBRELLA (see the interface): if the knob was named at all, that is the answer,
 // and `stated` records it so the banner can say the umbrella did not get its way.
-Deviation RunPolicy::Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault, const std::optional<bool>& statedValue)
+Deviation RunPolicy::Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault, const std::optional<bool>& statedValue,
+                             bool movesState)
 {
     const bool stated=statedValue.has_value();
     const bool value = stated       ? *statedValue
                      : itsCP2KCompat ? cp2kValue
                      :                 qchemDefault;
-    return Deviation{knob, what, cp2kValue, value, stated};
+    return Deviation{knob, what, cp2kValue, value, stated, movesState};
 }
 
 bool RunPolicy::AtParity() const

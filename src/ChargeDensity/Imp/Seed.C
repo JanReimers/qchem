@@ -187,7 +187,9 @@ std::vector<int> IonicSADTargets(const Structure* st, const SeedKey& key)
             nvalByZ[Z] = (int)std::lround(GetAtomicDensity(Z,key.functional,"atomic_valence_densities.json",-1,key.Q(Z)).Charge());
         atoms.emplace_back(Z, nvalByZ[Z]);
     });
-    std::vector<int> q = IonicFormalCharges(atoms);             // Na+1, F-1; conserves charge
+    // A STATED charge order (the run's siteCharges, checked at resolve) wins; else the heuristic: Na+1, F-1, charge conserved.
+    assert(key.siteCharges.empty() || key.siteCharges.size()==atoms.size());
+    const std::vector<int> q = key.siteCharges.empty() ? IonicFormalCharges(atoms) : key.siteCharges;
     std::vector<int> targets(atoms.size());                    // site i -> TARGET valence count N_val-q_i
     for (size_t i=0;i<atoms.size();i++)
         targets[i] = atoms[i].second - q[i];

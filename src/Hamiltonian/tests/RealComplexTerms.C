@@ -140,13 +140,13 @@ struct DeltaProjector
     std::shared_ptr<const BasisSet::cFIT_SF_ABS>    basis;
     std::unique_ptr<Fitting::FunctionFitter_Scalar> fitter;
     explicit DeltaProjector(qchem::BasisSet::FitQuadrature q)
-        : basis(std::make_shared<const BasisSet::DeltaFit_IBS>(
+        : basis(std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(
                     std::move(q), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0))))
         , fitter(Fitting::Factory(basis)) {}
     const Fitting::ScalarProjector& operator()() const
         {return dynamic_cast<const Fitting::ScalarProjector&>(*fitter);}
-    const BasisSet::DeltaFit_IBS&   Basis() const
-        {return dynamic_cast<const BasisSet::DeltaFit_IBS&>(*basis);}
+    const BasisSet::DeltaFit_IBS<dcmplx>&   Basis() const
+        {return dynamic_cast<const BasisSet::DeltaFit_IBS<dcmplx>&>(*basis);}
 };
 
 //! A deterministic thin factor: no RNG, so a failure is reproducible from the test name alone.
@@ -160,7 +160,7 @@ template <class U> U FactorEntry(size_t i, size_t m)
 //! \f$\rho\f$ from \f$L\f$ two ways over ONE \c Projector3: the factored contraction against the full
 //! quadratic form of \f$D=LL^\dagger\f$.  PSD by construction, so the factored route is always applicable.
 template <class U>
-void ExpectFactoredMatchesFull(const BasisSet::DeltaFit_IBS& dfit,
+void ExpectFactoredMatchesFull(const BasisSet::DeltaFit_IBS<dcmplx>& dfit,
                                const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb,
                                const char* what)
 {
@@ -185,7 +185,7 @@ void ExpectFactoredMatchesFull(const BasisSet::DeltaFit_IBS& dfit,
         D(i,j)=s;
     }
 
-    const Projector3<U>& o3=dfit.Overlap3C(orb);
+    const Projector3<U>& o3=static_cast<const BasisSet::Integrals_Overlap3C<U,dcmplx>&>(dfit).Overlap3C(orb);   // through the face: the real-block overload lives on the periodic base
     ASSERT_TRUE(bool(o3.applyRaw))         << what << ": the delta basis must realise the raw forward";
     ASSERT_TRUE(bool(o3.applyRawFactored)) << what << ": ...and its factored sibling";
     const rvec_t full=o3.applyRaw(D), fact=o3.applyRawFactored(L);
@@ -217,7 +217,7 @@ TEST(RealComplexTerms, FactoredRhoMatchesFullQuadraticFormBothScalars)
     pts[1]=rig.cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
     pts[2]=rig.cell.ToCartesian(rvec3_t(0.1,0.9,0.2));
     DeltaProjector dp(BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}});
-    const BasisSet::DeltaFit_IBS& dfit=dp.Basis();
+    const BasisSet::DeltaFit_IBS<dcmplx>& dfit=dp.Basis();
 
     ExpectFactoredMatchesFull<double>(dfit, *rig.re, "ForwardFactoredT<double> (the real TRIM block)");
     ExpectFactoredMatchesFull<dcmplx>(dfit, *rig.cx, "ForwardFactoredT<dcmplx> (the Bloch block)");
@@ -330,7 +330,7 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
     }
 
     auto q = rig.cx->CreateXCQuadrature(rig.st.get(), qcMesh::MeshParams{});
-    auto dfb=std::make_shared<const BasisSet::DeltaFit_IBS>(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    auto dfb=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     // Through the FACTORY: a delta fit basis can only resolve to SINGLES, so naming the strategy bought
     // nothing but an Internal import (user, 2026-09-10).
     auto engine=ChargeDensity::MakeDensitySampler(dfb, q);   // ONE bundle to both collaborators

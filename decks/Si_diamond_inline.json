@@ -1,0 +1,21 @@
+{
+  "_doc": [
+    "The INLINE-STRUCTURE template (2026-10-31): 'structure' is the cell itself (an object) instead of a materials.json name -- the door",
+    "a GUI uses for a cell the user built.  The shape lane G's translator writes: explicit lattice vectors in bohr (the FCC a/2 columns of",
+    "Si_diamond's a = 10.26), atoms in fractional coordinates of those vectors, the pseudopotential set from solid.pp (default",
+    "gth-lda-valence) and the magnetic decoration in solid.siteSpins, as for a named structure.  Optional 'name' (it names the revisions;",
+    "default 'inline') and 'pp'.  It IS Si_diamond: UTCalculation Deck.AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint.",
+    "Run:  rundeck decks/Si_diamond_inline.json --out $(scripts/rundir qchem6 Si)"
+  ],
+  "structure": {
+    "name": "Si_diamond_inline",
+    "lattice": { "vectors_bohr": [[0.0, 5.13, 5.13], [5.13, 0.0, 5.13], [5.13, 5.13, 0.0]] },
+    "atoms": [
+      { "el": "Si", "frac": [0.0, 0.0, 0.0] },
+      { "el": "Si", "frac": [0.25, 0.25, 0.25] }
+    ]
+  },
+  "kmesh": [1, 1, 1],
+  "basis": { "data": "SIPP_SR" },
+  "solid": { "densityEcut": 20.0 }
+}

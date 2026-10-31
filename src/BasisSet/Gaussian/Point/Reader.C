@@ -29,19 +29,19 @@ public:
     virtual std::vector<int> GetLs   (           ) const=0;
 };
 
-//! \brief How a basis file's shells become (radial, l-set) blocks when two shells on one atom share a radial (same centre, same
-//! exponents within 0.1 % -- \c GaussianRF::operator==, which ignores L).
-//!   \c KeepEachL   -- ORBITAL bases: a duplicate is the same radial AND the same l-set; a same-exponent shell of ANOTHER l is
-//!                    its own block (OpenWork §3 "Two shells of DIFFERENT l sharing one exponent ... MERGED -- silently",
-//!                    fixed 2026-10-26: NiO's Ni p 0.30 beside the Ni d window starting at 0.30 loaded +2 functions, not +12).
-//!   \c LegacyMerge -- the DENSITY-FIT bases: the historical merge, bit-identical, quirk and all (a genuinely new l is NOT
-//!                    added -- the condition is inverted -- and the higher-Lmax radial replaces the old).  Flipping it moved the
-//!                    fit bases' Si2 size-consistency 0.0026 -> 0.024 Ha: that path is non-additive and not yet understood.
-enum class ShellMerge { KeepEachL, LegacyMerge };
 struct ReadShell { std::unique_ptr<GaussianRF> rf; std::vector<int> Ls; };
-//! Every shell \a bsr holds for every atom of \a cl, de-duplicated by \a m -- the ONE copy of the loop the three Gaussian
-//! IrrepBasisSet readers (PG_Cart, PG_Spherical, PG_LibCint) each used to carry verbatim.
-inline std::vector<ReadShell> ReadShells(Reader& bsr, const Structure& cl, ShellMerge m)
+//! Every shell \a bsr holds for every atom of \a cl -- the ONE copy of the loop the three Gaussian IrrepBasisSet readers
+//! (PG_Cart, PG_Spherical, PG_LibCint) each used to carry verbatim.  When two shells on one atom share a radial (same centre,
+//! same exponents within 0.1 % -- \c GaussianRF::operator==, which ignores L), a duplicate is the same radial AND the same
+//! l-set; a same-exponent shell of ANOTHER l is its own block.  For EVERY basis, orbital and fit alike:
+//!   - orbital bases since 2026-10-26 (OpenWork "Two shells of DIFFERENT l sharing one exponent ... MERGED -- silently": NiO's
+//!     Ni p 0.30 beside the Ni d window starting at 0.30 loaded +2 functions, not +12);
+//!   - the FIT bases since 2026-10-31 (OpenWork "The molecular FIT bases drop their D shells"): they kept a historical merge
+//!     that never added a new l, and every A1 file puts SP and D shells on the same exponents, so N2's A1_coul loaded 32
+//!     functions, not 68 -- the Coulomb fit 4-62 mHa low against PySCF's own A1_coul density fit.  The "Si2 size-consistency"
+//!     that once argued for keeping it was an ill-posed SCF the d-less (spherical) Hartree had masked: a degenerate 3p^2 at
+//!     integer occupation does not converge in PySCF either, with exact integrals or with the full fit.
+inline std::vector<ReadShell> ReadShells(Reader& bsr, const Structure& cl)
 {
     std::vector<ReadShell> out;
     for (auto atom : cl)
@@ -52,21 +52,8 @@ inline std::vector<ReadShell> ReadShells(Reader& bsr, const Structure& cl, Shell
             const std::vector<int> newLs=bsr.GetLs();
             bool duplicate=false;
             for (auto& s : out)
-            {
-                if (!(*s.rf==*rf)) continue;
-                if (m==ShellMerge::KeepEachL)
-                {
-                    if (s.Ls==newLs) { duplicate=true; break; }   // the same shell twice: drop the repeat
-                    continue;                                        // another l on this radial: its own block
-                }
-                duplicate=true;                                      // LegacyMerge, verbatim (see above)
-                const bool useNewRF = *std::max_element(newLs.begin(),newLs.end()) > *std::max_element(s.Ls.begin(),s.Ls.end());
-                for (auto l:newLs)
-                    if (std::find(s.Ls.begin(),s.Ls.end(),l)!=s.Ls.end()) s.Ls.push_back(l);
-                if (useNewRF) s.rf=std::move(rf);
-                break;
-            }
-            if (!duplicate) out.push_back({std::move(rf), newLs});
+                if (*s.rf==*rf && s.Ls==newLs) { duplicate=true; break; }   // the same shell twice: drop the repeat
+            if (!duplicate) out.push_back({std::move(rf), newLs});          // another l on a shared radial: its own block
         }
     }
     return out;

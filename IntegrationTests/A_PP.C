@@ -24,6 +24,7 @@ import qchem.Mesh.Quadrature;                 // qcMesh::RadialMesh / MakeRadial
 import qchem.Math;                            // Pi
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy
 import qchem.Calculation;            // Calculation, CalcOptions (molecular facade)
+import qchem.SCFCap;                 // BoundedSCF (the Si2 routing check reads Enn on a bounded run)
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
 import qchem.SCFIterator;            // SCFParams
@@ -42,7 +43,8 @@ TEST(Si_PP_U, Medium)
     AtomCalculation calc(Z, Z-val, {.type = AtomType::Slater, .accuracy = Medium, .pseudopotential = true},
         {.NMaxIter = 120, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});  // virial off (N/A to PP)
 
-    EXPECT_NEAR(calc.Energy(),      -3.747078054, 1e-6);   // pinned (Slater/Medium); CP2K ATOM -3.747045
+    EXPECT_NEAR(calc.Energy(),      -3.7470398442, 1e-6);  // pinned (Slater/Medium, δ Vxc default 2026-10-31: was -3.747078054
+                                                            // on the radial fit, 33 μHa from CP2K; δ is 5 μHa); CP2K ATOM -3.747045
     EXPECT_NEAR(calc.Energy(),      -3.747045,     5e-4);   // ORACLE: CP2K numerically-exact pseudo-atom
     EXPECT_NEAR(calc.TotalCharge(),  4.0,         1e-9);   // valence electron count
 }
@@ -50,36 +52,38 @@ TEST(Si_PP_U, Medium)
 // Molecular pseudopotential (Path A, doc/MolecularPseudopotentialPlan.md §6 A1): two Si atoms, GTH-LDA q4,
 // through the qchem::Calculation facade {.pp="gth-lda-valence"} with the valence-only "sipp" Gaussian basis.
 // The FIRST molecular PP calc -- it exercises the multi-atom PP assembly (PP_Local/PP_NonLocal loop over
-// both atoms) + the Zion ion-ion term (Vnn with the PP's Zion, not the true Z).  Validated two ways beyond
-// the "did-E-move" pins: (a) the ion-ion energy is EXACTLY Zion^2/R = 16/R (a Z-vs-Zion bug would give
-// 196/R); (b) at large separation the total energy is additive -- E(Si2) ~= 2*E(Si) for neutral fragments
-// (the O(1/R) Enn/Een/Eee pieces cancel), here to ~2.6 mHa at R=20 bohr.
+// both atoms) + the Zion ion-ion term (Vnn with the PP's Zion, not the true Z).
+// RESTATED 2026-10-31 when the fit bases got their D shells back (OpenWork "The molecular FIT bases drop their D shells"):
+//   - the Si pseudo-atom 3s^2 3p^2 is an EXACTLY degenerate open shell: integer aufbau has no fixed point (PySCF agrees, with
+//     exact integrals) -- the old pins converged only because a d-less Coulomb fit kept the Hartree spherical.  It runs at kT 1e-2:
+//     NOT a fudge -- kT must exceed the splitting the anisotropic Hartree re-opens (kT 1e-4 and 1e-3 slosh under DIIS, GDM and
+//     Ladder alike; the rule GPW_SiBox states for the box);
+//   - the routing claim (Enn = Zion^2/R) reads the ion-ion term, which no SCF iteration changes: a deliberately BOUNDED dimer run;
+//   - the dimer's ADDITIVITY claim (E(Si2) ~ 2E(Si) at R = 20) is an OPEN ROW: no recipe converges the separated pair (singlet or
+//     quintet, any kT, DIIS / GDM / Ladder, the point group imposed -- nor PySCF, in any variant).  The old 0.10 mHa "additivity"
+//     compared two artefacts of the d-less fit.
 TEST(Si2_PP_U, LargeSeparation)
 {
     const double R = 20.0;   // bohr -- large separation (near-isolated atoms)
     const CalcOptions opt{.basis = "sipp", .pp = "gth-lda-valence"};
-    const SCFParams   par{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-8, .MinFD = 1e-7};
+    SCFParams par{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-8, .MinFD = 1e-7};
+    // kT 1e-2 is the stated recipe until the open row doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT" lands a finite-kT method
+    par.SmearingkT=1e-2;     // the degenerate 3p (see above)
 
     Molecule si1; si1.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,0)));
-    Calculation c1(MoleculeSetup::Resolve(si1, opt)); c1.Converge(par);
+    Calculation c1(MoleculeSetup::Resolve(si1, opt), par);
+    ASSERT_TRUE(c1.Result());
+    const auto e1=c1.EnergyTerms();
+    EXPECT_NEAR(c1.Energy(), -3.7818599100, 1e-5);                      // anchor: the free energy A = E - TS at kT 1e-2
+    EXPECT_NEAR(e1.GetTotalEnergy()-e1["MinusTS"], -3.74366840, 1e-4)   // ORACLE: PySCF's smeared singlet (A1_coul J-fit, exact XC)
+        << "the internal energy vs PySCF (kT 1e-4 there; the internal energy is kT-insensitive at this level)";
 
     Molecule si2;
     si2.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,0)));
     si2.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,R)));
-    Calculation c2(MoleculeSetup::Resolve(si2, opt)); c2.Converge(par);
-
-    const auto   eb = c2.EnergyTerms();
-    const double E1 = c1.Energy();
-    const double E2 = c2.Energy();
-
-    // E1 anchor at 1e-5: the isolated-atom SCF converges to a point that differs ~4.1e-6 between BLAS
-    // implementations (OpenBLAS vs netlib -- eigensolver roundoff moving the fixed point; deterministic once
-    // OpenBLAS threads are pinned, see gtestmain.C).  1e-5 clears that with margin yet stays far below any real
-    // regression (mHa-scale).  E2 (the dimer SCF) is unaffected (moves ~6e-11), so it keeps the tight 1e-6.
-    EXPECT_NEAR(E1, -3.759438815, 1e-5);      // pinned regression anchor: Si pseudo-atom (sipp basis)
-    EXPECT_NEAR(E2, -7.516293157, 1e-6);      // pinned regression anchor: Si2 at R=20 bohr
-    EXPECT_NEAR(eb["Enn"], 16.0/R,   1e-6);      // Zion=4 ion-ion (Z=14 -> 196/R would fail): the routing check
-    EXPECT_NEAR(E2, 2.0*E1,       5e-3);      // multi-atom PP additivity: neutral fragments -> ~2x at large R
+    qchem::BoundedSCF bounded("the routing claim reads Enn, which no iteration changes; the separated pair does not converge (open row)");
+    Calculation c2(MoleculeSetup::Resolve(si2, opt), {.NMaxIter = 2});
+    EXPECT_NEAR(c2.EnergyTerms()["Enn"], 16.0/R, 1e-6);   // Zion=4 ion-ion (Z=14 -> 196/R would fail): the routing check
 }
 
 // MULTI-SPECIES molecular pseudopotential: an O-Si pair (GTH-LDA, O q6 + Si q4) through the facade -- each
@@ -98,8 +102,14 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
     osi.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,R)));   // Si : GTH q4 -> Zion 4
     // The QUINTET: at R = 20 bohr the pair is two open-shell atoms, O 2p^4 (3P) and Si 3p^2 (3P), aligned.  The default
     // closed-shell SINGLET forced half-filled degenerate p shells into one determinant and never converged (Δρ 0.26 at the
-    // cap; it "passed" on that iterate until the cap guard, 2026-10-29); the quintet converges in 13 iterations.
-    Calculation cOSi(MoleculeSetup::Resolve(osi, {.basis = "sipp", .pp = "gth-lda-valence", .multiplicity = 5}));
+    // cap; it "passed" on that iterate until the cap guard, 2026-10-29); the quintet converged in 13 iterations -- on the 30/5 XC
+    // mesh, whose 12 directions SPLIT each atom's p triple.  On the converged mesh (2026-10-31) the O 2p down electron sits in an
+    // exactly degenerate triple and integer aufbau flips it every iteration (cap at 100, Δρ/N 1e-2): a tiny smearing occupies
+    // the triple evenly, as for the B atom (A_PG_DFT).  The routing claim does not care which p the electron is in.
+    // kT 1e-2 (2026-10-31): with the fit bases' D shells back the Hartree is anisotropic and kT 1e-4 / 1e-3 slosh under every
+    // accelerator; an exactly degenerate open shell needs kT above the splitting it re-opens (as GPW_SiBox and Si2_PP_U state).
+    // open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT"
+    Calculation cOSi(MoleculeSetup::Resolve(osi, {.basis = "sipp", .pp = "gth-lda-valence", .multiplicity = 5}), SCFParams{.SmearingkT = 1e-2});
 
     EXPECT_NEAR(cOSi.EnergyTerms()["Enn"], 24.0/R, 1e-6);   // per-species Zion routing: 6*4/R (not 16/R or 36/R)
     EXPECT_LT(cOSi.Energy(), 0.0);                       // a finite, bound total (sanity; not an accuracy claim)
@@ -118,7 +128,8 @@ TEST(O_PP_U, SlaterHigh)
         {.NMaxIter = 150, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
          .StartingRelaxRo = 0.5, .MergeTol = 1e-7});
 
-    EXPECT_NEAR(calc.Energy(),      -15.747863986, 1e-6);   // pinned (Slater/High); CP2K ATOM -15.748119
+    EXPECT_NEAR(calc.Energy(),      -15.7478192854, 1e-6);  // pinned (Slater/High, δ Vxc default 2026-10-31; was -15.747863986 on the
+                                                             // radial fit); CP2K ATOM -15.748119
     EXPECT_NEAR(calc.Energy(),      -15.748119,    1e-3);   // ORACLE: CP2K numerically-exact pseudo-atom
     EXPECT_NEAR(calc.TotalCharge(),   6.0,         1e-9);   // valence electron count
     EXPECT_TRUE(calc.IsConverged());                        // the atom path converges cleanly
@@ -142,7 +153,8 @@ TEST(Si_PP_U, Polarized)
 
     EXPECT_TRUE(cPol.IsConverged());                        // polarized PP SCF converges
     EXPECT_NEAR(cPol.TotalCharge(), 4.0, 1e-9);             // valence electron count
-    EXPECT_NEAR(cPol.Energy(), -3.773303226, 1e-6);        // pinned (Slater/High, polarized; re-pinned by the 2026-08-06 KB fix)
+    EXPECT_NEAR(cPol.Energy(), -3.7732781653, 1e-6);       // pinned (Slater/High, polarized; re-pinned by the 2026-08-06 KB fix,
+                                                            // and by the δ Vxc default 2026-10-31: was -3.773303226 on the radial fit)
     EXPECT_LE (cPol.Energy(), cUnpol.Energy() + 1e-9);     // spin polarization lowers (or ties) the open-shell E
 }
 

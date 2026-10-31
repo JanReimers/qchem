@@ -1,5 +1,6 @@
 // File: Structure/Imp/StructureData.C  The JSON reader behind qchem.StructureData (structure fields ONLY).
 module;
+#include <algorithm>
 #include <fstream>
 #include <filesystem>
 #include <map>
@@ -94,11 +95,60 @@ Molecule GetMolecule(const std::string& name)
 }
 std::vector<std::string> MoleculeNames() { return EntryNames(Database("molecules.json")); }
 
-UnitCell GetCell(const std::string& name, double aOverride)
+namespace
 {
-    if (KindOf(name)!=Kind::Cell) throw std::runtime_error("StructureData: '" + name + "' is a MOLECULE, not a periodic cell (use GetMolecule)");
-    const json& e=Database("materials.json").at(name);
+// ONE parser for a materials.json-schema entry (CellOf below), the data file's and an inline one's (a deck's object `structure`).
+// Strict keys: a typo ("alfa", "fracs") would otherwise build a DIFFERENT cell silently.
+void OnlyKeys(const json& o, std::initializer_list<const char*> keys, const std::string& where, const std::string& name)
+{
+    if (!o.is_object()) throw std::runtime_error("StructureData: '" + name + "': " + where + " must be an object");
+    for (const auto& [k,v] : o.items())
+        if (std::none_of(keys.begin(), keys.end(), [&](const char* x){ return k==x; }))
+        {
+            std::string known; for (const char* x : keys) known += (known.empty() ? "" : ", ") + std::string(x);
+            throw std::runtime_error("StructureData: '" + name + "': unknown key '" + k + "' in " + where + " (known: " + known + ")");
+        }
+}
+
+// The atom basis of an entry onto \a cell (fractional coordinates of THAT cell, an optional collinear spin flip).
+UnitCell AddAtoms(UnitCell cell, const json& e, const std::string& name)
+{
+    for (const auto& a : e.at("atoms"))
+    {
+        OnlyKeys(a, {"el","frac","spin"}, "an atom", name);
+        const json& f=a.at("frac");
+        if (!f.is_array() || f.size()!=3) throw std::runtime_error("StructureData: '" + name + "': an atom's 'frac' must be [f1,f2,f3]");
+        const int spin = a.contains("spin") ? a["spin"].get<int>() : 0;
+        if (spin!=0 && spin!=1 && spin!=-1) throw std::runtime_error("StructureData: '" + name + "': a site spin is +1, -1 or absent");
+        cell.AddAtom(ZOf(a.at("el").get<std::string>()), rvec3_t(f[0].get<double>(), f[1].get<double>(), f[2].get<double>()),
+                     /*spinFlip*/ spin==-1);
+    }
+    return cell;
+}
+
+UnitCell CellOf(const json& e, const std::string& name, double aOverride)
+{
+    auto only=[&](const json& o, std::initializer_list<const char*> keys, const std::string& where){ OnlyKeys(o, keys, where, name); };
+    if (!e.contains("lattice") || !e.contains("atoms") || !e.at("atoms").is_array() || e.at("atoms").empty())
+        throw std::runtime_error("StructureData: '" + name + "': an entry needs 'lattice' and a non-empty 'atoms' list");
     const json& lat=e.at("lattice");
+    // EXPLICIT VECTORS (2026-10-31, the GUI's inline cells): `vectors_bohr` [[a],[b],[c]], the three lattice vectors in bohr --
+    // exclusive with the Bravais description (type + parameters + T), which is the data file's own shorthand for the same thing.
+    if (lat.contains("vectors_bohr"))
+    {
+        only(lat, {"vectors_bohr"}, "lattice (vectors_bohr is exclusive with type / a..gamma / T)");
+        const json& v=lat.at("vectors_bohr");
+        if (!v.is_array() || v.size()!=3) throw std::runtime_error("StructureData: '" + name + "': vectors_bohr must be [[a],[b],[c]], three 3-vectors");
+        Matrix3D<double> A;
+        for (int i=0;i<3;i++)
+        {
+            if (!v[i].is_array() || v[i].size()!=3) throw std::runtime_error("StructureData: '" + name + "': vectors_bohr must be [[a],[b],[c]], three 3-vectors");
+            for (int x=0;x<3;x++) A(x+1,i+1)=v[i][x].get<double>();   // the cell matrix's COLUMNS are the lattice vectors
+        }
+        if (aOverride>0.0) throw std::runtime_error("StructureData: '" + name + "': a lattice-constant override needs a Bravais lattice, not vectors_bohr");
+        return AddAtoms(UnitCell(A), e, name);
+    }
+    only(lat, {"type","a","b","c","alpha","beta","gamma","T"}, "lattice");
     LatticeParams p;
     p.a = aOverride>0.0 ? aOverride : lat.at("a").get<double>();
     if (lat.contains("b")) p.b=lat["b"].get<double>();
@@ -113,16 +163,22 @@ UnitCell GetCell(const std::string& name, double aOverride)
         if (t.size()!=3 || t[0].size()!=3) throw std::runtime_error("StructureData: '" + name + "': T must be a 3x3 integer matrix");
         for (int i=0;i<3;i++) for (int j=0;j<3;j++) T(i+1,j+1)=t[i][j].get<int>();
     }
-    UnitCell cell=BravaisCell(TypeOf(lat.at("type").get<std::string>()), p, T);
-    for (const auto& a : e.at("atoms"))
-    {
-        const json& f=a.at("frac");
-        const int spin = a.contains("spin") ? a["spin"].get<int>() : 0;
-        if (spin!=0 && spin!=1 && spin!=-1) throw std::runtime_error("StructureData: '" + name + "': a site spin is +1, -1 or absent");
-        cell.AddAtom(ZOf(a.at("el").get<std::string>()), rvec3_t(f[0].get<double>(), f[1].get<double>(), f[2].get<double>()),
-                     /*spinFlip*/ spin==-1);
-    }
-    return cell;
+    return AddAtoms(BravaisCell(TypeOf(lat.at("type").get<std::string>()), p, T), e, name);
+}
+} // anonymous
+
+UnitCell GetCell(const std::string& name, double aOverride)
+{
+    if (KindOf(name)!=Kind::Cell) throw std::runtime_error("StructureData: '" + name + "' is a MOLECULE, not a periodic cell (use GetMolecule)");
+    return CellOf(Database("materials.json").at(name), name, aOverride);
+}
+
+UnitCell CellFromEntry(const std::string& entryJson, const std::string& who)
+{
+    json e;
+    try { e=json::parse(entryJson); }
+    catch (const json::exception& x) { throw std::runtime_error("StructureData: '" + who + "': not JSON: " + x.what()); }
+    return CellOf(e, who, 0.0);
 }
 std::vector<std::string> CellNames() { return EntryNames(Database("materials.json")); }
 

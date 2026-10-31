@@ -322,21 +322,17 @@ public:
 //! overload resolves unambiguously.  Caller owns the result; the concrete type stays hidden.
 //!@{
 
-//! Create a SCALAR (overlap-metric) fitter on the given real (Gaussian/Slater/BSpline) potential-fit basis.
-//! \note Returns the NEUTRAL fitter face; the caller cross-casts to the \c FitContraction<U,TFit> it
-//! needs (this one carries \c FitContraction<double,double> -- a real Gaussian fit has no Bloch 3-centre path).
-std::unique_ptr<FunctionFitter_Scalar>
-Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>&);
-
-//! Create a SCALAR fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  The projection IS the fit (no
-//! metric solve): DoFit batch-samples the field v_xc(r) on the fit basis's OWN FFT grid and forward-transforms
-//! it, then Overlap looks the coefficients up at the orbital basis's reciprocal-index differences.  The XC
-//! sibling of the ortho density overload.  WHERE it samples is the fit basis's business (its own
-//! quadrature, reached through \c BasisSet::Quadrature), not something this face hands out.
-//! \note Returns the NEUTRAL fitter face; this one carries \c FitContraction<dcmplx,dcmplx> (raster) or,
-//! for a \f$\delta\f$ basis, BOTH \c <double,dcmplx> and \c <dcmplx,dcmplx> (the 3c-3 mixed run).
-std::unique_ptr<FunctionFitter_Scalar>
-Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>&);
+//! \brief Create a SCALAR (potential) fitter on ANY scalar fit basis, either fit axis (2026-10-31: ONE factory, replacing the
+//! real and complex overloads, which used the scalar \a T as a proxy for the METRIC -- the real one asserted non-orthogonality,
+//! so a real \f$\delta\f$ basis tripped it).  CAPABILITY decides, never \a T or class identity:
+//!   - a RASTER transform (\c G_RasterTransform)  -> the orthoNORMAL G-space fitter: batch FFT projection, coefficient lookup
+//!     at the orbital basis's reciprocal-index differences (only a plane-wave basis offers it);
+//!   - else an orthogonal metric (\c isOrtho())    -> the \f$\delta\f$ / diagonal-metric fitter: projection over the diagonal;
+//!   - else the overlap-metric solve face (\c FIT_SF_NonOrtho) -> the Gaussian (A1) fitter: \f$S^{-1}\f$ on the projection.
+//! A basis offering none of the three THROWS naming what it lacks (pin 30: a combination that fails is an OOD defect).
+//! \note Returns the NEUTRAL fitter face; the caller cross-casts to the \c FitContraction<U,TFit> it needs.
+template <class T> std::unique_ptr<FunctionFitter_Scalar>
+Factory(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
 
 //! Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given non-ortho fit basis.  Returns the
 //! non-ortho refinement (the molecular FittedCD needs its self-energy/charge/rescale/eval).
