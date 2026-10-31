@@ -970,3 +970,11 @@ the row's cells carry the same titles.  ⚠ `pybind/qchem_bridge.cpp` still name
 bridge (flagged).  The ρ_lost/N "dead column" row is untouched: that column is one list entry, so if it goes, it goes from both.
 
 | **The SCF iteration row has two homes** (lane G, 2026-10-31; for the GUI's live per-column plots, user 2026-10-31) | the console row (`IterationTrace` / `DisplayColumns`, molecular and solid layouts) and the observer's `SCFProgress{iteration, energy, dE, commutator, drho, order, eb}` are separate: the observer lacks Δ[F,D], ρ_lost/N, the XC-ρ flag, virial, ρ_mix, accel, svMin, cfg, gap/HOMO/LUMO and every column's title/tolerance; its `dE` is absolute while the solid console's is ΔE/E; the trace is built only under `Verbose` | ONE `IterationRow{iteration, cells[{title, tol?, value, text, scale}], eb}` built once per iteration when Verbose OR an observer is set; `DisplayColumns` formats it, the observer receives it; `SCFProgress` retired (≈23 consumers incl. pybind, which lane G migrates); the absolute \|ΔE\| is DROPPED (the row is exactly the console's).  Lane B, after `deck::Build`; design in lane G's note `lane-g-iteration-row.md` · `src/SCFIterator/Imp/SCFIterator.C` |
+
+### anchordiff double-counts a solid stage's iterations (X; closed 2026-10-31, lane B)
+
+`scripts/anchordiff` summed every `iters=` a test printed.  A `SolidCalculation` stage prints it TWICE: the result line
+(`[label] CONVERGED iters=N ...`) and the per-stage summary (`[label stage k/n] kT=... iters=N A=E-TS=...`).  A test
+that gained a stage summary between two sweeps therefore read as a doubled iteration count -- the 8ab42909 panel's only
+"move" (a MnO2 resume, 5 -> 10) was this, not the SCF.  Fix: lines matching ` stage \d+/\d+\] ` are not counted (the result
+line always prints).  Both logs are parsed by the same rule, so old baselines stay comparable.
