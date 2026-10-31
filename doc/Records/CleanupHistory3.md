@@ -336,3 +336,20 @@ The rows as they stood:
 
 **Verdict (2026-10-30, `6240130e`):** `DIISParams::FDMin` deleted (never read; convergence is the SCF's gate); `FDMax` renamed
 `EngageBelowFD` on both `DIISParams` and `GDMParams`, every positional initialiser made designated.  No behaviour change.
+
+## D-ENV-TOL — DONE 2026-10-31 (lane B, option A, `fea23e1a`)
+
+`GaussianSharpness::ApplyTolerances` (const; every `GPW_Evaluator` re-set the pair-loop tolerances on the CALLER's basis
+through a const face) is gone.  The face keeps a const `Tolerances()` query; the builder's capability is a separate
+non-const `ToleranceBinding::BindTolerances`, implemented by the MnD Cartesian basis SET (it binds each block) and its
+`Orbital_IBS` blocks, NOT by the spherical lattice view (bind before wrapping).  `GaussianBasisRecipe` carries
+`tolerances` -- set by `SolidSetup::Resolve` from `SolidCalcOptions::tolerances`, the one source, and frozen with the
+trim so a geometry step's basis computes at the same setting -- and `Make` binds them on the basis it has just built.
+`GPW_Evaluator` now THROWS (`std::invalid_argument`) when the basis's tolerances differ from the run's: a pre-built
+(default) basis under a run that asks for others is refused, not silently re-tuned.  The guard against re-binding
+after collocation work stays.  Only decks set non-default tolerances, and decks build through the recipe, so no
+number moves.  UTs: `GPWTolerances.BindTolerances*` (UTGaussian_BS), `SolidSetup.ARecipeBindsTheRunsGPWTolerancesAndAPreBuiltBasisCannotTakeOthers`.
+
+Row as it stood:
+
+| **D-ENV-TOL** (born 2026-10-03, D-ENV step 5 follow-up) | `NR_Evaluator::ApplyTolerances` MUTATES the caller-built molecular basis through a const face (option B built without cloning the virtual-diamond IBS stack); one basis can serve only ONE tolerance setting -- a runtime GUARD throws if the values change after collocation work was built (`GPWTolerances.ApplyTolerancesThrowsIfChangedAfterCollocationWork`).  **Structural fix**: bind the tolerances where the molecular basis is built (option A, `Factory(..., tol)`), OR give each `GPW_Evaluator` a cheap VIEW of the basis carrying its own tolerances and sharing the geometry-only data (shells, reaches) -- removes the shared mutable state.  Do it when a convergence study needs two screens on one basis, or with the deck (step 6) | read `doc/Records/EnvKnobInventory.md` §8 ("Step 5 (ii)") |
