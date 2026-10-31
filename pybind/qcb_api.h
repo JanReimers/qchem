@@ -22,16 +22,27 @@ extern "C" {
 typedef struct qcb_calc qcb_calc;   //!< a converged molecular calculation (bridge-owned)
 typedef struct qcb_sink qcb_sink;   //!< the caller's per-iteration sink (nanobind-owned)
 
-//! One SCF iteration, as the facade's observer reports it.
-typedef struct qcb_step
+//! One cell of an SCF iteration row: one column of the console trace (qchem::SCFIterator::IterationCell), GENERIC -- a
+//! column the lib adds to a layout reaches Python with no ABI change.  The strings are UTF-8 ("Δρ") and, like the
+//! cells array, valid ONLY for the duration of the callback.
+typedef struct qcb_cell
 {
-    int    iteration;
-    double energy;      //!< total energy (hartree)
-    double dE;          //!< |E_n - E_{n-1}|
-    double commutator;  //!< [F,D]
-    double drho;        //!< density change
-} qcb_step;
-typedef void (*qcb_step_fn)(qcb_sink*, const qcb_step*);
+    const char* title;      //!< the console header ("Etotal", "[F,D]", "Δρ", "m_site", ...)
+    double      value;      //!< the number a plot draws; NaN when the cell has none (a "----", a text-only column)
+    const char* text;       //!< the cell exactly as the console prints it, padding stripped
+    double      tolerance;  //!< the gate under the header; NaN when the column gates nothing
+    int         logScale;   //!< 1: a convergence measure (plot |value| on a log axis); 0: linear
+} qcb_cell;
+
+//! One SCF iteration: its cells in display order ("#" excluded) and the total energy (the row's EnergyBreakdown total).
+typedef struct qcb_row
+{
+    int             iteration;
+    double          energy;   //!< total energy (hartree)
+    int             ncells;
+    const qcb_cell* cells;
+} qcb_row;
+typedef void (*qcb_row_fn)(qcb_sink*, const qcb_row*);
 
 //! What the caller asks for: a molecule (Z + flat 3N bohr positions) and the CalcOptions the GUI exposes.
 typedef struct qcb_request
@@ -47,13 +58,19 @@ typedef struct qcb_request
     int           polarized;      //!< spin-native two-channel run (SpinGroup::Polarized) even for a closed shell
     int           multiplicity;   //!< 2S+1, 0 = minimal spin; > 1 promotes to polarized anyway
     int           maxIter;
+    int           meshRadial;     //!< XC mesh radial points per atom, 0 = the facade's default (CalcOptions::mesh)
+    int           meshAngular;    //!< XC mesh Lebedev degree, 0 = the facade's default
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
-qcb_calc* qcb_make(const qcb_request* req, qcb_step_fn step, qcb_sink* sink, char* err, int errlen);
+qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char* err, int errlen);
 void      qcb_free(qcb_calc* h);
 //! Re-run the SCF from the seed, streaming each iteration to `step`.  Returns converged (1) / not (0) / failed (-1).
-int       qcb_converge(qcb_calc* h, int maxIter, qcb_step_fn step, qcb_sink* sink, char* err, int errlen);
+//! On 0 the SCFFailure's reason is written to `err` (as qcb_failure does).
+int       qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char* err, int errlen);
+//! Why the last SCF did not converge (SCFFailure: why, iterations, residual, details) written to `out`; returns 0 and
+//! leaves `out` empty when it converged.
+int       qcb_failure(const qcb_calc* h, char* out, int outlen);
 
 double qcb_energy    (const qcb_calc* h);
 int    qcb_converged (const qcb_calc* h);
