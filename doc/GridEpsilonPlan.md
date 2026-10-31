@@ -138,7 +138,8 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
   Iteration counts are unchanged, so the whole cost is per-call raster size.  The ΔE column is NOT an acceptance measure (pin 3); it is
   recorded for M2/M3 to explain.  NaF SR2's ~0.94 mHa is two orders above the others, and is the first thing M2's
   delivered-error audit must account for (BallOnly aliasing on the steep Na/F pairs at Ecut 90 Ha?).
-- **M2 — the scale constants and delivered errors**: on the TightPrimitive oracles (closed forms at any exponent), sweep G_N²/p and
+- **M2 — the scale constants and delivered errors.**  FIRST ITEM (controller 2026-10-30): explain NaF SR2's +941 μHa (M1) -- which
+  term, which pairs, and its delivered max|ΔH_ij| on BallOnly vs AliasFree.  Then: on the TightPrimitive oracles (closed forms at any exponent), sweep G_N²/p and
   the ball, fit S_term per term, then confirm on Si / NaF / MnO / β-MnO₂ that every term's delivered max|ΔH_ij| sits within a factor
   ~3 of ε (neither far tighter nor looser).
 - **M3 — the XC raster N vs 2N** on the same four, as §3's audit would print it.
