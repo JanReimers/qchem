@@ -1279,6 +1279,14 @@ TEST(GPW_Si, Γ_GridAuditSeparatesTheRasterTerms)
     }
     EXPECT_TRUE(sawRaster);
     EXPECT_NEAR(sum, a["dE"].get<double>(), 1e-12) << "the per-term dE are the total's parts";
+    // Both sides state their predicted alias, so the coarse side's can be read whichever side the run is.
+    for (const char* side : {"verdicts","referenceVerdicts"})
+    {
+        ASSERT_TRUE(a.contains(side) && a[side].contains("auditDensity")) << side;
+        EXPECT_FALSE(a[side]["auditDensity"]["status"].get<std::string>().empty()) << side;
+    }
+    EXPECT_LT(a["referenceVerdicts"]["auditDensity"]["alias"].get<double>(), a["verdicts"]["auditDensity"]["alias"].get<double>())
+        << "the AliasFree reference predicts a smaller alias than the BallOnly run";
     fs::remove_all(dir);
 }
 

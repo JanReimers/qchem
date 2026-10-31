@@ -1255,32 +1255,41 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
     if (!wf) throw std::logic_error("SolidCalculation::GridAudit: no wave function yet");
     qchem::report::Timed timed("postSCF: grid audit (reference basis + Hamiltonian + term matrices)");
     const SpinGroup g = S.polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
-    // The run's own grid-audit verdicts, read BEFORE the reference is built (its build is fenced in a nested report below, but the
-    // verdicts belong to THIS run's rasters).
-    rpt::json verdicts=rpt::json::object();
-    if (rpt::Depth()>0 && rpt::CurrentRunReport().contains("grids"))
-        for (const char* k : {"auditDensity","auditVlocLong"})
-            if (rpt::CurrentRunReport()["grids"].contains(k))
-            {
-                const auto& a=rpt::CurrentRunReport()["grids"][k];
-                verdicts[k]={{"status",a.value("status","")},{"alias",a.value("alias",0.0)}};
-            }
+    // The grid-audit verdicts of the report in scope: the run's own here, the reference's inside the fence below (both are printed, so
+    // the predicted alias of whichever side is the coarse one can be read -- the run need not be the BallOnly side).
+    auto readVerdicts=[]()
+    {
+        rpt::json v=rpt::json::object();
+        if (rpt::Depth()>0 && rpt::CurrentRunReport().contains("grids"))
+            for (const char* k : {"auditDensity","auditVlocLong"})
+                if (rpt::CurrentRunReport()["grids"].contains(k))
+                {
+                    const auto& a=rpt::CurrentRunReport()["grids"][k];
+                    v[k]={{"status",a.value("status","")},{"alias",a.value("alias",0.0)}};
+                }
+        return v;
+    };
+    const rpt::json verdicts=readVerdicts();
+    rpt::json refVerdicts=rpt::json::object();
 
     const SavedState st=SnapshotState(*itsImp->bs, *wf);
     std::unique_ptr<BasisSet::Complex_BS> bsRef;
     std::unique_ptr<qchem::Hamiltonian::cHamiltonian> hamRef;
+    // FENCED from here to the fold: the reference basis and Hamiltonian report their grids (and grid audits) as they BUILD AND FIRST
+    // EVALUATE (the raster levels and the V_long sweep are lazy); a nested run keeps that out of this run's `grids` section, which must keep
+    // describing the rasters the run USED.  (The run's own evaluator emitted its audits once, at its own first use, so nothing of the
+    // run's lands in the fence.)  RAII: an exception mid-audit must not leave the report nested.
+    struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} };
+    std::optional<Fence> fence(std::in_place, "gridAudit reference ("+std::string(RasterName(reference))+")");
     {
-        // FENCED: the reference basis and Hamiltonian report their grids (and grid audits) as they build; a nested run keeps that out of
-        // this run's `grids` section, which must keep describing the rasters the run USED.
-        rpt::Begin("gridAudit reference ("+std::string(RasterName(reference))+")");
         namespace L3 = BasisSet::Lattice;
         bsRef.reset(L3::GPWFactory(*itsImp->lat, itsImp->mol, L3::GPWParams{
             .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = reference,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = opts.tolerances,
             .hamPreservesReal = !opts.forceComplex}));
+        if (rpt::Depth()>0) L3::EmitGpwGrids(*bsRef);   // the reference's grids + density verdict, as setup emits the run's (it forces EnsureLevels)
         hamRef.reset(qchem::Hamiltonian::Factory(g, itsImp->st, bsRef.get(), S.pp, S.xcMesh, opts.vxcFit, itsImp->hubbard));
-        rpt::End();
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);
     auto cdRef=RestoreDensity(st, *bsRef, g);
@@ -1291,6 +1300,12 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
     hamRef     ->RefreshForDensity(bsRef.get(),       dRef);
 
     GridAuditResult R; R.reference=RasterName(reference);
+    auto toVerdicts=[](const rpt::json& v)
+    {
+        std::vector<GridAuditVerdict> out;
+        for (auto it=v.begin(); it!=v.end(); ++it) out.push_back({it.key(), it.value().value("status",std::string()), it.value().value("alias",0.0)});
+        return out;
+    };
     const std::vector<qchem::Hamiltonian::TermEnergy> eRun=itsImp->ham->MakeTermEnergies(dRun), eRef=hamRef->MakeTermEnergies(dRef);
     if (eRun.size()!=eRef.size()) throw std::logic_error("GridAudit: the reference Hamiltonian has a different term list");
     for (size_t t=0;t<eRun.size();t++)
@@ -1312,6 +1327,9 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
             else    FoldΔH(itsImp->ham->MakeTermMatrices((*itsImp->bs)[i],s,dRun), hamRef->MakeTermMatrices((*bsRef)[i],s,dRef), R.terms);
         }
     for (const auto& t : R.terms) R.maxAbsΔH=std::max(R.maxAbsΔH, t.maxAbsΔH);
+    refVerdicts=readVerdicts();
+    fence.reset();
+    R.runVerdicts=toVerdicts(verdicts); R.referenceVerdicts=toVerdicts(refVerdicts);
 
     // REPORT, contemporaneously (pin 17): console table + the run report's `gridAudit` section.
     const std::streamsize prec0=std::cout.precision();
@@ -1325,14 +1343,15 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
         rows.push_back({{"term",t.label},{"entries",t.entries},{"maxAbsDH",t.maxAbsΔH},{"dE",t.ΔE},{"E",t.E}});
     }
     std::cout<<"[grid audit]   max|ΔH_ij| "<<std::setw(10)<<R.maxAbsΔH<<"  ΔE "<<std::setw(11)<<R.ΔE<<" Ha  TOTAL"<<std::endl;
-    for (auto it=verdicts.begin(); it!=verdicts.end(); ++it)
-        std::cout<<"[grid audit]   the run's own "<<it.key()<<": "<<it.value().value("status",std::string())
-                 <<" (predicted alias "<<it.value().value("alias",0.0)<<")"<<std::endl;
+    for (const auto& [who,vs] : {std::pair<const char*,const rpt::json*>{"the run's own",&verdicts},{"the reference's",&refVerdicts}})
+        for (auto it=vs->begin(); it!=vs->end(); ++it)
+            std::cout<<"[grid audit]   "<<who<<" "<<it.key()<<": "<<it.value().value("status",std::string())
+                     <<" (predicted alias "<<it.value().value("alias",0.0)<<")"<<std::endl;
     std::cout<<std::defaultfloat<<std::setprecision(prec0);
     if (rpt::Depth()>0)
         rpt::EmitAt("gridAudit", RasterName(opts.raster)+std::string("_vs_")+R.reference,
                     rpt::json{{"run",RasterName(opts.raster)},{"reference",R.reference},{"terms",rows},
-                         {"maxAbsDH",R.maxAbsΔH},{"dE",R.ΔE},{"verdicts",verdicts}});
+                         {"maxAbsDH",R.maxAbsΔH},{"dE",R.ΔE},{"verdicts",verdicts},{"referenceVerdicts",refVerdicts}});
     return R;
 }
 

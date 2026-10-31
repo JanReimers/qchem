@@ -429,12 +429,15 @@ public:
     //! the converged D onto it (\c SnapshotState / \c RestoreDensity: the orbital functions are the same Gaussians), and compares term by
     //! term: max|ΔH_ij| over every block, and ΔE.  A FIXED-D evaluator: no SCF step, the run's result is untouched (its own Hamiltonian
     //! is re-refreshed for the restored D; every later caller refreshes for its own).  Beside each row it states the run's own grid-audit
-    //! verdict (grids.auditDensity / auditVlocLong), so the predicted alias is validated against the delivered one.  Reports to the
+    //! verdict (grids.auditDensity / auditVlocLong) AND the reference's, so the predicted alias of whichever side is the coarse one can be
+    //! read against the delivered difference.  Reports to the
     //! console and to the run report (section `gridAudit`).  THROWS on a plane-wave run (no raster) or a reference equal to the run's.
     struct GridAuditTerm { std::string label, entries; double maxAbsΔH=0.0, ΔE=0.0, E=0.0; };   //!< label/entries: \c TermEnergy's
+    struct GridAuditVerdict { std::string audit, status; double alias=0.0; };   //!< one grids.audit* entry (audit = its key)
     struct GridAuditResult
     {
         std::string reference;                 //!< the reference raster's name
+        std::vector<GridAuditVerdict> runVerdicts, referenceVerdicts;   //!< each side's own grid-audit verdicts
         std::vector<GridAuditTerm> terms;      //!< every term, in the Hamiltonian's order (analytic terms read 0)
         double maxAbsΔH=0.0, ΔE=0.0;           //!< the whole Hamiltonian's (ΔE = E_run - E_reference)
     };

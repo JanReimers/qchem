@@ -904,6 +904,8 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
             const auto R=calc->GridAudit(a.reference);
             json t=json::array(); for (const auto& x : R.terms) t.push_back({{"term",x.label},{"entries",x.entries},{"maxAbsDH",x.maxAbsΔH},{"dE",x.ΔE}});
             rj["reference"]=R.reference; rj["terms"]=t; rj["maxAbsDH"]=R.maxAbsΔH; rj["dE"]=R.ΔE;
+            auto vj=[](const auto& vs) { json o=json::object(); for (const auto& v : vs) o[v.audit]={{"status",v.status},{"alias",v.alias}}; return o; };
+            rj["verdicts"]=vj(R.runVerdicts); rj["referenceVerdicts"]=vj(R.referenceVerdicts);
             std::ostringstream os; os<<"vs "<<R.reference<<": max|dH_ij| "<<R.maxAbsΔH<<", dE "<<R.ΔE<<" Ha";
             pr.summary=os.str(); break;
         }
