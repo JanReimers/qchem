@@ -577,68 +577,74 @@ public:
 };
 
 namespace {
-// Si_diamond's materials.json entry, stated inline (copied, not read: the test states what it means).
-json SiInline(const std::string& name="Si_inline")
+// Si_diamond stated inline in the shape lane G's translator writes: explicit lattice vectors (CubicF a = 10.26: the a/2 columns),
+// no name, no pp (solid.pp's default, gth-lda-valence, is the material's set).  Copied, not read: the test states what it means.
+json SiInline()
 {
-    return {{"name",name},{"comment","Si_diamond, stated inline"},{"lattice",{{"type","CubicF"},{"a",10.26}}},
-            {"atoms",json::array({{{"el","Si"},{"frac",{0.0,0.0,0.0}}}, {{"el","Si"},{"frac",{0.25,0.25,0.25}}}})},{"pp","gth-lda-valence"}};
+    return {{"lattice",{{"vectors_bohr",{{0.0,5.13,5.13},{5.13,0.0,5.13},{5.13,5.13,0.0}}}}},
+            {"atoms",json::array({{{"el","Si"},{"frac",{0.0,0.0,0.0}}}, {{"el","Si"},{"frac",{0.25,0.25,0.25}}}})}};
 }
 const json kSiRecipe={{"basis",{{"data","SIPP_SR"}}},{"solid",{{"densityEcut",20.0},{"imposeSymmetry",true}}},
                       {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
 deck::RunSpec SiDeck(const json& structure)
 {
-    json d=kSiRecipe; d.update(structure);
+    json d=kSiRecipe; d["structure"]=structure;
     deck::RunSpec r; deck::FromJson(d,r); return r;
 }
 }
 
-TEST(Deck, AnInlineStructureIsExactlyOneOfTheTwoAndRoundTrips)
+TEST(Deck, AnInlineStructureIsTheStructureKeyAsAnObjectAndRoundTrips)
 {
     deck::RunSpec r;
-    try { deck::FromJson(json{{"structure","Si_diamond"},{"inlineStructure",SiInline()}},r); ADD_FAILURE() << "both stated: no throw"; }
-    catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("not both"),std::string::npos) << e.what(); }
-    EXPECT_THROW(deck::FromJson(json{{"kmesh",{1,1,1}}},r),std::runtime_error) << "neither stated";
-    EXPECT_THROW(deck::FromJson(json{{"inlineStructure","Si_diamond"}},r),std::runtime_error) << "an inline structure is an object";
+    EXPECT_THROW(deck::FromJson(json{{"kmesh",{1,1,1}}},r),std::runtime_error) << "no structure";
+    EXPECT_THROW(deck::FromJson(json{{"structure",42}},r),std::runtime_error) << "a name or an object";
+    EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"inlineStructure",SiInline()}},r),std::runtime_error) << "no second key";
+    deck::RunSpec both=SiDeck("Si_diamond"); both.inlineStructure=SiInline();
+    EXPECT_THROW((void)deck::Resolve(both),std::runtime_error) << "a name AND an inline cell, built in C++";
 
-    deck::RunSpec in=SiDeck({{"inlineStructure",SiInline()}});
+    deck::RunSpec in=SiDeck(SiInline());
     EXPECT_TRUE(in.structure.empty());
-    EXPECT_EQ(in.StructureName(),"Si_inline");
+    EXPECT_EQ(in.StructureName(),"inline") << "an inline cell with no name";
+    json named=SiInline(); named["name"]="Si_mine";
+    EXPECT_EQ(SiDeck(named).StructureName(),"Si_mine");
     const json j=deck::ToJson(in);
-    EXPECT_FALSE(j.contains("structure")) << "the record states the cell, not a name it does not have";
+    EXPECT_TRUE(j.at("structure").is_object()) << "the record states the cell, not a name it does not have";
     deck::RunSpec back; deck::FromJson(j,back); EXPECT_EQ(deck::ToJson(back),j);
 
-    // resolved like a named one: the species and Nelec are derived from the inline pp
-    deck::RunSpec named=SiDeck({{"structure","Si_diamond"}});
-    const auto mi=deck::Resolve(in), mn=deck::Resolve(named);
-    EXPECT_EQ(in.solid.Nelec,named.solid.Nelec); EXPECT_EQ(in.solid.species,named.solid.species); EXPECT_EQ(in.solid.pp,named.solid.pp);
+    // resolved like a named one: the species and Nelec are derived from the set (solid.pp here; the entry's own `pp` if it has one)
+    deck::RunSpec ref=SiDeck("Si_diamond");
+    const auto mi=deck::Resolve(in), mn=deck::Resolve(ref);
+    EXPECT_EQ(in.solid.Nelec,ref.solid.Nelec); EXPECT_EQ(in.solid.species,ref.solid.species); EXPECT_EQ(in.solid.pp,ref.solid.pp);
     EXPECT_EQ(mi.cell->GetNumAtoms(),mn.cell->GetNumAtoms());
 
     // strict: a typo in the entry would build a DIFFERENT cell silently
     auto refused=[](json entry, const std::string& what)
     {
-        deck::RunSpec x=SiDeck({{"inlineStructure",entry}});
+        deck::RunSpec x=SiDeck(entry);
         try { (void)deck::Resolve(x); ADD_FAILURE() << "no throw for " << what; }
         catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find(what),std::string::npos) << e.what(); }
     };
-    json typo=SiInline(); typo["lattice"]["alfa"]=60.0;            refused(typo,"unknown key 'alfa'");
-    json noName=SiInline(); noName.erase("name");                   refused(noName,"needs a 'name'");
-    json noPP=SiInline(); noPP.erase("pp");                         refused(noPP,"needs 'pp'");
+    json both2=SiInline(); both2["lattice"]["type"]="CubicF";      refused(both2,"unknown key 'type'");
+    json bravais=SiInline(); bravais["lattice"]={{"type","CubicF"},{"alfa",60.0}}; refused(bravais,"unknown key 'alfa'");
+    json short3=SiInline(); short3["lattice"]["vectors_bohr"]={{1,0,0},{0,1,0}}; refused(short3,"three 3-vectors");
     json extra=SiInline(); extra["kmesh"]={2,2,2};                  refused(extra,"unknown key 'kmesh'");
     json badAtom=SiInline(); badAtom["atoms"][0]["fracs"]={0,0,0};  refused(badAtom,"unknown key 'fracs'");
+    json badName=SiInline(); badName["name"]="a/b";                 refused(badName,"file stem");
 }
 
-// The claim lane G binds to: an inline deck and its named twin are the SAME run -- the fingerprint a saved state would carry, built
-// by deck::Build (which stops before the SCF), agrees with no difference at all, so either one's state resumes the other EXACTLY.
+// The claim lane G binds to: an inline deck -- in lane G's shape, explicit lattice vectors -- and its named twin are the SAME run:
+// the fingerprint a saved state would carry, built by deck::Build (which stops before the SCF), agrees with no difference at all,
+// so either one's state resumes the other EXACTLY.
 TEST(Deck, AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint)
 {
-    const auto a=deck::Build(SiDeck({{"structure","Si_diamond"}}));
-    const auto b=deck::Build(SiDeck({{"inlineStructure",SiInline()}}));
+    const auto a=deck::Build(SiDeck("Si_diamond"));
+    const auto b=deck::Build(SiDeck(SiInline()));
     auto cmp=CompareFingerprints(DeckTests::Fingerprint(*a), DeckTests::Fingerprint(*b));
     ASSERT_TRUE(cmp) << cmp.Error().details;
     EXPECT_TRUE(cmp->empty()) << "a warm difference: " << (cmp->empty() ? "" : cmp->front());
     // and a moved atom IS a different cell (the comparison is not vacuous)
     json moved=SiInline(); moved["atoms"][1]["frac"]={0.25,0.25,0.26};
-    const auto c=deck::Build(SiDeck({{"inlineStructure",moved}}));
+    const auto c=deck::Build(SiDeck(moved));
     auto cmp2=CompareFingerprints(DeckTests::Fingerprint(*a), DeckTests::Fingerprint(*c));
     EXPECT_TRUE(!cmp2 || !cmp2->empty()) << "a moved atom left the fingerprint unchanged";
 }
@@ -647,7 +653,7 @@ TEST(Deck, AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint)
 // converged energy is Run's own, bit for bit (ONE path).
 TEST(Deck, BuildStopsBeforeTheSCFAndRunIsBuildPlusConverge)
 {
-    deck::RunSpec spec=SiDeck({{"structure","Si_diamond"}});
+    deck::RunSpec spec=SiDeck("Si_diamond");
     size_t seen=0;
     const auto calc=deck::Build(spec, [&](const auto&){ ++seen; });
     EXPECT_EQ(seen,0u) << "Build ran an SCF";

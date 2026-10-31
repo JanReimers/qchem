@@ -102,23 +102,21 @@ Material FromEntry(const std::string& name, const json& e, double aOverride)
 
 Material Get(const std::string& name, double a) { return FromEntry(name, Entry("materials.json", name), a); }
 
-Material Inline(const std::string& entryJson)
+Material Inline(const std::string& entryJson, const std::string& pp)
 {
     json e;
     try { e=json::parse(entryJson); }
     catch (const json::exception& x) { throw std::runtime_error(std::string("Materials: an inline structure is not JSON: ") + x.what()); }
-    if (!e.is_object()) throw std::runtime_error("Materials: an inline structure must be an object (a materials.json entry plus its 'name')");
+    if (!e.is_object()) throw std::runtime_error("Materials: an inline structure must be an object (a materials.json entry)");
     for (const auto& [k,v] : e.items())
         if (k!="name" && k!="comment" && k!="lattice" && k!="atoms" && k!="pp")
             throw std::runtime_error("Materials: unknown key '" + k + "' in an inline structure (known: name, comment, lattice, atoms, pp)");
-    if (!e.contains("name") || !e.at("name").is_string() || e.at("name").get<std::string>().empty())
-        throw std::runtime_error("Materials: an inline structure needs a 'name' (it names the run's revisions and output)");
-    const std::string name=e.at("name").get<std::string>();
-    if (name[0]=='_' || name.find('/')!=std::string::npos)
-        throw std::runtime_error("Materials: inline structure name '" + name + "' must not start with '_' or contain '/' (it is a file stem)");
-    if (!e.contains("pp") || !e.at("pp").is_string())
-        throw std::runtime_error("Materials: inline structure '" + name + "' needs 'pp': the NAME of a pseudopotential set");
-    return FromCell(name, StructureData::CellFromEntry(entryJson, name), e.at("pp").get<std::string>());
+    const std::string name = e.contains("name") ? e.at("name").get<std::string>() : std::string("inline");
+    if (name.empty() || name[0]=='_' || name.find('/')!=std::string::npos)
+        throw std::runtime_error("Materials: inline structure name '" + name + "' must be non-empty, not start with '_' and not contain '/' (it is a file stem)");
+    const std::string set = e.contains("pp") ? e.at("pp").get<std::string>() : pp;
+    if (set.empty()) throw std::runtime_error("Materials: inline structure '" + name + "' names no pseudopotential set (its 'pp', or the caller's)");
+    return FromCell(name, StructureData::CellFromEntry(entryJson, name), set);
 }
 std::vector<std::string> Names() { return StructureData::CellNames(); }
 

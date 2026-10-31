@@ -444,7 +444,7 @@ void BasisFromJson(const json& j, RunSpec::Basis& b)
 
 json ToJson(const RunSpec& r)
 {
-    json j=r.inlineStructure.is_null() ? json{{"structure",r.structure}} : json{{"inlineStructure",r.inlineStructure}};
+    json j={{"structure", r.inlineStructure.is_null() ? json(r.structure) : r.inlineStructure}};
     j["kmesh"]={r.kmesh.x,r.kmesh.y,r.kmesh.z}; j["basis"]=BasisJson(r.basis); j["solid"]=ToJson(r.solid);
     if (!r.state.save.empty() || !r.state.restartFrom.empty())
     {
@@ -466,23 +466,11 @@ json ToJson(const RunSpec& r)
 void FromJson(const json& j, RunSpec& r)
 {
     Fields f(j,"run");
-    if (j.contains("structure") && j.contains("inlineStructure"))
-        throw std::runtime_error("deck: give 'structure' (a NAME from materials.json) OR 'inlineStructure' (the entry itself), not both -- which cell would run?");
-    if (j.contains("inlineStructure"))
-    {
-        const json& s=f.At("inlineStructure");
-        if (!s.is_object()) throw std::runtime_error("deck: 'inlineStructure' must be an object (a materials.json entry plus its 'name')");
-        r.inlineStructure=s; r.structure.clear();
-        f.At("structure");
-    }
-    else
-    {
-        if (!j.contains("structure") || !j.at("structure").is_string())
-            throw std::runtime_error("deck: 'structure' is required and must be a NAME from materials.json or molecules.json "
-                                     "(or state the cell itself as 'inlineStructure')");
-        f.Get("structure",r.structure);
-        f.At("inlineStructure");
-    }
+    if (!j.contains("structure") || !(j.at("structure").is_string() || j.at("structure").is_object()))
+        throw std::runtime_error("deck: 'structure' is required: a NAME from materials.json or molecules.json, or the cell itself "
+                                 "(an object: lattice, atoms, optional name / pp)");
+    if (j.at("structure").is_object()) { r.inlineStructure=f.At("structure"); r.structure.clear(); }
+    else                               { f.Get("structure",r.structure); r.inlineStructure=json(); }
     if (j.contains("kmesh"))
     {
         const json& k=f.At("kmesh");
@@ -530,12 +518,12 @@ void FromJson(const json& j, RunSpec& r)
 Materials::Material Resolve(RunSpec& spec)
 {
     if (!spec.inlineStructure.is_null() && !spec.structure.empty())
-        throw std::runtime_error("deck: 'structure' ("+spec.structure+") AND 'inlineStructure' -- state one, not both");
+        throw std::runtime_error("deck: a structure NAME ("+spec.structure+") AND an inline structure -- state one, not both");
     Materials::Material m;
     if (!spec.inlineStructure.is_null())
     {
-        try { m=Materials::Inline(spec.inlineStructure.dump()); }
-        catch (const std::runtime_error& e) { throw std::runtime_error("deck: inlineStructure -- "+std::string(e.what())); }
+        try { m=Materials::Inline(spec.inlineStructure.dump(), spec.solid.pp); }
+        catch (const std::runtime_error& e) { throw std::runtime_error("deck: structure (inline) -- "+std::string(e.what())); }
     }
     else
     {

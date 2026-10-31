@@ -55,9 +55,10 @@ json ToJson(const SolidCalcOptions&);                    void FromJson(const jso
 //! \brief One run, as the deck states it.  The STRUCTURE is just a NAME (user, 2026-10-03): the key into `materials.json` (a
 //! crystal or box -> a solid run) or `molecules.json` (a molecule -> a molecular run, not yet supported by the deck).  Everything
 //! the structure files own -- lattice, atoms, spin decoration, the pseudopotential vocabulary -- is resolved FROM the name, never
-//! restated in the deck.  OR (2026-10-31, the GUI's door: a cell the user built has no registry name) the deck states the
-//! entry itself, \c inlineStructure: one \c materials.json entry plus its `name`, built by the data file's own parser -- so an
-//! inline copy of a named entry IS that material.  Exactly one of the two; a deck stating both is refused.
+//! restated in the deck.  OR (2026-10-31, the GUI's door: a cell the user built has no registry name) `structure` is an OBJECT,
+//! the entry itself -- one \c materials.json entry (`lattice` as Bravais parameters or `vectors_bohr`, `atoms`; optional `name`,
+//! `pp`), built by the data file's own parser, so an inline copy of a named entry IS that material.  One key, so a deck cannot
+//! state both.
 //! \c solid.Nelec / \c solid.species left at their defaults (0 / empty) are DERIVED from the material; stated, they are honoured
 //! (a charged cell, a different pseudopotential valence) -- and the resolved deck always records the values actually used.
 struct RunSpec
@@ -112,13 +113,15 @@ struct RunSpec
         bool operator==(const PostAction&) const = default;
     };
 
-    std::string      structure;       //!< a name in materials.json or molecules.json ...
-    //! ... OR the entry itself: `{"name", "lattice", "atoms", "pp", "comment"?}` in the materials.json schema (null = none).
-    //! The magnetic decoration and charge order stay in \c solid (siteSpins, siteCharges), as for a named structure.
+    std::string      structure;       //!< a name in materials.json or molecules.json (the file's `structure` as a STRING) ...
+    //! ... OR the entry itself (the file's `structure` as an OBJECT; null = a name): `{"lattice", "atoms", "name"?, "pp"?,
+    //! "comment"?}`; `pp` absent = \c solid.pp.  The magnetic decoration and charge order stay in \c solid (siteSpins,
+    //! siteCharges), as for a named structure.  Never both (\c Resolve throws).
     json             inlineStructure;
-    //! The structure's name: \c structure, or the inline entry's `name` -- what the revisions and the run's output are called.
+    //! The structure's name: \c structure, or the inline entry's `name` ("inline" when it has none) -- what the revisions and
+    //! the run's output are called.
     std::string StructureName() const
-    { return inlineStructure.is_null() ? structure : inlineStructure.value("name", std::string()); }
+    { return inlineStructure.is_null() ? structure : inlineStructure.value("name", std::string("inline")); }
     ivec3_t          kmesh{1,1,1};    //!< Monkhorst-Pack divisions of the Brillouin zone
     Basis            basis;
     State            state;
@@ -131,7 +134,7 @@ struct RunSpec
     { return schedule.empty() ? std::vector<Stage>{{scf,solid.accelerator}} : schedule; }
 };
 json ToJson(const RunSpec&);
-//! Strict like the other readers: exactly one of \c structure / \c inlineStructure is required; an unknown top-level key (or any nested one) throws.
+//! Strict like the other readers: \c structure (a name or an inline object) is required; an unknown top-level key (or any nested one) throws.
 void FromJson(const json&, RunSpec&);
 //! \brief Resolve \a spec against the structure files (or its inline entry): returns the Material (cell + atoms + species) and FILLS \c spec.solid.Nelec /
 //! \c species when they were left to derive, so \c ToJson(spec) afterwards is the complete record.  THROWS (listing the known names)
