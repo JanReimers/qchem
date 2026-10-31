@@ -540,3 +540,9 @@ Judge each against PySCF at the SAME fixed occupation (`scripts/pyscf_molecule_o
   - (e) a broken-symmetry seed.
   - Never label a real-orbital mixture as a pure term.
 - **CONSUMERS:** the console, the run report json, and later the GUI's in-app agent (advice → a deck edit).
+
+**The Mn–O dimer GDM row folded in (2026-10-31, OpenWork "GDM crawls at a near-degenerate frontier").**  The row has TWO diseases, and C1-DEG covers the first:
+- **The frontier flip IS C1-DEG in d.**  Mn–O dimer, kT 0, multiplicity 6: a near-degenerate pair (3e-5 … 1e-3 Ha) crosses back after every swap, leaving a hole on alternate rows.  The 2026-10-24 re-pick experiment showed there is NO integer aufbau solution at kT 0.  A linear dimer's π (and δ) partners are exactly degenerate in C∞v, and the fill splits them by the anisotropy it creates, as for Si 3p² / O₂ π\*².  So:
+  - The DETECTOR covers it: (i) aufbau violation inside the set and (ii) the swap counter are exactly the `h` rows.  The dimer joins the trace as its d-shell case.
+  - The FIX is step 2's: the stated state by irrep in C2v (π_x b1 / π_y b2, δ a1 / a2), or IMOM in C1.  The 2026-10-24 re-pick found a DIFFERENT state (Mn moment 4.54 vs 5.35), so stating which state is asked for is what makes the gate well posed.  CP2K OT's −30.34790 is at fixed N without aufbau, so it may BE such a state: check which.
+- **The linear tail is NOT C1-DEG.**  ‖[F,D]‖ falls 5–10 %/step for 90+ steps, and it also appears at an OPEN gap (β-MnO₂ m0 stage 2, gap 2.3e-2, no holes).  The row's own hypothesis stands: `PCFloor` 0.1 Ha against mHa soft modes, plus a line search that never extends.  It stays in that row as its remainder (the GDM step-size work, F).
