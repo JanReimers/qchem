@@ -182,10 +182,18 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // Delta remains available on EITHER grid -- it is the general route, and the only one on a Becke mesh
     // (no G-space raster).  What is gone is the run PROPERTY steering the grid decision.
     const bool delta = fit==VxcFit::Delta || (fit==VxcFit::Auto && becke);
-    // A PlaneWave fit ON a Becke grid (I3) is asserted out until its one-functional E/H derivative pairing
+    // A STATED fit that is neither δ nor PlaneWave (Auxiliary) is not resolved here: it reaches the fit-basis factory
+    // as stated, which refuses it (a pin-30 gap).  Until 2026-10-31 the `delta ? Delta : PlaneWave` below turned it
+    // into the plane-wave route SILENTLY -- found by the Vxc product-space UT (UTHamiltonian VxcProductSpace).
+    const VxcFit resolved = fit==VxcFit::Auxiliary ? fit : (delta ? VxcFit::Delta : VxcFit::PlaneWave);
+    // A PlaneWave fit ON a Becke grid (I3) is refused until its one-functional E/H derivative pairing
     // is designed (the projection sum is trivial; the DISCIPLINE is that H must be the exact derivative of
-    // the quadratured E -- the user's GDM-after-DIIS audit would expose any mismatch).
-    assert((delta || !becke) && "VxcFit::PlaneWave on a Becke grid (I3): the E/H one-functional pairing is not designed yet");
+    // the quadratured E -- the user's GDM-after-DIIS audit would expose any mismatch).  A THROW, not an assert
+    // (2026-10-31): compiled out under NDEBUG the assert let a Release run take the raster instead, silently --
+    // and it is a cell of the Vxc product space (UTHamiltonian VxcProductSpace), an open gap of pin 30.
+    if (resolved==VxcFit::PlaneWave && becke)
+        throw std::logic_error("Ham_PW_DFT: VxcFit::PlaneWave on a Becke XC mesh (I3) -- the E/H one-functional pairing is not "
+                               "designed yet; an open gap of the Vxc product space (pin 30)");
 
     qcMesh::MeshParams xc=xcMesh;   // the user's mesh knobs (WHICH POINTS) + the functional's fit-grid density
     xc.relCutoff=mp.relCutoff;      // the REPRESENTATION travels as its own argument, not folded in here
@@ -220,7 +228,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
         // EXCLUSIVE of "setup: becke mesh build", which happens inside here and has its own bucket -- so
         // this one reads as the fit basis's OWN construction over an already-built mesh.
         qchem::report::Timed timed("setup: Vxc fit basis (mesh build is its child)");
-        XFitBasis.reset(bs->CreateVxcFitBasisSet(st.get(), xc, delta ? VxcFit::Delta : VxcFit::PlaneWave,
+        XFitBasis.reset(bs->CreateVxcFitBasisSet(st.get(), xc, resolved,
                                                  &quadrature));
     }
     // SPIN-NATIVE (tier 4b) exchange must be channel-native: a spin-tagged SlaterExchange does NOT halve
