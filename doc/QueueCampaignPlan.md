@@ -46,7 +46,8 @@ The controller reports the **open F+V+S count** at every merge.
   relaxation the basis must be FROZEN or the PES is discontinuous; (b) GPW aliasing is an egg-box force error; (c) a geometry step is a
   restart from a moved density (the Ladder row's unmeasured remainder; CK-3); (d) `H.At(cd)` is the natural carrier of dE/dR at a
   converged D; (e) R1.0r (§7) — a density symmetrized under more symmetry than the k-sample has is not variational, so its forces are not
-  the derivative of its energy.
+  the derivative of its energy; (f) a grid ε / η calibrated on ENERGIES is not valid for forces: ΔE cancels inside Tr(D ΔH) (C2 M2c,
+  `doc/GridEpsilonPlan.md` §5: MnO V_long max|ΔH_ij| 0.26 Ha vs ΔE 5 μHa) -- calibrate on max|ΔH_ij|.
 - **GGA goes before forces** (agreed): forces design note → GGA → forces → relax → voltage.
 
 ## 3. Convergence — stop and design (user 2026-10-29)

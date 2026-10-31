@@ -186,6 +186,43 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
   (ii) AliasFree (x ≈ 16–20 on the finest raster) does NOT meet 1e-5 Ha on a tight pair's V_long -- a reason, beside the cost (M1),
   for route (a) taking V_long off the raster; (iii) these are WORST-CASE single-pair numbers -- a production H_ij weights the tight
   primitive by its tiny density share, which is what M2c measures on the four systems.
+  **M2c + M3 MEASURED 2026-10-31 (760d871b, the `gridAudit` postSCF action: every term rebuilt on the other raster at the
+  converged D, fixed-D, no SCF step).**  η = delivered / §1's bound S·x³e^{−x}, with x = −ln(the run's own predicted alias)
+  per term; V_long against S_V = 2.35 Ha, both on max|ΔH_ij| (η_H) and on |ΔE| (η_E); Hartree / XC as η_E = (|ΔE|/|E_term|)/(S_ρ x³e^{−x}), S_ρ = 0.35.
+  Runs in `~/Code/qchem6-runs/<Material>/C2M2c_*.log`; script `eta.py` in the lane-A scratch (the numbers are all here).
+
+  | system (class) | term | x | max\|ΔH_ij\| (Ha) | ΔE (Ha) | η_H | η_E |
+  |---|---|---|---|---|---|---|
+  | Si k222 (covalent) | V_long | 27.0 | 1.1e-10 | 5.6e-11 | 1.2e-3 | 6.4e-4 |
+  |  | Hartree | 27.0 | 3.5e-9 | 8.0e-11 | — | 1.0e-2 |
+  |  | XC | 27.0 | 9.9e-3 | −1.36e-5 | — | **434** |
+  | NaF Γ SR2 (ionic) | V_long | 6.56 | 1.4e-2 | 9.7e-9 | 1.5e-2 | 1.0e-8 |
+  |  | Hartree | 4.20 | 9.2e-2 | 6.8e-5 | — | 1.6e-5 |
+  |  | XC | 4.20 | 2.1e-1 | 8.6e-4 | — | 4.5e-4 |
+  | MnO AFM-II free (TMO, magnetic) | V_long | 5.30 | 2.6e-1 | −4.8e-6 | 0.15 | 2.7e-6 |
+  |  | Hartree | 4.66 | 2.0e-1 | −2.4e-5 | — | 5.3e-6 |
+  |  | XC | Becke mesh | 0 | 0 | — | — |
+  | β-MnO₂ A1AFM U0, exact resume (TMO, magnetic; the run is AliasFree, reference BallOnly: the Δ is BallOnly's error) | V_long | n/m | 1.96 | −2.6e-6 | n/m | n/m |
+  |  | Hartree | n/m | 1.34 | −5.5e-5 | — | n/m |
+  |  | XC | Becke mesh | 0 | 0 | — | — |
+  | Al fcc k222 kT 1e-2 (metal) | V_long | 13.65 | 6.8e-7 | −2.9e-10 | 9.7e-5 | 4.2e-8 |
+  |  | Hartree | 3.41 | 6.5e-3 | −1.7e-6 | — | 6.5e-4 |
+  |  | XC | 3.41 | 3.5e-2 | +8.1e-6 | — | 2.2e-5 |
+
+  **Verdicts (rulings by the controller, 2026-10-31):**
+  1. **η is NOT flat** (V_long η_H 1e-4 … 0.15; Hartree η_E 5e-6 … 1e-2: 3–4 decades, no class ordering) ⇒ η is
+     **SELF-CALIBRATING**: a pilot `gridAudit` sets η per run per term.  No class taxonomy, no shipped default η per class; η = 1 stays the rigorous mode.
+  2. **XC is not covered by the ρ-pair bound** (Si: the pairs alias-free at x = 27, XC still −13.6 μHa, 434× over).  v_xc(ρ)
+     is nonlinear, so it aliases even when ρ̃ is band-limited.  The bound must never be presented as covering XC.  XC needs its own model: open
+     design in C2; the lead is that the pilot MEASURES v_xc[ρ]'s spectral tail (an FFT on the reference raster) instead of
+     predicting it from ρ's.  Until then the `[accuracy]` line labels XC "measured / heuristic", never rigorous.
+  3. **For forces, η is judged on H, never on E.**  ΔE cancels inside Tr(D ΔH): MnO V_long max|ΔH_ij| 0.26 Ha against ΔE 5 μHa;
+     NaF 1.4e-2 Ha against 1e-8.  An η calibrated on energies is NOT valid for forces (also a forces-design-note item, `doc/QueueCampaignPlan.md`).
+  (β-MnO₂ η n/m: `gridAudit` prints the RUN's own predicted alias, not the reference's, and here the run is the alias-free one (1.1e-7 / 2.5e-9);
+  the audit should report the reference raster's verdicts too -- a small follow-up.  Its V_long max|ΔH_ij| 1.96 Ha against ΔE 2.6 μHa is verdict 3's
+  strongest case.)
+  4. The bound is safe (η ≤ 0.15) on every LINEAR term measured; delivered errors sit 10–10⁵× under it, which is the room the
+     self-calibrated η recovers.
 - **M3 — the XC raster N vs 2N** on the same four, as §3's audit would print it.
 - **M4 — V_loc long route (a)**: delivered error and wall at the C2 raster vs the present term.
 - **M5 — R1.0r**: list every banked test on an anisotropic mesh (the re-bank set) before flipping.
