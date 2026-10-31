@@ -187,6 +187,8 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
     if (xc.cellKind==qcMesh::UnitCellKind::Becke) std::cout<<" (nR="<<xc.nRadial<<" L="<<xc.angularDegree<<")";
     else                                          std::cout<<" (eCut="<<xc.eCut<<" Ha)";
     std::cout<<std::endl;
+    // The ONE accuracy target and what it implies (doc/GridEpsilonPlan.md §1): the rigorous demand beside the knobs the sizing uses.
+    if (o.planeWaveEcut<=0.0) std::cout<<"["<<o.label<<" run] accuracy: "<<o.accuracy.Describe(o.tolerances)<<std::endl;
     std::cout<<"["<<o.label<<" run] symmetry: "
              <<(imposed ? (o.greyImposition ? "IMPOSED (grey -- the erasure control)"
                                             : "IMPOSED (Shubnikov from the decoration)")
@@ -1238,22 +1240,51 @@ template <class M> void FoldΔH(const std::vector<M>& a, const std::vector<M>& b
 {
     if (a.size()!=terms.size() || b.size()!=terms.size()) throw std::logic_error("GridAudit: a block's term list differs from the energies'");
     for (size_t t=0;t<a.size();t++)
+    {
+        if (a[t].rows()!=b[t].rows() || a[t].columns()!=b[t].columns())
+            throw std::logic_error("GridAudit: term "+std::to_string(t)+"'s block is "+std::to_string(a[t].rows())+" on the run, "
+                                   +std::to_string(b[t].rows())+" on the reference -- the bases do not match function for function");
         for (size_t i=0;i<a[t].rows();i++) for (size_t j=i;j<a[t].columns();j++)
             terms[t].maxAbsΔH=std::max(terms[t].maxAbsΔH, std::abs(a[t](i,j)-b[t](i,j)));
+    }
 }
 } //anon
 
 SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWave::RasterPolicy reference) const
 {
+    const SolidSetup& S=*itsImp->setup;
+    if (S.planeWave) throw std::invalid_argument("SolidCalculation::GridAudit: a plane-wave run has no raster to audit");
+    if (reference==S.opts.raster)
+        throw std::invalid_argument(std::string("SolidCalculation::GridAudit: the reference raster is the run's own (")+RasterName(reference)+")");
+    qchem::report::Timed timed("postSCF: grid audit (reference basis + Hamiltonian + term matrices)");
+    return CompareAtFixedD(reference, rvec3_t(0,0,0), RasterName(reference));
+}
+
+SolidCalculation::GridAuditResult SolidCalculation::EggBox(const rvec3_t& shift) const
+{
+    const SolidSetup& S=*itsImp->setup;
+    if (S.planeWave) throw std::invalid_argument("SolidCalculation::EggBox: a plane-wave basis is translation-invariant by construction -- nothing to gate");
+    if (S.imposed)   throw std::invalid_argument("SolidCalculation::EggBox: an IMPOSED group's SALC phases follow the origin, so the shifted blocks "
+                                                 "would not match function for function -- gate the free twin");
+    if (!S.recipe)   throw std::invalid_argument("SolidCalculation::EggBox: the setup was resolved from a PRE-BUILT basis that cannot follow the "
+                                                 "shifted atoms -- resolve it from a GaussianBasisRecipe");
+    if (norm(shift)==0.0) throw std::invalid_argument("SolidCalculation::EggBox: a zero shift measures nothing");
+    if (!itsImp->hubbard.empty()) throw std::invalid_argument("SolidCalculation::EggBox: the +U projectors are built at the run's positions and would "
+                                                              "not follow the shift -- gate the U = 0 twin");
+    qchem::report::Timed timed("postSCF: egg-box (shifted basis + Hamiltonian + term matrices)");
+    std::ostringstream os; os<<"shift ("<<shift.x<<", "<<shift.y<<", "<<shift.z<<") bohr";
+    return CompareAtFixedD(S.opts.raster, shift, os.str());
+}
+
+SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(BasisSet::PlaneWave::RasterPolicy raster, const rvec3_t& shift,
+                                                                    const std::string& referenceName) const
+{
     namespace rpt=qchem::report;
     const SolidSetup&       S    = *itsImp->setup;
     const SolidCalcOptions& opts = S.opts;
-    if (S.planeWave) throw std::invalid_argument("SolidCalculation::GridAudit: a plane-wave run has no raster to audit");
-    if (reference==opts.raster)
-        throw std::invalid_argument(std::string("SolidCalculation::GridAudit: the reference raster is the run's own (")+RasterName(reference)+")");
+    const bool eggBox = norm(shift)>0.0;
     const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
-    if (!wf) throw std::logic_error("SolidCalculation::GridAudit: no wave function yet");
-    qchem::report::Timed timed("postSCF: grid audit (reference basis + Hamiltonian + term matrices)");
+    if (!wf) throw std::logic_error("SolidCalculation: no wave function yet (the audits run on a converged D)");
     const SpinGroup g = S.polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
     // The grid-audit verdicts of the report in scope: the run's own here, the reference's inside the fence below (both are printed, so
     // the predicted alias of whichever side is the coarse one can be read -- the run need not be the BallOnly side).
@@ -1280,16 +1311,29 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
     // describing the rasters the run USED.  (The run's own evaluator emitted its audits once, at its own first use, so nothing of the
     // run's lands in the fence.)  RAII: an exception mid-audit must not leave the report nested.
     struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} };
-    std::optional<Fence> fence(std::in_place, "gridAudit reference ("+std::string(RasterName(reference))+")");
+    std::optional<Fence> fence(std::in_place, "gridAudit reference ("+referenceName+")");
+    // The reference's GEOMETRY: the run's, or every atom translated rigidly by `shift` (the egg-box), its molecular basis remade from
+    // the frozen recipe there (as SolidSession builds a moved point).  Held to the end: the reference basis and Hamiltonian borrow them.
+    std::optional<Lattice_3D> latShifted;
+    std::shared_ptr<const BasisSet::Real_BS> molRef=itsImp->mol;
+    if (eggBox)
+    {
+        UnitCell cellR(S.reference.GetUnitCell());
+        for (size_t a=0;a<cellR.GetNumAtoms();a++) cellR[a]->itsR=cellR[a]->itsR+shift;
+        latShifted.emplace(cellR, S.reference.GetLimits());
+        molRef=S.recipe->Make(*latShifted->GetStructure(), S.pp);
+    }
+    const Lattice_3D& latRef = eggBox ? *latShifted : *itsImp->lat;
+    const auto        stRef  = eggBox ? latShifted->GetStructure() : itsImp->st;
     {
         namespace L3 = BasisSet::Lattice;
-        bsRef.reset(L3::GPWFactory(*itsImp->lat, itsImp->mol, L3::GPWParams{
-            .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = reference,
+        bsRef.reset(L3::GPWFactory(latRef, molRef, L3::GPWParams{
+            .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = raster,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = opts.tolerances,
             .hamPreservesReal = !opts.forceComplex}));
         if (rpt::Depth()>0) L3::EmitGpwGrids(*bsRef);   // the reference's grids + density verdict, as setup emits the run's (it forces EnsureLevels)
-        hamRef.reset(qchem::Hamiltonian::Factory(g, itsImp->st, bsRef.get(), S.pp, S.xcMesh, opts.vxcFit, itsImp->hubbard));
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, S.xcMesh, opts.vxcFit, itsImp->hubbard));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);
     auto cdRef=RestoreDensity(st, *bsRef, g);
@@ -1299,7 +1343,7 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
     itsImp->ham->RefreshForDensity(itsImp->bs.get(), dRun);
     hamRef     ->RefreshForDensity(bsRef.get(),       dRef);
 
-    GridAuditResult R; R.reference=RasterName(reference);
+    GridAuditResult R; R.reference=referenceName;
     auto toVerdicts=[](const rpt::json& v)
     {
         std::vector<GridAuditVerdict> out;
@@ -1330,17 +1374,46 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
     refVerdicts=readVerdicts();
     fence.reset();
     R.runVerdicts=toVerdicts(verdicts); R.referenceVerdicts=toVerdicts(refVerdicts);
+    // The rigorous bound per raster term, at the COARSE side's predicted alias (whichever side that is), and the measured eta
+    // (doc/GridEpsilonPlan.md §1: the bound and the calibration isolated; §5 M2c verdict 3: forces' eta on max|dH|, never on E).
+    auto coarseX=[&](const char* key)
+    {
+        double a=0.0;
+        for (const rpt::json* v : {static_cast<const rpt::json*>(&verdicts), static_cast<const rpt::json*>(&refVerdicts)}) if (v->contains(key)) a=std::max(a, (*v)[key].value("alias",0.0));
+        return a>0.0 ? -std::log(a) : 0.0;
+    };
+    namespace G = BasisSet::Gaussian;
+    for (auto& t : R.terms)
+    {
+        if (t.label.find("LONG-range")!=std::string::npos)
+        {
+            t.x=coarseX("auditVlocLong"); if (t.x<=0.0) t.x=coarseX("auditDensity");   // the kappa-sweep path has no V_long audit
+            t.bound=G::kVlocLongTail.Bound(t.x); t.eta=t.bound>0.0 ? t.maxAbsΔH/t.bound : 0.0; t.etaOn="H";
+        }
+        else if (t.entries=="Eee")
+        {
+            t.x=coarseX("auditDensity"); t.bound=G::kDensityTail.Bound(t.x);
+            t.eta=(t.bound>0.0 && t.E!=0.0) ? std::fabs(t.ΔE/t.E)/t.bound : 0.0; t.etaOn="E";
+        }
+        else if (t.entries=="Exc" && t.maxAbsΔH>0.0) t.etaOn="measured";
+    }
 
     // REPORT, contemporaneously (pin 17): console table + the run report's `gridAudit` section.
     const std::streamsize prec0=std::cout.precision();
-    std::cout<<"[grid audit] delivered error at the converged D: "<<RasterName(opts.raster)<<" (this run) vs "<<R.reference<<" (reference)"<<std::endl;
+    if (eggBox) std::cout<<"[egg box] rigid translation at the converged D (fixed D: the SCF egg-box differs at second order), "<<RasterName(opts.raster)
+                         <<", "<<R.reference<<": analytic terms must read 0"<<std::endl;
+    else        std::cout<<"[grid audit] delivered error at the converged D: "<<RasterName(opts.raster)<<" (this run) vs "<<R.reference<<" (reference)"<<std::endl;
     std::cout<<std::scientific<<std::setprecision(3);
     rpt::json rows=rpt::json::array();
     for (const auto& t : R.terms)
     {
-        std::cout<<"[grid audit]   max|ΔH_ij| "<<std::setw(10)<<t.maxAbsΔH<<"  ΔE "<<std::setw(11)<<t.ΔE<<" Ha  "
-                 <<t.label<<" ["<<t.entries<<"]"<<std::endl;
-        rows.push_back({{"term",t.label},{"entries",t.entries},{"maxAbsDH",t.maxAbsΔH},{"dE",t.ΔE},{"E",t.E}});
+        std::cout<<"[grid audit]   max|ΔH_ij| "<<std::setw(10)<<t.maxAbsΔH<<"  ΔE "<<std::setw(11)<<t.ΔE<<" Ha  ";
+        if      (t.etaOn=="H" || t.etaOn=="E") std::cout<<"[x="<<std::defaultfloat<<std::setprecision(4)<<t.x<<std::scientific<<std::setprecision(3)
+                                                       <<" bound "<<t.bound<<" eta_"<<t.etaOn<<" "<<t.eta<<"]  ";
+        else if (t.etaOn=="measured")          std::cout<<"[MEASURED: no rigorous bound for the XC raster]  ";
+        std::cout<<t.label<<" ["<<t.entries<<"]"<<std::endl;
+        rows.push_back({{"term",t.label},{"entries",t.entries},{"maxAbsDH",t.maxAbsΔH},{"dE",t.ΔE},{"E",t.E},
+                        {"x",t.x},{"bound",t.bound},{"eta",t.eta},{"etaOn",t.etaOn}});
     }
     std::cout<<"[grid audit]   max|ΔH_ij| "<<std::setw(10)<<R.maxAbsΔH<<"  ΔE "<<std::setw(11)<<R.ΔE<<" Ha  TOTAL"<<std::endl;
     for (const auto& [who,vs] : {std::pair<const char*,const rpt::json*>{"the run's own",&verdicts},{"the reference's",&refVerdicts}})
@@ -1349,7 +1422,7 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
                      <<" (predicted alias "<<it.value().value("alias",0.0)<<")"<<std::endl;
     std::cout<<std::defaultfloat<<std::setprecision(prec0);
     if (rpt::Depth()>0)
-        rpt::EmitAt("gridAudit", RasterName(opts.raster)+std::string("_vs_")+R.reference,
+        rpt::EmitAt(eggBox ? "eggBox" : "gridAudit", eggBox ? R.reference : RasterName(opts.raster)+std::string("_vs_")+R.reference,
                     rpt::json{{"run",RasterName(opts.raster)},{"reference",R.reference},{"terms",rows},
                          {"maxAbsDH",R.maxAbsΔH},{"dE",R.ΔE},{"verdicts",verdicts},{"referenceVerdicts",refVerdicts}});
     return R;

@@ -95,7 +95,7 @@ struct RunSpec
     //! itself to the console; its result summary goes in the revision record under `results`.  Prerequisites are checked by \c Resolve BEFORE the SCF starts.
     struct PostAction
     {
-        enum class Kind { EstimateHubbardU, HubbardLoop, IndependentResponse, HubbardLinearResponse, HubbardFiniteDifference, GridAudit };
+        enum class Kind { EstimateHubbardU, HubbardLoop, IndependentResponse, HubbardLinearResponse, HubbardFiniteDifference, GridAudit, EggBox };
         Kind                kind = Kind::EstimateHubbardU;
         size_t              maxOuter = 20;        //!< hubbardLoop: outer steps allowed
         double              tolU_eV  = 1e-4;      //!< hubbardLoop: |dU| convergence per manifold (eV)
@@ -113,6 +113,9 @@ struct RunSpec
         bool        littleGroupK = false; //!< hubbardLinearResponse: solve each (q, J) on its little group's k-blocks (KAxisPlan P5)
         //! gridAudit: the reference raster the run's raster terms are compared against at the converged D (doc/GridEpsilonPlan.md §3)
         BasisSet::PlaneWave::RasterPolicy reference = BasisSet::PlaneWave::RasterPolicy::AliasFree;
+        //! eggBox: the rigid translation (bohr) of every atom; the default is a GENERIC direction (no symmetry plane), 0.037 bohr -- the
+        //! NaF F-site egg-box was measured at 0.03 (doc/GridEpsilonPlan.md §5 verdict 5)
+        rvec3_t shift{0.03,0.02,0.01};
         bool operator==(const PostAction&) const = default;
     };
 

@@ -278,7 +278,8 @@ json ToJson(const SolidCalcOptions& o)
     return {{"Nelec",o.Nelec},{"multiplicity",o.multiplicity},{"pp",o.pp},{"species",species},
             {"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
             {"raster",NameOf(o.raster,kRaster)},{"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
-            {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},{"policy",ToJson(o.policy)},{"vxcFit",NameOf(o.vxcFit,kVxc)},{"hubbard",hub},
+            {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},
+            {"accuracy",o.accuracy.eps},{"accuracyCalibration",{{"vlocLong",o.accuracy.eta.vlocLong},{"density",o.accuracy.eta.density}}},{"policy",ToJson(o.policy)},{"vxcFit",NameOf(o.vxcFit,kVxc)},{"hubbard",hub},
             {"accelerator",NameOf(o.accelerator,kAcc)},{"perKFermiLevels",o.perKFermiLevels},{"imposeSymmetry",o.imposeSymmetry},{"xcMeshSymmetric",o.xcMeshSymmetric},
             {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho,kOrtho)},{"orthoTol",o.orthoTol},{"numBands",o.numBands},{"forceComplex",o.forceComplex},
             {"spinsShareFermi",o.spinsShareFermi},{"greyImposition",o.greyImposition},{"momFromSeed",o.momFromSeed},
@@ -309,6 +310,17 @@ void FromJson(const json& j, SolidCalcOptions& o)
     else f.At("kShift");
     if (j.contains("xcMesh"))     FromJson(f.At("xcMesh"),o.xcMesh);         else f.At("xcMesh");
     if (j.contains("tolerances")) FromJson(f.At("tolerances"),o.tolerances); else f.At("tolerances");
+    f.Get("accuracy",o.accuracy.eps);
+    if (!(o.accuracy.eps>0.0)) throw std::runtime_error("deck: 'solid.accuracy' (Ha per matrix element) must be > 0");
+    if (j.contains("accuracyCalibration"))
+    {
+        Fields c(f.At("accuracyCalibration"),"solid.accuracyCalibration");
+        c.Get("vlocLong",o.accuracy.eta.vlocLong); c.Get("density",o.accuracy.eta.density);
+        c.Done();
+        if (!(o.accuracy.eta.vlocLong>0.0 && o.accuracy.eta.density>0.0))
+            throw std::runtime_error("deck: 'solid.accuracyCalibration' factors must be > 0 (1 = rigorous)");
+    }
+    else f.At("accuracyCalibration");
     if (j.contains("policy"))     FromJson(f.At("policy"),o.policy);         else f.At("policy");
     f.GetEnum("vxcFit",o.vxcFit,kVxc);
     if (j.contains("hubbard"))
@@ -345,6 +357,7 @@ const char* PostName(PostAction::Kind k)
     case PostAction::Kind::HubbardLinearResponse:   return "hubbardLinearResponse";
     case PostAction::Kind::HubbardFiniteDifference: return "hubbardFiniteDifference";
     case PostAction::Kind::GridAudit:               return "gridAudit";
+    case PostAction::Kind::EggBox:                  return "eggBox";
     }
     throw std::logic_error("deck: PostAction kind");
 }
@@ -380,6 +393,7 @@ json PostJson(const PostAction& a)
                                                        {"resolve",NameOf(a.resolve,kResolution)},{"qStars",a.qStars},{"littleGroupK",a.littleGroupK}}; break;
     case PostAction::Kind::HubbardFiniteDifference: p={{"perturb",a.perturb},{"alpha_eV",ToEV(a.alpha)}}; break;
     case PostAction::Kind::GridAudit:               p={{"reference",NameOf(a.reference,kRaster)}}; break;
+    case PostAction::Kind::EggBox:                  p={{"shift",{a.shift.x,a.shift.y,a.shift.z}}}; break;
     }
     return json::object({{PostName(a.kind),p}});
 }
@@ -406,7 +420,14 @@ PostAction PostFromJson(const json& j, const std::string& path)
     else if (name=="hubbardFiniteDifference")
     { a.kind=PostAction::Kind::HubbardFiniteDifference; f.Get("perturb",a.perturb); double eV=ToEV(a.alpha); f.Get("alpha_eV",eV); a.alpha=eV/kHaToEV; }
     else if (name=="gridAudit")          { a.kind=PostAction::Kind::GridAudit; f.GetEnum("reference",a.reference,kRaster); }
-    else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference, gridAudit)");
+    else if (name=="eggBox")
+    {
+        a.kind=PostAction::Kind::EggBox;
+        std::vector<double> v{a.shift.x,a.shift.y,a.shift.z}; f.Get("shift",v);
+        if (v.size()!=3) throw std::runtime_error("deck: '"+path+".eggBox.shift' must be [x,y,z] (bohr)");
+        a.shift=rvec3_t(v[0],v[1],v[2]);
+    }
+    else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference, gridAudit, eggBox)");
     f.Done();
     return a;
 }
@@ -564,6 +585,14 @@ Materials::Material Resolve(RunSpec& spec)
                 if (spec.basis.family!=SolidCalcOptions::OrbitalBasis::GPW) throw std::runtime_error(who+"a plane-wave run has no raster to audit");
                 if (a.reference==spec.solid.raster)
                     throw std::runtime_error(who+"the reference raster is the run's own ("+NameOf(a.reference,kRaster)+"): name the other one");
+                continue;
+            }
+            if (a.kind==PostAction::Kind::EggBox)      // a rigid translation of a free, U = 0 Gaussian run at a nonzero shift
+            {
+                if (spec.basis.family!=SolidCalcOptions::OrbitalBasis::GPW) throw std::runtime_error(who+"a plane-wave basis is translation-invariant by construction");
+                if (spec.solid.imposeSymmetry) throw std::runtime_error(who+"an imposed group's SALC phases follow the origin -- gate the free twin (imposeSymmetry false)");
+                if (!spec.solid.hubbard.empty()) throw std::runtime_error(who+"the +U projectors would not follow the shift -- gate the U = 0 twin");
+                if (norm(a.shift)==0.0) throw std::runtime_error(who+"a zero shift measures nothing");
                 continue;
             }
             const bool needsU = true;   // every action works on the Hubbard manifolds (list them at U=0 to probe a run without +U)
@@ -901,9 +930,12 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
             rj["fd"]=fds; pr.ok=ok; pr.summary=std::to_string(J.size())+" manifold(s) perturbed"; break;
         }
         case K::GridAudit:
+        case K::EggBox:
         {
-            const auto R=calc->GridAudit(a.reference);
-            json t=json::array(); for (const auto& x : R.terms) t.push_back({{"term",x.label},{"entries",x.entries},{"maxAbsDH",x.maxAbsΔH},{"dE",x.ΔE}});
+            const auto R= a.kind==K::EggBox ? calc->EggBox(a.shift) : calc->GridAudit(a.reference);
+            json t=json::array();
+            for (const auto& x : R.terms) t.push_back({{"term",x.label},{"entries",x.entries},{"maxAbsDH",x.maxAbsΔH},{"dE",x.ΔE},
+                                                       {"x",x.x},{"bound",x.bound},{"eta",x.eta},{"etaOn",x.etaOn}});
             rj["reference"]=R.reference; rj["terms"]=t; rj["maxAbsDH"]=R.maxAbsΔH; rj["dE"]=R.ΔE;
             auto vj=[](const auto& vs) { json o=json::object(); for (const auto& v : vs) o[v.audit]={{"status",v.status},{"alias",v.alias}}; return o; };
             rj["verdicts"]=vj(R.runVerdicts); rj["referenceVerdicts"]=vj(R.referenceVerdicts);

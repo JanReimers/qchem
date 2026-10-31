@@ -432,16 +432,27 @@ public:
     //! verdict (grids.auditDensity / auditVlocLong) AND the reference's, so the predicted alias of whichever side is the coarse one can be
     //! read against the delivered difference.  Reports to the
     //! console and to the run report (section `gridAudit`).  THROWS on a plane-wave run (no raster) or a reference equal to the run's.
-    struct GridAuditTerm { std::string label, entries; double maxAbsΔH=0.0, ΔE=0.0, E=0.0; };   //!< label/entries: \c TermEnergy's
+    //! label/entries: \c TermEnergy's.  \c bound / \c eta: the term's RIGOROUS alias bound at the COARSE side's x (GPWTolerances.C
+    //! \c AliasTail) and the measured eta = delivered / bound -- on max|dH_ij| for V_loc long (what forces see), on |dE|/|E| for Hartree;
+    //! \c etaOn names which ("H", "E"), or "measured" for the XC raster (no rigorous bound: v_xc[rho] is nonlinear), or "" (analytic).
+    struct GridAuditTerm { std::string label, entries; double maxAbsΔH=0.0, ΔE=0.0, E=0.0, x=0.0, bound=0.0, eta=0.0; std::string etaOn; };
     struct GridAuditVerdict { std::string audit, status; double alias=0.0; };   //!< one grids.audit* entry (audit = its key)
     struct GridAuditResult
     {
-        std::string reference;                 //!< the reference raster's name
+        std::string reference;                 //!< the reference: its raster's name, or the egg-box shift
         std::vector<GridAuditVerdict> runVerdicts, referenceVerdicts;   //!< each side's own grid-audit verdicts
         std::vector<GridAuditTerm> terms;      //!< every term, in the Hamiltonian's order (analytic terms read 0)
         double maxAbsΔH=0.0, ΔE=0.0;           //!< the whole Hamiltonian's (ΔE = E_run - E_reference)
     };
     GridAuditResult GridAudit(BasisSet::PlaneWave::RasterPolicy reference) const;
+    //! \brief THE EGG-BOX GATE (doc/GridEpsilonPlan.md §5 verdict 5): every atom translated rigidly by \a shift (bohr), basis and Hamiltonian
+    //! rebuilt there (the molecular basis remade from the setup's frozen recipe), the SAME AO density matrix restored (a rigid
+    //! translation moves every function with its atom, so D is unchanged), and every term compared -- with the same GridAuditResult.
+    //! An exact method is translation-invariant: every ANALYTIC term must read max|dH_ij| = dE = 0, and the raster terms' dE / dH are
+    //! the egg-box.  FIXED-D, and sufficient as a gate: at a converged (stationary) D the self-consistent egg-box differs from this only
+    //! at second order.  THROWS on a plane-wave run, on an imposed group (the SALC phases follow the origin, so blocks would not match
+    //! function for function), and on a setup resolved from a pre-built basis (no recipe to remake it at the shifted atoms).
+    GridAuditResult EggBox(const rvec3_t& shift) const;
     //! \brief The SELF-CONSISTENT channel response at q = 0 over the run's Hubbard manifolds
     //! (doc/LinearResponsePlan.md stage R2): \f$(1-\mathcal R_0\mathcal K)\,\delta D=\mathcal R_0V_J\f$ with the
     //! Hamiltonian's ANALYTIC kernel (Hartree + ALDA f_xc; +U frozen or at U = 0 answers zero, H4), linearised
@@ -599,6 +610,9 @@ private:
     //! Install the composed order probe + observer on the current iterator (see the .C for why the
     //! facade takes both hooks and hands the caller's back through them).
     void AttachProbes();
+    //! The ONE comparison under both audits: the run against a reference built on \a raster at the atoms shifted by \a shift (zero
+    //! for the raster audit), at the same D, term by term.  \a reference names the reference in the report.
+    GridAuditResult CompareAtFixedD(BasisSet::PlaneWave::RasterPolicy raster, const rvec3_t& shift, const std::string& reference) const;
     std::unique_ptr<Imp> itsImp;
 };
 

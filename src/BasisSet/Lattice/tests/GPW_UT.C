@@ -37,6 +37,7 @@ import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView; // MakeSphericalLat
 import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential + the _R / _Gaussian faces (KB gate)
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 projector data)
 import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
+import qchem.BasisSet.Gaussian.Lattice.GPWTolerances; // AliasTail / GridAccuracy (the rigorous accuracy math)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // Gaussian::LatticeSum1E::CollocateDensity (analytic collocation)
 import qchem.LASolver;                       // LASolver<dcmplx> (the k=1/4 spectrum gate)
 import qchem.Symmetry.Factory;               // BlochFactory (arbitrary-shift k for the k=1/4 continuity gate)
@@ -2857,4 +2858,29 @@ TEST(GPW, OrbitalImage_SiDiamond_PPMatricesCarryOver)
         EXPECT_LT(dK, 1e-12*MaxAbs(K)) << "KB at k=" << k;
         EXPECT_LT(dL, 1e-12*MaxAbs(L)) << "V_short at k=" << k;
     }
+}
+
+// THE RIGOROUS HALF of the grid accuracy target (doc/GridEpsilonPlan.md §1, ruled 2026-10-31: isolated from the heuristic eta):
+// L(eps) is the root L > n of S L^n e^{-L} = eps -- NOT the bare ln(S/eps), which under-sizes every raster by ~7 units of x at 1e-5.
+// Hand values: M2b's table (§5) for the fitted tails at eps = 1e-4 / 1e-5 / 1e-6 / 1e-7.
+TEST(GridAccuracy, TheAliasExponentIsTheRootOfTheFittedTail)
+{
+    using namespace qchem::BasisSet::Gaussian;
+    const double eps[]={1e-4,1e-5,1e-6,1e-7};
+    const double Lv[]={18.9,21.6,24.2,26.8}, Lr[]={16.6,19.4,22.0,24.7};   // §5 M2b, 3 digits (22.1 there was a hand-rounding: the root is 22.045)
+    for (int i=0;i<4;i++)
+    {
+        const double v=kVlocLongTail.Exponent(eps[i]), r=kDensityTail.Exponent(eps[i]);
+        EXPECT_NEAR(v, Lv[i], 0.05) << "V_long at eps " << eps[i];
+        EXPECT_NEAR(r, Lr[i], 0.05) << "density at eps " << eps[i];
+        EXPECT_NEAR(kVlocLongTail.Bound(v)/eps[i], 1.0, 1e-10) << "the root solves the tail equation";
+        EXPECT_NEAR(kDensityTail.Bound(r)/eps[i], 1.0, 1e-10);
+        EXPECT_GT(v, kVlocLongTail.n) << "the DECREASING branch";
+        EXPECT_GT(v, std::log(kVlocLongTail.S/eps[i])+5.0) << "the x^3 prefactor costs ~7 units of x over the bare form";
+    }
+    EXPECT_THROW(kVlocLongTail.Exponent(10.0), std::invalid_argument) << "above the tail's maximum: no raster is needed";
+    EXPECT_THROW(kVlocLongTail.Exponent(0.0),  std::invalid_argument);
+    GridAccuracy a; a.eps=1e-6; a.eta.vlocLong=0.1;
+    EXPECT_NEAR(a.Calibrated(kVlocLongTail,a.eta.vlocLong), kVlocLongTail.Exponent(1e-7), 1e-12) << "the calibration is L(eta*eps), nothing else";
+    EXPECT_NE(a.Describe(GPWTolerances{}).find("MEASURED"), std::string::npos) << "the XC raster is never presented as rigorous";
 }

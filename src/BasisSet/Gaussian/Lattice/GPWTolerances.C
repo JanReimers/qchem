@@ -48,4 +48,51 @@ struct GPWTolerances
     bool operator==(const GPWTolerances&) const = default;
 };
 
+//! \brief RIGOROUS (doc/GridEpsilonPlan.md §1, ruled 2026-10-31: "the rigorous math aspect well isolated from the heuristic part"):
+//! one term class's raster ALIAS-TAIL model, err(x) <= S x^n e^{-x} at x = G_N^2/p, fitted ONCE against the closed-form oracles
+//! (`GPW.RasterAliasCalibration`, M2b: an s+p+d pair's Hermite prefactor makes n = 3) and gated by them.  Pure math, no fudge inside:
+//! at eta = 1 it guarantees the single-pair worst case.  Valid for x >= 4 (below it the image is not a small tail).
+struct AliasTail
+{
+    double S;   //!< the term's scale (Ha for a matrix-element bound; relative for the density)
+    double n;   //!< the Hermite prefactor's power
+    //! The bound at a raster's x.
+    double Bound(double x) const;
+    //! \brief The x a raster must reach for the bound to meet \a eps: the root L > n of S L^n e^{-L} = eps (the DECREASING branch --
+    //! the bare ln(S/eps) under-sizes by ~7 units of x at 1e-5).  THROWS for eps >= the bound's maximum (no raster needed).
+    double Exponent(double eps) const;
+};
+//! M2b's fitted tails (n = 3 is the gate; GPW_UT `RasterAliasCalibration` asserts err <= S x^3 e^{-x} with S 2.5 / 0.4).
+inline constexpr AliasTail kVlocLongTail{2.35, 3.0};   //!< V_loc long <chi|V|chi> (Ha)
+inline constexpr AliasTail kDensityTail {0.35, 3.0};   //!< rho~ at low G (relative): Hartree's and the raster XC's input
+
+//! \brief HEURISTIC (the same ruling): how far the DELIVERED error undershoots the rigorous bound, ONE factor per term class,
+//! measured by `gridAudit` (doc/GridEpsilonPlan.md §5 M2c).  The sizing uses L(eta*eps).  1 = rigorous mode (geometry/force
+//! validation asks for it).  M2c found eta NOT flat across materials (V_long 1e-4 ... 0.15, Hartree 5e-6 ... 1e-2), so it is to be
+//! SELF-CALIBRATED per run by a pilot audit, never a shipped per-class table; until that lands the default is the rigorous 1.
+//! For FORCES eta is judged on max|dH_ij|, never on energies (dE cancels inside Tr D dH: MnO V_long 0.26 Ha vs dE 5 uHa).
+struct AccuracyCalibration
+{
+    double vlocLong = 1.0;   //!< eta of the V_loc long term
+    double density  = 1.0;   //!< eta of the density-raster terms (Hartree; NOT the XC raster -- see GridAccuracy)
+    bool operator==(const AccuracyCalibration&) const = default;
+};
+
+//! \brief The ONE accuracy target (deck `solid.accuracy`, Ha per Hamiltonian matrix element) and its calibration
+//! (`solid.accuracyCalibration`, expert).  C2 step 2: carried, derived and REPORTED; the sizing still uses today's knobs (step 3
+//! makes them derived -- the anchor-moving step), so the [accuracy] line prints both what the rule demands and what is used.
+struct GridAccuracy
+{
+    double              eps = 1.0e-5;   //!< today's tests' value (kappa = 30 Ha <=> L = 15 on the local-PP sweeps)
+    AccuracyCalibration eta;
+    //! L_rigorous (eta = 1) and L_used-by-the-rule (eta applied) for one tail.
+    double Rigorous(const AliasTail& t) const {return t.Exponent(eps);}
+    double Calibrated(const AliasTail& t, double etaTerm) const {return t.Exponent(etaTerm*eps);}
+    //! \brief The run banner's accuracy line (after "[label run] accuracy: "): eps, eta, and per term class the raster x the rule demands, rigorous and calibrated, beside
+    //! the knob values the sizing uses today.  The XC raster has NO rigorous bound (v_xc[rho] is nonlinear: it aliases even where
+    //! rho~ is band-limited -- Si k222 434x over the rho-pair bound, M2c), so it is labelled MEASURED, never rigorous.
+    std::string Describe(const GPWTolerances& used) const;
+    bool operator==(const GridAccuracy&) const = default;
+};
+
 } // namespace qchem::BasisSet::Gaussian

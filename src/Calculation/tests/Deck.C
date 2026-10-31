@@ -470,6 +470,48 @@ TEST(Deck, GridAuditRoundTripsAndNeedsADifferentRaster)
     EXPECT_NE(msg(base({{{"gridAudit",{{"reference","Nyquist"}}}}},json::object())).find("Nyquist"),std::string::npos) << "an unknown raster name is refused";
 }
 
+// The ONE grid accuracy target (doc/GridEpsilonPlan.md §1, C2 step 2): solid.accuracy (eps) and the expert calibration round-trip,
+// default to eps 1e-5 / eta 1 (the rigorous mode, today's tests' value), and a non-positive value is refused at the reader.
+TEST(Deck, GridAccuracyTargetRoundTripsAndRefusesNonPositive)
+{
+    auto read=[](json solid){ deck::RunSpec s; deck::FromJson(json{{"structure","Si_diamond"},{"solid",solid}},s); return s; };
+    auto msg=[&](json solid){ try { read(solid); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
+    const deck::RunSpec d=read(json::object());
+    EXPECT_EQ(d.solid.accuracy.eps, 1e-5);
+    EXPECT_EQ(d.solid.accuracy.eta.vlocLong, 1.0);
+    EXPECT_EQ(d.solid.accuracy.eta.density, 1.0);
+    const deck::RunSpec r=read({{"accuracy",1e-6},{"accuracyCalibration",{{"vlocLong",0.1},{"density",0.01}}}});
+    EXPECT_EQ(r.solid.accuracy.eps, 1e-6);
+    EXPECT_EQ(r.solid.accuracy.eta.vlocLong, 0.1);
+    EXPECT_EQ(r.solid.accuracy.eta.density, 0.01);
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
+    EXPECT_EQ(deck::ToJson(back),j);
+    EXPECT_TRUE(back.solid.accuracy==r.solid.accuracy);
+    EXPECT_NE(msg({{"accuracy",0.0}}).find("solid.accuracy"),std::string::npos);
+    EXPECT_NE(msg({{"accuracyCalibration",{{"density",-1.0}}}}).find("accuracyCalibration"),std::string::npos);
+    EXPECT_NE(msg({{"accuracyCalibration",{{"xc",1.0}}}}).find("xc"),std::string::npos) << "the XC raster has no rigorous bound to calibrate";
+}
+
+// The egg-box action (doc/GridEpsilonPlan.md §5 verdict 5): round-trips its shift, defaults to a generic 0.037 bohr, and is refused
+// before the SCF wherever a rigid translation cannot be compared function for function (an imposed group, +U) or measures nothing.
+TEST(Deck, EggBoxRoundTripsAndRefusesWhatCannotTranslate)
+{
+    auto msg=[](json d){ try { deck::RunSpec s; deck::FromJson(d,s); deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
+    auto base=[](json post, json solid) { return json{{"structure","NaF_rocksalt"},{"solid",solid},{"postSCF",post}}; };
+    deck::RunSpec r;
+    deck::FromJson(json{{"structure","NaF_rocksalt"},{"postSCF",{{{"eggBox",json::object()}}, {{"eggBox",{{"shift",{0.1,0,0}}}}}}}}, r);
+    ASSERT_EQ(r.postSCF.size(),2u);
+    EXPECT_GT(norm(r.postSCF[0].shift), 0.0) << "a default shift that measures something";
+    EXPECT_EQ(r.postSCF[1].shift.x, 0.1);
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
+    EXPECT_EQ(deck::ToJson(back),j); EXPECT_TRUE(back.postSCF==r.postSCF);
+    EXPECT_EQ(msg(base({{{"eggBox",json::object()}}},json::object())),"NO THROW");
+    EXPECT_NE(msg(base({{{"eggBox",{{"shift",{0,0,0}}}}}},json::object())).find("zero shift"),std::string::npos);
+    EXPECT_NE(msg(base({{{"eggBox",json::object()}}},json{{"imposeSymmetry",true}})).find("free twin"),std::string::npos);
+    EXPECT_NE(msg(base({{{"eggBox",json::object()}}},json{{"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0}}}}})).find("U = 0 twin"),std::string::npos);
+    EXPECT_NE(msg(base({{{"eggBox",{{"shift",{0.1,0}}}}}},json::object())).find("[x,y,z]"),std::string::npos);
+}
+
 TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
 {
     auto msg=[](json solid)

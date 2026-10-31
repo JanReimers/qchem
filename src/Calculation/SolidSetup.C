@@ -107,6 +107,10 @@ struct SolidCalcOptions
     //! environment (GPW_VLOC_EPS, ...) is applied on top as an OVERRIDE LAYER when the run resolves its options -- every
     //! override is named on the run banner.
     qchem::BasisSet::Gaussian::GPWTolerances tolerances = {};
+    //! \brief The ONE grid accuracy target eps (Ha per matrix element; deck `solid.accuracy`) and its calibration eta (expert,
+    //! `solid.accuracyCalibration`), doc/GridEpsilonPlan.md §1.  C2 step 2: carried and REPORTED (the run banner's [accuracy] line:
+    //! what the rigorous rule demands beside the knobs the sizing still uses); it moves no number until step 3 derives the knobs.
+    qchem::BasisSet::Gaussian::GridAccuracy accuracy = {};
     //! The declared CP2K deviations (routes and accelerations CP2K does not run) -- the deck's `policy` block (D-ENV step 6b).  Unstated
     //! routes take the qchem default, or CP2K's value under \c cp2kCompat; a stated one wins over the umbrella.  The facade INSTALLS it
     //! (\c SetRunPolicy) as the first act of construction; the resolved table is printed on the run banner.  No environment variable sets it.
