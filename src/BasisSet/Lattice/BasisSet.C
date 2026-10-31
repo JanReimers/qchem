@@ -97,6 +97,14 @@ struct GPWParams
     //! maps \f$+m\f$ sites onto \f$-m\f$ sites and would erase the magnetic order it is supposed to
     //! protect.  Empty (the default) = the historical grey imposition.
     std::vector<int> siteSpins = {};
+    //! \brief FREE run only: build the XC mesh INVARIANT under the group detected at THIS geometry (KAxisPlan ruling 1:
+    //! symmetric numerics for a free run).  \c false = the plain atom-centred mesh, whatever the geometry's group.
+    //! A POTENTIAL ENERGY SURFACE needs \c false (\c qchem::SolidSession): the detected group is re-decided at every
+    //! geometry, so the mesh would SWITCH as atoms move -- measured on the NaF Γ path (F along x, Becke(20,2,24)): 48 ops
+    //! and 16752 points on the site, 8 ops and 17536 points off it, a 2.5e-5 Ha step at δ = 0 and a 9.4e-5 Ha/bohr odd
+    //! term the mirror through F forbids (the lowered group's site-adapted angular set is not mirror-symmetric).  The
+    //! plain mesh is the one choice no path can invalidate: it moves with the atoms, the same at every point.
+    bool freeMeshInvariant = true;
     //! \brief The GPW evaluator's numerical tolerances (local-PP G-ball eps, the local-PP kappa, the HartreeOnly floor
     //! fraction, an explicit multigrid cutoff list): typed, injected into every block's evaluator at construction
     //! (D-ENV step 5).  Defaults = today's behaviour; the environment is only an override layer applied by the facade.

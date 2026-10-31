@@ -37,6 +37,7 @@ SCFParams Tight()
 SolidCalcOptions SiGamma(bool imposed=false)
 {
     SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.imposeSymmetry=imposed; o.label="pes";
+    o.xcMeshSymmetric=false;   // a session's free setup: the plain XC mesh, the same at every geometry (SolidSession requires it)
     return o;
 }
 const GaussianBasisRecipe kSiBasis{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR};
@@ -113,6 +114,11 @@ TEST(SolidSession, RefusalsAreOutcomesAndAWrongCountThrows)
     const PESGeometry fr=fixed.Reference();
     std::vector<rvec3_t> moved=fr.R; moved[1].x+=0.05;
     EXPECT_THROW((void)fixed.ConvergeAt(fr.cell, moved), std::invalid_argument);
+
+    // A FREE setup whose XC mesh follows the group detected at each geometry would switch meshes along a path: refused at once.
+    SolidCalcOptions sym=SiGamma(); sym.xcMeshSymmetric=true;
+    const auto symSetup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), kSiBasis, sym);
+    EXPECT_THROW(SolidSession(symSetup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}}), std::invalid_argument);
 }
 
 // Q3 (doc/CalcNetworkReview.md §7): the trim is decided ONCE, at the reference, and frozen.  A step that pushes the frozen basis

@@ -602,7 +602,8 @@ public:
     //! carried D stays idempotent with the right electron count in the new metric.
     enum class Carry { AO, Lowdin };
     //! \a schedule: the SCF recipe -- the first point runs all of it from the setup's seed, every later point its FINAL stage
-    //! from the carried density, moved onto the new basis as \a carry says.
+    //! from the carried density, moved onto the new basis as \a carry says.  THROWS on a free Gaussian setup resolved with
+    //! \c SolidCalcOptions::xcMeshSymmetric (the XC mesh would follow the group detected at each geometry and switch along a path).
     SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule, Carry carry=Carry::AO);
     ~SolidSession();
     PESGeometry Reference() const override;

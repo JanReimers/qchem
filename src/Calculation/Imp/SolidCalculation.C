@@ -353,7 +353,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
             .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .tol = tol,
+            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = tol,
             .hamPreservesReal = hamPreservesReal}));
     }
     // THE RUN REPORTS ITS OWN BASIS AND GRIDS (TE phase 2, 2026-09-15; the reporting rule: each class emits
@@ -1021,6 +1021,9 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     xc<<MeshName(itsImp->setup->xcMesh.cellKind);
     if (itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke) xc<<" nR="<<itsImp->setup->xcMesh.nRadial<<" L="<<itsImp->setup->xcMesh.angularDegree;
     else                                                      xc<<" eCut="<<itsImp->setup->xcMesh.eCut;
+    // A free run on the PLAIN mesh (xcMeshSymmetric=false, what a SolidSession needs) quadratures on different points: name it, so a
+    // restart across the choice says the quadrature changed.  Only then -- every state written before the option keeps its string.
+    if (!itsImp->setup->imposed && !itsImp->setup->planeWave && !o.xcMeshSymmetric) xc<<" plain";
     RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .ppSet=itsImp->setup->pp.Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
                          .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT,
@@ -1701,6 +1704,10 @@ SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<
     : itsSetup(std::move(setup)), itsSchedule(std::move(schedule)), itsCarry(carry)
 {
     if (itsSchedule.empty()) throw std::invalid_argument("SolidSession: an EMPTY schedule has no meaning -- pass at least one stage.");
+    if (!itsSetup->imposed && !itsSetup->planeWave && itsSetup->opts.xcMeshSymmetric)
+        throw std::invalid_argument("SolidSession: a FREE setup with xcMeshSymmetric=true builds its XC mesh invariant under the group "
+                                    "detected at EACH geometry, so the mesh switches as the atoms move and the surface jumps -- resolve "
+                                    "the setup with SolidCalcOptions::xcMeshSymmetric=false (the plain atom-centred mesh)");
 }
 SolidSession::~SolidSession() = default;
 
