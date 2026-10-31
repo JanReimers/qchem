@@ -50,6 +50,7 @@ cd build/Release && ninja rundeck                                  # the one CLI
   "solid": {                              // SolidCalcOptions -- every field; Nelec/species/multiplicity default from the material
     "multiplicity": 1, "seed": "IonicSAD", "ortho": "CholeskyPivoted", "orthoTol": 1e-4, "accelerator": "Null",   // Auto (default; = DIIS today) | DIIS | GDM | Ladder | Null
     "imposeSymmetry": false, "forceComplex": false, "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
+    "xcMeshSymmetric": true,              // FREE run: XC mesh invariant under the group detected at THIS geometry; false = the plain atom-centred mesh (a displacement path needs false)
     "xcMesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... },
     "tolerances": { "screenEps": 1e-10, "densityEps": 1e-10, "vlocEps": 1e-5, "fieldSharp": 0.667, "relCutoff": 0, "mgridEcuts": [], ... },
     "policy": { "cp2kCompat": false, "streamFold": true, ... },     // the declared CP2K deviations; ONLY stated routes are recorded
