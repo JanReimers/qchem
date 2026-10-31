@@ -1699,6 +1699,10 @@ std::string GPW_Evaluator::IDFragment() const
          +(itsHomeOnly?"|home":"")
          +(sfold?"|sfold="+std::to_string(sfold):"")
          +"|dEcut="+(itsFFT_R_G_Grids?std::to_string(itsFFT_R_G_Grids->Ecut()):std::string("0"))
+         // The RASTER and the LADDER are grid facts too: two bases differing only in raster sampled V_loc long (and every key-cached grid
+         // term) on different rasters, but shared one cache entry -- the grid audit's reference read the run's own V_long (2026-10-31).
+         +(itsRaster==RasterPolicy::AliasFree ? "|raster=AF" : "|raster=BO")
+         +(itsLadderFactor==4.0 ? std::string() : "|ladder="+std::to_string(itsLadderFactor))
          +(itsTol==GPWTolerances{} ? std::string() : "|tol="+itsTol.Describe());   // a non-default tolerance is a different basis for caching
 }
 

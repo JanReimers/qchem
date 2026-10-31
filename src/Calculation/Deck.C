@@ -31,6 +31,7 @@ import qchem.Types;                // ivec3_t
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names its accelerator)
 import qchem.Materials;            // Material (the structure section's name resolves to one)
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
+import qchem.BasisSet.PlaneWave.Evaluators;   // RasterPolicy (the gridAudit action's reference raster)
 
 export namespace qchem::deck
 {
@@ -90,7 +91,7 @@ struct RunSpec
     //! itself to the console; its result summary goes in the revision record under `results`.  Prerequisites are checked by \c Resolve BEFORE the SCF starts.
     struct PostAction
     {
-        enum class Kind { EstimateHubbardU, HubbardLoop, IndependentResponse, HubbardLinearResponse, HubbardFiniteDifference };
+        enum class Kind { EstimateHubbardU, HubbardLoop, IndependentResponse, HubbardLinearResponse, HubbardFiniteDifference, GridAudit };
         Kind                kind = Kind::EstimateHubbardU;
         size_t              maxOuter = 20;        //!< hubbardLoop: outer steps allowed
         double              tolU_eV  = 1e-4;      //!< hubbardLoop: |dU| convergence per manifold (eV)
@@ -106,6 +107,8 @@ struct RunSpec
         Response::HubbardResolution resolve = Response::HubbardResolution::Manifold;
         bool        qStars = false;    //!< hubbardLinearResponse: one q per star of the ground state's group (KAxisPlan P3; audited)
         bool        littleGroupK = false; //!< hubbardLinearResponse: solve each (q, J) on its little group's k-blocks (KAxisPlan P5)
+        //! gridAudit: the reference raster the run's raster terms are compared against at the converged D (doc/GridEpsilonPlan.md §3)
+        BasisSet::PlaneWave::RasterPolicy reference = BasisSet::PlaneWave::RasterPolicy::AliasFree;
         bool operator==(const PostAction&) const = default;
     };
 

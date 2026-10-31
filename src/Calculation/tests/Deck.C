@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 import qchem.Hamiltonian.Factory;   // HubbardProjectorKind (the manifold projector-kind round trip)
 import qchem.Deck;
+import qchem.BasisSet.PlaneWave.Evaluators;   // RasterPolicy (the gridAudit reference)
 import qchem.SolidCalculation;
 import qchem.SCFParams;
 import qchem.Mesh;
@@ -445,6 +446,24 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",json::object()}}},hub)).find("alpha_eV must be nonzero"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardLoop",{{"maxOuter",0}}}}},hub)).find("maxOuter >= 1"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardLoop",json::object()}}},json::object())).find("postSCF.0 (hubbardLoop)"),std::string::npos) << "the message names the entry and the action";
+}
+
+// The grid audit (doc/GridEpsilonPlan.md §3) is the one postSCF action that is not about +U: it needs no Hubbard manifold, but a raster
+// other than the run's own.
+TEST(Deck, GridAuditRoundTripsAndNeedsADifferentRaster)
+{
+    auto msg=[](json d){ try { deck::RunSpec s; deck::FromJson(d,s); deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
+    auto base=[](json post, json solid) { return json{{"structure","NaF_rocksalt"},{"solid",solid},{"postSCF",post}}; };
+    deck::RunSpec r;
+    deck::FromJson(json{{"structure","NaF_rocksalt"},{"postSCF",{{{"gridAudit",json::object()}}, {{"gridAudit",{{"reference","BallOnly"}}}}}}}, r);
+    ASSERT_EQ(r.postSCF.size(),2u);
+    EXPECT_EQ(r.postSCF[0].reference, BasisSet::PlaneWave::RasterPolicy::AliasFree) << "the default reference: 2N per dimension of a BallOnly run";
+    EXPECT_EQ(r.postSCF[1].reference, BasisSet::PlaneWave::RasterPolicy::BallOnly);
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
+    EXPECT_EQ(deck::ToJson(back),j); EXPECT_TRUE(back.postSCF==r.postSCF);
+    EXPECT_EQ(msg(base({{{"gridAudit",json::object()}}},json::object())),"NO THROW") << "no Hubbard manifold needed";
+    EXPECT_NE(msg(base({{{"gridAudit",json::object()}}},json{{"raster","AliasFree"}})).find("the run's own"),std::string::npos);
+    EXPECT_NE(msg(base({{{"gridAudit",{{"reference","Nyquist"}}}}},json::object())).find("Nyquist"),std::string::npos) << "an unknown raster name is refused";
 }
 
 TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
