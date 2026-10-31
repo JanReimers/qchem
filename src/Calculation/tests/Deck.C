@@ -165,6 +165,18 @@ TEST(Deck, TheStructureIsANameAndTheMaterialSuppliesSpeciesAndElectrons)
     deck::RunSpec again; deck::FromJson(resolved,again); EXPECT_EQ(deck::ToJson(again),resolved);
 }
 
+// A stated per-element valence (a SEMICORE pseudopotential) changes the electron count the run derives: NaF with Na q9 holds 9+7
+// electrons, not the material's 1+7 (2026-10-31: until then Nelec was taken from the material's species, a cell charged +8, silently).
+TEST(Deck, AStatedSpeciesValenceSetsTheDerivedElectronCount)
+{
+    deck::RunSpec r; deck::FromJson(json{{"structure","NaF_rocksalt"},{"solid",{{"species",json::array({json::array({"Na",9}),json::array({"F",7})})}}}}, r);
+    deck::Resolve(r);
+    EXPECT_EQ(r.solid.Nelec,16);
+    deck::RunSpec plain; deck::FromJson(json{{"structure","NaF_rocksalt"}}, plain);
+    deck::Resolve(plain);
+    EXPECT_EQ(plain.solid.Nelec,8) << "the material's own q1 Na";
+}
+
 TEST(Deck, AStatedValenceOverridesTheMaterialAndBadStructuresAreRefused)
 {
     deck::RunSpec r; deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"Nelec",6}}}}, r);

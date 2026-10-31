@@ -614,7 +614,15 @@ Materials::Material Resolve(RunSpec& spec)
     // per-element overrides) is filled with the resolved vocabulary so the record states every valence actually used.
     if (spec.solid.pp==SolidCalcOptions{}.pp) spec.solid.pp=m.pp;
     if (spec.solid.species.empty()) spec.solid.species=m.species;
-    if (spec.solid.Nelec==0)        spec.solid.Nelec=m.Nelec();
+    // The electron count of the species the RUN uses: a stated override (Na q9) changes it.  Until 2026-10-31 this read the
+    // material's own species, so a deck stating Na q9 ran NaF with 8 electrons instead of 16 -- a cell charged +8, silently.
+    if (spec.solid.Nelec==0)
+    {
+        Materials::Material used=m;
+        for (auto& [el,q] : used.species)
+            for (const auto& [el2,q2] : spec.solid.species) if (el2==el) q=q2;
+        spec.solid.Nelec=used.Nelec();
+    }
     return m;
 }
 
