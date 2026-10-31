@@ -905,3 +905,51 @@ less on these molecules at 80/29.  The molecular DEFAULT stays A1 (Auto) in this
 | **Molecular PP route is 4 mHa/atom off CP2K on F₂** (lane G S4, 2026-10-30; RE-ATTRIBUTED lane B 2026-10-31: probably NOT the PP) | PySCF with the SAME GTH-PADE-q7 + valence_lowq_vb, EXACT J and XC (no fit), gives −48.200545 (lda,vwn): CP2K's −48.20058 to 37 μHa, so the PP data and basis agree across two codes.  Ours −48.19256 (converged mesh) is 8.0 mHa ABOVE -- the same sign and size as all-electron water with NO PP (+4.65 mHa above PySCF exact, +6.8 above PySCF's A1_coul J-fit route): the DGauss A1 fitted-Vxc route (`A1_exch`), which the crystal route (GPW, no A1 fit) does not use.  Closed-shell sizes: water LDA +4.65, water Xα +3.9, N₂ Xα +1.2, F₂ +8.0 mHa | split the molecular E_xc: evaluate E_xc of the converged density ON THE GRID (no Vxc fit) beside the fitted value -- if that closes the 8 mHa the row becomes 'the fitted-Vxc route is 1-4 mHa/atom high', else gate E_loc/E_NL on the isolated F atom as first planned · oracle `scripts/pyscf_molecule_oracle.py` · `~/Code/cp2k-runs/F2/` |
 
 | **Molecular POLARIZED DFT is 35 mHa above PySCF on the O₂ triplet** (lane B, 2026-10-31) | dzvp O₂ (R 2.282 bohr), multiplicity 3, converged mesh: LDA −149.263716 vs PySCF UKS lda,vwn exact −149.299178 (+35.5 mHa; +37.0 vs its A1_coul J-fit); exchange-only Xα 0.7 −148.902318 vs −148.930624 (+28.3) -- so exchange/fit, not VWN.  Our UHF triplet = PySCF to 1e-8 (state, basis, geometry fine); closed-shell water carries only +4 mHa, so ~30 mHa is the POLARIZED path (`FittedVxcPol`, the per-spin fit) | same split as the F₂ row: grid E_xc of the converged spin densities vs the fitted value; then the per-spin Vxc fit against a closed-shell ζ=0 run of the same molecule · oracle `scripts/pyscf_molecule_oracle.py`; `IntegrationTests/M_DFT.C` OxygenTripletLDA carries the ⚠ |
+
+## ✅ "The molecular FIT bases drop their D shells" (D-FIT-MERGE) + the δ Vxc DEFAULT — DONE 2026-10-31 (lane B, f8e5848d)
+
+**User ruling 2026-10-31: "δ default, A1 kept."**  The molecular and atom Vxc default is the δ basis (exact XC quadrature on
+the run's own mesh); the fitted auxiliary basis stays selectable as `VxcFit::Auxiliary` (A1 Gaussians on a molecule, the radial
+set on an atom) -- pin 30 keeps it as a strategy that holds the framework honest.  The numbers behind the ruling are the δ-vs-A1
+table above.  `PseudoAtomOrbital` (the +U projector every +U solid consumes) STATES `Auxiliary`, so no +U anchor moves; the SAD /
+IonicSAD seeds use the stored atomic densities and never run an atom SCF; ValenceBasisGen follows the default (an offline accuracy
+tool: its UTs pass unchanged).
+
+**D-FIT-MERGE.**  `ReadShells` has one rule for every Gaussian basis: a shared-exponent shell of another l is its own block;
+`ShellMerge::LegacyMerge` is deleted.  N₂'s A1_coul now loads 68 functions (it loaded 32), UT
+`Gaussian94Reader.TheFitBasesCarryEveryShellOfTheirFile`.  The Si fit metrics are well-conditioned with the D shells (normalised
+min eigenvalue 1.2e-4 Coulomb, 2.7e-3 overlap): no conditioning rule was needed.  The "Si₂ size-consistency 0.0026 → 0.024 Ha" that
+kept the merge was an ill-posed SCF: Si 3p² at integer occupation has no fixed point -- PySCF agrees with EXACT integrals -- and only
+the d-less (spherical) Hartree hid it.  Degenerate open shells (the Si pseudo-atom, the O-Si quintet, the smeared O₂ singlet of
+panel case 11) run at **kT 1e-2**, stated at each test: kT 1e-4 / 1e-3 slosh under DIIS, GDM and Ladder alike once the Hartree is
+anisotropic (the rule GPW_SiBox already stated for the box).  Si₂ additivity at 20 bohr has no converging recipe (nor in PySCF):
+an OpenWork §3 row; its routing check reads Enn on a bounded run.  Panel case 11's iteration budget 33 → 55 (46 measured at
+kT 1e-2) -- lane A's panel, flagged.
+
+**THE ANCHORS, judged once (pin 10).**  Independent route: PySCF with the SAME A1_coul Coulomb fit and exact XC
+(`scripts/pyscf_molecule_oracle.py`); for the atoms, CP2K's ATOM code.
+
+| gate | before | now | independent route | Δ |
+|---|---|---|---|---|
+| M_Calculation.WaterLDA (+ M_DFT.WaterPolarizedLDA) | −75.8726517 | −75.8794551 | −75.8794474 | 8 μHa |
+| M_DFT.Water (+ WaterPolarizedSAD), Xα 0.74 | −76.1008972 | −76.1069880 | −76.1069799 | 8 μHa |
+| M_DFT.WaterSpherical | −76.1001208 | −76.1075981 | −76.1075818 (Cartesian aux) | 16 μHa |
+| M_DFT.N2, Xα 0.75197 | −109.2259604 | −109.2281129 | −109.2281074 | 6 μHa |
+| M_DFT.OxygenTripletLDA | −149.2637158 | −149.3006843 | −149.3006746 | 10 μHa |
+| M_DFT.F2_PP (was the δ gate −48.264376) | -- | −48.2019367 | −48.2018797 (CP2K −48.20058) | 57 μHa |
+| M_DFT.WaterLDA_AuxiliaryFit (A1) | -- | −75.8808369 | −75.8794474 | −1.39 mHa |
+| M_DFT.OxygenTripletLDA_AuxiliaryFit (A1) | -- | −149.3018824 | −149.3006746 | −1.21 mHa |
+| M_DFT.F2_PP_AuxiliaryFit (A1) | -- | −48.1971113 | −48.2018797 | +4.77 mHa |
+| Si_PP_U.Medium (Slater atom) | −3.7470781 | −3.7470398 | CP2K ATOM −3.747045 | 5 μHa (was 33) |
+| Si_PP_U.Polarized | −3.7733032 | −3.7732782 | -- | |
+| O_PP_U.SlaterHigh | −15.7478640 | −15.7478193 | CP2K ATOM −15.748119 | 300 μHa (was 255) |
+| Si2_PP_U E1 (Si atom) | −3.7617185 (unsmeared artefact) | A −3.7818599, E −3.743669 (kT 1e-2) | −3.7436684 (smeared) | 1 μHa |
+| GPW_O2Box finite twin (δ) | −30.0116800 | −29.9994810 | −29.9994536 (CP2K box −29.998761) | 27 μHa |
+| GPW_MnBox finite twin (δ) | −14.6382750 | −14.6365281 | GPW box −14.6380455 / converged −14.63650 | 1.5 / 0.03 mHa |
+| GPW_SiBox finite twins | −3.7617 (unsmeared) | internal −3.743669 (kT 1e-2) | -- | |
+
+Also: the LDA FD polarizability (UTResponse) is 0.6 / 0.4 / 0.1 percent from PySCF CPKS (was 0.6 / 1.4 / 0.7); its GMRES tol is 1e-8
+(the h = 1e-4 FD noise floor sits just above 1e-9 with the larger fit basis).  Measured in a scratch tree: ITMain molecular / atom /
+PP / box set 156/156, UTCalculation 96/96, UTGaussian_BS 85/85, UTResponse LDA/HF 2/2; the solid anchors are the landing sweep's.
+
+| **The molecular FIT bases drop their D shells: the Coulomb fit is 4-62 mHa LOW** (lane B 2026-10-31, the δ-fit gate; promoted from CleanCode D-FIT-MERGE) | `ReadShells(..., ShellMerge::LegacyMerge)` (`src/BasisSet/Gaussian/Point/Reader.C`) never adds a new l to a shared-exponent radial, and every A1 file has `SP` + `D` shells on the SAME exponents: N₂'s A1_coul loads 32 functions, not 68.  MEASURED with the δ Vxc route (exact XC on the mesh) against PySCF with the SAME A1_coul Coulomb fit: LegacyMerge -3.8 (H₂O) / -20 (N₂) / -62 (F₂ q7) mHa; KeepEachL 6-10 μHa (H₂O, N₂, O₂ triplet) and 57 μHa (F₂) -- quadrature level.  BUT KeepEachL breaks the Si pseudo-atom (sipp, A1 and δ alike: 100 iterations unconverged, E -3.7436 vs -3.7617) and Si₂ (E -2.4 / -5.6): the old 'size-consistency' symptom is a Si-specific CD-fit pathology, still unexplained | diagnose the Si fit (conditioning of the A1_coul Si block's Coulomb metric with its d shells; ConstrainedFF) before flipping the fit merge; then re-anchor every molecular DFT test against `scripts/pyscf_molecule_oracle.py` · CleanCode D-FIT-MERGE |
