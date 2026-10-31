@@ -46,7 +46,10 @@ public:
     //! setup's reference structure -- and converge ONCE on \a scf.  The setup is \c MoleculeSetup::Resolve(structure, options,
     //! accelerator options), which deep-copies the structure (a periodic UnitCell stays periodic), so the caller's may be freed
     //! at once.  The only door (user ruling 2026-10-30: clean replace, no (structure, options) constructors).
-    explicit Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf = {});
+    //! \a onIteration, when given, observes THIS constructor's SCF from its first iteration (a GUI streams the trace live);
+    //! it stays attached for later \c Converge calls.  A constructor argument, not a setup field: an observer is not a
+    //! resolved decision.
+    explicit Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf = {}, Observer onIteration = nullptr);
     ~Calculation();
 
     Calculation(const Calculation&)            = delete;  // owns raw resources; non-copyable
@@ -68,6 +71,22 @@ public:
     const sf_t&      Orbital(size_t i)   const;   //!< i-th occupied MO (0 = lowest energy)
     size_t           NumOccupied()       const;
     const orbitals_t* Orbitals(const Irrep&) const; //!< the orbital set for one point-group irrep
+
+    //! One molecular orbital of the converged state: what an orbital panel lists and a field view samples.
+    struct Level
+    {
+        double      e;            //!< eigen-energy (hartree)
+        double      occupation;   //!< electrons in it (0 for a virtual)
+        Spin        spin;         //!< Up / Down for a polarized run, None for an unpolarized one
+        std::string label;        //!< the orbital's QN label (irrep under symmetry)
+        const sf_t* phi;          //!< the orbital as a field.  NEVER null; BORROWED from this Calculation
+    };
+    //! \brief EVERY MO, virtuals included, ascending in energy (both spin channels interleaved for a polarized run).
+    //! Cached by each Converge; the vector and every \c Level::phi are valid until the NEXT Converge.
+    const std::vector<Level>& GetLevels() const;
+    //! \brief m(r) = ρ↑−ρ↓.  An unpolarized run's is the ZERO field (polarized is the general case, unpolarized its
+    //! special case), so a caller needs no null branch.  Cached by each Converge; valid until the next.
+    const sf_t& GetSpinDensity() const;
 
     size_t           IterationCount() const;
     bool             IsConverged()    const;
@@ -99,7 +118,7 @@ private:
     //! The point at \a at (\c setup->reference's atoms, moved), seeded from \a carry when given (a WorkingDensity), else from the
     //! setup's seed strategy.  The public setup constructor is this at the reference with no carry.
     Calculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
-                const SCFParams& scf);
+                const SCFParams& scf, Observer onIteration);
     Carry MakeCarry() const;
     std::unique_ptr<const Carry> itsCarry;   //!< consumed by the first Converge, which builds the basis it is re-homed onto
     //!@}
@@ -120,6 +139,8 @@ private:
     std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> itsAccel;
     qchem::SCFIterator::SCFIterator*     itsScf   = nullptr;  //!< owned (the Hamiltonian/accelerator are NOT its)
     std::unique_ptr<qchem::ChargeDensity::rDM_CD> itsDensity;  //!< owned converged rho(r)
+    std::unique_ptr<const sf_t>          itsSpinDensity;       //!< owned converged m(r), the zero field when unpolarized
+    std::vector<Level>                   itsLevels;            //!< every MO, ascending; phi into the wave function
     std::vector<occ_t>                   itsOccupied;          //!< non-owning, into the wave function
     Observer                             itsObserver;          //!< optional live-progress sink
 };
@@ -134,7 +155,8 @@ private:
 class MoleculeSession : public virtual PotentialEnergySurface
 {
 public:
-    MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf);
+    //! \a onIteration observes every point's SCF (each \c ConvergeAt), from its first iteration.
+    MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Calculation::Observer onIteration = nullptr);
     ~MoleculeSession();
     PESGeometry Reference() const override;
     //! THROWS when \a cell is given (a molecule has none) or when \a R has not one position per atom.
@@ -145,6 +167,7 @@ public:
 private:
     std::shared_ptr<const MoleculeSetup> itsSetup;
     SCFParams                            itsSCF;
+    Calculation::Observer                itsObserver;
     std::unique_ptr<Calculation>         itsPoint;
 };
 

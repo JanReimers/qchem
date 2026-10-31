@@ -96,7 +96,7 @@ public:
     virtual bool ExtrapolatesFock() const {return true;}
     virtual int         Count() const {return (int)GetNProj();}   // projection depth = the accel column's number
     virtual double      MinSV() const {return itsLastSVMin;}       // conditioning of the bordered B
-    // Out of steam: past FDMax but unable to extrapolate (singular/tiny B) for several steps.
+    // Out of steam: past EngageBelowFD but unable to extrapolate (singular/tiny B) for several steps.
     virtual bool   Exhausted() const {return itsStuckCount>=3;}
 
 private:
@@ -118,12 +118,12 @@ private:
 
     double itsEn=0.0;
     //! Conditioning of the last bordered B.  NaN until BuildPrunedB has run at least once -- DIIS does not
-    //! extrapolate (so does not build B) until [F,D] < FDMax, and this was previously read UNINITIALISED by
+    //! extrapolate (so does not build B) until [F,D] < EngageBelowFD, and this was previously read UNINITIALISED by
     //! anything that asked early.  Surfaced 2026-08-10 the moment the trace grew an svMin column.
     double itsLastSVMin=std::numeric_limits<double>::quiet_NaN();
     rvec_t itsCs;
     std::string bailoutReason;
-    int itsStuckCount=0; //consecutive past-FDMax iterations with no successful extrapolation.
+    int itsStuckCount=0; //consecutive past-EngageBelowFD iterations with no successful extrapolation.
     bool itsSeeded=false; //true once any irrep has had a nonzero error (past the zero-density start)
 };
 

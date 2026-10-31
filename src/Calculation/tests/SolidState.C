@@ -426,7 +426,8 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
     ASSERT_FALSE(it.empty());
-    EXPECT_NE(out.find("exact resume: Pulay history from iteration 1"), std::string::npos)
+    // R1.3: the exact resume is a HAND-OFF, printed in the one format: "[handoff] iteration 0: restored state -> Pulay history from iteration 1 (exact resume: ...)".
+    EXPECT_NE(out.find("-> Pulay history from iteration 1 (exact resume"), std::string::npos)
         << "an exact resume starts AT the fixed point: no plain-Kerker priming (beta-MnO2 r015: 23 -> 4 iterations)";
     EXPECT_NE(it.front().eb.charge.xcRho, "fitted") << "iteration 1's XC must see rho[D] (pin 28), not the fitted field";
     EXPECT_NEAR(it.front().energy, saved, 1e-7) << "the first iterate of an exact resume is the saved state";

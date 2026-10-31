@@ -569,7 +569,7 @@ private:
     //!@}
     //! Stand up one stage's Hamiltonian + accelerator + iterator, seeded from \a carried when given.  \a params are the
     //! stage's (an \c Auto accelerator is resolved against them).
-    void BuildStage(SCFAccelerators::Type, std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried, const SCFParams& params);
+    void BuildStage(const std::string& why, SCFAccelerators::Type, std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried, const SCFParams& params);
     //! Build this stage's accelerator: resolve \a asked (\c Auto, see \c SolidCalcOptions::accelerator) for \a params and
     //! a \a restored (Restart: same Hamiltonian) or seeded / carried start, and record both for the banner and for the stages
     //! that re-resolve it.

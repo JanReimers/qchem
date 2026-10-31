@@ -70,13 +70,13 @@ private:
     // The GDM_Block scalar face (private overrides; the manager calls through GDM_Block*).
     virtual double GetError() const {return itsEn;}
     //! Ready to take a geodesic step THIS iteration (mirrors ComputeStep's gate, minus the Fock build):
-    //! seeded, a well-posed occ/virt split, and the residual [F,D] already below FDMax.  itsFp is empty
+    //! seeded, a well-posed occ/virt split, and the residual [F,D] already below EngageBelowFD.  itsFp is empty
     //! before the first UseFD, so this is false (unsigned itsNocc < 0 rows) until seeded -- as intended.
     //! (itsForceDiag: armed by an EXHAUSTED RejectStep, so both this and ComputeStep() report "no geodesic"
     //! until a diagonalizing step has actually been taken -- the safety guarantee the bail-out contract owes
     //! the caller.  Cleared in NextOrbitals' diagonalize branch, NOT in ComputeStep, so it cannot be consumed
     //! by a mere query.)
-    virtual bool Ready() const { return itsHaveC && itsNocc>0 && itsNocc<itsFp.rows() && itsEn<itsParams.FDMax
+    virtual bool Ready() const { return itsHaveC && itsNocc>0 && itsNocc<itsFp.rows() && itsEn<itsParams.EngageBelowFD
                                 && !itsForceDiag && itsBlockOccupied && itsIdempotent; }
     //! The STANDING precondition (see tSCFAccelerator::Engageable): an integer-occupation density
     //! (D' idempotent -- false under Fermi smearing, knowable from the very first UseFD with no orbitals)
@@ -154,7 +154,7 @@ public:
     virtual double GetError() const;
     virtual const char* Tag() const {return "GDM";}
     virtual bool   WantsLineSearch() const {return true;} //GDM is run by the direct-min loop.
-    virtual bool   CanLineSearch() const; //true once every irrep is Ready() (seeded + [F,D]<FDMax)
+    virtual bool   CanLineSearch() const; //true once every irrep is Ready() (seeded + [F,D]<EngageBelowFD)
     virtual bool   Engageable() const;    //every irrep's STANDING precondition (idempotent + leading-block D')
     //! Bail-out: reject the step in EVERY irrep.  A retry is offered only if EVERY irrep can still retry --
     //! the line search takes ONE t across all of them, so a step is only meaningful if they all still have a

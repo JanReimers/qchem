@@ -50,6 +50,7 @@
 module;
 #include <cassert>
 #include <memory>
+#include <optional>
 #include <iosfwd>
 #include <vector>
 export module qchem.SCFAccelerator.Internal.SCFAcceleratorLadder;
@@ -136,6 +137,8 @@ public:
     //! ends the stage on this only when SCFParams::StopOnAccelExhausted says so (annealed non-final
     //! stages), never unconditionally -- run 38's post-veto tail grind DID eventually converge.
     virtual bool   Exhausted() const {return itsVetoAnnounced;}
+    //! R1.3: the rung advance / retreat CalculateProjections decided, for the owner's HandOff.
+    virtual std::optional<HandOffRequest> TakeHandOff() {auto h=std::move(itsHandOff); itsHandOff.reset(); return h;}
 private:
     template <class T> tSCFIrrepAccelerator<T>* CreateT(const LASolver<T>*,const Irrep&, int occ);
     SCFAccelerator* Active() const //the live rung, bounds-checked
@@ -151,6 +154,7 @@ private:
     double                       itsBestErr=1e300; //best (smallest) error since this rung started
     int                          itsNoImprove=0;   //consecutive steps without beating itsBestErr
     bool                         itsVetoAnnounced=false; //hand-off veto printed once (reset on any rung change)
+    std::optional<HandOffRequest> itsHandOff;            //a rung change not yet taken by the owner (R1.3)
     double                       itsLastE=0.0, itsPrevE=0.0; //last two reported total energies
 };
 

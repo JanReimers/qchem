@@ -13,6 +13,7 @@
 
 #include "gtest/gtest.h"
 #include <memory>
+#include <optional>
 #include <vector>
 #include <cmath>
 #include <cstdlib>   // std::getenv/std::atof (the NaF mixing-tuning env knobs)
@@ -528,6 +529,46 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long)
 // (the VA span is the 6m38s benchmark row), hence `_Long` like the anchor (`ctest -L long`).
 // QCHEM_U_TRACE=1 prints the per-refresh occupation line (N per manifold, max lambda, E_U) to compare against
 // CP2K's own &PRINT &PLUS_U table in bench_MnO_AFM2_VA_plusU_cp2k.log.
+//! The +U oracle gate's basis: the VA span (CP2K's, function for function) through the spherical view.
+std::shared_ptr<const Real_BS> CP2KPlusUBasis(const Material& mno)
+{
+    return BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(
+        std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_VA, mno.cell.get(),
+                                       BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian)));
+}
+//! The +U oracle gate's recipe at \a U_eV -- ONE copy, so the vendored-state twin cannot drift from the cold gate.
+std::pair<SolidCalcOptions,SCFParams> CP2KPlusURecipe(const Material& mno, double U_eV, const std::string& label)
+{
+    SolidCalcOptions o=OptionsFor(mno, label);
+    o.multiplicity=1; o.siteSpins={+1,-1,0,0};   // stated (Mn up, Mn down, O non-magnetic): what IonicSAD derived, now the chemistry
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    // THE CP2K-SHAPED LOOP (user, 2026-09-20: "we need 1) very close converged energies 2) similar SCF
+    // convergence rates 3) similar runtime and RAM").  The deck: BROYDEN_MIXING (Kerker BETA 1.5, NBUFFER 8)
+    // on rho-tilde, diagonalise, EPS_SCF 1e-6 on max|dP|, MAX_SCF 200, no Fock-side extrapolation, no MOM.
+    // Ours, matched: ONE density-side history (Kerker-preconditioned Pulay, depth 8) and NOTHING on the Fock
+    // side -- the anchor's recipe (Ladder DIIS + MOM) on top of that history left max|dD| at 3e-3 for 200
+    // iterations while the G-space residual read "converged" at 43: Fock-DIIS and density-Pulay extrapolate
+    // each other's output, and MOM hands a smeared degenerate d frontier unequal occupations that swap every
+    // iteration (D rotates at constant rho).  With the deck's loop shape and its measure: 22 iterations to
+    // max|dD| 6e-8 against the deck's 44 (probe, `gpwprobe mno`, MNO_ACC=Null MNO_MOM=0 MNO_PULAY=8).
+    o.accelerator=qchem::SCFAccelerators::Type::Null;
+    o.imposeSymmetry=true;
+    o.policy.hubbardEigen=false;   // CP2K's form, a declared deviation: stated in the options (D-ENV 6b), not in the environment
+    if (U_eV>0.0) o.hubbard={HubbardU_SiteShells(0,2,U_eV), HubbardU_SiteShells(1,2,U_eV)};
+    SCFParams par=Gates(200, 1e-6, 1e30);
+    par.Δρmeasure=SCFParams::Measure::MaxΔD;             // CP2K's EPS_SCF measure (doc/Benchmark.md rule 3f)
+    par.PulayDepth=8; par.PulayStart=5;                   // the density history, as NBUFFER 8
+    par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
+    par.UseMOM=false;
+    par.SmearingkT=5e-3;
+    return {o,par};
+}
+//! CP2K's +U oracle (doc/Records/CP2Kresults.md, 2026-09-19): the U-induced shift and E_U, the gate's two numbers.
+constexpr double CP2K_PlusU_dE=-60.68597087953861-(-61.30332518), CP2K_PlusU_EU=0.60950923227552;
+//! The vendored states of the gate's two arms (decks/states/<name>.h5), written by the cold gate.
+const char* CP2KPlusUState(double U_eV) { return U_eV>0.0 ? "MnO_AFM2_VA_sph_Shub_U4" : "MnO_AFM2_VA_sph_Shub_U0"; }
+
 TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
 {
     const Material mno=qchem::Materials::Get("MnO_AFM2");   // sites 0,1 = Mn (+m, -m); 2,3 = O
@@ -535,45 +576,20 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
     {   // the manifold indices are a claim about the material row: check it, do not assume it
         int i=0; mno.cell->ForEachSite([&](int Z, const rvec3_t&, bool){ if (i<2) EXPECT_EQ(Z,25) << "site "<<i<<" must be Mn"; i++; });
     }
-    auto basis=[&]{ return BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(
-        std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_VA, mno.cell.get(),
-                                       BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian))); };
     // Each arm's SolidCalculation must OUTLIVE its Result (the result points into the calculation), so the
     // arms are held here and the lambda only builds them.
     std::vector<std::unique_ptr<qchem::SolidCalculation>> arms;
     auto run=[&](double U_eV, const std::string& label)
     {
-        SolidCalcOptions o=OptionsFor(mno, label);
-        o.multiplicity=1; o.siteSpins={+1,-1,0,0};   // stated (Mn up, Mn down, O non-magnetic): what IonicSAD derived, now the chemistry
-        o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
-        o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
-        // THE CP2K-SHAPED LOOP (user, 2026-09-20: "we need 1) very close converged energies 2) similar SCF
-        // convergence rates 3) similar runtime and RAM").  The deck: BROYDEN_MIXING (Kerker BETA 1.5, NBUFFER 8)
-        // on rho-tilde, diagonalise, EPS_SCF 1e-6 on max|dP|, MAX_SCF 200, no Fock-side extrapolation, no MOM.
-        // Ours, matched: ONE density-side history (Kerker-preconditioned Pulay, depth 8) and NOTHING on the Fock
-        // side -- the anchor's recipe (Ladder DIIS + MOM) on top of that history left max|dD| at 3e-3 for 200
-        // iterations while the G-space residual read "converged" at 43: Fock-DIIS and density-Pulay extrapolate
-        // each other's output, and MOM hands a smeared degenerate d frontier unequal occupations that swap every
-        // iteration (D rotates at constant rho).  With the deck's loop shape and its measure: 22 iterations to
-        // max|dD| 6e-8 against the deck's 44 (probe, `gpwprobe mno`, MNO_ACC=Null MNO_MOM=0 MNO_PULAY=8).
-        o.accelerator=qchem::SCFAccelerators::Type::Null;
-        o.imposeSymmetry=true;
-        o.policy.hubbardEigen=false;   // CP2K's form, a declared deviation: stated in the options (D-ENV 6b), not in the environment
-        if (U_eV>0.0) o.hubbard={HubbardU_SiteShells(0,2,U_eV), HubbardU_SiteShells(1,2,U_eV)};
-        SCFParams par=Gates(200, 1e-6, 1e30);
-        par.Δρmeasure=SCFParams::Measure::MaxΔD;             // CP2K's EPS_SCF measure (doc/Benchmark.md rule 3f)
-        par.PulayDepth=8; par.PulayStart=5;                   // the density history, as NBUFFER 8
-        par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
-        par.UseMOM=false;
-        par.SmearingkT=5e-3;
+        auto [o,par]=CP2KPlusURecipe(mno, U_eV, label);
+        o.saveStateTo=qchem::panel::RefreshPath(CP2KPlusUState(U_eV));   // this cold gate OWNS the twin's vendored state
         Trace trace; o.onIteration=trace.Observer();
         GpwReport report("MnO "+o.label, par.Verbose);
-        arms.push_back(std::make_unique<qchem::SolidCalculation>(SolidSetup::Resolve(lat, basis(), o), par));
+        arms.push_back(std::make_unique<qchem::SolidCalculation>(SolidSetup::Resolve(lat, CP2KPlusUBasis(mno), o), par));
         trace.Print(o.label, /*polarized*/true);
+        if (arms.back()->Result()) qchem::panel::PrintRefresh(CP2KPlusUState(U_eV), o.saveStateTo);
         return arms.back()->Result();
     };
-    // THE FORM is a declared deviation, so it is set the way the N5 hatch sets one: for this test only.
-    // (THE FORM -- CP2K's diagonal populations -- is stated in the run's options below: o.policy.hubbardEigen=false.)
     auto r0=run(0.0, "MnO AFM-II VA sph Gamma (imposed)");
     auto rU=run(4.0, "MnO AFM-II VA sph Gamma (imposed, U=4 eV on Mn d)");
     ASSERT_TRUE(r0) << Why(r0);
@@ -581,12 +597,50 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
     EXPECT_NEAR(r0->TotalCharge(), 26.0, 1e-6);
     EXPECT_NEAR(rU->TotalCharge(), 26.0, 1e-6);
     const double E0=r0->Energy(), EU=rU->Energy(), dE=EU-E0, E_U=rU->EnergyTerms()["E_U"];
-    const double cp2k_dE=-60.68597087953861-(-61.30332518), cp2k_EU=0.60950923227552;
-    std::cout<<std::setprecision(10)<<"[MnO +U] E(0)="<<E0<<"  E(U)="<<EU<<"  dE="<<dE<<" (CP2K "<<cp2k_dE
-             <<")  E_U="<<E_U<<" (CP2K "<<cp2k_EU<<")  dE-E_U="<<dE-E_U<<" (CP2K "<<cp2k_dE-cp2k_EU<<")"<<std::endl;
+    std::cout<<std::setprecision(10)<<"[MnO +U] E(0)="<<E0<<"  E(U)="<<EU<<"  dE="<<dE<<" (CP2K "<<CP2K_PlusU_dE
+             <<")  E_U="<<E_U<<" (CP2K "<<CP2K_PlusU_EU<<")  dE-E_U="<<dE-E_U<<" (CP2K "<<CP2K_PlusU_dE-CP2K_PlusU_EU<<")"<<std::endl;
     EXPECT_GT(E_U, 0.0);
-    EXPECT_NEAR(E_U, cp2k_EU, 0.05) << "the same population functional (all 8 d shells, diagonal) of two densities that agree to 0.1 Ha";
-    EXPECT_NEAR(dE,  cp2k_dE, 0.05) << "the U-induced shift; the absolute offset between the codes is U-independent";
+    EXPECT_NEAR(E_U, CP2K_PlusU_EU, 0.05) << "the same population functional (all 8 d shells, diagonal) of two densities that agree to 0.1 Ha";
+    EXPECT_NEAR(dE,  CP2K_PlusU_dE, 0.05) << "the U-induced shift; the absolute offset between the codes is U-independent";
+}
+
+// CLAIM (the cheap twin of the gate above): the SAME two numbers -- E_U and the U-induced shift against CP2K -- evaluated at the
+// gate's converged densities, VENDORED (decks/states/, written by the cold gate) and resumed exactly.  What the gate tests is the
+// +U HAMILTONIAN (the manifold, the population form, the projector), and that is all a resume rebuilds; the cold SCF is the
+// gate's own business.  STALENESS is caught, not assumed: a vendored D is a fixed point only of the Hamiltonian that wrote it, so
+// a changed operator shows up as the resume's first iterate leaving the answer (and as a blown budget) -- re-judge the anchor
+// (pin 10), run the cold gate, copy the state it prints.
+TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_Saved_CP2K_Long)   // ~5.5 min serial: ~150 s of setup per arm (the cold gate: ~22 min)
+{
+    const Material mno=qchem::Materials::Get("MnO_AFM2");
+    const Lattice_3D lat=LatticeOf(mno);
+    std::vector<std::unique_ptr<qchem::SolidCalculation>> arms;
+    auto resume=[&](double U_eV, const std::string& label)
+    {
+        auto [o,par]=CP2KPlusURecipe(mno, U_eV, label);
+        std::vector<double> E;
+        o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
+        qchem::IterationBudget budget(3, "exact resume of a vendored converged +U state");
+        auto c=qchem::SolidCalculation::Restart(qchem::panel::VendoredState(CP2KPlusUState(U_eV)), SolidSetup::Resolve(lat, CP2KPlusUBasis(mno), o), par);
+        if (!c) { ADD_FAILURE() << label << ": " << c.Error().details; return std::optional<double>{}; }
+        arms.push_back(c.TakeValue());
+        auto R=arms.back()->Result();
+        if (!R) { ADD_FAILURE() << label << ": " << Why(R); return std::optional<double>{}; }
+        EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6);
+        EXPECT_FALSE(E.empty());
+        if (!E.empty()) EXPECT_NEAR(E.front(), R->Energy(), 1e-6)
+            << label << ": the vendored state is no longer a fixed point -- the Hamiltonian moved; re-judge and refresh it";
+        return std::optional<double>{R->Energy()};
+    };
+    auto E0=resume(0.0, "MnO AFM-II VA sph Gamma (imposed, vendored)");
+    auto EU=resume(4.0, "MnO AFM-II VA sph Gamma (imposed, U=4 eV on Mn d, vendored)");
+    ASSERT_TRUE(E0 && EU);
+    const double dE=*EU-*E0, E_U=arms.back()->Result()->EnergyTerms()["E_U"];
+    std::cout<<std::setprecision(10)<<"[MnO +U vendored] E(0)="<<*E0<<"  E(U)="<<*EU<<"  dE="<<dE<<" (CP2K "<<CP2K_PlusU_dE
+             <<")  E_U="<<E_U<<" (CP2K "<<CP2K_PlusU_EU<<")"<<std::endl;
+    EXPECT_GT(E_U, 0.0);
+    EXPECT_NEAR(E_U, CP2K_PlusU_EU, 0.05) << "the same population functional (all 8 d shells, diagonal) of two densities that agree to 0.1 Ha";
+    EXPECT_NEAR(dE,  CP2K_PlusU_dE, 0.05) << "the U-induced shift; the absolute offset between the codes is U-independent";
 }
 
 

@@ -184,9 +184,9 @@ bool SCFAcceleratorDIIS::CalculateProjections()
         itsEn=WorstIrrep(itsEn, Enk);   // the WORST irrep (was sqrt(sum of squares): user ruling 2026-10-28)
     }
     // cout << "itsEn=" << itsEn << endl;
-    if (itsEn>itsParams.FDMax)
+    if (itsEn>itsParams.EngageBelowFD)
     {
-        bailoutReason="FD>FDMax    ";
+        bailoutReason="FD>EngageBelowFD    ";
         itsStuckCount=0;        //early (pre-DIIS) phase, not "out of steam"
         return false;
     }

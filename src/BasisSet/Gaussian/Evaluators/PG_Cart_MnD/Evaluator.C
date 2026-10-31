@@ -2010,13 +2010,22 @@ public:
             // (the intermittent threaded-NaF abort: "terminate called recursively" -- several workers
             // throwing at once).  Capture the FIRST worker exception, finish the region, rethrow it
             // serially -- so a throw surfaces as the ordinary exception it is on the serial path.
+            // RUN-TO-RUN REPRODUCIBLE (OpenWork §3 "The short tier is NOT green at QCHEM_OPENMP_THREADS=4", 2026-10-30): a dynamic
+            // schedule handed shell pairs to accumulators in a different way every run, and the fold under `omp critical` summed
+            // the accumulators in arrival order -- so the SAME thread count gave a different rho each run (NaF exact resume 3 vs 5
+            // iterations, O2Box 7e-7 Ha, in two 4-thread panels of the same code).  Now accumulator c takes the FIXED round-robin
+            // share q = c, c+n, ... of the longest-first order (balanced: every accumulator gets one of each size class), and the
+            // accumulators are folded in INDEX order after the region.  Deterministic at a fixed thread count; still not
+            // thread-count-invariant (a different n is a different partition), which is the row's other half.
+            const size_t nacc=size_t(nthreads);
+            std::vector<std::vector<rvec_t>> acc(nacc, std::vector<rvec_t>(K));
             std::exception_ptr firstEx;
-            #pragma omp parallel num_threads(nthreads)
+            #pragma omp parallel for schedule(static,1) num_threads(nthreads)
+            for (size_t c=0;c<nacc;c++)
             {
-                std::vector<rvec_t> mine(K);
+                std::vector<rvec_t>& mine=acc[c];
                 for (size_t l=0;l<K;l++) mine[l]=rvec_t(rho[l].size(),0.0);
-                #pragma omp for schedule(dynamic) nowait
-                for (size_t q=0;q<order.size();q++)
+                for (size_t q=c;q<order.size();q+=nacc)
                 {
                     try { scatterShell(order[q],mine); }
                     catch (...)
@@ -2025,11 +2034,11 @@ public:
                         if (!firstEx) firstEx=std::current_exception();
                     }
                 }
-                #pragma omp critical
-                for (size_t l=0;l<K;l++)
-                    for (size_t g=0, m=rho[l].size(); g<m; g++) rho[l][g]+=mine[l][g];
             }
             if (firstEx) std::rethrow_exception(firstEx);
+            for (size_t c=0;c<nacc;c++)
+                for (size_t l=0;l<K;l++)
+                    for (size_t g=0, m=rho[l].size(); g<m; g++) rho[l][g]+=acc[c][l][g];
             return rho;
         }
 #endif
@@ -2685,13 +2694,16 @@ public:
         if (const int nthreads=PairThreads(); nthreads>1)
         {
             const std::vector<size_t>& order=BoxTaskOrder(A);
+            // Run-to-run reproducible, as CollocateDensity: fixed round-robin shares, accumulators folded in index order.
+            const size_t nacc=size_t(nthreads);
+            std::vector<std::vector<cvec_t>> acc(nacc, std::vector<cvec_t>(K));
             std::exception_ptr firstEx;
-            #pragma omp parallel num_threads(nthreads)
+            #pragma omp parallel for schedule(static,1) num_threads(nthreads)
+            for (size_t c=0;c<nacc;c++)
             {
-                std::vector<cvec_t> mine(K);
+                std::vector<cvec_t>& mine=acc[c];
                 for (size_t l=0;l<K;l++) mine[l]=cvec_t(u[l].size(), dcmplx(0.0));
-                #pragma omp for schedule(dynamic) nowait
-                for (size_t t=0;t<order.size();t++)
+                for (size_t t=c;t<order.size();t+=nacc)
                 {
                     try { scatterShell(order[t], mine); }
                     catch (...)
@@ -2700,10 +2712,9 @@ public:
                         if (!firstEx) firstEx=std::current_exception();
                     }
                 }
-                #pragma omp critical (gpw_transition_reduce)
-                for (size_t l=0;l<K;l++) for (size_t g=0, m=u[l].size(); g<m; g++) u[l][g]+=mine[l][g];
             }
             if (firstEx) std::rethrow_exception(firstEx);
+            for (size_t c=0;c<nacc;c++) for (size_t l=0;l<K;l++) for (size_t g=0, m=u[l].size(); g<m; g++) u[l][g]+=acc[c][l][g];
             return u;
         }
 #endif
