@@ -92,7 +92,7 @@ struct Cell
 const std::string kOneTerm ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (the molecular / atom FittedVxc is the other term)";
 const std::string kPin30   ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (pin-30 gap: the factory throws)";
 const std::string kI3      ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (I3: a PW fit on a Becke mesh, the E/H pairing not designed)";
-const std::string kRefuse  ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (the symmetry refusal is not an Outcome yet)";
+const std::string kRefuse  ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (the symmetry refusal is a throw, not an Outcome yet)";
 
 //! THE TABLE.  Edit a row only to move it toward its target; an X row is deleted (its \c today becomes the target)
 //! the day its defect is fixed.
@@ -107,16 +107,16 @@ const std::vector<Cell> kCells=
     {Kind::Solid,    VxcFit::PlaneWave, Points::Uniform, Target::A, Observed::OneTerm,    ""},
     // -- molecule: a cell mesh or a plane-wave fit would impose a translation group it lacks
     {Kind::Molecule, VxcFit::Delta,     Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
-    {Kind::Molecule, VxcFit::Delta,     Points::Uniform, Target::R, Observed::SilentMesh, kRefuse},
+    {Kind::Molecule, VxcFit::Delta,     Points::Uniform, Target::R, Observed::Throws,     kRefuse},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
-    {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::SilentMesh, kRefuse},
+    {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
     {Kind::Molecule, VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Throws,     kRefuse},
     {Kind::Molecule, VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
     // -- atom: the same refusals as a molecule (its Becke mesh is the single-centre radial x angular product)
     {Kind::Atom,     VxcFit::Delta,     Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
-    {Kind::Atom,     VxcFit::Delta,     Points::Uniform, Target::R, Observed::SilentMesh, kRefuse},
+    {Kind::Atom,     VxcFit::Delta,     Points::Uniform, Target::R, Observed::Throws,     kRefuse},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
-    {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::SilentMesh, kRefuse},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Throws,     kRefuse},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
 };

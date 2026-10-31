@@ -4,6 +4,8 @@ module;
 #include <cassert>
 #include <memory>
 #include <vector>
+#include <stdexcept>
+#include <string>
 
 module qchem.Structure;
 import qchem.stl_io;
@@ -24,8 +26,19 @@ namespace qchem {
 // UnitCell Becke partition).
 using qcMesh::BeckeCutoff;
 
+// A STATED uniform cell mesh is refused: it would impose a translation group this structure lacks (a representation may not
+// impose a symmetry the structure lacks -- UTHamiltonian VxcProductSpace).  \c Auto and \c Becke both mean the atom-centred mesh.
+// Until 2026-10-31 \c cellKind was ignored here, so a uniform request ran Becke silently.
+static void RefuseCellMesh(const qcMesh::MeshParams& mp, const char* what)
+{
+    if (mp.cellKind==qcMesh::UnitCellKind::Uniform)
+        throw std::invalid_argument(std::string(what)+": a uniform CELL mesh imposes a translation group; this structure has none "
+                                    "(point-group symmetry only).  State cellKind Becke or Auto -- the atom-centred mesh.");
+}
+
 qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams& mp)
 {
+    RefuseCellMesh(mp, "the atom-centred (molecule / atom) mesh");
     const int beckeOrder=mp.beckeOrder;
     assert(beckeOrder>=0);
     size_t natom=atoms.GetNumAtoms();
