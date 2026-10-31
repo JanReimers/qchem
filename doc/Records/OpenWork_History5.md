@@ -798,3 +798,14 @@ The gate's jump measure moved from Δ³ (which conflates a jump with the curve's
 converges).  (3) the LÖWDIN carry of C, built and measured (3c940a3c, `SolidSession::Carry::Lowdin`): Si Γ 4 carried steps 41 vs 42
 iterations (AO), energies equal to 1e-11; NaF Γ 19 carried points 110 vs 96 iterations (AO), energies equal to ~1e-11 -- no lever,
 so the default stays AO.
+
+## ✅ "The SCF observer has two homes" (OpenWork §3, 2026-10-30) -- DONE 2026-10-30 (lane B); the row as it stood
+
+`SolidCalcOptions::onIteration` is deleted.  The per-iteration observer is the last argument of both `SolidCalculation`
+constructors, of `SolidCalculation::Restart` and of `SolidSession` (before `Carry`), exactly as the molecular
+`Calculation(setup, scf, observer)` / `MoleculeSession` take it: an observer is not a resolved decision, so it has no place in
+the setup.  Attached before iteration 1 as before (stage 0 of an annealed recipe, a restart's first iterate, every session
+point); `OnIteration` still REPLACES it for a later `Converge`.  Callers migrated: 3 `SolidState` UTs, 4 MnO, 1 O₂ box, 2 NaF
+restart gates; the deck never serialised it.  No number moves (the observer only reads).
+
+| **The SCF observer has two homes** (controller 2026-10-30, from lane G's molecular hook) | `Calculation` / `MoleculeSession` take the per-iteration observer as a CONSTRUCTOR argument (lane G: an observer is not a resolved decision); the solid side still carries `SolidCalcOptions::onIteration` inside the resolved options | move it to a `SolidCalculation` / `SolidSession` constructor argument, migrate every caller, delete the field (lane B) · `src/Calculation/` |
