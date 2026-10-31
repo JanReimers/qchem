@@ -62,11 +62,12 @@ class Calculator
 public:
     Calculator(const std::vector<int>& Z, const std::vector<double>& pos, const std::string& basis,
                const std::string& model, bool symmetry, bool polarized, int multiplicity, int maxIter, const std::string& pp,
-               const std::string& accelerator, nb::object onIteration)
+               const std::string& accelerator, int meshRadial, int meshAngular, nb::object onIteration)
     {
         if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
         const qcb_request req{Z.data(), int(Z.size()), pos.data(), basis.c_str(), model.c_str(), pp.c_str(),
-                              accelerator.c_str(), symmetry ? 1 : 0, polarized ? 1 : 0, multiplicity, maxIter};
+                              accelerator.c_str(), symmetry ? 1 : 0, polarized ? 1 : 0, multiplicity, maxIter,
+                              meshRadial, meshAngular};
         qcb_sink sink{onIteration, std::nullopt};
         const bool stream = !onIteration.is_none();
         char err[errlen] = {0};
@@ -170,10 +171,11 @@ NB_MODULE(qchem_py, mod)
 
     nb::class_<Calculator>(mod, "Calculator")
         .def(nb::init<const std::vector<int>&, const std::vector<double>&, const std::string&, const std::string&,
-                      bool, bool, int, int, const std::string&, const std::string&, nb::object>(),
+                      bool, bool, int, int, const std::string&, const std::string&, int, int, nb::object>(),
              nb::arg("numbers"), nb::arg("positions"), nb::arg("basis") = "dzvp", nb::arg("model") = "HF",
              nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("max_iter") = 100,
-             nb::arg("pp") = "", nb::arg("accelerator") = "DIIS", nb::arg("on_iteration") = nb::none(),
+             nb::arg("pp") = "", nb::arg("accelerator") = "DIIS", nb::arg("mesh_radial") = 0, nb::arg("mesh_angular") = 0,
+             nb::arg("on_iteration") = nb::none(),
              "MoleculeSetup::Resolve + converge.  Atomic numbers + flat 3N bohr positions.  on_iteration(iter, E, dE, "
              "[F,D], drho), if given, streams the SCF live (the GIL is released during the solve).")
         .def("run_scf", &Calculator::RunSCF, nb::arg("on_iteration"), nb::arg("max_iter") = 100,

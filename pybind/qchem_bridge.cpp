@@ -122,6 +122,8 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_step_fn step, qcb_sink* sink, cha
         opts.symmetry     = req->symmetry != 0;
         opts.spin         = req->polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;
         opts.multiplicity = req->multiplicity;
+        if (req->meshRadial  > 0) opts.mesh.nRadial       = req->meshRadial;
+        if (req->meshAngular > 0) opts.mesh.angularDegree = req->meshAngular;
         qchem::AcceleratorOptions acc;
         acc.type = req->accelerator && *req->accelerator ? req->accelerator : "DIIS";
 
