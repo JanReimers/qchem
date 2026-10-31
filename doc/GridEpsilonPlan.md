@@ -139,11 +139,20 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
   recorded for M2/M3 to explain.  The SIGN splits on the grid audit: Si's BallOnly audit is clean and AliasFree sits +9..+15 μHa
   HIGHER; NaF and MnO BallOnly print `[grid audit] UNDER` (density raster alias e^{−G_N²/p} = 1.5e-2 for NaF's p = 80 Na pair on
   36³, 9.4e-3 for MnO's p = 72 on 60³; V_loc-long 1.4e-3 / 5.0e-3) and AliasFree (audit OK) sits LOWER, −941 / −23 μHa.  NaF's
-  shift is mHa in every term (ΔEkin +5.9, ΔEen −7.1, ΔEee +1.3, ΔExc −1.1 mHa): the converged D moved, not one term's quadrature.
+  per-term shifts (ΔEkin +5.9, ΔEen −7.1, ΔEee +1.3, ΔExc −1.1 mHa) are D redistributing on a flat surface -- see M2a.
 - **M2 — the scale constants and delivered errors.**  FIRST ITEM (controller 2026-10-30): explain NaF SR2's −941 μHa (M1, E_AF − E_BO; BallOnly audit UNDER at alias 1.5e-2) -- which
   term, which pairs, and its delivered max|ΔH_ij| on BallOnly vs AliasFree.  Then: on the TightPrimitive oracles (closed forms at any exponent), sweep G_N²/p and
   the ball, fit S_term per term, then confirm on Si / NaF / MnO / β-MnO₂ that every term's delivered max|ΔH_ij| sits within a factor
   ~3 of ε (neither far tighter nor looser).
+  **M2a MEASURED 2026-10-31 (NaF SR2's −941 μHa explained; runs in `~/Code/qchem6-runs/NaF/C2M2a_*`):**
+  (1) it is a FIXED-DENSITY quadrature error, not relaxation: the AliasFree converged state restored into a BallOnly run gives
+  E_BO at the first iterate = −24.4303944, already E_BO's own minimum (−24.4303950) to 0.6 μHa, so E_BO[D_AF] ≈ E_BO[D_BO] and
+  E_AF[D] − E_BO[D] ≈ −941 μHa at fixed D (variational: second order in ΔD).  (2) it is ~92 % the XC RASTER: the same pair with XC on
+  the Becke mesh (`policy.cp2kCompat false`, same deck otherwise) gives BO −24.4304034 vs AF −24.4304801, −77 μHa -- so ≈ −864 μHa
+  is v_xc evaluated on the aliased ρ sampled at 36³ (density audit alias 1.5e-2 at the p = 80 Na pair), and ≈ −77 μHa is Hartree +
+  V_loc long (alias 1.5e-2 / 1.4e-3).  So for NaF the binding row is §3's XC raster (M3), not the Hartree/V_long rows; and the
+  §5a NaF parity gap vs CP2K (−24.4312134) is mostly ours: BallOnly +0.82 mHa, AliasFree −0.12 mHa.  (The Becke runs use the deck's
+  nR = 20 mesh, which warns it is under-resolved; the SAME mesh in both, so the difference isolates the raster terms.)
   **M2b MEASURED 2026-10-30 (29c20b8a, `GPW.RasterAliasCalibration`, UTLattice_BS):** one Mn s+p+d primitive, α = 10 / 36 / 76.68, the
   raster swept (BallOnly at densityEcut = c·p, c = 0.5…3; AliasFree at the AUTO floor), x = G_N²/p read off the run's own grid audit.
   **The tail is not the bare e^{−x}**: err·e^{x} GROWS with x (the d pair's Hermite prefactor is a polynomial in G²/p).  A fit
