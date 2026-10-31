@@ -8,6 +8,8 @@
 // MoleculeSetup::Resolve, and owns one qchem::Calculation.  Everything it answers comes from the facade.
 module;
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <exception>
 #include <memory>
@@ -20,7 +22,7 @@ export module qchem.bridge;
 import qchem.Types;          // rvec3_t, vec3_t
 import qchem.Structure;      // Molecule, Atom
 import qchem.SCFParams;      // SCFParams
-import qchem.SCFIterator;    // SCFProgress
+import qchem.SCFIterator;    // IterationRow, IterationCell
 import qchem.Calculation;    // Calculation, MoleculeSetup, CalcOptions, AcceleratorOptions
 
 // The opaque handle: the facade plus the request's geometry (for the sampling box).  extern "C++" attaches it to the
@@ -58,14 +60,42 @@ qchem::SCFParams scf_params(int maxIter)
     return p;
 }
 
-//! The facade's observer, forwarding each iteration to the C sink.
-Calculation::Observer forward_to(qcb_step_fn step, qcb_sink* sink)
+//! The facade's observer, forwarding each iteration's row to the C sink: every cell, generically.
+Calculation::Observer forward_to(qcb_row_fn step, qcb_sink* sink)
 {
-    return [step, sink](const qchem::SCFIterator::SCFProgress& p)
+    return [step, sink](const qchem::SCFIterator::IterationRow& r)
     {
-        const qcb_step s{int(p.iteration), p.energy, p.dE, p.commutator, p.drho};
-        step(sink, &s);
+        using Scale = qchem::SCFIterator::IterationCell::Scale;
+        std::vector<qcb_cell> cells;
+        cells.reserve(r.cells.size());
+        for (const auto& c : r.cells)
+            cells.push_back({c.title.c_str(), c.value, c.text.c_str(), c.tolerance.value_or(std::nan("")),
+                             c.scale == Scale::Log ? 1 : 0});
+        const qcb_row row{int(r.iteration), r.eb.GetTotalEnergy(), int(cells.size()), cells.data()};
+        step(sink, &row);
     };
+}
+
+std::string why_name(qchem::SCFFailure::Why w)
+{
+    using Why = qchem::SCFFailure::Why;
+    switch (w)
+    {
+        case Why::NotConverged: return "not converged";
+        case Why::ChargeSlosh:  return "charge slosh (the Hartree term ran away)";
+        case Why::OrderLost:    return "magnetic order lost";
+    }
+    return "unknown SCF failure";
+}
+
+//! The SCFFailure as one line for Python: why, after how many iterations, the residual, and the facade's details.
+std::string describe(const qchem::SCFFailure& f)
+{
+    char residual[32];
+    std::snprintf(residual, sizeof residual, "%.2e", f.residual);
+    std::string s = why_name(f.why) + " after " + std::to_string(f.iterations) + " iterations (residual " + residual + ")";
+    if (!f.details.empty()) s += ": " + f.details;
+    return s;
 }
 
 void bbox(const std::vector<double>& pos, double pad, rvec3_t& lo, rvec3_t& hi)
@@ -104,7 +134,7 @@ void sample(const qcb_calc* h, const Calculation::sf_t& f, int n, double pad, do
 
 extern "C" {
 
-qcb_calc* qcb_make(const qcb_request* req, qcb_step_fn step, qcb_sink* sink, char* err, int errlen)
+qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char* err, int errlen)
 {
     try
     {
@@ -142,16 +172,27 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_step_fn step, qcb_sink* sink, cha
 
 void qcb_free(qcb_calc* h) { delete h; }
 
-int qcb_converge(qcb_calc* h, int maxIter, qcb_step_fn step, qcb_sink* sink, char* err, int errlen)
+int qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char* err, int errlen)
 {
     try
     {
         h->calc->OnIteration(step ? forward_to(step, sink) : Calculation::Observer{});
-        return h->calc->Converge(scf_params(maxIter)) ? 1 : 0;
+        const auto out = h->calc->Converge(scf_params(maxIter));
+        h->calc->OnIteration(Calculation::Observer{});      // the sink lives only for this call
+        if (out) return 1;
+        write_error(describe(out.Error()).c_str(), err, errlen);
+        return 0;
     }
     catch (const std::exception& e) { write_error(e.what(), err, errlen); }
     catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
     return -1;
+}
+
+int qcb_failure(const qcb_calc* h, char* out, int outlen)
+{
+    const auto r = h->calc->Result();
+    write_error(r ? "" : describe(r.Error()).c_str(), out, outlen);
+    return r ? 0 : 1;
 }
 
 double qcb_energy    (const qcb_calc* h) { return h->calc->Energy(); }
