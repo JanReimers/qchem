@@ -272,7 +272,13 @@ else()
 endif()
 # -g + frame pointers keep Release PROFILABLE (perf/callgrind) at negligible cost -- that is what made the
 # Step 3 cost attribution possible at all.  Dropped -pg (gprof): inaccurate on optimized code.
-set(CMAKE_CXX_FLAGS_RELEASE "${QCHEM_RELEASE_CODEGEN} -g -fno-omit-frame-pointer -DNDEBUG")
+# -DNDEBUG here too (it also reaches the submodules' C++), but NOT under QCHEM_RELCHECKED: an unconditional one silently
+# killed every assert in the "asserts live" tree (found 2026-10-31 setting up the daily RelChecked sweep).
+if(QCHEM_RELCHECKED)
+    set(CMAKE_CXX_FLAGS_RELEASE "${QCHEM_RELEASE_CODEGEN} -g -fno-omit-frame-pointer")
+else()
+    set(CMAKE_CXX_FLAGS_RELEASE "${QCHEM_RELEASE_CODEGEN} -g -fno-omit-frame-pointer -DNDEBUG")
+endif()
 set(CMAKE_CXX_FLAGS_DEBUG   "-g -O0")
 
 set(CXX_COMMON_COMPILE_DEFINITIONS
