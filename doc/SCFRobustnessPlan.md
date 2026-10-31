@@ -571,3 +571,5 @@ Probe: capped reruns (n = 1…30, deterministic), reading `GetLevels()` (frontie
   - Ensemble DM (Marzari–Vanderbilt–Payne, Freysoldt–Boeck–Neugebauer) removes the 1/kT refill gain by construction, so it is now the principled cure.
   - Annealing (Rabuck–Scuseria) is the cheap first try: start at kT ≥ the self-split, and lower kT while the ensemble holds.
   - Order unchanged: annealing first, then ensemble DM.
+
+**Step 2 RULE (controller, 2026-10-31): a STATED state turns OFF the MOM guard's "persistent hole → release the reference".**  In a degenerate set a stated integer state is non-aufbau by physics (above), so the guard's release is a defect against it.  Its gate is Δρ at its own floor, never a fixed 1e-7.  The facade's stated-occupation path SETS this; it is not an extra flag the user must know.  The guard stays on for an UNSTATED run (it catches a reference that drifted).
