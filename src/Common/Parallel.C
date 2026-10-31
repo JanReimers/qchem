@@ -157,8 +157,9 @@ int BlasThreads();
 //! each with the knob that set it.
 std::string ThreadSummary();
 
-//! \brief Fix the BLAS to exactly \c BlasThreads() threads.  Call ONCE at the top of \c main() --
-//! every test main and every CLI driver does.
+//! \brief Fix the BLAS to exactly \c BlasThreads() threads.  **Runs automatically when qcCommon loads** (with
+//! \c StopOmpThreadsBusyWaiting; 2026-10-31, after rundeck/gpwprobe were found running an unpinned 16-thread pool), so every
+//! executable and the pybind module are pinned.  That static initialiser is the ONE home: no \c main() calls it.
 //!
 //! ⚠ **WHEN >1 IS SAFE, AND WHY IT IS NOT THE NESTING HAZARD IT LOOKS LIKE** (measured 2026-09-06).
 //! The standing rule was "one level of parallelism, ours": flat OpenMP regions above (pair loops,
@@ -181,9 +182,8 @@ std::string ThreadSummary();
 //! link time, not silently unpin the run).
 void FixBlasThreads();
 
-//! \brief Stop the OpenMP threads BUSY-WAITING between parallel regions.  Call ONCE at the top of
-//! \c main(), beside \c FixBlasThreads -- same shape, same reason: a process-wide runtime setting
-//! belongs in the source where it can be read, not in someone's shell.
+//! \brief Stop the OpenMP threads BUSY-WAITING between parallel regions.  Runs at qcCommon load beside \c FixBlasThreads
+//! -- same shape, same reason: a process-wide runtime setting belongs in the source where it can be read, not in someone's shell.
 //!
 //! ⛔ WHY (measured 2026-09-04).  LLVM's libomp spins for **200 ms** after every parallel region before
 //! letting a thread sleep (`KMP_BLOCKTIME`, default 200).  Our regions are PER SHELL PAIR -- short and
@@ -201,7 +201,7 @@ void FixBlasThreads();
 //! wins -- the A/B above has to stay runnable.  Env rather than \c kmp_set_blocktime() because that is a
 //! libomp extension needing <omp.h>, and this file deliberately makes no \c omp_*() calls.
 //! \note MUST run before the first parallel region: libomp reads these at its own init, which is the
-//! first OMP call in the process.  The top of \c main() is the only place that is guaranteed.
+//! first OMP call in the process; qcCommon's load-time initialiser runs before \c main(), so before any region.
 void StopOmpThreadsBusyWaiting();
 
 } // namespace qchem
