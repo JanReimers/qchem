@@ -57,6 +57,11 @@ rigorous math aspect well isolated from the heuristic part; the latter could eas
    value; η = 1 = "rigorous mode" (geometry/forces validation runs ask for it).
 3. **Reporting.**  The `[accuracy]` line prints L_rigorous AND L_used with η; the grid audit reports the delivered error against both,
    so a material where η is too optimistic shows at once.  Nothing in the sizing code may mix the two (no constant buried in a formula).
+4. **η by material class (user 2026-10-31: "different values of η for insulators vs metals, or covalent versus ionic"): MEASURE FIRST.**
+   The M2c gridAudit set spans the classes -- Si k222 (covalent), NaF (ionic), MnO / β-MnO₂ (magnetic TMO), Al fcc k222 smeared (metal)
+   -- and reports η per term per system.  Flat within ~2× ⇒ one default per term class.  If it varies, prefer a SELF-CALIBRATING η (a
+   pilot gridAudit at the seed or after a few SCF iterations measures THIS run's η and sizes the final raster) over a material taxonomy
+   (a metal/insulator/ionic lookup is a classifier that can be wrong); the expert key still overrides.
 
 **The derived tolerances.**  **L(ε) is the root of S_term·L³·e^{−L} = ε** (MEASURED, M2b: the alias tail of an s+p+d pair carries a
 Hermite prefactor ~ x³; S_Vlong = 2.35 Ha, S_ρ = 0.35 ⇒ L(1e-5) ≈ 21.6 / 19.4).  ⚠ NOT the bare ln(S_term/ε) (≈ 14.5 at 1e-5), which
