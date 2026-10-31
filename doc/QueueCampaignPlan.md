@@ -245,7 +245,7 @@ Lane B design review: OOD V-CALCNET -- now counted under F as "PES / run-setup r
 
 **H (lane H)** — §1; §2 DFT+U, A7 estimators, D5 little group, the PW umbrella + PW-1/2/4, KP; §3 NiO ghost, MnO ordering, the campaign
 re-run, NiO/SrVO₃ vs hp.x, the PW 4× XC ball re-run, the three β-MnO₂ rows; §4 LR ledger, dense PW cost, LR on real TRIM; OOD V1.40;
-CleanCode D-ENV-RERUN, D-CKALPHA-AUTO.
+CleanCode D-ENV-RERUN, D-CKALPHA-AUTO.  OpenWork "CP2K oracle: is `ADDED_MOS` converged on the smeared TMO decks?" (lane G 2026-10-30).
 
 **X (16, the quota)** — OpenWork "`A_HF_dfPin.SelfPin` parameter names are raw bytes" (lane G 2026-10-30); OpenWork "`CalcOptions`'s default basis `sto-3g` is not registered" (lane B 2026-10-30, user's call: register STO-3G or default to `dzvp`); OpenWork "R2.1 cannot measure the raster XC route" (rides C2); OpenWork "every `_Long` test re-proves its claim at the cheapest resolution" (lane A, right after C1 B2 lands; it shares the vendored-state mechanism with panel #19); CleanCode D10, R2.24, R2.23, R2.21, R1.0f, D-POINTPROBE, D-TIMING-GATE, D-XCROUTES-GROWTH, D-RK-ONCE,
 D-CONTRACTED-SHELL, D-FIT-MERGE; OpenWork "Blaze heevx/syevx" (rides ModuleToolchain Step 4).
