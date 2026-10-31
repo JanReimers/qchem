@@ -122,7 +122,26 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
 - **M1 — AliasFree's wall cost** on the `doc/Benchmark.md` §5a rows, serial, COPYING the §5a commands (ruling: ≲ 1.3× ⇒ AliasFree
   default; dearer ⇒ BallOnly stays default and P3 escalates).  Under §1 row 1 the question becomes "the ε-sized N's cost at the
   default ε", which is ≤ AliasFree's.
-- **M2 — the scale constants and delivered errors**: on the TightPrimitive oracles (closed forms at any exponent), sweep G_N²/p and
+  **MEASURED 2026-10-30 (lane-a, serial, `scripts/bench` + `rundeck --set solid.raster=…`; rows and logs in
+  `~/Code/qchem6-runs/{Si,NaF,MnO}/C2M1_*`):**
+
+  | deck | iters BO/AF | wall BallOnly | wall AliasFree | × | collocate s/call BO→AF | RSS BO→AF | E_AF − E_BO |
+  |---|---|---|---|---|---|---|---|
+  | `bench/Si_Gamma_parity` | 16/16 | 3.85 s | 18.61 s | **4.8** | 0.063→0.334 (5.3×) | 47→71 MB | +8.5 μHa |
+  | `bench/Si_k222_parity` | 15/13 | 11.82 s | 55.54 s | **4.7** | 0.060→0.365 (6.1×) | 62→138 MB | +13.6 μHa |
+  | `bench/Si_k222s_parity` | 14/14 | 10.32 s | 55.87 s | **5.4** | 0.054→0.340 (6.2×) | 62→141 MB | +14.8 μHa |
+  | `bench/NaF_SR2_Gamma_parity` | 16/15 | 10.57 s | 66.05 s | **6.2** | 0.171→1.242 (7.3×) | 94→213 MB | **−941 μHa** |
+  | `MnO_AFM2_free` (Becke XC) | 15/15 | 7:42 | 16:49 | **2.2** | 1.35→11.88 (8.8×) | 542→1204 MB | −22.6 μHa |
+
+  **Verdict: AliasFree costs 2.2–6.2× wall (5–9× per collocate/gather call), far above the ≲1.3× ruling ⇒ BallOnly stays the
+  default and P3 escalates.**  MnO reads only 2.2× because its Becke XC sampling (~300 s, raster-independent) dilutes the raster cost.
+  Iteration counts are unchanged, so the whole cost is per-call raster size.  The ΔE column is NOT an acceptance measure (pin 3); it is
+  recorded for M2/M3 to explain.  The SIGN splits on the grid audit: Si's BallOnly audit is clean and AliasFree sits +9..+15 μHa
+  HIGHER; NaF and MnO BallOnly print `[grid audit] UNDER` (density raster alias e^{−G_N²/p} = 1.5e-2 for NaF's p = 80 Na pair on
+  36³, 9.4e-3 for MnO's p = 72 on 60³; V_loc-long 1.4e-3 / 5.0e-3) and AliasFree (audit OK) sits LOWER, −941 / −23 μHa.  NaF's
+  shift is mHa in every term (ΔEkin +5.9, ΔEen −7.1, ΔEee +1.3, ΔExc −1.1 mHa): the converged D moved, not one term's quadrature.
+- **M2 — the scale constants and delivered errors.**  FIRST ITEM (controller 2026-10-30): explain NaF SR2's −941 μHa (M1, E_AF − E_BO; BallOnly audit UNDER at alias 1.5e-2) -- which
+  term, which pairs, and its delivered max|ΔH_ij| on BallOnly vs AliasFree.  Then: on the TightPrimitive oracles (closed forms at any exponent), sweep G_N²/p and
   the ball, fit S_term per term, then confirm on Si / NaF / MnO / β-MnO₂ that every term's delivered max|ΔH_ij| sits within a factor
   ~3 of ε (neither far tighter nor looser).
 - **M3 — the XC raster N vs 2N** on the same four, as §3's audit would print it.
