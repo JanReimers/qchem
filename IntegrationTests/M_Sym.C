@@ -23,7 +23,9 @@ using namespace qchem;
 
 // Tight convergence (== the old M_Sym RunHF/RunDFT SCFParams): drives Δρ/[F,D] to ~1e-9 so the
 // symmetric and non-symmetric energies agree to the 1e-6 invariance tolerance.
-static const SCFParams tight = {.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2,
+// No Δ[F,D] gate (retired as a default, CLAUDE.md): on the converged XC mesh (2026-10-31) [F,D] settles at ~1e-8 with 1e-8
+// wobble, so Δ[F,D] < 1e-9 was never met and the DFT runs hit the cap with Δρ/N 1e-9 and [F,D] 7e-9 -- both gates met.
+static const SCFParams tight = {.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinVirial = 1e2,
                                 .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false};
 
 
@@ -35,7 +37,11 @@ static EnergyBreakdown Run(const Molecule& mol, Model model, SpinGroup pol, bool
     // The facade's default seed (auto SAD for DFT, CoreGuess for HF) -- the SAD polarized-DFT path is now
     // robust (FittedVxcPol handles the spin-agnostic seed; see M_DFT.WaterPolarizedSAD).  This is an
     // invariance test anyway, so the converged energy is seed-independent.
-    Calculation calc(MoleculeSetup::Resolve(mol, {.basis = "dzvp", .model = model, .spin = pol, .angular = angular, .symmetry = symmetry}));
+    CalcOptions o{.basis = "dzvp", .model = model, .spin = pol, .angular = angular, .symmetry = symmetry};
+    // The claim is symmetric == non-symmetric ON ONE MESH, so it needs no converged mesh: the DFT runs keep the old 12-direction
+    // one (MHL 30 / Lebedev 5).  On the converged default (80 / 29, 2026-10-31) the four SALC DFT runs cost 107 s + 175 s.
+    o.mesh.nRadial=30; o.mesh.angularDegree=5;
+    Calculation calc(MoleculeSetup::Resolve(mol, o));
     calc.Converge(tight);                 // re-converge tight for the invariance tolerance
     return calc.EnergyTerms();
 }

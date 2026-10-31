@@ -8,7 +8,12 @@
 // Migrated off the QchemTester/TestMolecule scaffold (OpenWork D).  The facade auto-selects the SAD seed
 // AND DIIS-from-start for DFT (CalcOptions: model is DFT -> EMax=100 so the [F,D] gate never blocks DIIS),
 // which is exactly the DIIS_FromStart + SAD recipe the scaffold set by hand here -- so anchors are
-// byte-for-byte the scaffold values; the default mesh matches TestMolecule::GetMeshParams() exactly.
+// byte-for-byte the scaffold values.
+//
+// RE-ANCHORED 2026-10-31 (lane B) on the CONVERGED default XC mesh (MHL 80 / Lebedev 29; was 30 / 5, 20 mHa/atom low on
+// water -- MoleculeSetup.C).  Re-judged per pin 10 against PySCF (exact J and XC, same Cartesian dzvp, 200/590 grid):
+// every closed-shell anchor now sits 1-5 mHa ABOVE it -- the DGauss A1 fitted-Coulomb/Vxc route (PySCF's A1_coul J-fit alone
+// moves 2 mHa DOWN, so the fitted Vxc carries it) -- where the 30/5 values sat 10-55 mHa BELOW (not variational).
 #include "gtest/gtest.h"
 #include <cmath>
 #include <stdexcept>
@@ -42,7 +47,9 @@ static Molecule MakeO2()         // O2 at the experimental bond length ~1.208 An
 TEST(M_DFT, N2)
 {
     Calculation calc(MoleculeSetup::Resolve(MakeN2(), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.75197}));
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -109.21679)), 2e-3);
+    // -109.225960 at the converged mesh (MHL 150/35: -109.225954); PySCF exact -109.227199 (+1.2 mHa, the fitted Vxc).
+    // Was -109.21679 at 2e-3 relative (0.2 Ha!) on the 30/5 mesh (-109.217602): the tolerance hid the mesh.
+    EXPECT_NEAR(calc.Energy(), -109.2259603700, 1e-5);
 }
 
 TEST(M_DFT, Water)
@@ -50,8 +57,9 @@ TEST(M_DFT, Water)
     Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.74000}));
     // CONVERGED Xalpha total energy (the facade's auto DIIS-from-start): [F,D] and Δρ reach ~1e-13 by
     // ~iter 14, virial V/K = -2.006 (the correct ~-2, vs the buggy -2.11).  A true converged regression
-    // sentinel.  (Was -76.123348 interim limit-cycle, and -79.414120 stale-cache.)
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1493013984)), 2e-3);
+    // sentinel.  (Was -76.123348 interim limit-cycle, and -79.414120 stale-cache, and -76.149301 on the 30/5 mesh -- 48 mHa low,
+    // inside the old 2e-3 relative.)  Converged mesh (MHL 150/35) -76.100894; PySCF exact -76.104768 (+3.9 mHa, the fitted Vxc).
+    EXPECT_NEAR(calc.Energy(), -76.1008971700, 1e-5);
 }
 
 // --- The spherical-Gaussian (PG_Spherical) basis through the DFT path -----------------------------
@@ -65,8 +73,10 @@ TEST(M_DFT, WaterSpherical)
 {
     Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis   = "dzvp", .model   = Model::Xalpha,
                                    .angular = Angular::Spherical, .xalpha  = 0.74000}));
-    EXPECT_NEAR(calc.Energy(), -76.1493013984, 0.05);                 // sanity: same ballpark as Cartesian
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1485556624)), 2e-3);  // CONVERGED anchor (DIIS from start)
+    EXPECT_NEAR(calc.Energy(), -76.1008971700, 0.05);                 // sanity: same ballpark as Cartesian
+    // CONVERGED anchor (DIIS from start).  MHL 150/35: -76.100117; PySCF exact (spherical dzvp) -76.104104 (+4.0 mHa, as Cartesian).
+    // On the converged mesh the spherical lands 0.8 mHa ABOVE the Cartesian, not the 0.09 Ha the note above was written against.
+    EXPECT_NEAR(calc.Energy(), -76.1001208265, 1e-5);
 }
 
 // Polarized Xalpha water through the facade's DEFAULT (auto SAD) seed.  This used to SEGFAULT: the SAD seed
@@ -83,20 +93,20 @@ TEST(M_DFT, WaterPolarizedSAD)
     // drives from the start for DFT).
     calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1493013984)), 2e-3);   // == the unpolarized Xalpha anchor
+    EXPECT_NEAR(calc.Energy(), -76.1008971700, 1e-5);   // == the unpolarized Xalpha anchor
 }
 
 // Spin-native (polarized) parameter-free LDA water (Dirac exchange + spin-native VWN5 correlation) through
 // the facade's auto SAD seed -- OpenWork B2: Ham_DFTcorr_P + FittedVcorrPol.  Water is closed shell, so at
 // convergence zeta=0 everywhere and the polarized run must collapse to the UNPOLARIZED LDA anchor
-// (M_Calculation.WaterLDA = -75.9324615507).  This exercises the new polarized correlation term end to end:
+// (M_Calculation.WaterLDA = -75.8726517).  This exercises the new polarized correlation term end to end:
 // the SAD-seed fallback (rho_up=rho_down=rho/2), the per-spin v_c^sigma fit, and the two-channel E_c.
 TEST(M_DFT, WaterPolarizedLDA)
 {
     Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA, .spin = SpinGroup::Polarized}));
     calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
-    EXPECT_NEAR(calc.Energy(), -75.9324615507, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
+    EXPECT_NEAR(calc.Energy(), -75.8726517100, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
 }
 
 // OPEN-SHELL through the facade multiplicity knob (OpenWork B4): triplet O2 (16 e-, multiplicity 3 =>
@@ -109,7 +119,10 @@ TEST(M_DFT, OxygenTripletLDA)
     Calculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 3}));
     calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
-    EXPECT_NEAR(calc.Energy(), -149.2562876393, 1e-4);   // converged spin-native LDA triplet (regression anchor)
+    // Converged spin-native LDA triplet (regression anchor).  MHL 150/35: -149.263710; was -149.256288 on the 30/5 mesh.
+    // ⚠ PySCF UKS lda,vwn (exact J and XC) gives -149.299178: we are 35.5 mHa ABOVE -- 8x water's fit offset, while our UHF
+    // triplet matches PySCF to 1e-8.  An open row (OpenWork §3, "molecular polarized DFT is 35 mHa above PySCF on O₂").
+    EXPECT_NEAR(calc.Energy(), -149.2637158314, 1e-4);
 }
 
 // REGRESSION for the O2-HF-triplet SEGV: the polarized level display (tCompositeWF::DisplayEigenPolarized) crashed on

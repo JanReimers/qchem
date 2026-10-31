@@ -51,12 +51,17 @@ struct CalcOptions
     Engine      engine  = Engine::MnD;
     Angular     angular = Angular::Cartesian;
     //! DFT-only knobs (ignored when model is HF/1-e/Dirac).  xalpha: the Slater exchange parameter, used
-    //! only by model==Xalpha.  mesh: the numerical XC integration grid -- defaults to the proven molecular
-    //! values; a designated initializer overrides just the resolution you care about, e.g. {.nRadial=50}.
+    //! only by model==Xalpha.  mesh: the numerical XC integration grid; a designated initializer overrides just
+    //! the resolution you care about, e.g. {.nRadial=50}.
+    //! The default is CONVERGED, MHL 80 / Lebedev 29 (302 directions), measured 2026-10-31 against MHL 150 / Lebedev 35:
+    //! per atom, water LDA 1 μHa, N₂ Xalpha 3 μHa, F₂ GTH q7 27 μHa.  It was MHL 30 / Lebedev 5 (12 directions), proven on
+    //! HF only (no mesh there) and 20 mHa/atom LOW on water LDA, 0.52 Ha/atom on F₂ -- the error is ANGULAR (30/29 is 0.7 mHa
+    //! from converged on water, 80/5 still 65 mHa) and NOT variational, so a coarse mesh reads as a better energy.  Cost:
+    //! ~20x the 30/5 SCF wall on water (0.14 s -> 2.8 s single-threaded); 100/35 buys ~1 μHa/atom more for 1.75x again.
     double      xalpha = 0.7;
-    qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 30,
+    qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 80,
                               .mhl_m    = 3,                         .mhl_alpha = 2.0,
-                              .angular  = qcMesh::AngularKind::Lebedev, .angularDegree = 5,   // the 12-direction rule
+                              .angular  = qcMesh::AngularKind::Lebedev, .angularDegree = 29,   // the 302-direction rule
                               .beckeOrder = 2};
     //! Point-group SALC blocking + per-irrep aufbau.  GUARDED TO THE CARTESIAN PG BASIS: the SALC
     //! builder needs a PolarizedGaussian (PGData) orbital IBS and throws otherwise.  Since the facade

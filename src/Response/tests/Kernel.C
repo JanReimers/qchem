@@ -308,11 +308,12 @@ TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
 //! LDA (Slater + VWN5) CPKS through the FD kernel -- the only LDA kernel until R2.  A LOOSE oracle, and the
 //! looseness is MEASURED to be the GROUND STATE's XC route, not the response (2026-09-28, H2O/dzvp):
 //!     XC mesh                    E (Ha)       alpha xx / yy / zz  vs PySCF lda,vwn5 CPKS
-//!     default (MHL 30 / Leb 5)   -75.93246    -0.2%  -1.2%  -2.0%
-//!     MHL 80 / Lebedev 35        -75.8726     +0.6%  +1.4%  +0.7%      (31 s -- too slow for the gate)
+//!     MHL 30 / Leb 5 (old dflt)  -75.93246    -0.2%  -1.2%  -2.0%
+//!     MHL 80 / Leb 29 (default)  -75.87265    +0.6%  +1.4%  +0.7%      (22 s; the default since 2026-10-31)
+//!     MHL 80 / Lebedev 35        -75.8726     +0.6%  +1.4%  +0.7%      (31 s)
 //!     PySCF                      -75.87730    (3.44581  7.33076  5.91599)
 //! The residual ~1% at a fine mesh is our FITTED Coulomb/XC against PySCF's exact J.  The FD step is NOT a
-//! factor: h = 1e-3 and 1e-4 agree to 1e-6 (checked below).  Gated at 3% on the default mesh.
+//! factor: h = 1e-3 and 1e-4 agree to 1e-6 (checked below).  Gated at 3% on the default (converged) mesh.
 TEST(ResponsePolarizability, LDA_FD_Kernel_vsPySCF)
 {
     const double pyscf[3]={3.44581010, 7.33075620, 5.91599197};   // PySCF RKS lda,vwn / dzvp(cart) CPKS

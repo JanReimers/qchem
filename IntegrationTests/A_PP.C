@@ -53,7 +53,7 @@ TEST(Si_PP_U, Medium)
 // both atoms) + the Zion ion-ion term (Vnn with the PP's Zion, not the true Z).  Validated two ways beyond
 // the "did-E-move" pins: (a) the ion-ion energy is EXACTLY Zion^2/R = 16/R (a Z-vs-Zion bug would give
 // 196/R); (b) at large separation the total energy is additive -- E(Si2) ~= 2*E(Si) for neutral fragments
-// (the O(1/R) Enn/Een/Eee pieces cancel), here to ~2.6 mHa at R=20 bohr.
+// (the O(1/R) Enn/Een/Eee pieces cancel), here to 0.10 mHa at R=20 bohr (2.6 mHa on the old 30/5 XC mesh).
 TEST(Si2_PP_U, LargeSeparation)
 {
     const double R = 20.0;   // bohr -- large separation (near-isolated atoms)
@@ -76,8 +76,11 @@ TEST(Si2_PP_U, LargeSeparation)
     // implementations (OpenBLAS vs netlib -- eigensolver roundoff moving the fixed point; deterministic once
     // OpenBLAS threads are pinned, see gtestmain.C).  1e-5 clears that with margin yet stays far below any real
     // regression (mHa-scale).  E2 (the dimer SCF) is unaffected (moves ~6e-11), so it keeps the tight 1e-6.
-    EXPECT_NEAR(E1, -3.759438815, 1e-5);      // pinned regression anchor: Si pseudo-atom (sipp basis)
-    EXPECT_NEAR(E2, -7.516293157, 1e-6);      // pinned regression anchor: Si2 at R=20 bohr
+    // Re-anchored 2026-10-31 on the converged default XC mesh (MHL 80 / Lebedev 29); was -3.759438815 / -7.516293157 on 30/5.
+    // MHL 150/35: E1 -3.7617183919 (0.1 μHa), E2 -7.5234428911 (107 μHa -- the far-separated pair is the slowest mesh case).
+    // Re-judged by the additivity below (the independent route here): E2-2E1 went from 2.6 mHa to 0.10 mHa.
+    EXPECT_NEAR(E1, -3.7617184825, 1e-5);     // pinned regression anchor: Si pseudo-atom (sipp basis)
+    EXPECT_NEAR(E2, -7.5233363060, 1e-6);     // pinned regression anchor: Si2 at R=20 bohr
     EXPECT_NEAR(eb["Enn"], 16.0/R,   1e-6);      // Zion=4 ion-ion (Z=14 -> 196/R would fail): the routing check
     EXPECT_NEAR(E2, 2.0*E1,       5e-3);      // multi-atom PP additivity: neutral fragments -> ~2x at large R
 }
@@ -98,8 +101,11 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
     osi.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,R)));   // Si : GTH q4 -> Zion 4
     // The QUINTET: at R = 20 bohr the pair is two open-shell atoms, O 2p^4 (3P) and Si 3p^2 (3P), aligned.  The default
     // closed-shell SINGLET forced half-filled degenerate p shells into one determinant and never converged (Δρ 0.26 at the
-    // cap; it "passed" on that iterate until the cap guard, 2026-10-29); the quintet converges in 13 iterations.
-    Calculation cOSi(MoleculeSetup::Resolve(osi, {.basis = "sipp", .pp = "gth-lda-valence", .multiplicity = 5}));
+    // cap; it "passed" on that iterate until the cap guard, 2026-10-29); the quintet converged in 13 iterations -- on the 30/5 XC
+    // mesh, whose 12 directions SPLIT each atom's p triple.  On the converged mesh (2026-10-31) the O 2p down electron sits in an
+    // exactly degenerate triple and integer aufbau flips it every iteration (cap at 100, Δρ/N 1e-2): a tiny smearing occupies
+    // the triple evenly, as for the B atom (A_PG_DFT).  The routing claim does not care which p the electron is in.
+    Calculation cOSi(MoleculeSetup::Resolve(osi, {.basis = "sipp", .pp = "gth-lda-valence", .multiplicity = 5}), SCFParams{.SmearingkT = 1e-4});
 
     EXPECT_NEAR(cOSi.EnergyTerms()["Enn"], 24.0/R, 1e-6);   // per-species Zion routing: 6*4/R (not 16/R or 36/R)
     EXPECT_LT(cOSi.Energy(), 0.0);                       // a finite, bound total (sanity; not an accuracy claim)
