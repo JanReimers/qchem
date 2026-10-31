@@ -961,3 +961,10 @@ PP / box set 156/156, UTCalculation 96/96, UTGaussian_BS 85/85, UTResponse LDA/H
 that gained a stage summary between two sweeps therefore read as a doubled iteration count -- the 8ab42909 panel's only
 "move" (a MnO2 resume, 5 -> 10) was this, not the SCF.  Fix: lines matching ` stage \d+/\d+\] ` are not counted (the result
 line always prints).  Both logs are parsed by the same rule, so old baselines stay comparable.
+
+
+### Closed 2026-10-31 (lane A): GPW verdict lines repeat every SCF refresh
+
+| **GPW verdict lines repeat every SCF refresh** (lane A, 2026-10-31) | Al fcc k222 smeared (`VALENCE_LOWQ_SR`): the `[grid audit] UNDER: V_loc long` verdict prints ~10× (once per iteration, as a console line + its `·` progress twin); the verdict is a property of the raster, fixed at setup | emit it once at setup (pin: emit contemporaneously with the activity, and the activity is the sizing) · `src/BasisSet/Gaussian/Lattice/Imp/GPW_Evaluator.C` |
+
+**✅ FIXED f3f6ccdc:** `EmitGridAudit` speaks once per run report (the first k-block evaluator; the raster is k-independent): Al fcc k222 8 identical `UNDER: V_loc long` lines → 1.  The same commit has `gridAudit` state the reference raster's verdicts (its fence spans the reference's lazy first evaluation).
