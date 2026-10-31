@@ -1,28 +1,31 @@
 #!/usr/bin/env python3
-"""Compare two ctest LastTest.log files test by test: the LAST printed total energy (Etot=, or 'Etot = ' from rundeck)
+"""Compare two ctest LastTest.log files test by test: the LAST printed total energy (Etot=, or 'Etot = ' from rundeck;
+a test that prints neither -- the molecular / atom gates -- falls back to the Etotal of its LAST SCF trace row)
 and the summed SCF iteration count (iters=).  Prints only the tests whose energy moved by more than --tol (Ha) or whose
 iteration count changed, sorted by |dE|.  Usage: anchordiff.py BASE.log NEW.log [--tol 1e-9]"""
 import re, sys
 
 def parse(path):
-    out = {}; name = None; E = None; iters = 0
+    out = {}; name = None; E = None; Et = None; iters = 0
     head = re.compile(r'^\d+/\d+ Testing: (.+)$')
     etot = re.compile(r'Etot\s*=\s*(-?\d+\.\d+)')
     it   = re.compile(r'iters=(\d+)')
+    row  = re.compile(r'^\s*\d+\s+(-?\d+\.\d{8,})\s')   # an SCF trace row: iteration, Etotal
     stage = re.compile(r' stage \d+/\d+\] ')
     with open(path, encoding='utf-8', errors='replace') as f:
         for line in f:
             m = head.match(line.rstrip('\n'))
             if m:
-                if name is not None: out[name] = (E, iters)
-                name, E, iters = m.group(1).strip(), None, 0
+                if name is not None: out[name] = (E if E is not None else Et, iters)
+                name, E, Et, iters = m.group(1).strip(), None, None, 0
                 continue
             if name is None: continue
             for v in etot.findall(line): E = float(v)
+            if (r := row.match(line)): Et = float(r.group(1))
             # a solid stage's summary line repeats the iteration count its result line already printed (MnO2 resume read 5 -> 10)
             if not stage.search(line):
                 for v in it.findall(line): iters += int(v)
-    if name is not None: out[name] = (E, iters)
+    if name is not None: out[name] = (E if E is not None else Et, iters)
     return out
 
 def main():

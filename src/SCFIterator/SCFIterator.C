@@ -7,6 +7,7 @@ module;
 #include <iosfwd>
 #include <vector>
 #include <optional>
+#include <string_view>
 export module qchem.SCFIterator;
 import qchem.SCFIterator.Types;
 export import qchem.SCFAccelerator;
@@ -44,32 +45,37 @@ bool& ReportBandGap();
 //! reproduces its seed bit for bit at iteration 1 (measured 2026-10-30: 13 atom tests).
 void RequireLiveGates(double FD, double minFD, size_t iteration);
 
-//! Per-iteration progress, handed to an Observer each SCF step so a client (a GUI,
-//! a logger) can watch convergence live without owning the loop.  All real-valued
-//! (energies/residuals are real for both the rX and cX paths).
-struct SCFProgress
+//! \brief ONE CELL of the SCF iteration row: one column of the trace, as the console prints it AND as a plot wants it.
+struct IterationCell
 {
-    size_t iteration;
-    double energy;       //!< total energy E (hartree)
-    double dE;           //!< |E_n - E_{n-1}|
-    double commutator;   //!< [F,D] (the accelerator/DIIS error)
-    double drho;         //!< relative charge-density change
-    //! \brief The ORDER PARAMETER: the INTEGRATED site moment \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\f$ of
-    //! the site carrying the largest |μ|, SIGNED (so a sign flip is visible) -- read off \c eb.charge.siteMoments.
-    //! 0 when the run resolves no basins (a uniform XC mesh) or is unpolarized.  For a two-sublattice AFM this IS
-    //! the staggering \f$\tfrac12(\mu_1-\mu_2)\f$.  (The caller-supplied POINT probe that used to sit here is
-    //! gone, 2026-09-14: a point sample of \f$m(r)\f$ is a spin DENSITY along one direction of an anisotropic
-    //! d shell, not a moment -- doc/OpenWork.md Step 0a, [[feedback_integrated_observables]].)
-    double order=0;
-    //! \brief THIS iteration's full energy breakdown, of which \c energy is \c GetTotalEnergy().
+    enum class Scale { Linear, Log };      //!< how a plot shows it: Log for a convergence measure (its |value|)
+    std::string           title;           //!< the header label ("Etotal", "[F,D]", "Δρ", "ρ_mix", "m_site", ...)
+    std::optional<double> tolerance;       //!< the gate shown as "(1e-07)" under the label; absent for a column that gates nothing
+    double                value;           //!< the number plotted -- NaN when the cell has none (a "----", a blank cfg)
+    std::string           text;            //!< the cell exactly as the console prints it, padding stripped (flags, tags kept)
+    Scale                 scale = Scale::Linear;
+};
+
+//! \brief ONE SCF ITERATION AS THE TRACE SHOWS IT (2026-10-31, OpenWork "The SCF iteration row has two homes"): the cells of
+//! THIS run's layout, in display order -- the console writes them, the Observer receives them, built from ONE column list,
+//! so a column added to a layout appears in both with no second edit.  It retired \c SCFProgress, whose five numbers were
+//! a hand-picked subset (no Δ[F,D], ρ_lost/N, ρ_mix, accel, gap, ... and no titles or tolerances) with an ABSOLUTE |ΔE| that
+//! the solid console printed RELATIVE under the same name; the row is now exactly the console's (controller ruling).
+//! Built every iteration of a run that prints a trace OR has an observer.
+struct IterationRow
+{
+    size_t                     iteration;
+    std::vector<IterationCell> cells;      //!< excludes "#": this layout's columns, in display order
+    //! \brief THIS iteration's full energy breakdown, of which the "Etotal" cell is \c GetTotalEnergy().
     //!
     //! Carried because a total energy alone cannot tell a healthy run from a collapsed one, but its TERMS
     //! can: a low-G charge runaway roughly DOUBLES the Hartree term \c Eee while the total stays a
     //! plausible negative number (MnO 2026-08-25: 13.48 -> 29.0 -> 35.1 Ha across three collapse arms,
-    //! ranked correctly by \c Eee alone).  The number is already computed for the trace one line earlier,
-    //! so carrying the whole breakdown -- rather than the one term today's detector reads -- costs nothing
-    //! and does not force the next diagnostic to widen this struct again.
-    EnergyBreakdown eb;
+    //! ranked correctly by \c Eee alone) -- and the probes read terms (Eee, the site moments) that are not columns.
+    EnergyBreakdown            eb;
+    //! The value of the cell titled \a title, NaN when this layout has no such column -- for a caller that consumes one
+    //! number by NAME (the facade's detectors read "[F,D]" and "Δρ").
+    double ValueOf(std::string_view title) const;
 };
 
 //! Everything one SCF step exposes to the per-system iteration display (doc/GPWPlan1.md item 2).  The base
@@ -98,7 +104,7 @@ struct IterationTrace
     // Frontier spectrum -- the gap column (solids show it always; molecules only under ReportBandGap()):
     double eHomo=0, eLumo=0, gap=0;
     bool   haveHomo=false, haveLumo=false, metallic=false, hole=false;
-    // The ORDER PARAMETER column (see SCFProgress::order): shown on every polarized run; "----" when the
+    // The ORDER PARAMETER column (the signed max-|μ| integrated site moment): shown on every polarized run; "----" when the
     // run has no basins to integrate over.
     bool   hasOrder=false;           //!< this iteration's breakdown carried site moments
     double order=0;                  //!< the signed max-|μ| site moment
@@ -123,6 +129,10 @@ struct ColumnData
     //! The per-iteration cell.  A callable rather than a field so the value comes from the SAME list as the
     //! label: a parallel "write the row" path is exactly what let the two drift apart before.
     std::function<void(std::ostream&, const IterationTrace&)> value;
+    //! The cell's NUMBER (the \c IterationCell::value an observer plots), from the same trace -- NaN-returning where the text
+    //! is a "----".  Beside the text writer, so the number cannot come from a parallel path either.
+    std::function<double(const IterationTrace&)> number;
+    IterationCell::Scale scale = IterationCell::Scale::Linear;   //!< Log for a convergence measure
 };
 
 // Templated on the matrix element type T (rX/cX); SCFIterator is the <double> alias (atoms/
@@ -189,14 +199,14 @@ public:
     //! Returns whether anything was re-seated.
     bool HandOff(const HandOffRequest& h, bool reseat);
 
-    // Watch convergence live: the observer (if set) fires once per SCF iteration with
-    // the current SCFProgress.  Read-only telemetry -- the observer must not drive the loop.
-    using Observer = std::function<void(const SCFProgress&)>;
+    // Watch convergence live: the observer (if set) fires once per SCF iteration with that iteration's
+    // IterationRow -- the console's own cells.  Read-only telemetry -- the observer must not drive the loop.
+    using Observer = std::function<void(const IterationRow&)>;
     void SetObserver(Observer obs) {itsObserver=std::move(obs);}
 
     // (No SetOrderParameter any more -- 2026-09-14.  The order parameter is the INTEGRATED site moment the
-    //  spin-native XC term writes into every iteration's EnergyBreakdown (R1.0h); the column and
-    //  SCFProgress::order read it from there.  A caller-supplied point probe cannot be a moment.)
+    //  spin-native XC term writes into every iteration's EnergyBreakdown (R1.0h); the m_site column reads it
+    //  from there.  A caller-supplied point probe cannot be a moment.)
 
     // SCFIterator drives the mutable SCFWaveFunction, but only ever hands clients the const
     // read view (they can query the converged state, never drive someone else's SCF loop).
@@ -231,22 +241,24 @@ protected:
     //! Build this layout's VARIABLE columns, in display order.  The base contributes the convergence gate
     //! (Δ[F,D]), Δρ, and -- iff the Hamiltonian says the virial theorem is meaningful (V1.27
     //! IsVirialValid) -- the virial.  A subclass calls the base and then swaps/inserts: \c Solid_ replaces
-    //! the gate with ΔE/E and adds the collocation ρ_lost/N.  The INVARIANT frame around them (#, Etotal,
-    //! [F,D], ρ_mix/accel/svMin/cfg, gap, order) is still written by the fixed writers below -- those cells
-    //! carry their own alignment and flag glyphs, so they are not list-shaped yet.
+    //! the gate with ΔE/E and adds the collocation ρ_lost/N.  The INVARIANT frame around them (Etotal, [F,D],
+    //! ρ_mix / accel / svMin / cfg, gap, m_site) joins them in \c RowColumns (2026-10-31), each cell carrying its own
+    //! alignment and flag glyphs inside its text writer.
     virtual void AccumulateColumns(std::vector<ColumnData>&, const SCFParams&, size_t idealVirial) const;
+    //! THE WHOLE ROW, in display order ("#" aside): the invariant frame around this layout's \c AccumulateColumns.  The ONE
+    //! list both the console (\c DisplayColumns) and the observer (\c MakeRow) are built from.
+    std::vector<ColumnData> RowColumns(const SCFParams&, size_t idealVirial) const;
+    //! This iteration's row for the observer: every \c RowColumns cell's title, tolerance, number, text and scale.
+    IterationRow MakeRow(const SCFParams&, const IterationTrace&) const;
     virtual void DisplayColumnHeaders(std::ostream&, const SCFParams&, size_t idealVirial) const;
     virtual void DisplayColumns      (std::ostream&, const SCFParams&, const IterationTrace&) const;
     //! Is the frontier gap a PERMANENT column, or an optional diagnostic behind ReportBandGap()?
     //! PERIODIC-driven, not PP-driven: near-gapless flapping is a solid pathology.  (It travels with the
     //! grid columns today only because every gridded run here is also periodic -- see AccumulateColumns.)
     virtual bool GapIsPermanent() const {return false;}
-    // Shared column writers the molecular/solid layouts compose (kept here so both subclasses reuse them;
-    // the header-cell writers are file-local free functions in the .C, since they need no iterator state):
-    void WriteRowPrefix   (std::ostream&, const IterationTrace&) const; //!< row:    #, Etotal, [F,D]
-    void WriteMixAccelCfg (std::ostream&, const IterationTrace&) const; //!< row:    ρ_mix, accel, cfg
+    // The frame cells are ColumnData now (RowColumns); the gap writer stays a member because the OPTIONAL frontier block
+    // (ReportBandGap / QCHEM_DIAGNOSTICS=frontier) appends it after the row on a molecular layout, where it is not a column.
     void WriteGapColumn   (std::ostream&, const IterationTrace&) const; //!< row:    the frontier gap (+flags)
-    void WriteOrderColumn (std::ostream&, const IterationTrace&) const; //!< row:    the order parameter (polarized runs)
     //! Header cell for the order-parameter column ("m_site" on a polarized run, nothing otherwise), so
     //! both layouts announce the extra column the same way.
     void WriteHeadOrder   (std::ostream&) const;

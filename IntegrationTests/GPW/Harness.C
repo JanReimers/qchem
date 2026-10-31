@@ -28,7 +28,7 @@ export import qchem.Lattice_3D;                          // Lattice_3D, UnitCell
 export import qchem.BasisSet;                            // Complex_BS, Real_BS
 export import qchem.BasisSet.Gaussian.Point.Factory;     // Gaussian::Factory, BasisSetData/Engine/Angular
 export import qchem.SCFParams;                           // SCFParams
-export import qchem.SCFIterator;                         // SCFProgress, SolidSCFIterator::Observer
+export import qchem.SCFIterator;                         // IterationRow, SolidSCFIterator::Observer
 export import qchem.Reporting;                           // report:: (the run bracket)
 export import qchem.Mesh;                                // qcMesh::MeshParams / UnitCellKind
 export import qchem.Mesh.XCPolicy;                       // BeckeXCParams
@@ -149,7 +149,7 @@ struct GpwReport
 // PROBE (dynamics fingerprint, doc/GPWPlan §0): classify an SCF trajectory captured via the Observer hook.
 // Three pathologies have DISTINCT time-series signatures, so one line names which regime the run is in --
 // separating "the iteration can't find the min" (dynamics: sloshing/divergence) from "the min is a fit floor"
-// (functional).  Captured from qchem::SCFIterator::SCFProgress {iteration, energy, dE=|ΔE|, [F,D], Δρ}.
+// (functional).  Captured from qchem::SCFIterator::IterationRow (Etotal, [F,D], Δρ, m_site cells; |ΔE| from consecutive energies).
 struct FpRow { size_t it; double E, dEabs, fd, drho, order=0, eee=0; };
 
 // The ORDER-PARAMETER trajectory, one compact line (printed only when a probe was set).  The per-iteration
@@ -280,8 +280,14 @@ struct Trace
     std::vector<FpRow> rows;
     qchem::SCFIterator::SolidSCFIterator::Observer Observer()
     {
-        return [this](const qchem::SCFIterator::SCFProgress& p)
-               { rows.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho, p.order}); };
+        return [this](const qchem::SCFIterator::IterationRow& p)
+        {
+            // The row is exactly the console's (2026-10-31): |ΔE| is this instrument's own, from consecutive energies; the
+            // order parameter is the m_site cell (0 where the run has no basins, as before).
+            const double E=p.eb.GetTotalEnergy(), m=p.ValueOf("m_site");
+            rows.push_back({p.iteration, E, rows.empty() ? std::fabs(E) : std::fabs(E-rows.back().E), p.ValueOf("[F,D]"),
+                            p.ValueOf("Δρ"), std::isnan(m) ? 0.0 : m});
+        };
     }
     void Print(const std::string& label, bool polarized=false) const
     {

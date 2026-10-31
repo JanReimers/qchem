@@ -214,7 +214,7 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart_Panel)   // PANEL case 2 (regime 5, WARM coarse
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
     auto c=qchem::SolidCalculation::Restart(f.coarsePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams(),
-                                            [&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); });
+                                            [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();
     ASSERT_TRUE(R) << Why(R);
@@ -248,7 +248,7 @@ TEST(GPW_NaF, Γ_Imp_eqExactResume_Panel)   // PANEL case 1 (regime 4, exact res
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
     auto c=qchem::SolidCalculation::Restart(f.finePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams(),
-                                            [&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); });
+                                            [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();
     ASSERT_TRUE(R) << Why(R);
@@ -317,8 +317,9 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
 // −δ toward +δ) has to meet.  CAUGHT (2026-10-30, the claim's first run): a free run's XC mesh was built invariant under the group
 // DETECTED at each geometry -- 48 ops on the site, 8 off it -- so the mesh switched along the path: mirror 1.7e-5 Ha, Δ⁵ 5.9e-6;
 // a SolidSession now requires the plain atom-centred mesh (SolidCalcOptions::xcMeshSymmetric=false): 5e-10 and 2.0e-8.
-// NOT claimed: that the site is a minimum.  At this Γ / VALENCE_LOWQ_SR2 / GTH-q1-Na level it is not (E'' ≈ -0.03 Ha/bohr², and
-// still -0.028 at k222) -- an open row of its own (doc/OpenWork.md "NaF's F site is a MAXIMUM").
+// NOT claimed: that the site is a minimum.  With GTH-q1 Na it is not, in CP2K either (a weak maximum, E'' ≈ -0.005 Ha/bohr² at k222
+// on a resolved grid; q9 Na gives the experimental +0.02) -- doc/OpenWork.md "NaF with the q1 Na pseudopotential has NO restoring
+// force on the F site".  (The -0.03 once quoted here was this run's raster egg-box: its rigid-translation control moves E 1e-5.)
 TEST(GPW_NaF, Γ_PathIsContinuous_Long)
 {
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
