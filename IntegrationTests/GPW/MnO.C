@@ -564,8 +564,9 @@ std::pair<SolidCalcOptions,SCFParams> CP2KPlusURecipe(const Material& mno, doubl
     par.SmearingkT=5e-3;
     return {o,par};
 }
-//! CP2K's +U oracle (doc/Records/CP2Kresults.md, 2026-09-19): the U-induced shift and E_U, the gate's two numbers.
-constexpr double CP2K_PlusU_dE=-60.68597087953861-(-61.30332518), CP2K_PlusU_EU=0.60950923227552;
+//! CP2K's +U oracle (doc/Records/CP2Kresults.md, 2026-09-19; re-banked 2026-10-31 at EPS_SCF 1e-8 -- the 1e-6 run
+//! stopped 83 μHa low): the U-induced shift and E_U, the gate's two numbers.
+constexpr double CP2K_PlusU_dE=-60.685888159562445-(-61.30332518), CP2K_PlusU_EU=0.60950778051938;
 //! The vendored states of the gate's two arms (decks/states/<name>.h5), written by the cold gate.
 const char* CP2KPlusUState(double U_eV) { return U_eV>0.0 ? "MnO_AFM2_VA_sph_Shub_U4" : "MnO_AFM2_VA_sph_Shub_U0"; }
 
