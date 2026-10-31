@@ -185,9 +185,66 @@ private:
     qcb_calc* h = nullptr;
 };
 
+// The Python-facing owner of one periodic calculation, built from a deck (qchem::deck::Build).
+class SolidRun
+{
+public:
+    explicit SolidRun(const std::string& deckJson)
+    {
+        char err[errlen] = {0};
+        {
+            nb::gil_scoped_release nogil;
+            h = qcb_solid_make(deckJson.c_str(), err, errlen);
+        }
+        if (!h) throw std::runtime_error(err);
+    }
+    ~SolidRun() { qcb_solid_free(h); }
+    SolidRun(const SolidRun&)            = delete;
+    SolidRun& operator=(const SolidRun&) = delete;
+
+    //! Converge the deck's schedule, calling on_iteration(iter, E, cells) live.  Returns converged (failure() says why not).
+    bool Converge(nb::object onIteration)
+    {
+        qcb_sink sink{onIteration, std::nullopt};
+        const bool stream = !onIteration.is_none();
+        char err[errlen] = {0};
+        int rc;
+        {
+            nb::gil_scoped_release nogil;
+            rc = qcb_solid_converge(h, stream ? step_trampoline : nullptr, stream ? &sink : nullptr, err, errlen);
+        }
+        if (sink.error) throw std::move(*sink.error);
+        if (rc < 0) throw std::runtime_error(err);
+        return rc == 1;
+    }
+
+    nb::object Failure() const
+    {
+        char out[errlen] = {0};
+        return qcb_solid_failure(h, out, errlen) ? nb::object(nb::str(out)) : nb::none();
+    }
+    //! None unless the last SCF converged.
+    nb::object TotalEnergy() const
+    {
+        const double e = qcb_solid_energy(h);
+        return e == e ? nb::object(nb::float_(e)) : nb::none();
+    }
+    int Iterations() const { return qcb_solid_iterations(h); }
+    std::string Resolved() const
+    {
+        std::string out(size_t(qcb_solid_resolved(h, nullptr, 0)) + 1, '\0');
+        out.resize(size_t(qcb_solid_resolved(h, out.data(), int(out.size()))));
+        return out;
+    }
+
+private:
+    qcb_solid* h = nullptr;
+};
+
 NB_MODULE(qchem_py, mod)
 {
-    mod.doc() = "qchem -> Python bridge: resolve + converge a molecular SCF (qchem::Calculation), sample fields onto grids.";
+    mod.doc() = "qchem -> Python bridge: a molecular SCF (qchem::Calculation, fields sampled onto grids) and a periodic one "
+                "built from an input deck (qchem::deck::Build).";
 
     nb::class_<Calculator>(mod, "Calculator")
         .def(nb::init<const std::vector<int>&, const std::vector<double>&, const std::string&, const std::string&,
@@ -214,4 +271,17 @@ NB_MODULE(qchem_py, mod)
         .def("orbital",      &Calculator::Orbital,     nb::arg("index") = 0, nb::arg("n") = 64, nb::arg("pad") = 5.0,
              "MO `index` in levels() order (0 = lowest).")
         .def("gradient", &Calculator::Gradient, nb::arg("n") = 24, nb::arg("pad") = 4.0);
+
+    nb::class_<SolidRun>(mod, "SolidRun")
+        .def(nb::init<const std::string&>(), nb::arg("deck_json"),
+             "deck::Build: parse the input deck (JSON text, schema 1 -- the file rundeck runs) and build its periodic "
+             "calculation, stopping before the SCF.  Raises RuntimeError with the library's text on a refusal (an unknown "
+             "key, an unknown structure, a setup the library refuses).")
+        .def("converge", &SolidRun::Converge, nb::arg("on_iteration") = nb::none(),
+             "Converge the deck's schedule (deck::ScheduleToRun), on_iteration(iter, E, cells) live as for Calculator; "
+             "returns converged.")
+        .def("failure",      &SolidRun::Failure, "Why the last SCF did not converge; None when it converged.")
+        .def("total_energy", &SolidRun::TotalEnergy, "The converged total energy (hartree); None unless converged.")
+        .def("iterations",   &SolidRun::Iterations)
+        .def("resolved",     &SolidRun::Resolved, "The resolved deck (JSON text): every default filled in, what rundeck records.");
 }

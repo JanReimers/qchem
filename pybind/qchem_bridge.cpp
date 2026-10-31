@@ -4,17 +4,21 @@
 // textually including STL alongside `import qchem.*` does not trigger std-header ODR errors.  The public
 // surface is the flat extern "C" API in qcb_api.h (C linkage -> links from nanobind).
 //
-// The bridge holds NO recipe of its own: it fills CalcOptions / AcceleratorOptions / SCFParams, calls
-// MoleculeSetup::Resolve, and owns one qchem::Calculation.  Everything it answers comes from the facade.
+// The bridge holds NO recipe of its own.  A molecule: it fills CalcOptions / AcceleratorOptions / SCFParams, calls
+// MoleculeSetup::Resolve, and owns one qchem::Calculation.  A crystal: it parses the caller's INPUT DECK and calls
+// deck::Build, owning the SolidCalculation that returns.  Everything it answers comes from the facade.
 module;
 #include <algorithm>
+#include <clocale>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <exception>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
 #include "qcb_api.h"
 
 export module qchem.bridge;
@@ -24,6 +28,8 @@ import qchem.Structure;      // Molecule, Atom
 import qchem.SCFParams;      // SCFParams
 import qchem.SCFIterator;    // IterationRow, IterationCell
 import qchem.Calculation;    // Calculation, MoleculeSetup, CalcOptions, AcceleratorOptions
+import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
+import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
 
 // The opaque handle: the facade plus the request's geometry (for the sampling box).  extern "C++" attaches it to the
 // GLOBAL module, where qcb_api.h (in the GMF) forward-declares it -- a purview definition would be a different entity.
@@ -33,9 +39,33 @@ extern "C++" struct qcb_calc
     std::vector<double>                 positions;   // flat 3N bohr, as asked
 };
 
+//! A crystal: the deck as read, and the calculation deck::Build made of it.
+extern "C++" struct qcb_solid
+{
+    qchem::deck::RunSpec                       spec;
+    std::unique_ptr<qchem::SolidCalculation>   calc;
+    bool                                       attempted = false;   // Result() before any Converge has nothing to say
+};
+
 namespace {
 
 using qchem::Calculation;
+using qchem::SolidCalculation;
+
+//! The HOST's C locale, put back when an entry point returns.  The lib's console tables (submodules/tabulate) bracket each
+//! border with std::locale::global(en_US.UTF-8) ... std::locale::global(<the saved C++ global>), and the C++ global of a
+//! process that never set one is "C": so every SCF left Python's process in LC_ALL=C (measured 2026-10-31 -- a subprocess
+//! read with text=True then decoded as ASCII).  Every extern "C" entry that can print holds one.
+class HostLocale
+{
+public:
+    HostLocale() : itsSaved(std::setlocale(LC_ALL, nullptr)) {}
+    ~HostLocale() { std::setlocale(LC_ALL, itsSaved.c_str()); }
+    HostLocale(const HostLocale&)            = delete;
+    HostLocale& operator=(const HostLocale&) = delete;
+private:
+    std::string itsSaved;
+};
 
 void write_error(const char* what, char* err, int errlen)
 {
@@ -60,8 +90,9 @@ qchem::SCFParams scf_params(int maxIter)
     return p;
 }
 
-//! The facade's observer, forwarding each iteration's row to the C sink: every cell, generically.
-Calculation::Observer forward_to(qcb_row_fn step, qcb_sink* sink)
+//! The facade's observer, forwarding each iteration's row to the C sink: every cell, generically.  One row type serves
+//! both facades (Calculation::Observer and SolidCalculation::Observer take the same IterationRow).
+std::function<void(const qchem::SCFIterator::IterationRow&)> forward_to(qcb_row_fn step, qcb_sink* sink)
 {
     return [step, sink](const qchem::SCFIterator::IterationRow& r)
     {
@@ -136,6 +167,7 @@ extern "C" {
 
 qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char* err, int errlen)
 {
+    const HostLocale host;
     try
     {
         auto h = std::make_unique<qcb_calc>();
@@ -174,6 +206,7 @@ void qcb_free(qcb_calc* h) { delete h; }
 
 int qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char* err, int errlen)
 {
+    const HostLocale host;
     try
     {
         h->calc->OnIteration(step ? forward_to(step, sink) : Calculation::Observer{});
@@ -248,6 +281,70 @@ void qcb_gradient(const qcb_calc* h, int n, double pad, double* out, double* ori
         const vec3_t<double> g = rho.Gradient(r);
         out[idx++] = g.x; out[idx++] = g.y; out[idx++] = g.z;
     });
+}
+
+// -- periodic runs ---------------------------------------------------------------------------------------------------
+
+qcb_solid* qcb_solid_make(const char* deckJson, char* err, int errlen)
+{
+    const HostLocale host;
+    try
+    {
+        auto h = std::make_unique<qcb_solid>();
+        qchem::deck::FromJson(nlohmann::json::parse(deckJson), h->spec);   // strict: an unknown key throws, naming it
+        h->calc = qchem::deck::Build(h->spec);                              // the observer is attached per Converge
+        return h.release();
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return nullptr;
+}
+
+void qcb_solid_free(qcb_solid* h) { delete h; }
+
+int qcb_solid_converge(qcb_solid* h, qcb_row_fn step, qcb_sink* sink, char* err, int errlen)
+{
+    const HostLocale host;
+    try
+    {
+        h->calc->OnIteration(step ? forward_to(step, sink) : SolidCalculation::Observer{});
+        h->attempted = true;
+        const auto out = h->calc->Converge(qchem::deck::ScheduleToRun(h->spec));
+        h->calc->OnIteration(SolidCalculation::Observer{});      // the sink lives only for this call
+        if (out) return 1;
+        write_error(describe(out.Error()).c_str(), err, errlen);
+        return 0;
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    h->calc->OnIteration(SolidCalculation::Observer{});
+    return -1;
+}
+
+int qcb_solid_failure(const qcb_solid* h, char* out, int outlen)
+{
+    if (!h->attempted) { write_error("not converged yet", out, outlen); return 1; }
+    const auto r = h->calc->Result();
+    write_error(r ? "" : describe(r.Error()).c_str(), out, outlen);
+    return r ? 0 : 1;
+}
+
+double qcb_solid_energy(const qcb_solid* h)
+{
+    if (!h->attempted) return std::nan("");
+    const auto r = h->calc->Result();
+    return r ? r.Value().Energy() : std::nan("");
+}
+
+int qcb_solid_iterations(const qcb_solid* h) { return int(h->calc->IterationCount()); }
+
+int qcb_solid_resolved(const qcb_solid* h, char* out, int outlen)
+{
+    qchem::deck::RunSpec spec = h->spec;
+    (void)qchem::deck::Resolve(spec);                     // fills the derived Nelec / species, as Run's record does
+    const std::string s = qchem::deck::ToJson(spec).dump(2);
+    write_error(s.c_str(), out, outlen);
+    return int(s.size());
 }
 
 } // extern "C"

@@ -21,6 +21,7 @@ extern "C" {
 
 typedef struct qcb_calc qcb_calc;   //!< a converged molecular calculation (bridge-owned)
 typedef struct qcb_sink qcb_sink;   //!< the caller's per-iteration sink (nanobind-owned)
+typedef struct qcb_solid qcb_solid; //!< a periodic calculation built from a deck (bridge-owned)
 
 //! One cell of an SCF iteration row: one column of the console trace (qchem::SCFIterator::IterationCell), GENERIC -- a
 //! column the lib adds to a layout reaches Python with no ABI change.  The strings are UTF-8 ("Δρ") and, like the
@@ -91,6 +92,27 @@ void qcb_density     (const qcb_calc* h, int n, double pad, double* out, double*
 void qcb_spin_density(const qcb_calc* h, int n, double pad, double* out, double* origin, double* spacing);
 int  qcb_orbital     (const qcb_calc* h, int index, int n, double pad, double* out, double* origin, double* spacing);
 void qcb_gradient(const qcb_calc* h, int n, double pad, double* out, double* origin, double* spacing);
+
+// -- periodic runs: the INPUT DECK is the seam (qchem::deck::Build).  The GUI translates its own run spec into deck JSON
+//    (the same file `rundeck` runs), so the bridge restates none of the deck's resolve logic and every GUI crystal run is a
+//    deck `rundeck` reproduces.
+
+//! Parse `deckJson` (schema 1, src/Calculation/Deck.C) and BUILD its calculation, stopping before the SCF (deck::Build:
+//! resolve, lattice, basis, SolidSetup).  Null on a refusal -- a bad deck, an unknown key, a setup the library refuses --
+//! with the library's own text in `err`.
+qcb_solid* qcb_solid_make(const char* deckJson, char* err, int errlen);
+void       qcb_solid_free(qcb_solid* h);
+//! Converge the deck's schedule (deck::ScheduleToRun), streaming each iteration to `step`.  Returns converged (1) / not
+//! (0, the SCFFailure's reason in `err`) / failed (-1, the exception's text in `err`).
+int        qcb_solid_converge(qcb_solid* h, qcb_row_fn step, qcb_sink* sink, char* err, int errlen);
+//! As qcb_failure, for the last qcb_solid_converge (before any: "not converged yet").
+int        qcb_solid_failure(const qcb_solid* h, char* out, int outlen);
+//! The converged total energy (hartree); NaN when the last SCF did not converge -- a failed run's last iterate is not an answer.
+double     qcb_solid_energy    (const qcb_solid* h);
+int        qcb_solid_iterations(const qcb_solid* h);
+//! The resolved deck (every default filled in, Nelec / species derived): what `rundeck` would record.  Returns the length
+//! it needs (excluding the NUL); writes at most outlen-1 chars.
+int        qcb_solid_resolved(const qcb_solid* h, char* out, int outlen);
 
 #ifdef __cplusplus
 }
