@@ -29,7 +29,7 @@ import qchem.UnitCell;
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.SCFParams;
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type::Ladder (the restart-rung gate)
-import qchem.SCFIterator;   // SCFProgress (the first-iterate probe)
+import qchem.SCFIterator;   // IterationRow (the first-iterate probe)
 import qchem.HDF5;
 import qchem.Types;
 import qchem.Mesh;   // qcMesh::UnitCellKind (the field-mixer restart gate's XC mesh)
@@ -354,7 +354,7 @@ TEST(SolidState, WarmStart_OtherGrid_StartsAtTheAnswer)
     o.densityEcut=30.0;
     std::vector<double> E;
     auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), Params(),
-                                     [&E](const SCFIterator::SCFProgress& p){ E.push_back(p.energy); });
+                                     [&E](const SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
@@ -412,7 +412,7 @@ TEST(SolidState, SmearedExactResume_StartsAtTheSavedState)
     SolidCalcOptions o=Options(0, false, "");
     std::vector<double> E;
     auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p,
-                                     [&E](const SCFIterator::SCFProgress& pr){ E.push_back(pr.energy); });
+                                     [&E](const SCFIterator::IterationRow& pr){ E.push_back(pr.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
@@ -447,11 +447,11 @@ void ExpectFieldMixerExactResume(double kerkerG0)
         saved=r->Energy();
     }
     o.saveStateTo="";
-    std::vector<SCFIterator::SCFProgress> it;
+    std::vector<SCFIterator::IterationRow> it;
     qchem::IterationBudget budget(3, "field-mixer exact resume (regime 4)");   // the PANEL case: the resume only
     testing::internal::CaptureStdout();
     auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p,
-                                     [&it](const SCFIterator::SCFProgress& pr){ it.push_back(pr); });
+                                     [&it](const SCFIterator::IterationRow& pr){ it.push_back(pr); });
     const std::string out=testing::internal::GetCapturedStdout();
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
@@ -461,7 +461,7 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     EXPECT_NE(out.find("-> Pulay history from iteration 1 (exact resume"), std::string::npos)
         << "an exact resume starts AT the fixed point: no plain-Kerker priming (beta-MnO2 r015: 23 -> 4 iterations)";
     EXPECT_NE(it.front().eb.charge.xcRho, "fitted") << "iteration 1's XC must see rho[D] (pin 28), not the fitted field";
-    EXPECT_NEAR(it.front().energy, saved, 1e-7) << "the first iterate of an exact resume is the saved state";
+    EXPECT_NEAR(it.front().eb.GetTotalEnergy(), saved, 1e-7) << "the first iterate of an exact resume is the saved state";
     EXPECT_NEAR(r->Energy(), saved, 1e-7) << "the reference stopped at drho/N 1e-7: its energy is that far from the fixed point";
     EXPECT_LE(r->IterationCount(), 3u);
 }

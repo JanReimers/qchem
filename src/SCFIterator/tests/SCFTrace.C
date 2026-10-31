@@ -20,6 +20,9 @@
 #include <string>
 #include <functional>
 #include <stdexcept>
+#include <algorithm>
+#include <cmath>
+#include <vector>
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, SpinGroup
 import qchem.SCFCap;                 // BoundedSCF (the trace test runs a deliberately bounded SCF)
 import qchem.SolidCalculation;       // SolidCalculation -- the NAMED periodic front door (Step 4)
@@ -281,4 +284,52 @@ TEST(SCFTrace, SolidConsoleIsByteIdentical)
         (void)calc.Result();
     }));
     EXPECT_EQ(got, std::string(kSolidGolden));
+}
+
+// THE OBSERVER RECEIVES THE CONSOLE'S ROW (2026-10-31): the same columns, titled as the header titles them and in its order,
+// and each cell's text where the console prints it -- built from the ONE column list, so a column cannot reach one and not the
+// other.  On the molecular polarized run (the frame, the variable columns and m_site).
+TEST(SCFTrace, TheObserverReceivesTheConsoleRow)
+{
+    std::vector<SCFIterator::IterationRow> rows;
+    const std::string trace=CapturedTrace([&rows]{
+        Molecule o2;
+        o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0,  1.141)));
+        o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.141)));
+        Calculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}),
+                         {.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
+                          .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true},
+                         [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
+        (void)calc.Result();
+    });
+    ASSERT_FALSE(rows.empty());
+    std::istringstream is(trace); std::vector<std::string> lines; for (std::string l; std::getline(is,l); ) lines.push_back(l);
+    const std::string header=HeaderLine(trace);
+    // titles: in the header, in order
+    size_t at=0;
+    for (const auto& c : rows.front().cells)
+    {
+        const size_t p=header.find(c.title, at);
+        ASSERT_NE(p, std::string::npos) << "cell '" << c.title << "' is not a header column (in order): " << header;
+        at=p+c.title.size();
+    }
+    EXPECT_EQ(rows.front().cells.front().title, "Etotal");
+    EXPECT_FALSE(std::isnan(rows.front().ValueOf("[F,D]")));
+    EXPECT_TRUE (std::isnan(rows.front().ValueOf("ρ_lost/N"))) << "a molecular layout has no grid column";
+    // every row's cell texts, in order, in that iteration's console line
+    for (const auto& r : rows)
+    {
+        const auto line=std::find_if(lines.begin(), lines.end(), [&](const std::string& l)
+            { std::istringstream ls(l); size_t n=0; return (ls >> n) && n==r.iteration && l.find("e")!=std::string::npos; });
+        ASSERT_NE(line, lines.end()) << "no console row for iteration " << r.iteration;
+        size_t pos=0;
+        for (const auto& c : r.cells)
+        {
+            if (c.text.empty()) continue;                     // a blank cfg
+            const size_t p=line->find(c.text, pos);
+            ASSERT_NE(p, std::string::npos) << "iteration " << r.iteration << ": cell " << c.title << " '" << c.text << "' not in: " << *line;
+            pos=p+c.text.size();
+        }
+        EXPECT_NEAR(r.ValueOf("Etotal"), r.eb.GetTotalEnergy(), 0.0);
+    }
 }

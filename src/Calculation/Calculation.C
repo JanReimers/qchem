@@ -27,7 +27,7 @@ export import qchem.PotentialEnergySurface;   // the face MoleculeSession implem
 export import qchem.SCFFailure;               // SCFFailure: the failure half of the Outcome door (shared with the solid facade)
 import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ElectronConfiguration;// ElectronConfiguration
-import qchem.SCFIterator;          // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
+import qchem.SCFIterator;          // SCFIterator, SCFParams, IterationRow, EnergyBreakdown
 import qchem.Symmetry.Irrep;       // Irrep
 import qchem.ChargeDensity;        // rDM_CD
 import qchem.ChargeDensity.Seed;   // SeedStrategy
@@ -41,7 +41,7 @@ class Calculation
 public:
     using sf_t       = ScalarFunction<double>;
     using orbitals_t = qchem::Orbitals::Orbitals;
-    using Observer   = qchem::SCFIterator::SCFIterator::Observer; //!< void(const SCFProgress&)
+    using Observer   = qchem::SCFIterator::SCFIterator::Observer; //!< void(const IterationRow&): the console's own cells
 
     //! \brief PROOF that the SCF converged (2026-10-31, the molecular half of the Outcome door -- \c SolidCalculation::Converged's
     //! twin; see its WHY).  \c Converge() and \c Result() hand one out only for a converged run, so a caller that takes its

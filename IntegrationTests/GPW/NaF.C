@@ -214,7 +214,7 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart_Panel)   // PANEL case 2 (regime 5, WARM coarse
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
     auto c=qchem::SolidCalculation::Restart(f.coarsePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams(),
-                                            [&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); });
+                                            [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();
     ASSERT_TRUE(R) << Why(R);
@@ -248,7 +248,7 @@ TEST(GPW_NaF, Γ_Imp_eqExactResume_Panel)   // PANEL case 1 (regime 4, exact res
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
     auto c=qchem::SolidCalculation::Restart(f.finePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams(),
-                                            [&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); });
+                                            [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();
     ASSERT_TRUE(R) << Why(R);

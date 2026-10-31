@@ -818,18 +818,18 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
 void SolidCalculation::AttachProbes()
 {
     auto userObs = itsImp->onIteration;
-    itsImp->scf->SetObserver([this,userObs](const qchem::SCFIterator::SCFProgress& p)
+    itsImp->scf->SetObserver([this,userObs](const qchem::SCFIterator::IterationRow& row)
     {
         // The detectors read the observable off the breakdown the iteration produced (R1.0h) -- the same
         // number the trace reported, not a second pull.
-        itsImp->diag.itsOrder.push_back(MaxSiteMoment(p.eb.charge.siteMoments, itsImp->diag.itsHasBasins));
-        itsImp->diag.itsEee  .push_back(p.eb["Eee"]);
-        // A Null accelerator computes NO [F,D]: SCFProgress then carries 0 (the trace hides it by tag), which
+        itsImp->diag.itsOrder.push_back(MaxSiteMoment(row.eb.charge.siteMoments, itsImp->diag.itsHasBasins));
+        itsImp->diag.itsEee  .push_back(row.eb["Eee"]);
+        // A Null accelerator computes NO [F,D]: its cell carries 0 (the trace hides it by tag), which
         // must not read as a MEASURED zero eigenvalue noise (found 2026-09-27, the NiO R0 gate) -- NaN instead.
         itsImp->lastCommutator = itsImp->stageAccel==SCFAccelerators::Type::Null
-                               ? std::numeric_limits<double>::quiet_NaN() : p.commutator;
-        itsImp->lastDensityChange = p.drho;
-        if (userObs) userObs(p);
+                               ? std::numeric_limits<double>::quiet_NaN() : row.ValueOf("[F,D]");
+        itsImp->lastDensityChange = row.ValueOf("Δρ");
+        if (userObs) userObs(row);
     });
 }
 

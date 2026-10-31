@@ -16,14 +16,14 @@ using StructureData::GetMolecule;
 
 TEST(CalculationFacade, TheConstructorsObserverSeesItsSCFFromTheFirstIteration)
 {
-    std::vector<SCFIterator::SCFProgress> steps;
+    std::vector<SCFIterator::IterationRow> steps;
     Calculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), {},
-                     [&steps](const SCFIterator::SCFProgress& p){ steps.push_back(p); });
+                     [&steps](const SCFIterator::IterationRow& p){ steps.push_back(p); });
     ASSERT_TRUE(calc.IsConverged());
     ASSERT_FALSE(steps.empty()) << "the observer must see the constructor's SCF, not only a later Converge";
     EXPECT_EQ(steps.front().iteration, 1u) << "iteration 1: the constructor's SCF from its start";
     EXPECT_EQ(steps.size(), calc.IterationCount()) << "every iteration, none skipped";
-    EXPECT_NEAR(steps.back().energy, calc.Energy(), 1e-10);
+    EXPECT_NEAR(steps.back().ValueOf("Etotal"), calc.Energy(), 1e-10);
 }
 
 TEST(CalculationFacade, LevelsListEveryMOAscendingAndTheOccupiedOnesAreTheOrbitals)

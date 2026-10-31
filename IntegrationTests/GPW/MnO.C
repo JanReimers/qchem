@@ -621,7 +621,7 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_Saved_CP2K_Long)   // ~5.5 min serial: ~150 s 
         std::vector<double> E;
         qchem::IterationBudget budget(3, "exact resume of a vendored converged +U state");
         auto c=qchem::SolidCalculation::Restart(qchem::panel::VendoredState(CP2KPlusUState(U_eV)), SolidSetup::Resolve(lat, CP2KPlusUBasis(mno), o), par,
-                                                [&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); });
+                                                [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
         if (!c) { ADD_FAILURE() << label << ": " << c.Error().details; return std::optional<double>{}; }
         arms.push_back(c.TakeValue());
         auto R=arms.back()->Result();
