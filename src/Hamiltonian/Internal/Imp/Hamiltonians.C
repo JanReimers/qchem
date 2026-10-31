@@ -50,6 +50,21 @@ Ham_HF::Ham_HF(const st_t& st, SpinGroup g)
 //! (doc/Records/OpenWork_History5.md, the δ-vs-A1 table).  The fit stays one stated choice away (\c VxcFit::Auxiliary).
 static VxcFit MolecularVxcFit(VxcFit fit) {return fit==VxcFit::Auto ? VxcFit::Delta : fit;}
 
+//! THE MOLECULAR / ATOM XC TERM (V-XC-ONE-TERM, 2026-10-31): the δ basis runs the ONE XC term the periodic path runs
+//! (\c tVxc_Quadrature<double>: v_xc at the mesh points, E_xc by the same quadrature, the adjoint for H), chosen by the fit
+//! basis's CAPABILITY (an orthogonal fit is a quadrature), never by T.  The non-orthogonal A1 auxiliary fit keeps \c FittedVxc
+//! until it becomes a sampler strategy -- an open X cell of UTHamiltonian VxcProductSpace.
+static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, VxcFit fit,
+                                     std::vector<std::shared_ptr<ExFunctional>> parts, SpinGroup g)
+{
+    BasisSet::FitQuadrature quad;
+    std::shared_ptr<const BasisSet::rFIT_SF_ABS> fb(bs->CreateVxcFitBasisSet(st.get(), mp, MolecularVxcFit(fit), &quad));
+    if (fb->isOrtho()) return MakeVxcTerm(std::move(parts), fb, g, std::move(quad)).release();
+    FittedVxc::fbs_t ffb=fb;
+    FittedVxc::ex_t  xc(std::make_shared<CompositeExFunctional>(std::move(parts)));
+    return new FittedVxc(ffb, xc, g);
+}
+
 Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit)
     : Ham_DFT(st, {std::make_shared<SlaterExchange>(alpha_ex)}, mp, bs, g, fit)
 {};
@@ -65,11 +80,9 @@ Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> part
     FittedVee::fbs_t CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
 
-    // ONE XC term over the SUM of functionals (a fit is linear, so fit(a+b) is fit(a)+fit(b) for half the
+    // ONE XC term over the SUM of functionals (the gather is linear, so gather(a+b) is gather(a)+gather(b) for half the
     // work); its energy is the functionals' own eps -- correlation's is NOT the exchange virial.
-    FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp, MolecularVxcFit(fit)));
-    FittedVxc::ex_t  xc(std::make_shared<CompositeExFunctional>(std::move(parts)));
-    Add(new FittedVxc(XFitBasis, xc, g));
+    Add(MolecularVxcTerm(st, bs, mp, fit, std::move(parts), g));
 }
 
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
@@ -86,10 +99,7 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     Add(new FittedVee(CFitBasis, st->GetNumElectrons()));
 
     // LDA: Dirac exchange (alpha = 2/3) + VWN5 correlation, ONE XC term over their sum (see Ham_DFT).
-    FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp, MolecularVxcFit(fit)));
-    FittedVxc::ex_t  xc(std::make_shared<CompositeExFunctional>(std::vector<std::shared_ptr<ExFunctional>>{
-                          std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<VWN_Correlation>()}));
-    Add(new FittedVxc(XFitBasis, xc, g));
+    Add(MolecularVxcTerm(st, bs, mp, fit, {std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<VWN_Correlation>()}, g));
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,

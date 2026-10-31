@@ -85,8 +85,10 @@ export namespace qchem::ChargeDensity
 //! iteration: without it the pair re-evaluated the Bloch image sums pointwise FOUR times per iteration
 //! (2 terms x (rho sample + matrix quadrature)) -- measured 4.8 s/iteration on NaF, ~all of the Becke
 //! route's runtime premium.
-class SinglesDensitySampler
-    : public virtual DensitySampler
+//! \note TEMPLATED on the density / block scalar (V-XC-ONE-TERM, 2026-10-31): a molecule's real δ basis samples the
+//! same way a crystal's Bloch one does.  The periodic \c SinglesDensitySampler below adds the response and real-TRIM faces.
+template <class T> class tSinglesDensitySampler
+    : public virtual tDensitySampler<T>
 {
 public:
     //! \brief Built ON the \f$\delta\f$ fit basis, which IS the quadrature: it owns the points, the
@@ -95,7 +97,7 @@ public:
     //! POLICY -- which
     //! source \f$\rho\f$ comes from this iteration, per-serial caching, the spin channels, the
     //! DM-source damping -- none of which is basis business.
-    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit_t;
+    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> fit_t;
     //! \a quad is the SAME \c BasisSet::FitQuadrature the \f$\delta\f$ fit basis was built over, injected
     //! by the factory that created both (never taken from the basis -- it has no getter).  Two of its
     //! fields are consumed here and neither is a fitting question:
@@ -108,7 +110,7 @@ public:
     //!    sibling fields the same way as the mesh removed both.
     //! Empty (default-constructed) => a free run with no partition: no star-average, and \c SiteIntegrals
     //! answers empty -- exactly as a raster quadrature does.
-    SinglesDensitySampler(fit_t, BasisSet::FitQuadrature quad={});
+    tSinglesDensitySampler(fit_t, BasisSet::FitQuadrature quad={});
     double Integrate(const rvec_t& f) const override;
     size_t NumPoints() const override;
     //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial),
@@ -118,28 +120,20 @@ public:
     //! exact derivative untouched).
     //! ONE overload, since 2026-08-22: the density asks ME for each of its own blocks' tables (typed per
     //! block -- 3c-3), so there is no first-pass gap and no "ensure this block first" hint to pass.
-    const rvec_t& Rho(const cChargeDensity* cd) const override;
+    const rvec_t& Rho(const tChargeDensity<T>* cd) const override;
     //! \brief Spin channel \f$\rho_\sigma(r_g)\f$ for \a cd's current serial -- the SPIN-NATIVE sibling of
     //! \c Rho (SymmetryUpgradePlan §4 tier 4b), cached as the {↑,↓} PAIR under ONE serial (a polarized
     //! density's \c Version() forwards to its Up child, so a single scalar cache would alias the channels).
     //! A polarized composite answers per channel (its views); a spin-agnostic density (the seed) collapses to
     //! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ (the HalfDensity rule -- \f$v^\sigma(\tfrac\rho2,\tfrac\rho2)
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
-    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
+    const rvec_t& RhoPol(const tChargeDensity<T>* cd, const Spin& s) const override;
     XCRhoSource RhoSource() const override {return itsSource;}
     //! R2.1: measured at the two projector calls (\c Rho, \c RhoPol), on the density just sampled -- the cost is one copy of the
     //! raster per refresh.  0 on a free run.
     std::optional<double> GroupResidual() const override {return itsGroupResidual;}
-    //! δρ_σ at my points, pair by pair through the δ basis's Φ tables (\c Transition_Overlap3C) -- the same
-    //! tables as Rho, no cache, no orbit mean.
-    cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
-    //! Its adjoint on the same tables (\a q unused: the point route samples the Bloch-q function itself).
-    mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
     //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
-    chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
-    //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's \f$\Phi\f$ table is real, so its quadrature
-    //! GEMM runs in REAL arithmetic -- the first place the Step-3 quadrature win is actually realized.
-    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
+    hmat_t<T> Matrix(const tobs_t<T>* bs, const rvec_t& v) const override;
     //! \f$\int w_A f\f$ per site over the INJECTED quadrature's mesh; empty when none was injected (or it
     //! has no site blocks -- a uniform grid has no atomic basins).  Ask, do not assume.  The MnO campaign's
     //! point probe (\f$m(r)\f$ 0.7 bohr off the nucleus, a spin DENSITY along one direction of an anisotropic
@@ -147,7 +141,7 @@ public:
     //! PARTITION CAVEAT: Becke fuzzy basins are a CHOICE; the partition-free definition is R. F. W. Bader's
     //! QTAIM zero-flux basin, a wanted future feature.  The consumer reports which partition produced it.
     rvec_t SiteIntegrals(const rvec_t& f) const override;
-private:
+protected:   // the periodic subclass contracts through the same fitter and tables
     // ⛔ Symmetrize / SymmetrizeSpin ARE GONE FROM THIS CLASS (2026-09-09, user).  They were two members
     // on the FITTING interface until 2026-08-24, moved here, then became one-line forwards when
     // qcMesh::FoldedMesh grew them as members (R1.0k).  A forwarder that adds nothing is not a
@@ -158,7 +152,13 @@ private:
     //! \brief MY FITTER'S PROJECTION FACE -- what a density projects itself onto (2026-08-24).
     //! The fitter holds the fit basis's \f$\Phi\f$ handles, so the \f$\rho\f$ FORWARD and the
     //! \f$H_{xc}\f$ ADJOINT come off one object instead of two callers asking the basis separately.
-    const Fitting::ScalarProjector& Projector() const;
+    const Fitting::ScalarProjector* MatrixProjector() const;
+    //! The FIELD projection face every δ fitter carries, on either fit axis -- the pointwise route.
+    const Fitting::FieldProjector& FieldProjection() const;
+    //! \f$\rho\f$ of a density-matrix density over my points: contracted through the fitter's matrix-forward handles when it has
+    //! them (the periodic δ fitter), else evaluated pointwise as a field -- the molecular δ route, which is exactly how
+    //! \c FittedVxc sampled it.  Either way it is \f$\rho[D]\f$ (pin 28).  CAPABILITY decides, never T.
+    rvec_t ProjectDM(const tDM_CD<T>& dm) const;
 
     // R2.9(i): the four accessors above are CONST and everything they touch is a lazily-built cache, so the
     // caches are `mutable` -- the same idiom every other cache in this module already uses (tHT_Common::
@@ -229,6 +229,25 @@ private:
     //! (1-a)rho[D_n] + a rho[D_n] = rho[D_n] and the damping silently becomes the identity.  Measured
     //! 2026-08-21: alpha=0.25 and alpha=1.0 produced bit-identical runs before this was separated out.
     mutable rvec_t itsXCMix, itsXCMixUp, itsXCMixDn;
+};
+
+//! \brief The PERIODIC singles strategy: \c tSinglesDensitySampler<dcmplx> plus the faces only a Bloch run has -- the
+//! linear-response transition pair and the real TRIM block (\c DensitySampler).
+class SinglesDensitySampler
+    : public tSinglesDensitySampler<dcmplx>
+    , public virtual DensitySampler
+{
+public:
+    using tSinglesDensitySampler<dcmplx>::tSinglesDensitySampler;
+    using tSinglesDensitySampler<dcmplx>::Matrix;
+    //! δρ_σ at my points, pair by pair through the δ basis's Φ tables (\c Transition_Overlap3C) -- the same
+    //! tables as Rho, no cache, no orbit mean.
+    cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
+    //! Its adjoint on the same tables (\a q unused: the point route samples the Bloch-q function itself).
+    mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
+    //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's \f$\Phi\f$ table is real, so its quadrature
+    //! GEMM runs in REAL arithmetic -- the first place the Step-3 quadrature win is actually realized.
+    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
 };
 
 //! \brief THE PAIR STRATEGY: \f$\rho\f$ COLLOCATED from the density-matrix through the orbital-pair

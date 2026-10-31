@@ -93,7 +93,7 @@ struct Cell
     Target target; Observed today; std::string row;
 };
 
-const std::string kOneTerm ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (the molecular / atom FittedVxc is the other term)";
+const std::string kOneTerm ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (the A1 fit is not a sampler strategy: the molecular / atom FittedVxc is the other term)";
 const std::string kPin30   ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (pin-30 gap: the factory throws)";
 const std::string kI3      ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (I3: a PW fit on a Becke mesh, the E/H pairing not designed)";
 const std::string kRadial  ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (no radial-only point set: v_xc at radial points, 4πr² dr -- the atom path)";
@@ -114,7 +114,7 @@ const std::vector<Cell> kCells=
     {Kind::Solid,    VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
     {Kind::Solid,    VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
     // -- molecule (G = the point group): only {e} representations -- a cell mesh / PW impose T, a radial rule O(3)
-    {Kind::Molecule, VxcFit::Delta,     Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
+    {Kind::Molecule, VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Molecule, VxcFit::Delta,     Points::Uniform, Target::R, Observed::Throws,     kRefuse},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
@@ -124,7 +124,7 @@ const std::vector<Cell> kCells=
     {Kind::Molecule, VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
     {Kind::Molecule, VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
     // -- atom (G = O(3)): Becke (less symmetry) and radial assemble; a cell mesh or PW impose T
-    {Kind::Atom,     VxcFit::Delta,     Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
+    {Kind::Atom,     VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Atom,     VxcFit::Delta,     Points::Uniform, Target::R, Observed::Throws,     kRefuse},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Throws,     kRefuse},

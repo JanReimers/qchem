@@ -169,10 +169,32 @@ public:
 //! two combinations doc/RealComplexPlan.md 3c-3 admits (a real TRIM block or a Bloch block, both on the
 //! run's COMPLEX fit axis).  The face is periodic by construction -- the \f$\delta\f$/collocation route
 //! is -- which is why \c TFit is spelled \c dcmplx rather than parameterised.
-class ScalarProjector
+//! \brief The SCALAR-FREE half of a projection face: project a FIELD onto my fit basis and say how many coefficients that
+//! returns.  Every scalar fitter's projection has it, on either fit axis -- a molecule's real δ basis as well as a crystal's
+//! Bloch one (V-XC-ONE-TERM, 2026-10-31: split off \c ScalarProjector, whose matrix-forward faces are periodic-only).
+class FieldProjector
 {
 public:
-    virtual ~ScalarProjector() = default;
+    virtual ~FieldProjector() = default;
+    //! \brief The MATRIX-FREE route: project \a f onto my fit basis and return the coefficients.
+    //!
+    //! A PROJECTION, not a fit: it RETURNS the coefficients rather than storing them, which is the whole
+    //! difference from \c FunctionFitter_Scalar::DoFit and the reason no \c Coefficients() getter is
+    //! needed anywhere.  (It must not store them: this same fitter holds \f$v_{xc}\f$'s fit, and the Fock
+    //! build and the energy path interleave -- one buffer for both would clobber, the way \c itsXCMix once
+    //! did.)  \f$\rho\f$'s coefficients then reach the pointwise-nonlinear functional as a return value,
+    //! which is what the physics requires and the interface never had a home for.
+    virtual rvec_t Project(const ScalarFunction<double>& f) const=0;
+    //! \brief How many coefficients a projection returns -- the length of EVERY vector this face produces.
+    //! A caller sizing an accumulator (a composite summing its blocks) or answering for an empty block asks
+    //! rather than assuming.  A count of FUNCTIONS, in the 2026-08-23 vocabulary: never of points.
+    virtual size_t NumCoefficients() const=0;
+};
+
+class ScalarProjector
+    : public virtual FieldProjector
+{
+public:
     //! \brief THE FORWARD HALF of the assembly for a \a U-scalar orbital block -- what a matrix-backed
     //! density contracts its own \f$D\f$ (or thin \f$L\f$) into.
     //!
@@ -188,19 +210,6 @@ public:
     //! collocate at all?* -- belongs to the BASIS-side vendor (\c Orbital_DFT_IBS), not here.
     virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const=0;
     virtual const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;
-    //! \brief The MATRIX-FREE route: project \a f onto my fit basis and return the coefficients.
-    //!
-    //! A PROJECTION, not a fit: it RETURNS the coefficients rather than storing them, which is the whole
-    //! difference from \c FunctionFitter_Scalar::DoFit and the reason no \c Coefficients() getter is
-    //! needed anywhere.  (It must not store them: this same fitter holds \f$v_{xc}\f$'s fit, and the Fock
-    //! build and the energy path interleave -- one buffer for both would clobber, the way \c itsXCMix once
-    //! did.)  \f$\rho\f$'s coefficients then reach the pointwise-nonlinear functional as a return value,
-    //! which is what the physics requires and the interface never had a home for.
-    virtual rvec_t Project(const ScalarFunction<double>& f) const=0;
-    //! \brief How many coefficients a projection returns -- the length of EVERY vector this face produces.
-    //! A caller sizing an accumulator (a composite summing its blocks) or answering for an empty block asks
-    //! rather than assuming.  A count of FUNCTIONS, in the 2026-08-23 vocabulary: never of points.
-    virtual size_t NumCoefficients() const=0;
 };
 
 //! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) CORE.  Fit a pointwise field

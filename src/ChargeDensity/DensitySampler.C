@@ -53,6 +53,7 @@ export namespace qchem::ChargeDensity
 // qcChargeDensity, and it is what makes qcFitting an illegal home (see the header).
 using ChargeDensity::cChargeDensity;
 using ChargeDensity::cDM_CD;
+using ChargeDensity::tChargeDensity;
 
 //! Process-wide diagnostic toggle (default OFF).  When true,
 //! \c PairDensitySampler::Refresh emits a one-line report each time it (re)collocates the density: the grid-integrated
@@ -109,10 +110,13 @@ inline const char* ShortName(XCRhoSource s)
 //! pair scales with the SCREENED pair count, singles with \f$n_{pts}n^2\f$ -- so which one runs is decided
 //! by \c MakeDensitySampler from the fit basis's capabilities, once, and LATCHED for the run (switching
 //! mid-SCF would change the truncated operator, i.e. the functional).
-class DensitySampler
+//! \brief The scalar-free half of the XC quadrature: what it integrates and over how many points.  Shared by both scalar
+//! types (V-XC-ONE-TERM, 2026-10-31): a molecule's real density and a crystal's Bloch density sample onto the same kind of
+//! point set, and nothing here knows which.
+class DensitySamplerBase
 {
 public:
-    virtual ~DensitySampler() = default;
+    virtual ~DensitySamplerBase() = default;
     //! \f$\int f\,d^3r\f$ for a field sampled at MY points -- the \f$E_{xc}\f$ quadrature.  A term hands
     //! back a value array and never learns where the points are (nor which kind of mesh they came from).
     //! \note POINT vocabulary is correct HERE and nowhere below it: this face IS a quadrature (its whole
@@ -122,14 +126,6 @@ public:
     virtual double Integrate(const rvec_t& f) const=0;
     //! How many points I sample at -- for reporting only (a term's \c Write line).
     virtual size_t NumPoints() const=0;
-    //! \brief \f$\rho(r_g)\f$ for \a cd's current serial, cached across the XC pair.
-    //! (No "ensure this block is tabled first" hint any more: the density now asks the QUADRATURE for each
-    //! of its own blocks' tables, so there is no first-pass gap for a caller to plug -- 2026-08-22.)
-    virtual const rvec_t& Rho(const cChargeDensity* cd) const=0;
-    //! Spin channel \f$\rho_\sigma(r_g)\f$ -- the SPIN-NATIVE sibling of \c Rho (§4 tier 4b).  Not every
-    //! quadrature can answer it (the pair route has no per-spin collocation): those THROW, and the
-    //! Hamiltonian's Auto rule keeps a polarized run off them.
-    virtual const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const=0;
     //! The source of the \f$\rho\f$ I have CACHED -- i.e. what the last \c Rho / \c RhoPol call served, hit or miss.
     //! Client: the XC term, right after it sampled for a \f$V_{xc}\f$ build, so the SCF trace can show what the
     //! Fock matrix's XC saw each iteration (pin 28).  Asked of the term's own build rather than logged here, because
@@ -140,6 +136,56 @@ public:
     //! \f$Pf\f$; the number says how far from invariant the density it was HANDED was.  0 on a free run (P is the identity);
     //! nullopt from a sampler that does not project at all, which therefore cannot answer.
     virtual std::optional<double> GroupResidual() const=0;
+    //! \brief \f$\int w_A f\,d^3r\f$ per SITE BLOCK of my quadrature, for a field sampled at MY points -- the
+    //! atom-partitioned sibling of \c Integrate.  Default EMPTY: a quadrature with no atomic partition (a
+    //! uniform raster) has no basins to integrate over, and the caller must ask rather than assume.
+    //! A QUADRATURE question and nothing more (R1.0h): the OBSERVABLE built on it -- the integrated site
+    //! moment \f$\mu_A\f$ of \f$\rho_\uparrow-\rho_\downarrow\f$ -- is the spin-native XC term's to
+    //! compute and \c ChargeBreakdown's to carry; this engine no longer knows what it is integrating.
+    virtual rvec_t SiteIntegrals(const rvec_t& f) const {return rvec_t();}
+};
+
+//! \brief The XC quadrature for densities and blocks of scalar type \a T -- the faces \c Vxc_Quadrature<T> drives.
+//! \c double for the molecular / atom path, \c dcmplx for the periodic one; the periodic sampler adds the response and the
+//! real-TRIM faces below (\c DensitySampler).  (V-XC-ONE-TERM: until 2026-10-31 this face was complex-only, which is why a
+//! molecule could not run the one XC term.)
+template <class T> class tDensitySampler
+    : public virtual DensitySamplerBase
+{
+public:
+    //! \brief \f$\rho(r_g)\f$ for \a cd's current serial, cached across the XC pair.
+    //! (No "ensure this block is tabled first" hint any more: the density now asks the QUADRATURE for each
+    //! of its own blocks' tables, so there is no first-pass gap for a caller to plug -- 2026-08-22.)
+    virtual const rvec_t& Rho(const tChargeDensity<T>* cd) const=0;
+    //! Spin channel \f$\rho_\sigma(r_g)\f$ -- the SPIN-NATIVE sibling of \c Rho (§4 tier 4b).  Not every
+    //! quadrature can answer it (the pair route has no per-spin collocation): those THROW, and the
+    //! Hamiltonian's Auto rule keeps a polarized run off them.
+    virtual const rvec_t& RhoPol(const tChargeDensity<T>* cd, const Spin& s) const=0;
+    //! \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}v_g\chi_j(r_g)\f$ -- the EXACT ADJOINT of
+    //! whatever route \c Rho took, weights included (a caller passes the bare field \f$v\f$).
+    virtual hmat_t<T> Matrix(const tobs_t<T>* bs, const rvec_t& v) const=0;
+    //! \brief Pre-warm this engine's per-density caches for \a cd -- the EAGER REFRESH PHASE
+    //! (doc/OpenWork.md item **KP**).  \a polarized picks which shape to warm, because the two are
+    //! mutually exclusive on one engine (see the cross-invalidation warning on both implementations: an
+    //! engine answers \c Rho or \c RhoPol for a run, never both).
+    //!
+    //! It is expressed as ONE call rather than "the term calls Rho/RhoPol itself" so that the WARMING and
+    //! the SHAPE RULE stay in the engine that owns the caches; a term that reached in by name would have
+    //! to know the exclusivity rule too.
+    virtual void WarmForDensity(const tChargeDensity<T>* cd, bool polarized) const
+    {
+        if (polarized) { RhoPol(cd, Spin::Up); RhoPol(cd, Spin::Down); }
+        else           { Rho(cd); }
+    }
+};
+
+//! \brief The PERIODIC quadrature: \c tDensitySampler<dcmplx> plus the faces only a Bloch run has -- the linear-response
+//! transition pair (R2/R3) and the real TRIM block (Step 3c).  Its name is the one every periodic client already spells.
+class DensitySampler
+    : public virtual tDensitySampler<dcmplx>
+{
+public:
+    using tDensitySampler<dcmplx>::Matrix;
     //! \brief \f$\delta\rho_\sigma(r_g)\f$ of a TRANSITION density at my points (doc/LinearResponsePlan.md R2) --
     //! through the SAME route and projector as \c Rho, so a response samples on exactly the quadrature its
     //! ground state did.  \a s = \c Spin::None asks for the total (the folded doublet).
@@ -155,31 +201,8 @@ public:
     //! field \a v in \c Sample's representation, bra (k+q) x ket (k).  \a q is the wave vector the field was sampled
     //! at (the raster route gathers a periodic part and needs it; the point route does not).
     virtual mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const=0;
-    //! \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}v_g\chi_j(r_g)\f$ -- the EXACT ADJOINT of
-    //! whatever route \c Rho took, weights included (a caller passes the bare field \f$v\f$).
-    virtual chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const=0;
     //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's quadrature runs in REAL arithmetic.
     virtual rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const=0;
-    //! \brief \f$\int w_A f\,d^3r\f$ per SITE BLOCK of my quadrature, for a field sampled at MY points -- the
-    //! atom-partitioned sibling of \c Integrate.  Default EMPTY: a quadrature with no atomic partition (a
-    //! uniform raster) has no basins to integrate over, and the caller must ask rather than assume.
-    //! A QUADRATURE question and nothing more (R1.0h): the OBSERVABLE built on it -- the integrated site
-    //! moment \f$\mu_A\f$ of \f$\rho_\uparrow-\rho_\downarrow\f$ -- is the spin-native XC term's to
-    //! compute and \c ChargeBreakdown's to carry; this engine no longer knows what it is integrating.
-    virtual rvec_t SiteIntegrals(const rvec_t& f) const {return rvec_t();}
-    //! \brief Pre-warm this engine's per-density caches for \a cd -- the EAGER REFRESH PHASE
-    //! (doc/OpenWork.md item **KP**).  \a polarized picks which shape to warm, because the two are
-    //! mutually exclusive on one engine (see the cross-invalidation warning on both implementations: an
-    //! engine answers \c Rho or \c RhoPol for a run, never both).
-    //!
-    //! It is expressed as ONE call rather than "the term calls Rho/RhoPol itself" so that the WARMING and
-    //! the SHAPE RULE stay in the engine that owns the caches; a term that reached in by name would have
-    //! to know the exclusivity rule too.
-    virtual void WarmForDensity(const cChargeDensity* cd, bool polarized) const
-    {
-        if (polarized) { RhoPol(cd, Spin::Up); RhoPol(cd, Spin::Down); }
-        else           { Rho(cd); }
-    }
 };
 
 //! \brief Pick the assembly strategy for \a fb -- CAPABILITY decides, and the answer is fixed for the run.
@@ -195,6 +218,12 @@ typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fitbasis_t;
 
 std::shared_ptr<const DensitySampler>
 MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={});
+
+//! \brief The REAL path's strategy (V-XC-ONE-TERM, 2026-10-31): a molecule's or an atom's δ basis -- points and nothing else,
+//! so SINGLES.  A non-orthogonal (A1 Gaussian) fit has no sampler strategy yet: it THROWS, naming the gap -- an open X cell of
+//! the Vxc product space (UTHamiltonian VxcProductSpace), never a silent substitution.
+std::shared_ptr<const tDensitySampler<double>>
+MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad={});
 
 } //namespace
 
