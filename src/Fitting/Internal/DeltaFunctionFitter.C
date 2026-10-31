@@ -57,11 +57,6 @@ public:
         {return Self_().template Integrator<double>(orb);}
     const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
         {return Self_().template Integrator<dcmplx>(orb);}
-    //! \copydoc Fitting::ScalarProjector::Project
-    //! Structurally identical to \c DoFit and deliberately NOT sharing its buffer: the same projection, returned.
-    rvec_t Project(const ScalarFunction<double>& f) const override {return OrthogonalFit(*Self_().itsFitBasis, f);}
-    //! \copydoc Fitting::ScalarProjector::NumCoefficients
-    size_t NumCoefficients() const override {return Self_().itsFitBasis->GetNumFunctions();}
 private:
     const Self& Self_() const {return static_cast<const Self&>(*this);}
 };
@@ -73,6 +68,7 @@ private:
 template <class T> class DeltaScalarFitter
     : public virtual FunctionFitter_Scalar
     , public virtual FitContraction<T,T>             // the same-scalar blocks' contraction
+    , public virtual FieldProjector                  // the field projection, on either fit axis
     , public         DeltaPeriodicFitFaces<DeltaScalarFitter<T>,T>   // dcmplx only: the real TRIM block + the forward vendor
 {
     friend class DeltaPeriodicFitFaces<DeltaScalarFitter<T>,T>;
@@ -96,6 +92,11 @@ public:
     {
         itsC=OrthogonalFit(*itsFitBasis, *ps.GetScalarFunction());
     }
+    //! \copydoc Fitting::FieldProjector::Project
+    //! Structurally identical to \c DoFit and deliberately NOT sharing its buffer: the same projection, returned.
+    rvec_t Project(const ScalarFunction<double>& f) const override {return OrthogonalFit(*itsFitBasis, f);}
+    //! \copydoc Fitting::FieldProjector::NumCoefficients
+    size_t NumCoefficients() const override {return itsFitBasis->GetNumFunctions();}
 
     //! \copydoc Fitting::FitContraction::Overlap
     //! \f$\langle\chi_i|\sum_g c_g\delta_g|\chi_j\rangle\f$: ask the basis for the 3-centre overlap over

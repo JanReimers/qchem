@@ -1,5 +1,7 @@
 # HubbardUHistory — verbatim archive as of 2026-10-01 (RECORD, holds no open work)
 
+> ⚠ **rundeck / gpwprobe timings before 2026-10-31 had THREADED BLAS under them** (fixed c95c1fa4): neither main pinned OpenBLAS, so it ran its default 16-thread pool, busy-waiting beside our OpenMP regions, while the banner printed `BLAS=1`.  `gpwprobe` dates from 2026-09-15, `rundeck` from 2026-10-03.  **Re-measure before quoting any such wall/CPU time as a serial comparison.**  Numbers from ctest / ITMain / the UT exes and from scfrun are UNAFFECTED: those mains always pinned.  The pin now runs when qcCommon loads, for every executable, and the banner's `BLAS=N` reports the count OpenBLAS actually runs.
+
 Live plan: doc/HubbardUPlan.md. Below: the full HubbardUPlan.md as of 2026-10-01, then OpenWork §1.
 
 ---

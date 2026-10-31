@@ -61,7 +61,7 @@ PairDensitySampler::~PairDensitySampler() = default;   // itsScalarFitter's abst
 // both, which is the point).
 bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd);
 bool HasXCCorrection(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd);
-void ReportNegativeRho(const DensitySampler& q, const rvec_t& rho, const char* route);
+void ReportNegativeRho(const DensitySamplerBase& q, const rvec_t& rho, const char* route);
 
 // ONE density object -> rho(r) on the raster.  RAW when it can collocate, BALL otherwise; extracted
 // 2026-08-28 so the scalar route and the two spin channels cannot make that decision differently.

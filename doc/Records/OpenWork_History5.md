@@ -1,5 +1,7 @@
 # OpenWork_History5 — verbatim archive of OpenWork v3 post-§1-shrink as of 2026-10-01 (RECORD, no open work)
 
+> ⚠ **rundeck / gpwprobe timings before 2026-10-31 had THREADED BLAS under them** (fixed c95c1fa4): neither main pinned OpenBLAS, so it ran its default 16-thread pool, busy-waiting beside our OpenMP regions, while the banner printed `BLAS=1`.  `gpwprobe` dates from 2026-09-15, `rundeck` from 2026-10-03.  **Re-measure before quoting any such wall/CPU time as a serial comparison.**  Numbers from ctest / ITMain / the UT exes and from scfrun are UNAFFECTED: those mains always pinned.  The pin now runs when qcCommon loads, for every executable, and the banner's `BLAS=N` reports the count OpenBLAS actually runs.
+
 # Open Work — the live tracker (v3, rebuilt 2026-09-16)
 
 **READ THIS AT SESSION START.**  Four sections, in the order a session should read them: **§1 NEXT** (the one
@@ -1003,3 +1005,18 @@ U = 0 does not move at 2× ADDED_MOS.  At EPS_SCF 1e-6 the +U SCF (Broyden) stop
 | **GPW verdict lines repeat every SCF refresh** (lane A, 2026-10-31) | Al fcc k222 smeared (`VALENCE_LOWQ_SR`): the `[grid audit] UNDER: V_loc long` verdict prints ~10× (once per iteration, as a console line + its `·` progress twin); the verdict is a property of the raster, fixed at setup | emit it once at setup (pin: emit contemporaneously with the activity, and the activity is the sizing) · `src/BasisSet/Gaussian/Lattice/Imp/GPW_Evaluator.C` |
 
 **✅ FIXED f3f6ccdc:** `EmitGridAudit` speaks once per run report (the first k-block evaluator; the raster is k-independent): Al fcc k222 8 identical `UNDER: V_loc long` lines → 1.  The same commit has `gridAudit` state the reference raster's verdicts (its fence spans the reference's lazy first evaluation).
+
+
+### Closed 2026-10-31 (lane A): `A_PG_DFT` asserts the SIGNED relative error
+
+| **`A_PG_DFT` asserts the SIGNED relative error** (lane A, 2026-10-31) | `IntegrationTests/A_DFT.C` `EXPECT_LT(RelativeError(E, ref), tol)`, but `RelativeError` = (E_ref − E)/E_ref is signed and its doc (`src/Common/PeriodicTable.C:96`) says callers assert on `fabs`.  `P/A_PG_DFT.Energy/Z5` (B, Xalpha, dzvp, kT 1e-4) prints **−1.23 %** (−24.644 Ha, 0.30 Ha below its reference) on lane-a and −1.28 % on lane-b, and PASSES: any energy below the reference passes | wrap in `std::fabs`, then judge each `A_PG_DFT` case against a basis-matched reference (dzvp is not the NIST limit: the 1.2 % is either the reference's functional/α or a real defect) · `IntegrationTests/A_DFT.C` |
+
+**✅ FIXED (the commit after 0bd60fa2): a pin-10 RE-JUDGEMENT, not a refresh.**  The defect was wider than the row said: EVERY Slater-Xalpha atom gate (`A_DFT_atom` SG/SL U+P and `A_PG_DFT` U+P, ~30 assertions) compared against NIST's atom table, which is **LSDA** (Dirac + VWN) -- a different functional -- and sat 0.005–12 % BELOW it (H −12.2 %, Li −1.9 %, B −1.3 %), passing ONLY because `EXPECT_LT` took the signed error.  The LSDA cases themselves match NIST to ≤ 600 ppm.  Independent route: PySCF UKS/RKS with E_x scaled by α/(2/3) (`1.5*alpha*SLATER`) at the same per-Z Schwarz α, uncontracted ANO-RCC, non-relativistic (`scripts/pyscf_xalpha_atoms.py`, run data `~/Code/qchem6-runs/Atoms/pyscf_xalpha_unc-ano-rcc.txt`); the reference's own basis error is ~1e-4 Ha at B (vs unc-aug-cc-pVQZ −24.661717 and vs our radial Slater High).  Two STATES at a degenerate open shell (`doc/SCFRobustnessPlan.md` §C1-DEG): the radial code's spherical M_L ensemble (PySCF frac_occ: B −24.653941; ours −24.653999) and the molecular path's pure integer component (PySCF B −24.661837; dzvp −24.656287, +198 ppm above, variational).  After: SG ≤ 121 ppm, SL ≤ 603 ppm, dzvp +135…+381 ppm one-sided; tolerances tightened to ~2.5× the worst.  Sweep 0 moved (assertions only).
+
+## ✅ Benchmark §10 "More threads than asked on a vacuum box" — RESOLVED 2026-10-31 (lane H); the row as it stood
+
+| row | measurement | next action |
+|---|---|---|
+| **More threads than asked on a vacuum box** (seen 2026-10-23) | `rundeck` on `Mn_box16` (VA, linear + DIIS) with `QCHEM_OPENMP_THREADS=4` showed ~14 threads at 70–80 % CPU in `top -H`; D-THREADS' audit says every `omp parallel` region takes `WorkerThreads()`, so the suspects are a library pool (OpenBLAS / FFT) spinning or doing work with `QCHEM_BLAS_THREADS` unset | sample it (`gdb -p … -ex "thread apply all bt 6"`) during the SCF loop and name the pool; if it is real work, decide whether it belongs under the one knob · `src/Common/Parallel.C` |
+
+**Verdict (2026-10-31, c95c1fa4).**  The pool was **OpenBLAS**.  A perf profile of a β-MnO₂ PW `rundeck` run (6 OpenMP threads asked) showed ~12.5 cores busy inside zheev (`zhemv`/`zgemm`), with ~5% of samples in `exec_blas_async_wait`.  `FixBlasThreads` was called only by scfrun and the gtest mains; `rundeck` (2026-10-03) and `gpwprobe` (2026-09-15) never called it, so OpenBLAS sized its own pool (16 threads) while the banner printed the REQUESTED `BLAS=1`.  Fix: `FixBlasThreads` + `StopOmpThreadsBusyWaiting` now run from a load-time initialiser in `src/Common/Imp/Parallel.C`, the ONE home, and every main's copy was deleted.  The banner prints `openblas_get_num_threads()` with a WARNING if it differs from the request.  Checked: every exe links qcCommon, and rundeck reports `BLAS=1` by default and `BLAS=4` under `QCHEM_BLAS_THREADS=4`.
