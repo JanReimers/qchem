@@ -1584,7 +1584,7 @@ TEST(GPW, OverlapDiagonalPerRepresentation)
 
     // (2) The DELTA representation: the weights themselves, over this cell's own XC quadrature.
     BasisSet::FitQuadrature q=gpw.CreateXCQuadrature(&cell, mp);
-    BasisSet::DeltaFit_IBS dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    BasisSet::DeltaFit_IBS<dcmplx> dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     const vec_t<dcmplx> dD=dfit.OverlapDiagonal();
     ASSERT_EQ(dD.size(), q.GetMesh()->size()) << "a delta basis has one function per mesh point";
     for (size_t g=0; g<dD.size(); g++)
@@ -1641,7 +1641,7 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
 
     // (1) DELTA: <delta_g|f> = w_g f(r_g) and <delta_g|1> = w_g, both one entry per FUNCTION.
     BasisSet::FitQuadrature q=gpw.CreateXCQuadrature(&cell, mp);
-    BasisSet::DeltaFit_IBS dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    BasisSet::DeltaFit_IBS<dcmplx> dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     ASSERT_EQ(dfit.GetNumFunctions(), q.GetMesh()->size()) << "one delta function per mesh point";
     const vec_t<dcmplx> pD=dfit.Overlap(wave), iD=dfit.Charge();
     ASSERT_EQ(pD.size(), dfit.GetNumFunctions());
@@ -2350,7 +2350,7 @@ TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
 
     // (1c) the δ basis's point pair (on this cell's own XC quadrature)
     BasisSet::FitQuadrature fq=ket.CreateXCQuadrature(&cell, mp);
-    BasisSet::DeltaFit_IBS dfit(fq, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    BasisSet::DeltaFit_IBS<dcmplx> dfit(fq, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     const cvec_t d=dfit.TransitionForward(bra, ket, dD);
     const mat_t<dcmplx> vd=RandomComplex(d.size(), 1, 17);
     cvec_t vp(d.size());

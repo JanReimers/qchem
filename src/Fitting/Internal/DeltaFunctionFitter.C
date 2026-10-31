@@ -38,16 +38,46 @@ import qchem.Blaze;                           // hmat_t<U>
 export namespace qchem::Fitting
 {
 
-//! \brief Scalar (overlap-metric) fitter on a \f$\delta\f$ fit basis -- the projection IS the fit, up to
-//! the basis's own metric diagonal.  Serves BOTH orbital-block scalars, as a mixed run requires.
-class DeltaScalarFitter
-    : public virtual FunctionFitter_Scalar
-    , public virtual ScalarProjector                 // ...and the FORWARD direction, off the same handles
+//! \brief THE PERIODIC FIT AXIS'S EXTRA FACES (2026-10-31), which only a fitter over a COMPLEX (Bloch) \f$\delta\f$ basis has:
+//! the real TRIM block's contraction (3c-3, \c FitContraction<double,dcmplx>) and the FORWARD vendor the periodic density
+//! projects onto (\c ScalarProjector, whose faces are the Bloch blocks').  A base that exists only for \c dcmplx (CRTP: the
+//! bodies are the fitter's own), so the real (molecular) instantiation carries no face it cannot serve.
+template <class Self, class T> class DeltaPeriodicFitFaces {};
+template <class Self> class DeltaPeriodicFitFaces<Self,dcmplx>
+    : public virtual ScalarProjector                 // ...the FORWARD direction, off the same handles
     , public virtual FitContraction<double,dcmplx>   // a real TRIM block's quadrature runs in real arithmetic
-    , public virtual FitContraction<dcmplx,dcmplx>   // ...its complex siblings' in complex
 {
 public:
-    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
+    virtual hmat_t<double> Overlap(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Self_().template Contract<double>(orb);}
+    //! \copydoc Fitting::ScalarProjector::Forward
+    //! Built over the SAME held handle the adjoint contracts -- which is the point of holding it: the density's forward and
+    //! the term's adjoint come off ONE constructed object.  ▶ The fitter is "ACTOR 2": it builds that object per block and
+    //! hands each client only its own half -- `IrrepCD` the FORWARD (through this face), the XC term the ADJOINT (\c Overlap).
+    const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override
+        {return Self_().template Integrator<double>(orb);}
+    const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
+        {return Self_().template Integrator<dcmplx>(orb);}
+    //! \copydoc Fitting::ScalarProjector::Project
+    //! Structurally identical to \c DoFit and deliberately NOT sharing its buffer: the same projection, returned.
+    rvec_t Project(const ScalarFunction<double>& f) const override {return OrthogonalFit(*Self_().itsFitBasis, f);}
+    //! \copydoc Fitting::ScalarProjector::NumCoefficients
+    size_t NumCoefficients() const override {return Self_().itsFitBasis->GetNumFunctions();}
+private:
+    const Self& Self_() const {return static_cast<const Self&>(*this);}
+};
+
+//! \brief Scalar (overlap-metric) fitter on a \f$\delta\f$ fit basis -- the projection IS the fit, up to
+//! the basis's own metric diagonal.  ONE class template on the fit axis's scalar \a T (2026-10-31, as \c DeltaFit_IBS<T>):
+//! \c dcmplx on the periodic path (serving BOTH orbital-block scalars, as a mixed run requires -- the extra faces come from
+//! \c DeltaPeriodicFitFaces), \c double on the molecular one.
+template <class T> class DeltaScalarFitter
+    : public virtual FunctionFitter_Scalar
+    , public virtual FitContraction<T,T>             // the same-scalar blocks' contraction
+    , public         DeltaPeriodicFitFaces<DeltaScalarFitter<T>,T>   // dcmplx only: the real TRIM block + the forward vendor
+{
+    friend class DeltaPeriodicFitFaces<DeltaScalarFitter<T>,T>;
+public:
+    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> fbs_t;
     explicit DeltaScalarFitter(const fbs_t& fbs) : itsFitBasis(fbs)
     {
         assert(itsFitBasis && itsFitBasis->isOrtho() &&
@@ -72,26 +102,7 @@ public:
     //! ITS functions and contract it with MY coefficients.  Structurally the same two calls the Gaussian
     //! fitter makes (\c Overlap3C then contract) -- which is what Liskov substitutability of the
     //! representations means in practice, rather than by analogy.
-    virtual hmat_t<double> Overlap(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Contract(orb);}
-    virtual hmat_t<dcmplx> Overlap(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return Contract(orb);}
-
-    //! \copydoc Fitting::ScalarProjector::Forward
-    //! Built over the SAME held handle the adjoint above contracts -- which is the point of holding it:
-    //! the density's forward and the term's adjoint come off ONE constructed object, and since 2026-09-09
-    //! that is enforced rather than asserted (see \c Contract).  ▶ I AM "ACTOR 2": I build that object per
-    //! block and hand each client only its own half -- `IrrepCD` the FORWARD (through this face), the XC
-    //! term the ADJOINT (through \c Overlap).  Neither can name the other direction.
-    const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override
-        {return Integrator<double>(orb);}
-    const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
-        {return Integrator<dcmplx>(orb);}
-
-    //! \copydoc Fitting::ScalarProjector::Project
-    //! Structurally identical to \c DoFit above and deliberately NOT sharing its buffer: the same
-    //! projection, returned instead of stored.
-    rvec_t Project(const ScalarFunction<double>& f) const override {return OrthogonalFit(*itsFitBasis, f);}
-    //! \copydoc Fitting::ScalarProjector::NumCoefficients
-    size_t NumCoefficients() const override {return itsFitBasis->GetNumFunctions();}
+    virtual hmat_t<T> Overlap(const BasisSet::Orbital_DFT_IBS<T,T>& orb) const override {return Contract<T>(orb);}
 
     virtual void ReScale(double factor) override {itsC *= factor;}
 
@@ -119,9 +130,9 @@ private:
     //!
     //! The 3-centre overlap is a DFT-TIER question, and since 2026-08-24 the CONTRACTION face says so
     //! too: both overloads above take the DFT block, so the cross-cast that used to stand here belongs
-    //! to (and now lives with) the caller.  TFit is dcmplx throughout -- our fit basis is the periodic
-    //! one, and a real TRIM block against it is exactly the 3c-3 mixed case.
-    template <class U> hmat_t<U> Contract(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
+    //! to (and now lives with) the caller.  TFit is \a T, the fit axis's scalar; on the periodic axis a real TRIM block
+    //! against it is exactly the 3c-3 mixed case (U = double, T = dcmplx).
+    template <class U> hmat_t<U> Contract(const BasisSet::Orbital_DFT_IBS<U,T>& orb) const
     {
         const qcMesh::MatrixAdjoint<U>& adj=Integrator<U>(orb);
         return adj.Adjoint(itsC);
@@ -134,14 +145,14 @@ private:
     //! \warning the closures capture the producing basis: valid only while \c itsFitBasis lives, which it
     //! does, because this class co-owns it.
     template <class U> const Projector3<U>& Handle(SymMap<Projector3<U>>& cache,
-                                                   const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
+                                                   const BasisSet::Orbital_DFT_IBS<U,T>& orb) const
     {
         const sym_t& id=orb.GetSymt();             // the block's SPATIAL symmetry, as the basis's own table cache uses
         auto it=cache.find(id);
         if (it!=cache.end()) return it->second;
         // The genuine 3c-3 "can you serve a REAL block?" question for U==double; for U==dcmplx it is a
         // derived-to-virtual-base cast that cannot fail.  Asked ONCE per block per run, here.
-        const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<U,dcmplx>&>(*itsFitBasis);
+        const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<U,T>&>(*itsFitBasis);
         return cache.emplace(id, face.Overlap3C(orb)).first->second;   // shallow: closures, not the table
     }
     //! Which typed cache \a U uses -- so \c Contract and \c Overlap3C name one place, not two.
@@ -166,7 +177,7 @@ private:
     //! caller used it.  Keyed on the same spatial \c Symmetry as the tensor, and created only after the tensor is,
     //! so the two maps never disagree about which blocks exist.
     template <class U> const ScreenedMatrixIntegrator<U>&
-    Integrator(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
+    Integrator(const BasisSet::Orbital_DFT_IBS<U,T>& orb) const
     {
         auto& fwd=IntCache<U>();
         const sym_t& id=orb.GetSymt();
@@ -177,7 +188,7 @@ private:
         // weights -- which on a delta basis are numerically the mesh weights, and on any other fit basis
         // are still the right thing.  Charge() is that vector; it is real for a real-valued fit basis, and
         // the narrow is where that fact is stated once.
-        const vec_t<dcmplx> q=itsFitBasis->Charge();
+        const vec_t<T> q=itsFitBasis->Charge();
         rvec_t w(q.size());
         for (size_t a=0;a<q.size();a++) w[a]=std::real(q[a]);
         return fwd.emplace(id, ScreenedMatrixIntegrator<U>(g, std::move(w))).first->second;

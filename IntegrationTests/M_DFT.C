@@ -167,3 +167,50 @@ TEST(M_DFT, BadMultiplicityThrows)
     EXPECT_THROW(Calculation(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "sto-3g", .model = Model::LDA, .multiplicity = 2})),
                  std::runtime_error);
 }
+
+// THE δ Vxc FIT BASIS ON THE MOLECULAR PATH (2026-10-31, user: "replace the Vxc fit basis with delta functions ... if our OOD
+// design (LSP) is working correctly, this should just work").  The same ONE XC term (FittedVxc) consumes DeltaFit_IBS<double>
+// through the fit face -- v_xc and eps_xc sampled where the quadrature integrates, no Gaussian fit.  Mesh-converged: N2 / F2 move
+// by < 1 μHa from 80/29 to 300/35.  ORACLE: PySCF (scripts/pyscf_molecule_oracle.py) with the SAME A1_coul Coulomb fit lands
+// within 6-10 μHa of these routes once the fit basis keeps its D shells (measured with the merge flipped, OpenWork / CleanCode
+// D-FIT-MERGE); with today's LegacyMerge the Coulomb fit has no d functions and sits 4-6 mHa (polar, small) to 62 mHa (F2) LOW --
+// so these anchors carry that offset, and the oracle bounds below are its size, not the δ route's error.
+static Molecule MakeF2()   // ~/Code/cp2k-runs/F2 geometry (bohr)
+{
+    Molecule m;
+    m.Insert(new Atom(9, 0, Vector3D<double>(0, 0, -1.3343)));
+    m.Insert(new Atom(9, 0, Vector3D<double>(0, 0,  1.3343)));
+    return m;
+}
+
+TEST(M_DFT, WaterLDA_DeltaFit)
+{
+    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
+                                                                                       .vxcFit = Hamiltonian::VxcFit::Delta}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -75.88320305, 1e-5);   // anchor; with the D shells kept: -75.879455 (PySCF A1_coul J-fit -75.879447)
+    EXPECT_NEAR(calc.Energy(), -75.877299, 7e-3) << "ORACLE: PySCF lda,vwn exact; the gap is the d-less Coulomb fit (D-FIT-MERGE)";
+}
+
+// Spin-POLARIZED through δ: the O2 triplet's 35 mHa excess on the A1 route (OpenWork "Molecular POLARIZED DFT ... O2") is gone --
+// it lands where water does relative to PySCF, so the excess was the A1 per-spin Vxc fit, not the polarized machinery.
+TEST(M_DFT, OxygenTripletLDA_DeltaFit)
+{
+    Calculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 3,
+                                                       .vxcFit = Hamiltonian::VxcFit::Delta}));
+    ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                               .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
+    EXPECT_NEAR(calc.Energy(), -149.30576100, 1e-4);   // anchor; with the D shells kept: -149.300684 (PySCF J-fit -149.300675)
+    EXPECT_NEAR(calc.Energy(), -149.299178, 8e-3) << "ORACLE: PySCF UKS lda,vwn exact; the gap is the d-less Coulomb fit";
+}
+
+// The PP route through δ: F2 GTH q7, the case the "Molecular PP route is 4 mHa/atom off CP2K" row was filed on.  With the D shells
+// kept the δ route is CP2K's number to 1.4 mHa (PySCF's own A1_coul J-fit route to 57 μHa) -- the PP route was never the defect.
+TEST(M_DFT, F2_PP_DeltaFit)
+{
+    Calculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .vxcFit = Hamiltonian::VxcFit::Delta,
+                                                       .pp = "gth-lda-valence"}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -48.26437590, 1e-5);    // anchor; with the D shells kept: -48.201937 (CP2K -48.20058, PySCF J-fit -48.201880)
+    EXPECT_NEAR(calc.Energy(), -48.200545, 7e-2) << "ORACLE: PySCF exact (= CP2K to 37 μHa); the gap is the d-less Coulomb fit";
+}

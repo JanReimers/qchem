@@ -169,9 +169,9 @@ Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParam
         // orbital basis, xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door
         // instead (LSDA valence Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
         auto* ham = itsSetup->pp
-            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis)
+            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis, opts.vxcFit)
             : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure,
-                                          opts.mesh, itsBasis, opts.xalpha);
+                                          opts.mesh, itsBasis, opts.xalpha, opts.vxcFit);
         // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
         // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
         // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
