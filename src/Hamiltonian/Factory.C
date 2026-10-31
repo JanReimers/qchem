@@ -139,7 +139,8 @@ export namespace qchem::Hamiltonian
     //! THE functional resolver -- the SINGLE place that builds a DFT Hamiltonian from a functional choice.
     //! Owns its functional(s); the Internal ExFunctional construction never leaks out.  Polarized is
     //! supported for every kind: SlaterXalpha, DiracVWN (spin-native VWN5) and LibXC (XC_POLARIZED, 2026-10-21).
-    //! \a fit: the Vxc fit basis (\c VxcFit::Delta = the δ basis on \a mesh's points; \c Auto = the Gaussian auxiliary basis).
+    //! \a fit: the Vxc fit basis (\c Delta = the δ basis on \a mesh's points, which \c Auto resolves to -- the default;
+    //! \c Auxiliary = the lineage's own fitted auxiliary basis, A1 on a molecule).
     rHamiltonian* Factory(SpinGroup, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const rbs_t*,
                           VxcFit fit=VxcFit::Auto);
 
@@ -159,7 +160,7 @@ export namespace qchem::Hamiltonian
     //! pseudopotential, with LSDA exchange-correlation.  \a pol selects spin-native (open-shell) vs the
     //! unpolarized collapse.  The public front door to Ham_PP.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const std::string& element, int valence,
-                         const qcMesh::MeshParams&, const rbs_t*);
+                         const qcMesh::MeshParams&, const rbs_t*, VxcFit fit=VxcFit::Auto);
 
     //! Pseudopotential Hamiltonian from the run's CHOSEN \a pp set (doc/CalcNetworkReview.md §4): a per-Z router PP is built over the
     //! distinct elements of \a st, each with the set's valence variant for the set's functional.  The set is handed in, never

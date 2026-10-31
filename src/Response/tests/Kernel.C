@@ -283,7 +283,9 @@ rmat_t FD_Polarizability(Calculation& calc, double h)
     const auto frame=Response::MakeOrbitalFrame(ref, wf);
     const auto probe=Response::MakeDipoleProbe(ref, frame, wf, ResponseFacadeTests::St(calc).CreateIntegrationMesh(dipoleMesh));
     FD_ResponseKernel<double> fd(ResponseFacadeTests::Ham(calc), ResponseFacadeTests::Basis(calc), GroundDensity(wf), h);
-    auto r=Response::LinearResponse(ref, frame, fd, probe, std::make_shared<Symmetry::Invariant>(), {.tol=1e-9});
+    // tol 1e-8 (2026-10-31): the FD kernel's noise floor at h = 1e-4 sits just above 1e-9 once the fit bases carry their D shells
+    // (GMRES stalled at ~1.1e-9); the analytic HF arm and h = 1e-3 are unaffected, and alpha moves < 1e-6 relative between the two.
+    auto r=Response::LinearResponse(ref, frame, fd, probe, std::make_shared<Symmetry::Invariant>(), {.tol=1e-8});
     EXPECT_TRUE(r.IsOk()) << (r ? "" : r.Error().detail);
     rmat_t a(3,3,0.0);
     if (!r) return a;

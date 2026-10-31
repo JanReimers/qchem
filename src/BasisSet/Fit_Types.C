@@ -42,19 +42,23 @@ using FitQuadrature = qcMesh::FoldedMesh;
 //! and therefore an argument of \c CreateVxcFitBasisSet.
 //!  - \c Delta: the \f$\delta\f$ basis (\c DeltaFit_IBS) -- \c n_pts delta functions on the quadrature
 //!    mesh, diagonal metric, fit = identity, so the "coefficients" ARE the point values.
-//!  - \c PlaneWave: the lineage's own FITTED representation -- plane waves on the \f$\{G\}\f$ ball for a
-//!    periodic basis (band-limited; the projection is an FFT on its raster).
-//!  - \c Auto: the caller did not choose.  Resolved by the POLICY layer -- the Hamiltonian, which is the
-//!    only layer that knows whether the run is polarized -- and, if it reaches a factory unresolved, read
-//!    as "your own fitted representation" (the historical pairing; \c qcMesh::UnitCellKind::Auto falls
-//!    through the same way).  A molecular basis, which has only its Gaussian auxiliary representation,
-//!    is asked with \c Auto and never needs to interpret the other two.
+//!  - \c PlaneWave: plane waves on the \f$\{G\}\f$ ball -- the PERIODIC lineage's fitted representation (band-limited; the
+//!    projection is an FFT on its raster).
+//!  - \c Auxiliary: the non-periodic lineage's own fitted AUXILIARY basis -- the Gaussian A1 set on a molecule, the radial
+//!    fit set on an atom (2026-10-31: named when δ became the molecular / atom default, so the fit stays selectable -- user
+//!    ruling "δ default, A1 kept", and pin 30: it keeps the framework honest over EVERY fit basis).
+//!  - \c Auto: the caller did not choose.  Resolved by the POLICY layer -- the Hamiltonian: the periodic one picks Delta or
+//!    PlaneWave (it alone knows whether the run is polarized / on a Becke grid), the molecular ones pick Delta (the user's
+//!    default, 2026-10-31).  If it reaches a factory unresolved it is read as "your own fitted representation" (the
+//!    historical pairing; \c qcMesh::UnitCellKind::Auto falls through the same way).
+//! A combination a lineage cannot realize (a plane-wave fit on a molecule, an auxiliary fit on a cell) THROWS at the factory,
+//! naming it: an open gap of the product space (pin 30), never a silent substitute.
 //!
 //! It does not live in \c qcMesh (where it briefly did, 2026-08-22): \c MeshParams describes POINTS, and
 //! this describes FUNCTIONS -- the two are exactly the orthogonal axes the XC separation is about, so
 //! folding one into the other's parameter block would have re-welded them at the type level while the code
 //! was busy unwelding them.  It does not live in qcHamiltonian either, because the factory that reads it is
 //! here.  \c qchem::Hamiltonian::VxcFit is an alias, so the user-facing spelling is unchanged.
-enum class VxcFit {Auto, PlaneWave, Delta};
+enum class VxcFit {Auto, PlaneWave, Delta, Auxiliary};
 
 }//namespace

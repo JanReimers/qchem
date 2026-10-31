@@ -63,9 +63,9 @@ struct CalcOptions
                               .mhl_m    = 3,                         .mhl_alpha = 2.0,
                               .angular  = qcMesh::AngularKind::Lebedev, .angularDegree = 29,   // the 302-direction rule
                               .beckeOrder = 2};
-    //! The Vxc FIT BASIS (2026-10-31): \c Auto = the Gaussian auxiliary basis (DGauss A1, the molecular default); \c Delta =
-    //! the δ basis on \c mesh's own points -- v_xc and eps_xc sampled where the quadrature integrates, no fit.  Both reach the
-    //! one XC term through the fit face (pin 30: Vxc = system x fit basis x grid, every combination runs).
+    //! The Vxc FIT BASIS (2026-10-31): \c Auto = \c Delta, the DEFAULT (user ruling "δ default, A1 kept") -- the δ basis on
+    //! \c mesh's own points, v_xc and eps_xc sampled where the quadrature integrates, no fit; \c Auxiliary = the Gaussian auxiliary
+    //! basis (DGauss A1).  Both reach the one XC term through the fit face (pin 30: Vxc = system x fit basis x grid).
     Hamiltonian::VxcFit vxcFit = Hamiltonian::VxcFit::Auto;
     //! Point-group SALC blocking + per-irrep aufbau.  GUARDED TO THE CARTESIAN PG BASIS: the SALC
     //! builder needs a PolarizedGaussian (PGData) orbital IBS and throws otherwise.  Since the facade

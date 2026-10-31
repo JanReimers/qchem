@@ -73,7 +73,7 @@ public:
            std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
            const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, VxcFit fit=VxcFit::Auto);
     Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const rbs_t* bs,
-           SpinGroup g);
+           SpinGroup g, VxcFit fit=VxcFit::Auto);
     Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
            const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, VxcFit fit=VxcFit::Auto);
 };

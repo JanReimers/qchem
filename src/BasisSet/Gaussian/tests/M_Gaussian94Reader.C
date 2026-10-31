@@ -17,13 +17,14 @@
 #include <nlohmann/json.hpp>
 
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
-import qchem.BasisSet.Gaussian.Point.Reader;    // ReadShells / ShellMerge
+import qchem.BasisSet.Gaussian.Point.Reader;    // ReadShells
 import qchem.BasisSet.Gaussian.Point.Factory;   // FactoryFromFile -- the orbital bases end to end
 import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisNames / BasisFileOfName / BasisFileChecksum (D-BASIS-REGISTRY)
 import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Structure;
 import qchem.Types;
+import qchem.Mesh;                               // qcMesh::MeshParams (the fit bases' factories take one)
 
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian;
@@ -84,22 +85,42 @@ std::filesystem::path SharedExponentFile()
 }
 }
 
-TEST(Gaussian94Reader, ReadShellsKeepsEachLForAnOrbitalBasisAndMergesForAFitBasis)
+TEST(Gaussian94Reader, ReadShellsKeepsEachLOfASharedExponent)
 {
     Molecule m; m.Insert(new Atom(1, 0.0, Vector3D(0,0,0)));
+    Gaussian94Reader reader(SharedExponentFile().string());
+    const auto sh=ReadShells(reader, m);
+    ASSERT_EQ(sh.size(), 2u) << "the s and the p are two blocks";
+    EXPECT_EQ(sh[0].Ls, std::vector<int>{0});
+    EXPECT_EQ(sh[1].Ls, std::vector<int>{1});
+}
+
+// THE FIT BASES READ EVERY SHELL (2026-10-31, OpenWork "The molecular FIT bases drop their D shells"): every A1 file puts SP and D
+// shells on the SAME exponents, and the fit bases' old merge never added the new l -- N2's A1_coul loaded 32 functions, not 68, and
+// the Coulomb fit sat 4-62 mHa low against PySCF's own A1_coul density fit.  Invariant: the fit basis has exactly the Cartesian
+// functions of the file's shells for each atom, counted here from the file through the reader, independently of the basis.
+TEST(Gaussian94Reader, TheFitBasesCarryEveryShellOfTheirFile)
+{
+    Molecule n2;
+    n2.Insert(new Atom(7, 0.0, Vector3D(-1.03,0.0,0.0)));
+    n2.Insert(new Atom(7, 0.0, Vector3D( 1.04,0.0,0.0)));
+    auto cartesianCount=[&](const std::string& file)
     {
-        Gaussian94Reader reader(SharedExponentFile().string());
-        const auto sh=ReadShells(reader, m, ShellMerge::KeepEachL);
-        ASSERT_EQ(sh.size(), 2u) << "the s and the p are two blocks";
-        EXPECT_EQ(sh[0].Ls, std::vector<int>{0});
-        EXPECT_EQ(sh[1].Ls, std::vector<int>{1});
-    }
-    {
-        Gaussian94Reader reader(SharedExponentFile().string());
-        const auto sh=ReadShells(reader, m, ShellMerge::LegacyMerge);
-        ASSERT_EQ(sh.size(), 1u) << "the fit bases' historical merge, kept bit-identical";
-        EXPECT_EQ(sh[0].Ls, std::vector<int>{0}) << "...which never adds the new l (the documented quirk)";
-    }
+        Gaussian94Reader reader(BasisFile(file));
+        size_t n=0;
+        for (const auto& sh : ReadShells(reader, n2)) for (int l : sh.Ls) n+=size_t((l+1)*(l+2)/2);
+        return n;
+    };
+    std::unique_ptr<BasisSet::Real_BS> bs(Factory(BasisSetData::DZVP, &n2));
+    const qcMesh::MeshParams mp{};
+    std::unique_ptr<BasisSet::rFIT_CD_ABS> cd(bs->CreateCDFitBasisSet(&n2, mp));
+    std::unique_ptr<BasisSet::rFIT_SF_ABS> sf(bs->CreateVxcFitBasisSet(&n2, mp));
+    EXPECT_EQ(cd->GetNumFunctions(), cartesianCount("A1_coul.bsd")) << "the Coulomb fit basis dropped shells of its file";
+    EXPECT_EQ(sf->GetNumFunctions(), cartesianCount("A1_exch.bsd")) << "the Vxc fit basis dropped shells of its file";
+    // ...and the d shells are really there: a d shell on a shared exponent adds 6 Cartesian functions per atom
+    Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
+    size_t nd=0; for (const auto& sh : ReadShells(reader, n2)) for (int l : sh.Ls) if (l==2) ++nd;
+    EXPECT_GT(nd, 0u) << "A1_coul N has d shells (on the SP exponents) -- else this test tests nothing";
 }
 
 TEST(Gaussian94Reader, AnOrbitalBasisLoadsEveryShellOfASharedExponent)
