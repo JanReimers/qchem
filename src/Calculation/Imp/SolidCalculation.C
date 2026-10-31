@@ -1852,7 +1852,7 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     itsPoint=std::move(point);
 
     auto out=itsPoint->calc->Result();
-    if (!out) return O::Fail({Why::SCF, out.Error().details});
+    if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
     return O::Ok(PESPoint{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()});
 }
 

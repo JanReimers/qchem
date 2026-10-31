@@ -42,7 +42,7 @@ static EnergyBreakdown Run(const Molecule& mol, Model model, SpinGroup pol, bool
     // one (MHL 30 / Lebedev 5).  On the converged default (80 / 29, 2026-10-31) the four SALC DFT runs cost 107 s + 175 s.
     o.mesh.nRadial=30; o.mesh.angularDegree=5;
     Calculation calc(MoleculeSetup::Resolve(mol, o));
-    calc.Converge(tight);                 // re-converge tight for the invariance tolerance
+    EXPECT_TRUE(calc.Converge(tight));    // re-converge tight for the invariance tolerance
     return calc.EnergyTerms();
 }
 

@@ -61,12 +61,12 @@ TEST(Si2_PP_U, LargeSeparation)
     const SCFParams   par{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-8, .MinFD = 1e-7};
 
     Molecule si1; si1.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,0)));
-    Calculation c1(MoleculeSetup::Resolve(si1, opt)); c1.Converge(par);
+    Calculation c1(MoleculeSetup::Resolve(si1, opt)); ASSERT_TRUE(c1.Converge(par));
 
     Molecule si2;
     si2.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,0)));
     si2.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,R)));
-    Calculation c2(MoleculeSetup::Resolve(si2, opt)); c2.Converge(par);
+    Calculation c2(MoleculeSetup::Resolve(si2, opt)); ASSERT_TRUE(c2.Converge(par));
 
     const auto   eb = c2.EnergyTerms();
     const double E1 = c1.Energy();

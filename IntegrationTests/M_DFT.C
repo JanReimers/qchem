@@ -91,8 +91,8 @@ TEST(M_DFT, WaterPolarizedSAD)
     // Polarized water Xalpha is the oscillatory case (commutator ~2-4; see M_Sym RunDFT) -- it needs more
     // iterations + damping than the facade's quick default, so re-Converge with tight params (DIIS already
     // drives from the start for DFT).
-    calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
-                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
+    ASSERT_TRUE(calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
     EXPECT_NEAR(calc.Energy(), -76.1008971700, 1e-5);   // == the unpolarized Xalpha anchor
 }
 
@@ -104,8 +104,8 @@ TEST(M_DFT, WaterPolarizedSAD)
 TEST(M_DFT, WaterPolarizedLDA)
 {
     Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA, .spin = SpinGroup::Polarized}));
-    calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
-                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
+    ASSERT_TRUE(calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
     EXPECT_NEAR(calc.Energy(), -75.8726517100, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
 }
 
@@ -117,8 +117,8 @@ TEST(M_DFT, WaterPolarizedLDA)
 TEST(M_DFT, OxygenTripletLDA)
 {
     Calculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 3}));
-    calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
-                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
+    ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
     // Converged spin-native LDA triplet (regression anchor).  MHL 150/35: -149.263710; was -149.256288 on the 30/5 mesh.
     // ⚠ PySCF UKS lda,vwn (exact J and XC) gives -149.299178: we are 35.5 mHa ABOVE -- 8x water's fit offset, while our UHF
     // triplet matches PySCF to 1e-8.  An open row (OpenWork §3, "molecular polarized DFT is 35 mHa above PySCF on O₂").
@@ -132,8 +132,8 @@ TEST(M_DFT, OxygenTripletLDA)
 TEST(M_DFT, OxygenTripletHF_VerboseDisplay)
 {
     Calculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::HF, .multiplicity = 3}));
-    calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
-                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true});   // Verbose => DisplayEigen (the crash path)
+    ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true}));   // Verbose => DisplayEigen (the crash path)
     EXPECT_NEAR(calc.Energy(), -149.6295470276, 1e-4);   // converged HF triplet O2
 }
 

@@ -307,7 +307,7 @@ int main(int argc, char** argv)
         cout << "scfrun: mol="<<molname<<" model="<<model<<" mult="<<mult<<" basis="<<mbasis<<" accel="<<accel<<endl;
         Molecule mol = MakeMolecule(molname);
         Calculation mcalc(MoleculeSetup::Resolve(mol, copts, aopts));
-        mcalc.Converge(makePar(minro<0?1e-4:minro, minfd<0?1e-5:minfd));
+        (void)mcalc.Converge(makePar(minro<0?1e-4:minro, minfd<0?1e-5:minfd));   // the RESULT line reports converged yes/no
         cout << "RESULT  E="<<std::setprecision(10)<<mcalc.Energy()
              << "  iters="<<mcalc.IterationCount()
              << "  converged="<<(mcalc.IsConverged()?"yes":"no") << endl;
