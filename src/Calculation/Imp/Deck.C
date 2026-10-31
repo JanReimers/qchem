@@ -279,7 +279,7 @@ json ToJson(const SolidCalcOptions& o)
             {"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
             {"raster",NameOf(o.raster,kRaster)},{"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
             {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},{"policy",ToJson(o.policy)},{"vxcFit",NameOf(o.vxcFit,kVxc)},{"hubbard",hub},
-            {"accelerator",NameOf(o.accelerator,kAcc)},{"perKFermiLevels",o.perKFermiLevels},{"imposeSymmetry",o.imposeSymmetry},
+            {"accelerator",NameOf(o.accelerator,kAcc)},{"perKFermiLevels",o.perKFermiLevels},{"imposeSymmetry",o.imposeSymmetry},{"xcMeshSymmetric",o.xcMeshSymmetric},
             {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho,kOrtho)},{"orthoTol",o.orthoTol},{"numBands",o.numBands},{"forceComplex",o.forceComplex},
             {"spinsShareFermi",o.spinsShareFermi},{"greyImposition",o.greyImposition},{"momFromSeed",o.momFromSeed},
             {"siteSpins",o.siteSpins},{"siteCharges",o.siteCharges},{"label",o.label},{"saveStateTo",o.saveStateTo}};
@@ -322,6 +322,7 @@ void FromJson(const json& j, SolidCalcOptions& o)
         throw std::runtime_error("deck: solid.globalFermi is RETIRED -- one Fermi level across the k-mesh is now the DEFAULT for a "
                                  "smeared run; delete the key (true), or set solid.perKFermiLevels true for the old per-k default (false)");
     f.GetEnum("accelerator",o.accelerator,kAcc); f.Get("perKFermiLevels",o.perKFermiLevels); f.Get("imposeSymmetry",o.imposeSymmetry);
+    f.Get("xcMeshSymmetric",o.xcMeshSymmetric);   // false = the plain atom-centred mesh: a displacement path needs it (SolidCalcOptions)
     f.GetEnum("seed",o.seed,kSeed); f.GetEnum("ortho",o.ortho,kOrtho); f.Get("orthoTol",o.orthoTol); f.Get("numBands",o.numBands); f.Get("forceComplex",o.forceComplex);
     f.Get("spinsShareFermi",o.spinsShareFermi); f.Get("greyImposition",o.greyImposition); f.Get("momFromSeed",o.momFromSeed);
     f.Get("siteSpins",o.siteSpins); f.Get("siteCharges",o.siteCharges); f.Get("label",o.label); f.Get("saveStateTo",o.saveStateTo);
