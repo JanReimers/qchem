@@ -524,3 +524,19 @@ Judge each against PySCF at the SAME fixed occupation (`scripts/pyscf_molecule_o
 - **Si closed {b1u↑↓}** and **the O₂ singlet in one π\* irrep** are NOT pure singlet terms in real orbitals.  π\*_x² is an equal ¹Δg/¹Σg⁺ mixture and lies ABOVE ¹Δg, and Si p_z² stands to ¹D the same way.  Both remain valid stated states: anchor each against PySCF at the SAME occupation, and **never label them ¹Δg / ¹D** in a test name or comment.
 - **A pure ¹Δg (Λ = 2: (π\*₊₁)²) or Si ¹D M_L = 2 (p₊₁α p₊₁β)** IS one integer determinant, but only in angular-momentum-resolved (complex, m) irreps, the kind Atom_EC's m sub-irreps are.  The molecular D2h path cannot state it.  This is a LIMIT of route (a), recorded here, not a defect queued.
 - **Genuinely multi-determinant states** (an M_S = 0 open-shell singlet, …) are out of scope for KS stated states.
+
+**C1-DEG-DETECT: the degenerate-frontier detector (user request 2026-10-31; OpenWork row "No single-determinant solution", tagged X).**  User: the software should *"(eventually) have a robust way of detecting situations where they are asking for the real single det. solution where none exists and advise the user what to do (switch to complex basis set or specify occupations by irrep, or other?)"*.  The case is a graduate student who asks for an O₂ singlet or Si 3p² in real orbitals and gets a slosh, or a silent term mixture.  **The detector IS the step-1 trace instrument: build it with the trace; the advice and the report wiring come later.**
+- **DETECT** (per iteration, from data the SCF already holds: the level list with ε, occupation, irrep, spin):
+  - Group the levels of one spin into DEGENERATE SETS: the same irrep row set, |Δε| ≤ τ_deg.  τ_deg is relative to the set's width at the seed, never a fixed number: the anisotropic Hartree splits a set by the very fill under test.
+  - (i) **Aufbau violation inside a set:** an occupied member above an empty partner, or an unequal integer fill of a set that straddles E_F.
+  - (ii) **Swap counter:** the filled member of a set changes between iterations.  Count it from the occupied-subspace projection onto the set, not from orbital indices, which reorder freely inside a degenerate set; on lane-a's spherical fit this counter reads the zero mode as "fill rotates every iteration".
+  - (iii) **Ensemble at convergence:** a smeared run ends with fractional occupations within kT of E_F on a degenerate set.  The answer is then an ENSEMBLE, and its energy is the ensemble's.
+- **REPORT** (later): through the SCF's `Outcome`, as the failure reason or as a note on a converged run, never a throw.  It names the set (irreps, ε, fill) and what was asked (kT, symmetry, multiplicity), and fires BEFORE `NMaxIter` where (i)/(ii) persist for a set number of iterations.
+- **ADVISE** (later), offering only the options the system has:
+  - (a) state occupations by irrep, where the group separates the partners;
+  - (b) complex m / Λ-resolved orbitals for a pure M_L / Λ component (¹Δg = (π\*₊₁)²); only the atom path has them today, so say so;
+  - (c) accept the ensemble (smearing, equal fill) and know its energy is the ensemble's;
+  - (d) IMOM in C1 on a stated state;
+  - (e) a broken-symmetry seed.
+  - Never label a real-orbital mixture as a pure term.
+- **CONSUMERS:** the console, the run report json, and later the GUI's in-app agent (advice → a deck edit).
