@@ -340,3 +340,20 @@ pair distance; −47.24 mHa on the same cell, `StructureTests.EwaldFarApartHomeA
 close together, cannot see this class -- gate on a cell whose home atoms are far apart.  Together the two were the whole MnO VA
 offset against CP2K (now +0.16 mHa).  Record: `OpenWork_History5.md` "MnO accuracy".
 
+
+## 30. Vxc is a full product space: {solid, molecule, atom} × {any fit basis} × {any integration grid}
+
+**Ruled by the user, 2026-10-31.**  Every combination of system kind, v_xc fit basis (δ on the quadrature points, the
+A1 Gaussian auxiliary fit, plane waves on the raster, and any future one) and integration grid (Becke atom-centred,
+uniform cell mesh, the {G} raster) must assemble through the SAME XC term and the SAME fit-basis faces, with no type
+tests.  **A combination that throws or fails is an OOD DESIGN FLAW, never an unsupported option**: fix the interface
+it exposed, don't add a carve-out.  The A1 Gaussian fit is KEPT for this reason even if δ wins on accuracy and cost.
+It is a STRATEGY whose job includes keeping the framework honest, so "δ is better, delete A1" is not an available
+cleanup.  Earned by: on 2026-10-31 a δ fit on the molecular path threw (`tBasisSet<T>::CreateVxcFitBasisSet`).  The
+cause was that `DeltaFit_IBS` was hard-wired to `dcmplx`, and that `Fitting::Factory` used the scalar type as a proxy
+for the metric (real ⇒ non-orthogonal, complex ⇒ orthogonal; both wrong).  The molecular A1 route also carried 4–8 mHa
+(closed shell) and 35 mHa (polarized O₂) against PySCF exact, which nobody could isolate because no second
+representation could run there.  Corollary: the scalar type T, the metric (`isOrtho`), the transform
+(`G_RasterTransform`) and the system kind are independent axes.  A factory dispatches on CAPABILITY, never on T or on
+what a class IS.  Gate: a parameterized UT over the product space (OOD V-XC-ONE-TERM) whose expected-failure list is
+the open-defect list, and which shrinks only.
