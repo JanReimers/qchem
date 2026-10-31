@@ -424,6 +424,24 @@ public:
     //! no +U manifold (list the channels at U=0 to probe a run without +U) or reduced its k-mesh (D5: run
     //! without \c imposeSymmetry).  A diagnostic of the last iterate, like \c EstimateHubbardU.
     Outcome<Response::ChannelResponse,Response::ResponseFailure> IndependentResponse(ivec3_t Nq) const;
+    //! \brief THE GRID AUDIT (doc/GridEpsilonPlan.md §3; C2 M2c/M3): every raster term's DELIVERED error at the converged density.
+    //! Rebuilds the GPW basis and the Hamiltonian on the \a reference raster (AliasFree = 2N per dimension of a BallOnly run), carries
+    //! the converged D onto it (\c SnapshotState / \c RestoreDensity: the orbital functions are the same Gaussians), and compares term by
+    //! term: max|ΔH_ij| over every block, and ΔE.  A FIXED-D evaluator: no SCF step, the run's result is untouched (its own Hamiltonian
+    //! is re-refreshed for the restored D; every later caller refreshes for its own).  Beside each row it states the run's own grid-audit
+    //! verdict (grids.auditDensity / auditVlocLong) AND the reference's, so the predicted alias of whichever side is the coarse one can be
+    //! read against the delivered difference.  Reports to the
+    //! console and to the run report (section `gridAudit`).  THROWS on a plane-wave run (no raster) or a reference equal to the run's.
+    struct GridAuditTerm { std::string label, entries; double maxAbsΔH=0.0, ΔE=0.0, E=0.0; };   //!< label/entries: \c TermEnergy's
+    struct GridAuditVerdict { std::string audit, status; double alias=0.0; };   //!< one grids.audit* entry (audit = its key)
+    struct GridAuditResult
+    {
+        std::string reference;                 //!< the reference raster's name
+        std::vector<GridAuditVerdict> runVerdicts, referenceVerdicts;   //!< each side's own grid-audit verdicts
+        std::vector<GridAuditTerm> terms;      //!< every term, in the Hamiltonian's order (analytic terms read 0)
+        double maxAbsΔH=0.0, ΔE=0.0;           //!< the whole Hamiltonian's (ΔE = E_run - E_reference)
+    };
+    GridAuditResult GridAudit(BasisSet::PlaneWave::RasterPolicy reference) const;
     //! \brief The SELF-CONSISTENT channel response at q = 0 over the run's Hubbard manifolds
     //! (doc/LinearResponsePlan.md stage R2): \f$(1-\mathcal R_0\mathcal K)\,\delta D=\mathcal R_0V_J\f$ with the
     //! Hamiltonian's ANALYTIC kernel (Hartree + ALDA f_xc; +U frozen or at U = 0 answers zero, H4), linearised

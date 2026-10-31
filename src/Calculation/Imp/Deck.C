@@ -344,6 +344,7 @@ const char* PostName(PostAction::Kind k)
     case PostAction::Kind::IndependentResponse:     return "independentResponse";
     case PostAction::Kind::HubbardLinearResponse:   return "hubbardLinearResponse";
     case PostAction::Kind::HubbardFiniteDifference: return "hubbardFiniteDifference";
+    case PostAction::Kind::GridAudit:               return "gridAudit";
     }
     throw std::logic_error("deck: PostAction kind");
 }
@@ -378,6 +379,7 @@ json PostJson(const PostAction& a)
     case PostAction::Kind::HubbardLinearResponse:   p={{"nq",QMeshJson(a.nq)},{"perturb",a.perturb},{"tol",a.tol},{"maxIter",a.maxIter},{"restart",a.restart},
                                                        {"resolve",NameOf(a.resolve,kResolution)},{"qStars",a.qStars},{"littleGroupK",a.littleGroupK}}; break;
     case PostAction::Kind::HubbardFiniteDifference: p={{"perturb",a.perturb},{"alpha_eV",ToEV(a.alpha)}}; break;
+    case PostAction::Kind::GridAudit:               p={{"reference",NameOf(a.reference,kRaster)}}; break;
     }
     return json::object({{PostName(a.kind),p}});
 }
@@ -403,7 +405,8 @@ PostAction PostFromJson(const json& j, const std::string& path)
       f.GetEnum("resolve",a.resolve,kResolution); f.Get("qStars",a.qStars); f.Get("littleGroupK",a.littleGroupK); }
     else if (name=="hubbardFiniteDifference")
     { a.kind=PostAction::Kind::HubbardFiniteDifference; f.Get("perturb",a.perturb); double eV=ToEV(a.alpha); f.Get("alpha_eV",eV); a.alpha=eV/kHaToEV; }
-    else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference)");
+    else if (name=="gridAudit")          { a.kind=PostAction::Kind::GridAudit; f.GetEnum("reference",a.reference,kRaster); }
+    else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference, gridAudit)");
     f.Done();
     return a;
 }
@@ -556,6 +559,13 @@ Materials::Material Resolve(RunSpec& spec)
         for (const auto& a : spec.postSCF)
         {
             const std::string who="deck: postSCF."+std::to_string(i++)+" ("+PostName(a.kind)+"): ";
+            if (a.kind==PostAction::Kind::GridAudit)   // the one action that is not about +U: it needs a raster, and a different one
+            {
+                if (spec.basis.family!=SolidCalcOptions::OrbitalBasis::GPW) throw std::runtime_error(who+"a plane-wave run has no raster to audit");
+                if (a.reference==spec.solid.raster)
+                    throw std::runtime_error(who+"the reference raster is the run's own ("+NameOf(a.reference,kRaster)+"): name the other one");
+                continue;
+            }
             const bool needsU = true;   // every action works on the Hubbard manifolds (list them at U=0 to probe a run without +U)
             if (needsU && spec.solid.hubbard.empty())
                 throw std::runtime_error(who+"the run carries no Hubbard manifold -- list the channels in solid.hubbard (at U_eV=0 to probe without +U)");
@@ -889,6 +899,16 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
                 else   { fds.push_back({{"perturbed",j},{"failure",R.Error().details}}); ok=false; }
             }
             rj["fd"]=fds; pr.ok=ok; pr.summary=std::to_string(J.size())+" manifold(s) perturbed"; break;
+        }
+        case K::GridAudit:
+        {
+            const auto R=calc->GridAudit(a.reference);
+            json t=json::array(); for (const auto& x : R.terms) t.push_back({{"term",x.label},{"entries",x.entries},{"maxAbsDH",x.maxAbsΔH},{"dE",x.ΔE}});
+            rj["reference"]=R.reference; rj["terms"]=t; rj["maxAbsDH"]=R.maxAbsΔH; rj["dE"]=R.ΔE;
+            auto vj=[](const auto& vs) { json o=json::object(); for (const auto& v : vs) o[v.audit]={{"status",v.status},{"alias",v.alias}}; return o; };
+            rj["verdicts"]=vj(R.runVerdicts); rj["referenceVerdicts"]=vj(R.referenceVerdicts);
+            std::ostringstream os; os<<"vs "<<R.reference<<": max|dH_ij| "<<R.maxAbsΔH<<", dE "<<R.ΔE<<" Ha";
+            pr.summary=os.str(); break;
         }
         }
         rj["ok"]=pr.ok; rj["summary"]=pr.summary; results.push_back(rj);

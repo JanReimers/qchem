@@ -75,7 +75,10 @@ cd build/Release && ninja rundeck                                  # the one CLI
                                                                          //   "eigen" (occupation eigen-orbitals inside each slot; QE orbital_resolved / Macke 2024).  perturb still names
                                                                          //   MANIFOLDS (all their channels are perturbed); prints a [response] channel table with each channel's composition
                                                                          //   on the projector functions, and the U lines full / 1x1
-    {"hubbardFiniteDifference": {"perturb":[0], "alpha_eV":0.027}}       // the FD cross-check of the above
+    {"hubbardFiniteDifference": {"perturb":[0], "alpha_eV":0.027}},      // the FD cross-check of the above
+    {"gridAudit": {"reference":"AliasFree"}}                             // GRID AUDIT (doc/GridEpsilonPlan.md §3): every term rebuilt on the reference raster at the
+                                                                         //   converged D; per term max|dH_ij| and dE + the run's own grid-audit verdicts (console, report
+                                                                         //   section `gridAudit`, `results`).  Needs no +U; the reference must differ from solid.raster
   ]
 }
 ```
