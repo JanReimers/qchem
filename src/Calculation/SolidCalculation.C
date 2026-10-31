@@ -314,6 +314,23 @@ public:
         Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {},
                 Observer onIteration = nullptr);
 
+    //! \name BUILT, NOT CONVERGED (2026-10-31, the deck's \c deck::Build: lane G binds the GUI to the deck)
+    //! For a caller that must HOLD the calculation before its SCF starts -- a GUI hands it to a worker thread and watches it.
+    //! The graph is built exactly as the constructors build it; the caller runs the SCF.  ONE path: the annealed constructor
+    //! is \c Prepare + \c Converge(schedule), \c Restart is \c PrepareRestart + \c Converge(params).
+    //!@{
+    //! \a schedule's stage 0 standing (its parameters, accelerator and seed) and no SCF; run it with \c Converge(schedule).
+    //! \a onIteration observes from that first iteration.  An empty schedule throws.
+    static std::unique_ptr<SolidCalculation> Prepare(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule,
+                                                     Observer onIteration = nullptr);
+    //! \c Restart up to its SCF: the fingerprint judged, the saved density restored, the restored stage standing for \a params;
+    //! run it with \c Converge(params).  Refused exactly when \c Restart is; an exact resume's first convergence prints the resumed
+    //! energy beside the saved one, whoever runs it.
+    static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+        PrepareRestart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {},
+                       Observer onIteration = nullptr);
+    //!@}
+
     //! \brief Write the LAST ITERATE's state -- every (k,σ) block's D, C, ε, f, the fingerprint and the run
     //! summary -- to \a path (HDF5, layout in qchem.SolidState; atomic: written aside, renamed into place).
     //! Converged or not: the file records which, and a restart reports it.  THROWS on an I/O failure.
@@ -570,6 +587,9 @@ private:
     //!@}
     //! Point + run + the first Converge (the constructors' common body), and the rest of an annealed schedule.
     void Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
+    //! Point + run, no SCF: \c Start's build half (and \c Prepare's whole body).
+    void BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
+    friend class ::DeckTests;   //!< tests/Deck.C: an inline deck and its named twin build the same fingerprint
     void RunRestOf(const std::vector<SCFStage>& schedule);
     //! This run's saved-state fingerprint, with \a kT the recipe's temperature.
     StateFingerprint Fingerprint(double kT) const;

@@ -1,0 +1,21 @@
+{
+  "_doc": [
+    "The INLINE-STRUCTURE template (2026-10-31): the deck states the cell itself instead of naming a materials.json entry -- the door a GUI uses",
+    "for a cell the user built.  This one is Si_diamond's entry copied verbatim plus a 'name' (it names the revisions: Si_diamond_inline.rNNN.json),",
+    "so it IS Si_diamond: UTCalculation Deck.AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint.  Give 'structure' OR 'inlineStructure', never both.",
+    "Run:  rundeck decks/Si_diamond_inline.json --out $(scripts/rundir qchem6 Si)"
+  ],
+  "inlineStructure": {
+    "name": "Si_diamond_inline",
+    "comment": "Si conventional cubic a = 5.43 A; FCC primitive cell, two-atom diamond basis",
+    "lattice": { "type": "CubicF", "a": 10.26 },
+    "atoms": [
+      { "el": "Si", "frac": [0.0, 0.0, 0.0] },
+      { "el": "Si", "frac": [0.25, 0.25, 0.25] }
+    ],
+    "pp": "gth-lda-valence"
+  },
+  "kmesh": [1, 1, 1],
+  "basis": { "data": "SIPP_SR" },
+  "solid": { "densityEcut": 20.0 }
+}

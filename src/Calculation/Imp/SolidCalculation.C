@@ -75,6 +75,9 @@ struct SolidCalculation::Imp
     SCFAccelerators::Type                       stageAccel = SCFAccelerators::Type::DIIS;  //!< the CURRENT stage's, RESOLVED (banner, [F,D])
     SCFAccelerators::Type                       stageAccelAsked = SCFAccelerators::Type::Auto;  //!< ...as ASKED: what an FD/U-loop stage re-resolves
     bool                                        stageRestored = false;  //!< the CURRENT stage starts from a RESTORED state (Restart: same Hamiltonian)
+    //! An EXACT RESUME's saved energy, until the first Converge reports the resumed one beside it (then cleared): the line
+    //! belongs to the restored stage's convergence, whoever runs it (\c Restart, or a \c PrepareRestart caller).
+    std::optional<double>                       resumedFrom;
     bool   converged = false;
     //! What the LAST converge stage filled with and how well it converged its eigenvalues -- the linear
     //! response's reference is built over the SAME occupancy rule, gated against the SAME measured noise
@@ -302,11 +305,28 @@ SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, cons
 
 void SolidCalculation::Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel)
 {
+    BuildFirstStage(std::move(setup), params, accel);
+    (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
+}
+
+void SolidCalculation::BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel)
+{
     const Lattice_3D& reference=setup->reference;   // held by the setup, which the point keeps alive
     auto mol=setup->mol;
     BuildPoint(std::move(setup), reference, std::move(mol));
     BuildRun(nullptr, params, accel, /*restored*/false, /*exactResume*/false);
-    (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
+}
+
+std::unique_ptr<SolidCalculation> SolidCalculation::Prepare(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule,
+                                                            Observer onIteration)
+{
+    if (schedule.empty())
+        throw std::runtime_error("SolidCalculation::Prepare: an EMPTY schedule has no meaning -- pass at least one stage.");
+    std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
+    c->itsImp->onIteration=std::move(onIteration);   // before BuildRun: it attaches the observer ahead of iteration 1
+    qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
+    c->BuildFirstStage(std::move(setup), schedule.front().params, schedule.front().accelerator);
+    return c;
 }
 
 // THE FIRST HALF OF THE BUILD: the GEOMETRY POINT over a resolved setup -- everything the saved-state fingerprint is judged
@@ -927,7 +947,15 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
     if (itsImp->stageRestored && itsImp->stageAccelAsked==SCFAccelerators::Type::Auto
         && itsImp->scf->ResolveMixing(params).Mixer==SCFParams::Mixing::Linear)
         own.StartingRelaxRo=std::min(own.StartingRelaxRo, 0.3);
-    return ConvergeStage(own);
+    auto R=ConvergeStage(own);
+    if (itsImp->resumedFrom)   // an EXACT RESUME's first convergence: judged against the energy the state was saved at
+    {
+        const double E=itsImp->scf->GetEnergy().GetTotalEnergy();
+        std::cout << "["<<itsImp->setup->opts.label<<" restart] resumed E="<<std::setprecision(10)<<E<<" vs saved "<<*itsImp->resumedFrom
+                  << "  dE="<<std::setprecision(3)<<E-*itsImp->resumedFrom<<" after "<<itsImp->scf->GetIterationCount()<<" iterations"<<std::endl;
+        itsImp->resumedFrom.reset();
+    }
+    return R;
 }
 
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage(const SCFParams& params)
@@ -1074,6 +1102,15 @@ Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
 SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params,
                           Observer onIteration)
 {
+    auto R=PrepareRestart(path, std::move(setup), params, std::move(onIteration));
+    if (R) (void)R.Value()->Converge(params);   // the restored stage, as PrepareRestart stood it up
+    return R;
+}
+
+Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params,
+                                 Observer onIteration)
+{
     using O=Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>;
     const SCFAccelerators::Type accel=setup->opts.accelerator;
     const std::string tag="["+setup->opts.label+" restart] ";
@@ -1124,13 +1161,9 @@ SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSe
         std::cout<<os.str()<<std::endl;
     }
     c->BuildRun(cd.TakeValue(), params, accel, /*restored*/true, exact);
-    (void)c->Converge(params);
-    c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;   // later stages on this calculation start as asked
-    if (exact)
-        std::cout << tag << "resumed E="<<std::setprecision(10)<<c->itsImp->scf->GetEnergy().GetTotalEnergy()
-                  << " vs saved "<<saved->summary.energy<<"  dE="<<std::setprecision(3)
-                  << c->itsImp->scf->GetEnergy().GetTotalEnergy()-saved->summary.energy
-                  << " after "<<c->itsImp->scf->GetIterationCount()<<" iterations"<<std::endl;
+    // The restored stage's accelerator is BUILT (BuildRun consumed the GDM-rung start); later stages on this calculation start as asked.
+    c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;
+    if (exact) c->itsImp->resumedFrom=saved->summary.energy;   // the first Converge reports the resumed energy beside it
     return O::Ok(std::move(c));
 }
 

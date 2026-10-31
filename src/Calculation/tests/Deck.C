@@ -4,6 +4,7 @@
 #include <fstream>
 #include <set>
 #include <nlohmann/json.hpp>
+#include "forward.H"   // DeckTests: the restart fingerprint of a built calculation (SolidCalculation::Fingerprint is private)
 import qchem.Hamiltonian.Factory;   // HubbardProjectorKind (the manifold projector-kind round trip)
 import qchem.Deck;
 import qchem.SolidCalculation;
@@ -12,6 +13,7 @@ import qchem.Mesh;
 import qchem.Materials;
 import qchem.ChargeDensity.Seed;
 import qchem.LASolver;
+import qchem.SolidState;          // StateFingerprint, CompareFingerprints
 
 using namespace qchem;
 using qchem::deck::json;
@@ -564,4 +566,106 @@ TEST(Deck, EveryShippedDeckVets)
             ++n;
         }
     EXPECT_GE(n,1u);
+}
+
+// ---- an INLINE structure (2026-10-31, the GUI's door): the deck states the cell instead of naming it ----
+//! THE FRIEND (src/forward.H): the restart fingerprint a built calculation would save -- what "the same run" means to a restart.
+class DeckTests
+{
+public:
+    static StateFingerprint Fingerprint(const SolidCalculation& c) { return c.Fingerprint(0.0); }
+};
+
+namespace {
+// Si_diamond's materials.json entry, stated inline (copied, not read: the test states what it means).
+json SiInline(const std::string& name="Si_inline")
+{
+    return {{"name",name},{"comment","Si_diamond, stated inline"},{"lattice",{{"type","CubicF"},{"a",10.26}}},
+            {"atoms",json::array({{{"el","Si"},{"frac",{0.0,0.0,0.0}}}, {{"el","Si"},{"frac",{0.25,0.25,0.25}}}})},{"pp","gth-lda-valence"}};
+}
+const json kSiRecipe={{"basis",{{"data","SIPP_SR"}}},{"solid",{{"densityEcut",20.0},{"imposeSymmetry",true}}},
+                      {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
+deck::RunSpec SiDeck(const json& structure)
+{
+    json d=kSiRecipe; d.update(structure);
+    deck::RunSpec r; deck::FromJson(d,r); return r;
+}
+}
+
+TEST(Deck, AnInlineStructureIsExactlyOneOfTheTwoAndRoundTrips)
+{
+    deck::RunSpec r;
+    try { deck::FromJson(json{{"structure","Si_diamond"},{"inlineStructure",SiInline()}},r); ADD_FAILURE() << "both stated: no throw"; }
+    catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("not both"),std::string::npos) << e.what(); }
+    EXPECT_THROW(deck::FromJson(json{{"kmesh",{1,1,1}}},r),std::runtime_error) << "neither stated";
+    EXPECT_THROW(deck::FromJson(json{{"inlineStructure","Si_diamond"}},r),std::runtime_error) << "an inline structure is an object";
+
+    deck::RunSpec in=SiDeck({{"inlineStructure",SiInline()}});
+    EXPECT_TRUE(in.structure.empty());
+    EXPECT_EQ(in.StructureName(),"Si_inline");
+    const json j=deck::ToJson(in);
+    EXPECT_FALSE(j.contains("structure")) << "the record states the cell, not a name it does not have";
+    deck::RunSpec back; deck::FromJson(j,back); EXPECT_EQ(deck::ToJson(back),j);
+
+    // resolved like a named one: the species and Nelec are derived from the inline pp
+    deck::RunSpec named=SiDeck({{"structure","Si_diamond"}});
+    const auto mi=deck::Resolve(in), mn=deck::Resolve(named);
+    EXPECT_EQ(in.solid.Nelec,named.solid.Nelec); EXPECT_EQ(in.solid.species,named.solid.species); EXPECT_EQ(in.solid.pp,named.solid.pp);
+    EXPECT_EQ(mi.cell->GetNumAtoms(),mn.cell->GetNumAtoms());
+
+    // strict: a typo in the entry would build a DIFFERENT cell silently
+    auto refused=[](json entry, const std::string& what)
+    {
+        deck::RunSpec x=SiDeck({{"inlineStructure",entry}});
+        try { (void)deck::Resolve(x); ADD_FAILURE() << "no throw for " << what; }
+        catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find(what),std::string::npos) << e.what(); }
+    };
+    json typo=SiInline(); typo["lattice"]["alfa"]=60.0;            refused(typo,"unknown key 'alfa'");
+    json noName=SiInline(); noName.erase("name");                   refused(noName,"needs a 'name'");
+    json noPP=SiInline(); noPP.erase("pp");                         refused(noPP,"needs 'pp'");
+    json extra=SiInline(); extra["kmesh"]={2,2,2};                  refused(extra,"unknown key 'kmesh'");
+    json badAtom=SiInline(); badAtom["atoms"][0]["fracs"]={0,0,0};  refused(badAtom,"unknown key 'fracs'");
+}
+
+// The claim lane G binds to: an inline deck and its named twin are the SAME run -- the fingerprint a saved state would carry, built
+// by deck::Build (which stops before the SCF), agrees with no difference at all, so either one's state resumes the other EXACTLY.
+TEST(Deck, AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint)
+{
+    const auto a=deck::Build(SiDeck({{"structure","Si_diamond"}}));
+    const auto b=deck::Build(SiDeck({{"inlineStructure",SiInline()}}));
+    auto cmp=CompareFingerprints(DeckTests::Fingerprint(*a), DeckTests::Fingerprint(*b));
+    ASSERT_TRUE(cmp) << cmp.Error().details;
+    EXPECT_TRUE(cmp->empty()) << "a warm difference: " << (cmp->empty() ? "" : cmp->front());
+    // and a moved atom IS a different cell (the comparison is not vacuous)
+    json moved=SiInline(); moved["atoms"][1]["frac"]={0.25,0.25,0.26};
+    const auto c=deck::Build(SiDeck({{"inlineStructure",moved}}));
+    auto cmp2=CompareFingerprints(DeckTests::Fingerprint(*a), DeckTests::Fingerprint(*c));
+    EXPECT_TRUE(!cmp2 || !cmp2->empty()) << "a moved atom left the fingerprint unchanged";
+}
+
+// deck::Build STOPS BEFORE THE SCF, and Run is Build + Converge: the observer has seen nothing until the caller converges, and the
+// converged energy is Run's own, bit for bit (ONE path).
+TEST(Deck, BuildStopsBeforeTheSCFAndRunIsBuildPlusConverge)
+{
+    deck::RunSpec spec=SiDeck({{"structure","Si_diamond"}});
+    size_t seen=0;
+    const auto calc=deck::Build(spec, [&](const auto&){ ++seen; });
+    EXPECT_EQ(seen,0u) << "Build ran an SCF";
+    EXPECT_FALSE(calc->DidConverge());
+    auto R=calc->Converge(deck::ScheduleToRun(spec));
+    ASSERT_TRUE(R);
+    EXPECT_GT(seen,0u) << "the observer was not attached before the first iteration";
+
+    const fs::path dir=TmpDir("build");
+    deck::Provenance pv; pv.commandLine="test"; pv.codeVersion="t";
+    const deck::RunOutcome out=deck::Run(spec,pv,dir);
+    ASSERT_TRUE(out.converged) << out.summary;
+    EXPECT_DOUBLE_EQ(R->Energy(), *out.energy);
+    fs::remove_all(dir);
+
+    deck::RunSpec stem=spec; stem.state.restartFrom="Si_diamond.r001";
+    EXPECT_THROW((void)deck::Build(stem),std::runtime_error) << "a revision stem needs Run's outDir";
+    deck::RunSpec missing=spec; missing.state.restartFrom="/nonexistent/x.h5";
+    EXPECT_THROW((void)deck::Build(missing),std::runtime_error);
+    EXPECT_EQ(deck::ScheduleToRun(stem).size(),1u) << "a restart runs the final stage only";
 }
