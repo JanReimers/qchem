@@ -31,6 +31,7 @@ import qchem.SolidCalculation;
 import qchem.Lattice_3D;
 import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Point.Factory;
+import qchem.BasisSet.Gaussian.Point.BasisFiles;   // BasisFileOfName / BasisFileChecksum: a basis is named by its file stem
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;
 import qchem.Reporting;
 import qchem.Pseudopotential.Set;           // PseudopotentialSet -- the run's PP, which the basis file's provenance is checked against
@@ -115,10 +116,6 @@ const auto kRadial = NAMES(RadialKind, {"MHL",RadialKind::MHL}, {"Log",RadialKin
 const auto kAngular= NAMES(AngularKind, {"Lebedev",AngularKind::Lebedev}, {"GaussLegendre",AngularKind::GaussLegendre});
 using Measure = SCFParams::Measure;
 using BasisSet::Gaussian::BasisSetData;
-const auto kBasisData = NAMES(BasisSetData, {"DZVP",BasisSetData::DZVP}, {"DZVP2",BasisSetData::DZVP2}, {"TZVP",BasisSetData::TZVP}, {"ORB",BasisSetData::ORB},
-    {"ORB1",BasisSetData::ORB1}, {"SIPP",BasisSetData::SIPP}, {"SIPP_SR",BasisSetData::SIPP_SR}, {"VALENCE_LOWQ",BasisSetData::VALENCE_LOWQ},
-    {"VALENCE_LOWQ_SR",BasisSetData::VALENCE_LOWQ_SR}, {"VALENCE_LOWQ_SR2",BasisSetData::VALENCE_LOWQ_SR2}, {"VALENCE_LOWQ_SPH",BasisSetData::VALENCE_LOWQ_SPH},
-    {"VALENCE_LOWQ_VA",BasisSetData::VALENCE_LOWQ_VA}, {"VALENCE_LOWQ_VB",BasisSetData::VALENCE_LOWQ_VB});
 const auto kMeasure= NAMES(Measure, {"L1PerElectron",Measure::L1PerElectron}, {"MaxDeltaD",Measure::MaxΔD});
 const auto kMixing = NAMES(SCFParams::Mixing, {"Auto",SCFParams::Mixing::Auto}, {"Linear",SCFParams::Mixing::Linear},
                             {"Kerker",SCFParams::Mixing::Kerker}, {"Pulay",SCFParams::Mixing::Pulay});
@@ -126,7 +123,9 @@ const auto kMixing = NAMES(SCFParams::Mixing, {"Auto",SCFParams::Mixing::Auto}, 
 //! The deck's basis block as the setup's RECIPE (the trim stated, or vetted once by SolidSetup::Resolve).
 GaussianBasisRecipe RecipeOf(const RunSpec::Basis& b)
 {
-    GaussianBasisRecipe r{.data=b.data, .file=b.file, .vet=b.vet, .spherical=b.spherical};
+    GaussianBasisRecipe r{.file=b.file, .vet=b.vet, .spherical=b.spherical};
+    // A REGISTERED name keeps its typed handle; any other stem in the data directory is read as that file.
+    if (!BasisSet::Gaussian::RegisteredBasis(b.data, r.data) && r.file.empty()) r.file=BasisSet::Gaussian::BasisFileOfName(b.data);
     for (const auto& t : b.trim) r.trim.shells.push_back({t.Z, t.l, rvec_t(1,t.alpha)});
     return r;
 }
@@ -410,7 +409,7 @@ PostAction PostFromJson(const json& j, const std::string& path)
 
 json BasisJson(const RunSpec::Basis& b)
 {
-    json j={{"data",NameOf(b.data,kBasisData)},{"spherical",b.spherical}};
+    json j={{"data",b.data},{"spherical",b.spherical}};
     if (!b.file.empty()) j["file"]=b.file;
     if (b.vet) j["vet"]=true;
     if (b.family!=SolidCalcOptions::OrbitalBasis::GPW) { j["family"]=NameOf(b.family,kFamily); j["ecut"]=b.ecut; }
@@ -425,7 +424,8 @@ json BasisJson(const RunSpec::Basis& b)
 void BasisFromJson(const json& j, RunSpec::Basis& b)
 {
     Fields f(j,"basis");
-    f.GetEnum("data",b.data,kBasisData); f.Get("spherical",b.spherical); f.Get("file",b.file); f.Get("vet",b.vet);
+    f.Get("data",b.data); (void)BasisSet::Gaussian::BasisFileOfName(b.data);   // a name not in the data directory THROWS here, listing the names
+    f.Get("spherical",b.spherical); f.Get("file",b.file); f.Get("vet",b.vet);
     f.GetEnum("family",b.family,kFamily); f.Get("ecut",b.ecut);
     if (j.contains("trim"))
     {
@@ -521,7 +521,7 @@ Materials::Material Resolve(RunSpec& spec)
     Materials::Material m=Materials::Get(spec.structure);
     if (spec.basis.vet && !spec.basis.trim.empty())
         throw std::runtime_error("deck: basis.vet and basis.trim are exclusive (a vet computes the trim; a stated trim is the A/B for it)");
-    if (spec.basis.spherical && spec.basis.data==BasisSetData::VALENCE_LOWQ_SR)
+    if (spec.basis.spherical && BasisSet::Gaussian::BasisFileOfName(spec.basis.data)=="valence_lowq_sr.bsd")
     {
         bool tm=false; m.cell->ForEachSite([&](int z, const rvec3_t&, bool){ tm = tm || (z>=21 && z<=30); });
         if (tm) throw std::runtime_error("deck: basis.spherical with VALENCE_LOWQ_SR -- the SR transition-metal block's s span lives in the Cartesian d "
@@ -655,6 +655,7 @@ void WriteRevision(const std::filesystem::path& path, const json& resolved, cons
                    {"activeEnvironment",prov.activeEnvironment}};
     if (!prov.policyResolved.empty()) pv["policyResolved"]=prov.policyResolved;
     if (!prov.restartedFrom.empty())  pv["restartedFrom"]=prov.restartedFrom;
+    if (!prov.basisFile.empty())      { pv["basisFile"]=prov.basisFile; pv["basisChecksum"]=prov.basisChecksum; }
     if (!prov.inputDeck.empty())
     {
         pv["inputDeck"]=prov.inputDeck.string();
@@ -717,7 +718,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
     if (spec.basis.vet) v.notes.push_back("basis.vet: the vet-stage trim loop is NOT run by --check (function count is the untrimmed one)");
     std::ostringstream os;
     os<<spec.structure<<": "<<mat.cell->GetNumAtoms()<<" atoms, Nelec "<<spec.solid.Nelec<<", multiplicity "<<spec.solid.multiplicity
-      <<", k-mesh "<<spec.kmesh.x<<"x"<<spec.kmesh.y<<"x"<<spec.kmesh.z<<", basis "<<(spec.basis.file.empty()?NameOf(spec.basis.data,kBasisData):spec.basis.file)<<(spec.basis.spherical?" (spherical)":"")
+      <<", k-mesh "<<spec.kmesh.x<<"x"<<spec.kmesh.y<<"x"<<spec.kmesh.z<<", basis "<<(spec.basis.file.empty()?spec.basis.data:spec.basis.file)<<(spec.basis.spherical?" (spherical)":"")
       <<" "<<nf<<" functions, "<<spec.Stages().size()<<" SCF stage(s), "<<spec.solid.hubbard.size()<<" Hubbard manifold(s), "<<spec.postSCF.size()<<" postSCF action(s)"
       <<(spec.solid.imposeSymmetry?", symmetry IMPOSED":", symmetry FREE");
     v.summary=os.str();
@@ -744,6 +745,8 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     RunOutcome out;
     out.revision=ClaimRevision(outDir, spec.structure);
     prov.policyResolved=RunPolicy(spec.solid.policy).Banner();   // the stated policy is in the deck; what it RESOLVED to is the record
+    prov.basisFile=spec.basis.file.empty() ? BasisSet::Gaussian::BasisFileOfName(spec.basis.data) : spec.basis.file;
+    prov.basisChecksum=BasisSet::Gaussian::BasisFileChecksum(prov.basisFile);
     WriteRevision(out.revision, ToJson(spec), prov);     // the record exists BEFORE the SCF: a crashed run still leaves it
     const std::string stem=out.revision.stem().string(); // <structure>.rNNN -- the run's name in its own output
 

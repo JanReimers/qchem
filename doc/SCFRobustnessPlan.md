@@ -59,7 +59,7 @@ physics fact or an open question that no policy catches, only the panel can trac
 | D3 | A smeared restart from an integer state handed GDM an idempotent D′: engaged, never applied smearing, 6 mHa off (2026-10-21) | one gate | Si k222 kT 0.02 gate | P4a (GDM is kT = 0 only, pin 15) | History5 |
 | D4 | relax 1.0 diverged a restart (Si Γ 2026-09-29); the cap of the START let the adaptive α grow back to 1.0 (2026-10-29) | a month apart, same defect twice | FD test period-3 cycle under the cap guard | P4 (recipe caps the CEILING) | History5 "Eight SCF tests" |
 | D5 | Exact resume: the carried D was never the working density (two undamped Fock steps) (2026-10-29) | 23 iterations per resume | β-MnO₂ r015 | P2 (iteration 1 of an exact resume ≈ saved E) | History5 |
-| D6 | Restart fingerprint incomplete; functional hard-coded "LDA" (OPEN) | — | user review | P3 (producer reports what it delivered) | OpenWork §3 |
+| D6 | Restart fingerprint incomplete; functional hard-coded "LDA" (gaps 1–4 DONE 2026-10-30; the run-POLICY remainder is an OpenWork row) | — | user review | P3 (producer reports what it delivered) | OpenWork §3 |
 
 ### E. Imposed symmetry that leaked (P2)
 

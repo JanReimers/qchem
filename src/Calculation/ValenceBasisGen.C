@@ -92,7 +92,8 @@ export namespace qchem
     //! SCF (and its convergence surprises) is confined HERE, offline; a lattice run only LOOKS UP the result.
     //! \c charge = 4π∫r²ρ dr (~ the charge state's electron count); \c meanR = ⟨r⟩ = 4π∫r·r²ρ dr / charge,
     //! the mean radius -- the DIFFUSENESS metric (an anion's ⟨r⟩ exceeds the neutral atom's).  \c jsonEntry is
-    //! the library object to append to \c atomic_valence_densities.json.
+    //! the library object to append to \c atomic_valence_densities.json (\c SpliceSeedEntry); it carries \c q, the
+    //! pseudopotential variant the density was made under (the seed lookup's key beside Z and Nelec).
     //! \c moment = 4π∫r²(ρ↑−ρ↓)dr (≈ 2S, the Hund moment) -- 0 unless \c recipe.spinResolved.
     struct GeneratedSeedDensity { double charge; double meanR; bool converged; std::string jsonEntry;
                                   double moment = 0.0; };
@@ -104,6 +105,17 @@ export namespace qchem
     //! block: written as the `PP-PROVENANCE` preamble line that \c BasisSet::Gaussian::CheckPPProvenance reads (D-BASIS-PP).
     std::string AssembleBasisFile(const std::string& name, const std::vector<std::string>& blocks,
                                   const std::vector<std::pair<std::string,int>>& ppValence={});
+
+    //! \brief valgen --seed-into: INSERT or REPLACE one entry of a seed-density library (\c atomic_valence_densities.json) AS
+    //! TEXT.  \a library is the file's text, \a entry one library object (\c GeneratedSeedDensity::jsonEntry).  The entry's
+    //! identity is (Z, q, Nelec, functional): a library entry with the same four is REPLACED in place, else the entry is
+    //! APPENDED after the last one.  Every other byte of \a library is kept -- re-serialising the 12.7k-line file re-formats all
+    //! of it (OpenWork §3 "valgen cannot add a seed entry diff-friendly": a 26k-line diff for one entry).  The new entry is
+    //! written in the file's tab indentation.  THROWS on an entry without the four keys (q included), on a library that is
+    //! not a JSON array of objects, on a library that already holds the identity TWICE, and on replacing a SPIN-RESOLVED entry
+    //! (rho_up/rho_dn) with one that is not -- the pair is data the IonicSAD seed reads.
+    struct SplicedLibrary { std::string text; bool replaced = false; };
+    SplicedLibrary SpliceSeedEntry(const std::string& library, const std::string& entry);
 
     //! A geometric (even-tempered) window: \a N exponents from \a emin to \a emax inclusive.
     std::vector<double> EvenTemperedWindow(int N, double emin, double emax);

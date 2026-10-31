@@ -119,7 +119,8 @@ static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWP
     if (!ops.policy.Imposes())
     {
         // KAxisPlan ruling 1 (user, 2026-10-27): a free run gets symmetric NUMERICS, not a symmetric answer.
-        for (const auto& op : sg.DirectOps()) ops.meshInvariance.push_back({op.W, op.tau});
+        if (p.freeMeshInvariant)
+            for (const auto& op : sg.DirectOps()) ops.meshInvariance.push_back({op.W, op.tau});
         return ops;
     }
 

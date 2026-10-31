@@ -555,9 +555,10 @@ private:
     //! \a lat: the setup's cell with the atoms at new positions; \a mol: the molecular basis made there from the setup's frozen
     //! recipe.  \a carry null: the setup's seed strategy and the whole \a schedule (the first point); else seeded from \a carry and
     //! converged on the schedule's FINAL stage only (the earlier stages exist to deliver a density the carry already is).
+    //! \a lowdin: move \a carry onto this point's basis through the Löwdin frame (\c LowdinCarry) before it seeds the run.
     static std::unique_ptr<SolidCalculation> AtGeometry(std::shared_ptr<const SolidSetup>, const Lattice_3D& lat,
                                                         std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
-                                                        const std::vector<SCFStage>& schedule);
+                                                        const std::vector<SCFStage>& schedule, bool lowdin=false);
     SavedState Carry() const;   //!< the last iterate's per-block D, for the next point
     //!@}
     //! Point + run + the first Converge (the constructors' common body), and the rest of an annealed schedule.
@@ -596,9 +597,14 @@ private:
 class SolidSession : public virtual PotentialEnergySurface
 {
 public:
+    //! HOW the previous point's density reaches the next point's basis (the same recipe, its centres moved).  \c AO hands D over
+    //! verbatim, as AO coefficients; \c Lowdin holds the orbitals' Löwdin coefficients \f$S^{1/2}C\f$ fixed (\c LowdinCarry), so the
+    //! carried D stays idempotent with the right electron count in the new metric.
+    enum class Carry { AO, Lowdin };
     //! \a schedule: the SCF recipe -- the first point runs all of it from the setup's seed, every later point its FINAL stage
-    //! from the carried density.
-    SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule);
+    //! from the carried density, moved onto the new basis as \a carry says.  THROWS on a free Gaussian setup resolved with
+    //! \c SolidCalcOptions::xcMeshSymmetric (the XC mesh would follow the group detected at each geometry and switch along a path).
+    SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule, Carry carry=Carry::AO);
     ~SolidSession();
     PESGeometry Reference() const override;
     //! THROWS when \a cell is empty, when \a R has not one position per atom, or when the atoms MOVED on a setup resolved from a
@@ -613,6 +619,7 @@ private:
     struct Point;
     std::shared_ptr<const SolidSetup> itsSetup;
     std::vector<SCFStage>             itsSchedule;
+    Carry                             itsCarry;
     std::unique_ptr<Point>            itsPoint;
 };
 

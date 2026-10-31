@@ -115,8 +115,9 @@ TEST(SolidState, FileLayoutIsWhatTheDocSays)
     auto o=H5::File::Open(s.path);
     ASSERT_TRUE(o) << o.Error();
     H5::File f=o.TakeValue();
-    EXPECT_EQ(f.AttrString("format"), "qchem-solid-state 1");
+    EXPECT_EQ(f.AttrString("format"), "qchem-solid-state 1.1");
     EXPECT_EQ(f.AttrInt("converged"), 1);
+    EXPECT_TRUE(std::isfinite(f.AttrReal("densityChange"))) << "1.1: the residual the state was saved at";
     EXPECT_NEAR(f.AttrReal("energy"), s.energy, 1e-12);
     H5::Group blocks=f.OpenGroup("blocks");
     ASSERT_EQ(blocks.Children().size(), 8u);                        // 2x2x2, unpolarized, nothing folded
@@ -202,6 +203,111 @@ TEST(SolidState, AStateFromBeforeStep5StillLoads)
     auto same=CompareFingerprints(old, st->fingerprint);
     ASSERT_TRUE(same) << same.Error().details;
     EXPECT_TRUE(same->empty()) << "an old file against the same run is an EXACT resume";
+}
+
+// Gap 2 (2026-10-30): the numerics that move the ground state are recorded WARM -- and a state from before them is still an
+// exact resume (none of them compared), while a state that HAS them is held to them.
+TEST(SolidState, TheNumericsKeysAreWarmAndAnOlderStateIsStillExact)
+{
+    auto st=ReadSolidState(SavedState(0, false).path);
+    ASSERT_TRUE(st) << st.Error().details;
+    const StateFingerprint& fp=st->fingerprint;
+    EXPECT_EQ(fp.warmStr.at("xc.fit"), "PlaneWave") << "Auto on a uniform mesh resolves to the plane-wave fit";
+    EXPECT_EQ(fp.warmStr.at("grids.raster"), "BallOnly");
+    for (const char* k : {"grids.ladderFactor","gpw.vlocEps","gpw.screenEps","gpw.relCutoff","gpw.mgridEcuts"})
+        EXPECT_TRUE(fp.warmNum.count(k)) << k;
+    EXPECT_FALSE(fp.warmNum.count("grids.beckeEps")) << "no Becke mesh, no Becke eps";
+
+    StateFingerprint old=fp;
+    old.warmStr.erase("xc.fit"); old.warmStr.erase("grids.raster"); old.warmNum.erase("grids.ladderFactor");
+    std::erase_if(old.warmNum, [](const auto& e){ return e.first.rfind("gpw.",0)==0; });
+    auto same=CompareFingerprints(old, fp);
+    ASSERT_TRUE(same) << same.Error().details;
+    EXPECT_TRUE(same->empty()) << "a state written before the numerics keys is an EXACT resume of the same run";
+
+    StateFingerprint now=fp;
+    now.warmStr["xc.fit"]="Delta";
+    now.warmNum["gpw.screenEps"]={1e-12};
+    auto warm=CompareFingerprints(fp, now);
+    ASSERT_TRUE(warm) << warm.Error().details;
+    ASSERT_EQ(warm->size(), 2u);
+    // Gap 3: each line says what the difference MEANS, not only the two values.
+    EXPECT_NE((*warm)[0].find("gpw.screenEps"), std::string::npos);
+    EXPECT_NE((*warm)[0].find("GPW numerical tolerance changed"), std::string::npos) << (*warm)[0];
+    EXPECT_NE((*warm)[1].find("saved 'PlaneWave', now 'Delta'"), std::string::npos) << (*warm)[1];
+    EXPECT_NE((*warm)[1].find("v_xc fit basis changed: the converged ground state moves"), std::string::npos) << (*warm)[1];
+}
+
+// A restart ACROSS one of the new keys (the multigrid ladder) is a warm start that says so, and converges to the new run's answer.
+// (The raster was the first choice: AliasFree on this cell costs ~230 s, far over a unit test's budget.)
+TEST(SolidState, ARestartAcrossTheLadderPrintsItsLineAndConverges)
+{
+    const Saved& s=SavedState(0, false);
+    SiRun si=Si(ivec3_t(2,2,2));
+    SolidCalcOptions o=Options(0, false, "");
+    o.ladderFactor=3.0;
+    testing::internal::CaptureStdout();
+    auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), Params());
+    const std::string out=testing::internal::GetCapturedStdout();
+    ASSERT_TRUE(c) << c.Error().details;
+    EXPECT_NE(out.find("WARM START"), std::string::npos);
+    EXPECT_NE(out.find("differs: grids.ladderFactor: saved [4], now [3] -- the multigrid ladder changed"), std::string::npos) << out;
+    EXPECT_NE(out.find("saved at Δρ"), std::string::npos) << "the saved state's own residual is reported";
+    auto r=(*c)->Result();
+    ASSERT_TRUE(r);
+    EXPECT_NEAR(r->Energy(), s.energy, 1e-3) << "the ladder moves the answer only slightly";
+}
+
+//! The same state as the format-1.0 writer made it: every attribute, group and dataset EXCEPT the 1.1 fields, stamped
+//! "qchem-solid-state 1".  Built by copying, so the test needs no 1.0 writer kept alive in the library.
+void CopyAsFormat10(const H5::Group& from, H5::Group& to, bool root)
+{
+    for (const std::string& a : from.AttrNames())
+    {
+        if (root && a=="densityChange") continue;
+        if (root && a=="format") { to.SetAttr("format", "qchem-solid-state 1"); continue; }
+        if (from.AttrIsString(a)) { to.SetAttr(a, from.AttrString(a)); continue; }
+        const double x=from.AttrReal(a);
+        if (std::isfinite(x) && x==std::floor(x) && std::fabs(x)<1e15) to.SetAttr(a, std::int64_t(x)); else to.SetAttr(a, x);
+    }
+    for (const std::string& c : from.Children())
+    {
+        bool isGroup=true;   // the wrapper has no "is a group" ask: a dataset refuses OpenGroup
+        try { (void)from.OpenGroup(c); } catch (...) { isGroup=false; }
+        if (isGroup) { H5::Group g=to.CreateGroup(c); CopyAsFormat10(from.OpenGroup(c), g, false); continue; }
+        if (from.IsComplex(c)) to.Write(c, from.ReadComplex(c), from.Shape(c));
+        else                   to.Write(c, from.ReadReal(c),    from.Shape(c));
+    }
+}
+
+// D-STATE-SCHEMA (CleanCode): a minor version only ADDS optional fields, so a state written BEFORE one (format 1.0, no
+// densityChange) still reads and restores, and the restart says the field was not recorded.
+TEST(SolidState, AFormat10StateStillRestores)
+{
+    const Saved& s=SavedState(0, false);
+    const std::string old=TempPath("ck1_si_format10.h5");
+    {
+        auto o=H5::File::Open(s.path);
+        ASSERT_TRUE(o) << o.Error();
+        H5::File from=o.TakeValue();
+        H5::File to=H5::File::Create(old);
+        CopyAsFormat10(from, to, true);
+    }
+    auto st=ReadSolidState(old);
+    ASSERT_TRUE(st) << st.Error().details;
+    EXPECT_TRUE(std::isnan(st->summary.densityChange)) << "absent in 1.0 = not recorded";
+    SiRun si=Si(ivec3_t(2,2,2));
+    testing::internal::CaptureStdout();
+    auto c=SolidCalculation::Restart(old, SolidSetup::Resolve(*si.lat, si.mol, Options(0, false, "")), Params());
+    const std::string out=testing::internal::GetCapturedStdout();
+    ASSERT_TRUE(c) << c.Error().details;
+    EXPECT_NE(out.find("EXACT RESUME"), std::string::npos) << out;
+    EXPECT_NE(out.find("saved residual not recorded (a format-1.0 state"), std::string::npos) << out;
+    auto r=(*c)->Result();
+    ASSERT_TRUE(r);
+    EXPECT_NEAR(r->Energy(), s.energy, 1e-8);
+    EXPECT_LE(r->IterationCount(), 3u);
+    std::filesystem::remove(old);
 }
 
 TEST(SolidState, WarmStart_OtherGrid_StartsAtTheAnswer)
