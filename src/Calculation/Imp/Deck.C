@@ -275,7 +275,7 @@ json ToJson(const SolidCalcOptions& o)
     for (const auto& s : o.species) species.push_back({s.first,s.second});
     json hub=json::array();
     for (const auto& h : o.hubbard) hub.push_back(ToJson(h));
-    return {{"Nelec",o.Nelec},{"multiplicity",o.multiplicity},{"pp",o.pp},{"species",species},
+    return {{"Nelec",o.Nelec},{"charge",o.charge},{"multiplicity",o.multiplicity},{"pp",o.pp},{"species",species},
             {"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
             {"raster",NameOf(o.raster,kRaster)},{"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
             {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},{"policy",ToJson(o.policy)},{"vxcFit",NameOf(o.vxcFit,kVxc)},{"hubbard",hub},
@@ -287,7 +287,7 @@ json ToJson(const SolidCalcOptions& o)
 void FromJson(const json& j, SolidCalcOptions& o)
 {
     Fields f(j,"solid");
-    f.Get("Nelec",o.Nelec); f.Get("multiplicity",o.multiplicity); f.Get("pp",o.pp);
+    f.Get("Nelec",o.Nelec); f.Get("charge",o.charge); f.Get("multiplicity",o.multiplicity); f.Get("pp",o.pp);
     if (j.contains("species"))
     {
         o.species.clear();
@@ -621,7 +621,7 @@ Materials::Material Resolve(RunSpec& spec)
         Materials::Material used=m;
         for (auto& [el,q] : used.species)
             for (const auto& [el2,q2] : spec.solid.species) if (el2==el) q=q2;
-        spec.solid.Nelec=used.Nelec();
+        spec.solid.Nelec=used.Nelec()-spec.solid.charge;   // a STATED net charge (SolidCalcOptions::charge)
     }
     return m;
 }
