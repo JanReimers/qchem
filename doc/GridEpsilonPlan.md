@@ -36,7 +36,7 @@ derived value on one line (`[accuracy] ε=… → raster G_N²/p=…, ball …, 
 the error it DELIVERS on its term, measured (§5), not by its form: a term far tighter than ε is wasted cost, one looser is a defect
 (user ruling: "no point in one term accurate to 1e-10 and another only to 1e-4").
 
-**The scale constant.**  Every rule below has the shape *tail amplitude × term scale ≤ ε*, i.e. `ln(S_term/ε)` where S_term is the
+**The scale constant.**  Every rule below has the shape *tail amplitude × term scale ≤ ε*, i.e. L(ε) with S_term·L³e^{−L} = ε (M2b; first proposed as `ln(S_term/ε)`) where S_term is the
 size of the term's field at its sharpest (the factor that turns a relative spectral tail into Ha).  Proposed scales — each to be
 CALIBRATED once against the closed-form oracles (`GPW.TightPrimitiveVlongOracle` / `…CollocationOracle`, M2 below) and then fixed:
 
@@ -47,7 +47,9 @@ CALIBRATED once against the closed-form oracles (`GPW.TightPrimitiveVlongOracle`
 | XC (uniform raster) | max v_xc ≈ ρ_max^{1/3} at the sharpest atom | to calibrate (M2) |
 | local-PP sweeps | the short-range C₁…C₄ magnitude | κ = 30 ⇒ ln(S/ε) = 15 already |
 
-**The derived tolerances** (L(ε) ≡ ln(S_term/ε)):
+**The derived tolerances.**  **L(ε) is the root of S_term·L³·e^{−L} = ε** (MEASURED, M2b: the alias tail of an s+p+d pair carries a
+Hermite prefactor ~ x³; S_Vlong = 2.35 Ha, S_ρ = 0.35 ⇒ L(1e-5) ≈ 21.6 / 19.4).  ⚠ NOT the bare ln(S_term/ε) (≈ 14.5 at 1e-5), which
+under-sizes every raster by ~7 units of x; the bare form survives only where a row says so (the balls, row 3, are pure Gaussians in G):
 
 1. **Raster N, per multigrid level** (the one that failed).  A pair p sampled on a raster of inscribed Nyquist radius G_N aliases
    with amplitude e^{−G_N²/p} (GridSharpTerms §2).  So level l's raster is the smallest FFT-friendly N with
