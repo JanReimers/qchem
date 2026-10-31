@@ -873,3 +873,35 @@ UTResponse LDA polarizability gate is 22 s on the new default (+0.6 / +1.4 / +0.
 NIST) unchanged in pass/fail.
 
 | **The molecular facade's default XC mesh (30 radial / Lebedev 5) is 0.5 Ha/atom off** (lane G S4, 2026-10-30) | `CalcOptions::mesh` (`src/Calculation/MoleculeSetup.C`: MHL, m 3, α 2.0, Becke 2; doc calls it "the proven molecular values" -- proven on HF only?).  F₂ LDA / GTH q7 / valence_lowq_vb: default −49.236805 vs converged −48.19259 (± 3e-5 from 80/29 up) = 1.044 Ha LOW; all-electron LDA water dzvp: −75.932462 vs −75.872652 = 60 mHa low.  Too LOW = the quadrature error is not variational; HF unaffected | recalibrate the default (80/29 converges both to < 2e-5/atom, measure the cost), gate it with an LDA molecule anchor at a converged mesh; re-judge any molecular DFT anchor banked on 30/5 (pin 10) · lane B · `src/Calculation/MoleculeSetup.C` |
+
+## ✅ "Molecular PP route is 4 mHa/atom off CP2K on F₂" and "Molecular POLARIZED DFT is 35 mHa above PySCF on the O₂ triplet" — VERDICT 2026-10-31 (lane B, the δ-fit gate)
+
+Neither route is defective.  Both numbers are the molecular A1 Gaussian FIT, in two parts: (1) the A1 Vxc fit, (2) the fit
+bases' missing D shells (`LegacyMerge`, now OpenWork §3 "The molecular FIT bases drop their D shells").  The instrument was the new
+δ Vxc fit basis on the molecular path (`DeltaFit_IBS<double>`, `CalcOptions::vxcFit = Delta`): exact XC on the mesh, so with the
+SAME A1_coul Coulomb fit our energy must equal PySCF's density-fit route.  Measured (80/29; δ mesh-converged to < 1 μHa by 300/35;
+energies in Ha, PySCF from `scripts/pyscf_molecule_oracle.py`):
+
+| case | A1 (today) | δ (today) | A1, D kept | δ, D kept | PySCF A1_coul J-fit | PySCF exact |
+|---|---|---|---|---|---|---|
+| H₂O LDA dzvp | −75.872652 | −75.883203 | −75.880837 | −75.879455 | −75.879447 | −75.877299 |
+| H₂O Xα 0.74 | −76.100897 | −76.110816 | −76.108315 | −76.106988 | −76.106980 | −76.104768 |
+| N₂ Xα 0.75197 | −109.225960 | −109.248504 | −109.221696 | −109.228113 | −109.228107 | −109.227199 |
+| F₂ GTH q7 vb | −48.192616 | −48.264376 | −48.197111 | −48.201937 | −48.201880 | −48.200545 (CP2K −48.20058) |
+| O₂ LDA triplet | −149.263716 | −149.305761 | −149.301882 | −149.300684 | −149.300675 | −149.299178 |
+| O₂ Xα 0.7 triplet | −148.902318 | −148.937147 | −148.933472 | −148.932130 | −148.932120 | −148.930624 |
+
+("D kept" = the fit bases read with `KeepEachL`, an experiment, NOT landed: it breaks the Si pseudo-atom -- see the new row.)
+With the D shells kept the δ route is PySCF's to 6-10 μHa (57 μHa on F₂): the molecular PP operators and the polarized machinery
+are right.  The O₂ triplet's 35 mHa excess was the A1 per-spin Vxc fit on a d-less fit basis; with D kept, A1 is within 1-6 mHa
+of PySCF on every case (the A1 Vxc-fit error proper).  The N₂ per-term check (δ, today): E_xc −13.39074 vs PySCF −13.39001, the
+Hartree energy 26 mHa below -- the Coulomb fit, not XC.
+
+COST, δ vs A1 (single thread, SCF wall / iterations; "today" | "D kept"):  H₂O LDA 2.67/13 vs 2.84/13 | 2.36/12 vs 2.80/12;  H₂O Xα
+8.30/39 vs 3.32/16 | 2.71/14 vs 3.87/17;  N₂ 1.09/6 vs 1.11/6 | 1.10/6 vs 1.46/6;  F₂ 1.97/8 vs 1.75/8 | 1.97/8 vs 2.13/8;  O₂ LDA
+10.0/22 vs 7.9/16 | 13.5/28 vs 14.7/24;  O₂ Xα 10.2/25 vs 19.8/41 | 15.6/29 vs 15.7/25.  Per iteration δ costs the same as A1 or
+less on these molecules at 80/29.  The molecular DEFAULT stays A1 (Auto) in this chunk -- the user's call (pin 30 keeps A1 either way).
+
+| **Molecular PP route is 4 mHa/atom off CP2K on F₂** (lane G S4, 2026-10-30; RE-ATTRIBUTED lane B 2026-10-31: probably NOT the PP) | PySCF with the SAME GTH-PADE-q7 + valence_lowq_vb, EXACT J and XC (no fit), gives −48.200545 (lda,vwn): CP2K's −48.20058 to 37 μHa, so the PP data and basis agree across two codes.  Ours −48.19256 (converged mesh) is 8.0 mHa ABOVE -- the same sign and size as all-electron water with NO PP (+4.65 mHa above PySCF exact, +6.8 above PySCF's A1_coul J-fit route): the DGauss A1 fitted-Vxc route (`A1_exch`), which the crystal route (GPW, no A1 fit) does not use.  Closed-shell sizes: water LDA +4.65, water Xα +3.9, N₂ Xα +1.2, F₂ +8.0 mHa | split the molecular E_xc: evaluate E_xc of the converged density ON THE GRID (no Vxc fit) beside the fitted value -- if that closes the 8 mHa the row becomes 'the fitted-Vxc route is 1-4 mHa/atom high', else gate E_loc/E_NL on the isolated F atom as first planned · oracle `scripts/pyscf_molecule_oracle.py` · `~/Code/cp2k-runs/F2/` |
+
+| **Molecular POLARIZED DFT is 35 mHa above PySCF on the O₂ triplet** (lane B, 2026-10-31) | dzvp O₂ (R 2.282 bohr), multiplicity 3, converged mesh: LDA −149.263716 vs PySCF UKS lda,vwn exact −149.299178 (+35.5 mHa; +37.0 vs its A1_coul J-fit); exchange-only Xα 0.7 −148.902318 vs −148.930624 (+28.3) -- so exchange/fit, not VWN.  Our UHF triplet = PySCF to 1e-8 (state, basis, geometry fine); closed-shell water carries only +4 mHa, so ~30 mHa is the POLARIZED path (`FittedVxcPol`, the per-spin fit) | same split as the F₂ row: grid E_xc of the converged spin densities vs the fitted value; then the per-spin Vxc fit against a closed-shell ζ=0 run of the same molecule · oracle `scripts/pyscf_molecule_oracle.py`; `IntegrationTests/M_DFT.C` OxygenTripletLDA carries the ⚠ |
