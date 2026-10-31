@@ -33,6 +33,7 @@ import qchem.SCFIterator;   // SCFProgress (the first-iterate probe)
 import qchem.HDF5;
 import qchem.Types;
 import qchem.Mesh;   // qcMesh::UnitCellKind (the field-mixer restart gate's XC mesh)
+import qchem.RunPolicy;   // RunPolicy::Deviations (the policy-keys gate)
 
 using namespace qchem;
 namespace {
@@ -236,6 +237,36 @@ TEST(SolidState, TheNumericsKeysAreWarmAndAnOlderStateIsStillExact)
     EXPECT_NE((*warm)[0].find("GPW numerical tolerance changed"), std::string::npos) << (*warm)[0];
     EXPECT_NE((*warm)[1].find("saved 'PlaneWave', now 'Delta'"), std::string::npos) << (*warm)[1];
     EXPECT_NE((*warm)[1].find("v_xc fit basis changed: the converged ground state moves"), std::string::npos) << (*warm)[1];
+}
+
+// The run POLICY (2026-10-30): every route that moves the converged state is recorded WARM, one key per route; the mixing basis
+// and the imposition PERMISSION are not (they move nothing the state is).  A state from before the keys is still exact.
+TEST(SolidState, ThePolicyRoutesAreWarmAndAnOlderStateIsStillExact)
+{
+    auto st=ReadSolidState(SavedState(0, false).path);
+    ASSERT_TRUE(st) << st.Error().details;
+    const StateFingerprint& fp=st->fingerprint;
+    for (const Deviation& d : RunPolicy().Deviations())
+    {
+        auto it=fp.warmStr.find(d.knob);
+        if (!d.movesState) { EXPECT_TRUE(it==fp.warmStr.end()) << d.knob << " moves no state, so it is not recorded"; continue; }
+        ASSERT_TRUE(it!=fp.warmStr.end()) << d.knob;
+        EXPECT_EQ(it->second, d.value ? "on" : "off") << d.knob << ": the fixture runs the default policy";
+    }
+
+    StateFingerprint old=fp;
+    std::erase_if(old.warmStr, [](const auto& e){ return e.first.rfind("policy.",0)==0; });
+    auto same=CompareFingerprints(old, fp);
+    ASSERT_TRUE(same) << same.Error().details;
+    EXPECT_TRUE(same->empty()) << "a state written before the policy keys is an EXACT resume of the same run";
+
+    StateFingerprint now=fp;
+    now.warmStr.at("policy.xcFromDM")="on";
+    auto warm=CompareFingerprints(fp, now);
+    ASSERT_TRUE(warm) << warm.Error().details;
+    ASSERT_EQ(warm->size(), 1u);
+    EXPECT_NE((*warm)[0].find("policy.xcFromDM: saved 'off', now 'on' -- a declared CP2K-deviation route changed the Hamiltonian"),
+              std::string::npos) << (*warm)[0];
 }
 
 // A restart ACROSS one of the new keys (the multigrid ladder) is a warm start that says so, and converges to the new run's answer.

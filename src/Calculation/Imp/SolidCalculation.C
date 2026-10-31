@@ -1046,6 +1046,9 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
                           {"screenEps",{t.screenEps}}, {"fieldSharp",{t.fieldSharp}}, {"relCutoff",{t.relCutoff}},
                           {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts}};
     }
+    // The run's OWN policy table, resolved from its stated spec (not the process's installed one, which a later run may have replaced).
+    for (const Deviation& d : RunPolicy(o.policy).Deviations())
+        if (d.movesState) id.policy[d.knob]=d.value;
     return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,
                                 o.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, id);
 }
