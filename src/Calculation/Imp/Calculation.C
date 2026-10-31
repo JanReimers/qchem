@@ -18,17 +18,27 @@ import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport
 import qchem.BasisSet.Gaussian.Point.SymmetryAdaptedBasisSet; // SymmetryAdaptedBasisSet (return of SymmetryAdapt)
 import qchem.BasisSet.Gaussian.PG_Cart.SymmetryAdapt;   // PG::SymmetryAdapt (the SALC builder)
 import qchem.ElectronConfiguration.Molecule;        // Molecule_EC (global aufbau)
-import qchem.PeriodicTable;                          // thePeriodicTable (Z -> element symbol, for the PP lookup)
 import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Factory
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
+import qchem.BasisSet.Orbital_1E_IBS;                // Real_OIBS -- the per-irrep blocks a carry is re-homed onto
+import qchem.CompositeCD;                            // tComposite_CD (the carried density's shape)
+import qchem.ChargeDensity.Factory;                  // IrrepCD_Factory
+import qchem.Symmetry.Molecule.PointGroup;           // DetectPointGroup (a session step must keep the SALC group)
 
 namespace qchem
 {
 
 namespace PG = ::qchem::BasisSet::Gaussian::PG_Cart;
 using SCFIter = qchem::SCFIterator::MolecularSCFIterator;   // item 2: the atom/molecule display subclass
+
+//! The spin density of an unpolarized run: m(r) = 0 everywhere (GetSpinDensity).
+struct ZeroField : public virtual ScalarFunction<double>
+{
+    double         operator()(const rvec3_t&) const override {return 0.0;}
+    vec3_t<double> Gradient  (const rvec3_t&) const override {return vec3_t<double>(0.0, 0.0, 0.0);}
+};
 
 // Build the molecular orbital basis, optionally SALC point-group-blocked.  When symmetry is off the
 // caller owns the raw basis directly; when on, the raw basis is handed to PG::SymmetryAdapt as a
@@ -55,34 +65,13 @@ static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_
     return PG::SymmetryAdapt(rawShared, *st, opts.symmetryTol);
 }
 
-// Build the molecular electron configuration from the requested multiplicity 2S+1.  multiplicity<=0 is the
-// minimal-spin default (closed-shell singlet for even Ne, doublet for odd, via Molecule_EC(Ne)); an explicit
-// value is converted to (nUp,nDown) and parity-validated against Ne (fail loud, not a silent miscount).
+// Build the molecular electron configuration from the requested multiplicity 2S+1 (validated by MoleculeSetup::Resolve).
+// multiplicity<=0 is the minimal-spin default (closed-shell singlet for even Ne, doublet for odd, via Molecule_EC(Ne)).
 static Molecule_EC* MakeMoleculeEC(int Ne, int multiplicity)
 {
     if (multiplicity <= 0) return new Molecule_EC(Ne);    // auto / minimal spin (historical behaviour)
     const int twoS = multiplicity - 1;                    // = nUp - nDown
-    if (twoS > Ne || ((Ne - twoS) % 2) != 0)
-        throw std::runtime_error("qchem::Calculation: multiplicity " + std::to_string(multiplicity) +
-            " (2S=" + std::to_string(twoS) + ") is incompatible with " + std::to_string(Ne) +
-            " electrons -- need 0 <= 2S <= Ne and Ne-2S even.");
     return new Molecule_EC((Ne + twoS) / 2, (Ne - twoS) / 2);   // (nUp, nDown)
-}
-
-// Re-express a structure as its VALENCE ions for a pseudopotential run: each atom keeps its true species Z
-// (so the PP lookup and the true geometry are intact) but carries net charge Z-Zion(its own element, from the run's chosen set), so
-// GetNumElectrons() reports the total Zion valence count the EC + FittedVee charge constraint consume.
-// Clone-and-mutate (not rebuild-as-Molecule) so the concrete geometry is preserved: a PP run on a periodic
-// UnitCell stays a UnitCell (Ewald ion-ion, uniform mesh) -- the GPW-relevant case.
-static std::shared_ptr<Structure> MakeValenceStructure(const Structure& st, const Pseudopotential::PseudopotentialSet& pp)
-{
-    auto valence = st.Clone();
-    for (size_t a=0; a<valence->GetNumAtoms(); a++)
-    {
-        Atom* atom = (*valence)[a];
-        atom->itsCharge = double(atom->itsZ - pp.Valence(thePeriodicTable().GetSymbol(atom->itsZ)));   // net charge = Z - Zion
-    }
-    return valence;
 }
 
 // Build the report's `scf` section json straight from the SCF knobs -- the report IS json, so this
@@ -119,29 +108,20 @@ static void EmitScfSection(const SCFParams& p, const std::string& accelerator)
     rpt::EmitSection("scf", scf);
 }
 
-Calculation::Calculation(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
-    : Calculation(st, opts, SCFParams{}, acc)
+Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
+    : Calculation(setup, *setup->reference, nullptr, scf, std::move(onIteration))
 {}
 
-Calculation::Calculation(const Structure& st, const CalcOptions& opts, const SCFParams& scf, const AcceleratorOptions& acc)
-    : itsStructure(st.Clone())   // polymorphic deep copy: the facade owns its own structure AND keeps its
-                                 // concrete geometry (a UnitCell stays periodic, not sliced to a Molecule)
-    , itsOpts(opts)
-    , itsAcc(acc)
+Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
+                         const SCFParams& scf, Observer onIteration)
+    : itsSetup(std::move(setup))
+    // A pseudopotential run works on the VALENCE ions (Z-Zion charge) so the electron count is the valence count -- the
+    // structure the basis and the EC both read.
+    , itsStructure(itsSetup->PointStructure(at))
+    , itsCarry(std::move(carry))
+    , itsObserver(std::move(onIteration))
 {
-    // An open shell (2S>0) is unrestricted: it needs distinct up/down densities, so promote to polarized.
-    if (itsOpts.multiplicity > 1) itsOpts.spin = SpinGroup::Polarized;
-
-    // A pseudopotential run works on the VALENCE ions (Z-Zion charge) so the electron count is the valence
-    // count -- built before the basis/EC, which both read it off the structure.
-    if (!itsOpts.pp.empty())
-    {
-        itsPP = std::make_unique<Pseudopotential::PseudopotentialSet>(
-                    Pseudopotential::PseudopotentialSet::Get(itsOpts.pp).With(itsOpts.ppOverride));
-        itsStructure = MakeValenceStructure(*itsStructure, *itsPP);
-    }
-
-    itsEC    = MakeMoleculeEC(int(itsStructure->GetNumElectrons()), itsOpts.multiplicity);
+    itsEC    = MakeMoleculeEC(itsSetup->Ne, itsSetup->opts.multiplicity);
     // The basis is NOT built here: the first Converge builds it INSIDE its run report's "basis" section, so a
     // basis with something to announce does so as it is constructed (V1.14).
     Converge(scf);                                    // so Energy()/Density() are ready on return
@@ -156,28 +136,11 @@ Calculation::~Calculation()
 
 bool Calculation::Converge(const SCFParams& params)
 {
-    const int  Z   = itsStructure->GetNuclearCharge();
-    const bool dft = qchem::Hamiltonian::IsDFT(itsOpts.model);
-
-    // DFT (and the LSDA pseudopotential) need DIIS engaged from iteration 0: the default Z-scaled EMax gate
-    // keeps DIIS off and the SCF limit-cycles to a non-converged snapshot (the "M_Sym layout UB" mechanism,
-    // see M_DFT).  So default them to a high EMax ("DIIS from start") unless the caller pinned one.
-    const bool dftLike = dft || !itsOpts.pp.empty();
-    const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : (dftLike ? 100.0 : Z*Z*0.08/32);
-    nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
-                            {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
-    using AType = qchem::SCFAccelerators::Type;
-    const AType atype = itsAcc.type=="DIIS"   ? AType::DIIS
-                      : itsAcc.type=="GDM"    ? AType::GDM
-                      : itsAcc.type=="Ladder" ? AType::Ladder
-                      : throw std::runtime_error("qchem::Calculation: unknown accelerator type \"" +
-                                                 itsAcc.type + "\" (expected DIIS | GDM | Ladder)");
-    auto* accel = qchem::SCFAccelerators::Factory(atype, jsacc);
-    // Seed: an explicit opts.seed wins; otherwise auto -- DFT from superposition-of-atomic-densities
-    // (SAD), HF/1-e from the core guess (Default).
-    using qchem::ChargeDensity::SeedStrategy;
-    const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed
-                      : (dft ? SeedStrategy::SAD : SeedStrategy::Default);
+    const CalcOptions& opts=itsSetup->opts;
+    nlohmann::json jsacc = {{"NProj", itsSetup->acc.nProj}, {"EMax", itsSetup->eMax},
+                            {"EMin", itsSetup->acc.eMin}, {"SVTol", itsSetup->acc.svTol}};
+    auto* accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, jsacc);
+    const auto seed = itsSetup->seed;
 
     // Open a run report for the whole SCF (the RAII guard guarantees End() even if a step throws,
     // so a failed run never leaks the sink's run-context / cursor stacks).  The report only RECORDS
@@ -185,7 +148,7 @@ bool Calculation::Converge(const SCFParams& params)
     namespace rpt = qchem::report;
     rpt::Begin(itsStructure->ID());
     struct RunScope { ~RunScope() { rpt::End(); } } runScope;
-    EmitScfSection(params, itsAcc.type);               // the "what recipe am I running" header
+    EmitScfSection(params, itsSetup->acc.type);               // the "what recipe am I running" header
 
     // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
     // run: the FIRST Converge BUILDS the basis in here (a basis with something to announce does so as it is
@@ -196,26 +159,48 @@ bool Calculation::Converge(const SCFParams& params)
     // correctly from inside this scope.  A later Converge reuses the basis.  Renders once, complete, on close.
     {
         rpt::Section basis("basis");
-        if (!itsBasis) itsBasis = BuildBasis(itsOpts, itsStructure);   // raw, or SALC-blocked if .symmetry
-        rpt::Set("name",       itsOpts.basis);
-        rpt::Set("engine",     itsOpts.engine  == Engine::LibCint  ? "libcint"   : "mnd");
-        rpt::Set("angular",    itsOpts.angular == Angular::Spherical ? "spherical" : "cartesian");
+        if (!itsBasis) itsBasis = BuildBasis(opts, itsStructure);   // raw, or SALC-blocked if .symmetry
+        rpt::Set("name",       opts.basis);
+        rpt::Set("engine",     opts.engine  == Engine::LibCint  ? "libcint"   : "mnd");
+        rpt::Set("angular",    opts.angular == Angular::Spherical ? "spherical" : "cartesian");
         rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
 
         // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh,
         // orbital basis, xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door
         // instead (LSDA valence Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
-        auto* ham = itsPP
-            ? qchem::Hamiltonian::Factory(itsOpts.spin, itsStructure, *itsPP, itsOpts.mesh, itsBasis)
-            : qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.spin, itsStructure,
-                                          itsOpts.mesh, itsBasis, itsOpts.xalpha);
+        auto* ham = itsSetup->pp
+            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis)
+            : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure,
+                                          opts.mesh, itsBasis, opts.xalpha);
         // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
         // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
         // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
         delete itsScf; itsScf = nullptr;
         itsHam.reset(ham);
         itsAccel.reset(accel);
-        itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get());
+        if (!itsCarry)
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get());
+        else
+        {
+            // THE CARRY (a MoleculeSession step): the previous point's D, block for block, onto THIS point's basis -- a
+            // WorkingDensity of the moved Hamiltonian, consumed here once.
+            using namespace qchem::ChargeDensity;
+            auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetReciprocalPointOps());
+            size_t b=0;
+            for (Spin s : SpinIrreps(opts.spin))
+                for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
+                {
+                    if (b>=itsCarry->D.size() || itsCarry->D[b].rows()!=ibs->GetNumFunctions())
+                        throw std::logic_error("qchem::Calculation: the carried density's blocks do not match this point's basis");
+                    const Irrep irr=ibs->GetIrrep(s);
+                    cd->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(itsCarry->D[b++], ibs, irr)), irr);
+                }
+            if (b!=itsCarry->D.size())
+                throw std::logic_error("qchem::Calculation: the carried density has more blocks than this point's basis");
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), cd.release(), itsStructure.get(),
+                                 qchem::Auto, 0.0, qchem::SCFIterator::SeedRole::WorkingDensity);
+            itsCarry.reset();
+        }
     }
 
     if (itsObserver) itsScf->SetObserver(itsObserver);
@@ -277,9 +262,104 @@ void Calculation::RebuildSampling()
             }
     std::sort(itsOccupied.begin(), itsOccupied.end(),
               [](const occ_t& a, const occ_t& b){ return a.first < b.first; });   // ascending energy
+
+    itsLevels.clear();
+    for (const Irrep& irr : wf->GetQNs())
+        for (const auto* o : wf->GetOrbitals(irr)->Iterate())
+        {
+            const auto* phi = dynamic_cast<const sf_t*>(o);   // abstract -> abstract, as above
+            assert(phi);
+            itsLevels.push_back({o->GetEigenEnergy(), o->GetOccupation(), irr.ms, o->GetLabel(), phi});
+        }
+    std::stable_sort(itsLevels.begin(), itsLevels.end(), [](const Level& a, const Level& b){ return a.e < b.e; });
+
+    if (wf->GetSpinGroup()==SpinGroup::Polarized)
+        itsSpinDensity = wf->GetSpinDensity();
+    else
+        itsSpinDensity = std::make_unique<ZeroField>();   // m == 0 under imposed SU(2): a field, not an absence
 }
 
 void Calculation::OnIteration(Observer obs) {itsObserver = std::move(obs);}
+
+Calculation::Carry Calculation::MakeCarry() const
+{
+    const auto* wf = itsScf ? itsScf->GetWaveFunction() : nullptr;
+    if (!wf) throw std::logic_error("qchem::Calculation::MakeCarry: no wave function yet");
+    Carry c;
+    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+        for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
+        {
+            const size_t n=ibs->GetNumFunctions();
+            const auto* os=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(wf->GetOrbitals(ibs->GetIrrep(s)));
+            if (!os) throw std::logic_error("qchem::Calculation::MakeCarry: a block's orbitals are not real");
+            hmat_t<double> D(n);
+            for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) D(a,b)=0.0;
+            for (const auto* o : os->Iterate<qchem::Orbitals::TOrbital<double>>())
+            {
+                const double f=o->GetOccupation();
+                if (f==0.0) continue;
+                const auto& v=o->GetCoeff();
+                for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) D(a,b)+=f*v[a]*v[b];
+            }
+            c.D.push_back(std::move(D));
+        }
+    return c;
+}
+
+//====================================================================================================
+//  THE MOLECULAR SESSION (doc/CalcNetworkReview.md §7, step 8)
+//====================================================================================================
+MoleculeSession::MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Calculation::Observer onIteration)
+    : itsSetup(std::move(setup)), itsSCF(scf), itsObserver(std::move(onIteration)) {}
+MoleculeSession::~MoleculeSession() = default;
+
+PESGeometry MoleculeSession::Reference() const
+{
+    PESGeometry g;   // no cell
+    itsSetup->reference->ForEachSite([&](int Z, const rvec3_t& r, bool){ g.R.push_back(r); g.Z.push_back(Z); });
+    return g;
+}
+
+Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rmat3d_t>& cell, const std::vector<rvec3_t>& R,
+                                                         const PESRequest& want)
+{
+    using O=Outcome<PESPoint, PESFailure>;
+    using Why=PESFailure::Why;
+    if (cell) throw std::invalid_argument("MoleculeSession::ConvergeAt: a molecule has no cell -- pass an empty one (Reference().cell)");
+    const Structure& ref=*itsSetup->reference;
+    const size_t nAtoms=ref.GetNumAtoms();
+    if (R.size()!=nAtoms)
+        throw std::invalid_argument("MoleculeSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
+    if (want.forces || want.stress)
+        return O::Fail({Why::NoGradient, std::string(want.stress ? "stress" : "forces")+": no term implements its geometry gradient yet "
+                        "(doc/CalcNetworkReview.md §3.3, step 9) -- difference ConvergeAt energies meanwhile"});
+
+    std::shared_ptr<Structure> at=ref.Clone();
+    for (size_t a=0;a<nAtoms;a++) (*at)[a]->itsR=R[a];
+
+    // THE IMPOSED GROUP must survive (Q4): the SALC blocks are built on the abelian point group, so a step that changes it changes
+    // the blocks the carry and the energy surface are written in -- a NEW setup, the user's choice.
+    if (itsSetup->opts.symmetry)
+    {
+        auto abelian=[&](const Structure& st)
+        {
+            std::vector<qchem::Symmetry::Molecule::SymPoint> pts;
+            st.ForEachSite([&](int Z, const rvec3_t& r, bool){ pts.push_back({Z, r}); });
+            return qchem::Symmetry::Molecule::DetectPointGroup(pts, itsSetup->opts.symmetryTol).abelian;
+        };
+        if (const std::string now=abelian(*at), was=abelian(ref); now!=was)
+            return O::Fail({Why::SymmetryBroken, "these positions lower the imposed abelian group "+was+" to "+now
+                            +" -- symmetrize the step, or resolve a new setup without the symmetry"});
+    }
+
+    std::unique_ptr<const Calculation::Carry> carry;
+    if (itsPoint) carry=std::make_unique<const Calculation::Carry>(itsPoint->MakeCarry());
+    itsPoint.reset();   // one point's memory at a time
+    itsPoint.reset(new Calculation(itsSetup, *at, std::move(carry), itsSCF, itsObserver));
+    if (!itsPoint->IsConverged())
+        return O::Fail({Why::SCF, "the SCF did not converge in "+std::to_string(itsPoint->IterationCount())+" iterations"});
+    return O::Ok(PESPoint{.energy=itsPoint->Energy(), .forces={}, .iterations=itsPoint->IterationCount()});
+}
 
 double                 Calculation::Energy()      const {return itsScf->GetEnergy().GetTotalEnergy();}
 qchem::EnergyBreakdown Calculation::EnergyTerms() const {return itsScf->GetEnergy();}
@@ -294,6 +374,14 @@ const Calculation::sf_t& Calculation::HOMO() const
 {
     assert(!itsOccupied.empty());
     return *itsOccupied.back().second;
+}
+
+const std::vector<Calculation::Level>& Calculation::GetLevels() const {return itsLevels;}
+
+const Calculation::sf_t& Calculation::GetSpinDensity() const
+{
+    assert(itsSpinDensity);
+    return *itsSpinDensity;
 }
 
 const Calculation::sf_t& Calculation::Orbital(size_t i) const

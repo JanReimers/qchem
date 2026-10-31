@@ -4,6 +4,8 @@ module;
 #include <memory>
 #include <vector>
 #include <cmath>
+#include <sstream>
+#include <string>
 module qchem.SCFAccelerator.Internal.SCFAcceleratorLadder;
 
 namespace qchem::SCFAccelerators
@@ -82,11 +84,11 @@ bool SCFAcceleratorLadder::CalculateProjections()
         }
         else
         {
-            cout << "  *** SCF accelerator ladder: rung " << itsActive
-                 << (tailSwitch ? (energyGated ? " near convergence (|dE/E|=" : " near convergence (err=")
-                                : " exhausted (|dE/E|=")
-                 << (tailSwitch ? tailMetric : relDE)
-                 << ") -> advancing to rung " << itsActive+1 << " ***" << endl;
+            std::ostringstream why;
+            why << "ladder rung " << itsActive
+                << (tailSwitch ? (energyGated ? " near convergence, |dE/E|=" : " near convergence, err=") : " exhausted, |dE/E|=")
+                << (tailSwitch ? tailMetric : relDE);
+            itsHandOff=HandOffRequest{Active()->Tag(), itsRungs[itsActive+1]->Tag(), why.str()};
             itsActive++;
             itsBestErr=1e300; itsNoImprove=0; itsVetoAnnounced=false;
         }
@@ -96,9 +98,8 @@ bool SCFAcceleratorLadder::CalculateProjections()
     // an unengageable direct-min rung means mixer-only steps forever; fall back to the previous rung, loudly.
     if (itsActive>0 && !Active()->Engageable())
     {
-        cout << "  *** SCF accelerator ladder: rung " << itsActive << " (" << Active()->Tag()
-             << ") can no longer engage (occupation structure outside its manifold) -- RETREATING to rung "
-             << itsActive-1 << " (" << itsRungs[itsActive-1]->Tag() << ") ***" << endl;
+        itsHandOff=HandOffRequest{Active()->Tag(), itsRungs[itsActive-1]->Tag(),
+                                  "ladder RETREAT: rung "+std::to_string(itsActive)+" can no longer engage (occupation structure outside its manifold)"};
         itsActive--;
         itsBestErr=1e300; itsNoImprove=0; itsVetoAnnounced=false;
     }

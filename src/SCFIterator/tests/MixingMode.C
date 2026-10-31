@@ -102,9 +102,22 @@ TEST(MixingMode, AutoBesideAFockHistoryIsLinear)
     const SCFParams r=ResolveMixing(p, /*gSpace*/true, /*fockExtrapolates*/true);
     EXPECT_EQ(r.Mixer, M::Linear);
     EXPECT_EQ(r.StartingRelaxRo, 0.3);
-    // A hand-set recipe, or an explicit mode, is the caller's: kept beside DIIS too.
+    // Plain Kerker is a PRECONDITIONER, not a history: the caller's, kept beside DIIS.
     SCFParams k; k.KerkerG0=1.0;
     EXPECT_EQ(ResolveMixing(k, true, true).Mixer, M::Kerker);
+}
+
+// R1.1 (doc/SCFRobustnessPlan.md P1): at most ONE extrapolator is live.  A density history beside a Fock history THROWS, whether
+// it was asked for by name or by a hand-set PulayDepth under Auto -- both used to slip through (A1: MnO free, max|ΔD| never below
+// 1e-2; A2: Si k222 stalls, Si Γ diverges).  Without a Fock history the same recipes resolve.
+TEST(MixingMode, R1_1_ADensityHistoryBesideAFockHistoryThrows)
+{
     SCFParams h; h.Mixer=M::Pulay; h.PulayDepth=8;
-    EXPECT_EQ(ResolveMixing(h, true, true).Mixer, M::Pulay);
+    EXPECT_THROW(ResolveMixing(h, true, /*fockExtrapolates*/true), std::invalid_argument);
+    EXPECT_EQ(ResolveMixing(h, true, false).Mixer, M::Pulay);
+    SCFParams a; a.PulayDepth=8; a.KerkerG0=1.0;   // Auto, a hand-set Kerker-preconditioned history
+    EXPECT_THROW(ResolveMixing(a, true, true), std::invalid_argument);
+    EXPECT_EQ(ResolveMixing(a, true, false).Mixer, M::Pulay);
+    SCFParams d; d.Mixer=M::Pulay; d.PulayDepth=8;   // Pulay on D (G0 = 0) on a molecule: still a history
+    EXPECT_THROW(ResolveMixing(d, false, true), std::invalid_argument);
 }

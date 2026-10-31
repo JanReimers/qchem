@@ -35,7 +35,7 @@ static EnergyBreakdown Run(const Molecule& mol, Model model, SpinGroup pol, bool
     // The facade's default seed (auto SAD for DFT, CoreGuess for HF) -- the SAD polarized-DFT path is now
     // robust (FittedVxcPol handles the spin-agnostic seed; see M_DFT.WaterPolarizedSAD).  This is an
     // invariance test anyway, so the converged energy is seed-independent.
-    Calculation calc(mol, {.basis = "dzvp", .model = model, .spin = pol, .angular = angular, .symmetry = symmetry});
+    Calculation calc(MoleculeSetup::Resolve(mol, {.basis = "dzvp", .model = model, .spin = pol, .angular = angular, .symmetry = symmetry}));
     calc.Converge(tight);                 // re-converge tight for the invariance tolerance
     return calc.EnergyTerms();
 }

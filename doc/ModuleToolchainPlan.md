@@ -44,6 +44,17 @@ green before the next.
 - **Step 0 — Upgrade Clang 21.1.6 → 22.1.6 (latest).** Newest module + `import std` fixes; do this first so the
   rest is on the best-supported base. Verify a clean `UTMain` + `allTests` build on 22.1.6 before changing any
   code. (GCC remains out — Clang-only.)
+- **Step R — Rename the project to SOLID² (user, 2026-10-30).**  `qchem` is taken, and this is not strictly a chemistry app
+  (solid-state physics, batteries); SOLID² = solids + the SOLID principles.  A superscript cannot appear in an identifier, so pick
+  ONE ASCII spelling and use it everywhere code, packages and repos need one: candidates `solid2` / `solidsquared` (PyPI
+  `solid2`, `solidsquared`, `solid-squared`, `solid2-dft`, `solid2dft` all free 2026-10-30; `solidpython2` is an unrelated
+  OpenSCAD front end).  Searchability comes from one fixed spelling plus the domain ("solid2 DFT"), not a strange name.
+  Re-check GitHub, PyPI and the literature just before doing it.  Footprint (main `50d1c7f0`): 637 `.C` files mention `qchem`,
+  287 `export module qchem.*`, 1605 `qchem::`; plus CMake targets (`libqchem`, `qchem_py`), `pybind/` + the qchem-GUI repo
+  (lane G is the binding owner), the GitHub repo, worktree names and `~/Code/qchem6-runs` paths, CLAUDE.md and the docs.
+  **One mechanical, scripted commit with every lane landed**, verified by a full rebuild and a sweep whose anchordiff is
+  0 moved; then every lane merges main once.  Sequence: right after Step 0, before Step 1, so the `import std;` diffs are
+  written against the final names.  It is non-semantic and whole-tree, the same freeze-window shape as Steps 2 and 4.
 - **Step 1 — `import std;` spike on ONE leaf lib** (qcMath or qcCommon). Uncomment the two CMake lines, bump
   that lib to C++23 + `import std;`, delete its stdlib `#include`s, confirm it builds and the `<complex>`-style
   problem is gone. Cheapest step; directly validates the root fix.

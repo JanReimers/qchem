@@ -113,7 +113,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     // Basis-MATCHED reference: the SAME SIPP Gaussian basis + GTH-LDA PP as a finite molecule (density-fit
     // Hartree, Becke XC).  This is the tight cross-check: GPW-in-box == finite molecular DFT (doc/GPWPlan sec 3.4).
     Molecule si; si.Insert(new Atom(14, 0.0, {0,0,0}));
-    Calculation cSipp(si, {.basis = "sipp", .pp = "gth-lda-valence"});
+    Calculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .pp = "gth-lda-valence"}));
     const double Esipp=cSipp.Energy();
     // Physical oracle (near-complete Slater/High, for context -- a different basis, not the GPW-correctness gate).
     AtomCalculation cHi(14, 14-4, {.type=AtomType::Slater, .accuracy=BasisSetAccuracy::High, .pseudopotential=true});
@@ -139,7 +139,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
     SCFParams par=TightGates(40);
     GpwReport report("Si "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par);
 
     // Energy-converged; the density is degenerate at Gamma (see the note above), so these are the LAST
     // ITERATE's numbers by design -- the facade names them so, and this gate asks for exactly that.
@@ -163,7 +163,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
 TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
 {
     Molecule si; si.Insert(new Atom(14, 0.0, {0,0,0}));
-    Calculation cSipp(si, {.basis = "sipp", .pp = "gth-lda-valence"});
+    Calculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .pp = "gth-lda-valence"}));
     const double Esipp=cSipp.Energy();   // finite SIPP molecular DFT (symmetric occupation): -3.759
 
     const Material box=qchem::Materials::Get("Si_box16");
@@ -175,7 +175,7 @@ TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
     SCFParams par=TightGates(60);
     par.SmearingkT=1e-2;
     GpwReport report("Si "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par);
     auto R=calc.Result();
     ASSERT_TRUE(R) << "Fermi smearing should converge Δρ where integer aufbau cannot (degenerate 3p): " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 4.0, 1e-6);
@@ -216,7 +216,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqUnfolded)
     {
         o.policy.streamFold=(std::string(fold)=="1");   // the A/B arm states its route (D-ENV 6b)
         GpwReport report("Si "+o.label, false);
-        qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, par);
+        qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par);
         return {calc.LastIterateCharge(), calc.LastIterateTerms().GetTotalEnergy()};
     };
     const Arm R0=arm("0"), R1=arm("1");
@@ -257,7 +257,7 @@ TEST(GPW_NaBox, Γ_Imp_M2_eqFinite)
     // functions fit the smooth nodeless pseudo-orbitals poorly -- same reason the Si gate anchors on the
     // basis-matched sipp facade run.)
     Molecule na; na.Insert(new Atom(11, 0.0, {0,0,0}));
-    Calculation cRef(na, {.basis="valence_lowq_sr", .multiplicity=2, .pp="gth-lda-valence"});
+    Calculation cRef(MoleculeSetup::Resolve(na, {.basis="valence_lowq_sr", .multiplicity=2, .pp="gth-lda-valence"}));
     const double Eref=cRef.Energy();
     std::cout << "[Na finite] valence_lowq_sr LSDA doublet (q1)="<<Eref<<std::endl;
 
@@ -271,7 +271,7 @@ TEST(GPW_NaBox, Γ_Imp_M2_eqFinite)
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;   // the finite-molecule mode
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;       // SEED PIN: Uniform has a stable wrong basin (header)
     GpwReport report("Na "+o.label, false);
-    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, TightGates(40));
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), TightGates(40));
     auto R=calc.Result();
     ASSERT_TRUE(R) << "3s^1 is non-degenerate: Δρ converges -- " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 1.0, 1e-6);                // 1 valence electron (Zion=1), charge conserved
@@ -291,7 +291,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     Molecule o2mol;
     o2mol.Insert(new Atom(8, 0.0, {-d/2,0,0}));
     o2mol.Insert(new Atom(8, 0.0, { d/2,0,0}));
-    Calculation cRef(o2mol, {.basis="sipp", .multiplicity=3, .pp="gth-lda-valence"});
+    Calculation cRef(MoleculeSetup::Resolve(o2mol, {.basis="sipp", .multiplicity=3, .pp="gth-lda-valence"}));
     const double Eref=cRef.Energy();
     {
         auto E=cRef.EnergyTerms();
@@ -308,7 +308,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     o.siteSpins={+1,+1}; // stated (R2.5): the decoration the seed used to derive (the triplet's two O, parallel)
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     GpwReport report("O "+o.label, false);
-    qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, TightGates(60));
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), TightGates(60));
     // No convergence guard (as before): the box's energy is what is compared, and it is compared as the
     // last iterate, which is what this gate has always read.
     EXPECT_NEAR(calc.LastIterateCharge(), 12.0, 1e-6);
@@ -337,7 +337,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor_Panel)   // PANEL case 4 (regime 1, Pulay
     par.Mixer=SCFParams::Mixing::Pulay; par.KerkerG0=0.0;   // Pulay WITHOUT Kerker -> the D-space mixer
     par.PulayDepth=8; par.PulayStart=5; par.StartingRelaxRo=0.45;
     GpwReport report("O "+o.label, false);
-    qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par);
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
     ASSERT_FALSE(xcRho.empty());
@@ -379,9 +379,9 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     const bool spherical=false;
     const bool sphBasis =false;
     Molecule mnmol; mnmol.Insert(new Atom(25, 0.0, {0,0,0}));
-    Calculation cRef(mnmol, {.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr",
+    Calculation cRef(MoleculeSetup::Resolve(mnmol, {.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr",
                              .multiplicity=6, .pp="gth-lda-valence",
-                             .angular = spherical ? Angular::Spherical : Angular::Cartesian});
+                             .angular = spherical ? Angular::Spherical : Angular::Cartesian}));
     const double Eref=cRef.Energy();
     std::cout << "[Mn finite] "<<(sphBasis?"valence_lowq_sph":"valence_lowq_sr")<<" LSDA sextet (q7, "
               <<(spherical?"SPHERICAL":"CARTESIAN")
@@ -404,7 +404,7 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     if (spherical) mnbasis=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(mnbasis);
     std::cout << "[Mn in-box] angular=" << (spherical?"SPHERICAL":"CARTESIAN") << std::endl;
     GpwReport report("Mn "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(lat, mnbasis, o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, mnbasis, o), par);
     const double E=calc.LastIterateTerms().GetTotalEnergy();   // as before: the energy is pinned, convergence is not asserted
     std::cout << "[Mn in-box] GPW="<<E<<"  facade="<<Eref<<"  diff="<<(E-Eref)<<std::endl;
     EXPECT_NEAR(calc.LastIterateCharge(), 7.0, 1e-6);
@@ -440,7 +440,7 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     par.StartingRelaxRo=0.45;
     GpwReport report("Mn "+o.label, par.Verbose);
     qchem::BoundedSCF bounded("the gate tests symmetry THROUGH the loop (6 iterations), not convergence");
-    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
     const GpwHandles h=LastIterateHandles(calc);
     ASSERT_TRUE(h.cd) << "the run must produce a final density";
 
@@ -532,7 +532,7 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows_Panel)   // PANEL case 9: a c
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);             // coarse: this gate tests the POSTCONDITION
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;            // PINNED -- see the header (Auto would pick Uniform)
 
-    const qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    const qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
     auto r=calc.Result();
     std::cout << "[Na2 T2] converged="<<calc.DidConverge()<<" iters="<<calc.IterationCount()
               << " E(last iterate)="<<calc.LastIterateTerms().GetTotalEnergy()
@@ -600,7 +600,7 @@ TEST(GPW_Na2Box, Γ_Pol_Null_Linear_SpinSeed_Converges_Panel)
     {
         const qchem::SolidCalcOptions o=options(0, "Na2 UNPOLARIZED twin");   // multiplicity 0 = the zeta = 0 collapse
         SCFParams p=par; p.NMaxIter=100;
-        const qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, p);
+        const qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), p);
         auto r=calc.Result();
         ASSERT_TRUE(r) << "the unpolarized twin must converge: " << Why(r);
         Eunpol=r->Energy();
@@ -608,7 +608,7 @@ TEST(GPW_Na2Box, Γ_Pol_Null_Linear_SpinSeed_Converges_Panel)
     qchem::IterationBudget budget(38, "Na2 box, polarized singlet from the AFM seed, linear 0.3 (OpenWork §3 Na2 row)");
     qchem::SolidCalcOptions o=options(1, "Na2 AFM-seeded singlet, free");   // 1 = the EXPLICIT two-channel singlet
     o.siteSpins={1,-1};                                                       // the +m/-m seed, stated
-    const qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    const qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
     auto r=calc.Result();
     ASSERT_TRUE(r) << Why(r);
     EXPECT_NEAR(r->Energy(), Eunpol, 1e-6) << "a zeta = 0 singlet's polarized fixed point is its unpolarized one";

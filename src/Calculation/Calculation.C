@@ -11,6 +11,7 @@
 // extraction is the clean future move when a plane-wave/crystal front door is needed.
 module;
 #include <memory>
+#include <optional>
 #include <vector>
 #include <string>
 #include <utility>
@@ -21,8 +22,8 @@ import qchem.Structure;            // Structure, Molecule, Atom
 import qchem.ScalarFunction;       // ::ScalarFunction<double>
 import qchem.BasisSet;             // BasisSet::Real_BS
 import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, IsDFT, the unified resolver
-import qchem.Pseudopotential.Set; // PseudopotentialSet -- the run's chosen pseudopotential (CalcOptions::pp)
-export import qchem.Symmetry.Spin;  // SpinGroup -- the imposed spin subgroup, a CalcOptions field
+export import qchem.MoleculeSetup; // CalcOptions + the resolved MoleculeSetup a run is built from (step 7)
+export import qchem.PotentialEnergySurface;   // the face MoleculeSession implements (step 8)
 import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ElectronConfiguration;// ElectronConfiguration
 import qchem.SCFIterator;          // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
@@ -34,79 +35,6 @@ export import qchem.Response;      // the linear response (StaticPolarizability'
 export namespace qchem
 {
 
-using Hamiltonian::Model;          // {E1, HF, DE1, DHF}
-
-//! Orbital-integral engine: the in-house MnD recursion (default) or the libcint foreign engine.
-enum class Engine  { MnD, LibCint };
-//! Angular basis convention: Cartesian Gaussians (default) or real solid-harmonic (spherical).
-enum class Angular { Cartesian, Spherical };
-
-//! How to set up the calculation.  Designated-initializer friendly:
-//!     Calculation calc(water, {.basis="dzvp"});
-//! `model` selects the Hamiltonian; pass 1 wires the non-DFT factory path (HF is the default).
-struct CalcOptions
-{
-    std::string basis = "sto-3g";
-    Model       model = Model::HF;   //!< HF (default) | Xalpha | LDA | E1/DE1/DHF (test-only)
-    SpinGroup         spin  = SpinGroup::UnPolarized;   //!< the imposed spin subgroup (V1.37)
-    //! Spin multiplicity 2S+1.  0 (default) = minimal spin: closed-shell singlet for even Ne, doublet for
-    //! odd -- the historical behaviour.  Set explicitly for an open shell: 3 = triplet, 2 = doublet, ...
-    //! The facade converts it to (nUp,nDown) [nUp-nDown = 2S = multiplicity-1, nUp+nDown = Ne] and PROMOTES
-    //! the calculation to SpinGroup::Polarized when 2S>0 (unrestricted open shell needs distinct up/down densities).
-    //! A multiplicity whose parity disagrees with Ne (e.g. a singlet for odd Ne) is rejected.
-    int         multiplicity = 0;
-    //! Basis construction variants (threaded into BasisSet::Gaussian::Factory).  Defaults reproduce
-    //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry is rejected until
-    //! the Spherical SALC track (doc/OldPlans/SphericalSALCPlan.md) lands -- the SALC builder needs Cartesian PGData.
-    Engine      engine  = Engine::MnD;
-    Angular     angular = Angular::Cartesian;
-    //! DFT-only knobs (ignored when model is HF/1-e/Dirac).  xalpha: the Slater exchange parameter, used
-    //! only by model==Xalpha.  mesh: the numerical XC integration grid -- defaults to the proven molecular
-    //! values; a designated initializer overrides just the resolution you care about, e.g. {.nRadial=50}.
-    double      xalpha = 0.7;
-    qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 30,
-                              .mhl_m    = 3,                         .mhl_alpha = 2.0,
-                              .angular  = qcMesh::AngularKind::Lebedev, .angularDegree = 5,   // the 12-direction rule
-                              .beckeOrder = 2};
-    //! Point-group SALC blocking + per-irrep aufbau.  GUARDED TO THE CARTESIAN PG BASIS: the SALC
-    //! builder needs a PolarizedGaussian (PGData) orbital IBS and throws otherwise.  Since the facade
-    //! only builds the default Cartesian basis today, this is always the supported path; the guard
-    //! future-proofs the day spherical/libcint deliveries are exposed (see doc/OldPlans/SphericalSALCPlan.md).
-    bool        symmetry    = false;
-    double      symmetryTol = 1e-4;   //!< geometry tolerance for point-group detection
-    //! Replace the bare nuclear attraction with the GTH/HGH pseudopotential (valence-only): the atoms keep
-    //! only their valence electrons and the Hamiltonian gets V_loc(r) + the KB-separable projectors +
-    //! the ion-ion term, in place of Ven.  \c pp NAMES the pseudopotential set (src/Pseudopotential/Data/pseudopotentials.json,
-    //! e.g. "gth-lda-valence": each element's smallest-q GTH-LDA entry); EMPTY (default) = all-electron.  The set also fixes the
-    //! functional the entries were generated for.  Multi-species is native (a per-Z router over the molecule's elements).
-    //! Requires a valence basis in \c basis (an all-electron basis has spurious core shells under a PP) -- e.g.
-    //! {.basis="sipp", .pp="gth-lda-valence"} for silicon.  Ignores \c model (the PP front door is always LSDA today).
-    //! See doc/MolecularPseudopotentialPlan.md and doc/CalcNetworkReview.md §4.
-    std::string pp;
-    //! Per-element valence overrides on top of \c pp's set: `(element, q)` replaces the set's q for that element (or adds the element).
-    //! E.g. a semicore Na q9 run: {.pp="gth-lda-valence", .ppOverride={{"Na",9}}}.
-    std::vector<std::pair<std::string,int>> ppOverride;
-    //! SCF seed.  Default == auto: DFT seeds from SAD (superposition of atomic densities), HF/1-e take
-    //! the core guess.  Set explicitly to override -- e.g. {.seed=SAD} drives HF's matrix-free-seed
-    //! bootstrap (the iterator manufactures a D0 via a one-step LDA sibling).
-    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
-};
-
-//! DIIS accelerator knobs.  These were stringly-typed json keys grepped out of tests; here they
-//! are documented fields with defaults.  eMax<=0 means "auto" -- the Z-scaled heuristic the
-//! molecular recipe has always used.  The long tail still rides through the json factory directly.
-struct AcceleratorOptions
-{
-    int    nProj = 4;
-    double eMax  = 0.0;     //!< <=0 => Z*Z*0.1/32 (the proven molecular default)
-    double eMin  = 1e-7;
-    double svTol = 5e-9;
-    //! SCF accelerator: "DIIS" (default) | "GDM" (direct minimisation, robust for hard/open-shell SCF) |
-    //! "Ladder" (auto None->DIIS->GDM).  A hard pseudopotential (open-shell atom, diffuse valence) that
-    //! limit-cycles under DIIS often converges under GDM or Ladder.
-    std::string type = "DIIS";
-};
-
 class Calculation
 {
 public:
@@ -114,18 +42,14 @@ public:
     using orbitals_t = qchem::Orbitals::Orbitals;
     using Observer   = qchem::SCFIterator::SCFIterator::Observer; //!< void(const SCFProgress&)
 
-    //! Build the whole graph and converge.  \a st is DEEP-COPIED via Structure::Clone (which PRESERVES the
-    //! concrete geometry -- a periodic UnitCell stays periodic, not sliced to a Molecule), so the caller's
-    //! Molecule/Atom/UnitCell is left untouched and may be freed immediately.
-    explicit Calculation(const Structure&          st,
-                         const CalcOptions&         opts = {},
-                         const AcceleratorOptions&  acc  = {});
-    //! Build the whole graph and converge ONCE, on \a scf (CleanCode D-CALC-DOUBLE-SCF): a caller with its own recipe used to
-    //! construct (an SCF on the defaults) and then Converge(par) -- two full SCFs, and the first one's cap was out of its reach.
-    Calculation(const Structure&          st,
-                const CalcOptions&         opts,
-                const SCFParams&           scf,
-                const AcceleratorOptions&  acc  = {});
+    //! \brief Build the whole graph over a RESOLVED setup (doc/CalcNetworkReview.md §7, step 7) -- the geometry point at the
+    //! setup's reference structure -- and converge ONCE on \a scf.  The setup is \c MoleculeSetup::Resolve(structure, options,
+    //! accelerator options), which deep-copies the structure (a periodic UnitCell stays periodic), so the caller's may be freed
+    //! at once.  The only door (user ruling 2026-10-30: clean replace, no (structure, options) constructors).
+    //! \a onIteration, when given, observes THIS constructor's SCF from its first iteration (a GUI streams the trace live);
+    //! it stays attached for later \c Converge calls.  A constructor argument, not a setup field: an observer is not a
+    //! resolved decision.
+    explicit Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf = {}, Observer onIteration = nullptr);
     ~Calculation();
 
     Calculation(const Calculation&)            = delete;  // owns raw resources; non-copyable
@@ -148,6 +72,22 @@ public:
     size_t           NumOccupied()       const;
     const orbitals_t* Orbitals(const Irrep&) const; //!< the orbital set for one point-group irrep
 
+    //! One molecular orbital of the converged state: what an orbital panel lists and a field view samples.
+    struct Level
+    {
+        double      e;            //!< eigen-energy (hartree)
+        double      occupation;   //!< electrons in it (0 for a virtual)
+        Spin        spin;         //!< Up / Down for a polarized run, None for an unpolarized one
+        std::string label;        //!< the orbital's QN label (irrep under symmetry)
+        const sf_t* phi;          //!< the orbital as a field.  NEVER null; BORROWED from this Calculation
+    };
+    //! \brief EVERY MO, virtuals included, ascending in energy (both spin channels interleaved for a polarized run).
+    //! Cached by each Converge; the vector and every \c Level::phi are valid until the NEXT Converge.
+    const std::vector<Level>& GetLevels() const;
+    //! \brief m(r) = ρ↑−ρ↓.  An unpolarized run's is the ZERO field (polarized is the general case, unpolarized its
+    //! special case), so a caller needs no null branch.  Cached by each Converge; valid until the next.
+    const sf_t& GetSpinDensity() const;
+
     size_t           IterationCount() const;
     bool             IsConverged()    const;
     //! \brief The static dipole POLARIZABILITY tensor \f$\alpha_{ij}=-\partial^2E/\partial F_i\partial F_j\f$
@@ -169,13 +109,26 @@ private:
     //! probe/solver as StaticPolarizability with its own kernel, so it needs this run's Hamiltonian, wave
     //! function and basis -- which the facade deliberately does not expose.
     friend class ::ResponseFacadeTests;
+    //! \name THE GEOMETRY POINT a MoleculeSession steps to (step 8)
+    //!@{
+    friend class MoleculeSession;
+    //! What crosses from one point to the next: every block's physical D = Σ f c cᵀ, spin irreps outer, basis blocks inner --
+    //! the SAME basis recipe at moved atoms has the same blocks, so block b of one point is block b of the next.
+    struct Carry { std::vector<hmat_t<double>> D; };
+    //! The point at \a at (\c setup->reference's atoms, moved), seeded from \a carry when given (a WorkingDensity), else from the
+    //! setup's seed strategy.  The public setup constructor is this at the reference with no carry.
+    Calculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
+                const SCFParams& scf, Observer onIteration);
+    Carry MakeCarry() const;
+    std::unique_ptr<const Carry> itsCarry;   //!< consumed by the first Converge, which builds the basis it is re-homed onto
+    //!@}
     typedef std::pair<double, const sf_t*> occ_t;   //!< (eigen-energy, orbital) for HOMO/Orbital(i)
     void RebuildSampling();   //!< after a Converge: own a fresh density + sort the occupied MOs
 
-    std::shared_ptr<const Structure>     itsStructure;  //!< facade's own copy (Hamiltonian shares it)
-    CalcOptions                          itsOpts;
-    AcceleratorOptions                   itsAcc;
-    std::unique_ptr<Pseudopotential::PseudopotentialSet> itsPP;   //!< the resolved choice (CalcOptions::pp + ppOverride); null = all-electron
+    //! THE RUN SETUP (step 7): the options and every decision resolved from them once.  Everything below is this GEOMETRY POINT
+    //! (its structure, EC, basis, Hamiltonian) or its SCF state.
+    std::shared_ptr<const MoleculeSetup> itsSetup;
+    std::shared_ptr<const Structure>     itsStructure;  //!< the point's structure (valence-charged under a PP); the Hamiltonian shares it
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
     //! R2.22: the iterator no longer deletes what it is handed, so this facade owns the Hamiltonian and
@@ -186,8 +139,36 @@ private:
     std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> itsAccel;
     qchem::SCFIterator::SCFIterator*     itsScf   = nullptr;  //!< owned (the Hamiltonian/accelerator are NOT its)
     std::unique_ptr<qchem::ChargeDensity::rDM_CD> itsDensity;  //!< owned converged rho(r)
+    std::unique_ptr<const sf_t>          itsSpinDensity;       //!< owned converged m(r), the zero field when unpolarized
+    std::vector<Level>                   itsLevels;            //!< every MO, ascending; phi into the wave function
     std::vector<occ_t>                   itsOccupied;          //!< non-owning, into the wave function
     Observer                             itsObserver;          //!< optional live-progress sink
+};
+
+//! \brief THE MOLECULAR POTENTIAL ENERGY SURFACE (doc/CalcNetworkReview.md §3.1, §7; step 8): one fixed \c MoleculeSetup,
+//! sampled at positions the caller chooses.  Each \c ConvergeAt builds a new point -- the reference's atoms moved, its basis
+//! made there (the same named basis) -- seeded from the previous point's density carried onto it, block for block.
+//!
+//! WHAT A POINT REFUSES (a \c PESFailure, never a crash): positions that change the abelian point group the SALC blocks are
+//! built on, when the setup imposes one (\c CalcOptions::symmetry; ruling Q4); forces (step 9).  The molecular basis is
+//! neither trimmed nor given an ortho tolerance by this facade, so it has no conditioning window to leave (Q3 is solid-only today).
+class MoleculeSession : public virtual PotentialEnergySurface
+{
+public:
+    //! \a onIteration observes every point's SCF (each \c ConvergeAt), from its first iteration.
+    MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Calculation::Observer onIteration = nullptr);
+    ~MoleculeSession();
+    PESGeometry Reference() const override;
+    //! THROWS when \a cell is given (a molecule has none) or when \a R has not one position per atom.
+    Outcome<PESPoint, PESFailure> ConvergeAt(const std::optional<rmat3d_t>& cell, const std::vector<rvec3_t>& R,
+                                             const PESRequest& want = {}) override;
+    //! The current point (the last \c ConvergeAt's); null before the first.  Replaced by the next \c ConvergeAt.
+    const Calculation* Current() const {return itsPoint.get();}
+private:
+    std::shared_ptr<const MoleculeSetup> itsSetup;
+    SCFParams                            itsSCF;
+    Calculation::Observer                itsObserver;
+    std::unique_ptr<Calculation>         itsPoint;
 };
 
 } // namespace qchem
