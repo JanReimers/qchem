@@ -274,9 +274,14 @@ struct GaussianBasisRecipe
     //! stated \c trim.  \c SolidSetup::Resolve runs it once and stores the frozen result (\c vet false, \c trim filled).
     bool                              vet = false;
     bool                              spherical = false;   //!< wrap in the spherical lattice view (contaminant-free d/f)
+    //! The pair-loop tolerances \c Make BINDS on the basis it builds (D-ENV-TOL option A, 2026-10-31): set by \c SolidSetup::Resolve
+    //! from \c SolidCalcOptions::tolerances (the one source -- a caller's value here is replaced), frozen with the trim so a geometry
+    //! step's basis computes at the same setting.  The GPW evaluator checks them; it no longer sets them.
+    BasisSet::Gaussian::GPWTolerances tolerances;
 
-    //! The basis over \a cell's atoms.  CHECKS the file's declared pseudopotential provenance against \a pp first (D-BASIS-PP):
-    //! THROWS naming the file, the element and both q on a mismatch.  \a cell must outlive the basis.
+    //! The basis over \a cell's atoms, its pair-loop \c tolerances bound before anything can compute from it.  CHECKS the file's
+    //! declared pseudopotential provenance against \a pp first (D-BASIS-PP): THROWS naming the file, the element and both q on a
+    //! mismatch.  \a cell must outlive the basis.
     std::shared_ptr<const BasisSet::Real_BS> Make(const Structure& cell, const Pseudopotential::PseudopotentialSet& pp) const;
 };
 

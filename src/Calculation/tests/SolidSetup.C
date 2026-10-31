@@ -15,6 +15,7 @@ import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.BasisSet.Lattice.BasisSet;   // VetStageTrim, ShellTrim
 import qchem.Types;
+import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;   // GaussianSharpness::Tolerances (what the built basis computes at)
 
 using namespace qchem;
 using BasisSet::Gaussian::BasisSetData;
@@ -62,6 +63,33 @@ TEST(SolidSetup, APreBuiltBasisHasNoRecipe)
     const auto setup=SolidSetup::Resolve(lat, mol, kNa2);
     EXPECT_FALSE(setup->recipe) << "a caller-built basis cannot be rebuilt at moved atoms";
     EXPECT_EQ(setup->mol, mol);
+}
+
+// D-ENV-TOL option A (2026-10-31): the recipe BINDS the run's pair-loop tolerances on the basis it builds -- at the reference and
+// on every rebuild from the frozen recipe -- and the GPW evaluator only checks them, so a pre-built (default) basis under a run
+// that asks for others is REFUSED rather than silently re-tuned.
+TEST(SolidSetup, ARecipeBindsTheRunsGPWTolerancesAndAPreBuiltBasisCannotTakeOthers)
+{
+    UnitCell cell=TwoNa(20.0);
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    SolidCalcOptions o=kNa2; o.tolerances.screenEps=1e-8; o.tolerances.densityEps=1e-11;
+    auto bound=[](const BasisSet::Real_BS& bs)
+    {
+        for (auto ibs : bs.Iterate<BasisSet::Real_OIBS>())
+            if (auto* g=dynamic_cast<const BasisSet::Gaussian::GaussianSharpness*>(ibs)) return g->Tolerances();
+        ADD_FAILURE() << "no Gaussian block"; return BasisSet::Gaussian::GPWTolerances{};
+    };
+    const auto setup=SolidSetup::Resolve(lat, GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_VA}, o);
+    ASSERT_TRUE(setup->recipe);
+    EXPECT_EQ(setup->recipe->tolerances.screenEps, 1e-8) << "frozen with the trim";
+    EXPECT_EQ(bound(*setup->mol).screenEps, 1e-8);
+    EXPECT_EQ(bound(*setup->mol).densityEps, 1e-11);
+    EXPECT_EQ(bound(*setup->recipe->Make(*setup->cell, setup->pp)).screenEps, 1e-8) << "a geometry step's basis computes at the same setting";
+
+    std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_VA, &cell));
+    EXPECT_EQ(bound(*mol).screenEps, BasisSet::Gaussian::GPWTolerances{}.screenEps) << "a pre-built basis carries the defaults";
+    EXPECT_THROW(SolidCalculation(SolidSetup::Resolve(lat, mol, o)), std::invalid_argument)
+        << "the run asks for tolerances its pre-built basis was not built with";
 }
 
 TEST(SolidSetup, ARecipeChecksTheBasisProvenanceWithNoDeck)

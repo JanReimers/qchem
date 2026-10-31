@@ -70,7 +70,7 @@ import qchem.UnitCell;       // UnitCell (the cell geometry the internal enumera
 import qchem.Types;          // rvec3_t, cvec_t, chmat_t, rmat_t, ivec3_t
 import qchem.Blaze;          // matrix machinery
 import qchem.Math.Angular;   // Math::CartTerm (the Cartesian-monomial expansion of a GaussianFunction)
-export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;     // ApplyTolerances' argument
+export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;     // Tolerances() / BindTolerances' type
 export import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;   // LatticeScreener -- the collocation tolerance policy
                                                          // (re-exported: every caller of the two faces below
                                                          //  must be able to name a screener to pass in)
@@ -112,10 +112,23 @@ public:
     //! without duplicating the constant; the assignment itself stays internal (doc/GPWPlan.md 0b').
     virtual double RelCutoffSafety() const = 0;
 
-    //! \brief Take the run's pair-loop tolerances (\c screenEps, \c densityEps, \c fieldSharp, \c relCutoff of \a t) --
-    //! D-ENV step 5 option B.  Called by the GPW evaluator at construction, before any integral is requested; the
-    //! implementor drops every cache that depended on the old values.  The facade's options are the one source of truth.
-    virtual void ApplyTolerances(const GPWTolerances& t) const = 0;
+    //! \brief The pair-loop tolerances this basis was BUILT with (\c screenEps, \c densityEps, \c fieldSharp, \c relCutoff of the
+    //! run's \c GPWTolerances; the rest of the struct is the default).  D-ENV-TOL option A (2026-10-31): bound ONCE by the builder
+    //! through \c ToleranceBinding before any integral; the GPW evaluator CHECKS them against the run's, it no longer sets them.
+    virtual const GPWTolerances& Tolerances() const = 0;
+};
+
+//! \brief THE BUILDER'S capability (D-ENV-TOL option A, 2026-10-31): bind the pair-loop tolerances on a basis still being BUILT.
+//! Non-const, so no holder of a run's const faces can reach it -- option B (2026-10-03) had the GPW evaluator re-set them on the
+//! caller's basis through a const face, which let one basis be re-tuned under another run.  Implemented by the molecular
+//! Cartesian basis; a VIEW over a basis does not offer it (bind before wrapping).  \c GaussianBasisRecipe::Make is the caller.
+class ToleranceBinding
+{
+public:
+    virtual ~ToleranceBinding() = default;
+    //! Drops every tolerance-dependent cache.  THROWS if the values change after collocation work was built (a basis computes
+    //! at ONE setting).
+    virtual void BindTolerances(const GPWTolerances& t) = 0;
 };
 
 

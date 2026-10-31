@@ -124,7 +124,9 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, con
     const auto pp=Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.species);
     // THE BASIS, made over a structure the setup will hold (Decide's setup keeps its own copy of the same cell, and the basis is
     // built over THAT copy below so it cannot outlive its atoms).
-    GaussianBasisRecipe frozen=recipe;
+    GaussianBasisRecipe rec=recipe;
+    rec.tolerances=opts.tolerances;   // the options are the one source of the run's tolerances; the recipe binds them on every build
+    GaussianBasisRecipe frozen=rec;
     const std::shared_ptr<const Structure> cell=lat.GetStructure();
     std::shared_ptr<const BasisSet::Real_BS> mol;
     if (recipe.vet)
@@ -132,7 +134,7 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, con
         if (!recipe.trim.empty())
             throw std::invalid_argument("GaussianBasisRecipe: vet and a stated trim are exclusive -- state one");
         // THE VET-STAGE TRIM, ONCE, at the reference geometry (pin 22); frozen below so a geometry step rebuilds the SAME shells.
-        auto make=[&](const BasisSet::Gaussian::ShellTrim& t){ GaussianBasisRecipe r=recipe; r.trim=t; return r.Make(*cell, pp); };
+        auto make=[&](const BasisSet::Gaussian::ShellTrim& t){ GaussianBasisRecipe r=rec; r.trim=t; return r.Make(*cell, pp); };
         auto r=BasisSet::Lattice::VetStageTrim(lat, make, {.images=opts.images, .kShift=opts.kShift}, opts.orthoTol);
         frozen.trim=std::move(r.trim);
         frozen.vet =false;
@@ -141,7 +143,7 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, con
     else
     {
         if (!recipe.trim.empty()) { std::cout<<"[basis trim] STATED (no vet loop): "; recipe.trim.Write(std::cout); std::cout<<std::endl; }
-        mol=recipe.Make(*cell, pp);
+        mol=rec.Make(*cell, pp);
     }
     std::shared_ptr<SolidSetup> s=Decide(lat, std::move(mol), opts, acc);
     s->cell  =cell;     // the structure the basis was built over: the setup holds it as long as it holds the basis
@@ -232,8 +234,14 @@ std::shared_ptr<const BasisSet::Real_BS> GaussianBasisRecipe::Make(const Structu
     // D-BASIS-PP: the basis file's declared pseudopotential q per element must be the q this run's terms use.
     const auto species=pp.Species(cell);
     if (file.empty()) CheckPPProvenance(data, species); else CheckPPProvenance(file, species);
-    std::shared_ptr<const BasisSet::Real_BS> b(file.empty() ? Factory(data, &cell, Engine::MnD, Angular::Cartesian, trim)
-                                                            : FactoryFromFile(file, &cell, Engine::MnD, Angular::Cartesian, trim));
+    std::unique_ptr<BasisSet::Real_BS> built(file.empty() ? Factory(data, &cell, Engine::MnD, Angular::Cartesian, trim)
+                                                          : FactoryFromFile(file, &cell, Engine::MnD, Angular::Cartesian, trim));
+    // D-ENV-TOL option A: bind the run's pair-loop tolerances while the basis is still OURS and mutable -- before a view wraps it and
+    // before anything computes from it (a MnD Cartesian basis can take them; anything else is a build defect, not an input).
+    auto* bind=dynamic_cast<ToleranceBinding*>(built.get());
+    if (!bind) throw std::logic_error("GaussianBasisRecipe::Make: the built basis cannot bind GPW tolerances (not a MnD Cartesian set)");
+    bind->BindTolerances(tolerances);
+    std::shared_ptr<const BasisSet::Real_BS> b(std::move(built));
     if (spherical) b=PG_Spherical::MakeSphericalLatticeView(std::move(b));
     return b;
 }

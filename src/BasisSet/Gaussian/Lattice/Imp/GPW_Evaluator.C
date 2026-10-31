@@ -308,7 +308,14 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     itsLat=dynamic_cast<const Gaussian::Periodic_Gaussian_IBS*>(itsOrb);
     if (!itsLat) throw std::runtime_error(
         "GPW_Evaluator: the orbital basis is not a molecular Gaussian basis (no Gaussian::LatticeSum1E)");
-    itsLat->ApplyTolerances(itsTol);   // option B (D-ENV step 5): the pair-loop evaluator takes the run's tolerances
+    // D-ENV-TOL option A (2026-10-31): the basis was BUILT with its pair-loop tolerances (GaussianBasisRecipe::Make binds the run's);
+    // this evaluator only CHECKS them.  A pre-built basis carries the defaults, so a run asking for others must build it from a recipe.
+    {
+        const GPWTolerances& b=itsLat->Tolerances();
+        if (b.screenEps!=itsTol.screenEps || b.fieldSharp!=itsTol.fieldSharp || b.relCutoff!=itsTol.relCutoff || b.densityEps!=itsTol.densityEps)
+            throw std::invalid_argument("GPW_Evaluator: the molecular basis was built with pair-loop tolerances "+b.Describe()+" but the run asks "
+                                        +itsTol.Describe()+" -- build the basis through a GaussianBasisRecipe (it binds the run's), not pre-built");
+    }
 
     // THERE IS NO CUT IN r SPACE -- Gibbs ringing is like a wrecking ball (user pin; doc/Pins.md pin 1): every lattice sum is an eps-CONVERGED SERIES enumerated
     // INSIDE the molecular seam per shell pair (1E matrices, analytic KB, collocation) -- no radius

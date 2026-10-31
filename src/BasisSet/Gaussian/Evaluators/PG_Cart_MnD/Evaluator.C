@@ -106,29 +106,28 @@ public:
     // cannot add a far term the caller never enumerated) -- so pass a generous Rcut and let the screen prune it.
     // Magnitude screen (CP2K EPS_PGF_ORB analog), the collocation floor, the field sharpness and the forced pair->level
     // kappa are INSTANCE state (\c GPWTolerances, D-ENV step 5 option B): the facade's options are the one source of truth and
-    // reach this evaluator through \c ApplyTolerances, never through the environment.  Defaults = the historical values
+    // reach this evaluator through \c BindTolerances (the builder's, D-ENV-TOL option A), never through the environment.  Defaults = the historical values
     // (screenEps 1e-10 numerically exact for GPW; densityEps 1e-10, DECOUPLED from it -- a collocated density and an
     // analytic lattice sum are not converged by one tolerance; fieldSharp 2/3; relCutoff 0 = the evaluator's own rule).
     double kScreenEps () const {return itsPGTol.screenEps;}
     //! \brief The collocation tolerance FLOOR: what sizes the (shell pair, offset) task list, and the
     //! lower bound no screener may answer below (asserted at both walks).
     double kDensityEps() const {return itsPGTol.densityEps;}
-    //! \brief Re-derive this evaluator's pair-loop tolerances (D-ENV step 5 option B; called by \c GPW_Evaluator at
-    //! construction, BEFORE any integral is asked for).  Every cache whose content depends on a tolerance -- the
-    //! (shell pair, offset) task list, its threaded order, the integrate-back memo -- is dropped; the geometry-only
-    //! caches (shell partition, reaches) are not tolerance-dependent and stay.  Idempotent for an equal tolerance; THROWS if the
-    //! values change after collocation work has been built (see the guard).
-    //! \note This mutates the CALLER-built molecular basis through a const face rather than cloning it (a clone of the
-    //! virtual-diamond IBS stack was judged not worth it); safe because every GPW_Evaluator of one run receives the same
-    //! options, and because nothing has been computed from a basis before its first GPW_Evaluator takes it.
-    void ApplyTolerances(const GPWTolerances& t) const
+    //! \brief The pair-loop tolerances, BOUND by the basis's builder (D-ENV-TOL option A, 2026-10-31: \c GaussianBasisRecipe::Make,
+    //! through \c ToleranceBinding, before any integral) and only READ after -- the GPW evaluator checks them against the run's.
+    //! (Option B, 2026-10-03, had the evaluator set them on the caller's basis through a const face.)  Binding drops every cache
+    //! whose content depends on a tolerance -- the (shell pair, offset) task list, its threaded order, the integrate-back memo; the
+    //! geometry-only caches (shell partition, reaches) stay.  Idempotent for an equal tolerance; THROWS if the values change after
+    //! collocation work has been built (see the guard).
+    const GPWTolerances& Tolerances() const {return itsPGTol;}
+    void BindTolerances(const GPWTolerances& t)
     {
         if (t.screenEps==itsPGTol.screenEps && t.fieldSharp==itsPGTol.fieldSharp
          && t.relCutoff==itsPGTol.relCutoff && t.densityEps==itsPGTol.densityEps) return;
         // GUARD: two GPW_Evaluators sharing this basis with DIFFERENT tolerances would silently invalidate each other's caches.
         // A built task list / memo means integrals were already computed at the old values: that is a broken invariant, not an input.
         if (!itsBoxTasks.empty() || !itsIntegrateMemos.empty())
-            throw std::runtime_error("NR_Evaluator::ApplyTolerances: tolerances changed after this basis computed collocation work "
+            throw std::runtime_error("NR_Evaluator::BindTolerances: tolerances changed after this basis computed collocation work "
                                      "(old: "+itsPGTol.Describe()+" ; new: "+t.Describe()+") -- one molecular basis cannot serve two tolerance settings");
         itsPGTol=t;
         itsBoxTasks.clear(); itsBoxTaskOrder.clear(); itsIntegrateMemos.clear(); itsFieldHistory.clear();
@@ -2867,7 +2866,7 @@ private:
         return ops;
     }
 
-    mutable GPWTolerances              itsPGTol;           //!< the pair-loop tolerances (ApplyTolerances); defaults = historical
+    GPWTolerances                      itsPGTol;           //!< the pair-loop tolerances (BindTolerances, by the builder); defaults = historical
     mutable std::vector<Shell>         itsShells;          //!< the shell partition (lazy; geometry-fixed)
     qchem::LazyLock                    itsShellsLock, itsBoxTasksLock;   //!< the two lazies above/below (outer-loop workers)
     mutable std::vector<std::pair<size_t,size_t>> itsFieldHistory;  //!< GPW_INTEGRATE_CENSUS (field, screen) hashes
