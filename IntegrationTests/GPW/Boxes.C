@@ -332,12 +332,12 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor_Panel)   // PANEL case 4 (regime 1, Pulay
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     o.accelerator=qchem::SCFAccelerators::Type::Null;   // no Fock history beside a density history
     std::vector<std::string> xcRho;
-    o.onIteration=[&xcRho](const qchem::SCFIterator::SCFProgress& p){ xcRho.push_back(p.eb.charge.xcRho); };
     SCFParams par=Gates(150, 1e-8, 1e30);
     par.Mixer=SCFParams::Mixing::Pulay; par.KerkerG0=0.0;   // Pulay WITHOUT Kerker -> the D-space mixer
     par.PulayDepth=8; par.PulayStart=5; par.StartingRelaxRo=0.45;
     GpwReport report("O "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par,
+                                 [&xcRho](const qchem::SCFIterator::SCFProgress& p){ xcRho.push_back(p.eb.charge.xcRho); });
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
     ASSERT_FALSE(xcRho.empty());

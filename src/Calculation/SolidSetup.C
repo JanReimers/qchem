@@ -232,13 +232,8 @@ struct SolidCalcOptions
     //! failure here WARNS and the run continues -- a checkpoint must never cost the computation it protects
     //! (\c SaveState called directly throws as usual).
     std::string saveStateTo;
-    //! \brief Per-iteration telemetry, live FROM CONSTRUCTION.
-    //!
-    //! It belongs in the options block rather than only on \c OnIteration because the constructor
-    //! CONVERGES: an observer attached afterwards has already missed stage 0 -- which, on an annealed
-    //! recipe, is the stage whose trajectory the fingerprint most wants.  Put it here and the run is
-    //! observed from its first iteration, with the rest of the recipe, in one place.
-    qchem::SCFIterator::SolidSCFIterator::Observer onIteration = nullptr;
+    // (No onIteration any more -- 2026-10-30.  The per-iteration observer is a SolidCalculation / Restart / SolidSession
+    //  CONSTRUCTOR argument, as on the molecular Calculation: an observer is not a resolved decision.)
     // (No orderName/orderProbe any more -- 2026-09-14.  The order parameter is the INTEGRATED site moment
     //  every polarized run carries on its EnergyBreakdown (SCFProgress::order, the m_site column); the
     //  caller-supplied POINT probe it replaced was a spin density, not a moment.)

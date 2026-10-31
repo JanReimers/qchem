@@ -51,7 +51,7 @@ struct SolidCalculation::Imp
     //! The accelerator options a STAGE starts from: \c setup->acc, except where a caller's stage overrides the Ladder's starting
     //! rung for its own duration (the FD chi's restart-like stages).  Per-run state, not a decision of the setup.
     SCFAccelerators::SolidAcceleratorOptions    accOpts;
-    //! The caller's per-iteration telemetry: \c setup->opts.onIteration, replaced by \c OnIteration.
+    //! The caller's per-iteration telemetry: the constructor's (or \c Restart's) \a onIteration, replaced by \c OnIteration.
     Observer                                    onIteration;
     std::shared_ptr<const Structure>            st;
     std::unique_ptr<BasisSet::Complex_BS>       bs;
@@ -287,9 +287,10 @@ static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, siz
 
 SolidCalculation::SolidCalculation(BuildOnly) : itsImp(std::make_unique<Imp>()) {}
 
-SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params)
+SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, Observer onIteration)
     : itsImp(std::make_unique<Imp>())
 {
+    itsImp->onIteration=std::move(onIteration);   // before Start: BuildRun attaches it ahead of iteration 1
     // ★ THE CTOR'S RESIDUE BUCKET (doc/ParallelAndOraclePlan.md 1.1(a)).  Timed is EXCLUSIVE, so this
     // outer scope charges itself exactly what the named setup buckets below do NOT -- the decisions
     // between them (the irrep/EC build, the banner).  With the same bracket on Converge and on Iterate, the ledger
@@ -316,7 +317,6 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
 {
     itsImp->setup       = std::move(setup);
     itsImp->accOpts     = itsImp->setup->acc;
-    itsImp->onIteration = itsImp->setup->opts.onIteration;
     itsImp->st          = lat.GetStructure();
     itsImp->lat.emplace(lat);
     const SolidSetup&       S    = *itsImp->setup;
@@ -490,7 +490,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
-    // missed stage 0 (see SolidCalcOptions::onIteration).
+    // missed stage 0 (hence the constructors' onIteration argument).
     AttachProbes();
 
     // MOM CONTINUATION FROM THE SEED (S0e): pin the reference to the seed's OWN freshly-filled occupied
@@ -509,9 +509,10 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
 // so the graph is built exactly once and stage 0 runs as the plain ctor's convergence -- then continues
 // through the rest of the schedule.  (Delegating rather than duplicating the build is what keeps the two
 // ctors from drifting; every DECISION in the build is made in one place.)
-SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule)
+SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule, Observer onIteration)
     : itsImp(std::make_unique<Imp>())
 {
+    itsImp->onIteration=std::move(onIteration);
     if (schedule.empty())
         throw std::runtime_error("SolidCalculation: an EMPTY anneal schedule has no meaning -- pass at "
                                  "least one stage, or use the single-SCFParams constructor.");
@@ -1067,7 +1068,8 @@ void SolidCalculation::SaveState(const std::string& path) const
 }
 
 Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
-SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params)
+SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params,
+                          Observer onIteration)
 {
     using O=Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>;
     const SCFAccelerators::Type accel=setup->opts.accelerator;
@@ -1081,6 +1083,7 @@ SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSe
     if (!saved) return refuse(saved.Error());
 
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
+    c->itsImp->onIteration=std::move(onIteration);
     // A restored density is at (or next to) the answer: a Ladder starts on its GDM rung (user 2026-10-21, OpenWork
     // §3 "Ladder restart starts on the DIIS+Kerker rung").  For THIS stage only -- reset after Converge below.
     // kT = 0 ONLY: a smeared stage restored from an integer state hands GDM an idempotent D', so GDM would ENGAGE and
@@ -1655,11 +1658,12 @@ const BasisSet::Complex_BS& SolidCalculation::Basis() const { return *itsImp->bs
 //====================================================================================================
 std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat,
                                                                std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
-                                                               const std::vector<SCFStage>& schedule, bool lowdin)
+                                                               const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration)
 {
     if (schedule.empty())
         throw std::runtime_error("SolidCalculation: an EMPTY schedule has no meaning -- pass at least one stage.");
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
+    c->itsImp->onIteration=std::move(onIteration);
     {
         qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
         c->BuildPoint(std::move(setup), lat, std::move(mol));
@@ -1703,8 +1707,9 @@ struct SolidSession::Point
     std::unique_ptr<SolidCalculation>        calc;
 };
 
-SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule, Carry carry)
-    : itsSetup(std::move(setup)), itsSchedule(std::move(schedule)), itsCarry(carry)
+SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule, SolidCalculation::Observer onIteration,
+                           Carry carry)
+    : itsSetup(std::move(setup)), itsSchedule(std::move(schedule)), itsObserver(std::move(onIteration)), itsCarry(carry)
 {
     if (itsSchedule.empty()) throw std::invalid_argument("SolidSession: an EMPTY schedule has no meaning -- pass at least one stage.");
     if (!itsSetup->imposed && !itsSetup->planeWave && itsSetup->opts.xcMeshSymmetric)
@@ -1806,7 +1811,8 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     std::optional<SavedState> carry;
     if (itsPoint) carry=itsPoint->calc->Carry();
     itsPoint.reset();
-    point->calc=SolidCalculation::AtGeometry(itsSetup, latR, point->mol, carry ? &*carry : nullptr, itsSchedule, itsCarry==Carry::Lowdin);
+    point->calc=SolidCalculation::AtGeometry(itsSetup, latR, point->mol, carry ? &*carry : nullptr, itsSchedule, itsCarry==Carry::Lowdin,
+                                         itsObserver);
     itsPoint=std::move(point);
 
     auto out=itsPoint->calc->Result();

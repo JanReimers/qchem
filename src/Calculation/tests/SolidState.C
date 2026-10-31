@@ -322,8 +322,8 @@ TEST(SolidState, WarmStart_OtherGrid_StartsAtTheAnswer)
     SolidCalcOptions o=Options(0, false, "");
     o.densityEcut=30.0;
     std::vector<double> E;
-    o.onIteration=[&E](const SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
-    auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), Params());
+    auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), Params(),
+                                     [&E](const SCFIterator::SCFProgress& p){ E.push_back(p.energy); });
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
@@ -380,8 +380,8 @@ TEST(SolidState, SmearedExactResume_StartsAtTheSavedState)
     }
     SolidCalcOptions o=Options(0, false, "");
     std::vector<double> E;
-    o.onIteration=[&E](const SCFIterator::SCFProgress& pr){ E.push_back(pr.energy); };
-    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p);
+    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p,
+                                     [&E](const SCFIterator::SCFProgress& pr){ E.push_back(pr.energy); });
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
@@ -417,10 +417,10 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     }
     o.saveStateTo="";
     std::vector<SCFIterator::SCFProgress> it;
-    o.onIteration=[&it](const SCFIterator::SCFProgress& pr){ it.push_back(pr); };
     qchem::IterationBudget budget(3, "field-mixer exact resume (regime 4)");   // the PANEL case: the resume only
     testing::internal::CaptureStdout();
-    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p);
+    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p,
+                                     [&it](const SCFIterator::SCFProgress& pr){ it.push_back(pr); });
     const std::string out=testing::internal::GetCapturedStdout();
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();

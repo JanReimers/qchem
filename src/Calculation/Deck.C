@@ -45,7 +45,7 @@ inline constexpr int kSchemaVersion = 1;
 json ToJson(const BasisSet::Gaussian::GPWTolerances&);   void FromJson(const json&, BasisSet::Gaussian::GPWTolerances&);
 json ToJson(const SCFParams&);                           void FromJson(const json&, SCFParams&);
 json ToJson(const qcMesh::MeshParams&);                  void FromJson(const json&, qcMesh::MeshParams&);
-//! The solid options.  NOT serialized (not choices): \c onIteration (a callback).  \c Hubbard manifold \c siteOps / \c greyOps
+//! The solid options.  NOT serialized (not choices): \c Hubbard manifold \c siteOps / \c greyOps
 //! (derived by the facade from the structure).  A manifold's U is \c U_eV (and \c Uirrep_eV, \c alpha_eV): eV in the file, converted to Hartree on read; the writer picks the eV value that converts back to the SAME double.
 json ToJson(const RunPolicySpec&);                       void FromJson(const json&, RunPolicySpec&);
 json ToJson(const SolidCalcOptions&);                    void FromJson(const json&, SolidCalcOptions&);

@@ -282,10 +282,14 @@ public:
     //! setup's reference lattice -- and converge once with \a params and the setup's accelerator.  The setup is
     //! \c SolidSetup::Resolve(lattice, molecular basis | recipe, options, accelerator options); the only door (user ruling
     //! 2026-10-30: clean replace, no (lattice, basis, options) constructors).
-    explicit SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {});
+    //! \a onIteration, when given, observes THIS constructor's SCF from its first iteration -- the constructor converges, so an
+    //! observer attached afterwards (\c OnIteration) has already missed stage 0, the stage an annealed recipe's trace most wants;
+    //! it stays attached for later \c Converge calls.  A constructor argument, not a setup field: an observer is not a resolved
+    //! decision (the molecular \c Calculation takes it the same way).
+    explicit SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {}, Observer onIteration = nullptr);
     //! \brief The ANNEALED constructor: stage 0 on its own accelerator, then the rest of \a schedule, each stage seeded from the one
-    //! before it.  An empty schedule throws.
-    SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule);
+    //! before it.  An empty schedule throws.  \a onIteration observes every stage, from stage 0's first iteration.
+    SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule, Observer onIteration = nullptr);
     ~SolidCalculation();
 
     //! \brief START FROM A SAVED STATE (CK-1; doc/OpenWork.md §2 "SCF checkpoint/restart"): build the graph for
@@ -304,9 +308,11 @@ public:
     //! ON ITS GDM RUNG for the restart's stage when \a params.SmearingkT is 0 (\c SolidAcceleratorOptions::ladderStartOnGDM):
     //! the DIIS rung's mixing would step a converged density away before the first energy is read.  A smeared restart
     //! starts on DIIS (GDM would engage on a restored integer D' and never apply the smearing).
-    //! The setup's accelerator (\c opts.accelerator) drives the restored stage.
+    //! The setup's accelerator (\c opts.accelerator) drives the restored stage.  \a onIteration observes the restored stage from
+    //! its first iteration (a restart's first iterate is what an exact resume is judged by).
     static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
-        Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {});
+        Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {},
+                Observer onIteration = nullptr);
 
     //! \brief Write the LAST ITERATE's state -- every (k,σ) block's D, C, ε, f, the fingerprint and the run
     //! summary -- to \a path (HDF5, layout in qchem.SolidState; atomic: written aside, renamed into place).
@@ -330,8 +336,8 @@ public:
     //! has to face it.  (The ctor converges on construction; without this, its result would be silently
     //! unreachable and the old \c Energy() would happily serve a failed run.)
     Outcome<Converged, SCFFailure> Result() const;
-    //! Live per-iteration telemetry.  Set BEFORE a Converge() call to observe it (the ctor's initial
-    //! convergence runs before any observer can be attached).
+    //! Live per-iteration telemetry, REPLACING the constructor's.  Set BEFORE a Converge() call to observe it (the ctor's
+    //! initial convergence has run by then: to observe it, pass the observer to the constructor).
     void OnIteration(Observer obs);
 
     //! Did it converge?  A cheap STATUS question, kept because reporting and tests ask it without wanting
@@ -556,9 +562,10 @@ private:
     //! recipe.  \a carry null: the setup's seed strategy and the whole \a schedule (the first point); else seeded from \a carry and
     //! converged on the schedule's FINAL stage only (the earlier stages exist to deliver a density the carry already is).
     //! \a lowdin: move \a carry onto this point's basis through the Löwdin frame (\c LowdinCarry) before it seeds the run.
+    //! \a onIteration: the session's observer, attached before the point's first iteration.
     static std::unique_ptr<SolidCalculation> AtGeometry(std::shared_ptr<const SolidSetup>, const Lattice_3D& lat,
                                                         std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
-                                                        const std::vector<SCFStage>& schedule, bool lowdin=false);
+                                                        const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration);
     SavedState Carry() const;   //!< the last iterate's per-block D, for the next point
     //!@}
     //! Point + run + the first Converge (the constructors' common body), and the rest of an annealed schedule.
@@ -604,7 +611,9 @@ public:
     //! \a schedule: the SCF recipe -- the first point runs all of it from the setup's seed, every later point its FINAL stage
     //! from the carried density, moved onto the new basis as \a carry says.  THROWS on a free Gaussian setup resolved with
     //! \c SolidCalcOptions::xcMeshSymmetric (the XC mesh would follow the group detected at each geometry and switch along a path).
-    SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule, Carry carry=Carry::AO);
+    //! \a onIteration observes every point's SCF (each \c ConvergeAt), from its first iteration -- as \c MoleculeSession.
+    SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule, SolidCalculation::Observer onIteration = nullptr,
+                 Carry carry=Carry::AO);
     ~SolidSession();
     PESGeometry Reference() const override;
     //! THROWS when \a cell is empty, when \a R has not one position per atom, or when the atoms MOVED on a setup resolved from a
@@ -619,6 +628,7 @@ private:
     struct Point;
     std::shared_ptr<const SolidSetup> itsSetup;
     std::vector<SCFStage>             itsSchedule;
+    SolidCalculation::Observer        itsObserver;
     Carry                             itsCarry;
     std::unique_ptr<Point>            itsPoint;
 };
