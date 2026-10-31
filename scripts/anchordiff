@@ -9,6 +9,7 @@ def parse(path):
     head = re.compile(r'^\d+/\d+ Testing: (.+)$')
     etot = re.compile(r'Etot\s*=\s*(-?\d+\.\d+)')
     it   = re.compile(r'iters=(\d+)')
+    stage = re.compile(r' stage \d+/\d+\] ')
     with open(path, encoding='utf-8', errors='replace') as f:
         for line in f:
             m = head.match(line.rstrip('\n'))
@@ -18,7 +19,9 @@ def parse(path):
                 continue
             if name is None: continue
             for v in etot.findall(line): E = float(v)
-            for v in it.findall(line): iters += int(v)
+            # a solid stage's summary line repeats the iteration count its result line already printed (MnO2 resume read 5 -> 10)
+            if not stage.search(line):
+                for v in it.findall(line): iters += int(v)
     if name is not None: out[name] = (E, iters)
     return out
 

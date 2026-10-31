@@ -116,6 +116,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     // The finite twin at kT 1e-2 (2026-10-31): its degenerate 3p^2 has no integer-aufbau fixed point either -- it "converged"
     // unsmeared only while the fit bases lacked their D shells (a spherical Hartree).  Compared on its INTERNAL energy, which is
     // what an integer-occupation box approaches (PySCF, the same basis/PP/Coulomb fit: -3.743668).
+    // Open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT".
     Calculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .pp = "gth-lda-valence"}), SCFParams{.SmearingkT = 1e-2});
     ASSERT_TRUE(cSipp.Result());
     const double Esipp=cSipp.EnergyTerms().GetTotalEnergy()-cSipp.EnergyTerms()["MinusTS"];
