@@ -144,6 +144,21 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
   term, which pairs, and its delivered max|ΔH_ij| on BallOnly vs AliasFree.  Then: on the TightPrimitive oracles (closed forms at any exponent), sweep G_N²/p and
   the ball, fit S_term per term, then confirm on Si / NaF / MnO / β-MnO₂ that every term's delivered max|ΔH_ij| sits within a factor
   ~3 of ε (neither far tighter nor looser).
+  **M2b MEASURED 2026-10-30 (29c20b8a, `GPW.RasterAliasCalibration`, UTLattice_BS):** one Mn s+p+d primitive, α = 10 / 36 / 76.68, the
+  raster swept (BallOnly at densityEcut = c·p, c = 0.5…3; AliasFree at the AUTO floor), x = G_N²/p read off the run's own grid audit.
+  **The tail is not the bare e^{−x}**: err·e^{x} GROWS with x (the d pair's Hermite prefactor is a polynomial in G²/p).  A fit
+  ln err = ln S + n ln x − x gives n = 2.3–2.6 (V_long), 3.3–3.7 (ρ̃) at EVERY α, so the scale is α-independent as §1 assumed:
+
+  | term | n = 3 (the gate) | n = 2 | x for ε = 1e-4 / 1e-5 / 1e-6 / 1e-7 | AliasFree delivers |
+  |---|---|---|---|---|
+  | V_long ⟨χ\|V\|χ⟩ (Ha) | S = 2.35 Ha | S ≈ 20 Ha (= §1's Mn erf well depth 19 Ha ✓) | 18.9 / 21.6 / 24.2 / 26.8 | x 16.5–19.7: 1.3e-4 … 1.8e-5 Ha |
+  | ρ̃ at low G (relative) | S = 0.35 | — | 16.6 / 19.4 / 22.1 / 24.7 | x 16.5–19.7: 4e-5 … 2e-6 |
+
+  Gate (x ≥ 4, below it the image is not a small tail): err ≤ S·x³·e^{−x}, S_Vlong = 2.5 Ha, S_ρ = 0.4.  **Consequences for §1 row 1:**
+  (i) L(ε) is the root of S·L³e^{−L} = ε, not ln(S/ε) -- at ε = 1e-5, L ≈ 21.6 (V_long) vs ln(20/1e-5) = 14.5 from the bare form;
+  (ii) AliasFree (x ≈ 16–20 on the finest raster) does NOT meet 1e-5 Ha on a tight pair's V_long -- a reason, beside the cost (M1),
+  for route (a) taking V_long off the raster; (iii) these are WORST-CASE single-pair numbers -- a production H_ij weights the tight
+  primitive by its tiny density share, which is what M2c measures on the four systems.
 - **M3 — the XC raster N vs 2N** on the same four, as §3's audit would print it.
 - **M4 — V_loc long route (a)**: delivered error and wall at the C2 raster vs the present term.
 - **M5 — R1.0r**: list every banked test on an anisotropic mesh (the re-bank set) before flipping.
