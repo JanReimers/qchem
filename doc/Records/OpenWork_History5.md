@@ -766,3 +766,35 @@ UT cell, so the ladder carries the gate), `TheNumericsKeysAreWarmAndAnOlderState
 POLICY is not recorded.
 
 | **A restart's fingerprint is incomplete, and its WARM line names keys, not consequences** (user 2026-10-29: grids, fit bases, U, the functional all move the converged ground state -- a restart across them MUST iterate, and should say so) | Today (`qchem.SolidState`, `MakeStateFingerprint`): WARM records +U (site/l/U/α/projector/U per irrep), densityEcut, cutoffFactor, the XC mesh kind+size, multiplicity, ortho kind/tol, kT, block realness; each difference prints `differs: <key>: saved <a>, now <b>`.  GAPS: (1) DONE 2026-10-30 (C4 step 5: functional WARM and truthful, `pp.set` REFUSE, positions WARM with max displacement; `Records/OpenWork_History5.md`).  (2) NOT recorded: the XC fit basis (`VxcFit`), the raster (BallOnly/AliasFree), the GPW tolerances (screenEps, mgridEcuts, relCutoff), the Becke eps.  (3) the WARM line gives the values but not WHAT they mean: user wants specifics, e.g. "XC fit basis changed (Delta -> PWFit) between the saved state and this run: the ground state moves, expect more iterations to reach the new one".  (4) (user 2026-10-29) the saved state's OWN convergence: the summary keeps the iteration count but not the final Δρ / [F,D] or which mixer converged it -- a state saved at Δρ 6e-6 by a Kerker/Pulay mixer on a soft system (β-MnO₂ A1AFM r015) re-opens one undamped Fock away at Δρ ~40× that, so even an EXACT resume should say "saved at Δρ 6.4e-6 by a mixed run: the first Fock amplifies that residual; expect iterations" | add the missing keys of (2) to WARM; give each WARM key a one-line meaning + consequence beside its saved/now values (a table keyed on the fingerprint name, so an unknown key still prints raw); gate: a restart across each new key prints its line and converges · `src/Calculation/Imp/SolidState.C` (MakeStateFingerprint, Differences), `src/Calculation/Imp/SolidCalculation.C` (Fingerprint, the WARM print l.~1167) |
+
+## ✅ "A free run's XC mesh follows the group detected at EACH geometry, so a surface jumps" (F, opened and closed 2026-10-30, lane B)
+
+FOUND by the first run of PES gate (c), `GPW_NaF.Γ_PathIsContinuous_Long` (F walked along x, δ = −0.095 … +0.095, h = 0.01 bohr,
+Γ, VALENCE_LOWQ_SR2, Becke(20,2,24), free).  Both carries (AO, Löwdin) agreed to ~1e-11, so the SCF was not the cause.  The path:
+the 16 points with |δ| ≥ 0.025 sat on a smooth sextic to 2e-9, the two at ±0.005 1.1e-6 Ha ABOVE it; E(δ) − E(−δ) grew exactly
+linearly (an odd term of 9.4e-5 Ha/bohr at a site where rocksalt's mirror through F forbids one).  Cold starts (no carry):
+δ = 0 sat 2.5e-5 Ha BELOW the curve (1.15e-4 at k222); the default Becke mesh (Lebedev 29) shrank both effects ~20× (step ~1.5e-6,
+asymmetry 6e-8…1e-7); the UNIFORM XC mesh was exactly mirror-symmetric (1e-13) and smooth; the AliasFree raster changed nothing
+(asymmetry 1.00e-6 vs BallOnly 9.85e-7, the same δ = 0 step).  CAUSE: KAxisPlan ruling 1 (a free run gets symmetric NUMERICS)
+built the free run's XC mesh invariant under the space group DETECTED at its geometry -- 48 ops / 16752 points on the site, 8 ops /
+17536 (52696 on the default mesh) off it -- so the quadrature switched as F moved, and off the site the 8-op group's site-adapted
+angular set is not mirror-symmetric, so ±δ were quadratured on sets that are not mirror images.  None of the C2 rows (uniform-raster
+equivariance, BallOnly aliasing, Kerker equivariance, the low-rank D factor, R1.0r) covers it: they are about one geometry.
+FIX: `SolidCalcOptions::xcMeshSymmetric` (default true = ruling 1, unchanged for a standalone run; false = the plain atom-centred
+mesh, `GPWParams::freeMeshInvariant`), resolved into the setup, so a session and `SolidCalculation(setup)` agree bit for bit;
+`SolidSession` THROWS on a free Gaussian setup with it true (no silent override); the fingerprint's `grids.xcMesh` gains " plain"
+(states written before keep their string).  The session ops are not knowable in advance for an arbitrary path, so the plain mesh is
+the only frozen choice no path can invalidate -- and the cheaper one: 7.6k points against 16.7–17.5k on NaF.  AFTER: mirror 5e-10
+over the whole path; the k-th differences fall geometrically (Δ³ 4.5e-7, Δ⁴ 1.0e-7, Δ⁵ 2.0e-8), the signature of a smooth curve.
+The gate's jump measure moved from Δ³ (which conflates a jump with the curve's own E'''h³) to Δ⁵ < 1e-7 (a step s shows as up to
+10 s); on the OLD code it reads 5.9e-6 (mirror 1.7e-5), so the gate catches this defect ~60× over.  Gates: the path test;
+`SolidSession.RefusalsAreOutcomesAndAWrongCountThrows` (the throw).  REMAINDER (own row): the F site is a MAXIMUM at this level.
+
+## PES / run-setup remainders (1)–(3) -- DONE 2026-10-30 (lane B); the items as they stood
+
+(1) gate (c) -- E along a 20-point path has no jump above the SCF tolerance -- and the NaF Γ instance: `GPW_NaF.Γ_PathIsContinuous_Long`
+(3.8 min serial, 71 MB), the item above.  (2) the Q3 `BasisConditioning` refusal UT: `SolidSession.AStepOutOfTheTrimWindowIsRefusedAsBasisConditioning`
+(9f1889f9; Si Γ at orthoTol 1e-3: min eig S 0.027 at the reference, 4.5e-4 at a quarter-bond squeeze -> refused; a 0.05 bohr step
+converges).  (3) the LÖWDIN carry of C, built and measured (3c940a3c, `SolidSession::Carry::Lowdin`): Si Γ 4 carried steps 41 vs 42
+iterations (AO), energies equal to 1e-11; NaF Γ 19 carried points 110 vs 96 iterations (AO), energies equal to ~1e-11 -- no lever,
+so the default stays AO.
