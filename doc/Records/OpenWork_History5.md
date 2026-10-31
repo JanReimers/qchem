@@ -961,3 +961,21 @@ PP / box set 156/156, UTCalculation 96/96, UTGaussian_BS 85/85, UTResponse LDA/H
 that gained a stage summary between two sweeps therefore read as a doubled iteration count -- the 8ab42909 panel's only
 "move" (a MnO2 resume, 5 -> 10) was this, not the SCF.  Fix: lines matching ` stage \d+/\d+\] ` are not counted (the result
 line always prints).  Both logs are parsed by the same rule, so old baselines stay comparable.
+
+## ✅ "CP2K oracle: is `ADDED_MOS` converged on the smeared TMO decks?" (lane G 2026-10-30) -- CLOSED 2026-10-31 (lane H); the row as it stood
+
+| **CP2K oracle: is `ADDED_MOS` converged on the smeared TMO decks?** (lane G 2026-10-30) | the GUI's CP2K translator first sized `ADDED_MOS` at 16 vs the banked MnO AFM-II +U deck's 20 and came out 15 μHa high: too few added MOs truncate the Fermi-Dirac occupations.  Nobody has shown 20 is itself converged | re-run the banked smeared decks (MnO, NiO, β-MnO₂ +U) at 2× `ADDED_MOS`; a move > 1 μHa re-banks per pin 10 · `doc/Records/CP2Kresults.md` |
+
+**Verdict.**  MnO AFM-II GPW VA (kT as banked), `~/Code/cp2k-runs/MnO_AFM2/`:
+
+| deck | EPS_SCF | ADDED_MOS | steps | E (Ha) | E_U (Ha) |
+|---|---|---|---|---|---|
+| U = 0 | 1e-6 | 20 (banked) | 44 | −61.30332518 | — |
+| U = 0 | 1e-6 | 40 | 44 | −61.303325178 | — |
+| +U 4 eV | 1e-6 | 16 (GUI, r001) | — | −60.6859558 | — |
+| +U 4 eV | 1e-6 | 20 (banked) | 104 | −60.68597088 | 0.60950923 |
+| +U 4 eV | 1e-6 | 40 | 103 | −60.68595142 | 0.60950893 |
+| +U 4 eV | 1e-8 | 20 | 136 | **−60.68588816** | 0.60950778 |
+| +U 4 eV | 1e-8 | 40 | 117 | −60.68588676 | 0.60950785 |
+
+U = 0 does not move at 2× ADDED_MOS.  At EPS_SCF 1e-6 the +U SCF (Broyden) stops on a ±15 μHa step-to-step oscillation, so the 16/20/40 spread does not follow ADDED_MOS; tightened to 1e-8, 20 and 40 agree to 1.4 μHa and both sit **83 μHa above the banked value**.  Re-judged per pin 10 against our own route (`GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long`, dE = 0.6174645): 110 μHa from the banked CP2K shift, 27 μHa from the tight one -- the independent route supports the move, so the +U anchor is re-banked at the 1e-8 ADDED_MOS 20 value (same deck as banked, EPS_SCF only) in `CP2Kresults.md` and `IntegrationTests/GPW/MnO.C` (gate tolerance 0.05 Ha, unchanged).  NiO has no banked CP2K energy; β-MnO₂'s oracle is QE (no CP2K deck) -- nothing else to re-run.  Lesson for the translator: a +U CP2K oracle quoted at μHa needs EPS_SCF ≤ 1e-8.
