@@ -3,7 +3,7 @@
 // The XC term is a point in {structure} x {Vxc fit} x {integration point set}:
 //   structure  solid (a lattice) | molecule | atom
 //   fit        δ (v sampled at the points) | A1 (the lineage's fitted auxiliary basis) | PW (the plane-wave ball)
-//   points     Becke (atom-centred) | uniform (a cell mesh)
+//   points     Becke (atom-centred) | uniform (a cell mesh) | radial (radial-only, ∫ f(r) 4πr² dr about one centre)
 // The SAMPLER that evaluates ρ at the points (pointwise singles vs pair collocation) is NOT an axis: it is chosen by
 // capability inside the one term, and its two strategies are gated against each other on the same mesh (the
 // equivalence test below).  The raster is a uniform cell mesh sized from ε -- a sizing rule, not a point set
@@ -11,9 +11,12 @@
 //
 // EVERY CELL HAS ONE OF THREE OUTCOMES (user 2026-10-31):
 //   A  it ASSEMBLES through the one XC term (\c Vxc_Quadrature);
-//   R  it is REFUSED at the factory: a representation may not impose a symmetry the structure lacks (a plane-wave
-//      fit or a periodic cell mesh imposes a translation group on a molecule or an atom); the refusal is an
-//      Outcome naming both symmetries (pin 30);
+//   R  it is REFUSED at the factory: a representation may not impose a symmetry the calculation lacks.  DERIVED, not
+//      listed (doc/Pins.md pin 30): G is the group the calculation imposes on ρ -- O(3) on the atom path, the point
+//      group (C₁ free) on the molecular path, a space group ⊇ T on a solid; H_R is what a representation imposes --
+//      O(3) for a radial-only rule or l = 0 about one centre, T for plane waves / lattice sums / a periodic cell
+//      mesh, {e} for atom-centred Gaussians or δ on Becke.  A cell is admissible iff H_fit ≤ G and H_points ≤ G;
+//      the refusal is an Outcome naming H_R and G;
 //   X  an EXPECTED FAILURE naming its defect row -- a list that only SHRINKS.
 // The test compares what each cell DOES TODAY with the table and fails on ANY difference, so an X that starts
 // passing fails it too: the ratchet.  Fixing a cell means moving its row to its target in this table.
@@ -62,13 +65,13 @@ using qcMesh::UnitCellKind;
 namespace
 {
 enum class Kind     {Solid, Molecule, Atom};
-enum class Points   {Becke, Uniform};
+enum class Points   {Becke, Uniform, Radial};
 enum class Target   {A, R};                                   //!< where the cell must end up
-enum class Observed {OneTerm, Refused, OtherTerm, Throws, SilentMesh};   //!< what it does today
+enum class Observed {OneTerm, Refused, OtherTerm, Throws, SilentMesh, NoPointSet};   //!< what it does today
 
 const char* Name(Kind k)     {return k==Kind::Solid ? "solid" : k==Kind::Molecule ? "molecule" : "atom";}
 const char* Name(VxcFit f)   {return f==VxcFit::Delta ? "δ" : f==VxcFit::Auxiliary ? "A1" : f==VxcFit::PlaneWave ? "PW" : "Auto";}
-const char* Name(Points p)   {return p==Points::Becke ? "Becke" : "uniform";}
+const char* Name(Points p)   {return p==Points::Becke ? "Becke" : p==Points::Uniform ? "uniform" : "radial";}
 const char* Name(Observed o)
 {
     switch (o)
@@ -78,6 +81,7 @@ const char* Name(Observed o)
         case Observed::OtherTerm:  return "builds the other XC term (FittedVxc)";
         case Observed::Throws:     return "throws";
         case Observed::SilentMesh: return "accepts a cell mesh on a structure with no cell";
+        case Observed::NoPointSet: return "cannot be stated (MeshParams has no radial-only point set)";
     }
     return "?";
 }
@@ -92,34 +96,59 @@ struct Cell
 const std::string kOneTerm ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (the molecular / atom FittedVxc is the other term)";
 const std::string kPin30   ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (pin-30 gap: the factory throws)";
 const std::string kI3      ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (I3: a PW fit on a Becke mesh, the E/H pairing not designed)";
+const std::string kRadial  ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (no radial-only point set: v_xc at radial points, 4πr² dr -- the atom path)";
 const std::string kRefuse  ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (the symmetry refusal is a throw, not an Outcome yet)";
 
 //! THE TABLE.  Edit a row only to move it toward its target; an X row is deleted (its \c today becomes the target)
 //! the day its defect is fixed.
 const std::vector<Cell> kCells=
 {
-    // -- solid: every representation has at most the lattice's symmetry, so every cell assembles
+    // -- solid (G ⊇ T): every representation but a radial-only one imposes at most T
     {Kind::Solid,    VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Solid,    VxcFit::Delta,     Points::Uniform, Target::A, Observed::OneTerm,    ""},
     {Kind::Solid,    VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::Throws,     kPin30},
     {Kind::Solid,    VxcFit::Auxiliary, Points::Uniform, Target::A, Observed::Throws,     kPin30},
     {Kind::Solid,    VxcFit::PlaneWave, Points::Becke,   Target::A, Observed::Throws,     kI3},
     {Kind::Solid,    VxcFit::PlaneWave, Points::Uniform, Target::A, Observed::OneTerm,    ""},
-    // -- molecule: a cell mesh or a plane-wave fit would impose a translation group it lacks
+    {Kind::Solid,    VxcFit::Delta,     Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
+    {Kind::Solid,    VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
+    {Kind::Solid,    VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
+    // -- molecule (G = the point group): only {e} representations -- a cell mesh / PW impose T, a radial rule O(3)
     {Kind::Molecule, VxcFit::Delta,     Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
     {Kind::Molecule, VxcFit::Delta,     Points::Uniform, Target::R, Observed::Throws,     kRefuse},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
     {Kind::Molecule, VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Throws,     kRefuse},
     {Kind::Molecule, VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
-    // -- atom: the same refusals as a molecule (its Becke mesh is the single-centre radial x angular product)
+    {Kind::Molecule, VxcFit::Delta,     Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
+    {Kind::Molecule, VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
+    {Kind::Molecule, VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
+    // -- atom (G = O(3)): Becke (less symmetry) and radial assemble; a cell mesh or PW impose T
     {Kind::Atom,     VxcFit::Delta,     Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
     {Kind::Atom,     VxcFit::Delta,     Points::Uniform, Target::R, Observed::Throws,     kRefuse},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Throws,     kRefuse},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
+    {Kind::Atom,     VxcFit::Delta,     Points::Radial,  Target::A, Observed::NoPointSet, kRadial},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::A, Observed::NoPointSet, kRadial},
+    {Kind::Atom,     VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
 };
+
+//! THE SYMMETRY RULE (pin 30), as a three-element lattice: {e} ≤ every G; T ≤ G only on a solid; O(3) ≤ G only on the
+//! atom path.  (A molecule's imposed point group contains neither T nor O(3).)
+enum class Group {E, T, O3};
+Group G(Kind k) {return k==Kind::Solid ? Group::T : k==Kind::Atom ? Group::O3 : Group::E;}
+Group H(Points p) {return p==Points::Becke ? Group::E : p==Points::Uniform ? Group::T : Group::O3;}
+Group H(Kind k, VxcFit f)
+{
+    if (f==VxcFit::PlaneWave) return Group::T;
+    if (f==VxcFit::Auxiliary)   // the lineage's own auxiliary fit: lattice-summed on a solid, atom-centred Gaussians on a
+        return k==Kind::Solid ? Group::T : k==Kind::Atom ? Group::O3 : Group::E;   // molecule, the spherical set on an atom
+    return Group::E;            // δ imposes nothing beyond its points
+}
+bool Leq(Group h, Group g) {return h==Group::E || h==g;}
+Target Derived(const Cell& c) {return Leq(H(c.kind,c.fit),G(c.kind)) && Leq(H(c.points),G(c.kind)) ? Target::A : Target::R;}
 
 bool Reached(const Cell& c) {return c.today==(c.target==Target::A ? Observed::OneTerm : Observed::Refused);}
 
@@ -141,6 +170,7 @@ bool HoldsTheOneTerm(const Streamable& ham)
 //! What the PUBLIC factory does with the cell today.
 Observed Observe(const Cell& c)
 {
+    if (c.points==Points::Radial) return Observed::NoPointSet;   // no MeshParams states it (yet)
     const qcMesh::MeshParams mesh=PointsFor(c.points);
     try
     {
@@ -188,6 +218,8 @@ TEST(VxcProductSpace, TheTableIsWellFormed)
 {
     for (const Cell& c : kCells)
     {
+        EXPECT_EQ(c.target, Derived(c)) << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points)
+            << ": the target must be pin 30's H_R ≤ G answer, not a listed one";
         EXPECT_EQ(Reached(c), c.row.empty()) << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points)
             << ": a cell at its target names no row; an expected failure must name one";
         size_t n=0;
@@ -196,7 +228,7 @@ TEST(VxcProductSpace, TheTableIsWellFormed)
     }
     for (Kind k : {Kind::Solid, Kind::Molecule, Kind::Atom})
         for (VxcFit f : {VxcFit::Delta, VxcFit::Auxiliary, VxcFit::PlaneWave})
-            for (Points p : {Points::Becke, Points::Uniform})
+            for (Points p : {Points::Becke, Points::Uniform, Points::Radial})
             {
                 bool listed=false;
                 for (const Cell& c : kCells) listed|= c.kind==k && c.fit==f && c.points==p;
