@@ -22,32 +22,15 @@ using json = nlohmann::json;
 namespace qchem::BasisSet::Gaussian
 {
     // The registries -- the single place each axis' names live.
-    static const std::map<BasisSetData, std::string> theFiles =      // axis 1: enum -> data file
+    // THE ONE REGISTRATION of a C++ handle: enum -> file stem (the name everywhere else; the file is <stem>.bsd).
+    static const std::map<BasisSetData, std::string> theStems =
     {
-        {BasisSetData::DZVP , "dzvp.bsd" },
-        {BasisSetData::DZVP2, "dzvp2.bsd"},
-        {BasisSetData::TZVP , "tzvp.bsd" },
-        {BasisSetData::ORB  , "orb.bsd"  },
-        {BasisSetData::ORB1 , "orb1.bsd" },
-        {BasisSetData::SIPP , "sipp.bsd" },
-        {BasisSetData::SIPP_SR, "sipp_sr.bsd"},
-        {BasisSetData::VALENCE_LOWQ, "valence_lowq.bsd"},
-        {BasisSetData::VALENCE_LOWQ_SR, "valence_lowq_sr.bsd"},
-        {BasisSetData::VALENCE_LOWQ_SR2, "valence_lowq_sr2.bsd"},
-        {BasisSetData::VALENCE_LOWQ_SPH, "valence_lowq_sph.bsd"},
-        {BasisSetData::VALENCE_LOWQ_VA , "valence_lowq_va.bsd" },
-        {BasisSetData::VALENCE_LOWQ_VB , "valence_lowq_vb.bsd" },
-    };
-    static const std::map<std::string, BasisSetData> theBasisNames = // axis 1: json name -> enum
-    {
-        {"dzvp" , BasisSetData::DZVP }, {"dzvp2", BasisSetData::DZVP2}, {"tzvp", BasisSetData::TZVP},
-        {"orb"  , BasisSetData::ORB  }, {"orb1" , BasisSetData::ORB1 }, {"sipp", BasisSetData::SIPP},
-        {"sipp_sr", BasisSetData::SIPP_SR}, {"valence_lowq", BasisSetData::VALENCE_LOWQ},
-        {"valence_lowq_sr", BasisSetData::VALENCE_LOWQ_SR},
-        {"valence_lowq_sr2", BasisSetData::VALENCE_LOWQ_SR2},
-        {"valence_lowq_sph", BasisSetData::VALENCE_LOWQ_SPH},
-        {"valence_lowq_va" , BasisSetData::VALENCE_LOWQ_VA },
-        {"valence_lowq_vb" , BasisSetData::VALENCE_LOWQ_VB },
+        {BasisSetData::DZVP , "dzvp" }, {BasisSetData::DZVP2, "dzvp2"}, {BasisSetData::TZVP, "tzvp"},
+        {BasisSetData::ORB  , "orb"  }, {BasisSetData::ORB1 , "orb1" }, {BasisSetData::SIPP, "sipp"},
+        {BasisSetData::SIPP_SR, "sipp_sr"},
+        {BasisSetData::VALENCE_LOWQ,     "valence_lowq"    }, {BasisSetData::VALENCE_LOWQ_SR,  "valence_lowq_sr" },
+        {BasisSetData::VALENCE_LOWQ_SR2, "valence_lowq_sr2"}, {BasisSetData::VALENCE_LOWQ_SPH, "valence_lowq_sph"},
+        {BasisSetData::VALENCE_LOWQ_VA , "valence_lowq_va" }, {BasisSetData::VALENCE_LOWQ_VB , "valence_lowq_vb" },
     };
     static const std::map<std::string, Engine>  theEngines  =        // axis 2: json name -> enum
     { {"mnd", Engine::MnD}, {"libcint", Engine::LibCint} };
@@ -117,13 +100,23 @@ namespace qchem::BasisSet::Gaussian
 
     void CheckPPProvenance(BasisSetData data, const std::vector<std::pair<std::string,int>>& species)
     {
-        CheckPPProvenance(theFiles.at(data), species);
+        CheckPPProvenance(BasisName(data)+".bsd", species);
+    }
+
+    std::string BasisName(BasisSetData data) {return theStems.at(data);}
+
+    bool RegisteredBasis(const std::string& name, BasisSetData& data)
+    {
+        std::string stem=name;
+        for (char& c : stem) c=(char)std::tolower((unsigned char)c);
+        for (const auto& [d,s] : theStems) if (s==stem) { data=d; return true; }
+        return false;
     }
 
     tBasisSet<double>* Factory(BasisSetData data, const Structure* cl, Engine engine, Angular angular,
                                const ShellTrim& trim)
     {
-        return FactoryFromFile(theFiles.at(data), cl, engine, angular, trim);
+        return FactoryFromFile(BasisName(data)+".bsd", cl, engine, angular, trim);
     }
 
     tBasisSet<double>* FactoryFromFile(const std::string& bsdFile, const Structure* cl, Engine engine, Angular angular,
@@ -144,9 +137,11 @@ namespace qchem::BasisSet::Gaussian
 
     tBasisSet<double>* Factory(const json& js, const Structure* cl)
     {
-        BasisSetData data    = Resolve(js, "basis",   "",          theBasisNames);  // required
+        if (!js.contains("basis") || !js["basis"].is_string() || js["basis"].get<std::string>().empty())
+            throw std::runtime_error("Gaussian::Factory: missing required \"basis\" (a file stem; the names: BasisNames())");
+        const std::string file = BasisFileOfName(js["basis"].get<std::string>());   // required; any stem in the data directory
         Engine       engine  = Resolve(js, "engine",  "mnd",       theEngines);
         Angular      angular = Resolve(js, "angular", "cartesian", theAngulars);
-        return Factory(data, cl, engine, angular);
+        return FactoryFromFile(file, cl, engine, angular);
     }
 }

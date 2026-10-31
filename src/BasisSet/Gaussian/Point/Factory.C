@@ -14,7 +14,7 @@
 //      ((l+1)(l+2)/2 per shell, carrying l>0 contaminants) or real Spherical harmonics (2l+1 per shell).
 //
 // Config (json) keys -- "basis" is required, the rest default:
-//   { "basis":   "dzvp",                  // BasisSetData, by name
+//   { "basis":   "dzvp",                  // a basis file STEM in the data directory (any .bsd there)
 //     "engine":  "mnd" | "libcint",       // Engine,  default "mnd"
 //     "angular": "cartesian" | "spherical" }  // Angular, default "cartesian"
 module;
@@ -30,8 +30,11 @@ export import qchem.BasisSet.Gaussian.Point.ShellTrim;   // the vet-stage trim t
 export namespace qchem::BasisSet::Gaussian
 {
     // Axis 1 -- the canned, optimized, externally generated (mostly-radial) basis-set DATA FILE.  The
-    // "...Data" suffix disambiguates from the BasisSet OBJECT in code.  Add one = one enum value + one
-    // file-map entry in Imp/Factory.C.
+    // "...Data" suffix disambiguates from the BasisSet OBJECT in code.  A basis is NAMED by its file stem
+    // (qchem.BasisSet.Gaussian.Point.BasisFiles: BasisNames / BasisFileOfName) -- every .bsd in the data
+    // directory is usable by name (json "basis", the deck's basis.data) with NO registration.  This enum is
+    // only the compile-time-checked C++ HANDLE for the files code names directly: one value + one stem in
+    // Imp/Factory.C's theStems, whose enum name is the stem upper-cased (CleanCode D-BASIS-REGISTRY).
     // (SIPP = ad-hoc Si/O valence set used only by the pseudopotential regression tests in A_PP.
     //  SIPP_SR = the same, most-diffuse primitives dropped, so the periodic Bloch overlap stays
     //  well-conditioned in a solid -- for GPW bulk crystals; see BasisSetData/sipp_sr.bsd.)
@@ -54,6 +57,12 @@ export namespace qchem::BasisSet::Gaussian
     //! own header: the BasisSet library does not know the pseudopotential library, the caller passes {element, q}.
     void CheckPPProvenance(const std::string& bsdFile, const std::vector<std::pair<std::string,int>>& species);
     void CheckPPProvenance(BasisSetData data,          const std::vector<std::pair<std::string,int>>& species);
+
+    //! The file STEM a registered handle names ("valence_lowq_sr2") -- its name everywhere outside C++.
+    std::string BasisName(BasisSetData data);
+    //! The handle of a registered NAME (any case), or false: the deck keeps a typed \c data for a registered file and a
+    //! \c file for any other stem.
+    bool RegisteredBasis(const std::string& name, BasisSetData& data);
 
     // Axis 2 -- the integral engine (orthogonal to the data set and the angular representation).
     enum class Engine { MnD, LibCint };
