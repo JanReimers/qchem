@@ -26,7 +26,7 @@ import qchem.BasisSet.Radial.Factory; // BasisSet::Radial::Type, BasisSetAccurac
 import qchem.Hamiltonian.Factory;   // Hamiltonian::Model, SpinGroup
 import qchem.Mesh;                  // qcMesh::MeshParams
 import qchem.ElectronConfiguration; // ElectronConfiguration
-import qchem.SCFIterator;           // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
+import qchem.SCFIterator;           // SCFIterator, SCFParams, IterationRow, EnergyBreakdown
 import qchem.Symmetry.Irrep;        // Irrep
 export import qchem.Symmetry.Spin;  // Spin (per-spin irrep enumeration), SpinGroup (an AtomCalcOptions field)
 import qchem.Orbitals;              // Orbital, Orbitals

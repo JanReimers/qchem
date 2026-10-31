@@ -46,7 +46,7 @@ import qchem.Hamiltonian.Factory;             // SpinGroup, VxcFit, the cHamilto
 export import qchem.Hamiltonian.HubbardEstimator;   // ACBN0Estimate (EstimateHubbardU), HubbardEstimate (the loop)
 export import qchem.Response;                  // ChannelResponse / ResponseFailure (IndependentResponse, LinearResponsePlan R0)
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the typed solid door
-import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, SCFProgress, EnergyBreakdown
+import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, IterationRow, EnergyBreakdown
 import qchem.ChargeDensity;                   // cDM_CD
 import qchem.ChargeDensity.Seed;              // SeedStrategy
 import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKind
