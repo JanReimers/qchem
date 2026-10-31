@@ -282,7 +282,7 @@ json ToJson(const SolidCalcOptions& o)
             {"accelerator",NameOf(o.accelerator,kAcc)},{"perKFermiLevels",o.perKFermiLevels},{"imposeSymmetry",o.imposeSymmetry},
             {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho,kOrtho)},{"orthoTol",o.orthoTol},{"numBands",o.numBands},{"forceComplex",o.forceComplex},
             {"spinsShareFermi",o.spinsShareFermi},{"greyImposition",o.greyImposition},{"momFromSeed",o.momFromSeed},
-            {"siteSpins",o.siteSpins},{"label",o.label},{"saveStateTo",o.saveStateTo}};
+            {"siteSpins",o.siteSpins},{"siteCharges",o.siteCharges},{"label",o.label},{"saveStateTo",o.saveStateTo}};
 }
 void FromJson(const json& j, SolidCalcOptions& o)
 {
@@ -324,7 +324,7 @@ void FromJson(const json& j, SolidCalcOptions& o)
     f.GetEnum("accelerator",o.accelerator,kAcc); f.Get("perKFermiLevels",o.perKFermiLevels); f.Get("imposeSymmetry",o.imposeSymmetry);
     f.GetEnum("seed",o.seed,kSeed); f.GetEnum("ortho",o.ortho,kOrtho); f.Get("orthoTol",o.orthoTol); f.Get("numBands",o.numBands); f.Get("forceComplex",o.forceComplex);
     f.Get("spinsShareFermi",o.spinsShareFermi); f.Get("greyImposition",o.greyImposition); f.Get("momFromSeed",o.momFromSeed);
-    f.Get("siteSpins",o.siteSpins); f.Get("label",o.label); f.Get("saveStateTo",o.saveStateTo);
+    f.Get("siteSpins",o.siteSpins); f.Get("siteCharges",o.siteCharges); f.Get("label",o.label); f.Get("saveStateTo",o.saveStateTo);
     f.Done();
 }
 
@@ -530,6 +530,8 @@ Materials::Material Resolve(RunSpec& spec)
     // THE MAGNETIC ORDERING IS STATED (OpenWork §3, 2026-10-26): the facade's own check, run here so a deck is refused BEFORE a revision is claimed.
     try { RequireStatedMagneticOrdering(spec.solid, *m.cell); }
     catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.siteSpins -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
+    try { RequireConsistentSiteCharges(spec.solid, *m.cell); }
+    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.siteCharges -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
     // AUTO PICKS THE KIND, NOT THE RECIPE (OpenWork §3, 2026-10-26): the mesh policy's own refusal, run here so --check catches it too.
     try { (void)qcMesh::ResolveXCMesh(spec.solid.xcMesh); }
     catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid."+std::string(e.what())); }

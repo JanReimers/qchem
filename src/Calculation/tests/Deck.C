@@ -41,12 +41,14 @@ TEST(Deck, NonDefaultValuesSurviveTheRoundTrip)
     SolidCalcOptions o;
     o.Nelec=48; o.multiplicity=1; o.species={{"Mn",15},{"O",6}}; o.kShift=rvec3_t(0.25,0,0.5);
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::CholeskyPivoted; o.imposeSymmetry=true; o.siteSpins={1,-1,0,0};
+    o.siteCharges={2,2,-2,-2};
     o.tolerances.screenEps=1e-8; o.tolerances.mgridEcuts={53.3,17.8}; o.xcMesh.beckeEps=1e-7; o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
     o.hubbard.push_back(HubbardU_OrthoAtomic(0,2,4.0));
     const json j=deck::ToJson(o);
     SolidCalcOptions back; deck::FromJson(j,back);
     EXPECT_EQ(deck::ToJson(back), j);
     EXPECT_EQ(back.species.size(),2u); EXPECT_EQ(back.species[0].first,"Mn"); EXPECT_EQ(back.tolerances.screenEps,1e-8);
+    EXPECT_EQ(back.siteCharges,(std::vector<int>{2,2,-2,-2}));
     ASSERT_EQ(back.hubbard.size(),1u); EXPECT_TRUE(back.hubbard[0].orthoAtomic); EXPECT_NEAR(back.hubbard[0].U,4.0/27.211386245988,1e-15);
 }
 
@@ -464,6 +466,22 @@ TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
     EXPECT_EQ(msg({{"multiplicity",1}}),"NO THROW") << "no +U: the imposed-without-U path is not (yet) covered";
     EXPECT_NE(msg({{"multiplicity",1},{"hubbard",{H}},{"siteSpins",{1,-1}}}).find("2 entries for 4 sites"),std::string::npos);
     EXPECT_NE(msg({{"siteSpins",{2,-1,0,0}}}).find("-1, 0 or +1"),std::string::npos);
+}
+
+// The IonicSAD charge order is STATED or derived (OpenWork §3 "Spinel charge order is CHOSEN by atom index", 2026-10-30): a stated
+// order is one charge per site, conserves the cell's charge, and seeds an IonicSAD run -- else the deck is refused at resolve.
+TEST(Deck, AStatedChargeOrderIsOnePerSiteNeutralAndIonicSAD)
+{
+    auto msg=[](json solid)
+    {
+        deck::RunSpec s; deck::FromJson(json{{"structure","NiO_AFM2"},{"solid",solid}},s);
+        try { deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); }
+        return std::string("NO THROW");
+    };
+    EXPECT_EQ(msg({{"siteCharges",{2,2,-2,-2}}}),"NO THROW") << "IonicSAD is the default seed";
+    EXPECT_NE(msg({{"siteCharges",{2,-2}}}).find("solid.siteCharges -- siteCharges has 2 entries for 4 sites (Ni Ni O O)"),std::string::npos);
+    EXPECT_NE(msg({{"siteCharges",{3,2,-2,-2}}}).find("sum to 1, not 0"),std::string::npos);
+    EXPECT_NE(msg({{"siteCharges",{2,2,-2,-2}},{"seed","SAD"}}).find("not IonicSAD"),std::string::npos) << "nothing else reads it";
 }
 
 //! A grid field set beside cellKind Auto used to be DROPPED (Auto resolves to a calibrated recipe): a β-MnO₂ mesh-convergence run came

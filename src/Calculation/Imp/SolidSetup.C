@@ -88,6 +88,23 @@ void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& s
                                     " non-magnetic cell.  It is no longer derived from the seed (doc/OpenWork.md §3, R2.5)");
 }
 
+//  THE CHARGE ORDER IS STATED OR DERIVED (OpenWork §3 "Spinel charge order is CHOSEN by atom index", 2026-10-30).
+void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st)
+{
+    if (o.siteCharges.empty()) return;
+    std::string sites;
+    st.ForEachSite([&](int Z, const rvec3_t&, bool){ sites+=(sites.empty()?"":" ")+thePeriodicTable().GetSymbol(Z); });
+    if (o.siteCharges.size()!=st.GetNumAtoms())
+        throw std::invalid_argument("SolidCalcOptions: siteCharges has "+std::to_string(o.siteCharges.size())
+                                    +" entries for "+std::to_string(st.GetNumAtoms())+" sites ("+sites+")");
+    int sum=0; for (int q : o.siteCharges) sum+=q;
+    if (sum!=0) throw std::invalid_argument("SolidCalcOptions: siteCharges sum to "+std::to_string(sum)+", not 0 -- formal charges conserve the"
+                                            " cell's charge ("+sites+")");
+    if (o.seed!=ChargeDensity::SeedStrategy::IonicSAD)
+        throw std::invalid_argument("SolidCalcOptions: siteCharges is stated but the seed is not IonicSAD -- only the ionic seed reads a"
+                                    " charge order, so nothing would consume it");
+}
+
 //---------------------------------------------------------------------------------------------------
 //  THE RESOLVE PHASE.  What used to be the decision half of SolidCalculation::BuildBasis, in the order it decided them; the
 //  build half (the Bloch basis, its report, the electron configuration) is SolidCalculation::BuildPoint.
@@ -142,7 +159,9 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     s->mol =std::move(mol);
     const std::shared_ptr<const Structure> st=s->cell;
     RequireStatedMagneticOrdering(opts, *st);
+    RequireConsistentSiteCharges(opts, *st);
     s->seedKey=SeedKeyOf(s->pp, *st);
+    s->seedKey.siteCharges=opts.siteCharges;
 
     // THE RESOLVED IMPOSITION (doc/OpenWork.md N5, user 2026-08-26).  The caller's flag AND the policy's
     // permission: CP2K parity forbids the capability outright, because CP2K does no symmetry work at all
