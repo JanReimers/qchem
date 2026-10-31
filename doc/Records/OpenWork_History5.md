@@ -832,3 +832,38 @@ number moves; λ-MnO₂ has no tie.  UTs `IonicSADSeed.AStatedChargeOrderReplace
 `Deck.AStatedChargeOrderIsOnePerSiteNeutralAndIonicSAD`.
 
 | **Spinel charge order is CHOSEN by atom index** (remainder of the closed "IonicSAD targets are per SPECIES", 2026-10-26) | the tie-break puts LiMn₂O₄'s Mn³⁺/Mn⁴⁺ on symmetry-equivalent 16d sites by atom index -- a chosen charge order, not a derived one | state it in the deck like `siteSpins` when the spinel campaign needs a specific order · `src/ChargeDensity/Imp/Seed.C` |
+
+## ✅ "The molecular facade's default XC mesh (30 radial / Lebedev 5) is 0.5 Ha/atom off" — DONE 2026-10-31 (lane B, 8a8e39b8)
+
+`CalcOptions::mesh` is now MHL 80 / Lebedev 29 (302 directions; m 3, α 2, Becke 2 unchanged).  Scan (single thread),
+reference MHL 150 / Lebedev 35, error per atom at 80/29: water LDA 1 μHa, N₂ Xα 3, F₂ GTH q7 27, Si atom 0.1, Si₂ at
+R 20 bohr 53 (the slowest case: the far-separated pair).  The 30/5 error was ANGULAR -- water LDA 30/29 is 0.7 mHa from
+converged, 80/5 still 65 mHa -- and NOT variational.  Cost: water LDA SCF 0.14 s → 2.8 s (20x); 100/35 would buy ~1 μHa/atom
+for 1.75x more.  60/17 measured as good on these four (≤ 18 μHa/atom, 1/3 the cost) but non-monotone at the 50 μHa level
+(F₂ 80/23 +74 μHa), so the default is the controller's 80/29.
+
+Every moved anchor, re-judged against PySCF (`scripts/pyscf_molecule_oracle.py`: exact J and XC, the same Cartesian dzvp, 200/590 grid; PySCF HF reproduces our
+HF water and O₂ anchors to 1e-8, so basis and geometry are identical):
+
+| anchor | 30/5 (old) | 80/29 (new) | 150/35 | PySCF exact | new − PySCF |
+|---|---|---|---|---|---|
+| M_Calculation.WaterLDA (+ M_DFT.WaterPolarizedLDA) | −75.932462 | −75.872652 | −75.872648 | −75.877299 | +4.65 mHa |
+| M_DFT.Water (+ WaterPolarizedSAD), Xα 0.74 | −76.149301 | −76.100897 | −76.100894 | −76.104768 | +3.87 |
+| M_DFT.WaterSpherical, Xα 0.74 | −76.148556 | −76.100121 | −76.100117 | −76.104104 (sph) | +3.98 |
+| M_DFT.N2, Xα 0.75197 | −109.217602 (pin −109.21679 at 2e-3 rel) | −109.225960 | −109.225954 | −109.227199 | +1.24 |
+| M_DFT.OxygenTripletLDA | −149.256288 | −149.263716 | −149.263710 | −149.299178 (UKS) | **+35.5** ⚠ |
+| Si2_PP_U E1 (Si pseudo-atom) | −3.759439 | −3.761718 | −3.761718 | -- | additivity |
+| Si2_PP_U E2 (Si₂, R 20) | −7.516293 | −7.523336 | −7.523443 | -- | E2−2E1 2.6 → 0.10 mHa |
+| F₂ GTH q7 valence_lowq_vb (lane G, no test) | −49.236805 | −48.192616 | −48.192561 | −48.200545 (CP2K −48.20058) | +8.0 |
+
+The closed-shell rows sit 1-5 mHa ABOVE exact: PySCF's A1_coul J-fit alone moves 2 mHa DOWN, so the fitted Vxc (`A1_exch`)
+carries it -- and the F₂ "PP route" row reads the same offset (re-attributed in OpenWork §3).  The O₂ triplet's +35.5 mHa
+(+28.3 exchange-only) is a separate defect of the POLARIZED path: new §3 row.  The 30/5 values sat 10-55 mHa BELOW exact.
+Test-side consequences: M_DFT.N2/Water drop the 2e-3 RELATIVE tolerance (0.2 Ha) that hid the mesh; M_Calculation.WaterLDA
+gains a 6 mHa PySCF oracle line; M_Sym's same-mesh invariance runs keep 30/5 explicitly (107 + 175 s on the default) and drop
+the retired Δ[F,D] gate (never met at the converged mesh's 1e-8 [F,D] wobble); OSi_PP_U gets kT 1e-4 (on a converged mesh the
+O 2p triple is exactly degenerate and integer aufbau flipped it to the cap -- 30/5's 12 directions had split it); the
+UTResponse LDA polarizability gate is 22 s on the new default (+0.6 / +1.4 / +0.7 percent vs PySCF CPKS).  A_PG_DFT (atoms vs
+NIST) unchanged in pass/fail.
+
+| **The molecular facade's default XC mesh (30 radial / Lebedev 5) is 0.5 Ha/atom off** (lane G S4, 2026-10-30) | `CalcOptions::mesh` (`src/Calculation/MoleculeSetup.C`: MHL, m 3, α 2.0, Becke 2; doc calls it "the proven molecular values" -- proven on HF only?).  F₂ LDA / GTH q7 / valence_lowq_vb: default −49.236805 vs converged −48.19259 (± 3e-5 from 80/29 up) = 1.044 Ha LOW; all-electron LDA water dzvp: −75.932462 vs −75.872652 = 60 mHa low.  Too LOW = the quadrature error is not variational; HF unaffected | recalibrate the default (80/29 converges both to < 2e-5/atom, measure the cost), gate it with an LDA molecule anchor at a converged mesh; re-judge any molecular DFT anchor banked on 30/5 (pin 10) · lane B · `src/Calculation/MoleculeSetup.C` |
