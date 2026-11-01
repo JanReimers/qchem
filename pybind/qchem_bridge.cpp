@@ -38,6 +38,7 @@ import qchem.Symmetry.Lattice_3D.SpaceGroup;    // SpaceGroup::Detect
 extern "C++" struct qcb_calc
 {
     std::unique_ptr<qchem::Calculation> calc;
+    qchem::SCFParams                    params;      // as asked at qcb_make; a re-run changes only NMaxIter
     std::vector<double>                 positions;   // flat 3N bohr, as asked
 };
 
@@ -85,12 +86,17 @@ qchem::Model parse_model(const std::string& m)
     throw std::invalid_argument("qchem_py: unknown model '" + m + "' (HF | LDA | Xalpha)");
 }
 
-qchem::SCFParams scf_params(int maxIter)
+qchem::SCFParams scf_params(const qcb_request& req)
 {
     qchem::SCFParams p;
-    p.NMaxIter = size_t(maxIter);
+    p.NMaxIter = size_t(req.maxIter);
+    if (req.relaxStart > 0.0) p.StartingRelaxRo = req.relaxStart;
+    if (req.relaxMax   > 0.0) p.MaxRelaxRo      = req.relaxMax;
     return p;
 }
+
+//! Thrown through the SCF loop when the sink asks to stop (qcb_row_fn's nonzero return); caught at the C boundary.
+struct StoppedByUser : std::runtime_error { StoppedByUser() : std::runtime_error("stopped by the user") {} };
 
 //! The facade's observer, forwarding each iteration's row to the C sink: every cell, generically.  One row type serves
 //! both facades (Calculation::Observer and SolidCalculation::Observer take the same IterationRow).
@@ -105,7 +111,7 @@ std::function<void(const qchem::SCFIterator::IterationRow&)> forward_to(qcb_row_
             cells.push_back({c.title.c_str(), c.value, c.text.c_str(), c.tolerance.value_or(std::nan("")),
                              c.scale == Scale::Log ? 1 : 0});
         const qcb_row row{int(r.iteration), r.eb.GetTotalEnergy(), int(cells.size()), cells.data()};
-        step(sink, &row);
+        if (step(sink, &row)) throw StoppedByUser{};
     };
 }
 
@@ -193,7 +199,8 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char
 
         const auto setup = qchem::MoleculeSetup::Resolve(mol, opts, acc);   // deep-copies mol
         // The observer rides the constructor, so the trace of ITS SCF streams from the first iteration.
-        h->calc = std::make_unique<Calculation>(setup, scf_params(req->maxIter),
+        h->params = scf_params(*req);
+        h->calc = std::make_unique<Calculation>(setup, h->params,
                                                 step ? forward_to(step, sink) : Calculation::Observer{});
         // The sink lives only for this call: detach it before returning (qcb_converge attaches its own).
         h->calc->OnIteration(Calculation::Observer{});
@@ -212,12 +219,15 @@ int qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char
     try
     {
         h->calc->OnIteration(step ? forward_to(step, sink) : Calculation::Observer{});
-        const auto out = h->calc->Converge(scf_params(maxIter));
+        qchem::SCFParams p = h->params;
+        p.NMaxIter = size_t(maxIter);
+        const auto out = h->calc->Converge(p);
         h->calc->OnIteration(Calculation::Observer{});      // the sink lives only for this call
         if (out) return 1;
         write_error(describe(out.Error()).c_str(), err, errlen);
         return 0;
     }
+    catch (const StoppedByUser& e) { h->calc->OnIteration(Calculation::Observer{}); write_error(e.what(), err, errlen); return 0; }
     catch (const std::exception& e) { write_error(e.what(), err, errlen); }
     catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
     return -1;
@@ -317,6 +327,7 @@ int qcb_solid_converge(qcb_solid* h, qcb_row_fn step, qcb_sink* sink, char* err,
         write_error(describe(out.Error()).c_str(), err, errlen);
         return 0;
     }
+    catch (const StoppedByUser& e)  { h->calc->OnIteration(SolidCalculation::Observer{}); write_error(e.what(), err, errlen); return 0; }
     catch (const std::exception& e) { write_error(e.what(), err, errlen); }
     catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
     h->calc->OnIteration(SolidCalculation::Observer{});

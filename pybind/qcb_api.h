@@ -43,7 +43,9 @@ typedef struct qcb_row
     int             ncells;
     const qcb_cell* cells;
 } qcb_row;
-typedef void (*qcb_row_fn)(qcb_sink*, const qcb_row*);
+//! Returns 0 to go on, nonzero to STOP the SCF (the user's Stop button): the bridge then abandons the solve and reports
+//! "stopped by the user" (qcb_make: null; the converge calls: 0).
+typedef int (*qcb_row_fn)(qcb_sink*, const qcb_row*);
 
 //! What the caller asks for: a molecule (Z + flat 3N bohr positions) and the CalcOptions the GUI exposes.
 typedef struct qcb_request
@@ -61,6 +63,8 @@ typedef struct qcb_request
     int           maxIter;
     int           meshRadial;     //!< XC mesh radial points per atom, 0 = the facade's default (CalcOptions::mesh)
     int           meshAngular;    //!< XC mesh Lebedev degree, 0 = the facade's default
+    double        relaxStart;     //!< linear D-mixing's starting step (SCFParams::StartingRelaxRo), 0 = the lib's default
+    double        relaxMax;       //!< its adaptive ceiling (SCFParams::MaxRelaxRo), 0 = the lib's default
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
