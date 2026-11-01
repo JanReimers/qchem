@@ -11,6 +11,7 @@
 #include <optional>
 #include <stdexcept>
 #include <vector>
+import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // ClientConsumes (what a run's client consumes, C2 step 3)
 import qchem.SolidCalculation;
 import qchem.Materials;
 import qchem.Lattice_3D;
@@ -34,20 +35,24 @@ SCFParams Tight()
     p.NMaxIter=100; p.MinΔρPerElectron=1e-8; p.MinΔE=1e30; p.MinΔFD=1e30; p.MinVirial=1e30; p.MinFD=1e30;
     return p;
 }
-SolidCalcOptions SiGamma(bool imposed=false)
+SolidCalcOptions SiGamma(bool imposed=false, bool statedRasters=true)
 {
     SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.imposeSymmetry=imposed; o.label="pes";
     o.xcMeshSymmetric=false;   // a session's free setup: the plain XC mesh, the same at every geometry (SolidSession requires it)
+    // The SESSION machinery's gates state the rasters (accuracy 0: the ball's own), so a session point and a single point sample on the
+    // same grids -- C2 step 3 sizes them by what the client consumes (a session: matrix elements; a single point: the energy), which
+    // SessionSizesItsRastersOnMatrixElements gates on its own.
+    if (statedRasters) o.accuracy.eps=0.0;
     return o;
 }
 const GaussianBasisRecipe kSiBasis{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR};
 
-std::shared_ptr<const SolidSetup> SiSetup(const std::vector<rvec3_t>* at=nullptr, bool imposed=false)
+std::shared_ptr<const SolidSetup> SiSetup(const std::vector<rvec3_t>* at=nullptr, bool imposed=false, bool statedRasters=true)
 {
     const auto mat=Materials::Get("Si_diamond");
     UnitCell cell(*mat.cell);
     if (at) for (size_t a=0;a<at->size();a++) cell[a]->itsR=(*at)[a];
-    return SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), kSiBasis, SiGamma(imposed));
+    return SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), kSiBasis, SiGamma(imposed, statedRasters));
 }
 } // namespace
 
@@ -84,6 +89,52 @@ TEST(SolidSession, ACarriedStepEqualsAFreshRunAtTheNewPositionsInFewerIterations
     EXPECT_NEAR(P1->energy, F->Energy(), 2e-8);
     EXPECT_GT(P1->energy, P0->energy) << "off the equilibrium site the energy rises";
     EXPECT_LT(P1->iterations, F->IterationCount()) << "the carried density is the point of the session";
+}
+
+// C2 step 3 (user ruling 2026-10-31): the run answers what its client consumes, and the pilot sizes on THAT -- a single point on its
+// energy (eps per atom), a session point on max|dH_ij| (eps per element: forces and paths read H), so the session's rasters are at least
+// the single point's; the session FREEZES them at its first point, so a later step samples the same grids (no surface jump).
+TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
+{
+    using BasisSet::Gaussian::ClientConsumes;
+    // The AUTO density floor (the ball's own raster delivers x ~ 4) and the Becke XC mesh: the LINEAR raster terms (Hartree, V_long) are
+    // what an H-graded pilot raises here, in one round.  (A uniform XC raster cannot reach 1e-5 per element on Si at any affordable x --
+    // 3e-5 at x 137, C2 step 3 -- which the pilot reports as NOT SETTLED with its advice; not a unit test's cost.)
+    const auto mat=Materials::Get("Si_diamond");
+    SolidCalcOptions o=SiGamma(false, /*statedRasters*/false);
+    o.densityEcut=-1.0;
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
+    const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), kSiBasis, o);
+    ASSERT_FALSE(setup->rastersResolved) << "the default setup self-calibrates";
+    SolidCalculation single(setup, Tight());
+    ASSERT_TRUE(single.Result());
+    EXPECT_EQ(single.Consumes(), ClientConsumes::Energy);
+    const auto sizedE=single.SizedSetup();
+    EXPECT_TRUE(sizedE->rastersResolved);
+    // What the pilot costs (reported and gated, not hidden): the energy run raises the density raster once from the ball's.
+    EXPECT_TRUE(single.PilotCost().settled);
+    EXPECT_EQ(single.PilotCost().rounds, 2);
+    // 39 measured 2026-10-31: the re-converged energy is settled at its FIRST iterate (dE 1e-9), the rest is GDM's linear Δρ tail down
+    // to this gate's Δρ/N 1e-8 (x0.81 per iteration) -- a cost a user pays at a tight Δρ gate, so it is pinned here.
+    EXPECT_LE(single.PilotCost().reconvergeIterations, 45u);
+
+    SolidSession pes(setup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}});
+    const PESGeometry ref=pes.Reference();
+    std::vector<rvec3_t> R=ref.R;
+    ASSERT_TRUE(pes.ConvergeAt(ref.cell, R));
+    ASSERT_TRUE(pes.Current());
+    EXPECT_EQ(pes.Current()->Consumes(), ClientConsumes::MatrixElements);
+    // A geometry pilot STARTS AT THE BOUND (rigorous L(eps), eta = 1): the audit confirms it, no re-convergence.
+    EXPECT_EQ(pes.Current()->PilotCost().rounds, 1) << "seeded at the bound, the first audit settles";
+    EXPECT_EQ(pes.Current()->PilotCost().reconvergeIterations, 0u);
+    const auto sizedH=pes.Current()->SizedSetup();
+    const auto& tE=sizedE->opts.tolerances; const auto& tH=sizedH->opts.tolerances;
+    EXPECT_GE(tH.rasterX, tE.rasterX);  EXPECT_GE(tH.vlocRasterX, tE.vlocRasterX);  EXPECT_GE(tH.xcRasterX, tE.xcRasterX);
+    std::cout<<"[raster sizing] energy run x=("<<tE.rasterX<<", "<<tE.vlocRasterX<<", "<<tE.xcRasterX<<")  geometry run x=("
+             <<tH.rasterX<<", "<<tH.vlocRasterX<<", "<<tH.xcRasterX<<")"<<std::endl;
+    R[1].x+=0.05;
+    ASSERT_TRUE(pes.ConvergeAt(ref.cell, R));
+    EXPECT_TRUE(pes.Current()->SizedSetup()->opts.tolerances==tH) << "a later point samples on the rasters the first point settled";
 }
 
 TEST(SolidSession, RefusalsAreOutcomesAndAWrongCountThrows)

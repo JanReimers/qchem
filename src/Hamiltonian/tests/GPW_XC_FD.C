@@ -73,6 +73,16 @@ std::unique_ptr<Real_BS> MakeBasis(const Structure& st)
         BasisSet::Gaussian::Factory(BasisSetData::SIPP, &st,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 }
+//! A raster resolving the ball's whole DIFFERENCE set, as the retired RasterPolicy::AliasFree did (C2 step 3 states it as an alias
+//! exponent): G_N = 2 G_ball on every level is x = 8 Ecut / p_cap -- 24 for SIPP (alpha_max 2) at Ecut 6 (p_cap = alpha_max on L0
+//! under its completion rung, 2 alpha_max on the rung at 2 Ecut).  Not more: a finer raster samples a sharper discrete E_xc, whose
+//! FD truncation at h = 1e-3 then exceeds the gate's 1e-5 (x 64: 3.0e-5) -- the gate is the derivative, not the raster.
+qchem::BasisSet::Gaussian::GPWTolerances DifferenceSetRasters()
+{
+    qchem::BasisSet::Gaussian::GPWTolerances t;
+    t.rasterX=t.vlocRasterX=t.xcRasterX=24.0;
+    return t;
+}
 } //anon
 
 // XC POTENTIAL-CONSISTENCY PROBE (doc/GPWPlan.md 0b instrument).  Question under test: is the assembled
@@ -96,7 +106,7 @@ TEST(GPW_XC, PotentialConsistencyFD)
     cell.AddAtom(14,{0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
-                BasisSet::PlaneWave::RasterPolicy::AliasFree);   // EXACT-QUADRATURE gate (production default = BallOnly)
+                4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, DifferenceSetRasters());   // EXACT-QUADRATURE gate (production: sized from eps)
     const GPW_Evaluator& ev=gpw;
     const auto& grid=ev.DensityGrid();
     const size_t n=static_cast<const Complex_OIBS&>(gpw).GetNumFunctions();
@@ -219,7 +229,7 @@ TEST(GPW_XC, RawConsistencyFD)
     cell.AddAtom(14,{0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
-                BasisSet::PlaneWave::RasterPolicy::AliasFree);   // EXACT-QUADRATURE gate (production default = BallOnly)
+                4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, DifferenceSetRasters());   // EXACT-QUADRATURE gate (production: sized from eps)
     const GPW_Evaluator& ev=gpw;
     const auto& grid=ev.DensityGrid();
     const size_t n=static_cast<const Complex_OIBS&>(gpw).GetNumFunctions();

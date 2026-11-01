@@ -196,6 +196,23 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     if (s->decoration.empty()) s->decoration.assign(lat.GetUnitCell().GetNumAtoms(), 0);
 
     s->planeWave = opts.orbitalBasis==SolidCalcOptions::OrbitalBasis::PlaneWave;
+    // THE RASTER DEMANDS (C2 step 3, doc/GridEpsilonPlan.md §1): eps = 0 states them (the tolerances as given); a stated calibration
+    // derives them here; otherwise the run's own pilot audit sizes them after its SCF (rastersResolved false: the pilot starts on the
+    // ball's own rasters).  Stating a demand beside a target would be two answers to one question.
+    {
+        const auto& a=opts.accuracy;
+        const auto& t=opts.tolerances;
+        if (!(a.eps>=0.0)) throw std::invalid_argument("SolidCalcOptions: accuracy eps must be >= 0 (0 = no target: the stated rasters)");
+        const bool stated = t.rasterX!=0.0 || t.vlocRasterX!=0.0 || t.xcRasterX!=0.0;
+        if (stated && a.eps>0.0)
+            throw std::invalid_argument("SolidCalcOptions: tolerances state a raster demand (rasterX / vlocRasterX / xcRasterX) beside an accuracy "
+                                        "target -- the target derives them; state accuracy 0 to give the rasters yourself");
+        if (!s->planeWave && a.eps>0.0)
+        {
+            if (a.eta) s->opts.tolerances=a.Stated(t);
+            else       s->rastersResolved=false;
+        }
+    }
     if (s->planeWave)
     {
         // THE PLANE-WAVE FAMILY (OpenWork §2 PW-1).  The factory builds ONE Γ block and knows no symmetry, so
@@ -204,8 +221,11 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
             throw std::invalid_argument("SolidCalcOptions: orbitalBasis PlaneWave needs planeWaveEcut > 0 (Ha)");
         if (lat.MakeKMesh(opts.kShift).size()!=1 || opts.kShift!=rvec3_t(0,0,0))
             throw std::invalid_argument("SolidCalcOptions: the plane-wave family is Γ-only so far (k-mesh 1x1x1, no shift)");
-        if (s->imposed)
-            throw std::invalid_argument("SolidCalcOptions: the plane-wave family has no symmetry imposition yet");
+        // A MAGNETIC imposition is the (D_up, D_dn) pair projection on the one Γ block (PW_BasisSet, OpenWork §2 PW-5).  A
+        // grey / spatial imposition would need the per-channel density star-average the plane-wave route does not have.
+        const bool magnetic=std::any_of(s->siteSpins.begin(), s->siteSpins.end(), [](int v){return v!=0;});
+        if (s->imposed && !magnetic)
+            throw std::invalid_argument("SolidCalcOptions: the plane-wave family imposes only a MAGNETIC (Shubnikov) group so far -- state siteSpins");
         // Plane waves ARE orthonormal: the default Cholesky would factor an identity S into two dense identity
         // factors per spin block.  A stated non-default ortho is obeyed (an A/B door).
         if (s->opts.ortho==qchem::Cholesky) s->opts.ortho=qchem::Orthonormal;

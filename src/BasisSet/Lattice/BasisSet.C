@@ -7,6 +7,7 @@
 module;
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 export module qchem.BasisSet.Lattice.BasisSet;
 export import qchem.BasisSet;                          // Complex_BS (= tBasisSet<dcmplx>)
@@ -14,7 +15,7 @@ export import qchem.Lattice_3D;                        // Lattice_3D (the crysta
 export import qchem.BasisSet.PlaneWave.PlaneWave_IBS; // PlaneWave::PlaneWave_IBS (+ the Orbital_PP_IBS service it implements)
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // GPWParams::tol (D-ENV step 5)
 export import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // Gaussian::GPW_IBS + Gaussian::CellImages (the GPWFactory mode argument)
-export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::RasterPolicy (a PUBLIC factory knob since 0.5(a))
+export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::RasterFields (GPWParams::rasterFields)
 export import qchem.BasisSet.Gaussian.Point.ShellTrim;   // ShellTrim (VetStageTrim's decision, pin 22)
 import qchem.BasisSet.Internal.BasisSetImp;            // BasisSetImp<dcmplx> (the PW_BasisSet base; NOT re-exported)
 import qchem.Types;                                    // dcmplx
@@ -31,7 +32,9 @@ enum class Type { PW };
 //!   (the pseudo-wall), which calls the basis's MakeSpeciesFieldMatrix/MakeProjectorMatrix assembly.
 //! \note Single-k for now: the returned basis holds ONE Bloch block at \f$\Gamma\f$.  Phase 2
 //!   generalises this to the full BZ k-list (intended to be the only k-loop in the framework).
-Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);
+//! \param siteSpins a MAGNETIC decoration (+1/-1/0 per site) to IMPOSE as a Shubnikov group on the Γ block, by the
+//!   (D↑, D↓) pair projection (\c tBasisSet::ProjectSpinPair, OpenWork §2 PW-5); {} = a free run.  Γ-only.
+Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut, const std::vector<int>& siteSpins={});
 
 //! \brief Build a GPW basis (periodic Gaussians on the lattice) over \a lat from a molecular Gaussian basis
 //! \a mol built on the cell's atoms, at density-collocation cutoff \a densityEcut.
@@ -60,10 +63,6 @@ struct GPWParams
     double       densityEcut = -1.0;    //!< <0 AUTO floor cutoffFactor*alpha_max (recommended); =0 1E-only; >0 explicit Ha
     // --- Advanced ---
     double       cutoffFactor= 2.0;     //!< C in the auto floor C*alpha_max (2 = the density's own product exponent)
-    PlaneWave::RasterPolicy raster = PlaneWave::RasterPolicy::BallOnly;   //!< FFT-raster policy.  DEFAULT BallOnly (user 2026-07-23,
-                                                    //!< after the 0.5(a) A/B: ~1 mHa at/above the C=2 floor, ~8x
-                                                    //!< fewer raster points; AliasFree = the exact-quadrature
-                                                    //!< option -- kernel gates and sub-floor grids want it)
     Gaussian::CellImages   images = Gaussian::CellImages::Periodic;     //!< lattice-image MODE (HomeCellOnly = the finite-box gates)
     rvec3_t      kShift = rvec3_t(0,0,0);           //!< fractional MP offset of the k-mesh (0 = Gamma-centred)
     double       ladderFactor = 4.0;                //!< REL_CUTOFF multigrid PROGRESSION factor (CP2K's, default 3;
@@ -126,6 +125,9 @@ Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const Bas
 //! all).  The orchestrator calls this AFTER the conditioning pre-flight, so a singular basis aborts before the
 //! grid ladder is ever built (fail-fast; doc/RunReportPlan.md).  No-op if a run is not open.
 void EmitGpwGrids(const Complex_BS& bs);
+//! The alias exponents a GPW basis's rasters deliver (the first GPW block speaks for all: the rasters are k-independent); none for a
+//! basis with no GPW block (plane waves).  What the facade's pilot audit fits each raster term's measured tail at (C2 step 3).
+std::optional<Gaussian::RasterExponents> GpwRasterExponents(const Complex_BS& bs);
 
 //! Fail-fast conditioning PRE-FLIGHT (doc/RunReportPlan.md, doc/GPWPlan1.md §4a): for each Bloch block of \a bs,
 //! analyse its ANALYTIC, grid-free overlap and emit the report's basis.perIrrep (conditioning) + basis.removed
@@ -180,7 +182,18 @@ public:
     //! Build one PlaneWave::PlaneWave_IBS per Brillouin-zone k-point of \a lat at cutoff \a Ecut (a single Gamma block
     //! for an N=(1,1,1) mesh).  The basis ctor is the sole place that enumerates k -- the framework's
     //! per-irrep loop then IS the BZ sum \f$\sum_k w_k\f$.
-    PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut);
+    //! \a siteSpins: a magnetic decoration to impose as a Shubnikov group (Γ only; {} = free) -- see \c Factory.
+    PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut, const std::vector<int>& siteSpins={});
+    //! The Shubnikov pair projection on the Γ block (see tBasisSet), the plane-wave sibling of GPW_BasisSet's.  An
+    //! op \f$g=\{W|\tau,\sigma\}\f$ maps a plane wave onto ONE plane wave times a phase,
+    //! \f$\phi_m(g^{-1}r)=e^{-2\pi i\,m'\cdot\tau}\phi_{m'}(r)\f$ with \f$m'=W^{-\top}m\f$, so its rep is a phased
+    //! permutation of the G list (never a dense matrix).  Inert on a free run.
+    virtual void ProjectSpinPair(hmat_t<double>& Dup, hmat_t<double>& Ddn) const override;
+    virtual void ProjectSpinPair(hmat_t<dcmplx>& Dup, hmat_t<dcmplx>& Ddn) const override;
+private:
+    //! One op's rep: wave i goes to wave perm[i] with amplitude phase[i]; flip = the op swaps the spin channels.
+    struct PairRep { std::vector<size_t> perm; cvec_t phase; bool flip; };
+    std::vector<PairRep> itsPairReps;   //!< {} unless a magnetic imposition (built in the ctor: the G list is in hand there)
 };
 
 //! A tBasisSet<dcmplx> holding ONE \f$\Gamma\f$ GPW block (periodic Gaussians), built from a molecular

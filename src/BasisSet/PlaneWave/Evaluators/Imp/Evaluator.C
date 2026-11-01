@@ -2,6 +2,8 @@
 module;
 #include <cassert>
 #include <algorithm>
+#include <cmath>
+#include <stdexcept>
 #include <cstdlib>    // getenv (GPW_FIELD_SPECTRUM)
 #include <iostream>
 #include <complex>
@@ -34,6 +36,13 @@ PW_Evaluator::PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, dou
     itsG = Internal::BuildGs(itsRecip, itsk, Ecut);   // { G : 1/2|k+G|^2 < Ecut }
 }
 
+PW_Evaluator::PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut, NyquistRaster raster)
+    : PW_Evaluator(recip, k, Ecut, RasterPolicy::BallOnly)
+{
+    if (!(raster.G>=0.0)) throw std::invalid_argument("PW_Evaluator: a stated raster's Nyquist radius must be >= 0");
+    itsNyquistG=raster.G;
+}
+
 rvec3_t PW_Evaluator::GetGCartesian(const ivec3_t& m) const
 {
     return itsRecip.GetCell().ToCartesian(rvec3_t(m)); // B m
@@ -54,6 +63,15 @@ ivec3_t PW_Evaluator::AutoGrid() const
         // alone, product fold-back accepted as Ecut-controlled discretization error (doc/GPWPlan 0.5(a)).
         int nn = itsRaster==RasterPolicy::AliasFree ? 4*m+1 : 2*m+1;
         itsAutoGrid=ivec3_t(nn,nn,nn);
+        if (itsNyquistG>0.0)   // a STATED raster: raise N until pi N/|a_i| >= G_N on every axis (the direct cell: the reciprocal's reciprocal)
+        {
+            // ISOTROPIC, as the policy rasters are: an imposed run star-averages the raster under the crystal ops, which needs a grid every
+            // op maps onto itself -- per-axis N broke it on Si's 2x1x1 supercell (XC off by 2.3 Ha, C2 step 3, 2026-10-31).
+            const UnitCell A=itsRecip.GetCell().MakeReciprocalCell();
+            auto need=[&](const rvec3_t& e){ return int(std::ceil(itsNyquistG*norm(A.ToCartesian(e))/Pi*(1.0-1e-12))); };
+            nn=std::max({nn, need(rvec3_t(1,0,0)), need(rvec3_t(0,1,0)), need(rvec3_t(0,0,1))});
+            itsAutoGrid=ivec3_t(nn,nn,nn);
+        }
     }
     return itsAutoGrid;
 }

@@ -104,6 +104,11 @@ struct SolidCalculation::Imp
     std::optional<Lattice_3D> lat;
     //! The MOLECULAR orbital basis the Bloch basis was built over: held for the grid audit, which rebuilds the Bloch basis on another raster.
     std::shared_ptr<const BasisSet::Real_BS> mol;
+    //! What the run's client consumes (\c SolidCalculation::Consumes): an energy, unless a SolidSession built this point.
+    BasisSet::Gaussian::ClientConsumes consumes = BasisSet::Gaussian::ClientConsumes::Energy;
+    //! The pilot audit has SETTLED this run's rasters (\c CalibrateRasters): \c setup->opts.tolerances are the final demands.
+    bool rastersSettled = false;
+    SolidCalculation::RasterPilotCost pilotCost;   //!< what the pilot cost (\c PilotCost)
 };
 
 //---------------------------------------------------------------------------------------------------
@@ -179,14 +184,16 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
              <<", seed="<<SeedName(o.seed)<<std::endl;
     std::cout<<"["<<o.label<<" run] grids: densityEcut="
              <<(o.densityEcut<0 ? std::string("auto") : std::to_string(o.densityEcut))
-             <<" C="<<o.cutoffFactor<<" raster="<<(o.raster==BasisSet::PlaneWave::RasterPolicy::BallOnly
-                                                   ? "BallOnly" : "AliasFree")
+             <<" C="<<o.cutoffFactor<<" raster x(density, V_long, XC L0)=("<<o.tolerances.rasterX<<", "<<o.tolerances.vlocRasterX
+             <<", "<<o.tolerances.xcRasterX<<")"
              <<" xcMesh="<<MeshName(xc.cellKind);
     // The radial/angular pair describes an ATOM-CENTRED mesh; printing it beside "Uniform" would be
     // stating a number that had no effect on the run, which is the opposite of self-description.
     if (xc.cellKind==qcMesh::UnitCellKind::Becke) std::cout<<" (nR="<<xc.nRadial<<" L="<<xc.angularDegree<<")";
     else                                          std::cout<<" (eCut="<<xc.eCut<<" Ha)";
     std::cout<<std::endl;
+    // The ONE accuracy target and what it implies (doc/GridEpsilonPlan.md §1): the rigorous demand beside the knobs the sizing uses.
+    if (o.planeWaveEcut<=0.0) std::cout<<"["<<o.label<<" run] accuracy: "<<o.accuracy.Describe(o.tolerances)<<std::endl;
     std::cout<<"["<<o.label<<" run] symmetry: "
              <<(imposed ? (o.greyImposition ? "IMPOSED (grey -- the erasure control)"
                                             : "IMPOSED (Shubnikov from the decoration)")
@@ -303,6 +310,7 @@ SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, cons
     qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
     const SCFAccelerators::Type accel=setup->opts.accelerator;
     Start(std::move(setup), params, accel);
+    CalibrateRasters(params);   // C2 step 3: the pilot, after the (only) stage
 }
 
 void SolidCalculation::Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel)
@@ -360,7 +368,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     if (S.planeWave)
     {
         qchem::report::Timed timed("setup: PW basis build");
-        itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.planeWaveEcut));
+        itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.planeWaveEcut, S.siteSpins));   // {} unless a magnetic imposition
         std::cout<<"["<<opts.label<<" run] plane-wave orbital basis: Ecut "<<opts.planeWaveEcut<<" Ha, "
                  <<itsImp->bs->GetNumFunctions()<<" PWs at Γ"<<std::endl;
     }
@@ -374,7 +382,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         if (!tol.Describe().empty())
             std::cout<<"["<<opts.label<<" run] GPW tolerances (non-default):"<<tol.Describe()<<std::endl;
         itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
-            .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
+            .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = tol,
             .hamPreservesReal = hamPreservesReal}));
@@ -544,6 +552,7 @@ SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, cons
         Start(std::move(setup), schedule.front().params, schedule.front().accelerator);
     }
     RunRestOf(schedule);
+    CalibrateRasters(schedule.back().params);   // C2 step 3: the pilot, after the FINAL stage
 }
 
 // Stage 0 has already run (Start converged it) -- report it, then continue through the rest, each stage seeded from the one
@@ -851,6 +860,11 @@ SolidCalculation::Converge(const std::vector<SCFStage>& schedule)
         EmitStageSummary(itsImp->setup->opts.label, s, schedule.size(), schedule[s].params.SmearingkT,
                          itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
     }
+    if (!itsImp->setup->rastersResolved && !itsImp->rastersSettled)
+    {
+        CalibrateRasters(schedule.back().params);   // C2 step 3: the pilot, after the FINAL stage
+        return Outcome_();                          // the re-converged point's
+    }
     return last;   // the FINAL stage's -- the earlier ones exist to feed it
 }
 
@@ -1071,11 +1085,15 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     if (!itsImp->setup->planeWave)
     {
         const auto& t=o.tolerances;
-        id.raster      =o.raster==BasisSet::PlaneWave::RasterPolicy::AliasFree ? "AliasFree" : "BallOnly";
+        {   // the raster demands (C2 step 3): what the run sampled on; a pilot's ball rasters read "BallOnly", as every older state did
+            std::ostringstream r; r<<std::setprecision(6)<<"x="<<t.rasterX<<","<<t.vlocRasterX<<","<<t.xcRasterX;
+            id.raster = t.rasterX==0.0 && t.vlocRasterX==0.0 && t.xcRasterX==0.0 ? std::string("BallOnly") : r.str();   // the ball's own = BallOnly's
+        }
         id.ladderFactor=o.ladderFactor;
         id.gpwTolerances={{"vlocEps",{t.vlocEps}}, {"localPPRelCutoff",{t.localPPRelCutoff}}, {"relFieldSharp",{t.relFieldSharp}},
                           {"screenEps",{t.screenEps}}, {"fieldSharp",{t.fieldSharp}}, {"relCutoff",{t.relCutoff}},
-                          {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts}};
+                          {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts},
+                          {"rasterX",{t.rasterX}}, {"vlocRasterX",{t.vlocRasterX}}, {"xcRasterX",{t.xcRasterX}}, {"accuracyEps",{o.accuracy.eps}}};
     }
     // The run's OWN policy table, resolved from its stated spec (not the process's installed one, which a later run may have replaced).
     for (const Deviation& d : RunPolicy(o.policy).Deviations())
@@ -1106,7 +1124,11 @@ SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSe
                           Observer onIteration)
 {
     auto R=PrepareRestart(path, std::move(setup), params, std::move(onIteration));
-    if (R) (void)R.Value()->Converge(params);   // the restored stage, as PrepareRestart stood it up
+    if (R)
+    {
+        (void)R.Value()->Converge(params);   // the restored stage, as PrepareRestart stood it up
+        R.Value()->CalibrateRasters(params);  // C2 step 3: a restart on an unresolved setup is a pilot too
+    }
     return R;
 }
 
@@ -1125,6 +1147,25 @@ SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const 
     auto saved=ReadSolidState(path);
     if (!saved) return refuse(saved.Error());
 
+    // A STATE SIZED FOR THIS TARGET (C2 step 3): on an unresolved setup whose accuracy eps the saved state was made at, its rasters are the
+    // ones a pilot settled for that eps -- adopt them, so an exact resume stays exact (the pilot would otherwise restart on the ball's
+    // own rasters and re-size).  Any other state (another eps, a stated raster, an older file) leaves the setup to its own pilot.
+    if (!setup->rastersResolved)
+    {
+        const auto& w=saved->fingerprint.warmNum;
+        auto one=[&](const char* k)->std::optional<double>
+        { auto it=w.find(k); return it!=w.end() && it->second.size()==1 ? std::optional<double>(it->second[0]) : std::nullopt; };
+        const auto eps=one("gpw.accuracyEps"), rx=one("gpw.rasterX"), vx=one("gpw.vlocRasterX"), xx=one("gpw.xcRasterX");
+        if (eps && rx && vx && xx && *eps==setup->opts.accuracy.eps)
+        {
+            auto adopted=std::make_shared<SolidSetup>(*setup);
+            adopted->opts.tolerances.rasterX=*rx; adopted->opts.tolerances.vlocRasterX=*vx; adopted->opts.tolerances.xcRasterX=*xx;
+            adopted->rastersResolved=true;
+            std::cout<<tag<<"adopting the saved state's rasters x(density, V_long, XC L0)=("<<*rx<<", "<<*vx<<", "<<*xx
+                     <<"): it was sized for this accuracy (eps "<<*eps<<")"<<std::endl;
+            setup=std::move(adopted);
+        }
+    }
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
     c->itsImp->onIteration=std::move(onIteration);
     // A restored density is at (or next to) the answer: a Ladder starts on its GDM rung (user 2026-10-21, OpenWork
@@ -1232,28 +1273,220 @@ std::vector<size_t> DefaultPerturbed(const qchem::Hamiltonian::HubbardChannels& 
 //---------------------------------------------------------------------------------------------------
 namespace
 {
-const char* RasterName(BasisSet::PlaneWave::RasterPolicy r) {return r==BasisSet::PlaneWave::RasterPolicy::AliasFree ? "AliasFree" : "BallOnly";}
+//! The raster demands of \a t, as the audit names a side.
+std::string RasterName(const BasisSet::Gaussian::GPWTolerances& t)
+{
+    if (t.rasterX==0.0 && t.vlocRasterX==0.0 && t.xcRasterX==0.0) return "ball rasters";
+    std::ostringstream os; os<<std::setprecision(4)<<"x(density, V_long, XC L0)=("<<t.rasterX<<", "<<t.vlocRasterX<<", "<<t.xcRasterX<<")";
+    return os.str();
+}
 //! The largest |a_ij - b_ij| of two term lists of one block, folded into \a terms (by position: one term order on both Hamiltonians).
 template <class M> void FoldΔH(const std::vector<M>& a, const std::vector<M>& b, std::vector<SolidCalculation::GridAuditTerm>& terms)
 {
     if (a.size()!=terms.size() || b.size()!=terms.size()) throw std::logic_error("GridAudit: a block's term list differs from the energies'");
     for (size_t t=0;t<a.size();t++)
+    {
+        if (a[t].rows()!=b[t].rows() || a[t].columns()!=b[t].columns())
+            throw std::logic_error("GridAudit: term "+std::to_string(t)+"'s block is "+std::to_string(a[t].rows())+" on the run, "
+                                   +std::to_string(b[t].rows())+" on the reference -- the bases do not match function for function");
         for (size_t i=0;i<a[t].rows();i++) for (size_t j=i;j<a[t].columns();j++)
             terms[t].maxAbsΔH=std::max(terms[t].maxAbsΔH, std::abs(a[t](i,j)-b[t](i,j)));
+    }
 }
 } //anon
 
-SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWave::RasterPolicy reference) const
+BasisSet::Gaussian::GPWTolerances SolidCalculation::ReferenceRasters(double margin) const
+{
+    namespace L3 = BasisSet::Lattice;
+    const auto x=L3::GpwRasterExponents(*itsImp->bs);
+    if (!x) throw std::logic_error("SolidCalculation: the basis has no GPW raster to refine");
+    BasisSet::Gaussian::GPWTolerances t=itsImp->setup->opts.tolerances;
+    t.rasterX    =x->density+margin;
+    t.vlocRasterX=(x->vlocLong>0.0 ? x->vlocLong : x->density)+margin;   // no own V_long ladder (the kappa-sweep path): it rides the density's
+    // The XC raster's error falls as a POWER of x, not e^{-x} (Si, C2 step 3), so x + margin would leave the reference's own error a
+    // sizeable fraction of the run's at large x: at least twice the run's x there ((1/2)^k of it, k ~ 4 measured).
+    t.xcRasterX  =std::max(x->xcL0+margin, 2.0*x->xcL0);
+    return t;
+}
+
+SolidCalculation::GridAuditResult SolidCalculation::GridAudit(double referenceMargin) const
+{
+    const SolidSetup& S=*itsImp->setup;
+    if (S.planeWave) throw std::invalid_argument("SolidCalculation::GridAudit: a plane-wave run has no raster to audit");
+    if (!(referenceMargin>0.0)) throw std::invalid_argument("SolidCalculation::GridAudit: the reference must be FINER than the run (margin > 0)");
+    qchem::report::Timed timed("postSCF: grid audit (reference basis + Hamiltonian + term matrices)");
+    const BasisSet::Gaussian::GPWTolerances ref=ReferenceRasters(referenceMargin);
+    return CompareAtFixedD(ref, rvec3_t(0,0,0), RasterName(ref));
+}
+
+BasisSet::Gaussian::ClientConsumes SolidCalculation::Consumes() const {return itsImp->consumes;}
+SolidCalculation::RasterPilotCost  SolidCalculation::PilotCost() const {return itsImp->pilotCost;}
+
+std::shared_ptr<const SolidSetup> SolidCalculation::SizedSetup() const
+{
+    if (itsImp->setup->rastersResolved) return itsImp->setup;
+    if (!itsImp->rastersSettled) throw std::logic_error("SolidCalculation::SizedSetup: the pilot audit has not settled the rasters (the run did not converge?)");
+    auto s=std::make_shared<SolidSetup>(*itsImp->setup);
+    s->rastersResolved=true;
+    return s;
+}
+
+void SolidCalculation::CalibrateRasters(const SCFParams& params)
+{
+    namespace G   = BasisSet::Gaussian;
+    namespace L3  = BasisSet::Lattice;
+    namespace rpt = qchem::report;
+    if (itsImp->setup->rastersResolved || itsImp->rastersSettled) return;
+    const std::string tag="["+itsImp->setup->opts.label+" raster pilot] ";
+    if (!itsImp->converged)
+    {
+        std::cout<<tag<<"SKIPPED: the SCF did not converge, so there is no D to audit -- the rasters stay the ball's own"<<std::endl;
+        return;
+    }
+    // THE TARGET, by what the client consumes (user ruling 2026-10-31): an energy run holds each raster term's |dE| to eps x the atom
+    // count; a geometry run holds its max|dH_ij| to eps (the energy error cancels inside Tr D dH, M2c verdict 3).
+    const G::ClientConsumes c=itsImp->consumes;
+    const bool   onH   =c==G::ClientConsumes::MatrixElements;
+    const size_t nAtoms=itsImp->lat->GetUnitCell().GetNumAtoms();
+    const double target=itsImp->setup->opts.accuracy.Target(c, nAtoms);
+    qchem::report::Timed timed("postSCF: raster pilot (reference basis + audit; re-converge when a raster rises)");
+    const std::streamsize prec0=std::cout.precision();
+    std::cout<<tag<<"sizing the rasters to "<<std::setprecision(3)<<target<<" Ha "
+             <<(onH ? std::string("per matrix element (max|ΔH_ij|): a geometry run")
+                    : "per raster term's energy (eps x "+std::to_string(nAtoms)+" atoms): an energy run")<<std::endl;
+    rpt::json rounds=rpt::json::array();
+    std::optional<std::pair<double,double>> xcBefore;   // the XC term's (x, delivered) one round back: the power-law fit's first point
+    bool xcOver=false;                                  // the XC term was over its target in the last round audited
+    for (int round=0;; ++round)
+    {
+        const G::RasterExponents x=*L3::GpwRasterExponents(*itsImp->bs);
+        const double xV = x.vlocLong>0.0 ? x.vlocLong : x.density;   // no own V_long ladder (the kappa-sweep path): the density's
+        const GridAuditResult R=CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), "pilot reference (x + 8)");
+        G::GPWTolerances t=itsImp->setup->opts.tolerances;
+        double dDens=0.0, dV=0.0, dXC=0.0;
+        rpt::json terms=rpt::json::array();
+        std::cout<<std::scientific<<std::setprecision(3);
+        for (const auto& T : R.terms)
+        {
+            double* demand=nullptr; double xRun=0.0; const char* which=nullptr;
+            if      (T.label.find("LONG-range")!=std::string::npos) { demand = x.vlocLong>0.0 ? &dV : &dDens; xRun=xV; which="V_long"; }
+            else if (T.entries=="Eee")                              { demand=&dDens; xRun=x.density; which="Hartree"; }
+            else if (T.entries=="Exc" && T.maxAbsΔH>0.0)
+            {
+                // WHOSE error is the uniform XC's?  Below the density's rigorous x the collocated rho itself aliases, and v_xc[rho] carries
+                // it: Na k222s at density x 6 read |dE_xc| 1.2e-4 with its XC raster at x 28 AND at x 60, and 5e-8 once the density raster
+                // went to x 16 (C2 step 3).  So there the XC term raises the DENSITY raster, under the density's shape; above it only the
+                // nonlinearity of v_xc is left, and the XC raster's own power law sizes L0 (Si Gamma, density x 27).
+                if (x.density < itsImp->setup->opts.accuracy.Rigorous(G::kDensityTail)) { demand=&dDens; xRun=x.density; which="XC via rho (MEASURED)"; }
+                else                                                                    { demand=&dXC;   xRun=x.xcL0;    which="XC (MEASURED: no bound)"; }
+            }
+            if (!demand) continue;   // an analytic term: nothing on a raster
+            const double d   =onH ? T.maxAbsΔH : std::fabs(T.ΔE);
+            double need=G::GridAccuracy::MeasuredDemand(d, xRun, target);   // 0 = meets the target here
+            if (demand==&dXC)   // no bound and no shape: once two rounds are measured, the XC term's own power law (MeasuredPowerDemand)
+            {
+                if (xcBefore && need>0.0)
+                    if (const double p=G::GridAccuracy::MeasuredPowerDemand(xcBefore->first, xcBefore->second, xRun, d, target); p>0.0) need=p;
+                xcBefore=std::pair{xRun, d};
+                // At most DOUBLE x per round: a slope from two nearby, noisy rounds extrapolates wildly (Si: k 1.4 from x 21 -> 30 would
+                // ask x ~ 3000), and the next round measures again anyway.
+                if (need>0.0) { need=std::min(need, 2.0*xRun); xcOver=true; } else xcOver=false;
+            }
+            const double C   =d/(std::pow(xRun,3.0)*std::exp(-xRun));             // the measured scale under the rigorous shape
+            *demand=std::max(*demand, need);
+            std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<which<<std::right<<" delivered "<<d<<" at x "<<std::defaultfloat
+                     <<std::setprecision(4)<<xRun<<std::scientific<<std::setprecision(3)<<"  (C = "<<C<<" Ha)  ";
+            if (need>0.0) std::cout<<"OVER: demands x "<<std::defaultfloat<<std::setprecision(4)<<need<<std::scientific<<std::setprecision(3)<<std::endl;
+            else          std::cout<<"meets "<<target<<std::endl;
+            terms.push_back({{"term",which},{"delivered",d},{"x",xRun},{"C",C},{"demand",need}});
+        }
+        std::cout<<std::defaultfloat<<std::setprecision(prec0);
+        rounds.push_back({{"round",round},{"rasters",RasterName(t)},{"terms",terms}});
+        itsImp->pilotCost.rounds=round+1;
+        const G::GPWTolerances was=t;
+        t.rasterX    =std::max(t.rasterX,     dDens);
+        t.vlocRasterX=std::max(t.vlocRasterX, dV);
+        t.xcRasterX  =std::max(t.xcRasterX,   dXC);
+        if (t==was)
+        {
+            std::cout<<tag<<"SETTLED after "<<round<<" re-convergence(s): every raster term meets "<<target<<" Ha on "<<RasterName(t)<<std::endl;
+            break;
+        }
+        if (round+1>=kPilotRounds)
+        {
+            std::cout<<tag<<"NOT SETTLED after "<<kPilotRounds<<" rounds: a term still over its target on "<<RasterName(was)
+                     <<" (the XC raster has no bound: its measured tail can fall slower than the shape the pilot fits) -- the run keeps "
+                     <<"these rasters and says so"<<std::endl;
+            if (xcOver && onH)
+                std::cout<<tag<<"ADVICE: the uniform XC raster is the term over -- v_xc[rho] sampled on a fixed raster does not follow the atoms, "
+                         <<"so a geometry run on it carries this as an egg-box; the atom-centred Becke mesh (xcMesh.cellKind Becke) follows "
+                         <<"them"<<std::endl;
+            break;
+        }
+        // REBUILD THIS POINT on the raised rasters and re-converge from the D just audited: a restored stage on the same Hamiltonian
+        // terms (the Ladder enters on its GDM rung at kT = 0, as a restart does).  Torn down iterator-first: each borrows the next.
+        std::cout<<tag<<"raising the rasters to "<<RasterName(t)<<" and re-converging from this D"<<std::endl;
+        const SavedState st=Carry();
+        auto sized=std::make_shared<SolidSetup>(*itsImp->setup);
+        sized->opts.tolerances=t;
+        const Lattice_3D lat=*itsImp->lat;
+        const auto mol=itsImp->mol;
+        // A restart's accelerator (CLAUDE.md: restarts run GDM or the DIIS->GDM Ladder at kT = 0): an Auto stage would resolve a restored
+        // density to LINEAR mixing at relax 0.3 -- Si's energy pilot spent 39 iterations there.  A stated accelerator is obeyed.
+        SCFAccelerators::Type asked=itsImp->stageAccelAsked;
+        if (asked==SCFAccelerators::Type::Auto && params.SmearingkT==0.0) asked=SCFAccelerators::Type::Ladder;
+        itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->ec.reset();
+        itsImp->bs.reset();
+        BuildPoint(std::move(sized), lat, mol);
+        const SpinGroup g=itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+        auto cd=RestoreDensity(st, *itsImp->bs, g);
+        if (!cd) throw std::logic_error("SolidCalculation::CalibrateRasters: the audited D does not restore onto the raised rasters: "+cd.Error().details);
+        itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
+        BuildRun(cd.TakeValue(), params, asked, /*restored*/true, /*exactResume*/false);
+        itsImp->accOpts.ladderStartOnGDM = itsImp->setup->acc.ladderStartOnGDM;
+        (void)Converge(params);
+        itsImp->pilotCost.reconvergeIterations+=itsImp->scf->GetIterationCount();
+        if (!itsImp->converged)
+        {
+            std::cout<<tag<<"the re-convergence on the raised rasters FAILED: the run's result is that failure"<<std::endl;
+            break;
+        }
+    }
+    itsImp->rastersSettled=itsImp->converged;
+    itsImp->pilotCost.settled=itsImp->rastersSettled;
+    std::cout<<tag<<"cost: "<<itsImp->pilotCost.rounds<<" audit round(s), "<<itsImp->pilotCost.reconvergeIterations
+             <<" re-convergence iteration(s) beyond the run's own"<<std::endl;
+    if (rpt::Depth()>0)
+        rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
+                                             {"rasters",RasterName(itsImp->setup->opts.tolerances)},{"settled",itsImp->rastersSettled},
+                                             {"auditRounds",itsImp->pilotCost.rounds},{"reconvergeIterations",(long)itsImp->pilotCost.reconvergeIterations}});
+}
+
+SolidCalculation::GridAuditResult SolidCalculation::EggBox(const rvec3_t& shift) const
+{
+    const SolidSetup& S=*itsImp->setup;
+    if (S.planeWave) throw std::invalid_argument("SolidCalculation::EggBox: a plane-wave basis is translation-invariant by construction -- nothing to gate");
+    if (S.imposed)   throw std::invalid_argument("SolidCalculation::EggBox: an IMPOSED group's SALC phases follow the origin, so the shifted blocks "
+                                                 "would not match function for function -- gate the free twin");
+    if (!S.recipe)   throw std::invalid_argument("SolidCalculation::EggBox: the setup was resolved from a PRE-BUILT basis that cannot follow the "
+                                                 "shifted atoms -- resolve it from a GaussianBasisRecipe");
+    if (norm(shift)==0.0) throw std::invalid_argument("SolidCalculation::EggBox: a zero shift measures nothing");
+    if (!itsImp->hubbard.empty()) throw std::invalid_argument("SolidCalculation::EggBox: the +U projectors are built at the run's positions and would "
+                                                              "not follow the shift -- gate the U = 0 twin");
+    qchem::report::Timed timed("postSCF: egg-box (shifted basis + Hamiltonian + term matrices)");
+    std::ostringstream os; os<<"shift ("<<shift.x<<", "<<shift.y<<", "<<shift.z<<") bohr";
+    return CompareAtFixedD(S.opts.tolerances, shift, os.str());
+}
+
+SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift,
+                                                                    const std::string& referenceName) const
 {
     namespace rpt=qchem::report;
     const SolidSetup&       S    = *itsImp->setup;
     const SolidCalcOptions& opts = S.opts;
-    if (S.planeWave) throw std::invalid_argument("SolidCalculation::GridAudit: a plane-wave run has no raster to audit");
-    if (reference==opts.raster)
-        throw std::invalid_argument(std::string("SolidCalculation::GridAudit: the reference raster is the run's own (")+RasterName(reference)+")");
+    const bool eggBox = norm(shift)>0.0;
     const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
-    if (!wf) throw std::logic_error("SolidCalculation::GridAudit: no wave function yet");
-    qchem::report::Timed timed("postSCF: grid audit (reference basis + Hamiltonian + term matrices)");
+    if (!wf) throw std::logic_error("SolidCalculation: no wave function yet (the audits run on a converged D)");
     const SpinGroup g = S.polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
     // The grid-audit verdicts of the report in scope: the run's own here, the reference's inside the fence below (both are printed, so
     // the predicted alias of whichever side is the coarse one can be read -- the run need not be the BallOnly side).
@@ -1280,16 +1513,29 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
     // describing the rasters the run USED.  (The run's own evaluator emitted its audits once, at its own first use, so nothing of the
     // run's lands in the fence.)  RAII: an exception mid-audit must not leave the report nested.
     struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} };
-    std::optional<Fence> fence(std::in_place, "gridAudit reference ("+std::string(RasterName(reference))+")");
+    std::optional<Fence> fence(std::in_place, "gridAudit reference ("+referenceName+")");
+    // The reference's GEOMETRY: the run's, or every atom translated rigidly by `shift` (the egg-box), its molecular basis remade from
+    // the frozen recipe there (as SolidSession builds a moved point).  Held to the end: the reference basis and Hamiltonian borrow them.
+    std::optional<Lattice_3D> latShifted;
+    std::shared_ptr<const BasisSet::Real_BS> molRef=itsImp->mol;
+    if (eggBox)
+    {
+        UnitCell cellR(S.reference.GetUnitCell());
+        for (size_t a=0;a<cellR.GetNumAtoms();a++) cellR[a]->itsR=cellR[a]->itsR+shift;
+        latShifted.emplace(cellR, S.reference.GetLimits());
+        molRef=S.recipe->Make(*latShifted->GetStructure(), S.pp);
+    }
+    const Lattice_3D& latRef = eggBox ? *latShifted : *itsImp->lat;
+    const auto        stRef  = eggBox ? latShifted->GetStructure() : itsImp->st;
     {
         namespace L3 = BasisSet::Lattice;
-        bsRef.reset(L3::GPWFactory(*itsImp->lat, itsImp->mol, L3::GPWParams{
-            .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = reference,
+        bsRef.reset(L3::GPWFactory(latRef, molRef, L3::GPWParams{
+            .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = opts.tolerances,
+            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = raster,
             .hamPreservesReal = !opts.forceComplex}));
         if (rpt::Depth()>0) L3::EmitGpwGrids(*bsRef);   // the reference's grids + density verdict, as setup emits the run's (it forces EnsureLevels)
-        hamRef.reset(qchem::Hamiltonian::Factory(g, itsImp->st, bsRef.get(), S.pp, S.xcMesh, opts.vxcFit, itsImp->hubbard));
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, S.xcMesh, opts.vxcFit, itsImp->hubbard));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);
     auto cdRef=RestoreDensity(st, *bsRef, g);
@@ -1299,7 +1545,7 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
     itsImp->ham->RefreshForDensity(itsImp->bs.get(), dRun);
     hamRef     ->RefreshForDensity(bsRef.get(),       dRef);
 
-    GridAuditResult R; R.reference=RasterName(reference);
+    GridAuditResult R; R.reference=referenceName;
     auto toVerdicts=[](const rpt::json& v)
     {
         std::vector<GridAuditVerdict> out;
@@ -1330,17 +1576,46 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
     refVerdicts=readVerdicts();
     fence.reset();
     R.runVerdicts=toVerdicts(verdicts); R.referenceVerdicts=toVerdicts(refVerdicts);
+    // The rigorous bound per raster term, at the COARSE side's predicted alias (whichever side that is), and the measured eta
+    // (doc/GridEpsilonPlan.md §1: the bound and the calibration isolated; §5 M2c verdict 3: forces' eta on max|dH|, never on E).
+    auto coarseX=[&](const char* key)
+    {
+        double a=0.0;
+        for (const rpt::json* v : {static_cast<const rpt::json*>(&verdicts), static_cast<const rpt::json*>(&refVerdicts)}) if (v->contains(key)) a=std::max(a, (*v)[key].value("alias",0.0));
+        return a>0.0 ? -std::log(a) : 0.0;
+    };
+    namespace G = BasisSet::Gaussian;
+    for (auto& t : R.terms)
+    {
+        if (t.label.find("LONG-range")!=std::string::npos)
+        {
+            t.x=coarseX("auditVlocLong"); if (t.x<=0.0) t.x=coarseX("auditDensity");   // the kappa-sweep path has no V_long audit
+            t.bound=G::kVlocLongTail.Bound(t.x); t.eta=t.bound>0.0 ? t.maxAbsΔH/t.bound : 0.0; t.etaOn="H";
+        }
+        else if (t.entries=="Eee")
+        {
+            t.x=coarseX("auditDensity"); t.bound=G::kDensityTail.Bound(t.x);
+            t.eta=(t.bound>0.0 && t.E!=0.0) ? std::fabs(t.ΔE/t.E)/t.bound : 0.0; t.etaOn="E";
+        }
+        else if (t.entries=="Exc" && t.maxAbsΔH>0.0) t.etaOn="measured";
+    }
 
     // REPORT, contemporaneously (pin 17): console table + the run report's `gridAudit` section.
     const std::streamsize prec0=std::cout.precision();
-    std::cout<<"[grid audit] delivered error at the converged D: "<<RasterName(opts.raster)<<" (this run) vs "<<R.reference<<" (reference)"<<std::endl;
+    if (eggBox) std::cout<<"[egg box] rigid translation at the converged D (fixed D: the SCF egg-box differs at second order), "<<RasterName(opts.tolerances)
+                         <<", "<<R.reference<<": analytic terms must read 0"<<std::endl;
+    else        std::cout<<"[grid audit] delivered error at the converged D: "<<RasterName(opts.tolerances)<<" (this run) vs "<<R.reference<<" (reference)"<<std::endl;
     std::cout<<std::scientific<<std::setprecision(3);
     rpt::json rows=rpt::json::array();
     for (const auto& t : R.terms)
     {
-        std::cout<<"[grid audit]   max|ΔH_ij| "<<std::setw(10)<<t.maxAbsΔH<<"  ΔE "<<std::setw(11)<<t.ΔE<<" Ha  "
-                 <<t.label<<" ["<<t.entries<<"]"<<std::endl;
-        rows.push_back({{"term",t.label},{"entries",t.entries},{"maxAbsDH",t.maxAbsΔH},{"dE",t.ΔE},{"E",t.E}});
+        std::cout<<"[grid audit]   max|ΔH_ij| "<<std::setw(10)<<t.maxAbsΔH<<"  ΔE "<<std::setw(11)<<t.ΔE<<" Ha  ";
+        if      (t.etaOn=="H" || t.etaOn=="E") std::cout<<"[x="<<std::defaultfloat<<std::setprecision(4)<<t.x<<std::scientific<<std::setprecision(3)
+                                                       <<" bound "<<t.bound<<" eta_"<<t.etaOn<<" "<<t.eta<<"]  ";
+        else if (t.etaOn=="measured")          std::cout<<"[MEASURED: no rigorous bound for the XC raster]  ";
+        std::cout<<t.label<<" ["<<t.entries<<"]"<<std::endl;
+        rows.push_back({{"term",t.label},{"entries",t.entries},{"maxAbsDH",t.maxAbsΔH},{"dE",t.ΔE},{"E",t.E},
+                        {"x",t.x},{"bound",t.bound},{"eta",t.eta},{"etaOn",t.etaOn}});
     }
     std::cout<<"[grid audit]   max|ΔH_ij| "<<std::setw(10)<<R.maxAbsΔH<<"  ΔE "<<std::setw(11)<<R.ΔE<<" Ha  TOTAL"<<std::endl;
     for (const auto& [who,vs] : {std::pair<const char*,const rpt::json*>{"the run's own",&verdicts},{"the reference's",&refVerdicts}})
@@ -1349,8 +1624,8 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(BasisSet::PlaneWav
                      <<" (predicted alias "<<it.value().value("alias",0.0)<<")"<<std::endl;
     std::cout<<std::defaultfloat<<std::setprecision(prec0);
     if (rpt::Depth()>0)
-        rpt::EmitAt("gridAudit", RasterName(opts.raster)+std::string("_vs_")+R.reference,
-                    rpt::json{{"run",RasterName(opts.raster)},{"reference",R.reference},{"terms",rows},
+        rpt::EmitAt(eggBox ? "eggBox" : "gridAudit", eggBox ? R.reference : RasterName(opts.tolerances)+std::string("_vs_")+R.reference,
+                    rpt::json{{"run",RasterName(opts.tolerances)},{"reference",R.reference},{"terms",rows},
                          {"maxAbsDH",R.maxAbsΔH},{"dE",R.ΔE},{"verdicts",verdicts},{"referenceVerdicts",refVerdicts}});
     return R;
 }
@@ -1831,6 +2106,19 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
         throw std::runtime_error("SolidCalculation: an EMPTY schedule has no meaning -- pass at least one stage.");
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
     c->itsImp->onIteration=std::move(onIteration);
+    // A SURFACE POINT: its client consumes matrix elements (a geometry -- forces, a path), so a pilot sizes on max|dH_ij|.
+    c->itsImp->consumes=BasisSet::Gaussian::ClientConsumes::MatrixElements;
+    // ITS PILOT STARTS AT THE BOUND (the controller's condition 2): a geometry run settles near the rigorous L(eps) (eta = 1) anyway --
+    // NaF's path settled at x 17.1 / 16.7 against 19.4 / 21.6 -- so starting there replaces a ball-raster SCF plus a re-convergence by one
+    // SCF the audit usually just confirms (it can still raise; it never lowers).  An energy run keeps the ball start: it settles at x 0-7,
+    // and the bound would cost it up to ~10x the raster on every run.
+    if (!setup->rastersResolved && !setup->planeWave)
+    {
+        auto seeded=std::make_shared<SolidSetup>(*setup);
+        BasisSet::Gaussian::GridAccuracy rig=setup->opts.accuracy; rig.eta=BasisSet::Gaussian::AccuracyCalibration{};
+        seeded->opts.tolerances=rig.Stated(setup->opts.tolerances);
+        setup=std::move(seeded);
+    }
     {
         qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
         c->BuildPoint(std::move(setup), lat, std::move(mol));
@@ -1855,6 +2143,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
         }
     }
     if (!carry && schedule.size()>1) c->RunRestOf(schedule);
+    c->CalibrateRasters(schedule.back().params);   // C2 step 3: on an unresolved setup (a session's first point) the pilot sizes the rasters
     return c;
 }
 
@@ -1984,6 +2273,9 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
 
     auto out=itsPoint->calc->Result();
     if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
+    // THE RASTERS ARE FROZEN at the first converged point (C2 step 3): every later point samples on the rasters this one's pilot settled,
+    // as it runs on the basis the setup froze -- a raster re-sized per point would make the surface jump.
+    if (!itsSetup->rastersResolved) itsSetup=itsPoint->calc->SizedSetup();
     return O::Ok(PESPoint{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()});
 }
 

@@ -285,6 +285,16 @@ static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now
         for (const auto& [k,v] : now.warmStr) if (k=="xc.fit" || k=="grids.raster") s.warmStr[k]=v;
         for (const auto& [k,v] : now.warmNum) if (k=="grids.beckeEps" || k=="grids.ladderFactor" || k.rfind("gpw.",0)==0) s.warmNum[k]=v;
     }
+    // The raster demands (C2 step 3, 2026-10-31): a state written before them sampled on a NAMED raster.  BallOnly IS the ball's own
+    // raster (every demand 0) and is still written so; AliasFree has no demand equivalent, so its keys stay absent and differ (warm).
+    // The accuracy target itself moves no state (the demands it derives do): an older state takes the run's.
+    if (!s.warmNum.count("gpw.rasterX") && now.warmNum.count("gpw.rasterX"))
+    {
+        auto r=s.warmStr.find("grids.raster");
+        if (r!=s.warmStr.end() && r->second=="BallOnly")
+            for (const char* k : {"gpw.rasterX","gpw.vlocRasterX","gpw.xcRasterX"}) s.warmNum[k]={0.0};
+        if (now.warmNum.count("gpw.accuracyEps")) s.warmNum["gpw.accuracyEps"]=now.warmNum.at("gpw.accuracyEps");
+    }
     // The policy routes (2026-10-30): likewise, all or none -- a state that records any route was written with the whole table.
     auto isPolicy=[](const auto& e){ return e.first.rfind("policy.",0)==0; };
     if (std::none_of(s.warmStr.begin(), s.warmStr.end(), isPolicy))

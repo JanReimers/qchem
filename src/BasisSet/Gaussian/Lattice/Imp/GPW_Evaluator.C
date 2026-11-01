@@ -225,15 +225,26 @@ std::vector<qchem::Math::CartTerm> MultiplyR2(std::vector<qchem::Math::CartTerm>
 //             image sits at 2 G_N, relative amplitude e^{-(2G_N)^2/4p} = e^{-G_N^2/p}.  BallOnly puts G_N at the ball edge
 //             (G_N^2 = 2 E_cut); AliasFree doubles it.  G_N here = the raster's inscribed Nyquist radius min_i pi N_i/|a_i|.
 // The tightest pair (p = 2 alpha_max) is routed to the finest level, so the finest raster is the one that must pass.
-// Flags UNDER at alias > 1e-6 (the oracle gates: BallOnly at E_cut/p = 2 is 4% on a tight pair's density and 1.5 Ha on its
-// V_loc-long diagonal; AliasFree there is <= 4e-5 / 3e-4 Ha -- UTLattice_BS GPW.TightPrimitive*).
+// C2 step 3: the raster is SIZED to its demand x (GPWTolerances::rasterX ..., derived from the accuracy target), so the verdict is the
+// demand's -- x = G_N^2/p >= xDemand, an ASSERTION (a level built short of it is a construction defect and throws).  The alias
+// column stays the measured fact (the oracle gates: G_N^2/p = 2 is 4% on a tight pair's density and 1.5 Ha on its V_loc-long
+// diagonal; 8 is <= 4e-5 / 3e-4 Ha -- UTLattice_BS GPW.TightPrimitive*).
+//! V_loc long's delivered x by the evaluator's IDFragment -- the key the framework caches its matrix under (theCache<dcmplx>): a second
+//! basis with the same ID takes the CACHED matrix and never runs MakeLocalPPLong, so the x is recorded where the matrix is (C2 step 3).
+std::mutex                    theVlocLongXLock;
+std::map<std::string, double> theVlocLongX;
+
+//! The top completion rung's gate (see BuildLevels): a rung is appended when the reference grid sits below
+//! RelCutoffSafety() x kRungGateC x alpha_max.  File scope: the ctor sizes L0's raster by whether a rung will sit above it.
+constexpr double kRungGateC=8.0;
+
 double RasterNyquist(const ivec3_t& N, const UnitCell& A)
 {
     const double a1=norm(A.ToCartesian(rvec3_t(1,0,0))), a2=norm(A.ToCartesian(rvec3_t(0,1,0))), a3=norm(A.ToCartesian(rvec3_t(0,0,1)));
     return std::min({Pi*N.x/a1, Pi*N.y/a2, Pi*N.z/a3});
 }
 void EmitGridAudit(const std::string& key, const std::string& term, double p, double beta,
-                   double ecutBall, const ivec3_t& N, const UnitCell& A, bool judgeBall, double ballTol=1e-6)
+                   double ecutBall, const ivec3_t& N, const UnitCell& A, double xDemand, bool judgeBall, double ballTol=1e-6)
 {
     namespace rpt = qchem::report;
     // The verdict is the RASTER's, fixed at setup, but V_long's is reached once per k-block evaluator (Al k222 printed it 8x, OpenWork
@@ -247,8 +258,10 @@ void EmitGridAudit(const std::string& key, const std::string& term, double p, do
     const double tail = std::exp(-Gb*Gb/(4.0*ph));
     const double GN   = RasterNyquist(N, A);
     const double alias= std::exp(-GN*GN/p);
-    const double kTol = 1e-6;
-    const bool   ok   = alias<=kTol && (!judgeBall || tail<=ballTol*(1.0+1e-9));   // the ball by the tolerance it was BUILT to
+    if (GN*GN/p < xDemand*(1.0-1e-9))
+        throw std::logic_error("GPW grid audit: "+term+" -- the finest raster delivers x = G_N^2/p = "+std::to_string(GN*GN/p)
+                               +" below its demand "+std::to_string(xDemand)+" (a level was built short of GPWTolerances' raster demand)");
+    const bool   ok   = !judgeBall || tail<=ballTol*(1.0+1e-9);   // the raster meets its demand (asserted above); the ball by the tolerance it was BUILT to
     rpt::json r;
     r["term"]        = term;
     r["pPair"]       = p;                                   // the tightest pair sampled on this raster (2 alpha_max)
@@ -260,8 +273,10 @@ void EmitGridAudit(const std::string& key, const std::string& term, double p, do
     r["ballTail"]    = tail;
     r["ballJudged"]  = judgeBall;
     r["rasterN"]     = { N.x, N.y, N.z };
-    r["rasterGneed"] = std::sqrt(p*std::log(1.0/kTol));
+    r["rasterGneed"] = std::sqrt(p*xDemand);
     r["rasterGhave"] = GN;
+    r["xDemand"]     = xDemand;
+    r["x"]           = GN*GN/p;
     r["alias"]       = alias;
     r["status"]      = ok ? "OK" : "UNDER";
     rpt::EmitAt("grids", key, r);
@@ -269,8 +284,7 @@ void EmitGridAudit(const std::string& key, const std::string& term, double p, do
     {
         std::ostringstream os;
         os<<"[grid audit] UNDER: "<<term<<" -- tightest pair p="<<p<<" on raster "<<N.x<<"x"<<N.y<<"x"<<N.z<<" (G_N="<<GN
-          <<", needs "<<std::sqrt(p*std::log(1.0/kTol))<<"): alias e^{-G_N^2/p}="<<alias
-          <<(judgeBall ? "; ball tail "+std::to_string(tail)+" (ball tolerance "+std::to_string(ballTol)+")" : std::string())<<" (alias tolerance 1e-6)";
+          <<", alias e^{-G_N^2/p}="<<alias<<"): ball tail "<<tail<<" (ball tolerance "<<ballTol<<")";
         std::cout<<os.str()<<std::endl;
         rpt::Log(os.str());
     }
@@ -280,7 +294,7 @@ void EmitGridAudit(const std::string& key, const std::string& term, double p, do
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                              double densityEcut, const rvec3_t& kFrac, bool kIsReal, bool homeCellOnly,
-                             double cutoffFactor, RasterPolicy raster, double ladderFactor,
+                             double cutoffFactor, double ladderFactor,
                              RasterFields rasterFields, const GPWTolerances& tol)
     : itsMol(std::move(mol))
     , itsTol(tol)
@@ -290,7 +304,6 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     , itsCell(cell)
     , itsCutoffFactor(cutoffFactor)
     , itsLadderFactor(ladderFactor)
-    , itsRaster(raster)
 {
     // The single orbital block of the (raw, no-SALC) molecular Gaussian basis.
     const BasisSet::Real_OIBS* only=nullptr;
@@ -399,8 +412,11 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
                       << "*alpha_max=" << floor << " (basis alpha_max=" << aMax << "): the density grid "
                       << "under-resolves the basis -- charge will leak off-grid (integral rho_grid < N). Prefer "
                       << "densityEcut>=" << floor << ", or the automatic default (densityEcut<0)." << std::endl;
-        itsFFT_R_G_Grids=std::make_shared<const PlaneWave::PW_Grid_Evaluator>(
-                    ReciprocalLattice(cell.MakeReciprocalCell()), rvec3_t(0,0,0), ecut, itsRaster);
+        // L0's raster (C2 step 3): the density demand at the exponent L0 serves -- every pair when it is the finest level (an explicit
+        // mgridEcuts list, or no completion rung above it), else the relative rule's cap -- raised for the uniform XC's own demand.
+        const bool rung = itsTol.mgridEcuts.empty() && ecut < itsLat->RelCutoffSafety()*kRungGateC*aMax;
+        itsFFT_R_G_Grids=MakeLevel(ReciprocalLattice(cell.MakeReciprocalCell()), ecut, PairCap(ecut, ecut, !rung),
+                                   std::max(itsTol.rasterX, itsTol.xcRasterX));
     }
 }
 
@@ -913,6 +929,24 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
 // are gone.
 // The block's OWN ladder (from itsFFT_R_G_Grids), cached for OverlapMatrix (the integrate-back) + MakeLocalPP.  The
 // collocator instead builds its ladder from the REQUESTED fit grid (MakeCollocator -> BuildLevels(grid)).
+double GPW_Evaluator::PairCap(double ecut, double ecutRef, bool finest) const
+{
+    const double amax=itsLat->MaxExponent();
+    const double beta=itsRelFieldSharp>=0.0 ? itsRelFieldSharp : itsTol.fieldSharp*amax;   // the relative rule's field floor
+    const double pmax=std::max(2.0*amax, beta);                                              // the tightest p_eff of any pair
+    if (finest) return pmax;
+    const double cap = itsTol.relCutoff>0.0 ? ecut/itsTol.relCutoff
+                                            : ecut*2.0*amax/(itsLat->RelCutoffSafety()*ecutRef);
+    return std::min(pmax, cap);
+}
+
+std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>
+GPW_Evaluator::MakeLevel(const ReciprocalLattice& recip, double ecut, double pCap, double x) const
+{
+    assert(x>=0.0 && pCap>0.0);
+    return std::make_shared<const PlaneWave::PW_Grid_Evaluator>(recip, rvec3_t(0,0,0), ecut, PlaneWave::NyquistRaster{std::sqrt(x*pCap)});
+}
+
 void GPW_Evaluator::EnsureLevels() const
 {
     if (!itsLevels.empty()) return;
@@ -948,7 +982,7 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PlaneWave::PW_Grid_Evaluat
                 std::cerr<<"[GPW] mgridEcuts: skipping sub-level "<<e<<" >= reference "<<grid->Ecut()<<std::endl;
                 continue;
             }
-            levels.push_back(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e, itsRaster));
+            levels.push_back(MakeLevel(grid->Recip(), e, PairCap(e, grid->Ecut(), false), itsTol.rasterX));   // L0 (above) is the finest
         }
         nBaseLevels=levels.size();          // no top rung: the explicit list IS the whole ladder
         for (const auto& g : levels)
@@ -971,7 +1005,7 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PlaneWave::PW_Grid_Evaluat
     while (e/f>=ecoarse)                              // factor-f coarsening down to the diffuse floor
     {
         e/=f;
-        auto g=std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e, itsRaster);
+        auto g=MakeLevel(grid->Recip(), e, PairCap(e, efine, false), itsTol.rasterX);   // a coarse level is never the finest
         // DEGENERACY FLOOR (min grid points): the ONLY failure mode of a coarse level is a cell too small to
         // hold a coarser grid -- an FFT grid saturating at N~1-2 no longer scales like sqrt(Ecut) and loses
         // charge (a sigma~2 pair on h=7 lost percent-level charge -- the failed crystal gate).  Keep the
@@ -999,10 +1033,12 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PlaneWave::PW_Grid_Evaluat
     // absolute-kappa local-PP sweep -- when the (f2) raw-XC feed dropped the density-floor default C 8->2,
     // a gate borrowing C silently lost the rung at explicit Ecuts the kappa gate needs
     // (GPW.LocalPPKappaSelfConverged: analytic-vs-grid short 0.087 without the Ecut=20 rung at Ecut=10).
-    static constexpr double kRungGateC=8.0;   // the C=8-era measured calibration, now standalone
+    // (kRungGateC = 8, the C=8-era measured calibration, now standalone: file scope, the ctor sizes L0's raster by the same gate.)
     if (efine < itsLat->RelCutoffSafety()*kRungGateC*amax)
-        levels.push_back(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(
-                                grid->Recip(), rvec3_t(0,0,0), itsLat->RelCutoffSafety()*efine, itsRaster));
+    {
+        const double e=itsLat->RelCutoffSafety()*efine;
+        levels.push_back(MakeLevel(grid->Recip(), e, PairCap(e, efine, true), itsTol.rasterX));
+    }
     for (const auto& g : levels)
     {
         levelN.push_back(g->FFTGrid());
@@ -1032,7 +1068,7 @@ void GPW_Evaluator::ReportGrids(std::ostream& os) const
 {
     os<<"[GPW basis] n="<<itsN<<" alpha_min="<<itsLat->MinExponent()<<" alpha_max="<<itsLat->MaxExponent()
       <<" cutoffFactor="<<itsCutoffFactor
-      <<" raster="<<(itsRaster==RasterPolicy::BallOnly?"BallOnly":"AliasFree")
+      <<" raster x(density, V_long, XC L0)=("<<itsTol.rasterX<<", "<<itsTol.vlocRasterX<<", "<<itsTol.xcRasterX<<")"
       <<" routing="<<(itsRelFieldSharp>=0.0?"HartreeOnly beta=":"HartreeXC beta=2/3*alpha_max=")
       <<(itsRelFieldSharp>=0.0?itsRelFieldSharp:(2.0/3.0)*itsLat->MaxExponent())<<" Ha-exp"
       <<" (auto density floor Ecut="<<itsCutoffFactor*itsLat->MaxExponent()<<" Ha)"<<std::endl;
@@ -1075,7 +1111,7 @@ void GPW_Evaluator::EmitGridsReport() const
     rpt::json g;
     g["densityEcut"]  = itsCutoffFactor * itsLat->MaxExponent();   // the auto density-grid floor Ecut
     g["cutoffFactor"] = itsCutoffFactor;
-    g["raster"]       = (itsRaster == RasterPolicy::BallOnly ? "BallOnly" : "AliasFree");
+    g["raster"]       = { {"x", itsTol.rasterX}, {"vlocX", itsTol.vlocRasterX}, {"xcX", itsTol.xcRasterX} };   // the demands (0 = the ball's own)
     g["routing"]      = (itsRelFieldSharp>=0.0 ? "HartreeOnly" : "HartreeXC");   // field-sharpness routing policy
     g["routingBeta"]  = (itsRelFieldSharp>=0.0 ? itsRelFieldSharp : (2.0/3.0)*itsLat->MaxExponent());
     if (itsFFT_R_G_Grids)                                          // null == DFT tier off (no grids)
@@ -1098,6 +1134,12 @@ void GPW_Evaluator::EmitGridsReport() const
             row["N"]     = { N.x, N.y, N.z };
             row["ecut"]  = lv.Ecut();
             row["nG"]    = (long)lv.size();
+            {   // the alias exponent this level DELIVERS at the tightest pair the rule can route to it (C2 step 3: >= the demand)
+                size_t Lf=0;
+                for (size_t l=1;l<itsLevels.size();l++) if (itsLevels[l]->Ecut()>itsLevels[Lf]->Ecut()) Lf=l;
+                const double GN=RasterNyquist(N, itsCell);
+                row["x"] = GN*GN/PairCap(lv.Ecut(), itsLevels[0]->Ecut(), L==Lf);
+            }
             if (!sops.empty())
                 row["Gstars"] = (long)Symmetry::Lattice_3D::FoldGVectors(lv.Gs(), sops).Reps();
             row["role"]  = role;
@@ -1118,12 +1160,29 @@ void GPW_Evaluator::EmitGridsReport() const
         // Hartree's 1/G^2 kernel suppresses the ball tail, and the ball is the density's own (accepted e^{-E/2p} tail, by
         // design): the RASTER is what this row judges.
         EmitGridAudit("auditDensity", "density collocation (Hartree + XC raster)", 2.0*itsLat->MaxExponent(), beta,
-                      itsLevels[Lf]->Ecut(), itsLevels[Lf]->FFTGrid(), itsCell, /*judgeBall*/false);
+                      itsLevels[Lf]->Ecut(), itsLevels[Lf]->FFTGrid(), itsCell, itsTol.rasterX, /*judgeBall*/false);
     }
     // The lattice-sum economy readout (grids.latticeSums + the [lattice sums] console line): the numbers
     // that JUMP when diffuse functions are added -- the owner of the screens (the molecular evaluator)
     // reports them, so the eps values never leak through the face.
     itsLat->EmitLatticeSumReport(itsCell);
+}
+
+RasterExponents GPW_Evaluator::DeliveredRasterExponents() const
+{
+    RasterExponents x;
+    if (!itsFFT_R_G_Grids) return x;
+    EnsureLevels();
+    size_t Lf=0;
+    for (size_t L=1;L<itsLevels.size();L++) if (itsLevels[L]->Ecut()>itsLevels[Lf]->Ecut()) Lf=L;
+    const double Gf=RasterNyquist(itsLevels[Lf]->FFTGrid(), itsCell), G0=RasterNyquist(itsLevels[0]->FFTGrid(), itsCell);
+    x.density =Gf*Gf/(2.0*itsLat->MaxExponent());
+    x.xcL0    =G0*G0/PairCap(itsLevels[0]->Ecut(), itsLevels[0]->Ecut(), Lf==0);
+    {
+        std::lock_guard<std::mutex> lock(theVlocLongXLock);
+        if (auto it=theVlocLongX.find(IDFragment()); it!=theVlocLongX.end()) x.vlocLong=it->second;
+    }
+    return x;
 }
 
 // Bloch sum of the Gaussian orbitals, chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R), over the COLLOCATION set (the
@@ -1381,16 +1440,33 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
     std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>> levels=itsLevels;
     double emax=0.0;
     for (double e : ecut_L) emax=std::max(emax,e);
+    const double xV=std::max(itsTol.vlocRasterX, itsTol.rasterX);
     if (ecutTop>emax)
     {
-        auto g=std::make_shared<const PlaneWave::PW_Grid_Evaluator>(itsFFT_R_G_Grids->Recip(), rvec3_t(0,0,0), ecutTop, itsRaster);
+        auto g=MakeLevel(itsFFT_R_G_Grids->Recip(), ecutTop, PairCap(ecutTop, ecut_L[0], true), xV);
         levels.push_back(g); N_L.push_back(g->FFTGrid()); ecut_L.push_back(g->Ecut());
+    }
+    // V_long's OWN rasters (C2 step 3): when its demand exceeds the density's, every level of this private ladder is re-sampled at it
+    // (the same balls, so the harmonic routing below is unchanged; a static, once-per-geometry integrate-back).
+    if (itsTol.vlocRasterX>itsTol.rasterX)
+    {
+        size_t Lf=0;
+        for (size_t L=1;L<ecut_L.size();L++) if (ecut_L[L]>ecut_L[Lf]) Lf=L;
+        const size_t nOwn = ecutTop>emax ? levels.size()-1 : levels.size();   // the top level was built at xV already
+        for (size_t L=0;L<nOwn;L++)
+        {
+            levels[L]=MakeLevel(itsFFT_R_G_Grids->Recip(), ecut_L[L], PairCap(ecut_L[L], ecut_L[0], L==Lf), xV);
+            N_L[L]=levels[L]->FFTGrid();
+        }
     }
     const std::vector<size_t> lv=itsLat->StaticFieldPairLevels(ecut_L, beta, lnE);
     {
         size_t Lf=0;
         for (size_t L=1;L<ecut_L.size();L++) if (ecut_L[L]>ecut_L[Lf]) Lf=L;
-        EmitGridAudit("auditVlocLong", "V_loc long (integrate-back)", p2, beta, ecut_L[Lf], N_L[Lf], itsCell, /*judgeBall*/true, eps);
+        EmitGridAudit("auditVlocLong", "V_loc long (integrate-back)", p2, beta, ecut_L[Lf], N_L[Lf], itsCell, xV, /*judgeBall*/true, eps);
+        const double GN=RasterNyquist(N_L[Lf], itsCell);
+        std::lock_guard<std::mutex> lock(theVlocLongXLock);
+        theVlocLongX[IDFragment()]=GN*GN/p2;
     }
     // Vtilde(dm) = (1/Omega) Sum_a f_long(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 DROPPED (the E_alphaZ
     // alignment carries the mean -- the same convention as MakeLocalPP's form-factor closure).
@@ -1714,7 +1790,7 @@ std::string GPW_Evaluator::IDFragment() const
          +"|dEcut="+(itsFFT_R_G_Grids?std::to_string(itsFFT_R_G_Grids->Ecut()):std::string("0"))
          // The RASTER and the LADDER are grid facts too: two bases differing only in raster sampled V_loc long (and every key-cached grid
          // term) on different rasters, but shared one cache entry -- the grid audit's reference read the run's own V_long (2026-10-31).
-         +(itsRaster==RasterPolicy::AliasFree ? "|raster=AF" : "|raster=BO")
+         // The raster demands are GPWTolerances (rasterX ...), so the tolerance fragment below carries them.
          +(itsLadderFactor==4.0 ? std::string() : "|ladder="+std::to_string(itsLadderFactor))
          +(itsTol==GPWTolerances{} ? std::string() : "|tol="+itsTol.Describe());   // a non-default tolerance is a different basis for caching
 }

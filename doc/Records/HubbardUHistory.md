@@ -1,5 +1,7 @@
 # HubbardUHistory — verbatim archive as of 2026-10-01 (RECORD, holds no open work)
 
+> ⚠ **rundeck / gpwprobe timings before 2026-10-31 had THREADED BLAS under them** (fixed c95c1fa4): neither main pinned OpenBLAS, so it ran its default 16-thread pool, busy-waiting beside our OpenMP regions, while the banner printed `BLAS=1`.  `gpwprobe` dates from 2026-09-15, `rundeck` from 2026-10-03.  **Re-measure before quoting any such wall/CPU time as a serial comparison.**  Numbers from ctest / ITMain / the UT exes and from scfrun are UNAFFECTED: those mains always pinned.  The pin now runs when qcCommon loads, for every executable, and the banner's `BLAS=N` reports the count OpenBLAS actually runs.
+
 Live plan: doc/HubbardUPlan.md. Below: the full HubbardUPlan.md as of 2026-10-01, then OpenWork §1.
 
 ---
@@ -2377,6 +2379,31 @@ The binary is merged main `06260200` + `e9765e33`. The restart fix `91032167` is
 **DECISION (2026-10-31, lane H, asked by the controller): the GPW-vs-PW spin-response comparison stays on the A1AFM branch, and the ferri basin is NOT substituted for it.**  Reasons: the deficit being explained is an A1AFM quantity (U = 4.62 eV, where BOTH bases converge A1AFM free); the dip-then-rise hypothesis is a statement about one branch, so a U = 1 eV point on the ferri state would compare two different states; and that the ferri state lies lower (11.69 mHa at U = 0, QE agrees; 11.7 mHa at U = 1 on GPW, `uscan/control_U1free`) is a separate physics fact with its own `OpenWork.md` §3 row.  So the U = 1 point is measured IMPOSED on GPW (stated siteSpins, Shubnikov pair projector -- the existing ladder, r018).  The PW side cannot impose (`SolidSetup.C`: "the plane-wave family has no symmetry imposition yet"); it waits on whether A1AFM is LOCALLY STABLE free at U = 1 (GPW free, plain Kerker 0.1, from r018: `uscan/control_U1freeK.json`).  Stable → PW reaches it by a gentler path; unstable → the PW point needs Γ Shubnikov imposition on the plane-wave block (an OpenWork feature row), and until then the hypothesis rests on the α-probe slopes (PW −0.0013 vs GPW −0.0024).
 
 **The free-stability test answered (2026-10-31): UNSTABLE.**  `uscan/control_U1freeK` (GPW, FREE, plain Kerker 0.1, restarted from the converged IMPOSED U = 1 state r018, so there is no U step) sits on A1AFM for 11 iterations (Δρ 1e-4, m ±3.510, O p_z ±0.016), then the two Mn split (iteration 21: +3.389 / −3.634, O p_z all positive) and it lands in the ferri basin by iteration ~40: +2.931 / −3.923, O p_z +0.28…+0.30 / +0.24, E −93.37794, 11.67 mHa below A1AFM -- the same state as `control_U1free` (the Pulay route) and the PW warm start.  It does not converge there: a period-2 swap of the two outer O p_z moments (0.2987 ↔ 0.2798) holds Δρ at 8.4e-4 to the 300 cap.  Verdict: A1AFM is a saddle of the free SCF map at U = 1 eV, not a basin a gentler mixer could reach; the PW point needs Γ Shubnikov imposition on the plane-wave block (`OpenWork.md` §2 row PW-5).  Until then the dip-then-rise hypothesis rests on the α-probe slopes.
+
+**The PW U = 1 eV point (2026-10-31, PW-5): PW dips too, at about half GPW's depth, and the shortfall builds up evenly across the U range.**
+`pw/pw_E40_U1imp` (r021, main at the PW-5 commit 08637da0): PW 40 Ha, A1AFM IMPOSED (16 ops, 8 spatial + 8 spin-flip), warm from the PW
+U = 0 state r017, plain Kerker 0.1, U = 1 eV on O p Γ2.  CONVERGED in 87 iterations on A1AFM, Etot −92.6627400205.  The Mn pair holds
+±3.4869 throughout, so PW-5's imposition holds what the free runs lost.  Converged values, Mn d moment m, Mn d occupation N_d, O p_z moment:
+
+| basis | m U=0 | m U=1 | m U=4.62 | Δm 0→1 | Δm 1→4.62 | Δm total | ΔN_d 0→1 | ΔO p_z m 0→1 |
+|---|---|---|---|---|---|---|---|---|
+| PW 40 Ha | 3.4904 | 3.4869 | 3.5287 | **−0.0035** | +0.0418 | **+0.0383** | −0.0367 | −0.0118 |
+| GPW control | 3.5177 | 3.5102 | 3.5406 | −0.0075 | +0.0304 | +0.0229 | −0.0317 | −0.0110 |
+| GPW p5f3_Od | 3.5191 | 3.5130 | 3.5493 | −0.0061 | +0.0363 | +0.0302 | −0.0352 | −0.0117 |
+
+(GPW: `uscan/control_U{0,1a,4.62}`, `uscan/p5f3_Od_U{0,1a,4.62}`, imposed; PW: `pw/pw_E40_U0s`, `pw_E40_U1imp`, `pw_E40_U`.)
+
+What it settles:
+- **The dip is physics, not a GPW artefact.**  PW dips too.  The prediction (−0.004 to −0.005) was slightly deep; PW measured −0.0035.
+- **The deficit is NOT concentrated in the dip OR in the nonlinear rise.**  For control it is 0.0040 over 0→1 eV and 0.0114 over 1→4.62 eV
+  (0.0040 / 0.0031 per eV).  For p5f3_Od it is 0.0026 + 0.0055 (0.0026 / 0.0015 per eV).  So GPW's Mn d SPIN response to U on O p_z is
+  short by a roughly STEADY fraction at every U, and the bigger Mn basis cuts that fraction about in half.  The 2026-10-29 hypothesis
+  (the deficit is the deeper dip carried to large U) is therefore only a quarter right: the dip region holds 26 % (control) / 32 % (p5f3) of it.
+- **Every other channel is PW's.**  The O p_z moment on the U slot moves the same in all three (−0.0110…−0.0118 at 0→1 eV; −0.034…−0.038
+  in total).  The Mn d CHARGE moves within 4–14 % of PW (−0.032…−0.037 at 0→1; −0.126…−0.131 in total).  Only the Mn d MOMENT's response
+  to a given O p_z change falls short: the O p_z → Mn d SPIN cross term, which the 2026-10-28 probe already flagged as the basis-sensitive part.
+- **Next** (OpenWork §3 β-MnO₂ row): a basis ladder on that one number, the ratio Δm_d / ΔO p_z m at U = 1 eV (cheap: about 80 imposed
+  iterations per point, no limit cycle).  It locates which Mn shells carry the spin hybridization that p5f3 half-restores.
 
 ## 2026-10-25 — HubbardProjectorPlan increment 4: ACBN0 + response through the pseudo-atomic projector, re-judged
 

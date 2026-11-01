@@ -1244,7 +1244,8 @@ TEST(GPW_Si, Γ_Imp_eqK211)
 
 
 // ============================ THE GRID AUDIT (doc/GridEpsilonPlan.md §3, C2 M2c) ============================
-// The postSCF `gridAudit` rebuilds every term on the reference raster (AliasFree = 2N per dimension) at the converged D and reports each term's
+// The postSCF `gridAudit` rebuilds every term on reference rasters finer than the run's (each raster's delivered x + 8, C2 step 3) at the
+// converged D and reports each term's
 // delivered max|dH_ij| and dE.  What must hold whatever the numbers: the ANALYTIC terms (kinetic, KB nonlocal, the short local PP, Ewald) do not
 // touch the raster and come out EXACTLY equal; the raster terms (Hartree, XC) do not; the per-term dE sum to the total.  Read from the revision's
 // `results`, i.e. the record a GUI or anchordiff-style tool sees.
@@ -1265,7 +1266,7 @@ TEST(GPW_Si, Γ_GridAuditSeparatesTheRasterTerms)
     std::ifstream in(out.revision); const nlohmann::json rec=nlohmann::json::parse(in);
     const auto& a=rec["results"]["postSCF"][0];
     ASSERT_EQ(a["action"], "gridAudit");
-    EXPECT_EQ(a["reference"], "AliasFree");
+    EXPECT_NE(a["reference"].get<std::string>().find("x("), std::string::npos) << "the reference names its rasters' alias exponents";
     double sum=0.0;
     bool sawRaster=false;
     for (const auto& t : a["terms"])
@@ -1276,6 +1277,10 @@ TEST(GPW_Si, Γ_GridAuditSeparatesTheRasterTerms)
         const bool raster   = e=="Eee" || e=="Exc";
         if (analytic) EXPECT_EQ(t["maxAbsDH"].get<double>(), 0.0) << label << ": an analytic term must not see the raster";
         if (raster) { sawRaster=true; EXPECT_GT(t["maxAbsDH"].get<double>(), 0.0) << label << ": a raster term on a different raster"; }
+        // the rigorous half beside the delivered error: V_long judged on H (what forces see), Hartree on E, the XC raster MEASURED only
+        if (label.find("LONG-range")!=std::string::npos) EXPECT_EQ(t["etaOn"], "H") << label;
+        if (e=="Eee") { EXPECT_EQ(t["etaOn"], "E"); EXPECT_GT(t["bound"].get<double>(), 0.0); EXPECT_GE(t["eta"].get<double>(), 0.0); }
+        if (e=="Exc") EXPECT_EQ(t["etaOn"], "measured") << "no rigorous bound may be claimed for the XC raster";
     }
     EXPECT_TRUE(sawRaster);
     EXPECT_NEAR(sum, a["dE"].get<double>(), 1e-12) << "the per-term dE are the total's parts";
@@ -1286,7 +1291,44 @@ TEST(GPW_Si, Γ_GridAuditSeparatesTheRasterTerms)
         EXPECT_FALSE(a[side]["auditDensity"]["status"].get<std::string>().empty()) << side;
     }
     EXPECT_LT(a["referenceVerdicts"]["auditDensity"]["alias"].get<double>(), a["verdicts"]["auditDensity"]["alias"].get<double>())
-        << "the AliasFree reference predicts a smaller alias than the BallOnly run";
+        << "the finer reference predicts a smaller alias than the run";
+    fs::remove_all(dir);
+}
+
+// THE EGG-BOX GATE (doc/GridEpsilonPlan.md §5 verdict 5): a rigid translation of every atom at the converged D.  An exact method is
+// translation-invariant, so every ANALYTIC term (kinetic, short-range PP, KB, Ewald -- lattice sums over the same relative vectors) must
+// read 0 to roundoff on BOTH max|dH_ij| and dE, while the raster terms (density collocation, V_loc long, the uniform XC raster) carry the
+// egg-box.  Fixed D: at a converged D the SCF egg-box differs only at second order.
+TEST(GPW_Si, Γ_EggBoxLeavesTheAnalyticTermsInvariant)
+{
+    namespace fs=std::filesystem;
+    const nlohmann::json deck={
+        {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
+        {"solid",{{"densityEcut",20.0},{"seed","Uniform"}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-9},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}},
+        {"postSCF",{{{"eggBox",{{"shift",{0.11,0.07,0.03}}}}}}}};
+    qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+    const fs::path dir=fs::temp_directory_path()/("qchem_it_si_eggbox_"+std::to_string(::getpid()));
+    fs::remove_all(dir);
+    qchem::deck::Provenance pv; pv.codeVersion="it";
+    const auto out=qchem::deck::Run(spec, pv, dir);
+    ASSERT_TRUE(out.converged) << out.summary;
+    std::ifstream in(out.revision); const nlohmann::json rec=nlohmann::json::parse(in);
+    const auto& a=rec["results"]["postSCF"][0];
+    ASSERT_EQ(a["action"], "eggBox");
+    bool sawRaster=false;
+    for (const auto& t : a["terms"])
+    {
+        const std::string e=t["entries"], label=t["term"];
+        const bool analytic = e=="Kinetic" || e=="Enn" || label.find("SHORT")!=std::string::npos || label.find("nonlocal")!=std::string::npos;
+        if (analytic)
+        {
+            EXPECT_LT(t["maxAbsDH"].get<double>(), 1e-10) << label << ": an analytic term is translation-invariant";
+            EXPECT_LT(std::fabs(t["dE"].get<double>()), 1e-10) << label;
+        }
+        if (e=="Exc") { sawRaster=true; EXPECT_GT(t["maxAbsDH"].get<double>(), 0.0) << "the uniform XC raster does not follow the atoms"; }
+    }
+    EXPECT_TRUE(sawRaster);
     fs::remove_all(dir);
 }
 

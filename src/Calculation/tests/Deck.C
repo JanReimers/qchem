@@ -7,7 +7,6 @@
 #include "forward.H"   // DeckTests: the restart fingerprint of a built calculation (SolidCalculation::Fingerprint is private)
 import qchem.Hamiltonian.Factory;   // HubbardProjectorKind (the manifold projector-kind round trip)
 import qchem.Deck;
-import qchem.BasisSet.PlaneWave.Evaluators;   // RasterPolicy (the gridAudit reference)
 import qchem.SolidCalculation;
 import qchem.SCFParams;
 import qchem.Mesh;
@@ -464,22 +463,70 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
     EXPECT_NE(msg(base({{{"hubbardLoop",json::object()}}},json::object())).find("postSCF.0 (hubbardLoop)"),std::string::npos) << "the message names the entry and the action";
 }
 
-// The grid audit (doc/GridEpsilonPlan.md §3) is the one postSCF action that is not about +U: it needs no Hubbard manifold, but a raster
-// other than the run's own.
-TEST(Deck, GridAuditRoundTripsAndNeedsADifferentRaster)
+// The grid audit (doc/GridEpsilonPlan.md §3) is the one postSCF action that is not about +U: it needs no Hubbard manifold, only a raster.
+// C2 step 3: its reference is the run's own rasters plus an alias-exponent MARGIN (the named BallOnly/AliasFree rasters are gone).
+TEST(Deck, GridAuditRoundTripsItsReferenceMargin)
 {
     auto msg=[](json d){ try { deck::RunSpec s; deck::FromJson(d,s); deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
     auto base=[](json post, json solid) { return json{{"structure","NaF_rocksalt"},{"solid",solid},{"postSCF",post}}; };
     deck::RunSpec r;
-    deck::FromJson(json{{"structure","NaF_rocksalt"},{"postSCF",{{{"gridAudit",json::object()}}, {{"gridAudit",{{"reference","BallOnly"}}}}}}}, r);
+    deck::FromJson(json{{"structure","NaF_rocksalt"},{"postSCF",{{{"gridAudit",json::object()}}, {{"gridAudit",{{"referenceMargin",12.0}}}}}}}, r);
     ASSERT_EQ(r.postSCF.size(),2u);
-    EXPECT_EQ(r.postSCF[0].reference, BasisSet::PlaneWave::RasterPolicy::AliasFree) << "the default reference: 2N per dimension of a BallOnly run";
-    EXPECT_EQ(r.postSCF[1].reference, BasisSet::PlaneWave::RasterPolicy::BallOnly);
+    EXPECT_EQ(r.postSCF[0].referenceMargin, 8.0) << "the default margin: the reference's own tail ~1e-3 of the run's";
+    EXPECT_EQ(r.postSCF[1].referenceMargin, 12.0);
     const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
     EXPECT_EQ(deck::ToJson(back),j); EXPECT_TRUE(back.postSCF==r.postSCF);
     EXPECT_EQ(msg(base({{{"gridAudit",json::object()}}},json::object())),"NO THROW") << "no Hubbard manifold needed";
-    EXPECT_NE(msg(base({{{"gridAudit",json::object()}}},json{{"raster","AliasFree"}})).find("the run's own"),std::string::npos);
-    EXPECT_NE(msg(base({{{"gridAudit",{{"reference","Nyquist"}}}}},json::object())).find("Nyquist"),std::string::npos) << "an unknown raster name is refused";
+    EXPECT_NE(msg(base({{{"gridAudit",{{"referenceMargin",0.0}}}}},json::object())).find("referenceMargin"),std::string::npos) << "the reference must be finer";
+    EXPECT_NE(msg(base({{{"gridAudit",{{"reference","AliasFree"}}}}},json::object())).find("retired"),std::string::npos) << "a named raster is refused, saying why";
+    EXPECT_NE(msg(base({{{"gridAudit",json::object()}}},json{{"raster","AliasFree"}})).find("retired"),std::string::npos) << "so is solid.raster";
+}
+
+// The ONE grid accuracy target (doc/GridEpsilonPlan.md §1): solid.accuracy (eps) and the expert calibration round-trip; eps defaults to
+// 1e-5 with NO calibration stated (C2 step 3: the run's pilot audit self-calibrates), eps = 0 states the rasters, a negative is refused.
+TEST(Deck, GridAccuracyTargetRoundTripsAndRefusesNonPositive)
+{
+    auto read=[](json solid){ deck::RunSpec s; deck::FromJson(json{{"structure","Si_diamond"},{"solid",solid}},s); return s; };
+    auto msg=[&](json solid){ try { read(solid); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
+    const deck::RunSpec d=read(json::object());
+    EXPECT_EQ(d.solid.accuracy.eps, 1e-5);
+    EXPECT_FALSE(d.solid.accuracy.eta.has_value()) << "the default self-calibrates";
+    EXPECT_FALSE(deck::ToJson(d).at("solid").contains("accuracyCalibration")) << "an unstated calibration is not written as if stated";
+    const deck::RunSpec r=read({{"accuracy",1e-6},{"accuracyCalibration",{{"vlocLong",0.1},{"density",0.01}}}});
+    EXPECT_EQ(r.solid.accuracy.eps, 1e-6);
+    ASSERT_TRUE(r.solid.accuracy.eta.has_value());
+    EXPECT_EQ(r.solid.accuracy.eta->vlocLong, 0.1);
+    EXPECT_EQ(r.solid.accuracy.eta->density, 0.01);
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
+    EXPECT_EQ(deck::ToJson(back),j);
+    EXPECT_TRUE(back.solid.accuracy==r.solid.accuracy);
+    const deck::RunSpec z=read({{"accuracy",0.0},{"tolerances",{{"rasterX",16.0}}}});
+    EXPECT_EQ(z.solid.accuracy.eps, 0.0) << "0 = no target: the rasters as stated";
+    EXPECT_EQ(z.solid.tolerances.rasterX, 16.0);
+    EXPECT_NE(msg({{"accuracy",-1.0}}).find("solid.accuracy"),std::string::npos);
+    EXPECT_NE(msg({{"accuracyCalibration",{{"density",-1.0}}}}).find("accuracyCalibration"),std::string::npos);
+    EXPECT_NE(msg({{"accuracyCalibration",{{"vlocLong",2.0}}}}).find("delivered/bound"),std::string::npos) << "eta > 1 would claim the bound is optimistic";
+    EXPECT_NE(msg({{"accuracyCalibration",{{"xc",1.0}}}}).find("xc"),std::string::npos) << "the XC raster has no rigorous bound to calibrate";
+}
+
+// The egg-box action (doc/GridEpsilonPlan.md §5 verdict 5): round-trips its shift, defaults to a generic 0.037 bohr, and is refused
+// before the SCF wherever a rigid translation cannot be compared function for function (an imposed group, +U) or measures nothing.
+TEST(Deck, EggBoxRoundTripsAndRefusesWhatCannotTranslate)
+{
+    auto msg=[](json d){ try { deck::RunSpec s; deck::FromJson(d,s); deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
+    auto base=[](json post, json solid) { return json{{"structure","NaF_rocksalt"},{"solid",solid},{"postSCF",post}}; };
+    deck::RunSpec r;
+    deck::FromJson(json{{"structure","NaF_rocksalt"},{"postSCF",{{{"eggBox",json::object()}}, {{"eggBox",{{"shift",{0.1,0,0}}}}}}}}, r);
+    ASSERT_EQ(r.postSCF.size(),2u);
+    EXPECT_GT(norm(r.postSCF[0].shift), 0.0) << "a default shift that measures something";
+    EXPECT_EQ(r.postSCF[1].shift.x, 0.1);
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
+    EXPECT_EQ(deck::ToJson(back),j); EXPECT_TRUE(back.postSCF==r.postSCF);
+    EXPECT_EQ(msg(base({{{"eggBox",json::object()}}},json::object())),"NO THROW");
+    EXPECT_NE(msg(base({{{"eggBox",{{"shift",{0,0,0}}}}}},json::object())).find("zero shift"),std::string::npos);
+    EXPECT_NE(msg(base({{{"eggBox",json::object()}}},json{{"imposeSymmetry",true}})).find("free twin"),std::string::npos);
+    EXPECT_NE(msg(base({{{"eggBox",json::object()}}},json{{"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0}}}}})).find("U = 0 twin"),std::string::npos);
+    EXPECT_NE(msg(base({{{"eggBox",{{"shift",{0.1,0}}}}}},json::object())).find("[x,y,z]"),std::string::npos);
 }
 
 TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)

@@ -50,9 +50,10 @@ struct Fixture
         p.densityEcut=20.0; p.imposeSymmetry=true; p.siteSpins={1,-1};
         bs.reset(BasisSet::Lattice::GPWFactory(*lat, mol, p));
     }
-    const BasisSet::Orbital_1E_IBS<dcmplx>& Block() const
+    const BasisSet::Orbital_1E_IBS<dcmplx>& Block() const {return BlockOf(*bs);}
+    static const BasisSet::Orbital_1E_IBS<dcmplx>& BlockOf(const BasisSet::Complex_BS& bs)
     {
-        auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(bs.get());
+        auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
         const BasisSet::Orbital_1E_IBS<dcmplx>* b=nullptr;
         std::visit([&](const auto& c){ b=dynamic_cast<const BasisSet::Orbital_1E_IBS<dcmplx>*>(c.get()); }, imp->GetChild(0));
         return *b;
@@ -134,4 +135,57 @@ TEST(ShubnikovPair, AFreeRunIsLeftAlone)
     bs->ProjectSpinPair(Du, Dd);
     EXPECT_EQ(MaxAbs(Du-Pu), 0.0);
     EXPECT_EQ(MaxAbs(Dd-Pd), 0.0);
+}
+
+// ---- The plane-wave sibling (OpenWork §2 PW-5): the same claims on a PW Γ block, whose op reps are phased G permutations. ----
+namespace
+{
+std::unique_ptr<BasisSet::Complex_BS> PWBasis(const Fixture& f, const std::vector<int>& siteSpins)
+{
+    // Ecut 3 Ha on the 6 bohr cube: ~60 waves, enough that a random D has real-space structure at every test point.
+    return std::unique_ptr<BasisSet::Complex_BS>(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, *f.lat, 3.0, siteSpins));
+}
+} // namespace
+
+TEST(ShubnikovPair, PlaneWaveTheProjectedPairObeysTheFlipAndTheRotationInRealSpace)
+{
+    Fixture f;
+    auto bs=PWBasis(f, {1,-1});
+    const auto& b=Fixture::BlockOf(*bs);
+    const size_t n=b.GetNumFunctions();
+    chmat_t Du=RandomHermitian(n,7), Dd=RandomHermitian(n,8);
+    const rvec3_t half(0.5*a,0.5*a,0.5*a);
+    double raw=0; for (const auto& r : kPoints) raw=std::max(raw, std::abs(Rho(b,Du,r)-Rho(b,Dd,r+half)));
+    ASSERT_GT(raw, 1e-2) << "a random pair already obeys the flip -- the fixture tests nothing";
+
+    bs->ProjectSpinPair(Du, Dd);
+    for (const auto& r : kPoints)
+    {
+        EXPECT_NEAR(Rho(b,Du,r), Rho(b,Dd,r+half), 1e-10);   // the τ = (½,½,½) flip: the phase e^{-2πi m'·τ} is exercised
+        EXPECT_NEAR(Rho(b,Dd,r), Rho(b,Du,r+half), 1e-10);
+        EXPECT_NEAR(Rho(b,Du,r), Rho(b,Du,rvec3_t(-r.y,r.x,r.z)), 1e-10);
+    }
+}
+
+TEST(ShubnikovPair, PlaneWaveItIsAProjectorThatConservesChargeAndAFreeRunIsLeftAlone)
+{
+    Fixture f;
+    auto bs=PWBasis(f, {1,-1});
+    const size_t n=Fixture::BlockOf(*bs).GetNumFunctions();
+    chmat_t Du=RandomHermitian(n,9), Dd=RandomHermitian(n,10);
+    auto N=[&](const chmat_t& D){ double t=0; for (size_t i=0;i<n;i++) t+=std::real(D(i,i)); return t; };   // S = 1
+    const double N0=N(Du)+N(Dd);
+    bs->ProjectSpinPair(Du, Dd);
+    EXPECT_NEAR(N(Du)+N(Dd), N0, 1e-10*std::abs(N0));
+    const chmat_t Pu=Du, Pd=Dd;
+    bs->ProjectSpinPair(Du, Dd);
+    EXPECT_LT(MaxAbs(Du-Pu), 1e-12) << "projecting twice must change nothing";
+    EXPECT_LT(MaxAbs(Dd-Pd), 1e-12);
+
+    auto free=PWBasis(f, {});
+    chmat_t Fu=RandomHermitian(n,11), Fd=RandomHermitian(n,12);
+    const chmat_t Qu=Fu, Qd=Fd;
+    free->ProjectSpinPair(Fu, Fd);
+    EXPECT_EQ(MaxAbs(Fu-Qu), 0.0);
+    EXPECT_EQ(MaxAbs(Fd-Qd), 0.0);
 }
