@@ -116,5 +116,9 @@ TEST(GPW_Na, k222s_Imp_Smear_GlobalMu_Anchor)
     ASSERT_TRUE(R) << "global μ + smearing converges the half-filled-band metal: " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 1.0, 1e-6);  // one valence electron, BZ-weighted Σ_k w_k n_k = 1
     EXPECT_LT(R->EnergyTerms()["MinusTS"], -1e-4);   // −TS<0 AND non-trivial: the Fermi surface IS fractionally filled
-    EXPECT_NEAR(R->Energy(), 0.045543, 3e-3);  // did-E-move anchor (free energy A at kT=0.01)
+    // did-E-move anchor (free energy A at kT=0.01).  RE-BANKED 2026-10-31 (C2 step 3): the ball raster's 0.0456736 carried the uniform XC's
+    // read of the density raster's alias (|dE_xc| 2.1e-3 at fixed D); the pilot settles density x 18.8 at 0.0473487.  Judged by raster
+    // SELF-CONVERGENCE only (stated x 16 / XC 28: 0.0473492, 5e-7) -- no independent route at k222 yet.  Tolerance 1e-5 (eps per atom), not
+    // the old 3e-3, which a 1 mHa regression would have passed.
+    EXPECT_NEAR(R->Energy(), 0.0473487, 1e-5);
 }
