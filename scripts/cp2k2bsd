@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""Transcribe CP2K BASIS_SET entries into a Gaussian94 .bsd basis file -- the reverse of bsd2cp2k, so OUR code can run on CP2K's
+basis (the same-basis oracle arm the other way round, e.g. MOLOPT for the organic molecules).  Each CP2K set `n lmin lmax nexp
+nshell(lmin) ... nshell(lmax)` shares its exponents across its contractions; every contraction becomes one .bsd shell carrying the
+set's full exponent list (zero coefficients kept: the span is CP2K's exactly).  Coefficients are copied as they stand -- both formats
+contract NORMALIZED primitives, which is also what bsd2cp2k assumes.
+
+The PP valence of each element is read from the entry's `-qN` alias (CP2K's naming) and written as the PP-PROVENANCE line the reader
+checks against the run's pseudopotential; an entry with no `-qN` alias is refused (the file would claim nothing).
+
+Usage:  cp2k2bsd CP2K_BASIS_FILE NAME ELEMENT [ELEMENT ...]  > out.bsd
+e.g.    cp2k2bsd ~/Code/cp2k/data/BASIS_MOLOPT DZVP-MOLOPT-GTH H C N O > BasisSetData/dzvp_molopt_gth.bsd
+"""
+import re, sys
+
+LETTER = 'SPDFGH'
+
+def entry(path, el, name):
+    """The entry `el name` of a CP2K basis file: (aliases, sets), sets = [(lmin, lmax, nshell per l, [(exp, [coef ...]) ...])].
+    Only the asked-for entry is parsed (the shipped files hold headers of other shapes)."""
+    lines = [l.split('#')[0].rstrip() for l in open(path)]
+    lines = [l for l in lines if l.strip()]
+    for i, l in enumerate(lines):
+        t = l.split()
+        if len(t) >= 2 and t[0].capitalize() == el and name in t[1:]:
+            i += 1
+            nset, i, sets = int(lines[i].split()[0]), i + 1, []
+            for _ in range(nset):
+                h = list(map(int, lines[i].split())); i += 1
+                lmin, lmax, nexp, nsh = h[1], h[2], h[3], h[4:]
+                prims = []
+                for _ in range(nexp):
+                    v = list(map(float, lines[i].replace('D', 'E').split())); i += 1
+                    prims.append((v[0], v[1:]))
+                sets.append((lmin, lmax, nsh, prims))
+            return t[1:], sets
+    return None
+
+def main():
+    if len(sys.argv) < 4: sys.exit(__doc__)
+    path, name, want = sys.argv[1], sys.argv[2], [e.capitalize() for e in sys.argv[3:]]
+    blocks, prov = [], []
+    for el in want:
+        e = entry(path, el, name)
+        if e is None: sys.exit(f"cp2k2bsd: no '{el} {name}' in {path}")
+        names, sets = e
+        q = [int(m.group(1)) for n in names for m in [re.search(r'-q(\d+)$', n)] if m]
+        if not q: sys.exit(f"cp2k2bsd: '{el} {name}' has no -qN alias, so its PP valence is unknown")
+        prov.append(f"{el}={q[0]}")
+        shells = []
+        for lmin, lmax, nsh, prims in sets:
+            col = 0
+            for l in range(lmin, lmax + 1):
+                for _ in range(nsh[l - lmin]):
+                    shells.append((LETTER[l], [(e, c[col]) for e, c in prims])); col += 1
+        b = [f" {el.upper():<3} 0"]
+        for L, pr in shells:
+            b.append(f" {L}   {len(pr)}  1.00")
+            b += [f"  {e:20.10f} {c:18.10f}" for e, c in pr]
+        b.append("****")
+        blocks.append("\n".join(b))
+    print(f"{name}: transcribed from CP2K's {path.split('/')[-1]} by scripts/cp2k2bsd ({' '.join(want)})")
+    print("PP-PROVENANCE " + " ".join(prov))
+    print("Coefficients as CP2K states them (normalized primitives); one shell per CP2K contraction, the set's exponents shared.")
+    print("CP2K runs every basis SPHERICAL: compare against it with basis.spherical true.")
+    print()
+    print("!")
+    print(f'BASIS="{name}"')
+    print("\n".join(blocks))
+
+main()
