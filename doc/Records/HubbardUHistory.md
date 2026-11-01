@@ -2405,6 +2405,25 @@ What it settles:
 - **Next** (OpenWork §3 β-MnO₂ row): a basis ladder on that one number, the ratio Δm_d / ΔO p_z m at U = 1 eV (cheap: about 80 imposed
   iterations per point, no limit cycle).  It locates which Mn shells carry the spin hybridization that p5f3 half-restores.
 
+**The basis ladder at U = 1 eV (2026-11-01, lane H): the cross ratio Δm_d / ΔO p_z m falls toward PW's as the O POLARIZATION grows.  The deficit is orbital-basis incompleteness; no code defect is implicated.**
+Main `0fab43d6` (C2 step 3), the AliasFree raster PINNED (`"accuracy": 0`, `tolerances.rasterX = vlocRasterX = xcRasterX = 8`; the ε-sized default is 45³ here against AliasFree's 90³, i.e. near BallOnly, which is mHa off on MnO).  Per basis: U = 0 cold (IonicSAD, the `control_U0s` recipe), then U = 1 eV on O p Γ2 restarted from it (the `control_U1a` recipe, plain Kerker 0.1); A1AFM imposed; every run CONVERGED (22–25 / 86–90 iterations).  Decks, bases, logs, runner: `~/Code/qchem6-runs/MnO2/uscan/ladder/` (records r001–r014; new bases built by `mkbsd.py` into `basis_scan/pol/`).  The control pair reproduces the 2026-10-29 points to 1.3e-7 Ha (m 3.5178 / 3.5102 vs 3.5177 / 3.5102), so the new main is clean on this quantity.
+
+| basis (U 0 → 1 eV) | Δm_d Mn | ΔO p_z m | **ratio** | ΔN_d Mn | O p_z m at U = 0 |
+|---|---|---|---|---|---|
+| control (VA + O p 0.18) | −0.0076 | −0.0110 | **0.69** | −0.0320 | 0.0266 |
+| + O d 0.8, 2 (`Od`) | −0.0063 | −0.0114 | **0.55** | −0.0335 | 0.0257 |
+| + Mn p5 f3 (`Mn_p5f3`) | −0.0072 | −0.0116 | **0.62** | −0.0342 | 0.0231 |
+| + Mn p5 f3 + O d 0.8, 2 (`p5f3_Od`) | −0.0061 | −0.0118 | **0.52** | −0.0349 | 0.0235 |
+| + Mn p5 f3 + O d 0.4, 0.8, 1.6, 3.2 + O f 1.5 (`p5f3_Od4f`) | −0.0054 | −0.0120 | **0.45** | −0.0360 | 0.0223 |
+| PW 40 Ha (`pw/pw_E40_U1imp`) | −0.0035 | −0.0118 | **0.30** | −0.0367 | 0.0231 |
+
+1. **O polarization carries the spin cross response.**  O d alone takes the ratio 0.69 → 0.55; Mn p5 f3 alone only to 0.62; the richer O set (4 d + 1 f on top of p5 f3) to 0.45, still falling.  Mn p/f instead put the U = 0 O p_z moment on PW's (0.0231).  (The last step changes the O d radial count AND adds O f; the two were not separated -- user, 2026-11-01: not needed for the verdict.)
+2. **Every other channel converges onto PW with the basis**: ΔO p_z m within 2–7 %, ΔN_d −0.0320 → −0.0360 vs −0.0367; the band responses landed on QE to 4 meV already at p5 f3 (2026-10-26).
+3. **Why O wants high l**: the O site in rutile is C2v (three coplanar Mn, no inversion), so the crystal field there has dipole (L = 1) and quadrupole (L = 2) terms, which mix O 2p into d and f; the Mn site is D2h (centrosymmetric, even L only), consistent with Mn g moving nothing.  The Mn–O bond is short and covalent, so the one-centre expansion of the bond-region spin density converges slowly in l on either centre.
+4. **Verdict (lane H, 2026-11-01): the PW/GPW U spin deficit is orbital-basis incompleteness in the Mn–O bond region, dominated by O polarization; it closes monotonically with the basis and no code path is implicated.**  Ruled out on the way: the XC mesh, fit and ρ route (≤ 2e-4 on the moment's response), the imposition (free = imposed to 1e-4), the projector, the raster, the band alignment (on PW's with Mn p f), and the charge cross response.
+
+Side finding: the two arms with the dense Mn d midpoints (`p5f3_dD`, and the new `p5f3_OddD`) DIVERGE from iteration 1 on this main (+4.2e4 Ha at x = 8, +845 Ha at the default ε; 2026-10-26 the same `p5f3_dD` started at −93.10 and converged) -- a regression, `OpenWork.md` §3 row.
+
 ## 2026-10-25 — HubbardProjectorPlan increment 4: ACBN0 + response through the pseudo-atomic projector, re-judged
 
 Code `b4cfc789` (`GaussianAtomCentredSet::BareCoulomb`, exact one-centre).  Decks + logs: `~/Code/qchem6-runs/TiO2/basis_scan/
