@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# snaprun -- run a command against a FROZEN snapshot of a build tree, so the tree can be rebuilt while it runs.
+#
+# Why: a process that is already running is safe from a rebuild (the linkers write a new file and rename it, so the old
+# inode lives on).  What is NOT safe is every process launched LATER from the live tree: ctest starts a fresh test exe
+# per test for an hour, a queued rundeck starts when a heavy slot frees, and mid-build an exe can load a half-updated
+# set of .so files.  snaprun takes the snapshot at launch, so the whole run sees one build.
+#
+# How: `cp -al` makes a hard-link farm of the build tree (no data copied; same filesystem as ~/Code/qchem6-runs).  A
+# relink replaces the live file's inode, so the snapshot keeps the old binaries.  The ctest files and the RUNPATH carry
+# absolute build-tree paths, so the ctest *.cmake files are rewritten to the snapshot and LD_LIBRARY_PATH (which
+# overrides RUNPATH) points at the snapshot's .so directories.  Testing/ is a real copy (ctest rewrites its logs in
+# place) and is copied back at the end, so LastTest.log and the cost data land where they always do.
+#
+# Usage:  scripts/snaprun [-B BUILD_DIR] CMD [ARGS...]
+#   BUILD_DIR defaults to the nearest directory at or above $PWD holding CMakeCache.txt.  If $PWD is inside it, CMD runs
+#   in the matching snapshot directory; any ARG that starts with BUILD_DIR is remapped into the snapshot.
+#   e.g.  cd build/Release && scripts/snaprun ~/Code/qchem6-runs/heavy scripts/memsafe -H 6G ctest -j4 -LE long
+#         scripts/snaprun -B build/Release build/Release/CLIapps/rundeck decks/MnO_AFM2_free.json
+# Caveat: a test that opens an EXISTING file in the build tree for writing without truncating it would write through
+# the hard link into the live tree.  Files created new, and Testing/, are unaffected.
+
+set -u
+B=""
+if [ "${1:-}" = "-B" ]; then B=$(realpath "$2"); shift 2; fi
+if [ -z "$B" ]; then d=$PWD; while [ "$d" != / ] && [ ! -f "$d/CMakeCache.txt" ]; do d=$(dirname "$d"); done; B=$d; fi
+[ -f "$B/CMakeCache.txt" ] || { echo "snaprun: no build tree (CMakeCache.txt) at or above $PWD; use -B" >&2; exit 2; }
+[ $# -ge 1 ] || { echo "usage: snaprun [-B BUILD_DIR] CMD [ARGS...]" >&2; exit 2; }
+
+R="$HOME/Code/qchem6-runs/snap"; mkdir -p "$R"
+S="$R/$(basename "$(dirname "$(dirname "$B")")")-$(basename "$B")-$(date +%Y%m%d-%H%M%S)-$$"
+cleanup() { rm -rf "$S"; }
+trap cleanup EXIT
+
+cp -al "$B" "$S" || { echo "snaprun: hard-link snapshot failed (same filesystem?)" >&2; exit 1; }
+rm -rf "$S/Testing"; [ -d "$B/Testing" ] && cp -a "$B/Testing" "$S/Testing"
+# ctest's files name the exes and working dirs by absolute path: point them at the snapshot (sed -i writes a new file,
+# which breaks the hard link, so the live tree's copies are untouched).
+find "$S" \( -name 'CTestTestfile.cmake' -o -name 'DartConfiguration.tcl' -o -name '*_tests.cmake' -o -name '*_include.cmake' \) \
+    -exec sed -i "s|$B|$S|g" {} +
+export LD_LIBRARY_PATH="$(find "$S" -name '*.so*' -printf '%h\n' | sort -u | paste -sd:)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+args=(); for a in "$@"; do args+=("${a/#$B/$S}"); done
+case "$PWD/" in "$B"/*) cd "$S${PWD#$B}" ;; esac
+echo "[snaprun] $B frozen at $S" >&2
+
+"${args[@]}"; rc=$?
+[ -d "$S/Testing" ] && cp -a "$S/Testing/." "$B/Testing/"
+exit $rc
