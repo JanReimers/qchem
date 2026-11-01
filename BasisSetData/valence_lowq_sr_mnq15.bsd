@@ -1,0 +1,89 @@
+Low-q GTH valence basis for MnO with SEMICORE Mn (q15) -- the O block of valence_lowq_sr (O q6, unchanged) and a valgen Mn q15 block
+PP-PROVENANCE Mn=15 O=6
+(2026-11-01, lane B, OpenWork "A light-PP ion has NO restoring force on its site"): the Mn q7 vs q15 audit in MnO AFM-II.  q15 keeps
+the 3s3p semicore.  Mn window s 10 x [0.2, 60], p 9 x [0.25, 50], d 8 x [0.3, 40], validated POLARIZED on the Mn2+ cation the solid
+holds (valgen --q 15 --electrons 13 --spin --floor: 3.65 mHa above the complete-basis floor -102.801, moment 5.0008).  The d set is
+what sets the floor (the q7 block's d window sits 13 mHa above it on q15).  Seeds: atomic_valence_densities.json Mn q15 Nelec 13 / 15.
+RUN IT SPHERICAL (deck basis.spherical true, basis.data VALENCE_LOWQ_VA + basis.file this file -- the spherical refusal reads
+basis.data, not the file): Cartesian, the 6-d s contaminants of the 8 d shells collide with the 10 s and the vet trims the s set to 2;
+spherical nothing trims (min eig S 5.9e-5), and the span then equals CP2K's (always spherical).  Mixer startingRelaxRo 0.2: at 0.45
+the solid 2-cycles onto the non-magnetic state.
+
+!
+BASIS="Low-q GTH valence basis, O q6 (SR) + semicore Mn q15 (valgen)"
+ MN   0
+ S   1  1.00
+            0.20000000        1.00000000
+ S   1  1.00
+            0.37693433        1.00000000
+ S   1  1.00
+            0.71039744        1.00000000
+ S   1  1.00
+            1.33886590        1.00000000
+ S   1  1.00
+            2.52332259        1.00000000
+ S   1  1.00
+            4.75563452        1.00000000
+ S   1  1.00
+            8.96280949        1.00000000
+ S   1  1.00
+           16.89195285        1.00000000
+ S   1  1.00
+           31.83578444        1.00000000
+ S   1  1.00
+           60.00000000        1.00000000
+ P   1  1.00
+            0.25000000        1.00000000
+ P   1  1.00
+            0.48480686        1.00000000
+ P   1  1.00
+            0.94015077        1.00000000
+ P   1  1.00
+            1.82316618        1.00000000
+ P   1  1.00
+            3.53553391        1.00000000
+ P   1  1.00
+            6.85620439        1.00000000
+ P   1  1.00
+           13.29573974        1.00000000
+ P   1  1.00
+           25.78346344        1.00000000
+ P   1  1.00
+           50.00000000        1.00000000
+ D   1  1.00
+            0.30000000        1.00000000
+ D   1  1.00
+            0.60350925        1.00000000
+ D   1  1.00
+            1.21407805        1.00000000
+ D   1  1.00
+            2.44235778        1.00000000
+ D   1  1.00
+            4.91328505        1.00000000
+ D   1  1.00
+            9.88404327        1.00000000
+ D   1  1.00
+           19.88370516        1.00000000
+ D   1  1.00
+           40.00000000        1.00000000
+ ****
+ O   0
+ S   1  1.00
+            0.39077566        1.00000000
+ S   1  1.00
+            1.01803746        1.00000000
+ S   1  1.00
+            2.65216175        1.00000000
+ S   1  1.00
+            6.90933509        1.00000000
+ S   1  1.00
+           18.00000000        1.00000000
+ P   1  1.00
+            0.46475800        1.00000000
+ P   1  1.00
+            1.20000000        1.00000000
+ P   1  1.00
+            3.09838668        1.00000000
+ P   1  1.00
+            8.00000000        1.00000000
+ ****
