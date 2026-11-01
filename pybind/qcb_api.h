@@ -123,6 +123,12 @@ int        qcb_solid_resolved(const qcb_solid* h, char* out, int outlen);
 //! A molecule's orbital basis as the facade builds it (BasisSet::Gaussian::Factory, Cartesian, no SALC), with NO SCF:
 //! out4 = {number of functions, number of irrep blocks, min and max eigenvalue of the overlap S over every block}.
 //! The condition number is max/min.  1 on success, 0 with `err` on failure (an unknown basis, an element it lacks).
+//! The library's run record (report::GlobalReport) as JSON text: every run since the last clear, keyed "<name>@<start>", each
+//! holding the sections its providers emitted (basis, grids, scf, ...).  Returns the length; call with outlen 0 to size it.
+int  qcb_report(char* out, int outlen);
+//! Drop the accumulated run record (a no-op while a run is open).
+void qcb_clear_report(void);
+
 int qcb_basis_info(const int* Z, int nat, const double* pos3, const char* basis, double* out4, char* err, int errlen);
 
 //! The molecular point group of `nat` points (`species` labels, flat 3N bohr `pos3`) within `tol` bohr: the full Schoenflies

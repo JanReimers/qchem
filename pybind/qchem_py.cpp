@@ -278,6 +278,13 @@ NB_MODULE(qchem_py, mod)
              "MO `index` in levels() order (0 = lowest).")
         .def("gradient", &Calculator::Gradient, nb::arg("n") = 24, nb::arg("pad") = 4.0);
 
+    mod.def("report", []()
+    {
+        std::string out(size_t(qcb_report(nullptr, 0)) + 1, '\0');
+        out.resize(size_t(qcb_report(out.data(), int(out.size()))));
+        return out;
+    }, "The library's run record (JSON text): every run since the last clear_report, keyed \"<name>@<start>\".");
+    mod.def("clear_report", &qcb_clear_report, "Drop the accumulated run record (a no-op while a run is open).");
     mod.def("basis_info", [](const std::vector<int>& Z, const std::vector<double>& pos, const std::string& basis)
     {
         if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");

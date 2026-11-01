@@ -38,6 +38,7 @@ import qchem.BasisSet;                           // Real_BS (Iterate over its ir
 import qchem.BasisSet.IrrepBasisSet;             // Integrals_Overlap (each block's S)
 import qchem.BasisSet.Gaussian.Point.Factory;    // BasisSet::Gaussian::Factory (the facade's own basis builder)
 import qchem.Blaze;                              // blazem::eigen
+import qchem.Reporting;                          // report::GlobalReport (the run record the library keeps)
 
 // The opaque handle: the facade plus the request's geometry (for the sampling box).  extern "C++" attaches it to the
 // GLOBAL module, where qcb_api.h (in the GMF) forward-declares it -- a purview definition would be a different entity.
@@ -91,6 +92,16 @@ qchem::Model parse_model(const std::string& m)
     if (m == "Xalpha") return Model::Xalpha;
     throw std::invalid_argument("qchem_py: unknown model '" + m + "' (HF | LDA | Xalpha)");
 }
+
+//! A crystal's report run: rundeck brackets Build + Converge with report::Begin/End, and the record its providers write
+//! (grids, basis, scf) exists only inside such a bracket.  The bridge splits them across two calls, so each gets its own.
+struct RunRecord
+{
+    explicit RunRecord(const std::string& name) { qchem::report::Begin(name); }
+    ~RunRecord() { qchem::report::End(); }
+    RunRecord(const RunRecord&) = delete;
+    RunRecord& operator=(const RunRecord&) = delete;
+};
 
 qchem::SCFParams scf_params(const qcb_request& req)
 {
@@ -310,6 +321,7 @@ qcb_solid* qcb_solid_make(const char* deckJson, char* err, int errlen)
     {
         auto h = std::make_unique<qcb_solid>();
         qchem::deck::FromJson(nlohmann::json::parse(deckJson), h->spec);   // strict: an unknown key throws, naming it
+        const RunRecord record(h->spec.StructureName() + " build");
         h->calc = qchem::deck::Build(h->spec);                              // the observer is attached per Converge
         return h.release();
     }
@@ -327,6 +339,7 @@ int qcb_solid_converge(qcb_solid* h, qcb_row_fn step, qcb_sink* sink, char* err,
     {
         h->calc->OnIteration(step ? forward_to(step, sink) : SolidCalculation::Observer{});
         h->attempted = true;
+        const RunRecord record(h->spec.StructureName());
         const auto out = h->calc->Converge(qchem::deck::ScheduleToRun(h->spec));
         h->calc->OnIteration(SolidCalculation::Observer{});      // the sink lives only for this call
         if (out) return 1;
@@ -365,6 +378,17 @@ int qcb_solid_resolved(const qcb_solid* h, char* out, int outlen)
     write_error(s.c_str(), out, outlen);
     return int(s.size());
 }
+
+// -- the run record ---------------------------------------------------------------------------------------------------
+
+int qcb_report(char* out, int outlen)
+{
+    const std::string s = qchem::report::GlobalReport().dump(-1, ' ', false, nlohmann::ordered_json::error_handler_t::replace);
+    write_error(s.c_str(), out, outlen);
+    return int(s.size());
+}
+
+void qcb_clear_report() { if (qchem::report::Depth()==0) qchem::report::ClearGlobal(); }
 
 // -- detected symmetry -----------------------------------------------------------------------------------------------
 
