@@ -122,6 +122,9 @@ using namespace qchem::tests::gpw;   // the harness: Materials cells, gates, rec
 // parameter, is BLIND to the imbalance -- it reads +0.366 for (+0.37,-0.37) and for (0,-0.73) alike.
 // Measured 2026-08-11: the density one Fock build downstream of this seed has m1 = -0.0001, m2 = -0.73.
 // This test asks whether the seed ITSELF is lopsided, i.e. whether the defect is upstream of the SCF.
+// The library holds Mn q7 AND q15 seeds: these direct seed builds name the q7 the MnO_AFM2 cell carries.
+static const qchem::ChargeDensity::SeedKey kMnQ7("LDA", {{25,7}});
+
 TEST(GPW_MnO, Γ_Pol_SeedMirror)
 {
     const double a=8.40;
@@ -135,7 +138,7 @@ TEST(GPW_MnO, Γ_Pol_SeedMirror)
     qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
     const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
-    qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
+    qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, kMnQ7, ionic);
     const auto* up=seedCD.GetChannel(Spin::Up);
     const auto* dn=seedCD.GetChannel(Spin::Down);
 
@@ -227,7 +230,7 @@ TEST(GPW_MnO, Γ_Becke_Pol_SeedVxcMirror)
     qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
     const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
-    qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
+    qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, kMnQ7, ionic);
 
     // The run's Becke recipe, shrunk (nR=20, GL-11) -- wrapping is generic, it needs no production density.
     qcMesh::MeshParams mp=qcMesh::BeckeXCParams(20, -1.0, 11);
@@ -352,7 +355,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 
     // The decoration, by the seed's own resolution: Mn2+ (d5 pair) = +/-1, O2- (closed shell) = 0.
     auto st=lat.GetStructure();
-    std::vector<int> spins=MagneticDecoration(st.get(), "LDA", IonicSADTargets(st.get(), "LDA"));
+    std::vector<int> spins=MagneticDecoration(st.get(), kMnQ7, IonicSADTargets(st.get(), kMnQ7));
     ASSERT_EQ(spins.size(), 4u);
     EXPECT_EQ(spins[0], +1); EXPECT_EQ(spins[1], -1);
     EXPECT_EQ(spins[2],  0); EXPECT_EQ(spins[3],  0);
@@ -370,7 +373,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
     qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
     const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
-    PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
+    PolarizedSeedCD seedCD(fb, &cell, kMnQ7, ionic);
 
     auto engine=SinglesEngineOver(q);
     const rvec_t up=engine->RhoPol(&seedCD, Spin::Up);

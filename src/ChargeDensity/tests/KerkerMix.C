@@ -172,6 +172,7 @@ struct MnBox
     std::unique_ptr<BasisSet::Complex_BS> bs;
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitCD;   //!< the seed's density-fit basis
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> fitSF;   //!< the ρ̃ readers' fit basis
+    const qchem::ChargeDensity::SeedKey key{"LDA", {{25,7}}};   //!< the library holds Mn q7 AND q15: name the variant
     MnBox() : lat((cell.AddAtom(25, rvec3_t(0.5,0.5,0.5)), cell), ivec3_t(1,1,1))
             , st(lat.GetStructure())
             , bs(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, /*Ecut*/4.0))
@@ -251,7 +252,7 @@ TEST(KerkerMix, PolarizedSeedComposesPerChannel)
 {
     ScopedChannelBasis upDn(false);              // the (up,dn) leaf composition is what this contracts
     MnBox box;
-    PolarizedSeedCD seed(box.fitCD, box.st.get());
+    PolarizedSeedCD seed(box.fitCD, box.st.get(), box.key);
     ASSERT_GT(seed.GetTotalSpin(), 4.0) << "the instrument itself: the Mn Hund pair must carry its 2S=5";
 
     auto mixer=KerkerMixerFactory(KerkerParams{.relax=0.5, .G0=1.0}, box.bs.get(), box.st.get(), &seed);
@@ -281,7 +282,7 @@ TEST(KerkerMix, PolarizedStepMovesEachChannelAtAlpha)
 {
     ScopedChannelBasis upDn(false);              // (up,dn): each channel against its own output
     MnBox box;
-    PolarizedSeedCD seed(box.fitCD, box.st.get());
+    PolarizedSeedCD seed(box.fitCD, box.st.get(), box.key);
     const double alpha=0.5, delta=0.4;
     auto mixer=KerkerMixerFactory(KerkerParams{.relax=alpha, .G0=1.0}, box.bs.get(), box.st.get(), &seed);
     ASSERT_NE(dynamic_cast<PolarizedDensityMixer*>(mixer.get()), nullptr);
@@ -321,7 +322,7 @@ TEST(KerkerMix, PolarizedStepInRhoMBasisMovesTheMomentLinearly)
 {
     ScopedChannelBasis rhoM(true);
     MnBox box;
-    PolarizedSeedCD seed(box.fitCD, box.st.get());
+    PolarizedSeedCD seed(box.fitCD, box.st.get(), box.key);
     const double alpha=0.5, delta=0.4;
     auto mixer=KerkerMixerFactory(KerkerParams{.relax=alpha, .G0=1.0}, box.bs.get(), box.st.get(), &seed);
     ASSERT_NE(dynamic_cast<PolarizedDensityMixer*>(mixer.get()), nullptr);
@@ -355,7 +356,7 @@ TEST(KerkerMix, PolarizedStepInRhoMBasisMovesTheMomentLinearly)
 TEST(KerkerMix, SpinBlindValveCollapsesTheChannels)
 {
     MnBox box;
-    PolarizedSeedCD seed(box.fitCD, box.st.get());
+    PolarizedSeedCD seed(box.fitCD, box.st.get(), box.key);
     auto mixer=KerkerMixerFactory(KerkerParams{.relax=0.5, .G0=1.0, .spinBlind=true}, box.bs.get(), box.st.get(), &seed);
     EXPECT_EQ(dynamic_cast<PolarizedDensityMixer*>(mixer.get()), nullptr) << "the valve must select the single-map path";
 
@@ -385,7 +386,7 @@ TEST(KerkerMix, CuspDeficitIsPerSpinOnThePulayArmInEitherChannelBasis)
         {
             ScopedChannelBasis basis(rhoM);
             MnBox box;
-            PolarizedSeedCD seed(box.fitCD, box.st.get());
+            PolarizedSeedCD seed(box.fitCD, box.st.get(), box.key);
             PulayParams p; p.relax=0.5; p.G0=1.0; p.cuspDeficit=cusp; p.depth=8; p.start=3;   // step 1 primes: plain Kerker
             auto mixer=PulayMixerFactory(p, box.bs.get(), box.st.get(), &seed);
             const ΔG_Map up0=FourierOf(ChannelOf(&seed, Spin::Up  )).GetFourierDensity(*box.fitSF);

@@ -96,9 +96,10 @@ TEST(PW_Mn2Box, Γ_Pol_SeedStaggered)
     std::shared_ptr<const BasisSet::cFIT_CD_ABS>  fb (pw.CreateCDFitBasisSet (cellA.get(), qcMesh::MeshParams{}));
     std::shared_ptr<const BasisSet::cFIT_SF_ABS>  fsf(pw.CreateVxcFitBasisSet(cellA.get(), qcMesh::MeshParams{}));
 
-    PolarizedSeedCD A(fb, cellA.get());
-    PolarizedSeedCD B(fb, cellB.get());
-    SeedCD          T(fb, cellA.get());           // the spin-agnostic total (flip-blind)
+    const qchem::ChargeDensity::SeedKey key("LDA", {{25,7}});   // the library holds Mn q7 AND q15: name the variant
+    PolarizedSeedCD A(fb, cellA.get(), key);
+    PolarizedSeedCD B(fb, cellB.get(), key);
+    SeedCD          T(fb, cellA.get(), key);      // the spin-agnostic total (flip-blind)
 
     // Channel bookkeeping: each channel carries majority(one site) + minority(the other) = (6+1) = 7 e-;
     // the staggering cancels the NET spin exactly while both sites are fully staggered locally.

@@ -49,14 +49,16 @@ struct Box   // the cell + the cheapest PW block for a seed's density-fit basis
         , fitCD(bs->CreateCDFitBasisSet(st.get(), qcMesh::MeshParams{})) {}
 };
 
-int NeutralNval(int Z) { return (int)std::lround(GetAtomicDensity(Z,"LDA","atomic_valence_densities.json").Charge()); }
+// The seeds' PP variant: the library holds Mn q7 AND q15, so an unkeyed neutral-Mn lookup is ambiguous (it throws).
+const SeedKey kMnQ7("LDA", {{25,7}});
+int NeutralNval(int Z) { return (int)std::lround(GetAtomicDensity(Z,"LDA","atomic_valence_densities.json",-1,kMnQ7.Q(Z)).Charge()); }
 }
 
 TEST(IonicSADSeed, TargetsArePerSiteAndConserveTheCellCharge)
 {
     bool all[3]={true,true,true};
     Box box(Cell(all,true));
-    const std::vector<int> t=IonicSADTargets(box.st.get(), "LDA");
+    const std::vector<int> t=IonicSADTargets(box.st.get(), kMnQ7);
     ASSERT_EQ(t.size(), 7u) << "one target per atom, in atom order";
     const int nMn=NeutralNval(25), nO=NeutralNval(8);
     EXPECT_EQ(std::accumulate(t.begin(),t.end(),0), 3*nMn+4*nO) << "the formal charges conserve charge, site by site";
@@ -73,8 +75,8 @@ TEST(IonicSADSeed, AStatedChargeOrderReplacesTheTieBreak)
     bool all[3]={true,true,true};
     Box box(Cell(all,true));
     const int nMn=NeutralNval(25);
-    const std::vector<int> derived=IonicSADTargets(box.st.get(), "LDA");
-    SeedKey key("LDA"); key.siteCharges={2,3,3,-2,-2,-2,-2};
+    const std::vector<int> derived=IonicSADTargets(box.st.get(), kMnQ7);
+    SeedKey key=kMnQ7; key.siteCharges={2,3,3,-2,-2,-2,-2};
     const std::vector<int> t=IonicSADTargets(box.st.get(), key);
     EXPECT_EQ(t, (std::vector<int>{nMn-2, nMn-3, nMn-3, 8, 8, 8, 8})) << "each site takes its STATED charge";
     EXPECT_NE(t, derived) << "the derived order put Mn2+ elsewhere -- else this test states nothing";
@@ -85,8 +87,8 @@ TEST(IonicSADSeed, TheDecorationReadsEachSitesOwnTarget)
 {
     bool all[3]={true,true,true};
     Box box(Cell(all,true));
-    const std::vector<int> t=IonicSADTargets(box.st.get(), "LDA");
-    const std::vector<int> s=MagneticDecoration(box.st.get(), "LDA", t);
+    const std::vector<int> t=IonicSADTargets(box.st.get(), kMnQ7);
+    const std::vector<int> s=MagneticDecoration(box.st.get(), kMnQ7, t);
     ASSERT_EQ(s.size(), t.size());
     const int Z[7]={25,25,25,8,8,8,8};
     for (size_t i=0;i<t.size();i++)
@@ -99,12 +101,12 @@ TEST(IonicSADSeed, AMixedValenceSeedIsTheSumOfItsChargeStates)
 {
     bool all[3]={true,true,true};
     Box box(Cell(all,true));
-    const std::vector<int> t=IonicSADTargets(box.st.get(), "LDA");
+    const std::vector<int> t=IonicSADTargets(box.st.get(), kMnQ7);
     for (bool polarized : {false,true})
     {
         std::unique_ptr<tChargeDensity<dcmplx>> full;
-        if (polarized) full=std::make_unique<PolarizedSeedCD>(box.fitCD, box.st.get(), "LDA", t);
-        else           full=std::make_unique<SeedCD>(box.fitCD, box.st.get(), "LDA", t);
+        if (polarized) full=std::make_unique<PolarizedSeedCD>(box.fitCD, box.st.get(), kMnQ7, t);
+        else           full=std::make_unique<SeedCD>(box.fitCD, box.st.get(), kMnQ7, t);
         // The library radials integrate to their charge state only to ~1e-2 (the diffuse O2- entry: measured 45.016
         // for 45); the per-species map was 2 e heavy, so 0.05 still separates the two by 40x.
         EXPECT_NEAR(full->GetTotalCharge(), std::accumulate(t.begin(),t.end(),0), 0.05)
@@ -120,8 +122,8 @@ TEST(IonicSADSeed, AMixedValenceSeedIsTheSumOfItsChargeStates)
         auto cA=Cell(inA,true), cB=Cell(inB,false);
         auto seed=[&](const UnitCell* c, const std::vector<int>& tt)->std::unique_ptr<tChargeDensity<dcmplx>>
         {
-            if (polarized) return std::make_unique<PolarizedSeedCD>(box.fitCD, c, "LDA", tt);
-            return std::make_unique<SeedCD>(box.fitCD, c, "LDA", tt);
+            if (polarized) return std::make_unique<PolarizedSeedCD>(box.fitCD, c, kMnQ7, tt);
+            return std::make_unique<SeedCD>(box.fitCD, c, kMnQ7, tt);
         };
         auto sA=seed(cA.get(), tA), sB=seed(cB.get(), tB);
         EXPECT_NEAR(full->GetTotalCharge(), sA->GetTotalCharge()+sB->GetTotalCharge(), 1e-10);
