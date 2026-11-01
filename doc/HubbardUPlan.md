@@ -164,8 +164,9 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
   covalency where O d acted).  Mn p f mainly fix bands: add only if a composition's gap closes.  The Li reference (E[Li metal],
   bcc + k-mesh) needs the same Li basis/PP choice — the B4 q1-vs-q3 check.  **Carry from round 1 to round 2**: the U values (arm a
   uses them; arm b starts its outer loop from them, not U_in = 0) and each composition's STATED spin pattern (`siteSpins`; the
-  pyrochlore Mn sublattice is frustrated).  A saved STATE across an orbital-basis change is UNVERIFIED: D does not transfer; a
-  G-space density might seed the new basis (the NaF coarse→fine grid restart is the precedent) — check before round 2.
+  pyrochlore Mn sublattice is frustrated).  A saved STATE does NOT carry across an orbital-basis change: CHECKED 2026-11-01, the
+  orbital shells are in the restart fingerprint's REFUSE class by design (`src/Calculation/SolidState.C`: D is a matrix over THOSE
+  functions); grids, +U and the recipe are WARM.  Round 2 therefore needs a basis-change SEED (`doc/OpenWork.md` §2 row) or starts cold.
 - **S7 — forces (`doc/OpenWork.md` §2 row) in parallel from S4 on**: needed by the CE/voltage stage (every Li configuration
   relaxed), NOT by the U step.
 
