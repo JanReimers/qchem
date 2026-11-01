@@ -4,6 +4,9 @@ module;
 #include <iostream>
 #include <initializer_list>
 #include <vector>
+#include <algorithm>
+#include <stdexcept>
+#include <string>
 
 module qchem.ElectronConfiguration.AtomNR;
 import qchem.PeriodicTable;
@@ -196,7 +199,38 @@ Atom_EC::Atom_EC(int Z)
 // subshell like Si 3s^2 stays a valence occupation instead of folding into the core.  netCharge != 0 makes
 // an ion (see the header): adjust the neutral valence by -netCharge electrons, then recompute the unpaired
 // count by Hund's rule on the (adjusted) valence shell.
-Atom_EC::Atom_EC(int Z, int netCharge, ValenceOnly_t)
+namespace {
+//! The SEMICORE closed shells a pseudopotential of valence \a zion keeps beyond the neutral valence \a nValence, as electron counts per
+//! l.  They are the OUTERMOST shells of the noble-gas core (Z - nValence electrons, filled in aufbau order), taken highest n first then
+//! highest l -- the energetic order of a core (Ag q19 keeps 4s^2 4p^6, not 3d).  THROWS when \a zion does not peel whole shells.
+std::vector<int> SemicoreShells(int Z, int nValence, int zion)
+{
+    std::vector<int> nf(LMax+1, 0);
+    int extra=zion-nValence;
+    if (extra==0) return nf;
+    if (extra<0) throw std::invalid_argument("PseudoAtom_EC: Z="+std::to_string(Z)+" q="+std::to_string(zion)+" keeps FEWER electrons than "
+                                             "the neutral valence ("+std::to_string(nValence)+")");
+    static const int aufbau[][2]={{1,0},{2,0},{2,1},{3,0},{3,1},{4,0},{3,2},{4,1},{5,0},{4,2},{5,1},{6,0},{4,3},{5,2},{6,1},{7,0}};
+    std::vector<std::pair<int,int>> core;   // (n,l)
+    int nCore=0;
+    for (const auto& sh : aufbau) { if (nCore>=Z-nValence) break; core.push_back({sh[0],sh[1]}); nCore+=2*(2*sh[1]+1); }
+    if (nCore!=Z-nValence) throw std::logic_error("PseudoAtom_EC: the core of Z="+std::to_string(Z)+" is not whole aufbau shells");
+    std::sort(core.begin(), core.end(), [](const auto& a, const auto& b){return a.first!=b.first ? a.first>b.first : a.second>b.second;});
+    for (const auto& [n,l] : core)
+    {
+        if (extra==0) break;
+        const int g=2*(2*l+1);
+        if (g>extra) throw std::invalid_argument("PseudoAtom_EC: Z="+std::to_string(Z)+" q="+std::to_string(zion)+" is not a whole-shell "
+                                                 "semicore split (the next core shell n="+std::to_string(n)+" l="+std::to_string(l)+" holds "
+                                                 +std::to_string(g)+", "+std::to_string(extra)+" left to place)");
+        nf[l]+=g; extra-=g;
+    }
+    if (extra>0) throw std::invalid_argument("PseudoAtom_EC: q="+std::to_string(zion)+" exceeds Z="+std::to_string(Z));
+    return nf;
+}
+} // namespace
+
+Atom_EC::Atom_EC(int Z, int netCharge, int zion, ValenceOnly_t)
 : itsLMax(0), itsLValance(0)
 {
     assert(Z>0);
@@ -230,12 +264,18 @@ Atom_EC::Atom_EC(int Z, int netCharge, ValenceOnly_t)
         --nv[l];
     }
 
+    // The SEMICORE the pseudopotential keeps (closed shells below the valence): the ion was made on the valence shells above, so a
+    // cation empties 3s before the semicore 2p is touched (Na+ q9 = 2s^2 2p^6).
+    int nNeutral=0;
+    for (size_t l=0;l<=LMax;l++) nNeutral+=int(vc[l]);
+    const std::vector<int> nf=SemicoreShells(Z, nNeutral, zion<0 ? nNeutral : zion);
     for (size_t l=0;l<=LMax;l++)
     {
-        itsNs.Nf[l]=0;                 //no core: the pseudopotential replaces it
+        itsNs.Nf[l]=nf[l];             //the semicore shells the PP keeps (0 for a valence-only q): the rest of the core is the PP's
         itsNs.Nv[l]=nv[l];
-        itsNs.N [l]=nv[l];
-        if (nv[l]>0) {itsLMax=l; itsLValance=l;}
+        itsNs.N [l]=nf[l]+nv[l];
+        if (itsNs.N[l]>0) itsLMax=l;
+        if (nv[l]>0) itsLValance=l;
     }
     // Neutral atom: keep the periodic table's exact unpaired count (handles half-filled-shell exceptions like
     // Cr/Cu).  Ion: recompute by Hund's rule PER SHELL and sum -- n in 2g spin-orbitals gives n unpaired if
@@ -256,8 +296,8 @@ Atom_EC::Atom_EC(int Z, int netCharge, ValenceOnly_t)
     AssignUnpaired(Z, nup);
 }
 
-PseudoAtom_EC::PseudoAtom_EC(int Z, int netCharge)
-: Atom_EC(Z, netCharge, ValenceOnly_t{})
+PseudoAtom_EC::PseudoAtom_EC(int Z, int netCharge, int zion)
+: Atom_EC(Z, netCharge, zion, ValenceOnly_t{})
 {
     BuildNROccupations();
 }

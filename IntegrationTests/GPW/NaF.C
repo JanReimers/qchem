@@ -122,7 +122,7 @@ TEST(GPW_NaF, Γ_Imp_Anchor)   // RE-ENABLED 2026-09-15: 15 s, converged in 23 i
     const Lattice_3D lat=LatticeOf(naf);
     SolidCalcOptions o=NaFOptions(naf, "NaF GPW Gamma");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);
+    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default (nR 40, degree 29): this anchor's number only, never a curvature (OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
     SCFParams par=NaFGates(); par.StartingRelaxRo=0.25; par.MergeTol=1e-4;
     GpwReport report("NaF "+o.label, par.Verbose);
@@ -148,6 +148,7 @@ struct NaFRestartFixture
     std::string coarsePath, finePath;
     double      coldEnergy=0.0, coarseEnergy=0.0;
     size_t      coldIterations=0;
+    std::shared_ptr<const SolidSetup> fineSetup;   //!< the cold fine run's setup, its rasters as its pilot sized them
     bool        ok=false;
     std::string why;
 };
@@ -155,7 +156,7 @@ SolidCalcOptions NaFAnchorOptions(const Material& naf, const std::string& label)
 {
     SolidCalcOptions o=NaFOptions(naf, label);
     o.imposeSymmetry=true;
-    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);
+    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default (nR 40, degree 29): this anchor's number only, never a curvature (OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
     return o;
 }
@@ -174,10 +175,12 @@ const NaFRestartFixture& NaFRestart()
         const std::string pid=std::to_string(::getpid());
         r.coarsePath=(dir/("naf_restart_coarse."+pid+".h5")).string();
         r.finePath  =(dir/("naf_restart_fine."+pid+".h5")).string();
-        {   // the CHEAP coarse stage: Ecut=40 is SUB-FLOOR (below C*alpha_max=80), so it needs the alias-free raster
+        {   // the CHEAP coarse stage: Ecut=40 is SUB-FLOOR (below C*alpha_max=80), so it needs a finer raster than its ball's own --
+            // stated (accuracy 0): x 16, what the retired AliasFree gave (C2 step 3)
             SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart coarse");
             o.densityEcut=40.0;
-            o.raster=BasisSet::PlaneWave::RasterPolicy::AliasFree;
+            o.accuracy.eps=0.0;
+            o.tolerances.rasterX=o.tolerances.vlocRasterX=o.tolerances.xcRasterX=16.0;
             o.saveStateTo=r.coarsePath;
             qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
             auto R=calc.Result();
@@ -191,6 +194,7 @@ const NaFRestartFixture& NaFRestart()
             auto R=calc.Result();
             if (!R) { r.why="cold fine: "+Why(R); return r; }
             r.coldEnergy=R->Energy(); r.coldIterations=R->IterationCount();
+            r.fineSetup=calc.SizedSetup();   // the PRODUCTION grid, as this run's pilot sized it (C2 step 3): what the coarse state restarts onto
         }
         r.ok=true;
         return r;
@@ -213,7 +217,10 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart_Panel)   // PANEL case 2 (regime 5, WARM coarse
     SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart fine");          // auto densityEcut = the production grid
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
-    auto c=qchem::SolidCalculation::Restart(f.coarsePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams(),
+    // Onto the cold fine run's SIZED setup (C2 step 3): its rasters are the production grid's, so the claim -- the first fine iterate is
+    // already the answer -- is about the restart, not about a pilot re-sizing from the ball's rasters.
+    ASSERT_TRUE(f.fineSetup);
+    auto c=qchem::SolidCalculation::Restart(f.coarsePath, f.fineSetup, NaFAnchorParams(),
                                             [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();
@@ -318,15 +325,15 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
 // DETECTED at each geometry -- 48 ops on the site, 8 off it -- so the mesh switched along the path: mirror 1.7e-5 Ha, Δ⁵ 5.9e-6;
 // a SolidSession now requires the plain atom-centred mesh (SolidCalcOptions::xcMeshSymmetric=false): 5e-10 and 2.0e-8.
 // NOT claimed: that the site is a minimum.  With GTH-q1 Na it is not, in CP2K either (a weak maximum, E'' ≈ -0.005 Ha/bohr² at k222
-// on a resolved grid; q9 Na gives the experimental +0.02) -- doc/OpenWork.md "NaF with the q1 Na pseudopotential has NO restoring
-// force on the F site".  (The -0.03 once quoted here was this run's raster egg-box: its rigid-translation control moves E 1e-5.)
+// on a resolved grid; q9 Na gives +0.029 ours / +0.028 CP2K on the same basis) -- doc/OpenWork.md "A light-PP ion has NO restoring
+// force on its site".  (The -0.03 once quoted here was this run's raster egg-box: its rigid-translation control moves E 1e-5.)
 TEST(GPW_NaF, Γ_PathIsContinuous_Long)
 {
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     SolidCalcOptions o=NaFOptions(naf, "NaF PES path");
     o.imposeSymmetry=false;   // a displaced F lowers the group: an imposed session refuses the step (SymmetryBroken)
     o.xcMeshSymmetric=false;  // ... and a free session's XC mesh must not follow the group detected at each point (see above)
-    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);
+    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default: the CONTINUITY claim only -- a site curvature on it is 4-10x off (LiF/NaF, OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
     SCFParams par=NaFAnchorParams(); par.MinΔρPerElectron=1e-6;
     const GaussianBasisRecipe sr2{.data=BasisSetData::VALENCE_LOWQ_SR2};

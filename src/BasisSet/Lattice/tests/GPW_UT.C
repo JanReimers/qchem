@@ -37,6 +37,7 @@ import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView; // MakeSphericalLat
 import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential + the _R / _Gaussian faces (KB gate)
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 projector data)
 import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
+import qchem.BasisSet.Gaussian.Lattice.GPWTolerances; // AliasTail / GridAccuracy (the rigorous accuracy math)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // Gaussian::LatticeSum1E::CollocateDensity (analytic collocation)
 import qchem.LASolver;                       // LASolver<dcmplx> (the k=1/4 spectrum gate)
 import qchem.Symmetry.Factory;               // BlochFactory (arbitrary-shift k for the k=1/4 continuity gate)
@@ -60,9 +61,19 @@ using BasisSet::Complex_OIBS;
 using BasisSet::Gaussian::GPW_IBS;
 using BasisSet::Gaussian::GPW_Evaluator;
 using qchem::BasisSet::Gaussian::BasisSetData;
+using qchem::BasisSet::Gaussian::GPWTolerances;
 
 namespace
 {
+//! The raster the retired RasterPolicy::AliasFree gave at the AUTO floor (C2 step 3): G_N twice the ball edge on every level, i.e.
+//! x = G_N^2/p = 16 at the tightest pair each level serves (the ball's own raster delivers x = 4 there).  The exact-quadrature gates.
+GPWTolerances AliasFreeRasters()
+{
+    GPWTolerances t;
+    t.rasterX=t.vlocRasterX=t.xcRasterX=16.0;
+    return t;
+}
+
 // The collocation TOLERANCE POLICY these direct-face gates run under (doc/OldPlans/ScreeningPlan.md).  The tree's
 // DEFAULT is D-aware, so this is what the SCF path hands the same two faces -- which is what makes the
 // numbers pinned below the ones a real run produces.  A geometry-only arm would be a different gate, not a
@@ -250,7 +261,7 @@ TEST(GPW, SharpestPairChargeConservation)
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
-                BasisSet::PlaneWave::RasterPolicy::AliasFree);   // EXACT-QUADRATURE gate (production default = BallOnly)
+                4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, AliasFreeRasters());   // EXACT-QUADRATURE gate (production: sized from eps)
     const GPW_Evaluator& ev = gpw;
     const Complex_OIBS&  g  = gpw;
     const size_t n=g.GetNumFunctions();
@@ -2503,7 +2514,7 @@ TEST(GPW, TightPrimitiveVlongOracle)
             // ...and the RIGHT PAIRING at the AUTO floor: C = 2 with the ALIAS-FREE raster (the BallOnly raster's fold-back is
             // what the auto floor cannot afford; BallOnly + C = 2 = the +-1.5 Ha above).
             GPW_IBS gaf(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*AUTO*/-1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
-                        BasisSet::PlaneWave::RasterPolicy::AliasFree);
+                        4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, AliasFreeRasters());
             const chmat_t Vaf=static_cast<const GPW_Evaluator&>(gaf).MakeLocalPPLong(&cell, gth.local);
             const Real_OIBS* obs=nullptr;
             for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
@@ -2543,14 +2554,15 @@ TEST(GPW, TightPrimitiveCollocationOracle)
     UnitCell cell(a);
     cell.AddAtom(25, {0.5,0.5,0.5});
     const rvec3_t C(a/2,a/2,a/2);
-    using RP=BasisSet::PlaneWave::RasterPolicy;
+    enum class RP { BallOnly, AliasFree };   // the ball's own raster (x = 0) / AliasFreeRasters()
     for (double alpha : {10.0, 36.0, 76.68})
         for (auto [ecut, rp] : {std::pair{-1.0, RP::BallOnly}, std::pair{12.0*alpha, RP::BallOnly}, std::pair{-1.0, RP::AliasFree}})
         {
             auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
             cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{alpha}, 2, &cell));
             std::shared_ptr<const Real_BS> mol(cbs);
-            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut, BasisSet::Gaussian::CellImages::Periodic, 2.0, rp);
+            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut, BasisSet::Gaussian::CellImages::Periodic, 2.0,
+                        4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, rp==RP::AliasFree ? AliasFreeRasters() : GPWTolerances{});
             const GPW_Evaluator& ev=gpw;
             const Complex_OIBS&  g  =gpw;
             const Real_OIBS* obs=nullptr;
@@ -2613,7 +2625,7 @@ TEST(GPW, RasterAliasCalibration)
         const rvec3_t G(2*Pi*i/a, 2*Pi*j/a, 2*Pi*k/a);
         if (G*G<=256.0) Gs.push_back(G);
     }
-    using RP=BasisSet::PlaneWave::RasterPolicy;
+    enum class RP { BallOnly, AliasFree };   // the ball's own raster (x = 0) / AliasFreeRasters()
     double Srho=0.0, Svl=0.0;
     struct Row { double alpha, c; bool af; double xr, er, xv, ev; };
     for (double alpha : {10.0, 36.0, 76.68})
@@ -2626,7 +2638,8 @@ TEST(GPW, RasterAliasCalibration)
             std::shared_ptr<const Real_BS> mol(cbs);
             rpt::ClearGlobal();
             rpt::Begin("RasterAliasCalibration", "fixed");
-            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, c>0 ? c*pp : -1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0, rp);
+            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, c>0 ? c*pp : -1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
+                        4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, rp==RP::AliasFree ? AliasFreeRasters() : GPWTolerances{});
             const GPW_Evaluator& ev=gpw;
             ev.EmitGridsReport();
             const chmat_t Vl=ev.MakeLocalPPLong(&cell, gth.local);
@@ -2858,3 +2871,97 @@ TEST(GPW, OrbitalImage_SiDiamond_PPMatricesCarryOver)
         EXPECT_LT(dL, 1e-12*MaxAbs(L)) << "V_short at k=" << k;
     }
 }
+
+// THE RIGOROUS HALF of the grid accuracy target (doc/GridEpsilonPlan.md §1, ruled 2026-10-31: isolated from the heuristic eta):
+// L(eps) is the root L > n of S L^n e^{-L} = eps -- NOT the bare ln(S/eps), which under-sizes every raster by ~7 units of x at 1e-5.
+// Hand values: M2b's table (§5) for the fitted tails at eps = 1e-4 / 1e-5 / 1e-6 / 1e-7.
+TEST(GridAccuracy, TheAliasExponentIsTheRootOfTheFittedTail)
+{
+    using namespace qchem::BasisSet::Gaussian;
+    const double eps[]={1e-4,1e-5,1e-6,1e-7};
+    const double Lv[]={18.9,21.6,24.2,26.8}, Lr[]={16.6,19.4,22.0,24.7};   // §5 M2b, 3 digits (22.1 there was a hand-rounding: the root is 22.045)
+    for (int i=0;i<4;i++)
+    {
+        const double v=kVlocLongTail.Exponent(eps[i]), r=kDensityTail.Exponent(eps[i]);
+        EXPECT_NEAR(v, Lv[i], 0.05) << "V_long at eps " << eps[i];
+        EXPECT_NEAR(r, Lr[i], 0.05) << "density at eps " << eps[i];
+        EXPECT_NEAR(kVlocLongTail.Bound(v)/eps[i], 1.0, 1e-10) << "the root solves the tail equation";
+        EXPECT_NEAR(kDensityTail.Bound(r)/eps[i], 1.0, 1e-10);
+        EXPECT_GT(v, kVlocLongTail.n) << "the DECREASING branch";
+        EXPECT_GT(v, std::log(kVlocLongTail.S/eps[i])+5.0) << "the x^3 prefactor costs ~7 units of x over the bare form";
+    }
+    EXPECT_THROW(kVlocLongTail.Exponent(10.0), std::invalid_argument) << "above the tail's maximum: no raster is needed";
+    EXPECT_THROW(kVlocLongTail.Exponent(0.0),  std::invalid_argument);
+    // eta = delivered/bound <= 1 (M2c): a term meets eps when eta*Bound(x) <= eps, so the calibrated x is L(eps/eta) -- LOOSER.
+    GridAccuracy a; a.eps=1e-6; a.eta=AccuracyCalibration{.vlocLong=0.1};
+    EXPECT_NEAR(a.Calibrated(kVlocLongTail,a.eta->vlocLong), kVlocLongTail.Exponent(1e-5), 1e-12) << "the calibration is L(eps/eta), nothing else";
+    EXPECT_LT(a.Calibrated(kVlocLongTail,a.eta->vlocLong), a.Rigorous(kVlocLongTail)) << "a measured eta < 1 can only loosen the raster";
+    EXPECT_EQ(a.Calibrated(kDensityTail,1e-6), kDensityTail.n) << "eps/eta above the tail's maximum: the floor";
+    EXPECT_THROW(a.Calibrated(kDensityTail,2.0), std::invalid_argument) << "eta > 1 would claim the bound is optimistic";
+    EXPECT_NE(a.Describe(GPWTolerances{}).find("MEASURED"), std::string::npos) << "the XC raster is never presented as rigorous";
+}
+
+// C2 step 3's HEURISTIC step and the derivations around it (doc/GridEpsilonPlan.md §1): a term that delivered d at x fixes its own scale
+// under the rigorous shape and demands the root of C x^3 e^{-x} = target -- beyond its x, and nothing when it already meets the target;
+// a STATED calibration writes L(eps/eta) per term (XC follows the density: no bound of its own); the target is eps per atom on an energy
+// run and per matrix element on a geometry run.
+TEST(GridAccuracy, ThePilotDemandSolvesTheMeasuredTail)
+{
+    using namespace qchem::BasisSet::Gaussian;
+    EXPECT_EQ(GridAccuracy::MeasuredDemand(1e-6, 4.2, 1e-5), 0.0) << "a term inside its target demands nothing";
+    for (double xRun : {4.2, 6.56, 12.0})
+        for (double d : {1e-4, 9.2e-2})
+        {
+            const double x=GridAccuracy::MeasuredDemand(d, xRun, 1e-5);
+            const double C=d/(std::pow(xRun,3.0)*std::exp(-xRun));
+            EXPECT_GT(x, xRun) << "an over-target term needs a FINER raster";
+            EXPECT_NEAR(C*std::pow(x,3.0)*std::exp(-x)/1e-5, 1.0, 1e-9) << "the demand solves C x^3 e^{-x} = target";
+        }
+    // M2c NaF Gamma SR2, Hartree on max|dH| (9.2e-2 Ha at x 4.20): the projected geometry-run demand, x ~ 17.6.
+    EXPECT_NEAR(GridAccuracy::MeasuredDemand(9.2e-2, 4.20, 1e-5), 17.6, 0.1);
+    EXPECT_THROW(GridAccuracy::MeasuredDemand(1e-3, 4.0, 0.0), std::invalid_argument);
+
+    GridAccuracy a;
+    EXPECT_THROW(a.Stated(GPWTolerances{}), std::logic_error) << "no stated calibration: the run self-calibrates";
+    a.eta=AccuracyCalibration{.vlocLong=1.0, .density=1.0};
+    const GPWTolerances t=a.Stated(GPWTolerances{});
+    EXPECT_NEAR(t.rasterX,     kDensityTail.Exponent(a.eps),  1e-12);
+    EXPECT_NEAR(t.vlocRasterX, kVlocLongTail.Exponent(a.eps), 1e-12);
+    EXPECT_EQ(t.xcRasterX, t.rasterX) << "the XC raster has no bound of its own";
+    EXPECT_EQ(a.Target(ClientConsumes::Energy, 8), 8e-5);
+    EXPECT_EQ(a.Target(ClientConsumes::MatrixElements, 8), 1e-5);
+}
+
+// C2 step 3's SIZING: a stated demand x is DELIVERED by every raster (the finest density level, L0 for the XC, V_long's own ladder), and
+// x = 0 is the ball's own raster -- the retired BallOnly, bit for bit (2m+1 per axis).  The grid audit asserts the same (it throws).
+TEST(GPW, RasterDemandIsDelivered)
+{
+    namespace rpt=qchem::report;
+    const double a=10.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
+    const auto gth=Pseudopotential::GetGTH("Si","LDA",4);
+    for (double x : {0.0, 9.0, 21.6})
+    {
+        GPWTolerances t; t.rasterX=x; t.vlocRasterX=x+3.0; t.xcRasterX=x+1.0;
+        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, -1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
+                    4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, t);
+        const GPW_Evaluator& ev=gpw;
+        (void)ev.MakeLocalPPLong(&cell, gth.local);   // V_long's ladder is built lazily
+        const auto got=ev.DeliveredRasterExponents();
+        if (x==0.0)
+        {
+            const ivec3_t N=ev.DensityGrid().FFTGrid();
+            const ivec3_t B=BasisSet::PlaneWave::PW_Grid_Evaluator(ev.DensityGrid().Recip(), rvec3_t(0,0,0), ev.DensityGrid().Ecut(),
+                                                                  BasisSet::PlaneWave::RasterPolicy::BallOnly).FFTGrid();
+            EXPECT_TRUE(N.x==B.x && N.y==B.y && N.z==B.z) << "x = 0 is the ball's own raster (the old BallOnly)";
+            continue;
+        }
+        EXPECT_GE(got.density,  t.rasterX*(1.0-1e-9))     << "the finest density level at x="<<x;
+        EXPECT_GE(got.xcL0,     t.xcRasterX*(1.0-1e-9))   << "L0 at the XC demand, x="<<x;
+        if (got.vlocLong>0.0) EXPECT_GE(got.vlocLong, t.vlocRasterX*(1.0-1e-9)) << "V_long's own ladder, x="<<x;
+        EXPECT_LT(got.density, 2.0*t.rasterX) << "sized TO the demand, not far past it (the 5-smooth menu is the only padding)";
+    }
+}
+

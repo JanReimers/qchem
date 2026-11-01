@@ -107,3 +107,30 @@ TEST(SolidSetup, ARecipeChecksTheBasisProvenanceWithNoDeck)
         EXPECT_NE(m.find("q1"),std::string::npos) << m;
     }
 }
+
+// THE ELECTRON COUNT IS THE SPECIES' (2026-10-31): a stated count that disagrees with sum(q) - charge is REFUSED, naming both.  The
+// old silent +8: a stated SEMICORE Na q9 with the material's q1 count (8 for NaF instead of 16) ran a charged cell without a word.
+TEST(SolidSetup, AnElectronCountThatDisagreesWithTheSpeciesIsRefused)
+{
+    UnitCell cell(8.0);
+    cell.AddAtom(11,{0.0,0.0,0.0});
+    cell.AddAtom( 9,{0.5,0.5,0.5});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    const GaussianBasisRecipe q9{.file="valence_lowq_sr2_naq9.bsd"};
+    const SolidCalcOptions semicore{.species={{"Na",9},{"F",7}}, .pp="gth-lda-valence"};
+    SolidCalcOptions old=semicore; old.Nelec=8;   // the q1 count, the bug
+    try { (void)SolidSetup::Resolve(lat, q9, old); FAIL() << "a stated Nelec 8 against Na q9 + F q7 must be refused"; }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string w=e.what();
+        EXPECT_NE(w.find("Nelec 8"), std::string::npos) << w;
+        EXPECT_NE(w.find("16"), std::string::npos) << "names the species' count: " << w;
+    }
+    EXPECT_EQ(SolidSetup::Resolve(lat, q9, semicore)->opts.Nelec, 16) << "unstated: derived from the species";
+    SolidCalcOptions stated=semicore; stated.Nelec=16;
+    EXPECT_NO_THROW((void)SolidSetup::Resolve(lat, q9, stated)) << "a stated count that agrees";
+    SolidCalcOptions cation=semicore; cation.charge=2;
+    EXPECT_EQ(SolidSetup::Resolve(lat, q9, cation)->opts.Nelec, 14) << "a STATED charge is a legal charged cell";
+    cation.Nelec=14;
+    EXPECT_NO_THROW((void)SolidSetup::Resolve(lat, q9, cation));
+}

@@ -2,6 +2,7 @@
 
 
 #include "gtest/gtest.h"
+#include <stdexcept>
 #include "tabulate/table.hpp"
 #include <iostream>
 
@@ -372,6 +373,42 @@ TEST_F(ElectronConfigurationTests, ManganeseMonocationPseudoValence)
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s)), 0);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,d)), 5);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,d)), 0);
+}
+// SEMICORE pseudopotentials (2026-10-31): a q above the neutral valence keeps closed core shells -- the outermost of the noble-gas
+// core, highest n first.  Until then q was ignored and a q9 Na atom carried ONE electron (the periodic table's neutral valence).
+TEST_F(ElectronConfigurationTests, SodiumSemicoreQ9)
+{
+    sym_t s=qn(0), p=qn(1);
+    PseudoAtom_EC na(11, 0, 9);       // Na q9: 2s^2 2p^6 3s^1
+    EXPECT_EQ(na.GetN(Irrep(Spin::None,s)), 3);
+    EXPECT_EQ(na.GetN(Irrep(Spin::None,p)), 6);
+    PseudoAtom_EC nap(11, +1, 9);     // Na+ q9: the cation empties 3s, never the semicore -> 2s^2 2p^6
+    EXPECT_EQ(nap.GetN(Irrep(Spin::None,s)), 2);
+    EXPECT_EQ(nap.GetN(Irrep(Spin::None,p)), 6);
+    EXPECT_EQ(nap.GetN(Irrep(Spin::Up,p)), 3);
+    EXPECT_EQ(nap.GetN(Irrep(Spin::Down,p)), 3);
+}
+TEST_F(ElectronConfigurationTests, LithiumSemicoreQ3)
+{
+    PseudoAtom_EC li(3, 0, 3);        // Li q3: 1s^2 2s^1 -- both in l=0
+    EXPECT_EQ(li.GetN(Irrep(Spin::None,qn(0))), 3);
+    PseudoAtom_EC lip(3, +1, 3);      // Li+ q3: 1s^2
+    EXPECT_EQ(lip.GetN(Irrep(Spin::None,qn(0))), 2);
+}
+TEST_F(ElectronConfigurationTests, ManganeseSemicoreQ15)
+{
+    PseudoAtom_EC mn(25, +2, 15);     // Mn2+ q15: 3s^2 3p^6 3d^5, the d^5 still all majority
+    sym_t s=qn(0), p=qn(1), d=qn(2);
+    EXPECT_EQ(mn.GetN(Irrep(Spin::None,s)), 2);
+    EXPECT_EQ(mn.GetN(Irrep(Spin::None,p)), 6);
+    EXPECT_EQ(mn.GetN(Irrep(Spin::Up  ,d)), 5);
+    EXPECT_EQ(mn.GetN(Irrep(Spin::Down,d)), 0);
+}
+TEST_F(ElectronConfigurationTests, ASemicoreQThatSplitsAShellIsRefused)
+{
+    EXPECT_THROW(PseudoAtom_EC(11, 0, 5), std::invalid_argument);   // 4 semicore electrons: half of 2p
+    EXPECT_THROW(PseudoAtom_EC(11, 0, 0), std::invalid_argument);   // fewer than the neutral valence
+    EXPECT_NO_THROW(PseudoAtom_EC(11, 0, 1));                       // the valence-only q, explicitly
 }
 TEST_F(ElectronConfigurationTests, Phosphorus)
 {

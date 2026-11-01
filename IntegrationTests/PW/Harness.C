@@ -350,7 +350,8 @@ struct FwResult { bool converged; double charge; qchem::EnergyBreakdown E; size_
 FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
                            std::function<qchem::Hamiltonian::cHamiltonian*(const BasisSet::Complex_BS*)> mkHam,
                            const char* label,
-                           qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform)
+                           qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform,
+                           const qchem::ChargeDensity::SeedKey& seedKey={})   // per-Z PP variant: a species with two in the seed library must name one
 {
     namespace L3=BasisSet::Lattice;
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, Ecut));
@@ -365,7 +366,10 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{.Nproj=10, .EngageBelowFD=8.0, .SVTol=1e-9});
     std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
     // \a seed defaults to Uniform rho(r)=N/V; IonicSAD pre-bakes the formal-charge transfer (Na+ + F-).
-    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
+    // Built here rather than by the enum ctor, which reads the seed library UNKEYED: that throws for Na since the q9 seeds landed.
+    const bool polarized=ham->GetSpinGroup()==SpinGroup::Polarized;
+    auto* seedCD=qchem::ChargeDensity::MakeSeedDensity<dcmplx>(seed, bs.get(), lat.GetStructure().get(), &ec, polarized, seedKey);
+    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seedCD, lat.GetStructure().get());
     SCFParams par;
     par.NMaxIter=120; par.MinΔρPerElectron=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=false;

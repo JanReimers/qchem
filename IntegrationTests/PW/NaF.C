@@ -92,8 +92,9 @@ TEST(PW_NaF, Γ_Anchor)
     // are scaled to the formal-charge electron counts (0 e- on Na, 8 e- on F) -- the seed pre-bakes the
     // Na->F charge transfer and CONSERVES the cell electron count.  This asserts the seed is CORRECT (charge
     // sum rule + same converged energy as Uniform: the seed cannot change the answer).
-    FwResult I=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam, "NaF IonicSAD", SS::IonicSAD);
-    FwResult U=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam, "NaF Uniform",  SS::Uniform);
+    const qchem::ChargeDensity::SeedKey key("LDA", {{11,1},{9,7}});   // the Ham's Na q1 / F q7 (Na has a q9 seed too)
+    FwResult I=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam, "NaF IonicSAD", SS::IonicSAD, key);
+    FwResult U=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam, "NaF Uniform",  SS::Uniform,  key);
     std::cout << "[NaF seed compare] IonicSAD iters="<<I.iters<<"  Uniform iters="<<U.iters << std::endl;
 
     EXPECT_TRUE(I.converged);

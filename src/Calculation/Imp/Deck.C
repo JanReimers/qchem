@@ -20,7 +20,7 @@ module;
 #include <nlohmann/json.hpp>
 module qchem.Deck;
 
-import qchem.BasisSet.Lattice.BasisSet;    // RasterPolicy, CellImages
+import qchem.BasisSet.Lattice.BasisSet;    // CellImages, GPWTolerances
 import qchem.Hamiltonian.Factory;           // VxcFit, HubbardManifold
 import qchem.SCFAccelerator.Factory;        // SCFAccelerators::Type
 import qchem.ChargeDensity.Seed;            // SeedStrategy
@@ -89,14 +89,12 @@ private:
 template <class E> std::string NameOf(E v, std::initializer_list<std::pair<const char*,E>> names)
 { for (const auto& n : names) if (n.second==v) return n.first; throw std::runtime_error("deck: enum value has no name"); }
 
-using BasisSet::PlaneWave::RasterPolicy;
 using BasisSet::Gaussian::CellImages;
 using ChargeDensity::SeedStrategy;
 using AccType = SCFAccelerators::Type;
 using qcMesh::UnitCellKind; using qcMesh::RadialKind; using qcMesh::AngularKind;
 
 #define NAMES(T,...) std::initializer_list<std::pair<const char*,T>>{__VA_ARGS__}
-const auto kRaster = NAMES(RasterPolicy, {"AliasFree",RasterPolicy::AliasFree}, {"BallOnly",RasterPolicy::BallOnly});
 const auto kImages = NAMES(CellImages,   {"Periodic",CellImages::Periodic}, {"HomeCellOnly",CellImages::HomeCellOnly});
 const auto kFamily = NAMES(SolidCalcOptions::OrbitalBasis, {"gaussian",SolidCalcOptions::OrbitalBasis::GPW}, {"planeWave",SolidCalcOptions::OrbitalBasis::PlaneWave});
 const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Auto}, {"PlaneWave",Hamiltonian::VxcFit::PlaneWave}, {"Delta",Hamiltonian::VxcFit::Delta}, {"Auxiliary",Hamiltonian::VxcFit::Auxiliary});
@@ -136,7 +134,8 @@ GaussianBasisRecipe RecipeOf(const RunSpec::Basis& b)
 json ToJson(const BasisSet::Gaussian::GPWTolerances& t)
 {
     return {{"vlocEps",t.vlocEps},{"localPPRelCutoff",t.localPPRelCutoff},{"relFieldSharp",t.relFieldSharp},{"mgridEcuts",t.mgridEcuts},
-            {"screenEps",t.screenEps},{"fieldSharp",t.fieldSharp},{"relCutoff",t.relCutoff},{"densityEps",t.densityEps}};
+            {"screenEps",t.screenEps},{"fieldSharp",t.fieldSharp},{"relCutoff",t.relCutoff},{"densityEps",t.densityEps},
+            {"rasterX",t.rasterX},{"vlocRasterX",t.vlocRasterX},{"xcRasterX",t.xcRasterX}};
 }
 void FromJson(const json& j, BasisSet::Gaussian::GPWTolerances& t)
 {
@@ -144,6 +143,7 @@ void FromJson(const json& j, BasisSet::Gaussian::GPWTolerances& t)
     f.Get("vlocEps",t.vlocEps); f.Get("localPPRelCutoff",t.localPPRelCutoff); f.Get("relFieldSharp",t.relFieldSharp);
     f.Get("mgridEcuts",t.mgridEcuts); f.Get("screenEps",t.screenEps); f.Get("fieldSharp",t.fieldSharp);
     f.Get("relCutoff",t.relCutoff); f.Get("densityEps",t.densityEps);
+    f.Get("rasterX",t.rasterX); f.Get("vlocRasterX",t.vlocRasterX); f.Get("xcRasterX",t.xcRasterX);
     f.Done();
 }
 
@@ -275,19 +275,22 @@ json ToJson(const SolidCalcOptions& o)
     for (const auto& s : o.species) species.push_back({s.first,s.second});
     json hub=json::array();
     for (const auto& h : o.hubbard) hub.push_back(ToJson(h));
-    return {{"Nelec",o.Nelec},{"multiplicity",o.multiplicity},{"pp",o.pp},{"species",species},
+    json out={{"Nelec",o.Nelec},{"charge",o.charge},{"multiplicity",o.multiplicity},{"pp",o.pp},{"species",species},
             {"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
-            {"raster",NameOf(o.raster,kRaster)},{"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
-            {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},{"policy",ToJson(o.policy)},{"vxcFit",NameOf(o.vxcFit,kVxc)},{"hubbard",hub},
+            {"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
+            {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},
+            {"accuracy",o.accuracy.eps},{"policy",ToJson(o.policy)},{"vxcFit",NameOf(o.vxcFit,kVxc)},{"hubbard",hub},
             {"accelerator",NameOf(o.accelerator,kAcc)},{"perKFermiLevels",o.perKFermiLevels},{"imposeSymmetry",o.imposeSymmetry},{"xcMeshSymmetric",o.xcMeshSymmetric},
             {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho,kOrtho)},{"orthoTol",o.orthoTol},{"numBands",o.numBands},{"forceComplex",o.forceComplex},
             {"spinsShareFermi",o.spinsShareFermi},{"greyImposition",o.greyImposition},{"momFromSeed",o.momFromSeed},
             {"siteSpins",o.siteSpins},{"siteCharges",o.siteCharges},{"label",o.label},{"saveStateTo",o.saveStateTo}};
+    if (o.accuracy.eta) out["accuracyCalibration"]={{"vlocLong",o.accuracy.eta->vlocLong},{"density",o.accuracy.eta->density}};   // stated only
+    return out;
 }
 void FromJson(const json& j, SolidCalcOptions& o)
 {
     Fields f(j,"solid");
-    f.Get("Nelec",o.Nelec); f.Get("multiplicity",o.multiplicity); f.Get("pp",o.pp);
+    f.Get("Nelec",o.Nelec); f.Get("charge",o.charge); f.Get("multiplicity",o.multiplicity); f.Get("pp",o.pp);
     if (j.contains("species"))
     {
         o.species.clear();
@@ -299,7 +302,11 @@ void FromJson(const json& j, SolidCalcOptions& o)
     }
     else f.At("species");
     f.Get("densityEcut",o.densityEcut); f.Get("cutoffFactor",o.cutoffFactor); f.Get("ladderFactor",o.ladderFactor);
-    f.GetEnum("raster",o.raster,kRaster); f.GetEnum("images",o.images,kImages);
+    if (j.contains("raster"))
+        throw std::runtime_error("deck: 'solid.raster' is retired (C2 step 3, doc/GridEpsilonPlan.md §1): the rasters are SIZED from "
+                                 "'solid.accuracy' -- drop the key; to give them yourself state \"accuracy\": 0 and tolerances.rasterX "
+                                 "(0 = the ball's own raster, the old BallOnly)");
+    f.GetEnum("images",o.images,kImages);
     if (j.contains("kShift"))
     {
         const json& k=f.At("kShift");
@@ -309,6 +316,19 @@ void FromJson(const json& j, SolidCalcOptions& o)
     else f.At("kShift");
     if (j.contains("xcMesh"))     FromJson(f.At("xcMesh"),o.xcMesh);         else f.At("xcMesh");
     if (j.contains("tolerances")) FromJson(f.At("tolerances"),o.tolerances); else f.At("tolerances");
+    f.Get("accuracy",o.accuracy.eps);
+    if (!(o.accuracy.eps>=0.0)) throw std::runtime_error("deck: 'solid.accuracy' (Ha per atom on an energy run, per matrix element on a geometry run) "
+                                                         "must be >= 0 (0 = no target: the rasters tolerances.rasterX ... state)");
+    if (j.contains("accuracyCalibration"))   // STATED (expert); absent = self-calibrated by the run's pilot audit
+    {
+        BasisSet::Gaussian::AccuracyCalibration eta;
+        Fields c(f.At("accuracyCalibration"),"solid.accuracyCalibration");
+        c.Get("vlocLong",eta.vlocLong); c.Get("density",eta.density);
+        c.Done();
+        if (!(eta.vlocLong>0.0 && eta.vlocLong<=1.0 && eta.density>0.0 && eta.density<=1.0))
+            throw std::runtime_error("deck: 'solid.accuracyCalibration' factors are eta = delivered/bound, in (0, 1] (1 = rigorous)");
+        o.accuracy.eta=eta;
+    }
     if (j.contains("policy"))     FromJson(f.At("policy"),o.policy);         else f.At("policy");
     f.GetEnum("vxcFit",o.vxcFit,kVxc);
     if (j.contains("hubbard"))
@@ -345,6 +365,7 @@ const char* PostName(PostAction::Kind k)
     case PostAction::Kind::HubbardLinearResponse:   return "hubbardLinearResponse";
     case PostAction::Kind::HubbardFiniteDifference: return "hubbardFiniteDifference";
     case PostAction::Kind::GridAudit:               return "gridAudit";
+    case PostAction::Kind::EggBox:                  return "eggBox";
     }
     throw std::logic_error("deck: PostAction kind");
 }
@@ -379,7 +400,8 @@ json PostJson(const PostAction& a)
     case PostAction::Kind::HubbardLinearResponse:   p={{"nq",QMeshJson(a.nq)},{"perturb",a.perturb},{"tol",a.tol},{"maxIter",a.maxIter},{"restart",a.restart},
                                                        {"resolve",NameOf(a.resolve,kResolution)},{"qStars",a.qStars},{"littleGroupK",a.littleGroupK}}; break;
     case PostAction::Kind::HubbardFiniteDifference: p={{"perturb",a.perturb},{"alpha_eV",ToEV(a.alpha)}}; break;
-    case PostAction::Kind::GridAudit:               p={{"reference",NameOf(a.reference,kRaster)}}; break;
+    case PostAction::Kind::GridAudit:               p={{"referenceMargin",a.referenceMargin}}; break;
+    case PostAction::Kind::EggBox:                  p={{"shift",{a.shift.x,a.shift.y,a.shift.z}}}; break;
     }
     return json::object({{PostName(a.kind),p}});
 }
@@ -405,8 +427,22 @@ PostAction PostFromJson(const json& j, const std::string& path)
       f.GetEnum("resolve",a.resolve,kResolution); f.Get("qStars",a.qStars); f.Get("littleGroupK",a.littleGroupK); }
     else if (name=="hubbardFiniteDifference")
     { a.kind=PostAction::Kind::HubbardFiniteDifference; f.Get("perturb",a.perturb); double eV=ToEV(a.alpha); f.Get("alpha_eV",eV); a.alpha=eV/kHaToEV; }
-    else if (name=="gridAudit")          { a.kind=PostAction::Kind::GridAudit; f.GetEnum("reference",a.reference,kRaster); }
-    else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference, gridAudit)");
+    else if (name=="gridAudit")
+    {
+        a.kind=PostAction::Kind::GridAudit;
+        if (body.contains("reference"))
+            throw std::runtime_error("deck: postSCF gridAudit 'reference' (a named raster) is retired with BallOnly/AliasFree (C2 step 3): "
+                                     "state 'referenceMargin', the reference rasters' alias-exponent margin over the run's (default 8)");
+        f.Get("referenceMargin",a.referenceMargin);
+    }
+    else if (name=="eggBox")
+    {
+        a.kind=PostAction::Kind::EggBox;
+        std::vector<double> v{a.shift.x,a.shift.y,a.shift.z}; f.Get("shift",v);
+        if (v.size()!=3) throw std::runtime_error("deck: '"+path+".eggBox.shift' must be [x,y,z] (bohr)");
+        a.shift=rvec3_t(v[0],v[1],v[2]);
+    }
+    else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference, gridAudit, eggBox)");
     f.Done();
     return a;
 }
@@ -562,8 +598,15 @@ Materials::Material Resolve(RunSpec& spec)
             if (a.kind==PostAction::Kind::GridAudit)   // the one action that is not about +U: it needs a raster, and a different one
             {
                 if (spec.basis.family!=SolidCalcOptions::OrbitalBasis::GPW) throw std::runtime_error(who+"a plane-wave run has no raster to audit");
-                if (a.reference==spec.solid.raster)
-                    throw std::runtime_error(who+"the reference raster is the run's own ("+NameOf(a.reference,kRaster)+"): name the other one");
+                if (!(a.referenceMargin>0.0)) throw std::runtime_error(who+"referenceMargin must be > 0 (the reference is FINER than the run)");
+                continue;
+            }
+            if (a.kind==PostAction::Kind::EggBox)      // a rigid translation of a free, U = 0 Gaussian run at a nonzero shift
+            {
+                if (spec.basis.family!=SolidCalcOptions::OrbitalBasis::GPW) throw std::runtime_error(who+"a plane-wave basis is translation-invariant by construction");
+                if (spec.solid.imposeSymmetry) throw std::runtime_error(who+"an imposed group's SALC phases follow the origin -- gate the free twin (imposeSymmetry false)");
+                if (!spec.solid.hubbard.empty()) throw std::runtime_error(who+"the +U projectors would not follow the shift -- gate the U = 0 twin");
+                if (norm(a.shift)==0.0) throw std::runtime_error(who+"a zero shift measures nothing");
                 continue;
             }
             const bool needsU = true;   // every action works on the Hubbard manifolds (list them at U=0 to probe a run without +U)
@@ -614,7 +657,15 @@ Materials::Material Resolve(RunSpec& spec)
     // per-element overrides) is filled with the resolved vocabulary so the record states every valence actually used.
     if (spec.solid.pp==SolidCalcOptions{}.pp) spec.solid.pp=m.pp;
     if (spec.solid.species.empty()) spec.solid.species=m.species;
-    if (spec.solid.Nelec==0)        spec.solid.Nelec=m.Nelec();
+    // The electron count of the species the RUN uses: a stated override (Na q9) changes it.  Until 2026-10-31 this read the
+    // material's own species, so a deck stating Na q9 ran NaF with 8 electrons instead of 16 -- a cell charged +8, silently.
+    if (spec.solid.Nelec==0)
+    {
+        Materials::Material used=m;
+        for (auto& [el,q] : used.species)
+            for (const auto& [el2,q2] : spec.solid.species) if (el2==el) q=q2;
+        spec.solid.Nelec=used.Nelec()-spec.solid.charge;   // a STATED net charge (SolidCalcOptions::charge)
+    }
     return m;
 }
 
@@ -901,9 +952,12 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
             rj["fd"]=fds; pr.ok=ok; pr.summary=std::to_string(J.size())+" manifold(s) perturbed"; break;
         }
         case K::GridAudit:
+        case K::EggBox:
         {
-            const auto R=calc->GridAudit(a.reference);
-            json t=json::array(); for (const auto& x : R.terms) t.push_back({{"term",x.label},{"entries",x.entries},{"maxAbsDH",x.maxAbsΔH},{"dE",x.ΔE}});
+            const auto R= a.kind==K::EggBox ? calc->EggBox(a.shift) : calc->GridAudit(a.referenceMargin);
+            json t=json::array();
+            for (const auto& x : R.terms) t.push_back({{"term",x.label},{"entries",x.entries},{"maxAbsDH",x.maxAbsΔH},{"dE",x.ΔE},
+                                                       {"x",x.x},{"bound",x.bound},{"eta",x.eta},{"etaOn",x.etaOn}});
             rj["reference"]=R.reference; rj["terms"]=t; rj["maxAbsDH"]=R.maxAbsΔH; rj["dE"]=R.ΔE;
             auto vj=[](const auto& vs) { json o=json::object(); for (const auto& v : vs) o[v.audit]={{"status",v.status},{"alias",v.alias}}; return o; };
             rj["verdicts"]=vj(R.runVerdicts); rj["referenceVerdicts"]=vj(R.referenceVerdicts);

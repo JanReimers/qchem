@@ -162,6 +162,20 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     const std::shared_ptr<const Structure> st=s->cell;
     RequireStatedMagneticOrdering(opts, *st);
     RequireConsistentSiteCharges(opts, *st);
+    // THE ELECTRON COUNT IS THE SPECIES' (2026-10-31): sum of the run's per-atom valence minus the STATED net charge.  Derived when
+    // unstated; a stated count that disagrees is REFUSED, naming both -- the class of the silent +8 (a stated Na q9 run with the
+    // material's q1 count), where nothing downstream could tell a mis-derived count from an intended charge.
+    {
+        int sumQ=0;
+        lat.GetUnitCell().ForEachSite([&](int Z, const rvec3_t&, bool){ sumQ+=s->pp.Valence(thePeriodicTable().GetSymbol(Z)); });
+        const int derived=sumQ-opts.charge;
+        if (opts.Nelec==0) s->opts.Nelec=derived;
+        else if (opts.Nelec!=derived)
+            throw std::invalid_argument("SolidCalcOptions: Nelec "+std::to_string(opts.Nelec)+" disagrees with the species: the cell's valence "
+                                        "sums to "+std::to_string(sumQ)+(opts.charge!=0 ? " and the stated charge is "+std::to_string(opts.charge) : "")
+                                        +", so a neutral"+(opts.charge!=0 ? "-at-that-charge" : "")+" cell holds "+std::to_string(derived)
+                                        +".  A charged cell is legal only when STATED (SolidCalcOptions::charge); leave Nelec 0 to derive it");
+    }
     s->seedKey=SeedKeyOf(s->pp, *st);
     s->seedKey.siteCharges=opts.siteCharges;
 
@@ -182,6 +196,23 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     if (s->decoration.empty()) s->decoration.assign(lat.GetUnitCell().GetNumAtoms(), 0);
 
     s->planeWave = opts.orbitalBasis==SolidCalcOptions::OrbitalBasis::PlaneWave;
+    // THE RASTER DEMANDS (C2 step 3, doc/GridEpsilonPlan.md §1): eps = 0 states them (the tolerances as given); a stated calibration
+    // derives them here; otherwise the run's own pilot audit sizes them after its SCF (rastersResolved false: the pilot starts on the
+    // ball's own rasters).  Stating a demand beside a target would be two answers to one question.
+    {
+        const auto& a=opts.accuracy;
+        const auto& t=opts.tolerances;
+        if (!(a.eps>=0.0)) throw std::invalid_argument("SolidCalcOptions: accuracy eps must be >= 0 (0 = no target: the stated rasters)");
+        const bool stated = t.rasterX!=0.0 || t.vlocRasterX!=0.0 || t.xcRasterX!=0.0;
+        if (stated && a.eps>0.0)
+            throw std::invalid_argument("SolidCalcOptions: tolerances state a raster demand (rasterX / vlocRasterX / xcRasterX) beside an accuracy "
+                                        "target -- the target derives them; state accuracy 0 to give the rasters yourself");
+        if (!s->planeWave && a.eps>0.0)
+        {
+            if (a.eta) s->opts.tolerances=a.Stated(t);
+            else       s->rastersResolved=false;
+        }
+    }
     if (s->planeWave)
     {
         // THE PLANE-WAVE FAMILY (OpenWork §2 PW-1).  The factory builds ONE Γ block and knows no symmetry, so
@@ -216,17 +247,18 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
 
     // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches
     // a singlet asked of an odd electron count BEFORE integer division silently empties a channel.
-    const int twoS = opts.multiplicity>1 ? opts.multiplicity-1 : opts.Nelec%2;
+    const int nel  = s->opts.Nelec;   // the RESOLVED count (above)
+    const int twoS = opts.multiplicity>1 ? opts.multiplicity-1 : nel%2;
     s->polarized = opts.multiplicity>=1;
-    if ((opts.Nelec-twoS)%2!=0 || twoS>opts.Nelec)
+    if ((nel-twoS)%2!=0 || twoS>nel)
         throw std::runtime_error("SolidCalcOptions: multiplicity "+std::to_string(opts.multiplicity)
-                                 +" parity disagrees with Nelec "+std::to_string(opts.Nelec));
+                                 +" parity disagrees with Nelec "+std::to_string(nel));
     // A partial eigensolve must leave EMPTY bands above the fuller channel (smearing and the gap need them).
-    if (opts.numBands>0 && opts.numBands<=size_t((opts.Nelec+twoS)/2))
+    if (opts.numBands>0 && opts.numBands<=size_t((nel+twoS)/2))
         throw std::invalid_argument("SolidCalcOptions: numBands "+std::to_string(opts.numBands)+" must exceed the larger spin channel's "
-                                    +std::to_string((opts.Nelec+twoS)/2)+" electrons");
-    s->nUp  =(opts.Nelec+twoS)/2;
-    s->nDown=(opts.Nelec-twoS)/2;
+                                    +std::to_string((nel+twoS)/2)+" electrons");
+    s->nUp  =(nel+twoS)/2;
+    s->nDown=(nel-twoS)/2;
     return s;
 }
 

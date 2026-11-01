@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""Transcribe element blocks of a Gaussian94 .bsd basis file into CP2K BASIS_SET format, so CP2K can run on OUR basis (the
+same-basis oracle arm).  One CP2K set per .bsd shell: `1 lmin lmax nexp nshell...` then `exp coef...` rows; an SP shell becomes
+one set with lmin 0, lmax 1.  The entry name is the CP2K BASIS_SET name the deck's &KIND asks for.
+
+Usage:  bsd2cp2k FILE.bsd NAME [ELEMENT ...]      (no ELEMENT = every block in the file)   > out.basis
+e.g.    bsd2cp2k BasisSetData/valence_lowq_va.bsd VALENCE-LOWQ-VA Li F >> ~/Code/cp2k-runs/LiF/LIF-BASIS
+"""
+import sys
+
+L = {'S': 0, 'P': 1, 'D': 2, 'F': 3, 'G': 4}
+
+def blocks(path):
+    lines = open(path).read().split('\n')
+    i = next(k for k, l in enumerate(lines) if l.strip() == '!') + 1     # past the preamble
+    out = {}
+    while i < len(lines):
+        t = lines[i].split()
+        if len(t) == 2 and t[1] == '0' and t[0].isalpha():              # ' LI   0' opens an element block
+            el, shells, i = t[0].capitalize(), [], i + 1
+            while lines[i].strip() != '****':
+                h = lines[i].split()
+                n = int(h[1])
+                prims = [list(map(float, lines[i+1+k].replace('D', 'E').split())) for k in range(n)]
+                shells.append((h[0].upper(), prims))
+                i += n + 1
+            out[el] = shells
+        i += 1
+    return out
+
+def main():
+    if len(sys.argv) < 3: sys.exit(__doc__)
+    path, name, want = sys.argv[1], sys.argv[2], sys.argv[3:]
+    bl = blocks(path)
+    for el in (want or list(bl)):
+        shells = bl[el.capitalize()]
+        print(f"{el.capitalize()} {name}")
+        print(f" {len(shells)}")
+        for kind, prims in shells:
+            if kind == 'SP':
+                print(f" 1 0 1 {len(prims)} 1 1")
+                for p in prims: print(f"  {p[0]:20.10f} {p[1]:16.10f} {p[2]:16.10f}")
+            else:
+                l = L[kind]
+                print(f" 1 {l} {l} {len(prims)} 1")
+                for p in prims: print(f"  {p[0]:20.10f} {p[1]:16.10f}")
+
+main()
