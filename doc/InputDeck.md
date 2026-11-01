@@ -77,9 +77,15 @@ cd build/Release && ninja rundeck                                  # the one CLI
                                                                          //   MANIFOLDS (all their channels are perturbed); prints a [response] channel table with each channel's composition
                                                                          //   on the projector functions, and the U lines full / 1x1
     {"hubbardFiniteDifference": {"perturb":[0], "alpha_eV":0.027}},      // the FD cross-check of the above
-    {"gridAudit": {"reference":"AliasFree"}}                             // GRID AUDIT (doc/GridEpsilonPlan.md §3): every term rebuilt on the reference raster at the
-                                                                         //   converged D; per term max|dH_ij| and dE + the run's own grid-audit verdicts (console, report
-                                                                         //   section `gridAudit`, `results`).  Needs no +U; the reference must differ from solid.raster
+    {"gridAudit": {"referenceMargin":8}},                                // GRID AUDIT (doc/GridEpsilonPlan.md §3): every term rebuilt on rasters referenceMargin FINER (alias
+                                                                         //   exponent x_ref - x_run) at the converged D; per term max|dH_ij| and dE + the run's own grid-audit
+                                                                         //   verdicts (console, report section `gridAudit`, `results`).  Needs no +U
+    {"eggBox": {"shift":[0.03,0.02,0.01]}},                              // the rigid translation (bohr) of every atom at the converged D, term by term (free, U = 0, GPW)
+    {"displace": {"points":[{"atoms":[0],"delta":[0.1,0,0]},            // GEOMETRY POINTS through ONE SolidSession (OpenWork F): the reference at the deck's positions, then each
+                            {"atoms":[],"delta":[0.1,0,0]}]}}            //   point -- `atoms` (structure order; [] = every atom, the egg-box twin) moved by `delta` bohr.  The session
+                                                                         //   sizes its rasters on max|dH_ij| (pin 31) and freezes them and the basis across the points; the main
+                                                                         //   run (sized on |dE|/atom) is NOT reused.  Results: reference energy, per point E and dE.  A free GPW
+                                                                         //   run needs solid.xcMeshSymmetric false (the plain mesh).  Use it, not two Energy decks, for a curvature
   ]
 }
 ```
