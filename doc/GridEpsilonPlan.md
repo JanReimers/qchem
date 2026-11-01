@@ -70,9 +70,12 @@ max|ΔH_ij,T| automatically (target ε per matrix element; verdict 3: the energy
 ANSWERS, named for the consumer (`ClientConsumes {Energy, MatrixElements}`, `SolidCalculation::Consumes()`: a standalone calculation
 answers Energy, a point a `SolidSession` builds answers MatrixElements), not a deck flag; an expert override can come later if asked.
 Tests' default: ε = 1e-5 Ha per atom (energy) and 1e-5 Ha per element (H-graded).  η = 1 (stated, no pilot) stays the rigorous mode.
-**The pin:** `doc/Pins.md` pin 31 -- one accuracy target, judged by what the client consumes (accepted as proposed, user ruling
-2026-11-01).  Follow-on ruling the same day: a run whose client consumes H defaults its XC route to the Becke mesh (energy-only runs keep
-uniform) -- not in step 3; `doc/OpenWork.md` §2.
+**RULED as `doc/Pins.md` pin 31** (user, 2026-11-01; the wording as proposed): *"One accuracy target, judged by what the client consumes.  Every GPW
+raster is sized from the run's one ε by the error it DELIVERS on the measure its client consumes -- a single-point energy on each raster
+term's |ΔE| ≤ ε per atom, anything that produces forces, a geometry or a surface on max|ΔH_ij| ≤ ε per element (the energy error cancels
+in Tr D ΔH: MnO V_long 0.26 Ha in H against 5 μHa in E).  The run answers the question; the user never picks a metric.  The rigorous
+bound (the fitted alias tail) and the measured calibration (the pilot audit) stay isolated in code, and the XC raster, which has no bound,
+is reported as MEASURED.  Earned by NaF: BallOnly's −941 μHa was the XC raster, and the F site's 'curvature' was the grid's egg-box."*
 
 **The derived tolerances.**  **L(ε) is the root of S_term·L³·e^{−L} = ε** (MEASURED, M2b: the alias tail of an s+p+d pair carries a
 Hermite prefactor ~ x³; S_Vlong = 2.35 Ha, S_ρ = 0.35 ⇒ L(1e-5) ≈ 21.6 / 19.4).  ⚠ NOT the bare ln(S_term/ε) (≈ 14.5 at 1e-5), which
