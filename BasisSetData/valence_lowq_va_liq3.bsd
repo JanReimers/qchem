@@ -1,0 +1,60 @@
+Low-q GTH valence basis for LiF with SEMICORE Li (q3) -- the F block of valence_lowq_va (F q7, unchanged) and a valgen Li q3 block
+PP-PROVENANCE F=7 Li=3
+(2026-10-31, lane B, the voltage-deck PP valence audit, OpenWork V): q1 Li puts 1s in the core, the same question as Na q1 in NaF.  Li
+window s 8 x [0.1, 60], p 4 x [0.15, 3], validated on the Li+ cation the solid holds (valgen --q 3 --electrons 2 --floor: 0.68 mHa above
+the complete-basis floor).  Seeds: atomic_valence_densities.json Li q3 Nelec 2 / 3.  Its q1 twin is valence_lowq_va (the voltage decks').
+
+!
+BASIS="Low-q GTH valence basis, F q7 (VA) + semicore Li q3 (valgen)"
+ F   0
+ S   1  1.00
+            0.27516456        1.00000000
+ S   1  1.00
+            0.63096278        1.00000000
+ S   1  1.00
+            1.44682163        1.00000000
+ S   1  1.00
+            3.31761697        1.00000000
+ S   1  1.00
+            7.60742173        1.00000000
+ S   1  1.00
+           17.44410700        1.00000000
+ S   1  1.00
+           40.00000000        1.00000000
+ P   1  1.00
+            0.34098767        1.00000000
+ P   1  1.00
+            0.83051852        1.00000000
+ P   1  1.00
+            2.02283268        1.00000000
+ P   1  1.00
+            4.92686434        1.00000000
+ P   1  1.00
+           12.00000000        1.00000000
+ ****
+ LI   0
+ S   1  1.00
+            0.10000000        1.00000000
+ S   1  1.00
+            0.24938984        1.00000000
+ S   1  1.00
+            0.62195290        1.00000000
+ S   1  1.00
+            1.55108733        1.00000000
+ S   1  1.00
+            3.86825415        1.00000000
+ S   1  1.00
+            9.64703269        1.00000000
+ S   1  1.00
+           24.05871903        1.00000000
+ S   1  1.00
+           60.00000000        1.00000000
+ P   1  1.00
+            0.15000000        1.00000000
+ P   1  1.00
+            0.40716264        1.00000000
+ P   1  1.00
+            1.10520945        1.00000000
+ P   1  1.00
+            3.00000000        1.00000000
+ ****

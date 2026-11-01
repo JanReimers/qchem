@@ -62,7 +62,12 @@ struct SolidCalcOptions
 {
     //! \name The system
     //!@{
-    int Nelec = 0;                                        //!< VALENCE electrons per cell (Zion, not Z).
+    //! VALENCE electrons per cell (Zion, not Z).  0 = DERIVED: \f$\sum_{\rm atoms} q\f$ of the run's species minus \c charge.  A stated value
+    //! must equal that, or \c SolidSetup::Resolve REFUSES the run naming both numbers (2026-10-31: a stated Na q9 once ran NaF with the
+    //! material's 8 electrons instead of 16 -- a cell charged +8, silently).
+    int Nelec = 0;
+    //! The cell's stated NET CHARGE (electrons removed; -1 = one extra electron).  A charged cell is legal only when stated here.
+    int charge = 0;
     //! Spin multiplicity 2S+1.  0 (default) = minimal spin: the ζ=0 collapse for even \c Nelec, a doublet
     //! for odd.  >=1 promotes to the SPIN-NATIVE two-channel run (nUp-nDown = 2S).  NB unlike the molecular
     //! facade, 1 here means the EXPLICIT two-channel singlet (nUp=nDn) -- the ζ=0 cross-check of the

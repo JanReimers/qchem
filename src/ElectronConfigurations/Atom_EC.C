@@ -28,7 +28,10 @@ protected:
     //(PseudoAtom_EC) config.  \a netCharge != 0 makes an ION: the neutral valence is adjusted by -netCharge
     //electrons (anion adds to the lowest open l, cation removes from the highest occupied l), e.g. F- -> s^2
     //p^6, Na+ -> empty valence.  Unpaired counts are recomputed by Hund's rule on the adjusted valence shell.
-    Atom_EC(int Z, int netCharge, ValenceOnly_t);
+    //\a zion is the pseudopotential's q: when it exceeds the neutral valence count the PP keeps SEMICORE shells, which are
+    //added as closed shells (Nf) -- the outermost of the noble-gas core, highest n first (Na q9: 2s^2 2p^6; Mn q15: 3s^2 3p^6;
+    //Li q3: 1s^2).  A q that is not a whole-shell semicore split THROWS.
+    Atom_EC(int Z, int netCharge, int zion, ValenceOnly_t);
     void BuildNROccupations();
     void SetSplitOccupations(sym_t sp, sym_t su, int NCore, int gp, int gu, int Npair, int Nu);
     //! Distribute the atom's \a nup unpaired electrons into itsNs.Nu (Hund's rule on the valence shell,
@@ -52,8 +55,11 @@ export class PseudoAtom_EC : public Atom_EC
 {
 public:
     //! \a netCharge is the pseudo-ion's net charge (0 = neutral, -1 = anion e.g. F-, +1 = cation e.g. Na+);
-    //! the EC then carries (Zion - netCharge) valence electrons.
-    PseudoAtom_EC(int Z, int netCharge=0);
+    //! the EC then carries (Zion - netCharge) valence electrons.  \a zion is the pseudopotential's q: a SEMICORE q (Na q9,
+    //! Mn q15, Li q3) adds the closed shells it keeps (until 2026-10-31 it was ignored, so a q9 Na atom was solved with ONE
+    //! electron: the valence was always the periodic table's neutral one).
+    //! \a zion < 0 = the valence-only q (the neutral valence count -- every smallest-q GTH entry).
+    PseudoAtom_EC(int Z, int netCharge=0, int zion=-1);
 };
 
 

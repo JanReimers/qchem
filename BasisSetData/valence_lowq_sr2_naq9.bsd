@@ -1,0 +1,68 @@
+Low-q GTH valence basis for NaF with SEMICORE Na (q9) -- the F block of valence_lowq_sr2 (F q7, unchanged) and a valgen Na q9 block
+PP-PROVENANCE F=7 Na=9
+(2026-10-31, lane B, OpenWork "NaF with the q1 Na pseudopotential has NO restoring force"): the q1 Na has no restoring force on the F site
+in CP2K either; q9 keeps the 2s2p semicore.  Na window s 9 x [0.12, 80], p 7 x [0.1, 40], validated on the Na+ cation the solid holds
+(valgen --q 9 --electrons 8 --floor: 0.96 mHa above the complete-basis floor).  Seeds: atomic_valence_densities.json Na q9 Nelec 8 / 9.
+
+!
+BASIS="Low-q GTH valence basis, F q7 (SR2) + semicore Na q9 (valgen)"
+ F   0
+ S   1  1.00
+            0.27516456        1.00000000
+ S   1  1.00
+            0.63096278        1.00000000
+ S   1  1.00
+            1.44682163        1.00000000
+ S   1  1.00
+            3.31761697        1.00000000
+ S   1  1.00
+            7.60742173        1.00000000
+ S   1  1.00
+           17.44410700        1.00000000
+ S   1  1.00
+           40.00000000        1.00000000
+ P   1  1.00
+            0.34098767        1.00000000
+ P   1  1.00
+            0.83051852        1.00000000
+ P   1  1.00
+            2.02283268        1.00000000
+ P   1  1.00
+            4.92686434        1.00000000
+ P   1  1.00
+           12.00000000        1.00000000
+ ****
+ NA   0
+ S   1  1.00
+            0.12000000        1.00000000
+ S   1  1.00
+            0.27050160        1.00000000
+ S   1  1.00
+            0.60975930        1.00000000
+ S   1  1.00
+            1.37450722        1.00000000
+ S   1  1.00
+            3.09838668        1.00000000
+ S   1  1.00
+            6.98432129        1.00000000
+ S   1  1.00
+           15.74391737        1.00000000
+ S   1  1.00
+           35.48962369        1.00000000
+ S   1  1.00
+           80.00000000        1.00000000
+ P   1  1.00
+            0.10000000        1.00000000
+ P   1  1.00
+            0.27144176        1.00000000
+ P   1  1.00
+            0.73680630        1.00000000
+ P   1  1.00
+            2.00000000        1.00000000
+ P   1  1.00
+            5.42883523        1.00000000
+ P   1  1.00
+           14.73612599        1.00000000
+ P   1  1.00
+           40.00000000        1.00000000
+ ****
