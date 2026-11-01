@@ -135,6 +135,13 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
   Mn ±equal, the four O equivalent, O slot Γ2 the most occupied (QE O3 at Γ: 0.961/0.972 per spin), gap > 0.  Then the TiO₂-style
   basis scan (`mkmno2.py NAME "EL:L:alpha" …` + `runmno2.sh NAME THREADS` in the same dir; candidates: O p 0.18, O s 0.15, tight O,
   O d 2.0, O/Mn f, Mn p, Mn d 0.18 — judged by the VET in rutile) toward −93.42661 Ha, then the matched resolved-U oracle.
+  **2026-11-01: the U-response deficit is RESOLVED as orbital-basis incompleteness** (O polarization carries the Mn d spin cross
+  response; Mn p f carry the band responses; no code defect — `doc/Records/HubbardUHistory.md` 2026-11-01).  Remaining for S2: the
+  matched resolved-U oracle (our LR U vs hp.x on QE's gapped Γ state) on a basis about Mn p5 f3 + O d/f.  ⚠ Pin the AliasFree raster
+  explicitly (`"accuracy": 0`, `tolerances.rasterX/vlocRasterX/xcRasterX = 8`) until lane A rules on the ε default (45³ vs 90³ here)
+  and the dense-Mn-d divergence (`OpenWork.md` §3).
+  **PRODUCTION-BASIS RULING (user, 2026-11-01): the voltage needs ENERGY DIFFERENCES, not converged totals, so the campaign basis is
+  chosen by whether the basis error CANCELS across compositions, not by matching PW on β-MnO₂.**  Executed as S6's two rounds below.
 - **S3 — fix `doc/OpenWork.md` §3 "A carried density is re-filled at kT = 0"** before any U_SC campaign: every `hubbardLoop` outer
   step is a `BuildStage` from the carried density, so on a smeared / near-degenerate magnetic state each step kicks the state
   (SrVO₃ landed on different fixed points, 2026-10-21).
@@ -147,6 +154,18 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
   only if S2 shows it well-posed.  **Print V_IJ** from the real-space χ off-diagonals (OpenWork §2 row "Response: REPORT orbital-resolved
   channels"); implement the +V Hamiltonian term only if U-only voltages need it (Mn–O V is what fixed voltages in the extended-Hubbard
   literature).
+  **Two rounds (ruled 2026-11-01):** ROUND 1 = λ-MnO₂ / LiMn₂O₄ / Li₂Mn₂O₄ on the plain basis (no extra polarization) with
+  self-consistent orbital-resolved U → ΔE.  ROUND 2 = add O d (the largest single mover on β-MnO₂, 0.69 → 0.55 of the spin ratio;
+  two d shells = 10 functions per O) in two arms: **(a) U FIXED at round 1's values** (the pure basis effect on ΔE: one SCF per
+  composition, no U loop) and **(b) U re-derived** (the full effect; the LR U depends on the basis, TiO₂ precedent).  (a) vs (b)
+  separates the U shift from the basis shift; if (a) moves ΔE little, (b) may not be needed everywhere.  Judge against 0.1 V ≈
+  3.7 mHa per Li: on β-MnO₂ O d lowered E by 7.6 mHa per 2 f.u. (4 O); a per-O shift that is the SAME across compositions cancels,
+  so what reaches the voltage is its composition DIFFERENCE (the risk: Li adds Mn d electrons, d³ → d⁴, which changes the Mn–O
+  covalency where O d acted).  Mn p f mainly fix bands: add only if a composition's gap closes.  The Li reference (E[Li metal],
+  bcc + k-mesh) needs the same Li basis/PP choice — the B4 q1-vs-q3 check.  **Carry from round 1 to round 2**: the U values (arm a
+  uses them; arm b starts its outer loop from them, not U_in = 0) and each composition's STATED spin pattern (`siteSpins`; the
+  pyrochlore Mn sublattice is frustrated).  A saved STATE across an orbital-basis change is UNVERIFIED: D does not transfer; a
+  G-space density might seed the new basis (the NaF coarse→fine grid restart is the precedent) — check before round 2.
 - **S7 — forces (`doc/OpenWork.md` §2 row) in parallel from S4 on**: needed by the CE/voltage stage (every Li configuration
   relaxed), NOT by the U step.
 
