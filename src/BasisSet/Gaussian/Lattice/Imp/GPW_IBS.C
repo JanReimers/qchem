@@ -25,13 +25,13 @@ namespace qchem::BasisSet::Gaussian
 
 template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
-                 double cutoffFactor, RasterPolicy raster, double ladderFactor,
+                 double cutoffFactor, double ladderFactor,
                  std::vector<Symmetry::Lattice_3D::DirectOp> directOps, RasterFields rasterFields,
                  std::vector<Symmetry::Lattice_3D::SymOp> magneticOps,
                  std::vector<Symmetry::Lattice_3D::SymOp> meshOps, const GPWTolerances& tol)
     : BasisSet::IrrepBasisSetImp<T>(irrep)
     , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
-                    images==CellImages::HomeCellOnly, cutoffFactor, raster, ladderFactor,
+                    images==CellImages::HomeCellOnly, cutoffFactor, ladderFactor,
                     rasterFields, tol) // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1)
     , itsMagneticOps(std::move(magneticOps))
     , itsMeshOps(std::move(meshOps))
@@ -44,9 +44,9 @@ template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irre
 // Convenience: build the Bloch irrep from BZ-grid indices and delegate to the primary constructor.
 template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
-                 double cutoffFactor, RasterPolicy raster, double ladderFactor, RasterFields rasterFields)
+                 double cutoffFactor, double ladderFactor, RasterFields rasterFields, const GPWTolerances& tol)
     : tGPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor,
-              raster, ladderFactor, {}, rasterFields)
+              ladderFactor, {}, rasterFields, {}, {}, tol)
 {}
 
 template <class T> mat_t<dcmplx> tGPW_IBS<T>::OrbitalImage(const Symmetry::SymOp& g) const

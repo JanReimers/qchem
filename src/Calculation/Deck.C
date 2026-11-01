@@ -32,7 +32,6 @@ import qchem.Types;                // ivec3_t
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names its accelerator)
 import qchem.Materials;            // Material (the structure section's name resolves to one)
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
-import qchem.BasisSet.PlaneWave.Evaluators;   // RasterPolicy (the gridAudit action's reference raster)
 
 export namespace qchem::deck
 {
@@ -111,8 +110,9 @@ struct RunSpec
         Response::HubbardResolution resolve = Response::HubbardResolution::Manifold;
         bool        qStars = false;    //!< hubbardLinearResponse: one q per star of the ground state's group (KAxisPlan P3; audited)
         bool        littleGroupK = false; //!< hubbardLinearResponse: solve each (q, J) on its little group's k-blocks (KAxisPlan P5)
-        //! gridAudit: the reference raster the run's raster terms are compared against at the converged D (doc/GridEpsilonPlan.md §3)
-        BasisSet::PlaneWave::RasterPolicy reference = BasisSet::PlaneWave::RasterPolicy::AliasFree;
+        //! gridAudit: how much FINER the reference rasters are than the run's, as an alias exponent margin x_ref - x_run (doc/GridEpsilonPlan.md
+        //! §3; C2 step 3 -- the named BallOnly/AliasFree rasters are gone)
+        double referenceMargin = 8.0;
         //! eggBox: the rigid translation (bohr) of every atom; the default is a GENERIC direction (no symmetry plane), 0.037 bohr -- the
         //! NaF F-site egg-box was measured at 0.03 (doc/GridEpsilonPlan.md §5 verdict 5)
         rvec3_t shift{0.03,0.02,0.01};

@@ -1244,7 +1244,8 @@ TEST(GPW_Si, Γ_Imp_eqK211)
 
 
 // ============================ THE GRID AUDIT (doc/GridEpsilonPlan.md §3, C2 M2c) ============================
-// The postSCF `gridAudit` rebuilds every term on the reference raster (AliasFree = 2N per dimension) at the converged D and reports each term's
+// The postSCF `gridAudit` rebuilds every term on reference rasters finer than the run's (each raster's delivered x + 8, C2 step 3) at the
+// converged D and reports each term's
 // delivered max|dH_ij| and dE.  What must hold whatever the numbers: the ANALYTIC terms (kinetic, KB nonlocal, the short local PP, Ewald) do not
 // touch the raster and come out EXACTLY equal; the raster terms (Hartree, XC) do not; the per-term dE sum to the total.  Read from the revision's
 // `results`, i.e. the record a GUI or anchordiff-style tool sees.
@@ -1265,7 +1266,7 @@ TEST(GPW_Si, Γ_GridAuditSeparatesTheRasterTerms)
     std::ifstream in(out.revision); const nlohmann::json rec=nlohmann::json::parse(in);
     const auto& a=rec["results"]["postSCF"][0];
     ASSERT_EQ(a["action"], "gridAudit");
-    EXPECT_EQ(a["reference"], "AliasFree");
+    EXPECT_NE(a["reference"].get<std::string>().find("x("), std::string::npos) << "the reference names its rasters' alias exponents";
     double sum=0.0;
     bool sawRaster=false;
     for (const auto& t : a["terms"])
@@ -1290,7 +1291,7 @@ TEST(GPW_Si, Γ_GridAuditSeparatesTheRasterTerms)
         EXPECT_FALSE(a[side]["auditDensity"]["status"].get<std::string>().empty()) << side;
     }
     EXPECT_LT(a["referenceVerdicts"]["auditDensity"]["alias"].get<double>(), a["verdicts"]["auditDensity"]["alias"].get<double>())
-        << "the AliasFree reference predicts a smaller alias than the BallOnly run";
+        << "the finer reference predicts a smaller alias than the run";
     fs::remove_all(dir);
 }
 

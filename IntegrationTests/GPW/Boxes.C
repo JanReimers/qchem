@@ -341,20 +341,39 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
 // no rho-tilde, no cusp deficit -- and the fixed point is the rho[D] one.  The O2 box is the instrument that SEPARATED the two:
 // a fitted rho-tilde fed to XC lands +7.72 mHa high (-30.70246), rho[D] gives -30.71018173 (linear D-mixing, GDM, and Kerker
 // with the N4 cusp deficit all agree; doc/Pins.md pin 28).  Measured 2026-10-26: -30.7101817389 in 21 iterations, XC ρ = DM x21.
+namespace
+{
+SolidCalcOptions O2PulayOnDOptions(const Material& box, const std::string& label)
+{
+    SolidCalcOptions o=OptionsFor(box, label);
+    o.imposeSymmetry=true; o.multiplicity=3;
+    o.siteSpins={+1,+1}; // stated (R2.5): the decoration the seed used to derive (the triplet's two O, parallel)
+    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
+    o.accelerator=qchem::SCFAccelerators::Type::Null;   // no Fock history beside a density history
+    return o;
+}
+SCFParams O2PulayOnDParams()
+{
+    SCFParams par=Gates(150, 1e-8, 1e30);
+    par.Mixer=SCFParams::Mixing::Pulay; par.KerkerG0=0.0;   // Pulay WITHOUT Kerker -> the D-space mixer
+    par.PulayDepth=8; par.PulayStart=5; par.StartingRelaxRo=0.45;
+    return par;
+}
+//! The rasters this case's pilot settles on (C2 step 3, 2026-10-31: density x 20.56 from the ball's 5.55, where Hartree read 1.3 Ha).
+constexpr double kO2PulayRasterX=20.5590984;
+} // namespace
+
 TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor_Panel)   // PANEL case 4 (regime 1, Pulay on D)
 {
     qchem::IterationBudget budget(32, "O2 box triplet, Pulay on D (regime 1; 25 measured, 2026-10-29 panel baseline)");
     const Material box=qchem::Materials::Get("O2_box16");
     const Lattice_3D lat=LatticeOf(box);
-    SolidCalcOptions o=OptionsFor(box, "O2 in-box triplet, Pulay on D");
-    o.imposeSymmetry=true; o.multiplicity=3;
-    o.siteSpins={+1,+1}; // stated (R2.5): the decoration the seed used to derive (the triplet's two O, parallel)
-    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
-    o.accelerator=qchem::SCFAccelerators::Type::Null;   // no Fock history beside a density history
+    SolidCalcOptions o=O2PulayOnDOptions(box, "O2 in-box triplet, Pulay on D");
+    // THE GRID IS A CONTROLLED VARIABLE ON THE PANEL (controller ruling 2026-10-31): the panel's subject is the accelerator, so the
+    // rasters are STATED at what the pilot settles on (Γ_Imp_M3_Pulay_PilotSizesTheRaster gates the pilot and its cost).
+    o.accuracy.eps=0.0; o.tolerances.rasterX=kO2PulayRasterX;
     std::vector<std::string> xcRho;
-    SCFParams par=Gates(150, 1e-8, 1e30);
-    par.Mixer=SCFParams::Mixing::Pulay; par.KerkerG0=0.0;   // Pulay WITHOUT Kerker -> the D-space mixer
-    par.PulayDepth=8; par.PulayStart=5; par.StartingRelaxRo=0.45;
+    const SCFParams par=O2PulayOnDParams();
     GpwReport report("O "+o.label, false);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par,
                                  [&xcRho](const qchem::SCFIterator::IterationRow& p){ xcRho.push_back(p.eb.charge.xcRho); });
@@ -362,7 +381,30 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor_Panel)   // PANEL case 4 (regime 1, Pulay
     ASSERT_TRUE(R) << Why(R);
     ASSERT_FALSE(xcRho.empty());
     for (size_t i=0;i<xcRho.size();i++) EXPECT_EQ(xcRho[i], "DM") << "iteration " << i+1 << ": V_xc must see rho[D] (pin 28)";
-    EXPECT_NEAR(R->Energy(), -30.71018173, 2e-8) << "the rho[D] fixed point (a fitted rho-tilde gives -30.70246)";
+    // RE-BANKED 2026-10-31 (C2 step 3): -30.71018173 was the ball raster's (Hartree 1.3 Ha off at fixed D: the pilot's audit); on the rasters the
+    // pilot settles -30.1051713, re-judged against CP2K's -29.998761 (GPW, 16-bohr box, 400 Ry): 0.106 Ha, was 0.711 -- the rest is the auto
+    // densityEcut ignoring the PP core (OpenWork §3), not the raster.  The rho[D] / fitted-rho-tilde comparison above is the 2026-10-26 one.
+    EXPECT_NEAR(R->Energy(), -30.1051713, 2e-8) << "the rho[D] fixed point on the sized rasters";
+}
+
+// THE PILOT, AND WHAT IT COSTS (C2 step 3; the controller's condition: a user pays the re-convergence, so it is gated, not hidden): the
+// same case auto-sized.  On the ball's rasters (density x 5.55) Hartree is 1.3 Ha off at fixed D, so the energy run's pilot raises the
+// density raster once and re-converges from the audited D; it lands where the stated-raster panel case lands, and its cost is pinned.
+TEST(GPW_O2Box, Γ_Imp_M3_Pulay_PilotSizesTheRaster)
+{
+    const Material box=qchem::Materials::Get("O2_box16");
+    const Lattice_3D lat=LatticeOf(box);
+    const SolidCalcOptions o=O2PulayOnDOptions(box, "O2 in-box triplet, Pulay on D, pilot");
+    GpwReport report("O "+o.label, false);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), O2PulayOnDParams());
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    const auto cost=calc.PilotCost();
+    EXPECT_TRUE(cost.settled);
+    EXPECT_EQ(cost.rounds, 2) << "one raise, one confirming audit";
+    EXPECT_LE(cost.reconvergeIterations, 20u) << "the re-convergence from the audited D (16 measured 2026-10-31)";
+    EXPECT_NEAR(calc.SizedSetup()->opts.tolerances.rasterX, kO2PulayRasterX, 1e-6) << "the panel case states what this settles on";
+    EXPECT_NEAR(R->Energy(), -30.1051713, 1e-6) << "the pilot's re-converged point is the stated-raster panel case's";
 }
 
 // Mn PSEUDO-ATOM IN A BOX through the CRYSTAL (GPW) path vs the molecular facade -- the d-channel sibling
@@ -432,8 +474,10 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     std::cout << "[Mn in-box] GPW="<<E<<"  facade="<<Eref<<"  diff="<<(E-Eref)<<std::endl;
     EXPECT_NEAR(calc.LastIterateCharge(), 7.0, 1e-6);
     EXPECT_NEAR(E, Eref, 3e-2) << "GPW d-channel vs the molecular facade, δ route (measured 1.5 mHa)";
+    // did-E-move anchor (2s+7d, the SR-trimmed cell basis).  RE-BANKED 2026-10-31 (C2 step 3): -14.6380 carried the ball raster (Hartree 2.4
+    // mHa off at fixed D); on the rasters the pilot settles -14.63653, re-judged against the finite twin above (-14.6365281: 4e-6, was 1.5e-3).
     if (!spherical)
-        EXPECT_NEAR(E, -14.6380, 1e-3);                      // did-E-move anchor (2s+7d, the SR-trimmed cell basis)
+        EXPECT_NEAR(E, -14.63653, 1e-4);
 }
 
 

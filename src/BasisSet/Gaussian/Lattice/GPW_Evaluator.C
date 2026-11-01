@@ -27,8 +27,8 @@ module;
 #include <vector>
 export module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // the typed tolerances (D-ENV step 5)
-export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::PW_Grid_Evaluator + RasterPolicy
-                                                       // (re-exported since 0.5(a): RasterPolicy is a public knob)
+export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::PW_Grid_Evaluator + RasterFields
+                                                       // (re-exported: RasterFields is a public knob; the raster itself is GPWTolerances::rasterX, C2 step 3)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;       // Gaussian::LatticeSum1E (the periodic-1E capability we call)
 import qchem.BasisSet.Orbital_PP_IBS;              // SpeciesRadialField / SpeciesProjectorSet(_R): the species-field arguments (V1.2)
 import qchem.BasisSet.AtomCentredSet;              // AtomCentredSet_Gaussian (the +U projector functions, HubbardProjectorPlan D2)
@@ -46,7 +46,6 @@ export namespace qchem::BasisSet::Gaussian
 
 // The two grid POLICY knobs a GPW block takes are the plane-wave engine's (the density fit IS a PW fit);
 // re-exported here so a GPW client names them where it names the block (the export import above).
-using PlaneWave::RasterPolicy;
 using PlaneWave::RasterFields;
 
 //! \brief The GPW orbital evaluator: Gaussian orbitals on a lattice at a k-point (Gamma this increment).  Owns
@@ -94,8 +93,7 @@ public:
     //!              routes pairs by their OWN bandwidth -- diffuse pairs land on coarse levels (small streams).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0), bool kIsReal = true,
-                  bool homeCellOnly = false, double cutoffFactor = 2.0,
-                  RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
+                  bool homeCellOnly = false, double cutoffFactor = 2.0, double ladderFactor = 4.0,
                   RasterFields rasterFields = RasterFields::HartreeXC,
                   const GPWTolerances& tol = {});     //!< the typed numerical tolerances (D-ENV step 5; was env reads inside)
     //! Polymorphic (reached by the Lattice::*_IBS mixins' Cast() cross-cast); out of line as the key function.
@@ -216,6 +214,8 @@ public:
     //! ladder rows + localPP) into the current run report.  Single-provider, so it builds the whole section
     //! json and EmitSection()s it.  Call only when a run is open (report::Depth()>0 -- the ctor call site guards).
     void EmitGridsReport() const;
+    //! The alias exponents this block's rasters deliver (\c RasterExponents; forces the ladder like \c EmitGridsReport).
+    RasterExponents DeliveredRasterExponents() const;
     //! One diagnostic line for any stored grid (the per-grid piece of \c ReportGrids; also used by the
     //! \c CreateCD/VxcFitBasisSet factories to print the fit grid they actually wrap).
     static std::ostream& ReportGrid(std::ostream& os, const std::string& tag, const PlaneWave::PW_Grid_Evaluator& g);
@@ -316,8 +316,6 @@ private:
     //! IntegratePotential / stream build: -1 = the historical \f$\tfrac23\alpha_{\max}\f$ rule
     //! (HartreeXC); 0 = pair-only routing (HartreeOnly -- the Becke-XC partner).
     double  itsRelFieldSharp=-1.0;
-    RasterPolicy itsRaster=RasterPolicy::AliasFree;   //!< 0.5(a) FFT-raster policy for EVERY grid this block
-                                                      //!< builds; set via the typed raster option
     std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Orbital_DFT_IBS<dcmplx>::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
@@ -458,6 +456,14 @@ private:
     // (MakeCollocator), the integrate-back (OverlapMatrix) and the local-PP sweep (MakeLocalPP, absolute
     // kappa rule) all run per-pair on the FULL ladder; itsNBaseLevels only labels the top rung (diagnostics).
     void EnsureLevels() const;   //!< builds/caches the block's OWN ladder (itsFFT_R_G_Grids) for OverlapMatrix + MakeLocalPP
+    //! \brief The tightest EFFECTIVE pair exponent max(p, beta_field) the pair->level rule can route to a level of cutoff \a ecut, on a
+    //! ladder whose resolution reference is \a ecutRef (C2 step 3, doc/GridEpsilonPlan.md §1 row 2): the relative rule sends a pair to
+    //! the coarsest level with ecut >= kRelSafety ecutRef p_eff/(2 alpha_max) (the absolute rule: ecut >= kappa p_eff, kappa = relCutoff),
+    //! so a non-finest level serves p_eff up to the inverse of that; the FINEST present level takes every pair no coarser one could.
+    //! A level's raster is sized to x at THIS exponent (\c GPWTolerances::rasterX), which makes the routing and the raster one condition.
+    double PairCap(double ecut, double ecutRef, bool finest) const;
+    //! A level grid: the ball of cutoff \a ecut on the raster G_N^2 >= \a x * \a pCap (x = 0: the ball's own raster).
+    std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> MakeLevel(const ReciprocalLattice& recip, double ecut, double pCap, double x) const;
     //! Build the REL_CUTOFF ladder from an ARBITRARY fine grid \a grid (level [0]==\a grid) into the output
     //! vectors -- the grid-parameterized core of \c EnsureLevels, so the collocator can build a ladder from the
     //! REQUESTED fit grid while the block's own paths keep the cached \c itsLevels.

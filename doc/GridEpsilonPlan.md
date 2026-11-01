@@ -52,7 +52,7 @@ rigorous math aspect well isolated from the heuristic part; the latter could eas
 1. **Rigorous (the bound).**  Per term class, the oracle-fitted tail model (S_term, n) and L(ε) = the root of S·Lⁿ·e^{−L} = ε: pure
    math, gated by `GPW.RasterAliasCalibration`, no fudge inside it.  At η = 1 it guarantees the single-pair worst case.
 2. **Heuristic (the calibration).**  ONE explicit factor per term class, η_term = how far the delivered error undershoots the bound,
-   MEASURED by `gridAudit` on the real systems; the sizing uses L(η·ε).  Its defaults live in ONE place with a comment citing the
+   MEASURED by `gridAudit` on the real systems as η = delivered/bound ≤ 1; the sizing uses **L(ε/η)** (corrected 2026-10-31: η·Bound(x) ≤ ε ⇔ Bound(x) ≤ ε/η -- a measured η < 1 LOOSENS the raster; the first text said L(η·ε), the wrong direction).  Its defaults live in ONE place with a comment citing the
    gridAudit measurement that set them, exposed as an expert deck key (e.g. `solid.accuracyCalibration`) defaulting to the measured
    value; η = 1 = "rigorous mode" (geometry/forces validation runs ask for it).
 3. **Reporting.**  The `[accuracy]` line prints L_rigorous AND L_used with η; the grid audit reports the delivered error against both,
@@ -62,6 +62,20 @@ rigorous math aspect well isolated from the heuristic part; the latter could eas
    -- and reports η per term per system.  Flat within ~2× ⇒ one default per term class.  If it varies, prefer a SELF-CALIBRATING η (a
    pilot gridAudit at the seed or after a few SCF iterations measures THIS run's η and sizes the final raster) over a material taxonomy
    (a metal/insulator/ionic lookup is a classifier that can be wrong); the expert key still overrides.
+
+**RULED 2026-10-31 (user, via the controller): ε follows the RUN'S OUTPUT -- one ε, and the user never picks a metric.**  A single-point
+ENERGY run sizes the rasters on the energy error (the pilot fits each raster term's scale on |ΔE_T|, target ε × the atom count); any run
+that PRODUCES forces, a geometry or a surface (a `SolidSession`, PES `ConvergeAt`, a relaxation, an explicit forces request) sizes on
+max|ΔH_ij,T| automatically (target ε per matrix element; verdict 3: the energy error cancels inside Tr D ΔH).  It is a capability the run
+ANSWERS, named for the consumer (`ClientConsumes {Energy, MatrixElements}`, `SolidCalculation::Consumes()`: a standalone calculation
+answers Energy, a point a `SolidSession` builds answers MatrixElements), not a deck flag; an expert override can come later if asked.
+Tests' default: ε = 1e-5 Ha per atom (energy) and 1e-5 Ha per element (H-graded).  η = 1 (stated, no pilot) stays the rigorous mode.
+**Proposed pin** (for the user; not in `Pins.md` until ruled): *"One accuracy target, judged by what the client consumes.  Every GPW
+raster is sized from the run's one ε by the error it DELIVERS on the measure its client consumes -- a single-point energy on each raster
+term's |ΔE| ≤ ε per atom, anything that produces forces, a geometry or a surface on max|ΔH_ij| ≤ ε per element (the energy error cancels
+in Tr D ΔH: MnO V_long 0.26 Ha in H against 5 μHa in E).  The run answers the question; the user never picks a metric.  The rigorous
+bound (the fitted alias tail) and the measured calibration (the pilot audit) stay isolated in code, and the XC raster, which has no bound,
+is reported as MEASURED.  Earned by NaF: BallOnly's −941 μHa was the XC raster, and the F site's 'curvature' was the grid's egg-box."*
 
 **The derived tolerances.**  **L(ε) is the root of S_term·L³·e^{−L} = ε** (MEASURED, M2b: the alias tail of an s+p+d pair carries a
 Hermite prefactor ~ x³; S_Vlong = 2.35 Ha, S_ρ = 0.35 ⇒ L(1e-5) ≈ 21.6 / 19.4).  ⚠ NOT the bare ln(S_term/ε) (≈ 14.5 at 1e-5), which
@@ -268,6 +282,39 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
    bit-identical).  Unit test: the table's formulas against hand values.
 3. Raster N per level from ε; `RasterPolicy` deleted (one default, the two ctor defaults gone); the audit asserts.  Routing rule from
    the same condition.  ← the anchor-moving step.
+   **BUILT 2026-10-31 (lane A; the re-bank table goes to the controller before the landing sweep):**
+   - **The raster is a demand, not a name.**  `GPWTolerances::{rasterX, vlocRasterX, xcRasterX}` are alias exponents: every level's
+     raster reaches G_N² ≥ x·p_cap(l), p_cap = the tightest effective pair exponent the pair→level rule can route there
+     (`GPW_Evaluator::PairCap`: the finest level 2α_max, a coarser one the inverse of the relative rule) -- so the routing and the raster
+     are ONE condition.  x = 0 is the ball's own raster, **bit for bit the old BallOnly** (gated, `GPW.RasterDemandIsDelivered`).  The PW
+     library states it as `NyquistRaster{G_N}`; `RasterPolicy` survives only on the plane-wave orbital path.  `GPWParams::raster`,
+     `SolidCalcOptions::raster` and the deck's `solid.raster` are gone (the deck refuses the key, saying why).  The audit's verdict is the
+     demand's and THROWS when a level is built short of it.
+   - **Three modes, one resolve** (`SolidSetup::Resolve`): `accuracy` 0 = no target, the rasters as stated (`tolerances.rasterX ...`;
+     CP2K's ball raster is x = 0); a stated `accuracyCalibration` derives x = L(ε/η) per term (η = 1 rigorous); otherwise (the default)
+     the setup is unresolved and the run's **pilot** sizes it (`SolidCalculation::CalibrateRasters`, after the final stage): audit every
+     raster term against references 8 units of x finer (XC: at least 2×), fit each over-target term's scale under the rigorous shape
+     (`GridAccuracy::MeasuredDemand`, C x³e^{−x} = target), rebuild on the raised rasters, re-converge from the audited D (a restored stage:
+     the Ladder on its GDM rung at kT 0), repeat (≤ 4 rounds).  A `SolidSession` FREEZES its first point's settled rasters for the rest of
+     the surface (`SizedSetup`).  Fingerprint: the demands + ε (a BallOnly state is x = 0, so old BallOnly states still resume exactly).
+   - **XC is measured, and it is NOT the pair shape** (verdict 2 confirmed in the pilot): Si Γ densityEcut 20, uniform XC, H-graded --
+     max|ΔH_xc| 1.0e-2 / 6.5e-3 / 2.2e-4 / 3.1e-5 at x 21 / 30 / 68 / 150, a POWER of x, never reaching 1e-5 per element at any affordable
+     raster (x 137 is ~16× L0's points).  The pilot fits XC as a two-point power law (`MeasuredPowerDemand`), caps it at 2× x per round,
+     and on a geometry run that does not settle says so with the advice: the Becke mesh follows the atoms.  So a **geometry run wants the
+     Becke XC mesh** (the NaF path test already runs on it); a uniform-XC geometry run carries a measured egg-box.
+   - **Three corrections found by the first measurement sweep (2026-10-31):**
+     (1) a stated raster is ISOTROPIC (N = max over axes, as the policy rasters were): per-axis N broke the imposed raster star-average on Si's
+     2×1×1 supercell (`GPW_Si.Γ_Imp_eqK211`: the reference read XC 2.3 Ha off and the re-sized run converged to −28 Ha);
+     (2) the uniform XC's error is the DENSITY raster's below the density's rigorous x (L(ε) = 19.35): Na k222s at density x 6 read
+     |ΔE_xc| 1.2e-4 with its XC raster at x 28 and at x 60 alike, and 5e-8 once the density raster went to x 16 -- so an over-target XC term
+     raises the density raster there, and its own XC raster (the power law) only above it;
+     (3) a restart onto an unresolved setup ADOPTS the saved state's rasters when the state was sized for the same ε (the pilot already ran):
+     without it an exact resume restarted on the ball's rasters and re-sized (`GPW_NaF.Γ_Imp_eqExactResume_Panel` 7.7e-5 off).
+   - Not in this step (follow-ups): the thread-count invariance of the collocation scatter (named above: it rides this re-bank only if
+     it lands in the same window); the ball/vlocEps/κ derivations (step 4); the XC raster model proper (step 5, lane B's area).
+   - **M5 (folded in, 2026-10-31): the R1.0r re-bank set** -- the banked tests on an anisotropic mesh: `GPW_Si.k211_Imp_Anchor`,
+     `k311_eqCplx`, `k311_Uni_MOM_eqCplx`, `k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long`, and the k211 lattices of `src/Response/tests/Kernel.C`
+     (their `ResponseKernel` cases).  They move in step 6, not here.
    **Also here (controller, 2026-10-30): thread-COUNT invariance of the collocation scatter** -- a FIXED accumulator count
    independent of `QCHEM_OPENMP_THREADS` (5ec26b06 made it reproducible at a fixed count only; OpenWork §3 "The short tier is NOT
    green at QCHEM_OPENMP_THREADS=4").  It moves the serial bits once, so it rides this window's re-judgement rather than its own.

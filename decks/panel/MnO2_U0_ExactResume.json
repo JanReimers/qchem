@@ -136,7 +136,13 @@
    0
   ],
   "imposeSymmetry": true,
-  "raster": "AliasFree"
+  "accuracy": 0.0,
+  "tolerances": {
+   "rasterX": 16.0,
+   "vlocRasterX": 16.0,
+   "xcRasterX": 16.0
+  },
+  "_raster": "C2 step 3 (2026-10-31): was raster AliasFree; stated as its alias-exponent equivalent x 16 (accuracy 0 = no target, the rasters as stated)"
  },
  "postSCF": [],
  "schedule": [

@@ -182,6 +182,23 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     if (s->decoration.empty()) s->decoration.assign(lat.GetUnitCell().GetNumAtoms(), 0);
 
     s->planeWave = opts.orbitalBasis==SolidCalcOptions::OrbitalBasis::PlaneWave;
+    // THE RASTER DEMANDS (C2 step 3, doc/GridEpsilonPlan.md §1): eps = 0 states them (the tolerances as given); a stated calibration
+    // derives them here; otherwise the run's own pilot audit sizes them after its SCF (rastersResolved false: the pilot starts on the
+    // ball's own rasters).  Stating a demand beside a target would be two answers to one question.
+    {
+        const auto& a=opts.accuracy;
+        const auto& t=opts.tolerances;
+        if (!(a.eps>=0.0)) throw std::invalid_argument("SolidCalcOptions: accuracy eps must be >= 0 (0 = no target: the stated rasters)");
+        const bool stated = t.rasterX!=0.0 || t.vlocRasterX!=0.0 || t.xcRasterX!=0.0;
+        if (stated && a.eps>0.0)
+            throw std::invalid_argument("SolidCalcOptions: tolerances state a raster demand (rasterX / vlocRasterX / xcRasterX) beside an accuracy "
+                                        "target -- the target derives them; state accuracy 0 to give the rasters yourself");
+        if (!s->planeWave && a.eps>0.0)
+        {
+            if (a.eta) s->opts.tolerances=a.Stated(t);
+            else       s->rastersResolved=false;
+        }
+    }
     if (s->planeWave)
     {
         // THE PLANE-WAVE FAMILY (OpenWork §2 PW-1).  The factory builds ONE Γ block and knows no symmetry, so
