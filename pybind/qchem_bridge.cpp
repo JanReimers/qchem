@@ -14,7 +14,9 @@ module;
 #include <cstdio>
 #include <cstring>
 #include <exception>
+#include <cassert>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -32,6 +34,10 @@ import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
 import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
 import qchem.Symmetry.Molecule.PointGroup;      // DetectPointGroup
 import qchem.Symmetry.Lattice_3D.SpaceGroup;    // SpaceGroup::Detect
+import qchem.BasisSet;                           // Real_BS (Iterate over its irrep blocks)
+import qchem.BasisSet.IrrepBasisSet;             // Integrals_Overlap (each block's S)
+import qchem.BasisSet.Gaussian.Point.Factory;    // BasisSet::Gaussian::Factory (the facade's own basis builder)
+import qchem.Blaze;                              // blazem::eigen
 
 // The opaque handle: the facade plus the request's geometry (for the sampling box).  extern "C++" attaches it to the
 // GLOBAL module, where qcb_api.h (in the GMF) forward-declares it -- a purview definition would be a different entity.
@@ -361,6 +367,36 @@ int qcb_solid_resolved(const qcb_solid* h, char* out, int outlen)
 }
 
 // -- detected symmetry -----------------------------------------------------------------------------------------------
+
+int qcb_basis_info(const int* Z, int nat, const double* pos3, const char* basis, double* out4, char* err, int errlen)
+{
+    const HostLocale host;
+    try
+    {
+        qchem::Molecule mol;
+        for (int a = 0; a < nat; ++a)
+            mol.Insert(new qchem::Atom(Z[a], 0.0, rvec3_t(pos3[3*a], pos3[3*a+1], pos3[3*a+2])));
+        // the facade's defaults (Calculation's BuildBasis with CalcOptions{}): MnD engine, Cartesian, no SALC blocking --
+        // a unitary re-blocking would not move S's spectrum
+        const std::unique_ptr<qchem::BasisSet::Real_BS> bs(qchem::BasisSet::Gaussian::Factory(
+            nlohmann::json{{"basis", basis}, {"engine", "mnd"}, {"angular", "cartesian"}}, &mol));
+        double smin = std::numeric_limits<double>::infinity(), smax = 0.0;
+        int nblocks = 0;
+        for (auto b : bs->Iterate())
+        {
+            const auto* ov = dynamic_cast<const qchem::BasisSet::Integrals_Overlap<double>*>(b);
+            assert(ov && "a molecular orbital block has an overlap");
+            rvec_t w; mat_t<double> U;
+            qchem::blazem::eigen(ov->Overlap(), w, U);            // ascending
+            if (w.size()) { smin = std::min(smin, w[0]); smax = std::max(smax, w[w.size()-1]); }
+            ++nblocks;
+        }
+        out4[0] = double(bs->GetNumFunctions()); out4[1] = nblocks; out4[2] = smin; out4[3] = smax;
+        return 1;
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    return 0;
+}
 
 int qcb_point_group(const int* species, int nat, const double* pos3, double tol,
                     char* symbol, int symlen, char* abelian, int ablen)

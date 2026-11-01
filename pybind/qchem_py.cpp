@@ -278,6 +278,21 @@ NB_MODULE(qchem_py, mod)
              "MO `index` in levels() order (0 = lowest).")
         .def("gradient", &Calculator::Gradient, nb::arg("n") = 24, nb::arg("pad") = 4.0);
 
+    mod.def("basis_info", [](const std::vector<int>& Z, const std::vector<double>& pos, const std::string& basis)
+    {
+        if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
+        double out[4]; char err[errlen] = {0}; int ok;
+        {
+            nb::gil_scoped_release nogil;
+            ok = qcb_basis_info(Z.data(), int(Z.size()), pos.data(), basis.c_str(), out, err, errlen);
+        }
+        if (!ok) throw std::runtime_error(err);
+        nb::dict d;
+        d["n_functions"] = int(out[0]); d["n_blocks"] = int(out[1]); d["s_min"] = out[2]; d["s_max"] = out[3];
+        return d;
+    }, nb::arg("numbers"), nb::arg("positions"), nb::arg("basis"),
+       "The molecule's orbital basis as the facade builds it, with no SCF: {n_functions, n_blocks, s_min, s_max} -- the "
+       "overlap S's extreme eigenvalues (condition number s_max/s_min).");
     mod.def("point_group", [](const std::vector<int>& species, const std::vector<double>& pos, double tol)
     {
         if (pos.size() != 3*species.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");

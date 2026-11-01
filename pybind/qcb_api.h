@@ -120,6 +120,11 @@ int        qcb_solid_resolved(const qcb_solid* h, char* out, int outlen);
 
 // -- symmetry DETECTED from a structure (the lib's own detectors; nothing is imposed here) -------------------------------
 
+//! A molecule's orbital basis as the facade builds it (BasisSet::Gaussian::Factory, Cartesian, no SALC), with NO SCF:
+//! out4 = {number of functions, number of irrep blocks, min and max eigenvalue of the overlap S over every block}.
+//! The condition number is max/min.  1 on success, 0 with `err` on failure (an unknown basis, an element it lacks).
+int qcb_basis_info(const int* Z, int nat, const double* pos3, const char* basis, double* out4, char* err, int errlen);
+
 //! The molecular point group of `nat` points (`species` labels, flat 3N bohr `pos3`) within `tol` bohr: the full Schoenflies
 //! symbol into `symbol`, the abelian subgroup the SCF blocks by into `abelian`.  Returns the group order (0 for C∞v / D∞h),
 //! -1 on failure (`symbol` holds the reason).
