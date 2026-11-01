@@ -70,7 +70,7 @@ max|ΔH_ij,T| automatically (target ε per matrix element; verdict 3: the energy
 ANSWERS, named for the consumer (`ClientConsumes {Energy, MatrixElements}`, `SolidCalculation::Consumes()`: a standalone calculation
 answers Energy, a point a `SolidSession` builds answers MatrixElements), not a deck flag; an expert override can come later if asked.
 Tests' default: ε = 1e-5 Ha per atom (energy) and 1e-5 Ha per element (H-graded).  η = 1 (stated, no pilot) stays the rigorous mode.
-**Proposed pin** (for the user; not in `Pins.md` until ruled): *"One accuracy target, judged by what the client consumes.  Every GPW
+**RULED as `doc/Pins.md` pin 31** (user, 2026-11-01; the wording as proposed): *"One accuracy target, judged by what the client consumes.  Every GPW
 raster is sized from the run's one ε by the error it DELIVERS on the measure its client consumes -- a single-point energy on each raster
 term's |ΔE| ≤ ε per atom, anything that produces forces, a geometry or a surface on max|ΔH_ij| ≤ ε per element (the energy error cancels
 in Tr D ΔH: MnO V_long 0.26 Ha in H against 5 μHa in E).  The run answers the question; the user never picks a metric.  The rigorous
