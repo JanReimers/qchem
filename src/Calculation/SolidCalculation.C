@@ -468,6 +468,10 @@ public:
     //! at second order.  THROWS on a plane-wave run, on an imposed group (the SALC phases follow the origin, so blocks would not match
     //! function for function), and on a setup resolved from a pre-built basis (no recipe to remake it at the shifted atoms).
     GridAuditResult EggBox(const rvec3_t& shift) const;
+    //! \brief THE XC-MESH AUDIT: the run against the SAME rasters with the XC quadrature replaced by \a reference, at the same D, term by
+    //! term -- the gate of an atom-centred mesh, which the egg-box cannot see (the mesh moves with the atoms).  The pilot's nested Becke
+    //! ladder is this comparison against \c qcMesh::BeckeLadderAbove; a test gates a settled mesh against a rung of its own choosing.
+    GridAuditResult XCMeshAudit(const qcMesh::MeshParams& reference) const;
     //! \brief The SELF-CONSISTENT channel response at q = 0 over the run's Hubbard manifolds
     //! (doc/LinearResponsePlan.md stage R2): \f$(1-\mathcal R_0\mathcal K)\,\delta D=\mathcal R_0V_J\f$ with the
     //! Hamiltonian's ANALYTIC kernel (Hartree + ALDA f_xc; +U frozen or at U = 0 answers zero, H4), linearised
@@ -626,8 +630,10 @@ private:
     //! facade takes both hooks and hands the caller's back through them).
     void AttachProbes();
     //! The ONE comparison under both audits: the run against a reference built on \a raster at the atoms shifted by \a shift (zero
-    //! for the raster audit), at the same D, term by term.  \a reference names the reference in the report.
-    GridAuditResult CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift, const std::string& reference) const;
+    //! for the raster audit), at the same D, term by term.  \a reference names the reference in the report.  \a xcMesh: the reference's XC
+    //! quadrature (null = the run's own; the pilot's nested Becke audit passes the next ladder rung).
+    GridAuditResult CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift, const std::string& reference,
+                                    const qcMesh::MeshParams* xcMesh=nullptr) const;
     //! The reference tolerances of a grid audit: every raster demand at what the run's raster DELIVERS plus \a margin.
     BasisSet::Gaussian::GPWTolerances ReferenceRasters(double margin) const;
     //! \brief THE PILOT (C2 step 3, doc/GridEpsilonPlan.md §1): on a setup whose rasters are not resolved, after the FINAL stage converged
@@ -635,6 +641,9 @@ private:
     //! (\c GridAccuracy::MeasuredDemand) at the target for what the client consumes (\c Consumes), and -- when any term demands more --
     //! rebuild the point on the raised rasters and re-converge from this D (a restored stage: the Ladder on its GDM rung at kT = 0).
     //! Repeats until every term meets its target (at most \c kPilotRounds); idempotent once settled.  No-op on a resolved setup.
+    //! A run whose client consumes H on a Becke XC mesh also audits that mesh against the next rung of the nested ladder
+    //! (\c qcMesh::BeckeLadderAbove) and, when the mesh was the facade's choice (\c xcMesh Auto), climbs it the same way; a STATED Becke
+    //! mesh is audited and reported, never raised (the grid is a user decision).
     void CalibrateRasters(const SCFParams& params);
     std::unique_ptr<Imp> itsImp;
 };

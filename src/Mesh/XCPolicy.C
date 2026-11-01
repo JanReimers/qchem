@@ -139,6 +139,14 @@ export namespace qchem::qcMesh
 //!                         needed below degree ~15, not at the calibrated 29).
 MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int angularDegree=-1);
 
+//! \brief The NESTED Becke ladder a geometry run's pilot sizes its XC mesh on (doc/GridEpsilonPlan.md step 3 follow-on): the first rung
+//! strictly finer than \a mp in BOTH the radial count and the angular degree, every other field of \a mp kept.  Rungs (nRadial, degree):
+//! (40, 29) = \c BeckeXCParams(), (60, 35), (80, 41), (100, 47), (120, 53) -- Lebedev up to its menu's last degree 35, GaussLegendre past
+//! it.  WHY a ladder: \c BeckeXCParams() is calibrated on ENERGY, and a displacement reads H -- lane B's NaF/LiF curvature (2026-11-01):
+//! (20, 2, 24) 4-10x wrong on a 0.1 bohr curvature, (40, 2, 36) per term at CP2K.  And WHY nested (each rung audited against the next at a
+//! fixed D, not the egg-box): an atom-centred mesh moves with the atoms, so a rigid translation is blind to it.  Throws past the last rung.
+MeshParams BeckeLadderAbove(const MeshParams& mp);
+
 //! \brief What the Uniform-vs-Becke comparison needs to know about a run: its geometry and its two
 //! SHARPNESS sources, both expressed as Gaussian exponents so one predicate covers both.
 //!
@@ -272,6 +280,22 @@ MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
     mp.angularDegree=angularDegree;   // ONE meaning for both schemes: GL takes it directly, Lebedev resolves
                                       // it to the cheapest rule of at least that degree (R2.15).
     return mp;
+}
+
+MeshParams BeckeLadderAbove(const MeshParams& mp)
+{
+    static constexpr int kRungs[][2] = {{40,29},{60,35},{80,41},{100,47},{120,53}};
+    for (const auto& r : kRungs)
+        if (r[0]>mp.nRadial && r[1]>mp.angularDegree)
+        {
+            MeshParams m=mp;
+            m.cellKind=UnitCellKind::Becke;
+            m.nRadial=r[0]; m.angularDegree=r[1];
+            m.angular = r[1]<=35 ? AngularKind::Lebedev : AngularKind::GaussLegendre;   // 35 = the Lebedev menu's last degree
+            return m;
+        }
+    throw std::invalid_argument("BeckeLadderAbove: no ladder rung is finer than nRadial "+std::to_string(mp.nRadial)+", degree "
+                                +std::to_string(mp.angularDegree)+" (the last is (120, 53))");
 }
 
 int AngularDirections(AngularKind kind, int degree)

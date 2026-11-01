@@ -13,6 +13,7 @@
 #include <vector>
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // ClientConsumes (what a run's client consumes, C2 step 3)
 import qchem.SolidCalculation;
+import qchem.Mesh.XCPolicy;   // BeckeXCParams / BeckeLadderAbove (the nested Becke ladder)
 import qchem.Materials;
 import qchem.Lattice_3D;
 import qchem.Structure;
@@ -103,6 +104,9 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     const auto mat=Materials::Get("Si_diamond");
     SolidCalcOptions o=SiGamma(false, /*statedRasters*/false);
     o.densityEcut=-1.0;
+    // A STATED Becke mesh: the pilot audits it on the geometry run and reports it, never raises it (the grid is a user decision) -- the
+    // facade's own choice, sized on the nested ladder, is GeometryRunPicksAndSizesTheBeckeMesh_Long.  (A bare cellKind Becke keeps the
+    // MeshParams struct defaults, nR 30 / Lebedev degree 5, NOT BeckeXCParams(): the audit reads 1.8e-2 per element -- doc/OpenWork.md §3.)
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
     const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), kSiBasis, o);
     ASSERT_FALSE(setup->rastersResolved) << "the default setup self-calibrates";
@@ -135,6 +139,45 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     R[1].x+=0.05;
     ASSERT_TRUE(pes.ConvergeAt(ref.cell, R));
     EXPECT_TRUE(pes.Current()->SizedSetup()->opts.tolerances==tH) << "a later point samples on the rasters the first point settled";
+}
+
+// THE XC ROUTE FOLLOWS THE CONSUMER (user ruling 2026-11-01, pin 31): with NO deck change -- XC Auto, which routes a Si energy run to the
+// uniform raster -- a geometry point takes the Becke mesh and its pilot sizes that mesh on the nested ladder to max|dH_xc| <= eps per element
+// (BeckeXCParams() is calibrated on the ENERGY).  Gated by an INDEPENDENT audit two rungs above the settled mesh, not the pilot's own
+// reference.  MEASURED 2026-11-01 (Si Gamma, auto floor): the rung differences 1.8e-5 (40/29 vs 60/35), 8.9e-6 (60/35 vs 80/41 GL), 4.7e-7
+// (80/41 vs 100/47); the pilot's geometric tail estimate puts 60/35 at 1.8e-5, so it settles on 80/41 in 3 rounds, 9 re-convergence iterations;
+// the gate's audit against 120/53 passes.  ~520 s serial (the GL references), hence _Long.  The NaF twin: GPW_NaF.Γ_GeometryRunSizesItsBeckeMesh_Long.
+TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
+{
+    const auto mat=Materials::Get("Si_diamond");
+    SolidCalcOptions o=SiGamma(false, /*statedRasters*/false);
+    o.densityEcut=-1.0;
+    const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), kSiBasis, o);
+    ASSERT_EQ(setup->xcMesh.cellKind, qcMesh::UnitCellKind::Uniform) << "the premise: Auto routes this system's energy run to the uniform raster";
+
+    SolidSession pes(setup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}});
+    const PESGeometry ref=pes.Reference();
+    std::vector<rvec3_t> R=ref.R;
+    ASSERT_TRUE(pes.ConvergeAt(ref.cell, R));
+    const SolidCalculation& c=*pes.Current();
+    const qcMesh::MeshParams xc=c.ResolvedXCMesh();
+    ASSERT_EQ(xc.cellKind, qcMesh::UnitCellKind::Becke) << "a geometry run's XC follows the atoms";
+    EXPECT_GT(xc.nRadial, qcMesh::BeckeXCParams().nRadial) << "the energy-calibrated default does not meet 1e-5 per element on Si Gamma";
+    EXPECT_TRUE(c.PilotCost().settled);
+    EXPECT_LE(c.PilotCost().rounds, 3);
+    EXPECT_LE(c.PilotCost().reconvergeIterations, 20u);
+
+    const double eps=o.accuracy.eps;   // per matrix element on a geometry run (GridAccuracy::Target)
+    const auto A=c.XCMeshAudit(qcMesh::BeckeLadderAbove(qcMesh::BeckeLadderAbove(xc)));
+    double dXC=0.0;
+    for (const auto& t : A.terms) if (t.entries=="Exc") dXC=std::max(dXC, t.maxAbsΔH);
+    EXPECT_GT(dXC, 0.0) << "the audit compared two different meshes";
+    EXPECT_LE(dXC, eps) << "max|dH_xc| against a mesh two rungs finer";
+
+    R[1].x+=0.05;
+    ASSERT_TRUE(pes.ConvergeAt(ref.cell, R));
+    EXPECT_EQ(pes.Current()->ResolvedXCMesh().nRadial, xc.nRadial) << "a later point samples on the XC mesh the first point settled";
+    EXPECT_EQ(pes.Current()->ResolvedXCMesh().angularDegree, xc.angularDegree);
 }
 
 TEST(SolidSession, RefusalsAreOutcomesAndAWrongCountThrows)
