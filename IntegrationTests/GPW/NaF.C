@@ -122,7 +122,7 @@ TEST(GPW_NaF, Γ_Imp_Anchor)   // RE-ENABLED 2026-09-15: 15 s, converged in 23 i
     const Lattice_3D lat=LatticeOf(naf);
     SolidCalcOptions o=NaFOptions(naf, "NaF GPW Gamma");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);
+    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default (nR 40, degree 29): this anchor's number only, never a curvature (OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
     SCFParams par=NaFGates(); par.StartingRelaxRo=0.25; par.MergeTol=1e-4;
     GpwReport report("NaF "+o.label, par.Verbose);
@@ -156,7 +156,7 @@ SolidCalcOptions NaFAnchorOptions(const Material& naf, const std::string& label)
 {
     SolidCalcOptions o=NaFOptions(naf, label);
     o.imposeSymmetry=true;
-    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);
+    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default (nR 40, degree 29): this anchor's number only, never a curvature (OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
     return o;
 }
@@ -325,15 +325,15 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
 // DETECTED at each geometry -- 48 ops on the site, 8 off it -- so the mesh switched along the path: mirror 1.7e-5 Ha, Δ⁵ 5.9e-6;
 // a SolidSession now requires the plain atom-centred mesh (SolidCalcOptions::xcMeshSymmetric=false): 5e-10 and 2.0e-8.
 // NOT claimed: that the site is a minimum.  With GTH-q1 Na it is not, in CP2K either (a weak maximum, E'' ≈ -0.005 Ha/bohr² at k222
-// on a resolved grid; q9 Na gives the experimental +0.02) -- doc/OpenWork.md "NaF with the q1 Na pseudopotential has NO restoring
-// force on the F site".  (The -0.03 once quoted here was this run's raster egg-box: its rigid-translation control moves E 1e-5.)
+// on a resolved grid; q9 Na gives +0.029 ours / +0.028 CP2K on the same basis) -- doc/OpenWork.md "A light-PP ion has NO restoring
+// force on its site".  (The -0.03 once quoted here was this run's raster egg-box: its rigid-translation control moves E 1e-5.)
 TEST(GPW_NaF, Γ_PathIsContinuous_Long)
 {
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     SolidCalcOptions o=NaFOptions(naf, "NaF PES path");
     o.imposeSymmetry=false;   // a displaced F lowers the group: an imposed session refuses the step (SymmetryBroken)
     o.xcMeshSymmetric=false;  // ... and a free session's XC mesh must not follow the group detected at each point (see above)
-    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);
+    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default: the CONTINUITY claim only -- a site curvature on it is 4-10x off (LiF/NaF, OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
     SCFParams par=NaFAnchorParams(); par.MinΔρPerElectron=1e-6;
     const GaussianBasisRecipe sr2{.data=BasisSetData::VALENCE_LOWQ_SR2};
