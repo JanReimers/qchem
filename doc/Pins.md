@@ -394,3 +394,15 @@ Consequences:
 - **The rule is necessary, not sufficient.**  Completeness (a fit missing an l, a grid that is too coarse) is an
   accuracy matter for ε and the audit, never a refusal.
 - **The gate's R cells are derived, not listed:** R exactly when H_R ≰ G.
+
+## 31. One accuracy target, judged by what the client consumes (user, 2026-11-01)
+
+Every GPW raster is sized from the run's one ε by the error it DELIVERS on the measure its client consumes.
+- A single-point energy: each raster term's |ΔE| ≤ ε per atom.
+- Anything that produces forces, a geometry or a surface: max|ΔH_ij| ≤ ε per element.  The energy error cancels in
+  Tr D ΔH (MnO V_long: 0.26 Ha in H against 5 μHa in E), so an energy-sized raster is blind to what forces see.
+
+The run answers the question; the user never picks a metric.  The rigorous bound (the fitted alias tail) and the
+measured calibration (the pilot audit) stay isolated in code, and the XC raster, which has no bound, is reported as
+MEASURED.  Test defaults: 1e-5 Ha/atom (energy) and 1e-5 Ha per element (H).  Earned by NaF: BallOnly's −941 μHa was the
+XC raster, and the F site's "curvature" was the grid's egg-box (doc/GridEpsilonPlan.md §1).
