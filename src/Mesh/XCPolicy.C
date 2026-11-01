@@ -139,6 +139,13 @@ export namespace qchem::qcMesh
 //!                         needed below degree ~15, not at the calibrated 29).
 MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int angularDegree=-1);
 
+//! \brief The facade's DEFAULT \c xcMesh (\c SolidCalcOptions::xcMesh): \c cellKind Auto carrying \c BeckeXCParams()'s recipe, so a deck or
+//! a caller that states ONLY \c cellKind Becke gets the calibrated (40, 2.0, 29) mesh -- ONE source of the Becke numbers.  Before
+//! 2026-11-01 the default carried the bare \c MeshParams struct values (nR 30, Lebedev degree 5): a bare stated Becke silently ran on a
+//! 12-direction rule, 1.8e-2 per H element on Si Γ (doc/OpenWork.md §3).  The struct's own defaults stay as they are for the MOLECULAR
+//! and projector meshes that default-construct one; only the periodic XC default moved.
+MeshParams XCMeshDefault();
+
 //! \brief The NESTED Becke ladder a geometry run's pilot sizes its XC mesh on (doc/GridEpsilonPlan.md step 3 follow-on): the first rung
 //! strictly finer than \a mp in BOTH the radial count and the angular degree, every other field of \a mp kept.  Rungs (nRadial, degree):
 //! (40, 29) = \c BeckeXCParams(), (60, 35), (80, 41), (100, 47), (120, 53) -- Lebedev up to its menu's last degree 35, GaussLegendre past
@@ -374,23 +381,32 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s, bool al
     return u;
 }
 
+MeshParams XCMeshDefault()
+{
+    MeshParams mp=BeckeXCParams();
+    mp.cellKind=UnitCellKind::Auto;
+    return mp;
+}
+
 // AUTO PICKS THE KIND, NOT THE RECIPE (OpenWork §3 "xcMesh knobs are DROPPED SILENTLY when cellKind is Auto", 2026-10-26).  Auto
 // resolves to a CALIBRATED recipe (BeckeXCParams, or a uniform mesh sized to the system), so a grid field the caller set beside Auto
 // used to be discarded -- a β-MnO₂ mesh-convergence run came back bit-identical.  The recipe fields' defaults (MeshParams{}) are not
 // the Becke recipe's, so "honour what was set" cannot tell a stated field from a default: a set field THROWS instead, naming it.
+// "Not set" = equal to the facade default (XCMeshDefault) OR to the bare struct default: records written before 2026-11-01 carry the
+// struct values under Auto (ToJson writes every field), and library callers default-construct one -- neither ever stated a recipe.
 static void RequireNoRecipeUnderAuto(const MeshParams& mp)
 {
     if (mp.cellKind!=UnitCellKind::Auto) return;
-    const MeshParams d;
+    const MeshParams d, f=XCMeshDefault();
     std::string set;
     auto note=[&set](bool differs, const char* name){ if (differs) set+=(set.empty()?"":", ")+std::string(name); };
-    note(mp.radial!=d.radial,"radial");           note(mp.nRadial!=d.nRadial,"nRadial");
-    note(mp.mhl_m!=d.mhl_m,"mhlM");               note(mp.mhl_alpha!=d.mhl_alpha,"mhlAlpha");
-    note(mp.logStart!=d.logStart,"logStart");     note(mp.logStop!=d.logStop,"logStop");
-    note(mp.angular!=d.angular,"angular");        note(mp.angularDegree!=d.angularDegree,"angularDegree");
-    note(mp.angRot!=d.angRot,"angRot");           note(mp.beckeOrder!=d.beckeOrder,"beckeOrder");
-    note(mp.nUniform!=d.nUniform,"nUniform");     note(mp.eCut!=d.eCut,"eCut");
-    note(mp.beckeEps!=d.beckeEps,"beckeEps");
+    note(mp.radial!=d.radial && mp.radial!=f.radial,"radial");           note(mp.nRadial!=d.nRadial && mp.nRadial!=f.nRadial,"nRadial");
+    note(mp.mhl_m!=d.mhl_m && mp.mhl_m!=f.mhl_m,"mhlM");               note(mp.mhl_alpha!=d.mhl_alpha && mp.mhl_alpha!=f.mhl_alpha,"mhlAlpha");
+    note(mp.logStart!=d.logStart && mp.logStart!=f.logStart,"logStart");     note(mp.logStop!=d.logStop && mp.logStop!=f.logStop,"logStop");
+    note(mp.angular!=d.angular && mp.angular!=f.angular,"angular");        note(mp.angularDegree!=d.angularDegree && mp.angularDegree!=f.angularDegree,"angularDegree");
+    note(mp.angRot!=d.angRot && mp.angRot!=f.angRot,"angRot");           note(mp.beckeOrder!=d.beckeOrder && mp.beckeOrder!=f.beckeOrder,"beckeOrder");
+    note(mp.nUniform!=d.nUniform && mp.nUniform!=f.nUniform,"nUniform");     note(mp.eCut!=d.eCut && mp.eCut!=f.eCut,"eCut");
+    note(mp.beckeEps!=d.beckeEps && mp.beckeEps!=f.beckeEps,"beckeEps");
     if (!set.empty())
         throw std::invalid_argument("xcMesh: cellKind Auto picks the grid KIND and its calibrated recipe, so the grid field(s) set here ("
                                     +set+") would be IGNORED.  State cellKind Becke or Uniform to set a recipe.");
