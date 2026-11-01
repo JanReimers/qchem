@@ -247,6 +247,7 @@ Virial               V/K  :  -2.62806474823  Eee/Exc:  -0.35576632685
 |    6/6    |  0.32414685 | 3(0,0,0) |
 +-----------+-------------+----------+
 [gpw] NOT converged iters=4 charge=8.00000000000 Eelec=1.58128560017 Etot=-7.1140719518  (Ekin=4.36964927810 Een=-1.14841263938 Eee=0.90563312895 Exc=-2.54558416749 Enn=-8.40046478619 E_alphaZ=-0.29489276580)
+[gpw raster pilot] SKIPPED: the SCF did not converge, so there is no D to audit -- the rasters stay the ball's own
 )G";
 }
 

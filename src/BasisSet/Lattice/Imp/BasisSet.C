@@ -7,6 +7,7 @@ module;
 #include <iostream>  // std::cout (the run-start GPW grid diagnostic)
 #include <memory>    // std::shared_ptr / std::move (the GPW basis owns the molecular Gaussian basis)
 #include <sstream>   // irrep label for the pre-flight basis.perIrrep rows
+#include <optional>
 #include <variant>   // the mixed child-slot visits (Step 3c-2)
 #include <algorithm> // std::min (min singular value)
 #include <cstdlib>   // std::getenv/std::atoi
@@ -346,7 +347,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         auto build=[&]<class U>()
         {
             auto* b=new Gaussian::tGPW_IBS<U>(lat.GetUnitCell(), irrep,
-                                    mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor,
+                                    mol, p.densityEcut, p.images, p.cutoffFactor, p.ladderFactor,
                                     ops.directDensity,    // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
                                     p.rasterFields,       // field-sharpness routing (HartreeOnly = the Becke-XC partner)
                                     ops.magneticDirect,   // Shubnikov {W|τ,σ} on a magnetic imposition (S3; {} = grey)
@@ -461,6 +462,22 @@ void EmitGpwGrids(const Complex_BS& bs)
         }, imp->GetChild(i));
         if (done) return;
     }
+}
+
+std::optional<Gaussian::RasterExponents> GpwRasterExponents(const Complex_BS& bs)
+{
+    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
+    assert(imp && "GpwRasterExponents: the periodic basis set must be a BasisSetImp");
+    for (size_t i=0;i<bs.GetNumIBS();++i)
+    {
+        std::optional<Gaussian::RasterExponents> x=std::visit([&](const auto& b)->std::optional<Gaussian::RasterExponents>
+        {
+            if (auto* ev=dynamic_cast<const Gaussian::GPW_Evaluator*>(b.get())) return ev->DeliveredRasterExponents();
+            return std::nullopt;
+        }, imp->GetChild(i));
+        if (x) return x;
+    }
+    return std::nullopt;
 }
 
 size_t VetGpwConditioning(const Complex_BS& bs)
@@ -638,7 +655,7 @@ Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const Bas
                        double densityEcut, rvec3_t kShift, Gaussian::CellImages images, double cutoffFactor)
 {
     return new GPW_BasisSet(lat, std::move(mol),
-                            GPWParams{densityEcut, cutoffFactor, PlaneWave::RasterPolicy::BallOnly, images, kShift});
+                            GPWParams{densityEcut, cutoffFactor, images, kShift});
 }
 
 } //namespace

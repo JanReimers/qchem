@@ -7,6 +7,7 @@
 //! and hands it to the evaluator at construction.  The environment is NOT a way to set them (D-ENV step 6a): the input deck is
 //! (`solid.tolerances.*`, or `--set`); the old GPW_* variables are retired, ignored and reported (qchem::WarnRetiredEnvironment).
 module;
+#include <optional>
 #include <string>
 #include <vector>
 export module qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
@@ -42,10 +43,28 @@ struct GPWTolerances
     //! The COLLOCATION tolerance floor: sizes the (shell pair, offset) task list and is the lowest any screener may answer.
     //! DECOUPLED from \c screenEps -- a collocated density and an analytic lattice sum are not converged by one tolerance.
     double densityEps = 1.0e-10;
+    //! \brief The RASTER demands (doc/GridEpsilonPlan.md §1 rows 1-2, C2 step 3), each an alias exponent x = G_N^2/p: every level's
+    //! raster reaches G_N^2 >= x p_cap, p_cap = the tightest effective pair exponent the pair->level rule can route to that level, so
+    //! the routing and the raster are ONE condition (a pair the rule sends to a level is sampled at x or better).  0 = the ball's own
+    //! raster (2m+1: CP2K's arrangement, today's BallOnly).  They are DERIVED from the accuracy target by the facade
+    //! (\c GridAccuracy: rigorous, stated calibration, or the run's own pilot audit) -- set one here only to state a raster.
+    double rasterX     = 0.0;   //!< the density ladder (collocation + integrate-back: Hartree, and the uniform XC's input)
+    double vlocRasterX = 0.0;   //!< V_loc long's own ladder (its static integrate-back; the term forces see first, M2c verdict 3)
+    double xcRasterX   = 0.0;   //!< the reference level L0 again, for the UNIFORM XC raster (v_xc[rho] sampled there; MEASURED, no bound)
 
     //! One line naming every value that differs from the default (empty when none) -- what a run banner prints.
     std::string Describe() const;
     bool operator==(const GPWTolerances&) const = default;
+};
+
+//! \brief The alias exponent x = G_N^2/p each raster DELIVERS at the tightest pair it serves (C2 step 3) -- what the facade's pilot
+//! audit consumes to fit a term's measured tail at the run's TRUE raster (the demand is a floor; the ball and the 5-smooth menu can
+//! exceed it).  0 = that raster is not built (V_long before its sweep, or a model with no closed Gaussian long part).
+struct RasterExponents
+{
+    double density  = 0.0;   //!< the finest density level at p = 2 alpha_max (Hartree's binding pair)
+    double vlocLong = 0.0;   //!< V_loc long's finest level at p = 2 alpha_max
+    double xcL0     = 0.0;   //!< the reference level L0 at the tightest pair routed to it (the uniform XC samples v_xc[rho] there)
 };
 
 //! \brief RIGOROUS (doc/GridEpsilonPlan.md §1, ruled 2026-10-31: "the rigorous math aspect well isolated from the heuristic part"):
@@ -67,9 +86,10 @@ inline constexpr AliasTail kVlocLongTail{2.35, 3.0};   //!< V_loc long <chi|V|ch
 inline constexpr AliasTail kDensityTail {0.35, 3.0};   //!< rho~ at low G (relative): Hartree's and the raster XC's input
 
 //! \brief HEURISTIC (the same ruling): how far the DELIVERED error undershoots the rigorous bound, ONE factor per term class,
-//! measured by `gridAudit` (doc/GridEpsilonPlan.md §5 M2c).  The sizing uses L(eta*eps).  1 = rigorous mode (geometry/force
+//! measured by `gridAudit` (doc/GridEpsilonPlan.md §5 M2c): eta = delivered / bound <= 1, so a term meets eps when eta*Bound(x) <= eps,
+//! i.e. the sizing uses L(eps/eta) -- LOOSER than rigorous, never tighter.  1 = rigorous mode (geometry/force
 //! validation asks for it).  M2c found eta NOT flat across materials (V_long 1e-4 ... 0.15, Hartree 5e-6 ... 1e-2), so it is to be
-//! SELF-CALIBRATED per run by a pilot audit, never a shipped per-class table; until that lands the default is the rigorous 1.
+//! SELF-CALIBRATED per run by a pilot audit, never a shipped per-class table (\c GridAccuracy::eta empty, the default).
 //! For FORCES eta is judged on max|dH_ij|, never on energies (dE cancels inside Tr D dH: MnO V_long 0.26 Ha vs dE 5 uHa).
 struct AccuracyCalibration
 {
@@ -78,18 +98,40 @@ struct AccuracyCalibration
     bool operator==(const AccuracyCalibration&) const = default;
 };
 
-//! \brief The ONE accuracy target (deck `solid.accuracy`, Ha per Hamiltonian matrix element) and its calibration
-//! (`solid.accuracyCalibration`, expert).  C2 step 2: carried, derived and REPORTED; the sizing still uses today's knobs (step 3
-//! makes them derived -- the anchor-moving step), so the [accuracy] line prints both what the rule demands and what is used.
+//! \brief WHAT THE RUN'S CLIENT CONSUMES of the Hamiltonian -- the measure the ONE accuracy target is judged on (user ruling
+//! 2026-10-31, doc/GridEpsilonPlan.md §1): a single-point ENERGY is judged on the energy error (eps per atom), and anything that
+//! produces forces, a geometry or a surface on the matrix elements (eps per element, max|dH_ij|: the energy error cancels inside
+//! Tr D dH, M2c verdict 3).  The run ANSWERS it (who built it), the user never picks a metric.
+enum class ClientConsumes { Energy, MatrixElements };
+
+//! \brief The ONE accuracy target (deck `solid.accuracy`) and its calibration (`solid.accuracyCalibration`, expert).  C2 step 3: the
+//! raster demands (\c GPWTolerances::rasterX ...) are DERIVED from it -- by the stated calibration when there is one (eta = 1 is the
+//! rigorous mode), else by the run's own PILOT audit (self-calibrated: M2c found eta not flat across materials).
 struct GridAccuracy
 {
-    double              eps = 1.0e-5;   //!< today's tests' value (kappa = 30 Ha <=> L = 15 on the local-PP sweeps)
-    AccuracyCalibration eta;
-    //! L_rigorous (eta = 1) and L_used-by-the-rule (eta applied) for one tail.
+    double eps = 1.0e-5;   //!< Ha per atom on an energy run, Ha per matrix element on a geometry run (\c ClientConsumes)
+    //! The STATED calibration (expert); none = SELF-CALIBRATED by a pilot audit (the default).
+    std::optional<AccuracyCalibration> eta;
+    //! L_rigorous (eta = 1) and L_calibrated = L(eps/eta) (eta = delivered/bound <= 1 loosens) for one tail.  Clamped at x = n (the
+    //! tail's maximum) when eps/eta exceeds the bound's maximum: no raster beyond the floor is needed for that term.
     double Rigorous(const AliasTail& t) const {return t.Exponent(eps);}
-    double Calibrated(const AliasTail& t, double etaTerm) const {return t.Exponent(etaTerm*eps);}
-    //! \brief The run banner's accuracy line (after "[label run] accuracy: "): eps, eta, and per term class the raster x the rule demands, rigorous and calibrated, beside
-    //! the knob values the sizing uses today.  The XC raster has NO rigorous bound (v_xc[rho] is nonlinear: it aliases even where
+    double Calibrated(const AliasTail& t, double etaTerm) const;
+    //! The target one term's delivered error is held to: eps x the atom count on an energy run, eps per element on a geometry run.
+    double Target(ClientConsumes c, size_t nAtoms) const {return c==ClientConsumes::Energy ? eps*double(nAtoms) : eps;}
+    //! \brief The STATED calibration's raster demands written into \a t (rasterX = the density tail's L(eps/eta), vlocRasterX = V_long's,
+    //! xcRasterX = rasterX: the XC raster has no bound of its own).  THROWS when there is no stated calibration (that run self-calibrates).
+    GPWTolerances Stated(GPWTolerances t) const;
+    //! \brief HEURISTIC, the self-calibration's one step: a term that DELIVERED \a delivered at alias exponent \a xRun fixes its own scale
+    //! C = delivered / (xRun^3 e^{-xRun}) under the rigorous SHAPE (\c AliasTail n = 3), and demands the x where C x^3 e^{-x} = \a target.
+    //! 0 when it already meets the target (no demand beyond the run's raster).  eta = C / S_term is what the report prints.
+    static double MeasuredDemand(double delivered, double xRun, double target);
+    //! \brief MEASURED, for the uniform XC raster (no bound, no shape: v_xc[rho] is nonlinear, and Si's max|dH_xc| fell only as a POWER
+    //! of x -- 1.0e-2 / 6.3e-3 / 1.1e-3 / 4.8e-4 at x 21 / 30 / 37 / 54, where the alias shape predicted e^{-x}): from two of the pilot's
+    //! own rounds (x1, d1), (x2, d2), d ~ x^{-k} with k = ln(d1/d2)/ln(x2/x1), demand x2 (d2/target)^{1/k}.  0 when (x2, d2) meets the
+    //! target, or when no decrease was measured (no slope: the caller falls back to \c MeasuredDemand).
+    static double MeasuredPowerDemand(double x1, double d1, double x2, double d2, double target);
+    //! \brief The run banner's accuracy line (after "[label run] accuracy: "): eps, the calibration (stated or self), per term class the
+    //! rigorous x, and the raster demands USED.  The XC raster has NO rigorous bound (v_xc[rho] is nonlinear: it aliases even where
     //! rho~ is band-limited -- Si k222 434x over the rho-pair bound, M2c), so it is labelled MEASURED, never rigorous.
     std::string Describe(const GPWTolerances& used) const;
     bool operator==(const GridAccuracy&) const = default;

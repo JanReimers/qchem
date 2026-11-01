@@ -16,7 +16,7 @@ export module qchem.SolidSetup;
 import qchem.Lattice_3D;                      // Lattice_3D (crystal + BZ mesh)
 import qchem.Structure;                       // Structure
 import qchem.BasisSet;                        // Real_BS (the molecular orbital basis)
-import qchem.BasisSet.Lattice.BasisSet;       // RasterPolicy, CellImages, GPWTolerances, ShellTrim
+import qchem.BasisSet.Lattice.BasisSet;       // CellImages, GPWTolerances, ShellTrim
 import qchem.BasisSet.Gaussian.Point.Factory; // BasisSetData (the registered basis files)
 import qchem.Hamiltonian.Factory;             // HubbardManifold, VxcFit
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions
@@ -94,7 +94,6 @@ struct SolidCalcOptions
     double densityEcut  = -1.0;   //!< <0 AUTO: floor at \c cutoffFactor*alpha_max (recommended).
     double cutoffFactor = 2.0;    //!< C in that floor; 2 = the density's own product exponent.
     double ladderFactor = 4.0;    //!< multigrid ladder gradation (DEPTH is automatic).
-    BasisSet::PlaneWave::RasterPolicy raster = BasisSet::PlaneWave::RasterPolicy::BallOnly;
     BasisSet::Gaussian::CellImages   images = BasisSet::Gaussian::CellImages::Periodic;
     rvec3_t kShift = rvec3_t(0,0,0);
     //! \brief The XC real-space quadrature.  DEFAULT \c Auto = "you choose": the class costs a uniform
@@ -107,9 +106,11 @@ struct SolidCalcOptions
     //! environment (GPW_VLOC_EPS, ...) is applied on top as an OVERRIDE LAYER when the run resolves its options -- every
     //! override is named on the run banner.
     qchem::BasisSet::Gaussian::GPWTolerances tolerances = {};
-    //! \brief The ONE grid accuracy target eps (Ha per matrix element; deck `solid.accuracy`) and its calibration eta (expert,
-    //! `solid.accuracyCalibration`), doc/GridEpsilonPlan.md §1.  C2 step 2: carried and REPORTED (the run banner's [accuracy] line:
-    //! what the rigorous rule demands beside the knobs the sizing still uses); it moves no number until step 3 derives the knobs.
+    //! \brief The ONE grid accuracy target eps (deck `solid.accuracy`; Ha per atom on an energy run, per matrix element on a geometry
+    //! run -- \c SolidCalculation::Consumes) and its calibration eta (expert, `solid.accuracyCalibration`), doc/GridEpsilonPlan.md §1.
+    //! C2 step 3: the GPW raster demands (\c tolerances.rasterX ...) are DERIVED from it -- from the stated calibration at Resolve, or
+    //! by the run's own pilot audit after its SCF (the default).  eps = 0 is NO target: the rasters are \c tolerances as stated (0 =
+    //! the ball's own raster, CP2K's arrangement), and stating a raster demand with eps > 0 is refused (the target derives them).
     qchem::BasisSet::Gaussian::GridAccuracy accuracy = {};
     //! The declared CP2K deviations (routes and accelerations CP2K does not run) -- the deck's `policy` block (D-ENV step 6b).  Unstated
     //! routes take the qchem default, or CP2K's value under \c cp2kCompat; a stated one wins over the umbrella.  The facade INSTALLS it
@@ -340,6 +341,10 @@ struct SolidSetup
     std::vector<int> decoration;   //!< \c siteSpins, or all zeros: the per-site spins the run was built with (the +U site groups read it)
     qcMesh::MeshParams xcMesh;     //!< the XC quadrature, \c Auto RESOLVED (the facade's decision 1)
     int nUp = 0, nDown = 0;        //!< the electron counts per spin channel (decision 2: multiplicity -> (nUp, nDown))
+    //! \brief The GPW raster demands in \c opts.tolerances are FINAL (C2 step 3): stated (accuracy 0), derived from a stated calibration,
+    //! or settled by a pilot audit (\c SolidCalculation::SizedSetup).  false = this setup's first SCF is the PILOT: it runs on the ball's
+    //! own rasters and \c SolidCalculation sizes them from what it delivered.  A plane-wave run has no raster: true.
+    bool rastersResolved = true;
 
 private:
     SolidSetup(Pseudopotential::PseudopotentialSet p, const Lattice_3D& lat)

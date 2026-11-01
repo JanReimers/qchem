@@ -148,6 +148,7 @@ struct NaFRestartFixture
     std::string coarsePath, finePath;
     double      coldEnergy=0.0, coarseEnergy=0.0;
     size_t      coldIterations=0;
+    std::shared_ptr<const SolidSetup> fineSetup;   //!< the cold fine run's setup, its rasters as its pilot sized them
     bool        ok=false;
     std::string why;
 };
@@ -174,10 +175,12 @@ const NaFRestartFixture& NaFRestart()
         const std::string pid=std::to_string(::getpid());
         r.coarsePath=(dir/("naf_restart_coarse."+pid+".h5")).string();
         r.finePath  =(dir/("naf_restart_fine."+pid+".h5")).string();
-        {   // the CHEAP coarse stage: Ecut=40 is SUB-FLOOR (below C*alpha_max=80), so it needs the alias-free raster
+        {   // the CHEAP coarse stage: Ecut=40 is SUB-FLOOR (below C*alpha_max=80), so it needs a finer raster than its ball's own --
+            // stated (accuracy 0): x 16, what the retired AliasFree gave (C2 step 3)
             SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart coarse");
             o.densityEcut=40.0;
-            o.raster=BasisSet::PlaneWave::RasterPolicy::AliasFree;
+            o.accuracy.eps=0.0;
+            o.tolerances.rasterX=o.tolerances.vlocRasterX=o.tolerances.xcRasterX=16.0;
             o.saveStateTo=r.coarsePath;
             qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
             auto R=calc.Result();
@@ -191,6 +194,7 @@ const NaFRestartFixture& NaFRestart()
             auto R=calc.Result();
             if (!R) { r.why="cold fine: "+Why(R); return r; }
             r.coldEnergy=R->Energy(); r.coldIterations=R->IterationCount();
+            r.fineSetup=calc.SizedSetup();   // the PRODUCTION grid, as this run's pilot sized it (C2 step 3): what the coarse state restarts onto
         }
         r.ok=true;
         return r;
@@ -213,7 +217,10 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart_Panel)   // PANEL case 2 (regime 5, WARM coarse
     SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart fine");          // auto densityEcut = the production grid
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
-    auto c=qchem::SolidCalculation::Restart(f.coarsePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams(),
+    // Onto the cold fine run's SIZED setup (C2 step 3): its rasters are the production grid's, so the claim -- the first fine iterate is
+    // already the answer -- is about the restart, not about a pilot re-sizing from the ball's rasters.
+    ASSERT_TRUE(f.fineSetup);
+    auto c=qchem::SolidCalculation::Restart(f.coarsePath, f.fineSetup, NaFAnchorParams(),
                                             [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();

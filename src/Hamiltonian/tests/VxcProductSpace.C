@@ -255,15 +255,17 @@ namespace
 {
 //! One density on one Si block, its charge and \f$\int\rho^{4/3}\f$ from each sampler at the same N per axis.
 struct SamplerPair {int N; double qPair, qSing, xPair, xSing;};
-SamplerPair SampleBoth(double densityEcut, BasisSet::PlaneWave::RasterPolicy raster)
+SamplerPair SampleBoth(double densityEcut, double rasterX)
 {
     using namespace qchem::ChargeDensity;
     UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});
     std::shared_ptr<const Structure> st=cell.Clone();
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(
         BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    BasisSet::Gaussian::GPWTolerances tol;
+    tol.rasterX=tol.vlocRasterX=tol.xcRasterX=rasterX;
     BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, densityEcut,
-                                            BasisSet::Gaussian::CellImages::Periodic, 2.0, raster);
+                                            BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, tol);
 
     // Two electrons spread over the block's first two functions: a density with structure, not one Gaussian
     chmat_t D(cx.GetNumFunctions());
@@ -310,7 +312,7 @@ SamplerPair SampleBoth(double densityEcut, BasisSet::PlaneWave::RasterPolicy ras
 //! the BallOnly floor) is an ACCURACY matter -- ε sizing and the grid audit -- not this test's business.
 TEST(VxcProductSpace, SinglesAndPairSamplersAgreeOnOneUniformMesh)
 {
-    const SamplerPair s=SampleBoth(40.0, BasisSet::PlaneWave::RasterPolicy::AliasFree);
+    const SamplerPair s=SampleBoth(40.0, /*the old AliasFree's difference-set raster, as x (C2 step 3)*/80.0);
     std::cout << "[sampler equivalence] AliasFree Ecut 40 N=" << s.N << std::setprecision(12)
               << "  charge pair " << s.qPair << " singles " << s.qSing
               << "  int rho^4/3 pair " << s.xPair << " singles " << s.xSing << std::endl;

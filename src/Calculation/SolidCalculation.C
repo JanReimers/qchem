@@ -41,7 +41,7 @@ import qchem.Lattice_3D;                      // Lattice_3D (crystal + BZ mesh)
 import qchem.Structure;                       // Structure
 import qchem.ScalarFunction;                  // ScalarFunction<double> (the rho(r) face)
 import qchem.BasisSet;                        // Real_BS (orbital source), Complex_BS (the Bloch basis)
-import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, RasterPolicy, CellImages
+import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, GpwRasterExponents, CellImages
 import qchem.Hamiltonian.Factory;             // SpinGroup, VxcFit, the cHamiltonian solid door
 export import qchem.Hamiltonian.HubbardEstimator;   // ACBN0Estimate (EstimateHubbardU), HubbardEstimate (the loop)
 export import qchem.Response;                  // ChannelResponse / ResponseFailure (IndependentResponse, LinearResponsePlan R0)
@@ -425,13 +425,14 @@ public:
     //! without \c imposeSymmetry).  A diagnostic of the last iterate, like \c EstimateHubbardU.
     Outcome<Response::ChannelResponse,Response::ResponseFailure> IndependentResponse(ivec3_t Nq) const;
     //! \brief THE GRID AUDIT (doc/GridEpsilonPlan.md §3; C2 M2c/M3): every raster term's DELIVERED error at the converged density.
-    //! Rebuilds the GPW basis and the Hamiltonian on the \a reference raster (AliasFree = 2N per dimension of a BallOnly run), carries
+    //! Rebuilds the GPW basis and the Hamiltonian on REFERENCE rasters \a referenceMargin beyond what each of the run's rasters delivers
+    //! (x_ref = x_run + margin; the default 8 puts the reference's own tail ~1e-3 of the run's: (x+8)^3 e^{-x-8} / x^3 e^{-x}), carries
     //! the converged D onto it (\c SnapshotState / \c RestoreDensity: the orbital functions are the same Gaussians), and compares term by
     //! term: max|ΔH_ij| over every block, and ΔE.  A FIXED-D evaluator: no SCF step, the run's result is untouched (its own Hamiltonian
     //! is re-refreshed for the restored D; every later caller refreshes for its own).  Beside each row it states the run's own grid-audit
     //! verdict (grids.auditDensity / auditVlocLong) AND the reference's, so the predicted alias of whichever side is the coarse one can be
     //! read against the delivered difference.  Reports to the
-    //! console and to the run report (section `gridAudit`).  THROWS on a plane-wave run (no raster) or a reference equal to the run's.
+    //! console and to the run report (section `gridAudit`).  THROWS on a plane-wave run (no raster) or a margin <= 0.
     //! label/entries: \c TermEnergy's.  \c bound / \c eta: the term's RIGOROUS alias bound at the COARSE side's x (GPWTolerances.C
     //! \c AliasTail) and the measured eta = delivered / bound -- on max|dH_ij| for V_loc long (what forces see), on |dE|/|E| for Hartree;
     //! \c etaOn names which ("H", "E"), or "measured" for the XC raster (no rigorous bound: v_xc[rho] is nonlinear), or "" (analytic).
@@ -439,12 +440,26 @@ public:
     struct GridAuditVerdict { std::string audit, status; double alias=0.0; };   //!< one grids.audit* entry (audit = its key)
     struct GridAuditResult
     {
-        std::string reference;                 //!< the reference: its raster's name, or the egg-box shift
+        std::string reference;                 //!< the reference: its rasters' x, or the egg-box shift
         std::vector<GridAuditVerdict> runVerdicts, referenceVerdicts;   //!< each side's own grid-audit verdicts
         std::vector<GridAuditTerm> terms;      //!< every term, in the Hamiltonian's order (analytic terms read 0)
         double maxAbsΔH=0.0, ΔE=0.0;           //!< the whole Hamiltonian's (ΔE = E_run - E_reference)
     };
-    GridAuditResult GridAudit(BasisSet::PlaneWave::RasterPolicy reference) const;
+    static constexpr double kReferenceMargin=8.0;   //!< the audit's default x_ref - x_run (see GridAudit)
+    static constexpr int    kPilotRounds=4;         //!< the pilot's cap on audit + re-convergence rounds (\c CalibrateRasters)
+    GridAuditResult GridAudit(double referenceMargin = kReferenceMargin) const;
+    //! \brief WHAT THIS RUN'S CLIENT CONSUMES (user ruling 2026-10-31, doc/GridEpsilonPlan.md §1): the measure the one accuracy target
+    //! is judged on.  A calculation built on its own answers an \c Energy; one a \c SolidSession builds for a geometry point (a
+    //! surface, forces, a relaxation) answers \c MatrixElements.  The run answers it from who built it -- the user never picks a metric.
+    BasisSet::Gaussian::ClientConsumes Consumes() const;
+    //! \brief The setup with THIS run's raster sizing FROZEN into it (C2 step 3): the tolerances the pilot audit settled on, marked
+    //! resolved -- what a \c SolidSession steps the rest of its surface on, so every point samples on the same rasters (a re-sized raster
+    //! per point would make the surface discontinuous).  The setup itself when its rasters were resolved already.
+    std::shared_ptr<const SolidSetup> SizedSetup() const;
+    //! \brief What the pilot COST (C2 step 3; the controller's condition: a user pays it, so it is reported and gated, never hidden): its
+    //! audit rounds, and the SCF iterations of its re-convergences (on top of the run's own).  All zero on a resolved setup.
+    struct RasterPilotCost { int rounds=0; size_t reconvergeIterations=0; bool settled=false; };
+    RasterPilotCost PilotCost() const;
     //! \brief THE EGG-BOX GATE (doc/GridEpsilonPlan.md §5 verdict 5): every atom translated rigidly by \a shift (bohr), basis and Hamiltonian
     //! rebuilt there (the molecular basis remade from the setup's frozen recipe), the SAME AO density matrix restored (a rigid
     //! translation moves every function with its atom, so D is unchanged), and every term compared -- with the same GridAuditResult.
@@ -612,7 +627,15 @@ private:
     void AttachProbes();
     //! The ONE comparison under both audits: the run against a reference built on \a raster at the atoms shifted by \a shift (zero
     //! for the raster audit), at the same D, term by term.  \a reference names the reference in the report.
-    GridAuditResult CompareAtFixedD(BasisSet::PlaneWave::RasterPolicy raster, const rvec3_t& shift, const std::string& reference) const;
+    GridAuditResult CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift, const std::string& reference) const;
+    //! The reference tolerances of a grid audit: every raster demand at what the run's raster DELIVERS plus \a margin.
+    BasisSet::Gaussian::GPWTolerances ReferenceRasters(double margin) const;
+    //! \brief THE PILOT (C2 step 3, doc/GridEpsilonPlan.md §1): on a setup whose rasters are not resolved, after the FINAL stage converged
+    //! with \a params, audit every raster term against references \c kReferenceMargin finer, fit each over-target term's measured tail
+    //! (\c GridAccuracy::MeasuredDemand) at the target for what the client consumes (\c Consumes), and -- when any term demands more --
+    //! rebuild the point on the raised rasters and re-converge from this D (a restored stage: the Ladder on its GDM rung at kT = 0).
+    //! Repeats until every term meets its target (at most \c kPilotRounds); idempotent once settled.  No-op on a resolved setup.
+    void CalibrateRasters(const SCFParams& params);
     std::unique_ptr<Imp> itsImp;
 };
 
