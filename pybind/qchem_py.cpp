@@ -10,6 +10,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 #include <nanobind/ndarray.h>
+#include <algorithm>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -271,6 +272,35 @@ NB_MODULE(qchem_py, mod)
         .def("orbital",      &Calculator::Orbital,     nb::arg("index") = 0, nb::arg("n") = 64, nb::arg("pad") = 5.0,
              "MO `index` in levels() order (0 = lowest).")
         .def("gradient", &Calculator::Gradient, nb::arg("n") = 24, nb::arg("pad") = 4.0);
+
+    mod.def("point_group", [](const std::vector<int>& species, const std::vector<double>& pos, double tol)
+    {
+        if (pos.size() != 3*species.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
+        char sym[64] = {0}, ab[64] = {0};
+        const int order = qcb_point_group(species.data(), int(species.size()), pos.data(), tol, sym, 64, ab, 64);
+        if (order < 0) throw std::runtime_error(sym);
+        nb::dict d; d["symbol"] = std::string(sym); d["abelian"] = std::string(ab); d["order"] = order; return d;
+    }, nb::arg("species"), nb::arg("positions"), nb::arg("tol") = 1e-3,
+       "The DETECTED molecular point group (Symmetry::Molecule::DetectPointGroup): {'symbol' (Schoenflies), 'abelian' "
+       "(the SCF's blocking subgroup), 'order' (0 for the linear groups)}.  species: one integer label per atom (Z, or Z "
+       "combined with a moment sign to see a magnetic decoration).");
+    mod.def("space_group", [](const std::vector<double>& lattice, const std::vector<int>& species,
+                              const std::vector<double>& frac, double tol)
+    {
+        if (lattice.size() != 9 || frac.size() != 3*species.size())
+            throw std::invalid_argument("lattice must be 9 (rows a, b, c) and frac flat 3N");
+        constexpr int maxops = 192;
+        std::vector<double> W(9*maxops);
+        int symmorphic = 0;
+        char err[errlen] = {0};
+        const int n = qcb_space_group(lattice.data(), species.data(), int(species.size()), frac.data(), tol,
+                                      W.data(), maxops, &symmorphic, err, errlen);
+        if (n < 0) throw std::runtime_error(err);
+        W.resize(size_t(9*std::min(n, maxops)));
+        nb::dict d; d["order"] = n; d["symmorphic"] = symmorphic == 1; d["W"] = W; return d;
+    }, nb::arg("lattice"), nb::arg("species"), nb::arg("frac"), nb::arg("tol") = 1e-4,
+       "The DETECTED space group (Symmetry::Lattice_3D::SpaceGroup::Detect) of a primitive cell: {'order', 'symmorphic', "
+       "'W' (each op's linear part in lattice coordinates, flat row-major 9 per op)}.");
 
     nb::class_<SolidRun>(mod, "SolidRun")
         .def(nb::init<const std::string&>(), nb::arg("deck_json"),

@@ -114,6 +114,19 @@ int        qcb_solid_iterations(const qcb_solid* h);
 //! it needs (excluding the NUL); writes at most outlen-1 chars.
 int        qcb_solid_resolved(const qcb_solid* h, char* out, int outlen);
 
+// -- symmetry DETECTED from a structure (the lib's own detectors; nothing is imposed here) -------------------------------
+
+//! The molecular point group of `nat` points (`species` labels, flat 3N bohr `pos3`) within `tol` bohr: the full Schoenflies
+//! symbol into `symbol`, the abelian subgroup the SCF blocks by into `abelian`.  Returns the group order (0 for C∞v / D∞h),
+//! -1 on failure (`symbol` holds the reason).
+int qcb_point_group(const int* species, int nat, const double* pos3, double tol,
+                    char* symbol, int symlen, char* abelian, int ablen);
+//! The space group of a cell (`lattice9`: the three lattice vectors as ROWS, bohr) and a fractional basis (`species`, flat 3N
+//! `frac3`) within `tol`: writes up to `maxops` linear parts W (lattice coordinates, row-major 3x3 each) into `W9` and whether
+//! every tau is 0 into `symmorphic`.  Returns the group order (-1 on failure, the reason in `err`).
+int qcb_space_group(const double* lattice9, const int* species, int nat, const double* frac3, double tol,
+                    double* W9, int maxops, int* symmorphic, char* err, int errlen);
+
 #ifdef __cplusplus
 }
 #endif

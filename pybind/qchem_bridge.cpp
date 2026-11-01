@@ -30,6 +30,8 @@ import qchem.SCFIterator;    // IterationRow, IterationCell
 import qchem.Calculation;    // Calculation, MoleculeSetup, CalcOptions, AcceleratorOptions
 import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
 import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
+import qchem.Symmetry.Molecule.PointGroup;      // DetectPointGroup
+import qchem.Symmetry.Lattice_3D.SpaceGroup;    // SpaceGroup::Detect
 
 // The opaque handle: the facade plus the request's geometry (for the sampling box).  extern "C++" attaches it to the
 // GLOBAL module, where qcb_api.h (in the GMF) forward-declares it -- a purview definition would be a different entity.
@@ -345,6 +347,51 @@ int qcb_solid_resolved(const qcb_solid* h, char* out, int outlen)
     const std::string s = qchem::deck::ToJson(spec).dump(2);
     write_error(s.c_str(), out, outlen);
     return int(s.size());
+}
+
+// -- detected symmetry -----------------------------------------------------------------------------------------------
+
+int qcb_point_group(const int* species, int nat, const double* pos3, double tol,
+                    char* symbol, int symlen, char* abelian, int ablen)
+{
+    try
+    {
+        std::vector<qchem::Symmetry::Molecule::SymPoint> pts;
+        for (int a = 0; a < nat; ++a)
+            pts.push_back({species[a], rvec3_t(pos3[3*a], pos3[3*a+1], pos3[3*a+2])});
+        const auto g = qchem::Symmetry::Molecule::DetectPointGroup(pts, tol);
+        write_error(g.symbol.c_str(), symbol, symlen);
+        write_error(g.abelian.c_str(), abelian, ablen);
+        return g.order;
+    }
+    catch (const std::exception& e) { write_error(e.what(), symbol, symlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", symbol, symlen); }
+    return -1;
+}
+
+int qcb_space_group(const double* L, const int* species, int nat, const double* frac3, double tol,
+                    double* W9, int maxops, int* symmorphic, char* err, int errlen)
+{
+    try
+    {
+        using namespace qchem::Symmetry::Lattice_3D;
+        // the cell matrix's COLUMNS are the lattice vectors; the caller's rows are
+        const qchem::Matrix3D<double> A(L[0], L[3], L[6], L[1], L[4], L[7], L[2], L[5], L[8]);
+        std::vector<AtomSite> basis;
+        for (int a = 0; a < nat; ++a)
+            basis.push_back({species[a], rvec3_t(frac3[3*a], frac3[3*a+1], frac3[3*a+2])});
+        const SpaceGroup g = SpaceGroup::Detect(A, basis, tol);
+        const auto& ops = g.Ops();
+        for (size_t k = 0; k < ops.size() && int(k) < maxops; ++k)
+            for (size_t i = 1; i <= 3; ++i)
+                for (size_t j = 1; j <= 3; ++j)
+                    W9[9*k + 3*(i-1) + (j-1)] = ops[k].W(i, j);
+        *symmorphic = g.isSymmorphic() ? 1 : 0;
+        return int(ops.size());
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return -1;
 }
 
 } // extern "C"
