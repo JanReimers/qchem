@@ -480,6 +480,22 @@ std::optional<Gaussian::RasterExponents> GpwRasterExponents(const Complex_BS& bs
     return std::nullopt;
 }
 
+std::vector<Gaussian::RasterVerdict> GpwRasterVerdicts(const Complex_BS& bs)
+{
+    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
+    assert(imp && "GpwRasterVerdicts: the periodic basis set must be a BasisSetImp");
+    for (size_t i=0;i<bs.GetNumIBS();++i)
+    {
+        std::optional<std::vector<Gaussian::RasterVerdict>> v=std::visit([&](const auto& b)->std::optional<std::vector<Gaussian::RasterVerdict>>
+        {
+            if (auto* ev=dynamic_cast<const Gaussian::GPW_Evaluator*>(b.get())) return ev->DeliveredRasterVerdicts();
+            return std::nullopt;
+        }, imp->GetChild(i));
+        if (v) return *v;
+    }
+    return {};
+}
+
 size_t VetGpwConditioning(const Complex_BS& bs)
 {
     namespace rpt = qchem::report;

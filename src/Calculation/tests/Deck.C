@@ -15,6 +15,7 @@ import qchem.Materials;
 import qchem.ChargeDensity.Seed;
 import qchem.LASolver;
 import qchem.SolidState;          // StateFingerprint, CompareFingerprints
+import qchem.Reporting;           // the filed run: its grids.audit* rows (the write-only gate)
 
 using namespace qchem;
 using qchem::deck::json;
@@ -860,4 +861,42 @@ TEST(Deck, BuildStopsBeforeTheSCFAndRunIsBuildPlusConverge)
     deck::RunSpec missing=spec; missing.state.restartFrom="/nonexistent/x.h5";
     EXPECT_THROW((void)deck::Build(missing),std::runtime_error);
     EXPECT_EQ(deck::ScheduleToRun(stem).size(),1u) << "a restart runs the final stage only";
+}
+
+//! THE REPORT IS WRITE-ONLY (V-REPORT-WRITEONLY, 2026-11-02): library code never reads the run report back to decide.  On Si k222 (eight
+//! k-blocks, each reaching the k-independent V_loc-long raster verdict) the run files that verdict ONCE and renders it once -- the report's
+//! own dedup, not an evaluator reading the report -- and the grid audit's recorded verdicts are what the rasters' owner answers, which are
+//! the rows the run filed.
+TEST(Deck, AK222RunFilesEachRasterVerdictOnceAndTheAuditAsksTheBasisForIt)
+{
+    const fs::path dir=TmpDir("writeonly");
+    json d={{"structure","Si_diamond"},{"kmesh",{2,2,2}},{"basis",{{"data","SIPP_SR"}}},{"solid",{{"densityEcut",20.0}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-8},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"}}},
+        {"postSCF",{{{"gridAudit",json::object()}}}}};
+    deck::RunSpec spec; deck::FromJson(d,spec);
+    deck::Provenance pv; pv.codeVersion="t";
+    testing::internal::CaptureStdout();
+    const auto out=deck::Run(spec,pv,dir);
+    const std::string console=testing::internal::GetCapturedStdout();
+    ASSERT_TRUE(out.converged) << out.summary;
+
+    auto count=[&](const std::string& what) { size_t n=0; for (size_t i=console.find(what); i!=std::string::npos; i=console.find(what,i+1)) n++; return n; };
+    EXPECT_EQ(count("grids ▸ auditVlocLong"), 1u) << "the V_long verdict renders once, not once per k-block";
+    EXPECT_EQ(count("grids ▸ auditDensity"),  1u);
+
+    const qchem::report::json* run=nullptr;
+    for (auto it=qchem::report::GlobalReport().begin(); it!=qchem::report::GlobalReport().end(); ++it)
+        if (it.key().rfind(out.revision.stem().string()+"@",0)==0) run=&it.value();
+    ASSERT_NE(run, nullptr) << "no filed run named " << out.revision.stem();
+    ASSERT_TRUE(run->contains("grids"));
+    std::ifstream in(out.revision); const json rec=json::parse(in);
+    const auto& verdicts=rec["results"]["postSCF"][0]["verdicts"];
+    for (const char* k : {"auditDensity","auditVlocLong"})
+    {
+        ASSERT_TRUE((*run)["grids"].contains(k)) << k;
+        ASSERT_TRUE(verdicts.contains(k)) << k << " missing from the audit's verdicts: " << verdicts.dump();
+        EXPECT_EQ(verdicts[k]["status"], (*run)["grids"][k]["status"].get<std::string>()) << k;
+        EXPECT_EQ(verdicts[k]["alias"].get<double>(), (*run)["grids"][k]["alias"].get<double>()) << k << ": the basis's answer is the filed row";
+    }
+    fs::remove_all(dir);
 }

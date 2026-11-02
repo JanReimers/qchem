@@ -67,6 +67,16 @@ struct RasterExponents
     double xcL0     = 0.0;   //!< the reference level L0 at the tightest pair routed to it (the uniform XC samples v_xc[rho] there)
 };
 
+//! \brief One raster's GRID-AUDIT verdict (the `grids.audit*` row's status and alias): what the facade's fixed-D grid audit records for
+//! each side and bounds a raster term's delivered error at (the coarse side's alias).  Asked of the raster's owner
+//! (\c GpwRasterVerdicts), never read back out of the run report (V-REPORT-WRITEONLY).
+struct RasterVerdict
+{
+    std::string audit;          //!< the row's key: "auditDensity" | "auditVlocLong"
+    std::string status;         //!< "OK" | "UNDER" (the ball tail above the tolerance it was built to)
+    double      alias = 0.0;    //!< e^{-x}, x = G_N^2/p at the tightest pair the raster serves
+};
+
 //! \brief RIGOROUS (doc/GridEpsilonPlan.md §1, ruled 2026-10-31: "the rigorous math aspect well isolated from the heuristic part"):
 //! one term class's raster ALIAS-TAIL model, err(x) <= S x^n e^{-x} at x = G_N^2/p, fitted ONCE against the closed-form oracles
 //! (`GPW.RasterAliasCalibration`, M2b: an s+p+d pair's Hermite prefactor makes n = 3) and gated by them.  Pure math, no fudge inside:

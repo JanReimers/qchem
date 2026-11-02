@@ -1577,21 +1577,16 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
     const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
     if (!wf) throw std::logic_error("SolidCalculation: no wave function yet (the audits run on a converged D)");
     const SpinGroup g = S.polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
-    // The grid-audit verdicts of the report in scope: the run's own here, the reference's inside the fence below (both are printed, so
-    // the predicted alias of whichever side is the coarse one can be read -- the run need not be the BallOnly side).
-    auto readVerdicts=[]()
+    // The grid-audit verdicts of each side's rasters, ASKED of the basis that owns them (V-REPORT-WRITEONLY: never read back out of the
+    // run report): the run's own here, the reference's once its V_long has run below (both are printed, so the predicted alias of
+    // whichever side is the coarse one can be read -- the run need not be the BallOnly side).
+    auto verdictsOf=[](const BasisSet::Complex_BS& bs)
     {
         rpt::json v=rpt::json::object();
-        if (rpt::Depth()>0 && rpt::CurrentRunReport().contains("grids"))
-            for (const char* k : {"auditDensity","auditVlocLong"})
-                if (rpt::CurrentRunReport()["grids"].contains(k))
-                {
-                    const auto& a=rpt::CurrentRunReport()["grids"][k];
-                    v[k]={{"status",a.value("status","")},{"alias",a.value("alias",0.0)}};
-                }
+        for (const auto& r : BasisSet::Lattice::GpwRasterVerdicts(bs)) v[r.audit]={{"status",r.status},{"alias",r.alias}};
         return v;
     };
-    const rpt::json verdicts=readVerdicts();
+    const rpt::json verdicts=verdictsOf(*itsImp->bs);
     rpt::json refVerdicts=rpt::json::object();
 
     const SavedState st=SnapshotState(*itsImp->bs, *wf);
@@ -1663,7 +1658,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             else    FoldΔH(itsImp->ham->MakeTermMatrices((*itsImp->bs)[i],s,dRun), hamRef->MakeTermMatrices((*bsRef)[i],s,dRef), R.terms);
         }
     for (const auto& t : R.terms) R.maxAbsΔH=std::max(R.maxAbsΔH, t.maxAbsΔH);
-    refVerdicts=readVerdicts();
+    refVerdicts=verdictsOf(*bsRef);
     fence.reset();
     R.runVerdicts=toVerdicts(verdicts); R.referenceVerdicts=toVerdicts(refVerdicts);
     // The rigorous bound per raster term, at the COARSE side's predicted alias (whichever side that is), and the measured eta

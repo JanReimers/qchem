@@ -194,7 +194,10 @@ void Set(const std::string& key, json value);
 //! provider may announce unconditionally at its own trigger and the dedup lives here, RUN-scoped, instead of
 //! in process-global latches at call sites.  A changed value writes + re-renders as before (user 2026-08-16:
 //! providers self-report; every created grid announces, labeled, so stale never-used grids become visible).
-void EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel = Detail::Terse);
+//! RETURNS false only when an identical value was already there (the dedup swallowed it), true otherwise -- including outside a
+//! run, where there is nothing to de-duplicate against -- so a provider's own loud line beside the block (a grid audit's UNDER)
+//! prints exactly when the block is news, and the provider never reads the report back to find out (V-REPORT-WRITEONLY).
+bool EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel = Detail::Terse);
 
 //! \brief PEAK resident set size of this process, in MB (Linux \c VmHWM: the high-water mark, not the
 //! instantaneous \c VmRSS).  0 when unavailable.
