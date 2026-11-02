@@ -284,6 +284,12 @@ NB_MODULE(qchem_py, mod)
         out.resize(size_t(qcb_report(out.data(), int(out.size()))));
         return out;
     }, "The library's run record (JSON text): every run since the last clear_report, keyed \"<name>@<start>\".");
+    mod.def("current_report", []()
+    {
+        std::string out(size_t(qcb_current_report(nullptr, 0)) + 1, '\0');
+        out.resize(size_t(qcb_current_report(out.data(), int(out.size()))));
+        return out;
+    }, "The open run's record so far (JSON text, \"\" outside a run): call it from on_iteration, on the run's own thread.");
     mod.def("clear_report", &qcb_clear_report, "Drop the accumulated run record (a no-op while a run is open).");
     mod.def("basis_info", [](const std::vector<int>& Z, const std::vector<double>& pos, const std::string& basis)
     {

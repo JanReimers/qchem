@@ -126,6 +126,9 @@ int        qcb_solid_resolved(const qcb_solid* h, char* out, int outlen);
 //! The library's run record (report::GlobalReport) as JSON text: every run since the last clear, keyed "<name>@<start>", each
 //! holding the sections its providers emitted (basis, grids, scf, ...).  Returns the length; call with outlen 0 to size it.
 int  qcb_report(char* out, int outlen);
+//! The OPEN run's record so far (report::CurrentRunReport) as JSON text, "" when no run is open.  For a row callback: it
+//! runs on the thread that writes the report, so the snapshot is race-free (what setup filed is there by iteration 1).
+int  qcb_current_report(char* out, int outlen);
 //! Drop the accumulated run record (a no-op while a run is open).
 void qcb_clear_report(void);
 

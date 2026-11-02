@@ -388,6 +388,14 @@ int qcb_report(char* out, int outlen)
     return int(s.size());
 }
 
+int qcb_current_report(char* out, int outlen)
+{
+    const std::string s = qchem::report::Depth()>0
+        ? qchem::report::CurrentRunReport().dump(-1, ' ', false, nlohmann::ordered_json::error_handler_t::replace) : std::string();
+    write_error(s.c_str(), out, outlen);
+    return int(s.size());
+}
+
 void qcb_clear_report() { if (qchem::report::Depth()==0) qchem::report::ClearGlobal(); }
 
 // -- detected symmetry -----------------------------------------------------------------------------------------------
