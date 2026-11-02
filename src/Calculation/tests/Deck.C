@@ -547,6 +547,31 @@ TEST(Deck, XCMeshAuditRoundTripsAndRefusesANonPositiveMesh)
     EXPECT_NE(msg(base({{{"xcMeshAudit",{{"angularDeg",40}}}}})).find("angularDeg"),std::string::npos) << "a typo is refused, not ignored";
 }
 
+// The displace action (OpenWork F): its points round-trip, and a deck is refused before the SCF where ONE SolidSession could not run
+// them -- the free run's mesh still the symmetric one, an atom past the structure, a zero delta, no points at all.
+TEST(Deck, DisplaceRoundTripsAndRefusesWhatASessionCannotRun)
+{
+    auto msg=[](json d){ try { deck::RunSpec s; deck::FromJson(d,s); deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
+    const json plain={{"xcMeshSymmetric",false}};
+    auto base=[](json pts, json solid) { return json{{"structure","NaF_rocksalt"},{"solid",solid},{"postSCF",{{{"displace",{{"points",pts}}}}}}}; };
+    const json pts={{{"atoms",{1}},{"delta",{0.1,0,0}}}, {{"atoms",json::array()},{"delta",{0.1,0,0}}}};   // one ion, then the rigid twin
+    deck::RunSpec r; deck::FromJson(base(pts,plain), r);
+    ASSERT_EQ(r.postSCF.size(),1u); ASSERT_EQ(r.postSCF[0].points.size(),2u);
+    EXPECT_EQ(r.postSCF[0].points[0].atoms, std::vector<size_t>{1});
+    EXPECT_TRUE(r.postSCF[0].points[1].atoms.empty()) << "empty = every atom";
+    EXPECT_EQ(r.postSCF[0].points[0].delta.x, 0.1);
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
+    EXPECT_EQ(deck::ToJson(back),j); EXPECT_TRUE(back.postSCF==r.postSCF);
+    EXPECT_EQ(msg(base(pts,plain)),"NO THROW");
+    EXPECT_NE(msg(base(pts,json::object())).find("xcMeshSymmetric false"),std::string::npos) << "the free default mesh switches along a path";
+    EXPECT_EQ(msg(base(pts,json{{"imposeSymmetry",true}})),"NO THROW") << "an imposed run's mesh is the group's: the session refuses a point that breaks it";
+    EXPECT_NE(msg(base({{{"atoms",{2}},{"delta",{0.1,0,0}}}},plain)).find("past the structure"),std::string::npos);
+    EXPECT_NE(msg(base({{{"atoms",{0}},{"delta",{0,0,0}}}},plain)).find("zero delta"),std::string::npos);
+    EXPECT_NE(msg(base(json::array(),plain)).find("no points"),std::string::npos);
+    EXPECT_NE(msg(base({{{"atoms",{0}},{"delta",{0.1,0}}}},plain)).find("[x,y,z]"),std::string::npos);
+    EXPECT_NE(msg(base({{{"atom",0},{"delta",{0.1,0,0}}}},plain)).find("unknown key"),std::string::npos);
+}
+
 TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
 {
     auto msg=[](json solid)

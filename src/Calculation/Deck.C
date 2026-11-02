@@ -94,7 +94,7 @@ struct RunSpec
     //! itself to the console; its result summary goes in the revision record under `results`.  Prerequisites are checked by \c Resolve BEFORE the SCF starts.
     struct PostAction
     {
-        enum class Kind { EstimateHubbardU, HubbardLoop, IndependentResponse, HubbardLinearResponse, HubbardFiniteDifference, GridAudit, EggBox, XCMeshAudit };
+        enum class Kind { EstimateHubbardU, HubbardLoop, IndependentResponse, HubbardLinearResponse, HubbardFiniteDifference, GridAudit, EggBox, XCMeshAudit, Displace };
         Kind                kind = Kind::EstimateHubbardU;
         size_t              maxOuter = 20;        //!< hubbardLoop: outer steps allowed
         double              tolU_eV  = 1e-4;      //!< hubbardLoop: |dU| convergence per manifold (eV)
@@ -121,6 +121,13 @@ struct RunSpec
         //! XC mesh's quadrature error (a restart with NMaxIter 1 is NOT a frozen D: it rebuilds and re-diagonalises).  Default (80, 48):
         //! lane B's LiF calibration reference (doc/OpenWork.md §3, "A curvature needs an XC-MESH ladder").
         int xcRefNRadial = 80, xcRefAngularDegree = 48;
+        //! displace: one geometry point -- the atoms \c atoms (indices in the structure's order; EMPTY = every atom, a rigid translation,
+        //! i.e. the egg-box) moved by \c delta (bohr) from the deck's own positions.
+        struct Move { std::vector<size_t> atoms; rvec3_t delta{0.0,0.0,0.0}; bool operator==(const Move&) const = default; };
+        //! displace: the points, run IN ORDER through ONE \c SolidSession after its reference (the deck's positions), so the rasters are
+        //! sized on max|dH_ij| (what a geometry consumes, pin 31) by the reference's pilot and FROZEN across the points -- a standalone
+        //! Energy run per point sizes on |dE|/atom instead, and a two-point curvature from two of those can be ~40 % wrong (OpenWork F).
+        std::vector<Move> points;
         bool operator==(const PostAction&) const = default;
     };
 

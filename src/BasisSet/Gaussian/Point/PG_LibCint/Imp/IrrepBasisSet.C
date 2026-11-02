@@ -100,13 +100,12 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl,
 
 IrrepBasisSet::~IrrepBasisSet() {};
 
-// Cartesian grid-eval (used only on the DFT mesh, not HF).  In spherical mode the delivered functions are
-// libcint's real solid harmonics in libcint's own order/convention, which we deliberately do NOT reproduce
-// here (the spherical libcint path is an HF-only oracle, validated by the basis-ordering-invariant energy);
-// so grid-eval is unavailable there.
+// Grid-eval.  Cartesian: PGData's polarizations (the delivered order + unit norm).  Spherical: the delivered functions are
+// libcint's real solid harmonics in libcint's own order/convention, so the evaluator builds them from libcint's own
+// cart->sph map -- an HF run samples rho on a mesh for its convergence residual (D-MINDRHO), so HF needs this too.
 rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
 {
-    assert(!itsSpherical && "grid-eval unavailable for the spherical libcint oracle (HF-only)");
+    if (itsSpherical) return NR_Evaluator::SphericalValues(r);
     rvec_t ret(size());
     for (size_t i=0;i<size();i++)
     {
@@ -118,7 +117,7 @@ rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
 }
 rvec3vec_t IrrepBasisSet::Gradient (const rvec3_t& r) const
 {
-    assert(!itsSpherical && "grid-eval unavailable for the spherical libcint oracle (HF-only)");
+    if (itsSpherical) return NR_Evaluator::SphericalGradient(r);
     rvec3vec_t ret(size());
     for (size_t i=0;i<size();i++)
     {
