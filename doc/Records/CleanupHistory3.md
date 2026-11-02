@@ -353,3 +353,19 @@ number moves.  UTs: `GPWTolerances.BindTolerances*` (UTGaussian_BS), `SolidSetup
 Row as it stood:
 
 | **D-ENV-TOL** (born 2026-10-03, D-ENV step 5 follow-up) | `NR_Evaluator::ApplyTolerances` MUTATES the caller-built molecular basis through a const face (option B built without cloning the virtual-diamond IBS stack); one basis can serve only ONE tolerance setting -- a runtime GUARD throws if the values change after collocation work was built (`GPWTolerances.ApplyTolerancesThrowsIfChangedAfterCollocationWork`).  **Structural fix**: bind the tolerances where the molecular basis is built (option A, `Factory(..., tol)`), OR give each `GPW_Evaluator` a cheap VIEW of the basis carrying its own tolerances and sharing the geometry-only data (shells, reaches) -- removes the shared mutable state.  Do it when a convergence study needs two screens on one basis, or with the deck (step 6) | read `doc/Records/EnvKnobInventory.md` §8 ("Step 5 (ii)") |
+
+## V-FACADE-MATRIX — DONE 2026-11-02 (lane S, `6099d7f7`)
+
+`src/Calculation/tests/FacadeMatrix.C` (UTCalculation): ONE value-parameterised test over {atom (O, Gaussian LDA), molecule (H2O
+dzvp GTH-LDA), solid (Si Γ SIPP_SR)} x {Prepare files basis.perIrrep + every grids.* entry before any SCF; a converge files
+scf.standard; every accelerator knob -- the Ladder's switchAt included -- reaches the accelerator (observed as the run report's
+`accelerator` section, which nothing files yet); save/restart is an exact resume; a deck naming the structure builds and its json
+reloads to the same deck}.  15 cells, none missing; a cell that cannot hold is an EXPECTED FAILURE naming its row and asserted to
+FAIL, so the day the row's work lands it goes red and must be flipped (the panel's WILL_FAIL rule, carried to a unit test).  At
+landing: 7 hold; 8 expected -- V-FACADE-PARITY (Solid Prepare, Solid scf header: the solid facade opens no report run of its own,
+only `deck::Run` does), V-FACADE-OPTS (the three accelerator cells; the atom and molecule decks), V-FACADE-STATE (atom and
+molecule save/restart).  Test-only; ~18 s CPU, < 50 MB a cell.
+
+Row as it stood:
+
+| **V-FACADE-MATRIX** | No test asserts that a facade capability exists for every structure kind, so drift is found by a user, not a sweep | ONE parameterised UT over {atom, molecule, solid}: Prepare files basis.perIrrep + every grids.* before Converge; the scf.standard section; every accelerator option reaches the accelerator (Ladder switchat included); save/restart round-trip; deck round-trip.  A cell that cannot hold yet is an explicit expected-failure naming its row, never a missing cell |
