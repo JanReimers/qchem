@@ -778,6 +778,9 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, const SCFPar
     itsImp->stageAccelAsked = asked;
     itsImp->stageAccel      = t;
     itsImp->stageRestored   = restored;
+    // The facade sets the context, the accelerator files what it was built with (THE RUN REPORT): one `accelerators` row per
+    // accelerator built in this run (a solid rebuilds one per stage), its Ladder rungs one level further in.
+    qchem::report::Row built("accelerators");
     itsImp->accel.reset(SCFAccelerators::Factory(t, ao));
 }
 

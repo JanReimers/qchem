@@ -173,7 +173,10 @@ void AtomCalculation::BuildGraph()
     const bool directmin = (ts=="directmin" || ts=="DirectMin");
     if (directmin) jsacc["EMax"]=1e10;   // GDM always steps; the direct-min loop seeds via diagonalize
     const AType atype = directmin ? AType::GDM : ts=="Ladder" ? AType::Ladder : ts=="GDM" ? AType::GDM : AType::DIIS;
-    auto* accel = qchem::SCFAccelerators::Factory(atype, jsacc);
+    // The facade sets the context, the accelerator files what it was built with (THE RUN REPORT): one `accelerators` row per
+    // accelerator built in this run (a solid rebuilds one per stage), its Ladder rungs one level further in.
+    qchem::SCFAccelerators::SCFAccelerator* accel=nullptr;
+    { qchem::report::Row built("accelerators"); accel = qchem::SCFAccelerators::Factory(atype, jsacc); }
     // Default seed for atoms is the core guess (atoms never use the molecular SAD seed).
     using qchem::ChargeDensity::SeedStrategy;
     const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed : SeedStrategy::CoreGuess;

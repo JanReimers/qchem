@@ -59,18 +59,40 @@ const char* ExpectedFailure(Kind k, Capability c)
     {
         case Capability::PrepareFilesTheSetup:      return k==Kind::Solid ? "V-FACADE-PARITY" : nullptr;
         case Capability::ConvergeFilesTheScfHeader: return k==Kind::Solid ? "V-FACADE-PARITY" : nullptr;
-        case Capability::AcceleratorKnobsArrive:    return "V-FACADE-OPTS";
+        case Capability::AcceleratorKnobsArrive:    return k==Kind::Solid ? "V-FACADE-PARITY" : nullptr;
         case Capability::SaveRestartRoundTrips:     return k==Kind::Solid ? nullptr : "V-FACADE-STATE";
         case Capability::DeckRoundTrips:            return k==Kind::Solid ? nullptr : "V-FACADE-OPTS";
     }
     return nullptr;
 }
 
-//! Every knob, at a NON-default value, so a knob that never arrives cannot pass by matching its default.  The keys are the
-//! contract of the run report's `accelerator` section: the accelerator files what it was BUILT with, one level into the context
-//! its builder opened (CLAUDE.md "THE RUN REPORT").  Nothing files it yet (V-FACADE-OPTS).
-const rjson kLadder={{"type","Ladder"}, {"nProj",6}, {"engageBelowFD",0.05}, {"svTol",1e-8},
-                    {"trust",0.2}, {"eThresh",1e-7}, {"stall",4}, {"floor",1e-9}, {"switchAt",1e-5}};
+//! Every knob, at a NON-default value, so a knob that never arrives cannot pass by matching its default -- read back from the
+//! OBJECT THAT USES IT: each accelerator files what it was BUILT with, one level into the context its builder opened (CLAUDE.md
+//! "THE RUN REPORT"): the facade opens one `accelerators` row per accelerator it builds, the factory one `rungs` row per Ladder rung.
+const rjson kLadder={{"type","Ladder"}, {"eThresh",1e-7}, {"stall",4}, {"floor",1e-9}, {"switchAt",1e-5},
+                     {"rungs", rjson::array({ {{"type","DIIS"}, {"nProj",6}, {"engageBelowFD",0.05}, {"svTol",1e-8}},
+                                              {{"type","GDM"},  {"trust",0.2}} })}};
+
+//! Every key of \a want is in \a got with the same value (an object recursively, an array element by element); "" when so.
+std::string Holds(const rjson& got, const rjson& want, const std::string& path)
+{
+    if (want.is_object())
+    {
+        if (!got.is_object()) return path+" is "+got.dump()+", not an object; ";
+        std::string why;
+        for (auto it=want.begin(); it!=want.end(); ++it)
+            why+= got.contains(it.key()) ? Holds(got[it.key()], it.value(), path+"."+it.key()) : path+"."+it.key()+" is absent; ";
+        return why;
+    }
+    if (want.is_array())
+    {
+        if (!got.is_array() || got.size()!=want.size()) return path+" is "+got.dump()+", asked "+want.dump()+"; ";
+        std::string why;
+        for (size_t i=0;i<want.size();i++) why+=Holds(got[i], want[i], path+"["+std::to_string(i)+"]");
+        return why;
+    }
+    return got==want ? "" : path+" is "+got.dump()+", asked "+want.dump()+"; ";
+}
 
 std::string TempPath(const std::string& leaf) {return (std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_"+leaf)).string();}
 
@@ -109,22 +131,11 @@ std::string ScfHeaderFiled(const rjson* run, const std::string& prefix)
     if (!run->contains("scf") || !(*run)["scf"].contains("standard") || (*run)["scf"]["standard"].empty()) return "the run report has no scf.standard";
     return "";
 }
-//! \a unstated: the knobs the facade's options cannot express at all (a defect in its own right).
-std::string AcceleratorFiled(const rjson* build, const std::string& prefix, const std::vector<std::string>& unstated)
+std::string AcceleratorFiled(const rjson* build, const std::string& prefix)
 {
-    std::string why;
-    if (!unstated.empty())
-    {
-        why="its options cannot state:";
-        for (const auto& k : unstated) why+=" "+k;
-        why+="; ";
-    }
-    if (!build) return why+"no filed '"+prefix+"' run; filed runs:"+FiledKeys();
-    if (!build->contains("accelerator")) return why+"the build run has no accelerator section";
-    const rjson& a=(*build)["accelerator"];
-    for (auto it=kLadder.begin(); it!=kLadder.end(); ++it)
-        if (!a.contains(it.key()) || a[it.key()]!=it.value()) why+="accelerator."+it.key()+" is "+(a.contains(it.key()) ? a[it.key()].dump() : "absent")+", asked "+it.value().dump()+"; ";
-    return why;
+    if (!build) return "no filed '"+prefix+"' run; filed runs:"+FiledKeys();
+    if (!build->contains("accelerators") || (*build)["accelerators"].empty()) return "the build run files no accelerators row";
+    return Holds((*build)["accelerators"].back(), kLadder, "accelerators[last]");
 }
 std::string DeckBuilds(const json& payload)
 {
@@ -192,7 +203,7 @@ public:
         o.accelerator={{"type","Ladder"}, {"NProj",6}, {"EMax",0.05}, {"SVTol",1e-8},
                        {"Trust",0.2}, {"ethresh",1e-7}, {"stall",4}, {"floor",1e-9}, {"switchat",1e-5}};
         auto calc=AtomCalculation::Prepare(Z, 0, o);
-        return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@", {});
+        return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
     std::string SaveRestartRoundTrips() override {return "AtomCalculation has no SaveState / Restart";}
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","B"}});}   // the atom molecules.json carries
@@ -222,7 +233,7 @@ public:
     {
         auto calc=Calculation::Prepare(Setup({.nProj=6, .eMax=0.05, .svTol=1e-8, .trust=0.2, .ladderEThresh=1e-7, .ladderStall=4,
                                               .ladderFloor=1e-9, .ladderSwitchAt=1e-5, .type="Ladder"}));
-        return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@", {});
+        return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
     std::string SaveRestartRoundTrips() override {return "Calculation has no SaveState / Restart";}
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","H2O"}});}
@@ -267,7 +278,7 @@ public:
         acc.ladderGdm.Trust=0.2; acc.ladderEThresh=1e-7; acc.ladderStall=4; acc.ladderFloor=1e-9; acc.ladderSwitchAt=1e-5;
         const auto setup=Setup(SCFAccelerators::Type::Ladder, acc);
         auto calc=SolidCalculation::Prepare(setup, {{Params(), SCFAccelerators::Type::Ladder}});
-        return AcceleratorFiled(FiledRun(ID(*setup)+" build@"), ID(*setup)+" build@", {});
+        return AcceleratorFiled(FiledRun(ID(*setup)+" build@"), ID(*setup)+" build@");
     }
     std::string SaveRestartRoundTrips() override
     {

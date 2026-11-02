@@ -12,6 +12,7 @@ import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;
 import qchem.SCFAccelerator.Internal.SCFAcceleratorLadder;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
+import qchem.Reporting;   // each Ladder rung files itself into a `rungs` row opened here, its builder
 using json = nlohmann::json;
 
 namespace qchem::SCFAccelerators
@@ -59,8 +60,8 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
                 else if (sg!="Error") throw std::invalid_argument("SCFAccelerators::Factory: Ladder signal '"+sg+"' is not Error or EnergyChange");
             }
             std::vector<std::unique_ptr<SCFAccelerator>> rungs;
-            rungs.emplace_back(new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EMax, .SVTol=SVTol}));
-            rungs.emplace_back(new SCFAcceleratorGDM ({.EngageBelowFD=1e10, .Trust=Trust})); //always steps once it is the active rung
+            { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EMax, .SVTol=SVTol})); }
+            { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorGDM ({.EngageBelowFD=1e10, .Trust=Trust})); } //always steps once it is the active rung
             acc=new SCFAcceleratorLadder(std::move(rungs),ethresh,stall,floor,swat,signal);
             break;
         }
@@ -88,8 +89,8 @@ SCFAccelerator* Factory(Type type, const SolidAcceleratorOptions& o)
             // the ENERGY CHANGE, not the residual: a non-variational collocation SCF limit-cycles [F,D]
             // above the fit floor while E settles, so the residual never signals the switch.
             std::vector<std::unique_ptr<SCFAccelerator>> rungs;
-            rungs.emplace_back(new SCFAcceleratorDIIS(o.diis));
-            rungs.emplace_back(new SCFAcceleratorGDM (o.ladderGdm));
+            { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorDIIS(o.diis)); }
+            { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorGDM (o.ladderGdm)); }
             const size_t start=o.ladderStartOnGDM ? rungs.size()-1 : 0;
             if (start>0) std::cout << "  *** SCF accelerator ladder: starting on rung " << start
                                    << " (GDM) -- the seed is a restored state ***" << std::endl;

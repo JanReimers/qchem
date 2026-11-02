@@ -159,7 +159,10 @@ void Calculation::BuildGraph()
     namespace rpt = qchem::report;
     const CalcOptions& opts=itsSetup->opts;
     const nlohmann::json jsacc = ToAcceleratorJson(itsSetup->acc, itsSetup->eMax);   // every knob of the chain, forwarded
-    auto* accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, jsacc);
+    // The facade sets the context, the accelerator files what it was built with (THE RUN REPORT): one `accelerators` row per
+    // accelerator built in this run (a solid rebuilds one per stage), its Ladder rungs one level further in.
+    qchem::SCFAccelerators::SCFAccelerator* accel=nullptr;
+    { rpt::Row built("accelerators"); accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, jsacc); }
     const auto seed = itsSetup->seed;
 
     // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
