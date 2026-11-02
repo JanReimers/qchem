@@ -109,6 +109,7 @@ qchem::SCFParams scf_params(const qcb_request& req)
     p.NMaxIter = size_t(req.maxIter);
     if (req.relaxStart > 0.0) p.StartingRelaxRo = req.relaxStart;
     if (req.relaxMax   > 0.0) p.MaxRelaxRo      = req.relaxMax;
+    if (req.relaxMin   > 0.0) p.MinRelaxRo      = req.relaxMin;
     p.UseMOM = req.useMOM != 0;
     if (req.momStart   > 0)   p.MOMStartIter    = req.momStart;
     return p;
@@ -142,6 +143,7 @@ std::string why_name(qchem::SCFFailure::Why w)
         case Why::NotConverged: return "not converged";
         case Why::ChargeSlosh:  return "charge slosh (the Hartree term ran away)";
         case Why::OrderLost:    return "magnetic order lost";
+        case Why::UnphysicalEnergy: return "unphysical first iterate (electronic energy > 0)";
     }
     return "unknown SCF failure";
 }
@@ -218,6 +220,7 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char
         if (req->diisDepth    > 0)   acc.nProj = req->diisDepth;
         if (req->diisSVTol    > 0.0) acc.svTol = req->diisSVTol;
         if (req->diisEngageFD > 0.0) acc.eMax  = req->diisEngageFD;
+        if (req->ladderSwitchAt >= 0.0) acc.ladderSwitchAt = req->ladderSwitchAt;   // 0 = no tail trigger (stall only)
 
         const auto setup = qchem::MoleculeSetup::Resolve(mol, opts, acc);   // deep-copies mol
         // The observer rides the constructor, so the trace of ITS SCF streams from the first iteration.

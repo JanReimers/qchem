@@ -70,6 +70,9 @@ typedef struct qcb_request
     double        diisEngageFD;   //!< DIIS engages below this [F,D] (AcceleratorOptions::eMax), 0 = the lib's Z-scaled default
     int           useMOM;         //!< Maximum Overlap Method (SCFParams::UseMOM)
     int           momStart;       //!< its delayed reference capture (SCFParams::MOMStartIter), 0 = the lib's default
+    double        relaxMin;       //!< the adaptive step's floor (SCFParams::MinRelaxRo), 0 = the lib's default
+    double        ladderSwitchAt; //!< the Ladder's DIIS -> GDM hand-off at |ΔE/E| below this (AcceleratorOptions::ladderSwitchAt),
+                                  //!< 0 = stall only, < 0 = the lib's default (1e-6)
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
