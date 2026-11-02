@@ -14,6 +14,7 @@
 // The assertions are deliberately on COLUMN PRESENCE, not on exact spacing: the widths are cosmetic and
 // re-tuned freely, whereas "does a PP run still print a virial it has no right to?" is physics.
 #include "gtest/gtest.h"
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <sstream>
 #include <ostream>
 #include <iostream>
@@ -70,7 +71,7 @@ TEST(SCFTrace, MolecularNonPP_ShowsTheVirialColumn)
 {
     std::string trace = CapturedTrace([]{
         AtomCalculation calc(2, 0, {.type = AtomType::Slater, .accuracy = Low},
-            {.NMaxIter = 40, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = 1e30,
+            {.NMaxIter = 40, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
     });
@@ -89,7 +90,7 @@ TEST(SCFTrace, MolecularPP_HidesTheVirialColumn)
 {
     std::string trace = CapturedTrace([]{
         AtomCalculation calc(14, 10, {.type = AtomType::Slater, .accuracy = Medium, .pseudopotential = true},
-            {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = 1e30,
+            {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
     });
@@ -105,7 +106,7 @@ TEST(SCFTrace, ThresholdSubLineMatchesTheColumns)
 {
     std::string trace = CapturedTrace([]{
         AtomCalculation calc(14, 10, {.type = AtomType::Slater, .accuracy = Medium, .pseudopotential = true},
-            {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = 1e30,
+            {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
     });
@@ -138,8 +139,8 @@ TEST(SCFTrace, SolidPP_ShowsGridColumnsAndNoVirial)
                                         BasisSet::Gaussian::Engine::MnD,
                                         BasisSet::Gaussian::Angular::Cartesian));
         SCFParams par;
-        par.NMaxIter=2; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30;
-        par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
+        par.NMaxIter=2; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6; par.MinΔFD=std::nullopt;
+        par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
         qchem::BoundedSCF bounded("the trace's columns are the subject: 2 iterations print them");
         SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}), par);
         (void)calc.Result();   // NMaxIter=2: this deliberately does NOT converge -- the trace is the subject
@@ -162,13 +163,13 @@ TEST(SCFTrace, SolidPP_ShowsGridColumnsAndNoVirial)
 TEST(SCFTrace, DISABLED_SolidNonPP_ShouldBringTheVirialColumnBack) {}
 
 // R2.7: a live [F,D] gate reading exactly 0 at convergence throws (the G3 shape: the Null accelerator's [F,D] = 0); a gate that is
-// off (1e30) may read 0, and a tiny but COMPUTED value is a verdict, not an absence.
+// off may read 0, and a tiny but COMPUTED value is a verdict, not an absence.
 TEST(SCFTrace, R2_7_ADeadGateThrows)
 {
     using qchem::SCFIterator::RequireLiveGates;
     EXPECT_NO_THROW(RequireLiveGates(3e-7, 1e-5, 12));
     EXPECT_NO_THROW(RequireLiveGates(1e-300, 1e-5, 12));   // computed, just small
-    EXPECT_NO_THROW(RequireLiveGates(0.0, 1e30, 12));      // [F,D] gate off
+    EXPECT_NO_THROW(RequireLiveGates(0.0, std::nullopt, 12)); // [F,D] gate off
     EXPECT_THROW(RequireLiveGates(0.0, 1e-5, 12), std::logic_error);   // G3
 }
 
@@ -188,29 +189,29 @@ std::string TraceBlock(const std::string& trace)
     }
     return out;
 }
-const char* const kMolecularGolden = R"G(  #               Etotal      [F,D]     Δ[F,D]        Δρ      2+V/K  ρ_mix         accel   svMin    cfg       m_site
-                            (1e-06)    (1e-08)   (1e-06)    (1e+02)
+const char* const kMolecularGolden = R"G(  #               Etotal      [F,D]       ΔE/E     Δ[F,D]        Δρ      2+V/K  ρ_mix         accel   svMin    cfg       m_site
+                            (1e-06)               (1e-08)   (1e-06)    (1e+02)
 ----------------------------------------------------------------------------------------------------
-  1    -145.500070494997   3.70e+00  -1.00e+10  7.05e-01   8.03e-02  Lin 0.50      DIIS    ----                 ----
-  2    -148.746398919215   1.21e+00  -2.49e+00  1.62e-01   6.29e-03  Lin 0.81      DIIS    ----       *         ----
-  3    -149.560509951632   2.96e-01  -9.11e-01  4.65e-02  -1.44e-03  Lin 0.93      DIIS:1  ----       *         ----
-  4    -149.627225750406   7.86e-02  -2.17e-01  7.78e-03  -4.14e-03  Lin 0.97      DIIS:2  8.1e-02              ----
-  5    -149.629512467503   2.30e-02  -5.56e-02  2.47e-03  -4.00e-03  Lin 0.99      DIIS:3  3.6e-03              ----
-  6    -149.629545937427   4.15e-03  -1.88e-02  4.31e-04  -4.10e-03  Lin 1.00      DIIS:4  8.4e-05              ----
-  7    -149.629546950987   1.37e-03  -2.77e-03  1.04e-04  -4.08e-03  Lin 1.00      DIIS:4  1.2e-05              ----
-  8    -149.629547019861   2.67e-04  -1.11e-03  8.36e-06  -4.08e-03  Lin 1.00      DIIS:4  3.5e-07              ----
-  9    -149.629547027574   8.69e-05  -1.80e-04  3.95e-06  -4.08e-03  Lin 1.00      DIIS:4  2.2e-08              ----
- 10    -149.629547027643   1.02e-05  -7.67e-05  4.64e-07  -4.08e-03  Lin 1.00      DIIS:2  5.6e-09              ----
- 11    -149.629547027644   1.95e-06  -8.25e-06  6.46e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 12    -149.629547027645   3.08e-07  -1.64e-06  3.73e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 13    -149.629547027645   2.15e-07  -9.26e-08  2.30e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 14    -149.629547027645   1.55e-07  -5.99e-08  1.47e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 15    -149.629547027645   1.12e-07  -4.30e-08  9.45e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 16    -149.629547027645   8.15e-08  -3.10e-08  6.17e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 17    -149.629547027645   5.92e-08  -2.23e-08  4.07e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 18    -149.629547027645   4.31e-08  -1.61e-08  2.71e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 19    -149.629547027645   3.14e-08  -1.17e-08  1.84e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 20    -149.629547027645   2.29e-08  -8.47e-09  1.26e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
+  1    -145.500070494997   3.70e+00  -1.00e+00  -1.00e+10  7.05e-01   8.03e-02  Lin 0.50      DIIS    ----                 ----
+  2    -148.746398919215   1.21e+00  -2.18e-02  -2.49e+00  1.62e-01   6.29e-03  Lin 0.81      DIIS    ----       *         ----
+  3    -149.560509951632   2.96e-01  -5.44e-03  -9.11e-01  4.65e-02  -1.44e-03  Lin 0.93      DIIS:1  ----       *         ----
+  4    -149.627225750406   7.86e-02  -4.46e-04  -2.17e-01  7.78e-03  -4.14e-03  Lin 0.97      DIIS:2  8.1e-02              ----
+  5    -149.629512467503   2.30e-02  -1.53e-05  -5.56e-02  2.47e-03  -4.00e-03  Lin 0.99      DIIS:3  3.6e-03              ----
+  6    -149.629545937427   4.15e-03  -2.24e-07  -1.88e-02  4.31e-04  -4.10e-03  Lin 1.00      DIIS:4  8.4e-05              ----
+  7    -149.629546950987   1.37e-03  -6.77e-09  -2.77e-03  1.04e-04  -4.08e-03  Lin 1.00      DIIS:4  1.2e-05              ----
+  8    -149.629547019861   2.67e-04  -4.60e-10  -1.11e-03  8.36e-06  -4.08e-03  Lin 1.00      DIIS:4  3.5e-07              ----
+  9    -149.629547027574   8.69e-05  -5.16e-11  -1.80e-04  3.95e-06  -4.08e-03  Lin 1.00      DIIS:4  2.2e-08              ----
+ 10    -149.629547027643   1.02e-05  -4.61e-13  -7.67e-05  4.64e-07  -4.08e-03  Lin 1.00      DIIS:2  5.6e-09              ----
+ 11    -149.629547027644   1.95e-06  -5.32e-15  -8.25e-06  6.46e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
+ 12    -149.629547027645   3.08e-07  -4.94e-15  -1.64e-06  3.73e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
+ 13    -149.629547027645   2.15e-07  -1.52e-15  -9.26e-08  2.30e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
+ 14    -149.629547027645   1.55e-07  -1.52e-15  -5.99e-08  1.47e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
+ 15    -149.629547027645   1.12e-07  -9.50e-16  -4.30e-08  9.45e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
+ 16    -149.629547027645   8.15e-08   0.00e+00  -3.10e-08  6.17e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
+ 17    -149.629547027645   5.92e-08   3.80e-16  -2.23e-08  4.07e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
+ 18    -149.629547027645   4.31e-08  -5.70e-16  -1.61e-08  2.71e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
+ 19    -149.629547027645   3.14e-08   1.90e-16  -1.17e-08  1.84e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
+ 20    -149.629547027645   2.29e-08   1.90e-16  -8.47e-09  1.26e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
 ----------------------------------------------------------------------------------------------------------
 Energy    Breakdown  Total:    -149.629547028  Kinetic:     149.022225338  Potential:    -298.651772366
 Potential Breakdown  Een  :    -410.569585377  Eee    :     100.155759294  Eex      :     -16.283520341
@@ -229,7 +230,7 @@ Virial               V/K  :    -2.00407537660  Eee/Exc:      -6.150743647
 +-------------+--------------+--------------+-------------+--------------+-------------+
 )G";
 const char* const kSolidGolden = R"G(  #               Etotal      [F,D]       ΔE/E        Δρ   ρ_lost/N    XC ρ  ρ_mix         accel   svMin    cfg       gap  
-                            (1e+30)    (1e-06)   (1e-03)
+                                       (1e-06)   (1e-03)
 ----------------------------------------------------------------------------------------------------
   1      -7.108903646312   2.70e-01  -1.00e+00  5.12e-02  -1.02e-09      DM  PulD 0.45     Null    ----          6.69e-02  
   2      -7.111740379421   1.23e-02  -3.99e-04  2.60e-02  -1.38e-09      DM  PulD 0.45     Null    ----          6.83e-02  
@@ -278,13 +279,49 @@ TEST(SCFTrace, SolidConsoleIsByteIdentical)
             BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
                                         BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
         SCFParams par;
-        par.NMaxIter=4; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30;
-        par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
+        par.NMaxIter=4; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6; par.MinΔFD=std::nullopt;
+        par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
         qchem::BoundedSCF bounded("the golden trace: 4 iterations print every solid column");
         SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}), par);
         (void)calc.Result();
     }));
     EXPECT_EQ(got, std::string(kSolidGolden));
+}
+
+// THE ROW SINK'S EXCEPTION IS THE CALLER'S (2026-11-02): an observer that throws -- a GUI's cancel, a sink that fails to write --
+// stops the run, and its exception leaves Converge (via the constructor's run, and Result) as itself: same type, same message.  No
+// facade layer catches it, re-wraps it, or turns it into a failed Outcome.
+namespace {
+struct SinkStop : std::runtime_error { using std::runtime_error::runtime_error; };
+}
+TEST(SCFTrace, AnObserverExceptionLeavesConvergeUntouched)
+{
+    auto throwAt2=[](const SCFIterator::IterationRow& r){ if (r.iteration==2) throw SinkStop("the sink stopped at iteration 2"); };
+    try
+    {
+        Molecule o2;
+        o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0,  1.141)));
+        o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.141)));
+        Calculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}), {.NMaxIter = 80, .Verbose = false}, throwAt2);
+        (void)calc.Result();
+        ADD_FAILURE() << "the molecular run did not stop";
+    }
+    catch (const SinkStop& e) { EXPECT_STREQ(e.what(), "the sink stopped at iteration 2"); }
+    try
+    {
+        FCCUnitCell cell(10.26);
+        cell.AddAtom(14, {0,0,0});
+        cell.AddAtom(14, {0.25,0.25,0.25});
+        Lattice_3D lat(cell, ivec3_t(1,1,1));
+        auto mol = std::shared_ptr<const BasisSet::Real_BS>(
+            BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
+                                        BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+        SCFParams par; par.NMaxIter=4; par.Verbose=false;
+        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}), par, throwAt2);
+        (void)calc.Result();
+        ADD_FAILURE() << "the solid run did not stop";
+    }
+    catch (const SinkStop& e) { EXPECT_STREQ(e.what(), "the sink stopped at iteration 2"); }
 }
 
 // THE OBSERVER RECEIVES THE CONSOLE'S ROW (2026-10-31): the same columns, titled as the header titles them and in its order,

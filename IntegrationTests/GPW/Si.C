@@ -31,6 +31,7 @@
 //   GPW_Si.k311_Uni_MOM_eqCplx
 
 #include "gtest/gtest.h"
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <memory>
 #include <vector>
 #include <cmath>
@@ -179,7 +180,7 @@ TEST(GPW_Si, Γ_Null_Linear_Converges_Panel)
     o.densityEcut=20.0;
     o.accelerator=qchem::SCFAccelerators::Type::Null;
     o.policy.cp2kCompat=true;   // the row's condition (CP2K_COMPAT=1): without it the adaptive re-damp holds and it converges, slowly
-    SCFParams par=Gates(60, 1e-6, 1e30);
+    SCFParams par=Gates(60, 1e-6, std::nullopt);
     par.Mixer=SCFParams::Mixing::Linear; par.StartingRelaxRo=0.30;
     qchem::IterationBudget budget(22, "free Si Gamma, linear D-mixing alpha 0.3, Null, cp2kCompat (regime 1; OpenWork §3 linear row; 17 measured 2026-10-29)");
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
@@ -348,7 +349,7 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const Material& si, co
 
     SCFParams one;                                   // the one-iteration recipe (gates 0 = strict-< never trips)
     one.NMaxIter=1; one.MinΔρPerElectron=0.0; one.MinΔE=0.0;
-    one.MinΔFD=1e30; one.MinVirial=1e30; one.MinFD=1e30; one.StartingRelaxRo=0.3; one.MergeTol=1e-4;
+    one.MinΔFD=std::nullopt; one.MinVirial=std::nullopt; one.MinFD=std::nullopt; one.StartingRelaxRo=0.3; one.MergeTol=1e-4;
 
     {   // (1) the arithmetic arm: exactly one iteration each
         qchem::BoundedSCF bounded("arm (1) compares the real and complex FIRST iterates term by term at roundoff; arm (2) converges");
@@ -367,7 +368,7 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const Material& si, co
     {   // (2) the physics arm: both converge on the production-shaped gates
         SCFParams par;
         par.NMaxIter=60; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6;
-        par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
+        par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
         qchem::SolidCalculation on(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOn), par), off(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOff), par);
         auto ron=on.Result(), roff=off.Result();
         ASSERT_TRUE(ron)  << what << ": " << (ron  ? std::string() : ron .Error().details);
@@ -975,7 +976,7 @@ TEST(GPW_Si, k311_Uni_MOM_eqCplx)
 
     SCFParams par;
     par.NMaxIter=60; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6;
-    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
+    par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
     par.UseMOM=true; par.MOMStartIter=2;              // armed EARLY: the reference must be live in-run
 
     qchem::SolidCalculation on (SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}), par);
@@ -1187,7 +1188,7 @@ TEST(GPW_Si, Γ_Imp_Kerker_Pulay_ConvergesOnMaxDeltaD)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Kerker Pulay(8) max|dD|<1e-6");
     o.densityEcut=20.0; o.imposeSymmetry=true;
-    SCFParams par=Gates(60, 1e-6, 1e30); par.KerkerG0=1.0; par.PulayDepth=8; par.PulayStart=3;
+    SCFParams par=Gates(60, 1e-6, std::nullopt); par.KerkerG0=1.0; par.PulayDepth=8; par.PulayStart=3;
     par.Δρmeasure=SCFParams::Measure::MaxΔD;
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
     auto R=calc.Result();
@@ -1230,7 +1231,7 @@ TEST(GPW_Si, Γ_Imp_eqK211)
     const nlohmann::json deck={
         {"structure","Si_diamond_2x1x1"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
         {"solid",{{"densityEcut",20.0},{"imposeSymmetry",true},{"seed","Uniform"}}},
-        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
     qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
     const fs::path dir=fs::temp_directory_path()/("qchem_it_si_fold_"+std::to_string(::getpid()));
     fs::remove_all(dir);
@@ -1255,7 +1256,7 @@ TEST(GPW_Si, Γ_GridAuditSeparatesTheRasterTerms)
     const nlohmann::json deck={
         {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
         {"solid",{{"densityEcut",20.0},{"seed","Uniform"}}},
-        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-9},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-9},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}},
         {"postSCF",{{{"gridAudit",nlohmann::json::object()}}}}};
     qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
     const fs::path dir=fs::temp_directory_path()/("qchem_it_si_gridaudit_"+std::to_string(::getpid()));
@@ -1305,7 +1306,7 @@ TEST(GPW_Si, Γ_EggBoxLeavesTheAnalyticTermsInvariant)
     const nlohmann::json deck={
         {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
         {"solid",{{"densityEcut",20.0},{"seed","Uniform"}}},
-        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-9},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-9},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}},
         {"postSCF",{{{"eggBox",{{"shift",{0.11,0.07,0.03}}}}}}}};
     qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
     const fs::path dir=fs::temp_directory_path()/("qchem_it_si_eggbox_"+std::to_string(::getpid()));
@@ -1354,7 +1355,7 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
             {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"hubbard",hub},{"xcMesh",{{"cellKind","Uniform"}}}}},
             // The Kerker/Pulay recipe (the TMO one), on BOTH arms: SiParams' linear relax-1.0 D-mixing ran the primitive k211 ground state into
             // its 200-iteration cap (measured 2026-10-04: eigenvalue noise 9e-4 Ha against the supercell's 1.5e-8), and the arms must differ only in the cell.
-            {"scf",{{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial",1e30},{"minFD",1e30},
+            {"scf",{{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial","off"},{"minFD","off"},
                     {"pulayDepth",8},{"pulayStart",5},{"kerkerG0",1.0},{"startingRelaxRo",0.45}}},
             {"postSCF",{{{"hubbardLinearResponse",{{"nq",nq}}}}}}};
         qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
@@ -1442,7 +1443,7 @@ TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint_Panel)   // PAN
     const nlohmann::json kerker={{"pulayDepth",8},{"pulayStart",3},{"kerkerG0",1.0},{"startingRelaxRo",0.3}};   // free Si Γ: relax 0.45 never converges
     auto run=[](double U_eV, nlohmann::json post, const std::string& tag, const nlohmann::json& mixing)
     {
-        nlohmann::json scf={{"NMaxIter",300},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial",1e30},{"minFD",1e30}};
+        nlohmann::json scf={{"NMaxIter",300},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial","off"},{"minFD","off"}};
         scf.update(mixing);
         const nlohmann::json deck={
             {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
@@ -1491,7 +1492,7 @@ TEST(GPW_Si, Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel)
 {
     namespace fs=std::filesystem;
     qchem::IterationBudget budget(125, "Si +U linear-response loop under an explicit Ladder (regime 5; 100 = cold 79 + carried 11 + 10, 2026-10-29 panel baseline)");
-    const nlohmann::json scf={{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial",1e30},{"minFD",1e30}};
+    const nlohmann::json scf={{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial","off"},{"minFD","off"}};
     const nlohmann::json deck={
         {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
         {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"accelerator","Ladder"},

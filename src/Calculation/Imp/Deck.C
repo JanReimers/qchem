@@ -63,6 +63,25 @@ public:
         try { v=itsJ.at(k).get<T>(); }
         catch (const json::exception& e) { throw std::runtime_error("deck: '"+itsPath+"."+k+"': "+e.what()); }
     }
+    //! A convergence gate: a number, or the string "off" (\c std::nullopt).  The retired sentinel -- a number >= 1e30, which every
+    //! record wrote before 2026-11-02 -- still reads as off, with a notice, so the campaign decks already on disk keep running.
+    void GetGate(const char* k, Gate& v)
+    {
+        itsKnown.insert(k);
+        if (!itsJ.contains(k)) return;
+        const json& x=itsJ.at(k);
+        if (x.is_string() && x.get<std::string>()=="off") { v=std::nullopt; return; }
+        if (!x.is_number())
+            throw std::runtime_error("deck: '"+itsPath+"."+k+"' = "+x.dump()+" is not a gate: a threshold (a number) or \"off\"");
+        const double t=x.get<double>();
+        if (t>=1e30)
+        {
+            std::cout << "[deck] '" << itsPath << "." << k << "' = " << x.dump() << ": the retired 'off' sentinel, read as \"off\" -- "
+                         "spell it \"off\"" << std::endl;
+            v=std::nullopt; return;
+        }
+        v=t;
+    }
     template <class E> void GetEnum(const char* k, E& v, std::initializer_list<std::pair<const char*,E>> names)
     {
         itsKnown.insert(k);
@@ -149,10 +168,13 @@ void FromJson(const json& j, BasisSet::Gaussian::GPWTolerances& t)
 }
 
 //=== SCFParams ==================================================================================
+//! Is \a g looser than \a t?  An OFF gate is looser than any threshold.
+static bool LooserThan(const Gate& g, double t) {return !g || *g>t;}
+static json GateJson(const Gate& g) {return g ? json(*g) : json("off");}   //!< a gate as a deck spells it: a number, or "off"
 json ToJson(const SCFParams& p)
 {
-    return {{"NMaxIter",p.NMaxIter},{"minDeltaRhoPerElectron",p.MinΔρPerElectron},{"deltaRhoMeasure",NameOf(p.Δρmeasure,kMeasure)},{"minDeltaFD",p.MinΔFD},
-            {"minDeltaE",p.MinΔE},{"minVirial",p.MinVirial},{"minFD",p.MinFD},{"mixer",NameOf(p.Mixer,kMixing)},{"startingRelaxRo",p.StartingRelaxRo},{"maxRelaxRo",p.MaxRelaxRo},{"mergeTol",p.MergeTol},
+    return {{"NMaxIter",p.NMaxIter},{"minDeltaRhoPerElectron",GateJson(p.MinΔρPerElectron)},{"deltaRhoMeasure",NameOf(p.Δρmeasure,kMeasure)},{"minDeltaFD",GateJson(p.MinΔFD)},
+            {"minDeltaE",GateJson(p.MinΔE)},{"minVirial",GateJson(p.MinVirial)},{"minFD",GateJson(p.MinFD)},{"mixer",NameOf(p.Mixer,kMixing)},{"startingRelaxRo",p.StartingRelaxRo},{"maxRelaxRo",p.MaxRelaxRo},{"minRelaxRo",p.MinRelaxRo},{"mergeTol",p.MergeTol},
             {"verbose",p.Verbose},{"xcCuspDeficit",p.XCCuspDeficit},{"kerkerG0",p.KerkerG0},{"useMOM",p.UseMOM},{"pulayDepth",p.PulayDepth},
             {"pulayStart",p.PulayStart},{"momStartIter",p.MOMStartIter},{"smearingkT",p.SmearingkT},{"momSmearPenalty",p.MOMSmearPenalty},
             {"stopOnAccelExhausted",p.StopOnAccelExhausted},
@@ -164,9 +186,9 @@ void FromJson(const json& j, SCFParams& p)
     if (j.contains("minDeltaRho"))           // RETIRED 2026-10-22 (D-MINDRHO): never silently re-read with a new meaning
         throw std::runtime_error("deck: scf.minDeltaRho is RETIRED -- the gate is now scf.minDeltaRhoPerElectron, the L1 residual per "
                                  "electron on the run's quadrature (the old number meant something different per mixer)");
-    f.Get("NMaxIter",p.NMaxIter); f.Get("minDeltaRhoPerElectron",p.MinΔρPerElectron); f.GetEnum("deltaRhoMeasure",p.Δρmeasure,kMeasure);
-    f.Get("minDeltaFD",p.MinΔFD); f.Get("minDeltaE",p.MinΔE); f.Get("minVirial",p.MinVirial); f.Get("minFD",p.MinFD);
-    f.GetEnum("mixer",p.Mixer,kMixing); f.Get("startingRelaxRo",p.StartingRelaxRo); f.Get("maxRelaxRo",p.MaxRelaxRo); f.Get("mergeTol",p.MergeTol); f.Get("verbose",p.Verbose);
+    f.Get("NMaxIter",p.NMaxIter); f.GetGate("minDeltaRhoPerElectron",p.MinΔρPerElectron); f.GetEnum("deltaRhoMeasure",p.Δρmeasure,kMeasure);
+    f.GetGate("minDeltaFD",p.MinΔFD); f.GetGate("minDeltaE",p.MinΔE); f.GetGate("minVirial",p.MinVirial); f.GetGate("minFD",p.MinFD);
+    f.GetEnum("mixer",p.Mixer,kMixing); f.Get("startingRelaxRo",p.StartingRelaxRo); f.Get("maxRelaxRo",p.MaxRelaxRo); f.Get("minRelaxRo",p.MinRelaxRo); f.Get("mergeTol",p.MergeTol); f.Get("verbose",p.Verbose);
     f.Get("xcCuspDeficit",p.XCCuspDeficit); f.Get("kerkerG0",p.KerkerG0); f.Get("useMOM",p.UseMOM);
     f.Get("pulayDepth",p.PulayDepth); f.Get("pulayStart",p.PulayStart); f.Get("momStartIter",p.MOMStartIter);
     f.Get("smearingkT",p.SmearingkT); f.Get("momSmearPenalty",p.MOMSmearPenalty); f.Get("stopOnAccelExhausted",p.StopOnAccelExhausted);
@@ -683,9 +705,9 @@ Materials::Material Resolve(RunSpec& spec)
             // littleGroupK MEASURES the ground state's group on the reference's orbitals to 1e-6 (KAxisPlan §5 ruling 1): a reference
             // stopped at Δρ/N 1e-6 sits AT that tolerance and keeps a random subset of ops (TiO2 k221 2026-10-28: 4..16 of 16 at 1e-6;
             // 16 of 16, worst 9e-9, at 1e-9).  Not floored by ρ_lost/N: Δρ is a difference on ONE quadrature, the charge error cancels.
-            if (a.kind==PostAction::Kind::HubbardLinearResponse && a.littleGroupK && spec.Stages().back().scf.MinΔρPerElectron>kResponseReferenceMinΔρ)
+            if (a.kind==PostAction::Kind::HubbardLinearResponse && a.littleGroupK && LooserThan(spec.Stages().back().scf.MinΔρPerElectron, kResponseReferenceMinΔρ))
                 throw std::runtime_error(who+"littleGroupK measures the reference's symmetry to 1e-6, so the final SCF stage must converge to "
-                                         "scf.minDeltaRhoPerElectron <= 1e-9 (it is "+std::to_string(spec.Stages().back().scf.MinΔρPerElectron)+")");
+                                         "scf.minDeltaRhoPerElectron <= 1e-9 (it is "+GateJson(spec.Stages().back().scf.MinΔρPerElectron).dump()+")");
             if ((a.kind==PostAction::Kind::HubbardLinearResponse || lrLoop) && !spec.solid.forceComplex)
                 throw std::runtime_error(who+"needs the complex ansatz (the real-TRIM response face is not built); set solid.forceComplex true");
             if (isResponse)             // the q points loop INSIDE the response, on the k-mesh's own differences
@@ -842,7 +864,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
         bool resp=false; for (const auto& a : spec.postSCF) resp = resp || a.kind==RunSpec::PostAction::Kind::IndependentResponse || a.kind==RunSpec::PostAction::Kind::HubbardLinearResponse;
         if (resp && spec.solid.imposeSymmetry && spec.kmesh.x*spec.kmesh.y*spec.kmesh.z>1)
             v.notes.push_back("a response with solid.imposeSymmetry on a k-mesh: if the imposed group REDUCES the mesh the response throws at run time (D5); the NiO AFM-II 2x2x2 Shubnikov group does not reduce it");
-        if (resp && spec.Stages().back().scf.MinΔρPerElectron>kResponseReferenceMinΔρ)
+        if (resp && LooserThan(spec.Stages().back().scf.MinΔρPerElectron, kResponseReferenceMinΔρ))
             v.notes.push_back("a response reference should converge to scf.minDeltaRhoPerElectron <= 1e-9 (a few more iterations; ρ_lost/N does not floor it): "
                               "at 1e-6 its orbitals carry ~1e-6 symmetry and eigenpair residuals");
     }

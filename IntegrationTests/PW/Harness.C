@@ -6,6 +6,7 @@
 // Its own library (qcPW_Harness) so IntegrationTests/PW/*.C compile one copy.  (2026-09-15, TE phase 5.)
 module;
 #include <map>
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <set>
 #include <memory>
 #include <vector>
@@ -371,7 +372,7 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     auto* seedCD=qchem::ChargeDensity::MakeSeedDensity<dcmplx>(seed, bs.get(), lat.GetStructure().get(), &ec, polarized, seedKey);
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seedCD, lat.GetStructure().get());
     SCFParams par;
-    par.NMaxIter=120; par.MinΔρPerElectron=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
+    par.NMaxIter=120; par.MinΔρPerElectron=1e-6; par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=false;
     scf.Iterate(par);
     const qchem::WaveFunction::cWaveFunction* wf=scf.GetWaveFunction();

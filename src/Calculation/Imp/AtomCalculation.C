@@ -63,9 +63,10 @@ static void EmitScfSection(const AtomCalcOptions& o, int ne, const std::string& 
     standard["pol"]         = (o.spin == SpinGroup::Polarized) ? "P" : "U";
     standard["nElectrons"]  = ne;
     standard["nMaxIter"]    = long(p.NMaxIter);
-    standard["minDrho"]     = p.MinΔρPerElectron;
-    standard["minFD"]       = p.MinFD;
-    standard["minDE"]       = p.MinΔE;
+    auto gate=[](const Gate& g){return g ? rpt::json(*g) : rpt::json("off");};   // an off gate is spelled "off" (was the 1e30 sentinel)
+    standard["minDrho"]     = gate(p.MinΔρPerElectron);
+    standard["minFD"]       = gate(p.MinFD);
+    standard["minDE"]       = gate(p.MinΔE);
     standard["accelerator"] = accelerator;
     if (o.pseudopotential) standard["valence"] = o.valence;
 

@@ -290,9 +290,9 @@ static void ReportImposedGroup(std::optional<double> r, size_t iteration)
 }
 
 // R2.7: a live [F,D] gate that reads exactly 0.0 at convergence passed because nothing computed it (see the declaration).
-void RequireLiveGates(double FD, double minFD, size_t iteration)
+void RequireLiveGates(double FD, const Gate& minFD, size_t iteration)
 {
-    if (!(minFD<1e30 && FD==0.0)) return;
+    if (!(minFD && FD==0.0)) return;
     throw std::logic_error("SCF R2.7: iteration "+std::to_string(iteration)+" declared convergence on a DEAD gate -- [F,D] (MinFD) "
                            "read exactly 0, i.e. the accelerator never computed it, so it passed by absence.  doc/SCFRobustnessPlan.md R2.7");
 }
@@ -435,7 +435,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     // V1.27: is the virial theorem meaningful for THIS Hamiltonian at all?  It needs a Coulombic (degree -1
     // homogeneous) potential, which a pseudopotential is not.  Asked ONCE, of the object that knows -- the
     // Hamiltonian is fixed at construction (R2.16), and the flag is the AND of its terms' own answers.
-    // Before this, every PP caller had to remember `MinVirial = 1e30` by hand (nine sites in the tree), and
+    // Before this, every PP caller had to remember `MinVirial = std::nullopt` by hand (nine sites in the tree), and
     // forgetting it silently gated the SCF on a quantity with no meaning for the run.
     const bool virialValid=itsHamiltonian->IsVirialValid();
     if (ipar.Verbose) DisplayColumnHeaders(cout, ipar, idealVirial);   // per-system (item 2): base=molecular, Solid overrides
@@ -540,14 +540,12 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         }
         EmitSiteMoments(eb);   // the iteration's integrated site moments, reported with the iteration
         if (itsObserver) itsObserver(MakeRow(ipar, *tr));
-        // THE FIRST ENERGY MUST BE PHYSICAL (UnphysicalStop): the electronic energy of a ground state is <= 0 -- the limit of the electrons
-        // dispersed to infinity -- at ANY geometry and charge (the TOTAL can be positive: H2 at R = 0.1 bohr).  Refused AFTER the row is
+        // THE FIRST ENERGY MUST BE PHYSICAL (UnphysicalStop; the bound is the layout's, FirstEnergyRefusal).  Refused AFTER the row is
         // out, so the trace shows the number it was refused on; iteration 1 only -- a later excursion is the mixer's to recover.
-        if (const double Eel=eb.GetElectronicEnergy(); itsIterationCount==1 && Eel>0.0)
+        if (std::string why; itsIterationCount==1 && !(why=FirstEnergyRefusal(eb, itsCD->GetTotalCharge())).empty())
         {
             std::ostringstream os;
-            os << "the FIRST iterate's ELECTRONIC energy is " << std::setprecision(6) << Eel << " Ha (Etot " << E << ", Ekin " << eb["Kinetic"]
-               << ", Eee " << eb["Eee"] << "): above the electrons-at-infinity limit 0 that any ground state lies below, so the Hamiltonian "
+            os << why << " (Etot " << std::setprecision(6) << E << ", Ekin " << eb["Kinetic"] << ", Eee " << eb["Eee"] << "), so the Hamiltonian "
                << "it was built from is broken -- on a GPW run, an "
                << "aliased raster that an ill-conditioned overlap amplifies (raise the rasters, or state the accuracy target and let the "
                << "conditioning size them), or a basis the orthogonalization should have trimmed";
@@ -577,12 +575,12 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         // cout << "fabs(dFD)              < ipar.MinΔFD    " << (fabs(dFD)           < ipar.MinΔFD) << endl;
         // cout << "FD                     < ipar.MinFD   " << (FD                 < ipar.MinFD) << endl;
         // cout << "fabs(eb.GetVirial()+2) < ipar.MinVirial  " << (fabs(eb.GetVirial()+2) < ipar.MinVirial) << endl;
-        itsConverged=  ChargeDensityChange < ipar.MinΔρPerElectron
-                 && fabs(dFD)              < ipar.MinΔFD
-                 && fabs(dE)               < ipar.MinΔE      // relative total-energy change (default off)
-                 && FD                     < ipar.MinFD
-                 && (!virialValid ||                                  // V1.27: no gate when the theorem
-                     fabs(eb.GetVirial()+idealVirial) < ipar.MinVirial)  //   does not hold (PP runs)
+        itsConverged=  Meets(ipar.MinΔρPerElectron, ChargeDensityChange)
+                 && Meets(ipar.MinΔFD,           fabs(dFD))
+                 && Meets(ipar.MinΔE,            fabs(dE))      // relative total-energy change (default off)
+                 && Meets(ipar.MinFD,            FD)
+                 && (!virialValid ||                                       // V1.27: no gate when the theorem
+                     Meets(ipar.MinVirial, fabs(eb.GetVirial()+idealVirial)))  //   does not hold (PP runs)
                   ;
         if (itsConverged) RequireLiveGates(FD, ipar.MinFD, itsIterationCount);
         // 0h MOM GUARD (doc/GPWPlan 0h): a MOM reference is TRUSTED, never verified -- a stale/wrong one
@@ -639,9 +637,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     if (!itsConverged && !exhaustedStop && itsUnphysicalStop.empty())
     {
         std::ostringstream os;
+        auto gate=[](const Gate& g){std::ostringstream o; if (g) o << std::scientific << std::setprecision(2) << *g; else o << "off"; return o.str();};
         os << "the SCF ended at its iteration cap (NMaxIter " << ipar.NMaxIter << ") UNCONVERGED: last drho/N "
-           << std::scientific << std::setprecision(2) << ChargeDensityChange << " (gate " << ipar.MinΔρPerElectron << "), [F,D] "
-           << FD << " (gate " << ipar.MinFD << "), E " << std::setprecision(10) << E
+           << std::scientific << std::setprecision(2) << ChargeDensityChange << " (gate " << gate(ipar.MinΔρPerElectron) << "), [F,D] "
+           << FD << " (gate " << gate(ipar.MinFD) << "), E " << std::setprecision(10) << E
            << " -- assert convergence with gates the run can meet, or wrap a deliberately bounded loop in qchem::BoundedSCF";
         qchem::ReportSCFCapHit(os.str());
     }
@@ -679,7 +678,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     // here.  Released, because the caller's next act is usually to take the converged density OUT (a third generation of
     // n×n density matrices): with this one held, the end of a stage was the plane-wave run's memory peak (2026-10-25).
     itsOldCD.reset();
-    return ChargeDensityChange <= ipar.MinΔρPerElectron;
+    return !ipar.MinΔρPerElectron || ChargeDensityChange <= *ipar.MinΔρPerElectron;
 }
 
 // One direct-minimization step: build the Fock, compute each accelerator's geodesic step,
@@ -987,7 +986,7 @@ ColumnData OrderCol()
             [](const IterationTrace& tr){return tr.hasOrder ? tr.order : kNoValue;}};
 }
 
-//! The gate column, molecular: a VARIATIONAL SCF drives the orbital gradient [F,D] to zero.
+//! Δ[F,D], the STAGNATION measure -- shown only when a run gates on it (MinΔFD set; retired as a default 2026-10-29).
 ColumnData GateFD(const SCFParams& p)
 {
     return {"Δ[F,D]", W_DELTA, p.MinΔFD,
@@ -995,8 +994,8 @@ ColumnData GateFD(const SCFParams& p)
             {os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dFD << " ";},
             [](const IterationTrace& tr){return tr.dFD;}, Scale::Log};
 }
-//! The gate column, collocation: a NON-variational SCF (density-fit / GPW) limit-cycles in [F,D]/Δρ above
-//! the fit floor while the total energy is already settled, so the relative ΔE gates instead.
+//! The relative energy change, in EVERY layout (2026-11-02; molecular was Δ[F,D]): what a reader watches settle, and the gate of
+//! a NON-variational SCF (density-fit / GPW), whose [F,D]/Δρ limit-cycle above the fit floor while the energy is settled.
 ColumnData GateDE(const SCFParams& p)
 {
     return {"ΔE/E", W_DELTA, p.MinΔE,
@@ -1056,7 +1055,8 @@ template <class T>
 void tSCFIterator<T>::AccumulateColumns(std::vector<ColumnData>& cols, const SCFParams& ipar,
                                         size_t idealVirial) const
 {
-    cols.push_back(GateFD(ipar));
+    cols.push_back(GateDE(ipar));
+    if (ipar.MinΔFD) cols.push_back(GateFD(ipar));                    // a stated stagnation gate is shown; off, it is not
     cols.push_back(RhoCol(ipar));
     if (itsHamiltonian->IsVirialValid()) cols.push_back(VirialCol(ipar,idealVirial));
 }
@@ -1073,10 +1073,14 @@ void tSCFIterator<T>::DisplayColumnHeaders(std::ostream& os, const SCFParams& ip
     if (GapIsPermanent()) os << " " << PadR("gap",W_GAP) << "  ";  // 2 trailing: the row cell carries h/m
     WriteHeadOrder(os);
     os << endl;
-    WriteThreshLead(os);
-    os << PadR(Thresh(ipar.MinFD),W_FD);
-    for (const auto& c:cols) if (c.tolerance) os << " " << PadR(Thresh(*c.tolerance),c.width);
-    os << endl;
+    // The tolerance line: a gate's threshold under its label; a column that gates nothing (an OFF gate included) gets a
+    // blank cell, so every later threshold stays under ITS label; trailing blanks are trimmed.
+    std::ostringstream th;
+    WriteThreshLead(th);
+    th << PadR(ipar.MinFD ? Thresh(*ipar.MinFD) : std::string(),W_FD);
+    for (const auto& c:cols) th << " " << PadR(c.tolerance ? Thresh(*c.tolerance) : std::string(),c.width);
+    std::string thresh=th.str(); thresh.erase(thresh.find_last_not_of(' ')+1);
+    os << thresh << endl;
     os << std::string(100,'-') << endl;
 }
 
@@ -1148,14 +1152,35 @@ tSCFIterator<T>::CreateMixer(const SCFParams& ipar, const tbs_t<T>*, const Struc
 {
     if (ipar.Mixer==SCFParams::Mixing::Pulay)   // ResolveMixing let it through only at KerkerG0 = 0: Pulay on D
         return qchem::ChargeDensity::PulayDMixerFactory<T>(ipar.StartingRelaxRo, ipar.PulayDepth, ipar.PulayStart);
-    return qchem::ChargeDensity::LinearMixerFactory<T>(ipar.StartingRelaxRo, ipar.MaxRelaxRo);
+    return qchem::ChargeDensity::LinearMixerFactory<T>(ipar.StartingRelaxRo, ipar.MaxRelaxRo, ipar.MinRelaxRo);
 }
 
+template <class T> std::string tSCFIterator<T>::FirstEnergyRefusal(const EnergyBreakdown& eb, double) const
+{
+    const double Eel=eb.GetTotalEnergy()-eb.GetConstantEnergy();
+    if (Eel<=0.0) return {};
+    std::ostringstream os;
+    os << "the FIRST iterate's energy above the structure constants is " << std::setprecision(6) << Eel << " Ha: above the "
+          "electrons-at-infinity limit 0 that any ground state of a finite system lies below";
+    return os.str();
+}
 template class tSCFIterator<double>;
 template class tSCFIterator<dcmplx>;
 
-// --- The SOLID column list: the same base list, then swap the gate and add the grid column ------------
-// Three of the four differences from the base are here; the fourth (the virial) is NOT, because it is a
+std::string SolidSCFIterator::FirstEnergyRefusal(const EnergyBreakdown& eb, double nElectrons) const
+{
+    constexpr double kMaxPerElectron=1.0;   // Ha: the stated scale (see the declaration); healthy cells sit below +0.05
+    const double E=eb.GetTotalEnergy();
+    if (!(nElectrons>0.0) || E<=kMaxPerElectron*nElectrons) return {};
+    std::ostringstream os;
+    os << "the FIRST iterate's TOTAL energy is " << std::setprecision(6) << E << " Ha, " << E/nElectrons << " Ha per electron: above the "
+          "+" << kMaxPerElectron << " Ha per electron no healthy periodic cell reaches (a periodic cell has no electrons-at-infinity bound)";
+    return os.str();
+}
+
+// --- The SOLID column list: the same base list, then the grid columns after Δρ ----------------------------
+// Two of the three differences from the base are here (the gate column was a third until 2026-11-02, when ΔE/E became every
+// layout's); the third (the virial) is NOT, because it is a
 // DERIVED bool, not a class axis -- IsVirialValid() answers it in either layout, so an all-electron
 // periodic run gets its virial back with no new class.  Note the bundle: ΔE/E and ρ_lost/N are GRID
 // (collocation) properties while the permanent gap is a PERIODIC one, and they sit in one class only
@@ -1164,10 +1189,11 @@ template class tSCFIterator<dcmplx>;
 void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SCFParams& ipar,
                                          size_t idealVirial) const
 {
-    tSCFIterator<dcmplx>::AccumulateColumns(cols,ipar,idealVirial);   // gate, Δρ, [virial]
-    cols[0]=GateDE(ipar);                                             // a collocation SCF is ENERGY-gated
-    cols.insert(cols.begin()+2, GridLossCol());                       // ...and carries the grid-charge leak
-    cols.insert(cols.begin()+3, XCRhoCol());                          // ...and which rho its XC saw (pin 28)
+    tSCFIterator<dcmplx>::AccumulateColumns(cols,ipar,idealVirial);   // ΔE/E, [Δ[F,D]], Δρ, [virial]
+    auto rho=std::find_if(cols.begin(), cols.end(), [](const ColumnData& c){return c.title=="Δρ";});
+    assert(rho!=cols.end() && "the base layout carries Δρ");
+    rho=cols.insert(rho+1, GridLossCol());                             // the grid-charge leak
+    cols.insert(rho+1, XCRhoCol());                                    // ...and which rho its XC saw (pin 28)
 }
 
 // The solid mixer.  The branch here is on the KNOBS -- which RECIPE did the caller ask for? -- not on the
@@ -1203,7 +1229,7 @@ SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, co
     case M::Auto:
         break;
     }
-    return CD::LinearMixerFactory<dcmplx>(ipar.StartingRelaxRo, ipar.MaxRelaxRo);
+    return CD::LinearMixerFactory<dcmplx>(ipar.StartingRelaxRo, ipar.MaxRelaxRo, ipar.MinRelaxRo);
 }
 
 } //namespace
