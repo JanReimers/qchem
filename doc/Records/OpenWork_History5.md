@@ -1083,3 +1083,18 @@ function fails under the same flag (the flag bites).  Sweep: short 1201/1201, lo
 cannot move numbers).  The CLAUDE.md sentence "the linker enforces no cyclic dependencies between libraries" is now true of
 undeclared dependencies too; a sanitizer build (its runtime resolves only in the executable) would have to drop the flag.
 
+## ✅ "`multiplicity: 1` on an ODD electron count silently runs a DOUBLET" -- CLOSED 2026-11-01 (lane B); the row as it stood
+
+| row | why | next action |
+|---|---|---|
+| **`multiplicity: 1` on an ODD electron count silently runs a DOUBLET** (lane H, 2026-11-01) | `src/Calculation/Imp/SolidSetup.C` DECISION 2: `twoS = multiplicity>1 ? multiplicity-1 : nel%2`, so 1 on odd Nelec gives nUp=nel/2+1, nDown=nel/2 and the parity check ("catches a singlet asked of an odd electron count") can never fire.  The `SolidSetup.C` doc says 1 = the EXPLICIT two-channel singlet (nUp=nDn).  Bit bcc Li (1 e/cell, kT 1e-3, per-spin Fermi levels): the run went fully spin-up (moment 1.1, ↓ band empty 0.13 Ha below the ↑ Fermi level, MOM-guard NON-AUFBAU) and printed Etot −0.2196 Ha against the unpolarized −0.2727 -- 53 mHa, reported CONVERGED (`~/Code/qchem6-runs/Li/mu/badspin/`) | decide what 1 means on odd Nelec: REFUSE with the parity message (CLAUDE.md: a user-reachable choice is an Outcome/throw, never a substitution), or (metal) require `spinsShareFermi` so the counts float; add the case to `src/Calculation/tests/Deck.C` beside the siteSpins rows |
+
+**Verdict.**  REFUSED (CLAUDE.md: a user-reachable impossible request is a refusal, never a substitution).  Decision 2 is now one
+exported function, `SpinChannelCounts(opts, nel)` (`src/Calculation/SolidSetup.C`): multiplicity 1 is the explicit two-channel singlet,
+nUp = nDown, and on an odd count it throws naming the count and the three ways out -- multiplicity 2 (the doublet), 0 (minimal spin),
+or `spinsShareFermi` true (one Fermi level sets the channels, so the counts are only the starting split and keep nel%2 there).  The
+parity / 2S > N check now reaches multiplicity 1 too.  `deck::Resolve` calls it on the RESOLVED Nelec, so `rundeck --check` refuses
+the deck before any SCF.  UT `Deck.MultiplicityOneOnAnOddCountIsRefusedUnlessTheSpinsShareAFermiLevel` (NaF: 8 electrons pass, 7
+refused naming "odd Nelec 7", 7 with spinsShareFermi / multiplicity 2 / minimal spin pass, a doublet of 8 and 2S = 9 hit the parity
+message).  No shipped deck asked for it (`scripts/vet-decks`: 52 of 56 OK, the 4 failures are the panel-deck basis-path row).
+
