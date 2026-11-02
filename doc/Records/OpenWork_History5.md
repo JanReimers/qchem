@@ -1120,3 +1120,22 @@ the deck before any SCF.  UT `Deck.MultiplicityOneOnAnOddCountIsRefusedUnlessThe
 refused naming "odd Nelec 7", 7 with spinsShareFermi / multiplicity 2 / minimal spin pass, a doublet of 8 and 2S = 9 hit the parity
 message).  No shipped deck asked for it (`scripts/vet-decks`: 52 of 56 OK, the 4 failures are the panel-deck basis-path row).
 
+
+
+## ✅ THREADED multi-k run HANGS FOREVER: a data race on `DeltaScalarFitter`'s lazy `mutable` caches (closed 2026-11-02, lane A, 0e99a8a4)
+
+**The row, verbatim:**
+
+| **THREADED multi-k run HANGS FOREVER: a data race on `DeltaScalarFitter`'s lazy `mutable` caches** (F; found 2026-11-02) | lane H's `Li_bcc_q1_k8_u` (bcc Li, k8, Becke XC, QCHEM_OPENMP_THREADS=8) printed the header and sat at iteration 1 for 10 h at 200% CPU.  gdb: two threads spinning in `std::map::find` → `_M_lower_bound` on the SAME `IntCache` (`src/Fitting/Internal/DeltaFunctionFitter.C:181` `Integrator`: unlocked find-then-emplace), called from `tCompositeWF::AssembleFock`'s parallel block loop via `tVxc_Quadrature::MakeMatrix` → `DensitySampler_Singles` → `Overlap`/`Contract`.  A concurrent `emplace` corrupted the red-black tree, so lookups never terminate.  AssembleFock's contract ('the serial cold pass warms every cache; later passes do density-derived work only') does not hold for this cache: the Becke-quadrature integrators are first touched in a parallel pass.  Serial sweeps can never see it (every sweep is serial) | fix: guard `Integrator`/`Handle` (and every lazily-filled `mutable` map reachable from AssembleFock) with a mutex, or warm them in the cold pass, and ASSERT the contract (a cache miss in a parallel pass throws); then a 2-thread multi-k Becke UT that would hang/race (run under TSan once); audit the other `mutable SymMap` caches in `src/Fitting` · gdb stacks in the controller session (2026-11-02) |
+
+**Verdict.**  The row's diagnosis held, with one correction to its cure.  The XC sampler builds ONE `DeltaScalarFitter` per field value v
+(`tSinglesDensitySampler::FitFor`) and every Bloch block of the parallel Fock pass contracts against it, so the fitter's `Integrator`/`Handle`
+maps are FIRST filled inside that pass: no serial cold assembly can warm an object born after it, which also makes the row's "make a
+parallel-pass cache miss throw" FALSE here -- that miss is legitimate.  The guard is a lock: `DeltaScalarFitter::Integrator` (Handle is reached
+only from it), and the same per-block find/emplace pattern in `ConstrainedFF::Integrator` (the Gaussian fitter) and `DeltaFit_IBS::Table` /
+`Tensor` (two locks, tensor then table; Table never takes the tensor's).  Audit of the rest of AssembleFock's reach: the terms' `itsCache` /
+`itsRealCache` are pre-created per block by the refresh (each block writes its own node, by design); the pair sampler's `itsAdj`, Hubbard's
+projectors and the PP `itsByL` already lock.  AssembleFock's comment now says the warm-up is an optimisation, never the guard.  Gate:
+`ResponseKernel.GPW_Si_k311_FockIsBitIdenticalAcrossThreads_Becke_Pol` (threaded pass FIRST, Becke × Pol = two fitters, the hanging
+configuration).  TSan (`build/TSan`, the three threaded Fock gates): **0 warnings; with the fitter lock removed, 29** (the same pass and the
+`DeltaFit_IBS` closures it reaches).  Not re-run: lane H's bcc Li k8 deck itself (a threaded production run; the next one is the check).
