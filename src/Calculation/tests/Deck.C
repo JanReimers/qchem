@@ -529,6 +529,24 @@ TEST(Deck, EggBoxRoundTripsAndRefusesWhatCannotTranslate)
     EXPECT_NE(msg(base({{{"eggBox",{{"shift",{0.1,0}}}}}},json::object())).find("[x,y,z]"),std::string::npos);
 }
 
+// The XC-mesh audit action (doc/OpenWork.md §3 "A curvature needs an XC-MESH ladder"): round-trips its reference mesh, defaults to lane B's
+// (80, 48), and is refused before the SCF where it cannot work (a plane-wave run has no Becke mesh) or names no mesh.
+TEST(Deck, XCMeshAuditRoundTripsAndRefusesANonPositiveMesh)
+{
+    auto msg=[](json d){ try { deck::RunSpec s; deck::FromJson(d,s); deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
+    auto base=[](json post) { return json{{"structure","NaF_rocksalt"},{"postSCF",post}}; };
+    deck::RunSpec r;
+    deck::FromJson(base({{{"xcMeshAudit",json::object()}}, {{"xcMeshAudit",{{"nRadial",60},{"angularDegree",35}}}}}), r);
+    ASSERT_EQ(r.postSCF.size(),2u);
+    EXPECT_EQ(r.postSCF[0].xcRefNRadial, 80); EXPECT_EQ(r.postSCF[0].xcRefAngularDegree, 48);
+    EXPECT_EQ(r.postSCF[1].xcRefNRadial, 60); EXPECT_EQ(r.postSCF[1].xcRefAngularDegree, 35);
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
+    EXPECT_EQ(deck::ToJson(back),j); EXPECT_TRUE(back.postSCF==r.postSCF);
+    EXPECT_EQ(msg(base({{{"xcMeshAudit",json::object()}}})),"NO THROW");
+    EXPECT_NE(msg(base({{{"xcMeshAudit",{{"nRadial",0}}}}})).find("> 0"),std::string::npos);
+    EXPECT_NE(msg(base({{{"xcMeshAudit",{{"angularDeg",40}}}}})).find("angularDeg"),std::string::npos) << "a typo is refused, not ignored";
+}
+
 TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
 {
     auto msg=[](json solid)
