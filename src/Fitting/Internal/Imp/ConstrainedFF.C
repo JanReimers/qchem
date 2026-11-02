@@ -1,5 +1,6 @@
 // File: ConstrainedFF.C  Density (Coulomb-metric) fitter with the Dunlap charge constraint.
 module;
+#include <mutex>
 #include <iostream>
 #include <cassert>
 #include <vector>
@@ -61,6 +62,7 @@ template <class T> void ConstrainedFF<T>::DoFitUnconstrained(const ProjectedDens
 template <class T> const DenseProjector3Integrator<T>&
 ConstrainedFF<T>::Integrator(const BasisSet::Orbital_DFT_IBS<T,T>& orb) const
 {
+    std::lock_guard<std::mutex> lock(itsIntLock.m);   // a parallel Fock pass's blocks share this fitter (see DeltaScalarFitter::Integrator)
     const sym_t& id=orb.GetSymt();
     auto it=itsInt.find(id);
     if (it!=itsInt.end()) return it->second;
