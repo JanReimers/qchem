@@ -104,11 +104,31 @@ static BasisSet::Real_BS* BuildBasis(const AtomCalcOptions& opts, int Z, const E
 
 AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,
                                  const SCFParams& params, const AcceleratorOptions& acc)
+    : AtomCalculation(BuildOnly{}, Z, charge, opts, acc, nullptr)
+{
+    Converge(params);
+}
+
+std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(int Z, int charge, const AtomCalcOptions& opts,
+                                                          const AcceleratorOptions& acc, Observer onIteration)
+{
+    std::unique_ptr<AtomCalculation> c(new AtomCalculation(BuildOnly{}, Z, charge, opts, acc, std::move(onIteration)));
+    namespace rpt = qchem::report;
+    rpt::Begin(c->itsStructure->ID()+" build");       // the BUILD's own run: the setup, complete, before any SCF
+    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
+    c->BuildGraph();
+    c->itsPrepared=true;
+    return c;
+}
+
+AtomCalculation::AtomCalculation(BuildOnly, int Z, int charge, const AtomCalcOptions& opts, const AcceleratorOptions& acc,
+                                 Observer onIteration)
     : itsZ(Z)
     , itsNe(Z - charge)
     , itsOpts(opts)
     , itsAcc(acc)
     , itsStructure(std::make_shared<Atom>(Z, double(charge), rvec3_t(0,0,0)))
+    , itsObserver(std::move(onIteration))
 {
     // The EC follows the model: a pseudo-atom uses the valence-only PseudoAtom_EC (keyed by the full Z and
     // the net charge Zion-electrons); relativistic models need the Dirac (j-coupled) configuration;
@@ -116,9 +136,8 @@ AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,
     itsEC = opts.pseudopotential ? static_cast<ElectronConfiguration*>(new PseudoAtom_EC(itsZ, PPZion(opts,itsNe)-itsNe, PPZion(opts,itsNe)))
           : IsDirac(opts.model)  ? static_cast<ElectronConfiguration*>(new AtomDirac_EC(itsNe))
           :                        static_cast<ElectronConfiguration*>(new Atom_EC(itsNe));
-    // The basis is NOT built here: the first Converge builds it INSIDE its run report's "basis" section, so
-    // the shells' exponents are announced by the shells themselves as they are constructed (V1.14).
-    Converge(params);
+    // The basis is NOT built here: BuildGraph builds it INSIDE an open run report's "basis" scope, so the shells'
+    // exponents are announced by the shells themselves as they are constructed (V1.14).
 }
 
 AtomCalculation::~AtomCalculation()
@@ -128,7 +147,15 @@ AtomCalculation::~AtomCalculation()
     delete itsEC;
 }
 
-bool AtomCalculation::Converge(const SCFParams& params)
+// The accelerator TYPE the caller asked for (opts.accelerator's "type"; DIIS by default) -- the scf header names it.
+std::string AtomCalculation::AcceleratorTag() const
+{
+    return (itsOpts.accelerator.is_object() && !itsOpts.accelerator.empty())
+         ? itsOpts.accelerator.value("type", std::string("DIIS")) : std::string("DIIS");
+}
+
+// THE GRAPH, built inside the caller's open report run (Converge's, or Prepare's own build run).
+void AtomCalculation::BuildGraph()
 {
     namespace H = qchem::Hamiltonian;
     // Atoms use the proven Z-scaled DIIS engage gate unless the caller pins one.  The json escape hatch (opts.accelerator)
@@ -139,12 +166,9 @@ bool AtomCalculation::Converge(const SCFParams& params)
     const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : itsZ*itsZ*0.08/32;
     nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
                             {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
-    std::string ts = "DIIS";
+    const std::string ts = AcceleratorTag();
     if (itsOpts.accelerator.is_object() && !itsOpts.accelerator.empty())
-    {
         for (auto& [k,v] : itsOpts.accelerator.items()) jsacc[k]=v;
-        ts = itsOpts.accelerator.value("type", std::string("DIIS"));
-    }
     using AType = qchem::SCFAccelerators::Type;
     const bool directmin = (ts=="directmin" || ts=="DirectMin");
     if (directmin) jsacc["EMax"]=1e10;   // GDM always steps; the direct-min loop seeds via diagonalize
@@ -159,15 +183,7 @@ bool AtomCalculation::Converge(const SCFParams& params)
     // default, but Cholesky when a caller deliberately wants an over-complete basis kept whole).
     const qchem::Ortho ortho = IsDirac(itsOpts.model) ? qchem::Cholesky : itsOpts.ortho;
 
-    // Open a run report for the whole atomic SCF -- the atom-side mirror of qchem::Calculation (Reporting is
-    // new; this brings the atomic front door onto it, so scfrun/valgen and the A_* tests all record a run).
-    // The RAII guard guarantees End() even if a step throws, so a failed run never leaks the sink's context/
-    // cursor stacks.  Nothing renders unless a client attached a console (report::SetConsole); nested runs (a
-    // valence-basis generator brackets its own) stay console-quiet below depth 1.
     namespace rpt = qchem::report;
-    rpt::Begin(itsStructure->ID());
-    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
-    EmitScfSection(itsOpts, itsNe, ts, params);        // the "what recipe am I running" header
 
     // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
     // run: the FIRST Converge BUILDS the basis (each exponent shell announces its own basis.exponents row as it is
@@ -207,6 +223,21 @@ bool AtomCalculation::Converge(const SCFParams& params)
         itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), ortho);
     }
     // (directmin => AType::GDM above, whose WantsLineSearch() drives the direct-min loop -- no SetDirectMin needed.)
+}
+
+bool AtomCalculation::Converge(const SCFParams& params)
+{
+    // Open a run report for the whole atomic SCF -- the atom-side mirror of qchem::Calculation (Reporting is
+    // new; this brings the atomic front door onto it, so scfrun/valgen and the A_* tests all record a run).
+    // The RAII guard guarantees End() even if a step throws, so a failed run never leaks the sink's context/
+    // cursor stacks.  Nothing renders unless a client attached a console (report::SetConsole); nested runs (a
+    // valence-basis generator brackets its own) stay console-quiet below depth 1.
+    namespace rpt = qchem::report;
+    rpt::Begin(itsStructure->ID());
+    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
+    EmitScfSection(itsOpts, itsNe, AcceleratorTag(), params);        // the "what recipe am I running" header
+    if (itsPrepared) itsPrepared=false;                // Prepare built the graph in its own run: reuse it, once
+    else             BuildGraph();
     if (itsObserver) itsScf->SetObserver(itsObserver);
 
     bool ok = itsScf->Iterate(params);

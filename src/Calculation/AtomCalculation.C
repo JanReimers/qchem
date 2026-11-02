@@ -126,6 +126,14 @@ public:
     AtomCalculation(const AtomCalculation&)            = delete;
     AtomCalculation& operator=(const AtomCalculation&) = delete;
 
+    //! \name BUILT, NOT CONVERGED (2026-11-02: the twin of \c Calculation::Prepare / \c SolidCalculation::Prepare)
+    //! The whole graph -- basis, Hamiltonian with every mesh, accelerator, SCF iterator (its wave-function build files
+    //! basis.perIrrep) -- under its OWN report run "<structure ID> build", closed before this returns; no SCF.  Run it with
+    //! \c Converge(params), whose FIRST call reuses this graph.  Until then the accessors have no SCF to read.
+    //!@{
+    static std::unique_ptr<AtomCalculation> Prepare(int Z, int charge = 0, const AtomCalcOptions& opts = {},
+                                                    const AcceleratorOptions& acc = {}, Observer onIteration = nullptr);
+    //!@}
     bool Converge(const SCFParams& params = {});
     void OnIteration(Observer obs);
 
@@ -151,6 +159,13 @@ public:
 
 private:
     typedef std::pair<double, const sf_t*> occ_t;
+    struct BuildOnly {};
+    //! Everything but the SCF: the members and the electron configuration (the graph is \c BuildGraph's).
+    AtomCalculation(BuildOnly, int Z, int charge, const AtomCalcOptions& opts, const AcceleratorOptions& acc, Observer onIteration);
+    //! The accelerator, the basis (first time), the Hamiltonian and the SCF iterator -- inside the caller's open report run.
+    void BuildGraph();
+    std::string AcceleratorTag() const;   //!< the accelerator type the caller asked for, as the scf header names it
+    bool itsPrepared = false;             //!< \c Prepare built the graph: the next Converge reuses it instead of rebuilding
     void RebuildSampling();
 
     int                                  itsZ;

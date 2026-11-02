@@ -5,6 +5,8 @@
 #include <cmath>
 #include <vector>
 import qchem.Calculation;
+import qchem.AtomCalculation;   // AtomCalculation::Prepare (the atom's Build -> Run)
+import qchem.Structure;         // Atom (the atom's report ID)
 import qchem.StructureData;
 import qchem.SCFParams;
 import qchem.SCFIterator;
@@ -46,6 +48,27 @@ TEST(CalculationFacade, AMoleculesXCMeshIsInTheRunReportByIterationOne)
     ASSERT_TRUE(calc.IsConverged());
     ASSERT_TRUE(checked) << "the observer saw no iteration 1";
     EXPECT_TRUE(seen) << "at iteration 1 the run report must already hold grids.xcQuadrature (the molecule's XC mesh)";
+}
+
+//! A PSEUDOPOTENTIAL run's PP quadrature is built in the Hamiltonian's own build phase, so it files at grids.ppQuadrature -- not
+//! under basis.*, where the terms' lazy first-matrix build inside the SCF iterator's construction used to put it (CLAUDE.md "the
+//! run report": fix the run sequence, never the path; OpenWork, the mesh-report remainder, 2026-11-02).
+TEST(CalculationFacade, APseudopotentialRunsPPQuadratureIsInGridsNotBasis)
+{
+    bool seen=false, stray=true;
+    Calculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}), {},
+                     [&](const SCFIterator::IterationRow& p)
+                     {
+                         if (p.iteration!=1) return;
+                         const auto& doc=qchem::report::CurrentRunReport();
+                         seen = doc.contains("grids") && doc["grids"].contains("ppQuadrature")
+                             && doc["grids"]["ppQuadrature"]["points"].get<long>()>0;
+                         stray = doc.contains("basis") && (doc["basis"].contains("ppLocal") || doc["basis"].contains("ppNonLocal")
+                                                           || doc["basis"].contains("ppQuadrature"));
+                     });
+    ASSERT_TRUE(calc.IsConverged());
+    EXPECT_TRUE(seen)   << "the PP quadrature must be in grids.ppQuadrature by iteration 1";
+    EXPECT_FALSE(stray) << "a PP mesh filed under basis: it was built inside the SCF iterator's construction again";
 }
 
 TEST(CalculationFacade, LevelsListEveryMOAscendingAndTheOccupiedOnesAreTheOrbitals)
@@ -112,4 +135,60 @@ TEST(CalculationFacade, ConvergeIsAnOutcomeTheAnswersLiveOnTheProof)
     EXPECT_EQ(F.Error().iterations, 1u);
     EXPECT_TRUE(std::isfinite(F.Error().lastEnergy)) << "the last iterate is kept as a DIAGNOSTIC";
     EXPECT_FALSE(F.Error().details.empty());
+}
+
+namespace
+{
+//! The newest FILED run whose key starts with \a prefix ("<ID> build@<time>"); null when none.
+const qchem::report::json* FiledRun(const std::string& prefix)
+{
+    const auto& G=qchem::report::GlobalReport();
+    const qchem::report::json* last=nullptr;
+    for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(prefix,0)==0) last=&it.value();
+    return last;
+}
+}
+
+//! BUILD, THEN RUN (OpenWork "A molecule has no build-only step", user 2026-11-02: "the GUI needs a trigger to read all setup
+//! panels and start the actual work").  Prepare files the whole setup -- basis.perIrrep, every grids.* entry -- in its OWN report
+//! run, closed before it returns and BEFORE any SCF iteration; the first Converge then reuses that graph and lands on the
+//! constructor's answer bit for bit.
+TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsOwnBuildRunBeforeAnySCF)
+{
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"});
+    size_t rows=0;
+    auto calc=Calculation::Prepare(setup, [&](const SCFIterator::IterationRow&){ rows++; });
+    EXPECT_EQ(rows, 0u) << "Prepare ran an SCF iteration";
+    const auto* build=FiledRun(GetMolecule("H2O").ID()+" build@");
+    ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
+    ASSERT_TRUE(build->contains("basis") && (*build)["basis"].contains("perIrrep")) << build->dump(1);
+    EXPECT_FALSE((*build)["basis"]["perIrrep"].empty());
+    ASSERT_TRUE(build->contains("grids")) << build->dump(1);
+    for (const char* g : {"xcQuadrature", "ppQuadrature", "auxiliaryFit"})
+        EXPECT_TRUE((*build)["grids"].contains(g) && (*build)["grids"][g]["points"].get<long>()>0) << "grids." << g << " missing from the build run";
+    // No SCF ran: no scf header (Converge files it) -- an "scf" key may hold a setup fact the seed build files (xcRhoRoutes)
+    EXPECT_FALSE(build->contains("scf") && (*build)["scf"].contains("standard")) << "the build run holds an SCF: " << (*build)["scf"].dump(1);
+
+    auto r=calc->Converge();
+    ASSERT_TRUE(r) << r.Error().details;
+    EXPECT_GT(rows, 0u) << "the observer attached at Prepare sees the first Converge";
+    Calculation once(setup);
+    EXPECT_DOUBLE_EQ(r->Energy(), once.Energy()) << "Prepare + Converge must be the constructor, bit for bit";
+    EXPECT_EQ(r->IterationCount(), once.IterationCount());
+}
+
+//! The atom's Build -> Run twin.
+TEST(CalculationFacade, AnAtomsPrepareFilesItsSetupBeforeAnySCF)
+{
+    const AtomCalcOptions opts{.type=AtomType::Gaussian, .model=Model::LDA};
+    auto calc=AtomCalculation::Prepare(8, 0, opts);
+    const auto* build=FiledRun(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build@");
+    ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
+    EXPECT_TRUE(build->contains("basis") && (*build)["basis"].contains("perIrrep")) << build->dump(1);
+    EXPECT_TRUE(build->contains("grids") && (*build)["grids"].contains("xcQuadrature")) << build->dump(1);
+    EXPECT_FALSE(build->contains("scf") && (*build)["scf"].contains("standard")) << "the build run holds an SCF";
+    ASSERT_TRUE(calc->Converge());
+    AtomCalculation once(8, 0, opts);
+    EXPECT_DOUBLE_EQ(calc->Energy(), once.Energy());
+    EXPECT_EQ(calc->IterationCount(), once.IterationCount());
 }

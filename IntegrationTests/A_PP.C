@@ -199,7 +199,7 @@ TEST(A_PP, PerLKleinmanBylanderOracle)
     {
         auto sep=std::make_shared<const HGH_SeparablePotential>(onechannel(lProj));
         const double D=sep->Weight(Z,0);
-        Hamiltonian::PP_NonLocal term(st, sep, mp);
+        Hamiltonian::PP_NonLocal term(st, sep, mp, std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mp)));   // the radial route ignores the 3-D mesh
 
         for (auto* blk : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_OIBS>())
         {

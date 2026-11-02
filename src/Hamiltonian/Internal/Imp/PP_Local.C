@@ -14,7 +14,6 @@ import qchem.Energy;
 import qchem.Mesh.Quadrature;           // qcMesh::Mesh, MatrixOverlap (over qcMath Scalar/VectorFunction)
 import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (the integrand source, passed direct)
 import qchem.Math;                      // norm(Vector3D)
-import qchem.Reporting;                 // report::Scope -- the mesh builder reports one level into "ppLocal"
 
 namespace qchem::Hamiltonian
 {
@@ -39,18 +38,17 @@ public:
 
 } //anon
 
-PP_Local::PP_Local(const st_t& st, vloc_t vloc, const qcMesh::MeshParams& mp)
-    : theStructure(st), itsVloc(std::move(vloc)), itsMeshParams(mp)
+PP_Local::PP_Local(const st_t& st, vloc_t vloc, mesh_t mesh)
+    : theStructure(st), itsVloc(std::move(vloc)), itsMesh(std::move(mesh))
 {
     assert(theStructure);
     assert(itsVloc);
+    assert(itsMesh && itsMesh->size()>0);
 }
 
 rsmat_t PP_Local::MakeMatrix(const robs_t* bs, const Spin&) const
 {
-    const qcMesh::Mesh mesh=[&]{ qchem::report::Scope here("ppLocal");      // the mesh builder reports one level in
-                                 return theStructure->CreateIntegrationMesh(itsMeshParams); }();   // the geometry's own mesh
-    return qcMesh::MatrixOverlap(mesh, *bs, VlocField(*theStructure, *itsVloc));
+    return qcMesh::MatrixOverlap(*itsMesh, *bs, VlocField(*theStructure, *itsVloc));
 }
 
 void PP_Local::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const

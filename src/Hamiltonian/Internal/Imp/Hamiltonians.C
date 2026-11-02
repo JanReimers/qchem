@@ -92,8 +92,14 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
 {
     Add(new Kinetic<double>);
     Add(new IonIon<double>(st, vloc->ZionFn()));     // ion-ion of the Zion cores (0 for one atom; Zion, not itsZ)
-    Add(new PP_Local(st, vloc, mp));                 // pseudized replacement for Ven (combined model -> _R view)
-    if (sep) Add(new PP_NonLocal(st, std::move(sep), mp));   // KB separable projectors (null => local-only)
+    // ONE quadrature for both PP terms, built HERE -- in the Hamiltonian's own build phase, under a scope naming it -- and
+    // shared.  The terms used to build it lazily at their first matrix request, which happens inside the SCF iterator's
+    // construction, so the run report filed it under the facade's basis scope (CLAUDE.md "the run report": fix the run
+    // sequence, never the path); and once per term per basis block.  Geometry-only, so one mesh serves every block.
+    const PP_Local::mesh_t ppMesh=[&]{ qchem::report::Scope here("ppQuadrature");
+                                       return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mp)); }();
+    Add(new PP_Local(st, vloc, ppMesh));             // pseudized replacement for Ven (combined model -> _R view)
+    if (sep) Add(new PP_NonLocal(st, std::move(sep), mp, ppMesh));   // KB separable projectors (null => local-only)
 
     FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis, st->GetNumElectrons()));

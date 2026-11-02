@@ -114,6 +114,25 @@ Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFPa
 
 Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
                          const SCFParams& scf, Observer onIteration)
+    : Calculation(BuildOnly{}, std::move(setup), at, std::move(carry), std::move(onIteration))
+{
+    (void)Converge(scf);                              // so Energy()/Density() are ready on return; Result() is its outcome
+}
+
+std::unique_ptr<Calculation> Calculation::Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration)
+{
+    const Structure& ref=*setup->reference;
+    std::unique_ptr<Calculation> c(new Calculation(BuildOnly{}, std::move(setup), ref, nullptr, std::move(onIteration)));
+    namespace rpt = qchem::report;
+    rpt::Begin(c->itsStructure->ID()+" build");       // the BUILD's own run: the setup, complete, before any SCF
+    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
+    c->BuildGraph();
+    c->itsPrepared=true;
+    return c;
+}
+
+Calculation::Calculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
+                         std::unique_ptr<const Carry> carry, Observer onIteration)
     : itsSetup(std::move(setup))
     // A pseudopotential run works on the VALENCE ions (Z-Zion charge) so the electron count is the valence count -- the
     // structure the basis and the EC both read.
@@ -122,9 +141,8 @@ Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const Struc
     , itsObserver(std::move(onIteration))
 {
     itsEC    = MakeMoleculeEC(itsSetup->Ne, itsSetup->opts.multiplicity);
-    // The basis is NOT built here: the first Converge builds it INSIDE its run report's "basis" section, so a
-    // basis with something to announce does so as it is constructed (V1.14).
-    (void)Converge(scf);                              // so Energy()/Density() are ready on return; Result() is its outcome
+    // The basis is NOT built here: BuildGraph builds it INSIDE an open run report's "basis" scope, so a basis with something
+    // to announce does so as it is constructed (V1.14).
 }
 
 Calculation::~Calculation()
@@ -134,21 +152,15 @@ Calculation::~Calculation()
     delete itsEC;
 }
 
-Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParams& params)
+// THE GRAPH, built inside the caller's open report run (Converge's, or Prepare's own build run).
+void Calculation::BuildGraph()
 {
+    namespace rpt = qchem::report;
     const CalcOptions& opts=itsSetup->opts;
     nlohmann::json jsacc = {{"NProj", itsSetup->acc.nProj}, {"EMax", itsSetup->eMax},
                             {"EMin", itsSetup->acc.eMin}, {"SVTol", itsSetup->acc.svTol}};
     auto* accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, jsacc);
     const auto seed = itsSetup->seed;
-
-    // Open a run report for the whole SCF (the RAII guard guarantees End() even if a step throws,
-    // so a failed run never leaks the sink's run-context / cursor stacks).  The report only RECORDS
-    // unless a client attached a console via report::SetConsole.
-    namespace rpt = qchem::report;
-    rpt::Begin(itsStructure->ID());
-    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
-    EmitScfSection(params, itsSetup->acc.type);               // the "what recipe am I running" header
 
     // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
     // run: the FIRST Converge BUILDS the basis (a basis with something to announce does so as it is constructed --
@@ -211,7 +223,19 @@ Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParam
             itsCarry.reset();
         }
     }
+}
 
+Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParams& params)
+{
+    // Open a run report for the whole SCF (the RAII guard guarantees End() even if a step throws,
+    // so a failed run never leaks the sink's run-context / cursor stacks).  The report only RECORDS
+    // unless a client attached a console via report::SetConsole.
+    namespace rpt = qchem::report;
+    rpt::Begin(itsStructure->ID());
+    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
+    EmitScfSection(params, itsSetup->acc.type);               // the "what recipe am I running" header
+    if (itsPrepared) itsPrepared=false;                       // Prepare built the graph in its own run: reuse it, once
+    else             BuildGraph();
     if (itsObserver) itsScf->SetObserver(itsObserver);
     (void)itsScf->Iterate(params);   // the outcome is the iterator's Converged(), minted below
 
