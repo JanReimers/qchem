@@ -73,6 +73,11 @@ typedef struct qcb_request
     double        relaxMin;       //!< the adaptive step's floor (SCFParams::MinRelaxRo), 0 = the lib's default
     double        ladderSwitchAt; //!< the Ladder's DIIS -> GDM hand-off at |ΔE/E| below this (AcceleratorOptions::ladderSwitchAt),
                                   //!< 0 = stall only, < 0 = the lib's default (1e-6)
+    //! The SCF's convergence gates (SCFParams' std::optional Gates): > 0 the gate, 0 = OFF, < 0 = the lib's default.
+    double        gateFD;         //!< [F,D], the worst irrep's orbital gradient (MinFD; default 1e-5)
+    double        gateDrho;       //!< Δρ per electron (MinΔρPerElectron; default 1e-4)
+    double        gateDE;         //!< |ΔE/E| (MinΔE; default off)
+    double        gateDFD;        //!< |Δ[F,D]| (MinΔFD; default off)
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).

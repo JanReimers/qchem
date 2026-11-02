@@ -110,6 +110,8 @@ qchem::SCFParams scf_params(const qcb_request& req)
     if (req.relaxStart > 0.0) p.StartingRelaxRo = req.relaxStart;
     if (req.relaxMax   > 0.0) p.MaxRelaxRo      = req.relaxMax;
     if (req.relaxMin   > 0.0) p.MinRelaxRo      = req.relaxMin;
+    const auto gate = [](qchem::Gate& g, double v) { if (v > 0.0) g = v; else if (v == 0.0) g = std::nullopt; };   // < 0: the default
+    gate(p.MinFD, req.gateFD); gate(p.MinΔρPerElectron, req.gateDrho); gate(p.MinΔE, req.gateDE); gate(p.MinΔFD, req.gateDFD);
     p.UseMOM = req.useMOM != 0;
     if (req.momStart   > 0)   p.MOMStartIter    = req.momStart;
     return p;
