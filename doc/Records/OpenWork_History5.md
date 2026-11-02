@@ -1068,3 +1068,26 @@ at 160 Ha was +3.7e-6).  Cost: SCF 1869 s at 4 threads, peak RSS 2.7 GB (a heavy
 +0.05 bohr +4.52e-4, rigid +1.2e-7.  Not reused: the main run's density (the session seeds afresh); a deck that only wants the
 points still pays one Energy SCF first -- a `structure.path` form could skip it if that ever matters.
 
+
+## ✅ Dense Mn d midpoints make β-MnO₂ GPW DIVERGE from iteration 1 (closed 2026-11-01, lane A)
+
+**The row, verbatim:**
+
+| **Dense Mn d midpoints make β-MnO₂ GPW DIVERGE from iteration 1 on main 0fab43d6 (regression)** (lane H, 2026-11-01) | `basis_scan/pol/p5f3_dD.bsd` (Mn p5 f3 + Mn d 0.56 … 24.66, vet off, CholeskyPivoted 1e-7 keeps 296/296, min pivot 4e-6) converged on 2026-10-26 (first iterate −93.10 Ha, AliasFree).  On main 0fab43d6 the FIRST iterate is +4.19e4 Ha at x = 8 (`accuracy` 0, rasterX/vlocRasterX/xcRasterX 8 -- the stated AliasFree) and +845 Ha at the default ε; 300 iterations end at +4.7e3 Ha (`uscan/ladder/p5f3_dD_U0.log`, `probe/dD_default.log`).  The same runs on control / Mn_p5f3 / p5f3_Od / p5f3_Od4f (no dense d) reproduce the old numbers to 1e-7 Ha.  So a Hamiltonian term breaks on a tight d set (the 24.66 Mn d is just above `routingBeta` 24); the ladder table carries the extra 144 Ha rung in both.  Suspect C2 step 3 (ε-sized rasters) or a commit between 2026-10-26 and 0fab43d6; an SCF whose first energy is +4e4 Ha should FAIL loudly (cf. the BallOnly row's "below any physical bound" ask) | bisect with `p5f3_dD_U0.json` at NMaxIter 1 (first Etot −93.10 vs +4e4 is the gate; ~1 min a step) between the 2026-10-26 run's commit and 0fab43d6; then the term-by-term energy split of iteration 1 · `src/BasisSet/Gaussian/Lattice/Imp/GPW_Evaluator.C`, `~/Code/qchem6-runs/MnO2/uscan/ladder/` |
+
+**Verdict: the RASTER, amplified by the overlap's conditioning -- not a Hamiltonian term, not a commit.**  The basis is the same 296 functions
+in both runs (not the reader); λ_min(S) = 6.75e-7.  First iterate vs the raster alias exponent x (90³ unless noted; `~/Code/qchem6-runs/MnO2/dDregress/`):
+x 8 (64³) +41888 Ha (Eee +38770, Ekin +3440); x 11 −80.75302; x 13 / 16 −80.75311.  The 2026-10-26 run sat on AliasFree, which is x ≈ 16 on
+this cell, NOT 8: AliasFree sized G² = 4·p_h·ln(1e6) with p_h = pβ/(p+β), ≈ 13.8p under HartreeXC routing (β = p/3), rounded up by the FFT
+menu -- so lane H's "x 8 = the stated AliasFree" deck was half its alias exponent (doc/GridEpsilonPlan.md row 1, corrected).  At the default ε the
+first SCF starts on the ball's own rasters (x ≈ 4: Eelec +923 Ha) and the pilot (C2 step 3) only audits after convergence, which never came.
+
+**Fix (lane A):** (1) `SCFIterator` REFUSES a first iterate whose ELECTRONIC energy is above 0 (electrons at infinity: any ground state lies
+below it at any geometry and charge; the TOTAL can be positive, e.g. compressed H₂) -- `SCFFailure::Why::UnphysicalEnergy`, both facades, the
+message names the raster/conditioning cause.  (2) `SolidCalculation::Converge`: a refused GPW run on UNRESOLVED rasters restarts ONCE from the
+seed on rasters with e^(−x) ≤ λ_min(S), x = max(ln(1/λ_min), the ball's) -- 14.21 here; a STATED raster is never overridden.  Measured: the
+stated-x 8 deck refuses at iteration 1; the default deck refuses, restarts at x 14.21, converges in 24 (Etot −93.4419391947) and the pilot SETTLES
+with 0 re-convergences (every raster term meets 6e-5 Ha).  Gates: `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_RefusesAnAliasedFirstIterate_Long`,
+`…_ConvergesThroughARefusedFirstIterate_Panel_Long` (the basis vendored as `decks/panel/MnO2_p5f3_dD.bsd`).  Lane H's pilot ask (45³ vs 90³): on
+this cell the pilot settled on 90³ at x 14.21 after the restart; the unrefused case is the remainder row.  pybind `why_name` lacks the new Why
+(flagged to lane G).
