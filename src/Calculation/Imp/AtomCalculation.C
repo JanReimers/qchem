@@ -19,6 +19,7 @@ import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Types;                                  // Vector3D / rvec3_t
 import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
+import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
 
 namespace qchem
 {
@@ -51,28 +52,16 @@ static std::string AtomTypeName(AtomType t)
     return "?";
 }
 
-// Build the run report's `scf` section (the atom-side analogue of Calculation.C's EmitScfSection): the
-// "what recipe am I running" header.  The report IS json, so this provider owns the keys; standard = the
-// settled recipe surface (doc/RunReportPlan.md schema).  A no-op console-wise unless a client attached one.
-static void EmitScfSection(const AtomCalcOptions& o, int ne, const std::string& accelerator,
-                           const SCFParams& p)
+// The atom's own keys of the run report's `scf` header (the knobs are the shared ReportSCFRecipe's): what model, which spin
+// representation, how many electrons, and a pseudo-atom's valence.
+static qchem::report::json AtomRecipeKeys(const AtomCalcOptions& o, int ne)
 {
-    namespace rpt = qchem::report;
-    rpt::json standard;
-    standard["model"]       = o.pseudopotential ? std::string("PP") : ModelName(o.model);
-    standard["pol"]         = (o.spin == SpinGroup::Polarized) ? "P" : "U";
-    standard["nElectrons"]  = ne;
-    standard["nMaxIter"]    = long(p.NMaxIter);
-    auto gate=[](const Gate& g){return g ? rpt::json(*g) : rpt::json("off");};   // an off gate is spelled "off" (was the 1e30 sentinel)
-    standard["minDrho"]     = gate(p.MinΔρPerElectron);
-    standard["minFD"]       = gate(p.MinFD);
-    standard["minDE"]       = gate(p.MinΔE);
-    standard["accelerator"] = accelerator;
-    if (o.pseudopotential) standard["valence"] = o.valence;
-
-    rpt::json scf;
-    scf["standard"] = standard;
-    rpt::EmitSection("scf", scf);
+    qchem::report::json own;
+    own["model"]      = o.pseudopotential ? std::string("PP") : ModelName(o.model);
+    own["pol"]        = (o.spin == SpinGroup::Polarized) ? "P" : "U";
+    own["nElectrons"] = ne;
+    if (o.pseudopotential) own["valence"] = o.valence;
+    return own;
 }
 
 // PP Zion: the explicit valence (Zion) if given, else the electron count (a neutral pseudo-atom).
@@ -238,7 +227,7 @@ bool AtomCalculation::Converge(const SCFParams& params)
     namespace rpt = qchem::report;
     rpt::Begin(itsStructure->ID());
     struct RunScope { ~RunScope() { rpt::End(); } } runScope;
-    EmitScfSection(itsOpts, itsNe, AcceleratorTag(), params);        // the "what recipe am I running" header
+    { rpt::Section scf("scf"); ReportSCFRecipe(params, AcceleratorTag(), AtomRecipeKeys(itsOpts, itsNe)); }   // the "what recipe am I running" header
     if (itsPrepared) itsPrepared=false;                // Prepare built the graph in its own run: reuse it, once
     else             BuildGraph();
     if (itsObserver) itsScf->SetObserver(itsObserver);

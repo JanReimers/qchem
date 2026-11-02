@@ -37,6 +37,7 @@ import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeLadderAb
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.SCFCap;                           // SetupSCF -- the seed's atomic solves are not the run's iterations
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
+import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
 
 namespace qchem
 {
@@ -1025,6 +1026,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
     const SCFParams resolved=itsImp->scf->ResolveMixing(params);
     EmitSCFBanner(itsImp->setup->opts.label, resolved, itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
                   itsImp->stageAccelAsked==SCFAccelerators::Type::Auto);
+    { qchem::report::Section scf("scf"); ReportSCFRecipe(resolved, AccelName(itsImp->stageAccel)); }   // the run report's "what recipe am I running" header, as every facade files it
     itsImp->lastOccupation = {.useMOM=params.UseMOM, .momStartIter=(int)params.MOMStartIter,
                               .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty};   // the iterator's own conversion
     itsImp->lastkT     = params.SmearingkT;

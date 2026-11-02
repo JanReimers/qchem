@@ -22,6 +22,7 @@ import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Fa
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
+import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
 import qchem.BasisSet.Orbital_1E_IBS;                // Real_OIBS -- the per-irrep blocks a carry is re-homed onto
 import qchem.CompositeCD;                            // tComposite_CD (the carried density's shape)
 import qchem.ChargeDensity.Factory;                  // IrrepCD_Factory
@@ -72,41 +73,6 @@ static Molecule_EC* MakeMoleculeEC(int Ne, int multiplicity)
     if (multiplicity <= 0) return new Molecule_EC(Ne);    // auto / minimal spin (historical behaviour)
     const int twoS = multiplicity - 1;                    // = nUp - nDown
     return new Molecule_EC((Ne + twoS) / 2, (Ne - twoS) / 2);   // (nUp, nDown)
-}
-
-// Build the report's `scf` section json straight from the SCF knobs -- the report IS json, so this
-// provider owns the keys (no mediating struct).  standard = the settled recipe surface; advanced = the
-// pathological-case dials (doc/RunReportPlan.md schema).  mixer is DERIVED (Pulay > Kerker > linear);
-// accelerator is the chosen engine tag.  EmitSection records it (and renders it iff a console is set).
-static void EmitScfSection(const SCFParams& p, const std::string& accelerator)
-{
-    namespace rpt = qchem::report;
-    rpt::json standard;
-    standard["nMaxIter"]    = long(p.NMaxIter);
-    auto gate=[](const Gate& g){return g ? rpt::json(*g) : rpt::json("off");};   // an off gate is spelled "off" (was the 1e30 sentinel)
-    standard["minDrho"]     = gate(p.MinΔρPerElectron);
-    standard["minDFD"]      = gate(p.MinΔFD);
-    standard["minDE"]       = gate(p.MinΔE);
-    standard["minFD"]       = gate(p.MinFD);
-    // The preconditioner (Kerker/linear) and the history (Pulay) COMPOSE, so name both: "Ker+Pul", "Lin+Pul".
-    standard["mixer"]       = std::string(p.KerkerG0 > 0.0 ? "Ker" : "Lin") + (p.PulayDepth > 0 ? "+Pul" : "");
-    standard["kerkerG0"]    = p.KerkerG0;
-    standard["accelerator"] = accelerator;
-    standard["smearingkT"]  = p.SmearingkT;   // ortho fills when the basis/LASolver section lands
-
-    rpt::json advanced;
-    advanced["pulayDepth"]      = p.PulayDepth;
-    advanced["pulayStart"]      = p.PulayStart;
-    advanced["useMOM"]          = p.UseMOM;
-    advanced["momStartIter"]    = p.MOMStartIter;
-    advanced["momSmearPenalty"] = p.MOMSmearPenalty;
-    advanced["guard"]["holePersistence"] = p.Guard.HolePersistence;
-    advanced["guard"]["maxReleases"]     = p.Guard.MaxReleases;
-
-    rpt::json scf;
-    scf["standard"] = standard;
-    scf["advanced"] = advanced;
-    rpt::EmitSection("scf", scf);
 }
 
 Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
@@ -236,7 +202,7 @@ Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParam
     namespace rpt = qchem::report;
     rpt::Begin(itsStructure->ID());
     struct RunScope { ~RunScope() { rpt::End(); } } runScope;
-    EmitScfSection(params, itsSetup->acc.type);               // the "what recipe am I running" header
+    { rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type); }   // the "what recipe am I running" header
     if (itsPrepared) itsPrepared=false;                       // Prepare built the graph in its own run: reuse it, once
     else             BuildGraph();
     if (itsObserver) itsScf->SetObserver(itsObserver);
