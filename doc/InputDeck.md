@@ -68,6 +68,10 @@ cd build/Release && ninja rundeck                                  # the one CLI
            "minRelaxRo":0.0,                     // the FLOOR of linear D-mixing's adaptive step (a retraction shrinks α by 0.8, never below it); 0 = none
            "pulayDepth":8, "pulayStart":5, "kerkerG0":1.0, "useMOM":false, "smearingkT":5e-3, ... },     // SCFParams, one stage ...
   "schedule": [ {"accelerator":"DIIS","scf":{...}}, {"accelerator":"GDM","scf":{...}} ],   // ... OR an annealed recipe (never both)
+  "acceleratorOptions": {                 // HOW each stage's accelerator is tuned (the stage says WHICH); omitted = the GPW production recipe
+    "diis":   {"nProj":8, "engageBelowFD":0.1, "svTol":1e-9, "svTolRel":1e-4},
+    "gdm":    {"engageBelowFD":1.0, "trust":0.1, "trustBackoff":0.25, "trustMin":1e-4, "pcFloor":0.1, "aufbauTol":0.0, "aufbauMaxRepicks":8},
+    "ladder": {"gdm":{...same keys, trust 0.5...}, "eThresh":1e-8, "stall":5, "floor":1e-8, "switchAt":1e-6, "signal":"EnergyChange|Error"} },
   "state":   { "save": "auto", "restartFrom": "NiO_AFM2.r003" },       // CK-1: auto = <outDir>/states/<stem>.h5; restartFrom = a revision stem (lineage) or a path; runs the FINAL stage only
   "postSCF": [                            // post-convergence actions on the converged calculation, IN ORDER; each reports itself; results go in the revision
     {"estimateHubbardU": {}},                                            // ACBN0 (U,J) from the last iterate
