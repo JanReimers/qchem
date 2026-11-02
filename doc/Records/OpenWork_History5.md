@@ -1068,3 +1068,18 @@ at 160 Ha was +3.7e-6).  Cost: SCF 1869 s at 4 threads, peak RSS 2.7 GB (a heavy
 +0.05 bohr +4.52e-4, rigid +1.2e-7.  Not reused: the main run's density (the session seeds afresh); a deck that only wants the
 points still pays one Energy SCF first -- a `structure.path` form could skip it if that ever matters.
 
+## ✅ "The linker does not enforce library dependencies: no `-Wl,-z,defs` on our shared libraries" -- CLOSED 2026-11-01 (lane B); the row as it stood
+
+| row | why | next action |
+|---|---|---|
+| **The linker does not enforce library dependencies: no `-Wl,-z,defs` on our shared libraries** (user, 2026-11-01; S) | CLAUDE.md says "the linker enforces no cyclic dependencies between libraries"; today only CMake does, and only for DECLARED `target_link_libraries` cycles among shared libraries.  A library that calls into another without declaring it links fine (undefined symbols are allowed in a .so by default) and is caught only, if at all, when an executable links.  C++20 module imports catch most of it, but not all (a non-module symbol, a template instantiated across libraries) | next free lane: add `-Wl,-z,defs` to every project shared library (not submodules), fix each undeclared dependency it reports by DECLARING it (never by allowing undefined), full allTests build + short/long sweep (link flags only: 0 anchor moves expected); then make the CLAUDE.md sentence true as written · root `CMakeLists.txt` |
+
+**Verdict.**  The root `CMakeLists.txt` (end of file) walks the project's own trees -- the root, `src/`, `IntegrationTests/`,
+`CLIapps/` -- for `SHARED_LIBRARY` targets and adds `LINKER:-z,defs` to each, so a new library is covered with no list to keep;
+submodules and `pybind/` are untouched.  NOTHING was undeclared: all 26 libraries (qchem, the qc* family, qcPW_TestFields and the two
+IntegrationTests harnesses) linked clean on the first try, and again on a full clean rebuild after merging main 57912b4a (lane A's
+Fold / xcMeshAudit / `GPW/LiF.C` code included); `ldd -r` reports no undefined symbol in any; a throwaway .so calling an undefined
+function fails under the same flag (the flag bites).  Sweep: short 1201/1201, long 5/5, 0 anchor moves vs main-1d19aad6 (a link flag
+cannot move numbers).  The CLAUDE.md sentence "the linker enforces no cyclic dependencies between libraries" is now true of
+undeclared dependencies too; a sanitizer build (its runtime resolves only in the executable) would have to drop the flag.
+
