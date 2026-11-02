@@ -720,6 +720,10 @@ Materials::Material Resolve(RunSpec& spec)
             for (const auto& [el2,q2] : spec.solid.species) if (el2==el) q=q2;
         spec.solid.Nelec=used.Nelec()-spec.solid.charge;   // a STATED net charge (SolidCalcOptions::charge)
     }
+    // THE SPIN BOOKKEEPING on the resolved count (the setup's own decision 2, run here so --check refuses an impossible request:
+    // multiplicity 1 on an odd count once ran a silent doublet).
+    try { (void)SpinChannelCounts(spec.solid, spec.solid.Nelec); }
+    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.multiplicity -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
     return m;
 }
 

@@ -591,6 +591,26 @@ TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
     EXPECT_NE(msg({{"siteSpins",{2,-1,0,0}}}).find("-1, 0 or +1"),std::string::npos);
 }
 
+// multiplicity 1 is the two-channel SINGLET, nUp = nDown (OpenWork §3, lane H 2026-11-01): an odd electron count cannot hold it, and it
+// once ran a silent doublet (bcc Li, 53 mHa off, CONVERGED).  Refused at resolve -- unless one Fermi level sets the channels.
+TEST(Deck, MultiplicityOneOnAnOddCountIsRefusedUnlessTheSpinsShareAFermiLevel)
+{
+    auto msg=[](json solid)
+    {
+        deck::RunSpec s; deck::FromJson(json{{"structure","NaF_rocksalt"},{"solid",solid}},s);   // 8 electrons (Na q1, F q7)
+        try { deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); }
+        return std::string("NO THROW");
+    };
+    EXPECT_EQ(msg({{"multiplicity",1}}),"NO THROW") << "an even count holds the singlet";
+    EXPECT_NE(msg({{"multiplicity",1},{"charge",1}}).find("SINGLET"),std::string::npos) << "7 electrons: refused, not a silent doublet";
+    EXPECT_NE(msg({{"multiplicity",1},{"charge",1}}).find("odd Nelec 7"),std::string::npos) << "the message names the count";
+    EXPECT_EQ(msg({{"multiplicity",1},{"charge",1},{"spinsShareFermi",true}}),"NO THROW") << "one Fermi level: the counts float";
+    EXPECT_EQ(msg({{"multiplicity",2},{"charge",1}}),"NO THROW") << "the doublet, stated";
+    EXPECT_EQ(msg({{"charge",1}}),"NO THROW") << "minimal spin";
+    EXPECT_NE(msg({{"multiplicity",2}}).find("parity"),std::string::npos) << "a doublet of 8 electrons";
+    EXPECT_NE(msg({{"multiplicity",10}}).find("parity"),std::string::npos) << "2S = 9 > 8 electrons";
+}
+
 // The IonicSAD charge order is STATED or derived (OpenWork §3 "Spinel charge order is CHOSEN by atom index", 2026-10-30): a stated
 // order is one charge per site, conserves the cell's charge, and seeds an IonicSAD run -- else the deck is refused at resolve.
 TEST(Deck, AStatedChargeOrderIsOnePerSiteNeutralAndIonicSAD)
