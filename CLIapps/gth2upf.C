@@ -16,6 +16,7 @@
 // a total energy, nothing on U.
 
 #include <cmath>
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
@@ -87,7 +88,7 @@ int main(int argc, char** argv)
     // the SCF its convergence): d-block from Sc on carries l=2, the p-block l=1, H/He/alkali l=0.
     if (lmaxPool<0) lmaxPool = (Z>=21 && Z<=30) || (Z>=39 && Z<=48) || (Z>=57 && Z<=80) ? 2 : (Z<=2 || Z==3 || Z==11 || Z==19 || Z==37 || Z==55) ? 0 : 1;
     for (int l=0;l<=lmaxPool;l++) o.exponentsByL.push_back({l, pool});
-    SCFParams p; p.MinVirial=1e30; p.NMaxIter=200; p.Verbose=std::getenv("GTH2UPF_VERBOSE")!=nullptr;
+    SCFParams p; p.MinVirial=std::nullopt; p.NMaxIter=200; p.Verbose=std::getenv("GTH2UPF_VERBOSE")!=nullptr;
     AtomCalculation atom(Z, Z-Zion, o, p);
     if (!atom.IsConverged())
     {

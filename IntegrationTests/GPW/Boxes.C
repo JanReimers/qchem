@@ -16,6 +16,7 @@
 //   GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows
 
 #include "gtest/gtest.h"
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <memory>
 #include <vector>
 #include <cmath>
@@ -354,7 +355,7 @@ SolidCalcOptions O2PulayOnDOptions(const Material& box, const std::string& label
 }
 SCFParams O2PulayOnDParams()
 {
-    SCFParams par=Gates(150, 1e-8, 1e30);
+    SCFParams par=Gates(150, 1e-8, std::nullopt);
     par.Mixer=SCFParams::Mixing::Pulay; par.KerkerG0=0.0;   // Pulay WITHOUT Kerker -> the D-space mixer
     par.PulayDepth=8; par.PulayStart=5; par.StartingRelaxRo=0.45;
     return par;
@@ -455,7 +456,7 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     const Material box=qchem::Materials::Get("Mn_box16");
     const Lattice_3D lat=LatticeOf(box);
     SolidCalcOptions o=MnBoxOptions(box, "Mn atom-in-box sextet");   // S=5/2 Hund: nUp=6, nDown=1
-    SCFParams par=Gates(40, 1e-5, 1e30); par.SmearingkT=5e-3;
+    SCFParams par=Gates(40, 1e-5, std::nullopt); par.SmearingkT=5e-3;
     // CARTESIAN d carries the s CONTAMINANT (x^2+y^2+z^2), so 8 d shells duplicate the 7-function s space
     // -- measured lambdaMin 1.15e-07 / cond 8.2e7 on this one-atom box, i.e. the basis is rank-deficient
     // BEFORE any physics runs.  SPHERICAL d (5 pure components) removes the contaminant; GPW_MN_SPHERICAL=1
@@ -502,7 +503,7 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);         // coarse quadrature: symmetry, not accuracy
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
-    SCFParams par=Gates(6, 1e-9, 1e30);                   // BOUNDED: this gate tests symmetry through the loop, not convergence
+    SCFParams par=Gates(6, 1e-9, std::nullopt);                   // BOUNDED: this gate tests symmetry through the loop, not convergence
     par.SmearingkT=5e-3;                                  // the open-d-manifold tie smoother
     par.StartingRelaxRo=0.45;
     GpwReport report("Mn "+o.label, par.Verbose);
@@ -581,8 +582,8 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows_Panel)   // PANEL case 9: a c
     // whether a run escaped its symmetric 2-cycle hung on roundoff asymmetry.  The exact Shubnikov pair projection (3b2a163a)
     // removed that asymmetry: 400 + 400 + 400 + 145 iterations.  With the Null accelerator measuring [F,D] (OpenWork §3, the
     // [F,D] row) the mixer damps as designed: every alpha of the old sweep converges in 208-211 iterations.
-    par.NMaxIter=400; par.MinΔρPerElectron=1e-6; par.MinΔE=1e30;
-    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
+    par.NMaxIter=400; par.MinΔρPerElectron=1e-6; par.MinΔE=std::nullopt;
+    par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt;
     par.MergeTol=1e-4;
     par.PulayDepth=0; par.PulayStart=5;
     par.KerkerG0=0.0;
@@ -649,8 +650,8 @@ TEST(GPW_Na2Box, Γ_Pol_Null_Linear_SpinSeed_Converges_Panel)
     const Material box=qchem::Materials::Get("Na2_box16");
     const Lattice_3D lat=LatticeOf(box);
     SCFParams par;
-    par.NMaxIter=38; par.MinΔρPerElectron=1e-6; par.MinΔE=1e30;
-    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
+    par.NMaxIter=38; par.MinΔρPerElectron=1e-6; par.MinΔE=std::nullopt;
+    par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt;
     par.MergeTol=1e-4;
     par.Mixer=SCFParams::Mixing::Linear; par.StartingRelaxRo=0.3;
     auto options=[](int mult, const char* label)

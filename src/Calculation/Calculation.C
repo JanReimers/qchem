@@ -74,6 +74,18 @@ public:
     Calculation(const Calculation&)            = delete;  // owns raw resources; non-copyable
     Calculation& operator=(const Calculation&) = delete;
 
+    //! \name BUILT, NOT CONVERGED (2026-11-02: the twin of \c SolidCalculation::Prepare -- the GUI's Build -> Run trigger)
+    //! Builds the whole graph over \a setup -- the basis, the Hamiltonian with every mesh it quadratures on, the electron
+    //! configuration, the accelerator and the SCF iterator (whose wave-function build files basis.perIrrep / basis.removed) --
+    //! under its OWN report run "<structure ID> build", closed (filed into \c report::GlobalReport) before this returns, and
+    //! stops before iteration 1.  So a client reads the whole setup BEFORE any SCF.  Run it with \c Converge(params): the FIRST
+    //! Converge reuses this graph (in its own run, which then holds only the SCF), a later one rebuilds as always.  \a onIteration
+    //! observes from that first iteration.  Until it runs, \c Result() says "did not converge in 0 iterations" and the energy /
+    //! density / orbital accessors have nothing to read.
+    //!@{
+    static std::unique_ptr<Calculation> Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration = nullptr);
+    //!@}
+
     //! Re-run the SCF (e.g. with tighter tolerances) and hand back the ANSWERS or the REASON (it was a bool until 2026-10-31).
     //! Invalidates references previously handed out by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is rebuilt --
     //! and any \c Converged from an earlier attempt.  \c [[nodiscard]] via \c Outcome.
@@ -140,6 +152,13 @@ private:
     struct Carry { std::vector<hmat_t<double>> D; };
     //! The point at \a at (\c setup->reference's atoms, moved), seeded from \a carry when given (a WorkingDensity), else from the
     //! setup's seed strategy.  The public setup constructor is this at the reference with no carry.
+    struct BuildOnly {};
+    //! Everything but the SCF: the members and the electron configuration (the graph is \c BuildGraph's).
+    Calculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
+                Observer onIteration);
+    //! The accelerator, the basis (first time), the Hamiltonian and the SCF iterator -- inside the caller's open report run.
+    void BuildGraph();
+    bool itsPrepared = false;   //!< \c Prepare built the graph: the next Converge reuses it instead of rebuilding
     Calculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
                 const SCFParams& scf, Observer onIteration);
     Carry MakeCarry() const;

@@ -1,5 +1,6 @@
 // File: SCFParams.C Parameters used for controling SCF iteration and convergence.
 module;
+#include <optional>
 #include <stdexcept>
 #include <string>
 export module qchem.SCFParams;
@@ -12,6 +13,12 @@ namespace qchem {
 // `calc.Converge({.NMaxIter=60})` and override only what they care about.  Positional aggregate
 // init (`{20,1e-4,...}`) and per-field assignment (`par.MinΔρPerElectron=...`) both still work unchanged --
 // default member initializers do not disqualify the aggregate.
+//! A convergence GATE: a threshold the iterate's measure must fall below, or OFF (\c std::nullopt).  Off used to be spelled
+//! 1e30 -- a sentinel every reader had to recognise (`minFD<1e30`) and every printer showed as "(1e+30)"; nullopt says it.
+export using Gate = std::optional<double>;
+//! Does \a value pass \a gate?  An off gate passes everything.
+export inline bool Meets(const Gate& gate, double value) {return !gate || value<*gate;}
+
 export struct SCFParams
 {
     //! Max allowed iterations -- a SAFETY NET, never the recipe: a run that ends here is reported (qchem.SCFCap) and fails a
@@ -21,7 +28,7 @@ export struct SCFParams
     //! THE density convergence gate (D-MINDRHO, 2026-10-22; was \c MinΔρPerElectron, whose meaning depended on the mixer): converged
     //! when the step would still move fewer than this many electrons PER ELECTRON, \f$\int|\rho_{out}-\rho_{in}|\,d^3r/N\f$
     //! on the run's own real-space quadrature (per spin channel for a polarized run; see \c Δρmeasure).
-    double MinΔρPerElectron = 1e-4;
+    Gate   MinΔρPerElectron = 1e-4;
     //! WHAT THE GATE MEASURES.  L1PerElectron (default) = the one intensive residual above, computed once in the SCF
     //  iterator, the same number for every mixer, representation and system (a field mixer's in/out fields are presented
     //  alike).  It REPLACED "MixerResidual" -- whatever the mixer reported: max|ρ̃_out(G)−ρ̃_in(G)| on the Kerker/Pulay
@@ -32,17 +39,17 @@ export struct SCFParams
     //  compared with a CP2K deck's.
     enum class Measure { L1PerElectron, MaxΔD };
     Measure Δρmeasure      = Measure::L1PerElectron;
-    //! |[F,D] - [F,D]_old| for convergence -- RETIRED AS A DEFAULT GATE (user 2026-10-29): off (1e30) unless a run sets it.
+    //! |[F,D] - [F,D]_old| for convergence -- RETIRED AS A DEFAULT GATE (user 2026-10-29): off unless a run sets it.
     //! It is a STAGNATION measure, not the orbital gradient: near convergence it is as large as [F,D] itself, so the old
     //! 1e-7 default silently demanded [F,D] ~ 1e-7 and overrode MinFD (1e-5) -- converged water runs ([F,D] 3.8e-7, still
     //! shrinking 1.5e-7 a step) never met it and ran out their caps -- and it passes by accident when [F,D] STALLS high.
     //! Orbital convergence is MinFD (the worst irrep's [F,D]); tighten that for a run that needs more.
-    double MinΔFD          = 1e30;
-    double MinΔE           = 1e30;   //Minimum RELATIVE total-energy change |ΔE/E| for convergence (default
+    Gate   MinΔFD;
+    Gate   MinΔE;                    //Minimum RELATIVE total-energy change |ΔE/E| for convergence (default
                                      //  off).  The physical gate for a NON-variational SCF (density-fit /
                                      //  GPW collocation) whose [F,D]/Δρ limit-cycle above the fit floor while
                                      //  the total energy is settled -- see doc/GPWPlan.md.
-    double MinVirial       = 1e30;   //Max |error| in the virial ratio -V/K.  DEFAULT OFF (1e30), because
+    Gate   MinVirial;                //Max |error| in the virial ratio -V/K.  DEFAULT OFF, because
                                      //  the test below is |err| < MinVirial: a SMALL threshold is STRICT,
                                      //  not lax.  The old 1e-13 default read as "off" but was the tightest
                                      //  possible gate -- unsatisfiable, so it could only ever BLOCK
@@ -52,12 +59,15 @@ export struct SCFParams
                                      //  accuracy check (user 2026-08-10).  Meaningless under a
                                      //  pseudopotential -- V1.27's IsVirialValid() drops the gate there
                                      //  automatically, so no caller has to remember.
-    double MinFD           = 1e-5;   //Minimum error from SCF accelerator.  i.e. [F,D] (orbital gradient).
+    Gate   MinFD           = 1e-5;   //Minimum error from SCF accelerator.  i.e. [F,D] (orbital gradient).
     double StartingRelaxRo = 1.0;    //relaxation for mixing Ro.  Dynamically adjusted during iterations.
     //! The CEILING of linear D-mixing's adaptive step (\c StartingRelaxRo is only where it starts).  1.0 = passthrough allowed.
     //! A RESTART recipe sets 0.3 (CLAUDE.md: a restart's linear fallback runs at 0.2-0.3, not 1.0) -- capping only the start
     //! let the adaptive rule grow straight back to 1.0 (the Si frozen-χ ±α runs, 2026-10-29).
     double MaxRelaxRo      = 1.0;
+    //! The FLOOR of linear D-mixing's adaptive step: a retraction (a step that made [F,D] worse) shrinks α by 0.8, never below
+    //! this.  0 (default) = no floor -- every recipe means what it meant.
+    double MinRelaxRo      = 0.0;
     double MergeTol        = 1e-4;   //Merge eigen levels (like Px,Py Pz) that are equal within +/- MergeTol
     bool   Verbose         = true;   //Display iteration details.  ON by default (user, 2026-10-05): a run's console without its iteration table hides where the time goes.
     //! \brief Feed \f$V_{xc}\f$ the CUSP-DEFICIT correction \f$\rho[D]-\tilde\rho_{fit}\f$ on top of the mixed density,

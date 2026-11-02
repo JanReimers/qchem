@@ -15,8 +15,10 @@
 # Usage:  scripts/snaprun [-B BUILD_DIR] CMD [ARGS...]
 #   BUILD_DIR defaults to the nearest directory at or above $PWD holding CMakeCache.txt.  If $PWD is inside it, CMD runs
 #   in the matching snapshot directory; any ARG that starts with BUILD_DIR is remapped into the snapshot.
-#   e.g.  cd build/Release && scripts/snaprun ~/Code/qchem6-runs/heavy scripts/memsafe -H 6G ctest -j4 -LE long
-#         scripts/snaprun -B build/Release build/Release/CLIapps/rundeck decks/MnO_AFM2_free.json
+#   e.g.  cd build/Release && ../../scripts/snaprun ~/Code/qchem6-runs/heavy $PWD/../../scripts/memsafe -H 4G ctest -LE long
+#         scripts/snaprun -B build/Release build/Release/CLIapps/rundeck $PWD/decks/MnO_AFM2_free.json
+#   Give every path that is NOT in the build tree as an ABSOLUTE path: CMD runs from the snapshot's copy of $PWD, so a path
+#   relative to the build dir (scripts/memsafe from build/Release) or to the source dir no longer resolves (2026-11-02, lane S).
 # Caveat: a test that opens an EXISTING file in the build tree for writing without truncating it would write through
 # the hard link into the live tree.  Files created new, and Testing/, are unaffected.
 
@@ -26,6 +28,20 @@ if [ "${1:-}" = "-B" ]; then B=$(realpath "$2"); shift 2; fi
 if [ -z "$B" ]; then d=$PWD; while [ "$d" != / ] && [ ! -f "$d/CMakeCache.txt" ]; do d=$(dirname "$d"); done; B=$d; fi
 [ -f "$B/CMakeCache.txt" ] || { echo "snaprun: no build tree (CMakeCache.txt) at or above $PWD; use -B" >&2; exit 2; }
 [ $# -ge 1 ] || { echo "usage: snaprun [-B BUILD_DIR] CMD [ARGS...]" >&2; exit 2; }
+
+# A SWEEP OVER A STALE TREE IS REFUSED (2026-11-02).  When the last build FAILED, the test exes it did not relink still sit in
+# the tree beside the NEW shared libraries, and ctest runs them: an undefined symbol, a segfault on a changed class layout --
+# or a PASS, which is the dangerous case (lane B's 23 "stale-object" failures that day were exactly this, a build that failed
+# on two test files and a sweep chained after it with ';').  So a ctest command runs only when `ninja -n allTests` has no work.
+case " $* " in
+    *ctest*)
+        if ! out=$(ninja -C "$B" -n allTests 2>&1) || ! grep -q "no work to do" <<<"$out"; then
+            echo "snaprun: REFUSED -- $B is not built (ninja -n allTests has work to do, or failed), so ctest would run old test" >&2
+            echo "  executables against new libraries.  Build it first: ninja -C $B allTests" >&2
+            grep -v "^ninja: Entering" <<<"$out" | head -4 | sed 's/^/  /' >&2
+            exit 3
+        fi ;;
+esac
 
 R="$HOME/Code/qchem6-runs/snap"; mkdir -p "$R"
 S="$R/$(basename "$(dirname "$(dirname "$B")")")-$(basename "$B")-$(date +%Y%m%d-%H%M%S)-$$"

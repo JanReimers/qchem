@@ -25,6 +25,7 @@ module;
 #include <cassert>
 #include <map>           // the per-block Phi handles (shallow Projector3 copies)
 #include <memory>
+#include <mutex>         // std::lock_guard over itsCacheLock (the per-block caches are filled from a parallel Fock pass)
 #include <ostream>
 #include <stdexcept>
 #include <type_traits>   // std::is_same_v (same-scalar face vs the mixed-run cross-cast)
@@ -34,6 +35,7 @@ import qchem.Fitting.Types;                   // robs_t<U>
 import qchem.BasisSet.Orbital_DFT_IBS;                // cFIT_SF_ABS + Integrals_Overlap3C<U,TFit> (the held fit basis)
 import qchem.Fitting.FitOperations;           // OrthogonalFit -- this library's projection/diagonal fit
 import qchem.Blaze;                           // hmat_t<U>
+import qchem.Parallel;                        // LazyLock -- the per-block caches' guard
 
 export namespace qchem::Fitting
 {
@@ -145,6 +147,7 @@ private:
     //! at all.  Held rather than re-fetched so BOTH directions demonstrably come off one object.
     //! \warning the closures capture the producing basis: valid only while \c itsFitBasis lives, which it
     //! does, because this class co-owns it.
+    //! \pre the caller holds \c itsCacheLock (\c Integrator, its only caller).
     template <class U> const Projector3<U>& Handle(SymMap<Projector3<U>>& cache,
                                                    const BasisSet::Orbital_DFT_IBS<U,T>& orb) const
     {
@@ -177,9 +180,17 @@ private:
     //! \c ScreenedMatrixIntegrator borrows its \c Projector3, so a temporary would dangle the moment the
     //! caller used it.  Keyed on the same spatial \c Symmetry as the tensor, and created only after the tensor is,
     //! so the two maps never disagree about which blocks exist.
+    //!
+    //! ⛔ THREAD-SAFE BY A LOCK, NOT BY A WARM-UP (2026-11-02, OpenWork §3 "THREADED multi-k run HANGS FOREVER").  The XC sampler
+    //! builds ONE fitter per field value v (\c tSinglesDensitySampler::FitFor) and every Bloch block of the parallel Fock pass
+    //! contracts against it, so these maps are FIRST filled inside that pass -- no serial cold assembly can warm a fitter that
+    //! did not exist yet.  Unlocked, two blocks' find/emplace raced and corrupted the tree: bcc Li k8 at 8 threads spun in
+    //! std::map::find for 10 h.  The lock is per call (one per block per iteration), and a reference into a std::map survives
+    //! later insertions, so what is returned stays valid after the lock is released.
     template <class U> const ScreenedMatrixIntegrator<U>&
     Integrator(const BasisSet::Orbital_DFT_IBS<U,T>& orb) const
     {
+        std::lock_guard<std::mutex> lock(itsCacheLock.m);   // guards itsO3R/itsO3/itsIntR/itsInt: Handle is reached only from here
         auto& fwd=IntCache<U>();
         const sym_t& id=orb.GetSymt();
         auto it=fwd.find(id);
@@ -200,6 +211,7 @@ private:
     //! Their forward+adjoint views -- BOTH halves off one object per block (2026-09-09).
     mutable SymMap<ScreenedMatrixIntegrator<double>> itsIntR;
     mutable SymMap<ScreenedMatrixIntegrator<dcmplx>> itsInt;
+    qchem::LazyLock itsCacheLock;   //!< the four maps above: filled from the parallel Fock pass (see Integrator)
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
     rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit)
 };

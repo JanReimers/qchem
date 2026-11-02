@@ -1068,6 +1068,28 @@ at 160 Ha was +3.7e-6).  Cost: SCF 1869 s at 4 threads, peak RSS 2.7 GB (a heavy
 +0.05 bohr +4.52e-4, rigid +1.2e-7.  Not reused: the main run's density (the session seeds afresh); a deck that only wants the
 points still pays one Energy SCF first -- a `structure.path` form could skip it if that ever matters.
 
+
+## ✅ Dense Mn d midpoints make β-MnO₂ GPW DIVERGE from iteration 1 (closed 2026-11-01, lane A)
+
+**The row, verbatim:**
+
+| **Dense Mn d midpoints make β-MnO₂ GPW DIVERGE from iteration 1 on main 0fab43d6 (regression)** (lane H, 2026-11-01) | `basis_scan/pol/p5f3_dD.bsd` (Mn p5 f3 + Mn d 0.56 … 24.66, vet off, CholeskyPivoted 1e-7 keeps 296/296, min pivot 4e-6) converged on 2026-10-26 (first iterate −93.10 Ha, AliasFree).  On main 0fab43d6 the FIRST iterate is +4.19e4 Ha at x = 8 (`accuracy` 0, rasterX/vlocRasterX/xcRasterX 8 -- the stated AliasFree) and +845 Ha at the default ε; 300 iterations end at +4.7e3 Ha (`uscan/ladder/p5f3_dD_U0.log`, `probe/dD_default.log`).  The same runs on control / Mn_p5f3 / p5f3_Od / p5f3_Od4f (no dense d) reproduce the old numbers to 1e-7 Ha.  So a Hamiltonian term breaks on a tight d set (the 24.66 Mn d is just above `routingBeta` 24); the ladder table carries the extra 144 Ha rung in both.  Suspect C2 step 3 (ε-sized rasters) or a commit between 2026-10-26 and 0fab43d6; an SCF whose first energy is +4e4 Ha should FAIL loudly (cf. the BallOnly row's "below any physical bound" ask) | bisect with `p5f3_dD_U0.json` at NMaxIter 1 (first Etot −93.10 vs +4e4 is the gate; ~1 min a step) between the 2026-10-26 run's commit and 0fab43d6; then the term-by-term energy split of iteration 1 · `src/BasisSet/Gaussian/Lattice/Imp/GPW_Evaluator.C`, `~/Code/qchem6-runs/MnO2/uscan/ladder/` |
+
+**Verdict: the RASTER, amplified by the overlap's conditioning -- not a Hamiltonian term, not a commit.**  The basis is the same 296 functions
+in both runs (not the reader); λ_min(S) = 6.75e-7.  First iterate vs the raster alias exponent x (90³ unless noted; `~/Code/qchem6-runs/MnO2/dDregress/`):
+x 8 (64³) +41888 Ha (Eee +38770, Ekin +3440); x 11 −80.75302; x 13 / 16 −80.75311.  The 2026-10-26 run sat on AliasFree, which is x ≈ 16 on
+this cell, NOT 8: AliasFree sized G² = 4·p_h·ln(1e6) with p_h = pβ/(p+β), ≈ 13.8p under HartreeXC routing (β = p/3), rounded up by the FFT
+menu -- so lane H's "x 8 = the stated AliasFree" deck was half its alias exponent (doc/GridEpsilonPlan.md row 1, corrected).  At the default ε the
+first SCF starts on the ball's own rasters (x ≈ 4: Eelec +923 Ha) and the pilot (C2 step 3) only audits after convergence, which never came.
+
+**Fix (lane A):** (1) `SCFIterator` REFUSES a first iterate past its layout's bound (`FirstEnergyRefusal`): a FINITE system's energy above the structure constants, E − Σ{Constant} (rest mass and −TS included), above 0 -- the electrons-at-infinity theorem (the TOTAL can be positive, e.g. compressed H₂); a PERIODIC cell, which has no such limit (Ewald: E_el +1.59 Ha on healthy Si Γ; even E_tot is +0.047 Ha on healthy Na q1), only on a stated SCALE, E_tot above +1 Ha per electron (here +1102 / +22).  The first commit be857a17 used `GetElectronicEnergy` (Kinetic + Potential) for both: 93 short tests refused (every GPW cell, and DHF, whose rest mass that sum leaves out); fixed in the next code commit -- `SCFFailure::Why::UnphysicalEnergy`, both facades, the message names the raster/conditioning cause.  (2) `SolidCalculation::Converge`: a refused GPW run on UNRESOLVED rasters restarts ONCE from the
+seed on rasters with e^(−x) ≤ λ_min(S), x = max(ln(1/λ_min), the ball's) -- 14.21 here; a STATED raster is never overridden.  Measured: the
+stated-x 8 deck refuses at iteration 1; the default deck refuses, restarts at x 14.21, converges in 24 (Etot −93.4419391947) and the pilot SETTLES
+with 0 re-convergences (every raster term meets 6e-5 Ha).  Gates: `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_RefusesAnAliasedFirstIterate_Long`,
+`…_ConvergesThroughARefusedFirstIterate_Panel_Long` (the basis vendored as `decks/panel/MnO2_p5f3_dD.bsd`).  Lane H's pilot ask (45³ vs 90³): on
+this cell the pilot settled on 90³ at x 14.21 after the restart; the unrefused case is the remainder row.  pybind `why_name` lacks the new Why
+(flagged to lane G).
+
 ## ✅ "The linker does not enforce library dependencies: no `-Wl,-z,defs` on our shared libraries" -- CLOSED 2026-11-01 (lane B); the row as it stood
 
 | row | why | next action |
@@ -1099,6 +1121,30 @@ refused naming "odd Nelec 7", 7 with spinsShareFermi / multiplicity 2 / minimal 
 message).  No shipped deck asked for it (`scripts/vet-decks`: 52 of 56 OK, the 4 failures are the panel-deck basis-path row).
 
 
+
+## ✅ THREADED multi-k run HANGS FOREVER: a data race on `DeltaScalarFitter`'s lazy `mutable` caches (closed 2026-11-02, lane A, 0e99a8a4)
+
+**The row, verbatim:**
+
+| **THREADED multi-k run HANGS FOREVER: a data race on `DeltaScalarFitter`'s lazy `mutable` caches** (F; found 2026-11-02) | lane H's `Li_bcc_q1_k8_u` (bcc Li, k8, Becke XC, QCHEM_OPENMP_THREADS=8) printed the header and sat at iteration 1 for 10 h at 200% CPU.  gdb: two threads spinning in `std::map::find` → `_M_lower_bound` on the SAME `IntCache` (`src/Fitting/Internal/DeltaFunctionFitter.C:181` `Integrator`: unlocked find-then-emplace), called from `tCompositeWF::AssembleFock`'s parallel block loop via `tVxc_Quadrature::MakeMatrix` → `DensitySampler_Singles` → `Overlap`/`Contract`.  A concurrent `emplace` corrupted the red-black tree, so lookups never terminate.  AssembleFock's contract ('the serial cold pass warms every cache; later passes do density-derived work only') does not hold for this cache: the Becke-quadrature integrators are first touched in a parallel pass.  Serial sweeps can never see it (every sweep is serial) | fix: guard `Integrator`/`Handle` (and every lazily-filled `mutable` map reachable from AssembleFock) with a mutex, or warm them in the cold pass, and ASSERT the contract (a cache miss in a parallel pass throws); then a 2-thread multi-k Becke UT that would hang/race (run under TSan once); audit the other `mutable SymMap` caches in `src/Fitting` · gdb stacks in the controller session (2026-11-02) |
+
+**Verdict.**  The row's diagnosis held, with one correction to its cure.  The XC sampler builds ONE `DeltaScalarFitter` per field value v
+(`tSinglesDensitySampler::FitFor`) and every Bloch block of the parallel Fock pass contracts against it, so the fitter's `Integrator`/`Handle`
+maps are FIRST filled inside that pass: no serial cold assembly can warm an object born after it, which also makes the row's "make a
+parallel-pass cache miss throw" FALSE here -- that miss is legitimate.  The guard is a lock: `DeltaScalarFitter::Integrator` (Handle is reached
+only from it), and the same per-block find/emplace pattern in `ConstrainedFF::Integrator` (the Gaussian fitter) and `DeltaFit_IBS::Table` /
+`Tensor` (two locks, tensor then table; Table never takes the tensor's).  Audit of the rest of AssembleFock's reach: the terms' `itsCache` /
+`itsRealCache` are pre-created per block by the refresh (each block writes its own node, by design); the pair sampler's `itsAdj`, Hubbard's
+projectors and the PP `itsByL` already lock.  AssembleFock's comment now says the warm-up is an optimisation, never the guard.  Gate:
+`ResponseKernel.GPW_Si_k311_FockIsBitIdenticalAcrossThreads_Becke_Pol` (threaded pass FIRST, Becke × Pol = two fitters, the hanging
+configuration).  TSan (`build/TSan`, the three threaded Fock gates): **0 warnings; with the fitter lock removed, 29** (the same pass and the
+`DeltaFit_IBS` closures it reaches).  **THE SILENT HALF (lane H, 2026-11-02).**  Before the lock a threaded run did not only hang: bcc Li q1 k444 (imposed Oh, Becke XC, kT 1 mHa)
+at 8 threads CONVERGED to Etot −0.272725 vs −0.252040 serial (−20.7 mHa, almost all E_xc: −0.20183 vs −0.17985; first iterate ρ_lost/N 1.0e-1
+vs −2.7e-3), with no warning -- and the Si k311 Fock bit-identity gates passed through it.  On the locked build (rundeck, same deck): 1 / 2 / 8 / 8
+threads −0.2520403163 / −0.2520403162 / −0.2520403180 / −0.2520403180, 10 iterations each: the same thread count bit-identical, different
+counts within 1.8e-9 (a different collocation partition, row 160's thread-count remainder).  Gated to convergence by
+`GPW_Li.k444_Becke_Imp_Smear_ThreadedRunIsReproducibleAndMatchesSerial_Long` (8 = 8 exactly, 8 vs 1 within 1e-8).
+
 ## ✅ "A molecule's mesh never reports itself: `MakeMolecularMesh` emits nothing to the run report" -- CLOSED 2026-11-02 (lane B); the row as it stood
 | **A molecule's mesh never reports itself: `MakeMolecularMesh` emits nothing to the run report** (S; user 2026-11-02) | lane G found 'a molecule's real mesh size only appears once the run has started/finished'.  Cause: the PERIODIC Becke builder files its own `grids.becke` as it builds (`src/Structure/Imp/UnitCell.C:384`, the pattern we want: each section adds its own info to the CurrentReport as it runs, so it is there BEFORE the SCF), but the molecular/atom builder (`src/Structure/Imp/Molecule.C:39` `MakeMolecularMesh`, reached via `Structure::CreateIntegrationMesh` from Orbital_DFT_IBS/BasisSet/PP_Local/PP_NonLocal) files nothing.  User ruling: no 'one class tells another to report' (EmitReport-style) fix -- the builder reports itself | fix, per the user's design (2026-11-02): THE CALLER SETS THE CONTEXT, THE CALLEE REPORTS ONE LEVEL IN.  Each caller of `CreateIntegrationMesh` (the XC fit quadrature, PP_Local, PP_NonLocal, ...) opens a cursor scope naming ITSELF just before the call; the mesh builder writes its fields with cursor-relative `report::Set` (natom, radial, nRadial, angular, L, beckeOrder, points) and never chooses a key or an ID.  This is the cursor design already in `src/Common/Reporting.C:172`, but it has only a TOP-LEVEL `Section` and an array `Row`: add the missing nested-object scope (RAII, descends into `cursor[key]`).  WHY (user, 2026-11-02): with cursor-relative reporting the console report IS the run sequence -- unexpected nesting shows a peculiar run sequence at once (here: the Hamiltonian built inside the `basis` scope, Calculation.C:157, which root-anchored EmitAt calls had been hiding).  So: move the Hamiltonian build out of the basis scope; root-anchored `EmitAt`/`EmitSection` are the pattern being retired.  Then convert the periodic builder too: `UnitCell.C:384`'s root-anchored `EmitAt("grids","becke")` picks its own key, the same collision waiting to happen; UT: a molecule run's report has `grids.becke` before iteration 1 (an observer reads it at the first row) · lane G's run-spec notes |
 **Verdict (lane B, 2026-11-02).**  Built to the user's design (caller sets the context, the callee reports one level in; scopes
@@ -1129,3 +1175,51 @@ the 15 bohr cell's images: 16 209 tasks) and evaluates all 7 × 7 primitives at 
 numbers are the walk's to the screening tier).  Gate: `M_TransitionCollocation.WalkAndContractionRoutesAgree` now also runs H₂O
 dzvp, walk vs cubes 4e-13 (ρ) / 1.3e-13 (h).  CH₄ DZVP-MOLOPT then converged (pilot 12 iterations, production 11).  The
 remaining cost (~80 s/iteration, ~300 s V_loc audit) is the open P row: primitive pairs on their own grid levels.
+
+## ✅ "A molecule has no build-only step: the `Calculator` constructor runs the whole SCF" -- CLOSED 2026-11-02 (lane B); the row as it stood
+| **A molecule has no build-only step: the `Calculator` constructor runs the whole SCF** (S; 2026-11-02) | crystals have `deck::Build` (its own report run '<name> build', so grids/basis show BEFORE the SCF); a molecule does not, so a client cannot see the setup without running it.  Consequence found by lane G's report audit: `pybind/qchem_bridge.cpp` `qcb_basis_info` REBUILDS the basis outside any run (facade default options, no SALC blocking, no trim) to get S eigenvalues / nFunctions -- a second, possibly disagreeing, source for what the report's `basis.perIrrep` / `basis.removed` already record | user (2026-11-02): "the GUI needs a trigger to read all setup panels and start the actual work" -- i.e. TWO calls, Build then Run, for molecules as for crystals.  Add a molecular Build (resolve + build basis + Hamiltonian under its own report run, no SCF), the facade's `Converge`/Run then reuses it; the GUI reads every setup panel (basis, grids, PP) from the build run, then starts the SCF; GUI shape (user, 2026-11-02): a BUILD button beside Run -- Build does all the pre-SCF steps and fills the setup panels; Run alone is also fine (it builds if nothing is built, reuses a Build whose spec is unchanged, rebuilds after an edit); lane G then deletes `qcb_basis_info` and reads `basis.perIrrep` from the build run · lane G's audit (2026-11-02) |
+**Verdict (lane B, 2026-11-02).**  `Calculation::Prepare(setup, onIteration)` and `AtomCalculation::Prepare(Z, charge, opts, acc,
+onIteration)`, the twins of `SolidCalculation::Prepare`.  Both facades' `Converge` was split into `BuildGraph` (the accelerator,
+the basis in a silent `Scope("basis")`, the Hamiltonian in `Scope("grids")`, the SCF iterator in the rendering
+`Section("basis")`, whose wave-function build files basis.perIrrep / basis.removed) and the iterate.  `Prepare` runs
+`BuildGraph` inside its own report run "<structure ID> build", closed before it returns; the FIRST `Converge` reuses the graph
+(its own run then holds only the SCF), a later one rebuilds as before; the constructors are unchanged (they build inside the
+converge run, as they always did).  Done together with the PP mesh's run sequence (same defect): `Ham_PP` builds ONE PP
+quadrature in its own build phase and injects it into `PP_Local` and `PP_NonLocal` (it was built lazily per term per block
+inside the SCF iterator's construction, so it filed under `basis.*`), now `grids.ppQuadrature`.  UTs
+`CalculationFacade.PrepareFilesTheWholeSetupInItsOwnBuildRunBeforeAnySCF` (H₂O LDA + PP: the filed build run holds
+basis.perIrrep and grids.xcQuadrature / ppQuadrature / auxiliaryFit, no scf header, the observer saw no row; Prepare + Converge
+equals the constructor bit for bit), `CalculationFacade.AnAtomsPrepareFilesItsSetupBeforeAnySCF`,
+`CalculationFacade.APseudopotentialRunsPPQuadratureIsInGridsNotBasis`.  Found on the way: the seed build files `scf.xcRhoRoutes`
+(root-anchored, `DensitySampler_Singles.C:209`) into the build run -- listed on the mesh-report remainder row.
+
+## ✗ RETRACTED "ninja does not recompile the importers of a changed module interface (stale objects)" -- 2026-11-02 (lane B, the reporter); the row as it stood
+| **ninja does not recompile the importers of a changed module interface (stale objects)** (S, a FALSE-GREEN risk; lane B 2026-11-02) | lane B changed `Calculation`'s exported class layout; the first sweep showed 23 failures that were STALE OBJECTS: A_PP.C / L_PP.C (which would not even compile against the new interface) and the facade tests (segfault on the old layout) were never rebuilt -- the C++20 module dyndep missed them.  Touching the importers fixed it.  The danger is the converse: a stale object can also PASS, so a sweep can be green on code that no longer compiles | reproduce on a toy (change an exported class's layout, check `ninja -n` lists every importer); find whether it is CMake's dyndep scanning (the `.ddi`/`.modmap` of importers) or a clang-scan-deps cache; until fixed, a lane that changes an exported LAYOUT does a clean rebuild of affected targets before its landing sweep · CLAUDE.md 'ninja rebuilds were flaky' |
+**Retraction (lane B, 2026-11-02): ninja was right; the BUILD FAILED and the sweep ran anyway.**  The build log of that sweep
+(lane B's background job, never read past its tail) opens with `FAILED: IntegrationTests/CMakeFiles/ITMain.dir/A_PP.C.o ...
+no matching constructor for initialization of 'Hamiltonian::PP_NonLocal'` (and `L_PP.C`): the importers WERE recompiled -- and
+did not compile.  ninja stopped there, so ITMain and the other test exes were never RELINKED, and the sweep, chained after the
+build with `;` instead of `&&`, ran the OLD executables against the NEW shared libraries: the "undefined symbol
+...PP_NonLocalC1...MeshParams" and the segfaults on `Calculation`'s new layout.  Fixing the two test files and rebuilding is what
+cleared it (the touch was incidental).  Checked both ways: a toy (CMake 4.2.3, ninja 1.13.2, clang 21.1.6; a library exporting a
+class, an executable importing it; change the layout and the signature, build the library alone then the exe, or both at once)
+recompiles and relinks the importer every time; on the real tree, touching `src/Hamiltonian/Internal/Terms.C` makes `ninja -n`
+list every one of its importers (A_PP, L_PP, the PW and GPW files).  **The real false-green risk is a sweep over a failed
+build**, and it is now refused where every sweep passes: `scripts/snaprun` runs a ctest command only when `ninja -n allTests`
+has no work to do (exit 3 otherwise, naming the pending work; tested on a built and a deliberately stale tree).
+
+
+## ✅ Accelerator knobs unreachable from the facades (closed 2026-11-02, lane A, 536c15f3 + the Ladder-default commit)
+
+**The row, verbatim:**
+
+| **Accelerator knobs unreachable from the facades: the Ladder's DIIS→GDM switch (molecules) and DIIS/ladder keys (crystals)** (S; lane G / user GUI pass, 2026-11-02) | molecules: `Calculation` hands `SCFAccelerators::Factory` only {NProj, EMax, EMin, SVTol}, so the Ladder's ethresh/stall/floor/switchat cannot be set; crystals: the deck has no keys for `SolidAcceleratorOptions` (diis.Nproj, SVTol, EngageBelowFD, ladder*), so the GUI refuses them | one option struct per facade carries the ladder fields (`AcceleratorOptions`, MoleculeSetup.C:97; `SolidAcceleratorOptions` + deck keys, round-trip UT), the facade forwards them; lane G wires the GUI · lane G's note |
+
+**Verdict.**  Molecules: `AcceleratorOptions` gains `trust`, `ladderEThresh`, `ladderStall`, `ladderFloor`, `ladderSwitchAt`, `ladderSignal`;
+`ToAcceleratorJson` is the one translation `Calculation` and `AtomCalculation` hand the factory (they passed only NProj/EMax/EMin/SVTol);
+`scfrun` maps its flags onto it.  The json door's tail hand-off defaulted OFF (`switchat` 0) and a converging DIIS never stalls, so a molecular
+Ladder WAS plain DIIS (lane G: water and ethene LDA/dzvp, GDM never engaged); the default is now |ΔE/E| < 1e-6 (`EnergyChange`, CLAUDE.md's
+rule), gated by `SCFTrace.AMolecularLadderHandsOffToGDMBelowTheEnergyTail`.  Crystals: deck key `acceleratorOptions` = `SolidAcceleratorOptions`
+(`diis` {nProj, engageBelowFD, svTol, svTolRel}, `gdm` {engageBelowFD, trust, trustBackoff, trustMin, pcFloor, aufbauTol, aufbauMaxRepicks},
+`ladder` {gdm {…}, eThresh, stall, floor, switchAt, signal}), forwarded to `SolidSetup::Resolve`, written to every record; `ladderStartOnGDM`
+stays the facade's per-stage decision.  UTs: `Deck.AcceleratorOptionsAreDeckKeysAndRoundTrip`, `MoleculeSetup.EveryAcceleratorKnobReachesTheFactoryDoor`.

@@ -6,6 +6,7 @@ module;
 #include <deque>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <cassert>
 export module qchem.ChargeDensity.Internal.LinearMixer;
@@ -22,13 +23,21 @@ template <class T> class LinearMixer : public tDensityMixer<T>, public virtual t
 public:
     typedef typename tDensityMixer<T>::cd_t cd_t;
     //! \a relaxMax: the CEILING the adaptive step may grow to (SCFParams::MaxRelaxRo; a restart recipe sets 0.3).
-    LinearMixer(double relax0, double relaxMax) : itsRelax(std::min(relax0, relaxMax)), itsRelMax(relaxMax)
-    { assert(relaxMax>0.0 && relaxMax<=1.0); }
+    //! \a relaxMin: the FLOOR a retraction may shrink it to (SCFParams::MinRelaxRo; 0 = none).  Both are deck keys, so a bad
+    //! pair is refused with a throw, not an assert (dead under NDEBUG).
+    LinearMixer(double relax0, double relaxMax, double relaxMin=0.0)
+        : itsRelax(std::max(std::min(relax0, relaxMax), relaxMin)), itsRelMax(relaxMax), itsRelMin(relaxMin)
+    {
+        assert(relaxMax>0.0 && relaxMax<=1.0);
+        if (!(relaxMin>=0.0 && relaxMin<=relaxMax))
+            throw std::invalid_argument("LinearMixer: the step floor MinRelaxRo ("+std::to_string(relaxMin)+") must lie in [0, "
+                                        "MaxRelaxRo = "+std::to_string(relaxMax)+"]");
+    }
 
     double Mix(cd_t& working, const cd_t& old) override
     {
         double dcd = working.GetChangeFrom(old)/working.GetTotalCharge();      // relative MaxAbs change
-        if (dcd<1e-5) itsRelMax=std::min(itsRelMax, 0.5);
+        if (dcd<1e-5) itsRelMax=std::max(std::min(itsRelMax, 0.5), itsRelMin);   // the floor outranks the late cap
         working.MixIn(old, 1.0-itsRelax);                                      // (1−relax)ρ_in + relax ρ_out
         return dcd;
     }
@@ -61,7 +70,7 @@ public:
         {
             dRho = working.GetChangeFrom(old)/itsRelax;
             working.MixIn(old, 0.75);
-            itsRelax*=0.8;
+            itsRelax=std::max(0.8*itsRelax, itsRelMin);
             remixed=true;
         }
         constexpr double phi=1.6180339887498949;   // (1+sqrt 5)/2
@@ -72,6 +81,7 @@ public:
 private:
     double itsRelax;
     double itsRelMax;   //!< the ceiling (SCFParams::MaxRelaxRo; lowered to 0.5 once the density is nearly converged)
+    double itsRelMin;   //!< the floor (SCFParams::MinRelaxRo): a retraction never shrinks the step below it
 };
 
 //! \brief PULAY (density-DIIS) ON THE DENSITY MATRIX -- "Pulay without Kerker" (OpenWork §3, 2026-10-26).

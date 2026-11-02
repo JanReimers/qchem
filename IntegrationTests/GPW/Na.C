@@ -8,6 +8,7 @@
 //   GPW_Na.k222s_Imp_Smear_GlobalMu_Anchor
 
 #include "gtest/gtest.h"
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <memory>
 #include <vector>
 #include <cmath>
@@ -109,7 +110,7 @@ TEST(GPW_Na, k222s_Imp_Smear_GlobalMu_Anchor)
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.kShift=rvec3_t(0.5,0.5,0.5);             // shifted Monkhorst-Pack (k at ±¼)
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
-    SCFParams par=Gates(60, 1e-5, 1e30); par.SmearingkT=0.01;
+    SCFParams par=Gates(60, 1e-5, std::nullopt); par.SmearingkT=0.01;
     GpwReport report("Na "+o.label, false);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*na.cell, BasisSetData::VALENCE_LOWQ_SR2), o), par);
     auto R=calc.Result();

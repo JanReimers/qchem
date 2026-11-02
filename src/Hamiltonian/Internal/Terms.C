@@ -84,14 +84,17 @@ public:
     virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     typedef std::shared_ptr<const BasisSet::SpeciesRadialField> vloc_t;
-    PP_Local(const st_t& st, vloc_t vloc, const qcMesh::MeshParams& mp);
+    typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
+    //! \a mesh: the run's PP quadrature, built ONCE by the Hamiltonian in its own build phase and shared with PP_NonLocal (it is
+    //! geometry-only, so one mesh serves every basis block) -- never built lazily at the first matrix request.
+    PP_Local(const st_t& st, vloc_t vloc, mesh_t mesh);
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP local) = DM_Contract
     virtual std::ostream& Write    (std::ostream&) const;
 private:
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
     st_t             theStructure;
     vloc_t           itsVloc;
-    qcMesh::MeshParams itsMeshParams;
+    mesh_t           itsMesh;
 };
 
 //###############################################################################
@@ -117,7 +120,10 @@ public:
     virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     typedef std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep_t;
-    PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp);
+    typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
+    //! \a mesh: the run's shared PP quadrature (see PP_Local) for the explicit-angular route; \a mp still states the radial
+    //! route's radial rule (an atomic block never touches the 3-D mesh).
+    PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp, mesh_t mesh);
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP nonlocal) = DM_Contract
     virtual std::ostream& Write    (std::ostream&) const;
 private:
@@ -127,7 +133,8 @@ private:
     rsmat_t MakeMatrixRadial(const BasisSet::ImplicitAngular_IBS&, size_t n) const;
     st_t             theStructure;
     sep_t            itsSep;
-    qcMesh::MeshParams itsMeshParams;
+    qcMesh::MeshParams itsMeshParams;   //!< the radial route's radial rule
+    mesh_t           itsMesh;           //!< the explicit-angular route's shared PP quadrature
 };
 
 //###############################################################################

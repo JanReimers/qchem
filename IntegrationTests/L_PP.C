@@ -97,8 +97,8 @@ TEST(L_PP, LocalMatrixLatticeMatchesFinite)
     auto bCell = MakeBasis(*cell);
     qcMesh::MeshParams mpCell; mpCell.nUniform=72;   // h = a/n = 0.28 a.u.
 
-    Hamiltonian::PP_Local termFin (Ptr(fin ), vloc, mpFin );
-    Hamiltonian::PP_Local termCell(Ptr(cell), vloc, mpCell);
+    Hamiltonian::PP_Local termFin (Ptr(fin ), vloc, std::make_shared<const qcMesh::Mesh>(fin ->CreateIntegrationMesh(mpFin )));
+    Hamiltonian::PP_Local termCell(Ptr(cell), vloc, std::make_shared<const qcMesh::Mesh>(cell->CreateIntegrationMesh(mpCell)));
 
     const auto& Mfin  = StaticMatrix(termFin , OrbitalBlock(*bFin ));
     const auto& Mcell = StaticMatrix(termCell, OrbitalBlock(*bCell));
@@ -124,8 +124,8 @@ TEST(L_PP, NonLocalMatrixLatticeMatchesFinite)
     auto bCell = MakeBasis(*cell);
     qcMesh::MeshParams mpCell; mpCell.nUniform=72;
 
-    Hamiltonian::PP_NonLocal termFin (Ptr(fin ), sep, mpFin );
-    Hamiltonian::PP_NonLocal termCell(Ptr(cell), sep, mpCell);
+    Hamiltonian::PP_NonLocal termFin (Ptr(fin ), sep, mpFin , std::make_shared<const qcMesh::Mesh>(fin ->CreateIntegrationMesh(mpFin )));
+    Hamiltonian::PP_NonLocal termCell(Ptr(cell), sep, mpCell, std::make_shared<const qcMesh::Mesh>(cell->CreateIntegrationMesh(mpCell)));
 
     const auto& Mfin  = StaticMatrix(termFin , OrbitalBlock(*bFin ));
     const auto& Mcell = StaticMatrix(termCell, OrbitalBlock(*bCell));

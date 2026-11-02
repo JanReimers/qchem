@@ -110,6 +110,8 @@ struct SolidCalculation::Imp
     //! The pilot audit has SETTLED this run's rasters (\c CalibrateRasters): \c setup->opts.tolerances are the final demands.
     bool rastersSettled = false;
     SolidCalculation::RasterPilotCost pilotCost;   //!< what the pilot cost (\c PilotCost)
+    //! The pilot's start rasters were already raised once for the overlap's conditioning (\c Converge): never a second time.
+    bool startRaisedForConditioning = false;
 };
 
 //---------------------------------------------------------------------------------------------------
@@ -714,6 +716,8 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
     // density is stationary, so there is nothing sloshing -- while a healthy run that RESTRUCTURES on its
     // way to the answer can raise Eee a long way (Na2: 1.71x, converged and correct).  Confining the
     // detector to runs that already failed means a mistake here costs a LABEL, never a good answer.
+    if (!itsImp->converged && !itsImp->scf->UnphysicalStop().empty())
+        return fail(SCFFailure::Why::UnphysicalEnergy, itsImp->scf->UnphysicalStop());
     if (!itsImp->converged)
         return d.ChargeSloshed()
              ? fail(SCFFailure::Why::ChargeSlosh,
@@ -967,6 +971,37 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
         && itsImp->scf->ResolveMixing(params).Mixer==SCFParams::Mixing::Linear)
         own.StartingRelaxRo=std::min(own.StartingRelaxRo, 0.3);
     auto R=ConvergeStage(own);
+    // THE PILOT'S START, CONDITIONING-AWARE (2026-11-01, beta-MnO2 on a dense-d basis, lambda_min(S) 6.75e-7).  An unresolved run starts on
+    // the ball's own rasters (cheap; the pilot raises what the converged D shows it needs) -- but the orthonormal frame amplifies a
+    // matrix-element error by up to 1/lambda_min, and there a cheap start's alias (x 8: e^-8 = 3e-4) wrecked the first diagonalization
+    // (+4.19e4 Ha) before the pilot ever ran.  Measured: x 11 (alias 1.5e-5) and above gave the healthy first iterate.  So a pilot run
+    // whose first iterate was REFUSED (UnphysicalStop) is rebuilt ONCE on rasters whose alias e^-x does not exceed lambda_min
+    // (x = ln(1/lambda_min), never below what it had) and run again; the pilot then audits as always.  Only a refused run pays: every
+    // healthy start is untouched.  A STATED raster (accuracy 0) is the user's and keeps its refusal.
+    if (!itsImp->converged && !itsImp->scf->UnphysicalStop().empty() && !itsImp->setup->planeWave
+        && !itsImp->setup->rastersResolved && !itsImp->rastersSettled && !itsImp->startRaisedForConditioning)
+    {
+        namespace L3 = BasisSet::Lattice;
+        const double lmin=L3::MinOverlapEigenvalue(*itsImp->bs);
+        const BasisSet::Gaussian::RasterExponents had=*L3::GpwRasterExponents(*itsImp->bs);
+        const double x=std::max({lmin>0.0 ? std::log(1.0/lmin) : 0.0, had.density, had.vlocLong, had.xcL0});
+        BasisSet::Gaussian::GPWTolerances t=itsImp->setup->opts.tolerances;
+        t.rasterX=std::max(t.rasterX,x); t.vlocRasterX=std::max(t.vlocRasterX,x); t.xcRasterX=std::max(t.xcRasterX,x);
+        std::cout<<"["<<itsImp->setup->opts.label<<" raster pilot] the first iterate was REFUSED on the ball's own rasters (x density "
+                 <<had.density<<"), and the overlap's smallest eigenvalue is "<<std::scientific<<std::setprecision(3)<<lmin<<std::defaultfloat
+                 <<": restarting from the seed on rasters whose alias e^-x does not exceed it, x = "<<std::setprecision(4)<<x<<std::endl;
+        itsImp->startRaisedForConditioning=true;
+        auto sized=std::make_shared<SolidSetup>(*itsImp->setup);
+        sized->opts.tolerances=t;
+        const Lattice_3D lat=*itsImp->lat;
+        const auto mol=itsImp->mol;
+        const SCFAccelerators::Type asked=itsImp->stageAccelAsked;
+        itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->ec.reset();
+        itsImp->bs.reset();
+        BuildPoint(std::move(sized), lat, mol);
+        BuildRun(nullptr, own, asked, /*restored*/false, /*exactResume*/false);
+        R=ConvergeStage(own);
+    }
     if (itsImp->resumedFrom)   // an EXACT RESUME's first convergence: judged against the energy the state was saved at
     {
         const double E=itsImp->scf->GetEnergy().GetTotalEnergy();
