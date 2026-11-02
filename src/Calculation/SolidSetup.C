@@ -269,6 +269,11 @@ void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& s
 //! cell's charge, as the derived ones do), and seeds an \c IonicSAD run.  Empty passes.  Called by the facade and by \c deck::Vet,
 //! as \c RequireStatedMagneticOrdering is.
 void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st);
+//! \brief The electron count per spin channel, (nUp, nDown), for \a o.multiplicity and the RESOLVED electron count \a nel (decision 2).
+//! THROWS on an impossible request: a multiplicity whose parity disagrees with \a nel or that exceeds it -- in particular multiplicity 1
+//! (the EXPLICIT two-channel singlet, nUp = nDown) on an odd \a nel, unless \c o.spinsShareFermi lets one Fermi level set the channels
+//! (a metal: the counts are only the split the occupations start from).  Called by the resolve phase and by \c deck::Resolve.
+std::pair<int,int> SpinChannelCounts(const SolidCalcOptions& o, int nel);
 
 //! \brief HOW the molecular orbital basis of a GPW run is made at a geometry: the frozen RECIPE a geometry step rebuilds
 //! (doc/CalcNetworkReview.md §3.2 item 2, §7).
