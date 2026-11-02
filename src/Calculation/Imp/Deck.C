@@ -10,6 +10,7 @@ module;
 #include <fcntl.h>
 #include <unistd.h>
 #include <fstream>
+#include <iomanip>
 #include <functional>
 #include <initializer_list>
 #include <set>
@@ -366,6 +367,8 @@ const char* PostName(PostAction::Kind k)
     case PostAction::Kind::HubbardFiniteDifference: return "hubbardFiniteDifference";
     case PostAction::Kind::GridAudit:               return "gridAudit";
     case PostAction::Kind::EggBox:                  return "eggBox";
+    case PostAction::Kind::XCMeshAudit:             return "xcMeshAudit";
+    case PostAction::Kind::Displace:                return "displace";
     }
     throw std::logic_error("deck: PostAction kind");
 }
@@ -402,6 +405,13 @@ json PostJson(const PostAction& a)
     case PostAction::Kind::HubbardFiniteDifference: p={{"perturb",a.perturb},{"alpha_eV",ToEV(a.alpha)}}; break;
     case PostAction::Kind::GridAudit:               p={{"referenceMargin",a.referenceMargin}}; break;
     case PostAction::Kind::EggBox:                  p={{"shift",{a.shift.x,a.shift.y,a.shift.z}}}; break;
+    case PostAction::Kind::XCMeshAudit:             p={{"nRadial",a.xcRefNRadial},{"angularDegree",a.xcRefAngularDegree}}; break;
+    case PostAction::Kind::Displace:
+    {
+        json pts=json::array();
+        for (const auto& m : a.points) pts.push_back({{"atoms",m.atoms},{"delta",{m.delta.x,m.delta.y,m.delta.z}}});
+        p={{"points",pts}}; break;
+    }
     }
     return json::object({{PostName(a.kind),p}});
 }
@@ -442,7 +452,27 @@ PostAction PostFromJson(const json& j, const std::string& path)
         if (v.size()!=3) throw std::runtime_error("deck: '"+path+".eggBox.shift' must be [x,y,z] (bohr)");
         a.shift=rvec3_t(v[0],v[1],v[2]);
     }
-    else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference, gridAudit, eggBox)");
+    else if (name=="xcMeshAudit")
+    { a.kind=PostAction::Kind::XCMeshAudit; f.Get("nRadial",a.xcRefNRadial); f.Get("angularDegree",a.xcRefAngularDegree); }
+    else if (name=="displace")
+    {
+        a.kind=PostAction::Kind::Displace;
+        const json& pts=f.At("points");
+        if (!pts.is_array()) throw std::runtime_error("deck: '"+path+".displace.points' must be a list of {\"atoms\":[i,...], \"delta\":[x,y,z]} (bohr)");
+        for (size_t k=0;k<pts.size();++k)
+        {
+            const std::string pp=path+".displace.points."+std::to_string(k);
+            Fields g(pts[k],pp);
+            PostAction::Move m;
+            g.Get("atoms",m.atoms);
+            std::vector<double> v; g.Get("delta",v);
+            if (v.size()!=3) throw std::runtime_error("deck: '"+pp+".delta' must be [x,y,z] (bohr)");
+            m.delta=rvec3_t(v[0],v[1],v[2]);
+            g.Done();
+            a.points.push_back(std::move(m));
+        }
+    }
+    else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference, gridAudit, eggBox, xcMeshAudit, displace)");
     f.Done();
     return a;
 }
@@ -601,12 +631,36 @@ Materials::Material Resolve(RunSpec& spec)
                 if (!(a.referenceMargin>0.0)) throw std::runtime_error(who+"referenceMargin must be > 0 (the reference is FINER than the run)");
                 continue;
             }
+            if (a.kind==PostAction::Kind::XCMeshAudit) // the run's converged D on a reference Becke mesh: a Gaussian run with a positive mesh
+            {
+                if (spec.basis.family!=SolidCalcOptions::OrbitalBasis::GPW) throw std::runtime_error(who+"a plane-wave run samples XC on its FFT grid, not a Becke mesh");
+                if (a.xcRefNRadial<=0 || a.xcRefAngularDegree<=0) throw std::runtime_error(who+"nRadial and angularDegree must be > 0");
+                continue;
+            }
             if (a.kind==PostAction::Kind::EggBox)      // a rigid translation of a free, U = 0 Gaussian run at a nonzero shift
             {
                 if (spec.basis.family!=SolidCalcOptions::OrbitalBasis::GPW) throw std::runtime_error(who+"a plane-wave basis is translation-invariant by construction");
                 if (spec.solid.imposeSymmetry) throw std::runtime_error(who+"an imposed group's SALC phases follow the origin -- gate the free twin (imposeSymmetry false)");
                 if (!spec.solid.hubbard.empty()) throw std::runtime_error(who+"the +U projectors would not follow the shift -- gate the U = 0 twin");
                 if (norm(a.shift)==0.0) throw std::runtime_error(who+"a zero shift measures nothing");
+                continue;
+            }
+            if (a.kind==PostAction::Kind::Displace)    // geometry points through ONE SolidSession (its own setup, sized on max|dH_ij|)
+            {
+                if (a.points.empty()) throw std::runtime_error(who+"no points -- list {\"atoms\":[i,...], \"delta\":[x,y,z]} (bohr)");
+                // The session's own refusal, run here so a deck fails before its SCF: a free mesh made invariant under the group detected at
+                // EACH geometry switches along a path that breaks it (OpenWork, closed 2026-10-30).
+                if (!spec.solid.imposeSymmetry && spec.basis.family==SolidCalcOptions::OrbitalBasis::GPW && spec.solid.xcMeshSymmetric)
+                    throw std::runtime_error(who+"a free Gaussian run's XC mesh must be the plain one along a path -- set solid.xcMeshSymmetric false");
+                for (size_t k=0;k<a.points.size();++k)
+                {
+                    const auto& mv=a.points[k];
+                    if (norm(mv.delta)==0.0) throw std::runtime_error(who+"points."+std::to_string(k)+": a zero delta is the reference itself");
+                    for (size_t at : mv.atoms)
+                        if (at>=m.cell->GetNumAtoms())
+                            throw std::runtime_error(who+"points."+std::to_string(k)+": atom "+std::to_string(at)+" is past the structure's "
+                                                     +std::to_string(m.cell->GetNumAtoms())+" atoms");
+                }
                 continue;
             }
             const bool needsU = true;   // every action works on the Hubbard manifolds (list them at U=0 to probe a run without +U)
@@ -666,6 +720,10 @@ Materials::Material Resolve(RunSpec& spec)
             for (const auto& [el2,q2] : spec.solid.species) if (el2==el) q=q2;
         spec.solid.Nelec=used.Nelec()-spec.solid.charge;   // a STATED net charge (SolidCalcOptions::charge)
     }
+    // THE SPIN BOOKKEEPING on the resolved count (the setup's own decision 2, run here so --check refuses an impossible request:
+    // multiplicity 1 on an odd count once ran a silent doublet).
+    try { (void)SpinChannelCounts(spec.solid, spec.solid.Nelec); }
+    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.multiplicity -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
     return m;
 }
 
@@ -800,6 +858,52 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
       <<(spec.solid.imposeSymmetry?", symmetry IMPOSED":", symmetry FREE");
     v.summary=os.str();
     return v;
+}
+
+// postSCF displace: the deck's own setup (re-resolved: an UNSIZED one, so the session's reference pilot sizes it on max|dH_ij|), the
+// reference at the deck's positions, then each point -- all through ONE SolidSession, so every point shares the reference's frozen
+// basis recipe and rasters.  The main run is not reused: it was sized as an Energy.  No saved state (the main run's file is the deck's).
+static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec&, const Materials::Material&, const std::vector<SCFStage>&);
+struct DisplaceResult
+{
+    struct Point { std::optional<double> energy; size_t iterations=0; std::string failure; };
+    std::optional<double> E0; size_t it0=0; std::string failure0;
+    std::vector<Point> points;
+    bool ok=false;
+};
+static DisplaceResult Displace(const RunSpec& specIn, const std::vector<RunSpec::PostAction::Move>& moves)
+{
+    RunSpec spec=specIn;
+    const Materials::Material mat=Resolve(spec);
+    spec.solid.orbitalBasis=spec.basis.family; spec.solid.planeWaveEcut=spec.basis.ecut;
+    spec.solid.saveStateTo.clear();
+    std::vector<SCFStage> stages;
+    for (const auto& st : spec.Stages()) stages.push_back({st.scf,st.accelerator});   // the whole recipe: the session seeds, it never restarts
+    SolidSession S(SetupOf(spec, mat, stages), stages);
+    const PESGeometry ref=S.Reference();
+    DisplaceResult out;
+    std::cout<<"[displace] reference: the deck's positions ("<<ref.R.size()<<" atoms), one SolidSession for "<<moves.size()<<" point(s)"<<std::endl;
+    auto p0=S.ConvergeAt(ref.cell, ref.R);
+    if (!p0) { out.failure0=p0.Error().details; return out; }
+    out.E0=p0->energy; out.it0=p0->iterations;
+    bool ok=true;
+    for (size_t k=0;k<moves.size();++k)
+    {
+        std::vector<rvec3_t> R=ref.R;
+        if (moves[k].atoms.empty()) for (auto& r : R) r+=moves[k].delta;
+        else                        for (size_t a : moves[k].atoms) R[a]+=moves[k].delta;
+        auto p=S.ConvergeAt(ref.cell, R);
+        DisplaceResult::Point q;
+        if (p) { q.energy=p->energy; q.iterations=p->iterations; }
+        else   { q.failure=p.Error().details; ok=false; }
+        std::ostringstream os;
+        if (p) os<<"E "<<std::setprecision(12)<<p->energy<<" Ha, dE "<<std::scientific<<std::setprecision(6)<<p->energy-*out.E0<<" Ha, "<<p->iterations<<" iterations";
+        else   os<<"FAILED: "<<q.failure;
+        std::cout<<"[displace] point "<<k<<": "<<os.str()<<std::endl;
+        out.points.push_back(std::move(q));
+    }
+    out.ok=ok;
+    return out;
 }
 
 RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir)
@@ -951,10 +1055,41 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
             }
             rj["fd"]=fds; pr.ok=ok; pr.summary=std::to_string(J.size())+" manifold(s) perturbed"; break;
         }
+        case K::Displace:
+        {
+            json pj=json::array(); std::ostringstream os;
+            const auto D=Displace(spec, a.points);
+            pr.ok=D.ok;
+            rj["reference"]={{"energy",D.E0 ? json(*D.E0) : json(nullptr)},{"iterations",D.it0}};
+            if (!D.failure0.empty()) rj["reference"]["failure"]=D.failure0;
+            for (size_t k=0;k<D.points.size();++k)
+            {
+                const auto& q=D.points[k];
+                json x={{"atoms",a.points[k].atoms},{"delta",{a.points[k].delta.x,a.points[k].delta.y,a.points[k].delta.z}},{"iterations",q.iterations}};
+                if (q.energy) { x["energy"]=*q.energy; if (D.E0) x["dE"]=*q.energy-*D.E0; }
+                else          x["failure"]=q.failure;
+                pj.push_back(x);
+            }
+            rj["points"]=pj;
+            if (D.E0) os<<"reference "<<std::setprecision(12)<<*D.E0<<" Ha;"; else os<<"reference FAILED: "<<D.failure0<<";";
+            os<<std::setprecision(6);
+            for (const auto& q : D.points) { if (q.energy && D.E0) os<<" dE "<<std::scientific<<(*q.energy-*D.E0); else os<<" FAILED"; }
+            pr.summary=os.str(); break;
+        }
         case K::GridAudit:
         case K::EggBox:
+        case K::XCMeshAudit:
         {
-            const auto R= a.kind==K::EggBox ? calc->EggBox(a.shift) : calc->GridAudit(a.referenceMargin);
+            auto xcRef=[&]
+            {   // the run's own resolved recipe (MHL scale, Becke order, ...), only the two stated sizes changed
+                qcMesh::MeshParams m=calc->SizedSetup()->xcMesh;
+                m.cellKind=qcMesh::UnitCellKind::Becke; m.nRadial=a.xcRefNRadial; m.angularDegree=a.xcRefAngularDegree;
+                m.angular = (a.xcRefAngularDegree>=29 && a.xcRefAngularDegree<=35) ? qcMesh::AngularKind::Lebedev : qcMesh::AngularKind::GaussLegendre;
+                return m;
+            };
+            const auto R= a.kind==K::EggBox      ? calc->EggBox(a.shift)
+                        : a.kind==K::XCMeshAudit ? calc->XCMeshAudit(xcRef())
+                        :                          calc->GridAudit(a.referenceMargin);
             json t=json::array();
             for (const auto& x : R.terms) t.push_back({{"term",x.label},{"entries",x.entries},{"maxAbsDH",x.maxAbsΔH},{"dE",x.ΔE},
                                                        {"x",x.x},{"bound",x.bound},{"eta",x.eta},{"etaOn",x.etaOn}});
@@ -988,6 +1123,16 @@ std::vector<SCFStage> ScheduleToRun(const RunSpec& spec)
     return stages;
 }
 
+// THE SETUP, resolved ONCE: the basis from the deck's recipe (the trim stated, or vetted at the run's own orthoTol and frozen), and every
+// decision the run makes before it builds anything.  The first stage's accelerator (a restart's: its one stage's) is the setup's; each
+// later stage names its own.  \a spec is Build's (its family copied into solid, its save path resolved).
+static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec& spec, const Materials::Material& mat, const std::vector<SCFStage>& stages)
+{
+    Lattice_3D lat(*mat.cell, spec.kmesh);
+    SolidCalcOptions so=spec.solid; so.accelerator=stages.front().accelerator;
+    return SolidSetup::Resolve(lat, RecipeOf(spec.basis), so);
+}
+
 std::unique_ptr<SolidCalculation> Build(const RunSpec& specIn, SolidCalculation::Observer onIteration)
 {
     namespace fs=std::filesystem;
@@ -1007,13 +1152,8 @@ std::unique_ptr<SolidCalculation> Build(const RunSpec& specIn, SolidCalculation:
         if (spec.state.save=="auto") throw std::runtime_error("deck: state.save 'auto' names a file under Run's outDir; Build takes a path");
         spec.solid.saveStateTo=spec.state.save;
     }
-    Lattice_3D lat(*mat.cell, spec.kmesh);
     const std::vector<SCFStage> stages=ScheduleToRun(spec);
-    // THE SETUP, resolved ONCE: the basis from the deck's recipe (the trim stated, or vetted at the run's own orthoTol and frozen), and
-    // every decision the run makes before it builds anything.  The first stage's accelerator (a restart's: its one stage's) is the
-    // setup's; each later stage names its own.
-    SolidCalcOptions so=spec.solid; so.accelerator=stages.front().accelerator;
-    const auto setup=SolidSetup::Resolve(lat, RecipeOf(spec.basis), so);
+    const auto setup=SetupOf(spec, mat, stages);
     if (r.empty()) return SolidCalculation::Prepare(setup, stages, std::move(onIteration));
     // a refusal THROWS -- a deck never silently re-seeds
     auto R=SolidCalculation::PrepareRestart(r, setup, stages.front().params, std::move(onIteration));

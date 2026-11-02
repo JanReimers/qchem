@@ -529,6 +529,49 @@ TEST(Deck, EggBoxRoundTripsAndRefusesWhatCannotTranslate)
     EXPECT_NE(msg(base({{{"eggBox",{{"shift",{0.1,0}}}}}},json::object())).find("[x,y,z]"),std::string::npos);
 }
 
+// The XC-mesh audit action (doc/OpenWork.md §3 "A curvature needs an XC-MESH ladder"): round-trips its reference mesh, defaults to lane B's
+// (80, 48), and is refused before the SCF where it cannot work (a plane-wave run has no Becke mesh) or names no mesh.
+TEST(Deck, XCMeshAuditRoundTripsAndRefusesANonPositiveMesh)
+{
+    auto msg=[](json d){ try { deck::RunSpec s; deck::FromJson(d,s); deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
+    auto base=[](json post) { return json{{"structure","NaF_rocksalt"},{"postSCF",post}}; };
+    deck::RunSpec r;
+    deck::FromJson(base({{{"xcMeshAudit",json::object()}}, {{"xcMeshAudit",{{"nRadial",60},{"angularDegree",35}}}}}), r);
+    ASSERT_EQ(r.postSCF.size(),2u);
+    EXPECT_EQ(r.postSCF[0].xcRefNRadial, 80); EXPECT_EQ(r.postSCF[0].xcRefAngularDegree, 48);
+    EXPECT_EQ(r.postSCF[1].xcRefNRadial, 60); EXPECT_EQ(r.postSCF[1].xcRefAngularDegree, 35);
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
+    EXPECT_EQ(deck::ToJson(back),j); EXPECT_TRUE(back.postSCF==r.postSCF);
+    EXPECT_EQ(msg(base({{{"xcMeshAudit",json::object()}}})),"NO THROW");
+    EXPECT_NE(msg(base({{{"xcMeshAudit",{{"nRadial",0}}}}})).find("> 0"),std::string::npos);
+    EXPECT_NE(msg(base({{{"xcMeshAudit",{{"angularDeg",40}}}}})).find("angularDeg"),std::string::npos) << "a typo is refused, not ignored";
+}
+
+// The displace action (OpenWork F): its points round-trip, and a deck is refused before the SCF where ONE SolidSession could not run
+// them -- the free run's mesh still the symmetric one, an atom past the structure, a zero delta, no points at all.
+TEST(Deck, DisplaceRoundTripsAndRefusesWhatASessionCannotRun)
+{
+    auto msg=[](json d){ try { deck::RunSpec s; deck::FromJson(d,s); deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
+    const json plain={{"xcMeshSymmetric",false}};
+    auto base=[](json pts, json solid) { return json{{"structure","NaF_rocksalt"},{"solid",solid},{"postSCF",{{{"displace",{{"points",pts}}}}}}}; };
+    const json pts={{{"atoms",{1}},{"delta",{0.1,0,0}}}, {{"atoms",json::array()},{"delta",{0.1,0,0}}}};   // one ion, then the rigid twin
+    deck::RunSpec r; deck::FromJson(base(pts,plain), r);
+    ASSERT_EQ(r.postSCF.size(),1u); ASSERT_EQ(r.postSCF[0].points.size(),2u);
+    EXPECT_EQ(r.postSCF[0].points[0].atoms, std::vector<size_t>{1});
+    EXPECT_TRUE(r.postSCF[0].points[1].atoms.empty()) << "empty = every atom";
+    EXPECT_EQ(r.postSCF[0].points[0].delta.x, 0.1);
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
+    EXPECT_EQ(deck::ToJson(back),j); EXPECT_TRUE(back.postSCF==r.postSCF);
+    EXPECT_EQ(msg(base(pts,plain)),"NO THROW");
+    EXPECT_NE(msg(base(pts,json::object())).find("xcMeshSymmetric false"),std::string::npos) << "the free default mesh switches along a path";
+    EXPECT_EQ(msg(base(pts,json{{"imposeSymmetry",true}})),"NO THROW") << "an imposed run's mesh is the group's: the session refuses a point that breaks it";
+    EXPECT_NE(msg(base({{{"atoms",{2}},{"delta",{0.1,0,0}}}},plain)).find("past the structure"),std::string::npos);
+    EXPECT_NE(msg(base({{{"atoms",{0}},{"delta",{0,0,0}}}},plain)).find("zero delta"),std::string::npos);
+    EXPECT_NE(msg(base(json::array(),plain)).find("no points"),std::string::npos);
+    EXPECT_NE(msg(base({{{"atoms",{0}},{"delta",{0.1,0}}}},plain)).find("[x,y,z]"),std::string::npos);
+    EXPECT_NE(msg(base({{{"atom",0},{"delta",{0.1,0,0}}}},plain)).find("unknown key"),std::string::npos);
+}
+
 TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
 {
     auto msg=[](json solid)
@@ -546,6 +589,26 @@ TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)
     EXPECT_EQ(msg({{"multiplicity",1}}),"NO THROW") << "no +U: the imposed-without-U path is not (yet) covered";
     EXPECT_NE(msg({{"multiplicity",1},{"hubbard",{H}},{"siteSpins",{1,-1}}}).find("2 entries for 4 sites"),std::string::npos);
     EXPECT_NE(msg({{"siteSpins",{2,-1,0,0}}}).find("-1, 0 or +1"),std::string::npos);
+}
+
+// multiplicity 1 is the two-channel SINGLET, nUp = nDown (OpenWork §3, lane H 2026-11-01): an odd electron count cannot hold it, and it
+// once ran a silent doublet (bcc Li, 53 mHa off, CONVERGED).  Refused at resolve -- unless one Fermi level sets the channels.
+TEST(Deck, MultiplicityOneOnAnOddCountIsRefusedUnlessTheSpinsShareAFermiLevel)
+{
+    auto msg=[](json solid)
+    {
+        deck::RunSpec s; deck::FromJson(json{{"structure","NaF_rocksalt"},{"solid",solid}},s);   // 8 electrons (Na q1, F q7)
+        try { deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); }
+        return std::string("NO THROW");
+    };
+    EXPECT_EQ(msg({{"multiplicity",1}}),"NO THROW") << "an even count holds the singlet";
+    EXPECT_NE(msg({{"multiplicity",1},{"charge",1}}).find("SINGLET"),std::string::npos) << "7 electrons: refused, not a silent doublet";
+    EXPECT_NE(msg({{"multiplicity",1},{"charge",1}}).find("odd Nelec 7"),std::string::npos) << "the message names the count";
+    EXPECT_EQ(msg({{"multiplicity",1},{"charge",1},{"spinsShareFermi",true}}),"NO THROW") << "one Fermi level: the counts float";
+    EXPECT_EQ(msg({{"multiplicity",2},{"charge",1}}),"NO THROW") << "the doublet, stated";
+    EXPECT_EQ(msg({{"charge",1}}),"NO THROW") << "minimal spin";
+    EXPECT_NE(msg({{"multiplicity",2}}).find("parity"),std::string::npos) << "a doublet of 8 electrons";
+    EXPECT_NE(msg({{"multiplicity",10}}).find("parity"),std::string::npos) << "2S = 9 > 8 electrons";
 }
 
 // The IonicSAD charge order is STATED or derived (OpenWork §3 "Spinel charge order is CHOSEN by atom index", 2026-10-30): a stated

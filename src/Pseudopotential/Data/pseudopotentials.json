@@ -9,6 +9,6 @@
   "gth-lda-valence": {
     "comment": "The smallest-q (valence-only, largest core) GTH-LDA entry of every element the shipped materials use; the recipe every banked anchor was run at.",
     "functional": "LDA",
-    "valence": { "Al": 3, "Cs": 1, "F": 7, "Fe": 8, "I": 7, "Li": 1, "Mn": 7, "Na": 1, "Ni": 10, "O": 6, "S": 6, "Si": 4, "Sr": 2, "Ti": 4, "V": 5 }
+    "valence": { "Al": 3, "C": 4, "Cs": 1, "F": 7, "Fe": 8, "H": 1, "I": 7, "Li": 1, "Mn": 7, "N": 5, "Na": 1, "Ni": 10, "O": 6, "S": 6, "Si": 4, "Sr": 2, "Ti": 4, "V": 5 }
   }
 }

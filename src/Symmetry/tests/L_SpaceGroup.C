@@ -372,6 +372,31 @@ TEST(Shubnikov, SignedFoldFixesTheStaggeredPatternAndGreyErasesIt)
 //  wrong is that an uncalled inline documents a convention NOTHING CHECKS — so it can drift silently
 //  against the accessors it claims to mirror.  This gate is the check: the two group accessors must agree
 //  through it, on a NON-SYMMORPHIC group, where a dropped tau would show.
+//---------------------------------------------------------------------------------------
+//  NEAREST, NOT FIRST (2026-11-01): the match tolerance is absolute, and an atom-centred mesh's innermost shell
+//  holds DISTINCT points closer than it (O2 box: a mirror pair across y=z 7.5e-9 apart in fractional units, tol
+//  1e-8).  First-hit matching sent E of one point onto its twin -- 9-member orbits under 16 ops and a rep with
+//  no mapping op, which the Shubnikov star-average then asserted on.  Here: E and the y<->z mirror on such a pair.
+//
+TEST(Fold, ANearTwinInsideTheToleranceIsNotMistakenForThePointItself)
+{
+    const SymOp E   {Matrix3D<double>(1,0,0, 0,1,0, 0,0,1), rvec3_t(0,0,0)};
+    const SymOp swap{Matrix3D<double>(1,0,0, 0,0,1, 0,1,0), rvec3_t(0,0,0)};
+    const std::vector<SymOp> ops{E, swap};
+    const double tol=1e-8, d=2.5e-9;                       // |a-b| = sqrt(2)*2d ~ 7e-9 < tol
+    const std::vector<rvec3_t> pts{rvec3_t(0.3, 0.5+d, 0.5-d), rvec3_t(0.3, 0.5-d, 0.5+d)};
+    for (const Fold& f : {FoldPointsPeriodic(pts, ops, tol), FoldPoints(pts, ops, tol)})
+    {
+        ASSERT_EQ(f.Reps(), 1u) << "the mirror pair is ONE orbit";
+        ASSERT_EQ(f.members[0].size(), 2u);
+        for (auto [m, o] : f.members[0])
+        {
+            ASSERT_GE(o, 0) << "point " << m << ": every edge names its op";
+            EXPECT_EQ(o, m) << "point 0 is reached by E (op 0), its twin by the mirror (op 1)";
+        }
+    }
+}
+
 TEST(SpaceGroup, DirectOfIsTheInverseOfTheReciprocalConvention)
 {
     std::vector<AtomSite> basis = {

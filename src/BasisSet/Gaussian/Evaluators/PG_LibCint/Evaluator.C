@@ -19,8 +19,10 @@
 //       * NORMALIZATION: libcint does NOT unit-normalize Cartesians (xx vs xy differ by (2l-1)!!), so every
 //         component is renormalized by 1/sqrt(self-overlap) -- PGData::ns's convention.
 //   - Spherical (spherical=true): int*_sph, 2l+1 components in libcint's OWN order/convention (no attempt to
-//     match PG_Spherical's harmonics).  An HF-only oracle: the HF energy is basis-ordering invariant, so it
-//     cross-checks PG_Spherical without convention-matching.
+//     match PG_Spherical's harmonics).  An HF oracle: the HF energy is basis-ordering invariant, so it
+//     cross-checks PG_Spherical without convention-matching.  Grid-eval (SphericalValues/Gradient) uses
+//     libcint's own cart->sph coefficients, so it follows the same convention by construction; the 3-centre
+//     (DFT fit) integrals stay Cartesian-only.
 module;
 #include <iosfwd>
 #include <memory>
@@ -73,6 +75,13 @@ public:
     // (the documented isM_ friction: an opaque assembler must duplicate the 0.5 / ib<id branching). ---
     ERI4 DirectMatrix  (const NR_Evaluator& partner) const;
     ERI4 ExchangeMatrix(const NR_Evaluator& partner) const;
+
+    // --- grid-eval of the SPHERICAL components (spherical mode only), in the delivered order and normalization:
+    // libcint's own cart->sph map (CINTc2s_bra_sph) applied to its Cartesian monomials, times the delivered scale.
+    // The Cartesian mode's grid-eval is the IBS's own (PGData's polarizations); this is the one it cannot do.
+    // Client: an HF run's D-MINDRHO convergence residual samples rho on a mesh (SCFIterator::ResidualPerElectron).
+    rvec_t     SphericalValues  (const rvec3_t& r) const;
+    rvec3vec_t SphericalGradient(const rvec3_t& r) const;
 
 private:
     struct Imp;

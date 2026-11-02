@@ -5,6 +5,8 @@ module;
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <tuple>       // std::tie (decision 2)
+#include <utility>
 #include <vector>
 module qchem.SolidSetup;
 
@@ -103,6 +105,25 @@ void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st
     if (o.seed!=ChargeDensity::SeedStrategy::IonicSAD)
         throw std::invalid_argument("SolidCalcOptions: siteCharges is stated but the seed is not IonicSAD -- only the ionic seed reads a"
                                     " charge order, so nothing would consume it");
+}
+
+//  THE SPIN BOOKKEEPING (decision 2).  0 = minimal spin (ζ = 0 for an even count, a doublet for an odd one); > 1 = 2S+1 as stated;
+//  1 = the EXPLICIT two-channel singlet, nUp = nDown, which an odd count cannot hold.  Until 2026-11-01 1 mapped to nel%2 like 0, so
+//  the parity check could never fire on it: bcc Li (1 e/cell) ran a fully spin-up doublet, 53 mHa off, and reported CONVERGED
+//  (OpenWork §3).  Under spinsShareFermi the counts are only the split the occupations start from -- one Fermi level decides them --
+//  so an odd count keeps the nel%2 split there.
+std::pair<int,int> SpinChannelCounts(const SolidCalcOptions& o, int nel)
+{
+    const bool singlet = o.multiplicity==1 && !o.spinsShareFermi;
+    if (singlet && nel%2!=0)
+        throw std::invalid_argument("SolidCalcOptions: multiplicity 1 is the two-channel SINGLET (nUp = nDown), impossible with an odd Nelec "
+                                    +std::to_string(nel)+" -- state multiplicity 2 (a doublet), 0 (minimal spin), or spinsShareFermi true so"
+                                    " one Fermi level sets the channels (a metal)");
+    const int twoS = o.multiplicity>1 ? o.multiplicity-1 : (singlet ? 0 : nel%2);
+    if ((nel-twoS)%2!=0 || twoS>nel)
+        throw std::invalid_argument("SolidCalcOptions: multiplicity "+std::to_string(o.multiplicity)+" parity disagrees with Nelec "
+                                    +std::to_string(nel));
+    return {(nel+twoS)/2, (nel-twoS)/2};
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -248,17 +269,12 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches
     // a singlet asked of an odd electron count BEFORE integer division silently empties a channel.
     const int nel  = s->opts.Nelec;   // the RESOLVED count (above)
-    const int twoS = opts.multiplicity>1 ? opts.multiplicity-1 : nel%2;
     s->polarized = opts.multiplicity>=1;
-    if ((nel-twoS)%2!=0 || twoS>nel)
-        throw std::runtime_error("SolidCalcOptions: multiplicity "+std::to_string(opts.multiplicity)
-                                 +" parity disagrees with Nelec "+std::to_string(nel));
+    std::tie(s->nUp, s->nDown)=SpinChannelCounts(opts, nel);
     // A partial eigensolve must leave EMPTY bands above the fuller channel (smearing and the gap need them).
-    if (opts.numBands>0 && opts.numBands<=size_t((nel+twoS)/2))
+    if (opts.numBands>0 && opts.numBands<=size_t(s->nUp))
         throw std::invalid_argument("SolidCalcOptions: numBands "+std::to_string(opts.numBands)+" must exceed the larger spin channel's "
-                                    +std::to_string((nel+twoS)/2)+" electrons");
-    s->nUp  =(nel+twoS)/2;
-    s->nDown=(nel-twoS)/2;
+                                    +std::to_string(s->nUp)+" electrons");
     return s;
 }
 

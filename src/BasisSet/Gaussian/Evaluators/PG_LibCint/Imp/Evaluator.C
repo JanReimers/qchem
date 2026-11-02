@@ -21,6 +21,7 @@ extern "C" {
 // cint_funcs.h omits prototypes for the 3-centre integrals (the symbols are in libcint); declare them.
 CINTIntegralFunction int3c1e_cart;   // 3-centre overlap  <ab|c>
 CINTIntegralFunction int3c2e_cart;   // 3-centre Coulomb  (ab|c)
+double CINTcommon_fac_sp(FINT l);      // the s/p factor libcint folds into every integral (g1e.h, not in the public header)
 }
 module qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
@@ -48,6 +49,7 @@ struct ShellDesc
     std::vector<double> coef;   // PG normalization-folded contraction coefficients
     std::vector<size_t> lc2pg;  // libcint component -> global output index (Cartesian: PG order; spherical:
                                 // sequential = libcint's native real-spherical order)
+    std::vector<double> c2s;    // spherical only: (2l+1) x ncart row-major, libcint's cart->sph map (grid-eval)
 };
 
 struct NR_Evaluator::Imp
@@ -144,7 +146,17 @@ void NR_Evaluator::Init(const Structure* cl, bool spherical)
         { rvec_t es=r->GetExponents(); const rvec_t& cs=r->GetCoeffs();
           for (size_t k=0;k<es.size();++k){ sh.exp.push_back(es[k]); sh.coef.push_back(cs[k]); } }
         if (spherical)
+        {
             for (int p=0;p<m.dim(L);++p) sh.lc2pg.push_back(gout++);    // libcint-native sph order, sequential
+            // The cart->sph map is libcint's own: CINTc2s_bra_sph of the identity (one Cartesian unit vector per
+            // "ket" row).  s and p return the INPUT pointer (no copy), so read through the return value.
+            const int nc=ncart(L), ns=2*L+1;
+            std::vector<double> id((size_t)nc*nc, 0.0), out((size_t)nc*ns, 0.0);
+            for (int c=0;c<nc;++c) id[(size_t)c*nc+c]=1.0;
+            const double* t=CINTc2s_bra_sph(out.data(), nc, id.data(), L);
+            sh.c2s.assign((size_t)ns*nc, 0.0);
+            for (int c=0;c<nc;++c) for (int p=0;p<ns;++p) sh.c2s[(size_t)p*nc+c]=t[(size_t)c*ns+p];
+        }
         else
             for (const Polarization& lp:LibcintCartOrder(L))           // libcint-cart order -> PG global index
             {
@@ -175,6 +187,85 @@ void NR_Evaluator::Init(const Structure* cl, bool spherical)
 }
 
 NR_Evaluator::~NR_Evaluator() = default;
+
+// --- spherical grid-eval: phi_p(r) = scale_p * fac_sp(l) * sum_c c2s[p][c] x^lx y^ly z^lz * sum_k coef_k exp(-a_k r^2) ----
+// The factors are exactly libcint's (its integrals carry fac_sp and c2s), so the delivered scale normalizes these to one.
+static double IPow(double x, int n) {double r=1.0; for (int i=0;i<n;++i) r*=x; return r;}
+
+rvec_t NR_Evaluator::SphericalValues(const rvec3_t& r) const
+{
+    const Imp& m=*itsImp;
+    assert(m.spherical && "SphericalValues on a Cartesian libcint evaluator");
+    rvec_t ret(m.N);
+    std::vector<double> mono;
+    for (const ShellDesc& sh:m.shells)
+    {
+        const AtomRec& A=m.atoms[sh.atom];
+        const double dx=r.x-A.x, dy=r.y-A.y, dz=r.z-A.z, r2=dx*dx+dy*dy+dz*dz;
+        double R=0.0;
+        for (size_t k=0;k<sh.exp.size();++k) R+=sh.coef[k]*std::exp(-sh.exp[k]*r2);
+        R*=CINTcommon_fac_sp(sh.l);
+        const int l=sh.l, nc=ncart(l), ns=2*l+1;
+        mono.assign(nc, 0.0);
+        int c=0;
+        for (int lx=l; lx>=0; --lx)                                   // libcint's Cartesian order (lx desc, ly desc)
+            for (int ly=l-lx; ly>=0; --ly) mono[c++]=IPow(dx,lx)*IPow(dy,ly)*IPow(dz,l-lx-ly);
+        for (int p=0;p<ns;++p)
+        {
+            double P=0.0;
+            for (int q=0;q<nc;++q) P+=sh.c2s[(size_t)p*nc+q]*mono[q];
+            const size_t g=sh.lc2pg[p];
+            ret[g]=m.scale[g]*P*R;
+        }
+    }
+    return ret;
+}
+
+rvec3vec_t NR_Evaluator::SphericalGradient(const rvec3_t& r) const
+{
+    const Imp& m=*itsImp;
+    assert(m.spherical && "SphericalGradient on a Cartesian libcint evaluator");
+    rvec3vec_t ret(m.N);
+    std::vector<double> mono, gx, gy, gz;
+    for (const ShellDesc& sh:m.shells)
+    {
+        const AtomRec& A=m.atoms[sh.atom];
+        const double dx=r.x-A.x, dy=r.y-A.y, dz=r.z-A.z, r2=dx*dx+dy*dy+dz*dz;
+        double R=0.0, dR=0.0;                                         // grad R = dR * (dx,dy,dz)
+        for (size_t k=0;k<sh.exp.size();++k)
+        {
+            const double e=sh.coef[k]*std::exp(-sh.exp[k]*r2);
+            R+=e; dR+=-2.0*sh.exp[k]*e;
+        }
+        const double f=CINTcommon_fac_sp(sh.l); R*=f; dR*=f;
+        const int l=sh.l, nc=ncart(l), ns=2*l+1;
+        mono.assign(nc,0.0); gx.assign(nc,0.0); gy.assign(nc,0.0); gz.assign(nc,0.0);
+        int c=0;
+        for (int lx=l; lx>=0; --lx)
+            for (int ly=l-lx; ly>=0; --ly, ++c)
+            {
+                const int lz=l-lx-ly;
+                const double px=IPow(dx,lx), py=IPow(dy,ly), pz=IPow(dz,lz);
+                mono[c]=px*py*pz;
+                gx[c]=(lx>0 ? lx*IPow(dx,lx-1) : 0.0)*py*pz;
+                gy[c]=px*(ly>0 ? ly*IPow(dy,ly-1) : 0.0)*pz;
+                gz[c]=px*py*(lz>0 ? lz*IPow(dz,lz-1) : 0.0);
+            }
+        for (int p=0;p<ns;++p)
+        {
+            double P=0.0, Px=0.0, Py=0.0, Pz=0.0;
+            for (int q=0;q<nc;++q)
+            {
+                const double w=sh.c2s[(size_t)p*nc+q];
+                P+=w*mono[q]; Px+=w*gx[q]; Py+=w*gy[q]; Pz+=w*gz[q];
+            }
+            const size_t g=sh.lc2pg[p];
+            const double s=m.scale[g];
+            ret[g]=rvec3_t(s*(Px*R+P*dR*dx), s*(Py*R+P*dR*dy), s*(Pz*R+P*dR*dz));
+        }
+    }
+    return ret;
+}
 
 size_t NR_Evaluator::size() const {return itsImp ? itsImp->N     : PGData::size();}
 rvec_t NR_Evaluator::Norm() const {return itsImp ? itsImp->scale : ns;}

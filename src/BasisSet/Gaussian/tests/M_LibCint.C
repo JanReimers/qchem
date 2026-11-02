@@ -98,3 +98,46 @@ TEST(M_LibCint, matrix_3C_4C_match_scalar)
     delete vxcfit;
     delete  cdfit;
 }
+
+// Spherical grid-eval (an HF run samples rho on a mesh for its D-MINDRHO residual, so the spherical libcint oracle needs
+// it): the values and gradients, integrated on a mesh, must reproduce libcint's OWN spherical overlap and kinetic
+// (<grad i|grad j> = <-nabla^2>) matrices -- that pins the cart->sph map, the order and the normalization together, with no
+// convention-matching of our own.  ONE off-origin atom, so every product is a polynomial of degree <= 6 on one centre and
+// Lebedev 35 is exact: the residual is radial quadrature only (on water the Becke partition of the cross-centre products
+// leaves ~1e-6, which would hide a small convention error).  LMax=3: f is the first shell whose cart->sph map is not a
+// relabelling of a few monomials.
+TEST(M_LibCint, spherical_grid_eval_matches_matrices)
+{
+    Molecule* o = new Molecule;
+    o->Insert(new Atom(8, 0, rvec3_t(0.3, -0.2, 0.5)));     // off the origin: exercises the r - R_A shift
+    rvec_t exps{1.0, 0.3};
+    Orbital_IBS ibs(exps, 3, o);                             // s..f
+    LibCintEval lc(dynamic_cast<const PGData&>(ibs), o);
+    lc.Init(o, true);                                        // re-pack as libcint-native spherical
+    const size_t n=lc.size();
+    ASSERT_EQ(n, (1+3+5+7)*exps.size());
+
+    const qcMesh::Mesh m=o->CreateIntegrationMesh(qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=120, .mhl_m=2,
+                                     .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=35, .beckeOrder=3});
+    rmat_t S(n,n,0.0), K(n,n,0.0);
+    for (size_t g=0; g<m.size(); ++g)
+    {
+        const rvec_t     f =lc.SphericalValues  (m.Points()[g]);
+        const rvec3vec_t df=lc.SphericalGradient(m.Points()[g]);
+        const double w=m.Weights()[g];
+        for (size_t i=0;i<n;++i)
+            for (size_t j=i;j<n;++j)
+            {
+                S(i,j)+=w*f[i]*f[j];
+                K(i,j)+=w*(df[i]*df[j]);
+            }
+    }
+    const rsmat_t So=lc.OverlapMatrix(), Ko=lc.KineticMatrix();
+    for (size_t i=0;i<n;++i)
+        for (size_t j=i;j<n;++j)
+        {
+            EXPECT_NEAR(S(i,j), So(i,j), 1e-10) << "overlap ("<<i<<","<<j<<")";
+            EXPECT_NEAR(K(i,j), Ko(i,j), 1e-9)  << "kinetic ("<<i<<","<<j<<")";
+        }
+    delete o;
+}

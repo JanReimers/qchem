@@ -308,6 +308,38 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
 }
 
 
+// CLAIM (user ruling 2026-11-01, pin 31): a geometry point with NO XC-mesh choice -- xcMesh Auto -- takes the atom-centred Becke mesh and
+// its pilot sizes that mesh on the nested ladder (qcMesh::BeckeLadderAbove) to max|dH_xc| <= eps per element; gated by an INDEPENDENT
+// audit two rungs above the settled mesh.  The egg-box cannot gate this (the mesh moves with the atoms); the nested ladder is the gate.
+// Why the default recipe is not enough here: lane B's NaF/LiF curvature (2026-11-01) -- (20, 2, 24), the path test's mesh below, was 4-10x
+// wrong on a 0.1 bohr curvature, and (40, 2, 36) brought both crystals to CP2K per term (NaF dExc -3.08e-4 vs -3.09e-4).  MEASURED 2026-11-01:
+// rung differences 1.0e-4 (40/29 vs 60/35 -- the default is 10x over), 1.8e-5 (60/35 vs 80/41 GL), 2.3e-6 (80/41 vs 100/47); settles on
+// 80/41 in 3 rounds, 5 re-convergence iterations; against 120/53 it reads 2.7e-6.  ~520 s serial.
+TEST(GPW_NaF, Γ_GeometryRunSizesItsBeckeMesh_Long)
+{
+    const Material naf=qchem::Materials::Get("NaF_rocksalt");
+    SolidCalcOptions o=NaFOptions(naf, "NaF geometry XC mesh");
+    o.imposeSymmetry=false;
+    o.xcMeshSymmetric=false;
+    o.xcMesh=qcMesh::MeshParams{.cellKind=qcMesh::UnitCellKind::Auto};
+    SCFParams par=NaFAnchorParams(); par.MinΔρPerElectron=1e-6;
+    const GaussianBasisRecipe sr2{.data=BasisSetData::VALENCE_LOWQ_SR2};
+    qchem::SolidSession pes(SolidSetup::Resolve(LatticeOf(naf), sr2, o), {SCFStage{par, o.accelerator}});
+    const PESGeometry ref=pes.Reference();
+    auto P=pes.ConvergeAt(ref.cell, ref.R);
+    ASSERT_TRUE(P) << P.Error().details;
+    const SolidCalculation& c=*pes.Current();
+    const qcMesh::MeshParams xc=c.ResolvedXCMesh();
+    ASSERT_EQ(xc.cellKind, qcMesh::UnitCellKind::Becke) << "a geometry run's XC follows the atoms";
+    EXPECT_TRUE(c.PilotCost().settled);
+    const auto A=c.XCMeshAudit(qcMesh::BeckeLadderAbove(qcMesh::BeckeLadderAbove(xc)));
+    double dXC=0.0;
+    for (const auto& t : A.terms) if (t.entries=="Exc") dXC=std::max(dXC, t.maxAbsΔH);
+    std::cout<<"[XC mesh] settled nR="<<xc.nRadial<<" L="<<xc.angularDegree<<"  max|dH_xc| two rungs up "<<dXC<<std::endl;
+    EXPECT_GT(dXC, 0.0) << "the audit compared two different meshes";
+    EXPECT_LE(dXC, o.accuracy.eps) << "max|dH_xc| against a mesh two rungs finer";
+}
+
 // (The pre-facade grid-continuation test, DISABLED_Γ_GridContinuation -- raw SolidSCFIterator ctors, ~15 GC_* env
 // knobs -- was DELETED 2026-10-02 (D-NAFGRID): its basin-avoidance premise (the direct fine run diving to -40 Ha) no
 // longer reproduces, and its incremental-convergence claim lives in Γ_Imp_eqColdStart / Γ_Imp_eqExactResume above.

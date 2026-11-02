@@ -33,6 +33,7 @@ import qchem.Diagnostics;                      // u_bands: the per-band +U slot 
 import qchem.BasisSet.Orbital_DFT_IBS;         // the block an orbital set lives on (EstimateHubbardU)
 import qchem.Environment;                   // WarnRetiredEnvironment (D-ENV step 6a)
 import qchem.RunPolicy;                        // the declared CP2K deviations (doc/OpenWork.md N5/T5)
+import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeLadderAbove (a geometry run's XC route and its nested ladder)
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.SCFCap;                           // SetupSCF -- the seed's atomic solves are not the run's iterations
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
@@ -1280,6 +1281,12 @@ std::string RasterName(const BasisSet::Gaussian::GPWTolerances& t)
     std::ostringstream os; os<<std::setprecision(4)<<"x(density, V_long, XC L0)=("<<t.rasterX<<", "<<t.vlocRasterX<<", "<<t.xcRasterX<<")";
     return os.str();
 }
+//! A Becke XC mesh as the pilot names a rung.
+std::string BeckeName(const qcMesh::MeshParams& m)
+{
+    return "Becke (nR="+std::to_string(m.nRadial)+", L="+std::to_string(m.angularDegree)
+           +(m.angular==qcMesh::AngularKind::Lebedev ? " Lebedev)" : " GL)");
+}
 //! The largest |a_ij - b_ij| of two term lists of one block, folded into \a terms (by position: one term order on both Hamiltonians).
 template <class M> void FoldΔH(const std::vector<M>& a, const std::vector<M>& b, std::vector<SolidCalculation::GridAuditTerm>& terms)
 {
@@ -1357,6 +1364,8 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     rpt::json rounds=rpt::json::array();
     std::optional<std::pair<double,double>> xcBefore;   // the XC term's (x, delivered) one round back: the power-law fit's first point
     bool xcOver=false;                                  // the XC term was over its target in the last round audited
+    std::optional<double> beckeBefore;                  // the Becke rung difference one round back: the ladder's convergence ratio
+    bool xcStatedOver=false;                            // a STATED Becke mesh was over its target (honoured, reported)
     for (int round=0;; ++round)
     {
         const G::RasterExponents x=*L3::GpwRasterExponents(*itsImp->bs);
@@ -1400,6 +1409,33 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             else          std::cout<<"meets "<<target<<std::endl;
             terms.push_back({{"term",which},{"delivered",d},{"x",xRun},{"C",C},{"demand",need}});
         }
+        // THE BECKE XC MESH on a run whose client consumes H (no raster: its own nested ladder).  BeckeXCParams() is calibrated on the
+        // ENERGY; a displacement reads H (lane B, NaF/LiF 2026-11-01: (20, 2, 24) 4-10x wrong on a 0.1 bohr curvature), so the mesh is held
+        // to max|dH_xc| <= target against the next rung at this D.  An atom-centred mesh moves with the atoms: the egg-box cannot see it.
+        std::optional<qcMesh::MeshParams> xcMeshNext;
+        const qcMesh::MeshParams& xcCur=itsImp->setup->xcMesh;
+        if (onH && xcCur.cellKind==qcMesh::UnitCellKind::Becke)
+        {
+            const qcMesh::MeshParams ref=qcMesh::BeckeLadderAbove(xcCur);
+            const GridAuditResult B=XCMeshAudit(ref);
+            double d=0.0;
+            for (const auto& T : B.terms) if (T.entries=="Exc") d=std::max(d, T.maxAbsΔH);
+            // The rung difference UNDER-states the rung's own error when the ladder converges slowly: Si Gamma halves per rung (1.8e-5,
+            // 8.9e-6), so its error is ~ the whole geometric tail d/(1 - r), r the measured ratio to the rung below -- twice d there.  One
+            // rung measured: d alone (no ratio yet); a ratio >= 1 (not converging) also falls back to d, and then the next rung measures again.
+            double est=d;
+            if (beckeBefore && d<*beckeBefore) est=d/(1.0-d/(*beckeBefore));
+            beckeBefore=d;
+            const bool stated=itsImp->setup->opts.xcMesh.cellKind!=qcMesh::UnitCellKind::Auto;
+            std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<"XC on the Becke mesh"<<std::right<<" delivered "<<std::scientific
+                     <<std::setprecision(3)<<d<<" (tail estimate "<<est<<") on "<<BeckeName(xcCur)<<" against "<<BeckeName(ref)<<"  ";
+            if (est<=target) std::cout<<"meets "<<target<<std::endl;
+            else if (stated) { std::cout<<"OVER, and the mesh is STATED: honoured (state xcMesh Auto to let the pilot size it)"<<std::endl; xcStatedOver=true; }
+            else             { std::cout<<"OVER: climbs to "<<BeckeName(ref)<<std::endl; xcMeshNext=ref; }
+            std::cout<<std::defaultfloat<<std::setprecision(prec0);
+            terms.push_back({{"term","XC Becke mesh"},{"delivered",d},{"tailEstimate",est},{"mesh",BeckeName(xcCur)},{"reference",BeckeName(ref)},
+                             {"over",est>target}});
+        }
         std::cout<<std::defaultfloat<<std::setprecision(prec0);
         rounds.push_back({{"round",round},{"rasters",RasterName(t)},{"terms",terms}});
         itsImp->pilotCost.rounds=round+1;
@@ -1407,15 +1443,17 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         t.rasterX    =std::max(t.rasterX,     dDens);
         t.vlocRasterX=std::max(t.vlocRasterX, dV);
         t.xcRasterX  =std::max(t.xcRasterX,   dXC);
-        if (t==was)
+        if (t==was && !xcMeshNext)
         {
-            std::cout<<tag<<"SETTLED after "<<round<<" re-convergence(s): every raster term meets "<<target<<" Ha on "<<RasterName(t)<<std::endl;
+            std::cout<<tag<<"SETTLED after "<<round<<" re-convergence(s): every raster term meets "<<target<<" Ha on "<<RasterName(t);
+            if (onH && xcCur.cellKind==qcMesh::UnitCellKind::Becke) std::cout<<", the XC on "<<BeckeName(xcCur)<<(xcStatedOver ? " (STATED, OVER)" : "");
+            std::cout<<std::endl;
             break;
         }
         if (round+1>=kPilotRounds)
         {
             std::cout<<tag<<"NOT SETTLED after "<<kPilotRounds<<" rounds: a term still over its target on "<<RasterName(was)
-                     <<" (the XC raster has no bound: its measured tail can fall slower than the shape the pilot fits) -- the run keeps "
+                     <<(xcMeshNext ? ", the XC on "+BeckeName(xcCur) : std::string())<<" (the XC raster has no bound: its measured tail can fall slower than the shape the pilot fits) -- the run keeps "
                      <<"these rasters and says so"<<std::endl;
             if (xcOver && onH)
                 std::cout<<tag<<"ADVICE: the uniform XC raster is the term over -- v_xc[rho] sampled on a fixed raster does not follow the atoms, "
@@ -1425,10 +1463,13 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         }
         // REBUILD THIS POINT on the raised rasters and re-converge from the D just audited: a restored stage on the same Hamiltonian
         // terms (the Ladder enters on its GDM rung at kT = 0, as a restart does).  Torn down iterator-first: each borrows the next.
-        std::cout<<tag<<"raising the rasters to "<<RasterName(t)<<" and re-converging from this D"<<std::endl;
+        std::cout<<tag<<"raising the rasters to "<<RasterName(t);
+        if (xcMeshNext) std::cout<<" and the XC mesh to "<<BeckeName(*xcMeshNext);
+        std::cout<<" and re-converging from this D"<<std::endl;
         const SavedState st=Carry();
         auto sized=std::make_shared<SolidSetup>(*itsImp->setup);
         sized->opts.tolerances=t;
+        if (xcMeshNext) sized->xcMesh=*xcMeshNext;
         const Lattice_3D lat=*itsImp->lat;
         const auto mol=itsImp->mol;
         // A restart's accelerator (CLAUDE.md: restarts run GDM or the DIIS->GDM Ladder at kT = 0): an Auto stage would resolve a restored
@@ -1458,8 +1499,17 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
              <<" re-convergence iteration(s) beyond the run's own"<<std::endl;
     if (rpt::Depth()>0)
         rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
-                                             {"rasters",RasterName(itsImp->setup->opts.tolerances)},{"settled",itsImp->rastersSettled},
+                                             {"rasters",RasterName(itsImp->setup->opts.tolerances)},
+                                             {"xcMesh", itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(itsImp->setup->xcMesh) : std::string("uniform")},{"settled",itsImp->rastersSettled},
                                              {"auditRounds",itsImp->pilotCost.rounds},{"reconvergeIterations",(long)itsImp->pilotCost.reconvergeIterations}});
+}
+
+SolidCalculation::GridAuditResult SolidCalculation::XCMeshAudit(const qcMesh::MeshParams& reference) const
+{
+    if (itsImp->setup->planeWave) throw std::invalid_argument("SolidCalculation::XCMeshAudit: a plane-wave run has no GPW basis to rebuild");
+    qchem::report::Timed timed("postSCF: XC-mesh audit (reference Hamiltonian + term matrices)");
+    return CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), reference.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(reference)
+                                                                                                                         : std::string("uniform XC"), &reference);
 }
 
 SolidCalculation::GridAuditResult SolidCalculation::EggBox(const rvec3_t& shift) const
@@ -1479,7 +1529,7 @@ SolidCalculation::GridAuditResult SolidCalculation::EggBox(const rvec3_t& shift)
 }
 
 SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift,
-                                                                    const std::string& referenceName) const
+                                                                    const std::string& referenceName, const qcMesh::MeshParams* xcMesh) const
 {
     namespace rpt=qchem::report;
     const SolidSetup&       S    = *itsImp->setup;
@@ -1535,7 +1585,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = raster,
             .hamPreservesReal = !opts.forceComplex}));
         if (rpt::Depth()>0) L3::EmitGpwGrids(*bsRef);   // the reference's grids + density verdict, as setup emits the run's (it forces EnsureLevels)
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, S.xcMesh, opts.vxcFit, itsImp->hubbard));
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);
     auto cdRef=RestoreDensity(st, *bsRef, g);
@@ -2118,6 +2168,19 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
         BasisSet::Gaussian::GridAccuracy rig=setup->opts.accuracy; rig.eta=BasisSet::Gaussian::AccuracyCalibration{};
         seeded->opts.tolerances=rig.Stated(setup->opts.tolerances);
         setup=std::move(seeded);
+    }
+    // ITS XC ROUTE FOLLOWS THE CONSUMER (user ruling 2026-11-01, pin 31): v_xc[rho] on a fixed uniform raster does not follow the atoms and
+    // cannot meet max|dH| <= eps at any affordable x (Si Gamma: 3e-5 per element at x 150, a power law), so a geometry run whose XC was the
+    // facade's choice (Auto) takes the atom-centred Becke mesh, which pin 30 makes admissible on a solid (H_R = {e}); the pilot then sizes
+    // it on the nested ladder.  A STATED mesh is obeyed, and so is the CP2K-parity veto (policy.beckeXC) -- a declared deviation.
+    if (!setup->planeWave && setup->opts.xcMesh.cellKind==qcMesh::UnitCellKind::Auto && setup->xcMesh.cellKind!=qcMesh::UnitCellKind::Becke
+        && theRunPolicy().BeckeXC())
+    {
+        auto becke=std::make_shared<SolidSetup>(*setup);
+        becke->xcMesh=qcMesh::BeckeXCParams();
+        std::cout<<"[XC grid choice] the client consumes H (a geometry run): a uniform XC raster does not follow the atoms -> BECKE "
+                 <<BeckeName(becke->xcMesh)<<std::endl;
+        setup=std::move(becke);
     }
     {
         qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");

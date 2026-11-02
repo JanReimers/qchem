@@ -318,6 +318,23 @@ Both routes remove the term with the largest measured alias error (GridSharpTerm
    **Also here (controller, 2026-10-30): thread-COUNT invariance of the collocation scatter** -- a FIXED accumulator count
    independent of `QCHEM_OPENMP_THREADS` (5ec26b06 made it reproducible at a fixed count only; OpenWork §3 "The short tier is NOT
    green at QCHEM_OPENMP_THREADS=4").  It moves the serial bits once, so it rides this window's re-judgement rather than its own.
+3b. **The XC route follows the consumer (user ruling 2026-11-01) -- BUILT 2026-11-01 (lane A, 6713e13a).**  A geometry point
+   (`SolidCalculation::AtGeometry`, `ClientConsumes::MatrixElements`) whose XC is Auto takes the Becke mesh (pin 30: H_R = {e}); a stated
+   mesh and `policy.beckeXC` are obeyed.  The pilot then SIZES it: `BeckeXCParams()` (40, Lebedev 29) is calibrated on the energy, so on an
+   H consumer each round audits the XC at fixed D against the next rung of a NESTED ladder (`qcMesh::BeckeLadderAbove`: (40,29) (60,35)
+   (80,41 GL) (100,47 GL) (120,53 GL); `SolidCalculation::XCMeshAudit`) and climbs while the geometric tail estimate d/(1 − r) of the rung
+   differences exceeds ε.  The egg-box cannot gate it (the mesh moves with the atoms); the ladder is the gate.  MEASURED (max|ΔH_xc|, Ha):
+
+   | system | 40/29 vs 60/35 | 60/35 vs 80/41 | 80/41 vs 100/47 | settled | audit vs 120/53 | pilot cost |
+   |---|---|---|---|---|---|---|
+   | Si Γ, auto floor | 1.8e-5 | 8.9e-6 (tail 1.8e-5) | 4.7e-7 | 80/41 GL | ≤ 1e-5 (gated) | 3 rounds, 9 its |
+   | NaF Γ, SR2 | **1.0e-4** | 1.8e-5 (tail 2.2e-5) | 2.3e-6 | 80/41 GL | 2.7e-6 | 3 rounds, 5 its |
+
+   The ladder does not halve per rung: it drops ~20× past 60/35, so the tail estimate over-sizes by one rung on Si (60/35's true error
+   ~9.3e-6) -- the safe side, at a GL-41 mesh's cost.  A STATED Becke mesh is audited and reported, never raised; a bare `cellKind Becke`
+   is the MeshParams struct default (30, Lebedev 5: 1.8e-2 per element on Si) -- OpenWork §3.  Gates: `SolidSession.GeometryRunPicksAndSizesTheBeckeMesh_Long`,
+   `GPW_NaF.Γ_GeometryRunSizesItsBeckeMesh_Long` (~520 s each, serial).  Not done: energy runs keep their calibrated mesh (unaudited); a
+   radial-vs-angular split of the ladder (one combined rung today).
 4. Balls + vlocEps + κ + screenEps + densityEps from ε (whichever M2 shows bind).
 5. §K: XC ball = density ball as a stated rule; the N-vs-2N XC audit.
 6. R1.0r intersection.  7. R1.5 mixer G-space face.  8. V_loc long route (a) (ruled 2026-10-30; M4 sizes it).

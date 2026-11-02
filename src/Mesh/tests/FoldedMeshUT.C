@@ -118,6 +118,22 @@ TEST(FoldedMesh, AFoldBuiltForADifferentMeshIsRejected)
 }
 
 //---------------------------------------------------------------------------------------------------
+// A SPIN-TAGGED fold reads a character off every edge, so an edge with no mapping op (-1) is refused at
+// construction.  Before 2026-11-01 only an assert at the use guarded it, dead in every NDEBUG sweep -- and the
+// O2 box's Shubnikov fold carried exactly such edges (L_SpaceGroup.C, the near-twin fold test, has the cause).
+TEST(FoldedMesh, ASpinTaggedFoldWithAnUnmappedEdgeIsRejected)
+{
+    const std::vector<qchem::Symmetry::SpinAction> sig{qchem::Symmetry::SpinAction::None, qchem::Symmetry::SpinAction::Flip};
+    EXPECT_NO_THROW(FoldedMesh(FlatMesh(4), PairFold(4), sig));
+    SL::Fold f=PairFold(4);
+    f.members[1][1].second=-1;
+    EXPECT_THROW(FoldedMesh(FlatMesh(4), std::move(f), sig), std::runtime_error);
+    SL::Fold g=PairFold(4);   // the same edge is harmless WITHOUT spin tags: the plain mean reads no op
+    g.members[1][1].second=-1;
+    EXPECT_NO_THROW(FoldedMesh(FlatMesh(4), std::move(g)));
+}
+
+//---------------------------------------------------------------------------------------------------
 // A well-formed bundle must NOT throw -- the check has to be a filter, not a wall.
 TEST(FoldedMesh, AConsistentBundleIsAccepted)
 {
