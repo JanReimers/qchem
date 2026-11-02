@@ -334,7 +334,10 @@ CP2K's −7.867436530, where the table above has −7.868473429 (−1.04 mHa).  
 IMPOSITION, not the criterion or the grid** — with `QCHEM_IMPOSE_SYMMETRY=1` every criterion and both XC grids
 give −7.868473; free, −7.867452.  The symmetry fold of the shifted (k=±¼, non-TRIM) mesh lowers the energy by
 1.02 mHa: an OPEN DEFECT, `doc/OpenWork.md` §3 (footnote ¹ is now history).  The other energies moved by
-< 1 µHa; on MnO the 108 mHa absolute offset (§4a) is unchanged.
+< 1 µHa; on MnO the 108 mHa absolute offset (§4a) was unchanged by this -- it was FIXED 2026-10-23 (the two lattice-sum
+image-list defects, pin 29: MnO VA now +0.16 mHa from CP2K).  A 115 mHa gap seen again in the 2026-11-01 Mn-site audit was the
+BASIS SPAN, not the code: our Cartesian VALENCE_LOWQ_SR against CP2K's (always spherical) reading of the same file; on the
+spherical VA span both codes agree (OpenWork "A light-PP ion has NO restoring force").
 
 ᵇ **✓ = BOTH CODES RUN THE SAME KIND OF SCF STEP ON THIS ROW; ⚠ = THEY DO NOT.**  A per-iteration ratio is
 only a comparison when the iteration is the same thing on both sides, so this was CHECKED per row, in each
