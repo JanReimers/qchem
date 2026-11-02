@@ -27,6 +27,20 @@ if [ -z "$B" ]; then d=$PWD; while [ "$d" != / ] && [ ! -f "$d/CMakeCache.txt" ]
 [ -f "$B/CMakeCache.txt" ] || { echo "snaprun: no build tree (CMakeCache.txt) at or above $PWD; use -B" >&2; exit 2; }
 [ $# -ge 1 ] || { echo "usage: snaprun [-B BUILD_DIR] CMD [ARGS...]" >&2; exit 2; }
 
+# A SWEEP OVER A STALE TREE IS REFUSED (2026-11-02).  When the last build FAILED, the test exes it did not relink still sit in
+# the tree beside the NEW shared libraries, and ctest runs them: an undefined symbol, a segfault on a changed class layout --
+# or a PASS, which is the dangerous case (lane B's 23 "stale-object" failures that day were exactly this, a build that failed
+# on two test files and a sweep chained after it with ';').  So a ctest command runs only when `ninja -n allTests` has no work.
+case " $* " in
+    *ctest*)
+        if ! out=$(ninja -C "$B" -n allTests 2>&1) || ! grep -q "no work to do" <<<"$out"; then
+            echo "snaprun: REFUSED -- $B is not built (ninja -n allTests has work to do, or failed), so ctest would run old test" >&2
+            echo "  executables against new libraries.  Build it first: ninja -C $B allTests" >&2
+            grep -v "^ninja: Entering" <<<"$out" | head -4 | sed 's/^/  /' >&2
+            exit 3
+        fi ;;
+esac
+
 R="$HOME/Code/qchem6-runs/snap"; mkdir -p "$R"
 S="$R/$(basename "$(dirname "$(dirname "$B")")")-$(basename "$B")-$(date +%Y%m%d-%H%M%S)-$$"
 cleanup() { rm -rf "$S"; }

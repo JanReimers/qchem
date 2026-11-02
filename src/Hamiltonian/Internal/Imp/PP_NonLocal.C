@@ -15,7 +15,6 @@ import qchem.Mesh.Quadrature;           // qcMesh::Overlap(mesh, VectorFunction,
 import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (passed direct)
 import qchem.Blaze;                     // rmat_t, rvec_t, trans, outer product
 import qchem.Math;                      // norm, Pi, sqrt
-import qchem.Reporting;                 // report::Scope -- the mesh builder reports one level into "ppNonLocal"
 
 namespace qchem::Hamiltonian
 {
@@ -88,11 +87,12 @@ public:
 
 } //anon
 
-PP_NonLocal::PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp)
-    : theStructure(st), itsSep(std::move(sep)), itsMeshParams(mp)
+PP_NonLocal::PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp, mesh_t mesh)
+    : theStructure(st), itsSep(std::move(sep)), itsMeshParams(mp), itsMesh(std::move(mesh))
 {
     assert(theStructure);
     assert(itsSep);
+    assert(itsMesh && itsMesh->size()>0);
 }
 
 // The IMPLICIT-ANGULAR (atomic, radial) assembly.  An atom block stores chi_i(r) with the irrep's Y_lm
@@ -138,8 +138,7 @@ rsmat_t PP_NonLocal::MakeMatrix(const robs_t* bs, const Spin&) const
     if (auto* ia=dynamic_cast<const BasisSet::ImplicitAngular_IBS*>(bs))
         return MakeMatrixRadial(*ia, bs->GetVectorSize());
 
-    const qcMesh::Mesh mesh=[&]{ qchem::report::Scope here("ppNonLocal");   // the mesh builder reports one level in
-                                 return theStructure->CreateIntegrationMesh(itsMeshParams); }();   // the geometry's own mesh
+    const qcMesh::Mesh& mesh=*itsMesh;   // the run's shared PP quadrature
     size_t n=bs->GetVectorSize();
     rmat_t V(n,n,0.0);
     for (size_t a=0; a<theStructure->GetNumAtoms(); a++)
