@@ -228,10 +228,12 @@ TEST(M_TransitionCollocation, PeriodicPart_EqualsExplicitBlochSums)
 //! the walk was only ever checked kernel-by-kernel in M_PG_BoxWalk; nothing exercised the production routing, so a
 //! regression in the walk arm (the oracle a future change is judged against) could sit unseen.  Both routes are eps-
 //! converged answers to one sum, so they agree at the screening tier, not bitwise (no per-component screen on the cube).
-TEST(M_TransitionCollocation, WalkAndContractionRoutesAgree)
+// Run on an uncontracted basis (Si SIPP_SR: one cube per shell pair) and a CONTRACTED one (H2O dzvp: one cube per
+// PRIMITIVE pair, each with its own box -- the walk sized one box from the most diffuse primitives; OpenWork §3, the
+// CH4 MOLOPT crawl, 2026-11-02).
+static void WalkAndContractionAgree(const UnitCell& cell, BasisSetData data, const char* what)
 {
     using Evaluators::PG_Cart_MnD::NR_Evaluator;
-    const UnitCell cell=SiCell();
     const Ladder L=Two();
     const rvec3_t k(0.25,0.0,0.125);
     const GeometryOnlyScreener screen(CollocationEps());
@@ -240,7 +242,7 @@ TEST(M_TransitionCollocation, WalkAndContractionRoutesAgree)
     for (int route=0; route<2; route++)                       // 0 = contraction (default), 1 = reference walk
     {
         NR_Evaluator::ContractCubeOverride()=(route==0);
-        const Periodic p=Make(BasisSetData::SIPP_SR, cell, false);   // a FRESH evaluator per route: no memo can leak across
+        const Periodic p=Make(data, cell, false);                   // a FRESH evaluator per route: no memo can leak across
         ASSERT_TRUE(p.lc);
         n=p.n;
         const mat_t<dcmplx> Dm=RandomMatrix(n, 88172645463325252ULL, true);
@@ -260,11 +262,16 @@ TEST(M_TransitionCollocation, WalkAndContractionRoutesAgree)
     double dH=0, sH=0;
     for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
     { dH=std::max(dH, std::abs(dcmplx(h[0](i,j))-dcmplx(h[1](i,j)))); sH=std::max(sH, std::abs(dcmplx(h[0](i,j)))); }
-    std::printf("  [walk vs contraction] max|drho|/max|rho| = %.2e   max|dh|/max|h| = %.2e\n", dRho/sRho, dH/sH);
-    ASSERT_GT(sRho, 1e-6);
-    ASSERT_GT(sH, 1e-8);
-    EXPECT_LT(dRho, 1e-10*sRho) << "the two collocation routes disagree on the density";
-    EXPECT_LT(dH,   1e-10*sH)  << "the two gather routes disagree on the potential matrix";
+    std::printf("  [walk vs contraction] %-12s max|drho|/max|rho| = %.2e   max|dh|/max|h| = %.2e\n", what, dRho/sRho, dH/sH);
+    ASSERT_GT(sRho, 1e-6) << what;
+    ASSERT_GT(sH, 1e-8) << what;
+    EXPECT_LT(dRho, 1e-10*sRho) << what << ": the two collocation routes disagree on the density";
+    EXPECT_LT(dH,   1e-10*sH)  << what << ": the two gather routes disagree on the potential matrix";
+}
+TEST(M_TransitionCollocation, WalkAndContractionRoutesAgree)
+{
+    WalkAndContractionAgree(SiCell(),   BasisSetData::SIPP_SR, "Si SIPP_SR");
+    WalkAndContractionAgree(WaterBox(), BasisSetData::DZVP,    "H2O dzvp");
 }
 
 // ---- D-ENV step 5/6a: the typed GPW tolerances; the environment is NOT a way to set them ----
