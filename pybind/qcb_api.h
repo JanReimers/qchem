@@ -65,6 +65,11 @@ typedef struct qcb_request
     int           meshAngular;    //!< XC mesh Lebedev degree, 0 = the facade's default
     double        relaxStart;     //!< linear D-mixing's starting step (SCFParams::StartingRelaxRo), 0 = the lib's default
     double        relaxMax;       //!< its adaptive ceiling (SCFParams::MaxRelaxRo), 0 = the lib's default
+    int           diisDepth;      //!< DIIS history (AcceleratorOptions::nProj), 0 = the lib's default
+    double        diisSVTol;      //!< DIIS singular-value floor (AcceleratorOptions::svTol), 0 = the lib's default
+    double        diisEngageFD;   //!< DIIS engages below this [F,D] (AcceleratorOptions::eMax), 0 = the lib's Z-scaled default
+    int           useMOM;         //!< Maximum Overlap Method (SCFParams::UseMOM)
+    int           momStart;       //!< its delayed reference capture (SCFParams::MOMStartIter), 0 = the lib's default
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).

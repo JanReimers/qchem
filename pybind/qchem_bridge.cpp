@@ -109,6 +109,8 @@ qchem::SCFParams scf_params(const qcb_request& req)
     p.NMaxIter = size_t(req.maxIter);
     if (req.relaxStart > 0.0) p.StartingRelaxRo = req.relaxStart;
     if (req.relaxMax   > 0.0) p.MaxRelaxRo      = req.relaxMax;
+    p.UseMOM = req.useMOM != 0;
+    if (req.momStart   > 0)   p.MOMStartIter    = req.momStart;
     return p;
 }
 
@@ -213,6 +215,9 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char
         if (req->meshAngular > 0) opts.mesh.angularDegree = req->meshAngular;
         qchem::AcceleratorOptions acc;
         acc.type = req->accelerator && *req->accelerator ? req->accelerator : "DIIS";
+        if (req->diisDepth    > 0)   acc.nProj = req->diisDepth;
+        if (req->diisSVTol    > 0.0) acc.svTol = req->diisSVTol;
+        if (req->diisEngageFD > 0.0) acc.eMax  = req->diisEngageFD;
 
         const auto setup = qchem::MoleculeSetup::Resolve(mol, opts, acc);   // deep-copies mol
         // The observer rides the constructor, so the trace of ITS SCF streams from the first iteration.
