@@ -302,6 +302,11 @@ int main(int argc, char** argv)
         AcceleratorOptions aopts; aopts.type=accel;
         if (accj.contains("EMax"))  aopts.eMax =(double)accj["EMax"];
         if (accj.contains("NProj")) aopts.nProj=(int)accj["NProj"];
+        if (accj.contains("Trust"))    aopts.trust         =(double)accj["Trust"];
+        if (accj.contains("ethresh"))  aopts.ladderEThresh =(double)accj["ethresh"];
+        if (accj.contains("stall"))    aopts.ladderStall   =(int)accj["stall"];
+        if (accj.contains("floor"))    aopts.ladderFloor   =(double)accj["floor"];
+        if (accj.contains("switchat")) aopts.ladderSwitchAt=(double)accj["switchat"];
         cout << "scfrun: mol="<<molname<<" model="<<model<<" mult="<<mult<<" basis="<<mbasis<<" accel="<<accel<<endl;
         Molecule mol = MakeMolecule(molname);
         Calculation mcalc(MoleculeSetup::Resolve(mol, copts, aopts));

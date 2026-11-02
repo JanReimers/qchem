@@ -45,6 +45,9 @@ inline constexpr int kSchemaVersion = 1;
 //!@{
 json ToJson(const BasisSet::Gaussian::GPWTolerances&);   void FromJson(const json&, BasisSet::Gaussian::GPWTolerances&);
 json ToJson(const SCFParams&);                           void FromJson(const json&, SCFParams&);
+//! The solid accelerator chain's knobs (\c SolidAcceleratorOptions: diis, gdm, ladder).  \c ladderStartOnGDM is NOT a key: the facade
+//! decides it per stage (a restored kT = 0 stage starts on the GDM rung, \c SolidCalculation::Restart).
+json ToJson(const SCFAccelerators::SolidAcceleratorOptions&);   void FromJson(const json&, SCFAccelerators::SolidAcceleratorOptions&);
 json ToJson(const qcMesh::MeshParams&);                  void FromJson(const json&, qcMesh::MeshParams&);
 //! The solid options.  NOT serialized (not choices): \c Hubbard manifold \c siteOps / \c greyOps
 //! (derived by the facade from the structure).  A manifold's U is \c U_eV (and \c Uirrep_eV, \c alpha_eV): eV in the file, converted to Hartree on read; the writer picks the eV value that converts back to the SAME double.
@@ -144,6 +147,9 @@ struct RunSpec
     Basis            basis;
     State            state;
     SolidCalcOptions solid;           //!< the periodic-run options (used when \c structure is a cell)
+    //! The accelerator chain's knobs, for every stage (the stage names WHICH accelerator; these say how it is tuned).  Deck key
+    //! `acceleratorOptions`; default = the GPW production recipe (\c SolidAcceleratorOptions).
+    SCFAccelerators::SolidAcceleratorOptions accel;
     SCFParams        scf;             //!< the single-stage recipe (with \c solid.accelerator) ...
     std::vector<Stage> schedule;      //!< ... OR an annealed one; a deck gives one or the other (never both)
     std::vector<PostAction> postSCF;  //!< post-convergence actions, in order (empty = none)

@@ -138,8 +138,7 @@ bool AtomCalculation::Converge(const SCFParams& params)
     // 2026-10-29 (the worst irrep, was sqrt(sum of squares) over the l-blocks -- user ruling), and on Kr the two differ by
     // ~0.8 at the engage step; unrescaled, DIIS engaged one step early and the Kr Libxc run went chaotic.
     const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : itsZ*itsZ*0.08/32;
-    nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
-                            {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
+    nlohmann::json jsacc = ToAcceleratorJson(itsAcc, emax);   // every knob of the chain; the escape hatch below merges over it
     std::string ts = "DIIS";
     if (itsOpts.accelerator.is_object() && !itsOpts.accelerator.empty())
     {

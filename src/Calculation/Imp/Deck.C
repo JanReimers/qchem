@@ -120,6 +120,7 @@ const auto kFamily = NAMES(SolidCalcOptions::OrbitalBasis, {"gaussian",SolidCalc
 const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Auto}, {"PlaneWave",Hamiltonian::VxcFit::PlaneWave}, {"Delta",Hamiltonian::VxcFit::Delta}, {"Auxiliary",Hamiltonian::VxcFit::Auxiliary});
 const auto kAcc    = NAMES(AccType, {"DIIS",AccType::DIIS}, {"GDM",AccType::GDM}, {"Ladder",AccType::Ladder}, {"Null",AccType::Null},
                          {"Auto",AccType::Auto});
+const auto kSignal = NAMES(SCFAccelerators::ScheduleSignal, {"Error",SCFAccelerators::ScheduleSignal::Error}, {"EnergyChange",SCFAccelerators::ScheduleSignal::EnergyChange});
 const auto kSeed   = NAMES(SeedStrategy, {"Default",SeedStrategy::Default}, {"CoreGuess",SeedStrategy::CoreGuess}, {"Uniform",SeedStrategy::Uniform},
                                          {"SAD",SeedStrategy::SAD}, {"IonicSAD",SeedStrategy::IonicSAD});
 const auto kOrtho  = NAMES(Ortho, {"Cholesky",Cholesky}, {"Eigen",Eigen}, {"SVD",SVD}, {"Auto",Auto}, {"CholeskyPivoted",CholeskyPivoted}, {"Orthonormal",Orthonormal});
@@ -198,6 +199,47 @@ void FromJson(const json& j, SCFParams& p)
         g.Get("holePersistence",p.Guard.HolePersistence); g.Get("maxReleases",p.Guard.MaxReleases); g.Done();
     }
     else f.At("momGuard");
+    f.Done();
+}
+
+//=== SolidAcceleratorOptions ===================================================================================================
+static json DiisJson(const SCFAccelerators::DIISParams& d)
+{ return {{"nProj",d.Nproj},{"engageBelowFD",d.EngageBelowFD},{"svTol",d.SVTol},{"svTolRel",d.SVTolRel}}; }
+static void DiisFromJson(const json& j, SCFAccelerators::DIISParams& d, const std::string& path)
+{
+    Fields f(j,path); f.Get("nProj",d.Nproj); f.Get("engageBelowFD",d.EngageBelowFD); f.Get("svTol",d.SVTol); f.Get("svTolRel",d.SVTolRel); f.Done();
+}
+static json GdmJson(const SCFAccelerators::GDMParams& g)
+{
+    return {{"engageBelowFD",g.EngageBelowFD},{"trust",g.Trust},{"trustBackoff",g.TrustBackoff},{"trustMin",g.TrustMin},{"pcFloor",g.PCFloor},
+            {"aufbauTol",g.AufbauTol},{"aufbauMaxRepicks",g.AufbauMaxRepicks}};
+}
+static void GdmFromJson(const json& j, SCFAccelerators::GDMParams& g, const std::string& path)
+{
+    Fields f(j,path); f.Get("engageBelowFD",g.EngageBelowFD); f.Get("trust",g.Trust); f.Get("trustBackoff",g.TrustBackoff); f.Get("trustMin",g.TrustMin);
+    f.Get("pcFloor",g.PCFloor); f.Get("aufbauTol",g.AufbauTol); f.Get("aufbauMaxRepicks",g.AufbauMaxRepicks); f.Done();
+}
+json ToJson(const SCFAccelerators::SolidAcceleratorOptions& o)
+{
+    return {{"diis",DiisJson(o.diis)},{"gdm",GdmJson(o.gdm)},
+            {"ladder",{{"gdm",GdmJson(o.ladderGdm)},{"eThresh",o.ladderEThresh},{"stall",o.ladderStall},{"floor",o.ladderFloor},
+                       {"switchAt",o.ladderSwitchAt},{"signal",NameOf(o.ladderSignal,kSignal)}}}};
+}
+void FromJson(const json& j, SCFAccelerators::SolidAcceleratorOptions& o)
+{
+    Fields f(j,"acceleratorOptions");
+    if (j.contains("diis")) DiisFromJson(f.At("diis"),o.diis,"acceleratorOptions.diis"); else f.At("diis");
+    if (j.contains("gdm"))  GdmFromJson (f.At("gdm"), o.gdm, "acceleratorOptions.gdm");  else f.At("gdm");
+    if (j.contains("ladder"))
+    {
+        const json& l=f.At("ladder");
+        Fields lf(l,"acceleratorOptions.ladder");
+        if (l.contains("gdm")) GdmFromJson(lf.At("gdm"),o.ladderGdm,"acceleratorOptions.ladder.gdm"); else lf.At("gdm");
+        lf.Get("eThresh",o.ladderEThresh); lf.Get("stall",o.ladderStall); lf.Get("floor",o.ladderFloor); lf.Get("switchAt",o.ladderSwitchAt);
+        lf.GetEnum("signal",o.ladderSignal,kSignal);
+        lf.Done();
+    }
+    else f.At("ladder");
     f.Done();
 }
 
@@ -538,6 +580,7 @@ json ToJson(const RunSpec& r)
 {
     json j={{"structure", r.inlineStructure.is_null() ? json(r.structure) : r.inlineStructure}};
     j["kmesh"]={r.kmesh.x,r.kmesh.y,r.kmesh.z}; j["basis"]=BasisJson(r.basis); j["solid"]=ToJson(r.solid);
+    j["acceleratorOptions"]=ToJson(r.accel);
     if (!r.state.save.empty() || !r.state.restartFrom.empty())
     {
         json st=json::object();
@@ -581,6 +624,7 @@ void FromJson(const json& j, RunSpec& r)
     }
     else f.At("state");
     if (j.contains("solid")) FromJson(f.At("solid"),r.solid); else f.At("solid");
+    if (j.contains("acceleratorOptions")) FromJson(f.At("acceleratorOptions"),r.accel); else f.At("acceleratorOptions");
     if (j.contains("postSCF"))
     {
         r.postSCF.clear(); size_t i=0;
@@ -1152,7 +1196,7 @@ static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec& spec, const Mate
 {
     Lattice_3D lat(*mat.cell, spec.kmesh);
     SolidCalcOptions so=spec.solid; so.accelerator=stages.front().accelerator;
-    return SolidSetup::Resolve(lat, RecipeOf(spec.basis), so);
+    return SolidSetup::Resolve(lat, RecipeOf(spec.basis), so, spec.accel);
 }
 
 std::unique_ptr<SolidCalculation> Build(const RunSpec& specIn, SolidCalculation::Observer onIteration)

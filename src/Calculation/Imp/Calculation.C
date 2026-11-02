@@ -138,8 +138,7 @@ Calculation::~Calculation()
 Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParams& params)
 {
     const CalcOptions& opts=itsSetup->opts;
-    nlohmann::json jsacc = {{"NProj", itsSetup->acc.nProj}, {"EMax", itsSetup->eMax},
-                            {"EMin", itsSetup->acc.eMin}, {"SVTol", itsSetup->acc.svTol}};
+    const nlohmann::json jsacc = ToAcceleratorJson(itsSetup->acc, itsSetup->eMax);   // every knob of the chain, forwarded
     auto* accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, jsacc);
     const auto seed = itsSetup->seed;
 

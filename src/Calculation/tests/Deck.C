@@ -9,6 +9,7 @@ import qchem.Hamiltonian.Factory;   // HubbardProjectorKind (the manifold projec
 import qchem.Deck;
 import qchem.SolidCalculation;
 import qchem.SCFParams;
+import qchem.SCFAccelerator.Factory;   // SolidAcceleratorOptions (the acceleratorOptions round trip)
 import qchem.Mesh;
 import qchem.Materials;
 import qchem.ChargeDensity.Seed;
@@ -58,6 +59,28 @@ TEST(Deck, AnOffGateIsSpelledOffAndTheRetiredSentinelStillReadsAsOff)
     EXPECT_EQ(deck::ToJson(back), j);
     EXPECT_THROW(deck::FromJson(json{{"minDeltaE","none"}}, p), std::runtime_error);
     EXPECT_THROW(deck::FromJson(json{{"minFD",true}}, p), std::runtime_error);
+}
+
+// THE ACCELERATOR CHAIN'S KNOBS ARE DECK KEYS (2026-11-02, OpenWork §3 "Accelerator knobs unreachable from the facades"): every field of
+// SolidAcceleratorOptions but the facade's own ladderStartOnGDM, set to a NON-default value, survives FromJson -> ToJson; a deck that
+// omits the section keeps the production defaults; a misspelled key is refused (the typo guard reaches the nested objects).
+TEST(Deck, AcceleratorOptionsAreDeckKeysAndRoundTrip)
+{
+    const json a={{"diis",{{"nProj",6},{"engageBelowFD",0.05},{"svTol",2e-9},{"svTolRel",3e-4}}},
+                  {"gdm",{{"engageBelowFD",0.5},{"trust",0.2},{"trustBackoff",0.3},{"trustMin",2e-4},{"pcFloor",0.05},{"aufbauTol",1e-5},{"aufbauMaxRepicks",4}}},
+                  {"ladder",{{"gdm",{{"engageBelowFD",2.0},{"trust",0.4},{"trustBackoff",0.5},{"trustMin",1e-3},{"pcFloor",0.2},{"aufbauTol",2e-5},{"aufbauMaxRepicks",3}}},
+                             {"eThresh",2e-8},{"stall",7},{"floor",3e-8},{"switchAt",2e-6},{"signal","Error"}}}};
+    SCFAccelerators::SolidAcceleratorOptions o; deck::FromJson(a, o);
+    EXPECT_EQ(o.diis.Nproj, 6u); EXPECT_EQ(o.diis.SVTolRel, 3e-4); EXPECT_EQ(o.gdm.AufbauMaxRepicks, 4); EXPECT_EQ(o.ladderGdm.Trust, 0.4);
+    EXPECT_EQ(o.ladderStall, 7); EXPECT_EQ(o.ladderSwitchAt, 2e-6); EXPECT_EQ(o.ladderSignal, SCFAccelerators::ScheduleSignal::Error);
+    EXPECT_EQ(deck::ToJson(o), a) << "every key written back, none dropped or renamed";
+    const SCFAccelerators::SolidAcceleratorOptions def;
+    deck::RunSpec r; deck::FromJson(json{{"structure","Si_diamond"}}, r);
+    EXPECT_EQ(deck::ToJson(r.accel), deck::ToJson(def)) << "an omitted section is the production recipe";
+    deck::FromJson(json{{"structure","Si_diamond"},{"acceleratorOptions",a}}, r);
+    EXPECT_EQ(deck::ToJson(r).at("acceleratorOptions"), a) << "the record carries the run's knobs";
+    EXPECT_THROW(deck::FromJson(json{{"diis",{{"nproj",6}}}}, o), std::runtime_error);
+    EXPECT_THROW(deck::FromJson(json{{"ladder",{{"signal","Energy"}}}}, o), std::runtime_error);
 }
 
 TEST(Deck, NonDefaultValuesSurviveTheRoundTrip)

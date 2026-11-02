@@ -7,6 +7,7 @@
 // because the setup is what reads it; qchem.Calculation re-exports it.
 module;
 #include <memory>
+#include <nlohmann/json_fwd.hpp>   // ToAcceleratorJson's return type (defined in the Imp unit)
 #include <optional>
 #include <string>
 #include <utility>
@@ -91,20 +92,33 @@ struct CalcOptions
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
 };
 
-//! DIIS accelerator knobs.  These were stringly-typed json keys grepped out of tests; here they
-//! are documented fields with defaults.  eMax<=0 means "auto" -- the Z-scaled heuristic the
-//! molecular recipe has always used.  The long tail still rides through the json factory directly.
+//! The molecular accelerator chain's knobs (DIIS, GDM, the Ladder's hand-off; 2026-11-02: the GDM/Ladder ones were unreachable from
+//! the facade).  These were stringly-typed json keys grepped out of tests; here they are documented fields with defaults.
+//! eMax<=0 means "auto" -- the Z-scaled heuristic the molecular recipe has always used.  \c ToAcceleratorJson is the one
+//! translation to the factory's json door, shared by \c Calculation and \c AtomCalculation.
 struct AcceleratorOptions
 {
     int    nProj = 4;
     double eMax  = 0.0;     //!< <=0 => Z*Z*0.1/32 (the proven molecular default)
     double eMin  = 1e-7;
     double svTol = 5e-9;
+    //! GDM (standalone, and the Ladder's GDM rung): the trust radius -- the largest geodesic rotation (radians) per step.
+    double trust = 0.1;
+    //! LADDER only (DIIS -> GDM), the hand-off triggers (\c SCFAcceleratorLadder): energy still moving by more than \c ladderEThresh for
+    //! \c ladderStall non-improving steps (STALL, with \c ladderFloor as its low backstop), or the signal below \c ladderSwitchAt
+    //! (TAIL; 0 = no tail trigger).  Defaults = the json door's, so a molecule that sets none of them runs what it ran.
+    double ladderEThresh  = 1e-8;
+    int    ladderStall    = 5;
+    double ladderFloor    = 1e-8;
+    double ladderSwitchAt = 0.0;
     //! SCF accelerator: "DIIS" (default) | "GDM" (direct minimisation, robust for hard/open-shell SCF) |
     //! "Ladder" (auto None->DIIS->GDM).  A hard pseudopotential (open-shell atom, diffuse valence) that
     //! limit-cycles under DIIS often converges under GDM or Ladder.
     std::string type = "DIIS";
 };
+
+//! The json door's keys for \a acc, with \a eMax the RESOLVED DIIS engage gate (the caller's Z-scaled default when \c acc.eMax <= 0).
+nlohmann::json ToAcceleratorJson(const AcceleratorOptions& acc, double eMax);
 
 //! \brief THE RUN SETUP of a molecular calculation: \c CalcOptions as asked, plus every decision resolved from them ONCE.
 //!
