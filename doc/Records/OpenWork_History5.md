@@ -1129,3 +1129,20 @@ the 15 bohr cell's images: 16 209 tasks) and evaluates all 7 × 7 primitives at 
 numbers are the walk's to the screening tier).  Gate: `M_TransitionCollocation.WalkAndContractionRoutesAgree` now also runs H₂O
 dzvp, walk vs cubes 4e-13 (ρ) / 1.3e-13 (h).  CH₄ DZVP-MOLOPT then converged (pilot 12 iterations, production 11).  The
 remaining cost (~80 s/iteration, ~300 s V_loc audit) is the open P row: primitive pairs on their own grid levels.
+
+## ✅ "A molecule has no build-only step: the `Calculator` constructor runs the whole SCF" -- CLOSED 2026-11-02 (lane B); the row as it stood
+| **A molecule has no build-only step: the `Calculator` constructor runs the whole SCF** (S; 2026-11-02) | crystals have `deck::Build` (its own report run '<name> build', so grids/basis show BEFORE the SCF); a molecule does not, so a client cannot see the setup without running it.  Consequence found by lane G's report audit: `pybind/qchem_bridge.cpp` `qcb_basis_info` REBUILDS the basis outside any run (facade default options, no SALC blocking, no trim) to get S eigenvalues / nFunctions -- a second, possibly disagreeing, source for what the report's `basis.perIrrep` / `basis.removed` already record | add a molecular Build (resolve + build basis + Hamiltonian under its own report run, no SCF), the facade's `Converge` then reuses it; lane G then deletes `qcb_basis_info` and reads `basis.perIrrep` from the build run · lane G's audit (2026-11-02) |
+**Verdict (lane B, 2026-11-02).**  `Calculation::Prepare(setup, onIteration)` and `AtomCalculation::Prepare(Z, charge, opts, acc,
+onIteration)`, the twins of `SolidCalculation::Prepare`.  Both facades' `Converge` was split into `BuildGraph` (the accelerator,
+the basis in a silent `Scope("basis")`, the Hamiltonian in `Scope("grids")`, the SCF iterator in the rendering
+`Section("basis")`, whose wave-function build files basis.perIrrep / basis.removed) and the iterate.  `Prepare` runs
+`BuildGraph` inside its own report run "<structure ID> build", closed before it returns; the FIRST `Converge` reuses the graph
+(its own run then holds only the SCF), a later one rebuilds as before; the constructors are unchanged (they build inside the
+converge run, as they always did).  Done together with the PP mesh's run sequence (same defect): `Ham_PP` builds ONE PP
+quadrature in its own build phase and injects it into `PP_Local` and `PP_NonLocal` (it was built lazily per term per block
+inside the SCF iterator's construction, so it filed under `basis.*`), now `grids.ppQuadrature`.  UTs
+`CalculationFacade.PrepareFilesTheWholeSetupInItsOwnBuildRunBeforeAnySCF` (H₂O LDA + PP: the filed build run holds
+basis.perIrrep and grids.xcQuadrature / ppQuadrature / auxiliaryFit, no scf header, the observer saw no row; Prepare + Converge
+equals the constructor bit for bit), `CalculationFacade.AnAtomsPrepareFilesItsSetupBeforeAnySCF`,
+`CalculationFacade.APseudopotentialRunsPPQuadratureIsInGridsNotBasis`.  Found on the way: the seed build files `scf.xcRhoRoutes`
+(root-anchored, `DensitySampler_Singles.C:209`) into the build run -- listed on the mesh-report remainder row.
