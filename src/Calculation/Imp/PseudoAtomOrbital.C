@@ -2,6 +2,7 @@
 // AtomicRadial, 2026-10-24: HubbardProjectorPlan D5).
 module;
 #include <algorithm>
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <cmath>
 #include <map>
 #include <stdexcept>
@@ -56,7 +57,7 @@ PseudoAtomOrbital Build(const std::string& element, int Zion, int l, int lmax)
     // (CP2K's ATOM code to 3 / 0.3 / 0.1 mHa, UTCalculation ValenceBasisGen.MnQ7PseudoAtomInALargePool).
     o.vxcFit=Hamiltonian::VxcFit::Auxiliary;
     for (int ll=0; ll<=lmax; ll++) o.exponentsByL.push_back({ll, ep});
-    SCFParams p; p.MinVirial=1e30;                              // no virial under a PP (the valence generator's rule)
+    SCFParams p; p.MinVirial=std::nullopt;                              // no virial under a PP (the valence generator's rule)
     // 120, not the default 20: the 16-exponent pool is a big basis and a late-3d atom is a long descent.  Ni q10
     // was still at Δρ = 2e-4 on iteration 20 (2026-09-22); a d^8 cation needed 120 to clear a 2e-6 Ha degeneracy
     // between the last occupied and first empty minority orbital (2026-09-23).  An extra iteration costs

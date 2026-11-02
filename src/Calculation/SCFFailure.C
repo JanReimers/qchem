@@ -27,7 +27,10 @@ struct SCFFailure
         //! \brief the run did NOT keep the magnetic order it was set up to carry -- either it converged
         //! to zero moment, or the moment rose and then collapsed mid-run.  An imposed Shubnikov group is
         //! an ASSERTION about the answer, so contradicting it is a failed postcondition, not a diagnostic.
-        OrderLost
+        OrderLost,
+        //! the FIRST iterate's electronic energy was physically impossible (above the electrons-at-infinity limit 0) and the SCF refused to iterate it: the
+        //! Hamiltonian is broken, so no number of iterations would make the answer trustworthy (\c tSCFIterator::UnphysicalStop)
+        UnphysicalEnergy
     };
     Why         why        = Why::NotConverged;
     size_t      iterations = 0;

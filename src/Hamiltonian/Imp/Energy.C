@@ -67,6 +67,7 @@ double EnergyBreakdown::GetTotalEnergy() const
 double EnergyBreakdown::GetPotentialEnergy () const { return RoleSum(EnergyRole::Potential, EnergyRole::Constant); }
 double EnergyBreakdown::GetElectronicEnergy() const { return RoleSum(EnergyRole::Kinetic,   EnergyRole::Potential); }
 double EnergyBreakdown::GetKineticEnergy   () const { return RoleSum(EnergyRole::Kinetic); }
+double EnergyBreakdown::GetConstantEnergy  () const { return RoleSum(EnergyRole::Constant); }
 
 double EnergyBreakdown::GetBandEnergy(double sumFEps) const
 {

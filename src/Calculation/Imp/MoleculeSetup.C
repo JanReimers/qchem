@@ -1,6 +1,7 @@
 // File: Calculation/Imp/MoleculeSetup.C  The molecular run setup: every decision made ONCE, before a geometry point is built.
 module;
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
 module qchem.MoleculeSetup;
@@ -67,6 +68,13 @@ std::shared_ptr<const Structure> MoleculeSetup::PointStructure(const Structure& 
             atom->itsCharge = double(atom->itsZ - pp->Valence(thePeriodicTable().GetSymbol(atom->itsZ)));   // net charge = Z - Zion
         }
     return point;
+}
+
+nlohmann::json ToAcceleratorJson(const AcceleratorOptions& acc, double eMax)
+{
+    return {{"NProj",acc.nProj},{"EMax",eMax},{"EMin",acc.eMin},{"SVTol",acc.svTol},{"Trust",acc.trust},
+            {"ethresh",acc.ladderEThresh},{"stall",acc.ladderStall},{"floor",acc.ladderFloor},{"switchat",acc.ladderSwitchAt},
+            {"signal",acc.ladderSignal==SCFAccelerators::ScheduleSignal::EnergyChange ? "EnergyChange" : "Error"}};
 }
 
 } // namespace qchem

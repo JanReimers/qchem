@@ -37,13 +37,13 @@ export namespace qchem::SCFIterator
 //! \c Iterate and reset it (it is a static, so it leaks between tests otherwise).
 bool& ReportBandGap();
 
-//! R2.7 (doc/SCFRobustnessPlan.md P2): NO DEAD GATE.  At the iteration that declares convergence, a LIVE [F,D] gate (MinFD not
-//! the "off" 1e30) reading EXACTLY 0.0 was never computed -- [F,D] arrives from the accelerator's GetError(), and a commutator
+//! R2.7 (doc/SCFRobustnessPlan.md P2): NO DEAD GATE.  At the iteration that declares convergence, a LIVE [F,D] gate (MinFD set,
+//! not off) reading EXACTLY 0.0 was never computed -- [F,D] arrives from the accelerator's GetError(), and a commutator
 //! FDS-SDF is never exactly zero in floating point -- so the pass is the gate's absence, not its verdict (evidence G3: the Null
 //! accelerator's [F,D] = 0 passed MinFD on every Kerker/Pulay run for months).  Throws.  Exported for the unit test.
 //! NOT applied to Δρ/N: an exact 0 there is legitimate -- a density-INDEPENDENT Hamiltonian (a one-electron atom, A_*_E1/DE1)
 //! reproduces its seed bit for bit at iteration 1 (measured 2026-10-30: 13 atom tests).
-void RequireLiveGates(double FD, double minFD, size_t iteration);
+void RequireLiveGates(double FD, const Gate& minFD, size_t iteration);
 
 //! \brief ONE CELL of the SCF iteration row: one column of the trace, as the console prints it AND as a plot wants it.
 struct IterationCell
@@ -230,18 +230,24 @@ public:
     EnergyBreakdown     GetEnergy() const;
     size_t              GetIterationCount() const {return itsIterationCount;}
     bool                Converged() const {return itsConverged;}
+    //! \brief Why the last \c Iterate STOPPED on a physically impossible first energy instead of iterating (empty = it did not).
+    //! The first iterate, the seed's Hamiltonian diagonalized once, lies close to the answer on any working Hamiltonian, so a first
+    //! energy past the layout's bound (\c FirstEnergyRefusal) names a broken Hamiltonian (2026-11-01, beta-MnO2 on a dense-d basis:
+    //! +4.19e4 Ha, an aliased raster amplified by an ill-conditioned S), and iterating it only turns the defect into a
+    //! plausible-looking non-convergence.  The facade turns it into its failed Outcome.
+    const std::string&  UnphysicalStop() const {return itsUnphysicalStop;}
 
 protected:
     // --- PER-SYSTEM iteration display (doc/GPWPlan1.md item 2) -------------------------------------------
     //! The verbose per-iteration trace, virtual so each system type presents the honest column set.  The
-    //! base default is the MOLECULAR layout ({#, Etotal, [F,D], Δ[F,D], Δρ, 2+V/K, ρ_mix, accel, cfg}, plus
+    //! base default is the MOLECULAR layout ({#, Etotal, [F,D], ΔE/E, [Δ[F,D]], Δρ, 2+V/K, ρ_mix, accel, cfg}, plus
     //! the optional ReportBandGap() gap block); \c SolidSCFIterator overrides both for the solid/PP layout
-    //! ({#, Etotal, [F,D], ΔE, Δρ, ρ_mix, accel, cfg, gap} -- no virial, gap always on).  \c Iterate calls
+    //! ({#, Etotal, [F,D], ΔE/E, Δρ, ρ_lost/N, XC ρ, ρ_mix, accel, cfg, gap} -- gap always on).  \c Iterate calls
     //! these; the subclass never touches iterator internals (it reads only the \c IterationTrace / SCFParams).
-    //! Build this layout's VARIABLE columns, in display order.  The base contributes the convergence gate
-    //! (Δ[F,D]), Δρ, and -- iff the Hamiltonian says the virial theorem is meaningful (V1.27
-    //! IsVirialValid) -- the virial.  A subclass calls the base and then swaps/inserts: \c Solid_ replaces
-    //! the gate with ΔE/E and adds the collocation ρ_lost/N.  The INVARIANT frame around them (Etotal, [F,D],
+    //! Build this layout's VARIABLE columns, in display order.  The base contributes ΔE/E, Δ[F,D] only when MinΔFD gates,
+    //! Δρ, and -- iff the Hamiltonian says the virial theorem is meaningful (V1.27
+    //! IsVirialValid) -- the virial.  A subclass calls the base and then inserts: \c Solid_ adds the collocation ρ_lost/N
+    //! and XC ρ after Δρ.  The INVARIANT frame around them (Etotal, [F,D],
     //! ρ_mix / accel / svMin / cfg, gap, m_site) joins them in \c RowColumns (2026-10-31), each cell carrying its own
     //! alignment and flag glyphs inside its text writer.
     virtual void AccumulateColumns(std::vector<ColumnData>&, const SCFParams&, size_t idealVirial) const;
@@ -256,6 +262,11 @@ protected:
     //! PERIODIC-driven, not PP-driven: near-gapless flapping is a solid pathology.  (It travels with the
     //! grid columns today only because every gridded run here is also periodic -- see AccumulateColumns.)
     virtual bool GapIsPermanent() const {return false;}
+    //! The iteration-1 refusal (\c UnphysicalStop): the reason \a eb (\a nElectrons in the system) is impossible for this layout's
+    //! system, or empty.  A FINITE system's energy measured from the electrons dispersed to infinity, E minus the structure constants
+    //! (rest mass and -TS included), is <= 0 for a ground state at any geometry and charge (the TOTAL can be positive: H2 at
+    //! R = 0.1 bohr is +7 Ha) -- so a first iterate above 0 is refused.
+    virtual std::string FirstEnergyRefusal(const EnergyBreakdown& eb, double nElectrons) const;
     // The frame cells are ColumnData now (RowColumns); the gap writer stays a member because the OPTIONAL frontier block
     // (ReportBandGap / QCHEM_DIAGNOSTICS=frontier) appends it after the row on a molecular layout, where it is not a column.
     void WriteGapColumn   (std::ostream&, const IterationTrace&) const; //!< row:    the frontier gap (+flags)
@@ -340,6 +351,7 @@ private:
 
     size_t          itsIterationCount;
     bool            itsConverged;
+    std::string     itsUnphysicalStop;   //!< \c UnphysicalStop: empty unless the last Iterate refused its first energy
     std::shared_ptr<tDM_CD<T>> itsCarried;   //!< a WorkingDensity / ExactResume seed, held to the first Iterate (see SeedRole)
     bool            itsCarriedIsWorking=false;   //!< ExactResume: the carried D becomes the working density there
     Observer        itsObserver;   //!< optional live-progress sink (default empty)
@@ -393,6 +405,11 @@ protected:
     //! The solid column list: the base's, with the gate swapped to ΔE/E and ρ_lost/N inserted.
     void AccumulateColumns(std::vector<ColumnData>&, const SCFParams&, size_t idealVirial) const override;
     bool GapIsPermanent() const override {return true;}   //!< near-gapless flapping is a solid pathology
+    //! A periodic cell has NO electrons-at-infinity limit (Ewald: E_el +1.59 Ha on a healthy Si Γ GTH run), and even its TOTAL can be
+    //! positive when healthy (Na q1 at the atomic density: +0.047 Ha), so there is no theorem here, only a stated SCALE: a first
+    //! iterate above +1 Ha PER ELECTRON is refused.  Measured: healthy cells sit within a few Ha per electron below 0 to +0.05 above;
+    //! the broken dense-d β-MnO₂ first iterates were +22 and +1100 Ha per electron (OpenWork row: a sounder periodic bound).
+    std::string FirstEnergyRefusal(const EnergyBreakdown& eb, double nElectrons) const override;
     //! The resolved \c SCFParams::Mixer: the periodic Kerker or Kerker/Pulay G-space mixer, or the base linear D-mixer.
     //! A solid run HAS the periodic basis/cell/density by construction, so the G-space mixer factories treat them as
     //! preconditions -- no capability probe, no silent fallback.

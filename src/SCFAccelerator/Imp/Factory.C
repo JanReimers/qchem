@@ -5,6 +5,7 @@ module;
 #include <vector>
 #include <iostream>
 #include <stdexcept>
+#include <string>
 #include <nlohmann/json.hpp>
 module qchem.SCFAccelerator.Factory;
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
@@ -49,10 +50,18 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
             int    stall   = js.contains("stall")   ? js["stall"].template get<int>()      : 5;
             double floor   = js.contains("floor")   ? js["floor"].template get<double>()   : 1e-8;
             double swat    = js.contains("switchat")? js["switchat"].template get<double>(): 0.0;
+            // The tail trigger's signal: "Error" ([F,D], the door's default) or "EnergyChange" (|ΔE/E|) -- anything else is refused.
+            ScheduleSignal signal=ScheduleSignal::Error;
+            if (js.contains("signal"))
+            {
+                const std::string sg=js["signal"].template get<std::string>();
+                if      (sg=="EnergyChange") signal=ScheduleSignal::EnergyChange;
+                else if (sg!="Error") throw std::invalid_argument("SCFAccelerators::Factory: Ladder signal '"+sg+"' is not Error or EnergyChange");
+            }
             std::vector<std::unique_ptr<SCFAccelerator>> rungs;
             rungs.emplace_back(new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EMax, .SVTol=SVTol}));
             rungs.emplace_back(new SCFAcceleratorGDM ({.EngageBelowFD=1e10, .Trust=Trust})); //always steps once it is the active rung
-            acc=new SCFAcceleratorLadder(std::move(rungs),ethresh,stall,floor,swat);
+            acc=new SCFAcceleratorLadder(std::move(rungs),ethresh,stall,floor,swat,signal);
             break;
         }
         case Type::Null: acc=new SCFAcceleratorNull(); break;

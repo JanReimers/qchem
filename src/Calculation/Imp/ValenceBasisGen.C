@@ -1,6 +1,7 @@
 // File: Calculation/Imp/ValenceBasisGen.C  Implementation of the valence-basis generator (see ValenceBasisGen.C).
 module;
 #include <string>
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <vector>
 #include <utility>
 #include <sstream>
@@ -60,7 +61,7 @@ namespace {
 //! THE VALIDATING SCF IS GATED ON ITS ENERGY (2026-10-29).  The pseudo-atom Hamiltonian is FITTED (FittedVee + FittedVxc), so
 //! its [F,D] has a fit floor -- F- in its 8s+6p window floors at 3e-5 under GDM while E is flat to 1e-9 -- and a [F,D] gate
 //! below that floor can never pass (the SCFParams note on non-variational SCFs).  The generator's product IS the energy.
-void GateOnEnergy(SCFParams& p) {p.MinΔE=1e-10; p.MinFD=1e30;}
+void GateOnEnergy(SCFParams& p) {p.MinΔE=1e-10; p.MinFD=std::nullopt;}
 } // namespace
 
 GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r, bool showIterations)
@@ -81,7 +82,7 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r, bool showIterat
     SCFParams p; p.Verbose = showIterations; // print the per-iteration convergence trace when asked
     if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);   // the recipe's cap (see ValenceBasisRecipe::nMaxIter)
     GateOnEnergy(p);                          // the pseudo-atom SCF is FITTED (see GateOnEnergy)
-    p.MinVirial = 1e30;                       // the virial theorem does NOT hold under a pseudopotential (the PP
+    p.MinVirial = std::nullopt;                       // the virial theorem does NOT hold under a pseudopotential (the PP
                                               //  replaces -Z/r), so |2+V/K| never -> 0: don't gate convergence on
                                               //  it here (this is the valence-gen backend only, NOT the system
                                               //  default -- the all-electron A_* path still uses the virial gate).
@@ -115,7 +116,7 @@ double GenerateFloorEnergy(const ValenceBasisRecipe& r)
     o.valence         = Zion;
     if (!r.accelerator.empty()) o.accelerator={{"type", r.accelerator}};
     o.accuracy        = BasisSetAccuracy::High;
-    SCFParams p; p.MinVirial = 1e30;          // no virial gate under a PP (see GenerateValenceBasis)
+    SCFParams p; p.MinVirial = std::nullopt;          // no virial gate under a PP (see GenerateValenceBasis)
     GateOnEnergy(p);
     if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);
     try   { AtomCalculation atom(Z, charge, o, p); return atom.Energy(); }
@@ -139,7 +140,7 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     if (!r.accelerator.empty()) o.accelerator={{"type", r.accelerator}};
     o.exponentsByL    = r.shells;
     if (r.spinResolved) o.spin = SpinGroup::Polarized;
-    SCFParams p; p.MinVirial = 1e30;          // no virial gate under a PP (see GenerateValenceBasis)
+    SCFParams p; p.MinVirial = std::nullopt;          // no virial gate under a PP (see GenerateValenceBasis)
     GateOnEnergy(p);
     if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);
     AtomCalculation atom(Z, charge, o, p);

@@ -63,9 +63,10 @@ static void EmitScfSection(const AtomCalcOptions& o, int ne, const std::string& 
     standard["pol"]         = (o.spin == SpinGroup::Polarized) ? "P" : "U";
     standard["nElectrons"]  = ne;
     standard["nMaxIter"]    = long(p.NMaxIter);
-    standard["minDrho"]     = p.MinΔρPerElectron;
-    standard["minFD"]       = p.MinFD;
-    standard["minDE"]       = p.MinΔE;
+    auto gate=[](const Gate& g){return g ? rpt::json(*g) : rpt::json("off");};   // an off gate is spelled "off" (was the 1e30 sentinel)
+    standard["minDrho"]     = gate(p.MinΔρPerElectron);
+    standard["minFD"]       = gate(p.MinFD);
+    standard["minDE"]       = gate(p.MinΔE);
     standard["accelerator"] = accelerator;
     if (o.pseudopotential) standard["valence"] = o.valence;
 
@@ -164,8 +165,7 @@ void AtomCalculation::BuildGraph()
     // 2026-10-29 (the worst irrep, was sqrt(sum of squares) over the l-blocks -- user ruling), and on Kr the two differ by
     // ~0.8 at the engage step; unrescaled, DIIS engaged one step early and the Kr Libxc run went chaotic.
     const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : itsZ*itsZ*0.08/32;
-    nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
-                            {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
+    nlohmann::json jsacc = ToAcceleratorJson(itsAcc, emax);   // every knob of the chain; the escape hatch below merges over it
     const std::string ts = AcceleratorTag();
     if (itsOpts.accelerator.is_object() && !itsOpts.accelerator.empty())
         for (auto& [k,v] : itsOpts.accelerator.items()) jsacc[k]=v;

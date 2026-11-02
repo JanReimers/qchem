@@ -142,6 +142,11 @@ size_t VetGpwConditioning(const Complex_BS& bs);
 //! check the basis").  The facade calls exactly one of the two.
 void PrintGpwConditioning(const Complex_BS& bs);
 
+//! \brief The smallest eigenvalue of the analytic overlap S(k) over every Bloch block of \a bs: how strongly the orthonormal frame
+//! amplifies an error in a matrix element (\f$\delta H' \lesssim \delta H/\lambda_{\min}\f$).  The facade's restart rule for a pilot
+//! run whose first iterate was refused reads it (\c SolidCalculation::Converge: the start raster's alias must not exceed it).
+double MinOverlapEigenvalue(const Complex_BS& bs);
+
 //! \brief THE VET-STAGE TRIM (doc/Pins.md pin 22): the cell basis with its near-dependent diffuse shells
 //! removed ONCE, per element, BEFORE anything downstream is built -- so that the ortho step at \a orthoTol has
 //! nothing left to drop in ANY k-block.

@@ -1,0 +1,162 @@
+{
+ "_doc": [
+  "beta-MnO2 A1AFM, U = 0, dense-d basis p5f3_dD, at a STATED raster x 8 (lane H's 2026-10-31 'x 8 = AliasFree' deck; the old AliasFree is x ~16 here)",
+  "the first iterate is Etot +41888.7 Ha (Eee +38770): refused at iteration 1 with Why::UnphysicalEnergy; a STATED raster is never overridden."
+ ],
+ "structure": "MnO2_beta_A1AFM",
+ "kmesh": [
+  1,
+  1,
+  1
+ ],
+ "basis": {
+  "data": "VALENCE_LOWQ_VA",
+  "file": "MnO2_p5f3_dD.bsd",
+  "spherical": true,
+  "vet": false
+ },
+ "solid": {
+  "multiplicity": 1,
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 1e-07,
+  "forceComplex": true,
+  "hubbard": [
+   {
+    "site": 0,
+    "l": 2,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 1,
+    "l": 2,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 0,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 1,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 2,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 2,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 3,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 3,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 4,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 4,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 5,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 5,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   }
+  ],
+  "siteSpins": [
+   1,
+   -1,
+   0,
+   0,
+   0,
+   0
+  ],
+  "imposeSymmetry": true,
+  "accuracy": 0,
+  "tolerances": {
+   "rasterX": 8.0,
+   "vlocRasterX": 8.0,
+   "xcRasterX": 8.0
+  }
+ },
+ "postSCF": [],
+ "schedule": [
+  {
+   "accelerator": "Null",
+   "scf": {
+    "NMaxIter": 300,
+    "minDeltaRhoPerElectron": 3e-05,
+    "pulayDepth": 8,
+    "kerkerG0": 1.0,
+    "startingRelaxRo": 0.45,
+    "useMOM": false,
+    "smearingkT": 0.001,
+    "pulayStart": 5
+   }
+  }
+ ]
+}

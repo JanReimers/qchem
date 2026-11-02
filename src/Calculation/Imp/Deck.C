@@ -63,6 +63,25 @@ public:
         try { v=itsJ.at(k).get<T>(); }
         catch (const json::exception& e) { throw std::runtime_error("deck: '"+itsPath+"."+k+"': "+e.what()); }
     }
+    //! A convergence gate: a number, or the string "off" (\c std::nullopt).  The retired sentinel -- a number >= 1e30, which every
+    //! record wrote before 2026-11-02 -- still reads as off, with a notice, so the campaign decks already on disk keep running.
+    void GetGate(const char* k, Gate& v)
+    {
+        itsKnown.insert(k);
+        if (!itsJ.contains(k)) return;
+        const json& x=itsJ.at(k);
+        if (x.is_string() && x.get<std::string>()=="off") { v=std::nullopt; return; }
+        if (!x.is_number())
+            throw std::runtime_error("deck: '"+itsPath+"."+k+"' = "+x.dump()+" is not a gate: a threshold (a number) or \"off\"");
+        const double t=x.get<double>();
+        if (t>=1e30)
+        {
+            std::cout << "[deck] '" << itsPath << "." << k << "' = " << x.dump() << ": the retired 'off' sentinel, read as \"off\" -- "
+                         "spell it \"off\"" << std::endl;
+            v=std::nullopt; return;
+        }
+        v=t;
+    }
     template <class E> void GetEnum(const char* k, E& v, std::initializer_list<std::pair<const char*,E>> names)
     {
         itsKnown.insert(k);
@@ -101,6 +120,7 @@ const auto kFamily = NAMES(SolidCalcOptions::OrbitalBasis, {"gaussian",SolidCalc
 const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Auto}, {"PlaneWave",Hamiltonian::VxcFit::PlaneWave}, {"Delta",Hamiltonian::VxcFit::Delta}, {"Auxiliary",Hamiltonian::VxcFit::Auxiliary});
 const auto kAcc    = NAMES(AccType, {"DIIS",AccType::DIIS}, {"GDM",AccType::GDM}, {"Ladder",AccType::Ladder}, {"Null",AccType::Null},
                          {"Auto",AccType::Auto});
+const auto kSignal = NAMES(SCFAccelerators::ScheduleSignal, {"Error",SCFAccelerators::ScheduleSignal::Error}, {"EnergyChange",SCFAccelerators::ScheduleSignal::EnergyChange});
 const auto kSeed   = NAMES(SeedStrategy, {"Default",SeedStrategy::Default}, {"CoreGuess",SeedStrategy::CoreGuess}, {"Uniform",SeedStrategy::Uniform},
                                          {"SAD",SeedStrategy::SAD}, {"IonicSAD",SeedStrategy::IonicSAD});
 const auto kOrtho  = NAMES(Ortho, {"Cholesky",Cholesky}, {"Eigen",Eigen}, {"SVD",SVD}, {"Auto",Auto}, {"CholeskyPivoted",CholeskyPivoted}, {"Orthonormal",Orthonormal});
@@ -149,10 +169,13 @@ void FromJson(const json& j, BasisSet::Gaussian::GPWTolerances& t)
 }
 
 //=== SCFParams ==================================================================================
+//! Is \a g looser than \a t?  An OFF gate is looser than any threshold.
+static bool LooserThan(const Gate& g, double t) {return !g || *g>t;}
+static json GateJson(const Gate& g) {return g ? json(*g) : json("off");}   //!< a gate as a deck spells it: a number, or "off"
 json ToJson(const SCFParams& p)
 {
-    return {{"NMaxIter",p.NMaxIter},{"minDeltaRhoPerElectron",p.MinΔρPerElectron},{"deltaRhoMeasure",NameOf(p.Δρmeasure,kMeasure)},{"minDeltaFD",p.MinΔFD},
-            {"minDeltaE",p.MinΔE},{"minVirial",p.MinVirial},{"minFD",p.MinFD},{"mixer",NameOf(p.Mixer,kMixing)},{"startingRelaxRo",p.StartingRelaxRo},{"maxRelaxRo",p.MaxRelaxRo},{"mergeTol",p.MergeTol},
+    return {{"NMaxIter",p.NMaxIter},{"minDeltaRhoPerElectron",GateJson(p.MinΔρPerElectron)},{"deltaRhoMeasure",NameOf(p.Δρmeasure,kMeasure)},{"minDeltaFD",GateJson(p.MinΔFD)},
+            {"minDeltaE",GateJson(p.MinΔE)},{"minVirial",GateJson(p.MinVirial)},{"minFD",GateJson(p.MinFD)},{"mixer",NameOf(p.Mixer,kMixing)},{"startingRelaxRo",p.StartingRelaxRo},{"maxRelaxRo",p.MaxRelaxRo},{"minRelaxRo",p.MinRelaxRo},{"mergeTol",p.MergeTol},
             {"verbose",p.Verbose},{"xcCuspDeficit",p.XCCuspDeficit},{"kerkerG0",p.KerkerG0},{"useMOM",p.UseMOM},{"pulayDepth",p.PulayDepth},
             {"pulayStart",p.PulayStart},{"momStartIter",p.MOMStartIter},{"smearingkT",p.SmearingkT},{"momSmearPenalty",p.MOMSmearPenalty},
             {"stopOnAccelExhausted",p.StopOnAccelExhausted},
@@ -164,9 +187,9 @@ void FromJson(const json& j, SCFParams& p)
     if (j.contains("minDeltaRho"))           // RETIRED 2026-10-22 (D-MINDRHO): never silently re-read with a new meaning
         throw std::runtime_error("deck: scf.minDeltaRho is RETIRED -- the gate is now scf.minDeltaRhoPerElectron, the L1 residual per "
                                  "electron on the run's quadrature (the old number meant something different per mixer)");
-    f.Get("NMaxIter",p.NMaxIter); f.Get("minDeltaRhoPerElectron",p.MinΔρPerElectron); f.GetEnum("deltaRhoMeasure",p.Δρmeasure,kMeasure);
-    f.Get("minDeltaFD",p.MinΔFD); f.Get("minDeltaE",p.MinΔE); f.Get("minVirial",p.MinVirial); f.Get("minFD",p.MinFD);
-    f.GetEnum("mixer",p.Mixer,kMixing); f.Get("startingRelaxRo",p.StartingRelaxRo); f.Get("maxRelaxRo",p.MaxRelaxRo); f.Get("mergeTol",p.MergeTol); f.Get("verbose",p.Verbose);
+    f.Get("NMaxIter",p.NMaxIter); f.GetGate("minDeltaRhoPerElectron",p.MinΔρPerElectron); f.GetEnum("deltaRhoMeasure",p.Δρmeasure,kMeasure);
+    f.GetGate("minDeltaFD",p.MinΔFD); f.GetGate("minDeltaE",p.MinΔE); f.GetGate("minVirial",p.MinVirial); f.GetGate("minFD",p.MinFD);
+    f.GetEnum("mixer",p.Mixer,kMixing); f.Get("startingRelaxRo",p.StartingRelaxRo); f.Get("maxRelaxRo",p.MaxRelaxRo); f.Get("minRelaxRo",p.MinRelaxRo); f.Get("mergeTol",p.MergeTol); f.Get("verbose",p.Verbose);
     f.Get("xcCuspDeficit",p.XCCuspDeficit); f.Get("kerkerG0",p.KerkerG0); f.Get("useMOM",p.UseMOM);
     f.Get("pulayDepth",p.PulayDepth); f.Get("pulayStart",p.PulayStart); f.Get("momStartIter",p.MOMStartIter);
     f.Get("smearingkT",p.SmearingkT); f.Get("momSmearPenalty",p.MOMSmearPenalty); f.Get("stopOnAccelExhausted",p.StopOnAccelExhausted);
@@ -176,6 +199,47 @@ void FromJson(const json& j, SCFParams& p)
         g.Get("holePersistence",p.Guard.HolePersistence); g.Get("maxReleases",p.Guard.MaxReleases); g.Done();
     }
     else f.At("momGuard");
+    f.Done();
+}
+
+//=== SolidAcceleratorOptions ===================================================================================================
+static json DiisJson(const SCFAccelerators::DIISParams& d)
+{ return {{"nProj",d.Nproj},{"engageBelowFD",d.EngageBelowFD},{"svTol",d.SVTol},{"svTolRel",d.SVTolRel}}; }
+static void DiisFromJson(const json& j, SCFAccelerators::DIISParams& d, const std::string& path)
+{
+    Fields f(j,path); f.Get("nProj",d.Nproj); f.Get("engageBelowFD",d.EngageBelowFD); f.Get("svTol",d.SVTol); f.Get("svTolRel",d.SVTolRel); f.Done();
+}
+static json GdmJson(const SCFAccelerators::GDMParams& g)
+{
+    return {{"engageBelowFD",g.EngageBelowFD},{"trust",g.Trust},{"trustBackoff",g.TrustBackoff},{"trustMin",g.TrustMin},{"pcFloor",g.PCFloor},
+            {"aufbauTol",g.AufbauTol},{"aufbauMaxRepicks",g.AufbauMaxRepicks}};
+}
+static void GdmFromJson(const json& j, SCFAccelerators::GDMParams& g, const std::string& path)
+{
+    Fields f(j,path); f.Get("engageBelowFD",g.EngageBelowFD); f.Get("trust",g.Trust); f.Get("trustBackoff",g.TrustBackoff); f.Get("trustMin",g.TrustMin);
+    f.Get("pcFloor",g.PCFloor); f.Get("aufbauTol",g.AufbauTol); f.Get("aufbauMaxRepicks",g.AufbauMaxRepicks); f.Done();
+}
+json ToJson(const SCFAccelerators::SolidAcceleratorOptions& o)
+{
+    return {{"diis",DiisJson(o.diis)},{"gdm",GdmJson(o.gdm)},
+            {"ladder",{{"gdm",GdmJson(o.ladderGdm)},{"eThresh",o.ladderEThresh},{"stall",o.ladderStall},{"floor",o.ladderFloor},
+                       {"switchAt",o.ladderSwitchAt},{"signal",NameOf(o.ladderSignal,kSignal)}}}};
+}
+void FromJson(const json& j, SCFAccelerators::SolidAcceleratorOptions& o)
+{
+    Fields f(j,"acceleratorOptions");
+    if (j.contains("diis")) DiisFromJson(f.At("diis"),o.diis,"acceleratorOptions.diis"); else f.At("diis");
+    if (j.contains("gdm"))  GdmFromJson (f.At("gdm"), o.gdm, "acceleratorOptions.gdm");  else f.At("gdm");
+    if (j.contains("ladder"))
+    {
+        const json& l=f.At("ladder");
+        Fields lf(l,"acceleratorOptions.ladder");
+        if (l.contains("gdm")) GdmFromJson(lf.At("gdm"),o.ladderGdm,"acceleratorOptions.ladder.gdm"); else lf.At("gdm");
+        lf.Get("eThresh",o.ladderEThresh); lf.Get("stall",o.ladderStall); lf.Get("floor",o.ladderFloor); lf.Get("switchAt",o.ladderSwitchAt);
+        lf.GetEnum("signal",o.ladderSignal,kSignal);
+        lf.Done();
+    }
+    else f.At("ladder");
     f.Done();
 }
 
@@ -516,6 +580,7 @@ json ToJson(const RunSpec& r)
 {
     json j={{"structure", r.inlineStructure.is_null() ? json(r.structure) : r.inlineStructure}};
     j["kmesh"]={r.kmesh.x,r.kmesh.y,r.kmesh.z}; j["basis"]=BasisJson(r.basis); j["solid"]=ToJson(r.solid);
+    j["acceleratorOptions"]=ToJson(r.accel);
     if (!r.state.save.empty() || !r.state.restartFrom.empty())
     {
         json st=json::object();
@@ -559,6 +624,7 @@ void FromJson(const json& j, RunSpec& r)
     }
     else f.At("state");
     if (j.contains("solid")) FromJson(f.At("solid"),r.solid); else f.At("solid");
+    if (j.contains("acceleratorOptions")) FromJson(f.At("acceleratorOptions"),r.accel); else f.At("acceleratorOptions");
     if (j.contains("postSCF"))
     {
         r.postSCF.clear(); size_t i=0;
@@ -683,9 +749,9 @@ Materials::Material Resolve(RunSpec& spec)
             // littleGroupK MEASURES the ground state's group on the reference's orbitals to 1e-6 (KAxisPlan §5 ruling 1): a reference
             // stopped at Δρ/N 1e-6 sits AT that tolerance and keeps a random subset of ops (TiO2 k221 2026-10-28: 4..16 of 16 at 1e-6;
             // 16 of 16, worst 9e-9, at 1e-9).  Not floored by ρ_lost/N: Δρ is a difference on ONE quadrature, the charge error cancels.
-            if (a.kind==PostAction::Kind::HubbardLinearResponse && a.littleGroupK && spec.Stages().back().scf.MinΔρPerElectron>kResponseReferenceMinΔρ)
+            if (a.kind==PostAction::Kind::HubbardLinearResponse && a.littleGroupK && LooserThan(spec.Stages().back().scf.MinΔρPerElectron, kResponseReferenceMinΔρ))
                 throw std::runtime_error(who+"littleGroupK measures the reference's symmetry to 1e-6, so the final SCF stage must converge to "
-                                         "scf.minDeltaRhoPerElectron <= 1e-9 (it is "+std::to_string(spec.Stages().back().scf.MinΔρPerElectron)+")");
+                                         "scf.minDeltaRhoPerElectron <= 1e-9 (it is "+GateJson(spec.Stages().back().scf.MinΔρPerElectron).dump()+")");
             if ((a.kind==PostAction::Kind::HubbardLinearResponse || lrLoop) && !spec.solid.forceComplex)
                 throw std::runtime_error(who+"needs the complex ansatz (the real-TRIM response face is not built); set solid.forceComplex true");
             if (isResponse)             // the q points loop INSIDE the response, on the k-mesh's own differences
@@ -846,7 +912,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
         bool resp=false; for (const auto& a : spec.postSCF) resp = resp || a.kind==RunSpec::PostAction::Kind::IndependentResponse || a.kind==RunSpec::PostAction::Kind::HubbardLinearResponse;
         if (resp && spec.solid.imposeSymmetry && spec.kmesh.x*spec.kmesh.y*spec.kmesh.z>1)
             v.notes.push_back("a response with solid.imposeSymmetry on a k-mesh: if the imposed group REDUCES the mesh the response throws at run time (D5); the NiO AFM-II 2x2x2 Shubnikov group does not reduce it");
-        if (resp && spec.Stages().back().scf.MinΔρPerElectron>kResponseReferenceMinΔρ)
+        if (resp && LooserThan(spec.Stages().back().scf.MinΔρPerElectron, kResponseReferenceMinΔρ))
             v.notes.push_back("a response reference should converge to scf.minDeltaRhoPerElectron <= 1e-9 (a few more iterations; ρ_lost/N does not floor it): "
                               "at 1e-6 its orbitals carry ~1e-6 symmetry and eigenpair residuals");
     }
@@ -1130,7 +1196,7 @@ static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec& spec, const Mate
 {
     Lattice_3D lat(*mat.cell, spec.kmesh);
     SolidCalcOptions so=spec.solid; so.accelerator=stages.front().accelerator;
-    return SolidSetup::Resolve(lat, RecipeOf(spec.basis), so);
+    return SolidSetup::Resolve(lat, RecipeOf(spec.basis), so, spec.accel);
 }
 
 std::unique_ptr<SolidCalculation> Build(const RunSpec& specIn, SolidCalculation::Observer onIteration)

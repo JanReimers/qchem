@@ -84,7 +84,7 @@ under-sizes every raster by ~7 units of x; the bare form survives only where a r
 1. **Raster N, per multigrid level** (the one that failed).  A pair p sampled on a raster of inscribed Nyquist radius G_N aliases
    with amplitude e^{−G_N²/p} (GridSharpTerms §2).  So level l's raster is the smallest FFT-friendly N with
    **G_N,l² ≥ p_eff,max(l) · L(ε)**, p_eff = max(p, β_field) of the tightest pair ROUTED to l.  Today, on the finest level at C = 2 (its
-   tightest pair p = 2α_max = Ecut): BallOnly G_N² = 2Ecut = 2p (alias e^{−2}: the ±2 Ha of GridSharpTerms §3), AliasFree 8p (e^{−8}).
+   tightest pair p = 2α_max = Ecut): BallOnly G_N² = 2Ecut = 2p (alias e^{−2}: the ±2 Ha of GridSharpTerms §3), AliasFree 8p (e^{−8}).  ⚠ CORRECTED 2026-11-01 (lane A): "AliasFree 8p" holds only for an UNROUTED pair.  AliasFree sized G² = 4·p_h·ln(1e6) with p_h = pβ/(p+β); under HartreeXC routing (β = p/3) that is ≈ 13.8p, and the 5-smooth FFT menu rounds it UP (β-MnO₂ p5f3_dD: x ≈ 16 on 90³).  A deck that states x = 8 as "the old AliasFree" is half its alias exponent (that deck's first iterate was +4.2e4 Ha; OpenWork_History5 "Dense Mn d midpoints").
    ⚠ The S·e^{−G_N²/p} bound is PESSIMISTIC away from small G_N²/p: it predicts 19·e^{−8} ≈ 6e-3 Ha for AliasFree at the floor and
    19·e^{−11} ≈ 3e-4 Ha at Ecut/p = 5.5, against ≤ 3e-4 and ≤ 1e-5 Ha measured (the alias image carries the pair's overlap with the
    field, not the field's full depth).  So M2 calibrates an EFFECTIVE L per term from the oracles; the form stays.  On every level

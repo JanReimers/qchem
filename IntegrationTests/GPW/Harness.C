@@ -10,6 +10,7 @@
 // decides whether that is a test failure or a probe abort.
 module;
 #include <memory>
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <vector>
 #include <cmath>
 #include <cstdlib>   // std::getenv/std::atof (the env A/B valves)
@@ -258,16 +259,16 @@ SolidCalcOptions OptionsFor(const Material& m, const std::string& label)
 //! The SCF gates.  Two named recipes cover nearly every test: PRODUCTION (the anchors' gates -- energy AND
 //! density, 60 iterations) and TIGHT (density-only to 1e-6, the old positional driver's default).  The
 //! virial/FD gates are off on every pseudopotential run (the textbook -V/K=2 does not hold).
-SCFParams Gates(size_t nmax, double minDrho, double minDE)
+SCFParams Gates(size_t nmax, double minDrho, Gate minDE)
 {
     SCFParams par;
     par.NMaxIter=nmax; par.MinΔρPerElectron=minDrho; par.MinΔE=minDE;
-    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
+    par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
     return par;
 }
 SCFParams ProductionGates() { return Gates(60, 1e-3, 1e-6); }
-SCFParams TightGates(size_t nmax=120) { return Gates(nmax, 1e-6, 1e30); }
+SCFParams TightGates(size_t nmax=120) { return Gates(nmax, 1e-6, std::nullopt); }
 
 // (EnvOverrides -- 14 GPW_* variables that re-shaped any test's recipe from the shell -- is DELETED, D-ENV step 6d.4.  A test states its recipe in code;
 //  a benchmark row or a variation is a DECK: decks/bench/*.json + `rundeck --set key=value`, doc/Records/EnvKnobInventory.md §10.)
@@ -320,7 +321,7 @@ SolidCalcOptions AlOptions(const Material& al, const std::string& label="Al FCC 
     return o;
 }
 //! The Al block's gates: density-only to 1e-5 (a metal's energy settles long before its density does).
-SCFParams AlGates(size_t nmax=60) { return Gates(nmax, 1e-5, 1e30); }
+SCFParams AlGates(size_t nmax=60) { return Gates(nmax, 1e-5, std::nullopt); }
 
 //! THE COMMITTED NaF PRODUCTION RECIPE (from the NaF rocksalt gate): the diffuse-trimmed SR2 basis, the
 //! Fock DIIS->GDM Ladder on |ΔE/E|, IonicSAD, pivoted Cholesky, Kerker G0=1 against the low-G charge-transfer

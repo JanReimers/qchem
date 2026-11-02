@@ -83,10 +83,11 @@ static void EmitScfSection(const SCFParams& p, const std::string& accelerator)
     namespace rpt = qchem::report;
     rpt::json standard;
     standard["nMaxIter"]    = long(p.NMaxIter);
-    standard["minDrho"]     = p.MinΔρPerElectron;
-    standard["minDFD"]      = p.MinΔFD;
-    standard["minDE"]       = p.MinΔE;
-    standard["minFD"]       = p.MinFD;
+    auto gate=[](const Gate& g){return g ? rpt::json(*g) : rpt::json("off");};   // an off gate is spelled "off" (was the 1e30 sentinel)
+    standard["minDrho"]     = gate(p.MinΔρPerElectron);
+    standard["minDFD"]      = gate(p.MinΔFD);
+    standard["minDE"]       = gate(p.MinΔE);
+    standard["minFD"]       = gate(p.MinFD);
     // The preconditioner (Kerker/linear) and the history (Pulay) COMPOSE, so name both: "Ker+Pul", "Lin+Pul".
     standard["mixer"]       = std::string(p.KerkerG0 > 0.0 ? "Ker" : "Lin") + (p.PulayDepth > 0 ? "+Pul" : "");
     standard["kerkerG0"]    = p.KerkerG0;
@@ -157,8 +158,7 @@ void Calculation::BuildGraph()
 {
     namespace rpt = qchem::report;
     const CalcOptions& opts=itsSetup->opts;
-    nlohmann::json jsacc = {{"NProj", itsSetup->acc.nProj}, {"EMax", itsSetup->eMax},
-                            {"EMin", itsSetup->acc.eMin}, {"SVTol", itsSetup->acc.svTol}};
+    const nlohmann::json jsacc = ToAcceleratorJson(itsSetup->acc, itsSetup->eMax);   // every knob of the chain, forwarded
     auto* accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, jsacc);
     const auto seed = itsSetup->seed;
 
@@ -254,11 +254,12 @@ Outcome<Calculation::Converged, SCFFailure> Calculation::Outcome_() const
 {
     using O=Outcome<Converged, SCFFailure>;
     if (itsScf->Converged()) return O::Ok(Converged(this));
-    SCFFailure f;   // the molecular facade has no outcome detectors yet: a failure is a run out of iterations
-    f.why        = SCFFailure::Why::NotConverged;
+    SCFFailure f;   // the molecular facade's detectors: the iterator's own refusal, else a run out of iterations
+    const bool refused=!itsScf->UnphysicalStop().empty();
+    f.why        = refused ? SCFFailure::Why::UnphysicalEnergy : SCFFailure::Why::NotConverged;
     f.iterations = itsScf->GetIterationCount();
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
-    f.details    = "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
+    f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
     return O::Fail(std::move(f));
 }
 
