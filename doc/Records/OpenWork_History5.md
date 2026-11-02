@@ -1146,3 +1146,18 @@ basis.perIrrep and grids.xcQuadrature / ppQuadrature / auxiliaryFit, no scf head
 equals the constructor bit for bit), `CalculationFacade.AnAtomsPrepareFilesItsSetupBeforeAnySCF`,
 `CalculationFacade.APseudopotentialRunsPPQuadratureIsInGridsNotBasis`.  Found on the way: the seed build files `scf.xcRhoRoutes`
 (root-anchored, `DensitySampler_Singles.C:209`) into the build run -- listed on the mesh-report remainder row.
+
+## ✗ RETRACTED "ninja does not recompile the importers of a changed module interface (stale objects)" -- 2026-11-02 (lane B, the reporter); the row as it stood
+| **ninja does not recompile the importers of a changed module interface (stale objects)** (S, a FALSE-GREEN risk; lane B 2026-11-02) | lane B changed `Calculation`'s exported class layout; the first sweep showed 23 failures that were STALE OBJECTS: A_PP.C / L_PP.C (which would not even compile against the new interface) and the facade tests (segfault on the old layout) were never rebuilt -- the C++20 module dyndep missed them.  Touching the importers fixed it.  The danger is the converse: a stale object can also PASS, so a sweep can be green on code that no longer compiles | reproduce on a toy (change an exported class's layout, check `ninja -n` lists every importer); find whether it is CMake's dyndep scanning (the `.ddi`/`.modmap` of importers) or a clang-scan-deps cache; until fixed, a lane that changes an exported LAYOUT does a clean rebuild of affected targets before its landing sweep · CLAUDE.md 'ninja rebuilds were flaky' |
+**Retraction (lane B, 2026-11-02): ninja was right; the BUILD FAILED and the sweep ran anyway.**  The build log of that sweep
+(lane B's background job, never read past its tail) opens with `FAILED: IntegrationTests/CMakeFiles/ITMain.dir/A_PP.C.o ...
+no matching constructor for initialization of 'Hamiltonian::PP_NonLocal'` (and `L_PP.C`): the importers WERE recompiled -- and
+did not compile.  ninja stopped there, so ITMain and the other test exes were never RELINKED, and the sweep, chained after the
+build with `;` instead of `&&`, ran the OLD executables against the NEW shared libraries: the "undefined symbol
+...PP_NonLocalC1...MeshParams" and the segfaults on `Calculation`'s new layout.  Fixing the two test files and rebuilding is what
+cleared it (the touch was incidental).  Checked both ways: a toy (CMake 4.2.3, ninja 1.13.2, clang 21.1.6; a library exporting a
+class, an executable importing it; change the layout and the signature, build the library alone then the exe, or both at once)
+recompiles and relinks the importer every time; on the real tree, touching `src/Hamiltonian/Internal/Terms.C` makes `ninja -n`
+list every one of its importers (A_PP, L_PP, the PW and GPW files).  **The real false-green risk is a sweep over a failed
+build**, and it is now refused where every sweep passes: `scripts/snaprun` runs a ctest command only when `ninja -n allTests`
+has no work to do (exit 3 otherwise, naming the pending work; tested on a built and a deliberately stale tree).
