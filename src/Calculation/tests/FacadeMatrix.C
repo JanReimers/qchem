@@ -220,8 +220,9 @@ public:
     }
     std::string AcceleratorKnobsArrive() override
     {
-        auto calc=Calculation::Prepare(Setup({.nProj=6, .eMax=0.05, .svTol=1e-8, .type="Ladder"}));
-        return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@", {"trust","eThresh","stall","floor","switchAt"});
+        auto calc=Calculation::Prepare(Setup({.nProj=6, .eMax=0.05, .svTol=1e-8, .trust=0.2, .ladderEThresh=1e-7, .ladderStall=4,
+                                              .ladderFloor=1e-9, .ladderSwitchAt=1e-5, .type="Ladder"}));
+        return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@", {});
     }
     std::string SaveRestartRoundTrips() override {return "Calculation has no SaveState / Restart";}
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","H2O"}});}
