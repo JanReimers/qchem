@@ -221,11 +221,12 @@ Outcome<Calculation::Converged, SCFFailure> Calculation::Outcome_() const
 {
     using O=Outcome<Converged, SCFFailure>;
     if (itsScf->Converged()) return O::Ok(Converged(this));
-    SCFFailure f;   // the molecular facade has no outcome detectors yet: a failure is a run out of iterations
-    f.why        = SCFFailure::Why::NotConverged;
+    SCFFailure f;   // the molecular facade's detectors: the iterator's own refusal, else a run out of iterations
+    const bool refused=!itsScf->UnphysicalStop().empty();
+    f.why        = refused ? SCFFailure::Why::UnphysicalEnergy : SCFFailure::Why::NotConverged;
     f.iterations = itsScf->GetIterationCount();
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
-    f.details    = "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
+    f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
     return O::Fail(std::move(f));
 }
 

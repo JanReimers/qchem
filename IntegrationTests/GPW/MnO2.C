@@ -58,3 +58,30 @@ TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_Saved_eqExactResume_Panel_Long)
     ASSERT_TRUE(o.run.energy);
     EXPECT_NEAR(*o.run.energy, -93.3837082, 1e-6) << "an exact resume lands on the state it resumed";
 }
+
+// The DENSE-d basis (lane H's p5f3_dD, Mn d midpoints 0.56 ... 24.66, vendored): S's smallest eigenvalue is 6.75e-7, and the orthonormal frame
+// amplifies a raster alias by up to 1/lambda_min.  On main 0fab43d6 both decks below DIVERGED from iteration 1 (+4.2e4 / +845 Ha) and ran 300
+// iterations to +4.7e3 Ha (OpenWork_History5 "Dense Mn d midpoints").  Measured 2026-11-01 (lane A), first iterate vs raster x: 8 -> +41888,
+// 11 -> -80.75302, 13 / 16 -> -80.75311.  An SCF whose first ELECTRONIC energy is above 0 (electrons at infinity) is refused, not iterated.
+
+// A STATED raster is the deck's choice: never overridden, refused at iteration 1 with the cause named (~3 min, mostly setup).
+TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_RefusesAnAliasedFirstIterate_Long)
+{
+    const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO2_dD_StatedX8.json"), 1,
+                                   "beta-MnO2 dense-d at a stated x 8: the first iterate is refused, not iterated");
+    EXPECT_FALSE(o.run.converged);
+    EXPECT_FALSE(o.run.energy) << "a refused run has no converged energy";
+    EXPECT_EQ(o.iterations, 1u) << "refused AT iteration 1";
+    EXPECT_NE(o.run.summary.find("ELECTRONIC energy"), std::string::npos) << o.run.summary;
+}
+
+// At the DEFAULT accuracy the first stage starts on the ball's own rasters (x 4: Eelec +923 Ha), is refused, and the pilot restarts ONCE on
+// rasters whose alias does not exceed lambda_min(S) (x 14.2, 90^3); the pilot then settles with 0 re-convergences.  1 refused + 24 measured.
+TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_ConvergesThroughARefusedFirstIterate_Panel_Long)
+{
+    const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO2_dD_Default.json"), 31,
+                                   "beta-MnO2 dense-d, default accuracy: refused on the ball rasters, restarted on conditioned ones (25 measured, 2026-11-01)");
+    ASSERT_TRUE(o.run.converged) << o.run.summary;
+    ASSERT_TRUE(o.run.energy);
+    EXPECT_NEAR(*o.run.energy, -93.4419391947, 1e-5) << "the dense-d A1AFM U = 0 state (measured 2026-11-01; drho/N 3e-5)";
+}

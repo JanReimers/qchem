@@ -463,6 +463,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
 
     int holeRun=0, momReleases=0;   // 0h MOM-guard state (per run): consecutive hole iterations + releases
     bool exhaustedStop=false;       // the opt-in ladder-exhaustion stage end (a deliberate early stop, not a cap)
+    itsUnphysicalStop.clear();      // set when iteration 1's energy is physically impossible (UnphysicalStop)
     std::string prevConfig;         // previous occupied configuration (the cfg '*' change flag; item 2)
     for (itsIterationCount=1;
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
@@ -539,6 +540,22 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         }
         EmitSiteMoments(eb);   // the iteration's integrated site moments, reported with the iteration
         if (itsObserver) itsObserver(MakeRow(ipar, *tr));
+        // THE FIRST ENERGY MUST BE PHYSICAL (UnphysicalStop): the electronic energy of a ground state is <= 0 -- the limit of the electrons
+        // dispersed to infinity -- at ANY geometry and charge (the TOTAL can be positive: H2 at R = 0.1 bohr).  Refused AFTER the row is
+        // out, so the trace shows the number it was refused on; iteration 1 only -- a later excursion is the mixer's to recover.
+        if (const double Eel=eb.GetElectronicEnergy(); itsIterationCount==1 && Eel>0.0)
+        {
+            std::ostringstream os;
+            os << "the FIRST iterate's ELECTRONIC energy is " << std::setprecision(6) << Eel << " Ha (Etot " << E << ", Ekin " << eb["Kinetic"]
+               << ", Eee " << eb["Eee"] << "): above the electrons-at-infinity limit 0 that any ground state lies below, so the Hamiltonian "
+               << "it was built from is broken -- on a GPW run, an "
+               << "aliased raster that an ill-conditioned overlap amplifies (raise the rasters, or state the accuracy target and let the "
+               << "conditioning size them), or a basis the orthogonalization should have trimmed";
+            itsUnphysicalStop=os.str();
+            cout << "  *** SCF REFUSED at iteration 1: " << itsUnphysicalStop << " ***" << endl;
+            itsIterationCount++;   // match the for-increment the break skips (the -- below assumes it ran)
+            break;
+        }
         // A mixer that ADAPTS its step (the linear D-mixer's [F,D]-keyed α) is told this step's signals and may
         // re-mix the working density under us -- then the energy is recomputed HERE (the mixer is not an
         // energy service).  No second density build any more: the re-mix is algebraic on the mixed density
@@ -619,7 +636,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     qchem::ReportSCFIterations(itsIterationCount);   // the convergence panel's IterationBudget counts every Iterate
     // AN SCF THAT ENDS AT ITS CAP IS REPORTED (qchem.SCFCap; user 2026-10-29: "All SCF tests should fail if they hit max
     // iterations") -- the test mains make it a failure of the running test; a production driver installs no hook.
-    if (!itsConverged && !exhaustedStop)
+    if (!itsConverged && !exhaustedStop && itsUnphysicalStop.empty())
     {
         std::ostringstream os;
         os << "the SCF ended at its iteration cap (NMaxIter " << ipar.NMaxIter << ") UNCONVERGED: last drho/N "

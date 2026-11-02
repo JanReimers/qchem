@@ -1,0 +1,286 @@
+!
+! 2026-10-26 pol variant p5f3_dD: Mn_p5f3.bsd + MN D at 0.5602, 1.194, 2.546, 5.426, 11.57, 24.66 (vet off, CholeskyPivoted 1e-7, AliasFree)
+!
+! 2026-10-26 pol variant Mn_p5f3: vaOp018.bsd + MN P at 0.25, 0.5, 1, 2, 4; MN F at 0.7, 1.4, 2.8 (vet off, CholeskyPivoted 1e-7, AliasFree)
+valence_lowq_va: the EXACT-SPAN variant VA -- the span BOTH codes hold at FULL RANK (N=118 on the
+MnO 2-f.u. magnetic cell), and the basis of the doc/Benchmark.md MnO rows.  It is valence_lowq_sph.bsd
+minus THREE diffuse shells: Mn d 0.18, O s 0.15, O p 0.18.  Its CP2K counterpart is the
+VALENCE-LOWQ-VA (Mn) + VALENCE-LOWQ-VB (O) pair in IntegrationTests/CP2K/VALENCE-LOWQ-BASIS, used by
+mno_{afm2,fm}_gpw_va.inp -- function for function the same span, which is what makes the code-vs-code
+offset (doc/OpenWork.md step 5) an operator statement rather than a basis statement.
+SPHERICAL-d ARMS ONLY, exactly as its parent (under Cartesian d the 8 d contaminants reproduce the
+rank deficiency the trim exists to avoid).
+WHY IT IS A FILE.  It was previously produced by doc/scripts/bisect_valence_sph.py OVERWRITING the
+committed valence_lowq_sph.bsd in the working tree, so the span a run used was invisible in the run
+and unreproducible after the fact -- a benchmark row cannot rest on that.  The variants are now
+first-class basis sets the user selects (GPW_BASIS_SPAN=va), and the bisect script keeps its role as
+the EXPLORATORY probe generator.
+
+NI ADDED 2026-09-22 (doc/OpenWork.md step 5, increment 3 remainder (a) -- the ACBN0-vs-hp.x
+comparison on NiO AFM-II, where hp.x's linear response is healthy: U(Ni 3d) = 5.27 eV with our own
+GTH q10 UPF).  Window: s 7 x {0.06 .. 28}, d 8 x {0.18 .. 44}, minted and VALIDATED by
+  CLIapps/valgen --element Ni --q 10 --shell 0:7:0.06:28 --shell 2:8:0.18:44 --floor
+(pseudo-atom SCF converged, E = -36.9577 Ha, 0.56 mHa above the complete-basis pool floor).
+THE Ni BLOCK IS THE SAME IN va AND sph, deliberately: the VA/VB trims are MnO-SPECIFIC rank
+statements against CP2K's transcribed span (VA = the 118 functions both codes hold at full rank on
+the MnO magnetic cell), and NiO's oracle is hp.x, not CP2K -- there is no CP2K span to match.  Two
+trims were TRIED and REFUSED by valgen: dropping the diffuse d 0.18 costs 26 mHa (the free atom's
+3d needs it), and dropping the diffuse s 0.06 makes the pseudo-atom SCF fail outright.
+LI ADDED 2026-09-23 (doc/HubbardUPlan.md prerequisites -- the Li_xMn2O4 voltage curve).  q1, the
+VALENCE variant, matching this file's own convention (Mn is q7 not the q15 semicore, Na is q1 not q9):
+  CLIapps/valgen --element Li --q 1 --shell 0:5:0.03:2 --floor --nmax 120
+converged, E = -0.189367 Ha, 0.11 mHa BELOW the 16-exponent pool floor.  The GTH q3 (1s^2 2s^1
+explicit) variant is ALSO validated -- `--q 3 --shell 0:8:0.05:60`, E = -4.23584 Ha, gap 0.107 mHa --
+but it CANNOT live in this file beside q1: a .bsd block is keyed by ELEMENT, not by (element, q).
+Resolving that is part of the q1-vs-q3 discriminator (doc/HubbardUPlan.md), not of this commit.
+~ Li 2s is diffuse (emin 0.03, atomic <r> = 3.9 bohr) against a Li-O distance of ~3.7 bohr in the
+spinel, so expect the pivoted-Cholesky vet stage to have an opinion; it is the designed judge and it
+reports what it drops.  Li is ionised there, so the diffuse tail is the function least likely to be
+missed -- but TRIM ON THE MEASUREMENT, the way VA itself came to exist, not on this note.
+
+V AND SR ADDED 2026-10-05 (doc/LinearResponsePlan.md: SrVO3, the A6 matched-PP hp.x oracle U(V 3d) = 6.2502 eV,
+IntegrationTests/QE/srvo3.*).  The oracle's pseudopotentials: V q5 (3d3 4s2, light valence) and Sr q2 (5s2; gth2upf cannot build
+Sr q10, IntegrationTests/QE/README.md), O q6 as already here.  Minted and VALIDATED by
+  CLIapps/valgen --element V  --q 5 --shell 0:8:0.04:30 --shell 2:9:0.10:60 --floor --nmax 120   E = -5.85289 Ha, 0.08 mHa above the pool floor
+  CLIapps/valgen --element Sr --q 2 --shell 0:5:0.03:2  --shell 1:2:0.05:0.3 --floor --nmax 120  E = -0.614105 Ha, 0.77 mHa above the pool floor
+(the Ni-pattern s 7x{0.05..20} + d 8x{0.15..40} window was 5.6 mHa short for V; Sr's wider s 6x{0.02..3} reaches the floor only by
+an s at 0.02 that a perovskite cell -- V-O 3.63 bohr, Sr-O 5.13 -- would trim).  THE SAME BLOCKS IN va AND sph, as Ni.  Expect the
+vet stage to drop V s 0.04 / d 0.10 and Sr s 0.03 in the cell: read [basis trim] (CLAUDE.md) before trusting a number.
+!
+BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
+ F   0
+ S   1  1.00
+            0.27516456        1.00000000
+ S   1  1.00
+            0.63096278        1.00000000
+ S   1  1.00
+            1.44682163        1.00000000
+ S   1  1.00
+            3.31761697        1.00000000
+ S   1  1.00
+            7.60742173        1.00000000
+ S   1  1.00
+           17.44410700        1.00000000
+ S   1  1.00
+           40.00000000        1.00000000
+ P   1  1.00
+            0.34098767        1.00000000
+ P   1  1.00
+            0.83051852        1.00000000
+ P   1  1.00
+            2.02283268        1.00000000
+ P   1  1.00
+            4.92686434        1.00000000
+ P   1  1.00
+           12.00000000        1.00000000
+ ****
+ NA   0
+ S   1  1.00
+            0.15               1.00000000
+ S   1  1.00
+            0.24494897        1.00000000
+ S   1  1.00
+            0.69992710        1.00000000
+ S   1  1.00
+            2.00000000        1.00000000
+ P   1  1.00
+            0.09000000        1.00000000
+ P   1  1.00
+            0.30000000        1.00000000
+ ****
+ AL   0
+ S   1  1.00
+            0.10047546        1.00000000
+ S   1  1.00
+            0.25238294        1.00000000
+ S   1  1.00
+            0.63395728        1.00000000
+ S   1  1.00
+            1.59242868        1.00000000
+ S   1  1.00
+            4.00000000        1.00000000
+ P   1  1.00
+            0.13295740        1.00000000
+ P   1  1.00
+            0.35355339        1.00000000
+ P   1  1.00
+            0.94015077        1.00000000
+ P   1  1.00
+            2.50000000        1.00000000
+ ****
+ LI   0
+ S   1  1.00
+            0.03000000        1.00000000
+ S   1  1.00
+            0.08572321        1.00000000
+ S   1  1.00
+            0.24494897        1.00000000
+ S   1  1.00
+            0.69992710        1.00000000
+ S   1  1.00
+            2.00000000        1.00000000
+ ****
+ MN   0
+ S   1  1.00
+            0.10000000        1.00000000
+ S   1  1.00
+            0.24928829        1.00000000
+ S   1  1.00
+            0.62144650        1.00000000
+ S   1  1.00
+            1.54919334        1.00000000
+ S   1  1.00
+            3.86195754        1.00000000
+ S   1  1.00
+            9.62740780        1.00000000
+ S   1  1.00
+           24.00000000        1.00000000
+ D   1  1.00
+            0.38369936        1.00000000
+ D   1  1.00
+            0.81791778        1.00000000
+ D   1  1.00
+            1.74352515        1.00000000
+ D   1  1.00
+            3.71660826        1.00000000
+ D   1  1.00
+            7.92255676        1.00000000
+ D   1  1.00
+           16.88822203        1.00000000
+ D   1  1.00
+           36.00000000        1.00000000
+ P   1  1.00
+          0.25000000        1.00000000
+ P   1  1.00
+          0.50000000        1.00000000
+ P   1  1.00
+          1.00000000        1.00000000
+ P   1  1.00
+          2.00000000        1.00000000
+ P   1  1.00
+          4.00000000        1.00000000
+ F   1  1.00
+          0.70000000        1.00000000
+ F   1  1.00
+          1.40000000        1.00000000
+ F   1  1.00
+          2.80000000        1.00000000
+ D   1  1.00
+          0.56020936        1.00000000
+ D   1  1.00
+          1.19417763        1.00000000
+ D   1  1.00
+          2.54558441        1.00000000
+ D   1  1.00
+          5.42632840        1.00000000
+ D   1  1.00
+         11.56710412        1.00000000
+ D   1  1.00
+         24.65716920        1.00000000
+ ****
+ NI   0
+ S   1  1.00
+            0.06000000        1.00000000
+ S   1  1.00
+            0.16710356        1.00000000
+ S   1  1.00
+            0.46539335        1.00000000
+ S   1  1.00
+            1.29614814        1.00000000
+ S   1  1.00
+            3.60984957        1.00000000
+ S   1  1.00
+           10.05364551        1.00000000
+ S   1  1.00
+           28.00000000        1.00000000
+ D   1  1.00
+            0.18000000        1.00000000
+ D   1  1.00
+            0.39485815        1.00000000
+ D   1  1.00
+            0.86618308        1.00000000
+ D   1  1.00
+            1.90010803        1.00000000
+ D   1  1.00
+            4.16818406        1.00000000
+ D   1  1.00
+            9.14356349        1.00000000
+ D   1  1.00
+           20.05783621        1.00000000
+ D   1  1.00
+           44.00000000        1.00000000
+ ****
+ O   0
+ P   1  1.00
+            0.18000000        1.00000000
+ S   1  1.00
+            0.39077566        1.00000000
+ S   1  1.00
+            1.01803746        1.00000000
+ S   1  1.00
+            2.65216175        1.00000000
+ S   1  1.00
+            6.90933509        1.00000000
+ S   1  1.00
+           18.00000000        1.00000000
+ P   1  1.00
+            0.46475800        1.00000000
+ P   1  1.00
+            1.20000000        1.00000000
+ P   1  1.00
+            3.09838668        1.00000000
+ P   1  1.00
+            8.00000000        1.00000000
+ ****
+ V   0
+ S   1  1.00
+            0.04000000        1.00000000
+ S   1  1.00
+            0.10298715        1.00000000
+ S   1  1.00
+            0.26515881        1.00000000
+ S   1  1.00
+            0.68269874        1.00000000
+ S   1  1.00
+            1.75772991        1.00000000
+ S   1  1.00
+            4.52558972        1.00000000
+ S   1  1.00
+           11.65193940        1.00000000
+ S   1  1.00
+           30.00000000        1.00000000
+ D   1  1.00
+            0.10000000        1.00000000
+ D   1  1.00
+            0.22246869        1.00000000
+ D   1  1.00
+            0.49492320        1.00000000
+ D   1  1.00
+            1.10104918        1.00000000
+ D   1  1.00
+            2.44948974        1.00000000
+ D   1  1.00
+            5.44934785        1.00000000
+ D   1  1.00
+           12.12309303        1.00000000
+ D   1  1.00
+           26.97008679        1.00000000
+ D   1  1.00
+           60.00000000        1.00000000
+ ****
+ SR   0
+ S   1  1.00
+            0.03000000        1.00000000
+ S   1  1.00
+            0.08572321        1.00000000
+ S   1  1.00
+            0.24494897        1.00000000
+ S   1  1.00
+            0.69992710        1.00000000
+ S   1  1.00
+            2.00000000        1.00000000
+ P   1  1.00
+            0.05000000        1.00000000
+ P   1  1.00
+            0.30000000        1.00000000
+ ****

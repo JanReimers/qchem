@@ -230,6 +230,13 @@ public:
     EnergyBreakdown     GetEnergy() const;
     size_t              GetIterationCount() const {return itsIterationCount;}
     bool                Converged() const {return itsConverged;}
+    //! \brief Why the last \c Iterate STOPPED on a physically impossible energy instead of iterating (empty = it did not).  The
+    //! ELECTRONIC energy of a ground state is <= 0 at any geometry and charge -- 0 is the limit of the electrons dispersed to infinity
+    //! (the TOTAL can be positive: compressed nuclei) -- and the first iterate, the seed's Hamiltonian diagonalized once, lies close to
+    //! the answer on any working Hamiltonian.  A POSITIVE first electronic energy therefore names a broken Hamiltonian (2026-11-01, beta-MnO2 on a dense-d basis: +4.19e4 Ha, an aliased raster amplified by an
+    //! ill-conditioned S), and iterating it only turns the defect into a plausible-looking non-convergence.  The facade turns it
+    //! into its failed Outcome.
+    const std::string&  UnphysicalStop() const {return itsUnphysicalStop;}
 
 protected:
     // --- PER-SYSTEM iteration display (doc/GPWPlan1.md item 2) -------------------------------------------
@@ -340,6 +347,7 @@ private:
 
     size_t          itsIterationCount;
     bool            itsConverged;
+    std::string     itsUnphysicalStop;   //!< \c UnphysicalStop: empty unless the last Iterate refused its first energy
     std::shared_ptr<tDM_CD<T>> itsCarried;   //!< a WorkingDensity / ExactResume seed, held to the first Iterate (see SeedRole)
     bool            itsCarriedIsWorking=false;   //!< ExactResume: the carried D becomes the working density there
     Observer        itsObserver;   //!< optional live-progress sink (default empty)
