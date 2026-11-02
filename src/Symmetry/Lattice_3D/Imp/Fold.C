@@ -206,17 +206,19 @@ Fold FoldPoints(const std::vector<rvec3_t>& pts, const std::vector<SymOp>& ops, 
     for (int i = 0; i < n; ++i) byx[i] = i;
     std::sort(byx.begin(), byx.end(), [&](int a, int b) {return pts[a].x < pts[b].x;});
 
-    auto lookup = [&](const rvec3_t& r) -> int
+    auto lookup = [&](const rvec3_t& r) -> int   // the NEAREST point within tol (TorusIndex::Find says why)
     {
         auto lo = std::lower_bound(byx.begin(), byx.end(), r.x - tol,
                                    [&](int a, double v) {return pts[a].x < v;});
+        int best = -1; double bestD2 = tol*tol;
         for (auto it = lo; it != byx.end() && pts[*it].x <= r.x + tol; ++it)
         {
             const rvec3_t& p = pts[*it];
             double dx = p.x - r.x, dy = p.y - r.y, dz = p.z - r.z;
-            if (dx*dx + dy*dy + dz*dz <= tol*tol) return *it;
+            const double d2 = dx*dx + dy*dy + dz*dz;
+            if (d2 < bestD2 || (best < 0 && d2 <= bestD2)) { best = *it; bestD2 = d2; }   // ties keep the first
         }
-        return -1;
+        return best;
     };
     auto apply = [&](int o, int i) -> int {return lookup(ops[o].W * pts[i] + ops[o].tau);};
     return FoldByAction(n, int(ops.size()), apply);
@@ -261,43 +263,63 @@ public:
             itsBuckets[Key(itsPts[i])].push_back(i);
     }
 
-    //! Index of the mesh point within tol of \a f (torus metric), or -1.
+    //! Index of the mesh point NEAREST \a f within tol (torus metric), or -1.
+    //!
+    //! ⛔ NEAREST, NOT FIRST (2026-11-01, the RelChecked O2Box abort at Fold.C's SymmetrizeValuesSigned).  tol is
+    //! an ABSOLUTE fractional tolerance, and an atom-centred mesh's innermost shells put DISTINCT points closer
+    //! than it: on the O2 box (16 bohr cell) the r~5e-4 bohr shell holds a mirror pair across y=z only 1.2e-7 bohr
+    //! (7.5e-9 fractional) apart.  First-hit matching sent the IDENTITY op of one onto its twin, so the fold
+    //! built 9-member orbits under a 16-op group and left the rep with no mapping op -- wrong orbits that an
+    //! NDEBUG sweep star-averaged through silently.  An invariant mesh's true image sits ~1e-15 away, so the
+    //! nearest candidate is the right one whatever tol is.
     int Find(const rvec3_t& f) const
     {
         int bx = Bucket(f.x), by = Bucket(f.y), bz = Bucket(f.z);
         // THE CENTRE BUCKET FIRST.  These meshes are op-INVARIANT by construction, so W*p+tau is another
         // mesh point to ~1e-15 -- far inside tol -- and the query lands in the query point's OWN bucket
-        // essentially every time.  Probing it alone turns the common case from 27 hash lookups into 1;
-        // the full neighbourhood below remains the correctness path for a point near a bucket face.
-        if (const int i = Scan(Key(bx, by, bz), f); i >= 0) return i;
+        // essentially every time.  Probing it alone turns the common case from 27 hash lookups into 1: a
+        // neighbour bucket can only hold a NEARER point if the best so far is farther than f is from the
+        // centre bucket's nearest face, and only then is the full neighbourhood scanned.
+        int best = -1; double bestD2 = itsTol*itsTol;
+        Scan(Key(bx, by, bz), f, best, bestD2);
+        if (best >= 0)
+        {
+            const double face = std::min({FaceDistance(f.x), FaceDistance(f.y), FaceDistance(f.z)});
+            if (bestD2 < face*face) return best;
+        }
         for (int dx = -1; dx <= 1; ++dx)
         for (int dy = -1; dy <= 1; ++dy)
         for (int dz = -1; dz <= 1; ++dz)
         {
             if (!dx && !dy && !dz) continue;                            // already probed, above
-            if (const int i = Scan(Key((bx+dx+itsNb)%itsNb, (by+dy+itsNb)%itsNb, (bz+dz+itsNb)%itsNb), f);
-                i >= 0) return i;
+            Scan(Key((bx+dx+itsNb)%itsNb, (by+dy+itsNb)%itsNb, (bz+dz+itsNb)%itsNb), f, best, bestD2);
         }
-        return -1;
+        return best;
     }
 
 private:
     //! 2^20 buckets per axis: Key stays inside int64 (2^60) and no real mesh resolves finer.
     static constexpr int kMaxNb = 1<<20;
 
-    //! Points of bucket \a key within tol of \a f, or -1.  (Split out of Find so the centre bucket can
-    //! be probed on its own without duplicating the distance test.)
-    int Scan(long long key, const rvec3_t& f) const
+    //! Update (\a best, \a bestD2) with the points of bucket \a key nearer \a f.  (Split out of Find so the
+    //! centre bucket can be probed on its own without duplicating the distance test.)
+    void Scan(long long key, const rvec3_t& f, int& best, double& bestD2) const
     {
         auto it = itsBuckets.find(key);
-        if (it == itsBuckets.end()) return -1;
+        if (it == itsBuckets.end()) return;
         for (int i : it->second)
         {
             const rvec3_t& p = itsPts[i];
             double ex = TorusDelta(p.x, f.x), ey = TorusDelta(p.y, f.y), ez = TorusDelta(p.z, f.z);
-            if (ex*ex + ey*ey + ez*ez <= itsTol*itsTol) return i;
+            const double d2 = ex*ex + ey*ey + ez*ez;
+            if (d2 < bestD2 || (best < 0 && d2 <= bestD2)) { best = i; bestD2 = d2; }   // ties keep the first
         }
-        return -1;
+    }
+    //! Distance of the wrapped coordinate \a x to the nearer face of its bucket (fractional units).
+    double FaceDistance(double x) const
+    {
+        const double u = Wrap01(x)*itsNb, du = u - floor(u);
+        return std::min(du, 1.0 - du)/itsNb;
     }
     int       Bucket(double x) const {return int(Wrap01(x)*itsNb) % itsNb;}
     long long Key(int bx, int by, int bz) const {return (static_cast<long long>(bx)*itsNb + by)*itsNb + bz;}
