@@ -166,6 +166,24 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     that sentence it is naming the implementation.  (Bit three times: "Becke", "SiteAdaptedBecke", the ERI4
     face.)  Corollary: when an item offers two fixes, first check it named the right DEFECT; and when a
     cache needs an awkward key, suspect the LOOP, not the key.
+- **THE RUN REPORT — every run records itself as JSON; read `src/Common/Reporting.C` (`import qchem.Reporting`,
+    namespace `qchem::report`) before printing anything or reading results out of a run** (user, 2026-11-02).
+    The report IS json: no per-section C++ structs, no per-section renderers (the console renderer infers
+    layout from the json shape).  `report::Begin(id)` / `End()` bracket one run, and nested runs are fine.
+    Clients read `report::CurrentRunReport()` (live, during the run, e.g. from an observer row callback) or
+    `report::GlobalReport()` (after `End()` has filed it).  A GUI/binding must READ the report, never rebuild
+    the same facts.
+  - **How code writes to it: the CALLER SETS THE CONTEXT, THE CALLEE WRITES ONE LEVEL IN.**  A caller opens
+    an RAII scope naming itself (`report::Section` at top level, `report::Row` for an array entry, a nested
+    object scope inside those) just before it calls in.  The called code, however many layers down, writes
+    cursor-relative `report::Set(key, value)` and never chooses a section path, key or ID.
+  - **Each piece of code adds its own information as it runs.**  It is never "class A tells class B to
+    `EmitReport()`", and never a facade collecting facts after the fact.
+  - **WHY: the console report is then an accurate trace of the run SEQUENCE.  Unexpected nesting shows a
+    peculiar run sequence at once.**  The first catch: Calculation built the Hamiltonian inside its `basis`
+    scope, which root-anchored calls had hidden.
+  - Root-anchored `report::EmitAt` / `EmitSection` are the pattern being RETIRED (about 17 calls left in
+    2026-11), so add no new ones.  When a report nests oddly, fix the run sequence, never the path.
 
 ## Style
 

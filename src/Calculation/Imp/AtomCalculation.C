@@ -171,27 +171,34 @@ bool AtomCalculation::Converge(const SCFParams& params)
     EmitScfSection(itsOpts, itsNe, ts, params);        // the "what recipe am I running" header
 
     // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
-    // run: the FIRST Converge BUILDS the basis in here (each exponent shell announces its own basis.exponents
-    // row as it is constructed -- nobody asks it to), the orchestrator stamps the scalars, and the WF build
-    // (inside `new SCFIter`) fills basis.perIrrep/removed via the cursor (the shared LASolver conditioning).
-    // The Hamiltonian is built in between because it needs the basis; its own sections (grids, PP) are
-    // root-anchored EmitSection/EmitAt calls, so they file and render correctly from inside this scope.  A
-    // later Converge reuses the basis and truthfully carries no exponents rows.  Renders once, complete, on
-    // scope close.
+    // run: the FIRST Converge BUILDS the basis (each exponent shell announces its own basis.exponents row as it is
+    // constructed -- nobody asks it to), the orchestrator stamps the scalars, and the WF build (inside `new SCFIter`)
+    // fills basis.perIrrep/removed via the cursor (the shared LASolver conditioning).  The HAMILTONIAN is built OUTSIDE
+    // it, in its own context "grids" (user ruling 2026-11-02: the caller sets the context, the callee reports one level
+    // in -- its meshes file there, the same paths as a molecule's and a solid's).  So the basis context is entered twice:
+    // SILENTLY for the build (a Scope renders only the scalars it added; the build adds rows), then as the rendering
+    // Section, which renders the whole basis once, complete, on close.  A later Converge reuses the basis and truthfully
+    // carries no exponents rows.
     {
-        rpt::Section basis("basis");
+        rpt::Scope basis("basis");
         if (!itsBasis) itsBasis = BuildBasis(itsOpts, itsZ, *itsEC);
-        rpt::Set("type",       AtomTypeName(itsOpts.type));
-        rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
-
-        // Three DFT/HF routes: a pseudopotential (PP front door, valence electrons = itsNe), an explicit XC
-        // functional override (the public selector, e.g. libxc), or the model's built-in Hamiltonian/functional.
-        auto* ham = itsOpts.pseudopotential
+    }
+    // Three DFT/HF routes: a pseudopotential (PP front door, valence electrons = itsNe), an explicit XC functional
+    // override (the public selector, e.g. libxc), or the model's built-in Hamiltonian/functional.
+    decltype(itsHam.get()) ham=nullptr;
+    {
+        rpt::Scope grids("grids");
+        ham = itsOpts.pseudopotential
             ? H::Factory(itsOpts.spin, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis,
                          itsOpts.vxcFit)
             : itsOpts.xc.has_value()
                 ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis, itsOpts.vxcFit)
                 : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha, itsOpts.vxcFit);
+    }
+    {
+        rpt::Section basis("basis");
+        rpt::Set("type",       AtomTypeName(itsOpts.type));
+        rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
         // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
         // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
         // at are freed by these resets, which is exactly when `delete itsScf` used to free them.

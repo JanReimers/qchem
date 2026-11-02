@@ -1215,6 +1215,55 @@ public:
             }
     }
 
+    //! \brief A CONTRACTED shell pair (shell \a i0 x shell \a j0 at \a Roff) collocated through the separable
+    //! kernel: the SUM over its primitive pairs, each with its OWN product centre and its OWN box
+    //! (\c MakeBoxGeomFor at the primitive exponents, screened at \a eps).  The walk it replaces sized ONE box
+    //! from the shell pair's most diffuse primitives and evaluated every primitive at every point of it -- on a
+    //! MOLOPT basis (7 shared exponents down to 0.02) that is a 7x7 exp product over a box the size of the cell's
+    //! periodic images, and CH4 in a 15 bohr box spent > 35 min in one gather (OpenWork §3, 2026-11-01).  The
+    //! transition collocation (\c ForTransitionBoxes) has summed primitive pairs this way since R3; its q = 0
+    //! gate pins it to the walk on a contracted basis.  Returns false -- nothing written -- only when the pair is
+    //! beyond the tensor extent (lp >= \c kMaxPoly), and the caller walks.
+    bool ContractPrimitivePairs(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff, const UnitCell& A,
+                                const ivec3_t& N, double eps, const double* w, rvec_t& dst) const
+    {
+        if (!MakePrimPairPoly(i0,nI,j0,nJ,Roff,nullptr,0,0).live) return false;   // lp is a shell property
+        const rvec_t ei=radials[i0]->GetExponents(), ej=radials[j0]->GetExponents();
+        const rvec3_t Ri=radials[i0]->GetCenter(), Rj=radials[j0]->GetCenter()+Roff;
+        for (size_t ip=0;ip<ei.size();ip++)
+            for (size_t jp=0;jp<ej.size();jp++)
+            {
+                const BoxGeom bg=MakeBoxGeomFor(ei[ip], Ri, ej[jp], Rj, A, N, eps);
+                if (bg.live) ContractCube(bg, MakePrimPairPoly(i0,nI,j0,nJ,Roff,w,ip,jp), N, dst);
+            }
+        return true;
+    }
+    //! The GATHER twin of \c ContractPrimitivePairs -- the same primitive-pair boxes, so the two stay exact
+    //! adjoints: \a bOut (row-major nI x nJ) = the per-component-pair integrals summed over primitive pairs.
+    bool GatherPrimitivePairs(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff, const UnitCell& A,
+                              const ivec3_t& N, double eps, const rvec_t& V, double* bOut) const
+    {
+        if (!MakePrimPairPoly(i0,nI,j0,nJ,Roff,nullptr,0,0).live) return false;
+        for (size_t t=0;t<nI*nJ;t++) bOut[t]=0.0;
+        const rvec_t ei=radials[i0]->GetExponents(), ej=radials[j0]->GetExponents();
+        const rvec3_t Ri=radials[i0]->GetCenter(), Rj=radials[j0]->GetCenter()+Roff;
+        double bp[kMaxShell*kMaxShell];
+        for (size_t ip=0;ip<ei.size();ip++)
+            for (size_t jp=0;jp<ej.size();jp++)
+            {
+                const BoxGeom bg=MakeBoxGeomFor(ei[ip], Ri, ej[jp], Rj, A, N, eps);
+                if (!bg.live) continue;
+                const PairPoly pq=MakePrimPairPoly(i0,nI,j0,nJ,Roff,nullptr,ip,jp);
+                GridPoly W;
+                GatherCube(bg,pq,N,V,W);
+                MomentsToPairs(bg,pq,W,i0,nI,j0,nJ,bp);
+                for (size_t t=0;t<nI*nJ;t++) bOut[t]+=bp[t];
+            }
+        return true;
+    }
+    bool IsContracted(size_t i0, size_t j0) const
+    { return radials[i0]->GetExponents().size()!=1 || radials[j0]->GetExponents().size()!=1; }
+
     //! The COLLOCATION KERNEL, both directions at once (they must agree or the adjoint breaks).  DEFAULT ON
     //! since 2026-08-27: the separable contraction is 3.6-5.0x faster than the walk AND measurably more
     //! accurate (it carries no per-component screen -- doc/CollocationRewritePlan.md steps 5+6), and step 7
@@ -1959,7 +2008,8 @@ public:
                 // sized by epsUnion, so that test never shrank the walk -- it only declined to accumulate a
                 // value it had already computed (step 3).  Not accumulating is the only thing it bought,
                 // and the contracted cube is formed regardless, so dropping it costs nothing and removes a
-                // truncation.  The kernel DECLINES contracted shells and lp>=kMaxPoly; those fall through.
+                // truncation.  A CONTRACTED shell pair takes one cube per primitive pair (ContractPrimitivePairs);
+                // only lp>=kMaxPoly falls through to the walk.
                 bool didContract=false;
                 if (UseContractCube())
                 {
@@ -1967,7 +2017,9 @@ public:
                     for (size_t t=0;t<nIs*nJs;t++) wd[t]=0.0;
                     for (size_t k=0;k<here.size();k++) wd[iaHere[k]*nJs+jbHere[k]]=cwHere[k];
                     const BoxGeom bg=MakeBoxGeom(si.begin,sj.begin,Roff,A,N_L[L],epsUnion);
-                    if (bg.live)
+                    if (IsContracted(si.begin,sj.begin))
+                        didContract=ContractPrimitivePairs(si.begin,nIs,sj.begin,nJs,Roff,A,N_L[L],epsUnion,wd,r);
+                    else if (bg.live)
                     {
                         const PairPoly q=MakePairPoly(si.begin,nIs,sj.begin,nJs,Roff,wd);
                         if (q.live) { ContractCube(bg,q,N_L[L],r); didContract=true; }
@@ -2345,7 +2397,13 @@ public:
                 if (UseContractCube())
                 {
                     const BoxGeom bg=MakeBoxGeom(si.begin,sj.begin,Roff,A,N_L[l],epsUnion);
-                    if (bg.live)
+                    if (IsContracted(si.begin,sj.begin))
+                    {
+                        double bAll[kMaxShell*kMaxShell];
+                        didContract=GatherPrimitivePairs(si.begin,nIs,sj.begin,nJs,Roff,A,N_L[l],epsUnion,V,bAll);
+                        if (didContract) for (size_t qq=0;qq<here.size();qq++) bHere[qq]=bAll[iaHere[qq]*nJs+jbHere[qq]];
+                    }
+                    else if (bg.live)
                     {
                         const PairPoly pq=MakePairPoly(si.begin,nIs,sj.begin,nJs,Roff,nullptr);
                         if (pq.live)

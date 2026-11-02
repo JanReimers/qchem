@@ -17,6 +17,28 @@ namespace qchem::Hamiltonian
 
     bool IsDFT(Model m) {return m==Model::Xalpha || m==Model::LDA;}
 
+    Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure& st, VxcFit fit, const qcMesh::MeshParams& mp)
+    {
+        using R=Outcome<AdmittedVxc,std::string>;
+        if (st.isFinite())
+        {
+            static const std::string G="this finite structure's G (its point group; O(3) on the atom path) has no translations";
+            if (fit==VxcFit::PlaneWave)
+                return R::Fail("the plane-wave Vxc fit imposes the lattice translations (H_R = T), and "+G+
+                               " -- state the Vxc fit Delta or Auxiliary (doc/Pins.md pin 30)");
+            if (mp.cellKind==qcMesh::UnitCellKind::Uniform)
+                return R::Fail("a uniform cell mesh imposes the lattice translations (H_R = T), and "+G+
+                               " -- state the XC mesh cellKind Becke or Auto, the atom-centred mesh (doc/Pins.md pin 30)");
+        }
+        return R::Ok({fit, mp.cellKind});
+    }
+    //! The factories' half of \c AdmitVxc: a refused cell is a caller that did not ask first.
+    static void RequireAdmitted(const Structure& st, VxcFit fit, const qcMesh::MeshParams& mp)
+    {
+        const auto a=AdmitVxc(st,fit,mp);
+        if (!a) throw std::invalid_argument("Hamiltonian::Factory: refused Vxc cell -- "+a.Error());
+    }
+
     // DFT models can't be built without a mesh + orbital basis; reached only if a caller wrongly routes
     // them through the non-DFT overload.  Shared by both SpinGroup switches below.
     [[noreturn]] static void NeedsResolver()
@@ -62,6 +84,7 @@ namespace qchem::Hamiltonian
                           VxcFit fit)
     {
         typedef std::vector<std::shared_ptr<ExFunctional>> parts_t;
+        RequireAdmitted(*st,fit,mp);
         switch (xc.kind)
         {
             case XC::SlaterXalpha:   // Slater-Dirac exchange, scaled by alpha
@@ -99,6 +122,7 @@ namespace qchem::Hamiltonian
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const std::string& element, int valence,
                          const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit)
     {
+        RequireAdmitted(*st,fit,mp);
         return new Ham_PP(st, element, valence, mp, bs, p, fit);
     }
 
@@ -106,6 +130,7 @@ namespace qchem::Hamiltonian
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
                          const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit)
     {
+        RequireAdmitted(*st,fit,mp);
         return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, bs, p, fit);
     }
 
@@ -114,6 +139,7 @@ namespace qchem::Hamiltonian
                           const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh, VxcFit fit,
                           std::vector<HubbardManifold> hubbard)
     {
+        RequireAdmitted(*st,fit,xcMesh);
         return new Ham_PW_DFT(st, bs, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard));
     }
 

@@ -152,27 +152,36 @@ Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParam
     EmitScfSection(params, itsSetup->acc.type);               // the "what recipe am I running" header
 
     // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
-    // run: the FIRST Converge BUILDS the basis in here (a basis with something to announce does so as it is
-    // constructed -- nobody asks it to), the orchestrator stamps the scalars, and the WF build (inside `new
-    // SCFIter`) fills basis.perIrrep + basis.removed via the cursor five layers down (MakeIrrepWFs owns the
-    // rows, the LASolver writes the conditioning).  The Hamiltonian is built in between because it needs the
-    // basis; its own sections (grids, PP) are root-anchored EmitSection/EmitAt calls, so they file and render
-    // correctly from inside this scope.  A later Converge reuses the basis.  Renders once, complete, on close.
+    // run: the FIRST Converge BUILDS the basis (a basis with something to announce does so as it is constructed --
+    // nobody asks it to), the orchestrator stamps the scalars, and the WF build (inside `new SCFIter`) fills
+    // basis.perIrrep + basis.removed via the cursor five layers down (MakeIrrepWFs owns the rows, the LASolver writes
+    // the conditioning).  The HAMILTONIAN is built OUTSIDE it, in its own context "grids" (user ruling 2026-11-02:
+    // the caller sets the context, the callee reports one level in) -- what it builds there is grids: the XC
+    // quadrature, the PP terms' meshes, each filed one level in by the mesh builder, so a molecule and a solid file
+    // the same paths.  So the basis context is entered twice: SILENTLY for the build (a Scope renders only the
+    // scalars it added, and the build adds rows), then as the rendering Section for the rest -- which renders the
+    // whole basis once, complete, on close.  A later Converge reuses the basis.
+    {
+        rpt::Scope basis("basis");
+        if (!itsBasis) itsBasis = BuildBasis(opts, itsStructure);   // raw, or SALC-blocked if .symmetry
+    }
+    // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh, orbital basis,
+    // xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door instead (LSDA valence
+    // Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
+    decltype(itsHam.get()) ham=nullptr;
+    {
+        rpt::Scope grids("grids");
+        ham = itsSetup->pp
+            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis, opts.vxcFit)
+            : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure,
+                                          opts.mesh, itsBasis, opts.xalpha, opts.vxcFit);
+    }
     {
         rpt::Section basis("basis");
-        if (!itsBasis) itsBasis = BuildBasis(opts, itsStructure);   // raw, or SALC-blocked if .symmetry
         rpt::Set("name",       opts.basis);
         rpt::Set("engine",     opts.engine  == Engine::LibCint  ? "libcint"   : "mnd");
         rpt::Set("angular",    opts.angular == Angular::Spherical ? "spherical" : "cartesian");
         rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
-
-        // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh,
-        // orbital basis, xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door
-        // instead (LSDA valence Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
-        auto* ham = itsSetup->pp
-            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis, opts.vxcFit)
-            : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure,
-                                          opts.mesh, itsBasis, opts.xalpha, opts.vxcFit);
         // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
         // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
         // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
@@ -250,8 +259,9 @@ Outcome<rmat_t,Response::ResponseFailure> Calculation::StaticPolarizability(cons
                                                           std::numeric_limits<double>::quiet_NaN());
     const Response::OrbitalFrame<double> frame=Response::MakeOrbitalFrame(ref, *wf);
     const auto kernel=itsHam->MakeResponseKernel(itsBasis, itsDensity.get());
-    const Response::OperatorProbe probe=Response::MakeDipoleProbe(ref, frame, *wf,
-                                                                  itsStructure->CreateIntegrationMesh(dipoleMesh));
+    const qcMesh::Mesh probeMesh=[&]{ qchem::report::Scope here("dipoleProbe");   // the mesh builder reports one level in
+                                      return itsStructure->CreateIntegrationMesh(dipoleMesh); }();
+    const Response::OperatorProbe probe=Response::MakeDipoleProbe(ref, frame, *wf, probeMesh);
     auto r=Response::LinearResponse(ref, frame, *kernel, probe, std::make_shared<Symmetry::Invariant>(), krylov);
     using O=Outcome<rmat_t,Response::ResponseFailure>;
     if (!r)

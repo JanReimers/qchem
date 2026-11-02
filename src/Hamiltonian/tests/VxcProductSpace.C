@@ -23,7 +23,8 @@
 //
 // What "today" observes (\c Observed): the factory throws; it accepts a cell mesh on a structure with no cell (the
 // molecular mesh ignores \c cellKind -- a silent substitution); it builds the OTHER XC term (the molecular
-// \c FittedVxc); or it builds the one term.  A refusal Outcome does not exist yet.
+// \c FittedVxc); it builds the one term; or \c Hamiltonian::AdmitVxc REFUSES it (an Outcome, asked before the factory --
+// which consults the same rule and throws \c invalid_argument when handed a refused cell).
 //
 // ⚠ The one-term check reads the Hamiltonian's own report (\c Write) for the term's line.  A test may cheat this
 // way; it moves to the factory's typed answer when the one factory exists.
@@ -97,7 +98,6 @@ const std::string kOneTerm ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (the A1 fit 
 const std::string kPin30   ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (pin-30 gap: the factory throws)";
 const std::string kI3      ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (I3: a PW fit on a Becke mesh, the E/H pairing not designed)";
 const std::string kRadial  ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (no radial-only point set: v_xc at radial points, 4πr² dr -- the atom path)";
-const std::string kRefuse  ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (the symmetry refusal is a throw, not an Outcome yet)";
 
 //! THE TABLE.  Edit a row only to move it toward its target; an X row is deleted (its \c today becomes the target)
 //! the day its defect is fixed.
@@ -115,21 +115,21 @@ const std::vector<Cell> kCells=
     {Kind::Solid,    VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
     // -- molecule (G = the point group): only {e} representations -- a cell mesh / PW impose T, a radial rule O(3)
     {Kind::Molecule, VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
-    {Kind::Molecule, VxcFit::Delta,     Points::Uniform, Target::R, Observed::Throws,     kRefuse},
+    {Kind::Molecule, VxcFit::Delta,     Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
-    {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
-    {Kind::Molecule, VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Throws,     kRefuse},
-    {Kind::Molecule, VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
+    {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    ""},
+    {Kind::Molecule, VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Refused,    ""},
+    {Kind::Molecule, VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Molecule, VxcFit::Delta,     Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
     {Kind::Molecule, VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
     // -- atom (G = O(3)): Becke (less symmetry) and radial assemble; a cell mesh or PW impose T
     {Kind::Atom,     VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
-    {Kind::Atom,     VxcFit::Delta,     Points::Uniform, Target::R, Observed::Throws,     kRefuse},
+    {Kind::Atom,     VxcFit::Delta,     Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
-    {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
-    {Kind::Atom,     VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Throws,     kRefuse},
-    {Kind::Atom,     VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Throws,     kRefuse},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    ""},
+    {Kind::Atom,     VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Refused,    ""},
+    {Kind::Atom,     VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Atom,     VxcFit::Delta,     Points::Radial,  Target::A, Observed::NoPointSet, kRadial},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::A, Observed::NoPointSet, kRadial},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
@@ -178,6 +178,7 @@ Observed Observe(const Cell& c)
         {
             // One Si in a cubic 8-bohr cell at Γ: the cheapest periodic structure with a PP
             UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});
+            if (!Hamiltonian::AdmitVxc(cell, c.fit, mesh)) return Observed::Refused;
             Lattice_3D lat(cell, ivec3_t(1,1,1));
             std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(
                 BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
@@ -202,6 +203,7 @@ Observed Observe(const Cell& c)
             st=std::make_shared<Atom>(7, 0.0, rvec3_t(0,0,0));
             bs.reset(BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low, BasisSet::Radial::Type::Gaussian, 7));
         }
+        if (!Hamiltonian::AdmitVxc(*st, c.fit, mesh)) return Observed::Refused;
         std::unique_ptr<Hamiltonian::rHamiltonian> ham(Hamiltonian::Factory(Hamiltonian::Model::LDA, SpinGroup::UnPolarized,
                                                                               st, mesh, bs.get(), 0.0, c.fit));
         // A non-periodic structure has no cell, so a cell mesh it ACCEPTS was substituted, whatever term came back
@@ -249,6 +251,37 @@ TEST(VxcProductSpace, EveryCellDoesWhatTheTableSays)
                 ? " -- it REACHED its target: move the row (and close its defect)" : "")
             << (c.row.empty() ? "" : "  [row: "+c.row+"]");
     }
+}
+
+//! A REFUSAL is an Outcome that names the imposed group H_R and the structure's G (pin 30), and the factory, handed a refused
+//! cell anyway, throws \c invalid_argument carrying the same reason -- never a substitution, never a logic_error (that one
+//! marks an ADMITTED cell no code realizes yet).
+TEST(VxcProductSpace, ARefusalNamesBothGroupsAndTheFactoryRefusesTheSame)
+{
+    auto n2=std::make_shared<Molecule>();
+    n2->Insert(new Atom(7, 0.0, rvec3_t(-1.03,0,0)));
+    n2->Insert(new Atom(7, 0.0, rvec3_t( 1.04,0,0)));
+    const std::shared_ptr<const Structure> st=n2;
+    std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(),
+                                                BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    for (const auto& [fit, points] : {std::pair{VxcFit::PlaneWave, Points::Becke}, std::pair{VxcFit::Delta, Points::Uniform}})
+    {
+        const auto a=Hamiltonian::AdmitVxc(*st, fit, PointsFor(points));
+        ASSERT_FALSE(a) << Name(fit) << " x " << Name(points) << " on a molecule must be refused";
+        EXPECT_NE(a.Error().find("H_R = T"), std::string::npos) << a.Error();
+        EXPECT_NE(a.Error().find("G"), std::string::npos) << a.Error();
+        try
+        {
+            std::unique_ptr<Hamiltonian::rHamiltonian> ham(Hamiltonian::Factory(Hamiltonian::Model::LDA, SpinGroup::UnPolarized,
+                                                                                  st, PointsFor(points), bs.get(), 0.0, fit));
+            ADD_FAILURE() << Name(fit) << " x " << Name(points) << ": the factory built a refused cell";
+        }
+        catch (const std::invalid_argument& e)
+        {
+            EXPECT_NE(std::string(e.what()).find(a.Error()), std::string::npos) << "the factory must state AdmitVxc's reason: " << e.what();
+        }
+    }
+    EXPECT_TRUE(Hamiltonian::AdmitVxc(*st, VxcFit::Delta, PointsFor(Points::Becke))) << "δ on Becke is the molecular default";
 }
 
 namespace

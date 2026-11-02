@@ -100,6 +100,7 @@ template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const St
 // are `the Structure's own mesh, no fold`, and a change to either shows up as a failing quadrature).
 template <class T> FitQuadrature tBasisSet<T>::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
+    qchem::report::Scope here("xcQuadrature");   // the mesh builder reports one level in
     return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};
 }
 // The plane-wave (dcmplx) path delegates THROUGH the orbital basis's factory, exactly as the fit bases

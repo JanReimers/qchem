@@ -429,3 +429,40 @@ TEST(Reporting, DISABLED_VisualDump)
     End();
     ClearConsole();
 }
+
+// THE NESTED-OBJECT SCOPE (user ruling 2026-11-02: the caller sets the context, the callee reports one level in).  Purely
+// RELATIVE: a Scope opened under another lands under it, a callee's Set lands in the innermost scope, and on close a scope
+// renders only the non-object members it ADDED OR CHANGED -- so an outer scope whose inner scopes rendered stays quiet.
+TEST(Reporting, AScopeDescendsOneLevelAndRendersOnlyWhatItChanged)
+{
+    std::ostringstream os;
+    SetConsole(os);
+    Begin("scope", "t");
+    EmitSection("grids", { { "densityEcut", 22.9 } });   // an existing section the scope descends into
+    {
+        Scope grids("grids");
+        {
+            Scope self("xcQuadrature");          // the CALLER names itself...
+            Set("points", 1234);                 // ...the callee writes one level in, choosing no key
+        }
+        Set("densityEcut", 22.9);                // unchanged: the outer scope must not re-render it
+    }
+    {
+        Section basis("basis");
+        Scope inner("probe");                    // relative to the Section, not the run root
+        Set("x", 1);
+    }
+    const json doc = CurrentRunReport();
+    End();
+    ClearConsole();
+
+    EXPECT_EQ(doc["grids"]["densityEcut"].get<double>(), 22.9);
+    EXPECT_EQ(doc["grids"]["xcQuadrature"]["points"].get<long>(), 1234);
+    EXPECT_EQ(doc["basis"]["probe"]["x"].get<long>(), 1);
+    EXPECT_FALSE(doc.contains("xcQuadrature")) << "a scope is relative: nothing lands at the root";
+    const std::string out=os.str();
+    EXPECT_NE(out.find("grids ▸ xcQuadrature"), std::string::npos) << out;
+    size_t n=0;
+    for (size_t p=out.find("\ngrids"); p!=std::string::npos; p=out.find("\ngrids", p+1)) n++;
+    EXPECT_EQ(n, 2u) << "the section once, its xcQuadrature block once; the outer scope changed nothing:\n" << out;
+}
