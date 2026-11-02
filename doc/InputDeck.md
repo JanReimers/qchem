@@ -64,6 +64,8 @@ cd build/Release && ninja rundeck                                  # the one CLI
   },
   "scf": { "NMaxIter":200, "minDeltaRhoPerElectron":1e-6, "deltaRhoMeasure":"L1PerElectron|MaxDeltaD",
            "mixer":"Auto|Linear|Kerker|Pulay",   // Auto (default): a hand-set kerkerG0/pulayDepth recipe is kept; else linear today (see SCFParams::Mixing)
+           "minFD":1e-5, "minDeltaE":"off", "minDeltaFD":"off", "minVirial":"off",   // a GATE is a threshold or "off" (2026-11-02; the 1e30 sentinel still reads as off, with a notice)
+           "minRelaxRo":0.0,                     // the FLOOR of linear D-mixing's adaptive step (a retraction shrinks α by 0.8, never below it); 0 = none
            "pulayDepth":8, "pulayStart":5, "kerkerG0":1.0, "useMOM":false, "smearingkT":5e-3, ... },     // SCFParams, one stage ...
   "schedule": [ {"accelerator":"DIIS","scf":{...}}, {"accelerator":"GDM","scf":{...}} ],   // ... OR an annealed recipe (never both)
   "state":   { "save": "auto", "restartFrom": "NiO_AFM2.r003" },       // CK-1: auto = <outDir>/states/<stem>.h5; restartFrom = a revision stem (lineage) or a path; runs the FINAL stage only

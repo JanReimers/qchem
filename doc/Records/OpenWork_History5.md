@@ -1082,9 +1082,7 @@ this cell, NOT 8: AliasFree sized G² = 4·p_h·ln(1e6) with p_h = pβ/(p+β), �
 menu -- so lane H's "x 8 = the stated AliasFree" deck was half its alias exponent (doc/GridEpsilonPlan.md row 1, corrected).  At the default ε the
 first SCF starts on the ball's own rasters (x ≈ 4: Eelec +923 Ha) and the pilot (C2 step 3) only audits after convergence, which never came.
 
-**Fix (lane A):** (1) `SCFIterator` REFUSES a first iterate whose ELECTRONIC energy is above 0 (electrons at infinity: any ground state lies
-below it at any geometry and charge; the TOTAL can be positive, e.g. compressed H₂) -- `SCFFailure::Why::UnphysicalEnergy`, both facades, the
-message names the raster/conditioning cause.  (2) `SolidCalculation::Converge`: a refused GPW run on UNRESOLVED rasters restarts ONCE from the
+**Fix (lane A):** (1) `SCFIterator` REFUSES a first iterate past its layout's bound (`FirstEnergyRefusal`): a FINITE system's energy above the structure constants, E − Σ{Constant} (rest mass and −TS included), above 0 -- the electrons-at-infinity theorem (the TOTAL can be positive, e.g. compressed H₂); a PERIODIC cell, which has no such limit (Ewald: E_el +1.59 Ha on healthy Si Γ; even E_tot is +0.047 Ha on healthy Na q1), only on a stated SCALE, E_tot above +1 Ha per electron (here +1102 / +22).  The first commit be857a17 used `GetElectronicEnergy` (Kinetic + Potential) for both: 93 short tests refused (every GPW cell, and DHF, whose rest mass that sum leaves out); fixed in the next code commit -- `SCFFailure::Why::UnphysicalEnergy`, both facades, the message names the raster/conditioning cause.  (2) `SolidCalculation::Converge`: a refused GPW run on UNRESOLVED rasters restarts ONCE from the
 seed on rasters with e^(−x) ≤ λ_min(S), x = max(ln(1/λ_min), the ball's) -- 14.21 here; a STATED raster is never overridden.  Measured: the
 stated-x 8 deck refuses at iteration 1; the default deck refuses, restarts at x 14.21, converges in 24 (Etot −93.4419391947) and the pilot SETTLES
 with 0 re-convergences (every raster term meets 6e-5 Ha).  Gates: `GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_RefusesAnAliasedFirstIterate_Long`,
