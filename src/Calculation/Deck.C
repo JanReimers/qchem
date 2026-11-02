@@ -94,7 +94,7 @@ struct RunSpec
     //! itself to the console; its result summary goes in the revision record under `results`.  Prerequisites are checked by \c Resolve BEFORE the SCF starts.
     struct PostAction
     {
-        enum class Kind { EstimateHubbardU, HubbardLoop, IndependentResponse, HubbardLinearResponse, HubbardFiniteDifference, GridAudit, EggBox, Displace };
+        enum class Kind { EstimateHubbardU, HubbardLoop, IndependentResponse, HubbardLinearResponse, HubbardFiniteDifference, GridAudit, EggBox, XCMeshAudit, Displace };
         Kind                kind = Kind::EstimateHubbardU;
         size_t              maxOuter = 20;        //!< hubbardLoop: outer steps allowed
         double              tolU_eV  = 1e-4;      //!< hubbardLoop: |dU| convergence per manifold (eV)
@@ -116,6 +116,11 @@ struct RunSpec
         //! eggBox: the rigid translation (bohr) of every atom; the default is a GENERIC direction (no symmetry plane), 0.037 bohr -- the
         //! NaF F-site egg-box was measured at 0.03 (doc/GridEpsilonPlan.md §5 verdict 5)
         rvec3_t shift{0.03,0.02,0.01};
+        //! xcMeshAudit: the REFERENCE Becke mesh (radial count, angular degree) the run's converged D is re-evaluated on, every other
+        //! recipe field the run's own; Lebedev at degree 29-35 (the menu's last), GaussLegendre otherwise.  ΔE_xc at that FROZEN D is the
+        //! XC mesh's quadrature error (a restart with NMaxIter 1 is NOT a frozen D: it rebuilds and re-diagonalises).  Default (80, 48):
+        //! lane B's LiF calibration reference (doc/OpenWork.md §3, "A curvature needs an XC-MESH ladder").
+        int xcRefNRadial = 80, xcRefAngularDegree = 48;
         //! displace: one geometry point -- the atoms \c atoms (indices in the structure's order; EMPTY = every atom, a rigid translation,
         //! i.e. the egg-box) moved by \c delta (bohr) from the deck's own positions.
         struct Move { std::vector<size_t> atoms; rvec3_t delta{0.0,0.0,0.0}; bool operator==(const Move&) const = default; };

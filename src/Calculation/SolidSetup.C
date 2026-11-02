@@ -24,6 +24,7 @@ import qchem.SCFIterator;                     // SolidSCFIterator::Observer
 import qchem.ChargeDensity.Seed;              // SeedStrategy
 import qchem.ChargeDensity.AtomicDensity;     // SeedKey
 import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKind
+import qchem.Mesh.XCPolicy;                   // qcMesh::XCMeshDefault (the BeckeXCParams recipe under Auto)
 import qchem.RunPolicy;                       // RunPolicySpec
 import qchem.LASolver;                        // qchem::Ortho
 export import qchem.Pseudopotential.Set;      // PseudopotentialSet -- the setup's resolved choice
@@ -104,8 +105,9 @@ struct SolidCalcOptions
     //! \brief The XC real-space quadrature.  DEFAULT \c Auto = "you choose": the class costs a uniform
     //! mesh sized to this run's sharpness against the atom-centred Becke mesh and takes the cheaper, with
     //! a margin (V1.26/V2.4).  Pin \c cellKind to \c Uniform or \c Becke to overrule it and be obeyed --
-    //! the grid is a user decision, and the library's job is only to warn about a dominated one.
-    qcMesh::MeshParams xcMesh{.cellKind=qcMesh::UnitCellKind::Auto};
+    //! the grid is a user decision, and the library's job is only to warn about a dominated one.  The recipe fields default to
+    //! \c BeckeXCParams()'s (\c qcMesh::XCMeshDefault), so stating ONLY \c cellKind Becke runs the calibrated mesh.
+    qcMesh::MeshParams xcMesh=qcMesh::XCMeshDefault();
     //! The GPW basis's numerical TOLERANCES (local-PP G-ball eps, local-PP kappa, the HartreeOnly floor fraction, an explicit
     //! multigrid cutoff list).  Tier-2 numerical policy, typed (D-ENV step 5): the defaults are today's behaviour, and the
     //! environment (GPW_VLOC_EPS, ...) is applied on top as an OVERRIDE LAYER when the run resolves its options -- every

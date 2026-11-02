@@ -25,6 +25,7 @@ import qchem.UnitCell;                      // UnitCell + MakeReciprocalCell
 import qchem.ReciprocalLattice;             // ReciprocalLattice, GetReciprocalLattice
 import qchem.Mesh;                          // qcMesh::MeshParams (the fit factories' argument)
 import qchem.Types;                         // dcmplx, ivec3_t, rvec3_t
+import qchem.BasisSet.Orbital_DFT_IBS;      // Orbital_DFT_IBS<dcmplx> (the PW block the accepted-lineage leaves sit on)
 
 using namespace qchem;
 using namespace qchem::ChargeDensity;
@@ -111,11 +112,22 @@ TEST(MixerLineage, CompositeRefusesALeafPartner)
     unpol.Insert(std::make_unique<FiniteIrrepCD>(), Irrep());
     EXPECT_THROW(pol.GetChangeFrom(unpol), std::runtime_error);
 
-    // ...and the same-lineage call is accepted, so the guard is not simply refusing everything.
-    tComposite_CD<double> other;
-    other.Insert(std::make_unique<FiniteIrrepCD>(), up);
-    other.Insert(std::make_unique<FiniteIrrepCD>(), dn);
-    EXPECT_NO_THROW(pol.GetChangeFrom(other));
+    // ...and the same-lineage call is accepted, so the guard is not simply refusing everything.  An accepted call
+    // REACHES the leaves, so they need a real basis (a default leaf has none: its GetChangeFrom dereferences a null
+    // basis, which the live assert does under -DQCHEM_RELCHECKED=ON) -- the cheapest is a PW block, hence dcmplx.
+    namespace L3 = ::qchem::BasisSet::Lattice;
+    UnitCell   cell(10.0);
+    cell.AddAtom(14, rvec3_t(0,0,0));
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 2.0));
+    const auto* ftbs = dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>((*bs)[0]);
+    ASSERT_TRUE(ftbs);
+    const size_t n=ftbs->GetNumFunctions();
+    auto block=[&](const Irrep& q) {return std::make_unique<PeriodicIrrepCD<dcmplx>>(hmat_t<dcmplx>(n), ftbs, q);};
+    tComposite_CD<dcmplx> polK, other;
+    polK .Insert(block(up), up); polK .Insert(block(dn), dn);
+    other.Insert(block(up), up); other.Insert(block(dn), dn);
+    EXPECT_NO_THROW(polK.GetChangeFrom(other));
 }
 
 // THE CHANNEL VIEWS (V1.37): a polarized composite answers its Up/Down blocks as composite views that share

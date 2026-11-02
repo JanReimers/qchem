@@ -367,6 +367,7 @@ const char* PostName(PostAction::Kind k)
     case PostAction::Kind::HubbardFiniteDifference: return "hubbardFiniteDifference";
     case PostAction::Kind::GridAudit:               return "gridAudit";
     case PostAction::Kind::EggBox:                  return "eggBox";
+    case PostAction::Kind::XCMeshAudit:             return "xcMeshAudit";
     case PostAction::Kind::Displace:                return "displace";
     }
     throw std::logic_error("deck: PostAction kind");
@@ -404,6 +405,7 @@ json PostJson(const PostAction& a)
     case PostAction::Kind::HubbardFiniteDifference: p={{"perturb",a.perturb},{"alpha_eV",ToEV(a.alpha)}}; break;
     case PostAction::Kind::GridAudit:               p={{"referenceMargin",a.referenceMargin}}; break;
     case PostAction::Kind::EggBox:                  p={{"shift",{a.shift.x,a.shift.y,a.shift.z}}}; break;
+    case PostAction::Kind::XCMeshAudit:             p={{"nRadial",a.xcRefNRadial},{"angularDegree",a.xcRefAngularDegree}}; break;
     case PostAction::Kind::Displace:
     {
         json pts=json::array();
@@ -450,6 +452,8 @@ PostAction PostFromJson(const json& j, const std::string& path)
         if (v.size()!=3) throw std::runtime_error("deck: '"+path+".eggBox.shift' must be [x,y,z] (bohr)");
         a.shift=rvec3_t(v[0],v[1],v[2]);
     }
+    else if (name=="xcMeshAudit")
+    { a.kind=PostAction::Kind::XCMeshAudit; f.Get("nRadial",a.xcRefNRadial); f.Get("angularDegree",a.xcRefAngularDegree); }
     else if (name=="displace")
     {
         a.kind=PostAction::Kind::Displace;
@@ -468,7 +472,7 @@ PostAction PostFromJson(const json& j, const std::string& path)
             a.points.push_back(std::move(m));
         }
     }
-    else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference, gridAudit, eggBox, displace)");
+    else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference, gridAudit, eggBox, xcMeshAudit, displace)");
     f.Done();
     return a;
 }
@@ -625,6 +629,12 @@ Materials::Material Resolve(RunSpec& spec)
             {
                 if (spec.basis.family!=SolidCalcOptions::OrbitalBasis::GPW) throw std::runtime_error(who+"a plane-wave run has no raster to audit");
                 if (!(a.referenceMargin>0.0)) throw std::runtime_error(who+"referenceMargin must be > 0 (the reference is FINER than the run)");
+                continue;
+            }
+            if (a.kind==PostAction::Kind::XCMeshAudit) // the run's converged D on a reference Becke mesh: a Gaussian run with a positive mesh
+            {
+                if (spec.basis.family!=SolidCalcOptions::OrbitalBasis::GPW) throw std::runtime_error(who+"a plane-wave run samples XC on its FFT grid, not a Becke mesh");
+                if (a.xcRefNRadial<=0 || a.xcRefAngularDegree<=0) throw std::runtime_error(who+"nRadial and angularDegree must be > 0");
                 continue;
             }
             if (a.kind==PostAction::Kind::EggBox)      // a rigid translation of a free, U = 0 Gaussian run at a nonzero shift
@@ -1064,8 +1074,18 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         }
         case K::GridAudit:
         case K::EggBox:
+        case K::XCMeshAudit:
         {
-            const auto R= a.kind==K::EggBox ? calc->EggBox(a.shift) : calc->GridAudit(a.referenceMargin);
+            auto xcRef=[&]
+            {   // the run's own resolved recipe (MHL scale, Becke order, ...), only the two stated sizes changed
+                qcMesh::MeshParams m=calc->SizedSetup()->xcMesh;
+                m.cellKind=qcMesh::UnitCellKind::Becke; m.nRadial=a.xcRefNRadial; m.angularDegree=a.xcRefAngularDegree;
+                m.angular = (a.xcRefAngularDegree>=29 && a.xcRefAngularDegree<=35) ? qcMesh::AngularKind::Lebedev : qcMesh::AngularKind::GaussLegendre;
+                return m;
+            };
+            const auto R= a.kind==K::EggBox      ? calc->EggBox(a.shift)
+                        : a.kind==K::XCMeshAudit ? calc->XCMeshAudit(xcRef())
+                        :                          calc->GridAudit(a.referenceMargin);
             json t=json::array();
             for (const auto& x : R.terms) t.push_back({{"term",x.label},{"entries",x.entries},{"maxAbsDH",x.maxAbsΔH},{"dE",x.ΔE},
                                                        {"x",x.x},{"bound",x.bound},{"eta",x.eta},{"etaOn",x.etaOn}});

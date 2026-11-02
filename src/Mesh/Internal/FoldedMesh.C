@@ -33,6 +33,17 @@ FoldedMesh::FoldedMesh(std::shared_ptr<const Mesh> mesh, Fold fold,
         if (itsFold.repRaw[o]<0 || size_t(itsFold.repRaw[o])>=n)
             fail("orbit "+std::to_string(o)+" names representative point "
                  +std::to_string(itsFold.repRaw[o])+", which is not a point of this mesh");
+    // A σ-tagged fold reads a CHARACTER off every edge (SymmetrizeValuesSigned), so every edge must name its op.
+    // A -1 edge means the fold's orbits are not orbits of the group -- checked here, once, because the assert at
+    // the use is dead under NDEBUG, where the 2026-11-01 O2 box ran its star average through exactly this.
+    if (!itsSigmas.empty())
+        for (size_t r=0; r<itsFold.Reps(); ++r)
+            for (auto [m, o] : itsFold.members[r])
+                if (o<0 || size_t(o)>=itsSigmas.size())
+                    fail("orbit "+std::to_string(r)+" (rep point "+std::to_string(itsFold.repRaw[r])+", "
+                         +std::to_string(itsFold.members[r].size())+" members) reaches point "+std::to_string(m)
+                         +" by no single op of the "+std::to_string(itsSigmas.size())+" spin-tagged ones, so that "
+                         "edge cannot carry a character");
     if (!itsFlipFixed.empty() && itsFlipFixed.size()!=n)
         fail("the flip-fixed flags cover "+std::to_string(itsFlipFixed.size())+" points, not "
              +std::to_string(n));
