@@ -13,6 +13,7 @@ import qchem.Structure;
 import qchem.Types;                  // rmat3d_t (the site rotations)
 export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the PP factories take the run's chosen set
 export import qchem.Math.Gaussian;   // Math::Gaussian (a pseudo-atomic +U projector's radial)
+export import qchem.Outcome;         // AdmitVxc's answer
 
 
 export namespace qchem::Hamiltonian
@@ -131,6 +132,18 @@ export namespace qchem::Hamiltonian
         std::vector<rmat3d_t> greyOps;    //!< the PARENT group (the coordination's point group), for PARENTAGE
                                           //!< labels only (which parent irrep a site level descends from); empty = siteOps
     };
+
+    //=== The Vxc product space's symmetry rule (doc/Pins.md pin 30) ===================================
+    //! The cell \c AdmitVxc admitted: the fit and the XC point set as stated.
+    struct AdmittedVxc { VxcFit fit; qcMesh::UnitCellKind points; };
+    //! \brief Is (structure x Vxc fit x XC point set) an ADMISSIBLE cell?  A representation may not impose a symmetry the
+    //! calculation lacks: plane waves and a uniform cell mesh impose the lattice translations T, which a FINITE structure (a
+    //! molecule or an atom) does not have.  A refusal is an expected answer to a user-reachable choice, so it is an Outcome
+    //! naming the imposed group H_R and the structure's G.  Every DFT factory below consults it and throws
+    //! \c std::invalid_argument with the same reason when handed a refused cell; a caller that wants the answer as a value
+    //! (a setup / deck pre-flight, UTHamiltonian VxcProductSpace) asks here first.  A cell the rule ADMITS but no code realizes
+    //! yet (A1 on a solid, PW on a Becke mesh) is not a refusal: it still throws \c std::logic_error, an open X cell of that UT.
+    Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure&, VxcFit, const qcMesh::MeshParams&);
 
     //=== The resolvers ===============================================================================
     //! Non-DFT Hamiltonians (HF / 1-electron / Dirac).  DFT Models route through the DFT resolver below.
