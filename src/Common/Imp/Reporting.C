@@ -505,6 +505,37 @@ Row::Row(const std::string& key) : itsDepth(g_cursor.size())
 
 Row::~Row() { g_cursor.resize(itsDepth); }
 
+Scope::Scope(const std::string& key) : itsDepth(g_cursor.size()), itsT0(RunElapsed())
+{
+    if (g_stack.empty()) return;                           // inert outside a run
+    json& node = (*cursorNode())[key];
+    if (!node.is_object()) node = json::object();
+    itsBefore = node;                                      // a COPY: the doc may reallocate before we close
+    g_cursor.push_back(PathSeg::Key(key));
+}
+
+Scope::~Scope()
+{
+    if (g_stack.empty() || g_cursor.size()<=itsDepth) { g_cursor.resize(itsDepth); return; }
+    std::string path;
+    for (const auto& s : g_cursor) path += (path.empty() ? "" : " ▸ ") + (s.isIndex ? std::to_string(s.idx) : s.key);
+    // The members this scope added or changed, minus the sub-objects (and arrays of them: rows) -- those belong to
+    // inner scopes, which rendered themselves.  Collected BY VALUE before the stamp (see renderSectionToConsole).
+    json fresh = json::object();
+    const json* node = cursorNode();
+    for (auto it = node->begin(); it != node->end(); ++it)
+    {
+        const json& v = it.value();
+        if (v.is_object() || (v.is_array() && !v.empty() && v.front().is_object())) continue;
+        if (!itsBefore.contains(it.key()) || itsBefore[it.key()] != v) fresh[it.key()] = v;
+    }
+    g_cursor.resize(itsDepth);
+    if (fresh.empty()) return;
+    const double t = RunElapsed();
+    stampTimeline(path, t, &itsT0);
+    renderSectionToConsole(path, fresh, t, &itsT0);
+}
+
 FormatHint HintFor(const std::string& field)
 {
     // Field -> (unit, precision).  Small on purpose; grows with each migrated section.

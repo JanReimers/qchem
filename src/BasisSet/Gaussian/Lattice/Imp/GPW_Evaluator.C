@@ -1705,7 +1705,8 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
         return pack(Vl);
     }
 
-    qcMesh::Mesh mesh=cl->CreateIntegrationMesh(PPMeshParams(cl, sep));
+    const qcMesh::Mesh mesh=[&]{ qchem::report::Scope here("ppNonLocal");   // the mesh builder reports one level in
+                                 return cl->CreateIntegrationMesh(PPMeshParams(cl, sep)); }();
     const rvec3vec_t& R=mesh.Points();
     const rvec_t&     W=mesh.Weights();
     size_t npts=mesh.size();

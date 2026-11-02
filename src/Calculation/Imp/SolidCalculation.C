@@ -466,6 +466,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     }
     {
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
+        qchem::report::Scope grids("grids");   // the Hamiltonian's context: its meshes report one level in (user ruling 2026-11-02)
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
             itsImp->st, itsImp->bs.get(), itsImp->setup->pp, itsImp->setup->xcMesh, opts.vxcFit, hubbard));
@@ -1585,6 +1586,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = raster,
             .hamPreservesReal = !opts.forceComplex}));
         if (rpt::Depth()>0) L3::EmitGpwGrids(*bsRef);   // the reference's grids + density verdict, as setup emits the run's (it forces EnsureLevels)
+        rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
         hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);

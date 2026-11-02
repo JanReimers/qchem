@@ -1098,3 +1098,34 @@ the deck before any SCF.  UT `Deck.MultiplicityOneOnAnOddCountIsRefusedUnlessThe
 refused naming "odd Nelec 7", 7 with spinsShareFermi / multiplicity 2 / minimal spin pass, a doublet of 8 and 2S = 9 hit the parity
 message).  No shipped deck asked for it (`scripts/vet-decks`: 52 of 56 OK, the 4 failures are the panel-deck basis-path row).
 
+
+## ✅ "A molecule's mesh never reports itself: `MakeMolecularMesh` emits nothing to the run report" -- CLOSED 2026-11-02 (lane B); the row as it stood
+| **A molecule's mesh never reports itself: `MakeMolecularMesh` emits nothing to the run report** (S; user 2026-11-02) | lane G found 'a molecule's real mesh size only appears once the run has started/finished'.  Cause: the PERIODIC Becke builder files its own `grids.becke` as it builds (`src/Structure/Imp/UnitCell.C:384`, the pattern we want: each section adds its own info to the CurrentReport as it runs, so it is there BEFORE the SCF), but the molecular/atom builder (`src/Structure/Imp/Molecule.C:39` `MakeMolecularMesh`, reached via `Structure::CreateIntegrationMesh` from Orbital_DFT_IBS/BasisSet/PP_Local/PP_NonLocal) files nothing.  User ruling: no 'one class tells another to report' (EmitReport-style) fix -- the builder reports itself | fix, per the user's design (2026-11-02): THE CALLER SETS THE CONTEXT, THE CALLEE REPORTS ONE LEVEL IN.  Each caller of `CreateIntegrationMesh` (the XC fit quadrature, PP_Local, PP_NonLocal, ...) opens a cursor scope naming ITSELF just before the call; the mesh builder writes its fields with cursor-relative `report::Set` (natom, radial, nRadial, angular, L, beckeOrder, points) and never chooses a key or an ID.  This is the cursor design already in `src/Common/Reporting.C:172`, but it has only a TOP-LEVEL `Section` and an array `Row`: add the missing nested-object scope (RAII, descends into `cursor[key]`).  WHY (user, 2026-11-02): with cursor-relative reporting the console report IS the run sequence -- unexpected nesting shows a peculiar run sequence at once (here: the Hamiltonian built inside the `basis` scope, Calculation.C:157, which root-anchored EmitAt calls had been hiding).  So: move the Hamiltonian build out of the basis scope; root-anchored `EmitAt`/`EmitSection` are the pattern being retired.  Then convert the periodic builder too: `UnitCell.C:384`'s root-anchored `EmitAt("grids","becke")` picks its own key, the same collision waiting to happen; UT: a molecule run's report has `grids.becke` before iteration 1 (an observer reads it at the first row) · lane G's run-spec notes |
+**Verdict (lane B, 2026-11-02).**  Built to the user's design (caller sets the context, the callee reports one level in; scopes
+purely RELATIVE, no root anchor).  `report::Scope(key)`, the nested-object RAII the cursor lacked: it descends into
+`cursor[key]` and on close renders only the non-object members it added or changed, so an outer scope whose inner scopes
+rendered stays quiet (UT `Reporting.AScopeDescendsOneLevelAndRendersOnlyWhatItChanged`).  The finding that decided the
+shape: `Calculation::Converge` built the Hamiltonian INSIDE `rpt::Section basis`, and its comment said the root-anchored
+`EmitAt` calls existed to escape that.  Now the molecule and atom facades build the basis in a silent `Scope("basis")`, the
+Hamiltonian in `Scope("grids")`, and the iterator's conditioning rows in the rendering `Section("basis")` (the basis still
+renders once, complete); the solid facade wraps its Hamiltonian build in `Scope("grids")`, and the grid audit's reference
+Hamiltonian in `Scope("gridAudit" | "eggBox")` so it cannot overwrite the run's.  Every `CreateIntegrationMesh` caller opens a
+scope naming itself (`xcQuadrature` in the three quadrature factories and the route's `kind`, `ppLocal`, `ppNonLocal` (also the
+GPW KB mesh), `auxiliaryFit`, `residualMesh`, `dipoleProbe`); `MakeMolecularMesh`, `MakePeriodicBeckeMesh` and the uniform
+cell mesh write `report::Set` fields and choose no key (`grids.becke` and `grids.unitCellUniform` are gone).  Paths measured on
+H₂O LDA / PP at iteration 1: `grids.xcQuadrature`, `grids.auxiliaryFit`; PP: `basis.ppLocal`, `basis.ppNonLocal` (lazy, the
+row's remainder).  UTs `MolecularMesh.TheMeshFilesItsFieldsOneLevelIntoTheCallersScope`,
+`CalculationFacade.AMoleculesXCMeshIsInTheRunReportByIterationOne`.
+
+## ✅ "CONTRACTED shells make the GPW gather crawl: CH₄ on MOLOPT DZVP spends > 35 min in one V_H gather" -- FIXED 2026-11-02 (lane B, 320affe8); the row as it stood
+| **CONTRACTED shells make the GPW gather crawl: CH₄ on MOLOPT DZVP spends > 35 min in one V_H gather** (lane B, 2026-11-01; S, blocks the H/C/N gate) | CH₄ in a 15 bohr box, Γ, DZVP-MOLOPT-GTH (`scripts/cp2k2bsd`, 33 functions, 7 primitives per contraction down to α 0.0217): setup 247 s (V_loc-long audit on 96³), then the first `Vee_Hartree` gather (`ForShellPairBox` inside `IntegratePotential`) ran > 35 min at 4 threads without finishing (killed; gdb stack in the lane-B session).  Our own bases are single-primitive, so the box walk has never seen a 7×7 primitive pair with a 0.02 tail.  `~/Code/qchem6-runs/CH4/` | measure first (one gather, `perf`): per-primitive-pair boxes sized by the most diffuse primitive?  CP2K contracts on the grid per primitive pair with its own radius; compare the task count, then decide (per-primitive boxes, or a contracted pair's box from its own decay) · `src/BasisSet/Gaussian/Evaluators/PG_Cart_MnD/` (`ForShellPairBox`) |
+**Verdict (lane B, 2026-11-02).**  Measured by reading, not perf: the separable-contraction kernel DECLINED every contracted
+shell (`MakePairPoly` returns live = false when a radial has more than one primitive), so the ground-state collocate and gather
+fell back to the reference walk `ForShellPairBox`.  It sizes ONE box from the shell pair's most diffuse primitives (MOLOPT
+shares 7 exponents down to 0.0217 across every shell of an element, so every shell pair's box is ~24 bohr in reach and wraps
+the 15 bohr cell's images: 16 209 tasks) and evaluates all 7 × 7 primitives at every point.  The transition collocation
+(`ForTransitionBoxes`, R3) already summed primitive pairs through the cube kernel, each with its own box.
+`ContractPrimitivePairs` / `GatherPrimitivePairs` give the ground state the same route (the shell's level kept, so the
+numbers are the walk's to the screening tier).  Gate: `M_TransitionCollocation.WalkAndContractionRoutesAgree` now also runs H₂O
+dzvp, walk vs cubes 4e-13 (ρ) / 1.3e-13 (h).  CH₄ DZVP-MOLOPT then converged (pilot 12 iterations, production 11).  The
+remaining cost (~80 s/iteration, ~300 s V_loc audit) is the open P row: primitive pairs on their own grid levels.

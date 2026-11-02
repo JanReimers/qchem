@@ -13,6 +13,7 @@ import qchem.Streamable;
 import qchem.Mesh.Product;         // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
 import qchem.Mesh.Builder;         // MeshBuilder (efficient incremental accumulation)
 import qchem.Vector3D;             // norm(rvec3_t)
+import qchem.Reporting;            // the mesh files its fields one level into the caller's report scope (Set; inert outside a run)
 
 namespace qchem {
 
@@ -34,6 +35,38 @@ static void RefuseCellMesh(const qcMesh::MeshParams& mp, const char* what)
     if (mp.cellKind==qcMesh::UnitCellKind::Uniform)
         throw std::invalid_argument(std::string(what)+": a uniform CELL mesh imposes a translation group; this structure has none "
                                     "(point-group symmetry only).  State cellKind Becke or Auto -- the atom-centred mesh.");
+}
+
+// THE MESH REPORTS ITSELF as it is built (OpenWork §3 "A molecule's mesh never reports itself", 2026-11-02), ONE LEVEL IN:
+// the CALLER opens a report::Scope naming itself (the XC quadrature, a PP term, the auxiliary fit, the residual measure ...)
+// and this builder writes cursor-relative fields there -- the periodic builder's field names (UnitCell.C), never a key or a
+// path of its own (user ruling: the caller sets the context, the callee reports one level in).  Inert outside a run.
+static const char* RadialName(qcMesh::RadialKind r)
+{
+    switch (r)
+    {
+        case qcMesh::RadialKind::MHL:    return "MHL";
+        case qcMesh::RadialKind::Log:    return "Log";
+        case qcMesh::RadialKind::Linear: return "Linear";
+    }
+    return "?";
+}
+static const char* AngularName(qcMesh::AngularKind a)
+{
+    switch (a)
+    {
+        case qcMesh::AngularKind::Lebedev:       return "Lebedev";
+        case qcMesh::AngularKind::GaussLegendre: return "GaussLegendre";
+    }
+    return "?";
+}
+static void ReportMolecularMesh(size_t natom, const qcMesh::MeshParams& mp, size_t nDirs, size_t total, size_t kept)
+{
+    namespace rpt=qchem::report;
+    rpt::Set("kind", "Becke"); rpt::Set("natom", (long)natom); rpt::Set("radial", RadialName(mp.radial));
+    rpt::Set("nRadial", mp.nRadial); rpt::Set("mhl_alpha", mp.mhl_alpha); rpt::Set("angular", AngularName(mp.angular));
+    rpt::Set("L", mp.angularDegree); rpt::Set("nDirs", (long)nDirs); rpt::Set("beckeOrder", mp.beckeOrder);
+    rpt::Set("points", (long)kept); rpt::Set("dropped", (long)(total-kept));
 }
 
 qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams& mp)
@@ -80,7 +113,9 @@ qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams&
             if (w>0.0) out.Append(r, wts[q]*w);
         }
     }
-    return out.take();
+    qcMesh::Mesh mesh=out.take();
+    ReportMolecularMesh(natom, mp, ang.size(), rad.size()*ang.size()*natom, mesh.size());
+    return mesh;
 }
 
 // A molecule's integration mesh is the multi-centre Becke-partitioned grid.

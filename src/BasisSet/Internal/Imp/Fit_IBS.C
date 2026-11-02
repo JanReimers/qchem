@@ -8,12 +8,20 @@ module qchem.BasisSet.Internal.Fit_IBS;
 import qchem.Mesh.Quadrature;          // qcMesh::Mesh, Normalize, Overlap (over qcMath Vector/ScalarFunction)
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;
+import qchem.Reporting;   // report::Scope (FitMesh)
 
 namespace qchem::BasisSet
 {
 
+//! The auxiliary fit's private mesh, built under a report scope naming the fit (the builder reports one level in).
+static qcMesh::Mesh FitMesh(const Structure& st, const qcMesh::MeshParams& mp)
+{
+    qchem::report::Scope here("auxiliaryFit");
+    return st.CreateIntegrationMesh(mp);
+}
+
 Fit_IBS::Fit_IBS(const Structure& st, const qcMesh::MeshParams& mp)
-    : itsMesh  (st.CreateIntegrationMesh(mp))   // the geometry's own mesh
+    : itsMesh  (FitMesh(st,mp))                 // the geometry's own mesh
     , itsMeshID(mp.ID())                        // cache key axis for the mesh-dependent Norm() (see Norm below)
 {
     // Established ONCE, here, instead of re-asserted in every numerical accessor (R2.10).
