@@ -10,6 +10,7 @@
 // integration test; their environment knobs are gone.  The table below says where each went.  An instrument is something a human runs with knobs and
 // READS; a test is something ctest runs and JUDGES -- and the judging half moved to ITMain.
 #include <cstdio>
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -102,7 +103,7 @@ int BeckeRecipeLadder(const std::string& system)
         const Material box=Materials::Get("Mn_box16");
         const Lattice_3D lat=LatticeOf(box);
         SolidCalcOptions o=MnBoxOptions(box, "Mn V2.6 ladder");
-        SCFParams par=Gates(40, 1e-5, 1e30); par.SmearingkT=5e-3;
+        SCFParams par=Gates(40, 1e-5, std::nullopt); par.SmearingkT=5e-3;
         std::shared_ptr<const BasisSet::Real_BS> mnbasis(
             BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_SR, box.cell.get(), BasisSet::Gaussian::Engine::MnD,
                                         BasisSet::Gaussian::Angular::Cartesian));

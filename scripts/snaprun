@@ -15,8 +15,10 @@
 # Usage:  scripts/snaprun [-B BUILD_DIR] CMD [ARGS...]
 #   BUILD_DIR defaults to the nearest directory at or above $PWD holding CMakeCache.txt.  If $PWD is inside it, CMD runs
 #   in the matching snapshot directory; any ARG that starts with BUILD_DIR is remapped into the snapshot.
-#   e.g.  cd build/Release && scripts/snaprun ~/Code/qchem6-runs/heavy scripts/memsafe -H 6G ctest -j4 -LE long
-#         scripts/snaprun -B build/Release build/Release/CLIapps/rundeck decks/MnO_AFM2_free.json
+#   e.g.  cd build/Release && ../../scripts/snaprun ~/Code/qchem6-runs/heavy $PWD/../../scripts/memsafe -H 4G ctest -LE long
+#         scripts/snaprun -B build/Release build/Release/CLIapps/rundeck $PWD/decks/MnO_AFM2_free.json
+#   Give every path that is NOT in the build tree as an ABSOLUTE path: CMD runs from the snapshot's copy of $PWD, so a path
+#   relative to the build dir (scripts/memsafe from build/Release) or to the source dir no longer resolves (2026-11-02, lane S).
 # Caveat: a test that opens an EXISTING file in the build tree for writing without truncating it would write through
 # the hard link into the live tree.  Files created new, and Testing/, are unaffected.
 

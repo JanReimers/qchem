@@ -10,6 +10,7 @@
 // (to rounding) at ANY D0.  Random D0 and random δD therefore test the whole chain -- transition density ->
 // HF sweep face -> the term's response slot -> the kernel fold -> the TransitionFock -- on real ERIs.
 #include "gtest/gtest.h"
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
 #include <cmath>
 #include <cstdlib>
@@ -346,7 +347,7 @@ SCFParams SiParams()
 {
     SCFParams par;
     // 200, not 80: the POLARIZED k211 ground state needs more than 80 (2026-09-29); a cap costs nothing unless hit (trap 3).
-    par.NMaxIter=200; par.MinΔρPerElectron=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
+    par.NMaxIter=200; par.MinΔρPerElectron=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=std::nullopt; par.MinFD=std::nullopt;
     return par;
 }
 std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, double U=0.0, bool spectator=false,
@@ -1049,6 +1050,10 @@ void FockIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind xc, SpinGroup g)
 
 TEST(ResponseKernel, GPW_Si_k311_FockIsBitIdenticalAcrossThreads_Raster_Pol)  {FockIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Uniform, SpinGroup::Polarized);}
 TEST(ResponseKernel, GPW_Si_k311_FockIsBitIdenticalAcrossThreads_Becke_UnPol) {FockIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Becke,   SpinGroup::UnPolarized);}
+// Becke x POLARIZED (2026-11-02, OpenWork §3 "THREADED multi-k run HANGS FOREVER"): the hanging configuration -- the XC sampler builds
+// one delta fitter per spin field, every block contracts against each, and the threaded pass runs FIRST, so the fitters' per-block
+// integrator maps are first filled concurrently (unlocked, bcc Li k8 at 8 threads spun 10 h in a corrupted std::map).
+TEST(ResponseKernel, GPW_Si_k311_FockIsBitIdenticalAcrossThreads_Becke_Pol)   {FockIsBitIdenticalAcrossThreads(qcMesh::UnitCellKind::Becke,   SpinGroup::Polarized);}
 //=====================================================================================================
 //  OpenWork §3 "After a stage that ENDS ON A GDM STEP, the live orbitals and ε are not a valid reference" (2026-10-27).
 //  The SAME Si k211 ground state reached by a diagonalizing stage (Null) and by a stage that ends on a GDM step: the

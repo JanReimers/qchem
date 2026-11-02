@@ -9,6 +9,7 @@
 // BELOW an oracle of the wrong functional (see XalphaReference).  File-local helpers are anon-namespaced (per-file vocabulary, internal
 // linkage -> no ODR clash with sibling TUs).
 #include "gtest/gtest.h"
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <cmath>
 #include <cstdio>
 #include <stdexcept>
@@ -34,7 +35,7 @@ namespace {
 // on Rb -- and any change to the accelerator's signals moved it past the oracle tolerance (2026-10-29, the [F,D] row).
 static SCFParams dft_scf_params(int /*Z: no longer scales the gate*/)
 {
-    return {.NMaxIter = 100, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e30, .MinVirial = 1e30, .MinFD = 1e-6, .StartingRelaxRo = 0.1, .MergeTol = 1e-8, .Verbose = true};
+    return {.NMaxIter = 100, .MinΔρPerElectron = 1e-6, .MinΔFD = std::nullopt, .MinVirial = std::nullopt, .MinFD = 1e-6, .StartingRelaxRo = 0.1, .MergeTol = 1e-8, .Verbose = true};
 }
 static int slater_N(int Z) { return Z>50 ? 11 : Z>20 ? 10 : 8; }
 

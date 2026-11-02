@@ -6,6 +6,7 @@
 // (f_K=1): in GPW rho-tilde is a fit-basis PROJECTION whose (0,0,0) is shape-dependent (not the fixed charge --
 // the SCF diagonalization conserves charge), so G=0 must evolve.  These are fast, no-SCF checks of the math.
 #include "gtest/gtest.h"
+#include <cmath>
 #include <memory>
 #include <complex>
 #include <stdexcept>
@@ -435,4 +436,33 @@ TEST(KerkerMix, CuspDeficitIsPerSpinOnThePulayArmInEitherChannelBasis)
                 for (const auto& [g,v] : corrOf(ChannelOf(fock2, s), *box.fitSF))
                     EXPECT_NEAR(std::abs(dcmplx(v)), 0.0, 1e-12) << tag << ": the deficit vanishes at the fixed point";
         }
+}
+
+// THE STEP FLOOR (SCFParams::MinRelaxRo, 2026-11-02): a retraction (a step that made [F,D] worse) shrinks linear D-mixing's α by
+// 0.8, never below the floor; 0 keeps the old unbounded shrink; a floor above the ceiling is a deck error, refused (not asserted).
+TEST(LinearMixer, ARetractionNeverShrinksTheStepBelowTheFloor)
+{
+    namespace L3 = ::qchem::BasisSet::Lattice;
+    UnitCell   cell(10.0);
+    cell.AddAtom(14, rvec3_t(0,0,0));
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 2.0));
+    const auto* ftbs = dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>((*bs)[0]);
+    ASSERT_TRUE(ftbs);
+    const size_t n=ftbs->GetNumFunctions();
+    auto density=[&]{auto c=std::make_unique<tComposite_CD<dcmplx>>(); c->Insert(std::make_unique<PeriodicIrrepCD<dcmplx>>(hmat_t<dcmplx>(n), ftbs, Irrep()), Irrep()); return c;};
+    auto relaxAfterRetractions=[&](double floor, int k)
+    {
+        auto m=LinearMixerFactory<dcmplx>(0.5, 1.0, floor);
+        auto* adapt=dynamic_cast<tAdaptiveMixer<dcmplx>*>(m.get());
+        if (!adapt) throw std::logic_error("the linear mixer adapts its step");
+        auto working=density(); const auto old=density();
+        for (int i=0; i<k; ++i) { double dRho=0.0; adapt->Adapt(MixSignals{.E=0.0, .FD=2.0, .FDold=1.0}, *working, *old, dRho); }
+        return m->GetRelax();
+    };
+    EXPECT_NEAR(relaxAfterRetractions(0.0,  1), 0.4,  1e-15) << "no floor: 0.8 x 0.5";
+    EXPECT_NEAR(relaxAfterRetractions(0.0,  5), 0.5*std::pow(0.8,5), 1e-15);
+    EXPECT_NEAR(relaxAfterRetractions(0.45, 1), 0.45, 1e-15) << "the floor stops the first shrink";
+    EXPECT_NEAR(relaxAfterRetractions(0.45, 5), 0.45, 1e-15) << "...and every later one";
+    EXPECT_THROW((void)LinearMixerFactory<dcmplx>(0.5, 0.3, 0.4), std::invalid_argument) << "a floor above the ceiling";
 }

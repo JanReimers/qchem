@@ -108,6 +108,10 @@ public:
     //! (\f$E_{nn}\f$, \f$E_{\alpha Z}\f$), rest mass and entropy: for a plane-wave crystal exactly the prototype's
     //! "electronic" energy, a clean SCF stationary-point cross-check.
     double GetElectronicEnergy() const;
+    //! \f$\sum\f$ {Constant} -- the density-INDEPENDENT structure constants (\f$E_{nn}\f$, \f$E_{\alpha Z}\f$).  Client: the SCF's
+    //! first-iterate refusal, whose bound is on \f$E-\sum\{\rm Constant\}\f$, the energy measured from the electrons dispersed to
+    //! infinity -- \c GetElectronicEnergy leaves a Dirac run's rest mass out, so it is not that energy.
+    double GetConstantEnergy  () const;
     //! \f$\sum\f$ {Kinetic}.
     double GetKineticEnergy   () const;
     double GetVirial          () const { return GetPotentialEnergy()/GetKineticEnergy(); }

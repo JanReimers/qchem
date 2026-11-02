@@ -2,6 +2,7 @@
 // once -- spin promotion, the valence electron count from the pseudopotential set, the parity and accelerator refusals.
 #include <gtest/gtest.h>
 #include <stdexcept>
+#include <nlohmann/json.hpp>
 import qchem.Calculation;
 import qchem.Structure;
 import qchem.Types;
@@ -41,4 +42,18 @@ TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructur
 TEST(MoleculeSetup, AnUnknownAcceleratorIsRefusedAtResolve)
 {
     EXPECT_THROW(MoleculeSetup::Resolve(OneAtom(2), {}, {.type="Anderson"}), std::runtime_error);
+}
+
+// EVERY KNOB OF THE MOLECULAR CHAIN REACHES THE FACTORY'S DOOR (2026-11-02): the GDM trust radius and the Ladder's hand-off triggers were
+// unreachable -- Calculation passed only {NProj, EMax, EMin, SVTol}.  ToAcceleratorJson is the one translation both facades use; its
+// defaults are the door's own, so a molecule that sets none of them runs what it ran.
+TEST(MoleculeSetup, EveryAcceleratorKnobReachesTheFactoryDoor)
+{
+    const AcceleratorOptions def;
+    EXPECT_EQ(ToAcceleratorJson(def, 0.3), (nlohmann::json{{"NProj",4},{"EMax",0.3},{"EMin",1e-7},{"SVTol",5e-9},{"Trust",0.1},
+                                                         {"ethresh",1e-8},{"stall",5},{"floor",1e-8},{"switchat",1e-6},{"signal","EnergyChange"}}));
+    AcceleratorOptions a; a.nProj=6; a.trust=0.25; a.ladderEThresh=2e-8; a.ladderStall=7; a.ladderFloor=3e-8; a.ladderSwitchAt=1e-6;
+    const nlohmann::json j=ToAcceleratorJson(a, 0.5);
+    EXPECT_EQ(j.at("NProj"), 6); EXPECT_EQ(j.at("EMax"), 0.5); EXPECT_EQ(j.at("Trust"), 0.25);
+    EXPECT_EQ(j.at("ethresh"), 2e-8); EXPECT_EQ(j.at("stall"), 7); EXPECT_EQ(j.at("floor"), 3e-8); EXPECT_EQ(j.at("switchat"), 1e-6);
 }

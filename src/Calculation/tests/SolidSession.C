@@ -33,7 +33,7 @@ SCFParams Tight()
 {
     SCFParams p;
     // Δρ/N 1e-8: above Si Γ's Δρ quadrature floor (ρ_lost/N ~1.8e-9 at densityEcut 20), where a 1e-9 gate wanders.
-    p.NMaxIter=100; p.MinΔρPerElectron=1e-8; p.MinΔE=1e30; p.MinΔFD=1e30; p.MinVirial=1e30; p.MinFD=1e30;
+    p.NMaxIter=100; p.MinΔρPerElectron=1e-8; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
     return p;
 }
 SolidCalcOptions SiGamma(bool imposed=false, bool statedRasters=true)

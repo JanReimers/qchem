@@ -25,6 +25,7 @@
 // The old NumPoints/Sample/Integrate trio described the QUADRATURE behind them, and read as correct only
 // because here n_functions == n_points, so the wrong accessor returned the right number.
 module;
+#include <mutex>
 #include <cassert>
 #include <map>
 #include <ostream>
@@ -39,6 +40,7 @@ import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep)
 import qchem.Types;                                      // dcmplx, rvec3_t, vec_t
 import qchem.Mesh.Quadrature;                            // qcMesh::SiteIntegrals (the atomic-partition observable)
+import qchem.Parallel;                                   // LazyLock -- the per-block caches' guards
 import qchem.Reporting;                                  // EmitFold -- this basis announces its own star-average
 
 export namespace qchem::BasisSet
@@ -208,6 +210,8 @@ private:
     mutable SymMap<mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (disjoint symmetries -- 3c-3)
     mutable SymMap<Projector3<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors
     mutable SymMap<Projector3<double>> itsO3R;  //!< ...and the real TRIM blocks'
+    qchem::LazyLock itsTableLock;    //!< itsPhi / itsPhiR: filled per block, reachable from the parallel Fock pass
+    qchem::LazyLock itsTensorLock;   //!< itsO3 / itsO3R (taken BEFORE itsTableLock, never after)
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
 };
 

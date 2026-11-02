@@ -241,6 +241,10 @@ template <class T> tCompositeWF<T>::~tCompositeWF()
 //     cache database (Cache2/3/4), which is NOT thread-safe: its lattice keep-newest eviction frees entries another caller
 //     may hold (measured 2026-10-28: concurrent MakeKinetic -> findΩ -> Cache2 segfaulted on every multi-k test at 2
 //     threads).  Every later assembly does only density-derived work, which the refresh built or the locked memos serve.
+//     ⚠ "LOCKED" IS LOAD-BEARING: an object born AFTER the cold pass is never warmed by it.  The XC sampler's delta fitter
+//     is made per field value v, so its per-block integrator maps are first filled HERE, concurrently -- unlocked, bcc Li k8
+//     at 8 threads spun 10 h in a corrupted std::map (2026-11-02; DeltaScalarFitter::Integrator now locks).  A per-block
+//     lazy cache reachable from this loop takes a qchem::LazyLock; the warm-up is an optimisation, never the guard.
 // The outer loop engages only when the remaining blocks are at least as many as the worker threads; otherwise the inner
 // loops keep the threads, as before (QCHEM_OPENMP_THREADS; serial by default).
 template <class T> void tCompositeWF<T>::AssembleFock(const qchem::Hamiltonian::tHamiltonianAt<T>& H)

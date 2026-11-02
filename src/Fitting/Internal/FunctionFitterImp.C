@@ -1,6 +1,7 @@
 // File: FunctionFitterImp.C  Concrete least-squares fitters implementing the two Fitting faces.
 module;
 #include <memory> // for std::shared_ptr
+#include <mutex>  // std::mutex in qchem::LazyLock (itsIntLock)
 #include <type_traits>   // std::is_same_v (the real-lineage static_assert)
 export module qchem.Fitting.Internal.FunctionFitterImp;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar/_Density, the *FFClients, ScalarFunction
@@ -8,6 +9,7 @@ import qchem.Fitting.Types;
 import qchem.Blaze;
 import qchem.Symmetry;               // SymMap -- the per-block integrator cache
 import qchem.BasisSet.Projector3;    // DenseProjector3Integrator (the analytic forward/adjoint pair)
+import qchem.Parallel;               // LazyLock -- itsInt's guard
 //--------------------------------------------------------------------------
 //
 //  The fit function and fit basis set are assumed to be real valued.
@@ -102,6 +104,7 @@ private:
     //! tensor and keyed by the block's spatial symmetry -- the same idiom as \c DeltaScalarFitter::Integrator.
     const DenseProjector3Integrator<T>& Integrator(const BasisSet::Orbital_DFT_IBS<T,T>&) const;
     mutable SymMap<DenseProjector3Integrator<T>> itsInt;   //!< by value: no ownership question to get wrong
+    qchem::LazyLock itsIntLock;   //!< itsInt is reached per block from the parallel Fock pass (DeltaScalarFitter::Integrator)
     vec_t<T> g;
     row_t<T> gS;
     T        gSg;
