@@ -369,3 +369,23 @@ molecule save/restart).  Test-only; ~18 s CPU, < 50 MB a cell.
 Row as it stood:
 
 | **V-FACADE-MATRIX** | No test asserts that a facade capability exists for every structure kind, so drift is found by a user, not a sweep | ONE parameterised UT over {atom, molecule, solid}: Prepare files basis.perIrrep + every grids.* before Converge; the scf.standard section; every accelerator option reaches the accelerator (Ladder switchat included); save/restart round-trip; deck round-trip.  A cell that cannot hold yet is an explicit expected-failure naming its row, never a missing cell |
+
+## V-REPORT-WRITEONLY — DONE 2026-11-02 (lane S, `56393bb5`)
+
+Both library readers now ask the OWNER instead of reading the run report back.  (1) The fixed-D grid audit
+(`SolidCalculation::CompareAtFixedD`) takes each side's raster verdicts from `BasisSet::Lattice::GpwRasterVerdicts(bs)` ->
+`GPW_Evaluator::DeliveredRasterVerdicts()` (the density row recomputed by the same pure `GridAudit` the emitter uses; V_loc long's row
+kept where its delivered x already was, keyed by the cache ID, so a cache-hit basis answers with the row of the raster that built its
+matrix).  (2) The evaluator's print-once latch is gone: the k-independent V_long row every k-block reaches is identical, and
+`report::EmitAt`'s own run-scoped dedup files and renders it once; `EmitAt` now RETURNS whether it wrote, so the UNDER console line
+prints exactly when the row is news.  Evidence: `GPW_Si.Γ_GridAuditSeparatesTheRasterTerms` + `Γ_EggBoxLeavesTheAnalyticTermsInvariant`
+console (every report section rendered) diffed before/after: identical but for timings and ONE addition -- the egg-box REFERENCE's
+`auditVlocLong` verdict, missing before because its V_long matrix was a cache hit (nothing emitted into the fence), same alias as its
+density row, no bound/eta/decision moves.  Outside an open run the audit's RUN-side verdicts were empty before (bounds read x = 0 on the
+console table); the report is not written there, so the report is unchanged.  UT: `Deck.AK222RunFilesEachRasterVerdictOnceAndTheAuditAsksTheBasisForIt`.
+Left as is, for a ruling: three `report::InSection("basis")` gates (LASolverLapack, CompositeWF, Exponential_Evaluator) read the CURSOR
+(am I inside a basis context?), not report content; `CLIapps/valgen` reads `GlobalReport()` as a client.
+
+Row as it stood:
+
+| **V-REPORT-WRITEONLY** (found by lane S, 2026-11-02) | Library code READS the run report back to make decisions, so behaviour depends on whether (and which) run is open: `SolidCalculation.C:1582` takes the post-SCF grid-audit verdicts out of `CurrentRunReport()["grids"]`, and `GPW_Evaluator.C:255` uses the report as a print-once latch (the raster verdict is reached once per k-block evaluator, so the report de-duplicates it).  This is what blocks V-FACADE-PARITY's run bracket: if the solid Converge opened its own nested run like the molecule's, those readers would find no grids and verdicts would change | the report is WRITE-ONLY for library code (clients -- GUI, tests, CLI renderers -- read it).  Ask the OWNER instead: the raster/audit object answers its verdict; the raster verdict is reported ONCE by the single object that owns the raster (the k-block repeat is a wrong-owner symptom, CLAUDE.md 'suspect the LOOP, not the key').  Then the bracket is free: the facade's template-method policy owns its runs (Prepare = '<ID> build', Converge = the SCF run), nested inside whatever run the driver has open |
