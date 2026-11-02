@@ -28,6 +28,7 @@ import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccur
 import qchem.SCFCap;                 // BoundedSCF (the trace test runs a deliberately bounded SCF)
 import qchem.SolidCalculation;       // SolidCalculation -- the NAMED periodic front door (Step 4)
 import qchem.Structure;              // FCCUnitCell
+import qchem.StructureData;          // GetMolecule("H2O") -- the Ladder hand-off gate
 import qchem.Lattice_3D;             // Lattice_3D
 import qchem.BasisSet;               // Real_BS
 import qchem.BasisSet.Gaussian.Point.Factory;  // Gaussian::Factory, BasisSetData/Engine/Angular
@@ -322,6 +323,35 @@ TEST(SCFTrace, AnObserverExceptionLeavesConvergeUntouched)
         ADD_FAILURE() << "the solid run did not stop";
     }
     catch (const SinkStop& e) { EXPECT_STREQ(e.what(), "the sink stopped at iteration 2"); }
+}
+
+// THE MOLECULAR LADDER LADDERS (2026-11-02, the user's "Ladder is not laddering"): its tail hand-off was OFF (the json door's switchat 0),
+// so a converging DIIS -- which never stalls -- kept the Ladder plain DIIS to the end (lane G: water and ethene LDA/dzvp, GDM never
+// engaged).  The default now hands off at |ΔE/E| < 1e-6 (CLAUDE.md's rule): once a row reads |ΔE/E| below it, a GDM row follows.
+TEST(SCFTrace, AMolecularLadderHandsOffToGDMBelowTheEnergyTail)
+{
+    std::vector<SCFIterator::IterationRow> rows;
+    (void)CapturedTrace([&rows]{
+        Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = qchem::Model::LDA}, {.type = "Ladder"}),
+                         {.NMaxIter = 80, .Verbose = true},
+                         [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
+        (void)calc.Result();
+    });
+    auto accel=[](const SCFIterator::IterationRow& r)
+    {
+        for (const auto& c : r.cells) if (c.title=="accel") return c.text;
+        return std::string();
+    };
+    size_t below=rows.size(), gdm=rows.size();
+    for (size_t i=0; i<rows.size(); i++)
+    {
+        if (below==rows.size() && std::abs(rows[i].ValueOf("ΔE/E"))<1e-6) below=i;
+        if (gdm==rows.size() && accel(rows[i]).rfind("GDM",0)==0) gdm=i;
+    }
+    ASSERT_LT(below, rows.size()) << "the run never reached |ΔE/E| < 1e-6";
+    ASSERT_LT(gdm, rows.size()) << "no GDM row: the Ladder never handed off (" << rows.size() << " rows, |ΔE/E| < 1e-6 at row " << below+1 << ")";
+    EXPECT_GT(gdm, below) << "the hand-off follows the energy tail, it does not precede it";
+    for (size_t i=0; i<below; i++) EXPECT_EQ(accel(rows[i]).rfind("GDM",0), std::string::npos) << "row " << i+1 << " is GDM before the tail";
 }
 
 // THE OBSERVER RECEIVES THE CONSOLE'S ROW (2026-10-31): the same columns, titled as the header titles them and in its order,

@@ -51,7 +51,7 @@ TEST(MoleculeSetup, EveryAcceleratorKnobReachesTheFactoryDoor)
 {
     const AcceleratorOptions def;
     EXPECT_EQ(ToAcceleratorJson(def, 0.3), (nlohmann::json{{"NProj",4},{"EMax",0.3},{"EMin",1e-7},{"SVTol",5e-9},{"Trust",0.1},
-                                                         {"ethresh",1e-8},{"stall",5},{"floor",1e-8},{"switchat",0.0}}));
+                                                         {"ethresh",1e-8},{"stall",5},{"floor",1e-8},{"switchat",1e-6},{"signal","EnergyChange"}}));
     AcceleratorOptions a; a.nProj=6; a.trust=0.25; a.ladderEThresh=2e-8; a.ladderStall=7; a.ladderFloor=3e-8; a.ladderSwitchAt=1e-6;
     const nlohmann::json j=ToAcceleratorJson(a, 0.5);
     EXPECT_EQ(j.at("NProj"), 6); EXPECT_EQ(j.at("EMax"), 0.5); EXPECT_EQ(j.at("Trust"), 0.25);

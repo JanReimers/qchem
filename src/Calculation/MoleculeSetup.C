@@ -106,11 +106,15 @@ struct AcceleratorOptions
     double trust = 0.1;
     //! LADDER only (DIIS -> GDM), the hand-off triggers (\c SCFAcceleratorLadder): energy still moving by more than \c ladderEThresh for
     //! \c ladderStall non-improving steps (STALL, with \c ladderFloor as its low backstop), or the signal below \c ladderSwitchAt
-    //! (TAIL; 0 = no tail trigger).  Defaults = the json door's, so a molecule that sets none of them runs what it ran.
+    //! (TAIL; 0 = no tail trigger).  The TAIL is ON by default (2026-11-02, lane G / the user's "Ladder is not laddering"): at the
+    //! json door's old switchat 0 a converging DIIS never stalls, so a molecular Ladder WAS plain DIIS (water, ethene LDA/dzvp:
+    //! GDM never engaged).  It hands off at |ΔE/E| < 1e-6, the CLAUDE.md rule and the solid Ladder's \c ladderSwitchAt.
     double ladderEThresh  = 1e-8;
     int    ladderStall    = 5;
     double ladderFloor    = 1e-8;
-    double ladderSwitchAt = 0.0;
+    double ladderSwitchAt = 1e-6;
+    //! What the tail trigger reads: |ΔE/E| (\c EnergyChange, default -- the rule is stated in energy) or [F,D] (\c Error).
+    SCFAccelerators::ScheduleSignal ladderSignal = SCFAccelerators::ScheduleSignal::EnergyChange;
     //! SCF accelerator: "DIIS" (default) | "GDM" (direct minimisation, robust for hard/open-shell SCF) |
     //! "Ladder" (auto None->DIIS->GDM).  A hard pseudopotential (open-shell atom, diffuse valence) that
     //! limit-cycles under DIIS often converges under GDM or Ladder.
