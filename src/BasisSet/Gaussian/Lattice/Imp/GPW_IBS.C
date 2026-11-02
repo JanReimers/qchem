@@ -107,6 +107,7 @@ template <class T> BasisSet::FitQuadrature tGPW_IBS<T>::CreateXCQuadrature(const
     //    dedup when the grid is already commensurate).
     // Either way the geometry-fixed orbit fold feeds the engine's per-iteration rho star-average.
     assert(cl && "GPW: the XC quadrature needs the Structure to build its mesh");
+    qchem::report::Scope here("xcQuadrature");   // every mesh built below reports one level in
     const auto& dops = SymmetryOps();
     if (dops.empty() && itsMeshOps.empty())
         return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};

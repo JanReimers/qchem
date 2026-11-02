@@ -310,7 +310,8 @@ template <class T> double tSCFIterator<T>::ResidualPerElectron(const tChargeDens
         {
             if (!itsResidualStructure) throw std::logic_error("SCFIterator: no real-space quadrature for the convergence residual "
                                                               "(the Hamiltonian has none and no structure was given)");
-            const qcMesh::Mesh m=itsResidualStructure->CreateIntegrationMesh(qcMesh::MeshParams{});
+            const qcMesh::Mesh m=[&]{ qchem::report::Scope here("residualMesh");   // the mesh builder reports one level in
+                                      return itsResidualStructure->CreateIntegrationMesh(qcMesh::MeshParams{}); }();
             itsResidualPts=m.Points(); itsResidualWts=m.Weights();
         }
         const rvec_t a=in(itsResidualPts), b=out(itsResidualPts);

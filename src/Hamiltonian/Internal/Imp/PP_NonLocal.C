@@ -15,6 +15,7 @@ import qchem.Mesh.Quadrature;           // qcMesh::Overlap(mesh, VectorFunction,
 import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (passed direct)
 import qchem.Blaze;                     // rmat_t, rvec_t, trans, outer product
 import qchem.Math;                      // norm, Pi, sqrt
+import qchem.Reporting;                 // report::Scope -- the mesh builder reports one level into "ppNonLocal"
 
 namespace qchem::Hamiltonian
 {
@@ -137,7 +138,8 @@ rsmat_t PP_NonLocal::MakeMatrix(const robs_t* bs, const Spin&) const
     if (auto* ia=dynamic_cast<const BasisSet::ImplicitAngular_IBS*>(bs))
         return MakeMatrixRadial(*ia, bs->GetVectorSize());
 
-    qcMesh::Mesh mesh = theStructure->CreateIntegrationMesh(itsMeshParams);   // the geometry's own mesh
+    const qcMesh::Mesh mesh=[&]{ qchem::report::Scope here("ppNonLocal");   // the mesh builder reports one level in
+                                 return theStructure->CreateIntegrationMesh(itsMeshParams); }();   // the geometry's own mesh
     size_t n=bs->GetVectorSize();
     rmat_t V(n,n,0.0);
     for (size_t a=0; a<theStructure->GetNumAtoms(); a++)

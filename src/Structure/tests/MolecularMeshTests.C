@@ -10,6 +10,7 @@ import qchem.Structure;                 // Molecule, Atom, Structure
 import qchem.UnitCell;                   // UnitCell (uniform periodic mesh)
 import qchem.Mesh.Quadrature;          // qcMesh::Integrate (over qcMath ScalarFunction)
 import qchem.Math;                      // Pi32, Pi
+import qchem.Reporting;                 // report::Scope: the mesh files its fields one level into the caller's scope
 using namespace qchem;
 
 // Note: this TU sees BOTH the old global `Mesh`/`MeshParams` (via qchem.Structure) and the new
@@ -349,4 +350,27 @@ TEST(LatticeMesh, BeckeEquivalentSitesOwnEqualShares)
     EXPECT_NEAR(vol[0]/tot, 0.5, 1e-8) << "crystallographically equivalent sites must own equal shares";
     EXPECT_NEAR(vol[1]/tot, 0.5, 1e-8);
     EXPECT_NEAR(tot/f.cell.GetCellVolume(), 1.0, 1e-2);      // loose: the constant-integration worst case
+}
+
+// THE MESH REPORTS ITSELF, ONE LEVEL IN (OpenWork §3, user ruling 2026-11-02): the CALLER opens a report::Scope naming
+// itself and the builder writes its fields there, choosing no key -- so two callers' meshes land in two places, never one
+// overwriting the other, and a scope opened under another nests (purely relative).
+TEST(MolecularMesh, TheMeshFilesItsFieldsOneLevelIntoTheCallersScope)
+{
+    Molecule n2;
+    n2.Insert(new Atom(7, 0.0, rvec3_t(-1.03,0,0)));
+    n2.Insert(new Atom(7, 0.0, rvec3_t( 1.04,0,0)));
+    namespace rpt=qchem::report;
+    rpt::Begin("MolecularMeshReport", "2026-11-02T00:00:00");
+    const qcMesh::Mesh a=[&]{ rpt::Scope s("callerA"); return n2.CreateIntegrationMesh(qcMesh::MeshParams{.nRadial=20, .angularDegree=5}); }();
+    const qcMesh::Mesh b=[&]{ rpt::Scope o("outer"); rpt::Scope s("callerB");
+                              return n2.CreateIntegrationMesh(qcMesh::MeshParams{.nRadial=30, .angularDegree=11}); }();
+    const auto doc=rpt::CurrentRunReport();       // COPY before End (End moves the doc out)
+    rpt::End();
+    EXPECT_EQ(doc["callerA"]["points"].get<long>(), long(a.size()));
+    EXPECT_EQ(doc["callerA"]["nRadial"].get<int>(), 20);
+    EXPECT_EQ(doc["callerA"]["natom"].get<long>(), 2);
+    EXPECT_EQ(doc["outer"]["callerB"]["points"].get<long>(), long(b.size()));
+    EXPECT_EQ(doc["outer"]["callerB"]["nRadial"].get<int>(), 30);
+    EXPECT_FALSE(doc.contains("points")) << "the builder chose a key of its own, or wrote at the root";
 }

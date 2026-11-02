@@ -223,10 +223,13 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
              <<(delta ? "delta functions on the XC quadrature's points (the trivial fit: v_xc sampled at each point)"
                       : "plane waves on the {G} ball")
              <<std::endl;
-    // The ROUTE owns grids.xcQuadrature -- one key, one answer per run (a fit basis announces its own grid
-    // separately, under grids.vxcFitGrid).
-    qchem::report::EmitAt("grids", "xcQuadrature",
-                          {{"kind", delta ? (becke ? "Becke" : "DeltaUniform") : "PlaneWave"}});
+    // The ROUTE states the XC quadrature's kind one level into the caller's context (the facade's "grids"); the quadrature
+    // factory reopens the same "xcQuadrature" scope and its mesh builder adds the mesh's own fields beside it (a fit basis
+    // announces its own grid separately, as vxcFitGrid).  Relative, never a root-anchored key (user ruling 2026-11-02).
+    {
+        qchem::report::Scope here("xcQuadrature");
+        qchem::report::Set("kind", delta ? (becke ? "Becke" : "DeltaUniform") : "PlaneWave");
+    }
     // ONE factory call still makes every representation decision.  The second output is the run's XC
     // QUADRATURE -- the same bundle the delta basis was built over (mesh + atomic partition + orbit fold +
     // Shubnikov tags), empty on the raster route -- taken here only to hand it straight back down to the

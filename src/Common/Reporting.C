@@ -251,6 +251,27 @@ private:
     std::size_t itsDepth;
 };
 
+//! RAII: descend into the OBJECT `key` under the current cursor (created if absent), so every Set(...) until this
+//! scope closes -- here AND in code this scope calls into -- lands ONE LEVEL IN.  The nested-object twin of \c Row,
+//! and like it purely RELATIVE: a caller names ITSELF where it stands and never an absolute path, so the callee it
+//! hands the context to (a mesh builder, say) writes cursor-relative fields and chooses no key (user, 2026-11-02:
+//! "the caller sets the context, the callee reports one level in").  Pops the cursor on close and renders, at depth
+//! 1, the non-object members this scope ADDED OR CHANGED, headed by the cursor path ("grids ▸ xcQuadrature") -- so
+//! a builder's fields show when it finishes, and an outer scope whose inner scopes already rendered their own blocks
+//! stays quiet.  Inert outside a run.
+class Scope
+{
+public:
+    explicit Scope(const std::string& key);
+    ~Scope();
+    Scope(const Scope&)            = delete;
+    Scope& operator=(const Scope&) = delete;
+private:
+    std::size_t itsDepth;
+    json        itsBefore;   //!< the node as it stood at OPEN: close renders only what changed
+    double      itsT0;
+};
+
 //============================================================================
 // Renderers -- json -> representation.  The SINK (stdout, a file, a rolling log,
 // an HDF5 group) is just the caller's ostream; the renderer stays GENERIC.

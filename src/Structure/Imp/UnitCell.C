@@ -19,7 +19,7 @@ import qchem.Vector3D;       // norm(rvec3_t)
 import qchem.Mesh.Product;   // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
 import qchem.Mesh.Builder;   // MeshBuilder (efficient incremental accumulation)
 import qchem.SymmetrizeMesh; // MakeInvariantAngularMesh + FoldPointsPeriodic (the §6a W2b site-adapted mesh)
-import qchem.Reporting;      // grids.becke report addendum (EmitAt; inert when no run is open)
+import qchem.Reporting;      // the Becke mesh's fields, one level into the caller's report scope (inert when no run is open)
 
 namespace qchem {
 
@@ -381,12 +381,14 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
                  <<1.0/(1.0-double(tot.deadWork)/double(max(tot.final_,size_t(1))))<<"x if avoided"
                  <<std::setprecision(6)<<std::endl;
     }
-    qchem::report::EmitAt("grids", "becke", {
-        {"natom", (long)natom}, {"radial",RadialName(mp.radial)}, {"nRadial", mp.nRadial},
-        {"mhl_alpha", mp.mhl_alpha},
-        {"angular", angPerAtom ? "SiteAdapted" : AngularName(mp.angular)}, {"L", mp.angularDegree},
-        {"nDirs", (long)nDirs},
-        {"beckeOrder", k}, {"points", (long)kept}, {"dropped", (long)(total-kept)}, {"eps", eps}});
+    // ONE LEVEL IN (user ruling 2026-11-02): the CALLER opened a report::Scope naming itself; the builder writes its fields
+    // there and picks no key.  Was a root-anchored EmitAt("grids","becke") -- one key, so a second Becke mesh overwrote it.
+    namespace rpt=qchem::report;
+    rpt::Set("kind", "Becke"); rpt::Set("natom", (long)natom); rpt::Set("radial", RadialName(mp.radial));
+    rpt::Set("nRadial", mp.nRadial); rpt::Set("mhl_alpha", mp.mhl_alpha);
+    rpt::Set("angular", angPerAtom ? "SiteAdapted" : AngularName(mp.angular)); rpt::Set("L", mp.angularDegree);
+    rpt::Set("nDirs", (long)nDirs); rpt::Set("beckeOrder", k); rpt::Set("points", (long)kept);
+    rpt::Set("dropped", (long)(total-kept)); rpt::Set("eps", eps);
     return mesh;
 }
 
@@ -570,6 +572,20 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
     return mb;
 }
 
+// The fields of one uniform cell grid: kind, N, points, dr_i = |a_i|/N_i (edge lengths through the metric), and eCut when
+// the caller derived N from one.  Shared by the mesh builder (Set one level in) and EmitUniformGridReport (a raster's role key).
+static qchem::report::json UniformGridFields(const UnitCell& c, const vec3_t<int>& N, double eCut)
+{
+    assert(N.x>0 && N.y>0 && N.z>0);
+    const double dx=c.GetDistance(rvec3_t(1,0,0))/N.x,
+                 dy=c.GetDistance(rvec3_t(0,1,0))/N.y,
+                 dz=c.GetDistance(rvec3_t(0,0,1))/N.z;
+    const long npts=long(N.x)*N.y*N.z;
+    qchem::report::json j={{"kind","Uniform"}, {"N",{N.x,N.y,N.z}}, {"points",npts}, {"dr",{dx,dy,dz}}};
+    if (eCut>=0.0) j["eCut"]=eCut;
+    return j;
+}
+
 // A periodic cell's real-space integration mesh.  Two kinds (mp.cellKind):
 // Uniform -- a UNIFORM grid over the cell: n=mp.nUniform points per axis at cell-fractional midpoints
 // f = ((i+1/2)/n, (j+1/2)/n, (k+1/2)/n), mapped to Cartesian by r = A f (ToCartesian), each carrying equal
@@ -607,11 +623,11 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
                 W[q]=w;
             }
 
-    // Announce, like the Becke branch -- so a run's report always says WHICH cell quadrature is in play.
-    // Unconditional: report::EmitAt is IDEMPOTENT (an identical entry is a no-op), so the several PP terms
-    // that build this same mesh in one run (PP_Local, PP_NonLocal, the GPW PP quadrature) dedup in the
-    // report itself, run-scoped -- the old function-local-static latch leaked its dedup across runs.
-    EmitUniformGridReport("unitCellUniform", vec3_t<int>(n,n,n), mp.eCut);
+    // Announce, like the Becke branch -- so a run's report always says WHICH cell quadrature is in play -- and LIKE it,
+    // ONE LEVEL IN (user ruling 2026-11-02): the caller (PP_Local, PP_NonLocal, the GPW PP quadrature, the XC quadrature)
+    // opened a report::Scope naming itself, and these fields land there.  Was a root-anchored grids.unitCellUniform.
+    const qchem::report::json fields=UniformGridFields(*this, vec3_t<int>(n,n,n), mp.eCut);
+    for (auto it=fields.begin(); it!=fields.end(); ++it) qchem::report::Set(it.key(), it.value());
     qcMesh::Mesh m(std::move(R), std::move(W));
     ReportMeshPlaneWaveOrtho(*this, m);   // the UNIFORM control: exact orthogonality up to Nyquist
     return m;
@@ -624,14 +640,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
 // EmitAt is idempotent + inert outside a run.
 void UnitCell::EmitUniformGridReport(const std::string& key, const vec3_t<int>& N, double eCut) const
 {
-    assert(N.x>0 && N.y>0 && N.z>0);
-    const double dx=GetDistance(rvec3_t(1,0,0))/N.x,
-                 dy=GetDistance(rvec3_t(0,1,0))/N.y,
-                 dz=GetDistance(rvec3_t(0,0,1))/N.z;
-    const long npts=long(N.x)*N.y*N.z;
-    report::json j={{"kind","Uniform"}, {"N",{N.x,N.y,N.z}}, {"points",npts}, {"dr",{dx,dy,dz}}};
-    if (eCut>=0.0) j["eCut"]=eCut;
-    qchem::report::EmitAt("grids", key, std::move(j));
+    qchem::report::EmitAt("grids", key, UniformGridFields(*this, N, eCut));
 }
 
 //  Build the cell matrix A (columns = lattice vectors a₁,a₂,a₃) from the cell

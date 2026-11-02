@@ -8,6 +8,7 @@ export import :Fit_IBS;   // the fit-basis faces: a PARTITION of this module sin
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary
 export import qchem.BasisSet.Projector3;
 import qchem.Structure;  // Structure::CreateIntegrationMesh (the default FitQuadrature build)
+import qchem.Reporting;  // report::Scope -- the mesh builder reports one level into "xcQuadrature"
 
 export namespace qchem::BasisSet
 {
@@ -55,6 +56,7 @@ public:
     //! Band_FT_IBS -- V1.1(iii): the neutral default was always structure-agnostic.)
     virtual FitQuadrature CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
     {
+        qchem::report::Scope here("xcQuadrature");   // the mesh builder reports one level in
         return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};
     }
     // NB: there is deliberately NO Repulsion3C(D,c)/Overlap3C(D,c) here -- the density-matrix contraction

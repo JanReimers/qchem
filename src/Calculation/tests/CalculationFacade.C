@@ -10,6 +10,7 @@ import qchem.SCFParams;
 import qchem.SCFIterator;
 import qchem.Types;
 import qchem.SCFCap;   // BoundedSCF: the failure arm runs a deliberately bounded SCF
+import qchem.Reporting;   // the run report the molecular mesh files itself into
 
 using namespace qchem;
 using StructureData::GetMolecule;
@@ -24,6 +25,27 @@ TEST(CalculationFacade, TheConstructorsObserverSeesItsSCFFromTheFirstIteration)
     EXPECT_EQ(steps.front().iteration, 1u) << "iteration 1: the constructor's SCF from its start";
     EXPECT_EQ(steps.size(), calc.IterationCount()) << "every iteration, none skipped";
     EXPECT_NEAR(steps.back().ValueOf("Etotal"), calc.Energy(), 1e-10);
+}
+
+//! A molecular DFT run's report holds its XC mesh BEFORE the SCF iterates, at grids.xcQuadrature -- the path a solid files: the
+//! facade builds the Hamiltonian in its "grids" context, the XC quadrature opens "xcQuadrature", the mesh builder writes one
+//! level in (OpenWork §3 "A molecule's mesh never reports itself", user ruling 2026-11-02).
+TEST(CalculationFacade, AMoleculesXCMeshIsInTheRunReportByIterationOne)
+{
+    bool seen=false, checked=false;
+    Calculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA}), {},
+                     [&](const SCFIterator::IterationRow& p)
+                     {
+                         if (p.iteration!=1) return;
+                         checked=true;
+                         const auto& doc=qchem::report::CurrentRunReport();
+                         if (!doc.contains("grids") || !doc["grids"].contains("xcQuadrature")) return;
+                         const auto& xc=doc["grids"]["xcQuadrature"];
+                         seen = xc.contains("points") && xc["points"].get<long>()>0 && xc["natom"].get<long>()==3;
+                     });
+    ASSERT_TRUE(calc.IsConverged());
+    ASSERT_TRUE(checked) << "the observer saw no iteration 1";
+    EXPECT_TRUE(seen) << "at iteration 1 the run report must already hold grids.xcQuadrature (the molecule's XC mesh)";
 }
 
 TEST(CalculationFacade, LevelsListEveryMOAscendingAndTheOccupiedOnesAreTheOrbitals)
