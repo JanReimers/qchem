@@ -138,10 +138,12 @@ public:
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS
-    : public virtual Fit_IBS 
+    : public virtual Fit_IBS
+    , public Symmetry::IdentityRepresentation<double> 
     , public IrrepBasisSet
 {
 public:
+    // A fit set has no matrix-image client: its representation is the identity at E only, refusing any other op (S3).
     EFit_IBS(Reader *, const Structure *, const qcMesh::MeshParams&);
 
     virtual rsmat_t MakeOverlap() const {return MakeOverlap2C(this);}

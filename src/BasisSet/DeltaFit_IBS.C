@@ -90,6 +90,8 @@ template <class T> class DeltaFit_IBS
     : public virtual FIT_SF_ABS<T>                   // the neutral scalar-fit face (+ Integrals_Overlap3C<T,T>)
     , public         DeltaPeriodicFaces<DeltaFit_IBS<T>,T>   // dcmplx only: the real TRIM block + the transition pair
     , public         IrrepBasisSetImp<T>             // GetSymmetry/GetSymt/GetIrrep
+    , public         Symmetry::IdentityRepresentation<T>   // identity at E only: the points PERMUTE under an op, which is the
+                                                            // orbit fold's business (a vector op), not a matrix image (S3)
 {
     friend class DeltaPeriodicFaces<DeltaFit_IBS<T>,T>;
 public:

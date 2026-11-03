@@ -29,6 +29,8 @@ template <class T> class BasisSetImp
     : public virtual tBasisSet<T>
 {
 public:
+    //! The imposition the concrete basis was built under (set by its ctor via \c SetImposition); nullptr = none.
+    virtual const Symmetry::SymmetryImposition* GetImposition() const override {return itsImposition.get();}
 
     using obs_t = typename tBasisSet<T>::obs_t;
 
@@ -94,10 +96,15 @@ protected:
                                "Iterate view cannot reach it until RealComplexPlan Step 3c lands");
     }
 
+    //! The concrete basis's ctor records the imposition it built its blocks under (V-BS-SYMMETRY S3).
+    void SetImposition(std::shared_ptr<const Symmetry::SymmetryImposition> imp) {itsImposition=std::move(imp);}
+
     friend class ::SlaterRadialIntegralTests;
     friend class ::DiracIntegralTests;
 
     std::vector<ibs_child_t> itsBasisSets;
+private:
+    std::shared_ptr<const Symmetry::SymmetryImposition> itsImposition;   //!< nullptr = none (molecules / atoms today)
 };
 
 } //namespace

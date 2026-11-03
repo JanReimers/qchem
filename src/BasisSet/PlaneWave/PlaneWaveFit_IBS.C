@@ -39,6 +39,7 @@ class PlaneWaveFit_IBS
     , public virtual BasisSet::cFIT_SF_ABS            // FIT_SF_ABS<dcmplx> : IrrepBasisSet<dcmplx> (potential-fit face)
     , public         Lattice::Irrep_IBS<PW_Grid_Evaluator> // op()/Gradient/GetNumFunctions from the evaluator
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // GetSymmetry/GetSymt/GetIrrep
+    , public         Symmetry::IdentityRepresentation<dcmplx> // identity at E only: no matrix-image client of a fit set (S3)
     , public         PW_Grid_Evaluator                // the DENSITY/FIT evaluator (grid + G_FieldEvaluator); Cast() target
     , public virtual BasisSet::G_OrbitalPairBall      // the pin-28 audit's question (see there)
 {

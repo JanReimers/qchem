@@ -1,5 +1,7 @@
 // File: BasisSet/Internal/Imp/SymmetryAdapted_IBS.C
 module;
+#include <vector>
+#include <memory>
 #include <string>
 #include <iostream>
 #include <memory>
@@ -70,8 +72,11 @@ void SymmetryAdapted_IBS::SliceAOFock(rsmat_t& Fab, const rsmat_t& Fao) const
 }
 
 SymmetryAdapted_IBS::SymmetryAdapted_IBS(const Orbital_1E_IBS<double>* raw, const rmat_t& Oblock,
-                                         const std::string& label, const sym_t& sym)
-    : IrrepBasisSetImp<double>(sym), itsRaw(raw)
+                                         const std::string& label, const sym_t& sym,
+                                         std::shared_ptr<const std::vector<Symmetry::SymOp>> group)
+    : IrrepBasisSetImp<double>(sym)
+    , Symmetry::IdentityRepresentation<double>(group ? Symmetry::Stabiliser::OpList(std::move(group)) : Symmetry::Stabiliser())
+    , itsRaw(raw)
     , itsRawHF (dynamic_cast<const Orbital_HF_IBS <double>*>(raw))  // same object, HF  face
     , itsRawDFT(dynamic_cast<const Orbital_DFT_IBS<double>*>(raw))  // same object, DFT face
     , itsO(Oblock), itsLabel(label)

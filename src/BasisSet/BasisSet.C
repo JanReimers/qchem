@@ -353,7 +353,7 @@ export import qchem.Structure;
 export import qchem.Symmetry;
 export import qchem.ElectronConfiguration;
 export import qchem.Matrix3D;   // Matrix3D -- the crystal point-group ops a periodic basis exposes (IBZ symmetrization)
-export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // ReciprocalOp {U|τ} -- the density-symmetrization ops (glide phase)
+export import qchem.Symmetry.Imposition;   // SymmetryImposition -- what the basis was built under (GetImposition, S3)
 
 import qchem.Iterators;
 export import qchem.Streamable;
@@ -410,26 +410,14 @@ public:
     //! is a forwarder V-BS-SYMMETRY moves off the basis.  Default/plain path: the Structure's integration mesh, no fold.
     virtual FitQuadrature   CreateXCQuadrature (const Structure* cl, const qcMesh::MeshParams&) const;
 
-    //! The crystal RECIPROCAL point group as \f${U|\tau}\f$ ops for IBZ density symmetrization.  Default {} =
-    //! trivial {E} = no-op -- molecules / Γ / unfolded bases.  A periodic GPW basis returns the ops WHEN it
-    //! folds the mesh (imposeSymmetry), so the composite density ctor-injects them and the reduced density is star-
-    //! averaged with the glide phase \f$e^{+2\pi i(Um)\cdot\tau}\f$ (doc/GPWPlan1.md items 3 + 5).  The basis does
-    //! NOT compute the space group (\c Lattice_3D::GetSpaceGroup does) nor decide what is imposed (\c ResolveImposition
-    //! does); it carries the ops its k fold was built under, and the density/WF read them here (V-BS-SYMMETRY).
-    virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetReciprocalPointOps() const {return {};}
-
-
-    //! \brief Impose the run's MAGNETIC (Shubnikov) group on a SPIN PAIR of block density matrices, in place:
-    //! \f$D_s \leftarrow |G|^{-1}\sum_g M_g D_{\sigma_g(s)} M_g^\top\f$, where \f$M_g\f$ is \a g on the AO
-    //! basis and \f$\sigma_g\f$ swaps the channels on a spin-flip op.  The flip ops (the ones that map one
-    //! magnetic sublattice onto the other) relate \f$D_\uparrow\f$ to \f$D_\downarrow\f$, so no single-channel
-    //! star-average can impose them -- only a caller holding BOTH channels can, and the composite wave
-    //! function is that caller.  Without it the flip content was projected only inside the XC engine, and a
-    //! soft ferrimagnetic mode grew from 1e-9 to 0.4 on β-MnO₂ (OpenWork §3, 2026-10-28).  Default: no-op
-    //! (no magnetic imposition, or a basis that cannot represent the ops on its AOs).  Both overloads exist
-    //! because a block's scalar is its own (a real TRIM child inside a complex run).
-    virtual void ProjectSpinPair(hmat_t<double>& /*Dup*/, hmat_t<double>& /*Ddn*/) const {}
-    virtual void ProjectSpinPair(hmat_t<dcmplx>& /*Dup*/, hmat_t<dcmplx>& /*Ddn*/) const {}
+    //! \brief The symmetry IMPOSITION this basis was built under (user ruling B, V-BS-SYMMETRY 2026-11-03), or nullptr.
+    //! WHY the basis holds it: the basis is CONSTRUCTED under the imposition -- its irreps are irreps of that group and its k
+    //! fold is that group's -- so the density built on it must be star-averaged, and its spin pair projected, under the SAME
+    //! group; the composite density / wave function and the restored state receive only the basis.  The basis decides nothing
+    //! (\c ResolveImposition does, from the lattice and the options) and does nothing with it: the star average is the composite
+    //! density's, the pair projection \c Symmetry::ProjectSpinPair's over each block's \c Representation.  nullptr today on every
+    //! molecular / atom basis -- a STAGE (a molecule's imposed point group can realize the same interface), not a design.
+    virtual const Symmetry::SymmetryImposition* GetImposition() const=0;
 
     //! \brief How fine and how far a grid over this WHOLE basis must reach at tolerance \a eps (\c GridResolution, V-BS-RASTER):
     //! the finest \c cutoff and the widest \c radius over the blocks, the coarsest \c coarseCutoff.  Every block must answer --

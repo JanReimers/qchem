@@ -5,6 +5,7 @@ export module qchem.BasisSet.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.BasisSet.DBCacheClient;         // the cache-key contract this face implements (V1.20d: the cache MECHANISM is Internal and no longer re-exported)
 export import qchem.VectorFunction;   // Evaluatable_IBS's base (NOT IrrepBasisSet's -- see above)
+export import qchem.Symmetry.Representation;   // every block IS a representation of its stabiliser (V-BS-SYMMETRY S3)
 import qchem.Streamable;
 
 export namespace qchem::BasisSet
@@ -58,9 +59,15 @@ public:
 //  represented.  A basis that genuinely IS a set of evaluatable functions says so by deriving
 //  Evaluatable_IBS below -- a promise made where it can be kept.
 //
+//  EVERY BLOCK IS A REPRESENTATION (V-BS-SYMMETRY S3, user 2026-11-03): \c Symmetry::Representation<T> -- how the ops of the
+//  block's STABILISER act on its matrix elements (\c Image) and its densities (\c AdjointImage) -- is a base of the face, its
+//  two members left PURE, so a concrete block does not compile until it states its representation: Dense (a Gaussian AO set),
+//  Monomial (plane waves), or Identity on a stabiliser (a 1-D irrep block, an atom's l block, any set asked only about E).
+//  Nothing about symmetry images is solid-only: a molecule's SALC block answers as a crystal's Bloch block does.
 template <class T> class IrrepBasisSet
     : public virtual IrrepBasisSet_IDs
     , public virtual Streamable
+    , public virtual Symmetry::Representation<T>
 {
 public:
     //! Readonly ref to the polymorphic Symmetry object.

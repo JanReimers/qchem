@@ -37,6 +37,7 @@ export namespace qchem::BasisSet::Lattice
 class APW_IBS
     : public virtual BasisSet::IrrepBasisSet<dcmplx>
     , public         BasisSet::IrrepBasisSetImp<dcmplx>
+    , public         Symmetry::IdentityRepresentation<dcmplx>   // identity at E only: no imposition client (S3)
 {
 public:
     //! \param Ecut plane-wave cutoff for the interstitial G-set; \param Rmt muffin-tin radius (Bohr);

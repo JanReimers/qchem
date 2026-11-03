@@ -7,6 +7,8 @@ module;
 #include <stdexcept>   // std::invalid_argument (the transition pair's bra check)
 #include <string>
 #include <vector>
+#include <cmath>       // std::round (the little-group test, S3)
+#include <type_traits> // std::is_same_v (the real TRIM block's rep)
 
 module qchem.BasisSet.Gaussian.Lattice.GPW_IBS;
 import qchem.BasisSet.Lattice_IBS;          // Lattice::ToScalar (the Step-3 exact TRIM narrow; identity for dcmplx)
@@ -48,6 +50,31 @@ template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const ivec3_t& N,
     : tGPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor,
               ladderFactor, {}, rasterFields, {}, {}, tol)
 {}
+
+template <class T> mat_t<T> tGPW_IBS<T>::MakeRepMatrix(const Symmetry::SymOp& g) const
+{
+    const rvec3_t k =Symmetry::Lattice_3D::Getk(this->GetSymmetry());
+    const rvec3_t d =Symmetry::Lattice_3D::ImageOfK(g, k)-k;
+    if (std::fabs(d.x-std::round(d.x))+std::fabs(d.y-std::round(d.y))+std::fabs(d.z-std::round(d.z))>1e-10)
+        throw std::logic_error("tGPW_IBS::MakeRepMatrix: the op maps k onto another k -- it is not in this block's little group");
+    const mat_t<dcmplx> M=[&]{
+        try {return OrbitalImage(g);}
+        catch (const std::runtime_error& e) {throw std::logic_error(std::string("tGPW_IBS::MakeRepMatrix: ")+e.what());}
+    }();
+    if constexpr (std::is_same_v<T,dcmplx>) return M;
+    else
+    {
+        rmat_t R(M.rows(), M.columns());
+        for (size_t i=0;i<M.rows();i++)
+            for (size_t j=0;j<M.columns();j++)
+            {
+                if (M(i,j).imag()!=0.0)
+                    throw std::logic_error("tGPW_IBS::MakeRepMatrix: a REAL block's op rep has an imaginary part");
+                R(i,j)=M(i,j).real();
+            }
+        return R;
+    }
+}
 
 template <class T> mat_t<dcmplx> tGPW_IBS<T>::OrbitalImage(const Symmetry::SymOp& g) const
 {

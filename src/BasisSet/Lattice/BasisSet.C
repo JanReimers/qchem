@@ -35,7 +35,7 @@ enum class Type { PW };
 //! \note Single-k for now: the returned basis holds ONE Bloch block at \f$\Gamma\f$.  Phase 2
 //!   generalises this to the full BZ k-list (intended to be the only k-loop in the framework).
 //! \param siteSpins a MAGNETIC decoration (+1/-1/0 per site) to IMPOSE as a Shubnikov group on the Γ block, by the
-//!   (D↑, D↓) pair projection (\c tBasisSet::ProjectSpinPair, OpenWork §2 PW-5); {} = a free run.  Γ-only.
+//!   (D↑, D↓) pair projection (\c Symmetry::ProjectSpinPair over the block's representation, OpenWork §2 PW-5); {} = a free run.  Γ-only.
 Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut, const std::vector<int>& siteSpins={});
 
 //! \brief Build a GPW basis (periodic Gaussians on the lattice) over \a lat from a molecular Gaussian basis
@@ -207,16 +207,8 @@ public:
     //! per-irrep loop then IS the BZ sum \f$\sum_k w_k\f$.
     //! \a siteSpins: a magnetic decoration to impose as a Shubnikov group (Γ only; {} = free) -- see \c Factory.
     PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut, const std::vector<int>& siteSpins={});
-    //! The Shubnikov pair projection on the Γ block (see tBasisSet), the plane-wave sibling of GPW_BasisSet's.  An
-    //! op \f$g=\{W|\tau,\sigma\}\f$ maps a plane wave onto ONE plane wave times a phase,
-    //! \f$\phi_m(g^{-1}r)=e^{-2\pi i\,m'\cdot\tau}\phi_{m'}(r)\f$ with \f$m'=W^{-\top}m\f$, so its rep is a phased
-    //! permutation of the G list (never a dense matrix).  Inert on a free run.
-    virtual void ProjectSpinPair(hmat_t<double>& Dup, hmat_t<double>& Ddn) const override;
-    virtual void ProjectSpinPair(hmat_t<dcmplx>& Dup, hmat_t<dcmplx>& Ddn) const override;
-private:
-    //! One op's rep: wave i goes to wave perm[i] with amplitude phase[i]; flip = the op swaps the spin channels.
-    struct PairRep { std::vector<size_t> perm; cvec_t phase; bool flip; };
-    std::vector<PairRep> itsPairReps;   //!< {} unless a magnetic imposition (built in the ctor: the G list is in hand there)
+    // The pair projection is \c Symmetry::ProjectSpinPair over the Γ block's \c MonomialRepresentation (V-BS-SYMMETRY S3); this set
+    // only records the imposition it built the block under (\c GetImposition).
 };
 
 //! A tBasisSet<dcmplx> holding ONE \f$\Gamma\f$ GPW block (periodic Gaussians), built from a molecular
@@ -226,25 +218,8 @@ class GPW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
 public:
     GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                  const GPWParams& p);
-    //! The crystal reciprocal point group as \f${U|\tau}\f$ ops -- exposed so the composite density star-averages
-    //! ρ̃ with the glide phase (IBZ).  Empty unless imposeSymmetry (the fold and the density symmetrization are one
-    //! package).  (This is the FULL point group with fractional translations, distinct from the linear-only ops
-    //! the ctor uses to fold the mesh; doc/GPWPlan1.md items 3 + 5.)
-    virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetReciprocalPointOps() const override {return itsReciprocalOps;}
-    //! The Shubnikov pair projection on the Γ block (see tBasisSet).  Active only on a MAGNETIC imposition
-    //! of a single Γ block: there every op maps the block onto itself and its AO rep is a signed shell
-    //! permutation (no Bloch phase).  A multi-k magnetic run keeps the partial (σ=None) projection.
-    virtual void ProjectSpinPair(hmat_t<double>& Dup, hmat_t<double>& Ddn) const override;
-    virtual void ProjectSpinPair(hmat_t<dcmplx>& Dup, hmat_t<dcmplx>& Ddn) const override;
-private:
-    template <class T> void ProjectPair(hmat_t<T>& Dup, hmat_t<T>& Ddn) const;
-    //! The Shubnikov ops' AO reps on the Γ block, built on first use (the shells come off the block).
-    const std::vector<std::pair<rmat_t,bool>>& PairReps() const;
-
-    std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsReciprocalOps;   //!< {} unless imposeSymmetry (doc/GPWPlan1.md items 3+5)
-    std::vector<Symmetry::Lattice_3D::SymOp>        itsPairOps;         //!< Shubnikov {W|τ,σ}; {} unless a magnetic Γ-only imposition
-    Matrix3D<double>                                itsCellA;           //!< direct cell matrix (lattice → Cartesian for the AO reps)
-    mutable std::vector<std::pair<rmat_t,bool>>     itsPairReps;        //!< (M_g, flips) per op, lazily built
+    // The density star ops and the Shubnikov pair group are the imposition's (\c GetImposition, V-BS-SYMMETRY S3); the pair
+    // projection is \c Symmetry::ProjectSpinPair over each block's \c DenseRepresentation.
 };
 
 } //namespace

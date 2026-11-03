@@ -354,6 +354,13 @@ template <class T> void tCompositeWF<T>::MoveOrbitals(OccupationPolicy<T>& pol, 
     FillOrbitals(pol,mergeTol);
 }
 
+// The composite density's star-average ops: the imposition's, when the basis was built under one ({} = trivial {E}).
+template <class T> std::vector<Symmetry::Lattice_3D::ReciprocalOp> DensityStarOps(const tbs_t<T>& bs)
+{
+    const auto* imp=bs.GetImposition();
+    return imp ? imp->DensityStarOps() : std::vector<Symmetry::Lattice_3D::ReciprocalOp>{};
+}
+
 // THE density (V1.37): ONE composite over every child, spin irrep by spin irrep.  IBZ point group
 // ctor-injected straight from the basis (empty {} for molecules / unfolded crystals = a trivial no-op).  The
 // basis does NOT own the crystal symmetry (the lattice detects it, ResolveImposition decides what is imposed); it
@@ -361,7 +368,7 @@ template <class T> void tCompositeWF<T>::MoveOrbitals(OccupationPolicy<T>& pol, 
 // density, typed by ITS scalar; the composite's typed Insert overloads (Step 2a) take either alternative --
 // this seam is already mixed-ready -- and the block's full Irrep is the label its channel views filter on.
 // The \a s channel's block densities into \a cd.  On a polarized run each block is first PAIR-projected with its
-// other-spin twin under the basis's magnetic group (tBasisSet::ProjectSpinPair; a no-op without one): a flip op
+// other-spin twin under the basis's imposition (Symmetry::ProjectSpinPair over the block's Representation; a no-op without a spin-pair group): a flip op
 // relates the two channels, so only here -- where both are in hand -- can the full Shubnikov group be imposed.
 // The twins are positional: both spin lists are built by one itsBS->Iterate, so block i of ↑ IS block i of ↓.
 template <class T> void InsertDensities(qchem::ChargeDensity::tComposite_CD<T>& cd, Spin s,
@@ -386,7 +393,7 @@ template <class T> void InsertDensities(qchem::ChargeDensity::tComposite_CD<T>& 
             const auto* oq = dynamic_cast<const TOrbitals<U>*>(q->GetOrbitals());
             assert(op && oq && op->GetBasisSet()==oq->GetBasisSet());
             hmat_t<U> D=op->GetDensityMatrix(), Dq=oq->GetDensityMatrix();
-            bs.ProjectSpinPair(D, Dq);
+            if (const auto* imp=bs.GetImposition()) Symmetry::ProjectSpinPair(*imp, *op->GetBasisSet(), D, Dq);
             cd.Insert(op->MakeChargeDensity(D), p->GetIrrep());
         }, i->second[b]);
 }
@@ -394,7 +401,7 @@ template <class T> void InsertDensities(qchem::ChargeDensity::tComposite_CD<T>& 
 template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::GetChargeDensity() const
 {
     using qchem::ChargeDensity::tComposite_CD;
-    auto cd = std::make_unique<tComposite_CD<T>>(itsBS->GetReciprocalPointOps());
+    auto cd = std::make_unique<tComposite_CD<T>>(DensityStarOps(*itsBS));
     for (Spin s:SpinIrreps(itsSpinGroup)) InsertDensities(*cd, s, itsSpinWFs, itsSpinGroup, *itsBS);
     return cd;
 }
@@ -409,7 +416,7 @@ template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::GetChargeDensity(
     if (i==itsSpinWFs.end())
         throw std::logic_error("tCompositeWF::GetChargeDensity(Spin): this wave function was built under the "
                                "other imposed spin subgroup and has no such spin irrep");
-    auto cd = std::make_unique<tComposite_CD<T>>(itsBS->GetReciprocalPointOps());
+    auto cd = std::make_unique<tComposite_CD<T>>(DensityStarOps(*itsBS));
     InsertDensities(*cd, s, itsSpinWFs, itsSpinGroup, *itsBS);
     return cd;
 }

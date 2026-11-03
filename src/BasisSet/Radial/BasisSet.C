@@ -221,6 +221,7 @@ public:
         , public virtual ::qchem::BasisSet::Orbital_ERI4_IBS<double>
         , public Orbital_RKB_HF_IBS_Imp<double>
         , public ::qchem::BasisSet::IrrepBasisSetImp<double>
+        , public Symmetry::IdentityRepresentation<double>   // radial κ block: identity under ops fixing the nucleus (S3)
     {
     public:
         EOrbital_RKB_IBS(size_t N, double remin, double remax, const sym_t& irrep)
@@ -229,6 +230,7 @@ public:
                     new EOrbital_RKBS_IBS(N,remin,remax,irrep)
                 )
         , IrrepBasisSetImp<double>(irrep)
+        , Symmetry::IdentityRepresentation<double>(Symmetry::Stabiliser::FixingPoint(rvec3_t(0,0,0)))
         {};
         EOrbital_RKB_IBS(const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
         : Orbital_RKB_HF_IBS_Imp(
@@ -236,6 +238,7 @@ public:
                     new EOrbital_RKBS_IBS(es,irrep,ltrim)
                 )
         , IrrepBasisSetImp<double>(irrep)
+        , Symmetry::IdentityRepresentation<double>(Symmetry::Stabiliser::FixingPoint(rvec3_t(0,0,0)))
         {};
 
         virtual size_t GetNumFunctions() const {return Orbital_RKB_IBS_Imp<double>::GetNumFunctions();}

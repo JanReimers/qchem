@@ -74,7 +74,13 @@ template <class T> class tGPW_IBS
     , public virtual BasisSet::BareCoulombSource    // the molecular block's bare (m1m2|m3m4): central cell only (ACBN0, 2026-09-21)
     , public virtual BasisSet::AtomCentredOverlapSource<T>   // <chi_i^k|an atom-centred function> (+U projectors, HubbardProjectorPlan D2)
     , public virtual BasisSet::Transition_DFT_IBS   // the (k+q, k) transition density, this block the ket (LinearResponsePlan B2)
+    , public Symmetry::DenseRepresentation<T>       // M_g on this block (S3): the Bloch op rep, for g in the little group of k
 {
+protected:
+    //! \f$M_g\f$ = \c OrbitalImage(g) -- the shell permutation × angular rep × Bloch phase -- when \a g maps k onto itself
+    //! (mod a reciprocal lattice vector); THROWS otherwise (g carries this block into the block at gk: no single-block rep).
+    //! A real TRIM block takes the real part, which is EXACT there (THROWS if it is not).
+    virtual mat_t<T> MakeRepMatrix(const Symmetry::SymOp& g) const override;
 public:
     //! \name THE TRANSITION PAIR (doc/LinearResponsePlan.md §3d B2): this block is the KET, \a bra any block over the
     //! same molecular AOs (checked: THROWS otherwise, finding 6).  The fit basis's own grid sets the ladder, as for

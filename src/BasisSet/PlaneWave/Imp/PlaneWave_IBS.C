@@ -14,6 +14,8 @@ module;
 #include <functional>
 #include <iostream>
 #include <map>
+#include <numbers>
+#include <tuple>
 #include <string>
 #include <vector>
 
@@ -33,6 +35,32 @@ import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
 namespace qchem::BasisSet::PlaneWave
 {
+
+// The G re-indexing moved here from the PW_BasisSet ctor (V-BS-SYMMETRY S3): the block owns its G list, so it builds its rep.
+PlaneWave_IBS::Monomial PlaneWave_IBS::MakeMonomial(const Symmetry::SymOp& g) const
+{
+    const rvec3_t k=Symmetry::Lattice_3D::Getk(GetSymmetry());
+    if (k.x!=0.0 || k.y!=0.0 || k.z!=0.0)
+        throw std::logic_error("PlaneWave_IBS::MakeMonomial: the plane-wave op rep is built at Γ only");
+    const std::vector<ivec3_t>& G=Gs();
+    std::map<std::tuple<int,int,int>,size_t> index;
+    for (size_t i=0;i<G.size();i++) index[{G[i].x,G[i].y,G[i].z}]=i;
+    const Matrix3D<double> WinvT=Transpose(Invert(g.W));
+    Monomial rep{std::vector<size_t>(G.size()), cvec_t(G.size())};
+    for (size_t i=0;i<G.size();i++)
+    {
+        const rvec3_t m=WinvT*rvec3_t(G[i].x,G[i].y,G[i].z);
+        const ivec3_t mi(std::lround(m.x),std::lround(m.y),std::lround(m.z));
+        if (std::fabs(m.x-mi.x)+std::fabs(m.y-mi.y)+std::fabs(m.z-mi.z)>=1e-8)
+            throw std::logic_error("PlaneWave_IBS::MakeMonomial: W is not a lattice operation");
+        auto it=index.find({mi.x,mi.y,mi.z});
+        if (it==index.end()) throw std::logic_error("PlaneWave_IBS::MakeMonomial: the op maps a plane wave out of the cutoff ball -- it is not a symmetry of the lattice");
+        rep.perm[i]=it->second;
+        rep.phase[i]=std::exp(dcmplx(0.0,-2.0*std::numbers::pi*(mi.x*g.tau.x+mi.y*g.tau.y+mi.z*g.tau.z)));
+    }
+    return rep;
+}
+
 
 PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const sym_t& irrep, double Ecut)
     : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)

@@ -124,6 +124,7 @@ class SphericalView_IBS
     , public virtual Gaussian::Periodic_Gaussian_IBS   // all four faces (ISP split 2026-09-08): this view FORWARDS every one
     , public virtual Gaussian::TransitionCollocation   // forwarded through T like the ground-state pair (LinearResponsePlan B1)
     , public virtual BasisSet::BareCoulombSource       // the inner block's bare (ab|cd) through T (ACBN0, 2026-09-21)
+    , public         Symmetry::IdentityRepresentation<double>   // identity at E only: no imposed spherical-view run (S3)
 {
 public:
     SphericalView_IBS(std::shared_ptr<const Real_BS> holder, const Gaussian::Orbital_1E_IBS* obs,

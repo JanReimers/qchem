@@ -60,9 +60,12 @@ template <isOpr_Evaluator E> class IrrepBasisSetImp
     , public virtual RadialAngularID   // atom identity: RadialID/AngularID compose BasisSetID
     , public virtual BasisSet::ImplicitAngular_IBS  // the Y_lm is carried by the IRREP, not the function
     , public BasisSet::IrrepBasisSetImp<double> //Pulls in Symmetry support
+    , public Symmetry::IdentityRepresentation<double>   // an l block stores the RADIAL factor: identity under every op fixing
+                                                         // the nucleus (D^l acts on the implicit m partners) -- V-BS-SYMMETRY S3
 {
 public:
-    IrrepBasisSetImp(const sym_t& yl) : BasisSet::IrrepBasisSetImp<double>(yl) {}
+    IrrepBasisSetImp(const sym_t& yl) : BasisSet::IrrepBasisSetImp<double>(yl)
+        , Symmetry::IdentityRepresentation<double>(Symmetry::Stabiliser::FixingPoint(rvec3_t(0,0,0))) {}
 
     virtual size_t GetNumFunctions() const override {return Cast().size();}
     // using statements in the final class don't seem to work, so we need to function forward.

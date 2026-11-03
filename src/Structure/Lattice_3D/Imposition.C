@@ -10,6 +10,7 @@ module;
 export module qchem.Lattice_3D.Imposition;
 export import qchem.Lattice_3D;
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // SymmetryPolicy, ReciprocalOp, DirectOp, SymOp
+export import qchem.Symmetry.Imposition;              // SymmetryImposition: the face its consumers ask (S3)
 import qchem.Types;
 
 export namespace qchem
@@ -37,9 +38,16 @@ struct ImpositionOptions
 //!  - \c magneticDirect {W|τ,σ}: the Shubnikov group on a magnetic imposition ({} otherwise).  The two density faces are then
 //!    its σ=None subgroup only (a sublattice swap is not a symmetry of ONE channel); σ is consumed by the spin-pair machinery.
 //!  - \c meshInvariance: FREE run only, the detected spatial group the XC mesh is built invariant under (no density average).
+//!  - \c spinPairOps: the Shubnikov group again, but only where every op maps every orbital block onto ITSELF -- a magnetic
+//!    imposition of a single Γ block with no k shift -- so the (D↑, D↓) pair projection is defined; {} otherwise.
 //! For a SYMMORPHIC crystal every τ=0 and the density faces collapse to the W-only ops.
-struct CrystalImposition
+//! It REALIZES \c Symmetry::SymmetryImposition, the face the composite density and wave function ask (V-BS-SYMMETRY S3).
+class CrystalImposition : public virtual Symmetry::SymmetryImposition
 {
+public:
+    const std::vector<Symmetry::SymOp>&               SpinPairOps   () const override {return spinPairOps;}
+    const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& DensityStarOps() const override {return recipDensity;}
+
     ImpositionOptions                                    options;        //!< what this was resolved from (a consumer handed both checks they agree)
     Symmetry::Lattice_3D::SymmetryPolicy                 policy;         //!< the ONE run-level imposition decision (§3)
     std::vector<Matrix3D<double>>                        recipFold;      //!< linear reciprocal ops (+TR) for the k-fold ({} unless imposed, grey)
@@ -47,6 +55,7 @@ struct CrystalImposition
     std::vector<Symmetry::Lattice_3D::DirectOp>          directDensity;  //!< {W|τ} for the real-space raster star-average ({} unless imposed)
     std::vector<Symmetry::Lattice_3D::SymOp>             magneticDirect; //!< the Shubnikov group of a magnetic imposition ({} = grey or free)
     std::vector<Symmetry::Lattice_3D::SymOp>             meshInvariance; //!< free run: the XC mesh's invariance group ({} when imposing)
+    std::vector<Symmetry::SymOp>                         spinPairOps;    //!< magneticDirect on a single unshifted Γ block, else {}
 };
 
 //! \brief THE ONE PLACE a crystal run decides what it imposes (doc/SymmetryUpgradePlan.md §3).  Detection always runs (it is

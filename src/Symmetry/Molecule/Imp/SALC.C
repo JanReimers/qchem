@@ -26,6 +26,7 @@ SALCs BuildSALCs(const std::vector<AoShell>& shells, const AbelianGroup& g,
     out.O = rmat_t(nAO, nAO, 0.0);
     out.irrep.resize(nAO);
     out.blockStart.push_back(0);
+    for (const auto& op : g.ops) out.ops.push_back({op.Matrix(), origin-op.Matrix()*origin});
 
     size_t col = 0;
     for (size_t r=0; r<g.table.nIrreps(); ++r)

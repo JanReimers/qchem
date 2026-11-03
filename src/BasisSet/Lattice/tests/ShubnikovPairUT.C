@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice/tests/ShubnikovPairUT.C  The Shubnikov PAIR projection on the Γ block (tBasisSet::ProjectSpinPair).
+// File: BasisSet/Lattice/tests/ShubnikovPairUT.C  The Shubnikov PAIR projection on the Γ block (Symmetry::ProjectSpinPair over the block's Representation, V-BS-SYMMETRY S3).
 //
 // Why it exists: a spin-flip op relates D↑ to D↓, so no per-channel star-average can impose it.  Until 2026-10-29 the
 // flip content was projected only inside the XC engine, and on β-MnO₂ a soft ferrimagnetic mode grew from a 4e-9 seed
@@ -77,6 +77,12 @@ double Rho(const BasisSet::Orbital_1E_IBS<dcmplx>& b, const chmat_t& D, const rv
     return std::real(s);
 }
 
+//! The production route (CompositeWF::InsertDensities): the basis's imposition, projected over its Γ block's representation.
+void Project(const BasisSet::Complex_BS& bs, chmat_t& Du, chmat_t& Dd)
+{
+    if (const auto* imp=bs.GetImposition()) Symmetry::ProjectSpinPair(*imp, Fixture::BlockOf(bs), Du, Dd);
+}
+
 double MaxAbs(const chmat_t& A) { double m=0; for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.columns();j++) m=std::max(m,std::abs(A(i,j))); return m; }
 
 const std::vector<rvec3_t> kPoints={ {0.31,1.17,-0.42}, {2.2,0.4,1.9}, {-1.3,2.6,0.8}, {0.9,-0.7,2.4} };
@@ -94,7 +100,7 @@ TEST(ShubnikovPair, TheProjectedPairObeysTheFlipAndTheRotationInRealSpace)
     double raw=0; for (const auto& r : kPoints) raw=std::max(raw, std::abs(Rho(b,Du,r)-Rho(b,Dd,r+half)));
     ASSERT_GT(raw, 1e-2) << "a random pair already obeys the flip -- the fixture tests nothing";
 
-    f.bs->ProjectSpinPair(Du, Dd);
+    Project(*f.bs, Du, Dd);
     for (const auto& r : kPoints)
     {
         // FLIP: the body-diagonal translation carries the ↑ site onto the ↓ one, so ρ↑(r) = ρ↓(r + a(½,½,½)).
@@ -115,10 +121,10 @@ TEST(ShubnikovPair, ItIsAProjectorThatConservesCharge)
     auto N=[&](const chmat_t& D){ dcmplx t=0; for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) t+=D(i,j)*S(j,i); return std::real(t); };
     const double N0=N(Du)+N(Dd);
 
-    f.bs->ProjectSpinPair(Du, Dd);
+    Project(*f.bs, Du, Dd);
     EXPECT_NEAR(N(Du)+N(Dd), N0, 1e-10*std::abs(N0)) << "the average over symmetry ops cannot move the total charge";
     const chmat_t Pu=Du, Pd=Dd;
-    f.bs->ProjectSpinPair(Du, Dd);
+    Project(*f.bs, Du, Dd);
     EXPECT_LT(MaxAbs(Du-Pu), 1e-12) << "projecting twice must change nothing";
     EXPECT_LT(MaxAbs(Dd-Pd), 1e-12);
 }
@@ -132,7 +138,7 @@ TEST(ShubnikovPair, AFreeRunIsLeftAlone)
     const size_t n=f.Block().GetNumFunctions();
     chmat_t Du=RandomHermitian(n,5), Dd=RandomHermitian(n,6);
     const chmat_t Pu=Du, Pd=Dd;
-    bs->ProjectSpinPair(Du, Dd);
+    Project(*bs, Du, Dd);
     EXPECT_EQ(MaxAbs(Du-Pu), 0.0);
     EXPECT_EQ(MaxAbs(Dd-Pd), 0.0);
 }
@@ -158,7 +164,7 @@ TEST(ShubnikovPair, PlaneWaveTheProjectedPairObeysTheFlipAndTheRotationInRealSpa
     double raw=0; for (const auto& r : kPoints) raw=std::max(raw, std::abs(Rho(b,Du,r)-Rho(b,Dd,r+half)));
     ASSERT_GT(raw, 1e-2) << "a random pair already obeys the flip -- the fixture tests nothing";
 
-    bs->ProjectSpinPair(Du, Dd);
+    Project(*bs, Du, Dd);
     for (const auto& r : kPoints)
     {
         EXPECT_NEAR(Rho(b,Du,r), Rho(b,Dd,r+half), 1e-10);   // the τ = (½,½,½) flip: the phase e^{-2πi m'·τ} is exercised
@@ -175,17 +181,46 @@ TEST(ShubnikovPair, PlaneWaveItIsAProjectorThatConservesChargeAndAFreeRunIsLeftA
     chmat_t Du=RandomHermitian(n,9), Dd=RandomHermitian(n,10);
     auto N=[&](const chmat_t& D){ double t=0; for (size_t i=0;i<n;i++) t+=std::real(D(i,i)); return t; };   // S = 1
     const double N0=N(Du)+N(Dd);
-    bs->ProjectSpinPair(Du, Dd);
+    Project(*bs, Du, Dd);
     EXPECT_NEAR(N(Du)+N(Dd), N0, 1e-10*std::abs(N0));
     const chmat_t Pu=Du, Pd=Dd;
-    bs->ProjectSpinPair(Du, Dd);
+    Project(*bs, Du, Dd);
     EXPECT_LT(MaxAbs(Du-Pu), 1e-12) << "projecting twice must change nothing";
     EXPECT_LT(MaxAbs(Dd-Pd), 1e-12);
 
     auto free=PWBasis(f, {});
     chmat_t Fu=RandomHermitian(n,11), Fd=RandomHermitian(n,12);
     const chmat_t Qu=Fu, Qd=Fd;
-    free->ProjectSpinPair(Fu, Fd);
+    Project(*free, Fu, Fd);
     EXPECT_EQ(MaxAbs(Fu-Qu), 0.0);
     EXPECT_EQ(MaxAbs(Fd-Qd), 0.0);
+}
+
+// ---- Every block IS a Representation (V-BS-SYMMETRY S3): the GPW Γ block's Dense rep and the PW Γ block's Monomial rep, end to
+// end over the imposition's spin-pair group -- unitary in the overlap metric (M† S M = S, S ≠ 1 for GPW) and adjoint under the
+// trace pairing; an op outside the block's little group is refused. ----
+TEST(ShubnikovPair, EveryLatticeBlockIsARepresentationAdjointUnderTheTracePairing)
+{
+    Fixture f;
+    auto pw=PWBasis(f, {1,-1});
+    for (const BasisSet::Complex_BS* bs : {f.bs.get(), pw.get()})
+    {
+        const auto* imp=bs->GetImposition();
+        ASSERT_NE(imp, nullptr);
+        ASSERT_FALSE(imp->SpinPairOps().empty()) << "a magnetic Γ imposition projects the pair";
+        const auto& b=Fixture::BlockOf(*bs);
+        const Symmetry::Representation<dcmplx>& rep=b;   // no cast: the face IS a representation
+        const chmat_t S=b.Overlap();
+        const size_t n=S.rows();
+        const chmat_t X=RandomHermitian(n,21), O=RandomHermitian(n,22);
+        auto Tr=[](const mat_t<dcmplx>& A){ dcmplx t=0; for (size_t i=0;i<A.rows();i++) t+=A(i,i); return t; };
+        for (const auto& g : imp->SpinPairOps())
+        {
+            EXPECT_LT(MaxAbs(chmat_t(blazem::declherm(0.5*(rep.Image(g,S)+blazem::ctrans(rep.Image(g,S)))))-S), 1e-10) << "M† S M = S";
+            const dcmplx lhs=Tr(rep.AdjointImage(g,X)*mat_t<dcmplx>(O)), rhs=Tr(mat_t<dcmplx>(X)*rep.Image(g,O));
+            EXPECT_LT(std::abs(lhs-rhs), 1e-10*std::max(1.0,std::abs(lhs)));
+        }
+        EXPECT_THROW((void)rep.Image(Symmetry::SymOp{Matrix3D<double>(1,1,0, 0,1,0, 0,0,1), rvec3_t(0,0,0)}, O), std::logic_error)
+            << "a shear is no symmetry of the cell (GPW: a shell with no image; PW: a wave out of the ball)";
+    }
 }

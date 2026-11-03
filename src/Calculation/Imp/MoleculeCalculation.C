@@ -172,7 +172,8 @@ void MoleculeCalculation::BuildGraph()
             // THE CARRY (a MoleculeSession step): the previous point's D, block for block, onto THIS point's basis -- a
             // WorkingDensity of the moved Hamiltonian, consumed here once.
             using namespace qchem::ChargeDensity;
-            auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetReciprocalPointOps());
+            auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetImposition() ? itsBasis->GetImposition()->DensityStarOps()
+                                                                                   : std::vector<Symmetry::Lattice_3D::ReciprocalOp>{});
             size_t b=0;
             for (Spin s : SpinIrreps(opts.spin))
                 for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())

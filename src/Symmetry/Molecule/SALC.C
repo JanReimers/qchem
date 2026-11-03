@@ -16,6 +16,7 @@ module;
 export module qchem.Symmetry.Molecule.SALC;
 export import qchem.Symmetry.Molecule.AbelianGroup;   // AbelianGroup (SymOp, CharacterTable)
 export import qchem.Symmetry.Molecule.OperationRep;   // AoShell, BuildOperationRep, rmat_t (depends only on ShellRep)
+import qchem.Symmetry.SymOp;                          // SALCs::ops (the group as Cartesian {R|o-Ro}; not re-exported -- Molecule::SymOp clashes)
 
 export namespace qchem::Symmetry::Molecule
 {
@@ -26,6 +27,9 @@ struct SALCs
     rmat_t                   O;          //!< \f$n_{AO}\times n_{AO}\f$; columns = SALCs grouped by irrep
     std::vector<std::string> irrep;      //!< Mulliken irrep label of each column (size \f$n_{AO}\f$)
     std::vector<size_t>      blockStart; //!< first column of each irrep block (size \f$n_{irreps}+1\f$)
+    //! The group the SALCs are adapted under, as Cartesian \f$\{R|o-Ro\}\f$ ops about the build origin: the STABILISER of
+    //! every SALC block (V-BS-SYMMETRY S3 -- a 1-D irrep block's bilinear images are identities under exactly these).
+    std::vector<::qchem::Symmetry::SymOp> ops;
 };
 
 //! \brief Build the SALC transform \f$O\f$ for an AO basis (described by \a shells) under the abelian

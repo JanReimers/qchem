@@ -18,6 +18,8 @@
 // `qchem.BasisSet.GMap` imports from `qcChargeDensity` and `qcFitting`, which are unrelated
 // libraries; filed as V1.20b.)
 module;
+#include <memory>
+#include <vector>
 #include <string>
 #include <iosfwd>
 #include <map>
@@ -45,12 +47,16 @@ class SymmetryAdapted_IBS
     , public virtual WholeSystemFock_IBS<double>  // ...and it builds the AO Fock ONCE, then slices (V1.31)
     , public virtual Orbital_DFT_IBS<double> // DFT 3-centre fitted Coulomb / Vxc
     , public IrrepBasisSetImp<double>        // provides GetSymmetry / GetSymt / GetIrrep
+    , public Symmetry::IdentityRepresentation<double>   // a 1-D irrep block: M_g = χ(g)·1, |χ|² = 1, so its bilinear images are
+                                                         // identities -- for the ops of the group it was adapted under (S3)
 {
 public:
     // raw: the whole-molecule AO basis (not owned).  Oblock: this irrep's SALC columns
     // (nAO x dGamma).  label: Mulliken irrep label (used for the cache key + display).
+    // group: the ops the SALCs were adapted under (SALCs::ops), SHARED by every block of the basis; {} = {E}.
     SymmetryAdapted_IBS(const Orbital_1E_IBS<double>* raw, const rmat_t& Oblock,
-                        const std::string& label, const sym_t& sym);
+                        const std::string& label, const sym_t& sym,
+                        std::shared_ptr<const std::vector<Symmetry::SymOp>> group={});
 
     virtual size_t GetNumFunctions() const {return itsO.columns();}
     const rmat_t&  GetO() const {return itsO;}        // this irrep's SALC columns

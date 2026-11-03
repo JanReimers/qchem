@@ -26,6 +26,8 @@ import qchem.BasisSet.Gaussian.Evaluators;      // concepts + generic 1E matrix 
 export import qchem.BasisSet.AoShellSource;              // the GetAoShells face (+ Symmetry::Molecule::AoShell)
 export import qchem.BasisSet.BareCoulombSource;          // the BareCoulomb face (+ ERI4Block) -- ACBN0 (+U increment 3)
 import qchem.Structure;
+import qchem.Symmetry.Representation;               // DenseRepresentation (AoShellRepresentation, S3)
+import qchem.Symmetry.Molecule.OperationRep;         // BuildOperationRep (the Cartesian SymOp overload)
 import qchem.Types;
 import qchem.Blaze;
 
@@ -46,6 +48,21 @@ class Orbital_1E_IBS
 {
 };
 
+//! \brief A molecular Gaussian AO block's REPRESENTATION (V-BS-SYMMETRY S3): \f$M_g\f$ is the shell permutation times each
+//! shell's angular rep, built from the block's own shells (\c GetAoShells) for an op \f$\{W|\tau\}\f$ in the Cartesian frame
+//! -- the molecular twin of a GPW block at Γ.  Dense (n_AO is small); built per op on first use and cached by the base.
+//! THROWS for an op that maps a shell onto no shell (not a symmetry of the molecule's basis).
+class AoShellRepresentation
+    : public virtual Symmetry::DenseRepresentation<double>
+    , public virtual ::qchem::BasisSet::AoShellSource
+{
+protected:
+    virtual rmat_t MakeRepMatrix(const Symmetry::SymOp& g) const override
+    {
+        return Symmetry::Molecule::BuildOperationRep(GetAoShells(), g, 1e-6);
+    }
+};
+
 // --- 1E: Overlap / Kinetic(<p^2>) / Nuclear -------------------------------------------------------
 // Two evaluator granularities, one mixin: if E delivers whole matrices (isM_1E_Evaluator -- an opaque
 // assembler / block library), FORWARD; otherwise (is1E_Evaluator -- cheap per-element kernels) run the i,j
@@ -55,6 +72,7 @@ class Orbital_1E_IBS
 template <class E> requires (Evaluators::is1E_Evaluator<E> || Evaluators::isM_1E_Evaluator<E>)
 class EOrbital_1E_IBS
     : public virtual Orbital_1E_IBS         // the molecule 1E interface (IS-A Real_OIBS + GetAoShells)
+    , public virtual AoShellRepresentation  // every molecular Gaussian AO block states its representation (S3)
 {
 protected:
     virtual rsmat_t MakeOverlap() const

@@ -10,6 +10,7 @@ module;
 #include <vector>
 #include <memory>
 export module qchem.Symmetry.Molecule.OperationRep;
+import qchem.Symmetry.SymOp;                       // SymOp {W|tau} (the Cartesian-frame overload; NOT re-exported: Molecule::SymOp clashes)
 export import qchem.Symmetry.Molecule.ShellRep;   // ShellRep (the angular rep abstraction), rmat_t / rmat3d_t / rvec_t
 
 export namespace qchem::Symmetry::Molecule
@@ -45,5 +46,9 @@ struct AoShell
 // M(R1) M(R2) = M(R1 R2).
 rmat_t BuildOperationRep(const std::vector<AoShell>& shells, const rmat3d_t& R,
                          const rvec3_t& origin, double tol);
+//! The same rep for an op given as \f$\{W|\tau\}\f$ in the CARTESIAN frame (\f$r\to Wr+\tau\f$, the molecular case of
+//! \c Symmetry::SymOp: A = 1).  THROWS (std::logic_error) when a shell has no image -- \a g is not a symmetry of the basis --
+//! because a caller can hand any op (the Representation face, V-BS-SYMMETRY S3).  σ is ignored (a spatial rep).
+rmat_t BuildOperationRep(const std::vector<AoShell>& shells, const ::qchem::Symmetry::SymOp& g, double tol);
 
 } //namespace

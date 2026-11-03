@@ -29,6 +29,8 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     # --- root: shared sym_t spine ---
     Spin.C
     SymOp.C
+    Representation.C   # Representation<T>: Image / AdjointImage, Identity / Dense / Monomial (V-BS-SYMMETRY S3)
+    Imposition.C       # SymmetryImposition + ProjectSpinPair (V-BS-SYMMETRY S3)
     Symmetry.C
     SelectionRule.C
     Irrep.C

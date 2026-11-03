@@ -46,7 +46,13 @@ class PlaneWave_IBS
     , public virtual AtomCentredOverlapSource<dcmplx>    // <k+G | an atom-centred function> (+U pseudo-atomic projectors)
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
     , public         PW_Evaluator                     // the shared grid engine (Cast() target for the mixins)
+    , public         Symmetry::MonomialRepresentation // M_g = a phased permutation of the G list (S3; never a dense matrix)
 {
+protected:
+    //! An op \f$g=\{W|\tau\}\f$ maps a plane wave onto ONE plane wave times a phase,
+    //! \f$\phi_m(g^{-1}r)=e^{-2\pi i\,m'\cdot\tau}\phi_{m'}(r)\f$ with \f$m'=W^{-\top}m\f$.  Built at Γ only (the little-group
+    //! bookkeeping at k≠Γ is not needed yet): THROWS at another k, or if \a g maps a wave out of the cutoff ball.
+    virtual Monomial MakeMonomial(const Symmetry::SymOp& g) const override;
 public:
     // (The old MakeOverlap overload-set merge is gone with the field bridge -- V1.1(iii): only the no-arg
     //  <i|j> build exists now, and the 1E mixin's override dominates the shared virtual base's.)

@@ -53,6 +53,9 @@ CrystalImposition ResolveImposition(const Lattice_3D& lat, const ImpositionOptio
                 ops.directDensity.push_back({op.W, op.tau});
                 ops.recipDensity .push_back({Transpose(op.W), op.tau});   // the G-index scatter U = W^T
             }
+        // The PAIR projection needs every op to map the one block onto itself with no Bloch phase: a single unshifted Γ block.
+        // A multi-k magnetic run keeps the partial (σ=None) projection the density faces carry.
+        if (lat.GetLimits()==ivec3_t(1,1,1) && o.kShift==rvec3_t(0,0,0)) ops.spinPairOps=ops.magneticDirect;
         // k-fold: Γ-only for now -- the magnetic little-group bookkeeping at k≠Γ is the T3.4b-adjacent increment.  Leaving
         // recipFold empty means a multi-k imposed magnetic run keeps its FULL mesh (folding is merely absent, never wrong).
         return ops;

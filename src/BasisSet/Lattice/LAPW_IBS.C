@@ -36,6 +36,7 @@ export namespace qchem::BasisSet::Lattice
 class LAPW_IBS
     : public virtual BasisSet::Orbital_1E_IBS<dcmplx>
     , public         BasisSet::IrrepBasisSetImp<dcmplx>
+    , public         Symmetry::IdentityRepresentation<dcmplx>   // identity at E only: no imposition client (S3)
 {
 public:
     //! \param Ecut interstitial plane-wave cutoff; \param Rmt muffin-tin radius; \param lmax angular

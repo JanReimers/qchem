@@ -2,6 +2,7 @@
 
 add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
    M_PGSymmetry.C
+   M_SALCRepresentation.C   # a molecular SALC block end to end: Identity exact against the raw block's Dense rep (V-BS-SYMMETRY S3)
    M_PG_BoxWalk.C
    M_TransitionCollocation.C   # the (k+q, k) transition collocation + adjoint (LinearResponsePlan B1, R3 step 2)
    M_LatticeScreener.C
