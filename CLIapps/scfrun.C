@@ -15,7 +15,7 @@
 #include <nlohmann/json.hpp>
 
 import qchem.AtomCalculation;             // AtomCalculation, AtomCalcOptions, AtomType, BasisSetAccuracy, Model, SpinGroup
-import qchem.Calculation;                 // Calculation, CalcOptions, AcceleratorOptions (the MOLECULAR facade)
+import qchem.MoleculeCalculation;                 // MoleculeCalculation, CalcOptions, AcceleratorOptions (the MOLECULAR facade)
 import qchem.Structure;                    // Molecule, Atom (build a molecular geometry)
 import qchem.Hamiltonian.Factory;         // XCFunctional (the exchange-functional selector)
 import qchem.PeriodicTable;               // thePeriodicTable(): symbol / per-Z Slater alpha; RelativeHF/DHFError (Z-keyed oracle)
@@ -261,7 +261,7 @@ int main(int argc, char** argv)
         else { cout<<"unknown option "<<argv[i]<<endl; usage(cout); return 1; }
     }
     // Dogfood the reporting framework: render each run's report sections (today: the scf
-    // recipe header, emitted by the Calculation facade) to the terminal as they complete.
+    // recipe header, emitted by the MoleculeCalculation facade) to the terminal as they complete.
     qchem::report::SetConsole(cout, qchem::report::Detail::Normal);
 
     bool dirac = (model=="DHF" || model=="DE1");
@@ -311,9 +311,9 @@ int main(int argc, char** argv)
         Molecule mol = MakeMolecule(molname);
         // scfrun is the DRIVER, so it opens the report runs (a facade never does, user ruling D 2026-11-02): one for the ctor's
         // default-recipe SCF, one for the requested re-converge -- the two runs the facade used to open itself.
-        std::unique_ptr<Calculation> mcalcp;
-        { qchem::report::Run run(mol.ID()); mcalcp=std::make_unique<Calculation>(MoleculeSetup::Resolve(mol, copts, aopts)); }
-        Calculation& mcalc=*mcalcp;
+        std::unique_ptr<MoleculeCalculation> mcalcp;
+        { qchem::report::Run run(mol.ID()); mcalcp=std::make_unique<MoleculeCalculation>(MoleculeSetup::Resolve(mol, copts, aopts)); }
+        MoleculeCalculation& mcalc=*mcalcp;
         { qchem::report::Run run(mol.ID()); (void)mcalc.Converge(makePar(minro<0?1e-4:minro, minfd<0?1e-5:minfd)); }   // the RESULT line reports converged yes/no
         cout << "RESULT  E="<<std::setprecision(10)<<mcalc.Energy()
              << "  iters="<<mcalc.IterationCount()

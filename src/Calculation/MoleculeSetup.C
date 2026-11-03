@@ -3,8 +3,8 @@
 // qchem::MoleculeSetup -- THE RUN SETUP of a molecular calculation (doc/CalcNetworkReview.md §2 and §7, step 7), the twin of
 // qchem::SolidSetup: the options as asked, and every decision RESOLVED from them ONCE -- the pseudopotential set (or
 // all-electron), the spin group (an open shell promoted to polarized), the electron counts, the seed, the accelerator.  An
-// immutable value, shared: a geometry point (a Calculation) is built FROM it and changes none of it.  CalcOptions lives here
-// because the setup is what reads it; qchem.Calculation re-exports it.
+// immutable value, shared: a geometry point (a MoleculeCalculation) is built FROM it and changes none of it.  CalcOptions lives here
+// because the setup is what reads it; qchem.MoleculeCalculation re-exports it.
 module;
 #include <memory>
 #include <nlohmann/json_fwd.hpp>   // ToAcceleratorJson's return type (defined in the Imp unit)
@@ -33,7 +33,7 @@ enum class Engine  { MnD, LibCint };
 enum class Angular { Cartesian, Spherical };
 
 //! How to set up the calculation.  Designated-initializer friendly:
-//!     Calculation calc(MoleculeSetup::Resolve(water, {.basis="dzvp"}));
+//!     MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.basis="dzvp"}));
 //! `model` selects the Hamiltonian; pass 1 wires the non-DFT factory path (HF is the default).
 struct CalcOptions
 {
@@ -95,7 +95,7 @@ struct CalcOptions
 //! The molecular accelerator chain's knobs (DIIS, GDM, the Ladder's hand-off; 2026-11-02: the GDM/Ladder ones were unreachable from
 //! the facade).  These were stringly-typed json keys grepped out of tests; here they are documented fields with defaults.
 //! eMax<=0 means "auto" -- the Z-scaled heuristic the molecular recipe has always used.  \c ToAcceleratorJson is the one
-//! translation to the factory's json door, shared by \c Calculation and \c AtomCalculation.
+//! translation to the factory's json door, shared by \c MoleculeCalculation and \c AtomCalculation.
 struct AcceleratorOptions
 {
     int    nProj = 4;
@@ -128,7 +128,7 @@ nlohmann::json ToAcceleratorJson(const AcceleratorOptions& acc, double eMax);
 //!
 //! Only geometry-INDEPENDENT decisions live here (doc/CalcNetworkReview.md §2): the pseudopotential set, the spin group, the
 //! electron counts, the seed, the accelerator and its EMax gate.  The basis, the Hamiltonian and the electron configuration
-//! belong to a geometry point and are built from this by \c Calculation.  Built only by \c Resolve, held as
+//! belong to a geometry point and are built from this by \c MoleculeCalculation.  Built only by \c Resolve, held as
 //! \c shared_ptr<const MoleculeSetup>.
 struct MoleculeSetup
 {

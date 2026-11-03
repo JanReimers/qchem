@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
-import qchem.Calculation;
+import qchem.MoleculeCalculation;
 import qchem.Structure;
 import qchem.Types;
 
@@ -45,7 +45,7 @@ TEST(MoleculeSetup, AnUnknownAcceleratorIsRefusedAtResolve)
 }
 
 // EVERY KNOB OF THE MOLECULAR CHAIN REACHES THE FACTORY'S DOOR (2026-11-02): the GDM trust radius and the Ladder's hand-off triggers were
-// unreachable -- Calculation passed only {NProj, EMax, EMin, SVTol}.  ToAcceleratorJson is the one translation both facades use; its
+// unreachable -- MoleculeCalculation passed only {NProj, EMax, EMin, SVTol}.  ToAcceleratorJson is the one translation both facades use; its
 // defaults are the door's own, so a molecule that sets none of them runs what it ran.
 TEST(MoleculeSetup, EveryAcceleratorKnobReachesTheFactoryDoor)
 {

@@ -1,4 +1,4 @@
-// File: Calculation/Imp/Calculation.C  Implementation of the qchem::Calculation facade.
+// File: Calculation/Imp/MoleculeCalculation.C  Implementation of the qchem::MoleculeCalculation facade.
 module;
 #include <iostream>
 #include <limits>
@@ -11,7 +11,7 @@ module;
 #include <cassert>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
-module qchem.Calculation;
+module qchem.MoleculeCalculation;
 
 import qchem.BasisSet.Gaussian.Point.Factory;             // BasisSet::Gaussian::Factory
 import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
@@ -54,7 +54,7 @@ static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_
     // PGData with spherical components, which the Cartesian extractor would silently misread, so reject that
     // one combination clearly here rather than let SymmetryAdapt take the wrong path.
     if (opts.symmetry && spherical && opts.engine == Engine::LibCint)
-        throw std::runtime_error("qchem::Calculation: {.symmetry=true} with angular=Spherical requires "
+        throw std::runtime_error("qchem::MoleculeCalculation: {.symmetry=true} with angular=Spherical requires "
                                  "engine=MnD (libcint-spherical SALC is not yet supported)");
 
     const char* engine  = (opts.engine  == Engine::LibCint) ? "libcint" : "mnd";
@@ -75,27 +75,27 @@ static Molecule_EC* MakeMoleculeEC(int Ne, int multiplicity)
     return new Molecule_EC((Ne + twoS) / 2, (Ne - twoS) / 2);   // (nUp, nDown)
 }
 
-Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
-    : Calculation(setup, *setup->reference, nullptr, scf, std::move(onIteration))
+MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
+    : MoleculeCalculation(setup, *setup->reference, nullptr, scf, std::move(onIteration))
 {}
 
-Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
+MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
                          const SCFParams& scf, Observer onIteration)
-    : Calculation(BuildOnly{}, std::move(setup), at, std::move(carry), std::move(onIteration))
+    : MoleculeCalculation(BuildOnly{}, std::move(setup), at, std::move(carry), std::move(onIteration))
 {
     (void)Converge(scf);                              // so Energy()/Density() are ready on return; Result() is its outcome
 }
 
-std::unique_ptr<Calculation> Calculation::Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration)
+std::unique_ptr<MoleculeCalculation> MoleculeCalculation::Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration)
 {
     const Structure& ref=*setup->reference;
-    std::unique_ptr<Calculation> c(new Calculation(BuildOnly{}, std::move(setup), ref, nullptr, std::move(onIteration)));
+    std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, std::move(setup), ref, nullptr, std::move(onIteration)));
     c->BuildGraph();                                  // into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
     c->itsPrepared=true;
     return c;
 }
 
-Calculation::Calculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
+MoleculeCalculation::MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
                          std::unique_ptr<const Carry> carry, Observer onIteration)
     : itsSetup(std::move(setup))
     // A pseudopotential run works on the VALENCE ions (Z-Zion charge) so the electron count is the valence count -- the
@@ -109,7 +109,7 @@ Calculation::Calculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, 
     // to announce does so as it is constructed (V1.14).
 }
 
-Calculation::~Calculation()
+MoleculeCalculation::~MoleculeCalculation()
 {
     delete itsScf;     // FIRST: the iterator references itsHam/itsAccel, which are freed after this body (R2.22)
     delete itsBasis;
@@ -117,7 +117,7 @@ Calculation::~Calculation()
 }
 
 // THE GRAPH, built inside the caller's open report run (if any: with none, every report write is a no-op).
-void Calculation::BuildGraph()
+void MoleculeCalculation::BuildGraph()
 {
     namespace rpt = qchem::report;
     const CalcOptions& opts=itsSetup->opts;
@@ -178,12 +178,12 @@ void Calculation::BuildGraph()
                 for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
                 {
                     if (b>=itsCarry->D.size() || itsCarry->D[b].rows()!=ibs->GetNumFunctions())
-                        throw std::logic_error("qchem::Calculation: the carried density's blocks do not match this point's basis");
+                        throw std::logic_error("qchem::MoleculeCalculation: the carried density's blocks do not match this point's basis");
                     const Irrep irr=ibs->GetIrrep(s);
                     cd->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(itsCarry->D[b++], ibs, irr)), irr);
                 }
             if (b!=itsCarry->D.size())
-                throw std::logic_error("qchem::Calculation: the carried density has more blocks than this point's basis");
+                throw std::logic_error("qchem::MoleculeCalculation: the carried density has more blocks than this point's basis");
             itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), cd.release(), itsStructure.get(),
                                  qchem::Auto, 0.0, qchem::SCFIterator::SeedRole::WorkingDensity);
             itsCarry.reset();
@@ -191,7 +191,7 @@ void Calculation::BuildGraph()
     }
 }
 
-Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParams& params)
+Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converge(const SCFParams& params)
 {
     // The SCF writes into the CALLER'S report run: a facade never opens one (user ruling D, 2026-11-02 -- drivers own the
     // runs, the caller sets the context one level up).  With no run open every write is a no-op.
@@ -211,9 +211,9 @@ Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParam
     return Outcome_();
 }
 
-Outcome<Calculation::Converged, SCFFailure> Calculation::Result() const {return Outcome_();}
+Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Result() const {return Outcome_();}
 
-Outcome<Calculation::Converged, SCFFailure> Calculation::Outcome_() const
+Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Outcome_() const
 {
     using O=Outcome<Converged, SCFFailure>;
     if (itsScf->Converged()) return O::Ok(Converged(this));
@@ -226,19 +226,19 @@ Outcome<Calculation::Converged, SCFFailure> Calculation::Outcome_() const
     return O::Fail(std::move(f));
 }
 
-double                 Calculation::Converged::Energy()         const {return itsCalc->itsScf->GetEnergy().GetTotalEnergy();}
-qchem::EnergyBreakdown Calculation::Converged::EnergyTerms()    const {return itsCalc->itsScf->GetEnergy();}
-size_t                 Calculation::Converged::IterationCount() const {return itsCalc->itsScf->GetIterationCount();}
-const Calculation::sf_t& Calculation::Converged::Density()      const {return itsCalc->Density();}
+double                 MoleculeCalculation::Converged::Energy()         const {return itsCalc->itsScf->GetEnergy().GetTotalEnergy();}
+qchem::EnergyBreakdown MoleculeCalculation::Converged::EnergyTerms()    const {return itsCalc->itsScf->GetEnergy();}
+size_t                 MoleculeCalculation::Converged::IterationCount() const {return itsCalc->itsScf->GetIterationCount();}
+const MoleculeCalculation::sf_t& MoleculeCalculation::Converged::Density()      const {return itsCalc->Density();}
 
 // The linear response of the converged state: Reference (R0, orbital basis) + frame (AO <-> MO) + the
 // Hamiltonian's kernel + the dipole probe, solved together by GMRES (qcResponse).  The facade is the one place
 // that owns all four ingredients, which is why the entry point is here.
-Outcome<rmat_t,Response::ResponseFailure> Calculation::StaticPolarizability(const qcMesh::MeshParams& dipoleMesh,
+Outcome<rmat_t,Response::ResponseFailure> MoleculeCalculation::StaticPolarizability(const qcMesh::MeshParams& dipoleMesh,
                                                                             const KrylovParams& krylov) const
 {
     const auto* wf=itsScf ? itsScf->GetWaveFunction() : nullptr;
-    if (!wf) throw std::logic_error("Calculation::StaticPolarizability: no converged wave function");
+    if (!wf) throw std::logic_error("MoleculeCalculation::StaticPolarizability: no converged wave function");
     // Integer occupations (the molecular aufbau fills across irreps, per spin channel).  The eigenvalue noise is
     // not measured by this facade yet: NaN says so, and E1 then gates on the gap's sign only.
     const Response::Reference ref=Response::MakeReference(*wf, OccupationConfig{}, {.acrossK=true, .acrossSpin=false},
@@ -262,7 +262,7 @@ Outcome<rmat_t,Response::ResponseFailure> Calculation::StaticPolarizability(cons
     return O::Ok(std::move(alpha));
 }
 
-void Calculation::RebuildSampling()
+void MoleculeCalculation::RebuildSampling()
 {
     const auto* wf = itsScf->GetWaveFunction();
     itsDensity = wf->GetChargeDensity();               // it BUILDS the density and hands ownership over
@@ -296,19 +296,19 @@ void Calculation::RebuildSampling()
         itsSpinDensity = std::make_unique<ZeroField>();   // m == 0 under imposed SU(2): a field, not an absence
 }
 
-void Calculation::OnIteration(Observer obs) {itsObserver = std::move(obs);}
+void MoleculeCalculation::OnIteration(Observer obs) {itsObserver = std::move(obs);}
 
-Calculation::Carry Calculation::MakeCarry() const
+MoleculeCalculation::Carry MoleculeCalculation::MakeCarry() const
 {
     const auto* wf = itsScf ? itsScf->GetWaveFunction() : nullptr;
-    if (!wf) throw std::logic_error("qchem::Calculation::MakeCarry: no wave function yet");
+    if (!wf) throw std::logic_error("qchem::MoleculeCalculation::MakeCarry: no wave function yet");
     Carry c;
     for (Spin s : SpinIrreps(itsSetup->opts.spin))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             const size_t n=ibs->GetNumFunctions();
             const auto* os=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(wf->GetOrbitals(ibs->GetIrrep(s)));
-            if (!os) throw std::logic_error("qchem::Calculation::MakeCarry: a block's orbitals are not real");
+            if (!os) throw std::logic_error("qchem::MoleculeCalculation::MakeCarry: a block's orbitals are not real");
             hmat_t<double> D(n);
             for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) D(a,b)=0.0;
             for (const auto* o : os->Iterate<qchem::Orbitals::TOrbital<double>>())
@@ -326,7 +326,7 @@ Calculation::Carry Calculation::MakeCarry() const
 //====================================================================================================
 //  THE MOLECULAR SESSION (doc/CalcNetworkReview.md §7, step 8)
 //====================================================================================================
-MoleculeSession::MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Calculation::Observer onIteration)
+MoleculeSession::MoleculeSession(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, MoleculeCalculation::Observer onIteration)
     : itsSetup(std::move(setup)), itsSCF(scf), itsObserver(std::move(onIteration)) {}
 MoleculeSession::~MoleculeSession() = default;
 
@@ -369,52 +369,52 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
                             +" -- symmetrize the step, or resolve a new setup without the symmetry"});
     }
 
-    std::unique_ptr<const Calculation::Carry> carry;
-    if (itsPoint) carry=std::make_unique<const Calculation::Carry>(itsPoint->MakeCarry());
+    std::unique_ptr<const MoleculeCalculation::Carry> carry;
+    if (itsPoint) carry=std::make_unique<const MoleculeCalculation::Carry>(itsPoint->MakeCarry());
     itsPoint.reset();   // one point's memory at a time
-    itsPoint.reset(new Calculation(itsSetup, *at, std::move(carry), itsSCF, itsObserver));
+    itsPoint.reset(new MoleculeCalculation(itsSetup, *at, std::move(carry), itsSCF, itsObserver));
     auto out=itsPoint->Result();
     if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
     return O::Ok(PESPoint{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()});
 }
 
-double                 Calculation::Energy()      const {return itsScf->GetEnergy().GetTotalEnergy();}
-qchem::EnergyBreakdown Calculation::EnergyTerms() const {return itsScf->GetEnergy();}
+double                 MoleculeCalculation::Energy()      const {return itsScf->GetEnergy().GetTotalEnergy();}
+qchem::EnergyBreakdown MoleculeCalculation::EnergyTerms() const {return itsScf->GetEnergy();}
 
-const Calculation::sf_t& Calculation::Density() const
+const MoleculeCalculation::sf_t& MoleculeCalculation::Density() const
 {
     assert(itsDensity);
     return *itsDensity;
 }
 
-const Calculation::sf_t& Calculation::HOMO() const
+const MoleculeCalculation::sf_t& MoleculeCalculation::HOMO() const
 {
     assert(!itsOccupied.empty());
     return *itsOccupied.back().second;
 }
 
-const std::vector<Calculation::Level>& Calculation::GetLevels() const {return itsLevels;}
+const std::vector<MoleculeCalculation::Level>& MoleculeCalculation::GetLevels() const {return itsLevels;}
 
-const Calculation::sf_t& Calculation::GetSpinDensity() const
+const MoleculeCalculation::sf_t& MoleculeCalculation::GetSpinDensity() const
 {
     assert(itsSpinDensity);
     return *itsSpinDensity;
 }
 
-const Calculation::sf_t& Calculation::Orbital(size_t i) const
+const MoleculeCalculation::sf_t& MoleculeCalculation::Orbital(size_t i) const
 {
     assert(i < itsOccupied.size());
     return *itsOccupied[i].second;
 }
 
-size_t Calculation::NumOccupied() const {return itsOccupied.size();}
+size_t MoleculeCalculation::NumOccupied() const {return itsOccupied.size();}
 
-const Calculation::orbitals_t* Calculation::Orbitals(const Irrep& qns) const
+const MoleculeCalculation::orbitals_t* MoleculeCalculation::Orbitals(const Irrep& qns) const
 {
     return itsScf->GetWaveFunction()->GetOrbitals(qns);
 }
 
-size_t Calculation::IterationCount() const {return itsScf->GetIterationCount();}
-bool   Calculation::IsConverged()    const {return itsScf->Converged();}
+size_t MoleculeCalculation::IterationCount() const {return itsScf->GetIterationCount();}
+bool   MoleculeCalculation::IsConverged()    const {return itsScf->Converged();}
 
 } // namespace qchem

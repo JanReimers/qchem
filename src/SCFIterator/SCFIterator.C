@@ -317,7 +317,7 @@ private:
     //! THAT is why an anneal stage had to rebuild one (15.5 s/call, 19% of a threaded MnO run): the
     //! composition root could not keep the object it owned.
     //!@{
-    //! NON-OWNING.  The composition root (SolidCalculation / Calculation / AtomCalculation, or a test
+    //! NON-OWNING.  The composition root (SolidCalculation / MoleculeCalculation / AtomCalculation, or a test
     //! harness) owns the Hamiltonian and must outlive this iterator.  It is a pure function of
     //! (structure, basis, species, functional, xcMesh, vxcFit), so ONE serves a whole annealed run.
     ham_t*          itsHamiltonian;
@@ -382,7 +382,7 @@ using SCFIterator  = tSCFIterator<double>;
 using cSCFIterator = tSCFIterator<dcmplx>;
 
 //! The ATOM/MOLECULE SCF driver (doc/GPWPlan1.md item 2).  Its display is the base default -- the virial-
-//! bearing molecular column set -- so this subclass exists to NAME the molecular path (the Calculation /
+//! bearing molecular column set -- so this subclass exists to NAME the molecular path (the MoleculeCalculation /
 //! AtomCalculation facades build it) and to give any future molecule-only columns a home.  Inherits every
 //! base constructor unchanged.
 class MolecularSCFIterator : public tSCFIterator<double>

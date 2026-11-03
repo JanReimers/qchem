@@ -159,7 +159,7 @@ public:
 
 //! \brief The 14 Bravais lattices (doc/OpenWork.md row BL, 2026-09-15).  A lattice TYPE is structure and
 //! lives here; a MATERIAL (a type + parameters + an atom basis + a pseudopotential vocabulary) is a USE of
-//! one and lives at the Calculation level as data (row MD).  Pearson-style names: system + centring
+//! one and lives at the MoleculeCalculation level as data (row MD).  Pearson-style names: system + centring
 //! (P primitive, I body, F face, C base, R rhombohedral).
 export enum class Bravais
 {

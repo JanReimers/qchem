@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <memory>
-import qchem.Calculation;
+import qchem.MoleculeCalculation;
 import qchem.AtomCalculation;   // AtomCalculation::Prepare (the atom's Build -> Run)
 import qchem.Structure;         // Atom (the atom's report ID)
 import qchem.StructureData;
@@ -21,7 +21,7 @@ using StructureData::GetMolecule;
 TEST(CalculationFacade, TheConstructorsObserverSeesItsSCFFromTheFirstIteration)
 {
     std::vector<SCFIterator::IterationRow> steps;
-    Calculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), {},
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), {},
                      [&steps](const SCFIterator::IterationRow& p){ steps.push_back(p); });
     ASSERT_TRUE(calc.IsConverged());
     ASSERT_FALSE(steps.empty()) << "the observer must see the constructor's SCF, not only a later Converge";
@@ -37,7 +37,7 @@ TEST(CalculationFacade, AMoleculesXCMeshIsInTheRunReportByIterationOne)
 {
     bool seen=false, checked=false;
     qchem::report::Run run("H2O");   // the test is the driver: it opens the run the facade writes into (user ruling D, 2026-11-02)
-    Calculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA}), {},
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA}), {},
                      [&](const SCFIterator::IterationRow& p)
                      {
                          if (p.iteration!=1) return;
@@ -59,7 +59,7 @@ TEST(CalculationFacade, APseudopotentialRunsPPQuadratureIsInGridsNotBasis)
 {
     bool seen=false, stray=true;
     qchem::report::Run run("H2O");   // the driver's run (user ruling D, 2026-11-02)
-    Calculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}), {},
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}), {},
                      [&](const SCFIterator::IterationRow& p)
                      {
                          if (p.iteration!=1) return;
@@ -76,7 +76,7 @@ TEST(CalculationFacade, APseudopotentialRunsPPQuadratureIsInGridsNotBasis)
 
 TEST(CalculationFacade, LevelsListEveryMOAscendingAndTheOccupiedOnesAreTheOrbitals)
 {
-    Calculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
     ASSERT_TRUE(calc.IsConverged());
     const auto& levels=calc.GetLevels();
     ASSERT_GT(levels.size(), calc.NumOccupied()) << "the virtuals are listed too";
@@ -97,11 +97,11 @@ TEST(CalculationFacade, LevelsListEveryMOAscendingAndTheOccupiedOnesAreTheOrbita
 
 TEST(CalculationFacade, AnUnpolarizedSpinDensityIsTheZeroFieldAndAPolarizedOneIsNot)
 {
-    Calculation closed(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
+    MoleculeCalculation closed(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
     ASSERT_TRUE(closed.IsConverged());
     EXPECT_EQ(closed.GetSpinDensity()(rvec3_t(0.0, 0.0, 0.3)), 0.0);
 
-    Calculation triplet(MoleculeSetup::Resolve(GetMolecule("O2"), {.basis="dzvp", .multiplicity=3}));
+    MoleculeCalculation triplet(MoleculeSetup::Resolve(GetMolecule("O2"), {.basis="dzvp", .multiplicity=3}));
     ASSERT_TRUE(triplet.IsConverged());
     // The two unpaired π* electrons put the moment off the bond axis, around the atoms.
     EXPECT_GT(triplet.GetSpinDensity()(rvec3_t(0.8, 0.0, 1.141)), 1e-3);
@@ -119,7 +119,7 @@ TEST(CalculationFacade, AnUnpolarizedSpinDensityIsTheZeroFieldAndAPolarizedOneIs
 // carries the SCFFailure both facades share -- never a plausible energy as "the answer".
 TEST(CalculationFacade, ConvergeIsAnOutcomeTheAnswersLiveOnTheProof)
 {
-    Calculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
     auto R=calc.Result();
     ASSERT_TRUE(R) << R.Error().details;
     EXPECT_EQ(R->Energy(), calc.Energy());
@@ -131,7 +131,7 @@ TEST(CalculationFacade, ConvergeIsAnOutcomeTheAnswersLiveOnTheProof)
     EXPECT_NEAR(again->Energy(), R->Energy(), 1e-8) << "a re-converge from the converged state stays there";
 
     qchem::BoundedSCF bounded("the failure arm is the subject: one iteration cannot converge water");
-    Calculation cut(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), {.NMaxIter=1});
+    MoleculeCalculation cut(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), {.NMaxIter=1});
     auto F=cut.Result();
     ASSERT_FALSE(F);
     EXPECT_EQ(F.Error().why, SCFFailure::Why::NotConverged);
@@ -160,8 +160,8 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySC
 {
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"});
     size_t rows=0;
-    std::unique_ptr<Calculation> calc;
-    { qchem::report::Run run(GetMolecule("H2O").ID()+" build"); calc=Calculation::Prepare(setup, [&](const SCFIterator::IterationRow&){ rows++; }); }
+    std::unique_ptr<MoleculeCalculation> calc;
+    { qchem::report::Run run(GetMolecule("H2O").ID()+" build"); calc=MoleculeCalculation::Prepare(setup, [&](const SCFIterator::IterationRow&){ rows++; }); }
     EXPECT_EQ(rows, 0u) << "Prepare ran an SCF iteration";
     const auto* build=FiledRun(GetMolecule("H2O").ID()+" build@");
     ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
@@ -176,7 +176,7 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySC
     auto r=calc->Converge();
     ASSERT_TRUE(r) << r.Error().details;
     EXPECT_GT(rows, 0u) << "the observer attached at Prepare sees the first Converge";
-    Calculation once(setup);
+    MoleculeCalculation once(setup);
     EXPECT_DOUBLE_EQ(r->Energy(), once.Energy()) << "Prepare + Converge must be the constructor, bit for bit";
     EXPECT_EQ(r->IterationCount(), once.IterationCount());
 }

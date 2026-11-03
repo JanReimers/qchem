@@ -1,6 +1,6 @@
 // File: BasisSet/IntegralsCacheReport.C  The one thing an orchestrator may ask of the process-wide integral cache.
 //
-// V1.20d: the facades (Calculation, AtomCalculation) used to reach theCache<double>().EmitReport() -- the cache
+// V1.20d: the facades (MoleculeCalculation, AtomCalculation) used to reach theCache<double>().EmitReport() -- the cache
 // MECHANISM, an .Internal. module -- through a public face's re-export, i.e. a cross-family Internal import
 // that the label was hiding.  What they want is exactly one sentence, so that sentence is the public face;
 // the cache itself stays Internal.

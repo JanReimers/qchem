@@ -35,7 +35,7 @@ import qchem.ChargeDensity.Factory;                   // IrrepCD_Factory, RhoRou
 import qchem.CompositeCD;
 import qchem.ChargeDensity.Internal.TransitionDensity; // the concrete the friend reads (tests may cheat)
 import qchem.Structure;
-import qchem.Calculation;
+import qchem.MoleculeCalculation;
 import qchem.SolidCalculation;                        // the converged GPW solid the periodic gates run on (R2)
 import qchem.Lattice_3D;
 import qchem.BasisSet.Lattice.BasisSet;                             // the converged H2O the FD-driven polarisability runs on
@@ -59,14 +59,14 @@ using namespace qchem;
 using ChargeDensity::TransitionBlock;
 using ChargeDensity::TransitionDensity;
 
-//! THE FRIEND of qchem::Calculation (src/forward.H): the converged run's Hamiltonian, wave function and basis.
+//! THE FRIEND of qchem::MoleculeCalculation (src/forward.H): the converged run's Hamiltonian, wave function and basis.
 class ResponseFacadeTests
 {
 public:
-    static Hamiltonian::rHamiltonian&                   Ham  (Calculation& c)       {return *c.itsHam;}
-    static const WaveFunction::tWaveFunction<double>&   WF   (const Calculation& c) {return *c.itsScf->GetWaveFunction();}
-    static const BasisSet::Real_BS*                     Basis(const Calculation& c) {return c.itsBasis;}
-    static const Structure&                             St   (const Calculation& c) {return *c.itsStructure;}
+    static Hamiltonian::rHamiltonian&                   Ham  (MoleculeCalculation& c)       {return *c.itsHam;}
+    static const WaveFunction::tWaveFunction<double>&   WF   (const MoleculeCalculation& c) {return *c.itsScf->GetWaveFunction();}
+    static const BasisSet::Real_BS*                     Basis(const MoleculeCalculation& c) {return c.itsBasis;}
+    static const Structure&                             St   (const MoleculeCalculation& c) {return *c.itsStructure;}
     // The periodic facade (R2): its Hamiltonian and wave function, through its private door.
     static Hamiltonian::cHamiltonian&                   Ham  (const SolidCalculation& c) {return c.ResponseHamiltonian();}
     static const WaveFunction::cWaveFunction&           WF   (const SolidCalculation& c) {return c.ResponseWaveFunction();}
@@ -241,7 +241,7 @@ TEST(ResponseKernel, MissingCapabilityThrowsAtConstruction)
 
 //=====================================================================================================
 //  THE SOLVER WITH THE ORACLE KERNEL.  The same Reference / frame / dipole probe / GMRES as
-//  Calculation::StaticPolarizability, but the kernel is the finite difference of the Hamiltonian's own
+//  MoleculeCalculation::StaticPolarizability, but the kernel is the finite difference of the Hamiltonian's own
 //  GetMatrix about the CONVERGED density.  Two uses:
 //   * HF: it must reproduce the analytic kernel's polarisability -- the FD kernel is trusted INSIDE the solver;
 //   * LDA: the one route to an LDA polarisability until R2 gives the fitted terms an analytic face.
@@ -276,7 +276,7 @@ std::vector<GroundBlock<double>> GroundDensity(const WaveFunction::tWaveFunction
 }
 
 //! alpha = -chi of the dipole channels, with the finite-difference kernel of step \a h.
-rmat_t FD_Polarizability(Calculation& calc, double h)
+rmat_t FD_Polarizability(MoleculeCalculation& calc, double h)
 {
     const auto& wf=ResponseFacadeTests::WF(calc);
     const Response::Reference ref=Response::MakeReference(wf, OccupationConfig{}, {.acrossK=true, .acrossSpin=false},
@@ -300,7 +300,7 @@ rmat_t FD_Polarizability(Calculation& calc, double h)
 //! The FD kernel INSIDE the solver reproduces the analytic HF polarisability (and so PySCF's).
 TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
 {
-    Calculation calc(MoleculeSetup::Resolve(*Water(), {.basis="dzvp"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.basis="dzvp"}));
     ASSERT_TRUE(calc.Converge(tight));
     auto analytic=calc.StaticPolarizability(dipoleMesh);
     ASSERT_TRUE(analytic.IsOk()) << analytic.Error().detail;
@@ -320,7 +320,7 @@ TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
 TEST(ResponsePolarizability, LDA_FD_Kernel_vsPySCF)
 {
     const double pyscf[3]={3.44581010, 7.33075620, 5.91599197};   // PySCF RKS lda,vwn / dzvp(cart) CPKS
-    Calculation calc(MoleculeSetup::Resolve(*Water(), {.basis="dzvp", .model=Hamiltonian::Model::LDA}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.basis="dzvp", .model=Hamiltonian::Model::LDA}));
     ASSERT_TRUE(calc.Converge(tight));
     const rmat_t a=FD_Polarizability(calc, 1e-4);
     const rmat_t b=FD_Polarizability(calc, 1e-3);

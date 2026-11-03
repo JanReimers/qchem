@@ -18,7 +18,7 @@ export namespace qchem::Materials
 //! vocabulary that goes with it -- and NOTHING about a run.  The k-mesh, XC grid, kT, basis set and
 //! seed are the calculation's axes (\c SolidCalcOptions), not the material's.
 //!
-//! A material is a USE of a structure, so it lives at the Calculation level as data rather than in
+//! A material is a USE of a structure, so it lives at the MoleculeCalculation level as data rather than in
 //! \c qcStructure (user ruling 2026-09-15); the same list is what the GUI offers as its pick-list.
 struct Material
 {
