@@ -170,9 +170,10 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     2026-11-03).  The failure to avoid: the math says 2ε, a measurement says /10, and the code writes ε/5.  Nobody can
     then tell theory from fudge, and a future session burns days of long runs untangling it.
     - Write the bound as its own function, with its derivation in the comment.
-    - Make the correction a separate NAMED calibration (η = delivered/bound), with its measurement record at its
-      declaration, exposed as an expert knob.
-    - Write the product in ONE line where both factors show, and have the run report print both.
+    - Make the correction a separate NAMED calibration, with its measurement record at its declaration, exposed as an
+      expert knob.  It may be a factor (η = delivered/bound), an offset, a shape, or a fit.
+    - Combine the two in ONE visible place, whatever form the combination takes, and have the run report print the
+      rigorous value, the correction, and the result.
     - `GridAccuracy::Rigorous` / `Calibrated` (`GPWTolerances.C`) is the model.
     - A literal fudge inside a bound is a defect to flag.
 - **THE RUN REPORT — every run records itself as JSON; read `src/Common/Reporting.C` (`import qchem.Reporting`,
