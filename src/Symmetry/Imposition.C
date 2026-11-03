@@ -41,8 +41,8 @@ template <class T> void ProjectSpinPair(const SymmetryImposition& imp, const Rep
     for (const SymOp& g : ops)
     {
         const bool flip=g.sigma==SpinAction::Flip;
-        up += rep.AdjointImage(g, flip ? Ddn : Dup);
-        dn += rep.AdjointImage(g, flip ? Dup : Ddn);
+        rep.AddAdjointImage(g, flip ? Ddn : Dup, up);
+        rep.AddAdjointImage(g, flip ? Dup : Ddn, dn);
     }
     const double w=1.0/double(ops.size());
     // Hermitian to roundoff by construction; store the Hermitian part (an hmat_t refuses a 1e-16 asymmetry).

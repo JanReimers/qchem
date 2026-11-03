@@ -79,7 +79,8 @@ template <class T> class tGPW_IBS
 protected:
     //! \f$M_g\f$ = \c OrbitalImage(g) -- the shell permutation × angular rep × Bloch phase -- when \a g maps k onto itself
     //! (mod a reciprocal lattice vector); THROWS otherwise (g carries this block into the block at gk: no single-block rep).
-    //! A real TRIM block takes the real part, which is EXACT there (THROWS if it is not).
+    //! Built in the block's OWN functions (its shells and its exact ±1 TRIM phases), then the one exact narrow
+    //! (\c Lattice::ToScalar) -- so a real TRIM block, at Γ or not, is a Representation<double> with no TRIM-specific code here.
     virtual mat_t<T> MakeRepMatrix(const Symmetry::SymOp& g) const override;
 public:
     //! \name THE TRANSITION PAIR (doc/LinearResponsePlan.md §3d B2): this block is the KET, \a bra any block over the

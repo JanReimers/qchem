@@ -27,6 +27,7 @@ module;
 #include <vector>
 #include <cmath>
 #include <complex>
+#include <type_traits>
 export module qchem.Symmetry.Representation;
 export import qchem.Symmetry.SymOp;
 export import qchem.Types;
@@ -48,6 +49,10 @@ public:
     //! COEFFICIENT-SPACE \a X (a density matrix): \f$M_g X M_g^\dagger\f$.  The result is Hermitian to roundoff; it is not
     //! symmetrized here, so a caller that sums images (a group average) rounds once, at the end.
     virtual mat_t<T> AdjointImage(const SymOp& g, const hmat_t<T>& X) const=0;
+    //! \a acc += AdjointImage(g,X), accumulated IN PLACE.  A group average sums |G| images; a realization that can add its
+    //! product straight into the sum rounds once per term instead of twice (and exactly as the per-op sums before S3 did --
+    //! a refactor moves no numbers).  Default: the image, then the add.
+    virtual void AddAdjointImage(const SymOp& g, const hmat_t<T>& X, mat_t<T>& acc) const {acc += AdjointImage(g,X);}
 };
 
 //! The spatial part of two ops agrees EXACTLY (σ ignored).  Op sets come from one detection, so a value key is safe.
@@ -112,25 +117,53 @@ template <class T> class DenseRepresentation : public virtual Representation<T>
 public:
     virtual mat_t<T> Image       (const SymOp& g, const hmat_t<T>& O) const override
     {
-        const mat_t<T>& M=RepMatrix(g);
-        return blazem::ctrans(M)*mat_t<T>(O)*M;
+        const Rep& r=GetRep(g);
+        if (r.isReal) return blazem::trans(r.R)*mat_t<T>(O)*r.R;
+        return blazem::ctrans(r.M)*mat_t<T>(O)*r.M;
     }
     virtual mat_t<T> AdjointImage(const SymOp& g, const hmat_t<T>& X) const override
     {
-        const mat_t<T>& M=RepMatrix(g);
-        return M*mat_t<T>(X)*blazem::ctrans(M);
+        const Rep& r=GetRep(g);
+        if (r.isReal) return r.R*mat_t<T>(X)*blazem::trans(r.R);
+        return r.M*mat_t<T>(X)*blazem::ctrans(r.M);
+    }
+    virtual void AddAdjointImage(const SymOp& g, const hmat_t<T>& X, mat_t<T>& acc) const override
+    {
+        const Rep& r=GetRep(g);
+        if (r.isReal) acc += r.R*mat_t<T>(X)*blazem::trans(r.R);
+        else          acc += r.M*mat_t<T>(X)*blazem::ctrans(r.M);
     }
 protected:
     //! \f$M_g\f$ on this set's functions; THROWS if \a g does not map the set onto itself.
     virtual mat_t<T> MakeRepMatrix(const SymOp& g) const=0;
 private:
-    const mat_t<T>& RepMatrix(const SymOp& g) const
+    //! A REAL M IS APPLIED AS REAL (user ruling, 2026-11-03): an M whose every imaginary part is exactly 0.0 -- decided ONCE per op,
+    //! when it is cached -- is applied with real arithmetic: exact, cheaper, and bit-identical to the pre-S3 real×complex path (a
+    //! forced-complex Γ block applied its real shell rep as real).  A general numeric rule about M, not TRIM logic.  A complex M
+    //! is kept as is.
+    struct Rep { bool isReal=false; rmat_t R; mat_t<T> M; };
+    const Rep& GetRep(const SymOp& g) const
     {
-        for (const auto& [op,M] : itsCache) if (SameSpatial(op,g)) return M;
-        itsCache.emplace_back(g, MakeRepMatrix(g));
+        for (const auto& [op,r] : itsCache) if (SameSpatial(op,g)) return r;
+        mat_t<T> M=MakeRepMatrix(g);
+        Rep r;
+        if constexpr (std::is_same_v<T,double>) {r.isReal=true; r.R=std::move(M);}
+        else
+        {
+            bool real=true;
+            for (size_t i=0;i<M.rows() && real;i++) for (size_t j=0;j<M.columns();j++) if (M(i,j).imag()!=0.0) {real=false; break;}
+            if (real)
+            {
+                r.isReal=true;
+                r.R=rmat_t(M.rows(), M.columns());
+                for (size_t i=0;i<M.rows();i++) for (size_t j=0;j<M.columns();j++) r.R(i,j)=M(i,j).real();
+            }
+            else r.M=std::move(M);
+        }
+        itsCache.emplace_back(g, std::move(r));
         return itsCache.back().second;
     }
-    mutable std::vector<std::pair<SymOp, mat_t<T>>> itsCache;   //!< per op, by value; empty until an op is asked about
+    mutable std::vector<std::pair<SymOp, Rep>> itsCache;   //!< per op, by value; empty until an op is asked about
 };
 
 //! \brief M a permutation times phases, \f$(M_g)_{\pi(i),i}=p_i\f$ -- a plane-wave set, where each wave goes to ONE wave.  The
@@ -160,6 +193,21 @@ public:
                 R(m.perm[i],m.perm[j])=f*X(i,j);
             }
         return R;
+    }
+    virtual void AddAdjointImage(const SymOp& g, const hmat_t<dcmplx>& X, mat_t<dcmplx>& acc) const override
+    {
+        const Monomial& m=GetMonomial(g);
+        const size_t n=m.perm.size();
+        const mat_t<dcmplx> S(X);
+        for (size_t i=0;i<n;i++)
+        {
+            const size_t pi=m.perm[i];
+            for (size_t j=0;j<n;j++)
+            {
+                const dcmplx f=m.phase[i]*std::conj(m.phase[j]);
+                acc(pi,m.perm[j])+=f*S(i,j);
+            }
+        }
     }
 protected:
     //! \f$M_g\f$ as a monomial on this set's functions; THROWS if \a g does not map the set onto itself.

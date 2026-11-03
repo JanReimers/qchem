@@ -7,6 +7,7 @@ module;
 #include <algorithm>
 module qchem.Symmetry.Lattice_3D.BlochOperationRep;
 import qchem.Matrix3D;
+import qchem.Math;   // Pi (BlochPhase, the same constant as GPW_Evaluator's)
 
 namespace qchem::Symmetry::Lattice_3D
 {
@@ -16,8 +17,20 @@ rvec3_t ImageOfK(const SymOp& g, const rvec3_t& kFrac)
     return Transpose(Invert(g.W))*kFrac;
 }
 
+dcmplx BlochPhase(const rvec3_t& kFrac, const ivec3_t& n, bool trim)
+{
+    if (trim)
+    {
+        const long p = std::lround(2.0*kFrac.x)*n.x + std::lround(2.0*kFrac.y)*n.y
+                     + std::lround(2.0*kFrac.z)*n.z;
+        return dcmplx((p & 1L) ? -1.0 : 1.0, 0.0);
+    }
+    const double kn=kFrac.x*n.x + kFrac.y*n.y + kFrac.z*n.z;
+    return std::exp(dcmplx(0.0, 2.0*Pi*kn));
+}
+
 mat_t<dcmplx> BuildBlochOperationRep(const std::vector<Molecule::AoShell>& shells, const rmat3d_t& A,
-                                     const SymOp& g, const rvec3_t& kFrac, double tol)
+                                     const SymOp& g, const rvec3_t& kFrac, double tol, bool trim)
 {
     const rmat3d_t Ainv=Invert(A);
     const rmat3d_t Wc  =A*g.W*Ainv;                 // the Cartesian rotation the angular reps act with
@@ -43,7 +56,9 @@ mat_t<dcmplx> BuildBlochOperationRep(const std::vector<Molecule::AoShell>& shell
         }
         if (!Bp) throw std::runtime_error("BuildBlochOperationRep: a shell has no image under the op -- it is not a "
                                           "symmetry of this basis on this cell");
-        const dcmplx phase=std::polar(1.0, -twoPi*(kp*t));
+        // e^{-2 pi i k'.t}: exact parity at a TRIM block (its functions' own realification), the transcendental form elsewhere.
+        const dcmplx phase=trim ? BlochPhase(kp, ivec3_t(-std::lround(t.x), -std::lround(t.y), -std::lround(t.z)), true)
+                                : std::polar(1.0, -twoPi*(kp*t));
         const rmat_t D=B.rep->Rep(Wc);
         const size_t nc=B.nComponents();
         for (size_t a=0;a<nc;a++)
