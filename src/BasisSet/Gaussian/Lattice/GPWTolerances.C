@@ -15,12 +15,24 @@ export module qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
 export namespace qchem::BasisSet::Gaussian
 {
 
+//! \brief The V_loc long routing tolerance a run WITHOUT an accuracy target uses (\c GPWTolerances::vlocEps 0): e^{-11.5}-class tails,
+//! measured sub-mHa against CP2K -- the value every run used before it was derived from the target.
+inline constexpr double kVlocEpsNoTarget = 1.0e-5;
+
 //! \brief The GPW evaluator's tolerances.  Every default is today's behaviour; none of them is a convenience knob.
 struct GPWTolerances
 {
-    //! Tolerance of the local-pseudopotential LONG-range G-ball (the harmonic per-pair rule): e^{-8.5}-class tails,
-    //! measured sub-mHa against CP2K.
-    double vlocEps = 1.0e-5;
+    //! Tolerance of the local-pseudopotential LONG-range G-ball (the harmonic per-pair rule that routes each pair over the multigrid
+    //! levels).  0 = DERIVED (2026-11-02): the facade writes \c GridAccuracy::VlocEps() (the rigorous per-pair map corrected by the
+    //! measured \c GridAccuracy::vlocRoutingEta, expert) when the run has an accuracy target, and the evaluator falls back to \c kVlocEpsNoTarget without one (stated rasters,
+    //! accuracy 0).  A value > 0 given by the deck/caller is STATED: it WINS over the derived one and is honoured as is.
+    double vlocEps = 0.0;
+    //! REPORT-ONLY, written with a DERIVED \c vlocEps (0 = stated, or the no-target fallback): its two pieces, the rigorous per-pair map
+    //! (\c GridAccuracy::RigorousVlocEps) and the measured calibration it was divided by (\c GridAccuracy::vlocRoutingEta).  The banner and
+    //! the grids report print rigorous, correction and result; no number depends on them.
+    double vlocEpsRigorous = 0.0;
+    double vlocRoutingEta  = 0.0;
+    bool VlocEpsDerived() const {return vlocRoutingEta>0.0;}
     //! The ABSOLUTE pair->level rule kappa (Ha per unit pair exponent) of the local-PP sweeps: every pair's spectral tail is
     //! bounded by e^{-kappa/2} independent of the field's sharpness.  30 Ha (e^{-15}) is CP2K's REL_CUTOFF 60 Ry; 60 is the
     //! self-convergence check.
@@ -128,6 +140,27 @@ struct GridAccuracy
     double Calibrated(const AliasTail& t, double etaTerm) const;
     //! The target one term's delivered error is held to: eps x the atom count on an energy run, eps per element on a geometry run.
     double Target(ClientConsumes c, size_t nAtoms) const {return c==ClientConsumes::Energy ? eps*double(nAtoms) : eps;}
+    //! \brief RIGOROUS: the per-pair RELATIVE bound.  MakeLocalPPLong's harmonic rule (lnE = -ln vlocEps, ball edge 2 p_h lnE) routes each
+    //! (pair, offset) to a level whose spectral tail, RELATIVE to that pair's own contribution, is bounded by vlocEps -- no S prefactor,
+    //! no x^3 Hermite factor (S_Vlong = 2.35 is the RASTER alias tail's prefactor, a different error).  Turning that into Ha needs two
+    //! things the bound does not give: a TERM SCALE (the pair's matrix-element magnitude) and the PAIR COUNT (an element, and a cell
+    //! energy, sum many pairs and offsets whose truncation errors may add or cancel).  Neither is provable, so the rigorous map is the
+    //! identity: the per-pair relative bound = eps.  \c vlocRoutingEta carries the scale and the pair sum together, MEASURED.
+    double RigorousVlocEps() const {return eps;}
+    //! \brief EMPIRICAL: the V_loc long routing calibration eta = delivered / bound (expert `solid.accuracyCalibration.vlocRouting`); it
+    //! carries the term scale and the pair sum the rigorous piece cannot.  The default 10 is NOT itself measured; it decomposes as
+    //! (measured max delivered/bound) x (margin), rounded up:
+    //!   - measured 2026-11-02 against a reference that re-routes every pair (the pilot's ball audit), at vlocEps 1e-5 and 1e-7 alike:
+    //!     max 6 per cell energy (MnO, 4 atoms; Si 2 atoms 1.4) and max 1.7 per matrix element (Si Gamma, geometry; low 1.0);
+    //!   - times a >= 1.5 x margin (6 x 1.5 = 9), rounded to 10.
+    //! A re-measurement updates the first factor; the margin is the policy.  The pilot's honest gate (every audited term against the
+    //! target) catches a cell where the pair sum is worse.  Without it (fixed vlocEps 1e-5) MnO's V_loc long delivered 6e-5 against a
+    //! 4e-5 target, alternating in sign as the ball doubled (the multigrid levels re-place the pairs).  A STATED absolute
+    //! \c GPWTolerances::vlocEps (> 0) wins over both pieces.
+    double vlocRoutingEta = 10.0;
+    //! The routing tolerance the facade derives: the rigorous per-pair relative bound corrected by the measured calibration -- the ONE
+    //! place the two pieces meet.
+    double VlocEps() const {return RigorousVlocEps()/vlocRoutingEta;}
     //! \brief The STATED calibration's raster demands written into \a t (rasterX = the density tail's L(eps/eta), vlocRasterX = V_long's,
     //! xcRasterX = rasterX: the XC raster has no bound of its own).  THROWS when there is no stated calibration (that run self-calibrates).
     GPWTolerances Stated(GPWTolerances t) const;

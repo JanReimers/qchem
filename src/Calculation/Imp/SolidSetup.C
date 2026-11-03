@@ -232,6 +232,14 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
         {
             if (a.eta) s->opts.tolerances=a.Stated(t);
             else       s->rastersResolved=false;
+            // V_loc long's routing tolerance from the same target (a STATED vlocEps is honoured, like a stated densityEcut)
+            if (s->opts.tolerances.vlocEps==0.0)
+            {
+                if (!(a.vlocRoutingEta>0.0)) throw std::invalid_argument("SolidCalcOptions: accuracy vlocRoutingEta (delivered / bound) must be > 0");
+                s->opts.tolerances.vlocEps=a.VlocEps();
+                s->opts.tolerances.vlocEpsRigorous=a.RigorousVlocEps();   // the two pieces, report-only
+                s->opts.tolerances.vlocRoutingEta=a.vlocRoutingEta;
+            }
         }
     }
     if (s->planeWave)

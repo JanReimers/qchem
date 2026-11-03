@@ -505,7 +505,16 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long)
     trace.Print(o.label, /*polarized*/true);
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
-    EXPECT_NEAR(R->Energy(), -61.3032807795, 1e-7) << "the SAD anchor's state (both measured -61.3032807795, 2026-10-27)";
+    // RE-BANKED 2026-11-02 (the density ball judged, OpenWork F): -61.3032807795 -> -61.3031714944 (+109 uHa), the pilot doubles the
+    // ball once (cutoffFactor 4: Hartree 2.2e-4 at 2, 6.9e-7 at 4).  Toward CP2K: its VA oracle rises the same way with ITS cutoff,
+    // -61.30332518 at 144 Ry -> -61.30309458 at 288 Ry (+231 uHa) -> -61.30305970 at 576 Ry (+35; REL_CUTOFF 120 moves 288 by +7 uHa only),
+    // EPS_SCF 1e-8, converging to ~-61.303054.  Our VA arm, ball- AND routing-converged (vlocEps 1e-6 = 1e-7 to 0.06 uHa), is -61.3030143:
+    // 39 uHa above that -- a converged-vs-converged gap (OpenWork §3); the old -61.3030703 sat 17 uHa below it only through the fixed
+    // vlocEps 1e-5 routing error (~-56 uHa).  Decks: ~/Code/cp2k-runs/MnO/lanea_ball_mno_va_c*, ~/Code/qchem6-runs/MnO/lanea_va_U0_vloc1em{6,7}.
+    // Then V_loc long's routing from the target (vlocEps eps/10, was a fixed 1e-5): -61.3031714944 -> -61.3031131432 (+58 uHa), 1.1 uHa from
+    // this deck's converged reference -61.303112 (the free MnO_AFM2 deck at densityEcut 250 / 320 and vlocEps 1e-7, which agree to 0.75 uHa:
+    // ~/Code/qchem6-runs/MnO/lanea_vloc7_e{250,320}) -- toward it, by our own independent route.
+    EXPECT_NEAR(R->Energy(), -61.3031131432, 1e-7) << "the SAD anchor's state (both measured, 2026-11-02)";
     ASSERT_FALSE(trace.rows.empty());
     EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the AFM order survives the ionic seed (measured 4.459, = SAD's)";
 }
@@ -698,7 +707,8 @@ TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Ordering_Long)
 
 // PANEL case 14 (regime 2, FREE): the banked free MnO AFM-II recipe, `decks/MnO_AFM2_free.json` (Kerker + Pulay 8/5, Null
 // accelerator, kT 5e-3, no MOM; CLAUDE.md).  Converged means the order SURVIVED (an OrderLost run hands back no energy), and the
-// fixed point is the imposed arm's (`Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long`, re-measured 2026-10-27: -61.3032807795).  33 iterations
+// fixed point is the imposed arm's (`Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long`, re-banked 2026-11-02 with the density ball judged: -61.3031131432;
+// this free run lands 1.2e-9 from it, was -61.3032807795 on the unjudged cf-2 ball).  19 measured 2026-11-03 (was 15: one ball re-convergence).  33 iterations
 // at CP2K_COMPAT (doc/Benchmark.md CP2K-LOOP rows); the budget is re-set by the first panel baseline.
 TEST(GPW_MnO, Γ_Pol_Smear_Kerker_Pulay_Converges_Panel_Long)
 {
@@ -708,5 +718,5 @@ TEST(GPW_MnO, Γ_Pol_Smear_Kerker_Pulay_Converges_Panel_Long)
     const auto o=qchem::panel::Run(deck, 19, "MnO AFM-II FREE, the banked Kerker+Pulay recipe (regime 2; 15 measured, 2026-10-29 panel baseline)");
     ASSERT_TRUE(o.run.converged) << o.run.summary;
     ASSERT_TRUE(o.run.energy);
-    EXPECT_NEAR(*o.run.energy, -61.3032807795, 1e-5) << "the AFM-II fixed point of the imposed arm";
+    EXPECT_NEAR(*o.run.energy, -61.3031131432, 1e-5) << "the AFM-II fixed point of the imposed arm";
 }

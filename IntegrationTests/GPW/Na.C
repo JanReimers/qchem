@@ -121,5 +121,7 @@ TEST(GPW_Na, k222s_Imp_Smear_GlobalMu_Anchor)
     // read of the density raster's alias (|dE_xc| 2.1e-3 at fixed D); the pilot settles density x 18.8 at 0.0473487.  Judged by raster
     // SELF-CONVERGENCE only (stated x 16 / XC 28: 0.0473492, 5e-7) -- no independent route at k222 yet.  Tolerance 1e-5 (eps per atom), not
     // the old 3e-3, which a 1 mHa regression would have passed.
-    EXPECT_NEAR(R->Energy(), 0.0473487, 1e-5);
+    // RE-BANKED 2026-11-02 (the density ball judged, OpenWork F): +41.9 uHa, the pilot doubles the ball once (cutoffFactor 4: Hartree
+    // 1.66e-5 at 2, 5.8e-6 at 4 against twice it).  Judged by the ball's SELF-CONVERGENCE, as above -- still no independent route at k222.
+    EXPECT_NEAR(R->Energy(), 0.0473906, 1e-5);
 }

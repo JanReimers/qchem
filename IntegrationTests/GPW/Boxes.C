@@ -361,7 +361,14 @@ SCFParams O2PulayOnDParams()
     return par;
 }
 //! The rasters this case's pilot settles on (C2 step 3, 2026-10-31: density x 20.56 from the ball's 5.55, where Hartree read 1.3 Ha).
-constexpr double kO2PulayRasterX=20.5590984;
+constexpr double kO2PulayRasterX=20.5590805;   // 20.5590984 at the fixed vlocEps 1e-5 (re-sized 2026-11-02, the derived eps/10)
+//! The density ball it ends on (2026-11-02, the ball judged: Hartree 1.5 Ha, 4.7e-3, 2.3e-4, 1.1e-4 against twice the ball at cutoffFactor
+//! 2, 4, 8, 16 -- the pilot's four rounds run out still OVER the 2e-5 target, and the run keeps 16 and says so; OpenWork §3 row).
+constexpr double kO2PulayCutoffFactor=16.0;
+//! The energy on them (the pilot's re-converged point, 2026-11-02).
+constexpr double kO2PulayE=-29.9988768296;
+//! The V_loc long routing tolerance the pilot's target derives (GridAccuracy::VlocEps, eps/10): the panel case states it too.
+constexpr double kO2PulayVlocEps=1e-6;
 } // namespace
 
 TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor_Panel)   // PANEL case 4 (regime 1, Pulay on D)
@@ -372,7 +379,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor_Panel)   // PANEL case 4 (regime 1, Pulay
     SolidCalcOptions o=O2PulayOnDOptions(box, "O2 in-box triplet, Pulay on D");
     // THE GRID IS A CONTROLLED VARIABLE ON THE PANEL (controller ruling 2026-10-31): the panel's subject is the accelerator, so the
     // rasters are STATED at what the pilot settles on (Γ_Imp_M3_Pulay_PilotSizesTheRaster gates the pilot and its cost).
-    o.accuracy.eps=0.0; o.tolerances.rasterX=kO2PulayRasterX;
+    o.accuracy.eps=0.0; o.tolerances.rasterX=kO2PulayRasterX; o.cutoffFactor=kO2PulayCutoffFactor; o.tolerances.vlocEps=kO2PulayVlocEps;
     std::vector<std::string> xcRho;
     const SCFParams par=O2PulayOnDParams();
     GpwReport report("O "+o.label, false);
@@ -385,7 +392,10 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor_Panel)   // PANEL case 4 (regime 1, Pulay
     // RE-BANKED 2026-10-31 (C2 step 3): -30.71018173 was the ball raster's (Hartree 1.3 Ha off at fixed D: the pilot's audit); on the rasters the
     // pilot settles -30.1051713, re-judged against CP2K's -29.998761 (GPW, 16-bohr box, 400 Ry): 0.106 Ha, was 0.711 -- the rest is the auto
     // densityEcut ignoring the PP core (OpenWork §3), not the raster.  The rho[D] / fitted-rho-tilde comparison above is the 2026-10-26 one.
-    EXPECT_NEAR(R->Energy(), -30.1051713, 2e-8) << "the rho[D] fixed point on the sized rasters";
+    // RE-JUDGED 2026-11-02 (pin 10; the density ball judged): on the ball the pilot now also sizes (cutoffFactor 16) it was -29.9989028,
+    // 0.14 mHa from CP2K's -29.998761 (was 106 mHa) -- that 0.106 Ha WAS the ball.  With V_loc long's routing at the derived eps/10
+    // (vlocEps 1e-6, was 1e-5) it is kO2PulayE, -29.9988768: 0.11 mHa from CP2K -29.998761 (120/240 Ha -29.998767) -- toward it.
+    EXPECT_NEAR(R->Energy(), kO2PulayE, 2e-8) << "the rho[D] fixed point on the sized rasters and ball";
 }
 
 // THE PILOT, AND WHAT IT COSTS (C2 step 3; the controller's condition: a user pays the re-convergence, so it is gated, not hidden): the
@@ -401,11 +411,15 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_PilotSizesTheRaster)
     auto R=calc.Result();
     ASSERT_TRUE(R) << Why(R);
     const auto cost=calc.PilotCost();
-    EXPECT_TRUE(cost.settled);
-    EXPECT_EQ(cost.rounds, 2) << "one raise, one confirming audit";
-    EXPECT_LE(cost.reconvergeIterations, 20u) << "the re-convergence from the audited D (16 measured 2026-10-31)";
+    // 2026-11-02 (the density ball judged): the raster settles in round 1 as before, but the ball doubles in every round and the pilot's
+    // four rounds end with it still over (1.1e-4 at cutoffFactor 16 against the 2e-5 target, the tail not yet geometric): NOT settled,
+    // said so, and the run keeps cutoffFactor 16.  Pinned as measured; when the ball's slow O tail is understood this goes back to settled.
+    EXPECT_FALSE(cost.settled) << "the ball's O tail outruns the pilot's four rounds (OpenWork §3)";
+    EXPECT_EQ(cost.rounds, 4);
+    EXPECT_LE(cost.reconvergeIterations, 45u) << "three re-convergences from the audited D (37 measured 2026-11-02; 16 with the raster alone)";
     EXPECT_NEAR(calc.SizedSetup()->opts.tolerances.rasterX, kO2PulayRasterX, 1e-6) << "the panel case states what this settles on";
-    EXPECT_NEAR(R->Energy(), -30.1051713, 1e-6) << "the pilot's re-converged point is the stated-raster panel case's";
+    EXPECT_EQ(calc.SizedSetup()->opts.cutoffFactor, kO2PulayCutoffFactor) << "and the ball it ends on";
+    EXPECT_NEAR(R->Energy(), kO2PulayE, 1e-6) << "the pilot's re-converged point is the stated-grid panel case's";
 }
 
 // Mn PSEUDO-ATOM IN A BOX through the CRYSTAL (GPW) path vs the molecular facade -- the d-channel sibling

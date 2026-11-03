@@ -254,7 +254,9 @@ TEST(GPW_NaF, Γ_Imp_eqExactResume_Panel)   // PANEL case 1 (regime 4, exact res
     SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart exact");
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
-    auto c=qchem::SolidCalculation::Restart(f.finePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams(),
+    // Onto the cold fine run's SIZED setup, as above: a fresh Resolve is the ball's auto grid, which the saved state is not a fixed point of.
+    ASSERT_TRUE(f.fineSetup);
+    auto c=qchem::SolidCalculation::Restart(f.finePath, f.fineSetup, NaFAnchorParams(),
                                             [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();

@@ -458,7 +458,7 @@ public:
     std::shared_ptr<const SolidSetup> SizedSetup() const;
     //! \brief What the pilot COST (C2 step 3; the controller's condition: a user pays it, so it is reported and gated, never hidden): its
     //! audit rounds, and the SCF iterations of its re-convergences (on top of the run's own).  All zero on a resolved setup.
-    struct RasterPilotCost { int rounds=0; size_t reconvergeIterations=0; bool settled=false; };
+    struct RasterPilotCost { int rounds=0; size_t reconvergeIterations=0; bool settled=false; };   //!< settled: every term met its target (not the round cap)
     RasterPilotCost PilotCost() const;
     //! \brief THE EGG-BOX GATE (doc/GridEpsilonPlan.md §5 verdict 5): every atom translated rigidly by \a shift (bohr), basis and Hamiltonian
     //! rebuilt there (the molecular basis remade from the setup's frozen recipe), the SAME AO density matrix restored (a rigid
@@ -631,9 +631,11 @@ private:
     void AttachProbes();
     //! The ONE comparison under both audits: the run against a reference built on \a raster at the atoms shifted by \a shift (zero
     //! for the raster audit), at the same D, term by term.  \a reference names the reference in the report.  \a xcMesh: the reference's XC
-    //! quadrature (null = the run's own; the pilot's nested Becke audit passes the next ladder rung).
+    //! quadrature (null = the run's own; the pilot's nested Becke audit passes the next ladder rung).  \a ballScale: the reference's density
+    //! G-ball cutoff over the run's (1 = the run's own; the pilot's nested ball audit passes 2 -- \c cutoffFactor when the ball is auto,
+    //! \c densityEcut when it is stated).
     GridAuditResult CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift, const std::string& reference,
-                                    const qcMesh::MeshParams* xcMesh=nullptr) const;
+                                    const qcMesh::MeshParams* xcMesh=nullptr, double ballScale=1.0) const;
     //! The reference tolerances of a grid audit: every raster demand at what the run's raster DELIVERS plus \a margin.
     BasisSet::Gaussian::GPWTolerances ReferenceRasters(double margin) const;
     //! \brief THE PILOT (C2 step 3, doc/GridEpsilonPlan.md §1): on a setup whose rasters are not resolved, after the FINAL stage converged
