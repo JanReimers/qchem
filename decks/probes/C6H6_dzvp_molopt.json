@@ -1,0 +1,159 @@
+{
+ "_doc": [
+  "C6H6 (C-C 1.39, C-H 1.09 A) in an 18 bohr cubic box, Gamma, DZVP-MOLOPT-GTH + GTH-PADE, spherical, densityEcut 100 Ha stated,",
+  "Becke (60, GL 48): the benzene same-basis gate vs CP2K 1200 Ry (OpenWork H/C/N row)."
+ ],
+ "structure": {
+  "name": "C6H6_dzvp_molopt",
+  "lattice": {
+   "vectors_bohr": [
+    [
+     18.0,
+     0,
+     0
+    ],
+    [
+     0,
+     18.0,
+     0
+    ],
+    [
+     0,
+     0,
+     18.0
+    ]
+   ]
+  },
+  "atoms": [
+   {
+    "el": "C",
+    "frac": [
+     0.6459288507349901,
+     0.5,
+     0.5
+    ]
+   },
+   {
+    "el": "C",
+    "frac": [
+     0.572964425367495,
+     0.6263780918815688,
+     0.5
+    ]
+   },
+   {
+    "el": "C",
+    "frac": [
+     0.427035574632505,
+     0.6263780918815688,
+     0.5
+    ]
+   },
+   {
+    "el": "C",
+    "frac": [
+     0.35407114926501,
+     0.5,
+     0.5
+    ]
+   },
+   {
+    "el": "C",
+    "frac": [
+     0.42703557463250497,
+     0.3736219081184312,
+     0.5
+    ]
+   },
+   {
+    "el": "C",
+    "frac": [
+     0.5729644253674949,
+     0.3736219081184311,
+     0.5
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.7603622660595506,
+     0.5,
+     0.5
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.6301811330297753,
+     0.7254803365944537,
+     0.5
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.36981886697022476,
+     0.7254803365944537,
+     0.5
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.23963773394044946,
+     0.5,
+     0.5
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.36981886697022465,
+     0.2745196634055464,
+     0.5
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.6301811330297751,
+     0.2745196634055462,
+     0.5
+    ]
+   }
+  ],
+  "pp": "gth-lda-valence"
+ },
+ "basis": {
+  "data": "dzvp_molopt_gth",
+  "spherical": true
+ },
+ "solid": {
+  "species": [
+   [
+    "C",
+    4
+   ],
+   [
+    "H",
+    1
+   ]
+  ],
+  "multiplicity": 1,
+  "imposeSymmetry": false,
+  "xcMeshSymmetric": false,
+  "xcMesh": {
+   "cellKind": "Becke",
+   "nRadial": 60,
+   "mhlAlpha": 2.0,
+   "angularDegree": 48,
+   "angular": "GaussLegendre"
+  },
+  "densityEcut": 100.0
+ },
+ "scf": {
+  "minDeltaRhoPerElectron": 1e-08,
+  "deltaRhoMeasure": "MaxDeltaD",
+  "NMaxIter": 100
+ }
+}

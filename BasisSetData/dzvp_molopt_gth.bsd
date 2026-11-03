@@ -7,6 +7,7 @@ vs CP2K 1200 Ry: CH4 -8.0351300 vs -8.0351296 (-0.4 uHa), NH3 -11.7016472 vs -11
 (+2.5).  STATE densityEcut: the AUTO value (2 alpha_max = 24 Ha) truncates the density's G-ball on the sharp O/N pairs --
 CH4 11, NH3 66, H2O 330 uHa high (OpenWork density-ball row).  Run it on a stated Becke mesh: the default (40, 29) is 52 uHa
 short on CH4.
+BENZENE (2026-11-03, 18 bohr box, same recipe): -37.6867871 vs CP2K -37.6867742 (-13.0 uHa, 1.1 uHa/atom; Exc -9.4 of it).
 
 !
 BASIS="DZVP-MOLOPT-GTH"

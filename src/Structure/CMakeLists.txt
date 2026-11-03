@@ -6,6 +6,7 @@ target_sources(qcStructure PRIVATE
     Imp/UnitCell.C
     Imp/StructureData.C
     Lattice_3D/Imp/Lattice_3D.C
+    Lattice_3D/Imp/Imposition.C
     )
 target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Structure.C
@@ -16,6 +17,7 @@ target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Lattice_3D/KMesh.C
     Lattice_3D/Lattice_3D.C
     Lattice_3D/SymmetrizeMesh.C
+    Lattice_3D/Imposition.C     # qchem.Lattice_3D.Imposition: the run's symmetry imposition (V-BS-SYMMETRY)
     )
 target_include_directories(qcStructure PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include

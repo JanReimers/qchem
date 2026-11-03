@@ -3,6 +3,9 @@ module;
 #include <cassert>
 #include <memory>
 #include <stdexcept>
+#include <algorithm>
+#include <limits>
+#include <string>
 module qchem.BasisSet;
 import qchem.BasisSet.Orbital_DFT_IBS;   // the per-block fit factories this whole-set layer delegates to
 import qchem.BasisSet.DeltaFit_IBS;      // DeltaFit_IBS -- the delta representation this layer builds itself
@@ -159,6 +162,25 @@ template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const St
     return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateVxcFitBasisSet(cl,mp);});
 }
 
+// THE WHOLE-BASIS RESOLUTION: every block, the cross-scalar real children included (a TRIM block inside a complex set answers through
+// GetRealIBS), reduced to the finest cutoff, the coarsest coarse cutoff and the widest radius.
+template <class T> Resolution tBasisSet<T>::MakeResolution(double eps) const
+{
+    if (!(eps>0.0 && eps<1.0)) throw std::invalid_argument("tBasisSet::MakeResolution: eps must lie in (0,1), got "+std::to_string(eps));
+    if (GetNumIBS()==0) throw std::logic_error("tBasisSet::MakeResolution: a basis with no blocks has no resolution");
+    Resolution r{.cutoff=0.0, .coarseCutoff=std::numeric_limits<double>::infinity(), .radius=0.0};
+    for (size_t i=0; i<GetNumIBS(); i++)
+    {
+        const GridResolution* g = GetRealIBS(i) ? dynamic_cast<const GridResolution*>(GetRealIBS(i))   // abstract -> abstract
+                                                : dynamic_cast<const GridResolution*>(GetIBS(i));
+        if (!g) throw std::logic_error("tBasisSet::MakeResolution: block "+std::to_string(i)+" has no GridResolution face");
+        const Resolution b=g->MakeResolution(eps);
+        r.cutoff      =std::max(r.cutoff,       b.cutoff);
+        r.coarseCutoff=std::min(r.coarseCutoff, b.coarseCutoff);
+        r.radius      =std::max(r.radius,       b.radius);
+    }
+    return r;
+}
 
 template class tBasisSet<double>;
 template class tBasisSet<dcmplx>;

@@ -29,6 +29,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     IntegralsCacheReport.C                # the one orchestrator-side ask of the cache (V1.20d)
     Orbital_PP_IBS.C                      # the species-field INTEGRAL SERVICE + its ARGUMENT vocabulary (V1.2; absorbed SpeciesField.C 2026-09-15)
   BasisSet.C
+  GridResolution.C                      # 'how fine and how far must a grid over me reach' -- the grid builders' query (V-BS-RASTER; 2026-11-02)
   AoShellSource.C                       # 'I am built from atom-centred shells' (+U manifolds, SALC induction; 2026-09-19)
   OrbitalImageSource.C                  # 'the image of my Bloch orbitals under a crystal op' (KAxisPlan P4, D5/CK-3a; 2026-10-27)
   AtomCentredSet.C                      # an atom-centred function set + 'my overlap with it' (+U projectors, HubbardProjectorPlan D1/D2)
