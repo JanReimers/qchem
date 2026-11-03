@@ -84,7 +84,8 @@ def main():
     only=re.compile(a[a.index('--only')+1]) if '--only' in a else None
     root=os.path.dirname(os.path.dirname(build)) if False else None
     entries=compdb(build)
-    entries=[e for e in entries if re.search(r'/(src|CLIapps|IntegrationTests)/',e['file']) and '/pybind/' not in e['file']]
+    entries=[e for e in entries if e['file'].endswith('.C') and os.path.isfile(e['file'])
+             and re.search(r'/(src|CLIapps|IntegrationTests)/',e['file']) and '/pybind/' not in e['file']]
     if only: entries=[e for e in entries if only.search(e['file'])]
     seen=set(); uniq=[]
     for e in entries:
