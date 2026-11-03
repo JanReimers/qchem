@@ -128,6 +128,10 @@ void EmitGpwGrids(const Complex_BS& bs);
 //! The alias exponents a GPW basis's rasters deliver (the first GPW block speaks for all: the rasters are k-independent); none for a
 //! basis with no GPW block (plane waves).  What the facade's pilot audit fits each raster term's measured tail at (C2 step 3).
 std::optional<Gaussian::RasterExponents> GpwRasterExponents(const Complex_BS& bs);
+//! The grid-audit verdicts a GPW basis's rasters deliver (the first GPW block speaks for all, as above); empty for a basis with no GPW
+//! block.  What the facade's fixed-D grid audit records per side and bounds each raster term at -- ASKED of the raster's owner, never
+//! read back out of the run report (V-REPORT-WRITEONLY).
+std::vector<Gaussian::RasterVerdict> GpwRasterVerdicts(const Complex_BS& bs);
 
 //! Fail-fast conditioning PRE-FLIGHT (doc/RunReportPlan.md, doc/GPWPlan1.md §4a): for each Bloch block of \a bs,
 //! analyse its ANALYTIC, grid-free overlap and emit the report's basis.perIrrep (conditioning) + basis.removed

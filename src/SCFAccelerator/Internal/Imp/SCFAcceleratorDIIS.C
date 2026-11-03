@@ -9,6 +9,7 @@ module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.Blaze;
 import qchem.Math;
+import qchem.Reporting;   // the accelerator files what it was BUILT with, one level into its builder's context
 import qchem.Math.DIIS;   // the shared Pulay bordered-solve (Bordered/MinSV/Coefficients) -- serves Fock-DIIS too
 
 namespace qchem::SCFAccelerators
@@ -91,7 +92,14 @@ template <class T> void tSCFIrrepAcceleratorDIIS<T>::Purge1()
 
 SCFAcceleratorDIIS::SCFAcceleratorDIIS(const DIISParams& p)
 : itsParams(p)
-{};
+{
+    // Cursor-relative, at its own construction (CLAUDE.md "THE RUN REPORT"): the builder opened the context; inert outside a run.
+    report::Set("type",          "DIIS");
+    report::Set("nProj",         (long)p.Nproj);
+    report::Set("engageBelowFD", p.EngageBelowFD);
+    report::Set("svTol",         p.SVTol);
+    report::Set("svTolRel",      p.SVTolRel);
+};
 
 SCFAcceleratorDIIS::~SCFAcceleratorDIIS() {};
 // ONE templated body behind the two typed Create overloads (§6): the child is typed by the BLOCK, the

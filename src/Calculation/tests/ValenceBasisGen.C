@@ -189,7 +189,7 @@ TEST(ValenceBasisGen, BasisUsageSumsToElectronCount)
     ValenceBasisRecipe r;
     r.element="Al"; r.Zion=3; r.electrons=3;
     r.shells={ {0, EvenTemperedWindow(6, 0.04, 4.0)}, {1, EvenTemperedWindow(5, 0.05, 2.5)} };
-    GenerateValenceBasis(r);            // opens+closes an AtomCalculation run that records basis.usage
+    { rpt::Run run("valgen Al validate"); GenerateValenceBasis(r); }   // the test is the driver: its run records the atom's basis.usage
 
     double sum=0.0; size_t nrows=0; bool found=false;
     for (auto& [key, run] : rpt::GlobalReport().items())

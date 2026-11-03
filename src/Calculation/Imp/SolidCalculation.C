@@ -37,6 +37,7 @@ import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeLadderAb
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.SCFCap;                           // SetupSCF -- the seed's atomic solves are not the run's iterations
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
+import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
 
 namespace qchem
 {
@@ -778,6 +779,9 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, const SCFPar
     itsImp->stageAccelAsked = asked;
     itsImp->stageAccel      = t;
     itsImp->stageRestored   = restored;
+    // The facade sets the context, the accelerator files what it was built with (THE RUN REPORT): one `accelerators` row per
+    // accelerator built in this run (a solid rebuilds one per stage), its Ladder rungs one level further in.
+    qchem::report::Row built("accelerators");
     itsImp->accel.reset(SCFAccelerators::Factory(t, ao));
 }
 
@@ -1022,6 +1026,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
     const SCFParams resolved=itsImp->scf->ResolveMixing(params);
     EmitSCFBanner(itsImp->setup->opts.label, resolved, itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
                   itsImp->stageAccelAsked==SCFAccelerators::Type::Auto);
+    { qchem::report::Section scf("scf"); ReportSCFRecipe(resolved, AccelName(itsImp->stageAccel)); }   // the run report's "what recipe am I running" header, as every facade files it
     itsImp->lastOccupation = {.useMOM=params.UseMOM, .momStartIter=(int)params.MOMStartIter,
                               .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty};   // the iterator's own conversion
     itsImp->lastkT     = params.SmearingkT;
@@ -1533,8 +1538,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     itsImp->pilotCost.settled=itsImp->rastersSettled;
     std::cout<<tag<<"cost: "<<itsImp->pilotCost.rounds<<" audit round(s), "<<itsImp->pilotCost.reconvergeIterations
              <<" re-convergence iteration(s) beyond the run's own"<<std::endl;
-    if (rpt::Depth()>0)
-        rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
+    rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
                                              {"rasters",RasterName(itsImp->setup->opts.tolerances)},
                                              {"xcMesh", itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(itsImp->setup->xcMesh) : std::string("uniform")},{"settled",itsImp->rastersSettled},
                                              {"auditRounds",itsImp->pilotCost.rounds},{"reconvergeIterations",(long)itsImp->pilotCost.reconvergeIterations}});
@@ -1574,21 +1578,16 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
     const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
     if (!wf) throw std::logic_error("SolidCalculation: no wave function yet (the audits run on a converged D)");
     const SpinGroup g = S.polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
-    // The grid-audit verdicts of the report in scope: the run's own here, the reference's inside the fence below (both are printed, so
-    // the predicted alias of whichever side is the coarse one can be read -- the run need not be the BallOnly side).
-    auto readVerdicts=[]()
+    // The grid-audit verdicts of each side's rasters, ASKED of the basis that owns them (V-REPORT-WRITEONLY: never read back out of the
+    // run report): the run's own here, the reference's once its V_long has run below (both are printed, so the predicted alias of
+    // whichever side is the coarse one can be read -- the run need not be the BallOnly side).
+    auto verdictsOf=[](const BasisSet::Complex_BS& bs)
     {
         rpt::json v=rpt::json::object();
-        if (rpt::Depth()>0 && rpt::CurrentRunReport().contains("grids"))
-            for (const char* k : {"auditDensity","auditVlocLong"})
-                if (rpt::CurrentRunReport()["grids"].contains(k))
-                {
-                    const auto& a=rpt::CurrentRunReport()["grids"][k];
-                    v[k]={{"status",a.value("status","")},{"alias",a.value("alias",0.0)}};
-                }
+        for (const auto& r : BasisSet::Lattice::GpwRasterVerdicts(bs)) v[r.audit]={{"status",r.status},{"alias",r.alias}};
         return v;
     };
-    const rpt::json verdicts=readVerdicts();
+    const rpt::json verdicts=verdictsOf(*itsImp->bs);
     rpt::json refVerdicts=rpt::json::object();
 
     const SavedState st=SnapshotState(*itsImp->bs, *wf);
@@ -1660,7 +1659,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             else    FoldΔH(itsImp->ham->MakeTermMatrices((*itsImp->bs)[i],s,dRun), hamRef->MakeTermMatrices((*bsRef)[i],s,dRef), R.terms);
         }
     for (const auto& t : R.terms) R.maxAbsΔH=std::max(R.maxAbsΔH, t.maxAbsΔH);
-    refVerdicts=readVerdicts();
+    refVerdicts=verdictsOf(*bsRef);
     fence.reset();
     R.runVerdicts=toVerdicts(verdicts); R.referenceVerdicts=toVerdicts(refVerdicts);
     // The rigorous bound per raster term, at the COARSE side's predicted alias (whichever side that is), and the measured eta
@@ -1710,8 +1709,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             std::cout<<"[grid audit]   "<<who<<" "<<it.key()<<": "<<it.value().value("status",std::string())
                      <<" (predicted alias "<<it.value().value("alias",0.0)<<")"<<std::endl;
     std::cout<<std::defaultfloat<<std::setprecision(prec0);
-    if (rpt::Depth()>0)
-        rpt::EmitAt(eggBox ? "eggBox" : "gridAudit", eggBox ? R.reference : RasterName(opts.tolerances)+std::string("_vs_")+R.reference,
+    rpt::EmitAt(eggBox ? "eggBox" : "gridAudit", eggBox ? R.reference : RasterName(opts.tolerances)+std::string("_vs_")+R.reference,
                     rpt::json{{"run",RasterName(opts.tolerances)},{"reference",R.reference},{"terms",rows},
                          {"maxAbsDH",R.maxAbsΔH},{"dE",R.ΔE},{"verdicts",verdicts},{"referenceVerdicts",refVerdicts}});
     return R;

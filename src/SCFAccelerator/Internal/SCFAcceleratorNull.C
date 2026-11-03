@@ -42,6 +42,7 @@ private:
 class SCFAcceleratorNull : public virtual SCFAccelerator
 {
 public:
+    SCFAcceleratorNull();   //!< files its type, one level into its builder's report context
     //! The manager registers each block on its scalar aggregation face (as DIIS and GDM do) and keeps no other reference.
     virtual tSCFIrrepAccelerator<double>* Create(const LASolver<double>* las,const Irrep& qns, int)
         {auto* a=new tSCFIrrepAcceleratorNull<double>(las,qns); itsIrreps.push_back(a); return a;}

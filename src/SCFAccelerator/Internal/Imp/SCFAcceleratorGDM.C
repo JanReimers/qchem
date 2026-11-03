@@ -18,6 +18,7 @@ module;
 module qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.Blaze;
+import qchem.Reporting;   // the accelerator files what it was BUILT with, one level into its builder's context
 
 namespace qchem::SCFAccelerators
 {
@@ -346,7 +347,15 @@ template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorGDM<T>::Orbit
 //----------------------------------------------------------------------------------------
 // Non-irrep (aggregate) code
 //
-SCFAcceleratorGDM::SCFAcceleratorGDM(const GDMParams& p) : itsParams(p), itsEn(0.0) {}
+SCFAcceleratorGDM::SCFAcceleratorGDM(const GDMParams& p) : itsParams(p), itsEn(0.0)
+{
+    // Cursor-relative, at its own construction (as DIIS): the builder opened the context; inert outside a run.
+    report::Set("type",          "GDM");
+    report::Set("engageBelowFD", p.EngageBelowFD);
+    report::Set("trust",         p.Trust);
+    report::Set("trustBackoff",  p.TrustBackoff);
+    report::Set("trustMin",      p.TrustMin);
+}
 SCFAcceleratorGDM::~SCFAcceleratorGDM() {}
 
 // ONE templated body behind the two typed Create overloads (§6): the child is typed by the BLOCK, the

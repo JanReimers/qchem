@@ -216,6 +216,8 @@ public:
     void EmitGridsReport() const;
     //! The alias exponents this block's rasters deliver (\c RasterExponents; forces the ladder like \c EmitGridsReport).
     RasterExponents DeliveredRasterExponents() const;
+    //! The grid-audit verdicts of this block's rasters, density first, then V_loc long's once its integrate-back has run (forces the ladder).
+    std::vector<RasterVerdict> DeliveredRasterVerdicts() const;
     //! One diagnostic line for any stored grid (the per-grid piece of \c ReportGrids; also used by the
     //! \c CreateCD/VxcFitBasisSet factories to print the fit grid they actually wrap).
     static std::ostream& ReportGrid(std::ostream& os, const std::string& tag, const PlaneWave::PW_Grid_Evaluator& g);

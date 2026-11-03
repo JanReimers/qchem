@@ -106,10 +106,7 @@ public:
     //             cannot engage (smeared occupations), the RETREAT rule below drops back a rung, loudly.
     SCFAcceleratorLadder(std::vector<std::unique_ptr<SCFAccelerator>> rungs,
                          double ethresh=1e-8, int stall=5, double floor=1e-8, double switchat=0.0,
-                         ScheduleSignal signal=ScheduleSignal::Error, size_t start=0)
-        : itsRungs(std::move(rungs)), itsEThresh(ethresh), itsStall(stall),
-          itsFloor(floor), itsSwitchAt(switchat), itsSignal(signal), itsActive(start)
-    { assert(itsActive<itsRungs.size()); }
+                         ScheduleSignal signal=ScheduleSignal::Error, size_t start=0);   // files its knobs (Imp)
     virtual tSCFIrrepAccelerator<double>* Create(const LASolver<double>*,const Irrep&, int occ);
     virtual tSCFIrrepAccelerator<dcmplx>* Create(const LASolver<dcmplx>*,const Irrep&, int occ);
     virtual bool   CalculateProjections();

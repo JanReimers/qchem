@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <cmath>
 #include <vector>
+#include <memory>
 import qchem.Calculation;
 import qchem.AtomCalculation;   // AtomCalculation::Prepare (the atom's Build -> Run)
 import qchem.Structure;         // Atom (the atom's report ID)
@@ -35,6 +36,7 @@ TEST(CalculationFacade, TheConstructorsObserverSeesItsSCFFromTheFirstIteration)
 TEST(CalculationFacade, AMoleculesXCMeshIsInTheRunReportByIterationOne)
 {
     bool seen=false, checked=false;
+    qchem::report::Run run("H2O");   // the test is the driver: it opens the run the facade writes into (user ruling D, 2026-11-02)
     Calculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA}), {},
                      [&](const SCFIterator::IterationRow& p)
                      {
@@ -56,6 +58,7 @@ TEST(CalculationFacade, AMoleculesXCMeshIsInTheRunReportByIterationOne)
 TEST(CalculationFacade, APseudopotentialRunsPPQuadratureIsInGridsNotBasis)
 {
     bool seen=false, stray=true;
+    qchem::report::Run run("H2O");   // the driver's run (user ruling D, 2026-11-02)
     Calculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}), {},
                      [&](const SCFIterator::IterationRow& p)
                      {
@@ -150,14 +153,15 @@ const qchem::report::json* FiledRun(const std::string& prefix)
 }
 
 //! BUILD, THEN RUN (OpenWork "A molecule has no build-only step", user 2026-11-02: "the GUI needs a trigger to read all setup
-//! panels and start the actual work").  Prepare files the whole setup -- basis.perIrrep, every grids.* entry -- in its OWN report
-//! run, closed before it returns and BEFORE any SCF iteration; the first Converge then reuses that graph and lands on the
-//! constructor's answer bit for bit.
-TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsOwnBuildRunBeforeAnySCF)
+//! panels and start the actual work").  Prepare files the whole setup -- basis.perIrrep, every grids.* entry -- into the build run
+//! its CALLER opened (a facade never opens one, user ruling D 2026-11-02; the GUI's Build opens "<ID> build"), BEFORE any SCF
+//! iteration; the first Converge then reuses that graph and lands on the constructor's answer bit for bit.
+TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySCF)
 {
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"});
     size_t rows=0;
-    auto calc=Calculation::Prepare(setup, [&](const SCFIterator::IterationRow&){ rows++; });
+    std::unique_ptr<Calculation> calc;
+    { qchem::report::Run run(GetMolecule("H2O").ID()+" build"); calc=Calculation::Prepare(setup, [&](const SCFIterator::IterationRow&){ rows++; }); }
     EXPECT_EQ(rows, 0u) << "Prepare ran an SCF iteration";
     const auto* build=FiledRun(GetMolecule("H2O").ID()+" build@");
     ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
@@ -181,7 +185,8 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsOwnBuildRunBeforeAnySCF)
 TEST(CalculationFacade, AnAtomsPrepareFilesItsSetupBeforeAnySCF)
 {
     const AtomCalcOptions opts{.type=AtomType::Gaussian, .model=Model::LDA};
-    auto calc=AtomCalculation::Prepare(8, 0, opts);
+    std::unique_ptr<AtomCalculation> calc;
+    { qchem::report::Run run(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build"); calc=AtomCalculation::Prepare(8, 0, opts); }
     const auto* build=FiledRun(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build@");
     ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
     EXPECT_TRUE(build->contains("basis") && (*build)["basis"].contains("perIrrep")) << build->dump(1);
