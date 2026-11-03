@@ -111,6 +111,33 @@ void ExpectExactResume(int multiplicity, bool forceComplex)
 TEST(SolidState, ExactResume_UnPol_Real)  {ExpectExactResume(0, false);}
 TEST(SolidState, ExactResume_Pol_Complex) {ExpectExactResume(1, true);}
 
+// A state SIZED FOR ITS TARGET carries the density ball with its rasters: the auto ball is pilot-sized (the ball ladder doubles
+// cutoffFactor), and adopting the saved rasters skips the pilot, so a resume that kept the setup's own starting ball would walk to that
+// ball's fixed point (the MnO +U vendored twin, 2026-11-03: saved at cutoffFactor 4, resumed at 2, 150 uHa off).  Here the saved run's
+// ball is simply larger than the resume's default; the resume must land on the SAVED fixed point.
+TEST(SolidState, ASizedStateResumesOnItsOwnDensityBall)
+{
+    const std::string path=TempPath("ck1_si_ball4.h5");
+    SiRun si=Si(ivec3_t(1,1,1));
+    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .cutoffFactor=4.0, .label="ck1", .saveStateTo=path};
+    SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), Params());
+    auto r0=calc.Result();
+    ASSERT_TRUE(r0);
+    o.cutoffFactor=SolidCalcOptions{}.cutoffFactor; o.saveStateTo="";   // the resume's setup starts on the DEFAULT ball
+    ASSERT_NE(o.cutoffFactor, 4.0);
+    std::vector<double> E;
+    auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), Params(),
+                                     [&E](const SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
+    ASSERT_TRUE(c) << c.Error().details;
+    auto r=(*c)->Result();
+    ASSERT_TRUE(r);
+    // The FIRST iterate is the claim (CLAUDE.md: pin a restart's first iterate): on the default ball it would sit more than 1e-5 Ha away (cutoffFactor 4 vs 8 alone is 1.3e-5 here).  The iteration
+    // COUNT is not -- this state is saved at drho 9.5e-8 beside a 1e-7 gate, and GDM spends a few steps confirming it (measured 7).
+    ASSERT_FALSE(E.empty());
+    EXPECT_NEAR(E.front(),   r0->Energy(), 1e-9) << "the resume's first iterate left the saved ball's fixed point";
+    EXPECT_NEAR(r->Energy(), r0->Energy(), 1e-8);
+}
+
 TEST(SolidState, FileLayoutIsWhatTheDocSays)
 {
     const Saved& s=SavedState(0, false);

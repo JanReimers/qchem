@@ -369,6 +369,7 @@ TEST(GPW_NaF, Γ_PathIsContinuous_Long)
     o.xcMeshSymmetric=false;  // ... and a free session's XC mesh must not follow the group detected at each point (see above)
     o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default: the CONTINUITY claim only -- a site curvature on it is 4-10x off (LiF/NaF, OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
+    o.densityEcut     = 80.0;   // STATED, the old auto ball (2 alpha_max): the pilot would double it (Hartree 1.9e-2 over at 80 Ha) and the 20 serial points cost 2574 s, not ~600 -- the CONTINUITY claim does not need the ball converged, only fixed along the path
     SCFParams par=NaFAnchorParams(); par.MinΔρPerElectron=1e-6;
     const GaussianBasisRecipe sr2{.data=BasisSetData::VALENCE_LOWQ_SR2};
     qchem::SolidSession pes(SolidSetup::Resolve(LatticeOf(naf), sr2, o), {SCFStage{par, o.accelerator}});
