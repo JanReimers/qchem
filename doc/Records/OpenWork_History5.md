@@ -1223,3 +1223,26 @@ rule), gated by `SCFTrace.AMolecularLadderHandsOffToGDMBelowTheEnergyTail`.  Cry
 (`diis` {nProj, engageBelowFD, svTol, svTolRel}, `gdm` {engageBelowFD, trust, trustBackoff, trustMin, pcFloor, aufbauTol, aufbauMaxRepicks},
 `ladder` {gdm {…}, eThresh, stall, floor, switchAt, signal}), forwarded to `SolidSetup::Resolve`, written to every record; `ladderStartOnGDM`
 stays the facade's per-stage decision.  UTs: `Deck.AcceleratorOptionsAreDeckKeysAndRoundTrip`, `MoleculeSetup.EveryAcceleratorKnobReachesTheFactoryDoor`.
+
+## ✅ The two AUTO-ball rows -- CLOSED 2026-11-02 (lane A, the density-ball pilot + V_loc long sized from eps); the rows as they stood
+
+| **The AUTO density cutoff under-resolves O q6 in an O-only cell** (2026-10-23) | `densityEcut` auto = 2·α_max of the ORBITAL basis: 36 Ha for an O box (VB O, α_max 18), while the O GTH-PADE-q6 local part is sharper (the log's own `alpha_pp=8.15`).  O atom in a 16-bohr box: 36 Ha is **+27 mHa** above the converged value; 72 Ha −0.99 mHa, 144 Ha +0.14 mHa vs CP2K.  Hidden in every Mn-containing cell (Mn sets α_max = 36 → 72 Ha).  **WORSE ON A SOFT BASIS (lane B 2026-10-31, the landing sweep):** O₂ in a 16-bohr box on sipp O (α_max 2) -- auto = 4 Ha, the grid audit prints UNDER (alias 3.9e-3 vs 1e-6) and the run carries on -- lands **0.711 Ha LOW**, non-variational (−30.71018); 60 Ha −29.998793, 120 / 240 Ha −29.998767 = CP2K −29.998761 to 6 μHa (`~/Code/cp2k-runs/O2/O2_sipp_box16_*`, same basis + PP + box; PySCF −29.998770).  `GPW_O2Box.Γ_Imp_M3_eqFinite` 'matched' it only through the old 30/5 molecular mesh (−30.736); it now states densityEcut 120 with a CP2K oracle line (a54bf84e).  ⚠ panel #4 `GPW_O2Box.Γ_Imp_M3_Pulay_Anchor_Panel` still anchors −30.71018 at auto (forwarded to lane A).  The fix is lane A's C2 (the raster sized from ε, honouring the audit's UNDER) | §3 ORDER step 0 FIRST: read the auto `densityEcut` each campaign cell printed (TiO₂, FeS₂, SrVO₃, NiO, MnO₂, spinels) -- if any is O-limited, this row lands BEFORE the re-runs, else it is independent.  Fix: fold the PP's own sharpness into the auto rule (max of the orbital and PP-projector/local widths), gate: O box at auto within 1 mHa of the 144 Ha value; then re-check every O-only / light-element anchor (O₂ box: `GPW_O2Box.Γ_Imp_M3_eqFinite`) · `~/Code/qchem6-runs/O_box16/` |
+
+| **The auto density floor ignores a local-PP FIELD sharper than the basis** (2026-10-25; the REMAINDER of "⛔ GPW `BallOnly` raster + the C = 2 density floor ALIAS tight pairs", closed 2026-11-01 by C2 step 3 -- `Records/OpenWork_History5.md`) | the raster half is cured: C2 step 3 sizes every raster from ε (pin 31, the pilot audit), `BallOnly`/`AliasFree` retired.  Still open: the auto `densityEcut` floor follows the BASIS (max 2α), not a local-PP field sharper than it -- α = 2 alone is 0.03 Ha off even alias-free; O2Box after the re-bank is still 0.106 Ha above CP2K (−30.1051713 vs −29.998761, box16, 400 Ry), attributed to this | measure the O2Box gap against densityEcut at a fixed sized raster; if it closes, add the PP field's need to the floor (max(2α_max, the PP field's G-tail at ε)) and re-bank · `src/BasisSet/Gaussian/Lattice/Imp/GPW_Evaluator.C`, `IntegrationTests/GPW/Boxes.C` |
+
+**Verdict.**  The density ball (the G-ball the density is collocated into) was never judged: the pilot's `x + 8` reference raised the
+rasters at the run's ball, so its truncation sat on both sides and cancelled.  `SolidCalculation::CalibrateRasters` now runs a nested
+ladder like the Becke mesh's: the run against twice the ball at the converged D (`CompareAtFixedD(..., ballScale 2)`), the ball doubling
+(`cutoffFactor`) while the Hartree term is over pin 31's target, a stated `densityEcut` honoured and reported OVER.  Every other term the
+audit reads is judged too (the honest gate, controller ruling): one over target that a bigger ball cannot cure blocks SETTLED.  That
+exposed the V_loc long routing floor -- the per-pair harmonic rule's fixed `vlocEps` 1e-5 re-placed over the multigrid levels as the ball
+doubled, alternating ±6e-5 Ha on MnO (target 4e-5) -- now sized from the target, `GridAccuracy::VlocEps()` = eps/10 (measured margin:
+the delivered term error is 1.0-1.7x vlocEps per element, 1.4-6x per cell energy, at 1e-5 and 1e-7 alike).  Evidence: Si Γ geometry,
+V_loc long row 1.4e-5 at vlocEps 1e-5, 3e-8..5e-7 at 1e-7; lane B's stated-ball MnO series 250 → 320 Ha drifted 169 μHa at 1e-5 and
+0.75 μHa at 1e-7 (`~/Code/qchem6-runs/MnO/lanea_vloc7_e{250,320}`), so MnO's free deck has the reference −61.303112 (±1 μHa) and its
+auto cell lands −61.3031131.  O₂ box16: 106 mHa → 0.11 mHa from CP2K.  Two pre-existing pilot defects fixed beside it: the convergence
+tail estimate d/(1−d/d_prev) blew up when a round re-measured an unchanged rung (now only between two different rungs), and
+`PilotCost::settled` read true at the round cap.  Cost (MnO free, 4 threads): energy 463 s / 1.0 GB vs 183 s / 796 MB at the old ball,
+almost all the bigger ball (the per-SCF cost scales N_G); geometry 1h22m / 3.3 GB (§4 row: the XC-mesh sampler's per-point G-sum is about
+half the growth).  Remainders: the O tail row, the Becke-mesh-on-MnO-geometry row, the MnO VA (+39 μHa) and NaF (+0.82 mHa) converged CP2K-gap rows (§3).
+
