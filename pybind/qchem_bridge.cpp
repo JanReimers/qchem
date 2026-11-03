@@ -5,7 +5,7 @@
 // surface is the flat extern "C" API in qcb_api.h (C linkage -> links from nanobind).
 //
 // The bridge holds NO recipe of its own.  A molecule: it fills CalcOptions / AcceleratorOptions / SCFParams, calls
-// MoleculeSetup::Resolve, and owns one qchem::Calculation.  A crystal: it parses the caller's INPUT DECK and calls
+// MoleculeSetup::Resolve, and owns one qchem::MoleculeCalculation.  A crystal: it parses the caller's INPUT DECK and calls
 // deck::Build, owning the SolidCalculation that returns.  Everything it answers comes from the facade.
 module;
 #include <algorithm>
@@ -29,7 +29,7 @@ import qchem.Types;          // rvec3_t, vec3_t
 import qchem.Structure;      // Molecule, Atom
 import qchem.SCFParams;      // SCFParams
 import qchem.SCFIterator;    // IterationRow, IterationCell
-import qchem.Calculation;    // Calculation, MoleculeSetup, CalcOptions, AcceleratorOptions
+import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, CalcOptions, AcceleratorOptions
 import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
 import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
 import qchem.Symmetry.Molecule.PointGroup;      // DetectPointGroup
@@ -44,7 +44,7 @@ import qchem.Reporting;                          // report::GlobalReport (the ru
 // GLOBAL module, where qcb_api.h (in the GMF) forward-declares it -- a purview definition would be a different entity.
 extern "C++" struct qcb_calc
 {
-    std::unique_ptr<qchem::Calculation> calc;
+    std::unique_ptr<qchem::MoleculeCalculation> calc;
     qchem::SCFParams                    params;      // as asked at qcb_make; a re-run changes only NMaxIter
     std::vector<double>                 positions;   // flat 3N bohr, as asked
     std::string                         id;          // the structure's ID: the name of the report runs the bridge opens
@@ -60,7 +60,7 @@ extern "C++" struct qcb_solid
 
 namespace {
 
-using qchem::Calculation;
+using qchem::MoleculeCalculation;
 using qchem::SolidCalculation;
 
 //! The HOST's C locale, put back when an entry point returns.  The lib's console tables (submodules/tabulate) bracket each
@@ -112,7 +112,7 @@ qchem::SCFParams scf_params(const qcb_request& req)
 struct StoppedByUser : std::runtime_error { StoppedByUser() : std::runtime_error("stopped by the user") {} };
 
 //! The facade's observer, forwarding each iteration's row to the C sink: every cell, generically.  One row type serves
-//! both facades (Calculation::Observer and SolidCalculation::Observer take the same IterationRow).
+//! both facades (MoleculeCalculation::Observer and SolidCalculation::Observer take the same IterationRow).
 std::function<void(const qchem::SCFIterator::IterationRow&)> forward_to(qcb_row_fn step, qcb_sink* sink)
 {
     return [step, sink](const qchem::SCFIterator::IterationRow& r)
@@ -177,7 +177,7 @@ template <class F> void for_grid(const qcb_calc* h, int n, double pad, double* o
                 f(rvec3_t(lo.x+sp.x*i, lo.y+sp.y*j, lo.z+sp.z*k));
 }
 
-void sample(const qcb_calc* h, const Calculation::sf_t& f, int n, double pad, double* out, double* origin, double* spacing)
+void sample(const qcb_calc* h, const MoleculeCalculation::sf_t& f, int n, double pad, double* out, double* origin, double* spacing)
 {
     size_t idx = 0;
     for_grid(h, n, pad, origin, spacing, [&](const rvec3_t& r){ out[idx++] = f(r); });
@@ -221,10 +221,10 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char
         h->id     = mol.ID();
         // The bridge is the DRIVER (user ruling D): it opens the run the facade writes into -- "<ID>", as for a Converge.
         const qchem::report::Run run(h->id);
-        h->calc = std::make_unique<Calculation>(setup, h->params,
-                                                step ? forward_to(step, sink) : Calculation::Observer{});
+        h->calc = std::make_unique<MoleculeCalculation>(setup, h->params,
+                                                step ? forward_to(step, sink) : MoleculeCalculation::Observer{});
         // The sink lives only for this call: detach it before returning (qcb_converge attaches its own).
-        h->calc->OnIteration(Calculation::Observer{});
+        h->calc->OnIteration(MoleculeCalculation::Observer{});
         return h.release();
     }
     catch (const std::exception& e) { write_error(e.what(), err, errlen); }
@@ -239,16 +239,16 @@ int qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char
     const HostLocale host;
     try
     {
-        h->calc->OnIteration(step ? forward_to(step, sink) : Calculation::Observer{});
+        h->calc->OnIteration(step ? forward_to(step, sink) : MoleculeCalculation::Observer{});
         qchem::SCFParams p = h->params;
         p.NMaxIter = size_t(maxIter);
         const auto out = [&]{ const qchem::report::Run run(h->id); return h->calc->Converge(p); }();
-        h->calc->OnIteration(Calculation::Observer{});      // the sink lives only for this call
+        h->calc->OnIteration(MoleculeCalculation::Observer{});      // the sink lives only for this call
         if (out) return 1;
         write_error(describe(out.Error()).c_str(), err, errlen);
         return 0;
     }
-    catch (const StoppedByUser& e) { h->calc->OnIteration(Calculation::Observer{}); write_error(e.what(), err, errlen); return 0; }
+    catch (const StoppedByUser& e) { h->calc->OnIteration(MoleculeCalculation::Observer{}); write_error(e.what(), err, errlen); return 0; }
     catch (const std::exception& e) { write_error(e.what(), err, errlen); }
     catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
     return -1;
@@ -412,7 +412,7 @@ int qcb_basis_info(const int* Z, int nat, const double* pos3, const char* basis,
         qchem::Molecule mol;
         for (int a = 0; a < nat; ++a)
             mol.Insert(new qchem::Atom(Z[a], 0.0, rvec3_t(pos3[3*a], pos3[3*a+1], pos3[3*a+2])));
-        // the facade's defaults (Calculation's BuildBasis with CalcOptions{}): MnD engine, Cartesian, no SALC blocking --
+        // the facade's defaults (MoleculeCalculation's BuildBasis with CalcOptions{}): MnD engine, Cartesian, no SALC blocking --
         // a unitary re-blocking would not move S's spectrum
         const std::unique_ptr<qchem::BasisSet::Real_BS> bs(qchem::BasisSet::Gaussian::Factory(
             nlohmann::json{{"basis", basis}, {"engine", "mnd"}, {"angular", "cartesian"}}, &mol));
