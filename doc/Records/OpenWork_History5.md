@@ -1257,11 +1257,21 @@ the truncation sat on both sides and cancelled.  The false comment (`GPW_Evaluat
 gone; CleanCode D-FALSE-CONTRACT (1) records it.
 
 **Gates.**  `decks/MnO_AFM2_free.json` at default: −61.30311314, 1.1 μHa from the reference −61.303112 (ε 4e-5): MET.  The probe decks with
-`densityEcut` removed (lane A runs `~/Code/qchem6-runs/<m>/lanea_AB_<m>_dzvp_molopt.{json,out}`, ε = 1e-5 default) -- see the gate table
-below.  `vlocEps` is now `GridAccuracy::RigorousVlocEps()` (ε, the per-pair RELATIVE bound of the harmonic routing rule, no S prefactor)
+`densityEcut` removed (lane A runs `~/Code/qchem6-runs/<m>/lanea_AB_<m>_dzvp_molopt.{json,out}`, ε = 1e-5 default) -- the gate table below.  `vlocEps` is now `GridAccuracy::RigorousVlocEps()` (ε, the per-pair RELATIVE bound of the harmonic routing rule, no S prefactor)
 divided by `vlocRoutingEta` (the measured calibration: max 6 per cell, 1.7 per element, × ≥ 1.5 margin, rounded to 10; deck
 `solid.accuracyCalibration.vlocRouting`), combined in `VlocEps()` only; a stated `tolerances.vlocEps` wins; the run report prints
 rigorous, calibration, result and source (`Deck.AVlocRoutingCalibrationReachesTheEvaluatorAndAStatedVlocEpsWins`).
+
+| probe (DZVP-MOLOPT-GTH, 15 bohr Γ, Becke (60, GL 48)) | auto ball (old) | stated 100 Ha | **lane A auto** | ball settled | ball's own delivered (cf vs 2·cf) | wall / RSS (4 threads) |
+|---|---|---|---|---|---|---|
+| H₂O vs CP2K −17.1824875 | +330 μHa | +2.5 | **−13.3 μHa** (−17.18250083) | cf 4 (48 Ha) | 1.47e-5 | 1h06 / 0.75 GB |
+| NH₃ vs CP2K −11.7016477 | +66 | +0.5 | **−0.75** (−11.70164845) | cf 4 | 1.25e-6 | 2h00 / 0.69 GB |
+| CH₄ vs CP2K −8.0351296 | +11 | −0.4 | **−1.2** (−8.035130806) | cf 4 | 8.3e-7 | 2h45 / 0.79 GB |
+
+NH₃ and CH₄ meet the 3 μHa gate; **H₂O does NOT**: it lands 13.3 μHa below CP2K, inside its own target (ε·N = 3e-5) and the size the
+ball audit itself predicts (1.47e-5 at cf 4 vs 8; the stated-100 Ha run sits 15.8 μHa above it).  At the default ε the pilot is RIGHT to
+stop there: the 3 μHa gate asks for ε ≈ 1e-6 on H₂O.  (Wall: the three ran serially beside a sweep; per-SCF cost at cf 4 is the §4
+sampler row.)
 
 
 ## ✅ "No GTH valence basis covers H, C or N: organic molecules cannot take the pseudopotential path" -- CLOSED 2026-11-03 (lane B); the row as it stood
