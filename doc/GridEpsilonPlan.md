@@ -19,18 +19,21 @@ that produces forces, a geometry or a surface, each grid term's max|ΔH_ij| must
 the user never picks. Default 1e-5. Today it exists on the SOLID facade only (OOD-SOLID-Cleanup V-FACADE-ACCURACY); pin 31
 requires it for atoms and molecules too.
 
+**Vxc is ONE term** (user, 2026-11-03): in DFT it is always a fit AND always a quadrature, so the fit basis and the grid are
+strategies, not separate terms; today's `FittedVxc` (molecular) / `Vxc_Quadrature` (solid) split is V-XC-ONE-TERM.
+
 **The unit is a {term, grid} PAIR.** One energy term is computed on several grids, and one grid serves several terms. Each pair has
 its own error and its own way of being sized, so the table is keyed on the pair.
 
 | term | grid it is computed on | how ε sizes that grid | iterates? |
 |---|---|---|---|
-| Hartree | density G-ball (`densityEcut`) | MEASURED: E_H at this ball vs twice it, at fixed D, plus a geometric tail estimate. Over target → the ball doubles | yes |
-| Hartree | density raster ladder (collocation levels) | RIGOROUS alias bound S·x³·e^(−x) ≤ target (S_ρ = 0.35) sets x; CALIBRATED by η = delivered/bound, stated or measured by the pilot | yes, unless η is stated |
-| V_loc long | its own raster ladder | the same, with S_Vlong = 2.35 | yes, unless η is stated |
+| Hartree | density G-ball (`densityEcut`) | MEASURED: E_H at this ball vs twice it, at fixed D, plus a geometric tail estimate. Over target → the ball doubles; its FFT grid is rounded up to a 5-smooth size | yes |
+| Hartree | density r raster ladder (collocation levels) | RIGOROUS alias bound S·x³·e^(−x) ≤ target (S_ρ = 0.35) sets x; CALIBRATED by η = delivered/bound, stated or measured by the pilot | yes, unless η is stated |
+| V_loc long | its own r raster ladder | the same, with S_Vlong = 2.35 | yes, unless η is stated |
 | V_loc long | pair → level routing (each pair's ball edge) | `vlocEps` = ε × 0.1, EMPIRICAL today; being split into a rigorous bound and a named calibration (CLAUDE.md Design). Checked by the pilot | no; a failed check blocks SETTLED |
-| XC (uniform-mesh route) | uniform XC raster (level L0) | MEASURED: no bound exists. A power law fitted over rounds, at most doubling x per round | yes |
-| XC (uniform-mesh route) | density raster (XC's input) | below the density's rigorous x the XC error is the density's aliasing, so it raises the DENSITY raster | yes |
-| XC (Becke route) | Becke atom-centred mesh | MEASURED: this mesh vs the next rung, plus a tail estimate; climbs one rung | yes, but on geometry runs only (energy runs: OpenWork ε row, known miss 1) |
+| Vxc (plane-wave fit) | uniform r raster (level L0) | MEASURED: no bound exists. A power law fitted over rounds, at most doubling x per round | yes |
+| Vxc (plane-wave fit) | density r raster (XC's input) | below the density's rigorous x the XC error is the density's aliasing, so it raises the DENSITY raster | yes |
+| Vxc (δ fit) | Becke atom-centred r mesh | MEASURED: this mesh vs the next rung, plus a tail estimate; climbs one rung | yes, but on geometry runs only (energy runs: OpenWork ε row, known miss 1) |
 | local-PP sweeps | κ routing (`localPPRelCutoff`) | FIXED 30 Ha | — (pin 31 defect, `Records/EpsilonInventory.md`) |
 | kinetic, overlap, short-range V_loc, nonlocal KB | none: analytic lattice sums | `screenEps` FIXED 1e-10 | — (pin 31 defect) |
 
