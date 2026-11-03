@@ -1,9 +1,9 @@
 {
  "_doc": [
-  "CH4 in a 15 bohr cubic box, Gamma, CP2K's DZVP-MOLOPT-GTH (BasisSetData/dzvp_molopt_gth.bsd, scripts/cp2k2bsd) + GTH-PADE q4/q1,",
-  "spherical -- the same-basis gate vs CP2K (OpenWork H/C/N row, 2026-11-02): ours -8.0351412 here, CP2K -8.0351296 (1200 Ry).",
-  "Becke (60, GL 48): the default (40, site-adapted 29) is 52 uHa short.  The raster is the pilot's settled x 9.9 (accuracy 0 skips the pilot).",
-  "~20 min on 4 threads: a contracted MOLOPT basis is slow in GPW (OpenWork row, per-primitive grid levels)."
+  "CH4 in a 15 bohr cubic box, Gamma, CP2K's DZVP-MOLOPT-GTH (BasisSetData/dzvp_molopt_gth.bsd) + GTH-PADE, spherical --",
+  "the same-basis gate vs CP2K (OpenWork H/C/N row, 2026-11-02): ours -8.0351300, CP2K -8.0351296 (1200 Ry), -0.4 uHa.",
+  "densityEcut 100 Ha is STATED: the auto 24 Ha truncates the density G-ball (11 uHa high; OpenWork density-ball row).",
+  "Becke (60, GL 48): the default (40, site-adapted 29) is 52 uHa short on CH4.  Rasters from the pilot.  ~20 min on 4 threads."
  ],
  "structure": {
   "name": "CH4_dzvp_molopt",
@@ -95,10 +95,7 @@
    "angularDegree": 48,
    "angular": "GaussLegendre"
   },
-  "accuracy": 0,
-  "tolerances": {
-   "rasterX": 9.900842283
-  }
+  "densityEcut": 100.0
  },
  "scf": {
   "minDeltaRhoPerElectron": 1e-08,

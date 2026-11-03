@@ -1,0 +1,89 @@
+{
+ "_doc": [
+  "H2O in a 15 bohr cubic box, Gamma, CP2K's DZVP-MOLOPT-GTH (BasisSetData/dzvp_molopt_gth.bsd) + GTH-PADE, spherical --",
+  "the same-basis gate vs CP2K (OpenWork H/C/N row, 2026-11-02): ours -17.1824850, CP2K -17.1824875 (1200 Ry), +2.5 uHa.",
+  "densityEcut 100 Ha is STATED: the auto 24 Ha truncates the density G-ball (330 uHa high; OpenWork density-ball row).",
+  "Becke (60, GL 48): the default (40, site-adapted 29) is 52 uHa short on CH4.  Rasters from the pilot.  ~20 min on 4 threads."
+ ],
+ "structure": {
+  "name": "H2O_dzvp_molopt",
+  "lattice": {
+   "vectors_bohr": [
+    [
+     15.0,
+     0,
+     0
+    ],
+    [
+     0,
+     15.0,
+     0
+    ],
+    [
+     0,
+     0,
+     15.0
+    ]
+   ]
+  },
+  "atoms": [
+   {
+    "el": "O",
+    "frac": [
+     0.5,
+     0.5,
+     0.45080000000000003
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.5,
+     0.5954,
+     0.5246
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.5,
+     0.4046,
+     0.5246
+    ]
+   }
+  ],
+  "pp": "gth-lda-valence"
+ },
+ "basis": {
+  "data": "dzvp_molopt_gth",
+  "spherical": true
+ },
+ "solid": {
+  "species": [
+   [
+    "O",
+    6
+   ],
+   [
+    "H",
+    1
+   ]
+  ],
+  "multiplicity": 1,
+  "imposeSymmetry": false,
+  "xcMeshSymmetric": false,
+  "xcMesh": {
+   "cellKind": "Becke",
+   "nRadial": 60,
+   "mhlAlpha": 2.0,
+   "angularDegree": 48,
+   "angular": "GaussLegendre"
+  },
+  "densityEcut": 100.0
+ },
+ "scf": {
+  "minDeltaRhoPerElectron": 1e-08,
+  "deltaRhoMeasure": "MaxDeltaD",
+  "NMaxIter": 100
+ }
+}
