@@ -15,6 +15,7 @@ export import qchem.Lattice_3D;                        // Lattice_3D (the crysta
 export import qchem.BasisSet.PlaneWave.PlaneWave_IBS; // PlaneWave::PlaneWave_IBS (+ the Orbital_PP_IBS service it implements)
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // GPWParams::tol (D-ENV step 5)
 export import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // Gaussian::GPW_IBS + Gaussian::CellImages (the GPWFactory mode argument)
+export import qchem.BasisSet.Gaussian.Lattice.RasterLadder;  // Gaussian::GpwRasterLadder (MakeRasterLadder, V-BS-RASTER)
 export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::RasterFields (GPWParams::rasterFields)
 export import qchem.BasisSet.Gaussian.Point.ShellTrim;   // ShellTrim (VetStageTrim's decision, pin 22)
 import qchem.BasisSet.Internal.BasisSetImp;            // BasisSetImp<dcmplx> (the PW_BasisSet base; NOT re-exported)
@@ -120,6 +121,13 @@ struct GPWParams
 //! The struct-parameter factory (preferred surface; the positional overload above forwards here).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                        const GPWParams& p = {});
+
+//! \brief THE ONE BUILDER of a GPW point's raster ladder (V-BS-RASTER): the density grid and its multigrid levels from the k-independent
+//! inputs -- the cell, \a mol's exponent range (its one orbital block, as the evaluator reads it), and \a p's densityEcut / cutoffFactor
+//! / ladderFactor / rasterFields / tol.  The facade calls it per geometry point and holds the result; \c GPWFactory calls it when the
+//! caller handed no ladder in.  Throws if \a mol has no Gaussian orbital block (nothing to size a raster from).
+std::shared_ptr<const Gaussian::GpwRasterLadder> MakeRasterLadder(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                                                  const GPWParams& p = {});
 
 //! Emit the GPW `grids` report section for \a bs (the grids are k-independent, so the first block speaks for
 //! all).  The orchestrator calls this AFTER the conditioning pre-flight, so a singular basis aborts before the

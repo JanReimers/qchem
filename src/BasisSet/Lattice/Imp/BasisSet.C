@@ -446,6 +446,18 @@ void GPW_BasisSet::ProjectSpinPair(hmat_t<dcmplx>& Dup, hmat_t<dcmplx>& Ddn) con
 // Compact irrep label for the report (symmetry symbol + spin arrow), via the Streamable Write().
 
 
+std::shared_ptr<const Gaussian::GpwRasterLadder> MakeRasterLadder(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                                                  const GPWParams& p)
+{
+    if (!mol) throw std::invalid_argument("MakeRasterLadder: no molecular basis");
+    const BasisSet::Real_OIBS* only=nullptr;     // the single orbital block of the raw molecular basis (the evaluator's itsOrb)
+    for (auto ibs : mol->Iterate<BasisSet::Real_OIBS>()) { if (only) throw std::logic_error("MakeRasterLadder: a molecular basis with more than one orbital block"); only=ibs; }
+    const auto* sharp=dynamic_cast<const Gaussian::GaussianSharpness*>(only);   // abstract -> abstract
+    if (!sharp) throw std::invalid_argument("MakeRasterLadder: the molecular basis has no Gaussian orbital block to size a raster from");
+    return std::make_shared<const Gaussian::GpwRasterLadder>(lat.GetUnitCell(), *sharp, p.densityEcut, p.cutoffFactor, p.ladderFactor,
+                                                             p.rasterFields, p.tol);
+}
+
 void EmitGpwGrids(const Complex_BS& bs)
 {
     // The grids are k-independent, so the first GPW block speaks for all (and forces EnsureLevels HERE --
