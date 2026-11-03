@@ -30,7 +30,7 @@ its own error and its own way of being sized, so the table is keyed on the pair.
 | Hartree | density G-ball (`densityEcut`) | MEASURED: E_H at this ball vs twice it, at fixed D, plus a geometric tail estimate. Over target → the ball doubles; its FFT grid is rounded up to a 5-smooth size | yes |
 | Hartree | density r raster ladder (collocation levels) | RIGOROUS alias bound S·x³·e^(−x) ≤ target (S_ρ = 0.35) sets x; CALIBRATED by η = delivered/bound, stated or measured by the pilot | yes, unless η is stated |
 | V_loc long | its own r raster ladder | the same, with S_Vlong = 2.35 | yes, unless η is stated |
-| V_loc long | pair → level routing (each pair's ball edge) | `vlocEps` = ε × 0.1, EMPIRICAL today; being split into a rigorous bound and a named calibration (CLAUDE.md Design). Checked by the pilot | no; a failed check blocks SETTLED |
+| V_loc long | pair → level routing (each pair's ball edge) | `vlocEps` = `RigorousVlocEps()` / `vlocRoutingEta` (`GridAccuracy::VlocEps()`, the one place they meet).  RIGOROUS: ε, the per-pair RELATIVE tail bound of the harmonic rule e^{−G²/4p_h} at the ball edge 2·p_h·ln(1/vlocEps) -- no S prefactor, no x³.  CALIBRATION: η_routing = 10, measured (max 6 per cell, 1.7 per element, × ≥ 1.5 margin, rounded), carrying the term scale and the pair sum; deck `solid.accuracyCalibration.vlocRouting`.  A stated `tolerances.vlocEps` wins.  The report prints rigorous, η, result and source. Checked by the pilot | no; a failed check blocks SETTLED |
 | Vxc (plane-wave fit) | uniform r raster (level L0) | MEASURED: no bound exists. A power law fitted over rounds, at most doubling x per round | yes |
 | Vxc (plane-wave fit) | density r raster (XC's input) | below the density's rigorous x the XC error is the density's aliasing, so it raises the DENSITY raster | yes |
 | Vxc (δ fit) | Becke atom-centred r mesh | MEASURED: this mesh vs the next rung, plus a tail estimate; climbs one rung | yes, but on geometry runs only (energy runs: OpenWork ε row, known miss 1) |
@@ -39,7 +39,7 @@ its own error and its own way of being sized, so the table is keyed on the pair.
 
 **The loop that iterates (the pilot).**
 1. Converge the SCF on the starting grids.
-2. At that fixed D, compare every pair above against a finer reference: rasters at x + 8, twice the ball, the next Becke rung.
+2. At that fixed D, compare every pair above against a finer reference, one grid at a time: the rasters at x + 8 (at the run's own ball), twice the ball (at the run's rasters: the ball's own term is Hartree, every other term it moves is judged too), the next Becke rung (runs that consume H).
 3. Any pair over target raises its own grid. Re-converge, warm-started from the current D.
 4. Repeat until every pair meets the target (SETTLED). A pair over target that no grid change cures blocks SETTLED, honestly.
 
@@ -140,8 +140,11 @@ under-sizes every raster by ~7 units of x; the bare form survives only where a r
    **κ = 2·L(ε)** (30 Ha ⇔ L = 15).  The level spacing (ladderFactor 4) stays a cost choice, not an accuracy one: any spacing works
    because each pair goes to a level that meets ITS requirement.
 3. **Balls.**  A pair p against a field β sums e^{−G²/4p_h}, p_h = pβ/(p+β) (β = 0: p_h = p).  Ball edge **Ecut_b ≥ 2 p_h · L(ε)**.
-   V_loc long already uses exactly this with `vlocEps` ⇒ **vlocEps = ε/S_Vlong**.  Hartree's 4π/G² suppresses its tail by a further
-   1/G_b², so its ball may stay looser (report, as today; judge it once M2 shows by how much).  §K: XC uses the SAME ball (§3).
+   V_loc long already uses exactly this with `vlocEps` ⇒ **vlocEps = ε/S_Vlong** (⚠ UNVERIFIED, and not what was built: the routing rule
+   bounds a per-pair RELATIVE tail and carries no S; S_Vlong = 2.35 is the raster alias constant.  As built: §A row 4).  Hartree's 4π/G² suppresses its tail by a further
+   1/G_b², so its ball may stay looser (report, as today; judge it once M2 shows by how much).  ⛔ **WRONG** (2026-11-03): the auto ball
+   left H₂O MOLOPT +330 μHa vs CP2K through Hartree and V_loc long; the ball is now judged by the pilot -- `Records/OpenWork_History5.md`
+   "The two AUTO-ball rows" (the density G-ball row).  §K: XC uses the SAME ball (§3).
 4. **Magnitude screens.**  `screenEps` drops r-space lattice-sum terms whose Gaussian prefactor is below it; the number of dropped
    terms in the tail shell grows like the shell volume, but the reach grows only as √ln(1/ε), so a tight value is nearly free:
    **screenEps = ε·10⁻³** (proposal; today 1e-10 ⇔ ε = 1e-7).  `densityEps` (the collocation floor) is a density, so its error on a
