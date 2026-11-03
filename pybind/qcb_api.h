@@ -3,11 +3,11 @@
 // Flat C ABI between the two worlds:
 //   qchem_bridge.cpp -- a C++20 *module unit* that `import`s qchem (its #includes live in a
 //                       global-module-fragment, so they de-dup against the imported modules' GMFs --
-//                       no <ranges> ODR clash).  It runs MoleculeSetup::Resolve + qchem::Calculation.
+//                       no <ranges> ODR clash).  It runs MoleculeSetup::Resolve + qchem::MoleculeCalculation.
 //   qchem_py.cpp     -- pure nanobind; includes ONLY this header, never a module.
 //
 // HANDLES ARE OPAQUE STRUCT POINTERS, never void*.  `qcb_calc` is defined only inside the bridge (it owns the
-// Calculation); `qcb_sink` is defined only inside the nanobind TU (it holds the Python callable the SCF trace
+// MoleculeCalculation); `qcb_sink` is defined only inside the nanobind TU (it holds the Python callable the SCF trace
 // streams to).  Each side sees the other's type as incomplete, so the compiler still checks every pointer.
 //
 // extern "C" gives every function C language linkage, so the symbols are plain (unmangled, not attached to the

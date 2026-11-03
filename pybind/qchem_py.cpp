@@ -252,7 +252,7 @@ private:
 
 NB_MODULE(qchem_py, mod)
 {
-    mod.doc() = "qchem -> Python bridge: a molecular SCF (qchem::Calculation, fields sampled onto grids) and a periodic one "
+    mod.doc() = "qchem -> Python bridge: a molecular SCF (qchem::MoleculeCalculation, fields sampled onto grids) and a periodic one "
                 "built from an input deck (qchem::deck::Build).";
 
     nb::class_<Calculator>(mod, "Calculator")
