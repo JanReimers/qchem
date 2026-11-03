@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+# importprobe -- the COMPILE-CHECKED import table (V-INTERFACE-TIERS step 1): which `import X;` lines a TU really needs.
+#
+# For every TU in a build tree's compile database, remove each plain `import X;` in turn (greedily, on top of the removals
+# already accepted for that TU) and re-run the TU's own compile command with -fsyntax-only: full semantic analysis --
+# name lookup, overload resolution, template instantiation at end of TU -- but no codegen and NO WRITES: the module output
+# (-fmodule-output) is stripped, so no build tree is touched and no build lock is needed.  The modified source goes to a
+# scratch file compiled with -iquote <its original directory>, so quoted includes resolve as before; the src tree is never edited.
+#
+# `export import` lines are NOT probed: removing one can break a DOWNSTREAM importer, which a single-TU check cannot see.
+# They are listed as re-export surface instead.  A removal accepted in a module INTERFACE unit is flagged `iface`: a downstream
+# template instantiated against it (the Blaze-ADL trap, CLAUDE.md) can still need it, so those are verified by a separate
+# whole-build pass before any is applied.
+#
+# Usage:  scripts/importprobe SNAPSHOT_BUILD_DIR OUT.tsv [-j N] [--only REGEX]
+#   SNAPSHOT_BUILD_DIR: a FROZEN copy of the build tree (cp -al build/Release <dir>), so a rebuild elsewhere cannot swap a BMI
+#   mid-run.  OUT.tsv rows: file, unit, module, import, verdict (keep|remove|remove-iface|export|baseline-fail), seconds.
+import json, os, re, subprocess, sys, tempfile, time, shlex, concurrent.futures as cf
+
+IMPORT=re.compile(r'^(\s*)(export\s+)?import\s+([A-Za-z0-9_.:]+)\s*;')
+UNIT=re.compile(r'^\s*(export\s+)?module\s+([A-Za-z0-9_.:]+)\s*;')
+
+def compdb(build):
+    out=subprocess.run(['ninja','-C',build,'-t','compdb'],capture_output=True,text=True,check=True).stdout
+    return [e for e in json.loads(out) if 'clang++' in e['command'] and 'clang-scan-deps' not in e['command']]
+
+def syntax_cmd(entry, build, src):
+    args=shlex.split(entry['command'])
+    out=[]; i=0
+    while i<len(args):
+        a=args[i]
+        if a in ('-o','-MT','-MF'): i+=2; continue
+        if a in ('-c','-MD'): i+=1; continue
+        if a.startswith('@') and a.endswith('.modmap'):
+            with open(os.path.join(build,a[1:])) as f:
+                out+=[x for x in shlex.split(f.read()) if not x.startswith('-fmodule-output')]
+            i+=1; continue
+        if a==entry['file']: i+=1; continue
+        out.append(a); i+=1
+    return out+['-fsyntax-only','-iquote',os.path.dirname(entry['file']),src]
+
+def compiles(cmd, build):
+    r=subprocess.run(cmd,cwd=build,capture_output=True,text=True)
+    return r.returncode==0
+
+def probe(entry, build):
+    path=entry['file']
+    lines=open(path).read().split('\n')
+    unit,modname='impl',''
+    for l in lines:
+        m=UNIT.match(l)
+        if m: unit='iface' if m.group(1) else 'impl'; modname=m.group(2); break
+    if not modname: unit='plain'
+    rows=[]
+    ext=os.path.splitext(path)[1]
+    with tempfile.TemporaryDirectory(prefix='importprobe-') as tmp:
+        src=os.path.join(tmp,os.path.basename(path))
+        def attempt(ls):
+            open(src,'w').write('\n'.join(ls))
+            t=time.time(); ok=compiles(syntax_cmd(entry,build,src),build); return ok,time.time()-t
+        ok,dt=attempt(lines)
+        if not ok:
+            return [(path,unit,modname,'*','baseline-fail',f'{dt:.1f}')]
+        cur=list(lines)
+        for n,l in enumerate(lines):
+            m=IMPORT.match(l)
+            if not m: continue
+            name=m.group(3)
+            if m.group(2): rows.append((path,unit,modname,name,'export','0')); continue
+            trial=list(cur); trial[n]='// importprobe: '+l
+            ok,dt=attempt(trial)
+            if ok:
+                cur=trial
+                rows.append((path,unit,modname,name,'remove-iface' if unit=='iface' else 'remove',f'{dt:.1f}'))
+            else:
+                rows.append((path,unit,modname,name,'keep',f'{dt:.1f}'))
+    return rows
+
+def main():
+    a=sys.argv[1:]
+    if len(a)<2: print(__doc__ or 'usage: importprobe SNAPSHOT OUT.tsv [-j N] [--only REGEX]'); sys.exit(2)
+    build,outp=os.path.abspath(a[0]),a[1]
+    j=int(a[a.index('-j')+1]) if '-j' in a else 4
+    only=re.compile(a[a.index('--only')+1]) if '--only' in a else None
+    root=os.path.dirname(os.path.dirname(build)) if False else None
+    entries=compdb(build)
+    entries=[e for e in entries if re.search(r'/(src|CLIapps|IntegrationTests)/',e['file']) and '/pybind/' not in e['file']]
+    if only: entries=[e for e in entries if only.search(e['file'])]
+    seen=set(); uniq=[]
+    for e in entries:
+        if e['file'] in seen: continue
+        seen.add(e['file']); uniq.append(e)
+    # longest TUs (most imports) first, so the tail is short
+    uniq.sort(key=lambda e: -sum(1 for l in open(e['file']) if IMPORT.match(l)))
+    done=set()
+    if os.path.exists(outp):
+        for l in open(outp):
+            done.add(l.split('\t')[0])
+    todo=[e for e in uniq if e['file'] not in done]
+    print(f'importprobe: {len(todo)} TUs to probe ({len(done)} already in {outp}), -j{j}',flush=True)
+    with open(outp,'a') as out, cf.ThreadPoolExecutor(j) as ex:
+        for k,rows in enumerate(ex.map(lambda e: probe(e,build), todo)):
+            for r in rows: out.write('\t'.join(r)+'\n')
+            out.flush()
+            if (k+1)%10==0: print(f'  {k+1}/{len(todo)}',flush=True)
+    print('importprobe: done',flush=True)
+
+if __name__=='__main__': main()
