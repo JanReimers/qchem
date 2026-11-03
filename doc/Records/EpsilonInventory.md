@@ -19,6 +19,46 @@ line number against the tree before acting on it.
 ε defaults to 1e-5: Ha/atom on an energy run, Ha per matrix element on a geometry run (`GridAccuracy::eps`,
 `GPWTolerances.C:134` lane A). `accuracy 0` means no target: the rasters are as stated.
 
+## 0. Scope by facade: ε is one concept for atom, molecule and solid (pin 31, 7ecf191f)
+
+**ε exists today on the SOLID facade ONLY**: `SolidCalcOptions::accuracy`, a `GridAccuracy` (deck `solid.accuracy`;
+OOD-SOLID-Cleanup V-FACADE-ACCURACY). `MoleculeCalculation` and `AtomCalculation` carry no ε. Every tolerance they use is
+FIXED by construction, so no row in the M or A column can be ε-derived or ε-audited until V-FACADE-ACCURACY lands.
+
+⚠ **`AtomCalcOptions::accuracy` is NOT ε.** It is a `BasisSetAccuracy` {Low, Medium, High} exponent-pool PRESET
+(`AtomCalculation.C:50`): it chooses the orbital basis, which is a MODEL choice and exempt. It shares the name only, and
+V-FACADE-ACCURACY renames it.
+
+A = AtomCalculation, M = MoleculeCalculation, S = SolidCalculation (GPW unless marked PW). **ε?** = the facades where the
+tolerance consumes ε today, by derivation or audit.
+
+| tolerance (row below) | A | M | S | ε? |
+|---|:-:|:-:|:-:|---|
+| raster demands `rasterX` / `vlocRasterX` / `xcRasterX` (§1) | | | ● | S |
+| `vlocEps` (§1) | | | ● | S (lane A) |
+| density G-ball `densityEcut` / `cutoffFactor` (§1) | | | ● | S (lane A ladder) |
+| routing `fieldSharp` / `relFieldSharp` / `ladderFactor` / κ (§1) | | | ● | — |
+| `screenEps` | | ● (`ToleranceBinding`) | ● | — |
+| `densityEps` | | | ● | — |
+| `beckeEps` (periodic partition images) | | | ● | — |
+| periodic Becke mesh (§2) | | | ● | S on geometry runs only |
+| molecular XC mesh (80, L29) (§2) | | ● | | — |
+| atom XC mesh (50, 1 dir) (§2) | ● | | | — |
+| PW XC ball 4× (§2) | | | ● PW | — |
+| Vxc fit basis: Delta default, A1 opt-in (§2) | ● | ● | ● | n/a at Delta |
+| Coulomb fit set, FittedVee (§3) | ● (radial fit set) | ● | | — |
+| PGData, Hermite and ERI4 floors (§3) | (radial bases: own integrals, not surveyed) | ● | ● (via PG_Cart_MnD) | — |
+| SCF gates `MinΔρPerElectron` / `MinFD` (§4) ⚑ | ● | ● | ● | — |
+| `MergeTol` (§4) | ● | ● | ● | — |
+| `orthoTol` / vet trim (§4) | | | ● | MODEL |
+| LASolver fallback floor (§4) | ● | ● | ● | — |
+| k-mesh ⚑, Ewald (§5) | | | ● | — |
+| +U `tolU_eV`, LR Krylov `tol` (§5) | | | ● | — |
+| `BasisSetAccuracy` pool preset | ● | | | MODEL (not ε) |
+
+The A and M columns are where the FIXED list (§7) grows once ε reaches those facades. The molecular XC mesh (rank 2) and
+the Coulomb fit set (rank 4) have no ε to judge against today, not just no audit.
+
 ## 1. The GPW solid path
 
 | name · where set | default | approximates | class | evidence of size today |
