@@ -1,0 +1,104 @@
+{
+ "_doc": [
+  "CH4 in a 15 bohr cubic box, Gamma, CP2K's TZV2P-MOLOPT-GTH (BasisSetData/tzv2p_molopt_gth.bsd) + GTH-PADE, spherical --",
+  "the same-basis gate vs CP2K (OpenWork H/C/N row, 2026-11-02): ours -8.0360476, CP2K -8.0360472 (1200 Ry), -0.4 uHa.",
+  "densityEcut 100 Ha is STATED (the auto cutoff truncates the density G-ball; OpenWork density-ball row).  Becke (60, GL 48).  Rasters from the pilot."
+ ],
+ "structure": {
+  "name": "CH4_tzv2p_molopt",
+  "lattice": {
+   "vectors_bohr": [
+    [
+     15.0,
+     0,
+     0
+    ],
+    [
+     0,
+     15.0,
+     0
+    ],
+    [
+     0,
+     0,
+     15.0
+    ]
+   ]
+  },
+  "atoms": [
+   {
+    "el": "C",
+    "frac": [
+     0.5,
+     0.5,
+     0.5
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.5789045367892489,
+     0.5789045367892489,
+     0.5789045367892489
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.5789045367892489,
+     0.42109546321075114,
+     0.42109546321075114
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.42109546321075114,
+     0.5789045367892489,
+     0.42109546321075114
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.42109546321075114,
+     0.42109546321075114,
+     0.5789045367892489
+    ]
+   }
+  ],
+  "pp": "gth-lda-valence"
+ },
+ "basis": {
+  "data": "tzv2p_molopt_gth",
+  "spherical": true
+ },
+ "solid": {
+  "species": [
+   [
+    "C",
+    4
+   ],
+   [
+    "H",
+    1
+   ]
+  ],
+  "multiplicity": 1,
+  "imposeSymmetry": false,
+  "xcMeshSymmetric": false,
+  "xcMesh": {
+   "cellKind": "Becke",
+   "nRadial": 60,
+   "mhlAlpha": 2.0,
+   "angularDegree": 48,
+   "angular": "GaussLegendre"
+  },
+  "densityEcut": 100.0
+ },
+ "scf": {
+  "minDeltaRhoPerElectron": 1e-08,
+  "deltaRhoMeasure": "MaxDeltaD",
+  "NMaxIter": 100
+ }
+}

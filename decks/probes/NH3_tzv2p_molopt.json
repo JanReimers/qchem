@@ -1,0 +1,96 @@
+{
+ "_doc": [
+  "NH3 in a 15 bohr cubic box, Gamma, CP2K's TZV2P-MOLOPT-GTH (BasisSetData/tzv2p_molopt_gth.bsd) + GTH-PADE, spherical --",
+  "the same-basis gate vs CP2K (OpenWork H/C/N row, 2026-11-02): ours -11.7045881, CP2K -11.7045887 (1200 Ry), +0.6 uHa.",
+  "densityEcut 100 Ha is STATED (the auto cutoff truncates the density G-ball; OpenWork density-ball row).  Becke (60, GL 48).  Rasters from the pilot."
+ ],
+ "structure": {
+  "name": "NH3_tzv2p_molopt",
+  "lattice": {
+   "vectors_bohr": [
+    [
+     15.0,
+     0,
+     0
+    ],
+    [
+     0,
+     15.0,
+     0
+    ],
+    [
+     0,
+     0,
+     15.0
+    ]
+   ]
+  },
+  "atoms": [
+   {
+    "el": "N",
+    "frac": [
+     0.5,
+     0.5,
+     0.5360443575166415
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.6180885982216429,
+     0.5,
+     0.48798521416111945
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.44095570088917857,
+     0.6022677259572367,
+     0.48798521416111945
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.4409557008891785,
+     0.3977322740427634,
+     0.48798521416111945
+    ]
+   }
+  ],
+  "pp": "gth-lda-valence"
+ },
+ "basis": {
+  "data": "tzv2p_molopt_gth",
+  "spherical": true
+ },
+ "solid": {
+  "species": [
+   [
+    "N",
+    5
+   ],
+   [
+    "H",
+    1
+   ]
+  ],
+  "multiplicity": 1,
+  "imposeSymmetry": false,
+  "xcMeshSymmetric": false,
+  "xcMesh": {
+   "cellKind": "Becke",
+   "nRadial": 60,
+   "mhlAlpha": 2.0,
+   "angularDegree": 48,
+   "angular": "GaussLegendre"
+  },
+  "densityEcut": 100.0
+ },
+ "scf": {
+  "minDeltaRhoPerElectron": 1e-08,
+  "deltaRhoMeasure": "MaxDeltaD",
+  "NMaxIter": 100
+ }
+}

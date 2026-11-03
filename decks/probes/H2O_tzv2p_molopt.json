@@ -1,0 +1,88 @@
+{
+ "_doc": [
+  "H2O in a 15 bohr cubic box, Gamma, CP2K's TZV2P-MOLOPT-GTH (BasisSetData/tzv2p_molopt_gth.bsd) + GTH-PADE, spherical --",
+  "the same-basis gate vs CP2K (OpenWork H/C/N row, 2026-11-02): ours -17.1846307, CP2K -17.1846334 (1200 Ry), +2.6 uHa.",
+  "densityEcut 100 Ha is STATED (the auto cutoff truncates the density G-ball; OpenWork density-ball row).  Becke (60, GL 48).  Rasters from the pilot."
+ ],
+ "structure": {
+  "name": "H2O_tzv2p_molopt",
+  "lattice": {
+   "vectors_bohr": [
+    [
+     15.0,
+     0,
+     0
+    ],
+    [
+     0,
+     15.0,
+     0
+    ],
+    [
+     0,
+     0,
+     15.0
+    ]
+   ]
+  },
+  "atoms": [
+   {
+    "el": "O",
+    "frac": [
+     0.5,
+     0.5,
+     0.45080000000000003
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.5,
+     0.5954,
+     0.5246
+    ]
+   },
+   {
+    "el": "H",
+    "frac": [
+     0.5,
+     0.4046,
+     0.5246
+    ]
+   }
+  ],
+  "pp": "gth-lda-valence"
+ },
+ "basis": {
+  "data": "tzv2p_molopt_gth",
+  "spherical": true
+ },
+ "solid": {
+  "species": [
+   [
+    "O",
+    6
+   ],
+   [
+    "H",
+    1
+   ]
+  ],
+  "multiplicity": 1,
+  "imposeSymmetry": false,
+  "xcMeshSymmetric": false,
+  "xcMesh": {
+   "cellKind": "Becke",
+   "nRadial": 60,
+   "mhlAlpha": 2.0,
+   "angularDegree": 48,
+   "angular": "GaussLegendre"
+  },
+  "densityEcut": 100.0
+ },
+ "scf": {
+  "minDeltaRhoPerElectron": 1e-08,
+  "deltaRhoMeasure": "MaxDeltaD",
+  "NMaxIter": 100
+ }
+}
