@@ -1,6 +1,7 @@
 // File: Calculation/Imp/PseudoAtomOrbital.C  The pseudo-atom l orbital (moved out of SolidCalculation's
 // AtomicRadial, 2026-10-24: HubbardProjectorPlan D5).
 module;
+#include <memory>
 #include <algorithm>
 #include <optional>   // std::nullopt: an OFF SCF gate
 #include <cmath>
@@ -19,6 +20,7 @@ import qchem.Orbitals;                         // TOrbitals / TOrbital
 import qchem.SCFParams;                         // SCFParams (the atom solve)
 import qchem.Hamiltonian.Factory;              // Hamiltonian::VxcFit (the stated route)
 import qchem.Types;
+import qchem.Reporting;                         // report::Run -- the pseudo-atom solve's own nested run
 
 namespace qchem
 {
@@ -63,7 +65,12 @@ PseudoAtomOrbital Build(const std::string& element, int Zion, int l, int lmax)
     // between the last occupied and first empty minority orbital (2026-09-23).  An extra iteration costs
     // milliseconds; one short is a dead run.
     p.NMaxIter=120;
-    AtomCalculation atom(Z, Z-Zion, o, p);
+    // ITS OWN (nested) report run: this solve is a sub-calculation the +U SOLID drives, and a facade writes into its caller's run (user
+    // ruling D, 2026-11-02) -- without this bracket the pseudo-atom's basis / grids / scf would land over the solid run's own sections.
+    // Nested, so it stays console-quiet and files under its own key, as it did when the atom facade opened the run itself.
+    std::unique_ptr<AtomCalculation> solved;
+    { report::Run run("pseudo-atom "+element+" (+U projector)"); solved=std::make_unique<AtomCalculation>(Z, Z-Zion, o, p); }
+    const AtomCalculation& atom=*solved;
     if (!atom.IsConverged()) throw std::runtime_error("PseudoAtomOrbital: the "+element+" pseudo-atom did not converge");
     PseudoAtomOrbital out;
     out.element=element; out.Zion=Zion; out.l=l; out.exponents=ep; out.eps=1e300; out.Eatom=atom.Energy();

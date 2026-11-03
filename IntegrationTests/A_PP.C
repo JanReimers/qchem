@@ -1,10 +1,10 @@
 // File A_PP.C  Pseudopotential regression tests (facade-driven): pseudo-ATOMS (AtomCalculation) + molecular
-// PP (qchem::Calculation).
+// PP (qchem::MoleculeCalculation).
 //
 // A pseudo-atom is the all-electron-basis atom with (a) the nuclear attraction replaced by the GTH local +
 // KB-separable nonlocal pseudopotential, (b) only the Zion valence electrons (PseudoAtom_EC).  Migrated off
 // QchemTester onto qchem::AtomCalculation via {.pseudopotential=true}: valence electrons = Z - charge, the
-// element is looked up from Z.  The molecular tests (Si2_PP_U, OSi_PP_U) ride qchem::Calculation
+// element is looked up from Z.  The molecular tests (Si2_PP_U, OSi_PP_U) ride qchem::MoleculeCalculation
 // {.pseudopotential=true}.  "Did the physics move" anchors (no oracle / Converged() guard -- the virial
 // criterion does not apply to a PP and the absolute value is basis/fitting-limited).
 #include "gtest/gtest.h"
@@ -23,7 +23,7 @@ import qchem.Pseudopotential.GTH_Potentials;   // HGH_SeparablePotential (the pe
 import qchem.Mesh.Quadrature;                 // qcMesh::RadialMesh / MakeRadial (the radial reference)
 import qchem.Math;                            // Pi
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy
-import qchem.Calculation;            // Calculation, CalcOptions (molecular facade)
+import qchem.MoleculeCalculation;            // MoleculeCalculation, CalcOptions (molecular facade)
 import qchem.SCFCap;                 // BoundedSCF (the Si2 routing check reads Enn on a bounded run)
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
@@ -50,7 +50,7 @@ TEST(Si_PP_U, Medium)
 }
 
 // Molecular pseudopotential (Path A, doc/MolecularPseudopotentialPlan.md §6 A1): two Si atoms, GTH-LDA q4,
-// through the qchem::Calculation facade {.pp="gth-lda-valence"} with the valence-only "sipp" Gaussian basis.
+// through the qchem::MoleculeCalculation facade {.pp="gth-lda-valence"} with the valence-only "sipp" Gaussian basis.
 // The FIRST molecular PP calc -- it exercises the multi-atom PP assembly (PP_Local/PP_NonLocal loop over
 // both atoms) + the Zion ion-ion term (Vnn with the PP's Zion, not the true Z).
 // RESTATED 2026-10-31 when the fit bases got their D shells back (OpenWork "The molecular FIT bases drop their D shells"):
@@ -71,7 +71,7 @@ TEST(Si2_PP_U, LargeSeparation)
     par.SmearingkT=1e-2;     // the degenerate 3p (see above)
 
     Molecule si1; si1.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,0)));
-    Calculation c1(MoleculeSetup::Resolve(si1, opt), par);
+    MoleculeCalculation c1(MoleculeSetup::Resolve(si1, opt), par);
     ASSERT_TRUE(c1.Result());
     const auto e1=c1.EnergyTerms();
     EXPECT_NEAR(c1.Energy(), -3.7818599100, 1e-5);                      // anchor: the free energy A = E - TS at kT 1e-2
@@ -84,7 +84,7 @@ TEST(Si2_PP_U, LargeSeparation)
     // Its Etotal is a BOUNDED iterate, not a measurement: it moves with anything that steers the step (it moved 1.5e-5 when the
     // Δρ measure moved onto the XC mesh, V-XC-ONE-TERM 2026-10-31), so anchordiff may flag this test while its claim (Enn) holds.
     qchem::BoundedSCF bounded("the routing claim reads Enn, which no iteration changes; the separated pair does not converge (open row)");
-    Calculation c2(MoleculeSetup::Resolve(si2, opt), {.NMaxIter = 2});
+    MoleculeCalculation c2(MoleculeSetup::Resolve(si2, opt), {.NMaxIter = 2});
     EXPECT_NEAR(c2.EnergyTerms()["Enn"], 16.0/R, 1e-6);   // Zion=4 ion-ion (Z=14 -> 196/R would fail): the routing check
 }
 
@@ -111,7 +111,7 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
     // kT 1e-2 (2026-10-31): with the fit bases' D shells back the Hartree is anisotropic and kT 1e-4 / 1e-3 slosh under every
     // accelerator; an exactly degenerate open shell needs kT above the splitting it re-opens (as GPW_SiBox and Si2_PP_U state).
     // open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT"
-    Calculation cOSi(MoleculeSetup::Resolve(osi, {.basis = "sipp", .pp = "gth-lda-valence", .multiplicity = 5}), SCFParams{.SmearingkT = 1e-2});
+    MoleculeCalculation cOSi(MoleculeSetup::Resolve(osi, {.basis = "sipp", .pp = "gth-lda-valence", .multiplicity = 5}), SCFParams{.SmearingkT = 1e-2});
 
     EXPECT_NEAR(cOSi.EnergyTerms()["Enn"], 24.0/R, 1e-6);   // per-species Zion routing: 6*4/R (not 16/R or 36/R)
     EXPECT_LT(cOSi.Energy(), 0.0);                       // a finite, bound total (sanity; not an accuracy claim)

@@ -6,7 +6,7 @@
 //! flips, Cartesian atom positions) into the CONCRETE \c Molecule or \c UnitCell the caller asked for -- the caller
 //! knows what it needs, so there is no polymorphic return and no cast.  It deliberately knows NOTHING about
 //! pseudopotentials, valence counts, basis sets or any other recipe for a calculation: that is a property of
-//! (element, pseudopotential), not of the structure, and is read at the Calculation level.  The point is that
+//! (element, pseudopotential), not of the structure, and is read at the MoleculeCalculation level.  The point is that
 //! every library's unit tests can build the shared geometries (the water, the MnO AFM-II cell, ...).
 module;
 #include <string>

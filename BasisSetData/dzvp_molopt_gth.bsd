@@ -2,9 +2,11 @@ DZVP-MOLOPT-GTH: transcribed from CP2K's BASIS_MOLOPT by scripts/cp2k2bsd (H C N
 PP-PROVENANCE H=1 C=4 N=5 O=6
 Coefficients as CP2K states them (normalized primitives); one shell per CP2K contraction, the set's exponents shared.
 CP2K runs every basis SPHERICAL: compare against it with basis.spherical true.
-GATE (2026-11-02, H and C): CH4 in a 15 bohr box, Gamma, GTH-PADE q1/q4, spherical: ours -8.0351407 on a converged Becke XC mesh
-(60-100 radial, GL 48-64) vs CP2K -8.0351296 (1200 Ry) -- 11 uHa (2 uHa/atom), 8 uHa of it in Exc.  N and O are
-transcribed the same way but not yet gated.  Run it on a stated Becke mesh: the default (40, 29) is 52 uHa short on CH4.
+GATE (2026-11-02, H C N O): 15 bohr box, Gamma, GTH-PADE q1/q4/q5/q6, spherical, Becke (60, GL 48), solid.densityEcut 100 Ha,
+vs CP2K 1200 Ry: CH4 -8.0351300 vs -8.0351296 (-0.4 uHa), NH3 -11.7016472 vs -11.7016477 (+0.5), H2O -17.1824850 vs -17.1824875
+(+2.5).  STATE densityEcut: the AUTO value (2 alpha_max = 24 Ha) truncates the density's G-ball on the sharp O/N pairs --
+CH4 11, NH3 66, H2O 330 uHa high (OpenWork density-ball row).  Run it on a stated Becke mesh: the default (40, 29) is 52 uHa
+short on CH4.
 
 !
 BASIS="DZVP-MOLOPT-GTH"

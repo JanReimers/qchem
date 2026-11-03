@@ -28,7 +28,7 @@ public:
     virtual ~Structure() {};
 
     //! \brief Polymorphic deep copy that PRESERVES the concrete geometry (Atom / Molecule / UnitCell).  The
-    //! production facade (qchem::Calculation) clones the caller's structure through this, so a periodic
+    //! production facade (qchem::MoleculeCalculation) clones the caller's structure through this, so a periodic
     //! UnitCell keeps its periodicity -- its Ewald ion-ion and uniform integration mesh -- instead of being
     //! sliced down to a finite Molecule.  Load-bearing for GPW (a real-space basis on a lattice).
     virtual std::shared_ptr<Structure> Clone() const=0;

@@ -252,7 +252,7 @@ struct SolidCalcOptions
     //! (\c SaveState called directly throws as usual).
     std::string saveStateTo;
     // (No onIteration any more -- 2026-10-30.  The per-iteration observer is a SolidCalculation / Restart / SolidSession
-    //  CONSTRUCTOR argument, as on the molecular Calculation: an observer is not a resolved decision.)
+    //  CONSTRUCTOR argument, as on the molecular MoleculeCalculation: an observer is not a resolved decision.)
     // (No orderName/orderProbe any more -- 2026-09-14.  The order parameter is the INTEGRATED site moment
     //  every polarized run carries on its EnergyBreakdown (the m_site cell of the iteration row); the
     //  caller-supplied POINT probe it replaced was a spin density, not a moment.)

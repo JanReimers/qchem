@@ -89,7 +89,7 @@ import qchem.CompositeCD;                         // tComposite_CD (the polarize
 import qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity.SeedCD;              // PolarizedSeedCD (the raw spin-SAD seed, for the sublattice gate)               // IrrepCD_Factory/PolarizedCD_Factory (fixed-density probe)
 import qchem.Pseudopotential.GTH_Potentials;      // GetGTH, GTH_PP (the PP model, for the matrix-trace probe)
-import qchem.Calculation;                        // qchem::Calculation, CalcOptions (finite reference)
+import qchem.MoleculeCalculation;                        // qchem::MoleculeCalculation, CalcOptions (finite reference)
 import qchem.AtomCalculation;                    // AtomCalculation, AtomType, BasisSetAccuracy (Slater/High pseudo-atom ref)
 import qchem.Types;
 
@@ -118,7 +118,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     // unsmeared only while the fit bases lacked their D shells (a spherical Hartree).  Compared on its INTERNAL energy, which is
     // what an integer-occupation box approaches (PySCF, the same basis/PP/Coulomb fit: -3.743668).
     // Open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT".
-    Calculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .pp = "gth-lda-valence"}), SCFParams{.SmearingkT = 1e-2});
+    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .pp = "gth-lda-valence"}), SCFParams{.SmearingkT = 1e-2});
     ASSERT_TRUE(cSipp.Result());
     const double Esipp=cSipp.EnergyTerms().GetTotalEnergy()-cSipp.EnergyTerms()["MinusTS"];
     // Physical oracle (near-complete Slater/High, for context -- a different basis, not the GPW-correctness gate).
@@ -170,7 +170,7 @@ TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
 {
     Molecule si; si.Insert(new Atom(14, 0.0, {0,0,0}));
     // The finite twin at the SAME kT 1e-2 (2026-10-31), so free energy compares with free energy (see Γ_Uni_Imp_eqFinite above).
-    Calculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .pp = "gth-lda-valence"}), SCFParams{.SmearingkT = 1e-2});
+    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .pp = "gth-lda-valence"}), SCFParams{.SmearingkT = 1e-2});
     ASSERT_TRUE(cSipp.Result());
     const double Asipp=cSipp.Energy();   // the finite free energy A = E - TS: -3.781860
     const double Esipp=Asipp-cSipp.EnergyTerms()["MinusTS"];   // ...and its internal energy: -3.743669
@@ -267,7 +267,7 @@ TEST(GPW_NaBox, Γ_Imp_M2_eqFinite)
     // functions fit the smooth nodeless pseudo-orbitals poorly -- same reason the Si gate anchors on the
     // basis-matched sipp facade run.)
     Molecule na; na.Insert(new Atom(11, 0.0, {0,0,0}));
-    Calculation cRef(MoleculeSetup::Resolve(na, {.basis="valence_lowq_sr", .multiplicity=2, .pp="gth-lda-valence"}));
+    MoleculeCalculation cRef(MoleculeSetup::Resolve(na, {.basis="valence_lowq_sr", .multiplicity=2, .pp="gth-lda-valence"}));
     const double Eref=cRef.Energy();
     std::cout << "[Na finite] valence_lowq_sr LSDA doublet (q1)="<<Eref<<std::endl;
 
@@ -304,7 +304,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     // The finite twin is the δ route (2026-10-31; the molecular default since, stated here anyway): no Vxc fit, like the GPW it is
     // compared with.  With the fit bases' D shells back it is PySCF's A1_coul J-fit value (-29.999454) and within ~0.7 mHa of the
     // box (CP2K -29.998761); the auxiliary (A1) route sits ~0.1 Ha above it on this soft basis.
-    Calculation cRef(MoleculeSetup::Resolve(o2mol, {.basis="sipp", .multiplicity=3, .vxcFit=Hamiltonian::VxcFit::Delta,
+    MoleculeCalculation cRef(MoleculeSetup::Resolve(o2mol, {.basis="sipp", .multiplicity=3, .vxcFit=Hamiltonian::VxcFit::Delta,
                                                     .pp="gth-lda-valence"}));
     const double Eref=cRef.Energy();
     {
@@ -459,7 +459,7 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     // The finite twin is the δ route (2026-10-31; the molecular default since, stated here anyway): no Vxc fit, like the GPW.  With
     // the fit bases' D shells back it lands 1.5 mHa from the box at its auto cutoff and 0.03 mHa from the box's converged-cutoff
     // value (-14.63650); the auxiliary (A1) route sits 35 mHa above (the A1 Vxc fit on this sextet).
-    Calculation cRef(MoleculeSetup::Resolve(mnmol, {.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr",
+    MoleculeCalculation cRef(MoleculeSetup::Resolve(mnmol, {.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr",
                              .multiplicity=6, .angular = spherical ? Angular::Spherical : Angular::Cartesian,
                              .vxcFit=Hamiltonian::VxcFit::Delta, .pp="gth-lda-valence"}));
     const double Eref=cRef.Energy();

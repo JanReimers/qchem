@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
-import qchem.Calculation;
+import qchem.MoleculeCalculation;
 import qchem.AtomCalculation;
 import qchem.SolidCalculation;
 import qchem.Deck;
@@ -57,9 +57,11 @@ const char* ExpectedFailure(Kind k, Capability c)
 {
     switch (c)
     {
-        case Capability::PrepareFilesTheSetup:      return k==Kind::Solid ? "V-FACADE-PARITY" : nullptr;
-        case Capability::ConvergeFilesTheScfHeader: return k==Kind::Solid ? "V-FACADE-PARITY" : nullptr;
-        case Capability::AcceleratorKnobsArrive:    return k==Kind::Solid ? "V-FACADE-PARITY" : nullptr;
+        // A solid's grids section is the raster LADDER's flat bag (grids.densityEcut, grids.ladder, ...), not one entry per grid
+        // with its points: the ladder reporting itself as one grid is V-BS-RASTER's.
+        case Capability::PrepareFilesTheSetup:      return k==Kind::Solid ? "V-BS-RASTER" : nullptr;
+        case Capability::ConvergeFilesTheScfHeader: return nullptr;
+        case Capability::AcceleratorKnobsArrive:    return nullptr;
         case Capability::SaveRestartRoundTrips:     return k==Kind::Solid ? nullptr : "V-FACADE-STATE";
         case Capability::DeckRoundTrips:            return k==Kind::Solid ? nullptr : "V-FACADE-OPTS";
     }
@@ -187,13 +189,14 @@ public:
     std::string PrepareFilesTheSetup() override
     {
         size_t rows=0;
-        auto calc=AtomCalculation::Prepare(Z, 0, Options(), {}, [&](const SCFIterator::IterationRow&){ rows++; });
+        { report::Run run(ID()+" build"); AtomCalculation::Prepare(Z, 0, Options(), {}, [&](const SCFIterator::IterationRow&){ rows++; }); }   // the probe is the DRIVER: it opens the runs, the facade writes into them (user ruling D)
         return SetupFiled(FiledRun(ID()+" build@"), ID()+" build@", rows);
     }
     std::string ConvergeFilesTheScfHeader() override
     {
-        AtomCalculation calc(Z, 0, Options());
-        if (!calc.IsConverged()) return "the O atom did not converge";
+        std::unique_ptr<AtomCalculation> calc;
+        { report::Run run(ID()); calc=std::make_unique<AtomCalculation>(Z, 0, Options()); }
+        if (!calc->IsConverged()) return "the O atom did not converge";
         return ScfHeaderFiled(FiledRun(ID()+"@"), ID()+"@");
     }
     std::string AcceleratorKnobsArrive() override
@@ -202,7 +205,7 @@ public:
         AtomCalcOptions o=Options();
         o.accelerator={{"type","Ladder"}, {"NProj",6}, {"EMax",0.05}, {"SVTol",1e-8},
                        {"Trust",0.2}, {"ethresh",1e-7}, {"stall",4}, {"floor",1e-9}, {"switchat",1e-5}};
-        auto calc=AtomCalculation::Prepare(Z, 0, o);
+        { report::Run run(ID()+" build"); AtomCalculation::Prepare(Z, 0, o); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
     std::string SaveRestartRoundTrips() override {return "AtomCalculation has no SaveState / Restart";}
@@ -220,22 +223,23 @@ public:
     std::string PrepareFilesTheSetup() override
     {
         size_t rows=0;
-        auto calc=Calculation::Prepare(Setup(), [&](const SCFIterator::IterationRow&){ rows++; });
+        { report::Run run(ID()+" build"); MoleculeCalculation::Prepare(Setup(), [&](const SCFIterator::IterationRow&){ rows++; }); }
         return SetupFiled(FiledRun(ID()+" build@"), ID()+" build@", rows);
     }
     std::string ConvergeFilesTheScfHeader() override
     {
-        Calculation calc(Setup());
-        if (!calc.IsConverged()) return "H2O did not converge";
+        std::unique_ptr<MoleculeCalculation> calc;
+        { report::Run run(ID()); calc=std::make_unique<MoleculeCalculation>(Setup()); }
+        if (!calc->IsConverged()) return "H2O did not converge";
         return ScfHeaderFiled(FiledRun(ID()+"@"), ID()+"@");
     }
     std::string AcceleratorKnobsArrive() override
     {
-        auto calc=Calculation::Prepare(Setup({.nProj=6, .eMax=0.05, .svTol=1e-8, .trust=0.2, .ladderEThresh=1e-7, .ladderStall=4,
-                                              .ladderFloor=1e-9, .ladderSwitchAt=1e-5, .type="Ladder"}));
+        { report::Run run(ID()+" build"); (void)MoleculeCalculation::Prepare(Setup({.nProj=6, .eMax=0.05, .svTol=1e-8, .trust=0.2, .ladderEThresh=1e-7, .ladderStall=4,
+                                              .ladderFloor=1e-9, .ladderSwitchAt=1e-5, .type="Ladder"})); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
-    std::string SaveRestartRoundTrips() override {return "Calculation has no SaveState / Restart";}
+    std::string SaveRestartRoundTrips() override {return "MoleculeCalculation has no SaveState / Restart";}
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","H2O"}});}
 };
 
@@ -261,14 +265,15 @@ public:
     {
         const auto setup=Setup();
         size_t rows=0;
-        auto calc=SolidCalculation::Prepare(setup, {{Params(), SCFAccelerators::Type::Auto}}, [&](const auto&){ rows++; });
+        { report::Run run(ID(*setup)+" build"); SolidCalculation::Prepare(setup, {{Params(), SCFAccelerators::Type::Auto}}, [&](const auto&){ rows++; }); }
         return SetupFiled(FiledRun(ID(*setup)+" build@"), ID(*setup)+" build@", rows);
     }
     std::string ConvergeFilesTheScfHeader() override
     {
         const auto setup=Setup();
-        SolidCalculation calc(setup, Params());
-        if (!calc.DidConverge()) return "Si Γ did not converge";
+        std::unique_ptr<SolidCalculation> calc;
+        { report::Run run(ID(*setup)); calc=std::make_unique<SolidCalculation>(setup, Params()); }
+        if (!calc->DidConverge()) return "Si Γ did not converge";
         return ScfHeaderFiled(FiledRun(ID(*setup)+"@"), ID(*setup)+"@");
     }
     std::string AcceleratorKnobsArrive() override
@@ -277,7 +282,7 @@ public:
         acc.diis.Nproj=6; acc.diis.EngageBelowFD=0.05; acc.diis.SVTol=1e-8;
         acc.ladderGdm.Trust=0.2; acc.ladderEThresh=1e-7; acc.ladderStall=4; acc.ladderFloor=1e-9; acc.ladderSwitchAt=1e-5;
         const auto setup=Setup(SCFAccelerators::Type::Ladder, acc);
-        auto calc=SolidCalculation::Prepare(setup, {{Params(), SCFAccelerators::Type::Ladder}});
+        { report::Run run(ID(*setup)+" build"); SolidCalculation::Prepare(setup, {{Params(), SCFAccelerators::Type::Ladder}}); }
         return AcceleratorFiled(FiledRun(ID(*setup)+" build@"), ID(*setup)+" build@");
     }
     std::string SaveRestartRoundTrips() override

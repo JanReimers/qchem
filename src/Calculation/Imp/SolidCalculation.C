@@ -37,6 +37,7 @@ import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeLadderAb
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.SCFCap;                           // SetupSCF -- the seed's atomic solves are not the run's iterations
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
+import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
 
 namespace qchem
 {
@@ -1025,6 +1026,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
     const SCFParams resolved=itsImp->scf->ResolveMixing(params);
     EmitSCFBanner(itsImp->setup->opts.label, resolved, itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
                   itsImp->stageAccelAsked==SCFAccelerators::Type::Auto);
+    { qchem::report::Section scf("scf"); ReportSCFRecipe(resolved, AccelName(itsImp->stageAccel)); }   // the run report's "what recipe am I running" header, as every facade files it
     itsImp->lastOccupation = {.useMOM=params.UseMOM, .momStartIter=(int)params.MOMStartIter,
                               .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty};   // the iterator's own conversion
     itsImp->lastkT     = params.SmearingkT;
@@ -1596,8 +1598,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     itsImp->pilotCost.settled=itsImp->rastersSettled && metEveryTarget;   // NOT SETTLED at the round cap is not settled (it read true)
     std::cout<<tag<<"cost: "<<itsImp->pilotCost.rounds<<" audit round(s), "<<itsImp->pilotCost.reconvergeIterations
              <<" re-convergence iteration(s) beyond the run's own"<<std::endl;
-    if (rpt::Depth()>0)
-        rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
+    rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
                                              {"rasters",RasterName(itsImp->setup->opts.tolerances)},
                                              {"xcMesh", itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(itsImp->setup->xcMesh) : std::string("uniform")},{"settled",itsImp->rastersSettled},
                                              {"auditRounds",itsImp->pilotCost.rounds},{"reconvergeIterations",(long)itsImp->pilotCost.reconvergeIterations}});
@@ -1771,8 +1772,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             std::cout<<"[grid audit]   "<<who<<" "<<it.key()<<": "<<it.value().value("status",std::string())
                      <<" (predicted alias "<<it.value().value("alias",0.0)<<")"<<std::endl;
     std::cout<<std::defaultfloat<<std::setprecision(prec0);
-    if (rpt::Depth()>0)
-        rpt::EmitAt(eggBox ? "eggBox" : "gridAudit", eggBox ? R.reference : RasterName(opts.tolerances)+std::string("_vs_")+R.reference,
+    rpt::EmitAt(eggBox ? "eggBox" : "gridAudit", eggBox ? R.reference : RasterName(opts.tolerances)+std::string("_vs_")+R.reference,
                     rpt::json{{"run",RasterName(opts.tolerances)},{"reference",R.reference},{"terms",rows},
                          {"maxAbsDH",R.maxAbsΔH},{"dE",R.ΔE},{"verdicts",verdicts},{"referenceVerdicts",refVerdicts}});
     return R;

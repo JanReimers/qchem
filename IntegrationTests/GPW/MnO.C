@@ -88,7 +88,7 @@ import qchem.CompositeCD;                         // tComposite_CD (the polarize
 import qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity.SeedCD;              // PolarizedSeedCD (the raw spin-SAD seed, for the sublattice gate)               // IrrepCD_Factory/PolarizedCD_Factory (fixed-density probe)
 import qchem.Pseudopotential.GTH_Potentials;      // GetGTH, GTH_PP (the PP model, for the matrix-trace probe)
-import qchem.Calculation;                        // qchem::Calculation, CalcOptions (finite reference)
+import qchem.MoleculeCalculation;                        // qchem::MoleculeCalculation, CalcOptions (finite reference)
 import qchem.AtomCalculation;                    // AtomCalculation, AtomType, BasisSetAccuracy (Slater/High pseudo-atom ref)
 import qchem.Types;
 

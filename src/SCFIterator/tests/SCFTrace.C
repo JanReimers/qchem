@@ -34,7 +34,7 @@ import qchem.BasisSet;               // Real_BS
 import qchem.BasisSet.Gaussian.Point.Factory;  // Gaussian::Factory, BasisSetData/Engine/Angular
 import qchem.Types;                  // ivec3_t
 import qchem.SCFIterator;            // SCFParams
-import qchem.Calculation;            // the molecular facade (the golden molecular trace)
+import qchem.MoleculeCalculation;            // the molecular facade (the golden molecular trace)
 using namespace qchem;
 using enum BasisSetAccuracy;
 
@@ -260,7 +260,7 @@ TEST(SCFTrace, MolecularConsoleIsByteIdentical)
         Molecule o2;
         o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0,  1.141)));
         o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.141)));
-        Calculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}),
+        MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}),
                          {.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
                           .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true});
         (void)calc.Result();
@@ -303,7 +303,7 @@ TEST(SCFTrace, AnObserverExceptionLeavesConvergeUntouched)
         Molecule o2;
         o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0,  1.141)));
         o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.141)));
-        Calculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}), {.NMaxIter = 80, .Verbose = false}, throwAt2);
+        MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}), {.NMaxIter = 80, .Verbose = false}, throwAt2);
         (void)calc.Result();
         ADD_FAILURE() << "the molecular run did not stop";
     }
@@ -332,7 +332,7 @@ TEST(SCFTrace, AMolecularLadderHandsOffToGDMBelowTheEnergyTail)
 {
     std::vector<SCFIterator::IterationRow> rows;
     (void)CapturedTrace([&rows]{
-        Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = qchem::Model::LDA}, {.type = "Ladder"}),
+        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = qchem::Model::LDA}, {.type = "Ladder"}),
                          {.NMaxIter = 80, .Verbose = true},
                          [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
         (void)calc.Result();
@@ -364,7 +364,7 @@ TEST(SCFTrace, TheObserverReceivesTheConsoleRow)
         Molecule o2;
         o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0,  1.141)));
         o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.141)));
-        Calculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}),
+        MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}),
                          {.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
                           .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true},
                          [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });

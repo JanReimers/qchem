@@ -63,6 +63,18 @@ void Begin(const std::string& name, const std::string& startTime);
 //! Close the current run: file it into GlobalReport under its key, pop the context.
 void End();
 
+//! RAII: \c Begin(name) here, \c End() on scope exit -- even when a step throws, so a failed run never leaks the run-context /
+//! cursor stacks.  The DRIVER's bracket (user ruling D, 2026-11-02): a deck, a harness, a CLI, the GUI bridge or a test opens the
+//! run; the facades it drives never do, they write into it.
+class Run
+{
+public:
+    explicit Run(const std::string& name) { Begin(name); }
+    ~Run() { End(); }
+    Run(const Run&)            = delete;
+    Run& operator=(const Run&) = delete;
+};
+
 //! Current nesting depth (0 == no run open, 1 == top-level run).  Console renders
 //! only at depth 1; the json keeps every depth.
 int Depth();
@@ -167,6 +179,8 @@ void EmitTimings(const std::string& name="timing", size_t nIterations=0);
 //! safety is recovered by a per-section schema-check test on the emitted json.
 //! \note Every emitted item is STAMPED with \c RunElapsed() -- in the console heading and in the run
 //! record's chronological \c timeline array.  See \c RunElapsed for why.
+//! \note Inert outside a run (a no-op), like every write here: a FACADE never opens a run (user ruling D, 2026-11-02), it writes
+//! into its caller's, so a facade driven by a caller that opened none must not need to ask \c Depth() first.
 void EmitSection(const std::string& name, json section);
 
 //----------------------------------------------------------------------------

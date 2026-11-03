@@ -1,6 +1,6 @@
 // File: UnitTests/M_DFT.C  Molecular un-polarized Xalpha-DFT total-energy tests (facade-driven).
 //
-// Production path: qchem::Calculation builds the BasisSet::Gaussian::Factory PolarizedGaussian (M&D)
+// Production path: qchem::MoleculeCalculation builds the BasisSet::Gaussian::Factory PolarizedGaussian (M&D)
 // basis; the Xalpha DFT Hamiltonian adds the fitted Coulomb + Xalpha exchange on a numerical mesh.  We
 // drive a full SCF for N2 and water through the facade and check the converged total energy against a
 // reference -- the same total-energy check used for the atom A_DFT tests.
@@ -19,7 +19,7 @@
 #include <cmath>
 #include <stdexcept>
 
-import qchem.Calculation;            // Calculation, CalcOptions, Model, Angular
+import qchem.MoleculeCalculation;            // MoleculeCalculation, CalcOptions, Model, Angular
 import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
 import qchem.SCFParams;              // SCFParams (the O2 runs converge once, on their own recipe)
 import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
@@ -47,7 +47,7 @@ static Molecule MakeO2()         // O2 at the experimental bond length ~1.208 An
 // move", NOT the physical energy; exchange-only Xalpha at these alphas is not calibrated to it).
 TEST(M_DFT, N2)
 {
-    Calculation calc(MoleculeSetup::Resolve(MakeN2(), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.75197}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeN2(), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.75197}));
     // δ default, D shells kept: -109.228113.  Was -109.225960 (A1 Vxc fit, d-less Coulomb fit) and -109.21679 at 2e-3 RELATIVE
     // (0.2 Ha!) on the 30/5 mesh.
     EXPECT_NEAR(calc.Energy(), -109.2281129068, 1e-5);
@@ -56,7 +56,7 @@ TEST(M_DFT, N2)
 
 TEST(M_DFT, Water)
 {
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.74000}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.74000}));
     // CONVERGED Xalpha total energy (the facade's auto DIIS-from-start): [F,D] and Δρ reach ~1e-13 by
     // ~iter 14, virial V/K = -2.006 (the correct ~-2, vs the buggy -2.11).  A true converged regression
     // sentinel.  (Was -76.123348 interim limit-cycle, -79.414120 stale-cache, -76.149301 on the 30/5 mesh -- 48 mHa low, inside
@@ -74,7 +74,7 @@ TEST(M_DFT, Water)
 // M_Spherical.fit_kernels.  So this is purely a "did E move" regression anchor, with a loose sanity bound.
 TEST(M_DFT, WaterSpherical)
 {
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis   = "dzvp", .model   = Model::Xalpha,
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis   = "dzvp", .model   = Model::Xalpha,
                                    .angular = Angular::Spherical, .xalpha  = 0.74000}));
     EXPECT_NEAR(calc.Energy(), -76.1069880486, 0.05);                 // sanity: same ballpark as Cartesian
     // CONVERGED anchor (δ default, D shells kept).  PySCF spherical dzvp with the Cartesian A1_coul J-fit: -76.10758175 (16 μHa;
@@ -90,7 +90,7 @@ TEST(M_DFT, WaterSpherical)
 // the SAME energy as the unpolarized anchor -- and it does, to ~1e-11 (confirming a correct seed Fock).
 TEST(M_DFT, WaterPolarizedSAD)
 {
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::Xalpha, .spin = SpinGroup::Polarized, .xalpha = 0.74000}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::Xalpha, .spin = SpinGroup::Polarized, .xalpha = 0.74000}));
     // Polarized water Xalpha is the oscillatory case (commutator ~2-4; see M_Sym RunDFT) -- it needs more
     // iterations + damping than the facade's quick default, so re-Converge with tight params (DIIS already
     // drives from the start for DFT).
@@ -106,7 +106,7 @@ TEST(M_DFT, WaterPolarizedSAD)
 // the SAD-seed fallback (rho_up=rho_down=rho/2), the per-spin v_c^sigma fit, and the two-channel E_c.
 TEST(M_DFT, WaterPolarizedLDA)
 {
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA, .spin = SpinGroup::Polarized}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA, .spin = SpinGroup::Polarized}));
     ASSERT_TRUE(calc.Converge({.NMaxIter = 60, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
     EXPECT_NEAR(calc.Energy(), -75.8794551388, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
@@ -119,7 +119,7 @@ TEST(M_DFT, WaterPolarizedLDA)
 // regression sentinel (converged spin-native LDA total energy).
 TEST(M_DFT, OxygenTripletLDA)
 {
-    Calculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 3}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 3}));
     ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
     // Converged spin-native LDA triplet (δ default, D shells kept).  Was -149.263716 on the A1 per-spin Vxc fit with a d-less
@@ -134,7 +134,7 @@ TEST(M_DFT, OxygenTripletLDA)
 // (the crash path) and pins the converged HF triplet energy.  "Did E move" + no-crash.
 TEST(M_DFT, OxygenTripletHF_VerboseDisplay)
 {
-    Calculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::HF, .multiplicity = 3}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::HF, .multiplicity = 3}));
     ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true}));   // Verbose => DisplayEigen (the crash path)
     EXPECT_NEAR(calc.Energy(), -149.6295470276, 1e-4);   // converged HF triplet O2
@@ -159,7 +159,7 @@ TEST(M_DFT, OxygenTripletBelowSinglet_Panel)   // PANEL case 11: a degenerate pa
         SCFParams p{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinVirial = 1e2, .MinFD = 1e-7,
                     .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false};
         if (mult==1) p.SmearingkT=1e-2;   // open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT"
-        Calculation c(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = mult}), p);
+        MoleculeCalculation c(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = mult}), p);
         EXPECT_TRUE(c.IsConverged()) << "multiplicity " << mult;
         const auto E=c.EnergyTerms();
         return E.GetTotalEnergy()-E["MinusTS"];   // the internal energy (the -TS of a smeared run left out; 0 for the triplet)
@@ -173,7 +173,7 @@ TEST(M_DFT, OxygenTripletBelowSinglet_Panel)   // PANEL case 11: a degenerate pa
 // electrons (even), so a doublet (multiplicity 2 => 2S=1, odd) is impossible.  Fail loud (B4 validation).
 TEST(M_DFT, BadMultiplicityThrows)
 {
-    EXPECT_THROW(Calculation(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "sto-3g", .model = Model::LDA, .multiplicity = 2})),
+    EXPECT_THROW(MoleculeCalculation(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "sto-3g", .model = Model::LDA, .multiplicity = 2})),
                  std::runtime_error);
 }
 
@@ -190,7 +190,7 @@ static Molecule MakeF2()   // ~/Code/cp2k-runs/F2 geometry (bohr)
 
 TEST(M_DFT, WaterLDA_AuxiliaryFit)
 {
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
                                                                                        .vxcFit = Hamiltonian::VxcFit::Auxiliary}));
     ASSERT_TRUE(calc.Result());
     EXPECT_NEAR(calc.Energy(), -75.8808368818, 1e-5);   // anchor
@@ -199,7 +199,7 @@ TEST(M_DFT, WaterLDA_AuxiliaryFit)
 
 TEST(M_DFT, OxygenTripletLDA_AuxiliaryFit)
 {
-    Calculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 3,
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 3,
                                                        .vxcFit = Hamiltonian::VxcFit::Auxiliary}));
     ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                                .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
@@ -211,14 +211,14 @@ TEST(M_DFT, OxygenTripletLDA_AuxiliaryFit)
 // number to 1.4 mHa (PySCF's own A1_coul J-fit route to 57 μHa) -- the PP route was never the defect.
 TEST(M_DFT, F2_PP)
 {
-    Calculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .pp = "gth-lda-valence"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .pp = "gth-lda-valence"}));
     ASSERT_TRUE(calc.Result());
     EXPECT_NEAR(calc.Energy(), -48.2019366975, 1e-5);   // anchor (δ default)
     EXPECT_NEAR(calc.Energy(), -48.20187971, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC (CP2K -48.20058)";
 }
 TEST(M_DFT, F2_PP_AuxiliaryFit)
 {
-    Calculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .vxcFit = Hamiltonian::VxcFit::Auxiliary,
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .vxcFit = Hamiltonian::VxcFit::Auxiliary,
                                                        .pp = "gth-lda-valence"}));
     ASSERT_TRUE(calc.Result());
     EXPECT_NEAR(calc.Energy(), -48.1971112700, 1e-5);   // anchor
