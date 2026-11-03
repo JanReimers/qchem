@@ -1,5 +1,5 @@
 // File: src/Structure/tests/StructureDataUT.C  qchem.StructureData: the pre-defined molecules and cells
-// (D-STRUCTDATA).  Structure only -- valence counts are the Calculation library's (src/Calculation/tests/Materials.C).
+// (D-STRUCTDATA).  Structure only -- valence counts are the MoleculeCalculation library's (src/Calculation/tests/Materials.C).
 #include "gtest/gtest.h"
 #include <stdexcept>
 #include <string>

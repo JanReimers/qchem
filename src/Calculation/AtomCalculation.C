@@ -1,12 +1,12 @@
 // File: Calculation/AtomCalculation.C
 //
 // qchem::AtomCalculation -- the production front door for a single-atom SCF (the atom/Dirac/PP analogue
-// of qchem::Calculation, which is molecule-only by deliberate design).  It owns the whole object graph
+// of qchem::MoleculeCalculation, which is molecule-only by deliberate design).  It owns the whole object graph
 // (atom + atomic EC + atomic basis + Hamiltonian + accelerator + iterator), runs the assemble->converge
 // recipe, and exposes high-level questions: Energy(), EnergyTerms(), Density(), Orbital(i).
 //
 // This is the single tested atom recipe that previously lived only in the QchemTester/TestAtom test
-// scaffold.  A SIBLING of qchem::Calculation rather than an extension: the molecular facade is being
+// scaffold.  A SIBLING of qchem::MoleculeCalculation rather than an extension: the molecular facade is being
 // consumed by the GUI team and must stay stable, and atoms genuinely differ (atomic exponent-pool bases,
 // atomic / Dirac / pseudo ECs, the degree-0 (1-direction) atomic mesh, relativistic + PP models the molecule facade
 // has no business expressing).  The two share the SCFIterator converge machinery and AcceleratorOptions.
@@ -28,11 +28,12 @@ import qchem.Mesh;                  // qcMesh::MeshParams
 import qchem.ElectronConfiguration; // ElectronConfiguration
 import qchem.SCFIterator;           // SCFIterator, SCFParams, IterationRow, EnergyBreakdown
 import qchem.Symmetry.Irrep;        // Irrep
+export import qchem.Calculation;    // the abstract base of the three facades
 export import qchem.Symmetry.Spin;  // Spin (per-spin irrep enumeration), SpinGroup (an AtomCalcOptions field)
 import qchem.Orbitals;              // Orbital, Orbitals
 import qchem.ChargeDensity;         // rDM_CD
 import qchem.ChargeDensity.Seed;    // SeedStrategy
-import qchem.Calculation;           // reuse AcceleratorOptions (read-only; does NOT modify Calculation)
+import qchem.MoleculeCalculation;           // reuse AcceleratorOptions (read-only; does NOT modify MoleculeCalculation)
 
 export namespace qchem
 {
@@ -105,7 +106,7 @@ struct AtomCalcOptions
     qchem::Ortho ortho = qchem::Auto;
 };
 
-class AtomCalculation
+class AtomCalculation : public virtual Calculation
 {
 public:
     using sf_t       = ScalarFunction<double>;
@@ -126,7 +127,7 @@ public:
     AtomCalculation(const AtomCalculation&)            = delete;
     AtomCalculation& operator=(const AtomCalculation&) = delete;
 
-    //! \name BUILT, NOT CONVERGED (2026-11-02: the twin of \c Calculation::Prepare / \c SolidCalculation::Prepare)
+    //! \name BUILT, NOT CONVERGED (2026-11-02: the twin of \c MoleculeCalculation::Prepare / \c SolidCalculation::Prepare)
     //! The whole graph -- basis, Hamiltonian with every mesh, accelerator, SCF iterator (its wave-function build files
     //! basis.perIrrep) -- into the CALLER'S report run (a facade never opens one, user ruling D 2026-11-02); no SCF.  Run it with
     //! \c Converge(params), whose FIRST call reuses this graph.  Until then the accessors have no SCF to read.

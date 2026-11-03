@@ -3,7 +3,7 @@
 // Migrated off the QchemTester scaffold (OpenWork E).  TWO parameterized fixtures, each driven by a
 // case-struct so there are no empty per-variant classes:
 //   A_DFT_atom -- a single atom in its own exponent-pool basis (Slater-Xα or LSDA), via AtomCalculation.
-//   A_PG_DFT   -- the same atom in the MOLECULAR dzvp basis, via Calculation (cross-checks the molecular
+//   A_PG_DFT   -- the same atom in the MOLECULAR dzvp basis, via MoleculeCalculation (cross-checks the molecular
 //                 basis on atoms).
 // The oracle bound is |relative error| -- it was the scaffold's SIGNED error until 2026-10-31, which let every Xalpha atom pass 0.005-12 %
 // BELOW an oracle of the wrong functional (see XalphaReference).  File-local helpers are anon-namespaced (per-file vocabulary, internal
@@ -15,7 +15,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-import qchem.Calculation;            // Calculation (A_PG: molecular basis on an atom)
+import qchem.MoleculeCalculation;            // MoleculeCalculation (A_PG: molecular basis on an atom)
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, Model, SpinGroup (atomic exponent-pool DFT)
 import qchem.SCFIterator;            // SCFParams
 import qchem.Structure;              // Molecule, Atom
@@ -124,7 +124,7 @@ TEST_P(A_PG_DFT, Energy)
     // 2P state), not the spherical ensemble -- so B is judged against the `pure` reference.  No-op on the s^1 atoms.
     SCFParams p=dft_scf_params(c.Z);
     if (c.spin==SpinGroup::Polarized) p.SmearingkT=1e-4;
-    Calculation calc(MoleculeSetup::Resolve(atom, {.basis = "dzvp", .model = Model::Xalpha, .spin = c.spin,
+    MoleculeCalculation calc(MoleculeSetup::Resolve(atom, {.basis = "dzvp", .model = Model::Xalpha, .spin = c.spin,
                             .xalpha = pt.GetSlaterAlpha(c.Z), .seed = ChargeDensity::SeedStrategy::CoreGuess}, {.eMax = c.Z*c.Z*0.08/32}), p);
     ASSERT_TRUE(calc.IsConverged());
     // dzvp is INCOMPLETE, so the energy is bounded from below by the near-complete reference: one-sided, with an allowance for the

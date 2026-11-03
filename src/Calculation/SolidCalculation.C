@@ -1,7 +1,7 @@
 // File: Calculation/SolidCalculation.C
 //
 // qchem::SolidCalculation -- the production front door for a PERIODIC (GPW / plane-wave) SCF.  The
-// solid peer of qchem::Calculation (molecules) and qchem::AtomCalculation (atoms): it owns the whole
+// solid peer of qchem::MoleculeCalculation (molecules) and qchem::AtomCalculation (atoms): it owns the whole
 // object graph -- basis, electron configuration, Hamiltonian, accelerator, iterator -- runs the
 // canonical assemble->converge recipe, and exposes high-level questions rather than the graph.
 //
@@ -57,6 +57,7 @@ export import qchem.SolidState;               // RestartRefusal (Restart's failu
 export import qchem.SolidSetup;               // SolidCalcOptions + the resolved SolidSetup a run is built from (step 6)
 export import qchem.PotentialEnergySurface;   // the face SolidSession implements (step 8)
 export import qchem.SCFFailure;               // SCFFailure: why an attempt has no answer (shared with the molecular facade)
+export import qchem.Calculation;              // the abstract base of the three facades
 
 export namespace qchem
 {
@@ -199,7 +200,7 @@ struct SCFStage
 };
 
 //! \brief A periodic SCF: attempt it, and get back either the ANSWERS or the reason there are none.
-class SolidCalculation
+class SolidCalculation : public virtual Calculation
 {
     struct Imp;   //!< fwd: \c Converged holds one (the definition lives in the .C, as always)
 public:
@@ -257,7 +258,7 @@ public:
     //! \a onIteration, when given, observes THIS constructor's SCF from its first iteration -- the constructor converges, so an
     //! observer attached afterwards (\c OnIteration) has already missed stage 0, the stage an annealed recipe's trace most wants;
     //! it stays attached for later \c Converge calls.  A constructor argument, not a setup field: an observer is not a resolved
-    //! decision (the molecular \c Calculation takes it the same way).
+    //! decision (the molecular \c MoleculeCalculation takes it the same way).
     explicit SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {}, Observer onIteration = nullptr);
     //! \brief The ANNEALED constructor: stage 0 on its own accelerator, then the rest of \a schedule, each stage seeded from the one
     //! before it.  An empty schedule throws.  \a onIteration observes every stage, from stage 0's first iteration.

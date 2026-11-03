@@ -1,6 +1,6 @@
 // File: UnitTests/M_HF_U.C  Molecular un-polarized Hartree-Fock total-energy tests (facade-driven).
 //
-// Production path: qchem::Calculation builds the BasisSet::Gaussian::Factory PolarizedGaussian (M&D)
+// Production path: qchem::MoleculeCalculation builds the BasisSet::Gaussian::Factory PolarizedGaussian (M&D)
 // basis and runs the canonical SCF.  Here we drive a full SCF for N2 and water through the facade and
 // check the converged total energy against a reference -- the same total-energy check used for the atom
 // A_HF tests.  (Integral correctness to machine precision is covered separately by M_PG_Oracle.)
@@ -11,7 +11,7 @@
 #include "gtest/gtest.h"
 #include <cmath>
 
-import qchem.Calculation;            // Calculation, CalcOptions (+ Model/Pol/Engine/Angular)
+import qchem.MoleculeCalculation;            // MoleculeCalculation, CalcOptions (+ Model/Pol/Engine/Angular)
 import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
@@ -31,14 +31,14 @@ static Molecule MakeN2()
 // not a physical-accuracy claim).
 TEST(M_HF_U, N2)            // slow in Debug (~80s); Release-only
 {
-    Calculation calc(MoleculeSetup::Resolve(MakeN2(), {.basis = "dzvp"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeN2(), {.basis = "dzvp"}));
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -108.94524)), 1e-4);
 }
 #endif
 
 TEST(M_HF_U, Water)
 {
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp"}));
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.022903)), 1e-5);
 }
 
@@ -50,7 +50,7 @@ TEST(M_HF_U, Water)
 // the bootstrap produced a valid density.  See project_numericcd_refactor.
 TEST(M_HF_U, WaterSADseed)
 {
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .seed = ChargeDensity::SeedStrategy::SAD}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .seed = ChargeDensity::SeedStrategy::SAD}));
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.022903)), 1e-5);  // identical converged E to CoreGuess
 }
 
@@ -61,7 +61,7 @@ TEST(M_HF_U, WaterSADseed)
 // external engine through a real SCF.
 TEST(M_HF_U, WaterLibCint)
 {
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .engine = Engine::LibCint}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .engine = Engine::LibCint}));
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.022903)), 1e-5);  // same converged E as the M&D path
 }
 
@@ -71,7 +71,7 @@ TEST(M_HF_U, WaterLibCint)
 // value), validating the spherical basis end-to-end against a second engine.
 TEST(M_HF_U, WaterLibCintSpherical)
 {
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis   = "dzvp",
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis   = "dzvp",
                                    .engine  = Engine::LibCint,
                                    .angular = Angular::Spherical}));
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.020277)), 1e-5);  // == PG_Spherical (M&D) spherical HF
@@ -85,7 +85,7 @@ TEST(M_HF_U, WaterLibCintSpherical)
 // usual "did E move" regression anchor.
 TEST(M_HF_U, WaterSpherical)
 {
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .angular = Angular::Spherical}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .angular = Angular::Spherical}));
     const double E_cart = -76.022903;          // the Cartesian-DZVP anchor (water has one O d shell)
     const double E_sph  = calc.Energy();
     EXPECT_GT(E_sph, E_cart);                  // variational subset: dropping the d contaminant raises E

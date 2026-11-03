@@ -16,7 +16,7 @@
 #include <memory>
 #include <cmath>
 
-import qchem.Calculation;                       // qchem::Calculation, CalcOptions (the production facade)
+import qchem.MoleculeCalculation;                       // qchem::MoleculeCalculation, CalcOptions (the production facade)
 import qchem.Structure;                         // Molecule, Atom
 import qchem.UnitCell;                          // UnitCell (uniform lattice mesh)
 import qchem.BasisSet;                          // Real_BS
@@ -34,7 +34,7 @@ import qchem.Types;
 using namespace qchem;
 using Real_OIBS = qchem::BasisSet::Real_OIBS;
 using qchem::BasisSet::Gaussian::BasisSetData;
-// NB: Engine/Angular are NOT `using`-imported here -- qchem::Calculation also exports enums of those names
+// NB: Engine/Angular are NOT `using`-imported here -- qchem::MoleculeCalculation also exports enums of those names
 // (the facade's engine/angular knobs), so name the basis-factory ones fully-qualified in MakeBasis below.
 
 namespace
@@ -134,7 +134,7 @@ TEST(L_PP, NonLocalMatrixLatticeMatchesFinite)
     EXPECT_LT(RelDiff(Mcell, Mfin), 1.0e-2);
 }
 
-// GPW step 1 (doc/MolecularPP_HarmonizationRound2.md section 1.D.2): the qchem::Calculation FACADE must
+// GPW step 1 (doc/MolecularPP_HarmonizationRound2.md section 1.D.2): the qchem::MoleculeCalculation FACADE must
 // PRESERVE the concrete geometry.  Before Structure::Clone the ctor did make_shared<Molecule>(st), which
 // deep-copied ANY structure to a finite Molecule -- silently stripping periodicity.  Here the SAME atom is
 // run through the facade both as a finite Molecule and centred in a periodic UnitCell: the lattice run's
@@ -150,7 +150,7 @@ TEST(L_PP, FacadePreservesUnitCell)
 {
     // Finite reference through the facade: He at the origin (Enn = 0 for one atom -- no ion-ion pair).
     Molecule he; he.Insert(new Atom(2, 0.0, {0,0,0}));
-    Calculation cFin(MoleculeSetup::Resolve(he, {.basis = "dzvp"}));
+    MoleculeCalculation cFin(MoleculeSetup::Resolve(he, {.basis = "dzvp"}));
     EXPECT_TRUE(cFin.GetStructure().isFinite());          // a Molecule stays finite
     EXPECT_NEAR(cFin.EnergyTerms()["Enn"], 0.0, 1e-12);      // single finite atom -> no ion-ion
 
@@ -158,7 +158,7 @@ TEST(L_PP, FacadePreservesUnitCell)
     const double a = 10.0;
     UnitCell cell(a);
     cell.AddAtom(2, {0.5,0.5,0.5});
-    Calculation cCell(MoleculeSetup::Resolve(cell, {.basis = "dzvp"}));
+    MoleculeCalculation cCell(MoleculeSetup::Resolve(cell, {.basis = "dzvp"}));
 
     EXPECT_FALSE(cCell.GetStructure().isFinite());                    // periodic, not sliced to a Molecule
     EXPECT_NEAR(cCell.GetStructure().GetNumElectrons(), 2.0, 1e-12);  // He, charge preserved by Clone

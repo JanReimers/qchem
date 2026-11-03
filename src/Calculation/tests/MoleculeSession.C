@@ -6,7 +6,7 @@
 #include <optional>
 #include <stdexcept>
 #include <vector>
-import qchem.Calculation;
+import qchem.MoleculeCalculation;
 import qchem.StructureData;
 import qchem.Structure;
 import qchem.SCFParams;
@@ -28,7 +28,7 @@ SCFParams Tight()
 TEST(MoleculeSession, ConvergeAtTheReferenceIsTheSinglePointBitForBit)
 {
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"});
-    Calculation single(setup, Tight());
+    MoleculeCalculation single(setup, Tight());
     ASSERT_TRUE(single.IsConverged());
 
     MoleculeSession pes(setup, Tight());
@@ -51,7 +51,7 @@ TEST(MoleculeSession, ACarriedStepEqualsAFreshRunAtTheNewPositionsInFewerIterati
 
     Molecule moved(h2o);
     for (size_t a=0;a<R.size();a++) moved[a]->itsR=R[a];
-    Calculation fresh(MoleculeSetup::Resolve(moved, {.basis="dzvp"}), Tight());   // seeded from scratch at the new positions
+    MoleculeCalculation fresh(MoleculeSetup::Resolve(moved, {.basis="dzvp"}), Tight());   // seeded from scratch at the new positions
     ASSERT_TRUE(fresh.IsConverged());
     EXPECT_NEAR(P1->energy, fresh.Energy(), 1e-8);
     EXPECT_LT(P1->iterations, fresh.IterationCount()) << "the carried density is the point of the session";

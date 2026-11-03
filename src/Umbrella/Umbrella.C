@@ -1,10 +1,10 @@
 // File: Umbrella/Umbrella.C  The `qchem` umbrella module -- one import for consumer / binding code.
 //
-// `import qchem;` brings the whole molecule front door into scope at once: the Calculation facade and
+// `import qchem;` brings the whole molecule front door into scope at once: the MoleculeCalculation facade and
 // its options (+ qchem::Model/SpinGroup), the Molecule/Atom builders, ScalarFunction sampling, and -- via
 // qchem.SCFIterator -- SCFParams, the live IterationRow trace, and the WaveFunction/Orbitals/
 // ChargeDensity/Irrep/EnergyBreakdown query surface.  End-user and binding code should prefer this;
-// library-internal code keeps importing the granular modules (e.g. `import qchem.Calculation;`) to
+// library-internal code keeps importing the granular modules (e.g. `import qchem.MoleculeCalculation;`) to
 // minimise recompile coupling.  Internals (*.Internal.*) are deliberately NOT re-exported.
 //
 // Lives in its OWN library (qcUmbrella, above the aggregate) ON PURPOSE: an umbrella that re-exports a
@@ -12,7 +12,7 @@
 // Here every re-exported module is in a different, already-linked library, so there is no back-edge.
 export module qchem;
 
-export import qchem.Calculation;     // Calculation, CalcOptions, AcceleratorOptions, qchem::Model/SpinGroup
+export import qchem.MoleculeCalculation;     // MoleculeCalculation, CalcOptions, AcceleratorOptions, qchem::Model/SpinGroup
 export import qchem.SCFIterator;     // SCFParams, IterationRow, SCFIterator + (transitive) WaveFunction,
                                      //   Orbitals, ChargeDensity, Irrep, EnergyBreakdown, Hamiltonian
 export import qchem.Structure;       // Molecule, Atom, Structure
