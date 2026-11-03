@@ -166,6 +166,15 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     that sentence it is naming the implementation.  (Bit three times: "Becke", "SiteAdaptedBecke", the ERI4
     face.)  Corollary: when an item offers two fixes, first check it named the right DEFECT; and when a
     cache needs an awkward key, suspect the LOOP, not the key.
+- **Keep a RIGOROUS formula and its EMPIRICAL correction apart in code. Never fold the constants together** (user,
+    2026-11-03).  The failure to avoid: the math says 2ε, a measurement says /10, and the code writes ε/5.  Nobody can
+    then tell theory from fudge, and a future session burns days of long runs untangling it.
+    - Write the bound as its own function, with its derivation in the comment.
+    - Make the correction a separate NAMED calibration (η = delivered/bound), with its measurement record at its
+      declaration, exposed as an expert knob.
+    - Write the product in ONE line where both factors show, and have the run report print both.
+    - `GridAccuracy::Rigorous` / `Calibrated` (`GPWTolerances.C`) is the model.
+    - A literal fudge inside a bound is a defect to flag.
 - **THE RUN REPORT — every run records itself as JSON; read `src/Common/Reporting.C` (`import qchem.Reporting`,
     namespace `qchem::report`) before printing anything or reading results out of a run** (user, 2026-11-02).
     The report IS json: no per-section C++ structs, no per-section renderers (the console renderer infers
