@@ -406,3 +406,11 @@ The run answers the question; the user never picks a metric.  The rigorous bound
 measured calibration (the pilot audit) stay isolated in code, and the XC raster, which has no bound, is reported as
 MEASURED.  Test defaults: 1e-5 Ha/atom (energy) and 1e-5 Ha per element (H).  Earned by NaF: BallOnly's −941 μHa was the
 XC raster, and the F site's "curvature" was the grid's egg-box (doc/GridEpsilonPlan.md §1).
+
+**Extended (user, 2026-11-03): ε governs EVERY numerical approximation, not only the rasters.**  *"If ε works for every term then
+the concept is easy to understand.  If it is hit and miss then it becomes far less useful."*  Every tolerance, cutoff, mesh and
+screen that approximates the CHOSEN model is either sized from ε (a rigorous formula plus a named calibration, CLAUDE.md Design)
+or audited against ε by the run.  A fixed tolerance that ignores ε is a DEFECT, however harmless it measures today.  MODEL choices
+are not approximations and are exempt: functional, orbital basis, pseudopotential, smearing kT, and the structure.  A STATED
+value is honoured and reported against ε, never silently.  Earned by the density G-ball: auto 2·α_max sat outside ε in every
+cell, H₂O MOLOPT +330 μHa against CP2K, while the rasters beside it were ε-sized (OpenWork history, 2026-11-03).
