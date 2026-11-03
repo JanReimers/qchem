@@ -11,6 +11,7 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     MoleculeSession.C   # the molecular potential energy surface: reference == single point, carried step == fresh (step 8)
     SolidSetup.C        # the periodic run setup: the frozen basis recipe, provenance without a deck (step 6)
     SolidSession.C      # the solid potential energy surface: reference == single point, carried step == fresh (step 8)
+    FacadeMatrix.C      # the facade PARITY MATRIX: {atom, molecule, solid} x every capability, expected failures named (V-FACADE-MATRIX)
 )
 
 target_compile_definitions(UTCalculation PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS} DECKS_DIR="${PROJECT_SOURCE_DIR}/decks")

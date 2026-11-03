@@ -480,6 +480,22 @@ std::optional<Gaussian::RasterExponents> GpwRasterExponents(const Complex_BS& bs
     return std::nullopt;
 }
 
+std::vector<Gaussian::RasterVerdict> GpwRasterVerdicts(const Complex_BS& bs)
+{
+    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
+    assert(imp && "GpwRasterVerdicts: the periodic basis set must be a BasisSetImp");
+    for (size_t i=0;i<bs.GetNumIBS();++i)
+    {
+        std::optional<std::vector<Gaussian::RasterVerdict>> v=std::visit([&](const auto& b)->std::optional<std::vector<Gaussian::RasterVerdict>>
+        {
+            if (auto* ev=dynamic_cast<const Gaussian::GPW_Evaluator*>(b.get())) return ev->DeliveredRasterVerdicts();
+            return std::nullopt;
+        }, imp->GetChild(i));
+        if (v) return *v;
+    }
+    return {};
+}
+
 size_t VetGpwConditioning(const Complex_BS& bs)
 {
     namespace rpt = qchem::report;
@@ -517,6 +533,22 @@ size_t VetGpwConditioning(const Complex_BS& bs)
             }
         }, imp->GetChild(i));
     return total;
+}
+
+double MinOverlapEigenvalue(const Complex_BS& bs)
+{
+    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
+    assert(imp && "MinOverlapEigenvalue: the periodic basis set must be a BasisSetImp");
+    double lmin=1e300;
+    for (size_t i=0;i<bs.GetNumIBS();++i)
+        std::visit([&](const auto& b)
+        {
+            const auto& S = b->Overlap();
+            using U=typename std::decay_t<decltype(S)>::ElementType;
+            rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);   // ascending
+            lmin=std::min(lmin, d[0]);
+        }, imp->GetChild(i));
+    return lmin;
 }
 
 void PrintGpwConditioning(const Complex_BS& bs)

@@ -22,6 +22,7 @@ import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Fa
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
+import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
 import qchem.BasisSet.Orbital_1E_IBS;                // Real_OIBS -- the per-irrep blocks a carry is re-homed onto
 import qchem.CompositeCD;                            // tComposite_CD (the carried density's shape)
 import qchem.ChargeDensity.Factory;                  // IrrepCD_Factory
@@ -74,40 +75,6 @@ static Molecule_EC* MakeMoleculeEC(int Ne, int multiplicity)
     return new Molecule_EC((Ne + twoS) / 2, (Ne - twoS) / 2);   // (nUp, nDown)
 }
 
-// Build the report's `scf` section json straight from the SCF knobs -- the report IS json, so this
-// provider owns the keys (no mediating struct).  standard = the settled recipe surface; advanced = the
-// pathological-case dials (doc/RunReportPlan.md schema).  mixer is DERIVED (Pulay > Kerker > linear);
-// accelerator is the chosen engine tag.  EmitSection records it (and renders it iff a console is set).
-static void EmitScfSection(const SCFParams& p, const std::string& accelerator)
-{
-    namespace rpt = qchem::report;
-    rpt::json standard;
-    standard["nMaxIter"]    = long(p.NMaxIter);
-    standard["minDrho"]     = p.MinΔρPerElectron;
-    standard["minDFD"]      = p.MinΔFD;
-    standard["minDE"]       = p.MinΔE;
-    standard["minFD"]       = p.MinFD;
-    // The preconditioner (Kerker/linear) and the history (Pulay) COMPOSE, so name both: "Ker+Pul", "Lin+Pul".
-    standard["mixer"]       = std::string(p.KerkerG0 > 0.0 ? "Ker" : "Lin") + (p.PulayDepth > 0 ? "+Pul" : "");
-    standard["kerkerG0"]    = p.KerkerG0;
-    standard["accelerator"] = accelerator;
-    standard["smearingkT"]  = p.SmearingkT;   // ortho fills when the basis/LASolver section lands
-
-    rpt::json advanced;
-    advanced["pulayDepth"]      = p.PulayDepth;
-    advanced["pulayStart"]      = p.PulayStart;
-    advanced["useMOM"]          = p.UseMOM;
-    advanced["momStartIter"]    = p.MOMStartIter;
-    advanced["momSmearPenalty"] = p.MOMSmearPenalty;
-    advanced["guard"]["holePersistence"] = p.Guard.HolePersistence;
-    advanced["guard"]["maxReleases"]     = p.Guard.MaxReleases;
-
-    rpt::json scf;
-    scf["standard"] = standard;
-    scf["advanced"] = advanced;
-    rpt::EmitSection("scf", scf);
-}
-
 Calculation::Calculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
     : Calculation(setup, *setup->reference, nullptr, scf, std::move(onIteration))
 {}
@@ -123,10 +90,7 @@ std::unique_ptr<Calculation> Calculation::Prepare(std::shared_ptr<const Molecule
 {
     const Structure& ref=*setup->reference;
     std::unique_ptr<Calculation> c(new Calculation(BuildOnly{}, std::move(setup), ref, nullptr, std::move(onIteration)));
-    namespace rpt = qchem::report;
-    rpt::Begin(c->itsStructure->ID()+" build");       // the BUILD's own run: the setup, complete, before any SCF
-    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
-    c->BuildGraph();
+    c->BuildGraph();                                  // into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
     c->itsPrepared=true;
     return c;
 }
@@ -152,14 +116,16 @@ Calculation::~Calculation()
     delete itsEC;
 }
 
-// THE GRAPH, built inside the caller's open report run (Converge's, or Prepare's own build run).
+// THE GRAPH, built inside the caller's open report run (if any: with none, every report write is a no-op).
 void Calculation::BuildGraph()
 {
     namespace rpt = qchem::report;
     const CalcOptions& opts=itsSetup->opts;
-    nlohmann::json jsacc = {{"NProj", itsSetup->acc.nProj}, {"EMax", itsSetup->eMax},
-                            {"EMin", itsSetup->acc.eMin}, {"SVTol", itsSetup->acc.svTol}};
-    auto* accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, jsacc);
+    const nlohmann::json jsacc = ToAcceleratorJson(itsSetup->acc, itsSetup->eMax);   // every knob of the chain, forwarded
+    // The facade sets the context, the accelerator files what it was built with (THE RUN REPORT): one `accelerators` row per
+    // accelerator built in this run (a solid rebuilds one per stage), its Ladder rungs one level further in.
+    qchem::SCFAccelerators::SCFAccelerator* accel=nullptr;
+    { rpt::Row built("accelerators"); accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, jsacc); }
     const auto seed = itsSetup->seed;
 
     // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
@@ -227,14 +193,11 @@ void Calculation::BuildGraph()
 
 Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParams& params)
 {
-    // Open a run report for the whole SCF (the RAII guard guarantees End() even if a step throws,
-    // so a failed run never leaks the sink's run-context / cursor stacks).  The report only RECORDS
-    // unless a client attached a console via report::SetConsole.
+    // The SCF writes into the CALLER'S report run: a facade never opens one (user ruling D, 2026-11-02 -- drivers own the
+    // runs, the caller sets the context one level up).  With no run open every write is a no-op.
     namespace rpt = qchem::report;
-    rpt::Begin(itsStructure->ID());
-    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
-    EmitScfSection(params, itsSetup->acc.type);               // the "what recipe am I running" header
-    if (itsPrepared) itsPrepared=false;                       // Prepare built the graph in its own run: reuse it, once
+    { rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type); }   // the "what recipe am I running" header
+    if (itsPrepared) itsPrepared=false;                       // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
     if (itsObserver) itsScf->SetObserver(itsObserver);
     (void)itsScf->Iterate(params);   // the outcome is the iterator's Converged(), minted below
@@ -254,11 +217,12 @@ Outcome<Calculation::Converged, SCFFailure> Calculation::Outcome_() const
 {
     using O=Outcome<Converged, SCFFailure>;
     if (itsScf->Converged()) return O::Ok(Converged(this));
-    SCFFailure f;   // the molecular facade has no outcome detectors yet: a failure is a run out of iterations
-    f.why        = SCFFailure::Why::NotConverged;
+    SCFFailure f;   // the molecular facade's detectors: the iterator's own refusal, else a run out of iterations
+    const bool refused=!itsScf->UnphysicalStop().empty();
+    f.why        = refused ? SCFFailure::Why::UnphysicalEnergy : SCFFailure::Why::NotConverged;
     f.iterations = itsScf->GetIterationCount();
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
-    f.details    = "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
+    f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
     return O::Fail(std::move(f));
 }
 

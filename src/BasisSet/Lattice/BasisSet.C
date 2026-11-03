@@ -128,6 +128,10 @@ void EmitGpwGrids(const Complex_BS& bs);
 //! The alias exponents a GPW basis's rasters deliver (the first GPW block speaks for all: the rasters are k-independent); none for a
 //! basis with no GPW block (plane waves).  What the facade's pilot audit fits each raster term's measured tail at (C2 step 3).
 std::optional<Gaussian::RasterExponents> GpwRasterExponents(const Complex_BS& bs);
+//! The grid-audit verdicts a GPW basis's rasters deliver (the first GPW block speaks for all, as above); empty for a basis with no GPW
+//! block.  What the facade's fixed-D grid audit records per side and bounds each raster term at -- ASKED of the raster's owner, never
+//! read back out of the run report (V-REPORT-WRITEONLY).
+std::vector<Gaussian::RasterVerdict> GpwRasterVerdicts(const Complex_BS& bs);
 
 //! Fail-fast conditioning PRE-FLIGHT (doc/RunReportPlan.md, doc/GPWPlan1.md §4a): for each Bloch block of \a bs,
 //! analyse its ANALYTIC, grid-free overlap and emit the report's basis.perIrrep (conditioning) + basis.removed
@@ -141,6 +145,11 @@ size_t VetGpwConditioning(const Complex_BS& bs);
 //! each -- so a facade/unit-test run can always be checked for diffuse-basis conditioning (CLAUDE.md "always
 //! check the basis").  The facade calls exactly one of the two.
 void PrintGpwConditioning(const Complex_BS& bs);
+
+//! \brief The smallest eigenvalue of the analytic overlap S(k) over every Bloch block of \a bs: how strongly the orthonormal frame
+//! amplifies an error in a matrix element (\f$\delta H' \lesssim \delta H/\lambda_{\min}\f$).  The facade's restart rule for a pilot
+//! run whose first iterate was refused reads it (\c SolidCalculation::Converge: the start raster's alias must not exceed it).
+double MinOverlapEigenvalue(const Complex_BS& bs);
 
 //! \brief THE VET-STAGE TRIM (doc/Pins.md pin 22): the cell basis with its near-dependent diffuse shells
 //! removed ONCE, per element, BEFORE anything downstream is built -- so that the ortho step at \a orthoTol has

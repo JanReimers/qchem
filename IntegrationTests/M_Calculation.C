@@ -33,7 +33,7 @@ TEST(M_Calculation, WaterEnergy)
 TEST(M_Calculation, ScfReportSchema)
 {
     Molecule water = qchem::StructureData::GetMolecule("H2O");
-    Calculation calc(MoleculeSetup::Resolve(water, {.basis = "dzvp"}));          // ctor's Converge emits scf into GlobalReport
+    { report::Run run(water.ID()); Calculation calc(MoleculeSetup::Resolve(water, {.basis = "dzvp"})); }   // the test opens the run (user ruling D, 2026-11-02); the ctor's Converge files scf into it
 
     // Find this run's scf section (the run key carries a timestamp, so scan for it).
     const report::json* scf = nullptr;
@@ -66,7 +66,7 @@ TEST(M_Calculation, ScfReportSchema)
 TEST(M_Calculation, BasisReportSchema)
 {
     report::ClearGlobal();                                // isolate: only this test's run(s) remain
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), { .basis = "dzvp", .symmetry = true }));
+    { report::Run run("H2O"); Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), { .basis = "dzvp", .symmetry = true })); }
 
     const report::json& all = report::GlobalReport();
     const report::json* basis = nullptr;
@@ -93,7 +93,7 @@ TEST(M_Calculation, BasisReportSchema)
 TEST(M_Calculation, CacheReportSchema)
 {
     report::ClearGlobal();                               // isolate the REPORT (the cache itself is never cleared)
-    Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), { .basis = "dzvp" }));  // HF over dzvp populates Jac/Kab + the Omega/Hermite caches
+    { report::Run run("H2O"); Calculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), { .basis = "dzvp" })); }  // HF over dzvp populates Jac/Kab + the Omega/Hermite caches
 
     const report::json& all = report::GlobalReport();
     const report::json* cache = nullptr;

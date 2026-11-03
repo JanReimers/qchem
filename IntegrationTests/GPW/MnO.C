@@ -461,7 +461,7 @@ std::pair<SolidCalcOptions,SCFParams> ShubAnchorRecipe(const Material& mno, qche
     o.accelerator=qchem::SCFAccelerators::Type::Null;      // the deck-shaped loop: the history is on the density side
     o.imposeSymmetry=true;                                  // S3: the Shubnikov group of the declared ordering
     o.siteSpins={+1,-1,0,0};                                // the ordering is STATED (Mn up, Mn down, O non-magnetic): 24 Shubnikov ops
-    SCFParams par=Gates(200, 1e-6, 1e30);
+    SCFParams par=Gates(200, 1e-6, std::nullopt);
     par.Δρmeasure=SCFParams::Measure::MaxΔD;               // CP2K's EPS_SCF measure (rule 3f)
     par.PulayDepth=8; par.PulayStart=5;
     par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
@@ -559,7 +559,7 @@ std::pair<SolidCalcOptions,SCFParams> CP2KPlusURecipe(const Material& mno, doubl
     o.imposeSymmetry=true;
     o.policy.hubbardEigen=false;   // CP2K's form, a declared deviation: stated in the options (D-ENV 6b), not in the environment
     if (U_eV>0.0) o.hubbard={HubbardU_SiteShells(0,2,U_eV), HubbardU_SiteShells(1,2,U_eV)};
-    SCFParams par=Gates(200, 1e-6, 1e30);
+    SCFParams par=Gates(200, 1e-6, std::nullopt);
     par.Δρmeasure=SCFParams::Measure::MaxΔD;             // CP2K's EPS_SCF measure (doc/Benchmark.md rule 3f)
     par.PulayDepth=8; par.PulayStart=5;                   // the density history, as NBUFFER 8
     par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
@@ -665,7 +665,7 @@ TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Ordering_Long)
     const nlohmann::json deck={
         {"structure","MnO_AFM2"}, {"basis",{{"data","VALENCE_LOWQ_SR"}}},
         {"solid",{{"multiplicity",1},{"seed","IonicSAD"},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4},{"accelerator","Null"},{"imposeSymmetry",true}}},
-        {"scf",{{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-6},{"deltaRhoMeasure","MaxDeltaD"},{"minDeltaE",1e30},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},
+        {"scf",{{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-6},{"deltaRhoMeasure","MaxDeltaD"},{"minDeltaE","off"},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},
                 {"startingRelaxRo",0.45},{"mergeTol",1e-4},{"pulayDepth",8},{"pulayStart",5},{"kerkerG0",1.0},{"useMOM",false},{"smearingkT",5e-3}}}};
     qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
     const fs::path dir=fs::temp_directory_path()/("qchem_it_mno_ordering_"+std::to_string(::getpid()));

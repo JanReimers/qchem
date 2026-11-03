@@ -10,6 +10,7 @@
 //   PW_Si.k222_Anchor
 
 #include <map>
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <set>
 #include <memory>
 #include <vector>
@@ -270,9 +271,9 @@ TEST(PW_Si, Γ_Anchor)
         SCFParams par;
         par.NMaxIter      =80;
         par.MinΔρPerElectron         =1e-7;   // tight convergence (complex DIIS damps the degenerate-manifold drift)
-        par.MinΔFD        =1e30;
-        par.MinVirial     =1e30;   // pseudopotential calc: the textbook -V/K=2 virial does not hold
-        par.MinFD         =1e30;
+        par.MinΔFD        =std::nullopt;
+        par.MinVirial     =std::nullopt;   // pseudopotential calc: the textbook -V/K=2 virial does not hold
+        par.MinFD         =std::nullopt;
         par.StartingRelaxRo=0.4;
         par.MergeTol      =1e-4;
         par.Verbose       =false;
@@ -403,9 +404,9 @@ TEST(PW_Si, k222_Anchor)
     par.NMaxIter      =80;
     par.MinΔρPerElectron         =1e-7;   // tight: the FFT XC/Hartree made the multi-k run cheap, so complex DIIS now
                                // converges the BZ-sampled density fully (Etot=0.934176 exactly) in seconds.
-    par.MinΔFD        =1e30;
-    par.MinVirial     =1e30;
-    par.MinFD         =1e30;
+    par.MinΔFD        =std::nullopt;
+    par.MinVirial     =std::nullopt;
+    par.MinFD         =std::nullopt;
     par.StartingRelaxRo=0.4;
     par.MergeTol      =1e-4;
     par.Verbose       =false;

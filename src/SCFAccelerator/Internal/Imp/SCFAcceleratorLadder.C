@@ -1,5 +1,6 @@
 // File: SCFAcceleratorLadder.C  Implementation of the chained SCF accelerator (templated on T).
 module;
+#include <cassert>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -7,11 +8,28 @@ module;
 #include <sstream>
 #include <string>
 module qchem.SCFAccelerator.Internal.SCFAcceleratorLadder;
+import qchem.Reporting;   // the accelerator files what it was BUILT with, one level into its builder's context
 
 namespace qchem::SCFAccelerators
 {
 using std::cout;
 using std::endl;
+
+// The rungs filed themselves as they were built, each into a `rungs` row its builder opened; the ladder files its own knobs.
+SCFAcceleratorLadder::SCFAcceleratorLadder(std::vector<std::unique_ptr<SCFAccelerator>> rungs, double ethresh, int stall,
+                                           double floor, double switchat, ScheduleSignal signal, size_t start)
+    : itsRungs(std::move(rungs)), itsEThresh(ethresh), itsStall(stall),
+      itsFloor(floor), itsSwitchAt(switchat), itsSignal(signal), itsActive(start)
+{
+    assert(itsActive<itsRungs.size());
+    report::Set("type",      "Ladder");
+    report::Set("eThresh",   ethresh);
+    report::Set("stall",     stall);
+    report::Set("floor",     floor);
+    report::Set("switchAt",  switchat);
+    report::Set("signal",    signal==ScheduleSignal::EnergyChange ? "EnergyChange" : "Error");
+    report::Set("startRung", (long)start);
+}
 
 // Both ladders own their rungs through unique_ptr, so no explicit destructors are needed.
 

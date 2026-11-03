@@ -10,6 +10,7 @@
 // Si diamond, GTH SIPP_SR, densityEcut 20 -- the Response kernel gates' cell, on a 2x2x2 mesh so every block
 // is TRIM (real by default) and there is more than one block to get in the wrong order.
 #include <gtest/gtest.h>
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
 #include <cmath>
 #include <complex>
@@ -61,7 +62,7 @@ SiRun Si(ivec3_t N)
 SCFParams Params()
 {
     SCFParams p;
-    p.NMaxIter=80; p.MinΔρPerElectron=1e-7; p.MinΔE=1e-10; p.MinΔFD=1e-7; p.MinVirial=1e30; p.MinFD=1e30;
+    p.NMaxIter=80; p.MinΔρPerElectron=1e-7; p.MinΔE=1e-10; p.MinΔFD=1e-7; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
     return p;
 }
 SolidCalcOptions Options(int multiplicity, bool forceComplex, const std::string& save)

@@ -22,7 +22,8 @@ module;
 #include <cassert>
 #include <cmath>       // std::abs (the Phi-sparsity magnitude screen)
 #include <complex>     // std::abs on a complex table entry
-#include <map>         // the per-block table caches
+#include <map>
+#include <mutex>       // std::lock_guard over itsTableLock / itsTensorLock         // the per-block table caches
 #include <exception>
 #include <stdexcept>   // std::invalid_argument (the transition pair's shape checks)
 #include <iostream>
@@ -165,6 +166,9 @@ template <class U> static mat_t<U> MakePhiAt(const Orbital_1E_IBS<U>* bs, const 
 // The two Collocation::Values overloads: same body, own cache per scalar.
 template <class T> template <class U> const mat_t<U>& DeltaFit_IBS<T>::Table(SymMap<mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const
 {
+    // Locked (2026-11-02, the threaded multi-k hang): every fitter and the density's forward reach these maps per block from the
+    // parallel Fock pass.  The serial cold assembly normally fills them, but a contract nothing enforces is not a guard.
+    std::lock_guard<std::mutex> lock(itsTableLock.m);
     const sym_t& id=orb.GetSymt();                 // the block's SPATIAL symmetry: the two spin channels share one table
     auto it=cache.find(id);
     if (it!=cache.end()) return it->second;
@@ -181,6 +185,7 @@ template <class T> template <class U> const Projector3<U>& DeltaFit_IBS<T>::Tens
                                                              SymMap<mat_t<U>>& phis,
                                                              const Orbital_1E_IBS<U>& orb) const
 {
+    std::lock_guard<std::mutex> lock(itsTensorLock.m);   // order: tensor, then (inside Table) table -- Table never takes this one
     const sym_t& id=orb.GetSymt();                 // the block's SPATIAL symmetry, as for the table itself
     auto it=cache.find(id);
     if (it!=cache.end()) return it->second;

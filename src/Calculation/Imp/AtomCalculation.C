@@ -19,6 +19,7 @@ import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Types;                                  // Vector3D / rvec3_t
 import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
+import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
 
 namespace qchem
 {
@@ -51,27 +52,16 @@ static std::string AtomTypeName(AtomType t)
     return "?";
 }
 
-// Build the run report's `scf` section (the atom-side analogue of Calculation.C's EmitScfSection): the
-// "what recipe am I running" header.  The report IS json, so this provider owns the keys; standard = the
-// settled recipe surface (doc/RunReportPlan.md schema).  A no-op console-wise unless a client attached one.
-static void EmitScfSection(const AtomCalcOptions& o, int ne, const std::string& accelerator,
-                           const SCFParams& p)
+// The atom's own keys of the run report's `scf` header (the knobs are the shared ReportSCFRecipe's): what model, which spin
+// representation, how many electrons, and a pseudo-atom's valence.
+static qchem::report::json AtomRecipeKeys(const AtomCalcOptions& o, int ne)
 {
-    namespace rpt = qchem::report;
-    rpt::json standard;
-    standard["model"]       = o.pseudopotential ? std::string("PP") : ModelName(o.model);
-    standard["pol"]         = (o.spin == SpinGroup::Polarized) ? "P" : "U";
-    standard["nElectrons"]  = ne;
-    standard["nMaxIter"]    = long(p.NMaxIter);
-    standard["minDrho"]     = p.MinΔρPerElectron;
-    standard["minFD"]       = p.MinFD;
-    standard["minDE"]       = p.MinΔE;
-    standard["accelerator"] = accelerator;
-    if (o.pseudopotential) standard["valence"] = o.valence;
-
-    rpt::json scf;
-    scf["standard"] = standard;
-    rpt::EmitSection("scf", scf);
+    qchem::report::json own;
+    own["model"]      = o.pseudopotential ? std::string("PP") : ModelName(o.model);
+    own["pol"]        = (o.spin == SpinGroup::Polarized) ? "P" : "U";
+    own["nElectrons"] = ne;
+    if (o.pseudopotential) own["valence"] = o.valence;
+    return own;
 }
 
 // PP Zion: the explicit valence (Zion) if given, else the electron count (a neutral pseudo-atom).
@@ -113,10 +103,7 @@ std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(int Z, int charge, con
                                                           const AcceleratorOptions& acc, Observer onIteration)
 {
     std::unique_ptr<AtomCalculation> c(new AtomCalculation(BuildOnly{}, Z, charge, opts, acc, std::move(onIteration)));
-    namespace rpt = qchem::report;
-    rpt::Begin(c->itsStructure->ID()+" build");       // the BUILD's own run: the setup, complete, before any SCF
-    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
-    c->BuildGraph();
+    c->BuildGraph();                                  // into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
     c->itsPrepared=true;
     return c;
 }
@@ -154,7 +141,7 @@ std::string AtomCalculation::AcceleratorTag() const
          ? itsOpts.accelerator.value("type", std::string("DIIS")) : std::string("DIIS");
 }
 
-// THE GRAPH, built inside the caller's open report run (Converge's, or Prepare's own build run).
+// THE GRAPH, built inside the caller's open report run (if any: with none, every report write is a no-op).
 void AtomCalculation::BuildGraph()
 {
     namespace H = qchem::Hamiltonian;
@@ -164,8 +151,7 @@ void AtomCalculation::BuildGraph()
     // 2026-10-29 (the worst irrep, was sqrt(sum of squares) over the l-blocks -- user ruling), and on Kr the two differ by
     // ~0.8 at the engage step; unrescaled, DIIS engaged one step early and the Kr Libxc run went chaotic.
     const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : itsZ*itsZ*0.08/32;
-    nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
-                            {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
+    nlohmann::json jsacc = ToAcceleratorJson(itsAcc, emax);   // every knob of the chain; the escape hatch below merges over it
     const std::string ts = AcceleratorTag();
     if (itsOpts.accelerator.is_object() && !itsOpts.accelerator.empty())
         for (auto& [k,v] : itsOpts.accelerator.items()) jsacc[k]=v;
@@ -173,7 +159,10 @@ void AtomCalculation::BuildGraph()
     const bool directmin = (ts=="directmin" || ts=="DirectMin");
     if (directmin) jsacc["EMax"]=1e10;   // GDM always steps; the direct-min loop seeds via diagonalize
     const AType atype = directmin ? AType::GDM : ts=="Ladder" ? AType::Ladder : ts=="GDM" ? AType::GDM : AType::DIIS;
-    auto* accel = qchem::SCFAccelerators::Factory(atype, jsacc);
+    // The facade sets the context, the accelerator files what it was built with (THE RUN REPORT): one `accelerators` row per
+    // accelerator built in this run (a solid rebuilds one per stage), its Ladder rungs one level further in.
+    qchem::SCFAccelerators::SCFAccelerator* accel=nullptr;
+    { qchem::report::Row built("accelerators"); accel = qchem::SCFAccelerators::Factory(atype, jsacc); }
     // Default seed for atoms is the core guess (atoms never use the molecular SAD seed).
     using qchem::ChargeDensity::SeedStrategy;
     const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed : SeedStrategy::CoreGuess;
@@ -227,16 +216,11 @@ void AtomCalculation::BuildGraph()
 
 bool AtomCalculation::Converge(const SCFParams& params)
 {
-    // Open a run report for the whole atomic SCF -- the atom-side mirror of qchem::Calculation (Reporting is
-    // new; this brings the atomic front door onto it, so scfrun/valgen and the A_* tests all record a run).
-    // The RAII guard guarantees End() even if a step throws, so a failed run never leaks the sink's context/
-    // cursor stacks.  Nothing renders unless a client attached a console (report::SetConsole); nested runs (a
-    // valence-basis generator brackets its own) stay console-quiet below depth 1.
+    // The atomic SCF writes into the CALLER'S report run, as every facade does (user ruling D, 2026-11-02): scfrun, valgen, the
+    // valence-basis generator and the tests that read the report open it.  With no run open every write is a no-op.
     namespace rpt = qchem::report;
-    rpt::Begin(itsStructure->ID());
-    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
-    EmitScfSection(itsOpts, itsNe, AcceleratorTag(), params);        // the "what recipe am I running" header
-    if (itsPrepared) itsPrepared=false;                // Prepare built the graph in its own run: reuse it, once
+    { rpt::Section scf("scf"); ReportSCFRecipe(params, AcceleratorTag(), AtomRecipeKeys(itsOpts, itsNe)); }   // the "what recipe am I running" header
+    if (itsPrepared) itsPrepared=false;                // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
     if (itsObserver) itsScf->SetObserver(itsObserver);
 

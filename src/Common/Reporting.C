@@ -63,6 +63,18 @@ void Begin(const std::string& name, const std::string& startTime);
 //! Close the current run: file it into GlobalReport under its key, pop the context.
 void End();
 
+//! RAII: \c Begin(name) here, \c End() on scope exit -- even when a step throws, so a failed run never leaks the run-context /
+//! cursor stacks.  The DRIVER's bracket (user ruling D, 2026-11-02): a deck, a harness, a CLI, the GUI bridge or a test opens the
+//! run; the facades it drives never do, they write into it.
+class Run
+{
+public:
+    explicit Run(const std::string& name) { Begin(name); }
+    ~Run() { End(); }
+    Run(const Run&)            = delete;
+    Run& operator=(const Run&) = delete;
+};
+
 //! Current nesting depth (0 == no run open, 1 == top-level run).  Console renders
 //! only at depth 1; the json keeps every depth.
 int Depth();
@@ -167,6 +179,8 @@ void EmitTimings(const std::string& name="timing", size_t nIterations=0);
 //! safety is recovered by a per-section schema-check test on the emitted json.
 //! \note Every emitted item is STAMPED with \c RunElapsed() -- in the console heading and in the run
 //! record's chronological \c timeline array.  See \c RunElapsed for why.
+//! \note Inert outside a run (a no-op), like every write here: a FACADE never opens a run (user ruling D, 2026-11-02), it writes
+//! into its caller's, so a facade driven by a caller that opened none must not need to ask \c Depth() first.
 void EmitSection(const std::string& name, json section);
 
 //----------------------------------------------------------------------------
@@ -194,7 +208,10 @@ void Set(const std::string& key, json value);
 //! provider may announce unconditionally at its own trigger and the dedup lives here, RUN-scoped, instead of
 //! in process-global latches at call sites.  A changed value writes + re-renders as before (user 2026-08-16:
 //! providers self-report; every created grid announces, labeled, so stale never-used grids become visible).
-void EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel = Detail::Terse);
+//! RETURNS false only when an identical value was already there (the dedup swallowed it), true otherwise -- including outside a
+//! run, where there is nothing to de-duplicate against -- so a provider's own loud line beside the block (a grid audit's UNDER)
+//! prints exactly when the block is news, and the provider never reads the report back to find out (V-REPORT-WRITEONLY).
+bool EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel = Detail::Terse);
 
 //! \brief PEAK resident set size of this process, in MB (Linux \c VmHWM: the high-water mark, not the
 //! instantaneous \c VmRSS).  0 when unavailable.

@@ -6,6 +6,7 @@
 // PRINT the emitted .bsd so it can be captured into BasisSetData/.  The energies are "did-it-move" anchors
 // (near the radial oracle, but oracle-matching is explicitly NOT the objective -- see doc/GPWPlan.md).
 #include "gtest/gtest.h"
+#include <optional>   // std::nullopt: an OFF SCF gate
 #include <fstream>
 #include <iterator>
 #include <map>
@@ -188,7 +189,7 @@ TEST(ValenceBasisGen, BasisUsageSumsToElectronCount)
     ValenceBasisRecipe r;
     r.element="Al"; r.Zion=3; r.electrons=3;
     r.shells={ {0, EvenTemperedWindow(6, 0.04, 4.0)}, {1, EvenTemperedWindow(5, 0.05, 2.5)} };
-    GenerateValenceBasis(r);            // opens+closes an AtomCalculation run that records basis.usage
+    { rpt::Run run("valgen Al validate"); GenerateValenceBasis(r); }   // the test is the driver: its run records the atom's basis.usage
 
     double sum=0.0; size_t nrows=0; bool found=false;
     for (auto& [key, run] : rpt::GlobalReport().items())
@@ -246,7 +247,7 @@ TEST(ValenceBasisGen, MnQ7PseudoAtomInTheVAExponentsShowsTheDiffuseTrim)
     o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=7;
     o.exponentsByL={{0,{0.1,0.24928829,0.62144650,1.54919334,3.86195754,9.62740780,24.0}},
                     {2,{0.38369936,0.81791778,1.74352515,3.71660826,7.92255676,16.88822203,36.0}}};
-    SCFParams p; p.MinVirial=1e30;
+    SCFParams p; p.MinVirial=std::nullopt;
     AtomCalculation atom(25, 18, o, p);
     ASSERT_TRUE(atom.IsConverged());
     EXPECT_NEAR(atom.Energy(), -14.1949, 0.005) << "46 mHa above CP2K ATOM: the VA span's incompleteness for the free atom";
@@ -275,7 +276,7 @@ TEST(ValenceBasisGen, MnQ7PseudoAtomInALargePool)
     AtomCalcOptions o;
     o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=7;
     o.exponentsByL={{0,pool(16,0.05,200.0)},{2,pool(16,0.08,200.0)}};
-    SCFParams p; p.MinVirial=1e30;
+    SCFParams p; p.MinVirial=std::nullopt;
     AtomCalculation atom(25, 18, o, p);
     ASSERT_TRUE(atom.IsConverged());
     std::map<int,double> eps;

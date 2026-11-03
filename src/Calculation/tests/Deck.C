@@ -9,11 +9,13 @@ import qchem.Hamiltonian.Factory;   // HubbardProjectorKind (the manifold projec
 import qchem.Deck;
 import qchem.SolidCalculation;
 import qchem.SCFParams;
+import qchem.SCFAccelerator.Factory;   // SolidAcceleratorOptions (the acceleratorOptions round trip)
 import qchem.Mesh;
 import qchem.Materials;
 import qchem.ChargeDensity.Seed;
 import qchem.LASolver;
 import qchem.SolidState;          // StateFingerprint, CompareFingerprints
+import qchem.Reporting;           // the filed run: its grids.audit* rows (the write-only gate)
 
 using namespace qchem;
 using qchem::deck::json;
@@ -36,6 +38,50 @@ TEST(Deck, DefaultOptionsRoundTripExactlyAndAreComplete)
     EXPECT_TRUE(j.contains("tolerances")); EXPECT_TRUE(j.at("tolerances").contains("screenEps"));   // a resolved deck lists every field
     EXPECT_EQ(j.at("seed"), "IonicSAD");
     SCFParams p; EXPECT_EQ(deck::ToJson([&]{SCFParams q; deck::FromJson(deck::ToJson(p),q); return q;}()), deck::ToJson(p));
+}
+
+// SCFParams gates (2026-11-02): an OFF gate is spelled "off" -- in the deck and in the record it writes (the 1e30 sentinel is retired);
+// a number >= 1e30, which every record wrote before, still reads as off; anything else that is not a number is refused.  The step
+// floor minRelaxRo rides the same round trip.
+TEST(Deck, AnOffGateIsSpelledOffAndTheRetiredSentinelStillReadsAsOff)
+{
+    SCFParams p;
+    deck::FromJson(json{{"minDeltaE","off"},{"minFD",1e30},{"minVirial",4e-2},{"minRelaxRo",0.1}}, p);
+    EXPECT_FALSE(p.MinΔE);
+    EXPECT_FALSE(p.MinFD) << "the retired sentinel reads as off";
+    ASSERT_TRUE(p.MinVirial); EXPECT_EQ(*p.MinVirial, 4e-2);
+    EXPECT_EQ(p.MinRelaxRo, 0.1);
+    const json j=deck::ToJson(p);
+    EXPECT_EQ(j.at("minDeltaE"), "off");
+    EXPECT_EQ(j.at("minFD"), "off") << "the record spells it, never 1e30";
+    EXPECT_EQ(j.at("minDeltaFD"), "off") << "off by default";
+    EXPECT_EQ(j.at("minRelaxRo"), 0.1);
+    SCFParams back; deck::FromJson(j, back);
+    EXPECT_EQ(deck::ToJson(back), j);
+    EXPECT_THROW(deck::FromJson(json{{"minDeltaE","none"}}, p), std::runtime_error);
+    EXPECT_THROW(deck::FromJson(json{{"minFD",true}}, p), std::runtime_error);
+}
+
+// THE ACCELERATOR CHAIN'S KNOBS ARE DECK KEYS (2026-11-02, OpenWork §3 "Accelerator knobs unreachable from the facades"): every field of
+// SolidAcceleratorOptions but the facade's own ladderStartOnGDM, set to a NON-default value, survives FromJson -> ToJson; a deck that
+// omits the section keeps the production defaults; a misspelled key is refused (the typo guard reaches the nested objects).
+TEST(Deck, AcceleratorOptionsAreDeckKeysAndRoundTrip)
+{
+    const json a={{"diis",{{"nProj",6},{"engageBelowFD",0.05},{"svTol",2e-9},{"svTolRel",3e-4}}},
+                  {"gdm",{{"engageBelowFD",0.5},{"trust",0.2},{"trustBackoff",0.3},{"trustMin",2e-4},{"pcFloor",0.05},{"aufbauTol",1e-5},{"aufbauMaxRepicks",4}}},
+                  {"ladder",{{"gdm",{{"engageBelowFD",2.0},{"trust",0.4},{"trustBackoff",0.5},{"trustMin",1e-3},{"pcFloor",0.2},{"aufbauTol",2e-5},{"aufbauMaxRepicks",3}}},
+                             {"eThresh",2e-8},{"stall",7},{"floor",3e-8},{"switchAt",2e-6},{"signal","Error"}}}};
+    SCFAccelerators::SolidAcceleratorOptions o; deck::FromJson(a, o);
+    EXPECT_EQ(o.diis.Nproj, 6u); EXPECT_EQ(o.diis.SVTolRel, 3e-4); EXPECT_EQ(o.gdm.AufbauMaxRepicks, 4); EXPECT_EQ(o.ladderGdm.Trust, 0.4);
+    EXPECT_EQ(o.ladderStall, 7); EXPECT_EQ(o.ladderSwitchAt, 2e-6); EXPECT_EQ(o.ladderSignal, SCFAccelerators::ScheduleSignal::Error);
+    EXPECT_EQ(deck::ToJson(o), a) << "every key written back, none dropped or renamed";
+    const SCFAccelerators::SolidAcceleratorOptions def;
+    deck::RunSpec r; deck::FromJson(json{{"structure","Si_diamond"}}, r);
+    EXPECT_EQ(deck::ToJson(r.accel), deck::ToJson(def)) << "an omitted section is the production recipe";
+    deck::FromJson(json{{"structure","Si_diamond"},{"acceleratorOptions",a}}, r);
+    EXPECT_EQ(deck::ToJson(r).at("acceleratorOptions"), a) << "the record carries the run's knobs";
+    EXPECT_THROW(deck::FromJson(json{{"diis",{{"nproj",6}}}}, o), std::runtime_error);
+    EXPECT_THROW(deck::FromJson(json{{"ladder",{{"signal","Energy"}}}}, o), std::runtime_error);
 }
 
 TEST(Deck, NonDefaultValuesSurviveTheRoundTrip)
@@ -197,7 +243,7 @@ TEST(Deck, ARunFromADeckEqualsTheSameRunBuiltByHand_Si_Gamma)
     const json payload={
         {"structure","Si_diamond"}, {"basis",{{"data","SIPP_SR"}}},
         {"solid",{{"densityEcut",20.0},{"imposeSymmetry",true}}},
-        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
     deck::RunSpec spec; deck::FromJson(payload,spec);
 
     const fs::path dir=TmpDir("run");
@@ -338,7 +384,7 @@ TEST(Deck, ASavedStateRestartsAndTheRevisionNamesItsParent)
 {
     const fs::path dir=TmpDir("restart");
     const json base={{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"}}},{"solid",{{"densityEcut",20.0},{"imposeSymmetry",true}}},
-        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-10},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3}}}};
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-10},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3}}}};
     json d1=base; d1["state"]={{"save","auto"}};
     deck::RunSpec s1; deck::FromJson(d1,s1);
     deck::Provenance pv; pv.codeVersion="t";
@@ -647,7 +693,7 @@ TEST(Deck, PostSCFRunsOnTheConvergedCalculationAndTheRecordKeepsTheResults)
     const fs::path dir=TmpDir("post");
     json d={{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"}}},
         {"solid",{{"densityEcut",20.0},{"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0}},{{"site",1},{"l",1},{"U_eV",0.0}}}}}},
-        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3}}},
         {"postSCF",{{{"estimateHubbardU",json::object()}}}}};
     deck::RunSpec spec; deck::FromJson(d,spec);
     deck::Provenance pv; pv.codeVersion="t";
@@ -726,7 +772,7 @@ json SiInline()
             {"atoms",json::array({{{"el","Si"},{"frac",{0.0,0.0,0.0}}}, {{"el","Si"},{"frac",{0.25,0.25,0.25}}}})}};
 }
 const json kSiRecipe={{"basis",{{"data","SIPP_SR"}}},{"solid",{{"densityEcut",20.0},{"imposeSymmetry",true}}},
-                      {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
+                      {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
 deck::RunSpec SiDeck(const json& structure)
 {
     json d=kSiRecipe; d["structure"]=structure;
@@ -815,4 +861,42 @@ TEST(Deck, BuildStopsBeforeTheSCFAndRunIsBuildPlusConverge)
     deck::RunSpec missing=spec; missing.state.restartFrom="/nonexistent/x.h5";
     EXPECT_THROW((void)deck::Build(missing),std::runtime_error);
     EXPECT_EQ(deck::ScheduleToRun(stem).size(),1u) << "a restart runs the final stage only";
+}
+
+//! THE REPORT IS WRITE-ONLY (V-REPORT-WRITEONLY, 2026-11-02): library code never reads the run report back to decide.  On Si k222 (eight
+//! k-blocks, each reaching the k-independent V_loc-long raster verdict) the run files that verdict ONCE and renders it once -- the report's
+//! own dedup, not an evaluator reading the report -- and the grid audit's recorded verdicts are what the rasters' owner answers, which are
+//! the rows the run filed.
+TEST(Deck, AK222RunFilesEachRasterVerdictOnceAndTheAuditAsksTheBasisForIt)
+{
+    const fs::path dir=TmpDir("writeonly");
+    json d={{"structure","Si_diamond"},{"kmesh",{2,2,2}},{"basis",{{"data","SIPP_SR"}}},{"solid",{{"densityEcut",20.0}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-8},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"}}},
+        {"postSCF",{{{"gridAudit",json::object()}}}}};
+    deck::RunSpec spec; deck::FromJson(d,spec);
+    deck::Provenance pv; pv.codeVersion="t";
+    testing::internal::CaptureStdout();
+    const auto out=deck::Run(spec,pv,dir);
+    const std::string console=testing::internal::GetCapturedStdout();
+    ASSERT_TRUE(out.converged) << out.summary;
+
+    auto count=[&](const std::string& what) { size_t n=0; for (size_t i=console.find(what); i!=std::string::npos; i=console.find(what,i+1)) n++; return n; };
+    EXPECT_EQ(count("grids ▸ auditVlocLong"), 1u) << "the V_long verdict renders once, not once per k-block";
+    EXPECT_EQ(count("grids ▸ auditDensity"),  1u);
+
+    const qchem::report::json* run=nullptr;
+    for (auto it=qchem::report::GlobalReport().begin(); it!=qchem::report::GlobalReport().end(); ++it)
+        if (it.key().rfind(out.revision.stem().string()+"@",0)==0) run=&it.value();
+    ASSERT_NE(run, nullptr) << "no filed run named " << out.revision.stem();
+    ASSERT_TRUE(run->contains("grids"));
+    std::ifstream in(out.revision); const json rec=json::parse(in);
+    const auto& verdicts=rec["results"]["postSCF"][0]["verdicts"];
+    for (const char* k : {"auditDensity","auditVlocLong"})
+    {
+        ASSERT_TRUE((*run)["grids"].contains(k)) << k;
+        ASSERT_TRUE(verdicts.contains(k)) << k << " missing from the audit's verdicts: " << verdicts.dump();
+        EXPECT_EQ(verdicts[k]["status"], (*run)["grids"][k]["status"].get<std::string>()) << k;
+        EXPECT_EQ(verdicts[k]["alias"].get<double>(), (*run)["grids"][k]["alias"].get<double>()) << k << ": the basis's answer is the filed row";
+    }
+    fs::remove_all(dir);
 }

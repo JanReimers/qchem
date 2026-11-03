@@ -382,6 +382,7 @@ static void renderSectionToConsole(const std::string& name, const json& section,
 
 void EmitSection(const std::string& name, json section)
 {
+    if (g_stack.empty()) return;                           // inert outside a run, like every write (V-FACADE-PARITY: drivers own the runs)
     CurrentRunReport()[name] = section;                    // ALWAYS record (json is complete)
     const double t = RunElapsed();
     stampTimeline(name, t, nullptr);
@@ -393,9 +394,9 @@ void Set(const std::string& key, json value)
     if (json* n = cursorNode()) (*n)[key] = std::move(value);
 }
 
-void EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel)
+bool EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel)
 {
-    if (g_stack.empty()) return;                       // inert outside a run
+    if (g_stack.empty()) return true;                  // inert outside a run: nothing de-duplicated it
     // IDEMPOTENT: an identical value already at this path is a no-op (no rewrite, no re-render).  This is
     // what lets a provider announce itself UNCONDITIONALLY at its own trigger (e.g. every grid announces at
     // construction) with the dedup living HERE, run-scoped -- instead of in function-local-static latches at
@@ -403,7 +404,7 @@ void EmitAt(const std::string& section, const std::string& key, json value, Deta
     // CHANGED value still writes and re-renders, so late updates behave as before.
     {
         const json& doc = g_stack.back().doc;
-        if (doc.contains(section) && doc[section].contains(key) && doc[section][key] == value) return;
+        if (doc.contains(section) && doc[section].contains(key) && doc[section][key] == value) return false;
     }
     g_stack.back().doc[section][key] = value;          // ALWAYS record (the json record is complete)
     // Console gate: render only at depth 1, non-empty, AND when the configured detail meets this block's
@@ -415,6 +416,7 @@ void EmitAt(const std::string& section, const std::string& key, json value, Deta
         *g_console << "\n" << section << " ▸ " << key << stampText(t, nullptr) << "\n";
         RenderConsole(value, *g_console, g_detail);
     }
+    return true;
 }
 
 // ONE format for every fold site (see the header).  Goes to std::cout unconditionally -- a fold that only
