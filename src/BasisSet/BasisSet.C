@@ -348,6 +348,7 @@ export module qchem.BasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary
+export import qchem.BasisSet.GridResolution;   // Resolution -- what a grid builder asks of the whole basis (V-BS-RASTER)
 export import qchem.Structure;
 export import qchem.Symmetry;
 export import qchem.ElectronConfiguration;
@@ -433,6 +434,11 @@ public:
     //! because a block's scalar is its own (a real TRIM child inside a complex run).
     virtual void ProjectSpinPair(hmat_t<double>& /*Dup*/, hmat_t<double>& /*Ddn*/) const {}
     virtual void ProjectSpinPair(hmat_t<dcmplx>& /*Dup*/, hmat_t<dcmplx>& /*Ddn*/) const {}
+
+    //! \brief How fine and how far a grid over this WHOLE basis must reach at tolerance \a eps (\c GridResolution, V-BS-RASTER):
+    //! the finest \c cutoff and the widest \c radius over the blocks, the coarsest \c coarseCutoff.  Every block must answer --
+    //! a grid sized past a block that cannot is a broken invariant, so a block without the \c GridResolution face THROWS.
+    Resolution MakeResolution(double eps) const;
 
     // Iterate() with no type argument yields the base obs_t* directly (no cast);
     // Iterate<D>() dynamic_cast's each IBS to the requested derived type D.

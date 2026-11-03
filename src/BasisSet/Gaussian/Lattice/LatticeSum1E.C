@@ -62,6 +62,7 @@
 // A physically rigorous periodic nuclear attraction (Ewald, vs. this large-cell single-image limit) is a
 // later increment.
 module;
+#include <cmath>        // std::log / std::sqrt (GaussianSharpness::MakeResolution, inline in this interface)
 #include <functional>   // cellphase_t (the Bloch phase of an integer cell offset -- k stays lattice-side)
 #include <vector>
 export module qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;
@@ -70,6 +71,7 @@ import qchem.UnitCell;       // UnitCell (the cell geometry the internal enumera
 import qchem.Types;          // rvec3_t, cvec_t, chmat_t, rmat_t, ivec3_t
 import qchem.Blaze;          // matrix machinery
 import qchem.Math.Angular;   // Math::CartTerm (the Cartesian-monomial expansion of a GaussianFunction)
+export import qchem.BasisSet.GridResolution;   // GaussianSharpness IS-A GridResolution (V-BS-RASTER)
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;     // Tolerances() / BindTolerances' type
 export import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;   // LatticeScreener -- the collocation tolerance policy
                                                          // (re-exported: every caller of the two faces below
@@ -88,9 +90,20 @@ export namespace qchem::BasisSet::Gaussian
 //! to be sized from them.  `Calculation/Imp/SolidCalculation.C` asks for exactly ONE of them
 //! (`MaxExponent`) and used to cross-cast to a seventeen-method interface to do it.
 class GaussianSharpness
+    : public virtual BasisSet::GridResolution
 {
 public:
     virtual ~GaussianSharpness() = default;
+    //! \brief THE GAUSSIAN ANSWER to the grid builders' question (V-BS-RASTER), from the exponent range alone, \f$L=\ln(1/\epsilon)\f$:
+    //! a pair product of exponent \f$p\f$ has spectrum \f$e^{-G^2/4p}\f$, so its amplitude falls below eps past
+    //! \f$\tfrac12G^2=2pL\f$; the sharpest pair is \f$p=2\alpha_{\max}\f$ (cutoff \f$4\alpha_{\max}L\f$), the most diffuse
+    //! \f$p=2\alpha_{\min}\f$ (coarse cutoff \f$4\alpha_{\min}L\f$), and \f$e^{-\alpha_{\min}r^2}<\epsilon\f$ past
+    //! \f$r=\sqrt{L/\alpha_{\min}}\f$.  The shells' polynomial prefactors are ignored (a tolerance, not a bound).
+    virtual BasisSet::Resolution MakeResolution(double eps) const override
+    {
+        const double L=std::log(1.0/eps);
+        return {.cutoff=4.0*MaxExponent()*L, .coarseCutoff=4.0*MinExponent()*L, .radius=std::sqrt(L/MinExponent())};
+    }
     //! The largest primitive Gaussian exponent \f$\alpha_{\max}\f$ in the basis -- a scalar RESOLUTION summary
     //! (NOT primitive exposure; the radials stay encapsulated).  A GPW density grid must resolve the sharpest
     //! density feature, the product of the two tightest primitives (a Gaussian of exponent \f$2\alpha_{\max}\f$),
