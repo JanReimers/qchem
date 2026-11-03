@@ -382,6 +382,7 @@ static void renderSectionToConsole(const std::string& name, const json& section,
 
 void EmitSection(const std::string& name, json section)
 {
+    if (g_stack.empty()) return;                           // inert outside a run, like every write (V-FACADE-PARITY: drivers own the runs)
     CurrentRunReport()[name] = section;                    // ALWAYS record (json is complete)
     const double t = RunElapsed();
     stampTimeline(name, t, nullptr);

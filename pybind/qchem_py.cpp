@@ -10,6 +10,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 #include <nanobind/ndarray.h>
+#include <algorithm>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -28,11 +29,12 @@ struct qcb_sink
 namespace {
 
 //! on_iteration(iteration, energy, cells): cells is a list of (title, value, text, tolerance | None, "log" | "linear"),
-//! one per console column in display order -- generic, so a column the lib adds needs no change here.
-void step_trampoline(qcb_sink* s, const qcb_row* r)
+//! one per console column in display order -- generic, so a column the lib adds needs no change here.  An exception the
+//! callable raises STOPS the SCF (the GUI's Stop button raises one) and is re-raised to the caller once the solve unwinds.
+int step_trampoline(qcb_sink* s, const qcb_row* r)
 {
     nb::gil_scoped_acquire gil;
-    if (s->error) return;
+    if (s->error) return 1;
     try
     {
         nb::list cells;
@@ -44,8 +46,10 @@ void step_trampoline(qcb_sink* s, const qcb_row* r)
                                         c.logScale ? "log" : "linear"));
         }
         s->fn(r->iteration, r->energy, cells);
+        return 0;
     }
     catch (nb::python_error& e) { s->error.emplace(std::move(e)); }
+    return 1;
 }
 
 // A NumPy array of the given shape, backed by a heap buffer it owns.
@@ -75,12 +79,17 @@ class Calculator
 public:
     Calculator(const std::vector<int>& Z, const std::vector<double>& pos, const std::string& basis,
                const std::string& model, bool symmetry, bool polarized, int multiplicity, int maxIter, const std::string& pp,
-               const std::string& accelerator, int meshRadial, int meshAngular, nb::object onIteration)
+               const std::string& accelerator, int meshRadial, int meshAngular, double relaxStart, double relaxMax,
+               int diisDepth, double diisSVTol, double diisEngageFD, bool mom, int momStart, double relaxMin,
+               double ladderSwitchAt, double gateFD, double gateDrho, double gateDE, double gateDFD,
+               nb::object onIteration)
     {
         if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
         const qcb_request req{Z.data(), int(Z.size()), pos.data(), basis.c_str(), model.c_str(), pp.c_str(),
                               accelerator.c_str(), symmetry ? 1 : 0, polarized ? 1 : 0, multiplicity, maxIter,
-                              meshRadial, meshAngular};
+                              meshRadial, meshAngular, relaxStart, relaxMax, diisDepth, diisSVTol, diisEngageFD,
+                              mom ? 1 : 0, momStart, relaxMin, ladderSwitchAt,
+                              gateFD, gateDrho, gateDE, gateDFD};
         qcb_sink sink{onIteration, std::nullopt};
         const bool stream = !onIteration.is_none();
         char err[errlen] = {0};
@@ -185,20 +194,88 @@ private:
     qcb_calc* h = nullptr;
 };
 
+// The Python-facing owner of one periodic calculation, built from a deck (qchem::deck::Build).
+class SolidRun
+{
+public:
+    explicit SolidRun(const std::string& deckJson)
+    {
+        char err[errlen] = {0};
+        {
+            nb::gil_scoped_release nogil;
+            h = qcb_solid_make(deckJson.c_str(), err, errlen);
+        }
+        if (!h) throw std::runtime_error(err);
+    }
+    ~SolidRun() { qcb_solid_free(h); }
+    SolidRun(const SolidRun&)            = delete;
+    SolidRun& operator=(const SolidRun&) = delete;
+
+    //! Converge the deck's schedule, calling on_iteration(iter, E, cells) live.  Returns converged (failure() says why not).
+    bool Converge(nb::object onIteration)
+    {
+        qcb_sink sink{onIteration, std::nullopt};
+        const bool stream = !onIteration.is_none();
+        char err[errlen] = {0};
+        int rc;
+        {
+            nb::gil_scoped_release nogil;
+            rc = qcb_solid_converge(h, stream ? step_trampoline : nullptr, stream ? &sink : nullptr, err, errlen);
+        }
+        if (sink.error) throw std::move(*sink.error);
+        if (rc < 0) throw std::runtime_error(err);
+        return rc == 1;
+    }
+
+    nb::object Failure() const
+    {
+        char out[errlen] = {0};
+        return qcb_solid_failure(h, out, errlen) ? nb::object(nb::str(out)) : nb::none();
+    }
+    //! None unless the last SCF converged.
+    nb::object TotalEnergy() const
+    {
+        const double e = qcb_solid_energy(h);
+        return e == e ? nb::object(nb::float_(e)) : nb::none();
+    }
+    int Iterations() const { return qcb_solid_iterations(h); }
+    std::string Resolved() const
+    {
+        std::string out(size_t(qcb_solid_resolved(h, nullptr, 0)) + 1, '\0');
+        out.resize(size_t(qcb_solid_resolved(h, out.data(), int(out.size()))));
+        return out;
+    }
+
+private:
+    qcb_solid* h = nullptr;
+};
+
 NB_MODULE(qchem_py, mod)
 {
-    mod.doc() = "qchem -> Python bridge: resolve + converge a molecular SCF (qchem::Calculation), sample fields onto grids.";
+    mod.doc() = "qchem -> Python bridge: a molecular SCF (qchem::Calculation, fields sampled onto grids) and a periodic one "
+                "built from an input deck (qchem::deck::Build).";
 
     nb::class_<Calculator>(mod, "Calculator")
         .def(nb::init<const std::vector<int>&, const std::vector<double>&, const std::string&, const std::string&,
-                      bool, bool, int, int, const std::string&, const std::string&, int, int, nb::object>(),
+                      bool, bool, int, int, const std::string&, const std::string&, int, int, double, double,
+                      int, double, double, bool, int, double, double, double, double, double, double, nb::object>(),
              nb::arg("numbers"), nb::arg("positions"), nb::arg("basis") = "dzvp", nb::arg("model") = "HF",
              nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("max_iter") = 100,
              nb::arg("pp") = "", nb::arg("accelerator") = "DIIS", nb::arg("mesh_radial") = 0, nb::arg("mesh_angular") = 0,
+             nb::arg("relax_start") = 0.0, nb::arg("relax_max") = 0.0, nb::arg("diis_depth") = 0, nb::arg("diis_sv_tol") = 0.0,
+             nb::arg("diis_engage_fd") = 0.0, nb::arg("mom") = false, nb::arg("mom_start") = 0,
+             nb::arg("relax_min") = 0.0, nb::arg("ladder_switch_at") = -1.0,
+             nb::arg("gate_fd") = -1.0, nb::arg("gate_drho") = -1.0, nb::arg("gate_de") = -1.0, nb::arg("gate_dfd") = -1.0,
              nb::arg("on_iteration") = nb::none(),
              "MoleculeSetup::Resolve + converge.  Atomic numbers + flat 3N bohr positions.  on_iteration(iter, E, cells), "
              "if given, streams the SCF live (the GIL is released during the solve); cells = [(title, value, text, "
-             "tolerance|None, 'log'|'linear')], the console's columns in display order.")
+             "tolerance|None, 'log'|'linear')], the console's columns in display order; an exception it raises stops the SCF and "
+             "is re-raised.  relax_start / relax_max: linear D-mixing's starting step and ceiling; diis_depth / diis_sv_tol / "
+             "diis_engage_fd: DIIS's history, singular-value floor and engage [F,D] (also the Ladder's DIIS rung); mom / "
+             "mom_start: the Maximum Overlap Method and its reference-capture iteration (0 = the lib's default throughout).  relax_min: the "
+             "adaptive linear step's floor.  ladder_switch_at: the Ladder's DIIS -> GDM hand-off at |dE/E| below it (0 = stall only, "
+             "< 0 = the lib's 1e-6).  gate_fd / gate_drho / gate_de / gate_dfd: the convergence gates [F,D], Δρ per electron, "
+             "|ΔE/E|, |Δ[F,D]| (> 0 the gate, 0 = off, < 0 = the lib's default).")
         .def("run_scf", &Calculator::RunSCF, nb::arg("on_iteration"), nb::arg("max_iter") = 100,
              "Re-run the SCF from the seed, streaming each iteration; returns converged.")
         .def("total_energy", &Calculator::TotalEnergy)
@@ -214,4 +291,74 @@ NB_MODULE(qchem_py, mod)
         .def("orbital",      &Calculator::Orbital,     nb::arg("index") = 0, nb::arg("n") = 64, nb::arg("pad") = 5.0,
              "MO `index` in levels() order (0 = lowest).")
         .def("gradient", &Calculator::Gradient, nb::arg("n") = 24, nb::arg("pad") = 4.0);
+
+    mod.def("report", []()
+    {
+        std::string out(size_t(qcb_report(nullptr, 0)) + 1, '\0');
+        out.resize(size_t(qcb_report(out.data(), int(out.size()))));
+        return out;
+    }, "The library's run record (JSON text): every run since the last clear_report, keyed \"<name>@<start>\".");
+    mod.def("current_report", []()
+    {
+        std::string out(size_t(qcb_current_report(nullptr, 0)) + 1, '\0');
+        out.resize(size_t(qcb_current_report(out.data(), int(out.size()))));
+        return out;
+    }, "The open run's record so far (JSON text, \"\" outside a run): call it from on_iteration, on the run's own thread.");
+    mod.def("clear_report", &qcb_clear_report, "Drop the accumulated run record (a no-op while a run is open).");
+    mod.def("basis_info", [](const std::vector<int>& Z, const std::vector<double>& pos, const std::string& basis)
+    {
+        if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
+        double out[4]; char err[errlen] = {0}; int ok;
+        {
+            nb::gil_scoped_release nogil;
+            ok = qcb_basis_info(Z.data(), int(Z.size()), pos.data(), basis.c_str(), out, err, errlen);
+        }
+        if (!ok) throw std::runtime_error(err);
+        nb::dict d;
+        d["n_functions"] = int(out[0]); d["n_blocks"] = int(out[1]); d["s_min"] = out[2]; d["s_max"] = out[3];
+        return d;
+    }, nb::arg("numbers"), nb::arg("positions"), nb::arg("basis"),
+       "The molecule's orbital basis as the facade builds it, with no SCF: {n_functions, n_blocks, s_min, s_max} -- the "
+       "overlap S's extreme eigenvalues (condition number s_max/s_min).");
+    mod.def("point_group", [](const std::vector<int>& species, const std::vector<double>& pos, double tol)
+    {
+        if (pos.size() != 3*species.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
+        char sym[64] = {0}, ab[64] = {0};
+        const int order = qcb_point_group(species.data(), int(species.size()), pos.data(), tol, sym, 64, ab, 64);
+        if (order < 0) throw std::runtime_error(sym);
+        nb::dict d; d["symbol"] = std::string(sym); d["abelian"] = std::string(ab); d["order"] = order; return d;
+    }, nb::arg("species"), nb::arg("positions"), nb::arg("tol") = 1e-3,
+       "The DETECTED molecular point group (Symmetry::Molecule::DetectPointGroup): {'symbol' (Schoenflies), 'abelian' "
+       "(the SCF's blocking subgroup), 'order' (0 for the linear groups)}.  species: one integer label per atom (Z, or Z "
+       "combined with a moment sign to see a magnetic decoration).");
+    mod.def("space_group", [](const std::vector<double>& lattice, const std::vector<int>& species,
+                              const std::vector<double>& frac, double tol)
+    {
+        if (lattice.size() != 9 || frac.size() != 3*species.size())
+            throw std::invalid_argument("lattice must be 9 (rows a, b, c) and frac flat 3N");
+        constexpr int maxops = 192;
+        std::vector<double> W(9*maxops);
+        int symmorphic = 0;
+        char err[errlen] = {0};
+        const int n = qcb_space_group(lattice.data(), species.data(), int(species.size()), frac.data(), tol,
+                                      W.data(), maxops, &symmorphic, err, errlen);
+        if (n < 0) throw std::runtime_error(err);
+        W.resize(size_t(9*std::min(n, maxops)));
+        nb::dict d; d["order"] = n; d["symmorphic"] = symmorphic == 1; d["W"] = W; return d;
+    }, nb::arg("lattice"), nb::arg("species"), nb::arg("frac"), nb::arg("tol") = 1e-4,
+       "The DETECTED space group (Symmetry::Lattice_3D::SpaceGroup::Detect) of a primitive cell: {'order', 'symmorphic', "
+       "'W' (each op's linear part in lattice coordinates, flat row-major 9 per op)}.");
+
+    nb::class_<SolidRun>(mod, "SolidRun")
+        .def(nb::init<const std::string&>(), nb::arg("deck_json"),
+             "deck::Build: parse the input deck (JSON text, schema 1 -- the file rundeck runs) and build its periodic "
+             "calculation, stopping before the SCF.  Raises RuntimeError with the library's text on a refusal (an unknown "
+             "key, an unknown structure, a setup the library refuses).")
+        .def("converge", &SolidRun::Converge, nb::arg("on_iteration") = nb::none(),
+             "Converge the deck's schedule (deck::ScheduleToRun), on_iteration(iter, E, cells) live as for Calculator; "
+             "returns converged.")
+        .def("failure",      &SolidRun::Failure, "Why the last SCF did not converge; None when it converged.")
+        .def("total_energy", &SolidRun::TotalEnergy, "The converged total energy (hartree); None unless converged.")
+        .def("iterations",   &SolidRun::Iterations)
+        .def("resolved",     &SolidRun::Resolved, "The resolved deck (JSON text): every default filled in, what rundeck records.");
 }

@@ -128,7 +128,7 @@ public:
 
     //! \name BUILT, NOT CONVERGED (2026-11-02: the twin of \c Calculation::Prepare / \c SolidCalculation::Prepare)
     //! The whole graph -- basis, Hamiltonian with every mesh, accelerator, SCF iterator (its wave-function build files
-    //! basis.perIrrep) -- under its OWN report run "<structure ID> build", closed before this returns; no SCF.  Run it with
+    //! basis.perIrrep) -- into the CALLER'S report run (a facade never opens one, user ruling D 2026-11-02); no SCF.  Run it with
     //! \c Converge(params), whose FIRST call reuses this graph.  Until then the accessors have no SCF to read.
     //!@{
     static std::unique_ptr<AtomCalculation> Prepare(int Z, int charge = 0, const AtomCalcOptions& opts = {},

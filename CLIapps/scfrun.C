@@ -309,8 +309,12 @@ int main(int argc, char** argv)
         if (accj.contains("switchat")) aopts.ladderSwitchAt=(double)accj["switchat"];
         cout << "scfrun: mol="<<molname<<" model="<<model<<" mult="<<mult<<" basis="<<mbasis<<" accel="<<accel<<endl;
         Molecule mol = MakeMolecule(molname);
-        Calculation mcalc(MoleculeSetup::Resolve(mol, copts, aopts));
-        (void)mcalc.Converge(makePar(minro<0?1e-4:minro, minfd<0?1e-5:minfd));   // the RESULT line reports converged yes/no
+        // scfrun is the DRIVER, so it opens the report runs (a facade never does, user ruling D 2026-11-02): one for the ctor's
+        // default-recipe SCF, one for the requested re-converge -- the two runs the facade used to open itself.
+        std::unique_ptr<Calculation> mcalcp;
+        { qchem::report::Run run(mol.ID()); mcalcp=std::make_unique<Calculation>(MoleculeSetup::Resolve(mol, copts, aopts)); }
+        Calculation& mcalc=*mcalcp;
+        { qchem::report::Run run(mol.ID()); (void)mcalc.Converge(makePar(minro<0?1e-4:minro, minfd<0?1e-5:minfd)); }   // the RESULT line reports converged yes/no
         cout << "RESULT  E="<<std::setprecision(10)<<mcalc.Energy()
              << "  iters="<<mcalc.IterationCount()
              << "  converged="<<(mcalc.IsConverged()?"yes":"no") << endl;
@@ -346,7 +350,9 @@ int main(int argc, char** argv)
     if (minfd<0) minfd=Z*2e-5;
     // electrons = Z - q normally; for a pseudo-ion, electrons = Zion - q  (charge so that Z-charge = that count).
     const int charge = ppmodel ? Z-(valence-q) : q;
-    AtomCalculation calc(Z, charge, opts, makePar(minro, minfd));
+    std::unique_ptr<AtomCalculation> calcp;   // scfrun opens the run (user ruling D, 2026-11-02: drivers own the runs)
+    { qchem::report::Run run("scfrun Z="+std::to_string(Z)); calcp=std::make_unique<AtomCalculation>(Z, charge, opts, makePar(minro, minfd)); }
+    AtomCalculation& calc=*calcp;
 
     // ---- report ----
     double E=calc.Energy();
