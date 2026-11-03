@@ -28,7 +28,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     {
         const int twoS = opts.multiplicity - 1;
         if (twoS > s->Ne || ((s->Ne - twoS) % 2) != 0)
-            throw std::runtime_error("qchem::Calculation: multiplicity " + std::to_string(opts.multiplicity) +
+            throw std::runtime_error("qchem::MoleculeCalculation: multiplicity " + std::to_string(opts.multiplicity) +
                 " (2S=" + std::to_string(twoS) + ") is incompatible with " + std::to_string(s->Ne) +
                 " electrons -- need 0 <= 2S <= Ne and Ne-2S even.");
     }
@@ -43,7 +43,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     s->accelerator = acc.type=="DIIS"   ? AType::DIIS
                    : acc.type=="GDM"    ? AType::GDM
                    : acc.type=="Ladder" ? AType::Ladder
-                   : throw std::runtime_error("qchem::Calculation: unknown accelerator type \"" + acc.type +
+                   : throw std::runtime_error("qchem::MoleculeCalculation: unknown accelerator type \"" + acc.type +
                                               "\" (expected DIIS | GDM | Ladder)");
     // DFT (and the LSDA pseudopotential) need DIIS engaged from iteration 0: the default Z-scaled EMax gate keeps DIIS off and
     // the SCF limit-cycles to a non-converged snapshot (the "M_Sym layout UB" mechanism, see M_DFT).  So default them to a high

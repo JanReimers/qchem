@@ -181,7 +181,7 @@ template <class T> template <class U> void tCompositeWF<T>::MakeOneIrrepWF(const
         Irrep qns(b->GetIrrep(s));
 
         // Emit the report's basis.perIrrep row ONLY when an ancestor opened a "basis" section (the
-        // orchestrator's choice).  The molecular Calculation opens it around this construction; a GPW
+        // orchestrator's choice).  The molecular MoleculeCalculation opens it around this construction; a GPW
         // orchestrator that vets conditioning in a PRE-FLIGHT (before this WF build) leaves it closed, so
         // this stays silent and does not duplicate.  When open, the LASolver's conditioning write (five
         // layers down in SetBasisOverlap) lands in THIS row with no irrep identity threaded to it.

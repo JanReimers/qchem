@@ -1,6 +1,6 @@
 // File: UnitTests/M_Sym.C  Molecular symmetry-adapted SCF integration tests (SALC end-to-end, facade-driven).
 //
-// Drives an SCF for water two ways through qchem::Calculation -- {.symmetry=false} (a plain single-IBS
+// Drives an SCF for water two ways through qchem::MoleculeCalculation -- {.symmetry=false} (a plain single-IBS
 // basis) and {.symmetry=true} (a SymmetryAdaptedBasisSet: one IBS per C2v irrep, global aufbau) -- and
 // checks the total energies agree.  {.symmetry=true} runs exactly the production SALC path the scaffold
 // used to wire by hand (PG::SymmetryAdapt over the raw PolarizedGaussian basis, Omega_ab shared across
@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 #include <cmath>
 
-import qchem.Calculation;            // Calculation, CalcOptions, Model, SpinGroup
+import qchem.MoleculeCalculation;            // MoleculeCalculation, CalcOptions, Model, SpinGroup
 import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;              // Molecule, Atom
 import qchem.SCFIterator;            // SCFParams, EnergyBreakdown
@@ -41,7 +41,7 @@ static EnergyBreakdown Run(const Molecule& mol, Model model, SpinGroup pol, bool
     // The claim is symmetric == non-symmetric ON ONE MESH, so it needs no converged mesh: the DFT runs keep the old 12-direction
     // one (MHL 30 / Lebedev 5).  On the converged default (80 / 29, 2026-10-31) the four SALC DFT runs cost 107 s + 175 s.
     o.mesh.nRadial=30; o.mesh.angularDegree=5;
-    Calculation calc(MoleculeSetup::Resolve(mol, o));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(mol, o));
     EXPECT_TRUE(calc.Converge(tight));    // re-converge tight for the invariance tolerance
     return calc.EnergyTerms();
 }

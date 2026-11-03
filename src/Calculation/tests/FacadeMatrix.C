@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
-import qchem.Calculation;
+import qchem.MoleculeCalculation;
 import qchem.AtomCalculation;
 import qchem.SolidCalculation;
 import qchem.Deck;
@@ -223,23 +223,23 @@ public:
     std::string PrepareFilesTheSetup() override
     {
         size_t rows=0;
-        { report::Run run(ID()+" build"); Calculation::Prepare(Setup(), [&](const SCFIterator::IterationRow&){ rows++; }); }
+        { report::Run run(ID()+" build"); MoleculeCalculation::Prepare(Setup(), [&](const SCFIterator::IterationRow&){ rows++; }); }
         return SetupFiled(FiledRun(ID()+" build@"), ID()+" build@", rows);
     }
     std::string ConvergeFilesTheScfHeader() override
     {
-        std::unique_ptr<Calculation> calc;
-        { report::Run run(ID()); calc=std::make_unique<Calculation>(Setup()); }
+        std::unique_ptr<MoleculeCalculation> calc;
+        { report::Run run(ID()); calc=std::make_unique<MoleculeCalculation>(Setup()); }
         if (!calc->IsConverged()) return "H2O did not converge";
         return ScfHeaderFiled(FiledRun(ID()+"@"), ID()+"@");
     }
     std::string AcceleratorKnobsArrive() override
     {
-        { report::Run run(ID()+" build"); (void)Calculation::Prepare(Setup({.nProj=6, .eMax=0.05, .svTol=1e-8, .trust=0.2, .ladderEThresh=1e-7, .ladderStall=4,
+        { report::Run run(ID()+" build"); (void)MoleculeCalculation::Prepare(Setup({.nProj=6, .eMax=0.05, .svTol=1e-8, .trust=0.2, .ladderEThresh=1e-7, .ladderStall=4,
                                               .ladderFloor=1e-9, .ladderSwitchAt=1e-5, .type="Ladder"})); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
-    std::string SaveRestartRoundTrips() override {return "Calculation has no SaveState / Restart";}
+    std::string SaveRestartRoundTrips() override {return "MoleculeCalculation has no SaveState / Restart";}
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","H2O"}});}
 };
 

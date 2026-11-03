@@ -2,7 +2,7 @@
 //
 // qchem::PotentialEnergySurface -- what a geometry optimizer (or an MD / NEB / phonon driver) consumes: the energy, and later
 // its gradient, at positions IT chooses, many times, over ONE fixed run setup (doc/CalcNetworkReview.md §3.1, ruling Q2).
-// Implemented for molecules (MoleculeSession, qchem.Calculation) and for solids (SolidSession, qchem.SolidCalculation): the
+// Implemented for molecules (MoleculeSession, qchem.MoleculeCalculation) and for solids (SolidSession, qchem.SolidCalculation): the
 // first client that must drive both through one door.
 module;
 #include <optional>
