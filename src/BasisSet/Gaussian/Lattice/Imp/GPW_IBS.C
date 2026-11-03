@@ -18,8 +18,6 @@ import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ 
 import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
                                             // (qcMolecule_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
 import qchem.BasisSet.PlaneWave.Evaluators;  // PlaneWave::PW_Grid_Evaluator (the fit basis IS-A one; cross-cast target)
-import qchem.SymmetrizeMesh;                     // MakeInvariant/FoldMesh (the §6a W1 invariant XC quadrature)
-import qchem.Reporting;                          // report::Timed -- the XC-quadrature buckets (ParallelAndOraclePlan 1.1(b))
 
 namespace qchem::BasisSet::Gaussian
 {
@@ -27,19 +25,13 @@ namespace qchem::BasisSet::Gaussian
 template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, double ladderFactor,
-                 std::vector<Symmetry::Lattice_3D::DirectOp> directOps, RasterFields rasterFields,
-                 std::vector<Symmetry::Lattice_3D::SymOp> magneticOps,
-                 std::vector<Symmetry::Lattice_3D::SymOp> meshOps, const GPWTolerances& tol)
+                 std::vector<Symmetry::Lattice_3D::DirectOp> directOps, RasterFields rasterFields, const GPWTolerances& tol)
     : BasisSet::IrrepBasisSetImp<T>(irrep)
     , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
                     images==CellImages::HomeCellOnly, cutoffFactor, ladderFactor,
                     rasterFields, tol) // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1)
-    , itsMagneticOps(std::move(magneticOps))
-    , itsMeshOps(std::move(meshOps))
 {
     SetSymmetryOps(std::move(directOps));   // ONE storage (the evaluator): T1 {G} fold + Vxc-raster star ops
-    assert((itsMeshOps.empty() || (SymmetryOps().empty() && itsMagneticOps.empty()))
-           && "GPW_IBS: meshOps is the FREE-run face; an imposed run's mesh already comes from its imposed ops");
 }
 
 // Convenience: build the Bloch irrep from BZ-grid indices and delegate to the primary constructor.
@@ -47,7 +39,7 @@ template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const ivec3_t& N,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, double ladderFactor, RasterFields rasterFields, const GPWTolerances& tol)
     : tGPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor,
-              ladderFactor, {}, rasterFields, {}, {}, tol)
+              ladderFactor, {}, rasterFields, tol)
 {}
 
 template <class T> mat_t<T> tGPW_IBS<T>::MakeRepMatrix(const Symmetry::SymOp& g) const
@@ -112,73 +104,6 @@ template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(cons
     // owns that key exclusively (Hamiltonians.C, both branches).
     return new PlaneWave::PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
                                 "vxcFitGrid", SymmetryOps());
-}
-
-template <class T> BasisSet::FitQuadrature tGPW_IBS<T>::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
-{
-    // The DELTA-fit quadrature (doc/SymmetryUpgradePlan.md §6a).  On a §3-imposed run this basis
-    // carries the crystal ops (ctor-injected, like the raster ops PlaneWave::PlaneWaveFit_IBS gets):
-    //  - Becke grid: the SITE-ADAPTED mesh (W2b) -- rep atoms carry site-group-invariant angular sets,
-    //    partners the op-rotated copies -- invariant BY CONSTRUCTION, no group-average growth pass;
-    //  - uniform grid (the cross cell): group-average it invariant (W1's MakeInvariant -- a no-op
-    //    dedup when the grid is already commensurate).
-    // Either way the geometry-fixed orbit fold feeds the engine's per-iteration rho star-average.
-    assert(cl && "GPW: the XC quadrature needs the Structure to build its mesh");
-    qchem::report::Scope here("xcQuadrature");   // every mesh built below reports one level in
-    const auto& dops = SymmetryOps();
-    if (dops.empty() && itsMeshOps.empty())
-        return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};
-    // FREE run: the same invariant mesh an imposed run gets, but NO fold -- nothing averages the density.
-    if (dops.empty())
-    {
-        qcMesh::Mesh mesh = Cell().CreateIntegrationMesh(mp, itsMeshOps);
-        std::cout << "[XC mesh] free run: mesh invariant under the " << itsMeshOps.size() << " detected ops, "
-                  << mesh.size() << " points; the density is NOT averaged" << std::endl;
-        return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), {}};
-    }
-
-    // On a MAGNETICALLY imposed run (S3) the σ-carrying Shubnikov set drives the quadrature; its
-    // SPATIAL parts equal the evaluator's DirectOps (the factory filled both from one group), so the
-    // mesh/fold machinery is unchanged -- σ only ADDS the per-op spin actions and the odd-field flags
-    // the engine's (ρ,m) channel-pair star-average consumes.
-    std::vector<Symmetry::Lattice_3D::SymOp> ops;
-    if (!itsMagneticOps.empty()) ops = itsMagneticOps;
-    else { ops.reserve(dops.size()); for (const auto& op : dops) ops.push_back({op.W, op.tau}); }
-    const double tol = qchem::kMeshMatchTol;   // the ONE mesh-point coincidence tolerance (R2.12)
-    const Matrix3D<double>& A = Cell().GetCellMatrix();
-
-    // Ask the CELL for a mesh invariant under the ops.  WHICH strategy realises that (site-adapted by
-    // construction for Becke, group-average for uniform) is the cell's business -- this basis only needs
-    // the invariance, which is the T2 precondition for the fold below.
-    qcMesh::Mesh mesh = Cell().CreateIntegrationMesh(mp, ops);
-    // ★ 1.1(b): CreateVxcFitBasisSet is 23.75 s/call EXCLUSIVE of the mesh build and the Φ tables, and it
-    // is the largest non-threading block in a GPW run.  These two buckets are the only candidates left
-    // inside it -- both are point-matching passes over ~97k mesh points against 24 ops.
-    auto fold = [&]{ qchem::report::Timed timed("setup: XC mesh orbit fold (FoldMesh)");
-                     return FoldMesh(mesh, A, ops, tol); }();
-    std::cout << "[Becke grid] imposed symmetry (" << ops.size() << " ops): invariant mesh "
-              << mesh.size() << " points in " << fold.Reps()
-              << " orbits; rho star-averaged each iteration (doc/SymmetryUpgradePlan.md 6a)" << std::endl;
-    if (itsMagneticOps.empty())
-        return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold)};
-
-    // The σ tags (parallel to ops -- the fold's edge opIndex indexes them) and the odd-field zero
-    // flags: FRACTIONAL mesh coordinates for the torus-metric fixed-point test.
-    std::vector<Symmetry::SpinAction> sigmas;
-    sigmas.reserve(ops.size());
-    for (const auto& op : ops) sigmas.push_back(op.sigma);
-    auto flags = [&]{
-        qchem::report::Timed timed("setup: XC mesh Shubnikov flip-fixed test");
-        std::vector<rvec3_t> frac;
-        frac.reserve(mesh.size());
-        const Matrix3D<double> Ainv = Invert(A);
-        for (size_t i=0;i<mesh.size();++i) frac.push_back(Ainv*mesh.Points()[i]);
-        return Symmetry::Lattice_3D::FlipFixedPointsPeriodic(frac, ops, tol); }();
-    size_t nFixed=0; for (char c : flags) if (c) nFixed++;
-    std::cout << "[Becke grid] Shubnikov: " << nFixed << " flip-fixed mesh points (m==0 there exactly)"
-              << std::endl;
-    return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold),
-            std::move(sigmas), std::move(flags)};
 }
 
 // The species-field integral service.  Both matrices are STATIC across an SCF but rebuilt PER k-BLOCK, so

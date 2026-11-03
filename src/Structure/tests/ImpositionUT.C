@@ -119,3 +119,39 @@ TEST(Imposition, AStaggeringImposesTheShubnikovGroupAndItsSigmaNoneDensity)
     EXPECT_TRUE(grey.magneticDirect.empty());
     EXPECT_EQ(grey.directDensity.size(), lat.GetSpaceGroup().DirectOps().size()) << "no staggering: the grey group";
 }
+
+//! The imposition BUILDS the run's XC mesh under its own ops (XCMeshSource, V-BS-SYMMETRY S2): the cell's plain mesh when it
+//! imposes nothing and asks no invariance (point for point what the cell itself builds); an invariant, orbit-folded mesh when it
+//! imposes; and, magnetically, one Shubnikov spin tag per op and a flip-fixed flag per mesh point.
+TEST(Imposition, ItBuildsTheXCMeshUnderItsOwnOps)
+{
+    const qcMesh::MeshParams mp{.nUniform=12, .cellKind=qcMesh::UnitCellKind::Uniform};
+    const FCCUnitCell si=SiDiamond();
+    const Lattice_3D lat(si, ivec3_t(1,1,1));
+
+    const qcMesh::FoldedMesh plain=ResolveImposition(lat, {.imposeSymmetry=false, .freeMeshInvariant=false}).MakeXCMesh(mp);
+    const qcMesh::Mesh ref=si.CreateIntegrationMesh(mp);
+    EXPECT_FALSE(plain.HasFold());
+    ASSERT_EQ(plain.size(), ref.size());
+    for (size_t i=0;i<ref.size();i++)
+    {
+        EXPECT_TRUE(Same(plain.GetMesh()->Points()[i], ref.Points()[i])) << "point " << i;
+        EXPECT_EQ(plain.GetMesh()->Weights()[i], ref.Weights()[i]) << "weight " << i;
+    }
+
+    const CrystalImposition grey=ResolveImposition(lat, {.imposeSymmetry=true});
+    const qcMesh::FoldedMesh imposed=grey.MakeXCMesh(mp);
+    EXPECT_TRUE(imposed.HasFold()) << "an imposed run's density is star-averaged on its mesh";
+    EXPECT_LT(imposed.NumOrbits(), imposed.size()) << "the 48 Fd-3m ops fold the mesh";
+    EXPECT_FALSE(imposed.IsMagnetic());
+    double W=0; const auto& w=imposed.GetMesh()->Weights(); for (size_t i=0;i<w.size();i++) W+=w[i];
+    EXPECT_NEAR(W, si.GetCellVolume(), 1e-9*si.GetCellVolume()) << "the invariant mesh still integrates the cell";
+
+    const UnitCell mno=MnO_AFM2();
+    const Lattice_3D mlat(mno, ivec3_t(1,1,1));
+    const CrystalImposition mag=ResolveImposition(mlat, {.imposeSymmetry=true, .siteSpins={+1,-1,0,0}});
+    const qcMesh::FoldedMesh shub=mag.MakeXCMesh(mp);
+    EXPECT_TRUE(shub.HasFold() && shub.IsMagnetic());
+    EXPECT_EQ(shub.NumSpinOps(), mag.magneticDirect.size()) << "one σ tag per Shubnikov op";
+    EXPECT_EQ(shub.NumFlipFixed(), shub.size()) << "one flip-fixed flag per mesh point";
+}

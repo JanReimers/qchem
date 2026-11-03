@@ -315,7 +315,7 @@ SamplerPair SampleBoth(double densityEcut, double rasterX)
     EXPECT_EQ(size_t(N)*N*N, r->RasterSize()) << "a cubic cell has a cubic raster";
 
     // SINGLES: the δ basis over a uniform cell mesh with the same N per axis, through the production factory
-    BasisSet::FitQuadrature q=cx.CreateXCQuadrature(st.get(), qcMesh::MeshParams{.nUniform=N, .cellKind=UnitCellKind::Uniform});
+    BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(*st, qcMesh::MeshParams{.nUniform=N, .cellKind=UnitCellKind::Uniform}, nullptr);   // a bare block: the plain mesh
     auto delta=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     auto singles=MakeDensitySampler(delta, q);
     EXPECT_EQ(pair->NumPoints(), singles->NumPoints()) << "one point count, two point sets (corners vs midpoints)";

@@ -138,10 +138,6 @@ public:
             CellImages images = CellImages::Periodic, double cutoffFactor = 2.0, double ladderFactor = 4.0,
             std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {},   //!< crystal direct ops {W|τ} for the IBZ Vxc-raster star-average
             RasterFields rasterFields = RasterFields::HartreeXC,          //!< field-sharpness routing (HartreeOnly = Becke-XC partner)
-            std::vector<Symmetry::Lattice_3D::SymOp> magneticOps = {},    //!< Shubnikov {W|τ,σ} when imposing a MAGNETIC decoration (S3):
-                                                                          //!< the XC quadrature then folds under σ (the (ρ,m) channel pair)
-            std::vector<Symmetry::Lattice_3D::SymOp> meshOps = {},        //!< FREE run: the detected group the XC MESH is built invariant
-                                                                          //!< under -- symmetric numerics, NO density star-average
             const GPWTolerances& tol = {});                               //!< the typed numerical tolerances (D-ENV step 5)
 
     //! \brief Convenience constructor in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
@@ -155,10 +151,6 @@ public:
     //! GPW density lives on a plane-wave grid whatever the orbitals are (never orbital==fit).
     virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
     virtual BasisSet::cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
-    //! \brief The DELTA-fit XC quadrature (doc/SymmetryUpgradePlan.md §6a W1): the Structure's mesh,
-    //! group-averaged INVARIANT + orbit-folded when this basis carries §3-imposed crystal ops (the ctor
-    //! injection) -- ALL the low-level mesh work lives here, next to the sibling fit-basis factories.
-    virtual BasisSet::FitQuadrature CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const override;
 
     //! \brief The species-field integral service (Orbital_PP_IBS<T>): assemble \f$\langle i|v|j\rangle\f$ for a
     //! species radial field and \f$\langle i|V_{NL}|j\rangle\f$ for a projector set in REAL SPACE (cross-cast the
@@ -206,15 +198,6 @@ protected:
 private:
     //! THROWS unless \a bra is built over my molecular AOs and \a rows x \a cols is bra x ket (finding 6).
     void CheckTransitionPair(const BasisSet::Transition_DFT_IBS& bra, size_t rows, size_t cols) const;
-    //! The Shubnikov {W|τ,σ} set on a magnetically imposed run ({} otherwise).  The σ-BLIND consumers
-    //! (T1, raster) take the evaluator's spatial DirectOps as always; only CreateXCQuadrature reads
-    //! this, to hand the engine the per-op spin actions + the odd-field zero flags.
-    std::vector<Symmetry::Lattice_3D::SymOp> itsMagneticOps;
-    //! FREE run only ({} when imposing): the detected spatial group.  CreateXCQuadrature builds the XC mesh invariant
-    //! under it but returns NO fold, so the density is never averaged -- the run stays free to break symmetry, and
-    //! only the integrator stops breaking it.  Consumer: KAxisPlan ruling 1, which reduces a free run by the ops whose
-    //! measured \f$\|D_{gk}-MD_kM^\dagger\|\f$ passes ~1e-6; on a non-invariant mesh no op ever passed (F 5e-4, D 2e-3).
-    std::vector<Symmetry::Lattice_3D::SymOp> itsMeshOps;
     //! The instance-scoped 3C tensor memo (see Overlap3C/Repulsion3C above).  Key = "O|"/"R|" + the fit
     //! basis's BasisSetID (content identity, never a pointer).
     mutable std::map<std::string,Projector3<dcmplx>> its3Cs;

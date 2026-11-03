@@ -125,8 +125,8 @@ template <class U> static mat_t<U> MakePhiAt(const Orbital_1E_IBS<U>* bs, const 
     // pointwise call forces it to do once per lattice IMAGE -- see LatticeSum1E::BlochPointValues.  The
     // default op just loops pointwise, so a basis that does not override is unaffected.
     // Chunked rather than one call for the whole mesh so THIS loop keeps the threading: qcMath is a leaf
-    // and cannot host OpenMP, and molecular bases reach here too (CreateXCQuadrature is a generic basis
-    // face), so handing the whole set to a serial default would deserialise them.  Each chunk writes its
+    // and cannot host OpenMP, and molecular bases reach here too (MakeXCQuadrature serves every
+    // structure), so handing the whole set to a serial default would deserialise them.  Each chunk writes its
     // own disjoint rows, so the table stays bit-identical at any thread count.
     const size_t n=bs->GetVectorSize(), npts=R.size();
     mat_t<U> P(npts, n);

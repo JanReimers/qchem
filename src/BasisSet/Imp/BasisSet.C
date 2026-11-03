@@ -12,6 +12,7 @@ import qchem.BasisSet.DeltaFit_IBS;      // DeltaFit_IBS -- the delta representa
 import qchem.Symmetry.Factory;           // BlochFactory (the delta basis's Gamma irrep)
 import qchem.Symmetry.Unit;              // UnitQN: the molecular fit lineage's trivial irrep (the real delta basis's)
 import qchem.Reporting;                  // report::Timed -- splitting the delta-fit build (ParallelAndOraclePlan 1.1(b))
+import qchem.Lattice_3D.Imposition;      // XCMeshSource -- the imposition that builds the XC mesh under its own ops (S2)
 
 namespace qchem::BasisSet
 {
@@ -61,24 +62,23 @@ template <class T> FIT_CD_ABS<T>* tBasisSet<T>::CreateCDFitBasisSet(const Struct
 }
 template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp,
                                                                     VxcFit fit,
-                                                                    FitQuadrature* quad) const
+                                                                    const FitQuadrature* quad) const
 {
-    if (quad) *quad=FitQuadrature();
     // The REAL (molecular) path's two representations (2026-10-31, user: "replace the Vxc fit basis with delta functions
     // ... if our OOD design (LSP) is working correctly, this should just work"):
     //   Delta -- the delta basis over this structure's own XC mesh (the Becke build at \a mp), with the molecular fit
     //            lineage's trivial irrep (v_xc is totally symmetric).  It was a THROW until the class was templated on the
     //            fit axis's scalar: DeltaFit_IBS was complex-only, which its comment blamed on the Bloch irrep.  The quadrature
-    //            goes to the caller too, exactly as on the periodic path.
+    //            comes in from the caller, exactly as on the periodic path.
     //   Auxiliary (and an unresolved Auto) -- the lineage's own fitted auxiliary basis (A1 Gaussians on a molecule, the radial
     //            fit set on an atom), which keeps its own private quadrature mesh.  The molecular / atom Hamiltonians resolve
     //            Auto to Delta (the default, user 2026-10-31).
     //   PlaneWave -- no realization on this lineage: an open gap of the product space (pin 30), named, not substituted.
     if (fit==VxcFit::Delta)
     {
-        FitQuadrature q=CreateXCQuadrature(cl,mp);
-        if (quad) *quad=q;
-        return new DeltaFit_IBS<double>(std::move(q), sym_t(new UnitQN));
+        if (!quad) throw std::invalid_argument("tBasisSet::CreateVxcFitBasisSet: VxcFit::Delta is built over a quadrature, and none was "
+                                               "handed in (MakeXCQuadrature)");
+        return new DeltaFit_IBS<double>(*quad, sym_t(new UnitQN));
     }
     if (fit==VxcFit::PlaneWave)
         throw std::logic_error("tBasisSet: VxcFit::PlaneWave has no realization on a non-periodic (molecular / atom) basis -- an open "
@@ -93,67 +93,41 @@ template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const St
 {
     return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateCDFitBasisSet(cl,mp);});
 }
-// The XC quadrature (delta-fit) factory: generic T = the plain path (the Structure's own integration
-// mesh, no fold -- molecules / any basis without an imposed-symmetry override).
-// ⏸ V1.15 asked for this neutral default to be HOISTED, since Orbital_DFT_IBS::CreateXCQuadrature carries a
-// byte-identical body.  DECLINED 2026-09-09, and the reason is where the shared home would have to live:
-// the only module below BOTH declarers is qchem.BasisSet.Fit_Types, which states in its own header that it
-// "needs the mesh and the symmetry fold and nothing else" -- and this body needs `Structure`.  Hoisting two
-// lines would drag Structure into a deliberate leaf to save a duplication that cannot drift silently (both
-// are `the Structure's own mesh, no fold`, and a change to either shows up as a failing quadrature).
-template <class T> FitQuadrature tBasisSet<T>::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
+FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp, const Symmetry::SymmetryImposition* imp)
 {
     qchem::report::Scope here("xcQuadrature");   // the mesh builder reports one level in
-    return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};
-}
-// The plane-wave (dcmplx) path delegates THROUGH the orbital basis's factory, exactly as the fit bases
-// do: the Orbital_DFT_IBS<dcmplx> block owns the cell + the imposed ops, so IT assembles the (invariant) quadrature.
-template <> FitQuadrature tBasisSet<dcmplx>::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
-{
-    return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateXCQuadrature(cl,mp);});
+    if (const auto* src=dynamic_cast<const XCMeshSource*>(imp)) return src->MakeXCMesh(mp);   // abstract face to abstract face
+    return {std::make_shared<const qcMesh::Mesh>(cl.CreateIntegrationMesh(mp)), {}};
 }
 
 // The periodic (dcmplx) Vxc fit basis.  THE ONE SITE THAT CHOOSES A REPRESENTATION (2026-08-22):
-//   Delta -- the delta basis over this run's XC quadrature.  The mesh work (grid build, group-averaging it
-//            invariant under imposed ops, fold + Shubnikov tags) stays where it was, in the basis's own
-//            CreateXCQuadrature; what changed is that its answer now comes back ATTACHED to a fit basis
-//            instead of through a second factory the Hamiltonian had to call itself.  Gamma Bloch irrep:
-//            the mesh is cell-periodic and carries no crystal momentum of its own.
+//   Delta -- the delta basis over this run's XC quadrature, which the caller built (MakeXCQuadrature: the mesh work --
+//            grid build, invariance under the imposed ops, fold + Shubnikov tags -- is the imposition's, V-BS-SYMMETRY S2)
+//            and hands in.  Gamma Bloch irrep: the mesh is cell-periodic and carries no crystal momentum of its own.
 //   else  -- the lineage's own fitted representation, from the first periodic DFT block's factory (an
 //            unresolved Auto lands here, the historical pairing).
 template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp,
                                                                        VxcFit fit,
-                                                                       FitQuadrature* quad) const
+                                                                       const FitQuadrature* quad) const
 {
-    if (quad) *quad=FitQuadrature();
     if (fit==VxcFit::Auxiliary)
         throw std::logic_error("tBasisSet<dcmplx>: VxcFit::Auxiliary (a molecular / atom auxiliary fit) has no realization on a periodic basis -- an "
                                "open gap of the Vxc product space (pin 30); use Delta or PlaneWave");
     if (fit==VxcFit::Delta)
     {
-        // ONE quadrature, built ONCE, INJECTED into both collaborators that need it (user, 2026-08-23):
-        // the delta basis (for which it is constitutive) and -- optionally -- the XC strategy, which needs
-        // the ATOMIC PARTITION the mesh carries (a general-purpose observable, no part of a fit basis's
-        // job) and, since 2026-08-24, the ORBIT FOLD and the Shubnikov tags for the rho star-average --
-        // which were reaching it as two MEMBERS on the fit face, where they never belonged.  Both hold the
-        // same immutable Mesh through the same shared_ptr, so their orderings agree by construction rather
-        // than by convention.  A raster (PlaneWave) fit basis has no such quadrature and leaves *quad
-        // empty -- no Becke build is paid for on a route that would not use it.
-        // ★ 1.1(b): three buckets, because this function is 23.75 s/call on MnO and the mesh build is only
-        // a third of it.  Timed is exclusive, so the mesh build / orbit fold / Shubnikov buckets inside
-        // CreateXCQuadrature stay children of the first one.
+        // ONE quadrature, built ONCE by the caller (MakeXCQuadrature), INJECTED into both collaborators that need it (user,
+        // 2026-08-23): the delta basis (for which it is constitutive) and the XC term, which needs the ATOMIC PARTITION the mesh
+        // carries and the ORBIT FOLD and the Shubnikov tags for the rho star-average.  Both hold the same immutable Mesh through
+        // the same shared_ptr, so their orderings agree by construction rather than by convention.
+        if (!quad) throw std::invalid_argument("tBasisSet<dcmplx>::CreateVxcFitBasisSet: VxcFit::Delta is built over a quadrature, and "
+                                               "none was handed in (MakeXCQuadrature)");
         FitQuadrature q;
         {
-            qchem::report::Timed timed("setup: XC quadrature build (mesh + fold are its children)");
-            q=CreateXCQuadrature(cl,mp);
-        }
-        if (quad)
-        {
-            // A full COPY of the quadrature -- mesh handle (cheap), but also the orbit fold, the σ tags
-            // and the flip-fixed flags over every mesh point.  Priced because "hand the same bundle to
-            // both collaborators" is an ownership decision, and nobody had ever asked what it costs.
+            // A full COPY of the quadrature -- mesh handle (cheap), but also the orbit fold, the σ tags and the flip-fixed flags
+            // over every mesh point.  Priced because "hand the same bundle to both collaborators" is an ownership decision, and
+            // nobody had ever asked what it costs.
             qchem::report::Timed timed("setup: XC quadrature copy (to the term stack)");
-            *quad=q;
+            q=*quad;
         }
         qchem::report::Timed timed("setup: DeltaFit_IBS ctor");
         return new DeltaFit_IBS<dcmplx>(std::move(q),

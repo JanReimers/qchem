@@ -1595,7 +1595,7 @@ TEST(GPW, OverlapDiagonalPerRepresentation)
     for (size_t g=0; g<dPW.size(); g++) EXPECT_EQ(dPW[g], dcmplx(1.0)) << "plane waves are orthoNORMAL";
 
     // (2) The DELTA representation: the weights themselves, over this cell's own XC quadrature.
-    BasisSet::FitQuadrature q=gpw.CreateXCQuadrature(&cell, mp);
+    BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(cell, mp, nullptr);   // a bare block: no imposition, the plain mesh
     BasisSet::DeltaFit_IBS<dcmplx> dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     const vec_t<dcmplx> dD=dfit.OverlapDiagonal();
     ASSERT_EQ(dD.size(), q.GetMesh()->size()) << "a delta basis has one function per mesh point";
@@ -1652,7 +1652,7 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
     CellField wave([&](const rvec3_t& r){return 2.0 + std::cos(twoPi*r.x/a)*std::sin(twoPi*r.y/a);});
 
     // (1) DELTA: <delta_g|f> = w_g f(r_g) and <delta_g|1> = w_g, both one entry per FUNCTION.
-    BasisSet::FitQuadrature q=gpw.CreateXCQuadrature(&cell, mp);
+    BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(cell, mp, nullptr);   // a bare block: no imposition, the plain mesh
     BasisSet::DeltaFit_IBS<dcmplx> dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     ASSERT_EQ(dfit.GetNumFunctions(), q.GetMesh()->size()) << "one delta function per mesh point";
     const vec_t<dcmplx> pD=dfit.Overlap(wave), iD=dfit.Charge();
@@ -2361,7 +2361,7 @@ TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
     EXPECT_LT(std::abs(lhsR-rhsR), 1e-11*std::abs(rhsR)) << "raw pair: forward/adjoint not exact at q != 0";
 
     // (1c) the δ basis's point pair (on this cell's own XC quadrature)
-    BasisSet::FitQuadrature fq=ket.CreateXCQuadrature(&cell, mp);
+    BasisSet::FitQuadrature fq=BasisSet::MakeXCQuadrature(cell, mp, nullptr);
     BasisSet::DeltaFit_IBS<dcmplx> dfit(fq, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     const cvec_t d=dfit.TransitionForward(bra, ket, dD);
     const mat_t<dcmplx> vd=RandomComplex(d.size(), 1, 17);

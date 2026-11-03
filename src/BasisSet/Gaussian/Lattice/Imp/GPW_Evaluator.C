@@ -30,36 +30,17 @@ import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity 
 import qchem.Reporting;       // the run report -- EmitGridsReport builds the `grids` section
 import qchem.RunPolicy;       // theRunPolicy().DAwareScreen() -- WHICH LatticeScreener this evaluator builds (N5)
 import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the grid report's {G}-star column)
+import qchem.Symmetry.Lattice_3D.BlochOperationRep;  // BlochPhase (exact ±1 at TRIM)
 
 namespace qchem::BasisSet::Gaussian
 {
 
 namespace
 {
-// TRIM (k time-reversal-invariant, 2k a reciprocal lattice vector) is no longer re-derived here from the
-// float k: the ctor's kIsReal FACT (itsTRIM) comes from the Bloch irrep's Symmetry::IsReal() -- exact
-// integer arithmetic on the BZ grid, no tolerance (doc/RealComplexPlan.md Step 1).
-//! \brief The Bloch phase \f$e^{2\pi i\,k\cdot n}\f$ of integer cell \a n -- EXACTLY \f$\pm1\f$ at a
-//! TRIM \a kFrac.
-//!
-//! There \f$2k\f$ is integral, so \f$e^{2\pi ik\cdot n}=(-1)^{(2k)\cdot n}\f$: a parity, not a
-//! transcendental.  Computing it as \c std::exp leaves \f$\sin(\pm\pi)\approx1.2\times10^{-16}\f$ in
-//! the imaginary part, and that junk propagates into S, T, V_loc, the KB projectors and the XC-mesh
-//! basis tables at EVERY zone-boundary k -- where it is then symmetrised away, having cost a complex
-//! multiply per term.  Exact \f$\pm1\f$ makes those blocks exactly real instead of nearly real, which
-//! is the difference between a REAL-ARITHMETIC fast path selectable by a fact and one selectable only
-//! by a tolerance somebody has to defend (doc/GPWPlan1.md).  Away from TRIM this is the plain \c exp.
-dcmplx BlochPhase(const rvec3_t& kFrac, const ivec3_t& n, bool trim)
-{
-    if (trim)
-    {
-        const long p = std::lround(2.0*kFrac.x)*n.x + std::lround(2.0*kFrac.y)*n.y
-                     + std::lround(2.0*kFrac.z)*n.z;
-        return dcmplx((p & 1L) ? -1.0 : 1.0, 0.0);
-    }
-    const double kn=kFrac.x*n.x + kFrac.y*n.y + kFrac.z*n.z;
-    return std::exp(dcmplx(0.0, 2.0*Pi*kn));
-}
+// TRIM is not re-derived here from the float k: the ctor's kIsReal FACT (itsTRIM) comes from the Bloch irrep's
+// Symmetry::IsReal() -- exact integer arithmetic on the BZ grid (doc/RealComplexPlan.md Step 1).  The phase itself is
+// Symmetry::Lattice_3D::BlochPhase, exact ±1 there (V-SYM-TRIM-PHASE: one definition, shared with the op rep).
+using Symmetry::Lattice_3D::BlochPhase;
 
 // Build a lattice-translation set {R} (Cartesian, origin first) and its matching Bloch phases {e^{ik.R}} for
 // a cutoff radius -- the {R}+{phase} weighted point set (future: one qcMesh cMesh).  phase = exp(2 pi i k.n)

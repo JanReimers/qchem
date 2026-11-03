@@ -101,8 +101,7 @@ public:
     //! thing holding up a \f$\delta\f$-only FACE, and "my metric is diagonal" is a fact about this
     //! implementation, not a type other code needs to name.
     bool isOrtho() const override {return true;}
-    //! \a q is the FINISHED quadrature (mesh + fold + Shubnikov tags) from the owning basis's
-    //! \c CreateXCQuadrature, and \a sym the irrep the caller's lineage gives a fit block (see the class note).
+    //! \a q is the FINISHED quadrature (mesh + fold + Shubnikov tags) from \c MakeXCQuadrature, and \a sym the irrep the caller's lineage gives a fit block (see the class note).
     DeltaFit_IBS(FitQuadrature q, const sym_t& sym)
         : IrrepBasisSetImp<T>(sym)
         , itsQuad(std::move(q))

@@ -57,9 +57,12 @@ PW_BasisSet::PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut, const std:
     // The group is resolved by the ONE imposition builder (closure-gated there), not here (V-BS-SYMMETRY S1).  The plane-wave
     // family imposes ONLY the spin pair so far: its density faces are cleared, so the composite density is not star-averaged
     // (exactly the behaviour before S3; the pair projection already makes each channel symmetric under the σ=None subgroup).
+    // Its XC quadrature is the cell's plain mesh too (no Shubnikov fold: the δ route's (ρ,m) star-average is GPW's), so the
+    // magnetic face is cleared with them and the imposition builds the plain mesh (V-BS-SYMMETRY S2).
     auto imp=std::make_shared<CrystalImposition>(ResolveImposition(lat, {.imposeSymmetry=true, .siteSpins=siteSpins}));
     imp->recipDensity.clear();
     imp->directDensity.clear();
+    imp->magneticDirect.clear();
     SetImposition(std::move(imp));
     std::cout << "[symmetry] the plane-wave block imposes it by the (D_up, D_dn) pair projection" << std::endl;
 }
@@ -186,8 +189,6 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
                                     mol, p.densityEcut, p.images, p.cutoffFactor, p.ladderFactor,
                                     ops.directDensity,    // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
                                     p.rasterFields,       // field-sharpness routing (HartreeOnly = the Becke-XC partner)
-                                    ops.magneticDirect,   // Shubnikov {W|τ,σ} on a magnetic imposition (S3; {} = grey)
-                                    ops.meshInvariance,   // free run: the detected group the XC mesh is invariant under
                                     p.tol);               // the typed GPW tolerances (D-ENV step 5)
             if (!first) first=b;
             Insert(b);

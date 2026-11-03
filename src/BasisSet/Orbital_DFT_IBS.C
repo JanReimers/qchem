@@ -1,13 +1,12 @@
 // File: BasisSet/Orbital_DFT_IBS.C  Interface for a Density Functional Theory (DFT) Orbital Irrep Basis Set.
 module;
-#include <memory>       // std::make_shared (the CreateXCQuadrature neutral default)
 export module qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import :Fit_IBS;   // the fit-basis faces: a PARTITION of this module since 2026-08-24
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary
 export import qchem.BasisSet.Projector3;
-import qchem.Structure;  // Structure::CreateIntegrationMesh (the default FitQuadrature build)
+import qchem.Structure;  // Structure (the fit factories' argument)
 import qchem.Reporting;  // report::Scope -- the mesh builder reports one level into "xcQuadrature"
 
 export namespace qchem::BasisSet
@@ -47,18 +46,6 @@ public:
     virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const=0;
     virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;
 
-    //! \brief The DELTA-fit sibling of \c CreateVxcFitBasisSet (doc/SymmetryUpgradePlan.md §6a): the
-    //! FINISHED real-space XC quadrature -- mesh + symmetry fold -- for the direct-quadrature v_xc route.
-    //! Default: the Structure's own integration mesh, no fold (molecules / a free run / a basis without
-    //! imposed ops) -- the same neutral build \c tBasisSet<T> uses at whole-set level.  A basis carrying
-    //! imposed crystal ops OVERRIDES this to group-average the mesh invariant and prepare the orbit fold
-    //! (GPW) -- so the Hamiltonian does no mesh work whichever basis it holds.  (Hoisted from the retired
-    //! Band_FT_IBS -- V1.1(iii): the neutral default was always structure-agnostic.)
-    virtual FitQuadrature CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
-    {
-        qchem::report::Scope here("xcQuadrature");   // the mesh builder reports one level in
-        return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};
-    }
     // NB: there is deliberately NO Repulsion3C(D,c)/Overlap3C(D,c) here -- the density-matrix contraction
     // <rho|c> = Sum_ab D_ab <ab|c> is a DENSITY operation (it lives in the charge density, which owns D),
     // NOT a basis one.  The basis exposes only the D-free integral tensors above; D never enters qcBasisSet.
