@@ -76,12 +76,13 @@ TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_RefusesAnAliasedFirstIterate_Lon
 }
 
 // At the DEFAULT accuracy the first stage starts on the ball's own rasters (x 4: Etot +845 Ha), is refused, and the pilot restarts ONCE on
-// rasters whose alias does not exceed lambda_min(S) (x 14.2, 90^3); the pilot then settles with 0 re-convergences.  1 refused + 24 measured.
+// rasters whose alias does not exceed lambda_min(S) (x 14.2, 90^3).  With the density ball judged (2026-11-03) the pilot doubles the ball once
+// (cf 2 -> 4, Eee 3.3e-4 OVER 6e-5) and re-converges: 47 measured = 25 + 22 re-convergence (was 25 with 0); E moves +334 uHa (ball).
 TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_ConvergesThroughARefusedFirstIterate_Panel_Long)
 {
-    const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO2_dD_Default.json"), 31,
-                                   "beta-MnO2 dense-d, default accuracy: refused on the ball rasters, restarted on conditioned ones (25 measured, 2026-11-01)");
+    const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO2_dD_Default.json"), 59,
+                                   "beta-MnO2 dense-d, default accuracy: refused on the ball rasters, restarted on conditioned ones, one ball doubling (47 measured, 2026-11-03)");
     ASSERT_TRUE(o.run.converged) << o.run.summary;
     ASSERT_TRUE(o.run.energy);
-    EXPECT_NEAR(*o.run.energy, -93.4419391947, 1e-5) << "the dense-d A1AFM U = 0 state (measured 2026-11-01; drho/N 3e-5)";
+    EXPECT_NEAR(*o.run.energy, -93.4416050775, 1e-5) << "the dense-d A1AFM U = 0 state (re-measured 2026-11-03 at cf 4; was -93.4419391947 at cf 2)";
 }

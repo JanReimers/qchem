@@ -350,6 +350,7 @@ json ToJson(const SolidCalcOptions& o)
             {"spinsShareFermi",o.spinsShareFermi},{"greyImposition",o.greyImposition},{"momFromSeed",o.momFromSeed},
             {"siteSpins",o.siteSpins},{"siteCharges",o.siteCharges},{"label",o.label},{"saveStateTo",o.saveStateTo}};
     if (o.accuracy.eta) out["accuracyCalibration"]={{"vlocLong",o.accuracy.eta->vlocLong},{"density",o.accuracy.eta->density}};   // stated only
+    if (o.accuracy.vlocRoutingEta!=BasisSet::Gaussian::GridAccuracy{}.vlocRoutingEta) out["accuracyCalibration"]["vlocRouting"]=o.accuracy.vlocRoutingEta;
     return out;
 }
 void FromJson(const json& j, SolidCalcOptions& o)
@@ -386,13 +387,21 @@ void FromJson(const json& j, SolidCalcOptions& o)
                                                          "must be >= 0 (0 = no target: the rasters tolerances.rasterX ... state)");
     if (j.contains("accuracyCalibration"))   // STATED (expert); absent = self-calibrated by the run's pilot audit
     {
+        // the raster eta is stated by the block (an empty one = rigorous, eta 1); vlocRouting ALONE (V_loc long's routing calibration, which
+        // always has a measured default) leaves the rasters self-calibrated
+        const json& cj=j.at("accuracyCalibration");
+        const bool etaStated=!(cj.is_object() && cj.size()==1 && cj.contains("vlocRouting"));
         BasisSet::Gaussian::AccuracyCalibration eta;
         Fields c(f.At("accuracyCalibration"),"solid.accuracyCalibration");
         c.Get("vlocLong",eta.vlocLong); c.Get("density",eta.density);
+        c.Get("vlocRouting",o.accuracy.vlocRoutingEta);
         c.Done();
         if (!(eta.vlocLong>0.0 && eta.vlocLong<=1.0 && eta.density>0.0 && eta.density<=1.0))
             throw std::runtime_error("deck: 'solid.accuracyCalibration' factors are eta = delivered/bound, in (0, 1] (1 = rigorous)");
-        o.accuracy.eta=eta;
+        if (!(o.accuracy.vlocRoutingEta>0.0))
+            throw std::runtime_error("deck: 'solid.accuracyCalibration.vlocRouting' is V_loc long's routing calibration eta = delivered/bound, > 0 "
+                                     "(a stated 'solid.tolerances.vlocEps' wins over it)");
+        if (etaStated) o.accuracy.eta=eta;
     }
     if (j.contains("policy"))     FromJson(f.At("policy"),o.policy);         else f.At("policy");
     f.GetEnum("vxcFit",o.vxcFit,kVxc);

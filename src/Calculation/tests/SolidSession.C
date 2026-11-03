@@ -132,9 +132,14 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     ASSERT_TRUE(pes.ConvergeAt(ref.cell, R));
     ASSERT_TRUE(pes.Current());
     EXPECT_EQ(pes.Current()->Consumes(), ClientConsumes::MatrixElements);
-    // A geometry pilot STARTS AT THE BOUND (rigorous L(eps), eta = 1): the audit confirms it, no re-convergence.
-    EXPECT_EQ(pes.Current()->PilotCost().rounds, 1) << "seeded at the bound, the first audit settles";
-    EXPECT_EQ(pes.Current()->PilotCost().reconvergeIterations, 0u);
+    // A geometry pilot STARTS ITS RASTERS AT THE BOUND (rigorous L(eps), eta = 1): they meet it at once.  The DENSITY BALL does not
+    // (2026-11-02, OpenWork F "density ball unjudged"): measured on this cell, max|dH| of Hartree against twice the ball 1.3e-2 / 6.7e-5 /
+    // 1.4e-5 / 6.4e-7 at cutoffFactor 2 / 4 / 8 / 16, so it settles on 16 in 4 rounds, 24 re-convergence iterations.
+    EXPECT_TRUE(pes.Current()->PilotCost().settled);
+    EXPECT_EQ(pes.Current()->PilotCost().rounds, 4) << "the rasters at the bound; the ball climbs cutoffFactor 2 -> 16";
+    EXPECT_LE(pes.Current()->PilotCost().reconvergeIterations, 30u);
+    EXPECT_EQ(pes.Current()->SizedSetup()->opts.cutoffFactor, 16.0);
+    EXPECT_EQ(single.SizedSetup()->opts.cutoffFactor, 4.0) << "the energy run's ball: 1.2e-3 Ha at 2, 3.3e-6 at 4";
     const auto sizedH=pes.Current()->SizedSetup();
     const auto& tE=sizedE->opts.tolerances; const auto& tH=sizedH->opts.tolerances;
     EXPECT_GE(tH.rasterX, tE.rasterX);  EXPECT_GE(tH.vlocRasterX, tE.vlocRasterX);  EXPECT_GE(tH.xcRasterX, tE.xcRasterX);
@@ -168,8 +173,8 @@ TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
     ASSERT_EQ(xc.cellKind, qcMesh::UnitCellKind::Becke) << "a geometry run's XC follows the atoms";
     EXPECT_GT(xc.nRadial, qcMesh::BeckeXCParams().nRadial) << "the energy-calibrated default does not meet 1e-5 per element on Si Gamma";
     EXPECT_TRUE(c.PilotCost().settled);
-    EXPECT_LE(c.PilotCost().rounds, 3);
-    EXPECT_LE(c.PilotCost().reconvergeIterations, 20u);
+    EXPECT_LE(c.PilotCost().rounds, 4) << "the density ball doubles three times beside the mesh's climb (cutoffFactor 2 -> 16, 2026-11-02)";
+    EXPECT_LE(c.PilotCost().reconvergeIterations, 35u) << "three re-convergences (27 measured 2026-11-02)";
 
     const double eps=o.accuracy.eps;   // per matrix element on a geometry run (GridAccuracy::Target)
     const auto A=c.XCMeshAudit(qcMesh::BeckeLadderAbove(qcMesh::BeckeLadderAbove(xc)));

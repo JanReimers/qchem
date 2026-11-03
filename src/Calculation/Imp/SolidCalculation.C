@@ -1192,19 +1192,26 @@ SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const 
     // A STATE SIZED FOR THIS TARGET (C2 step 3): on an unresolved setup whose accuracy eps the saved state was made at, its rasters are the
     // ones a pilot settled for that eps -- adopt them, so an exact resume stays exact (the pilot would otherwise restart on the ball's
     // own rasters and re-size).  Any other state (another eps, a stated raster, an older file) leaves the setup to its own pilot.
+    // The AUTO density ball is pilot-sized too (the ball ladder doubles cutoffFactor): adopting the rasters skips the pilot, so the
+    // ball it settled must come with them -- else the resume runs the rasters on the starting ball and walks to that ball's fixed
+    // point (MnO +U vendored twin, 2026-11-03: saved at cutoffFactor 4, resumed at 2, 3-4 iterations and 150 uHa off the cold gate).
     if (!setup->rastersResolved)
     {
         const auto& w=saved->fingerprint.warmNum;
         auto one=[&](const char* k)->std::optional<double>
         { auto it=w.find(k); return it!=w.end() && it->second.size()==1 ? std::optional<double>(it->second[0]) : std::nullopt; };
         const auto eps=one("gpw.accuracyEps"), rx=one("gpw.rasterX"), vx=one("gpw.vlocRasterX"), xx=one("gpw.xcRasterX");
+        const auto cf=one("grids.cutoffFactor");
         if (eps && rx && vx && xx && *eps==setup->opts.accuracy.eps)
         {
             auto adopted=std::make_shared<SolidSetup>(*setup);
             adopted->opts.tolerances.rasterX=*rx; adopted->opts.tolerances.vlocRasterX=*vx; adopted->opts.tolerances.xcRasterX=*xx;
+            const bool adoptBall = cf && !(setup->opts.densityEcut>0.0);  // a STATED densityEcut is the user's, never the pilot's
+            if (adoptBall) adopted->opts.cutoffFactor=*cf;
             adopted->rastersResolved=true;
-            std::cout<<tag<<"adopting the saved state's rasters x(density, V_long, XC L0)=("<<*rx<<", "<<*vx<<", "<<*xx
-                     <<"): it was sized for this accuracy (eps "<<*eps<<")"<<std::endl;
+            std::cout<<tag<<"adopting the saved state's rasters x(density, V_long, XC L0)=("<<*rx<<", "<<*vx<<", "<<*xx<<")";
+            if (adoptBall) std::cout<<" and its density ball (cutoffFactor "<<*cf<<")";
+            std::cout<<": it was sized for this accuracy (eps "<<*eps<<")"<<std::endl;
             setup=std::move(adopted);
         }
     }
@@ -1405,8 +1412,11 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     rpt::json rounds=rpt::json::array();
     std::optional<std::pair<double,double>> xcBefore;   // the XC term's (x, delivered) one round back: the power-law fit's first point
     bool xcOver=false;                                  // the XC term was over its target in the last round audited
-    std::optional<double> beckeBefore;                  // the Becke rung difference one round back: the ladder's convergence ratio
+    std::optional<std::pair<std::string,double>> beckeBefore;   // (rung, its difference) one round back: the ladder's convergence ratio
     bool xcStatedOver=false;                            // a STATED Becke mesh was over its target (honoured, reported)
+    std::optional<std::pair<std::string,double>> ballBefore;    // (ball, its difference) one round back
+    bool ballStatedOver=false;                          // a STATED densityEcut was over its target (honoured, reported)
+    bool metEveryTarget=false;                          // the SETTLED line, not the round cap, ended the ladder
     for (int round=0;; ++round)
     {
         const G::RasterExponents x=*L3::GpwRasterExponents(*itsImp->bs);
@@ -1464,9 +1474,11 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             // The rung difference UNDER-states the rung's own error when the ladder converges slowly: Si Gamma halves per rung (1.8e-5,
             // 8.9e-6), so its error is ~ the whole geometric tail d/(1 - r), r the measured ratio to the rung below -- twice d there.  One
             // rung measured: d alone (no ratio yet); a ratio >= 1 (not converging) also falls back to d, and then the next rung measures again.
+            // The ratio is between two RUNGS: a round that re-audits the SAME rung (another ladder moved, this one did not) has no ratio --
+            // d/d ~ 1 made the estimate blow up (NaF geometry, 2026-11-02: 4.7e-7 re-measured on the same mesh read as a 5.2e-2 tail).
             double est=d;
-            if (beckeBefore && d<*beckeBefore) est=d/(1.0-d/(*beckeBefore));
-            beckeBefore=d;
+            if (beckeBefore && beckeBefore->first!=BeckeName(xcCur) && d<beckeBefore->second) est=d/(1.0-d/beckeBefore->second);
+            beckeBefore=std::pair{BeckeName(xcCur), d};
             const bool stated=itsImp->setup->opts.xcMesh.cellKind!=qcMesh::UnitCellKind::Auto;
             std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<"XC on the Becke mesh"<<std::right<<" delivered "<<std::scientific
                      <<std::setprecision(3)<<d<<" (tail estimate "<<est<<") on "<<BeckeName(xcCur)<<" against "<<BeckeName(ref)<<"  ";
@@ -1477,6 +1489,50 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             terms.push_back({{"term","XC Becke mesh"},{"delivered",d},{"tailEstimate",est},{"mesh",BeckeName(xcCur)},{"reference",BeckeName(ref)},
                              {"over",est>target}});
         }
+        // THE DENSITY BALL (2026-11-02, OpenWork F "density ball unjudged"): the G-ball the density is collocated into is NOT a raster --
+        // the x + 8 reference above keeps the run's ball, so its truncation sat on BOTH sides and cancelled (lane B: H2O MOLOPT O, auto
+        // densityEcut 24 Ha, 330 uHa from CP2K; 100 Ha closes it to 2.5 uHa).  A nested ladder like the Becke mesh's: the run against a
+        // reference with TWICE the ball at the same rasters, at this D, judged on Hartree (below); an auto ball over the target doubles
+        // (cutoffFactor), a STATED densityEcut is honoured and reported.  The target is the run's eps (pin 31), so the ladder's START
+        // (cutoffFactor x alpha_max) is only where it begins: a better start -- a basis Resolution(eps) query -- changes no answer.
+        std::optional<double> ballNext;
+        std::string ballOtherOver;   // a term the ball audit finds OVER that a bigger ball does not cure (it blocks SETTLED, honestly)
+        {
+            const SolidCalcOptions& o=itsImp->setup->opts;
+            const GridAuditResult Bl=CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), "density ball x 2", nullptr, 2.0);
+            // THE BALL'S OWN TERM is Hartree (the ball is its quadrature): it alone decides whether the ball doubles.  EVERY OTHER TERM is judged
+            // too (controller ruling 2026-11-02, the honest gate): a bigger ball also re-routes the local-PP LONG sweep over the multigrid levels,
+            // and that row does NOT fall as the ball doubles -- it alternates (MnO geometry: +5.7e-5, -6.3e-5, +6.1e-5 at cutoffFactor 2, 4, 8,
+            // against MnO's 4e-5; Si Gamma ~1e-5) -- so it is reported OVER and blocks SETTLED instead of driving a doubling it cannot answer.
+            double d=0.0, dOther=0.0;
+            std::string otherTerm;
+            for (const auto& T : Bl.terms)
+            {
+                const double v = onH ? T.maxAbsΔH : std::fabs(T.ΔE);
+                if (T.entries=="Eee") d=std::max(d, v);
+                else if (v>dOther) { dOther=v; otherTerm=T.entries+": "+T.label.substr(0, T.label.find('('));}
+            }
+            const std::string worst="Eee";
+            const bool   stated=o.densityEcut>0.0;
+            const std::string ball = stated ? "densityEcut "+std::to_string(o.densityEcut)+" Ha" : "cutoffFactor "+std::to_string(o.cutoffFactor);
+            double est=d;   // the geometric tail over the doubling rungs, as for the Becke mesh (and, as there, only between two DIFFERENT balls)
+            if (ballBefore && ballBefore->first!=ball && d<ballBefore->second) est=d/(1.0-d/ballBefore->second);
+            ballBefore=std::pair{ball, d};
+            std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<"density ball"<<std::right<<" delivered "<<std::scientific
+                     <<std::setprecision(3)<<d<<" ["<<worst<<"] (tail estimate "<<est<<") on "<<ball<<" against twice it  ";
+            if (est<=target) std::cout<<"meets "<<target<<std::endl;
+            else if (stated) { std::cout<<"OVER, and densityEcut is STATED: honoured (leave it auto to let the pilot size the ball)"<<std::endl; ballStatedOver=true; }
+            else             { std::cout<<"OVER: the ball doubles (cutoffFactor "<<2.0*o.cutoffFactor<<")"<<std::endl; ballNext=2.0*o.cutoffFactor; }
+            if (dOther>target)
+            {
+                ballOtherOver=otherTerm;
+                std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<"  beside the ball"<<std::right<<" delivered "<<dOther<<" ["
+                         <<otherTerm<<"] against twice the ball  OVER: not the ball's own term, a bigger ball does not cure it (OpenWork §3)"<<std::endl;
+            }
+            std::cout<<std::defaultfloat<<std::setprecision(prec0);
+            terms.push_back({{"term","density ball"},{"delivered",d},{"worstTerm",worst},{"tailEstimate",est},{"ball",ball},{"over",est>target},
+                             {"besideTheBall",dOther},{"besideTerm",otherTerm},{"besideOver",dOther>target}});
+        }
         std::cout<<std::defaultfloat<<std::setprecision(prec0);
         rounds.push_back({{"round",round},{"rasters",RasterName(t)},{"terms",terms}});
         itsImp->pilotCost.rounds=round+1;
@@ -1484,11 +1540,20 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         t.rasterX    =std::max(t.rasterX,     dDens);
         t.vlocRasterX=std::max(t.vlocRasterX, dV);
         t.xcRasterX  =std::max(t.xcRasterX,   dXC);
-        if (t==was && !xcMeshNext)
+        if (t==was && !xcMeshNext && !ballNext && !ballOtherOver.empty())
+        {   // nothing the pilot sizes would change: another round would re-measure the same grids.  Stop and say so.
+            std::cout<<tag<<"NOT SETTLED after "<<round<<" re-convergence(s): every grid the pilot sizes meets "<<target<<" Ha on "<<RasterName(t)
+                     <<", but "<<ballOtherOver<<" is over it beside the ball (no knob of the pilot's answers it) -- the run keeps these grids and says so"
+                     <<std::endl;
+            break;
+        }
+        if (t==was && !xcMeshNext && !ballNext)
         {
             std::cout<<tag<<"SETTLED after "<<round<<" re-convergence(s): every raster term meets "<<target<<" Ha on "<<RasterName(t);
             if (onH && xcCur.cellKind==qcMesh::UnitCellKind::Becke) std::cout<<", the XC on "<<BeckeName(xcCur)<<(xcStatedOver ? " (STATED, OVER)" : "");
+            std::cout<<", the density ball "<<(ballStatedOver ? "(STATED, OVER)" : "meets it");
             std::cout<<std::endl;
+            metEveryTarget=true;
             break;
         }
         if (round+1>=kPilotRounds)
@@ -1506,11 +1571,13 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         // terms (the Ladder enters on its GDM rung at kT = 0, as a restart does).  Torn down iterator-first: each borrows the next.
         std::cout<<tag<<"raising the rasters to "<<RasterName(t);
         if (xcMeshNext) std::cout<<" and the XC mesh to "<<BeckeName(*xcMeshNext);
+        if (ballNext)   std::cout<<" and the density ball to cutoffFactor "<<*ballNext;
         std::cout<<" and re-converging from this D"<<std::endl;
         const SavedState st=Carry();
         auto sized=std::make_shared<SolidSetup>(*itsImp->setup);
         sized->opts.tolerances=t;
         if (xcMeshNext) sized->xcMesh=*xcMeshNext;
+        if (ballNext)   sized->opts.cutoffFactor=*ballNext;
         const Lattice_3D lat=*itsImp->lat;
         const auto mol=itsImp->mol;
         // A restart's accelerator (CLAUDE.md: restarts run GDM or the DIIS->GDM Ladder at kT = 0): an Auto stage would resolve a restored
@@ -1535,7 +1602,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         }
     }
     itsImp->rastersSettled=itsImp->converged;
-    itsImp->pilotCost.settled=itsImp->rastersSettled;
+    itsImp->pilotCost.settled=itsImp->rastersSettled && metEveryTarget;   // NOT SETTLED at the round cap is not settled (it read true)
     std::cout<<tag<<"cost: "<<itsImp->pilotCost.rounds<<" audit round(s), "<<itsImp->pilotCost.reconvergeIterations
              <<" re-convergence iteration(s) beyond the run's own"<<std::endl;
     rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
@@ -1569,7 +1636,8 @@ SolidCalculation::GridAuditResult SolidCalculation::EggBox(const rvec3_t& shift)
 }
 
 SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift,
-                                                                    const std::string& referenceName, const qcMesh::MeshParams* xcMesh) const
+                                                                    const std::string& referenceName, const qcMesh::MeshParams* xcMesh,
+                                                                    double ballScale) const
 {
     namespace rpt=qchem::report;
     const SolidSetup&       S    = *itsImp->setup;
@@ -1614,8 +1682,10 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
     const auto        stRef  = eggBox ? latShifted->GetStructure() : itsImp->st;
     {
         namespace L3 = BasisSet::Lattice;
+        // The density ball: the run's, or ballScale x it -- on the knob that sets it (an auto ball is cutoffFactor x alpha_max).
+        const bool autoBall = opts.densityEcut<0.0;
         bsRef.reset(L3::GPWFactory(latRef, molRef, L3::GPWParams{
-            .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor,
+            .densityEcut = autoBall ? opts.densityEcut : ballScale*opts.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.cutoffFactor : opts.cutoffFactor,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = raster,
             .hamPreservesReal = !opts.forceComplex}));
