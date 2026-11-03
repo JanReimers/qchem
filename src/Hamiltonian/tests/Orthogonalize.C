@@ -17,7 +17,6 @@ import qchem.Structure;
 import qchem.Hamiltonian.Factory;
 import qchem.Symmetry.Spin;
 
-import qchem.Math;
 import qchem.Blaze;
 using namespace qchem;
 

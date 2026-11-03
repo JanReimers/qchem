@@ -12,7 +12,6 @@ import qchem.MoleculeCalculation;
 import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;
 import qchem.Types;        // Vector3D
-import qchem.Blaze;
 import qchem.SCFParams;
 using namespace qchem;
 

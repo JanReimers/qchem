@@ -16,7 +16,6 @@ module;
 module qchem.ElectronConfiguration.OccupationPolicy;
 import qchem.Blaze;   // blazem::ctrans / norm / column (the projection algebra)
 import qchem.Types;   // vec_t<T>
-import qchem.Math;    // fabs (the Fermi response weight's degenerate branch)
 
 namespace qchem {
 

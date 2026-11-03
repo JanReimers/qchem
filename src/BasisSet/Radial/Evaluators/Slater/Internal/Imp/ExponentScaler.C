@@ -3,7 +3,6 @@ module;
 module qchem.BasisSet.Radial.Evaluators.Slater.Internal.ExponentScaler;
 import qchem.BasisSet.Radial.Internal.FillPower;
 import qchem.Symmetry.Atom.Spherical;
-import qchem.Math;
 import qchem.Blaze;
 
 namespace qchem::Slater

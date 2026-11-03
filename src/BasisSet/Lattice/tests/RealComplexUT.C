@@ -18,7 +18,6 @@
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> + ibs_child_t (the slot under test)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;     // tGPW_IBS<T> (both alternatives)
 import qchem.BasisSet.Gaussian.Point.Factory;       // the molecular Gaussian basis over the cell's atoms
-import qchem.Lattice_3D;                      // UnitCell
 import qchem.Types;
 
 using namespace qchem;

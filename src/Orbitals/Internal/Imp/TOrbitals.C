@@ -11,9 +11,7 @@ module qchem.Orbitals.Internal.OrbitalsImp;
 import qchem.Orbitals.Internal.OrbitalImp;
 import qchem.ChargeDensity.Factory;
 import qchem.Symmetry;
-import qchem.Math;
 import qchem.stl_io;
-import qchem.Streamable;
 import qchem.Blaze;
 
 namespace qchem::Orbitals

@@ -6,7 +6,6 @@ module;
 #include <string>
 #include <vector>
 module qchem.Symmetry.Lattice_3D.BlochQN;
-import qchem.Math;   // fabs, lround (StarSize's integer-multiple check)
 
 namespace qchem::Symmetry::Lattice_3D {
 

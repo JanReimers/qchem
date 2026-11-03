@@ -21,7 +21,6 @@ import qchem.Symmetry.Unit;
 import qchem.BasisSet.Gaussian.PG_Cart.Symmetry;   // ExtractAoShells(const PGData&) -- for GetAoShells()
 import qchem.stl_io;
 import qchem.Streamable;
-import qchem.Math;
 import qchem.Blaze;
 
 namespace qchem::BasisSet::Gaussian::PG_Cart

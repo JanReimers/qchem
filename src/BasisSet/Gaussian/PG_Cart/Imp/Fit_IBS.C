@@ -10,14 +10,9 @@ module;
 
 module qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
-import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
 import qchem.BasisSet;
 import qchem.Structure;
-import qchem.Symmetry.Unit;
-import qchem.stl_io;
 import qchem.Streamable;
-import qchem.Math;
-import qchem.Blaze;
 
 namespace qchem::BasisSet::Gaussian::PG_Cart
 {

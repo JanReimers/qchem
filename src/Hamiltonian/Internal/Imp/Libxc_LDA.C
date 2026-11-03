@@ -4,7 +4,6 @@ module;
 #include <cassert>
 #include <src/xc.h>
 module qchem.Hamiltonian.Internal.Libxc_LDA;
-import qchem.Streamable;
 
 namespace qchem::Hamiltonian
 {

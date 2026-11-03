@@ -16,8 +16,6 @@ import qchem.BasisSet.Gaussian.Point.BasisFiles;           // A1_coul/A1_exch pa
 import qchem.Structure;
 import qchem.Symmetry.Unit;
 import qchem.BasisSet.Gaussian.Point.PG_Spherical.Symmetry;   // ExtractAoShells(const SphData&) -- for GetAoShells()
-import qchem.stl_io;
-import qchem.Math;
 import qchem.Blaze;
 
 namespace qchem::BasisSet::Gaussian::PG_Spherical

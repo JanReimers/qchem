@@ -28,8 +28,6 @@ import qchem.Symmetry.Molecule.SphericalRep;    // SphericalShellRep -- the site
 import qchem.Math.Angular;                      // Math::SphericalShell (the set's m convention)
 import qchem.BasisSet.AtomCentredSet;           // the pseudo-atomic projector functions + the block's overlaps with them
 import qchem.Reporting;                         // the term's own [+U] line (pin 17: contemporaneous)
-import qchem.Blaze;
-import qchem.Math;
 import qchem.Vector3D;                          // norm(rvec3_t) -- the site match
 import qchem.Symmetry.Irrep;                    // Spin, SpinIrreps
 

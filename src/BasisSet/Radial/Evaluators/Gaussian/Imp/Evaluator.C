@@ -6,7 +6,6 @@ module qchem.BasisSet.Radial.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Radial.Evaluators.Gaussian.Internal.Rk; 
 import qchem.BasisSet.Radial.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import qchem.BasisSet.Radial.Evaluators.Gaussian.Internal.ExponentScaler; 
-import qchem.Math;
 import qchem.Blaze;
 
 namespace qchem::BasisSet::Radial::Evaluators::Gaussian

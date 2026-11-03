@@ -12,11 +12,8 @@ using std::endl;
 
 import qchem.BasisSet.Radial.Evaluators; 
 import qchem.BasisSet.Radial.Evaluators.Gaussian.IBS; 
-import qchem.BasisSet.Radial.Evaluators.Internal.Rk;
 import qchem.BasisSet.Radial.Evaluators.Internal.Grouper;
-import qchem.BasisSet.Radial.Evaluators.Gaussian.Internal.Rk; 
 import qchem.BasisSet.Radial.Evaluators.Internal.ExponentialEvaluator;
-import qchem.stl_io;
 import qchem.BasisSet.Radial.Factory;
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;  // tests may cheat: the ERI4 substrate face
 import qchem.BasisSet.Internal.DB_Cache_RAM;   // theCache<double>() + GetCache4(RadialType)

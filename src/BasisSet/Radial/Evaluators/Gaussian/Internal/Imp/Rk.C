@@ -5,8 +5,6 @@ module;
 #include <vector>
 module qchem.BasisSet.Radial.Evaluators.Gaussian.Internal.Rk; 
 import qchem.BasisSet.Radial.Internal.PascalTriangle;
-import qchem.BasisSet.Radial.Evaluators;
-import qchem.Math;
 import qchem.Blaze;
 
 using std::cout;

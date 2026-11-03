@@ -6,8 +6,6 @@ module;
 #include <vector>
 module qchem.Fitting.Internal.FunctionFitterImp;
 import qchem.Fitting.Types;
-import qchem.Streamable;
-import qchem.Blaze;
 import qchem.BasisSet.Projector3;   // DenseProjector3Integrator + Projector3 (the borrowed tensor)
 
 namespace qchem::Fitting

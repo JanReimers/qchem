@@ -8,7 +8,6 @@ module;
 module qchem.BasisSet.Radial.Evaluators.BSpline.Internal.Common;
 import qchem.BasisSet.Radial.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.Symmetry.Atom.Spherical;
-import qchem.Math;
 
 namespace qchem::BasisSet::Radial::Evaluators::BSpline::Internal
 {

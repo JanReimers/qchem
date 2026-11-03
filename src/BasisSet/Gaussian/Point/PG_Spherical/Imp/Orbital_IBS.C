@@ -8,7 +8,6 @@ module;
 #include <cassert>
 
 module qchem.BasisSet.Gaussian.Point.PG_Spherical;
-import qchem.Blaze;
 
 namespace qchem::BasisSet::Gaussian::PG_Spherical
 {

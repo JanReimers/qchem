@@ -5,7 +5,6 @@ module;
 #include <bspline/Core.h>
 #include <cassert>
 module qchem.BasisSet.Radial.Evaluators.BSpline.Internal.SplineGrouper;
-import qchem.Types;
 
 namespace qchem {
 using std::cout;

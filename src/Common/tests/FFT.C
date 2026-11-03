@@ -5,7 +5,6 @@
 import qchem.FFT;
 import qchem.Types;
 import qchem.Blaze;   // scalar /= on cvec_t (the blaze operators live in Blaze's global fragment)
-import qchem.Math;
 using namespace qchem;
 
 using qchem::FFT::FFT1D;

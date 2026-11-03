@@ -17,7 +17,6 @@ import qchem.BasisSet.Orbital_DFT_IBS;             // Orbital_DFT_IBS<dcmplx>::C
 import qchem.ReciprocalLattice;
 import qchem.UnitCell;                             // isPeriodicCell
 import qchem.Mesh;                                 // qcMesh::MeshParams
-import qchem.Blaze;
 import qchem.Types;
 
 namespace qchem::ChargeDensity

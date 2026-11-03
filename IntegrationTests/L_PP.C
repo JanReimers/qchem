@@ -29,7 +29,6 @@ import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH
 import qchem.Symmetry.Spin;                      // Spin
 import qchem.Mesh;                               // qcMesh::MeshParams
-import qchem.Blaze;                              // matrix element access (i,j) / rows() on the GetMatrix result
 import qchem.Types;
 using namespace qchem;
 using Real_OIBS = qchem::BasisSet::Real_OIBS;

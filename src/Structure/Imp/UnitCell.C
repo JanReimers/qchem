@@ -11,8 +11,6 @@ module;
 
 module qchem.UnitCell;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
-import qchem.Math;
-import qchem.Environment;    // Env(name, legacy)
 import qchem.Parallel;       // WorkerThreads (QCHEM_OPENMP_THREADS: the Becke mesh build)
 import qchem.Structure;      // Atom (AddAtom inserts atoms given in fractional coordinates)
 import qchem.Vector3D;       // norm(rvec3_t)

@@ -28,7 +28,6 @@ import qchem.SCFAccelerator.Internal.SCFAcceleratorLadder;      // the Engageabl
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;   // rung 0 of the test ladder
 import qchem.LASolver;
 import qchem.Symmetry;
-import qchem.Blaze;
 using namespace qchem;
 using namespace qchem::SCFAccelerators;
 

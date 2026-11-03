@@ -18,10 +18,8 @@ import qchem.BasisSet.G_FieldEvaluator;      // G_PoissonKernel / G_RasterTransf
 import qchem.Mesh;                            // qcMesh::MeshParams (the fit-basis factory's argument)
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH (H, Si pseudopotentials from the database)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
-import qchem.LASolver;
 import qchem.Types;
 import qchem.Blaze;
-import qchem.Math;           // Pi
 import qchem.Math.Angular;   // SphericalShell (the +U set's harmonic convention, the reference side of the PW-3 gates)
 using namespace qchem;
 

@@ -13,7 +13,6 @@
 #include <stdexcept>
 #include <string>
 import qchem.Mesh.XCPolicy;
-import qchem.Math;                // Pi
 
 using namespace qchem;
 using namespace qchem::qcMesh;

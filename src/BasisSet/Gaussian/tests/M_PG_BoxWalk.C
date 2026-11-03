@@ -45,13 +45,10 @@
 
 import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;     // CollocationEps (the default collocation floor)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;            // NR_Evaluator (ForShellPairBox is public)
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;     // radials / pols / ns
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF; // GetExponents / GetCoeffs / GetCenter
 import qchem.BasisSet.Gaussian.PG_Cart;                           // Orbital_IBS
 import qchem.Structure;
 import qchem.UnitCell;
 import qchem.Types;
-import qchem.Blaze;
 
 using namespace qchem;
 using BasisSet::Gaussian::Evaluators::PG_Cart_MnD::NR_Evaluator;

@@ -15,10 +15,8 @@ module;
 
 module qchem.BasisSet.PlaneWave.Evaluators;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
-import qchem.Math;               // Pi, sqrt, cos, sin, Cube
 import qchem.BasisSet.PlaneWave.Internal.GVectors;   // BuildGs
 import qchem.FFT;                // NextPow2 (the XC grid geometry)
-import qchem.Blaze;              // blazem::zeroH
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
 namespace qchem::BasisSet::PlaneWave

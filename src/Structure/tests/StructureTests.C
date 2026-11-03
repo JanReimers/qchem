@@ -13,7 +13,6 @@ import qchem.UnitCell;
 import qchem.Lattice_3D;
 import qchem.Ewald;
 import qchem.Matrix3D;   // Matrix3D (the rhombohedral MnO AFM-II cell, EwaldFarApartHomeAtoms)
-import qchem.Math;
 import qchem.Types;   // rvec_t
 using namespace qchem;
 

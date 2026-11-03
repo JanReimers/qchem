@@ -3,10 +3,8 @@ module;
 #include <cassert>
 #include <map>
 #include <string>
-import qchem.EnergyLevel;
 module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.Symmetry;
-import qchem.Streamable;
 
 namespace qchem::Orbitals
 {
