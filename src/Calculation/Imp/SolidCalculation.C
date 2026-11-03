@@ -1538,8 +1538,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     itsImp->pilotCost.settled=itsImp->rastersSettled;
     std::cout<<tag<<"cost: "<<itsImp->pilotCost.rounds<<" audit round(s), "<<itsImp->pilotCost.reconvergeIterations
              <<" re-convergence iteration(s) beyond the run's own"<<std::endl;
-    if (rpt::Depth()>0)
-        rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
+    rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
                                              {"rasters",RasterName(itsImp->setup->opts.tolerances)},
                                              {"xcMesh", itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(itsImp->setup->xcMesh) : std::string("uniform")},{"settled",itsImp->rastersSettled},
                                              {"auditRounds",itsImp->pilotCost.rounds},{"reconvergeIterations",(long)itsImp->pilotCost.reconvergeIterations}});
@@ -1710,8 +1709,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             std::cout<<"[grid audit]   "<<who<<" "<<it.key()<<": "<<it.value().value("status",std::string())
                      <<" (predicted alias "<<it.value().value("alias",0.0)<<")"<<std::endl;
     std::cout<<std::defaultfloat<<std::setprecision(prec0);
-    if (rpt::Depth()>0)
-        rpt::EmitAt(eggBox ? "eggBox" : "gridAudit", eggBox ? R.reference : RasterName(opts.tolerances)+std::string("_vs_")+R.reference,
+    rpt::EmitAt(eggBox ? "eggBox" : "gridAudit", eggBox ? R.reference : RasterName(opts.tolerances)+std::string("_vs_")+R.reference,
                     rpt::json{{"run",RasterName(opts.tolerances)},{"reference",R.reference},{"terms",rows},
                          {"maxAbsDH",R.maxAbsΔH},{"dE",R.ΔE},{"verdicts",verdicts},{"referenceVerdicts",refVerdicts}});
     return R;

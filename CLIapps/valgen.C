@@ -334,10 +334,9 @@ int main(int argc, char** argv)
     std::optional<GeneratedSeedDensity> s;
     try
     {
-        // The recipe header is its own SHORT run so it renders at depth 1; then GenerateValenceBasis's
-        // pseudo-atom SCF (an AtomCalculation) opens its OWN depth-1 run and renders scf/basis/usage/cache --
-        // including the Verbose basis-usage heat map, the whole point of the tool.  (If valgen wrapped a run
-        // AROUND the generate call, the SCF would nest at depth 2 and the heat map would stay console-quiet.)
+        // The recipe header is its own SHORT run so it renders at depth 1; then the validating pseudo-atom SCF gets its own
+        // depth-1 run (opened HERE: a facade never opens one, user ruling D 2026-11-02) and renders scf/basis/usage/cache --
+        // including the Verbose basis-usage heat map, the whole point of the tool.
         {
             rpt::Begin("valgen " + element + " recipe");
             struct RunScope { ~RunScope() { rpt::End(); } } runScope;
@@ -361,7 +360,7 @@ int main(int argc, char** argv)
 
         // -- validate: run the pseudo-atom SCF in exactly these shells (records basis.exponents + basis.usage) --
         rpt::Log("valgen: running the pseudo-atom SCF to validate the window...");
-        g = GenerateValenceBasis(r, iterations);   // --iterations prints the per-iteration convergence trace
+        { rpt::Run validate("valgen " + element + " validate"); g = GenerateValenceBasis(r, iterations); }   // --iterations prints the per-iteration convergence trace
         RenderUsageHeatMap();      // valgen's joined exponent+population heat map (before seed adds a 2nd run)
 
         // -- result (+seed) as a closing run --
@@ -376,18 +375,19 @@ int main(int argc, char** argv)
             if (floor)   // the complete-basis (accuracy-pool) reference + how far this window sits above it
             {
                 rpt::Log("valgen: computing the complete-basis energy floor (pool reference)...");
-                const double ef = GenerateFloorEnergy(r);
+                double ef=0.0;
+                { rpt::Run quiet("valgen " + element + " floor SCF"); ef = GenerateFloorEnergy(r); }   // nested (depth 2): console-quiet
                 result["Efloor"]  = ef;                          // ~complete-basis PP energy
                 result["gap_mHa"] = 1000.0 * (g.energy - ef);    // this window's incompleteness (positive = above floor)
             }
             rpt::EmitSection("result", result);
 
             // seed density (optional): the SAME pseudo-atom SCF, sampled to a spherical rho(r).  Its own SCF
-            // nests here (depth 2, quiet) -- we only want the charge/⟨r⟩ metrics, not a second SCF report.
+            // gets a nested run (depth 2, quiet) -- we only want the charge/⟨r⟩ metrics, not a second SCF report.
             if (seed)
             {
                 rpt::Log("valgen: sampling the seed valence density...");
-                s = GenerateSeedDensity(r, ngrid, rmin, rmax);
+                { rpt::Run quiet("valgen " + element + " seed SCF"); s = GenerateSeedDensity(r, ngrid, rmin, rmax); }
                 rpt::json sj;
                 sj["charge"]    = s->charge;
                 sj["meanR"]     = s->meanR;     // <r> diffuseness (an anion's exceeds the neutral atom's)

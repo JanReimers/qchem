@@ -90,10 +90,7 @@ std::unique_ptr<Calculation> Calculation::Prepare(std::shared_ptr<const Molecule
 {
     const Structure& ref=*setup->reference;
     std::unique_ptr<Calculation> c(new Calculation(BuildOnly{}, std::move(setup), ref, nullptr, std::move(onIteration)));
-    namespace rpt = qchem::report;
-    rpt::Begin(c->itsStructure->ID()+" build");       // the BUILD's own run: the setup, complete, before any SCF
-    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
-    c->BuildGraph();
+    c->BuildGraph();                                  // into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
     c->itsPrepared=true;
     return c;
 }
@@ -119,7 +116,7 @@ Calculation::~Calculation()
     delete itsEC;
 }
 
-// THE GRAPH, built inside the caller's open report run (Converge's, or Prepare's own build run).
+// THE GRAPH, built inside the caller's open report run (if any: with none, every report write is a no-op).
 void Calculation::BuildGraph()
 {
     namespace rpt = qchem::report;
@@ -196,14 +193,11 @@ void Calculation::BuildGraph()
 
 Outcome<Calculation::Converged, SCFFailure> Calculation::Converge(const SCFParams& params)
 {
-    // Open a run report for the whole SCF (the RAII guard guarantees End() even if a step throws,
-    // so a failed run never leaks the sink's run-context / cursor stacks).  The report only RECORDS
-    // unless a client attached a console via report::SetConsole.
+    // The SCF writes into the CALLER'S report run: a facade never opens one (user ruling D, 2026-11-02 -- drivers own the
+    // runs, the caller sets the context one level up).  With no run open every write is a no-op.
     namespace rpt = qchem::report;
-    rpt::Begin(itsStructure->ID());
-    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
     { rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type); }   // the "what recipe am I running" header
-    if (itsPrepared) itsPrepared=false;                       // Prepare built the graph in its own run: reuse it, once
+    if (itsPrepared) itsPrepared=false;                       // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
     if (itsObserver) itsScf->SetObserver(itsObserver);
     (void)itsScf->Iterate(params);   // the outcome is the iterator's Converged(), minted below

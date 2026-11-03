@@ -103,10 +103,7 @@ std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(int Z, int charge, con
                                                           const AcceleratorOptions& acc, Observer onIteration)
 {
     std::unique_ptr<AtomCalculation> c(new AtomCalculation(BuildOnly{}, Z, charge, opts, acc, std::move(onIteration)));
-    namespace rpt = qchem::report;
-    rpt::Begin(c->itsStructure->ID()+" build");       // the BUILD's own run: the setup, complete, before any SCF
-    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
-    c->BuildGraph();
+    c->BuildGraph();                                  // into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
     c->itsPrepared=true;
     return c;
 }
@@ -144,7 +141,7 @@ std::string AtomCalculation::AcceleratorTag() const
          ? itsOpts.accelerator.value("type", std::string("DIIS")) : std::string("DIIS");
 }
 
-// THE GRAPH, built inside the caller's open report run (Converge's, or Prepare's own build run).
+// THE GRAPH, built inside the caller's open report run (if any: with none, every report write is a no-op).
 void AtomCalculation::BuildGraph()
 {
     namespace H = qchem::Hamiltonian;
@@ -219,16 +216,11 @@ void AtomCalculation::BuildGraph()
 
 bool AtomCalculation::Converge(const SCFParams& params)
 {
-    // Open a run report for the whole atomic SCF -- the atom-side mirror of qchem::Calculation (Reporting is
-    // new; this brings the atomic front door onto it, so scfrun/valgen and the A_* tests all record a run).
-    // The RAII guard guarantees End() even if a step throws, so a failed run never leaks the sink's context/
-    // cursor stacks.  Nothing renders unless a client attached a console (report::SetConsole); nested runs (a
-    // valence-basis generator brackets its own) stay console-quiet below depth 1.
+    // The atomic SCF writes into the CALLER'S report run, as every facade does (user ruling D, 2026-11-02): scfrun, valgen, the
+    // valence-basis generator and the tests that read the report open it.  With no run open every write is a no-op.
     namespace rpt = qchem::report;
-    rpt::Begin(itsStructure->ID());
-    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
     { rpt::Section scf("scf"); ReportSCFRecipe(params, AcceleratorTag(), AtomRecipeKeys(itsOpts, itsNe)); }   // the "what recipe am I running" header
-    if (itsPrepared) itsPrepared=false;                // Prepare built the graph in its own run: reuse it, once
+    if (itsPrepared) itsPrepared=false;                // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
     if (itsObserver) itsScf->SetObserver(itsObserver);
 
