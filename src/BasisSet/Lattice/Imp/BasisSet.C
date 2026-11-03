@@ -17,7 +17,6 @@ module;
 #include <numbers>   // std::numbers::pi (the PW pair-rep phases)
 #include <complex>   // std::exp / std::conj on the PW pair-rep phases
 module qchem.BasisSet.Lattice.BasisSet;
-import qchem.Symmetry.Lattice_3D.Fold;   // RequireClosedGroup -- the imposition gate
 import qchem.RunPolicy;   // theRunPolicy().StreamFold() -- the T3.2 fold, declared with the deviations (N5)
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;     // Gaussian::GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
@@ -62,11 +61,9 @@ PW_BasisSet::PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut, const std:
     if (!magnetic) return;
     if (GetNumIBS()!=1 || N!=ivec3_t(1,1,1))
         throw std::invalid_argument("PW_BasisSet: a magnetic imposition is Γ-only (one block, no Bloch phase per op)");
-    const std::vector<SL::SymOp> ops=lat.ShubnikovOps(siteSpins);
-    SL::RequireClosedGroup(ops, "PW imposition (Shubnikov group)");
-    size_t nFlip=0; for (const auto& op : ops) if (op.sigma==SL::SpinAction::Flip) nFlip++;
-    std::cout << "[symmetry] IMPOSING the SHUBNIKOV group of the declared ordering on the plane-wave block: " << ops.size()
-              << " ops (" << ops.size()-nFlip << " spatial + " << nFlip << " spin-flip), by the (D_up, D_dn) pair projection" << std::endl;
+    // The group is resolved by the ONE imposition builder (closure-gated there), not here (V-BS-SYMMETRY S1).
+    const std::vector<SL::SymOp> ops=ResolveImposition(lat, {.imposeSymmetry=true, .siteSpins=siteSpins}).magneticDirect;
+    std::cout << "[symmetry] the plane-wave block imposes it by the (D_up, D_dn) pair projection" << std::endl;
     // φ_m(r) = e^{2πi m·f}/√Ω (f fractional).  g⁻¹r has fractional W⁻¹(f−τ), so φ_m(g⁻¹r) = e^{2πi m'·(f−τ)}/√Ω with
     // m' = W⁻ᵀm: the ball ½|Bm|² < Ecut is mapped onto itself (W is orthogonal in Cartesians), so m' is in the list.
     std::map<std::tuple<int,int,int>,size_t> index;
@@ -140,124 +137,10 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut, cons
 // W-only guard; doc/GPWPlan1.md item 3).  IBZ needs the density symmetrized over each star to be exact; the
 // caller is responsible for that (this only reduces which blocks are BUILT + carries the star weights).
 struct KBlock { ivec3_t ik; double weight; };
-// The crystal point ops from ONE space-group detection (or {} when NOT folding -- fold + density star-average are
-// one package, so a non-folded run carries no ops = trivial {E}).  THREE faces, two distinct roles:
-//  - recipFold: reciprocal LINEAR ops U (+time reversal, τ=0 W-only guard) -- folds the k-mesh.  TR supplies the
-//    inversion a non-symmorphic Td subgroup lacks, so the fold is already maximal (Oh) without the glide phase.
-//  - recipDensity {U|τ}: the FULL crystal point group with fractional translations -- star-averages ρ̃ in G-space
-//    with the glide phase e^{+2πi(Um)·τ} (SymmetrizeGMap).  NO time reversal: a real density has the crystal's
-//    own point symmetry, not an imposed inversion.
-//  - directDensity {W|τ}: the real-space partner (raster star-average, voxel shift N·τ).
-// For a SYMMORPHIC crystal every τ=0, so recipDensity/directDensity collapse to the old W-only ops (no phase, no
-// shift) and this is bit-compatible with the symmorphic IBZ path.  The reciprocal↔direct + time-reversal + glide
-// knowledge lives in SpaceGroup, not here (doc/GPWPlan1.md items 3 + 5).
-struct CrystalPointOps
-{
-    Symmetry::Lattice_3D::SymmetryPolicy                 policy;         //!< the ONE run-level imposition decision (§3)
-    std::vector<Matrix3D<double>>                        recipFold;      //!< linear reciprocal ops (+TR) for the k-fold ({} unless imposed)
-    std::vector<Symmetry::Lattice_3D::ReciprocalOp>      recipDensity;   //!< {U|τ} for the G-space density star-average ({} unless imposed)
-    std::vector<Symmetry::Lattice_3D::DirectOp>          directDensity;  //!< {W|τ} for the real-space raster star-average ({} unless imposed)
-    std::vector<Symmetry::Lattice_3D::ReciprocalOp>      recipDetected;  //!< the FULL detected {U|τ} set, ALWAYS (§3 diagnostic reference)
-    //! The SHUBNIKOV group when the run imposes a MAGNETIC decoration (S3, {} otherwise): direct-frame
-    //! \f$\{W|\tau,\sigma\}\f$ ops.  The legacy faces above are then its SPATIAL projections (σ dropped)
-    //! -- COSET-COMPLETE, i.e. they include the anti-translation of a magnetically doubled cell, which
-    //! the detected one-coset-per-W group misses -- and serve every EVEN (total-density) consumer
-    //! unchanged; σ itself is consumed only by the channel-pair (ρ,m) machinery in the XC quadrature.
-    std::vector<Symmetry::Lattice_3D::SymOp>             magneticDirect;
-    //! FREE run only: the detected spatial group, for the XC mesh's invariance (no density average; {} when imposing).
-    std::vector<Symmetry::Lattice_3D::SymOp>             meshInvariance;
-};
-//! ONE place resolves the run's symmetry policy (doc/SymmetryUpgradePlan.md §3): detection ALWAYS runs
-//! (cheap, and a free run needs the full group as the order-parameter diagnostic's reference), but the
-//! IMPOSED faces (k-fold + density star-average -- one package) fill only when the caller asserted
-//! imposition (p.imposeSymmetry).  Downstream consumers read the policy from here, never p.imposeSymmetry again.
-//!
-//! S3 (Shubnikov): imposition on a run carrying a MAGNETIC decoration (p.siteSpins with a genuine
-//! staggering) resolves to the magnetic group -- imposing the grey group on a staggered run would
-//! star-average +m onto -m sites and erase the order (the reason MnO ran free all campaign).  Grey
-//! imposition of such a cell remains reachable only through the §3 release-audit machinery.
-static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWParams& p)
-{
-    namespace SL = qchem::Symmetry::Lattice_3D;
-    // Detection + the UnitCell -> {A, sites} adapter now live ON the lattice (Lattice_3D::GetSpaceGroup,
-    // 2026-08-01) -- common to every lattice basis flavour; this factory only resolves the §3 POLICY.
-    const SL::SpaceGroup& sg = lat.GetSpaceGroup();
-
-    CrystalPointOps ops;
-    ops.policy.impose = p.imposeSymmetry ? SL::SymmetryPolicy::Impose::FullGroup
-                                   : SL::SymmetryPolicy::Impose::None;
-    ops.recipDetected = sg.ReciprocalOps();                                        // full {U|τ}: the diagnostic reference
-    if (!ops.policy.Imposes())
-    {
-        // KAxisPlan ruling 1 (user, 2026-10-27): a free run gets symmetric NUMERICS, not a symmetric answer.
-        if (p.freeMeshInvariant)
-            for (const auto& op : sg.DirectOps()) ops.meshInvariance.push_back({op.W, op.tau});
-        return ops;
-    }
-
-    const bool magnetic = [&]{ for (int s : p.siteSpins) if (s!=0) return true; return false; }();
-    if (magnetic)
-    {
-        ops.magneticDirect = lat.ShubnikovOps(p.siteSpins);
-        size_t nFlip=0; for (const auto& op : ops.magneticDirect) if (op.sigma==SL::SpinAction::Flip) nFlip++;
-        std::cout << "[symmetry] IMPOSING the SHUBNIKOV group of the declared ordering: "
-                  << ops.magneticDirect.size() << " ops (" << ops.magneticDirect.size()-nFlip
-                  << " spatial + " << nFlip << " spin-flip; the grey group would erase the order)" << std::endl;
-        // The LEGACY faces get ONLY the σ=None (sublattice-preserving) subgroup.  MEASURED (MnO run 37,
-        // 2026-08-11): they must NOT get the flip ops' spatial parts -- the composite star-average is
-        // applied PER CHANNEL (each channel's GetFourierDensity/GetRhoOnGrid symmetrizes ITSELF, and the
-        // ρ̃ MIXER consumes the channels separately through exactly those faces), and a sublattice-swap op
-        // is not a symmetry of ONE channel: averaging under it equalizes the channels and annihilates m
-        // MACHINE-EXACTLY at iteration 1 (the seed reads m1=+0.717, the first mixed density m1=6e-14).
-        // Each channel IS invariant under the σ=None subgroup, so that is the correct per-channel
-        // projector; the flip content is a PAIR property and is enforced where the pair is in hand -- the
-        // XC engine's (ρ,m) star-average under the full σ-carrying set (itsMagneticOps).  The total's
-        // anti-translation component is then driven by the SCF rather than projected -- a PARTIAL
-        // projector is legal (folding merely reduced, never wrong).
-        // ★ THE IMPOSITION GATE (doc/SymmetryUpgradePlan.md "SUPERCELLS", 2026-09-07): a star-average is a
-        // PROJECTOR only if its op set is a GROUP, and nothing checked that until a Si 2x2x2 supercell
-        // diverged from its first Fock on a set with 864 of 2304 products outside it.  Checked HERE
-        // because this is the one place a run decides what it imposes.  Closure, NOT completeness -- the
-        // sigma=None subgroup extracted just below is a legal partial projector (see the note there).
-        SL::RequireClosedGroup(ops.magneticDirect, "GPW imposition (Shubnikov group)");
-        for (const auto& op : ops.magneticDirect)
-            if (op.sigma==SL::SpinAction::None)
-            {
-                ops.directDensity.push_back({op.W, op.tau});
-                ops.recipDensity .push_back({Transpose(op.W), op.tau});   // the G-index scatter U = W^T
-            }
-        // k-fold: Γ-only for now -- the magnetic little-group bookkeeping at k≠Γ is the T3.4b-adjacent
-        // increment.  Leaving recipFold empty means a multi-k imposed magnetic run keeps its FULL mesh
-        // (folding is merely absent, never wrong).
-        return ops;
-    }
-    ops.recipFold     = sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);  // fold: linear + TR
-    ops.recipDensity  = sg.ReciprocalOps();                                    // density G-space: {U|τ}
-    ops.directDensity = sg.DirectOps();                                        // density raster: {W|τ}
-    // The k-sum only respects the mesh-symmetry SUBGROUP (a shifted fcc MP mesh is not Oh-invariant), and the
-    // fold above already uses just that subgroup.  Star-averaging rho over ops the mesh does not respect would
-    // sample a LARGER k-set than the one whose bands are summed -- so impose the same subgroup on rho.
-    {
-        const ivec3_t N=lat.GetLimits();
-        auto bad=[&](const Matrix3D<double>& U){ return !SL::MapsMeshOntoItself(U,N,p.kShift); };
-        std::erase_if(ops.recipDensity,  [&](const auto& o){ return bad(o.U); });
-        std::erase_if(ops.directDensity, [&](const auto& o){ return bad(Transpose(o.W)); });
-    }
-    // ★ THE IMPOSITION GATE -- see the note in the magnetic branch above.  The reciprocal set is the
-    // transpose of this one, so closure of {W|τ} settles both.
-    // DirectOp carries no σ (a spatial group), so it lifts to SymOp with σ=None -- the closure test is
-    // then exactly the spatial one.
-    {
-        std::vector<SL::SymOp> spatial;
-        spatial.reserve(ops.directDensity.size());
-        for (const auto& op : ops.directDensity) spatial.push_back({op.W, op.tau});
-        SL::RequireClosedGroup(spatial, "GPW imposition (spatial space group)");
-    }
-    return ops;
-}
-
+// The run's imposed crystal ops (fold + density + Shubnikov + mesh invariance) are a qchem::CrystalImposition, resolved from the
+// lattice and the options by ResolveImposition (qchem.Lattice_3D.Imposition; V-BS-SYMMETRY S1) -- not decided here.
 static std::vector<KBlock> BuildKBlocks(const ::qchem::Lattice_3D& lat, const GPWParams& p,
-                                        const CrystalPointOps& cops)
+                                        const CrystalImposition& cops)
 {
     namespace SL = qchem::Symmetry::Lattice_3D;
     const std::vector<Matrix3D<double>>& ops = cops.recipFold;
@@ -287,9 +170,18 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
     const Gaussian::GPW_Evaluator* first=nullptr;   // the shared evaluator base -- serves ReportGrids for EITHER block scalar
-    CrystalPointOps ops = DetectPointOps(lat, p);   // ONE detection + the §3 policy: fold ops + {U|τ} (ρ̃) + {W|τ} (raster)
+    // The run's imposition: HANDED IN (the facade resolves one per geometry point) or resolved here from the same options.  A
+    // handed-in one must have been resolved from THESE options -- two disagreeing statements of the policy are refused, never
+    // silently reconciled.
+    const ImpositionOptions want{.imposeSymmetry=p.imposeSymmetry, .siteSpins=p.siteSpins,
+                                 .freeMeshInvariant=p.freeMeshInvariant, .kShift=p.kShift};
+    if (p.imposition && !(p.imposition->options==want))
+        throw std::invalid_argument("GPW_BasisSet: GPWParams::imposition was resolved from other options than this GPWParams states "
+                                    "(imposeSymmetry / siteSpins / freeMeshInvariant / kShift)");
+    const std::shared_ptr<const CrystalImposition> imp = p.imposition ? p.imposition
+                                                       : std::make_shared<const CrystalImposition>(ResolveImposition(lat, want));
+    const CrystalImposition& ops = *imp;
     itsReciprocalOps = ops.recipDensity;            // exposed via GetReciprocalPointOps for the composite G-space density
-    itsDetectedOps   = ops.recipDetected;           // the FULL detected group, imposed or not (§3 diagnostic reference)
     const std::vector<KBlock> blocks = BuildKBlocks(lat, p, ops);
     // T3 route (b) STREAM FOLD (doc/SymmetryUpgradePlan.md §6b/T3.2): on an IMPOSED Γ-ONLY run, fold the
     // shared molecular evaluator's (pair, R) collocation streams under the crystal ops -- reduced build +
@@ -445,6 +337,18 @@ void GPW_BasisSet::ProjectSpinPair(hmat_t<dcmplx>& Dup, hmat_t<dcmplx>& Ddn) con
 
 // Compact irrep label for the report (symmetry symbol + spin arrow), via the Streamable Write().
 
+
+std::shared_ptr<const Gaussian::GpwRasterLadder> MakeRasterLadder(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                                                  const GPWParams& p)
+{
+    if (!mol) throw std::invalid_argument("MakeRasterLadder: no molecular basis");
+    const BasisSet::Real_OIBS* only=nullptr;     // the single orbital block of the raw molecular basis (the evaluator's itsOrb)
+    for (auto ibs : mol->Iterate<BasisSet::Real_OIBS>()) { if (only) throw std::logic_error("MakeRasterLadder: a molecular basis with more than one orbital block"); only=ibs; }
+    const auto* sharp=dynamic_cast<const Gaussian::GaussianSharpness*>(only);   // abstract -> abstract
+    if (!sharp) throw std::invalid_argument("MakeRasterLadder: the molecular basis has no Gaussian orbital block to size a raster from");
+    return std::make_shared<const Gaussian::GpwRasterLadder>(lat.GetUnitCell(), *sharp, p.densityEcut, p.cutoffFactor, p.ladderFactor,
+                                                             p.rasterFields, p.tol);
+}
 
 void EmitGpwGrids(const Complex_BS& bs)
 {

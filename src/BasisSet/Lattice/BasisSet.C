@@ -12,9 +12,11 @@ module;
 export module qchem.BasisSet.Lattice.BasisSet;
 export import qchem.BasisSet;                          // Complex_BS (= tBasisSet<dcmplx>)
 export import qchem.Lattice_3D;                        // Lattice_3D (the crystal structure + BZ grid)
+export import qchem.Lattice_3D.Imposition;             // CrystalImposition (GPWParams::imposition, V-BS-SYMMETRY)
 export import qchem.BasisSet.PlaneWave.PlaneWave_IBS; // PlaneWave::PlaneWave_IBS (+ the Orbital_PP_IBS service it implements)
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // GPWParams::tol (D-ENV step 5)
 export import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // Gaussian::GPW_IBS + Gaussian::CellImages (the GPWFactory mode argument)
+export import qchem.BasisSet.Gaussian.Lattice.RasterLadder;  // Gaussian::GpwRasterLadder (MakeRasterLadder, V-BS-RASTER)
 export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::RasterFields (GPWParams::rasterFields)
 export import qchem.BasisSet.Gaussian.Point.ShellTrim;   // ShellTrim (VetStageTrim's decision, pin 22)
 import qchem.BasisSet.Internal.BasisSetImp;            // BasisSetImp<dcmplx> (the PW_BasisSet base; NOT re-exported)
@@ -116,10 +118,22 @@ struct GPWParams
     //! dependency cycle), so the root that constructs both threads the fact in.  Default FALSE: a bare
     //! factory caller keeps the historical all-complex build; the facades pass the computed fact.
     bool hamPreservesReal = false;
+    //! \brief The run's symmetry IMPOSITION, resolved by the caller (\c ResolveImposition; the facade resolves one per geometry
+    //! point, V-BS-SYMMETRY).  Unset (the default): the factory resolves it from \c imposeSymmetry / \c siteSpins /
+    //! \c freeMeshInvariant / \c kShift with the same builder.  Set: used as is -- and it must have been resolved from those same
+    //! fields (\c CrystalImposition::options), or the factory throws rather than pick one of two statements of the policy.
+    std::shared_ptr<const CrystalImposition> imposition = {};
 };
 //! The struct-parameter factory (preferred surface; the positional overload above forwards here).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                        const GPWParams& p = {});
+
+//! \brief THE ONE BUILDER of a GPW point's raster ladder (V-BS-RASTER): the density grid and its multigrid levels from the k-independent
+//! inputs -- the cell, \a mol's exponent range (its one orbital block, as the evaluator reads it), and \a p's densityEcut / cutoffFactor
+//! / ladderFactor / rasterFields / tol.  The facade calls it per geometry point and holds the result; \c GPWFactory calls it when the
+//! caller handed no ladder in.  Throws if \a mol has no Gaussian orbital block (nothing to size a raster from).
+std::shared_ptr<const Gaussian::GpwRasterLadder> MakeRasterLadder(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                                                  const GPWParams& p = {});
 
 //! Emit the GPW `grids` report section for \a bs (the grids are k-independent, so the first block speaks for
 //! all).  The orchestrator calls this AFTER the conditioning pre-flight, so a singular basis aborts before the
@@ -217,9 +231,6 @@ public:
     //! package).  (This is the FULL point group with fractional translations, distinct from the linear-only ops
     //! the ctor uses to fold the mesh; doc/GPWPlan1.md items 3 + 5.)
     virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetReciprocalPointOps() const override {return itsReciprocalOps;}
-    //! The full DETECTED \f${U|\tau}\f$ set -- populated imposed or not (detection always runs; it is the
-    //! §3 order-parameter diagnostic's reference group, doc/SymmetryUpgradePlan.md).
-    virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetDetectedReciprocalOps() const override {return itsDetectedOps;}
     //! The Shubnikov pair projection on the Γ block (see tBasisSet).  Active only on a MAGNETIC imposition
     //! of a single Γ block: there every op maps the block onto itself and its AO rep is a signed shell
     //! permutation (no Bloch phase).  A multi-k magnetic run keeps the partial (σ=None) projection.
@@ -231,7 +242,6 @@ private:
     const std::vector<std::pair<rmat_t,bool>>& PairReps() const;
 
     std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsReciprocalOps;   //!< {} unless imposeSymmetry (doc/GPWPlan1.md items 3+5)
-    std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsDetectedOps;     //!< the full detected group, always (§3 diagnostic)
     std::vector<Symmetry::Lattice_3D::SymOp>        itsPairOps;         //!< Shubnikov {W|τ,σ}; {} unless a magnetic Γ-only imposition
     Matrix3D<double>                                itsCellA;           //!< direct cell matrix (lattice → Cartesian for the AO reps)
     mutable std::vector<std::pair<rmat_t,bool>>     itsPairReps;        //!< (M_g, flips) per op, lazily built

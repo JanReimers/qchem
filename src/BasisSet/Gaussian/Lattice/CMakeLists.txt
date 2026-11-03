@@ -8,6 +8,7 @@ target_sources(qcGaussian_BS PRIVATE
     Imp/GPW_Evaluator.C
     Imp/GPWTolerances.C
     Imp/GPW_IBS.C
+    Imp/RasterLadder.C
 )
 target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     LatticeSum1E.C
@@ -16,5 +17,6 @@ target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     SphericalLatticeView.C
     GPW_Evaluator.C
     GPW_IBS.C
+    RasterLadder.C       # the GPW raster ladder as ONE object, shared by every block of a point (V-BS-RASTER)
 )
 target_include_directories(qcGaussian_BS PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
