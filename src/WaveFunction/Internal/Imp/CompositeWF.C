@@ -356,7 +356,8 @@ template <class T> void tCompositeWF<T>::MoveOrbitals(OccupationPolicy<T>& pol, 
 
 // THE density (V1.37): ONE composite over every child, spin irrep by spin irrep.  IBZ point group
 // ctor-injected straight from the basis (empty {} for molecules / unfolded crystals = a trivial no-op).  The
-// basis owns the crystal symmetry, so no setter is threaded through the SCF.  Each block BUILDS its own
+// basis does NOT own the crystal symmetry (the lattice detects it, ResolveImposition decides what is imposed); it
+// carries the ops its k fold was built under, so no setter is threaded through the SCF (V-BS-SYMMETRY).  Each block BUILDS its own
 // density, typed by ITS scalar; the composite's typed Insert overloads (Step 2a) take either alternative --
 // this seam is already mixed-ready -- and the block's full Irrep is the label its channel views filter on.
 // The \a s channel's block densities into \a cd.  On a polarized run each block is first PAIR-projected with its

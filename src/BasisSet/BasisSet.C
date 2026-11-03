@@ -405,23 +405,19 @@ public:
                                                 VxcFit fit=VxcFit::Auto,
                                                 FitQuadrature* quad=nullptr) const;
     //! The DELTA-fit sibling of \c CreateVxcFitBasisSet: the finished real-space XC quadrature (mesh +
-    //! symmetry fold), assembled by the basis -- which owns the cell and the §3-imposed ops -- so the
-    //! Hamiltonian does no mesh work.  Default/plain path: the Structure's integration mesh, no fold.
+    //! symmetry fold).  The basis does NOT own the symmetry: the run's imposition is resolved from the lattice and
+    //! the options (\c ResolveImposition) and handed to the basis factory, and the CELL builds the mesh -- this
+    //! is a forwarder V-BS-SYMMETRY moves off the basis.  Default/plain path: the Structure's integration mesh, no fold.
     virtual FitQuadrature   CreateXCQuadrature (const Structure* cl, const qcMesh::MeshParams&) const;
 
     //! The crystal RECIPROCAL point group as \f${U|\tau}\f$ ops for IBZ density symmetrization.  Default {} =
     //! trivial {E} = no-op -- molecules / Γ / unfolded bases.  A periodic GPW basis returns the ops WHEN it
     //! folds the mesh (imposeSymmetry), so the composite density ctor-injects them and the reduced density is star-
-    //! averaged with the glide phase \f$e^{+2\pi i(Um)\cdot\tau}\f$ (doc/GPWPlan1.md items 3 + 5).  It is a basis
-    //! property (the basis computes the space group), so the density/WF read it here rather than via a setter.
+    //! averaged with the glide phase \f$e^{+2\pi i(Um)\cdot\tau}\f$ (doc/GPWPlan1.md items 3 + 5).  The basis does
+    //! NOT compute the space group (\c Lattice_3D::GetSpaceGroup does) nor decide what is imposed (\c ResolveImposition
+    //! does); it carries the ops its k fold was built under, and the density/WF read them here (V-BS-SYMMETRY).
     virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetReciprocalPointOps() const {return {};}
 
-    //! The FULL DETECTED crystal reciprocal point group \f${U|\tau}\f$ -- populated on every periodic run,
-    //! IMPOSED or not (unlike \c GetReciprocalPointOps, which is the ops-to-impose set and stays empty on a
-    //! free run).  This is what the §3 order-parameter diagnostic (doc/SymmetryUpgradePlan.md) measures the
-    //! converged density against: a free run reports the symmetry it actually found, per op
-    //! (\c SymmetryDefects).  Default {} = no lattice / nothing detected.
-    virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetDetectedReciprocalOps() const {return {};}
 
     //! \brief Impose the run's MAGNETIC (Shubnikov) group on a SPIN PAIR of block density matrices, in place:
     //! \f$D_s \leftarrow |G|^{-1}\sum_g M_g D_{\sigma_g(s)} M_g^\top\f$, where \f$M_g\f$ is \a g on the AO

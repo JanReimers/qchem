@@ -28,6 +28,7 @@ add_executable(UTLattice_BS ../../Radial/tests/gtestmain.C
     GPW_UT.C            # the GPW basis/evaluator unit tests (moved from IntegrationTests 2026-09-15, TE phase 5)
     VetStageTrimUT.C    # the pin-22 vet-stage basis trim (2026-09-27)
     RasterLadderUT.C    # the ONE raster ladder vs the blocks' own, level for level (V-BS-RASTER step 1)
+    GPWImpositionUT.C   # a handed-in CrystalImposition: used as is, a mismatch refused (V-BS-SYMMETRY S1)
     ShubnikovPairUT.C   # the Shubnikov pair projection on the Γ block (2026-10-29)
     PlaneWave_FieldsUT.C  # the PW basis / FFT / Poisson unit tests (idem)
 )
