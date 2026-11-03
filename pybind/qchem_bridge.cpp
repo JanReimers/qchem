@@ -47,6 +47,7 @@ extern "C++" struct qcb_calc
     std::unique_ptr<qchem::Calculation> calc;
     qchem::SCFParams                    params;      // as asked at qcb_make; a re-run changes only NMaxIter
     std::vector<double>                 positions;   // flat 3N bohr, as asked
+    std::string                         id;          // the structure's ID: the name of the report runs the bridge opens
 };
 
 //! A crystal: the deck as read, and the calculation deck::Build made of it.
@@ -92,16 +93,6 @@ qchem::Model parse_model(const std::string& m)
     if (m == "Xalpha") return Model::Xalpha;
     throw std::invalid_argument("qchem_py: unknown model '" + m + "' (HF | LDA | Xalpha)");
 }
-
-//! A crystal's report run: rundeck brackets Build + Converge with report::Begin/End, and the record its providers write
-//! (grids, basis, scf) exists only inside such a bracket.  The bridge splits them across two calls, so each gets its own.
-struct RunRecord
-{
-    explicit RunRecord(const std::string& name) { qchem::report::Begin(name); }
-    ~RunRecord() { qchem::report::End(); }
-    RunRecord(const RunRecord&) = delete;
-    RunRecord& operator=(const RunRecord&) = delete;
-};
 
 qchem::SCFParams scf_params(const qcb_request& req)
 {
@@ -227,6 +218,9 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char
         const auto setup = qchem::MoleculeSetup::Resolve(mol, opts, acc);   // deep-copies mol
         // The observer rides the constructor, so the trace of ITS SCF streams from the first iteration.
         h->params = scf_params(*req);
+        h->id     = mol.ID();
+        // The bridge is the DRIVER (user ruling D): it opens the run the facade writes into -- "<ID>", as for a Converge.
+        const qchem::report::Run run(h->id);
         h->calc = std::make_unique<Calculation>(setup, h->params,
                                                 step ? forward_to(step, sink) : Calculation::Observer{});
         // The sink lives only for this call: detach it before returning (qcb_converge attaches its own).
@@ -248,7 +242,7 @@ int qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char
         h->calc->OnIteration(step ? forward_to(step, sink) : Calculation::Observer{});
         qchem::SCFParams p = h->params;
         p.NMaxIter = size_t(maxIter);
-        const auto out = h->calc->Converge(p);
+        const auto out = [&]{ const qchem::report::Run run(h->id); return h->calc->Converge(p); }();
         h->calc->OnIteration(Calculation::Observer{});      // the sink lives only for this call
         if (out) return 1;
         write_error(describe(out.Error()).c_str(), err, errlen);
@@ -331,7 +325,7 @@ qcb_solid* qcb_solid_make(const char* deckJson, char* err, int errlen)
     {
         auto h = std::make_unique<qcb_solid>();
         qchem::deck::FromJson(nlohmann::json::parse(deckJson), h->spec);   // strict: an unknown key throws, naming it
-        const RunRecord record(h->spec.StructureName() + " build");
+        const qchem::report::Run run(h->spec.StructureName() + " build");   // the bridge is the driver: it opens the runs
         h->calc = qchem::deck::Build(h->spec);                              // the observer is attached per Converge
         return h.release();
     }
@@ -349,7 +343,7 @@ int qcb_solid_converge(qcb_solid* h, qcb_row_fn step, qcb_sink* sink, char* err,
     {
         h->calc->OnIteration(step ? forward_to(step, sink) : SolidCalculation::Observer{});
         h->attempted = true;
-        const RunRecord record(h->spec.StructureName());
+        const qchem::report::Run run(h->spec.StructureName());
         const auto out = h->calc->Converge(qchem::deck::ScheduleToRun(h->spec));
         h->calc->OnIteration(SolidCalculation::Observer{});      // the sink lives only for this call
         if (out) return 1;
