@@ -9,8 +9,13 @@
 # Per module (Martin's package metrics, user 2026-11-03):
 #   files    TUs that depend on it (outside its own units)        libs   distinct libraries those TUs belong to (outside its own)
 #   Ca       distinct dependent modules / non-module TUs           Ce     distinct modules its own units depend on
-#   I        Ce/(Ca+Ce)                                            A      abstract classes / classes in its interface (heuristic)
+#   I        Ce/(Ca+Ce)                                            A      abstract classes / non-value classes in its interface (heuristic)
 #   D        |A + I - 1|                                           casts  dynamic_cast<...> in its own units, by target type
+#   pv       mean over its non-value classes of (pure virtuals / virtual functions) -- NOT Martin's A, a gradation beside it
+# Martin's A, as ruled (user 2026-11-03): a class is ABSTRACT iff it declares a pure virtual FUNCTION (`virtual ...(...) ... = 0;`,
+# never a data-member initializer `n = 0;`); the per-class verdict is binary (a template-method interface with 3 pure hooks and one
+# virtual policy counts 1).  VALUE STRUCTS leave the denominator: a class with no virtual member that is a `struct`, or declares no
+# member function beyond operators, defaulted/deleted members and constructors (params, tolerances, results).
 #   reexp    its `export import`s, each marked sig if a name exported by the target appears in its own exported text (heuristic)
 #   gets     Get* names declared anywhere in its interface text, private ones included (heuristic; the four Tell-Don't-Ask
 #            answers of step 5 are the reviewer's)
@@ -25,7 +30,10 @@ import json, os, re, subprocess, sys, collections
 
 IMPORT=re.compile(r'^\s*(export\s+)?import\s+([A-Za-z0-9_.:]+)\s*;')
 UNIT=re.compile(r'^\s*(export\s+)?module\s+([A-Za-z0-9_.:]+)\s*;')
-CLASS=re.compile(r'\b(class|struct)\s+([A-Za-z_]\w*)\s*(final\s*)?(:[^{;]*)?\{')
+CLASS=re.compile(r'(?<!enum )(?<!enum\t)\b(class|struct)\s+([A-Za-z_]\w*)\s*(final\s*)?(:[^{;]*)?\{')
+PURE=re.compile(r'\bvirtual\b[^;{}]*\)[^;{}()]*=\s*0\s*;')
+VFUN=re.compile(r'\bvirtual\b[^;{}]*\)')
+MFUN=re.compile(r'\b(~?[A-Za-z_]\w*)\s*\([^;{}]*\)[^;{}()]*[;{]')
 CAST=re.compile(r'dynamic_cast\s*<\s*(const\s+)?([A-Za-z_:][\w:<>, ]*?)\s*[*&]\s*>')
 GET=re.compile(r'\b(Get[A-Z]\w*)\s*\(')
 NAME=re.compile(r'\b(?:class|struct|enum(?:\s+class)?|using|typedef)\s+([A-Za-z_]\w*)')
@@ -104,12 +112,21 @@ def main():
         Ca=len({owner(u) for u in ufiles}); Ce=len(ce[m])
         I=Ce/(Ca+Ce) if Ca+Ce else 0.0
         text=open(f).read()
-        classes=[]
-        for c in CLASS.finditer(text):
-            b=body(text,c.end()-1)
-            classes.append((c.group(2), bool(re.search(r'=\s*0\s*;',b))))
-        A=sum(1 for _,ab in classes if ab)/len(classes) if classes else 0.0
-        D=abs(A+I-1)
+        code=re.sub(r'//[^\n]*','',re.sub(r'/\*.*?\*/','',text,flags=re.S))   # the class pass reads CODE: a comment is not a member
+        classes=[]; pv=[]
+        for c in CLASS.finditer(code):
+            b=body(code,c.end()-1)
+            name=c.group(2)
+            nv=len(VFUN.findall(b)); npure=len(PURE.findall(b))
+            if nv==0:
+                funs=[f for f in MFUN.findall(b) if f not in (name,'~'+name,'operator') and not f.startswith('operator')]
+                if c.group(1)=='struct' or not funs: continue          # a VALUE struct: out of A's denominator
+            classes.append((name, npure>0))
+            pv.append(npure/nv if nv else 0.0)
+        # no non-value class at all (a module of params / results): A is undefined, not 0, and so is D
+        A=sum(1 for _,ab in classes if ab)/len(classes) if classes else None
+        PV=sum(pv)/len(pv) if pv else None
+        D=abs(A+I-1) if A is not None else None
         own=[g for g,t in tus.items() if t['mod']==m]
         casts=collections.Counter()
         for g in own:
@@ -124,16 +141,20 @@ def main():
             sig.append(f"{r}{'' if hit else ' (no-sig?)'}")
             if not hit: nosig.append((len(ufiles),m,r))
         gets=sorted(set(GET.findall(text)))
-        out.append((len(ufiles),m,modlib[m],len(ufiles),len(ulibs),Ca,Ce,I,A,D,sum(casts.values()),
+        out.append((len(ufiles),m,modlib[m],len(ufiles),len(ulibs),Ca,Ce,I,A,D,PV,sum(casts.values()),
                     ', '.join(f'{k}×{v}' for k,v in casts.most_common(6)),'; '.join(sig),', '.join(gets[:12])+(' …' if len(gets)>12 else '')))
     out.sort(key=lambda r:-r[0])
+    f2=lambda x: '—' if x is None else f'{x:.2f}'
     with open(outp,'w') as o:
         o.write(f"# Compile-checked fan-in table (V-INTERFACE-TIERS step 1)\n\n")
         o.write(f"Import verdicts (compiler, -fsyntax-only): {dict(counts)}.  `stale` = used by no route; `redundant` = reaches the TU only through another import's re-export (still a dependency).\n")
         o.write("A, the sig mark and cast targets are TEXT heuristics.\n\n")
-        o.write("| module | lib | files | ext libs | Ca | Ce | I | A | D | casts | cast targets | re-exports | Get* |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+        o.write("A = Martin's abstractness (binary per class: abstract iff it declares a pure virtual function; value structs excluded).  "
+                "pv = the mean pure-virtual fraction of the non-value classes -- NOT Martin's A.  "
+                "— = the module declares no non-value class (A and D undefined).\n\n")
+        o.write("| module | lib | files | ext libs | Ca | Ce | I | A | D | pv | casts | cast targets | re-exports | Get* |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
         for r in out:
-            o.write(f"| `{r[1]}` | {r[2]} | {r[3]} | {r[4]} | {r[5]} | {r[6]} | {r[7]:.2f} | {r[8]:.2f} | {r[9]:.2f} | {r[10]} | {r[11]} | {r[12]} | {r[13]} |\n")
+            o.write(f"| `{r[1]}` | {r[2]} | {r[3]} | {r[4]} | {r[5]} | {r[6]} | {r[7]:.2f} | {f2(r[8])} | {f2(r[9])} | {f2(r[10])} | {r[11]} | {r[12]} | {r[13]} | {r[14]} |\n")
         o.write("\n## Re-exports failing the signature test (no-sig?)\n\n")
         o.write("A re-export whose target contributes no name to the re-exporter's own exported text (TEXT heuristic): the suspect under the "
                 "re-export rule.  `importers` = the re-exporting module's dependent files (every one receives the target by the side door).\n\n")
