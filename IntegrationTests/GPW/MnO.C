@@ -341,7 +341,7 @@ TEST(GPW_MnO, Γ_Becke_Pol_SeedVxcMirror)
 // imposed MnO basis must star-average the channel pair under the Shubnikov group -- keeping the AFM
 // staggering EXACTLY mirror-symmetric -- where the grey average would erase it.  Chain under test:
 // MagneticDecoration (the seed's own species rule) -> GPWParams::siteSpins -> the factory's Shubnikov
-// resolution -> CreateXCQuadrature (site-adapted invariant mesh + fold + sigma tags + flip-fixed zero
+// resolution -> MakeXCQuadrature (the imposition's site-adapted invariant mesh + fold + sigma tags + flip-fixed zero
 // flags) -> SinglesDensitySampler::RhoPol's (rho,m) split.
 TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 {
@@ -363,7 +363,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
     // The magnetically IMPOSED GPW basis (coarse everything: this gate tests symmetry, not accuracy).
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR),
         L3::GPWParams{.densityEcut=8.0, .imposeSymmetry=true, .siteSpins=spins}));
-    BasisSet::FitQuadrature q = bs->CreateXCQuadrature(st.get(), qcMesh::BeckeXCParams(20, -1.0, 11));
+    BasisSet::FitQuadrature q = BasisSet::MakeXCQuadrature(*st, qcMesh::BeckeXCParams(20, -1.0, 11), bs->GetImposition());
     ASSERT_EQ(q.NumSpinOps(), 24u) << "the Shubnikov group of the AFM-II cell has 24 ops (12+12)";
     size_t nFlip=0; for (auto s : q.GetSpinOps()) if (s==Symmetry::SpinAction::Flip) nFlip++;
     EXPECT_EQ(nFlip, 12u);

@@ -386,13 +386,12 @@ public:
     //!
     //! THIS is the level that chooses between representations (a Bloch BLOCK's own factory builds only the
     //! lineage's fitted basis): \c VxcFit::Delta returns the \f$\delta\f$ basis over the run's XC
-    //! quadrature (\c CreateXCQuadrature -- mesh + fold + Shubnikov tags), anything else the lineage's
-    //! fitted one.  A molecular caller passes \c Auto and gets its Gaussian auxiliary basis, as always.
-    //! \param quad OPTIONAL out: the real-space QUADRATURE the returned basis was built over, when it has
-    //! one (\c VxcFit::Delta; default-constructed/empty otherwise).  INJECTION, not a getter (user,
-    //! 2026-08-23): this factory CREATES the quadrature, so handing it to a second collaborator is what a
-    //! creator does -- whereas an accessor on the fit basis would hand out its own private state, which is
-    //! exactly the escape the 2026-08-22 arc spent itself closing.
+    //! quadrature, anything else the lineage's fitted one.  A molecular caller passes \c Auto and gets its Gaussian
+    //! auxiliary basis, as always.
+    //! \param quad the real-space QUADRATURE a \c VxcFit::Delta basis is built over -- REQUIRED for Delta, ignored otherwise.
+    //! It comes IN (V-BS-SYMMETRY S2, 2026-11-03): it is constitutive of a δ basis, the way \a mp is, and the CALLER builds it
+    //! (\c MakeXCQuadrature, from the structure and the run's imposition) -- this factory used to build it and hand a copy
+    //! back out, because the basis held the ops it is built under.  The caller hands the same quadrature to the XC term.
     //!
     //! The WHOLE bundle since 2026-08-24, not just its mesh.  Two of its fields were reaching consumers by
     //! the other route -- as \c FIT_SF_ABS::Symmetrize / \c SymmetrizeSpin, i.e. as OPERATIONS on the fit
@@ -403,12 +402,7 @@ public:
     //! still what the ATOMIC PARTITION observable needs, which is why it was the first field to travel.
     virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&,
                                                 VxcFit fit=VxcFit::Auto,
-                                                FitQuadrature* quad=nullptr) const;
-    //! The DELTA-fit sibling of \c CreateVxcFitBasisSet: the finished real-space XC quadrature (mesh +
-    //! symmetry fold).  The basis does NOT own the symmetry: the run's imposition is resolved from the lattice and
-    //! the options (\c ResolveImposition) and handed to the basis factory, and the CELL builds the mesh -- this
-    //! is a forwarder V-BS-SYMMETRY moves off the basis.  Default/plain path: the Structure's integration mesh, no fold.
-    virtual FitQuadrature   CreateXCQuadrature (const Structure* cl, const qcMesh::MeshParams&) const;
+                                                const FitQuadrature* quad=nullptr) const;
 
     //! \brief The symmetry IMPOSITION this basis was built under (user ruling B, V-BS-SYMMETRY 2026-11-03), or nullptr.
     //! WHY the basis holds it: the basis is CONSTRUCTED under the imposition -- its irreps are irreps of that group and its k
@@ -450,5 +444,12 @@ protected:
 
 typedef tBasisSet<double>    Real_BS;
 typedef tBasisSet<dcmplx> Complex_BS;
+
+//! \brief The run's real-space XC QUADRATURE (V-BS-SYMMETRY S2, 2026-11-03): what a \c VxcFit::Delta basis is built over and
+//! the δ XC term integrates on.  A free builder, because neither job of a basis set is to build it: the IMPOSITION builds the
+//! mesh under its own ops when it can (\c XCMeshSource -- the invariant, orbit-folded mesh of an imposed crystal run, the
+//! invariant unfolded one of a free run), and otherwise (no imposition, or one that builds no mesh) it is \a cl's own plain
+//! integration mesh, no fold.  \a imp is the basis's \c GetImposition().  Reports one level into an "xcQuadrature" scope.
+FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp, const Symmetry::SymmetryImposition* imp);
 
 }//namespace

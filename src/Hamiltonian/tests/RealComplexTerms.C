@@ -329,7 +329,7 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
         ExpectBitwiseEqual(Vr, Vc, "Vee_Hartree");
     }
 
-    auto q = rig.cx->CreateXCQuadrature(rig.st.get(), qcMesh::MeshParams{});
+    auto q = BasisSet::MakeXCQuadrature(*rig.st, qcMesh::MeshParams{}, nullptr);   // a bare block: no imposition, the plain mesh
     auto dfb=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     // Through the FACTORY: a delta fit basis can only resolve to SINGLES, so naming the strategy bought
     // nothing but an Internal import (user, 2026-09-10).

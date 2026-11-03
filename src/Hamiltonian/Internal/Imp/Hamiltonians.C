@@ -57,8 +57,10 @@ static VxcFit MolecularVxcFit(VxcFit fit) {return fit==VxcFit::Auto ? VxcFit::De
 static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, VxcFit fit,
                                      std::vector<std::shared_ptr<ExFunctional>> parts, SpinGroup g)
 {
-    BasisSet::FitQuadrature quad;
-    std::shared_ptr<const BasisSet::rFIT_SF_ABS> fb(bs->CreateVxcFitBasisSet(st.get(), mp, MolecularVxcFit(fit), &quad));
+    const VxcFit resolved=MolecularVxcFit(fit);
+    BasisSet::FitQuadrature quad;   // only a δ basis is built over one (the auxiliary fit keeps its own private mesh)
+    if (resolved==VxcFit::Delta) quad=BasisSet::MakeXCQuadrature(*st, mp, bs->GetImposition());
+    std::shared_ptr<const BasisSet::rFIT_SF_ABS> fb(bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad));
     if (fb->isOrtho()) return MakeVxcTerm(std::move(parts), fb, g, std::move(quad)).release();
     FittedVxc::fbs_t ffb=fb;
     FittedVxc::ex_t  xc(std::make_shared<CompositeExFunctional>(std::move(parts)));
@@ -236,19 +238,22 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
         qchem::report::Scope here("xcQuadrature");
         qchem::report::Set("kind", delta ? (becke ? "Becke" : "DeltaUniform") : "PlaneWave");
     }
-    // ONE factory call still makes every representation decision.  The second output is the run's XC
-    // QUADRATURE -- the same bundle the delta basis was built over (mesh + atomic partition + orbit fold +
-    // Shubnikov tags), empty on the raster route -- taken here only to hand it straight back down to the
-    // terms.  This builder does not read it, does not know what is in it, and pays for no mesh it would not
-    // otherwise have built.
+    // ONE factory call still makes every representation decision.  On the δ route the run's XC QUADRATURE (mesh + atomic
+    // partition + orbit fold + Shubnikov tags) is built FIRST, by the imposition the basis was built under (MakeXCQuadrature,
+    // V-BS-SYMMETRY S2), and goes IN to the factory -- it is constitutive of a δ basis -- and then down to the terms.  This
+    // builder does not read it, does not know what is in it, and pays for no mesh on the raster route.
     BasisSet::FitQuadrature quadrature;
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> XFitBasis;
     {
         // EXCLUSIVE of "setup: becke mesh build", which happens inside here and has its own bucket -- so
         // this one reads as the fit basis's OWN construction over an already-built mesh.
         qchem::report::Timed timed("setup: Vxc fit basis (mesh build is its child)");
-        XFitBasis.reset(bs->CreateVxcFitBasisSet(st.get(), xc, resolved,
-                                                 &quadrature));
+        if (resolved==VxcFit::Delta)
+        {
+            qchem::report::Timed timed("setup: XC quadrature build (mesh + fold are its children)");
+            quadrature=BasisSet::MakeXCQuadrature(*st, xc, bs->GetImposition());
+        }
+        XFitBasis.reset(bs->CreateVxcFitBasisSet(st.get(), xc, resolved, &quadrature));
     }
     // SPIN-NATIVE (tier 4b) exchange must be channel-native: a spin-tagged SlaterExchange does NOT halve
     // rho, because it is fed rho_sigma per channel.  Correlation's two-channel face serves both cases.

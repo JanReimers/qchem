@@ -8,8 +8,8 @@
 //   FitQuadrature -- comes OUT: the finished real-space quadrature a delta basis is built over.
 //
 // A LEAF module, deliberately: it needs the mesh and the symmetry fold and nothing else, so it can sit
-// below Orbital_DFT_IBS and tBasisSet (both of which declare CreateXCQuadrature) without either importing
-// the fit-basis faces to get at it.
+// below Orbital_DFT_IBS and tBasisSet (whose fit factories take it in) without either importing the fit-basis faces to get
+// at it.
 module;
 #include <memory>
 #include <vector>   // FitQuadrature::sigmas/flipFixed (Shubnikov S3)
@@ -24,9 +24,9 @@ export namespace qchem::BasisSet
 //! \brief A FINISHED real-space XC quadrature (doc/SymmetryUpgradePlan.md §6a): the mesh, plus its orbit
 //! \c fold when the run imposes symmetry (empty = free run).  This is what the DELTA-fit XC route consumes
 //! -- a pure quadrature, deliberately NOT a fit basis.
-//! Produced by \c CreateXCQuadrature so all the low-level mesh work (grid build, group-averaging it
-//! invariant under the imposed ops, fold preparation) lives with the basis factories -- which own the
-//! cell and the §3 policy -- not in the Hamiltonian assembly.
+//! Produced by \c MakeXCQuadrature: the low-level mesh work (grid build, invariance under the imposed ops, fold preparation)
+//! is the run's IMPOSITION's (\c XCMeshSource, V-BS-SYMMETRY S2) -- it holds the cell and the ops -- not the basis's, and not
+//! the Hamiltonian assembly's, which only hands the result to the δ basis and the XC term.
 //!
 //! ★ **IT IS NOW `qcMesh::FoldedMesh` (2026-09-08), and the alias is the point.**  This was four loose
 //! members -- mesh, fold, sigmas, flipFixed -- declared in a FITTING header, wired together by hand at
