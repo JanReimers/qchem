@@ -407,7 +407,7 @@ measured calibration (the pilot audit) stay isolated in code, and the XC raster,
 MEASURED.  Test defaults: 1e-5 Ha/atom (energy) and 1e-5 Ha per element (H).  Earned by NaF: BallOnly's −941 μHa was the
 XC raster, and the F site's "curvature" was the grid's egg-box (doc/GridEpsilonPlan.md §1).
 
-**Extended (user, 2026-11-03): ε governs EVERY numerical approximation, not only the rasters.**  *"If ε works for every term then
+**Extended (user, 2026-11-03): ε governs EVERY numerical approximation, not only the rasters, and for EVERY structure type -- atom, molecule and solid alike** (today ε exists on the solid facade only: OOD-SOLID-Cleanup V-FACADE-ACCURACY).  *"If ε works for every term then
 the concept is easy to understand.  If it is hit and miss then it becomes far less useful."*  Every tolerance, cutoff, mesh and
 screen that approximates the CHOSEN model is either sized from ε (a rigorous formula plus a named calibration, CLAUDE.md Design)
 or audited against ε by the run.  A fixed tolerance that ignores ε is a DEFECT, however harmless it measures today.  MODEL choices
