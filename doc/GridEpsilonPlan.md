@@ -9,6 +9,48 @@ from B3.  Evidence: `Records/GridSharpTerms.md` (which terms are sharp, the 2026
 
 This note is a plan under execution: it lives at the top of `doc/` until C2 lands, then becomes a record.
 
+## A. How ε is used, as built (2026-11-03; read this first)
+
+The sections after this one are the DESIGN ARGUMENT, written before the code (2026-10-30). This section is the method as it
+runs, including lane A's density-ball ladder and derived `vlocEps` (landing 2026-11-03).
+
+**What ε is.** One accuracy target per run (pin 31). On an ENERGY run each grid term's |ΔE| must be ≤ ε × N_atoms. On a run
+that produces forces, a geometry or a surface, each grid term's max|ΔH_ij| must be ≤ ε. The run decides which (`ClientConsumes`);
+the user never picks. Default 1e-5. Today it exists on the SOLID facade only (OOD-SOLID-Cleanup V-FACADE-ACCURACY); pin 31
+requires it for atoms and molecules too.
+
+**The unit is a {term, grid} PAIR.** One energy term is computed on several grids, and one grid serves several terms. Each pair has
+its own error and its own way of being sized, so the table is keyed on the pair.
+
+| term | grid it is computed on | how ε sizes that grid | iterates? |
+|---|---|---|---|
+| Hartree | density G-ball (`densityEcut`) | MEASURED: E_H at this ball vs twice it, at fixed D, plus a geometric tail estimate. Over target → the ball doubles | yes |
+| Hartree | density raster ladder (collocation levels) | RIGOROUS alias bound S·x³·e^(−x) ≤ target (S_ρ = 0.35) sets x; CALIBRATED by η = delivered/bound, stated or measured by the pilot | yes, unless η is stated |
+| V_loc long | its own raster ladder | the same, with S_Vlong = 2.35 | yes, unless η is stated |
+| V_loc long | pair → level routing (each pair's ball edge) | `vlocEps` = ε × 0.1, EMPIRICAL today; being split into a rigorous bound and a named calibration (CLAUDE.md Design). Checked by the pilot | no; a failed check blocks SETTLED |
+| XC (uniform-mesh route) | uniform XC raster (level L0) | MEASURED: no bound exists. A power law fitted over rounds, at most doubling x per round | yes |
+| XC (uniform-mesh route) | density raster (XC's input) | below the density's rigorous x the XC error is the density's aliasing, so it raises the DENSITY raster | yes |
+| XC (Becke route) | Becke atom-centred mesh | MEASURED: this mesh vs the next rung, plus a tail estimate; climbs one rung | yes, but on geometry runs only (energy runs: OpenWork ε row, known miss 1) |
+| local-PP sweeps | κ routing (`localPPRelCutoff`) | FIXED 30 Ha | — (pin 31 defect, `Records/EpsilonInventory.md`) |
+| kinetic, overlap, short-range V_loc, nonlocal KB | none: analytic lattice sums | `screenEps` FIXED 1e-10 | — (pin 31 defect) |
+
+**The loop that iterates (the pilot).**
+1. Converge the SCF on the starting grids.
+2. At that fixed D, compare every pair above against a finer reference: rasters at x + 8, twice the ball, the next Becke rung.
+3. Any pair over target raises its own grid. Re-converge, warm-started from the current D.
+4. Repeat until every pair meets the target (SETTLED). A pair over target that no grid change cures blocks SETTLED, honestly.
+
+**What does not iterate.**
+- A STATED η: the rasters come straight from the rigorous bound. η = 1 is the strictest mode.
+- `vlocEps`: derived once, then only checked.
+- Anything stated in the deck (`densityEcut`, a Becke mesh, `vlocEps`): honoured as given, and reported against ε.
+
+**Why η is measured per run.** It varies too much between materials to ship as a table (M2c, §5): V_loc long 1e-4 … 0.15,
+Hartree 5e-6 … 1e-2.
+
+**Completeness.** Every numerical tolerance a run uses, with its class (ε-derived, ε-audited, stated, or FIXED = a pin 31 defect),
+is in `doc/Records/EpsilonInventory.md`. The FIXED rows are the open work (OpenWork §3, the ε row).
+
 ## 0. Where the tolerances are today (code facts, 2026-10-30)
 
 | knob | where | default | what it bounds | sized from |
