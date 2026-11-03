@@ -17,6 +17,7 @@ std::string GPWTolerances::Describe() const
     const GPWTolerances d;
     std::ostringstream os;
     if (vlocEps          != d.vlocEps)          os << " vlocEps="          << vlocEps;
+    if (VlocEpsDerived())                       os << " (derived: rigorous " << vlocEpsRigorous << " / eta_routing " << vlocRoutingEta << ")";
     if (localPPRelCutoff != d.localPPRelCutoff) os << " localPPRelCutoff=" << localPPRelCutoff << " Ha";
     if (relFieldSharp    != d.relFieldSharp)    os << " relFieldSharp="    << relFieldSharp;
     if (screenEps        != d.screenEps)        os << " screenEps="        << screenEps;
@@ -99,7 +100,10 @@ std::string GridAccuracy::Describe(const GPWTolerances& used) const
     os<<"  rigorous x=G_N^2/p: V_long "<<std::setprecision(4)<<Rigorous(kVlocLongTail)<<", density "<<Rigorous(kDensityTail)
       <<";  XC raster: MEASURED (no rigorous bound)"
       <<";  USED: raster x density "<<used.rasterX<<", V_long "<<used.vlocRasterX<<", XC L0 "<<used.xcRasterX<<" (0 = the ball's own raster)"
-      <<", vlocEps="<<std::setprecision(3)<<used.vlocEps
+      <<", vlocEps="<<std::setprecision(3)<<used.vlocEps;
+    if (used.VlocEpsDerived()) os<<" (derived: rigorous per-pair "<<used.vlocEpsRigorous<<" / calibration eta_routing "<<used.vlocRoutingEta<<")";
+    else                     os<<(used.vlocEps>0.0 ? " (STATED)" : " (no-target fallback)");
+    os
       <<", kappa="<<used.localPPRelCutoff<<" Ha (L "<<used.localPPRelCutoff/2<<"), screenEps="<<used.screenEps<<", densityEps="<<used.densityEps;
     return os.str();
 }

@@ -254,7 +254,9 @@ TEST(GPW_NaF, Γ_Imp_eqExactResume_Panel)   // PANEL case 1 (regime 4, exact res
     SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart exact");
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
-    auto c=qchem::SolidCalculation::Restart(f.finePath, SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams(),
+    // Onto the cold fine run's SIZED setup, as above: a fresh Resolve is the ball's auto grid, which the saved state is not a fixed point of.
+    ASSERT_TRUE(f.fineSetup);
+    auto c=qchem::SolidCalculation::Restart(f.finePath, f.fineSetup, NaFAnchorParams(),
                                             [&E](const qchem::SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
     ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
     auto R=(*c)->Result();
@@ -367,6 +369,7 @@ TEST(GPW_NaF, Γ_PathIsContinuous_Long)
     o.xcMeshSymmetric=false;  // ... and a free session's XC mesh must not follow the group detected at each point (see above)
     o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default: the CONTINUITY claim only -- a site curvature on it is 4-10x off (LiF/NaF, OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
+    o.densityEcut     = 80.0;   // STATED, the old auto ball (2 alpha_max): the pilot would double it (Hartree 1.9e-2 over at 80 Ha) and the 20 serial points cost 2574 s, not ~600 -- the CONTINUITY claim does not need the ball converged, only fixed along the path
     SCFParams par=NaFAnchorParams(); par.MinΔρPerElectron=1e-6;
     const GaussianBasisRecipe sr2{.data=BasisSetData::VALENCE_LOWQ_SR2};
     qchem::SolidSession pes(SolidSetup::Resolve(LatticeOf(naf), sr2, o), {SCFStage{par, o.accelerator}});

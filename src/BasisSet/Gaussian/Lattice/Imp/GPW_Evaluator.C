@@ -296,8 +296,10 @@ void EmitGridAudit(const std::string& key, const qchem::report::json& r)
     std::cout<<os.str()<<std::endl;
     rpt::Log(os.str());
 }
-//! The DENSITY raster's audit row: the finest density level at p = 2 alpha_max, against the routing field (Hartree's 1/G^2 kernel
-//! suppresses the ball tail, and the ball is the density's own -- accepted e^{-E/2p} tail, by design -- so the RASTER is judged).
+//! The DENSITY raster's audit row: the finest density level at p = 2 alpha_max, against the routing field.  Only the RASTER is judged
+//! here; the BALL is not "suppressed by 1/G^2" -- it enters the energy through the G-space quadratures (Hartree, V_loc long), and the
+//! raster pilot judges it (SolidCalculation's CalibrateRasters: Eee at fixed D against twice the ball, doubling while over eps).  XC is
+//! not where it enters: with the cusp-deficit feed (the default) XC reads rho[D] at the fixed point; linear D-mixing and GDM feed rho[D].
 qchem::report::json DensityGridAudit(const std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>>& levels, double relFieldSharp,
                                      double maxExponent, const UnitCell& cell, double rasterX)
 {
@@ -1168,6 +1170,14 @@ void GPW_Evaluator::EmitGridsReport() const
             g["GstarFold"] = { { "ops", (long)sops.size() },
                                { "activeOn", "static local-PP sweeps (T1); per-iteration G fields unfolded" } };
         g["localPP"] = { { "kappa", itsTol.localPPRelCutoff } };
+        // the V_loc long routing tolerance that RAN, and where it came from (MakeLocalPPLong's rule)
+        g["vlocEps"] = { { "value",  itsTol.vlocEps>0.0 ? itsTol.vlocEps : kVlocEpsNoTarget },
+                         { "source", itsTol.VlocEpsDerived() ? "derived" : itsTol.vlocEps>0.0 ? "stated" : "no-target fallback" } };
+        if (itsTol.VlocEpsDerived())   // derived = the rigorous per-pair map / the measured calibration (GridAccuracy::VlocEps)
+        {
+            g["vlocEps"]["rigorous"]      = itsTol.vlocEpsRigorous;
+            g["vlocEps"]["etaRouting"]    = itsTol.vlocRoutingEta;
+        }
     }
     rpt::EmitSection("grids", g);
     if (itsFFT_R_G_Grids)
@@ -1450,7 +1460,7 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
     qchem::report::Timed timed("setup: local-PP LONG (custom G-ball)");
     assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0)");
     EnsureLevels();
-    const double eps=itsTol.vlocEps;
+    const double eps=itsTol.vlocEps>0.0 ? itsTol.vlocEps : kVlocEpsNoTarget;   // 0 = derived: the facade writes the target's (GridAccuracy::VlocEps)
     const double lnE=-std::log(eps);
     // The custom ladder: the block's levels + ONE top level at the sharpest pair's harmonic requirement
     // (2 alpha_max against beta) -- appended LAST so ecut_L[0] stays the resolution reference.  Skipped when

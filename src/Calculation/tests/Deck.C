@@ -15,6 +15,8 @@ import qchem.Materials;
 import qchem.ChargeDensity.Seed;
 import qchem.LASolver;
 import qchem.SolidState;          // StateFingerprint, CompareFingerprints
+import qchem.SCFCap;              // BoundedSCF: the vlocRouting test builds the evaluator with one iteration
+import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // AccuracyCalibration: the vlocRouting test states eta (no pilot)
 import qchem.Reporting;           // the filed run: its grids.audit* rows (the write-only gate)
 
 using namespace qchem;
@@ -553,6 +555,60 @@ TEST(Deck, GridAccuracyTargetRoundTripsAndRefusesNonPositive)
     EXPECT_NE(msg({{"accuracyCalibration",{{"density",-1.0}}}}).find("accuracyCalibration"),std::string::npos);
     EXPECT_NE(msg({{"accuracyCalibration",{{"vlocLong",2.0}}}}).find("delivered/bound"),std::string::npos) << "eta > 1 would claim the bound is optimistic";
     EXPECT_NE(msg({{"accuracyCalibration",{{"xc",1.0}}}}).find("xc"),std::string::npos) << "the XC raster has no rigorous bound to calibrate";
+}
+
+// V_loc long's routing tolerance = the rigorous per-pair map (eps) corrected by a MEASURED calibration (expert
+// `solid.accuracyCalibration.vlocRouting`, eta = delivered/bound, default 10): a non-default calibration reaches GridAccuracy::VlocEps(),
+// the setup writes it into the tolerances the evaluator is built from (marked derived), the evaluator reports the value and its source,
+// and a STATED absolute `tolerances.vlocEps` wins over it.
+TEST(Deck, AVlocRoutingCalibrationReachesTheEvaluatorAndAStatedVlocEpsWins)
+{
+    auto read=[](json solid){ deck::RunSpec s; deck::FromJson(json{{"structure","Si_diamond"},{"solid",solid}},s); return s; };
+    const deck::RunSpec d=read(json::object());
+    EXPECT_EQ(d.solid.accuracy.vlocRoutingEta, 10.0);
+    EXPECT_EQ(d.solid.accuracy.VlocEps(), 1e-5/10.0) << "the default is bit-identical to the old eps/10";
+    const deck::RunSpec f=read({{"accuracyCalibration",{{"vlocRouting",2.0}}}});
+    EXPECT_EQ(f.solid.accuracy.vlocRoutingEta, 2.0);
+    EXPECT_FALSE(f.solid.accuracy.eta.has_value()) << "vlocRouting alone states no raster eta: the rasters stay self-calibrated";
+    EXPECT_DOUBLE_EQ(f.solid.accuracy.VlocEps(), 5e-6);
+    { const json j=deck::ToJson(f); deck::RunSpec back; deck::FromJson(j,back); EXPECT_TRUE(back.solid.accuracy==f.solid.accuracy); }
+    EXPECT_FALSE(deck::ToJson(d).at("solid").contains("accuracyCalibration")) << "the default calibration is not written";
+    deck::RunSpec bad;
+    EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"accuracyCalibration",{{"vlocRouting",0.0}}}}}},bad),std::runtime_error);
+
+    const auto mat=Materials::Get("Si_diamond");
+    Lattice_3D lat(*mat.cell, ivec3_t(1,1,1));
+    std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, mat.cell.get()));
+    SolidCalcOptions o; o.Nelec=8; o.species=mat.species; o.densityEcut=20.0; o.label="vlocRouting";
+    o.accuracy.eps=1e-5; o.accuracy.eta=BasisSet::Gaussian::AccuracyCalibration{}; o.accuracy.vlocRoutingEta=2.0;   // stated raster eta: no pilot
+    const auto s=SolidSetup::Resolve(lat, mol, o);
+    EXPECT_DOUBLE_EQ(s->opts.tolerances.vlocEps, 5e-6) << "the evaluator is built from these tolerances";
+    EXPECT_TRUE(s->opts.tolerances.VlocEpsDerived());
+    {   // the same options through a deck run, which files its report: the evaluator's grids section names the vlocEps that ran
+        const fs::path dir=TmpDir("vlocrouting");
+        json dj={{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"}}},
+                 {"solid",{{"densityEcut",20.0},{"accuracy",1e-5},{"accuracyCalibration",{{"vlocLong",1.0},{"density",1.0},{"vlocRouting",2.0}}}}},
+                 {"scf",{{"NMaxIter",1},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"}}}};
+        deck::RunSpec spec; deck::FromJson(dj,spec);
+        deck::Provenance pv; pv.codeVersion="t";
+        qchem::BoundedSCF bounded("the grids report's vlocEps row is the subject: one iteration builds the evaluator");
+        const auto out=deck::Run(spec,pv,dir);
+        const qchem::report::json* grids=nullptr;
+        for (auto it=qchem::report::GlobalReport().begin(); it!=qchem::report::GlobalReport().end(); ++it)
+            if (it.key().rfind(out.revision.stem().string()+"@",0)==0 && it.value().contains("grids")) grids=&it.value()["grids"];
+        ASSERT_NE(grids, nullptr) << "no filed run named " << out.revision.stem() << " with a grids section";
+        ASSERT_TRUE(grids->contains("vlocEps"));
+        EXPECT_DOUBLE_EQ((*grids)["vlocEps"]["value"].get<double>(), 5e-6);
+        EXPECT_EQ((*grids)["vlocEps"]["source"].get<std::string>(), "derived");
+        EXPECT_EQ((*grids)["vlocEps"]["rigorous"].get<double>(), 1e-5) << "the rigorous piece";
+        EXPECT_EQ((*grids)["vlocEps"]["etaRouting"].get<double>(), 2.0) << "the calibration";
+        fs::remove_all(dir);
+    }
+
+    o.tolerances.vlocEps=3e-7;   // STATED: wins over the fraction
+    const auto t=SolidSetup::Resolve(lat, mol, o);
+    EXPECT_EQ(t->opts.tolerances.vlocEps, 3e-7);
+    EXPECT_FALSE(t->opts.tolerances.VlocEpsDerived());
 }
 
 // The egg-box action (doc/GridEpsilonPlan.md §5 verdict 5): round-trips its shift, defaults to a generic 0.037 bohr, and is refused
