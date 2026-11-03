@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+# importtable -- the per-module FAN-IN TABLE (V-INTERFACE-TIERS step 1) from an importprobe TSV.
+#
+# The probe says which `import X;` lines each TU can lose.  A removable import is one of two things, told apart here from
+# the RE-EXPORT graph: REDUNDANT (X still reaches the TU through another of its imports' `export import` closure -- the TU
+# still USES X, by the back door the re-export rule forbids) or STALE (X reaches it by no route that remains -- the TU does
+# not use X at all).  Dependencies are counted AFTER pruning the stale ones only: a redundant import is still a dependency.
+#
+# Per module (Martin's package metrics, user 2026-11-03):
+#   files    TUs that depend on it (outside its own units)        libs   distinct libraries those TUs belong to (outside its own)
+#   Ca       distinct dependent modules / non-module TUs           Ce     distinct modules its own units depend on
+#   I        Ce/(Ca+Ce)                                            A      abstract classes / non-value classes in its interface (heuristic)
+#   D        |A + I - 1|                                           casts  dynamic_cast<...> in its own units, by target type
+#   pv       mean over its non-value classes of (pure virtuals / virtual functions) -- NOT Martin's A, a gradation beside it
+# Martin's A, as ruled (user 2026-11-03): a class is ABSTRACT iff it declares a pure virtual FUNCTION (`virtual ...(...) ... = 0;`,
+# never a data-member initializer `n = 0;`); the per-class verdict is binary (a template-method interface with 3 pure hooks and one
+# virtual policy counts 1).  VALUE STRUCTS leave the denominator: a class with no virtual member that is a `struct`, or declares no
+# member function beyond operators, defaulted/deleted members and constructors (params, tolerances, results).
+#   reexp    its `export import`s, each marked sig if a name exported by the target appears in its own exported text (heuristic)
+#   gets     Get* names declared anywhere in its interface text, private ones included (heuristic; the four Tell-Don't-Ask
+#            answers of step 5 are the reviewer's)
+# HEURISTICS ARE MARKED: A, the sig mark and the cast targets come from text, not the AST; the import verdicts come from the compiler.
+#
+# Two lists follow the table: the re-exports that FAIL the signature test (the suspects under the re-export rule: a consumer
+# imports what it uses directly, so a redundant direct import is correct style and the re-export it duplicates is what to shrink),
+# with the re-exporting module's importer count; and, with --stale OUT.tsv, every STALE import (file, unit, import) to remove.
+#
+# Usage: scripts/importtable SNAPSHOT_BUILD_DIR PROBE.tsv OUT.md [--min-files N] [--stale STALE.tsv]
+import json, os, re, subprocess, sys, collections
+
+IMPORT=re.compile(r'^\s*(export\s+)?import\s+([A-Za-z0-9_.:]+)\s*;')
+UNIT=re.compile(r'^\s*(export\s+)?module\s+([A-Za-z0-9_.:]+)\s*;')
+CLASS=re.compile(r'(?<!enum )(?<!enum\t)\b(class|struct)\s+([A-Za-z_]\w*)\s*(final\s*)?(:[^{;]*)?\{')
+PURE=re.compile(r'\bvirtual\b[^;{}]*\)[^;{}()]*=\s*0\s*;')
+VFUN=re.compile(r'\bvirtual\b[^;{}]*\)')
+MFUN=re.compile(r'\b(~?[A-Za-z_]\w*)\s*\([^;{}]*\)[^;{}()]*[;{]')
+CAST=re.compile(r'dynamic_cast\s*<\s*(const\s+)?([A-Za-z_:][\w:<>, ]*?)\s*[*&]\s*>')
+GET=re.compile(r'\b(Get[A-Z]\w*)\s*\(')
+NAME=re.compile(r'\b(?:class|struct|enum(?:\s+class)?|using|typedef)\s+([A-Za-z_]\w*)')
+
+def target_of(output):
+    m=re.search(r'CMakeFiles/([^/]+)\.dir/',output)
+    return m.group(1) if m else '?'
+
+def body(text, start):
+    depth=0
+    for i in range(start,len(text)):
+        if text[i]=='{': depth+=1
+        elif text[i]=='}':
+            depth-=1
+            if depth==0: return text[start:i+1]
+    return text[start:]
+
+def main():
+    a=sys.argv[1:]
+    build,probe,outp=a[0],a[1],a[2]
+    minfiles=int(a[a.index('--min-files')+1]) if '--min-files' in a else 1
+    stalep=a[a.index('--stale')+1] if '--stale' in a else None
+    stale=[]
+    db=json.loads(subprocess.run(['ninja','-C',build,'-t','compdb'],capture_output=True,text=True,check=True).stdout)
+    lib={}
+    for e in db:
+        if 'clang++' in e['command'] and 'scan-deps' not in e['command']: lib[e['file']]=target_of(e['output'])
+    rows=[l.rstrip('\n').split('\t') for l in open(probe) if l.strip()]
+    tus=collections.OrderedDict()
+    for f,unit,mod,imp,verdict,_ in rows:
+        t=tus.setdefault(f,{'unit':unit,'mod':mod,'imports':[]})
+        if imp!='*': t['imports'].append((imp,verdict))
+    # the re-export graph: module -> modules it `export import`s (from its interface unit)
+    reexp=collections.defaultdict(set); iface_file={}
+    for f,t in tus.items():
+        if t['unit']=='iface':
+            iface_file[t['mod']]=f
+            for imp,v in t['imports']:
+                if v=='export': reexp[t['mod']].add(imp)
+    def closure(mods):
+        seen=set(); stack=list(mods)
+        while stack:
+            m=stack.pop()
+            for r in reexp.get(m,()):
+                if r not in seen: seen.add(r); stack.append(r)
+        return seen
+    # classify removals and collect each TU's real dependencies
+    deps={}; counts=collections.Counter()
+    for f,t in tus.items():
+        kept=[i for i,v in t['imports'] if v in ('keep','export')]
+        reach=closure(kept)|set(kept)
+        if t['unit']=='impl' and t['mod'] in iface_file:
+            # `module X;` sees everything X's interface imports, exported or not (and their re-exports)
+            ii=[i for i,v in tus[iface_file[t['mod']]]['imports'] if v in ('keep','export')]
+            reach|=set(ii)|closure(ii)|closure({t['mod']})
+        d=set(kept)
+        for i,v in t['imports']:
+            if v.startswith('remove'):
+                if i in reach: d.add(i); counts['redundant']+=1
+                else: counts['stale']+=1; stale.append((f,t['unit'],i))
+            else: counts[v]+=1
+        deps[f]=d
+    owner=lambda f: tus[f]['mod'] if tus[f]['mod'] else f       # a non-module TU is its own node
+    modlib={m: lib.get(f,'?') for m,f in iface_file.items()}
+    users=collections.defaultdict(set); ce=collections.defaultdict(set)
+    for f,d in deps.items():
+        me=owner(f)
+        for m in d:
+            if m==me: continue
+            users[m].add(f); ce[me].add(m)
+    out=[]; nosig=[]
+    for m,f in iface_file.items():
+        ufiles=[u for u in users[m] if owner(u)!=m]
+        if len(ufiles)<minfiles: continue
+        ulibs={lib.get(u,'?') for u in ufiles}-{modlib[m]}
+        Ca=len({owner(u) for u in ufiles}); Ce=len(ce[m])
+        I=Ce/(Ca+Ce) if Ca+Ce else 0.0
+        text=open(f).read()
+        code=re.sub(r'//[^\n]*','',re.sub(r'/\*.*?\*/','',text,flags=re.S))   # the class pass reads CODE: a comment is not a member
+        classes=[]; pv=[]
+        for c in CLASS.finditer(code):
+            b=body(code,c.end()-1)
+            name=c.group(2)
+            nv=len(VFUN.findall(b)); npure=len(PURE.findall(b))
+            if nv==0:
+                funs=[f for f in MFUN.findall(b) if f not in (name,'~'+name,'operator') and not f.startswith('operator')]
+                if c.group(1)=='struct' or not funs: continue          # a VALUE struct: out of A's denominator
+            classes.append((name, npure>0))
+            pv.append(npure/nv if nv else 0.0)
+        # no non-value class at all (a module of params / results): A is undefined, not 0, and so is D
+        A=sum(1 for _,ab in classes if ab)/len(classes) if classes else None
+        PV=sum(pv)/len(pv) if pv else None
+        D=abs(A+I-1) if A is not None else None
+        own=[g for g,t in tus.items() if t['mod']==m]
+        casts=collections.Counter()
+        for g in own:
+            for c in CAST.finditer(open(g).read()): casts[c.group(2).strip().split('::')[-1]]+=1
+        names=set(NAME.findall(text))|{c for c,_ in classes}
+        sig=[]
+        exported=re.sub(r'^\s*(export\s+)?import[^\n]*\n','',text,flags=re.M)
+        for r in sorted(reexp.get(m,())):
+            rf=iface_file.get(r)
+            rn=set(NAME.findall(open(rf).read())) if rf else set()
+            hit=any(re.search(r'\b'+re.escape(n)+r'\b',exported) for n in rn if len(n)>2)
+            sig.append(f"{r}{'' if hit else ' (no-sig?)'}")
+            if not hit: nosig.append((len(ufiles),m,r))
+        gets=sorted(set(GET.findall(text)))
+        out.append((len(ufiles),m,modlib[m],len(ufiles),len(ulibs),Ca,Ce,I,A,D,PV,sum(casts.values()),
+                    ', '.join(f'{k}×{v}' for k,v in casts.most_common(6)),'; '.join(sig),', '.join(gets[:12])+(' …' if len(gets)>12 else '')))
+    out.sort(key=lambda r:-r[0])
+    f2=lambda x: '—' if x is None else f'{x:.2f}'
+    with open(outp,'w') as o:
+        o.write(f"# Compile-checked fan-in table (V-INTERFACE-TIERS step 1)\n\n")
+        o.write(f"Import verdicts (compiler, -fsyntax-only): {dict(counts)}.  `stale` = used by no route; `redundant` = reaches the TU only through another import's re-export (still a dependency).\n")
+        o.write("A, the sig mark and cast targets are TEXT heuristics.\n\n")
+        o.write("A = Martin's abstractness (binary per class: abstract iff it declares a pure virtual function; value structs excluded).  "
+                "pv = the mean pure-virtual fraction of the non-value classes -- NOT Martin's A.  "
+                "— = the module declares no non-value class (A and D undefined).\n\n")
+        o.write("| module | lib | files | ext libs | Ca | Ce | I | A | D | pv | casts | cast targets | re-exports | Get* |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+        for r in out:
+            o.write(f"| `{r[1]}` | {r[2]} | {r[3]} | {r[4]} | {r[5]} | {r[6]} | {r[7]:.2f} | {f2(r[8])} | {f2(r[9])} | {f2(r[10])} | {r[11]} | {r[12]} | {r[13]} | {r[14]} |\n")
+        o.write("\n## Re-exports failing the signature test (no-sig?)\n\n")
+        o.write("A re-export whose target contributes no name to the re-exporter's own exported text (TEXT heuristic): the suspect under the "
+                "re-export rule.  `importers` = the re-exporting module's dependent files (every one receives the target by the side door).\n\n")
+        o.write("| re-exporter | re-exported | importers |\n|---|---|---|\n")
+        for n,m,r in sorted(nosig,key=lambda x:(-x[0],x[1],x[2])): o.write(f"| `{m}` | `{r}` | {n} |\n")
+    if stalep:
+        with open(stalep,'w') as o:
+            for f,u,i in stale: o.write(f'{f}\t{u}\t{i}\n')
+    print(f'importtable: {len(out)} modules -> {outp}; verdicts {dict(counts)}')
+
+if __name__=='__main__': main()
