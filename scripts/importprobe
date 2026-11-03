@@ -99,8 +99,12 @@ def main():
             done.add(l.split('\t')[0])
     todo=[e for e in uniq if e['file'] not in done]
     print(f'importprobe: {len(todo)} TUs to probe ({len(done)} already in {outp}), -j{j}',flush=True)
+    def safe(e):
+        # a TU the snapshot never built (no modmap) is a baseline failure, not a crash of the whole run
+        try: return probe(e,build)
+        except OSError: return [(e['file'],'?','','*','baseline-fail','0')]
     with open(outp,'a') as out, cf.ThreadPoolExecutor(j) as ex:
-        for k,rows in enumerate(ex.map(lambda e: probe(e,build), todo)):
+        for k,rows in enumerate(ex.map(safe, todo)):
             for r in rows: out.write('\t'.join(r)+'\n')
             out.flush()
             if (k+1)%10==0: print(f'  {k+1}/{len(todo)}',flush=True)
