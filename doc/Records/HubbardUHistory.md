@@ -2632,3 +2632,50 @@ VM at ecut 30, L = 12) so the GPW-vs-PW split is not yet made.  Open row in `doc
 5. Cost: on bcc q3 + aug the SCF is 590 s and the pilot about 17,000 s (round-1 audit alone 11,150 s); the postSCF gridAudit then
    repeats the pilot's own last audit (2460 s).
 6. The q3 atom (L28) was OOM-killed in a postSCF audit (4.3 GB RSS, global OOM).
+
+## 2026-11-04 — Li q3 non-variational: ROOT CAUSE = a Hermite3 table overrun (lane H)
+
+**Cause.** `PG_Cart_MnD::Hermite3` (the McMurchie–Davidson 3-centre overlap block behind `MakeLocalGaussian`, the analytic
+short-range local PP) stored its coefficients in fixed `[3*LMAX+1][LMAX+1]^3` arrays with `LMAX 3`.  The operator slot carries
+the GTH local polynomial r^{2n} expanded into Cartesian monomials (`MultiplyR2`), so C3 gives x⁴ and C4 gives x⁶: per-axis
+powers 4 and 6 indexed past the table, silently, in Release.  Unit gate `GPW.LocalPPShortAnalyticMatchesGrid_C3C4` (UTLattice_BS):
+analytic short vs the κ-ruled grid short (form factor, verified against a radial Fourier transform to 1e-15) — before the fix
+Li q3 rel 0.385 (max |ΔV| 0.44 Ha) while Si q4 / Li q1 (C1, C2 only) agreed to 1e-10; after it 1.3e-10 / 5.1e-11 / 2.6e-11.
+Fix: Hermite3 is sized per (LA, LB, LC) like Hermite2; Hermite1 (still fixed, LMAX 3; reached only by the 3-centre repulsion)
+now THROWS on L > LMAX instead of overrunning.
+
+**The atom, after the fix** (`~/Code/qchem6-runs/Li/mu/q3fixed/`, basis `valence_lowq_va_liq3.bsd`, vet: nothing trimmed, λmin 3.7e-3):
+
+| run | Etot (Ha) |
+|---|---|
+| L 12, default grids | −7.2857262 |
+| L 20, default grids | −7.2857005 (box-independent to 26 μHa; was 5.3 mHa before) |
+| L 12, Becke 100/35 | −7.2857129 |
+| L 12, Becke 100/35, densityEcut 480 | −7.2857135 |
+| L 12, cp2kCompat (uniform XC) | −7.2857174 |
+| CP2K ATOM, geometric 40/60/80 (complete) | −7.3007906 → ours is 15 mHa ABOVE: the gate passes |
+| CP2K QS GPW, same basis, L 12, 2000/4000 Ry | −7.2850821 (cutoff-converged to 1e-12) |
+| CP2K ATOM, same basis (contracted) | −7.2796692 — 5.4 mHa above CP2K's own QS: an ATOM-vs-QS difference inside CP2K, not used |
+
+**Remainder (open):** ours is 0.63 mHa BELOW CP2K QS on the same basis and box, route-independent (Becke / uniform XC, grids
+converged).  It belongs to the q3 POTENTIAL, not the basis: q1 PP on the same q3 basis is 97 μHa ABOVE CP2K (−0.1840431 vs
+−0.1841403), and q1 on its own basis 38 μHa above (−0.2200878 vs −0.2201259).  GTH parameters are byte-identical to CP2K's file.
+Not a broken-symmetry state (the run imposes Oh).  Next: split by term (frozen-density, or CP2K's printed core-Hamiltonian /
+Hartree / XC against ours at the same D).
+
+**Why it was silent** (codebase friction).  The asserts in `Hermite3::operator()` / `GetAny` compare the index against the
+DECLARED (itsLA, itsLB, itsLC), which were 6 for the operator — never against the array bound LMAX — so even a Debug or
+`QCHEM_RELCHECKED` tree passes them (and Blaze bounds checks do not cover C arrays).  No test exercised a C3/C4 GTH: in our table
+only Li q3 and Be q4 (all four functionals) carry C3/C4, and no test, anchor or deck used either until the Li voltage work.
+Lesson: a fixed-size table indexed by a runtime L is a contract that must THROW at construction, not an assert at access.
+
+**Sibling survey** (fixed tables indexed by a runtime L, guarded by assert only — none fixed in this landing):
+`Boys::AuxillaryFJ::theLookUp[121][23]` (assert `Fj.size() < thejMax+6`, looser than the table: jmax ≤ 16 is the real bound);
+`Wigner3j` (constexpr LMax 4, assert-only); `RelWigner3j` (KMax, assert-only).  `PG_Cart_MnD::kMaxPoly` is SAFE (MakePairPoly
+declines lp ≥ kMaxPoly at run time).
+
+**Suite coverage, measured.**  The landing sweep (short 1269/1269, long 10/10, panel+periodic) moved ZERO anchors at 1e-10 Ha
+(`scripts/anchordiff` vs main-619f96d6: 1263 + 11 compared; logs `~/Code/qchem6-runs/anchors/lane-h-hermite3_*`).  So no existing
+test reached a C3/C4 local PP — or any other 3-centre overlap with a per-axis power above 3 — and the overrun had no suite coverage
+before the operator UT.  Energy gate added: `GPW_LiBox.Γ_M2_CP2K_Long` (IntegrationTests/GPW/Li.C, 139 s, 1.7 GB): above CP2K
+ATOM's −7.3007906 (the variational floor the defect broke) and within 1 mHa of CP2K QS on the same basis (holds the open 0.64 mHa).
