@@ -101,7 +101,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     ASSERT_TRUE(cSipp.Result());
     const double Esipp=cSipp.EnergyTerms().GetTotalEnergy()-cSipp.EnergyTerms()["MinusTS"];
     // Physical oracle (near-complete Slater/High, for context -- a different basis, not the GPW-correctness gate).
-    AtomCalculation cHi(14, 14-4, {.type=AtomType::Slater, .accuracy=BasisSetAccuracy::High, .pseudopotential=true});
+    AtomCalculation cHi(14, 14-4, {.type=AtomType::Slater, .basisPool=BasisSetAccuracy::High, .pseudopotential=true});
     std::cout << "[Si finite] sipp="<<Esipp<<"  Slater/High="<<cHi.Energy()<<std::endl;
 
     // Box a=16 (was 11): the analytic collocation always includes the screened cross-cell pair products, so

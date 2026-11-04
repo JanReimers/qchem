@@ -2637,10 +2637,17 @@ TEST(GPW, RasterAliasCalibration)
             std::shared_ptr<const Real_BS> mol(cbs);
             rpt::ClearGlobal();
             rpt::Begin("RasterAliasCalibration", "fixed");
-            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, c>0 ? c*pp : -1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
-                        4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, rp==RP::AliasFree ? AliasFreeRasters() : GPWTolerances{});
+            const GPWTolerances tolR=rp==RP::AliasFree ? AliasFreeRasters() : GPWTolerances{};
+            // The point's ladder, sized for the local PP as the facade sizes it: its grids (and audit rows) are the ladder's.
+            const auto ladder=BasisSet::Gaussian::MakeRasterLadder(cell, *mol, {.densityEcut=c>0 ? c*pp : -1.0, .tol=tolR},
+                                                                   BasisSet::Gaussian::LocalPPSharpness(cell, gth.local));
+            GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), mol, ladder, BasisSet::Gaussian::CellImages::Periodic,
+                        {}, tolR);
             const GPW_Evaluator& ev=gpw;
-            ev.EmitGridsReport();
+            {
+                rpt::Section grids("grids");
+                ladder->ReportGrids({});
+            }
             const chmat_t Vl=ev.MakeLocalPPLong(&cell, gth.local);
             const qchem::report::json& g=rpt::CurrentRunReport()["grids"];
             ASSERT_TRUE(g.contains("auditDensity")) << "the grid audit did not run";
@@ -2944,11 +2951,12 @@ TEST(GPW, RasterDemandIsDelivered)
     for (double x : {0.0, 9.0, 21.6})
     {
         GPWTolerances t; t.rasterX=x; t.vlocRasterX=x+3.0; t.xcRasterX=x+1.0;
-        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, -1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
-                    4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, t);
+        const auto ladder=BasisSet::Gaussian::MakeRasterLadder(cell, *mol, {.densityEcut=-1.0, .tol=t},
+                                                               BasisSet::Gaussian::LocalPPSharpness(cell, gth.local));
+        GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), mol, ladder, BasisSet::Gaussian::CellImages::Periodic, {}, t);
         const GPW_Evaluator& ev=gpw;
-        (void)ev.MakeLocalPPLong(&cell, gth.local);   // V_long's ladder is built lazily
-        const auto got=ev.DeliveredRasterExponents();
+        (void)ev.MakeLocalPPLong(&cell, gth.local);   // the term runs on the ladder it was sized for (a mismatch throws)
+        const auto got=ladder->DeliveredRasterExponents();
         if (x==0.0)
         {
             const ivec3_t N=ev.DensityGrid().FFTGrid();

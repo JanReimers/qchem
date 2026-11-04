@@ -6,9 +6,11 @@ module;
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <memory>
 #include <nlohmann/json.hpp>
 
 module qchem.Pseudopotential.GTH_Potentials;
+import qchem.PeriodicTable;   // the atomic-number key of the multi-species local
 
 #ifndef PSEUDO_DATA_PATH
 #error "PSEUDO_DATA_PATH must be defined by CMake"
@@ -72,6 +74,15 @@ std::vector<int> GetGTHValences(const std::string& element, const std::string& f
         if (it.key() != "default") qs.push_back(std::stoi(it.key()));
     std::sort(qs.begin(), qs.end());                    // ascending: qs.front() = valence, back = deepest semicore
     return qs;
+}
+
+std::shared_ptr<const LocalPotential> MakeMultiSpeciesLocal(const std::vector<std::pair<std::string,int>>& species,
+                                                            const std::string& functional)
+{
+    auto loc=std::make_shared<MultiSpecies_LocalPotential>();
+    for (const auto& [element, q] : species)
+        loc->Add(thePeriodicTable().GetZ(element), std::make_shared<const HGH_LocalPotential>(GetGTH(element,functional,q).local));
+    return loc;
 }
 
 } // namespace

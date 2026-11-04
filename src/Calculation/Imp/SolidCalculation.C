@@ -23,6 +23,7 @@ module qchem.SolidCalculation;
 
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
 import qchem.Pseudopotential.Set;             // PseudopotentialSet -- the run's chosen pseudopotential, resolved once by SolidSetup::Resolve
+import qchem.Pseudopotential.GTH_Potentials;  // MakeMultiSpeciesLocal -- the local the ladder is sized for (the Hamiltonian's own builder)
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.ElectronConfiguration.Crystal;    // Crystal_EC
 import qchem.Symmetry.Irrep;                   // Irrep, Spin
@@ -105,6 +106,10 @@ struct SolidCalculation::Imp
     std::optional<Lattice_3D> lat;
     //! The MOLECULAR orbital basis the Bloch basis was built over: held for the grid audit, which rebuilds the Bloch basis on another raster.
     std::shared_ptr<const BasisSet::Real_BS> mol;
+    //! THIS GEOMETRY POINT's imposition and raster ladder (V-BS-RASTER), resolved here and handed to the GPW factory: the facade holds
+    //! them, so the grid report and the raster pilot ASK them (never a basis block).  Null on a plane-wave run.
+    std::shared_ptr<const CrystalImposition>                  imposition;
+    std::shared_ptr<const BasisSet::Gaussian::GpwRasterLadder> ladder;
     //! What the run's client consumes (\c SolidCalculation::Consumes): an energy, unless a SolidSession built this point.
     BasisSet::Gaussian::ClientConsumes consumes = BasisSet::Gaussian::ClientConsumes::Energy;
     //! The pilot audit has SETTLED this run's rasters (\c CalibrateRasters): \c setup->opts.tolerances are the final demands.
@@ -342,6 +347,23 @@ std::unique_ptr<SolidCalculation> SolidCalculation::Prepare(std::shared_ptr<cons
     return c;
 }
 
+namespace {
+//! A GPW point's imposition and raster ladder, resolved from the params' own statements of them and the run's PP, and written into
+//! \a p so the factory uses (and checks) them.  The ladder is sized for the local PP the Hamiltonian will build: the SAME builder
+//! (MakeMultiSpeciesLocal over the PP set's species), so V_loc long's audit row is a pure function of what the facade holds.
+void ResolveGpwPoint(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol, const Pseudopotential::PseudopotentialSet& pp,
+                     BasisSet::Lattice::GPWParams& p)
+{
+    namespace L3 = BasisSet::Lattice;
+    const std::shared_ptr<const Structure> held=lat.GetStructure();   // held: GetStructure may hand back a fresh object
+    const Structure& st=*held;
+    p.imposition=std::make_shared<const CrystalImposition>(ResolveImposition(lat, ImpositionOptions{
+        .imposeSymmetry=p.imposeSymmetry, .siteSpins=p.siteSpins, .freeMeshInvariant=p.freeMeshInvariant, .kShift=p.kShift}));
+    const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(st, *Pseudopotential::MakeMultiSpeciesLocal(pp.Species(st), pp.Functional()));
+    p.ladder=L3::MakeRasterLadder(lat, std::move(mol), p, ppSharpness);
+}
+} //anon
+
 // THE FIRST HALF OF THE BUILD: the GEOMETRY POINT over a resolved setup -- everything the saved-state fingerprint is judged
 // against (the Bloch blocks), and nothing that depends on the seed.  Restart stops here to compare before paying for the
 // Hamiltonian.  Every DECISION is the setup's (SolidSetup::Resolve); this builds.
@@ -384,17 +406,21 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         const auto& tol=opts.tolerances;
         if (!tol.Describe().empty())
             std::cout<<"["<<opts.label<<" run] GPW tolerances (non-default):"<<tol.Describe()<<std::endl;
-        itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
+        L3::GPWParams p{
             .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = tol,
-            .hamPreservesReal = hamPreservesReal}));
+            .hamPreservesReal = hamPreservesReal};
+        ResolveGpwPoint(lat, mol, S.pp, p);
+        itsImp->imposition=p.imposition;
+        itsImp->ladder    =p.ladder;
+        itsImp->bs.reset(L3::GPWFactory(lat, mol, p));
     }
     // THE RUN REPORTS ITS OWN BASIS AND GRIDS (TE phase 2, 2026-09-15; the reporting rule: each class emits
     // contemporaneously with its own activity).  These two sections used to be emitted by the integration
     // test driver around this same construction; the facade is the orchestrator now.  Order matters and is
     // the one the driver established: the conditioning pre-flight on the ANALYTIC overlap first (no grids
-    // needed), then the grid ladder (EmitGpwGrids is what forces EnsureLevels).  Only when a run report is
+    // needed), then the grid ladder's report (the point's ladder, ASKED: V-BS-RASTER).  Only when a run report is
     // open -- the emitters are inert otherwise -- and never an abort: a dependent basis is the caller's to
     // handle through a pivoted ortho, and an unhandled one fails loudly in the iterator.
     // (Plane waves are orthonormal and grid-free: neither section has anything to say about them.)
@@ -410,8 +436,9 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         }
         if (nRemoved>0)
             qchem::report::Log("basis is rank-deficient ("+std::to_string(nRemoved)+" redundant functions, see basis.removed)");
-        qchem::report::Log("building grid ladder");
-        L3::EmitGpwGrids(*itsImp->bs);
+        qchem::report::Log("the grid ladder");
+        qchem::report::Section grids("grids");   // the point's grids: the ladder and the lattice sums report one level in
+        L3::EmitGpwGrids(*itsImp->ladder, *itsImp->mol, *itsImp->imposition);
     }
     else L3::PrintGpwConditioning(*itsImp->bs);   // no report open: still say how conditioned S(k) is
 
@@ -986,7 +1013,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
     {
         namespace L3 = BasisSet::Lattice;
         const double lmin=L3::MinOverlapEigenvalue(*itsImp->bs);
-        const BasisSet::Gaussian::RasterExponents had=*L3::GpwRasterExponents(*itsImp->bs);
+        const BasisSet::Gaussian::RasterExponents had=itsImp->ladder->DeliveredRasterExponents();
         const double x=std::max({lmin>0.0 ? std::log(1.0/lmin) : 0.0, had.density, had.vlocLong, had.xcL0});
         BasisSet::Gaussian::GPWTolerances t=itsImp->setup->opts.tolerances;
         t.rasterX=std::max(t.rasterX,x); t.vlocRasterX=std::max(t.vlocRasterX,x); t.xcRasterX=std::max(t.xcRasterX,x);
@@ -1352,8 +1379,8 @@ template <class M> void FoldΔH(const std::vector<M>& a, const std::vector<M>& b
 BasisSet::Gaussian::GPWTolerances SolidCalculation::ReferenceRasters(double margin) const
 {
     namespace L3 = BasisSet::Lattice;
-    const auto x=L3::GpwRasterExponents(*itsImp->bs);
-    if (!x) throw std::logic_error("SolidCalculation: the basis has no GPW raster to refine");
+    if (!itsImp->ladder) throw std::logic_error("SolidCalculation: the basis has no GPW raster to refine");
+    const std::optional<BasisSet::Gaussian::RasterExponents> x=itsImp->ladder->DeliveredRasterExponents();
     BasisSet::Gaussian::GPWTolerances t=itsImp->setup->opts.tolerances;
     t.rasterX    =x->density+margin;
     t.vlocRasterX=(x->vlocLong>0.0 ? x->vlocLong : x->density)+margin;   // no own V_long ladder (the kappa-sweep path): it rides the density's
@@ -1373,7 +1400,7 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(double referenceMa
     return CompareAtFixedD(ref, rvec3_t(0,0,0), RasterName(ref));
 }
 
-BasisSet::Gaussian::ClientConsumes SolidCalculation::Consumes() const {return itsImp->consumes;}
+ClientConsumes SolidCalculation::Consumes() const {return itsImp->consumes;}
 SolidCalculation::RasterPilotCost  SolidCalculation::PilotCost() const {return itsImp->pilotCost;}
 
 std::shared_ptr<const SolidSetup> SolidCalculation::SizedSetup() const
@@ -1418,7 +1445,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     bool metEveryTarget=false;                          // the SETTLED line, not the round cap, ended the ladder
     for (int round=0;; ++round)
     {
-        const G::RasterExponents x=*L3::GpwRasterExponents(*itsImp->bs);
+        const G::RasterExponents x=itsImp->ladder->DeliveredRasterExponents();
         const double xV = x.vlocLong>0.0 ? x.vlocLong : x.density;   // no own V_long ladder (the kappa-sweep path): the density's
         const GridAuditResult R=CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), "pilot reference (x + 8)");
         G::GPWTolerances t=itsImp->setup->opts.tolerances;
@@ -1648,17 +1675,18 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
     // The grid-audit verdicts of each side's rasters, ASKED of the basis that owns them (V-REPORT-WRITEONLY: never read back out of the
     // run report): the run's own here, the reference's once its V_long has run below (both are printed, so the predicted alias of
     // whichever side is the coarse one can be read -- the run need not be the BallOnly side).
-    auto verdictsOf=[](const BasisSet::Complex_BS& bs)
+    auto verdictsOf=[](const BasisSet::Gaussian::GpwRasterLadder& ladder)
     {
         rpt::json v=rpt::json::object();
-        for (const auto& r : BasisSet::Lattice::GpwRasterVerdicts(bs)) v[r.audit]={{"status",r.status},{"alias",r.alias}};
+        for (const auto& r : ladder.DeliveredRasterVerdicts()) v[r.audit]={{"status",r.status},{"alias",r.alias}};
         return v;
     };
-    const rpt::json verdicts=verdictsOf(*itsImp->bs);
+    const rpt::json verdicts=verdictsOf(*itsImp->ladder);
     rpt::json refVerdicts=rpt::json::object();
 
     const SavedState st=SnapshotState(*itsImp->bs, *wf);
     std::unique_ptr<BasisSet::Complex_BS> bsRef;
+    std::shared_ptr<const BasisSet::Gaussian::GpwRasterLadder> ladderRef;
     std::unique_ptr<qchem::Hamiltonian::cHamiltonian> hamRef;
     // FENCED from here to the fold: the reference basis and Hamiltonian report their grids (and grid audits) as they BUILD AND FIRST
     // EVALUATE (the raster levels and the V_long sweep are lazy); a nested run keeps that out of this run's `grids` section, which must keep
@@ -1683,12 +1711,19 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
         namespace L3 = BasisSet::Lattice;
         // The density ball: the run's, or ballScale x it -- on the knob that sets it (an auto ball is cutoffFactor x alpha_max).
         const bool autoBall = opts.densityEcut<0.0;
-        bsRef.reset(L3::GPWFactory(latRef, molRef, L3::GPWParams{
+        L3::GPWParams p{
             .densityEcut = autoBall ? opts.densityEcut : ballScale*opts.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.cutoffFactor : opts.cutoffFactor,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = raster,
-            .hamPreservesReal = !opts.forceComplex}));
-        if (rpt::Depth()>0) L3::EmitGpwGrids(*bsRef);   // the reference's grids + density verdict, as setup emits the run's (it forces EnsureLevels)
+            .hamPreservesReal = !opts.forceComplex};
+        ResolveGpwPoint(latRef, molRef, S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
+        ladderRef=p.ladder;
+        bsRef.reset(L3::GPWFactory(latRef, molRef, p));
+        if (rpt::Depth()>0)   // the reference's grids + verdicts, as setup files the run's
+        {
+            rpt::Section grids("grids");
+            L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition);
+        }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
         hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard));
     }
@@ -1728,7 +1763,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             else    FoldΔH(itsImp->ham->MakeTermMatrices((*itsImp->bs)[i],s,dRun), hamRef->MakeTermMatrices((*bsRef)[i],s,dRef), R.terms);
         }
     for (const auto& t : R.terms) R.maxAbsΔH=std::max(R.maxAbsΔH, t.maxAbsΔH);
-    refVerdicts=verdictsOf(*bsRef);
+    refVerdicts=verdictsOf(*ladderRef);
     fence.reset();
     R.runVerdicts=toVerdicts(verdicts); R.referenceVerdicts=toVerdicts(refVerdicts);
     // The rigorous bound per raster term, at the COARSE side's predicted alias (whichever side that is), and the measured eta

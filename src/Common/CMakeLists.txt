@@ -17,6 +17,7 @@ target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     RunPolicy.C
     HDF5.C
     SCFCap.C
+    Accuracy.C
     HandOff.C
     )
 

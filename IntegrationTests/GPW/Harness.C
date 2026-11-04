@@ -40,7 +40,7 @@ export import qchem.Types;
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.BasisSet.DeltaFit_IBS;              // DeltaFit_IBS -- the delta basis the singles strategy runs on
 import qchem.BasisSet.G_FieldEvaluator;           // G_RasterTransform -- the uniform probe's own point count
-export import qchem.BasisSet.Lattice.BasisSet;    // VetGpwConditioning / EmitGpwGrids + VetStageTrim (pin 22)
+export import qchem.BasisSet.Lattice.BasisSet;    // VetGpwConditioning + VetStageTrim (pin 22)
 import qchem.Hamiltonian.Internal.PWTerms;        // Vxc_Quadrature (the XC probes)
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
@@ -118,7 +118,7 @@ std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData w
 // Shared GPW run reporting.  ANY GPW driver -- RunGPW's fixed recipe OR a bespoke one (GPW_NaF.Γ_Imp_Anchor's
 // multi-species PP + Ladder accelerator) -- gets automatic reporting by holding one of these: RAII brackets the
 // run (Begin/End + optional console), and the driver calls VetBasis (the fail-fast conditioning pre-flight,
-// BEFORE it builds the Hamiltonian/grids) then EmitGrids.  Keeps each driver's own Hamiltonian/accelerator/
+// BEFORE it builds the Hamiltonian/grids) (the grids are the facade's ladder's to report).  Keeps each driver's own Hamiltonian/accelerator/
 // params -- only the reporting + setup-order discipline is shared.
 struct GpwReport
 {
@@ -138,12 +138,6 @@ struct GpwReport
         qchem::report::Log("vetting basis conditioning");
         qchem::report::Section basis("basis");
         return BasisSet::Lattice::VetGpwConditioning(bs);
-    }
-    //! Emit the grids section (this is where the ladder is actually built) -- only after VetBasis passed.
-    void EmitGrids(const Complex_BS& bs)
-    {
-        qchem::report::Log("building grid ladder");
-        BasisSet::Lattice::EmitGpwGrids(bs);
     }
 };
 

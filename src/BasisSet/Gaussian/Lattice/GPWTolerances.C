@@ -11,6 +11,7 @@ module;
 #include <string>
 #include <vector>
 export module qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
+export import qchem.Accuracy;   // AccuracyTarget + ClientConsumes: GridAccuracy derives from the one, Target() names the other
 
 export namespace qchem::BasisSet::Gaussian
 {
@@ -81,7 +82,7 @@ struct RasterExponents
 
 //! \brief One raster's GRID-AUDIT verdict (the `grids.audit*` row's status and alias): what the facade's fixed-D grid audit records for
 //! each side and bounds a raster term's delivered error at (the coarse side's alias).  Asked of the raster's owner
-//! (\c GpwRasterVerdicts), never read back out of the run report (V-REPORT-WRITEONLY).
+//! (\c GpwRasterLadder::DeliveredRasterVerdicts), never read back out of the run report (V-REPORT-WRITEONLY).
 struct RasterVerdict
 {
     std::string audit;          //!< the row's key: "auditDensity" | "auditVlocLong"
@@ -120,26 +121,21 @@ struct AccuracyCalibration
     bool operator==(const AccuracyCalibration&) const = default;
 };
 
-//! \brief WHAT THE RUN'S CLIENT CONSUMES of the Hamiltonian -- the measure the ONE accuracy target is judged on (user ruling
-//! 2026-10-31, doc/GridEpsilonPlan.md §1): a single-point ENERGY is judged on the energy error (eps per atom), and anything that
-//! produces forces, a geometry or a surface on the matrix elements (eps per element, max|dH_ij|: the energy error cancels inside
-//! Tr D dH, M2c verdict 3).  The run ANSWERS it (who built it), the user never picks a metric.
-enum class ClientConsumes { Energy, MatrixElements };
+//! What the run's client consumes (the facade-neutral \c qchem::ClientConsumes, V-FACADE-ACCURACY): named here too, where the GPW
+//! clients have always spelt it.
+using ::qchem::ClientConsumes;
 
-//! \brief The ONE accuracy target (deck `solid.accuracy`) and its calibration (`solid.accuracyCalibration`, expert).  C2 step 3: the
-//! raster demands (\c GPWTolerances::rasterX ...) are DERIVED from it -- by the stated calibration when there is one (eta = 1 is the
-//! rigorous mode), else by the run's own PILOT audit (self-calibrated: M2c found eta not flat across materials).
-struct GridAccuracy
+//! \brief The ONE accuracy target (\c AccuracyTarget, deck `accuracy`) and the GPW raster calibration (`solid.accuracyCalibration`,
+//! expert).  C2 step 3: the raster demands (\c GPWTolerances::rasterX ...) are DERIVED from it -- by the stated calibration when there
+//! is one (eta = 1 is the rigorous mode), else by the run's own PILOT audit (self-calibrated: M2c found eta not flat across materials).
+struct GridAccuracy : AccuracyTarget
 {
-    double eps = 1.0e-5;   //!< Ha per atom on an energy run, Ha per matrix element on a geometry run (\c ClientConsumes)
     //! The STATED calibration (expert); none = SELF-CALIBRATED by a pilot audit (the default).
     std::optional<AccuracyCalibration> eta;
     //! L_rigorous (eta = 1) and L_calibrated = L(eps/eta) (eta = delivered/bound <= 1 loosens) for one tail.  Clamped at x = n (the
     //! tail's maximum) when eps/eta exceeds the bound's maximum: no raster beyond the floor is needed for that term.
     double Rigorous(const AliasTail& t) const {return t.Exponent(eps);}
     double Calibrated(const AliasTail& t, double etaTerm) const;
-    //! The target one term's delivered error is held to: eps x the atom count on an energy run, eps per element on a geometry run.
-    double Target(ClientConsumes c, size_t nAtoms) const {return c==ClientConsumes::Energy ? eps*double(nAtoms) : eps;}
     //! \brief RIGOROUS: the per-pair RELATIVE bound.  MakeLocalPPLong's harmonic rule (lnE = -ln vlocEps, ball edge 2 p_h lnE) routes each
     //! (pair, offset) to a level whose spectral tail, RELATIVE to that pair's own contribution, is bounded by vlocEps -- no S prefactor,
     //! no x^3 Hermite factor (S_Vlong = 2.35 is the RASTER alias tail's prefactor, a different error).  Turning that into Ha needs two

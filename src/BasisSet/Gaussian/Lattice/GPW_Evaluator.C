@@ -20,13 +20,13 @@
 module;
 #include <cstddef>
 #include <functional>
-#include <iosfwd>    // std::ostream (ReportGrids -- the grid diagnostic print)
 #include <map>       // std::map<int,chmat_t> (MakeSeparablePPByL, the per-l KB diagnostic)
 #include <memory>
 #include <string>
 #include <vector>
 export module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // the typed tolerances (D-ENV step 5)
+export import qchem.BasisSet.Gaussian.Lattice.RasterLadder;    // GpwRasterLadder: the density grid + its levels, shared by every block (V-BS-RASTER)
 export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::PW_Grid_Evaluator + RasterFields
                                                        // (re-exported: RasterFields is a public knob; the raster itself is GPWTolerances::rasterX, C2 step 3)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;       // Gaussian::LatticeSum1E (the periodic-1E capability we call)
@@ -58,23 +58,10 @@ public:
     //! \param mol   the molecular Gaussian orbital basis built over \a cell's atoms (kept alive here); its one
     //!              orbital block must realise \c Gaussian::LatticeSum1E (a PG Gaussian basis does).
     //! \param cell  the direct lattice (source of the cell geometry + the reciprocal cell).
-    //! \param densityEcut  the DENSITY/collocation grid selector (Hartree) -- GPW's ONLY grid cutoff (there is
-    //!              no orbital/wavefunction cutoff; Gaussians are analytic).  THREE modes: \f$<0\f$ = AUTOMATIC
-    //!              (the recommended default): the grid is floored to \a cutoffFactor\f$\cdot\alpha_{\max}\f$ from
-    //!              the basis, so the caller need not know the Hartree value.  \f$=0\f$ = DFT tier OFF (1E-only).
-    //!              \f$>0\f$ = EXPLICIT Hartree cutoff, honoured as given but with a \c cerr warning if it is below
-    //!              \a cutoffFactor\f$\cdot\alpha_{\max}\f$ (under-resolves the density -> charge leaks off-grid).
-    //! \param cutoffFactor  \f$C\f$ in the density-grid cutoff \f$E_{cut}=C\cdot\alpha_{\max}\f$ (default 2).  A
-    //!              DENSITY-scale constant: the density is the PRODUCT of two orbitals, sharpest exponent
-    //!              \f$2\alpha_{\max}\f$ — \f$C=2\f$ resolves the density at its own exponent.  HISTORY
-    //!              (doc/GPWPlan 0.5(f)): the old default 8 was COMPENSATION for the ball-projected XC feed
-    //!              (its Gibbs lobes went negative on sharp products and the \f$\rho>0\f$ guard collapsed
-    //!              \f$E_{xc}\f$; only \f$8\alpha_{\max}\f$ ran clean).  The 0.5(f2) RAW collocated feed
-    //!              (\f$\rho_{DM}\ge 0\f$ by construction) removed that failure mode, and the measured NaF
-    //!              SR2 curve sits on a sub-2-mHa plateau from \f$C\approx 1.5\f$ up (Ecut=80/C=2: 1.2 mHa
-    //!              from the C=8 answer, 0.1 mHa from CP2K).  CP2K's own operating point is \f$\sim 4\f$ in
-    //!              these units via real-space collocation; our raw feed reaches lower because the finest
-    //!              ladder level is sampled analytically, never truncated.
+    //! \param ladder the point's raster ladder (\c MakeRasterLadder): the density/collocation grid -- GPW's ONLY grid (there is no
+    //!              orbital/wavefunction cutoff; Gaussians are analytic) -- and its multigrid levels, built ONCE from k-independent inputs
+    //!              and shared by every block (V-BS-RASTER).  Its densityEcut / cutoffFactor / rasterFields semantics are documented on
+    //!              \c GpwRasterLadder; a ladder with no grid (densityEcut 0) is the 1E-only tier.
     //! \param kFrac fractional crystal momentum (fractional reciprocal coords; \f$\Gamma=0\f$).
     //! \param kIsReal is \a kFrac a TRIM point (Bloch phases exactly \f$\pm1\f$, block real)?  A FACT pried
     //!              out of the Bloch irrep (\c Symmetry::IsReal(), exact integer arithmetic) by the caller,
@@ -87,14 +74,9 @@ public:
     //!              (default) every lattice sum is an \f$\varepsilon\f$-CONVERGED SERIES enumerated internally
     //!              per shell pair -- THERE IS NO CUT in r SPACE, and no radius parameter exists
     //!              (user pin; doc/Pins.md pin 1).
-    //! \param rasterFields  WHICH terms the density raster serves (the field-sharpness ROUTING policy):
-    //!              \c HartreeXC (default, bit-identical history) floors every density pair's grid level at
-    //!              the XC core sharpness \f$\tfrac23\alpha_{\max}\f$; \c HartreeOnly (the Becke-XC partner)
-    //!              routes pairs by their OWN bandwidth -- diffuse pairs land on coarse levels (small streams).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
-                  double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0), bool kIsReal = true,
-                  bool homeCellOnly = false, double cutoffFactor = 2.0, double ladderFactor = 4.0,
-                  RasterFields rasterFields = RasterFields::HartreeXC,
+                  std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac = rvec3_t(0,0,0), bool kIsReal = true,
+                  bool homeCellOnly = false,
                   const GPWTolerances& tol = {});     //!< the typed numerical tolerances (D-ENV step 5; was env reads inside)
     //! Polymorphic (reached by the Lattice::*_IBS mixins' Cast() cross-cast); out of line as the key function.
     virtual ~GPW_Evaluator();
@@ -203,24 +185,8 @@ public:
     //! (N is never a physics dial — the 5-smooth flip re-pinned nothing).
     const PlaneWave::PW_Grid_Evaluator& DensityGrid() const {return *itsFFT_R_G_Grids;}
 
-    //! \brief GRID DIAGNOSTIC (doc/GPWPlan §0e): the orbital-basis exponent line (\f$\alpha_{\min}/\alpha_{\max}\f$,
-    //! \c cutoffFactor -- so the \f$C\cdot\alpha_{\max}\f$ grid policy is visible) followed by one line per STORED
-    //! grid -- the FFT \f$\{r\}\leftrightarrow\{G\}\f$ density grid and every REL_CUTOFF ladder level (base
-    //! sub-ladder = the local-PP integration grids; top completion rung flagged) -- each with FFT divisions
-    //! \f$N\f$, \c Ecut, \f$n_G\f$ and the spectral extent \f$|G|_{\min}/|G|_{\max}\f$.  Printed at the start of
-    //! every run (the basis-set ctor) so GPW's grids can be lined up against CP2K's \c &MGRID log output.
-    void ReportGrids(std::ostream& os) const;
-    //! The run-report twin of \c ReportGrids: emit the `grids` section (densityEcut/cutoffFactor/raster + the
-    //! ladder rows + localPP) into the current run report.  Single-provider, so it builds the whole section
-    //! json and EmitSection()s it.  Call only when a run is open (report::Depth()>0 -- the ctor call site guards).
-    void EmitGridsReport() const;
-    //! The alias exponents this block's rasters deliver (\c RasterExponents; forces the ladder like \c EmitGridsReport).
-    RasterExponents DeliveredRasterExponents() const;
-    //! The grid-audit verdicts of this block's rasters, density first, then V_loc long's once its integrate-back has run (forces the ladder).
-    std::vector<RasterVerdict> DeliveredRasterVerdicts() const;
-    //! One diagnostic line for any stored grid (the per-grid piece of \c ReportGrids; also used by the
-    //! \c CreateCD/VxcFitBasisSet factories to print the fit grid they actually wrap).
-    static std::ostream& ReportGrid(std::ostream& os, const std::string& tag, const PlaneWave::PW_Grid_Evaluator& g);
+    // (The grid diagnostics -- the console lines, the run report's `grids` facts and audits, the delivered alias exponents -- are the
+    //  LADDER's: GpwRasterLadder::PrintGrids / ReportGrids / DeliveredRasterExponents / DeliveredRasterVerdicts, V-BS-RASTER.)
 
     //! Cache-key fragment: the molecular basis's ID + \f$k\f$ + translation count + the density-grid cutoff
     //! (the collocation tensor depends on the grid, so the framework cache key must pin it).
@@ -310,15 +276,13 @@ private:
                                                           //!< can re-orient a non-cubic (FCC) primitive cell and
                                                           //!< silently shift every collocation box)
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
-    double  itsCutoffFactor=2.0;   //!< the density-grid floor constant C (ctor param; the density-resolution dial)
     GPWTolerances itsTol;          //!< vlocEps / localPPRelCutoff / relFieldSharp / mgridEcuts, injected at construction
-    double  itsLadderFactor=4.0;   //!< REL_CUTOFF multigrid progression factor (ctor param; per-step Ecut ratio of
-                                   //!< the coarse-level ladder -- BuildLevels; DEPTH stays automatic, this tunes gradation)
+    std::shared_ptr<const GpwRasterLadder> itsLadder;   //!< the point's ONE raster ladder, shared by every block (V-BS-RASTER)
     //! The RELATIVE rule's field-sharpness floor handed to every density-path CollocateDensity /
     //! IntegratePotential / stream build: -1 = the historical \f$\tfrac23\alpha_{\max}\f$ rule
-    //! (HartreeXC); 0 = pair-only routing (HartreeOnly -- the Becke-XC partner).
+    //! (HartreeXC); 0 = pair-only routing (HartreeOnly -- the Becke-XC partner).  The ladder's (\c GpwRasterLadder::RelFieldSharp).
     double  itsRelFieldSharp=-1.0;
-    std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)
+    std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the ladder's density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Orbital_DFT_IBS<dcmplx>::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
     //! \brief Last-density collocation memo, SHARED by the two \c MakeCollocator closures (Coulomb + overlap
@@ -449,33 +413,10 @@ private:
     //! \f$\langle\chi|\beta\rangle\f$ integrand itself needs, \f$C\alpha_{\max}+\alpha_\beta\f$ (V2.5).
     qcMesh::MeshParams PPMeshParams(const Structure* cl, const SpeciesProjectorSet_R& sep) const;
 
-    // The REL_CUTOFF multi-grid level ladder: the fine density grid + coarser grids (a factor 4 in Ecut each)
-    // down to the level resolving the most-diffuse pair product (~Ecut*alpha_min/alpha_max), PLUS the TOP
-    // COMPLETION RUNG at RelCutoffSafety()*Ecut appended LAST (doc/GPWPlan.md 0b': the sharpest pairs'
-    // requirement exceeds the reference grid by construction; the rung makes every smooth-path assignment
-    // satisfiable).  ecut_L[0] stays the RESOLUTION REFERENCE (the density grid) -- level selection on the
-    // molecular side is order-free.  Built once (geometry-fixed) by EnsureLevels.  The density collocation
-    // (MakeCollocator), the integrate-back (OverlapMatrix) and the local-PP sweep (MakeLocalPP, absolute
-    // kappa rule) all run per-pair on the FULL ladder; itsNBaseLevels only labels the top rung (diagnostics).
-    void EnsureLevels() const;   //!< builds/caches the block's OWN ladder (itsFFT_R_G_Grids) for OverlapMatrix + MakeLocalPP
-    //! \brief The tightest EFFECTIVE pair exponent max(p, beta_field) the pair->level rule can route to a level of cutoff \a ecut, on a
-    //! ladder whose resolution reference is \a ecutRef (C2 step 3, doc/GridEpsilonPlan.md §1 row 2): the relative rule sends a pair to
-    //! the coarsest level with ecut >= kRelSafety ecutRef p_eff/(2 alpha_max) (the absolute rule: ecut >= kappa p_eff, kappa = relCutoff),
-    //! so a non-finest level serves p_eff up to the inverse of that; the FINEST present level takes every pair no coarser one could.
-    //! A level's raster is sized to x at THIS exponent (\c GPWTolerances::rasterX), which makes the routing and the raster one condition.
-    double PairCap(double ecut, double ecutRef, bool finest) const;
-    //! A level grid: the ball of cutoff \a ecut on the raster G_N^2 >= \a x * \a pCap (x = 0: the ball's own raster).
-    std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> MakeLevel(const ReciprocalLattice& recip, double ecut, double pCap, double x) const;
-    //! Build the REL_CUTOFF ladder from an ARBITRARY fine grid \a grid (level [0]==\a grid) into the output
-    //! vectors -- the grid-parameterized core of \c EnsureLevels, so the collocator can build a ladder from the
-    //! REQUESTED fit grid while the block's own paths keep the cached \c itsLevels.
-    void BuildLevels(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid,
-                     std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>>& levels,
-                     std::vector<ivec3_t>& levelN, std::vector<double>& levelEcut, size_t& nBaseLevels) const;
-    mutable std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>> itsLevels;   //!< [0]==itsFFT_R_G_Grids (reference); coarser; top rung LAST
-    mutable std::vector<ivec3_t>    itsLevelN;     //!< each level's FFT grid divisions
-    mutable std::vector<double>     itsLevelEcut;  //!< each level's cutoff (reference first)
-    mutable size_t                  itsNBaseLevels=0; //!< levels before the top rung (the local-PP sub-ladder)
+    //! The ladder over the density grid (\c GpwRasterLadder::Levels): level [0] the density grid (resolution reference), coarser
+    //! levels following, the top completion rung LAST.  The density collocation (MakeCollocator), the integrate-back (OverlapMatrix)
+    //! and the local-PP sweep (MakeLocalPP) all run per-pair on the FULL ladder; nBase only labels the top rung (diagnostics).
+    const RasterLevels& Levels() const {return itsLadder->Levels();}
 };
 
 // (The spec checks -- static_assert(isLattice_{1E,DFT}_Evaluator<GPW_Evaluator>) -- sit beside GPW_IBS, where

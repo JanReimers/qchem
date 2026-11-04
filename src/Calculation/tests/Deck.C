@@ -530,7 +530,7 @@ TEST(Deck, GridAuditRoundTripsItsReferenceMargin)
     EXPECT_NE(msg(base({{{"gridAudit",json::object()}}},json{{"raster","AliasFree"}})).find("retired"),std::string::npos) << "so is solid.raster";
 }
 
-// The ONE grid accuracy target (doc/GridEpsilonPlan.md §1): solid.accuracy (eps) and the expert calibration round-trip; eps defaults to
+// The ONE grid accuracy target (doc/GridEpsilonPlan.md §1), through its deprecated solid.accuracy alias, and the expert calibration round-trip; eps defaults to
 // 1e-5 with NO calibration stated (C2 step 3: the run's pilot audit self-calibrates), eps = 0 states the rasters, a negative is refused.
 TEST(Deck, GridAccuracyTargetRoundTripsAndRefusesNonPositive)
 {
@@ -555,6 +555,36 @@ TEST(Deck, GridAccuracyTargetRoundTripsAndRefusesNonPositive)
     EXPECT_NE(msg({{"accuracyCalibration",{{"density",-1.0}}}}).find("accuracyCalibration"),std::string::npos);
     EXPECT_NE(msg({{"accuracyCalibration",{{"vlocLong",2.0}}}}).find("delivered/bound"),std::string::npos) << "eta > 1 would claim the bound is optimistic";
     EXPECT_NE(msg({{"accuracyCalibration",{{"xc",1.0}}}}).find("xc"),std::string::npos) << "the XC raster has no rigorous bound to calibrate";
+}
+
+// THE ACCURACY TARGET IS THE RUN'S (V-FACADE-ACCURACY, user ruling 2026-11-03): the top-level `accuracy` reaches the facade the deck
+// builds; `solid.accuracy` is its deprecated alias (read, and warned about); stating both is refused; the record writes the top level.
+TEST(Deck, TheAccuracyTargetIsTopLevelAndSolidAccuracyIsAWarnedAlias)
+{
+    auto read=[](json j){ j["structure"]="Si_diamond"; deck::RunSpec s; deck::FromJson(j,s); return s; };
+    const deck::RunSpec top=read({{"accuracy",3e-6}});
+    EXPECT_EQ(top.solid.accuracy.eps, 3e-6) << "the top-level key reaches the solid facade's options";
+    const json rec=deck::ToJson(top);
+    EXPECT_EQ(rec.at("accuracy").get<double>(), 3e-6) << "the record states it at the top level";
+    EXPECT_FALSE(rec.at("solid").contains("accuracy")) << "and never as solid.accuracy";
+    deck::RunSpec back; deck::FromJson(rec,back);
+    EXPECT_EQ(deck::ToJson(back), rec) << "the record round-trips";
+
+    testing::internal::CaptureStderr();
+    const deck::RunSpec alias=read({{"solid",{{"accuracy",2e-6}}}});
+    const std::string err=testing::internal::GetCapturedStderr();
+    EXPECT_EQ(alias.solid.accuracy.eps, 2e-6) << "the deprecated alias still works";
+    EXPECT_NE(err.find("'solid.accuracy' is deprecated"), std::string::npos) << err;
+    EXPECT_FALSE(deck::ToJson(alias).at("solid").contains("accuracy")) << "a re-written record migrates to the top level";
+
+    bool threw=false;
+    try { (void)read({{"accuracy",1e-6},{"solid",{{"accuracy",1e-6}}}}); }
+    catch (const std::runtime_error& e) { threw=true; EXPECT_NE(std::string(e.what()).find("both stated"), std::string::npos) << e.what(); }
+    EXPECT_TRUE(threw) << "both stated is refused, even when they agree";
+    threw=false;
+    try { (void)read({{"accuracy",-1.0}}); }
+    catch (const std::runtime_error& e) { threw=true; EXPECT_NE(std::string(e.what()).find("'accuracy'"), std::string::npos) << e.what(); }
+    EXPECT_TRUE(threw) << "a negative target is refused";
 }
 
 // V_loc long's routing tolerance = the rigorous per-pair map (eps) corrected by a MEASURED calibration (expert
@@ -586,8 +616,8 @@ TEST(Deck, AVlocRoutingCalibrationReachesTheEvaluatorAndAStatedVlocEpsWins)
     EXPECT_TRUE(s->opts.tolerances.VlocEpsDerived());
     {   // the same options through a deck run, which files its report: the evaluator's grids section names the vlocEps that ran
         const fs::path dir=TmpDir("vlocrouting");
-        json dj={{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"}}},
-                 {"solid",{{"densityEcut",20.0},{"accuracy",1e-5},{"accuracyCalibration",{{"vlocLong",1.0},{"density",1.0},{"vlocRouting",2.0}}}}},
+        json dj={{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"}}},{"accuracy",1e-5},
+                 {"solid",{{"densityEcut",20.0},{"accuracyCalibration",{{"vlocLong",1.0},{"density",1.0},{"vlocRouting",2.0}}}}},
                  {"scf",{{"NMaxIter",1},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"}}}};
         deck::RunSpec spec; deck::FromJson(dj,spec);
         deck::Provenance pv; pv.codeVersion="t";
@@ -920,9 +950,9 @@ TEST(Deck, BuildStopsBeforeTheSCFAndRunIsBuildPlusConverge)
 }
 
 //! THE REPORT IS WRITE-ONLY (V-REPORT-WRITEONLY, 2026-11-02): library code never reads the run report back to decide.  On Si k222 (eight
-//! k-blocks, each reaching the k-independent V_loc-long raster verdict) the run files that verdict ONCE and renders it once -- the report's
-//! own dedup, not an evaluator reading the report -- and the grid audit's recorded verdicts are what the rasters' owner answers, which are
-//! the rows the run filed.
+//! k-blocks sharing ONE raster ladder, V-BS-RASTER) the run files each raster verdict ONCE and renders it once -- the ladder reports
+//! itself once, no dedup needed -- and the grid audit's recorded verdicts are what the rasters' owner (the ladder) answers, which are the
+//! rows the run filed.
 TEST(Deck, AK222RunFilesEachRasterVerdictOnceAndTheAuditAsksTheBasisForIt)
 {
     const fs::path dir=TmpDir("writeonly");
@@ -937,8 +967,9 @@ TEST(Deck, AK222RunFilesEachRasterVerdictOnceAndTheAuditAsksTheBasisForIt)
     ASSERT_TRUE(out.converged) << out.summary;
 
     auto count=[&](const std::string& what) { size_t n=0; for (size_t i=console.find(what); i!=std::string::npos; i=console.find(what,i+1)) n++; return n; };
-    EXPECT_EQ(count("grids ▸ auditVlocLong"), 1u) << "the V_long verdict renders once, not once per k-block";
-    EXPECT_EQ(count("grids ▸ auditDensity"),  1u);
+    // The point's ONE ladder files both rows inside its grids section (V-BS-RASTER), so each verdict's term renders once.
+    EXPECT_EQ(count("V_loc long (integrate-back)"), 1u) << "the V_long verdict renders once, not once per k-block";
+    EXPECT_EQ(count("density collocation (Hartree + XC raster)"), 1u);
 
     const qchem::report::json* run=nullptr;
     for (auto it=qchem::report::GlobalReport().begin(); it!=qchem::report::GlobalReport().end(); ++it)

@@ -73,7 +73,7 @@ class A_HF_U : public ::testing::TestWithParam<HFCase> {};
 TEST_P(A_HF_U, Energy)
 {
     const HFCase c = GetParam();
-    AtomCalculation calc(c.Z, 0, {.type = c.type, .accuracy = c.acc, .model = Model::HF, .spin = SpinGroup::UnPolarized},
+    AtomCalculation calc(c.Z, 0, {.type = c.type, .basisPool = c.acc, .model = Model::HF, .spin = SpinGroup::UnPolarized},
                          HFParams(c));
     const double e = RelativeHFError(calc.Energy(), c.Z);
     EXPECT_LT(e, c.tol);

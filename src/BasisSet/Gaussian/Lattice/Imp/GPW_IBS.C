@@ -23,23 +23,30 @@ namespace qchem::BasisSet::Gaussian
 {
 
 template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irrep,
-                 std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
-                 double cutoffFactor, double ladderFactor,
-                 std::vector<Symmetry::Lattice_3D::DirectOp> directOps, RasterFields rasterFields, const GPWTolerances& tol)
+                 std::shared_ptr<const BasisSet::Real_BS> mol, std::shared_ptr<const GpwRasterLadder> ladder, CellImages images,
+                 std::vector<Symmetry::Lattice_3D::DirectOp> directOps, const GPWTolerances& tol)
     : BasisSet::IrrepBasisSetImp<T>(irrep)
-    , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
-                    images==CellImages::HomeCellOnly, cutoffFactor, ladderFactor,
-                    rasterFields, tol) // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1)
+    , GPW_Evaluator(std::move(mol), cell, std::move(ladder), Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
+                    images==CellImages::HomeCellOnly, tol) // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1)
 {
     SetSymmetryOps(std::move(directOps));   // ONE storage (the evaluator): T1 {G} fold + Vxc-raster star ops
 }
 
-// Convenience: build the Bloch irrep from BZ-grid indices and delegate to the primary constructor.
+// A bare block: its own ladder from the same builder the factory uses, then the primary constructor.
+template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irrep,
+                 std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
+                 double cutoffFactor, double ladderFactor, RasterFields rasterFields, const GPWTolerances& tol)
+    : tGPW_IBS(cell, irrep, mol,
+              MakeRasterLadder(cell, *mol, {.densityEcut=densityEcut, .cutoffFactor=cutoffFactor, .ladderFactor=ladderFactor,
+                                            .rasterFields=rasterFields, .tol=tol}),
+              images, {}, tol)
+{}
+
+// Convenience: build the Bloch irrep from BZ-grid indices and delegate to the bare-block constructor.
 template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, double ladderFactor, RasterFields rasterFields, const GPWTolerances& tol)
-    : tGPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor,
-              ladderFactor, {}, rasterFields, tol)
+    : tGPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor, ladderFactor, rasterFields, tol)
 {}
 
 template <class T> mat_t<T> tGPW_IBS<T>::MakeRepMatrix(const Symmetry::SymOp& g) const

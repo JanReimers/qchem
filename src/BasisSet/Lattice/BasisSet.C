@@ -123,29 +123,30 @@ struct GPWParams
     //! \c freeMeshInvariant / \c kShift with the same builder.  Set: used as is -- and it must have been resolved from those same
     //! fields (\c CrystalImposition::options), or the factory throws rather than pick one of two statements of the policy.
     std::shared_ptr<const CrystalImposition> imposition = {};
+    //! \brief The point's raster ladder (V-BS-RASTER), built by the caller with \c MakeRasterLadder from these same params (the facade
+    //! builds one per geometry point and holds it).  Unset (the default): the factory builds one with the same builder.  Set: shared by
+    //! every block -- and it must have been built from this struct's densityEcut / cutoffFactor / ladderFactor / rasterFields / tol,
+    //! or the factory throws.
+    std::shared_ptr<const Gaussian::GpwRasterLadder> ladder = {};
 };
 //! The struct-parameter factory (preferred surface; the positional overload above forwards here).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                        const GPWParams& p = {});
 
 //! \brief THE ONE BUILDER of a GPW point's raster ladder (V-BS-RASTER): the density grid and its multigrid levels from the k-independent
-//! inputs -- the cell, \a mol's exponent range (its one orbital block, as the evaluator reads it), and \a p's densityEcut / cutoffFactor
-//! / ladderFactor / rasterFields / tol.  The facade calls it per geometry point and holds the result; \c GPWFactory calls it when the
-//! caller handed no ladder in.  Throws if \a mol has no Gaussian orbital block (nothing to size a raster from).
+//! inputs -- the cell, \a mol's exponent range (its one orbital block, as the evaluator reads it), \a p's densityEcut / cutoffFactor
+//! / ladderFactor / rasterFields / tol, and the local PP's sharpness \a ppSharpness (\c Gaussian::LocalPPSharpness; 0 = none known).
+//! STEP 1 states the PP's demand as that one number; step 2 replaces it with the PP set's own resolution answer, combined with the
+//! basis's \c MakeResolution.  The facade calls it per geometry point and holds the result; \c GPWFactory calls it (with no PP) when
+//! the caller handed no ladder in.  Throws if \a mol has no Gaussian orbital block (nothing to size a raster from).
 std::shared_ptr<const Gaussian::GpwRasterLadder> MakeRasterLadder(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                                                                  const GPWParams& p = {});
+                                                                  const GPWParams& p = {}, double ppSharpness = 0.0);
 
-//! Emit the GPW `grids` report section for \a bs (the grids are k-independent, so the first block speaks for
-//! all).  The orchestrator calls this AFTER the conditioning pre-flight, so a singular basis aborts before the
-//! grid ladder is ever built (fail-fast; doc/RunReportPlan.md).  No-op if a run is not open.
-void EmitGpwGrids(const Complex_BS& bs);
-//! The alias exponents a GPW basis's rasters deliver (the first GPW block speaks for all: the rasters are k-independent); none for a
-//! basis with no GPW block (plane waves).  What the facade's pilot audit fits each raster term's measured tail at (C2 step 3).
-std::optional<Gaussian::RasterExponents> GpwRasterExponents(const Complex_BS& bs);
-//! The grid-audit verdicts a GPW basis's rasters deliver (the first GPW block speaks for all, as above); empty for a basis with no GPW
-//! block.  What the facade's fixed-D grid audit records per side and bounds each raster term at -- ASKED of the raster's owner, never
-//! read back out of the run report (V-REPORT-WRITEONLY).
-std::vector<Gaussian::RasterVerdict> GpwRasterVerdicts(const Complex_BS& bs);
+//! \brief The GPW `grids` facts of one geometry point, written CURSOR-RELATIVE into the caller's open scope (the facade opens "grids"):
+//! the \a ladder's own (its levels, settings and audit rows, the {G}-star column under \a imp's density ops) and then \a mol's
+//! lattice-sum economy.  Each piece is asked of its owner -- no basis block is consulted.  Call it AFTER the conditioning pre-flight,
+//! so a singular basis aborts first.  No-op if a run is not open.
+void EmitGpwGrids(const Gaussian::GpwRasterLadder& ladder, const BasisSet::Real_BS& mol, const CrystalImposition& imp);
 
 //! Fail-fast conditioning PRE-FLIGHT (doc/RunReportPlan.md, doc/GPWPlan1.md §4a): for each Bloch block of \a bs,
 //! analyse its ANALYTIC, grid-free overlap and emit the report's basis.perIrrep (conditioning) + basis.removed

@@ -1,0 +1,303 @@
+#!/usr/bin/env python3
+"""THE TIER-1 HUB INTERFACE AUDIT (V-INTERFACE-TIERS step 3, ruled 2026-11-03).
+
+The abstract hubs the physics tree depends on (doc/OOD-SOLID-Cleanup.md V-INTERFACE-TIERS, tier 1 (a)) are PROTECTED: any change to
+what one exports -- a declaration, or a re-export -- needs a design discussion first, so the faces are not gradually polluted.  This
+renders each hub's exported surface into a normalized text and compares it with the checked-in snapshot (scripts/hub-interfaces.snapshot).
+A difference FAILS (exit 1, with the diff) until the snapshot is regenerated (--update) in a commit that cites the design ruling.
+
+What counts as the surface: every `export import` of the module's interface units (its partitions included), and every declaration
+inside its exported regions (`export namespace`, `export { }`, `export <decl>`), with comments dropped, whitespace collapsed, and
+INLINE FUNCTION BODIES replaced by `;` (a body is implementation, not interface).  Plain `import`s and non-exported code are not
+surface.  The rendering is textual, not a compiler's: a body or brace form it misreads can only make the audit stricter (a false
+alarm, visible in the diff), never let a declaration through unseen.
+
+Usage: audit-hub-interfaces SRC_DIR SNAPSHOT [--update]        (ctest: HubInterfaceAudit)
+"""
+import difflib
+import pathlib
+import re
+import sys
+
+# Tier 1 (a): the abstract hubs, as ruled (user, 2026-11-03).  Adding or removing a hub is itself a ruling.
+HUBS = [
+    "qchem.BasisSet",
+    "qchem.BasisSet.Orbital_DFT_IBS",
+    "qchem.BasisSet.Orbital_1E_IBS",
+    "qchem.BasisSet.G_FieldEvaluator",
+    "qchem.ChargeDensity",
+    "qchem.LASolver",
+    "qchem.Hamiltonian",
+    "qchem.WaveFunction",
+    "qchem.Fitting.FunctionFitter",
+    "qchem.Symmetry.Representation",
+]
+
+
+def strip_comments(s):
+    """Drop // and /* */ comments, keeping string and character literals intact."""
+    out, i, n = [], 0, len(s)
+    while i < n:
+        c = s[i]
+        if c == '/' and i + 1 < n and s[i + 1] == '/':
+            j = s.find('\n', i)
+            i = n if j < 0 else j
+        elif c == '/' and i + 1 < n and s[i + 1] == '*':
+            j = s.find('*/', i + 2)
+            out.append(' ')
+            i = n if j < 0 else j + 2
+        elif c in '"\'':
+            j = i + 1
+            while j < n and s[j] != c:
+                j += 2 if s[j] == '\\' else 1
+            out.append(s[i:j + 1])
+            i = j + 1
+        else:
+            out.append(c)
+            i += 1
+    return ''.join(out)
+
+
+def drop_preprocessor(s):
+    return '\n'.join(l for l in s.split('\n') if not l.lstrip().startswith('#'))
+
+
+def norm(s):
+    return re.sub(r'\s+', ' ', s).strip()
+
+
+def match_brace(s, i):
+    """Index just past the brace block opening at s[i] == '{' (string literals skipped)."""
+    depth, n = 0, len(s)
+    while i < n:
+        c = s[i]
+        if c in '"\'':
+            j = i + 1
+            while j < n and s[j] != c:
+                j += 2 if s[j] == '\\' else 1
+            i = j + 1
+            continue
+        if c == '{':
+            depth += 1
+        elif c == '}':
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    raise ValueError("unbalanced braces")
+
+
+def strip_template_prefix(h):
+    """`template <...> X` -> `X` (balanced angle brackets), repeatedly."""
+    while True:
+        m = re.match(r'\s*template\s*<', h)
+        if not m:
+            return h
+        i, depth = m.end() - 1, 0
+        while i < len(h):
+            if h[i] == '<':
+                depth += 1
+            elif h[i] == '>':
+                depth -= 1
+                if depth == 0:
+                    break
+            i += 1
+        h = h[i + 1:]
+
+
+AGGREGATE = re.compile(r'^\s*(?:\[\[[^\]]*\]\]\s*)*(?:export\s+)?(?:class|struct|union|enum|namespace)\b')
+ACCESS = re.compile(r'^\s*(public|protected|private)\s*$')
+CTOR_INIT = re.compile(r'\)\s*(?:const|noexcept|override|final|\s)*:(?!:)')
+
+
+class Renderer:
+    """Renders the declarations of one exported region, one per line, indented by aggregate depth."""
+
+    def __init__(self):
+        self.lines = []
+
+    def emit(self, depth, text):
+        text = norm(text)
+        if text == ';':                                         # a lone ';': closes an aggregate (`};`), or trails a stripped body
+            if self.lines and self.lines[-1].endswith('}'):
+                self.lines[-1] += ';'
+            return
+        if text:
+            self.lines.append('    ' * depth + text)
+
+    def region(self, s, depth):
+        """Render the declarations in s (the inside of an exported namespace / block / class)."""
+        head, i, n, parens = '', 0, len(s), 0
+        while i < n:
+            c = s[i]
+            if c in '"\'':
+                j = i + 1
+                while j < n and s[j] != c:
+                    j += 2 if s[j] == '\\' else 1
+                head += s[i:j + 1]
+                i = j + 1
+                continue
+            if c in '([':
+                parens += 1
+            elif c in ')]':
+                parens -= 1
+            if c == ';' and parens == 0:
+                self.emit(depth, head + ';')
+                head = ''
+                i += 1
+                continue
+            if c == ':' and parens == 0 and ACCESS.match(head) and not s.startswith('::', i):
+                self.emit(max(depth - 1, 0), head.strip() + ':')
+                head = ''
+                i += 1
+                continue
+            if c == '{':
+                end = match_brace(s, i)
+                body = s[i + 1:end - 1]
+                h = norm(head)
+                if parens > 0:                                  # a lambda / braced value inside a call or default argument
+                    head += s[i:end]
+                elif AGGREGATE.match(strip_template_prefix(h)):  # class / struct / union / enum / namespace: its members are surface
+                    self.emit(depth, h + ' {')
+                    self.region(body, depth + 1)
+                    self.emit(depth, '}')
+                    head = ''
+                elif '(' in h:
+                    prev = h.rstrip()[-1:] if h else ''
+                    if CTOR_INIT.search(h) and (prev.isalnum() or prev in '_>'):
+                        head += s[i:end]                         # a member's brace-init inside a constructor's init list
+                    else:                                        # a function BODY: implementation, not interface
+                        decl = h
+                        m = CTOR_INIT.search(decl)
+                        if m:
+                            decl = decl[:m.start() + 1]          # drop the constructor's init list with the body
+                        self.emit(depth, decl + ';')
+                        head = ''
+                else:                                            # a braced initializer of a variable / member (kept: a value)
+                    head += s[i:end]
+                i = end
+                continue
+            head += c
+            i += 1
+        self.emit(depth, head)
+
+
+def surface(path):
+    """The normalized exported surface of one interface unit: its re-exports, then its exported declarations."""
+    s = drop_preprocessor(strip_comments(path.read_text()))
+    m = re.search(r'^\s*export\s+module\s+[^;]+;', s, re.M)
+    if not m:
+        return [], []
+    s = s[m.end():]
+    reexports, r = [], Renderer()
+    i, n = 0, len(s)
+    while i < n:
+        if s[i].isspace():
+            i += 1
+            continue
+        mi = re.match(r'(export\s+)?import\s+([^;]+);', s[i:])
+        if mi:
+            if mi.group(1):
+                reexports.append('export import ' + norm(mi.group(2)) + ';')
+            i += mi.end()
+            continue
+        me = re.match(r'export\b', s[i:])
+        if me:
+            i += me.end()
+            rest = s[i:]
+            mn = re.match(r'\s*namespace\s*([^{]*)\{', rest)
+            if mn:
+                start = i + mn.end() - 1
+                end = match_brace(s, start)
+                r.emit(0, 'namespace ' + norm(mn.group(1)) + ' {')
+                r.region(s[start + 1:end - 1], 1)
+                r.emit(0, '}')
+                i = end
+                continue
+            mb = re.match(r'\s*\{', rest)
+            if mb:
+                start = i + mb.end() - 1
+                end = match_brace(s, start)
+                r.region(s[start + 1:end - 1], 0)
+                i = end
+                continue
+            # one exported declaration: through its ';' at depth 0, or a brace block (and an optional ';')
+            j, depth = i, 0
+            while j < n:
+                if s[j] == '{':
+                    k = match_brace(s, j)
+                    j = k
+                    rest2 = s[j:].lstrip()
+                    if not rest2.startswith(';') and depth == 0:
+                        break
+                    continue
+                if s[j] == ';' and depth == 0:
+                    j += 1
+                    break
+                j += 1
+            r.region(s[i:j], 0)
+            i = j
+            continue
+        # non-exported top-level code: skip one statement or block
+        mn = re.match(r'[^;{]*\{', s[i:])
+        ms = re.match(r'[^;{]*;', s[i:])
+        if mn and (not ms or mn.end() < ms.end()):
+            i = match_brace(s, i + mn.end() - 1)
+        elif ms:
+            i += ms.end()
+        else:
+            break
+    return reexports, r.lines
+
+
+def interface_units(src, module):
+    """The module's primary interface unit and its partitions, primary first."""
+    pat = re.compile(r'^\s*export\s+module\s+' + re.escape(module) + r'(:[A-Za-z0-9_]+)?\s*;', re.M)
+    units = []
+    for p in sorted(src.rglob('*.C')):
+        m = pat.search(p.read_text(errors='replace'))
+        if m:
+            units.append((m.group(1) or '', p))
+    if not units:
+        raise SystemExit(f"audit-hub-interfaces: no interface unit for tier-1 hub {module} under {src}")
+    return sorted(units, key=lambda u: u[0])
+
+
+def render(src):
+    out = ["# THE TIER-1 HUB INTERFACES (V-INTERFACE-TIERS step 3).  Generated by scripts/audit-hub-interfaces --update: DO NOT EDIT BY",
+           "# HAND.  A change here is a change to a protected face, so the commit that regenerates it cites the design ruling that allowed it.",
+           ""]
+    for hub in HUBS:
+        for part, p in interface_units(src, hub):
+            reexports, decls = surface(p)
+            out.append(f"### {hub}{part}   ({p.relative_to(src.parent)})")
+            out.extend(reexports)
+            out.extend(decls)
+            out.append("")
+    return '\n'.join(out) + '\n'
+
+
+def main(argv):
+    args = [a for a in argv[1:] if not a.startswith('--')]
+    if len(args) != 2:
+        print(__doc__)
+        return 2
+    src, snap = pathlib.Path(args[0]).resolve(), pathlib.Path(args[1])
+    now = render(src)
+    if '--update' in argv:
+        snap.write_text(now)
+        print(f"audit-hub-interfaces: wrote {snap} -- commit it citing the design ruling that changed the face")
+        return 0
+    was = snap.read_text() if snap.exists() else ''
+    if was == now:
+        return 0
+    sys.stdout.writelines(difflib.unified_diff(was.splitlines(True), now.splitlines(True), str(snap), 'the tree now'))
+    print("\naudit-hub-interfaces: a TIER-1 HUB's exported surface changed (above).  These faces are protected (V-INTERFACE-TIERS):"
+          "\n  the change needs a design discussion first.  Once it is ruled, regenerate the snapshot with"
+          f"\n    scripts/audit-hub-interfaces {args[0]} {args[1]} --update"
+          "\n  and commit it citing the ruling.")
+    return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

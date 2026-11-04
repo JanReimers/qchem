@@ -1,9 +1,9 @@
-// File: RasterLadderUT.C  THE RASTER LADDER EQUIVALENCE (V-BS-RASTER step 1): the ONE ladder MakeRasterLadder builds per geometry point
-// against the ladder every GPW block builds for itself today, level by level, to the bit.
+// File: RasterLadderUT.C  THE RASTER LADDER (V-BS-RASTER step 1): the ONE ladder MakeRasterLadder builds per geometry point is the one
+// every GPW block of that point runs on, and the one that reports the grids.
 //
-// The blocks' ladder is read from what they FILE (grids.ladder, the run report EmitGpwGrids writes) -- the only face it has -- so this
-// gate needs no access to the evaluator's internals.  Once the evaluator is wired to the module and its own copy is gone, this becomes
-// the regression test of the one implementation.  Cases span the ladder's branches: Si Γ and k222 (narrow exponent range, the
+// What the ladder FILES (grids.ladder, written into the caller's "grids" scope by EmitGpwGrids) is its own levels, bit for bit; a
+// factory handed a ladder shares it, and refuses one built from other settings; V_loc long's audit row is a pure function of the
+// ladder and the PP sharpness it was sized with.  Cases span the ladder's branches: Si Γ and k222 (narrow exponent range, the
 // completion rung), a MnO-scale rocksalt (a wide range: several coarse levels), an O2 box (a big cubic cell), the HartreeOnly routing,
 // the explicit mgridEcuts list and a non-default progression factor.
 #include "gtest/gtest.h"
@@ -14,7 +14,8 @@ import qchem.UnitCell;
 import qchem.Lattice_3D;
 import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Point.Factory;      // Gaussian::Factory (the molecular basis)
-import qchem.BasisSet.Lattice.BasisSet;            // GPWFactory, GPWParams, EmitGpwGrids, MakeRasterLadder
+import qchem.BasisSet.Lattice.BasisSet;            // GPWFactory, GPWParams, EmitGpwGrids, MakeRasterLadder, ResolveImposition
+import qchem.Pseudopotential.GTH_Potentials;       // GetGTH (a local PP to size V_long's ladder for)
 import qchem.Reporting;                            // the run the blocks file their grids into (a test may read it)
 import qchem.Types;
 
@@ -29,17 +30,19 @@ std::shared_ptr<const Real_BS> Mol(BasisSetData d, const Structure& st)
     return std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(d, &st, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 }
 
-//! Every level of the blocks' filed ladder equals the shared ladder's: FFT divisions, cutoff (bitwise), |{G}| and role.
+//! Every level the ladder files (grids.ladder) is its own: FFT divisions, cutoff (bitwise), |{G}| and role.
 void ExpectSameLadder(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const BasisSet::Lattice::GPWParams& p, const std::string& name)
 {
+    const auto ladder=BasisSet::Lattice::MakeRasterLadder(lat, mol, p);
     report::json filed;
     {
         report::Run run("raster ladder "+name);
-        std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::GPWFactory(lat, mol, p));
-        BasisSet::Lattice::EmitGpwGrids(*bs);
+        {
+            report::Section grids("grids");
+            BasisSet::Lattice::EmitGpwGrids(*ladder, *mol, ResolveImposition(lat, {}));
+        }
         filed=report::CurrentRunReport()["grids"]["ladder"];
     }
-    const auto ladder=BasisSet::Lattice::MakeRasterLadder(lat, mol, p);
     ASSERT_TRUE(ladder->DensityGrid()) << name;
     const auto& L=ladder->Levels();
     EXPECT_EQ(L.levels.front(), ladder->DensityGrid()) << name << ": level 0 IS the density grid";
@@ -82,7 +85,7 @@ UnitCell O2Box()
 }
 }
 
-TEST(RasterLadder, SiGammaAndK222MatchTheBlocksLadder)
+TEST(RasterLadder, SiGammaAndK222FileTheirOwnLevels)
 {
     const auto cell=SiDiamond();
     const Lattice_3D g(cell, ivec3_t(1,1,1)), k(cell, ivec3_t(2,2,2));
@@ -92,7 +95,7 @@ TEST(RasterLadder, SiGammaAndK222MatchTheBlocksLadder)
     ExpectSameLadder(k, mol, {.densityEcut=20.0}, "Si k222 Ecut 20");
 }
 
-TEST(RasterLadder, AWideExponentRangeMatchesLevelForLevel)
+TEST(RasterLadder, AWideExponentRangeFilesLevelForLevel)
 {
     const auto cell=MnORocksalt();
     const Lattice_3D lat(cell, ivec3_t(1,1,1));
@@ -101,7 +104,7 @@ TEST(RasterLadder, AWideExponentRangeMatchesLevelForLevel)
     ExpectSameLadder(lat, mol, {.rasterFields=BasisSet::PlaneWave::RasterFields::HartreeOnly}, "MnO HartreeOnly");
 }
 
-TEST(RasterLadder, ABoxedMoleculeAndTheLadderKnobsMatch)
+TEST(RasterLadder, ABoxedMoleculeAndTheLadderKnobsFileTheirLevels)
 {
     const auto cell=O2Box();
     const Lattice_3D lat(cell, ivec3_t(1,1,1));
@@ -121,4 +124,41 @@ TEST(RasterLadder, NoDensityGridMeansNoLadder)
     const auto ladder=BasisSet::Lattice::MakeRasterLadder(lat, Mol(BasisSetData::SIPP, *lat.GetStructure()), {.densityEcut=0.0});
     EXPECT_FALSE(ladder->DensityGrid());
     EXPECT_THROW((void)ladder->Levels(), std::logic_error);
+}
+
+//! A factory handed a ladder runs every block on it (the same density grid object), and refuses a ladder built from other settings
+//! rather than run on it: two statements of the ladder must agree.
+TEST(RasterLadder, AHandedInLadderIsSharedAndAMismatchIsRefused)
+{
+    const auto cell=SiDiamond();
+    const Lattice_3D k(cell, ivec3_t(2,2,2));
+    const auto mol=Mol(BasisSetData::SIPP, *k.GetStructure());
+    BasisSet::Lattice::GPWParams p{.densityEcut=20.0};
+    p.ladder=BasisSet::Lattice::MakeRasterLadder(k, mol, p);
+    std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::GPWFactory(k, mol, p));
+    EXPECT_GT(bs->GetNumIBS(), 1u);
+    BasisSet::Lattice::GPWParams q=p;
+    q.densityEcut=30.0;                           // the params now state another ball than the ladder was built for
+    EXPECT_THROW(std::unique_ptr<BasisSet::Complex_BS>(BasisSet::Lattice::GPWFactory(k, mol, q)), std::invalid_argument);
+}
+
+//! V_loc long's audit row is the LADDER's: present exactly when it was sized for a local PP with a closed Gaussian sharpness, and a
+//! pure function of that -- so it is the same whether or not the V_long sweep has run (a cached matrix used to hide it).
+TEST(RasterLadder, VlocLongsAuditIsAFunctionOfTheLadderAndThePP)
+{
+    const auto cell=SiDiamond();
+    const Lattice_3D lat(cell, ivec3_t(1,1,1));
+    const auto mol=Mol(BasisSetData::SIPP, *lat.GetStructure());
+    const auto gth=Pseudopotential::GetGTH("Si","LDA",4);
+    const double beta=BasisSet::Gaussian::LocalPPSharpness(*lat.GetStructure(), gth.local);
+    ASSERT_GT(beta, 0.0) << "the Si GTH local has a closed Gaussian short part";
+    const auto bare =BasisSet::Lattice::MakeRasterLadder(lat, mol, {.densityEcut=20.0});
+    const auto sized=BasisSet::Lattice::MakeRasterLadder(lat, mol, {.densityEcut=20.0}, beta);
+    EXPECT_EQ(bare ->DeliveredRasterVerdicts().size(), 1u) << "no PP sharpness: the density row only";
+    const auto v=sized->DeliveredRasterVerdicts();
+    ASSERT_EQ(v.size(), 2u);
+    EXPECT_EQ(v[1].audit, "auditVlocLong");
+    EXPECT_EQ(bare->DeliveredRasterExponents().vlocLong, 0.0);
+    EXPECT_GT(sized->DeliveredRasterExponents().vlocLong, 0.0);
+    EXPECT_EQ(sized->DeliveredRasterExponents().density, bare->DeliveredRasterExponents().density) << "the PP touches only V_long's row";
 }

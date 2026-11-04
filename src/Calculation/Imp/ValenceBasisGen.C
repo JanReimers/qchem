@@ -114,7 +114,7 @@ double GenerateFloorEnergy(const ValenceBasisRecipe& r)
     o.pseudopotential = true;
     o.valence         = Zion;
     if (!r.accelerator.empty()) o.accelerator={{"type", r.accelerator}};
-    o.accuracy        = BasisSetAccuracy::High;
+    o.basisPool        = BasisSetAccuracy::High;
     SCFParams p; p.MinVirial = std::nullopt;          // no virial gate under a PP (see GenerateValenceBasis)
     GateOnEnergy(p);
     if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);

@@ -41,7 +41,7 @@ import qchem.Lattice_3D;                      // Lattice_3D (crystal + BZ mesh)
 import qchem.Structure;                       // Structure
 import qchem.ScalarFunction;                  // ScalarFunction<double> (the rho(r) face)
 import qchem.BasisSet;                        // Real_BS (orbital source), Complex_BS (the Bloch basis)
-import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, GpwRasterExponents, CellImages
+import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, MakeRasterLadder, CellImages
 import qchem.Hamiltonian.Factory;             // SpinGroup, VxcFit, the cHamiltonian solid door
 export import qchem.Hamiltonian.HubbardEstimator;   // ACBN0Estimate (EstimateHubbardU), HubbardEstimate (the loop)
 export import qchem.Response;                  // ChannelResponse / ResponseFailure (IndependentResponse, LinearResponsePlan R0)
@@ -452,7 +452,7 @@ public:
     //! \brief WHAT THIS RUN'S CLIENT CONSUMES (user ruling 2026-10-31, doc/GridEpsilonPlan.md §1): the measure the one accuracy target
     //! is judged on.  A calculation built on its own answers an \c Energy; one a \c SolidSession builds for a geometry point (a
     //! surface, forces, a relaxation) answers \c MatrixElements.  The run answers it from who built it -- the user never picks a metric.
-    BasisSet::Gaussian::ClientConsumes Consumes() const;
+    ClientConsumes Consumes() const override;
     //! \brief The setup with THIS run's raster sizing FROZEN into it (C2 step 3): the tolerances the pilot audit settled on, marked
     //! resolved -- what a \c SolidSession steps the rest of its surface on, so every point samples on the same rasters (a re-sized raster
     //! per point would make the surface discontinuous).  The setup itself when its rasters were resolved already.
