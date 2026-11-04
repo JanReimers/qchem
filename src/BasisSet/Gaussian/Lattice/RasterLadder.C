@@ -18,12 +18,25 @@ export module qchem.BasisSet.Gaussian.Lattice.RasterLadder;
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // the typed tolerances the ladder is sized by
 export import qchem.BasisSet.PlaneWave.Evaluators;             // PlaneWave::PW_Grid_Evaluator (a level) + RasterFields
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;              // GaussianSharpness: the exponent range (step 1's basis input)
+import qchem.BasisSet;                                           // Real_BS (the molecular basis a ladder is sized from)
 import qchem.UnitCell;
 import qchem.ReciprocalLattice;
 import qchem.Types;
 
 export namespace qchem::BasisSet::Gaussian
 {
+
+//! The k-independent statement a ladder is built from (beside the cell and the basis): what a caller that hands a ladder in must
+//! have meant, so a block can refuse a ladder built for other settings instead of silently running on it.
+struct RasterLadderInputs
+{
+    double        densityEcut  = -1.0;
+    double        cutoffFactor = 2.0;
+    double        ladderFactor = 4.0;
+    PlaneWave::RasterFields rasterFields = PlaneWave::RasterFields::HartreeXC;
+    GPWTolerances tol = {};
+    bool operator==(const RasterLadderInputs&) const = default;
+};
 
 //! One ladder over a fine grid: level [0] is that grid (the resolution reference), coarser levels follow, the top completion rung LAST.
 struct RasterLevels
@@ -54,10 +67,19 @@ public:
     double PairCap(double ecut, double ecutRef, bool finest) const;
     //! The HartreeOnly routing floor (a fraction of alpha_max), or <0 when the run routes every pair at the XC floor (HartreeXC).
     double RelFieldSharp() const {return itsRelFieldSharp;}
+    //! \brief V_loc long's PRIVATE ladder (\c GPW_Evaluator::MakeLocalPPLong): the density ladder plus ONE top level at the sharpest
+    //! pair's harmonic requirement \f$2 L\,p\beta/(p+\beta)\f$ (\f$p=2\alpha_{\max}\f$, \a lnE \f$=L=\ln(1/\epsilon)\f$) when no level
+    //! reaches it, every level re-sampled at V_long's own raster demand when it exceeds the density's.  \pre \c DensityGrid() is set.
+    RasterLevels MakeVlocLongLevels(double beta, double lnE) const;
+
+    const RasterLadderInputs& Inputs() const {return itsInputs;}   //!< what the ladder was built from (a handed-in ladder is checked)
+    double CutoffFactor() const {return itsInputs.cutoffFactor;}   //!< C in the auto density floor C*alpha_max
+    double LadderFactor() const {return itsInputs.ladderFactor;}   //!< the coarse-level progression factor
 
 private:
     std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> MakeLevel(const ReciprocalLattice& recip, double ecut, double pCap, double x) const;
 
+    RasterLadderInputs itsInputs;
     double        itsAlphaMax, itsAlphaMin, itsRelCutoffSafety;
     double        itsLadderFactor;
     double        itsRelFieldSharp=-1.0;
@@ -65,5 +87,10 @@ private:
     std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> itsGrid;
     RasterLevels  itsLevels;
 };
+
+//! \brief Build a ladder over \a cell from \a mol's one Gaussian orbital block (its exponent range).  The one place a ladder is made
+//! from a molecular basis: \c BasisSet::Lattice::MakeRasterLadder (per geometry point) and a bare block's convenience ctor both call it.
+//! Throws if \a mol has more than one orbital block, or none that is Gaussian.
+std::shared_ptr<const GpwRasterLadder> MakeRasterLadder(const UnitCell& cell, const BasisSet::Real_BS& mol, const RasterLadderInputs& in);
 
 } // namespace qchem::BasisSet::Gaussian

@@ -123,6 +123,11 @@ struct GPWParams
     //! \c freeMeshInvariant / \c kShift with the same builder.  Set: used as is -- and it must have been resolved from those same
     //! fields (\c CrystalImposition::options), or the factory throws rather than pick one of two statements of the policy.
     std::shared_ptr<const CrystalImposition> imposition = {};
+    //! \brief The point's raster ladder (V-BS-RASTER), built by the caller with \c MakeRasterLadder from these same params (the facade
+    //! builds one per geometry point and holds it).  Unset (the default): the factory builds one with the same builder.  Set: shared by
+    //! every block -- and it must have been built from this struct's densityEcut / cutoffFactor / ladderFactor / rasterFields / tol,
+    //! or the factory throws.
+    std::shared_ptr<const Gaussian::GpwRasterLadder> ladder = {};
 };
 //! The struct-parameter factory (preferred surface; the positional overload above forwards here).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,

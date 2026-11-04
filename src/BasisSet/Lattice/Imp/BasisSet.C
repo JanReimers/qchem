@@ -86,6 +86,12 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut, cons
 struct KBlock { ivec3_t ik; double weight; };
 // The run's imposed crystal ops (fold + density + Shubnikov + mesh invariance) are a qchem::CrystalImposition, resolved from the
 // lattice and the options by ResolveImposition (qchem.Lattice_3D.Imposition; V-BS-SYMMETRY S1) -- not decided here.
+//! The ladder settings a GPWParams states (what a handed-in ladder must have been built from).
+static Gaussian::RasterLadderInputs LadderInputs(const GPWParams& p)
+{
+    return {.densityEcut=p.densityEcut, .cutoffFactor=p.cutoffFactor, .ladderFactor=p.ladderFactor, .rasterFields=p.rasterFields, .tol=p.tol};
+}
+
 static std::vector<KBlock> BuildKBlocks(const ::qchem::Lattice_3D& lat, const GPWParams& p,
                                         const CrystalImposition& cops)
 {
@@ -130,6 +136,13 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     const CrystalImposition& ops = *imp;
     SetImposition(imp);                             // the density star ops + the spin-pair group, for the density / WF (S3)
     const std::vector<KBlock> blocks = BuildKBlocks(lat, p, ops);
+    // The point's raster ladder (V-BS-RASTER): HANDED IN (the facade builds one per geometry point) or built here by the same builder.
+    // Every block shares it -- the ladder's inputs are k-independent.  A handed-in one built from other settings is refused.
+    if (p.ladder && !(p.ladder->Inputs()==LadderInputs(p)))
+        throw std::invalid_argument("GPW_BasisSet: GPWParams::ladder was built from other settings than this GPWParams states "
+                                    "(densityEcut / cutoffFactor / ladderFactor / rasterFields / tol)");
+    const std::shared_ptr<const Gaussian::GpwRasterLadder> ladder = p.ladder ? p.ladder
+                                                                 : Gaussian::MakeRasterLadder(lat.GetUnitCell(), *mol, LadderInputs(p));
     // T3 route (b) STREAM FOLD (doc/SymmetryUpgradePlan.md §6b/T3.2): on an IMPOSED Γ-ONLY run, fold the
     // shared molecular evaluator's (pair, R) collocation streams under the crystal ops -- reduced build +
     // replay (demand and per-iteration scatter/gather ÷ ~orbit factor); the existing per-iteration
@@ -186,9 +199,8 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         auto build=[&]<class U>()
         {
             auto* b=new Gaussian::tGPW_IBS<U>(lat.GetUnitCell(), irrep,
-                                    mol, p.densityEcut, p.images, p.cutoffFactor, p.ladderFactor,
-                                    ops.directDensity,    // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
-                                    p.rasterFields,       // field-sharpness routing (HartreeOnly = the Becke-XC partner)
+                                    mol, ladder, p.images,  // mol and the ladder shared across k-blocks
+                                    ops.directDensity,    // {W|τ} = the IBZ raster star ops
                                     p.tol);               // the typed GPW tolerances (D-ENV step 5)
             if (!first) first=b;
             Insert(b);
@@ -214,12 +226,7 @@ std::shared_ptr<const Gaussian::GpwRasterLadder> MakeRasterLadder(const ::qchem:
                                                                   const GPWParams& p)
 {
     if (!mol) throw std::invalid_argument("MakeRasterLadder: no molecular basis");
-    const BasisSet::Real_OIBS* only=nullptr;     // the single orbital block of the raw molecular basis (the evaluator's itsOrb)
-    for (auto ibs : mol->Iterate<BasisSet::Real_OIBS>()) { if (only) throw std::logic_error("MakeRasterLadder: a molecular basis with more than one orbital block"); only=ibs; }
-    const auto* sharp=dynamic_cast<const Gaussian::GaussianSharpness*>(only);   // abstract -> abstract
-    if (!sharp) throw std::invalid_argument("MakeRasterLadder: the molecular basis has no Gaussian orbital block to size a raster from");
-    return std::make_shared<const Gaussian::GpwRasterLadder>(lat.GetUnitCell(), *sharp, p.densityEcut, p.cutoffFactor, p.ladderFactor,
-                                                             p.rasterFields, p.tol);
+    return Gaussian::MakeRasterLadder(lat.GetUnitCell(), *mol, LadderInputs(p));
 }
 
 void EmitGpwGrids(const Complex_BS& bs)
