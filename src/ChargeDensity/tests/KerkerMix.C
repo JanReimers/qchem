@@ -53,6 +53,34 @@ TEST(KerkerMix, GZeroMixesFullyChargeCarriedExplicitly)
     EXPECT_NEAR(presented.GetTotalCharge(), N, 1e-12);
 }
 
+// THE BATCHED SAMPLER IS THE SAME SERIES (OpenWork §4, the rho-tilde sampler): the mesh-wide operator() is a type-2
+// NUFFT, the single-point operator() the direct G-sum.  A TRICLINIC cell (the fractional-coordinate mapping is the
+// part a cubic cell cannot test), a ball of G with NO conjugate symmetry (a mixer that broke it must still be sampled
+// exactly) and a ReScale, at points outside the home cell.  Against ||c||_1, the norm the NUFFT width is stated against.
+TEST(KerkerMix, BatchedSamplerEqualsTheDirectSeries)
+{
+    UnitCell cell(7.3, 8.1, 9.4, 81.0, 97.0, 112.0);
+    const ReciprocalLattice recip(cell.MakeReciprocalCell());
+    ΔG_Map rho;
+    double l1=0.0;
+    for (int x=-6; x<=6; x++) for (int y=-6; y<=6; y++) for (int z=-6; z<=6; z++)
+        if (x*x+y*y+z*z<=36)
+        {
+            const dcmplx c(std::sin(1.3*x+0.7*y-0.4*z)/(1.0+x*x+y*y+z*z), std::cos(0.9*x-1.1*y+0.3*z)/(2.0+x*x+y*y+z*z));
+            rho[ivec3_t(x,y,z)]=c; l1+=std::abs(c);
+        }
+    FourierMixCD cd(rho, recip, 3.0);
+    cd.ReScale(1.7);
+    rvec3vec_t r(64);
+    for (size_t p=0; p<r.size(); p++) r[p]=rvec3_t(-11.0+0.73*p, 4.0-0.41*p, 0.29*p*p/16.0-6.0);
+    const rvec_t batched=cd(r);
+    for (size_t p=0; p<r.size(); p++) EXPECT_NEAR(batched[p], cd(r[p]), 1.7e-13*l1) << "point " << p;
+    // ...and ON A POINT SET the set chooses: the cell's uniform raster answers with the exact inverse FFT (round-off).
+    const qcMesh::Mesh raster=cell.CreateIntegrationMesh({.nUniform=8, .cellKind=qcMesh::UnitCellKind::Uniform});
+    const rvec_t onRaster=cd.SampleOn(raster);
+    for (size_t p=0; p<raster.size(); p+=5) EXPECT_NEAR(onRaster[p], cd(raster.Points()[p]), 1.7e-14*l1) << "raster point " << p;
+}
+
 // The interior factor: mix = in + alpha*f_K*(out-in), f_K=|G|^2/(|G|^2+G0^2).  Low-G damped, high-G ~full.
 TEST(KerkerMix, DampsLowGPassesHighG)
 {
