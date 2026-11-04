@@ -1528,3 +1528,28 @@ it moot.)
 - `Name()` on a Gaussian auxiliary fit is its file (`A1_coul`, `A1_exch`); `BasisSetID` is untouched.
 
 Tests: `FacadeMatrix` (every cell: each `hamiltonian` member is a mesh with points or a term with complete `fitbasis` rows), `CalculationFacade.EachAuxiliaryFitFilesInItsOwnTerm`.  Sweep: 1279/0 short, 11/0 long, 0 anchor moves against the branch's previous sweep (`GPW_NaF.Γ_GeometryRunSizesItsBeckeMesh_Long` flickers 33/34 iterations at dE = 0 between main sweeps, independent of this change).  `qviz/gridinfo.py` moves in lockstep on its own branch (lane G).
+
+## ✅ HF needs no mesh (2026-11-04, lane B, 73e92020)
+
+**The row, verbatim:**
+
+| **HF needs no mesh: its Δρ gate should come from D** (user 2026-11-04: "HF should have no mesh!"; found by lane G in the GUI's Grids tab) | D-MINDRHO (2026-10-22) made Δρ the L1 distance per electron on a real-space quadrature; a Hamiltonian with none (HF, 1-electron) falls back to a default-MeshParams mesh built only for the gate (`SCFIterator.C:288-320`; CH₄ 30 radial × L5 = 1,692 points, no ε link) | USER RULING: when the Hamiltonian has no real-space quadrature, the gate is the S-METRIC D norm, √Tr(ΔD S ΔD S) per electron, and NO mesh is built (`residualMesh` goes, with the D-MINDRHO fallback).  Basis-invariant: it equals the Frobenius ΔD norm in an orthonormal basis, the invariant form of the RMS(ΔD) other codes print.  The Δρ columns need NOT be comparable between HF and DFT, so label the column for what it is, and re-judge the HF gate's default value (L2-type, so its numbers differ from L1); HF anchors may stop an iteration earlier or later, re-judged as stopping-tolerance moves.  DFT unchanged · `src/SCFIterator/Imp/SCFIterator.C` (ResidualPerElectron), `src/SCFIterator/SCFParams.C` |
+
+**Verdict.**  Built to a second user ruling the same day (V-INTERFACE-TIERS: `DeltaRho` + `DeltaRhoLabel` replace `RealSpaceL1Distance`).  The first design kept a capability query on the hub; the user rejected it as Ask, not Tell.  `tHamiltonian::DeltaRho(in, out)` answers the per-electron residual and `DeltaRhoLabel()` titles it; the NaN signal and `SCFIterator::ResidualPerElectron` are gone, and the iterator neither branches nor sees a mesh.
+
+- A Hamiltonian holding a real-space quadrature measures the L1 distance on it, titled `Δρ`, unchanged.  One without (HF, the 1-electron and Dirac test models, Vxc=Auxiliary DFT) measures √Tr(ΔD S ΔD S)/N, titled `‖ΔD‖`, and builds no mesh.  The Vxc=Auxiliary case includes the pseudo-atom SCFs behind the +U projectors, so a solid's log can show both titles.
+- `tDensityMatrixDistance` (`qchem.ChargeDensity`) is the D-side face, `tRealSpaceResidual` (`Hamiltonian/Internal`) the quadrature side.  Blocks' squares add.
+- **The default stays 1e-4, no new knob.**  Near the gate the D norm reads 0.4-2.3× the L1 on HF H₂O, CH₄, N₂, CO, O₂ triplet, Be, B, Ne, Fe; at the first L1 < 1e-4 it reads 3e-6..1.2e-4.  Record at `SCFParams`.
+
+**Measured against main-e54c99e7** (short 1283/0, long 11/0).  Counted from SCF trace rows, because `anchordiff` printed 0 (open row: it cannot see these).  Stopping-tolerance moves only: 9 tests take one more iteration, none fewer; over 481 runs compared on their last row the largest energy move is 1e-12 Ha, one print digit.
+
+| test (instances) | iterations | energy, Ha |
+|---|---|---|
+| `A_HF_U` He (BSpline Low, Medium; BSpliner Medium) | 12 → 13 | -2.8616774411 .. -2.8616799918 |
+| `A_HF_U` Be (same three) | 13 → 14 | -14.5729965418 .. -14.5730231252 |
+| `A_HF_P` Li (BSpline, BSpliner Medium) | 19 → 20 | -7.4327508213, -7.4327509009 |
+| `MoleculeSession.ACarriedStep…` water HF, 3 runs | 94 → 95 in all | -76.0229320021 |
+
+No solid and no quadrature DFT run moved.  No panel case is HF.  The `_Panel` cases in the short tier did not move; the `_Panel_Long` cases were not run.  Their solid SCFs keep the quadrature L1, and their only changed gate is the +U pseudo-atom's (Mn and O), which did not move in the long tier (`GPW_MnO2…RefusesAnAliasedFirstIterate_Long`).
+
+**The trap it found.**  `dynamic_cast` from a virtual base to a public virtual face returns null, silently, on libstdc++ when the face is declared BEFORE a non-public non-virtual base sharing that virtual base (reproduced standalone; libc++ is correct).  It made every DFT run print `‖ΔD‖`, and only the solid golden caught it.  The face now sits after the base, with the reason at `PWTerms.C`.  A text scan of the 318 classes in `src` found no other instance; it is a heuristic, not a compiler check, validated against the pre-fix shape.
