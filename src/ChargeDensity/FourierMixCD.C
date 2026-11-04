@@ -26,6 +26,7 @@ export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, ΔG_Map
 export import qchem.ReciprocalLattice;             // ReciprocalLattice (|G| for f_K, the Coulomb kernel for V_H)
 import qchem.BasisSet.Orbital_DFT_IBS;                      // cFIT_CD_ABS / cFIT_SF_ABS (the FourierDensity face args)
 import qchem.Types;                                 // dcmplx
+import qchem.PointSampling;                         // PointSampling, FourierSampler (SampleOn)
 
 export namespace qchem::ChargeDensity
 {
@@ -91,13 +92,13 @@ public:
 
     // --- tChargeDensity<dcmplx> ---
     virtual double  operator()(const rvec3_t&) const override;   //!< rho(r) via inverse FT (single point)
-    //! Batched \f$\rho(r_g)=\mathrm{Re}\sum_m c_m e^{iG_m\cdot r_g}\f$ with the phase FACTORIZED per axis
-    //! (\f$e^{iG\cdot r}=\prod_a e^{i m_a (B^\mathsf{T}r)_a}\f$, three 1-D tables per point) -- ~an order
-    //! of magnitude over the per-G std::exp of the pointwise loop.  This is the Fock-path rho feed of the
-    //! Becke XC quadrature on MIXED iterations (the mesh points are not a raster, so no FFT applies).
-    //! (The batched \c ScalarFunction face itself -- there is no separate \c EvalBatch spelling to fork
-    //!  away from, so a caller holding the neutral face always reaches THIS fast path.)
+    //! Batched \f$\rho(r_g)=\mathrm{Re}\sum_m c_m e^{iG_m\cdot r_g}\f$ on BARE points: the NUFFT sampler (qchem.PointSampling's
+    //! default, the series to \c kNUFFTTolerance).  A caller holding the point SET goes through \c SampleOn instead.
     virtual rvec_t  operator()(const rvec3vec_t&) const override;
+    //! \brief Sample me on a point set the way IT says (the ρ̃ sampler, OpenWork §4): I hand it my series and it makes the
+    //! sampler -- a type-2 NUFFT on any set (Becke), an exact inverse FFT on the uniform cell raster.  Neither side asks
+    //! what kind the other is.
+    virtual rvec_t  SampleOn(const PointSampling&) const override;
     //! \brief NOT IMPLEMENTED -- \f$\nabla\rho\f$ of a G-space density is \f$\sum_m iG_m c_m e^{iG_m\cdot r}\f$,
     //! never wired because the periodic path is LDA-only.  Throws rather than returning a silent zero: a GGA
     //! or plotting consumer reaching this through the neutral \c ScalarFunction face would otherwise get a
