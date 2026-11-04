@@ -87,6 +87,10 @@ enable_language (Fortran)
 enable_testing()
 # The written module rule as a test: no PUBLIC module unit may re-export an .Internal. module (V1.20c/d).
 add_test(NAME InternalReexportAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-internal-reexports ${PROJECT_SOURCE_DIR}/src)
+# The tier-1 abstract hubs are PROTECTED faces (V-INTERFACE-TIERS step 3): each one's exported declarations and re-exports against
+# the checked-in snapshot; a change fails until the snapshot is regenerated (--update) in a commit citing the design ruling.
+add_test(NAME HubInterfaceAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-hub-interfaces ${PROJECT_SOURCE_DIR}/src
+                                        ${PROJECT_SOURCE_DIR}/scripts/hub-interfaces.snapshot)
 # Every environment variable the library reads must be on the settings reference page (src/Common/Settings.dox) -- D-ENV.
 add_test(NAME SettingsDocAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-settings-doc ${PROJECT_SOURCE_DIR}/src)
 add_test(NAME PPChoiceAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-pp-choice ${PROJECT_SOURCE_DIR}/src)
