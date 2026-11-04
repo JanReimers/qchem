@@ -20,6 +20,7 @@ module;
 #include <type_traits>
 
 module qchem.SCFIterator;
+import qchem.SCFIterator.Internal.Occupations;   // OccupiedConfiguration, AnElectronMoved -- the cfg '*'
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.SCFParams;
 import qchem.SCFAccelerator;
@@ -121,23 +122,16 @@ template <class T> static std::string FrontierWindow(const qchem::WaveFunction::
     return os.str();
 }
 
-// THE OCCUPIED CONFIGURATION, as the aufbau decided it: per irrep block (in the wave function's own block order), each orbital's
-// occupation rounded to an electron count, in the block's own orbital order.  The cfg '*' compares two of these, so it fires only when
-// an electron moves -- between blocks, or to a different orbital of its block.  It was an energy-ordered label string, (1a₁)²(2a₁)²...:
-// exactly degenerate levels of DIFFERENT irreps (CH₄'s t2 = a₁ + b₁ + b₂ in C2v; O₂'s ↑ and ↓ levels crossing) reorder on noise,
-// so the string changed on most iterations while no occupation did (OpenWork cfg row, 2026-11-03).  The merged level table is the
-// wrong source too: a MergeTol host is whichever level came first.  Trailing empty orbitals are dropped (a block's virtual count
-// is not a configuration).
-using OccupiedConfiguration=std::vector<std::pair<size_t,std::vector<int>>>;   // (Irrep::SequenceIndex, occupations in block order)
+// The cfg '*''s configuration (OccupiedConfiguration, qchem.SCFIterator.Internal.Occupations): every block's occupations as the
+// aufbau set them.
 template <class T> static OccupiedConfiguration OccupationsByBlock(const qchem::WaveFunction::tWaveFunction<T>* wf)
 {
     OccupiedConfiguration cfg;
     for (const qchem::Irrep& irr : wf->GetQNs())
     {
-        std::vector<int> occ;
-        for (const auto* o : wf->GetOrbitals(irr)->Iterate()) occ.push_back((int)std::lround(o->GetOccupation()));
-        while (!occ.empty() && occ.back()==0) occ.pop_back();
-        if (!occ.empty()) cfg.emplace_back(irr.SequenceIndex(), std::move(occ));
+        std::vector<double> occ;
+        for (const auto* o : wf->GetOrbitals(irr)->Iterate()) occ.push_back(o->GetOccupation());
+        cfg.emplace_back(irr.SequenceIndex(), std::move(occ));
     }
     return cfg;
 }
@@ -525,7 +519,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
                                itsMixer->Tag(), itsAccelerator->Tag(), itsAccelerator->Count(),
                                itsAccelerator->MinSV(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
-                               itsIterationCount>1 && config!=prevConfig, lineSearch,
+                               itsIterationCount>1 && AnElectronMoved(config,prevConfig), lineSearch,
                                (N!=0.0 ? eb.charge.lost/N : 0.0), itsMixer->HasGFilter(),
                                g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole,
                                hasOrder, order };

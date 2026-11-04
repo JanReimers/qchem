@@ -34,6 +34,7 @@ import qchem.BasisSet;               // Real_BS
 import qchem.BasisSet.Gaussian.Point.Factory;  // Gaussian::Factory, BasisSetData/Engine/Angular
 import qchem.Types;                  // ivec3_t
 import qchem.SCFIterator;            // SCFParams
+import qchem.SCFIterator.Internal.Occupations;   // AnElectronMoved -- the cfg '*' comparison (unit tests may import Internal)
 import qchem.MoleculeCalculation;            // the molecular facade (the golden molecular trace)
 using namespace qchem;
 using enum BasisSetAccuracy;
@@ -327,6 +328,34 @@ TEST(SCFTrace, AnElectronMovingBetweenIrrepsFlagsCfg)
     ASSERT_EQ(cfg.size(), 6u);
     EXPECT_EQ(cfg[0], 0.0) << "iteration 1 has no previous configuration to differ from";
     EXPECT_GT(std::count(cfg.begin(), cfg.end(), 1.0), 0) << "the π* electron moved between irreps and no row flagged it";
+}
+
+// ...but a SHARED level sitting at a half-integer is not a move (lane A, 2026-11-04): a pair of degenerate orbitals sharing one
+// electron sits at ½ + ½, and noise of ~1e-13 tips each side of ½ from one iteration to the next.  Rounding each occupation (lround)
+// flipped the pair between (1,0) and (0,1) and flagged on noise.  Driven on the comparison itself: no natural molecular run tried
+// holds an exact ½ (smeared NO's π*↑ breaks the b₁ / b₂ pair self-consistently, kT 1e-3 to 5e-2).
+TEST(SCFTrace, AHalfIntegerShareOnNoiseIsNotAMove)
+{
+    using SCFIterator::OccupiedConfiguration;
+    const double eps=1e-13;
+    const OccupiedConfiguration before{{0,{2.0,2.0,0.5+eps}}, {2,{2.0,0.5-eps}}};
+    const OccupiedConfiguration after {{0,{2.0,2.0,0.5-eps}}, {2,{2.0,0.5+eps}}};
+    EXPECT_FALSE(SCFIterator::AnElectronMoved(before, after)) << "a ½ + ½ share on 1e-13 noise flagged";
+    // a smeared run's continuous drift below half an electron is not a move either
+    const OccupiedConfiguration drift{{0,{2.0,1.99,0.7}}, {2,{2.0,0.31}}};
+    EXPECT_FALSE(SCFIterator::AnElectronMoved(before, drift));
+}
+
+// ...and the same comparison still sees every real move: an electron between blocks, within a block, and into a block (or orbital)
+// the other configuration does not list.
+TEST(SCFTrace, AnElectronMovingIsAMoveWhereverItGoes)
+{
+    using SCFIterator::OccupiedConfiguration;
+    const OccupiedConfiguration base{{0,{2.0,1.0}}, {2,{2.0}}};
+    EXPECT_FALSE(SCFIterator::AnElectronMoved(base, base));
+    EXPECT_TRUE (SCFIterator::AnElectronMoved(base, OccupiedConfiguration{{0,{2.0}},        {2,{2.0,1.0}}})) << "between blocks";
+    EXPECT_TRUE (SCFIterator::AnElectronMoved(base, OccupiedConfiguration{{0,{2.0,0.0,1.0}}, {2,{2.0}}}))     << "within a block";
+    EXPECT_TRUE (SCFIterator::AnElectronMoved(base, OccupiedConfiguration{{0,{2.0}},        {2,{2.0}}, {5,{1.0}}})) << "into a new block";
 }
 
 // THE ROW SINK'S EXCEPTION IS THE CALLER'S (2026-11-02): an observer that throws -- a GUI's cancel, a sink that fails to write --

@@ -4,6 +4,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     LoopDriver.C
     SCFParams.C
     Types.C
+    Internal/Occupations.C
 )
 
 
