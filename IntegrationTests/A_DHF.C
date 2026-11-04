@@ -229,7 +229,7 @@ class A_SL_DHF : public ::testing::TestWithParam<size_t> {};
 TEST_P(A_SL_DHF,Energy)
 {
     int Z=GetParam();
-    AtomCalculation calc(Z, 0, {.type=AtomType::Slater_RKB, .accuracy=Medium, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
+    AtomCalculation calc(Z, 0, {.type=AtomType::Slater_RKB, .basisPool=Medium, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
         {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
     EXPECT_LT(fabs(RelativeDHFError(calc.Energy(), Z)), 5e-3); // Low-accuracy basis; Ne (Z=10) known gap
 }
@@ -240,7 +240,7 @@ TEST_P(A_SG_DHF,Energy)
 {
     int Z=GetParam();
     // Virial gate OFF: on a Low-accuracy RKB basis the virial ratio measures basis completeness, not SCF convergence.
-    AtomCalculation calc(Z, 0, {.type=AtomType::Gaussian_RKB, .accuracy=Low, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
+    AtomCalculation calc(Z, 0, {.type=AtomType::Gaussian_RKB, .basisPool=Low, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
         {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = std::nullopt, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
     ASSERT_TRUE(calc.IsConverged());
     EXPECT_LT(fabs(RelativeDHFError(calc.Energy(), Z)), 5e-3); // Low-accuracy basis; Ne (Z=10) known gap
@@ -253,7 +253,7 @@ INSTANTIATE_TEST_SUITE_P(A,A_SG_DHF,::testing::Values(2,4,10));
 //
 TEST(DHF_B_Pol,P2p)
 {
-    AtomCalculation calc(5, 0, {.type=AtomType::Slater_RKB, .accuracy=Medium, .model=Model::DHF, .spin=SpinGroup::Polarized},
+    AtomCalculation calc(5, 0, {.type=AtomType::Slater_RKB, .basisPool=Medium, .model=Model::DHF, .spin=SpinGroup::Polarized},
         {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
 
     const qchem::Orbitals::Orbital* o2p=nullptr;
@@ -276,7 +276,7 @@ TEST(DHF_Xe,P5pSplit)
 #ifdef DEBUG
     GTEST_SKIP() << "Xe DHF (54 electrons) is too slow for Debug; runs in Release only.";
 #endif
-    AtomCalculation calc(54, 0, {.type=AtomType::Slater_RKB, .accuracy=Medium, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
+    AtomCalculation calc(54, 0, {.type=AtomType::Slater_RKB, .basisPool=Medium, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
         {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = std::nullopt, .MinFD = 1e-6, .StartingRelaxRo = 0.3, .MergeTol = 1e-7, .Verbose = true});
     ASSERT_TRUE(calc.IsConverged()) << "virial gate off: on a finite RKB basis it measures completeness, not convergence";
 

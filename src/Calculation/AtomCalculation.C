@@ -43,18 +43,18 @@ using AtomType = BasisSet::Radial::Type;    // {Slater, Gaussian, BSpline6, BSpl
 using BasisSet::Radial::BasisSetAccuracy;   // {Low, Medium, High}
 
 //! How to set up a single-atom calculation.  Designated-initializer friendly:
-//!     AtomCalculation calc(18, 0, {.type=AtomType::Slater, .accuracy=BasisSetAccuracy::Medium});
+//!     AtomCalculation calc(18, 0, {.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Medium});
 struct AtomCalcOptions
 {
     AtomType         type     = AtomType::Slater;            //!< atomic basis family
-    BasisSetAccuracy accuracy = BasisSetAccuracy::Medium;    //!< preset exponent pool (used when N<=0)
-    //! Explicit exponent pool -- when N>0 these override the accuracy preset (the {type,N,emin,emax} json
+    BasisSetAccuracy basisPool = BasisSetAccuracy::Medium;   //!< the preset exponent POOL (a model choice, not the accuracy target; used when N<=0)
+    //! Explicit exponent pool -- when N>0 these override the basisPool preset (the {type,N,emin,emax} json
     //! the scaffold built by hand for the A_SG/A_SL exponent-sweep tests).
     int    N    = 0;
     double emin = 0.0;
     double emax = 0.0;
     //! Explicit exponent LIST -- the "bring your own exponents" path (used by the valence-basis generator).
-    //! When non-empty it overrides N/emin/emax and the accuracy preset: every occupied angular irrep is built
+    //! When non-empty it overrides N/emin/emax and the basisPool preset: every occupied angular irrep is built
     //! from these exponents, trimmed per-l by \c ltrim ((3-l)*ltrim smallest + l*ltrim largest dropped; 0 =
     //! every irrep gets the full list).  So the SAME exponents that are validated here can be emitted verbatim.
     std::vector<double> exponents;
@@ -104,6 +104,10 @@ struct AtomCalcOptions
     //! kinetic balance).  Set \c Cholesky to keep a deliberately over-complete NON-relativistic basis
     //! un-truncated (e.g. a wide even-tempered Slater basis whose redundant modes are intended).
     qchem::Ortho ortho = qchem::Auto;
+    //! \brief The ONE accuracy target eps (doc/Pins.md pin 31; V-FACADE-ACCURACY, user ruling 2026-11-03: every structure type carries
+    //! it).  CONSUMED BY NO TERM of this facade yet -- the eps inventory (doc/Records/EpsilonInventory.md) wires terms to it one at a
+    //! time -- and the run says so (banner + report: "consumed by: none yet"), never silently.
+    AccuracyTarget accuracy = {};
 };
 
 class AtomCalculation : public virtual Calculation

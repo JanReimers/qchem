@@ -197,3 +197,32 @@ TEST(CalculationFacade, AnAtomsPrepareFilesItsSetupBeforeAnySCF)
     EXPECT_DOUBLE_EQ(calc->Energy(), once.Energy());
     EXPECT_EQ(calc->IterationCount(), once.IterationCount());
 }
+
+//! THE ONE ACCURACY TARGET ON EVERY FACADE (V-FACADE-ACCURACY, user ruling 2026-11-03): an atom and a molecule carry eps in their
+//! options, answer what their client consumes through the shared base (an energy), and -- since no term of theirs reads eps yet --
+//! say so in the run report ("consumed by: none yet"), never silently.  The atom's exponent-pool preset is `basisPool`, not accuracy.
+TEST(CalculationFacade, EveryFacadeCarriesTheAccuracyTargetAndSaysWhoConsumesIt)
+{
+    auto expectReported=[](const std::string& id, double eps)
+    {
+        const auto* run=FiledRun(id+"@");
+        ASSERT_NE(run, nullptr) << "no filed '" << id << "' run";
+        ASSERT_TRUE(run->contains("scf") && (*run)["scf"].contains("accuracy")) << run->dump(1);
+        EXPECT_EQ((*run)["scf"]["accuracy"]["eps"].get<double>(), eps);
+        EXPECT_NE((*run)["scf"]["accuracy"]["consumedBy"].get<std::string>().find("none yet"), std::string::npos);
+    };
+    {
+        qchem::report::Run run("eps atom");
+        AtomCalculation calc(2, 0, {.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low, .accuracy={.eps=3e-6}});
+        const Calculation& base=calc;
+        EXPECT_EQ(base.Consumes(), ClientConsumes::Energy);
+    }
+    expectReported("eps atom", 3e-6);
+    {
+        qchem::report::Run run("eps molecule");
+        MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .accuracy={.eps=4e-6}}), {});
+        const Calculation& base=calc;
+        EXPECT_EQ(base.Consumes(), ClientConsumes::Energy);
+    }
+    expectReported("eps molecule", 4e-6);
+}

@@ -89,7 +89,7 @@ static BasisSet::Real_BS* BuildBasis(const AtomCalcOptions& opts, int Z, const E
     if (opts.N > 0)
         return BasisSet::Radial::Factory(nlohmann::json{{"type", opts.type}, {"N", opts.N},
                                                       {"emin", opts.emin}, {"emax", opts.emax}}, ec);
-    return BasisSet::Radial::Factory(opts.accuracy, opts.type, Z, ec);
+    return BasisSet::Radial::Factory(opts.basisPool, opts.type, Z, ec);
 }
 
 AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,
@@ -219,7 +219,7 @@ bool AtomCalculation::Converge(const SCFParams& params)
     // The atomic SCF writes into the CALLER'S report run, as every facade does (user ruling D, 2026-11-02): scfrun, valgen, the
     // valence-basis generator and the tests that read the report open it.  With no run open every write is a no-op.
     namespace rpt = qchem::report;
-    { rpt::Section scf("scf"); ReportSCFRecipe(params, AcceleratorTag(), AtomRecipeKeys(itsOpts, itsNe)); }   // the "what recipe am I running" header
+    { rpt::Section scf("scf"); ReportSCFRecipe(params, AcceleratorTag(), AtomRecipeKeys(itsOpts, itsNe)); ReportAccuracy(itsOpts.accuracy, kNoAccuracyConsumerYet); }   // the "what recipe am I running" header
     if (itsPrepared) itsPrepared=false;                // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
     if (itsObserver) itsScf->SetObserver(itsObserver);

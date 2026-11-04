@@ -21,6 +21,7 @@ import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration gr
 import qchem.ChargeDensity.Seed;   // SeedStrategy
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (the resolved accelerator)
 export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the setup's resolved choice
+export import qchem.Accuracy;            // AccuracyTarget -- a CalcOptions field
 
 export namespace qchem
 {
@@ -90,6 +91,10 @@ struct CalcOptions
     //! the core guess.  Set explicitly to override -- e.g. {.seed=SAD} drives HF's matrix-free-seed
     //! bootstrap (the iterator manufactures a D0 via a one-step LDA sibling).
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
+    //! \brief The ONE accuracy target eps (doc/Pins.md pin 31; V-FACADE-ACCURACY, user ruling 2026-11-03: every structure type carries
+    //! it).  CONSUMED BY NO TERM of this facade yet -- the eps inventory (doc/Records/EpsilonInventory.md) wires terms to it one at a
+    //! time -- and the run says so (banner + report: "consumed by: none yet"), never silently.
+    AccuracyTarget accuracy = {};
 };
 
 //! The molecular accelerator chain's knobs (DIIS, GDM, the Ladder's hand-off; 2026-11-02: the GDM/Ladder ones were unreachable from

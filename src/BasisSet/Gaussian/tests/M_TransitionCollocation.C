@@ -284,11 +284,14 @@ TEST(GPWTolerances, DefaultsAreTodaysBehaviourAndTheRetiredEnvironmentIsIgnoredA
     GPWTolerances t;
     EXPECT_EQ(t.vlocEps, 0.0) << "DERIVED (2026-11-02): the facade writes the accuracy target's";
     EXPECT_EQ(kVlocEpsNoTarget, 1e-5) << "and a run without a target keeps the old tolerance";
-    EXPECT_DOUBLE_EQ(GridAccuracy{.eps=1e-5}.VlocEps(), 1e-6);
-    EXPECT_EQ(GridAccuracy{.eps=1e-5}.RigorousVlocEps(), 1e-5) << "the rigorous per-pair map is the identity";
+    // (GridAccuracy derives from the facade-neutral AccuracyTarget, so its eps cannot be designated: a small builder.)
+    auto Accuracy=[](double eps, double vlocRoutingEta=GridAccuracy{}.vlocRoutingEta)
+    { GridAccuracy g; g.eps=eps; g.vlocRoutingEta=vlocRoutingEta; return g; };
+    EXPECT_DOUBLE_EQ(Accuracy(1e-5).VlocEps(), 1e-6);
+    EXPECT_EQ(Accuracy(1e-5).RigorousVlocEps(), 1e-5) << "the rigorous per-pair map is the identity";
     EXPECT_EQ(GridAccuracy{}.vlocRoutingEta, 10.0) << "the measured calibration (delivered/bound <= 6, >= 1.5 x margin), an expert knob";
-    EXPECT_EQ(GridAccuracy{.eps=1e-5}.VlocEps(), 1e-5/10.0) << "the default is bit-identical to the old eps/10";
-    EXPECT_DOUBLE_EQ((GridAccuracy{.eps=1e-5, .vlocRoutingEta=2.0}).VlocEps(), 5e-6) << "a non-default calibration reaches VlocEps";
+    EXPECT_EQ(Accuracy(1e-5).VlocEps(), 1e-5/10.0) << "the default is bit-identical to the old eps/10";
+    EXPECT_DOUBLE_EQ((Accuracy(1e-5, 2.0)).VlocEps(), 5e-6) << "a non-default calibration reaches VlocEps";
     EXPECT_EQ(t.localPPRelCutoff, 30.0);
     EXPECT_NEAR(t.relFieldSharp, 1.0/3.0, 1e-15);
     EXPECT_TRUE(t.mgridEcuts.empty());

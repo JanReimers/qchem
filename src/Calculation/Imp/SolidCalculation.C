@@ -1400,7 +1400,7 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(double referenceMa
     return CompareAtFixedD(ref, rvec3_t(0,0,0), RasterName(ref));
 }
 
-BasisSet::Gaussian::ClientConsumes SolidCalculation::Consumes() const {return itsImp->consumes;}
+ClientConsumes SolidCalculation::Consumes() const {return itsImp->consumes;}
 SolidCalculation::RasterPilotCost  SolidCalculation::PilotCost() const {return itsImp->pilotCost;}
 
 std::shared_ptr<const SolidSetup> SolidCalculation::SizedSetup() const

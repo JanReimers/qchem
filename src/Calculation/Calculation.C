@@ -8,6 +8,7 @@
 // (UTCalculation Facades/FacadeMatrix.Cell/<Kind>_<Capability>), so nothing lands here that two facades do not already share.
 module;
 export module qchem.Calculation;
+export import qchem.Accuracy;   // ClientConsumes (Consumes' answer)
 
 export namespace qchem
 {
@@ -20,6 +21,10 @@ class Calculation
 {
 public:
     virtual ~Calculation() = default;
+    //! \brief What this run's client consumes of the Hamiltonian -- the measure the ONE accuracy target eps is a tolerance OF (pin 31;
+    //! V-FACADE-ACCURACY, user ruling 2026-11-03: every facade answers it through this one rule).  An energy by default; a facade
+    //! whose runs can feed a geometry or a surface (\c SolidCalculation under a SolidSession) answers MatrixElements there.
+    virtual ClientConsumes Consumes() const {return ClientConsumes::Energy;}
 };
 
 } // namespace qchem

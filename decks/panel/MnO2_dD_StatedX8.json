@@ -15,6 +15,7 @@
   "spherical": true,
   "vet": false
  },
+ "accuracy": 0,
  "solid": {
   "multiplicity": 1,
   "seed": "IonicSAD",
@@ -136,7 +137,6 @@
    0
   ],
   "imposeSymmetry": true,
-  "accuracy": 0,
   "tolerances": {
    "rasterX": 8.0,
    "vlocRasterX": 8.0,

@@ -71,7 +71,7 @@ bool Has(const std::string& line, const std::string& col) {return line.find(col)
 TEST(SCFTrace, MolecularNonPP_ShowsTheVirialColumn)
 {
     std::string trace = CapturedTrace([]{
-        AtomCalculation calc(2, 0, {.type = AtomType::Slater, .accuracy = Low},
+        AtomCalculation calc(2, 0, {.type = AtomType::Slater, .basisPool = Low},
             {.NMaxIter = 40, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
@@ -90,7 +90,7 @@ TEST(SCFTrace, MolecularNonPP_ShowsTheVirialColumn)
 TEST(SCFTrace, MolecularPP_HidesTheVirialColumn)
 {
     std::string trace = CapturedTrace([]{
-        AtomCalculation calc(14, 10, {.type = AtomType::Slater, .accuracy = Medium, .pseudopotential = true},
+        AtomCalculation calc(14, 10, {.type = AtomType::Slater, .basisPool = Medium, .pseudopotential = true},
             {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
@@ -106,7 +106,7 @@ TEST(SCFTrace, MolecularPP_HidesTheVirialColumn)
 TEST(SCFTrace, ThresholdSubLineMatchesTheColumns)
 {
     std::string trace = CapturedTrace([]{
-        AtomCalculation calc(14, 10, {.type = AtomType::Slater, .accuracy = Medium, .pseudopotential = true},
+        AtomCalculation calc(14, 10, {.type = AtomType::Slater, .basisPool = Medium, .pseudopotential = true},
             {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();

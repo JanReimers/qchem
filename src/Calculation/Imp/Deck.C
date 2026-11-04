@@ -587,6 +587,8 @@ json ToJson(const RunSpec& r)
 {
     json j={{"structure", r.inlineStructure.is_null() ? json(r.structure) : r.inlineStructure}};
     j["kmesh"]={r.kmesh.x,r.kmesh.y,r.kmesh.z}; j["basis"]=BasisJson(r.basis); j["solid"]=ToJson(r.solid);
+    // The ONE accuracy target is the RUN's (V-FACADE-ACCURACY): the record states it at the top level, never as `solid.accuracy`.
+    j["accuracy"]=j["solid"]["accuracy"]; j["solid"].erase("accuracy");
     j["acceleratorOptions"]=ToJson(r.accel);
     if (!r.state.save.empty() || !r.state.restartFrom.empty())
     {
@@ -631,6 +633,32 @@ void FromJson(const json& j, RunSpec& r)
     }
     else f.At("state");
     if (j.contains("solid")) FromJson(f.At("solid"),r.solid); else f.At("solid");
+    // THE ONE ACCURACY TARGET eps is the RUN's (V-FACADE-ACCURACY, user ruling 2026-11-03): the top-level `accuracy` key, copied into the
+    // options of the facade the deck builds (today always the solid's).  `solid.accuracy` is its DEPRECATED alias: read, and warned
+    // about.  Both stated is refused -- two statements of one number, and the deck would have to pick.
+    const bool solidStates = j.contains("solid") && j.at("solid").is_object() && j.at("solid").contains("accuracy");
+    if (j.contains("accuracy"))
+    {
+        if (solidStates)
+            throw std::runtime_error("deck: 'accuracy' and 'solid.accuracy' are both stated -- 'solid.accuracy' is the deprecated spelling of the "
+                                     "run's ONE accuracy target; keep the top-level 'accuracy' only");
+        double eps=r.solid.accuracy.eps;
+        f.Get("accuracy",eps);
+        if (!(eps>=0.0)) throw std::runtime_error("deck: 'accuracy' (Ha per atom on an energy run, per matrix element on a geometry run) "
+                                                  "must be >= 0 (0 = no target: the rasters tolerances.rasterX ... state)");
+        r.solid.accuracy.eps=eps;
+    }
+    else
+    {
+        f.At("accuracy");
+        if (solidStates)
+        {
+            const std::string w="[deck] WARNING: 'solid.accuracy' is deprecated -- the accuracy target is the run's: state it as the "
+                                "top-level 'accuracy' (V-FACADE-ACCURACY)";
+            std::fprintf(stderr,"%s\n",w.c_str());
+            report::Log(w);
+        }
+    }
     if (j.contains("acceleratorOptions")) FromJson(f.At("acceleratorOptions"),r.accel); else f.At("acceleratorOptions");
     if (j.contains("postSCF"))
     {

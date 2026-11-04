@@ -38,7 +38,7 @@ using enum BasisSetAccuracy;
 TEST(Si_PP_U, Medium)
 {
     const int Z=14, val=4;
-    AtomCalculation calc(Z, Z-val, {.type = AtomType::Slater, .accuracy = Medium, .pseudopotential = true},
+    AtomCalculation calc(Z, Z-val, {.type = AtomType::Slater, .basisPool = Medium, .pseudopotential = true},
         {.NMaxIter = 120, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});  // virial off (N/A to PP)
 
     EXPECT_NEAR(calc.Energy(),      -3.7470398442, 1e-6);  // pinned (Slater/Medium, δ Vxc default 2026-10-31: was -3.747078054
@@ -124,7 +124,7 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
 // ~/Code/cp2k-runs/o_atom_q6.inp) -- we land 255 uHa away.  Old pin -13.967 was the broken KB route.
 TEST(O_PP_U, SlaterHigh)
 {
-    AtomCalculation calc(8, 8-6, {.type = AtomType::Slater, .accuracy = High, .pseudopotential = true},
+    AtomCalculation calc(8, 8-6, {.type = AtomType::Slater, .basisPool = High, .pseudopotential = true},
         {.NMaxIter = 150, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
          .StartingRelaxRo = 0.5, .MergeTol = 1e-7});
 
@@ -143,7 +143,7 @@ TEST(O_PP_U, SlaterHigh)
 TEST(Si_PP_U, Polarized)
 {
     const int Z=14, val=4;
-    const AtomCalcOptions opt{.type = AtomType::Slater, .accuracy = High, .spin = SpinGroup::Polarized, .pseudopotential = true};
+    const AtomCalcOptions opt{.type = AtomType::Slater, .basisPool = High, .spin = SpinGroup::Polarized, .pseudopotential = true};
     const SCFParams       par{.NMaxIter = 150, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
                               .StartingRelaxRo = 0.5, .MergeTol = 1e-7};
     AtomCalculation cPol(Z, Z-val, opt, par);

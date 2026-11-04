@@ -25,7 +25,8 @@ nlohmann::json LiDeck()
         {"kmesh",{4,4,4}},
         {"basis",{{"data","VALENCE_LOWQ_VA"},{"file",(qchem::panel::BasisDataDir()/"valence_lowq_va.bsd").string()},{"vet",false}}},
         {"solid",{{"imposeSymmetry",true},{"xcMesh",{{"cellKind","Becke"}}},{"species",nlohmann::json::array({nlohmann::json::array({"Li",1})})},
-                  {"ortho","CholeskyPivoted"},{"orthoTol",1e-7},{"accuracy",0},{"tolerances",{{"rasterX",8.0},{"vlocRasterX",8.0},{"xcRasterX",8.0}}}}},
+                  {"ortho","CholeskyPivoted"},{"orthoTol",1e-7},{"tolerances",{{"rasterX",8.0},{"vlocRasterX",8.0},{"xcRasterX",8.0}}}}},
+        {"accuracy",0},
         {"scf",{{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7},{"smearingkT",0.001}}}};
 }
 double RunAt(int workers, const std::string& tag)
