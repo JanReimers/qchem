@@ -1303,3 +1303,34 @@ level came first).  Tests: `SCFTrace.ADegenerateClosedShellAcrossIrrepsNeverFlag
 Notes: no natural run tried flags now (N₂, CO, O₂ triplet / singlet, C₂, B₂ with symmetry; atoms B C O Al Sc V Cr Fe Cu polarized),
 and a kT = 0 metal does not hop either: the solid fills every k-block with the same count (Na q1 fcc k333, 1 electron per block).
 
+
+## ✅ "GDM never engages on a symmetry-blocked molecule whose electrons span several irreps" -- FIXED 2026-11-04 (lane B, da50a531); the row as it stood
+
+**The row, verbatim:**
+
+| **GDM never engages on a symmetry-blocked molecule whose electrons span several irreps** (user, 2026-11-03, CH₄ C2v HF via the GUI) | the ladder hands DIIS → GDM at |ΔE/E| 1.9e-9 and GDM declines in EVERY block: "the occupied density is NOT this minimizer's leading 5 orbitals (Tr(D'P_block)=6)" (a₁), "=2" (b₁, b₂), then retreats to DIIS for the rest of the run.  Cause (read, `SCFAccelerator/Internal/Imp/SCFAcceleratorGDM.C:69,99`): each irrep's GDM gets `occ` = the RESERVOIR's electron count (10, the whole molecule: the aufbau floats electrons across irreps), so `itsNocc = itsNel/g` = 5 in every block, while the a₁ block actually holds 3 doubly-occupied orbitals and b₁/b₂ one each.  The check is right; its expected count is wrong.  ⚠ The message also names the WRONG cause ("a MOM or Fermi-smeared occupation") -- neither is present (CleanCode D-FALSE-CONTRACT candidate).  The hops the user suspected were the cfg-column artefact (fixed 6aa96d65), unrelated | take the block's occupied count from the IDEMPOTENT D' itself (`itsNocc = round(Tr D' / g)` when `idem`), not from the reservoir; keep the leading-block check (it still catches MOM / smearing); correct the message to say which count it expected and from where.  UT: CH₄ C2v HF engages GDM at the hand-off and converges; a MOM run still declines.  Sweep + panel (SCF path) · `src/SCFAccelerator/Internal/Imp/SCFAcceleratorGDM.C` |
+
+**Verdict.**  Three defects, the second and third hidden behind the first:
+1. **The block's occupied count** (the row's cause): `itsNocc` came from the Create `occ` = the RESERVOIR count (10 for CH₄).  Now
+   `UseFD` reads it off the idempotent D' (`itsNocc = round(Tr D'/g)`, beside the capacity g it already read); the reservoir count
+   is no longer used.  The leading-block check stays and still catches a MOM (non-aufbau) pick; its message now says what it
+   compared ("Tr(D')/g = N occupied, but Tr(D'P_leading) = x of g·N") and names the non-aufbau pick as the cause, not "MOM or smearing".
+2. **An empty (or full) block vetoed the step**: CH₄ C2v has an empty a₂ block, and the composite steps only when EVERY block steps.
+   A block with nocc = 0 or nocc = n now steps PASSIVELY (diagonalise F', no rotation), and a composite RejectStep counts only the active blocks.
+3. **The held line-search fill used the reservoir count** (latent; reached for the first time once 1 and 2 let GDM engage): the
+   trial fill `HeldOccupationPolicy` put PrescribedBlockN (10) in every block, giving E +55.8 Ha and "Matrix sizes do not match".
+   The orbitals cannot supply the count because `UpdateOrbitals` rebuilds them unoccupied (reading them gave a dead-gate [F,D] = 0).
+   `CompositeWF` now records each block's electron count after every unheld fill (`itsLastBlockN`), and a held fill reuses it.
+   A held fill with no record throws.
+
+**Result.**  CH₄ C2v HF (`scfrun --mol CH4 --model HF --sym`): the Ladder hands DIIS → GDM at iteration 8-9, stays on GDM to
+convergence with the energy non-increasing, E = −40.194456980543 (DIIS-only −40.194456980544), and no DECLINING line.
+Tests: `SCFTrace.AMolecularLadderEngagesGDMOnASymmetryBlockedMolecule` (Ladder vs DIIS on CH₄ C2v: all GDM after the hand-off,
+energy monotone, |ΔE| < 1e-8); `SCFAccelerator.TheBlockCountIsReadOffTheDensityNotTheReservoir`,
+`.AnEmptyBlockIsPassiveAndDoesNotVetoTheStep`, `.AMomOccupationStillDeclines` (D' on orbitals 0 and 2 still declines).
+Sweep: short 1263/1263, long 10/10, anchordiff 0 moved.  Panel+periodic 24/25: the one red is TiO₂ k222 at 62 vs a budget of 49, the
+open pilot-budget row (66 on main-4b4a6641).  Its accelerator is Null, so this change is not involved.
+
+**The CLAUDE.md claim "GDM now engages on unpolarized (occ=2) runs too" (2026-10-01) was verified on single-block runs only**:
+`WaterPureGDM` (no symmetry, energy only, the hand-off "checked by hand"), the folded-doublet UT (one `Irrep()` block), and B UHF.
+Before da50a531, no symmetry-blocked molecule with electrons in more than one irrep had ever run GDM.
