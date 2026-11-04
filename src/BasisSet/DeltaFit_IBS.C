@@ -141,9 +141,11 @@ public:
     //! \copydoc BasisSet::FIT_SF_ABS::Overlap
     //! \f$\langle\delta_g|f\rangle=w_g f(r_g)\f$ -- I evaluate the field at MY points (the field's own
     //! bulk fast path does the work) and weight it.  The caller sees only a vector indexed by FUNCTION.
+    //! The field samples itself ON my mesh (\c SampleOn): a Fourier-series field then asks the mesh HOW (a NUFFT on a Becke
+    //! build, the exact inverse FFT on the uniform raster), and every other field is evaluated at the points, as before.
     vec_t<T> Overlap(const ScalarFunction<double>& f) const override
     {
-        const rvec_t  v=f(itsQuad.GetMesh()->Points());
+        const rvec_t  v=f.SampleOn(*itsQuad.GetMesh());
         const rvec_t& w=itsQuad.GetMesh()->Weights();
         assert(v.size()==w.size());
         vec_t<T> p(v.size());

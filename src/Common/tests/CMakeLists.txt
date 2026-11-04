@@ -4,6 +4,7 @@ add_executable(UTCommon gtestmain.C
     PeriodicTable.C
     Blaze.C
     FFT.C
+    NUFFT.C
     Reporting.C
     Outcome.C
     RunPolicy.C

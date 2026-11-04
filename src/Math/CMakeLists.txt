@@ -20,6 +20,8 @@ target_sources(qcMath PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Angular.C
     Gaussian.C
     FFT.C
+    NUFFT.C
+    PointSampling.C
     ScalarFunction.C
     VectorFunction.C
     DIIS.C

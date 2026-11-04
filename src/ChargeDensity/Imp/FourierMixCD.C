@@ -13,6 +13,7 @@ module;
 #include <vector>
 module qchem.ChargeDensity.FourierMixCD;
 import qchem.Types;        // rvec3_t, dcmplx
+import qchem.PointSampling; // FourierSampler, MakeNUFFTSampler (the batched sampler)
 import qchem.Parallel;     // WorkerThreads (QCHEM_OPENMP_THREADS -- the batched inverse FT over mesh points)
 
 namespace qchem::ChargeDensity
@@ -57,108 +58,59 @@ double FourierMixCD::operator()(const rvec3_t& r) const
     return itsScale*std::real(s);
 }
 
-// Batched inverse FT with the phase factorized per axis: G = B dm, so e^{iG.r} = prod_a e^{i dm_a t_a}
-// with t_a = b_a.r (b_a = the a'th reciprocal lattice vector).  Per point: three small 1-D tables
-// e^{i m t_a} over the map's dm ranges, then one complex multiply-add per surviving G -- no transcendental
-// in the inner loop.  Bit-close (not bit-identical) to the pointwise loop: same series, different grouping.
+// THE rho-tilde SAMPLER (doc/OpenWork.md §4, step 1, user 2026-11-03/04).  rho(r) = Sum_dm c(dm) e^{iG.r} with G = B dm is
+// evaluated by a sampler the POINT SET makes (qchem.PointSampling): a type-2 NUFFT on any set, the exact inverse FFT on
+// the uniform cell raster.  No lattice sum is cut (pin 1).
 //
-// TWO REGROUPINGS, both exact rearrangements of the same series, together ~4x (2026-08-19; the batched
-// sampling was the largest per-iteration bucket in the MnO magnetic-cell ledger, 87.6 s of 402 s):
-//
-//  (1) HALF THE {G}.  rho(r) is REAL, so only Re[sum] is wanted, and the +dm/-dm terms pair up:
-//        Re[c(dm) e^{iG.r}] + Re[c(-dm) e^{-iG.r}] = Re[(c(dm) + conj(c(-dm))) e^{iG.r}].
-//      So fold the map onto a canonical half-space ONCE per batch -- w(h) = sum over {dm : |dm| folds to h}
-//      of (dm==h ? c(dm) : conj(c(dm))) -- and the per-point loop runs over ~half the terms.  This is an
-//      IDENTITY, not an assumption: a dm whose partner is absent simply lands alone in w, and the
-//      conjugate-symmetry of rho-tilde is never relied upon (it holds for a real density, but a mixer that
-//      broke it would still be sampled exactly).
-//  (2) ONE complex multiply per G, not two.  The map's key order runs z fastest, so the (x,y) phase
-//      product is constant across each run of consecutive z: accumulate the run's inner sum against the
-//      z-table alone and multiply by pxy ONCE at the run's end (the old form multiplied by pxy per G).
-rvec_t FourierMixCD::operator()(const rvec3vec_t& r) const
+// WHY: the direct per-point G-sum this replaces was O(N_G * N_r) and grew with the density ball though the mesh does not
+// -- the matrix-free and the N4 cusp-deficit samplings, both through here, were 1415 + 689 s of a 4100 s MnO geometry
+// SCF.  The pointwise operator() above is the direct series, kept as the reference.
+static FourierBox BoxOf(const ΔG_Map& rho, const ReciprocalLattice& recip)
 {
-    rvec_t ro(r.size());
-    if (itsRho.empty()) {ro=0.0; return ro;}
-
-    // (1) FOLD onto the canonical half-space: h = dm if dm > 0 lexicographically (or dm == 0), else -dm.
-    ΔG_Map half;
-    for (const auto& [dm, rt] : itsRho)
-    {
-        const bool keep = dm.x>0 || (dm.x==0 && (dm.y>0 || (dm.y==0 && dm.z>=0)));
-        const ivec3_t h = keep ? dm : ivec3_t(-dm.x,-dm.y,-dm.z);
-        auto it=half.emplace(h,dcmplx(0.0)).first;
-        it->second = dcmplx(it->second) + (keep ? dcmplx(rt) : std::conj(dcmplx(rt)));
-    }
-
-    // dm ranges per axis + the three reciprocal lattice vectors b_a.
-    ivec3_t lo=half.begin()->first, hi=lo;
-    for (const auto& [dm, rt] : half)
+    ivec3_t lo=rho.begin()->first, hi=lo;
+    for (const auto& [dm, rt] : rho)
     {
         lo.x=std::min(lo.x,dm.x); hi.x=std::max(hi.x,dm.x);
         lo.y=std::min(lo.y,dm.y); hi.y=std::max(hi.y,dm.y);
         lo.z=std::min(lo.z,dm.z); hi.z=std::max(hi.z,dm.z);
     }
-    const rvec3_t b1=itsRecip.GetCell().ToCartesian(rvec3_t(1,0,0)),
-                  b2=itsRecip.GetCell().ToCartesian(rvec3_t(0,1,0)),
-                  b3=itsRecip.GetCell().ToCartesian(rvec3_t(0,0,1));
+    return {recip.GetCell().ToCartesian(rvec3_t(1,0,0)), recip.GetCell().ToCartesian(rvec3_t(0,1,0)),
+            recip.GetCell().ToCartesian(rvec3_t(0,0,1)), lo, hi};
+}
 
-    // Flatten the folded map ONCE per batch: the inner loop then walks contiguous arrays instead of chasing
-    // tree nodes (the map traversal, repeated per point, was the measured cost).  `run` marks the START of
-    // each (x,y) run so the point loop needs no key comparison at all.
-    const size_t nG=half.size();
-    std::vector<int>    mz;   mz.reserve(nG);      // the z index offset into the z phase table
-    std::vector<dcmplx> cs;   cs.reserve(nG);      // the folded weights w(h)
-    std::vector<size_t> runStart;                  // index into cs where each (x,y) run begins
-    std::vector<int>    runX, runY;                //   and that run's (x,y) table offsets
-    int px=lo.x-1, py=lo.y-1;                      // invalid sentinels force the first run
-    for (const auto& [dm, w] : half)
-    {
-        if (dm.x!=px || dm.y!=py)
-        {   px=dm.x; py=dm.y;
-            runStart.push_back(cs.size()); runX.push_back(dm.x-lo.x); runY.push_back(dm.y-lo.y);
-        }
-        mz.push_back(dm.z-lo.z); cs.push_back(dcmplx(w));
-    }
-    runStart.push_back(nG);                        // sentinel: one past the last run
-    const size_t nRun=runX.size();
-
-    // Per point: private phase tables + a private accumulator, so the point loop is embarrassingly
-    // parallel and ro[g] is computed by ONE thread in the serial summation order -- bit-identical at any
-    // thread count.  It NEEDS to be: under ρ̃-mixing (Kerker/Pulay) the Fock build sees this density, not
-    // a D, so the atom-centred XC route samples it at every mesh point EVERY iteration -- measured 6.7 s
-    // per iteration on the MnO magnetic cell (48k points x 24k G x 2 channels), the loop's whole reason
-    // for existing in batched form.  Opt-in threading (QCHEM_OPENMP_THREADS; see qchem.Parallel).
-    auto at=[&](size_t g, std::vector<dcmplx>& tx, std::vector<dcmplx>& ty, std::vector<dcmplx>& tz)
-    {
-        const double t1=b1*r[g], t2=b2*r[g], t3=b3*r[g];
-        for (int m=lo.x; m<=hi.x; m++) tx[m-lo.x]=std::exp(dcmplx(0.0,m*t1));
-        for (int m=lo.y; m<=hi.y; m++) ty[m-lo.y]=std::exp(dcmplx(0.0,m*t2));
-        for (int m=lo.z; m<=hi.z; m++) tz[m-lo.z]=std::exp(dcmplx(0.0,m*t3));
-
-        dcmplx s(0.0);
-        for (size_t q=0; q<nRun; q++)
-        {
-            dcmplx inner(0.0);
-            for (size_t k=runStart[q], e=runStart[q+1]; k<e; k++) inner += cs[k]*tz[mz[k]];
-            s += (tx[runX[q]]*ty[runY[q]])*inner;   // the run's (x,y) phase, applied ONCE
-        }
-        ro[g]=itsScale*std::real(s);
-    };
+// Load once, then one value per point: each ro[p] is ONE thread's work, so the result is bit-identical at any thread count.
+// It needs to be: under rho-tilde mixing the Fock build sees this density on every iteration.  Opt-in threading
+// (QCHEM_OPENMP_THREADS; see qchem.Parallel).
+static rvec_t SampleWith(FourierSampler& s, const ΔG_Map& rho, size_t n, double scale)
+{
+    s.Load(FourierTerms(rho.begin(), rho.end()));
+    rvec_t ro(n);
+    auto at=[&](size_t p) {ro[p]=scale*s.ValueAt(p);};
 #ifdef QCHEM_OPENMP
     if (const int nthreads=qchem::InnerThreads(); nthreads>1)
     {
-        #pragma omp parallel num_threads(nthreads)
-        {
-            std::vector<dcmplx> tx(hi.x-lo.x+1), ty(hi.y-lo.y+1), tz(hi.z-lo.z+1);  // thread-private tables
-            #pragma omp for schedule(static)
-            for (size_t g=0; g<r.size(); g++) at(g,tx,ty,tz);
-        }
+        #pragma omp parallel for num_threads(nthreads) schedule(static)
+        for (size_t p=0; p<n; p++) at(p);
         return ro;
     }
 #endif
-    std::vector<dcmplx> tx(hi.x-lo.x+1), ty(hi.y-lo.y+1), tz(hi.z-lo.z+1);
-    for (size_t g=0; g<r.size(); g++) at(g,tx,ty,tz);
+    for (size_t p=0; p<n; p++) at(p);
     return ro;
+}
+
+rvec_t FourierMixCD::SampleOn(const PointSampling& ps) const
+{
+    const size_t n=ps.Points().size();
+    if (itsRho.empty()) return rvec_t(n, 0.0);
+    auto s=ps.MakeFourierSampler(BoxOf(itsRho, itsRecip));
+    return SampleWith(*s, itsRho, n, itsScale);
+}
+
+rvec_t FourierMixCD::operator()(const rvec3vec_t& r) const
+{
+    if (itsRho.empty()) return rvec_t(r.size(), 0.0);
+    auto s=MakeNUFFTSampler(r, BoxOf(itsRho, itsRecip), kNUFFTTolerance);
+    return SampleWith(*s, itsRho, r.size(), itsScale);
 }
 
 // grad rho(r) = Sum_G i G rho-tilde(G) e^{iG.r} -- a two-line addition to the loop above, deliberately NOT

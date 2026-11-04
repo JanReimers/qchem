@@ -627,6 +627,10 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
     const qchem::report::json fields=UniformGridFields(*this, vec3_t<int>(n,n,n), mp.eCut);
     for (auto it=fields.begin(); it!=fields.end(); ++it) qchem::report::Set(it.key(), it.value());
     qcMesh::Mesh m(std::move(R), std::move(W));
+    // The points ARE the cell's midpoint raster in (i,j,k) row-major order, so a Fourier series on this cell is sampled
+    // here by the exact inverse FFT, not the NUFFT default (the rho-tilde sampler, OpenWork §4; user ruling 2026-11-04).
+    m.InstallFourierSampling(std::make_shared<const MidpointRasterSampling>(ivec3_t(n,n,n),
+        ToCartesian(rvec3_t(1,0,0)), ToCartesian(rvec3_t(0,1,0)), ToCartesian(rvec3_t(0,0,1))));
     ReportMeshPlaneWaveOrtho(*this, m);   // the UNIFORM control: exact orthogonality up to Nyquist
     return m;
 }
