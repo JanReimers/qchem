@@ -74,7 +74,7 @@ struct IterationRow
     //! ranked correctly by \c Eee alone) -- and the probes read terms (Eee, the site moments) that are not columns.
     EnergyBreakdown            eb;
     //! The value of the cell titled \a title, NaN when this layout has no such column -- for a caller that consumes one
-    //! number by NAME (the facade's detectors read "[F,D]" and "Δρ").
+    //! number by NAME (the facade's detectors read "[F,D]" and "Δρ"; the density column's title is \c tHamiltonian::DeltaRhoLabel).
     double ValueOf(std::string_view title) const;
 };
 
@@ -94,7 +94,7 @@ struct IterationTrace
     double accelMinSV;       //!< DIIS conditioning: smallest singular value of the bordered B (NaN if none)
     double FD;               //!< [F,D] (the accelerator's orbital-gradient error)
     double dFD;              //!< Δ[F,D] = [F,D] − [F,D]_old
-    double dRho;             //!< relative charge-density change ‖Δρ‖
+    double dRho;             //!< the density change per electron, \c tHamiltonian::DeltaRho
     double dE;               //!< relative total-energy change ΔE/|E|
     size_t idealVirial;      //!< 2 (non-relativistic) or 1 (relativistic): the virial column shows GetVirial()+idealVirial
     bool   configChanged;    //!< did the occupied configuration change since the previous iteration? (the cfg '*')
@@ -252,6 +252,8 @@ protected:
     //! ρ_mix / accel / svMin / cfg, gap, m_site) joins them in \c RowColumns (2026-10-31), each cell carrying its own
     //! alignment and flag glyphs inside its text writer.
     virtual void AccumulateColumns(std::vector<ColumnData>&, const SCFParams&, size_t idealVirial) const;
+    //! The density-change column's title: a subclass places its own columns relative to it.
+    std::string DeltaRhoTitle() const {return itsHamiltonian->DeltaRhoLabel();}
     //! THE WHOLE ROW, in display order ("#" aside): the invariant frame around this layout's \c AccumulateColumns.  The ONE
     //! list both the console (\c DisplayColumns) and the observer (\c MakeRow) are built from.
     std::vector<ColumnData> RowColumns(const SCFParams&, size_t idealVirial) const;
@@ -365,13 +367,7 @@ private:
     //! comes from a temporary (\c Lattice_3D::GetStructure returns a fresh \c make_shared), so it dangles by the
     //! time \c Iterate runs -- we deep-copy it here (periodic path only) so the Kerker mixer has a live cell.
     std::shared_ptr<const Structure> itsKerkerCell;
-    //! D-MINDRHO: \f$\int|\rho_{out}-\rho_{in}|\,d^3r/N\f$ -- the Hamiltonian's own quadrature when a term owns one (the
-    //! XC term), else a mesh built ONCE from a copy of the structure (HF, 1-electron).
-    double ResidualPerElectron(const tChargeDensity<T>& in, const tChargeDensity<T>& out) const;
-    std::shared_ptr<const Structure> itsResidualStructure;   //!< deep copy (the ctor's st may be a temporary)
-    mutable rvec3vec_t itsResidualPts;                       //!< the fallback mesh, built on first need
-    mutable rvec_t     itsResidualWts;
-    double             itsResidual=0.0;                      //!< this iteration's measure (the driver writes it)
+    double             itsResidual=0.0;   //!< this iteration's \c tHamiltonian::DeltaRho (the driver writes it)
     std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>> itsMixer;  //!< the density-face concrete for this run
     qchem::ChargeDensity::tAdaptiveMixer<T>* itsAdaptive=nullptr;      //!< its step-adapting face, if it has one (cross-cast once)
     // The two loop-face concretes (stateless).  Iterate selects one per macro-iteration by the accelerator's

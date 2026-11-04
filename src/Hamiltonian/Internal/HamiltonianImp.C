@@ -3,9 +3,11 @@ module;
 #include <limits>
 #include <vector>
 #include <memory>
+#include <string>
 export module qchem.Hamiltonian.Internal.Hamiltonian;
 export import qchem.Hamiltonian;
 import qchem.Hamiltonian.Types;
+import qchem.Hamiltonian.Internal.RealSpaceResidual;
 import qchem.Structure;
 
 export namespace qchem::Hamiltonian
@@ -53,13 +55,10 @@ public:
             if (rvec_t m=t->SiteMoments(cd); m.size()>0) return m;
         return rvec_t();
     }
-    //! FIRST term with a real-space quadrature answers (the XC term); NaN when none does.
-    virtual double          RealSpaceL1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const
-    {
-        for (const auto& t : itsDHTs)
-            if (const double d=t->RealSpaceL1Distance(a,b); d==d) return d;
-        return std::numeric_limits<double>::quiet_NaN();
-    }
+    //! \copydoc tHamiltonian::DeltaRho
+    virtual double          DeltaRho(const tChargeDensity<T>* in, const tChargeDensity<T>* out) const;
+    //! \copydoc tHamiltonian::DeltaRhoLabel
+    virtual std::string     DeltaRhoLabel() const {return itsRealSpaceTerm ? "Δρ" : "‖ΔD‖";}
     //! \copydoc tHamiltonian::MakeACBN0Estimator
     //! The FIRST dynamic term answering the \c HubbardProjection face (abstract->abstract); null when none does.
     virtual std::unique_ptr<ACBN0Estimator> MakeACBN0Estimator() const override;
@@ -103,6 +102,7 @@ protected:
 
     shtv_t   itsSHTs;
     dhtv_t   itsDHTs;
+    const tRealSpaceResidual<T>* itsRealSpaceTerm=nullptr;   //!< the term owning the real-space quadrature, one of itsDHTs; null if none
     hf_htv_t itsHF_HTs;   // HF capable terms require a widened interface for efficient J/K table handling.
 
     SpinGroup itsSpinGroup;

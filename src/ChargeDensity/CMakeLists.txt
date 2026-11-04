@@ -22,6 +22,7 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
     FittedCD.C
     FourierDensity.C
     CompositeCD.C
+    DensityMatrixDistance.C
     TransitionDensity.C
     Factory.C
     Seed.C

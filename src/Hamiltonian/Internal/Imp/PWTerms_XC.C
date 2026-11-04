@@ -125,7 +125,7 @@ template <class T> rvec_t tVxc_Quadrature<T>::SiteMoments(const tChargeDensity<T
 
 // D-MINDRHO: the sampler caches ONE density serial (both channels of it), so BOTH of a's channels are copied before b's
 // replace them -- two rasters per call, not four (the a-up, b-up, a-dn, b-dn order re-rastered each density).
-template <class T> double tVxc_Quadrature<T>::RealSpaceL1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const
+template <class T> double tVxc_Quadrature<T>::L1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const
 {
     auto l1=[&](const rvec_t& fa, const rvec_t& fb)
     {

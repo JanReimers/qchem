@@ -4,6 +4,7 @@ module;
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <cmath>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -12,6 +13,7 @@ module qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Internal.ACBN0;    // ACBN0 + HubbardProjection (MakeACBN0Estimator)
 import qchem.Energy;
 import qchem.ChargeDensity;
+import qchem.ChargeDensity.DensityMatrixDistance;   // DeltaRho without a quadrature
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Blaze;
@@ -133,11 +135,32 @@ template <class T> std::unique_ptr<ResponseKernel<T>> tHamiltonianImp<T>::MakeRe
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
 {
     itsDHTs.push_back(std::unique_ptr<tDynamic_HT<T>>(p));
+    // There is exactly one XC quadrature in a term stack (see SiteMoments); a second would be a construction error.
+    if (const auto* r=dynamic_cast<const tRealSpaceResidual<T>*>(p)) itsRealSpaceTerm=r;
     // AND, not OR: the virial holds only if EVERY term is Coulombic (V1.27).  One PP term kills it.
     itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
     itsPreservesReal  = itsPreservesReal  && p->PreservesReal();   // AND: one SOC/A-field term flips all blocks complex
 }
+// D-MINDRHO (2026-10-22, user: "option A"): the L1 distance per electron on the run's own quadrature -- the fraction of the electrons
+// the step would still move, the same number for every mixer, representation and system (cached rasters: ~one extra raster per
+// iteration).  With no quadrature, the S-metric size of ΔD per electron over every block and spin, which needs no mesh at all.
+template <class T> double tHamiltonianImp<T>::DeltaRho(const tChargeDensity<T>* in, const tChargeDensity<T>* out) const
+{
+    double d=0.0;
+    if (itsRealSpaceTerm) d=itsRealSpaceTerm->L1Distance(in,out);
+    else
+    {
+        const auto* a=dynamic_cast<const ChargeDensity::tDensityMatrixDistance<T>*>(in);
+        const auto* b=dynamic_cast<const ChargeDensity::tMixableDensity<T>*>(out);
+        if (!a || !b) throw std::logic_error("tHamiltonianImp::DeltaRho: no real-space quadrature in this Hamiltonian and no density "
+                                             "matrix in these densities, so nothing can measure the change");
+        d=std::sqrt(a->SquaredDistanceTo(*b));
+    }
+    const double N=out->GetTotalCharge();
+    return N!=0.0 ? d/N : d;
+}
+
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HF_HT<T>* p)
 {
     itsHF_HTs.push_back(std::unique_ptr<tDynamic_HF_HT<T>>(p));

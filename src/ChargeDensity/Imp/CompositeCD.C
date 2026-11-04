@@ -399,6 +399,33 @@ template <class T> double tComposite_CD<T>::GetMaxChangeFrom(const tMixableDensi
     return ret;
 }
 
+// Cross-cast a block to the distance face; a block that is not one is a density kind this measure was never built for.
+template <class U> static double BlockSquaredDistance(const tDM_CD<U>& mine, const tDM_CD<U>& theirs)
+{
+    const auto* d=dynamic_cast<const tDensityMatrixDistance<U>*>(&mine);
+    if (!d) throw std::logic_error("tComposite_CD::SquaredDistanceTo: a density block has no S-metric distance");
+    return d->SquaredDistanceTo(theirs);
+}
+
+// Block-diagonal D and S: the blocks' (and spins') squares add.
+template <class T> double tComposite_CD<T>::SquaredDistanceTo(const tMixableDensity<T>& cd) const
+{
+    const tComposite_CD& ecd=RequireCompositePartner<T>(cd, "tComposite_CD::SquaredDistanceTo");
+    if (itsBlocks.size()!=ecd.itsBlocks.size())
+        throw std::runtime_error("tComposite_CD::SquaredDistanceTo: the two composites hold different block counts "
+                                 "-- not the same irrep set (or the same imposed spin subgroup)");
+    double ret=0;
+    for (size_t i=0;i<itsBlocks.size();++i)
+        ret += std::visit([&](const auto* mine, const auto* theirs) -> double
+        {
+            if constexpr (std::is_same_v<std::decay_t<decltype(mine)>,std::decay_t<decltype(theirs)>>)
+                return BlockSquaredDistance(*mine, *theirs);
+            else
+                throw std::logic_error("tComposite_CD::SquaredDistanceTo: the two composites' child scalars differ per block");
+        }, itsBlocks[i].cd, ecd.itsBlocks[i].cd);
+    return ret;
+}
+
 //-------------------------------------------------------------------------
 //
 //  Real space function stuff.

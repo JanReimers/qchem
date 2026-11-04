@@ -169,7 +169,6 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
         assert((!st || isPeriodicCell(st)) && "the dcmplx SCF lineage is periodic: Structure must be a UnitCell");
         if (st) itsKerkerCell = st->Clone();
     }
-    if (st) itsResidualStructure = st->Clone();   // D-MINDRHO's fallback mesh is built from it on first need
     Initialize(seedDensity, bs, st, role);   // Init owns the seed transiently (see Initialize)
 }
 
@@ -283,39 +282,6 @@ void RequireLiveGates(double FD, const Gate& minFD, size_t iteration)
     if (!(minFD && FD==0.0)) return;
     throw std::logic_error("SCF R2.7: iteration "+std::to_string(iteration)+" declared convergence on a DEAD gate -- [F,D] (MinFD) "
                            "read exactly 0, i.e. the accelerator never computed it, so it passed by absence.  doc/SCFRobustnessPlan.md R2.7");
-}
-
-// D-MINDRHO (2026-10-22, user: "option A"): ONE convergence measure, the L1 distance per electron on a real-space quadrature --
-// the fraction of the electrons the step would still move, 0 exactly at the fixed point, the same number for every mixer,
-// representation and system.  The run's own XC quadrature when the Hamiltonian has one (cached rasters: ~one extra raster per
-// iteration); otherwise (HF, 1-electron) a default mesh of the structure, built once, total density only.
-template <class T> double tSCFIterator<T>::ResidualPerElectron(const tChargeDensity<T>& in, const tChargeDensity<T>& out) const
-{
-    double d=itsHamiltonian->RealSpaceL1Distance(&in, &out);
-    if (!(d==d))
-    {
-        if (itsResidualPts.size()==0)
-        {
-            if (!itsResidualStructure) throw std::logic_error("SCFIterator: no real-space quadrature for the convergence residual "
-                                                              "(the Hamiltonian has none and no structure was given)");
-            const qcMesh::Mesh m=[&]{ qchem::report::Scope here("residualMesh");   // the mesh builder reports one level in
-                                      return itsResidualStructure->CreateIntegrationMesh(qcMesh::MeshParams{}); }();
-            itsResidualPts=m.Points(); itsResidualWts=m.Weights();
-        }
-        const rvec_t a=in(itsResidualPts), b=out(itsResidualPts);
-        d=0.0;
-        for (size_t g=0; g<a.size(); g++)
-        {
-            // A ZERO-weight node contributes nothing -- and the atom mesh's r = 0 node is exactly where a radial basis
-            // written u(r)/r (B-splines) evaluates 0/0.  Any OTHER non-finite sample is a broken density: say so.
-            if (itsResidualWts[g]==0.0) continue;
-            if (!std::isfinite(a[g]) || !std::isfinite(b[g]))
-                throw std::runtime_error("SCFIterator: a non-finite density sample on the convergence residual's mesh (nonzero weight)");
-            d+=itsResidualWts[g]*std::fabs(a[g]-b[g]);
-        }
-    }
-    const double N=out.GetTotalCharge();
-    return N!=0.0 ? d/N : d;
 }
 
 template <class T> tSCFIterator<T>::~tSCFIterator() = default;
@@ -465,7 +431,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         LoopContext<T> lc{ itsHamiltonian, itsWaveFunction.get(), itsOccPolicy.get(), itsMixer.get(), &itsCD, &itsOldCD, ipar.MergeTol, Eold,
                            [this](cd_t x){ itsOldCD=itsCD; SetWorkingCD(std::move(x)); },
                            [this](double e,double tol){ return DirectMinStep(e,tol); },
-                           [this](const tChargeDensity<T>& a, const tChargeDensity<T>& b){ return ResidualPerElectron(a,b); },
+                           [this](const tChargeDensity<T>& a, const tChargeDensity<T>& b){ return itsHamiltonian->DeltaRho(&a,&b); },
                            &itsResidual };
         // Direct-min (GDM/OT) OWNS the density update via its geodesic line search, so it must DISABLE the
         // density mixer entirely -- both the per-step Mix() (already: DirectMinDriver never calls it) AND the
@@ -1001,9 +967,9 @@ ColumnData GateDE(const SCFParams& p)
             [](const IterationTrace& tr){return tr.dE;}, Scale::Log};
 }
 //! Density change -- in every layout, hence no axis of its own.
-ColumnData RhoCol(const SCFParams& p)
+ColumnData RhoCol(const SCFParams& p, const std::string& label)
 {
-    return {"Δρ", W_RHO, p.MinΔρPerElectron,
+    return {label, W_RHO, p.MinΔρPerElectron,
             [](std::ostream& os, const IterationTrace& tr)
             {os << std::scientific << setw(W_RHO) << setprecision(2) << tr.dRho << " ";},
             [](const IterationTrace& tr){return tr.dRho;}, Scale::Log};
@@ -1054,7 +1020,7 @@ void tSCFIterator<T>::AccumulateColumns(std::vector<ColumnData>& cols, const SCF
 {
     cols.push_back(GateDE(ipar));
     if (ipar.MinΔFD) cols.push_back(GateFD(ipar));                    // a stated stagnation gate is shown; off, it is not
-    cols.push_back(RhoCol(ipar));
+    cols.push_back(RhoCol(ipar, itsHamiltonian->DeltaRhoLabel()));
     if (itsHamiltonian->IsVirialValid()) cols.push_back(VirialCol(ipar,idealVirial));
 }
 
@@ -1187,7 +1153,7 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
                                          size_t idealVirial) const
 {
     tSCFIterator<dcmplx>::AccumulateColumns(cols,ipar,idealVirial);   // ΔE/E, [Δ[F,D]], Δρ, [virial]
-    auto rho=std::find_if(cols.begin(), cols.end(), [](const ColumnData& c){return c.title=="Δρ";});
+    auto rho=std::find_if(cols.begin(), cols.end(), [&](const ColumnData& c){return c.title==DeltaRhoTitle();});
     assert(rho!=cols.end() && "the base layout carries Δρ");
     rho=cols.insert(rho+1, GridLossCol());                             // the grid-charge leak
     cols.insert(rho+1, XCRhoCol());                                    // ...and which rho its XC saw (pin 28)
