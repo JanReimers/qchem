@@ -9,6 +9,7 @@ add_executable(UTStructure ../../Common/tests/gtestmain.C
     SiteGroupsUT.C      # SiteRotations vs SiteEnvironmentRotations on MnO AFM-II and diamond (+U increment 2, 2026-09-21)
     StructureDataUT.C   # qchem.StructureData (D-STRUCTDATA)
     ImpositionUT.C      # ResolveImposition: the run's symmetry policy (V-BS-SYMMETRY S1)
+    PointSamplingUT.C   # the point set chooses how a Fourier series is sampled on it (the rho-tilde sampler)
 )
 
 target_compile_definitions(UTStructure PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

@@ -2,7 +2,12 @@
 //
 // A Mesh is a concrete VALUE type = quadrature points + weights, stored SEPARATELY (SoA).
 // Points are streamed by evaluators (phi(r)); weights by integrators.  They live in totally
-// different algorithms, so they get totally separate arrays.  No polymorphism, no Clone.
+// different algorithms, so they get totally separate arrays.  No Clone, and no subclasses.
+// ONE abstract face since 2026-11-04 (user ruling): a Mesh IS a qchem::PointSampling -- the point set a
+// Fourier-series field asks HOW to be sampled on it (a NUFFT by default; an exact inverse FFT on the uniform
+// cell raster).  The uniform override is a HELD STRATEGY the builder installs, not a subclass, because a Mesh
+// is returned and copied by value everywhere and a subclass would slice; so it stays a value type -- a copy
+// keeps its sampling.
 //
 // Everything lives in namespace qchem::qcMesh so the new library coexists with the old qchem.Mesh
 // (which exports a global `class Mesh`) during the migration; the namespace goes away once the
@@ -13,8 +18,10 @@ module;
 #include <cstdio>    // snprintf (MeshParams::SciString)
 #include <string>
 #include <vector>    // the site-block index table (Mesh::itsSiteStart)
+#include <memory>    // the held FourierSamplingStrategy
 export module qchem.Mesh;
 export import qchem.Types;
+export import qchem.PointSampling;   // the face a Mesh implements (MakeFourierSampler)
 import qchem.Math;   // Pi, ceil/sqrt/max (the uniform-mesh Nyquist arithmetic below)
 
 export namespace qchem::qcMesh
@@ -22,10 +29,10 @@ export namespace qchem::qcMesh
 
 //! \brief A quadrature mesh: points r_i and weights w_i stored as separate arrays (SoA).
 //!
-//! \f$\intop f\,d^3r\approx\sum_i w_i f(r_i)\f$.  This is a plain value type with no virtuals:
-//! builders \c Append points, consumers read \c Points() (in op(r) evaluators) and \c Weights()
-//! (in the integration algorithms) independently.
-class Mesh
+//! \f$\intop f\,d^3r\approx\sum_i w_i f(r_i)\f$.  A value type: builders \c Append points, consumers read
+//! \c Points() (in op(r) evaluators) and \c Weights() (in the integration algorithms) independently.  Its one
+//! virtual face is \c PointSampling (see the file header): how a Fourier series is sampled on these points.
+class Mesh : public virtual PointSampling
 {
 public:
     Mesh() = default;
@@ -36,7 +43,14 @@ public:
     Mesh(rvec3vec_t r, rvec_t w, std::vector<size_t> siteStart)
         : itsR(std::move(r)), itsW(std::move(w)), itsSiteStart(std::move(siteStart)) {}
 
-    const rvec3vec_t& Points () const {return itsR;} //!< r_i, for the phi(r) evaluators.
+    const rvec3vec_t& Points () const override {return itsR;} //!< r_i, for the phi(r) evaluators.
+    //! \copydoc PointSampling::MakeFourierSampler
+    //! The builder's installed strategy when there is one (the uniform raster's exact inverse FFT), else the NUFFT default.
+    std::unique_ptr<FourierSampler> MakeFourierSampler(const FourierBox& b) const override
+    {return itsSampling ? itsSampling->Make(itsR, b) : PointSampling::MakeFourierSampler(b);}
+    //! A BUILDER records a structure of its points the series can exploit.  \c Append and \c ShiftOrigin drop it (the
+    //! points are then no longer the ones it described).
+    void InstallFourierSampling(std::shared_ptr<const FourierSamplingStrategy> s) {itsSampling=std::move(s);}
     const rvec_t&     Weights() const {return itsW;} //!< w_i, for the integrators.
     size_t            size   () const {return itsW.size();}
 
@@ -68,6 +82,7 @@ private:
     rvec3vec_t          itsR;
     rvec_t              itsW;
     std::vector<size_t> itsSiteStart;   //!< first point index of each site block ({} = no site structure)
+    std::shared_ptr<const FourierSamplingStrategy> itsSampling;   //!< null = the NUFFT default
 };
 
 //! \brief The per-site integrals \f$\int w_A(r)f(r)\,d^3r\f$ of a field \a f sampled on \a m's points —
@@ -227,6 +242,7 @@ namespace qchem::qcMesh
 // from-arrays constructor instead.
 void Mesh::Append(const rvec3_t& r, double w)
 {
+    itsSampling.reset();   // a point added: no longer the structure a builder recorded
     size_t n=itsW.size();
     assert(itsR.size()==n);
     itsR.resize(n+1,true);
@@ -237,6 +253,7 @@ void Mesh::Append(const rvec3_t& r, double w)
 
 void Mesh::ShiftOrigin(const rvec3_t& o)
 {
+    itsSampling.reset();   // the raster it described has moved
     for (size_t i=0; i<itsR.size(); i++) itsR[i]+=o;
 }
 

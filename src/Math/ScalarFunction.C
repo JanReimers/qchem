@@ -2,6 +2,7 @@
 module;
 export module qchem.ScalarFunction;
 export import qchem.Types;
+import qchem.PointSampling;   // PointSampling (SampleOn's argument)
 
 export namespace qchem
 {
@@ -23,5 +24,10 @@ public:
         for (size_t q=0;q<rs.size();q++) v[q]=(*this)(rs[q]);
         return v;
     }
+    //! \brief Sample me on a POINT SET -- the double dispatch that lets the point set choose HOW (qchem.PointSampling).
+    //! The default evaluates me at its \c Points(), bit-identical to \c f(points); a field held as a Fourier series
+    //! overrides it to ask the point set for its sampler (a NUFFT on any set, an exact inverse FFT on the uniform
+    //! raster), so neither side ever asks what kind the other is.
+    virtual vec_t<T> SampleOn(const PointSampling& ps) const {return (*this)(ps.Points());}
 };
 }
