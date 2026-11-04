@@ -15,7 +15,6 @@ module qchem.MoleculeCalculation;
 
 import qchem.BasisSet.Gaussian.Point.Factory;             // BasisSet::Gaussian::Factory
 import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
-import qchem.BasisSet.Gaussian.Point.SymmetryAdaptedBasisSet; // SymmetryAdaptedBasisSet (return of SymmetryAdapt)
 import qchem.BasisSet.Gaussian.PG_Cart.SymmetryAdapt;   // PG::SymmetryAdapt (the SALC builder)
 import qchem.ElectronConfiguration.Molecule;        // Molecule_EC (global aufbau)
 import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Factory

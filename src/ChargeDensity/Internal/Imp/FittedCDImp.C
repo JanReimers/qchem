@@ -5,8 +5,6 @@ module;
 #include <vector>
 
 module qchem.ChargeDensity.Imp.FittedCD;
-import qchem.Blaze;
-import qchem.Math;
 import qchem.ScalarFunction;             // ScalarFunction<double> (FittedCD IS-A one)
 import qchem.Fitting.FunctionFitter;     // ProjectedDensity_AO (the callback the COMPOSED fitter consumes)
 

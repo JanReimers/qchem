@@ -10,8 +10,6 @@ module;
 #include <type_traits>
 #include <vector>
 module qchem.Hamiltonian.Internal.ACBN0;
-import qchem.Blaze;
-import qchem.Math;
 
 namespace qchem::Hamiltonian
 {

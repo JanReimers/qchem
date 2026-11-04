@@ -9,7 +9,6 @@
 #include <vector>
 import qchem.BasisSet.Projector3;
 import qchem.Types;
-import qchem.Blaze;
 
 using namespace qchem;
 

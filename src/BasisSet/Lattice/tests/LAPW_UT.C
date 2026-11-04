@@ -15,7 +15,6 @@ import qchem.Lattice_3D;
 import qchem.LASolver;
 import qchem.Types;
 import qchem.Blaze;
-import qchem.Math;           // Pi
 using namespace qchem;
 
 using BasisSet::Lattice::LAPW_IBS;

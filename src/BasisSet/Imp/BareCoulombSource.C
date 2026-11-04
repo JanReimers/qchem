@@ -3,7 +3,6 @@ module;
 #include <cassert>
 #include <vector>
 module qchem.BasisSet.BareCoulombSource;
-import qchem.Blaze;
 
 namespace qchem::BasisSet
 {

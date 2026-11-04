@@ -14,7 +14,6 @@ import qchem.Symmetry.Molecule.SALC;                                   // BuildA
 import qchem.Structure;                                         // Molecule, Atom
 import qchem.Types;
 import qchem.Blaze;
-import qchem.Math;                                            // fabs
 using namespace qchem;
 
 using namespace qchem::BasisSet::Gaussian::PG_Cart;

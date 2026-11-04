@@ -24,7 +24,6 @@ import qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS;   // the auxiliary density-fit
 import qchem.Symmetry.Factory;   // BlochFactory (the convenience ctor builds the Bloch irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (prys k out of the abstract Bloch irrep)
 import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeNuclear
-import qchem.Math;               // Pi, FourPi, cos, sin
 import qchem.SpecialFunctions;   // LegendreP (the (2l+1)P_l angular factor)
 import qchem.BasisSet.PlaneWave.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
 import qchem.BasisSet.PlaneWave.Internal.GVectors;   // BuildGs (the enlarged sphere of MakeSetOverlap)

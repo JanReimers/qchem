@@ -25,7 +25,6 @@ import qchem.SCFParams;              // SCFParams (the O2 runs converge once, on
 import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
-import qchem.PeriodicTable;          // RelativeError
 using namespace qchem;
 
 static Molecule MakeN2()

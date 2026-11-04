@@ -11,7 +11,6 @@ import qchem.BasisSet.Radial.Factory;
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;  // tests may cheat: the ERI4 substrate face
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.DB_Cache_RAM;  // theCache<double>() + concrete IntegralsCache_RAM (Clear hooks; tests may cheat)
-import qchem.Blaze;
 using namespace qchem;
 
 using namespace qchem::BasisSet::Radial;

@@ -3,7 +3,6 @@ module;
 #include <string>
 #include <sstream>
 module qchem.BasisSet.Gaussian.Evaluators.PG_Spherical_MnD;
-import qchem.Math;   // sqrt
 
 namespace qchem::BasisSet::Gaussian::Evaluators::PG_Spherical_MnD
 {

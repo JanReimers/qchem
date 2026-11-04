@@ -32,7 +32,6 @@ import qchem.Orbitals;                         // TOrbitals/TOrbital -- the ACBN
 import qchem.Diagnostics;                      // u_bands: the per-band +U slot weights (QCHEM_DIAGNOSTICS=u_bands[=N])
 import qchem.BasisSet.Orbital_DFT_IBS;         // the block an orbital set lives on (EstimateHubbardU)
 import qchem.Environment;                   // WarnRetiredEnvironment (D-ENV step 6a)
-import qchem.RunPolicy;                        // the declared CP2K deviations (doc/OpenWork.md N5/T5)
 import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeLadderAbove (a geometry run's XC route and its nested ladder)
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.SCFCap;                           // SetupSCF -- the seed's atomic solves are not the run's iterations

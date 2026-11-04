@@ -7,8 +7,6 @@ module;
 #include <algorithm>   // std::min/std::max (not re-exported by qchem.Math)
 module qchem.Orbitals;
 
-import qchem.Math;    // exp, log, std::min/max, fabs
-import qchem.Blaze;   // rvec_t
 
 namespace qchem::Orbitals
 {

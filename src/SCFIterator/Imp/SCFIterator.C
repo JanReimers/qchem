@@ -39,10 +39,8 @@ import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 // is entirely the periodic mixer factory's business -- the iterator only holds a tDensityMixer, so
 // those imports are gone.  What survives is one periodicity QUESTION for the cell snapshot handed to
 // that factory (CleanupCandidates V1.10b retires even that, by building the mixer above the iterator).
-import qchem.ReciprocalLattice;              // isPeriodicCell (the structure-neutral periodicity probe)
 
 import qchem.ElectronConfiguration;
-import qchem.Math;
 
 using std::cout;
 using std::endl;

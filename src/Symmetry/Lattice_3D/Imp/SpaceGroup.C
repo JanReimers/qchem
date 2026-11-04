@@ -3,7 +3,6 @@ module;
 #include <vector>
 #include <cassert>
 module qchem.Symmetry.Lattice_3D.SpaceGroup;
-import qchem.Math;   // sqrt, fabs, floor, lround (via qchem.CMath)
 
 namespace qchem::Symmetry::Lattice_3D
 {

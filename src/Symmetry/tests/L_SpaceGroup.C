@@ -3,7 +3,6 @@
 #include <vector>
 import qchem.Symmetry.Lattice_3D.SpaceGroup;
 import qchem.Symmetry.Lattice_3D.BZReduction;
-import qchem.Math;   // fabs
 using namespace qchem;
 using namespace qchem::Symmetry::Lattice_3D;
 

@@ -4,7 +4,6 @@ module;
 #include <string>
 #include <cassert>
 module qchem.Symmetry.Molecule.AbelianGroup;
-import qchem.Math;          // fabs, sqrt
 
 namespace qchem::Symmetry::Molecule
 {

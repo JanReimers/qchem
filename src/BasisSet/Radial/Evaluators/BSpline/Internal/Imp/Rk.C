@@ -8,7 +8,6 @@ module;
 #include <cassert>
 #include <bspline/Core.h>
 module qchem.BasisSet.Radial.Evaluators.BSpline.Internal.Rk;
-import qchem.BasisSet.Radial.Evaluators;
 import qchem.BasisSet.Radial.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.Blaze;   // rmat_t + blazem::column() for the pre-sampled B-spline value tables
 

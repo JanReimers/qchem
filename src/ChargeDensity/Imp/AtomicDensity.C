@@ -12,7 +12,6 @@ module;
 #include <nlohmann/json.hpp>
 
 module qchem.ChargeDensity.AtomicDensity;
-import qchem.Math;   // std::sqrt/log/exp/floor + Pi (qchem.CMath) + norm(Vector3D)
 
 #ifndef CHARGEDENSITY_DATA_PATH
 #error "CHARGEDENSITY_DATA_PATH must be defined by CMake"

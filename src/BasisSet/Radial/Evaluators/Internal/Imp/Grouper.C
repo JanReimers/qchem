@@ -2,7 +2,6 @@
 module;
 #include <algorithm>
 module qchem.BasisSet.Radial.Evaluators.Internal.Grouper;
-import qchem.Types;
 
 namespace qchem {
 

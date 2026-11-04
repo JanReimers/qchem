@@ -5,7 +5,6 @@ module;
 #include <vector>
 module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
-import qchem.stl_io;
 
 namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
 {

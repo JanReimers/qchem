@@ -55,7 +55,6 @@ import qchem.Symmetry.Factory;                    // BlochFactory (the Γ irrep 
 import qchem.ChargeDensity.DensitySampler;        // MakeDensitySampler: the strategy chosen by capability
 import qchem.ChargeDensity.Imp.IrrepCD;           // PeriodicIrrepCD
 import qchem.CompositeCD;                         // tComposite_CD<dcmplx>
-import qchem.Math;
 import qchem.Streamable;
 import qchem.Types;
 

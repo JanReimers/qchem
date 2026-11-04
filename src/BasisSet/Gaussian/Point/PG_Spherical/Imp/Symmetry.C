@@ -7,7 +7,6 @@ module;
 #include <utility>
 module qchem.BasisSet.Gaussian.Point.PG_Spherical.Symmetry;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;           // Cart::GaussianRF (TypeID/GetCenter)
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;         // Cart::Polarization (the monomial exps)
 import qchem.Symmetry.Molecule.SphericalRep;   // HarmonicC2S, CartTerm, SphericalShellRep (the concrete ShellRep this basis produces)
 import qchem.Blaze;                   // blazem::VecBuilder (accumulate the per-shell norms into an rvec_t)
 

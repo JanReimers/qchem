@@ -22,7 +22,6 @@ module;
 #include <stdexcept>
 #include <utility>
 module qchem.Mesh.Angular;
-import qchem.Math;
 
 namespace qchem::qcMesh
 {

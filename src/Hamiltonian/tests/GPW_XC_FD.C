@@ -32,24 +32,14 @@ import qchem.UnitCell;                          // UnitCell
 import qchem.BasisSet;                          // Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + cached Overlap()/Kinetic()/Nuclear()
 import qchem.BasisSet.Gaussian.Point.Factory;         // Gaussian::Factory, BasisSetData/Engine/Angular
-import qchem.BasisSet.Gaussian.PG_Cart;         // direct PG_Cart construction (the diffuse-d V_long oracle gate)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // GPW_IBS (the basis under test)
-import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential + the _R / _Gaussian faces (KB gate)
-import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 projector data)
 import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
-import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // Gaussian::LatticeSum1E::CollocateDensity (analytic collocation)
-import qchem.LASolver;                       // LASolver<dcmplx> (the k=1/4 spectrum gate)
-import qchem.Symmetry.Factory;               // BlochFactory (arbitrary-shift k for the k=1/4 continuity gate)
-import qchem.BasisSet.DeltaFit_IBS;          // DeltaFit_IBS (the delta representation's OverlapDiagonal gate)
-import qchem.Fitting.FitOperations;          // OrthogonalFit -- the projection/metric invariant this gate pins
 import qchem.Mesh.Quadrature;                // qcMesh::Mesh (the delta basis's quadrature)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
 import qchem.BasisSet.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the v_xc/eps_xc face; XC-consistency probe)
 import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange -- the SCF's own X term)
 import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5 -- the SCF's own C term)
-import qchem.Blaze;                             // hmat_t element access / rows()
-import qchem.Math;                              // Pi (the Bloch-phase e^{2 pi i k.n})
 import qchem.Vector3D;                          // rvec3_t arithmetic (r + R0)
 import qchem.Types;
 

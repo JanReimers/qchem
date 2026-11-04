@@ -8,7 +8,6 @@
 #include <iomanip>
 
 import qchem.BasisSet.Radial.Factory;
-import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.Constants;
 import qchem.Structure;
