@@ -41,7 +41,7 @@ import qchem.Lattice_3D;                      // Lattice_3D (crystal + BZ mesh)
 import qchem.Structure;                       // Structure
 import qchem.ScalarFunction;                  // ScalarFunction<double> (the rho(r) face)
 import qchem.BasisSet;                        // Real_BS (orbital source), Complex_BS (the Bloch basis)
-import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, GpwRasterExponents, CellImages
+import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, MakeRasterLadder, CellImages
 import qchem.Hamiltonian.Factory;             // SpinGroup, VxcFit, the cHamiltonian solid door
 export import qchem.Hamiltonian.HubbardEstimator;   // ACBN0Estimate (EstimateHubbardU), HubbardEstimate (the loop)
 export import qchem.Response;                  // ChannelResponse / ResponseFailure (IndependentResponse, LinearResponsePlan R0)

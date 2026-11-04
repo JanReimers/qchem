@@ -196,96 +196,6 @@ std::vector<qchem::Math::CartTerm> MultiplyR2(std::vector<qchem::Math::CartTerm>
     }
     return terms;
 }
-// THE GRID AUDIT (user 2026-10-25: "the max effective exponent and the ideal max G for every relevant H term ... quickly see
-// that all grids are correct").  A term that integrates (or collocates) Gaussian PAIRS on a raster has TWO requirements:
-//   BALL   -- its G-space sum must reach where the integrand's transform dies: a pair p against a field of Gaussian exponent
-//             beta sums e^{-G^2 (1/4p + 1/4beta)}, the harmonic exponent p_h = p beta/(p+beta) (beta = 0: no field, p_h = p);
-//             the tail at the ball edge is e^{-G_b^2/4p_h}.
-//   RASTER -- the pair is SAMPLED in real space, so its spectrum beyond the raster's Nyquist G_N aliases back: the first
-//             image sits at 2 G_N, relative amplitude e^{-(2G_N)^2/4p} = e^{-G_N^2/p}.  BallOnly puts G_N at the ball edge
-//             (G_N^2 = 2 E_cut); AliasFree doubles it.  G_N here = the raster's inscribed Nyquist radius min_i pi N_i/|a_i|.
-// The tightest pair (p = 2 alpha_max) is routed to the finest level, so the finest raster is the one that must pass.
-// C2 step 3: the raster is SIZED to its demand x (GPWTolerances::rasterX ..., derived from the accuracy target), so the verdict is the
-// demand's -- x = G_N^2/p >= xDemand, an ASSERTION (a level built short of it is a construction defect and throws).  The alias
-// column stays the measured fact (the oracle gates: G_N^2/p = 2 is 4% on a tight pair's density and 1.5 Ha on its V_loc-long
-// diagonal; 8 is <= 4e-5 / 3e-4 Ha -- UTLattice_BS GPW.TightPrimitive*).
-//! V_loc long's grid-audit ROW (its delivered x among it) by the evaluator's IDFragment -- the key the framework caches its matrix under
-//! (theCache<dcmplx>): a second basis with the same ID takes the CACHED matrix and never runs MakeLocalPPLong, so the row is recorded
-//! where the matrix is (C2 step 3).  What \c DeliveredRasterExponents / \c DeliveredRasterVerdicts answer from.
-std::mutex                               theVlocLongXLock;
-std::map<std::string, qchem::report::json> theVlocLongAudit;
-
-double RasterNyquist(const ivec3_t& N, const UnitCell& A)
-{
-    const double a1=norm(A.ToCartesian(rvec3_t(1,0,0))), a2=norm(A.ToCartesian(rvec3_t(0,1,0))), a3=norm(A.ToCartesian(rvec3_t(0,0,1)));
-    return std::min({Pi*N.x/a1, Pi*N.y/a2, Pi*N.z/a3});
-}
-//! The grid-audit ROW of one raster: PURE (a function of the raster and its demand), so every k-block computes the same row and the
-//! owner can be ASKED for it.  THROWS when the raster is short of its demand (a level built short of GPWTolerances' raster demand).
-qchem::report::json GridAudit(const std::string& term, double p, double beta, double ecutBall, const ivec3_t& N, const UnitCell& A,
-                              double xDemand, bool judgeBall, double ballTol=1e-6)
-{
-    namespace rpt = qchem::report;
-    const double ph   = beta>0.0 ? p*beta/(p+beta) : p;
-    const double Gb   = std::sqrt(2.0*ecutBall);
-    const double tail = std::exp(-Gb*Gb/(4.0*ph));
-    const double GN   = RasterNyquist(N, A);
-    const double alias= std::exp(-GN*GN/p);
-    if (GN*GN/p < xDemand*(1.0-1e-9))
-        throw std::logic_error("GPW grid audit: "+term+" -- the finest raster delivers x = G_N^2/p = "+std::to_string(GN*GN/p)
-                               +" below its demand "+std::to_string(xDemand)+" (a level was built short of GPWTolerances' raster demand)");
-    const bool   ok   = !judgeBall || tail<=ballTol*(1.0+1e-9);   // the raster meets its demand (asserted above); the ball by the tolerance it was BUILT to
-    rpt::json r;
-    r["term"]        = term;
-    r["pPair"]       = p;                                   // the tightest pair sampled on this raster (2 alpha_max)
-    r["betaField"]   = beta;                                // the field's own Gaussian exponent (0 = none)
-    r["ballEcut"]    = ecutBall;
-    r["ballGneed"]   = std::sqrt(4.0*ph*std::log(1.0/ballTol));
-    r["ballTol"]     = ballTol;
-    r["ballGhave"]   = Gb;
-    r["ballTail"]    = tail;
-    r["ballJudged"]  = judgeBall;
-    r["rasterN"]     = { N.x, N.y, N.z };
-    r["rasterGneed"] = std::sqrt(p*xDemand);
-    r["rasterGhave"] = GN;
-    r["xDemand"]     = xDemand;
-    r["x"]           = GN*GN/p;
-    r["alias"]       = alias;
-    r["status"]      = ok ? "OK" : "UNDER";
-    return r;
-}
-//! File the row at grids.<key>.  V_long's row is reached once per k-block evaluator (Al k222 reached it 8x, OpenWork 'GPW verdict lines
-//! repeat every SCF refresh'), all IDENTICAL (the raster is k-independent): the report's own run-scoped dedup files it once, and the
-//! UNDER line prints only when the row was news (V-REPORT-WRITEONLY: the evaluator never reads the report back to decide).
-void EmitGridAudit(const std::string& key, const qchem::report::json& r)
-{
-    namespace rpt = qchem::report;
-    static std::mutex onceLock;
-    std::lock_guard<std::mutex> lock(onceLock);
-    if (!rpt::EmitAt("grids", key, r) || r["status"]=="OK") return;
-    const auto N=r["rasterN"];
-    std::ostringstream os;
-    os<<"[grid audit] UNDER: "<<r["term"].get<std::string>()<<" -- tightest pair p="<<r["pPair"].get<double>()<<" on raster "
-      <<N[0].get<int>()<<"x"<<N[1].get<int>()<<"x"<<N[2].get<int>()<<" (G_N="<<r["rasterGhave"].get<double>()
-      <<", alias e^{-G_N^2/p}="<<r["alias"].get<double>()<<"): ball tail "<<r["ballTail"].get<double>()
-      <<" (ball tolerance "<<r["ballTol"].get<double>()<<")";
-    std::cout<<os.str()<<std::endl;
-    rpt::Log(os.str());
-}
-//! The DENSITY raster's audit row: the finest density level at p = 2 alpha_max, against the routing field.  Only the RASTER is judged
-//! here; the BALL is not "suppressed by 1/G^2" -- it enters the energy through the G-space quadratures (Hartree, V_loc long), and the
-//! raster pilot judges it (SolidCalculation's CalibrateRasters: Eee at fixed D against twice the ball, doubling while over eps).  XC is
-//! not where it enters: with the cusp-deficit feed (the default) XC reads rho[D] at the fixed point; linear D-mixing and GDM feed rho[D].
-qchem::report::json DensityGridAudit(const std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>>& levels, double relFieldSharp,
-                                     double maxExponent, const UnitCell& cell, double rasterX)
-{
-    size_t Lf=0;
-    for (size_t L=1;L<levels.size();L++) if (levels[L]->Ecut()>levels[Lf]->Ecut()) Lf=L;
-    const double beta = relFieldSharp>=0.0 ? relFieldSharp : (2.0/3.0)*maxExponent;   // the routing field
-    return GridAudit("density collocation (Hartree + XC raster)", 2.0*maxExponent, beta, levels[Lf]->Ecut(), levels[Lf]->FFTGrid(), cell,
-                     rasterX, /*judgeBall*/false);
-}
-
 } //anon
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
@@ -887,154 +797,6 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
     return itsLat->IntegratePotential(V_L, CellPhase(), A, Levels().N, Levels().ecut, *itsScreener, 0.0, nullptr, 0.0, itsRelFieldSharp);   // 0 = the relative rule (adjoint-paired with collocation)
 }
 
-// GRID DIAGNOSTIC (doc/GPWPlan §0e): one line per stored grid, printed at run start so GPW's grids can be
-// lined up against CP2K's &MGRID log (NGRIDS/CUTOFF/REL_CUTOFF + per-level N).  |G|min is the smallest
-// NONZERO |G| (the cell scale 2*pi/a); |G|max the ball edge (sqrt(2*Ecut)).
-std::ostream& GPW_Evaluator::ReportGrid(std::ostream& os, const std::string& tag, const PlaneWave::PW_Grid_Evaluator& g)
-{
-    double gmin=-1.0, gmax=0.0;
-    for (const ivec3_t& m : g.Gs())
-    {
-        if (m.x==0 && m.y==0 && m.z==0) continue;
-        const double gn=norm(g.GetGCartesian(m));
-        if (gmin<0.0 || gn<gmin) gmin=gn;
-        if (gn>gmax) gmax=gn;
-    }
-    const ivec3_t N=g.FFTGrid();
-    return os<<"[GPW grid] "<<tag<<": N=("<<N.x<<","<<N.y<<","<<N.z<<") Ecut="<<g.Ecut()
-             <<" Ha nG="<<g.size()<<" |G|min="<<gmin<<" |G|max="<<gmax<<"\n";
-}
-
-void GPW_Evaluator::ReportGrids(std::ostream& os) const
-{
-    os<<"[GPW basis] n="<<itsN<<" alpha_min="<<itsLat->MinExponent()<<" alpha_max="<<itsLat->MaxExponent()
-      <<" cutoffFactor="<<itsLadder->CutoffFactor()
-      <<" raster x(density, V_long, XC L0)=("<<itsTol.rasterX<<", "<<itsTol.vlocRasterX<<", "<<itsTol.xcRasterX<<")"
-      <<" routing="<<(itsRelFieldSharp>=0.0?"HartreeOnly beta=":"HartreeXC beta=2/3*alpha_max=")
-      <<(itsRelFieldSharp>=0.0?itsRelFieldSharp:(2.0/3.0)*itsLat->MaxExponent())<<" Ha-exp"
-      <<" (auto density floor Ecut="<<itsLadder->CutoffFactor()*itsLat->MaxExponent()<<" Ha)"<<std::endl;
-    if (!itsFFT_R_G_Grids)
-    {
-        os<<"[GPW grid] DFT tier OFF (densityEcut=0): no grids"<<std::endl;
-        return;
-    }
-    ReportGrid(os, "FFT rho<->G (density/collocation)", *itsFFT_R_G_Grids);
-    // T1 {G}-STAR FOLD VISIBILITY (user 2026-08-15: "no hint anywhere of folding").  Under imposed ops
-    // each level's ball partitions into stars; report the count + reduction beside nG.  HONESTY NOTE:
-    // today the fold is CONSUMED only by the static local-PP sweeps (MakeLocalPP/MakeLocalPPLong T1
-    // reduced evaluation); the per-iteration G-space consumers run unfolded -- doc/OpenWork.md item 5.
-    std::vector<Symmetry::Lattice_3D::SymOp> sops;
-    for (const auto& op : RecipSymOps()) sops.push_back({op.U, op.tau});
-    for (size_t L=0;L<Levels().levels.size();L++)
-    {
-        std::string tag="ladder L="+std::to_string(L);
-        if (!sops.empty())
-        {
-            const size_t stars=Symmetry::Lattice_3D::FoldGVectors(Levels().levels[L]->Gs(), sops).Reps();
-            tag+=" stars="+std::to_string(stars);
-        }
-        if (L==0)                  tag+=" (== FFT grid; resolution reference)";
-        else if (L>=Levels().nBase) tag+=" (top completion rung; local-PP uses base sub-ladder only)";
-        ReportGrid(os, tag, *Levels().levels[L]);
-    }
-    os<<"[GPW grid] local-PP integration: FULL ladder L=0.."<<Levels().levels.size()-1
-      <<" absolute REL_CUTOFF kappa="<<itsTol.localPPRelCutoff<<" Ha (e^{-kappa/2} pair tails)"<<std::endl;
-    if (!sops.empty())
-        os<<"[GPW grid] T1 {G}-star fold: "<<sops.size()<<" imposed ops; ACTIVE on the static local-PP"
-            " sweeps (form factor at star reps); per-iteration G fields UNFOLDED (OpenWork item 5)"<<std::endl;
-    os.flush();
-}
-
-void GPW_Evaluator::EmitGridsReport() const
-{
-    namespace rpt = qchem::report;
-    rpt::json g;
-    g["densityEcut"]  = itsLadder->CutoffFactor() * itsLat->MaxExponent();   // the auto density-grid floor Ecut
-    g["cutoffFactor"] = itsLadder->CutoffFactor();
-    g["raster"]       = { {"x", itsTol.rasterX}, {"vlocX", itsTol.vlocRasterX}, {"xcX", itsTol.xcRasterX} };   // the demands (0 = the ball's own)
-    g["routing"]      = (itsRelFieldSharp>=0.0 ? "HartreeOnly" : "HartreeXC");   // field-sharpness routing policy
-    g["routingBeta"]  = (itsRelFieldSharp>=0.0 ? itsRelFieldSharp : (2.0/3.0)*itsLat->MaxExponent());
-    if (itsFFT_R_G_Grids)                                          // null == DFT tier off (no grids)
-    {
-            // The {G}-star column (see ReportGrids): star counts per level under the imposed ops, so the
-        // fold is VISIBLE in the grids table (nG vs Gstars = the T1 reduction).  Empty ops = no column.
-        std::vector<Symmetry::Lattice_3D::SymOp> sops;
-        for (const auto& op : RecipSymOps()) sops.push_back({op.U, op.tau});
-        rpt::json ladder = rpt::json::array();
-        for (size_t L = 0; L < Levels().levels.size(); ++L)
-        {
-            const PlaneWave::PW_Grid_Evaluator& lv = *Levels().levels[L];
-            const ivec3_t N = lv.FFTGrid();
-            // role: L==0 is the density/collocation reference (== FFT grid); the top rung completes the
-            // ladder above the local-PP sub-ladder; everything between is a coarser multigrid level.
-            const char* role = (L == 0) ? "reference" : (L >= Levels().nBase ? "rung" : "coarse");
-            rpt::json row;
-            row["level"] = (long)L;
-            row["N"]     = { N.x, N.y, N.z };
-            row["ecut"]  = lv.Ecut();
-            row["nG"]    = (long)lv.size();
-            {   // the alias exponent this level DELIVERS at the tightest pair the rule can route to it (C2 step 3: >= the demand)
-                size_t Lf=0;
-                for (size_t l=1;l<Levels().levels.size();l++) if (Levels().levels[l]->Ecut()>Levels().levels[Lf]->Ecut()) Lf=l;
-                const double GN=RasterNyquist(N, itsCell);
-                row["x"] = GN*GN/itsLadder->PairCap(lv.Ecut(), Levels().levels[0]->Ecut(), L==Lf);
-            }
-            if (!sops.empty())
-                row["Gstars"] = (long)Symmetry::Lattice_3D::FoldGVectors(lv.Gs(), sops).Reps();
-            row["role"]  = role;
-            ladder.push_back(row);
-        }
-        g["ladder"]  = ladder;
-        if (!sops.empty())
-            g["GstarFold"] = { { "ops", (long)sops.size() },
-                               { "activeOn", "static local-PP sweeps (T1); per-iteration G fields unfolded" } };
-        g["localPP"] = { { "kappa", itsTol.localPPRelCutoff } };
-        // the V_loc long routing tolerance that RAN, and where it came from (MakeLocalPPLong's rule)
-        g["vlocEps"] = { { "value",  itsTol.vlocEps>0.0 ? itsTol.vlocEps : kVlocEpsNoTarget },
-                         { "source", itsTol.VlocEpsDerived() ? "derived" : itsTol.vlocEps>0.0 ? "stated" : "no-target fallback" } };
-        if (itsTol.VlocEpsDerived())   // derived = the rigorous per-pair map / the measured calibration (GridAccuracy::VlocEps)
-        {
-            g["vlocEps"]["rigorous"]      = itsTol.vlocEpsRigorous;
-            g["vlocEps"]["etaRouting"]    = itsTol.vlocRoutingEta;
-        }
-    }
-    rpt::EmitSection("grids", g);
-    if (itsFFT_R_G_Grids)
-        EmitGridAudit("auditDensity", DensityGridAudit(Levels().levels, itsRelFieldSharp, itsLat->MaxExponent(), itsCell, itsTol.rasterX));
-    // The lattice-sum economy readout (grids.latticeSums + the [lattice sums] console line): the numbers
-    // that JUMP when diffuse functions are added -- the owner of the screens (the molecular evaluator)
-    // reports them, so the eps values never leak through the face.
-    itsLat->EmitLatticeSumReport(itsCell);
-}
-
-RasterExponents GPW_Evaluator::DeliveredRasterExponents() const
-{
-    RasterExponents x;
-    if (!itsFFT_R_G_Grids) return x;
-    size_t Lf=0;
-    for (size_t L=1;L<Levels().levels.size();L++) if (Levels().levels[L]->Ecut()>Levels().levels[Lf]->Ecut()) Lf=L;
-    const double Gf=RasterNyquist(Levels().levels[Lf]->FFTGrid(), itsCell), G0=RasterNyquist(Levels().levels[0]->FFTGrid(), itsCell);
-    x.density =Gf*Gf/(2.0*itsLat->MaxExponent());
-    x.xcL0    =G0*G0/itsLadder->PairCap(Levels().levels[0]->Ecut(), Levels().levels[0]->Ecut(), Lf==0);
-    {
-        std::lock_guard<std::mutex> lock(theVlocLongXLock);
-        if (auto it=theVlocLongAudit.find(IDFragment()); it!=theVlocLongAudit.end()) x.vlocLong=it->second["x"].get<double>();
-    }
-    return x;
-}
-
-std::vector<RasterVerdict> GPW_Evaluator::DeliveredRasterVerdicts() const
-{
-    std::vector<RasterVerdict> v;
-    if (!itsFFT_R_G_Grids) return v;
-    auto verdict=[](const char* audit, const qchem::report::json& r)
-    { return RasterVerdict{audit, r["status"].get<std::string>(), r["alias"].get<double>()}; };
-    v.push_back(verdict("auditDensity", DensityGridAudit(Levels().levels, itsRelFieldSharp, itsLat->MaxExponent(), itsCell, itsTol.rasterX)));
-    std::lock_guard<std::mutex> lock(theVlocLongXLock);
-    if (auto it=theVlocLongAudit.find(IDFragment()); it!=theVlocLongAudit.end()) v.push_back(verdict("auditVlocLong", it->second));
-    return v;
-}
-
 // Bloch sum of the Gaussian orbitals, chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R), over the COLLOCATION set (the
 // orbital reach; == the overlap set unless collRcut decoupled it).  At Gamma every phase is 1, so the
 // imaginary part is exactly zero (the sum reduces to the real molecular sum).
@@ -1264,14 +1026,12 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const SpeciesRadialField
 // Non-Gaussian local models (no closed beta) fall back to the kappa-sweep path (the old GPW_LONG_SWEEP A/B switch is retired).
 chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialField& loc) const
 {
-    // beta = the long part's effective exponent = the SHARPEST species' 1/(2 rloc^2) (V_long sums over atoms)
-    double beta=0.0;
-    if (const auto* gauss=dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc))
-        for (Atom* a : *cl)
-        {
-            const auto terms=gauss->AsGaussians(a->itsZ,FieldRange::Short);
-            if (!terms.empty()) beta=std::max(beta, terms[0].alpha);   // alpha = 1/(2 rloc^2)
-        }
+    // beta = the long part's effective exponent = the SHARPEST species' 1/(2 rloc^2) (V_long sums over atoms): the ONE helper the
+    // facade sized the ladder with, so a ladder that knows a sharpness must have been sized for THIS field.
+    const double beta=LocalPPSharpness(*cl, loc);
+    if (itsLadder->PPSharpness()>0.0 && itsLadder->PPSharpness()!=beta)
+        throw std::logic_error("GPW_Evaluator::MakeLocalPPLong: the raster ladder was sized for a local PP of sharpness "
+                               +std::to_string(itsLadder->PPSharpness())+", this field's is "+std::to_string(beta));
     if (beta<=0.0) return MakeLocalPP(cl, loc, FieldRange::Long);   // no closed Gaussian beta: the kappa-sweep path (GPW_LONG_SWEEP A/B retired, D-ENV 6c)
     qchem::report::Timed timed("setup: local-PP LONG (custom G-ball)");
     assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0)");
@@ -1279,21 +1039,13 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
     const double lnE=-std::log(eps);
     // The custom ladder (the LADDER's arithmetic, GpwRasterLadder::MakeVlocLongLevels): the density levels + ONE top level at the
     // sharpest pair's harmonic requirement, every level re-sampled at V_long's own raster demand when it exceeds the density's.
-    const double p2=2.0*itsLat->MaxExponent();
-    const double xV=std::max(itsTol.vlocRasterX, itsTol.rasterX);
     RasterLevels vlad=itsLadder->MakeVlocLongLevels(beta, lnE);
     auto levels=std::move(vlad.levels);
     auto N_L=std::move(vlad.N);
     auto ecut_L=std::move(vlad.ecut);
     const std::vector<size_t> lv=itsLat->StaticFieldPairLevels(ecut_L, beta, lnE);
-    {
-        size_t Lf=0;
-        for (size_t L=1;L<ecut_L.size();L++) if (ecut_L[L]>ecut_L[Lf]) Lf=L;
-        const auto row=GridAudit("V_loc long (integrate-back)", p2, beta, ecut_L[Lf], N_L[Lf], itsCell, xV, /*judgeBall*/true, eps);
-        EmitGridAudit("auditVlocLong", row);
-        std::lock_guard<std::mutex> lock(theVlocLongXLock);
-        theVlocLongAudit[IDFragment()]=row;
-    }
+    // (Its audit row is the LADDER's -- GpwRasterLadder::ReportGrids / DeliveredRasterVerdicts, a pure function of the ladder and the
+    // PP sharpness it was sized with -- so nothing here depends on whether this sweep ran or a cached matrix stood in for it.)
     // Vtilde(dm) = (1/Omega) Sum_a f_long(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 DROPPED (the E_alphaZ
     // alignment carries the mean -- the same convention as MakeLocalPP's form-factor closure).
     const UnitCell& B=itsFFT_R_G_Grids->Recip().GetCell();

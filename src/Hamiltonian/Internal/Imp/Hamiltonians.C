@@ -118,15 +118,6 @@ Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::
 {}
 
 namespace {
-std::shared_ptr<const Pseudopotential::LocalPotential>
-BuildMultiSpeciesLocal(const std::vector<std::pair<std::string,int>>& species, const std::string& functional)
-{
-    auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
-    for (const auto& [element, q] : species)
-        loc->Add(thePeriodicTable().GetZ(element),
-                 std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,functional,q).local));
-    return loc;
-}
 std::shared_ptr<const BasisSet::SpeciesProjectorSet_R>
 BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species, const std::string& functional)
 {
@@ -140,7 +131,7 @@ BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species, con
 
 Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
                const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit)
-    : Ham_PP(st, BuildMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g, fit)
+    : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g, fit)
 {}
 
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
@@ -314,18 +305,18 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector
                               const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit,
                               std::vector<HubbardManifold> hubbard)
 {
-    auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
+    std::shared_ptr<const Pseudopotential::LocalPotential> loc;   // the ONE builder the GPW facade sizes its ladder from (V-BS-RASTER)
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
     {
         // A table lookup per species, and expected to be free -- bucketed anyway, because THIS ctor is the
         // largest non-threading block in a GPW run (doc/ParallelAndOraclePlan.md 1.1(b)) and the point of
         // opening it up is to leave nothing inside it unpriced.
         qchem::report::Timed timed("setup: PP models (GTH lookup + per-Z routers)");
+        loc=Pseudopotential::MakeMultiSpeciesLocal(species, functional);
         for (const auto& [element, valence] : species)
         {
             int Z=thePeriodicTable().GetZ(element);          // atomic number = the atoms' itsZ key
             Pseudopotential::GTH_PP pp=Pseudopotential::GetGTH(element, functional, valence);
-            loc->Add(Z, std::make_shared<Pseudopotential::HGH_LocalPotential>(pp.local));
             sep->Add(Z, std::make_shared<Pseudopotential::HGH_SeparablePotential>(pp.nonlocal));
         }
     }

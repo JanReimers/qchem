@@ -81,7 +81,7 @@ struct RasterExponents
 
 //! \brief One raster's GRID-AUDIT verdict (the `grids.audit*` row's status and alias): what the facade's fixed-D grid audit records for
 //! each side and bounds a raster term's delivered error at (the coarse side's alias).  Asked of the raster's owner
-//! (\c GpwRasterVerdicts), never read back out of the run report (V-REPORT-WRITEONLY).
+//! (\c GpwRasterLadder::DeliveredRasterVerdicts), never read back out of the run report (V-REPORT-WRITEONLY).
 struct RasterVerdict
 {
     std::string audit;          //!< the row's key: "auditDensity" | "auditVlocLong"

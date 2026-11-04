@@ -920,9 +920,9 @@ TEST(Deck, BuildStopsBeforeTheSCFAndRunIsBuildPlusConverge)
 }
 
 //! THE REPORT IS WRITE-ONLY (V-REPORT-WRITEONLY, 2026-11-02): library code never reads the run report back to decide.  On Si k222 (eight
-//! k-blocks, each reaching the k-independent V_loc-long raster verdict) the run files that verdict ONCE and renders it once -- the report's
-//! own dedup, not an evaluator reading the report -- and the grid audit's recorded verdicts are what the rasters' owner answers, which are
-//! the rows the run filed.
+//! k-blocks sharing ONE raster ladder, V-BS-RASTER) the run files each raster verdict ONCE and renders it once -- the ladder reports
+//! itself once, no dedup needed -- and the grid audit's recorded verdicts are what the rasters' owner (the ladder) answers, which are the
+//! rows the run filed.
 TEST(Deck, AK222RunFilesEachRasterVerdictOnceAndTheAuditAsksTheBasisForIt)
 {
     const fs::path dir=TmpDir("writeonly");
@@ -937,8 +937,9 @@ TEST(Deck, AK222RunFilesEachRasterVerdictOnceAndTheAuditAsksTheBasisForIt)
     ASSERT_TRUE(out.converged) << out.summary;
 
     auto count=[&](const std::string& what) { size_t n=0; for (size_t i=console.find(what); i!=std::string::npos; i=console.find(what,i+1)) n++; return n; };
-    EXPECT_EQ(count("grids ▸ auditVlocLong"), 1u) << "the V_long verdict renders once, not once per k-block";
-    EXPECT_EQ(count("grids ▸ auditDensity"),  1u);
+    // The point's ONE ladder files both rows inside its grids section (V-BS-RASTER), so each verdict's term renders once.
+    EXPECT_EQ(count("V_loc long (integrate-back)"), 1u) << "the V_long verdict renders once, not once per k-block";
+    EXPECT_EQ(count("density collocation (Hartree + XC raster)"), 1u);
 
     const qchem::report::json* run=nullptr;
     for (auto it=qchem::report::GlobalReport().begin(); it!=qchem::report::GlobalReport().end(); ++it)

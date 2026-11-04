@@ -16,7 +16,6 @@ module qchem.BasisSet.Lattice.BasisSet;
 import qchem.RunPolicy;   // theRunPolicy().StreamFold() -- the T3.2 fold, declared with the deviations (N5)
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;     // Gaussian::GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
-import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator; // Gaussian::GPW_Evaluator (the shared grid face the mixed EmitGpwGrids visit casts to)
 import qchem.BasisSet.Orbital_1E_IBS;         // Real_OIBS (the molecular orbital block -- the stream-fold cross-cast)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;  // SetStreamSymmetryOps (the T3 route (b) stream fold, §6b)
 import qchem.Reporting;                        // route the grid diagnostic into the run report when one is open
@@ -122,7 +121,6 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
 {
     const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
-    const Gaussian::GPW_Evaluator* first=nullptr;   // the shared evaluator base -- serves ReportGrids for EITHER block scalar
     // The run's imposition: HANDED IN (the facade resolves one per geometry point) or resolved here from the same options.  A
     // handed-in one must have been resolved from THESE options -- two disagreeing statements of the policy are refused, never
     // silently reconciled.
@@ -202,18 +200,14 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
                                     mol, ladder, p.images,  // mol and the ladder shared across k-blocks
                                     ops.directDensity,    // {W|τ} = the IBZ raster star ops
                                     p.tol);               // the typed GPW tolerances (D-ENV step 5)
-            if (!first) first=b;
             Insert(b);
         };
         if (p.hamPreservesReal && irrep->IsReal()) build.template operator()<double>();
         else                                       build.template operator()<dcmplx>();
     }
-    // GRID DIAGNOSTIC (doc/GPWPlan §0e): every stored grid, once per run.  When a run report is open the
-    // orchestrator now emits grids EXPLICITLY (EmitGpwGrids) AFTER its conditioning pre-flight, so a singular
-    // basis aborts before the grid ladder is ever built (fail-fast -- the report surfaced that building grids
-    // here forced EnsureLevels before the eigen-analysis could veto the basis).  So only the legacy unbracketed
-    // console path stays here; ReportGrids also forces the grid build, which is exactly what we must NOT do early.
-    if (first && report::Depth() == 0) first->ReportGrids(std::cout);
+    // GRID DIAGNOSTIC (doc/GPWPlan §0e): every stored grid, once per basis.  When a run report is open the orchestrator emits grids
+    // EXPLICITLY (EmitGpwGrids) AFTER its conditioning pre-flight; only the legacy unbracketed console path stays here.
+    if (!blocks.empty() && report::Depth() == 0) ladder->PrintGrids(std::cout, mol->GetNumFunctions(), ops.directDensity);
     // The Shubnikov PAIR projection: only where every op maps the one block onto itself with no Bloch phase -- a magnetic
     // imposition of a single Γ block.  That rule is the imposition's now (CrystalImposition::SpinPairOps), and the projection is
     // Symmetry::ProjectSpinPair over the block's own DenseRepresentation (V-BS-SYMMETRY S3).
@@ -223,60 +217,29 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
 
 
 std::shared_ptr<const Gaussian::GpwRasterLadder> MakeRasterLadder(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                                                                  const GPWParams& p)
+                                                                  const GPWParams& p, double ppSharpness)
 {
     if (!mol) throw std::invalid_argument("MakeRasterLadder: no molecular basis");
-    return Gaussian::MakeRasterLadder(lat.GetUnitCell(), *mol, LadderInputs(p));
+    return Gaussian::MakeRasterLadder(lat.GetUnitCell(), *mol, LadderInputs(p), ppSharpness);
 }
 
-void EmitGpwGrids(const Complex_BS& bs)
+void EmitGpwGrids(const Gaussian::GpwRasterLadder& ladder, const BasisSet::Real_BS& mol, const CrystalImposition& imp)
 {
-    // The grids are k-independent, so the first GPW block speaks for all (and forces EnsureLevels HERE --
-    // after the pre-flight, so a vetoed basis never reaches this).  MIXED-AWARE (Step 3c-2): walk the
-    // typed child slot -- the evaluator face is shared by both block scalars, so one generic visit serves.
-    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
-    assert(imp && "EmitGpwGrids: the periodic basis set must be a BasisSetImp");
-    for (size_t i=0;i<bs.GetNumIBS();++i)
-    {
-        const bool done=std::visit([&](const auto& b)
-        {
-            if (auto* ev=dynamic_cast<const Gaussian::GPW_Evaluator*>(b.get())) { ev->EmitGridsReport(); return true; }
-            return false;
-        }, imp->GetChild(i));
-        if (done) return;
-    }
+    if (report::Depth()==0) return;
+    ladder.ReportGrids(imp.directDensity);
+    // The lattice-sum economy readout (grids.latticeSums + the [lattice sums] console line): the numbers that JUMP when diffuse
+    // functions are added -- the owner of the screens (the molecular basis's orbital block) reports them.
+    for (auto ibs : mol.Iterate<BasisSet::Real_OIBS>())
+        if (const auto* lat=dynamic_cast<const Gaussian::LatticeSum1E*>(ibs)) { lat->EmitLatticeSumReport(*imp.cell); break; }   // abstract -> abstract
 }
 
-std::optional<Gaussian::RasterExponents> GpwRasterExponents(const Complex_BS& bs)
+//! Every block of \a bs, at its CONSTRUCTED scalar (doc/RealComplexPlan.md Step 3c-2): the cross-scalar real view FIRST, else the
+//! same-scalar block -- the mixed-aware walk the abstract face documents, so no caller downcasts to the concrete container.
+template <class F> void ForEachBlock(const Complex_BS& bs, F&& f)
 {
-    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
-    assert(imp && "GpwRasterExponents: the periodic basis set must be a BasisSetImp");
     for (size_t i=0;i<bs.GetNumIBS();++i)
-    {
-        std::optional<Gaussian::RasterExponents> x=std::visit([&](const auto& b)->std::optional<Gaussian::RasterExponents>
-        {
-            if (auto* ev=dynamic_cast<const Gaussian::GPW_Evaluator*>(b.get())) return ev->DeliveredRasterExponents();
-            return std::nullopt;
-        }, imp->GetChild(i));
-        if (x) return x;
-    }
-    return std::nullopt;
-}
-
-std::vector<Gaussian::RasterVerdict> GpwRasterVerdicts(const Complex_BS& bs)
-{
-    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
-    assert(imp && "GpwRasterVerdicts: the periodic basis set must be a BasisSetImp");
-    for (size_t i=0;i<bs.GetNumIBS();++i)
-    {
-        std::optional<std::vector<Gaussian::RasterVerdict>> v=std::visit([&](const auto& b)->std::optional<std::vector<Gaussian::RasterVerdict>>
-        {
-            if (auto* ev=dynamic_cast<const Gaussian::GPW_Evaluator*>(b.get())) return ev->DeliveredRasterVerdicts();
-            return std::nullopt;
-        }, imp->GetChild(i));
-        if (v) return *v;
-    }
-    return {};
+        if (const auto* r=bs.GetRealIBS(i)) f(r);
+        else                                f(bs[i]);
 }
 
 size_t VetGpwConditioning(const Complex_BS& bs)
@@ -286,74 +249,65 @@ size_t VetGpwConditioning(const Complex_BS& bs)
     size_t total = 0;
     // MIXED-AWARE (Step 3c-2): one generic visit over the typed child slot serves both block scalars --
     // the eigen-analysis and the Cholesky drop detector are scalar-generic already.
-    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
-    assert(imp && "VetGpwConditioning: the periodic basis set must be a BasisSetImp");
-    for (size_t i=0;i<bs.GetNumIBS();++i)
-        std::visit([&](const auto& b)
+    ForEachBlock(bs, [&](const auto* b)
+    {
+        const auto& S = b->Overlap();                 // ANALYTIC Bloch overlap -- no grids needed
+        using U=typename std::decay_t<decltype(S)>::ElementType;
+        const std::string label = b->GetSymmetry().GetLabel();   // the block's SPATIAL label (k-point)
         {
-            const auto& S = b->Overlap();                 // ANALYTIC Bloch overlap -- no grids needed
-            using U=typename std::decay_t<decltype(S)>::ElementType;
-            const std::string label = b->GetSymmetry().GetLabel();   // the block's SPATIAL label (k-point)
-            {
-                rpt::Row row("perIrrep");
-                rpt::Set("irrep",      label);
-                rpt::Set("nFunctions", (long)b->GetNumFunctions());
-                rpt::Set("real",       b->IsReal());   // TRIM fact from the irrep (doc/RealComplexPlan.md Step 1)
-                rpt::Set("runsReal",   std::is_same_v<U,double>);   // the block's CONSTRUCTED scalar (3c-3 evidence)
-                rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);      // ascending eigenvalues of the Hermitian S
-                const double mn = d[0], mx = d[d.size()-1];
-                double msv = std::fabs(d[0]); for (double v : d) msv = std::min(msv, std::fabs(v));
-                rpt::Set("lambdaMin", mn);
-                rpt::Set("lambdaMax", mx);
-                rpt::Set("cond", msv > 0 ? mx/msv : 0.0);
-            }
-            for (size_t idx : qchem::PivotedCholeskyDrops<U>(S))     // redundant AOs (empty on a healthy basis)
-            {
-                rpt::Row r("removed");
-                rpt::Set("irrep", label);
-                rpt::Set("index", (long)idx);
-                ++total;
-            }
-        }, imp->GetChild(i));
+            rpt::Row row("perIrrep");
+            rpt::Set("irrep",      label);
+            rpt::Set("nFunctions", (long)b->GetNumFunctions());
+            rpt::Set("real",       b->IsReal());   // TRIM fact from the irrep (doc/RealComplexPlan.md Step 1)
+            rpt::Set("runsReal",   std::is_same_v<U,double>);   // the block's CONSTRUCTED scalar (3c-3 evidence)
+            rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);      // ascending eigenvalues of the Hermitian S
+            const double mn = d[0], mx = d[d.size()-1];
+            double msv = std::fabs(d[0]); for (double v : d) msv = std::min(msv, std::fabs(v));
+            rpt::Set("lambdaMin", mn);
+            rpt::Set("lambdaMax", mx);
+            rpt::Set("cond", msv > 0 ? mx/msv : 0.0);
+        }
+        for (size_t idx : qchem::PivotedCholeskyDrops<U>(S))     // redundant AOs (empty on a healthy basis)
+        {
+            rpt::Row r("removed");
+            rpt::Set("irrep", label);
+            rpt::Set("index", (long)idx);
+            ++total;
+        }
+    });
     return total;
 }
 
 double MinOverlapEigenvalue(const Complex_BS& bs)
 {
-    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
-    assert(imp && "MinOverlapEigenvalue: the periodic basis set must be a BasisSetImp");
     double lmin=1e300;
-    for (size_t i=0;i<bs.GetNumIBS();++i)
-        std::visit([&](const auto& b)
-        {
-            const auto& S = b->Overlap();
-            using U=typename std::decay_t<decltype(S)>::ElementType;
-            rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);   // ascending
-            lmin=std::min(lmin, d[0]);
-        }, imp->GetChild(i));
+    ForEachBlock(bs, [&](const auto* b)
+    {
+        const auto& S = b->Overlap();
+        using U=typename std::decay_t<decltype(S)>::ElementType;
+        rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);   // ascending
+        lmin=std::min(lmin, d[0]);
+    });
     return lmin;
 }
 
 void PrintGpwConditioning(const Complex_BS& bs)
 {
-    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
-    assert(imp && "PrintGpwConditioning: the periodic basis set must be a BasisSetImp");
     double lminWorst=1e300, condWorst=0.0, lmaxBest=0.0;
     std::string lminAt, condAt;
-    for (size_t i=0;i<bs.GetNumIBS();++i)
-        std::visit([&](const auto& b)
-        {
-            const auto& S = b->Overlap();
-            using U=typename std::decay_t<decltype(S)>::ElementType;
-            rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);
-            const double mn=d[0], mx=d[d.size()-1];
-            double msv=std::fabs(d[0]); for (double v : d) msv=std::min(msv, std::fabs(v));
-            const double cond=msv>0 ? mx/msv : 1e300;
-            const std::string label=b->GetSymmetry().GetLabel();
-            if (mn<lminWorst)    { lminWorst=mn;    lminAt=label; }
-            if (cond>condWorst)  { condWorst=cond;  condAt=label; }
-            lmaxBest=std::max(lmaxBest, mx);
-        }, imp->GetChild(i));
+    ForEachBlock(bs, [&](const auto* b)
+    {
+        const auto& S = b->Overlap();
+        using U=typename std::decay_t<decltype(S)>::ElementType;
+        rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);
+        const double mn=d[0], mx=d[d.size()-1];
+        double msv=std::fabs(d[0]); for (double v : d) msv=std::min(msv, std::fabs(v));
+        const double cond=msv>0 ? mx/msv : 1e300;
+        const std::string label=b->GetSymmetry().GetLabel();
+        if (mn<lminWorst)    { lminWorst=mn;    lminAt=label; }
+        if (cond>condWorst)  { condWorst=cond;  condAt=label; }
+        lmaxBest=std::max(lmaxBest, mx);
+    });
     std::cout<<"[basis cond] "<<bs.GetNumIBS()<<" k-block(s): min eig S = "<<lminWorst<<" ("<<lminAt
              <<"), max cond(S) = "<<condWorst<<" ("<<condAt<<"), max eig S = "<<lmaxBest<<std::endl;
 }

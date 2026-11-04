@@ -20,7 +20,6 @@
 module;
 #include <cstddef>
 #include <functional>
-#include <iosfwd>    // std::ostream (ReportGrids -- the grid diagnostic print)
 #include <map>       // std::map<int,chmat_t> (MakeSeparablePPByL, the per-l KB diagnostic)
 #include <memory>
 #include <string>
@@ -186,24 +185,8 @@ public:
     //! (N is never a physics dial — the 5-smooth flip re-pinned nothing).
     const PlaneWave::PW_Grid_Evaluator& DensityGrid() const {return *itsFFT_R_G_Grids;}
 
-    //! \brief GRID DIAGNOSTIC (doc/GPWPlan §0e): the orbital-basis exponent line (\f$\alpha_{\min}/\alpha_{\max}\f$,
-    //! \c cutoffFactor -- so the \f$C\cdot\alpha_{\max}\f$ grid policy is visible) followed by one line per STORED
-    //! grid -- the FFT \f$\{r\}\leftrightarrow\{G\}\f$ density grid and every REL_CUTOFF ladder level (base
-    //! sub-ladder = the local-PP integration grids; top completion rung flagged) -- each with FFT divisions
-    //! \f$N\f$, \c Ecut, \f$n_G\f$ and the spectral extent \f$|G|_{\min}/|G|_{\max}\f$.  Printed at the start of
-    //! every run (the basis-set ctor) so GPW's grids can be lined up against CP2K's \c &MGRID log output.
-    void ReportGrids(std::ostream& os) const;
-    //! The run-report twin of \c ReportGrids: emit the `grids` section (densityEcut/cutoffFactor/raster + the
-    //! ladder rows + localPP) into the current run report.  Single-provider, so it builds the whole section
-    //! json and EmitSection()s it.  Call only when a run is open (report::Depth()>0 -- the ctor call site guards).
-    void EmitGridsReport() const;
-    //! The alias exponents this block's rasters deliver (\c RasterExponents; forces the ladder like \c EmitGridsReport).
-    RasterExponents DeliveredRasterExponents() const;
-    //! The grid-audit verdicts of this block's rasters, density first, then V_loc long's once its integrate-back has run (forces the ladder).
-    std::vector<RasterVerdict> DeliveredRasterVerdicts() const;
-    //! One diagnostic line for any stored grid (the per-grid piece of \c ReportGrids; also used by the
-    //! \c CreateCD/VxcFitBasisSet factories to print the fit grid they actually wrap).
-    static std::ostream& ReportGrid(std::ostream& os, const std::string& tag, const PlaneWave::PW_Grid_Evaluator& g);
+    // (The grid diagnostics -- the console lines, the run report's `grids` facts and audits, the delivered alias exponents -- are the
+    //  LADDER's: GpwRasterLadder::PrintGrids / ReportGrids / DeliveredRasterExponents / DeliveredRasterVerdicts, V-BS-RASTER.)
 
     //! Cache-key fragment: the molecular basis's ID + \f$k\f$ + translation count + the density-grid cutoff
     //! (the collocation tensor depends on the grid, so the framework cache key must pin it).

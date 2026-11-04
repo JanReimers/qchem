@@ -6,7 +6,9 @@
 // whole periodic table is available without hardcoded per-element factories.  See LocalPotential.C /
 // SeparablePotential.C for the analytic HGH forms these populate.
 module;
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 export module qchem.Pseudopotential.GTH_Potentials;
 export import qchem.Pseudopotential.LocalPotential;
@@ -36,5 +38,12 @@ GTH_PP GetGTH(const std::string& element, const std::string& functional="LDA", i
 //! Lets a driver choose valence-vs-semicore by policy (the DATABASE default is often the semicore, not the
 //! valence, so a valence-first tool must select explicitly).  Throws nothing.
 std::vector<int> GetGTHValences(const std::string& element, const std::string& functional="LDA");
+
+//! \brief The multi-species LOCAL pseudopotential of a cell: one GTH local per (element, valence) in \a species, keyed by atomic number.
+//! PUBLIC (it was Hamiltonians.C's file-local builder until 2026-11-03) because TWO clients must hold the SAME local: the periodic
+//! Hamiltonian's PP terms, and the GPW facade, which reads the local's sharpness off it to size the raster ladder (V-BS-RASTER:
+//! V_loc long's audit row is a pure function of the ladder and that sharpness).  One builder, so the two agree by construction.
+std::shared_ptr<const LocalPotential> MakeMultiSpeciesLocal(const std::vector<std::pair<std::string,int>>& species,
+                                                            const std::string& functional);
 
 } // namespace
