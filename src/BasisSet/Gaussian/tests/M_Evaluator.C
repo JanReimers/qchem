@@ -22,9 +22,9 @@ using BasisSet::Gaussian::PG_Cart::Orbital_IBS;
 TEST(M_Evaluator, kernels_match_IBS_integrals)
 {
     Molecule h2o;
-    h2o.Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));   // O on the C2 (z) axis
-    h2o.Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));
-    h2o.Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));
+    h2o.Insert(Site{8, rvec3_t(0, 0,      0.117)});   // O on the C2 (z) axis
+    h2o.Insert(Site{1, rvec3_t(0, 0.757, -0.467)});
+    h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});
 
     rvec_t exps{1.0, 0.25};
     Orbital_IBS ibs(exps, 1, &h2o);                          // s + p shells, 2 exponents each

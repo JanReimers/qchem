@@ -61,12 +61,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
 std::shared_ptr<const Structure> MoleculeSetup::PointStructure(const Structure& st) const
 {
     auto point = st.Clone();
-    if (pp)
-        for (size_t a=0; a<point->GetNumAtoms(); a++)
-        {
-            Atom* atom = (*point)[a];
-            atom->itsCharge = double(atom->itsZ - pp->Valence(thePeriodicTable().GetSymbol(atom->itsZ)));   // net charge = Z - Zion
-        }
+    if (pp) point->SetNetCharges([this](int Z){return double(Z - pp->Valence(thePeriodicTable().GetSymbol(Z)));});   // net charge = Z - Zion
     return point;
 }
 

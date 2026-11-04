@@ -92,7 +92,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
 {
     // Basis-MATCHED reference: the SAME SIPP Gaussian basis + GTH-LDA PP as a finite molecule (density-fit
     // Hartree, Becke XC).  This is the tight cross-check: GPW-in-box == finite molecular DFT (doc/GPWPlan sec 3.4).
-    Molecule si; si.Insert(new Atom(14, 0.0, {0,0,0}));
+    Molecule si; si.Insert(Site{14, {0,0,0}});
     // The finite twin at kT 1e-2 (2026-10-31): its degenerate 3p^2 has no integer-aufbau fixed point either -- it "converged"
     // unsmeared only while the fit bases lacked their D shells (a spherical Hartree).  Compared on its INTERNAL energy, which is
     // what an integer-occupation box approaches (PySCF, the same basis/PP/Coulomb fit: -3.743668).
@@ -147,7 +147,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
 // (measured) -- the honest recipe is "smear wider than the frontier splitting you are curing".
 TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
 {
-    Molecule si; si.Insert(new Atom(14, 0.0, {0,0,0}));
+    Molecule si; si.Insert(Site{14, {0,0,0}});
     // The finite twin at the SAME kT 1e-2 (2026-10-31), so free energy compares with free energy (see Γ_Uni_Imp_eqFinite above).
     MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .pp = "gth-lda-valence"}), SCFParams{.SmearingkT = 1e-2});
     ASSERT_TRUE(cSipp.Result());
@@ -245,7 +245,7 @@ TEST(GPW_NaBox, Γ_Imp_M2_eqFinite)
     // the valence_lowq bases' convention.  (The Slater/High atom path is NOT a good oracle here: Slater
     // functions fit the smooth nodeless pseudo-orbitals poorly -- same reason the Si gate anchors on the
     // basis-matched sipp facade run.)
-    Molecule na; na.Insert(new Atom(11, 0.0, {0,0,0}));
+    Molecule na; na.Insert(Site{11, {0,0,0}});
     MoleculeCalculation cRef(MoleculeSetup::Resolve(na, {.basis="valence_lowq_sr", .multiplicity=2, .pp="gth-lda-valence"}));
     const double Eref=cRef.Energy();
     std::cout << "[Na finite] valence_lowq_sr LSDA doublet (q1)="<<Eref<<std::endl;
@@ -278,8 +278,8 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
 {
     const double d=2.282;   // O2 bond (au)
     Molecule o2mol;
-    o2mol.Insert(new Atom(8, 0.0, {-d/2,0,0}));
-    o2mol.Insert(new Atom(8, 0.0, { d/2,0,0}));
+    o2mol.Insert(Site{8, {-d/2,0,0}});
+    o2mol.Insert(Site{8, { d/2,0,0}});
     // The finite twin is the δ route (2026-10-31; the molecular default since, stated here anyway): no Vxc fit, like the GPW it is
     // compared with.  With the fit bases' D shells back it is PySCF's A1_coul J-fit value (-29.999454) and within ~0.7 mHa of the
     // box (CP2K -29.998761); the auxiliary (A1) route sits ~0.1 Ha above it on this soft basis.
@@ -434,7 +434,7 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     //  env switches are retired (D-ENV 6d.4), so this gate runs the Cartesian SR arm; the spherical arm is a deck with basis.spherical.)
     const bool spherical=false;
     const bool sphBasis =false;
-    Molecule mnmol; mnmol.Insert(new Atom(25, 0.0, {0,0,0}));
+    Molecule mnmol; mnmol.Insert(Site{25, {0,0,0}});
     // The finite twin is the δ route (2026-10-31; the molecular default since, stated here anyway): no Vxc fit, like the GPW.  With
     // the fit bases' D shells back it lands 1.5 mHa from the box at its auto cutoff and 0.03 mHa from the box's converged-cutoff
     // value (-14.63650); the auxiliary (A1) route sits 35 mHa above (the A1 Vxc fit on this sextet).

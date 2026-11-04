@@ -137,7 +137,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     assert(k>=0);
 
     std::vector<rvec3_t> R;
-    for (auto a : cell) R.push_back(a->itsR);
+    for (const Site& a : cell.Sites()) R.push_back(a.R);
     const size_t natom=R.size();
     assert(natom>0);
 
@@ -500,7 +500,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
     }
 
     std::vector<rvec3_t> F;                         // fractional atom sites
-    for (auto a : *this) F.push_back(ToFractional(a->itsR));
+    for (const Site& a : Sites()) F.push_back(ToFractional(a.R));
     SL::Fold af = SL::FoldPointsPeriodic(F, ops, 1e-6);   // atom orbits + the rep->partner edge ops
 
     const Matrix3D<double>& A = GetCellMatrix();
@@ -523,12 +523,12 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
         const rvec3_t r0 = ToCartesian(fr);
         std::vector<std::pair<double,rvec3_t>> nb;
         double dmin = 1e300;
-        for (auto a : *this)
+        for (const Site& a : Sites())
             for (int i = -1; i <= 1; ++i)
                 for (int j = -1; j <= 1; ++j)
                     for (int k = -1; k <= 1; ++k)
                     {
-                        rvec3_t dR = a->itsR + ToCartesian(rvec3_t(i,j,k)) - r0;
+                        rvec3_t dR = a.R + ToCartesian(rvec3_t(i,j,k)) - r0;
                         double  d  = norm(dR);
                         if (d < 1e-6) continue;          // the atom itself
                         nb.push_back({d, dR/d});
@@ -687,9 +687,7 @@ rvec3_t UnitCell::ToFractional(const rvec3_t& r) const
 
 void UnitCell::AddAtom(int Z, const rvec3_t& f, bool spinFlip)
 {
-    Atom* a = new Atom(Z, ToCartesian(f)); // store in Cartesian a.u. (r = A f)
-    a->itsSpinFlip = spinFlip;             // collinear -m sublattice bit (spin-SAD assembly; see Structure.C)
-    Insert(a);
+    Insert(Site{Z, ToCartesian(f), 0.0, spinFlip});   // Cartesian a.u. (r = A f); spinFlip = the collinear -m sublattice bit
 }
 
 // FCC primitive cell: columns are the half-face-diagonal lattice vectors (h = a/2); |det A| = a^3/4.
@@ -798,7 +796,7 @@ UnitCell BravaisCell(Bravais type, const LatticeParams& p, const Matrix3D<int>& 
 double UnitCell::IonIonEnergy(const std::function<double(int)>& zionOf) const
 {
     rvec_t q(GetNumAtoms());
-    for (size_t a=0; a<GetNumAtoms(); a++) q[a]=zionOf((*this)[a]->itsZ);
+    for (size_t a=0; a<GetNumAtoms(); a++) q[a]=zionOf(Sites()[a].Z);
     return EwaldEnergy(*this, q);
 }
 
@@ -806,7 +804,7 @@ double UnitCell::IonIonEnergy(const std::function<double(int)>& zionOf) const
 double UnitCell::G0Background(const std::function<double(int)>& f) const
 {
     double s=0;
-    for (auto a:*this) s+=f(a->itsZ);
+    for (const Site& a : Sites()) s+=f(a.Z);
     return s/GetCellVolume();
 }
 
@@ -894,10 +892,10 @@ UnitCell Supercell(const UnitCell& prim, const ivec3_t& n)
     for (int i=0; i<n.x; i++)
     for (int j=0; j<n.y; j++)
     for (int k=0; k<n.z; k++)
-        for (auto a : prim)
+        for (const Site& a : prim.Sites())
         {
-            const rvec3_t f=prim.ToFractional(a->itsR);
-            out.AddAtom(a->itsZ, rvec3_t((f.x+i)/n.x, (f.y+j)/n.y, (f.z+k)/n.z), a->itsSpinFlip);
+            const rvec3_t f=prim.ToFractional(a.R);
+            out.AddAtom(a.Z, rvec3_t((f.x+i)/n.x, (f.y+j)/n.y, (f.z+k)/n.z), a.spinFlip);
         }
     return out;
 }

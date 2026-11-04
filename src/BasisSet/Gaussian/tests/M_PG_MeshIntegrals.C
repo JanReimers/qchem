@@ -55,8 +55,8 @@ public:
     void InitMolecule()
     {
         Molecule* m=new Molecule();
-        m->Insert(new Atom(Z,0.0,Vector3D( 1.,0.,0.)));
-        m->Insert(new Atom(Z,0.0,Vector3D(-1.,0.,0.)));
+        m->Insert(Site{Z, Vector3D( 1.,0.,0.)});
+        m->Insert(Site{Z, Vector3D(-1.,0.,0.)});
         cl=m;
         bs=new PG_Cart::BasisSet(&reader,cl);        
     }

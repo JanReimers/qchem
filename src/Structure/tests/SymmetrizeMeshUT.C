@@ -419,7 +419,7 @@ TEST(SupercellSymmetry, DetectedOpSetIsAGroupOnNonPrimitiveCellsToo)
     {
         UnitCell cell=Supercell(prim, n);
         std::vector<SL::AtomSite> basis;
-        for (auto a : cell) basis.push_back(SL::AtomSite{14, cell.ToFractional(a->itsR), 0});
+        for (const Site& a : cell.Sites()) basis.push_back(SL::AtomSite{14, cell.ToFractional(a.R), 0});
         SL::SpaceGroup sg=SL::SpaceGroup::Detect(cell.GetCellMatrix(), basis);
 
         auto wrap=[](double x){double r=x-floor(x); return r<1.0?r:0.0;};

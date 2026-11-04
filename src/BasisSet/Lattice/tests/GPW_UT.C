@@ -137,7 +137,7 @@ struct FiniteRef
     FiniteRef()
         : mol(std::make_shared<Molecule>())
     {
-        mol->Insert(new Atom(14,{0,0,0}));
+        mol->Insert(Site{14, {0,0,0}});
         bs = MakeBasis(*mol);
         orb= OrbitalBlock<Real_OIBS>(*bs);
     }

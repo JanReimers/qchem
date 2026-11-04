@@ -13,9 +13,9 @@ TEST(M_Umbrella, FrontDoorViaUmbrella)
 {
     // Molecule / Atom / Vector3D  (qchem.Structure + qchem.Types, re-exported)
     Molecule water;
-    water.Insert(new Atom(8, 0, Vector3D<double>(0,  0.0,   0.0)));
-    water.Insert(new Atom(1, 0, Vector3D<double>(0,  1.431, 1.107)));
-    water.Insert(new Atom(1, 0, Vector3D<double>(0, -1.431, 1.107)));
+    water.Insert(Site{8, Vector3D<double>(0,  0.0,   0.0)});
+    water.Insert(Site{1, Vector3D<double>(0,  1.431, 1.107)});
+    water.Insert(Site{1, Vector3D<double>(0, -1.431, 1.107)});
 
     // qchem::MoleculeCalculation + CalcOptions designated init  (qchem.MoleculeCalculation, re-exported)
     qchem::MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.basis = "dzvp"}));

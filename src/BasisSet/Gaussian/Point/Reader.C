@@ -21,11 +21,11 @@ class Reader
 public:
     virtual ~Reader() {};
 
-    virtual GaussianRF*  ReadNext(const Atom&)      =0;
+    virtual GaussianRF*  ReadNext(const Site&)      =0;
     //! Position the reader at \a atom's entry.  THROWS when the file has no entry for that element: every
     //! caller goes on to ReadNext, so an absent element used to read the NEXT bytes as a shell (a garbage
     //! "angular-momentum label", 2026-10-21) -- an input error no basis construction can act on.
-    virtual void             FindAtom(const Atom&)      =0;
+    virtual void             FindAtom(const Site&)      =0;
     virtual std::vector<int> GetLs   (           ) const=0;
 };
 
@@ -44,10 +44,10 @@ struct ReadShell { std::unique_ptr<GaussianRF> rf; std::vector<int> Ls; };
 inline std::vector<ReadShell> ReadShells(Reader& bsr, const Structure& cl)
 {
     std::vector<ReadShell> out;
-    for (auto atom : cl)
+    for (const Site& site : cl.Sites())
     {
-        bsr.FindAtom(*atom);
-        while (std::unique_ptr<GaussianRF> rf{bsr.ReadNext(*atom)})
+        bsr.FindAtom(site);
+        while (std::unique_ptr<GaussianRF> rf{bsr.ReadNext(site)})
         {
             const std::vector<int> newLs=bsr.GetLs();
             bool duplicate=false;

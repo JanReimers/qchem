@@ -154,9 +154,9 @@ private:
 std::shared_ptr<const Structure> Water()     // M_Calculation's geometry, bohr
 {
     auto w=std::make_shared<Molecule>();
-    w->Insert(new Atom(8, 0, Vector3D<double>(0,  0.0,   0.0)));
-    w->Insert(new Atom(1, 0, Vector3D<double>(0,  1.431, 1.107)));
-    w->Insert(new Atom(1, 0, Vector3D<double>(0, -1.431, 1.107)));
+    w->Insert(Site{8, Vector3D<double>(0,  0.0,   0.0)});
+    w->Insert(Site{1, Vector3D<double>(0,  1.431, 1.107)});
+    w->Insert(Site{1, Vector3D<double>(0, -1.431, 1.107)});
     return w;
 }
 

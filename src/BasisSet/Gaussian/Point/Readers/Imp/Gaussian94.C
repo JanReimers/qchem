@@ -99,11 +99,11 @@ inline void trim(std::string &s) {
 //
 //  Search for an atom
 //
-void Gaussian94Reader::FindAtom(const Atom& theAtom)
+void Gaussian94Reader::FindAtom(const Site& theAtom)
 {
     char atom[3];
     atom[2]=0;
-    std::string sym=thePeriodicTable().GetSymbol(theAtom.itsZ);
+    std::string sym=thePeriodicTable().GetSymbol(theAtom.Z);
     std::transform(sym.begin(), sym.end(),sym.begin(), ::toupper);
 
 
@@ -126,8 +126,8 @@ void Gaussian94Reader::FindAtom(const Atom& theAtom)
     }
 
     if (itsStream.eof())
-        throw std::runtime_error("Gaussian94Reader: element "+thePeriodicTable().GetSymbol(theAtom.itsZ)+" (Z="
-            +std::to_string(theAtom.itsZ)+") has no entry in the basis-set data file '"+itsFilename+"'.");
+        throw std::runtime_error("Gaussian94Reader: element "+thePeriodicTable().GetSymbol(theAtom.Z)+" (Z="
+            +std::to_string(theAtom.Z)+") has no entry in the basis-set data file '"+itsFilename+"'.");
     int charge;
     itsStream >> charge; //I think this is the charge?  Anyway we don't need it.
 }
@@ -138,7 +138,7 @@ void Gaussian94Reader::FindAtom(const Atom& theAtom)
 //  Returns a 0 pointer if there is nothing more to read.
 //  Assumes coefficients for all L's are the same.
 //
-GaussianRF* Gaussian94Reader::ReadNext(const Atom& atom)
+GaussianRF* Gaussian94Reader::ReadNext(const Site& atom)
 {
     int    nCont=0, MaxL;
     GaussianRF* ret=0;
@@ -162,16 +162,16 @@ GaussianRF* Gaussian94Reader::ReadNext(const Atom& atom)
     return ret;
 }
 
-GaussianRF* Gaussian94Reader::ReadPrimative(int maxL, const Atom& atom)
+GaussianRF* Gaussian94Reader::ReadPrimative(int maxL, const Site& atom)
 {
     assert(maxL>=0);
     double exponent,c;
     itsStream >> exponent;
     for (unsigned int l=0; l<itsLs.size(); l++) itsStream >> c; //These coeeficients should all be 1.0, and therefore ignored.
-    return new GaussianRF(exponent,atom.itsR,maxL);
+    return new GaussianRF(exponent,atom.R,maxL);
 }
 
-GaussianRF* Gaussian94Reader::ReadContracted(int nCont, int maxL, const Atom& atom)
+GaussianRF* Gaussian94Reader::ReadContracted(int nCont, int maxL, const Site& atom)
 {
     assert(nCont>0);
     assert(maxL>=0);
@@ -194,7 +194,7 @@ GaussianRF* Gaussian94Reader::ReadContracted(int nCont, int maxL, const Atom& at
     }
     rvec_t coeffs(nCont);
     for (int i=0; i<nCont; ++i) coeffs[i] = coeff(i,0);
-    return new GaussianRF(coeffs, exponents, atom.itsR, maxL);
+    return new GaussianRF(coeffs, exponents, atom.R, maxL);
 }
 
 //

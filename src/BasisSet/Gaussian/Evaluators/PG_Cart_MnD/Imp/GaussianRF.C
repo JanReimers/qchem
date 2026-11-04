@@ -396,8 +396,8 @@ double PrimGaussian::Nuclear(const PrimGaussian* a, const PrimGaussian* b,
     assert(cl);
     const Ω& ab = findΩ(a->GetGData(), b->GetGData());
     RNLM R;
-    for (auto atom:*cl)
-        R.Add(RNLM(ab.Ltotal,ab.αₚ,ab.P-atom->itsR), -1.0*(atom->itsZ));
+    for (const Site& atom : cl->Sites())
+        R.Add(RNLM(ab.Ltotal,ab.αₚ,ab.P-atom.R), -1.0*(atom.Z));
 
     auto NLMs = Ω::GetNMLs(ab.Ltotal);
     const Polarization Pab = pa + pb;

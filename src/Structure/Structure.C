@@ -3,24 +3,71 @@ module;
 #include <vector>
 #include <memory>
 #include <functional>
+#include <cstddef>
 
 export module qchem.Structure;
 import qchem.Types;
 import qchem.Streamable;
-import qchem.Iterators;
 import qchem.Mesh;        // qcMesh::Mesh / MeshParams -- the real-space integration mesh a geometry produces
 
 namespace qchem {
 
-export class Atom;
+export class Structure;
 
 //----------------------------------------------------------------------------------------------
-//! We an abstract interface that works for Atoms, Moleculas and lattice structures.
-//! THis interface is used to implement Hamiltonian potentials for all three structures.
-//! We need to be able to iterate through a list of atoms.  For a single atom structure
-//! this means faking the iteration, which is a bit messy.
-//! Each structure needs to know how to create an efficient numerical integration mesh.
-//
+//! \brief One site, a plain VALUE: the storage unit of every site set and what a client reads (V-STRUCTURE-ISP F1).
+//! \a Z is the TRUE species (a pseudopotential maps it to Zion itself, never by editing Z); \a R the Cartesian
+//! position (a.u.); \a netCharge = Z - (electrons the site carries), 0 for a neutral atom (GetNumElectrons /
+//! GetNetCharge sum it); \a spinFlip the collinear magnetic-configuration flip bit: the spin-SAD seed ASSEMBLY swaps
+//! this site's stored (majority, minority) channel pair -- the -m sublattice of an AFM pattern (e.g. MnO AFM-II,
+//! doc/SCFSeedingPlan.md §10); everything spin-agnostic ignores it.  Aggregate, so `Site{Z, R}` builds one.
+export struct Site
+{
+    int     Z;
+    rvec3_t R         = {0,0,0};
+    double  netCharge = 0.0;
+    bool    spinFlip  = false;
+};
+
+//! \brief A read-only range over a structure's sites, for range-for: `for (const Site& s : st.Sites())`.  A VIEW: it
+//! must not outlive the structure.  Sites come in atom-index order (consumers build per-atom-parallel tables).
+export class SiteRange
+{
+public:
+    class iterator   // a full forward iterator, so range-for AND the C++20 <ranges> adaptors compose on Sites()
+    {
+    public:
+        using value_type      = Site;
+        using difference_type = std::ptrdiff_t;
+        iterator() = default;
+        const Site& operator* () const;
+        iterator&   operator++()                        {++itsI; return *this;}
+        iterator    operator++(int)                     {iterator t=*this; ++itsI; return t;}
+        bool        operator!=(const iterator& b) const {return itsI!=b.itsI;}
+        bool        operator==(const iterator& b) const {return itsI==b.itsI;}
+    private:
+        friend class SiteRange;
+        iterator(const Structure* s, size_t i) : itsS(s), itsI(i) {}
+        const Structure* itsS=nullptr;
+        size_t           itsI=0;
+    };
+    iterator    begin() const {return iterator(itsS,0);}
+    iterator    end  () const {return iterator(itsS,size());}
+    size_t      size () const;
+    const Site& operator[](size_t i) const;           //!< the i-th site, atom-index order
+private:
+    friend class Structure;
+    explicit SiteRange(const Structure& s) : itsS(&s) {}
+    static const Site& At(const Structure* s, size_t i);   //!< the friend door to Structure::GetSite
+    const Structure* itsS;
+};
+
+//----------------------------------------------------------------------------------------------
+//! \brief THE SITE SET: an abstract interface over Atom (one site), Molecule and UnitCell (V-STRUCTURE-ISP F1).
+//! Clients ASK: the sites (read-only, by value semantics -- no Atom* leaves this face), counts and charges, the
+//! geometry's own integration mesh, its own ion-ion energy and G = 0 background (F3).  On a NON-const clone they may
+//! MOVE the sites or SET their net charges (the clone-and-mutate pattern of the facades and setups).  Periodicity is
+//! not here: the box is the UnitCell's, the translations the Lattice's (F2).
 export class Structure
     : public virtual Streamable
 {
@@ -60,10 +107,11 @@ public:
     //! group itself (V-STRUCTURE-ISP F2 / V-BS-SYMMETRY), this becomes that group's question.
     virtual bool   HasTranslationSymmetry() const {return false;}
 
-    //! \brief Visit every atomic site as \c (Z,R,spinFlip) -- the assembly-level question seed and
-    //! magnetic-decoration code ask (V1.19).  A consumer that needs "which species, where, which magnetic
-    //! sublattice" states exactly that and stays off the concrete \c Atom's public fields; the storage
-    //! stays here.  Sites are visited in atom-index order (consumers build per-atom-parallel tables).
+    //! \brief The sites, read-only, in atom-index order (user ruling Q2: a by-value Site range).
+    SiteRange Sites() const {return SiteRange(*this);}
+
+    //! \brief Visit every atomic site as \c (Z,R,spinFlip) -- the callback form of \c Sites(), kept for its
+    //! existing callers (V1.19; user ruling Q2).  Sites are visited in atom-index order.
     void ForEachSite(const std::function<void(int Z, const rvec3_t& R, bool spinFlip)>& f) const;
 
     //! \brief The real-space integration mesh natural to this geometry, at resolution \a mp.  The mesh TYPE
@@ -76,29 +124,33 @@ public:
 
     virtual size_t GetAtomIndex(const rvec3_t&, double tol=0.0) const;
 
-    //  Element access and range-based iteration are built on the single
-    //  storage primitive GetAtom() below, so a concrete Structure is free to
-    //  store its atoms however it likes (Molecule keeps a vector, an Atom just
-    //  returns itself, a future periodic cell could synthesize them).
-    Atom* operator[](size_t i) const {return GetAtom(i);}
-    typedef IndexIterator<const Structure> const_iterator;
-    const_iterator begin() const {return const_iterator(this,0);}
-    const_iterator end  () const {return const_iterator(this,GetNumAtoms());}
+    //=== Mutators on a NON-const structure (clone-and-mutate); they act on the stored Sites ==========
+    //! \brief Move every site to \a R (Cartesian a.u., one per site, atom-index order) -- a geometry step or a
+    //! rigid shift on a cloned structure.
+    void MoveSites(const std::vector<rvec3_t>& R);
+    //! \brief Set each site's net charge from its species, \a netChargeOf(Z) -- a PP run's point structure carries
+    //! net charge Z - Zion (MoleculeSetup::PointStructure).
+    void SetNetCharges(const std::function<double(int Z)>& netChargeOf);
 
 protected:
-    virtual Atom* GetAtom(size_t) const=0; //The only storage-specific primitive.
+    friend class SiteRange;
+    //! The storage primitives every concrete site set provides (a Molecule's vector, an Atom's one site).
+    virtual const Site& GetSite(size_t i) const=0;
+    virtual       Site& GetSite(size_t i)      =0;    //!< the mutators' door; never public
 };
 
+//! \brief The ONE-SITE site set: an isolated atom (AtomCalculation's structure).  It holds one Site; a Molecule
+//! stores Sites, not Atoms (V-STRUCTURE-ISP F1: the old Atom was both a public-field record and a Structure).
 export class Atom
     : public Structure
 {
 public:
     Atom(int Z);
-    Atom(int Z, double charge);
+    Atom(int Z, double netCharge);
     Atom(int Z, const rvec3_t& R);
-    Atom(int Z, double charge, const rvec3_t& R);
-    //  Copy/move/assign are all defaulted: an Atom is now a plain value type
-    //  (no self-reference, no UniqueID), so it is freely relocatable.
+    Atom(int Z, double netCharge, const rvec3_t& R);
+    explicit Atom(const Site& s);
+    //  Copy/move/assign are all defaulted: an Atom is a plain value type.
 
     virtual std::shared_ptr<Structure> Clone() const override {return std::make_shared<Atom>(*this);}
     virtual size_t GetNumAtoms      () const override {return 1;}
@@ -109,35 +161,24 @@ public:
     virtual std::string   ID     () const override;
     virtual std::ostream& Write  (std::ostream&) const override;
 
-    int     itsZ;      //Atomic number.
-    double  itsCharge; //Net charge. Z-numElectrons.
-    rvec3_t itsR;      //Spatial position.
-    //! Collinear magnetic-configuration flip bit (doc/SCFSeedingPlan.md §10): the spin-SAD seed ASSEMBLY
-    //! swaps this site's stored (majority, minority) channel pair -- the -m sublattice of an AFM pattern
-    //! (e.g. MnO AFM-II).  Assembly-time data riding the structure (the MakeValenceStructure clone-and-
-    //! mutate pattern); everything spin-agnostic ignores it.  Non-collinear (an SU(2) rotation per site)
-    //! is the §4 generalization -- this bit is its collinear collapse.
-    bool    itsSpinFlip = false;
-
 protected:
-    //  An Atom is a one-element structure consisting of itself.
-    virtual Atom* GetAtom(size_t) const override {return const_cast<Atom*>(this);}
+    virtual const Site& GetSite(size_t) const override {return itsSite;}
+    virtual       Site& GetSite(size_t)       override {return itsSite;}
+private:
+    Site itsSite;
 };
 
+//! \brief A finite set of sites, stored BY VALUE (rule of zero: the vector copies, moves and destroys itself).
 export class Molecule
     : public virtual Structure
 {
 public:
     Molecule() {};
-    Molecule(const Structure& m);
-    Molecule(const Molecule& m) : Molecule(static_cast<const Structure&>(m)) {};
-    //  Owns its Atoms, so it needs a deep-copy assignment (rule of three);
-    //  copy-and-swap reuses the copy ctor and is self-assignment safe.
-    Molecule& operator=(Molecule m) {itsAtoms.swap(m.itsAtoms); return *this;}
-    virtual ~Molecule();
+    Molecule(const Structure& m);                     //!< copies \a m's sites (any site set)
     virtual std::shared_ptr<Structure> Clone() const override {return std::make_shared<Molecule>(*this);}
-    virtual void   Insert     (Atom* a);
-    virtual size_t GetNumAtoms() const override;
+    //! \brief Add a site (was Insert(Atom*) taking ownership of a raw new).
+    virtual void   Insert     (const Site& s);
+    virtual size_t GetNumAtoms() const override {return itsSites.size();}
 
     //! A molecule's integration mesh: the multi-centre Becke-partitioned grid.
     virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
@@ -145,11 +186,22 @@ public:
     virtual std::ostream& Write(std::ostream&) const override;
 
 protected:
-    virtual Atom* GetAtom(size_t i) const override {return itsAtoms[i];}
+    virtual const Site& GetSite(size_t i) const override {return itsSites[i];}
+    virtual       Site& GetSite(size_t i)       override {return itsSites[i];}
 
 private:
-    std::vector<Atom*> itsAtoms;
+    std::vector<Site> itsSites;
 };
+
+inline const Site& SiteRange::At(const Structure* s, size_t i) {return s->GetSite(i);}
+inline const Site& SiteRange::iterator::operator*() const      {return At(itsS,itsI);}
+inline size_t      SiteRange::size() const                     {return itsS->GetNumAtoms();}
+inline const Site& SiteRange::operator[](size_t i) const       {return At(itsS,i);}
+
+// One site's ID / console line -- the old Atom::ID / Atom::Write, shared by Atom and the multi-site Write/ID.
+// Module-INTERNAL (not exported).
+std::string   SiteID   (const Site&);
+std::ostream& WriteSite(std::ostream&, const Site&);
 
 // Becke fuzzy-Voronoi integration mesh for a finite structure -- the shared implementation behind
 // Atom::/Molecule::CreateIntegrationMesh.  Module-INTERNAL (NOT exported): callers use CreateIntegrationMesh,

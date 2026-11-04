@@ -212,7 +212,7 @@ TEST(ValenceBasisGen, ValenceLowqFileLoads)
 {
     using namespace qchem::BasisSet::Gaussian;
     auto nfun=[](int Z, BasisSetData d){
-        Molecule m; m.Insert(new Atom(Z, 0.0, {0,0,0}));
+        Molecule m; m.Insert(Site{Z, {0,0,0}});
         std::unique_ptr<qchem::BasisSet::Real_BS> bs(Factory(d, &m, Engine::MnD, Angular::Cartesian));
         return bs->GetNumFunctions();
     };
@@ -223,8 +223,8 @@ TEST(ValenceBasisGen, ValenceLowqFileLoads)
               << " sipp_sr="<<nfun(14,BasisSetData::SIPP_SR)<<")" << std::endl;
     EXPECT_EQ(nfun(13, BasisSetData::VALENCE_LOWQ), 21u);   // Al (valgen): 6 s + 5 p = 6 + 15 Cartesian
     Molecule naf;
-    naf.Insert(new Atom(9,  0.0, {0,0,0}));       // F
-    naf.Insert(new Atom(11, 0.0, {3,0,0}));       // Na
+    naf.Insert(Site{9, {0,0,0}});       // F
+    naf.Insert(Site{11, {3,0,0}});       // Na
     std::unique_ptr<qchem::BasisSet::Real_BS> bs(
         Factory(BasisSetData::VALENCE_LOWQ, &naf, Engine::MnD, Angular::Cartesian));
     std::cout << "[valence_lowq N] NaF total = " << bs->GetNumFunctions() << std::endl;

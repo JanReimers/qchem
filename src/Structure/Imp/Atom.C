@@ -28,30 +28,40 @@ Atom::Atom(int Z, const rvec3_t& R)
 {};
 
 Atom::Atom(int Z, double charge, const rvec3_t& R)
-    : itsZ(Z)
-    , itsCharge(charge)
-    , itsR(R)
+    : Atom(Site{Z,R,charge})
+{};
+
+Atom::Atom(const Site& s)
+    : itsSite(s)
 {
-    assert(itsZ>0);
-    assert(itsZ<150); //Maybe there is an island of stability at Z=140!!!!
+    assert(itsSite.Z>0);
+    assert(itsSite.Z<150); //Maybe there is an island of stability at Z=140!!!!
 };
 
 std::string Atom::ID() const
 {
-    std::ostringstream os;
-    os << "Z=" << itsZ << " R=" << itsR;
-    return os.str();
+    return SiteID(itsSite);
 }
 
 std::ostream& Atom::Write  (std::ostream& os) const
 {
+    return WriteSite(os,itsSite);
+}
+
+std::string SiteID(const Site& s)
+{
+    std::ostringstream os;
+    os << "Z=" << s.Z << " R=" << s.R;
+    return os.str();
+}
+
+std::ostream& WriteSite(std::ostream& os, const Site& s)
+{
     os.setf(std::ios::fixed,std::ios::floatfield);
-    os << std::setw(4) << itsZ << "    "
-    << std::setw(5) << std::setprecision(2) << itsR << "     ";
+    os << std::setw(4) << s.Z << "    "
+    << std::setw(5) << std::setprecision(2) << s.R << "     ";
     // os << std::endl; let the caller decide
     return os;
 }
-
-
 
 } // namespace qchem

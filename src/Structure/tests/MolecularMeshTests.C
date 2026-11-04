@@ -57,8 +57,8 @@ TEST(MolecularMesh, CoincidentDimerEqualsAtom)
     auto m1=a.CreateIntegrationMesh(mp);
 
     Molecule dimer;
-    dimer.Insert(new Atom(1,o));
-    dimer.Insert(new Atom(1,o));          // right on top of each other (R_ab = 0)
+    dimer.Insert(Site{1, o});
+    dimer.Insert(Site{1, o});          // right on top of each other (R_ab = 0)
     auto m2=dimer.CreateIntegrationMesh(mp);
 
     GaussAt g(o);
@@ -75,8 +75,8 @@ TEST(MolecularMesh, SeparatedDimerIsAdditive)
     rvec3_t RA(-8,0,0), RB(8,0,0);
 
     Molecule dimer;
-    dimer.Insert(new Atom(1,RA));
-    dimer.Insert(new Atom(1,RB));
+    dimer.Insert(Site{1, RA});
+    dimer.Insert(Site{1, RB});
     auto m=dimer.CreateIntegrationMesh(mp);
 
     TwoGauss f(RA,RB);
@@ -90,8 +90,8 @@ TEST(MolecularMesh, FarAtomDoesNotCorrupt)
     rvec3_t RA(-8,0,0), RB(8,0,0);
 
     Molecule dimer;
-    dimer.Insert(new Atom(1,RA));
-    dimer.Insert(new Atom(1,RB));
+    dimer.Insert(Site{1, RA});
+    dimer.Insert(Site{1, RB});
     auto m=dimer.CreateIntegrationMesh(mp);
 
     GaussAt g(RA);                        // localised on atom A only
@@ -199,7 +199,7 @@ public:
         for (auto n : cell.CellsInSphere(range))
         {
             rvec3_t L=cell.ToCartesian(rvec3_t(n.x,n.y,n.z));
-            for (auto a : cell) itsSites.push_back(a->itsR+L);
+            for (const Site& a : cell.Sites()) itsSites.push_back(a.R+L);
         }
     }
     double  operator()(const rvec3_t& r) const override
@@ -357,8 +357,8 @@ TEST(LatticeMesh, BeckeEquivalentSitesOwnEqualShares)
 TEST(MolecularMesh, TheMeshFilesItsFieldsOneLevelIntoTheCallersScope)
 {
     Molecule n2;
-    n2.Insert(new Atom(7, 0.0, rvec3_t(-1.03,0,0)));
-    n2.Insert(new Atom(7, 0.0, rvec3_t( 1.04,0,0)));
+    n2.Insert(Site{7, rvec3_t(-1.03,0,0)});
+    n2.Insert(Site{7, rvec3_t( 1.04,0,0)});
     namespace rpt=qchem::report;
     rpt::Begin("MolecularMeshReport", "2026-11-02T00:00:00");
     const qcMesh::Mesh a=[&]{ rpt::Scope s("callerA"); return n2.CreateIntegrationMesh(qcMesh::MeshParams{.nRadial=20, .angularDegree=5}); }();

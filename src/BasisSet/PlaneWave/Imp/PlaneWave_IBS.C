@@ -103,9 +103,9 @@ chmat_t PlaneWave_IBS::MakeProjectorMatrix(const Structure* cl, const SpeciesPro
     Internal::KPlusG kg(B, kFrac(), G);             // Cartesian k+G, |k+G|, and cos(gamma)
 
     int maxL=0;                                     // highest projector channel present
-    for (Atom* a : *cl)
-        for (size_t p=0; p<v.Count(a->itsZ); p++)
-            maxL=std::max(maxL, v.L(a->itsZ,p));
+    for (const Site& a : cl->Sites())
+        for (size_t p=0; p<v.Count(a.Z); p++)
+            maxL=std::max(maxL, v.L(a.Z,p));
 
     chmat_t V=blazem::zeroH<dcmplx>(n);
     for (size_t i=0; i<n; i++)
@@ -114,16 +114,16 @@ chmat_t PlaneWave_IBS::MakeProjectorMatrix(const Structure* cl, const SpeciesPro
             rvec3_t dG=B.ToCartesian(rvec3_t(G[i]-G[j]));
             rvec_t P=SpecialFunctions::LegendreP(maxL, kg.CosGamma(i,j));
             dcmplx acc(0.0);
-            for (Atom* a : *cl)
+            for (const Site& a : cl->Sites())
             {
                 double s=0.0;                       // Sum_p (2l+1)P_l(cos gamma) betã_p(q_i) D_p betã_p(q_j)
-                for (size_t p=0; p<v.Count(a->itsZ); p++)
+                for (size_t p=0; p<v.Count(a.Z); p++)
                 {
-                    int l=v.L(a->itsZ,p);
-                    s += (2*l+1)*P[l] * v.RadialQ(a->itsZ,p,kg.Norm(i))*v.Weight(a->itsZ,p)
-                                       *v.RadialQ(a->itsZ,p,kg.Norm(j));
+                    int l=v.L(a.Z,p);
+                    s += (2*l+1)*P[l] * v.RadialQ(a.Z,p,kg.Norm(i))*v.Weight(a.Z,p)
+                                       *v.RadialQ(a.Z,p,kg.Norm(j));
                 }
-                acc += s*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+                acc += s*std::exp(dcmplx(0.0,-(dG*a.R)));
             }
             V(i,j)=acc/Volume();
         }

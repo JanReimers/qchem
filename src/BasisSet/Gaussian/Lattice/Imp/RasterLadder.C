@@ -261,9 +261,9 @@ double LocalPPSharpness(const Structure& cl, const SpeciesRadialField& loc)
     // V_loc decays in G as e^{-G^2 rloc^2/2}: its effective Gaussian exponent is beta = 1/(2 rloc^2), the short-range Gaussian's alpha.
     double beta=0.0;
     if (const auto* gauss=dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc))   // abstract -> abstract
-        for (Atom* a : cl)
+        for (const Site& a : cl.Sites())
         {
-            const auto terms=gauss->AsGaussians(a->itsZ,FieldRange::Short);
+            const auto terms=gauss->AsGaussians(a.Z,FieldRange::Short);
             if (!terms.empty()) beta=std::max(beta, terms[0].alpha);   // alpha = 1/(2 rloc^2)
         }
     return beta;

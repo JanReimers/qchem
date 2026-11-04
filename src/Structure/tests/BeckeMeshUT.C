@@ -187,7 +187,7 @@ TEST(BeckeMesh, FreeSiteBlockIsItsOwnAtomsProductGridWrappedIntoTheCell)
     const rvec3vec_t dirs =qcMesh::MakeAngular(mp).Dirs();
     const std::vector<rvec3_t> L=LatticeBox(cell);
 
-    std::vector<rvec3_t> R; for (auto a : cell) R.push_back(a->itsR);
+    std::vector<rvec3_t> R; for (const Site& a : cell.Sites()) R.push_back(a.R);
     ASSERT_EQ(m.NSites(), R.size());
 
     for (size_t s=0; s<m.NSites(); ++s)
@@ -222,7 +222,7 @@ TEST(BeckeMesh, SiteBlockPointsDecomposeAboutTheirOwnAtomAndNoOther)
     const Mesh m=cell.CreateIntegrationMesh(mp);
     const rvec_t nodes=qcMesh::MakeRadial(mp).R();
     const std::vector<rvec3_t> L=LatticeBox(cell);
-    std::vector<rvec3_t> R; for (auto a : cell) R.push_back(a->itsR);
+    std::vector<rvec3_t> R; for (const Site& a : cell.Sites()) R.push_back(a.R);
 
     for (size_t s=0; s<m.NSites(); ++s)
         for (size_t b=0; b<R.size(); ++b)
@@ -247,7 +247,7 @@ TEST(BeckeMesh, ImposedSiteBlockDecomposesOntoTheRadialNodesOfItsOwnAtom)
     const Mesh m=cell.CreateIntegrationMesh(mp, Ops(cell));
     const rvec_t nodes=qcMesh::MakeRadial(mp).R();
     const std::vector<rvec3_t> L=LatticeBox(cell);
-    std::vector<rvec3_t> R; for (auto a : cell) R.push_back(a->itsR);
+    std::vector<rvec3_t> R; for (const Site& a : cell.Sites()) R.push_back(a.R);
     ASSERT_EQ(m.NSites(), R.size());
 
     for (size_t s=0; s<m.NSites(); ++s)
@@ -291,8 +291,8 @@ struct CellCompare
 CellCompare CompareSupercell(const UnitCell& prim, const UnitCell& sup, const Mesh& mP, const Mesh& mS)
 {
     CellCompare c;
-    std::vector<rvec3_t> RP; for (auto a : prim) RP.push_back(a->itsR);
-    std::vector<rvec3_t> RS; for (auto a : sup ) RS.push_back(a->itsR);
+    std::vector<rvec3_t> RP; for (const Site& a : prim.Sites()) RP.push_back(a.R);
+    std::vector<rvec3_t> RS; for (const Site& a : sup.Sites()) RS.push_back(a.R);
     EXPECT_EQ(mP.NSites(), RP.size());
     EXPECT_EQ(mS.NSites(), RS.size());
 
@@ -416,7 +416,7 @@ TEST(BeckeMesh, SupercellSiteBlocksCarryTheRightAtom)
     // diameter -- the own-atom assertion below is what proves the reach is enough.
     const std::vector<rvec3_t> L=LatticeBox(sup, 5);
 
-    std::vector<rvec3_t> R; for (auto a : sup) R.push_back(a->itsR);
+    std::vector<rvec3_t> R; for (const Site& a : sup.Sites()) R.push_back(a.R);
     ASSERT_EQ(m.NSites(), R.size());
     ASSERT_EQ(m.NSites(), 16u);
 

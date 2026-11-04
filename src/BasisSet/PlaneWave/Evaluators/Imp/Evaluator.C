@@ -179,7 +179,7 @@ void ReportFieldSpectrum(const ΔG_Map& m, const ReciprocalLattice& recip)
         rvec3_t dG=B.ToCartesian(rvec3_t(dm));
         double  g2=dG*dG;
         dcmplx  acc(0.0);                               // (form factor) x (structure factor)
-        for (Atom* a : *atoms) acc += formFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        for (const Site& a : atoms->Sites()) acc += formFactor(a.Z,g2)*std::exp(dcmplx(0.0,-(dG*a.R)));
         rho[dm]=acc/Volume();
     }
     return rho;
@@ -199,7 +199,7 @@ chmat_t PW_Evaluator::LocalPotentialMatrix(const Structure* cl,
         rvec3_t dG=B.ToCartesian(rvec3_t(dm));                    // dG = B.dm (Cartesian)
         double  g2=dG*dG;
         dcmplx  acc(0.0);                                         // (form factor) x (structure factor)
-        for (Atom* a : *cl) acc += formFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        for (const Site& a : cl->Sites()) acc += formFactor(a.Z,g2)*std::exp(dcmplx(0.0,-(dG*a.R)));
         return acc/Volume();
     });
 }

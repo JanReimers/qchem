@@ -46,8 +46,8 @@ TEST(GTH_Table, ReproducesSilicon)
     PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
 
     Molecule si;
-    si.Insert(new Atom(14, rvec3_t(0,0,0)));
-    si.Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+    si.Insert(Site{14, rvec3_t(0,0,0)});
+    si.Insert(Site{14, rvec3_t(0.25*a,0.25*a,0.25*a)});
 
     chmat_t Vref = pw.MakeSpeciesFieldMatrix(&si, ref_Si_local(), qchem::BasisSet::FieldRange::Full)
                  + pw.MakeProjectorMatrix(&si, ref_Si_nonlocal());

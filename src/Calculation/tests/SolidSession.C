@@ -55,7 +55,7 @@ std::shared_ptr<const SolidSetup> SiSetup(const std::vector<rvec3_t>* at=nullptr
 {
     const auto mat=Materials::Get("Si_diamond");
     UnitCell cell(*mat.cell);
-    if (at) for (size_t a=0;a<at->size();a++) cell[a]->itsR=(*at)[a];
+    if (at) cell.MoveSites(*at);
     return SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), kSiBasis, SiGamma(imposed, statedRasters));
 }
 } // namespace

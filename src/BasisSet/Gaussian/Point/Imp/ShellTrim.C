@@ -6,7 +6,7 @@ module;
 #include <vector>
 module qchem.BasisSet.Gaussian.Point.ShellTrim;
 import qchem.PeriodicTable;   // the element symbol in the report
-import qchem.Structure;       // Atom::itsZ
+import qchem.Structure;       // Site::Z
 
 namespace qchem::BasisSet::Gaussian
 {
@@ -39,13 +39,13 @@ std::ostream& ShellTrim::Write(std::ostream& os) const
 
 // Read the next shell the TRIM keeps.  A multi-l shell (SP) survives with its untrimmed Ls; a shell whose
 // every l is trimmed is skipped whole (the caller never sees it, so it is as if the file never held it).
-GaussianRF* TrimmingReader::ReadNext(const Atom& atom)
+GaussianRF* TrimmingReader::ReadNext(const Site& atom)
 {
     while (std::unique_ptr<GaussianRF> rf{itsInner.ReadNext(atom)})
     {
         const rvec_t ex=rf->GetExponents();
         itsLs.clear();
-        for (int l : itsInner.GetLs()) if (!itsTrim.Removes(atom.itsZ, l, ex)) itsLs.push_back(l);
+        for (int l : itsInner.GetLs()) if (!itsTrim.Removes(atom.Z, l, ex)) itsLs.push_back(l);
         if (!itsLs.empty()) return rf.release();   // the caller owns it, exactly as from the inner reader
     }
     itsLs.clear();

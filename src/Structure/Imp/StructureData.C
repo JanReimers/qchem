@@ -89,7 +89,7 @@ Molecule GetMolecule(const std::string& name)
     for (const auto& a : e.at("atoms"))
     {
         const json& r=a.at("xyz");
-        mol.Insert(new Atom(ZOf(a.at("el").get<std::string>()), 0.0, rvec3_t(r[0].get<double>(), r[1].get<double>(), r[2].get<double>())));
+        mol.Insert(Site{ZOf(a.at("el").get<std::string>()), rvec3_t(r[0].get<double>(), r[1].get<double>(), r[2].get<double>())});
     }
     return mol;
 }

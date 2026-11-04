@@ -45,7 +45,7 @@ std::filesystem::path HydrogenOnlyFile()
 TEST(Gaussian94Reader, AnElementThatIsInTheFileIsFoundAndRead)
 {
     Gaussian94Reader reader(HydrogenOnlyFile().string());
-    const Atom H(1, 0.0, Vector3D(0,0,0));
+    const Site H{1, Vector3D(0,0,0)};
     reader.FindAtom(H);
     std::unique_ptr<GaussianRF> rf{reader.ReadNext(H)};
     EXPECT_TRUE(rf) << "the H s shell";
@@ -55,7 +55,7 @@ TEST(Gaussian94Reader, AnElementThatIsNotInTheFileThrowsNamingTheElementAndTheFi
 {
     const auto file=HydrogenOnlyFile();
     Gaussian94Reader reader(file.string());
-    const Atom Ti(22, 0.0, Vector3D(0,0,0));
+    const Site Ti{22, Vector3D(0,0,0)};
     try
     {
         reader.FindAtom(Ti);
@@ -87,7 +87,7 @@ std::filesystem::path SharedExponentFile()
 
 TEST(Gaussian94Reader, ReadShellsKeepsEachLOfASharedExponent)
 {
-    Molecule m; m.Insert(new Atom(1, 0.0, Vector3D(0,0,0)));
+    Molecule m; m.Insert(Site{1, Vector3D(0,0,0)});
     Gaussian94Reader reader(SharedExponentFile().string());
     const auto sh=ReadShells(reader, m);
     ASSERT_EQ(sh.size(), 2u) << "the s and the p are two blocks";
@@ -102,8 +102,8 @@ TEST(Gaussian94Reader, ReadShellsKeepsEachLOfASharedExponent)
 TEST(Gaussian94Reader, TheFitBasesCarryEveryShellOfTheirFile)
 {
     Molecule n2;
-    n2.Insert(new Atom(7, 0.0, Vector3D(-1.03,0.0,0.0)));
-    n2.Insert(new Atom(7, 0.0, Vector3D( 1.04,0.0,0.0)));
+    n2.Insert(Site{7, Vector3D(-1.03,0.0,0.0)});
+    n2.Insert(Site{7, Vector3D( 1.04,0.0,0.0)});
     auto cartesianCount=[&](const std::string& file)
     {
         Gaussian94Reader reader(BasisFile(file));
@@ -125,7 +125,7 @@ TEST(Gaussian94Reader, TheFitBasesCarryEveryShellOfTheirFile)
 
 TEST(Gaussian94Reader, AnOrbitalBasisLoadsEveryShellOfASharedExponent)
 {
-    Molecule m; m.Insert(new Atom(1, 0.0, Vector3D(0,0,0)));
+    Molecule m; m.Insert(Site{1, Vector3D(0,0,0)});
     const std::string file=SharedExponentFile().string();
     auto count=[&](Engine e, Angular a)
     {
@@ -195,7 +195,7 @@ TEST(BasisNames, ABasisIsAFileStemAndEveryHandleNamesOneThatIsThere)
         EXPECT_NE(m.find("valence_lowq_tm"),   std::string::npos) << "the names that ARE there are listed: " << m;
     }
     // The json door resolves the same names: one H atom on the dzvp file, by stem.
-    Molecule m; m.Insert(new Atom(1, 0.0, Vector3D(0,0,0)));
+    Molecule m; m.Insert(Site{1, Vector3D(0,0,0)});
     std::unique_ptr<qchem::BasisSet::tBasisSet<double>> bs(Factory(nlohmann::json{{"basis","DZVP"}}, &m));
     EXPECT_GT(bs->GetNumFunctions(), 0u);
     EXPECT_THROW((void)Factory(nlohmann::json{{"basis","nope"}}, &m), std::runtime_error);

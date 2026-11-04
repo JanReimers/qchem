@@ -128,7 +128,7 @@ static void DumpRadialDensity(const ScalarFunction<double>& cd, int Z, int Nelec
 static Molecule MakeMolecule(const string& name)
 {
     Molecule m;
-    auto at=[&](int Z,double x,double y,double z){ m.Insert(new Atom(Z,0,rvec3_t(x,y,z))); };
+    auto at=[&](int Z,double x,double y,double z){ m.Insert(Site{Z, rvec3_t(x,y,z)}); };
     if      (name=="H2")  { at(1,0,0, 0.7005); at(1,0,0,-0.7005); }                 // 0.741 Å
     else if (name=="N2")  { at(7,0,0, 1.037 ); at(7,0,0,-1.037 ); }                 // 1.098 Å
     else if (name=="O2")  { at(8,0,0, 1.141 ); at(8,0,0,-1.141 ); }                 // 1.208 Å (triplet: --mult 3)

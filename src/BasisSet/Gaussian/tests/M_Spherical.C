@@ -199,8 +199,8 @@ TEST(M_Spherical, fit_kernels)
 TEST(M_SphericalView, sp_null_test)
 {
     Molecule mol;
-    mol.Insert(new Atom(8, 0, Vector3D<double>(0,0,0)));
-    mol.Insert(new Atom(8, 0, Vector3D<double>(0,0,1.8)));
+    mol.Insert(Site{8, Vector3D<double>(0,0,0)});
+    mol.Insert(Site{8, Vector3D<double>(0,0,1.8)});
     auto* cart=new qchem::BasisSet::Gaussian::PG_Cart::BasisSet;
     cart->Insert(new qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.5,1.7}, 1, &mol));
     std::shared_ptr<const qchem::BasisSet::Real_BS> cbs(cart);
@@ -228,8 +228,8 @@ TEST(M_SphericalView, sp_null_test)
 static void check_view_matches_native(size_t LMax)
 {
     Molecule mol;
-    mol.Insert(new Atom(25, 0, Vector3D<double>(0,0,0)));
-    mol.Insert(new Atom(25, 0, Vector3D<double>(0,0,2.1)));
+    mol.Insert(Site{25, Vector3D<double>(0,0,0)});
+    mol.Insert(Site{25, Vector3D<double>(0,0,2.1)});
     const rvec_t ex{0.8,2.4};
 
     auto* cart=new qchem::BasisSet::Gaussian::PG_Cart::BasisSet;
@@ -305,7 +305,7 @@ TEST(M_SphericalView, g_matches_native_family) { check_view_matches_native(4); }
 TEST(M_SphericalView, g_shell_keeps_nine_unit_components)
 {
     Molecule mol;
-    mol.Insert(new Atom(22, 0, Vector3D<double>(0,0,0)));
+    mol.Insert(Site{22, Vector3D<double>(0,0,0)});
     auto* cart=new qchem::BasisSet::Gaussian::PG_Cart::BasisSet;
     cart->Insert(new qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{1.2}, 4, &mol));
     std::shared_ptr<const qchem::BasisSet::Real_BS> cbs(cart);

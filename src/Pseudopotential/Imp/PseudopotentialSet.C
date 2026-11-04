@@ -102,7 +102,7 @@ std::vector<std::pair<std::string,int>> PseudopotentialSet::Species(const Struct
     std::vector<std::string> elements;
     for (size_t a=0; a<st.GetNumAtoms(); a++)
     {
-        const std::string el=thePeriodicTable().GetSymbol(st[a]->itsZ);
+        const std::string el=thePeriodicTable().GetSymbol(st.Sites()[a].Z);
         if (std::find(elements.begin(), elements.end(), el)==elements.end()) elements.push_back(el);
     }
     return Species(elements);

@@ -65,7 +65,7 @@ std::vector<AoShell> ExtractAoShells(const PGData& pg)
 std::vector<SymPoint> StructureToSymPoints(const Structure& atoms)
 {
     std::vector<SymPoint> pts;
-    for (auto atom : atoms) pts.push_back(SymPoint{atom->itsZ, atom->itsR});
+    for (const Site& atom : atoms.Sites()) pts.push_back(SymPoint{atom.Z, atom.R});
     return pts;
 }
 

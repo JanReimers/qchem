@@ -61,11 +61,11 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
 IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
-    for (auto atom:*cl)
+    for (const Site& atom:cl->Sites())
         for (size_t L=0;L<=LMax;L++)
             for (auto e:es)
             {
-                itsRadials.push_back(std::make_unique<GaussianRF>(e,atom->itsR,L));
+                itsRadials.push_back(std::make_unique<GaussianRF>(e,atom.R,L));
                 const GaussianRF* rp=itsRadials.back().get();
                 for (auto& terms:SphericalShell(L)) comps.push_back({rp, terms});
             }

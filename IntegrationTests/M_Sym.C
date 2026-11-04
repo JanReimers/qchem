@@ -114,9 +114,9 @@ static Molecule MakeWaterMoved(double a=0.7, double b=1.1, double c=0.3,
 {
     Vector3D<double> O(0,0,0), H1(0,1.431,1.107), H2(0,-1.431,1.107);
     Molecule w;
-    w.Insert(new Atom(8, 0, Rotate(O ,a,b,c)+T));
-    w.Insert(new Atom(1, 0, Rotate(H1,a,b,c)+T));
-    w.Insert(new Atom(1, 0, Rotate(H2,a,b,c)+T));
+    w.Insert(Site{8, Rotate(O ,a,b,c)+T});
+    w.Insert(Site{1, Rotate(H1,a,b,c)+T});
+    w.Insert(Site{1, Rotate(H2,a,b,c)+T});
     return w;
 }
 

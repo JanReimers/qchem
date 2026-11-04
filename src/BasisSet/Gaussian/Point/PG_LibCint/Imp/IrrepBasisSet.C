@@ -78,13 +78,13 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl, bool spherical)
 IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl, bool spherical)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN)), itsSpherical(spherical)
 {
-    for (auto atom:*cl)
+    for (const Site& atom:cl->Sites())
         for (size_t L=0;L<=LMax;L++)
         {
             std::vector<Polarization> Ps=MakePolarizations((int)L);
             for (auto e:es)
             {
-                Block* bfb=new Block(new GaussianRF(e,atom->itsR,(int)L));
+                Block* bfb=new Block(new GaussianRF(e,atom.R,(int)L));
                 for (auto& p:Ps) bfb->Add(p);
                 itsBlocks.push_back(std::unique_ptr<Block>(bfb));
             }

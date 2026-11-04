@@ -28,9 +28,9 @@ using SymmetryAdaptedBasisSet  = ::qchem::BasisSet::Gaussian::SymmetryAdaptedBas
 TEST(PGSymmetry, water_extract_and_SALCs)
 {
     Molecule h2o;
-    h2o.Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));   // O on the C2 (z) axis
-    h2o.Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));   // H
-    h2o.Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));   // H
+    h2o.Insert(Site{8, rvec3_t(0, 0,      0.117)});   // O on the C2 (z) axis
+    h2o.Insert(Site{1, rvec3_t(0, 0.757, -0.467)});   // H
+    h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});   // H
 
     rvec_t exps{1.0, 0.25};
     Orbital_IBS ibs(exps, 1, &h2o);                          // s + p shells, 2 exponents each
@@ -76,9 +76,9 @@ TEST(PGSymmetry, water_extract_and_SALCs)
 TEST(PGSymmetry, decorator_blocks_real_overlap)
 {
     Molecule h2o;
-    h2o.Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));
-    h2o.Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));
-    h2o.Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));
+    h2o.Insert(Site{8, rvec3_t(0, 0,      0.117)});
+    h2o.Insert(Site{1, rvec3_t(0, 0.757, -0.467)});
+    h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});
     rvec_t exps{1.0, 0.25};
     Orbital_IBS ibs(exps, 1, &h2o);
 
@@ -118,9 +118,9 @@ TEST(PGSymmetry, decorator_blocks_real_overlap)
 TEST(PGSymmetry, symmetry_adapted_basis_set)
 {
     Molecule h2o;
-    h2o.Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));
-    h2o.Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));
-    h2o.Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));
+    h2o.Insert(Site{8, rvec3_t(0, 0,      0.117)});
+    h2o.Insert(Site{1, rvec3_t(0, 0.757, -0.467)});
+    h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});
     rvec_t exps{1.0, 0.25};
     Orbital_IBS ibs(exps, 1, &h2o);
 
@@ -151,9 +151,9 @@ TEST(PGSymmetry, symmetry_adapted_basis_set)
 TEST(PGSymmetry, decorator_coulomb_matches_AO_slice)
 {
     Molecule h2o;
-    h2o.Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));
-    h2o.Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));
-    h2o.Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));
+    h2o.Insert(Site{8, rvec3_t(0, 0,      0.117)});
+    h2o.Insert(Site{1, rvec3_t(0, 0.757, -0.467)});
+    h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});
     rvec_t exps{1.0, 0.25};
     Orbital_IBS ibs(exps, 1, &h2o);
 
@@ -211,9 +211,9 @@ TEST(PGSymmetry, decorator_coulomb_matches_AO_slice)
 TEST(PGSymmetry, eri4_basis_rejects_a_substrate_free_partner)
 {
     Molecule h2o;
-    h2o.Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));
-    h2o.Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));
-    h2o.Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));
+    h2o.Insert(Site{8, rvec3_t(0, 0,      0.117)});
+    h2o.Insert(Site{1, rvec3_t(0, 0.757, -0.467)});
+    h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});
     rvec_t exps{1.0, 0.25};
     Orbital_IBS ibs(exps, 1, &h2o);
 

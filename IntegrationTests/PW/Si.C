@@ -90,8 +90,8 @@ TEST(PW_Si, Γ_Prototype_Converges)
     PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
 
     Molecule si;                                           // 2-atom diamond basis
-    si.Insert(new Atom(14, rvec3_t(0,0,0)));
-    si.Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+    si.Insert(Site{14, rvec3_t(0,0,0)});
+    si.Insert(Site{14, rvec3_t(0.25*a,0.25*a,0.25*a)});
 
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
     const HGH_LocalPotential&     loc=siPP.local;
@@ -152,8 +152,8 @@ TEST(PW_Si, Γ_eqPrototype)
     PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
 
     auto si=std::make_shared<Molecule>();
-    si->Insert(new Atom(14, rvec3_t(0,0,0)));
-    si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+    si->Insert(Site{14, rvec3_t(0,0,0)});
+    si->Insert(Site{14, rvec3_t(0.25*a,0.25*a,0.25*a)});
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
     const HGH_LocalPotential&     loc=siPP.local;
     const HGH_SeparablePotential& nl =siPP.nonlocal;
@@ -333,8 +333,8 @@ TEST(PW_Si, k222_Prototype_Converges)
     const double      Ecut=4.0;
 
     Molecule si;
-    si.Insert(new Atom(14, rvec3_t(0,0,0)));
-    si.Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+    si.Insert(Site{14, rvec3_t(0,0,0)});
+    si.Insert(Site{14, rvec3_t(0.25*a,0.25*a,0.25*a)});
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
     const HGH_LocalPotential&     loc=siPP.local;
     const HGH_SeparablePotential& nl =siPP.nonlocal;

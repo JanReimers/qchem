@@ -50,7 +50,7 @@ TEST(MoleculeSession, ACarriedStepEqualsAFreshRunAtTheNewPositionsInFewerIterati
     auto P1=pes.ConvergeAt(std::nullopt, R); ASSERT_TRUE(P1) << P1.Error().details;
 
     Molecule moved(h2o);
-    for (size_t a=0;a<R.size();a++) moved[a]->itsR=R[a];
+    moved.MoveSites(R);
     MoleculeCalculation fresh(MoleculeSetup::Resolve(moved, {.basis="dzvp"}), Tight());   // seeded from scratch at the new positions
     ASSERT_TRUE(fresh.IsConverged());
     EXPECT_NEAR(P1->energy, fresh.Energy(), 1e-8);

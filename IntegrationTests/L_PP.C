@@ -85,7 +85,7 @@ TEST(L_PP, LocalMatrixLatticeMatchesFinite)
 
     // Finite reference: Si at the origin, accurate atom-centred Becke mesh.
     auto fin = std::make_shared<Molecule>();
-    fin->Insert(new Atom(14, {0,0,0}));
+    fin->Insert(Site{14, {0,0,0}});
     auto bFin = MakeBasis(*fin);
     qcMesh::MeshParams mpFin;  mpFin.nRadial=70; mpFin.angularDegree=8;   // the 30-direction rule
 
@@ -113,7 +113,7 @@ TEST(L_PP, NonLocalMatrixLatticeMatchesFinite)
     auto sep = std::make_shared<const Pseudopotential::HGH_SeparablePotential>(gth.nonlocal);
 
     auto fin = std::make_shared<Molecule>();
-    fin->Insert(new Atom(14, {0,0,0}));
+    fin->Insert(Site{14, {0,0,0}});
     auto bFin = MakeBasis(*fin);
     qcMesh::MeshParams mpFin;  mpFin.nRadial=70; mpFin.angularDegree=8;   // the 30-direction rule
 
@@ -148,7 +148,7 @@ TEST(L_PP, NonLocalMatrixLatticeMatchesFinite)
 TEST(L_PP, FacadePreservesUnitCell)
 {
     // Finite reference through the facade: He at the origin (Enn = 0 for one atom -- no ion-ion pair).
-    Molecule he; he.Insert(new Atom(2, 0.0, {0,0,0}));
+    Molecule he; he.Insert(Site{2, {0,0,0}});
     MoleculeCalculation cFin(MoleculeSetup::Resolve(he, {.basis = "dzvp"}));
     EXPECT_FALSE(cFin.GetStructure().HasTranslationSymmetry());   // a Molecule stays finite
     EXPECT_NEAR(cFin.EnergyTerms()["Enn"], 0.0, 1e-12);      // single finite atom -> no ion-ion

@@ -117,7 +117,7 @@ TEST_P(A_PG_DFT, Energy)
     const PGCase c = GetParam();
     const auto& pt = thePeriodicTable();
     Molecule atom;
-    atom.Insert(new Atom(c.Z, 0.0, Vector3D<double>(0,0,0)));
+    atom.Insert(Site{c.Z, Vector3D<double>(0,0,0)});
     // A partly filled DEGENERATE shell (B 2p^1) needs a tiny smearing to converge: integer aufbau flipped the one p electron between the
     // three p orbitals and never converged (2026-10-29, the cap guard).  Since the fit bases keep their D shells (D-FIT-MERGE,
     // 2026-10-31) the Hartree is anisotropic, and the filled p splits off by >> kT: the run converges to ONE integer component (a pure

@@ -30,15 +30,15 @@ using namespace qchem;
 static Molecule MakeN2()
 {
     Molecule m;
-    m.Insert(new Atom(7, 0, Vector3D<double>(-1.03, 0, 0)));
-    m.Insert(new Atom(7, 0, Vector3D<double>( 1.04, 0, 0)));
+    m.Insert(Site{7, Vector3D<double>(-1.03, 0, 0)});
+    m.Insert(Site{7, Vector3D<double>( 1.04, 0, 0)});
     return m;
 }
 static Molecule MakeO2()         // O2 at the experimental bond length ~1.208 Ang = 2.282 bohr, along z
 {
     Molecule m;
-    m.Insert(new Atom(8, 0, Vector3D<double>(0, 0,  1.141)));
-    m.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.141)));
+    m.Insert(Site{8, Vector3D<double>(0, 0,  1.141)});
+    m.Insert(Site{8, Vector3D<double>(0, 0, -1.141)});
     return m;
 }
 
@@ -182,8 +182,8 @@ TEST(M_DFT, BadMultiplicityThrows)
 static Molecule MakeF2()   // ~/Code/cp2k-runs/F2 geometry (bohr)
 {
     Molecule m;
-    m.Insert(new Atom(9, 0, Vector3D<double>(0, 0, -1.3343)));
-    m.Insert(new Atom(9, 0, Vector3D<double>(0, 0,  1.3343)));
+    m.Insert(Site{9, Vector3D<double>(0, 0, -1.3343)});
+    m.Insert(Site{9, Vector3D<double>(0, 0,  1.3343)});
     return m;
 }
 

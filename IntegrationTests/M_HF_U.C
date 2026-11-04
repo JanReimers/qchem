@@ -22,8 +22,8 @@ using namespace qchem;
 static Molecule MakeN2()
 {
     Molecule m;
-    m.Insert(new Atom(7, 0, Vector3D<double>(-1.03, 0, 0)));
-    m.Insert(new Atom(7, 0, Vector3D<double>( 1.04, 0, 0)));
+    m.Insert(Site{7, Vector3D<double>(-1.03, 0, 0)});
+    m.Insert(Site{7, Vector3D<double>( 1.04, 0, 0)});
     return m;
 }
 #ifndef DEBUG

@@ -23,7 +23,7 @@ std::vector<int> IonicFormalCharges(const std::vector<std::pair<int,int>>& atoms
 
 //! \brief The COLLINEAR magnetic decoration of a structure -- Shubnikov S3, doc/SymmetryUpgradePlan.md
 //! §7 step 7: one label per atom, \f$\pm1\f$ = the site's majority-channel sign (the atom's
-//! \c itsSpinFlip bit), \f$0\f$ = non-magnetic.  MAGNETIC-OR-NOT follows the SEED's OWN resolution rule
+//! \c Site::spinFlip bit), \f$0\f$ = non-magnetic.  MAGNETIC-OR-NOT follows the SEED's OWN resolution rule
 //! (\c SeedCD): a SITE is magnetic iff the library carries a spin-resolved pair at its TARGET
 //! electron count (\a ionicNvalBySite entry, else the neutral valence count) -- so the decoration and the
 //! seed that plants the moments cannot drift apart.  Assembled HERE, beside that rule, and threaded to
@@ -66,7 +66,7 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //!
 //! \a polarized (the Hamiltonian's \c IsPolarized -- the SCFIterator passes it through) upgrades the
 //! plane-wave SAD/IonicSAD seeds to the TWO-CHANNEL \c PolarizedSeedCD (doc/SCFSeedingPlan.md §10): the
-//! library's per-species Hund pairs + the structure's per-atom \c itsSpinFlip bits assemble a genuinely
+//! library's per-species Hund pairs + the structure's per-atom \c Site::spinFlip bits assemble a genuinely
 //! spin-resolved seed (an AFM staggering, a doublet's majority channel), instead of the spin-agnostic
 //! total that collapses to rho/2 in the polarized terms.  Ignored (harmless) on unpolarized runs.
 //!

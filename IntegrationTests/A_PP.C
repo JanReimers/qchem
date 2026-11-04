@@ -68,7 +68,7 @@ TEST(Si2_PP_U, LargeSeparation)
     // kT 1e-2 is the stated recipe until the open row doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT" lands a finite-kT method
     par.SmearingkT=1e-2;     // the degenerate 3p (see above)
 
-    Molecule si1; si1.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,0)));
+    Molecule si1; si1.Insert(Site{14, Vector3D<double>(0,0,0)});
     MoleculeCalculation c1(MoleculeSetup::Resolve(si1, opt), par);
     ASSERT_TRUE(c1.Result());
     const auto e1=c1.EnergyTerms();
@@ -77,8 +77,8 @@ TEST(Si2_PP_U, LargeSeparation)
         << "the internal energy vs PySCF (kT 1e-4 there; the internal energy is kT-insensitive at this level)";
 
     Molecule si2;
-    si2.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,0)));
-    si2.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,R)));
+    si2.Insert(Site{14, Vector3D<double>(0,0,0)});
+    si2.Insert(Site{14, Vector3D<double>(0,0,R)});
     // Its Etotal is a BOUNDED iterate, not a measurement: it moves with anything that steers the step (it moved 1.5e-5 when the
     // Δρ measure moved onto the XC mesh, V-XC-ONE-TERM 2026-10-31), so anchordiff may flag this test while its claim (Enn) holds.
     qchem::BoundedSCF bounded("the routing claim reads Enn, which no iteration changes; the separated pair does not converge (open row)");
@@ -98,8 +98,8 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
 {
     const double R = 20.0;   // bohr
     Molecule osi;
-    osi.Insert(new Atom(8,  0.0, Vector3D<double>(0,0,0)));   // O  : GTH q6 -> Zion 6
-    osi.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,R)));   // Si : GTH q4 -> Zion 4
+    osi.Insert(Site{8, Vector3D<double>(0,0,0)});   // O  : GTH q6 -> Zion 6
+    osi.Insert(Site{14, Vector3D<double>(0,0,R)});   // Si : GTH q4 -> Zion 4
     // The QUINTET: at R = 20 bohr the pair is two open-shell atoms, O 2p^4 (3P) and Si 3p^2 (3P), aligned.  The default
     // closed-shell SINGLET forced half-filled degenerate p shells into one determinant and never converged (Δρ 0.26 at the
     // cap; it "passed" on that iterate until the cap guard, 2026-10-29); the quintet converged in 13 iterations -- on the 30/5 XC

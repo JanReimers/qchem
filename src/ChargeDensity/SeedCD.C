@@ -10,7 +10,7 @@
 //
 // SPIN (doc/SCFSeedingPlan.md §10): a SeedCD can also be ONE CHANNEL of the spin-polarized seed -- the
 // \c channel ctor argument selects Up/Down, reading the library's spin-resolved (majority, minority) pair
-// per species (up-majority storage) and honouring each atom's assembly-time \c itsSpinFlip bit (the -m
+// per species (up-majority storage) and honouring each site's assembly-time \c Site::spinFlip bit (the -m
 // sublattice swaps the pair -- the AFM staggering).  PolarizedSeedCD below composes two channel SeedCDs
 // into the two-channel seed the polarized SCF consumes.
 module;
@@ -48,7 +48,7 @@ public:
     //!
     //! \a channel (default \c Spin::None = the historical spin-agnostic total) makes this ONE CHANNEL of the
     //! polarized seed: a species with a library spin pair AT THE TARGET \c Nelec contributes its majority
-    //! (\c Up) / minority (\c Down) component -- swapped on atoms with \c itsSpinFlip set (the AFM -m
+    //! (\c Up) / minority (\c Down) component -- swapped on sites with \c Site::spinFlip set (the AFM -m
     //! sublattice) -- and a species without a pair contributes the spin-agnostic half density (rho/2, both
     //! channels alike; the flip is then a no-op).  \c None ignores flips entirely (the total is flip-blind).
     SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,

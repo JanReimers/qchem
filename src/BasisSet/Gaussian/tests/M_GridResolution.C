@@ -29,9 +29,9 @@ std::unique_ptr<BasisSet::Real_BS> Water(const Molecule& m) {return std::unique_
 Molecule MakeWater()
 {
     Molecule m;
-    m.Insert(new Atom(8, 0.0, Vector3D(0.0, 0.0, 0.0)));
-    m.Insert(new Atom(1, 0.0, Vector3D(0.0, 1.431, 1.107)));
-    m.Insert(new Atom(1, 0.0, Vector3D(0.0,-1.431, 1.107)));
+    m.Insert(Site{8, Vector3D(0.0, 0.0, 0.0)});
+    m.Insert(Site{1, Vector3D(0.0, 1.431, 1.107)});
+    m.Insert(Site{1, Vector3D(0.0,-1.431, 1.107)});
     return m;
 }
 }

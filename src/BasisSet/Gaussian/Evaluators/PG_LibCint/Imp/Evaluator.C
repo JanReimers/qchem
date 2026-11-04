@@ -117,7 +117,7 @@ void NR_Evaluator::Init(const Structure* cl, bool spherical)
     size_t Ncart = PGData::size();                  // # Cartesian components flattened in the PGData
 
     // Atom table (shell centres + nuclear charges) from the structure.
-    for (auto a:*cl) m.atoms.push_back(AtomRec{a->itsZ, a->itsR.x, a->itsR.y, a->itsR.z});
+    for (const Site& a : cl->Sites()) m.atoms.push_back(AtomRec{a.Z, a.R.x, a.R.y, a.R.z});
     auto findAtom = [&](const rvec3_t& R)->int
     {
         for (size_t i=0;i<m.atoms.size();++i)

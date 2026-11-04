@@ -193,7 +193,7 @@ TEST(M_Calculation, SamplingSurface)
 static Molecule MakeBoron()
 {
     Molecule b;
-    b.Insert(new Atom(5, 0, Vector3D<double>(0, 0, 0)));
+    b.Insert(Site{5, Vector3D<double>(0, 0, 0)});
     return b;
 }
 

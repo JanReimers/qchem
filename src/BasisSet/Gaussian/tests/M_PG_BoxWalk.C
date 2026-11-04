@@ -454,8 +454,8 @@ struct Fixture
 
     explicit Fixture(double aExp, double bExp)
     {
-        mol.Insert(new Atom(25, 0, rvec3_t(7.0, 8.0, 8.0)));
-        mol.Insert(new Atom( 8, 0, rvec3_t(11.0, 8.0, 8.0)));   // 4.0 a.u. ~ 2.1 A
+        mol.Insert(Site{25, rvec3_t(7.0, 8.0, 8.0)});
+        mol.Insert(Site{8, rvec3_t(11.0, 8.0, 8.0)});   // 4.0 a.u. ~ 2.1 A
         ibs=std::make_unique<Orbital_IBS>(rvec_t{aExp,bExp}, 2, &mol);
     }
     const NR_Evaluator& Ev() const {return *ibs;}
@@ -525,8 +525,8 @@ struct SkewFixture
                 double aExp, double bExp)
         : cell(c), N(n), cA(a0), cB(b0)
     {
-        mol.Insert(new Atom(25, 0, a0));
-        mol.Insert(new Atom( 8, 0, b0));
+        mol.Insert(Site{25, a0});
+        mol.Insert(Site{8, b0});
         ibs=std::make_unique<Orbital_IBS>(rvec_t{aExp,bExp}, 2, &mol);
     }
     const NR_Evaluator& Ev() const {return *ibs;}
@@ -968,10 +968,10 @@ TEST(M_PG_BoxWalk, OffsetEnumerationIsNotTheCost)
     const UnitCell cell(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40));
     const ivec3_t  N(32,32,32);
     Molecule mol;
-    mol.Insert(new Atom(25, 0, rvec3_t(0,0,0)));
-    mol.Insert(new Atom(25, 0, rvec3_t(4.20,4.20,4.20)));
-    mol.Insert(new Atom( 8, 0, rvec3_t(2.4249,2.4249,2.4249)));
-    mol.Insert(new Atom( 8, 0, rvec3_t(6.20,6.20,6.20)));
+    mol.Insert(Site{25, rvec3_t(0,0,0)});
+    mol.Insert(Site{25, rvec3_t(4.20,4.20,4.20)});
+    mol.Insert(Site{8, rvec3_t(2.4249,2.4249,2.4249)});
+    mol.Insert(Site{8, rvec3_t(6.20,6.20,6.20)});
     Orbital_IBS ibs(rvec_t{0.38,1.2,4.0}, 2, &mol);
     const NR_Evaluator& ev=ibs;
     const std::vector<NR_Evaluator::Shell>& shells=ev.Shells();
@@ -1027,10 +1027,10 @@ TEST(M_PG_BoxWalk, TaskListIsExactlyTheEnumerationItReplaces)
 {
     const UnitCell cell(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40));
     Molecule mol;
-    mol.Insert(new Atom(25, 0, rvec3_t(0,0,0)));
-    mol.Insert(new Atom(25, 0, rvec3_t(4.20,4.20,4.20)));
-    mol.Insert(new Atom( 8, 0, rvec3_t(2.4249,2.4249,2.4249)));
-    mol.Insert(new Atom( 8, 0, rvec3_t(6.20,6.20,6.20)));
+    mol.Insert(Site{25, rvec3_t(0,0,0)});
+    mol.Insert(Site{25, rvec3_t(4.20,4.20,4.20)});
+    mol.Insert(Site{8, rvec3_t(2.4249,2.4249,2.4249)});
+    mol.Insert(Site{8, rvec3_t(6.20,6.20,6.20)});
     Orbital_IBS ibs(rvec_t{0.38,1.2,4.0}, 2, &mol);
     const NR_Evaluator& ev=ibs;
     const std::vector<NR_Evaluator::Shell>& shells=ev.Shells();

@@ -260,8 +260,8 @@ TEST(SCFTrace, MolecularConsoleIsByteIdentical)
 {
     const std::string got=TraceBlock(CapturedTrace([]{
         Molecule o2;
-        o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0,  1.141)));
-        o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.141)));
+        o2.Insert(Site{8, Vector3D<double>(0, 0,  1.141)});
+        o2.Insert(Site{8, Vector3D<double>(0, 0, -1.141)});
         MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}),
                          {.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
                           .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true});
@@ -298,11 +298,11 @@ TEST(SCFTrace, ADegenerateClosedShellAcrossIrrepsNeverFlagsCfg)
 {
     const double a=1.18816;   // 1.089 Å
     Molecule ch4;
-    ch4.Insert(new Atom(6, 0, Vector3D<double>( 0, 0, 0)));
-    ch4.Insert(new Atom(1, 0, Vector3D<double>( a, a, a)));
-    ch4.Insert(new Atom(1, 0, Vector3D<double>(-a,-a, a)));
-    ch4.Insert(new Atom(1, 0, Vector3D<double>(-a, a,-a)));
-    ch4.Insert(new Atom(1, 0, Vector3D<double>( a,-a,-a)));
+    ch4.Insert(Site{6, Vector3D<double>( 0, 0, 0)});
+    ch4.Insert(Site{1, Vector3D<double>( a, a, a)});
+    ch4.Insert(Site{1, Vector3D<double>(-a,-a, a)});
+    ch4.Insert(Site{1, Vector3D<double>(-a, a,-a)});
+    ch4.Insert(Site{1, Vector3D<double>( a,-a,-a)});
     std::vector<double> cfg;
     auto sink=[&cfg](const SCFIterator::IterationRow& r){ cfg.push_back(r.ValueOf("cfg")); };
     MoleculeCalculation calc(MoleculeSetup::Resolve(ch4, {.basis = "dzvp", .symmetry = true}), {.NMaxIter = 80, .Verbose = false}, sink);
@@ -317,8 +317,8 @@ TEST(SCFTrace, ADegenerateClosedShellAcrossIrrepsNeverFlagsCfg)
 TEST(SCFTrace, AnElectronMovingBetweenIrrepsFlagsCfg)
 {
     Molecule no;
-    no.Insert(new Atom(7, 0, Vector3D<double>(0, 0,  1.0865)));   // 1.15 Å
-    no.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.0865)));
+    no.Insert(Site{7, Vector3D<double>(0, 0,  1.0865)});   // 1.15 Å
+    no.Insert(Site{8, Vector3D<double>(0, 0, -1.0865)});
     qchem::BoundedSCF bounded("six iterations of NO: the π* electron's move between irreps is the subject");
     std::vector<double> cfg;
     auto sink=[&cfg](const SCFIterator::IterationRow& r){ cfg.push_back(r.ValueOf("cfg")); };
@@ -341,8 +341,8 @@ TEST(SCFTrace, AnObserverExceptionLeavesConvergeUntouched)
     try
     {
         Molecule o2;
-        o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0,  1.141)));
-        o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.141)));
+        o2.Insert(Site{8, Vector3D<double>(0, 0,  1.141)});
+        o2.Insert(Site{8, Vector3D<double>(0, 0, -1.141)});
         MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}), {.NMaxIter = 80, .Verbose = false}, throwAt2);
         (void)calc.Result();
         ADD_FAILURE() << "the molecular run did not stop";
@@ -402,11 +402,11 @@ TEST(SCFTrace, AMolecularLadderEngagesGDMOnASymmetryBlockedMolecule)
 {
     const double a=1.18816;   // 1.089 Å
     Molecule ch4;
-    ch4.Insert(new Atom(6, 0, Vector3D<double>( 0, 0, 0)));
-    ch4.Insert(new Atom(1, 0, Vector3D<double>( a, a, a)));
-    ch4.Insert(new Atom(1, 0, Vector3D<double>(-a,-a, a)));
-    ch4.Insert(new Atom(1, 0, Vector3D<double>(-a, a,-a)));
-    ch4.Insert(new Atom(1, 0, Vector3D<double>( a,-a,-a)));
+    ch4.Insert(Site{6, Vector3D<double>( 0, 0, 0)});
+    ch4.Insert(Site{1, Vector3D<double>( a, a, a)});
+    ch4.Insert(Site{1, Vector3D<double>(-a,-a, a)});
+    ch4.Insert(Site{1, Vector3D<double>(-a, a,-a)});
+    ch4.Insert(Site{1, Vector3D<double>( a,-a,-a)});
     auto run=[&ch4](const char* accel, std::vector<SCFIterator::IterationRow>& rows)
     {
         MoleculeCalculation calc(MoleculeSetup::Resolve(ch4, {.basis = "dzvp", .symmetry = true}, {.type = accel}),
@@ -439,8 +439,8 @@ TEST(SCFTrace, TheObserverReceivesTheConsoleRow)
     std::vector<SCFIterator::IterationRow> rows;
     const std::string trace=CapturedTrace([&rows]{
         Molecule o2;
-        o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0,  1.141)));
-        o2.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.141)));
+        o2.Insert(Site{8, Vector3D<double>(0, 0,  1.141)});
+        o2.Insert(Site{8, Vector3D<double>(0, 0, -1.141)});
         MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}),
                          {.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
                           .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true},

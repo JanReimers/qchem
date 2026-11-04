@@ -41,7 +41,7 @@ export double EwaldEnergy(const UnitCell& cell, const rvec_t& q, double eta=0.0)
     double Q=0.0, Qsq=0.0;
     for (size_t a=0; a<N; a++)
     {
-        τ[a]  = cell[a]->itsR;
+        τ[a]  = cell.Sites()[a].R;
         Q    += q[a];
         Qsq  += q[a]*q[a];
     }

@@ -76,7 +76,7 @@ qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams&
     size_t natom=atoms.GetNumAtoms();
 
     std::vector<rvec3_t> R(natom);
-    for (size_t i=0; i<natom; i++) R[i]=atoms[i]->itsR;
+    for (size_t i=0; i<natom; i++) R[i]=atoms.Sites()[i].R;
 
     qcMesh::RadialMesh  rad=qcMesh::MakeRadial(mp);   // one single-center template reused (ShiftOrigin per atom)
     qcMesh::AngularMesh ang=qcMesh::MakeAngular(mp);
@@ -125,25 +125,13 @@ qcMesh::Mesh Molecule::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
 
 Molecule::Molecule(const Structure& atoms)
 {
-    for (auto a:atoms)
-    {
-        itsAtoms.push_back(new Atom(*a));
-    }
+    for (const Site& a:atoms.Sites()) itsSites.push_back(a);
 }
 
-Molecule::~Molecule()
+void Molecule::Insert(const Site& a)
 {
-    for (auto a:itsAtoms) delete a;
-}
-
-void Molecule::Insert(Atom* a)
-{
-    itsAtoms.push_back(a);
-}
-
-size_t Molecule::GetNumAtoms() const
-{
-    return itsAtoms.size();
+    assert(a.Z>0 && a.Z<150);   // the Atom ctor's range check, now that a Site needs no Atom to be stored
+    itsSites.push_back(a);
 }
 
 std::ostream& Molecule::Write(std::ostream& os) const
@@ -153,7 +141,7 @@ std::ostream& Molecule::Write(std::ostream& os) const
     << ", net charge "<< GetNetCharge() << "(e)" << std::endl;
     os << "Atom #  Element  Position vector" << std::endl;
     int i=1;
-    for (auto b:*this) os << std::setw(5) << i++ << "   " << *b << std::endl;
+    for (const Site& b:Sites()) {os << std::setw(5) << i++ << "   "; WriteSite(os,b) << std::endl;}
     // os << std::endl;
 
     return os;

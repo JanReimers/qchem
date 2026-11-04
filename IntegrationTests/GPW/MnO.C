@@ -286,7 +286,7 @@ TEST(GPW_MnO, Γ_Becke_Pol_SeedVxcMirror)
     if (argRhoJ>=0)
     {
         std::vector<rvec3_t> R; std::vector<std::string> nm={"Mn1","Mn2","O1","O2"};
-        for (auto atom : cell) R.push_back(atom->itsR);
+        for (const Site& atom : cell.Sites()) R.push_back(atom.R);
         auto nearest=[&](const rvec3_t& r)
         {
             double best=1e300; std::string who;

@@ -18,8 +18,8 @@ using namespace qchem;
 
 //  The storage-agnostic index iterator must model a full forward iterator so
 //  that range-based for AND the C++20 <ranges> adaptors both work on it.
-static_assert(std::forward_iterator<Structure::const_iterator>);
-static_assert(std::ranges::forward_range<Structure>);
+static_assert(std::forward_iterator<SiteRange::iterator>);
+static_assert(std::ranges::forward_range<SiteRange>);
 
 class StructureTests : public ::testing::Test
 {};
@@ -46,29 +46,29 @@ TEST_F(StructureTests, AtomValueSemantics)
     Atom na(11,1,{1,2,3});
     std::vector<Atom> v;
     for (int i=0;i<8;i++) v.push_back(na); //Forces reallocation -> moves.
-    v[2].itsR={7,8,9};
-    EXPECT_EQ(v[0].itsR,rvec3_t(1,2,3));
-    EXPECT_EQ(v[2].itsR,rvec3_t(7,8,9));
+    v[2].MoveSites({{7,8,9}});
+    EXPECT_EQ(v[0].Sites()[0].R,rvec3_t(1,2,3));
+    EXPECT_EQ(v[2].Sites()[0].R,rvec3_t(7,8,9));
     EXPECT_EQ(v[2].GetNumAtoms(),1u);
-    for (auto* a:v[2]) EXPECT_EQ(a->itsR,rvec3_t(7,8,9)); //self-range after moves.
+    for (const Site& a : v[2].Sites()) EXPECT_EQ(a.R,rvec3_t(7,8,9)); //self-range after moves.
 }
 
 TEST_F(StructureTests, RangeIteration)
 {
     Molecule h2o;
-    h2o.Insert(new Atom(8,0,{0,0,0}));
-    h2o.Insert(new Atom(1,0,{0,0,1}));
-    h2o.Insert(new Atom(1,0,{0,1,0}));
+    h2o.Insert(Site{8, {0,0,0}});
+    h2o.Insert(Site{1, {0,0,1}});
+    h2o.Insert(Site{1, {0,1,0}});
 
-    //  Plain range-based for: yields Atom* by value through the index iterator.
+    //  Plain range-based for over the read-only site view.
     int n=0,Zsum=0;
-    for (auto a:h2o) {n++; Zsum+=a->itsZ;}
+    for (const Site& a : h2o.Sites()) {n++; Zsum+=a.Z;}
     EXPECT_EQ(n,3);
     EXPECT_EQ(Zsum,10);
 
     //  C++20 <ranges> adaptors now compose on a Structure with no storage exposed.
-    EXPECT_EQ(std::ranges::count_if(h2o,[](Atom* a){return a->itsZ==1;}),2);
-    auto Zs=h2o | std::views::transform([](Atom* a){return a->itsZ;});
+    EXPECT_EQ(std::ranges::count_if(h2o.Sites(),[](const Site& a){return a.Z==1;}),2);
+    auto Zs=h2o.Sites() | std::views::transform([](const Site& a){return a.Z;});
     EXPECT_EQ(std::ranges::max(Zs),8);
 }
 
@@ -115,14 +115,14 @@ TEST_F(StructureTests, Lattice_3D)
 {
     double a_0=0.529177; //Ångstrom
     UnitCell SiCell(5.43/a_0); //Convert Ångstrom to atomic units a.u.
-    SiCell.Insert(new Atom(14,0,rvec3_t{ 0, 0, 0}));
-    SiCell.Insert(new Atom(14,0,rvec3_t{.5,.5, 0}));
-    SiCell.Insert(new Atom(14,0,rvec3_t{ 0,.5,.5}));
-    SiCell.Insert(new Atom(14,0,rvec3_t{.5, 0,.5}));
-    SiCell.Insert(new Atom(14,0,rvec3_t{.25,.25,.25}));
-    SiCell.Insert(new Atom(14,0,rvec3_t{.75,.75,.25}));
-    SiCell.Insert(new Atom(14,0,rvec3_t{.25,.75,.75}));
-    SiCell.Insert(new Atom(14,0,rvec3_t{.75,.25,.75}));
+    SiCell.Insert(Site{14, rvec3_t{ 0, 0, 0}});
+    SiCell.Insert(Site{14, rvec3_t{.5,.5, 0}});
+    SiCell.Insert(Site{14, rvec3_t{ 0,.5,.5}});
+    SiCell.Insert(Site{14, rvec3_t{.5, 0,.5}});
+    SiCell.Insert(Site{14, rvec3_t{.25,.25,.25}});
+    SiCell.Insert(Site{14, rvec3_t{.75,.75,.25}});
+    SiCell.Insert(Site{14, rvec3_t{.25,.75,.75}});
+    SiCell.Insert(Site{14, rvec3_t{.75,.25,.75}});
     Lattice_3D Si(SiCell,ivec3_t(2,2,2));
     // cout << "Si lattice = " << Si << endl;
     EXPECT_EQ(SiCell.GetNumAtoms(),8);
@@ -248,8 +248,8 @@ TEST_F(StructureTests, PeriodicAnswersVsFinite)
     Atom h(1,0,{0,0,0});
     EXPECT_FALSE(h.HasTranslationSymmetry());
     Molecule m;
-    m.Insert(new Atom(1,0,{0,0,0}));
-    m.Insert(new Atom(1,0,{0,0,1.4}));
+    m.Insert(Site{1, {0,0,0}});
+    m.Insert(Site{1, {0,0,1.4}});
     EXPECT_FALSE(m.HasTranslationSymmetry());
     FCCUnitCell si(10.26);
     si.AddAtom(14,{0,0,0});
@@ -298,11 +298,11 @@ TEST(Supercell, UnitReplicationIsACopy)
     si.AddAtom(14,{0.25,0.25,0.25});
     UnitCell one=Supercell(si, ivec3_t(1,1,1));
     ASSERT_EQ(one.GetNumAtoms(), si.GetNumAtoms());
-    auto i=si.begin(); auto j=one.begin();
-    for (; i!=si.end() && j!=one.end(); ++i, ++j)
+    auto i=si.Sites().begin(); auto j=one.Sites().begin();
+    for (; i!=si.Sites().end() && j!=one.Sites().end(); ++i, ++j)
     {
-        EXPECT_EQ((*j)->itsZ, (*i)->itsZ);
-        EXPECT_NEAR(norm((*j)->itsR - (*i)->itsR), 0.0, 1e-10);
+        EXPECT_EQ((*j).Z, (*i).Z);
+        EXPECT_NEAR(norm((*j).R - (*i).R), 0.0, 1e-10);
     }
 }
 
@@ -317,13 +317,13 @@ TEST(Supercell, AtomsLieOnTheSamePrimitiveLattice)
     si.AddAtom(14,{0.25,0.25,0.25});
     UnitCell sup=Supercell(si, ivec3_t(2,1,3));
 
-    for (auto a : sup)
+    for (const Site& a : sup.Sites())
     {
-        const rvec3_t fp=si.ToFractional(a->itsR);     // in the PRIMITIVE cell's coordinates
+        const rvec3_t fp=si.ToFractional(a.R);     // in the PRIMITIVE cell's coordinates
         bool matched=false;
-        for (auto b : si)
+        for (const Site& b : si.Sites())
         {
-            const rvec3_t fb=si.ToFractional(b->itsR);
+            const rvec3_t fb=si.ToFractional(b.R);
             const rvec3_t d(fp.x-fb.x, fp.y-fb.y, fp.z-fb.z);
             if (fabs(d.x-round(d.x))<1e-9 && fabs(d.y-round(d.y))<1e-9 && fabs(d.z-round(d.z))<1e-9)
                 {matched=true; break;}
@@ -342,6 +342,6 @@ TEST(Supercell, SpinFlipDecorationRidesAlong)
     UnitCell sup=Supercell(afm, ivec3_t(2,1,1));
     ASSERT_EQ(sup.GetNumAtoms(), 4u);
     size_t flipped=0;
-    for (auto a : sup) if (a->itsSpinFlip) flipped++;
+    for (const Site& a : sup.Sites()) if (a.spinFlip) flipped++;
     EXPECT_EQ(flipped, 2u);                            // one per replica, not lost and not smeared
 }

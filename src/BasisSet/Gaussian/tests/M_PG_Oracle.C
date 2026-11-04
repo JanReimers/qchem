@@ -94,7 +94,7 @@ TEST(M_PG_Oracle, nuclear)
     for (const auto& nuc : d["nuclei"])
     {
         auto c = nuc["center"];
-        mol.Insert(new Atom((int)nuc["Z"].get<double>(), 0, Vector3D<double>(c[0],c[1],c[2])));
+        mol.Insert(Site{(int)nuc["Z"].get<double>(), Vector3D<double>(c[0],c[1],c[2])});
     }
     check2C(d["nuclear"], "nuclear",
             [&mol](const GaussianRF& a, const GaussianRF& b, const Polarization& pa, const Polarization& pb)

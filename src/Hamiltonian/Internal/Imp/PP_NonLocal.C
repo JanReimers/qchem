@@ -109,8 +109,8 @@ rsmat_t PP_NonLocal::MakeMatrixRadial(const BasisSet::ImplicitAngular_IBS& ia, s
            "PP_NonLocal: an implicit-angular (radial) basis is the ATOMIC lineage -- one centre");
     const int lBlk=ia.ImplicitL();
     const qcMesh::RadialMesh rad=qcMesh::MakeRadial(itsMeshParams);   // weights fold the r^2 jacobian
-    const Atom* at=(*theStructure)[0];
-    const int   Z =at->itsZ;
+    const Site& at=theStructure->Sites()[0];
+    const int   Z =at.Z;
 
     rmat_t V(n,n,0.0);
     for (size_t p=0; p<itsSep->Count(Z); p++)
@@ -141,15 +141,15 @@ rsmat_t PP_NonLocal::MakeMatrix(const robs_t* bs, const Spin&) const
     rmat_t V(n,n,0.0);
     for (size_t a=0; a<theStructure->GetNumAtoms(); a++)
     {
-        const Atom* at=(*theStructure)[a];
-        int Z=at->itsZ;
+        const Site& at=theStructure->Sites()[a];
+        int Z=at.Z;
         for (size_t p=0; p<itsSep->Count(Z); p++)
         {
             int    l=itsSep->L(Z,p);
             double D=itsSep->Weight(Z,p);
             for (int m=-l; m<=l; m++)
             {
-                rvec_t b=qcMesh::Overlap(mesh, *bs, BetaYlmField(at->itsR,*itsSep,Z,p,l,m));
+                rvec_t b=qcMesh::Overlap(mesh, *bs, BetaYlmField(at.R,*itsSep,Z,p,l,m));
                 for (size_t i=0;i<n;i++)         // rank-1 update D|b><b| (real symmetric, bit-exact)
                     for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*b[j];
             }

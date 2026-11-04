@@ -55,8 +55,8 @@ const Symmetry::Lattice_3D::SpaceGroup& Lattice_3D::GetSpaceGroup(double tol) co
         // The UnitCell -> {A, fractional sites} adapter (formerly private to the GPW factory).
         const Structure& st = itsUnitCell;   // iterate atoms via the PUBLIC Structure interface
         std::vector<SL::AtomSite> sites;
-        for (Atom* a : st)
-            sites.push_back({a->itsZ, itsUnitCell.ToFractional(a->itsR)});
+        for (const Site& a : st.Sites())
+            sites.push_back({a.Z, itsUnitCell.ToFractional(a.R)});
         itsSpaceGroup = std::make_shared<const SL::SpaceGroup>(
                             SL::SpaceGroup::Detect(itsUnitCell.GetCellMatrix(), sites, tol));
     }
@@ -71,8 +71,8 @@ std::vector<Symmetry::Lattice_3D::SymOp> Lattice_3D::ShubnikovOps(const std::vec
     assert(spins.size()==st.GetNumAtoms() && "ShubnikovOps: one collinear label per atom, in atom order");
     std::vector<SL::AtomSite> decorated;
     size_t i=0;
-    for (Atom* a : st)
-        decorated.push_back({a->itsZ, itsUnitCell.ToFractional(a->itsR), spins[i++]});
+    for (const Site& a : st.Sites())
+        decorated.push_back({a.Z, itsUnitCell.ToFractional(a.R), spins[i++]});
     return GetSpaceGroup(tol).ShubnikovOps(decorated, tol);
 }
 
@@ -83,7 +83,7 @@ std::vector<rmat3d_t> Lattice_3D::SiteRotations(size_t atom, const std::vector<i
     assert(atom<st.GetNumAtoms() && "SiteRotations: atom index outside the cell");
     std::vector<int> sp = spins.empty() ? std::vector<int>(st.GetNumAtoms(),0) : spins;
     // The site's fractional position, in cell atom order.
-    rvec3_t f; { size_t i=0; for (Atom* a : st) { if (i==atom) f=itsUnitCell.ToFractional(a->itsR); i++; } }
+    rvec3_t f; { size_t i=0; for (const Site& a : st.Sites()) { if (i==atom) f=itsUnitCell.ToFractional(a.R); i++; } }
     const Matrix3D<double>& A=itsUnitCell.GetCellMatrix();
     const Matrix3D<double>  Ainv=Invert(A);
     std::vector<rmat3d_t> R;
@@ -107,7 +107,7 @@ std::vector<rmat3d_t> Lattice_3D::SiteEnvironmentRotations(size_t atom, size_t s
     // The site and the cell's atoms, Cartesian.
     struct Pt { int Z; rvec3_t r; };
     std::vector<Pt> cell; rvec3_t site;
-    { size_t i=0; for (Atom* a : st) { cell.push_back({a->itsZ, a->itsR}); if (i==atom) site=a->itsR; i++; } }
+    { size_t i=0; for (const Site& a : st.Sites()) { cell.push_back({a.Z, a.R}); if (i==atom) site=a.R; i++; } }
     const Matrix3D<double>& A=itsUnitCell.GetCellMatrix();
     // Every image within a generous radius -- the images of the (shells) nearest distances are certainly
     // inside 3 cells in each direction for any sane cell; the shell cut below is what actually selects.
@@ -328,11 +328,11 @@ rvec_t Lattice_3D::GetDistances(size_t NumShells) const
 
     rvec3vec_t super_cells=GetSuperCells(maxd);
 
-    for (auto a1:itsUnitCell)
-        for (auto a2:itsUnitCell)
+    for (const Site& a1 : itsUnitCell.Sites())
+        for (const Site& a2 : itsUnitCell.Sites())
             for (auto& c:super_cells)
             {
-                double d=itsUnitCell.GetDistance(c + a2->itsR - a1->itsR);
+                double d=itsUnitCell.GetDistance(c + a2.R - a1.R);
                 if(d>0 && d<=maxd && Find(d,distances)==distances.size()) distances.push_back(d);
             }
 
@@ -350,10 +350,10 @@ rvec3vec_t Lattice_3D::GetBonds(size_t BasisNumber, double Distance) const
     rvec3_t rb=GetBasisVector(BasisNumber);
     rvec3vec_t super_cells=GetSuperCells(Distance);
 
-    for (auto a:itsUnitCell)
+    for (const Site& a : itsUnitCell.Sites())
         for (auto& c:super_cells)
         {
-            rvec3_t bond = a->itsR + c - rb;
+            rvec3_t bond = a.R + c - rb;
             double mbond=itsUnitCell.GetDistance(bond);
             if (fabs(mbond-Distance) < itsTolerence) ret.push_back(bond);
         }
@@ -369,10 +369,10 @@ rvec3vec_t Lattice_3D::GetBondsInSphere(size_t BasisNumber, double Distance) con
     rvec3_t rb=GetBasisVector(BasisNumber);
     rvec3vec_t super_cells=GetSuperCells(Distance);
 
-    for (auto a:itsUnitCell)
+    for (const Site& a : itsUnitCell.Sites())
         for (auto& c:super_cells)
         {
-            rvec3_t bond = a->itsR + c - rb;
+            rvec3_t bond = a.R + c - rb;
             double mbond=itsUnitCell.GetDistance(bond);
             if (mbond<Distance+itsTolerence) ret.push_back(bond);
         }
@@ -391,9 +391,9 @@ size_t  Lattice_3D::Find(const rvec3_t& r) const //Search within the primary uni
 {
     size_t ret=GetNumBasisSites();
     size_t i=0;
-    for (auto a:itsUnitCell)
+    for (const Site& a : itsUnitCell.Sites())
     {
-        if (itsUnitCell.GetDistance(r - a->itsR) < itsTolerence)
+        if (itsUnitCell.GetDistance(r - a.R) < itsTolerence)
         {
             ret=i;
             break;
@@ -432,11 +432,11 @@ rvec3_t Lattice_3D::GetBasisVector(size_t BasisNumber) const
     assert(BasisNumber<GetNumBasisSites());
     rvec3_t ret;
     {
-        for (auto b:itsUnitCell)
+        for (const Site& b : itsUnitCell.Sites())
         {
             if (BasisNumber==0)
             {
-                ret=b->itsR;
+                ret=b.R;
                 break;
             }
             BasisNumber--;

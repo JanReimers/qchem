@@ -352,7 +352,7 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
                         "(doc/CalcNetworkReview.md §3.3, step 9) -- difference ConvergeAt energies meanwhile"});
 
     std::shared_ptr<Structure> at=ref.Clone();
-    for (size_t a=0;a<nAtoms;a++) (*at)[a]->itsR=R[a];
+    at->MoveSites(R);
 
     // THE IMPOSED GROUP must survive (Q4): the SALC blocks are built on the abelian point group, so a step that changes it changes
     // the blocks the carry and the energy surface are written in -- a NEW setup, the user's choice.

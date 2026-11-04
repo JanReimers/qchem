@@ -107,7 +107,7 @@ TEST(M_LibCint, matrix_3C_4C_match_scalar)
 TEST(M_LibCint, spherical_grid_eval_matches_matrices)
 {
     Molecule* o = new Molecule;
-    o->Insert(new Atom(8, 0, rvec3_t(0.3, -0.2, 0.5)));     // off the origin: exercises the r - R_A shift
+    o->Insert(Site{8, rvec3_t(0.3, -0.2, 0.5)});     // off the origin: exercises the r - R_A shift
     rvec_t exps{1.0, 0.3};
     Orbital_IBS ibs(exps, 3, o);                             // s..f
     LibCintEval lc(dynamic_cast<const PGData&>(ibs), o);

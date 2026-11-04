@@ -91,14 +91,14 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
 IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
-    for (auto atom:*cl)
+    for (const Site& atom : cl->Sites())
     {
         for (size_t L=0;L<=LMax;L++)
         {
             std::vector<Polarization> Ps=MakePolarizations(L);
             for (auto e:es)
             {
-                GaussianRF* r=new GaussianRF(e,atom->itsR,L);
+                GaussianRF* r=new GaussianRF(e,atom.R,L);
                 Block* bfb=new Block(r);
                 for (auto& p:Ps)
                 {

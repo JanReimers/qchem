@@ -22,8 +22,8 @@ public:
     Gaussian94Reader(std::string filename);
     virtual ~Gaussian94Reader();
 
-    virtual GaussianRF*  ReadNext(const Atom&) ;
-    virtual void             FindAtom(const Atom&) ;
+    virtual GaussianRF*  ReadNext(const Site&) ;
+    virtual void             FindAtom(const Site&) ;
     virtual std::vector<int> GetLs   () const
     {
         return itsLs;
@@ -33,8 +33,8 @@ public:
 private:
     int  ReadLs();
     void TopOfFile();
-    GaussianRF* ReadPrimative( int maxL, const Atom&);
-    GaussianRF* ReadContracted(int nCont, int maxL, const Atom&);
+    GaussianRF* ReadPrimative( int maxL, const Site&);
+    GaussianRF* ReadContracted(int nCont, int maxL, const Site&);
 
     std::string    itsFilename;   //!< named by every error this reader throws
     std::ifstream  itsStream;

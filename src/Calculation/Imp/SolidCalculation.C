@@ -1701,7 +1701,8 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
     if (eggBox)
     {
         UnitCell cellR(S.reference.GetUnitCell());
-        for (size_t a=0;a<cellR.GetNumAtoms();a++) cellR[a]->itsR=cellR[a]->itsR+shift;
+        std::vector<rvec3_t> Rs; for (const Site& s : cellR.Sites()) Rs.push_back(s.R+shift);
+        cellR.MoveSites(Rs);
         latShifted.emplace(cellR, S.reference.GetLimits());
         molRef=S.recipe->Make(*latShifted->GetStructure(), S.pp);
     }
@@ -2415,11 +2416,8 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     // THE POINT'S CELL: the setup's, atoms at R.
     UnitCell cellR(ref);
     double moved=0.0;
-    for (size_t a=0;a<nAtoms;a++)
-    {
-        moved=std::max(moved, norm(R[a]-cellR[a]->itsR));
-        cellR[a]->itsR=R[a];
-    }
+    for (size_t a=0;a<nAtoms;a++) moved=std::max(moved, norm(R[a]-cellR.Sites()[a].R));
+    cellR.MoveSites(R);
     const Lattice_3D latR(cellR, S.reference.GetLimits());
 
     // THE IMPOSED GROUP must survive (Q4): a geometry that lowers it is a NEW setup, the user's choice -- never a silent re-fold.

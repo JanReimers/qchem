@@ -116,7 +116,7 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
         for (size_t i=0;i<st->GetNumAtoms();i++)
         {
             const auto& [Z,target,flip] = classOfAtom[i];
-            itsGroups[rankOf.at(Z).at({flip,target})].cell->Insert(new Atom(*(*st)[i]));
+            itsGroups[rankOf.at(Z).at({flip,target})].cell->Insert(st->Sites()[i]);
         }
     }
     assert(itsCharge >= 0);

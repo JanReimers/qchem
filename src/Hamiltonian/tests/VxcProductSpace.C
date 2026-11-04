@@ -191,8 +191,8 @@ Observed Observe(const Cell& c)
         if (c.kind==Kind::Molecule)
         {
             auto n2=std::make_shared<Molecule>();
-            n2->Insert(new Atom(7, 0.0, rvec3_t(-1.03,0,0)));
-            n2->Insert(new Atom(7, 0.0, rvec3_t( 1.04,0,0)));
+            n2->Insert(Site{7, rvec3_t(-1.03,0,0)});
+            n2->Insert(Site{7, rvec3_t( 1.04,0,0)});
             st=n2;
             bs.reset(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(),
                                                 BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
@@ -258,8 +258,8 @@ TEST(VxcProductSpace, EveryCellDoesWhatTheTableSays)
 TEST(VxcProductSpace, ARefusalNamesBothGroupsAndTheFactoryRefusesTheSame)
 {
     auto n2=std::make_shared<Molecule>();
-    n2->Insert(new Atom(7, 0.0, rvec3_t(-1.03,0,0)));
-    n2->Insert(new Atom(7, 0.0, rvec3_t( 1.04,0,0)));
+    n2->Insert(Site{7, rvec3_t(-1.03,0,0)});
+    n2->Insert(Site{7, rvec3_t( 1.04,0,0)});
     const std::shared_ptr<const Structure> st=n2;
     std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(),
                                                 BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));

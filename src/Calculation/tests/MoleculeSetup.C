@@ -14,7 +14,7 @@ namespace
 Molecule OneAtom(int Z)
 {
     Molecule m;
-    m.Insert(new Atom(Z, rvec3_t(0,0,0)));
+    m.Insert(Site{Z, rvec3_t(0,0,0)});
     return m;
 }
 } // namespace

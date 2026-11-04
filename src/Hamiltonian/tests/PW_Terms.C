@@ -113,8 +113,8 @@ TEST(PW_Terms, PWPseudoTermMatchesBasis)
     PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
 
     auto si=std::make_shared<Molecule>();
-    si->Insert(new Atom(14, rvec3_t(0,0,0)));
-    si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+    si->Insert(Site{14, rvec3_t(0,0,0)});
+    si->Insert(Site{14, rvec3_t(0.25*a,0.25*a,0.25*a)});
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
     const HGH_LocalPotential&     loc=siPP.local;
     const HGH_SeparablePotential& nl =siPP.nonlocal;
@@ -150,8 +150,8 @@ TEST(PW_Terms, LocalPPLongPlusShortEqualsFull)
     PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
 
     auto si=std::make_shared<Molecule>();
-    si->Insert(new Atom(14, rvec3_t(0,0,0)));
-    si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+    si->Insert(Site{14, rvec3_t(0,0,0)});
+    si->Insert(Site{14, rvec3_t(0.25*a,0.25*a,0.25*a)});
     const HGH_LocalPotential& loc=GetGTH("Si","LDA",4).local;
 
     chmat_t full =pw.MakeSpeciesFieldMatrix(si.get(), loc, qchem::BasisSet::FieldRange::Full);

@@ -287,7 +287,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
                 else itsCentreReach[c]=std::max(itsCentreReach[c], reach);
             }
         else                                         // no shell table: every atom at the global reach (the old screen)
-            for (auto a : cell) { itsCentre.push_back(a->itsR); itsCentreReach.push_back(itsMaxReach); }
+            for (const Site& a : cell.Sites()) { itsCentre.push_back(a.R); itsCentreReach.push_back(itsMaxReach); }
     }
     double imageBound=0.0;
     for (size_t c=0;c<itsCentre.size();c++) imageBound=std::max(imageBound, norm(itsCentre[c]-itsCellCtr)+itsCentreReach[c]);
@@ -894,7 +894,7 @@ qcMesh::MeshParams GPW_Evaluator::PPMeshParams(const Structure* cl, const Specie
     double alphaBeta=0.0;                                    // the sharpest projector in the cell
     for (size_t a=0; a<cl->GetNumAtoms(); a++)
     {
-        const int Z=(*cl)[a]->itsZ;
+        const int Z=cl->Sites()[a].Z;
         for (size_t p=0; p<sep.Count(Z); p++) alphaBeta=std::max(alphaBeta, sep.SharpnessR(Z,p));
     }
     const double floor=qcMesh::RequiredUniformCutoff({.alphaMax=itsLat->MaxExponent(), .alphaPP=alphaBeta},
@@ -943,10 +943,10 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const SpeciesRadialField
         rvec3_t dG=B.ToCartesian(rvec3_t(dm));
         double  g2=dG*dG;
         dcmplx  acc(0.0);                                            // form factor x structure factor
-        for (Atom* a : *cl)                                          // full V_loc, or its long / short piece
+        for (const Site& a : cl->Sites())                                          // full V_loc, or its long / short piece
         {
-            double f = loc.ValueQ(a->itsZ,g2,part);
-            acc += f*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+            double f = loc.ValueQ(a.Z,g2,part);
+            acc += f*std::exp(dcmplx(0.0,-(dG*a.R)));
         }
         return acc/itsFFT_R_G_Grids->Volume();
     };
@@ -986,9 +986,9 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const SpeciesRadialField
     // since V_loc sums over all atoms.  A soft PP (large rloc) or a non-Gaussian model -> beta=0 = old behaviour.
     double beta=0.0;
     if (const auto* gauss=dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc))
-        for (Atom* a : *cl)
+        for (const Site& a : cl->Sites())
         {
-            const auto terms=gauss->AsGaussians(a->itsZ,FieldRange::Short);
+            const auto terms=gauss->AsGaussians(a.Z,FieldRange::Short);
             if (!terms.empty()) beta=std::max(beta, terms[0].alpha);   // alpha = 1/(2 rloc^2)
         }
     const bool timeIt=(qchem::Diagnostics::Enabled("localpp_timing"));
@@ -1055,7 +1055,7 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
         rvec3_t dG=B.ToCartesian(rvec3_t(dm));
         double  g2=dG*dG;
         dcmplx  acc(0.0);                                            // form factor x structure factor
-        for (Atom* a : *cl) acc += loc.ValueQ(a->itsZ,g2,FieldRange::Long)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        for (const Site& a : cl->Sites()) acc += loc.ValueQ(a.Z,g2,FieldRange::Long)*std::exp(dcmplx(0.0,-(dG*a.R)));
         return acc/itsFFT_R_G_Grids->Volume();
     };
     const size_t K=levels.size();
@@ -1259,8 +1259,8 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
         auto phase=CellPhase();
         for (size_t a=0; a<cl->GetNumAtoms(); a++)
         {
-            const Atom* at=(*cl)[a];
-            int Z=at->itsZ;
+            const Site& at=cl->Sites()[a];
+            int Z=at.Z;
             for (size_t p=0; p<sep.Count(Z); p++)
             {
                 int    l=sep.L(Z,p);
@@ -1268,7 +1268,7 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
                 auto   radial=gsep->AsGaussians(Z,p);
                 for (int m=-l; m<=l; m++)
                 {
-                    const cvec_t b=ProjectOntoGaussianYlm(at->itsR, l, m, radial, phase);
+                    const cvec_t b=ProjectOntoGaussianYlm(at.R, l, m, radial, phase);
                     mat_t<dcmplx>& V=Vof(l);
                     for (size_t i=0;i<n;i++)
                         for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*std::conj(b[j]);
@@ -1300,8 +1300,8 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
 
     for (size_t a=0; a<cl->GetNumAtoms(); a++)
     {
-        const Atom* at=(*cl)[a];
-        int Z=at->itsZ;
+        const Site& at=cl->Sites()[a];
+        int Z=at.Z;
         for (size_t p=0; p<sep.Count(Z); p++)
         {
             int    l=sep.L(Z,p);
@@ -1314,10 +1314,10 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
                 // |R| <= rad + rBeta + |at_R - ctr| (triangle inequality).  It used to walk the ORBITAL reach's list,
                 // which need not cover a projector support wider than that reach.
                 std::vector<rvec3_t> projRc; cvec_t projPhase;
-                BuildImages(itsCell, itsHomeOnly ? 0.0 : rad+rBeta+norm(at->itsR-ctr), itsk, itsTRIM, projRc, projPhase);
+                BuildImages(itsCell, itsHomeOnly ? 0.0 : rad+rBeta+norm(at.R-ctr), itsk, itsTRIM, projRc, projPhase);
                 for (size_t r=0; r<projRc.size(); r++)
                 {
-                    rvec3_t c=at->itsR-projRc[r];                // this image's projector centre
+                    rvec3_t c=at.R-projRc[r];                // this image's projector centre
                     if (norm(c-ctr) > rad+rBeta) continue;       // (a) image too far to touch the mesh
                     BetaYlmField beta(c,sep,Z,p,l,m);
                     // The projector-image phase is CONJUGATED (e^{-ik.R}), NOT e^{+ik.R}.  b_i = <chi_i^k|beta_home>
