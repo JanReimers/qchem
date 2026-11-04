@@ -513,13 +513,19 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
             // virtual render its honest columns (item 2).  The cfg '*' flags an occupation change vs the
             // previous iteration (blank on iteration 1 -- there is no prior config to differ from).
             OccupiedConfiguration config = OccupationsByBlock(itsWaveFunction.get());
+            // THE accel AND ρ_mix CELLS NAME WHAT PRODUCED THIS ITERATE (OpenWork §3, user 2026-11-03/04).  A direct-min iteration
+            // whose geodesic was not taken fell back to a MIXED fixed-point step (ρ_mix is real, accel is not); a fixed-point step
+            // diagonalised the accelerator's Fock only when it Extrapolated() -- otherwise the plain F'.  Either way the accel cell
+            // reads "----"; it read DIIS on every pre-engage row and GDM on every fallback.
+            const bool geodesic    = lineSearch && itsGeodesicTaken;
+            const bool accelerated = lineSearch ? geodesic : itsAccelerator->Extrapolated();
             const GapInfo g=HomoLumo(itsWaveFunction.get());   // frontier spectrum for the gap column
             const double N=itsCD->GetTotalCharge();      // Tr(DS); normalise the grid-charge leak per electron
             tr=IterationTrace{ itsIterationCount, eb, itsMixer->GetRelax(),
-                               itsMixer->Tag(), itsAccelerator->Tag(), itsAccelerator->Count(),
+                               itsMixer->Tag(), accelerated ? itsAccelerator->Tag() : "----", accelerated ? itsAccelerator->Count() : 0,
                                itsAccelerator->MinSV(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
-                               itsIterationCount>1 && AnElectronMoved(config,prevConfig), lineSearch,
+                               itsIterationCount>1 && AnElectronMoved(config,prevConfig), geodesic,
                                (N!=0.0 ? eb.charge.lost/N : 0.0), itsMixer->HasGFilter(),
                                g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole,
                                hasOrder, order };
@@ -682,6 +688,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     // SAFE ONLY WHEN THE ACCELERATOR HOLDS NO LIVE STEP: DoSCFIteration calls NextOrbitals(), and a minimizer
     // with a computed step TAKES it there (GDM: OrbitalsAt(1.0,true)).  Both call sites below satisfy that --
     // one because ComputeStep FAILED, the other because an exhausted RejectStep armed a forced diagonalize.
+    itsGeodesicTaken=false;   // set only where a geodesic step is committed: every other exit is a mixed fixed-point step
     auto mixedStep=[&](const char* why)
     {
         // The FALLBACK is a whole fixed-point step taken inside a direct-min iteration, so it must be
@@ -757,6 +764,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         if (found)
         {
             itsWaveFunction->MoveOrbitals(held,t,true,mergeTol);    //commit at t
+            itsGeodesicTaken=true;
             qchem::report::Timed timed("scf: line-search commit density");
             return cd_t(itsWaveFunction->GetChargeDensity());
         }
