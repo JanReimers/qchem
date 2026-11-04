@@ -134,7 +134,9 @@ static Molecule MakeMolecule(const string& name)
     else if (name=="O2")  { at(8,0,0, 1.141 ); at(8,0,0,-1.141 ); }                 // 1.208 Å (triplet: --mult 3)
     else if (name=="CO")  { at(6,0,0, 0.0   ); at(8,0,0, 2.132 ); }                 // 1.128 Å
     else if (name=="H2O") { at(8,0,0,0); at(1,0, 1.431,1.107); at(1,0,-1.431,1.107); }
-    else { cout<<"unknown --mol \""<<name<<"\" (have: H2 N2 O2 CO H2O)"<<endl; }
+    else if (name=="CH4") { const double a=1.18816;                                // 1.089 Å, Td: t2 splits over 3 irreps of D2/C2v
+                            at(6,0,0,0); at(1,a,a,a); at(1,-a,-a,a); at(1,-a,a,-a); at(1,a,-a,-a); }
+    else { cout<<"unknown --mol \""<<name<<"\" (have: H2 N2 O2 CO H2O CH4)"<<endl; }
     return m;
 }
 
@@ -143,7 +145,7 @@ int main(int argc, char** argv)
     // ---- defaults ----
     int    Z=2, q=0, maxiter=50;
     string model="HF", pol="U", basis="", acc="Low", accel="DIIS";
-    string molname=""; int mult=0;                        // --mol <name> => MOLECULAR path (facade); --mult 2S+1
+    string molname=""; int mult=0; bool sym=false;       // --sym => point-group SALC blocking (molecules)                        // --mol <name> => MOLECULAR path (facade); --mult 2S+1
     nlohmann::json accj;   // accelerator config (forwarded to AtomCalculation)
     // SCF convergence criteria (-1 => Z-scaled default); raise precision with --minfd/--virial.
     double minro=-1, minde=1e-5, virial=5e-1, minfd=-1, relax=0.5, mergetol=1e-4;
@@ -163,8 +165,9 @@ int main(int argc, char** argv)
         "  \"--flag value\" or \"--flag=value\".\n"
         "\n"
         " System / method:\n"
-        "  --mol <name>       MOLECULE instead of an atom: H2 | N2 | O2 | CO | H2O (facade path)\n"
+        "  --mol <name>       MOLECULE instead of an atom: H2 | N2 | O2 | CO | H2O | CH4 (facade path)\n"
         "  --mult <int>       spin multiplicity 2S+1 (molecules; e.g. O2 triplet => --mult 3)\n"
+        "  --sym              point-group SALC blocking + per-irrep aufbau (molecules)\n"
         "  --Z <int>          atomic number                          (default 2)\n"
         "  --q <int>          net charge (electrons = Z - q)          (default 0)\n"
         "  --model <name>     HF | DHF | E1 | DE1 | LDA | Xalpha | PP  (default HF)\n"
@@ -248,6 +251,7 @@ int main(int argc, char** argv)
         else if (a=="--relax")   relax=std::stod(need(i));
         else if (a=="--merge")   mergetol=std::stod(need(i));
         else if (a=="--mom")     useMOM=true;
+        else if (a=="--sym")     sym=true;
         else if (a=="--momstart")momStart=std::stoi(need(i));
         else if (a=="--kerker")  kerkerG0=std::stod(need(i));
         else if (a=="--pulay")   pulayDepth=std::stoi(need(i));
@@ -295,7 +299,7 @@ int main(int argc, char** argv)
     if (!molname.empty())
     {
         const string mbasis = basis.empty() ? "dzvp" : basis;   // molecular basis is a string (dzvp/sto-3g/...)
-        CalcOptions copts; copts.basis=mbasis; copts.multiplicity=mult;
+        CalcOptions copts; copts.basis=mbasis; copts.multiplicity=mult; copts.symmetry=sym;
         if (dft) { copts.model=(model=="Xalpha")?Model::Xalpha:Model::LDA; if(model=="Xalpha") copts.xalpha=alpha>0?alpha:0.7; }
         else if (models.count(model)) copts.model=models[model];
         else { cout<<"molecular --model must be HF|LDA|Xalpha"<<endl; return 1; }
