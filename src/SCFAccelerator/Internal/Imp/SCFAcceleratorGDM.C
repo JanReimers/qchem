@@ -17,7 +17,6 @@ module;
 #include <utility>     // std::pair
 module qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
-import qchem.Blaze;
 import qchem.Reporting;   // the accelerator files what it was BUILT with, one level into its builder's context
 
 namespace qchem::SCFAccelerators

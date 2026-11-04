@@ -8,7 +8,6 @@ module;
 module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.Blaze;
-import qchem.Math;
 import qchem.Reporting;   // the accelerator files what it was BUILT with, one level into its builder's context
 import qchem.Math.DIIS;   // the shared Pulay bordered-solve (Bordered/MinSV/Coefficients) -- serves Fock-DIIS too
 

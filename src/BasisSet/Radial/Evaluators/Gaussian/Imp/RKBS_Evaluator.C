@@ -5,8 +5,6 @@ module;
 #include <string>
 module qchem.BasisSet.Radial.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Radial.Evaluators.Gaussian.Internal.GaussianIntegrals; 
-import qchem.Symmetry.Factory;
-import qchem.Math;
 import qchem.Blaze;
 
 namespace qchem::BasisSet::Radial::Evaluators::Gaussian

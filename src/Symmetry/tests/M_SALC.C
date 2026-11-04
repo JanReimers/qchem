@@ -8,7 +8,6 @@ import qchem.Symmetry.Molecule.SALC;          // BuildSALCs, SALCs, AoShell, Bui
 import qchem.Symmetry.Molecule.CartesianRep;  // CartesianShellRep, IVec3 (to build the test shells)
 import qchem.Symmetry.Molecule.AbelianGroup;  // BuildAbelianGroup
 import qchem.Symmetry.Molecule.PointGroup;    // SymPoint
-import qchem.Math;
 import qchem.Blaze;
 using namespace qchem;
 

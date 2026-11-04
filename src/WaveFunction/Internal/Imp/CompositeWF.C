@@ -26,7 +26,6 @@ import qchem.LASolver;
 import qchem.Orbitals;          // Orbital (eigen-energy, degeneracy) for the aufbau
 import qchem.Parallel;          // OuterFor (the Fock loop over basis blocks, KAxisPlan P2)
 import qchem.Reporting;         // the run report -- this loop owns the basis.perIrrep / basis.removed rows
-import qchem.Math;              // std::round/abs for the fractional-occupation formatting (the level tables)
 import qchem.Streamable;
 import qchem.WaveFunction.EigenRows;   // the pure row builders behind the level tables (D10)
 import qchem.Strings;           // l_colors -- the per-l row colouring of the level tables

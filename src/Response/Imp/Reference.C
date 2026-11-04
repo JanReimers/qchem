@@ -9,8 +9,6 @@ module;
 #include <string>
 #include <vector>
 module qchem.Response.Reference;
-import qchem.Streamable;   // Irrep's operator<< (the failure messages name the block)
-import qchem.Math;         // fabs, isfinite
 import qchem.Blaze;
 
 namespace qchem::Response

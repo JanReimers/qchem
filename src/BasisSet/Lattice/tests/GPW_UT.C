@@ -47,7 +47,6 @@ import qchem.Mesh.Quadrature;                // qcMesh::Mesh (the delta basis's 
 import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
 import qchem.BasisSet.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Blaze;                             // hmat_t element access / rows()
-import qchem.Math;                              // Pi (the Bloch-phase e^{2 pi i k.n})
 import qchem.Vector3D;                          // rvec3_t arithmetic (r + R0)
 import qchem.Types;
 import qchem.Reporting;                         // report::Begin/End + CurrentRunReport (the alias calibration reads the grid audit)

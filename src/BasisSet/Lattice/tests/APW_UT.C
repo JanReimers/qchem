@@ -14,7 +14,6 @@ import qchem.BasisSet.Lattice.APW_IBS;
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Types;
 import qchem.Blaze;
-import qchem.Math;           // Pi
 using namespace qchem;
 
 using BasisSet::Lattice::APW_IBS;

@@ -8,7 +8,6 @@ using std::endl;
 
 import qchem.BasisSet.Radial.Factory;
 import qchem.BasisSet.Orbital_DHF_IBS;
-import qchem.Blaze;
 using namespace qchem;
 
 class Basis1_RKB_Tests : public ::testing::Test

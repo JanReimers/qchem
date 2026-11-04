@@ -7,7 +7,6 @@ module;
 #include <algorithm>
 module qchem.Symmetry.Lattice_3D.BlochOperationRep;
 import qchem.Matrix3D;
-import qchem.Math;   // Pi (BlochPhase, the same constant as GPW_Evaluator's)
 
 namespace qchem::Symmetry::Lattice_3D
 {

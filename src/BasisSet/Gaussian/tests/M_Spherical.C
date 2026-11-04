@@ -12,7 +12,6 @@
 #include <vector>
 
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;      // GaussianRF (Cartesian kernels)
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;    // Polarization
 import qchem.Math.Angular;                                            // SphericalShell, CartTerm
 import qchem.BasisSet.Gaussian.Evaluators.PG_Spherical_MnD;            // NR_Evaluator (1E)
 import qchem.BasisSet;                                                // Real_BS / Real_OIBS iteration (view gates)

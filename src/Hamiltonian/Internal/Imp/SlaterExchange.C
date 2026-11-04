@@ -3,7 +3,6 @@ module;
 #include <cassert>
 #include <iostream>
 module qchem.Hamiltonian.Internal.SlaterExchange;
-import qchem.Math;
 
 namespace qchem::Hamiltonian
 {

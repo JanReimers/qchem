@@ -6,7 +6,6 @@ module;
 #include <vector>
 module qchem.BasisSet.Gaussian.Point.ShellTrim;
 import qchem.PeriodicTable;   // the element symbol in the report
-import qchem.Math;            // fabs
 import qchem.Structure;       // Atom::itsZ
 
 namespace qchem::BasisSet::Gaussian

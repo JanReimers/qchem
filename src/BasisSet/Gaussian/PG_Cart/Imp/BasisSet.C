@@ -10,7 +10,6 @@ module;
 module qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Point.Reader;
 import qchem.Structure;
-import qchem.Math;
 
 namespace qchem::BasisSet::Gaussian::PG_Cart
 {

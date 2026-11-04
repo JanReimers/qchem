@@ -13,7 +13,6 @@ module;
 #include <vector>
 module qchem.ChargeDensity.FourierMixCD;
 import qchem.Types;        // rvec3_t, dcmplx
-import qchem.Math;         // (trig for the inverse FT)
 import qchem.Parallel;     // WorkerThreads (QCHEM_OPENMP_THREADS -- the batched inverse FT over mesh points)
 
 namespace qchem::ChargeDensity

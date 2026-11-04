@@ -4,7 +4,6 @@ module;
 #include <cassert>
 module qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
-import qchem.Blaze;
 
 namespace qchem::ChargeDensity
 {

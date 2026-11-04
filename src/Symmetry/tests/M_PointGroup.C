@@ -3,7 +3,6 @@
 #include <vector>
 import qchem.Symmetry.Molecule.PointGroup;
 import qchem.Symmetry.Molecule.AbelianGroup;   // BuildAbelianGroup (stage 3a-ii)
-import qchem.Math;            // Pi, sin, cos, fabs (project-wide, for test geometry)
 using namespace qchem;
 
 using namespace qchem::Symmetry;

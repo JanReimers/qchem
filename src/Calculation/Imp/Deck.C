@@ -31,9 +31,7 @@ import qchem.Materials;
 import qchem.SolidCalculation;
 import qchem.Lattice_3D;
 import qchem.BasisSet;
-import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.BasisSet.Gaussian.Point.BasisFiles;   // BasisFileOfName / BasisFileChecksum: a basis is named by its file stem
-import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;
 import qchem.Reporting;
 import qchem.Pseudopotential.Set;           // PseudopotentialSet -- the run's PP, which the basis file's provenance is checked against
 import qchem.Outcome;

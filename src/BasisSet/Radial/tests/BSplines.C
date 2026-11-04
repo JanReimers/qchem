@@ -10,9 +10,7 @@
 import qchem.BasisSet.Radial.Factory;
 import qchem.BasisSet.Radial.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Radial.Evaluators.BSpline.IBS;
-import qchem.BasisSet.Radial.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Radial.Evaluators.Internal.Rk;
-import qchem.BasisSet.Radial.Evaluators;
 import qchem.BasisSet;
 
 import qchem.Structure;
@@ -20,7 +18,6 @@ import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/Basis
 import qchem.VectorFunction;
 import qchem.Symmetry.Factory;
 import qchem.Symmetry.Atom.Spherical;
-import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Constants;
 import qchem.Blaze;

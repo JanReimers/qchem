@@ -8,7 +8,6 @@ module;
 
 module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Hermite;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
-import qchem.Math;
 
 std::ostream& operator << (std::ostream& os, const std::vector<double>& v)
 {

@@ -9,7 +9,6 @@ module;
 #include <array>
 #include <algorithm>
 module qchem.Symmetry.Lattice_3D.Fold;
-import qchem.Math;   // fabs, lround, floor, sqrt
 
 namespace qchem::Symmetry::Lattice_3D
 {

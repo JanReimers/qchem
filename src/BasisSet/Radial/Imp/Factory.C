@@ -14,7 +14,6 @@ import qchem.BasisSet.Radial.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Radial.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Radial.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Radial.Evaluators.Slater.IBS;
-import qchem.Math;
 import qchem.Blaze;
 
 using json = nlohmann::json;

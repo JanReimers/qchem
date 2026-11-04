@@ -8,7 +8,6 @@ module qchem.BasisSet.Radial.Evaluators.Internal.RelAngularIntegrals;
 import qchem.BasisSet.Radial.Evaluators.Internal.AngularIntegrals;
 import qchem.BasisSet.Radial.Evaluators.Internal.Wigner3j; //Wigner::wigner3j / clebschGordan (home-grown)
 import qchem.Symmetry.Atom.Spherical; //SphericalSpinor::j, l
-import qchem.Math; //FourPi2
 import qchem.Blaze;
 
 namespace qchem::RelAngularIntegrals

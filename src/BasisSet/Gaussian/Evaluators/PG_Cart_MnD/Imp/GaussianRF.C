@@ -18,9 +18,7 @@ import qchem.BasisSet.Internal.DB_Cache;   // theCache<double>(), Register/GetCa
 import qchem.BasisSet.Internal.Cache2;     // Cache2, Cacheable2, Cache2_Client
 import qchem.BasisSet.Internal.Cache3;     // Cache3, Cacheable3, Cache3_Client
 
-import qchem.Blaze;     // rvec_t (itsCoeff)
 import qchem.Structure;
-import qchem.Math;
 
 namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
 {

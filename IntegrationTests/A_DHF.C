@@ -14,13 +14,11 @@ import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccur
 import qchem.SCFIterator;            // SCFParams, EnergyBreakdown
 import qchem.PeriodicTable;          // RelativeError, RelativeDHFError (Z-keyed oracle)
 import qchem.Orbitals;              // Orbital, TOrbital
-import qchem.Math;                   // c_light, Pi, Pi12, FourPi, pow, tgamma, sqrt
 import qchem.Structure;             // Structure
 import qchem.Mesh;                  // qcMesh::Mesh / MeshParams
 import qchem.Symmetry.Atom.Spherical;    // Symmetry::Atom::Getκ (pick p1/2 vs p3/2)
 import qchem.Symmetry.Spin;         // Spin
 import qchem.Types;                 // Vector3D
-import qchem.Blaze;
 using namespace qchem;
 
 using std::cout;

@@ -5,7 +5,6 @@ module;
 #include <sstream>   // the spatial irrep label for Announce
 #include <nlohmann/json.hpp>
 module qchem.BasisSet.Radial.Evaluators.Internal.ExponentialEvaluator;
-import qchem.Math;
 import qchem.Blaze;
 import qchem.Reporting;   // serialize the exponents into the run report (a report-only sink, never a getter)
 

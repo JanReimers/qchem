@@ -9,7 +9,6 @@
 import qchem.Structure;                 // Molecule, Atom, Structure
 import qchem.UnitCell;                   // UnitCell (uniform periodic mesh)
 import qchem.Mesh.Quadrature;          // qcMesh::Integrate (over qcMath ScalarFunction)
-import qchem.Math;                      // Pi32, Pi
 import qchem.Reporting;                 // report::Scope: the mesh files its fields one level into the caller's scope
 using namespace qchem;
 

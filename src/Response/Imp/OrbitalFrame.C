@@ -8,7 +8,6 @@ module;
 #include <type_traits>
 #include <vector>
 module qchem.Response.OrbitalFrame;
-import qchem.Streamable;   // Irrep's operator<<
 import qchem.Blaze;
 
 namespace qchem::Response

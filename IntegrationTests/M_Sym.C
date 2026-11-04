@@ -18,7 +18,6 @@ import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geo
 import qchem.Structure;              // Molecule, Atom
 import qchem.SCFIterator;            // SCFParams, EnergyBreakdown
 import qchem.Types;                  // Vector3D
-import qchem.Math;                   // cos, sin (for the rotation test)
 using namespace qchem;
 
 // Tight convergence (== the old M_Sym RunHF/RunDFT SCFParams): drives Δρ/[F,D] to ~1e-9 so the

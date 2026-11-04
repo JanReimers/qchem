@@ -7,7 +7,6 @@ module qchem.BasisSet.Radial.Evaluators.Slater.IBS;
 import qchem.BasisSet.Radial.Evaluators.Slater.Internal.Rk; 
 import qchem.BasisSet.Radial.Evaluators.Slater.Internal.Integrals; 
 import qchem.BasisSet.Radial.Evaluators.Slater.Internal.ExponentScaler; 
-import qchem.Math;
 import qchem.Blaze;
 
 namespace qchem::BasisSet::Radial::Evaluators::Slater

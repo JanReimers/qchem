@@ -6,7 +6,6 @@ module;
 #include <string>
 #include <vector>
 module qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.Triangle3D;
-import qchem.stl_io;
 
 namespace qchem::BasisSet::Gaussian::Evaluators::Internal::MnD
 {
