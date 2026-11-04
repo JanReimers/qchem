@@ -3,6 +3,7 @@ module;
 
 #include <iostream>
 #include <cassert>
+#include <vector>
 
 module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Hermite;
 namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
@@ -32,6 +33,9 @@ Hermite3::Hermite3(double αₚ, const rvec3_t& PA, const rvec3_t& PB, const rve
     , itsLC   (LC)
     , itsScale(Scale)
 {
+    const size_t n4=size_t(LA+LB+LC+1)*(LA+1)*(LB+1)*(LC+1);
+    d.assign(n4,0.0); e.assign(n4,0.0); f.assign(n4,0.0);
+    itsa12s.assign(LA+LB+LC+1,0.0);
     double a12=1.0/(2*αₚ);
     itsa12s[0]=1.0;
     for (int n=1; n<=itsLA+itsLB+itsLC; n++) itsa12s[n]=itsa12s[n-1]*a12;
@@ -47,15 +51,15 @@ Hermite3::Hermite3(double αₚ, const rvec3_t& PA, const rvec3_t& PB, const rve
                     int tn=na+nb+nc;
                     if (tn < n)
                     {
-                        d[n][na][nb][nc] = 0;
-                        e[n][na][nb][nc] = 0;
-                        f[n][na][nb][nc] = 0;
+                        d[Index(n,na,nb,nc)] = 0;
+                        e[Index(n,na,nb,nc)] = 0;
+                        f[Index(n,na,nb,nc)] = 0;
                     }
                     if (tn == n)
                     {
-                        d[n][na][nb][nc] = itsa12s[n];
-                        e[n][na][nb][nc] = itsa12s[n];
-                        f[n][na][nb][nc] = itsa12s[n];
+                        d[Index(n,na,nb,nc)] = itsa12s[n];
+                        e[Index(n,na,nb,nc)] = itsa12s[n];
+                        f[Index(n,na,nb,nc)] = itsa12s[n];
                     }
                 }
 
@@ -80,25 +84,25 @@ Hermite3::Hermite3(double αₚ, const rvec3_t& PA, const rvec3_t& PB, const rve
 
                     if (na > 0)
                     {
-                        d[N][na][nb][nc] = Getd(N-1,na-1,nb,nc)*a12 + Getd(N,na-1,nb,nc)*PA.x + Getd(N+1,na-1,nb,nc)*(N+1);
-                        e[N][na][nb][nc] = Gete(N-1,na-1,nb,nc)*a12 + Gete(N,na-1,nb,nc)*PA.y + Gete(N+1,na-1,nb,nc)*(N+1);
-                        f[N][na][nb][nc] = Getf(N-1,na-1,nb,nc)*a12 + Getf(N,na-1,nb,nc)*PA.z + Getf(N+1,na-1,nb,nc)*(N+1);
+                        d[Index(N,na,nb,nc)] = Getd(N-1,na-1,nb,nc)*a12 + Getd(N,na-1,nb,nc)*PA.x + Getd(N+1,na-1,nb,nc)*(N+1);
+                        e[Index(N,na,nb,nc)] = Gete(N-1,na-1,nb,nc)*a12 + Gete(N,na-1,nb,nc)*PA.y + Gete(N+1,na-1,nb,nc)*(N+1);
+                        f[Index(N,na,nb,nc)] = Getf(N-1,na-1,nb,nc)*a12 + Getf(N,na-1,nb,nc)*PA.z + Getf(N+1,na-1,nb,nc)*(N+1);
                     }
                     else //na = 0.
                     {
                         if (nb > 0)
                         {
-                            d[N][na][nb][nc] = Getd(N-1,na,nb-1,nc)*a12 + Getd(N,na,nb-1,nc)*PB.x + Getd(N+1,na,nb-1,nc)*(N+1);
-                            e[N][na][nb][nc] = Gete(N-1,na,nb-1,nc)*a12 + Gete(N,na,nb-1,nc)*PB.y + Gete(N+1,na,nb-1,nc)*(N+1);
-                            f[N][na][nb][nc] = Getf(N-1,na,nb-1,nc)*a12 + Getf(N,na,nb-1,nc)*PB.z + Getf(N+1,na,nb-1,nc)*(N+1);
+                            d[Index(N,na,nb,nc)] = Getd(N-1,na,nb-1,nc)*a12 + Getd(N,na,nb-1,nc)*PB.x + Getd(N+1,na,nb-1,nc)*(N+1);
+                            e[Index(N,na,nb,nc)] = Gete(N-1,na,nb-1,nc)*a12 + Gete(N,na,nb-1,nc)*PB.y + Gete(N+1,na,nb-1,nc)*(N+1);
+                            f[Index(N,na,nb,nc)] = Getf(N-1,na,nb-1,nc)*a12 + Getf(N,na,nb-1,nc)*PB.z + Getf(N+1,na,nb-1,nc)*(N+1);
                         }
                         else //na && nb = 0.
                         {
                             if (nc > 0)
                             {
-                                d[N][na][nb][nc] = Getd(N-1,na,nb,nc-1)*a12 + Getd(N,na,nb,nc-1)*PC.x + Getd(N+1,na,nb,nc-1)*(N+1);
-                                e[N][na][nb][nc] = Gete(N-1,na,nb,nc-1)*a12 + Gete(N,na,nb,nc-1)*PC.y + Gete(N+1,na,nb,nc-1)*(N+1);
-                                f[N][na][nb][nc] = Getf(N-1,na,nb,nc-1)*a12 + Getf(N,na,nb,nc-1)*PC.z + Getf(N+1,na,nb,nc-1)*(N+1);
+                                d[Index(N,na,nb,nc)] = Getd(N-1,na,nb,nc-1)*a12 + Getd(N,na,nb,nc-1)*PC.x + Getd(N+1,na,nb,nc-1)*(N+1);
+                                e[Index(N,na,nb,nc)] = Gete(N-1,na,nb,nc-1)*a12 + Gete(N,na,nb,nc-1)*PC.y + Gete(N+1,na,nb,nc-1)*(N+1);
+                                f[Index(N,na,nb,nc)] = Getf(N-1,na,nb,nc-1)*a12 + Getf(N,na,nb,nc-1)*PC.z + Getf(N+1,na,nb,nc-1)*(N+1);
                             }
                         }
                     }
@@ -111,7 +115,7 @@ Hermite3::Hermite3(double αₚ, const rvec3_t& PA, const rvec3_t& PB, const rve
 }
 
 
-double Hermite3::GetAny(const Array4D def, int N, int na, int nb, int nc) const
+double Hermite3::GetAny(const std::vector<double>& def, int N, int na, int nb, int nc) const
 {
 //  cout << "(N,n1,n2) = (" << N << "," << na << "," << nb << ")" << std::endl;
     assert(N <=itsLA+itsLB+itsLC);
@@ -135,7 +139,7 @@ double Hermite3::GetAny(const Array4D def, int N, int na, int nb, int nc) const
 //
 //  Use fancy indexing to get at the numbers
 //
-    return def[N][na][nb][nc];
+    return def[Index(N,na,nb,nc)];
 }
 
 //#if DEBUG
@@ -159,7 +163,7 @@ double Hermite3::operator()(const Polarization& Pa,const Polarization& Pb,const 
     assert(Pc.GetTotalL()<=itsLC);
 //  cout << "Pa=" << Pa << " Pb=" << Pb << " Pc=" << Pc << " itsScale " << itsScale << " d=" << d[0][Pa.n][Pb.n][Pc.n]
 //    << " e=" << e[0][Pa.l][Pb.l][Pc.l] << " f=" << f[0][Pa.m][Pb.m][Pc.m] << std::endl;
-    return itsScale * d[0][Pa.n][Pb.n][Pc.n] * e[0][Pa.l][Pb.l][Pc.l] * f[0][Pa.m][Pb.m][Pc.m];
+    return itsScale * d[Index(0,Pa.n,Pb.n,Pc.n)] * e[Index(0,Pa.l,Pb.l,Pc.l)] * f[Index(0,Pa.m,Pb.m,Pc.m)];
 }
 
 std::ostream& operator<<(std::ostream& os,const Hermite3& h3)
@@ -187,7 +191,7 @@ std::ostream& operator<<(std::ostream& os,const Hermite3& h3)
     {
         for (int nb=0; nb<=h3.itsLB; nb++)
         {
-            for (int nc=0; nc<=h3.itsLC; nc++) os << h3.d[0][na][nb][nc] << " ";
+            for (int nc=0; nc<=h3.itsLC; nc++) os << h3.d[h3.Index(0,na,nb,nc)] << " ";
             os << std::endl;
         }
         os << std::endl;
@@ -198,7 +202,7 @@ std::ostream& operator<<(std::ostream& os,const Hermite3& h3)
     {
         for (int nb=0; nb<=h3.itsLB; nb++)
         {
-            for (int nc=0; nc<=h3.itsLC; nc++) os << h3.e[0][na][nb][nc] << " ";
+            for (int nc=0; nc<=h3.itsLC; nc++) os << h3.e[h3.Index(0,na,nb,nc)] << " ";
             os << std::endl;
         }
         os << std::endl;
@@ -209,7 +213,7 @@ std::ostream& operator<<(std::ostream& os,const Hermite3& h3)
     {
         for (int nb=0; nb<=h3.itsLB; nb++)
         {
-            for (int nc=0; nc<=h3.itsLC; nc++) os << h3.f[0][na][nb][nc] << " ";
+            for (int nc=0; nc<=h3.itsLC; nc++) os << h3.f[h3.Index(0,na,nb,nc)] << " ";
             os << std::endl;
         }
         os << std::endl;
@@ -223,7 +227,7 @@ std::ostream& operator<<(std::ostream& os,const Hermite3& h3)
       {
         for (int nb=0;nb<=h3.itsLB;nb++)
         {
-    for (int nc=0;nc<=h3.itsLC;nc++) os << h3.d[N][na][nb][nc] << " ";
+    for (int nc=0;nc<=h3.itsLC;nc++) os << h3.d[Index(N,na,nb,nc)] << " ";
     os << std::endl;
         }
         os << std::endl;
@@ -237,7 +241,7 @@ std::ostream& operator<<(std::ostream& os,const Hermite3& h3)
       {
         for (int nb=0;nb<=h3.itsLB;nb++)
         {
-    for (int nc=0;nc<=h3.itsLC;nc++) os << h3.e[N][na][nb][nc] << " ";
+    for (int nc=0;nc<=h3.itsLC;nc++) os << h3.e[Index(N,na,nb,nc)] << " ";
     os << std::endl;
         }
         os << std::endl;
@@ -251,7 +255,7 @@ std::ostream& operator<<(std::ostream& os,const Hermite3& h3)
       {
         for (int nb=0;nb<=h3.itsLB;nb++)
         {
-    for (int nc=0;nc<=h3.itsLC;nc++) os << h3.f[N][na][nb][nc]  << " ";
+    for (int nc=0;nc<=h3.itsLC;nc++) os << h3.f[Index(N,na,nb,nc)]  << " ";
     os << std::endl;
         }
         os << std::endl;

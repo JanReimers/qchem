@@ -107,18 +107,28 @@ public:
     double operator()(const Polarization& Pa,const Polarization& Pb,const Polarization& Pc) const;
 
 private:
-    typedef double Array4D[3*LMAX+1][LMAX+1][LMAX+1][LMAX+1];
     friend std::ostream& operator<<(std::ostream&,const Hermite3&);
 
-    double GetAny(const Array4D, int N, int na, int nb, int nc) const;
+    // Storage is sized from (LA,LB,LC) like Hermite2's, NOT a fixed LMAX: the operator slot (C) carries a local
+    // PP's r^{2n} monomials (x^6 for a GTH C4 term), and the old fixed [3*LMAX+1][LMAX+1]^3 arrays (LMAX 3) were
+    // silently overrun by them in Release -- Li GTH-PADE-q3 went 9-30 mHa non-variational (OpenWork §3, 2026-11-04).
+    size_t Index(int N, int na, int nb, int nc) const
+    {
+        assert(N >=0 && N <=itsLA+itsLB+itsLC);
+        assert(na>=0 && na<=itsLA);
+        assert(nb>=0 && nb<=itsLB);
+        assert(nc>=0 && nc<=itsLC);
+        return ((size_t(N)*(itsLA+1)+na)*(itsLB+1)+nb)*(itsLC+1)+nc;
+    }
+    double GetAny(const std::vector<double>&, int N, int na, int nb, int nc) const;
     double Getd(int N, int na, int nb, int nc) const {return GetAny(d,N,na,nb,nc);}
     double Gete(int N, int na, int nb, int nc) const {return GetAny(e,N,na,nb,nc);}
     double Getf(int N, int na, int nb, int nc) const {return GetAny(f,N,na,nb,nc);}
 
-    double   itsa12s[3*LMAX+1];
-    Array4D  d,e,f;
-    int      itsLA, itsLB, itsLC;
-    double   itsScale;
+    int                 itsLA, itsLB, itsLC;
+    double              itsScale;
+    std::vector<double> itsa12s;
+    std::vector<double> d,e,f;
 };
 
 } //namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD

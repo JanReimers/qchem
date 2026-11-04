@@ -53,3 +53,40 @@ TEST(GPW_Li, k444_Becke_Imp_Smear_ThreadedRunIsReproducibleAndMatchesSerial_Long
     EXPECT_NEAR(e8a, e1, 1e-8) << "threaded vs serial: only the partition's rounding (row 160) may separate them";
     EXPECT_NEAR(e1, -0.2520403163, 1e-8) << "the serial bcc Li q1 k444 state (lane H's serial run reads the same)";
 }
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// GPW_LiBox: the Li ATOM with GTH-PADE-q3 (1s² 2s¹ in the valence) in a 12 bohr box -- the only SCF gate on a C3/C4 local PP.
+//
+// OpenWork §3 "Li GTH-PADE-q3 is NON-VARIATIONAL in GPW" (closed 2026-11-04, lane H; doc/Records/HubbardUHistory.md): Hermite3 sized its
+// McMurchie-Davidson table by a fixed LMAX=3, and the C3/C4 short-range local terms (r⁴, r⁶ ⇒ per-axis powers 4 and 6) indexed past it.
+// The analytic V_short matrix was 38% wrong and the atom fell 9-30 mHa BELOW CP2K ATOM's complete-basis value.  No suite test used a
+// C3/C4 GTH (only Li q3 and Be q4 carry them), so a 1263-test sweep never saw it; GPW_UT LocalPPShortAnalyticMatchesGrid_C3C4 guards the
+// operator, this guards the energy.
+//
+// THE ORACLES (measured 2026-11-04):
+//   CP2K ATOM, complete basis       -7.3007906   a VARIATIONAL floor for any finite basis: falling below it is the defect's signature.
+//   CP2K QS GPW, this basis, L=12   -7.2850821   (CUTOFF 2000/4000 Ry agree) the like-for-like oracle.
+//   ours                            -7.2857262   0.64 mHa BELOW CP2K QS (q3-PP-specific: q1 on this same basis sits 97 μHa ABOVE CP2K).
+// The 1 mHa tolerance is set ABOVE an OPEN, TRACKED gap -- OpenWork §3 "Li GTH-PADE-q3: 0.64 mHa BELOW CP2K QS on the same basis".  It
+// does not certify that gap; tightening it (to the q1 level, ~0.1 mHa) is that row's CLOSING step.
+TEST(GPW_LiBox, Γ_M2_CP2K_Long)
+{
+    const nlohmann::json deck={
+        {"structure",{{"name","Li_atom"},{"lattice",{{"vectors_bohr",{{12.0,0.0,0.0},{0.0,12.0,0.0},{0.0,0.0,12.0}}}}},
+                      {"atoms",{{{"el","Li"},{"frac",{0.0,0.0,0.0}}}}}}},
+        {"kmesh",{1,1,1}},
+        {"basis",{{"data","VALENCE_LOWQ_VA"},{"file",(qchem::panel::BasisDataDir()/"valence_lowq_va_liq3.bsd").string()},{"vet",true}}},
+        {"solid",{{"species",nlohmann::json::array({nlohmann::json::array({"Li",3})})},{"multiplicity",2},
+                  {"ortho","CholeskyPivoted"},{"orthoTol",1e-7}}},
+        {"scf",{{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7}}}};
+    qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+    const fs::path dir=fs::temp_directory_path()/("qchem_it_libox_q3_"+std::to_string(::getpid()));
+    fs::remove_all(dir);
+    qchem::deck::Provenance pv; pv.codeVersion="it";
+    const auto out=qchem::deck::Run(spec, pv, dir);
+    fs::remove_all(dir);
+    ASSERT_TRUE(out.converged) << out.summary;
+    const double e=out.energy.value_or(0.0);
+    EXPECT_GT(e, -7.3007906) << "below CP2K ATOM's complete-basis energy: the q3 local PP is non-variational again (the Hermite3 overrun class)";
+    EXPECT_NEAR(e, -7.2850821, 1e-3) << "CP2K QS GPW on the same basis + box (1 mHa sits above the OPEN 0.64 mHa row; tighten when it closes)";
+}
