@@ -224,7 +224,7 @@ public:
                                       const std::function<GaussianFunction(int Z)>& opForZ) const = 0;
     //! \brief Announce this basis's lattice-sum ECONOMY (console + the run report's \c grids.latticeSums):
     //! \f$\alpha_{\min/\max}\f$, the magnitude-screen \f$\varepsilon\f$ values in effect, and the
-    //! worst-pair (diffuse x diffuse) reach with its \c CellsInSphere count over \a A -- the numbers that
+    //! worst-pair (diffuse x diffuse) reach with its \c LatticePointsInSphere count over \a A -- the numbers that
     //! JUMP when diffuse functions are added, so a runtime blow-up comes with its own explanation
     //! (doc/GPWPlan1.md).  The OWNER of the screens reports (no eps leaks through the face); default no-op
     //! for bases with no lattice economy to describe.

@@ -268,7 +268,7 @@ TEST(PlaneWaveFields, OrthoFitterRealSpaceField)
     // consumer asks.  Same cross-cast the scalar-fitter sibling above already makes.
     const ScalarFunction<double>& rhoFit=dynamic_cast<const ScalarFunction<double>&>(*fitter);
 
-    const UnitCell& B=F.B();
+    const CellGeometry& B=F.B();
     auto direct=[&](const rvec3_t& r)                     // independent inverse transform (B.ToCartesian, not GetGCartesian)
     {
         dcmplx s(0.0);

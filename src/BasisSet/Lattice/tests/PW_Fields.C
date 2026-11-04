@@ -125,7 +125,7 @@ inline qchem::BasisSet::PlaneWave::PW_Grid_Evaluator GridOf(const PlaneWave_IBS&
 inline chmat_t OverlapField(const PlaneWave_IBS& pw, const ScalarFunction<double>& f)
 {
     std::vector<rvec3_t> frac=GridOf(pw).UniformGrid(pw.AutoGrid());
-    UnitCell A=pw.Recip().GetCell().MakeReciprocalCell();        // direct cell (reciprocal of the reciprocal)
+    CellGeometry A=pw.Recip().GetCell().MakeReciprocal();        // direct cell (reciprocal of the reciprocal)
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=f(A.ToCartesian(frac[q]));
     auto vt=ForwardDFTDiffSet(pw.Gs(),frac,field);
@@ -138,7 +138,7 @@ inline chmat_t OverlapField(const PlaneWave_IBS& pw, const ScalarFunction<double
 inline chmat_t RepulsionField(const PlaneWave_IBS& pw, const ScalarFunction<double>& rho)
 {
     std::vector<rvec3_t> frac=GridOf(pw).UniformGrid(pw.AutoGrid());
-    UnitCell A=pw.Recip().GetCell().MakeReciprocalCell();
+    CellGeometry A=pw.Recip().GetCell().MakeReciprocal();
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=rho(A.ToCartesian(frac[q]));
     ΔG_Map rg=ForwardDFTDiffSet(pw.Gs(),frac,field);
@@ -153,7 +153,7 @@ inline chmat_t RepulsionField(const PlaneWave_IBS& pw, const ScalarFunction<doub
 inline double IntegralField(const PlaneWave_IBS& pw, const ScalarFunction<double>& f)
 {
     std::vector<rvec3_t> frac=GridOf(pw).UniformGrid(pw.AutoGrid());
-    UnitCell A=pw.Recip().GetCell().MakeReciprocalCell();
+    CellGeometry A=pw.Recip().GetCell().MakeReciprocal();
     double s=0.0;
     for (const rvec3_t& p : frac) s += f(A.ToCartesian(p));
     return s*pw.Volume()/double(frac.size());
@@ -220,7 +220,7 @@ dcmplx RhoAt(const RhoG& rho, const ivec3_t& dm)
 // then <G_i|V_H|G_j> = V_H~(m_i-m_j) via OverlapMatrix.
 
 //! V_H~(dm) supplier for OverlapMatrix.  \a B is the RECIPROCAL cell (G = B dm).
-std::function<dcmplx(const ivec3_t&)> HartreeVtilde(const RhoG& rho, const UnitCell& B)
+std::function<dcmplx(const ivec3_t&)> HartreeVtilde(const RhoG& rho, const CellGeometry& B)
 {
     return [&rho,&B](const ivec3_t& dm)->dcmplx
     {
@@ -231,7 +231,7 @@ std::function<dcmplx(const ivec3_t&)> HartreeVtilde(const RhoG& rho, const UnitC
 }
 
 //! E_H = 1/2 integral rho V_H = (Omega/2) Sum_{G!=0} 4 pi |rho~(G)|^2 / |G|^2.
-double HartreeEnergy(const RhoG& rho, const UnitCell& B, double Omega)
+double HartreeEnergy(const RhoG& rho, const CellGeometry& B, double Omega)
 {
     double E=0.0;
     for (const auto& kv : rho)
@@ -295,7 +295,7 @@ struct PWFixture
     Lattice_3D       lat{cell, ivec3_t(1,1,1)};
     ReciprocalLattice recip{lat.Reciprocal()};   // owns the reciprocal cell B used by Hartree
     PlaneWave_IBS    pw{lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), Ecut};
-    const UnitCell&  B() const {return recip.GetCell();}
+    const CellGeometry& B() const {return recip.GetCell();}
 };
 
 //! Largest |component| over the G-set -- the difference set spans +/-2x this, so a grid with

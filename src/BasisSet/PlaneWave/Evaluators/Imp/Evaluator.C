@@ -65,7 +65,7 @@ ivec3_t PW_Evaluator::AutoGrid() const
         {
             // ISOTROPIC, as the policy rasters are: an imposed run star-averages the raster under the crystal ops, which needs a grid every
             // op maps onto itself -- per-axis N broke it on Si's 2x1x1 supercell (XC off by 2.3 Ha, C2 step 3, 2026-10-31).
-            const UnitCell A=itsRecip.GetCell().MakeReciprocalCell();
+            const CellGeometry A=itsRecip.GetCell().MakeReciprocal();
             auto need=[&](const rvec3_t& e){ return int(std::ceil(itsNyquistG*norm(A.ToCartesian(e))/Pi*(1.0-1e-12))); };
             nn=std::max({nn, need(rvec3_t(1,0,0)), need(rvec3_t(0,1,0)), need(rvec3_t(0,0,1))});
             itsAutoGrid=ivec3_t(nn,nn,nn);
@@ -147,7 +147,7 @@ void ReportFieldSpectrum(const ΔG_Map& m, const ReciprocalLattice& recip)
 {
     assert(pts.size()==vals.size() && pts.size()==w.size() &&
            "PW_Grid_Evaluator::ProjectField: points, weights and values must agree in length");
-    const UnitCell& B=Recip().GetCell();
+    const CellGeometry& B=Recip().GetCell();
     const double invOmega=1.0/Volume();
     ΔG_Map m;
     for (const ivec3_t& dm : Gs())
@@ -172,7 +172,7 @@ void ReportFieldSpectrum(const ΔG_Map& m, const ReciprocalLattice& recip)
 ΔG_Map PW_Grid_Evaluator::MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int,double)>& formFactor) const
 {
-    const UnitCell& B=Recip().GetCell();
+    const CellGeometry& B=Recip().GetCell();
     ΔG_Map rho;
     for (const ivec3_t& dm : Gs())                     // this basis's own {G} (the density's Fourier support)
     {
@@ -192,7 +192,7 @@ void ReportFieldSpectrum(const ΔG_Map& m, const ReciprocalLattice& recip)
 chmat_t PW_Evaluator::LocalPotentialMatrix(const Structure* cl,
                           const std::function<double(int,double)>& formFactor) const
 {
-    const UnitCell& B=itsRecip.GetCell();
+    const CellGeometry& B=itsRecip.GetCell();
     return OverlapMatrix([&](const ivec3_t& dm)->dcmplx
     {
         if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);   // drop dG=0
@@ -284,7 +284,7 @@ chmat_t PW_Evaluator::OverlapMatrix() const
 // -nabla^2 e^{i(k+G).r} = |k+G|^2 e^{i(k+G).r}, so the matrix is diagonal in |k+G|^2.
 chmat_t PW_Evaluator::KineticMatrix() const
 {
-    const UnitCell& B=itsRecip.GetCell();
+    const CellGeometry& B=itsRecip.GetCell();
     size_t n=size();
     chmat_t S=blazem::zeroH<dcmplx>(n);   // off-diagonals are exactly zero
     for (size_t i=0; i<n; i++)
@@ -345,7 +345,7 @@ std::string PW_Evaluator::IDFragment() const
     // share an nG.  So append B's three Cartesian columns (B.e_i = ToCartesian of the unit fractional axes),
     // which pin |G|^2 and Omega exactly.  (Without this the process-wide cache could hand a same-nG neighbour
     // the wrong kernel -- the per-instance member cache this replaces could never collide.)
-    const UnitCell& B=itsRecip.GetCell();
+    const CellGeometry& B=itsRecip.GetCell();
     auto v=[](const rvec3_t& c){ return std::to_string(c.x)+","+std::to_string(c.y)+","+std::to_string(c.z); };
     return std::string("|k=")+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
                  +"|Ecut="+std::to_string(itsEcut)

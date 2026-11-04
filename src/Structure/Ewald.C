@@ -23,6 +23,7 @@ import qchem.Types;     // rvec_t, rvec3_t, vec3_t
 import qchem.UnitCell;
 import qchem.Structure;  // Atom (positions)
 import qchem.Math;       // erfc, exp, sqrt, cos, sin, Pi, cbrt
+import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 
 namespace qchem {
 
@@ -62,7 +63,7 @@ export double EwaldEnergy(const UnitCell& cell, const rvec_t& q, double eta=0.0)
     for (size_t a=0; a<N; a++) for (size_t b=0; b<N; b++) span=std::max(span, norm(τ[a]-τ[b]));
     double Er=0.0;
     const UnitCell& dir = cell;
-    for (const vec3_t<int>& n : dir.CellsInSphere(rcut+span))
+    for (const vec3_t<int>& n : LatticePointsInSphere(dir, rcut+span))
     {
         rvec3_t R = dir.ToCartesian(rvec3_t(n.x,n.y,n.z));
         bool R0 = (n.x==0 && n.y==0 && n.z==0);
@@ -79,8 +80,8 @@ export double EwaldEnergy(const UnitCell& cell, const rvec_t& q, double eta=0.0)
 
     // --- Reciprocal-space sum: (2π/Ω) Σ_{G≠0} e^{−G²/4η²}/G² |S(G)|²,  S(G)=Σₐ qₐ e^{iG·τₐ} ---------
     double Eg=0.0;
-    const UnitCell recip = cell.MakeReciprocalCell();   // columns of B = reciprocal lattice vectors
-    for (const vec3_t<int>& n : recip.CellsInSphere(gcut))
+    const CellGeometry recip=cell.MakeReciprocal();   // columns of B = reciprocal lattice vectors
+    for (const vec3_t<int>& n : LatticePointsInSphere(recip, gcut))
     {
         if (n.x==0 && n.y==0 && n.z==0) continue;       // G=0 handled by the background term
         rvec3_t G  = recip.ToCartesian(rvec3_t(n.x,n.y,n.z));

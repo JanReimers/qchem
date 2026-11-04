@@ -10,12 +10,13 @@ import qchem.Structure;   // the abstract base the pry-out helpers take
 import qchem.Streamable;
 import qchem.Math;        // FourPi (the Coulomb/Poisson kernel prefactor)
 import qchem.Vector3D;    // rvec3_t + its dot product (G*G)
+import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 
 namespace qchem {
 
 //! \brief The reciprocal lattice dual to a (direct) Lattice.
 //!
-//! Holds the reciprocal UnitCell — whose cell matrix is \f$B = 2\pi A^{-\top}\f$,
+//! Holds the reciprocal box (a CellGeometry: it has no sites) — whose cell matrix is \f$B = 2\pi A^{-\top}\f$,
 //! so \f$b_i\cdot a_j = 2\pi\delta_{ij}\f$ — and enumerates the reciprocal
 //! lattice vectors \f$G = B m\f$ within a cutoff.  Symbol/units conventions are
 //! documented in Lattice.C.  Obtain one from Lattice::Reciprocal().
@@ -23,14 +24,14 @@ export class ReciprocalLattice
     : public virtual Streamable
 {
 public:
-    explicit ReciprocalLattice(const UnitCell& reciprocalCell) : itsCell(reciprocalCell) {}
+    explicit ReciprocalLattice(const CellGeometry& reciprocalCell) : itsCell(reciprocalCell) {}
 
-    //! The reciprocal cell (its lattice matrix is \f$B\f$).
-    const UnitCell& GetCell() const {return itsCell;}
+    //! The reciprocal box (its lattice matrix is \f$B\f$).
+    const CellGeometry& GetCell() const {return itsCell;}
 
     //! Reciprocal lattice vectors as integer index triples \f$m\f$ (\f$G = B m\f$)
     //! with \f$|G| \le\f$ Gmax.
-    std::vector<ivec3_t> GetGVectors(double Gmax) const {return itsCell.CellsInSphere(Gmax);}
+    std::vector<ivec3_t> GetGVectors(double Gmax) const {return LatticePointsInSphere(itsCell, Gmax);}
 
     //! Magnitude \f$|G|\f$ for an index triple \f$m\f$.  [1/length]
     double GetGLength(const ivec3_t& m) const {return itsCell.GetDistance(m);}
@@ -56,10 +57,10 @@ public:
         return FourPi/(G*G);
     }
 
-    std::ostream& Write(std::ostream& os) const {return itsCell.Write(os);}
+    std::ostream& Write(std::ostream& os) const {return itsCell.WriteCell(os);}
 
 private:
-    UnitCell itsCell; //!< Reciprocal cell: its lattice matrix is \f$B = 2\pi A^{-\top}\f$.
+    CellGeometry itsCell; //!< Reciprocal box: its lattice matrix is \f$B = 2\pi A^{-\top}\f$.
 };
 
 //---------------------------------------------------------------------------------
@@ -88,9 +89,9 @@ export inline const UnitCell& GetUnitCell(const Structure* st)
 }
 
 //! The reciprocal cell \f$B=2\pi A^{-\top}\f$.  \throws std::bad_cast if \a st is not periodic.
-export inline UnitCell GetReciprocalCell(const Structure* st)
+export inline CellGeometry GetReciprocalCell(const Structure* st)
 {
-    return GetUnitCell(st).MakeReciprocalCell();
+    return GetUnitCell(st).MakeReciprocal();
 }
 
 //! The reciprocal lattice (the Poisson/Kerker metric).  \throws std::bad_cast if \a st is not periodic.

@@ -14,7 +14,7 @@ module;
 #include <algorithm>
 
 module qchem.ChargeDensity.SeedCD;
-import qchem.ReciprocalLattice;        // ReciprocalLattice + UnitCell::MakeReciprocalCell (the seed's own Poisson metric)
+import qchem.ReciprocalLattice;        // ReciprocalLattice + CellGeometry::MakeReciprocal (the seed's own Poisson metric)
 import qchem.BasisSet.G_FieldEvaluator; // G_StructureFactor: the fit basis's analytic MakeFourierDensity
 import qchem.Matrix3D;                 // Invert/Transpose (the periodic image window: (A^T A)^-1 diagonals)
 import qchem.Parallel;                 // WorkerThreads (QCHEM_OPENMP_THREADS -- the batched seed sampling)

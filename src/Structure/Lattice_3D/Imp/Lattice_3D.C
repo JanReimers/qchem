@@ -11,6 +11,7 @@ module;
 module qchem.Lattice_3D;
 
 import qchem.Blaze; //for op!= on blaze iterators (range-for over rvec3vec_t)
+import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 
 namespace qchem {
 
@@ -39,7 +40,7 @@ Lattice_3D::Lattice_3D(const UnitCell& cell, const Vector3D<int>& Limits)
 
 ReciprocalLattice Lattice_3D::Reciprocal() const
 {
-    return ReciprocalLattice(itsUnitCell.MakeReciprocalCell());
+    return ReciprocalLattice(itsUnitCell.MakeReciprocal());
 }
 
 std::shared_ptr<const Structure> Lattice_3D::GetStructure() const
@@ -379,9 +380,9 @@ rvec3vec_t Lattice_3D::GetBondsInSphere(size_t BasisNumber, double Distance) con
     return rvec3vec_t(ret.size(),ret.data());
 }
 
-std::vector<ivec3_t>  Lattice_3D::GetCellsInSphere(double rmax) const
+std::vector<ivec3_t>  Lattice_3D::TranslationsInSphere(double rmax) const
 {
-    return itsUnitCell.CellsInSphere(rmax); //direct lattice vectors R within rmax
+    return LatticePointsInSphere(itsUnitCell, rmax); //direct lattice vectors R within rmax
 }
 //--------------------------------------------------------
 //
@@ -417,7 +418,7 @@ size_t  Lattice_3D::Find(double r,const std::vector<double>& lis) const
 
 rvec3vec_t Lattice_3D::GetSuperCells(double MaxDistance) const
 {
-    Vector3D<int> nc=itsUnitCell.GetNumCells(MaxDistance);
+    Vector3D<int> nc=LatticePointBounds(itsUnitCell, MaxDistance);
     rvec3vec_t ret((2*nc.x+1)*(2*nc.y+1)*(2*nc.z+1)); //full box, size known up front
     size_t k=0;
     for (int ix=-nc.x; ix<=nc.x; ix++)

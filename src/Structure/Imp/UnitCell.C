@@ -430,7 +430,7 @@ void ReportMeshPlaneWaveOrtho(const UnitCell& cell, const qcMesh::Mesh& mesh)
     const rvec_t&     W=mesh.Weights();
     if (R.size()==0) return;
     double Omega=0.0; for (size_t g=0; g<W.size(); ++g) Omega+=W[g];
-    const UnitCell B=cell.MakeReciprocalCell();
+    const CellGeometry B=cell.MakeReciprocal();
 
     // Bin in |Delta G| (a.u.^-1).  Geometric-ish edges: the interesting behaviour is an ONSET, not a slope.
     constexpr size_t kNBin=8;
@@ -574,7 +574,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
 
 // The fields of one uniform cell grid: kind, N, points, dr_i = |a_i|/N_i (edge lengths through the metric), and eCut when
 // the caller derived N from one.  Shared by the mesh builder (Set one level in) and EmitUniformGridReport (a raster's role key).
-static qchem::report::json UniformGridFields(const UnitCell& c, const vec3_t<int>& N, double eCut)
+static qchem::report::json UniformGridFields(const CellGeometry& c, const vec3_t<int>& N, double eCut)
 {
     assert(N.x>0 && N.y>0 && N.z>0);
     const double dx=c.GetDistance(rvec3_t(1,0,0))/N.x,
@@ -638,7 +638,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
 // plus eCut when the caller derived N from one.  EVERYTHING goes through the run report (user ruling
 // 2026-08-16: the old parallel raw-cout line was a bug -- EmitAt renders to the report's console itself);
 // EmitAt is idempotent + inert outside a run.
-void UnitCell::EmitUniformGridReport(const std::string& key, const vec3_t<int>& N, double eCut) const
+void CellGeometry::EmitUniformGridReport(const std::string& key, const vec3_t<int>& N, double eCut) const
 {
     qchem::report::EmitAt("grids", key, UniformGridFields(*this, N, eCut));
 }
@@ -657,30 +657,34 @@ static Matrix3D<double> CellMatrix(double a, double b, double c, double α, doub
         0.0, 0.0 , c*V1/sγ);
 }
 
-UnitCell::UnitCell(const Matrix3D<double>& A)
+CellGeometry::CellGeometry(const Matrix3D<double>& A)
     : itsA(A)
     , itsM(Transpose(A)*A)
 {}
 
-UnitCell::UnitCell(double a, double b, double c, double α, double β, double γ)
-    : UnitCell(CellMatrix(a,b,c,Rad(α),Rad(β),Rad(γ)))
+CellGeometry::CellGeometry(double a, double b, double c, double α, double β, double γ)
+    : CellGeometry(CellMatrix(a,b,c,Rad(α),Rad(β),Rad(γ)))
 {}
 
-UnitCell::UnitCell(double a) : UnitCell(a,a,a,90,90,90) {}
+CellGeometry::CellGeometry(double a) : CellGeometry(a,a,a,90,90,90) {}
 
-UnitCell UnitCell::MakeReciprocalCell() const
+UnitCell::UnitCell(const Matrix3D<double>& A) : CellGeometry(A) {}
+UnitCell::UnitCell(double a, double b, double c, double α, double β, double γ) : CellGeometry(a,b,c,α,β,γ) {}
+UnitCell::UnitCell(double a) : CellGeometry(a) {}
+
+CellGeometry CellGeometry::MakeReciprocal() const
 {
     //  Solid-state convention bᵢ·aⱼ = 2π δᵢⱼ, i.e. B = 2π A⁻ᵀ.  Hence the
     //  reciprocal metric is BᵀB = (2π)² M⁻¹ (the 2π lives in B, not M).
-    return UnitCell(2.0*Pi*Transpose(Invert(itsA)));
+    return CellGeometry(2.0*Pi*Transpose(Invert(itsA)));
 }
 
-rvec3_t UnitCell::ToCartesian(const rvec3_t& f) const
+rvec3_t CellGeometry::ToCartesian(const rvec3_t& f) const
 {
     return itsA*f; // r = A f
 }
 
-rvec3_t UnitCell::ToFractional(const rvec3_t& r) const
+rvec3_t CellGeometry::ToFractional(const rvec3_t& r) const
 {
     return Invert(itsA)*r; // f = A^-1 r
 }
@@ -808,12 +812,12 @@ double UnitCell::G0Background(const std::function<double(int)>& f) const
     return s/GetCellVolume();
 }
 
-double UnitCell::GetCellVolume() const
+double CellGeometry::GetCellVolume() const
 {
     return fabs(Determinant(itsA)); // |det A|
 }
 
-double UnitCell::GetMinimumCellEdge() const
+double CellGeometry::GetMinimumCellEdge() const
 {
     double m=itsM(1,1); // Mᵢᵢ = |aᵢ|²
     if (itsM(2,2)<m) m=itsM(2,2);
@@ -821,7 +825,7 @@ double UnitCell::GetMinimumCellEdge() const
     return sqrt(m);
 }
 
-double UnitCell::GetMaximumCellEdge() const
+double CellGeometry::GetMaximumCellEdge() const
 {
     double m=itsM(1,1); // Mᵢᵢ = |aᵢ|²
     if (itsM(2,2)>m) m=itsM(2,2);
@@ -829,38 +833,26 @@ double UnitCell::GetMaximumCellEdge() const
     return sqrt(m);
 }
 
-Vector3D<int> UnitCell::GetNumCells(double MaxDistance) const
+rvec3_t CellGeometry::InverseInterplanarSpacings() const
 {
-    assert(MaxDistance>0);
-    //  Cells per axis needed to cover a sphere of radius MaxDistance.  Uses the
-    //  interplanar spacing dᵢ = 1/√(M⁻¹)ᵢᵢ (NOT the edge length |aᵢ|), so that
-    //  oblique cells are not under-counted.
+    //  1/dᵢ = √(M⁻¹)ᵢᵢ, the reciprocal interplanar spacing (NOT 1/|aᵢ|), so that oblique cells are not under-counted.
     Matrix3D<double> Minv=Invert(itsM);
-    return Vector3D<int>(
-        (int)ceil(MaxDistance*sqrt(Minv(1,1))),
-        (int)ceil(MaxDistance*sqrt(Minv(2,2))),
-        (int)ceil(MaxDistance*sqrt(Minv(3,3))));
+    return rvec3_t(sqrt(Minv(1,1)), sqrt(Minv(2,2)), sqrt(Minv(3,3)));
 }
 
-double UnitCell::GetDistance(const rvec3_t& f) const
+double CellGeometry::GetDistance(const rvec3_t& f) const
 {
     return sqrt(f*itsM*f); // ‖A f‖ for fractional f
 }
 
-std::vector<vec3_t<int>> UnitCell::CellsInSphere(double MaxDistance) const
+std::ostream& UnitCell::Write(std::ostream& os) const
 {
-    assert(MaxDistance>0);
-    std::vector<vec3_t<int>> ret;
-    vec3_t<int> nc=GetNumCells(MaxDistance);
-    vec3_t<int> n;
-    for (n.x=-nc.x; n.x<=nc.x; n.x++)
-        for (n.y=-nc.y; n.y<=nc.y; n.y++)
-            for (n.z=-nc.z; n.z<=nc.z; n.z++)
-                if (GetDistance(n)<=MaxDistance) ret.push_back(n);
-    return ret;
+    WriteCell(os);
+    Molecule::Write(os);
+    return os;
 }
 
-std::ostream& UnitCell::Write(std::ostream& os) const
+std::ostream& CellGeometry::WriteCell(std::ostream& os) const
 {
     double a=sqrt(itsM(1,1)), b=sqrt(itsM(2,2)), c=sqrt(itsM(3,3));
     double α=acos(itsM(2,3)/(b*c))/Pi*180;
@@ -868,7 +860,6 @@ std::ostream& UnitCell::Write(std::ostream& os) const
     double γ=acos(itsM(1,2)/(a*b))/Pi*180;
     os << "(a,b,c)=(" << a << "," << b << "," << c << "), "
        << "(α,β,γ)=(" << α << "," << β << "," << γ << ")°  ";
-    Molecule::Write(os);
     return os;
 }
 

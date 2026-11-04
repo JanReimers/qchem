@@ -10,6 +10,7 @@ import qchem.Structure;                 // Molecule, Atom, Structure
 import qchem.UnitCell;                   // UnitCell (uniform periodic mesh)
 import qchem.Mesh.Quadrature;          // qcMesh::Integrate (over qcMath ScalarFunction)
 import qchem.Reporting;                 // report::Scope: the mesh files its fields one level into the caller's scope
+import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 using namespace qchem;
 
 // Note: this TU sees BOTH the old global `Mesh`/`MeshParams` (via qchem.Structure) and the new
@@ -196,7 +197,7 @@ public:
         for (int c=0; c<8; c++)
             rCorner=std::max(rCorner, norm(cell.ToCartesian(rvec3_t(c&1,(c>>1)&1,(c>>2)&1))));
         double range=std::sqrt(37.0/itsAlpha)+rCorner;
-        for (auto n : cell.CellsInSphere(range))
+        for (auto n : LatticePointsInSphere(cell, range))
         {
             rvec3_t L=cell.ToCartesian(rvec3_t(n.x,n.y,n.z));
             for (const Site& a : cell.Sites()) itsSites.push_back(a.R+L);

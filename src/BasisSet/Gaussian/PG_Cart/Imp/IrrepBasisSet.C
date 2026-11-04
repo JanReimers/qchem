@@ -22,6 +22,7 @@ import qchem.BasisSet.Gaussian.PG_Cart.Symmetry;   // ExtractAoShells(const PGDa
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Blaze;
+import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 
 namespace qchem::BasisSet::Gaussian::PG_Cart
 {
@@ -249,7 +250,7 @@ std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {retur
 // that bounds the enumeration is owned on this side.
 //
 // The enumeration REPRODUCES the caller's former rule exactly (same eps-derived reach, same
-// CellsInSphere radius, same per-point bounding-sphere screen, same POINT-outer/offset-inner order), so
+// LatticePointsInSphere radius, same per-point bounding-sphere screen, same POINT-outer/offset-inner order), so
 // the Cartesian result is BIT-IDENTICAL to the old GPW_Evaluator::Eval path.  That is deliberate: this
 // increment moves WHERE the sum happens, and nothing else, so any number that moves afterwards belongs
 // to the transform reordering in the spherical view and not to a changed image set.
@@ -271,7 +272,7 @@ void Orbital_IBS::BlochPointValues(const rvec3vec_t& pts, const cellphase_t& pha
     const double Rcut=std::max(2.0*maxReach+2.0*A.GetMaximumCellEdge(), maxReach+2.0*cellRad);
     const double rr  =cellRad+maxReach;
 
-    std::vector<ivec3_t> offs=A.CellsInSphere(Rcut);
+    std::vector<ivec3_t> offs=LatticePointsInSphere(A, Rcut);
     std::vector<rvec3_t> Rc(offs.size());
     cvec_t               ph(offs.size());
     for (size_t k=0;k<offs.size();k++)

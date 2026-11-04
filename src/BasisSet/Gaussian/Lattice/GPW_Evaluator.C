@@ -36,7 +36,7 @@ import qchem.Mesh;                                 // qcMesh::MeshParams (the PP
 import qchem.BasisSet;                             // Real_BS (the molecular Gaussian basis we own)
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)
 export import qchem.BasisSet.GMap;        // Projector3<dcmplx> (the DFT 3-centre tensor, now with GPW weights)
-import qchem.UnitCell;                             // UnitCell (the direct lattice; CellsInSphere/ToCartesian)
+import qchem.UnitCell;                             // UnitCell (the direct lattice; ToCartesian)
 import qchem.Structure;                            // Structure (the nuclear-attraction centres)
 import qchem.Types;                                // rvec3_t, cvec_t, cvec3vec_t, chmat_t, rmat_t
 import qchem.Parallel;                             // LazyLock (the transition ladders, filled from outer-loop workers)

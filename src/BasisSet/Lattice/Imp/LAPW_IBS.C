@@ -181,7 +181,7 @@ std::vector<LAPW_IBS::RadialBlock> LAPW_IBS::MuffinTinRadialBlocks() const
 // 2x2 system  boundary . (a_l,b_l) = (j_l(KR), K j_l'(KR)),  so c_l = boundary^{-1} . rhs.
 std::vector<LAPW_IBS::AugmentedWave> LAPW_IBS::MatchAugmentation(const std::vector<RadialBlock>& blocks) const
 {
-    const UnitCell& B=itsRecip.GetCell();
+    const CellGeometry& B=itsRecip.GetCell();
     int    lmax=static_cast<int>(itsLmax);
     double Rmt=itsRmt;
     size_t n=GetNumFunctions();

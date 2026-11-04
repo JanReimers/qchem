@@ -30,6 +30,7 @@ import qchem.Reporting;       // the run report -- EmitGridsReport builds the `g
 import qchem.RunPolicy;       // theRunPolicy().DAwareScreen() -- WHICH LatticeScreener this evaluator builds (N5)
 import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the grid report's {G}-star column)
 import qchem.Symmetry.Lattice_3D.BlochOperationRep;  // BlochPhase (exact ±1 at TRIM)
+import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 
 namespace qchem::BasisSet::Gaussian
 {
@@ -49,7 +50,7 @@ void BuildImages(const UnitCell& cell, double Rcut, const rvec3_t& kFrac, bool t
 {
     blazem::VecBuilder<dcmplx> ph;
     if (Rcut>0.0)
-        for (const auto& n : cell.CellsInSphere(Rcut))
+        for (const auto& n : LatticePointsInSphere(cell, Rcut))
         {
             R.push_back(cell.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z))));
             ph.Append(BlochPhase(kFrac,n,trim));                      // e^{ik.R} = e^{2 pi i k_frac . n}
@@ -927,7 +928,7 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const SpeciesRadialField
     // for non-Gaussian PP models or the finite==lattice gates.
     qchem::report::Timed timed("setup: local-PP LONG integrate-back (grid sweep)");
     assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0: <0 auto, >0 explicit)");
-    const UnitCell& B=itsFFT_R_G_Grids->Recip().GetCell();
+    const CellGeometry& B=itsFFT_R_G_Grids->Recip().GetCell();
     // ANALYTIC integrate-back of the G-space local-PP form factor, on the FULL ladder with the ABSOLUTE
     // pair->level rule (kappa, below).  V_loc is spectrally BROAD (unlike the smooth V_H/V_xc): at the
     // smooth-field calibration the mid pairs' e^{-2.5} tails against the deep well were a Ha-scale term
@@ -1048,7 +1049,7 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
     // PP sharpness it was sized with -- so nothing here depends on whether this sweep ran or a cached matrix stood in for it.)
     // Vtilde(dm) = (1/Omega) Sum_a f_long(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 DROPPED (the E_alphaZ
     // alignment carries the mean -- the same convention as MakeLocalPP's form-factor closure).
-    const UnitCell& B=itsFFT_R_G_Grids->Recip().GetCell();
+    const CellGeometry& B=itsFFT_R_G_Grids->Recip().GetCell();
     auto Vt=[&](const ivec3_t& dm)->dcmplx
     {
         if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);

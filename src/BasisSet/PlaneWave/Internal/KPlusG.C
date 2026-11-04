@@ -24,7 +24,7 @@ inline constexpr double kZeroTol = 1e-12;   // TODO: Make External
 class KPlusG
 {
 public:
-    KPlusG(const UnitCell& B, const rvec3_t& k, const std::vector<ivec3_t>& G)
+    KPlusG(const CellGeometry& B, const rvec3_t& k, const std::vector<ivec3_t>& G)
         : itsK(G.size()), itsNorm(G.size())
     {
         for (size_t i=0; i<G.size(); i++) { itsK[i]=B.ToCartesian(k+G[i]); itsNorm[i]=norm(itsK[i]); }
