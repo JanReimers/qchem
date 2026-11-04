@@ -6,7 +6,6 @@ module;
 module qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.DB_Cache;
-import qchem.Blaze;
 
 namespace qchem::BasisSet
 {

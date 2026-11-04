@@ -13,8 +13,6 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.Mesh.Quadrature;           // qcMesh::Overlap(mesh, VectorFunction, ScalarFunction) -> projection vector
 import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (passed direct)
-import qchem.Blaze;                     // rmat_t, rvec_t, trans, outer product
-import qchem.Math;                      // norm, Pi, sqrt
 
 namespace qchem::Hamiltonian
 {

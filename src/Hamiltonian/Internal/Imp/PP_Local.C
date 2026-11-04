@@ -13,7 +13,6 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.Mesh.Quadrature;           // qcMesh::Mesh, MatrixOverlap (over qcMath Scalar/VectorFunction)
 import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (the integrand source, passed direct)
-import qchem.Math;                      // norm(Vector3D)
 
 namespace qchem::Hamiltonian
 {

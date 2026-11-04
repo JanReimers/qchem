@@ -4,7 +4,6 @@ module;
 #include <iostream>
 module qchem.BasisSet.Radial.Evaluators.Internal.AngularIntegrals;
 import qchem.BasisSet.Radial.Evaluators.Internal.Wigner3j;
-import qchem.Math;
 
 using std::cout;
 using std::endl;

@@ -4,7 +4,6 @@ module;
 #include <iostream>
 #include <iomanip>
 module qchem.EnergyLevel;
-import qchem.Streamable;
 
 namespace qchem::Orbitals
 {

@@ -28,7 +28,6 @@ import qchem.Math.Angular;                    // Math::SphericalShell / Monomial
 import qchem.Structure;
 import qchem.UnitCell;
 import qchem.Blaze;
-import qchem.Math;
 
 namespace qchem::BasisSet::Gaussian::PG_Spherical
 {

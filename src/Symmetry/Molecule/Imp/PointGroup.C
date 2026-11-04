@@ -6,7 +6,6 @@ module;
 #include <map>
 #include <algorithm>
 module qchem.Symmetry.Molecule.PointGroup;
-import qchem.Math;          // Pi, sqrt, fabs, sin, cos, Square (project-wide constants/math)
 import qchem.Matrix3D;      // Matrix3D, Eigen3 + SymEigen3 (real symmetric 3x3 eigensolve)
 
 namespace qchem::Symmetry::Molecule

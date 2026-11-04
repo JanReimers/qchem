@@ -5,7 +5,6 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.Constants;
-import qchem.Blaze;
 
 namespace qchem::Hamiltonian
 {

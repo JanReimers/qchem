@@ -23,7 +23,6 @@ import qchem.BasisSet.Projector3;                    // Projector3<double>, fnor
 import qchem.BasisSet.Internal.ERI4;                          // ERI4, fnorm
 import qchem.Structure;
 import qchem.Types;
-import qchem.Blaze;
 using namespace qchem;
 
 using namespace qchem::BasisSet::Gaussian::Evaluators;

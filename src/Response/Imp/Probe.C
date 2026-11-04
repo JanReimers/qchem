@@ -10,7 +10,6 @@ module;
 #include <string>
 #include <vector>
 module qchem.Response.Probe;
-import qchem.Math;    // cos, sin, abs, isfinite, Pi (the Fourier phases)
 import qchem.Blaze;
 
 namespace qchem::Response

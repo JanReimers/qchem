@@ -16,9 +16,6 @@ module;
 #include <blaze/math/dense/DenseIterator.h> // so std::sort can see the Blaze iterator op==/op!=
 module qchem.Symmetry.Atom.Internal.SphericalQNs;
 import qchem.Strings;   // SPDFG / j2s label tables
-import qchem.stl_io;
-import qchem.Blaze;
-import qchem.Math;
 
 using std::cout;
 using std::endl;

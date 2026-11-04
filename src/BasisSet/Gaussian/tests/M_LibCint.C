@@ -13,7 +13,6 @@
 #include <vector>
 
 import qchem.StructureData;
-import qchem.BasisSet.Gaussian.Evaluators;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;     // PGData (the IBS IS-A one)
 import qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;        // the evaluator under test
 import qchem.BasisSet.Gaussian.PG_Cart;                           // Orbital_IBS (M&D reference)
@@ -24,7 +23,6 @@ import qchem.BasisSet.Projector3;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.Structure;
 import qchem.Types;
-import qchem.Blaze;
 using namespace qchem;
 
 using BasisSet::Gaussian::PG_Cart::Orbital_IBS;

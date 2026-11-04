@@ -8,7 +8,6 @@ module;
 #include <string>
 
 module qchem.Structure;
-import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Mesh.Product;         // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
 import qchem.Mesh.Builder;         // MeshBuilder (efficient incremental accumulation)

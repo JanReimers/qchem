@@ -17,7 +17,6 @@
 
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH, GTH_PP (real HGH parameters)
 import qchem.Mesh.Quadrature;                     // qcMesh::RadialMesh, MakeRadial
-import qchem.Math;                                // Pi
 using namespace qchem;
 
 using namespace qchem::Pseudopotential;

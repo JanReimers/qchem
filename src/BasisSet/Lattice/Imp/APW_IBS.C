@@ -9,7 +9,6 @@ module;
 
 module qchem.BasisSet.Lattice.APW_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory
-import qchem.Math;               // Pi, FourPi, Cube
 import qchem.SpecialFunctions;   // SphericalBessel, SphericalBessel1, SphericalBesselPrime, LegendreP
 import qchem.BasisSet.PlaneWave.Internal.GVectors;   // BuildGs
 import qchem.BasisSet.PlaneWave.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)

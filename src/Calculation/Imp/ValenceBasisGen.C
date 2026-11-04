@@ -18,7 +18,6 @@ import qchem.SCFIterator;                       // SCFParams (Verbose -> the per
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH (default Zion)
 import qchem.ChargeDensity;                    // ChannelOf + Spin (the spin-resolved channel sampling)
 import qchem.Types;                            // rvec3_t (radial sampling point)
-import qchem.Math;                             // Pi (the 4 pi in the charge integral)
 
 namespace qchem
 {

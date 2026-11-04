@@ -5,7 +5,6 @@
 module;
 #include <utility>
 module qchem.Mesh.Radial;
-import qchem.Math;
 
 namespace qchem::qcMesh
 {

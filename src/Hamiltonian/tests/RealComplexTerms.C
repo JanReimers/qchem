@@ -41,7 +41,6 @@ import qchem.ChargeDensity.Imp.IrrepCD;            // PeriodicIrrepCD (the perio
 import qchem.CompositeCD;                          // tComposite_CD<dcmplx> (the run-shaped density)
 import qchem.Mesh;                                 // qcMesh::MeshParams
 import qchem.Fitting.FunctionFitter;               // CoulombMetric_ProjectedDensity (the honest-probe check)
-import qchem.Blaze;
 import qchem.Types;
 
 using namespace qchem;

@@ -4,7 +4,6 @@ module;
 
 module qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
-import qchem.Blaze;
 
 // The orbital 1E / 3C (DFT) / 4C (HF) integral building now lives entirely in the Molecule-generic,
 // evaluator-templated mixins (qchem.BasisSet.Gaussian.Point.IBS), instantiated with PG_Evaluator.  Nothing

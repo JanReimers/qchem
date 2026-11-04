@@ -6,7 +6,6 @@ import qchem.BasisSet.Radial.Evaluators.Internal.Wigner3j;        //Wigner::wign
 import qchem.BasisSet.Radial.Evaluators.Internal.RelWigner3j;
 import qchem.BasisSet.Radial.Evaluators.Internal.RelAngularIntegrals;
 import qchem.BasisSet.Radial.Evaluators.Internal.AngularIntegrals;
-import qchem.Blaze;
 using namespace qchem;
 
 using std::cout;

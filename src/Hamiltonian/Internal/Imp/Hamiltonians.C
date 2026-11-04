@@ -21,7 +21,6 @@ import qchem.Hamiltonian.Types;
 import qchem.Structure;
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
 import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
-import qchem.Math;                                // max (the denser of the exchange/correlation grid factors)
 import qchem.Reporting;                           // grids.xcQuadrature route announcement (EmitAt)
 
 namespace qchem::Hamiltonian

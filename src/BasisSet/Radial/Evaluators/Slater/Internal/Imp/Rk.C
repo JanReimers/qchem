@@ -3,9 +3,7 @@ module;
 #include <cassert>
 #include <vector>
 module qchem.BasisSet.Radial.Evaluators.Slater.Internal.Rk; 
-import qchem.BasisSet.Radial.Evaluators;
 import qchem.BasisSet.Radial.Internal.PascalTriangle;
-import qchem.Math;
 import qchem.Blaze;
 
 namespace qchem::Slater

@@ -18,10 +18,8 @@ import qchem.BasisSet.Radial.Factory;            // atomic basis blocks for the 
 import qchem.BasisSet;                        // Real_BS
 import qchem.BasisSet.ImplicitAngular_IBS;    // the radial/implicit-Y_lm capability under test
 import qchem.Hamiltonian.Internal.Terms;      // PP_NonLocal (the atomic KB assembly under test)
-import qchem.Blaze;                           // rsmat_t / rvec_t
 import qchem.Pseudopotential.GTH_Potentials;   // HGH_SeparablePotential (the per-l KB oracle)
 import qchem.Mesh.Quadrature;                 // qcMesh::RadialMesh / MakeRadial (the radial reference)
-import qchem.Math;                            // Pi
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy
 import qchem.MoleculeCalculation;            // MoleculeCalculation, CalcOptions (molecular facade)
 import qchem.SCFCap;                 // BoundedSCF (the Si2 routing check reads Enn on a bounded run)

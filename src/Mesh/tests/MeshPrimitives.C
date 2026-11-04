@@ -6,8 +6,6 @@
 import qchem.Mesh.Product;       // Mesh, ProductMesh, MakeRadial/MakeAngular, MeshParams, enums
 import qchem.Mesh.Quadrature;    // free functions (over qcMath Scalar/VectorFunction)
 import qchem.Mesh.GaussLegendre;
-import qchem.Blaze;
-import qchem.Math;                // Pi, Pi32, FourPi
 using namespace qchem;
 
 using namespace qchem::qcMesh;          // Mesh, MakeRadial/MakeAngular, quadrature, ...

@@ -4,7 +4,6 @@
 import qchem.Symmetry.Lattice_3D.Fold;
 import qchem.Symmetry.Lattice_3D.SpaceGroup;
 import qchem.Symmetry.Lattice_3D.BZReduction;
-import qchem.Math;   // fabs, lround
 using namespace qchem;
 using namespace qchem::Symmetry::Lattice_3D;
 

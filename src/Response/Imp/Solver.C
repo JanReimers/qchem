@@ -13,7 +13,6 @@ module;
 #include <type_traits>
 #include <vector>
 module qchem.Response.Solver;
-import qchem.Math;    // Pi (the q-star phases)
 import qchem.Blaze;
 
 namespace qchem::Response

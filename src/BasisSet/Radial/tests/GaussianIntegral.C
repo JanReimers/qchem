@@ -8,7 +8,6 @@
 import qchem.BasisSet.Radial.Factory;
 import qchem.BasisSet.Radial.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Radial.Evaluators.Internal.Rk;
-import qchem.BasisSet.Radial.Evaluators;
 import qchem.BasisSet;
 
 import qchem.Constants;

@@ -7,11 +7,7 @@ module;
 #include <sstream>
 
 module qchem.BasisSet.Radial.Evaluators.BSpline.IBS;
-import qchem.BasisSet.Radial.Evaluators.BSpline.Internal.Rk;
-import qchem.BasisSet.Radial.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.BasisSet.Radial.Evaluators;
-import qchem.Symmetry.Atom.Spherical;
-import qchem.Math;
 
 namespace qchem::BasisSet::Radial::Evaluators::BSpline
 {

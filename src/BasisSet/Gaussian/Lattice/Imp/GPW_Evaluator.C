@@ -23,7 +23,6 @@ import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, co
 import qchem.Mesh.Quadrature; // qcMesh::MatrixOverlap / Overlap (the real-space PP quadrature primitives)
 import qchem.Mesh.XCPolicy;   // qcMesh::RequiredUniformCutoff (the KB mesh fallback's floor, V2.5)
 import qchem.ScalarFunction;  // ScalarFunction<double> (the V_loc / beta*Ylm fields handed to the quadrature)
-import qchem.Math;            // norm, Pi, sqrt (the real spherical harmonics for the KB projectors)
 import qchem.Math.Angular;    // Monomial/CartTerm/SphericalShell (the analytic KB Cartesian expansion)
 import qchem.Structure;       // Structure / Atom (the PP centres + Z, and CreateIntegrationMesh)
 import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity / IntegratePotential grid<->cell)

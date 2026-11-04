@@ -3,7 +3,6 @@ module;
 #include <cassert>
 
 module qchem.BasisSet.Gaussian.Evaluators.Internal.Boys.AuxillaryFJ;
-import qchem.Math;
 
 static double Factorial[]= {1,1,2,6,24,120,720};
 

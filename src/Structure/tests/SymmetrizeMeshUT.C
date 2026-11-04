@@ -13,7 +13,6 @@
 import qchem.SymmetrizeMesh;   // FoldMesh/Symmetrize/UnmatchedCounts/MakeInvariant/MakeInvariantAngularMesh
 import qchem.Lattice_3D;       // Lattice_3D::GetSpaceGroup + FCCUnitCell/UnitCell (the site-adapted Becke gate)
 import qchem.Mesh.Angular;
-import qchem.Mesh.Product;   // MakeRadial
 import qchem.Mesh.XCPolicy;   // BeckeXCParams -- ask for the RECIPE, never for cellKind alone     // MakeAngular (the GL direction-count baseline for the growth measure)
 import qchem.Types;
 

@@ -8,7 +8,6 @@ module;
 #include <cmath>
 module qchem.LASolver;
 import qchem.LASolver.Internal.Lapack;
-import qchem.Blaze;
 
 using qchem::LASolverEigen;
 using qchem::LASolverSVD;
