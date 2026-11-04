@@ -2598,3 +2598,37 @@ plus a grep of `~/Code/*-runs` decks.  `doc/InputDeck.md` is updated.
   bounded by N.  This is expected (QE's is not either); don't assert it.
 - **`dynamic_cast` discipline**: the new service is reached abstract→abstract (the `Orbital_PP_IBS`
   pattern); flag any concrete cast.
+
+## 2026-11-03 — the Li reference μ_Li, and the default-ε pilot beta test (lane H)
+
+Runs: `~/Code/qchem6-runs/Li/mu/` (k ladder `ladder.txt`; pilot reruns `pilot/`; bisect `q3bisect/`; CP2K ATOM `~/Code/cp2k-runs/Li/atom/`).
+bcc a = 6.52145 bohr, imposed Oh, LDA, kT = 1e-3, k12 (relative k convergence reached by k12–16).  bcc Li is NON-magnetic in LDA:
+polarized moments at k4–k8 were k-sampling artefacts.
+
+**Pilot-settled energies (Ha; default ε = 1e-5, vet on):**
+
+| run | E (settled) | notes |
+|---|---|---|
+| atom q1, L28 | −0.1988216 | CP2K ATOM UKS GTH-PADE-q1 (converged geometric GTO): **−0.1989055** → ours +84 μHa |
+| bcc q1 | −0.2409498 | no p: E_coh 1.15 eV — q1 needs p in the metal |
+| bcc q1 + p (s0.03 trimmed by the vet) | −0.2645456 | **E_coh 1.788 eV** (LDA literature ~1.8, exp 1.63) |
+| atom q3, L28 | −7.3096551 | CP2K ATOM UKS GTH-PADE-q3: **−7.3007906** (40/60/80 GTOs agree to 1e-10) → ours **8.9 mHa LOW** |
+| atom q3, L12 | −7.3149357 | 5.3 mHa below L28: a neutral atom should not move like this |
+| atom q3 + aug (s0.04 p0.06) | −7.3306829 | **29.9 mHa LOW** — the diffuse shells make it worse |
+| bcc q3 | −7.4347899 | λmin 6.3e-4, grids audited; E_coh(vs aug atom) 2.83 eV — not physical |
+| bcc q3 + aug | −69.9165 | grids audited to < 1e-6 → NOT raster aliasing (my 2026-11-02 guess retracted); λmin 1.25e-7 after the vet |
+
+**Verdict:** q3 Li is non-variational in our code; q1 is not.  PP parameters match CP2K's file exactly.  The q3 local PP has C1..C4
+(q1 only C1, C2 + KB); `FormFactorShort` and `MultiplyR2` read correct; the bisect onto the PW basis OOM'd (1.7M-point raster, 33 GB
+VM at ecut 30, L = 12) so the GPW-vs-PW split is not yet made.  Open row in `doc/OpenWork.md` §3.
+
+**Pilot beta test (doc/GridEpsilonPlan.md step 3), seven runs:**
+1. Works as designed on six: one re-convergence, rasters settled at x 5.5–9.8, the gridAudit (x + 8) agrees to ≤ 1e-5.
+2. bcc q3 + aug printed `NOT SETTLED` (V_long beside the ball 2.65e-4), yet the record says `settled true`.
+3. Solids print "sizing the rasters to 0.000 Ha" (the ε × atoms value in fixed format).
+4. The Becke mesh is not sized: bcc q3 40/29 → 60/35 moves E 0.44 mHa (44× ε) with `xcMeshAudit ok = true`; the radial warning
+   (2.9 nodes per peak) had predicted it.  The q1 solids got a 512-point Uniform XC mesh the pilot calls converged, but Becke 60/35
+   differs by 26–35 μHa.
+5. Cost: on bcc q3 + aug the SCF is 590 s and the pilot about 17,000 s (round-1 audit alone 11,150 s); the postSCF gridAudit then
+   repeats the pilot's own last audit (2460 s).
+6. The q3 atom (L28) was OOM-killed in a postSCF audit (4.3 GB RSS, global OOM).
