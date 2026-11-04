@@ -33,6 +33,7 @@ links INSIDE moved files (`../src/…`) are one level off.
 
 ## `doc/Records/` — RECORDS cited by open work (cite; never a queue; nothing here is trimmed)
 
+| `InnovationCandidates.md` | TENTATIVE list of possibly-innovative techniques (user 2026-11-04): factored ρ, periodic Becke grids, global ε error control (the user's pick for most consequential), orbital-resolved self-consistent DFT+U with Gaussians -- each with its known prior-art leads; never a novelty claim |
 | file | why it is here |
 |---|---|
 | **`OpenWork_History1…5.md`**, **`CleanupHistory.md`/`2`/`3`**, **`BenchmarkHistory.md`** (incl. Benchmark.md verbatim as of 2026-10-01), **`GPWHistory.md`**, **`SymmetryUpgradeHistory.md`**, **`HubbardUHistory.md`** | the append-only closed record; trackers WRITE to these (History5 = the v3 tracker verbatim; CleanupHistory3 = the v2 worklist verbatim).  ★ A record of what was TRIED AND REJECTED is worth more than a record of what landed |

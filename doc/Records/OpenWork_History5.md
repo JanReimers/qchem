@@ -1334,3 +1334,182 @@ open pilot-budget row (66 on main-4b4a6641).  Its accelerator is Null, so this c
 **The CLAUDE.md claim "GDM now engages on unpolarized (occ=2) runs too" (2026-10-01) was verified on single-block runs only**:
 `WaterPureGDM` (no symmetry, energy only, the hand-off "checked by hand"), the folded-doublet UT (one `Irrep()` block), and B UHF.
 Before da50a531, no symmetry-blocked molecule with electrons in more than one irrep had ever run GDM.
+
+
+## The ρ̃ sampler, step 1 (lane A, landed ac66be2d, 2026-11-04) -- the design note, verbatim
+
+### Lane A — ρ̃ sampler design note (OpenWork §4 step 1), 2026-11-04
+
+lane-a = main 3400d501 merged (clean, no conflicts).  Design only; no code yet.
+
+#### What is actually being sampled (the call path, measured)
+
+Both of the MnO-geometry buckets are the SAME kernel, `FourierMixCD::operator()(const rvec3vec_t&)`, a direct
+per-point G-sum (folded half-space, per-axis phase tables, one complex MAC per folded G per point):
+
+| bucket (`lanea_ballcost_geometry.out`) | calls | s/call | total | what is sampled |
+|---|---|---|---|---|
+| `XC-mesh rho sampling (matrix-free density)` | 122 | 11.6 | 1415 s | the WHOLE mixed ρ̃, both spins (`DensitySampler_Singles.C` matrix-free branch: a mixed density with no exact source) |
+| `XC-mesh rho sampling (all iterations)` self | 281 | 2.45 | 689 s | ρ[D] by the Φ GEMM **plus** the N4 cusp-deficit correction ρ̃_mix − ρ̃[D], which `FieldMixer::Present` builds as a `FourierMixCD` over the same ball and `FieldProjection().Project(*corr)` G-sums at every Becke point |
+
+N_r = 31 664 Becke points (after the tail drop), and N_G is the density ball (72 → 160 Ha takes the cost from 1.82 to 6.51 s/call, ∝ N_G).
+So cost = N_r · N_G/2 complex MACs per channel, which is O(N_G·N_r).
+
+Side question to settle while I'm in there: **why 122 calls take the matrix-free branch at all**, since the cusp-deficit route should give every mixed
+density an exact source.  Candidates: Pulay-extrapolated densities, or the pilot's audit/ladder SCFs.  If it's the Pulay path, its exact source
+is missing and that's a pin-28 question (XC reads ρ[D]).  I'll report it as a finding and won't fold it into the sampler change.
+
+#### Route: type-2 NUFFT.  Reusing the levels' collocated ρ is REJECTED
+
+**(b) The levels' collocated ρ: rejected.**
+- The multigrid levels collocate ρ[D] (the pair scatter) on RASTER nodes.  What the XC mesh needs is the MIXED field, or its correction,
+  at BECKE points, which are off-raster.
+- Getting a raster value onto an off-node point is an interpolation.
+  - The only exact interpolant of a band-limited raster is the G-sum itself.
+  - A local polynomial or Lagrange interpolant has an error that is not band-limited and has no ε-bound: it rings at the cusps, which is pin 1's
+    wrecking ball.
+- The levels also don't hold ρ_mix: the mixer's field lives in G.  So (b) is either inexact or collapses into (a).
+
+**(a) Type-2 NUFFT: chosen.**
+ρ(r) = Σ_dm c(dm) e^{2πi dm·s}, with s = fractional coordinates of r (G = B dm, so G·r = 2π dm·s).  That's a standard 3-D type-2 NUFFT on the
+integer lattice dm, for ANY cell (triclinic included), with no Cartesian assumption.  Steps:
+1. **Deconvolve:** c'(dm) = c(dm)/φ̂(dm).  O(N_G).
+2. **FFT** onto an oversampled grid n_a = σ·(2·m_a+1), σ = 2.  This uses pocketfft through `qchem.FFT` (`src/Math/FFT.C`), with real output because ρ is real.
+3. **Interpolate:** each point gathers the w³ grid values nearest it, weighted by the SEPARABLE kernel φ(s_1)φ(s_2)φ(s_3).  The per-point weights are
+   3·w numbers and are cached per mesh: the Becke points are fixed for the run, and so is the ball.
+
+Kernel: the "exponential of semicircle" φ(z) = exp(β(√(1−z²) − 1)), β = 2.30·w (FINUFFT's kernel).  The error is ≈ 10^{1−w} relative to ‖c‖₁.
+The Gaussian kernel is the fallback: a closed-form bound, but about 2× the width for the same digits.
+
+Pin 1 check:
+- Nothing truncates a lattice sum.  The output is the SAME band-limited series as the G-sum, to a stated ε.
+- The kernel's compact support is a property of the kernel by construction, not a cut of a field.  Its error is its Fourier alias tail, and that
+  is exactly what the bound measures.
+- It adds no Gibbs content beyond what the series already has.  The cusp-deficit route already keeps the cusps on ρ[D] (the Φ GEMM) and samples
+  only the smooth correction.
+
+#### Dispatch: the point set answers for itself (added 2026-11-04, user requirement)
+
+**A fact first, because it changes what "untouched" can mean.**
+- Today the uniform cell mesh has NO inverse-FFT path for a ρ̃-mixed density.
+- `DeltaFit_IBS::Overlap(f)` (`src/BasisSet/DeltaFit_IBS.C:144`) calls `f(mesh.Points())` on BOTH meshes, so the uniform XC mesh
+  (`UnitCell::CreateIntegrationMesh`, cellKind Uniform: n³ fractional MIDPOINTS) went through the same direct G-sum as Becke.
+- The paths that ARE inverse FFTs are the PW fit (`PlaneWaveFit_IBS::Overlap`, G-space) and the raster XC route (`GetRhoOnGrid`).
+  Neither calls `FourierMixCD::operator()(points)`, so neither is touched by this change.
+- So the uniform mesh GAINS the exact inverse FFT here.  It is not "kept": it did not have one.
+
+**Who holds what.**
+The sampler's client is the δ fit basis (`DeltaFit_IBS`, via `FieldProjector::Project` → `OrthogonalFit` → `Overlap(f)`).  It holds a
+`FitQuadrature` (= `qcMesh::FoldedMesh`), which holds a `shared_ptr<const qcMesh::Mesh>`.  It does NOT know the mesh kind, and it must not.
+The field it is handed is a plain `ScalarFunction<double>`.  So the dispatch needs two halves: the POINT SET makes the sampler, and the
+FIELD chooses whether to use one.
+
+**The design (two virtuals, no kind switch anywhere):**
+1. **qcMath, a new data-free face `PointSampling`:**
+   - `virtual const rvec3vec_t& Points() const = 0;`
+   - `virtual std::unique_ptr<FourierSampler> MakeFourierSampler(const FourierBox&) const;`
+   The DEFAULT returns the NUFFT sampler on `Points()`.  `FourierBox` = the reciprocal basis B (G = B·dm) and the dm index box.
+   `FourierSampler::Sample(terms) → rvec_t` is values on MY points, in MY order.
+2. **`qcMesh::Mesh` implements `PointSampling`.**
+   - The uniform raster's override cannot be a subclass: `CreateIntegrationMesh` returns `Mesh` BY VALUE, and copies are everywhere,
+     so a subclass slices.
+   - So the override travels as a SAMPLING STRATEGY OBJECT the BUILDER installs.  `Mesh::MakeFourierSampler` forwards to it, and a
+     null strategy means the default (NUFFT).
+   - `UnitCell::CreateIntegrationMesh`, the uniform branch, installs `RasterFourierSampling{n, half-voxel offset}`.  That strategy
+     returns an inverse-FFT sampler.
+   - The inverse FFT is EXACT on the midpoint raster for ANY n: e^{2πi k·(j+½)/n} is n-periodic in k, so each k is accumulated into
+     bin (k mod n) with its half-voxel phase.  It is the same series, no approximation, and no σ or w.
+   - Becke and every other builder install nothing, so they take the NUFFT default.
+3. **The field's half, `ScalarFunction<double>`:** `virtual rvec_t Sample(const PointSampling& ps) const`.  Its default is
+   `(*this)(ps.Points())`.  `FourierMixCD` overrides it with `ps.MakeFourierSampler({B, box})->Sample(itsRho)*itsScale`.  So nothing
+   ever asks a mesh what kind it is, or asks a field whether it is a Fourier series.
+4. **The client:** `DeltaFit_IBS::Overlap(f)` calls `f.Sample(*mesh)` instead of `f(mesh->Points())`.  That is a one-line change, and
+   every non-Fourier field takes the default, bit-identical to today.
+
+**Dependency direction:**
+- qcMath holds `PointSampling`, `FourierSampler`, the NUFFT and the FFT.
+- qcMesh implements the face (qcMesh → qcMath, as today).
+- Structure (`UnitCell`) installs the raster strategy (it already builds the mesh).
+- BasisSet (`DeltaFit_IBS`) calls the face.
+- ChargeDensity (`FourierMixCD`) overrides the field's half.
+- Nothing points upward, and `FourierMixCD` names only qcMath faces.
+
+**Design point for the user:** `Mesh.C` documents itself as "a plain value type with no virtuals ... No polymorphism".  This gives it
+one abstract face (`PointSampling`) and one held strategy.  The strategy keeps it a value type (copies keep their sampling, nothing
+slices), but it does gain a vtable.  The alternative, to put the face on `FoldedMesh` (what `DeltaFit_IBS` holds), only moves the
+vtable, because the raster layout still has to be recorded where the points are built.
+
+**Gates (unit tests):**
+- NUFFT vs the direct G-sum on a Becke mesh: the `KerkerMix.BatchedSamplerEqualsTheDirectSeries` pattern, moved onto a real
+  `MakePeriodicBeckeMesh` point set.
+- The uniform raster sampler vs the direct G-sum on `CreateIntegrationMesh`'s uniform mesh, to round-off.  It must also be the FFT
+  sampler: a counting stub sampler proves the strategy, not the NUFFT, answered.
+- **"The uniform path is untouched (bitwise)" holds for every NON-Fourier field** (default `Sample` = `f(Points())`, bitwise).  For a
+  ρ̃-mixed field the uniform mesh changes from the direct sum to an exact FFT, so equality there is to round-off, not bitwise.  A bitwise
+  uniform gate for ρ̃ is only possible if the uniform mesh keeps the direct sum.  Say if that is what the user wants.
+
+**Where step 1 stands (honest):**
+- I had coded step 1 before this requirement arrived.  The NUFFT now sits INSIDE `FourierMixCD::operator()(points)`, so it serves
+  both meshes, and the sweep of that is running now.
+- The NUFFT module (`src/Math/NUFFT.C`) and its unit tests carry over unchanged.  Its width rule is verified to deliver its tolerance
+  at w = 4..14, after a sizing fix: n is sized from max|k|, not from the box's extent.
+- The dispatch is a restructure of where the call is made, so I'll rework it into the design above and resweep before committing.
+  The current sweep stays as evidence that the NUFFT delivers 0 moves.
+
+#### Accuracy against ε (pin 31, CLAUDE.md "rigorous ≠ calibration")
+
+- **Rigorous**, in its own function with its derivation in the comment: ‖δρ‖_∞ ≤ E_ES(w,σ) · ‖c‖₁, where E_ES is Barnett's 2021 aliasing bound for
+  the ES kernel.  Then the consumed measure:
+  - single-point: |ΔE_xc| ≤ ‖δρ‖_∞ · Σ_i w_i |v_xc(r_i)|, which must be ≤ ε per atom;
+  - forces/geometry: max|ΔH_ij| ≤ ‖δρ‖_∞ · max_ij Σ_i w_i |f_xc(r_i)| |φ_iφ_j|, which must be ≤ ε per element.
+  Both prefactors are integrals the quadrature already answers, so no new face is needed.  From them, invert for the smallest w.
+- **Calibrated**, a named η = delivered/bound measured on the first call of a run by a direct G-sum on a point subsample.  It's an audit, and the run
+  report prints the rigorous w, η, the w used and the delivered error.  It's exposed as an expert knob, beside `vlocRoutingEta` in `GridAccuracy`
+  (`GPWTolerances.C`), and combined with the rigorous value in ONE visible place.
+- A STATED width or tolerance is honoured and reported against ε.
+
+#### Landing in two commits, so the move batch is attributable
+
+1. **NUFFT at near-machine accuracy** (w sized for a relative 1e-13).  Expect 0 anchor moves at 1e-10 against the fc106a15 baselines.  Gates:
+   - a unit test of the NUFFT against the direct sum (random coefficients and points, triclinic cell, error ≤ bound) in `src/Math/tests`;
+   - a unit test of `FourierMixCD` batched vs pointwise in `src/ChargeDensity/tests`;
+   - the MnO gate bit-close (≤1e-10) to the G-sum.
+   The cost even at this width is about 31 664·13³ ≈ 7e7 MACs.
+2. **w sized from ε** (Rigorous + η).  This is the real ε-sizing, and its moves at ~ε are re-judged per pin 10 as a batch, separately from the speedup.
+
+#### Expected cost (MnO, 160 Ha ball, per channel per call)
+
+| | today | NUFFT, w = 13 (step 1) | NUFFT, w ≈ 7 (ε=1e-5, step 2) |
+|---|---|---|---|
+| per-point work | N_G/2 ≈ 15k MAC | w³ = 2197 | 343 |
+| FFT, about 74³ oversampled | — | ~10 ms | ~10 ms |
+| estimate | ~3 s | ~0.15 s | ~0.03 s |
+
+That's 20–100× on these two buckets.  The 1415 + 689 s on the geometry run would drop to tens of seconds, which is about half of the per-SCF growth
+the density ball cost.  Bit-identical across thread counts: the interpolation is a per-point gather, and the FFT is serial or deterministic.  The
+gradient comes for free when a GGA needs it (a type-2 NUFFT with iG weights), so `FourierMixCD::Gradient` stops being a throw then, not now.
+
+#### Files
+
+- NEW `src/Math/NUFFT.C` (`qchem.NUFFT`, beside `qchem.FFT`): `Type2Plan(index box, σ, w)` and `Sample(points as fractional coordinates, coefficients)`.
+  Weights are cached per point set.  Also the ES kernel, its φ̂, and the Rigorous bound function.
+- NEW `src/Math/tests/NUFFT.C`, added to an existing UT exe (`UTMath`), with no new exe.
+- `src/ChargeDensity/Imp/FourierMixCD.C`: the batched `operator()` goes through the plan.  The direct sum stays as the reference (the audit, and
+  the pointwise op).
+- ~~`FieldMixer.C` hands a plan in~~: not needed.  The plan is cheap to build per call (deconvolution is O(N_G), and the per-point weights
+  are 3·w kernel evaluations), so nothing is cached and nothing is threaded through the mixer.
+- Dispatch (above): `src/Math` (the `PointSampling` / `FourierSampler` faces), `src/Mesh/Mesh.C` (implements them, holds the strategy),
+  `src/Structure/Imp/UnitCell.C` (the uniform branch installs the raster strategy), `src/BasisSet/DeltaFit_IBS.C` (`f.Sample(*mesh)`),
+  `src/Math/ScalarFunction.C` (the default `Sample`).
+- `src/BasisSet/Gaussian/Lattice/GPWTolerances.C`: the NUFFT width as Rigorous + Calibrated (step 2).
+- `src/ChargeDensity/Internal/Imp/DensitySampler_Singles.C`: report keys (w, bound, η, delivered), written cursor-relative.
+- Keep-out files: none touched (no pybind/, Pins, or QueueCampaignPlan).
+
+Unless you or the user redirect, I start step 1 on your go.
+
+#### Side finding: the 122 matrix-free calls are NOT a pin-28 defect
+
+They come from the convergence residual, `LoopDriver.C:90`: `ResidualDensities` presents the in/out pair WITHOUT an exact source by
+design, and measures Δρ on the Becke quadrature every iteration.  That is 60 iterations × 2 plus the seeds, which makes 122.  XC never sees
+these densities, so there is no OpenWork row.  (A 2× lever is to sample in − out once, since the residual is linear, but the NUFFT makes
+it moot.)

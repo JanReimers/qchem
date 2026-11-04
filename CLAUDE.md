@@ -155,6 +155,14 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     you work. I have a TODO item to do a system-wide survey of these casts and throw custom exceptions full of
     relevant information in the event they fail. Again, unit tests are allowed to cheat.
 - a call that can legitimately fail returns an Outcome; a broken invariant no caller can act on throws. RequireSiteBlocks is the second kind; Converge is the first.
+    - **Where to check, and with what** (user, 2026-11-04).  Modern exceptions are zero-cost on the non-throwing path
+      (table-based unwinding); what costs is the CHECK (a compare and a branch), so place it where it is cheap.
+      - A **fixed-size table indexed by a runtime value** (an LMAX-sized array, a cache slot) checks its bound ONCE at
+        the entry point (the table's construction, or the evaluator's) and THROWS -- never per element access in a hot
+        loop, and never an `assert` alone: an assert vanishes in Release, which is how the Hermite3 LMAX-3 overrun
+        silently corrupted Li q3's C3/C4 local PP by 9-30 mHa (lane H, 2026-11-03).
+      - `assert` is for invariants INSIDE hot loops, where even a branch matters.  Those are exercised only by the
+        assert-enabled RelChecked tier, so a hot-loop invariant needs a RelChecked case that reaches it.
 - **`GetXxx()` is the CACHED accessor and returns a REFERENCE; `MakeXxx()` is the uncached compute and
     returns BY VALUE** (user, 2026-08-10).  A caller needing an owned copy asks `Make`; it never asks `Get`
     to change its return type.  If your `MakeXxx` does not COMPUTE anything you are a forwarder, not an
