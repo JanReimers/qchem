@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""THE STRUCTURE-MEMBER PROBE (V-STRUCTURE-ISP step 1): which members of the qchem.Structure family each dependent CALLS.
+
+For every translation unit outside src/Structure that names the family (Structure, Atom, Molecule, the UnitCells), clang-query
+(compile-checked, on the real compile commands, so overloads and inherited calls resolve as the compiler resolves them) lists:
+  - every call of a member function DECLARED in src/Structure (the class that declares it, so a UnitCell calling an inherited
+    Structure member counts as Structure's),
+  - every direct read of a data member declared there (Atom::itsZ, itsR, ...),
+  - every call of a free function declared there (NuclearRepulsion, StructureData::GetMolecule, ...).
+Rows: file, line, kind (method | field | free), class, member, declaration (src/Structure file:line).  Only call sites in the probed
+file itself count (a call inside a header template the file instantiates is the header's, not the dependent's).
+
+Usage: structureprobe COMPILE_COMMANDS_DIR SRC_ROOT OUT.tsv [-j N]
+       COMPILE_COMMANDS_DIR holds a compile_commands.json of the REAL compiles (the `.modmap` ones, not the module scans), from a
+       built tree that must not change while the probe runs (it reads that tree's module BMIs).
+"""
+import concurrent.futures
+import json
+import pathlib
+import re
+import subprocess
+import sys
+
+CLANG_QUERY = "/opt/LLVM-21.1.6-Linux-X64/bin/clang-query"
+FAMILY = re.compile(r'\b(Structure|Atom|Molecule|UnitCell|FCCUnitCell|BCCUnitCell|ForEachSite|GetNumAtoms|itsZ|itsR)\b')
+IN_STRUCTURE = 'isExpansionInFileMatching("src/Structure/")'
+MATCHERS = [
+    ("method", f'callExpr(callee(cxxMethodDecl(ofClass(cxxRecordDecl({IN_STRUCTURE}).bind("c"))).bind("d")))'),
+    ("field",  f'memberExpr(member(fieldDecl(hasParent(cxxRecordDecl({IN_STRUCTURE}).bind("c"))).bind("d")))'),
+    ("free",   f'callExpr(callee(functionDecl({IN_STRUCTURE}, unless(cxxMethodDecl())).bind("d")))'),
+]
+NOTE = re.compile(r'^(\S+?):(\d+):(\d+): note: "(\w+)" binds here')
+
+
+def decl_name(path, line, cache={}):
+    """The identifier a declaration at path:line names (the source line clang pointed at)."""
+    if path not in cache:
+        cache[path] = pathlib.Path(path).read_text(errors='replace').split('\n')
+    text = cache[path][int(line) - 1]
+    m = re.search(r'(operator\s*\S+?|~?\w+)\s*\(', text)          # a function: the name before its '('
+    if m:
+        return m.group(1)
+    m = re.search(r'(\w+)\s*(?:=[^;]*)?;', text)                 # a data member
+    return m.group(1) if m else text.strip()
+
+
+def class_name(path, line):
+    m = re.search(r'\b(?:class|struct)\s+(\w+)', decl_line(path, line))
+    return m.group(1) if m else '?'
+
+
+def decl_line(path, line):
+    return pathlib.Path(path).read_text(errors='replace').split('\n')[int(line) - 1]
+
+
+def probe(cdb, f):
+    args = [CLANG_QUERY, '-p', cdb, f, '-c', 'set output diag', '-c', 'set bind-root true']
+    for _, m in MATCHERS:
+        args += ['-c', 'm ' + m]
+    res = subprocess.run(args, capture_output=True, text=True, timeout=1800)
+    if 'fatal error' in res.stderr or 'error: no such file' in res.stderr:      # a TU this tree never built (no modmap / BMI)
+        return f, None
+    out = res.stdout.split('\n')
+    rows, kind_i, cur = [], 0, {}
+
+    def flush():
+        if 'root' in cur and 'd' in cur and pathlib.Path(cur['root'][0]).resolve()==pathlib.Path(f).resolve():   # call sites IN this file only
+            kind = MATCHERS[kind_i][0]
+            rp, rl = cur['root']
+            dp, dl = cur['d']
+            cls = class_name(*cur['c']) if 'c' in cur else ''
+            rows.append((rp, rl, kind, cls, decl_name(dp, dl), f"{pathlib.Path(dp).name}:{dl}"))
+        cur.clear()
+
+    for line in out:
+        if line.startswith('Match #'):                           # a new match block of the current matcher
+            flush()
+            continue
+        if re.match(r'^\d+ match(es)?\.$', line):               # the end of one matcher's results
+            flush()
+            kind_i += 1
+            continue
+        m = NOTE.match(line)
+        if m:
+            p, ln, _, name = m.groups()
+            cur.setdefault(name, (p, ln))
+    flush()
+    return f, rows
+
+
+def main(argv):
+    args = [a for a in argv[1:] if not a.startswith('-j')]
+    jobs = next((int(a[2:]) for a in argv[1:] if a.startswith('-j') and a[2:]), 4)
+    if len(args) != 3:
+        print(__doc__)
+        return 2
+    cdb, src, out = args
+    entries = json.load(open(pathlib.Path(cdb) / 'compile_commands.json'))
+    files = sorted({e['file'] for e in entries if '/src/Structure/' not in e['file']
+                    and FAMILY.search(pathlib.Path(e['file']).read_text(errors='replace'))})
+    root = pathlib.Path(src).resolve().parent
+    with open(out, 'w') as o, concurrent.futures.ThreadPoolExecutor(jobs) as ex:
+        o.write('file\tline\tkind\tclass\tmember\tdecl\n')
+        for n, (f, rows) in enumerate(ex.map(lambda f: probe(cdb, f), files), 1):
+            if rows is None:
+                print(f"[{n}/{len(files)}] {pathlib.Path(f).relative_to(root)}: NOT PROBED (this tree never built it)", flush=True)
+                continue
+            for r in rows:
+                o.write('\t'.join([str(pathlib.Path(r[0]).resolve().relative_to(root))] + list(r[1:])) + '\n')
+            o.flush()
+            print(f"[{n}/{len(files)}] {pathlib.Path(f).relative_to(root)}: {len(rows)} uses", flush=True)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
