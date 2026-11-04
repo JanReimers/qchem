@@ -394,6 +394,43 @@ TEST(SCFTrace, AMolecularLadderHandsOffToGDMBelowTheEnergyTail)
     for (size_t i=0; i<below; i++) EXPECT_EQ(accel(rows[i]).rfind("GDM",0), std::string::npos) << "row " << i+1 << " is GDM before the tail";
 }
 
+// ...and on a SYMMETRY-BLOCKED molecule whose electrons span several irreps (OpenWork, user 2026-11-03): CH4 C2v HF, a1 holding 3
+// occupied orbitals, b1 and b2 one each, a2 none -- of ONE 10-electron reservoir.  GDM used to expect the reservoir's 5 orbitals in every
+// block and declined everywhere (retreating to DIIS); then its trials refilled every block with all 10 electrons.  Now: it engages
+// after the tail, never retreats, and lands on the DIIS fixed point.
+TEST(SCFTrace, AMolecularLadderEngagesGDMOnASymmetryBlockedMolecule)
+{
+    const double a=1.18816;   // 1.089 Å
+    Molecule ch4;
+    ch4.Insert(new Atom(6, 0, Vector3D<double>( 0, 0, 0)));
+    ch4.Insert(new Atom(1, 0, Vector3D<double>( a, a, a)));
+    ch4.Insert(new Atom(1, 0, Vector3D<double>(-a,-a, a)));
+    ch4.Insert(new Atom(1, 0, Vector3D<double>(-a, a,-a)));
+    ch4.Insert(new Atom(1, 0, Vector3D<double>( a,-a,-a)));
+    auto run=[&ch4](const char* accel, std::vector<SCFIterator::IterationRow>& rows)
+    {
+        MoleculeCalculation calc(MoleculeSetup::Resolve(ch4, {.basis = "dzvp", .symmetry = true}, {.type = accel}),
+                                 {.NMaxIter = 80, .Verbose = false}, [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
+        auto r=calc.Result();
+        EXPECT_TRUE(r) << accel << " did not converge";
+        return r ? r->Energy() : 0.0;
+    };
+    std::vector<SCFIterator::IterationRow> ladder, diis;
+    const double El=run("Ladder", ladder), Ed=run("DIIS", diis);
+    auto accel=[](const SCFIterator::IterationRow& r)
+    {
+        for (const auto& c : r.cells) if (c.title=="accel") return c.text;
+        return std::string();
+    };
+    size_t gdm=ladder.size();
+    for (size_t i=0; i<ladder.size(); i++) if (gdm==ladder.size() && accel(ladder[i]).rfind("GDM",0)==0) gdm=i;
+    ASSERT_LT(gdm, ladder.size()) << "the Ladder never handed off to GDM";
+    for (size_t i=gdm; i<ladder.size(); i++) EXPECT_EQ(accel(ladder[i]).rfind("GDM",0), 0u) << "row " << i+1 << " retreated off GDM";
+    for (size_t i=gdm+1; i<ladder.size(); i++)
+        EXPECT_LE(ladder[i].eb.GetTotalEnergy(), ladder[i-1].eb.GetTotalEnergy()+1e-12) << "row " << i+1 << ": GDM must descend";
+    EXPECT_NEAR(El, Ed, 1e-8) << "GDM and DIIS reach the same fixed point";
+}
+
 // THE OBSERVER RECEIVES THE CONSOLE'S ROW (2026-10-31): the same columns, titled as the header titles them and in its order,
 // and each cell's text where the console prints it -- built from the ONE column list, so a column cannot reach one and not the
 // other.  On the molecular polarized run (the frame, the variable columns and m_site).

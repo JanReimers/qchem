@@ -76,7 +76,8 @@ private:
     //! until a diagonalizing step has actually been taken -- the safety guarantee the bail-out contract owes
     //! the caller.  Cleared in NextOrbitals' diagonalize branch, NOT in ComputeStep, so it cannot be consumed
     //! by a mere query.)
-    virtual bool Ready() const { return itsHaveC && itsNocc>0 && itsNocc<itsFp.rows() && itsEn<itsParams.EngageBelowFD
+    //! A PASSIVE block (itsNocc 0 or every orbital: no occupied-virtual pair) is ready too -- its step is a diagonalization.
+    virtual bool Ready() const { return itsHaveC && itsFp.rows()>0 && itsEn<itsParams.EngageBelowFD
                                 && !itsForceDiag && itsBlockOccupied && itsIdempotent; }
     //! The STANDING precondition (see tSCFAccelerator::Engageable): an integer-occupation density
     //! (D' idempotent -- false under Fermi smearing, knowable from the very first UseFD with no orbitals)
@@ -88,9 +89,9 @@ private:
     GDMParams               itsParams;
     const LASolver<T>*      itsLASolver;
     Irrep                   itsIrrep;
-    size_t                  itsNel;     //electron count of this irrep's reservoir (the Create 'occ')
     size_t                  itsCap=1;   //level capacity g read off D' (2 unpolarized folded doublet, else 1)
-    size_t                  itsNocc;    //occupied ORBITALS = itsNel/itsCap (refreshed each UseFD)
+    size_t                  itsNocc;    //occupied ORBITALS = Tr(D')/itsCap, read off each idempotent D' (NOT the reservoir's count)
+    typename LASolver<T>::UUd_t itsPassiveStep; //a PASSIVE block's step: F' diagonalized (ComputeStep, taken by OrbitalsAt)
     bool                    itsHaveC;   //Have we cached a set of orbitals yet?
     mat_t<T>                itsCp;      //Orthonormal-basis orbitals (n x n), columns = MOs.
     hmat_t<T>               itsFp;      //Orthonormal-basis Fock matrix.

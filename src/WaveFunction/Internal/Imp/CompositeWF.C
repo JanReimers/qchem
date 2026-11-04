@@ -544,9 +544,22 @@ template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, 
         if      (!degrade && p.ranksIntegerFill)                    FillReservoirRanked(pol, wfs, mergeTol, useMOM);
         else if (!degrade && (p.spansSpatial || p.spansSpin))       FillReservoirAtSharedMu(pol, wfs, mergeTol);
         else
-            for (auto w : wfs)   // per-block prescribed count: atoms; held fills; μ-partitions at kT=0
+            for (auto w : wfs)   // per-block prescribed count: atoms; μ-partitions at kT=0.  A HELD fill: the block's OWN count
             {
-                EnergyLevels els=FillChild<T>(w, pol, (double)itsEC->PrescribedBlockN(IrrepOf(w)));
+                // A held fill re-applies what the last (non-held) fill LEFT in this block (itsLastBlockN, recorded below).  NOT the
+                // prescribed count: on a molecule that is the RESERVOIR's (the aufbau floats electrons across irreps), so every block
+                // was refilled with the whole molecule's electrons -- CH4 C2v HF's first GDM trial read +55.8 Ha.  (Unreached until GDM
+                // could engage on a multi-irrep molecule, OpenWork 2026-11-03; atoms and k-blocks hold their prescribed counts, so for
+                // them the two agree.)
+                double ne=(double)itsEC->PrescribedBlockN(IrrepOf(w));
+                if (pol.HoldsStoredBlocks())
+                {
+                    auto i=itsLastBlockN.find(IrrepOf(w));
+                    if (i==itsLastBlockN.end())
+                        throw std::logic_error("CompositeWF: a HELD fill before any fill -- the direct minimiser holds the occupations a previous fill left");
+                    ne=i->second;
+                }
+                EnergyLevels els=FillChild<T>(w, pol, ne);
                 itsELevels.merge(els,mergeTol);
                 itsSpin_ELevels[IrrepOf(w).ms].merge(els,mergeTol);
             }
@@ -576,6 +589,13 @@ template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, 
         std::ostringstream where; where<<"block "<<IrrepOf(wfs.front())<<", "<<wfs.size()<<" block(s) in the reservoir";
         RequireReservoirCharge(n, N, where.str());
     }
+    if (!pol.HoldsStoredBlocks())   // what a held fill will re-apply (see above): each block's count as THIS fill left it
+        for (auto& w : itsIWFs)
+        {
+            const iwf_ref_t r=RefOf(w);
+            double nb=0.0; for (auto o : OrbitalsOf(r)->Iterate()) nb+=o->GetOccupation();
+            itsLastBlockN[IrrepOf(r)]=nb;
+        }
     if (!degrade && p.ranksIntegerFill) pol.ArmCrossIrrepMOM();   // no-op unless the run enables MOM
     AnnounceBasisUsage();   // the occupations now exist -- report them HERE, not when somebody else asks (V1.14)
 }
