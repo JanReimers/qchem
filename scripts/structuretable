@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""Render scripts/structureprobe's rows as the V-STRUCTURE-ISP step 1 table (markdown on stdout).
+
+  structuretable USES.tsv [--commit SHA]
+
+Sections: per member (who calls it: files, libraries, call sites), per dependent library (which members it uses), the files that
+only PASS a Structure through (named in the file, no member used), and the isFinite() / GetAtom() / field-read call sites in full.
+"""
+import collections
+import csv
+import sys
+
+
+def library(path):
+    p = path.split('/')
+    if p[0] == 'src':
+        return p[1] + ('/tests' if 'tests' in p[2:] else '')
+    return p[0]
+
+
+def main(argv):
+    if len(argv) < 2:
+        print(__doc__)
+        return 2
+    sha = argv[argv.index('--commit') + 1] if '--commit' in argv else '?'
+    rows = list(csv.DictReader(open(argv[1]), delimiter='\t'))
+    members = collections.defaultdict(list)
+    for r in rows:
+        members[(r['class'] or '(free)', r['member'], r['kind'])].append(r)
+    files = {r['file'] for r in rows}
+    libs = sorted({library(f) for f in files})
+    print(f"## Structure members by caller (V-STRUCTURE-ISP step 1, clang-query on {sha})\n")
+    print(f"{len(rows)} call sites in {len(files)} files across {len(libs)} libraries/dirs.  A member DECLARED in a base counts as the "
+          "base's (a UnitCell calling an inherited Structure member is a Structure use).\n")
+    print("### Per member\n")
+    print("| class | member | kind | files | libraries | sites | libraries using it |")
+    print("|---|---|---|---:|---:|---:|---|")
+    for (cls, mem, kind), rs in sorted(members.items(), key=lambda kv: (-len({r['file'] for r in kv[1]}), kv[0])):
+        fl = {r['file'] for r in rs}
+        lb = sorted({library(f) for f in fl})
+        print(f"| {cls} | `{mem}` | {kind} | {len(fl)} | {len(lb)} | {len(rs)} | {', '.join(lb)} |")
+    print("\n### Per dependent library\n")
+    print("| library | files | members used (sites) |")
+    print("|---|---:|---|")
+    bylib = collections.defaultdict(list)
+    for r in rows:
+        bylib[library(r['file'])].append(r)
+    for lib in sorted(bylib, key=lambda l: -len({r['file'] for r in bylib[l]})):
+        c = collections.Counter(f"{r['class'] or '(free)'}::{r['member']}" for r in bylib[lib])
+        print(f"| {lib} | {len({r['file'] for r in bylib[lib]})} | " + ', '.join(f"`{m}` {n}" for m, n in c.most_common()) + " |")
+    for title, pred in [("isFinite() call sites", lambda r: r['member'] == 'isFinite'),
+                        ("GetAtom() call sites (a concrete Atom* handed out)", lambda r: r['member'] == 'GetAtom'),
+                        ("Direct data-member reads (Atom/Molecule fields read from outside)", lambda r: r['kind'] == 'field')]:
+        sel = [r for r in rows if pred(r)]
+        print(f"\n### {title}: {len(sel)} sites in {len({r['file'] for r in sel})} files\n")
+        if title.startswith("Direct"):
+            c = collections.Counter((r['class'], r['member']) for r in sel)
+            for (cls, mem), n in c.most_common():
+                fl = sorted({r['file'] for r in sel if r['class'] == cls and r['member'] == mem})
+                print(f"- `{cls}::{mem}`: {n} reads in {len(fl)} files")
+        else:
+            for r in sorted(sel, key=lambda r: (r['file'], int(r['line']))):
+                print(f"- `{r['file']}:{r['line']}`")
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
