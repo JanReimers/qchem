@@ -60,7 +60,7 @@ TEST(KerkerMix, GZeroMixesFullyChargeCarriedExplicitly)
 TEST(KerkerMix, BatchedSamplerEqualsTheDirectSeries)
 {
     UnitCell cell(7.3, 8.1, 9.4, 81.0, 97.0, 112.0);
-    const ReciprocalLattice recip(cell.MakeReciprocalCell());
+    const ReciprocalLattice recip(cell.MakeReciprocal());
     ΔG_Map rho;
     double l1=0.0;
     for (int x=-6; x<=6; x++) for (int y=-6; y<=6; y++) for (int z=-6; z<=6; z++)
