@@ -27,6 +27,7 @@ import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;        // the relative-
 import qchem.SCFAccelerator.Internal.SCFAcceleratorLadder;      // the Engageable veto/retreat tests
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;   // rung 0 of the test ladder
 import qchem.LASolver;
+import qchem.Blaze;      // blazem::eigen (the passive block's diagonalization)
 import qchem.Symmetry;
 using namespace qchem;
 using namespace qchem::SCFAccelerators;
@@ -151,6 +152,80 @@ TEST(SCFAcceleratorGDM, AFoldedDoubletEngagesAndStepsLikeItsPolarizedTwin)
     auto [U1,Cp1,e1] = irrep->OrbitalsAt(1.0,false);
     auto [Ut,Cpt,et] = twin.irrep->OrbitalsAt(1.0,false);
     for (size_t i=0;i<N;i++) for (size_t j=0;j<N;j++) EXPECT_NEAR(Cp1(i,j),Cpt(i,j),1e-10);
+}
+
+// THE BLOCK'S OCCUPIED COUNT IS READ OFF D', NOT THE RESERVOIR (OpenWork, user 2026-11-03).  A molecular reservoir spans every irrep, so
+// the Create 'occ' is the WHOLE molecule's electron count (CH4 C2v HF: 10 handed to a1, b1 and b2 alike).  GDM must take the block's
+// count from Tr(D')/g -- here NOCC orbitals of a 5*NOCC-electron reservoir -- engage, and take exactly the step a block created with
+// its own count takes.
+TEST(SCFAcceleratorGDM, TheBlockCountIsReadOffTheDensityNotTheReservoir)
+{
+    Rig own;
+    ASSERT_TRUE(own.irrep->ComputeStep());
+
+    GDMParams params{ .EngageBelowFD=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
+    std::unique_ptr<LASolver<double>> las(LASolver<double>::Factory(qchem::Cholesky));
+    las->SetBasisOverlap(Identity(N));
+    SCFAcceleratorGDM acc{params};
+    auto* irrep = acc.Create(las.get(), Irrep(), (int)(5*NOCC));   // the reservoir's count, > N orbitals
+    irrep->UseFD(MakeFock(), MakeDPrime(rmat_t(Identity(N))));
+    auto [U,Up,e] = irrep->NextOrbitals();
+    irrep->UseFD(MakeFock2(), MakeDPrime(Up));
+    EXPECT_TRUE(acc.Engageable());
+    ASSERT_TRUE(irrep->ComputeStep()) << "a block holding NOCC of a larger reservoir's electrons must not be declined";
+    auto [U1,Cp1,e1] = irrep->OrbitalsAt(1.0,false);
+    auto [Uo,Cpo,eo] = own.irrep->OrbitalsAt(1.0,false);
+    for (size_t i=0;i<N;i++) for (size_t j=0;j<N;j++) EXPECT_NEAR(Cp1(i,j),Cpo(i,j),1e-12);
+}
+
+// ...and a block the hand-off left EMPTY (CH4 C2v: a2) is PASSIVE.  It has no occupied-virtual pair, so no geodesic, but it must
+// still report a step (the composite steps only when EVERY block does), and that step is F' diagonalized.  It casts no vote on a
+// retry: an all-passive minimizer rejects (falls back) instead of retrying forever.
+TEST(SCFAcceleratorGDM, AnEmptyBlockIsPassiveAndDoesNotVetoTheStep)
+{
+    Rig r;   // the live block
+    std::unique_ptr<LASolver<double>> las(LASolver<double>::Factory(qchem::Cholesky));
+    las->SetBasisOverlap(Identity(N));
+    auto* empty = r.acc.Create(las.get(), Irrep(), (int)NOCC);   // the reservoir has electrons; this block got none
+    empty->UseFD(MakeFock(), rsmat_t(N));
+    (void)empty->NextOrbitals();
+    empty->UseFD(MakeFock2(), rsmat_t(N));
+    EXPECT_TRUE(r.acc.Engageable());
+    EXPECT_TRUE(r.acc.CanLineSearch()) << "an empty block must not veto the live block's geodesic";
+    ASSERT_TRUE(empty->ComputeStep());
+    ASSERT_TRUE(r.irrep->ComputeStep());
+    auto [U,Cp,e] = empty->OrbitalsAt(0.5,false);
+    rvec_t ev; rmat_t R; blazem::eigen(MakeFock2(), ev, R);
+    for (size_t i=0;i<N;i++) EXPECT_NEAR(e[i], ev[i], 1e-12) << "the passive step is F' diagonalized";
+    EXPECT_TRUE(r.acc.RejectStep()) << "the live block still holds a direction to shrink";
+
+    GDMParams params{ .EngageBelowFD=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
+    SCFAcceleratorGDM lone{params};
+    auto* only = lone.Create(las.get(), Irrep(), (int)NOCC);
+    only->UseFD(MakeFock(), rsmat_t(N));
+    (void)only->NextOrbitals();
+    only->UseFD(MakeFock2(), rsmat_t(N));
+    ASSERT_TRUE(only->ComputeStep());
+    EXPECT_FALSE(lone.RejectStep()) << "all passive: nothing can shrink, so the caller must fall back";
+}
+
+// A MOM occupation still declines: an idempotent D' whose occupied set is NOT the leading block (orbitals 0 and 2 of the current set,
+// MOM's overlap pick past a crossed level).  The count Tr(D')/g is right; the leading-block check is what catches it.
+TEST(SCFAcceleratorGDM, AMomOccupationStillDeclines)
+{
+    GDMParams params{ .EngageBelowFD=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
+    std::unique_ptr<LASolver<double>> las(LASolver<double>::Factory(qchem::Cholesky));
+    las->SetBasisOverlap(Identity(N));
+    SCFAcceleratorGDM acc{params};
+    auto* irrep = acc.Create(las.get(), Irrep(), (int)NOCC);
+    irrep->UseFD(MakeFock(), MakeDPrime(rmat_t(Identity(N))));
+    auto [U,Up,e] = irrep->NextOrbitals();
+    rsmat_t Dmom(N);
+    for (size_t i=0;i<N;i++)
+        for (size_t j=0;j<=i;j++) Dmom(i,j) = Up(i,0)*Up(j,0) + Up(i,2)*Up(j,2);
+    irrep->UseFD(MakeFock2(), Dmom);
+    EXPECT_FALSE(acc.Engageable())    << "a non-leading (MOM) occupation fails the standing precondition";
+    EXPECT_FALSE(irrep->ComputeStep()) << "...and no geodesic is offered";
 }
 
 // THE SAFETY CLAUSE.  Reject until exhausted, then check the guarantee the caller relies on.

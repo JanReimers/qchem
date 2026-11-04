@@ -128,6 +128,9 @@ private:
     SCFAccelerator*              itsAccelerator;   // NON-template manager (RealComplexPlan §6)
     EnergyLevels                 itsELevels;
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;
+    //! Each block's electron count as the last NON-held fill left it: what a HELD fill (the direct minimiser's trials) re-applies.  Kept
+    //! here because a geodesic move rebuilds the block's orbitals (UpdateOrbitals), so their occupations are gone by the held fill.
+    std::map<Irrep,double>       itsLastBlockN;
     std::map<Spin,std::map<Irrep,double>> itsAufbauNe; //per-irrep electron count, keyed by irrep (recomputed each iteration)
 
     std::vector<iwf_child_t>                itsIWFs;   // the §4 child slot: per-block scalar

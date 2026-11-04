@@ -65,8 +65,8 @@ template <class T> static mat_t<T> TransportOp(const mat_t<T>& Y, const mat_t<T>
     return Tm;
 }
 
-template <class T> tSCFIrrepAcceleratorGDM<T>::tSCFIrrepAcceleratorGDM(const GDMParams& p,const LASolver<T>* las,const Irrep& ir,int occ)
-: itsParams(p), itsLASolver(las), itsIrrep(ir), itsNel(occ), itsNocc(occ), itsHaveC(false), itsEn(0.0), itsActive(false)
+template <class T> tSCFIrrepAcceleratorGDM<T>::tSCFIrrepAcceleratorGDM(const GDMParams& p,const LASolver<T>* las,const Irrep& ir,int /*occ: the RESERVOIR count -- see UseFD*/)
+: itsParams(p), itsLASolver(las), itsIrrep(ir), itsNocc(0), itsHaveC(false), itsEn(0.0), itsActive(false)
 , itsTrust(p.Trust)
 {
     assert(itsLASolver);
@@ -94,9 +94,14 @@ template <class T> void tSCFIrrepAcceleratorGDM<T>::UseFD(const hmat_t<T>& F, co
         }
         // Level capacity g (2 for an unpolarized folded doublet D'=2P, 1 per spin channel), read off D' itself:
         // for D'=gP with P a projector, Tr(D'^2)=g Tr(D').  D' is "integer-occupied" iff Tr D'(g-D')=0.
+        // THE BLOCK'S OCCUPIED COUNT IS READ OFF D' TOO: Tr(D')/g.  NOT the Create 'occ' -- that is the RESERVOIR's
+        // electron count, and a molecular reservoir spans every irrep (the aufbau floats electrons across them), so it
+        // is the whole molecule's: CH4 C2v HF handed a1 (3 orbitals occupied) and b1/b2 (1 each) all 10 electrons ->
+        // 5 expected orbitals, and GDM declined in EVERY block (OpenWork, user 2026-11-03).  Per block the count is
+        // whatever the hand-off's aufbau left there; GDM rotates within the block, so it holds that count.
         const int g = (trD>0) ? std::max(1,(int)std::lround(trD2/trD)) : 1;
         const bool idem = std::fabs(g*trD-trD2) < 1e-6*std::max(1.0,g*trD);
-        if (idem) { itsCap=g; itsNocc=(size_t)std::lround((double)itsNel/g); }
+        if (idem) { itsCap=g; itsNocc=(size_t)std::lround(trD/g); }
         if (itsIdempotent && !idem)
             std::cerr << "[GDM] DECLINING to engage: D' is not idempotent (Tr(D')=" << trD
                       << " vs Tr(D'^2)=" << trD2 << ", capacity " << g << ") -- fractional (Fermi-smeared) occupations are outside "
@@ -107,8 +112,8 @@ template <class T> void tSCFIrrepAcceleratorGDM<T>::UseFD(const hmat_t<T>& F, co
     // columns?  Tr(D' P_block) counts how many occupied electrons live in the block GDM is about to rotate:
     // exactly itsNocc under aufbau, short of it under MOM (a different set) or Fermi smearing (fractional
     // over all states).  Checked HERE because this is the only place the true D' is in hand.  Cheap beside
-    // the commutator above: nocc x O(n^2).
-    if (itsHaveC && itsNocc>0 && itsNocc<=itsCp.columns())
+    // the commutator above: nocc x O(n^2).  Only on an idempotent D': a smeared one has no integer count to compare.
+    if (itsIdempotent && itsHaveC && itsNocc>0 && itsNocc<=itsCp.columns())
     {
         // Tr(D' P_block) = sum_k <c_k| D' |c_k> over the leading itsNocc columns.  Written as an explicit
         // double loop rather than a Blaze expression: the operand is a column VIEW of itsCp and a symmetric/
@@ -125,9 +130,10 @@ template <class T> void tSCFIrrepAcceleratorGDM<T>::UseFD(const hmat_t<T>& F, co
         }
         const bool ok = std::fabs(inBlock-(double)(itsCap*itsNocc)) < 1e-6*(double)(itsCap*itsNocc);
         if (itsBlockOccupied && !ok)
-            std::cerr << "[GDM] DECLINING to engage: the occupied density is NOT this minimizer's leading "
-                      << itsNocc << " orbitals (Tr(D'P_block)=" << inBlock << ").  GDM rotates a leading-index"
-                         " block, so a MOM or Fermi-smeared occupation puts its gradient on a different"
+            std::cerr << "[GDM] DECLINING to engage: the occupied density is NOT this block's leading " << itsNocc
+                      << " orbitals (Tr(D')/" << itsCap << " = " << itsNocc << " occupied, but Tr(D'P_leading) = " << inBlock
+                      << " of " << itsCap*itsNocc << ").  D' is idempotent, so the occupied set is a non-aufbau one -- MOM's"
+                         " overlap pick.  GDM rotates a leading-index block, so its gradient would sit on a different"
                          " manifold than the density.  Falling back to diagonalizing steps." << std::endl;
         itsBlockOccupied = ok;
     }
@@ -163,7 +169,16 @@ template <class T> bool tSCFIrrepAcceleratorGDM<T>::ComputeStep()
     // gate ComputeStep and not merely Ready(), because NextOrbitals() TAKES the step whenever ComputeStep
     // succeeds -- a check only in Ready() would still let the fallback path commit a full geodesic step.
     if (!itsBlockOccupied) return false;
-    if (!itsHaveC || no==0 || no>=n || itsEn>=itsParams.EngageBelowFD) return false;
+    if (!itsHaveC || itsEn>=itsParams.EngageBelowFD) return false;
+    // A PASSIVE block (no electrons, or every orbital full) has no occupied-virtual pair, so no geodesic: its density is
+    // 0 or g*1 whatever its orbitals, and its step is a plain diagonalization of F' -- exact, and it keeps the block's
+    // levels honest for the aufbau and the gap.  It must still report a step: the composite takes a geodesic only when
+    // EVERY block does, and an empty a2 (CH4 C2v) would otherwise veto the whole minimizer.
+    if (no==0 || no>=n)
+    {
+        itsPassiveStep = itsLASolver->SolveOrtho(itsFp);
+        return true;
+    }
     itsActive=true;
     size_t nv=n-no;
 
@@ -302,6 +317,11 @@ template <class T> bool tSCFIrrepAcceleratorGDM<T>::RejectStep()
 template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorGDM<T>::OrbitalsAt(double t, bool commit)
 {
     size_t n=itsCp.rows(), no=itsNocc, nv=n-no;
+    if (no==0 || no>=n)   // PASSIVE (see ComputeStep): the diagonalization, at every t
+    {
+        if (commit) itsCp = std::get<1>(itsPassiveStep);
+        return itsPassiveStep;
+    }
     rvec_t s=itsSs;
     double frac = itsStdef*t;          // t is a fraction of the default (quadratic-model) step
     // Trust radius: cap the largest principal rotation angle (cf. ComputeStep).
@@ -388,8 +408,12 @@ bool SCFAcceleratorGDM::RejectStep()
     // Reject in EVERY irrep -- they all contributed to the step the caller rejected, and every one of them
     // must arm its own forced diagonalize if it is exhausted, or the fallback is unsafe for that block.
     // Deliberately NOT short-circuited: `all &= k->RejectStep()` would skip the rest on the first false.
-    bool all = !itsIrreps.empty();
-    for (auto k:itsIrreps) { const bool retry=k->RejectStep(); all = all && retry; }
+    // A PASSIVE block (no occupied-virtual pair: its step is a diagonalization) took no geodesic, so it has nothing to shrink and
+    // casts no vote -- it would otherwise "retry" forever and an all-passive composite would never fall back.  So: at least one
+    // block that stepped (Active), and every one of those can retry.
+    bool all=false;
+    for (auto k:itsIrreps) if (k->Active()) all=true;
+    for (auto k:itsIrreps) if (k->Active()) { const bool retry=k->RejectStep(); all = all && retry; }
     // A retry is offered only if EVERY irrep can still retry: the line search takes ONE t across all of
     // them, so a retry is only meaningful when they all still hold a usable direction.
     return all;
