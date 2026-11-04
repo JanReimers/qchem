@@ -21,7 +21,7 @@ import qchem.Hamiltonian.Types;
 import qchem.Structure;
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
 import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
-import qchem.Reporting;                           // grids.xcQuadrature route announcement (EmitAt)
+import qchem.Reporting;                           // the xcQuadrature route announcement, the term scopes and their fitbasis rows
 
 namespace qchem::Hamiltonian
 {
@@ -44,6 +44,21 @@ Ham_HF::Ham_HF(const st_t& st, SpinGroup g)
     Add(new Vxc);                  // same-spin exchange: -1/2 K on a folded doublet, -K per channel
 }
 
+//! A FIT BASIS IS BUILT IN ITS TERM'S SCOPE, one level into the caller's context, and files one \c fitbasis row there: a facade's run
+//! reads hamiltonian.<term>.fitbasis (user rulings 2026-11-04: only the Hamiltonian knows whether a run needs a fit, so it builds them;
+//! the report's nesting is the run sequence).  What the fit reports of its own mesh or grid while it builds lands in the term too, so
+//! two fits of one run can never file over each other.  \a term is the report's name for the term the fit will serve.
+template <class Fit, class Make> static std::shared_ptr<const Fit> BuildTermFit(const std::string& term, const std::string& role, Make make)
+{
+    qchem::report::Scope here(term);
+    std::shared_ptr<const Fit> fit(make());
+    qchem::report::Row row("fitbasis");
+    qchem::report::Set("role",       role);
+    qchem::report::Set("name",       fit->Name());
+    qchem::report::Set("nFunctions", (long)fit->GetNumFunctions());
+    return fit;
+}
+
 //! THE MOLECULAR / ATOM Vxc DEFAULT (user ruling 2026-10-31, "δ default, A1 kept"): an unresolved \c Auto is the δ basis on the
 //! run's own XC mesh -- exact XC quadrature, no fit; PySCF agrees to ~10 μHa where the Gaussian A1 fit is 1-6 mHa off
 //! (doc/Records/OpenWork_History5.md, the δ-vs-A1 table).  The fit stays one stated choice away (\c VxcFit::Auxiliary).
@@ -59,7 +74,7 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMe
     const VxcFit resolved=MolecularVxcFit(fit);
     BasisSet::FitQuadrature quad;   // only a δ basis is built over one (the auxiliary fit keeps its own private mesh)
     if (resolved==VxcFit::Delta) quad=BasisSet::MakeXCQuadrature(*st, mp, bs->GetImposition());
-    std::shared_ptr<const BasisSet::rFIT_SF_ABS> fb(bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad));
+    const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]{return bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad);});
     if (fb->isOrtho()) return MakeVxcTerm(std::move(parts), fb, g, std::move(quad)).release();
     FittedVxc::fbs_t ffb=fb;
     FittedVxc::ex_t  xc(std::make_shared<CompositeExFunctional>(std::move(parts)));
@@ -78,7 +93,7 @@ Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> part
     Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
     Add(new Ven(st));
 
-    FittedVee::fbs_t CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
+    FittedVee::fbs_t CFitBasis=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
     Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
 
     // ONE XC term over the SUM of functionals (the gather is linear, so gather(a+b) is gather(a)+gather(b) for half the
@@ -102,7 +117,7 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     Add(new PP_Local(st, vloc, ppMesh));             // pseudized replacement for Ven (combined model -> _R view)
     if (sep) Add(new PP_NonLocal(st, std::move(sep), mp, ppMesh));   // KB separable projectors (null => local-only)
 
-    FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
+    FittedVee::fbs_t CFitBasis=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
     Add(new FittedVee(CFitBasis, st->GetNumElectrons()));
 
     // LDA: Dirac exchange (alpha = 2/3) + VWN5 correlation, ONE XC term over their sum (see Ham_DFT).
@@ -155,7 +170,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     Vee_Hartree::fbs_t CFitBasis;                          // a shared_ptr; filled in the bucket below
     {
         qchem::report::Timed timed("setup: Hartree CD fit basis");
-        CFitBasis.reset(bs->CreateCDFitBasisSet (st.get(), mp));
+        CFitBasis=BuildTermFit<BasisSet::cFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
     }
     qchem::report::Timed terms("setup: hamiltonian term ctors (kinetic, PP, Hartree, Ewald)");
     Add(new Kinetic<dcmplx>);
@@ -221,9 +236,9 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
              <<(delta ? "delta functions on the XC quadrature's points (the trivial fit: v_xc sampled at each point)"
                       : "plane waves on the {G} ball")
              <<std::endl;
-    // The ROUTE states the XC quadrature's kind one level into the caller's context (the facade's "grids"); the quadrature
+    // The ROUTE states the XC quadrature's kind one level into the caller's context (the facade's "hamiltonian"); the quadrature
     // factory reopens the same "xcQuadrature" scope and its mesh builder adds the mesh's own fields beside it (a fit basis
-    // announces its own grid separately, as vxcFitGrid).  Relative, never a root-anchored key (user ruling 2026-11-02).
+    // announces its own grid separately, in its term, as vxcFitGrid).  Relative, never a root-anchored key (user ruling 2026-11-02).
     {
         qchem::report::Scope here("xcQuadrature");
         qchem::report::Set("kind", delta ? (becke ? "Becke" : "DeltaUniform") : "PlaneWave");
@@ -243,7 +258,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
             qchem::report::Timed timed("setup: XC quadrature build (mesh + fold are its children)");
             quadrature=BasisSet::MakeXCQuadrature(*st, xc, bs->GetImposition());
         }
-        XFitBasis.reset(bs->CreateVxcFitBasisSet(st.get(), xc, resolved, &quadrature));
+        XFitBasis=BuildTermFit<BasisSet::cFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]{return bs->CreateVxcFitBasisSet(st.get(), xc, resolved, &quadrature);});
     }
     // SPIN-NATIVE (tier 4b) exchange must be channel-native: a spin-tagged SlaterExchange does NOT halve
     // rho, because it is fed rho_sigma per channel.  Correlation's two-channel face serves both cases.

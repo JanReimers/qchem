@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -120,10 +121,25 @@ std::string SetupFiled(const rjson* build, const std::string& prefix, size_t row
     if (!build) return "no filed '"+prefix+"' run; filed runs:"+FiledKeys();
     const rjson& b=*build;
     if (!b.contains("basis") || !b["basis"].contains("perIrrep") || b["basis"]["perIrrep"].empty()) return "no basis.perIrrep in the build run";
-    if (!b.contains("grids") || b["grids"].empty()) return "no grids in the build run";
-    if (!b["grids"].contains("xcQuadrature")) return "no grids.xcQuadrature in the build run (a DFT run)";
-    for (auto it=b["grids"].begin(); it!=b["grids"].end(); ++it)
-        if (!it->is_object() || !it->contains("points") || (*it)["points"].get<long>()<=0) return "grids."+it.key()+" files no points";
+    if (!b.contains("hamiltonian") || b["hamiltonian"].empty()) return "no hamiltonian in the build run";
+    const rjson& ham=b["hamiltonian"];
+    if (!ham.contains("xcQuadrature")) return "no hamiltonian.xcQuadrature in the build run (a DFT run)";
+    // A member of the Hamiltonian's context is a mesh, filed as built, or a term, filing its fit basis.
+    std::set<std::string> terms;
+    for (auto it=ham.begin(); it!=ham.end(); ++it)
+    {
+        if (!it->is_object()) return "hamiltonian."+it.key()+" is neither a mesh nor a term";
+        if (!it->contains("fitbasis"))
+        {
+            if (!it->contains("points") || (*it)["points"].get<long>()<=0) return "hamiltonian."+it.key()+" files no points";
+            continue;
+        }
+        terms.insert(it.key());
+        for (const auto& fit : (*it)["fitbasis"])
+            if (fit.value("role","").empty() || fit.value("name","").empty() || fit.value("nFunctions",0L)<=0)
+                return "a hamiltonian."+it.key()+".fitbasis row is incomplete: "+fit.dump();
+    }
+    for (const char* term : {"Hartree", "Vxc_DFT"}) if (!terms.count(term)) return std::string("no hamiltonian.")+term+".fitbasis";
     if (b.contains("scf") && b["scf"].contains("standard")) return "the build run holds an SCF header";
     return "";
 }

@@ -637,14 +637,16 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
     return m;
 }
 
-// The ONE uniform-cell-grid announcement (see the interface doc): a grids.<key> entry with kind, N,
-// points, dr_i = |a_i|/N_i -- edge lengths through the metric (GetDistance on fractional unit vectors) --
-// plus eCut when the caller derived N from one.  EVERYTHING goes through the run report (user ruling
-// 2026-08-16: the old parallel raw-cout line was a bug -- EmitAt renders to the report's console itself);
-// EmitAt is idempotent + inert outside a run.
+// The ONE uniform-cell-grid announcement (see the interface doc): a <key> entry one level into the caller's context, with
+// kind, N, points, dr_i = |a_i|/N_i -- edge lengths through the metric (GetDistance on fractional unit vectors) -- plus eCut
+// when the caller derived N from one.  EVERYTHING goes through the run report (user ruling 2026-08-16: the old parallel
+// raw-cout line was a bug -- the scope renders to the report's console itself); a repeat renders nothing, and it is inert
+// outside a run.  Was a root-anchored grids.<key>.
 void UnitCell::EmitUniformGridReport(const std::string& key, const vec3_t<int>& N, double eCut) const
 {
-    qchem::report::EmitAt("grids", key, UniformGridFields(*this, N, eCut));
+    qchem::report::Scope here(key);
+    const qchem::report::json fields=UniformGridFields(*this, N, eCut);
+    for (auto it=fields.begin(); it!=fields.end(); ++it) qchem::report::Set(it.key(), it.value());
 }
 
 //  Build the cell matrix A (columns = lattice vectors a₁,a₂,a₃) from the cell

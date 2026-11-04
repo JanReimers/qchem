@@ -24,6 +24,7 @@ import qchem.Mesh;                            // qcMesh::MeshParams (CreateCDFit
 import qchem.Structure;                       // Structure, Atom (atom Z + positions)
 import qchem.Blaze;                           // blazem::zeroH, hmat_t
 import qchem.Types;                           // dcmplx
+import qchem.Reporting;                       // report::Scope (SeedFit)
 
 namespace qchem::ChargeDensity
 {
@@ -63,6 +64,14 @@ std::vector<int> IonicFormalCharges(const std::vector<std::pair<int,int>>& atoms
         q[d]+=1; q[a]-=1; giveCap[d]-=1; takeCap[a]-=1;   // donor +charge, acceptor -charge; charge conserved
     }
     return q;
+}
+
+//! The plane-wave seed's own density-fit basis, from the WHOLE-SET fit factory.  It is not the Hamiltonian's: its grid reports one
+//! level into a context naming the seed.
+static std::shared_ptr<const BasisSet::cFIT_CD_ABS> SeedFit(const BasisSet::tBasisSet<dcmplx>* bs, const Structure* st)
+{
+    qchem::report::Scope here("seedDensity");
+    return std::shared_ptr<const BasisSet::cFIT_CD_ABS>(bs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
 }
 
 template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<T>* bs,
@@ -131,7 +140,7 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
             assert(st && "SAD plane-wave seed needs a Structure");
             // The WHOLE-SET fit factory (mixed-aware since 3c-3) -- serves from the first block of
             // either scalar, so a Γ-first real TRIM block no longer needs a block-0 cast here.
-            std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(bs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
+            auto fb=SeedFit(bs, st);
             if (polarized) return new PolarizedSeedCD(fb, st, key);
             return new SeedCD(fb, st, key);
         }
@@ -147,7 +156,7 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
         {
             assert(st && "IonicSAD plane-wave seed needs a Structure");
             // Whole-set fit factory, as in the SAD arm above (mixed-aware since 3c-3).
-            std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(bs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
+            auto fb=SeedFit(bs, st);
 
             const std::vector<int> targets = IonicSADTargets(st, key);   // the ONE resolution (S3 shares it), per site
             if (polarized) return new PolarizedSeedCD(fb, st, key, targets);   // §10: the two-channel ionic seed

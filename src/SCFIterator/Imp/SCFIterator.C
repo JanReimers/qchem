@@ -206,8 +206,9 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
             const SpinGroup pol = itsHamiltonian->GetSpinGroup();
             // Non-owning: the sibling lives only for this Init call, and st outlives it (it is the ctor arg).
             H::st_t stView(st, [](const Structure*){});
-            std::unique_ptr<H::rHamiltonian> dftSibling(
-                H::Factory(pol, stView, 2.0/3.0, qcMesh::MeshParams{}, bs));   // Dirac exchange (alpha=2/3)
+            // Not the run's Hamiltonian, and its meshes and term scopes say so one level into this context.
+            std::unique_ptr<H::rHamiltonian> dftSibling=[&]{ qchem::report::Scope here("seedHamiltonian");
+                return std::unique_ptr<H::rHamiltonian>(H::Factory(pol, stView, 2.0/3.0, qcMesh::MeshParams{}, bs)); }();   // Dirac exchange (alpha=2/3)
             SetWorkingCD(cd_t(itsWaveFunction->Init(*dftSibling, seed, *itsOccPolicy, 0.0001)));  // D0: a real (matrix-backed) density
             assert(itsCD);
             return;

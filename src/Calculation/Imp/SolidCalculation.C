@@ -495,7 +495,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     }
     {
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
-        qchem::report::Scope grids("grids");   // the Hamiltonian's context: its meshes report one level in (user ruling 2026-11-02)
+        qchem::report::Scope hamiltonian("hamiltonian");   // its meshes and terms report one level in (user rulings 2026-11-02, 2026-11-04)
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
             itsImp->st, itsImp->bs.get(), itsImp->setup->pp, itsImp->setup->xcMesh, opts.vxcFit, hubbard));

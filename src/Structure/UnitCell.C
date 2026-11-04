@@ -108,8 +108,8 @@ public:
     std::vector<vec3_t<int>> CellsInSphere(double MaxDistance) const;
 
     //! \brief Announce a UNIFORM \f$N_1\times N_2\times N_3\f$ grid over THIS cell: one console line
-    //! (\c [uniform grid] <key>: N, points, \f$\Delta r_i=|a_i|/N_i\f$ a.u.) plus a \c grids.<key>
-    //! run-report entry with the same fields (+ \c kind=Uniform, and \c eCut when \a eCut >= 0).
+    //! (\c [uniform grid] <key>: N, points, \f$\Delta r_i=|a_i|/N_i\f$ a.u.) plus a \c <key> run-report entry, one
+    //! level into the caller's context, with the same fields (+ \c kind=Uniform, and \c eCut when \a eCut >= 0).
     //! THE single owner of uniform-cell-grid reporting: CreateIntegrationMesh's uniform branch AND the
     //! FFT raster engines (whose grids never pass through the mesh factory -- they recover this cell via
     //! MakeReciprocalCell) both delegate here, so every uniform grid announces in one format.  (The
