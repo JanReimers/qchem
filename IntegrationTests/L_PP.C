@@ -137,7 +137,7 @@ TEST(L_PP, NonLocalMatrixLatticeMatchesFinite)
 // PRESERVE the concrete geometry.  Before Structure::Clone the ctor did make_shared<Molecule>(st), which
 // deep-copied ANY structure to a finite Molecule -- silently stripping periodicity.  Here the SAME atom is
 // run through the facade both as a finite Molecule and centred in a periodic UnitCell: the lattice run's
-// facade-owned structure must still be periodic (isFinite()==false) and its ion-ion term must be the Ewald
+// facade-owned structure must still be periodic (HasTranslationSymmetry()) and its ion-ion term must be the Ewald
 // lattice sum (a Molecule-slice would give the single-atom pair-sum 0).  Those are the teeth -- a
 // sliced-to-Molecule facade fails both.
 //
@@ -150,7 +150,7 @@ TEST(L_PP, FacadePreservesUnitCell)
     // Finite reference through the facade: He at the origin (Enn = 0 for one atom -- no ion-ion pair).
     Molecule he; he.Insert(new Atom(2, 0.0, {0,0,0}));
     MoleculeCalculation cFin(MoleculeSetup::Resolve(he, {.basis = "dzvp"}));
-    EXPECT_TRUE(cFin.GetStructure().isFinite());          // a Molecule stays finite
+    EXPECT_FALSE(cFin.GetStructure().HasTranslationSymmetry());   // a Molecule stays finite
     EXPECT_NEAR(cFin.EnergyTerms()["Enn"], 0.0, 1e-12);      // single finite atom -> no ion-ion
 
     // Lattice run: the same He centred in a cubic cell.  The facade must keep the UnitCell periodic.
@@ -159,7 +159,7 @@ TEST(L_PP, FacadePreservesUnitCell)
     cell.AddAtom(2, {0.5,0.5,0.5});
     MoleculeCalculation cCell(MoleculeSetup::Resolve(cell, {.basis = "dzvp"}));
 
-    EXPECT_FALSE(cCell.GetStructure().isFinite());                    // periodic, not sliced to a Molecule
+    EXPECT_TRUE(cCell.GetStructure().HasTranslationSymmetry());       // periodic, not sliced to a Molecule
     EXPECT_NEAR(cCell.GetStructure().GetNumElectrons(), 2.0, 1e-12);  // He, charge preserved by Clone
 
     // The ion-ion term routed through the periodic Ewald sum (a sliced single-atom Molecule would give 0).

@@ -20,7 +20,7 @@ namespace qchem::Hamiltonian
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure& st, VxcFit fit, const qcMesh::MeshParams& mp)
     {
         using R=Outcome<AdmittedVxc,std::string>;
-        if (st.isFinite())
+        if (!st.HasTranslationSymmetry())
         {
             static const std::string G="this finite structure's G (its point group; O(3) on the atom path) has no translations";
             if (fit==VxcFit::PlaneWave)

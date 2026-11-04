@@ -240,19 +240,31 @@ TEST_F(StructureTests, EwaldFarApartHomeAtoms)
     EXPECT_NEAR(EwaldEnergy(mno,zion,0.50), e, 1e-8);
 }
 
-// isFinite() distinguishes a bounded molecular structure from a periodic cell -- the predicate the IonIon
-// Hamiltonian term uses to choose a direct pair sum vs an Ewald lattice sum.
-TEST_F(StructureTests, isFinite)
+// The three questions isFinite() used to switch on (V-STRUCTURE-ISP F3), each answered by the structure itself:
+// the translation-symmetry admission bit, the G=0 background (0 finite, (1/Omega) Sum_a f periodic) and the
+// ion-ion energy (direct pairs finite, Ewald periodic).
+TEST_F(StructureTests, PeriodicAnswersVsFinite)
 {
     Atom h(1,0,{0,0,0});
-    EXPECT_TRUE(h.isFinite());
+    EXPECT_FALSE(h.HasTranslationSymmetry());
     Molecule m;
     m.Insert(new Atom(1,0,{0,0,0}));
     m.Insert(new Atom(1,0,{0,0,1.4}));
-    EXPECT_TRUE(m.isFinite());
+    EXPECT_FALSE(m.HasTranslationSymmetry());
     FCCUnitCell si(10.26);
     si.AddAtom(14,{0,0,0});
-    EXPECT_FALSE(si.isFinite());
+    si.AddAtom(14,{0.25,0.25,0.25});
+    EXPECT_TRUE(si.HasTranslationSymmetry());
+
+    const auto f=[](int Z){return 0.5*Z;};
+    EXPECT_EQ(h.G0Background(f), 0.0);                                   // finite: no background, exactly 0
+    EXPECT_EQ(m.G0Background(f), 0.0);
+    EXPECT_NEAR(si.G0Background(f), (0.5*14+0.5*14)/si.GetCellVolume(), 1e-15);
+
+    const auto zid=[](int Z){return double(Z);};
+    EXPECT_EQ(h.IonIonEnergy(zid), 0.0);                                 // one site: no pair
+    EXPECT_NEAR(m.IonIonEnergy(zid), 1.0/1.4, 1e-14);                    // H2: Z1 Z2 / R
+    EXPECT_EQ(si.IonIonEnergy([](int){return 4.0;}), EwaldEnergy(si, rvec_t{4.0,4.0}));   // periodic: the Ewald sum
 }
 
 //=====================================================================================================

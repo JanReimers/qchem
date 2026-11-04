@@ -39,18 +39,26 @@ public:
     virtual double GetNumElectrons  () const;
     virtual double GetNetCharge     () const;
 
-    //! \brief True for a bounded (molecular/atomic) structure, false for a periodically-repeated one
-    //! (a UnitCell/lattice).  The ion-ion (IonIon) Hamiltonian term uses this to choose a direct pair sum
-    //! for a finite structure vs an Ewald lattice sum for a periodic one.
-    virtual bool   isFinite         () const {return true;}
+    //! \brief The ion-ion (nuclear-nuclear) electrostatic energy, with the ION charge of each site given by \a zionOf
+    //! (its true Z -> its core charge: identity all-electron, Z -> Zion for a pseudopotential).  Each geometry answers
+    //! with its own sum: the direct Coulomb pair sum \f$\tfrac12\sum_{a\ne b}q_aq_b/|r_a-r_b|\f$ here (a finite site
+    //! set: Atom, Molecule), the Ewald lattice sum on a periodic \c UnitCell (V-STRUCTURE-ISP F3: was a free
+    //! \c NuclearRepulsion that asked \c isFinite() and down-cast to the concrete UnitCell).
+    virtual double IonIonEnergy     (const std::function<double(int Z)>& zionOf) const;
 
-    //! \brief Sum of a per-element form factor over the structure's atoms, \f$\sum_a f(Z_a)\f$ -- a fair
-    //! geometric question for ANY structure.  A periodic UnitCell normalises by its cell volume
-    //! (\f$\frac1\Omega\sum_a f(Z_a)\f$, the G=0 background being a per-volume quantity), so a caller needs no
-    //! cell-volume getter -- keeping \c CellVolume() off finite structures (no LSP violation).  The physics
-    //! decision of WHETHER the sum contributes (e.g. the PP G=0 alignment is zero for a finite structure) is
-    //! the caller's, via isFinite() -- this method only reports the geometric sum each structure can honestly give.
-    virtual double SumFormFactors   (const std::function<double(int Z)>& f) const;
+    //! \brief The G = 0 NEUTRALISING-BACKGROUND term of a per-species form factor \a f: \f$\frac1\Omega\sum_a f(Z_a)\f$
+    //! for a periodic structure (the per-volume mean a reciprocal-space term drops from its matrix and carries
+    //! separately), exactly 0 for a finite one (no background, no dropped G = 0).  Asked by the PP G = 0 alignment
+    //! (\c PWTerms_PP) and the GPW V_short cell mean (\c GPW_Evaluator); replaces the old \c isFinite() switch +
+    //! \c SumFormFactors pair (V-STRUCTURE-ISP F3).
+    virtual double G0Background     (const std::function<double(int Z)>& f) const {return 0.0;}
+
+    //! \brief Does this structure's symmetry group contain the LATTICE TRANSLATIONS T?  The Vxc admission rule
+    //! (\c Hamiltonian::AdmitVxc, doc/Pins.md pin 30) consumes it: a representation that imposes T (plane waves, a
+    //! uniform cell mesh) is refused on a structure whose group lacks them.  False for a finite site set.
+    //! \note the one structure-kind question F3 leaves on the site set; when the factory is handed the imposed
+    //! group itself (V-STRUCTURE-ISP F2 / V-BS-SYMMETRY), this becomes that group's question.
+    virtual bool   HasTranslationSymmetry() const {return false;}
 
     //! \brief Visit every atomic site as \c (Z,R,spinFlip) -- the assembly-level question seed and
     //! magnetic-decoration code ask (V1.19).  A consumer that needs "which species, where, which magnetic

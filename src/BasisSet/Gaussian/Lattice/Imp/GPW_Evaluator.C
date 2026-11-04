@@ -1105,15 +1105,10 @@ chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const SpeciesRadial
     // dG=0 -- the cell mean of V_short is carried by the E_alphaZ term (PW_Pseudo, FormFactorG0Short), not the
     // matrix.  The analytic lattice sum computes the FULL integral including that mean, so subtract it
     // (V-bar * S, with S this block's own Bloch overlap) or the mean would be DOUBLE-counted against E_alphaZ.
-    // A genuinely finite Structure keeps the full integral (no neutralising background, no E_alphaZ) -- the
-    // same isFinite() physics decision PW_Pseudo makes.
-    if (!cl->isFinite())
-    {
-        double vbar=0.0;
-        for (Atom* a : *cl) vbar += loc.CellMeanQ(a->itsZ,FieldRange::Short);
-        vbar /= itsCell.GetCellVolume();
-        V -= vbar*OverlapMatrix();
-    }
+    // A genuinely finite Structure keeps the full integral (no neutralising background, no E_alphaZ): the
+    // structure answers its G=0 background 0, the same question PW_Pseudo asks (V-STRUCTURE-ISP F3).
+    const double vbar=cl->G0Background([&loc](int Z){return loc.CellMeanQ(Z,FieldRange::Short);});
+    if (vbar!=0.0) V -= vbar*OverlapMatrix();
     return V;
 }
 

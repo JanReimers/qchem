@@ -27,7 +27,7 @@ import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-spa
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.Orbital_PP_IBS;             // cast bs ACROSS to the species-field integral service (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
-import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
+import qchem.Structure;                       // Structure::G0Background() -- the G=0 alignment (term-side)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 
 
@@ -43,17 +43,9 @@ namespace qchem::Hamiltonian
 // artifact: a finite/molecular Structure has no G=0 background, so its coefficient is exactly ZERO (even
 // though its atoms DO have form factors -- the physics decision lives here, not in the geometry).
 //
-// Both the isFinite() question and the SumFormFactors sum are answered HERE rather than per energy call:
-// the structure and the model are fixed at construction, so the answer cannot change during a run.  Each
-// GetEnergy then just scales by the current electron count.
-namespace
-{
-double G0AlignmentPerElectron(const Structure& st, const std::function<double(int)>& formFactorG0)
-{
-    if (st.isFinite()) return 0.0;              // no neutralising background => no alignment, exactly 0
-    return st.SumFormFactors(formFactorG0);     // periodic: folds in 1/Omega
-}
-} // namespace
+// The structure answers its own G=0 background (0 if finite, (1/Omega) Sum_a alpha_a if periodic) ONCE,
+// here rather than per energy call: the structure and the model are fixed at construction, so the answer
+// cannot change during a run.  Each GetEnergy then just scales by the current electron count.
 
 Ven_PP_Short::Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc)
     : cStatic_HT_Imp()
@@ -62,7 +54,7 @@ Ven_PP_Short::Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential
 {
     assert(st->GetNumAtoms()>0);
     assert(loc && "Ven_PP_Short: the term owns the local pseudopotential model (must be non-null)");
-    itsAlphaZ=G0AlignmentPerElectron(*st, [loc](int Z){return loc->FormFactorG0Short(Z);});
+    itsAlphaZ=st->G0Background([loc](int Z){return loc->FormFactorG0Short(Z);});
 }
 
 // Assemble the external matrix from the MODEL the term owns: hand the basis the abstract local model and
@@ -178,7 +170,7 @@ Ven_PP_Long::Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* 
     if (!loc)
         throw std::runtime_error("Ven_PP_Long: the long-range local-PP term requires a LocalPotential "
                                  "model.  A run without a local pseudopotential must not add this term.");
-    itsAlphaZ=G0AlignmentPerElectron(*st, [loc](int Z){return loc->FormFactorG0Long(Z);});
+    itsAlphaZ=st->G0Background([loc](int Z){return loc->FormFactorG0Long(Z);});
 }
 
 template <class U> hmat_t<U> Ven_PP_Long::MakeMatrixT(const tobs_t<U>* bs, const Spin&) const

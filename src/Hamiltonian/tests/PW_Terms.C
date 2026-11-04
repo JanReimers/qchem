@@ -29,7 +29,7 @@ import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long, Vee_Ha
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
-import qchem.Hamiltonian.Internal.IonIon;           // IonIon<double> (ion-ion term: pair sum / Ewald via isFinite)
+import qchem.Hamiltonian.Internal.IonIon;           // IonIon<double> (ion-ion term: the structure's own pair sum / Ewald)
 import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
 import qchem.Energy;                                // EnergyBreakdown
 import qchem.ChargeDensity.Imp.IrrepCD;             // PeriodicIrrepCD<dcmplx> (the periodic leaf -- 3c-2b)
@@ -72,7 +72,7 @@ qchem::Hamiltonian::Vxc_Quadrature* NewPWXC(const PlaneWave_IBS& pw, const qchem
 }
 
 
-// The generalized IonIon Hamiltonian term: for a periodic Structure (isFinite()==false) it routes the
+// The generalized IonIon Hamiltonian term: for a periodic Structure (HasTranslationSymmetry()) it routes the
 // ion-ion energy through the Ewald lattice sum (charges = the cell atoms' itsZ = the ion/valence charge),
 // rather than the conditionally-convergent direct pair sum used for finite molecules.
 namespace {
@@ -89,7 +89,7 @@ TEST(PW_Terms, VnnPeriodicUsesEwald)
     cell->AddAtom(4,rvec3_t(0.0,0.0,0.0));             // itsZ = Zion = 4 (Si valence)
     cell->AddAtom(4,rvec3_t(0.25,0.25,0.25));
     std::shared_ptr<const Structure> st=cell;
-    EXPECT_FALSE(st->isFinite());
+    EXPECT_TRUE(st->HasTranslationSymmetry());
 
     qchem::Hamiltonian::IonIon<double> vnn(st);
     EnergyBreakdown eb;

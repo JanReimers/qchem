@@ -36,7 +36,7 @@ export import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (it
 export import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
 import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
-import qchem.Hamiltonian.Internal.IonIon;           // IonIon<double> (ion-ion term: pair sum / Ewald via isFinite)
+import qchem.Hamiltonian.Internal.IonIon;           // IonIon<double> (ion-ion term: the structure's own pair sum / Ewald)
 import qchem.Hamiltonian.Internal.Kinetic;          // Kinetic<dcmplx> (the shared kinetic term)
 export import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
 export import qchem.Energy;                                // EnergyBreakdown
