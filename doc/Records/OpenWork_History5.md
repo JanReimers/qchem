@@ -1285,3 +1285,21 @@ sampler row.)
 DZVP CH₄ −0.4, NH₃ +0.5, H₂O +2.5 μHa; TZV2P CH₄ −0.4, NH₃ +0.6, H₂O +2.6 μHa; benzene (DZVP, 18 bohr) −13.0 μHa = 1.1 μHa/atom.
 Probe decks `decks/probes/{CH4,NH3,H2O,C6H6}_dzvp_molopt.json`, `{CH4,NH3,H2O}_tzv2p_molopt.json`.  The auto densityEcut gap
 is the open §3 density-ball row (fix in flight, lane A).  Remainder (lane G): the SOLID² refusal names the uncovered elements.
+
+## ✅ "The cfg column flags occupation jumps on CH₄ almost every iteration" -- FIXED 2026-11-03 (lane B, b0b78a74); the row as it stood
+
+**The row, verbatim:**
+
+| **The cfg column flags occupation jumps on CH₄ almost every iteration** (user via lane G, 2026-11-03) | CH₄ run in C2v: t2 → A1 + B1 + B2, exactly degenerate; the `*` (occupation jump) marks most iterations, the user expects none.  Lane G's reading: reordering among degenerate cross-irrep levels flips the per-irrep occupation.  ⚠ VERIFY FIRST: CH₄ is closed-shell a1² t2⁶, so all three t2 partners are FULLY occupied and a swap among them cannot change per-irrep occupations -- if `*` still fires, the detector is comparing something else (level ORDER, or a degenerate VIRTUAL pair).  CONFIRMED 2026-11-03 (lane G, from the user's console orbital dump): the run was neutral, UNPOLARIZED HF, so a spin-polarized run is ruled out | reproduce on the CH₄ probe and print what the detector compares; then either (a) the detector ignores swaps within the degeneracy tolerance (pin to `MergeTol`, see the ε inventory §4), or (b) the aufbau orders degenerate cross-irrep levels stably.  A real occupation change must still be flagged · `src/WaveFunction/` (occupation / aufbau), `src/SCFIterator/Imp/SCFIterator.C` (the cfg cell) |
+
+**Verdict.**  Reproduced with `scfrun --mol CH4 --model HF --sym` (C2v; `--mol CH4` and `--sym` added for it): `*` on most rows.  What
+the detector compared: an ENERGY-ORDERED label string, e.g. `(1a₁)²(2a₁)²(3a₁)²(1b₂)²(1b₁)²` → `(1a₁)²(2a₁)²(1b₁)²(3a₁)²(1b₂)²` --
+the three full t2 partners (3a₁, 1b₁, 1b₂) reordered on noise, no occupation moved.  Neither reading in the row: it was LEVEL ORDER
+among occupied levels.  The O₂ triplet golden's two `*` (iterations 2-3) were the same artefact, an ↑ level crossing a ↓ level.  Fix
+(neither (a) nor (b)): the cfg compares the aufbau's own decision, per irrep block (wave-function block order) each orbital's rounded
+occupation in block order (`OccupationsByBlock`, `SCFIterator.C`); the merged level table is not used (a MergeTol host is whichever
+level came first).  Tests: `SCFTrace.ADegenerateClosedShellAcrossIrrepsNeverFlagsCfg` (CH₄ C2v, no row flags),
+`SCFTrace.AnElectronMovingBetweenIrrepsFlagsCfg` (NO doublet: the π* electron moves b₁ ↔ b₂ on iterations 2-3 and still flags).
+Notes: no natural run tried flags now (N₂, CO, O₂ triplet / singlet, C₂, B₂ with symmetry; atoms B C O Al Sc V Cr Fe Cu polarized),
+and a kT = 0 metal does not hop either: the solid fills every k-block with the same count (Na q1 fcc k333, 1 electron per block).
+
