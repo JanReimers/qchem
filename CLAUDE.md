@@ -161,6 +161,11 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     implementer — override `Get`.  Visibility (public vs protected `Make`) is deliberately UNSETTLED; **when
     you loosen encapsulation, say WHY at the declaration** (which client, why the cached `Get` would not do)
     — the eventual policy can only be decided from those reasons.
+- **The tier-1 abstract hubs are PROTECTED** (user, 2026-11-03; `doc/OOD-SOLID-Cleanup.md` V-INTERFACE-TIERS): `qchem.BasisSet`, `Orbital_DFT_IBS`,
+    `Orbital_1E_IBS`, `G_FieldEvaluator`, `ChargeDensity`, `LASolver`, `Hamiltonian`, `WaveFunction`, `Fitting.FunctionFitter`, `Symmetry.Representation`.
+    Adding to or changing one needs a DESIGN DISCUSSION with the user first.  ctest `HubInterfaceAudit` (`scripts/audit-hub-interfaces`) fails on any
+    change to their exported declarations or re-exports until `scripts/hub-interfaces.snapshot` is regenerated (`--update`) in a commit citing the
+    ruling.  Every `Get` on such a face is scrutinised: why does A hold B, what will the client do with it, why can't A do it?
 - **Name a capability query for what the CLIENT consumes, not for the CAUSE**: `IsVirialValid()`, not
     `IsPseudopotential()`.  Write down what the caller will DO with the answer; if the name does not match
     that sentence it is naming the implementation.  (Bit three times: "Becke", "SiteAdaptedBecke", the ERI4
