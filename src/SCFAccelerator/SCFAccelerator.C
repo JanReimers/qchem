@@ -74,6 +74,13 @@ public:
     //! ladder delegates both to its active rung.  Distinct from \c GetError() (the [F,D] the column also shows).
     virtual const char* Tag  () const=0;
     virtual int         Count() const {return 0;}
+    //! \brief Did the latest fixed-point step diagonalise THIS accelerator's Fock -- an extrapolation -- rather than the plain F'?
+    //!
+    //! The client is the trace's accel cell, which names the method that PRODUCED the iterate: DIIS bails to the plain F' until
+    //! [F,D] < EngageBelowFD and two history entries exist, and those iterates are not DIIS's (OpenWork §3, user 2026-11-03/04:
+    //! the cell read `DIIS` on every pre-engage row).  A direct minimizer's step is the line search, which the iterator tracks
+    //! itself, so the default -- no extrapolation -- is right for Null and GDM.  The ladder answers for its live rung.
+    virtual bool        Extrapolated() const {return false;}
     //! \brief DIIS history CONDITIONING: the smallest singular value of the bordered B matrix, i.e. the
     //! quantity \c SVTol is compared against.  NaN for an accelerator that keeps no history.
     //!

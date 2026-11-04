@@ -89,7 +89,7 @@ struct IterationTrace
     EnergyBreakdown eb;      //!< the full breakdown (Etotal, virial, per-term energies)
     double relax;            //!< the mixer step size α (the ρ_mix column's number)
     const char* mixTag;      //!< ρ_mix identity: "Lin"/"Ker"/"Pul"
-    const char* accelTag;    //!< accel identity: "Null"/"DIIS"/"GDM"
+    const char* accelTag;    //!< the accelerator that PRODUCED this iterate ("DIIS"/"GDM"), "----" when none did (a plain or mixed step)
     int    accelCount;       //!< accel number (DIIS projection depth; 0 when not meaningful)
     double accelMinSV;       //!< DIIS conditioning: smallest singular value of the bordered B (NaN if none)
     double FD;               //!< [F,D] (the accelerator's orbital-gradient error)
@@ -98,7 +98,8 @@ struct IterationTrace
     double dE;               //!< relative total-energy change ΔE/|E|
     size_t idealVirial;      //!< 2 (non-relativistic) or 1 (relativistic): the virial column shows GetVirial()+idealVirial
     bool   configChanged;    //!< did the occupied configuration change since the previous iteration? (the cfg '*')
-    bool   lineSearch;       //!< this step ran the direct-min driver (GDM/OT): NO density mixing -> ρ_mix shows "----"
+    bool   lineSearch;       //!< a committed GEODESIC step (GDM/OT) produced this iterate: NO density mixing -> ρ_mix shows "----"
+                             //!< (a direct-min iteration that fell back to a mixed step is false: it mixed)
     double gridLostRel;      //!< signed grid-charge leak per electron, (∫ρ̃ − Tr(DS))/N (solids; 0 with no grid)
     bool   gFilter;          //!< the mixer's step applies a G-dependent filter (tDensityMixer::HasGFilter; the XC ρ column)
     // Frontier spectrum -- the gap column (solids show it always; molecules only under ReportBandGap()):
@@ -351,6 +352,7 @@ private:
 
     size_t          itsIterationCount;
     bool            itsConverged;
+    bool            itsGeodesicTaken=false;   //!< the last \c DirectMinStep committed a geodesic (else it fell back to a MIXED step)
     std::string     itsUnphysicalStop;   //!< \c UnphysicalStop: empty unless the last Iterate refused its first energy
     std::shared_ptr<tDM_CD<T>> itsCarried;   //!< a WorkingDensity / ExactResume seed, held to the first Iterate (see SeedRole)
     bool            itsCarriedIsWorking=false;   //!< ExactResume: the carried D becomes the working density there

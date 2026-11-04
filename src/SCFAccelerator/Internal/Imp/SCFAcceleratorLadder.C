@@ -134,6 +134,9 @@ void   SCFAcceleratorLadder::ShowLabels(std::ostream& os)      const { Active()-
 void   SCFAcceleratorLadder::ShowConvergence(std::ostream& os) const { Active()->ShowConvergence(os); }
 const char* SCFAcceleratorLadder::Tag()   const { return Active()->Tag(); }   // the live rung
 int    SCFAcceleratorLadder::Count() const { return Active()->Count(); }
+// The rung live NOW is the one whose NextOrbitals made this iterate: a hand-off or retreat happens inside CalculateProjections,
+// BEFORE the per-irrep NextOrbitals, which already delegate to the new rung.
+bool   SCFAcceleratorLadder::Extrapolated() const { return Active()->Extrapolated(); }
 double SCFAcceleratorLadder::MinSV() const { return Active()->MinSV(); }
 
 template class tSCFIrrepAcceleratorLadder<double>;

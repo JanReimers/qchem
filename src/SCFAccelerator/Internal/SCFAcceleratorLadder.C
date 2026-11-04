@@ -115,6 +115,7 @@ public:
     virtual double GetError() const;
     virtual const char* Tag  () const;
     virtual int         Count() const;
+    virtual bool        Extrapolated() const;
     virtual double      MinSV() const;
     virtual void   SetEnergy(double E);
     virtual bool   WantsLineSearch() const; //true once the active rung is a direct minimizer
