@@ -5,7 +5,7 @@
 // is core charge-density functionality for solids, not an escape hatch: it is the dual of
 // BasisSet::Orbital_DFT_IBS<dcmplx>, and lets the plane-wave basis assemble the Hartree (FFT-free) and XC (FFT)
 // matrices from rho-tilde directly instead of O(Npts*n^2) pointwise sampling.  A FINITE (molecular)
-// density has no reciprocal-lattice Fourier series, so it does not provide one (cf. Structure::isFinite);
+// density has no reciprocal-lattice Fourier series, so it does not provide one (cf. Structure::HasTranslationSymmetry);
 // a DFT term reaches a periodic density's rho-tilde by dynamic_cast (abstract->abstract).  The composite
 // density sums the per-block (BZ-weighted) rho-tilde over the k-mesh.
 module;

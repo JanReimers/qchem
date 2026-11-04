@@ -2,9 +2,9 @@
 //
 // The T-templated collapse of the former Vnn (double, molecular) and PW_IonIon (dcmplx, plane-wave)
 // terms -- they were the SAME energy-only term differing only in scalar type: each adds NO matrix
-// contribution (a constant, independent of the electronic state) and delegates to Ewald::NuclearRepulsion,
-// which picks a direct Coulomb pair sum for a finite Structure and an Ewald lattice sum for a periodic cell
-// (via Structure::isFinite()).  The ion charge of each atom is supplied by a Z->charge callback: identity
+// contribution (a constant, independent of the electronic state) and asks the Structure its own ion-ion
+// energy (Structure::IonIonEnergy): a direct Coulomb pair sum for a finite site set, an Ewald lattice sum for
+// a periodic UnitCell (V-STRUCTURE-ISP F3).  The ion charge of each atom is supplied by a Z->charge callback: identity
 // (itsZ) for the all-electron baseline, Z->Zion for a pseudopotential -- so the SAME term serves molecule,
 // atom AND crystal, all-electron AND pseudopotential.  Mirrors how the two PP terms already share one model.
 //
@@ -19,8 +19,7 @@ module;
 #include <utility>
 export module qchem.Hamiltonian.Internal.IonIon;
 import qchem.Hamiltonian.Internal.Term;   // tStatic_HT<T> / tStatic_HT_Imp<T> (+ Energy/Types via re-export)
-import qchem.Structure;                    // Structure::isFinite()/GetNumAtoms()
-import qchem.Ewald;                        // NuclearRepulsion (pair sum for finite, Ewald for periodic)
+import qchem.Structure;                    // Structure::IonIonEnergy()/GetNumAtoms()
 import qchem.Blaze;                        // blazem::zeroH<T> (the zero matrix contribution)
 
 export namespace qchem::Hamiltonian
@@ -31,7 +30,7 @@ export namespace qchem::Hamiltonian
 //!
 //! A constant (density-independent) ENERGY term: it contributes NO Hamiltonian matrix (the ion-ion energy
 //! does not depend on the electronic state), only \c EnergyBreakdown::Enn.  The pair-sum-vs-Ewald choice is
-//! made downstream by \c NuclearRepulsion via \c Structure::isFinite(); \a T selects only the (zero) matrix
+//! the structure's own (\c Structure::IonIonEnergy); \a T selects only the (zero) matrix
 //! type (\c rsmat_t / \c chmat_t).  \c IonIon<double> is the molecular term, \c IonIon<dcmplx> the plane-wave
 //! one.
 template <class T> class IonIon
@@ -71,9 +70,9 @@ public:
         // construction -- it is the most literally constant term in the Hamiltonian.  It used to be
         // recomputed on every GetEnergy call, i.e. a full EWALD LATTICE SUM per SCF iteration for a
         // periodic cell, to return the same number every time.  Computing it here also settles the
-        // pair-sum-vs-Ewald choice (NuclearRepulsion's isFinite() test) at construction, where the
-        // structure is already known -- R2.16.
-        itsEnn = NuclearRepulsion(*theStructure, itsZionOf);
+        // pair-sum-vs-Ewald choice at construction, where the structure is already known -- R2.16.  The
+        // structure answers with its own sum (V-STRUCTURE-ISP F3: direct pairs, or Ewald for a UnitCell).
+        itsEnn = theStructure->IonIonEnergy(itsZionOf);
     }
 
     virtual void GetEnergy(EnergyBreakdown& te, const tDM_CD<T>*) const override
@@ -83,11 +82,8 @@ public:
 
     virtual std::ostream& Write(std::ostream& os) const override
     {
-        size_t Na=theStructure->GetNumAtoms();
-        if (theStructure->isFinite())
-            os << "    Ion-Ion potential ZiZj/|Ri-Rj| with " << Na*(Na-1) << " ion pairs." << std::endl;
-        else
-            os << "    Ion-Ion (Ewald lattice sum) over " << Na << " ions per cell." << std::endl;
+        os << "    Ion-Ion energy E_nn = " << itsEnn << " Ha over " << theStructure->GetNumAtoms()
+           << " ions (the structure's own sum: direct pairs, or Ewald for a cell)." << std::endl;
         return os;
     }
 

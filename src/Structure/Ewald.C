@@ -103,39 +103,4 @@ export double EwaldEnergy(const UnitCell& cell, const rvec_t& q, double eta=0.0)
     return Er + Eg + Eself + Ebg;
 }
 
-//! \brief Ion-ion (nuclear-nuclear) electrostatic energy of a structure: the direct Coulomb pair sum
-//! \f$\tfrac12\sum_{a\ne b}Z_aZ_b/|r_a-r_b|\f$ for a finite (molecular) structure, or the Ewald lattice
-//! sum for a periodic one (a UnitCell), chosen by Structure::isFinite().  Charges are the atoms' itsZ
-//! (= the ion/valence charge for a pseudopotential crystal).  The single high-level question the IonIon /
-//! ion-ion Hamiltonian terms ask, shared by the finite and periodic paths.
-// Ion-ion energy with the ION charge of each atom given by a callback \a zionOf (its true Z -> its core
-// charge): the all-electron default is identity (itsZ), a pseudopotential maps Z -> its valence Zion.  This
-// keeps the two roles of itsZ decoupled -- the atom carries the TRUE species Z; the ion charge comes from
-// the PP model -- so multi-species ionic crystals (NaF) work by handing this a Z->Zion map.
-export double NuclearRepulsion(const Structure& st, const std::function<double(int)>& zionOf)
-{
-    if (!st.isFinite())
-    {
-        const UnitCell* cell=dynamic_cast<const UnitCell*>(&st);
-        assert(cell && "NuclearRepulsion: a non-finite Structure must be a UnitCell for the Ewald sum");
-        rvec_t q(cell->GetNumAtoms());
-        for (size_t a=0; a<cell->GetNumAtoms(); a++) q[a]=zionOf((*cell)[a]->itsZ);
-        return EwaldEnergy(*cell, q);
-    }
-    double vnn=0.0;
-    for (const auto& a1 : st)
-        for (const auto& a2 : st)
-        {
-            rvec3_t r1=a1->itsR, r2=a2->itsR;
-            if (r1!=r2) vnn += 0.5*zionOf(a1->itsZ)*zionOf(a2->itsZ)/norm(r1-r2);
-        }
-    return vnn;
-}
-
-// The all-electron default: the ion charge IS the true nuclear charge itsZ (atoms/molecules; IonIon).
-export double NuclearRepulsion(const Structure& st)
-{
-    return NuclearRepulsion(st, [](int Z){return double(Z);});
-}
-
 } // namespace qchem

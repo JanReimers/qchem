@@ -7,6 +7,7 @@ module;
 #include <iostream>
 #include <string>
 #include <vector>
+#include <functional>
 #include <memory>    // the scoped-but-early-stopped Timed on the site-adapted angular build (1.1(b))
 
 module qchem.UnitCell;
@@ -17,6 +18,7 @@ import qchem.Vector3D;       // norm(rvec3_t)
 import qchem.Mesh.Product;   // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
 import qchem.Mesh.Builder;   // MeshBuilder (efficient incremental accumulation)
 import qchem.SymmetrizeMesh; // MakeInvariantAngularMesh + FoldPointsPeriodic (the §6a W2b site-adapted mesh)
+import qchem.Ewald;          // EwaldEnergy (IonIonEnergy: a periodic cell's ion-ion sum)
 import qchem.Reporting;      // the Becke mesh's fields, one level into the caller's report scope (inert when no run is open)
 
 namespace qchem {
@@ -789,6 +791,23 @@ UnitCell BravaisCell(Bravais type, const LatticeParams& p, const Matrix3D<int>& 
         A=A*Td;
     }
     return UnitCell(A);
+}
+
+// The periodic cell's ion-ion energy: the Ewald sum (moved verbatim from Ewald.C's NuclearRepulsion, which
+// reached it through an isFinite() test and a dynamic_cast to this class -- V-STRUCTURE-ISP F3).
+double UnitCell::IonIonEnergy(const std::function<double(int)>& zionOf) const
+{
+    rvec_t q(GetNumAtoms());
+    for (size_t a=0; a<GetNumAtoms(); a++) q[a]=zionOf((*this)[a]->itsZ);
+    return EwaldEnergy(*this, q);
+}
+
+// The G = 0 background per cell volume (was Structure::SumFormFactors / GetCellVolume, same order of operations).
+double UnitCell::G0Background(const std::function<double(int)>& f) const
+{
+    double s=0;
+    for (auto a:*this) s+=f(a->itsZ);
+    return s/GetCellVolume();
 }
 
 double UnitCell::GetCellVolume() const
