@@ -8,13 +8,18 @@ module qchem.Structure;
 
 namespace qchem {
 
-// The honest per-structure form-factor sum: Sum_a f(Z_a).  Finite structures (Atom/Molecule) use this
-// default as-is; a periodic UnitCell overrides to divide by the cell volume (the per-volume G=0 background).
-double Structure::SumFormFactors(const std::function<double(int)>& f) const
+// The finite site set's ion-ion energy: the direct Coulomb pair sum (moved verbatim from Ewald.C's
+// NuclearRepulsion, V-STRUCTURE-ISP F3).  A periodic UnitCell overrides with the Ewald sum.
+double Structure::IonIonEnergy(const std::function<double(int)>& zionOf) const
 {
-    double s=0;
-    for (auto a:*this) s+=f(a->itsZ);
-    return s;
+    double vnn=0.0;
+    for (const auto& a1 : *this)
+        for (const auto& a2 : *this)
+        {
+            rvec3_t r1=a1->itsR, r2=a2->itsR;
+            if (r1!=r2) vnn += 0.5*zionOf(a1->itsZ)*zionOf(a2->itsZ)/norm(r1-r2);
+        }
+    return vnn;
 }
 
 // The site visitor (V1.19): one place reads the atom fields, every seed/decoration consumer asks the

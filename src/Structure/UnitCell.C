@@ -35,13 +35,13 @@ public:
     //! beyond the cell geometry its base already holds, so the copy is geometrically identical.)
     std::shared_ptr<Structure> Clone() const override {return std::make_shared<UnitCell>(*this);}
 
-    bool isFinite() const override {return false;}   //!< A periodic cell is NOT finite (IonIon -> Ewald).
+    //! The Ewald lattice sum of the point ions in a uniform neutralising background (\c EwaldEnergy, \c qchem.Ewald).
+    double IonIonEnergy(const std::function<double(int Z)>& zionOf) const override;
 
-    //! Form-factor sum PER CELL VOLUME: \f$\frac1\Omega\sum_a f(Z_a)\f$ -- the periodic G=0 background density
-    //! (the finite-structure sum, normalised by \f$\Omega\f$).  Lets the PP G=0 alignment read the geometry
-    //! without a Structure->UnitCell downcast or an LSP-violating CellVolume() on finite structures.
-    double SumFormFactors(const std::function<double(int Z)>& f) const override
-    {return Structure::SumFormFactors(f)/GetCellVolume();}
+    //! The periodic G = 0 background PER CELL VOLUME: \f$\frac1\Omega\sum_a f(Z_a)\f$.
+    double G0Background(const std::function<double(int Z)>& f) const override;
+
+    bool HasTranslationSymmetry() const override {return true;}   //!< A periodic cell's group contains T.
 
     //! A periodic cell's real-space integration mesh; \c mp.cellKind selects the quadrature.
     //! \c UnitCellKind::Uniform -- a UNIFORM grid of \c mp.nUniform points per axis at cell-fractional

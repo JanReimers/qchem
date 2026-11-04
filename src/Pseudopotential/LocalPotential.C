@@ -64,7 +64,7 @@ public:
     //! pseudopotential overrides with its VALENCE charge (HGH: \f$Z_{ion}\f$).  A callback, not a getter: the
     //! answer depends on the model, not just on Z.  Consumed term-side only -- it is not part of the field.
     virtual double Zion(int Z) const {return double(Z);}
-    //! Adapt Zion to the plain CALLBACK the ion-ion (Ewald) term consumes: Ewald (NuclearRepulsion) lives BELOW
+    //! Adapt Zion to the plain CALLBACK the ion-ion (Ewald) term consumes: the ion-ion sum (Structure::IonIonEnergy) lives BELOW
     //! the pseudopotential layer in qcStructure, so it must take a neutral std::function.
     std::function<double(int)> ZionFn() const {return [this](int Z){return Zion(Z);};}
 
