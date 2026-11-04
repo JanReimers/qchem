@@ -194,8 +194,8 @@ const char* const kMolecularGolden = R"G(  #               Etotal      [F,D]    
                             (1e-06)               (1e-08)   (1e-06)    (1e+02)
 ----------------------------------------------------------------------------------------------------
   1    -145.500070494997   3.70e+00  -1.00e+00  -1.00e+10  7.05e-01   8.03e-02  Lin 0.50      DIIS    ----                 ----
-  2    -148.746398919215   1.21e+00  -2.18e-02  -2.49e+00  1.62e-01   6.29e-03  Lin 0.81      DIIS    ----       *         ----
-  3    -149.560509951632   2.96e-01  -5.44e-03  -9.11e-01  4.65e-02  -1.44e-03  Lin 0.93      DIIS:1  ----       *         ----
+  2    -148.746398919215   1.21e+00  -2.18e-02  -2.49e+00  1.62e-01   6.29e-03  Lin 0.81      DIIS    ----                 ----
+  3    -149.560509951632   2.96e-01  -5.44e-03  -9.11e-01  4.65e-02  -1.44e-03  Lin 0.93      DIIS:1  ----                 ----
   4    -149.627225750406   7.86e-02  -4.46e-04  -2.17e-01  7.78e-03  -4.14e-03  Lin 0.97      DIIS:2  8.1e-02              ----
   5    -149.629512467503   2.30e-02  -1.53e-05  -5.56e-02  2.47e-03  -4.00e-03  Lin 0.99      DIIS:3  3.6e-03              ----
   6    -149.629545937427   4.15e-03  -2.24e-07  -1.88e-02  4.31e-04  -4.10e-03  Lin 1.00      DIIS:4  8.4e-05              ----
@@ -253,7 +253,9 @@ Virial               V/K  :  -2.62806466763  Eee/Exc:  -0.35576633964
 )G";
 }
 
-//! The molecular layout (O2 HF triplet, polarized: m_site; virial; cfg flags; DIIS counts and svMin).
+//! The molecular layout (O2 HF triplet, polarized: m_site; virial; the cfg column; DIIS counts and svMin).  No cfg '*': one
+//! no-symmetry block per spin always fills its lowest orbitals.  (Iterations 2 and 3 used to flag, an ↑ level crossing a ↓ level in an
+//! energy-ordered label string -- OpenWork cfg row, 2026-11-03.)
 TEST(SCFTrace, MolecularConsoleIsByteIdentical)
 {
     const std::string got=TraceBlock(CapturedTrace([]{
@@ -287,6 +289,44 @@ TEST(SCFTrace, SolidConsoleIsByteIdentical)
         (void)calc.Result();
     }));
     EXPECT_EQ(got, std::string(kSolidGolden));
+}
+
+// THE cfg '*' IS AN OCCUPATION CHANGE, NOT A REORDERING (OpenWork cfg row, 2026-11-03): CH₄ HF in C2v puts t2 on a₁ + b₁ + b₂, three
+// exactly degenerate levels of DIFFERENT irreps, all full.  Their energy order reshuffles on noise every iteration; the occupations never
+// move, so no row may flag.  (The energy-ordered label string flagged most rows here.)
+TEST(SCFTrace, ADegenerateClosedShellAcrossIrrepsNeverFlagsCfg)
+{
+    const double a=1.18816;   // 1.089 Å
+    Molecule ch4;
+    ch4.Insert(new Atom(6, 0, Vector3D<double>( 0, 0, 0)));
+    ch4.Insert(new Atom(1, 0, Vector3D<double>( a, a, a)));
+    ch4.Insert(new Atom(1, 0, Vector3D<double>(-a,-a, a)));
+    ch4.Insert(new Atom(1, 0, Vector3D<double>(-a, a,-a)));
+    ch4.Insert(new Atom(1, 0, Vector3D<double>( a,-a,-a)));
+    std::vector<double> cfg;
+    auto sink=[&cfg](const SCFIterator::IterationRow& r){ cfg.push_back(r.ValueOf("cfg")); };
+    MoleculeCalculation calc(MoleculeSetup::Resolve(ch4, {.basis = "dzvp", .symmetry = true}), {.NMaxIter = 80, .Verbose = false}, sink);
+    (void)calc.Result();
+    ASSERT_GT(cfg.size(), 3u);
+    for (size_t i=0;i<cfg.size();++i) EXPECT_EQ(cfg[i], 0.0) << "iteration " << i+1 << " flagged an occupation change";
+}
+
+// ...and a REAL occupation change still flags: NO (doublet, C2v) seeds from a cylindrically symmetric density, and its π* electron
+// moves between the b₁ / b₂ blocks on iterations 2 and 3 (the aufbau's per-block counts change), so those rows flag.  Bounded: the
+// change is the subject, not convergence.  (A metal does not serve: the solid fills every k-block with the same count.)
+TEST(SCFTrace, AnElectronMovingBetweenIrrepsFlagsCfg)
+{
+    Molecule no;
+    no.Insert(new Atom(7, 0, Vector3D<double>(0, 0,  1.0865)));   // 1.15 Å
+    no.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.0865)));
+    qchem::BoundedSCF bounded("six iterations of NO: the π* electron's move between irreps is the subject");
+    std::vector<double> cfg;
+    auto sink=[&cfg](const SCFIterator::IterationRow& r){ cfg.push_back(r.ValueOf("cfg")); };
+    MoleculeCalculation calc(MoleculeSetup::Resolve(no, {.basis = "dzvp", .multiplicity = 2, .symmetry = true}), {.NMaxIter = 6, .Verbose = false}, sink);
+    (void)calc.Result();
+    ASSERT_EQ(cfg.size(), 6u);
+    EXPECT_EQ(cfg[0], 0.0) << "iteration 1 has no previous configuration to differ from";
+    EXPECT_GT(std::count(cfg.begin(), cfg.end(), 1.0), 0) << "the π* electron moved between irreps and no row flagged it";
 }
 
 // THE ROW SINK'S EXCEPTION IS THE CALLER'S (2026-11-02): an observer that throws -- a GUI's cancel, a sink that fails to write --

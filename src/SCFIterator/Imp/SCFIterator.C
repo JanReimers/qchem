@@ -121,28 +121,23 @@ template <class T> static std::string FrontierWindow(const qchem::WaveFunction::
     return os.str();
 }
 
-// Compact textbook electron configuration of the current orbitals, e.g. (1a₁)²(2a₁)²(1b₂)²...:
-// every occupied level (energy-ordered) as (n + Mulliken-label)^occupation, the label lowercased
-// with its digits subscripted and the occupation superscripted.  Lets the per-iteration trace
-// show which irreps the electrons sit in (and catch any occupation flips under acceleration).
-template <class T> static std::string ConfigString(const qchem::WaveFunction::tWaveFunction<T>* wf)
+// THE OCCUPIED CONFIGURATION, as the aufbau decided it: per irrep block (in the wave function's own block order), each orbital's
+// occupation rounded to an electron count, in the block's own orbital order.  The cfg '*' compares two of these, so it fires only when
+// an electron moves -- between blocks, or to a different orbital of its block.  It was an energy-ordered label string, (1a₁)²(2a₁)²...:
+// exactly degenerate levels of DIFFERENT irreps (CH₄'s t2 = a₁ + b₁ + b₂ in C2v; O₂'s ↑ and ↓ levels crossing) reorder on noise,
+// so the string changed on most iterations while no occupation did (OpenWork cfg row, 2026-11-03).  The merged level table is the
+// wrong source too: a MergeTol host is whichever level came first.  Trailing empty orbitals are dropped (a block's virtual count
+// is not a configuration).
+using OccupiedConfiguration=std::vector<std::pair<size_t,std::vector<int>>>;   // (Irrep::SequenceIndex, occupations in block order)
+template <class T> static OccupiedConfiguration OccupationsByBlock(const qchem::WaveFunction::tWaveFunction<T>* wf)
 {
-    static const char* SUB[]={"₀","₁","₂","₃","₄","₅","₆","₇","₈","₉"};
-    static const char* SUP[]={"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹"};
-    auto script=[](int v,const char** t){ std::string d; if(v<=0) return std::string(t[0]);
-        while(v>0){ d=std::string(t[v%10])+d; v/=10; } return d; };
-    std::string cfg;
-    auto els = wf->GetEnergyLevels();
-    for (auto it=els.begin(); it!=els.end(); ++it)
+    OccupiedConfiguration cfg;
+    for (const qchem::Irrep& irr : wf->GetQNs())
     {
-        const auto& lvl = it->second;
-        int occ=(int)(lvl.occ+0.5);
-        if (occ<=0) continue;
-        std::string lab;
-        for (char c : lvl.qns.sym->GetLabel())
-            if (std::isdigit((unsigned char)c)) lab += SUB[c-'0'];
-            else                                lab += (char)std::tolower((unsigned char)c);
-        cfg += "(" + std::to_string(lvl.qns.n) + lab + ")" + script(occ,SUP);
+        std::vector<int> occ;
+        for (const auto* o : wf->GetOrbitals(irr)->Iterate()) occ.push_back((int)std::lround(o->GetOccupation()));
+        while (!occ.empty() && occ.back()==0) occ.pop_back();
+        if (!occ.empty()) cfg.emplace_back(irr.SequenceIndex(), std::move(occ));
     }
     return cfg;
 }
@@ -463,7 +458,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     int holeRun=0, momReleases=0;   // 0h MOM-guard state (per run): consecutive hole iterations + releases
     bool exhaustedStop=false;       // the opt-in ladder-exhaustion stage end (a deliberate early stop, not a cap)
     itsUnphysicalStop.clear();      // set when iteration 1's energy is physically impossible (UnphysicalStop)
-    std::string prevConfig;         // previous occupied configuration (the cfg '*' change flag; item 2)
+    OccupiedConfiguration prevConfig;   // previous occupied configuration (the cfg '*' change flag; item 2)
     for (itsIterationCount=1;
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
         itsIterationCount++)
@@ -517,13 +512,13 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         std::optional<IterationTrace> tr;
         if (ipar.Verbose || itsObserver)
         {
-            // "all fields, all cheap" is a CLAIM -- HomoLumo and ConfigString both walk every irrep's
+            // "all fields, all cheap" is a CLAIM -- HomoLumo and OccupationsByBlock both walk every irrep's
             // spectrum and occupations, once per iteration, and nothing was measuring them.
             qchem::report::Timed timed("scf: iteration trace + display (HomoLumo, cfg, columns)");
             // Build the full per-iteration trace (all fields, all cheap) and let the per-system display
             // virtual render its honest columns (item 2).  The cfg '*' flags an occupation change vs the
             // previous iteration (blank on iteration 1 -- there is no prior config to differ from).
-            std::string config = ConfigString(itsWaveFunction.get());
+            OccupiedConfiguration config = OccupationsByBlock(itsWaveFunction.get());
             const GapInfo g=HomoLumo(itsWaveFunction.get());   // frontier spectrum for the gap column
             const double N=itsCD->GetTotalCharge();      // Tr(DS); normalise the grid-charge leak per electron
             tr=IterationTrace{ itsIterationCount, eb, itsMixer->GetRelax(),
