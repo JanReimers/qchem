@@ -34,6 +34,7 @@ import qchem.BasisSet;               // Real_BS
 import qchem.BasisSet.Gaussian.Point.Factory;  // Gaussian::Factory, BasisSetData/Engine/Angular
 import qchem.Types;                  // ivec3_t
 import qchem.SCFIterator;            // SCFParams
+import qchem.SCFIterator.Internal.Occupations;   // AnElectronMoved -- the cfg '*' comparison (unit tests may import Internal)
 import qchem.MoleculeCalculation;            // the molecular facade (the golden molecular trace)
 using namespace qchem;
 using enum BasisSetAccuracy;
@@ -193,9 +194,9 @@ std::string TraceBlock(const std::string& trace)
 const char* const kMolecularGolden = R"G(  #               Etotal      [F,D]       ΔE/E     Δ[F,D]        Δρ      2+V/K  ρ_mix         accel   svMin    cfg       m_site
                             (1e-06)               (1e-08)   (1e-06)    (1e+02)
 ----------------------------------------------------------------------------------------------------
-  1    -145.500070494997   3.70e+00  -1.00e+00  -1.00e+10  7.05e-01   8.03e-02  Lin 0.50      DIIS    ----                 ----
-  2    -148.746398919215   1.21e+00  -2.18e-02  -2.49e+00  1.62e-01   6.29e-03  Lin 0.81      DIIS    ----                 ----
-  3    -149.560509951632   2.96e-01  -5.44e-03  -9.11e-01  4.65e-02  -1.44e-03  Lin 0.93      DIIS:1  ----                 ----
+  1    -145.500070494997   3.70e+00  -1.00e+00  -1.00e+10  7.05e-01   8.03e-02  Lin 0.50      ----    ----                 ----
+  2    -148.746398919215   1.21e+00  -2.18e-02  -2.49e+00  1.62e-01   6.29e-03  Lin 0.81      ----    ----                 ----
+  3    -149.560509951632   2.96e-01  -5.44e-03  -9.11e-01  4.65e-02  -1.44e-03  Lin 0.93      ----    ----                 ----
   4    -149.627225750406   7.86e-02  -4.46e-04  -2.17e-01  7.78e-03  -4.14e-03  Lin 0.97      DIIS:2  8.1e-02              ----
   5    -149.629512467503   2.30e-02  -1.53e-05  -5.56e-02  2.47e-03  -4.00e-03  Lin 0.99      DIIS:3  3.6e-03              ----
   6    -149.629545937427   4.15e-03  -2.24e-07  -1.88e-02  4.31e-04  -4.10e-03  Lin 1.00      DIIS:4  8.4e-05              ----
@@ -203,16 +204,16 @@ const char* const kMolecularGolden = R"G(  #               Etotal      [F,D]    
   8    -149.629547019861   2.67e-04  -4.60e-10  -1.11e-03  8.36e-06  -4.08e-03  Lin 1.00      DIIS:4  3.5e-07              ----
   9    -149.629547027574   8.69e-05  -5.16e-11  -1.80e-04  3.95e-06  -4.08e-03  Lin 1.00      DIIS:4  2.2e-08              ----
  10    -149.629547027643   1.02e-05  -4.61e-13  -7.67e-05  4.64e-07  -4.08e-03  Lin 1.00      DIIS:2  5.6e-09              ----
- 11    -149.629547027644   1.95e-06  -5.32e-15  -8.25e-06  6.46e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 12    -149.629547027645   3.08e-07  -4.94e-15  -1.64e-06  3.73e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 13    -149.629547027645   2.15e-07  -1.52e-15  -9.26e-08  2.30e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 14    -149.629547027645   1.55e-07  -1.52e-15  -5.99e-08  1.47e-08  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 15    -149.629547027645   1.12e-07  -9.50e-16  -4.30e-08  9.45e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 16    -149.629547027645   8.15e-08   0.00e+00  -3.10e-08  6.17e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 17    -149.629547027645   5.92e-08   3.80e-16  -2.23e-08  4.07e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 18    -149.629547027645   4.31e-08  -5.70e-16  -1.61e-08  2.71e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 19    -149.629547027645   3.14e-08   1.90e-16  -1.17e-08  1.84e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
- 20    -149.629547027645   2.29e-08   1.90e-16  -8.47e-09  1.26e-09  -4.08e-03  Lin 0.50      DIIS:1  1.0e+00              ----
+ 11    -149.629547027644   1.95e-06  -5.32e-15  -8.25e-06  6.46e-08  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
+ 12    -149.629547027645   3.08e-07  -4.94e-15  -1.64e-06  3.73e-08  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
+ 13    -149.629547027645   2.15e-07  -1.52e-15  -9.26e-08  2.30e-08  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
+ 14    -149.629547027645   1.55e-07  -1.52e-15  -5.99e-08  1.47e-08  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
+ 15    -149.629547027645   1.12e-07  -9.50e-16  -4.30e-08  9.45e-09  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
+ 16    -149.629547027645   8.15e-08   0.00e+00  -3.10e-08  6.17e-09  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
+ 17    -149.629547027645   5.92e-08   3.80e-16  -2.23e-08  4.07e-09  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
+ 18    -149.629547027645   4.31e-08  -5.70e-16  -1.61e-08  2.71e-09  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
+ 19    -149.629547027645   3.14e-08   1.90e-16  -1.17e-08  1.84e-09  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
+ 20    -149.629547027645   2.29e-08   1.90e-16  -8.47e-09  1.26e-09  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
 ----------------------------------------------------------------------------------------------------------
 Energy    Breakdown  Total:    -149.629547028  Kinetic:     149.022225338  Potential:    -298.651772366
 Potential Breakdown  Een  :    -410.569585377  Eee    :     100.155759294  Eex      :     -16.283520341
@@ -233,10 +234,10 @@ Virial               V/K  :    -2.00407537660  Eee/Exc:      -6.150743647
 const char* const kSolidGolden = R"G(  #               Etotal      [F,D]       ΔE/E        Δρ   ρ_lost/N    XC ρ  ρ_mix         accel   svMin    cfg       gap  
                                        (1e-06)   (1e-03)
 ----------------------------------------------------------------------------------------------------
-  1      -7.108903665453   2.70e-01  -1.00e+00  5.12e-02  -1.02e-09      DM  PulD 0.45     Null    ----          6.69e-02  
-  2      -7.111740399438   1.23e-02  -3.99e-04  2.60e-02  -1.38e-09      DM  PulD 0.45     Null    ----          6.83e-02  
-  3      -7.113252695245   6.46e-03  -2.13e-04  1.34e-02  -1.68e-09      DM  PulD 0.45     Null    ----          6.90e-02  
-  4      -7.114071972544   3.97e-03  -1.15e-04  7.18e-03  -1.68e-09      DM  PulD 0.45     Null    ----          6.93e-02  
+  1      -7.108903665453   2.70e-01  -1.00e+00  5.12e-02  -1.02e-09      DM  PulD 0.45     ----    ----          6.69e-02  
+  2      -7.111740399438   1.23e-02  -3.99e-04  2.60e-02  -1.38e-09      DM  PulD 0.45     ----    ----          6.83e-02  
+  3      -7.113252695245   6.46e-03  -2.13e-04  1.34e-02  -1.68e-09      DM  PulD 0.45     ----    ----          6.90e-02  
+  4      -7.114071972544   3.97e-03  -1.15e-04  7.18e-03  -1.68e-09      DM  PulD 0.45     ----    ----          6.93e-02  
 ----------------------------------------------------------------------------------------------------------
 Energy    Breakdown  Total:  -7.11407197254  Kinetic:   4.36964950717  Potential: -11.48372147971
 Potential Breakdown  Een  :  -1.14841291300  Eee    :   0.90563316633  Eex      :  -2.54558418105
@@ -327,6 +328,34 @@ TEST(SCFTrace, AnElectronMovingBetweenIrrepsFlagsCfg)
     ASSERT_EQ(cfg.size(), 6u);
     EXPECT_EQ(cfg[0], 0.0) << "iteration 1 has no previous configuration to differ from";
     EXPECT_GT(std::count(cfg.begin(), cfg.end(), 1.0), 0) << "the π* electron moved between irreps and no row flagged it";
+}
+
+// ...but a SHARED level sitting at a half-integer is not a move (lane A, 2026-11-04): a pair of degenerate orbitals sharing one
+// electron sits at ½ + ½, and noise of ~1e-13 tips each side of ½ from one iteration to the next.  Rounding each occupation (lround)
+// flipped the pair between (1,0) and (0,1) and flagged on noise.  Driven on the comparison itself: no natural molecular run tried
+// holds an exact ½ (smeared NO's π*↑ breaks the b₁ / b₂ pair self-consistently, kT 1e-3 to 5e-2).
+TEST(SCFTrace, AHalfIntegerShareOnNoiseIsNotAMove)
+{
+    using SCFIterator::OccupiedConfiguration;
+    const double eps=1e-13;
+    const OccupiedConfiguration before{{0,{2.0,2.0,0.5+eps}}, {2,{2.0,0.5-eps}}};
+    const OccupiedConfiguration after {{0,{2.0,2.0,0.5-eps}}, {2,{2.0,0.5+eps}}};
+    EXPECT_FALSE(SCFIterator::AnElectronMoved(before, after)) << "a ½ + ½ share on 1e-13 noise flagged";
+    // a smeared run's continuous drift below half an electron is not a move either
+    const OccupiedConfiguration drift{{0,{2.0,1.99,0.7}}, {2,{2.0,0.31}}};
+    EXPECT_FALSE(SCFIterator::AnElectronMoved(before, drift));
+}
+
+// ...and the same comparison still sees every real move: an electron between blocks, within a block, and into a block (or orbital)
+// the other configuration does not list.
+TEST(SCFTrace, AnElectronMovingIsAMoveWhereverItGoes)
+{
+    using SCFIterator::OccupiedConfiguration;
+    const OccupiedConfiguration base{{0,{2.0,1.0}}, {2,{2.0}}};
+    EXPECT_FALSE(SCFIterator::AnElectronMoved(base, base));
+    EXPECT_TRUE (SCFIterator::AnElectronMoved(base, OccupiedConfiguration{{0,{2.0}},        {2,{2.0,1.0}}})) << "between blocks";
+    EXPECT_TRUE (SCFIterator::AnElectronMoved(base, OccupiedConfiguration{{0,{2.0,0.0,1.0}}, {2,{2.0}}}))     << "within a block";
+    EXPECT_TRUE (SCFIterator::AnElectronMoved(base, OccupiedConfiguration{{0,{2.0}},        {2,{2.0}}, {5,{1.0}}})) << "into a new block";
 }
 
 // THE ROW SINK'S EXCEPTION IS THE CALLER'S (2026-11-02): an observer that throws -- a GUI's cancel, a sink that fails to write --

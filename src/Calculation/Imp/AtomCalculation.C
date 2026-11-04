@@ -178,8 +178,8 @@ void AtomCalculation::BuildGraph()
     // run: the FIRST Converge BUILDS the basis (each exponent shell announces its own basis.exponents row as it is
     // constructed -- nobody asks it to), the orchestrator stamps the scalars, and the WF build (inside `new SCFIter`)
     // fills basis.perIrrep/removed via the cursor (the shared LASolver conditioning).  The HAMILTONIAN is built OUTSIDE
-    // it, in its own context "grids" (user ruling 2026-11-02: the caller sets the context, the callee reports one level
-    // in -- its meshes file there, the same paths as a molecule's and a solid's).  So the basis context is entered twice:
+    // it, in its own context "hamiltonian" (user rulings 2026-11-02, 2026-11-04: the caller sets the context, the callee
+    // reports one level in -- its meshes and terms file there, the same paths as a molecule's and a solid's).  So the basis context is entered twice:
     // SILENTLY for the build (a Scope renders only the scalars it added; the build adds rows), then as the rendering
     // Section, which renders the whole basis once, complete, on close.  A later Converge reuses the basis and truthfully
     // carries no exponents rows.
@@ -191,7 +191,7 @@ void AtomCalculation::BuildGraph()
     // override (the public selector, e.g. libxc), or the model's built-in Hamiltonian/functional.
     decltype(itsHam.get()) ham=nullptr;
     {
-        rpt::Scope grids("grids");
+        rpt::Scope hamiltonian("hamiltonian");
         ham = itsOpts.pseudopotential
             ? H::Factory(itsOpts.spin, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis,
                          itsOpts.vxcFit)

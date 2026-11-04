@@ -1460,6 +1460,36 @@ TEST(GPW, LocalPPKappaSelfConverged)
     EXPECT_LT(relA, 1e-2) << "analytic short vs kappa-ruled grid short: convention-class disagreement";
 }
 
+// The analytic SHORT local PP for a GTH that carries C3/C4 (the r^4, r^6 terms: Li q3) against the grid short
+// at a converged ladder, beside two that do not (Si q4, Li q1).  The C4 operator monomial x^6 overran the
+// 3-centre Hermite table (fixed LMAX 3) in Release, so Li q3's analytic matrix was off by rel 0.39 while the C1/C2
+// species agreed to 1e-10 -- the Li q3 atom came out 9-30 mHa BELOW its basis-converged CP2K ATOM energy
+// (OpenWork §3 "Li GTH-PADE-q3 is NON-VARIATIONAL", lane H 2026-11-04).  Hermite3 is now sized per (LA,LB,LC).
+// Measured after the fix at densityEcut 160: rel 1.3e-10 / 5.1e-11 / 2.6e-11 (Si q4 / Li q3 / Li q1).  The Si
+// basis carries the Li potential: HGH_LocalPotential ignores Z, and the defect is in the operator, not the basis.
+TEST(GPW, LocalPPShortAnalyticMatchesGrid_C3C4)
+{
+    UnitCell cell(10.0);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> mol(
+        BasisSet::Gaussian::Factory(BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/160.0);   // the grid arm converged (40: 1e-3)
+    const GPW_Evaluator& ev = gpw;
+    for (auto [el,q] : {std::pair<const char*,int>{"Si",4}, {"Li",3}, {"Li",1}})
+    {
+        const auto gth = Pseudopotential::GetGTH(el,"LDA",q);
+        const chmat_t Va=ev.MakeLocalPPShort(&cell, gth.local);                          // analytic (Overlap3C)
+        const chmat_t Vg=ev.MakeLocalPP(&cell, gth.local, BasisSet::FieldRange::Short);  // grid (form factor)
+        double num=0.0, den=0.0;
+        for (size_t i=0;i<Va.rows();i++)
+            for (size_t j=0;j<Va.columns();j++) { num+=std::norm(Va(i,j)-Vg(i,j)); den+=std::norm(Vg(i,j)); }
+        const double rel=std::sqrt(num/den);
+        std::cout << "[short C3C4] " << el << " q" << q << "  ||analytic-grid||/||grid|| = " << rel << std::endl;
+        EXPECT_LT(rel, 1e-8) << el << " q" << q << ": analytic short local PP disagrees with the grid";
+    }
+}
+
 // ============================ Shubnikov S2: the G-space channel-pair star-average ============================
 // doc/SymmetryUpgradePlan.md §7 step 7 S2.  The pair diagonalizes the spin action: the total is EVEN under
 // Flip, the magnetization m-tilde is ODD (character chi = -1 on sigma=Flip ops).  Fixture: the MnO AFM-II

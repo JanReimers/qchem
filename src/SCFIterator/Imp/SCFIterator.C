@@ -20,6 +20,7 @@ module;
 #include <type_traits>
 
 module qchem.SCFIterator;
+import qchem.SCFIterator.Internal.Occupations;   // OccupiedConfiguration, AnElectronMoved -- the cfg '*'
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.SCFParams;
 import qchem.SCFAccelerator;
@@ -121,23 +122,16 @@ template <class T> static std::string FrontierWindow(const qchem::WaveFunction::
     return os.str();
 }
 
-// THE OCCUPIED CONFIGURATION, as the aufbau decided it: per irrep block (in the wave function's own block order), each orbital's
-// occupation rounded to an electron count, in the block's own orbital order.  The cfg '*' compares two of these, so it fires only when
-// an electron moves -- between blocks, or to a different orbital of its block.  It was an energy-ordered label string, (1a₁)²(2a₁)²...:
-// exactly degenerate levels of DIFFERENT irreps (CH₄'s t2 = a₁ + b₁ + b₂ in C2v; O₂'s ↑ and ↓ levels crossing) reorder on noise,
-// so the string changed on most iterations while no occupation did (OpenWork cfg row, 2026-11-03).  The merged level table is the
-// wrong source too: a MergeTol host is whichever level came first.  Trailing empty orbitals are dropped (a block's virtual count
-// is not a configuration).
-using OccupiedConfiguration=std::vector<std::pair<size_t,std::vector<int>>>;   // (Irrep::SequenceIndex, occupations in block order)
+// The cfg '*''s configuration (OccupiedConfiguration, qchem.SCFIterator.Internal.Occupations): every block's occupations as the
+// aufbau set them.
 template <class T> static OccupiedConfiguration OccupationsByBlock(const qchem::WaveFunction::tWaveFunction<T>* wf)
 {
     OccupiedConfiguration cfg;
     for (const qchem::Irrep& irr : wf->GetQNs())
     {
-        std::vector<int> occ;
-        for (const auto* o : wf->GetOrbitals(irr)->Iterate()) occ.push_back((int)std::lround(o->GetOccupation()));
-        while (!occ.empty() && occ.back()==0) occ.pop_back();
-        if (!occ.empty()) cfg.emplace_back(irr.SequenceIndex(), std::move(occ));
+        std::vector<double> occ;
+        for (const auto* o : wf->GetOrbitals(irr)->Iterate()) occ.push_back(o->GetOccupation());
+        cfg.emplace_back(irr.SequenceIndex(), std::move(occ));
     }
     return cfg;
 }
@@ -212,8 +206,9 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
             const SpinGroup pol = itsHamiltonian->GetSpinGroup();
             // Non-owning: the sibling lives only for this Init call, and st outlives it (it is the ctor arg).
             H::st_t stView(st, [](const Structure*){});
-            std::unique_ptr<H::rHamiltonian> dftSibling(
-                H::Factory(pol, stView, 2.0/3.0, qcMesh::MeshParams{}, bs));   // Dirac exchange (alpha=2/3)
+            // Not the run's Hamiltonian, and its meshes and term scopes say so one level into this context.
+            std::unique_ptr<H::rHamiltonian> dftSibling=[&]{ qchem::report::Scope here("seedHamiltonian");
+                return std::unique_ptr<H::rHamiltonian>(H::Factory(pol, stView, 2.0/3.0, qcMesh::MeshParams{}, bs)); }();   // Dirac exchange (alpha=2/3)
             SetWorkingCD(cd_t(itsWaveFunction->Init(*dftSibling, seed, *itsOccPolicy, 0.0001)));  // D0: a real (matrix-backed) density
             assert(itsCD);
             return;
@@ -519,13 +514,19 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
             // virtual render its honest columns (item 2).  The cfg '*' flags an occupation change vs the
             // previous iteration (blank on iteration 1 -- there is no prior config to differ from).
             OccupiedConfiguration config = OccupationsByBlock(itsWaveFunction.get());
+            // THE accel AND ρ_mix CELLS NAME WHAT PRODUCED THIS ITERATE (OpenWork §3, user 2026-11-03/04).  A direct-min iteration
+            // whose geodesic was not taken fell back to a MIXED fixed-point step (ρ_mix is real, accel is not); a fixed-point step
+            // diagonalised the accelerator's Fock only when it Extrapolated() -- otherwise the plain F'.  Either way the accel cell
+            // reads "----"; it read DIIS on every pre-engage row and GDM on every fallback.
+            const bool geodesic    = lineSearch && itsGeodesicTaken;
+            const bool accelerated = lineSearch ? geodesic : itsAccelerator->Extrapolated();
             const GapInfo g=HomoLumo(itsWaveFunction.get());   // frontier spectrum for the gap column
             const double N=itsCD->GetTotalCharge();      // Tr(DS); normalise the grid-charge leak per electron
             tr=IterationTrace{ itsIterationCount, eb, itsMixer->GetRelax(),
-                               itsMixer->Tag(), itsAccelerator->Tag(), itsAccelerator->Count(),
+                               itsMixer->Tag(), accelerated ? itsAccelerator->Tag() : "----", accelerated ? itsAccelerator->Count() : 0,
                                itsAccelerator->MinSV(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
-                               itsIterationCount>1 && config!=prevConfig, lineSearch,
+                               itsIterationCount>1 && AnElectronMoved(config,prevConfig), geodesic,
                                (N!=0.0 ? eb.charge.lost/N : 0.0), itsMixer->HasGFilter(),
                                g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole,
                                hasOrder, order };
@@ -688,6 +689,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     // SAFE ONLY WHEN THE ACCELERATOR HOLDS NO LIVE STEP: DoSCFIteration calls NextOrbitals(), and a minimizer
     // with a computed step TAKES it there (GDM: OrbitalsAt(1.0,true)).  Both call sites below satisfy that --
     // one because ComputeStep FAILED, the other because an exhausted RejectStep armed a forced diagonalize.
+    itsGeodesicTaken=false;   // set only where a geodesic step is committed: every other exit is a mixed fixed-point step
     auto mixedStep=[&](const char* why)
     {
         // The FALLBACK is a whole fixed-point step taken inside a direct-min iteration, so it must be
@@ -763,6 +765,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         if (found)
         {
             itsWaveFunction->MoveOrbitals(held,t,true,mergeTol);    //commit at t
+            itsGeodesicTaken=true;
             qchem::report::Timed timed("scf: line-search commit density");
             return cd_t(itsWaveFunction->GetChargeDensity());
         }

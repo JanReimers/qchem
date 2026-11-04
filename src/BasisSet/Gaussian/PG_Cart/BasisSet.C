@@ -144,12 +144,17 @@ class EFit_IBS
 {
 public:
     // A fit set has no matrix-image client: its representation is the identity at E only, refusing any other op (S3).
-    EFit_IBS(Reader *, const Structure *, const qcMesh::MeshParams&);
+    //! \a name = the auxiliary set this was read from ("A1_coul"), a fact only the creating factory knows.
+    EFit_IBS(Reader *, const Structure *, const qcMesh::MeshParams&, const std::string& name);
 
+    //! The run report's name for this fit.  Not the cache identity: \c BasisSetID stays the shells' own.
+    virtual std::string Name() const override {return itsName;}
     virtual rsmat_t MakeOverlap() const {return MakeOverlap2C(this);}
     virtual  rvec_t MakeCharge   () const;
     virtual rsmat_t MakeRepulsion() const {return MakeRepulsion2C(this);}
     virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& b) const;
+private:
+    std::string itsName;
 };
 class BasisSet 
     : public virtual ::qchem::BasisSet::tBasisSet<double>

@@ -131,10 +131,10 @@ void MoleculeCalculation::BuildGraph()
     // run: the FIRST Converge BUILDS the basis (a basis with something to announce does so as it is constructed --
     // nobody asks it to), the orchestrator stamps the scalars, and the WF build (inside `new SCFIter`) fills
     // basis.perIrrep + basis.removed via the cursor five layers down (MakeIrrepWFs owns the rows, the LASolver writes
-    // the conditioning).  The HAMILTONIAN is built OUTSIDE it, in its own context "grids" (user ruling 2026-11-02:
-    // the caller sets the context, the callee reports one level in) -- what it builds there is grids: the XC
-    // quadrature, the PP terms' meshes, each filed one level in by the mesh builder, so a molecule and a solid file
-    // the same paths.  So the basis context is entered twice: SILENTLY for the build (a Scope renders only the
+    // the conditioning).  The HAMILTONIAN is built OUTSIDE it, in its own context "hamiltonian" (user rulings 2026-11-02:
+    // the caller sets the context, the callee reports one level in; 2026-11-04: the report's nesting is the run sequence)
+    // -- each mesh files there as it is built, just before the term that needs it, and each term its fit basis, so a
+    // molecule and a solid file the same paths.  So the basis context is entered twice: SILENTLY for the build (a Scope renders only the
     // scalars it added, and the build adds rows), then as the rendering Section for the rest -- which renders the
     // whole basis once, complete, on close.  A later Converge reuses the basis.
     {
@@ -146,7 +146,7 @@ void MoleculeCalculation::BuildGraph()
     // Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
     decltype(itsHam.get()) ham=nullptr;
     {
-        rpt::Scope grids("grids");
+        rpt::Scope hamiltonian("hamiltonian");
         ham = itsSetup->pp
             ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis, opts.vxcFit)
             : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure,

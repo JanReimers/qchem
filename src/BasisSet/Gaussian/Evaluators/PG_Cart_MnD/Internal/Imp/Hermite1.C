@@ -2,6 +2,8 @@
 module;
 #include <iostream>
 #include <cassert>
+#include <stdexcept>
+#include <string>
 module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Hermite;
 import qchem.IntPow;
 
@@ -26,6 +28,11 @@ Hermite1::Hermite1()
 Hermite1::Hermite1(double αₚ, int L)
     : itsL(L)
 {
+    // The storage is a fixed [LMAX+1]^2 (Hermite3 is sized per call); refuse an L it cannot hold rather than
+    // overrun it silently in Release (the Hermite3 overrun made Li q3 non-variational, 2026-11-04).
+    const int nMax=int(sizeof(def)/sizeof(def[0]));
+    if (L<0 || L>=nMax)
+        throw std::out_of_range("Hermite1: L="+std::to_string(L)+" exceeds the fixed table (LMAX="+std::to_string(nMax-1)+")");
     double a12=1.0/(2*αₚ);
 
     for (int n=0; n<=itsL; n++)

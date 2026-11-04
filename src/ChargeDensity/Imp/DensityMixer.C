@@ -17,6 +17,7 @@ import qchem.BasisSet.Orbital_DFT_IBS;             // Orbital_DFT_IBS<dcmplx>::C
 import qchem.ReciprocalLattice;
 import qchem.UnitCell;                             // isPeriodicCell
 import qchem.Mesh;                                 // qcMesh::MeshParams
+import qchem.Reporting;                            // report::Scope (the mixer's fit grid)
 import qchem.Types;
 
 namespace qchem::ChargeDensity
@@ -57,7 +58,8 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
                                  "basis, a UnitCell structure and a seed with a Fourier face.");
     // The WHOLE-SET fit factory (mixed-aware since doc/RealComplexPlan.md 3c-3): serves from the first block
     // of either scalar; a non-periodic basis still fails loudly (the factory throws when no block carries the face).
-    auto fit = std::shared_ptr<const BasisSet::cFIT_SF_ABS>(basis->CreateVxcFitBasisSet(cell, qcMesh::MeshParams{}));
+    auto fit=[&]{ qchem::report::Scope here("densityMixer");   // the mixer's own fit grid reports one level in
+                  return std::shared_ptr<const BasisSet::cFIT_SF_ABS>(basis->CreateVxcFitBasisSet(cell, qcMesh::MeshParams{})); }();
     ReciprocalLattice recip=GetReciprocalLattice(cell);
     // POLARIZED: one ρ̃ mixer PER CHANNEL, composed (PolarizedDensityMixer).  A single-map mixer would hand the
     // Fock a spin-blind total and collapse v_xc to the ζ=0 branch from iteration 1 -- the MnO AFM-II collapse,

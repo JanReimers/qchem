@@ -1513,3 +1513,18 @@ They come from the convergence residual, `LoopDriver.C:90`: `ResidualDensities` 
 design, and measures Δρ on the Becke quadrature every iteration.  That is 60 iterations × 2 plus the seeds, which makes 122.  XC never sees
 these densities, so there is no OpenWork row.  (A 2× lever is to sample in − out once, since the residual is linear, but the NUFFT makes
 it moot.)
+
+## ✅ The run record files the fit bases (2026-11-04, lane B, 6a0b913f)
+
+**The row, verbatim:**
+
+| **The run record does not file the FIT BASES** (user via lane G, 2026-11-04, GUI Basis tab) | a molecular DFT run (CH₄ LDA, DZVP) files `basis/{name, nFunctions, perIrrep}` for the orbital basis and `grids/auxiliaryFit` for the fit's mesh, but neither the Hartree ρ fit basis (A1_coul, `BasisSet/Gaussian/PG_Cart/Imp/IrrepBasisSet.C:228`) nor the Vxc fit (δ on the XC mesh by default, or A1_exch) appears anywhere in the record | file them under `basis` as `fits: [{role, name, nFunctions}]` (role "Hartree ρ fit" / "Vxc fit"), written CURSOR-RELATIVE by the code that creates each fit, inside the caller's basis Section (report = run sequence); every facade (atom / molecule / solid: the GPW plane-wave fits too).  The GUI's Basis tab (qchem-GUI 775dfe2) already reads `basis.fits` · `src/BasisSet/` (CreateCDFitBasisSet / CreateVxcFitBasisSet), the facades' basis sections |
+
+**Verdict.**  The row's placement (`basis.fits`) was overruled twice the same day.  First: the Hamiltonian builds the fits, because only it knows whether a run needs one, so the sequence stays and the basis context does not get them.  Then the user found `grids.hamiltonian.fits` odd and ruled the tree: a top-level `hamiltonian`, each mesh filed in construction order just before the term that needs it, and each term filing its own fit basis.
+
+- The three facades' `Scope("grids")` around the Hamiltonian build is `Scope("hamiltonian")`.  A molecule or atom now files no `grids` at all; a solid's `grids` keeps what is built before the Hamiltonian (`ladder`, `densityEcut`, `cutoffFactor`, `vlocEps`, the audit rows, `latticeSums`) and the still root-anchored `boxTasks`.
+- `BuildTermFit` (`Hamiltonians.C`) opens `Hartree` / `Vxc_DFT` around the fit build and files `hamiltonian.<term>.fitbasis: [{role, name, nFunctions}]`.  A fit's own mesh or grid lands in the term (`hamiltonian.Hartree.auxiliaryFit`, `.densityFit`, `hamiltonian.Vxc_DFT.vxcFitGrid`), which also ended two auxiliary fits sharing one key under Vxc = Auxiliary.
+- `UnitCell::EmitUniformGridReport` is cursor-relative, so `densityFit` / `vxcFitGrid` move with their context.  That exposed two fit bases that are not the Hamiltonian's: the plane-wave seed's and the G-space mixer's, now `seedDensity.densityFit` and `densityMixer.vxcFitGrid`.  On a Becke run the mixer's was the only `grids.vxcFitGrid`, which read as the Hamiltonian's.  The HF SAD bootstrap's sibling Hamiltonian files under `seedHamiltonian`, a path no check has exercised at run time.
+- `Name()` on a Gaussian auxiliary fit is its file (`A1_coul`, `A1_exch`); `BasisSetID` is untouched.
+
+Tests: `FacadeMatrix` (every cell: each `hamiltonian` member is a mesh with points or a term with complete `fitbasis` rows), `CalculationFacade.EachAuxiliaryFitFilesInItsOwnTerm`.  Sweep: 1279/0 short, 11/0 long, 0 anchor moves against the branch's previous sweep (`GPW_NaF.Γ_GeometryRunSizesItsBeckeMesh_Long` flickers 33/34 iterations at dE = 0 between main sweeps, independent of this change).  `qviz/gridinfo.py` moves in lockstep on its own branch (lane G).

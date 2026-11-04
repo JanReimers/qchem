@@ -30,9 +30,9 @@ TEST(CalculationFacade, TheConstructorsObserverSeesItsSCFFromTheFirstIteration)
     EXPECT_NEAR(steps.back().ValueOf("Etotal"), calc.Energy(), 1e-10);
 }
 
-//! A molecular DFT run's report holds its XC mesh BEFORE the SCF iterates, at grids.xcQuadrature -- the path a solid files: the
-//! facade builds the Hamiltonian in its "grids" context, the XC quadrature opens "xcQuadrature", the mesh builder writes one
-//! level in (OpenWork §3 "A molecule's mesh never reports itself", user ruling 2026-11-02).
+//! A molecular DFT run's report holds its XC mesh BEFORE the SCF iterates, at hamiltonian.xcQuadrature -- the path a solid files:
+//! the facade builds the Hamiltonian in its "hamiltonian" context, the XC quadrature opens "xcQuadrature", the mesh builder writes
+//! one level in (OpenWork §3 "A molecule's mesh never reports itself", user rulings 2026-11-02, 2026-11-04).
 TEST(CalculationFacade, AMoleculesXCMeshIsInTheRunReportByIterationOne)
 {
     bool seen=false, checked=false;
@@ -43,19 +43,19 @@ TEST(CalculationFacade, AMoleculesXCMeshIsInTheRunReportByIterationOne)
                          if (p.iteration!=1) return;
                          checked=true;
                          const auto& doc=qchem::report::CurrentRunReport();
-                         if (!doc.contains("grids") || !doc["grids"].contains("xcQuadrature")) return;
-                         const auto& xc=doc["grids"]["xcQuadrature"];
+                         if (!doc.contains("hamiltonian") || !doc["hamiltonian"].contains("xcQuadrature")) return;
+                         const auto& xc=doc["hamiltonian"]["xcQuadrature"];
                          seen = xc.contains("points") && xc["points"].get<long>()>0 && xc["natom"].get<long>()==3;
                      });
     ASSERT_TRUE(calc.IsConverged());
     ASSERT_TRUE(checked) << "the observer saw no iteration 1";
-    EXPECT_TRUE(seen) << "at iteration 1 the run report must already hold grids.xcQuadrature (the molecule's XC mesh)";
+    EXPECT_TRUE(seen) << "at iteration 1 the run report must already hold hamiltonian.xcQuadrature (the molecule's XC mesh)";
 }
 
-//! A PSEUDOPOTENTIAL run's PP quadrature is built in the Hamiltonian's own build phase, so it files at grids.ppQuadrature -- not
+//! A PSEUDOPOTENTIAL run's PP quadrature is built in the Hamiltonian's own build phase, so it files at hamiltonian.ppQuadrature -- not
 //! under basis.*, where the terms' lazy first-matrix build inside the SCF iterator's construction used to put it (CLAUDE.md "the
 //! run report": fix the run sequence, never the path; OpenWork, the mesh-report remainder, 2026-11-02).
-TEST(CalculationFacade, APseudopotentialRunsPPQuadratureIsInGridsNotBasis)
+TEST(CalculationFacade, APseudopotentialRunsPPQuadratureIsInHamiltonianNotBasis)
 {
     bool seen=false, stray=true;
     qchem::report::Run run("H2O");   // the driver's run (user ruling D, 2026-11-02)
@@ -64,13 +64,13 @@ TEST(CalculationFacade, APseudopotentialRunsPPQuadratureIsInGridsNotBasis)
                      {
                          if (p.iteration!=1) return;
                          const auto& doc=qchem::report::CurrentRunReport();
-                         seen = doc.contains("grids") && doc["grids"].contains("ppQuadrature")
-                             && doc["grids"]["ppQuadrature"]["points"].get<long>()>0;
+                         seen = doc.contains("hamiltonian") && doc["hamiltonian"].contains("ppQuadrature")
+                             && doc["hamiltonian"]["ppQuadrature"]["points"].get<long>()>0;
                          stray = doc.contains("basis") && (doc["basis"].contains("ppLocal") || doc["basis"].contains("ppNonLocal")
                                                            || doc["basis"].contains("ppQuadrature"));
                      });
     ASSERT_TRUE(calc.IsConverged());
-    EXPECT_TRUE(seen)   << "the PP quadrature must be in grids.ppQuadrature by iteration 1";
+    EXPECT_TRUE(seen)   << "the PP quadrature must be in hamiltonian.ppQuadrature by iteration 1";
     EXPECT_FALSE(stray) << "a PP mesh filed under basis: it was built inside the SCF iterator's construction again";
 }
 
@@ -167,9 +167,12 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySC
     ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
     ASSERT_TRUE(build->contains("basis") && (*build)["basis"].contains("perIrrep")) << build->dump(1);
     EXPECT_FALSE((*build)["basis"]["perIrrep"].empty());
-    ASSERT_TRUE(build->contains("grids")) << build->dump(1);
-    for (const char* g : {"xcQuadrature", "ppQuadrature", "auxiliaryFit"})
-        EXPECT_TRUE((*build)["grids"].contains(g) && (*build)["grids"][g]["points"].get<long>()>0) << "grids." << g << " missing from the build run";
+    ASSERT_TRUE(build->contains("hamiltonian")) << build->dump(1);
+    const auto& ham=(*build)["hamiltonian"];
+    for (const char* g : {"xcQuadrature", "ppQuadrature"})
+        EXPECT_TRUE(ham.contains(g) && ham[g]["points"].get<long>()>0) << "hamiltonian." << g << " missing from the build run";
+    ASSERT_TRUE(ham.contains("Hartree")) << build->dump(1);
+    EXPECT_GT(ham["Hartree"]["auxiliaryFit"]["points"].get<long>(), 0) << "the Hartree fit's mesh files in its term";
     // No SCF ran: no scf header (Converge files it) -- an "scf" key may hold a setup fact the seed build files (xcRhoRoutes)
     EXPECT_FALSE(build->contains("scf") && (*build)["scf"].contains("standard")) << "the build run holds an SCF: " << (*build)["scf"].dump(1);
 
@@ -181,6 +184,25 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySC
     EXPECT_EQ(r->IterationCount(), once.IterationCount());
 }
 
+//! Two Gaussian auxiliary fits in one run: each files its fit basis and its private mesh in its own term, so neither overwrites the other
+//! (one grids.auxiliaryFit key did, until the terms got scopes; user ruling 2026-11-04).
+TEST(CalculationFacade, EachAuxiliaryFitFilesInItsOwnTerm)
+{
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary});
+    { qchem::report::Run run("H2O fits build"); auto calc=MoleculeCalculation::Prepare(setup); }
+    const auto* build=FiledRun("H2O fits build@");
+    ASSERT_NE(build, nullptr) << "no filed build run";
+    ASSERT_TRUE(build->contains("hamiltonian")) << build->dump(1);
+    const auto& ham=(*build)["hamiltonian"];
+    for (const auto& [term,name] : {std::pair{"Hartree","A1_coul"}, std::pair{"Vxc_DFT","A1_exch"}})
+    {
+        ASSERT_TRUE(ham.contains(term)) << term;
+        EXPECT_EQ(ham[term]["fitbasis"].front()["name"].get<std::string>(), name) << term;
+        EXPECT_GT(ham[term]["fitbasis"].front()["nFunctions"].get<long>(), 0) << term;
+        EXPECT_GT(ham[term]["auxiliaryFit"]["points"].get<long>(), 0) << term;
+    }
+}
+
 //! The atom's Build -> Run twin.
 TEST(CalculationFacade, AnAtomsPrepareFilesItsSetupBeforeAnySCF)
 {
@@ -190,7 +212,7 @@ TEST(CalculationFacade, AnAtomsPrepareFilesItsSetupBeforeAnySCF)
     const auto* build=FiledRun(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build@");
     ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
     EXPECT_TRUE(build->contains("basis") && (*build)["basis"].contains("perIrrep")) << build->dump(1);
-    EXPECT_TRUE(build->contains("grids") && (*build)["grids"].contains("xcQuadrature")) << build->dump(1);
+    EXPECT_TRUE(build->contains("hamiltonian") && (*build)["hamiltonian"].contains("xcQuadrature")) << build->dump(1);
     EXPECT_FALSE(build->contains("scf") && (*build)["scf"].contains("standard")) << "the build run holds an SCF";
     ASSERT_TRUE(calc->Converge());
     AtomCalculation once(8, 0, opts);
