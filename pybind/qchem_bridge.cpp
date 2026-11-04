@@ -26,7 +26,7 @@ module;
 export module qchem.bridge;
 
 import qchem.Types;          // rvec3_t, vec3_t
-import qchem.Structure;      // Molecule, Atom
+import qchem.Structure;      // Molecule, Site
 import qchem.SCFParams;      // SCFParams
 import qchem.SCFIterator;    // IterationRow, IterationCell
 import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, CalcOptions, AcceleratorOptions
@@ -197,7 +197,7 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char
 
         qchem::Molecule mol;
         for (int a = 0; a < req->nat; ++a)
-            mol.Insert(new qchem::Atom(req->Z[a], 0.0, rvec3_t(req->pos3[3*a], req->pos3[3*a+1], req->pos3[3*a+2])));
+            mol.Insert(qchem::Site{req->Z[a], rvec3_t(req->pos3[3*a], req->pos3[3*a+1], req->pos3[3*a+2])});
 
         qchem::CalcOptions opts;
         opts.basis        = req->basis;
@@ -269,7 +269,8 @@ int    qcb_natoms    (const qcb_calc* h) { return int(h->positions.size()/3); }
 void qcb_atoms(const qcb_calc* h, int* Z_out, double* xyz_out)
 {
     const qchem::Structure& st = h->calc->GetStructure();
-    for (size_t a = 0; a < st.GetNumAtoms(); ++a) Z_out[a] = int(st[a]->itsZ);
+    size_t a = 0;
+    for (const qchem::Site& site : st.Sites()) Z_out[a++] = site.Z;
     std::memcpy(xyz_out, h->positions.data(), h->positions.size()*sizeof(double));
 }
 
@@ -411,7 +412,7 @@ int qcb_basis_info(const int* Z, int nat, const double* pos3, const char* basis,
     {
         qchem::Molecule mol;
         for (int a = 0; a < nat; ++a)
-            mol.Insert(new qchem::Atom(Z[a], 0.0, rvec3_t(pos3[3*a], pos3[3*a+1], pos3[3*a+2])));
+            mol.Insert(qchem::Site{Z[a], rvec3_t(pos3[3*a], pos3[3*a+1], pos3[3*a+2])});
         // the facade's defaults (MoleculeCalculation's BuildBasis with CalcOptions{}): MnD engine, Cartesian, no SALC blocking --
         // a unitary re-blocking would not move S's spectrum
         const std::unique_ptr<qchem::BasisSet::Real_BS> bs(qchem::BasisSet::Gaussian::Factory(
