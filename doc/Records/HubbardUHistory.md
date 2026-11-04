@@ -2620,7 +2620,7 @@ polarized moments at k4–k8 were k-sampling artefacts.
 
 **Verdict:** q3 Li is non-variational in our code; q1 is not.  PP parameters match CP2K's file exactly.  The q3 local PP has C1..C4
 (q1 only C1, C2 + KB); `FormFactorShort` and `MultiplyR2` read correct; the bisect onto the PW basis OOM'd (1.7M-point raster, 33 GB
-VM at ecut 30, L = 12) so the GPW-vs-PW split is not yet made.  Open row in `doc/OpenWork.md` §3.
+VM at ecut 30, L = 12) so the GPW-vs-PW split is not yet made.  Open row in `doc/OpenWork.md` §3, "Li GTH-PADE-q3 is NON-VARIATIONAL in GPW" (gate: the q3 atom above −7.3007906); the pilot findings are the §3 row "Grid-pilot beta-test findings on Li", the `--check` gap its own §3 row.
 
 **Pilot beta test (doc/GridEpsilonPlan.md step 3), seven runs:**
 1. Works as designed on six: one re-convergence, rasters settled at x 5.5–9.8, the gridAudit (x + 8) agrees to ≤ 1e-5.
