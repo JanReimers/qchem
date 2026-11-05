@@ -1670,3 +1670,25 @@ Mesh build, one build each, counts independent of load:
 The cause is the shell loop's `newPB<eps` stop and `inPSet` test (`src/Structure/Imp/UnitCell.C:243-249`).  No weight is lost: at order 4, `beckeEps` 1e-8 leaves Sum(w) unchanged to 8 digits, and Sum(w) reaches V/4 = 74.088 at 120/89 (74.08803; order 3 74.08800), so its 100/65 deficit (74.08758) is quadrature.
 
 **Symmetric runs.**  `angRot` never reaches `MakeInvariantAngularMesh`.  Imposed MnO at degree 47: 2342 directions, 622416 points, 26554 after a 23.4× fold, 3.8e-6 against its own degree 53.  The rule exists at 53 and fails at 59 for this 12-op site group.
+
+### The ladder's gates (2026-11-05, lane A)
+
+Both gates are full geometry runs from Auto at ε = 1e-5, 4 threads, one displaced atom: `~/Code/qchem6-runs/{MnO,LiF}/lanea_ladder_geometry.{json,out}`.
+
+| | MnO | LiF |
+|---|---|---|
+| settles on | 100 / Lebedev 53 rotated | the same |
+| pilot rounds, re-convergence iterations | 3, 6 | 1, 0 |
+| angular, L 53 against L 65 | 5.3e-6 | 3.4e-6 |
+| radial, nR 100 against 120 | 3.1e-7 | 1.3e-7 |
+| Becke builds in the run | 22 | 9 |
+| wall | 4354 s | 1381 s |
+
+The old walk on MnO took 3327 s and 23 builds and never settled: it ended NOT SETTLED on 100 / GL 47.  **The ladder's estimate was wrong: it said about 15 builds and about 2550 s.**  The run is 31% dearer in wall and 34% in CPU than the old walk.  The estimate counted one build per rung, but a pilot round builds the run's mesh, both references and the ball's reference, and a re-convergence builds the mesh again.  Most of the old walk's builds were also far cheaper than the entry rung, at 32k to 185k points against 259k, so mesh build per call went from 31 s to 62 s.  The rounds are now set by the density ball (factor 2, 4, 8), not by XC.  OpenWork carries the row on the repeated builds.
+
+The displaced point moves by 1.8e-6 Ha between the two meshes (E −61.3031147 against −61.3031165), and dE by 4.7e-7.
+
+**Lebedev 59 was measured and left out.**  MnO 5.4e-6 / 4.1e-6 at the two angles beats L 53 only slightly, and LiF at 8.7e-6 is worse than L 53's 4.6e-6, so it buys nothing over 53.  The ladder uses 53, 65, 77 and 89 (GL above the Lebedev menu), and the audit reference for L 53 is L 65.
+
+The first LiF attempt stopped in pre-flight, because its deck stated rasters beside an accuracy target.  With those removed it ran as above.
+
