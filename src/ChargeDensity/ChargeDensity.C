@@ -393,7 +393,7 @@ public:
 
     //! \brief The WHOLE-SYSTEM Fock route for THIS block's basis, or null if it has none (V1.31).
     //!
-    //! A capability PROBE in the \c isPeriodicCell sense (R2.4): the caller branches on presence, ONCE, at
+    //! A capability PROBE (R2.4): the caller branches on presence, ONCE, at
     //! the top of the sweep.  Non-null means the basis builds one Fock from the total AO density and slices
     //! it per irrep, so the canonical-PAIR loop above is the wrong shape for it -- a SALC basis has no
     //! per-irrep-pair ERI4 blocks at all (R1.7), and driving the pair loop made it rebuild the same

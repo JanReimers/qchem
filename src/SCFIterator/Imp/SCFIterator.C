@@ -34,7 +34,6 @@ import qchem.Mesh;                 // qcMesh::MeshParams (defaulted -- a seed-qu
 import qchem.Reporting;             // report::Timed -- the SCF loop's own buckets (ParallelAndOraclePlan 1.1)
 import qchem.SCFCap;                // ReportSCFCapHit: an SCF that ends at its cap (the test mains fail on it)
 import qchem.Energy;
-import qchem.ReciprocalLattice;     // isPeriodicCell -- used only by an assert, so an NDEBUG build cannot see this need
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 // The Kerker/Pulay G-space machinery (FourierDensity, FourierMixCD, Orbital_DFT_IBS<dcmplx>, ReciprocalLattice)
@@ -140,9 +139,9 @@ template <class T> static OccupiedConfiguration OccupationsByBlock(const qchem::
 
 // The SeedStrategy ctor resolves the strategy into a concrete (heap, owned) density -- nullptr for
 // CoreGuess -- then DELEGATES to the explicit-seed ctor below.  \a st (the structure) is consumed only by
-// the SAD seeds; bs/st are also forwarded (by the target ctor) for the HF/DHF bootstrap.
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol,size_t numBands)
-    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec, H&&H->GetSpinGroup()==SpinGroup::Polarized), st, basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
+// the SAD seed; bs/st are also forwarded (by the target ctor) for the HF/DHF bootstrap.
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol,size_t numBands) requires std::is_same_v<T,double>
+    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity(seed,bs,st,ec), st, basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
 {}
 
 // The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in
@@ -159,17 +158,6 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
     assert(itsHamiltonian);
     assert(itsWaveFunction);
     itsBS=bs;   // kept for the optional Kerker G-space fit basis (bs outlives the iterator; safe to hold raw)
-    // Deep-copy the periodic cell NOW (st is valid here but comes from a temporary Lattice_3D::GetStructure,
-    // so it dangles by Iterate time) -- only for the dcmplx periodic path, so molecular runs pay nothing.
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        // The dcmplx SCF lineage IS the periodic one (there is no complex molecular path), so periodicity
-        // is an INVARIANT to assert here -- not a condition to branch on.  Branching on it was the
-        // periodic-vs-molecular smell: the `if constexpr` above already answers that question at compile
-        // time.  Clone() is polymorphic, so a derived cell (e.g. FCC) is not sliced.
-        assert((!st || isPeriodicCell(st)) && "the dcmplx SCF lineage is periodic: Structure must be a UnitCell");
-        if (st) itsKerkerCell = st->Clone();
-    }
     Initialize(seedDensity, bs, st, role);   // Init owns the seed transiently (see Initialize)
 }
 
@@ -336,7 +324,7 @@ template <class T> bool tSCFIterator<T>::HandOff(const HandOffRequest& h, bool r
 
 template <class T> SCFParams tSCFIterator<T>::ResolveMixing(const SCFParams& p) const
 {
-    return qchem::ResolveMixing(p, MixesInGSpace(itsBS, itsKerkerCell.get(), itsCD.get()), itsAccelerator->ExtrapolatesFock());
+    return qchem::ResolveMixing(p, MixesInGSpace(itsBS, itsCD.get()), itsAccelerator->ExtrapolatesFock());
 }
 
 template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
@@ -404,7 +392,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     itsConverged=false;
     // Density-face mixer for this run (the density-mixing policy + state; doc/SCFStrategyPlan.md): the RESOLVED
     // ipar.Mixer -- Kerker/Pulay ρ̃-mixing on a periodic run, else linear D-mixing at α=StartingRelaxRo (1.0 = passthrough).
-    itsMixer = CreateMixer(ipar, itsBS, itsKerkerCell.get(), itsCD.get());
+    itsMixer = CreateMixer(ipar, itsBS, itsCD.get());
     itsAdaptive = dynamic_cast<qchem::ChargeDensity::tAdaptiveMixer<T>*>(itsMixer.get());   // null = fixed step
     // THE FIRST FIELD'S PROVENANCE (OpenWork §3 "A CARRIED density's first iteration feeds XC the FITTED rho", 2026-10-28): a
     // field mixer PRESENTS the working D as its first field, but the D it came from was only ever seated after a Mix -- so
@@ -1129,7 +1117,7 @@ template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const 
 // The base answer is the structure-neutral LINEAR D-mixer.  It ignores the basis/cell/seed: a molecular
 // run has no G-space rho to mix.  SolidSCFIterator overrides this with the periodic mixer.
 template <class T> std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>>
-tSCFIterator<T>::CreateMixer(const SCFParams& ipar, const tbs_t<T>*, const Structure*, const tDM_CD<T>*) const
+tSCFIterator<T>::CreateMixer(const SCFParams& ipar, const tbs_t<T>*, const tDM_CD<T>*) const
 {
     if (ipar.Mixer==SCFParams::Mixing::Pulay)   // ResolveMixing let it through only at KerkerG0 = 0: Pulay on D
         return qchem::ChargeDensity::PulayDMixerFactory<T>(ipar.StartingRelaxRo, ipar.PulayDepth, ipar.PulayStart);
@@ -1178,18 +1166,31 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
     cols.insert(rho+1, SamplingCol());                                 // ...and what its rho-tilde sampler delivered (step 2)
 }
 
+SolidSCFIterator::SolidSCFIterator(const tbs_t<dcmplx>* bs, const ElectronConfiguration* ec, qchem::Hamiltonian::tHamiltonian<dcmplx>* H,
+                                   qchem::SCFAccelerators::SCFAccelerator* acc, const UnitCell& cell, ChargeDensity::SeedStrategy seed,
+                                   qchem::Ortho basisOrtho, double basisOrthoTol, size_t numBands)
+    : SolidSCFIterator(bs,ec,H,acc,cell, ChargeDensity::MakeSeedDensity(seed,bs,cell,ec, H&&H->GetSpinGroup()==SpinGroup::Polarized),
+                       basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
+{}
+
+SolidSCFIterator::SolidSCFIterator(const tbs_t<dcmplx>* bs, const ElectronConfiguration* ec, qchem::Hamiltonian::tHamiltonian<dcmplx>* H,
+                                   qchem::SCFAccelerators::SCFAccelerator* acc, const UnitCell& cell, tChargeDensity<dcmplx>* seedDensity,
+                                   qchem::Ortho basisOrtho, double basisOrthoTol, SeedRole role, size_t numBands)
+    : tSCFIterator<dcmplx>(bs,ec,H,acc,seedDensity,&cell,basisOrtho,basisOrthoTol,role,numBands)
+    , itsCell(cell)
+{}
+
 // The solid mixer.  The branch here is on the KNOBS -- which RECIPE did the caller ask for? -- not on the
 // geometry: being periodic is what this class IS, so the G-space factories take the Orbital_DFT_IBS<dcmplx>
 // basis, the UnitCell and the seed as preconditions rather than probing for them.  This caller KNOWS what it
 // wants, so it names the factory and supplies that recipe's knobs and nothing else (V1.18).
-bool SolidSCFIterator::MixesInGSpace(const tbs_t<dcmplx>* bs, const Structure* cell, const tDM_CD<dcmplx>* seed) const
+bool SolidSCFIterator::MixesInGSpace(const tbs_t<dcmplx>* bs, const tDM_CD<dcmplx>* seed) const
 {
-    return qchem::ChargeDensity::CanMixInGSpace(bs, cell, seed);
+    return qchem::ChargeDensity::CanMixInGSpace(bs, seed);
 }
 
 std::unique_ptr<qchem::ChargeDensity::tDensityMixer<dcmplx>>
-SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, const Structure* cell,
-                              const tDM_CD<dcmplx>* seed) const
+SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, const tDM_CD<dcmplx>* seed) const
 {
     namespace CD = qchem::ChargeDensity;
     using M = SCFParams::Mixing;
@@ -1203,10 +1204,10 @@ SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, co
         CD::PulayParams p;
         p.relax=ipar.StartingRelaxRo; p.G0=ipar.KerkerG0; p.cuspDeficit=ipar.XCCuspDeficit;
         p.depth=ipar.PulayDepth;      p.start=ipar.PulayStart;
-        return CD::PulayMixerFactory(p, bs, cell, seed);
+        return CD::PulayMixerFactory(p, bs, itsCell, seed);
     }
     case M::Kerker:
-        return CD::KerkerMixerFactory({ipar.StartingRelaxRo, ipar.KerkerG0, ipar.XCCuspDeficit}, bs, cell, seed);
+        return CD::KerkerMixerFactory({ipar.StartingRelaxRo, ipar.KerkerG0, ipar.XCCuspDeficit}, bs, itsCell, seed);
     case M::Linear:
     case M::Auto:
         break;

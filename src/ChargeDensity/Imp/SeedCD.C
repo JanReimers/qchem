@@ -22,21 +22,18 @@ import qchem.Parallel;                 // WorkerThreads (QCHEM_OPENMP_THREADS --
 namespace qchem::ChargeDensity
 {
 
-// The seed is periodic (a plane-wave density), so its Structure IS a UnitCell -- derive the reciprocal
-// lattice ONCE at construction (the Poisson metric B), rather than casting on every GetRepulsion3C.
-// GetReciprocalLattice is the shared pry-out helper (qchem.ReciprocalLattice); it throws std::bad_cast
-// when the Structure is not periodic, which is exactly this class's precondition.
+// The seed is periodic (a plane-wave density): it demands its UnitCell and derives the reciprocal lattice ONCE at
+// construction (the Poisson metric B).
 
-SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
+SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const UnitCell& cell,
                              const SeedKey& seedKey, const std::vector<int>& ionicNvalBySite,
                              const Spin& channel)
-    : itsFitBasis(fitBasis), itsStructure(st), itsRecip(GetReciprocalLattice(st)), itsCell(&GetUnitCell(st))
+    : itsFitBasis(fitBasis), itsRecip(cell.MakeReciprocal()), itsCell(&cell)
     , itsChannel(channel), itsCharge(0.0)
     , itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
     assert(fitBasis);
-    assert(st);
-    assert(ionicNvalBySite.empty() || ionicNvalBySite.size()==st->GetNumAtoms());
+    assert(ionicNvalBySite.empty() || ionicNvalBySite.size()==cell.GetNumAtoms());
     const bool chan = IsPolarized(channel);   // Up/Down = one channel of the polarized seed
     const std::string db = "atomic_valence_densities.json";
     // One RADIAL CLASS per (Z, target, flipped-in-this-channel): its channel radial and multiplier, built once.
@@ -47,7 +44,7 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
     std::map<Class,Radial> classes;
     std::vector<Class> classOfAtom;
     std::map<size_t,int> neutralNvalByZ;
-    st->ForEachSite([&](int iZ, const rvec3_t& R, bool spinFlip)
+    cell.ForEachSite([&](int iZ, const rvec3_t& R, bool spinFlip)
     {
         const size_t Z = size_t(iZ);
         const std::string& functional = seedKey.functional;
@@ -111,12 +108,11 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
     }
     if (nGroups>1)
     {
-        const UnitCell& cell=GetUnitCell(st);   // checked precondition (periodic seed)
         for (Group& g : itsGroups) g.cell=std::make_shared<UnitCell>(cell.GetCellMatrix());
-        for (size_t i=0;i<st->GetNumAtoms();i++)
+        for (size_t i=0;i<cell.GetNumAtoms();i++)
         {
             const auto& [Z,target,flip] = classOfAtom[i];
-            itsGroups[rankOf.at(Z).at({flip,target})].cell->Insert(st->Sites()[i]);
+            itsGroups[rankOf.at(Z).at({flip,target})].cell->Insert(cell.Sites()[i]);
         }
     }
     assert(itsCharge >= 0);
@@ -129,7 +125,7 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
 // many G share |G|.
 ΔG_Map SeedCD::GroupDensity(const Group& group) const
 {
-    const Structure* cell = group.cell ? group.cell.get() : itsStructure;
+    const UnitCell* cell = group.cell ? group.cell.get() : itsCell;
     if (cell->GetNumAtoms()==0) return {};
     auto memo = std::make_shared<std::map<std::pair<int,double>,double>>();
     auto formFactor = [this,&group,memo](int Z, double g2)->double
@@ -275,10 +271,10 @@ void SeedCD::ReScale(double factor)
 
 //------------------------------------------------------------------------------- PolarizedSeedCD
 
-PolarizedSeedCD::PolarizedSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
+PolarizedSeedCD::PolarizedSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const UnitCell& cell,
                                  const SeedKey& seedKey, const std::vector<int>& ionicNvalBySite)
-    : itsUp(fitBasis, st, seedKey, ionicNvalBySite, Spin::Up  )
-    , itsDn(fitBasis, st, seedKey, ionicNvalBySite, Spin::Down)
+    : itsUp(fitBasis, cell, seedKey, ionicNvalBySite, Spin::Up  )
+    , itsDn(fitBasis, cell, seedKey, ionicNvalBySite, Spin::Down)
     , itsVersion(NextDensityVersion())   // one serial for the pair (the channels mutate together)
 {
     assert(GetTotalCharge()>0);

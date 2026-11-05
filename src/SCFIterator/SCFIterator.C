@@ -17,6 +17,7 @@ import qchem.WaveFunction.SCF;
 import qchem.ElectronConfiguration.OccupationPolicy;   // the iterator's occupation SLOT (V1.11 inc 3)
 export import qchem.SCFParams;
 export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
+export import qchem.UnitCell;   // UnitCell: what a SolidSCFIterator demands
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation knob, forwarded to the WF)
 import qchem.BasisSet.Orbital_DFT_IBS;   // BasisSet::FIT_SF_ABS<T> (the G-space fit basis for Kerker rho-tilde extraction)
 export import qchem.ChargeDensity.DensityMixer;   // tDensityMixer<T> (the density-face of SCF convergence)
@@ -164,9 +165,9 @@ template <class T> class tSCFIterator
     typedef qchem::WaveFunction::tSCFWaveFunction<T> scfwf_t;
     typedef qchem::SCFAccelerators::SCFAccelerator acc_t;   // NON-template manager (RealComplexPlan §6)
 public:
-    // The seed density is chosen by strategy (see ChargeDensity::SeedStrategy): Default resolves to
-    // each path's present-day behaviour -- molecular -> CoreGuess, plane-wave -> Uniform.  \a st (the
-    // structure) is needed only by the SAD seeds (atom Z + positions); null is fine otherwise.
+    // The seed density is chosen by strategy (see ChargeDensity::SeedStrategy): Default resolves to the
+    // molecular CoreGuess.  \a st (the structure) is needed only by the SAD seed (atom Z + positions); null is
+    // fine otherwise.  MOLECULAR only: the solid lineage resolves its strategy against the cell it demands.
     // \a basisOrtho / \a basisOrthoTol select how the orbital-overlap S is orthogonalised: Cholesky
     // (default; needs S positive-definite) or Eigen/SVD with a cutoff that drops near-null eigen/singular
     // values -- canonical orthogonalisation for a linearly-dependent basis (e.g. GPW's diffuse Gaussians
@@ -174,7 +175,8 @@ public:
     tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
                  ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default,
                  const Structure* st=nullptr,
-                 qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0);
+                 qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0)
+        requires std::is_same_v<T,double>;
     //! Grid-continuation / explicit-seed ctor (doc/GPWPlan §0e): seed the SCF from a PRE-BUILT density
     //! \a seedDensity (TAKES OWNERSHIP -- consumed building the iteration-0 Fock, then freed) instead of
     //! resolving a SeedStrategy enum.  The intended use is grid continuation: a density converged on a
@@ -292,10 +294,9 @@ protected:
     //! back to linear mixing with a warning) put the decision one layer too low.  Everything the override
     //! needs is passed in, so iterator state stays private.
     virtual std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>>
-        CreateMixer(const SCFParams& ipar, const tbs_t<T>* bs, const Structure* cell,
-                    const tDM_CD<T>* seed) const;
+        CreateMixer(const SCFParams& ipar, const tbs_t<T>* bs, const tDM_CD<T>* seed) const;
     //! Can this run mix the density in G space (Kerker / Pulay)?  Decides what \c ResolveMixing turns \c Mixing::Auto into.
-    virtual bool MixesInGSpace(const tbs_t<T>*, const Structure*, const tDM_CD<T>*) const {return false;}
+    virtual bool MixesInGSpace(const tbs_t<T>*, const tDM_CD<T>*) const {return false;}
 
 private:
     typedef std::shared_ptr<tDM_CD<T>> cd_t;   //!< std-managed WORKING density (matrix-backed); no manual delete
@@ -364,10 +365,6 @@ private:
     // Density-face state.  The mixer (Linear / Kerker; see qchem.ChargeDensity.DensityMixer) is built per-run
     // from SCFParams at the top of Iterate and owns the mixing policy + state (relax, the Kerker ρ̃, ...).
     const tbs_t<T>*  itsBS = nullptr;         //!< orbital basis (for the Kerker G-space fit basis) -- from the ctor
-    //! A PERSISTENT copy of the periodic cell (reciprocal lattice + volume for Kerker).  The ctor's raw \c st
-    //! comes from a temporary (\c Lattice_3D::GetStructure returns a fresh \c make_shared), so it dangles by the
-    //! time \c Iterate runs -- we deep-copy it here (periodic path only) so the Kerker mixer has a live cell.
-    std::shared_ptr<const Structure> itsKerkerCell;
     double             itsResidual=0.0;   //!< this iteration's \c tHamiltonian::DeltaRho (the driver writes it)
     std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>> itsMixer;  //!< the density-face concrete for this run
     qchem::ChargeDensity::tAdaptiveMixer<T>* itsAdaptive=nullptr;      //!< its step-adapting face, if it has one (cross-cast once)
@@ -395,11 +392,21 @@ public:
 //! cycles [F,D]/Δρ above the fit floor while E settles), the virial is DROPPED (GTH local + KB projectors
 //! break the Coulombic-homogeneity assumption behind 2+V/K), and the frontier gap is a PERMANENT column
 //! (absorbing the former process-wide ReportBandGap() instrument -- the near-gapless flapping it watches is
-//! a solid pathology).  Inherits every base (single-k dcmplx) constructor unchanged.
+//! a solid pathology).  It DEMANDS its \c UnitCell at construction (user ruling, V-STRUCTURE-CELL-PROBE): there is no periodic
+//! run without a cell, so whoever builds the iterator gathers it, and nothing below has to ask.
 class SolidSCFIterator : public tSCFIterator<dcmplx>
 {
 public:
-    using tSCFIterator<dcmplx>::tSCFIterator;
+    //! The seed by strategy, resolved against \a cell (\c Default = \c Uniform); the other arguments are the base's.
+    SolidSCFIterator(const tbs_t<dcmplx>*, const ElectronConfiguration*, qchem::Hamiltonian::tHamiltonian<dcmplx>*,
+                     qchem::SCFAccelerators::SCFAccelerator*, const UnitCell& cell,
+                     ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default,
+                     qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0);
+    //! A pre-built \a seedDensity (TAKES OWNERSHIP), as the base's explicit-seed ctor.
+    SolidSCFIterator(const tbs_t<dcmplx>*, const ElectronConfiguration*, qchem::Hamiltonian::tHamiltonian<dcmplx>*,
+                     qchem::SCFAccelerators::SCFAccelerator*, const UnitCell& cell, tChargeDensity<dcmplx>* seedDensity,
+                     qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, SeedRole role=SeedRole::Guess,
+                     size_t numBands=0);
 protected:
     //! The solid column list: the base's, with the gate swapped to ΔE/E and ρ_lost/N inserted.
     void AccumulateColumns(std::vector<ColumnData>&, const SCFParams&, size_t idealVirial) const override;
@@ -413,11 +420,12 @@ protected:
     //! A solid run HAS the periodic basis/cell/density by construction, so the G-space mixer factories treat them as
     //! preconditions -- no capability probe, no silent fallback.
     std::unique_ptr<qchem::ChargeDensity::tDensityMixer<dcmplx>>
-        CreateMixer(const SCFParams&, const tbs_t<dcmplx>*, const Structure*,
-                    const tDM_CD<dcmplx>*) const override;
-    //! Yes when the G-space factories' precondition holds (basis, periodic cell, a density with a Fourier face) -- GPW and PW
-    //! alike; an iterator built without its Structure (no cell) mixes linearly under Auto.
-    bool MixesInGSpace(const tbs_t<dcmplx>*, const Structure*, const tDM_CD<dcmplx>*) const override;
+        CreateMixer(const SCFParams&, const tbs_t<dcmplx>*, const tDM_CD<dcmplx>*) const override;
+    //! Yes when the G-space factories' precondition holds (a basis, a density with a Fourier face) -- GPW and PW alike.
+    bool MixesInGSpace(const tbs_t<dcmplx>*, const tDM_CD<dcmplx>*) const override;
+private:
+    //! A PERSISTENT copy: the mixers read the cell at \c Iterate, long after the caller's argument may be gone.
+    UnitCell itsCell;
 };
 
 } //namespace

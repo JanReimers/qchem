@@ -15,7 +15,6 @@ import qchem.ChargeDensity.Internal.PolarizedDensityMixer;
 import qchem.RunPolicy;                            // theRunPolicy().MixRhoM() -- the declared channel-basis deviation (N5)
 import qchem.BasisSet.Orbital_DFT_IBS;             // Orbital_DFT_IBS<dcmplx>::CreateVxcFitBasisSet
 import qchem.ReciprocalLattice;
-import qchem.UnitCell;                             // isPeriodicCell
 import qchem.Mesh;                                 // qcMesh::MeshParams
 import qchem.Reporting;                            // report::Scope (the mixer's fit grid)
 import qchem.Types;
@@ -49,18 +48,18 @@ GField FieldOf(const FourierDensity& fd, const BasisSet::cFIT_SF_ABS& fit)
 //! The periodic COMPOSITION shared by both G-space recipes: check the preconditions, build the fit basis and
 //! reciprocal lattice, then either ONE leaf (unpolarized), or the polarized pair in the run's channel basis.
 std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
-    const KerkerParams& p, const char* tag, const BasisSet::tBasisSet<dcmplx>* basis, const Structure* cell,
+    const KerkerParams& p, const char* tag, const BasisSet::tBasisSet<dcmplx>* basis, const UnitCell& cell,
     const tChargeDensity<dcmplx>* seed, const LeafBuilder& leaf)
 {
     auto* fd  = dynamic_cast<const FourierDensity*>(seed);
-    if (!CanMixInGSpace(basis, cell, seed))
+    if (!CanMixInGSpace(basis, seed))
         throw std::runtime_error(std::string(tag)+"MixerFactory: a G-space mixer needs a periodic Orbital_DFT_IBS<dcmplx> "
-                                 "basis, a UnitCell structure and a seed with a Fourier face.");
+                                 "basis and a seed with a Fourier face.");
     // The WHOLE-SET fit factory (mixed-aware since doc/RealComplexPlan.md 3c-3): serves from the first block
     // of either scalar; a non-periodic basis still fails loudly (the factory throws when no block carries the face).
     auto fit=[&]{ qchem::report::Scope here("densityMixer");   // the mixer's own fit grid reports one level in
-                  return std::shared_ptr<const BasisSet::cFIT_SF_ABS>(basis->CreateVxcFitBasisSet(cell, qcMesh::MeshParams{})); }();
-    ReciprocalLattice recip=GetReciprocalLattice(cell);
+                  return std::shared_ptr<const BasisSet::cFIT_SF_ABS>(basis->CreateVxcFitBasisSet(&cell, qcMesh::MeshParams{})); }();
+    ReciprocalLattice recip(cell.MakeReciprocal());
     // POLARIZED: one ρ̃ mixer PER CHANNEL, composed (PolarizedDensityMixer).  A single-map mixer would hand the
     // Fock a spin-blind total and collapse v_xc to the ζ=0 branch from iteration 1 -- the MnO AFM-II collapse,
     // 2026-08-07.  (KerkerParams::spinBlind takes the single-map path on a polarized density anyway: the negative
@@ -104,9 +103,9 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
 
 } // anonymous
 
-bool CanMixInGSpace(const BasisSet::tBasisSet<dcmplx>* basis, const Structure* cell, const tChargeDensity<dcmplx>* seed)
+bool CanMixInGSpace(const BasisSet::tBasisSet<dcmplx>* basis, const tChargeDensity<dcmplx>* seed)
 {
-    return basis && isPeriodicCell(cell) && dynamic_cast<const FourierDensity*>(seed);
+    return basis && dynamic_cast<const FourierDensity*>(seed);
 }
 
 template <class T> std::unique_ptr<tDensityMixer<T>> LinearMixerFactory(double relax0, double relaxMax, double relaxMin)
@@ -124,7 +123,7 @@ template std::unique_ptr<tDensityMixer<double>> PulayDMixerFactory<double>(doubl
 template std::unique_ptr<tDensityMixer<dcmplx>> PulayDMixerFactory<dcmplx>(double,int,int);
 
 std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams& p, const BasisSet::tBasisSet<dcmplx>* basis,
-                                                          const Structure* cell, const tChargeDensity<dcmplx>* seed)
+                                                          const UnitCell& cell, const tChargeDensity<dcmplx>* seed)
 {
     LeafBuilder leaf=[&p](GField seed0, double charge, double G0, const std::string& label,
                           std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip, bool cusp)
@@ -137,7 +136,7 @@ std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams& p,
 }
 
 std::unique_ptr<tDensityMixer<dcmplx>> PulayMixerFactory(const PulayParams& p, const BasisSet::tBasisSet<dcmplx>* basis,
-                                                         const Structure* cell, const tChargeDensity<dcmplx>* seed)
+                                                         const UnitCell& cell, const tChargeDensity<dcmplx>* seed)
 {
     // N4 (pin 28) on the Pulay arm: the correction is rho_mix - rho_fit of the LATEST output (PulayMixer::ApplyJoint), the
     // D XC samples -- the extrapolation only changes which rho_mix is presented, not what the deficit is measured against.
