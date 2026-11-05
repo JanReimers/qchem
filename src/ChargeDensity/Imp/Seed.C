@@ -74,112 +74,110 @@ static std::shared_ptr<const BasisSet::cFIT_CD_ABS> SeedFit(const BasisSet::tBas
     return std::shared_ptr<const BasisSet::cFIT_CD_ABS>(bs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
 }
 
-template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<T>* bs,
-                                                      const Structure* st, const ElectronConfiguration* ec,
-                                                      bool polarized, const SeedKey& key)
+//! rho(r) = N/V on the first block: the seed both lineages share.
+template <class T> static tChargeDensity<T>* UniformSeed(const BasisSet::tBasisSet<T>* bs, const ElectronConfiguration* ec)
+{
+    // rho(r) = N/V  =>  D = (N/n) I on the first block.  A single block suffices since rho is
+    // constant: every block's first Hartree/XC build sees the same total density.  This is the
+    // centralized version of the old per-test plane-wave seed boilerplate.
+    // MIXED-AWARE (doc/RealComplexPlan.md 3c-3): after the factory flip a REAL TRIM block may sit
+    // at index 0 (Γ-first), where the same-scalar [0] view throws -- its seed is the <double> leaf
+    // inside the run-shaped composite (the same uniform rho either way).
+    const Irrep irr = bs->GetIrreps(Spin::None)[0];
+    if constexpr (std::is_same_v<T,dcmplx>)
+        if (const auto* rb = bs->GetRealIBS(0))
+        {
+            const size_t n = rb->GetNumFunctions();
+            const int    N = ec->GetN(irr);
+            hmat_t<double> D0=blazem::zeroH<double>(n);
+            for (size_t i=0;i<n;i++) D0(i,i)=double(N)/double(n);
+            auto* comp=new tComposite_CD<dcmplx>();
+            comp->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(D0, rb, irr)), irr);
+            return comp;
+        }
+    const tobs_t<T>* block = (*bs)[0];
+    const size_t     n     = block->GetNumFunctions();
+    const int        N     = ec->GetN(irr);
+    hmat_t<T> D0=blazem::zeroH<T>(n);
+    for (size_t i=0;i<n;i++) D0(i,i)=T(double(N)/double(n));
+    return IrrepCD_Factory<T>(D0, block, irr);
+}
+
+tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
+                                        const Structure* st, const ElectronConfiguration* ec)
 {
     assert(bs);
     assert(ec);
-    // Default resolves to each path's present-day behaviour: molecular core guess, plane-wave uniform.
-    if (s==SeedStrategy::Default)
-        s = std::is_same_v<T,double> ? SeedStrategy::CoreGuess : SeedStrategy::Uniform;
+    switch (s)
+    {
+    case SeedStrategy::Default:   // the molecular present-day behaviour
+    case SeedStrategy::CoreGuess:
+        return nullptr;   // density-independent core-Hamiltonian guess (today's cd=0)
+    case SeedStrategy::Uniform:
+        return UniformSeed<double>(bs, ec);
+    case SeedStrategy::SAD:
+    {
+        // Superposition of neutral atomic densities.  Drop each atom's recentred radial density (LDA DB) into a NumericCD;
+        // FittedVee/FittedVxc consume it (Coulomb projection + rho(r)).
+        assert(st && "SAD seed needs a Structure (atom Z + positions)");
+        auto* cd = new NumericCD(st->GetNumElectrons());
+        st->ForEachSite([&cd](int Z, const rvec3_t& R, bool)
+        {
+            auto rad = std::make_shared<const RadialDensity>(GetAtomicDensity(Z));
+            cd->Insert(std::make_shared<const RecentredAtomicDensity>(rad, R));
+        });
+        return cd;
+    }
+    case SeedStrategy::IonicSAD:
+        // THROW, not assert: an assert-only arm returns null under -DNDEBUG and SCFIterator silently
+        // runs a core guess instead of the seed the caller asked for (V1.19).
+        throw std::runtime_error("MakeSeedDensity: molecular (AO) IonicSAD is a later phase; "
+                                 "use SAD or the plane-wave path");
+    default:
+        throw std::runtime_error("MakeSeedDensity: unknown SeedStrategy");   // see the IonicSAD arm (V1.19)
+    }
+}
 
+tChargeDensity<dcmplx>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<dcmplx>* bs,
+                                        const UnitCell& cell, const ElectronConfiguration* ec,
+                                        bool polarized, const SeedKey& key)
+{
+    assert(bs);
+    assert(ec);
     switch (s)
     {
     case SeedStrategy::CoreGuess:
         return nullptr;   // density-independent core-Hamiltonian guess (today's cd=0)
-
+    case SeedStrategy::Default:   // the plane-wave present-day behaviour
     case SeedStrategy::Uniform:
-    {
-        // rho(r) = N/V  =>  D = (N/n) I on the first block.  A single block suffices since rho is
-        // constant: every block's first Hartree/XC build sees the same total density.  This is the
-        // centralized version of the old per-test plane-wave seed boilerplate.
-        // MIXED-AWARE (doc/RealComplexPlan.md 3c-3): after the factory flip a REAL TRIM block may sit
-        // at index 0 (Γ-first), where the same-scalar [0] view throws -- its seed is the <double> leaf
-        // inside the run-shaped composite (the same uniform rho either way).
-        const Irrep irr = bs->GetIrreps(Spin::None)[0];
-        if constexpr (std::is_same_v<T,dcmplx>)
-            if (const auto* rb = bs->GetRealIBS(0))
-            {
-                const size_t n = rb->GetNumFunctions();
-                const int    N = ec->GetN(irr);
-                hmat_t<double> D0=blazem::zeroH<double>(n);
-                for (size_t i=0;i<n;i++) D0(i,i)=double(N)/double(n);
-                auto* comp=new tComposite_CD<dcmplx>();
-                comp->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(D0, rb, irr)), irr);
-                return comp;
-            }
-        const tobs_t<T>* block = (*bs)[0];
-        const size_t     n     = block->GetNumFunctions();
-        const int        N     = ec->GetN(irr);
-        hmat_t<T> D0=blazem::zeroH<T>(n);
-        for (size_t i=0;i<n;i++) D0(i,i)=T(double(N)/double(n));
-        return IrrepCD_Factory<T>(D0, block, irr);
-    }
-
+        return UniformSeed<dcmplx>(bs, ec);
     case SeedStrategy::SAD:
     {
-        // Superposition of neutral atomic densities (the molecular SAD seed, double/AO path).  Drop each
-        // atom's recentred radial density (LDA DB) into a NumericCD; FittedVee/FittedVxc consume it
-        // (Coulomb projection + rho(r)).  The plane-wave (dcmplx, FT) face is Phase 2.
-        if constexpr (std::is_same_v<T,double>)
-        {
-            assert(st && "SAD seed needs a Structure (atom Z + positions)");
-            auto* cd = new NumericCD(st->GetNumElectrons());
-            st->ForEachSite([&cd](int Z, const rvec3_t& R, bool)
-            {
-                auto rad = std::make_shared<const RadialDensity>(GetAtomicDensity(Z));
-                cd->Insert(std::make_shared<const RecentredAtomicDensity>(rad, R));
-            });
-            return cd;
-        }
-        else
-        {
-            // Plane-wave (FT) SAD: rho-tilde(G) = Sum_atoms rho_atom(|G|) e^{-iG.R}, assembled by the basis.
-            // A polarized run gets the two-channel seed (§10): Hund pairs + per-atom flips choose the basin.
-            assert(st && "SAD plane-wave seed needs a Structure");
-            // The WHOLE-SET fit factory (mixed-aware since 3c-3) -- serves from the first block of
-            // either scalar, so a Γ-first real TRIM block no longer needs a block-0 cast here.
-            auto fb=SeedFit(bs, st);
-            if (polarized) return new PolarizedSeedCD(fb, st, key);
-            return new SeedCD(fb, st, key);
-        }
+        // Plane-wave (FT) SAD: rho-tilde(G) = Sum_atoms rho_atom(|G|) e^{-iG.R}, assembled by the basis.
+        // A polarized run gets the two-channel seed (§10): Hund pairs + per-atom flips choose the basin.
+        // The WHOLE-SET fit factory (mixed-aware since 3c-3) -- serves from the first block of
+        // either scalar, so a Γ-first real TRIM block no longer needs a block-0 cast here.
+        auto fb=SeedFit(bs, &cell);
+        if (polarized) return new PolarizedSeedCD(fb, cell, key);
+        return new SeedCD(fb, cell, key);
     }
     case SeedStrategy::IonicSAD:
     {
         // Ionic superposition: like SAD but each species' valence density is scaled to its formal-charge
         // electron count (Na+ -> 0, F- -> 8/7), pre-baking the charge transfer the neutral SAD leaves for
         // the SCF.  The formal charges come from the structure-wide electronegativity heuristic
-        // (IonicFormalCharges); per-species N_val is the valence density's charge.  Plane-wave path only for
-        // now (NaF/CsI are PW); molecular IonicSAD is a later phase.
-        if constexpr (std::is_same_v<T,dcmplx>)
-        {
-            assert(st && "IonicSAD plane-wave seed needs a Structure");
-            // Whole-set fit factory, as in the SAD arm above (mixed-aware since 3c-3).
-            auto fb=SeedFit(bs, st);
+        // (IonicFormalCharges); per-species N_val is the valence density's charge.
+        // Whole-set fit factory, as in the SAD arm above (mixed-aware since 3c-3).
+        auto fb=SeedFit(bs, &cell);
 
-            const std::vector<int> targets = IonicSADTargets(st, key);   // the ONE resolution (S3 shares it), per site
-            if (polarized) return new PolarizedSeedCD(fb, st, key, targets);   // §10: the two-channel ionic seed
-            return new SeedCD(fb, st, key, targets);               // SeedCD prefers the DIFFUSE charge-state density
-        }
-        else
-        {
-            // THROW, not assert: an assert-only arm returns null under -DNDEBUG and SCFIterator silently
-            // runs a core guess instead of the seed the caller asked for (V1.19).
-            throw std::runtime_error("MakeSeedDensity: molecular (AO) IonicSAD is a later phase; "
-                                     "use SAD or the plane-wave path");
-        }
+        const std::vector<int> targets = IonicSADTargets(&cell, key);   // the ONE resolution (S3 shares it), per site
+        if (polarized) return new PolarizedSeedCD(fb, cell, key, targets);   // §10: the two-channel ionic seed
+        return new SeedCD(fb, cell, key, targets);               // SeedCD prefers the DIFFUSE charge-state density
     }
-
     default:
         throw std::runtime_error("MakeSeedDensity: unknown SeedStrategy");   // see the IonicSAD arm (V1.19)
     }
 }
-
-template tChargeDensity<double>* MakeSeedDensity<double>(SeedStrategy, const BasisSet::tBasisSet<double>*,
-                                                        const Structure*, const ElectronConfiguration*, bool, const SeedKey&);
-template tChargeDensity<dcmplx>* MakeSeedDensity<dcmplx>(SeedStrategy, const BasisSet::tBasisSet<dcmplx>*,
-                                                        const Structure*, const ElectronConfiguration*, bool, const SeedKey&);
 
 // The IonicSAD per-SITE TARGET valence counts -- the ONE resolution the seed AND the S3 magnetic
 // decoration share (formal charges from the electronegativity heuristic; N_val from the neutral

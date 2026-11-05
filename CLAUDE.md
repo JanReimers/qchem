@@ -17,6 +17,9 @@ Brief notes about module/library conventions, naming, and includes.
     the user drives tests through the C++ TestMate tree in VSCode, which discovers the same exes
     directly — keep `testMate.cpp.test.executables` in .vscode/settings.json matching any new
     test-exe names.)
+- **Removing an import needs the asserts-live build too.**  Every sweep build defines `NDEBUG`, so an import used only inside `assert()` looks stale and
+    the sweep stays green; the nightly `build/RelChecked` is then what breaks (2026-11-04/05: two nights, no assert-live tests ran).  After an import or
+    re-export change, also `ninja -C build/RelChecked -k 0 allTests`, and check `~/Code/qchem6-runs/relchecked/*.summary` says more than BUILD FAILED.
 - **Heavy sweeps and overnight runs go through `scripts/memsafe`** (added 2026-08-17):
     `scripts/memsafe ctest -j8` runs the command in a cgroup scope with `MemoryHigh=9G` (override
     `-H SIZE`; `-p` additionally shields it from the kernel OOM killer for unattended runs — asks sudo

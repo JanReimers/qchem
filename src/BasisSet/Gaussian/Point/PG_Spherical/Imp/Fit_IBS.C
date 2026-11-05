@@ -4,6 +4,7 @@ module;
 #include <vector>
 
 module qchem.BasisSet.Gaussian.Point.PG_Spherical;
+import qchem.Blaze;   // blazem:: in the asserts: invisible to an NDEBUG build
 
 namespace qchem::BasisSet::Gaussian::PG_Spherical
 {

@@ -41,7 +41,7 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
     NumericCD c1(8.0);                                   v.push_back(c1.Version());
     FiniteIrrepCD     b;                                         v.push_back(b.Version());
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(lat.GetStructure().get(), qcMesh::MeshParams{}));
-    SeedCD     f(fb, lat.GetStructure().get(), "LDA");    v.push_back(f.Version());
+    SeedCD     f(fb, lat.GetUnitCell(), "LDA");    v.push_back(f.Version());
     NumericCD c2(4.0);                                   v.push_back(c2.Version());
 
     EXPECT_GT(v.front(), 0u) << "0 is the reserved 'no density yet' sentinel";

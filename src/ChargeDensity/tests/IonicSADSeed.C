@@ -105,8 +105,8 @@ TEST(IonicSADSeed, AMixedValenceSeedIsTheSumOfItsChargeStates)
     for (bool polarized : {false,true})
     {
         std::unique_ptr<tChargeDensity<dcmplx>> full;
-        if (polarized) full=std::make_unique<PolarizedSeedCD>(box.fitCD, box.st.get(), kMnQ7, t);
-        else           full=std::make_unique<SeedCD>(box.fitCD, box.st.get(), kMnQ7, t);
+        if (polarized) full=std::make_unique<PolarizedSeedCD>(box.fitCD, box.lat.GetUnitCell(), kMnQ7, t);
+        else           full=std::make_unique<SeedCD>(box.fitCD, box.lat.GetUnitCell(), kMnQ7, t);
         // The library radials integrate to their charge state only to ~1e-2 (the diffuse O2- entry: measured 45.016
         // for 45); the per-species map was 2 e heavy, so 0.05 still separates the two by 40x.
         EXPECT_NEAR(full->GetTotalCharge(), std::accumulate(t.begin(),t.end(),0), 0.05)
@@ -122,8 +122,8 @@ TEST(IonicSADSeed, AMixedValenceSeedIsTheSumOfItsChargeStates)
         auto cA=Cell(inA,true), cB=Cell(inB,false);
         auto seed=[&](const UnitCell* c, const std::vector<int>& tt)->std::unique_ptr<tChargeDensity<dcmplx>>
         {
-            if (polarized) return std::make_unique<PolarizedSeedCD>(box.fitCD, c, kMnQ7, tt);
-            return std::make_unique<SeedCD>(box.fitCD, c, kMnQ7, tt);
+            if (polarized) return std::make_unique<PolarizedSeedCD>(box.fitCD, *c, kMnQ7, tt);
+            return std::make_unique<SeedCD>(box.fitCD, *c, kMnQ7, tt);
         };
         auto sA=seed(cA.get(), tA), sB=seed(cB.get(), tB);
         EXPECT_NEAR(full->GetTotalCharge(), sA->GetTotalCharge()+sB->GetTotalCharge(), 1e-10);

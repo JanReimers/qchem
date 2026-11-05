@@ -4,6 +4,7 @@ module;
 #include <stdexcept>
 #include <string>   // std::string comparison for the canonical-order (BasisSetID) check
 module qchem.BasisSet.Internal.Orbital_ERI4_IBS;
+import qchem.Blaze;   // blazem:: in the asserts: invisible to an NDEBUG build
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.DB_Cache;
 

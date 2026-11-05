@@ -14,7 +14,7 @@ export module qchem.ChargeDensity.DensityMixer;
 export import qchem.HandOff;                       // HandOffRequest (TakeHandOff, R1.3)
 export import qchem.ChargeDensity;                 // tChargeDensity<T>, tDM_CD<T>, tMixableDensity<T>
 import qchem.BasisSet;                             // tBasisSet<T> (the periodic factory's fit-basis source)
-import qchem.Structure;                            // Structure (the periodic factory's cell)
+import qchem.UnitCell;                             // UnitCell (the periodic factories' cell)
 import qchem.Types;                                // dcmplx
 
 export namespace qchem::ChargeDensity
@@ -140,13 +140,13 @@ struct PulayParams : KerkerParams
 //! warning (a real configuration, not a broken precondition).
 //! \note The caller picks the RECIPE.  There is no "Pulay if depth>0 else Kerker" switch here any more: a
 //! caller that wants Kerker calls the Kerker factory and supplies Kerker's knobs, nothing else.
-//! Can a G-space mixer be built for this run?  Exactly the factories' precondition (a basis, a periodic cell, a seed with a
-//! Fourier face).  Asked by \c SCFParams::Mixing::Auto, which must pick a mixer that EXISTS for the run (e.g. an iterator
-//! built without its Structure has no cell, hence no reciprocal lattice -- PW_Si.k222_Anchor); an explicit Kerker/Pulay throws.
-bool CanMixInGSpace(const BasisSet::tBasisSet<dcmplx>* basis, const Structure* cell, const tChargeDensity<dcmplx>* seed);
+//! Can a G-space mixer be built for this run?  The factories' precondition beyond the cell they demand (a basis, a seed with a
+//! Fourier face).  Asked by \c SCFParams::Mixing::Auto, which must pick a mixer that EXISTS for the run; an explicit
+//! Kerker/Pulay throws.
+bool CanMixInGSpace(const BasisSet::tBasisSet<dcmplx>* basis, const tChargeDensity<dcmplx>* seed);
 std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams&, const BasisSet::tBasisSet<dcmplx>* basis,
-                                                          const Structure* cell, const tChargeDensity<dcmplx>* seed);
+                                                          const UnitCell& cell, const tChargeDensity<dcmplx>* seed);
 std::unique_ptr<tDensityMixer<dcmplx>> PulayMixerFactory (const PulayParams&,  const BasisSet::tBasisSet<dcmplx>* basis,
-                                                          const Structure* cell, const tChargeDensity<dcmplx>* seed);
+                                                          const UnitCell& cell, const tChargeDensity<dcmplx>* seed);
 
 } //namespace
