@@ -493,6 +493,28 @@ export import qchem.ChargeDensity;
 export import qchem.Symmetry.Irrep;
 export import qchem.ElectronConfiguration;
 export import qchem.Orbitals;
+namespace qchem::WaveFunction {
+    using qchem::ChargeDensity::rDM_CD;
+    using qchem::ChargeDensity::tDM_CD;
+    using qchem::Orbitals::EnergyLevels;
+    template <class T> class tWaveFunction {
+    public:
+        typedef ScalarFunction<double> sf_t;
+        typedef std::vector<Irrep> iqns_t;
+        virtual ~tWaveFunction();
+        virtual const Orbitals* GetOrbitals (const Irrep& ) const=0;
+        virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const=0;
+        virtual EnergyLevels GetEnergyLevels () const=0;
+        virtual iqns_t GetQNs () const=0;
+        virtual void DisplayEigen () const=0;
+        virtual SpinGroup GetSpinGroup () const=0;
+        virtual std::unique_ptr<sf_t> GetSpinDensity() const=0;
+    private:
+        tWaveFunction& operator=(const tWaveFunction&);
+    };
+    using WaveFunction = tWaveFunction<double>;
+    using cWaveFunction = tWaveFunction<dcmplx>;
+}
 
 ### qchem.Fitting.FunctionFitter   (src/Fitting/FunctionFitter.C)
 export import qchem.Mesh.Integrator;
@@ -637,6 +659,101 @@ namespace qchem::Symmetry {
     private:
         const Monomial& GetMonomial(const SymOp& g) const;
         mutable std::vector<std::pair<SymOp, Monomial>> itsCache;
+    };
+}
+
+### qchem.Structure   (src/Structure/Structure.C)
+namespace qchem {
+    class Structure;
+    struct Site {
+        int Z;
+        rvec3_t R = {0,0,0};
+        double netCharge = 0.0;
+        bool spinFlip = false;
+    };
+    class SiteRange {
+    public:
+        class iterator {
+        public:
+            using value_type = Site;
+            using difference_type = std::ptrdiff_t;
+            iterator() = default;
+            const Site& operator* () const;
+            iterator& operator++();
+            iterator operator++(int);
+            bool operator!=(const iterator& b) const;
+            bool operator==(const iterator& b) const;
+        private:
+            friend class SiteRange;
+            iterator(const Structure* s, size_t i);
+            const Structure* itsS=nullptr;
+            size_t itsI=0;
+        };
+        iterator begin() const;
+        iterator end () const;
+        size_t size () const;
+        const Site& operator[](size_t i) const;
+    private:
+        friend class Structure;
+        explicit SiteRange(const Structure& s);
+        static const Site& At(const Structure* s, size_t i);
+        const Structure* itsS;
+    };
+    class Structure : public virtual Streamable {
+    public:
+        virtual ~Structure();
+        virtual std::shared_ptr<Structure> Clone() const=0;
+        virtual std::string ID () const;
+        virtual size_t GetNumAtoms () const=0;
+        virtual int GetNuclearCharge () const;
+        virtual double GetNumElectrons () const;
+        virtual double GetNetCharge () const;
+        virtual double IonIonEnergy (const std::function<double(int Z)>& zionOf) const;
+        virtual double G0Background (const std::function<double(int Z)>& f) const;
+        virtual bool HasTranslationSymmetry() const;
+        SiteRange Sites() const;
+        void ForEachSite(const std::function<void(int Z, const rvec3_t& R, bool spinFlip)>& f) const;
+        virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const=0;
+        virtual size_t GetAtomIndex(const rvec3_t&, double tol=0.0) const;
+        void MoveSites(const std::vector<rvec3_t>& R);
+        void SetNetCharges(const std::function<double(int Z)>& netChargeOf);
+    protected:
+        friend class SiteRange;
+        virtual const Site& GetSite(size_t i) const=0;
+        virtual Site& GetSite(size_t i) =0;
+    };
+    class Atom : public Structure {
+    public:
+        Atom(int Z);
+        Atom(int Z, double netCharge);
+        Atom(int Z, const rvec3_t& R);
+        Atom(int Z, double netCharge, const rvec3_t& R);
+        explicit Atom(const Site& s);
+        virtual std::shared_ptr<Structure> Clone() const override;
+        virtual size_t GetNumAtoms () const override;
+        virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
+        virtual std::string ID () const override;
+        virtual std::ostream& Write (std::ostream&) const override;
+    protected:
+        virtual const Site& GetSite(size_t) const override;
+        virtual Site& GetSite(size_t) override;
+    private:
+        Site itsSite;
+    };
+    class Molecule : public virtual Structure {
+    public:
+        Molecule();
+        Molecule(const Structure& m);
+        virtual std::shared_ptr<Structure> Clone() const override;
+        virtual void Insert (const Site& s);
+        virtual size_t GetNumAtoms() const override;
+        virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
+        virtual std::ostream& Write(std::ostream&) const override;
+    protected:
+        virtual const Site& GetSite(size_t i) const override;
+        virtual Site& GetSite(size_t i) override;
+    private:
+        std::vector<Site> itsSites;
     };
 }
 

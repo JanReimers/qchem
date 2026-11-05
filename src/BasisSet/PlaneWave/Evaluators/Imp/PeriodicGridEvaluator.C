@@ -30,7 +30,7 @@ rvec3_t PeriodicGridEvaluator::GetGCartesian(const ivec3_t& m) const
 // constructed with -- the engine itself cannot know whether it is the XC quadrature or the density grid.
 void PeriodicGridEvaluator::AnnounceGrid(const std::string& role) const
 {
-    itsRecip.GetCell().MakeReciprocalCell().EmitUniformGridReport(role, itsN);
+    itsRecip.GetCell().MakeReciprocal().EmitUniformGridReport(role, itsN);
 }
 
 // Uniform N1xN2xN3 grid of FRACTIONAL coordinates r=(i1/N1,i2/N2,i3/N3) -- the XC real-space grid
@@ -59,7 +59,7 @@ const qcMesh::Mesh& PeriodicGridEvaluator::Mesh() const
     if (itsMesh.size()==0)
     {
         std::vector<rvec3_t> frac=UniformGrid(itsN);
-        UnitCell A=itsRecip.GetCell().MakeReciprocalCell();   // reciprocal of B == the direct cell
+        CellGeometry A=itsRecip.GetCell().MakeReciprocal();   // reciprocal of B == the direct cell
         rvec3vec_t pts(frac.size());
         for (size_t q=0;q<frac.size();q++) pts[q]=A.ToCartesian(frac[q]);
         itsMesh=qcMesh::Mesh(std::move(pts), rvec_t(frac.size(), itsVolume/double(frac.size())));

@@ -16,7 +16,7 @@ export namespace qchem::BasisSet::PlaneWave::Internal
 inline std::vector<ivec3_t> BuildGs(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut)
 {
     assert(Ecut>0.0);
-    const UnitCell& B=recip.GetCell();
+    const CellGeometry& B=recip.GetCell();
     double Gmax=std::sqrt(2*Ecut)+B.GetDistance(k);     // widen the search sphere by |k|
     std::vector<ivec3_t> Gs;
     for (const ivec3_t& m : recip.GetGVectors(Gmax))

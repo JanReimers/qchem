@@ -22,7 +22,7 @@ import qchem.CompositeCD;                   // tComposite_CD -- the SCF density 
 import qchem.ChargeDensity.Imp.IrrepCD;     // FiniteIrrepCD -- a mixable density that is NOT a composite
 import qchem.BasisSet.Lattice.BasisSet;     // BasisSet::Lattice::Factory(PW) -- the cheapest periodic basis with a fit factory
 import qchem.Lattice_3D;                    // Lattice_3D
-import qchem.UnitCell;                      // UnitCell + MakeReciprocalCell
+import qchem.UnitCell;                      // UnitCell + MakeReciprocal
 import qchem.ReciprocalLattice;             // ReciprocalLattice, GetReciprocalLattice
 import qchem.Mesh;                          // qcMesh::MeshParams (the fit factories' argument)
 import qchem.Types;                         // dcmplx, ivec3_t, rvec3_t
@@ -34,7 +34,7 @@ using namespace qchem::ChargeDensity;
 namespace
 {
 // A simple-cubic cell (a) -> reciprocal lattice; |G(dm)| = 2*pi*|dm|/a.
-ReciprocalLattice Recip(double a) { UnitCell cell(a); return ReciprocalLattice(cell.MakeReciprocalCell()); }
+ReciprocalLattice Recip(double a) { UnitCell cell(a); return ReciprocalLattice(cell.MakeReciprocal()); }
 }
 
 // G=0 MIXES fully (f_K=1) -- NOT frozen.  The total charge N is carried explicitly (the diagonalization conserves
@@ -60,7 +60,7 @@ TEST(KerkerMix, GZeroMixesFullyChargeCarriedExplicitly)
 TEST(KerkerMix, BatchedSamplerEqualsTheDirectSeries)
 {
     UnitCell cell(7.3, 8.1, 9.4, 81.0, 97.0, 112.0);
-    const ReciprocalLattice recip(cell.MakeReciprocalCell());
+    const ReciprocalLattice recip(cell.MakeReciprocal());
     ΔG_Map rho;
     double l1=0.0;
     for (int x=-6; x<=6; x++) for (int y=-6; y<=6; y++) for (int z=-6; z<=6; z++)

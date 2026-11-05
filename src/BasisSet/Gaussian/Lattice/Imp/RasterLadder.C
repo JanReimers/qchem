@@ -133,7 +133,7 @@ GpwRasterLadder::GpwRasterLadder(const UnitCell& cell, const GaussianSharpness& 
     // L0's raster: the density demand at the exponent L0 serves -- every pair when it is the finest level (an explicit mgridEcuts list,
     // or no completion rung above it), else the relative rule's cap -- raised for the uniform XC's own demand.
     const bool rung = itsTol.mgridEcuts.empty() && ecut < itsRelCutoffSafety*kRungGateC*aMax;
-    itsGrid=MakeLevel(ReciprocalLattice(cell.MakeReciprocalCell()), ecut, PairCap(ecut, ecut, !rung), std::max(itsTol.rasterX, itsTol.xcRasterX));
+    itsGrid=MakeLevel(ReciprocalLattice(cell.MakeReciprocal()), ecut, PairCap(ecut, ecut, !rung), std::max(itsTol.rasterX, itsTol.xcRasterX));
     itsLevels=MakeLevels(itsGrid);
 }
 

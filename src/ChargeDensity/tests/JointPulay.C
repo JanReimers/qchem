@@ -25,7 +25,7 @@
 import qchem.ChargeDensity.Internal.PulayMixer;    // PulayMixer (+ GField, MixJointly via FieldMixer) -- tests may import Internal
 import qchem.ChargeDensity.Internal.KerkerMixer;   // KerkerMixer
 import qchem.ChargeDensity.FourierMixCD;   // FourierMixCD
-import qchem.UnitCell;                     // UnitCell + MakeReciprocalCell
+import qchem.UnitCell;                     // UnitCell + MakeReciprocal
 import qchem.ReciprocalLattice;            // ReciprocalLattice
 import qchem.Math.DIIS;                    // the bordered solve (the reference's own calls)
 import qchem.Blaze;                        // rsmat_t / rvec_t / blazem::zero
@@ -37,7 +37,7 @@ using namespace qchem::ChargeDensity;
 namespace
 {
 
-ReciprocalLattice Recip(double a) { UnitCell cell(a); return ReciprocalLattice(cell.MakeReciprocalCell()); }
+ReciprocalLattice Recip(double a) { UnitCell cell(a); return ReciprocalLattice(cell.MakeReciprocal()); }
 
 const ivec3_t Z(0,0,0), A(1,0,0), B(0,1,0), C(1,1,0);
 

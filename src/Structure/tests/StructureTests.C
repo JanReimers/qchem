@@ -14,6 +14,7 @@ import qchem.Lattice_3D;
 import qchem.Ewald;
 import qchem.Matrix3D;   // Matrix3D (the rhombohedral MnO AFM-II cell, EwaldFarApartHomeAtoms)
 import qchem.Types;   // rvec_t
+import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 using namespace qchem;
 
 //  The storage-agnostic index iterator must model a full forward iterator so
@@ -80,7 +81,7 @@ TEST_F(StructureTests, UnitCell)
     EXPECT_NEAR(cubic.GetCellVolume(),64,1e-9);
     EXPECT_NEAR(cubic.GetMinimumCellEdge(),4,1e-9);
     EXPECT_NEAR(cubic.GetDistance(rvec3_t{1,1,1}),4*sqrt(3),1e-9);
-    EXPECT_EQ(cubic.GetNumCells(9),Vector3D<int>(3,3,3));
+    EXPECT_EQ(LatticePointBounds(cubic, 9),Vector3D<int>(3,3,3));
     rvec3_t rc=cubic.ToCartesian({0.5,0.5,0.5}); // r = A f
     EXPECT_NEAR(rc.x,2,1e-12); EXPECT_NEAR(rc.y,2,1e-12); EXPECT_NEAR(rc.z,2,1e-12);
     cout << "       cubic = " << cubic << endl;
@@ -89,7 +90,7 @@ TEST_F(StructureTests, UnitCell)
     EXPECT_NEAR(ortho.GetCellVolume(),120,1e-9);
     EXPECT_NEAR(ortho.GetMinimumCellEdge(),4,1e-9);
     EXPECT_NEAR(ortho.GetDistance(rvec3_t{1,1,1}),sqrt(4*4+5*5+6*6),1e-9);
-    EXPECT_EQ(ortho.GetNumCells(9),Vector3D<int>(3,2,2));
+    EXPECT_EQ(LatticePointBounds(ortho, 9),Vector3D<int>(3,2,2));
     rvec3_t ro=ortho.ToCartesian({1,1,1});
     EXPECT_NEAR(ro.x,4,1e-12); EXPECT_NEAR(ro.y,5,1e-12); EXPECT_NEAR(ro.z,6,1e-12);
     cout << "orthorhombic = " << ortho << endl;
@@ -98,14 +99,14 @@ TEST_F(StructureTests, UnitCell)
     EXPECT_NEAR(tri.GetCellVolume(),113.04412274615466,1e-9);
     EXPECT_NEAR(tri.GetMinimumCellEdge(),4,1e-9);
     EXPECT_NEAR(tri.GetDistance(rvec3_t{1,1,1}),9.6740982428456377,1e-9);
-    EXPECT_EQ(tri.GetNumCells(12),Vector3D<int>(4,3,3)); //interplanar spacing, not edge length
+    EXPECT_EQ(LatticePointBounds(tri, 12),Vector3D<int>(4,3,3)); //interplanar spacing, not edge length
     cout << "   triclinic = " << tri << endl;
 
     //  Reciprocal cell B = 2π A⁻ᵀ: volume is (2π)³/V, and reciprocal-of-
     //  reciprocal returns the original cell (the 2π convention round-trips).
-    UnitCell recip=tri.MakeReciprocalCell();
+    CellGeometry recip=tri.MakeReciprocal();
     EXPECT_NEAR(recip.GetCellVolume(),pow(2*Pi,3)/tri.GetCellVolume(),1e-12);
-    UnitCell back=recip.MakeReciprocalCell();
+    CellGeometry back=recip.MakeReciprocal();
     EXPECT_NEAR(back.GetCellVolume(),tri.GetCellVolume(),1e-9);
     EXPECT_NEAR(back.GetDistance({1,0,0}),tri.GetDistance({1,0,0}),1e-9);
     EXPECT_NEAR(back.GetDistance({1,1,1}),tri.GetDistance({1,1,1}),1e-9);

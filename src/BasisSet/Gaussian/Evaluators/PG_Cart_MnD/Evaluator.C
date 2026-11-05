@@ -53,6 +53,7 @@ import qchem.UnitCell;                                             // UnitCell (
 import qchem.Types;
 import qchem.Blaze;                                                // rsmat_t (the lattice-sum matrices)
 import qchem.Reporting;                                            // fold the task-list geometry into grids.boxTasks
+import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 
 export namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
 {
@@ -151,7 +152,7 @@ public:
 
     //! The lattice-sum ECONOMY report (LatticeSum1E face; doc there).  Reach numbers use the SAME formulas
     //! as the screens: a single orbital's tail reach is sqrt(-ln eps/alpha), a pair's conservative reach is
-    //! the sum -- worst pair = diffuse x diffuse = 2*sqrt(-ln eps/alpha_min).  The CellsInSphere count over
+    //! the sum -- worst pair = diffuse x diffuse = 2*sqrt(-ln eps/alpha_min).  The LatticePointsInSphere count over
     //! that reach is the per-pair image-enumeration size a grad student sees JUMP when diffuse functions
     //! arrive; the screens then prune it per term (kept counts = the [collocation] task-list readout).
     void EmitLatticeSumReport(const UnitCell& A) const
@@ -159,8 +160,8 @@ public:
         const double aMin=MinExponent(), aMax=MaxExponent();
         const double reachS =2.0*std::sqrt(-std::log(kScreenEps ())/aMin);   // analytic 1E/V_local enumeration
         const double reachD =2.0*std::sqrt(-std::log(kDensityEps())/aMin);   // collocation offset enumeration
-        const long   cellsS =(long)A.CellsInSphere(reachS).size();
-        const long   cellsD =(long)A.CellsInSphere(reachD).size();
+        const long   cellsS =(long)LatticePointsInSphere(A, reachS).size();
+        const long   cellsD =(long)LatticePointsInSphere(A, reachD).size();
         std::cout<<"[lattice sums] alpha_min="<<aMin<<" alpha_max="<<aMax
                  <<"  analytic 1E/V_local: eps="<<kScreenEps()<<" (screenEps) pair reach="<<reachS
                  <<" au = "<<cellsS<<" cells;  collocation offsets: eps="<<kDensityEps()
@@ -299,7 +300,7 @@ public:
             const rvec3_t ci=radials[i]->GetCenter();
             const rvec3_t dig=ci-g.center;
             dcmplx s(0.0);
-            for (const auto& n : A.CellsInSphere(rr+norm(dig)))      // exact bound (keep test centred at dig)
+            for (const auto& n : LatticePointsInSphere(A, rr+norm(dig)))      // exact bound (keep test centred at dig)
             {
                 const rvec3_t Roff=A.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
                 const rvec3_t d=dig-Roff;
@@ -328,7 +329,7 @@ public:
         const double rr=std::sqrt(lne*(1.0/g.alpha+1.0/h.alpha));
         const rvec3_t dgh=g.center-h.center;
         dcmplx s(0.0);
-        for (const auto& n : A.CellsInSphere(rr+norm(dgh)))
+        for (const auto& n : LatticePointsInSphere(A, rr+norm(dgh)))
         {
             const rvec3_t Roff=A.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
             const rvec3_t d=dgh-Roff;
@@ -456,7 +457,7 @@ public:
         // edge, whole image shells silently missed, indefinite Bloch overlap lambda_min ~ -0.2).
         const double rr=std::sqrt(-std::log(kScreenEps())*(1.0/aMinI+1.0/aMinJ));
         const rvec3_t dij=Ri-Rj;
-        for (const auto& n : A.CellsInSphere(rr+norm(dij)))
+        for (const auto& n : LatticePointsInSphere(A, rr+norm(dij)))
         {
             const rvec3_t Roff=A.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
             const rvec3_t d=dij-Roff;                                 // R_i - (R_j + Roff): the centre separation
@@ -2912,7 +2913,7 @@ private:
             for (auto i:indices()) homeSpan=std::max(homeSpan, norm(radials[i]->GetCenter()-a.R));
             const double rEnum=std::sqrt(-std::log(kScreenEps())/g.alpha)+maxOrbReach;   // operator reach + orbital reach
             const double rKeep=rEnum+homeSpan;
-            for (const auto& n : A->CellsInSphere(rKeep + A->GetMaximumCellEdge()))
+            for (const auto& n : LatticePointsInSphere(*A, rKeep + A->GetMaximumCellEdge()))
             {
                 const rvec3_t Roff=A->ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
                 const rvec3_t Rc=a.R+Roff;

@@ -38,7 +38,7 @@ APW_IBS::APW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t
 // constructor-time blocks of LAPW), and the sphere coupling is a scalar per l (no 2x2 quadratic form).
 chmat_t APW_IBS::MakeSecular(double E) const
 {
-    const UnitCell& B=itsRecip.GetCell();
+    const CellGeometry& B=itsRecip.GetCell();
     size_t n=GetNumFunctions();
     int    lmax=static_cast<int>(itsLmax);
     double Rmt=itsRmt, Ω=itsVolume;

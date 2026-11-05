@@ -148,7 +148,7 @@ struct SCFResult
 // \a Vext is the FULL static external block (local PP + KB nonlocal): density-independent, assembled
 // once by the caller.  E_ext is taken as the band expectation Sum_n f_n <psi|Vext|psi> -- valid for the
 // nonlocal projector part too (where there is no real-space integral rho V_ext).
-SCFResult RunSCF(const PlaneWave_IBS& pw, const UnitCell& B, double Omega,
+SCFResult RunSCF(const PlaneWave_IBS& pw, const CellGeometry& B, double Omega,
                  const chmat_t& Vext, int Nelec, const ivec3_t& Ng,
                  const std::function<double(double)>& vxcOf, const std::function<double(double)>& epsxcOf,
                  double alpha=0.5, double tol=1e-9, int maxiter=400)
@@ -228,7 +228,7 @@ SCFResult RunSCF(const PlaneWave_IBS& pw, const UnitCell& B, double Omega,
 // block (the KB projectors beta~(|k+G|) are k-dependent); both are static, so built once.  The density
 // rho~(dm) (k-independent, lattice-periodic) accumulates Sum_k w_k Sum_n f c c* over all k.  For an
 // insulator (Si: 8 valence e-) exactly Nelec/2 bands are filled at EVERY k -> trivial occupation.
-SCFResult RunSCF_kpoints(const ReciprocalLattice& recip, const UnitCell& B, double Omega,
+SCFResult RunSCF_kpoints(const ReciprocalLattice& recip, const CellGeometry& B, double Omega,
                          const Structure& st, const HGH_LocalPotential& loc, const HGH_SeparablePotential& nl,
                          const ivec3_t& Nmp, double Ecut, int Nelec, const ivec3_t& Ng,
                          const std::function<double(double)>& vxcOf, const std::function<double(double)>& epsxcOf,

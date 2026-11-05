@@ -97,7 +97,7 @@ chmat_t PlaneWave_IBS::MakeSpeciesFieldMatrix(const Structure* cl, const Species
 // Per atom & projector & m this is rank-1: |beta> D <beta|.  Hermitian; real for atoms at the origin.
 chmat_t PlaneWave_IBS::MakeProjectorMatrix(const Structure* cl, const SpeciesProjectorSet& v) const
 {
-    const UnitCell& B=Recip().GetCell();
+    const CellGeometry& B=Recip().GetCell();
     size_t n=GetNumFunctions();
     const std::vector<ivec3_t>& G=Gs();
     Internal::KPlusG kg(B, kFrac(), G);             // Cartesian k+G, |k+G|, and cos(gamma)
@@ -206,7 +206,7 @@ void TransformAll(const std::vector<SetManifold>& f, const rvec3_t& q, dcmplx* o
 }
 size_t NumFunctions(const std::vector<SetManifold>& f) { size_t n=0; for (const auto& M : f) n+=M.harm.size(); return n; }
 // F(G,a) = chi-tilde_a(k+G) over a G list.
-mat_t<dcmplx> Transforms(const std::vector<SetManifold>& f, const UnitCell& B, const rvec3_t& k, const std::vector<ivec3_t>& G)
+mat_t<dcmplx> Transforms(const std::vector<SetManifold>& f, const CellGeometry& B, const rvec3_t& k, const std::vector<ivec3_t>& G)
 {
     const size_t N=NumFunctions(f);
     mat_t<dcmplx> F(G.size(), N);
@@ -236,7 +236,7 @@ chmat_t PlaneWave_IBS::MakeSetOverlap(const AtomCentredSet& set) const
     qchem::report::Timed timed("setup: +U set overlap (Parseval, accumulated by shell)");
     const auto f=Manifolds(set);
     const size_t N=NumFunctions(f);
-    const UnitCell& B=Recip().GetCell();
+    const CellGeometry& B=Recip().GetCell();
     mat_t<dcmplx> O(N,N,dcmplx(0.0));
     std::vector<dcmplx> v(N);
     auto addShell=[&](double Elo, double Ehi)   // the G with Elo <= 1/2|k+G|^2 < Ehi; returns max |dO|

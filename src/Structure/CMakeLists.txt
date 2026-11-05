@@ -11,6 +11,7 @@ target_sources(qcStructure PRIVATE
 target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Structure.C
     UnitCell.C
+    LatticePoints.C   # qchem.LatticePoints: the lattice points of a box in a sphere (images and G vectors; V-STRUCTURE-ISP F2)
     Ewald.C
     StructureData.C   # qchem.StructureData: molecules/cells from Data/{molecules,materials}.json (D-STRUCTDATA)
     Lattice_3D/ReciprocalLattice.C

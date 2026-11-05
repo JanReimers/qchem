@@ -139,7 +139,9 @@ public:
     rvec_t      GetDistances    (size_t NumShells) const;
     rvec3vec_t  GetBonds        (size_t BasisNumber, double distance) const;
     rvec3vec_t  GetBondsInSphere(size_t BasisNumber, double distance) const;
-    std::vector<ivec3_t>  GetCellsInSphere(double distance) const;
+    //! The direct translations \f$R=A\,n\f$ of this lattice with \f$|R|\le\f$ \a distance, as integer triples \a n -- the
+    //! images an image sum visits (V-STRUCTURE-ISP F2: renamed from GetCellsInSphere; the cell no longer enumerates them).
+    std::vector<ivec3_t>  TranslationsInSphere(double distance) const;
 
     std::ostream& Write(std::ostream&) const;
 

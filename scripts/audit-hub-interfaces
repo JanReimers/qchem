@@ -31,6 +31,7 @@ HUBS = [
     "qchem.WaveFunction",
     "qchem.Fitting.FunctionFitter",
     "qchem.Symmetry.Representation",
+    "qchem.Structure",                 # joined 2026-11-04 after V-STRUCTURE-ISP F1/F2 (user ruling): the site-set face
 ]
 
 
@@ -188,8 +189,14 @@ def surface(path):
     m = re.search(r'^\s*export\s+module\s+[^;]+;', s, re.M)
     if not m:
         return [], []
-    s = s[m.end():]
     reexports, r = [], Renderer()
+    walk(s[m.end():], r, reexports, 0)
+    return reexports, r.lines
+
+
+def walk(s, r, reexports, depth):
+    """Render the exported declarations of s at \a depth.  A NON-exported `namespace X { ... }` is walked too (C++20 lets
+    `namespace qchem { export class C; }` export C), and rendered only when something inside it is exported."""
     i, n = 0, len(s)
     while i < n:
         if s[i].isspace():
@@ -209,34 +216,48 @@ def surface(path):
             if mn:
                 start = i + mn.end() - 1
                 end = match_brace(s, start)
-                r.emit(0, 'namespace ' + norm(mn.group(1)) + ' {')
-                r.region(s[start + 1:end - 1], 1)
-                r.emit(0, '}')
+                r.emit(depth, 'namespace ' + norm(mn.group(1)) + ' {')
+                r.region(s[start + 1:end - 1], depth + 1)
+                r.emit(depth, '}')
                 i = end
                 continue
             mb = re.match(r'\s*\{', rest)
             if mb:
                 start = i + mb.end() - 1
                 end = match_brace(s, start)
-                r.region(s[start + 1:end - 1], 0)
+                r.region(s[start + 1:end - 1], depth)
                 i = end
                 continue
             # one exported declaration: through its ';' at depth 0, or a brace block (and an optional ';')
-            j, depth = i, 0
+            j, d = i, 0
             while j < n:
                 if s[j] == '{':
                     k = match_brace(s, j)
                     j = k
                     rest2 = s[j:].lstrip()
-                    if not rest2.startswith(';') and depth == 0:
+                    if not rest2.startswith(';') and d == 0:
                         break
                     continue
-                if s[j] == ';' and depth == 0:
+                if s[j] == ';' and d == 0:
                     j += 1
                     break
                 j += 1
-            r.region(s[i:j], 0)
+            r.region(s[i:j], depth)
             i = j
+            continue
+        # a non-exported namespace: walk it for the exports inside
+        mns = re.match(r'namespace\s*([^{;=]*)\{', s[i:])
+        if mns:
+            start = i + mns.end() - 1
+            end = match_brace(s, start)
+            inner, innerRe = Renderer(), []
+            walk(s[start + 1:end - 1], inner, innerRe, depth + 1)
+            reexports.extend(innerRe)
+            if inner.lines:
+                r.emit(depth, 'namespace ' + norm(mns.group(1)) + ' {')
+                r.lines.extend(inner.lines)
+                r.emit(depth, '}')
+            i = end
             continue
         # non-exported top-level code: skip one statement or block
         mn = re.match(r'[^;{]*\{', s[i:])
@@ -247,7 +268,6 @@ def surface(path):
             i += ms.end()
         else:
             break
-    return reexports, r.lines
 
 
 def interface_units(src, module):

@@ -15,11 +15,65 @@ import qchem.Symmetry.SymOp;              // Symmetry::SymOp {W|τ} (the site-ad
 
 namespace qchem {
 
-//! \brief One periodic unit cell: the cell geometry (lattice matrix \f$A\f$)
-//! plus the atom basis it holds.  Symbol and units conventions (\f$A,a,\alpha,
-//! M,B,G,k,\dots\f$) are documented in Lattice.C.
+//! \brief The INTRINSIC geometry of one parallelepiped cell, a VALUE type with no sites (V-STRUCTURE-ISP F2): the cell
+//! matrix \f$A\f$ (columns = the lattice vectors \f$a_i\f$, a.u.) and its metric \f$M=A^\top A\f$.  Everything here
+//! is a property of the one box -- coordinates, volume, edges, its reciprocal box -- never of its images (those are
+//! the lattice's: \c LatticePointsInSphere, \c Lattice_3D::TranslationsInSphere, \c ReciprocalLattice::GetGVectors).
+//! WHY A CLASS OF ITS OWN: the reciprocal cell \f$B=2\pi A^{-\top}\f$ is a box with no atoms, so it is a
+//! CellGeometry, not a zero-site UnitCell.  A UnitCell IS-A CellGeometry (public, so its callers ask it directly).
+//! Symbol and units conventions (\f$A,a,\alpha,M,B,G,k,\dots\f$) are documented in Lattice.C.
+export class CellGeometry
+{
+public:
+    explicit CellGeometry(const Matrix3D<double>& A);              //!< From a cell matrix \f$A\f$.
+    explicit CellGeometry(double a);                               //!< Cubic, edge \f$a\f$ (a.u.).
+    CellGeometry(double a, double b, double c, double α, double β, double γ); //!< Lengths a.u., angles degrees.
+
+    //! The cell matrix \f$A\f$ (columns are the lattice vectors \f$a_i\f$, a.u.).  Exposed for the space-group
+    //! detector (SpaceGroup::Detect wants \f$A\f$ + the fractional atom basis).
+    const Matrix3D<double>& GetCellMatrix() const {return itsA;}
+
+    //! Cartesian (a.u.) position of a point given in fractional cell coordinates: \f$ r = A f \f$.
+    rvec3_t ToCartesian(const rvec3_t& f) const;
+
+    //! Fractional cell coordinates of a Cartesian point: \f$ f = A^{-1} r \f$ (the inverse of \c ToCartesian).
+    //! Used to place a real-space point on the FFT grid (its grid index is \f$N\,f\f$, modulo \f$N\f$).
+    rvec3_t ToFractional(const rvec3_t& r) const;
+
+    double GetCellVolume     (                ) const; //!< \f$|\det A|\f$ (a.u.\f$^3\f$).
+    double GetMinimumCellEdge(                ) const; //!< \f$\min_i |a_i|\f$ (a.u.).
+    double GetMaximumCellEdge(                ) const; //!< \f$\max_i |a_i|\f$ (a.u.); the axis that binds an isotropic uniform-mesh division count.
+    double GetDistance       (const rvec3_t& f) const; //!< \f$\sqrt{f^\top M f}\f$ for fractional \f$f\f$ (a.u.).
+    //! The interplanar spacings' reciprocals \f$\sqrt{(M^{-1})_{ii}}\f$, one per axis -- what a lattice-point enumeration
+    //! needs to bound a sphere (\c LatticePointsInSphere).  Not \f$1/|a_i|\f$: oblique cells would be under-counted.
+    rvec3_t InverseInterplanarSpacings() const;
+
+    //! The reciprocal box \f$B = 2\pi A^{-\top}\f$ (solid-state convention \f$b_i\cdot a_j = 2\pi\delta_{ij}\f$).
+    CellGeometry MakeReciprocal() const;
+
+    //! \brief Announce a UNIFORM \f$N_1\times N_2\times N_3\f$ grid over THIS box: one console line
+    //! (\c [uniform grid] <key>: N, points, \f$\Delta r_i=|a_i|/N_i\f$ a.u.) plus a \c <key> run-report entry, one
+    //! level into the caller's context, with the same fields (+ \c kind=Uniform, and \c eCut when \a eCut >= 0).
+    //! THE single owner of uniform-cell-grid reporting: UnitCell::CreateIntegrationMesh's uniform branch AND the
+    //! FFT raster engines (whose grids never pass through the mesh factory -- they recover the direct box via
+    //! MakeReciprocal) both delegate here, so every uniform grid announces in one format.  (The
+    //! Reporting dependency stays in the implementation -- json in this interface leaks nlohmann
+    //! reachability into every importer and collides with <ranges> in test TUs.)
+    void EmitUniformGridReport(const std::string& key, const vec3_t<int>& N, double eCut=-1.0) const;
+
+    //! \brief The box as "(a,b,c)=(...), (α,β,γ)=(...)°  " (the head of UnitCell::Write).
+    std::ostream& WriteCell(std::ostream&) const;
+
+private:
+    Matrix3D<double> itsA; //!< Cell matrix; columns are the lattice vectors \f$a_i\f$ (a.u.).
+    Matrix3D<double> itsM; //!< Metric tensor \f$M = A^\top A\f$ (a.u.\f$^2\f$), cached.
+};
+
+//! \brief One periodic unit cell = a SITE SET (the atom basis) in a CellGeometry box (V-STRUCTURE-ISP F2).  Its images
+//! and translations are the lattice's questions, not the cell's.
 export class UnitCell
     : public virtual Structure
+    , public CellGeometry
     , private Molecule //Holds the atom basis.
 {
 public:
@@ -84,44 +138,7 @@ public:
     //! sublattice, doc/SCFSeedingPlan.md §10), so an AFM cell is specified atom by atom.
     void AddAtom(int Z, const rvec3_t& f, bool spinFlip=false);
 
-    UnitCell MakeReciprocalCell() const;                  //!< Reciprocal cell, \f$B = 2\pi A^{-\top}\f$.
-
-    //! The cell matrix \f$A\f$ (columns are the lattice vectors \f$a_i\f$, a.u.).  Exposed for the space-group
-    //! detector (SpaceGroup::Detect wants \f$A\f$ + the fractional atom basis).
-    const Matrix3D<double>& GetCellMatrix() const {return itsA;}
-
-    //! Cartesian (a.u.) position of a point given in fractional cell coordinates: \f$ r = A f \f$.
-    rvec3_t ToCartesian(const rvec3_t& f) const;
-
-    //! Fractional cell coordinates of a Cartesian point: \f$ f = A^{-1} r \f$ (the inverse of \c ToCartesian).
-    //! Used to place a real-space point on the FFT grid (its grid index is \f$N\,f\f$, modulo \f$N\f$).
-    rvec3_t ToFractional(const rvec3_t& r) const;
-
-    double      GetCellVolume     (                  ) const; //!< \f$|\det A|\f$ (a.u.\f$^3\f$).
-    double      GetMinimumCellEdge(                  ) const; //!< \f$\min_i |a_i|\f$ (a.u.).
-    double      GetMaximumCellEdge(                  ) const; //!< \f$\max_i |a_i|\f$ (a.u.); the axis that binds an isotropic uniform-mesh division count.
-    double      GetDistance       (const rvec3_t& f  ) const; //!< \f$\sqrt{f^\top M f}\f$ for fractional \f$f\f$ (a.u.).
-    vec3_t<int> GetNumCells       (double MaxDistance) const; //!< Cells per axis to cover a sphere of radius MaxDistance.
-
-    //! Integer cell-index triples \f$n\f$ with \f$\lVert A n\rVert \le\f$ MaxDistance.  Pure
-    //! cell geometry, so it serves both direct (R) and reciprocal (G) lattices.
-    std::vector<vec3_t<int>> CellsInSphere(double MaxDistance) const;
-
-    //! \brief Announce a UNIFORM \f$N_1\times N_2\times N_3\f$ grid over THIS cell: one console line
-    //! (\c [uniform grid] <key>: N, points, \f$\Delta r_i=|a_i|/N_i\f$ a.u.) plus a \c <key> run-report entry, one
-    //! level into the caller's context, with the same fields (+ \c kind=Uniform, and \c eCut when \a eCut >= 0).
-    //! THE single owner of uniform-cell-grid reporting: CreateIntegrationMesh's uniform branch AND the
-    //! FFT raster engines (whose grids never pass through the mesh factory -- they recover this cell via
-    //! MakeReciprocalCell) both delegate here, so every uniform grid announces in one format.  (The
-    //! Reporting dependency stays in the implementation -- json in this interface leaks nlohmann
-    //! reachability into every importer and collides with <ranges> in test TUs.)
-    void EmitUniformGridReport(const std::string& key, const vec3_t<int>& N, double eCut=-1.0) const;
-
     std::ostream&  Write(std::ostream&) const override;
-
-private:
-    Matrix3D<double> itsA; //!< Cell matrix; columns are the lattice vectors \f$a_i\f$ (a.u.).
-    Matrix3D<double> itsM; //!< Metric tensor \f$M = A^\top A\f$ (a.u.\f$^2\f$), cached.
 };
 
 //! \brief Face-centred-cubic primitive cell of conventional cubic lattice constant \a a: the primitive

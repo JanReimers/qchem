@@ -29,7 +29,7 @@ UnitCell SiPrimitive()
 struct Series {FourierTerms t; FourierBox box; double l1=0.0;};
 Series Ball(const UnitCell& cell, int m)
 {
-    const UnitCell rc=cell.MakeReciprocalCell();
+    const CellGeometry rc=cell.MakeReciprocal();
     Series s;
     s.box={rc.ToCartesian(rvec3_t(1,0,0)), rc.ToCartesian(rvec3_t(0,1,0)), rc.ToCartesian(rvec3_t(0,0,1)), ivec3_t(-m,-m,-m), ivec3_t(m,m,m)};
     for (int x=-m; x<=m; x++) for (int y=-m; y<=m; y++) for (int z=-m; z<=m; z++)
