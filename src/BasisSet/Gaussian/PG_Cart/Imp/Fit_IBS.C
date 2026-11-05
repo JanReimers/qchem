@@ -9,6 +9,7 @@ module;
 #include <vector>
 
 module qchem.BasisSet.Gaussian.PG_Cart;
+import qchem.Blaze;   // blazem:: in the asserts: invisible to an NDEBUG build
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet;
 import qchem.Structure;
