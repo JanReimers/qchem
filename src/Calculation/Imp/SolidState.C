@@ -275,6 +275,8 @@ static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now
         if (auto it=s.refuseNum.find(k); it!=s.refuseNum.end()) { s.warmNum[k]=std::move(it->second); s.refuseNum.erase(it); }
     if (auto it=s.refuseStr.find("functional"); it!=s.refuseStr.end()) { s.warmStr["functional"]=std::move(it->second); s.refuseStr.erase(it); }
     if (!s.refuseStr.count("pp.set") && now.refuseStr.count("pp.set")) s.refuseStr["pp.set"]=now.refuseStr.at("pp.set");
+    // grids.raster's old name for the ball's own rasters (2026-11-04): the same run, so the same value.
+    if (auto it=s.warmStr.find("grids.raster"); it!=s.warmStr.end() && it->second=="BallOnly") it->second=BallRastersLabel;
     // basis.family (2026-10-30): every state written before it was Gaussian -- a plane-wave state could not be written at all.
     if (!s.refuseStr.count("basis.family")) s.refuseStr["basis.family"]="gaussian";
     // The numerics keys (2026-10-30): a state written before them recorded none, so none of them is compared -- the run's value
@@ -285,13 +287,13 @@ static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now
         for (const auto& [k,v] : now.warmStr) if (k=="xc.fit" || k=="grids.raster") s.warmStr[k]=v;
         for (const auto& [k,v] : now.warmNum) if (k=="grids.beckeEps" || k=="grids.ladderFactor" || k.rfind("gpw.",0)==0) s.warmNum[k]=v;
     }
-    // The raster demands (C2 step 3, 2026-10-31): a state written before them sampled on a NAMED raster.  BallOnly IS the ball's own
-    // raster (every demand 0) and is still written so; AliasFree has no demand equivalent, so its keys stay absent and differ (warm).
+    // The raster demands (C2 step 3, 2026-10-31): a state written before them sampled on a NAMED raster.  The ball's own raster has
+    // every demand 0; the retired AliasFree has no demand equivalent, so its keys stay absent and differ (warm).
     // The accuracy target itself moves no state (the demands it derives do): an older state takes the run's.
     if (!s.warmNum.count("gpw.rasterX") && now.warmNum.count("gpw.rasterX"))
     {
         auto r=s.warmStr.find("grids.raster");
-        if (r!=s.warmStr.end() && r->second=="BallOnly")
+        if (r!=s.warmStr.end() && r->second==BallRastersLabel)
             for (const char* k : {"gpw.rasterX","gpw.vlocRasterX","gpw.xcRasterX"}) s.warmNum[k]={0.0};
         if (now.warmNum.count("gpw.accuracyEps")) s.warmNum["gpw.accuracyEps"]=now.warmNum.at("gpw.accuracyEps");
     }

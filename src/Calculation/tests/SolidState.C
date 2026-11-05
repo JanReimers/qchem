@@ -243,7 +243,7 @@ TEST(SolidState, TheNumericsKeysAreWarmAndAnOlderStateIsStillExact)
     ASSERT_TRUE(st) << st.Error().details;
     const StateFingerprint& fp=st->fingerprint;
     EXPECT_EQ(fp.warmStr.at("xc.fit"), "PlaneWave") << "Auto on a uniform mesh resolves to the plane-wave fit";
-    EXPECT_EQ(fp.warmStr.at("grids.raster"), "BallOnly");
+    EXPECT_EQ(fp.warmStr.at("grids.raster"), BallRastersLabel);
     for (const char* k : {"grids.ladderFactor","gpw.vlocEps","gpw.screenEps","gpw.relCutoff","gpw.mgridEcuts"})
         EXPECT_TRUE(fp.warmNum.count(k)) << k;
     EXPECT_FALSE(fp.warmNum.count("grids.beckeEps")) << "no Becke mesh, no Becke eps";
@@ -254,6 +254,12 @@ TEST(SolidState, TheNumericsKeysAreWarmAndAnOlderStateIsStillExact)
     auto same=CompareFingerprints(old, fp);
     ASSERT_TRUE(same) << same.Error().details;
     EXPECT_TRUE(same->empty()) << "a state written before the numerics keys is an EXACT resume of the same run";
+
+    StateFingerprint oldName=fp;
+    oldName.warmStr["grids.raster"]="BallOnly";
+    auto alias=CompareFingerprints(oldName, fp);
+    ASSERT_TRUE(alias) << alias.Error().details;
+    EXPECT_TRUE(alias->empty()) << "a state that says BallOnly is the same run: an EXACT resume";
 
     StateFingerprint now=fp;
     now.warmStr["xc.fit"]="Delta";

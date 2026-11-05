@@ -9,7 +9,7 @@
 //   BeckeXC     -> Calculation/Imp/SolidCalculation.C          (passed to qcMesh::ResolveXCMesh as allowBecke)
 //   DAwareScreen-> BasisSet/Lattice/Evaluators/GPW/Imp/Evaluator.C (WHICH LatticeScreener the evaluator builds)
 // Two further CP2K deviations are TYPED OPTIONS rather than env flags and are therefore NOT here:
-// SolidCalcOptions::raster (BallOnly -- which IS CP2K's bet, vindicated by doc/OpenWork.md N2) and
+// the raster demands (0 = the ball's own raster, which IS CP2K's bet, vindicated by doc/OpenWork.md N2) and
 // SolidCalcOptions::cutoffFactor (C=2).  They are chosen by the caller and reported by the run banner
 // beside these, so the printed table is still complete even though the mechanism differs.
 // (xcMesh WAS a third such typed option; 2026-08-28 promoted it to the table above -- it is 43% of the

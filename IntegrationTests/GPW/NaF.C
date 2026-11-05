@@ -85,7 +85,7 @@ using namespace qchem::tests::gpw;   // the harness: Materials cells, gates, rec
 // There is also a challange for the integration grids used for Vxc fitting.  It is anticipated that using a non-uniform unit Becke/Voronoi-polyhedra grid will allow
 // for rapid integration of diffuse basis function will make this run even more efficient. 
 // The ideal minimum densityEcut=2*40Ha=80Ha based on the F max exponent.  40 converges to a lower E_total but otherwise converged nicely.
-// Explicit densityEcut= 40 = SUB-FLOOR: warns, and BallOnly aliases there (-43 mHa)
+// Explicit densityEcut= 40 = SUB-FLOOR: warns, and the ball's own raster aliases there (-43 mHa)
 TEST(GPW_NaF, Γ_Imp_Anchor)   // RE-ENABLED 2026-09-15: 15 s, converged in 23 iterations -- the GPW x NaF row's first standing anchor
 {
     // THE NaF ORACLE ANCHOR (doc/GPWPlan.md: 0.10-0.19 mHa vs CP2K on this basis, tight-eps + converged density).
@@ -151,7 +151,7 @@ const NaFRestartFixture& NaFRestart()
         r.coarsePath=(dir/("naf_restart_coarse."+pid+".h5")).string();
         r.finePath  =(dir/("naf_restart_fine."+pid+".h5")).string();
         {   // the CHEAP coarse stage: Ecut=40 is SUB-FLOOR (below C*alpha_max=80), so it needs a finer raster than its ball's own --
-            // stated (accuracy 0): x 16, what the retired AliasFree gave (C2 step 3)
+            // stated (accuracy 0): x 16, twice the ball's G_N (C2 step 3)
             SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart coarse");
             o.densityEcut=40.0;
             o.accuracy.eps=0.0;
@@ -258,10 +258,10 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
     const Lattice_3D lat=LatticeOf(naf);
 
     // The committed NaF production recipe (DISABLED_NaFRocksaltGamma) at PRODUCTION grids (auto Ecut=80,
-    // BallOnly): the SCF only supplies the density; the comparison itself carries the reference-grade work.
+    // the ball's own raster): the SCF only supplies the density; the comparison itself carries the reference-grade work.
     // MEASURED ATTRIBUTION (2026-07-30): vs the SAME Becke B40 matrix, the uniform reference gave
-    //   BallOnly  Ecut=160: max|U-B|=1.55e-1      (the production raster's sharp-F element error)
-    //   AliasFree Ecut=160: max|U-B|=1.89e-2      (8x better -- most of the gap was BallOnly's)
+    //   the ball's own raster, Ecut=160: max|U-B|=1.55e-1      (the production raster's sharp-F element error)
+    //   a raster at twice G_N, Ecut=160: max|U-B|=1.89e-2      (8x better -- most of the gap was the ball raster's)
     // with dExc tiny throughout (1.6e-4 / 1.3e-5) -- the discrepant elements carry no rho weight.  So on a
     // sharp-F system the UNIFORM raster is not element-converged at practical Ecut, which is this grid's
     // reason to exist; the gate here is Becke INTERNAL convergence (B40 vs a 2x-refined B80) plus the

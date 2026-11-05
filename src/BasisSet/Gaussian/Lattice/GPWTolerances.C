@@ -59,7 +59,7 @@ struct GPWTolerances
     //! \brief The RASTER demands (doc/GridEpsilonPlan.md §1 rows 1-2, C2 step 3), each an alias exponent x = G_N^2/p: every level's
     //! raster reaches G_N^2 >= x p_cap, p_cap = the tightest effective pair exponent the pair->level rule can route to that level, so
     //! the routing and the raster are ONE condition (a pair the rule sends to a level is sampled at x or better).  0 = the ball's own
-    //! raster (2m+1: CP2K's arrangement, today's BallOnly).  They are DERIVED from the accuracy target by the facade
+    //! raster (2m+1: CP2K's arrangement).  They are DERIVED from the accuracy target by the facade
     //! (\c GridAccuracy: rigorous, stated calibration, or the run's own pilot audit) -- set one here only to state a raster.
     double rasterX     = 0.0;   //!< the density ladder (collocation + integrate-back: Hartree, and the uniform XC's input)
     double vlocRasterX = 0.0;   //!< V_loc long's own ladder (its static integrate-back; the term forces see first, M2c verdict 3)

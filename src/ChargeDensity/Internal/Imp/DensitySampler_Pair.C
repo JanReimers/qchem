@@ -249,14 +249,14 @@ void PairDensitySampler::Refresh(const cChargeDensity* cd) const
     itsSource=PairSource(cd, raw, BallHoldsPairs(*itsFitBasis));
     LatchRoute(cd, raw);
     // DIAGNOSTIC (env GPW_XCROUTE): which V_xc route fires this iteration -- RAW (applyRawAdjoint, FD-exact/
-    // variational; gate GPW.RawXCConsistencyFD) vs BALL (DoFit/Overlap, non-variational under BallOnly;
+    // variational; gate GPW.RawXCConsistencyFD) vs BALL (DoFit/Overlap, non-variational on the ball's own raster;
     // gate GPW.XCPotentialConsistencyFD).  Answers whether GDM is fighting the ball non-variationality.
     if (qchem::Diagnostics::Enabled("xc_route"))
     {
         double rmin=1e300, rmax=-1e300;
         for (double r : itsRho) { rmin=std::min(rmin,r); rmax=std::max(rmax,r); }
         std::cout << "[xc route] " << (itsRhoIsRaw ? "RAW (applyRawAdjoint, variational)"
-                                                   : "BALL (DoFit/Overlap, NON-variational under BallOnly)")
+                                                   : "BALL (DoFit/Overlap, NON-variational on the ball's own raster)")
                   << "  rho grid=[" << std::scientific << std::setprecision(2) << rmin << ", " << rmax << "]"
                   << " npts=" << itsRho.size() << std::defaultfloat << std::endl;
     }

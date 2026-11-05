@@ -1214,9 +1214,9 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     if (!itsImp->setup->planeWave)
     {
         const auto& t=o.tolerances;
-        {   // the raster demands (C2 step 3): what the run sampled on; a pilot's ball rasters read "BallOnly", as every older state did
+        {   // the raster demands (C2 step 3): what the run sampled on; every demand 0 is the ball's own rasters
             std::ostringstream r; r<<std::setprecision(6)<<"x="<<t.rasterX<<","<<t.vlocRasterX<<","<<t.xcRasterX;
-            id.raster = t.rasterX==0.0 && t.vlocRasterX==0.0 && t.xcRasterX==0.0 ? std::string("BallOnly") : r.str();   // the ball's own = BallOnly's
+            id.raster = t.rasterX==0.0 && t.vlocRasterX==0.0 && t.xcRasterX==0.0 ? std::string(BallRastersLabel) : r.str();
         }
         id.ladderFactor=o.ladderFactor;
         id.gpwTolerances={{"vlocEps",{t.vlocEps}}, {"localPPRelCutoff",{t.localPPRelCutoff}}, {"relFieldSharp",{t.relFieldSharp}},
@@ -1735,7 +1735,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
     const SpinGroup g = S.polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
     // The grid-audit verdicts of each side's rasters, ASKED of the basis that owns them (V-REPORT-WRITEONLY: never read back out of the
     // run report): the run's own here, the reference's once its V_long has run below (both are printed, so the predicted alias of
-    // whichever side is the coarse one can be read -- the run need not be the BallOnly side).
+    // whichever side is the coarse one can be read -- the run need not be the side on the ball's own rasters).
     auto verdictsOf=[](const BasisSet::Gaussian::GpwRasterLadder& ladder)
     {
         rpt::json v=rpt::json::object();

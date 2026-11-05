@@ -54,6 +54,10 @@ import qchem.Hamiltonian.Factory;        // HubbardManifold, SpinGroup
 export namespace qchem
 {
 
+//! The \c grids.raster value of a run on the ball's own rasters (every raster demand 0).  States written before 2026-11-04 say
+//! "BallOnly" for the same thing; reading one maps it here, so they resume as before.
+inline constexpr const char* BallRastersLabel="ballRasters";
+
 //! \brief WHY a saved state may not seed this run.  A value, not a throw: a campaign that finds no usable
 //! state falls back to a fresh seed, which is a decision only the caller can make.
 struct RestartRefusal
@@ -104,7 +108,7 @@ struct RunIdentity
     //!@{
     std::string                                  vxcFit;       //!< the RESOLVED v_xc fit basis ("Delta" | "PlaneWave")
     double                                       beckeEps = 0.0;   //!< the periodic Becke competitor-series eps (Becke mesh only, else 0)
-    std::string                                  raster;       //!< the density raster policy (Gaussian family only)
+    std::string                                  raster;       //!< what the rasters were sampled on: \c BallRastersLabel, or the demands (Gaussian family only)
     double                                       ladderFactor = 0.0;   //!< the multigrid ladder gradation (Gaussian family only)
     //! The GPW tolerances by name (vlocEps, screenEps, relCutoff, mgridEcuts, ...; Gaussian family only), each recorded as
     //! \c gpw.<name>: the facade knows the typed struct, this module only the values.
