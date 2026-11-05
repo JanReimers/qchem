@@ -1213,7 +1213,7 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
         id.ladderFactor=o.ladderFactor;
         id.gpwTolerances={{"vlocEps",{t.vlocEps}}, {"localPPRelCutoff",{t.localPPRelCutoff}}, {"relFieldSharp",{t.relFieldSharp}},
                           {"screenEps",{t.screenEps}}, {"fieldSharp",{t.fieldSharp}}, {"relCutoff",{t.relCutoff}},
-                          {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts},
+                          {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts}, {"rungGateC",{t.rungGateC}},
                           {"rasterX",{t.rasterX}}, {"vlocRasterX",{t.vlocRasterX}}, {"xcRasterX",{t.xcRasterX}}, {"accuracyEps",{o.accuracy.eps}}};
     }
     // The run's OWN policy table, resolved from its stated spec (not the process's installed one, which a later run may have replaced).

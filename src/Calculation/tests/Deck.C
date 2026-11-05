@@ -604,6 +604,12 @@ TEST(Deck, AVlocRoutingCalibrationReachesTheEvaluatorAndAStatedVlocEpsWins)
     const deck::RunSpec f=read({{"accuracyCalibration",{{"vlocRouting",2.0}}}});
     EXPECT_EQ(f.solid.accuracy.vlocRoutingEta, 2.0);
     EXPECT_FALSE(f.solid.accuracy.eta.has_value()) << "vlocRouting alone states no raster eta: the rasters stay self-calibrated";
+    EXPECT_EQ(d.solid.accuracy.rungGateC, 8.0) << "the rung gate's default";
+    const deck::RunSpec g=read({{"accuracyCalibration",{{"rungGateC",6.0}}}});
+    EXPECT_EQ(g.solid.accuracy.rungGateC, 6.0);
+    EXPECT_FALSE(g.solid.accuracy.eta.has_value()) << "rungGateC alone states no raster eta either";
+    deck::RunSpec back; deck::FromJson(deck::ToJson(g),back);
+    EXPECT_EQ(back.solid.accuracy.rungGateC, 6.0) << "the record carries it";
     EXPECT_DOUBLE_EQ(f.solid.accuracy.VlocEps(), 5e-6);
     { const json j=deck::ToJson(f); deck::RunSpec back; deck::FromJson(j,back); EXPECT_TRUE(back.solid.accuracy==f.solid.accuracy); }
     EXPECT_FALSE(deck::ToJson(d).at("solid").contains("accuracyCalibration")) << "the default calibration is not written";

@@ -349,6 +349,7 @@ json ToJson(const SolidCalcOptions& o)
             {"siteSpins",o.siteSpins},{"siteCharges",o.siteCharges},{"label",o.label},{"saveStateTo",o.saveStateTo}};
     if (o.accuracy.eta) out["accuracyCalibration"]={{"vlocLong",o.accuracy.eta->vlocLong},{"density",o.accuracy.eta->density}};   // stated only
     if (o.accuracy.vlocRoutingEta!=BasisSet::Gaussian::GridAccuracy{}.vlocRoutingEta) out["accuracyCalibration"]["vlocRouting"]=o.accuracy.vlocRoutingEta;
+    if (o.accuracy.rungGateC!=BasisSet::Gaussian::GridAccuracy{}.rungGateC) out["accuracyCalibration"]["rungGateC"]=o.accuracy.rungGateC;
     if (o.accuracy.samplerEta!=BasisSet::Gaussian::GridAccuracy{}.samplerEta) out["accuracyCalibration"]["samplerEta"]=o.accuracy.samplerEta;
     if (o.accuracy.samplerResidualMargin!=BasisSet::Gaussian::GridAccuracy{}.samplerResidualMargin)
         out["accuracyCalibration"]["samplerResidualMargin"]=o.accuracy.samplerResidualMargin;
@@ -389,19 +390,22 @@ void FromJson(const json& j, SolidCalcOptions& o)
     if (j.contains("accuracyCalibration"))   // STATED (expert); absent = self-calibrated by the run's pilot audit
     {
         // the raster eta is stated by the block (an empty one = rigorous, eta 1); a block holding ONLY the non-raster calibrations
-        // (vlocRouting: V_loc long's routing; samplerEta / samplerResidualMargin: the rho-tilde sampler's) leaves the rasters self-calibrated
+        // (vlocRouting: V_loc long's routing; rungGateC: the ladder's rung gate; samplerEta / samplerResidualMargin: the rho-tilde sampler's) leaves the rasters self-calibrated
         const json& cj=j.at("accuracyCalibration");
         bool onlyNonRaster=cj.is_object() && !cj.empty();
         if (cj.is_object()) for (auto it=cj.begin(); it!=cj.end(); ++it)
-            if (it.key()!="vlocRouting" && it.key()!="samplerEta" && it.key()!="samplerResidualMargin") onlyNonRaster=false;
+            if (it.key()!="vlocRouting" && it.key()!="rungGateC" && it.key()!="samplerEta" && it.key()!="samplerResidualMargin") onlyNonRaster=false;
         const bool etaStated=!onlyNonRaster;
         BasisSet::Gaussian::AccuracyCalibration eta;
         Fields c(f.At("accuracyCalibration"),"solid.accuracyCalibration");
         c.Get("vlocLong",eta.vlocLong); c.Get("density",eta.density);
         c.Get("vlocRouting",o.accuracy.vlocRoutingEta);
+        c.Get("rungGateC",o.accuracy.rungGateC);
         c.Get("samplerEta",o.accuracy.samplerEta);
         c.Get("samplerResidualMargin",o.accuracy.samplerResidualMargin);
         c.Done();
+        if (!(o.accuracy.rungGateC>=0.0))
+            throw std::runtime_error("deck: 'solid.accuracyCalibration.rungGateC' is the C of the ladder's rung gate, >= 0 (0 = no completion rung)");
         if (!(o.accuracy.samplerEta>0.0 && o.accuracy.samplerEta<=1.0))
             throw std::runtime_error("deck: 'solid.accuracyCalibration.samplerEta' is the rho-tilde NUFFT's delivered/bound, in (0, 1] (1 = rigorous)");
         if (!(o.accuracy.samplerResidualMargin>0.0 && o.accuracy.samplerResidualMargin<=1.0))
