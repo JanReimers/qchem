@@ -255,6 +255,18 @@ TEST(SolidState, TheNumericsKeysAreWarmAndAnOlderStateIsStillExact)
     ASSERT_TRUE(same) << same.Error().details;
     EXPECT_TRUE(same->empty()) << "a state written before the numerics keys is an EXACT resume of the same run";
 
+    EXPECT_TRUE(fp.warmNum.count("gpw.rungGateC"));
+    StateFingerprint noGate=fp;
+    noGate.warmNum.erase("gpw.rungGateC");
+    auto gateDefault=CompareFingerprints(noGate, fp);
+    ASSERT_TRUE(gateDefault) << gateDefault.Error().details;
+    EXPECT_TRUE(gateDefault->empty()) << "a state with no gpw.rungGateC was built on the default: an EXACT resume of a default run";
+    StateFingerprint stated=fp;
+    stated.warmNum["gpw.rungGateC"]={6.0};
+    auto gateMoved=CompareFingerprints(noGate, stated);
+    ASSERT_TRUE(gateMoved) << gateMoved.Error().details;
+    EXPECT_FALSE(gateMoved->empty()) << "...and differs from a run stating another C";
+
     StateFingerprint oldName=fp;
     oldName.warmStr["grids.raster"]="BallOnly";
     auto alias=CompareFingerprints(oldName, fp);

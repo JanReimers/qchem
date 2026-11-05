@@ -7,7 +7,6 @@ export import :Fit_IBS;   // the fit-basis faces: a PARTITION of this module sin
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary
 export import qchem.BasisSet.Projector3;
 import qchem.Structure;  // Structure (the fit factories' argument)
-import qchem.Reporting;  // report::Scope -- the mesh builder reports one level into "xcQuadrature"
 
 export namespace qchem::BasisSet
 {

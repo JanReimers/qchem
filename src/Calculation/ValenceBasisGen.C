@@ -21,7 +21,6 @@ module;
 #include <utility>
 export module qchem.ValenceBasisGen;
 
-import qchem.AtomCalculation;   // AtomCalculation, AtomCalcOptions, AtomType (the spherical pseudo-atom solver)
 
 export namespace qchem
 {

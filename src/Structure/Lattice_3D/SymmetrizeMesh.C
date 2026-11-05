@@ -38,7 +38,6 @@ export import qchem.Mesh;                            // qcMesh::Mesh
 export import qchem.Symmetry.Lattice_3D.Fold;        // Fold, SymOp, FoldPointsPeriodic, SymmetrizeValues
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;  // SpaceGroup (the ops-encapsulated overloads)
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
-import qchem.Math;                                   // floor, fabs
 
 export namespace qchem
 {

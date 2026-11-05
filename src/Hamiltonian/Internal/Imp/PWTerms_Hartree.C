@@ -31,6 +31,7 @@ import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
+import qchem.BasisSet.G_FieldEvaluator;
 
 
 namespace qchem::Hamiltonian

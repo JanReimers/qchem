@@ -10,7 +10,6 @@ import qchem.BasisSet.Radial.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Radial.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
 // import qchem.Symmetry;
-import qchem.Math;
 
 export namespace qchem::BasisSet::Radial::Evaluators::BSpline
 {

@@ -5,7 +5,6 @@ module;
 #include <functional>
 export module qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Block;
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Gaussian.Point.Reader;
@@ -15,13 +14,11 @@ import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;            // Gaussian::Lat
 import qchem.UnitCell;                                 // UnitCell (CollocateDensity grid<->cell map)
 
 import qchem.BasisSet.Internal.BasisSetImp;
-import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Structure;
 import qchem.Types;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.Fit_IBS;   // the shared Gaussian-family implementation base we DERIVE
-import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 
 export namespace qchem::BasisSet::Gaussian::PG_Cart
 {

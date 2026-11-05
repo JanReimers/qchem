@@ -18,6 +18,7 @@ import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ 
 import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
                                             // (qcMolecule_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
 import qchem.BasisSet.PlaneWave.Evaluators;  // PlaneWave::PW_Grid_Evaluator (the fit basis IS-A one; cross-cast target)
+import qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS;
 
 namespace qchem::BasisSet::Gaussian
 {

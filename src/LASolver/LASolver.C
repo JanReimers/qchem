@@ -4,7 +4,6 @@ module;
 #include <vector>
 export module qchem.LASolver;
 export import qchem.Types;
-import qchem.Blaze;
 
 export namespace qchem
 {

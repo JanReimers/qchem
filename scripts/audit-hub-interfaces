@@ -2,7 +2,8 @@
 """THE TIER-1 HUB INTERFACE AUDIT (V-INTERFACE-TIERS step 3, ruled 2026-11-03).
 
 The abstract hubs the physics tree depends on (doc/OOD-SOLID-Cleanup.md V-INTERFACE-TIERS, tier 1 (a)) are PROTECTED: any change to
-what one exports -- a declaration, or a re-export -- needs a design discussion first, so the faces are not gradually polluted.  This
+what one exports -- a declaration, or an added re-export -- needs a design discussion first, so the faces are not gradually polluted
+(trimming a re-export under the re-export rule does not, but it still regenerates the snapshot).  This
 renders each hub's exported surface into a normalized text and compares it with the checked-in snapshot (scripts/hub-interfaces.snapshot).
 A difference FAILS (exit 1, with the diff) until the snapshot is regenerated (--update) in a commit that cites the design ruling.
 

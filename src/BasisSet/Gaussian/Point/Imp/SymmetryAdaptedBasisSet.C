@@ -9,6 +9,7 @@ module;
 module qchem.BasisSet.Gaussian.Point.SymmetryAdaptedBasisSet;
 import qchem.Symmetry.Molecule.Irrep;     // Gaussian::Irrep (the labelled point-group irrep symmetry)
 import qchem.Blaze;                        // submatrix
+import qchem.BasisSet.Internal.SymmetryAdapted_IBS;
 
 namespace qchem::BasisSet::Gaussian
 {

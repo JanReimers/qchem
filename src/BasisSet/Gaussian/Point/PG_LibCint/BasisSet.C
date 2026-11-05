@@ -15,8 +15,6 @@ module;
 #include <memory>
 export module qchem.BasisSet.Gaussian.Point.PG_LibCint;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Block;
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Gaussian.Point.Reader;
 import qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;   // NR_Evaluator: the IBS IS-A evaluator base
@@ -24,7 +22,6 @@ import qchem.BasisSet.Gaussian.Point.IBS;                          // Gaussian::
 
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
-import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.Structure;
 import qchem.Types;
 

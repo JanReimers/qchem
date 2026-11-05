@@ -39,6 +39,8 @@ import qchem.BasisSet.Lattice.BasisSet;   // VetStageTrim, GPWParams
 import qchem.BasisSet.Gaussian.Point.ShellTrim;
 import qchem.RunPolicy;
 import qchem.Mesh.XCPolicy;                 // ResolveXCMesh (a recipe field under cellKind Auto is refused at resolve)
+import qchem.BasisSet.Gaussian.Point.Factory;
+import qchem.StructureData;   // KindOf
 
 namespace qchem::deck
 {
@@ -349,6 +351,7 @@ json ToJson(const SolidCalcOptions& o)
             {"siteSpins",o.siteSpins},{"siteCharges",o.siteCharges},{"label",o.label},{"saveStateTo",o.saveStateTo}};
     if (o.accuracy.eta) out["accuracyCalibration"]={{"vlocLong",o.accuracy.eta->vlocLong},{"density",o.accuracy.eta->density}};   // stated only
     if (o.accuracy.vlocRoutingEta!=BasisSet::Gaussian::GridAccuracy{}.vlocRoutingEta) out["accuracyCalibration"]["vlocRouting"]=o.accuracy.vlocRoutingEta;
+    if (o.accuracy.rungGateC!=BasisSet::Gaussian::GridAccuracy{}.rungGateC) out["accuracyCalibration"]["rungGateC"]=o.accuracy.rungGateC;
     if (o.accuracy.samplerEta!=BasisSet::Gaussian::GridAccuracy{}.samplerEta) out["accuracyCalibration"]["samplerEta"]=o.accuracy.samplerEta;
     if (o.accuracy.samplerResidualMargin!=BasisSet::Gaussian::GridAccuracy{}.samplerResidualMargin)
         out["accuracyCalibration"]["samplerResidualMargin"]=o.accuracy.samplerResidualMargin;
@@ -389,19 +392,22 @@ void FromJson(const json& j, SolidCalcOptions& o)
     if (j.contains("accuracyCalibration"))   // STATED (expert); absent = self-calibrated by the run's pilot audit
     {
         // the raster eta is stated by the block (an empty one = rigorous, eta 1); a block holding ONLY the non-raster calibrations
-        // (vlocRouting: V_loc long's routing; samplerEta / samplerResidualMargin: the rho-tilde sampler's) leaves the rasters self-calibrated
+        // (vlocRouting: V_loc long's routing; rungGateC: the ladder's rung gate; samplerEta / samplerResidualMargin: the rho-tilde sampler's) leaves the rasters self-calibrated
         const json& cj=j.at("accuracyCalibration");
         bool onlyNonRaster=cj.is_object() && !cj.empty();
         if (cj.is_object()) for (auto it=cj.begin(); it!=cj.end(); ++it)
-            if (it.key()!="vlocRouting" && it.key()!="samplerEta" && it.key()!="samplerResidualMargin") onlyNonRaster=false;
+            if (it.key()!="vlocRouting" && it.key()!="rungGateC" && it.key()!="samplerEta" && it.key()!="samplerResidualMargin") onlyNonRaster=false;
         const bool etaStated=!onlyNonRaster;
         BasisSet::Gaussian::AccuracyCalibration eta;
         Fields c(f.At("accuracyCalibration"),"solid.accuracyCalibration");
         c.Get("vlocLong",eta.vlocLong); c.Get("density",eta.density);
         c.Get("vlocRouting",o.accuracy.vlocRoutingEta);
+        c.Get("rungGateC",o.accuracy.rungGateC);
         c.Get("samplerEta",o.accuracy.samplerEta);
         c.Get("samplerResidualMargin",o.accuracy.samplerResidualMargin);
         c.Done();
+        if (!(o.accuracy.rungGateC>=0.0))
+            throw std::runtime_error("deck: 'solid.accuracyCalibration.rungGateC' is the C of the ladder's rung gate, >= 0 (0 = no completion rung)");
         if (!(o.accuracy.samplerEta>0.0 && o.accuracy.samplerEta<=1.0))
             throw std::runtime_error("deck: 'solid.accuracyCalibration.samplerEta' is the rho-tilde NUFFT's delivered/bound, in (0, 1] (1 = rigorous)");
         if (!(o.accuracy.samplerResidualMargin>0.0 && o.accuracy.samplerResidualMargin<=1.0))
@@ -926,20 +932,29 @@ void WriteRevision(const std::filesystem::path& path, const json& resolved, cons
     os<<out.dump(2)<<"\n";
 }
 
+void ResolveBasisFile(json& payload, const std::filesystem::path& deckDir)
+{
+    if (!payload.contains("basis") || !payload["basis"].contains("file")) return;
+    const std::filesystem::path f=payload["basis"]["file"].get<std::string>();
+    if (f.is_relative() && std::filesystem::exists(deckDir/f)) payload["basis"]["file"]=(deckDir/f).string();
+}
+
 json LoadDeck(const std::filesystem::path& path, const std::string& currentCodeVersion)
 {
     std::ifstream in(path);
     if (!in) throw std::runtime_error("deck: cannot read "+path.string());
     json j;
     try { j=json::parse(in); } catch (const json::exception& e) { throw std::runtime_error("deck: "+path.string()+": "+e.what()); }
-    if (!j.contains("run")) return j;                                  // a hand-written deck: the payload IS the file
+    if (!j.contains("run")) { ResolveBasisFile(j,path.parent_path()); return j; }   // a hand-written deck: the payload IS the file
     const json& h=j.value("deck",json::object());
     if (h.value("schema",0) > kSchemaVersion)
         throw std::runtime_error("deck: "+path.string()+" has schema "+std::to_string(h.value("schema",0))+", newer than this code's "+std::to_string(kSchemaVersion));
     if (h.value("codeVersion",std::string()) != currentCodeVersion)
         std::fprintf(stderr,"[deck] WARNING: %s was written by code version '%s', this is '%s' -- the run may not reproduce\n",
                      path.c_str(), h.value("codeVersion",std::string()).c_str(), currentCodeVersion.c_str());
-    return j.at("run");
+    json payload=j.at("run");
+    ResolveBasisFile(payload,path.parent_path());
+    return payload;
 }
 
 

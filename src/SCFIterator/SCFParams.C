@@ -4,7 +4,6 @@ module;
 #include <stdexcept>
 #include <string>
 export module qchem.SCFParams;
-import qchem.Types;
 
 namespace qchem {
 

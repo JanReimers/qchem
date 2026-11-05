@@ -42,15 +42,14 @@ import qchem.Structure;                       // Structure
 import qchem.ScalarFunction;                  // ScalarFunction<double> (the rho(r) face)
 import qchem.BasisSet;                        // Real_BS (orbital source), Complex_BS (the Bloch basis)
 import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, MakeRasterLadder, CellImages
-import qchem.Hamiltonian.Factory;             // SpinGroup, VxcFit, the cHamiltonian solid door
 export import qchem.Hamiltonian.HubbardEstimator;   // ACBN0Estimate (EstimateHubbardU), HubbardEstimate (the loop)
 export import qchem.Response;                  // ChannelResponse / ResponseFailure (IndependentResponse, LinearResponsePlan R0)
+export import qchem.Response.Solver;           // SelfConsistentResponse / QMeshResponse + KrylovParams (HubbardLinearResponse)
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the typed solid door
 import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, IterationRow, EnergyBreakdown
 import qchem.ChargeDensity;                   // cDM_CD
 import qchem.ChargeDensity.Seed;              // SeedStrategy
 import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKind
-import qchem.RunPolicy;                       // RunPolicySpec (SolidCalcOptions::policy)
 import qchem.LASolver;                        // qchem::Ortho
 import qchem.Outcome;                         // Outcome<T,E> -- the fallible-call vocabulary (N1/T1)
 export import qchem.SolidState;               // RestartRefusal (Restart's failure), the saved-state layer (CK-1)

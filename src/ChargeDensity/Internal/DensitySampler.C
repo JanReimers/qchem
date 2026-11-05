@@ -35,7 +35,6 @@ import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Beck
 import qchem.Symmetry;                      // sym_t / SymMap: the per-block adjoint views, by spatial symmetry
 import qchem.BasisSet.Projector3;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
-import qchem.Blaze;                         // blazem::NarrowExact (the real-TRIM narrow, promoted to qcMath 2026-09-08)
 import qchem.Types;
 
 export namespace qchem::ChargeDensity

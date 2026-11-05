@@ -68,11 +68,7 @@ nlohmann::json LoadDeck(const std::string& name)
     std::ifstream in(p);
     if (!in) throw std::runtime_error("panel: cannot open the deck "+p.string());
     nlohmann::json deck=nlohmann::json::parse(in);
-    if (deck.contains("basis") && deck["basis"].contains("file"))
-    {
-        const std::filesystem::path f=deck["basis"]["file"].get<std::string>();
-        if (f.is_relative()) deck["basis"]["file"]=(DeckDir()/f).string();
-    }
+    deck::ResolveBasisFile(deck, DeckDir());
     if (deck.contains("state") && deck["state"].contains("restartFrom"))
     {   // a relative .h5 names a VENDORED state (decks/states/); a bare stem stays a revision of the run directory
         const std::string r=deck["state"]["restartFrom"].get<std::string>();

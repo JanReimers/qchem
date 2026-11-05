@@ -41,7 +41,6 @@ import qchem.ChargeDensity;
 export import qchem.ChargeDensity.TransitionDensity;   // Sample: δρ of a linear response (R2)
 import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quadrature the engine integrates on)
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
-import qchem.Blaze;                         // blazem::NarrowExact (the real-TRIM narrow, promoted to qcMath 2026-09-08)
 import qchem.Types;
 import qchem.PointSampling;                  // SamplingTarget (FourierTarget's slot)
 

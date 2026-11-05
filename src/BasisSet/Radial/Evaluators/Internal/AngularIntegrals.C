@@ -1,7 +1,7 @@
 // File: BasisSet/Radial/Evaluators/Internal/AngularIntegrals.C  Handle the angular part of 2-electron ERIs
 module;
 export module qchem.BasisSet.Radial.Evaluators.Internal.AngularIntegrals;
-export import qchem.Types;
+import qchem.Types;
 
 export namespace qchem::AngularIntegrals
 {

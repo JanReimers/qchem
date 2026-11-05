@@ -22,7 +22,6 @@ export module qchem.MoleculeCalculation;
 import qchem.Structure;            // Structure, Molecule, Atom
 import qchem.ScalarFunction;       // ::ScalarFunction<double>
 import qchem.BasisSet;             // BasisSet::Real_BS
-import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, IsDFT, the unified resolver
 export import qchem.MoleculeSetup; // CalcOptions + the resolved MoleculeSetup a run is built from (step 7)
 export import qchem.PotentialEnergySurface;   // the face MoleculeSession implements (step 8)
 export import qchem.SCFFailure;               // SCFFailure: the failure half of the Outcome door (shared with the solid facade)
@@ -33,7 +32,8 @@ import qchem.SCFIterator;          // SCFIterator, SCFParams, IterationRow, Ener
 import qchem.Symmetry.Irrep;       // Irrep
 import qchem.ChargeDensity;        // rDM_CD
 import qchem.ChargeDensity.Seed;   // SeedStrategy
-export import qchem.Response;      // the linear response (StaticPolarizability's Outcome and its failure)
+export import qchem.Response.Reference;   // ResponseFailure: StaticPolarizability's failure
+export import qchem.LASolver.Krylov;       // KrylovParams (StaticPolarizability)
 
 export namespace qchem
 {

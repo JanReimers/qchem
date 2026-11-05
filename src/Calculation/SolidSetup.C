@@ -20,7 +20,6 @@ import qchem.BasisSet.Lattice.BasisSet;       // CellImages, GPWTolerances, Shel
 import qchem.BasisSet.Gaussian.Point.Factory; // BasisSetData (the registered basis files)
 import qchem.Hamiltonian.Factory;             // HubbardManifold, VxcFit
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions
-import qchem.SCFIterator;                     // SolidSCFIterator::Observer
 import qchem.ChargeDensity.Seed;              // SeedStrategy
 import qchem.ChargeDensity.AtomicDensity;     // SeedKey
 import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKind

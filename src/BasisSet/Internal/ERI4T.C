@@ -2,7 +2,6 @@
 module;
 export module qchem.BasisSet.Internal.ERI4T;
 export import qchem.Types;
-import qchem.Blaze;
 
 namespace qchem {
 

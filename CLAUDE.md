@@ -150,6 +150,12 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
 - Prefer classes to do/answer high-level operations/questions rather than expose internal data with lots of
     Get functions. Not a rule, just a "prefer" — `src/ChargeDensity/Internal/IrrepCD.C` is a great example: it
     has no `GetDensityMatrix()`. And from the other direction, the outer ChargeDensity classes have no `GetIrrepCD()` methods.
+- **Constructors pass concrete objects; factories concentrate the concrete associations** (user, 2026-11-05, on `SolidSCFIterator`).
+    A specific class (Solid, not generic) may hold specific objects and should DEMAND them in its constructor signature, with no default
+    and no null, instead of probing a generic face at run time (`isPeriodicCell`, a cast).  The burden of gathering or creating them is on
+    the factory, and factories (factory constructors included) are the one place all the concrete wiring lives, so everywhere else depends
+    on abstractions.  Factory internals are ALLOWED to look ugly.  This is Martin's dependency inversion: the code that knows the concrete
+    classes is pushed to the edge, and that edge is the dirty part by design.  Keep the concrete type off shared generic bases.
 - There is a lot of `dynamic_cast` in the code. The intention is that we only cast between (almost) pure
     abstract base classes, never from an abstract base to a concrete implementation. Please flag violations as
     you work. I have a TODO item to do a system-wide survey of these casts and throw custom exceptions full of
@@ -175,7 +181,8 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     — the eventual policy can only be decided from those reasons.
 - **The tier-1 abstract hubs are PROTECTED** (user, 2026-11-03; `doc/OOD-SOLID-Cleanup.md` V-INTERFACE-TIERS): `qchem.BasisSet`, `Orbital_DFT_IBS`,
     `Orbital_1E_IBS`, `G_FieldEvaluator`, `ChargeDensity`, `LASolver`, `Hamiltonian`, `WaveFunction`, `Fitting.FunctionFitter`, `Symmetry.Representation`.
-    Adding to or changing one needs a DESIGN DISCUSSION with the user first.  ctest `HubInterfaceAudit` (`scripts/audit-hub-interfaces`) fails on any
+    Adding to or changing their inheritance or member functions needs a DESIGN DISCUSSION with the user first; trimming a re-export under the
+    re-export rule does not (user, 2026-11-05).  ctest `HubInterfaceAudit` (`scripts/audit-hub-interfaces`) fails on any
     change to their exported declarations or re-exports until `scripts/hub-interfaces.snapshot` is regenerated (`--update`) in a commit citing the
     ruling.  Every `Get` on such a face is scrutinised: why does A hold B, what will the client do with it, why can't A do it?
 - **Name a capability query for what the CLIENT consumes, not for the CAUSE**: `IsVirialValid()`, not

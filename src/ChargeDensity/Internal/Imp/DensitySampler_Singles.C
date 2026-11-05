@@ -33,6 +33,7 @@ import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters
 import qchem.BasisSet.Transition_DFT_IBS;    // the (k+q, k) pair faces the transition Sample/Matrix go through (R3)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
+import qchem.Blaze;
 
 
 namespace qchem::ChargeDensity

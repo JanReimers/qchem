@@ -22,7 +22,6 @@ module;
 #include <vector>
 export module qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;
 export import qchem.SCFAccelerator;
-import qchem.Blaze;
 
 export namespace qchem::SCFAccelerators
 {

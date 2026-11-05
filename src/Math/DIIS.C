@@ -15,7 +15,6 @@
 module;
 export module qchem.Math.DIIS;
 import qchem.Blaze;   // rsmat_t / rmat_t / rvec_t + blazem::{zero,svd,solve,subvector}
-import qchem.Math;
 
 export namespace qchem::Math::DIIS
 {

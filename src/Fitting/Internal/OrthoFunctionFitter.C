@@ -24,7 +24,6 @@ export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density/_Scalar<d
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Orbital_DFT_IBS;                // cFIT_CD_ABS / cFIT_SF_ABS (the held fit bases)
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
-import qchem.Blaze;                           // hmat_t<dcmplx>
 
 export namespace qchem::Fitting
 {

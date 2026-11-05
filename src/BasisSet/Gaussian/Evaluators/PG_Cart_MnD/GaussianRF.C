@@ -15,7 +15,6 @@ module;
 #include <memory>
 
 export module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
-import qchem.Blaze;                 // rvec_t (contraction coefficients)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Hermite;   // Hermite1/2/3
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD;                   // RNLM (Ω self-auxiliary)

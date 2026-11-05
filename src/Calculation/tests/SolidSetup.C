@@ -63,6 +63,16 @@ TEST(SolidSetup, AnAutoTrimWithNoOrthoTolIsRefused)
         << "at orthoTol 0 it would drop nothing, silently";
 }
 
+TEST(SolidSetup, TheRungGateCalibrationReachesTheLadderTolerances)
+{
+    Lattice_3D lat(TwoNa(5.0), ivec3_t(1,1,1));
+    SolidCalcOptions o=kNa2;
+    const GaussianBasisRecipe recipe{.data=BasisSetData::VALENCE_LOWQ_VA};
+    EXPECT_EQ(SolidSetup::Resolve(lat, recipe, o)->opts.tolerances.rungGateC, BasisSet::Gaussian::kRungGateC);
+    o.accuracy.rungGateC=6.0;
+    EXPECT_EQ(SolidSetup::Resolve(lat, recipe, o)->opts.tolerances.rungGateC, 6.0);
+}
+
 TEST(SolidSetup, APreBuiltBasisHasNoRecipe)
 {
     UnitCell cell=TwoNa(20.0);

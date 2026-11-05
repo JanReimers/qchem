@@ -7,7 +7,6 @@ module;
 #include <cassert>
 export module qchem.BasisSet.Radial.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.BasisSet.Radial.Evaluators.Internal.Grouper;
-import qchem.BasisSet.Radial.Evaluators.BSpline.Internal.GLQuadrature;
 
 namespace qchem {
 

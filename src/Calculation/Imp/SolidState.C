@@ -18,6 +18,7 @@ module;
 #include <vector>
 module qchem.SolidState;
 
+import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // kRungGateC: what a state with no gpw.rungGateC was built on
 import qchem.HDF5;
 import qchem.Symmetry.Irrep;                    // Irrep, Spin, SpinIrreps
 import qchem.Symmetry.Lattice_3D.BlochQN;       // Getk (the block's crystal momentum)
@@ -287,6 +288,8 @@ static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now
         for (const auto& [k,v] : now.warmStr) if (k=="xc.fit" || k=="grids.raster") s.warmStr[k]=v;
         for (const auto& [k,v] : now.warmNum) if (k=="grids.beckeEps" || k=="grids.ladderFactor" || k.rfind("gpw.",0)==0) s.warmNum[k]=v;
     }
+    // The rung gate's calibration (2026-11-05): a state that records none was built on the default, whatever this run states.
+    if (!s.warmNum.count("gpw.rungGateC") && now.warmNum.count("gpw.rungGateC")) s.warmNum["gpw.rungGateC"]={BasisSet::Gaussian::kRungGateC};
     // The raster demands (C2 step 3, 2026-10-31): a state written before them sampled on a NAMED raster.  The ball's own raster has
     // every demand 0; the retired AliasFree has no demand equivalent, so its keys stay absent and differ (warm).
     // The accuracy target itself moves no state (the demands it derives do): an older state takes the run's.

@@ -8,9 +8,7 @@ module;
 export module qchem.ChargeDensity.Internal.KerkerMixer;
 export import qchem.ChargeDensity.DensityMixer;
 export import qchem.ChargeDensity.Internal.FieldMixer;
-import qchem.BasisSet.G_FieldEvaluator;            // G_SpectralFilter (the raster shadow's evaluator)
 import qchem.ReciprocalLattice;
-import qchem.Blaze;
 import qchem.Types;
 
 export namespace qchem::ChargeDensity

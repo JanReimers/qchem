@@ -31,6 +31,8 @@ static std::vector<DFTCase> Cases(AtomType t, double tol, Knobs k, const std::ve
     return v;
 }
 static std::string CaseName(const testing::TestParamInfo<DFTCase>& i) { return "Z" + std::to_string(i.param.Z); }
+// What ctest NAMES the case: CMake's pretty values take the printed parameter, and a struct prints as its raw bytes without this.
+static void PrintTo(const DFTCase& c, std::ostream* os) { *os << CaseName({c, 0}); }
 
 } // anonymous namespace
 

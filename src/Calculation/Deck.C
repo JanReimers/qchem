@@ -26,8 +26,6 @@ import qchem.SolidCalculation;     // SolidCalcOptions
 import qchem.SCFParams;            // SCFParams
 import qchem.Mesh;                 // MeshParams
 import qchem.RunPolicy;            // RunPolicySpec
-import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData (the deck names the basis file)
-import qchem.BasisSet.Gaussian.Point.ShellTrim;  // ShellTrim (a stated trim)
 import qchem.Types;                // ivec3_t
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names its accelerator)
 import qchem.Materials;            // Material (the structure section's name resolves to one)
@@ -196,8 +194,11 @@ struct Provenance
 //! Write \a resolved + header + provenance to \a path (a claimed revision).  Header: schema version, \c codeVersion, the input
 //! deck's checksum.  The file is the COMPLETE record: loading it reproduces the run with no \c --set.
 void WriteRevision(const std::filesystem::path& path, const json& resolved, const Provenance& prov);
+//! THE RULE for a relative \c basis.file: a file beside the deck wins; otherwise the name stays, and the basis reader looks in the
+//! shipped directory.  An absolute path, or no \c basis.file, is untouched.
+void ResolveBasisFile(json& payload, const std::filesystem::path& deckDir);
 //! Load a deck file (hand-written or a revision): strips the header/provenance, WARNS on stderr when its \c codeVersion differs
-//! from \a currentCodeVersion, and returns the option payload.  THROWS if the schema version is newer than \c kSchemaVersion.
+//! from \a currentCodeVersion, and returns the option payload, its \c basis.file resolved (\c ResolveBasisFile).  THROWS if the schema version is newer than \c kSchemaVersion.
 json LoadDeck(const std::filesystem::path& path, const std::string& currentCodeVersion);
 
 //! \brief VET a deck without running it: resolve it (the postSCF pre-flight included), build the lattice, and build the basis (a stated trim applied; the

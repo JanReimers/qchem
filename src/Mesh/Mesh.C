@@ -22,7 +22,6 @@ module;
 export module qchem.Mesh;
 export import qchem.Types;
 export import qchem.PointSampling;   // the face a Mesh implements (MakeFourierSampler)
-import qchem.Math;   // Pi, ceil/sqrt/max (the uniform-mesh Nyquist arithmetic below)
 
 export namespace qchem::qcMesh
 {
