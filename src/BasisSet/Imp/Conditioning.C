@@ -3,7 +3,6 @@ module;
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <type_traits>
 module qchem.BasisSet.Conditioning;
@@ -69,12 +68,10 @@ template <class T> size_t ReportConditioning(const tBasisSet<T>& bs)
         rpt::Set("floor",       ConditioningFloor);
         rpt::Set("wouldDrop",   (long)wouldDrop);
     }
-    std::ostringstream line;
-    line<<"[basis trim] report only: "<<nBlocks<<" block(s), min eig S "<<std::scientific<<std::setprecision(3)<<lambdaMin<<" at "
-        <<lambdaMinAt<<", max cond(S) "<<cond<<" at "<<condAt<<", "<<wouldDrop<<" AO(s) would drop at floor "<<std::setprecision(0)
-        <<ConditioningFloor;
-    if (rpt::Depth()>0) rpt::Log(line.str());
-    else                std::cout<<line.str()<<std::endl;
+    // Straight to cout, like the other tagged lines: report::Log is silent in a run with no console, and this line must never be.
+    std::cout<<"[basis trim] report only: "<<nBlocks<<" block(s), min eig S "<<std::scientific<<std::setprecision(3)<<lambdaMin<<" at "
+             <<lambdaMinAt<<", max cond(S) "<<cond<<" at "<<condAt<<", "<<wouldDrop<<" AO(s) would drop at floor "<<std::setprecision(0)
+        <<ConditioningFloor<<std::defaultfloat<<std::endl;
     return removed;
 }
 
