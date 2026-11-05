@@ -1541,7 +1541,7 @@ Tests: `FacadeMatrix` (every cell: each `hamiltonian` member is a mesh with poin
 - `tDensityMatrixDistance` (`qchem.ChargeDensity`) is the D-side face, `tRealSpaceResidual` (`Hamiltonian/Internal`) the quadrature side.  Blocks' squares add.
 - **The default stays 1e-4, no new knob.**  Near the gate the D norm reads 0.4-2.3× the L1 on HF H₂O, CH₄, N₂, CO, O₂ triplet, Be, B, Ne, Fe; at the first L1 < 1e-4 it reads 3e-6..1.2e-4.  Record at `SCFParams`.
 
-**Measured against main-e54c99e7** (short 1283/0, long 11/0).  Counted from SCF trace rows, because `anchordiff` printed 0 (open row: it cannot see these).  Stopping-tolerance moves only: 9 tests take one more iteration, none fewer; over 481 runs compared on their last row the largest energy move is 1e-12 Ha, one print digit.
+**Measured against main-e54c99e7** (short 1283/0, long 11/0).  Counted from SCF trace rows, because `anchordiff` printed 0 (it could not see these until `042e06d3`).  Stopping-tolerance moves only: 9 tests take one more iteration, none fewer; over 481 runs compared on their last row the largest energy move is 1e-12 Ha, one print digit.
 
 | test (instances) | iterations | energy, Ha |
 |---|---|---|
@@ -1553,3 +1553,9 @@ Tests: `FacadeMatrix` (every cell: each `hamiltonian` member is a mesh with poin
 No solid and no quadrature DFT run moved.  No panel case is HF.  The `_Panel` cases in the short tier did not move; the `_Panel_Long` cases were not run.  Their solid SCFs keep the quadrature L1, and their only changed gate is the +U pseudo-atom's (Mn and O), which did not move in the long tier (`GPW_MnO2…RefusesAnAliasedFirstIterate_Long`).
 
 **The trap it found.**  `dynamic_cast` from a virtual base to a public virtual face returns null, silently, on libstdc++ when the face is declared BEFORE a non-public non-virtual base sharing that virtual base (reproduced standalone; libc++ is correct).  It made every DFT run print `‖ΔD‖`, and only the solid golden caught it.  The face now sits after the base, with the reason at `PWTerms.C`.  A text scan of the 318 classes in `src` found no other instance; it is a heuristic, not a compiler check, validated against the pre-fix shape.
+
+## ✅ `anchordiff` counts molecular and atom iterations (2026-11-04, lane B, 042e06d3)
+
+It summed `iters=`, which only solids print, so 73e92020's 9 iteration moves read as 0 moved.  It now also compares the SCF trace rows, keeping both counts because they differ: the rows add seed and pseudo-atom SCFs, and the `PW_*` prototypes print no trace.  The summary line gives how many tests carry an energy and an iteration count (283 of 1277 short tests, was 117).
+
+**Did an earlier "0 moved" hide anything?  No.**  Rerun over the 2026-11-04 baselines, tol 1e-10: the six steps of the main chain from main-6fa69b0d to main-e54c99e7, plus nine lane sweeps against their base, 15 short and 13 long comparisons: no test moved on rows alone.  All seven mains give 7141 trace rows over 281 tests, so the count is live on every log and the iteration counts did not change.  What the old tool did flag is unchanged: `GPW_NaF.Γ_GeometryRunSizesItsBeckeMesh_Long` flickering 33/34, and `GPW_NaF.Γ_Becke_Imp_eqUni` (1.8e-9 Ha), `GPW_NaF.Γ_Imp_eqExactResume_Panel` and `GPW_Si.Γ_Becke_Imp_Kerker_CP2K` (1-2e-10 Ha).
