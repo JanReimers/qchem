@@ -34,6 +34,7 @@ import qchem.Mesh;                 // qcMesh::MeshParams (defaulted -- a seed-qu
 import qchem.Reporting;             // report::Timed -- the SCF loop's own buckets (ParallelAndOraclePlan 1.1)
 import qchem.SCFCap;                // ReportSCFCapHit: an SCF that ends at its cap (the test mains fail on it)
 import qchem.Energy;
+import qchem.ReciprocalLattice;     // isPeriodicCell -- used only by an assert, so an NDEBUG build cannot see this need
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 // The Kerker/Pulay G-space machinery (FourierDensity, FourierMixCD, Orbital_DFT_IBS<dcmplx>, ReciprocalLattice)
