@@ -248,13 +248,13 @@ Virial               V/K  :    -2.00407537660  Eee/Exc:      -6.150743647
 |     1/1     |  -0.55935104 | 8No Symmetry |     0/1     |   0.09995070 | -0.65930175 |
 +-------------+--------------+--------------+-------------+--------------+-------------+
 )G";
-const char* const kSolidGolden = R"G(  #               Etotal      [F,D]       ΔE/E        Δρ   ρ_lost/N    XC ρ  ρ_mix         accel   svMin    cfg       gap  
+const char* const kSolidGolden = R"G(  #               Etotal      [F,D]       ΔE/E        Δρ   ρ_lost/N    XC ρ    samp/τ  ρ_mix         accel   svMin    cfg       gap  
                                        (1e-06)   (1e-03)
 ----------------------------------------------------------------------------------------------------
-  1      -7.108903665453   2.70e-01  -1.00e+00  5.12e-02  -1.02e-09      DM  PulD 0.45     ----    ----          6.69e-02  
-  2      -7.111740399438   1.23e-02  -3.99e-04  2.60e-02  -1.38e-09      DM  PulD 0.45     ----    ----          6.83e-02  
-  3      -7.113252695245   6.46e-03  -2.13e-04  1.34e-02  -1.68e-09      DM  PulD 0.45     ----    ----          6.90e-02  
-  4      -7.114071972544   3.97e-03  -1.15e-04  7.18e-03  -1.68e-09      DM  PulD 0.45     ----    ----          6.93e-02  
+  1      -7.108903665453   2.70e-01  -1.00e+00  5.12e-02  -1.02e-09      DM      ----  PulD 0.45     ----    ----          6.69e-02  
+  2      -7.111740399438   1.23e-02  -3.99e-04  2.60e-02  -1.38e-09      DM      ----  PulD 0.45     ----    ----          6.83e-02  
+  3      -7.113252695245   6.46e-03  -2.13e-04  1.34e-02  -1.68e-09      DM      ----  PulD 0.45     ----    ----          6.90e-02  
+  4      -7.114071972544   3.97e-03  -1.15e-04  7.18e-03  -1.68e-09      DM      ----  PulD 0.45     ----    ----          6.93e-02  
 ----------------------------------------------------------------------------------------------------------
 Energy    Breakdown  Total:  -7.11407197254  Kinetic:   4.36964950717  Potential: -11.48372147971
 Potential Breakdown  Een  :  -1.14841291300  Eee    :   0.90563316633  Eex      :  -2.54558418105
@@ -288,7 +288,8 @@ TEST(SCFTrace, MolecularConsoleIsByteIdentical)
     EXPECT_EQ(got, std::string(kMolecularGolden));
 }
 
-//! The solid layout (Si Γ, 4 bounded iterations: ΔE/E, ρ_lost/N, XC ρ, the permanent gap, PulD mixing, the Null accelerator).
+//! The solid layout (Si Γ, 4 bounded iterations: ΔE/E, ρ_lost/N, XC ρ, samp/τ ("----": D mixing samples no ρ̃), the permanent gap,
+//! PulD mixing, the Null accelerator).
 TEST(SCFTrace, SolidConsoleIsByteIdentical)
 {
     const std::string got=TraceBlock(CapturedTrace([]{

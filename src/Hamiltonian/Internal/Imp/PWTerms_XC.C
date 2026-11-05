@@ -20,6 +20,7 @@ module;
 #include <memory>
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
+#include <string>
 module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Energy;
 import qchem.ChargeDensity;
@@ -30,6 +31,7 @@ import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
+import qchem.PointSampling;                   // SamplingTarget / SamplingAccuracy (the rho-tilde sampler's tolerance, step 2)
 
 
 namespace qchem::Hamiltonian
@@ -85,8 +87,90 @@ template <class T> rvec_t tVxc_Quadrature<T>::PotentialAt(const Spin& s, const t
     return v;
 }
 template <class T> hmat_t<T> tVxc_Quadrature<T>::MakeMatrix(const tobs_t<T>* bs, const Spin& s, const tChargeDensity<T>* cd) const
-{return itsSampler->Matrix(bs, PotentialAt(s,cd));}
-rsmat_t Vxc_Quadrature::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return itsPeriodic->Matrix(bs, PotentialAt(s,cd));}
+{
+    const rvec_t v=PotentialAt(s,cd);
+    SizeFourierSampling(s, cd, v, [&](const rvec_t& f){return itsSampler->Matrix(bs, f);});
+    return itsSampler->Matrix(bs, v);
+}
+rsmat_t Vxc_Quadrature::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const
+{
+    const rvec_t v=PotentialAt(s,cd);
+    SizeFourierSampling(s, cd, v, [&](const rvec_t& f){return itsPeriodic->Matrix(bs, f);});
+    return itsPeriodic->Matrix(bs, v);
+}
+
+// THE ONE TOLERANCE tau on max|delta rho| of a Fourier series sampled on my points (the rho-tilde sampler, step 2; doc/Pins.md pin 31).
+// RIGOROUS, per consumer of the sampled field, each prefactor an integral this quadrature answers:
+//   - the XC energy:     |dE_xc| <= tau Sum_sigma Integral |v_xc^sigma|                 => tau_E = target / P_E;
+//   - a matrix element:  |dH_ij^sigma| <= tau max_i <i| Sum_t |f_xc^{sigma t}| |i>       => tau_H = target / P_H
+//     (Cauchy-Schwarz on a non-negative weight: |<i|w|j>| <= sqrt(<i|w|i><j|w|j>) <= max_i <i|w|i>);
+//   - the SCF residual:  the L1 distance of a sampled pair moves by <= 2 tau Integral 1, per electron of the smaller channel, which
+//     may use the share kappa_R of the density gate (a CALIBRATION, GridAccuracy::samplerResidualMargin) => tau_R.
+// An energy run takes min(tau_E, tau_R), a geometry run min(tau_E, tau_H, tau_R).  ON THE SEED, once (user ruling 2026-11-04: never a
+// per-iteration input): every block of the first Fock build lowers it, and the sampler's first SIZED Load freezes it.
+template <class T> template <class Mat>
+void tVxc_Quadrature<T>::SizeFourierSampling(const Spin& s, const tChargeDensity<T>* cd, const rvec_t& v, Mat matrixOf) const
+{
+    SamplingTarget* tgt=itsSampler->FourierTarget();
+    if (!tgt || tgt->loads>0 || !(tgt->accuracy.target>0.0)) return;   // no stated accuracy, or tau already frozen by its first use
+    std::lock_guard<std::mutex> lock(itsSamplingLock.m);
+    const SamplingAccuracy& A=tgt->accuracy;
+    const bool pol=itsGroup==SpinGroup::Polarized;
+    rvec_t av(v.size());
+    for (size_t g=0; g<v.size(); g++) av[g]=std::fabs(v[g]);
+    itsSeedPE[s==Spin::Down ? 1 : 0]=itsSampler->Integrate(av);
+    const double PE = pol ? itsSeedPE[0]+itsSeedPE[1] : itsSeedPE[0];
+    double tau=A.target/PE;
+    std::string from="the XC energy";
+    if (A.perElement)
+    {
+        rvec_t half;
+        const Rasters r=ChannelRasters(cd, half);
+        const Spin fs = s==Spin::None ? Spin::Up : s;
+        rvec_t f(v.size());
+        for (size_t g=0; g<f.size(); g++)
+            f[g] = pol ? std::fabs(itsXc->GetFxc(r.up[g], r.dn[g], fs, Spin::Up))+std::fabs(itsXc->GetFxc(r.up[g], r.dn[g], fs, Spin::Down))
+                       : 0.5*std::fabs(itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up, Spin::Up)+itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up, Spin::Down));
+        const auto M=matrixOf(f);
+        for (size_t i=0; i<M.rows(); i++) itsSeedPH=std::max(itsSeedPH, std::abs(M(i,i)));
+        if (itsSeedPH>0.0 && A.target/itsSeedPH<tau) {tau=A.target/itsSeedPH; from="the XC matrix elements";}
+    }
+    if (A.residualGate>0.0)
+    {
+        double N=cd->GetTotalCharge();
+        if (pol)
+            if (const auto* up=ChargeDensity::ChannelOf(cd,Spin::Up); up)
+                if (const auto* dn=ChargeDensity::ChannelOf(cd,Spin::Down); dn) N=std::min(up->GetTotalCharge(), dn->GetTotalCharge());
+        const double W=itsSampler->Integrate(rvec_t(v.size(), 1.0));
+        if (N>0.0 && W>0.0)
+            if (const double tR=A.residualMargin*A.residualGate*N/(2.0*W); tR<tau) {tau=tR; from="the SCF residual";}
+    }
+    // The consumer's target, and the SIZING tolerance: the run's ONE tightening (decided at an SCF boundary by SolidCalculation, never here)
+    // shrinks the latter only.
+    if (!(tgt->tauTarget>0.0) || tau<tgt->tauTarget) {tgt->tauTarget=tau; tgt->tau=tau*A.tauScale; tgt->tauFrom=from;}
+}
+
+template <class T> void tVxc_Quadrature<T>::ReportFourierSampling() const
+{
+    const SamplingTarget* tgt=itsSampler->FourierTarget();
+    if (!tgt || tgt->loads==0 || itsSamplingReported) return;
+    std::lock_guard<std::mutex> lock(itsSamplingLock.m);
+    if (itsSamplingReported) return;
+    // ONCE, when the sampler's first sized use froze tau: the settings the whole SCF runs under.  What it DELIVERS is the samp/τ column.
+    std::cout<<"[XC sampling] rho-tilde NUFFT: tau "<<tgt->tauTarget<<" (set by "<<tgt->tauFrom<<" on the seed: P_E "<<itsSeedPE[0]+itsSeedPE[1]
+             <<(itsSeedPH>0.0 ? ", P_H "+std::to_string(itsSeedPH) : std::string())<<"), eta "<<tgt->accuracy.eta
+             <<(tgt->accuracy.tauScale<1.0 ? ", sized at the TIGHTENED "+std::to_string(tgt->tau)+" (x"+std::to_string(tgt->accuracy.tauScale)+")" : std::string())
+             <<std::endl;
+    qchem::report::Scope here("xcSampling");
+    qchem::report::Set("tau", tgt->tauTarget);
+    qchem::report::Set("tauSizing", tgt->tau);
+    qchem::report::Set("tauFrom", tgt->tauFrom);
+    qchem::report::Set("seedPE", itsSeedPE[0]+itsSeedPE[1]);
+    if (itsSeedPH>0.0) qchem::report::Set("seedPH", itsSeedPH);
+    qchem::report::Set("eta", tgt->accuracy.eta);
+    qchem::report::Set("tauScale", tgt->accuracy.tauScale);
+    itsSamplingReported=true;
+}
 
 template <class T> void tVxc_Quadrature<T>::GetEnergy(EnergyBreakdown& te, const tDM_CD<T>* cd) const
 {
@@ -109,6 +193,15 @@ template <class T> void tVxc_Quadrature<T>::GetEnergy(EnergyBreakdown& te, const
         te.charge.xcRhoFitted = *itsFockSource==ChargeDensity::XCRhoSource::Fitted;
     }
     te.charge.xcGroupResidual = itsFockGroupResidual;
+    ReportFourierSampling();
+    // THE samp/τ COLUMN: the worst audited delivered/tau of the sized samplings since the last energy that saw new ones (one iteration's:
+    // the Fock build's correction and the residual pair).  An energy pass with no new samplings (GDM's line search) repeats the value.
+    if (SamplingTarget* tgt=itsSampler->FourierTarget(); tgt && tgt->loads>0)
+    {
+        std::lock_guard<std::mutex> lock(itsSamplingLock.m);
+        if (tgt->loads!=itsSamplingLastLoads) {itsSamplingShown=tgt->TakeWindow(); itsSamplingLastLoads=tgt->loads;}
+        te.charge.samplingOverTau=itsSamplingShown;
+    }
 }
 
 // THE OBSERVABLE (doc/OpenWork.md N1/T2; R1.0h): mu_A = Integral w_A (rho_up - rho_dn), in electrons, over the

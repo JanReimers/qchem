@@ -43,6 +43,7 @@ import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quad
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Blaze;                         // blazem::NarrowExact (the real-TRIM narrow, promoted to qcMath 2026-09-08)
 import qchem.Types;
+import qchem.PointSampling;                  // SamplingTarget (FourierTarget's slot)
 
 export namespace qchem::ChargeDensity
 {
@@ -143,6 +144,11 @@ public:
     //! moment \f$\mu_A\f$ of \f$\rho_\uparrow-\rho_\downarrow\f$ -- is the spin-native XC term's to
     //! compute and \c ChargeBreakdown's to carry; this engine no longer knows what it is integrating.
     virtual rvec_t SiteIntegrals(const rvec_t& f) const {return rvec_t();}
+    //! \brief The sampling slot of MY points (the rho-tilde sampler, step 2): the accuracy the run stated for this quadrature and the ONE
+    //! tolerance tau a Fourier series sampled here is held to.  Client: the XC term, which derives tau from the seed density (it alone
+    //! has v_xc and f_xc in hand) and reports what was delivered.  Default null: a quadrature that samples no Fourier series by NUFFT
+    //! (the raster pair route) has no slot to size.
+    virtual SamplingTarget* FourierTarget() const {return nullptr;}
 };
 
 //! \brief The XC quadrature for densities and blocks of scalar type \a T -- the faces \c Vxc_Quadrature<T> drives.
