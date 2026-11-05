@@ -9,7 +9,6 @@ module;
 export module qchem.BasisSet.Radial.Evaluators.BSpline.Internal.Common;
 export import qchem.BasisSet.Radial.Evaluators;
 export import qchem.Symmetry;
-import qchem.BasisSet.Radial.Evaluators.Internal.NR_Angular;
 import qchem.BasisSet.Radial.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Radial.Evaluators.Internal.Grouper;
 // required by Cache4

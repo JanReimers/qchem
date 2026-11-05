@@ -9,7 +9,6 @@ export module qchem.BasisSet.Gaussian.Point.SymmetryAdaptedBasisSet;
 export import qchem.BasisSet;                         // tBasisSet<double>, Orbital_1E_IBS
 export import qchem.Structure;                          // Structure (for the factory hook)
 import qchem.BasisSet.Internal.BasisSetImp;           // BasisSetImp (iteration/Insert)
-import qchem.BasisSet.Internal.SymmetryAdapted_IBS;            // the per-irrep decorator
 import qchem.Symmetry.Molecule.SALC;                           // SALCs (the transform O + labels)
 
 export namespace qchem::BasisSet::Gaussian

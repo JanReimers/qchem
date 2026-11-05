@@ -14,7 +14,6 @@ import qchem.BasisSet.Radial.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Atom.Spherical;
 import qchem.IntPow;
-import qchem.Math;
 import qchem.Blaze;
 
 

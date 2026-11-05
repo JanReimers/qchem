@@ -18,7 +18,6 @@ module;
 #include <ostream>
 export module qchem.Fitting.Internal.OrthoNormalFunctionFitter;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar + FitContraction<dcmplx,dcmplx>, ProjectedScalar_R
-import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Orbital_DFT_IBS;                // cFIT_SF_ABS (the held fit basis)
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
 import qchem.Blaze;                           // hmat_t<dcmplx>

@@ -30,6 +30,7 @@ import qchem.BasisSet.AtomCentredSet;           // the pseudo-atomic projector f
 import qchem.Reporting;                         // the term's own [+U] line (pin 17: contemporaneous)
 import qchem.Vector3D;                          // norm(rvec3_t) -- the site match
 import qchem.Symmetry.Irrep;                    // Spin, SpinIrreps
+import qchem.Blaze;
 
 namespace qchem::Hamiltonian
 {

@@ -5,7 +5,6 @@ module;
 export module qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Symmetry.Spin;   // Spin (the requested correlation channel)
-import qchem.Math;   // Pi, FourPi
 
 export namespace qchem::Hamiltonian
 {

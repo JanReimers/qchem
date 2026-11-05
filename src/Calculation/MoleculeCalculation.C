@@ -22,7 +22,6 @@ export module qchem.MoleculeCalculation;
 import qchem.Structure;            // Structure, Molecule, Atom
 import qchem.ScalarFunction;       // ::ScalarFunction<double>
 import qchem.BasisSet;             // BasisSet::Real_BS
-import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, IsDFT, the unified resolver
 export import qchem.MoleculeSetup; // CalcOptions + the resolved MoleculeSetup a run is built from (step 7)
 export import qchem.PotentialEnergySurface;   // the face MoleculeSession implements (step 8)
 export import qchem.SCFFailure;               // SCFFailure: the failure half of the Outcome door (shared with the solid facade)

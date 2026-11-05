@@ -3,7 +3,6 @@ module;
 #include <cassert>
 
 export module  qchem.BasisSet.Radial.Internal.FillPower;
-import qchem.Math;
 import qchem.Blaze;
 
 namespace qchem {

@@ -7,7 +7,6 @@ export module qchem.BasisSet.Internal.DB_Cache;
 export import qchem.BasisSet.DBCacheClient;   // the key contract (public since V1.20d); the mechanism stays here
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Projector3;    // Projector3<T> (the 3-centre tensor, all realizations)
-import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.Cache2;
 import qchem.BasisSet.Internal.Cache3;

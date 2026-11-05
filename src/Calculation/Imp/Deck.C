@@ -39,6 +39,7 @@ import qchem.BasisSet.Lattice.BasisSet;   // VetStageTrim, GPWParams
 import qchem.BasisSet.Gaussian.Point.ShellTrim;
 import qchem.RunPolicy;
 import qchem.Mesh.XCPolicy;                 // ResolveXCMesh (a recipe field under cellKind Auto is refused at resolve)
+import qchem.BasisSet.Gaussian.Point.Factory;
 
 namespace qchem::deck
 {

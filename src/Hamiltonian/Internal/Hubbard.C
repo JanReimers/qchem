@@ -61,7 +61,6 @@ import qchem.Symmetry;                          // sym_t, SymMap
 import qchem.Symmetry.Molecule.OperationRep;    // AoShell (rep + per-component norm) -- the site group on a shell
 import qchem.Symmetry.Irrep;                    // Spin, SpinGroup, SpinIrreps
 import qchem.Structure;
-import qchem.Blaze;
 import qchem.Parallel;                           // LazyLock (the per-block projector lazy; concurrent Fock blocks)
 
 export namespace qchem::Hamiltonian

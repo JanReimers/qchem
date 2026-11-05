@@ -27,7 +27,6 @@ module;
 export module qchem.BasisSet.Gaussian.Lattice.LatticeScreener;
 import qchem.Types;      // ivec3_t, rmat_t
 import qchem.Blaze;      // the rmat_t block's element access
-import qchem.Math;       // log/fabs/max/min (the umbrella re-exports them UNQUALIFIED -- CLAUDE.md)
 
 export namespace qchem::BasisSet::Gaussian
 {

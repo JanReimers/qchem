@@ -6,7 +6,6 @@ module;
 #include <ostream>
 export module qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Streamable;
-import qchem.Math;            // max (the composite's grid-cutoff reduction)
 export import qchem.Symmetry.Spin;   // Spin -- the channel argument of the spin-native face
 
 export namespace qchem::Hamiltonian

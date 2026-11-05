@@ -9,7 +9,6 @@ export module qchem.UnitCell;
 export import qchem.Types;
 import qchem.Structure;
 import qchem.Matrix3D;
-import qchem.Streamable;
 import qchem.Mesh;        // qcMesh::Mesh / MeshParams (the CreateIntegrationMesh override)
 import qchem.Symmetry.SymOp;              // Symmetry::SymOp {W|τ} (the site-adapted Becke mesh's imposed ops)
 

@@ -20,7 +20,6 @@ module;
 export module qchem.BasisSet.Gaussian.Lattice.GPW_IBS;
 import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;  // GPW_Evaluator (base subobject) -- NOT re-exported (internal)
 import qchem.BasisSet.Lattice_IBS;                // the G=T spec: isLattice_{1E,DFT}_Evaluator + Lattice::Orbital_{1E,DFT}_IBS<E,T> (mixins)
-import qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS; // the auxiliary PW fit basis the DFT factory returns
 import qchem.Matrix3D;                             // Matrix3D
 import qchem.Symmetry.Lattice_3D.SpaceGroup;       // DirectOp {W|τ} -- the direct ops threaded to the Vxc fit basis
 import qchem.BasisSet.Internal.IrrepBasisSetImp;  // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep

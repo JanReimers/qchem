@@ -23,6 +23,7 @@ import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Blaze;
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 
 namespace qchem::BasisSet::Gaussian::PG_Cart
 {

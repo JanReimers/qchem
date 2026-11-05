@@ -8,7 +8,6 @@ export module qchem.ReciprocalLattice;
 export import qchem.UnitCell;
 import qchem.Structure;   // the abstract base the pry-out helpers take
 import qchem.Streamable;
-import qchem.Math;        // FourPi (the Coulomb/Poisson kernel prefactor)
 import qchem.Vector3D;    // rvec3_t + its dot product (G*G)
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 

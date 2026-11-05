@@ -17,9 +17,7 @@ module;
 export module qchem.Hamiltonian.TransitionFock;
 export import qchem.Symmetry.SelectionRule;
 export import qchem.Symmetry.Irrep;
-import qchem.Streamable;   // Irrep's operator<<
 import qchem.Types;
-import qchem.Blaze;
 
 export namespace qchem::Hamiltonian
 {

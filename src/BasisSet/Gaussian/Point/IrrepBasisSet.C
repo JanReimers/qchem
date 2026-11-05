@@ -29,7 +29,6 @@ import qchem.Structure;
 import qchem.Symmetry.Representation;               // DenseRepresentation (AoShellRepresentation, S3)
 import qchem.Symmetry.Molecule.OperationRep;         // BuildOperationRep (the Cartesian SymOp overload)
 import qchem.Types;
-import qchem.Blaze;
 
 export namespace qchem::BasisSet::Gaussian
 {

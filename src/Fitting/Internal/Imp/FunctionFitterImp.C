@@ -5,6 +5,7 @@ module;
 #include <vector>
 module qchem.Fitting.Internal.FunctionFitterImp;
 import qchem.Fitting.Types;
+import qchem.Blaze;
 
 
 namespace qchem::Fitting

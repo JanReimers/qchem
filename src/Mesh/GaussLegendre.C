@@ -10,7 +10,6 @@ module;
 #include <cmath>
 export module qchem.Mesh.GaussLegendre;
 export import qchem.Types;
-import qchem.Math;
 
 export namespace qchem::qcMesh
 {

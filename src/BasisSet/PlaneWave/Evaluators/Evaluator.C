@@ -26,7 +26,6 @@ export import qchem.BasisSet.GMap;           // ΔG_Map: the G-space coefficient
 export import qchem.BasisSet.G_FieldEvaluator;  // the abstract grid-engine seam PW_Evaluator implements
 import qchem.BasisSet.PlaneWave.Evaluators.PeriodicGrid; // the shared FFT/Poisson grid engine (held, delegated to)
 import qchem.Types;                      // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, cvec3vec_t, chmat_t, dcmplx
-import qchem.Blaze;                      // hmat_t<dcmplx> (chmat_t)
 import qchem.Structure;                  // Structure, Atom (MakeFourierDensity's structure-factor sum)
 
 export namespace qchem::BasisSet::PlaneWave
