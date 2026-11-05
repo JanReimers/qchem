@@ -14,7 +14,7 @@ gth2upf, gpwprobe) and the MnD bench had stale or missing modmaps in the snapsho
 ## Rulings on it (controller + user, 2026-11-03)
 
 - **STALE imports in implementation units: remove** (413: 142 in module implementation units, 271 in plain TUs -- tests and CLIapps).
-  Interface-unit stale removals (84) are a separate, later step behind a whole-build check (a downstream template can need them).
+  Interface-unit stale removals were a separate step behind a whole-build check (a downstream template can need them).  DONE 2026-11-05 (78743353): of 86 candidates in 63 interface units, 59 went, 22 moved to the implementation unit that uses them, and 5 stayed because the build needed them in the interface (qchem.Iterators in BasisSet.C, qchem.Fitting.FitOperations and qchem.Fitting.Types in DeltaFunctionFitter.C, qchem.Blaze in Radial/IrrepBasisSet.C and Krylov.C).  The single-TU check could not see those 5 and the 22: it does not compile the module's implementation units or instantiate downstream templates.
 - **REDUNDANT imports STAY.**  Under the re-export rule (V-INTERFACE-TIERS: CRP + include-what-you-use) a consumer imports what it
   uses directly, so a redundant direct import is the correct style and the RE-EXPORT it duplicates is the suspect.  The follow-up
   is to shrink the re-exports that fail the signature test (the list after the table), not to delete direct imports.
