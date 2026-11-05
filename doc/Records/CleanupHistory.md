@@ -3468,3 +3468,5 @@ small correction on top of a floor that was MISSING ALTOGETHER — the row had t
 **Anchors moved: none** — the floor binds only where a projector set lacks the Gaussian face, which no
 production run does.  ⇒ V2.5 was filed as anchor-moving and was not; its payoff was a five-week-old
 mis-attribution and a gate.
+
+**D-GPW-RASTER-NAMES ✅ (2026-11-05, `d1e2b384`).**  User: on GPW the names BallOnly / AliasFree were "100% deceptive", since C2 step 3 had already retired them as behaviour.  `grids.raster` now writes `ballRasters` (`BallRastersLabel`, qchem.SolidState) for "every raster demand 0"; `Migrated()` maps a saved `BallOnly` to it, pinned by a SolidState test, because without the mapping every old state would have become a warm resume.  Sweep against main-04ffa87a: short 1295/0, long 11/0, 0 moves.  The test-code remainder stays on the CleanCode row.
