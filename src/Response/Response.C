@@ -13,7 +13,6 @@ export module qchem.Response;
 export import qchem.Response.Reference;
 export import qchem.Response.Probe;
 export import qchem.Response.OrbitalFrame;
-export import qchem.Response.Solver;
 export import qchem.Response.LittleGroup;
 export import qchem.WaveFunction;                       // tWaveFunction
 export import qchem.Mesh;                               // qcMesh::Mesh (the dipole probe's quadrature)

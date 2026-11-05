@@ -2,7 +2,6 @@
 export module qchem.Factory;
 
 export import qchem.BasisSet.Radial.Factory;
-export import qchem.BasisSet.Gaussian.Point.Factory;
 export import qchem.BasisSet;
 
 namespace qchem {

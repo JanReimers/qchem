@@ -31,6 +31,7 @@ import qchem.RunPolicy;       // theRunPolicy().DAwareScreen() -- WHICH LatticeS
 import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the grid report's {G}-star column)
 import qchem.Symmetry.Lattice_3D.BlochOperationRep;  // BlochPhase (exact ±1 at TRIM)
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
+import qchem.BasisSet.GMap;   // EvaluateSymmetricGMap
 
 namespace qchem::BasisSet::Gaussian
 {

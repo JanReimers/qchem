@@ -5,7 +5,7 @@
 // times the corresponding NR angular integral.
 module;
 export module qchem.BasisSet.Radial.Evaluators.Internal.RelAngularIntegrals;
-export import qchem.Types;
+import qchem.Types;
 
 export namespace qchem::RelAngularIntegrals
 {

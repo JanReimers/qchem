@@ -35,7 +35,8 @@ import qchem.BasisSet.AtomCentredSet;              // AtomCentredSet_Gaussian (t
 import qchem.Mesh;                                 // qcMesh::MeshParams (the PP-quadrature integration mesh)
 import qchem.BasisSet;                             // Real_BS (the molecular Gaussian basis we own)
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)
-export import qchem.BasisSet.GMap;        // Projector3<dcmplx> (the DFT 3-centre tensor, now with GPW weights)
+export import qchem.BasisSet.Projector3;   // Projector3<dcmplx>, ΔG_Map
+export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // DirectOp, ReciprocalOp
 import qchem.UnitCell;                             // UnitCell (the direct lattice; ToCartesian)
 import qchem.Structure;                            // Structure (the nuclear-attraction centres)
 import qchem.Types;                                // rvec3_t, cvec_t, cvec3vec_t, chmat_t, rmat_t

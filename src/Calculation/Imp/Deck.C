@@ -40,6 +40,7 @@ import qchem.BasisSet.Gaussian.Point.ShellTrim;
 import qchem.RunPolicy;
 import qchem.Mesh.XCPolicy;                 // ResolveXCMesh (a recipe field under cellKind Auto is refused at resolve)
 import qchem.BasisSet.Gaussian.Point.Factory;
+import qchem.StructureData;   // KindOf
 
 namespace qchem::deck
 {

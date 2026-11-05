@@ -6,6 +6,7 @@ import qchem.BasisSet.Radial.Evaluators.Internal.Wigner3j;        //Wigner::wign
 import qchem.BasisSet.Radial.Evaluators.Internal.RelWigner3j;
 import qchem.BasisSet.Radial.Evaluators.Internal.RelAngularIntegrals;
 import qchem.BasisSet.Radial.Evaluators.Internal.AngularIntegrals;
+import qchem.Types;                                              // rvec11_t
 using namespace qchem;
 
 using std::cout;
