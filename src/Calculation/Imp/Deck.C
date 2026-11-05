@@ -140,7 +140,7 @@ const auto kMixing = NAMES(SCFParams::Mixing, {"Auto",SCFParams::Mixing::Auto}, 
 //! The deck's basis block as the setup's RECIPE (the trim stated, or vetted once by SolidSetup::Resolve).
 GaussianBasisRecipe RecipeOf(const RunSpec::Basis& b)
 {
-    GaussianBasisRecipe r{.file=b.file, .vet=b.vet, .spherical=b.spherical};
+    GaussianBasisRecipe r{.file=b.file, .autoTrim=b.autoTrim, .spherical=b.spherical};
     // A REGISTERED name keeps its typed handle; any other stem in the data directory is read as that file.
     if (!BasisSet::Gaussian::RegisteredBasis(b.data, r.data) && r.file.empty()) r.file=BasisSet::Gaussian::BasisFileOfName(b.data);
     for (const auto& t : b.trim) r.trim.shells.push_back({t.Z, t.l, rvec_t(1,t.alpha)});
@@ -552,7 +552,7 @@ json BasisJson(const RunSpec::Basis& b)
 {
     json j={{"data",b.data},{"spherical",b.spherical}};
     if (!b.file.empty()) j["file"]=b.file;
-    if (b.vet) j["vet"]=true;
+    if (b.autoTrim) j["autoTrim"]=true;
     if (b.family!=SolidCalcOptions::OrbitalBasis::GPW) { j["family"]=NameOf(b.family,kFamily); j["ecut"]=b.ecut; }
     if (!b.trim.empty())
     {
@@ -566,7 +566,10 @@ void BasisFromJson(const json& j, RunSpec::Basis& b)
 {
     Fields f(j,"basis");
     f.Get("data",b.data); (void)BasisSet::Gaussian::BasisFileOfName(b.data);   // a name not in the data directory THROWS here, listing the names
-    f.Get("spherical",b.spherical); f.Get("file",b.file); f.Get("vet",b.vet);
+    f.Get("spherical",b.spherical); f.Get("file",b.file); f.Get("autoTrim",b.autoTrim);
+    if (j.contains("vet"))
+        throw std::runtime_error("deck: 'basis.vet' is retired (2026-11-04): the conditioning report now always runs -- for the vet-stage trim state "
+                                 "\"autoTrim\": true beside a solid.orthoTol > 0, and otherwise drop the key");
     f.GetEnum("family",b.family,kFamily); f.Get("ecut",b.ecut);
     if (j.contains("trim"))
     {
@@ -703,8 +706,10 @@ Materials::Material Resolve(RunSpec& spec)
                                      "periodic runs only (a cell from materials.json)");
         m=Materials::Get(spec.structure);
     }
-    if (spec.basis.vet && !spec.basis.trim.empty())
-        throw std::runtime_error("deck: basis.vet and basis.trim are exclusive (a vet computes the trim; a stated trim is the A/B for it)");
+    if (spec.basis.autoTrim && !spec.basis.trim.empty())
+        throw std::runtime_error("deck: basis.autoTrim and basis.trim are exclusive (an autoTrim computes the trim; a stated trim is the A/B for it)");
+    if (spec.basis.autoTrim && spec.solid.orthoTol<=0.0)
+        throw std::runtime_error("deck: basis.autoTrim needs a solid.orthoTol > 0 to trim at -- at 0 it would drop nothing");
     if (spec.basis.spherical && BasisSet::Gaussian::BasisFileOfName(spec.basis.data)=="valence_lowq_sr.bsd")
     {
         bool tm=false; m.cell->ForEachSite([&](int z, const rvec3_t&, bool){ tm = tm || (z>=21 && z<=30); });
@@ -939,7 +944,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
         if (!fs::exists(path)) v.notes.push_back("state.restartFrom: no saved state at "+path+" (a run would refuse)");
     }
     Lattice_3D lat(*mat.cell, spec.kmesh);
-    GaussianBasisRecipe recipe=RecipeOf(spec.basis); recipe.vet=false;   // --check builds the stated basis; the vet loop is a run's
+    GaussianBasisRecipe recipe=RecipeOf(spec.basis); recipe.autoTrim=false;   // --check builds the stated basis; the vet loop is a run's
     std::shared_ptr<const BasisSet::Real_BS> b=recipe.Make(*mat.cell, Pseudopotential::PseudopotentialSet::Get(spec.solid.pp).With(spec.solid.species));
     size_t nf=0;
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*b).Iterate<BasisSet::Real_OIBS>()) nf+=ibs->GetNumFunctions();
@@ -951,7 +956,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
             v.notes.push_back("a response reference should converge to scf.minDeltaRhoPerElectron <= 1e-9 (a few more iterations; ρ_lost/N does not floor it): "
                               "at 1e-6 its orbitals carry ~1e-6 symmetry and eigenpair residuals");
     }
-    if (spec.basis.vet) v.notes.push_back("basis.vet: the vet-stage trim loop is NOT run by --check (function count is the untrimmed one)");
+    if (spec.basis.autoTrim) v.notes.push_back("basis.autoTrim: the vet-stage trim loop is NOT run by --check (function count is the untrimmed one)");
     std::ostringstream os;
     os<<spec.StructureName()<<(spec.inlineStructure.is_null() ? "" : " (inline)")<<": "<<mat.cell->GetNumAtoms()<<" atoms, Nelec "<<spec.solid.Nelec<<", multiplicity "<<spec.solid.multiplicity
       <<", k-mesh "<<spec.kmesh.x<<"x"<<spec.kmesh.y<<"x"<<spec.kmesh.z<<", basis "<<(spec.basis.file.empty()?spec.basis.data:spec.basis.file)<<(spec.basis.spherical?" (spherical)":"")

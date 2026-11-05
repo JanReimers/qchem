@@ -235,7 +235,7 @@ TEST(SolidSession, AStepOutOfTheTrimWindowIsRefusedAsBasisConditioning)
     // The window: measured 2026-10-30, min eig S at Γ = 0.027 at the reference and 4.5e-4 squeezed to a quarter bond, so 1e-3
     // sits between them -- the reference vets clean, the squeezed point does not.
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-3;
-    GaussianBasisRecipe vetted=kSiBasis; vetted.vet=true;
+    GaussianBasisRecipe vetted=kSiBasis; vetted.autoTrim=true;
     SolidSession pes(SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), vetted, o), {SCFStage{Tight(), SCFAccelerators::Type::Auto}});
     const PESGeometry ref=pes.Reference();
 
