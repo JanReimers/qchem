@@ -13,7 +13,7 @@
 #include <vector>
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // ClientConsumes (what a run's client consumes, C2 step 3)
 import qchem.SolidCalculation;
-import qchem.Mesh.XCPolicy;   // BeckeXCParams / BeckeLadderAbove (the nested Becke ladder)
+import qchem.Mesh.XCPolicy;   // BeckeXCParams / the Becke ladder's rungs
 import qchem.Materials;
 import qchem.Lattice_3D;
 import qchem.Structure;
@@ -177,7 +177,8 @@ TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
     EXPECT_LE(c.PilotCost().reconvergeIterations, 35u) << "three re-convergences (27 measured 2026-11-02)";
 
     const double eps=o.accuracy.eps;   // per matrix element on a geometry run (GridAccuracy::Target)
-    const auto A=c.XCMeshAudit(qcMesh::BeckeLadderAbove(qcMesh::BeckeLadderAbove(xc)));
+    const qcMesh::BeckeLadderCalibration cal;   // two rungs up on the angular axis, one on the radial
+    const auto A=c.XCMeshAudit(*qcMesh::BeckeRadialRungAbove(*qcMesh::BeckeAngularRungAbove(*qcMesh::BeckeAngularRungAbove(xc, cal, false), cal, false)));
     double dXC=0.0;
     for (const auto& t : A.terms) if (t.entries=="Exc") dXC=std::max(dXC, t.maxAbsΔH);
     EXPECT_GT(dXC, 0.0) << "the audit compared two different meshes";

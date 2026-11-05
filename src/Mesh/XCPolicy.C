@@ -47,7 +47,9 @@ module;
 #include <cmath>     // std::sqrt/std::pow (the V2.7 radial-adequacy statistic)
 #include <cstdlib>   // std::getenv/std::atoi/std::atof (the GPW_BECKE_* sweep instruments)
 #include <iostream>
+#include <algorithm> // std::max (the entry rung)
 #include <limits>    // infinity (RadialResolutionRatio's no-claim value off-MHL)
+#include <optional>  // a ladder axis past its end
 #include <string>
 #include <stdexcept>
 export module qchem.Mesh.XCPolicy;
@@ -146,13 +148,43 @@ MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int angularDegree
 //! and projector meshes that default-construct one; only the periodic XC default moved.
 MeshParams XCMeshDefault();
 
-//! \brief The NESTED Becke ladder a geometry run's pilot sizes its XC mesh on (doc/GridEpsilonPlan.md step 3 follow-on): the first rung
-//! strictly finer than \a mp in BOTH the radial count and the angular degree, every other field of \a mp kept.  Rungs (nRadial, degree):
-//! (40, 29) = \c BeckeXCParams(), (60, 35), (80, 41), (100, 47), (120, 53) -- Lebedev up to its menu's last degree 35, GaussLegendre past
-//! it.  WHY a ladder: \c BeckeXCParams() is calibrated on ENERGY, and a displacement reads H -- lane B's NaF/LiF curvature (2026-11-01):
-//! (20, 2, 24) 4-10x wrong on a 0.1 bohr curvature, (40, 2, 36) per term at CP2K.  And WHY nested (each rung audited against the next at a
-//! fixed D, not the egg-box): an atom-centred mesh moves with the atoms, so a rigid translation is blind to it.  Throws past the last rung.
-MeshParams BeckeLadderAbove(const MeshParams& mp);
+//! \brief EMPIRICAL: what the Becke ladder's entry rung and its rule rotation are calibrated on (expert deck `solid.beckeLadder`).  There is NO
+//! rigorous bound for the XC mesh, so nothing here is one: these only pick where the pilot STARTS, and its audit stays the gate.
+//! MEASURED 2026-11-05 at one converged D, max|dH_xc| against a near-exact reference (`doc/Records/OpenWork_History5.md`, "The Becke mesh's
+//! error, axis by axis"; `~/Code/qchem6-runs/{MnO,LiF}/lanea_*`), order 3, MnO AFM-II and LiF:
+//!   Lebedev rotated, nR 100:  L 41 1.7e-5 | L 47 8.1e-6 / 1.3e-5 | L 53 6.0e-6 / 5.8e-6 (LiF 4.6e-6) | L 59 5.4e-6 / 4.1e-6 (LiF 8.7e-6) |
+//!                             L 65 2.4e-6 / 1.9e-6   (angRot 0.5 / 1.1)
+//!   radial, L 65, nR against 100:  60 2.8e-5 (LiF 1.1e-5) | 80 1.9e-6 (LiF 9.3e-6) | 120 2.3e-7 (LiF 2.2e-7)
+//! L 59 stays off the ladder: rule-limited on LiF, it is worse than L 53 there.  The gate runs from the Auto entry (the pilot's own audit, at the
+//! converged D): MnO L 53 against L 65 5.3e-6, nR 100 against 120 3.1e-7; LiF 3.4e-6, 1.3e-7.  Both settle on the entry rung.
+struct BeckeLadderCalibration
+{
+    double angularError53=6.0e-6;   //!< max|dH_xc| of the rotated Lebedev rule at degree 53 (the worst measured angle)
+    double angularFactor =0.4;      //!< its fall per 6 degrees.  ROUGH: the measured sNormDH series reads 0.17, 0.39, 0.60, 0.50
+    double radialError100=2.3e-7;   //!< max|dH_xc| of nR 100, on both materials
+    double radialFactor  =0.1;      //!< its fall per 20 radial shells: the smooth sNormDH series on both materials
+    double radialShare   =0.1;      //!< the share of the target the radial error may take, so the entry rung's error stays angular
+    //! \brief The rigid rotation of a ladder rule above degree 35 (\c MeshParams::angRot).  An octahedral rule on the cubic axes aliases a cubic
+    //! site's own harmonics: 3-4x worse than GL at equal degree (MnO L 47 6.3e-5, LiF 1.0e-4), rotated 7-8e-6.  0.5 has NO theory behind it: at
+    //! L >= 53 the two measured angles agree, and the rule-only measure M(theta) ranks |dE|, not max|dH|, so it cannot pick this angle.
+    double angRot        =0.5;
+    bool operator==(const BeckeLadderCalibration&) const = default;
+};
+
+//! \brief The rung a geometry run's pilot ENTERS at: the smallest (nR, L) whose calibrated error meets \a target, never below \a from.  WHY not
+//! climb from \c BeckeXCParams(): that is calibrated on ENERGY, and a displacement reads H (lane B's NaF/LiF curvature, 2026-11-01: (20, 2, 24)
+//! 4-10x wrong on a 0.1 bohr curvature).  MnO's four-round climb from (40, 29) spent 14 mesh builds and 14 re-convergence iterations and did not
+//! settle (2026-11-05).  A \a siteAdapted mesh enters one rung below that rule's ladder top, so its audit has a rung to compare with.
+MeshParams BeckeEntryRung(const MeshParams& from, double target, const BeckeLadderCalibration& cal, bool siteAdapted);
+
+//! \brief The nested ladder's two axes, moved independently: \a mp one rung up in the angular degree, or in the radial count, every other field
+//! kept (each audited against the run at a fixed D, not the egg-box: an atom-centred mesh moves with the atoms, so a rigid translation is blind
+//! to it).  Degrees 29, 35, 41, 47, 53, 65, 77, 89; counts 40, 60, 80, 100, 120, 140.  Rule: Lebedev where the menu has one, GaussLegendre
+//! between and past it; above degree 35 rotated by \c cal.angRot.  None past the end of the axis, which the pilot reports as not settled.  A
+//! \a siteAdapted mesh ends at degree 53: the invariant rule exists there and not at degree 59 for MnO's 12-op site group (2026-11-05), and a lower-symmetry
+//! site can fail sooner, which \c MakeInvariantAngularMesh reports.
+std::optional<MeshParams> BeckeAngularRungAbove(const MeshParams& mp, const BeckeLadderCalibration& cal, bool siteAdapted);
+std::optional<MeshParams> BeckeRadialRungAbove(const MeshParams& mp);
 
 //! \brief What the Uniform-vs-Becke comparison needs to know about a run: its geometry and its two
 //! SHARPNESS sources, both expressed as Gaussian exponents so one predicate covers both.
@@ -289,20 +321,59 @@ MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
     return mp;
 }
 
-MeshParams BeckeLadderAbove(const MeshParams& mp)
+static constexpr int kBeckeDegrees[]={29,35,41,47,53,65,77,89};
+static constexpr int kBeckeRadials[] ={40,60,80,100,120,140};
+static constexpr int kSiteAdaptedTop =53;   // the last degree MakeInvariantAngularMesh delivers on MnO's site (see BeckeAngularRungAbove)
+
+static MeshParams AtBeckeDegree(MeshParams m, int degree, const BeckeLadderCalibration& cal)
 {
-    static constexpr int kRungs[][2] = {{40,29},{60,35},{80,41},{100,47},{120,53}};
-    for (const auto& r : kRungs)
-        if (r[0]>mp.nRadial && r[1]>mp.angularDegree)
+    m.cellKind=UnitCellKind::Becke;
+    m.angularDegree=degree;
+    bool tabulated=false;
+    for (const auto& r : LebedevMenu()) tabulated=tabulated || r.degree==degree;
+    m.angular = tabulated ? AngularKind::Lebedev : AngularKind::GaussLegendre;
+    if (degree>35) m.angRot=cal.angRot;
+    return m;
+}
+
+std::optional<MeshParams> BeckeAngularRungAbove(const MeshParams& mp, const BeckeLadderCalibration& cal, bool siteAdapted)
+{
+    for (int L : kBeckeDegrees)
+        if (L>mp.angularDegree && (!siteAdapted || L<=kSiteAdaptedTop)) return AtBeckeDegree(mp, L, cal);
+    return std::nullopt;
+}
+
+std::optional<MeshParams> BeckeRadialRungAbove(const MeshParams& mp)
+{
+    for (int n : kBeckeRadials)
+        if (n>mp.nRadial)
         {
             MeshParams m=mp;
             m.cellKind=UnitCellKind::Becke;
-            m.nRadial=r[0]; m.angularDegree=r[1];
-            m.angular = r[1]<=35 ? AngularKind::Lebedev : AngularKind::GaussLegendre;   // 35 = the Lebedev menu's last degree
+            m.nRadial=n;
             return m;
         }
-    throw std::invalid_argument("BeckeLadderAbove: no ladder rung is finer than nRadial "+std::to_string(mp.nRadial)+", degree "
-                                +std::to_string(mp.angularDegree)+" (the last is (120, 53))");
+    return std::nullopt;
+}
+
+MeshParams BeckeEntryRung(const MeshParams& from, double target, const BeckeLadderCalibration& cal, bool siteAdapted)
+{
+    int L=from.angularDegree;
+    for (int d : kBeckeDegrees)
+    {
+        L=std::max(L, d);
+        if (siteAdapted && d>=kSiteAdaptedTop-6) break;   // one rung below the top, which the audit needs
+        if (cal.angularError53*std::pow(cal.angularFactor, (d-53)/6.0)<=target) break;
+    }
+    int nR=from.nRadial;
+    for (int n : kBeckeRadials)
+    {
+        nR=std::max(nR, n);
+        if (cal.radialError100*std::pow(cal.radialFactor, (n-100)/20.0)<=cal.radialShare*target) break;
+    }
+    MeshParams m=AtBeckeDegree(from, L, cal);
+    m.nRadial=nR;
+    return m;
 }
 
 int AngularDirections(AngularKind kind, int degree)

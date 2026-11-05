@@ -355,6 +355,10 @@ json ToJson(const SolidCalcOptions& o)
     if (o.accuracy.samplerEta!=BasisSet::Gaussian::GridAccuracy{}.samplerEta) out["accuracyCalibration"]["samplerEta"]=o.accuracy.samplerEta;
     if (o.accuracy.samplerResidualMargin!=BasisSet::Gaussian::GridAccuracy{}.samplerResidualMargin)
         out["accuracyCalibration"]["samplerResidualMargin"]=o.accuracy.samplerResidualMargin;
+    if (o.beckeLadder!=qcMesh::BeckeLadderCalibration{})
+        out["beckeLadder"]={{"angularError53",o.beckeLadder.angularError53},{"angularFactor",o.beckeLadder.angularFactor},
+                            {"radialError100",o.beckeLadder.radialError100},{"radialFactor",o.beckeLadder.radialFactor},
+                            {"radialShare",o.beckeLadder.radialShare},{"angRot",o.beckeLadder.angRot}};
     return out;
 }
 void FromJson(const json& j, SolidCalcOptions& o)
@@ -389,6 +393,18 @@ void FromJson(const json& j, SolidCalcOptions& o)
     f.Get("accuracy",o.accuracy.eps);
     if (!(o.accuracy.eps>=0.0)) throw std::runtime_error("deck: 'solid.accuracy' (Ha per atom on an energy run, per matrix element on a geometry run) "
                                                          "must be >= 0 (0 = no target: the rasters tolerances.rasterX ... state)");
+    if (j.contains("beckeLadder"))   // STATED (expert): where a geometry run's pilot enters the Becke ladder
+    {
+        Fields c(f.At("beckeLadder"),"solid.beckeLadder");
+        qcMesh::BeckeLadderCalibration& b=o.beckeLadder;
+        c.Get("angularError53",b.angularError53); c.Get("angularFactor",b.angularFactor); c.Get("radialError100",b.radialError100);
+        c.Get("radialFactor",b.radialFactor); c.Get("radialShare",b.radialShare); c.Get("angRot",b.angRot);
+        c.Done();
+        if (!(b.angularError53>0.0 && b.radialError100>0.0))
+            throw std::runtime_error("deck: 'solid.beckeLadder' errors are measured max|dH_xc| values, > 0");
+        if (!(b.angularFactor>0.0 && b.angularFactor<1.0 && b.radialFactor>0.0 && b.radialFactor<1.0 && b.radialShare>0.0 && b.radialShare<=1.0))
+            throw std::runtime_error("deck: 'solid.beckeLadder' factors are falls per rung, in (0, 1), and radialShare is in (0, 1]");
+    }
     if (j.contains("accuracyCalibration"))   // STATED (expert); absent = self-calibrated by the run's pilot audit
     {
         // the raster eta is stated by the block (an empty one = rigorous, eta 1); a block holding ONLY the non-raster calibrations

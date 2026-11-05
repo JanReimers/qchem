@@ -107,6 +107,8 @@ struct SolidCalcOptions
     //! the grid is a user decision, and the library's job is only to warn about a dominated one.  The recipe fields default to
     //! \c BeckeXCParams()'s (\c qcMesh::XCMeshDefault), so stating ONLY \c cellKind Becke runs the calibrated mesh.
     qcMesh::MeshParams xcMesh=qcMesh::XCMeshDefault();
+    //! Where a geometry run's pilot enters the Becke ladder, and the rotation of its rules (expert deck `solid.beckeLadder`).
+    qcMesh::BeckeLadderCalibration beckeLadder;
     //! The GPW basis's numerical TOLERANCES (local-PP G-ball eps, local-PP kappa, the HartreeOnly floor fraction, an explicit
     //! multigrid cutoff list).  Tier-2 numerical policy, typed (D-ENV step 5): the defaults are today's behaviour, and the
     //! environment (GPW_VLOC_EPS, ...) is applied on top as an OVERRIDE LAYER when the run resolves its options -- every

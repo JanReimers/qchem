@@ -228,3 +228,52 @@ TEST(XCPolicy, AnArmedUniformVerdictWouldCarryItsOwnCutoff)
         << "if the default nUniform already sufficed, sizing the verdict would be pointless -- and this "
            "system is the SOFTEST case, so it holds a fortiori for sharper ones";
 }
+
+// THE BECKE LADDER: two axes that move apart, entered at the rung the target needs.
+TEST(XCPolicy, BeckeEntryRungMeetsItsCalibratedTarget)
+{
+    const qcMesh::BeckeLadderCalibration cal;
+    const qcMesh::MeshParams from=qcMesh::BeckeXCParams();
+    const qcMesh::MeshParams m=qcMesh::BeckeEntryRung(from, 1e-5, cal, false);
+    EXPECT_EQ(m.nRadial, 100);
+    EXPECT_EQ(m.angularDegree, 53);
+    EXPECT_EQ(m.angular, qcMesh::AngularKind::Lebedev);
+    EXPECT_EQ(m.angRot, cal.angRot);
+    EXPECT_EQ(m.beckeOrder, from.beckeOrder) << "the order is not a ladder axis";
+    const qcMesh::MeshParams tight=qcMesh::BeckeEntryRung(from, 1e-6, cal, false);
+    EXPECT_GT(tight.angularDegree, m.angularDegree);
+    EXPECT_GT(tight.nRadial, m.nRadial);
+    const qcMesh::MeshParams loose=qcMesh::BeckeEntryRung(from, 1e-3, cal, false);
+    EXPECT_EQ(loose.angularDegree, from.angularDegree) << "never below the mesh it started from";
+    EXPECT_EQ(loose.angRot, 0.0) << "the energy default's rule stays as it is";
+    const qcMesh::MeshParams site=qcMesh::BeckeEntryRung(from, 1e-5, cal, true);
+    ASSERT_TRUE(qcMesh::BeckeAngularRungAbove(site, cal, true).has_value()) << "a site-adapted entry leaves its audit a rung";
+}
+
+TEST(XCPolicy, BeckeLadderAxesMoveApartAndEnd)
+{
+    const qcMesh::BeckeLadderCalibration cal;
+    const qcMesh::MeshParams m=qcMesh::BeckeEntryRung(qcMesh::BeckeXCParams(), 1e-5, cal, false);
+    const auto up=qcMesh::BeckeAngularRungAbove(m, cal, false);
+    ASSERT_TRUE(up.has_value());
+    EXPECT_GT(up->angularDegree, m.angularDegree);
+    EXPECT_EQ(up->nRadial, m.nRadial);
+    const auto out=qcMesh::BeckeRadialRungAbove(m);
+    ASSERT_TRUE(out.has_value());
+    EXPECT_GT(out->nRadial, m.nRadial);
+    EXPECT_EQ(out->angularDegree, m.angularDegree);
+    EXPECT_EQ(out->angRot, m.angRot);
+    qcMesh::MeshParams top=m;
+    while (auto n=qcMesh::BeckeAngularRungAbove(top, cal, false))
+    {
+        const bool tabulated=n->angular==qcMesh::AngularKind::Lebedev;
+        if (tabulated) EXPECT_NO_THROW(qcMesh::ResolveLebedev(n->angularDegree)) << "every Lebedev rung is on the menu";
+        top=*n;
+    }
+    EXPECT_EQ(top.angular, qcMesh::AngularKind::GaussLegendre) << "past the menu the ladder is GL, never a throw";
+    while (auto n=qcMesh::BeckeRadialRungAbove(top)) top=*n;
+    EXPECT_FALSE(qcMesh::BeckeRadialRungAbove(top).has_value());
+    qcMesh::MeshParams s=m;
+    while (auto n=qcMesh::BeckeAngularRungAbove(s, cal, true)) s=*n;
+    EXPECT_LE(s.angularDegree, 53) << "the site-adapted rule does not exist past it on MnO's site";
+}

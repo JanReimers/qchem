@@ -633,6 +633,11 @@ TEST(Deck, AVlocRoutingCalibrationReachesTheEvaluatorAndAStatedVlocEpsWins)
     EXPECT_DOUBLE_EQ(f.solid.accuracy.VlocEps(), 5e-6);
     { const json j=deck::ToJson(f); deck::RunSpec back; deck::FromJson(j,back); EXPECT_TRUE(back.solid.accuracy==f.solid.accuracy); }
     EXPECT_FALSE(deck::ToJson(d).at("solid").contains("accuracyCalibration")) << "the default calibration is not written";
+    EXPECT_FALSE(deck::ToJson(d).at("solid").contains("beckeLadder")) << "nor the default Becke ladder";
+    const deck::RunSpec bl=read({{"beckeLadder",{{"angRot",1.1},{"angularFactor",0.5}}}});
+    EXPECT_EQ(bl.solid.beckeLadder.angRot, 1.1);
+    { deck::RunSpec back; deck::FromJson(deck::ToJson(bl),back); EXPECT_TRUE(back.solid.beckeLadder==bl.solid.beckeLadder) << "the record carries it"; }
+    EXPECT_ANY_THROW(read({{"beckeLadder",{{"angularFactor",1.0}}}})) << "a fall per rung is below 1";
     deck::RunSpec bad;
     EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"accuracyCalibration",{{"vlocRouting",0.0}}}}}},bad),std::runtime_error);
 

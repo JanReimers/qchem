@@ -481,7 +481,7 @@ public:
     GridAuditResult EggBox(const rvec3_t& shift) const;
     //! \brief THE XC-MESH AUDIT: the run against the SAME rasters with the XC quadrature replaced by \a reference, at the same D, term by
     //! term -- the gate of an atom-centred mesh, which the egg-box cannot see (the mesh moves with the atoms).  The pilot's nested Becke
-    //! ladder is this comparison against \c qcMesh::BeckeLadderAbove; a test gates a settled mesh against a rung of its own choosing.
+    //! ladder is this comparison against \c qcMesh::BeckeAngularRungAbove and \c BeckeRadialRungAbove; a test gates a settled mesh against a rung of its own choosing.
     GridAuditResult XCMeshAudit(const qcMesh::MeshParams& reference) const;
     //! \brief The SELF-CONSISTENT channel response at q = 0 over the run's Hubbard manifolds
     //! (doc/LinearResponsePlan.md stage R2): \f$(1-\mathcal R_0\mathcal K)\,\delta D=\mathcal R_0V_J\f$ with the
@@ -654,8 +654,9 @@ private:
     //! (\c GridAccuracy::MeasuredDemand) at the target for what the client consumes (\c Consumes), and -- when any term demands more --
     //! rebuild the point on the raised rasters and re-converge from this D (a restored stage: the Ladder on its GDM rung at kT = 0).
     //! Repeats until every term meets its target (at most \c kPilotRounds); idempotent once settled.  No-op on a resolved setup.
-    //! A run whose client consumes H on a Becke XC mesh also audits that mesh against the next rung of the nested ladder
-    //! (\c qcMesh::BeckeLadderAbove) and, when the mesh was the facade's choice (\c xcMesh Auto), climbs it the same way; a STATED Becke
+    //! A run whose client consumes H on a Becke XC mesh also audits that mesh against the next rung on each axis of the nested ladder
+    //! (\c qcMesh::BeckeAngularRungAbove, \c BeckeRadialRungAbove) and, when the mesh was the facade's choice (\c xcMesh Auto), moves the axis
+    //! that is over; a STATED Becke
     //! mesh is audited and reported, never raised (the grid is a user decision).
     void CalibrateRasters(const SCFParams& params);
     std::unique_ptr<Imp> itsImp;

@@ -286,7 +286,7 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
 
 
 // CLAIM (user ruling 2026-11-01, pin 31): a geometry point with NO XC-mesh choice -- xcMesh Auto -- takes the atom-centred Becke mesh and
-// its pilot sizes that mesh on the nested ladder (qcMesh::BeckeLadderAbove) to max|dH_xc| <= eps per element; gated by an INDEPENDENT
+// its pilot sizes that mesh on the nested ladder (qcMesh::BeckeAngularRungAbove, BeckeRadialRungAbove) to max|dH_xc| <= eps per element; gated by an INDEPENDENT
 // audit two rungs above the settled mesh.  The egg-box cannot gate this (the mesh moves with the atoms); the nested ladder is the gate.
 // Why the default recipe is not enough here: lane B's NaF/LiF curvature (2026-11-01) -- (20, 2, 24), the path test's mesh below, was 4-10x
 // wrong on a 0.1 bohr curvature, and (40, 2, 36) brought both crystals to CP2K per term (NaF dExc -3.08e-4 vs -3.09e-4).  MEASURED 2026-11-01:
@@ -309,7 +309,8 @@ TEST(GPW_NaF, Γ_GeometryRunSizesItsBeckeMesh_Long)
     const qcMesh::MeshParams xc=c.ResolvedXCMesh();
     ASSERT_EQ(xc.cellKind, qcMesh::UnitCellKind::Becke) << "a geometry run's XC follows the atoms";
     EXPECT_TRUE(c.PilotCost().settled);
-    const auto A=c.XCMeshAudit(qcMesh::BeckeLadderAbove(qcMesh::BeckeLadderAbove(xc)));
+    const qcMesh::BeckeLadderCalibration cal;   // two rungs up on the angular axis, one on the radial
+    const auto A=c.XCMeshAudit(*qcMesh::BeckeRadialRungAbove(*qcMesh::BeckeAngularRungAbove(*qcMesh::BeckeAngularRungAbove(xc, cal, false), cal, false)));
     double dXC=0.0;
     for (const auto& t : A.terms) if (t.entries=="Exc") dXC=std::max(dXC, t.maxAbsΔH);
     std::cout<<"[XC mesh] settled nR="<<xc.nRadial<<" L="<<xc.angularDegree<<"  max|dH_xc| two rungs up "<<dXC<<std::endl;
