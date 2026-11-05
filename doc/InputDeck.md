@@ -45,8 +45,8 @@ cd build/Release && ninja rundeck                                  # the one CLI
   "basis": { "data": "VALENCE_LOWQ_VA",   // a BasisSetData name: SIPP_SR, VALENCE_LOWQ_{SR,SR2,SPH,VA,VB}, DZVP, ...
              "file": "/path/x.bsd",         // OVERRIDE: a .bsd path used instead of the file "data" names (no registry entry, no rebuild); `--set basis.file=...`
              "spherical": true,           // the spherical lattice view (contaminant-free d/f); refused with VALENCE_LOWQ_SR on a transition-metal cell
-             "trim": [{"Z":28,"l":0,"alpha":0.06}],   // a STATED shell trim (exclusive with vet)
-             "vet": true },                // the pin-22 vet-stage trim at solid.orthoTol
+             "trim": [{"Z":28,"l":0,"alpha":0.06}],   // a STATED shell trim (exclusive with autoTrim)
+             "autoTrim": true },           // the pin-22 vet-stage trim at solid.orthoTol (needs it > 0; orthoTol alone never trims)
   "solid": {                              // SolidCalcOptions -- every field; Nelec/species/multiplicity default from the material
     "Nelec": 0, "charge": 0,              // Nelec 0 = derived (Σ species valence - charge); a stated Nelec must equal that or the run is REFUSED
     "multiplicity": 1, "seed": "IonicSAD", "ortho": "CholeskyPivoted", "orthoTol": 1e-4, "accelerator": "Null",   // Auto (default; = DIIS today) | DIIS | GDM | Ladder | Null

@@ -23,7 +23,7 @@ nlohmann::json LiDeck()
     return {
         {"structure",{{"name","Li_bcc"},{"lattice",{{"vectors_bohr",{{-h,h,h},{h,-h,h},{h,h,-h}}}}},{"atoms",{{{"el","Li"},{"frac",{0.0,0.0,0.0}}}}}}},
         {"kmesh",{4,4,4}},
-        {"basis",{{"data","VALENCE_LOWQ_VA"},{"file",(qchem::panel::BasisDataDir()/"valence_lowq_va.bsd").string()},{"vet",false}}},
+        {"basis",{{"data","VALENCE_LOWQ_VA"},{"file",(qchem::panel::BasisDataDir()/"valence_lowq_va.bsd").string()},{"autoTrim",false}}},
         {"solid",{{"imposeSymmetry",true},{"xcMesh",{{"cellKind","Becke"}}},{"species",nlohmann::json::array({nlohmann::json::array({"Li",1})})},
                   {"ortho","CholeskyPivoted"},{"orthoTol",1e-7},{"tolerances",{{"rasterX",8.0},{"vlocRasterX",8.0},{"xcRasterX",8.0}}}}},
         {"accuracy",0},
@@ -75,7 +75,7 @@ TEST(GPW_LiBox, Γ_M2_CP2K_Long)
         {"structure",{{"name","Li_atom"},{"lattice",{{"vectors_bohr",{{12.0,0.0,0.0},{0.0,12.0,0.0},{0.0,0.0,12.0}}}}},
                       {"atoms",{{{"el","Li"},{"frac",{0.0,0.0,0.0}}}}}}},
         {"kmesh",{1,1,1}},
-        {"basis",{{"data","VALENCE_LOWQ_VA"},{"file",(qchem::panel::BasisDataDir()/"valence_lowq_va_liq3.bsd").string()},{"vet",true}}},
+        {"basis",{{"data","VALENCE_LOWQ_VA"},{"file",(qchem::panel::BasisDataDir()/"valence_lowq_va_liq3.bsd").string()},{"autoTrim",true}}},
         {"solid",{{"species",nlohmann::json::array({nlohmann::json::array({"Li",3})})},{"multiplicity",2},
                   {"ortho","CholeskyPivoted"},{"orthoTol",1e-7}}},
         {"scf",{{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7}}}};

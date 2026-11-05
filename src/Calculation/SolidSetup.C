@@ -288,8 +288,9 @@ struct GaussianBasisRecipe
     std::string                       file;   //!< a .bsd path (or a bare name in the shipped directory) used INSTEAD of \c data; empty = \c data
     BasisSet::Gaussian::ShellTrim     trim;   //!< shells read the file WITHOUT (element, l, exponent); empty = the file as written
     //! Decide \c trim by the vet-stage loop at the run's \c orthoTol on the reference geometry's full k-mesh -- EXCLUSIVE with a
-    //! stated \c trim.  \c SolidSetup::Resolve runs it once and stores the frozen result (\c vet false, \c trim filled).
-    bool                              vet = false;
+    //! stated \c trim.  \c SolidSetup::Resolve runs it once and stores the frozen result (\c autoTrim false, \c trim filled).
+    //! Needs an \c orthoTol > 0, which it trims at; \c orthoTol alone never trims (user ruling 2026-11-04).
+    bool                              autoTrim = false;
     bool                              spherical = false;   //!< wrap in the spherical lattice view (contaminant-free d/f)
     //! The pair-loop tolerances \c Make BINDS on the basis it builds (D-ENV-TOL option A, 2026-10-31): set by \c SolidSetup::Resolve
     //! from \c SolidCalcOptions::tolerances (the one source -- a caller's value here is replaced), frozen with the trim so a geometry

@@ -106,7 +106,7 @@ def deck(d, src, basis_data, spherical):
         if len(st) > 1 and i + 1 < len(st): scf["stopOnAccelExhausted"] = True
         stages.append({"accelerator": s['acc'], "scf": scf})
     basis = {"data": basis_data, "spherical": spherical}
-    if d.get('vet'): basis["vet"] = True; sol["orthoTol"] = d['vetTol']
+    if d.get('vet'): basis["autoTrim"] = True; sol["orthoTol"] = d['vetTol']
     out = {"_doc": ["DRAFT reconstructed from the banner of " + src + " (scripts/log2deck.py, D-ENV-RERUN 2026-10-04): the original `gpwprobe` environment command was not saved.",
                     "NOT in the banner, ASSUMED: convergence threshold minDeltaRho=1e-6 on the default measure, mergeTol 1e-4, the minDelta{E,FD}/minVirial/minFD gates off (1e30).",
                     "Judge these against the run's author before trusting a re-run's numbers.  `rundeck --check` has vetted that it parses, resolves and builds its lattice and basis."] + d['_notes'],
