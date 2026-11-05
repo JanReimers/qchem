@@ -1628,7 +1628,11 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                 terms.push_back({{"term","XC Becke mesh"},{"axis",a.name},{"delivered",d},{"tailEstimate",est},{"mesh",BeckeName(xcCur)},{"reference",BeckeName(*a.ref)},
                                  {"over",est>target}});
             }
-            if (stated) xcLadderEnd.clear();   // a stated mesh is honoured wherever it sits
+            if (stated && !xcLadderEnd.empty())   // a stated mesh is honoured wherever it sits, and the run says what that left unchecked
+            {
+                std::cout<<tag<<xcLadderEnd<<": the mesh is STATED, honoured"<<std::endl;
+                xcLadderEnd.clear();
+            }
         }
         // THE DENSITY BALL (2026-11-02, OpenWork F "density ball unjudged"): the G-ball the density is collocated into is NOT a raster --
         // the x + 8 reference above keeps the run's ball, so its truncation sat on BOTH sides and cancelled (lane B: H2O MOLOPT O, auto

@@ -153,9 +153,9 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
 // THE XC ROUTE FOLLOWS THE CONSUMER (user ruling 2026-11-01, pin 31): with NO deck change -- XC Auto, which routes a Si energy run to the
 // uniform raster -- a geometry point takes the Becke mesh and its pilot sizes that mesh on the nested ladder to max|dH_xc| <= eps per element
 // (BeckeXCParams() is calibrated on the ENERGY).  Gated by an INDEPENDENT audit two rungs above the settled mesh, not the pilot's own
-// reference.  MEASURED 2026-11-01 (Si Gamma, auto floor): the rung differences 1.8e-5 (40/29 vs 60/35), 8.9e-6 (60/35 vs 80/41 GL), 4.7e-7
-// (80/41 vs 100/47); the pilot's geometric tail estimate puts 60/35 at 1.8e-5, so it settles on 80/41 in 3 rounds, 9 re-convergence iterations;
-// the gate's audit against 120/53 passes.  ~520 s serial (the GL references), hence _Long.  The NaF twin: GPW_NaF.Γ_GeometryRunSizesItsBeckeMesh_Long.
+// reference.  MEASURED 2026-11-05 (Si Gamma, auto floor): the run enters at the calibrated rung, nR 100 / rotated Lebedev 53, and settles there in
+// 4 rounds, 30 re-convergence iterations, the density ball setting the rounds: angular 1.4e-7, radial 5.1e-8, so Si sits far under its target on
+// a rung calibrated on MnO.  ~2400 s at -j3, hence _Long.  The NaF twin: GPW_NaF.Γ_GeometryRunSizesItsBeckeMesh_Long.
 TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
 {
     const auto mat=Materials::Get("Si_diamond");
