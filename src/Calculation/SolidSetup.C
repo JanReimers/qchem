@@ -98,7 +98,7 @@ struct SolidCalcOptions
     //! \name Grids (the efficiency lever for ionic systems)
     //!@{
     double densityEcut  = -1.0;   //!< <0 AUTO: floor at \c cutoffFactor*alpha_max (recommended).
-    double cutoffFactor = 2.0;    //!< C in that floor; 2 = the density's own product exponent.
+    double cutoffFactor = 2.0;    //!< C in that floor; 2 = the density's own product exponent.  The auto ball's START: the pilot judges it after.
     double ladderFactor = 4.0;    //!< multigrid ladder gradation (DEPTH is automatic).
     BasisSet::Gaussian::CellImages   images = BasisSet::Gaussian::CellImages::Periodic;
     rvec3_t kShift = rvec3_t(0,0,0);

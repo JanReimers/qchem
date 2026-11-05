@@ -104,9 +104,11 @@ struct AliasTail
     //! the bare ln(S/eps) under-sizes by ~7 units of x at 1e-5).  THROWS for eps >= the bound's maximum (no raster needed).
     double Exponent(double eps) const;
 };
+//! The tail's power: an s+p+d pair's Hermite prefactor (M2b).  The SHAPE, shared by the fitted tails and by a tail measured on a run.
+inline constexpr double kAliasTailPower=3.0;
 //! M2b's fitted tails (n = 3 is the gate; GPW_UT `RasterAliasCalibration` asserts err <= S x^3 e^{-x} with S 2.5 / 0.4).
-inline constexpr AliasTail kVlocLongTail{2.35, 3.0};   //!< V_loc long <chi|V|chi> (Ha)
-inline constexpr AliasTail kDensityTail {0.35, 3.0};   //!< rho~ at low G (relative): Hartree's and the raster XC's input
+inline constexpr AliasTail kVlocLongTail{2.35, kAliasTailPower};   //!< V_loc long <chi|V|chi> (Ha)
+inline constexpr AliasTail kDensityTail {0.35, kAliasTailPower};   //!< rho~ at low G (relative): Hartree's and the raster XC's input
 
 //! \brief HEURISTIC (the same ruling): how far the DELIVERED error undershoots the rigorous bound, ONE factor per term class,
 //! measured by `gridAudit` (doc/GridEpsilonPlan.md §5 M2c): eta = delivered / bound <= 1, so a term meets eps when eta*Bound(x) <= eps,

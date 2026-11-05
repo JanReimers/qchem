@@ -525,7 +525,7 @@ PostAction PostFromJson(const json& j, const std::string& path)
         a.kind=PostAction::Kind::GridAudit;
         if (body.contains("reference"))
             throw std::runtime_error("deck: postSCF gridAudit 'reference' (a named raster) is retired with BallOnly/AliasFree (C2 step 3): "
-                                     "state 'referenceMargin', the reference rasters' alias-exponent margin over the run's (default 8)");
+                                     "state 'referenceMargin', the reference rasters' alias-exponent margin over the run's (default "+std::to_string(int(SolidCalculation::kReferenceMargin))+")");
         f.Get("referenceMargin",a.referenceMargin);
     }
     else if (name=="eggBox")

@@ -446,7 +446,7 @@ public:
         std::vector<GridAuditTerm> terms;      //!< every term, in the Hamiltonian's order (analytic terms read 0)
         double maxAbsΔH=0.0, ΔE=0.0;           //!< the whole Hamiltonian's (ΔE = E_run - E_reference)
     };
-    static constexpr double kReferenceMargin=8.0;   //!< the audit's default x_ref - x_run (see GridAudit)
+    static constexpr double kReferenceMargin=8.0;   //!< EMPIRICAL: the audit's default x_ref - x_run, chosen for the tail ratio \c GridAudit derives
     static constexpr int    kPilotRounds=4;         //!< the pilot's cap on audit + re-convergence rounds (\c CalibrateRasters)
     GridAuditResult GridAudit(double referenceMargin = kReferenceMargin) const;
     //! \brief WHAT THIS RUN'S CLIENT CONSUMES (user ruling 2026-10-31, doc/GridEpsilonPlan.md §1): the measure the one accuracy target

@@ -115,7 +115,7 @@ struct RunSpec
         bool        littleGroupK = false; //!< hubbardLinearResponse: solve each (q, J) on its little group's k-blocks (KAxisPlan P5)
         //! gridAudit: how much FINER the reference rasters are than the run's, as an alias exponent margin x_ref - x_run (doc/GridEpsilonPlan.md
         //! §3; C2 step 3 -- the named BallOnly/AliasFree rasters are gone)
-        double referenceMargin = 8.0;
+        double referenceMargin = SolidCalculation::kReferenceMargin;
         //! eggBox: the rigid translation (bohr) of every atom; the default is a GENERIC direction (no symmetry plane), 0.037 bohr -- the
         //! NaF F-site egg-box was measured at 0.03 (doc/GridEpsilonPlan.md §5 verdict 5)
         rvec3_t shift{0.03,0.02,0.01};
