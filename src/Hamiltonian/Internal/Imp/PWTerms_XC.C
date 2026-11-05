@@ -16,6 +16,7 @@ module;
 #include <exception>   // std::exception_ptr (throw containment across the threaded Phi build)
 #include <functional>
 #include <iomanip>
+#include <sstream>
 #include <iostream>
 #include <memory>
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
@@ -157,10 +158,12 @@ template <class T> void tVxc_Quadrature<T>::ReportFourierSampling() const
     std::lock_guard<std::mutex> lock(itsSamplingLock.m);
     if (itsSamplingReported) return;
     // ONCE, when the sampler's first sized use froze tau: the settings the whole SCF runs under.  What it DELIVERS is the samp/τ column.
-    std::cout<<"[XC sampling] rho-tilde NUFFT: tau "<<tgt->tauTarget<<" (set by "<<tgt->tauFrom<<" on the seed: P_E "<<itsSeedPE[0]+itsSeedPE[1]
-             <<(itsSeedPH>0.0 ? ", P_H "+std::to_string(itsSeedPH) : std::string())<<"), eta "<<tgt->accuracy.eta
-             <<(tgt->accuracy.tauScale<1.0 ? ", sized at the TIGHTENED "+std::to_string(tgt->tau)+" (x"+std::to_string(tgt->accuracy.tauScale)+")" : std::string())
-             <<std::endl;
+    std::ostringstream os;   // its own stream: the console's ambient precision would round tau away
+    os<<"[XC sampling] rho-tilde NUFFT: tau "<<tgt->tauTarget<<" (set by "<<tgt->tauFrom<<" on the seed: P_E "<<itsSeedPE[0]+itsSeedPE[1];
+    if (itsSeedPH>0.0) os<<", P_H "<<itsSeedPH;
+    os<<"), eta "<<tgt->accuracy.eta;
+    if (tgt->accuracy.tauScale<1.0) os<<", sized at the TIGHTENED "<<tgt->tau<<" (x"<<tgt->accuracy.tauScale<<")";
+    std::cout<<os.str()<<std::endl;
     qchem::report::Scope here("xcSampling");
     qchem::report::Set("tau", tgt->tauTarget);
     qchem::report::Set("tauSizing", tgt->tau);
