@@ -182,6 +182,14 @@ TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
     for (const auto& t : A.terms) if (t.entries=="Exc") dXC=std::max(dXC, t.maxAbsΔH);
     EXPECT_GT(dXC, 0.0) << "the audit compared two different meshes";
     EXPECT_LE(dXC, eps) << "max|dH_xc| against a mesh two rungs finer";
+    // Cauchy-Schwarz in the S metric ties the D-weighted measure to the norm: |Tr(D dH)| <= |dH|_S |D|_S, with |D|_S = sqrt(sum f^2).
+    const double normD=4.0;   // Si2, 8 electrons: at most four orbitals at f = 2 in a channel
+    for (const auto& t : A.terms)
+    {
+        ASSERT_FALSE(t.trDdH.empty()) << t.label;
+        for (double c : t.trDdH) EXPECT_LE(std::fabs(c), t.sNormDH*normD*(1.0+1e-10)) << t.label;
+        if (t.maxAbsΔH>0.0) { EXPECT_GT(t.sNormDH, 0.0) << t.label; EXPECT_FALSE(t.maxElement.functionI.empty()) << t.label; }
+    }
 
     R[1].x+=0.05;
     ASSERT_TRUE(pes.ConvergeAt(ref.cell, R));

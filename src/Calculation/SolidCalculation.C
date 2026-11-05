@@ -437,7 +437,18 @@ public:
     //! label/entries: \c TermEnergy's.  \c bound / \c eta: the term's RIGOROUS alias bound at the COARSE side's x (GPWTolerances.C
     //! \c AliasTail) and the measured eta = delivered / bound -- on max|dH_ij| for V_loc long (what forces see), on |dE|/|E| for Hartree;
     //! \c etaOn names which ("H", "E"), or "measured" for the XC raster (no rigorous bound: v_xc[rho] is nonlinear), or "" (analytic).
-    struct GridAuditTerm { std::string label, entries; double maxAbsΔH=0.0, ΔE=0.0, E=0.0, x=0.0, bound=0.0, eta=0.0; std::string etaOn; };
+    //! WHERE a term's max|ΔH_ij| sits: its (spin, block), its two functions as "atom, shell, l", and D_ij there (does the density even see it?).
+    struct GridAuditElement { std::string spin, functionI, functionJ; size_t block=0, i=0, j=0; double absD=0.0; };
+    //! One term's row.  Beside max|ΔH_ij|, never instead of it, and never a screen (doc/Pins.md pins 19/20; OpenWork ε row step 0b):
+    //! \c trDdH = the BZ-weighted Re Tr(D ΔH) of each (spin, block) channel, in canonical block order, at the converged D.  SIGNED, so it
+    //! cancels and never carries a verdict alone; and not ΔE term by term (Hartree and XC are not linear in D).
+    //! \c sNormDH = the largest channel's S-metric norm ‖V†ΔHV‖_F in the run's orthonormal frame (= sqrt(Tr(S⁻¹ΔH S⁻¹ΔH)) when VV† = S⁻¹, the
+    //! dual of \c tDensityMatrixDistance's), which bounds the trace: |Tr(D ΔH)| ≤ sqrt(Σf²)·sNormDH.  Report only: no gate reads either yet.
+    struct GridAuditTerm
+    {
+        std::string label, entries; double maxAbsΔH=0.0, ΔE=0.0, E=0.0, x=0.0, bound=0.0, eta=0.0; std::string etaOn;
+        std::vector<double> trDdH; double sNormDH=0.0; GridAuditElement maxElement;
+    };
     struct GridAuditVerdict { std::string audit, status; double alias=0.0; };   //!< one grids.audit* entry (audit = its key)
     struct GridAuditResult
     {
