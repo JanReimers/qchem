@@ -74,6 +74,9 @@ struct AtomDFTCase { AtomType type; int Z; SpinGroup spin; Model model; double t
 struct PGCase      { int Z; SpinGroup spin; double tol; };                               // molecular basis on an atom
 
 template <class T> std::string ZName(const testing::TestParamInfo<T>& i) { return "Z" + std::to_string(i.param.Z); }
+// What ctest NAMES the case: CMake's pretty values take the printed parameter, and a struct prints as its raw bytes without this.
+static void PrintTo(const AtomDFTCase& c, std::ostream* os) { *os << ZName<AtomDFTCase>({c, 0}); }
+static void PrintTo(const PGCase& c, std::ostream* os)      { *os << ZName<PGCase>({c, 0}); }
 
 template <class T> static std::vector<T> WithZ(const std::vector<int>& Zs, T proto)
 {   // stamp a Z-list onto a prototype case (everything but Z shared)

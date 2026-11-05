@@ -20,6 +20,11 @@ export namespace qchem::BasisSet::Gaussian
 //! measured sub-mHa against CP2K -- the value every run used before it was derived from the target.
 inline constexpr double kVlocEpsNoTarget = 1.0e-5;
 
+//! \brief EMPIRICAL: the C of the top completion rung's gate (expert `solid.accuracyCalibration.rungGateC`): the ladder appends a rung
+//! when the reference grid sits below RelCutoffSafety x C x alpha_max.  Measured when C = 8 was the production cutoffFactor, and
+//! deliberately decoupled from cutoffFactor when that fell to 2 (BuildLevels in Imp/GPW_Evaluator.C).
+inline constexpr double kRungGateC = 8.0;
+
 //! \brief The GPW evaluator's tolerances.  Every default is today's behaviour; none of them is a convenience knob.
 struct GPWTolerances
 {
@@ -34,6 +39,8 @@ struct GPWTolerances
     double vlocEpsRigorous = 0.0;
     double vlocRoutingEta  = 0.0;
     bool VlocEpsDerived() const {return vlocRoutingEta>0.0;}
+    //! The rung gate's calibration: the facade writes \c GridAccuracy::rungGateC.
+    double rungGateC = kRungGateC;
     //! The ABSOLUTE pair->level rule kappa (Ha per unit pair exponent) of the local-PP sweeps: every pair's spectral tail is
     //! bounded by e^{-kappa/2} independent of the field's sharpness.  30 Ha (e^{-15}) is CP2K's REL_CUTOFF 60 Ry; 60 is the
     //! self-convergence check.
@@ -159,6 +166,7 @@ struct GridAccuracy : AccuracyTarget
     //! The routing tolerance the facade derives: the rigorous per-pair relative bound corrected by the measured calibration -- the ONE
     //! place the two pieces meet.
     double VlocEps() const {return RigorousVlocEps()/vlocRoutingEta;}
+    double rungGateC = kRungGateC;   //!< EMPIRICAL: see \c kRungGateC
     //! \brief EMPIRICAL: the rho-tilde sampler's NUFFT calibration eta = delivered / bound (expert `solid.accuracyCalibration.samplerEta`),
     //! dividing the rigorous alias bound (\c NUFFT::Type2::Bound) in the width choice -- set BEFORE the SCF and never changed inside it
     //! (user ruling 2026-11-04).  The default decomposes, like \c vlocRoutingEta, as (measured max delivered/bound) x (margin):

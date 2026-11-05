@@ -243,6 +243,8 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
                 s->opts.tolerances.vlocRoutingEta=a.vlocRoutingEta;
             }
         }
+        if (!(a.rungGateC>=0.0)) throw std::invalid_argument("SolidCalcOptions: accuracy rungGateC must be >= 0 (0 = no completion rung)");
+        s->opts.tolerances.rungGateC=a.rungGateC;   // with or without a target: the ladder's gate is not derived from eps
     }
     if (s->planeWave)
     {

@@ -45,6 +45,8 @@ static std::string FamilyName(AtomType t)
 
 static std::string CaseName(const testing::TestParamInfo<PinCase>& i)
 { return FamilyName(i.param.type) + "_Z" + std::to_string(i.param.Z); }
+// What ctest NAMES the case: CMake's pretty values take the printed parameter, and a struct prints as its raw bytes without this.
+static void PrintTo(const PinCase& c, std::ostream* os) { *os << CaseName({c, 0}); }
 
 } // anonymous namespace
 
