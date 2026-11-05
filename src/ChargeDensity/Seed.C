@@ -9,6 +9,7 @@ export module qchem.ChargeDensity.Seed;
 export import qchem.ChargeDensity;   // tDM_CD<T>
 export import qchem.ChargeDensity.AtomicDensity;   // SeedKey (the functional + per-Z PP variant the seeds are keyed by)
 import qchem.BasisSet;               // tBasisSet<T>, and (re-exported) Structure / ElectronConfiguration
+import qchem.UnitCell;               // UnitCell (the plane-wave seeds' cell)
 
 export namespace qchem::ChargeDensity
 {
@@ -61,8 +62,8 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //! Build the initial SCF density for basis \a bs / configuration \a ec under strategy \a s.  Returns a
 //! heap density the caller owns (the SCFIterator wraps it in a \c shared_ptr), or \c nullptr for
 //! \c CoreGuess.  The seed is a \c tChargeDensity (the DFT Fock-build face): \c Uniform/\c CoreGuess give
-//! a matrix-backed \c tDM_CD, \c SAD a fit-backed \c NumericCD.  \a st is the molecular/crystal
-//! structure -- unused for \c CoreGuess/\c Uniform, threaded for the SAD seeds (Phases 1-3).
+//! a matrix-backed \c tDM_CD, \c SAD a fit-backed \c NumericCD.  \a st is the molecular structure --
+//! unused for \c CoreGuess/\c Uniform, read by the SAD seed.  The periodic overload demands its \a cell.
 //!
 //! \a polarized (the Hamiltonian's \c IsPolarized -- the SCFIterator passes it through) upgrades the
 //! plane-wave SAD/IonicSAD seeds to the TWO-CHANNEL \c PolarizedSeedCD (doc/SCFSeedingPlan.md §10): the
@@ -72,8 +73,10 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //!
 //! \a key names the functional and, per Z, the pseudopotential variant q whose seed densities the
 //! plane-wave seeds read (the run setup builds it from its \c PseudopotentialSet); the default is unkeyed LDA.
-template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<T>* bs,
-                                                      const Structure* st, const ElectronConfiguration* ec,
-                                                      bool polarized=false, const SeedKey& key=SeedKey{});
+tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
+                                        const Structure* st, const ElectronConfiguration* ec);
+tChargeDensity<dcmplx>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<dcmplx>* bs,
+                                        const UnitCell& cell, const ElectronConfiguration* ec,
+                                        bool polarized=false, const SeedKey& key=SeedKey{});
 
 } //namespace

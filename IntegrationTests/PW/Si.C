@@ -262,7 +262,7 @@ TEST(PW_Si, Γ_Anchor)
         using qchem::SCFAccelerators::DIISParams;
         auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{.Nproj=8, .EngageBelowFD=0.5, .SVTol=1e-9});
         std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
-        qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
+        qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, lat.GetUnitCell(), seed);
 
         SCFParams par;
         par.NMaxIter      =80;
@@ -393,7 +393,7 @@ TEST(PW_Si, k222_Anchor)
     // Uniform-density seed on the first block: D=(N/n0)I gives rho(r)=N/V (uniform), the total density
     // every block's first Hartree/XC needs (a single block suffices since rho is constant).  Built
     // centrally by MakeSeedDensity (Uniform); also the plane-wave Default.
-    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
+    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, lat.GetUnitCell(),
                                          qchem::ChargeDensity::SeedStrategy::Uniform);
 
     SCFParams par;

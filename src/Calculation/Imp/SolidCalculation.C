@@ -572,9 +572,9 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     {
         qchem::report::Timed timed("setup: seed density (SAD/IonicSAD atomic solves)");
         qchem::SetupSCF setup;   // the atomic solves are setup, not the run's convergence (a panel budget does not count them)
-        seed.reset(qchem::ChargeDensity::MakeSeedDensity<dcmplx>(opts.seed, itsImp->bs.get(), itsImp->st.get(),
-                                                                 itsImp->ec.get(), polarizedHam,
-                                                                 itsImp->setup->seedKey));
+        seed.reset(qchem::ChargeDensity::MakeSeedDensity(opts.seed, itsImp->bs.get(), itsImp->lat->GetUnitCell(),
+                                                         itsImp->ec.get(), polarizedHam,
+                                                         itsImp->setup->seedKey));
     }
     // MEASURED ONLY WHERE IT CAN MEAN SOMETHING.  SiteMoments rasters BOTH spin channels before it can
     // discover it has no basins to integrate over, and unlike the per-iteration probe -- which rides a
@@ -594,7 +594,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Timed timed("setup: seed + ortho (iterator ctor)");
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-            seed.release(), itsImp->st.get(), opts.ortho, opts.orthoTol, seedRole, opts.numBands);   // the iterator consumes it in Init
+            itsImp->lat->GetUnitCell(), seed.release(), opts.ortho, opts.orthoTol, seedRole, opts.numBands);   // the iterator consumes it in Init
     }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
@@ -885,11 +885,11 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
     itsImp->scf = carried
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              carried.release(), itsImp->st.get(), itsImp->setup->opts.ortho, itsImp->setup->opts.orthoTol,
+              itsImp->lat->GetUnitCell(), carried.release(), itsImp->setup->opts.ortho, itsImp->setup->opts.orthoTol,
               qchem::SCFIterator::SeedRole::WorkingDensity, itsImp->setup->opts.numBands)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->setup->opts.seed, itsImp->st.get(), itsImp->setup->opts.ortho, itsImp->setup->opts.orthoTol, itsImp->setup->opts.numBands);
+              itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, itsImp->setup->opts.ortho, itsImp->setup->opts.orthoTol, itsImp->setup->opts.numBands);
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
     // survives the fresh wavefunction, exactly as the density does.

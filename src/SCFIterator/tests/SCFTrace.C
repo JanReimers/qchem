@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <type_traits>
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, SpinGroup
 import qchem.SCFCap;                 // BoundedSCF (the trace test runs a deliberately bounded SCF)
 import qchem.SolidCalculation;       // SolidCalculation -- the NAMED periodic front door (Step 4)
@@ -38,6 +39,13 @@ import qchem.SCFIterator.Internal.Occupations;   // AnElectronMoved -- the cfg '
 import qchem.MoleculeCalculation;            // the molecular facade (the golden molecular trace)
 using namespace qchem;
 using enum BasisSetAccuracy;
+
+// V-STRUCTURE-CELL-PROBE: a solid iterator cannot be built without its cell, and a bare Structure is not one.
+using SolidIterator=SCFIterator::SolidSCFIterator;
+static_assert(!std::is_constructible_v<SolidIterator, const BasisSet::tBasisSet<dcmplx>*, const ElectronConfiguration*,
+                                       Hamiltonian::tHamiltonian<dcmplx>*, SCFAccelerators::SCFAccelerator*>);
+static_assert(!std::is_constructible_v<SolidIterator, const BasisSet::tBasisSet<dcmplx>*, const ElectronConfiguration*,
+                                       Hamiltonian::tHamiltonian<dcmplx>*, SCFAccelerators::SCFAccelerator*, const Structure&>);
 
 namespace {
 
