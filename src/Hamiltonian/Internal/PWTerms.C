@@ -18,6 +18,7 @@ module;
 #include <optional>
 #include <string>
 export module qchem.Hamiltonian.Internal.PWTerms;
+import qchem.Hamiltonian.Internal.RealSpaceResidual;   // the quadrature owner's capability
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
 import qchem.Parallel;                          // LazyLock (per-block writes from concurrent Fock blocks)
 import qchem.ChargeDensity.DensitySampler; // the XC SAMPLING ENGINE the three XC terms compose with.
@@ -312,6 +313,7 @@ private:
 template <class T> class tVxc_Quadrature
     : public virtual tDynamic_HT<T>
     , protected      tDynamic_HT_Imp<T>
+    , public virtual tRealSpaceResidual<T>   //!< AFTER the protected base: declared before it, libstdc++'s cross-cast from tDynamic_HT returns null
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
@@ -328,9 +330,9 @@ public:
     //! no site blocks (a uniform raster) or the run resolves no spin.  My ENERGY pass writes the same number
     //! into \c ChargeBreakdown::siteMoments, which is how it reaches the trace and the observer.
     virtual rvec_t        SiteMoments(const tChargeDensity<T>* cd) const override;
-    //! \copydoc tDynamic_HT::RealSpaceL1Distance
-    //! On my quadrature, per spin channel for a polarized run (a moment still moving keeps the SCF unconverged).
-    virtual double        RealSpaceL1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const override;
+    //! \copydoc tRealSpaceResidual::L1Distance
+    //! Per spin channel for a polarized run (a moment still moving keeps the SCF unconverged).
+    virtual double        L1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const override;
     virtual std::ostream& Write(std::ostream&) const override;
 protected:
     virtual hmat_t<T> MakeMatrix(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const override;

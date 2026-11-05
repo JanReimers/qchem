@@ -27,7 +27,10 @@ export struct SCFParams
     size_t NMaxIter        = 100;
     //! THE density convergence gate (D-MINDRHO, 2026-10-22; was \c MinΔρPerElectron, whose meaning depended on the mixer): converged
     //! when the step would still move fewer than this many electrons PER ELECTRON, \f$\int|\rho_{out}-\rho_{in}|\,d^3r/N\f$
-    //! on the run's own real-space quadrature (per spin channel for a polarized run; see \c Δρmeasure).
+    //! on the run's own real-space quadrature (per spin channel for a polarized run; see \c Δρmeasure).  A Hamiltonian with no
+    //! such quadrature (HF, 1-electron, an auxiliary Vxc fit) compares \f$\sqrt{\mathrm{Tr}(\Delta D\,S\,\Delta D\,S)}/N\f$
+    //! instead (\c tHamiltonian::DeltaRho).  ONE default serves both: on HF H2O, CH4, N2, CO, O2 (triplet) and the Be, B, Ne, Fe atoms the S-metric norm stayed
+    //! within 0.4-2.3x of the L1 measure near this gate (2026-11-04), and \c MinFD is the gate that usually binds.
     Gate   MinΔρPerElectron = 1e-4;
     //! WHAT THE GATE MEASURES.  L1PerElectron (default) = the one intensive residual above, computed once in the SCF
     //  iterator, the same number for every mixer, representation and system (a field mixer's in/out fields are presented

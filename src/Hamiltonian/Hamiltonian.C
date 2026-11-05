@@ -193,11 +193,6 @@ public:
     //! read it off the \c EnergyBreakdown they already hold.  This face is the in-process QUESTION for a
     //! density that has no energy pass -- the raw seed, measured before iteration 0 consumes it.
     virtual rvec_t           SiteMoments(const tChargeDensity<T>*) const {return rvec_t();}
-    //! \brief \f$\int(|\rho^a_\uparrow-\rho^b_\uparrow|+|\rho^a_\downarrow-\rho^b_\downarrow|)\,d^3r\f$ on this term's REAL-SPACE
-    //! quadrature (electrons) -- the SCF convergence measure (D-MINDRHO, 2026-10-22).  NaN by default: only a term that owns
-    //! a quadrature (the XC term) can answer; the SCF then falls back to a mesh of its own.
-    virtual double           RealSpaceL1Distance(const tChargeDensity<T>*, const tChargeDensity<T>*) const
-        {return std::numeric_limits<double>::quiet_NaN();}
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
     //! \brief Does the VIRIAL THEOREM still hold with this term in the Hamiltonian?  (default yes)
     //!
@@ -456,11 +451,15 @@ public:
     //! \note ONE caller since R1.0h: the facade's RAW-SEED probe.  Every SCF iterate's moments ride
     //! \c EnergyBreakdown::charge instead (see \c tDynamic_HT::SiteMoments).
     virtual rvec_t          SiteMoments(const tChargeDensity<T>*) const {return rvec_t();}
-    //! \brief The SCF convergence measure on the run's own real-space quadrature (see \c tDynamic_HT::RealSpaceL1Distance):
-    //! the first term that owns one answers; NaN when none does (an HF or 1-electron Hamiltonian).  Same reasoning as
-    //! \c SiteMoments -- the quadrature lives behind \c .Internal., so the Hamiltonian hands out the measurement.
-    virtual double          RealSpaceL1Distance(const tChargeDensity<T>*, const tChargeDensity<T>*) const
-        {return std::numeric_limits<double>::quiet_NaN();}
+    //! \brief The SCF's density convergence measure: how far \a out is from \a in, PER ELECTRON, 0 exactly at the fixed point.
+    //!
+    //! The Hamiltonian answers because only it knows how: with a real-space quadrature in its term stack this is the L1 distance
+    //! on that quadrature; without one (HF, 1-electron, an auxiliary Vxc fit) it is the S-metric size of \f$\Delta D\f$,
+    //! \f$\sqrt{\mathrm{Tr}(\Delta D\,S\,\Delta D\,S)}/N\f$, and no mesh exists for the sake of this number (user 2026-11-04).
+    //! The two are not comparable, so a client that prints one prints \c DeltaRhoLabel beside it.
+    virtual double          DeltaRho(const tChargeDensity<T>* in, const tChargeDensity<T>* out) const=0;
+    //! \brief What \c DeltaRho measures on this Hamiltonian, as a column title.
+    virtual std::string     DeltaRhoLabel() const=0;
     //! \brief The ACBN0 estimator of this Hamiltonian's +U term (DFT+U increment 3): NULL when it carries no
     //! +U term.  Same reasoning as \c SiteMoments -- the term and the integrals live behind \c .Internal.
     //! modules, so the Hamiltonian hands out the capability rather than the term.  The estimator refers to

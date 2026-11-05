@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Compare two ctest LastTest.log files test by test: the LAST printed total energy (Etot=, or 'Etot = ' from rundeck;
 a test that prints neither -- the molecular / atom gates -- falls back to the Etotal of its LAST SCF trace row)
-and the summed SCF iteration count (iters=).  Prints only the tests whose energy moved by more than --tol (Ha) or whose
-iteration count changed, sorted by |dE|.  Usage: anchordiff.py BASE.log NEW.log [--tol 1e-9]"""
+and two iteration counts: the summed iters= and the number of SCF trace rows.  They are not the same count, so both are
+compared: only solids print iters=, the PW prototypes print no trace, and the rows also count a solid's seed and pseudo-atom
+SCFs.  Prints only the tests whose energy moved by more than --tol (Ha) or whose iteration count changed, sorted by |dE|; the
+summary line says how many tests each comparison could see.  Usage: anchordiff.py BASE.log NEW.log [--tol 1e-9]"""
 import re, sys
 
 def parse(path):
-    out = {}; name = None; E = None; Et = None; iters = 0
+    out = {}; name = None; E = None; Et = None; iters = 0; rows = 0
     head = re.compile(r'^\d+/\d+ Testing: (.+)$')
     etot = re.compile(r'Etot\s*=\s*(-?\d+\.\d+)')
     it   = re.compile(r'iters=(\d+)')
@@ -16,16 +18,16 @@ def parse(path):
         for line in f:
             m = head.match(line.rstrip('\n'))
             if m:
-                if name is not None: out[name] = (E if E is not None else Et, iters)
-                name, E, Et, iters = m.group(1).strip(), None, None, 0
+                if name is not None: out[name] = (E if E is not None else Et, iters, rows)
+                name, E, Et, iters, rows = m.group(1).strip(), None, None, 0, 0
                 continue
             if name is None: continue
             for v in etot.findall(line): E = float(v)
-            if (r := row.match(line)): Et = float(r.group(1))
+            if (r := row.match(line)): Et = float(r.group(1)); rows += 1
             # a solid stage's summary line repeats the iteration count its result line already printed (MnO2 resume read 5 -> 10)
             if not stage.search(line):
                 for v in it.findall(line): iters += int(v)
-    if name is not None: out[name] = (E if E is not None else Et, iters)
+    if name is not None: out[name] = (E if E is not None else Et, iters, rows)
     return out
 
 def main():
@@ -33,18 +35,20 @@ def main():
     tol = 1e-9
     if '--tol' in a: i = a.index('--tol'); tol = float(a[i+1]); del a[i:i+2]
     base, new = parse(a[0]), parse(a[1])
-    rows = []
-    for t in sorted(set(base) & set(new)):
-        (Eb, ib), (En, i_n) = base[t], new[t]
-        if Eb is None or En is None: dE = None
-        else: dE = En - Eb
-        if (dE is not None and abs(dE) > tol) or ib != i_n:
-            rows.append((abs(dE) if dE is not None else -1, t, Eb, En, dE, ib, i_n))
+    rows = []; common = set(base) & set(new); seenE = seenI = 0
+    for t in sorted(common):
+        (Eb, ib, rb), (En, i_n, rn) = base[t], new[t]
+        dE = None if Eb is None or En is None else En - Eb
+        seenE += dE is not None
+        seenI += bool(ib or i_n or rb or rn)
+        if (dE is not None and abs(dE) > tol) or ib != i_n or rb != rn:
+            rows.append((abs(dE) if dE is not None else -1, t, dE, ib, i_n, rb, rn))
     rows.sort(reverse=True)
-    print(f"{len(rows)} tests moved (|dE|>{tol:g} Ha or iteration count changed) of {len(set(base)&set(new))} compared")
-    for _, t, Eb, En, dE, ib, i_n in rows:
+    print(f"{len(rows)} tests moved (|dE|>{tol:g} Ha or iteration count changed) of {len(common)} compared "
+          f"({seenE} carry an energy, {seenI} an iteration count)")
+    for _, t, dE, ib, i_n, rb, rn in rows:
         es = f"{dE:+.3e}" if dE is not None else "   n/a   "
-        print(f"  {es}  iters {ib:>4} -> {i_n:<4}  {t}")
+        print(f"  {es}  iters {ib:>4} -> {i_n:<4}  rows {rb:>4} -> {rn:<4}  {t}")
     only = sorted(set(base) ^ set(new))
     if only: print("in one log only:", ", ".join(only[:20]))
 

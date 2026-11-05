@@ -30,6 +30,7 @@ module;
 export module qchem.ChargeDensity.Imp.IrrepCD;
 
 export import qchem.ChargeDensity;
+export import qchem.ChargeDensity.DensityMatrixDistance;
 export import qchem.Symmetry.Irrep;
 export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (periodic lineage)
 import qchem.ChargeDensity.Types;
@@ -83,6 +84,7 @@ private:
 //! on the two leaves below; this class carries NO lineage assumption at all.
 template <class T> class IrrepCD_Core
     : public virtual tDM_CD<T>
+    , public virtual tDensityMatrixDistance<T>
 {
 public:
     typedef  mat_t<T>  DenMat;
@@ -104,6 +106,7 @@ public:
     virtual void   Axpy         (double c, const tMixableDensity<T>&)   ;  //this += c*that.
     virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //Frobenius(delta density matrix)
     virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const;  //MaxAbs(delta density matrix) -- CP2K's EPS_SCF measure
+    virtual double SquaredDistanceTo(const tMixableDensity<T>&   ) const;  //Tr(dD S dD S)
     virtual double Dot          (const tMixableDensity<T>&       ) const;  //Re Tr(this^dagger that)
 
     virtual double operator()(const rvec3_t&) const;

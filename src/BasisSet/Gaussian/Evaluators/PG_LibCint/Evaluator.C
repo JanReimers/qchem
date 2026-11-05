@@ -79,7 +79,7 @@ public:
     // --- grid-eval of the SPHERICAL components (spherical mode only), in the delivered order and normalization:
     // libcint's own cart->sph map (CINTc2s_bra_sph) applied to its Cartesian monomials, times the delivered scale.
     // The Cartesian mode's grid-eval is the IBS's own (PGData's polarizations); this is the one it cannot do.
-    // Client: an HF run's D-MINDRHO convergence residual samples rho on a mesh (SCFIterator::ResidualPerElectron).
+    // Client: anything that samples rho(r) of a spherical libcint basis on a mesh.
     rvec_t     SphericalValues  (const rvec3_t& r) const;
     rvec3vec_t SphericalGradient(const rvec3_t& r) const;
 

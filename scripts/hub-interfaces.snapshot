@@ -377,7 +377,6 @@ namespace qchem::Hamiltonian {
         virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const override;
         virtual void GetEnergy(EnergyBreakdown&, const tDM_CD<T>*) const=0;
         virtual rvec_t SiteMoments(const tChargeDensity<T>*) const;
-        virtual double RealSpaceL1Distance(const tChargeDensity<T>*, const tChargeDensity<T>*) const;
         virtual bool IsRelativistic() const;
         virtual bool IsVirialValid () const;
         virtual bool PreservesReal () const;
@@ -460,7 +459,8 @@ namespace qchem::Hamiltonian {
         virtual bool PreservesReal () const=0;
         virtual bool RequiresDensityMatrix() const;
         virtual rvec_t SiteMoments(const tChargeDensity<T>*) const;
-        virtual double RealSpaceL1Distance(const tChargeDensity<T>*, const tChargeDensity<T>*) const;
+        virtual double DeltaRho(const tChargeDensity<T>* in, const tChargeDensity<T>* out) const=0;
+        virtual std::string DeltaRhoLabel() const=0;
         virtual std::unique_ptr<ACBN0Estimator> MakeACBN0Estimator() const;
         virtual const HubbardChannels* GetHubbardChannels() const;
         virtual HubbardUTarget* GetHubbardUTarget();

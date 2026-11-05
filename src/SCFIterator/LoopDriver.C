@@ -86,7 +86,7 @@ public:
         // presentation for Kerker/Pulay; the working D for linear mixing -- FockDensity of the previous working D).
         if (c.residualOut)
         {
-            qchem::report::Timed timed("scf: convergence residual (L1 on the quadrature)");
+            qchem::report::Timed timed("scf: convergence residual");
             const auto pair=c.mixer->ResidualDensities(**c.cur);    // a field mixer's like-for-like pair; empty for a D-mixer
             *c.residualOut = pair.in ? c.residual(*pair.in, *pair.out)
                                      : c.residual(*c.mixer->FockDensity(**c.old), **c.cur);
@@ -107,7 +107,7 @@ public:
         c.installNew(c.directMinStep(c.Eold, c.mergeTol));
         if (c.residualOut)   // no mixing: the distance between successive iterates
         {
-            qchem::report::Timed timed("scf: convergence residual (L1 on the quadrature)");
+            qchem::report::Timed timed("scf: convergence residual");
             *c.residualOut=c.residual(**c.old, **c.cur);
         }
         return (*c.cur)->GetChangeFrom(**c.old)/(*c.cur)->GetTotalCharge();

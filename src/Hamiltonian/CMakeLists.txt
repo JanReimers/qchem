@@ -39,6 +39,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Factory.C
     Types.C
     Internal/HamiltonianImp.C 
+    Internal/RealSpaceResidual.C
     Internal/HamiltonianTerm.C 
     Internal/Hamiltonians.C 
     Internal/ExchangeFunctional.C  

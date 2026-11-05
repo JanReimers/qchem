@@ -534,6 +534,16 @@ template <class T> double IrrepCD_Core<T>::GetMaxChangeFrom(const tMixableDensit
     return mx;
 }
 
+// Tr(ΔD S ΔD S) = Tr(X X) = sum(X % trans(X)) with X = ΔD S.  The trans is the same one GetTotalCharge needs for a complex block.
+template <class T> double IrrepCD_Core<T>::SquaredDistanceTo(const tMixableDensity<T>& cd) const
+{
+    const IrrepCD_Core<T>* eicd = dynamic_cast<const IrrepCD_Core<T>*>(&cd);
+    assert(eicd);
+    assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
+    const mat_t<T> X=(itsDensityMatrix-eicd->itsDensityMatrix)*itsBasisSet->Overlap();
+    return std::max(0.0, std::real(blazem::sum(X%blazem::trans(X))));   // >= 0 exactly; the max takes off roundoff at the fixed point
+}
+
 //-------------------------------------------------------------------------
 //
 //  Real space function stuff.

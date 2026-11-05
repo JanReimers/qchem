@@ -163,6 +163,8 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
         silently corrupted Li q3's C3/C4 local PP by 9-30 mHa (lane H, 2026-11-03).
       - `assert` is for invariants INSIDE hot loops, where even a branch matters.  Those are exercised only by the
         assert-enabled RelChecked tier, so a hot-loop invariant needs a RelChecked case that reaches it.
+- **Cross-cast trap (lane B, 2026-11-04):** with libstdc++, `dynamic_cast` to a public virtual face silently returns null when that face is declared BEFORE a
+    non-public base sharing its virtual base.  List the public faces after, or make the base public; a null from a cross-cast that should succeed is this first.
 - **`GetXxx()` is the CACHED accessor and returns a REFERENCE; `MakeXxx()` is the uncached compute and
     returns BY VALUE** (user, 2026-08-10).  A caller needing an owned copy asks `Make`; it never asks `Get`
     to change its return type.  If your `MakeXxx` does not COMPUTE anything you are a forwarder, not an

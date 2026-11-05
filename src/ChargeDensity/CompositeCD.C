@@ -8,6 +8,7 @@ module;
 #include <variant>
 export module qchem.CompositeCD;
 export import qchem.ChargeDensity;
+export import qchem.ChargeDensity.DensityMatrixDistance;
 export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (summed over k-blocks)
 export import qchem.Symmetry.Lattice_3D.SpaceGroup; // ReciprocalOp {U|τ} -- the IBZ density-symmetrization ops (glide phase)
 export import qchem.Symmetry.Irrep;                 // the block label (spatial ⊗ ms)
@@ -98,6 +99,7 @@ template <class T, class Comp> using CompositeHFBase =
 //! code over a 1e-16 reordering -- the flat sum stayed, totals unchanged at printed precision, 857/857.)
 template <class T> class tComposite_CD
     : public virtual tDM_CD<T>
+    , public virtual tDensityMatrixDistance<T>
     , public virtual tLineageTracked<T> // Layer-2: this top-level density tracks its SCF lineage head
     , public virtual tSpinResolved_CD<T> // the channel VIEW face (V1.37)
     , public ProjectedDensityBase<T> // AO projection on the finite (double) path; empty on the periodic path
@@ -151,6 +153,7 @@ public:
     virtual void   Axpy         (double c, const tMixableDensity<T>&)   ;  //this += c*that.
     virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //Sum over blocks of Frobenius(delta density matrix)
     virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const;  //Max over blocks of MaxAbs(delta density matrix)
+    virtual double SquaredDistanceTo(const tMixableDensity<T>&   ) const;  //Sum over blocks of Tr(dD S dD S)
     virtual double Dot          (const tMixableDensity<T>&       ) const;  //Sum over blocks of Re Tr(A^dagger B)
     //! A deep, untracked copy: same point ops, a copy of every block (a view copies into an OWNING composite).
     virtual std::unique_ptr<tMixableDensity<T>> MakeCopy() const;
