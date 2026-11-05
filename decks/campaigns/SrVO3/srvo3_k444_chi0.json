@@ -8,7 +8,7 @@
   "basis": {
     "data": "VALENCE_LOWQ_VA",
     "spherical": true,
-    "vet": true
+    "autoTrim": true
   },
   "solid": {
     "seed": "SAD",

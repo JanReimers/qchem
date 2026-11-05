@@ -298,10 +298,10 @@ void renderTable(const json& arr, std::ostream& os, int indent)
 
 // The field/section -> min console-detail map the RenderConsole skeleton anticipated: a few blocks are
 // ALWAYS in the json but render only at higher verbosity (the raw basis-usage tuning data -- a consumer like
-// valgen renders a friendlier joined view at Normal).  Unknown keys => Terse (shown at every level).
+// valgen renders a friendlier joined view at Normal; a facade's result, which its own console line already says).  Unknown keys => Terse (shown at every level).
 Detail keyMinDetail(const std::string& key)
 {
-    if (key == "exponents" || key == "usage") return Detail::Verbose;
+    if (key == "exponents" || key == "usage" || key == "result") return Detail::Verbose;
     return Detail::Terse;
 }
 

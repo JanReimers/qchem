@@ -153,6 +153,9 @@ std::string ScfHeaderFiled(const rjson* run, const std::string& prefix)
 {
     if (!run) return "no filed '"+prefix+"' run; filed runs:"+FiledKeys();
     if (!run->contains("scf") || !(*run)["scf"].contains("standard") || (*run)["scf"]["standard"].empty()) return "the run report has no scf.standard";
+    if (!run->contains("result")) return "the run report has no result section";
+    for (const char* k : {"converged", "iterations", "charge", "Eelec", "Etot"})
+        if (!(*run)["result"].contains(k)) return std::string("result has no ")+k;
     return "";
 }
 std::string AcceleratorFiled(const rjson* build, const std::string& prefix)

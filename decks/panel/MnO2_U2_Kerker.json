@@ -13,7 +13,7 @@
   "data": "VALENCE_LOWQ_VA",
   "file": "MnO2_control.bsd",
   "spherical": true,
-  "vet": false
+  "autoTrim": false
  },
  "accuracy": 0.0,
  "solid": {

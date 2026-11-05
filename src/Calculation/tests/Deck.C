@@ -305,7 +305,7 @@ TEST(Deck, PolicyRecordsOnlyWhatWasStatedSoTheUmbrellaStillMeansWhatItSays)
     EXPECT_TRUE(viaSet.policy.cp2kCompat); EXPECT_TRUE(viaSet.policy.beckeXC.value_or(false)) << "--set policy.<route> states it";
 }
 
-// ---- D-ENV 6d.1: eV in the file / a.u. in RAM, basis trim+vet, saved states with lineage ----
+// ---- D-ENV 6d.1: eV in the file / a.u. in RAM, basis trim+autoTrim, saved states with lineage ----
 TEST(Deck, UIsEvInTheFileAndAtomicUnitsInRamAndTheRecordReproducesTheBits)
 {
     SolidCalcOptions o;
@@ -344,8 +344,12 @@ TEST(Deck, BasisTrimVetAndStateRoundTripAndAreValidated)
     const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back); EXPECT_EQ(deck::ToJson(back),j);
     EXPECT_FALSE(deck::ToJson(deck::RunSpec{}).contains("state")) << "no state requested: no state block";
 
-    deck::RunSpec both; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"vet",true},{"trim",{{{"Z",25},{"l",0},{"alpha",0.06}}}}}}}, both);
-    EXPECT_THROW(deck::Resolve(both), std::runtime_error) << "vet and a stated trim are exclusive";
+    deck::RunSpec both; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"autoTrim",true},{"trim",{{{"Z",25},{"l",0},{"alpha",0.06}}}}}}}, both);
+    EXPECT_THROW(deck::Resolve(both), std::runtime_error) << "autoTrim and a stated trim are exclusive";
+    deck::RunSpec noTol; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"autoTrim",true}}}}, noTol);
+    EXPECT_THROW(deck::Resolve(noTol), std::runtime_error) << "an autoTrim with no orthoTol would drop nothing";
+    deck::RunSpec retired;
+    EXPECT_THROW(deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"vet",true}}}}, retired), std::runtime_error) << "basis.vet is retired, not ignored";
     deck::RunSpec sph; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_SR"},{"spherical",true}}}}, sph);
     try { deck::Resolve(sph); FAIL() << "spherical + the SR transition-metal block must be refused"; }
     catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("VALENCE_LOWQ_VA"),std::string::npos) << e.what(); }

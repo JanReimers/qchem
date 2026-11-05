@@ -35,8 +35,8 @@ constexpr double kRungGateC=8.0;
 //             beta sums e^{-G^2 (1/4p + 1/4beta)}, the harmonic exponent p_h = p beta/(p+beta) (beta = 0: no field, p_h = p);
 //             the tail at the ball edge is e^{-G_b^2/4p_h}.
 //   RASTER -- the pair is SAMPLED in real space, so its spectrum beyond the raster's Nyquist G_N aliases back: the first
-//             image sits at 2 G_N, relative amplitude e^{-(2G_N)^2/4p} = e^{-G_N^2/p}.  BallOnly puts G_N at the ball edge
-//             (G_N^2 = 2 E_cut); AliasFree doubles it.  G_N here = the raster's inscribed Nyquist radius min_i pi N_i/|a_i|.
+//             image sits at 2 G_N, relative amplitude e^{-(2G_N)^2/4p} = e^{-G_N^2/p}.  The ball's own raster puts G_N at the ball
+//             edge (G_N^2 = 2 E_cut), and a raster demand x raises it to G_N^2 >= x p.  G_N here = the raster's inscribed Nyquist radius min_i pi N_i/|a_i|.
 // The tightest pair (p = 2 alpha_max) is routed to the finest level, so the finest raster is the one that must pass.
 // C2 step 3: the raster is SIZED to its demand x (GPWTolerances::rasterX ..., derived from the accuracy target), so the verdict is the
 // demand's -- x = G_N^2/p >= xDemand, an ASSERTION (a level built short of it is a construction defect and throws).  The alias

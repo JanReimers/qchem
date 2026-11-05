@@ -230,6 +230,7 @@ bool AtomCalculation::Converge(const SCFParams& params)
     // Snapshot the (cumulative, process-wide) integrals cache into the run's `cache` section, inside the bracket.
     qchem::BasisSet::EmitIntegralsCacheReport();
     RebuildSampling();
+    ReportResult("atom "+thePeriodicTable().GetSymbol(itsZ), ok, itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy());
     return ok;
 }
 

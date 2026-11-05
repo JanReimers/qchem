@@ -7,8 +7,11 @@
 // facade adding its own).  It is born EMPTY: the steps move up one at a time, each flipping cells of the facade matrix
 // (UTCalculation Facades/FacadeMatrix.Cell/<Kind>_<Capability>), so nothing lands here that two facades do not already share.
 module;
+#include <cstddef>
+#include <string>
 export module qchem.Calculation;
 export import qchem.Accuracy;   // ClientConsumes (Consumes' answer)
+export import qchem.Energy;     // EnergyBreakdown (ReportResult's argument)
 
 export namespace qchem
 {
@@ -25,6 +28,12 @@ public:
     //! V-FACADE-ACCURACY, user ruling 2026-11-03: every facade answers it through this one rule).  An energy by default; a facade
     //! whose runs can feed a geometry or a surface (\c SolidCalculation under a SolidSession) answers MatrixElements there.
     virtual ClientConsumes Consumes() const {return ClientConsumes::Energy;}
+
+protected:
+    //! \brief THE RESULT LINE: a run reports its own outcome, contemporaneously, as one \c "[label] CONVERGED iters= charge= Eelec=
+    //! Etot= (terms)" console line and a \c result section of the run report.  Each facade calls it where its SCF ends, from what
+    //! every facade has; a solid's site moments follow as its own lines.  Rendered at Verbose only, since the line already says it.
+    static void ReportResult(const std::string& label, bool converged, size_t iterations, double charge, const EnergyBreakdown& E);
 };
 
 } // namespace qchem

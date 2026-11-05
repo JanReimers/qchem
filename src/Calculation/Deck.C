@@ -80,7 +80,7 @@ struct RunSpec
         std::string file;
         bool spherical=false;
         std::vector<Trim> trim;     //!< a STATED trim (built once, no vet loop)
-        bool vet=false;             //!< the vet-stage trim at \c solid.orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)
+        bool autoTrim=false;        //!< the vet-stage trim at \c solid.orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)
         //! The orbital basis FAMILY ("gaussian" | "planeWave", OpenWork §2 PW-1); copied into \c solid at run time.  A plane-wave run still
         //! builds the Gaussian \c data basis (the facade takes one; nothing in a plane-wave run reads it).
         SolidCalcOptions::OrbitalBasis family = SolidCalcOptions::OrbitalBasis::GPW;

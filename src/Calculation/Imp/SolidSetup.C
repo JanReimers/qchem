@@ -150,15 +150,17 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, con
     GaussianBasisRecipe frozen=rec;
     const std::shared_ptr<const Structure> cell=lat.GetStructure();
     std::shared_ptr<const BasisSet::Real_BS> mol;
-    if (recipe.vet)
+    if (recipe.autoTrim)
     {
         if (!recipe.trim.empty())
-            throw std::invalid_argument("GaussianBasisRecipe: vet and a stated trim are exclusive -- state one");
+            throw std::invalid_argument("GaussianBasisRecipe: autoTrim and a stated trim are exclusive -- state one");
+        if (opts.orthoTol<=0.0)
+            throw std::invalid_argument("GaussianBasisRecipe: autoTrim needs an orthoTol > 0 to trim at -- at 0 it would drop nothing");
         // THE VET-STAGE TRIM, ONCE, at the reference geometry (pin 22); frozen below so a geometry step rebuilds the SAME shells.
         auto make=[&](const BasisSet::Gaussian::ShellTrim& t){ GaussianBasisRecipe r=rec; r.trim=t; return r.Make(*cell, pp); };
         auto r=BasisSet::Lattice::VetStageTrim(lat, make, {.images=opts.images, .kShift=opts.kShift}, opts.orthoTol);
         frozen.trim=std::move(r.trim);
-        frozen.vet =false;
+        frozen.autoTrim=false;
         mol=std::move(r.mol);
     }
     else

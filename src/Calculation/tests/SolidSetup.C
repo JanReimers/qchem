@@ -38,9 +38,9 @@ TEST(SolidSetup, ARecipeFreezesTheTrimTheVetLoopDecides)
 {
     UnitCell cell=TwoNa(5.0);
     Lattice_3D lat(cell, ivec3_t(2,2,2));
-    const auto setup=SolidSetup::Resolve(lat, GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_VA, .vet=true}, kNa2);
+    const auto setup=SolidSetup::Resolve(lat, GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_VA, .autoTrim=true}, kNa2);
     ASSERT_TRUE(setup->recipe);
-    EXPECT_FALSE(setup->recipe->vet) << "the vet loop runs ONCE, at the reference geometry; the recipe keeps its decision";
+    EXPECT_FALSE(setup->recipe->autoTrim) << "the vet loop runs ONCE, at the reference geometry; the recipe keeps its decision";
     // The deck's twin: the same loop, run by hand on the same cell.
     auto make=[&](const ShellTrim& t){ return std::shared_ptr<const BasisSet::Real_BS>(BasisSet::Gaussian::Factory(
         BasisSetData::VALENCE_LOWQ_VA, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian, t)); };
@@ -53,6 +53,14 @@ TEST(SolidSetup, ARecipeFreezesTheTrimTheVetLoopDecides)
     EXPECT_EQ(setup->mol->GetNumFunctions(), twin.mol->GetNumFunctions());
     // Rebuilt from the frozen recipe -- what a geometry step does -- the basis is the trimmed one, with no second vet.
     EXPECT_EQ(setup->recipe->Make(*setup->cell, setup->pp)->GetNumFunctions(), twin.mol->GetNumFunctions());
+}
+
+TEST(SolidSetup, AnAutoTrimWithNoOrthoTolIsRefused)
+{
+    Lattice_3D lat(TwoNa(5.0), ivec3_t(2,2,2));
+    SolidCalcOptions o=kNa2; o.orthoTol=0.0;
+    EXPECT_THROW(SolidSetup::Resolve(lat, GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_VA, .autoTrim=true}, o), std::invalid_argument)
+        << "at orthoTol 0 it would drop nothing, silently";
 }
 
 TEST(SolidSetup, APreBuiltBasisHasNoRecipe)
