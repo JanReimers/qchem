@@ -55,6 +55,12 @@ static AngularMesh Rotate(AngularMesh m, double angle)
 //      302   29   a1 + a3 + 8x24 + 2x48          = 6 + 8 + 192 + 96
 //      350   31   a1 + a3 + 8x24 + 3x48          = 6 + 8 + 192 + 144
 //      434   35   a1 + a2 + a3 + 9x24 + 4x48     = 6 + 12 + 8 + 216 + 192
+//      974   53   a1 + a3 + 16x24 + 12x48        = 6 + 8 + 384 + 576
+//     1454   65   a1 + a3 + 20x24 + 20x48        = 6 + 8 + 480 + 960
+//
+// 974 and 1454 are here for the Becke ladder (qcMesh::BeckeAngularRungAbove, 2026-11-05); the others past 35 exist in the literature and are not
+// tabulated.  The ladder does not use them: Lebedev 47 is over target at one measured rotation, and Lebedev 59 (1202), rotated, reads worse than
+// 53 on LiF (8.7e-6 against 4.6e-6) and little better on MnO (5.4e-6 against 6.0e-6), which makes it a poor reference for the rung below.
 //
 // Two things only the breakdown makes obvious: a2 (<110>) is RARE and non-monotonic -- it appears in
 // just 50, 146, 170, 194, 434, and notably NOT in 302 or 350 -- and the 12-direction rule carries no
@@ -69,7 +75,7 @@ const std::vector<LebedevRule>& LebedevMenu()
 {
     static const std::vector<LebedevRule> theMenu = {
         {  1, 0}, {  2, 1}, {  6, 3}, {  8, 3}, { 12, 5}, { 24, 7}, { 30, 8}, { 38, 9}, { 50,11},
-        { 86,15}, {110,17}, {146,19}, {170,21}, {194,23}, {302,29}, {350,31}, {434,35},
+        { 86,15}, {110,17}, {146,19}, {170,21}, {194,23}, {302,29}, {350,31}, {434,35}, {974,53}, {1454,65},
     };
     return theMenu;
 }

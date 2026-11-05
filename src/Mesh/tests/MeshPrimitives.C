@@ -1,5 +1,6 @@
 // File: src/Mesh/tests/MeshPrimitives.C  Smoke + acceptance tests for the qcMesh primitives.
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <cmath>
 #include <vector>
 #include <stdexcept>
@@ -354,7 +355,10 @@ TEST(Mesh_AngularDegree, LebedevOrdersMeetTheirClaimedDegree)
                           : (r.nDir>=86)            ? 1e-10 : 1e-12;
         AngularMesh a=LebedevAngular(r.nDir);
         ASSERT_EQ(a.size(), size_t(r.nDir)) << "Lebedev " << r.nDir << ": wrong direction count";
-        const int d=MeasureDegree(a,rtol);
+        const int d=MeasureDegree(a,rtol,std::max(40,r.degree));
+        double sumW=0.0;
+        for (size_t j=0;j<a.size();j++) {sumW+=a.W()[j]; EXPECT_GT(a.W()[j],0.0) << "Lebedev " << r.nDir;}
+        EXPECT_NEAR(sumW, FourPi, 1e-12) << "Lebedev " << r.nDir;
         std::cout << "[angular degree] Lebedev " << r.nDir << " dirs: claims " << r.degree
                   << ", measures " << d << ",  " << r.nDir << " = ";
         const std::vector<qcMesh::Orbit> census=qcMesh::CensusOrbits(a);
@@ -392,14 +396,15 @@ TEST(Mesh_AngularDegree, EqualDegreeRulesCanDifferInOrbitDirection)
 // exactness than requested.
 TEST(Mesh_AngularDegree, ResolveRoundsUpAcrossTheGaps)
 {
-    for (int want=0; want<=35; want++)
+    for (int want=0; want<=65; want++)
     {
         const qcMesh::LebedevRule r=qcMesh::ResolveLebedev(want);
         EXPECT_GE(r.degree, want) << "ResolveLebedev(" << want << ") returned degree " << r.degree;
     }
     EXPECT_EQ(qcMesh::ResolveLebedev(25).nDir, 302) << "degree 25 falls in a gap -> the degree-29 rule";
     EXPECT_EQ(qcMesh::ResolveLebedev(29).nDir, 302);
-    EXPECT_THROW(qcMesh::ResolveLebedev(36), std::runtime_error) << "past the menu must THROW, not clamp";
+    EXPECT_EQ(qcMesh::ResolveLebedev(36).nDir, 974) << "degrees 37-51 are not tabulated -> the degree-53 rule";
+    EXPECT_THROW(qcMesh::ResolveLebedev(66), std::runtime_error) << "past the menu must THROW, not clamp";
 }
 
 // Gauss-Legendre(cos theta) x uniform(phi): algebraically exact, so its L IS a degree.
