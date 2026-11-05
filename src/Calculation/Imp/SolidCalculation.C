@@ -1543,7 +1543,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     {
         const G::RasterExponents x=itsImp->ladder->DeliveredRasterExponents();
         const double xV = x.vlocLong>0.0 ? x.vlocLong : x.density;   // no own V_long ladder (the kappa-sweep path): the density's
-        const GridAuditResult R=CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), "pilot reference (x + 8)");
+        const GridAuditResult R=CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), "pilot reference (x + "+std::to_string(int(kReferenceMargin))+")");
         G::GPWTolerances t=itsImp->setup->opts.tolerances;
         double dDens=0.0, dV=0.0, dXC=0.0;
         rpt::json terms=rpt::json::array();

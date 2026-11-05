@@ -338,14 +338,14 @@ SamplerPair SampleBoth(double densityEcut, double rasterX)
 //! charge and an XC-shaped nonlinear integral \f$\int\rho^{4/3}\f$.  Not point by point: the raster sits on the cell's
 //! corners, the uniform cell mesh on its midpoints, the same N per axis.  So they differ by the N-point uniform
 //! rule's quadrature error, which vanishes exponentially once N resolves the density -- MEASURED 2026-10-31 (relative
-//! singles - pair, ∫ρ^{4/3}): BallOnly Ecut 20 (N 18) 7.2e-3, Ecut 40 (N 24) 3.2e-7, Ecut 80 (N 36) 5e-12; AliasFree
+//! singles - pair, ∫ρ^{4/3}): the ball's own raster Ecut 20 (N 18) 7.2e-3, Ecut 40 (N 24) 3.2e-7, Ecut 80 (N 36) 5e-12; twice the ball's G_N
 //! Ecut 20 (N 36) 1.0e-8, Ecut 40 (N 45) 3e-13, Ecut 80 (N 72) 4e-14.  The charge sits at 2e-11 from N 36 up.  The gate
 //! runs at a resolved point, so what it measures is the SAMPLERS, not the rule; an under-resolved raster (the 7e-3 at
-//! the BallOnly floor) is an ACCURACY matter -- ε sizing and the grid audit -- not this test's business.
+//! the ball raster's floor) is an ACCURACY matter -- ε sizing and the grid audit -- not this test's business.
 TEST(VxcProductSpace, SinglesAndPairSamplersAgreeOnOneUniformMesh)
 {
-    const SamplerPair s=SampleBoth(40.0, /*the old AliasFree's difference-set raster, as x (C2 step 3)*/80.0);
-    std::cout << "[sampler equivalence] AliasFree Ecut 40 N=" << s.N << std::setprecision(12)
+    const SamplerPair s=SampleBoth(40.0, /*the difference-set raster, twice the ball's G_N, as x*/80.0);
+    std::cout << "[sampler equivalence] twice-ball raster Ecut 40 N=" << s.N << std::setprecision(12)
               << "  charge pair " << s.qPair << " singles " << s.qSing
               << "  int rho^4/3 pair " << s.xPair << " singles " << s.xSing << std::endl;
     EXPECT_NEAR(s.qSing, s.qPair, 1e-9*std::fabs(s.qPair)) << "the charge of one density, two samplers";

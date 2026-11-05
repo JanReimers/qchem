@@ -25,9 +25,13 @@ namespace qchem::BasisSet::Gaussian
 
 namespace
 {
-//! The top completion rung's gate: a rung is appended when the reference grid sits below RelCutoffSafety() x kRungGateC x alpha_max
-//! (the C=8-era measured calibration, deliberately decoupled from cutoffFactor -- see BuildLevels in Imp/GPW_Evaluator.C).
+//! EMPIRICAL: the C of the rung gate.  Measured in the era when C = 8 was the production cutoffFactor, and deliberately decoupled
+//! from cutoffFactor when that fell to 2 -- see BuildLevels in Imp/GPW_Evaluator.C.
 constexpr double kRungGateC=8.0;
+//! The top completion rung's gate: a rung is appended when the reference grid sits below this Ecut.  The ONE place the pair rule's
+//! stiffness (\a relCutoffSafety, itself a measured calibration: \c kRelSafety in the MnD evaluator) meets \c kRungGateC; no
+//! rigorous bound is folded in, and \c ReportGrids prints both factors and the result.
+double RungGateEcut(double relCutoffSafety, double alphaMax) {return relCutoffSafety*kRungGateC*alphaMax;}
 
 // THE GRID AUDIT (user 2026-10-25: "the max effective exponent and the ideal max G for every relevant H term ... quickly see
 // that all grids are correct").  A term that integrates (or collocates) Gaussian PAIRS on a raster has TWO requirements:
@@ -132,7 +136,7 @@ GpwRasterLadder::GpwRasterLadder(const UnitCell& cell, const GaussianSharpness& 
                   << "densityEcut>=" << floor << ", or the automatic default (densityEcut<0)." << std::endl;
     // L0's raster: the density demand at the exponent L0 serves -- every pair when it is the finest level (an explicit mgridEcuts list,
     // or no completion rung above it), else the relative rule's cap -- raised for the uniform XC's own demand.
-    const bool rung = itsTol.mgridEcuts.empty() && ecut < itsRelCutoffSafety*kRungGateC*aMax;
+    const bool rung = itsTol.mgridEcuts.empty() && ecut < RungGateEcut(itsRelCutoffSafety, aMax);
     itsGrid=MakeLevel(ReciprocalLattice(cell.MakeReciprocal()), ecut, PairCap(ecut, ecut, !rung), std::max(itsTol.rasterX, itsTol.xcRasterX));
     itsLevels=MakeLevels(itsGrid);
 }
@@ -198,7 +202,7 @@ RasterLevels GpwRasterLadder::MakeLevels(std::shared_ptr<const PlaneWave::PW_Gri
             L.levels.push_back(g);
         }
         L.nBase=L.levels.size();
-        if (efine < itsRelCutoffSafety*kRungGateC*amax) // the TOP COMPLETION RUNG
+        if (efine < RungGateEcut(itsRelCutoffSafety, amax)) // the TOP COMPLETION RUNG
         {
             const double e2=itsRelCutoffSafety*efine;
             L.levels.push_back(MakeLevel(grid->Recip(), e2, PairCap(e2, efine, true), itsTol.rasterX));
@@ -311,6 +315,7 @@ void GpwRasterLadder::ReportGrids(const std::vector<Symmetry::Lattice_3D::Direct
     rpt::Set("densityEcut",  itsInputs.cutoffFactor * itsAlphaMax);   // the auto density-grid floor Ecut
     rpt::Set("cutoffFactor", itsInputs.cutoffFactor);
     rpt::Set("raster",       { {"x", itsTol.rasterX}, {"vlocX", itsTol.vlocRasterX}, {"xcX", itsTol.xcRasterX} });   // the demands (0 = the ball's own)
+    rpt::Set("rungGate",     { {"relCutoffSafety", itsRelCutoffSafety}, {"C", kRungGateC}, {"ecut", RungGateEcut(itsRelCutoffSafety, itsAlphaMax)} });
     rpt::Set("routing",      itsRelFieldSharp>=0.0 ? "HartreeOnly" : "HartreeXC");   // field-sharpness routing policy
     rpt::Set("routingBeta",  itsRelFieldSharp>=0.0 ? itsRelFieldSharp : (2.0/3.0)*itsAlphaMax);
     if (!itsGrid) return;                                              // DFT tier off: no grids
