@@ -10,7 +10,6 @@ export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 export import qchem.BasisSet.Orbital_DHF_IBS;
 export import qchem.Structure;
-import qchem.Blaze;
 
 
 export namespace qchem::BasisSet

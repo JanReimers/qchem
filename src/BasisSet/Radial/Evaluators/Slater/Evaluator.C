@@ -15,7 +15,6 @@ import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Atom.Spherical;
 import qchem.IntPow;
 import qchem.Blaze;
-import qchem.Math;
 
 export namespace qchem::BasisSet::Radial::Evaluators::Slater
 {

@@ -6,7 +6,6 @@ module;
 export module qchem.Fitting.Internal.FunctionFitterImp;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar/_Density, the *FFClients, ScalarFunction
 import qchem.Fitting.Types;
-import qchem.Blaze;
 import qchem.Symmetry;               // SymMap -- the per-block integrator cache
 import qchem.BasisSet.Projector3;    // DenseProjector3Integrator (the analytic forward/adjoint pair)
 import qchem.Parallel;               // LazyLock -- itsInt's guard

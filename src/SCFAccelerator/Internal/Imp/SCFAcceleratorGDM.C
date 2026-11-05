@@ -18,6 +18,7 @@ module;
 module qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.Reporting;   // the accelerator files what it was BUILT with, one level into its builder's context
+import qchem.Blaze;
 
 namespace qchem::SCFAccelerators
 {

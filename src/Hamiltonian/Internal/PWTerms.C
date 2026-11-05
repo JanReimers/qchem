@@ -25,7 +25,6 @@ import qchem.ChargeDensity.DensitySampler; // the XC SAMPLING ENGINE the three X
                                                 // NOT re-exported: it is an .Internal. module, so a client
                                                 // that wants MakeDensitySampler imports it by name (CLAUDE.md).
 import qchem.BasisSet.Orbital_DFT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
-import qchem.BasisSet.G_FieldEvaluator;      // G_RasterTransform -- the pair route asks its raster for size/quadrature
 import qchem.Fitting.FunctionFitter;         // FunctionFitter_Density<dcmplx> (the fitter Vee_Hartree holds, built once)
 import qchem.BasisSet.Orbital_PP_IBS;              // the species-field integral service the terms cross-cast the basis to (V1.2)
 import qchem.Pseudopotential.LocalPotential;       // the local / separable models the terms own

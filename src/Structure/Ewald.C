@@ -21,8 +21,6 @@ module;
 export module qchem.Ewald;
 import qchem.Types;     // rvec_t, rvec3_t, vec3_t
 import qchem.UnitCell;
-import qchem.Structure;  // Atom (positions)
-import qchem.Math;       // erfc, exp, sqrt, cos, sin, Pi, cbrt
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 
 namespace qchem {

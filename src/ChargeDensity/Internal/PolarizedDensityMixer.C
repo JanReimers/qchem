@@ -14,7 +14,6 @@ export module qchem.ChargeDensity.Internal.PolarizedDensityMixer;
 export import qchem.ChargeDensity.DensityMixer;
 export import qchem.ChargeDensity.Internal.FieldMixer;
 import qchem.ReciprocalLattice;
-import qchem.Blaze;
 import qchem.Types;
 
 export namespace qchem::ChargeDensity

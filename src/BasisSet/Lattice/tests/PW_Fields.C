@@ -35,7 +35,6 @@ export import qchem.Symmetry.Irrep;                        // Irrep
 export import qchem.LASolver;                              // complex Hermitian eigensolver
 export import qchem.Structure;                             // Molecule, Atom (the Si diamond basis)
 export import qchem.Matrix3D;                              // Matrix3D<double> (the FCC cell matrix)
-import qchem.BasisSet.Internal.BasisSetImp;         // BasisSetImp<dcmplx> (single-block BasisSet container)
 
 export namespace qchem::tests::pw
 {

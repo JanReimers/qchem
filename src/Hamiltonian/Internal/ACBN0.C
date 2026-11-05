@@ -42,7 +42,6 @@ export import qchem.Hamiltonian.HubbardEstimator;   // the face this realises
 export import qchem.Hamiltonian.Internal.Hubbard;   // HubbardProjection (the term face the composite casts to), HubbardManifold
 import qchem.BasisSet.BareCoulombSource;            // ERI4Block
 import qchem.Symmetry.Irrep;                        // Spin
-import qchem.Blaze;
 
 export namespace qchem::Hamiltonian
 {

@@ -6,10 +6,8 @@ export module qchem.BasisSet.Radial.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Radial.Evaluators.BSpline.Internal.Common; 
 import qchem.BasisSet.Radial.Evaluators.Internal.NR_Angular;
 import qchem.BasisSet.Radial.Evaluators;
-import qchem.Symmetry.Atom.Spherical;
 import qchem.BasisSet.Internal.Cache4;
 // import qchem.Symmetry;
-import qchem.Math;
 
 
 export namespace qchem::BasisSet::Radial::Evaluators::BSpline

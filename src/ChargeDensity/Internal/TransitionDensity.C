@@ -35,7 +35,6 @@ import qchem.ChargeDensity.Factory;   // IrrepCD_Factory, RhoRoute
 import qchem.CompositeCD;
 import qchem.BasisSet.Transition_DFT_IBS;     // the KET block's B2 pair capability (Hartree), cross-cast to
 import qchem.Parallel;                // OuterFor (the pair loops run concurrently, KAxisPlan P1)
-import qchem.Streamable;              // Irrep's operator<< (the failure message names the block)
 
 export namespace qchem::ChargeDensity
 {

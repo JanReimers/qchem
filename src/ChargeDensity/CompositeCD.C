@@ -12,7 +12,6 @@ export import qchem.ChargeDensity.DensityMatrixDistance;
 export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (summed over k-blocks)
 export import qchem.Symmetry.Lattice_3D.SpaceGroup; // ReciprocalOp {U|τ} -- the IBZ density-symmetrization ops (glide phase)
 export import qchem.Symmetry.Irrep;                 // the block label (spatial ⊗ ms)
-import qchem.ChargeDensity.Types;
 
 
 export namespace qchem::ChargeDensity

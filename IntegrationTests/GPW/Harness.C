@@ -37,13 +37,11 @@ export import qchem.ChargeDensity.DensitySampler;        // DensitySampler, Make
 export import qchem.Energy;                              // EnergyBreakdown
 export import qchem.Outcome;                             // Outcome<Converged,SCFFailure>
 export import qchem.Types;
-import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.BasisSet.DeltaFit_IBS;              // DeltaFit_IBS -- the delta basis the singles strategy runs on
 import qchem.BasisSet.G_FieldEvaluator;           // G_RasterTransform -- the uniform probe's own point count
 export import qchem.BasisSet.Conditioning;
 export import qchem.BasisSet.Lattice.BasisSet;    // VetStageTrim (pin 22)
 import qchem.Hamiltonian.Internal.PWTerms;        // Vxc_Quadrature (the XC probes)
-import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian;                         // cDynamic_HT, Dynamic_HT_RealBlock
@@ -52,7 +50,6 @@ import qchem.ChargeDensity.Seed;                  // SeedStrategy
 import qchem.SCFAccelerator.Factory;              // SCFAccelerators::Type
 import qchem.Symmetry.Factory;                    // BlochFactory
 import qchem.LASolver;                            // qchem::Ortho
-import qchem.Blaze;
 
 export namespace qchem::tests::gpw
 {

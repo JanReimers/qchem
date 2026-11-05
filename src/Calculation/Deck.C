@@ -26,8 +26,6 @@ import qchem.SolidCalculation;     // SolidCalcOptions
 import qchem.SCFParams;            // SCFParams
 import qchem.Mesh;                 // MeshParams
 import qchem.RunPolicy;            // RunPolicySpec
-import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData (the deck names the basis file)
-import qchem.BasisSet.Gaussian.Point.ShellTrim;  // ShellTrim (a stated trim)
 import qchem.Types;                // ivec3_t
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names its accelerator)
 import qchem.Materials;            // Material (the structure section's name resolves to one)

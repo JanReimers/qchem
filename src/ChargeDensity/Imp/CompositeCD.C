@@ -13,6 +13,7 @@ import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO (each fin
 import qchem.BasisSet.G_FieldEvaluator;  // G_RasterTransform -- the raster face that star-averages a grid field
 import qchem.Blaze;
 import qchem.Reporting;                 // report::Timed -- splitting the V_H field build (ParallelAndOraclePlan 1.3b)
+import qchem.ChargeDensity.Types;
 
 namespace qchem::ChargeDensity
 {

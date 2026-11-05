@@ -10,7 +10,6 @@ module;
 export module qchem.BasisSet.Internal.BasisSetImp;
 export import qchem.Types;
 export import qchem.BasisSet;
-import qchem.stl_io;
 
 export namespace qchem::BasisSet
 {

@@ -27,11 +27,9 @@ module;
 export module qchem.BasisSet.GMap;
 export import qchem.BasisSet.Projector3;  // IVec3Less, ΔG_Map, Projector3<T> + Contract/ContractAdjoint
 import qchem.Types;    // ivec3_t, dcmplx
-import qchem.Blaze;    // rvec_t, chmat_t + complex/double arithmetic (visible here; the qcMath leaf lacked it)
 export import qchem.Matrix3D;  // Matrix3D (the reciprocal point ops for the G-space density symmetrization)
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;  // ReciprocalOp {U|tau} for the non-symmorphic glide phase
 import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the T1 {G}-star reduced evaluation)
-import qchem.Math;     // std::lround (rotated integer G-index), Pi (the e^{2pi i (Um).tau} phase)
 
 export namespace qchem {
 

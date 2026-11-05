@@ -40,6 +40,8 @@ import qchem.Parallel;                         // WorkerThreads() -- half of the
 import qchem.SCFCap;                           // SetupSCF -- the seed's atomic solves are not the run's iterations
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
 import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
+import qchem.Hamiltonian.Factory;
+import qchem.RunPolicy;
 
 namespace qchem
 {

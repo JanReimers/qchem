@@ -20,6 +20,7 @@ import qchem.BasisSet.Gaussian.PG_Cart.Symmetry;   // ExtractAoShells(const PGDa
 import qchem.Structure;
 import qchem.Symmetry.Unit;
 import qchem.Blaze;
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 
 namespace qchem::BasisSet::Gaussian::PG_LibCint
 {

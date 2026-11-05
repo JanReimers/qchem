@@ -27,6 +27,7 @@ import qchem.BasisSet.Orbital_1E_IBS;                // Real_OIBS -- the per-irr
 import qchem.CompositeCD;                            // tComposite_CD (the carried density's shape)
 import qchem.ChargeDensity.Factory;                  // IrrepCD_Factory
 import qchem.Symmetry.Molecule.PointGroup;           // DetectPointGroup (a session step must keep the SALC group)
+import qchem.Hamiltonian.Factory;
 
 namespace qchem
 {

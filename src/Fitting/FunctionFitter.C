@@ -31,7 +31,6 @@ export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gra
 export import qchem.BasisSet.GMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
 import qchem.Fitting.Types;           // robs_t<T>
 export import qchem.BasisSet.Orbital_DFT_IBS;  // rFIT_SF_ABS / rFIT_CD_ABS (the fit faces) + Orbital_DFT_IBS (FitContraction's argument)
-import qchem.Blaze;                   // hmat_t<T>
 
 export namespace qchem::Fitting
 {
