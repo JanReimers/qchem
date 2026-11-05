@@ -52,6 +52,7 @@ template <class Fit, class Make> static std::shared_ptr<const Fit> BuildTermFit(
 {
     qchem::report::Scope here(term);
     std::shared_ptr<const Fit> fit(make());
+    qchem::report::Set("fit", fit->Name());   // the resolved fit, on the console (a Scope renders its scalars, not the row)
     qchem::report::Row row("fitbasis");
     qchem::report::Set("role",       role);
     qchem::report::Set("name",       fit->Name());
