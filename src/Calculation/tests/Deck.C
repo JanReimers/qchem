@@ -737,6 +737,11 @@ TEST(Deck, DisplaceRoundTripsAndRefusesWhatASessionCannotRun)
     EXPECT_NE(msg(base(json::array(),plain)).find("no points"),std::string::npos);
     EXPECT_NE(msg(base({{{"atoms",{0}},{"delta",{0.1,0}}}},plain)).find("[x,y,z]"),std::string::npos);
     EXPECT_NE(msg(base({{{"atom",0},{"delta",{0.1,0,0}}}},plain)).find("unknown key"),std::string::npos);
+    // An audit reads the deck's own positions: after a displace it would pass for the displaced point's, before one it says what it is.
+    const json audit={{"xcMeshAudit",{{"nRadial",120},{"angularDegree",53}}}}, move={{"displace",{{"points",pts}}}};
+    auto listed=[&](json post) { return json{{"structure","NaF_rocksalt"},{"solid",plain},{"postSCF",post}}; };
+    EXPECT_NE(msg(listed({move,audit})).find("not a displaced point"),std::string::npos);
+    EXPECT_EQ(msg(listed({audit,move})),"NO THROW");
 }
 
 TEST(Deck, APolarizedPlusUDeckMustStateItsMagneticOrdering)

@@ -762,6 +762,7 @@ Materials::Material Resolve(RunSpec& spec)
     // PRE-FLIGHT of the postSCF list (each message names the action and what to change): the old probes found these out AFTER the SCF.
     {
         size_t i=0;
+        bool displaced=false;
         for (const auto& a : spec.postSCF)
         {
             const std::string who="deck: postSCF."+std::to_string(i++)+" ("+PostName(a.kind)+"): ";
@@ -775,6 +776,8 @@ Materials::Material Resolve(RunSpec& spec)
             {
                 if (spec.basis.family!=SolidCalcOptions::OrbitalBasis::GPW) throw std::runtime_error(who+"a plane-wave run samples XC on its FFT grid, not a Becke mesh");
                 if (a.xcRefNRadial<=0 || a.xcRefAngularDegree<=0) throw std::runtime_error(who+"nRadial and angularDegree must be > 0");
+                // displace runs in its own session, so this run's D stays on the deck's positions: after one, the audit would read as the displaced point's.
+                if (displaced) throw std::runtime_error(who+"it audits the deck's own positions, not a displaced point -- list it before displace, or state the displaced structure in the deck");
                 continue;
             }
             if (a.kind==PostAction::Kind::EggBox)      // a rigid translation of a free, U = 0 Gaussian run at a nonzero shift
@@ -788,6 +791,7 @@ Materials::Material Resolve(RunSpec& spec)
             if (a.kind==PostAction::Kind::Displace)    // geometry points through ONE SolidSession (its own setup, sized on max|dH_ij|)
             {
                 if (a.points.empty()) throw std::runtime_error(who+"no points -- list {\"atoms\":[i,...], \"delta\":[x,y,z]} (bohr)");
+                displaced=true;
                 // The session's own refusal, run here so a deck fails before its SCF: a free mesh made invariant under the group detected at
                 // EACH geometry switches along a path that breaks it (OpenWork, closed 2026-10-30).
                 if (!spec.solid.imposeSymmetry && spec.basis.family==SolidCalcOptions::OrbitalBasis::GPW && spec.solid.xcMeshSymmetric)
