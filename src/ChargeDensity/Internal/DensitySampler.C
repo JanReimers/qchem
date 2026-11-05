@@ -113,6 +113,8 @@ public:
     tSinglesDensitySampler(fit_t, BasisSet::FitQuadrature quad={});
     double Integrate(const rvec_t& f) const override;
     size_t NumPoints() const override;
+    //! My mesh's sampling slot (the δ basis samples a field ON that mesh: \c DeltaFit_IBS::Overlap -> \c SampleOn).
+    SamplingTarget* FourierTarget() const override {return itsQuad.GetMesh() ? itsQuad.GetMesh()->FourierTarget() : nullptr;}
     //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial),
     //! STAR-AVERAGED over the fold's orbits when one was supplied (exact projector on the invariant
     //! mesh -- §6a W1.  The E/H pair needs nothing else: on orbit-symmetric weights the projector is

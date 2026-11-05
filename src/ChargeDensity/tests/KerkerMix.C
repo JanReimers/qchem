@@ -66,7 +66,10 @@ TEST(KerkerMix, BatchedSamplerEqualsTheDirectSeries)
     for (int x=-6; x<=6; x++) for (int y=-6; y<=6; y++) for (int z=-6; z<=6; z++)
         if (x*x+y*y+z*z<=36)
         {
-            const dcmplx c(std::sin(1.3*x+0.7*y-0.4*z)/(1.0+x*x+y*y+z*z), std::cos(0.9*x-1.1*y+0.3*z)/(2.0+x*x+y*y+z*z));
+            // NO symmetry between c(k) and c(-k) on purpose: a series with c(-k) = -conj(c(k)) is purely IMAGINARY, and its real part -- what
+            // a sampler returns -- is identically zero (this test's first series was, and passed vacuously).
+            const dcmplx c((std::cos(1.3*x+0.7*y-0.4*z)+0.4*std::sin(0.9*x-1.1*y+0.3*z))/(1.0+x*x+y*y+z*z),
+                           (std::sin(0.9*x-1.1*y+0.3*z)+0.2*std::cos(1.3*x+0.7*y-0.4*z))/(2.0+x*x+y*y+z*z));
             rho[ivec3_t(x,y,z)]=c; l1+=std::abs(c);
         }
     FourierMixCD cd(rho, recip, 3.0);

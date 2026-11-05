@@ -96,8 +96,12 @@ template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const St
 FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp, const Symmetry::SymmetryImposition* imp)
 {
     qchem::report::Scope here("xcQuadrature");   // the mesh builder reports one level in
-    if (const auto* src=dynamic_cast<const XCMeshSource*>(imp)) return src->MakeXCMesh(mp);   // abstract face to abstract face
-    return {std::make_shared<const qcMesh::Mesh>(cl.CreateIntegrationMesh(mp)), {}};
+    const auto* src=dynamic_cast<const XCMeshSource*>(imp);   // abstract face to abstract face
+    FitQuadrature q = src ? src->MakeXCMesh(mp) : FitQuadrature{std::make_shared<const qcMesh::Mesh>(cl.CreateIntegrationMesh(mp)), {}};
+    // The accuracy a Fourier series sampled on THIS quadrature must meet (the rho-tilde sampler, step 2): stated by the run in the
+    // recipe, recorded on the mesh's sampling slot, where its consumer (the XC term) derives the one tolerance tau from it.
+    if (q.GetMesh()) q.GetMesh()->FourierTarget()->accuracy=mp.sampling;
+    return q;
 }
 
 // The periodic (dcmplx) Vxc fit basis.  THE ONE SITE THAT CHOOSES A REPRESENTATION (2026-08-22):

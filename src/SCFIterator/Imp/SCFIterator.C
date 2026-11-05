@@ -809,7 +809,7 @@ template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>*
 
 // --- Column-width constants: the header labels and the value rows share these, so they line up exactly
 //     regardless of the UTF-8 label glyphs (Δ, ρ, ε are multi-byte but one display column). --------------
-namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=13, W_ACC=7, W_SV=8, W_CFG=3, W_GAP=9, W_ORD=12, W_XCR=7 }; }
+namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=13, W_ACC=7, W_SV=8, W_CFG=3, W_GAP=9, W_ORD=12, W_XCR=7, W_SAMP=9 }; }
 
 // Display width of a UTF-8 string (counts leading bytes only, so Δ/ρ/ε each count as one column).
 static size_t VisWidth(const std::string& s)
@@ -1011,6 +1011,23 @@ ColumnData XCRhoCol()
             [](const IterationTrace&){return kNoValue;}};   // a NAME (which rho), not a number: the text carries it
 }
 
+//! THE rho-tilde SAMPLER'S AUDIT (step 2, user 2026-11-04): this iteration's worst delivered/tau of the sized NUFFT samplings, against
+//! the direct series on a point subsample.  '!' when over target (> 1): the sampler never changes its settings inside an SCF, so this
+//! column is how an over-target is SEEN; the run's one tightening of tau happens at the next SCF boundary.  "----" when the run sized
+//! no sampling.  A probe like XC ρ: no tolerance cell.
+ColumnData SamplingCol()
+{
+    return {"samp/τ", W_SAMP, std::nullopt,
+            [](std::ostream& os, const IterationTrace& tr)
+            {
+                const auto& r=tr.eb.charge.samplingOverTau;
+                if (!r) {os << PadR("----", W_SAMP) << " "; return;}
+                std::ostringstream c; c << std::scientific << setprecision(1) << *r << (*r>1.0 ? "!" : "");
+                os << PadR(c.str(), W_SAMP) << " ";
+            },
+            [](const IterationTrace& tr){return tr.eb.charge.samplingOverTau ? *tr.eb.charge.samplingOverTau : kNoValue;}, Scale::Log};
+}
+
 } //anon namespace
 
 // --- Base: the MOLECULAR column list -----------------------------------------------------------------
@@ -1156,7 +1173,8 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
     auto rho=std::find_if(cols.begin(), cols.end(), [&](const ColumnData& c){return c.title==DeltaRhoTitle();});
     assert(rho!=cols.end() && "the base layout carries Δρ");
     rho=cols.insert(rho+1, GridLossCol());                             // the grid-charge leak
-    cols.insert(rho+1, XCRhoCol());                                    // ...and which rho its XC saw (pin 28)
+    rho=cols.insert(rho+1, XCRhoCol());                                // ...and which rho its XC saw (pin 28)
+    cols.insert(rho+1, SamplingCol());                                 // ...and what its rho-tilde sampler delivered (step 2)
 }
 
 // The solid mixer.  The branch here is on the KNOBS -- which RECIPE did the caller ask for? -- not on the

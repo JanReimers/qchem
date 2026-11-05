@@ -51,6 +51,9 @@ public:
     //! A BUILDER records a structure of its points the series can exploit.  \c Append and \c ShiftOrigin drop it (the
     //! points are then no longer the ones it described).
     void InstallFourierSampling(std::shared_ptr<const FourierSamplingStrategy> s) {itsSampling=std::move(s);}
+    //! \copydoc PointSampling::FourierTarget
+    //! Every mesh has one, SHARED by its copies (a copy is the same points, so the same consumer's tolerance and calibration).
+    SamplingTarget* FourierTarget() const override {return itsTarget.get();}
     const rvec_t&     Weights() const {return itsW;} //!< w_i, for the integrators.
     size_t            size   () const {return itsW.size();}
 
@@ -83,6 +86,7 @@ private:
     rvec_t              itsW;
     std::vector<size_t> itsSiteStart;   //!< first point index of each site block ({} = no site structure)
     std::shared_ptr<const FourierSamplingStrategy> itsSampling;   //!< null = the NUFFT default
+    std::shared_ptr<SamplingTarget> itsTarget=std::make_shared<SamplingTarget>();   //!< the sampling slot (unset = step-1 tolerance)
 };
 
 //! \brief The per-site integrals \f$\int w_A(r)f(r)\,d^3r\f$ of a field \a f sampled on \a m's points —
@@ -187,6 +191,9 @@ struct MeshParams
     //! margin; 1e-5 breaks it.  A TOLERANCE trade, not a bit-identical restructuring -- the weights move at ~1e-6 relative.
     //! Was the env override GPW_BECKE_EPS read inside the mesh build; typed here (D-ENV step 5) and folded into \c ID().
     double      beckeEps  = 1.0e-6;
+    //! \brief The accuracy a Fourier series sampled on this mesh must meet (the rho-tilde sampler's step 2; \c qchem::SamplingAccuracy):
+    //! stated by the run for its XC quadrature, unset everywhere else.  NOT in \c ID(): it sizes a sampler ON the points, never the points.
+    SamplingAccuracy sampling;
 
     //! \brief Compact, deterministic identity string for these parameters.  Two MeshParams give the
     //! same ID() iff they build the same quadrature, so it is the cache key for any mesh-quadrature

@@ -156,7 +156,12 @@ These are roundoff and identity tolerances, or reports:
 9. **`MergeTol`.** It decides degeneracy, and so occupations. It is a class question as much as a size question.
 10. **Negligible at 1e-7, but FIXED by the letter of pin 31:** Ewald p = 34, the ERI4 screen 5e-16, the Hermite floor 1e-13, PGData 1e-10, and the LASolver fallback floor.
 
-⚑ **Open for the user (classes not decided here):**
+⚑ **Ruled by the user, 2026-11-04:**
+- **k-mesh: STATED, ε-checking OPTIONAL.**  Physicists choose k grids and must not have to steer ε to get one.  An optional k-ladder audit may report the change to the next mesh; it never changes the mesh.
+- **SCF gates: an OPTION.**  An ε-derived gate is available but not imposed; stated gates stay the default.
+- **Fit sets: STATED, and REPORTED in or out of bounds.**  A numerical approximation, chosen by name like the orbital basis.  Its error is unknown at start-up, so nothing is sized from it; the fit residual (‖ρ − ρ_fit‖ in the Coulomb metric) is reported against ε as the run goes, the same pattern as `samp/τ`.
+
+⚑ **The original questions:**
 - The **k-mesh**: should a BZ quadrature be judged against ε, e.g. a k-ladder audit like the ball's, or stay a stated model input?
 - The **SCF gates** (`MinΔρPerElectron`, `MinFD`): should the gate derive from ε, i.e. stop when the estimated E error of an unconverged D is below ε·N?
 - **Whether an auxiliary fit set is a model choice.**

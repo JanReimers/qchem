@@ -4,6 +4,7 @@
 // midpoint raster overrides with the exact inverse FFT, and a field that is NOT a Fourier series is sampled exactly as before.
 #include "gtest/gtest.h"
 #include <cmath>
+#include <algorithm>
 #include <complex>
 #include <stdexcept>
 #include <string>
@@ -35,7 +36,10 @@ Series Ball(const UnitCell& cell, int m)
     for (int x=-m; x<=m; x++) for (int y=-m; y<=m; y++) for (int z=-m; z<=m; z++)
         if (x*x+y*y+z*z<=m*m)
         {
-            const dcmplx c(std::sin(1.3*x+0.7*y-0.4*z)/(1.0+x*x+y*y+z*z), std::cos(0.9*x-1.1*y+0.3*z)/(2.0+x*x+y*y+z*z));
+            // NO symmetry between c(k) and c(-k) on purpose: a series with c(-k) = -conj(c(k)) is purely IMAGINARY, and its real part -- what
+            // a sampler returns -- is identically zero (this test's first series was, and passed vacuously).
+            const dcmplx c((std::cos(1.3*x+0.7*y-0.4*z)+0.4*std::sin(0.9*x-1.1*y+0.3*z))/(1.0+x*x+y*y+z*z),
+                           (std::sin(0.9*x-1.1*y+0.3*z)+0.2*std::cos(1.3*x+0.7*y-0.4*z))/(2.0+x*x+y*y+z*z));
             s.t.push_back({ivec3_t(x,y,z),c}); s.l1+=std::abs(c);
         }
     return s;
@@ -121,3 +125,61 @@ TEST(PointSampling, ANonFourierFieldIsSampledBitwiseAsBefore)
         for (size_t p=0; p<a.size(); p++) ASSERT_EQ(a[p], b[p]) << "point " << p;
     }
 }
+
+// STEP 2: a SIZED sampler on a Becke mesh, at the rigorous eta = 1, delivers within its tau (checked here against the direct series, and
+// by its own audit) with a narrower kernel than the fixed step-1 tolerance; a tighter tau never takes a narrower kernel.  The sampler
+// only MEASURES: its audit fills the per-iteration window and never changes its settings.  Unset tau = the step-1 width.
+TEST(PointSampling, ASizedNUFFTMeetsItsTauWithTheSmallestWidth)
+{
+    const UnitCell cell=SiPrimitive();
+    const Series s=Ball(cell, 6);
+    {
+        const qcMesh::Mesh m=cell.CreateIntegrationMesh(qcMesh::BeckeXCParams(10, 2.0, 11));
+        auto smp=m.MakeFourierSampler(s.box);   // the slot is unset: step 1
+        smp->Load(s.t);
+        EXPECT_EQ(smp->Method().rfind("NUFFT (w 14",0), 0u) << smp->Method();
+        EXPECT_EQ(m.FourierTarget()->loads, 0u) << "an unsized Load is not counted";
+    }
+    int wPrev=0;
+    for (double tau : {1e-4, 1e-6, 1e-8})
+    {
+        const qcMesh::Mesh m=cell.CreateIntegrationMesh(qcMesh::BeckeXCParams(10, 2.0, 11));   // a fresh slot per tau
+        SamplingTarget& T=*m.FourierTarget();
+        T.tau=tau;   // accuracy.eta defaults to 1: rigorous
+        for (int call=0; call<2; call++)
+        {
+            auto smp=m.MakeFourierSampler(s.box);
+            smp->Load(s.t);
+            double e=0.0;
+            for (size_t p=0; p<m.size(); p+=5) e=std::max(e, std::abs(smp->ValueAt(p)-Direct(s,m.Points()[p])));
+            EXPECT_LE(e, tau) << "tau " << tau << " call " << call;
+        }
+        EXPECT_EQ(T.tau, tau) << "the sampler never changes its own tau";
+        EXPECT_EQ(T.wMin, T.wMax) << "the same series takes the same width: no in-run adaptation";
+        EXPECT_LT(T.wMax, 14) << "tau " << tau << ": narrower than the fixed step-1 width";
+        EXPECT_GE(T.wMin, wPrev) << "a tighter tau must not take a narrower kernel";
+        EXPECT_GT(T.worstDeliveredOverTau, 0.0); EXPECT_LE(T.worstDeliveredOverTau, 1.0);
+        const double w1=T.TakeWindow();
+        EXPECT_EQ(w1, T.worstDeliveredOverTau);
+        EXPECT_EQ(T.TakeWindow(), 0.0) << "the window is reset by its read";
+        wPrev=T.wMin;
+        EXPECT_EQ(T.loads, 2u);
+    }
+}
+
+// AN OPTIMISTIC CALIBRATION IS SEEN, NOT HIDDEN: with eta far below the truth the width is too narrow, and the audit reports a
+// delivered/tau over 1 -- while the sampler keeps its settings (tau, width) exactly as configured.
+TEST(PointSampling, AnOverTargetIsReportedNotActedOn)
+{
+    const UnitCell cell=SiPrimitive();
+    const Series s=Ball(cell, 6);
+    const qcMesh::Mesh m=cell.CreateIntegrationMesh(qcMesh::BeckeXCParams(10, 2.0, 11));
+    SamplingTarget& T=*m.FourierTarget();
+    T.tau=1e-8; T.accuracy.eta=1e-9;   // absurdly optimistic: the narrowest kernel
+    for (int call=0; call<3; call++) {auto smp=m.MakeFourierSampler(s.box); smp->Load(s.t);}
+    EXPECT_GT(T.worstDeliveredOverTau, 1.0);
+    EXPECT_EQ(T.tau, 1e-8);
+    EXPECT_EQ(T.wMin, T.wMax) << "never widened inside the run";
+    EXPECT_LT(T.wMax, 5) << "the optimistic calibration takes a narrow kernel";
+}
+

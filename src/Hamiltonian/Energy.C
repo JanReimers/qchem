@@ -78,6 +78,10 @@ struct ChargeBreakdown
     //! subgroup, the mixer) was handed -- the 4e-9 that seeded the β-MnO₂ flip leak (2026-10-28) was this number.  0 on a free run;
     //! nullopt when the XC route does not project (the raster pair route) and so cannot say.
     std::optional<double> xcGroupResidual;
+    //! THE rho-tilde SAMPLER'S AUDIT (step 2, the samp/τ column): the worst delivered max|delta rho| / tau of this iteration's sized
+    //! Fourier samplings, against the direct series on a point subsample.  > 1 is over target -- reported here, acted on (one tightening
+    //! of tau) only at the next SCF boundary.  nullopt when no sized sampling ran (no accuracy target, a raster, a molecule).
+    std::optional<double> samplingOverTau;
 };
 
 //! \brief The energy breakdown of one density: keyed, role-tagged, insertion-ORDERED contributions (Display

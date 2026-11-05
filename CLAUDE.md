@@ -193,6 +193,7 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
       rigorous value, the correction, and the result.
     - `GridAccuracy::Rigorous` / `Calibrated` (`GPWTolerances.C`) is the model.
     - A literal fudge inside a bound is a defect to flag.
+    - Calibrate an empirical η on REAL runs, never on a synthetic series alone: a smooth test series cancels more than an SCF's field does (sampler η 1/30 → 1/4, 2026-11-04).
 - **THE RUN REPORT — every run records itself as JSON; read `src/Common/Reporting.C` (`import qchem.Reporting`,
     namespace `qchem::report`) before printing anything or reading results out of a run** (user, 2026-11-02).
     The report IS json: no per-section C++ structs, no per-section renderers (the console renderer infers

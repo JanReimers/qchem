@@ -53,8 +53,58 @@ public:
         return std::clamp(int(std::ceil(std::log10(1.0/tol)))+1, 2, 16);
     }
 
-    Type2(const ivec3_t& lo, const ivec3_t& hi, double tol)
-        : itsLo(lo), itsHi(hi), itsW(WidthFor(tol)), itsBeta(2.30*itsW)
+    //! A plan at the width FINUFFT's rule gives for \a tol (relative to ||c||_1) -- a rule, not a bound; see \c Bound.
+    Type2(const ivec3_t& lo, const ivec3_t& hi, double tol) : Type2(lo, hi, WidthFor(tol), 0) {}
+    //! A plan at a stated kernel WIDTH (2..16), for a caller that chooses w against \c Bound.
+    static Type2 OfWidth(const ivec3_t& lo, const ivec3_t& hi, int w) {return Type2(lo, hi, std::clamp(w,2,16), 0);}
+
+    //! \brief THE RIGOROUS ERROR BOUND of this plan: \f$|\tilde f(s)-f(s)|\le\lVert c\rVert_1\,B\f$ at every s.
+    //!
+    //! Derivation.  For ONE mode c e^{2 pi i k.s}, steps 1-3 return c e^{2 pi i k.s} prod_a (1 + e_a(k_a, y_a)) EXACTLY, with,
+    //! per axis (y = n s mod n, xi = 2 pi k/n, the sum over the w nodes j the interpolation visits),
+    //!     1 + e(k, y) = (1/psi^(xi)) Sum_j psi(y - j) e^{i xi (j - y)}
+    //! -- the separable kernel factorizes the 3-D gather into three 1-D ones, and the FFT puts b_k e^{i xi j} on node j.
+    //! By linearity the error of the series is Sum_k c_k e^{..} [prod_a (1 + e_a) - 1], so
+    //!     |f~ - f| <= ||c||_1 max_k |prod_a (1 + e_a) - 1| <= ||c||_1 [ prod_a (1 + E_a) - 1 ],   E_a = max_{k, y} |e_a(k, y)|.
+    //! e is evaluated DIRECTLY (no alias series, so no tail to truncate), and it uses the SAME psi^ the deconvolution divides by,
+    //! so the Gauss-Legendre error of psi^ is inside the bound too.  The one sampled quantity is the max over y: e(k, .) is
+    //! 1-periodic and smooth except where the w-node window shifts (y - w/2 an integer, i.e. y mod 1 in {0, 1/2}); the scan
+    //! takes 512 phases plus both sides of each shift.
+    double Bound() const
+    {
+        double p=1.0;
+        for (int a=0; a<3; a++) p*=1.0+AxisErrorMax(a);
+        return p-1.0;
+    }
+    //! max_{k, y} |e(k, y)| on axis \a a (see \c Bound).
+    double AxisErrorMax(int a) const
+    {
+        const int lo=At(itsLo,a), hi=At(itsHi,a), na=n[a];
+        std::vector<double> ys;
+        for (int i=0; i<512; i++) ys.push_back(i/512.0);
+        for (double edge : {0.0, 0.5}) {ys.push_back(edge); ys.push_back(edge>0.0 ? edge-1e-12 : 1.0-1e-12);}
+        double E=0.0;
+        for (int k=lo; k<=hi; k++)
+        {
+            const double xi=2.0*Pi*k/na, inv=itsDeconv[a][k-lo];   // 1/psi^(xi)
+            for (double y : ys)
+            {
+                const int j0=int(std::ceil(y-0.5*itsW));
+                dcmplx s(0.0);
+                for (int t=0; t<itsW; t++)
+                {
+                    const int j=j0+t;
+                    s+=Kernel(y-j)*std::exp(dcmplx(0.0, xi*(j-y)));
+                }
+                E=std::max(E, std::abs(inv*s-1.0));
+            }
+        }
+        return E;
+    }
+
+private:
+    Type2(const ivec3_t& lo, const ivec3_t& hi, int w, int)
+        : itsLo(lo), itsHi(hi), itsW(w), itsBeta(2.30*itsW)
     {
         for (int a=0; a<3; a++)
         {
@@ -67,6 +117,8 @@ public:
         itsN=ivec3_t(n[0],n[1],n[2]);
         for (int a=0; a<3; a++) itsDeconv[a]=MakeDeconvolution(a);
     }
+
+public:
 
     int Width() const {return itsW;}
     const ivec3_t& GridSize() const {return itsN;}

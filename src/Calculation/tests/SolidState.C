@@ -11,6 +11,7 @@
 // is TRIM (real by default) and there is more than one block to get in the wrong order.
 #include <gtest/gtest.h>
 #include <optional>   // std::nullopt: an OFF SCF gate
+#include <algorithm>  // std::any_of (the samp/τ column)
 #include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
 #include <cmath>
 #include <complex>
@@ -574,3 +575,58 @@ TEST(SolidState, ExactResume_PlaneWave)                 {ExpectPlaneWaveExactRes
 TEST(SolidState, ExactResume_PlaneWave_PartialEigensolve) {ExpectPlaneWaveExactResume(8);}
 
 } //namespace
+
+// THE rho-tilde SAMPLER'S ONE TIGHTENING (step 2, user rulings 2026-11-04): settings are fixed BEFORE iteration 1 and never change inside
+// an SCF; an over-target is SEEN in the samp/τ column, and acted on ONCE, at the next SCF boundary that rebuilds the Hamiltonian (here
+// the raster pilot's re-convergence).  Forced with an absurdly optimistic calibration (eta 1e-3: the NUFFT runs too narrow).
+TEST(SolidState, AnOverTargetSamplerIsFlaggedAndTightenedOnceAtTheNextSCF)
+{
+    SiRun si=Si(ivec3_t(1,1,1));
+    SCFParams p=Params();
+    p.Mixer=SCFParams::Mixing::Kerker; p.KerkerG0=1.0; p.StartingRelaxRo=0.4;   // Kerker at relax 1 diverges on this Si cell
+    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .label="sampler"};
+    o.accelerator=SCFAccelerators::Type::Null;
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;     // the singles route: the N4 correction is NUFFT-sampled every iteration
+    o.accuracy.samplerEta=1e-3;   // ~150x below the measured 0.147: the NUFFT runs over its tau, by an error still far below what moves the SCF
+    std::vector<std::optional<double>> col;
+    testing::internal::CaptureStdout();
+    SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p,
+                          [&col](const SCFIterator::IterationRow& r){ col.push_back(r.eb.charge.samplingOverTau); });
+    const std::string out=testing::internal::GetCapturedStdout();
+    ASSERT_TRUE(calc.Result()) << "the forced over-target Si run must still converge";
+    // the column FLAGGED it: some row is over target, and the trace marks it
+    EXPECT_TRUE(std::any_of(col.begin(), col.end(), [](const auto& v){return v && *v>1.0;}));
+    EXPECT_NE(out.find("!"), std::string::npos);
+    EXPECT_NE(out.find("samp/τ"), std::string::npos) << "the column header";
+    // tau is fixed inside the first SCF: ONE settings line before the tightening
+    const size_t tightened=out.find("XC sampling] TIGHTENED once");
+    ASSERT_NE(tightened, std::string::npos) << "the next SCF boundary must tighten tau once";
+    const std::string first=out.substr(0, tightened);
+    size_t lines=0;
+    for (size_t at=first.find("[XC sampling] rho-tilde NUFFT: tau"); at!=std::string::npos; at=first.find("[XC sampling] rho-tilde NUFFT: tau", at+1)) lines++;
+    EXPECT_EQ(lines, 1u) << "tau is set once, before the sampler's first use, and not changed inside the SCF";
+    EXPECT_NE(first.find("OVER TARGET in this SCF"), std::string::npos) << "the over-target SCF is reported at its end";
+    // ...and exactly once per run
+    EXPECT_EQ(out.find("XC sampling] TIGHTENED once", tightened+1), std::string::npos) << "tightened at most once per run";
+    // ...and it WORKED: the re-converged SCF, sized at the tightened tau, delivers within what the consumer needs
+    ASSERT_TRUE(!col.empty() && col.back());
+    EXPECT_LT(*col.back(), 1.0) << "after the one tightening the column must read under target";
+}
+
+// The default calibration on the run it was measured from: the first cut (eta 1/30, from a synthetic series) read 4.4 here.
+TEST(SolidState, TheDefaultSamplerCalibrationMeetsItsTarget)
+{
+    SiRun si=Si(ivec3_t(1,1,1));
+    SCFParams p=Params();
+    p.Mixer=SCFParams::Mixing::Kerker; p.KerkerG0=1.0; p.StartingRelaxRo=0.4;
+    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .label="sampler"};
+    o.accelerator=SCFAccelerators::Type::Null;
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
+    std::vector<std::optional<double>> col;
+    SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p,
+                          [&col](const SCFIterator::IterationRow& r){ col.push_back(r.eb.charge.samplingOverTau); });
+    ASSERT_TRUE(calc.Result());
+    ASSERT_TRUE(std::any_of(col.begin(), col.end(), [](const auto& v){return v.has_value();})) << "the sampler must have run";
+    for (const auto& v : col)
+        if (v) EXPECT_LE(*v, 1.0);
+}
