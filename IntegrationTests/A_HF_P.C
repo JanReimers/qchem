@@ -38,6 +38,8 @@ static std::vector<HFCase> Cases(AtomType t, BasisSetAccuracy a, double tol, Kno
 }
 
 static std::string CaseName(const testing::TestParamInfo<HFCase>& i) { return "Z" + std::to_string(i.param.Z); }
+// What ctest NAMES the case: CMake's pretty values take the printed parameter, and a struct prints as its raw bytes without this.
+static void PrintTo(const HFCase& c, std::ostream* os) { *os << CaseName({c, 0}); }
 
 } // anonymous namespace
 
