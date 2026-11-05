@@ -516,6 +516,25 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
 }
 
 // The grid audit (doc/GridEpsilonPlan.md §3) is the one postSCF action that is not about +U: it needs no Hubbard manifold, only a raster.
+// A relative basis.file beside the deck wins, so rundeck, --check and the panel read the same file; a bare name with nothing beside the
+// deck stays for the basis reader's shipped directory.
+TEST(Deck, ARelativeBasisFileResolvesBesideTheDeck)
+{
+    namespace fs=std::filesystem;
+    const fs::path dir=fs::path(::testing::TempDir())/"deck_basis_file";
+    fs::create_directories(dir);
+    { std::ofstream(dir/"beside.bsd")<<"# a stand-in\n"; }
+    json beside={{"basis",{{"file","beside.bsd"}}}}, shipped={{"basis",{{"file","valence_lowq_va.bsd"}}}}, none=json::object();
+    deck::ResolveBasisFile(beside, dir);
+    deck::ResolveBasisFile(shipped, dir);
+    deck::ResolveBasisFile(none, dir);
+    EXPECT_EQ(beside["basis"]["file"], (dir/"beside.bsd").string());
+    EXPECT_EQ(shipped["basis"]["file"], "valence_lowq_va.bsd");
+    EXPECT_EQ(none, json::object());
+    { std::ofstream(dir/"deck.json")<<R"({"structure":"Si_diamond","basis":{"file":"beside.bsd"}})"; }
+    EXPECT_EQ(deck::LoadDeck(dir/"deck.json","any")["basis"]["file"], (dir/"beside.bsd").string()) << "a load applies the rule";
+}
+
 // C2 step 3: its reference is the run's own rasters plus an alias-exponent MARGIN (the named BallOnly/AliasFree rasters are gone).
 TEST(Deck, GridAuditRoundTripsItsReferenceMargin)
 {

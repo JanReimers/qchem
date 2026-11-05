@@ -930,20 +930,29 @@ void WriteRevision(const std::filesystem::path& path, const json& resolved, cons
     os<<out.dump(2)<<"\n";
 }
 
+void ResolveBasisFile(json& payload, const std::filesystem::path& deckDir)
+{
+    if (!payload.contains("basis") || !payload["basis"].contains("file")) return;
+    const std::filesystem::path f=payload["basis"]["file"].get<std::string>();
+    if (f.is_relative() && std::filesystem::exists(deckDir/f)) payload["basis"]["file"]=(deckDir/f).string();
+}
+
 json LoadDeck(const std::filesystem::path& path, const std::string& currentCodeVersion)
 {
     std::ifstream in(path);
     if (!in) throw std::runtime_error("deck: cannot read "+path.string());
     json j;
     try { j=json::parse(in); } catch (const json::exception& e) { throw std::runtime_error("deck: "+path.string()+": "+e.what()); }
-    if (!j.contains("run")) return j;                                  // a hand-written deck: the payload IS the file
+    if (!j.contains("run")) { ResolveBasisFile(j,path.parent_path()); return j; }   // a hand-written deck: the payload IS the file
     const json& h=j.value("deck",json::object());
     if (h.value("schema",0) > kSchemaVersion)
         throw std::runtime_error("deck: "+path.string()+" has schema "+std::to_string(h.value("schema",0))+", newer than this code's "+std::to_string(kSchemaVersion));
     if (h.value("codeVersion",std::string()) != currentCodeVersion)
         std::fprintf(stderr,"[deck] WARNING: %s was written by code version '%s', this is '%s' -- the run may not reproduce\n",
                      path.c_str(), h.value("codeVersion",std::string()).c_str(), currentCodeVersion.c_str());
-    return j.at("run");
+    json payload=j.at("run");
+    ResolveBasisFile(payload,path.parent_path());
+    return payload;
 }
 
 
