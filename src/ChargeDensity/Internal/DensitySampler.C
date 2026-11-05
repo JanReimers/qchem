@@ -22,6 +22,7 @@ module;
 #include <vector>   // SinglesDensitySampler sigmas/flipFixed (Shubnikov S3)
 export module qchem.ChargeDensity.Internal.DensitySampler;
 export import qchem.ChargeDensity.DensitySampler;   // the abstract face these realise
+import qchem.BasisSet.Fit_Types;
 import qchem.BasisSet.Orbital_DFT_IBS;      // the fit-basis faces + FitQuadrature
 import qchem.BasisSet.G_FieldEvaluator;     // G_RasterTransform -- the pair route asks its raster for size/quadrature
 import qchem.Parallel;                       // LazyLock (lazy per-block caches filled from outer-loop workers)

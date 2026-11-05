@@ -8,8 +8,6 @@ export import qchem.BasisSet.Fit_Types;
 export import qchem.BasisSet.GridResolution;
 export import qchem.Structure;
 export import qchem.Symmetry;
-export import qchem.ElectronConfiguration;
-export import qchem.Matrix3D;
 export import qchem.Symmetry.Imposition;
 export import qchem.Streamable;
 namespace qchem::BasisSet {
@@ -41,7 +39,6 @@ namespace qchem::BasisSet {
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import :Fit_IBS;
-export import qchem.BasisSet.Fit_Types;
 export import qchem.BasisSet.Projector3;
 namespace qchem::BasisSet {
     template <class T, class TFit = T> class Orbital_DFT_IBS : public virtual Orbital_1E_IBS<T> , public virtual IrrepBasisSet_IDs {
@@ -174,7 +171,6 @@ namespace qchem::BasisSet {
 
 ### qchem.ChargeDensity   (src/ChargeDensity/ChargeDensity.C)
 export import qchem.Symmetry.Spin;
-export import qchem.Symmetry.Irrep;
 export import qchem.ChargeDensity.FourierDensity;
 export import qchem.Fitting.FunctionFitter;
 namespace qchem::ChargeDensity {
@@ -491,7 +487,6 @@ export import qchem.EnergyLevel;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 export import qchem.Symmetry.Irrep;
-export import qchem.ElectronConfiguration;
 export import qchem.Orbitals;
 namespace qchem::WaveFunction {
     using qchem::ChargeDensity::rDM_CD;
@@ -519,7 +514,6 @@ namespace qchem::WaveFunction {
 ### qchem.Fitting.FunctionFitter   (src/Fitting/FunctionFitter.C)
 export import qchem.Mesh.Integrator;
 export import qchem.ScalarFunction;
-export import qchem.BasisSet.GMap;
 export import qchem.BasisSet.Orbital_DFT_IBS;
 namespace qchem::Fitting {
     template <class T> class ProjectedDensity {

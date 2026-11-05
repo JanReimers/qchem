@@ -8,6 +8,7 @@ module;
 export module qchem.WaveFunction.Internal.CompositeWF;
 export import qchem.WaveFunction.SCF;
 import qchem.SCFAccelerator;
+import qchem.ElectronConfiguration;
 import qchem.WaveFunction.Internal.IrrepWF;
 import qchem.WaveFunction.Types;
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation: Cholesky | Eigen | SVD + tol)

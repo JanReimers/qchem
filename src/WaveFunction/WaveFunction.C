@@ -7,7 +7,6 @@ export import qchem.EnergyLevel;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 export import qchem.Symmetry.Irrep;   // Irrep + Spin + SpinGroup (the imposed spin subgroup)
-export import qchem.ElectronConfiguration;
 import qchem.ScalarFunction;
 export import qchem.Orbitals;
 

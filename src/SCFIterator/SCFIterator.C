@@ -10,6 +10,7 @@ module;
 #include <string_view>
 export module qchem.SCFIterator;
 import qchem.SCFIterator.Types;
+import qchem.ElectronConfiguration;
 export import qchem.SCFAccelerator;
 export import qchem.WaveFunction;
 import qchem.WaveFunction.SCF;

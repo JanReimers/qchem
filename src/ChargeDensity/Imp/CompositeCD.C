@@ -10,6 +10,7 @@ module;
 #include <string>
 module qchem.CompositeCD;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO (each finite block's AO face)
+import qchem.BasisSet.GMap;             // SymmetrizeGMap
 import qchem.BasisSet.G_FieldEvaluator;  // G_RasterTransform -- the raster face that star-averages a grid field
 import qchem.Blaze;
 import qchem.Reporting;                 // report::Timed -- splitting the V_H field build (ParallelAndOraclePlan 1.3b)

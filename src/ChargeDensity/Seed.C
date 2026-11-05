@@ -8,7 +8,8 @@ module;
 export module qchem.ChargeDensity.Seed;
 export import qchem.ChargeDensity;   // tDM_CD<T>
 export import qchem.ChargeDensity.AtomicDensity;   // SeedKey (the functional + per-Z PP variant the seeds are keyed by)
-import qchem.BasisSet;               // tBasisSet<T>, and (re-exported) Structure / ElectronConfiguration
+import qchem.BasisSet;               // tBasisSet<T>, and (re-exported) Structure
+import qchem.ElectronConfiguration;
 
 export namespace qchem::ChargeDensity
 {

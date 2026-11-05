@@ -351,8 +351,6 @@ export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-f
 export import qchem.BasisSet.GridResolution;   // Resolution -- what a grid builder asks of the whole basis (V-BS-RASTER)
 export import qchem.Structure;
 export import qchem.Symmetry;
-export import qchem.ElectronConfiguration;
-export import qchem.Matrix3D;   // Matrix3D -- the crystal point-group ops a periodic basis exposes (IBZ symmetrization)
 export import qchem.Symmetry.Imposition;   // SymmetryImposition -- what the basis was built under (GetImposition, S3)
 
 import qchem.Iterators;
