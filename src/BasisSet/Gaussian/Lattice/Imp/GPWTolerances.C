@@ -72,7 +72,7 @@ double GridAccuracy::MeasuredDemand(double delivered, double xRun, double target
     if (!(target>0.0)) throw std::invalid_argument("GridAccuracy::MeasuredDemand: the target must be > 0");
     if (!(delivered>target)) return 0.0;
     if (!(xRun>0.0)) throw std::invalid_argument("GridAccuracy::MeasuredDemand: a term over its target on a raster with no alias exponent");
-    const AliasTail measured{delivered/(std::pow(xRun,3.0)*std::exp(-xRun)), 3.0};
+    const AliasTail measured{delivered/(std::pow(xRun,kAliasTailPower)*std::exp(-xRun)), kAliasTailPower};
     return measured.Bound(measured.n) <= target ? measured.n : measured.Exponent(target);
 }
 

@@ -21,6 +21,7 @@ module;
 #include <vector>
 module qchem.SolidCalculation;
 
+import qchem.BasisSet.AoShellSource;           // FunctionName: the audit's largest element, by atom, shell and l
 import qchem.BasisSet.Conditioning;            // ReportConditioning, MinOverlapEigenvalue
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
 import qchem.Pseudopotential.Set;             // PseudopotentialSet -- the run's chosen pseudopotential, resolved once by SolidSetup::Resolve
@@ -1414,8 +1415,31 @@ std::string BeckeName(const qcMesh::MeshParams& m)
     return "Becke (nR="+std::to_string(m.nRadial)+", L="+std::to_string(m.angularDegree)
            +(m.angular==qcMesh::AngularKind::Lebedev ? " Lebedev)" : " GL)");
 }
-//! The largest |a_ij - b_ij| of two term lists of one block, folded into \a terms (by position: one term order on both Hamiltonians).
-template <class M> void FoldΔH(const std::vector<M>& a, const std::vector<M>& b, std::vector<SolidCalculation::GridAuditTerm>& terms)
+//! One function of a block as a human reads it: its atom, its shell and l.  The shells' order is the block's function order (\c AoShellSource).
+std::string FunctionName(const std::vector<Symmetry::Molecule::AoShell>& shells, const Structure& st, size_t f)
+{
+    for (size_t s=0;s<shells.size();s++)
+    {
+        const auto& sh=shells[s];
+        if (f<sh.offset || f>=sh.offset+sh.nComponents()) continue;
+        size_t atom=0, a=0; int z=0; double best=std::numeric_limits<double>::max();
+        for (const Site& site : st.Sites()) { const double d=norm(site.R-sh.center); if (d<best) {best=d; atom=a; z=site.Z;} a++; }
+        std::ostringstream os; os<<"atom "<<atom<<" Z="<<z<<" shell "<<s<<" l="<<sh.rep->L()<<" component "<<f-sh.offset;
+        if (sh.exponents.size()>0)
+        {
+            double lo=sh.exponents[0], hi=lo;
+            for (size_t p=1;p<sh.exponents.size();p++) { lo=std::min(lo,sh.exponents[p]); hi=std::max(hi,sh.exponents[p]); }
+            os<<" alpha "<<lo<<".."<<hi;
+        }
+        return os.str();
+    }
+    throw std::logic_error("GridAudit: function "+std::to_string(f)+" is in no shell");
+}
+//! Two term lists of one (spin, block) channel, folded into \a terms (by position: one term order on both Hamiltonians): the largest
+//! |a_ij - b_ij| and where it sits, and beside it the D-weighted Re Tr(D ΔH) and the S-metric norm.  \a frame = the run's own orthonormal
+//! frame V for this block: an explicit S⁻¹ loses digits at small λ_min, and would count directions the run dropped.
+template <class M> void FoldΔH(const std::vector<M>& a, const std::vector<M>& b, const SavedBlock& sb, const LASolver<dcmplx>& frame,
+                               const std::string& spin, size_t block, std::vector<SolidCalculation::GridAuditTerm>& terms)
 {
     if (a.size()!=terms.size() || b.size()!=terms.size()) throw std::logic_error("GridAudit: a block's term list differs from the energies'");
     for (size_t t=0;t<a.size();t++)
@@ -1423,8 +1447,27 @@ template <class M> void FoldΔH(const std::vector<M>& a, const std::vector<M>& b
         if (a[t].rows()!=b[t].rows() || a[t].columns()!=b[t].columns())
             throw std::logic_error("GridAudit: term "+std::to_string(t)+"'s block is "+std::to_string(a[t].rows())+" on the run, "
                                    +std::to_string(b[t].rows())+" on the reference -- the bases do not match function for function");
-        for (size_t i=0;i<a[t].rows();i++) for (size_t j=i;j<a[t].columns();j++)
-            terms[t].maxAbsΔH=std::max(terms[t].maxAbsΔH, std::abs(a[t](i,j)-b[t](i,j)));
+        const size_t n=a[t].rows();
+        if (sb.D.rows()!=n) throw std::logic_error("GridAudit: block "+std::to_string(block)+"'s D does not match its term matrices");
+        mat_t<dcmplx> ΔH(n,n);
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) ΔH(i,j)=dcmplx(a[t](i,j))-dcmplx(b[t](i,j));
+        auto& T=terms[t];
+        double tr=0.0, largest=0.0;
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) tr+=std::real(sb.D(i,j)*ΔH(j,i));
+        T.trDdH.push_back(sb.weight*tr);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+        {
+            const double d=std::abs(ΔH(i,j));
+            largest=std::max(largest,d);
+            if (d>T.maxAbsΔH) { T.maxAbsΔH=d; T.maxElement.spin=spin; T.maxElement.block=block; T.maxElement.i=i; T.maxElement.j=j; T.maxElement.absD=std::abs(sb.D(i,j)); }
+        }
+        if (largest==0.0) continue;   // an analytic term: identical on both sides
+        hmat_t<dcmplx> H(n);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) H(i,j)=ΔH(i,j);
+        const hmat_t<dcmplx> X=frame.Transform(H);
+        double f2=0.0;
+        for (size_t i=0;i<X.rows();i++) for (size_t j=0;j<X.columns();j++) f2+=std::norm(X(i,j));
+        T.sNormDH=std::max(T.sNormDH, std::sqrt(f2));
     }
 }
 } //anon
@@ -1500,7 +1543,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     {
         const G::RasterExponents x=itsImp->ladder->DeliveredRasterExponents();
         const double xV = x.vlocLong>0.0 ? x.vlocLong : x.density;   // no own V_long ladder (the kappa-sweep path): the density's
-        const GridAuditResult R=CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), "pilot reference (x + 8)");
+        const GridAuditResult R=CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), "pilot reference (x + "+std::to_string(int(kReferenceMargin))+")");
         G::GPWTolerances t=itsImp->setup->opts.tolerances;
         double dDens=0.0, dV=0.0, dXC=0.0;
         rpt::json terms=rpt::json::array();
@@ -1807,15 +1850,36 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
         R.ΔE+=eRun[t].E-eRef[t].E;
     }
     const std::vector<Spin> spins = g==SpinGroup::Polarized ? std::vector<Spin>{Spin::Up,Spin::Down} : std::vector<Spin>{Spin::None};
+    size_t channel=0;   // the snapshot's canonical block order: spin irreps outer, basis blocks inner
     for (Spin s : spins)
-        for (size_t i=0;i<itsImp->bs->GetNumIBS();++i)
+        for (size_t i=0;i<itsImp->bs->GetNumIBS();++i,++channel)
         {
             const auto* rb=itsImp->bs->GetRealIBS(i);
             const auto* rr=bsRef->GetRealIBS(i);
             if (bool(rb)!=bool(rr)) throw std::logic_error("GridAudit: block "+std::to_string(i)+" is real on one basis and complex on the other");
-            if (rb) FoldΔH(itsImp->ham->MakeTermMatrices(rb,s,dRun), hamRef->MakeTermMatrices(rr,s,dRef), R.terms);
-            else    FoldΔH(itsImp->ham->MakeTermMatrices((*itsImp->bs)[i],s,dRun), hamRef->MakeTermMatrices((*bsRef)[i],s,dRef), R.terms);
+            if (channel>=st.blocks.size() || st.blocks[channel].ms!=int(s)) throw std::logic_error("GridAudit: the snapshot's block order is not the audit's");
+            const SavedBlock& sb=st.blocks[channel];
+            hmat_t<dcmplx> S(sb.S.rows());
+            for (size_t a=0;a<S.rows();a++) for (size_t b=a;b<S.rows();b++) S(a,b)=sb.S(a,b);
+            const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(opts.ortho, opts.orthoTol));
+            frame->SetBasisOverlap(S);
+            const std::string spin = s==Spin::Up ? "up" : s==Spin::Down ? "down" : "none";
+            if (rb) FoldΔH(itsImp->ham->MakeTermMatrices(rb,s,dRun), hamRef->MakeTermMatrices(rr,s,dRef), sb, *frame, spin, i, R.terms);
+            else    FoldΔH(itsImp->ham->MakeTermMatrices((*itsImp->bs)[i],s,dRun), hamRef->MakeTermMatrices((*bsRef)[i],s,dRef), sb, *frame, spin, i, R.terms);
         }
+    {   // the largest element of each term, named: block 0's shells speak for every block (AoShellSource's contract)
+        const auto* src = itsImp->bs->GetRealIBS(0) ? dynamic_cast<const BasisSet::AoShellSource*>(itsImp->bs->GetRealIBS(0))
+                                                    : dynamic_cast<const BasisSet::AoShellSource*>((*itsImp->bs)[0]);
+        if (src)
+        {
+            const auto shells=src->GetAoShells();
+            for (auto& t : R.terms) if (t.maxAbsΔH>0.0)
+            {
+                t.maxElement.functionI=FunctionName(shells, *itsImp->st, t.maxElement.i);
+                t.maxElement.functionJ=FunctionName(shells, *itsImp->st, t.maxElement.j);
+            }
+        }
+    }
     for (const auto& t : R.terms) R.maxAbsΔH=std::max(R.maxAbsΔH, t.maxAbsΔH);
     refVerdicts=verdictsOf(*ladderRef);
     fence.reset();
@@ -1859,7 +1923,17 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
         else if (t.etaOn=="measured")          std::cout<<"[MEASURED: no rigorous bound for the XC raster]  ";
         std::cout<<t.label<<" ["<<t.entries<<"]"<<std::endl;
         rows.push_back({{"term",t.label},{"entries",t.entries},{"maxAbsDH",t.maxAbsΔH},{"dE",t.ΔE},{"E",t.E},
-                        {"x",t.x},{"bound",t.bound},{"eta",t.eta},{"etaOn",t.etaOn}});
+                        {"x",t.x},{"bound",t.bound},{"eta",t.eta},{"etaOn",t.etaOn},{"trDdH",t.trDdH},{"sNormDH",t.sNormDH}});
+        if (t.maxAbsΔH>0.0)
+        {
+            const auto& m=t.maxElement;
+            double sum=0.0; for (double c : t.trDdH) sum+=c;
+            std::cout<<"[grid audit]     Tr(D ΔH) "<<sum<<" = channels";
+            for (double c : t.trDdH) std::cout<<" "<<c;
+            std::cout<<"  S-norm "<<t.sNormDH<<"  max element: spin "<<m.spin<<" block "<<m.block<<" ("<<m.i<<","<<m.j<<") |D_ij| "<<m.absD
+                     <<": ["<<m.functionI<<"] x ["<<m.functionJ<<"]"<<std::endl;
+            rows.back()["maxElement"]={{"spin",m.spin},{"block",m.block},{"i",m.i},{"j",m.j},{"absD",m.absD},{"functionI",m.functionI},{"functionJ",m.functionJ}};
+        }
     }
     std::cout<<"[grid audit]   max|ΔH_ij| "<<std::setw(10)<<R.maxAbsΔH<<"  ΔE "<<std::setw(11)<<R.ΔE<<" Ha  TOTAL"<<std::endl;
     for (const auto& [who,vs] : {std::pair<const char*,const rpt::json*>{"the run's own",&verdicts},{"the reference's",&refVerdicts}})

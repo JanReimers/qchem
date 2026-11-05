@@ -525,7 +525,7 @@ PostAction PostFromJson(const json& j, const std::string& path)
         a.kind=PostAction::Kind::GridAudit;
         if (body.contains("reference"))
             throw std::runtime_error("deck: postSCF gridAudit 'reference' (a named raster) is retired with BallOnly/AliasFree (C2 step 3): "
-                                     "state 'referenceMargin', the reference rasters' alias-exponent margin over the run's (default 8)");
+                                     "state 'referenceMargin', the reference rasters' alias-exponent margin over the run's (default "+std::to_string(int(SolidCalculation::kReferenceMargin))+")");
         f.Get("referenceMargin",a.referenceMargin);
     }
     else if (name=="eggBox")
@@ -1210,7 +1210,8 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
                         :                          calc->GridAudit(a.referenceMargin);
             json t=json::array();
             for (const auto& x : R.terms) t.push_back({{"term",x.label},{"entries",x.entries},{"maxAbsDH",x.maxAbsΔH},{"dE",x.ΔE},
-                                                       {"x",x.x},{"bound",x.bound},{"eta",x.eta},{"etaOn",x.etaOn}});
+                                                       {"x",x.x},{"bound",x.bound},{"eta",x.eta},{"etaOn",x.etaOn},
+                                                       {"trDdH",x.trDdH},{"sNormDH",x.sNormDH}});
             rj["reference"]=R.reference; rj["terms"]=t; rj["maxAbsDH"]=R.maxAbsΔH; rj["dE"]=R.ΔE;
             auto vj=[](const auto& vs) { json o=json::object(); for (const auto& v : vs) o[v.audit]={{"status",v.status},{"alias",v.alias}}; return o; };
             rj["verdicts"]=vj(R.runVerdicts); rj["referenceVerdicts"]=vj(R.referenceVerdicts);
