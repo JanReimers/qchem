@@ -118,6 +118,17 @@ struct SolidCalculation::Imp
     SolidCalculation::RasterPilotCost pilotCost;   //!< what the pilot cost (\c PilotCost)
     //! The pilot's start rasters were already raised once for the overlap's conditioning (\c Converge): never a second time.
     bool startRaisedForConditioning = false;
+    //! \brief THE rho-tilde SAMPLER'S ONE TIGHTENING (step 2, user rulings 2026-11-04).  The sampler's tau is fixed from the seed and never
+    //! changes inside an SCF; what it delivers is the samp/τ column.  When an SCF of this run ends with a row over target (> 1), the NEXT
+    //! SCF BOUNDARY that rebuilds the Hamiltonian (\c BuildRun: the pilot's next round, a re-seat) scales tau by 1/(1.5 x worst) --
+    //! ONCE PER RUN and TIGHTEN-ONLY (the scale never rises back), so it can neither oscillate nor creep.  An annealed stage that keeps
+    //! its Hamiltonian, or the last SCF of the run, cannot be re-sized: its over-target is REPORTED (console + run report
+    //! `xcSamplingOverTarget`: the SCF's first over iteration, the worst delivered/tau, tau), never silent.
+    double samplingTauScale   = 1.0;    //!< applied to tau at every Hamiltonian build (the recipe's \c SamplingAccuracy::tauScale)
+    bool   samplingTightened  = false;  //!< the one tightening has happened
+    double samplingScfWorst   = 0.0;    //!< this SCF's worst samp/τ
+    size_t samplingScfFirstOver = 0;    //!< this SCF's first iteration over target (0 = none)
+    double samplingPending    = 0.0;    //!< a finished SCF's over-target worst awaiting the next boundary (0 = none)
 };
 
 //---------------------------------------------------------------------------------------------------
@@ -499,9 +510,38 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     {
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
         qchem::report::Scope hamiltonian("hamiltonian");   // its meshes and terms report one level in (user rulings 2026-11-02, 2026-11-04)
+        // THE ACCURACY a Fourier series sampled on the XC quadrature must meet (the rho-tilde sampler, step 2; pin 31): the run's
+        // target for what its client consumes, the density gate its sampled residual is judged on, and the two GPW calibrations.
+        // The XC term derives the one tolerance tau from it on the seed.  No target (eps 0) leaves it unset: the step-1 fixed width.
+        qcMesh::MeshParams xc=itsImp->setup->xcMesh;
+        if (opts.accuracy.eps>0.0)
+        {
+            // THE ONE TIGHTENING, at this SCF boundary, when a finished SCF of the run measured the sampling over target (see the Impl).
+            if (itsImp->samplingPending>1.0 && !itsImp->samplingTightened)
+            {
+                const double old=itsImp->samplingTauScale;
+                itsImp->samplingTauScale=std::min(old, 1.0/(1.5*itsImp->samplingPending));
+                itsImp->samplingTightened=true;
+                std::cout<<"["<<opts.label<<" XC sampling] TIGHTENED once: the last SCF delivered "<<itsImp->samplingPending
+                         <<" x tau, so tau is scaled by "<<itsImp->samplingTauScale<<" (was "<<old<<") from this SCF on"<<std::endl;
+                qchem::report::Scope here("xcSamplingTightened");
+                qchem::report::Set("worstDeliveredOverTau", itsImp->samplingPending);
+                qchem::report::Set("tauScaleOld", old);
+                qchem::report::Set("tauScaleNew", itsImp->samplingTauScale);
+            }
+            itsImp->samplingPending=0.0;
+            xc.sampling.tauScale=itsImp->samplingTauScale;
+            const bool onH=itsImp->consumes==BasisSet::Gaussian::ClientConsumes::MatrixElements;
+            xc.sampling.target        =opts.accuracy.Target(itsImp->consumes, itsImp->st->GetNumAtoms());
+            xc.sampling.perElement    =onH;
+            xc.sampling.residualGate  =(params.Δρmeasure==SCFParams::Measure::L1PerElectron && params.MinΔρPerElectron)
+                                       ? *params.MinΔρPerElectron : 0.0;   // a MaxΔD gate is not an L1 of the sampled pair
+            xc.sampling.residualMargin=opts.accuracy.samplerResidualMargin;
+            xc.sampling.eta           =opts.accuracy.samplerEta;
+        }
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->setup->pp, itsImp->setup->xcMesh, opts.vxcFit, hubbard));
+            itsImp->st, itsImp->bs.get(), itsImp->setup->pp, xc, opts.vxcFit, hubbard));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -880,6 +920,11 @@ void SolidCalculation::AttachProbes()
         itsImp->lastCommutator = itsImp->stageAccel==SCFAccelerators::Type::Null
                                ? std::numeric_limits<double>::quiet_NaN() : row.ValueOf("[F,D]");
         itsImp->lastDensityChange = row.ValueOf("Δρ");
+        if (const auto& r=row.eb.charge.samplingOverTau; r)   // the rho-tilde sampler's audit (the samp/τ column)
+        {
+            itsImp->samplingScfWorst=std::max(itsImp->samplingScfWorst, *r);
+            if (*r>1.0 && itsImp->samplingScfFirstOver==0) itsImp->samplingScfFirstOver=row.iteration;
+        }
         if (userObs) userObs(row);
     });
 }
@@ -1062,7 +1107,20 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
     itsImp->lastRecipe = std::string("accel=")+AccelName(itsImp->stageAccel)+" kT="+std::to_string(params.SmearingkT)
                        + " MOM="+(params.UseMOM?"on":"off")+" KerkerG0="+std::to_string(resolved.KerkerG0)
                        + " PulayDepth="+std::to_string(resolved.PulayDepth)+" NMaxIter="+std::to_string(params.NMaxIter);
+    itsImp->samplingScfWorst=0.0; itsImp->samplingScfFirstOver=0;
     itsImp->scf->Iterate(params);
+    if (itsImp->samplingScfWorst>1.0)   // never silent: reported here, acted on (once) at the next SCF boundary
+    {
+        std::cout<<"["<<itsImp->setup->opts.label<<" XC sampling] OVER TARGET in this SCF: worst delivered "<<itsImp->samplingScfWorst
+                 <<" x tau, first at iteration "<<itsImp->samplingScfFirstOver
+                 <<(itsImp->samplingTightened ? " (tau was already tightened once: not again)" : " (the next Hamiltonian build tightens tau once)")
+                 <<std::endl;
+        qchem::report::Scope here("xcSamplingOverTarget");
+        qchem::report::Set("worstDeliveredOverTau", itsImp->samplingScfWorst);
+        qchem::report::Set("firstIteration", itsImp->samplingScfFirstOver);
+        qchem::report::Set("alreadyTightened", itsImp->samplingTightened);
+        if (!itsImp->samplingTightened) itsImp->samplingPending=itsImp->samplingScfWorst;
+    }
     itsImp->converged = itsImp->scf->Converged();
     itsImp->diag.itsConverged = itsImp->converged;
     // Take the density OUT of the wave function: it stays valid after the iterator's state moves on

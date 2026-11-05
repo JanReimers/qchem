@@ -343,6 +343,12 @@ protected:
     //! folded doublet's one raster halved (borrowed reference + scratch, hence the pair of references).
     struct Rasters { const rvec_t& up; const rvec_t& dn; };
     Rasters ChannelRasters(const tChargeDensity<T>* cd, rvec_t& scratch) const;
+    //! \brief THE rho-tilde SAMPLER'S ONE TOLERANCE tau (step 2, user rulings 2026-11-04), derived HERE because only this term has
+    //! v_xc and f_xc in hand: on the SEED density (every Fock block of the first build, before the sampler's first sized use freezes
+    //! it), from the accuracy the run stated on my quadrature.  \a matrixOf contracts a field into this block's matrix.
+    template <class Mat> void SizeFourierSampling(const Spin& s, const tChargeDensity<T>* cd, const rvec_t& v, Mat matrixOf) const;
+    //! Reports tau ONCE, when the sampler's first sized use froze it (the settings the SCF runs under).
+    void ReportFourierSampling() const;
 
 
     xc_t      itsXc;
@@ -354,6 +360,13 @@ protected:
     mutable std::optional<ChargeDensity::XCRhoSource> itsFockSource;
     mutable std::optional<double> itsFockGroupResidual;   //!< R2.1: the same build's density vs the imposed group (\c xcGroupResidual)
     qchem::LazyLock itsFockSourceLock;   //!< every Fock block writes it (the same value): concurrent blocks take turns
+    //! The seed's consumer prefactors (SizeFourierSampling): P_E per channel = Integral |v_xc^sigma|, P_H = max_i <i| sum_t |f_xc^{st}| |i>.
+    mutable double itsSeedPE[2]={0.0,0.0};
+    mutable double itsSeedPH=0.0;
+    mutable bool   itsSamplingReported=false;
+    mutable size_t itsSamplingLastLoads=0;   //!< the slot's load count when the samp/τ column last read its window
+    mutable double itsSamplingShown=0.0;     //!< ...and the value it read (repeated by an energy pass with no new samplings)
+    qchem::LazyLock itsSamplingLock;
 };
 
 //! \brief The PERIODIC XC term: \c tVxc_Quadrature<dcmplx> plus what only a Bloch run has -- the real TRIM block's cache

@@ -157,6 +157,25 @@ struct GridAccuracy : AccuracyTarget
     //! The routing tolerance the facade derives: the rigorous per-pair relative bound corrected by the measured calibration -- the ONE
     //! place the two pieces meet.
     double VlocEps() const {return RigorousVlocEps()/vlocRoutingEta;}
+    //! \brief EMPIRICAL: the rho-tilde sampler's NUFFT calibration eta = delivered / bound (expert `solid.accuracyCalibration.samplerEta`),
+    //! dividing the rigorous alias bound (\c NUFFT::Type2::Bound) in the width choice -- set BEFORE the SCF and never changed inside it
+    //! (user ruling 2026-11-04).  The default decomposes, like \c vlocRoutingEta, as (measured max delivered/bound) x (margin):
+    //!   - measured 2026-11-04 on REAL runs, the full sweep at eta = 1/30: the samp/τ column jumps each time the falling ||c||_1 lets the
+    //!     width drop one step, and at that jump the sizing is exactly met, so delivered/bound = eta x (peak of the column).  Peaks: Si
+    //!     Gamma Becke Kerker 4.4, NaF 2.9, MnO 2.2, TiO2 k222 1.4, hence max delivered/bound 4.4/30 = 0.147, rising as the width falls;
+    //!   - times a 1.5 x margin: 0.22, rounded up to 1/4.
+    //! The synthetic series of UTCommon NUFFT.Type2BoundCoversTheDeliveredError reads only 1/80 .. 1/47: a smooth series cancels more
+    //! than an SCF's N4 correction does.  Calibrating on it (1/30, the first cut) left routine runs over target, so re-measure on runs.
+    //! Every sized Load is AUDITED against the direct series (the samp/τ column), so a material where this is optimistic shows as a column
+    //! over 1 and the run's one tightening of tau (\c SolidCalculation, at the next SCF boundary) -- the calibration can be wrong, the
+    //! reported error cannot.  1 = rigorous.
+    double samplerEta = 1.0/4.0;
+    //! \brief CALIBRATION kappa_R (expert `solid.accuracyCalibration.samplerResidualMargin`): the share of the SCF density gate the
+    //! sampled residual pair's error may use.  NOT measured -- a margin: the gate is a hard threshold on a continuous quantity, so the
+    //! sampling must stay well below it or it starts deciding when the run stops (the pilot-hand-off row, OpenWork §3, measured how a
+    //! 1e-16 perturbation already moves the iteration count where the residual sits within 2x of its gate).  0.1 = an order of
+    //! magnitude of headroom.
+    double samplerResidualMargin = 0.1;
     //! \brief The STATED calibration's raster demands written into \a t (rasterX = the density tail's L(eps/eta), vlocRasterX = V_long's,
     //! xcRasterX = rasterX: the XC raster has no bound of its own).  THROWS when there is no stated calibration (that run self-calibrates).
     GPWTolerances Stated(GPWTolerances t) const;

@@ -73,3 +73,30 @@ TEST(NUFFT, Type2ReproducesOnePlaneWave)
     for (const rvec3_t s : {rvec3_t(0.1,0.2,0.3), rvec3_t(-0.77,1.31,0.05), rvec3_t(0.999,0.0,0.5)})
         EXPECT_NEAR(std::abs(plan.Interpolate(g,s)-Direct(Terms{{k,dcmplx(0.25,-0.5)}},s)), 0.0, 1e-13);
 }
+
+// THE BOUND IS A BOUND (step 2's rigorous half): at every width the plan's Bound() covers the error delivered against the
+// direct series, on the asymmetric box -- and is not uselessly loose (within 10^3 of delivered while the error is above
+// the double floor).  The table is printed for the record.
+TEST(NUFFT, Type2BoundCoversTheDeliveredError)
+{
+    const ivec3_t lo(-5,-3,-7), hi(4,6,7);
+    double l1=0.0;
+    const Terms t=RandomTerms(lo,hi,l1);
+    for (int w=4; w<=16; w++)
+    {
+        const NUFFT::Type2 plan=NUFFT::Type2::OfWidth(lo,hi,w);
+        const cvec_t g=plan.Grid(t);
+        std::mt19937 gen(777);
+        std::uniform_real_distribution<double> u(-1.5,2.5);
+        double err=0.0;
+        for (int p=0; p<200; p++)
+        {
+            const rvec3_t s(u(gen),u(gen),u(gen));
+            err=std::max(err, std::abs(plan.Interpolate(g,s)-Direct(t,s)));
+        }
+        const double rel=err/l1, B=plan.Bound();
+        std::cout << "[NUFFT bound] w " << w << "  bound " << B << "  delivered " << rel << "  ratio " << B/rel << std::endl;
+        EXPECT_GE(B, rel) << "w " << w;
+        if (rel>1e-14) EXPECT_LT(B, 1e3*rel) << "w " << w << ": the bound is uselessly loose";
+    }
+}
