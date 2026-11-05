@@ -2,8 +2,8 @@
 """Compare two ctest LastTest.log files test by test: the LAST printed total energy (Etot=, or 'Etot = ' from rundeck;
 a test that prints neither -- the molecular / atom gates -- falls back to the Etotal of its LAST SCF trace row)
 and two iteration counts: the summed iters= and the number of SCF trace rows.  They are not the same count, so both are
-compared: only solids print iters=, the PW prototypes print no trace, and the rows also count a solid's seed and pseudo-atom
-SCFs.  Prints only the tests whose energy moved by more than --tol (Ha) or whose iteration count changed, sorted by |dE|; the
+compared: the PW prototypes print no trace, and the rows also count a solid's seed and pseudo-atom SCFs.  Atoms and molecules
+print iters= since V-FACADE-RESULT-LINE (2026-11-04), so a log older than that reads as moved on iters= alone for them.  Prints only the tests whose energy moved by more than --tol (Ha) or whose iteration count changed, sorted by |dE|; the
 summary line says how many tests each comparison could see.  Usage: anchordiff.py BASE.log NEW.log [--tol 1e-9]"""
 import re, sys
 
