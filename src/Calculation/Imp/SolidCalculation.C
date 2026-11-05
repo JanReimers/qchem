@@ -1135,18 +1135,10 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
     const auto* wf = itsImp->scf->GetWaveFunction();
     itsImp->spin.reset();   // built on demand by Converged::SpinDensity()
     const bool polarizedRun = wf->GetSpinGroup()==SpinGroup::Polarized;
-    // THE RESULT LINE -- the run reports its own outcome, contemporaneously, at the stated precision
-    // (doc/Benchmark.md compares codes at the 1e-5 Ha level; the terms stay at default width, they are read
-    // for structure).  Was the integration-test driver's line until TE phase 2 (2026-09-15).
+    ReportResult(itsImp->setup->opts.label, itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->charge, itsImp->scf->GetEnergy());
     {
         const qchem::EnergyBreakdown& E=itsImp->scf->GetEnergy();
         const std::streamsize prec0=std::cout.precision();
-        std::cout << "["<<itsImp->setup->opts.label<<"] "<<(itsImp->converged ? "CONVERGED" : "NOT converged")
-                  << " iters="<<itsImp->scf->GetIterationCount()<<" charge="<<itsImp->charge
-                  << " Eelec="<<E.GetElectronicEnergy()
-                  << " Etot="<<std::setprecision(10)<<E.GetTotalEnergy()<<std::setprecision(prec0)
-                  << "  (Ekin="<<E["Kinetic"]<<" Een="<<E["Een"]<<" Eee="<<E["Eee"]<<" Exc="<<E["Exc"]
-                  << " Enn="<<E["Enn"]<<" E_alphaZ="<<E["E_alphaZ"]<<")" << std::endl;
         // THE INTEGRATED SITE MOMENTS, a standard part of a polarized result (D-ENV step 3, user 2026-10-03: promoted from
         // the QCHEM_SITE_MOMENTS diagnostic).  An INTEGRATED observable -- the Becke-partitioned integral of w(rho_up -
         // rho_dn) per site -- never a point sample (doc/ feedback_integrated_observables).  A polarized run on an

@@ -209,6 +209,7 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
     qchem::BasisSet::EmitIntegralsCacheReport();
 
     RebuildSampling();
+    ReportResult("molecule", itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy());
     return Outcome_();
 }
 
