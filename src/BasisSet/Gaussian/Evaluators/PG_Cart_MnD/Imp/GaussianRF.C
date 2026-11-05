@@ -14,6 +14,7 @@ module;
 module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Hermite;   // Hermite1/2/3
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD;   // generic MnD core (RNLM, ...)
+import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.Index3;   // Index3
 import qchem.BasisSet.Internal.DB_Cache;   // theCache<double>(), Register/GetCache{2,3}
 import qchem.BasisSet.Internal.Cache2;     // Cache2, Cacheable2, Cache2_Client
 import qchem.BasisSet.Internal.Cache3;     // Cache3, Cacheable3, Cache3_Client

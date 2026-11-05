@@ -32,7 +32,8 @@ import qchem.SCFIterator;          // SCFIterator, SCFParams, IterationRow, Ener
 import qchem.Symmetry.Irrep;       // Irrep
 import qchem.ChargeDensity;        // rDM_CD
 import qchem.ChargeDensity.Seed;   // SeedStrategy
-export import qchem.Response;      // the linear response (StaticPolarizability's Outcome and its failure)
+export import qchem.Response.Reference;   // ResponseFailure: StaticPolarizability's failure
+export import qchem.LASolver.Krylov;       // KrylovParams (StaticPolarizability)
 
 export namespace qchem
 {

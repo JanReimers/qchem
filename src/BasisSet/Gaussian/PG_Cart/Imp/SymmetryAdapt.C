@@ -7,6 +7,8 @@ module;
 module qchem.BasisSet.Gaussian.PG_Cart.SymmetryAdapt;
 import qchem.BasisSet.Gaussian.PG_Cart.Symmetry;        // StructureToSymPoints, Centroid (+ the SALC pipeline)
 import qchem.BasisSet.Gaussian.Point.IBS;                     // Gaussian::Orbital_1E_IBS::GetAoShells
+import qchem.Symmetry.Molecule.SALC;                    // BuildSALCs
+import qchem.Symmetry.Molecule.AbelianGroup;           // BuildAbelianGroup
 
 namespace qchem::BasisSet::Gaussian::PG_Cart
 {

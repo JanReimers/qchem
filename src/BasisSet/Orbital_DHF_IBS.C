@@ -3,7 +3,6 @@ module;
 export module qchem.BasisSet.Orbital_DHF_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
-export import qchem.Structure;
 
 export namespace qchem::BasisSet
 {

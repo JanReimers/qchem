@@ -7,7 +7,6 @@
 // This umbrella is itself `.Internal.`, so it is never re-exported across a library boundary (CLAUDE.md):
 // the generic MnD core stays an internal implementation detail of the molecular basis-set library.
 export module qchem.BasisSet.Gaussian.Evaluators.Internal.MnD;
-export import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.Index3;
 export import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.Triangle3D;
 export import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.RNLM;
 

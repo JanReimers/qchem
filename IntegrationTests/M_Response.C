@@ -13,6 +13,7 @@ import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geo
 import qchem.Structure;
 import qchem.Types;        // Vector3D
 import qchem.SCFParams;
+import qchem.Mesh;   // RadialKind
 using namespace qchem;
 
 

@@ -6,7 +6,6 @@ module;
 #include <vector>
 #include <utility>
 export module qchem.Materials;
-export import qchem.StructureData;   // the STRUCTURE half (GetMolecule/GetCell/...) lives in qcStructure
 export import qchem.UnitCell;    // UnitCell, Bravais (the lattice TYPES live in qcStructure; the materials do not)
 export import qchem.Structure;
 import qchem.Types;
