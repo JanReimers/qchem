@@ -12,25 +12,8 @@ module;
 #include <stdexcept>
 module qchem.LASolver.Internal.Lapack;
 import qchem.Blaze;
-import qchem.Reporting;                              // the run report -- conditioning lands in basis.perIrrep
 
 namespace qchem {
-
-// Conditioning of the basis overlap S (min/max eigenvalue, condition number) into the run report's current
-// basis.perIrrep row.  CONTEXT-FREE: an ancestor (MakeIrrepWFs) has opened the row, so `report::Set` lands in
-// the right irrep with no irrep identity threaded down to this kernel; when no basis section is open (a kernel
-// used outside a report) it is a no-op and the eigen is skipped.
-template <class T> static void report_conditioning(const hmat_t<T>& S)
-{
-    if (!report::InSection("basis")) return;
-    rvec_t d; mat_t<T> U;
-    blazem::eigen(S, d, U);                          // ascending eigenvalues of the Hermitian overlap
-    double mn = d[0], mx = d[d.size()-1], msv = std::fabs(d[0]);
-    for (double v : d) msv = std::min(msv, std::fabs(v));
-    report::Set("lambdaMin", mn);
-    report::Set("lambdaMax", mx);
-    report::Set("cond",      msv > 0 ? mx/msv : 0.0);
-}
 
 // Gap-detection auto-tolerance (doc/GPWPlan §1 step 2).  Given the ASCENDING overlap eigenvalues w, decide
 // how many leading NEAR-NULL modes to drop -- without the user guessing a tolerance:
@@ -116,7 +99,6 @@ transform_impl(const hmat_t<T>& M, const Vd_t& Vd, const V_t& V)
 
 template <class T> void LASolverEigen<T>::SetBasisOverlap(const hmat_t<T>& S)
 {
-    report_conditioning<T>(S);
     rvec_t d; mat_t<T> U;
     blazem::eigen(S, d, U);
     Truncate(U, d, itsTruncationTolerance);
@@ -194,7 +176,6 @@ template <class T> void LASolverEigen<T>::Truncate(mat_t<T>& U, rvec_t& w, doubl
 
 template <class T> void LASolverSVD<T>::SetBasisOverlap(const hmat_t<T>& S)
 {
-    report_conditioning<T>(S);
     rvec_t s; mat_t<T> U, Vt;
     blazem::svd(S, U, s, Vt);
     Truncate(U, s, Vt, itsTruncationTolerance);
@@ -343,7 +324,6 @@ LASolverOrthonormal<T>::SolveOrtho(const hmat_t<T>& Hprime) const
 
 template <class T> void LASolverCholesky<T>::SetBasisOverlap(const hmat_t<T>& S)
 {
-    report_conditioning<T>(S);   // reported BEFORE potrf -- an indefinite S (min eig<0) is why Cholesky then fails
     mat_t<T> Sm(S);
     blazem::potrf(Sm, 'U');
     // Cholesky diagonal is always real; extract accordingly.
@@ -389,7 +369,6 @@ LASolverCholesky<T>::BackTransform(const mat_t<T>& Uprime) const
 
 template <class T> void LASolverCholeskyPivoted<T>::SetBasisOverlap(const hmat_t<T>& S)
 {
-    report_conditioning<T>(S);
     const size_t n = S.rows();
     mat_t<T> Sm(S);                                       // plain copy: pstrf requires a non-adaptor matrix
     std::vector<blazem::blas_int_t> piv(n);
@@ -467,7 +446,6 @@ LASolverCholeskyPivoted<T>::BackTransform(const mat_t<T>& Uprime) const { return
 
 template <class T> void LASolverAuto<T>::SetBasisOverlap(const hmat_t<T>& S)
 {
-    report_conditioning<T>(S);
     rvec_t w; mat_t<T> U;
     blazem::eigen(S, w, U);                        // ascending eigenvalues -- the "eigen analysis"
     const NullGap g = detect_null_gap(w);          // 0 droppable modes <=> S is safe for Cholesky

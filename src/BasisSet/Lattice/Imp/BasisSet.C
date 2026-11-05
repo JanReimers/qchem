@@ -3,7 +3,7 @@ module;
 #include <cassert>
 #include <functional> // VetStageTrim's basis maker
 #include <stdexcept>  // VetStageTrim's refusals
-#include <cmath>     // lround (fractional k-point -> integer BZ-grid index); std::fabs (conditioning)
+#include <cmath>     // lround (fractional k-point -> integer BZ-grid index)
 #include <iostream>  // std::cout (the run-start GPW grid diagnostic)
 #include <memory>    // std::shared_ptr / std::move (the GPW basis owns the molecular Gaussian basis)
 #include <sstream>   // irrep label for the pre-flight basis.perIrrep rows
@@ -231,85 +231,6 @@ void EmitGpwGrids(const Gaussian::GpwRasterLadder& ladder, const BasisSet::Real_
     // functions are added -- the owner of the screens (the molecular basis's orbital block) reports them.
     for (auto ibs : mol.Iterate<BasisSet::Real_OIBS>())
         if (const auto* lat=dynamic_cast<const Gaussian::LatticeSum1E*>(ibs)) { lat->EmitLatticeSumReport(*imp.cell); break; }   // abstract -> abstract
-}
-
-//! Every block of \a bs, at its CONSTRUCTED scalar (doc/RealComplexPlan.md Step 3c-2): the cross-scalar real view FIRST, else the
-//! same-scalar block -- the mixed-aware walk the abstract face documents, so no caller downcasts to the concrete container.
-template <class F> void ForEachBlock(const Complex_BS& bs, F&& f)
-{
-    for (size_t i=0;i<bs.GetNumIBS();++i)
-        if (const auto* r=bs.GetRealIBS(i)) f(r);
-        else                                f(bs[i]);
-}
-
-size_t VetGpwConditioning(const Complex_BS& bs)
-{
-    namespace rpt = qchem::report;
-    rpt::Set("nFunctions", (long)bs.GetNumFunctions());   // basis-level scalar (cursor at the open "basis" section)
-    size_t total = 0;
-    // MIXED-AWARE (Step 3c-2): one generic visit over the typed child slot serves both block scalars --
-    // the eigen-analysis and the Cholesky drop detector are scalar-generic already.
-    ForEachBlock(bs, [&](const auto* b)
-    {
-        const auto& S = b->Overlap();                 // ANALYTIC Bloch overlap -- no grids needed
-        using U=typename std::decay_t<decltype(S)>::ElementType;
-        const std::string label = b->GetSymmetry().GetLabel();   // the block's SPATIAL label (k-point)
-        {
-            rpt::Row row("perIrrep");
-            rpt::Set("irrep",      label);
-            rpt::Set("nFunctions", (long)b->GetNumFunctions());
-            rpt::Set("real",       b->IsReal());   // TRIM fact from the irrep (doc/RealComplexPlan.md Step 1)
-            rpt::Set("runsReal",   std::is_same_v<U,double>);   // the block's CONSTRUCTED scalar (3c-3 evidence)
-            rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);      // ascending eigenvalues of the Hermitian S
-            const double mn = d[0], mx = d[d.size()-1];
-            double msv = std::fabs(d[0]); for (double v : d) msv = std::min(msv, std::fabs(v));
-            rpt::Set("lambdaMin", mn);
-            rpt::Set("lambdaMax", mx);
-            rpt::Set("cond", msv > 0 ? mx/msv : 0.0);
-        }
-        for (size_t idx : qchem::PivotedCholeskyDrops<U>(S))     // redundant AOs (empty on a healthy basis)
-        {
-            rpt::Row r("removed");
-            rpt::Set("irrep", label);
-            rpt::Set("index", (long)idx);
-            ++total;
-        }
-    });
-    return total;
-}
-
-double MinOverlapEigenvalue(const Complex_BS& bs)
-{
-    double lmin=1e300;
-    ForEachBlock(bs, [&](const auto* b)
-    {
-        const auto& S = b->Overlap();
-        using U=typename std::decay_t<decltype(S)>::ElementType;
-        rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);   // ascending
-        lmin=std::min(lmin, d[0]);
-    });
-    return lmin;
-}
-
-void PrintGpwConditioning(const Complex_BS& bs)
-{
-    double lminWorst=1e300, condWorst=0.0, lmaxBest=0.0;
-    std::string lminAt, condAt;
-    ForEachBlock(bs, [&](const auto* b)
-    {
-        const auto& S = b->Overlap();
-        using U=typename std::decay_t<decltype(S)>::ElementType;
-        rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);
-        const double mn=d[0], mx=d[d.size()-1];
-        double msv=std::fabs(d[0]); for (double v : d) msv=std::min(msv, std::fabs(v));
-        const double cond=msv>0 ? mx/msv : 1e300;
-        const std::string label=b->GetSymmetry().GetLabel();
-        if (mn<lminWorst)    { lminWorst=mn;    lminAt=label; }
-        if (cond>condWorst)  { condWorst=cond;  condAt=label; }
-        lmaxBest=std::max(lmaxBest, mx);
-    });
-    std::cout<<"[basis cond] "<<bs.GetNumIBS()<<" k-block(s): min eig S = "<<lminWorst<<" ("<<lminAt
-             <<"), max cond(S) = "<<condWorst<<" ("<<condAt<<"), max eig S = "<<lmaxBest<<std::endl;
 }
 
 // ------------------------------------------------------------------ the VET-STAGE TRIM (pin 22)

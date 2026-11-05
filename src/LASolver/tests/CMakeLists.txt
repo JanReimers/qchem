@@ -2,6 +2,7 @@
 
 add_executable(UTLASolver ../../Common/tests/gtestmain.C
     LASolver.C
+    OverlapConditioning.C
     Krylov.C
 )
 

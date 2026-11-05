@@ -25,7 +25,7 @@ import qchem.ElectronConfiguration;
 import qchem.LASolver;
 import qchem.Orbitals;          // Orbital (eigen-energy, degeneracy) for the aufbau
 import qchem.Parallel;          // OuterFor (the Fock loop over basis blocks, KAxisPlan P2)
-import qchem.Reporting;         // the run report -- this loop owns the basis.perIrrep / basis.removed rows
+import qchem.Reporting;         // the run report
 import qchem.Streamable;
 import qchem.WaveFunction.EigenRows;   // the pure row builders behind the level tables (D10)
 import qchem.Strings;           // l_colors -- the per-l row colouring of the level tables
@@ -71,8 +71,6 @@ template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const Electr
     for (Spin s:SpinIrreps(itsSpinGroup)) MakeIrrepWFs(s);
 };
 
-// Compact irrep label for the report (symmetry symbol + spin arrow), via the Streamable Write().
-static std::string IrrepLabel(const Irrep& q) { std::ostringstream os; q.Write(os); return os.str(); }
 
 // ---- Child-slot access (Step 2b; same pattern as tComposite_CD's 2a) --------------------------------
 // Scalar-independent views, single-source generic lambdas over both alternatives:
@@ -173,40 +171,12 @@ template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
 
 template <class T> template <class U> void tCompositeWF<T>::MakeOneIrrepWF(const tobs_t<U>* b, Spin s)
 {
-    namespace rpt = qchem::report;
     {
         const hmat_t<U>& S = b->Overlap();
         LASolver<U>* lasb=LASolver<U>::Factory(itsBasisOrtho, itsBasisOrthoTol, itsNumBands);
         Irrep qns(b->GetIrrep(s));
 
-        // Emit the report's basis.perIrrep row ONLY when an ancestor opened a "basis" section (the
-        // orchestrator's choice).  The molecular MoleculeCalculation opens it around this construction; a GPW
-        // orchestrator that vets conditioning in a PRE-FLIGHT (before this WF build) leaves it closed, so
-        // this stays silent and does not duplicate.  When open, the LASolver's conditioning write (five
-        // layers down in SetBasisOverlap) lands in THIS row with no irrep identity threaded to it.
-        const bool reporting = rpt::InSection("basis");
-        if (reporting)
-        {
-            rpt::Row row("perIrrep");
-            rpt::Set("irrep",      IrrepLabel(qns));
-            rpt::Set("nFunctions", (long)b->GetNumFunctions());
-            rpt::Set("real",       b->IsReal());   // basis-type fact per block (doc/RealComplexPlan.md Step 1)
-            rpt::Set("runsReal",   std::is_same_v<U,double>);   // the block's CONSTRUCTED scalar (3c-3 evidence)
-            lasb->SetBasisOverlap(S);
-        }
-        else
-            lasb->SetBasisOverlap(S);   // ortho only -- no basis context, no report
-        // (basis.exponents is NOT written from here any more -- V1.14: an exponent shell announces its own
-        //  exponents when it is CONSTRUCTED, which the facades now do inside this same "basis" section.)
-        // basis.removed (report-only detector, doc/GPWPlan1.md §4a): the redundant AO functions this irrep
-        // carries.  {irrep, index} for now (exponent/atom naming awaits a per-function metadata accessor).
-        if (reporting)
-            for (size_t idx : qchem::PivotedCholeskyDrops<U>(S))
-            {
-                rpt::Row r("removed");
-                rpt::Set("irrep", IrrepLabel(qns));
-                rpt::Set("index", (long)idx);
-            }
+        lasb->SetBasisOverlap(S);
 
         tSCFIrrepAccelerator<U>* acc=itsAccelerator->Create(lasb,qns,itsEC->PrescribedBlockN(qns));   // §6 typed Create (the block's own count)
 

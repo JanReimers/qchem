@@ -148,24 +148,6 @@ std::shared_ptr<const Gaussian::GpwRasterLadder> MakeRasterLadder(const ::qchem:
 //! so a singular basis aborts first.  No-op if a run is not open.
 void EmitGpwGrids(const Gaussian::GpwRasterLadder& ladder, const BasisSet::Real_BS& mol, const CrystalImposition& imp);
 
-//! Fail-fast conditioning PRE-FLIGHT (doc/RunReportPlan.md, doc/GPWPlan1.md §4a): for each Bloch block of \a bs,
-//! analyse its ANALYTIC, grid-free overlap and emit the report's basis.perIrrep (conditioning) + basis.removed
-//! (redundant AOs).  Returns the total redundant-function count (0 == well-conditioned).  Run it under an open
-//! Section("basis") BEFORE building the Hamiltonian/grids; a positive return is the cue to abort before any
-//! grid work -- instead of building the whole ladder and only then discovering the basis is singular.
-size_t VetGpwConditioning(const Complex_BS& bs);
-
-//! The same conditioning analysis as \ref VetGpwConditioning, for a run with NO report open: ONE console line
-//! \c [basis cond] -- the worst min-eig S and worst condition number over the k-blocks, and which block owns
-//! each -- so a facade/unit-test run can always be checked for diffuse-basis conditioning (CLAUDE.md "always
-//! check the basis").  The facade calls exactly one of the two.
-void PrintGpwConditioning(const Complex_BS& bs);
-
-//! \brief The smallest eigenvalue of the analytic overlap S(k) over every Bloch block of \a bs: how strongly the orthonormal frame
-//! amplifies an error in a matrix element (\f$\delta H' \lesssim \delta H/\lambda_{\min}\f$).  The facade's restart rule for a pilot
-//! run whose first iterate was refused reads it (\c SolidCalculation::Converge: the start raster's alias must not exceed it).
-double MinOverlapEigenvalue(const Complex_BS& bs);
-
 //! \brief THE VET-STAGE TRIM (doc/Pins.md pin 22): the cell basis with its near-dependent diffuse shells
 //! removed ONCE, per element, BEFORE anything downstream is built -- so that the ortho step at \a orthoTol has
 //! nothing left to drop in ANY k-block.

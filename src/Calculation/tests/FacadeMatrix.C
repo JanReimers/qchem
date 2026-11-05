@@ -121,6 +121,12 @@ std::string SetupFiled(const rjson* build, const std::string& prefix, size_t row
     if (!build) return "no filed '"+prefix+"' run; filed runs:"+FiledKeys();
     const rjson& b=*build;
     if (!b.contains("basis") || !b["basis"].contains("perIrrep") || b["basis"]["perIrrep"].empty()) return "no basis.perIrrep in the build run";
+    for (const rjson& row : b["basis"]["perIrrep"])
+        for (const char* k : {"irrep", "lambdaMin", "lambdaMax", "cond"})
+            if (!row.contains(k)) return std::string("a basis.perIrrep row has no ")+k;
+    if (!b["basis"].contains("conditioning")) return "no basis.conditioning in the build run";
+    for (const char* k : {"lambdaMin", "lambdaMinAt", "cond", "condAt", "floor", "wouldDrop"})
+        if (!b["basis"]["conditioning"].contains(k)) return std::string("basis.conditioning has no ")+k;
     if (!b.contains("hamiltonian") || b["hamiltonian"].empty()) return "no hamiltonian in the build run";
     const rjson& ham=b["hamiltonian"];
     if (!ham.contains("xcQuadrature")) return "no hamiltonian.xcQuadrature in the build run (a DFT run)";

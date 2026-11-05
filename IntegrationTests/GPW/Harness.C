@@ -40,7 +40,8 @@ export import qchem.Types;
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.BasisSet.DeltaFit_IBS;              // DeltaFit_IBS -- the delta basis the singles strategy runs on
 import qchem.BasisSet.G_FieldEvaluator;           // G_RasterTransform -- the uniform probe's own point count
-export import qchem.BasisSet.Lattice.BasisSet;    // VetGpwConditioning + VetStageTrim (pin 22)
+export import qchem.BasisSet.Conditioning;
+export import qchem.BasisSet.Lattice.BasisSet;    // VetStageTrim (pin 22)
 import qchem.Hamiltonian.Internal.PWTerms;        // Vxc_Quadrature (the XC probes)
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
@@ -137,7 +138,8 @@ struct GpwReport
     {
         qchem::report::Log("vetting basis conditioning");
         qchem::report::Section basis("basis");
-        return BasisSet::Lattice::VetGpwConditioning(bs);
+        qchem::report::Set("nFunctions", (long)bs.GetNumFunctions());
+        return BasisSet::ReportConditioning(bs);
     }
 };
 

@@ -21,6 +21,7 @@ module;
 #include <vector>
 module qchem.SolidCalculation;
 
+import qchem.BasisSet.Conditioning;            // ReportConditioning, MinOverlapEigenvalue
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
 import qchem.Pseudopotential.Set;             // PseudopotentialSet -- the run's chosen pseudopotential, resolved once by SolidSetup::Resolve
 import qchem.Pseudopotential.GTH_Potentials;  // MakeMultiSpeciesLocal -- the local the ladder is sized for (the Hamiltonian's own builder)
@@ -420,27 +421,29 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     // contemporaneously with its own activity).  These two sections used to be emitted by the integration
     // test driver around this same construction; the facade is the orchestrator now.  Order matters and is
     // the one the driver established: the conditioning pre-flight on the ANALYTIC overlap first (no grids
-    // needed), then the grid ladder's report (the point's ladder, ASKED: V-BS-RASTER).  Only when a run report is
-    // open -- the emitters are inert otherwise -- and never an abort: a dependent basis is the caller's to
+    // needed), then the grid ladder's report (the point's ladder, ASKED: V-BS-RASTER; only with a run report open).
+    // Never an abort: a dependent basis is the caller's to
     // handle through a pivoted ortho, and an unhandled one fails loudly in the iterator.
     // (Plane waves are orthonormal and grid-free: neither section has anything to say about them.)
-    if (S.planeWave) {}
-    else if (qchem::report::Depth()>0)
+    if (!S.planeWave)
     {
         qchem::report::Timed timed("setup: vet basis (analytic S) + grids report");
         size_t nRemoved=0;
         {
             qchem::report::Log("vetting basis conditioning");
             qchem::report::Section basis("basis");
-            nRemoved=L3::VetGpwConditioning(*itsImp->bs);
+            qchem::report::Set("nFunctions", (long)itsImp->bs->GetNumFunctions());
+            nRemoved=BasisSet::ReportConditioning(*itsImp->bs);
         }
         if (nRemoved>0)
             qchem::report::Log("basis is rank-deficient ("+std::to_string(nRemoved)+" redundant functions, see basis.removed)");
-        qchem::report::Log("the grid ladder");
-        qchem::report::Section grids("grids");   // the point's grids: the ladder and the lattice sums report one level in
-        L3::EmitGpwGrids(*itsImp->ladder, *itsImp->mol, *itsImp->imposition);
+        if (qchem::report::Depth()>0)
+        {
+            qchem::report::Log("the grid ladder");
+            qchem::report::Section grids("grids");   // the point's grids: the ladder and the lattice sums report one level in
+            L3::EmitGpwGrids(*itsImp->ladder, *itsImp->mol, *itsImp->imposition);
+        }
     }
-    else L3::PrintGpwConditioning(*itsImp->bs);   // no report open: still say how conditioned S(k) is
 
     // The electron configuration over THIS basis's k-blocks, from the setup's spin counts (decision 2).
     auto irreps = itsImp->bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry Sum_k)
@@ -1012,7 +1015,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
         && !itsImp->setup->rastersResolved && !itsImp->rastersSettled && !itsImp->startRaisedForConditioning)
     {
         namespace L3 = BasisSet::Lattice;
-        const double lmin=L3::MinOverlapEigenvalue(*itsImp->bs);
+        const double lmin=BasisSet::MinOverlapEigenvalue(*itsImp->bs);
         const BasisSet::Gaussian::RasterExponents had=itsImp->ladder->DeliveredRasterExponents();
         const double x=std::max({lmin>0.0 ? std::log(1.0/lmin) : 0.0, had.density, had.vlocLong, had.xcL0});
         BasisSet::Gaussian::GPWTolerances t=itsImp->setup->opts.tolerances;

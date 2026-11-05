@@ -17,6 +17,7 @@ import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Fa
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Types;                                  // Vector3D / rvec3_t
+import qchem.BasisSet.Conditioning;                  // ReportConditioning
 import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
 import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
@@ -176,8 +177,8 @@ void AtomCalculation::BuildGraph()
 
     // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
     // run: the FIRST Converge BUILDS the basis (each exponent shell announces its own basis.exponents row as it is
-    // constructed -- nobody asks it to), the orchestrator stamps the scalars, and the WF build (inside `new SCFIter`)
-    // fills basis.perIrrep/removed via the cursor (the shared LASolver conditioning).  The HAMILTONIAN is built OUTSIDE
+    // constructed -- nobody asks it to), the orchestrator stamps the scalars and asks for the conditioning
+    // report (basis.perIrrep, removed, conditioning).  The HAMILTONIAN is built OUTSIDE
     // it, in its own context "hamiltonian" (user rulings 2026-11-02, 2026-11-04: the caller sets the context, the callee
     // reports one level in -- its meshes and terms file there, the same paths as a molecule's and a solid's).  So the basis context is entered twice:
     // SILENTLY for the build (a Scope renders only the scalars it added; the build adds rows), then as the rendering
@@ -203,6 +204,7 @@ void AtomCalculation::BuildGraph()
         rpt::Section basis("basis");
         rpt::Set("type",       AtomTypeName(itsOpts.type));
         rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
+        qchem::BasisSet::ReportConditioning(*itsBasis);
         // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
         // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
         // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
