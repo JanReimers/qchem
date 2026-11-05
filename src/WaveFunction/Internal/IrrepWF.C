@@ -10,7 +10,6 @@ export import qchem.LASolver;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 export import qchem.Symmetry.Irrep;
-export import qchem.ElectronConfiguration;
 export import qchem.ElectronConfiguration.OccupationPolicy;  // the fills consult the iterator's policy (V1.11 inc 3)
 
 export namespace qchem::WaveFunction

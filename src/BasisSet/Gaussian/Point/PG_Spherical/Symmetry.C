@@ -8,7 +8,7 @@
 module;
 #include <vector>
 export module qchem.BasisSet.Gaussian.Point.PG_Spherical.Symmetry;
-export import qchem.Symmetry.Molecule.SALC;        // AoShell, BuildSALCs (transitively)
+export import qchem.Symmetry.Molecule.OperationRep;   // AoShell
 import qchem.BasisSet.Gaussian.Evaluators.PG_Spherical_MnD;   // SphData
 
 export namespace qchem::BasisSet::Gaussian::PG_Spherical

@@ -28,6 +28,8 @@ import qchem.CompositeCD;                            // tComposite_CD (the carri
 import qchem.ChargeDensity.Factory;                  // IrrepCD_Factory
 import qchem.Symmetry.Molecule.PointGroup;           // DetectPointGroup (a session step must keep the SALC group)
 import qchem.Hamiltonian.Factory;
+import qchem.Response;          // MakeReference, MakeOrbitalFrame, MakeDipoleProbe
+import qchem.Response.Solver;   // LinearResponse
 
 namespace qchem
 {

@@ -7,7 +7,6 @@ module;
 #include <stdexcept>
 export module qchem.BasisSet.Radial.BasisSet;
 export import qchem.BasisSet;
-export import qchem.BasisSet.Orbital_HF_IBS;
 export import qchem.ElectronConfiguration;
 
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;   // the ERI4 substrate the concrete atom IBS realizes

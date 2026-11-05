@@ -8,7 +8,8 @@ module;
 export module qchem.BasisSet.Radial.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Radial.Evaluators.Internal.Grouper;
 export import qchem.BasisSet.Radial.Evaluators;
-export import qchem.Symmetry.Atom.Spherical;
+import qchem.Symmetry.Atom.Spherical;
+export import qchem.Symmetry;   // sym_t
 import qchem.Blaze;
 
 export namespace qchem::BasisSet::Radial::Evaluators
