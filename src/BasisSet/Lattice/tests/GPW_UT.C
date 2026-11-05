@@ -64,9 +64,9 @@ using qchem::BasisSet::Gaussian::GPWTolerances;
 
 namespace
 {
-//! The raster the retired RasterPolicy::AliasFree gave at the AUTO floor (C2 step 3): G_N twice the ball edge on every level, i.e.
+//! A raster at the AUTO floor with G_N twice the ball edge on every level, i.e.
 //! x = G_N^2/p = 16 at the tightest pair each level serves (the ball's own raster delivers x = 4 there).  The exact-quadrature gates.
-GPWTolerances AliasFreeRasters()
+GPWTolerances TwiceBallRasters()
 {
     GPWTolerances t;
     t.rasterX=t.vlocRasterX=t.xcRasterX=16.0;
@@ -260,7 +260,7 @@ TEST(GPW, SharpestPairChargeConservation)
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
-                4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, AliasFreeRasters());   // EXACT-QUADRATURE gate (production: sized from eps)
+                4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, TwiceBallRasters());   // EXACT-QUADRATURE gate (production: sized from eps)
     const GPW_Evaluator& ev = gpw;
     const Complex_OIBS&  g  = gpw;
     const size_t n=g.GetNumFunctions();
@@ -2532,18 +2532,18 @@ TEST(GPW, TightPrimitiveVlongOracle)
             auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
             cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{alpha}, l, &cell));
             std::shared_ptr<const Real_BS> mol(cbs);
-            // BallOnly (the default raster) at densityEcut = 6 x the PAIR exponent p = 2 alpha: its measured convergence point.  The
+            // The ball's own raster (the default) at densityEcut = 6 x the PAIR exponent p = 2 alpha: its measured convergence point.  The
             // ladder (2026-10-25, alpha 36 / 76.68, d x^2 diagonal V/S; oracle -6.59073 / -6.67893): E_cut/p ~ 1 (the AUTO floor 2
             // alpha_max) -8.145 / -8.784 (+-1.5 Ha, the xy partner off the other way); E_cut/p ~ 2.7  -6.598 / -6.718; E_cut/p >= 5.5
-            // the oracle to <= 1e-5.  The AUTO floor itself is RIGHT with the ALIAS-FREE raster (<= 3e-4 Ha, asserted below): the
-            // defect is the BallOnly + C = 2 pairing, not C -- OpenWork §3, a decision (anchor-moving).
+            // the oracle to <= 1e-5.  The AUTO floor itself is RIGHT with the twice-ball raster (<= 3e-4 Ha, asserted below): the
+            // defect is the the ball's own raster + C = 2 pairing, not C -- OpenWork §3, a decision (anchor-moving).
             GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0*alpha);
             const GPW_Evaluator& ev=gpw;
             const chmat_t Vl=ev.MakeLocalPPLong(&cell, gth.local);
-            // ...and the RIGHT PAIRING at the AUTO floor: C = 2 with the ALIAS-FREE raster (the BallOnly raster's fold-back is
-            // what the auto floor cannot afford; BallOnly + C = 2 = the +-1.5 Ha above).
+            // ...and the RIGHT PAIRING at the AUTO floor: C = 2 with the twice-ball raster (the ball raster's fold-back is
+            // what the auto floor cannot afford; the ball's own raster + C = 2 = the +-1.5 Ha above).
             GPW_IBS gaf(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*AUTO*/-1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
-                        4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, AliasFreeRasters());
+                        4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, TwiceBallRasters());
             const chmat_t Vaf=static_cast<const GPW_Evaluator&>(gaf).MakeLocalPPLong(&cell, gth.local);
             const Real_OIBS* obs=nullptr;
             for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
@@ -2561,11 +2561,11 @@ TEST(GPW, TightPrimitiveVlongOracle)
                 const double norm0=FT1DEven(2*n.x,pp,0.0)*FT1DEven(2*n.y,pp,0.0)*FT1DEven(2*n.z,pp,0.0);
                 const double oracle=orac/norm0, prod=std::real(Vl(p,p))/std::real(S(p,p));
                 // Only where the BASIS sets the floor: at alpha = 2 the AUTO floor (4 Ha) is below the erf FIELD's own bandwidth
-                // (Mn rloc 0.64: |G| ~ 12, ~70 Ha) and is off by 0.03 Ha even alias-free -- the floor ignores the local-PP field's
+                // (Mn rloc 0.64: |G| ~ 12, ~70 Ha) and is off by 0.03 Ha even on the twice-ball raster -- the floor ignores the local-PP field's
                 // sharpness (OpenWork §3: max(2 alpha_max, the PP field's need)); latent in real bases, where alpha_max >> beta_pp.
                 if (alpha>=10.0)
                     EXPECT_NEAR(std::real(Vaf(p,p))/std::real(S(p,p)), oracle, 1e-3)
-                        << "AliasFree at the AUTO floor: l="<<l<<" alpha="<<alpha<<" fn "<<p;
+                        << "the twice-ball raster at the AUTO floor: l="<<l<<" alpha="<<alpha<<" fn "<<p;
                 EXPECT_NEAR(prod, oracle, 1e-5*std::max(1.0,std::fabs(oracle)))
                     << "l="<<l<<" alpha="<<alpha<<" fn "<<p<<" (x^"<<n.x<<" y^"<<n.y<<" z^"<<n.z<<")";
             }
@@ -2575,7 +2575,7 @@ TEST(GPW, TightPrimitiveVlongOracle)
 // THE TIGHT-PAIR COLLOCATION ORACLE: the DENSITY of one tight primitive -- what Hartree (and every density-grid term)
 // sees -- against its closed form at low G, at the AUTO density floor and at 6 x the pair exponent.  A unit load on fn p:
 // |rho~(G) / rho~(0)| = prod_axis FT1D(2n, 2 alpha, G_axis) / FT1D(2n, 2 alpha, 0) (the V_long oracle's transforms).
-// Asserts BallOnly at 6p and AliasFree at the AUTO floor; REPORTS BallOnly at the AUTO floor (0.04-0.16: the production
+// Asserts the ball's own raster at 6p and the twice-ball raster at the AUTO floor; REPORTS the ball's own at the AUTO floor (0.04-0.16: the production
 // default pairing, an OpenWork §3 decision, not a gate).
 TEST(GPW, TightPrimitiveCollocationOracle)
 {
@@ -2583,15 +2583,15 @@ TEST(GPW, TightPrimitiveCollocationOracle)
     UnitCell cell(a);
     cell.AddAtom(25, {0.5,0.5,0.5});
     const rvec3_t C(a/2,a/2,a/2);
-    enum class RP { BallOnly, AliasFree };   // the ball's own raster (x = 0) / AliasFreeRasters()
+    enum class RP { BallRaster, TwiceBall };   // the ball's own raster (x = 0) / TwiceBallRasters()
     for (double alpha : {10.0, 36.0, 76.68})
-        for (auto [ecut, rp] : {std::pair{-1.0, RP::BallOnly}, std::pair{12.0*alpha, RP::BallOnly}, std::pair{-1.0, RP::AliasFree}})
+        for (auto [ecut, rp] : {std::pair{-1.0, RP::BallRaster}, std::pair{12.0*alpha, RP::BallRaster}, std::pair{-1.0, RP::TwiceBall}})
         {
             auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
             cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{alpha}, 2, &cell));
             std::shared_ptr<const Real_BS> mol(cbs);
             GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut, BasisSet::Gaussian::CellImages::Periodic, 2.0,
-                        4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, rp==RP::AliasFree ? AliasFreeRasters() : GPWTolerances{});
+                        4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, rp==RP::TwiceBall ? TwiceBallRasters() : GPWTolerances{});
             const GPW_Evaluator& ev=gpw;
             const Complex_OIBS&  g  =gpw;
             const Real_OIBS* obs=nullptr;
@@ -2619,16 +2619,16 @@ TEST(GPW, TightPrimitiveCollocationOracle)
                 }
             }
             std::cout<<"[tight collocation] alpha="<<alpha<<" densityEcut="<<(ecut<0 ? "AUTO" : std::to_string(ecut))
-                     <<(rp==RP::AliasFree ? " AliasFree" : " BallOnly ")
+                     <<(rp==RP::TwiceBall ? " TwiceBall" : " BallRaster")
                      <<"  worst |rho~(G)/rho~(0) - exact| over s,x^2,xy x 5 G = "<<worst<<std::endl;
-            if (ecut>0)              EXPECT_LT(worst, 1e-6) << "BallOnly at 6p, alpha="<<alpha;
-            if (rp==RP::AliasFree)   EXPECT_LT(worst, 1e-4) << "AliasFree at the AUTO floor, alpha="<<alpha;
+            if (ecut>0)              EXPECT_LT(worst, 1e-6) << "the ball's own raster at 6p, alpha="<<alpha;
+            if (rp==RP::TwiceBall)   EXPECT_LT(worst, 1e-4) << "the twice-ball raster at the AUTO floor, alpha="<<alpha;
         }
 }
 
 // THE RASTER ALIAS CALIBRATION (C2 M2, doc/GridEpsilonPlan.md §1 row 1): a pair p sampled on a raster of inscribed Nyquist
 // radius G_N aliases with amplitude e^{-x}, x = G_N^2/p, so a term's delivered error is S_term e^{-x} with S_term the term's scale.
-// Sweeps the raster (BallOnly at densityEcut = c p, plus AliasFree at the AUTO floor) on ONE tight primitive, reads x off the run's
+// Sweeps the raster (the ball's own at densityEcut = c p, plus the twice-ball raster at the AUTO floor) on ONE tight primitive, reads x off the run's
 // own grid audit (grids.auditDensity / auditVlocLong: the raster the term actually used), and measures the delivered error of
 //   rho  -- worst |rho~(G)/rho~(0) - exact| (dimensionless, the collocation oracle's measure), and
 //   Vlong -- worst |<V_long>_pp/S_pp - closed form| (Ha, the V_long oracle's measure),
@@ -2654,12 +2654,12 @@ TEST(GPW, RasterAliasCalibration)
         const rvec3_t G(2*Pi*i/a, 2*Pi*j/a, 2*Pi*k/a);
         if (G*G<=256.0) Gs.push_back(G);
     }
-    enum class RP { BallOnly, AliasFree };   // the ball's own raster (x = 0) / AliasFreeRasters()
+    enum class RP { BallRaster, TwiceBall };   // the ball's own raster (x = 0) / TwiceBallRasters()
     double Srho=0.0, Svl=0.0;
-    struct Row { double alpha, c; bool af; double xr, er, xv, ev; };
+    struct Row { double alpha, c; bool twice; double xr, er, xv, ev; };
     for (double alpha : {10.0, 36.0, 76.68})
-        for (auto [c, rp] : {std::pair{0.5, RP::BallOnly}, std::pair{1.0, RP::BallOnly}, std::pair{1.5, RP::BallOnly},
-                             std::pair{2.0, RP::BallOnly}, std::pair{3.0, RP::BallOnly}, std::pair{-1.0, RP::AliasFree}})
+        for (auto [c, rp] : {std::pair{0.5, RP::BallRaster}, std::pair{1.0, RP::BallRaster}, std::pair{1.5, RP::BallRaster},
+                             std::pair{2.0, RP::BallRaster}, std::pair{3.0, RP::BallRaster}, std::pair{-1.0, RP::TwiceBall}})
         {
             const double pp=2.0*alpha;
             auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
@@ -2667,7 +2667,7 @@ TEST(GPW, RasterAliasCalibration)
             std::shared_ptr<const Real_BS> mol(cbs);
             rpt::ClearGlobal();
             rpt::Begin("RasterAliasCalibration", "fixed");
-            const GPWTolerances tolR=rp==RP::AliasFree ? AliasFreeRasters() : GPWTolerances{};
+            const GPWTolerances tolR=rp==RP::TwiceBall ? TwiceBallRasters() : GPWTolerances{};
             // The point's ladder, sized for the local PP as the facade sizes it: its grids (and audit rows) are the ladder's.
             const auto ladder=BasisSet::Gaussian::MakeRasterLadder(cell, *mol, {.densityEcut=c>0 ? c*pp : -1.0, .tol=tolR},
                                                                    BasisSet::Gaussian::LocalPPSharpness(cell, gth.local));
@@ -2718,13 +2718,13 @@ TEST(GPW, RasterAliasCalibration)
                     er=std::max(er, std::fabs(std::abs(rho[m])/r0-exact));
                 }
             }
-            const Row r{alpha, c, rp==RP::AliasFree, GNr*GNr/pr, er, GNv*GNv/pv, evl};
+            const Row r{alpha, c, rp==RP::TwiceBall, GNr*GNr/pr, er, GNv*GNv/pv, evl};
             Srho=std::max(Srho, r.er*std::exp(r.xr));
             Svl =std::max(Svl,  r.ev*std::exp(r.xv));
             auto bound=[](double S, double x){ return S*x*x*x*std::exp(-x); };
             if (r.xr>=4.0) EXPECT_LE(r.er, bound(0.4, r.xr)) << "rho tail, alpha="<<alpha<<" c="<<c;
             if (r.xv>=4.0) EXPECT_LE(r.ev, bound(2.5, r.xv)) << "V_long tail, alpha="<<alpha<<" c="<<c;
-            std::cout<<"[alias calib] alpha="<<alpha<<(r.af ? " AliasFree AUTO" : " BallOnly c="+std::to_string(c))
+            std::cout<<"[alias calib] alpha="<<alpha<<(r.twice ? " TwiceBall AUTO" : " BallRaster c="+std::to_string(c))
                      <<"  rho: x="<<r.xr<<" err="<<r.er<<" err*e^x="<<r.er*std::exp(r.xr)
                      <<"   Vlong: x="<<r.xv<<" err="<<r.ev<<" Ha  err*e^x="<<r.ev*std::exp(r.xv)<<std::endl;
         }
@@ -2969,7 +2969,7 @@ TEST(GridAccuracy, ThePilotDemandSolvesTheMeasuredTail)
 }
 
 // C2 step 3's SIZING: a stated demand x is DELIVERED by every raster (the finest density level, L0 for the XC, V_long's own ladder), and
-// x = 0 is the ball's own raster -- the retired BallOnly, bit for bit (2m+1 per axis).  The grid audit asserts the same (it throws).
+// x = 0 is the ball's own raster, bit for bit (2m+1 per axis) the plane-wave policy's grid.  The grid audit asserts the same (it throws).
 TEST(GPW, RasterDemandIsDelivered)
 {
     namespace rpt=qchem::report;
@@ -2992,7 +2992,7 @@ TEST(GPW, RasterDemandIsDelivered)
             const ivec3_t N=ev.DensityGrid().FFTGrid();
             const ivec3_t B=BasisSet::PlaneWave::PW_Grid_Evaluator(ev.DensityGrid().Recip(), rvec3_t(0,0,0), ev.DensityGrid().Ecut(),
                                                                   BasisSet::PlaneWave::RasterPolicy::BallOnly).FFTGrid();
-            EXPECT_TRUE(N.x==B.x && N.y==B.y && N.z==B.z) << "x = 0 is the ball's own raster (the old BallOnly)";
+            EXPECT_TRUE(N.x==B.x && N.y==B.y && N.z==B.z) << "x = 0 is the ball's own raster";
             continue;
         }
         EXPECT_GE(got.density,  t.rasterX*(1.0-1e-9))     << "the finest density level at x="<<x;
