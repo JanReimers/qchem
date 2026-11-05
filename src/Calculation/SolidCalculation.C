@@ -44,6 +44,7 @@ import qchem.BasisSet;                        // Real_BS (orbital source), Compl
 import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, MakeRasterLadder, CellImages
 export import qchem.Hamiltonian.HubbardEstimator;   // ACBN0Estimate (EstimateHubbardU), HubbardEstimate (the loop)
 export import qchem.Response;                  // ChannelResponse / ResponseFailure (IndependentResponse, LinearResponsePlan R0)
+export import qchem.Response.Solver;           // SelfConsistentResponse / QMeshResponse + KrylovParams (HubbardLinearResponse)
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the typed solid door
 import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, IterationRow, EnergyBreakdown
 import qchem.ChargeDensity;                   // cDM_CD

@@ -27,7 +27,6 @@ module;
 export module qchem.Mesh.Folded;
 export import qchem.Mesh;                       // qcMesh::Mesh
 export import qchem.Symmetry.Lattice_3D.Fold;   // Fold + SymmetrizeValues / SymmetrizeValuesSigned
-export import qchem.Symmetry.Spin;              // Symmetry::SpinAction (the Shubnikov tags)
 
 export namespace qchem::qcMesh
 {

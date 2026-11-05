@@ -1,7 +1,7 @@
 // File: BasisSet/Orbital_HF_IBS.C  Interface for a Hartree-Fock (HF) Orbital Irrep Basis Set.
 module;
 export module qchem.BasisSet.Orbital_HF_IBS;
-export import qchem.BasisSet.Orbital_1E_IBS;
+export import qchem.BasisSet.IrrepBasisSet;   // IrrepBasisSet_IDs
 
 export namespace qchem::BasisSet
 {

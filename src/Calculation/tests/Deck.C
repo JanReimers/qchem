@@ -12,6 +12,7 @@ import qchem.SCFParams;
 import qchem.SCFAccelerator.Factory;   // SolidAcceleratorOptions (the acceleratorOptions round trip)
 import qchem.Mesh;
 import qchem.Materials;
+import qchem.StructureData;   // MoleculeNames
 import qchem.ChargeDensity.Seed;
 import qchem.LASolver;
 import qchem.SolidState;          // StateFingerprint, CompareFingerprints
