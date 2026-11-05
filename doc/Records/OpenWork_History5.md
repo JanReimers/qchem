@@ -1570,3 +1570,45 @@ It summed `iters=`, which only solids print, so 73e92020's 9 iteration moves rea
 
 **Anchors, pin 10** (merged tree against main-0f69df88; logs `lane-a-step2d_*`).  Short, 2 moves, both Becke + ρ̃: `GPW_NaF.Γ_Becke_Imp_eqUni` −1.8e-9 Ha and `GPW_NaF.Γ_Imp_eqExactResume_Panel` +2e-10 Ha, each about 4.4e-6 Ha by bound (`samp/τ` · τ · P_E).  Long: `GPW_NaF.Γ_GeometryRunSizesItsBeckeMesh_Long` 33 → 35 iterations, ΔE 0.  Uniform, PW and molecular paths: 0 moves.  The panel has no same-commit baseline; against the older 4-thread lane-a-ball5 log (pre step 1) 3 tests moved, and the largest, β-MnO₂ Kerker+Pulay −5.3e-7 Ha, is an eps-0 run stopped at its 40-iteration bound with `samp/τ` at `----`, so the width did not size it.
 
+## The Becke ladder's ~3e-5 is not a floor: it is L=47's angular error, and the ladder ends too low (2026-11-05, lane A)
+
+**Question** (controller): the pilot's Becke climb reads about 3e-5 and never settles on MnO and LiF.  Is that a floor, and from what?  It drives the 23 mesh rebuilds of the MnO geometry run.
+
+**Answer.**  Not a floor, on MnO.  At a fixed converged D, the error is all in the angular degree L, and it falls to about 1.3e-6 by L = 65.  The ladder's top rung is (120, GL 53), whose own error is about 1e-5, so the pilot's rung test cannot pass with margin.  LiF has no split yet: the numbers here are MnO only.
+
+**Tolerance and radial split.**  MnO geometry cost deck, `accuracy` 0, one converged D at (100, GL 47), fixed-D `xcMeshAudit`, max|ΔH_ij| of the XC term:
+
+| reference | beckeEps 1e-6 | beckeEps 1e-10 |
+|---|---|---|
+| (160, 47) radial only | 5.11e-7 | 5.08e-7 |
+| (100, 65) angular only | 2.391e-5 | 2.391e-5 |
+| (160, 65) both | 2.391e-5 | 2.391e-5 |
+| (120, 53) | 2.457e-5 | 2.457e-5 |
+| (140, 59) | 3.052e-5 | 3.052e-5 |
+
+So `beckeEps` is ruled out for this quantity (unchanged to 4 digits), and nR = 100 is converged to 5e-7.  That also caps anything non-angular, sampler noise included, at about 5e-7.
+
+**The angular series.**  nR fixed at 100; `Tr(DΔH)` summed over both spin channels; `sNormDH` as defined at `GridAuditTerm`.  The first L = 65 row measures L = 53's error, not L = 65's:
+
+| base | ref | max\|ΔH\| | Tr(DΔH) | sNormDH | max element |
+|---|---|---|---|---|---|
+| 47 | 53 | 2.46e-5 | -4.7e-6 | 1.05e-4 | Mn d α = 7.92, diagonal, \|D_ij\| 2.1e-5 |
+| 47 | 59 | 3.05e-5 | -3.2e-6 | 1.11e-4 | same, on its AFM partner |
+| 47 | 65 | 2.39e-5 | -8.2e-7 | 1.05e-4 | same |
+| 47 | 77 | 2.33e-5 | -3.2e-7 | 1.12e-4 | same |
+| 65 | 53 | 9.98e-6 | -3.9e-6 | 9.4e-5 | Mn d α = 3.72, diagonal, \|D_ij\| 4.0e-4 |
+| 65 | 77 | 1.29e-6 | +5.0e-7 | 1.33e-5 | same |
+| 65 | 89 | 1.63e-6 | +4.4e-7 | 1.26e-5 | same |
+| 65 | 101 | 1.29e-6 | +4.1e-7 | 1.13e-5 | same, on its AFM partner |
+
+Reading:
+- Error against the finest references: about 2.3e-5 at L = 47, 1e-5 at L = 53, 1.3e-6 at L = 65; roughly ×0.4 per ΔL = 6, from those three points.  L = 59 is at least 7e-6, inferred from one element's differences with assumed signs.
+- Any floor is at or below about 1.3e-6, under the 1e-5 target.
+- At base 47 all four audits pick one element up to the AFM mirror, so 2.46 / 3.05 / 2.39 is not a max over different elements.  It is real scatter of about 0.7e-5 on top of a much larger L = 47 error.  An early reading of "slow, irregular convergence" was wrong.
+- The D-weighted trace is 5 to 70× below max|ΔH| at L = 47.  The geometry gate stays max|ΔH| ≤ ε per element; `trDdH` and `sNormDH` are report-only (pins 19/20).
+
+**The partition matters.**  beckeOrder 4 at (100, 47) against L = 65 / 77 reads 3.71e-5 (up from 2.39e-5 at order 3), `sNormDH` 3.7e-4 (up from 1.05e-4), and the largest element moves to a diffuse Mn d (α = 0.38, majority spin, |D_ij| 0.13) that the density does see.  ΔE against L = 65 grows from 6e-7 to 6.9e-6 Ha.
+
+**Cause: not established.**  At order 3 every max element is a diagonal Mn d in that Mn's minority spin channel (8 of 8 audits), which suggested v_xc^σ ~ ρ_σ^(1/3) being sharp in angle where ρ_σ is small.  The order 4 result shows a second, partition-driven source, so that is at most part of the story.  A first guess, tight functions on neighbouring atoms, was wrong: both functions sit on one atom.
+
+Runs: `~/Code/qchem6-runs/MnO/lanea_ladderfloor_*`.  Measures: d0e8bcb0.
