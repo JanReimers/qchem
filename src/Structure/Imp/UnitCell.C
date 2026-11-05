@@ -357,9 +357,12 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     if (angPerAtom) for (const auto& a : *angPerAtom) total+=size_t(rad.size())*a.size();
     else            total=natom*size_t(rad.size())*ang.size();
     const size_t kept=mesh.size();
+    const double angRot=angPerAtom ? 0.0 : mp.angRot;   // a site-adapted rule is the site's own: the rotation applies to the plain factory grid only
     std::cout<<"[Becke grid] natom="<<natom<<" radial="<<RadialName(mp.radial)<<" nR="<<mp.nRadial
              <<" alpha="<<mp.mhl_alpha<<" angular="<<(angPerAtom?"SITE-ADAPTED":AngularName(mp.angular))
-             <<" L="<<mp.angularDegree<<" ("<<nDirs<<" dirs"<<(angPerAtom?" max/atom":"")<<") beckeOrder="<<k
+             <<" L="<<mp.angularDegree<<" ("<<nDirs<<" dirs"<<(angPerAtom?" max/atom":"")<<")";
+    if (angRot!=0.0) std::cout<<" angRot="<<angRot;
+    std::cout<<" beckeOrder="<<k
              <<" points="<<kept<<" (dropped "<<total-kept<<" tail pts)"<<std::endl;
     if (census)
     {
@@ -386,7 +389,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     namespace rpt=qchem::report;
     rpt::Set("kind", "Becke"); rpt::Set("natom", (long)natom); rpt::Set("radial", RadialName(mp.radial));
     rpt::Set("nRadial", mp.nRadial); rpt::Set("mhl_alpha", mp.mhl_alpha);
-    rpt::Set("angular", angPerAtom ? "SiteAdapted" : AngularName(mp.angular)); rpt::Set("L", mp.angularDegree);
+    rpt::Set("angular", angPerAtom ? "SiteAdapted" : AngularName(mp.angular)); rpt::Set("L", mp.angularDegree); rpt::Set("angRot", angRot);
     rpt::Set("nDirs", (long)nDirs); rpt::Set("beckeOrder", k); rpt::Set("points", (long)kept);
     rpt::Set("dropped", (long)(total-kept)); rpt::Set("eps", eps);
     return mesh;
