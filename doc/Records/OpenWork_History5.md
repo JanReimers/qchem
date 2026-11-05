@@ -1612,3 +1612,61 @@ Reading:
 **Cause: not established.**  At order 3 every max element is a diagonal Mn d in that Mn's minority spin channel (8 of 8 audits), which suggested v_xc^σ ~ ρ_σ^(1/3) being sharp in angle where ρ_σ is small.  The order 4 result shows a second, partition-driven source, so that is at most part of the story.  A first guess, tight functions on neighbouring atoms, was wrong: both functions sit on one atom.
 
 Runs: `~/Code/qchem6-runs/MnO/lanea_ladderfloor_*`.  Measures: d0e8bcb0.
+
+## The Becke mesh's error, axis by axis: rule alignment, radial floor, partition order (2026-11-05, lane A)
+
+Continues the section above.  MnO AFM-II and LiF, ε = 1e-5 per element, one converged D per table, runs `~/Code/qchem6-runs/{MnO,LiF}/lanea_*`.  Plain meshes (`xcMeshSymmetric:false`), no fold.  Lebedev above degree 35 ran on a measurement patch (`MnO/lanea_lebedev_measure.patch`), not on main.
+
+**Aligned Lebedev carries an extra error that rotation removes.**  MnO's mesh was Gauss-Legendre above 35 because `LebedevMenu` stops at 434 directions, not for a symmetry reason.
+
+| nR 100, order 3 | points | angRot 0 | 0.5 | 1.1 |
+|---|---|---|---|---|
+| Lebedev 35 | 115k | 4.0e-4 | 8.6e-5 | |
+| Lebedev 41 | 157k | | 1.7e-5 | |
+| Lebedev 47 | 204k | 6.3e-5 | 8.1e-6 | 1.3e-5 |
+| Lebedev 53 | 259k | | 6.0e-6 | 5.8e-6 |
+| Lebedev 65 | 386k | 4.7e-6 | 2.4e-6 | 1.9e-6 |
+| GL 47 | 303k | 2.4e-5 | 1.9e-5 | |
+| LiF Lebedev 47 | 100k | 1.0e-4 | 7.0e-6 | |
+| LiF Lebedev 53 | 127k | | 4.6e-6 | |
+
+Two sources: an alignment alias (largest element a diffuse s) and a tight-d angular error (Mn d, α = 7.92 or 3.72, |D_ij| small) that remains and sets the rung.  A 0.05 bohr displaced Mn at Lebedev 53 reads 5.96e-6, unchanged.
+
+**A cubic-harmonic measure ranks the energy error, not max|ΔH|.**  M(θ), the rotated rule's quadrature of unit A1g harmonics above its degree, weighted e^{-0.1(l-L)}, needs no SCF (`MnO/cubicM.py`).  Lebedev 47:
+
+| θ | √M | \|ΔE\| | sNormDH | max\|ΔH\| |
+|---|---|---|---|---|
+| 0 | 0.097 | 3.6e-5 | 7.9e-4 | 6.3e-5 |
+| 1.1 | 0.0245 | 8.0e-6 | 1.6e-4 | 1.3e-5 |
+| 0.5 | 0.0167 | 1.4e-6 | 7.8e-5 | 8.1e-6 |
+| 0.32 | 0.0113 | 1.2e-6 | 5.2e-5 | 9.5e-6 |
+| 0.12 | 0.0097 | 2.7e-7 | 6.3e-5 | 1.1e-5 |
+
+θ = 0.32 and 0.12 were predicted before they were run.  The trace with D is close to site-invariant and a single tight-d element is not, which fits.  A free rotation axis reached the same best M as the fixed axis.
+
+**Radial floor at L = 65** (|nR 100 − reference|):
+
+| ref nR | MnO max | MnO sNormDH | LiF max | LiF sNormDH |
+|---|---|---|---|---|
+| 40 | 1.1e-4 | 4.3e-3 | 3.9e-4 | 2.9e-3 |
+| 60 | 2.8e-5 | 3.8e-4 | 1.1e-5 | 1.8e-4 |
+| 80 | 1.9e-6 | 3.9e-5 | 9.3e-6 | 1.9e-5 |
+| 120 | 2.3e-7 | 3.6e-6 | 2.2e-7 | 1.8e-6 |
+
+`sNormDH` falls about ×10 per step on both; LiF's max jumps with the worst pair.  In L the two measures are about equally smooth, and `sNormDH` is the more angle-sensitive.
+
+**Partition order.**  `BeckeCutoff` iterates k+1 times, so the code's order 2 is Becke's published three-iteration scheme.  Order 2 at (100, 47) reads 2.42e-5 / 2.36e-5, no gain over order 3, and equivalent sites differ by 6e-7 relative at 40/29.  Order 4's excess is angular, not a floor: GL 65 reads 2.2e-6 on MnO, but rotated Lebedev reads 1.2e-5 (53) and 2.4e-6 (65) on MnO, 2.9e-5 and 1.35e-5 on LiF.
+
+Mesh build, one build each, counts independent of load:
+
+| mesh | order | images/pt | P-set/pt | `BeckeCutoff` calls | build |
+|---|---|---|---|---|---|
+| 100/65 | 3 | 1020 | 28.9 | 2.97e10 | 146, 148 s |
+| 100/65 | 4 | 309 | 4.8 | 1.31e9 | 8.3, 6.0 s |
+| 40/29 | 2 | 17270 | 615 | 1.13e11 | 458 s |
+| 40/29 | 3 | 1051 | 30.6 | 1.67e9 | 6.9 s |
+| 40/29 | 4 | 307 | 4.9 | 7.15e7 | 0.36 s |
+
+The cause is the shell loop's `newPB<eps` stop and `inPSet` test (`src/Structure/Imp/UnitCell.C:243-249`).  No weight is lost: at order 4, `beckeEps` 1e-8 leaves Sum(w) unchanged to 8 digits, and Sum(w) reaches V/4 = 74.088 at 120/89 (74.08803; order 3 74.08800), so its 100/65 deficit (74.08758) is quadrature.
+
+**Symmetric runs.**  `angRot` never reaches `MakeInvariantAngularMesh`.  Imposed MnO at degree 47: 2342 directions, 622416 points, 26554 after a 23.4× fold, 3.8e-6 against its own degree 53.  The rule exists at 53 and fails at 59 for this 12-op site group.
