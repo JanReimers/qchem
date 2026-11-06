@@ -26,6 +26,7 @@
 #include <vector>
 #include <type_traits>
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, SpinGroup
+import qchem.ElectronConfiguration;
 import qchem.SCFCap;                 // BoundedSCF (the trace test runs a deliberately bounded SCF)
 import qchem.SolidCalculation;       // SolidCalculation -- the NAMED periodic front door (Step 4)
 import qchem.Structure;              // FCCUnitCell
