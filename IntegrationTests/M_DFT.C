@@ -248,19 +248,17 @@ TEST(M_DFT, WaterLDA_DeltaCoulomb_Poisson)
     EXPECT_NEAR(calc.Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC; the gap (+31 μHa) is the mesh's";
 }
 
-// The multipole fit has δ x Poisson's potential, so its SCF is the same one; only the energy's second leg differs.  That leg cancels
-// the l truncation (see the _Long twin) but brings mesh error of its own: at this default rung it is +530 μHa, where δ is +31.
+// The multipole fit has δ x Poisson's potential, so its SCF is the same one; only the energy's second leg differs.
 TEST(M_DFT, WaterLDA_MultipoleCoulomb)
 {
     MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
                                                                                        .coulomb = {.fit = Hamiltonian::CoulombFit::Multipole}}));
     ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -75.8767756863, 1e-6);   // anchor
-    EXPECT_NEAR(calc.Energy(), -75.87729931, 6e-4) << "ORACLE: PySCF, exact J and XC; the gap (+530 μHa) is the mesh's";
+    EXPECT_NEAR(calc.Energy(), -75.8772677710, 1e-6);   // anchor
+    EXPECT_NEAR(calc.Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC: delta's level, +32 μHa.  This rung was 530 out when rho-tilde was synthesized onto the mesh";
 }
 
-// The claim the multipole route makes over δ: its energy does not depend on the l cut.  Measured at 150/35: 0.4 μHa between l = 12 and
-// 16, where δ moves 35 μHa.  It needs l well under the angular degree: at 80/29, l = 24 aliases and the energy is 5 mHa out.
+// The multipole route's energy depends less on the l cut than δ's: at 150/35, 11 μHa between l = 12 and 16 where δ moves 35.
 TEST(M_DFT, WaterLDA_MultipoleCoulomb_eqLCut_Long)
 {
     auto energy=[](int lMax)
@@ -273,8 +271,8 @@ TEST(M_DFT, WaterLDA_MultipoleCoulomb_eqLCut_Long)
         return calc.Energy();
     };
     const double e12=energy(12);
-    EXPECT_NEAR(e12, energy(16), 2e-6);
-    EXPECT_NEAR(e12, -75.87729931, 6e-5) << "ORACLE: PySCF, exact J and XC";
+    EXPECT_NEAR(e12, energy(16), 2e-5);
+    EXPECT_NEAR(e12, -75.87729931, 2e-5) << "ORACLE: PySCF, exact J and XC";
 }
 
 // Multipole for Vxc, through the fitter as the A1 route is.  The Hartree stays on the default route, so only the XC term changed.

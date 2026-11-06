@@ -158,17 +158,16 @@ private:
 //! \brief The same solve on a multipole fit's own coefficient axis: charge channels in, potential channels out.
 //!
 //! THE SECOND LEG IS THE ONE THING THIS ROUTE ADDS OVER \f$\delta\f$ x Poisson.  \f$v\f$ and \f$J\f$ are the same numbers.  But here the
-//! fit is a function, so \f$\langle\tilde\rho|\tilde\rho\rangle=\sum_gw_g\tilde\rho(r_g)\tilde v(r_g)\f$ is available, and FittedVee's
-//! \f$2E_{fit}-E_{fitfit}\f$ cancels the \f$l\f$ truncation to second order.  The mesh's own error stays first order, and \f$\tilde\rho\f$ on
-//! the points adds some: measured on water LDA dzvp against exact J, l = 12 and 16 agree to 0.2 μHa at 150/47 where \f$\delta\f$ moves 33, but
-//! the route is +49 μHa there to \f$\delta\f$'s +2, and +530 at 80/29 to \f$\delta\f$'s +31; 300/47 brings it to +3.  \f$l\f$ must stay well
-//! under the angular degree: l = 24 at 80/29 aliases and is 5 mHa out.
+//! fit is a function, so \f$\langle\tilde\rho|\tilde\rho\rangle\f$ is available, taken on each site's own shells (see
+//! \c SiteMultipoles::OwnShellOverlap), and FittedVee's \f$2E_{fit}-E_{fitfit}\f$ cancels the \f$l\f$ truncation to second order.  The
+//! mesh's own charge error stays, first order, so at a given rung this matches \f$\delta\f$ and does not beat it.  What it buys is a lower
+//! \f$l\f$: at fixed density, all-electron TeF₆ 150/47 is -6.6e-5 at l = 8, where \f$\delta\f$ needs l = 20 for -7.0e-5.
 class MultipoleCoulomb : public virtual CoulombOperator
 {
 public:
-    //! \a metric is the fit basis's diagonal, \a weights the mesh's.
-    MultipoleCoulomb(std::shared_ptr<const qcMesh::SiteMultipoles> sites, rvec_t metric, rvec_t weights)
-        : itsSites(sites), itsSolver(sites), itsMetric(std::move(metric)), itsWeights(std::move(weights)) {}
+    //! \a metric is the fit basis's diagonal.
+    MultipoleCoulomb(std::shared_ptr<const qcMesh::SiteMultipoles> sites, rvec_t metric)
+        : itsSites(sites), itsSolver(sites), itsMetric(std::move(metric)) {}
     //! \copydoc CoulombOperator::Potential
     rvec_t Potential(const rvec_t& q) const override {return itsSites->Flatten(itsSolver.Solve(itsSites->Split(q)));}
     //! \copydoc CoulombOperator::SelfRepulsion
@@ -176,15 +175,12 @@ public:
     {
         rvec_t c(q.size());
         for (size_t a=0; a<c.size(); a++) c[a]=q[a]/itsMetric[a];
-        const rvec_t rho=itsSites->Synthesize(itsSites->Split(c)), pot=itsSites->Synthesize(itsSites->Split(v));
-        double e=0.0;
-        for (size_t g=0; g<rho.size(); g++) e+=itsWeights[g]*rho[g]*pot[g];
-        return e;
+        return itsSites->OwnShellOverlap(itsSites->Split(c),itsSites->Split(v));
     }
 private:
     std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;
     RadialPoissonSolver itsSolver;
-    rvec_t itsMetric, itsWeights;
+    rvec_t itsMetric;
 };
 
 } //namespace

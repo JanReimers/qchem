@@ -5,6 +5,8 @@
 #include "gtest/gtest.h"
 #include <algorithm>
 #include <cmath>
+#include <utility>
+#include <vector>
 #include <memory>
 #include <numbers>
 import qchem.Fitting.CoulombOperator;
@@ -29,8 +31,7 @@ qcMesh::Mesh OneAtomMesh(const qcMesh::MeshParams& mp=theMesh)
 }
 std::shared_ptr<const qcMesh::SiteMultipoles> Sites(const qcMesh::Mesh& mesh, const qcMesh::MeshParams& mp, int lMax, const rvec3vec_t& centres={rvec3_t(0,0,0)})
 {
-    const auto rule=qcMesh::MakeRadial(mp);
-    return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, rule.R(), rule.W(), lMax);
+    return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, mp, lMax);
 }
 double Rho(double a, double r2) {return std::pow(a/std::numbers::pi,1.5)*std::exp(-a*r2);}   // unit charge
 }
@@ -180,23 +181,107 @@ TEST(SiteMultipoles, ProjectionThenSynthesisReturnsTheField)
     EXPECT_LT(l10,5e-3);
 }
 
+// The multipole energy's second leg on two overlapping Gaussian charges, against the closed form.  This rung failed by a large margin when
+// the leg synthesized rho-tilde onto the mesh; on each site's own shells its charge is the mesh's, so it lands with the first-order one.
+TEST(SiteMultipoles, OwnShellSelfEnergyMatchesTheClosedForm)
+{
+    Molecule m;
+    const double R=1.5, a=1.3, b=0.9;
+    const rvec3_t A(0,0,0), B(0,0,R);
+    m.Insert(Site{8, Vector3D<double>(0,0,0)});
+    m.Insert(Site{1, Vector3D<double>(0,0,R)});
+    const qcMesh::Mesh mesh=m.CreateIntegrationMesh(theMesh);
+    rvec_t q(mesh.size());
+    for (size_t g=0; g<mesh.size(); g++)
+    {
+        const rvec3_t x=mesh.Points()[g]-A, y=mesh.Points()[g]-B;
+        q[g]=mesh.Weights()[g]*(Rho(a,x*x)+Rho(b,y*y));
+    }
+    const auto sites=Sites(mesh,theMesh,10,{A,B});
+    const auto Q=sites->Moments(q);
+    const rvec_t metric=[&]
+    {
+        rvec_t d(sites->NumChannels());
+        size_t k=0;
+        for (size_t s=0; s<sites->NumSites(); s++) for (double w : sites->ShellWeights()) for (size_t c=0; c<sites->NumLM(); c++) d[k++]=w;
+        return d;
+    }();
+    const rvec_t qf=sites->Flatten(Q);
+    const auto op=Fitting::MakeMultipoleCoulomb(sites,metric);
+    const rvec_t v=op->Potential(qf);
+    const double p=a*b/(a+b);
+    const double exact=std::sqrt(2*a/std::numbers::pi)+std::sqrt(2*b/std::numbers::pi)+2*std::erf(std::sqrt(p)*R)/R;
+    EXPECT_NEAR(op->SelfRepulsion(qf,v), exact, 2e-5);
+}
+
+// H = dE/dD needs v = K q with K symmetric, which forces will rely on.  The direct sum is, by construction.  The radial solve expands each
+// source about its own site, so K_gh and K_hg can differ across sites: this pins how much, on two different charge sets.
+namespace {
+struct TwoChargeSets {qcMesh::Mesh mesh; rvec3vec_t centres; rvec_t q, p;};
+TwoChargeSets ChargesOn(const std::vector<std::pair<int,rvec3_t>>& atoms, const qcMesh::MeshParams& mp)
+{
+    Molecule m;
+    rvec3vec_t centres(atoms.size());
+    for (size_t a=0; a<atoms.size(); a++)
+    {
+        m.Insert(Site{atoms[a].first, Vector3D<double>(atoms[a].second.x,atoms[a].second.y,atoms[a].second.z)});
+        centres[a]=atoms[a].second;
+    }
+    qcMesh::Mesh mesh=m.CreateIntegrationMesh(mp);
+    rvec_t q(mesh.size()), p(mesh.size());
+    for (size_t g=0; g<mesh.size(); g++)
+    {
+        double a=0.0, b=0.0;
+        for (size_t s=0; s<centres.size(); s++)
+        {
+            const rvec3_t d=mesh.Points()[g]-centres[s];
+            a+=Rho(1.1,d*d)+0.3*Rho(6.0,d*d);
+            b+=(1.0+0.7*d.x-0.4*d.z)*Rho(0.7,d*d);
+        }
+        q[g]=mesh.Weights()[g]*a;
+        p[g]=mesh.Weights()[g]*b;
+    }
+    return {std::move(mesh),std::move(centres),std::move(q),std::move(p)};
+}
+double Asymmetry(const Fitting::CoulombOperator& K, const rvec_t& q, const rvec_t& p)
+{
+    const rvec_t Kq=K.Potential(q), Kp=K.Potential(p);
+    double pKq=0.0, qKp=0.0;
+    for (size_t g=0; g<q.size(); g++) {pKq+=p[g]*Kq[g]; qKp+=q[g]*Kp[g];}
+    return pKq-qKp;
+}
+}
+TEST(CoulombOperatorSymmetry, DirectSumIsSymmetricAndThePoissonAsymmetryIsSmall)
+{
+    const std::vector<std::pair<int,rvec3_t>> water={{8,rvec3_t(0,0,0)},{1,rvec3_t(0,1.431,1.107)},{1,rvec3_t(0,-1.431,1.107)}};
+    qcMesh::MeshParams mp=theMesh; mp.nRadial=40; mp.angularDegree=17;
+    const auto c=ChargesOn(water,mp);
+    EXPECT_NEAR(Asymmetry(*Fitting::MakeDirectSumCoulomb(c.mesh),c.q,c.p), 0.0, 1e-9);
+    const auto f=ChargesOn(water,theMesh);
+    EXPECT_NEAR(Asymmetry(*Fitting::MakeRadialPoissonCoulomb(Sites(f.mesh,theMesh,14,f.centres)),f.q,f.p), 0.0, 1e-5) << "measured -2.6e-6";
+}
+
 // A multipole fit is the one combination refused on a periodic structure: a correctness limit, stated as one.  The direct sum runs
-// over points, so it has no meaning for channels on any structure.
-TEST(CoulombRouteAdmission, MultipoleIsRefusedOnAPeriodicStructureAndOnTheDirectSum)
+// over points, so it has no meaning for channels on any structure, and past 2 l = degree the channels are not orthonormal.
+TEST(CoulombRouteAdmission, MultipoleIsRefusedOnAPeriodicStructureOnTheDirectSumAndPastItsBound)
 {
     using namespace Hamiltonian;
     Molecule m;
     m.Insert(Site{8, Vector3D<double>(0,0,0)});
-    EXPECT_TRUE(AdmitCoulomb(m, {.fit=CoulombFit::Multipole}));
+    EXPECT_TRUE(AdmitCoulomb(m, {.fit=CoulombFit::Multipole}, theMesh));
     EXPECT_TRUE(AdmitVxc(m, VxcFit::Multipole, theMesh));
-    EXPECT_FALSE(AdmitCoulomb(m, {.fit=CoulombFit::Multipole, .solver=CoulombSolver::DirectSum}));
+    EXPECT_FALSE(AdmitCoulomb(m, {.fit=CoulombFit::Multipole, .solver=CoulombSolver::DirectSum}, theMesh));
+    EXPECT_TRUE (AdmitCoulomb(m, {.fit=CoulombFit::Multipole, .lMax=14}, theMesh)) << "2 l = 28 <= degree 29";
+    EXPECT_FALSE(AdmitCoulomb(m, {.fit=CoulombFit::Multipole, .lMax=15}, theMesh)) << "past it the channels alias";
+    EXPECT_FALSE(AdmitCoulomb(m, {.lMax=15}, theMesh, VxcFit::Multipole)) << "the Vxc fit has the same channels";
+    EXPECT_TRUE (AdmitCoulomb(m, {.fit=CoulombFit::Delta, .lMax=20}, theMesh)) << "a Poisson solve on points expands nothing in them";
 
     UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});
-    const auto c=AdmitCoulomb(cell, {.fit=CoulombFit::Multipole});
+    const auto c=AdmitCoulomb(cell, {.fit=CoulombFit::Multipole}, theMesh);
     ASSERT_FALSE(c);
     EXPECT_NE(c.Error().find("conditionally convergent"), std::string::npos) << c.Error();
     const auto v=AdmitVxc(cell, VxcFit::Multipole, theMesh);
     ASSERT_FALSE(v);
     EXPECT_NE(v.Error().find("conditionally convergent"), std::string::npos) << v.Error();
-    EXPECT_TRUE(AdmitCoulomb(cell, {.fit=CoulombFit::Delta})) << "the refusal is the multipole's alone";
+    EXPECT_TRUE(AdmitCoulomb(cell, {.fit=CoulombFit::Delta}, theMesh)) << "the refusal is the multipole's alone";
 }

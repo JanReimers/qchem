@@ -144,8 +144,8 @@ export namespace qchem::Hamiltonian
     //! (a setup / deck pre-flight, UTHamiltonian VxcProductSpace) asks here first.  A cell the rule ADMITS but no code realizes
     //! yet (A1 on a solid, PW on a Becke mesh) is not a refusal: it still throws \c std::logic_error, an open X cell of that UT.
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure&, VxcFit, const qcMesh::MeshParams&);
-    //! The Hartree partner of \c AdmitVxc.  Refuses a multipole fit on a periodic structure and on the direct sum.
-    Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure&, const CoulombRoute&);
+    //! The Hartree partner of \c AdmitVxc.  Refuses a multipole fit on a periodic structure, on the direct sum, and past its \f$l\f$ bound.
+    Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure&, const CoulombRoute&, const qcMesh::MeshParams&, VxcFit=VxcFit::Auto);
 
     //=== The resolvers ===============================================================================
     //! Non-DFT Hamiltonians (HF / 1-electron / Dirac).  DFT Models route through the DFT resolver below.

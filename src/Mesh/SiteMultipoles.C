@@ -17,6 +17,8 @@ module;
 #include <vector>
 export module qchem.Mesh.SiteMultipoles;
 export import qchem.Mesh;
+export import qchem.Mesh.Radial;
+export import qchem.Mesh.Angular;
 import qchem.Parallel;   // OuterFor: every item writes only its own slots
 import qchem.Types;
 
@@ -73,12 +75,13 @@ class SiteMultipoles
 public:
     typedef std::vector<std::vector<double>> channels_t;   //!< per site, (radial node x lm) node-major, lm at index \f$l^2+l+m\f$
 
-    //! \a centres are the mesh's site centres in block order; \a radii and \a shellWeights the radial rule every site was built
-    //! from (\f$r^2dr\f$ weights).  THROWS when the mesh has no site blocks, or a point sits on no shell: the transforms mean
-    //! nothing on such a mesh.
-    SiteMultipoles(const Mesh& mesh, const rvec3vec_t& centres, const rvec_t& radii, const rvec_t& shellWeights, int lMax)
-        : itsPoints(mesh.Points()), itsCentres(centres), itsR(Positive(radii,radii)), itsW(Positive(radii,shellWeights))
-        , itsLMax(lMax), itsNLM((lMax+1)*(lMax+1)), itsLogR(MakeLog(itsR))
+    //! \a centres are the mesh's site centres in block order, and \a mp the rules every site was built from.  THROWS when the mesh
+    //! has no site blocks, or a point sits on no shell: the transforms mean nothing on such a mesh.
+    SiteMultipoles(const Mesh& mesh, const rvec3vec_t& centres, const MeshParams& mp, int lMax)
+        : SiteMultipoles(mesh, centres, MakeRadial(mp), MakeAngular(mp), lMax) {}
+    SiteMultipoles(const Mesh& mesh, const rvec3vec_t& centres, const RadialMesh& radial, const AngularMesh& angular, int lMax)
+        : itsPoints(mesh.Points()), itsCentres(centres), itsR(Positive(radial.R(),radial.R())), itsW(Positive(radial.R(),radial.W()))
+        , itsDirs(angular.Dirs()), itsDirW(angular.W()), itsLMax(lMax), itsNLM((lMax+1)*(lMax+1)), itsLogR(MakeLog(itsR))
     {
         if (mesh.NSites()==0 || mesh.NSites()!=centres.size())
             throw std::logic_error("SiteMultipoles: needs one site block per centre; this mesh has "
@@ -87,6 +90,8 @@ public:
         for (size_t i=1; i<itsR.size(); i++)
             if (!(itsR[i]>itsR[i-1])) throw std::logic_error("SiteMultipoles: the radial nodes must increase");
         MakeYlmTables();
+        itsDirY.resize(itsDirs.size()*itsNLM);
+        for (size_t d=0; d<itsDirs.size(); d++) Ylm(itsDirs[d],&itsDirY[d*itsNLM]);
         // Which shell of its own site each point is on, as lists per (site, shell).
         itsShell.assign(centres.size()*itsR.size(),{});
         for (size_t a=0; a<centres.size(); a++)
@@ -150,6 +155,43 @@ public:
             }
         });
         return v;
+    }
+
+    //! \f$\langle f|g\rangle\f$ for the expansion \a F and the field whose channels are \a G, with \f$f\f$ evaluated ONLY on each site's
+    //! own shells: \f$\sum_A\sum_iW_i\sum_da_df_A(r_i,\Omega_d)\,g(r_i,\Omega_d)\f$, on complete shells and without the partition.
+    //!
+    //! NEVER SYNTHESIZE \a F TO THE MESH INSTEAD.  A density's site shares \f$p_A\rho\f$ have a sharp edge at the Becke boundary, so
+    //! their channels are not smooth in r, and a spline to the other sites' points loses charge: 30x the mesh's own error on TeF₆ PP
+    //! 80/29, in the bonds, unmoved by the angular rule, and it stalls at 1e-4 with the radial count.  That made Eee 6.4 mHa wrong.
+    //! Here \f$Y_{lm}\f$ is orthonormal, so \f$f\f$ keeps its charge exactly; \f$g\f$, the smooth one, is the one that travels.
+    double OwnShellOverlap(const channels_t& F, const channels_t& G) const
+    {
+        const size_t nA=NumSites(), nR=itsR.size(), nD=itsDirs.size();
+        const ColumnSplines logR(itsLogR);
+        channels_t M(nA);
+        OuterFor(nA, [&](size_t a) {M[a]=logR.SecondDerivatives(G[a],itsNLM);});
+        std::vector<double> perShell(nA*nR);
+        OuterFor(nA*nR, [&](size_t item)
+        {
+            const size_t a=item/nR, i=item%nR;
+            std::vector<double> y(itsNLM);
+            const double* f=&F[a][i*itsNLM];
+            double s=0.0;
+            for (size_t d=0; d<nD; d++)
+            {
+                const double* yd=&itsDirY[d*itsNLM];
+                double fd=0.0;
+                for (size_t c=0; c<itsNLM; c++) fd+=f[c]*yd[c];
+                const rvec3_t p=itsCentres[a]+itsR[i]*itsDirs[d];
+                double g=0.0;
+                for (size_t b=0; b<nA; b++) g+=AtPoint(logR,G[b],M[b],p-itsCentres[b],y.data());
+                s+=itsDirW[d]*fd*g;
+            }
+            perShell[item]=itsW[i]*s;
+        });
+        double e=0.0;
+        for (double x : perShell) e+=x;
+        return e;
     }
 
     //! The channels as one vector, sites in order: the coefficient axis of a fit basis over them.
@@ -246,6 +288,9 @@ private:
 
     rvec3vec_t itsPoints, itsCentres;
     std::vector<double> itsR, itsW;
+    rvec3vec_t itsDirs;                          //!< the angular rule's directions...
+    rvec_t     itsDirW;                          //!< ...its weights, which sum to \f$4\pi\f$...
+    std::vector<double> itsDirY;                 //!< ...and \f$Y_{lm}\f$ at each, direction-major
     int    itsLMax;
     size_t itsNLM;
     std::vector<double> itsLogR;

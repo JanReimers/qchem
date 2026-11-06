@@ -65,10 +65,22 @@ struct CoulombRoute
 {
     CoulombFit    fit    = CoulombFit::Auto;
     CoulombSolver solver = CoulombSolver::Auto;
-    //! The multipole cut of \c RadialPoisson, and of a \c VxcFit::Multipole.  16 from water LDA dzvp at 150/47: δ is 2 μHa from exact J
-    //! there and 33 at l = 12.  TeF₆ PP is flat from 14; an all-electron density wants about 20.
-    int lMax    = 16;
+    //! The multipole cut, 0 = \c ResolvedLMax's choice.  A stated value above a multipole fit's bound is refused (\c AdmitCoulomb).
+    int lMax    = 0;
     //! Radial points of the Hartree mesh; 0 = the run's own.  All-electron densities want about twice what the contraction needs.
     int nRadial = 0;
 };
+
+//! \brief The largest \f$l\f$ a multipole FIT can use on an angular rule of degree \a angularDegree.  RIGOROUS: \f$Y_{lm}Y_{l'm'}\f$ has degree
+//! \f$l+l'\f$, so the channels are orthonormal on the rule only for \f$2l\le L\f$.  Past it they alias: water at 80/29 is 6 mHa out at l = 24.
+//! A Poisson solve on \f$\delta\f$ has no such bound, since nothing is expanded in the channels.
+inline int MultipoleLMaxBound(int angularDegree) {return angularDegree/2;}
+
+//! \brief The cut a route runs at.  An unstated one is 16 for \f$\delta\f$ (water LDA dzvp at 150/47: 2 μHa from exact J, against 33 at
+//! l = 12; TeF₆ PP is flat from 14; an all-electron density wants about 20), and the bound for a multipole fit.
+inline int ResolvedLMax(const CoulombRoute& route, bool multipoleFit, int angularDegree)
+{
+    if (route.lMax>0) return route.lMax;
+    return multipoleFit ? MultipoleLMaxBound(angularDegree) : 16;
+}
 }

@@ -76,8 +76,7 @@ static std::shared_ptr<const qcMesh::SiteMultipoles> MakeSiteMultipoles(const st
 {
     rvec3vec_t centres(st->GetNumAtoms());
     for (size_t a=0; a<centres.size(); a++) centres[a]=st->Sites()[a].R;
-    const auto rule=qcMesh::MakeRadial(mp);
-    return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, rule.R(), rule.W(), lMax);
+    return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, mp, lMax);
 }
 
 //! THE MOLECULAR / ATOM XC TERM (V-XC-ONE-TERM, 2026-10-31): the δ basis runs the ONE XC term the periodic path runs
@@ -121,12 +120,13 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
     qcMesh::MeshParams hmp=mp;
     if (coulomb.nRadial>0) hmp.nRadial=coulomb.nRadial;
     const bool direct=coulomb.solver==CoulombSolver::DirectSum, multipole=coulomb.fit==CoulombFit::Multipole;
+    const int  lMax=ResolvedLMax(coulomb, multipole, hmp.angularDegree);
     BasisSet::FitQuadrature quad;
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Hartree", "Hartree ρ fit", [&]
     {
         qchem::report::Set("coulombFit", multipole ? "multipole" : "delta");
         qchem::report::Set("coulombOperator", direct ? "direct sum" : "radial Poisson");
-        if (!direct) qchem::report::Set("lMax", coulomb.lMax);
+        if (!direct) qchem::report::Set("lMax", lMax);
         // Ruled 2026-11-06: a quadrature route's energy is first order.  A multipole's second leg cancels its l truncation, not the mesh's error.
         qchem::report::Set("energyOrder", "first");
         quad=BasisSet::MakeXCQuadrature(*st, hmp, bs->GetImposition());
@@ -134,10 +134,10 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
     });
     const qcMesh::Mesh& mesh=*quad.GetMesh();
     if (direct) return new FittedVee(Fitting::MakeGridDensityFitter(fb, Fitting::MakeDirectSumCoulomb(mesh)), st->GetNumElectrons());
-    const auto sites=MakeSiteMultipoles(st, mesh, hmp, coulomb.lMax);
+    const auto sites=MakeSiteMultipoles(st, mesh, hmp, lMax);
     if (!multipole) return new FittedVee(Fitting::MakeGridDensityFitter(fb, Fitting::MakeRadialPoissonCoulomb(sites)), st->GetNumElectrons());
     const auto mfb=std::make_shared<const BasisSet::MultipoleFit_IBS>(fb, sites, sym_t(new UnitQN));
-    auto op=Fitting::MakeMultipoleCoulomb(sites, mfb->OverlapDiagonal(), mesh.Weights());
+    auto op=Fitting::MakeMultipoleCoulomb(sites, mfb->OverlapDiagonal());
     return new FittedVee(Fitting::MakeGridDensityFitter(mfb, std::move(op)), st->GetNumElectrons());
 }
 
@@ -157,7 +157,7 @@ Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> part
 
     // ONE XC term over the SUM of functionals (the gather is linear, so gather(a+b) is gather(a)+gather(b) for half the
     // work); its energy is the functionals' own eps -- correlation's is NOT the exchange virial.
-    Add(MolecularVxcTerm(st, bs, mp, fit, std::move(parts), g, coulomb.lMax));
+    Add(MolecularVxcTerm(st, bs, mp, fit, std::move(parts), g, ResolvedLMax(coulomb, true, mp.angularDegree)));
 }
 
 // Does any block of \a bs fall back to the PP terms' quadrature?  The same questions PP_Local and PP_NonLocal ask.
@@ -196,7 +196,7 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     Add(MolecularHartreeTerm(st, bs, mp, coulomb));
 
     // LDA: Dirac exchange (alpha = 2/3) + VWN5 correlation, ONE XC term over their sum (see Ham_DFT).
-    Add(MolecularVxcTerm(st, bs, mp, fit, {std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<VWN_Correlation>()}, g, coulomb.lMax));
+    Add(MolecularVxcTerm(st, bs, mp, fit, {std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<VWN_Correlation>()}, g, ResolvedLMax(coulomb, true, mp.angularDegree)));
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,

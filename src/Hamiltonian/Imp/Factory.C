@@ -37,22 +37,27 @@ namespace qchem::Hamiltonian
         }
         return R::Ok({fit, mp.cellKind});
     }
-    Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure& st, const CoulombRoute& coulomb)
+    Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure& st, const CoulombRoute& coulomb, const qcMesh::MeshParams& mp, VxcFit fit)
     {
         using R=Outcome<CoulombRoute,std::string>;
-        if (coulomb.fit==CoulombFit::Multipole)
+        const bool multipole=coulomb.fit==CoulombFit::Multipole;
+        if (multipole)
         {
             if (st.HasTranslationSymmetry()) return R::Fail("the multipole Coulomb fit: "+thePeriodicMultipole);
             if (coulomb.solver==CoulombSolver::DirectSum)
                 return R::Fail("a multipole fit's potential is the radial Poisson solve of its channels; a direct sum runs over points -- "
                                "state the solver RadialPoisson or Auto, or the fit Delta");
         }
+        if ((multipole || fit==VxcFit::Multipole) && coulomb.lMax>MultipoleLMaxBound(mp.angularDegree))
+            return R::Fail("lMax "+std::to_string(coulomb.lMax)+" on an angular rule of degree "+std::to_string(mp.angularDegree)+": a multipole fit's "
+                           "channels are orthonormal only for 2 lMax <= degree -- state lMax <= "+std::to_string(MultipoleLMaxBound(mp.angularDegree))+
+                           " or raise the degree");
         return R::Ok(coulomb);
     }
     //! The factories' half of \c AdmitCoulomb.
-    static void RequireAdmitted(const Structure& st, const CoulombRoute& coulomb)
+    static void RequireAdmitted(const Structure& st, const CoulombRoute& coulomb, const qcMesh::MeshParams& mp, VxcFit fit)
     {
-        const auto a=AdmitCoulomb(st,coulomb);
+        const auto a=AdmitCoulomb(st,coulomb,mp,fit);
         if (!a) throw std::invalid_argument("Hamiltonian::Factory: refused Coulomb route -- "+a.Error());
     }
     //! The factories' half of \c AdmitVxc: a refused cell is a caller that did not ask first.
@@ -108,7 +113,7 @@ namespace qchem::Hamiltonian
     {
         typedef std::vector<std::shared_ptr<ExFunctional>> parts_t;
         RequireAdmitted(*st,fit,mp);
-        RequireAdmitted(*st,coulomb);
+        RequireAdmitted(*st,coulomb,mp,fit);
         switch (xc.kind)
         {
             case XC::SlaterXalpha:   // Slater-Dirac exchange, scaled by alpha
@@ -147,7 +152,7 @@ namespace qchem::Hamiltonian
                          const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit, const CoulombRoute& coulomb)
     {
         RequireAdmitted(*st,fit,mp);
-        RequireAdmitted(*st,coulomb);
+        RequireAdmitted(*st,coulomb,mp,fit);
         return new Ham_PP(st, element, valence, mp, bs, p, fit, coulomb);
     }
 
@@ -156,7 +161,7 @@ namespace qchem::Hamiltonian
                          const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit, const CoulombRoute& coulomb)
     {
         RequireAdmitted(*st,fit,mp);
-        RequireAdmitted(*st,coulomb);
+        RequireAdmitted(*st,coulomb,mp,fit);
         return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, bs, p, fit, coulomb);
     }
 

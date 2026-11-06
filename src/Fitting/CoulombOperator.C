@@ -47,8 +47,8 @@ std::unique_ptr<CoulombOperator> MakeDirectSumCoulomb(const qcMesh::Mesh& mesh);
 //! rule must be uniform in its index.  \f$O(N_{pts}N_{sites}(l+1)^2)\f$.
 std::unique_ptr<CoulombOperator> MakeRadialPoissonCoulomb(std::shared_ptr<const qcMesh::SiteMultipoles> sites);
 
-//! \brief The same solve for a multipole fit over \a sites: \a metric is that basis's diagonal, \a weights the mesh's.
-std::unique_ptr<CoulombOperator> MakeMultipoleCoulomb(std::shared_ptr<const qcMesh::SiteMultipoles> sites, rvec_t metric, rvec_t weights);
+//! \brief The same solve for a multipole fit over \a sites: \a metric is that basis's diagonal.
+std::unique_ptr<CoulombOperator> MakeMultipoleCoulomb(std::shared_ptr<const qcMesh::SiteMultipoles> sites, rvec_t metric);
 
 //! \brief A density fit on \a deltaBasis (an orthogonal, \f$\delta\f$-like fit basis), with \a op finding the potential.
 //! It answers the same face the Gaussian fit answers, so \c FittedCD and \c FittedVee cannot tell them apart.
