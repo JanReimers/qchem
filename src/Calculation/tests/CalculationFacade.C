@@ -55,23 +55,23 @@ TEST(CalculationFacade, AMoleculesXCMeshIsInTheRunReportByIterationOne)
 //! A PSEUDOPOTENTIAL run's PP quadrature is built in the Hamiltonian's own build phase, so it files at hamiltonian.ppQuadrature -- not
 //! under basis.*, where the terms' lazy first-matrix build inside the SCF iterator's construction used to put it (CLAUDE.md "the
 //! run report": fix the run sequence, never the path; OpenWork, the mesh-report remainder, 2026-11-02).
-TEST(CalculationFacade, APseudopotentialRunsPPQuadratureIsInHamiltonianNotBasis)
+// A Gaussian basis assembles the PP terms in closed form, so a molecular PP run builds no PP mesh at all.
+TEST(CalculationFacade, APseudopotentialOnAGaussianBasisBuildsNoPPQuadrature)
 {
-    bool seen=false, stray=true;
+    bool built=true, stray=true;
     qchem::report::Run run("H2O");   // the driver's run (user ruling D, 2026-11-02)
     MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}), {},
                      [&](const SCFIterator::IterationRow& p)
                      {
                          if (p.iteration!=1) return;
                          const auto& doc=qchem::report::CurrentRunReport();
-                         seen = doc.contains("hamiltonian") && doc["hamiltonian"].contains("ppQuadrature")
-                             && doc["hamiltonian"]["ppQuadrature"]["points"].get<long>()>0;
+                         built = !doc.contains("hamiltonian") || doc["hamiltonian"].contains("ppQuadrature");
                          stray = doc.contains("basis") && (doc["basis"].contains("ppLocal") || doc["basis"].contains("ppNonLocal")
                                                            || doc["basis"].contains("ppQuadrature"));
                      });
     ASSERT_TRUE(calc.IsConverged());
-    EXPECT_TRUE(seen)   << "the PP quadrature must be in hamiltonian.ppQuadrature by iteration 1";
-    EXPECT_FALSE(stray) << "a PP mesh filed under basis: it was built inside the SCF iterator's construction again";
+    EXPECT_FALSE(built) << "a PP quadrature was built for a basis that assembles the PP terms in closed form";
+    EXPECT_FALSE(stray) << "a PP mesh filed under basis";
 }
 
 TEST(CalculationFacade, LevelsListEveryMOAscendingAndTheOccupiedOnesAreTheOrbitals)
@@ -169,8 +169,7 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySC
     EXPECT_FALSE((*build)["basis"]["perIrrep"].empty());
     ASSERT_TRUE(build->contains("hamiltonian")) << build->dump(1);
     const auto& ham=(*build)["hamiltonian"];
-    for (const char* g : {"xcQuadrature", "ppQuadrature"})
-        EXPECT_TRUE(ham.contains(g) && ham[g]["points"].get<long>()>0) << "hamiltonian." << g << " missing from the build run";
+    EXPECT_TRUE(ham.contains("xcQuadrature") && ham["xcQuadrature"]["points"].get<long>()>0) << "hamiltonian.xcQuadrature missing from the build run";
     ASSERT_TRUE(ham.contains("Hartree")) << build->dump(1);
     EXPECT_GT(ham["Hartree"]["auxiliaryFit"]["points"].get<long>(), 0) << "the Hartree fit's mesh files in its term";
     // No SCF ran: no scf header (Converge files it) -- an "scf" key may hold a setup fact the seed build files (xcRhoRoutes)

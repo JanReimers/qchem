@@ -117,7 +117,7 @@ protected:
 //   * BARE vs PSEUDISED nuclei decides BOTH the ion charge (Z vs Zion) AND the electron-nuclear term(s) --
 //     and that is NOT the double/dcmplx axis it was filed under: Ham_PP is <double> and never called the
 //     helper either.
-//   * the BASIS lineage then decides WHICH electron-nuclear implementation (PP_Local's mesh quadrature vs
+//   * the BASIS lineage then decides WHICH electron-nuclear implementation (PP_Local's closed form or mesh quadrature vs
 //     Ven_PP_Short/_Long's G-space route) -- a second, independent axis.
 //   * the Dirac Hamiltonians replace the kinetic term outright (DiracKinetic + RestMass) and carry no
 //     ion-ion at all.

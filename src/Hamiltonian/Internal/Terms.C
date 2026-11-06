@@ -72,7 +72,8 @@ private:
 //###############################################################################
 //
 //  Local pseudopotential electron-ion term: the pseudized replacement for Ven.  Instead of the analytic
-//  -Z/r nuclear attraction it quadratures the smooth real-space V_loc(r) on the molecular/atomic mesh,
+//  -Z/r nuclear attraction: a basis that answers Orbital_PP_IBS assembles V_loc in closed form; otherwise it
+//  quadratures the smooth real-space V_loc(r) on the molecular/atomic mesh,
 //  <chi_i|V_loc|chi_j> = Sum_g w_g chi_i(r_g) chi_j(r_g) V_loc(r_g) (= the XC-path MatrixOverlap shape).
 //  STATIC (density-independent), so it is built once.  V_loc is the species radial field's real-space view (SpeciesRadialField::ValueR).
 //
