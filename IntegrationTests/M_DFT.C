@@ -231,8 +231,19 @@ TEST(M_DFT, F2_PP_AuxiliaryFit)
 TEST(M_DFT, WaterLDA_DeltaCoulomb_Long)
 {
     MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
-                                                                                       .coulombFit = Hamiltonian::CoulombFit::Delta}));
+                                                                                       .coulomb = {.fit = Hamiltonian::CoulombFit::Delta, .solver = Hamiltonian::CoulombSolver::DirectSum}}));
     ASSERT_TRUE(calc.Result());
     EXPECT_NEAR(calc.Energy(), -75.8917526160, 1e-5);   // anchor
     EXPECT_NEAR(calc.Energy(), -75.87729931, 2e-2) << "ORACLE: PySCF, exact J and XC; the gap (-14.5 mHa) is the direct sum";
+}
+
+// ...and with the radial Poisson solve, the route to use: the same mesh, the operator at the mesh's own limit.  It sits 15x closer
+// to exact J than the Gaussian A1 fit does (-2.1 mHa, the PySCF A1_coul row).
+TEST(M_DFT, WaterLDA_DeltaCoulomb_Poisson)
+{
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
+                                                                                       .coulomb = {.fit = Hamiltonian::CoulombFit::Delta}}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -75.8774457214, 1e-6);   // anchor
+    EXPECT_NEAR(calc.Energy(), -75.87729931, 2e-4) << "ORACLE: PySCF, exact J and XC; the gap (-146 μHa) is the mesh's";
 }

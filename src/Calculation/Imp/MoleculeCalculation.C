@@ -151,9 +151,9 @@ void MoleculeCalculation::BuildGraph()
     {
         rpt::Scope hamiltonian("hamiltonian");
         ham = itsSetup->pp
-            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis, opts.vxcFit, opts.coulombFit)
+            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis, opts.vxcFit, opts.coulomb)
             : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure,
-                                          opts.mesh, itsBasis, opts.xalpha, opts.vxcFit, opts.coulombFit);
+                                          opts.mesh, itsBasis, opts.xalpha, opts.vxcFit, opts.coulomb);
     }
     {
         rpt::Section basis("basis");

@@ -85,6 +85,7 @@ qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams&
     std::vector<double> dist(natom), P(natom);
     for (size_t ia=0; ia<natom; ia++)
     {
+        out.BeginSite();   // one block per atom, in atom order (SiteIntegrals, the radial Poisson operator)
         qcMesh::Mesh am=qcMesh::ProductMesh(rad,ang);
         am.ShiftOrigin(R[ia]);
         const rvec3vec_t& pts=am.Points();

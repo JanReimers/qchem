@@ -21,6 +21,7 @@ import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Types;
 import qchem.Fitting.CoulombOperator;            // the grid Hartree route: the operator and the fitter it is paired with
+import qchem.Mesh.Radial;                         // MakeRadial: the radial rule the Poisson operator shares with the mesh
 import qchem.Structure;
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
 import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
@@ -87,30 +88,43 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMe
 
 //! THE MOLECULAR / ATOM HARTREE TERM.  This is where a grid route's fit basis and operator are paired, so nothing below knows
 //! which it got.  An unresolved \c Auto is the Gaussian fit; the δ route is one stated choice away (\c CoulombFit::Delta).
-static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, CoulombFit coulomb)
+static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, const CoulombRoute& coulomb)
 {
-    if (coulomb!=CoulombFit::Delta)
+    if (coulomb.fit!=CoulombFit::Delta)
     {
         FittedVee::fbs_t fb=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
         return new FittedVee(fb, st->GetNumElectrons());
     }
+    qcMesh::MeshParams hmp=mp;
+    if (coulomb.nRadial>0) hmp.nRadial=coulomb.nRadial;
+    const bool direct=coulomb.solver==CoulombSolver::DirectSum;
     BasisSet::FitQuadrature quad;
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Hartree", "Hartree ρ fit", [&]
     {
-        qchem::report::Set("coulombOperator", "direct sum");
-        qchem::report::Set("energyOrder",     "first");   // ruled 2026-11-06: no Dunlap cancellation on a quadrature route
-        quad=BasisSet::MakeXCQuadrature(*st, mp, bs->GetImposition());
-        return bs->CreateVxcFitBasisSet(st.get(), mp, VxcFit::Delta, &quad);
+        qchem::report::Set("coulombOperator", direct ? "direct sum" : "radial Poisson");
+        if (!direct) qchem::report::Set("lMax", coulomb.lMax);
+        qchem::report::Set("energyOrder", "first");   // ruled 2026-11-06: no Dunlap cancellation on a quadrature route
+        quad=BasisSet::MakeXCQuadrature(*st, hmp, bs->GetImposition());
+        return bs->CreateVxcFitBasisSet(st.get(), hmp, VxcFit::Delta, &quad);
     });
-    return new FittedVee(Fitting::MakeGridDensityFitter(fb, Fitting::MakeDirectSumCoulomb(*quad.GetMesh())), st->GetNumElectrons());
+    const qcMesh::Mesh& mesh=*quad.GetMesh();
+    std::unique_ptr<Fitting::CoulombOperator> op;
+    if (direct) op=Fitting::MakeDirectSumCoulomb(mesh);
+    else
+    {
+        rvec3vec_t centres(st->GetNumAtoms());
+        for (size_t a=0; a<centres.size(); a++) centres[a]=st->Sites()[a].R;
+        op=Fitting::MakeRadialPoissonCoulomb(mesh, centres, qcMesh::MakeRadial(hmp).R(), coulomb.lMax);
+    }
+    return new FittedVee(Fitting::MakeGridDensityFitter(fb, std::move(op)), st->GetNumElectrons());
 }
 
-Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, CoulombFit coulomb)
+Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)
     : Ham_DFT(st, {std::make_shared<SlaterExchange>(alpha_ex)}, mp, bs, g, fit, coulomb)
 {};
 
 Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> parts,
-                 const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, CoulombFit coulomb)
+                 const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
@@ -138,7 +152,7 @@ static bool NeedsPPQuadrature(const rbs_t* bs, const BasisSet::SpeciesRadialFiel
 
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
                std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, CoulombFit coulomb)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
@@ -164,7 +178,7 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
-               const rbs_t* bs, SpinGroup g, VxcFit fit, CoulombFit coulomb)
+               const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)
     : Ham_PP(st,
              std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
              std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
@@ -184,7 +198,7 @@ BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species, con
 } //anon
 
 Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, CoulombFit coulomb)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)
     : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g, fit, coulomb)
 {}
 

@@ -32,8 +32,8 @@ public:
     }
 
     //! \copydoc CoulombOperator::Potential
-    //! A point with exactly zero charge adds exactly nothing, so it leaves the source list; that is no screen (pin 1).  Two
-    //! points at one position would drop each other's pair: only a mesh with a repeated point has any, and none is built.
+    //! A point with exactly zero charge adds exactly nothing, so it leaves the source list; that is no screen (pin 1).  Coincident
+    //! points drop each other's pair: an MHL rule repeats its r = 0 node once per direction, all at zero weight, so nothing is lost.
     rvec_t Potential(const rvec_t& q) const override
     {
         const size_t n=itsW.size();

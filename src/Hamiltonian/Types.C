@@ -47,9 +47,25 @@ using VxcFit = BasisSet::VxcFit;
 
 //! \brief WHICH REPRESENTATION carries \f$\rho\f$ for Hartree, the partner of \c VxcFit (user ruling 2026-11-06).
 //!  - \c Auxiliary: the lineage's Gaussian Coulomb fit, analytic \f$(ij|a)\f$, second-order energy.
-//!  - \c Delta: the \f$\delta\f$ basis on the run's XC mesh, with the direct Coulomb sum.  First-order energy; the mesh's charge
-//!    error is reported, not rescaled away.  Coarse: J good to about 1e-2 on TeF₆.
+//!  - \c Delta: the \f$\delta\f$ basis on a mesh, with a \c CoulombSolver finding \f$v\f$ at its points.  First-order energy; the
+//!    mesh's charge error is reported, not rescaled away.
 //!  - \c Auto: the caller did not choose; the molecular policy picks \c Auxiliary.
-//! Molecular only so far.  It lives here and not beside \c VxcFit because no basis factory reads it.
+//! They live here and not beside \c VxcFit because no basis factory reads them.
 enum class CoulombFit {Auto, Auxiliary, Delta};
+
+//! \brief HOW a grid fit finds its potential.  \c RadialPoisson reaches the mesh's own limit (TeF₆: J to 5e-4 at 80/29, the same as
+//! the exact potential on those points); \c DirectSum is \f$O(N^2)\f$ and about 1e-2 at any rung tried.  \c Auto = \c RadialPoisson.
+enum class CoulombSolver {Auto, RadialPoisson, DirectSum};
+
+//! \brief The whole Hartree choice, one value through the factories.
+struct CoulombRoute
+{
+    CoulombFit    fit    = CoulombFit::Auto;
+    CoulombSolver solver = CoulombSolver::Auto;
+    //! The multipole cut of \c RadialPoisson.  12 from the TeF₆ prototype: truncation 6e-6 Ha on a PP density, any rung.  An
+    //! all-electron density wants about 20.
+    int lMax    = 12;
+    //! Radial points of the Hartree mesh; 0 = the run's own.  All-electron densities want about twice what the contraction needs.
+    int nRadial = 0;
+};
 }

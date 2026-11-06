@@ -33,6 +33,11 @@ public:
 //! matrix-free.  Copies the points: an operator outlives no borrowed mesh.
 std::unique_ptr<CoulombOperator> MakeDirectSumCoulomb(const qcMesh::Mesh& mesh);
 
+//! \brief The radial Poisson solve on an atom-centred mesh, to \a lMax.  \a centres are the mesh's site centres in block order and
+//! \a radii the nodes of the radial rule the sites share, uniform in their index.  \f$O(N_{pts}N_{sites}(l+1)^2)\f$.
+//! THROWS on a mesh with no site blocks.
+std::unique_ptr<CoulombOperator> MakeRadialPoissonCoulomb(const qcMesh::Mesh& mesh, const rvec3vec_t& centres, const rvec_t& radii, int lMax);
+
 //! \brief A density fit on \a deltaBasis (an orthogonal, \f$\delta\f$-like fit basis), with \a op finding the potential.
 //! It answers the same face the Gaussian fit answers, so \c FittedCD and \c FittedVee cannot tell them apart.
 //! THROWS when \a deltaBasis is not orthogonal: a diagonal metric is what makes the projection the fit.
