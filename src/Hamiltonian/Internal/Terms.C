@@ -271,6 +271,9 @@ class FittedVee : public virtual rDynamic_HT, private rDynamic_HT_Imp
 public:
     typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
     FittedVee(fbs_t& chargeDensityFitBasisSet, double numElectrons);
+    //! A grid route: the fit's charge is the mesh's, so this term reports its error (\c HartreeChargeError) and the
+    //! first-order energy effect of it (\c HartreeChargeEnergy, \f$2E_H\,\delta q/N\f$; ruled 2026-11-06, reported not rescaled).
+    FittedVee(std::unique_ptr<Fitting::FunctionFitter_Density_NonOrtho<double>> gridFitter, double numElectrons);
     ~FittedVee();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
     //! \copydoc tDynamic_HT::RefreshForDensity
     //! The fitted charge density is k-INDEPENDENT and refit once per density serial, so it is exactly what
@@ -281,6 +284,7 @@ public:
 private:
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
     std::unique_ptr<ChargeDensity::FittedCD> itsFittedChargeDensity;   //!< owned (was a leaked raw ptr)
+    double itsGridCharge=0.0;   //!< N on a grid route, whose charge error is reported; 0 on a constrained fit, which has none
 };
 
 

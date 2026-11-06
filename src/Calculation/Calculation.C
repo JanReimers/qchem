@@ -33,7 +33,10 @@ protected:
     //! \brief THE RESULT LINE: a run reports its own outcome, contemporaneously, as one \c "[label] CONVERGED iters= charge= Eelec=
     //! Etot= (terms)" console line and a \c result section of the run report.  Each facade calls it where its SCF ends, from what
     //! every facade has; a solid's site moments follow as its own lines.  Rendered at Verbose only, since the line already says it.
-    static void ReportResult(const std::string& label, bool converged, size_t iterations, double charge, const EnergyBreakdown& E);
+    //! A grid Hartree route adds what its mesh lost of the charge, and that charge's energy against \a energyTarget when one is
+    //! stated (user ruling 2026-11-06: reported against eps, not rescaled away).
+    static void ReportResult(const std::string& label, bool converged, size_t iterations, double charge, const EnergyBreakdown& E,
+                             double energyTarget=0.0);
 };
 
 } // namespace qchem

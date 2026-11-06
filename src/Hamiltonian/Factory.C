@@ -144,6 +144,8 @@ export namespace qchem::Hamiltonian
     //! (a setup / deck pre-flight, UTHamiltonian VxcProductSpace) asks here first.  A cell the rule ADMITS but no code realizes
     //! yet (A1 on a solid, PW on a Becke mesh) is not a refusal: it still throws \c std::logic_error, an open X cell of that UT.
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure&, VxcFit, const qcMesh::MeshParams&);
+    //! The Hartree partner of \c AdmitVxc.  Refuses a multipole fit on a periodic structure, on the direct sum, and past its \f$l\f$ bound.
+    Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure&, const CoulombRoute&, const qcMesh::MeshParams&, VxcFit=VxcFit::Auto);
 
     //=== The resolvers ===============================================================================
     //! Non-DFT Hamiltonians (HF / 1-electron / Dirac).  DFT Models route through the DFT resolver below.
@@ -154,14 +156,15 @@ export namespace qchem::Hamiltonian
     //! supported for every kind: SlaterXalpha, DiracVWN (spin-native VWN5) and LibXC (XC_POLARIZED, 2026-10-21).
     //! \a fit: the Vxc fit basis (\c Delta = the δ basis on \a mesh's points, which \c Auto resolves to -- the default;
     //! \c Auxiliary = the lineage's own fitted auxiliary basis, A1 on a molecule).
+    //! \a coulomb: the Hartree fit (\c CoulombRoute), on the molecular / atom path.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const rbs_t*,
-                          VxcFit fit=VxcFit::Auto);
+                          VxcFit fit=VxcFit::Auto, const CoulombRoute& coulomb={});
 
     //! Unified one-call resolver: turn a Model token into the concrete polymorphic Hamiltonian.  HF/1-e/
     //! Dirac ignore mesh/basis/xalpha; the DFT members map to an XCFunctional and delegate to the resolver
     //! above.  The compact "default Hamiltonian" entry the unit tests want -- no manual functional assembly.
     rHamiltonian* Factory(Model,SpinGroup,const st_t& st, const qcMesh::MeshParams&, const rbs_t*, double xalpha,
-                          VxcFit fit=VxcFit::Auto);
+                          VxcFit fit=VxcFit::Auto, const CoulombRoute& coulomb={});
 
     //! Convenience for the most common DFT functional: Slater-Dirac exchange scaled by \a alpha (alpha=2/3
     //! is pure Dirac).  Equivalent to the XCFunctional resolver with XC::SlaterXalpha.
@@ -173,13 +176,13 @@ export namespace qchem::Hamiltonian
     //! pseudopotential, with LSDA exchange-correlation.  \a pol selects spin-native (open-shell) vs the
     //! unpolarized collapse.  The public front door to Ham_PP.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const std::string& element, int valence,
-                         const qcMesh::MeshParams&, const rbs_t*, VxcFit fit=VxcFit::Auto);
+                         const qcMesh::MeshParams&, const rbs_t*, VxcFit fit=VxcFit::Auto, const CoulombRoute& coulomb={});
 
     //! Pseudopotential Hamiltonian from the run's CHOSEN \a pp set (doc/CalcNetworkReview.md §4): a per-Z router PP is built over the
     //! distinct elements of \a st, each with the set's valence variant for the set's functional.  The set is handed in, never
     //! re-derived here -- every other consumer of the run's pseudopotential choice holds the same value.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
-                         const qcMesh::MeshParams&, const rbs_t*, VxcFit fit=VxcFit::Auto);
+                         const qcMesh::MeshParams&, const rbs_t*, VxcFit fit=VxcFit::Auto, const CoulombRoute& coulomb={});
 
     //=== The SOLID (periodic, dcmplx) front door ======================================================
     //! \brief The periodic Kohn-Sham Hamiltonian for a lattice run: kinetic + the range-split local PP

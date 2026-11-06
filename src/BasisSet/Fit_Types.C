@@ -51,6 +51,8 @@ using FitQuadrature = qcMesh::FoldedMesh;
 //!    PlaneWave (it alone knows whether the run is polarized / on a Becke grid), the molecular ones pick Delta (the user's
 //!    default, 2026-10-31).  If it reaches a factory unresolved it is read as "your own fitted representation" (the
 //!    historical pairing; \c qcMesh::UnitCellKind::Auto falls through the same way).
+//!  - \c Multipole: radial channels per (site, l, m) on the same mesh (\c MultipoleFit_IBS).  Finite structures only, and the
+//!    Hamiltonian builds it over a \f$\delta\f$ basis; no basis factory reads this value.
 //! A combination a lineage cannot realize (a plane-wave fit on a molecule, an auxiliary fit on a cell) THROWS at the factory,
 //! naming it: an open gap of the product space (pin 30), never a silent substitute.
 //!
@@ -59,6 +61,6 @@ using FitQuadrature = qcMesh::FoldedMesh;
 //! folding one into the other's parameter block would have re-welded them at the type level while the code
 //! was busy unwelding them.  It does not live in qcHamiltonian either, because the factory that reads it is
 //! here.  \c qchem::Hamiltonian::VxcFit is an alias, so the user-facing spelling is unchanged.
-enum class VxcFit {Auto, PlaneWave, Delta, Auxiliary};
+enum class VxcFit {Auto, PlaneWave, Delta, Auxiliary, Multipole};
 
 }//namespace

@@ -22,6 +22,7 @@ target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     XCPolicy.C
     FoldedMesh.C
     Integrator.C
+    SiteMultipoles.C
     )
 # Flag uniformity is a BUILD CORRECTNESS requirement under C++20 modules: a .pcm and every TU that
 # consumes it must agree on target features, so a lib that opts out of the common set makes any

@@ -21,16 +21,20 @@ template <class T> class FittedCDImp
 {
     typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< Coulomb-metric aux basis (narrow face)
 public:
+    typedef std::unique_ptr<Fitting::FunctionFitter_Density_NonOrtho<T>> fitter_t;
     FittedCDImp(fbs_t&, double totalCharge);
+    FittedCDImp(fitter_t, double totalCharge);   //!< a fitter the caller already built (the grid routes)
     FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint
 
     // FittedCD  (every finite density -- matrix-backed or matrix-free seed -- fits through its own AO face)
     virtual void      DoFit           (const rChargeDensity&             );
     virtual smat_t<T> GetRepulsion    (const odftbs_t*) const;
     virtual double    GetSelfRepulsion(               ) const;  //Does GetRepulsion(*this);
+    virtual double    GetChargeError  (               ) const;
 
 private:
     std::unique_ptr<Fitting::FunctionFitter_Density_NonOrtho<T>> itsFitter;   //!< COMPOSED non-ortho fit (was inherited)
+    double itsTotalCharge;
 };
 
 } //namespace

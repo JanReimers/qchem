@@ -225,3 +225,61 @@ TEST(M_DFT, F2_PP_AuxiliaryFit)
     EXPECT_NEAR(calc.Energy(), -48.1970701902, 1e-5);   // anchor (re-judged with F2_PP above, the same +4.1e-5)
     EXPECT_NEAR(calc.Energy(), -48.20187971, 7e-3) << "ORACLE: PySCF A1_coul J-fit route; the gap (+4.8 mHa) is the A1 Vxc fit";
 }
+
+// THE δ HARTREE ROUTE (CoulombFit::Delta): ρ on the XC mesh, the direct Coulomb sum, first-order energy, through the same FittedVee.
+// The direct sum is coarse, by measurement (TeF₆ prototype: J to about 1e-2), so the oracle tolerance says so.
+TEST(M_DFT, WaterLDA_DeltaCoulomb_Long)
+{
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
+                                                                                       .coulomb = {.fit = Hamiltonian::CoulombFit::Delta, .solver = Hamiltonian::CoulombSolver::DirectSum}}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -75.8917526160, 1e-5);   // anchor
+    EXPECT_NEAR(calc.Energy(), -75.87729931, 2e-2) << "ORACLE: PySCF, exact J and XC; the gap (-14.5 mHa) is the direct sum";
+}
+
+// ...and with the radial Poisson solve, the route to use: the same mesh, the operator at the mesh's own limit.  It sits 15x closer
+// to exact J than the Gaussian A1 fit does (-2.1 mHa, the PySCF A1_coul row).
+TEST(M_DFT, WaterLDA_DeltaCoulomb_Poisson)
+{
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
+                                                                                       .coulomb = {.fit = Hamiltonian::CoulombFit::Delta}}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -75.8772687138, 1e-6);   // anchor
+    EXPECT_NEAR(calc.Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC; the gap (+31 μHa) is the mesh's";
+}
+
+// The multipole fit has δ x Poisson's potential, so its SCF is the same one; only the energy's second leg differs.
+TEST(M_DFT, WaterLDA_MultipoleCoulomb)
+{
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
+                                                                                       .coulomb = {.fit = Hamiltonian::CoulombFit::Multipole}}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -75.8772677710, 1e-6);   // anchor
+    EXPECT_NEAR(calc.Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC: delta's level, +32 μHa.  This rung was 530 out when rho-tilde was synthesized onto the mesh";
+}
+
+// The multipole route's energy depends less on the l cut than δ's: at 150/35, 11 μHa between l = 12 and 16 where δ moves 35.
+TEST(M_DFT, WaterLDA_MultipoleCoulomb_eqLCut_Long)
+{
+    auto energy=[](int lMax)
+    {
+        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+            {.basis = "dzvp", .model = Model::LDA, .mesh = {.radial = qcMesh::RadialKind::MHL, .nRadial = 150, .mhl_m = 3, .mhl_alpha = 2.0,
+                                                      .angular = qcMesh::AngularKind::Lebedev, .angularDegree = 35, .beckeOrder = 2},
+             .coulomb = {.fit = Hamiltonian::CoulombFit::Multipole, .lMax = lMax}}));
+        EXPECT_TRUE(calc.Result());
+        return calc.Energy();
+    };
+    const double e12=energy(12);
+    EXPECT_NEAR(e12, energy(16), 2e-5);
+    EXPECT_NEAR(e12, -75.87729931, 2e-5) << "ORACLE: PySCF, exact J and XC";
+}
+
+// Multipole for Vxc, through the fitter as the A1 route is.  The Hartree stays on the default route, so only the XC term changed.
+TEST(M_DFT, WaterLDA_MultipoleVxc)
+{
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
+                                                                                       .vxcFit = Hamiltonian::VxcFit::Multipole}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -75.87944736, 1e-2) << "the A1 Hartree value; the gap is the multipole Vxc's";
+}

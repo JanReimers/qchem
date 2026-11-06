@@ -69,6 +69,9 @@ struct CalcOptions
     //! \c mesh's own points, v_xc and eps_xc sampled where the quadrature integrates, no fit; \c Auxiliary = the Gaussian auxiliary
     //! basis (DGauss A1).  Both reach the one XC term through the fit face (pin 30: Vxc = system x fit basis x grid).
     Hamiltonian::VxcFit vxcFit = Hamiltonian::VxcFit::Auto;
+    //! The Hartree route (2026-11-06): by default the Gaussian Coulomb fit; \c .fit=CoulombFit::Delta puts \f$\rho\f$ on a mesh, with a
+    //! first-order energy and the mesh's charge error reported.  See \c Hamiltonian::CoulombRoute.
+    Hamiltonian::CoulombRoute coulomb = {};
     //! Point-group SALC blocking + per-irrep aufbau.  GUARDED TO THE CARTESIAN PG BASIS: the SALC
     //! builder needs a PolarizedGaussian (PGData) orbital IBS and throws otherwise.  Since the facade
     //! only builds the default Cartesian basis today, this is always the supported path; the guard

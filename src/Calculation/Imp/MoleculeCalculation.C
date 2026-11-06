@@ -151,9 +151,9 @@ void MoleculeCalculation::BuildGraph()
     {
         rpt::Scope hamiltonian("hamiltonian");
         ham = itsSetup->pp
-            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis, opts.vxcFit)
+            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis, opts.vxcFit, opts.coulomb)
             : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure,
-                                          opts.mesh, itsBasis, opts.xalpha, opts.vxcFit);
+                                          opts.mesh, itsBasis, opts.xalpha, opts.vxcFit, opts.coulomb);
     }
     {
         rpt::Section basis("basis");
@@ -212,7 +212,8 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
     qchem::BasisSet::EmitIntegralsCacheReport();
 
     RebuildSampling();
-    ReportResult("molecule", itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy());
+    ReportResult("molecule", itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
+                 itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()));
     return Outcome_();
 }
 

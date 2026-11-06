@@ -27,6 +27,9 @@ public:
     virtual void    DoFit          (const rChargeDensity&         )      =0;
     virtual double  GetSelfRepulsion(                              ) const=0;  // 1/2 <ro(1)|1/r12|ro(2)>
     virtual rsmat_t GetRepulsion    (const odftbs_t*               ) const=0;
+    //! The fit's charge minus the charge it should carry.  Zero by construction on a constrained fit; on a grid fit it is the
+    //! mesh's own charge error, which the Hartree term reports (user ruling 2026-11-06: reported, not rescaled away).
+    virtual double  GetChargeError  (                              ) const=0;
     // NO Clone().  It was a pure virtual whose SOLE implementation was assert(false)+nullptr -- a contract
     // clause no implementor could honour and no caller ever used (R2.7).  Its stated purpose, building a
     // polarized CD from an unpolarized one, has a REAL blocker recorded in that assert: it needs a
