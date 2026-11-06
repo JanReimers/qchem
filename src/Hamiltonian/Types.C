@@ -65,9 +65,9 @@ struct CoulombRoute
 {
     CoulombFit    fit    = CoulombFit::Auto;
     CoulombSolver solver = CoulombSolver::Auto;
-    //! The multipole cut of \c RadialPoisson, and of a \c VxcFit::Multipole.  12 from the TeF₆ prototype: truncation 6e-6 Ha on a PP density, any rung.  An
-    //! all-electron density wants about 20.
-    int lMax    = 12;
+    //! The multipole cut of \c RadialPoisson, and of a \c VxcFit::Multipole.  16 from water LDA dzvp at 150/47: δ is 2 μHa from exact J
+    //! there and 33 at l = 12.  TeF₆ PP is flat from 14; an all-electron density wants about 20.
+    int lMax    = 16;
     //! Radial points of the Hartree mesh; 0 = the run's own.  All-electron densities want about twice what the contraction needs.
     int nRadial = 0;
 };

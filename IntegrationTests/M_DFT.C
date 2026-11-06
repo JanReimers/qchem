@@ -244,19 +244,19 @@ TEST(M_DFT, WaterLDA_DeltaCoulomb_Poisson)
     MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
                                                                                        .coulomb = {.fit = Hamiltonian::CoulombFit::Delta}}));
     ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -75.8774457214, 1e-6);   // anchor
-    EXPECT_NEAR(calc.Energy(), -75.87729931, 2e-4) << "ORACLE: PySCF, exact J and XC; the gap (-146 μHa) is the mesh's";
+    EXPECT_NEAR(calc.Energy(), -75.8772687138, 1e-6);   // anchor
+    EXPECT_NEAR(calc.Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC; the gap (+31 μHa) is the mesh's";
 }
 
 // The multipole fit has δ x Poisson's potential, so its SCF is the same one; only the energy's second leg differs.  That leg cancels
-// the l truncation (see the _Long twin) but brings mesh error of its own: at this default rung it is +310 μHa, where δ is -146.
+// the l truncation (see the _Long twin) but brings mesh error of its own: at this default rung it is +530 μHa, where δ is +31.
 TEST(M_DFT, WaterLDA_MultipoleCoulomb)
 {
     MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
                                                                                        .coulomb = {.fit = Hamiltonian::CoulombFit::Multipole}}));
     ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -75.8769895586, 1e-6);   // anchor
-    EXPECT_NEAR(calc.Energy(), -75.87729931, 4e-4) << "ORACLE: PySCF, exact J and XC; the gap (+310 μHa) is the mesh's";
+    EXPECT_NEAR(calc.Energy(), -75.8767756863, 1e-6);   // anchor
+    EXPECT_NEAR(calc.Energy(), -75.87729931, 6e-4) << "ORACLE: PySCF, exact J and XC; the gap (+530 μHa) is the mesh's";
 }
 
 // The claim the multipole route makes over δ: its energy does not depend on the l cut.  Measured at 150/35: 0.4 μHa between l = 12 and
@@ -274,7 +274,7 @@ TEST(M_DFT, WaterLDA_MultipoleCoulomb_eqLCut_Long)
     };
     const double e12=energy(12);
     EXPECT_NEAR(e12, energy(16), 2e-6);
-    EXPECT_NEAR(e12, -75.87729931, 3e-5) << "ORACLE: PySCF, exact J and XC";
+    EXPECT_NEAR(e12, -75.87729931, 6e-5) << "ORACLE: PySCF, exact J and XC";
 }
 
 // Multipole for Vxc, through the fitter as the A1 route is.  The Hartree stays on the default route, so only the XC term changed.
