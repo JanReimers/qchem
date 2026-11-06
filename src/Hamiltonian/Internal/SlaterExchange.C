@@ -20,6 +20,8 @@ public:
     using ExFunctional::GetVxc;     // keep the two-channel face visible beside the scalar override
     using ExFunctional::GetEpsXc;
     virtual double GetVxc(double ChargeDensity) const;
+    //! \f$\varepsilon_x=\tfrac34 v_x\f$: the exchange virial, exact for this functional.
+    virtual double GetEpsXc(double ChargeDensity) const {return 0.75*GetVxc(ChargeDensity);}
     //! ANALYTIC: exchange is channel-separable and \f$v_x^\sigma\propto\rho_\sigma^{1/3}\f$, so
     //! \f$f^{\sigma\sigma}=v_x^\sigma/(3\rho_\sigma)\f$ and the cross-channel kernel is exactly 0.
     virtual double GetFxc(double up, double dn, const Spin& s, const Spin& t) const override;

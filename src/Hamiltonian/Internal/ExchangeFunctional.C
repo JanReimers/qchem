@@ -34,11 +34,11 @@ class ExFunctional
 public:
     //! \name The \f$\zeta=0\f$ scalar face: the TOTAL density of a closed shell.
     //! The historical single-density formulation, and still the primitive a CHANNEL-SEPARABLE functional
-    //! (exchange) is written in.  \f$\varepsilon_{xc}\f$ defaults to the EXCHANGE virial \f$\tfrac34 v_x\f$
-    //! (exact for Dirac/Slater exchange); CORRELATION functionals MUST override (differs ~15%).
+    //! (exchange) is written in.  Both are pure: \f$\varepsilon_{xc}=\tfrac34 v_x\f$ is exact for Dirac/Slater exchange
+    //! only, so a default would be a silently wrong answer for any other functional (OOD §I.1).
     //!@{
     virtual double GetVxc  (double rho) const=0;
-    virtual double GetEpsXc(double rho) const {return 0.75*GetVxc(rho);}
+    virtual double GetEpsXc(double rho) const=0;
     //!@}
 
     //! \name THE SPIN-NATIVE FACE -- what every term consumes (V1.37 step 3, 2026-09-14).

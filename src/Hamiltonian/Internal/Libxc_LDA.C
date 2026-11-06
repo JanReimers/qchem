@@ -26,7 +26,7 @@ public:
     ~Libxc_LDA();   // xc_func_end (the matching teardown was missing before -> a libxc leak)
 
     virtual double  GetVxc  (double rho) const;   //!< v_xc(rho)         via xc_lda_vxc
-    virtual double  GetEpsXc(double rho) const;   //!< eps_xc(rho)/part  via xc_lda_exc (overrides the 3/4 default)
+    virtual double  GetEpsXc(double rho) const;   //!< eps_xc(rho)/part  via xc_lda_exc
     //! The spin-native face.  An EXCHANGE id (libxc kind XC_EXCHANGE) is channel-separable: the exact
     //! spin-scaling relation \f$v^\sigma=v_x(2\rho_\sigma)\f$, \f$\varepsilon^\sigma=\varepsilon_x(2\rho_\sigma)\f$ -- the
     //! base-class face over the scalar libxc call, the SAME per-channel split SlaterExchange uses.  The split
