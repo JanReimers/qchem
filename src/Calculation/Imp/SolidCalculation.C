@@ -1545,7 +1545,23 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     {
         const G::RasterExponents x=itsImp->ladder->DeliveredRasterExponents();
         const double xV = x.vlocLong>0.0 ? x.vlocLong : x.density;   // no own V_long ladder (the kappa-sweep path): the density's
-        const GridAuditResult R=CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), "pilot reference (x + "+std::to_string(int(kReferenceMargin))+")");
+        // TWO REFERENCES A ROUND, FOUR AUDITS.  On a Becke mesh the XC term depends on the mesh alone: only the delta fit is admitted there (AdmitVxc), and it
+        // samples rho straight from D, so neither a raster nor the ball reaches it (the audits' Exc rows read exactly 0 at the run's own mesh).  Every other term
+        // depends on the rasters and the ball alone.  So the raster reference also carries the angular rung, the ball reference the radial one, and each term is
+        // read from the reference that moved it.  Four separate references built the run's own 259200-point mesh twice a round to compare it with itself
+        // (MnO geometry, 2026-11-05: 6 of the stage's 15 mesh builds).  An admitted PlaneWave fit on Becke would break this: it would put a raster under XC.
+        const qcMesh::MeshParams& xcCur=itsImp->setup->xcMesh;
+        const bool xcOnBecke=onH && xcCur.cellKind==qcMesh::UnitCellKind::Becke;
+        std::optional<qcMesh::MeshParams> xcAngular, xcRadial;
+        if (xcOnBecke)
+        {
+            xcAngular=qcMesh::BeckeAngularRungAbove(xcCur, itsImp->setup->opts.beckeLadder, itsImp->setup->imposed);
+            xcRadial =qcMesh::BeckeRadialRungAbove(xcCur);
+        }
+        auto withRung=[](std::string name, const std::optional<qcMesh::MeshParams>& rung) {return rung ? name+" + "+BeckeName(*rung) : name;};
+        const GridAuditResult R =CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), withRung("pilot reference (x + "+std::to_string(int(kReferenceMargin))+")", xcAngular),
+                                                 xcAngular ? &*xcAngular : nullptr);
+        const GridAuditResult Bl=CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), withRung("density ball x 2", xcRadial), xcRadial ? &*xcRadial : nullptr, 2.0);
         G::GPWTolerances t=itsImp->setup->opts.tolerances;
         double dDens=0.0, dV=0.0, dXC=0.0;
         rpt::json terms=rpt::json::array();
@@ -1555,7 +1571,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             double* demand=nullptr; double xRun=0.0; const char* which=nullptr;
             if      (T.label.find("LONG-range")!=std::string::npos) { demand = x.vlocLong>0.0 ? &dV : &dDens; xRun=xV; which="V_long"; }
             else if (T.entries=="Eee")                              { demand=&dDens; xRun=x.density; which="Hartree"; }
-            else if (T.entries=="Exc" && T.maxAbsΔH>0.0)
+            else if (T.entries=="Exc" && T.maxAbsΔH>0.0 && !xcOnBecke)   // on Becke this row is the angular rung's, read below
             {
                 // WHOSE error is the uniform XC's?  Below the density's rigorous x the collocated rho itself aliases, and v_xc[rho] carries
                 // it: Na k222s at density x 6 read |dE_xc| 1.2e-4 with its XC raster at x 28 AND at x 60, and 5e-8 once the density raster
@@ -1589,23 +1605,20 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         // to max|dH_xc| <= target against the next rung at this D.  An atom-centred mesh moves with the atoms: the egg-box cannot see it.
         std::optional<qcMesh::MeshParams> xcMeshNext;
         std::string xcLadderEnd;   // an axis with no finer rung: nothing checks it, so it blocks SETTLED, honestly
-        const qcMesh::MeshParams& xcCur=itsImp->setup->xcMesh;
-        if (onH && xcCur.cellKind==qcMesh::UnitCellKind::Becke)
+        if (xcOnBecke)
         {
-            // TWO REFERENCES, one per axis: the angular and the radial error have different shapes and different largest elements (2026-11-05), so
-            // one joint rung cannot say which to move.  A second reference costs a mesh build, not a re-convergence; the axis further over moves.
-            const SolidCalcOptions& o=itsImp->setup->opts;
-            const bool stated=o.xcMesh.cellKind!=qcMesh::UnitCellKind::Auto;
-            struct Axis {const char* name; std::optional<qcMesh::MeshParams> ref; std::optional<std::pair<std::string,double>>* before;};
-            const Axis axes[]={{"angular", qcMesh::BeckeAngularRungAbove(xcCur, o.beckeLadder, itsImp->setup->imposed), &beckeBeforeL},
-                               {"radial",  qcMesh::BeckeRadialRungAbove(xcCur), &beckeBeforeNR}};
+            // ONE RUNG PER AXIS: the angular and the radial error have different shapes and different largest elements (2026-11-05), so one joint
+            // rung cannot say which to move.  The axis further over moves.
+            const bool stated=itsImp->setup->opts.xcMesh.cellKind!=qcMesh::UnitCellKind::Auto;
+            struct Axis {const char* name; const std::optional<qcMesh::MeshParams>& ref; const GridAuditResult& audit; std::optional<std::pair<std::string,double>>* before;};
+            const Axis axes[]={{"angular", xcAngular, R,  &beckeBeforeL},
+                               {"radial",  xcRadial,  Bl, &beckeBeforeNR}};
             double worst=0.0;
             for (const Axis& a : axes)
             {
                 if (!a.ref) { xcLadderEnd=std::string("the ladder's ")+a.name+" axis ends at "+BeckeName(xcCur)+", so that axis is unaudited"; continue; }
-                const GridAuditResult B=XCMeshAudit(*a.ref);
                 double d=0.0;
-                for (const auto& T : B.terms) if (T.entries=="Exc") d=std::max(d, T.maxAbsΔH);
+                for (const auto& T : a.audit.terms) if (T.entries=="Exc") d=std::max(d, T.maxAbsΔH);
                 // The rung difference UNDER-states the rung's own error when the ladder converges slowly: Si Gamma halves per rung (1.8e-5,
                 // 8.9e-6), so its error is ~ the whole geometric tail d/(1 - r), r the measured ratio to the rung below -- twice d there.  One
                 // rung measured: d alone (no ratio yet); a ratio >= 1 (not converging) also falls back to d, and then the next rung measures again.
@@ -1644,7 +1657,6 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         std::string ballOtherOver;   // a term the ball audit finds OVER that a bigger ball does not cure (it blocks SETTLED, honestly)
         {
             const SolidCalcOptions& o=itsImp->setup->opts;
-            const GridAuditResult Bl=CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), "density ball x 2", nullptr, 2.0);
             // THE BALL'S OWN TERM is Hartree (the ball is its quadrature): it alone decides whether the ball doubles.  EVERY OTHER TERM is judged
             // too (controller ruling 2026-11-02, the honest gate): a bigger ball also re-routes the local-PP LONG sweep over the multigrid levels,
             // and that row does NOT fall as the ball doubles -- it alternates (MnO geometry: +5.7e-5, -6.3e-5, +6.1e-5 at cutoffFactor 2, 4, 8,
@@ -1655,6 +1667,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             {
                 const double v = onH ? T.maxAbsΔH : std::fabs(T.ΔE);
                 if (T.entries=="Eee") d=std::max(d, v);
+                else if (xcOnBecke && T.entries=="Exc") continue;   // the radial rung's row, read above
                 else if (v>dOther) { dOther=v; otherTerm=T.entries+": "+T.label.substr(0, T.label.find('('));}
             }
             const std::string worst="Eee";

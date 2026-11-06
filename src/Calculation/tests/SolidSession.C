@@ -155,7 +155,7 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
 // (BeckeXCParams() is calibrated on the ENERGY).  Gated by an INDEPENDENT audit two rungs above the settled mesh, not the pilot's own
 // reference.  MEASURED 2026-11-05 (Si Gamma, auto floor): the run enters at the calibrated rung, nR 100 / rotated Lebedev 53, and settles there in
 // 4 rounds, 30 re-convergence iterations, the density ball setting the rounds: angular 1.4e-7, radial 5.1e-8, so Si sits far under its target on
-// a rung calibrated on MnO.  ~2400 s at -j3, hence _Long.  The NaF twin: GPW_NaF.Γ_GeometryRunSizesItsBeckeMesh_Long.
+// a rung calibrated on MnO.  ~1600 s at -j3, hence _Long.  The NaF twin: GPW_NaF.Γ_GeometryRunSizesItsBeckeMesh_Long.
 TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
 {
     const auto mat=Materials::Get("Si_diamond");
@@ -175,6 +175,8 @@ TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
     EXPECT_TRUE(c.PilotCost().settled);
     EXPECT_LE(c.PilotCost().rounds, 4) << "the density ball doubles three times beside the mesh's climb (cutoffFactor 2 -> 16, 2026-11-02)";
     EXPECT_LE(c.PilotCost().reconvergeIterations, 35u) << "three re-convergences (27 measured 2026-11-02)";
+    // The pilot reads the mesh's error off its raster reference, so the mesh's XC term must not feel a raster at all.
+    for (const auto& t : c.GridAudit().terms) if (t.entries=="Exc") EXPECT_EQ(t.maxAbsΔH, 0.0) << "a raster reached the Becke XC term: " << t.label;
 
     const double eps=o.accuracy.eps;   // per matrix element on a geometry run (GridAccuracy::Target)
     const qcMesh::BeckeLadderCalibration cal;   // two rungs up on the angular axis, one on the radial
