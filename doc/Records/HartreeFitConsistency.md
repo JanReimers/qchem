@@ -80,12 +80,12 @@ J^a is about 15× better than J^b, but J^c carries half of J^b's error, so the c
 integrals per build.  Why J^a beats J^b when v is the smoother field is unmeasured.  Guess: the sharp factor in J^b is a single core pair,
 which max|ΔJ| finds, and in J^a it is the same ρ for every element.
 
-## Open
+## K's symmetry, measured (2026-11-06, lane S; gate `CoulombOperatorSymmetry`)
 
-- K's symmetry on `RadialPoissonCoulomb`: each source is expanded about its own site, so K_gh and K_hg differ across sites at truncation
-  level.  Measured 2026-11-06 (TeF₆ geometry, model charges): |q′ᵀKq − qᵀKq′| / qᵀKq about 4e-7 at 80/29, 5e-8 to 1e-7 at 150/47 for l ≥ 14,
-  under 1e-8 at 300/47 for l ≥ 20; the direct sum is symmetric to 1e-9.  Against E_H that is inside ε·N at the geometry rung.  Whether it
-  bounds a force error is unmeasured, so this stays open until forces exist.
+`RadialPoissonCoulomb` expands each source about its own site, so K_gh and K_hg can differ across sites.  |q′ᵀKq − qᵀKq′| / qᵀKq on TeF₆'s
+geometry with model charges: about 4e-7 at 80/29, 5e-8 to 1e-7 at 150/47 (l ≥ 14), under 1e-8 at 300/47 (l ≥ 20).  The direct sum is symmetric
+to 1e-9.  Scaled by E_H (347 Ha) that is about 1.4e-4, 3e-5 and 3e-6 Ha against ε·N = 7e-5, so inside ε at the geometry rung.  This is a
+size, not a force bound: that stays open until forces exist.  The analytic element stays parked.
 
 ## Context: which codes do which (from memory, not checked)
 
