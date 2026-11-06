@@ -1692,3 +1692,13 @@ The displaced point moves by 1.8e-6 Ha between the two meshes (E −61.3031147 a
 
 The first LiF attempt stopped in pre-flight, because its deck stated rasters beside an accuracy target.  With those removed it ran as above.
 
+### The pilot's two references (2026-11-05, lane A)
+
+The row "rebuilds an identical Becke mesh 8 times" named the repeated build.  The loop was the defect, so no cache was added.  A round built four references: raster, angular rung, radial rung, ball.  The raster and ball references built the run's own mesh and compared it with itself, and the two rung references held rasters and ball fixed.  On a Becke mesh only the delta fit is admitted and it samples rho from D, so XC depends on the mesh alone (every Exc row of those two audits read exactly 0 in all 3 MnO rounds), and every other term depends on the rasters and ball alone.  So the raster reference now carries the angular rung and the ball reference the radial one.  Every audit still runs at the final D.  An admitted PlaneWave fit on Becke would break the separation; the comment at the site says so and Si's gate checks the raster half.  The ball half has no test of its own: it rests on the Exc rows above and on the gates' identical output.
+
+| gate | mesh lines in the run | wall | pilot output |
+|---|---|---|---|
+| MnO geometry | 22 -> 16 (stage 15 -> 9) | 4354 -> 2665 s | identical, run id aside |
+| LiF geometry | 9 -> 7 | not comparable (ran beside the panel) | identical |
+
+**The 1689 s is mostly load, not this change.**  The two MnO runs saw different boxes: the identical work before the first geometry audit took 1284 s then, 879 s now, and collocate 8.96 against 6.67 s a call.  Scaling by that 1.35-1.45 puts the change's own saving at about 450-620 s, under the 900 s predicted beforehand.  No A/B on one load was run.  Sweep against main-9ed28468: short 1299/0, long 11/0, 0 moved; `SolidSession.GeometryRunPicksAndSizesTheBeckeMesh_Long` 2113 -> 1573 s, `GPW_NaF.Γ_GeometryRunSizesItsBeckeMesh_Long` 1978 -> 1495 s, same caveat.  Peak RSS unchanged at 3.1 GB, though each reference now holds a raised raster and a finer mesh together.
