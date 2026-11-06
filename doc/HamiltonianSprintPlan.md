@@ -46,8 +46,9 @@ No row needs a material campaign.  Those came from numerical questions; a cleanu
 
 The Dunlap fit is not named explicitly today, and it should be.  Target: two versions of the Hartree term (`FittedVee`, or `Vee_DFT` under
 the new naming), one Dunlap and one normal.  Each creates the correct fitter implementations and calls the correct 3-centre integrals.
-Today one `FittedVee` serves both and tells them apart by `itsGridCharge`, and the energy formula 2·EeeFit − EeeFitFit is valid only for
-Dunlap: that is the defect.  The two versions are the shapes in `doc/Records/HartreeFitConsistency.md`: Dunlap Cᵀ G⁻¹ C, second order;
+Today one `FittedVee` serves both and tells them apart by `itsGridCharge`, and the energy formula 2·EeeFit − EeeFitFit is shared without saying
+what it needs: that is the defect.  It needs a real ρ̃ with a solved potential, so Dunlap and multipole qualify and δ does not (user 2026-11-06: 'only
+Dunlap' was too narrow a framing).  The two versions are the shapes in `doc/Records/HartreeFitConsistency.md`: Dunlap Cᵀ G⁻¹ C, second order;
 normal Oᵀ K O, first order, with `K` a `CoulombOperator`.
 
 **Open for the note: can they be structure neutral?**  Wanted, if achievable.  The likely obstacle is G = 0: a periodic Coulomb metric
