@@ -15,6 +15,8 @@ step 5 lands.  The rows stay the record of what is open; this file holds only th
 | 4 | `V1.35` with `V1.41` stages 2-3, planned together | the `*_RealBlock` caches are in both; both change the tier-1 `Hamiltonian` hub | design notes first; sweep + panel at 4 threads; one timed MnO or TeF₆ run before and after |
 | 5 | `V-XC-ONE-TERM`, then `V-NONLINEAR-MESH` | the term loses mesh ownership in the second | `VxcProductSpace`; moves re-judged against PySCF; one timed run |
 
+**Step 4's inner order (lane S's notes `lane-s-v135-blast-radius.md`, `lane-s-v141-stages-2-3.md`):** the two `V1.41` rulings; stage 2 for `Vee_Hartree`, `Vxc_Quadrature`, `Hubbard_U`; `V1.35` as deletions (once `MakeMatrix(bs, s, DensityID)` is in, no block signature names the run scalar, so `TRun` may not be needed); then the rest of stage 2, and stage 3.  `FittedVee` and `FittedVxc` need coefficients as values, a tier-1 `Fitting.FunctionFitter` change, and do not block `V1.35`.
+
 Not in the sprint: `V1.39` (its own trigger is GGA), `V-BLOCKED-MATRIX` (it may fall out of step 4; decide there).
 
 **While in each file (user 2026-11-06, `OOD-SOLID-Cleanup.md` header):** concrete classes not seen by clients are low priority, but look for the same sequence of code appearing in two structure-specific classes, and log or fold it.
