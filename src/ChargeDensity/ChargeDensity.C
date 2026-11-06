@@ -11,7 +11,6 @@ module;
 export module qchem.ChargeDensity;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
 export import qchem.Symmetry.Spin;
-export import qchem.Symmetry.Irrep;   // Irrep: the block identity (Phi-table cache key, basis-side)
 export import qchem.ChargeDensity.FourierDensity;   // FourierDensityBase<T> (the periodic face)
 import qchem.ScalarFunction;
 export import qchem.Fitting.FunctionFitter;   // Fitting::ScalarProjector -- named on tDM_CD's own face,

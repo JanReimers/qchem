@@ -33,7 +33,8 @@ module;
 #include <string>
 #include <vector>   // SinglesDensitySampler sigmas/flipFixed (Shubnikov S3)
 export module qchem.ChargeDensity.DensitySampler;
-import qchem.BasisSet.Orbital_DFT_IBS;      // the fit-basis faces + FitQuadrature
+import qchem.BasisSet.Orbital_DFT_IBS;      // the fit-basis faces
+import qchem.BasisSet.Fit_Types;            // FitQuadrature
 import qchem.ChargeDensity.Types;           // tobs_t/cobs_t/robs_t -- this library has its OWN, identical to the
                                             // qcHamiltonian typedefs the engine used to borrow (R1.0e, 2026-09-10)
                                             // with no Hamiltonian dependency of its own; it moves with the engine

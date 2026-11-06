@@ -4,7 +4,6 @@ export module qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import :Fit_IBS;   // the fit-basis faces: a PARTITION of this module since 2026-08-24
-export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary
 export import qchem.BasisSet.Projector3;
 import qchem.Structure;  // Structure (the fit factories' argument)
 
