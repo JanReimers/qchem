@@ -17,6 +17,8 @@ step 5 lands.  The rows stay the record of what is open; this file holds only th
 
 Not in the sprint: `V1.39` (its own trigger is GGA), `V-BLOCKED-MATRIX` (it may fall out of step 4; decide there).
 
+**While in each file (user 2026-11-06, `OOD-SOLID-Cleanup.md` header):** concrete classes not seen by clients are low priority, but look for the same sequence of code appearing in two structure-specific classes, and log or fold it.
+
 ## How a step is validated
 
 No row needs a material campaign.  Those came from numerical questions; a cleanup asks whether the numbers stayed the same.
