@@ -51,3 +51,20 @@ normal Oᵀ K O, first order, with `K` a `CoulombOperator`.
 **Open for the note: can they be structure neutral?**  Wanted, if achievable.  The likely obstacle is G = 0: a periodic Coulomb metric
 diverges for a charged fit function, so a periodic Dunlap fit needs its neutrality stated, where a normal fit in G-space drops G = 0 in `K`.
 Say what each version does on a molecule, an atom and a solid, and where neutrality truly fails, name it.
+
+**Accepted (user 2026-11-06, on lane S's note `lane-s-v11b-two-hartree-terms.md`):** the normal term asks K for its energy (δ gives ½q·v, multipole its two-leg form, 0 moves), since 2·EeeFit − EeeFitFit needs a real ρ̃ with a solved potential, not the Coulomb metric as such.  Dunlap is refused on solids, a second stated exception to "every combination" beside multipole × periodic; on the plane-wave fit basis the two are one formula.
+
+## Term names (user 2026-11-06: `Vee_Hartree` is redundant, `Vxc_Quadrature` likewise; PROPOSED, awaiting the user)
+
+`<Operator>_<Theory>[_<Variant>]`: the theory is HF or DFT, and a variant appears only where two realizations differ in FORMULA, never for structure or grid.
+
+| today | proposed |
+|---|---|
+| `Vee` | `Vee_HF` |
+| `Vxc` | `Vxc_HF` (ruled) |
+| `FittedVee` on a Gaussian fit | `Vee_DFT_Dunlap` |
+| `FittedVee` on a grid fit, `Vee_Hartree` | `Vee_DFT` |
+| `FittedVxc`, `Vxc_Quadrature`, `tVxc_Quadrature` | `Vxc_DFT` (ruled) |
+| `PP_Local`, `PP_NonLocal`, `Ven_PP_Short`, `Ven_PP_Long`, `Ven_PP_NonLocal` | `Ven_PP_Local`, `Ven_PP_NonLocal`, keeping `_Short` / `_Long` only while the split is real |
+
+Unchanged: `Ven`, `Kinetic`, `DiracKinetic`, `RestMass`, `IonIon`, `Hubbard_U`.  Renames ride with the step that touches the class, not as a separate sweep.
