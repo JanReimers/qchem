@@ -1,9 +1,9 @@
 # OOD / SOLID debt — open rows only (split from CleanupCandidates v2, 2026-10-01)
 
 **Charter (user).**  The abstract interfaces are what client code sees.  The goal: ~95% of the high-level
-faces (charge density, Hamiltonian, orbitals, wavefunction, SCF iterator, accelerators) structure-neutral and
+faces (charge density, Hamiltonian, orbitals, wavefunction, SCF iterator, accelerators) should be structure-neutral and
 basis-neutral (atoms, molecules, 3D lattices; 1D/2D later).  Structure-specific classes creeping into
-qcChargeDensity/qcHamiltonian/qcWaveFunction/qcOrbitals are the debt to pull back. Concrete classes that are structure-specific is a small (or no) problem as these should not be seen by client code.  Abstract interfaces that the client code sees is the priority for cleanliness.  Principles in short:
+qcChargeDensity/qcHamiltonian/qcWaveFunction/qcOrbitals are the debt to pull back. Concrete classes that are structure-specific is a small (or no) problem as these should not be seen by client code. For these classes we need to look for things like the same sequence of code appearing in two structure specific classes. Abstract interfaces that the client code sees is the priority for cleanliness.  Principles in short:
 SRP applies to mixins, not to final evaluators; OCP — change a neutral face only for a reason, and ask what it
 means for atoms and molecules; LSP — a virtual defaulting to "not implemented" is a violation; ISP — a
 getter needs a client that will DO something with it (ask the owner instead); a setter wants to be a ctor arg;
