@@ -82,9 +82,10 @@ which max|ΔJ| finds, and in J^a it is the same ρ for every element.
 
 ## Open
 
-- K's symmetry on `RadialPoissonCoulomb`: each source is expanded about its own site, so K_gh and K_hg can differ across sites at
-  truncation level.  Gate q′ᵀKq against qᵀKq′, against l and rung, as a size relative to ε.  If small, δ × Poisson is cheap, accurate and
-  consistent enough for forces, and the analytic element stays parked.
+- K's symmetry on `RadialPoissonCoulomb`: each source is expanded about its own site, so K_gh and K_hg differ across sites at truncation
+  level.  Measured 2026-11-06 (TeF₆ geometry, model charges): |q′ᵀKq − qᵀKq′| / qᵀKq about 4e-7 at 80/29, 5e-8 to 1e-7 at 150/47 for l ≥ 14,
+  under 1e-8 at 300/47 for l ≥ 20; the direct sum is symmetric to 1e-9.  Against E_H that is inside ε·N at the geometry rung.  Whether it
+  bounds a force error is unmeasured, so this stays open until forces exist.
 
 ## Context: which codes do which (from memory, not checked)
 
