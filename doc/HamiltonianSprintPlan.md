@@ -57,11 +57,11 @@ Say what each version does on a molecule, an atom and a solid, and where neutral
 
 **Accepted (user 2026-11-06, on lane S's note `lane-s-v11b-two-hartree-terms.md`):** the normal term asks K for its energy (δ gives ½q·v, multipole its two-leg form, 0 moves), since 2·EeeFit − EeeFitFit needs a real ρ̃ with a solved potential, not the Coulomb metric as such.  Dunlap is refused on solids, a second stated exception to "every combination" beside multipole × periodic; on the plane-wave fit basis the two are one formula.
 
-## Term names (user 2026-11-06: `Vee_Hartree` is redundant, `Vxc_Quadrature` likewise; PROPOSED, awaiting the user)
+## Term names (user 2026-11-06: `Vee_Hartree` is redundant, `Vxc_Quadrature` likewise; RULED, the table below)
 
 `<Operator>_<Theory>[_<Variant>]`: the theory is HF or DFT, and a variant appears only where two realizations differ in FORMULA, never for structure or grid.
 
-| today | proposed |
+| today | ruled |
 |---|---|
 | `Vee` | `Vee_HF` |
 | `Vxc` | `Vxc_HF` (ruled) |
