@@ -17,9 +17,14 @@ namespace qchem::Hamiltonian
 
     bool IsDFT(Model m) {return m==Model::Xalpha || m==Model::LDA;}
 
+    //! A CORRECTNESS LIMIT, NOT A POLICY (user ruling 2026-11-06; the one exception to "every combination").
+    static const std::string thePeriodicMultipole="site multipoles have no periodic form.  The lattice sum of their potentials is "
+        "conditionally convergent, so an answer would depend on the order of summation -- state Delta on a periodic structure";
+
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure& st, VxcFit fit, const qcMesh::MeshParams& mp)
     {
         using R=Outcome<AdmittedVxc,std::string>;
+        if (st.HasTranslationSymmetry() && fit==VxcFit::Multipole) return R::Fail("the multipole Vxc fit: "+thePeriodicMultipole);
         if (!st.HasTranslationSymmetry())
         {
             static const std::string G="this finite structure's G (its point group; O(3) on the atom path) has no translations";
@@ -31,6 +36,24 @@ namespace qchem::Hamiltonian
                                " -- state the XC mesh cellKind Becke or Auto, the atom-centred mesh (doc/Pins.md pin 30)");
         }
         return R::Ok({fit, mp.cellKind});
+    }
+    Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure& st, const CoulombRoute& coulomb)
+    {
+        using R=Outcome<CoulombRoute,std::string>;
+        if (coulomb.fit==CoulombFit::Multipole)
+        {
+            if (st.HasTranslationSymmetry()) return R::Fail("the multipole Coulomb fit: "+thePeriodicMultipole);
+            if (coulomb.solver==CoulombSolver::DirectSum)
+                return R::Fail("a multipole fit's potential is the radial Poisson solve of its channels; a direct sum runs over points -- "
+                               "state the solver RadialPoisson or Auto, or the fit Delta");
+        }
+        return R::Ok(coulomb);
+    }
+    //! The factories' half of \c AdmitCoulomb.
+    static void RequireAdmitted(const Structure& st, const CoulombRoute& coulomb)
+    {
+        const auto a=AdmitCoulomb(st,coulomb);
+        if (!a) throw std::invalid_argument("Hamiltonian::Factory: refused Coulomb route -- "+a.Error());
     }
     //! The factories' half of \c AdmitVxc: a refused cell is a caller that did not ask first.
     static void RequireAdmitted(const Structure& st, VxcFit fit, const qcMesh::MeshParams& mp)
@@ -85,6 +108,7 @@ namespace qchem::Hamiltonian
     {
         typedef std::vector<std::shared_ptr<ExFunctional>> parts_t;
         RequireAdmitted(*st,fit,mp);
+        RequireAdmitted(*st,coulomb);
         switch (xc.kind)
         {
             case XC::SlaterXalpha:   // Slater-Dirac exchange, scaled by alpha
@@ -123,6 +147,7 @@ namespace qchem::Hamiltonian
                          const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit, const CoulombRoute& coulomb)
     {
         RequireAdmitted(*st,fit,mp);
+        RequireAdmitted(*st,coulomb);
         return new Ham_PP(st, element, valence, mp, bs, p, fit, coulomb);
     }
 
@@ -131,6 +156,7 @@ namespace qchem::Hamiltonian
                          const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit, const CoulombRoute& coulomb)
     {
         RequireAdmitted(*st,fit,mp);
+        RequireAdmitted(*st,coulomb);
         return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, bs, p, fit, coulomb);
     }
 

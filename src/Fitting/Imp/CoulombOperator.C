@@ -14,9 +14,14 @@ std::unique_ptr<CoulombOperator> MakeDirectSumCoulomb(const qcMesh::Mesh& mesh)
     return std::make_unique<DirectSumCoulomb>(mesh);
 }
 
-std::unique_ptr<CoulombOperator> MakeRadialPoissonCoulomb(const qcMesh::Mesh& mesh, const rvec3vec_t& centres, const rvec_t& radii, int lMax)
+std::unique_ptr<CoulombOperator> MakeRadialPoissonCoulomb(std::shared_ptr<const qcMesh::SiteMultipoles> sites)
 {
-    return std::make_unique<RadialPoissonCoulomb>(mesh, centres, radii, lMax);
+    return std::make_unique<RadialPoissonCoulomb>(std::move(sites));
+}
+
+std::unique_ptr<CoulombOperator> MakeMultipoleCoulomb(std::shared_ptr<const qcMesh::SiteMultipoles> sites, rvec_t metric, rvec_t weights)
+{
+    return std::make_unique<MultipoleCoulomb>(std::move(sites), std::move(metric), std::move(weights));
 }
 
 std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>

@@ -49,9 +49,12 @@ using VxcFit = BasisSet::VxcFit;
 //!  - \c Auxiliary: the lineage's Gaussian Coulomb fit, analytic \f$(ij|a)\f$, second-order energy.
 //!  - \c Delta: the \f$\delta\f$ basis on a mesh, with a \c CoulombSolver finding \f$v\f$ at its points.  First-order energy; the
 //!    mesh's charge error is reported, not rescaled away.
+//!  - \c Multipole: radial channels per (site, l, m) on the same mesh, by radial Poisson.  The same \f$v\f$ as \c Delta, with a true
+//!    \f$\tilde\rho\f$ on the energy's second leg, so the \f$l\f$ truncation cancels to second order; the mesh's own error stays first
+//!    order.  Finite structures only (\c AdmitCoulomb).
 //!  - \c Auto: the caller did not choose; the molecular policy picks \c Auxiliary.
 //! They live here and not beside \c VxcFit because no basis factory reads them.
-enum class CoulombFit {Auto, Auxiliary, Delta};
+enum class CoulombFit {Auto, Auxiliary, Delta, Multipole};
 
 //! \brief HOW a grid fit finds its potential.  \c RadialPoisson reaches the mesh's own limit (TeF₆: J to 5e-4 at 80/29, the same as
 //! the exact potential on those points); \c DirectSum is \f$O(N^2)\f$ and about 1e-2 at any rung tried.  \c Auto = \c RadialPoisson.
@@ -62,7 +65,7 @@ struct CoulombRoute
 {
     CoulombFit    fit    = CoulombFit::Auto;
     CoulombSolver solver = CoulombSolver::Auto;
-    //! The multipole cut of \c RadialPoisson.  12 from the TeF₆ prototype: truncation 6e-6 Ha on a PP density, any rung.  An
+    //! The multipole cut of \c RadialPoisson, and of a \c VxcFit::Multipole.  12 from the TeF₆ prototype: truncation 6e-6 Ha on a PP density, any rung.  An
     //! all-electron density wants about 20.
     int lMax    = 12;
     //! Radial points of the Hartree mesh; 0 = the run's own.  All-electron densities want about twice what the contraction needs.

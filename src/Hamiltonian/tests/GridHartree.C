@@ -8,6 +8,7 @@
 #include <memory>
 #include <numbers>
 import qchem.Fitting.CoulombOperator;
+import qchem.Hamiltonian.Factory;
 import qchem.Blaze;
 import qchem.Mesh;
 import qchem.Mesh.Radial;
@@ -25,6 +26,11 @@ qcMesh::Mesh OneAtomMesh(const qcMesh::MeshParams& mp=theMesh)
     Molecule m;
     m.Insert(Site{8, Vector3D<double>(0,0,0)});
     return m.CreateIntegrationMesh(mp);
+}
+std::shared_ptr<const qcMesh::SiteMultipoles> Sites(const qcMesh::Mesh& mesh, const qcMesh::MeshParams& mp, int lMax, const rvec3vec_t& centres={rvec3_t(0,0,0)})
+{
+    const auto rule=qcMesh::MakeRadial(mp);
+    return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, rule.R(), rule.W(), lMax);
 }
 double Rho(double a, double r2) {return std::pow(a/std::numbers::pi,1.5)*std::exp(-a*r2);}   // unit charge
 }
@@ -62,7 +68,7 @@ TEST(RadialPoissonCoulomb, GaussianChargePotential)
             const auto& r=mesh.Points()[g];
             q[g]=mesh.Weights()[g]*Rho(a,r.x*r.x+r.y*r.y+r.z*r.z);
         }
-        const rvec_t v=Fitting::MakeRadialPoissonCoulomb(mesh, {rvec3_t(0,0,0)}, qcMesh::MakeRadial(mp).R(), 4)->Potential(q);
+        const rvec_t v=Fitting::MakeRadialPoissonCoulomb(Sites(mesh,mp,4))->Potential(q);
         double worst=0.0;
         for (size_t g=0; g<mesh.size(); g++)
         {
@@ -92,7 +98,7 @@ TEST(RadialPoissonCoulomb, OffCentreGaussianNeedsHigherL)
     }
     auto worstAt=[&](int l)
     {
-        const rvec_t v=Fitting::MakeRadialPoissonCoulomb(mesh, {rvec3_t(0,0,0)}, qcMesh::MakeRadial(theMesh).R(), l)->Potential(q);
+        const rvec_t v=Fitting::MakeRadialPoissonCoulomb(Sites(mesh,theMesh,l))->Potential(q);
         double worst=0.0;
         for (size_t g=0; g<mesh.size(); g+=13)
         {
@@ -116,4 +122,61 @@ TEST(DirectSumCoulomb, Linear)
     const auto op=Fitting::MakeDirectSumCoulomb(mesh);
     const rvec_t v=op->Potential(q), v2=op->Potential(2.0*q);
     for (size_t g=0; g<mesh.size(); g+=997) EXPECT_NEAR(v2[g], 2.0*v[g], 1e-10*std::fabs(v[g]));
+}
+
+// The channels of a smooth two-centre field, carried back to the points.  The partition of unity is what makes the sites' shares
+// add up, so this is the projection and the synthesis checked together.  The error falls with l and is measured, not ideal.
+TEST(SiteMultipoles, ProjectionThenSynthesisReturnsTheField)
+{
+    Molecule m;
+    const rvec3_t A(0,0,0), B(0,0,2.0);
+    m.Insert(Site{8, Vector3D<double>(0,0,0)});
+    m.Insert(Site{1, Vector3D<double>(0,0,2.0)});
+    const qcMesh::Mesh mesh=m.CreateIntegrationMesh(theMesh);
+    rvec_t f(mesh.size()), q(mesh.size());
+    for (size_t g=0; g<mesh.size(); g++)
+    {
+        const rvec3_t a=mesh.Points()[g]-A, b=mesh.Points()[g]-B;
+        f[g]=Rho(0.8,a*a)+0.5*Rho(1.1,b*b);
+        q[g]=mesh.Weights()[g]*f[g];
+    }
+    auto worstAt=[&](int l)
+    {
+        const auto sites=Sites(mesh,theMesh,l,{A,B});
+        auto Q=sites->Moments(q);
+        const auto& W=sites->ShellWeights();
+        for (auto& site : Q)
+            for (size_t i=0; i<W.size(); i++)
+                for (size_t c=0; c<sites->NumLM(); c++) site[i*sites->NumLM()+c]/=W[i];
+        const rvec_t back=sites->Synthesize(Q);
+        double worst=0.0;
+        for (size_t g=0; g<mesh.size(); g++)
+            if (std::isfinite(back[g])) worst=std::max(worst,std::fabs(back[g]-f[g]));
+            else return 1e300;
+        return worst;
+    };
+    const double l4=worstAt(4), l10=worstAt(10);
+    EXPECT_LT(l10,l4/3.0);
+    EXPECT_LT(l10,5e-3);
+}
+
+// A multipole fit is the one combination refused on a periodic structure: a correctness limit, stated as one.  The direct sum runs
+// over points, so it has no meaning for channels on any structure.
+TEST(CoulombRouteAdmission, MultipoleIsRefusedOnAPeriodicStructureAndOnTheDirectSum)
+{
+    using namespace Hamiltonian;
+    Molecule m;
+    m.Insert(Site{8, Vector3D<double>(0,0,0)});
+    EXPECT_TRUE(AdmitCoulomb(m, {.fit=CoulombFit::Multipole}));
+    EXPECT_TRUE(AdmitVxc(m, VxcFit::Multipole, theMesh));
+    EXPECT_FALSE(AdmitCoulomb(m, {.fit=CoulombFit::Multipole, .solver=CoulombSolver::DirectSum}));
+
+    UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});
+    const auto c=AdmitCoulomb(cell, {.fit=CoulombFit::Multipole});
+    ASSERT_FALSE(c);
+    EXPECT_NE(c.Error().find("conditionally convergent"), std::string::npos) << c.Error();
+    const auto v=AdmitVxc(cell, VxcFit::Multipole, theMesh);
+    ASSERT_FALSE(v);
+    EXPECT_NE(v.Error().find("conditionally convergent"), std::string::npos) << v.Error();
+    EXPECT_TRUE(AdmitCoulomb(cell, {.fit=CoulombFit::Delta})) << "the refusal is the multipole's alone";
 }

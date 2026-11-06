@@ -42,9 +42,10 @@ public:
         if (!itsFitBasis->isOrtho())
             throw std::logic_error("GridDensityFitter: the fit basis '"+itsFitBasis->Name()+"' is not orthogonal, so its projection "
                                    "is not its fit -- a grid density fit needs a diagonal metric");
-        itsW=itsFitBasis->Charge();
+        itsW=itsFitBasis->OverlapDiagonal();
+        itsCharge=itsFitBasis->Charge();
         double total=0.0;
-        for (size_t g=0; g<itsW.size(); g++) total+=itsW[g];
+        for (size_t g=0; g<itsCharge.size(); g++) total+=itsCharge[g];
         itsC=rvec_t(itsW.size(),1.0/total);   // the initial guess: a uniform density of unit charge, as ConstrainedFF's guess is
     }
 
@@ -57,7 +58,7 @@ public:
             itsC=OrthogonalFit(*itsFitBasis,*f);
         else
             throw std::logic_error("GridDensityFitter: this density offers neither a matrix (the Coulomb face) nor a field");
-        itsV=itsOperator->Potential(Charges());
+        itsV=itsOperator->Potential(Projection());
     }
 
     hmat_t<double> Repulsion(const robs_t<double>* bs) const override
@@ -69,16 +70,12 @@ public:
 
     double FitGetSelfRepulsion() const override
     {
-        const rvec_t q=Charges();
-        double e=0.0;
-        for (size_t g=0; g<q.size(); g++) e+=q[g]*itsV[g];
-        return e;
+        return itsOperator->SelfRepulsion(Projection(),itsV);
     }
     double Integral() const override
     {
-        const rvec_t q=Charges();
         double n=0.0;
-        for (size_t g=0; g<q.size(); g++) n+=q[g];
+        for (size_t g=0; g<itsC.size(); g++) n+=itsCharge[g]*itsC[g];
         return n;
     }
     void ReScale(double factor) override {itsC*=factor; itsV*=factor;}   // v is linear in rho
@@ -91,7 +88,7 @@ public:
     size_t NumCoefficients() const override {return itsW.size();}
 
 private:
-    rvec_t Charges() const {return itsW*itsC;}   // Blaze: element-wise for two column vectors
+    rvec_t Projection() const {return itsW*itsC;}   // <f_a|rho>.  Blaze: element-wise for two column vectors
     //! The forward+adjoint pair for one orbital block, off the basis's cached tensor.  Locked for the same reason
     //! DeltaScalarFitter::Integrator is: a parallel Fock pass's blocks share this fitter.
     const ScreenedMatrixIntegrator<double>& Integrator(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const
@@ -108,9 +105,10 @@ private:
     qchem::LazyLock itsCacheLock;
     fbs_t  itsFitBasis;                             //!< co-owned: the integrators' closures capture it
     std::unique_ptr<CoulombOperator> itsOperator;
-    rvec_t itsW;   //!< \f$\langle f_g|1\rangle\f$: the mesh weights on a \f$\delta\f$ basis
-    rvec_t itsC;   //!< the fit: the density's values at the points
-    rvec_t itsV;   //!< the potential at the points; empty until the first DoFit
+    rvec_t itsW;        //!< \f$\langle f_a|f_a\rangle\f$: the mesh weights on a \f$\delta\f$ basis
+    rvec_t itsCharge;   //!< \f$\langle f_a|1\rangle\f$: the same numbers there, not on a multipole basis
+    rvec_t itsC;   //!< the fit: on a \f$\delta\f$ basis, the density's values at the points
+    rvec_t itsV;   //!< the potential's coefficients; empty until the first DoFit
 };
 
 } //namespace
