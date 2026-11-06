@@ -97,7 +97,7 @@ using namespace qchem::tests::gpw;   // the harness: Materials cells, gates, rec
 // One magnetic species on one Wyckoff site means the two Mn are related by the (1/2,1/2,1/2) translation,
 // so ANY valid magnetic solution -- seed included -- must have m(Mn1) = -m(Mn2).  Nothing checked that.
 // PW_Mn2Box.Γ_Pol_SeedStaggered covers a DIFFERENT cell (simple cubic, 2 Mn, no O, NEUTRAL
-// targets) and asserts G-space quantities plus GetTotalSpin()==0; m_stag = 1/2(m1-m2), the campaign's order
+// targets) and asserts G-space quantities plus GetTotalSpin()==0; 1/2(m1-m2), the campaign's order
 // parameter, is BLIND to the imbalance -- it reads +0.366 for (+0.37,-0.37) and for (0,-0.73) alike.
 // Measured 2026-08-11: the density one Fock build downstream of this seed has m1 = -0.0001, m2 = -0.73.
 // This test asks whether the seed ITSELF is lopsided, i.e. whether the defect is upstream of the SCF.
@@ -121,16 +121,31 @@ TEST(GPW_MnO, Γ_Pol_SeedMirror)
     const auto* up=seedCD.GetChannel(Spin::Up);
     const auto* dn=seedCD.GetChannel(Spin::Down);
 
-    const rvec3_t off(0.7,0,0), rMn1(0,0,0), rMn2(a,a,a);   // A*(1/2,1/2,1/2) = a(1,1,1); 0.7 bohr = the d peak
-    const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
-    const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
+    // A bare seed has no Hamiltonian to ask for Becke site moments, so integrate m(r) over a sphere on each
+    // Mn, by a midpoint product rule.  2 bohr holds the d shell and stays well inside the Mn-O distance, and
+    // the same offsets on both sites keep the translation exact.
+    const rvec3_t rMn1(0,0,0), rMn2(a,a,a);   // A*(1/2,1/2,1/2) = a(1,1,1)
+    auto sphereMoment=[&](const rvec3_t& c)
+    {
+        const int nr=32, nt=12, np=24;
+        const double R=2.0, dr=R/nr, dc=2.0/nt, dp=2*Pi/np;
+        double m=0;
+        for (int i=0;i<nr;i++) for (int j=0;j<nt;j++) for (int k=0;k<np;k++)
+        {
+            const double r=(i+0.5)*dr, ct=-1+(j+0.5)*dc, st=std::sqrt(1-ct*ct), ph=(k+0.5)*dp;
+            const rvec3_t p=c+r*rvec3_t(st*std::cos(ph), st*std::sin(ph), ct);
+            m+=((*up)(p)-(*dn)(p))*r*r*dr*dc*dp;
+        }
+        return m;
+    };
+    const double m1=sphereMoment(rMn1), m2=sphereMoment(rMn2);
     std::cout << "[seed probe] m1=" << m1 << " m2=" << m2 << " m1+m2=" << m1+m2
               << "  N_up=" << up->GetTotalCharge() << " N_dn=" << dn->GetTotalCharge() << std::endl;
 
     EXPECT_NEAR(up->GetTotalCharge(), dn->GetTotalCharge(), 1e-8) << "the AFM seed carries no NET moment";
-    EXPECT_GT(std::abs(m1), 0.1) << "the + sublattice must actually be polarized";
-    EXPECT_GT(std::abs(m2), 0.1) << "the - sublattice must actually be polarized";
-    EXPECT_NEAR(m1+m2, 0.0, 0.02*std::abs(m1))
+    EXPECT_GT(std::abs(m1), 3.0) << "the + sublattice must actually be polarized";   // measured 4.59 e of Mn2+'s 5
+    EXPECT_GT(std::abs(m2), 3.0) << "the - sublattice must actually be polarized";
+    EXPECT_NEAR(m1+m2, 0.0, 1e-9*std::abs(m1))                                        // measured 9e-16
         << "the two sublattices are related by a lattice translation: m1 must equal -m2";
 
     // THE MIRROR RELATION EVERYWHERE, not just at the two nuclei.  The AFM seed satisfies
@@ -379,7 +394,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 
     // (c) The GREY control: the SAME mesh and fold with the sigma tags withheld = the historical
     // per-channel spatial average, which maps +m sites onto -m sites and ERASES the order.  This is the
-    // unit-level half of the S4 negative control ("imposing the grey group kills m_stag").
+    // unit-level half of the S4 negative control ("imposing the grey group kills the staggered order").
     auto grey=SinglesEngineOver(qcMesh::FoldedMesh(q.GetMesh(), q.GetFold()));
     const rvec_t gup=grey->RhoPol(&seedCD, Spin::Up);
     const rvec_t gdn=grey->RhoPol(&seedCD, Spin::Down);

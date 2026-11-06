@@ -486,7 +486,6 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
 TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
 {
     const Material box=qchem::Materials::Get("Mn2_box7");     // Mn +m at 0, Mn -m at 1/2 (the AFM flip), a=7
-    const double a=7.0;
     const Lattice_3D lat=LatticeOf(box);
     SolidCalcOptions o=OptionsFor(box, "Mn2 B2 AFM imposed");
     o.multiplicity=1;
@@ -508,23 +507,17 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     // The final density through the spin-resolved face: the order must be ALIVE and EXACTLY mirrored.
     const auto* pol=dynamic_cast<const qchem::ChargeDensity::cSpinResolved_CD*>(h.cd);
     ASSERT_NE(pol, nullptr);
-    const auto* up=pol->GetChannel(Spin::Up);
-    const auto* dn=pol->GetChannel(Spin::Down);
-    ASSERT_TRUE(up && dn);
-    const rvec3_t off(0.7,0,0), r1(0,0,0), r2(a/2,a/2,a/2);
-    const double m1=(*up)(r1+off)-(*dn)(r1+off);
-    const double m2=(*up)(r2+off)-(*dn)(r2+off);
+    // The INTEGRATED site moments, in electrons, over the Becke basins this gate's mesh pins.
+    const rvec_t mu=calc.LastIterateTerms().charge.siteMoments;
+    ASSERT_EQ(mu.size(), box.cell->GetNumAtoms()) << "a Becke mesh has one basin per site";
+    const double m1=mu[0], m2=mu[1];
     std::cout << "[Mn2 imposed] after "<<calc.IterationCount()<<" iterations: m1="<<m1<<" m2="<<m2
               << " m1+m2="<<m1+m2<<" Etot="<<calc.LastIterateTerms().GetTotalEnergy()<<std::endl;
-    EXPECT_GT(std::abs(m1), 0.05) << "the AFM order must SURVIVE the imposed SCF loop";
-    // What the projector holds EXACTLY mirrored is the rho the FOCK consumes (the engine's (rho,m)
-    // star-average); the DENSITY MATRIX itself is deliberately NOT projected (the rho-projection
-    // philosophy, T3.2 note), so the D-density probed here is DRIVEN toward the mirror at the
-    // convergence rate -- measured |m1+m2| = 3.1e-3 beside lastΔρ = 5.6e-4 at the 6-iteration cap.
-    // The gate therefore asserts the mirror at the "small beside the order" tier; the EXACT-mirror
-    // guarantee on the projected rasters is the S3 seed-level gate above.
-    EXPECT_NEAR(m1+m2, 0.0, 0.05*std::abs(m1))
-        << "the imposed SCF must keep the sublattice mirror tight (driven by the projected Fock)";
+    EXPECT_GT(std::abs(m1), 2.0) << "the AFM order must SURVIVE the imposed SCF loop";   // measured 3.94 e
+    // Measured 2026-11-05 at the 6-iteration cap: m1+m2 = 0 on these moments, and 4e-16 for the D-density
+    // integrated on a 2 bohr sphere round each Mn.  The mirror is exact, not merely driven toward.
+    EXPECT_NEAR(m1+m2, 0.0, 1e-8*std::abs(m1))
+        << "the imposed SCF must keep the sublattice mirror";
     EXPECT_NEAR(pol->GetTotalSpin(), 0.0, 1e-8) << "an imposed AFM pair carries zero net moment";
 }
 

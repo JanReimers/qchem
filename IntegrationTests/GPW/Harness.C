@@ -546,7 +546,7 @@ void Instrumentation(const MnOArm& arm, const std::string& label)
                                   + (nStage<arm.stageKT.size() ? std::to_string(arm.stageKT[nStage])
                                                                : std::string("?"));
             Fingerprint(stage, tag.c_str());
-            OrderTrajectory(stage, "m_stag", tag.c_str());
+            OrderTrajectory(stage, "m_site", tag.c_str());
             // The T3 instrument's raw time series (doc/OpenWork.md T3): Eee is the CHARGE channel's
             // health, and the threshold that convicts a runaway can only be calibrated against the
             // healthy arm's own trajectory -- so print it, per stage, beside the order.
@@ -559,8 +559,6 @@ void Instrumentation(const MnOArm& arm, const std::string& label)
     // this line is what any caller gets, not something this test computes for itself.
     std::cout<<"["<<label<<" diag] "<<arm.calc->Diagnostics().Summary()<<std::endl;
     if (!arm.result) { std::cout<<"["<<label<<"] NO ANSWER: "<<arm.result.Error().details<<std::endl; return; }
-    // The INTEGRATED site moments (T2's instrument, the Becke basins) beside the historical point probe --
-    // the honest observable, in electrons, rather than a spin DENSITY sampled at one guessed offset.
     std::cout<<"["<<label<<"] Etot="<<std::setprecision(10)<<arm.result->Energy()
              <<" charge="<<arm.result->TotalCharge()<<std::endl;
 }
