@@ -133,17 +133,17 @@ inline rvec3_t rig_pt(double a,double b,double c) {return rvec3_t(a,b,c);}
 
 //! A delta fit basis PLUS the fitter over it, held as its projection face -- what a density projects
 //! itself onto since 2026-08-24 (a density no longer reaches the fit basis directly).  Built through the
-//! same Fitting::Factory production uses, so a probe cannot get a fitter production would not.
+//! same factory the sampler uses, so a probe cannot get a fitter production would not.
 struct DeltaProjector
 {
     std::shared_ptr<const BasisSet::cFIT_SF_ABS>    basis;
-    std::unique_ptr<Fitting::FunctionFitter_Scalar> fitter;
+    std::unique_ptr<Fitting::DeltaScalarFit<dcmplx>> fitter;
     explicit DeltaProjector(qchem::BasisSet::FitQuadrature q)
         : basis(std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(
                     std::move(q), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0))))
-        , fitter(Fitting::Factory(basis)) {}
+        , fitter(Fitting::MakeDeltaScalarFitter(basis)) {}
     const Fitting::ScalarProjector& operator()() const
-        {return dynamic_cast<const Fitting::ScalarProjector&>(*fitter);}
+        {return *fitter;}
     const BasisSet::DeltaFit_IBS<dcmplx>&   Basis() const
         {return dynamic_cast<const BasisSet::DeltaFit_IBS<dcmplx>&>(*basis);}
 };

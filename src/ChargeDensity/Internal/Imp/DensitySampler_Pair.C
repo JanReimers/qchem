@@ -357,18 +357,14 @@ template <class U> hmat_t<U> PairDensitySampler::MatrixT(const tobs_t<U>* bs, co
     {
         std::lock_guard<std::mutex> lock(itsScalarFitterLock.m);   // ONE fitter refit per call: concurrent blocks take turns
         itsScalarFitter->DoFit(SampledField(v, NumPoints()));
-        // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks on a complex
-        // fit axis.  The DFT cross-cast is THIS strategy's to make (2026-08-24): the contraction face takes
-        // the DFT block, and an XC strategy is DFT-specific by construction -- unlike the generic term
-        // machinery it is reached through, which must stay method-neutral.
-        return dynamic_cast<const Fitting::FitContraction<dcmplx,dcmplx>&>(*itsScalarFitter).Overlap(orb);
+        // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks on a complex fit axis.
+        return itsScalarFitter->Overlap(orb);
     }
     else
-        // ⛔ A REAL TRIM BLOCK ON THE BALL FIT IS STILL UNWIRED, and now we know exactly why rather than
-        // "nothing reaches it": the ortho scalar fitter implements FitContraction<dcmplx,dcmplx> and NOT
-        // the <double,dcmplx> face, so the cast is a std::bad_cast (verified 2026-08-28).  The face is
-        // expressible -- FitContraction is templated on the block scalar -- so this is a hole in the
-        // FITTING layer, not a fact about XC.  The seed exemption below is what keeps it unreachable.
+        // ⛔ A REAL TRIM BLOCK ON THE BALL FIT IS STILL UNWIRED: the ortho scalar fitter implements FitContraction<dcmplx,dcmplx> and
+        // NOT the <double,dcmplx> face, so this branch cannot contract.  The face is expressible -- FitContraction is templated on
+        // the block scalar -- so this is a hole in the FITTING layer, not a fact about XC.  Whether it is reached depends on
+        // BlockAdjoint at run time, so it stays a named refusal (V1.34); the seed exemption above keeps it unreachable.
         throw std::logic_error("PairDensitySampler: a real TRIM block on the legacy ball-fit XC route is not "
                                "wired -- the ortho scalar fitter has no FitContraction<double,dcmplx> face. "
                                "Use the raw collocated feed (the default) or the delta quadrature");

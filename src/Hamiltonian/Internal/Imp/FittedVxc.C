@@ -17,16 +17,6 @@ namespace qchem::Hamiltonian
 
 namespace
 {
-// The fit CONTRACTION face (ISP, 2026-08-22): a fitter no longer declares which orbital scalar it can
-// contract against -- it carries a FitContraction<U,TFit> per (block scalar, fit scalar) pair it CAN serve,
-// and the consumer asks for the one it needs.  A molecular term always needs <double,double> -- real
-// orbitals on a real Gaussian auxiliary basis -- and the factory that built this fitter guarantees it, so
-// this is the sanctioned "I want more" cross-cast (reference form: throws, never UB).
-const Fitting::FitContraction<double,double>& RealContraction(const Fitting::FunctionFitter_Scalar& f)
-{
-    return dynamic_cast<const Fitting::FitContraction<double,double>&>(f);
-}
-
 // THE FITTABLE FIELDS, as a matched V/E pair (see tDynamic_CC::GetEMatrix): ProjectedScalar_R adapters
 // holding (functional, the two channel densities, the spin) and evaluating pointwise through the
 // functional's SPIN-NATIVE face.  Nothing is stashed inside the functional: the densities arrive as ctor
@@ -157,7 +147,7 @@ rsmat_t FittedVxc::MakeMatrix(const robs_t* bs,const Spin& s,const rChargeDensit
     SpinFit& f=FitFor(s);
     EnsureVFit(f, s, cd);                              // ordinarily a lookup: the phase warmed it
     const odftbs_t& dftbs=dynamic_cast<const odftbs_t&>(*bs);
-    return RealContraction(*f.v).Overlap(dftbs);
+    return f.v->Overlap(dftbs);
 }
 
 //  The E half of the V/E pair (see tDynamic_CC::GetEMatrix).  Same shape as MakeMatrix above, but fitting
@@ -175,7 +165,7 @@ const rsmat_t& FittedVxc::GetEMatrix(const robs_t* bs,const Spin& s,const rCharg
         f.epsVersion=cd->Version();
     }
     const odftbs_t& dftbs=dynamic_cast<const odftbs_t&>(*bs);
-    f.epsMat=RealContraction(*f.eps).Overlap(dftbs);   // Sum_a c_a <Oi|f_a|Oj>  (per-irrep basis; runs every call)
+    f.epsMat=f.eps->Overlap(dftbs);   // Sum_a c_a <Oi|f_a|Oj>  (per-irrep basis; runs every call)
     return f.epsMat;
 }
 

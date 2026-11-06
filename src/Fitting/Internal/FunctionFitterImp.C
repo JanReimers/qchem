@@ -49,7 +49,7 @@ public: // Client code needs read access to this data.
 //! lineage, not a property of the face (2026-08-24).
 template <class T> class FunctionFitterImp
     : public FitImpBase<T, FunctionFitter_Scalar, BasisSet::FIT_SF_NonOrtho>
-    , public virtual FitContraction<T,T>
+    , public virtual ScalarFit<T>
 {
     typedef FitImpBase<T, FunctionFitter_Scalar, BasisSet::FIT_SF_NonOrtho> Base;
 public:

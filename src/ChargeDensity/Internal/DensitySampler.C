@@ -177,15 +177,15 @@ protected:   // the periodic subclass contracts through the same fitter and tabl
     //! (R1.0 Liskov conformance, 2026-08-22).  H_xc is now "fit the field, contract against this block",
     //! the same two calls on either representation -- so this strategy no longer performs a quadrature
     //! itself, it composes one.
-    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsScalarFitter;   //!< the PROJECTION face only (holds no field)
+    std::unique_ptr<Fitting::DeltaScalarFit<T>> itsScalarFitter;   //!< the PROJECTION face only (holds no field)
     //! The FIELD fits \c MatrixT contracts against: one fitter per distinct v (an iteration asks with v_up and v_dn), so
     //! concurrent Fock blocks (OOD V1.41 / doc/KAxisPlan.md P2) never refit a fitter another block is reading.  A slot is
     //! recycled only when no block holds its fitter; v is compared exactly (the fit is re-done only when v CHANGES).
-    struct FieldFit { rvec_t v; std::shared_ptr<Fitting::FunctionFitter_Scalar> fitter; };
+    struct FieldFit { rvec_t v; std::shared_ptr<Fitting::DeltaScalarFit<T>> fitter; };
     mutable std::vector<FieldFit> itsFieldFits;
     qchem::LazyLock               itsFieldFitsLock;
     static constexpr size_t       kFieldFits=2;   //!< the two spin channels of one iteration
-    std::shared_ptr<const Fitting::FunctionFitter_Scalar> FitFor(const rvec_t& v) const;
+    std::shared_ptr<const Fitting::DeltaScalarFit<T>> FitFor(const rvec_t& v) const;
     //! \f$\langle f_a|1\rangle\f$ from the fit basis -- what \c Integrate dots the coefficients against.
     //! Cached because it is geometry-fixed and ~100k entries wide, and \c Integrate runs a few times per
     //! SCF iteration; REAL because a \f$\delta\f$ basis's own integrals are its (real) weights, widened to
@@ -333,7 +333,7 @@ private:
     fbs_t itsFitBasis;      //!< the raster fit basis: quadrature, collocation key, Overlap3C key
     //! The ortho scalar fitter over that basis -- used ONLY by the BALL fallback (the RAW route fits
     //! nothing: "no ball fit anywhere").  Built once; its own grid is this basis's raster.
-    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsScalarFitter;
+    std::unique_ptr<Fitting::ScalarFit<dcmplx>> itsScalarFitter;
     qchem::LazyLock itsScalarFitterLock;          //!< the BALL fallback refits per call: concurrent blocks take turns
     mutable rvec_t itsRho;                        //!< ρ(r) on the raster for the current density serial
     mutable size_t itsRhoVersion=size_t(-1);      //!< density logical-clock serial itsRho was built for

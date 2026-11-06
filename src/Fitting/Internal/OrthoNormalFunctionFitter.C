@@ -33,8 +33,7 @@ export namespace qchem::Fitting
 //! relCutoff / the functional's GridCutoffFactor now actually control the XC quadrature.  Created through
 //! Factory(cFIT_SF_ABS).
 class OrthoNormalScalarFitter
-    : public virtual FunctionFitter_Scalar
-    , public virtual FitContraction<dcmplx,dcmplx>   // a raster fit contracts COMPLEX blocks on a COMPLEX fit axis
+    : public virtual ScalarFit<dcmplx>               // a raster fit contracts COMPLEX blocks on a COMPLEX fit axis
     , public virtual ScalarFunction<double>   // ...and its fit IS an evaluatable field (inverse transform)
 {
 public:

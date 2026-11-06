@@ -276,6 +276,26 @@ public:
     virtual hmat_t<U> Overlap(const BasisSet::Orbital_DFT_IBS<U,TFit>&) const=0;
 };
 
+//! \brief A scalar fitter that contracts same-scalar blocks: what \c Factory hands back (OOD V1.34, shape 3, ruled 2026-09-19; surface
+//! approved 2026-11-06).  A fitter exposes exactly the instantiations it defines, so a caller needing one this type lacks does not
+//! COMPILE, where it used to be a \c bad_cast mid-SCF.  Data-free.
+template <class T> class ScalarFit
+    : public virtual FunctionFitter_Scalar
+    , public virtual FitContraction<T,T>
+{};
+
+//! \brief A \f$\delta\f$ scalar fitter (\c MakeDeltaScalarFitter): a \c ScalarFit that also projects fields.  Data-free.
+template <class T> class DeltaScalarFit
+    : public virtual ScalarFit<T>
+    , public virtual FieldProjector
+{};
+//! The periodic one also serves a real TRIM block (\f$\delta\f$ alone does: a raster fit has no \c <double,dcmplx>) and is the forward vendor.
+template <> class DeltaScalarFit<dcmplx>
+    : public virtual ScalarFit<dcmplx>
+    , public virtual FitContraction<double,dcmplx>
+    , public virtual ScalarProjector
+{};
+
 // RETIRED 2026-08-22: the GriddedScalarFitter refinement.  It existed so the XC term could borrow the
 // FFT grid THROUGH the fitter -- "one owner", instead of the term cross-casting the fit basis a second
 // time.  The XC quadrature object now holds the fit basis and reads its BasisSet::Quadrature face
@@ -337,9 +357,13 @@ public:
 //!   - else an orthogonal metric (\c isOrtho())    -> the \f$\delta\f$ / diagonal-metric fitter: projection over the diagonal;
 //!   - else the overlap-metric solve face (\c FIT_SF_NonOrtho) -> the Gaussian (A1) fitter: \f$S^{-1}\f$ on the projection.
 //! A basis offering none of the three THROWS naming what it lacks (pin 30: a combination that fails is an OOD defect).
-//! \note Returns the NEUTRAL fitter face; the caller cross-casts to the \c FitContraction<U,TFit> it needs.
-template <class T> std::unique_ptr<FunctionFitter_Scalar>
+template <class T> std::unique_ptr<ScalarFit<T>>
 Factory(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
+
+//! \brief The \f$\delta\f$ fitter, for a caller that holds a \f$\delta\f$ basis and needs its extra faces.  THROWS when the basis is not
+//! orthogonal or is a raster, which have fitters of their own (\c Factory).
+template <class T> std::unique_ptr<DeltaScalarFit<T>>
+MakeDeltaScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
 
 //! Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given non-ortho fit basis.  Returns the
 //! non-ortho refinement (the molecular FittedCD needs its self-energy/charge/rescale/eval).

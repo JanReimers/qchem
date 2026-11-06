@@ -19,6 +19,7 @@ module;
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <type_traits>
 #include <mutex>     // FitFor: the field-fit pool is shared by concurrent Fock blocks
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
@@ -58,11 +59,10 @@ template <class T> tSinglesDensitySampler<T>::tSinglesDensitySampler(fit_t fit, 
     : itsFit(std::move(fit))
     , itsQuad(std::move(quad))
 {
-    // The fitter comes from the SAME Factory the molecular XC term uses; it inspects the basis and hands
-    // back the delta fitter (R1.0 conformance).  A named lvalue because Factory takes its argument by
-    // non-const reference, as its siblings do.
+    // A delta basis, so the delta fitter, by type (V1.34).  A named lvalue because the factory takes its argument by non-const
+    // reference, as its siblings do.
     std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> fb=itsFit;
-    itsScalarFitter=Fitting::Factory(fb);
+    itsScalarFitter=Fitting::MakeDeltaScalarFitter(fb);
     assert(itsFit && "SinglesDensitySampler: the delta fit basis IS the quadrature -- it cannot be null");
     // The bundle's own invariants (fold partitions the mesh, sigmas need a fold, flags cover it) are
     // checked where the bundle becomes an object -- in the basis's ctor -- and the star-average announces
@@ -77,17 +77,15 @@ template <class T> tSinglesDensitySampler<T>::tSinglesDensitySampler(fit_t fit, 
 // THE FITTER'S PROJECTION FACE.  Since 2026-08-24 rho does NOT go to the fit basis: a projection is
 // qcFitting's operation, and this strategy holds a fitter that already owns the fit basis's Phi handles
 // for the adjoint direction (user).  So both directions of the SAME tensor now come off ONE object, which
-// is the invariant this class's own header argues for one level up.  The cross-cast is the sanctioned
-// "I want more" ask, made once per call on a face the delta fitter always carries.
+// is the invariant this class's own header argues for one level up.
 template <class T> const Fitting::ScalarProjector* tSinglesDensitySampler<T>::MatrixProjector() const
 {
-    return dynamic_cast<const Fitting::ScalarProjector*>(itsScalarFitter.get());   // the periodic δ fitter's; null on the real axis
+    if constexpr (std::is_same_v<T,dcmplx>) return itsScalarFitter.get();   // the periodic δ fitter's
+    else return nullptr;                                                    // none on the real axis
 }
 template <class T> const Fitting::FieldProjector& tSinglesDensitySampler<T>::FieldProjection() const
 {
-    auto* fp=dynamic_cast<const Fitting::FieldProjector*>(itsScalarFitter.get());
-    if (!fp) throw std::logic_error("SinglesDensitySampler: a delta scalar fitter must carry the field projection face");
-    return *fp;
+    return *itsScalarFitter;
 }
 template <class T> rvec_t tSinglesDensitySampler<T>::ProjectDM(const tDM_CD<T>& dm) const
 {
@@ -480,7 +478,7 @@ template <class T> rvec_t tSinglesDensitySampler<T>::SiteIntegrals(const rvec_t&
 // re-done only when v CHANGES -- the Fock build calls this once per block with the same v, and DoFit
 // on a delta basis is a copy, but re-copying per block would still be per-block work for nothing.  One fit PER v
 // (FitFor), so the up and down blocks of a concurrent Fock loop never refit each other's fitter mid-contraction.
-template <class T> std::shared_ptr<const Fitting::FunctionFitter_Scalar> tSinglesDensitySampler<T>::FitFor(const rvec_t& v) const
+template <class T> std::shared_ptr<const Fitting::DeltaScalarFit<T>> tSinglesDensitySampler<T>::FitFor(const rvec_t& v) const
 {
     auto same=[&](const rvec_t& a)
     {
@@ -490,14 +488,14 @@ template <class T> std::shared_ptr<const Fitting::FunctionFitter_Scalar> tSingle
     };
     std::lock_guard<std::mutex> lock(itsFieldFitsLock.m);
     for (const auto& f : itsFieldFits) if (same(f.v)) return f.fitter;
-    std::shared_ptr<Fitting::FunctionFitter_Scalar> fitter;
+    std::shared_ptr<Fitting::DeltaScalarFit<T>> fitter;
     if (itsFieldFits.size()>=kFieldFits)                       // recycle the OLDEST slot no block is reading
         for (auto i=itsFieldFits.begin(); i!=itsFieldFits.end(); ++i)
             if (i->fitter.use_count()==1) {fitter=std::move(i->fitter); itsFieldFits.erase(i); break;}
     if (!fitter)
     {
         std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> fb=itsFit;   // Factory takes a non-const lvalue (see the ctor)
-        fitter=Fitting::Factory(fb);
+        fitter=Fitting::MakeDeltaScalarFitter(fb);
     }
     fitter->DoFit(SampledField(v, NumPoints()));                // under the lock: on a delta basis the fit is a copy
     itsFieldFits.push_back({v, fitter});
@@ -506,13 +504,14 @@ template <class T> std::shared_ptr<const Fitting::FunctionFitter_Scalar> tSingle
 
 template <class T> template <class U> hmat_t<U> tSinglesDensitySampler<T>::MatrixT(const tobs_t<U>* bs, const rvec_t& v) const
 {
-    const std::shared_ptr<const Fitting::FunctionFitter_Scalar> fitter=FitFor(v);   // held: its slot cannot be recycled
+    const std::shared_ptr<const Fitting::DeltaScalarFit<T>> fitter=FitFor(v);   // held: its slot cannot be recycled
     // TWO scalars on the face, and they DIFFER here (3c-3): the block is U, but the delta fit basis this
     // strategy holds is the run's periodic one, so the fit axis is dcmplx for both.  <U> alone would name
     // <U,U>, which for a real TRIM block is a face no fitter in the tree declares.  And the DFT cross-cast
     // is the XC strategy's, for the reason given on FitContraction: this layer is DFT by construction.
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,T>&>(*bs);
-    return dynamic_cast<const Fitting::FitContraction<U,T>&>(*fitter).Overlap(orb);
+    const Fitting::FitContraction<U,T>& contraction=*fitter;   // a block scalar this fit lacks does not compile (V1.34)
+    return contraction.Overlap(orb);
 }
 template <class T> hmat_t<T> tSinglesDensitySampler<T>::Matrix(const tobs_t<T>* bs, const rvec_t& v) const {return MatrixT<T>(bs,v);}
 rsmat_t SinglesDensitySampler::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}

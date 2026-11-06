@@ -33,7 +33,7 @@ namespace qchem::Fitting
 //   FIT_SF_NonOrtho   -- the overlap-metric SOLVE face (S, S^-1, its norms): the Gaussian/Slater/BSpline auxiliary bases.
 // The checks used to live at FIRST USE (OrthoScalarFitter::FitGrid): a basis constructed happily and tripped later, somewhere
 // else -- so every contract is established here, once, where the object is made.
-template <class T> std::unique_ptr<FunctionFitter_Scalar>
+template <class T> std::unique_ptr<ScalarFit<T>>
 Factory(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>& bs)
 {
     if (dynamic_cast<const BasisSet::G_RasterTransform*>(bs.get()))
@@ -49,13 +49,24 @@ Factory(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>& bs)
                                     "(complex) by its face -- there is no real raster fitter (an OOD gap, pin 30)");
     }
     if (bs->isOrtho()) return std::make_unique<DeltaScalarFitter<T>>(bs);   // no raster: projection / metric diagonal
-    if (auto nonOrtho=std::dynamic_pointer_cast<const BasisSet::FIT_SF_NonOrtho>(bs))
-        return std::make_unique<FunctionFitterImp<double>>(nonOrtho);
+    if constexpr (std::is_same_v<T,double>)
+        if (auto nonOrtho=std::dynamic_pointer_cast<const BasisSet::FIT_SF_NonOrtho>(bs))
+            return std::make_unique<FunctionFitterImp<double>>(nonOrtho);
     throw std::logic_error("Fitting::Factory: the scalar fit basis '"+bs->Name()+"' is neither orthogonal (isOrtho) nor offers the "
                            "overlap-metric solve face (FIT_SF_NonOrtho) -- no fitter can use it (an OOD gap, pin 30)");
 }
-template std::unique_ptr<FunctionFitter_Scalar> Factory<double>(std::shared_ptr<const BasisSet::FIT_SF_ABS<double>>&);
-template std::unique_ptr<FunctionFitter_Scalar> Factory<dcmplx>(std::shared_ptr<const BasisSet::FIT_SF_ABS<dcmplx>>&);
+template std::unique_ptr<ScalarFit<double>> Factory<double>(std::shared_ptr<const BasisSet::FIT_SF_ABS<double>>&);
+template std::unique_ptr<ScalarFit<dcmplx>> Factory<dcmplx>(std::shared_ptr<const BasisSet::FIT_SF_ABS<dcmplx>>&);
+
+template <class T> std::unique_ptr<DeltaScalarFit<T>>
+MakeDeltaScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>& bs)
+{
+    if (!bs->isOrtho() || dynamic_cast<const BasisSet::G_RasterTransform*>(bs.get()))
+        throw std::logic_error("Fitting::MakeDeltaScalarFitter: the fit basis '"+bs->Name()+"' is not a delta basis (orthogonal, no raster)");
+    return std::make_unique<DeltaScalarFitter<T>>(bs);
+}
+template std::unique_ptr<DeltaScalarFit<double>> MakeDeltaScalarFitter<double>(std::shared_ptr<const BasisSet::FIT_SF_ABS<double>>&);
+template std::unique_ptr<DeltaScalarFit<dcmplx>> MakeDeltaScalarFitter<dcmplx>(std::shared_ptr<const BasisSet::FIT_SF_ABS<dcmplx>>&);
 
 std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
 Factory(std::shared_ptr<const BasisSet::rFIT_CD_ABS>& bs)

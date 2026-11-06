@@ -573,6 +573,12 @@ namespace qchem::Fitting {
         virtual ~FitContraction() = default;
         virtual hmat_t<U> Overlap(const BasisSet::Orbital_DFT_IBS<U,TFit>&) const=0;
     };
+    template <class T> class ScalarFit : public virtual FunctionFitter_Scalar , public virtual FitContraction<T,T> {
+    };
+    template <class T> class DeltaScalarFit : public virtual ScalarFit<T> , public virtual FieldProjector {
+    };
+    template <> class DeltaScalarFit<dcmplx> : public virtual ScalarFit<dcmplx> , public virtual FitContraction<double,dcmplx> , public virtual ScalarProjector {
+    };
     template <class T> class FunctionFitter_Density {
     public:
         virtual ~FunctionFitter_Density() = default;
@@ -586,7 +592,8 @@ namespace qchem::Fitting {
         virtual double Integral () const=0;
         virtual void ReScale (double factor)=0;
     };
-    template <class T> std::unique_ptr<FunctionFitter_Scalar> Factory(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
+    template <class T> std::unique_ptr<ScalarFit<T>> Factory(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
+    template <class T> std::unique_ptr<DeltaScalarFit<T>> MakeDeltaScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
     std::unique_ptr<FunctionFitter_Density_NonOrtho<double>> Factory(std::shared_ptr<const BasisSet::rFIT_CD_ABS>&);
     std::unique_ptr<FunctionFitter_Density<dcmplx>> Factory(std::shared_ptr<const BasisSet::cFIT_CD_ABS>&);
 }

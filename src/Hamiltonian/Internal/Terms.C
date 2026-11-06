@@ -339,8 +339,8 @@ private:
     //! The fitter PAIR of one spin irrep, each half guarded by the density serial it currently holds.
     struct SpinFit
     {
-        std::unique_ptr<Fitting::FunctionFitter_Scalar> v;     //!< V: the v^sigma fit (the Fock pass's density)
-        std::unique_ptr<Fitting::FunctionFitter_Scalar> eps;   //!< E: the eps^sigma fit (the energy pass's density)
+        std::unique_ptr<Fitting::ScalarFit<double>> v;     //!< V: the v^sigma fit (the Fock pass's density)
+        std::unique_ptr<Fitting::ScalarFit<double>> eps;   //!< E: the eps^sigma fit (the energy pass's density)
         size_t  vVersion  =size_t(-1);
         size_t  epsVersion=size_t(-1);
         rsmat_t epsMat;                                        //!< GetEMatrix's returned block (per spin: no aliasing)

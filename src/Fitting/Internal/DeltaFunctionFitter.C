@@ -68,9 +68,7 @@ private:
 //! \c dcmplx on the periodic path (serving BOTH orbital-block scalars, as a mixed run requires -- the extra faces come from
 //! \c DeltaPeriodicFitFaces), \c double on the molecular one.
 template <class T> class DeltaScalarFitter
-    : public virtual FunctionFitter_Scalar
-    , public virtual FitContraction<T,T>             // the same-scalar blocks' contraction
-    , public virtual FieldProjector                  // the field projection, on either fit axis
+    : public virtual DeltaScalarFit<T>               // the same-scalar contraction and the field projection, on either fit axis
     , public         DeltaPeriodicFitFaces<DeltaScalarFitter<T>,T>   // dcmplx only: the real TRIM block + the forward vendor
 {
     friend class DeltaPeriodicFitFaces<DeltaScalarFitter<T>,T>;
