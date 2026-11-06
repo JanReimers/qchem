@@ -1706,3 +1706,51 @@ The row "rebuilds an identical Becke mesh 8 times" named the repeated build.  Th
 **Molecular PP terms in closed form ✅ (2026-11-05, lane S, `lane-s-pp-analytic`).**  `PP_Local` and `PP_NonLocal` now ask the block's `Orbital_PP_IBS` (Gaussian short part, erf long part as a 3-centre Coulomb integral against the Gaussian core charge, Gaussian-Y_lm projectors), in Cartesian and spherical, a SALC block forwarding to its raw basis; a Gaussian molecular PP run builds no PP mesh.  The mesh stays for atomic radial blocks.  TeF₆ GTH q6/q7 against the converged -153.4084029984: 80_29 from -6.11e-4 to -2.21e-5, which is the audited XC error (-2.19e-5), and 150_47_gl from -5.7e-6 to -4.0e-7; wall time and RSS unchanged.  Pin 10: `M_DFT.F2_PP` moved +4.2e-5, from 5.7e-5 to 1.5e-5 off PySCF, and `F2_PP_AuxiliaryFit` the same.  `Si2_PP_U.LargeSeparation` -9.6e-2 is a two-iteration bounded iterate of a pair that never converges: its Si atom agrees to 1.4e-11 and the pair's first iterate to 1.1e-5, and iteration 2 amplifies that.  `OSi_PP_U` runs 26 iterations, not 16, and lands 1.4e-5 lower, from a first iterate 2.3e-4 apart.  It did NOT close the spherical NaN row: that run still dies with no PP mesh.
 
 Original row: | **Molecular PP terms are quadrature, solids' are analytic: a structure gap** (user 2026-11-05) | GPW assembles the local PP from the analytic form factor and the KB projections analytically (`GPW_Evaluator`, `ProjectOntoGaussianYlm`); the molecule's `PP_Local` / `PP_NonLocal` integrate both on a Becke mesh (`MolecularPseudopotentialPlan.md` §3, "Path A", which claimed the mesh "nails it").  TeF₆ on GTH-q6: the default mesh is −6.1e-4 Ha off its best value, worse than all-electron; lane B's fixed-density audit will say how much is these terms | if the audit confirms it: take the molecular terms to the same analytic forms (Gaussian short part, erf long part, Gaussian-Y_lm projectors), which removes a grid from ε's inventory.  They are static, so this is accuracy, not run time · `src/Hamiltonian/Internal/Imp/Hamiltonians.C`, `GPW_Evaluator.C` |
+
+
+## 40/29 on an energy run, and the box's 9× (lane A, 2026-11-06)
+
+**Which runs reach the aligned rule.**  `ResolveImposition` (`Imposition.C`) decides.  An imposed run, and a free run with `xcMeshSymmetric` true (the default), take the site-adapted mesh, never the aligned rule.  A free run with `xcMeshSymmetric` false takes the plain mesh, aligned unless `angRot` is stated: every `SolidSession`, every deck `displace` path (both require it), `IntegrationTests/GPW/LiF.C:27`, `NaF.C:300,345`, `src/Calculation/tests/SolidSession.C`, and the 7 `decks/probes/*_molopt.json`.  The ladder rotates only above degree 35, so its rungs 29 and 35 are aligned.  Si-like systems under Auto, and the Becke veto, run the uniform raster and have no angular rule.  Molecules: plain, aligned, order 2, `mhl_m` 3.
+
+**40/29 at each run's own converged D**, against a GL reference ((100,53) on MnO and NaF, (150,53) on TeF₆), ε = 1e-5:
+
+| run | points | max\|ΔH\| | ΔE | ΔE / ε·N | wall |
+|---|---|---|---|---|---|
+| MnO plain | 31,664 | 1.062e-3 | −4.857e-4 | 12 | 8:57 |
+| MnO rotated 0.5 | 31,840 | 1.118e-4 | +1.618e-4 | 4.0 | 8:31 |
+| MnO site-adapted | 97,256 | 2.847e-4 | +3.964e-5 | 1.0 | 23:41 |
+| NaF plain | 15,928 | 1.120e-4 | −6.829e-5 | 3.4 | 3:21 |
+| NaF rotated 0.5 | 16,016 | 5.981e-5 | −4.482e-5 | 2.2 | 3:14 |
+| NaF site-adapted | 41,440 | 6.401e-5 | −5.079e-5 | 2.5 | 5:42 |
+| TeF₆ plain | 63,620 | 1.435e-4 | −1.333e-4 | 1.9 | 15:02 |
+| TeF₆ rotated 0.5 | 64,152 | 5.404e-5 | −3.910e-5 | 0.56 | 13:35 |
+| TeF₆ site-adapted | 202,184 | 7.023e-5 | −5.934e-5 | 0.85 | 34:09 |
+
+ε·N is 4e-5, 2e-5, 7e-5.  Walls ran beside other jobs, so read them as rough.  Rotation is free and beats the plain rule on every row.  Site-adapted costs 2-3× the wall and does not beat rotation on max\|ΔH\| anywhere; its one better ΔE, on MnO, is a single sign-changing number.  Decks: `~/Code/qchem6-runs/{MnO,NaF,TeF6}/energy40/`.
+
+**The 9× is the Becke order.**  The molecule ran order 2 and `mhl_m` 3 (`MoleculeSetup.C`), the box order 3 and `mhl_m` 2 (`BeckeXCParams`).  One change at a time on the box at (80,29), which is the row's question:
+
+| box at (80,29) | points | vs (200,35) max\|ΔH\|, ΔE | vs (150,53 GL) max\|ΔH\|, ΔE |
+|---|---|---|---|
+| as run: order 3, m 2 | 127,980 | 6.704e-5, −6.744e-5 | 8.754e-5, −8.791e-5 |
+| `beckeEps` 1e-10 | 129,432 | 6.704e-5, −6.731e-5 | 8.754e-5, −8.788e-5 |
+| Cartesian | 127,980 | 6.658e-5, −6.550e-5 | 8.694e-5, −8.538e-5 |
+| `mhl_m` 3 | 115,210 | 6.146e-5, −6.357e-5 | 8.196e-5, −8.417e-5 |
+| rotated 0.5 | 128,908 | 1.534e-5, +5.270e-6 | 1.249e-5, +1.033e-6 |
+| **order 2** | 134,504 | **7.647e-6**, −1.471e-6 | 9.201e-6, −3.497e-6 |
+| order 2, m 3 (the molecule's mesh) | 121,038 | 7.436e-6, −2.052e-5 | 8.991e-6, −2.249e-5 |
+| order 2, m 3, rotated | 120,812 | 4.741e-6, −1.945e-5 | 4.763e-6, −1.923e-5 |
+
+The molecule read 7.36e-6, ΔE −2.19e-5, as an XC-only fixed-density audit (the PP matrices never entered, so the analytic PP landing does not change it).  The box on the molecule's mesh reads 7.4e-6, ΔE −2.05e-5: no box effect is left.  The dropped tails were never the cause: at `beckeEps` 1e-10 the box still drops 39,688, because those points carry no weight.  The error needs both the aligned rule and order 3, since rotation or order 2 alone removes most of it; why they combine is not measured.
+
+**Order 2 is not a general cure.**  NaF plain 40/29: 7.63e-5, −5.46e-5 (order 3 1.12e-4, −6.83e-5); rotated 5.79e-5, −3.80e-5.  MnO plain: 8.11e-4 but ΔE −7.13e-4, worse than order 3's −4.86e-4 (first audit only; stopped, as the second audit was not needed).  And the periodic partition pays for it: TeF₆ (80,29) 1,264 s to build against about 58 s, NaF 40/29 1:32:39 of wall against 3:21, because the softer cutoff widens the image series the screen must sum.  `beckeOrder` stays 3.
+
+**The audit's reference carried the same error.**  Every mesh above that is converged gives one number: run minus ΔE against (150,53 GL) is −153.403944 on order 3 plain, order 3 rotated, and order 2.  The aligned (200,35) sits 2.05e-5 off it, the rotated one 4e-6.  `xcRef` copies the run's `angRot`, so a plain run's Lebedev reference is aligned.  This confirms the audit's sign too, on all three materials.
+
+**Box against molecule, closed.**  Box at converged XC −153.4039436; add back V_long −5.2e-5 and Hartree −2.8e-6 from the pilot's audit: −153.4038888.  The exact-J spherical molecule at 200_53_gl reads −153.4038870.  They agree to 1.8e-6, where `TeF6EpsilonReport.md` §6 had 2.5e-5 from the aligned reference.  That molecule number predates the analytic PP and was not rerun.
+
+Original rows, verbatim:
+
+| **Does the energy default carry the aligned-Lebedev error?** (lane A's ladder note, 2026-11-05) | aligned Lebedev is 5× worse than rotated at L=35 on MnO, ΔE 2.4e-4 against ε·N = 4e-5, and 40/29 and 60/35 are aligned Lebedev.  But a free run with the default `xcMeshSymmetric` true uses the site-adapted rule, and rotation only reaches a plain mesh, so the affected runs are not yet known | first list which runs reach the aligned rule, and measure 40/29 itself.  Only then decide on rotating it, perhaps with an M-chosen angle (M ranks \|ΔE\|); that moves anchors, so its own batch under pin 10 · `BeckeXCParams`, `AngularFactory.C` |
+
+| **A box's XC error at a nominal Becke mesh is 9× the molecule's at the same mesh, and the raster pilot does not size that mesh** (lane B, 2026-11-05, from TeF₆ in a 20 bohr cube, GTH-LDA, DZVP-MOLOPT-SR-GTH, ε 1e-5) | The pilot settles every raster term inside ε·N and leaves `XC L0` at 0, so `xcMesh` stays at its default (40,29): against (200,35) that is ΔE −1.13e-4 (1.6× ε·N) and max\|ΔH\| 1.23e-4 (12× ε), a miss only a stated `xcMeshAudit` shows.  At a stated (80,29) the box reads max\|ΔH\| 6.7e-5, worst on Te d; the molecule at (80,29) reads 7.4e-6 against 400_77_gl.  The two are not the same mesh or basis: the box drops 24% of its points as tails (`beckeEps` 1e-6, 127,980 against 168,688) and is spherical, the molecule Cartesian.  Cause unmeasured | rerun the box at (80,29) with `beckeEps` 0 (or far below 1e-6) and Cartesian, one change at a time; then decide whether the pilot should size the XC mesh.  Record: `~/Code/qchem6-runs/TeF6/TeF6_report.md` §6 |
