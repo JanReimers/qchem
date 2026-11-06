@@ -11,6 +11,7 @@ add_executable(UTHamiltonian ../../Common/tests/gtestmain.C
    PW_Terms.C           # the plane-wave term tests against the basis's direct-grid oracles (idem)
    Hubbard.C            # DFT+U: the LowdinProjector forward/adjoint pair (2026-09-19)
    VxcProductSpace.C    # V-XC-ONE-TERM: every {structure} x {fit} x {points} cell vs its table row (2026-10-31)
+   GridHartree.C        # the grid Hartree route: the direct Coulomb sum against a closed form (2026-11-06)
 )
 
 target_compile_definitions(UTHamiltonian PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

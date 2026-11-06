@@ -51,11 +51,12 @@ class Ham_DFT : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     //! Slater-Dirac exchange alone, scaled by \a alpha_ex (X\f$\alpha\f$).
-    Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, VxcFit fit=VxcFit::Auto);
+    Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, VxcFit fit=VxcFit::Auto,
+            CoulombFit coulomb=CoulombFit::Auto);
     //! The general form: any list of functionals (owned), summed into one XC term.  \a fit: the Vxc fit basis the ONE
     //! XC term consumes through the fit face (δ on the mesh, or the Gaussian auxiliary basis for Auto).
     Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> parts,
-            const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, VxcFit fit=VxcFit::Auto);
+            const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, VxcFit fit=VxcFit::Auto, CoulombFit coulomb=CoulombFit::Auto);
 };
 
 //! Spin-native LSDA PSEUDO-atom/molecule: kinetic + V_loc(r) (the pseudized replacement for the bare
@@ -71,11 +72,11 @@ class Ham_PP : public virtual rHamiltonian, private rHamiltonianImp
 public:
     Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
            std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-           const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, VxcFit fit=VxcFit::Auto);
+           const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, VxcFit fit=VxcFit::Auto, CoulombFit coulomb=CoulombFit::Auto);
     Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const rbs_t* bs,
-           SpinGroup g, VxcFit fit=VxcFit::Auto);
+           SpinGroup g, VxcFit fit=VxcFit::Auto, CoulombFit coulomb=CoulombFit::Auto);
     Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-           const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, VxcFit fit=VxcFit::Auto);
+           const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, VxcFit fit=VxcFit::Auto, CoulombFit coulomb=CoulombFit::Auto);
 };
 
 //

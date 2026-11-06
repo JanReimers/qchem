@@ -35,5 +35,7 @@ export namespace qchem::ChargeDensity
     //! Same, taking the default route -- so every existing call site is untouched.
     template <class T> tDM_CD<T>* IrrepCD_Factory(hmat_t<T> DM,const tobs_t<T>* bs, Irrep); // DM Hermitian; BY VALUE: pass an rvalue and it is moved in, not copied
     std::unique_ptr<FittedCD> FittedCD_Factory(fbs_t&, double totalCharge); //!< caller owns the result
+    //! Over a fitter the caller built: a grid route's fit basis and operator are paired where the Hamiltonian is assembled.
+    std::unique_ptr<FittedCD> FittedCD_Factory(std::unique_ptr<Fitting::FunctionFitter_Density_NonOrtho<double>>, double totalCharge);
 
 } //namespace

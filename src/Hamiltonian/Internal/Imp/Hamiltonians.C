@@ -20,6 +20,7 @@ import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Types;
+import qchem.Fitting.CoulombOperator;            // the grid Hartree route: the operator and the fitter it is paired with
 import qchem.Structure;
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
 import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
@@ -84,20 +85,39 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMe
     return new FittedVxc(ffb, xc, g);
 }
 
-Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit)
-    : Ham_DFT(st, {std::make_shared<SlaterExchange>(alpha_ex)}, mp, bs, g, fit)
+//! THE MOLECULAR / ATOM HARTREE TERM.  This is where a grid route's fit basis and operator are paired, so nothing below knows
+//! which it got.  An unresolved \c Auto is the Gaussian fit; the δ route is one stated choice away (\c CoulombFit::Delta).
+static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, CoulombFit coulomb)
+{
+    if (coulomb!=CoulombFit::Delta)
+    {
+        FittedVee::fbs_t fb=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
+        return new FittedVee(fb, st->GetNumElectrons());
+    }
+    BasisSet::FitQuadrature quad;
+    const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Hartree", "Hartree ρ fit", [&]
+    {
+        qchem::report::Set("coulombOperator", "direct sum");
+        qchem::report::Set("energyOrder",     "first");   // ruled 2026-11-06: no Dunlap cancellation on a quadrature route
+        quad=BasisSet::MakeXCQuadrature(*st, mp, bs->GetImposition());
+        return bs->CreateVxcFitBasisSet(st.get(), mp, VxcFit::Delta, &quad);
+    });
+    return new FittedVee(Fitting::MakeGridDensityFitter(fb, Fitting::MakeDirectSumCoulomb(*quad.GetMesh())), st->GetNumElectrons());
+}
+
+Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, CoulombFit coulomb)
+    : Ham_DFT(st, {std::make_shared<SlaterExchange>(alpha_ex)}, mp, bs, g, fit, coulomb)
 {};
 
 Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> parts,
-                 const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit)
+                 const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, CoulombFit coulomb)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
     Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
     Add(new Ven(st));
 
-    FittedVee::fbs_t CFitBasis=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
-    Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
+    Add(MolecularHartreeTerm(st, bs, mp, coulomb));
 
     // ONE XC term over the SUM of functionals (the gather is linear, so gather(a+b) is gather(a)+gather(b) for half the
     // work); its energy is the functionals' own eps -- correlation's is NOT the exchange virial.
@@ -118,7 +138,7 @@ static bool NeedsPPQuadrature(const rbs_t* bs, const BasisSet::SpeciesRadialFiel
 
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
                std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, CoulombFit coulomb)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
@@ -137,19 +157,18 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     Add(new PP_Local(st, vloc, ppMesh));             // pseudized replacement for Ven (combined model -> _R view)
     if (sep) Add(new PP_NonLocal(st, std::move(sep), mp, ppMesh));   // KB separable projectors (null => local-only)
 
-    FittedVee::fbs_t CFitBasis=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
-    Add(new FittedVee(CFitBasis, st->GetNumElectrons()));
+    Add(MolecularHartreeTerm(st, bs, mp, coulomb));
 
     // LDA: Dirac exchange (alpha = 2/3) + VWN5 correlation, ONE XC term over their sum (see Ham_DFT).
     Add(MolecularVxcTerm(st, bs, mp, fit, {std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<VWN_Correlation>()}, g));
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
-               const rbs_t* bs, SpinGroup g, VxcFit fit)
+               const rbs_t* bs, SpinGroup g, VxcFit fit, CoulombFit coulomb)
     : Ham_PP(st,
              std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
              std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
-             mp, bs, g, fit)
+             mp, bs, g, fit, coulomb)
 {}
 
 namespace {
@@ -165,8 +184,8 @@ BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species, con
 } //anon
 
 Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit)
-    : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g, fit)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, CoulombFit coulomb)
+    : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g, fit, coulomb)
 {}
 
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,

@@ -225,3 +225,14 @@ TEST(M_DFT, F2_PP_AuxiliaryFit)
     EXPECT_NEAR(calc.Energy(), -48.1970701902, 1e-5);   // anchor (re-judged with F2_PP above, the same +4.1e-5)
     EXPECT_NEAR(calc.Energy(), -48.20187971, 7e-3) << "ORACLE: PySCF A1_coul J-fit route; the gap (+4.8 mHa) is the A1 Vxc fit";
 }
+
+// THE δ HARTREE ROUTE (CoulombFit::Delta): ρ on the XC mesh, the direct Coulomb sum, first-order energy, through the same FittedVee.
+// The direct sum is coarse, by measurement (TeF₆ prototype: J to about 1e-2), so the oracle tolerance says so.
+TEST(M_DFT, WaterLDA_DeltaCoulomb_Long)
+{
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
+                                                                                       .coulombFit = Hamiltonian::CoulombFit::Delta}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -75.8917526160, 1e-5);   // anchor
+    EXPECT_NEAR(calc.Energy(), -75.87729931, 2e-2) << "ORACLE: PySCF, exact J and XC; the gap (-14.5 mHa) is the direct sum";
+}

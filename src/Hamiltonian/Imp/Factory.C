@@ -81,23 +81,23 @@ namespace qchem::Hamiltonian
     // alpha convenience) funnels through here, so the functional->Hamiltonian mapping lives in ONE place.
     // The functional internals never leak past this switch; if/else returns keep the U/P pointer types clean.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const XCFunctional& xc, const qcMesh::MeshParams& mp, const rbs_t* bs,
-                          VxcFit fit)
+                          VxcFit fit, CoulombFit coulomb)
     {
         typedef std::vector<std::shared_ptr<ExFunctional>> parts_t;
         RequireAdmitted(*st,fit,mp);
         switch (xc.kind)
         {
             case XC::SlaterXalpha:   // Slater-Dirac exchange, scaled by alpha
-                return new Ham_DFT(st, xc.alpha, mp, bs, p, fit);
+                return new Ham_DFT(st, xc.alpha, mp, bs, p, fit, coulomb);
             case XC::DiracVWN:       // parameter-free LSDA: Dirac exchange + spin-native VWN5 correlation
                 return new Ham_DFT(st, parts_t{std::make_shared<SlaterExchange>(2.0/3.0),
-                                               std::make_shared<VWN_Correlation>()}, mp, bs, p, fit);
+                                               std::make_shared<VWN_Correlation>()}, mp, bs, p, fit, coulomb);
             case XC::LibXC:          // spin-native through libxc's XC_POLARIZED contract (2026-10-21)
                 // Dirac exchange (LDA_X, id 1) + the libxc correlation functional named by libxcId, summed
                 // into the one XC term (each contributes its OWN eps, so E_c is the correct integral eps_c
                 // rho, not the 3/4 exchange virial).
                 return new Ham_DFT(st, parts_t{std::make_shared<Libxc_LDA>(1),
-                                               std::make_shared<Libxc_LDA>(xc.libxcId)}, mp, bs, p, fit);
+                                               std::make_shared<Libxc_LDA>(xc.libxcId)}, mp, bs, p, fit, coulomb);
         }
         assert(false); return nullptr;
     }
@@ -106,10 +106,10 @@ namespace qchem::Hamiltonian
     // delegate to the single build site above -- so the Model token never leaks past here, and the DFT
     // build logic is NOT duplicated between this and the XCFunctional resolver.
     rHamiltonian* Factory(Model m,SpinGroup p,const st_t& st, const qcMesh::MeshParams& mp, const rbs_t* bs, double xalpha,
-                          VxcFit fit)
+                          VxcFit fit, CoulombFit coulomb)
     {
         if (!IsDFT(m)) return Factory(m,p,st);                       // non-DFT: mp/bs/xalpha unused
-        return Factory(p, st, ModelToXC(m,xalpha), mp, bs, fit);    // DFT: Model -> XCFunctional -> Hamiltonian
+        return Factory(p, st, ModelToXC(m,xalpha), mp, bs, fit, coulomb);    // DFT: Model -> XCFunctional -> Hamiltonian
     }
 
     // Convenience: the Slater-Xalpha functional by alpha alone.
@@ -120,18 +120,18 @@ namespace qchem::Hamiltonian
 
     // Pseudopotential front door: the all-electron nuclear attraction -> GTH local + KB nonlocal PP, LDA XC.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const std::string& element, int valence,
-                         const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit)
+                         const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit, CoulombFit coulomb)
     {
         RequireAdmitted(*st,fit,mp);
-        return new Ham_PP(st, element, valence, mp, bs, p, fit);
+        return new Ham_PP(st, element, valence, mp, bs, p, fit, coulomb);
     }
 
     // Multi-species pseudopotential front door: per-Z router PP so each atom gets its own GTH pseudopotential.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
-                         const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit)
+                         const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit, CoulombFit coulomb)
     {
         RequireAdmitted(*st,fit,mp);
-        return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, bs, p, fit);
+        return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, bs, p, fit, coulomb);
     }
 
     // The SOLID front door (Step 4): the cHamiltonian twin of the PP factory above.

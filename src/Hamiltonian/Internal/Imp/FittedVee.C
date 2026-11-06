@@ -23,6 +23,13 @@ FittedVee::FittedVee(fbs_t& chargeDensityFitBasisSet, double numElectrons)
     assert(itsFittedChargeDensity);
 };
 
+FittedVee::FittedVee(std::unique_ptr<Fitting::FunctionFitter_Density_NonOrtho<double>> gridFitter, double numElectrons)
+    : itsGridCharge(numElectrons)
+{
+    itsFittedChargeDensity=ChargeDensity::FittedCD_Factory(std::move(gridFitter),numElectrons);
+    assert(itsFittedChargeDensity);
+}
+
 FittedVee::~FittedVee() = default;   // FittedCD is complete here, so the unique_ptr deletes it correctly
 
 //########################################################################
@@ -63,6 +70,12 @@ void FittedVee::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
     te.AddDiagnostic("EeeFit",    eeeFit);
     te.AddDiagnostic("EeeFitFit", eeeFitFit);
     te.Add("Eee", 2*eeeFit - eeeFitFit, EnergyRole::Potential);
+    if (itsGridCharge>0.0)
+    {
+        const double dq=itsFittedChargeDensity->GetChargeError();
+        te.AddDiagnostic("HartreeChargeError",  dq);
+        te.AddDiagnostic("HartreeChargeEnergy", 2*eeeFitFit*dq/itsGridCharge);
+    }
 }
 
 } //namespace

@@ -44,4 +44,12 @@ export namespace qchem::Hamiltonian
 //! \c Hamiltonian::VxcFit::Delta exactly as it was; \c Ham_PW_DFT resolves \c Auto (the one decision that
 //! needs to know the run is polarized) and passes the answer to the factory.
 using VxcFit = BasisSet::VxcFit;
+
+//! \brief WHICH REPRESENTATION carries \f$\rho\f$ for Hartree, the partner of \c VxcFit (user ruling 2026-11-06).
+//!  - \c Auxiliary: the lineage's Gaussian Coulomb fit, analytic \f$(ij|a)\f$, second-order energy.
+//!  - \c Delta: the \f$\delta\f$ basis on the run's XC mesh, with the direct Coulomb sum.  First-order energy; the mesh's charge
+//!    error is reported, not rescaled away.  Coarse: J good to about 1e-2 on TeF₆.
+//!  - \c Auto: the caller did not choose; the molecular policy picks \c Auxiliary.
+//! Molecular only so far.  It lives here and not beside \c VxcFit because no basis factory reads it.
+enum class CoulombFit {Auto, Auxiliary, Delta};
 }

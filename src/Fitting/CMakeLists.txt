@@ -1,14 +1,17 @@
 add_library(qcFitting) 
 target_sources(qcFitting PRIVATE
-    Imp/FunctionFitter.C
+    Imp/FunctionFitter.C  Imp/CoulombOperator.C
     Internal/Imp/ConstrainedFF.C  Internal/Imp/FunctionFitterImp.C  Internal/Imp/IntegralConstrainedFF.C)
 target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     FunctionFitter.C
+    CoulombOperator.C
     FitOperations.C
     Internal/FunctionFitterImp.C
     Internal/OrthoFunctionFitter.C
     Internal/OrthoNormalFunctionFitter.C
     Internal/DeltaFunctionFitter.C
+    Internal/DirectSumCoulomb.C
+    Internal/GridDensityFitter.C
     Types.C
 )
 set_property(TARGET qcFitting PROPERTY CXX_STANDARD 20)

@@ -69,6 +69,9 @@ struct CalcOptions
     //! \c mesh's own points, v_xc and eps_xc sampled where the quadrature integrates, no fit; \c Auxiliary = the Gaussian auxiliary
     //! basis (DGauss A1).  Both reach the one XC term through the fit face (pin 30: Vxc = system x fit basis x grid).
     Hamiltonian::VxcFit vxcFit = Hamiltonian::VxcFit::Auto;
+    //! The Hartree FIT (2026-11-06): \c Auto = \c Auxiliary, the Gaussian Coulomb fit; \c Delta = \f$\rho\f$ on \c mesh's own
+    //! points with the direct Coulomb sum, first-order in energy and coarse (J to about 1e-2 on TeF₆).
+    Hamiltonian::CoulombFit coulombFit = Hamiltonian::CoulombFit::Auto;
     //! Point-group SALC blocking + per-irrep aufbau.  GUARDED TO THE CARTESIAN PG BASIS: the SALC
     //! builder needs a PolarizedGaussian (PGData) orbital IBS and throws otherwise.  Since the facade
     //! only builds the default Cartesian basis today, this is always the supported path; the guard
