@@ -501,3 +501,11 @@ Corrected in place by the audit; the row as it stood.
 Corrected in place by the audit; the row as it stood.
 
 | **D-GPWPAIR** | the GPW (orbital family × fit family) pairing is FROZEN in the engine (`GPW_Evaluator` owns its PW density-fit grid; pin 2: pairings are POLICY at the factory) | becomes a defect the day a second fit family wants the same orbital engine |
+
+**§I.1, D13, BM(1) ✅ (2026-11-06, lane S, sprint step 1, 0 moves).**  §I.1: scalar `GetEpsXc` is pure, and the ¾ exchange virial lives in `SlaterExchange`, the one functional it is exact for (`0f9703db`).  D13: `HGH_LocalPotential` and `HGH_SeparablePotential` are built for one `Z` and throw for any other, a compare beside an exp or erf; the row's other option, dropping `Z`, would take them off the `LocalPotential` face the tests hold (`7c49db6d`, `b1cbd28b`).  It caught two tests: one passing Z=9 to a model with no species, one sweeping Li models over a Si cell on purpose, which now builds them for Z=14.  BM(1): `MeshParams::cellKind` is a `CellKind`, whose implicit constructor is `consteval` and refuses `Becke`, so `MeshParams{.cellKind=Becke}` does not compile; `BeckeXCParams()` is the recipe, and `CellKind::RecipeStated` says one is already there, or the value is known only at run time (`94ad2e07`).
+
+Original rows:
+
+| **BM(1)** | A bare `MeshParams{.cellKind=Becke}` still gives a DEGREE-5 mesh (struct defaults 30/1/5 vs `BeckeXCParams` 40/2/29); cost a bogus 40 mHa "symmetry bug".  The facade path is cured (`SolidCalcOptions::xcMesh` starts from `XCMeshDefault()`); only direct `MeshParams` users can still reach it | Make `cellKind` unsettable alone so asking for Becke means the recipe (compile-time) · H2 "cellKind=Becke" |
+| **§I.1** | `GetEpsXc()=0.75*GetVxc()` base default (`ExchangeFunctional.C`) exact for Dirac only — silent-wrong inherited default (LSP) | With whatever touches the functionals first (GGA) · H2 header L60–75 |
+| **D13** | Single-species `HGH_LocalPotential`/`HGH_SeparablePotential` silently IGNORE `int Z` (foot-gun behind the retracted "V_long defect") | Drop `Z` from single-species API; only `MultiSpecies_*` models the Z-dispatching face (or store+throw) · H2 D13 |
