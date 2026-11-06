@@ -94,7 +94,7 @@ TEST(SeparablePotentialViews, AllChannelsBesselTransformMatchesReciprocal)
         std::vector<std::vector<double>> h(ds.size(), std::vector<double>(ds.size(), 0.0));
         size_t k=0; for (double d:ds) { h[k][k]=d; ++k; } return h;
     };
-    HGH_SeparablePotential sep;
+    HGH_SeparablePotential sep(Z);
     sep.AddChannel(1, rl, diag({ 1.3, -0.7,  0.4}));   // l=1: i=0,1,2
     sep.AddChannel(2, rl, diag({-0.9,  0.5}));         // l=2: i=0,1
     sep.AddChannel(3, rl, diag({ 0.8, -0.6}));         // l=3: i=0,1 (the f channel)
@@ -151,4 +151,18 @@ TEST(LocalPotentialViews, ClosedFormFacesReproduceTheField)
         for (const auto& t : v.AsGaussians(9,BasisSet::FieldRange::Short)) s+=t.c*std::pow(r,2*t.n)*std::exp(-t.alpha*r*r);
         EXPECT_NEAR(v.ValueR(9,r,BasisSet::FieldRange::Short), s, 1e-10);
     }
+}
+
+// OOD D13: a single-species model refuses another species, on both faces.  It used to ignore Z, so swept over a two-species cell it
+// gave one species' physics at every site, with no diagnostic (the "V_long defect" retracted 2026-08-14).
+TEST(SingleSpeciesPotentials, RefuseAnotherSpecies)
+{
+    const auto si=GetGTH("Si","LDA",4);
+    EXPECT_NO_THROW(si.local.Zion(14));
+    EXPECT_THROW(si.local.Zion(8), std::logic_error);
+    EXPECT_THROW(si.local.FormFactorLong(8,1.0), std::logic_error);
+    EXPECT_THROW(si.local.VlocShort(8,1.0), std::logic_error);
+    EXPECT_NO_THROW(si.nonlocal.Count(14));
+    EXPECT_THROW(si.nonlocal.Count(8), std::logic_error);
+    EXPECT_THROW(si.nonlocal.RadialQ(8,0,1.0), std::logic_error);
 }

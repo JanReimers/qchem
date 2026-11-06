@@ -29,10 +29,10 @@ using Pseudopotential::GTH_PP;
 
 // The CP2K GTH-LDA q4 Silicon pseudopotential, written out by hand from the database (the reference the
 // reader must reproduce).  Local: rloc=0.44, C1 only.  Nonlocal: s-channel 2x2, p-channel 1x1.
-static HGH_LocalPotential ref_Si_local() {return HGH_LocalPotential(4, 0.44, -7.33610297, 0.0);}
+static HGH_LocalPotential ref_Si_local() {return HGH_LocalPotential(14, 4, 0.44, -7.33610297, 0.0);}
 static HGH_SeparablePotential ref_Si_nonlocal()
 {
-    HGH_SeparablePotential v;
+    HGH_SeparablePotential v(14);
     v.AddChannel(0, 0.42273813, {{5.90692831,-1.26189397},{-1.26189397,3.25819622}});
     v.AddChannel(1, 0.48427842, {{2.72701346}});
     return v;

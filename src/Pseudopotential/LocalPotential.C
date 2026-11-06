@@ -21,6 +21,8 @@ module;
 #include <functional>
 #include <map>
 #include <memory>
+#include <stdexcept>
+#include <string>
 #include <vector>
 #include <cassert>
 
@@ -153,23 +155,27 @@ class HGH_LocalPotential : public LocalPotential, public virtual SpeciesRadialFi
                            public virtual SpeciesRadialField_GaussianCharge
 {
 public:
-    //! \a Zion = valence charge, \a rloc = local radius, \a c = {C1,C2,C3,C4} polynomial coefficients.
-    //! Real per-element parameters come from the GTH database via GetGTH (GTH_Potentials.C), not
-    //! hardcoded factories.
-    HGH_LocalPotential(double Zion, double rloc, double c1, double c2, double c3=0.0, double c4=0.0)
-        : itsZion(Zion), itsRloc(rloc), itsC1(c1), itsC2(c2), itsC3(c3), itsC4(c4) {}
+    //! \a Z = the species this model is, \a Zion = valence charge, \a rloc = local radius, \a c = {C1,C2,C3,C4} polynomial
+    //! coefficients.  Real per-element parameters come from the GTH database via GetGTH (GTH_Potentials.C), not hardcoded factories.
+    //! ONE species: every \a Z-taking face THROWS for any other (OOD D13).  It used to ignore \a Z, so a single-species object swept
+    //! over a two-species cell gave one species' physics at every site, the "V_long defect" retracted 2026-08-14.  A multi-species
+    //! cell takes \c MultiSpecies_LocalPotential.  One compare beside an exp or erf, so it stays in the method.
+    HGH_LocalPotential(int Z, double Zion, double rloc, double c1, double c2, double c3=0.0, double c4=0.0)
+        : itsZ(Z), itsZion(Zion), itsRloc(rloc), itsC1(c1), itsC2(c2), itsC3(c3), itsC4(c4) {}
 
     //! \f$V_{long}(G)=-4\pi Z_{ion}\,e^{-G^2r_{loc}^2/2}/G^2\f$ -- the softened \f$-Z_{ion}/r\f$ tail (a
     //! Gaussian core charge of width \f$r_{loc}\f$).  Folded into the Hartree Poisson (doc/GPWPlan.md 0e-PP).
-    virtual double FormFactorLong(int /*Z*/, double G2) const override
+    virtual double FormFactorLong(int Z, double G2) const override
     {
+        RequireSpecies(Z);
         double t=G2*itsRloc*itsRloc;                          // (G r_loc)^2
         return -FourPi*itsZion/G2 * std::exp(-0.5*t);         // softened -Z_ion/r tail
     }
     //! \f$V_{short}(G)=(2\pi)^{3/2}r_{loc}^3\,e^{-G^2r_{loc}^2/2}\,\mathrm{poly}(t)\f$ -- the compact
     //! poly \f$\times\f$ Gaussian core (no Coulomb tail); the external term's remainder.
-    virtual double FormFactorShort(int /*Z*/, double G2) const override
+    virtual double FormFactorShort(int Z, double G2) const override
     {
+        RequireSpecies(Z);
         double t=G2*itsRloc*itsRloc;                          // (G r_loc)^2
         double g=std::exp(-0.5*t);
         double poly=itsC1 + itsC2*(3-t) + itsC3*(15-10*t+t*t) + itsC4*(105-105*t+21*t*t-t*t*t);
@@ -180,14 +186,16 @@ public:
     //! Real space, the closed-form inverse FT documented above, in the same two pieces: the LONG part
     //! \f$-\tfrac{Z_{ion}}{r}\mathrm{erf}(\tfrac{r}{\sqrt2 r_{loc}})\f$ (finite \f$-Z_{ion}\sqrt{2/\pi}/r_{loc}\f$ at
     //! \f$r=0\f$ -- no nuclear cusp) and the SHORT part \f$e^{-r^2/2r_{loc}^2}\sum_i C_i (r/r_{loc})^{2i-2}\f$.
-    virtual double VlocLong(int /*Z*/, double r) const override
+    virtual double VlocLong(int Z, double r) const override
     {
+        RequireSpecies(Z);
         double a=std::sqrt(2.0)*itsRloc;                       // erf argument scale
         return (r>1e-12) ? -itsZion*std::erf(r/a)/r
                          : -itsZion*2.0/(std::sqrt(Pi)*a);     // erf(r/a)/r -> 2/(sqrt(pi) a)
     }
-    virtual double VlocShort(int /*Z*/, double r) const override
+    virtual double VlocShort(int Z, double r) const override
     {
+        RequireSpecies(Z);
         double x=r/itsRloc, x2=x*x;
         return std::exp(-0.5*x2)*(itsC1 + itsC2*x2 + itsC3*x2*x2 + itsC4*x2*x2*x2);
     }
@@ -195,18 +203,20 @@ public:
     // + (2\pi)^{3/2}r_{loc}^3(C_1+3C_2+15C_3+105C_4)\f$ is FormFactorG0Long + FormFactorG0Short (the softened
     // Coulomb leaves \f$2\pi Z r_{loc}^2\f$, the Gaussian-polynomial the moment sum) -- summed by the base.
     //! \f$G\to0\f$ alignment of \c FormFactorLong: \f$2\pi Z_{ion}r_{loc}^2\f$ (the softened Coulomb remainder).
-    virtual double FormFactorG0Long(int /*Z*/) const override
+    virtual double FormFactorG0Long(int Z) const override
     {
+        RequireSpecies(Z);
         return 2*Pi*itsZion*itsRloc*itsRloc;
     }
     //! \f$G\to0\f$ alignment of \c FormFactorShort: \f$(2\pi)^{3/2}r_{loc}^3(C_1+3C_2+15C_3+105C_4)\f$.
-    virtual double FormFactorG0Short(int /*Z*/) const override
+    virtual double FormFactorG0Short(int Z) const override
     {
+        RequireSpecies(Z);
         double twopi32=std::pow(2*Pi, 1.5);
         double moments=itsC1 + 3*itsC2 + 15*itsC3 + 105*itsC4;
         return twopi32*itsRloc*itsRloc*itsRloc*moments;
     }
-    virtual double Zion(int /*Z*/) const override {return itsZion;}   // valence charge (Z-independent)
+    virtual double Zion(int Z) const override {RequireSpecies(Z); return itsZion;}   // valence charge (Z-independent)
 
     //! The SHORT part \f$V_{short}(r)=e^{-r^2/2r_{loc}^2}\sum_{i=1}^4 C_i(r/r_{loc})^{2(i-1)}\f$ as closed
     //! Gaussian terms: term \f$j\!=\!i\!-\!1\f$ is \f$c_j r^{2j}e^{-\alpha r^2}\f$ with \f$c_j=C_{j+1}/r_{loc}^{2j}\f$,
@@ -214,8 +224,9 @@ public:
     //! (the erf-softened Coulomb tail) is not a Gaussian sum: it folds into the G-space Poisson instead, so
     //! asking for it (or Full) answers EMPTY -- "no closed form for this range", the consumer keeps its
     //! transform route.
-    virtual std::vector<Math::Gaussian> AsGaussians(int /*Z*/, FieldRange rng) const override
+    virtual std::vector<Math::Gaussian> AsGaussians(int Z, FieldRange rng) const override
     {
+        RequireSpecies(Z);
         std::vector<Math::Gaussian> terms;
         if (rng!=FieldRange::Short) return terms;
         const double alpha=0.5/(itsRloc*itsRloc);
@@ -226,11 +237,18 @@ public:
     }
     //! The LONG part \f$-Z_{ion}\,\mathrm{erf}(r/\sqrt2 r_{loc})/r\f$ IS the potential of a Gaussian charge of
     //! exponent \f$1/2r_{loc}^2\f$.
-    virtual BasisSet::GaussianCharge AsGaussianCharge(int /*Z*/) const override
+    virtual BasisSet::GaussianCharge AsGaussianCharge(int Z) const override
     {
+        RequireSpecies(Z);
         return { itsZion, 0.5/(itsRloc*itsRloc) };
     }
 private:
+    void RequireSpecies(int Z) const
+    {
+        if (Z!=itsZ) throw std::logic_error("HGH_LocalPotential: the model of Z="+std::to_string(itsZ)+" asked about Z="+std::to_string(Z)+
+                                            " -- a multi-species cell takes MultiSpecies_LocalPotential");
+    }
+    int itsZ;
     double itsZion, itsRloc, itsC1, itsC2, itsC3, itsC4;
 };
 

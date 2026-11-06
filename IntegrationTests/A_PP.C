@@ -175,7 +175,7 @@ TEST(A_PP, PerLKleinmanBylanderOracle)
     // A single-channel HGH potential at momentum l with one projector (h = 1x1), so D and beta are known.
     const double rl=0.45, hval=1.7;
     const int Z=1;
-    auto onechannel=[&](int l){ HGH_SeparablePotential sep; sep.AddChannel(l, rl, {{hval}}); return sep; };
+    auto onechannel=[&](int l){ HGH_SeparablePotential sep(Z); sep.AddChannel(l, rl, {{hval}}); return sep; };
 
     // Radial reference integral int chi_i beta r^2 dr on a fine log mesh.
     qcMesh::RadialMesh rad = qcMesh::MakeRadial({.radial=qcMesh::RadialKind::Log, .nRadial=6000,

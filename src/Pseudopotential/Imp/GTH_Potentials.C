@@ -55,9 +55,10 @@ GTH_PP GetGTH(const std::string& element, const std::string& functional, int q)
     int zion = rec["z_ion"].get<int>();
     std::vector<double> c = rec["c"].get<std::vector<double>>();
     c.resize(4, 0.0);                       // pad to the analytic form's C1..C4
-    HGH_LocalPotential local(zion, rec["r_loc"].get<double>(), c[0], c[1], c[2], c[3]);
+    const int Z=thePeriodicTable().GetZ(element);
+    HGH_LocalPotential local(Z, zion, rec["r_loc"].get<double>(), c[0], c[1], c[2], c[3]);
 
-    HGH_SeparablePotential nonlocal;
+    HGH_SeparablePotential nonlocal(Z);
     for (const nlohmann::json& ch : rec["channels"])
         nonlocal.AddChannel(ch["l"].get<int>(), ch["r"].get<double>(),
                             ch["h"].get<std::vector<std::vector<double>>>());

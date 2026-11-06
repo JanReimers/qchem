@@ -20,6 +20,8 @@ module;
 #include <cmath>
 #include <map>
 #include <memory>
+#include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -93,12 +95,15 @@ class HGH_SeparablePotential : public virtual SeparablePotential, public virtual
 public:
     //! Build by adding channels (AddChannel) from real GTH parameters; the GTH database reader
     //! (GetGTH in GTH_Potentials.C) is the per-element source, replacing hardcoded factories.
+    //! ONE species, \a Z: every \a Z-taking face THROWS for any other (OOD D13; see \c HGH_LocalPotential).
+    explicit HGH_SeparablePotential(int Z) : itsZ(Z) {}
 
-    virtual size_t Count  (int)           const {return itsProj.size();}
-    virtual double Weight (int, size_t p) const {return itsProj[p].D;}
-    virtual int    L      (int, size_t p) const {return itsProj[p].l;}
-    virtual double RadialQ(int, size_t p, double q) const
+    virtual size_t Count  (int Z)           const {RequireSpecies(Z); return itsProj.size();}
+    virtual double Weight (int Z, size_t p) const {RequireSpecies(Z); return itsProj[p].D;}
+    virtual int    L      (int Z, size_t p) const {RequireSpecies(Z); return itsProj[p].l;}
+    virtual double RadialQ(int Z, size_t p, double q) const
     {
+        RequireSpecies(Z);
         const Proj& pr=itsProj[p];
         double s=0.0;                                          // (1/sqrt 4pi) Sum_i v_i projG_i(q)
         for (size_t i=0;i<pr.v.size();i++) s += pr.v[i]*ProjG(q, pr.l, static_cast<int>(i), pr.rl);
@@ -107,20 +112,22 @@ public:
     //! Real-space radial projector \f$\beta_p(r)=\sum_i v_i\,p_i^l(r)\f$ (the diagonalised KB combination of
     //! the analytic HGH real-space radials).  Its \f$j_l\f$ transform reproduces \f$\mathrm{Projector}_p(q)/
     //! \sqrt{4\pi}\f$ (the SeparablePotential_R contract; checked in UTPseudopotential).
-    virtual double RadialR(int, size_t p, double r) const
+    virtual double RadialR(int Z, size_t p, double r) const
     {
+        RequireSpecies(Z);
         const Proj& pr=itsProj[p];
         double s=0.0;
         for (size_t i=0;i<pr.v.size();i++) s += pr.v[i]*ProjR(r, pr.l, static_cast<int>(i), pr.rl);
         return s;
     }
     //! Every term of channel \a p shares the exponent \f$1/2r_l^2\f$ (AsGaussians below), so that IS the sharpness.
-    virtual double SharpnessR(int, size_t p) const {return 0.5/(itsProj[p].rl*itsProj[p].rl);}
+    virtual double SharpnessR(int Z, size_t p) const {RequireSpecies(Z); return 0.5/(itsProj[p].rl*itsProj[p].rl);}
     //! The same radial in CLOSED Gaussian form: ProjR is \f$\sqrt2\,r^{l+2i}e^{-r^2/2r_l^2}/(r_l^a\sqrt{\Gamma(a)})\f$,
     //! so \f$\beta_p(r)=\sum_i c_i\,r^{\,l+2i}\,e^{-\alpha r^2}\f$ with \f$c_i=v_i\sqrt2/(r_l^{a_i}\sqrt{\Gamma(a_i)})\f$,
     //! \f$\alpha=1/2r_l^2\f$ -- term-by-term identical to BetaR (exact, not a fit).
-    virtual std::vector<Math::Gaussian> AsGaussians(int, size_t p) const
+    virtual std::vector<Math::Gaussian> AsGaussians(int Z, size_t p) const
     {
+        RequireSpecies(Z);
         const Proj& pr=itsProj[p];
         std::vector<Math::Gaussian> terms;
         for (size_t i=0;i<pr.v.size();i++)
@@ -143,6 +150,12 @@ public:
 
 private:
     struct Proj { int l; double rl; double D; std::vector<double> v; };  //!< one diagonalised KB projector
+    void RequireSpecies(int Z) const
+    {
+        if (Z!=itsZ) throw std::logic_error("HGH_SeparablePotential: the model of Z="+std::to_string(itsZ)+" asked about Z="+std::to_string(Z)+
+                                            " -- a multi-species cell takes MultiSpecies_SeparablePotential");
+    }
+    int itsZ;
     std::vector<Proj> itsProj;
 
     //! Eigenpairs (lambda, normalised eigenvector) of a small symmetric matrix, by cyclic Jacobi.  The KB
