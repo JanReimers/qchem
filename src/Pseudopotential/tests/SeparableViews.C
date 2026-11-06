@@ -142,7 +142,7 @@ TEST(SeparablePotentialViews, SharpnessRIsTheGaussianExponent)
 // terms it reports ARE its short range.  The closed-form molecular route reads only these two faces.
 TEST(LocalPotentialViews, ClosedFormFacesReproduceTheField)
 {
-    const HGH_LocalPotential v(7.0, 0.2185, -21.3, 3.07, 0.4, -0.05);
+    const HGH_LocalPotential v(9, 7.0, 0.2185, -21.3, 3.07, 0.4, -0.05);
     const auto q=v.AsGaussianCharge(9);
     for (double r : {0.05, 0.3, 1.0, 4.0})
     {

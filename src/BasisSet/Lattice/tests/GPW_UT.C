@@ -1476,11 +1476,15 @@ TEST(GPW, LocalPPShortAnalyticMatchesGrid_C3C4)
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/160.0);   // the grid arm converged (40: 1e-3)
     const GPW_Evaluator& ev = gpw;
-    for (auto [el,q] : {std::pair<const char*,int>{"Si",4}, {"Li",3}, {"Li",1}})
+    // The cell's one site is Si, so each model is built FOR Z=14: Li's own parameters (C3, C4 are the point), not a Li species.
+    using Pseudopotential::HGH_LocalPotential;
+    const HGH_LocalPotential si=Pseudopotential::GetGTH("Si","LDA",4).local;
+    const HGH_LocalPotential liq3(14, 3, 0.4, -14.03486849, 9.55347627, -1.76648817, 0.08436998);
+    const HGH_LocalPotential liq1(14, 1, 0.78755305, -1.89261247, 0.28605968);
+    for (auto [el,q,local] : {std::tuple<const char*,int,const HGH_LocalPotential*>{"Si",4,&si}, {"Li",3,&liq3}, {"Li",1,&liq1}})
     {
-        const auto gth = Pseudopotential::GetGTH(el,"LDA",q);
-        const chmat_t Va=ev.MakeLocalPPShort(&cell, gth.local);                          // analytic (Overlap3C)
-        const chmat_t Vg=ev.MakeLocalPP(&cell, gth.local, BasisSet::FieldRange::Short);  // grid (form factor)
+        const chmat_t Va=ev.MakeLocalPPShort(&cell, *local);                          // analytic (Overlap3C)
+        const chmat_t Vg=ev.MakeLocalPP(&cell, *local, BasisSet::FieldRange::Short);  // grid (form factor)
         double num=0.0, den=0.0;
         for (size_t i=0;i<Va.rows();i++)
             for (size_t j=0;j<Va.columns();j++) { num+=std::norm(Va(i,j)-Vg(i,j)); den+=std::norm(Vg(i,j)); }
