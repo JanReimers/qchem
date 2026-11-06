@@ -485,7 +485,7 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     const std::string path=TempPath("ck1_si_fieldmix_m1_"+std::to_string(int(kerkerG0*10))+".h5");
     SolidCalcOptions o=Options(1, true, path);         // POLARIZED: the (ρ,m) mixer, as on the TiO2 / NiO campaign decks
     o.accelerator=SCFAccelerators::Type::Null;
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;     // the singles route: rho[D] only through the N4 correction
+    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);     // the singles route: rho[D] only through the N4 correction
     double saved=0.0;
     {
         SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p);
@@ -604,7 +604,7 @@ TEST(SolidState, AnOverTargetSamplerIsFlaggedAndTightenedOnceAtTheNextSCF)
     p.Mixer=SCFParams::Mixing::Kerker; p.KerkerG0=1.0; p.StartingRelaxRo=0.4;   // Kerker at relax 1 diverges on this Si cell
     SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .label="sampler"};
     o.accelerator=SCFAccelerators::Type::Null;
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;     // the singles route: the N4 correction is NUFFT-sampled every iteration
+    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);     // the singles route: the N4 correction is NUFFT-sampled every iteration
     o.accuracy.samplerEta=1e-3;   // ~150x below the measured 0.147: the NUFFT runs over its tau, by an error still far below what moves the SCF
     std::vector<std::optional<double>> col;
     testing::internal::CaptureStdout();
@@ -639,7 +639,7 @@ TEST(SolidState, TheDefaultSamplerCalibrationMeetsItsTarget)
     p.Mixer=SCFParams::Mixing::Kerker; p.KerkerG0=1.0; p.StartingRelaxRo=0.4;
     SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .label="sampler"};
     o.accelerator=SCFAccelerators::Type::Null;
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
+    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     std::vector<std::optional<double>> col;
     SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p,
                           [&col](const SCFIterator::IterationRow& r){ col.push_back(r.eb.charge.samplingOverTau); });

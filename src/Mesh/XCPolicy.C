@@ -306,7 +306,7 @@ MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
     if (mhlAlpha     <0.0) mhlAlpha     =2.0;
     if (angularDegree<0)   angularDegree=29;
     MeshParams mp;
-    mp.cellKind=UnitCellKind::Becke;
+    mp.cellKind=CellKind::RecipeStated(UnitCellKind::Becke);
     mp.radial =RadialKind::MHL;            mp.nRadial =nRadial; mp.mhl_m=2; mp.mhl_alpha=mhlAlpha;
     // Lebedev by DEFAULT at the MEASURED-SAFE degree (R2.15 decision 7, flipped 2026-08-17), GL below it.
     // The degree gate is not caution for its own sake: at LOW degree Lebedev's small special orbits sit ON
@@ -327,7 +327,7 @@ static constexpr int kSiteAdaptedTop =53;   // the last degree MakeInvariantAngu
 
 static MeshParams AtBeckeDegree(MeshParams m, int degree, const BeckeLadderCalibration& cal)
 {
-    m.cellKind=UnitCellKind::Becke;
+    m.cellKind=CellKind::RecipeStated(UnitCellKind::Becke);
     m.angularDegree=degree;
     bool tabulated=false;
     for (const auto& r : LebedevMenu()) tabulated=tabulated || r.degree==degree;
@@ -349,7 +349,7 @@ std::optional<MeshParams> BeckeRadialRungAbove(const MeshParams& mp)
         if (n>mp.nRadial)
         {
             MeshParams m=mp;
-            m.cellKind=UnitCellKind::Becke;
+            m.cellKind=CellKind::RecipeStated(UnitCellKind::Becke);
             m.nRadial=n;
             return m;
         }

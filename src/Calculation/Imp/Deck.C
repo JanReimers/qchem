@@ -249,7 +249,7 @@ json ToJson(const qcMesh::MeshParams& m)
     return {{"radial",NameOf(m.radial,kRadial)},{"nRadial",m.nRadial},{"mhlM",m.mhl_m},{"mhlAlpha",m.mhl_alpha},{"logStart",m.logStart},
             {"logStop",m.logStop},{"angular",NameOf(m.angular,kAngular)},{"angularDegree",m.angularDegree},{"angRot",m.angRot},
             {"beckeOrder",m.beckeOrder},{"nUniform",m.nUniform},{"eCut",m.eCut},{"relCutoff",m.relCutoff},
-            {"cellKind",NameOf(m.cellKind,kCell)},{"beckeEps",m.beckeEps}};
+            {"cellKind",NameOf(qcMesh::UnitCellKind(m.cellKind),kCell)},{"beckeEps",m.beckeEps}};
 }
 void FromJson(const json& j, qcMesh::MeshParams& m)
 {
@@ -257,7 +257,7 @@ void FromJson(const json& j, qcMesh::MeshParams& m)
     f.GetEnum("radial",m.radial,kRadial); f.Get("nRadial",m.nRadial); f.Get("mhlM",m.mhl_m); f.Get("mhlAlpha",m.mhl_alpha);
     f.Get("logStart",m.logStart); f.Get("logStop",m.logStop); f.GetEnum("angular",m.angular,kAngular);
     f.Get("angularDegree",m.angularDegree); f.Get("angRot",m.angRot); f.Get("beckeOrder",m.beckeOrder); f.Get("nUniform",m.nUniform);
-    f.Get("eCut",m.eCut); f.Get("relCutoff",m.relCutoff); f.GetEnum("cellKind",m.cellKind,kCell); f.Get("beckeEps",m.beckeEps);
+    f.Get("eCut",m.eCut); f.Get("relCutoff",m.relCutoff); { qcMesh::UnitCellKind k=m.cellKind; f.GetEnum("cellKind",k,kCell); m.cellKind=qcMesh::CellKind::RecipeStated(k); } f.Get("beckeEps",m.beckeEps);
     f.Done();
 }
 
@@ -1236,7 +1236,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
             auto xcRef=[&]
             {   // the run's own resolved recipe (MHL scale, Becke order, ...), only the two stated sizes changed
                 qcMesh::MeshParams m=calc->SizedSetup()->xcMesh;
-                m.cellKind=qcMesh::UnitCellKind::Becke; m.nRadial=a.xcRefNRadial; m.angularDegree=a.xcRefAngularDegree;
+                m.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke); m.nRadial=a.xcRefNRadial; m.angularDegree=a.xcRefAngularDegree;
                 m.angular = (a.xcRefAngularDegree>=29 && a.xcRefAngularDegree<=35) ? qcMesh::AngularKind::Lebedev : qcMesh::AngularKind::GaussLegendre;
                 return m;
             };

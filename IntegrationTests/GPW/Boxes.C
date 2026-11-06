@@ -494,7 +494,7 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     o.imposeSymmetry=true;                                // S3 resolves the SHUBNIKOV group from the flips
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);         // coarse quadrature: symmetry, not accuracy
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
+    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     SCFParams par=Gates(6, 1e-9, std::nullopt);                   // BOUNDED: this gate tests symmetry through the loop, not convergence
     par.SmearingkT=5e-3;                                  // the open-d-manifold tie smoother
     par.StartingRelaxRo=0.45;
@@ -584,7 +584,7 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows_Panel)   // PANEL case 9: a c
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;           // neutral Na: the library's 3s^1 spin pair
     o.imposeSymmetry=true;                                    // S3 resolves the SHUBNIKOV group from the flips
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);             // coarse: this gate tests the POSTCONDITION
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;            // PINNED -- see the header (Auto would pick Uniform)
+    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);            // PINNED -- see the header (Auto would pick Uniform)
 
     const qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
     auto r=calc.Result();

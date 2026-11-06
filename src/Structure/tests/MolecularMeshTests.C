@@ -221,7 +221,7 @@ public:
 qcMesh::MeshParams BeckeParams()
 {
     qcMesh::MeshParams mp=Params();
-    mp.cellKind=qcMesh::UnitCellKind::Becke;
+    mp.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     mp.angular=qcMesh::AngularKind::GaussLegendre;
     mp.angularDegree=29;
     return mp;

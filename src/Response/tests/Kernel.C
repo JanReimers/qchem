@@ -855,7 +855,7 @@ std::unique_ptr<SolidCalculation> SiState(ivec3_t kmesh, qcMesh::UnitCellKind xc
     par.NMaxIter=12;                                         // not converged, and need not be (see above)
     SolidCalcOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .species={{"Si",4}},
                        .densityEcut=20.0, .forceComplex=true};
-    o.xcMesh.cellKind=xc;
+    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(xc);
     // The pre-2026-11-01 bare-Becke mesh (30, 1.0, Lebedev 5), stated: the Fock thread identity holds bit for bit only there -- on the
     // calibrated BeckeXCParams() mesh 21 of 1728 near-zero elements differ at 5e-30 (an order-dependent sum, doc/OpenWork.md §3).
     if (coarseBecke) { o.xcMesh.nRadial=30; o.xcMesh.mhl_alpha=1.0; o.xcMesh.angularDegree=5; }
@@ -1150,7 +1150,7 @@ CarryOver SiK222BeckeCarryOver(bool impose)
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true};
     o.imposeSymmetry=impose;
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
+    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     SolidCalculation calc(SolidSetup::Resolve(lat, mol, o), SiParams());
 
     const auto& wf=ResponseFacadeTests::WF(calc);
@@ -1300,7 +1300,7 @@ void LittleGroupEqualsFull(ivec3_t Nq, qcMesh::UnitCellKind xc=qcMesh::UnitCellK
                        .hubbard={{.site=0, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}},
                        .forceComplex=true};
     o.siteSpins={0,0};
-    o.xcMesh.cellKind=xc;
+    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(xc);
     SolidCalculation calc(SolidSetup::Resolve(lat, mol, o), SiParams());
     ASSERT_TRUE(calc.DidConverge());
     const KrylovParams kp{.tol=1e-9};

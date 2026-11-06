@@ -635,7 +635,7 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_CP2K)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker");
     o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;   // the SINGLES route
+    o.xcMesh=qcMesh::BeckeXCParams();   // the SINGLES route
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;                                 // THE ASK: ρ̃ mixing
     report::ClearGlobal();
     {
@@ -662,7 +662,7 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_FitXC_Pin28Throws)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker fitted-XC control");
     o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
+    o.xcMesh=qcMesh::BeckeXCParams();
     SCFParams par=ProductionGates(); par.KerkerG0=1.0; par.XCCuspDeficit=false;
     report::ClearGlobal();
     std::string what;

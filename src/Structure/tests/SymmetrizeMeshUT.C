@@ -244,7 +244,7 @@ TEST(SiteAdaptedBeckeMesh, DiamondInvariantByConstruction)
     for (const auto& op : sg.Ops()) ops.push_back({op.W, op.tau});
 
     qcMesh::MeshParams mp;
-    mp.cellKind=qcMesh::UnitCellKind::Becke;
+    mp.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=6; mp.mhl_m=2; mp.mhl_alpha=2.0;
     mp.angular=qcMesh::AngularKind::GaussLegendre; mp.angularDegree=5;
 
@@ -394,7 +394,7 @@ TEST(SiteAdaptedBeckeMesh, ProductionAngularRecipeInvariantAfterTailDrop)
     for (const auto& op : sg.Ops()) ops.push_back({op.W, op.tau});
 
     qcMesh::MeshParams mp;
-    mp.cellKind=qcMesh::UnitCellKind::Becke;
+    mp.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=15; mp.mhl_m=2; mp.mhl_alpha=2.0;
     mp.angular=qcMesh::AngularKind::GaussLegendre; mp.angularDegree=29;
 

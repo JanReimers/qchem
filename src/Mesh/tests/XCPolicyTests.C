@@ -163,7 +163,7 @@ TEST(XCPolicy, ExplicitChoiceIsAlwaysHonoured)
     MeshParams u; u.cellKind=UnitCellKind::Uniform; u.nUniform=20;
     EXPECT_EQ(ResolveXCMesh(u,sharp).cellKind, UnitCellKind::Uniform)   // dominated, but honoured
         << "the selector must never override an explicit grid choice";
-    MeshParams b; b.cellKind=UnitCellKind::Becke;
+    MeshParams b; b.cellKind=CellKind::RecipeStated(UnitCellKind::Becke);
     XCMeshSharpness soft{.cellEdge=10.26, .nAtoms=2, .alphaMax=2.0};
     EXPECT_EQ(ResolveXCMesh(b,soft).cellKind, UnitCellKind::Becke);
 }
@@ -187,7 +187,7 @@ TEST(XCPolicy, AGridFieldSetUnderAutoThrowsNamingIt)
     EXPECT_THROW((void)ResolveXCMesh(a, XCMeshSharpness{}), std::invalid_argument) << "the sharpness overload too";
     MeshParams u; u.cellKind=UnitCellKind::Auto; u.eCut=50.0;
     EXPECT_THROW((void)ResolveXCMesh(u), std::invalid_argument) << "a uniform recipe field is dropped by Auto as well";
-    MeshParams b=a; b.cellKind=UnitCellKind::Becke;
+    MeshParams b=a; b.cellKind=CellKind::RecipeStated(UnitCellKind::Becke);
     EXPECT_EQ(ResolveXCMesh(b).nRadial, 60) << "stating the kind: the field is honoured";
     MeshParams d; d.cellKind=UnitCellKind::Auto;
     EXPECT_NO_THROW((void)ResolveXCMesh(d)) << "nothing set: Auto as before";

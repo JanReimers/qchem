@@ -111,7 +111,7 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     // facade's own choice, sized on the nested ladder, is GeometryRunPicksAndSizesTheBeckeMesh_Long.  (A bare cellKind Becke is
     // BeckeXCParams(), (40, 2.0, 29); this gate STATES a deliberately coarse (30, 1.0, Lebedev 5) one -- its subject is the raster terms,
     // and the calibrated mesh costs 107 s here against 17 s.  The audit reads 1.8e-2 per element on it: OVER, and honoured.)
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke; o.xcMesh.nRadial=30; o.xcMesh.mhl_alpha=1.0; o.xcMesh.angularDegree=5;
+    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke); o.xcMesh.nRadial=30; o.xcMesh.mhl_alpha=1.0; o.xcMesh.angularDegree=5;
     const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), kSiBasis, o);
     ASSERT_FALSE(setup->rastersResolved) << "the default setup self-calibrates";
     SolidCalculation single(setup, Tight());

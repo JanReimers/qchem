@@ -150,6 +150,26 @@ enum class AngularKind {Lebedev, GaussLegendre};
 //! at the point the mesh spec enters the Hamiltonian.
 enum class UnitCellKind {Uniform, Becke, Auto};
 
+//! \brief \c MeshParams::cellKind: a \c UnitCellKind that cannot be set to \c Becke by itself (OOD BM(1)).
+//!
+//! The struct's other defaults are the 30 / 1 / degree-5 grid, not the Becke recipe, so a bare \c MeshParams{.cellKind=Becke} built
+//! a degree-5 mesh; that cost a bogus 40 mHa "symmetry bug".  So stating \c Becke does not compile: ask for the recipe,
+//! \c BeckeXCParams(), or, where the struct already holds one (the facade's \c xcMesh does) or the caller states every field, say so
+//! with \c RecipeStated.  A value known only at run time takes \c RecipeStated too.
+class CellKind
+{
+public:
+    constexpr CellKind() = default;
+    consteval CellKind(UnitCellKind k) : itsKind(k)
+    {
+        if (k==UnitCellKind::Becke) throw "cellKind Becke alone: use BeckeXCParams() or CellKind::RecipeStated";
+    }
+    static constexpr CellKind RecipeStated(UnitCellKind k) {CellKind c; c.itsKind=k; return c;}
+    constexpr operator UnitCellKind() const {return itsKind;}
+private:
+    UnitCellKind itsKind=UnitCellKind::Auto;
+};
+
 
 //! \brief Becke's iterated smoothing polynomial mapped to the cell cutoff:
 //! \f$ s(\mu) = \tfrac12(1-f_k(\mu)),\; f(\mu)=\tfrac12(3\mu-\mu^3) \f$ applied \f$k+1\f$ times
@@ -184,7 +204,7 @@ struct MeshParams
     //! \c Uniform); a molecule or an atom builds its atom-centred mesh for \c Auto or \c Becke and REFUSES a stated \c Uniform
     //! (a cell mesh imposes a translation group the structure lacks).  Default \c Auto (2026-10-31; was \c Uniform, which every
     //! molecular run carried while building Becke anyway -- the default could not be told from a request).
-    UnitCellKind cellKind = UnitCellKind::Auto;
+    CellKind cellKind;
     //! \brief Becke competitor-series TOLERANCE (periodic Becke only): the magnitude screen that fixes how many cell images each
     //! partition weight sums.  1e-6 holds the equivalent-site-share gate (site shares equal to 1e-8 relative) with a decade of
     //! margin; 1e-5 breaks it.  A TOLERANCE trade, not a bit-identical restructuring -- the weights move at ~1e-6 relative.
@@ -210,7 +230,7 @@ struct MeshParams
              + ",ar" + to_string(angRot)
              + ",bo" + to_string(beckeOrder)
              + ",nu"  + to_string(nUniform) + ",ec" + to_string(eCut)
-             + ",rc" + to_string(relCutoff) + ",ck" + to_string(static_cast<int>(cellKind))
+             + ",rc" + to_string(relCutoff) + ",ck" + to_string(static_cast<int>(UnitCellKind(cellKind)))
              + ",be" + SciString(beckeEps) + "}";   // to_string(1e-7) == "0.000000": a tolerance needs scientific notation
     }
 };

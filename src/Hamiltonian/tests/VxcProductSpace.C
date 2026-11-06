@@ -155,7 +155,7 @@ bool Reached(const Cell& c) {return c.today==(c.target==Target::A ? Observed::On
 qcMesh::MeshParams PointsFor(Points p)
 {
     qcMesh::MeshParams m{.nRadial=20, .angularDegree=5};
-    m.cellKind = p==Points::Becke ? UnitCellKind::Becke : UnitCellKind::Uniform;
+    m.cellKind = qcMesh::CellKind::RecipeStated(p==Points::Becke ? UnitCellKind::Becke : UnitCellKind::Uniform);
     m.nUniform = 12;
     return m;
 }
