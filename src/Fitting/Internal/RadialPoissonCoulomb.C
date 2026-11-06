@@ -39,6 +39,7 @@ public:
     explicit RadialPoissonSolver(std::shared_ptr<const qcMesh::SiteMultipoles> sites)
         : itsSites(std::move(sites)), itsR(itsSites->Radii()), itsLMax(itsSites->LMax()), itsNLM(itsSites->NumLM())
         , itsLogR(MakeLog(itsR)), itsIndex(MakeIndexNodes(itsR.size())), itsInnerPower(std::log(itsR[1]/itsR[0])/std::log(2.0))
+        , itsNodes(std::vector<double>(itsIndex.begin()+1,itsIndex.end()-1)), itsSmooth(MakeSmoothLog()), itsSmoothM(itsNodes.SecondDerivatives(itsSmooth,1))
     {}
 
     //! Each (site, l) channel's radial solve: charge channels \a Q in, potential channels out.
@@ -68,18 +69,22 @@ private:
         for (size_t i=0; i<nR+2; i++) t[i]=double(i);
         return t;
     }
-    //! r at index \a t in (0, nR]: log r splined on the nodes, and a power law inside the first node, where the rule starts.
+    //! The rule's own smooth part: log r less its power at the origin, whose log t no polynomial in t follows.
+    std::vector<double> MakeSmoothLog() const
+    {
+        std::vector<double> f(itsR.size());
+        for (size_t i=0; i<f.size(); i++) f[i]=itsLogR[i]-itsInnerPower*std::log(double(i+1));
+        return f;
+    }
+    //! r at index \a t in (0, nR]: a spline of that smooth part, and the power law inside the first node, where the rule starts.
+    //! THIS MAP CARRIES THE ENERGY.  A quadratic in log r here put 95 μHa into TeF₆'s PP Hartree (2.7e-7 of E_H), at any rung.
     void RadialAt(double t, double& r) const
     {
         if (t<=1.0) {r=itsR[0]*std::pow(t,itsInnerPower); return;}
-        const size_t i=std::min<size_t>(size_t(t),itsR.size()-1)-1;   // nodes i+1, i+2 in index units
-        const double u=t-double(i+1);
-        r=std::exp((1.0-u)*itsLogR[i]+u*itsLogR[i+1]+(u*(u-1.0)/2.0)*Curvature(i));
-    }
-    double Curvature(size_t i) const   // second difference of log r about the interval: the quadratic term of RadialAt
-    {
-        const size_t k=std::min(std::max<size_t>(i,1),itsLogR.size()-2);
-        return itsLogR[k+1]-2.0*itsLogR[k]+itsLogR[k-1];
+        double A,B,C,D;
+        const size_t i=itsNodes.Interval(t);
+        itsNodes.Weights(i,t,A,B,C,D);
+        r=std::exp(itsInnerPower*std::log(t)+A*itsSmooth[i]+B*itsSmooth[i+1]+C*itsSmoothM[i]+D*itsSmoothM[i+1]);
     }
 
     //! One (site, l) block of channels: \a Q in, this l's columns of \a V out.  See the file header.
@@ -134,6 +139,8 @@ private:
     size_t itsNLM;
     std::vector<double> itsLogR, itsIndex;
     double itsInnerPower;
+    qcMesh::ColumnSplines itsNodes;              //!< the radial nodes, by index
+    std::vector<double> itsSmooth, itsSmoothM;   //!< the rule's smooth part, and its spline's second derivatives
 };
 
 //! \brief The potential at the mesh's points of charges at those points: the \f$\delta\f$ route's operator.
@@ -153,9 +160,9 @@ private:
 //! THE SECOND LEG IS THE ONE THING THIS ROUTE ADDS OVER \f$\delta\f$ x Poisson.  \f$v\f$ and \f$J\f$ are the same numbers.  But here the
 //! fit is a function, so \f$\langle\tilde\rho|\tilde\rho\rangle=\sum_gw_g\tilde\rho(r_g)\tilde v(r_g)\f$ is available, and FittedVee's
 //! \f$2E_{fit}-E_{fitfit}\f$ cancels the \f$l\f$ truncation to second order.  The mesh's own error stays first order, and \f$\tilde\rho\f$ on
-//! the points adds some: measured on water LDA dzvp against exact J, l = 12 and 16 agree to 0.2 μHa at 150/47 where \f$\delta\f$ moves 33,
-//! and to 0.01 μHa at 300/47 (error 1.2 μHa), but at 80/29 the route is +310 μHa to \f$\delta\f$'s -146.  \f$l\f$ must stay well under the
-//! angular degree: l = 24 at 80/29 aliases and is 5 mHa out.
+//! the points adds some: measured on water LDA dzvp against exact J, l = 12 and 16 agree to 0.2 μHa at 150/47 where \f$\delta\f$ moves 33, but
+//! the route is +49 μHa there to \f$\delta\f$'s +2, and +530 at 80/29 to \f$\delta\f$'s +31; 300/47 brings it to +3.  \f$l\f$ must stay well
+//! under the angular degree: l = 24 at 80/29 aliases and is 5 mHa out.
 class MultipoleCoulomb : public virtual CoulombOperator
 {
 public:

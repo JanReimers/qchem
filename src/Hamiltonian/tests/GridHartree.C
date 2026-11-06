@@ -124,6 +124,26 @@ TEST(DirectSumCoulomb, Linear)
     for (size_t g=0; g<mesh.size(); g+=997) EXPECT_NEAR(v2[g], 2.0*v[g], 1e-10*std::fabs(v[g]));
 }
 
+// The energy the solve delivers, not its pointwise error.  The radial map r(t) inside each interval only shows here: a quadratic in log r
+// passed every pointwise test and still put 2.7e-7 of E_H into TeF₆, 95 μHa, at any rung.
+TEST(RadialPoissonCoulomb, GaussianSelfEnergyIsNotBiasedByTheRadialMap)
+{
+    qcMesh::MeshParams mp=theMesh; mp.nRadial=300;
+    const qcMesh::Mesh mesh=OneAtomMesh(mp);
+    const double a=1.3;
+    rvec_t q(mesh.size());
+    for (size_t g=0; g<mesh.size(); g++)
+    {
+        const auto& r=mesh.Points()[g];
+        q[g]=mesh.Weights()[g]*Rho(a,r.x*r.x+r.y*r.y+r.z*r.z);
+    }
+    const rvec_t v=Fitting::MakeRadialPoissonCoulomb(Sites(mesh,mp,0))->Potential(q);
+    double selfEnergy=0.0;
+    for (size_t g=0; g<mesh.size(); g++) selfEnergy+=q[g]*v[g];
+    const double exact=std::sqrt(2*a/std::numbers::pi);
+    EXPECT_NEAR(selfEnergy/exact, 1.0, 1e-8);
+}
+
 // The channels of a smooth two-centre field, carried back to the points.  The partition of unity is what makes the sites' shares
 // add up, so this is the projection and the synthesis checked together.  The error falls with l and is measured, not ideal.
 TEST(SiteMultipoles, ProjectionThenSynthesisReturnsTheField)
