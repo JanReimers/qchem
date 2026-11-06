@@ -17,6 +17,7 @@ import qchem.BasisSet.Gaussian.Evaluators;                                  // E
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;           // Cartesian kernels (reused)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Math.Angular;                                                  // SphericalShell, CartTerm, Monomial
+import qchem.Math.SolidHarmonics;                                           // CartGaussian
 import qchem.Structure;
 import qchem.Types;
 
@@ -95,6 +96,39 @@ public:
         return s * ns[iA]*eB.ns[iB]*eC.ns[iC]*eD.ns[iD];
     }
 
+    // --- the three kernels of an analytic species field (isPP_Evaluator): g is integrated RAW.
+    double OverlapWith(size_t i,const qchem::Math::CartGaussian& g) const
+    {
+        Cart::GaussianRF gr(g.alpha,g.center,Degree(g));
+        double s = 0.0;
+        for (const auto& ta : comps[i].terms)
+            for (const auto& tg : g.terms)
+                s += ta.c*tg.c * comps[i].radial->Overlap2C(gr,Cart::Polarization(ta.p),Cart::Polarization(tg.p));
+        return s * ns[i];
+    }
+    double OperatorThreeC(size_t i,size_t j,const qchem::Math::CartGaussian& g) const
+    {
+        Cart::GaussianRF gr(g.alpha,g.center,Degree(g));
+        double s = 0.0;
+        for (const auto& ta : comps[i].terms)
+            for (const auto& tb : comps[j].terms)
+                for (const auto& tg : g.terms)
+                    s += ta.c*tb.c*tg.c * gr.Overlap3C(*comps[i].radial,*comps[j].radial,Cart::Polarization(ta.p),
+                                                       Cart::Polarization(tb.p),Cart::Polarization(tg.p));
+        return s * ns[i]*ns[j];
+    }
+    double RepulsionThreeC(size_t i,size_t j,const rvec3_t& c,double alpha) const
+    {
+        Cart::GaussianRF gr(alpha,c,0);
+        const Cart::Polarization s0(qchem::Math::Monomial{0,0,0});
+        double s = 0.0;
+        for (const auto& ta : comps[i].terms)
+            for (const auto& tb : comps[j].terms)
+                s += ta.c*tb.c * gr.Repulsion3C(*comps[i].radial,*comps[j].radial,Cart::Polarization(ta.p),
+                                                Cart::Polarization(tb.p),s0);
+        return s * ns[i]*ns[j];
+    }
+
     // --- fit-basis support (DFT): the 2-centre Coulomb metric and the per-component charge, transform-
     // summed like everything else.  Repulsion2C has a cross-evaluator form (this fit x another fit).
     double Repulsion2C(size_t i,const NR_Evaluator& e,size_t j) const
@@ -115,6 +149,12 @@ public:
     }
 
 private:
+    static int Degree(const qchem::Math::CartGaussian& g)
+    {
+        int L=0;
+        for (const auto& t : g.terms) L=std::max(L, t.p.n+t.p.l+t.p.m);
+        return L;
+    }
     // <ab|O|c> over the three harmonics' monomials.  `kernel` is invoked as kernel(rc, ra, rb, pa, pb, pc)
     // -- `this`/centre-C convention of the Cartesian 3-centre kernels.
     template <class Kernel>

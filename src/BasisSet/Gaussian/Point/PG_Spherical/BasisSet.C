@@ -60,6 +60,7 @@ class Orbital_IBS
     : public Gaussian::EOrbital_1E_IBS<Sph::NR_Evaluator>
     , public Gaussian::Orbital_ERI4_IBS <Sph::NR_Evaluator>
     , public Gaussian::Orbital_DFT_IBS<Sph::NR_Evaluator>
+    , public Gaussian::EOrbital_PP_IBS<Sph::NR_Evaluator>
     , public IrrepBasisSet
 {
 public:

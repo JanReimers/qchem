@@ -23,6 +23,7 @@ import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, co
 import qchem.Mesh.Quadrature; // qcMesh::MatrixOverlap / Overlap (the real-space PP quadrature primitives)
 import qchem.Mesh.XCPolicy;   // qcMesh::RequiredUniformCutoff (the KB mesh fallback's floor, V2.5)
 import qchem.ScalarFunction;  // ScalarFunction<double> (the V_loc / beta*Ylm fields handed to the quadrature)
+import qchem.Math.SolidHarmonics;   // RealYlm, YlmCartesian, MultiplyR2 (the analytic KB polynomials)
 import qchem.Math.Angular;    // Monomial/CartTerm/SphericalShell (the analytic KB Cartesian expansion)
 import qchem.Structure;       // Structure / Atom (the PP centres + Z, and CreateIntegrationMesh)
 import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity / IntegratePotential grid<->cell)
@@ -35,6 +36,9 @@ import qchem.BasisSet.GMap;   // EvaluateSymmetricGMap
 
 namespace qchem::BasisSet::Gaussian
 {
+using Math::RealYlm;
+using Math::YlmCartesian;
+using Math::MultiplyR2;
 
 namespace
 {
@@ -78,45 +82,6 @@ void BuildImages(const UnitCell& cell, double Rcut, const rvec3_t& kFrac, bool t
 //     the DRY-move is a deferred cleanup (see doc/GPWPlan.md).  Kept bit-identical to the term versions so a
 //     Gaussian-in-a-box GPW PP matrix equals the finite molecular PP matrix. --------------------------------
 
-// Real (tesseral) spherical harmonic Y_lm(rhat), unit-normalised on the sphere; the standard Cartesian forms
-// (any orthonormal degree-l set is equivalent since only Sum_m |Y_lm><Y_lm| enters the KB projector).
-double RealYlm(int l, int m, double x, double y, double z)
-{
-    using std::sqrt;
-    const double pi=Pi;
-    switch (l)
-    {
-    case 0: return 0.5/sqrt(pi);
-    case 1:
-        switch (m) { case -1: return sqrt(0.75/pi)*y; case 0: return sqrt(0.75/pi)*z; case 1: return sqrt(0.75/pi)*x; }
-        break;
-    case 2:
-        switch (m)
-        {
-        case -2: return sqrt(15.0/(4*pi))*x*y;
-        case -1: return sqrt(15.0/(4*pi))*y*z;
-        case  0: return sqrt( 5.0/(16*pi))*(3*z*z-1.0);
-        case  1: return sqrt(15.0/(4*pi))*x*z;
-        case  2: return sqrt(15.0/(16*pi))*(x*x-y*y);
-        }
-        break;
-    case 3:
-        switch (m)
-        {
-        case -3: return sqrt( 35.0/(32*pi))*y*(3*x*x-y*y);
-        case -2: return sqrt(105.0/(4 *pi))*x*y*z;
-        case -1: return sqrt( 21.0/(32*pi))*y*(5*z*z-1.0);
-        case  0: return sqrt(  7.0/(16*pi))*z*(5*z*z-3.0);
-        case  1: return sqrt( 21.0/(32*pi))*x*(5*z*z-1.0);
-        case  2: return sqrt(105.0/(16*pi))*z*(x*x-y*y);
-        case  3: return sqrt( 35.0/(32*pi))*x*(x*x-3*y*y);
-        }
-        break;
-    }
-    assert(false && "RealYlm: unsupported (l,m)");
-    return 0.0;
-}
-
 // One KB channel as a scalar field: beta_p(|r-R|) * Y_lm((r-R)^).  beta_p(0)=0 for l>=1 so the r=R angular
 // singularity is harmless; guard the unit-vector division.
 class BetaYlmField : public ScalarFunction<double>
@@ -148,56 +113,6 @@ double BetaSupportRadius(const SpeciesProjectorSet_R& sep, int Z, size_t p)
     return rsup+2.0*h;   // a small margin past the last significant radius
 }
 
-// --- Cartesian-monomial expansion of r^l Y_lm (the analytic-KB polynomial) --------------------------------
-// The SOLID harmonic r^l Y_lm(rhat) is a homogeneous degree-l polynomial: Math::SphericalShell supplies the
-// RAW monomial shape; the absolute scale is fixed NUMERICALLY against this file's own RealYlm table (evaluate
-// both at a generic unit direction and take the ratio -- exact to machine precision since they are the same
-// polynomial, and asserted at a second direction).  Guarantees the analytic KB uses the SAME Y_lm convention
-// as the mesh path it replaces.
-std::vector<qchem::Math::CartTerm> YlmCartesian(int l, int m)
-{
-    std::vector<qchem::Math::CartTerm> terms=qchem::Math::SphericalShell(l)[size_t(l+m)];
-    auto poly=[&terms](double x, double y, double z)
-    {
-        double s=0.0;
-        for (const auto& t : terms)
-            s += t.c * std::pow(x,t.p.n) * std::pow(y,t.p.l) * std::pow(z,t.p.m);
-        return s;
-    };
-    auto fix=[&](double x, double y, double z)                     // RealYlm(unit)*r^l / raw(x,y,z)
-    {
-        double r=std::sqrt(x*x+y*y+z*z);
-        return RealYlm(l,m, x/r,y/r,z/r) * std::pow(r,l) / poly(x,y,z);
-    };
-    const double N=fix(0.3,0.5,0.7);                               // generic direction (no raw zeros, l<=3)
-    assert(std::fabs(fix(0.9,-0.2,0.4)-N)<1e-10*std::fabs(N)+1e-14 &&
-           "YlmCartesian: raw solid harmonic is not proportional to RealYlm (convention drift)");
-    // POSITIVE scale: the harmonic is SphericalShell's raw polynomial times a positive unit-sphere norm -- the
-    // convention an atom-centred set declares (BasisSet.AtomCentredSet) and a SphericalShellRep shell describes.
-    // RealYlm up to a sign per m; the KB sum |b|^2 over m cannot see a sign (and negation is exact in IEEE).
-    for (auto& t : terms) t.c*=std::fabs(N);
-    return terms;
-}
-
-// Multiply a Cartesian polynomial by (x^2+y^2+z^2)^n (the r^{2n} factor of a higher radial projector),
-// combining duplicate monomials.
-std::vector<qchem::Math::CartTerm> MultiplyR2(std::vector<qchem::Math::CartTerm> terms, int n)
-{
-    using qchem::Math::Monomial;
-    for (int k=0;k<n;k++)
-    {
-        std::map<Monomial,double> acc;
-        for (const auto& t : terms)
-            for (int ax=0; ax<3; ax++)
-            {
-                Monomial p=t.p; p[ax]+=2;
-                acc[p]+=t.c;
-            }
-        terms.clear();
-        for (const auto& [p,c] : acc) terms.push_back({p,c});
-    }
-    return terms;
-}
 } //anon
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,

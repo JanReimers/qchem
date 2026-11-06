@@ -69,6 +69,7 @@ export module qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;
 import qchem.Structure;      // Structure (the nuclear-attraction centres)
 import qchem.UnitCell;       // UnitCell (the cell geometry the internal enumeration walks)
 import qchem.Types;          // rvec3_t, cvec_t, chmat_t, rmat_t, ivec3_t
+export import qchem.Math.SolidHarmonics;   // Math::CartGaussian
 import qchem.Math.Angular;   // Math::CartTerm (the Cartesian-monomial expansion of a GaussianFunction)
 export import qchem.BasisSet.GridResolution;   // GaussianSharpness IS-A GridResolution (V-BS-RASTER)
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;     // Tolerances() / BindTolerances' type
@@ -167,17 +168,8 @@ public:
 
     //! \f$S_{ij}=\sum_R e^{ik\cdot R}\langle\chi_i|\chi_j(\cdot-R)\rangle\f$ (normalised), summed to
     //! \f$\varepsilon\f$ internally per shell pair.
-    //! \brief A primitive Cartesian-Gaussian scalar function,
-    //! \f$g(r)=\sum_t c_t\,(r-C)^{m_t}\,e^{-\alpha|r-C|^2}\f$ (one shared exponent, a finite Cartesian-
-    //! monomial polynomial \f$(r-C)^{m}=x^{m_x}y^{m_y}z^{m_z}\f$ about the centre \f$C\f$) -- the family of
-    //! scalar functions a Gaussian basis can integrate ANALYTICALLY.  Pure function-language: the caller may
-    //! think of \f$g\f$ as a projector, a moment, anything -- this face only sees a Gaussian.
-    struct GaussianFunction
-    {
-        rvec3_t center;                         //!< \f$C\f$
-        double  alpha;                          //!< the shared exponent \f$\alpha\f$
-        std::vector<Math::CartTerm> terms;      //!< \f$\{(m_t,c_t)\}\f$ -- the polynomial about \f$C\f$
-    };
+    //! The family of scalar functions a Gaussian basis can integrate analytically (\c Math::CartGaussian).
+    using GaussianFunction=Math::CartGaussian;
 
     virtual chmat_t MakeOverlap(const cellphase_t& phase, const UnitCell& A) const = 0;
 

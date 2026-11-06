@@ -34,6 +34,7 @@ export namespace qchem::Pseudopotential
 using BasisSet::FieldRange;
 using BasisSet::SpeciesRadialField;
 using BasisSet::SpeciesRadialField_Gaussian;
+using BasisSet::SpeciesRadialField_GaussianCharge;
 
 //! \brief A one-body local external potential: a \c SpeciesRadialField with the CP2K long/short PIECE
 //! structure and its ion charge.  A model supplies the pieces; the neutral face's range switch is answered
@@ -148,7 +149,8 @@ private:
 //! reciprocal form factor below is analytic -- no radial tables.  \f$Z_{ion}\f$ is the VALENCE charge.
 //! Unlike the all-electron LAPW, absolute levels are shifted by the dropped \f$G=0\f$ term, but the
 //! softness (fast \f$E_{cut}\f$ convergence) and band-energy DIFFERENCES are physical.
-class HGH_LocalPotential : public LocalPotential, public virtual SpeciesRadialField_Gaussian
+class HGH_LocalPotential : public LocalPotential, public virtual SpeciesRadialField_Gaussian,
+                           public virtual SpeciesRadialField_GaussianCharge
 {
 public:
     //! \a Zion = valence charge, \a rloc = local radius, \a c = {C1,C2,C3,C4} polynomial coefficients.
@@ -222,6 +224,12 @@ public:
             if (C[j]!=0.0) terms.push_back({ C[j]/std::pow(itsRloc, 2*j), j, alpha });
         return terms;
     }
+    //! The LONG part \f$-Z_{ion}\,\mathrm{erf}(r/\sqrt2 r_{loc})/r\f$ IS the potential of a Gaussian charge of
+    //! exponent \f$1/2r_{loc}^2\f$.
+    virtual BasisSet::GaussianCharge AsGaussianCharge(int /*Z*/) const override
+    {
+        return { itsZion, 0.5/(itsRloc*itsRloc) };
+    }
 private:
     double itsZion, itsRloc, itsC1, itsC2, itsC3, itsC4;
 };
@@ -231,7 +239,8 @@ private:
 //! local side -- every LocalPotential method already takes \a Z (single-species HGH ignores it; this
 //! USES it to dispatch), so the basis assembly (which calls FormFactor(a->itsZ,...) per atom) is
 //! unchanged.  Hand one of these to the external term and NaF / CsI just work.
-class MultiSpecies_LocalPotential : public LocalPotential, public virtual SpeciesRadialField_Gaussian
+class MultiSpecies_LocalPotential : public LocalPotential, public virtual SpeciesRadialField_Gaussian,
+                                    public virtual SpeciesRadialField_GaussianCharge
 {
 public:
     //! Register species \a Z's local model (atomic number Z, e.g. 11 for Na -- the atoms' itsZ).
@@ -251,6 +260,12 @@ public:
         const auto* gface=dynamic_cast<const SpeciesRadialField_Gaussian*>(&Get(Z));
         assert(gface && "MultiSpecies_LocalPotential::AsGaussians: sub-model has no closed-Gaussian view");
         return gface->AsGaussians(Z,rng);
+    }
+    virtual BasisSet::GaussianCharge AsGaussianCharge(int Z) const override
+    {
+        const auto* gface=dynamic_cast<const SpeciesRadialField_GaussianCharge*>(&Get(Z));
+        if (!gface) throw std::runtime_error("MultiSpecies_LocalPotential::AsGaussianCharge: sub-model's long range is not a Gaussian charge");
+        return gface->AsGaussianCharge(Z);
     }
 private:
     const LocalPotential& Get(int Z) const

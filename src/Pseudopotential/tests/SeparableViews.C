@@ -137,3 +137,18 @@ TEST(SeparablePotentialViews, SharpnessRIsTheGaussianExponent)
     multi.Add(25, std::make_shared<const HGH_SeparablePotential>(sep));
     for (size_t p=0;p<sep.Count(25);++p) EXPECT_DOUBLE_EQ(multi.SharpnessR(25,p), sep.SharpnessR(25,p));
 }
+
+// The long range of an HGH local potential IS the potential of the Gaussian charge it reports, and the short
+// terms it reports ARE its short range.  The closed-form molecular route reads only these two faces.
+TEST(LocalPotentialViews, ClosedFormFacesReproduceTheField)
+{
+    const HGH_LocalPotential v(7.0, 0.2185, -21.3, 3.07, 0.4, -0.05);
+    const auto q=v.AsGaussianCharge(9);
+    for (double r : {0.05, 0.3, 1.0, 4.0})
+    {
+        EXPECT_NEAR(v.ValueR(9,r,BasisSet::FieldRange::Long), -q.q*std::erf(std::sqrt(q.alpha)*r)/r, 1e-12);
+        double s=0;
+        for (const auto& t : v.AsGaussians(9,BasisSet::FieldRange::Short)) s+=t.c*std::pow(r,2*t.n)*std::exp(-t.alpha*r*r);
+        EXPECT_NEAR(v.ValueR(9,r,BasisSet::FieldRange::Short), s, 1e-10);
+    }
+}

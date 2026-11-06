@@ -27,6 +27,7 @@ module;
 export module qchem.BasisSet.Internal.SymmetryAdapted_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_HF_IBS;         // HF 2-electron CONTRACTION face (no ERI4 -- R1.7)
+export import qchem.BasisSet.Orbital_PP_IBS;         // species fields, forwarded to the raw basis
 export import qchem.BasisSet.Orbital_DFT_IBS;        // DFT 3-centre mixin (fitted Coulomb / Vxc)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Structure;
@@ -46,6 +47,7 @@ class SymmetryAdapted_IBS
     , public virtual Orbital_HF_IBS<double>  // HF Coulomb/exchange CONTRACTION only -- no ERI4 substrate
     , public virtual WholeSystemFock_IBS<double>  // ...and it builds the AO Fock ONCE, then slices (V1.31)
     , public virtual Orbital_DFT_IBS<double> // DFT 3-centre fitted Coulomb / Vxc
+    , public virtual Orbital_PP_IBS<double>  // species fields: the raw basis's matrix, transformed
     , public IrrepBasisSetImp<double>        // provides GetSymmetry / GetSymt / GetIrrep
     , public Symmetry::IdentityRepresentation<double>   // a 1-D irrep block: M_g = χ(g)·1, |χ|² = 1, so its bilinear images are
                                                          // identities -- for the ops of the group it was adapted under (S3)
@@ -65,6 +67,11 @@ public:
     virtual rsmat_t MakeOverlap()                 const;
     virtual rsmat_t MakeKinetic()                 const;
     virtual rsmat_t MakeNuclear(const Structure* cl) const;
+    // Species fields (O^T M_raw O), when the raw basis can assemble them.
+    virtual bool    CanAssembleField     (const SpeciesRadialField&)  const;
+    virtual bool    CanAssembleProjectors(const SpeciesProjectorSet&) const;
+    virtual rsmat_t MakeSpeciesFieldMatrix(const Structure*, const SpeciesRadialField&, FieldRange) const;
+    virtual rsmat_t MakeProjectorMatrix   (const Structure*, const SpeciesProjectorSet&) const;
 
     // 2-electron (HF): build the AO Coulomb/exchange from the cd-irrep's density block (linear
     // in D, so no 4-index ERI transform) and slice to this irrep.  Summed over the cd irreps by

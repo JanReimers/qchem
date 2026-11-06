@@ -9,6 +9,8 @@ module;
 #include <vector>
 module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
+import qchem.BasisSet.Orbital_PP_IBS;              // the closed-form species-field service (NeedsPPQuadrature)
+import qchem.BasisSet.ImplicitAngular_IBS;         // the radial capability (NeedsPPQuadrature)
 import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vee_Hartree, Vxc_Quadrature + MakeDensitySampler (the periodic KS terms)
 import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Kinetic;        // Kinetic<T>: kinetic energy (double molecular / dcmplx PW)
@@ -102,6 +104,18 @@ Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> part
     Add(MolecularVxcTerm(st, bs, mp, fit, std::move(parts), g));
 }
 
+// Does any block of \a bs fall back to the PP terms' quadrature?  The same questions PP_Local and PP_NonLocal ask.
+static bool NeedsPPQuadrature(const rbs_t* bs, const BasisSet::SpeciesRadialField& vloc, const BasisSet::SpeciesProjectorSet* sep)
+{
+    for (auto ibs : const_cast<rbs_t&>(*bs).Iterate<BasisSet::Real_OIBS>())
+    {
+        const auto* pp=dynamic_cast<const BasisSet::Orbital_PP_IBS<double>*>(ibs);
+        if (!pp || !pp->CanAssembleField(vloc)) return true;
+        if (sep && !dynamic_cast<const BasisSet::ImplicitAngular_IBS*>(ibs) && !pp->CanAssembleProjectors(*sep)) return true;
+    }
+    return false;
+}
+
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
                std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
                const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit)
@@ -113,8 +127,13 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     // shared.  The terms used to build it lazily at their first matrix request, which happens inside the SCF iterator's
     // construction, so the run report filed it under the facade's basis scope (CLAUDE.md "the run report": fix the run
     // sequence, never the path); and once per term per basis block.  Geometry-only, so one mesh serves every block.
-    const PP_Local::mesh_t ppMesh=[&]{ qchem::report::Scope here("ppQuadrature");
-                                       return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mp)); }();
+    // Null when every block assembles the PP terms in closed form: then no mesh enters them at all.
+    const PP_Local::mesh_t ppMesh=[&]()->PP_Local::mesh_t
+    {
+        if (!NeedsPPQuadrature(bs, *vloc, sep.get())) return nullptr;
+        qchem::report::Scope here("ppQuadrature");
+        return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mp));
+    }();
     Add(new PP_Local(st, vloc, ppMesh));             // pseudized replacement for Ven (combined model -> _R view)
     if (sep) Add(new PP_NonLocal(st, std::move(sep), mp, ppMesh));   // KB separable projectors (null => local-only)
 

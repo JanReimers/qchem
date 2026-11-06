@@ -168,6 +168,25 @@ rsmat_t SymmetryAdapted_IBS::MakeOverlap()                 const {return Transfo
 rsmat_t SymmetryAdapted_IBS::MakeKinetic()                 const {return Transform(itsRaw->Kinetic());}
 rsmat_t SymmetryAdapted_IBS::MakeNuclear(const Structure* cl) const {return Transform(itsRaw->Nuclear(cl));}
 
+bool SymmetryAdapted_IBS::CanAssembleField(const SpeciesRadialField& f) const
+{
+    const auto* pp=dynamic_cast<const Orbital_PP_IBS<double>*>(itsRaw);
+    return pp && pp->CanAssembleField(f);
+}
+bool SymmetryAdapted_IBS::CanAssembleProjectors(const SpeciesProjectorSet& ps) const
+{
+    const auto* pp=dynamic_cast<const Orbital_PP_IBS<double>*>(itsRaw);
+    return pp && pp->CanAssembleProjectors(ps);
+}
+rsmat_t SymmetryAdapted_IBS::MakeSpeciesFieldMatrix(const Structure* st, const SpeciesRadialField& f, FieldRange r) const
+{
+    return Transform(dynamic_cast<const Orbital_PP_IBS<double>&>(*itsRaw).MakeSpeciesFieldMatrix(st,f,r));
+}
+rsmat_t SymmetryAdapted_IBS::MakeProjectorMatrix(const Structure* st, const SpeciesProjectorSet& ps) const
+{
+    return Transform(dynamic_cast<const Orbital_PP_IBS<double>&>(*itsRaw).MakeProjectorMatrix(st,ps));
+}
+
 std::string SymmetryAdapted_IBS::BasisSetID() const {return itsRaw->BasisSetID() + "[" + itsLabel + "]";}
 std::string SymmetryAdapted_IBS::Name()       const {return itsRaw->Name() + "[" + itsLabel + "]";}
 

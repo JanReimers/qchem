@@ -213,7 +213,8 @@ TEST(M_DFT, F2_PP)
 {
     MoleculeCalculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .pp = "gth-lda-valence"}));
     ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -48.2019366975, 1e-5);   // anchor (δ default)
+    // Re-judged 2026-11-05 (pin 10): the closed-form PP integrals moved this +4.2e-5, from 5.7e-5 to 1.5e-5 off PySCF.
+    EXPECT_NEAR(calc.Energy(), -48.2018945557, 1e-5);   // anchor (δ default)
     EXPECT_NEAR(calc.Energy(), -48.20187971, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC (CP2K -48.20058)";
 }
 TEST(M_DFT, F2_PP_AuxiliaryFit)
@@ -221,6 +222,6 @@ TEST(M_DFT, F2_PP_AuxiliaryFit)
     MoleculeCalculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .vxcFit = Hamiltonian::VxcFit::Auxiliary,
                                                        .pp = "gth-lda-valence"}));
     ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -48.1971112700, 1e-5);   // anchor
+    EXPECT_NEAR(calc.Energy(), -48.1970701902, 1e-5);   // anchor (re-judged with F2_PP above, the same +4.1e-5)
     EXPECT_NEAR(calc.Energy(), -48.20187971, 7e-3) << "ORACLE: PySCF A1_coul J-fit route; the gap (+4.8 mHa) is the A1 Vxc fit";
 }

@@ -65,6 +65,7 @@ class Orbital_IBS
     : public Gaussian::EOrbital_1E_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public Gaussian::Orbital_ERI4_IBS <Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public Gaussian::Orbital_DFT_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
+    , public Gaussian::EOrbital_PP_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public virtual Gaussian::Periodic_Gaussian_IBS   // the GPW periodic seam: all four faces (ISP split 2026-09-08)
     , public virtual Gaussian::TransitionCollocation   // the (k+q, k) transition density + adjoint (LinearResponsePlan B1)
     , public virtual Gaussian::ToleranceBinding        // the builder binds the pair-loop tolerances (D-ENV-TOL option A)

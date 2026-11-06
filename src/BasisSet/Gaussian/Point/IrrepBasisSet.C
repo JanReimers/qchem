@@ -14,12 +14,18 @@
 //  - 1E Kinetic here is the full Cartesian <p^2>=<-nabla^2> (no centrifugal split; that is atom-only).
 //  - HF Direct/Exchange use the multi-centre M&D FourC kernel, NOT the atom Cache4/Grouper/Ak design.
 module;
+#include <cmath>
+#include <concepts>
 #include <stdexcept>
 #include <cassert>
 #include <vector>
 export module qchem.BasisSet.Gaussian.Point.IBS;
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
+export import qchem.BasisSet.Orbital_PP_IBS;            // the species-field service the PP mixin answers
+import qchem.Math;                                      // Pi
+import qchem.Math.SolidHarmonics;                       // CartGaussian, MultiplyR2, YlmCartesian
+import qchem.Math.Angular;                               // CartTerm, Monomial
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Gaussian.Evaluators;      // concepts + generic 1E matrix builders
@@ -95,6 +101,85 @@ protected:
                for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Nuclear(i,j,cl); return S; }
     }
     const E& Cast() const {return dynamic_cast<const E&>(*this);}
+};
+
+// --- Species fields: the analytic local PP and KB projectors -----------------------------------------
+// The kernels an evaluator supplies for a closed-form field.  OverlapWith is <i|g>, OperatorThreeC is
+// <i|g|j>, and RepulsionThreeC is (ij|e^{-alpha|r-c|^2}), the Coulomb potential of a Gaussian charge.
+template <class E> concept isPP_Evaluator = std::derived_from<E, Evaluators::Evaluator>
+    && requires (const E e, size_t i, size_t j, const Math::CartGaussian& g, const rvec3_t& c, double a)
+{
+    {e.OverlapWith    (i, g)      } -> std::same_as<double>;
+    {e.OperatorThreeC (i, j, g)   } -> std::same_as<double>;
+    {e.RepulsionThreeC(i, j, c, a)} -> std::same_as<double>;
+};
+
+//! \brief The finite-structure \c Orbital_PP_IBS of a Gaussian basis, in closed form.  The same forms GPW
+//! assembles under its lattice sums: a Gaussian short part, an erf long part, Gaussian-\f$Y_{lm}\f$
+//! projectors.  Exact, so no mesh enters these integrals.  A field without the closed-form faces cannot be
+//! assembled here, and \c CanAssembleField says so.
+template <class E> requires isPP_Evaluator<E>
+class EOrbital_PP_IBS : public virtual Orbital_PP_IBS<double>
+{
+public:
+    virtual bool CanAssembleField(const SpeciesRadialField& f) const override
+    {
+        return dynamic_cast<const SpeciesRadialField_Gaussian*>(&f)
+            && dynamic_cast<const SpeciesRadialField_GaussianCharge*>(&f);
+    }
+    virtual bool CanAssembleProjectors(const SpeciesProjectorSet& ps) const override
+    {
+        return dynamic_cast<const SpeciesProjectorSet_Gaussian*>(&ps);
+    }
+    virtual rsmat_t MakeSpeciesFieldMatrix(const Structure* st, const SpeciesRadialField& f, FieldRange range) const override
+    {
+        const E& e=dynamic_cast<const E&>(*this);
+        const auto& gs=dynamic_cast<const SpeciesRadialField_Gaussian&>(f);
+        const auto& gc=dynamic_cast<const SpeciesRadialField_GaussianCharge&>(f);
+        rsmat_t V(e.size());
+        for (const Site& a : st->Sites())
+        {
+            if (range!=FieldRange::Long)
+                for (const auto& t : gs.AsGaussians(a.Z,FieldRange::Short))
+                {
+                    Math::CartGaussian g{a.R, t.alpha, Math::MultiplyR2({Math::CartTerm{Math::Monomial{0,0,0},t.c}}, t.n)};
+                    for (auto i:e.indices()) for (auto j:e.indices(i)) V(i,j)+=e.OperatorThreeC(i,j,g);
+                }
+            if (range!=FieldRange::Short)
+            {
+                const GaussianCharge q=gc.AsGaussianCharge(a.Z);
+                const double scale=-q.q*std::pow(q.alpha/Pi,1.5);
+                for (auto i:e.indices()) for (auto j:e.indices(i)) V(i,j)+=scale*e.RepulsionThreeC(i,j,a.R,q.alpha);
+            }
+        }
+        return V;
+    }
+    virtual rsmat_t MakeProjectorMatrix(const Structure* st, const SpeciesProjectorSet& ps) const override
+    {
+        const E& e=dynamic_cast<const E&>(*this);
+        const auto& gp=dynamic_cast<const SpeciesProjectorSet_Gaussian&>(ps);
+        const size_t n=e.size();
+        rsmat_t V(n);
+        for (const Site& a : st->Sites())
+            for (size_t p=0; p<ps.Count(a.Z); p++)
+            {
+                const int l=ps.L(a.Z,p);
+                const double D=ps.Weight(a.Z,p);
+                const auto radial=gp.AsGaussians(a.Z,p);
+                for (int m=-l; m<=l; m++)
+                {
+                    rvec_t b(n,0.0);
+                    for (const auto& t : radial)                // c r^{2n} e^{-alpha r^2} x [r^l Y_lm]
+                    {
+                        Math::CartGaussian g{a.R, t.alpha, Math::MultiplyR2(Math::YlmCartesian(l,m), t.n)};
+                        for (auto& c : g.terms) c.c*=t.c;
+                        for (auto i:e.indices()) b[i]+=e.OverlapWith(i,g);
+                    }
+                    for (auto i:e.indices()) for (auto j:e.indices(i)) V(i,j)+=D*b[i]*b[j];
+                }
+            }
+        return V;
+    }
 };
 
 // --- 3-centre (DFT fit): <ab|c> for each fit component c ------------------------------------------

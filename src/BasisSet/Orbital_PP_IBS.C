@@ -67,6 +67,24 @@ public:
     virtual std::vector<Math::Gaussian> AsGaussians(int Z, FieldRange) const=0;
 };
 
+//! \brief A spherical Gaussian charge \f$q(\alpha/\pi)^{3/2}e^{-\alpha r^2}\f$ of attracting sign: its
+//! potential on an electron is \f$-q\,\mathrm{erf}(\sqrt\alpha\,r)/r\f$.
+struct GaussianCharge
+{
+    double q;       //!< the charge
+    double alpha;   //!< its exponent
+};
+
+//! \brief CAPABILITY: the field's LONG range is the potential of a Gaussian charge, exactly (not fitted).  A
+//! Gaussian basis then forms \f$\langle\chi_i|v_{long}|\chi_j\rangle\f$ as a 3-centre Coulomb integral.
+//! Optional: reached by cross-cast from \c SpeciesRadialField.
+class SpeciesRadialField_GaussianCharge : public virtual SpeciesRadialField
+{
+public:
+    virtual ~SpeciesRadialField_GaussianCharge() {}
+    virtual GaussianCharge AsGaussianCharge(int Z) const=0;
+};
+
 //! \brief A WEIGHTED SET of species-attached radial \f$\times\,Y_{lm}\f$ projectors, \f$\sum_p w_p
 //! |\beta_p Y_{l_p m}\rangle\langle\beta_p Y_{l_p m}|\f$ per species: the argument of the separable
 //! integral \f$\langle i|\sum_a\sum_p w_p|\beta^a_p\rangle\langle\beta^a_p|\,|j\rangle\f$ (Kleinman-Bylander
@@ -121,6 +139,11 @@ template <class T> class Orbital_PP_IBS
 {
 public:
     virtual ~Orbital_PP_IBS() {}
+    //! Can this basis assemble \a field?  A term keeps its quadrature route when the answer is no: a closed-form
+    //! Gaussian route needs a field that carries the closed-form faces, and a decorator asks what it decorates.
+    virtual bool CanAssembleField     (const SpeciesRadialField&)  const {return true;}
+    //! Can this basis assemble \a projectors?  As \c CanAssembleField.
+    virtual bool CanAssembleProjectors(const SpeciesProjectorSet&) const {return true;}
     //! \f$\langle i|\sum_a v_{Z_a}(|r-R_a|)|j\rangle\f$ for the given RANGE of \a field (Hermitian).  The
     //! \f$\Delta G=0\f$ term of a periodic assembly is the dropped uniform shift (\c CellMeanQ aligns it).
     virtual hmat_t<T> MakeSpeciesFieldMatrix(const Structure*, const SpeciesRadialField& field, FieldRange) const=0;

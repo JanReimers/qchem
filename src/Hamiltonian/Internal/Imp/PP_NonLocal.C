@@ -8,62 +8,20 @@ module;
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include <stdexcept>
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.Mesh.Quadrature;           // qcMesh::Overlap(mesh, VectorFunction, ScalarFunction) -> projection vector
 import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (passed direct)
+import qchem.Math.SolidHarmonics;       // RealYlm
 
 namespace qchem::Hamiltonian
 {
 
 namespace {
 
-// Real (tesseral) spherical harmonic Y_lm(rhat), UNIT-NORMALISED on the sphere (integral |Y|^2 dOmega = 1),
-// evaluated from the UNIT vector n=(x,y,z).  Only Sum_m |Y_lm><Y_lm| (the degree-l projector) enters the KB
-// term, so any orthonormal real degree-l set is equivalent; these are the standard Cartesian forms.  m runs
-// -l..+l.  GTH/HGH projectors reach l=3 (f) at most.
-double RealYlm(int l, int m, double x, double y, double z)
-{
-    using std::sqrt;
-    const double pi=Pi;
-    switch (l)
-    {
-    case 0: return 0.5/sqrt(pi);                                            // Y_00
-    case 1:
-        switch (m)
-        {
-        case -1: return sqrt(0.75/pi)*y;
-        case  0: return sqrt(0.75/pi)*z;
-        case  1: return sqrt(0.75/pi)*x;
-        }
-        break;
-    case 2:
-        switch (m)
-        {
-        case -2: return sqrt(15.0/(4*pi))*x*y;
-        case -1: return sqrt(15.0/(4*pi))*y*z;
-        case  0: return sqrt( 5.0/(16*pi))*(3*z*z-1.0);                     // x^2+y^2+z^2=1
-        case  1: return sqrt(15.0/(4*pi))*x*z;
-        case  2: return sqrt(15.0/(16*pi))*(x*x-y*y);
-        }
-        break;
-    case 3:
-        switch (m)
-        {
-        case -3: return sqrt( 35.0/(32*pi))*y*(3*x*x-y*y);
-        case -2: return sqrt(105.0/(4 *pi))*x*y*z;
-        case -1: return sqrt( 21.0/(32*pi))*y*(5*z*z-1.0);
-        case  0: return sqrt(  7.0/(16*pi))*z*(5*z*z-3.0);
-        case  1: return sqrt( 21.0/(32*pi))*x*(5*z*z-1.0);
-        case  2: return sqrt(105.0/(16*pi))*z*(x*x-y*y);
-        case  3: return sqrt( 35.0/(32*pi))*x*(x*x-3*y*y);
-        }
-        break;
-    }
-    assert(false && "RealYlm: unsupported (l,m)");
-    return 0.0;
-}
+using Math::RealYlm;
 
 // One KB projector channel as a scalar field: beta_p(|r-R|) * Y_lm((r-R)^).  At r=R the angular factor is
 // singular but beta_p(0)=0 for l>=1 (the r^l prefactor) and finite for l=0, so the product is well-defined;
@@ -90,7 +48,6 @@ PP_NonLocal::PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp
 {
     assert(theStructure);
     assert(itsSep);
-    assert(itsMesh && itsMesh->size()>0);
 }
 
 // The IMPLICIT-ANGULAR (atomic, radial) assembly.  An atom block stores chi_i(r) with the irrep's Y_lm
@@ -135,6 +92,9 @@ rsmat_t PP_NonLocal::MakeMatrix(const robs_t* bs, const Spin&) const
     // Capability cross-cast (abstract->abstract): a radial/implicit-Y_lm block takes the per-l radial route.
     if (auto* ia=dynamic_cast<const BasisSet::ImplicitAngular_IBS*>(bs))
         return MakeMatrixRadial(*ia, bs->GetVectorSize());
+    if (auto* pp=dynamic_cast<const BasisSet::Orbital_PP_IBS<double>*>(bs); pp && pp->CanAssembleProjectors(*itsSep))
+        return pp->MakeProjectorMatrix(theStructure.get(), *itsSep);
+    if (!itsMesh) throw std::logic_error("PP_NonLocal: this basis needs the PP quadrature, and the Hamiltonian built none");
 
     const qcMesh::Mesh& mesh=*itsMesh;   // the run's shared PP quadrature
     size_t n=bs->GetVectorSize();
@@ -167,7 +127,7 @@ void PP_NonLocal::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const
 
 std::ostream& PP_NonLocal::Write(std::ostream& os) const
 {
-    return os << "    Separable (KB) non-local pseudopotential (mesh quadrature), " << theStructure->GetNumAtoms()
+    return os << "    Separable (KB) non-local pseudopotential (" << (itsMesh ? "mesh quadrature" : "closed form") << "), " << theStructure->GetNumAtoms()
               << " atom(s)." << std::endl;
 }
 

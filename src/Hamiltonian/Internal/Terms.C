@@ -86,7 +86,8 @@ public:
     typedef std::shared_ptr<const BasisSet::SpeciesRadialField> vloc_t;
     typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
     //! \a mesh: the run's PP quadrature, built ONCE by the Hamiltonian in its own build phase and shared with PP_NonLocal (it is
-    //! geometry-only, so one mesh serves every basis block) -- never built lazily at the first matrix request.
+    //! geometry-only, so one mesh serves every basis block) -- never built lazily at the first matrix request.  Null when every
+    //! basis block assembles the field in closed form (\c Orbital_PP_IBS).
     PP_Local(const st_t& st, vloc_t vloc, mesh_t mesh);
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP local) = DM_Contract
     virtual std::ostream& Write    (std::ostream&) const;
@@ -103,7 +104,8 @@ private:
 //  <beta_p Y_lm| -- real symmetric, STATIC.  This is the repulsive (for the occupied valence l-channels)
 //  piece that lifts the over-bound local-only spectrum back to the all-electron valence eigenvalues.
 //
-//  TWO assemblies, chosen by a capability cross-cast on the block (the angular factor decides):
+//  THREE assemblies, chosen by capability cross-casts on the block:
+//   * CLOSED FORM (a basis that answers Orbital_PP_IBS, the molecular Gaussians): exact, no mesh.
 //   * EXPLICIT-angular (molecular/Cartesian) -- the 3-D mesh route: per atom, per projector, per m=-l..l a
 //     rank-1 D|b><b| with b_i = <chi_i|beta_p(|r-R|) Y_lm(rhat)> (mesh quadrature).
 //   * IMPLICIT-angular (ATOMIC, radial: BasisSet::ImplicitAngular_IBS) -- the per-l RADIAL route, because a
@@ -121,7 +123,7 @@ public:
     typedef std::shared_ptr<const Structure> st_t;
     typedef std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep_t;
     typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
-    //! \a mesh: the run's shared PP quadrature (see PP_Local) for the explicit-angular route; \a mp still states the radial
+    //! \a mesh: the run's shared PP quadrature (see PP_Local) for the explicit-angular route, null when no block needs it; \a mp still states the radial
     //! route's radial rule (an atomic block never touches the 3-D mesh).
     PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp, mesh_t mesh);
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP nonlocal) = DM_Contract

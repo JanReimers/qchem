@@ -44,6 +44,7 @@ import qchem.Parallel;                                                // InnerTh
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;      // PGData
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF named kernels
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;// Polarization
+import qchem.Math.Angular;                                         // Monomial
 import qchem.IntPow;                                             // uintpow (the monomial power tables of the collocation box walk)
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;               // the pair-loop tolerances (D-ENV step 5)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;                       // GaussianFunction (the <chi_i|g> seam type)
@@ -359,6 +360,23 @@ public:
         int Lg=0;
         for (const auto& t : g.terms) Lg=std::max(Lg, t.p.n+t.p.l+t.p.m);
         return Lg;
+    }
+    // The three kernels of an analytic species field (isPP_Evaluator).  g is integrated RAW.
+    double OverlapWith(size_t i, const Math::CartGaussian& g) const
+    {
+        return ns[i]*GaussOverlapTerm(i, g, g.center, GaussDegree(g));
+    }
+    double OperatorThreeC(size_t i, size_t j, const Math::CartGaussian& g) const
+    {
+        GaussianRF gr(g.alpha, g.center, GaussDegree(g));
+        double s=0.0;
+        for (const auto& t : g.terms) s += t.c*gr.Overlap3C(*radials[i], *radials[j], pols[i], pols[j], Polarization(t.p));
+        return s*ns[i]*ns[j];
+    }
+    double RepulsionThreeC(size_t i, size_t j, const rvec3_t& c, double alpha) const
+    {
+        GaussianRF gr(alpha, c, 0);
+        return ns[i]*ns[j]*gr.Repulsion3C(*radials[i], *radials[j], pols[i], pols[j], Polarization(Math::Monomial{0,0,0}));
     }
     double GaussOverlapTerm(size_t i, const Gaussian::LatticeSum1E::GaussianFunction& g,
                             const rvec3_t& c, int Lg) const
