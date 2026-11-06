@@ -17,6 +17,8 @@ step 5 lands.  The rows stay the record of what is open; this file holds only th
 
 **Step 4's inner order (lane S's notes `lane-s-v135-blast-radius.md`, `lane-s-v141-stages-2-3.md`):** the two `V1.41` rulings; stage 2 for `Vee_Hartree`, `Vxc_Quadrature`, `Hubbard_U`; `V1.35` as deletions (once `MakeMatrix(bs, s, DensityID)` is in, no block signature names the run scalar, so `TRun` may not be needed); then the rest of stage 2, and stage 3.  `FittedVee` and `FittedVxc` need coefficients as values, a tier-1 `Fitting.FunctionFitter` change, and do not block `V1.35`.
 
+**`V1.41` Decision 1, RULED (user 2026-11-06): option C.**  One current state per term, filled by the refresh; the block query reads it; the value passes the `DensityID` only as a check against the stamp, live until confidence allows its removal (no client sees the ID, so it can go with no client edit).  No keyed map, no per-term value objects.  This rewords stage 3: no IMPLICIT "density I saw last", not "no state".  Two values alive at once is given up: nothing uses it (`lane-s-v141-stages-2-3.md`, addendum).  Decision 2, DECIDED (controller, delegated by the user 2026-11-06): a source-less density gets n = 0 unless frozen, frozen n being a parameter.  If the proof below hits a real path, the fallback is handing the previous occupations over explicitly, and that comes back to the controller.  Proved by making `Hubbard.C:821`'s non-zero case throw across the `_U_` GPW tests and the +U panel.
+
 Not in the sprint: `V1.39` (its own trigger is GGA), `V-BLOCKED-MATRIX` (it may fall out of step 4; decide there).
 
 **While in each file (user 2026-11-06, `OOD-SOLID-Cleanup.md` header):** concrete classes not seen by clients are low priority, but look for the same sequence of code appearing in two structure-specific classes, and log or fold it.
@@ -46,8 +48,9 @@ No row needs a material campaign.  Those came from numerical questions; a cleanu
 
 The Dunlap fit is not named explicitly today, and it should be.  Target: two versions of the Hartree term (`FittedVee`, or `Vee_DFT` under
 the new naming), one Dunlap and one normal.  Each creates the correct fitter implementations and calls the correct 3-centre integrals.
-Today one `FittedVee` serves both and tells them apart by `itsGridCharge`, and the energy formula 2·EeeFit − EeeFitFit is valid only for
-Dunlap: that is the defect.  The two versions are the shapes in `doc/Records/HartreeFitConsistency.md`: Dunlap Cᵀ G⁻¹ C, second order;
+Today one `FittedVee` serves both and tells them apart by `itsGridCharge`, and the energy formula 2·EeeFit − EeeFitFit is shared without saying
+what it needs: that is the defect.  It needs a real ρ̃ with a solved potential, so Dunlap and multipole qualify and δ does not (user 2026-11-06: 'only
+Dunlap' was too narrow a framing).  The two versions are the shapes in `doc/Records/HartreeFitConsistency.md`: Dunlap Cᵀ G⁻¹ C, second order;
 normal Oᵀ K O, first order, with `K` a `CoulombOperator`.
 
 **Open for the note: can they be structure neutral?**  Wanted, if achievable.  The likely obstacle is G = 0: a periodic Coulomb metric
@@ -56,11 +59,11 @@ Say what each version does on a molecule, an atom and a solid, and where neutral
 
 **Accepted (user 2026-11-06, on lane S's note `lane-s-v11b-two-hartree-terms.md`):** the normal term asks K for its energy (δ gives ½q·v, multipole its two-leg form, 0 moves), since 2·EeeFit − EeeFitFit needs a real ρ̃ with a solved potential, not the Coulomb metric as such.  Dunlap is refused on solids, a second stated exception to "every combination" beside multipole × periodic; on the plane-wave fit basis the two are one formula.
 
-## Term names (user 2026-11-06: `Vee_Hartree` is redundant, `Vxc_Quadrature` likewise; PROPOSED, awaiting the user)
+## Term names (user 2026-11-06: `Vee_Hartree` is redundant, `Vxc_Quadrature` likewise; RULED, the table below)
 
 `<Operator>_<Theory>[_<Variant>]`: the theory is HF or DFT, and a variant appears only where two realizations differ in FORMULA, never for structure or grid.
 
-| today | proposed |
+| today | ruled |
 |---|---|
 | `Vee` | `Vee_HF` |
 | `Vxc` | `Vxc_HF` (ruled) |

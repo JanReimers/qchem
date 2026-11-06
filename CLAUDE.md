@@ -117,6 +117,7 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
 
 - Use CamelCase / PascalCase for names, breaking to underscores at acronyms — for example
     `HF_Evaluator` or `HF_DFT_Evaluator`.
+- **Hamiltonian term names are `<Operator>_<Theory>[_<Variant>]`** (user, 2026-11-06): the theory is HF or DFT, and a variant appears only where two realizations differ in FORMULA, never for structure or grid: `Vee_HF`, `Vxc_HF`, `Vee_DFT`, `Vee_DFT_Dunlap`, `Vxc_DFT`, `Ven_PP_Local`.  The table of renames is in `doc/HamiltonianSprintPlan.md`.
 - Cosmetic: I like using `dcmplx = std::complex<double>;` (already in `src/Math/Types.C`) — it has the
     same number of chars as `double`, so things line up nicely in a class interface.
 
