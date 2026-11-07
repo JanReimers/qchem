@@ -249,6 +249,7 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
 2. **`NoGradient` for every non-default route** (δ / multipole Hartree, A1 / multipole XC, the PP quadrature): refused with an Outcome naming the term and the route BEFORE an optimization starts, each route with its own row.
 3. **The PySCF DF-J near oracle for Dunlap** is accepted beside the exact per-term finite difference at fixed D.
 
+**Automatic differentiation spike (user 2026-11-07, "a very sound use of two days"):** before any term gradient is hand-derived, 1-2 days with Enzyme (an LLVM plugin, built from source against our LLVM 21) on the Becke-mesh δ XC energy at fixed D, H₂O: against the per-term finite difference, Σ_A F_A = 0, cost vs one energy, tape memory, friction with modules / Blaze / OpenMP; then dE/dD by AD against the term's H (a pin 32 checker).  Never differentiate through the SCF iterations: forces are dE/dR at the converged D plus the Pulay term.  The result decides the architecture: libcint for integral derivatives, AD for grid and fit terms (and Hessian-vector products for level 2), or hand derivation.
 
 ## 13. The `Forces` surface on the hub (DESIGN, for the user before code; lane B 2026-11-07)
 

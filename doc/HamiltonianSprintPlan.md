@@ -25,6 +25,8 @@ step 5 lands.  The rows stay the record of what is open; this file holds only th
 
 **Step 5 also adds `VxcFit::Multipole` as a column of `VxcProductSpace` (user 2026-11-07):** `AdmitVxc` admits it and `GridHartree.C` tests it, but the 27-cell gate never sees it.
 
+**`V-ONE-OF-N` design APPROVED (user 2026-11-07)** on lane S's note: non-template `FitCoefficients` (`rvec_t` or `ΔG_Map`, one populated, no public member, a mismatch throws); `MatrixForward::Forward` returns it and `Adjoint` takes it (`Vee_Hartree` joins the pair); `tChargeDensity<T>` gains `Coefficients(fit)` / `RepulsionCoefficients(fit)`, and the `FourierDensity` face and `FourierDensityBase` go (D2); `GetRhoOnGrid`'s clients take `Coefficients(fit)` (R1.0n/o); `Projector3` → `PairProjection<T>`; `Overlap`'s identity / diagonal waits for sparse PW.  `FittedVxc` is NOT pin-32 consistent (H from the v fit, E from the ε fit): step 5's `VxcProductSpace` work, not settled by the record.
+
 Not in the sprint: `V1.39` (its own trigger is GGA), `V-BLOCKED-MATRIX` (it may fall out of step 4; decide there).
 
 **While in each file (user 2026-11-06, `OOD-SOLID-Cleanup.md` header):** concrete classes not seen by clients are low priority, but look for the same sequence of code appearing in two structure-specific classes, and log or fold it.
