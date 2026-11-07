@@ -4,6 +4,17 @@ Brief notes about module/library conventions, naming, and includes.
 
 ## My high level biases
 
+- **Priorities, in order** (user, 2026-11-07; "there is probably at least one more"):
+    1. **Get the right numbers.**
+    2. **Do it quickly** (CPU, threads) **and efficiently** (threads, RAM).
+    3. **Put the burden in the code, not on the user**, as far as possible: be kind to the new grad student.  (Inspiration: the ISO C++
+       committee's philosophy of putting the burden on the compiler writers.)  So the run picks its own grids from ε, refuses a bad
+       combination with a reason, and reports its own health.
+    4. **A clean SOLID / OOD framework**: be kind to future coders.
+- **Framework vs efficiency are separate layers** (user, 2026-11-05).  The libraries (basis sets, fitting, charge density, ...) work for
+    ANY combination in their product space.  Which combinations are too slow is a POLICY decided above them (facades, setup, defaults,
+    warnings, refusals), never a hole left in a library.  "Not a production route" is a policy remark, not a reason to skip a combination.
+    This is how priorities 2 and 4 coexist: efficiency is chosen at the policy layer, so it never makes the framework patchy.
 - I used to work on frustrated magnets so one of my biases is that I don't like the "closed shell only, polarized is a special case" mind set. Ultimately I want everything available Pol and UnPol ... and for me UnPol is the special case for efficiency.
 
 ## Build & test
