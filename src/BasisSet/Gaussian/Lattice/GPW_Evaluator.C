@@ -192,6 +192,12 @@ public:
     //! Cache-key fragment: the molecular basis's ID + \f$k\f$ + translation count + the density-grid cutoff
     //! (the collocation tensor depends on the grid, so the framework cache key must pin it).
     std::string IDFragment() const;
+    //! Cache key of \c MakeLocalPPShort.  The ANALYTIC short PP reads only the molecular basis, k, the cell, the home-only
+    //! mode and \c screenEps -- never a raster, the ladder or the density grid -- so its key leaves those out, and a basis
+    //! REBUILT on new rasters (the raster pilot's references, the re-converged run) finds the block its predecessor built
+    //! (the q3 aug pilot built it 6 times per k block: 2,610 s, 36% of the run; OpenWork §4).  A field without the closed-
+    //! Gaussian face takes the grid fallback, which does read the rasters, so it keys on the full \c IDFragment.
+    std::string LocalPPShortIDFragment(const SpeciesRadialField& loc) const;
 
     //! \brief Thread the run's IMPOSED crystal ops \f$\{W|\tau\}\f$ into the evaluator -- §3 policy-gated
     //! (doc/SymmetryUpgradePlan.md): \c GPW_IBS injects them NON-EMPTY only when the caller asserted

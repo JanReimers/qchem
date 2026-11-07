@@ -136,8 +136,18 @@ template <class T> hmat_t<T> tGPW_IBS<T>::MakeSpeciesFieldMatrix(const Structure
         return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPLong, this, cl->ID(),
             [this,cl,&f]{ return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPPLong(cl, f)); });
     case FieldRange::Short:
-        return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPShort, this, cl->ID(),
+    {
+        // Its own key, without the grid facts (GPW_Evaluator::LocalPPShortIDFragment): a rebuilt basis reuses the block.
+        struct ShortKey : DBCacheClient
+        {
+            std::string id; size_t dim;
+            ShortKey(std::string i, size_t d) : id(std::move(i)), dim(d) {}
+            std::string BasisSetID() const override {return id;}
+            size_t      CacheDim  () const override {return dim;}
+        } key(Name()+GPW_Evaluator::LocalPPShortIDFragment(f), this->CacheDim());
+        return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPShort, &key, cl->ID(),
             [this,cl,&f]{ return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPPShort(cl, f)); });
+    }
     default:
         return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPP, this, cl->ID(),
             [this,cl,&f]{ return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPP(cl, f)); });

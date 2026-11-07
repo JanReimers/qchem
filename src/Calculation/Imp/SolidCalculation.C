@@ -1601,8 +1601,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         const GridAuditResult Bl=CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), withRung("density ball x 2", xcRadial), xcRadial ? &*xcRadial : nullptr, 2.0);
         // R is GridAudit(kReferenceMargin) at this D exactly when its reference carries no XC rung (a postSCF gridAudit keeps the run's mesh).
         if (xcAngular) itsImp->pilotLastAudit.reset();
-        else { itsImp->pilotLastAudit=R; itsImp->pilotLastAudit->reference=RasterName(ReferenceRasters(kReferenceMargin));
-               itsImp->pilotLastAuditGeneration=itsImp->dGeneration; }
+        else { itsImp->pilotLastAudit=R; itsImp->pilotLastAuditGeneration=itsImp->dGeneration; }   // its name stays the round's own
         G::GPWTolerances t=itsImp->setup->opts.tolerances;
         double dDens=0.0, dV=0.0, dXC=0.0;
         rpt::json terms=rpt::json::array();

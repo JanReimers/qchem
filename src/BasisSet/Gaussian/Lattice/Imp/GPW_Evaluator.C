@@ -14,6 +14,7 @@ module;
 #include <map>
 #include <algorithm>
 #include <chrono>    // std::chrono (timing the MakeLocalPP integrate-back at different kappa)
+#include <format>    // the short-PP cache key's screenEps
 #include <cstdlib>   // std::getenv/std::atof (GPW_LOCALPP_RELCUTOFF / QCHEM_OPENMP_THREADS knobs)
 module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
 import qchem.BasisSet.AoShellSource;  // the shell table: each centre's own most diffuse exponent (D12)
@@ -1260,6 +1261,16 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
         }
     }
     return pack(Vl);
+}
+
+std::string GPW_Evaluator::LocalPPShortIDFragment(const SpeciesRadialField& loc) const
+{
+    if (!dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc)) return IDFragment();   // the grid fallback reads the rasters
+    return "|analytic|mol="+itsOrb->BasisSetID()
+         +"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
+         +"|cell="+std::to_string(itsCell.GetCellVolume())+","+std::to_string(itsCell.GetMaximumCellEdge())
+         +(itsHomeOnly?"|home":"")
+         +"|screenEps="+std::format("{:.17g}",itsTol.screenEps);
 }
 
 // Cache key: the molecular basis's geometry-aware ID pins the radials + centres (atom positions); the CELL
