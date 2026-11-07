@@ -810,17 +810,17 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
 {
     if (!cd || itsFrozen) return;
     if (cd->Version()==itsOccVersion) return;
-    // A channel with NO source (the matrix-free seed) KEEPS whatever occupations it has -- only before any
-    // occupations exist is n=0 the answer.
+    // A density with NO source (the matrix-free seed) has n = 0 (V = U/2 P, E_U = 0), whatever came before: the occupations are a
+    // function of THIS density alone (V1.41 Decision 2, user ruling 2026-11-06).  It used to KEEP the last n; a throw on every
+    // keep of a non-zero n stayed silent over the 16 GPW Γ_U_ tests and the +U panel (lane S, 2026-11-07), so the keep only
+    // ever kept zeros.  Frozen n is the one exception, and it is a parameter (above).
     const std::map<Spin,rvec_t> dn=DensityOccupations(cd);
     bool any=false;
     for (const auto& [s,n] : dn) any = any || n.size()>0;
     if (!any)
     {
         if (itsProj.empty() && itsProjR.empty()) return;    // before any block: nothing to size n by (seed)
-        for (const auto& [s,ch] : itsChannels) if (ch.W.size()==NumCoefficients()) return;   // keep the last n
-        // nothing yet: n = 0 in every channel (V = U/2 P, E_U = 0); the version is NOT stamped so the first
-        // DM-backed density does the real work.
+        // n = 0 in every channel; the version is NOT stamped so the first DM-backed density does the real work.
         for (auto& [s,ch] : itsChannels) { ch.n=rvec_t(NumCoefficients(),0.0); Analyse(s,ch); }
         return;
     }
@@ -828,8 +828,7 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
     for (auto& [s,ch] : itsChannels)
     {
         const rvec_t& n=dn.at(s);
-        if (n.size()>0) ch.n=n;                                // a source-less channel keeps its n
-        if (ch.n.size()!=NumCoefficients()) ch.n=rvec_t(NumCoefficients(),0.0);
+        ch.n = n.size()==NumCoefficients() ? n : rvec_t(NumCoefficients(),0.0);   // a source-less channel: n = 0
         itsEU+=Analyse(s,ch);
     }
     if (itsGroup==SpinGroup::UnPolarized) itsEU*=2.0;    // both (identical) channels
@@ -893,6 +892,7 @@ void Hubbard_U::PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const
 void Hubbard_U::RefreshForDensity(const cChargeDensity* cd) const
 {
     EnsureOccupations(cd);
+    itsRefreshedVersion = cd ? cd->Version() : size_t(-1);   // what the block path checks (V1.41 stage 2)
 }
 
 //------------------------------------------------------------------------------ HubbardProjection (ACBN0)
@@ -966,6 +966,7 @@ void Hubbard_U::FreezeOccupations(bool frozen)
     if (was && !frozen)
     {
         itsOccVersion=size_t(-1);
+        itsRefreshedVersion=size_t(-1);
         cDynamic_HT_Imp::InvalidateCache();
         Dynamic_HT_RealBlock_Imp::InvalidateRealCache();
     }
@@ -976,6 +977,7 @@ void Hubbard_U::FreezeOccupations(bool frozen)
 void Hubbard_U::ApplyWrite()
 {
     itsOccVersion=size_t(-1);                               // W depends on U/alpha: the next refresh rebuilds it from n
+    itsRefreshedVersion=size_t(-1);                         // ...and no block may read the old W before it does
     if (itsFrozen)
     {
         bool held=!itsChannels.empty();
@@ -1040,7 +1042,10 @@ const rvec_t& Hubbard_U::Occupations(size_t M, const Spin& s) const
 //------------------------------------------------------------------------------------------ the matrix
 template <class U> hmat_t<U> Hubbard_U::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
 {
-    EnsureOccupations(cd);   // a LOOKUP: the refresh (the contract, KAxisPlan P2) filled it for this density
+    // A READ (V1.41 stage 2, ruling C): the refresh built n and W for this density; a block only checks it did.  A miss (no refresh,
+    // or a U/alpha write since) is a caller that skipped the refresh, a broken contract no caller can act on.
+    if (!cd || cd->Version()!=itsRefreshedVersion)
+        throw std::logic_error("Hubbard_U: block asked for a density the refresh did not see (RefreshForDensity first)");
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);
     const Spin chan = (itsGroup==SpinGroup::UnPolarized) ? Spin::None : s;
     auto it=itsChannels.find(chan);
