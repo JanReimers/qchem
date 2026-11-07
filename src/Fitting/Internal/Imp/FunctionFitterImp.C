@@ -49,10 +49,9 @@ template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedScalar_R& r)
 // compile.  TFit==T on this lineage -- a molecular Gaussian block is Orbital_DFT_IBS<double,double>.
 template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const BasisSet::Orbital_DFT_IBS<T,T>& orb) const
 {
-    const Projector3<T>& O3=this->itsBasisSet->Overlap3C(orb);
-    hmat_t<T> J=blazem::zeroH<T>(orb.GetNumFunctions());
-    size_t i=0;
-    for (auto c:this->itsFitCoeff) J+=c*O3.dense[i++];
+    // THE ADJOINT HALF (R1.0q): no forward exists here, v(rho(r)) is pointwise nonlinear so no D is ever contracted.  Built per call,
+    // not held per block as ConstrainedFF does: the basis's cache keys the tensor by BasisSetID, a SymMap here would key it by symmetry.
+    const hmat_t<T> J=DenseProjector3Integrator<T>(this->itsBasisSet->Overlap3C(orb), this->itsBasisSet->Charge()).Adjoint(this->itsFitCoeff);
     assert(!blazem::isnan(J));
     return J;
 }
