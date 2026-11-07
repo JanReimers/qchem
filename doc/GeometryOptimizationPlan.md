@@ -251,3 +251,66 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
 
 **Automatic differentiation spike (user 2026-11-07, "a very sound use of two days"):** before any term gradient is hand-derived, 1-2 days with Enzyme (an LLVM plugin, built from source against our LLVM 21) on the Becke-mesh δ XC energy at fixed D, H₂O: against the per-term finite difference, Σ_A F_A = 0, cost vs one energy, tape memory, friction with modules / Blaze / OpenMP; then dE/dD by AD against the term's H (a pin 32 checker).  Never differentiate through the SCF iterations: forces are dE/dR at the converged D plus the Pulay term.  The result decides the architecture: libcint for integral derivatives, AD for grid and fit terms (and Hessian-vector products for level 2), or hand derivation.
 
+## 13. The `Forces` surface on the hub (DESIGN, for the user before code; lane B 2026-11-07)
+
+Ruling §11.1 puts forces on the `Hamiltonian`, beside the energy.  The hub already has the shape twice:
+- `tHamiltonianAt<T>` (V1.41) is the Hamiltonian AT one density, and the energy is asked of it (`GetTotalEnergy()`).
+- `MakeResponseKernel` folds the dynamic terms' `tResponse_HT` capability faces "so the caller never sees the term list", and
+  names every term that lacks one.
+
+So forces follow both precedents.
+
+**The hub additions (tier-1, the exact surface):**
+
+```cpp
+template <class T> class tHamiltonian            // qchem.Hamiltonian, existing
+{
+    ...
+    //! \brief The terms that cannot give a geometry gradient, each as "<term>: <route>" (e.g. "Vee_DFT: δ fit, radial Poisson"):
+    //! EMPTY = Forces is available.  A static property of the term set, so a session asks it BEFORE the first SCF of an optimization
+    //! and refuses with PESFailure::NoGradient listing them (ruling §11.2).  Folded over the terms like IsVirialValid.
+    virtual std::vector<std::string> MissingGradients() const=0;
+};
+
+template <class T> class tHamiltonianAt          // existing: the Hamiltonian at one density
+{
+    ...
+    //! \brief −dE/dR_A for every atom, Ha/bohr, the structure's atom order: Σ over the terms of their own derivative at this density,
+    //! plus the orthonormality (Pulay) term +Tr(W ∂S/∂R_A).  \a W is the energy-weighted density Σ f ε c cᵀ, in the same blocks and
+    //! spin channels as this value's density.  Each term writes its contribution into the run report as it is summed (a
+    //! report::Row "forces": term, max|F_A|, |Σ_A F_A|).  THROWS when MissingGradients() is not empty: a caller that did not ask
+    //! first is a defect, not an outcome (the Outcome was the session's, before the optimization).
+    std::vector<rvec3_t> Forces(const tDM_CD<T>* W) const;
+};
+```
+
+**Behind the hub, no tier-1 change:**
+- **The term face, a new module** `qchem.Hamiltonian.GeometryGradient`:
+  - `template <class T> class tGeometryGradient { virtual void AddForces(std::vector<rvec3_t>& F, const tbs_t<T>* wholeBasis, const tDM_CD<T>* D) const=0; };`
+  - Implemented by `Kinetic`, `Ven`, `IonIon`, `Ven_PP_Local` and `Ven_PP_NonLocal` (closed form), `Vee_DFT_Dunlap`, and `Vxc_DFT`
+    on the δ basis.
+  - `tHamiltonianImp` reaches each by the sanctioned abstract→abstract cross-cast, exactly as `MakeResponseKernel` reaches
+    `tResponse_HT`.
+  - A term without the face is a `MissingGradients()` entry, and a route-dependent term (Hartree, XC) names its route.
+- **The basis face, a new module** `qchem.BasisSet.GeometryDerivatives`, beside `AoShellSource`:
+  - the capability a Gaussian block gives: dS, dK, dV per atom;
+  - Σ D c ∂(ij|k)/∂R on an orbital block, and Σ c c ∂(k|l)/∂R on a fit block.
+  - PG_Cart implements it through the libcint evaluator on its own `PGData` (the integrals committed today, gated against MnD).
+  - Terms and the Pulay sum reach it by cross-cast from the orbital block they already hold.
+- **W is the facade's.**  `MoleculeCalculation` holds every level (ε, f, orbital), so it builds W as a density-matrix value in the
+  same blocks as D.  `WaveFunction` (tier-1) gains nothing.
+
+**The first increment's limits, each refused by name, never silently zero:**
+- symmetry-blocked runs (SALC blocks): a displacement breaks the blocks, so the contraction needs the AO-level D.  It is a
+  `MissingGradients()` entry until the AO assembly lands; the optimizer's symmetrized map does not need SALC blocks.
+- HF exchange; +U.
+- every non-default route (§11.2).
+
+**Sprint order (§5, unchanged):** the term faces read each term's current state at the converged density, so they land after lane
+S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once stage 2 moves that state into the value.
+
+**Built and gated already on lane-b (not landed), with no hub change:**
+- the optimizer + Cartesian map;
+- the Becke weight gradient;
+- dS / dK / dV;
+- the contracted Dunlap 3c / 2c gradients.
