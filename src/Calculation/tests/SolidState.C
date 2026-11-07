@@ -266,6 +266,12 @@ TEST(SolidState, TheNumericsKeysAreWarmAndAnOlderStateIsStillExact)
     auto gateMoved=CompareFingerprints(noGate, stated);
     ASSERT_TRUE(gateMoved) << gateMoved.Error().details;
     EXPECT_FALSE(gateMoved->empty()) << "...and differs from a run stating another C";
+    EXPECT_TRUE(fp.warmNum.count("gpw.relCutoffSafety"));
+    StateFingerprint noSafety=fp;
+    noSafety.warmNum.erase("gpw.relCutoffSafety");
+    auto safetyDefault=CompareFingerprints(noSafety, fp);
+    ASSERT_TRUE(safetyDefault) << safetyDefault.Error().details;
+    EXPECT_TRUE(safetyDefault->empty()) << "a state with no gpw.relCutoffSafety was built on the evaluator's old constant, the default";
 
     StateFingerprint oldName=fp;
     oldName.warmStr["grids.raster"]="BallOnly";

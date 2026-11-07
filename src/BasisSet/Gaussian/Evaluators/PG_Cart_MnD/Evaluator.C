@@ -125,7 +125,7 @@ public:
     void BindTolerances(const GPWTolerances& t)
     {
         if (t.screenEps==itsPGTol.screenEps && t.fieldSharp==itsPGTol.fieldSharp
-         && t.relCutoff==itsPGTol.relCutoff && t.densityEps==itsPGTol.densityEps) return;
+         && t.relCutoff==itsPGTol.relCutoff && t.densityEps==itsPGTol.densityEps && t.relCutoffSafety==itsPGTol.relCutoffSafety) return;
         // GUARD: two GPW_Evaluators sharing this basis with DIFFERENT tolerances would silently invalidate each other's caches.
         // A built task list / memo means integrals were already computed at the old values: that is a broken invariant, not an input.
         if (!itsBoxTasks.empty() || !itsIntegrateMemos.empty())
@@ -498,16 +498,11 @@ public:
         return a;
     }
     // REL_CUTOFF pair->level assignment (CP2K gaussian_gridlevel): the COARSEST level (largest l) whose cutoff
-    // still resolves the pair's TIGHTEST product term alpha_i+alpha_j, req = kRelSafety x the fine grid's own
-    // relative resolution ecut_fine (alpha_i+alpha_j)/(2 alpha_max).  kRelSafety=2: the CHARGE-calibrated fine
-    // ratio (ecut/p ~ 5 for the auto floor) leaves ~e^{-ecut/2p}=e^{-2.5} spectral tails on a pair at its own
-    // cutoff -- fine for the charge (~1e-5 loss) but a few-mHa ENERGY term once V_H/V_xc couple to it (Si SR
-    // Gamma sat ~5 mHa below CP2K with kRelSafety=1); doubling the requirement moves only the MID pairs one
-    // level up (the diffuse tail stays coarse) and squares the tail to ~e^{-5}.  CP2K's REL_CUTOFF default
-    // (30 Ry) corresponds to a ~3x stiffer ratio than the auto floor, so 2 is still on the lean side.
-    // For an uncontracted basis this IS the per-primitive-product assignment.
-    static constexpr double kRelSafety=2.0;
-    double RelCutoffSafety() const {return kRelSafety;}   // exposed via LatticeSum1E (the ladder-completion rung)
+    // still resolves the pair's TIGHTEST product term alpha_i+alpha_j, req = s x the fine grid's own relative
+    // resolution ecut_fine (alpha_i+alpha_j)/(2 alpha_max).  The stiffness s is the run's GPWTolerances::relCutoffSafety
+    // (bound with the other pair-loop tolerances; its measurement record is at kRelCutoffSafety), the SAME value the ladder's
+    // completion rung reads.  For an uncontracted basis this IS the per-primitive-product assignment.
+    double kRelSafety() const {return itsPGTol.relCutoffSafety;}
     //! \a absRelCutoff = 0: the RELATIVE smooth-field rule (below) -- the density-side calibration, shared by
     //! collocation and the per-iteration integrate-back so the two stay exact adjoints.  \a absRelCutoff > 0:
     //! the ABSOLUTE rule req = absRelCutoff*(alpha_i+alpha_j) (Ha per unit pair exponent -- CP2K's
@@ -549,7 +544,7 @@ public:
         const double beta = relFieldSharp>=0.0 ? relFieldSharp : itsPGTol.fieldSharp*MaxExponent();
         const double req = kappa>0.0
             ? kappa*std::max(MaxExponent(i)+MaxExponent(j), fieldSharpness)
-            : kRelSafety*ecut_L[0]*std::max(MaxExponent(i)+MaxExponent(j), beta)/(2.0*MaxExponent());
+            : kRelSafety()*ecut_L[0]*std::max(MaxExponent(i)+MaxExponent(j), beta)/(2.0*MaxExponent());
         size_t L=0;
         for (size_t l=1; l<ecut_L.size(); l++) if (ecut_L[l]>ecut_L[L]) L=l;          // fallback: finest present
         bool sat=false;
@@ -574,7 +569,7 @@ public:
         for (auto i:indices()) for (auto j:indices(i))
         {
             const double p=MaxExponent(i)+MaxExponent(j);
-            const double req=std::max(kRelSafety*ecut_L[0]*p/(2.0*MaxExponent()),   // the pair's own quadrature
+            const double req=std::max(kRelSafety()*ecut_L[0]*p/(2.0*MaxExponent()),   // the pair's own quadrature
                                       2.0*lnEps*p*beta/(p+beta));                   // static-field truncation
             size_t L=Lf;
             bool sat=false;

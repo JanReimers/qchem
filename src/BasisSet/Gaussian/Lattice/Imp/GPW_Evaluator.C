@@ -156,7 +156,8 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     // this evaluator only CHECKS them.  A pre-built basis carries the defaults, so a run asking for others must build it from a recipe.
     {
         const GPWTolerances& b=itsLat->Tolerances();
-        if (b.screenEps!=itsTol.screenEps || b.fieldSharp!=itsTol.fieldSharp || b.relCutoff!=itsTol.relCutoff || b.densityEps!=itsTol.densityEps)
+        if (b.screenEps!=itsTol.screenEps || b.fieldSharp!=itsTol.fieldSharp || b.relCutoff!=itsTol.relCutoff || b.densityEps!=itsTol.densityEps
+         || b.relCutoffSafety!=itsTol.relCutoffSafety)
             throw std::invalid_argument("GPW_Evaluator: the molecular basis was built with pair-loop tolerances "+b.Describe()+" but the run asks "
                                         +itsTol.Describe()+" -- build the basis through a GaussianBasisRecipe (it binds the run's), not pre-built");
     }

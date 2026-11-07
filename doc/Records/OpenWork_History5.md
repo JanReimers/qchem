@@ -1797,3 +1797,10 @@ Walls are not quiet-box numbers for CP2K.  qchem's 61 s/iteration held from load
 **The stated run first came out 5.8 μHa high.**  `accuracy` 0 drops the derived `vlocEps` 1e-6 back to the no-target routing, −61.30304896.  Stating `vlocEps` 1e-6 gives −61.3030547298, the pilot's value to every printed digit, cold from IonicSAD.  So the settled grids are a complete description only with `vlocEps`.
 
 Original row: | **CP2K MnO timing at MATCHED accuracy** (user, 2026-11-03; step 3 of the sequence above) | the §5a parity rows compare CP2K at 288 Ry, whose own cutoff ladder still moves E by 35 μHa (144/288/576 Ry), against our ε-sized grids; raise CP2K's CUTOFF/REL_CUTOFF until its max|ΔH_ij| (or the energy, for an energy run) meets the same 1e-5, and time that, serial, `mpirun -np 1` · `doc/Benchmark.md` §5a, `~/Code/cp2k-runs/MnO/`
+
+## ✅ The pilot prints what restates its grids (lane A, 2026-11-07, 13d4aff4a)
+
+The raster pilot now prints, and files under `rasterPilot.restate`, the deck keys that reproduce the run it settled: `accuracy` 0, `cutoffFactor`, the three raster demands, `vlocEps`, and the Becke mesh's keys, each double written round-trip exact.  Short sweep green, 0 of 1319 moved by anchordiff against main-bc15bfd5 at 1e-10.
+
+Original row: | **A deck restating a pilot's settled grids also needs its `vlocEps`** (lane A, 2026-11-06) | `accuracy` 0 with the settled rasters and mesh, on MnO VA, falls back to the no-target V_long routing and lands 5.8 μHa off the pilot's energy; stating `vlocEps` 1e-6 reproduces it to every printed digit.  The pilot's SETTLED line names the rasters and the mesh but not `vlocEps`: print it there, and check what lane H's Li grid set restates · `doc/Records/OpenWork_History5.md`, "CP2K MnO at matched accuracy"
+

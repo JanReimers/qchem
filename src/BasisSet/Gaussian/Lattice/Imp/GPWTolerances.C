@@ -25,6 +25,7 @@ std::string GPWTolerances::Describe() const
     if (relCutoff        != d.relCutoff)        os << " relCutoff="        << relCutoff << " Ha";
     if (densityEps       != d.densityEps)       os << " densityEps="       << densityEps;
     if (rungGateC        != d.rungGateC)        os << " rungGateC="        << rungGateC;
+    if (relCutoffSafety  != d.relCutoffSafety)  os << " relCutoffSafety="  << relCutoffSafety;
     if (rasterX          != d.rasterX)          os << " rasterX="          << rasterX;
     if (vlocRasterX      != d.vlocRasterX)      os << " vlocRasterX="      << vlocRasterX;
     if (xcRasterX        != d.xcRasterX)        os << " xcRasterX="        << xcRasterX;
