@@ -78,6 +78,16 @@ public:
     GradientMatrices KineticGradient() const;   //!< of <-nabla^2> (no 1/2), like KineticMatrix
     GradientMatrices NuclearGradient() const;   //!< the basis centres AND the nuclei moving (int1e_ipnuc + int1e_iprinv per nucleus)
 
+    // --- the Coulomb-fit (Dunlap) pieces of the force, CONTRACTED (no per-atom tensor is ever stored; lane B 2026-11-07).  For the orbital
+    // density D (this evaluator's order, symmetric) and fit coefficients c (\a fit's order), per atom A:
+    //   RepulsionThreeC_Gradient(fit, D, c)[A] = Σ_ijk D_ij c_k ∂(ij|k)/∂R_A   (orbital and fit centres moving: int3c2e_ip1, int3c2e_ip2)
+    //   RepulsionTwoC_Gradient(c)[A]          = Σ_kl  c_k c_l ∂(k|l)/∂R_A      (on a FIT evaluator: int2c2e_ip1)
+    // CLIENT: Vee_DFT_Dunlap's gradient, 2·first − second (its charge constraint has no geometry derivative: ∫f_k does not move).
+    // tests/M_LibCint.C checks each against a central difference of our engine's (MnD) contraction at moved atoms.
+    std::vector<rvec3_t> RepulsionThreeC_Gradient(const NR_Evaluator& fit, const rmat_t& D, const rvec_t& c) const;
+    std::vector<rvec3_t> RepulsionTwoC_Gradient  (const rvec_t& c) const;
+    rsmat_t              RepulsionTwoC_Matrix    () const;   //!< the Coulomb metric (k|l) of this (fit) basis: int2c2e, the gradient's gate
+
     // --- isM_DFT (3-centre <ab|c>, one symmetric (ia,ib) block per fit component ic) ---
     Projector3<double> OverlapThreeC_Matrix  (const NR_Evaluator& fit) const;   // int3c1e (overlap)
     Projector3<double> RepulsionThreeC_Matrix(const NR_Evaluator& fit) const;   // int3c2e (Coulomb)
