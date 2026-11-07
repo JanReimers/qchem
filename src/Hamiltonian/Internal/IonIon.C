@@ -36,7 +36,7 @@ export namespace qchem::Hamiltonian
 template <class T> class IonIon
     : public virtual tStatic_HT<T>
     , private        tStatic_HT_Imp<T>
-    , public         StaticRealBlockBase<T>   // real-block capability on the dcmplx instantiation (Step 3c)
+    , public         StaticRealBlockBase<T,IonIon<T>>   // real-block capability on the dcmplx instantiation (Step 3c)
 {
 public:
     //! \copydoc HT_SlotOwner::PrepareSlots
@@ -48,7 +48,7 @@ public:
     virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
     {
         tStatic_HT_Imp<T>::PrepareSlots(bs, cd);
-        if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T>::PrepareSlots(bs, cd);
+        if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T,IonIon<T>>::PrepareSlots(bs, cd);
     }
     //! A constant energy: its (zero) block is the same for every spin channel, so ONE cached slot.
     virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
@@ -89,15 +89,13 @@ public:
 
 private:
     // No matrix contribution: a constant energy term, so the block is zero.
-    virtual hmat_t<T> MakeMatrix(const tobs_t<T>* bs, const Spin&) const override
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>* bs, const Spin& s) const override {return MakeBlock<T>(bs,s);}
+    //! ONE body for both block scalars (V1.35): zero, the native block and on <dcmplx> the real TRIM block (Static_HT_RealBlock_Of).
+    template <class U> hmat_t<U> MakeBlock(const tobs_t<U>* bs, const Spin&) const
     {
-        return blazem::zeroH<T>(bs->GetNumFunctions());
+        return blazem::zeroH<U>(bs->GetNumFunctions());
     }
-    //! Real TRIM block (Step 3c): zero, like the native block.  Never called on <double> (overrides nothing).
-    virtual hmat_t<double> MakeMatrixR(const tobs_t<double>* bs, const Spin&) const
-    {
-        return blazem::zeroH<double>(bs->GetNumFunctions());
-    }
+    friend class Static_HT_RealBlock_Of<IonIon<T>>;
 
     st_t                       theStructure;
     std::function<double(int)> itsZionOf;   //!< Z -> ion core charge (identity for the all-electron baseline)

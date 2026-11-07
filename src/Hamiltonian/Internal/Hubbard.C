@@ -23,7 +23,7 @@
 // the XC route); the term keeps the adjoint.  Neither can name the other direction.
 //
 // ★ SCALAR-GENERIC (ruled 2026-09-19, so CleanupCandidates V1.35 collapses it for free): ONE template body
-// per operation over the BLOCK scalar; MakeMatrix / MakeMatrixR are one-line instantiations, as Vee_Hartree.
+// per operation over the BLOCK scalar; the two MakeMatrix overloads are one-line instantiations, as Vee_Hartree.
 //
 // WHERE D COMES FROM.  The Fock build sees the MIXED density, which on the Kerker/Pulay recipes has no D;
 // the occupations are taken from the DM-backed SOURCE the mixer retains (tDM_Sourced_CD::DMSource, one cast

@@ -92,7 +92,7 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&) const;   // Step 3c: the real TRIM block
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const;    // Step 3c: the real TRIM block (V1.35: an overload)
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
@@ -129,7 +129,7 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&) const;   // Step 3c: the real TRIM block
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const;    // Step 3c: the real TRIM block (V1.35: an overload)
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::SeparablePotential* itsSep;   //!< KB nonlocal model (non-owning).
@@ -176,7 +176,7 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&) const;   // Step 3c: the real TRIM block
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const;    // Step 3c: the real TRIM block (V1.35: an overload)
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).

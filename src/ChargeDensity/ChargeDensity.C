@@ -190,7 +190,7 @@ public:
 //  REAL-BLOCK CONTRACT CLIENTS (doc/RealComplexPlan.md Step 3c-2b).  A real TRIM block inside a COMPLEX run
 //  energy-contracts against the run's terms.  Both cases are the ordinary real faces: a static term's real-block
 //  capability IS a tStatic_CC<double>, and since the block face takes a DensityID instead of the run's density
-//  (V1.35, 2026-11-07) a dynamic term's IS a tDynamic_CC<double>.  The run-typed Dynamic_CC_RealBlock is gone.
+//  (V1.35, 2026-11-07) a dynamic term's IS a tDynamic_CC<double>.  (The run-typed Dynamic_CC_RealBlock it replaced is gone.)
 //! \brief The capability of a REAL block density living inside a COMPLEX run: energy-contract this
 //! block's (real) D against the term's real block face, for the RUN's density \a id.  Carried by the real periodic leaf
 //! alone (PeriodicIrrepCD<double>); the composite's cross-scalar contract arm cross-casts to it.

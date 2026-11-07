@@ -37,7 +37,7 @@ export namespace qchem::Hamiltonian
 template <class T> class Kinetic
     : public virtual tStatic_HT<T>
     , private        tStatic_HT_Imp<T>
-    , public         StaticRealBlockBase<T>   // real-block capability on the dcmplx instantiation (Step 3c)
+    , public         StaticRealBlockBase<T,Kinetic<T>>   // real-block capability on the dcmplx instantiation (Step 3c)
 {
 public:
     //! \copydoc HT_SlotOwner::PrepareSlots
@@ -49,7 +49,7 @@ public:
     virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
     {
         tStatic_HT_Imp<T>::PrepareSlots(bs, cd);
-        if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T>::PrepareSlots(bs, cd);
+        if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T,Kinetic<T>>::PrepareSlots(bs, cd);
     }
     //! Kinetic energy is spin-blind: ONE cached block for every channel.
     virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
@@ -67,16 +67,13 @@ public:
     }
 
 private:
-    virtual hmat_t<T> MakeMatrix(const tobs_t<T>* bs, const Spin&) const override
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>* bs, const Spin& s) const override {return MakeBlock<T>(bs,s);}
+    //! ONE body for both block scalars (V1.35): the native block, and on <dcmplx> the real TRIM block (Static_HT_RealBlock_Of).
+    template <class U> hmat_t<U> MakeBlock(const tobs_t<U>* bs, const Spin&) const
     {
         return 0.5*bs->Kinetic();   // T = 1/2 <p^2>; Kinetic() is the cached <p^2> accessor
     }
-    //! Real TRIM block (Step 3c): same body, real basis.  On the <double> instantiation this overrides
-    //! nothing and is never called; on <dcmplx> it is the StaticRealBlockBase mixin's MakeMatrixR.
-    virtual hmat_t<double> MakeMatrixR(const tobs_t<double>* bs, const Spin&) const
-    {
-        return 0.5*bs->Kinetic();
-    }
+    friend class Static_HT_RealBlock_Of<Kinetic<T>>;
 };
 
 } //namespace

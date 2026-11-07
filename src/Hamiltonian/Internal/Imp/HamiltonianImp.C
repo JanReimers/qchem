@@ -190,16 +190,16 @@ template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,c
 
 
 // The real-block fold (Step 3c-2): the same assembly as the native GetMatrix, through each term's
-// Static/Dynamic_HT_RealBlock capability face (V1.6/V1.7 cross-cast; a term without the face is a wiring
+// real block face, tStatic_CC<double> / tDynamic_CC<double> (V1.6/V1.7 cross-cast; a term without the face is a wiring
 // error and throws LOUDLY -- every periodic term has carried it since 3c-1).  Only ever called on the
 // <dcmplx> instantiation (the real WF children of a complex run); molecular Hamiltonians never see it.
 namespace
 {
-template <class HT> const Static_HT_RealBlock& StaticRealOf(const HT& t)
+template <class HT> const tStatic_CC<double>& StaticRealOf(const HT& t)
 {
-    auto* rb=dynamic_cast<const Static_HT_RealBlock*>(&t);
+    auto* rb=dynamic_cast<const tStatic_CC<double>*>(&t);   // abstract to abstract: the term's real block face (V1.35)
     if (!rb) throw std::logic_error("Hamiltonian real-block assembly: a static term does not carry the "
-                                    "Static_HT_RealBlock capability (RealComplexPlan Step 3c-1)");
+                                    "real block face tStatic_CC<double> (RealComplexPlan Step 3c-1)");
     return *rb;
 }
 template <class HT> const tDynamic_CC<double>& DynamicRealOf(const HT& t)

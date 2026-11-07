@@ -62,12 +62,11 @@ using ChargeDensity::DensityID;   // moved down beside tDynamic_CC (V1.35); Hami
 //! term writes it -- a compile error that forces the term to state "I own two caches", which is true and
 //! worth saying.  That is the diamond doing its job, not a hazard.
 //!
-//! ⚠ **IT DOES NOT FIX THE UNDERLYING AXIS FUSION, and that is filed, not forgotten.**  `Dynamic`-vs-`Static`
-//! and the BLOCK scalar are orthogonal, yet `Dynamic_HT_RealBlock` is a separately NAMED type rather than
-//! `tDynamic_HT<double,dcmplx>` -- and the fusion runs one library deeper, into `qcChargeDensity`'s
-//! `tDynamic_CC<T>` / `Dynamic_CC_RealBlock` pair, whose fingerprint is the 31 `*R`-suffixed methods
-//! (`GetMatrixR`, `GetEMatrixR`, `MakeMatrixR`) that exist ONLY because the corners are separate types
-//! instead of two instantiations.  See \c doc/CleanupCandidates.md **V1.35**.
+//! ✅ **THE AXIS FUSION IS GONE (V1.35, 2026-11-07).**  `Dynamic`-vs-`Static` and the BLOCK scalar are orthogonal; the real-block
+//! corner used to be separately NAMED types (`Dynamic_HT_RealBlock`, `Dynamic_CC_RealBlock`, `Static_HT_RealBlock`) with 31
+//! `*R`-suffixed methods.  The corner was only ever the density argument: once the block query takes a \c DensityID, a complex
+//! run's term serves a real block through its ordinary \c tStatic_CC<double> / \c tDynamic_CC<double> faces, and this hook is
+//! what such a term's second cache shares.
 template <class TRun> class HT_SlotOwner
 {
 public:
@@ -297,35 +296,17 @@ public:
 };
 
 //====================================================================================================
-//  REAL-BLOCK TERM FACES (doc/RealComplexPlan.md Step 3c).  In a mixed-mesh run the terms are built
-//  ONCE, typed by the RUN's working scalar (dcmplx) -- their block-independent state (V_H(G), the XC
-//  rho rasters, the models) is shared across blocks -- but a TRIM block's basis is tobs_t<double>
-//  (Step 3a) and its H block is real.  These CAPABILITY faces are how a complex term answers the real
-//  block's question: the same cross-cast idiom as Orbital_PP_IBS / FourierDensity (V1.6/V1.7).
-//  Only terms that can serve a real block (the periodic set) implement them -- via ONE scalar-generic
-//  assembly body each, so there is no dual maintenance -- and the assembly cross-casts; a term
-//  without the face fails LOUDLY.  Molecular (double-native) terms never see these: their native
-//  face already IS real.  Caching lives in the Internal mixins (Static/Dynamic_HT_RealBlock_Imp),
-//  mirroring tStatic/tDynamic_HT_Imp exactly.
+//  REAL-BLOCK TERMS (doc/RealComplexPlan.md Step 3c; V1.35 2026-11-07).  In a mixed-mesh run the terms are built ONCE,
+//  typed by the RUN's working scalar (dcmplx) -- their block-independent state (V_H(G), the XC rho rasters, the models) is
+//  shared across blocks -- but a TRIM block's basis is tobs_t<double> (Step 3a) and its H block is real.  Such a term answers
+//  the real block through its ordinary REAL faces, ChargeDensity::tStatic_CC<double> / tDynamic_CC<double>, which the
+//  assembly cross-casts to (abstract to abstract; a term without them fails LOUDLY).  The real faces were once separate
+//  run-typed types (Static/Dynamic_HT_RealBlock): the corner was only ever the density argument, and a DensityID removed it.
+//  Caching lives in the Internal mixins (Static/Dynamic_HT_RealBlock_Imp), mirroring tStatic/tDynamic_HT_Imp exactly.
 //====================================================================================================
-//  Each face IS-A real-block CONTRACT CLIENT too (Step 3c-2b): the static one's GetMatrix has exactly
-//  tStatic_CC<double>'s signature, so the real leaf's native DM_Contract serves its energy; the dynamic
-//  one IS ChargeDensity::tDynamic_CC<double>.
-class Static_HT_RealBlock
-    : public virtual ChargeDensity::tStatic_CC<double>
-    , public virtual HT_SlotOwner<dcmplx>   //!< a SECOND Irrep-keyed cache -> the SAME hook (R1.0h)
-{
-public:
-    virtual ~Static_HT_RealBlock() {};
-    // GetMatrix(const tobs_t<double>*, const Spin&) comes from tStatic_CC<double> -- one declaration,
-    // one override (the caching Imp mixin's), serving BOTH the Fock fold and the energy contraction.
-};
-// The DYNAMIC real-block face is no longer a type (V1.35, user ruling 2026-11-07): the block query takes a DensityID, so a
-// complex run's term serves a real TRIM block through the ordinary ChargeDensity::tDynamic_CC<double> -- the mixed corner
-// was only ever the density argument.  Its caching mixin (Dynamic_HT_RealBlock_Imp, Internal) carries the second slot hook.
 
 //! \brief The REAL-BLOCK ASSEMBLY face of a complex-run Hamiltonian (Step 3c-2): fold the term set's
-//! Static/Dynamic_HT_RealBlock capabilities into one real Fock/KS block for a real TRIM basis block.
+//! real block faces (tStatic_CC<double> / tDynamic_CC<double>) into one real Fock/KS block for a real TRIM basis block.
 //! Attached (conditionally) to \c tHamiltonian<dcmplx> only; a real-faced Hamiltonian's native
 //! \c GetMatrix already IS real.  The per-block WF child (\c tIrrepWF<double> inside a complex run)
 //! drives its Fock build through this face.

@@ -70,7 +70,7 @@ template <class U> hmat_t<U> Ven_PP_Short::MakeMatrixT(const tobs_t<U>* bs, cons
     return pw->MakeSpeciesFieldMatrix(&*theStructure, *itsLocal, BasisSet::FieldRange::Short);
 }
 chmat_t Ven_PP_Short::MakeMatrix (const cobs_t* bs, const Spin& s) const {return MakeMatrixT<dcmplx>(bs,s);}
-rsmat_t Ven_PP_Short::MakeMatrixR(const robs_t* bs, const Spin& s) const {return MakeMatrixT<double>(bs,s);}
+rsmat_t Ven_PP_Short::MakeMatrix(const robs_t* bs, const Spin& s) const {return MakeMatrixT<double>(bs,s);}
 
 void Ven_PP_Short::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
@@ -120,7 +120,7 @@ chmat_t Ven_PP_NonLocal::MakeMatrix(const cobs_t* bs, const Spin& s) const
     }
     return MakeMatrixT<dcmplx>(bs,s);
 }
-rsmat_t Ven_PP_NonLocal::MakeMatrixR(const robs_t* bs, const Spin& s) const {return MakeMatrixT<double>(bs,s);}
+rsmat_t Ven_PP_NonLocal::MakeMatrix(const robs_t* bs, const Spin& s) const {return MakeMatrixT<double>(bs,s);}
 
 void Ven_PP_NonLocal::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
@@ -180,7 +180,7 @@ template <class U> hmat_t<U> Ven_PP_Long::MakeMatrixT(const tobs_t<U>* bs, const
     return pp->MakeSpeciesFieldMatrix(&*theStructure, *itsLocal, BasisSet::FieldRange::Long);
 }
 chmat_t Ven_PP_Long::MakeMatrix (const cobs_t* bs, const Spin& s) const {return MakeMatrixT<dcmplx>(bs,s);}
-rsmat_t Ven_PP_Long::MakeMatrixR(const robs_t* bs, const Spin& s) const {return MakeMatrixT<double>(bs,s);}
+rsmat_t Ven_PP_Long::MakeMatrix(const robs_t* bs, const Spin& s) const {return MakeMatrixT<double>(bs,s);}
 
 void Ven_PP_Long::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {

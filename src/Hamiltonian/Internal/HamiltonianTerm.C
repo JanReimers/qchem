@@ -186,7 +186,10 @@ protected:
     mutable DensityID itsFitID  =NoDensity();   //!< ...and of the one the concrete term last refit for
 };
 
-class Static_HT_RealBlock_Imp : public virtual Static_HT_RealBlock
+//! The REAL-BLOCK caching mixin of a complex run's static term (V1.35): the term's ordinary \c tStatic_CC<double> face for a real
+//! TRIM block.  Its slot hook is the run's (HT_SlotOwner<dcmplx>).
+class Static_HT_RealBlock_Imp : public virtual ChargeDensity::tStatic_CC<double>
+                              , public virtual HT_SlotOwner<dcmplx>   //!< a SECOND Irrep-keyed cache -> the SAME hook (R1.0h)
                               , public virtual HT_SpinDependence
 {
 public:
@@ -195,7 +198,7 @@ public:
         assert(bs);
         Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
         hmat_t<double>& slot=itsRealCache[qns];        // FILL-IF-EMPTY (R1.0h) -- see tDynamic_HT_Imp
-        if (slot.rows()==0) slot=MakeMatrixR(bs,s);
+        if (slot.rows()==0) slot=MakeMatrix(bs,s);
         return slot;
     }
     //! \copydoc HT_SlotOwner::PrepareSlots
@@ -210,8 +213,18 @@ public:
                     itsRealCache[b->GetIrrep(this->CacheSpin(s))];
     }
 protected:
-    virtual hmat_t<double> MakeMatrixR(const tobs_t<double>*,const Spin&) const=0;
+    virtual hmat_t<double> MakeMatrix(const tobs_t<double>*,const Spin&) const=0;
     mutable std::map<Irrep,hmat_t<double>> itsRealCache;
+};
+
+//! \brief THE BLOCK HELPER of a T-templated static term (V1.35 wrinkle 2): a virtual cannot carry a \c requires clause, so on
+//! \c T=double a term's real-block \c MakeMatrix(const tobs_t<double>*) would collide with its native one.  The term instead writes
+//! ONE \c template<class U> MakeBlock body, and this mixin (present on the \c dcmplx instantiation only) routes the real block to it.
+template <class D> class Static_HT_RealBlock_Of : public Static_HT_RealBlock_Imp
+{
+protected:
+    virtual hmat_t<double> MakeMatrix(const tobs_t<double>* bs,const Spin& s) const override
+    {return static_cast<const D&>(*this).template MakeBlock<double>(bs,s);}
 };
 
 //! The REAL-BLOCK caching mixin of a complex run's dynamic term (V1.35): the term's ordinary \c tDynamic_CC<double> face, for a
@@ -256,8 +269,8 @@ protected:
 };
 
 struct NoRealBlock {};
-template <class T> using StaticRealBlockBase =
-    std::conditional_t<std::is_same_v<T,dcmplx>, Static_HT_RealBlock_Imp, NoRealBlock>;
+template <class T, class D> using StaticRealBlockBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, Static_HT_RealBlock_Of<D>, NoRealBlock>;
 
 // tFittablePotential is GONE (R2.6).  It existed for exactly one derivation, LDAVxc, whose only real job
 // was to answer the fitter's "what field am I fitting?" question -- and which had to fake MakeMatrix and

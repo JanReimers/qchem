@@ -218,7 +218,7 @@ template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) 
             {
                 auto* rc=dynamic_cast<const tStatic_CC<double>*>(v);
                 if (!rc) throw std::logic_error("tComposite_CD: a real child needs the term's real-block "
-                                                "contract client (Static_HT_RealBlock, RealComplexPlan 3c-1)");
+                                                "contract client (tStatic_CC<double>, RealComplexPlan 3c-1)");
                 return b->DM_Contract(rc);
             }
             else throw std::logic_error("tComposite_CD: a complex child inside a real-faced run is impossible");

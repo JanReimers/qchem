@@ -44,7 +44,7 @@ export import qchem.BasisSet.Lattice.BasisSet;    // VetStageTrim (pin 22)
 import qchem.Hamiltonian.Internal.PWTerms;        // Vxc_Quadrature (the XC probes)
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
-import qchem.Hamiltonian;                         // cDynamic_HT, Dynamic_HT_RealBlock
+import qchem.Hamiltonian;                         // cDynamic_HT, and a term's real block face
 import qchem.ChargeDensity;                       // cDM_CD
 import qchem.ChargeDensity.Seed;                  // SeedStrategy
 import qchem.SCFAccelerator.Factory;              // SCFAccelerators::Type

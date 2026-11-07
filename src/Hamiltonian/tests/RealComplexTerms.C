@@ -1,7 +1,7 @@
 // File: RealComplexTermsUT.C  Step-3c-1 gates: the periodic terms serve a REAL TRIM block (doc/RealComplexPlan.md).
 //
 // Step 3a made the real TRIM block (tGPW_IBS<double>) exist; this increment makes the TERM STACK able to
-// answer it.  Each periodic term now carries the Static/Dynamic_HT_RealBlock capability face (the
+// answer it.  Each periodic term now carries the real block faces tStatic_CC<double> / tDynamic_CC<double> (the
 // V1.6/V1.7 cross-cast idiom), implemented by ONE scalar-generic assembly body per term -- so a real
 // block's matrix is the SAME arithmetic narrowed at the end, and must equal the complex block's real
 // part BITWISE (EXPECT_EQ on doubles; Step 0's exact +/-1 phases are what make zero tolerance possible).
@@ -26,7 +26,7 @@ import qchem.UnitCell;
 import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;          // tGPW_IBS<T> (both block alternatives)
-import qchem.Hamiltonian;                          // Static/Dynamic_HT_RealBlock (the capability faces)
+import qchem.Hamiltonian;                          // the terms and their real block faces
 import qchem.Hamiltonian.Internal.Kinetic;         // Kinetic<T> (tests may cheat-import internals)
 import qchem.Hamiltonian.Internal.Hamiltonian;     // tHamiltonianImp<dcmplx> (the 3c-2 assembly gate)
 import qchem.Hamiltonian.Internal.PWTerms;         // the periodic term set + the two DensitySampler strategies
@@ -299,7 +299,7 @@ TEST(RealComplexTerms, StaticTermsServeTheRealBlockBitwise)
         {{&kin,"Kinetic"},{&shrt,"Ven_PP_Short"},{&lng,"Ven_PP_Long"},{&nl,"Ven_PP_NonLocal"}};
     for (auto [t,name] : terms)
     {
-        auto* rb=dynamic_cast<const Static_HT_RealBlock*>(t);
+        auto* rb=dynamic_cast<const tStatic_CC<double>*>(t);
         ASSERT_NE(rb,nullptr) << name << " must carry the real-block capability (Step 3c)";
         ExpectBitwiseEqual(rb->GetMatrix(rig.re.get(), Spin::None),
                            t ->GetMatrix(rig.cx.get(), Spin::None), name);
@@ -381,7 +381,7 @@ TEST(RealComplexTerms, StaticTermsServeTheRealBlockBitwise_FccDiamond)
         {{&kin,"Kinetic"},{&shrt,"Ven_PP_Short"},{&lng,"Ven_PP_Long"},{&nl,"Ven_PP_NonLocal"}};
     for (auto [t,name] : terms)
     {
-        auto* rb=dynamic_cast<const Static_HT_RealBlock*>(t);
+        auto* rb=dynamic_cast<const tStatic_CC<double>*>(t);
         ASSERT_NE(rb,nullptr) << name;
         ExpectBitwiseEqual(rb->GetMatrix(rig.re.get(), Spin::None),
                            t ->GetMatrix(rig.cx.get(), Spin::None), name);
@@ -535,7 +535,7 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
     EXPECT_EQ(mixed.DM_Contract(static_cast<const cStatic_CC*>(&kin)),
               cplx .DM_Contract(static_cast<const cStatic_CC*>(&kin)));
 
-    // DYNAMIC arm: the run-typed GetEMatrixR client (E=D.V identity over the real cache).
+    // DYNAMIC arm: the real block face tDynamic_CC<double>::GetEMatrix (E=D.V identity over the real cache).
     auto cdrun = rig.MakeDensity();   // the run's density (defines V_H)
     Vee_Hartree vh(Vee_Hartree::fbs_t(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{})));
     RefreshTerm(static_cast<const cDynamic_HT&>(vh), cdrun.get());   // the contract (KAxisPlan P2)

@@ -402,10 +402,6 @@ namespace qchem::Hamiltonian {
         virtual ~ResponseKernel() = default;
         virtual std::unique_ptr<TransitionFock<T>> InducedFock(const TransitionDensity<T>& delta) const=0;
     };
-    class Static_HT_RealBlock : public virtual ChargeDensity::tStatic_CC<double> , public virtual HT_SlotOwner<dcmplx> {
-    public:
-        virtual ~Static_HT_RealBlock();
-    };
     class Ham_RealBlock {
     public:
         virtual ~Ham_RealBlock();
