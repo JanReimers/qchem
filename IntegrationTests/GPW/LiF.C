@@ -54,19 +54,22 @@ Audited RunAudited(double dx, const std::string& tag)
 }
 } // namespace
 
-// Measured 2026-11-01 (lane A; ~30 s of SCF per geometry): Etot(0) -24.3245668693, Etot(0.1) -24.3245349809 -> the curvature dE(0.1) = +3.19e-5 Ha.
-// dE_xc vs (80, 48): -1.330e-4 at 0, -1.134e-4 at 0.1, max|dH_xc| 2.1e-3 / 1.8e-3 -> the default mesh's error ON THE CURVATURE is +1.96e-5, 61% of
-// it.  The calibrated default (an ENERGY calibration) cannot carry a Li-site curvature: a geometry run climbs the nested ladder instead
-// (SolidCalculation's pilot, pin 31).  Lane B's k222 calibration (CP2K -3.78e-5): (20,24) -1.34e-4, (40,36) -2.08e-5, (60,48) -2.63e-5.
+// Measured 2026-11-06 on the rotated default (lane A; ~30 s of SCF per geometry): Etot(0) -24.3242137093, Etot(0.1) -24.3241944996 -> the curvature
+// dE(0.1) = +1.92e-5 Ha.  dE_xc vs (80, 48): -7.39e-5 at 0, -6.72e-5 at 0.1, max|dH_xc| 2.0e-4 / 2.4e-4 -> the default mesh's error ON THE CURVATURE is
+// +6.8e-6, 35% of it.  RE-JUDGED under pin 10 when the rule rotated: the aligned rule read +3.19e-5 with +1.97e-5 of mesh error, so curvature minus
+// mesh error is 1.22e-5 aligned, 1.245e-5 rotated, the same answer by two rules (its Etot less dE_xc agrees to 1e-6 too).  The calibrated default (an
+// ENERGY calibration) still cannot carry a Li-site curvature: a geometry run climbs the nested ladder instead (SolidCalculation's pilot, pin 31).
+// Lane B's k222 calibration (CP2K -3.78e-5): (20,24) -1.34e-4, (40,36) -2.08e-5, (60,48) -2.63e-5.
 // Thresholds: each audit to 10% of its measured value, the curvature error to 15% -- a mesh change, or an audit that stops reading the
 // frozen D, moves them by far more.
 TEST(GPW_LiF, Γ_Becke_XCMeshAuditReadsTheCurvatureError_Long)
 {
     const Audited e0=RunAudited(0.0, "0"), e1=RunAudited(0.1, "p10");
     const double curvature=e1.energy-e0.energy, meshError=e1.dExc-e0.dExc;
-    EXPECT_NEAR(e0.dExc, -1.330e-4, 1.3e-5);
-    EXPECT_NEAR(e1.dExc, -1.134e-4, 1.1e-5);
+    EXPECT_NEAR(e0.dExc, -7.39e-5, 7e-6);
+    EXPECT_NEAR(e1.dExc, -6.72e-5, 7e-6);
     EXPECT_GT(e0.dHxc, 0.0); EXPECT_GT(e1.dHxc, 0.0);
-    EXPECT_NEAR(curvature, 3.19e-5, 2e-6) << "Li q1 at Γ: the 0.1 bohr step";
-    EXPECT_NEAR(meshError, 1.96e-5, 3e-6) << "the default Becke mesh's error on the curvature, at frozen D";
+    EXPECT_NEAR(curvature, 1.92e-5, 2e-6) << "Li q1 at Γ: the 0.1 bohr step";
+    EXPECT_NEAR(meshError, 6.8e-6, 1e-6) << "the default Becke mesh's error on the curvature, at frozen D";
+    EXPECT_NEAR(curvature-meshError, 1.23e-5, 5e-7) << "the curvature at a converged mesh: any rule's, aligned or rotated";
 }

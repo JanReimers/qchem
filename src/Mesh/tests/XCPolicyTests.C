@@ -245,9 +245,31 @@ TEST(XCPolicy, BeckeEntryRungMeetsItsCalibratedTarget)
     EXPECT_GT(tight.nRadial, m.nRadial);
     const qcMesh::MeshParams loose=qcMesh::BeckeEntryRung(from, 1e-3, cal, false);
     EXPECT_EQ(loose.angularDegree, from.angularDegree) << "never below the mesh it started from";
-    EXPECT_EQ(loose.angRot, 0.0) << "the energy default's rule stays as it is";
+    EXPECT_EQ(loose.angRot, from.angRot) << "the energy default's rule stays as it is";
     const qcMesh::MeshParams site=qcMesh::BeckeEntryRung(from, 1e-5, cal, true);
     ASSERT_TRUE(qcMesh::BeckeAngularRungAbove(site, cal, true).has_value()) << "a site-adapted entry leaves its audit a rung";
+}
+
+// An aligned octahedral rule is the plain mesh's worst case: neither the default, a rung, nor an audit's reference may be one.
+TEST(XCPolicy, NoDefaultRungOrAuditReferenceIsAligned)
+{
+    const qcMesh::BeckeLadderCalibration cal;
+    const qcMesh::MeshParams def=qcMesh::BeckeXCParams();
+    EXPECT_EQ(def.angular, qcMesh::AngularKind::Lebedev);
+    EXPECT_EQ(def.angRot, cal.angRot);
+    EXPECT_EQ(qcMesh::XCMeshDefault().angRot, cal.angRot);
+    EXPECT_EQ(qcMesh::BeckeXCParams(20,2,24).angRot, 0.0) << "below degree 29 the rule is GL, unmeasured rotated";
+    qcMesh::MeshParams m=def;
+    while (auto n=qcMesh::BeckeAngularRungAbove(m, cal, false)) { EXPECT_EQ(n->angRot, cal.angRot) << "degree " << n->angularDegree; m=*n; }
+
+    qcMesh::MeshParams stated=def; stated.angRot=0.0;
+    const qcMesh::MeshParams lebedev=qcMesh::XCAuditReference(stated, 200, 35, cal);
+    EXPECT_EQ(lebedev.angular, qcMesh::AngularKind::Lebedev);
+    EXPECT_EQ(lebedev.nRadial, 200);
+    EXPECT_EQ(lebedev.angRot, cal.angRot) << "a run stating angRot 0 is still audited against a rotated rule";
+    EXPECT_EQ(qcMesh::XCAuditReference(stated, 150, 53, cal).angular, qcMesh::AngularKind::GaussLegendre);
+    stated.angRot=1.1;
+    EXPECT_EQ(qcMesh::XCAuditReference(stated, 200, 35, cal).angRot, 1.1) << "a stated rotation is the run's own";
 }
 
 TEST(XCPolicy, BeckeLadderAxesMoveApartAndEnd)

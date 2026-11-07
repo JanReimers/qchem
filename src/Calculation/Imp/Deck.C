@@ -1234,11 +1234,9 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         case K::XCMeshAudit:
         {
             auto xcRef=[&]
-            {   // the run's own resolved recipe (MHL scale, Becke order, ...), only the two stated sizes changed
-                qcMesh::MeshParams m=calc->SizedSetup()->xcMesh;
-                m.cellKind=qcMesh::UnitCellKind::Becke; m.nRadial=a.xcRefNRadial; m.angularDegree=a.xcRefAngularDegree;
-                m.angular = (a.xcRefAngularDegree>=29 && a.xcRefAngularDegree<=35) ? qcMesh::AngularKind::Lebedev : qcMesh::AngularKind::GaussLegendre;
-                return m;
+            {
+                const auto S=calc->SizedSetup();
+                return qcMesh::XCAuditReference(S->xcMesh, a.xcRefNRadial, a.xcRefAngularDegree, S->opts.beckeLadder);
             };
             const auto R= a.kind==K::EggBox      ? calc->EggBox(a.shift)
                         : a.kind==K::XCMeshAudit ? calc->XCMeshAudit(xcRef())
