@@ -168,6 +168,9 @@ public:
     //! using ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, return this
     //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
     virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity*,const rbs_t* wholeBasis) const;
+    //! The ground-state refresh: latch \a wholeBasis (null = keep the latched one) and build the blocks of every spin irrep
+    //! \a cd resolves (\c SpinIrrepsOf, folded through \c CacheSpin).
+    virtual void RefreshForDensity(const rbs_t* wholeBasis, const rChargeDensity* cd) const override;
     //! \name THE RESPONSE (doc/LinearResponsePlan.md H2): J[δD] / K[δD] through the SAME contraction body,
     //! into a SEPARATE cache slot keyed on δ's serial -- a response build never overwrites the ground-state
     //! blocks.  \a D0 is not needed: the operators are linear.  q = 0 only (bra == ket).
@@ -197,19 +200,20 @@ protected:
     //! The density my spin-\a s blocks are built from: the \c CacheSpin(s) channel of \a cd (the whole of \a cd
     //! for \c Spin::None).  THROWS if \a cd does not resolve that channel or carries no density matrix.
     const rDM_CD*  DensityFor(const rChargeDensity* cd, const Spin& s) const;
-    //! Contract \a cd into the whole-system blocks for spin \a s (a CacheSpin) if stale for this density.
-    //! Uses itsWholeBasis (stashed from the Fock build), so GetEnergy -- which has no whole-basis -- gets the
-    //! same symmetry-banked contraction for its (post-diagonalization) density.
-    const std::map<std::string,rsmat_t>& ContractAll(const rChargeDensity* cd, const Spin& s) const;
+    //! The blocks the refresh built for \a cd and spin \a s (a CacheSpin): a READ, for \c GetMatrix and \c GetEnergy.  THROWS if
+    //! the refresh never saw \a cd (a caller that skipped \c RefreshForDensity).
+    const std::map<std::string,rsmat_t>& RefreshedBlocks(const rChargeDensity* cd, const Spin& s) const;
 
-    mutable const rbs_t* itsWholeBasis=nullptr;    //!< whole basis (stashed from the Fock build; stable across the run)
+    mutable const rbs_t* itsWholeBasis=nullptr;    //!< whole basis (latched by the first Fock refresh; stable across the run)
     //! The J (Coulomb) or K (exchange) per-irrep blocks of ONE spin: accumulated (over irreps) and contracted
     //! (over that spin's D) for the density ID'd by \c version.  Keyed by ab-basis BasisSetID, already scaled.
     struct Blocks { size_t version=size_t(-1); std::map<std::string,rsmat_t> jk; };
     mutable std::map<Spin,Blocks> itsJKs;          //!< one Blocks per CacheSpin this run asks for
 private:
-    //! Latch the composite basis on first use; THROW on a null or a changed one (see GetMatrix).
+    //! Latch the composite basis on first use; THROW on a changed one, or on a null one before any latch.
     void LatchWholeBasis(const rbs_t* wholeBasis) const;
+    //! Contract \a cd into the whole-system blocks for spin \a s (a CacheSpin) if stale for this density (the refresh's body).
+    const std::map<std::string,rsmat_t>& ContractAll(const rChargeDensity* cd, const Spin& s) const;
     //! The response blocks of CacheSpin \a s for \a delta (its \a s channel through the HF sweep face).
     const std::map<std::string,rsmat_t>& ContractResponse(const ChargeDensity::TransitionDensity<double>& delta,
                                                           const Spin& s) const;

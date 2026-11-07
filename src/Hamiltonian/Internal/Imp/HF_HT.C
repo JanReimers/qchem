@@ -23,15 +23,37 @@ namespace qchem::Hamiltonian
 const rsmat_t& Dynamic_HF_HT_Imp::GetMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd,
                                             const rbs_t* wholeBasis) const
 {
+    if (!wholeBasis || wholeBasis!=itsWholeBasis)
+        throw std::runtime_error("HF term: GetMatrix's composite basis is not the one the refresh latched (a null one, or "
+                                 "RefreshForDensity(wholeBasis, cd) was skipped).");
+    return RefreshedBlocks(cd, CacheSpin(s)).at(bs->BasisSetID());
+}
+
+// THE GROUND-STATE REFRESH (V1.41 stage 2, ruling 2026-11-07): every block GetMatrix and GetEnergy will read, built here.  The spin
+// irreps cd resolves are the ones its Fock blocks and its energy ask for: {Up, Down}, or {None}, each folded through CacheSpin.
+void Dynamic_HF_HT_Imp::RefreshForDensity(const rbs_t* wholeBasis, const rChargeDensity* cd) const
+{
     LatchWholeBasis(wholeBasis);
-    return ContractAll(cd, CacheSpin(s)).at(bs->BasisSetID());
+    if (!cd) return;
+    for (const Spin& s : ChargeDensity::SpinIrrepsOf(cd)) ContractAll(cd, CacheSpin(s));
+}
+
+const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::RefreshedBlocks(const rChargeDensity* cd, const Spin& s) const
+{
+    auto it=itsJKs.find(s);
+    if (!cd || it==itsJKs.end() || it->second.version!=cd->Version() || it->second.jk.empty())
+        throw std::logic_error("HF term: blocks asked for a density the refresh did not see (RefreshForDensity first)");
+    return it->second.jk;
 }
 
 void Dynamic_HF_HT_Imp::LatchWholeBasis(const rbs_t* wholeBasis) const
 {
     if (!wholeBasis)
-        throw std::runtime_error("HF term: the whole-system Fock build requires the composite basis "
-                                 "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
+    {
+        if (itsWholeBasis) return;   // an energy evaluation: the composite basis the Fock refresh latched
+        throw std::runtime_error("HF term: the whole-system build requires the composite basis (the cross-irrep view), "
+                                 "and no Fock refresh has latched one yet.");
+    }
     if (!itsWholeBasis) itsWholeBasis=wholeBasis;
     else if (itsWholeBasis!=wholeBasis)
         throw std::runtime_error("HF term: the whole-system (composite) basis changed mid-run.  This term "

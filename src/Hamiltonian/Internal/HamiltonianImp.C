@@ -91,6 +91,7 @@ public:
         for (const auto& t : itsDHTs) t->PrepareSlots(bs, cd);   // ...and STAMPS cd: GetMatrix throws without it (KAxisPlan P2)
         if (!cd) return;
         for (const auto& t : itsDHTs) t->RefreshForDensity(cd);
+        for (const auto& t : itsHF_HTs) t->RefreshForDensity(bs, cd);   // whole-system J/K (V1.41 stage 2)
     }
     virtual std::ostream&   Write(std::ostream&) const;
 

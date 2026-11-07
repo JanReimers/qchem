@@ -231,6 +231,10 @@ public:
     //! term cannot be built one irrep at a time).
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*,
                                        const tbs_t<T>* wholeBasis) const=0;
+    //! \brief THE EAGER REFRESH PHASE for a whole-system term (V1.41 stage 2, user ruling 2026-11-07 "Approve (a)"): build the J/K
+    //! blocks of every spin channel \a cd resolves, so \c GetMatrix and \c GetEnergy only READ them.  \a wholeBasis is the composite
+    //! basis the blocks are keyed against; it is latched on the first non-null call and a null one (an energy evaluation) reuses it.
+    virtual void             RefreshForDensity(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* cd) const=0;
     //! Add this term's energy (e.g. \f$E_{ee}=\tfrac12\,\mathrm{Tr}(D\,J)\f$) from \a cd into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
