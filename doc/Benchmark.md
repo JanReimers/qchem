@@ -454,6 +454,8 @@ Verbatim archive of the old tracker: `doc/Records/OpenWork_History5.md`.  Each r
 
 **Where it stands (numbers from §5a and the rule-3f table):** per SCF iteration serial qchem is AHEAD of CP2K on seven of nine §5a rows; the like-for-like parity row (`CP2K_COMPAT=1`, fixed-point stage) is **1.13×**, 1.72× for the capped two-stage probe, and its whole residual is ONE gather (lever B, behind N4).  Rule-3f whole-run, same measure/threshold/loop: MnO AFM-II **5m42s vs 6m14s wall** (33 vs 44 iterations); Si 2×2×2 8.6 s vs 5.6 s.  Peak RAM on the parity routes 113–132 MB vs CP2K's 217 MB (whole-run MnO 262 vs 217 MB).  Threaded (12 cores) 4.14 s/step vs CP2K 5.90 (they run 0.82–1.09× their own serial).  History: the MnO per-iteration cost started at **67× CP2K's** (573 s vs 8.5 s, `BenchmarkHistory.md` §cache; the earlier "100×" was an instrument artefact).  No QE timing exists.
 
+**At matched accuracy (MnO VA, serial, 2026-11-06):** CP2K has no cutoff that meets max|ΔH| ≤ 1e-5, its floor is 2 to 4e-4 up to 3200 Ry.  With grids known, qchem's H-sized run took 1523 s, against CP2K's 1587 s at 576 Ry (the energy match) and 2749 s at 2304 Ry (its best H).  qchem is 3 to 5× dearer per step and wins on 18 steps against 116.  Paying for its own sizing it took 7508 s.  Table and caveats: `doc/Records/OpenWork_History5.md`, "CP2K MnO at matched accuracy".
+
 **Parked levers:** B (one gather per spin) behind N4; C (GDM trial densities) behind OT (OpenWork §2).
 
 | row | what is open | next concrete action · record |
