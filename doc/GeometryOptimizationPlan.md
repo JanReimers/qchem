@@ -243,3 +243,9 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
 1. **Cartesian**, behind a coordinate map, so the optimizer sees only q and dE/dq; molecules map Cartesian, solids map cell + Wyckoff parameters; redundant internals could be a second molecular map later.
 2. **The force threshold is derived from ε** through a NAMED calibration (the 15× is one system): *"If we learn that we need a fudge factor that is fine."*
 3. **No finite-difference force product.**  FD gradients spoil the superlinear convergence of BFGS / Newton near the minimum (Numerical Recipes); libcint and PySCF are the oracles; FD would delay the real thing: *"at some point soon we need to take on the real version."*  So the next step is the ANALYTIC-forces design note (molecules first, every term with its oracle: libcint derivative integrals, PySCF whole-molecule gradients, or a per-term finite difference at fixed D as a unit test).  The optimizer is built against analytic model surfaces in unit tests; §1's `FiniteDifferenceForces` survives only as a test helper.  §5's H₂O grid-force measurement stays as evidence for ε.
+
+**§11 answered (user 2026-11-07):**
+1. **Forces are a whole-Hamiltonian answer, like the energy**: one `Forces(...)` query on the `Hamiltonian` hub, which sums its own terms' gradients.  No production client needs per-term forces (the optimizer consumes the total); the per-term breakdown is written by each term into the run report, and the per-term oracles are tests (allowed to reach internals).  A hub change, so its exact surface comes to the user before code.
+2. **`NoGradient` for every non-default route** (δ / multipole Hartree, A1 / multipole XC, the PP quadrature): refused with an Outcome naming the term and the route BEFORE an optimization starts, each route with its own row.
+3. **The PySCF DF-J near oracle for Dunlap** is accepted beside the exact per-term finite difference at fixed D.
+
