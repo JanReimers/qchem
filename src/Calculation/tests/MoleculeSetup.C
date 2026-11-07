@@ -31,7 +31,7 @@ TEST(MoleculeSetup, AnOpenShellIsPromotedToPolarizedAndItsParityIsChecked)
 TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructure)
 {
     const Molecule na=OneAtom(11);
-    const auto s=MoleculeSetup::Resolve(na, {.pp="gth-lda-valence"});
+    const auto s=MoleculeSetup::Resolve(na, {.model=Model::LDA, .pp="gth-lda-valence"});
     ASSERT_TRUE(s->pp);
     EXPECT_EQ(s->Ne, s->pp->Valence("Na"));
     const auto point=s->PointStructure(na);

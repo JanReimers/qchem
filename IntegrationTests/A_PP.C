@@ -63,7 +63,7 @@ TEST(Si_PP_U, Medium)
 TEST(Si2_PP_U, LargeSeparation)
 {
     const double R = 20.0;   // bohr -- large separation (near-isolated atoms)
-    const CalcOptions opt{.basis = "sipp", .pp = "gth-lda-valence"};
+    const CalcOptions opt{.basis = "sipp", .model = Model::LDA, .pp = "gth-lda-valence"};
     SCFParams par{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-8, .MinFD = 1e-7};
     // kT 1e-2 is the stated recipe until the open row doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT" lands a finite-kT method
     par.SmearingkT=1e-2;     // the degenerate 3p (see above)
@@ -109,7 +109,7 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
     // kT 1e-2 (2026-10-31): with the fit bases' D shells back the Hartree is anisotropic and kT 1e-4 / 1e-3 slosh under every
     // accelerator; an exactly degenerate open shell needs kT above the splitting it re-opens (as GPW_SiBox and Si2_PP_U state).
     // open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT"
-    MoleculeCalculation cOSi(MoleculeSetup::Resolve(osi, {.basis = "sipp", .pp = "gth-lda-valence", .multiplicity = 5}), SCFParams{.SmearingkT = 1e-2});
+    MoleculeCalculation cOSi(MoleculeSetup::Resolve(osi, {.basis = "sipp", .model = Model::LDA, .pp = "gth-lda-valence", .multiplicity = 5}), SCFParams{.SmearingkT = 1e-2});
 
     EXPECT_NEAR(cOSi.EnergyTerms()["Enn"], 24.0/R, 1e-6);   // per-species Zion routing: 6*4/R (not 16/R or 36/R)
     EXPECT_LT(cOSi.Energy(), 0.0);                       // a finite, bound total (sanity; not an accuracy claim)

@@ -1066,6 +1066,13 @@ static DisplaceResult Displace(const RunSpec& specIn, const std::vector<RunSpec:
 RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir)
 {
     namespace fs=std::filesystem;
+    struct Close { ~Close() { qchem::report::ClearConsole(); qchem::report::End(); } };
+    // A run is OPEN before anything can refuse, so a refusal files its record (its policy rows) too.  The checks before the
+    // revision is claimed (Resolve, the restart) run in "<structure> resolve"; the build and SCF in the revision's own run.
+    std::optional<Close> resolving;
+    qchem::report::Begin(spec.StructureName()+" resolve");
+    qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
+    resolving.emplace();
     (void)Resolve(spec);   // the record states the derived Nelec / species; Build resolves its own copy
 
     // RESTART: resolve (and check) the saved state BEFORE claiming a revision, so a typo leaves no half-record.  A bare stem names a revision of this
@@ -1080,6 +1087,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         if (!isPath) prov.restartedFrom=r+".json";
     }
 
+    resolving.reset();
     RunOutcome out;
     out.revision=ClaimRevision(outDir, spec.StructureName());
     prov.policyResolved=RunPolicy(spec.solid.policy).Banner();   // the stated policy is in the deck; what it RESOLVED to is the record
@@ -1098,7 +1106,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
 
     qchem::report::Begin(stem);
     qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
-    struct Close { ~Close() { qchem::report::ClearConsole(); qchem::report::End(); } } close;
+    const Close close;
     const std::unique_ptr<SolidCalculation> calc=Build(spec);   // ONE path with the GUI's: built, then converged here
     (void)calc->Converge(stages);
     if (auto R=calc->Result())

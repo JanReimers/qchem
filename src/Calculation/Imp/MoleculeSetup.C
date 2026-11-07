@@ -7,6 +7,8 @@ module;
 module qchem.MoleculeSetup;
 
 import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the PP lookup)
+import qchem.Policy;          // policy::Refuse / Report: each policy files its row where it fires
+import qchem.ChargeDensity.AtomicDensity;   // HasAtomicDensity: the SAD seed's coverage
 
 namespace qchem
 {
@@ -18,6 +20,12 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     s->acc =acc;
     // An open shell (2S>0) is unrestricted: it needs distinct up/down densities, so promote to polarized.
     if (s->opts.multiplicity > 1) s->opts.spin = SpinGroup::Polarized;
+    // The pseudopotential front door builds the LSDA valence Hamiltonian whatever the model says (MoleculeCalculation's PP
+    // Factory takes no Model), so any other model would be a SILENT substitution: refuse it, before anything is built.
+    if (!opts.pp.empty() && opts.model != Model::LDA)
+        policy::Refuse("PseudopotentialIsLDA", "a pseudopotential run with a model other than LDA",
+                       "the molecular pseudopotential route builds the LSDA valence Hamiltonian, so the model asked for would be "
+                       "ignored -- state model LDA, or run all-electron (no pseudopotential)");
     if (!opts.pp.empty()) s->pp=Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.ppOverride);
     s->reference=st.Clone();   // polymorphic deep copy: a UnitCell stays periodic, not sliced to a Molecule
     const std::shared_ptr<const Structure> point=s->PointStructure(*s->reference);
@@ -33,11 +41,32 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
                 " electrons -- need 0 <= 2S <= Ne and Ne-2S even.");
     }
 
-    // Seed: an explicit opts.seed wins; otherwise auto -- DFT from superposition-of-atomic-densities (SAD), HF/1-e from the
-    // core guess (Default).
+    // Seed: an explicit opts.seed wins; otherwise auto -- a DFT run (a pseudopotential one included) from the superposition of
+    // neutral-atom densities (SAD) when the atomic-density library has every element, else from the core guess (Default), as an
+    // HF / 1-e run does.  (Measured 2026-11-07: H2O LDA + GTH on dzvp converges in 9 iterations from SAD, 26 from the core guess,
+    // although the SAD densities are all-electron; Si has no LDA entry, so its PP runs take the core guess.)
     using qchem::ChargeDensity::SeedStrategy;
     const bool dft = qchem::Hamiltonian::IsDFT(opts.model);
-    s->seed = (opts.seed != SeedStrategy::Default) ? opts.seed : (dft ? SeedStrategy::SAD : SeedStrategy::Default);
+    bool covered = true;
+    point->ForEachSite([&](int Z, const rvec3_t&, bool){ covered = covered && ChargeDensity::HasAtomicDensity(Z); });
+    const bool sad = (dft || !opts.pp.empty()) && covered;
+    s->seed = (opts.seed != SeedStrategy::Default) ? opts.seed : (sad ? SeedStrategy::SAD : SeedStrategy::Default);
+    if (opts.seed == SeedStrategy::Default)
+        policy::Report("AutoSeed", sad ? "seed: SAD, the superposition of neutral-atom densities" : "seed: the core-Hamiltonian guess",
+                       policy::Verdict::Choose,
+                       sad ? "a DFT run, every element in the atomic-density library, and no seed stated"
+                       : (dft || !opts.pp.empty()) ? "a DFT run with an element the atomic-density library lacks, and no seed stated"
+                                                   : "a Hartree-Fock / one-electron run, and no seed stated");
+
+    // The Vxc product space's admission (pin 30) and the Hartree route's, asked of the Hamiltonian's rules HERE, before the basis
+    // and the Hamiltonian are built: the Factory throws the same reason, but only once the work is done.
+    if (dft || !opts.pp.empty())
+    {
+        if (const auto a=Hamiltonian::AdmitVxc(*point, opts.vxcFit, opts.mesh); !a)
+            policy::Refuse("AdmitVxc", "the stated Vxc fit and XC mesh on this molecule", a.Error());
+        if (const auto a=Hamiltonian::AdmitCoulomb(*point, opts.coulomb, opts.mesh, opts.vxcFit); !a)
+            policy::Refuse("AdmitCoulomb", "the stated Hartree route on this molecule", a.Error());
+    }
 
     using AType = qchem::SCFAccelerators::Type;
     s->accelerator = acc.type=="DIIS"   ? AType::DIIS
