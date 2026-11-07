@@ -1216,7 +1216,7 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
         id.ladderFactor=o.ladderFactor;
         id.gpwTolerances={{"vlocEps",{t.vlocEps}}, {"localPPRelCutoff",{t.localPPRelCutoff}}, {"relFieldSharp",{t.relFieldSharp}},
                           {"screenEps",{t.screenEps}}, {"fieldSharp",{t.fieldSharp}}, {"relCutoff",{t.relCutoff}},
-                          {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts}, {"rungGateC",{t.rungGateC}},
+                          {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts}, {"rungGateC",{t.rungGateC}}, {"relCutoffSafety",{t.relCutoffSafety}},
                           {"rasterX",{t.rasterX}}, {"vlocRasterX",{t.vlocRasterX}}, {"xcRasterX",{t.xcRasterX}}, {"accuracyEps",{o.accuracy.eps}}};
     }
     // The run's OWN policy table, resolved from its stated spec (not the process's installed one, which a later run may have replaced).
@@ -1420,6 +1420,9 @@ std::string BeckeName(const qcMesh::MeshParams& m)
 //! The grids the pilot settled, spelled as the deck keys that restate them (with \c accuracy 0, so no pilot runs again).  A deck that
 //! copies only the rasters is not the same run: \c vlocEps falls back to the no-target routing without a target, 5.8 uHa on MnO VA
 //! (lane A, 2026-11-06).  So every grid the pilot's choice depends on is here, at full precision.
+//! A restated run converges COLD where the pilot re-converged from its own D, so the two energies agree only to the SCF's stopping
+//! gate: ~6e-8 Ha on Si Gamma at the default gate, 1e-10 at MaxDeltaD 1e-10 (lane A, 2026-11-07).  A difference at the gate's size is
+//! the SCF, not a grid: compare the grids report, which is identical.
 qchem::report::json RestateKeys(const BasisSet::Gaussian::GPWTolerances& t, double cutoffFactor, const qcMesh::MeshParams& m)
 {
     qchem::report::json j={{"accuracy",0},{"solid",{{"cutoffFactor",cutoffFactor},

@@ -23,8 +23,9 @@
 // "how sharp is your sharpest primitive", "collocate this density on a multigrid ladder", and "fold your
 // pair streams under these space-group ops" -- none of which is a lattice-summed 1E integral.
 //
-//   GaussianSharpness      alpha_max, alpha_min, the REL_CUTOFF stiffness.  Not periodic and not an
-//                          integral: it is a property of the Gaussian basis, equally true of a molecule.
+//   GaussianSharpness      alpha_max, alpha_min.  Not periodic and not an integral: it is a property of the
+//                          Gaussian basis, equally true of a molecule.  (The REL_CUTOFF stiffness it also
+//                          answered is the run's GPWTolerances::relCutoffSafety since V-BS-RASTER step 2.)
 //   LatticeSum1E           the analytic Bloch 1E MATRICES.  The name now means exactly what it says.
 //   LatticeCollocation     the real-space GRID seam: Phi on a point set, collocate rho onto a multigrid
 //                          ladder, integrate a potential back, assign pair levels for a static field.
@@ -115,15 +116,6 @@ public:
     //! Sets the coarsest useful GPW density-grid LEVEL for the multi-grid collocation ladder: the levels run
     //! from the fine grid (\f$\propto\alpha_{\max}\f$) down to \f$\propto\alpha_{\min}\f$.
     virtual double MinExponent() const = 0;
-
-    //! \brief The STIFFNESS of the internal pair\f$\to\f$level assignment (the CP2K \c REL_CUTOFF safety): a
-    //! pair \f$(i,j)\f$ demands a level with \f$e_{cut}\ge\f$ \c RelCutoffSafety()
-    //! \f$\cdot\,e_{cut}^{ref}\,(\alpha_i+\alpha_j)/(2\alpha_{\max})\f$, so the stiffest possible requirement
-    //! (the \f$\alpha_{\max}+\alpha_{\max}\f$ pair) is \c RelCutoffSafety() \f$\cdot\,e_{cut}^{ref}\f$.  A
-    //! ladder is COMPLETE (every pair's requirement satisfiable) iff it contains a level at that cutoff --
-    //! exposed as a scalar summary (like \c MaxExponent) so the ladder BUILDER can append the completion rung
-    //! without duplicating the constant; the assignment itself stays internal (doc/GPWPlan.md 0b').
-    virtual double RelCutoffSafety() const = 0;
 
     //! \brief The pair-loop tolerances this basis was BUILT with (\c screenEps, \c densityEps, \c fieldSharp, \c relCutoff of the
     //! run's \c GPWTolerances; the rest of the struct is the default).  D-ENV-TOL option A (2026-10-31): bound ONCE by the builder
@@ -274,7 +266,7 @@ public:
     //! screened-complete Bloch overlap).  MULTI-GRID (CP2K \c REL_CUTOFF): \a ecut_L[0] is the RESOLUTION
     //! REFERENCE (the charge-calibrated density grid); the remaining levels are conventionally coarser in
     //! descending order, and the ladder MAY append one FINER completion rung at
-    //! \c RelCutoffSafety()\f$\cdot\f$\a ecut_L[0] (level selection is order-free; doc/GPWPlan.md 0b') --
+    //! \c GPWTolerances::relCutoffSafety \f$\cdot\f$\a ecut_L[0] (level selection is order-free; doc/GPWPlan.md 0b') --
     //! \a N_L[L] the level's grid divisions of cell \a A (raster \f$r=A(idx/N)\f$), \a ecut_L[L] its cutoff;
     //! each pair is collocated on the COARSEST level that still resolves its product exponent
     //! \f$\alpha_i+\alpha_j\f$ (the internal assignment -- primitives stay encapsulated), so diffuse pairs live
@@ -333,7 +325,7 @@ public:
     //! "identical active set" above is exact only up to that asymmetry.  Unifying the two is a separate,
     //! gated change -- it moves numbers -- and is NOT what the screener seam did.
     //! \a absRelCutoff selects the pair->level assignment rule: \c 0 (default) = the RELATIVE smooth-field
-    //! rule (\c RelCutoffSafety() \f$\cdot e_{cut}^{ref}(\alpha_i+\alpha_j)/2\alpha_{\max}\f$ -- MUST match
+    //! rule (\c GPWTolerances::relCutoffSafety \f$\cdot e_{cut}^{ref}(\alpha_i+\alpha_j)/2\alpha_{\max}\f$ -- MUST match
     //! \c CollocateDensity's assignment so collocate/integrate stay exact adjoints); \f$>0\f$ = the ABSOLUTE
     //! rule \f$e_{cut}\ge\f$ \a absRelCutoff \f$\cdot(\alpha_i+\alpha_j)\f$ (Ha per unit pair exponent --
     //! CP2K's \c gaussian_gridlevel \c REL_CUTOFF, its keyword is Ry = 2x this).  The absolute rule bounds

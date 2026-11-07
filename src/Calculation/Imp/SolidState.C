@@ -290,6 +290,9 @@ static StateFingerprint Migrated(StateFingerprint s, const StateFingerprint& now
     }
     // The rung gate's calibration (2026-11-05): a state that records none was built on the default, whatever this run states.
     if (!s.warmNum.count("gpw.rungGateC") && now.warmNum.count("gpw.rungGateC")) s.warmNum["gpw.rungGateC"]={BasisSet::Gaussian::kRungGateC};
+    // The pair rule's stiffness (V-BS-RASTER step 2, 2026-11-07): before it was a tolerance it was the evaluator's constant, the default.
+    if (!s.warmNum.count("gpw.relCutoffSafety") && now.warmNum.count("gpw.relCutoffSafety"))
+        s.warmNum["gpw.relCutoffSafety"]={BasisSet::Gaussian::kRelCutoffSafety};
     // The raster demands (C2 step 3, 2026-10-31): a state written before them sampled on a NAMED raster.  The ball's own raster has
     // every demand 0; the retired AliasFree has no demand equivalent, so its keys stay absent and differ (warm).
     // The accuracy target itself moves no state (the demands it derives do): an older state takes the run's.
