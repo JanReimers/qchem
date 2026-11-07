@@ -72,4 +72,6 @@ Say what each version does on a molecule, an atom and a solid, and where neutral
 | `FittedVxc`, `Vxc_Quadrature`, `tVxc_Quadrature` | `Vxc_DFT` (ruled) |
 | `PP_Local`, `PP_NonLocal`, `Ven_PP_Short`, `Ven_PP_Long`, `Ven_PP_NonLocal` | `Ven_PP_Local`, `Ven_PP_NonLocal`, keeping `_Short` / `_Long` only while the split is real |
 
+**When the XC and Hartree renames can land (lane S 2026-11-06).**  A table row with several sources is several live classes in one namespace, so the name waits for them to merge.  `tVxc_Quadrature<T>` takes `Vxc_DFT` when V1.35 deletes the `Vxc_Quadrature` subclass, with `FittedVxc` following in step 5.  `Vee_Hartree` takes `Vee_DFT` when it merges with the molecular term after step 4.
+
 Unchanged: `Ven`, `Kinetic`, `DiracKinetic`, `RestMass`, `IonIon`, `Hubbard_U`.  Renames ride with the step that touches the class, not as a separate sweep.
