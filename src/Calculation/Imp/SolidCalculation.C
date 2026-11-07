@@ -378,8 +378,13 @@ void ResolveGpwPoint(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real
     namespace L3 = BasisSet::Lattice;
     const std::shared_ptr<const Structure> held=lat.GetStructure();   // held: GetStructure may hand back a fresh object
     const Structure& st=*held;
-    p.imposition=std::make_shared<const CrystalImposition>(ResolveImposition(lat, ImpositionOptions{
-        .imposeSymmetry=p.imposeSymmetry, .siteSpins=p.siteSpins, .freeMeshInvariant=p.freeMeshInvariant, .kShift=p.kShift}));
+    {
+        // The imposition is a POLICY (what the run symmetrizes, and the R1.0r intersection with the k mesh), so it reports one level
+        // into the run report's `policy` scope.
+        qchem::report::Scope policy("policy"), sym("symmetry");
+        p.imposition=std::make_shared<const CrystalImposition>(ResolveImposition(lat, ImpositionOptions{
+            .imposeSymmetry=p.imposeSymmetry, .siteSpins=p.siteSpins, .freeMeshInvariant=p.freeMeshInvariant, .kShift=p.kShift}));
+    }
     const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(st, *Pseudopotential::MakeMultiSpeciesLocal(pp.Species(st), pp.Functional()));
     p.ladder=L3::MakeRasterLadder(lat, std::move(mol), p, ppSharpness);
 }
