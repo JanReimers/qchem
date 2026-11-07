@@ -420,6 +420,10 @@ silently.  Earned by the density G-ball (the plane-wave cutoff of the fitted den
 outside ε in every cell, H₂O MOLOPT +330 μHa against CP2K, while the grids beside it were ε-sized (OpenWork history,
 2026-11-03).
 
+Rewrite:
+Many terms in the Hamiltonian have errors in them arising from non-model choices 1) integration grids, 2) fit basis set incompletentness, 3) ???.  Model choices include: XC functional, orbital
+basis, pseudopotential, smearing kT, and the structure.  These are not included in this analysis. The non-model error for any term can be characterized either by 1) a single-point energy, the term's |ΔE|, or 2) the term worst matrix element max|ΔH_ij|.  The latter must be controlled for calculating forces in a geometry optimization algorithm.  In both cases the control should ideally be *balanced* accorss all effected Hamiltonian terms.  There is no point in using a huge grid to get Vxc accurate eo 1e-7, if one of the other terms is still in error by 1e-3.  
+
 ## 32. A fitted term's H is the gradient of its own E: the same object on both sides (user, 2026-11-07)
 
 A term that reaches H through a fit must deliver H = ∂E/∂D for the E it reports, because forces, GDM and every
