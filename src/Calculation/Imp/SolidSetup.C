@@ -10,8 +10,8 @@ module;
 #include <vector>
 module qchem.SolidSetup;
 
-import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;   // GaussianSharpness::MaxExponent -- alpha_max (the NARROW face)
-import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS (the per-irrep bases to iterate)
+import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;   // ToleranceBinding (the recipe binds the run's pair-loop tolerances)
+import qchem.BasisSet.Gaussian.Lattice.RasterLadder;   // ExponentAtCutoff, kResolutionEps: alpha_max from the basis's Resolution
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH -> HGH local PP -> alpha_pp
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
@@ -48,12 +48,12 @@ static qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Basi
     s.cellEdge = lat.GetUnitCell().GetMaximumCellEdge();
     s.nAtoms   = int(lat.GetUnitCell().GetNumAtoms());
     s.imposed  = imposed;   // the RESOLVED value: CP2K_COMPAT can veto it, and the grid cost follows
-    for (auto ibs : const_cast<BasisSet::Real_BS&>(mol).Iterate<BasisSet::Real_OIBS>())
-        // THE NARROW FACE, since the 2026-09-08 ISP split: this asks for ONE number, so it names the
-        // three-method GaussianSharpness capability and not the seventeen-method periodic aggregate it
-        // used to cross-cast to.  Nothing here wants a lattice sum, a collocation or a stream fold.
-        if (const auto* sh=dynamic_cast<const BasisSet::Gaussian::GaussianSharpness*>(ibs))
-            { s.alphaMax = sh->MaxExponent(); break; }
+    // The basis's own answer (V-BS-RASTER): the sharpest function exponent read off its density's resolution, as the ladder reads it --
+    // no cast to a Gaussian face, and every block counted (it was the first block that answered).
+    {
+        const double eps=BasisSet::Gaussian::GpwRasterLadder::kResolutionEps;
+        s.alphaMax = BasisSet::Gaussian::ExponentAtCutoff(mol.MakeResolution(eps).cutoff, eps);
+    }
     for (const auto& [element, valence] : pp.Species(*lat.GetStructure()))   // the structure's elements, never the whole set
     {
         const int Z = int(thePeriodicTable().GetZ(element));

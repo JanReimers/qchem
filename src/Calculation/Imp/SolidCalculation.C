@@ -119,6 +119,12 @@ struct SolidCalculation::Imp
     //! The pilot audit has SETTLED this run's rasters (\c CalibrateRasters): \c setup->opts.tolerances are the final demands.
     bool rastersSettled = false;
     SolidCalculation::RasterPilotCost pilotCost;   //!< what the pilot cost (\c PilotCost)
+    //! \brief The D's GENERATION: bumped by every SCF stage and every restored density, so an audit result can say which D it measured.
+    size_t dGeneration = 0;
+    //! \brief The pilot's last round's raster audit (x + kReferenceMargin, no XC rung) and the D generation it measured: a postSCF
+    //! \c GridAudit at the same margin on the same D is that audit, so it is REUSED, not re-measured (lane H beta (d): 2,460 s on Li q3).
+    std::optional<SolidCalculation::GridAuditResult> pilotLastAudit;
+    size_t pilotLastAuditGeneration = 0;
     //! The pilot's start rasters were already raised once for the overlap's conditioning (\c Converge): never a second time.
     bool startRaisedForConditioning = false;
     //! \brief THE rho-tilde SAMPLER'S ONE TIGHTENING (step 2, user rulings 2026-11-04).  The sampler's tau is fixed from the seed and never
@@ -479,6 +485,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
 void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
                                 SCFAccelerators::Type accel, bool restored, bool exactResume)
 {
+    ++itsImp->dGeneration;   // a new seed or a restored D
     const SolidSetup&       S    = *itsImp->setup;
     const SolidCalcOptions& opts = S.opts;
     const Lattice_3D&       lat  = *itsImp->lat;
@@ -1099,6 +1106,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
     // bookkeeping: GetChargeDensity() builds a fresh composite density and GetSpinDensity() rasters BOTH
     // spin channels, once per stage -- and an annealed run has a stage per schedule entry.
     qchem::report::Timed residue("scf: converge (residue -- final density + m(r) extraction)");
+    ++itsImp->dGeneration;   // this stage moves D: no earlier audit measured the D it ends on
     // The banner and the recipe say what the iterator WILL build: SCFParams::Mixing::Auto resolved by the iterator itself.
     const SCFParams resolved=itsImp->scf->ResolveMixing(params);
     EmitSCFBanner(itsImp->setup->opts.label, resolved, itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
@@ -1510,6 +1518,14 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(double referenceMa
     if (S.planeWave) throw std::invalid_argument("SolidCalculation::GridAudit: a plane-wave run has no raster to audit");
     if (!(referenceMargin>0.0)) throw std::invalid_argument("SolidCalculation::GridAudit: the reference must be FINER than the run (margin > 0)");
     qchem::report::Timed timed("postSCF: grid audit (reference basis + Hamiltonian + term matrices)");
+    if (itsImp->pilotLastAudit && referenceMargin==kReferenceMargin && itsImp->pilotLastAuditGeneration==itsImp->dGeneration)
+    {   // THE PILOT'S LAST ROUND measured exactly this: the same rasters against x + the same margin, at this D.  Say so, never re-measure.
+        GridAuditResult R=*itsImp->pilotLastAudit;
+        R.reference+=" (the pilot's last round, not re-measured)";
+        std::cout<<"[grid audit] "<<R.reference<<": max|dH_ij| "<<R.maxAbsΔH<<", dE "<<R.ΔE<<" Ha"<<std::endl;
+        qchem::report::Log("[grid audit] reused "+R.reference);
+        return R;
+    }
     const BasisSet::Gaussian::GPWTolerances ref=ReferenceRasters(referenceMargin);
     return CompareAtFixedD(ref, rvec3_t(0,0,0), RasterName(ref));
 }
@@ -1546,7 +1562,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     const double target=itsImp->setup->opts.accuracy.Target(c, nAtoms);
     qchem::report::Timed timed("postSCF: raster pilot (reference basis + audit; re-converge when a raster rises)");
     const std::streamsize prec0=std::cout.precision();
-    std::cout<<tag<<"sizing the rasters to "<<std::setprecision(3)<<target<<" Ha "
+    std::cout<<tag<<"sizing the rasters to "<<std::defaultfloat<<std::setprecision(3)<<target<<std::setprecision(prec0)<<" Ha "   // a fixed left on cout printed 1e-5 as 0.000
              <<(onH ? std::string("per matrix element (max|ΔH_ij|): a geometry run")
                     : "per raster term's energy (eps x "+std::to_string(nAtoms)+" atoms): an energy run")<<std::endl;
     rpt::json rounds=rpt::json::array();
@@ -1578,6 +1594,10 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         const GridAuditResult R =CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), withRung("pilot reference (x + "+std::to_string(int(kReferenceMargin))+")", xcAngular),
                                                  xcAngular ? &*xcAngular : nullptr);
         const GridAuditResult Bl=CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), withRung("density ball x 2", xcRadial), xcRadial ? &*xcRadial : nullptr, 2.0);
+        // R is GridAudit(kReferenceMargin) at this D exactly when its reference carries no XC rung (a postSCF gridAudit keeps the run's mesh).
+        if (xcAngular) itsImp->pilotLastAudit.reset();
+        else { itsImp->pilotLastAudit=R; itsImp->pilotLastAudit->reference=RasterName(ReferenceRasters(kReferenceMargin));
+               itsImp->pilotLastAuditGeneration=itsImp->dGeneration; }
         G::GPWTolerances t=itsImp->setup->opts.tolerances;
         double dDens=0.0, dV=0.0, dXC=0.0;
         rpt::json terms=rpt::json::array();

@@ -113,22 +113,18 @@ std::vector<Symmetry::Lattice_3D::SymOp> StarOps(const std::vector<Symmetry::Lat
 }
 }
 
-namespace
+double ExponentAtCutoff(double cutoff, double eps)
 {
-//! The function exponent whose pair product's spectrum falls to \a eps at \a cutoff: \f$\tfrac12G^2=2pL\f$ with \f$p=2\alpha\f$, so
-//! \f$\alpha=e_{cut}/4L\f$ (\c GaussianSharpness::MakeResolution's formula, inverted).
-double ExponentAt(double cutoff, double eps)
-{
-    if (!(cutoff>0.0)) throw std::invalid_argument("GpwRasterLadder: the basis's resolution has no positive cutoff ("+std::to_string(cutoff)+")");
+    if (!(cutoff>0.0)) throw std::invalid_argument("ExponentAtCutoff: the basis's resolution has no positive cutoff ("+std::to_string(cutoff)+")");
+    if (!(eps>0.0 && eps<1.0)) throw std::invalid_argument("ExponentAtCutoff: eps must lie in (0,1)");
     return cutoff/(4.0*std::log(1.0/eps));
-}
 }
 
 GpwRasterLadder::GpwRasterLadder(const UnitCell& cell, const BasisSet::Resolution& res, double resEps, double densityEcut, double cutoffFactor,
                                  double ladderFactor, PlaneWave::RasterFields rasterFields, const GPWTolerances& tol, double ppSharpness)
     : itsInputs{densityEcut, cutoffFactor, ladderFactor, rasterFields, tol}
     , itsCell(cell), itsPPSharpness(ppSharpness)
-    , itsAlphaMax(ExponentAt(res.cutoff, resEps)), itsAlphaMin(ExponentAt(res.coarseCutoff, resEps)), itsRelCutoffSafety(tol.relCutoffSafety)
+    , itsAlphaMax(ExponentAtCutoff(res.cutoff, resEps)), itsAlphaMin(ExponentAtCutoff(res.coarseCutoff, resEps)), itsRelCutoffSafety(tol.relCutoffSafety)
     , itsLadderFactor(ladderFactor), itsTol(tol)
 {
     if (!(resEps>0.0 && resEps<1.0)) throw std::invalid_argument("GpwRasterLadder: the resolution's eps must lie in (0,1)");

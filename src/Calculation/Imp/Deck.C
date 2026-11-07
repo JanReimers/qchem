@@ -1252,7 +1252,19 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
             rj["reference"]=R.reference; rj["terms"]=t; rj["maxAbsDH"]=R.maxAbsΔH; rj["dE"]=R.ΔE;
             auto vj=[](const auto& vs) { json o=json::object(); for (const auto& v : vs) o[v.audit]={{"status",v.status},{"alias",v.alias}}; return o; };
             rj["verdicts"]=vj(R.runVerdicts); rj["referenceVerdicts"]=vj(R.referenceVerdicts);
+            // ok = the audit MEETS THE RUN'S OWN TARGET on the run's own measure (lane H beta (c), 2026-11-07): max|dH_ij| <= eps for a client
+            // that consumes matrix elements, |dE| <= eps N for an energy run -- the pilot's Target().  It used to stay the default true,
+            // whatever the audit measured.  A run with no target (accuracy 0, stated rasters) has nothing to judge against: ok, and says so.
+            const auto S=calc->SizedSetup();
+            const ClientConsumes c=calc->Consumes();
+            const double target=S->opts.accuracy.Target(c, S->cell->GetNumAtoms());
+            const bool onH = c==ClientConsumes::MatrixElements;
+            const double measured = onH ? R.maxAbsΔH : std::abs(R.ΔE);
+            pr.ok = target<=0.0 || measured<=target;
+            rj["target"]=target>0.0 ? json(target) : json(nullptr); rj["measure"]=onH ? "maxAbsDH" : "absDE";
             std::ostringstream os; os<<"vs "<<R.reference<<": max|dH_ij| "<<R.maxAbsΔH<<", dE "<<R.ΔE<<" Ha";
+            if (target>0.0) os<<(pr.ok ? "  -- meets " : "  -- OVER ")<<(onH ? "max|dH_ij| " : "|dE| ")<<target<<" Ha (the run's target)";
+            else            os<<"  (no accuracy target: not judged)";
             pr.summary=os.str(); break;
         }
         }

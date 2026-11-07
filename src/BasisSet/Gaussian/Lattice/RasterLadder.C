@@ -60,6 +60,11 @@ struct RasterLevels
 //! facade that sizes the ladder both call it, so the ladder's V_long audit and the term's ladder agree by construction.
 double LocalPPSharpness(const Structure& cl, const SpeciesRadialField& loc);
 
+//! \brief The Gaussian FUNCTION exponent whose pair product's spectrum falls to \a eps at \a cutoff: \f$\tfrac12G^2=2pL\f$ with
+//! \f$p=2\alpha\f$, so \f$\alpha=e_{cut}/4L\f$, \f$L=\ln(1/\epsilon)\f$ -- \c GaussianSharpness::MakeResolution's formula, inverted.  What a
+//! Gaussian grid rule written in exponents (the ladder, the XC mesh selector) reads off a basis's \c Resolution.  THROWS on cutoff <= 0.
+double ExponentAtCutoff(double cutoff, double eps);
+
 //! \brief The GPW density grid and its multigrid ladder, built once from k-independent inputs and shared by every block of a point.
 class GpwRasterLadder
 {
