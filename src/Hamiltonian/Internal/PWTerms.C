@@ -276,6 +276,9 @@ private:
     //! the term keeps the last one.  The key is \c ChargeDensity::Version(), the same intrinsic serial the
     //! Irrep matrix cache above it keys on (\c tDynamic_HT_Imp::GetMatrix).
     const ΔG_Map& CoulombField(const cChargeDensity*) const;
+    //! The BLOCK path's read of that memo: the field the refresh built for \a cd, or a throw if the refresh never saw
+    //! \a cd.  A block never builds the field (V1.41 stage 2), so the per-block loop writes nothing.
+    const ΔG_Map& RefreshedField(const cChargeDensity*) const;
 
     //! \brief \f$\Omega\f$, the cell volume, as the fit raster's own quadrature answers it:
     //! \f$\int 1\,d^3r\f$.  Asked ONCE (the grid is geometry-fixed) through the abstract raster face --
