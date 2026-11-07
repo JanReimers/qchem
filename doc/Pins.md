@@ -395,34 +395,60 @@ Consequences:
   accuracy matter for ε and the audit, never a refusal.
 - **The gate's R cells are derived, not listed:** R exactly when H_R ≰ G.
 
-## 31. One accuracy target, judged by what the client consumes (user, 2026-11-01)
+## 31. One accuracy target ε, balanced across every term (user, 2026-11-01; rewritten by the user 2026-11-07)
 
-Every numerical grid a run uses (uniform or not: the GPW density and potential grids, a Becke/atom-centred mesh, a radial
-grid) is sized from the run's one ε by the error it DELIVERS on the quantity its client consumes.
-- A single-point energy: each grid-dependent term's |ΔE| ≤ ε per atom.
-- Anything that produces forces, a geometry or a surface: max|ΔH_ij| ≤ ε per element.  The energy error cancels in
-  Tr D ΔH (MnO V_long: 0.26 Ha in H against 5 μHa in E), so a grid sized on the energy is blind to what forces see.
+Many Hamiltonian terms carry errors from NON-MODEL choices:
+1. integration grids (uniform or not: the GPW density and potential grids, a Becke/atom-centred mesh, a radial grid);
+2. fit basis incompleteness;
+3. integral and product screening thresholds;
+4. truncated lattice and image sums: the image list, Ewald, the radial-Poisson lmax;
+5. SCF convergence itself (an error in the state rather than in a term);
+6. k-point sampling of BZ integrals.
 
-The run answers the question; the user never picks a metric.  Where a grid has a rigorous error bound (for a uniform
-grid, the fitted alias tail), the bound and its measured calibration (the pilot audit) stay separate in code.  Where
-no bound exists, as for the grid that projects XC onto its fit basis, the error is reported as MEASURED.  Test defaults:
-1e-5 Ha/atom (energy) and 1e-5 Ha per element (H).  Earned by NaF: the −941 μHa of the ball-only route was the XC grid,
-and the F site's "curvature" was the grid's egg-box effect (doc/GridEpsilonPlan.md §1).
+5 and 6 sit on the boundary between model and non-model.  The more we count as non-model, the less the user has to think
+about, but the more it may cost to meet the error limit.
 
-**Extended (user, 2026-11-03): ε governs EVERY numerical approximation, not only the grids, and for EVERY structure type --
-atom, molecule and solid alike** (today ε exists on the solid facade only: OOD-SOLID-Cleanup V-FACADE-ACCURACY).  *"If ε
-works for every term then the concept is easy to understand.  If it is hit and miss then it becomes far less useful."*
-Every tolerance, cutoff, grid and screen that approximates the CHOSEN model is either sized from ε (a rigorous formula
-plus a named calibration, CLAUDE.md Design) or audited against ε by the run.  A fixed tolerance that ignores ε is a
-DEFECT, however harmless it measures today.  MODEL choices are not approximations and are exempt: functional, orbital
-basis, pseudopotential, smearing kT, and the structure.  A STATED value is honoured and reported against ε, never
-silently.  Earned by the density G-ball (the plane-wave cutoff of the fitted density): the automatic 2·α_max sat
-outside ε in every cell, H₂O MOLOPT +330 μHa against CP2K, while the grids beside it were ε-sized (OpenWork history,
-2026-11-03).
+MODEL choices are exempt from this analysis: the XC functional, the orbital basis, the pseudopotential, smearing kT, and the
+structure.
 
-Rewrite:
-Many terms in the Hamiltonian have errors in them arising from non-model choices 1) integration grids, 2) fit basis set incompletentness, 3) ???.  Model choices include: XC functional, orbital
-basis, pseudopotential, smearing kT, and the structure.  These are not included in this analysis. The non-model error for any term can be characterized either by 1) a single-point energy, the term's |ΔE|, or 2) the term worst matrix element max|ΔH_ij|.  The latter must be controlled for calculating forces in a geometry optimization algorithm.  In both cases the control should ideally be *balanced* accorss all effected Hamiltonian terms.  There is no point in using a huge grid to get Vxc accurate eo 1e-7, if one of the other terms is still in error by 1e-3.  
+**The measure.**  A term's non-model error is characterised either by its energy error |ΔE| or by its worst matrix
+element max|ΔH_ij| (in a normalised basis, so elements are on a common Ha scale).  max|ΔH_ij| is much the tougher
+condition, and it must be controlled whenever forces are computed (a geometry optimization, a surface): the energy error
+cancels in Tr D ΔH (MnO V_long: 0.26 Ha in H against 5 μHa in E), so a grid sized on the energy is blind to what forces see.
+
+**Balance.**  The control should be balanced across all affected terms: there is no point in a huge grid that gets Vxc
+to 1e-7 while another term is still off by 1e-3.  So the run has ONE maximum allowed error, ε, and adjusts its grids and
+fit bases until, for every term,
+- |ΔE| ≤ ε·N_atoms (N_atoms = the atoms in the unit cell or molecule: nuclei, not basis-function centres), or
+- max|ΔH_ij| ≤ ε (the single worst element; no count enters).
+
+**Who picks.**  The run, not the user: a run that requires or produces forces uses max|ΔH_ij|, otherwise |ΔE|.  (Users
+may one day have good reasons to ask for the tougher max|ΔH_ij| on an energy run.)  Done right this is a big win: it
+removes a huge burden from the user (CLAUDE.md priority 3).
+
+**Two catches.**
+1. We need (semi-)quantitative relations between grid / fit-basis parameters and |ΔE|, max|ΔH_ij|.  Some are rigorous
+   (for a uniform grid, the fitted alias tail), often augmented by empirically determined factors that hold across a
+   wide range of materials (the pilot audit).  The rigorous and empirical parts are named and kept separate in code
+   (CLAUDE.md Design), and the empirical parts are expert knobs.  Where no bound exists (the grid that projects XC onto
+   its fit basis), the error is reported as MEASURED.
+2. Grids and fit bases are decided BEFORE the SCF iterations start.  A density guess at startup matters: SAD, or ρ[D]
+   from a previous run.  How well the run is doing is shown in iteration-log column(s); a miss is acted on at the next
+   run or SCF boundary, never mid-SCF.
+
+**Current hard rules.**
+1. ε is structure neutral: it applies to atoms, molecules and solids alike (today the solid facade only:
+   OOD-SOLID-Cleanup V-FACADE-ACCURACY).  User 2026-11-03: *"If ε works for every term then the concept is easy to
+   understand.  If it is hit and miss then it becomes far less useful."*
+2. A fixed tolerance that ignores ε is a DEFECT, however harmless it measures today.
+3. A STATED value is honoured and reported against ε, never silently.
+
+**Current default:** ε = 1e-5 Ha per atom (energy) and 1e-5 Ha per matrix element (H).
+
+**Earned by:** NaF, where the −941 μHa of the ball-only route was the XC grid and the F site's "curvature" was the grid's
+egg-box effect (doc/GridEpsilonPlan.md §1); and the density G-ball (the plane-wave cutoff of the fitted density), whose
+automatic 2·α_max sat outside ε in every cell, H₂O MOLOPT +330 μHa against CP2K, while the grids beside it were ε-sized
+(OpenWork history, 2026-11-03).
 
 ## 32. A fitted term's H is the gradient of its own E: the same object on both sides (user, 2026-11-07)
 
