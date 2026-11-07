@@ -1,0 +1,245 @@
+# Geometry optimization: molecules first, on analytic forces (DESIGN NOTE)
+
+Lane B, 2026-11-07, rewritten the same day after the user's rulings (§12).  Status: a design for the user to read before any code.
+
+It covers:
+- the OpenWork rows "A cheap host for geometry-optimization experience" (the user's sequence: molecules, then rutile TiO₂, LiCoO₂,
+  Li_xTiS₂) and level 1 of "Geometry optimization: imposed relaxation, then DISCOVER…";
+- the forces seam of `doc/Records/CalcNetworkReview.md` §3.3 (the `PotentialEnergySurface` face, §3.1).
+
+Evidence it cites:
+- the seed test (`doc/Records/SeedTestReport.md`);
+- a PySCF probe on H₂O, `~/Code/qchem6-runs/H2O/fdforces/`.
+
+The first version proposed a finite-difference force product.  The user ruled it out (§12.3), so this version designs the ANALYTIC
+forces instead.  FD survives only as a per-term unit-test helper at fixed D (§6).
+
+## 0. What exists, and the shape
+
+**Already there:**
+- `qchem.PotentialEnergySurface`: `ConvergeAt(cell, R, want) → Outcome<PESPoint, PESFailure>`, forces optional in `PESPoint`.
+- `MoleculeSession` and `SolidSession` implement it.  `MoleculeSession` carries each point's D block by block onto the next point.
+- A forces request returns `NoGradient` today.
+
+```
+   GeometryOptimizer ── q, E, dE/dq ──► CoordinateMap ──► PotentialEnergySurface ──► MoleculeSession │ SolidSession
+   (BFGS, trust radius;                 (molecule: Cartesian;   (energy, forces)          │ at the converged D:
+    model-surface unit tests)            solid: cell + Wyckoff)                           ▼
+                                                         F = − Σ_terms ∂E_t/∂R |_D  − Tr(W ∂S/∂R)    (§4)
+```
+
+## 1. The optimizer, behind a coordinate map (ruled Q1)
+
+**The optimizer sees only a coordinate vector q, E(q) and g = dE/dq.**  It never sees R or a cell.
+
+A `CoordinateMap` turns q into a geometry (cell, R) and turns a geometry's forces into g = −Jᵀ F, with J = ∂R/∂q:
+- **Molecule:** Cartesian.  q = R, J = 1, with the 6 (5 if linear) external modes projected out of g and of the step.
+- **Solid, level 1:** the cell plus the free Wyckoff parameters of the imposed group.  J is the group's own map from parameters to
+  positions, so symmetrized forces come for free.  The cell part needs stress (the variable-cell seam, `CellChange` today).
+- **Later:** redundant internals could be a second molecular map, and nothing above the map changes.
+
+**The method.**
+- Quasi-Newton BFGS, started from a model Hessian (Lindh's force-field form, which needs only Z and R).
+- A rational-function or trust-region step, starting at 0.3 bohr, shrunk on an energy rise and that step rejected.  No line search.
+- A `PESFailure` at a point stops the optimization with an Outcome naming the point and why.
+
+**Convergence** is max|g|, RMS g, max step and ΔE.  The force threshold is DERIVED from ε through a named calibration (ruled Q2,
+§8 has the calibration).
+
+**Tests:** analytic model surfaces only (a Morse or LJ cluster through a test PES, a quadratic with a known Hessian, a map with a
+nontrivial J).  They check convergence, step counts, invariance and refusals.  **No real optimization runs before analytic forces
+exist** (ruled §12.3).
+
+## 2. Grids fixed across one optimization, picked once from the two-step run
+
+The rule (the user's fixed-settings and one-grid-set-per-series rulings, applied to one optimization):
+1. **Step 1:** seed (SAD), ε = 1e-4, converge at the start geometry.
+2. **Audit at that D on the H measure:** max|ΔH_ij| against the next rung up, the pilot's rule.  A fixed fine reference costs
+   more than it buys: the seed test's addendum replays the rule, 6 of 6 meet ε.  The ε here is the one the force target needs (§8).
+3. **Fix the RULE for the whole optimization:** (nR, L, angular kind, radial map, Becke order) per species, the Hartree fit basis
+   and every raster.  The mesh POINTS move with the atoms; its parameters never change.  The basis recipe and the PP set are frozen,
+   as `MoleculeSession` already freezes them.
+4. **Never resize mid-optimization.**  A resize makes E(R) discontinuous and the BFGS update meaningless.
+5. **Report health per point:** δq of the mesh, free at every point.  At the converged geometry, audit again and report whether
+   the pick differs.  Acting on a different pick is the NEXT run's business (pin 31 catch 2).
+
+Evidence: on all five seed-test systems the 1e-5 pick made at the 1e-4 D is the converged D's pick.  That test did not cover a
+geometry change between the steps; step 5's final audit checks it, for every optimization.
+
+## 3. The force: what it is, and what it needs
+
+At a converged density, with the energy E[D, R] and the orthonormality constraint, for each atom A:
+
+    F_A = − Σ_t ∂E_t/∂R_A |_D  +  Tr(W ∂S/∂R_A)
+
+- W = Σ_σ Σ_i f_iσ ε_iσ c_iσ c_iσᵀ is the energy-weighted density, spin-summed.  The formula is spin-native, with D = D↑ + D↓
+  wherever a term reads the total.
+- Each ∂E_t/∂R_A |_D is the term's OWN derivative at frozen D: its operator's centres and its basis functions' centres move, and
+  D's AO coefficients do not.  That is exactly what a per-term finite difference at fixed D measures, which is why it is each
+  term's unit oracle (§6).
+- The formula holds only where the SCF stopped at a stationary point of E in D.  So **every term must give H = ∂E/∂D first** (pin 32):
+  a term in an inconsistent shape has no analytic force, only `NoGradient`.
+
+## 4. Every force term, its oracle, and its estimate
+
+Routes as the molecular factory builds them (`src/Hamiltonian/Internal/Imp/Hamiltonians.C`).  **Default stack** = the first route of
+each row.  Estimates are lane-days, with the shared layer of §5 paid once (2.5 days).
+
+| term (class) | the gradient | oracle: unit (FD at fixed D, no SCF) + integrals | whole-molecule oracle | pin 32 | estimate |
+|---|---|---|---|---|---|
+| **Pulay** (basis, through S) | +Tr(W ∂S/∂R): ⟨∂χ\|χ⟩ | FD of Tr(W S(R)) at fixed W; libcint `int1e_ipovlp` | PySCF | — | 0.5 |
+| **Kinetic** | −Tr(D ∂T/∂R) | FD of Tr(D T(R)); `int1e_ipkin` | PySCF | static, consistent | 0.25 |
+| **Ven** (all-electron nuclear) | basis-centre part + operator part (the nucleus moves) | FD; `int1e_ipnuc` (centres) + `int1e_iprinv` (operator, origin on the nucleus) | PySCF | static | 0.5 |
+| **IonIon** | Coulomb between Zion cores, closed form | FD of the sum; translational invariance | PySCF | none | 0.1 |
+| **PP local** (GTH, closed form when every block `CanAssembleField`) | three-centre: two basis centres + the PP centre (the PP centre's part = − the sum of the other two, by translation invariance) | FD at fixed D; no libcint GTH, so our engine's l±1 identity (∂/∂A_x of a Cartesian Gaussian = 2α G(l+1) − l G(l−1)) on the existing closed form | PySCF GTH (`pseudo=gth-pade`; worked on H₂O, §8) | static | 1.5 |
+| **PP local, quadrature route** (a block that cannot assemble the field) | needs the PP mesh's weight derivatives | FD at fixed D | — | static | `NoGradient` first; with the XC weight derivative, 0.5 |
+| **PP non-local** (KB projectors) | Σ D_ij h_pq ∂(⟨χ_i\|p⟩⟨p\|χ_j⟩): two-centre ⟨χ\|p⟩ derivatives | FD at fixed D; l±1 on the closed-form ⟨χ\|p⟩ | PySCF GTH | static | 1.0 |
+| **Hartree, `Vee_DFT_Dunlap`** (default) | 2 cᵀ ∂C/∂R · D − cᵀ ∂G/∂R c, plus the charge constraint's λ ∂N_fit/∂R (fit functions move with their atoms) | FD at fixed D, with c re-solved at R±h (stationary in c, so dc/dR drops out analytically: the FD checks that); `int3c2e_ip1` (orbital centres), `int3c2e_ip2` (fit centre), `int2c2e_ip1` | PySCF DF-J with the SAME auxiliary basis (Coulomb metric, no charge constraint: a near oracle, its gap measured once) | **consistent** (Cᵀ G⁻¹ C) | 1.5 |
+| Hartree, `Vee_DFT` δ (radial Poisson / direct sum) | qᵀ K ∂q/∂R + ½ qᵀ ∂K/∂R q: the points and weights move, and K (radial Poisson) moves with the sites | FD at fixed D | PySCF (exact J) at a converged grid | consistent (Oᵀ K O), first order | `NoGradient` first; 2-3 |
+| Hartree, multipole | as δ, plus the channel expansion | FD at fixed D | — | **implied second derivative not yet checked** | `NoGradient`; check first |
+| **XC, `Vxc_DFT` δ on the Becke mesh** (default) | (a) Σ_g w_g v_xc ∂ρ(r_g)/∂R: basis-function derivatives at the points, and the points ride with their atom; (b) the GRID RESPONSE Σ_g ∂w_g/∂R e_xc(ρ_g): the Becke partition's derivative (Johnson–Gill–Pople 1993), through its iterated s(μ) (order 2 = three iterations) | FD at fixed D on the moving mesh, (a) and (b) together; (b) alone as a qcMesh unit test: ∂w_g/∂R by FD of the weights.  Σ_A F_A = 0 is the invariance check (b) is needed for | PySCF with `grid_response=True` where its grid can match ours (original Becke, no radii adjustment), else at a converged grid (the H₂O probe agreed to 3.5e-7 Ha/bohr) | **consistent** (pin 28: H = Oᵀ f′(OD)) | (a) 1.0, (b) 2.0 |
+| XC, A1 auxiliary fit (`FittedVxc`) | through the fit | FD at fixed D | — | **suspect** (an overlap-metric fit of v_xc): check before any gradient | `NoGradient` |
+| XC, multipole | through the channels | — | — | not checked | `NoGradient` |
+| HF `Vee_HF`, `Vxc_HF` (J, K) | 4-centre derivatives, contracted with D and D | FD at fixed D; `int2e_ip1` | PySCF RHF/UHF gradients | exact (no fit) | 1.5 (after DFT) |
+| +U (`Hubbard_U`) | projector-occupation derivatives | FD at fixed D | QE / ABINIT for solids | to check | later |
+
+**Default stack total:**
+- 2.5 shared (§5);
+- 0.5 Pulay, 0.25 kinetic, 0.1 ion-ion, 1.5 PP local, 1.0 PP non-local, 1.5 Hartree Dunlap, 3.0 XC;
+- 1.0 gates (§6) and 1.0 the optimizer (§1).
+
+That is **about 12 lane-days to an LDA, GTH, DZVP-MOLOPT molecule optimized on analytic forces.**  The all-electron Ven adds 0.5;
+HF adds 1.5.
+
+## 5. Where the code lives, and how it meets lane S's sprint
+
+**The shared layer (2.5 days), touching no tier-1 hub:**
+- **A derivative-integral evaluator** built from `AoShellSource` (the shells the basis already exposes).  It packs them for libcint
+  as `PG_LibCint` already does, and returns ∂M/∂R_A as 3 matrices per atom for ovlp, kin, nuc/rinv, 3c2e and 2c2e.  Our in-house
+  MnD engine gains the l±1 identity for the GTH integrals libcint lacks, and libcint checks it on every integral the two share.
+  Building it beside the basis, not on the `Orbital_*` hubs, keeps their faces unchanged.
+- **W from the converged wave function**, spin-summed.
+- **The force assembly:** `ConvergeAt(forces)` on `MoleculeSession` sums the terms' gradients, adds the Pulay term, reports per term
+  (one `report::Row` per term: max|F|, Σ_A F_A), and returns `NoGradient` naming the first term without one.
+
+**The per-term gradient is a CAPABILITY face** (CalcNetworkReview §3.3).
+- `GeometryGradient { std::vector<rvec3_t> dE_dR(…) const; }` lives in its own module and is reached by the sanctioned
+  abstract→abstract cross-cast.  A term that does not implement it is a `NoGradient` with its name, never a silent zero.
+- **How the assembly finds the terms is a tier-1 `Hamiltonian` hub question**: it needs one query "each term, or its gradient face".
+  That needs a design discussion with the user (CLAUDE.md, the protected hubs).  §11 asks it.
+
+**The sprint mapping (lane S, `doc/HamiltonianSprintPlan.md`):**
+- **Step 3b (landed):** `Vee_DFT_Dunlap` is its own class.  The Dunlap gradient is Dunlap's own formula on Dunlap's integrals, which
+  is exactly what V1.1b asked of the two Hartree versions.
+- **Step 4, V1.41 option C:** one current state per term, filled at the refresh.  A gradient READS that state at the converged D
+  (Dunlap's c and λ, the XC term's v_xc and e_xc at the points), so no term recomputes a fit to give its force.  **The term-side
+  gradient code lands after step 4.**  Before it, it would be written against the `*_RealBlock` caches step 4 deletes.
+- **Step 5, V-ONE-OF-N:** the coefficient record.  Dunlap's c is an `rvec_t` today and its gradient contracts it with ∂C/∂R, so
+  it is written against the record when step 5 has landed, or moves with it.  The δ Hartree route's q on the points is the record's
+  other realization, which is one more reason that route waits.
+- **Step 5, V-NONLINEAR-MESH:** the term loses mesh ownership.  So the Becke weight derivative belongs to the MESH, not the term: it
+  lives in qcMesh as a pure function (∂w_g/∂R_B for an atom-centred mesh), unit-tested against FD of the weights, whoever owns the
+  mesh after step 5.
+- **Before step 4 lands**, these can be built with no Hamiltonian edit:
+  - the derivative-integral evaluator (libcint vs MnD gates);
+  - W;
+  - the Becke weight derivative in qcMesh;
+  - the FD-at-fixed-D test helper;
+  - the optimizer and its coordinate maps.
+
+## 6. Tests and oracles
+
+1. **Per-term FD at fixed D** (the helper that replaces the FD product):
+   - Freeze D's AO coefficients (and W for Pulay).
+   - Evaluate ONE term's energy at R ± h along each Cartesian, h = 2e-3 bohr.
+   - Compare with the term's analytic gradient.
+   - No SCF, so a unit test in seconds.  Truncation is (h²/6)E‴: about 1e-6 Ha/bohr on H₂O's stretch at that h (§8).
+2. **Invariance:** Σ_A F_A = 0 and zero torque, per term where it holds and in total.
+   - The XC term alone breaks Σ F = 0 without the grid response (b).  That is the test that (b) is right.
+3. **libcint against our engine:** every derivative integral the two share, element by element.
+4. **Whole molecule against PySCF:** H₂O, NH₃, CH₄, then benzene, at displaced geometries.
+   - Same Cartesian basis, GTH set, functional; DF-J with the same auxiliary basis for the Dunlap route.
+   - Then the optimized geometries against PySCF's own optimizer, and our step counts.
+5. **The optimizer** on model surfaces only (§1).
+
+## 7. What the molecular facade lacks today
+
+| gap | today | needed |
+|---|---|---|
+| ε | `CalcOptions::accuracy` is consumed by no term ("consumed by: none yet"); ε is wired on the solid facade only (V-FACADE-ACCURACY) | the molecular XC mesh sized from ε on H: the audit below, its pick fed back as the setup's `mesh` |
+| a molecular grid audit | none in our code (the seed test's TeF₆ ladder was PySCF; `SolidCalculation::XCMeshAudit` is solid-only) | an audit at fixed D against the next rung up (the `qchem.Mesh.BeckeClimb` rule, lane B 2026-11-07) |
+| two steps across setups | `MoleculeSession` carries D between points of ONE setup | carry D from the loose setup into the tight one (same basis, so D carries) |
+| the deck | refuses molecules | molecules in the deck, and an `optimize` post-action beside `displace` |
+| basis | the transcribed DZVP-MOLOPT `.bsd` is H C N O only (gated against CP2K 2026-11-02) | enough for the molecular phase; `scripts/cp2k2bsd` for Li, Ti, Co, S, F with the solids |
+| forces | `NoGradient` | §4 |
+
+## 8. ε for forces: the H₂O measurement (evidence, kept)
+
+PySCF probe, H₂O LDA, GTH, DZVP-MOLOPT, our molecular rule (MHL m3 α2, Becke order 2), atom-centred meshes moving with the atoms;
+force on one H.  The grid force error is F on the rung minus F on (250, 59), both by central differences at the same h:
+
+| rung (nR, L) | points | \|ΔE\| at R₀ (μHa) | max\|ΔH_ij\| | grid force error, stretch / bend (Ha/bohr) | force / H |
+|---|---|---|---|---|---|
+| (40, 17) | 13,164 | 1.2 | 2.0e-4 | 2.1e-3 / 6e-7 | 10 |
+| (60, 23) | 34,864 | 2.0 | 6.8e-6 | 9.5e-5 / 3.0e-5 | 14 |
+| **(80, 29) default** | 72,282 | 0.09 | 3.6e-7 | 4.9e-6 / 2.7e-6 | 14 |
+| (100, 35) | 129,722 | 0.13 | 6.2e-8 | 4.5e-7 / 4e-8 | 7 |
+| (150, 47) | 345,292 | 0.004 | 2.3e-9 | ~1e-8 | — |
+
+What it shows:
+1. **On a mesh that moves with the atoms, the grid's force error is a smooth BIAS:** it is the same at h = 1e-3 to 1e-2 to 1%.  An
+   analytic force on that mesh carries the same bias, since it differentiates the same E(R).
+2. **The force error follows max|ΔH_ij| (7–14×) and not ΔE.**  (40, 17) has the smaller ΔE of the first two rungs and the 20× larger
+   force error.  That is pin 31's measure clause, measured on a force.
+3. **The calibration (ruled Q2):** f_tol ≈ η·ε_H, with η = 15 measured on ONE molecule and two coordinates.
+   - It is a named calibration with this record at its declaration, printed beside its result (CLAUDE.md, rigorous vs empirical;
+     the XC mesh has no rigorous bound).
+   - With a margin of 3: f_tol = 45·ε_H, so 4.5e-4 Ha/bohr at ε = 1e-5, the conventional default threshold.
+   - A tight 1.5e-5 Ha/bohr needs ε_H ≈ 1e-6.
+   - η is re-measured on the analytic forces of NH₃, CH₄ and benzene before it is trusted.
+4. **SCF tolerance:** the analytic force is first order in the SCF residual (Hellmann–Feynman holds only at the stationary point).
+   The gate is on `MinFD`, and its value comes from the same budget: ‖[F, D]‖ well below f_tol.
+
+## 9. Toward the solids (named so the molecular design does not block them)
+
+- **TiO₂, level 1 (imposed):** a, c and u through the solid coordinate map.  The cell part needs stress (`CellChange` today).
+- **GPW terms:** each has its own gradient.
+  - the collocation of ρ on the uniform raster, and the Hartree potential's gather;
+  - V_loc long;
+  - the Ewald ion-ion;
+  - the periodic Becke partition (an ε-converged image series: its derivative is a series too).
+- **Uniform rasters bring the egg-box:** an error that oscillates with the raster spacing and does not move with the atoms.  §8's
+  "bias, not noise" fails there; measure it on TiO₂ before a force is trusted on a solid.
+
+## 10. Steps and estimate
+
+| step | content | needs | estimate |
+|---|---|---|---|
+| 1 | this note (user review); the hub question of §11 | — | done |
+| 2 | the optimizer + coordinate maps on model surfaces | nothing | 1 |
+| 3 | the derivative-integral evaluator (libcint + MnD l±1), W, the FD-at-fixed-D helper, the Becke weight derivative in qcMesh | nothing (no Hamiltonian edit) | 3.5 (2.5 shared + 1.0 weight derivative tests) |
+| 4 | the term gradients of the default stack: Pulay, kinetic, ion-ion, PP local, PP non-local, Dunlap, XC (a)+(b) | lane S's step 4; §11's hub ruling | 6 |
+| 5 | gates against PySCF; η re-measured; first optimizations (H₂O, NH₃, CH₄, benzene) | 4 | 1.5 |
+| 6 | the molecular audit + two-step pick + cross-setup carry; molecules in the deck + `optimize` | V-FACADE-ACCURACY (coordinate with lane S) | 3 |
+
+Total about 15 lane-days.  Steps 2-3 can start now.
+
+## 11. Questions for the user
+
+1. **The hub query.**  The force assembly needs each term's gradient face.  Should it come from one new query on the tier-1
+   `Hamiltonian` hub (each term, or a `GeometryGradient` cross-cast per term)?  Or should it stay off the hub, with the session
+   holding the terms' gradient faces when the factory builds them (the factory-concentrates-concrete-wiring rule)?  Lane B leans to
+   the factory route: no hub change.
+2. **Routes without a gradient.**  Is `NoGradient` the right first answer for every non-default route (δ and multipole Hartree, A1
+   and multipole XC, the PP quadrature), each with its own row?
+3. **The Dunlap oracle.**  PySCF DF-J has no charge constraint.  Is a near oracle with its gap measured once acceptable, beside the
+   exact per-term FD?
+
+## 12. Rulings (user 2026-11-07)
+
+Verbatim; its section numbers are the first version's (§1's FD layer is now §6's test helper, §5's measurement is now §8).
+
+
+1. **Cartesian**, behind a coordinate map, so the optimizer sees only q and dE/dq; molecules map Cartesian, solids map cell + Wyckoff parameters; redundant internals could be a second molecular map later.
+2. **The force threshold is derived from ε** through a NAMED calibration (the 15× is one system): *"If we learn that we need a fudge factor that is fine."*
+3. **No finite-difference force product.**  FD gradients spoil the superlinear convergence of BFGS / Newton near the minimum (Numerical Recipes); libcint and PySCF are the oracles; FD would delay the real thing: *"at some point soon we need to take on the real version."*  So the next step is the ANALYTIC-forces design note (molecules first, every term with its oracle: libcint derivative integrals, PySCF whole-molecule gradients, or a per-term finite difference at fixed D as a unit test).  The optimizer is built against analytic model surfaces in unit tests; §1's `FiniteDifferenceForces` survives only as a test helper.  §5's H₂O grid-force measurement stays as evidence for ε.
