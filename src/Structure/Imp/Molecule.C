@@ -11,6 +11,7 @@ module qchem.Structure;
 import qchem.Streamable;
 import qchem.Mesh.Product;         // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
 import qchem.Mesh.Builder;         // MeshBuilder (efficient incremental accumulation)
+import qchem.Mesh.BeckePartition;  // BeckePartitionWeight (the partition, one home with its geometry gradient)
 import qchem.Vector3D;             // norm(rvec3_t)
 import qchem.Reporting;            // the mesh files its fields one level into the caller's report scope (Set; inert outside a run)
 
@@ -82,7 +83,6 @@ qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams&
     qcMesh::AngularMesh ang=qcMesh::MakeAngular(mp);
 
     qcMesh::MeshBuilder out;
-    std::vector<double> dist(natom), P(natom);
     for (size_t ia=0; ia<natom; ia++)
     {
         out.BeginSite();   // one block per atom, in atom order (SiteIntegrals, the radial Poisson operator)
@@ -95,21 +95,8 @@ qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams&
             const rvec3_t& r=pts[q];
             if (natom==1) { out.Append(r,wts[q]); continue; }
 
-            for (size_t i=0; i<natom; i++) dist[i]=norm(r-R[i]);
-            for (size_t i=0; i<natom; i++)
-            {
-                double Pi=1.0;
-                for (size_t j=0; j<natom; j++) if (j!=i)
-                {
-                    double Rij=norm(R[i]-R[j]);
-                    double mu = (Rij>0.0) ? (dist[i]-dist[j])/Rij : 0.0;  // coincident atoms -> mu=0
-                    Pi *= BeckeCutoff(mu,beckeOrder);
-                }
-                P[i]=Pi;
-            }
-            double sum=0.0;
-            for (size_t i=0; i<natom; i++) sum+=P[i];
-            double w = (sum>0.0) ? P[ia]/sum : 0.0;
+            // ONE home for the partition weight: the force's grid response differentiates exactly this (qchem.Mesh.BeckePartition)
+            const double w=qcMesh::BeckePartitionWeight(R, ia, r, beckeOrder);
             if (w>0.0) out.Append(r, wts[q]*w);
         }
     }

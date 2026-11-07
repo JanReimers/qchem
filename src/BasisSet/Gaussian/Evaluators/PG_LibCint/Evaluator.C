@@ -24,6 +24,7 @@
 //     libcint's own cart->sph coefficients, so it follows the same convention by construction; the 3-centre
 //     (DFT fit) integrals stay Cartesian-only.
 module;
+#include <array>
 #include <iosfwd>
 #include <memory>
 #include <string>
@@ -67,6 +68,26 @@ public:
     rsmat_t KineticMatrix()                  const;   // <p^2>=<-nabla^2> block (no 1/2), like MnD Grad2
     rsmat_t NuclearMatrix(const Structure* cl) const;
 
+    // --- GEOMETRY GRADIENTS of the 1E matrices (doc/GeometryOptimizationPlan.md §4-§5, lane B 2026-11-07): dM/dR_A for every atom A of the
+    // structure the tables were built on, three matrices (x, y, z) per atom, in the matrices' own order and normalization (the
+    // per-component scale is a self-overlap on one centre, so it does not move).  Cartesian mode only: spherical THROWS until a client needs
+    // it.  CLIENT: the analytic force's Pulay, kinetic and nuclear terms, and the oracle for our own engine's derivatives (tests/M_LibCint.C
+    // checks each against a finite difference of THIS engine's matrices at moved atoms).
+    using GradientMatrices = std::vector<std::array<rmat_t,3>>;
+    GradientMatrices OverlapGradient() const;
+    GradientMatrices KineticGradient() const;   //!< of <-nabla^2> (no 1/2), like KineticMatrix
+    GradientMatrices NuclearGradient() const;   //!< the basis centres AND the nuclei moving (int1e_ipnuc + int1e_iprinv per nucleus)
+
+    // --- the Coulomb-fit (Dunlap) pieces of the force, CONTRACTED (no per-atom tensor is ever stored; lane B 2026-11-07).  For the orbital
+    // density D (this evaluator's order, symmetric) and fit coefficients c (\a fit's order), per atom A:
+    //   RepulsionThreeC_Gradient(fit, D, c)[A] = Σ_ijk D_ij c_k ∂(ij|k)/∂R_A   (orbital and fit centres moving: int3c2e_ip1, int3c2e_ip2)
+    //   RepulsionTwoC_Gradient(c)[A]          = Σ_kl  c_k c_l ∂(k|l)/∂R_A      (on a FIT evaluator: int2c2e_ip1)
+    // CLIENT: Vee_DFT_Dunlap's gradient, 2·first − second (its charge constraint has no geometry derivative: ∫f_k does not move).
+    // tests/M_LibCint.C checks each against a central difference of our engine's (MnD) contraction at moved atoms.
+    std::vector<rvec3_t> RepulsionThreeC_Gradient(const NR_Evaluator& fit, const rmat_t& D, const rvec_t& c) const;
+    std::vector<rvec3_t> RepulsionTwoC_Gradient  (const rvec_t& c) const;
+    rsmat_t              RepulsionTwoC_Matrix    () const;   //!< the Coulomb metric (k|l) of this (fit) basis: int2c2e, the gradient's gate
+
     // --- isM_DFT (3-centre <ab|c>, one symmetric (ia,ib) block per fit component ic) ---
     Projector3<double> OverlapThreeC_Matrix  (const NR_Evaluator& fit) const;   // int3c1e (overlap)
     Projector3<double> RepulsionThreeC_Matrix(const NR_Evaluator& fit) const;   // int3c2e (Coulomb)
@@ -88,6 +109,7 @@ private:
     std::unique_ptr<Imp> itsImp;   // libcint shell descriptors + atom table (atm/bas/env built per call)
 
     rsmat_t             Build1(int which) const;                          // 0=ovlp 1=kin 2=nuc
+    GradientMatrices    BuildGradient(int which) const;                   // 0=ovlp 1=kin 2=nuc
     Projector3<double>  Build3(const NR_Evaluator& fit, int which) const; // 0=overlap 1=Coulomb
     std::vector<double> Compute4(const NR_Evaluator& B, const NR_Evaluator& C,
                                  const NR_Evaluator& D) const;            // (this B | C D), PG order
