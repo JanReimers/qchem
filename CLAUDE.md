@@ -189,6 +189,20 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     re-export rule does not (user, 2026-11-05).  ctest `HubInterfaceAudit` (`scripts/audit-hub-interfaces`) fails on any
     change to their exported declarations or re-exports until `scripts/hub-interfaces.snapshot` is regenerated (`--update`) in a commit citing the
     ruling.  Every `Get` on such a face is scrutinised: why does A hold B, what will the client do with it, why can't A do it?
+- **One result, several realizations: a one-of-N record, not a class hierarchy** (user, 2026-11-07; `doc/OOD-SOLID-Cleanup.md` V-ONE-OF-N).
+    It recurs: one operation whose result can be dense, diagonal, identity, keyed by G, or a matrix-free closure, chosen by the PRODUCER.
+    The house shape is a record holding every realization with EXACTLY ONE populated (an empty member is cheap): a discriminated union
+    whose tag is implied by which member is filled.  Examples: `Projector3<T>` (dense ⟨ab|c⟩ / PW columns + kernel / apply closures);
+    the fit-coefficient record (`rvec_t` or `ΔG_Map`, so `Vee_Hartree` sits on `MatrixForward`/`MatrixAdjoint`); `BasisSet::Overlap` for
+    a sparse PW basis (dense / diagonal / identity); `BlockedMatrix`'s real and complex maps.  The rules that keep OOD intact:
+    - **Clients ask, never inspect.**  They call dispatching functions (`Contract`, `ContractAdjoint`, `Tr`, `Solve`), never read a
+      member or test which one is filled.  Which realization exists is the producer's private detail; a client branching on it is a defect.
+    - **A mismatch THROWS**: a dispatcher asked for something its populated realization cannot give throws (an assert is dead in Release).
+      A client that needs a dense matrix asks for one and gets it BUILT; identity costs nothing.
+    - **Not the alternatives**: inheritance plus a cast to a concrete realization (breaks the cast rule above); `std::variant` with a
+      `std::visit` in every client (spreads the dispatch to every client); one `GetDenseX` / `GetDiagonalX` per realization on a hub face;
+      a flag handed to clients.
+    - Name the record for what it IS, not its first realization (`Projector3` is a 3-, 2- or 1-index object: a misnomer to fix).
 - **Name a capability query for what the CLIENT consumes, not for the CAUSE**: `IsVirialValid()`, not
     `IsPseudopotential()`.  Write down what the caller will DO with the answer; if the name does not match
     that sentence it is naming the implementation.  (Bit three times: "Becke", "SiteAdaptedBecke", the ERI4
