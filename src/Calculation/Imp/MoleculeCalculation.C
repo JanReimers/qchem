@@ -10,6 +10,9 @@ module;
 #include <algorithm>
 #include <cassert>
 #include <stdexcept>
+#include <cmath>
+#include <iomanip>
+#include <sstream>
 #include <nlohmann/json.hpp>
 module qchem.MoleculeCalculation;
 
@@ -203,7 +206,12 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
     { rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type); ReportAccuracy(itsSetup->opts.accuracy, kNoAccuracyConsumerYet); }   // the "what recipe am I running" header
     if (itsPrepared) itsPrepared=false;                       // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
-    if (itsObserver) itsScf->SetObserver(itsObserver);
+    itsLastRow.reset();
+    itsScf->SetObserver([this](const qchem::SCFIterator::IterationRow& row)   // keep the last row: a failure states its gates
+    {
+        itsLastRow = row;
+        if (itsObserver) itsObserver(row);
+    });
     (void)itsScf->Iterate(params);   // the outcome is the iterator's Converged(), minted below
 
     // Snapshot the integrals cache into the run's `cache` section (RunReportPlan step 4), inside the bracket.
@@ -219,6 +227,23 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
 
 Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Result() const {return Outcome_();}
 
+//! The gated cells of an iteration row, each with its value and gate and whether it was met: "[F,D] 2.4e-04 > 1e-05 (missed), Δρ
+//! 3.0e-05 < 1e-04 (met)" -- what a run that stopped short still lacked, in the console's own titles.
+static std::string GatesOf(const qchem::SCFIterator::IterationRow& row)
+{
+    std::ostringstream os;
+    os<<std::scientific<<std::setprecision(2);
+    bool first=true;
+    for (const auto& c : row.cells)
+    {
+        if (!c.tolerance || !std::isfinite(c.value)) continue;
+        const bool met=std::abs(c.value)<*c.tolerance;
+        os<<(first ? "" : ", ")<<c.title<<" "<<std::abs(c.value)<<(met ? " < " : " > ")<<*c.tolerance<<(met ? " (met)" : " (missed)");
+        first=false;
+    }
+    return first ? std::string("no gated column") : os.str();
+}
+
 Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Outcome_() const
 {
     using O=Outcome<Converged, SCFFailure>;
@@ -229,6 +254,7 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Outcome
     f.iterations = itsScf->GetIterationCount();
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
     f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
+    if (!refused && itsLastRow) f.details += "; the last iterate: "+GatesOf(*itsLastRow);
     return O::Fail(std::move(f));
 }
 

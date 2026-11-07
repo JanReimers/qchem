@@ -9,6 +9,7 @@ module qchem.MoleculeSetup;
 import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the PP lookup)
 import qchem.Policy;          // policy::Refuse / Report: each policy files its row where it fires
 import qchem.ChargeDensity.AtomicDensity;   // HasAtomicDensity: the SAD seed's coverage
+import qchem.BasisSet.Gaussian.Point.Factory; // RegisteredBasis, BasisSetData: which registered files are all-electron
 
 namespace qchem
 {
@@ -27,6 +28,20 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
                        "the molecular pseudopotential route builds the LSDA valence Hamiltonian, so the model asked for would be "
                        "ignored -- state model LDA, or run all-electron (no pseudopotential)");
     if (!opts.pp.empty()) s->pp=Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.ppOverride);
+    // An ALL-ELECTRON basis under a pseudopotential keeps core shells for electrons the pseudopotential has removed: the run is
+    // computable (the core shells sit high and empty), but it is not the valence calculation the PP was generated for, and the
+    // conditioning can suffer.  Known only for the registered files: an unregistered stem is not classified (no row).
+    if (!opts.pp.empty())
+    {
+        using BasisSet::Gaussian::BasisSetData;
+        BasisSetData data{};
+        if (BasisSet::Gaussian::RegisteredBasis(opts.basis, data)
+            && (data==BasisSetData::DZVP || data==BasisSetData::DZVP2 || data==BasisSetData::TZVP || data==BasisSetData::ORB
+                || data==BasisSetData::ORB1))
+            policy::Report("ValenceBasisUnderPP", "an all-electron basis ("+opts.basis+") under a pseudopotential", policy::Verdict::Warn,
+                           "its core shells describe electrons the pseudopotential removed -- the run goes on; a valence basis "
+                           "(sipp*, valence_lowq*) is the matched choice");
+    }
     s->reference=st.Clone();   // polymorphic deep copy: a UnitCell stays periodic, not sliced to a Molecule
     const std::shared_ptr<const Structure> point=s->PointStructure(*s->reference);
     s->Ne=int(point->GetNumElectrons());
