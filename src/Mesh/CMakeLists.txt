@@ -21,6 +21,7 @@ target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Builder.C
     XCPolicy.C
     BeckeClimb.C
+    BeckePartition.C
     FoldedMesh.C
     Integrator.C
     SiteMultipoles.C

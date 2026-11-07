@@ -4,6 +4,7 @@ add_executable(UTMesh ../../Common/tests/gtestmain.C
     MeshPrimitives.C
     XCPolicyTests.C
     BeckeClimbTests.C
+    BeckePartitionTests.C
     FoldedMeshUT.C
     IntegratorUT.C
 )
