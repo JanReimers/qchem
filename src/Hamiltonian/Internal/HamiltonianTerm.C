@@ -168,6 +168,13 @@ protected:
 
     //! A term whose PARAMETERS changed under the SAME density (DFT+U's U rewritten by the ACBN0 outer
     //! loop) must say so: the density serial cannot know, so the next GetMatrix would serve the old matrix.
+    //! The block path's check (V1.41 stage 2): the term's refresh fitted \a cd (\c newCD stamped it).  Throws otherwise.
+    void RequireFitFor(const tChargeDensity<T>* cd) const
+    {
+        if (!cd || cd->Version()!=itsFitVersion)
+            throw std::logic_error("Hamiltonian term: block asked for a density its refresh did not fit (RefreshForDensity first)");
+    }
+
     void InvalidateCache() const {itsCacheVersion=size_t(-1); itsFitVersion=size_t(-1);}
 
     mutable size_t itsCacheVersion;   //!< density serial the Irrep cache was built for

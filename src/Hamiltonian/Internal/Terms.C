@@ -357,7 +357,7 @@ public:
     //! wrong one and they would be refit anyway.
     virtual void RefreshForDensity(const rChargeDensity* cd) const override;
     virtual void          GetEnergy       (EnergyBreakdown&,const rDM_CD*) const override;
-    //! The ENERGY block of spin \a s: re-fits eps^s for this density and returns Sum_a c_a <Oi|f_a|Oj>.
+    //! The ENERGY block of spin \a s, Sum_a c_a <Oi|f_a|Oj>, from the eps^s fit GetEnergy made for \a cd (a read; throws otherwise).
     virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const override;
     virtual std::ostream& Write           (std::ostream&) const override;
 private:
@@ -376,6 +376,7 @@ private:
     SpinFit& FitFor(const Spin& s) const;
     //! Bring \a s's v fit up to \a cd (a no-op when it already holds this serial).
     void EnsureVFit(SpinFit&, const Spin& s, const rChargeDensity* cd) const;
+    void EnsureEpsFit(SpinFit&, const Spin& s, const rChargeDensity* cd) const;   //!< GetEnergy's eps^sigma fit, on rho_out
 
     ex_t                                itsEx;     //!< the XC functional (owned, shared): both faces, both fits
     SpinGroup                           itsGroup;  //!< the imposed subgroup this term was built for
