@@ -113,7 +113,6 @@ template <class T> class tDynamic_HT_Imp
     , protected tHT_Common<T>
 {
 public:
-    tDynamic_HT_Imp() : itsCacheVersion(size_t(-1)), itsFitVersion(size_t(-1)) {}
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,DensityID id) const
     {
         assert(bs);
@@ -143,10 +142,9 @@ public:
     //! this iteration's empty slots.
     virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
     {
-        if (cd && cd->Version()!=itsCacheVersion)   // a NEW density: last one's values are stale -- drop them, stamp this one
+        if (cd && !(DensityID(cd)==itsCacheID))   // a NEW density: last one's values are stale -- drop them, stamp this one
         {
             this->itsCache.clear();
-            itsCacheVersion=cd->Version();
             itsCacheID=DensityID(cd);
         }
         this->PrepareCacheSlots(bs);
@@ -158,12 +156,11 @@ protected:
     virtual hmat_t<T> MakeMatrix(const tobs_t<T>*,const Spin&,DensityID id) const=0;
     // Refit trigger only (the OTHER half of the former itsCD double-duty): true exactly once per new
     // density serial, so a concrete term (FittedVee/FittedVxc) refits its fitted potential exactly once.
-    // Cache-freshness is GetMatrix's job (itsCacheVersion) -- newCD no longer touches the cache.
+    // Cache-freshness is GetMatrix's job (itsCacheID) -- newCD no longer touches the cache.
     bool newCD(const tChargeDensity<T>* cd) const
     {
         assert(cd);
-        if (cd->Version()==itsFitVersion) return false;
-        itsFitVersion=cd->Version();
+        if (DensityID(cd)==itsFitID) return false;
         itsFitID=DensityID(cd);
         return true;
     }
@@ -177,11 +174,9 @@ protected:
             throw std::logic_error("Hamiltonian term: block asked for a density its refresh did not fit (RefreshForDensity first)");
     }
 
-    void InvalidateCache() const {itsCacheVersion=size_t(-1); itsFitVersion=size_t(-1); itsCacheID=itsFitID=NoDensity();}
+    void InvalidateCache() const {itsCacheID=itsFitID=NoDensity();}
     static DensityID NoDensity() {return DensityID(static_cast<const tChargeDensity<T>*>(nullptr));}
 
-    mutable size_t itsCacheVersion;   //!< density serial the Irrep cache was built for
-    mutable size_t itsFitVersion;     //!< density serial the concrete term last refit for
     mutable DensityID itsCacheID=NoDensity();   //!< the identity of the density the Irrep cache was built for
     mutable DensityID itsFitID  =NoDensity();   //!< ...and of the one the concrete term last refit for
 };

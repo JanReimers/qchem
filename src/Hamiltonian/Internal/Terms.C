@@ -167,7 +167,7 @@ public:
     //! Fock build: assemble the whole-system blocks ONCE per (density, spin) from the composite \a wholeBasis
     //! using ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, return this
     //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
-    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity*,const rbs_t* wholeBasis) const;
+    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,DensityID,const rbs_t* wholeBasis) const;
     //! The ground-state refresh: latch \a wholeBasis (null = keep the latched one) and build the blocks of every spin irrep
     //! \a cd resolves (\c SpinIrrepsOf, folded through \c CacheSpin).
     virtual void RefreshForDensity(const rbs_t* wholeBasis, const rChargeDensity* cd) const override;
@@ -202,12 +202,17 @@ protected:
     const rDM_CD*  DensityFor(const rChargeDensity* cd, const Spin& s) const;
     //! The blocks the refresh built for \a cd and spin \a s (a CacheSpin): a READ, for \c GetMatrix and \c GetEnergy.  THROWS if
     //! the refresh never saw \a cd (a caller that skipped \c RefreshForDensity).
-    const std::map<std::string,rsmat_t>& RefreshedBlocks(const rChargeDensity* cd, const Spin& s) const;
+    const std::map<std::string,rsmat_t>& RefreshedBlocks(DensityID id, const Spin& s) const;
 
     mutable const rbs_t* itsWholeBasis=nullptr;    //!< whole basis (latched by the first Fock refresh; stable across the run)
     //! The J (Coulomb) or K (exchange) per-irrep blocks of ONE spin: accumulated (over irreps) and contracted
     //! (over that spin's D) for the density ID'd by \c version.  Keyed by ab-basis BasisSetID, already scaled.
-    struct Blocks { size_t version=size_t(-1); std::map<std::string,rsmat_t> jk; };
+    struct Blocks
+    {
+        size_t version=size_t(-1);   //!< the operand's serial (a ground-state density, or a transition density for the response)
+        DensityID id=DensityID(static_cast<const rChargeDensity*>(nullptr));   //!< a ground-state density's identity (GetMatrix's check)
+        std::map<std::string,rsmat_t> jk;
+    };
     mutable std::map<Spin,Blocks> itsJKs;          //!< one Blocks per CacheSpin this run asks for
 private:
     //! Latch the composite basis on first use; THROW on a changed one, or on a null one before any latch.
@@ -368,10 +373,8 @@ private:
     {
         std::unique_ptr<Fitting::ScalarFit<double>> v;     //!< V: the v^sigma fit (the Fock pass's density)
         std::unique_ptr<Fitting::ScalarFit<double>> eps;   //!< E: the eps^sigma fit (the energy pass's density)
-        size_t  vVersion  =size_t(-1);
-        size_t  epsVersion=size_t(-1);
-        DensityID vID  =DensityID(static_cast<const rChargeDensity*>(nullptr));   //!< the identity of the density vVersion names
-        DensityID epsID=DensityID(static_cast<const rChargeDensity*>(nullptr));   //!< ...and of epsVersion's
+        DensityID vID  =DensityID(static_cast<const rChargeDensity*>(nullptr));   //!< the density the v fit holds
+        DensityID epsID=DensityID(static_cast<const rChargeDensity*>(nullptr));   //!< ...and the one the eps fit holds
         rsmat_t epsMat;                                        //!< GetEMatrix's returned block (per spin: no aliasing)
     };
     //! This spin irrep's pair -- THROWS for a spin the term was not built for (a block of the other subgroup).

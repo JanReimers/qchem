@@ -116,10 +116,9 @@ static Spin FunctionalSpin(const Spin& s) {return s==Spin::None ? Spin::Up : s;}
 
 void FittedVxc::EnsureVFit(SpinFit& f, const Spin& s, const rChargeDensity* cd) const
 {
-    if (f.vVersion==cd->Version()) return;
+    if (f.vID==DensityID(cd)) return;
     Channels ch(cd);
     f.v->DoFit(VxcField(itsEx.get(), ch.up, ch.dn, FunctionalSpin(s)));
-    f.vVersion=cd->Version();
     f.vID=DensityID(cd);
 }
 
@@ -127,10 +126,9 @@ void FittedVxc::EnsureVFit(SpinFit& f, const Spin& s, const rChargeDensity* cd) 
 // The eps half of the pair, on the ENERGY pass's density (rho_out): its own guard, since the v fit keys on rho_in.
 void FittedVxc::EnsureEpsFit(SpinFit& f, const Spin& s, const rChargeDensity* cd) const
 {
-    if (f.epsVersion==cd->Version()) return;
+    if (f.epsID==DensityID(cd)) return;
     Channels ch(cd);
     f.eps->DoFit(EpsXcField(itsEx.get(), ch.up, ch.dn, FunctionalSpin(s)));
-    f.epsVersion=cd->Version();
     f.epsID=DensityID(cd);
 }
 

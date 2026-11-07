@@ -183,7 +183,7 @@ template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,c
     if (cd)
     {
         for (auto& t:itsDHTs)   H+=t->GetMatrix(bs,S,DensityID(cd));  // per-irrep dynamic (DFT/fitted)
-        for (auto& t:itsHF_HTs) H+=t->GetMatrix(bs,S,cd,wholeBasis);  // whole-system HF (needs the composite basis)
+        for (auto& t:itsHF_HTs) H+=t->GetMatrix(bs,S,DensityID(cd),wholeBasis);  // whole-system HF (needs the composite basis)
     }
     return H;
 }

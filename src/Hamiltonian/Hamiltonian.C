@@ -225,10 +225,10 @@ template <class T> class tDynamic_HF_HT
     : public virtual Streamable
 {
 public:
-    //! Whole-system Fock block for irrep \a bs / spin \a s from density \a cd, using \a wholeBasis (the
+    //! Whole-system Fock block for irrep \a bs / spin \a s for the density \a id names (a READ of what the refresh built), using \a wholeBasis (the
     //! composite basis) as the cross-irrep view.  \a wholeBasis is REQUIRED -- a null basis throws (an HF
     //! term cannot be built one irrep at a time).
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*,
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,DensityID,
                                        const tbs_t<T>* wholeBasis) const=0;
     //! \brief THE EAGER REFRESH PHASE for a whole-system term (V1.41 stage 2, user ruling 2026-11-07 "Approve (a)"): build the J/K
     //! blocks of every spin channel \a cd resolves, so \c GetMatrix and \c GetEnergy only READ them.  \a wholeBasis is the composite

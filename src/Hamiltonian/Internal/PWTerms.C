@@ -290,9 +290,8 @@ private:
     mutable size_t itsDeltaVersion=size_t(-1);  //!< the transition density's serial \c itsDeltaField holds
     mutable ΔGq_Map itsDeltaField;              //!< \f$\delta V_H(G+q)\f$ of that transition density (R2, R3)
     mutable double itsVolume=0.0;   //!< \c Volume()'s memo (0 = not asked yet)
-    mutable size_t itsFieldVersion=size_t(-1);  //!< density serial \c itsField holds (-1 = empty)
     mutable ΔG_Map itsField;                    //!< \c CoulombField()'s memo: \f$V_H\f$ at that serial
-    mutable DensityID itsFieldID=DensityID(static_cast<const cChargeDensity*>(nullptr));   //!< ...and that density's identity
+    mutable DensityID itsFieldID=DensityID(static_cast<const cChargeDensity*>(nullptr));   //!< the density \c itsField holds (none = empty)
 };
 
 //! \brief THE exchange-correlation term of a periodic Kohn-Sham Hamiltonian -- ONE term for either imposed

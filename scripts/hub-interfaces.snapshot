@@ -384,7 +384,7 @@ namespace qchem::Hamiltonian {
     };
     template <class T> class tDynamic_HF_HT : public virtual Streamable {
     public:
-        virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*, const tbs_t<T>* wholeBasis) const=0;
+        virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,DensityID, const tbs_t<T>* wholeBasis) const=0;
         virtual void RefreshForDensity(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* cd) const=0;
         virtual void GetEnergy(EnergyBreakdown&, const tDM_CD<T>*) const=0;
         virtual bool IsRelativistic() const;

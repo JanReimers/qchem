@@ -20,13 +20,13 @@ import qchem.Blaze;
 namespace qchem::Hamiltonian
 {
 
-const rsmat_t& Dynamic_HF_HT_Imp::GetMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd,
+const rsmat_t& Dynamic_HF_HT_Imp::GetMatrix(const robs_t* bs,const Spin& s,DensityID id,
                                             const rbs_t* wholeBasis) const
 {
     if (!wholeBasis || wholeBasis!=itsWholeBasis)
         throw std::runtime_error("HF term: GetMatrix's composite basis is not the one the refresh latched (a null one, or "
                                  "RefreshForDensity(wholeBasis, cd) was skipped).");
-    return RefreshedBlocks(cd, CacheSpin(s)).at(bs->BasisSetID());
+    return RefreshedBlocks(id, CacheSpin(s)).at(bs->BasisSetID());
 }
 
 // THE GROUND-STATE REFRESH (V1.41 stage 2, ruling 2026-11-07): every block GetMatrix and GetEnergy will read, built here.  The spin
@@ -38,10 +38,10 @@ void Dynamic_HF_HT_Imp::RefreshForDensity(const rbs_t* wholeBasis, const rCharge
     for (const Spin& s : ChargeDensity::SpinIrrepsOf(cd)) ContractAll(cd, CacheSpin(s));
 }
 
-const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::RefreshedBlocks(const rChargeDensity* cd, const Spin& s) const
+const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::RefreshedBlocks(DensityID id, const Spin& s) const
 {
     auto it=itsJKs.find(s);
-    if (!cd || it==itsJKs.end() || it->second.version!=cd->Version() || it->second.jk.empty())
+    if (id.IsNone() || it==itsJKs.end() || !(it->second.id==id) || it->second.jk.empty())
         throw std::logic_error("HF term: blocks asked for a density the refresh did not see (RefreshForDensity first)");
     return it->second.jk;
 }
@@ -109,7 +109,9 @@ const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::ContractAll(const rCharg
     auto* sys=dynamic_cast<const ChargeDensity::tHF_System_CD<double>*>(DensityFor(cd, s));
     if (!sys) throw std::runtime_error("HF term: this density does not span every irrep block, so the "
                                        "whole-system D cannot be built from it.");
-    return Contract(b, *sys, cd->Version(), s);
+    const auto& jk=Contract(b, *sys, cd->Version(), s);
+    b.id=DensityID(cd);
+    return jk;
 }
 
 const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::Contract(Blocks& b, const ChargeDensity::tHF_System_CD<double>& sweep,

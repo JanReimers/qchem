@@ -34,7 +34,7 @@ void Vxc::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     double trDK=0.0;
     for (const Spin& s : ChargeDensity::SpinIrrepsOf(cd))
-        trDK+=DensityFor(cd,s)->DM_ContractBlocks(RefreshedBlocks(cd,CacheSpin(s)));
+        trDK+=DensityFor(cd,s)->DM_ContractBlocks(RefreshedBlocks(DensityID(cd),CacheSpin(s)));
     te.Add("Exc", 0.5*trDK, EnergyRole::Potential, trDK);   // quadratic: E = 1/2 Tr(D K), Tr(D V) = Tr(D K)
 }
 

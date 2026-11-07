@@ -65,13 +65,12 @@ rsmat_t Vee_Hartree::MakeMatrix(const robs_t* bs, const Spin& s, DensityID id) c
 const ΔG_Map& Vee_Hartree::CoulombField(const cChargeDensity* cd) const
 {
     assert(cd);
-    if (cd->Version()!=itsFieldVersion)
+    if (!(DensityID(cd)==itsFieldID))
     {
         qchem::report::Timed miss("scf: E_H V_H field build (memo miss)");
         auto* fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
         assert(fd && "Vee_Hartree requires a FourierDensity (periodic) charge density");
         itsField       =fd->GetRepulsion3C(*itsFitBasis);
-        itsFieldVersion=cd->Version();
         itsFieldID=DensityID(cd);
     }
     return itsField;
