@@ -10,7 +10,7 @@ step 5 lands.  The rows stay the record of what is open; this file holds only th
 |---|---|---|---|
 | 1 | `§I.1`, `D13`, `BM(1)` | independent, small | sweep; a move is re-judged against the oracle |
 | 2 | `V1.34` | ruled shape (3) not yet realised, and it blocks the rest | sweep, 0 moves |
-| 3 | `R1.0q`: `FittedVxc`, then `Vee_Hartree` and the quadrature XC terms | needs step 2 | sweep, 0 moves |
+| 3 | `R1.0q`: `FittedVxc`, then `Vee_Hartree` and the quadrature XC terms | needs step 2 | sweep, 0 moves · ✅ closed FOR NOW 2026-11-07 (`Vee_Hartree` stays on `Contract`/`ContractAdjoint`); the general return-type question is open with the user, design nothing for it (`doc/Records/CleanupHistory3.md`, R1.0q) |
 | 3b | `V1.1b`: `Vee_DFT`, Dunlap and normal | see the ruling below; touches the term step 3 passes through | design note first; sweep, 0 moves on the default route |
 | 4 | `V1.35` with `V1.41` stages 2-3, planned together | the `*_RealBlock` caches are in both; both change the tier-1 `Hamiltonian` hub | design notes first; sweep + panel at 4 threads; one timed MnO or TeF₆ run before and after |
 | 5 | `V-XC-ONE-TERM`, then `V-NONLINEAR-MESH` | the term loses mesh ownership in the second | `VxcProductSpace`; moves re-judged against PySCF; one timed run |
@@ -71,5 +71,7 @@ Say what each version does on a molecule, an atom and a solid, and where neutral
 | `FittedVee` on a grid fit, `Vee_Hartree` | `Vee_DFT` |
 | `FittedVxc`, `Vxc_Quadrature`, `tVxc_Quadrature` | `Vxc_DFT` (ruled) |
 | `PP_Local`, `PP_NonLocal`, `Ven_PP_Short`, `Ven_PP_Long`, `Ven_PP_NonLocal` | `Ven_PP_Local`, `Ven_PP_NonLocal`, keeping `_Short` / `_Long` only while the split is real |
+
+**When the XC and Hartree renames can land (lane S 2026-11-06).**  A table row with several sources is several live classes in one namespace, so the name waits for them to merge.  `tVxc_Quadrature<T>` takes `Vxc_DFT` when V1.35 deletes the `Vxc_Quadrature` subclass, with `FittedVxc` following in step 5.  `Vee_Hartree` takes `Vee_DFT` when it merges with the molecular term after step 4.
 
 Unchanged: `Ven`, `Kinetic`, `DiracKinetic`, `RestMass`, `IonIon`, `Hubbard_U`.  Renames ride with the step that touches the class, not as a separate sweep.

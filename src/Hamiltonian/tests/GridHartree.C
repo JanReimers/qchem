@@ -123,6 +123,7 @@ TEST(DirectSumCoulomb, Linear)
     const auto op=Fitting::MakeDirectSumCoulomb(mesh);
     const rvec_t v=op->Potential(q), v2=op->Potential(2.0*q);
     for (size_t g=0; g<mesh.size(); g+=997) EXPECT_NEAR(v2[g], 2.0*v[g], 1e-10*std::fabs(v[g]));
+    EXPECT_EQ(op->HartreeEnergy(7.0,q,v), 0.5*op->SelfRepulsion(q,v)) << "on points both legs are one number, so Tr(DV) is not needed";
 }
 
 // The energy the solve delivers, not its pointwise error.  The radial map r(t) inside each interval only shows here: a quadratic in log r
@@ -212,6 +213,7 @@ TEST(SiteMultipoles, OwnShellSelfEnergyMatchesTheClosedForm)
     const double p=a*b/(a+b);
     const double exact=std::sqrt(2*a/std::numbers::pi)+std::sqrt(2*b/std::numbers::pi)+2*std::erf(std::sqrt(p)*R)/R;
     EXPECT_NEAR(op->SelfRepulsion(qf,v), exact, 2e-5);
+    EXPECT_EQ(op->HartreeEnergy(7.0,qf,v), 7.0-0.5*op->SelfRepulsion(qf,v)) << "a multipole's energy has two legs: Tr(DV) is the density's";
 }
 
 // H = dE/dD needs v = K q with K symmetric, which forces will rely on.  The direct sum is, by construction.  The radial solve expands each

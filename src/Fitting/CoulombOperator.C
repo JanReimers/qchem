@@ -37,6 +37,10 @@ public:
         for (size_t g=0; g<q.size(); g++) e+=q[g]*v[g];
         return e;
     }
+    //! \brief The Hartree energy of \a q and its own \a v.  \a trDV is \f$\mathrm{Tr}(DV)\f$, which only the density can supply.  On points
+    //! both legs of \f$\mathrm{Tr}(DV)-\tfrac12\langle\tilde\rho|\tilde\rho\rangle\f$ are the same number, so it is \f$\tfrac12\sum_gq_gv_g\f$
+    //! and \a trDV is not needed: first order in the mesh (ruled 2026-11-06).
+    virtual double HartreeEnergy(double /*trDV*/, const rvec_t& q, const rvec_t& v) const {return 0.5*SelfRepulsion(q,v);}
 };
 
 //! \brief The direct sum over \a mesh's points: \f$v(r_g)=\sum_{h\ne g}q_h/|r_g-r_h|\f$ plus a self term.  \f$O(N^2)\f$,
@@ -50,10 +54,17 @@ std::unique_ptr<CoulombOperator> MakeRadialPoissonCoulomb(std::shared_ptr<const 
 //! \brief The same solve for a multipole fit over \a sites: \a metric is that basis's diagonal.
 std::unique_ptr<CoulombOperator> MakeMultipoleCoulomb(std::shared_ptr<const qcMesh::SiteMultipoles> sites, rvec_t metric);
 
+//! \brief A density fit on a mesh: the Gaussian fit's face, plus the energy, which only its \c CoulombOperator can answer (V1.1b).
+//! Its own class here, beside the hub.  Data-free.
+class GridDensityFit : public virtual FunctionFitter_Density_NonOrtho<double>
+{
+public:
+    virtual double HartreeEnergy(double trDV) const=0;   //!< \c CoulombOperator::HartreeEnergy of the last \c DoFit
+};
+
 //! \brief A density fit on \a deltaBasis (an orthogonal, \f$\delta\f$-like fit basis), with \a op finding the potential.
-//! It answers the same face the Gaussian fit answers, so \c FittedCD and \c FittedVee cannot tell them apart.
 //! THROWS when \a deltaBasis is not orthogonal: a diagonal metric is what makes the projection the fit.
-std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
+std::unique_ptr<GridDensityFit>
 MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::unique_ptr<CoulombOperator> op);
 
 } //namespace

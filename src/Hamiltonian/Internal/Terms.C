@@ -11,6 +11,7 @@ import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Structure;
 import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (composed; clients never see the impl)
+import qchem.Fitting.CoulombOperator;         // Fitting::GridDensityFit (what Vee_DFT holds)
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.TransitionDensity;   // δD: the response face (LinearResponsePlan C1/H2)
 import qchem.FittedCD;
@@ -261,30 +262,52 @@ protected:
 // Vee(r_1) = | Ro_fit(r_2)/r_12 d^3 r_2
 //           /
 //
-// Where Ro is actually a fitted charge density.  This is the potential that is typically
-// used in DFT calculations.  Ro_fit is expanded in a auxilliary basis set. The matrix elements
-// involve three center integrals hence avoiding the four center integrals encountered in
-// a Hartree-Fock calculation.
+// Where Ro is actually a fitted charge density.  Two terms, because two formulas (V1.1b, ruled 2026-11-06; shapes in
+// doc/Records/HartreeFitConsistency.md).  Neither serves a solid: neither constructor takes a complex fit, and the periodic route is
+// Vee_Hartree.
 //
-class FittedVee : public virtual rDynamic_HT, private rDynamic_HT_Imp
+// DUNLAP, C^T G^-1 C.  Ro_fit is expanded in an auxilliary basis in the Coulomb metric, charge constrained, so the matrix elements
+// are three center integrals and the four center ones of Hartree-Fock never appear.  Second order in the fit error.  Refused on
+// solids by construction: a periodic Gaussian fit has no (ij|f) to call, and on plane waves this and Vee_DFT are one formula.
+//
+class Vee_DFT_Dunlap : public virtual rDynamic_HT, private rDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
-    FittedVee(fbs_t& chargeDensityFitBasisSet, double numElectrons);
-    //! A grid route: the fit's charge is the mesh's, so this term reports its error (\c HartreeChargeError) and the
-    //! first-order energy effect of it (\c HartreeChargeEnergy, \f$2E_H\,\delta q/N\f$; ruled 2026-11-06, reported not rescaled).
-    FittedVee(std::unique_ptr<Fitting::FunctionFitter_Density_NonOrtho<double>> gridFitter, double numElectrons);
-    ~FittedVee();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
+    Vee_DFT_Dunlap(fbs_t& chargeDensityFitBasisSet, double numElectrons);
+    ~Vee_DFT_Dunlap();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
     //! \copydoc tDynamic_HT::RefreshForDensity
     //! The fitted charge density is k-INDEPENDENT and refit once per density serial, so it is exactly what
     //! this phase is for.  It used to be fit LAZILY inside \c MakeMatrix, i.e. from inside the block loop.
     virtual void RefreshForDensity(const rChargeDensity* cd) const override;
+    //! \f$2E_{fit}-E_{fitfit}\f$, which needs \a cd's fit to be the Coulomb one.  A seed (\c NumericCD) is overlap-fitted, and the formula
+    //! would be wrong for it: taking a density MATRIX here is the one thing keeping a seed out, so this argument type is load-bearing.
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
 private:
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
     std::unique_ptr<ChargeDensity::FittedCD> itsFittedChargeDensity;   //!< owned (was a leaked raw ptr)
-    double itsGridCharge=0.0;   //!< N on a grid route, whose charge error is reported; 0 on a constrained fit, which has none
+};
+
+//
+// NORMAL, O^T K O.  q = O D, v = K q, H = O^T v: rho on a mesh, K a CoulombOperator, whose energy this term asks for.  First order in
+// the mesh.  Unconstrained, so it reports the mesh's charge error (\c HartreeChargeError) and the first-order energy effect of it
+// (\c HartreeChargeEnergy, \f$2E_H\,\delta q/N\f$; ruled 2026-11-06, reported not rescaled).
+//
+class Vee_DFT : public virtual rDynamic_HT, private rDynamic_HT_Imp
+{
+public:
+    Vee_DFT(std::unique_ptr<Fitting::GridDensityFit> fit, double numElectrons);
+    ~Vee_DFT();
+    //! \copydoc tDynamic_HT::RefreshForDensity
+    virtual void RefreshForDensity(const rChargeDensity* cd) const override;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
+    virtual std::ostream& Write    (std::ostream& os) const {return os;}
+private:
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
+    void Fit(const rChargeDensity&) const;
+    std::unique_ptr<Fitting::GridDensityFit> itsFit;
+    double itsNumElectrons;
 };
 
 
