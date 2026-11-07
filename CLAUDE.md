@@ -5,7 +5,10 @@ Brief notes about module/library conventions, naming, and includes.
 ## My high level biases
 
 - **Priorities, in order** (user, 2026-11-07; "there is probably at least one more"):
-    1. **Get the right numbers.**
+    1. **Get the right numbers for the given input deck**: the chosen model solved to ε.  A poor MODEL choice (a terrible basis set,
+       too high an imposed symmetry, the wrong functional) gives a different kind of "wrong" number: the code solves what was asked,
+       and where it can see the choice is poor (basis trim, a broken-symmetry probe) it WARNS, it does not substitute (pin 31: model
+       choices are exempt from ε).
     2. **Do it quickly** (CPU, threads) **and efficiently** (threads, RAM).
     3. **Put the burden in the code, not on the user**, as far as possible: be kind to the new grad student.  (Inspiration: the ISO C++
        committee's philosophy of putting the burden on the compiler writers.)  So the run picks its own grids from ε, refuses a bad
@@ -15,6 +18,13 @@ Brief notes about module/library conventions, naming, and includes.
     ANY combination in their product space.  Which combinations are too slow is a POLICY decided above them (facades, setup, defaults,
     warnings, refusals), never a hole left in a library.  "Not a production route" is a policy remark, not a reason to skip a combination.
     This is how priorities 2 and 4 coexist: efficiency is chosen at the policy layer, so it never makes the framework patchy.
+    - **Policies live only in the policy layer**: `{Solid,Molecule,Atom}Calculation`, their setups and factories, never inside a library.
+      So a future policy manager can find them all.
+    - **Every policy reports itself**: when it fires it writes what it decided and why under a `policy` scope of the run report (CLAUDE.md
+      run report rules).  The report then lists every policy a run met, and grepping that scope finds them in the code.
+    - **Three outcomes**: REFUSE (Outcome with a reason) when the answer would be wrong or meaningless; WARN AND RUN, with a cost
+      estimate from what setup already knows (points, functions, predicted RAM), when the answer is right but the cost is silly;
+      REFUSE ON RESOURCES when it cannot finish on this machine at all.
 - I used to work on frustrated magnets so one of my biases is that I don't like the "closed shell only, polarized is a special case" mind set. Ultimately I want everything available Pol and UnPol ... and for me UnPol is the special case for efficiency.
 
 ## Build & test
