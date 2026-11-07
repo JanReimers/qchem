@@ -310,7 +310,6 @@ chmat_t Orbital_IBS::MakeLocalGaussian(const Structure* cl,
 {   return NR_Evaluator::MakeLocalGaussian(cl,opForZ); }
 double  Orbital_IBS::MaxExponent() const {return NR_Evaluator::MaxExponent();}
 double  Orbital_IBS::MinExponent() const {return NR_Evaluator::MinExponent();}
-double  Orbital_IBS::RelCutoffSafety() const {return NR_Evaluator::RelCutoffSafety();}
 const GPWTolerances& Orbital_IBS::Tolerances() const {return NR_Evaluator::Tolerances();}
 void    Orbital_IBS::BindTolerances(const GPWTolerances& t) {NR_Evaluator::BindTolerances(t);}
 std::vector<rvec_t> Orbital_IBS::CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,

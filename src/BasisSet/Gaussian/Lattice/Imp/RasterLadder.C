@@ -26,7 +26,7 @@ namespace qchem::BasisSet::Gaussian
 namespace
 {
 //! The top completion rung's gate: a rung is appended when the reference grid sits below this Ecut.  The ONE place the pair rule's
-//! stiffness (\a relCutoffSafety, itself a measured calibration: \c kRelSafety in the MnD evaluator) meets the calibration \a C
+//! stiffness (\a relCutoffSafety, itself a measured calibration: \c kRelCutoffSafety) meets the calibration \a C
 //! (\c kRungGateC); no rigorous bound is folded in, and \c ReportGrids prints both factors and the result.
 double RungGateEcut(double relCutoffSafety, double C, double alphaMax) {return relCutoffSafety*C*alphaMax;}
 
@@ -113,13 +113,26 @@ std::vector<Symmetry::Lattice_3D::SymOp> StarOps(const std::vector<Symmetry::Lat
 }
 }
 
-GpwRasterLadder::GpwRasterLadder(const UnitCell& cell, const GaussianSharpness& basis, double densityEcut, double cutoffFactor,
+namespace
+{
+//! The function exponent whose pair product's spectrum falls to \a eps at \a cutoff: \f$\tfrac12G^2=2pL\f$ with \f$p=2\alpha\f$, so
+//! \f$\alpha=e_{cut}/4L\f$ (\c GaussianSharpness::MakeResolution's formula, inverted).
+double ExponentAt(double cutoff, double eps)
+{
+    if (!(cutoff>0.0)) throw std::invalid_argument("GpwRasterLadder: the basis's resolution has no positive cutoff ("+std::to_string(cutoff)+")");
+    return cutoff/(4.0*std::log(1.0/eps));
+}
+}
+
+GpwRasterLadder::GpwRasterLadder(const UnitCell& cell, const BasisSet::Resolution& res, double resEps, double densityEcut, double cutoffFactor,
                                  double ladderFactor, PlaneWave::RasterFields rasterFields, const GPWTolerances& tol, double ppSharpness)
     : itsInputs{densityEcut, cutoffFactor, ladderFactor, rasterFields, tol}
     , itsCell(cell), itsPPSharpness(ppSharpness)
-    , itsAlphaMax(basis.MaxExponent()), itsAlphaMin(basis.MinExponent()), itsRelCutoffSafety(basis.RelCutoffSafety())
+    , itsAlphaMax(ExponentAt(res.cutoff, resEps)), itsAlphaMin(ExponentAt(res.coarseCutoff, resEps)), itsRelCutoffSafety(tol.relCutoffSafety)
     , itsLadderFactor(ladderFactor), itsTol(tol)
 {
+    if (!(resEps>0.0 && resEps<1.0)) throw std::invalid_argument("GpwRasterLadder: the resolution's eps must lie in (0,1)");
+    if (!(itsRelCutoffSafety>0.0)) throw std::invalid_argument("GpwRasterLadder: GPWTolerances::relCutoffSafety must be > 0");
     if (rasterFields==PlaneWave::RasterFields::HartreeOnly) itsRelFieldSharp=itsTol.relFieldSharp*itsAlphaMax;
     if (densityEcut==0.0) return;                       // the DFT tier is off: no grid, no ladder
     const double aMax  = itsAlphaMax;
@@ -245,16 +258,12 @@ RasterLevels GpwRasterLadder::MakeVlocLongLevels(double beta, double lnE) const
 std::shared_ptr<const GpwRasterLadder> MakeRasterLadder(const UnitCell& cell, const BasisSet::Real_BS& mol, const RasterLadderInputs& in,
                                                         double ppSharpness)
 {
-    const BasisSet::Real_OIBS* only=nullptr;     // the single orbital block of the raw molecular basis (the evaluator's itsOrb)
-    for (auto ibs : mol.Iterate<BasisSet::Real_OIBS>())
-    {
-        if (only) throw std::logic_error("MakeRasterLadder: a molecular basis with more than one orbital block");
-        only=ibs;
-    }
-    const auto* sharp=dynamic_cast<const GaussianSharpness*>(only);   // abstract -> abstract
-    if (!sharp) throw std::invalid_argument("MakeRasterLadder: the molecular basis has no Gaussian orbital block to size a raster from");
-    return std::make_shared<const GpwRasterLadder>(cell, *sharp, in.densityEcut, in.cutoffFactor, in.ladderFactor, in.rasterFields, in.tol,
-                                                   ppSharpness);
+    size_t nOrb=0;                               // the single orbital block of the raw molecular basis (the evaluator's itsOrb)
+    for ([[maybe_unused]] auto ibs : mol.Iterate<BasisSet::Real_OIBS>()) nOrb++;
+    if (nOrb!=1) throw std::logic_error("MakeRasterLadder: a molecular basis with "+std::to_string(nOrb)+" orbital blocks (one expected)");
+    const double eps=GpwRasterLadder::kResolutionEps;
+    return std::make_shared<const GpwRasterLadder>(cell, mol.MakeResolution(eps), eps, in.densityEcut, in.cutoffFactor, in.ladderFactor,
+                                                   in.rasterFields, in.tol, ppSharpness);
 }
 
 double LocalPPSharpness(const Structure& cl, const SpeciesRadialField& loc)
@@ -285,10 +294,10 @@ qchem::report::json VlocLongRow(const RasterLevels& V, double p2, double beta, c
 //! here; the BALL is not "suppressed by 1/G^2" -- it enters the energy through the G-space quadratures (Hartree, V_loc long), and the
 //! raster pilot judges it (SolidCalculation's CalibrateRasters: Eee at fixed D against twice the ball, doubling while over eps).  XC is
 //! not where it enters: with the cusp-deficit feed (the default) XC reads rho[D] at the fixed point; linear D-mixing and GDM feed rho[D].
-qchem::report::json DensityRow(const RasterLevels& L, double relFieldSharp, double aMax, const UnitCell& cell, double rasterX)
+qchem::report::json DensityRow(const RasterLevels& L, double relFieldSharp, double fieldSharp, double aMax, const UnitCell& cell, double rasterX)
 {
     const size_t Lf=FinestLevel(L);
-    const double beta = relFieldSharp>=0.0 ? relFieldSharp : (2.0/3.0)*aMax;   // the routing field
+    const double beta = relFieldSharp>=0.0 ? relFieldSharp : fieldSharp*aMax;   // the routing field (PairCap's)
     return GridAudit("density collocation (Hartree + XC raster)", 2.0*aMax, beta, L.ecut[Lf], L.N[Lf], cell, rasterX, /*judgeBall*/false);
 }
 }
@@ -299,7 +308,7 @@ std::vector<RasterVerdict> GpwRasterLadder::DeliveredRasterVerdicts() const
     if (!itsGrid) return v;
     auto verdict=[](const char* audit, const qchem::report::json& r)
     { return RasterVerdict{audit, r["status"].get<std::string>(), r["alias"].get<double>()}; };
-    v.push_back(verdict("auditDensity", DensityRow(itsLevels, itsRelFieldSharp, itsAlphaMax, itsCell, itsTol.rasterX)));
+    v.push_back(verdict("auditDensity", DensityRow(itsLevels, itsRelFieldSharp, itsTol.fieldSharp, itsAlphaMax, itsCell, itsTol.rasterX)));
     if (itsPPSharpness>0.0)
         v.push_back(verdict("auditVlocLong", VlocLongRow(MakeVlocLongLevels(itsPPSharpness, -std::log(VlocEps(itsTol))), 2.0*itsAlphaMax,
                                                          itsPPSharpness, itsCell, itsTol)));
@@ -312,9 +321,13 @@ void GpwRasterLadder::ReportGrids(const std::vector<Symmetry::Lattice_3D::Direct
     rpt::Set("densityEcut",  itsInputs.cutoffFactor * itsAlphaMax);   // the auto density-grid floor Ecut
     rpt::Set("cutoffFactor", itsInputs.cutoffFactor);
     rpt::Set("raster",       { {"x", itsTol.rasterX}, {"vlocX", itsTol.vlocRasterX}, {"xcX", itsTol.xcRasterX} });   // the demands (0 = the ball's own)
+    // The relative pair rule, its RIGOROUS form (a pair p is resolved at ecut >= s ecut_ref p / 2 alpha_max) beside its EMPIRICAL
+    // stiffness s, and the exponents the ladder read off the basis's resolution.
+    rpt::Set("pairRule",     { {"form", "ecut >= relCutoffSafety * ecut_ref * p / (2 alpha_max)"}, {"relCutoffSafety", itsRelCutoffSafety},
+                               {"alphaMax", itsAlphaMax}, {"alphaMin", itsAlphaMin} });
     rpt::Set("rungGate",     { {"relCutoffSafety", itsRelCutoffSafety}, {"C", itsTol.rungGateC}, {"ecut", RungGateEcut(itsRelCutoffSafety, itsTol.rungGateC, itsAlphaMax)} });
     rpt::Set("routing",      itsRelFieldSharp>=0.0 ? "HartreeOnly" : "HartreeXC");   // field-sharpness routing policy
-    rpt::Set("routingBeta",  itsRelFieldSharp>=0.0 ? itsRelFieldSharp : (2.0/3.0)*itsAlphaMax);
+    rpt::Set("routingBeta",  itsRelFieldSharp>=0.0 ? itsRelFieldSharp : itsTol.fieldSharp*itsAlphaMax);
     if (!itsGrid) return;                                              // DFT tier off: no grids
     // The {G}-star column (see PrintGrids): star counts per level under the imposed ops, so the fold is VISIBLE in the grids table
     // (nG vs Gstars = the T1 reduction).  Empty ops = no column.
@@ -356,7 +369,7 @@ void GpwRasterLadder::ReportGrids(const std::vector<Symmetry::Lattice_3D::Direct
         ve["etaRouting"] = itsTol.vlocRoutingEta;
     }
     rpt::Set("vlocEps", ve);
-    FileGridAudit("auditDensity", DensityRow(itsLevels, itsRelFieldSharp, itsAlphaMax, itsCell, itsTol.rasterX));
+    FileGridAudit("auditDensity", DensityRow(itsLevels, itsRelFieldSharp, itsTol.fieldSharp, itsAlphaMax, itsCell, itsTol.rasterX));
     if (itsPPSharpness>0.0)            // V_long's row, a pure function of the ladder and the PP sharpness (no V_long run needed)
         FileGridAudit("auditVlocLong", VlocLongRow(MakeVlocLongLevels(itsPPSharpness, -std::log(VlocEps(itsTol))), 2.0*itsAlphaMax,
                                                    itsPPSharpness, itsCell, itsTol));
@@ -386,7 +399,7 @@ void GpwRasterLadder::PrintGrids(std::ostream& os, size_t nFunctions, const std:
       <<" cutoffFactor="<<itsInputs.cutoffFactor
       <<" raster x(density, V_long, XC L0)=("<<itsTol.rasterX<<", "<<itsTol.vlocRasterX<<", "<<itsTol.xcRasterX<<")"
       <<" routing="<<(itsRelFieldSharp>=0.0?"HartreeOnly beta=":"HartreeXC beta=2/3*alpha_max=")
-      <<(itsRelFieldSharp>=0.0?itsRelFieldSharp:(2.0/3.0)*itsAlphaMax)<<" Ha-exp"
+      <<(itsRelFieldSharp>=0.0?itsRelFieldSharp:itsTol.fieldSharp*itsAlphaMax)<<" Ha-exp"
       <<" (auto density floor Ecut="<<itsInputs.cutoffFactor*itsAlphaMax<<" Ha)"<<std::endl;
     if (!itsGrid)
     {

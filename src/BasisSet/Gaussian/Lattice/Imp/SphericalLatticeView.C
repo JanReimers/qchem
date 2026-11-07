@@ -280,7 +280,6 @@ public:
     { return CongruenceC(itsLat->MakeLocalGaussian(cl,opForZ)); }
     virtual double MaxExponent    () const override {return itsLat->MaxExponent();}
     virtual double MinExponent    () const override {return itsLat->MinExponent();}
-    virtual double RelCutoffSafety() const override {return itsLat->RelCutoffSafety();}
     virtual const GPWTolerances& Tolerances() const override {return itsLat->Tolerances();}   // bound on the wrapped basis, before wrapping
     virtual std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                  const std::vector<ivec3_t>& N_L,

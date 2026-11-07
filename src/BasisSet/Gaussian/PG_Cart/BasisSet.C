@@ -104,7 +104,6 @@ public:
                                       const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const override;
     virtual double  MaxExponent() const override;   // finest exponent -> the GPW density-grid cutoff floor
     virtual double  MinExponent() const override;   // coarsest exponent -> the multi-grid coarsest level
-    virtual double  RelCutoffSafety() const override; // pair->level stiffness -> the ladder completion rung
     virtual const GPWTolerances& Tolerances() const override;
     virtual void    BindTolerances(const GPWTolerances& t) override;   // ToleranceBinding (the builder's door)
     // CP2K analytic multi-grid collocation + its exact adjoint (the GPW density/KS bridge).

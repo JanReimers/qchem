@@ -21,9 +21,20 @@ export namespace qchem::BasisSet::Gaussian
 inline constexpr double kVlocEpsNoTarget = 1.0e-5;
 
 //! \brief EMPIRICAL: the C of the top completion rung's gate (expert `solid.accuracyCalibration.rungGateC`): the ladder appends a rung
-//! when the reference grid sits below RelCutoffSafety x C x alpha_max.  Measured when C = 8 was the production cutoffFactor, and
+//! when the reference grid sits below relCutoffSafety x C x alpha_max.  Measured when C = 8 was the production cutoffFactor, and
 //! deliberately decoupled from cutoffFactor when that fell to 2 (BuildLevels in Imp/GPW_Evaluator.C).
 inline constexpr double kRungGateC = 8.0;
+
+//! \brief EMPIRICAL: the STIFFNESS of the relative pair->level rule (expert `solid.accuracyCalibration.relCutoffSafety`; CP2K's REL_CUTOFF
+//! safety).  The RIGOROUS part is the rule's form: a pair of product exponent \f$p\f$ is resolved on a level whose cutoff reaches its own
+//! share of the reference, \f$e_{cut}\ge s\,e_{cut}^{ref}\,p/(2\alpha_{\max})\f$ (the sharpest pair sits on the reference).  The factor
+//! \f$s\f$ is the measurement: the charge-calibrated fine ratio (ecut/p ~ 5 for the auto floor) leaves ~e^{-ecut/2p} = e^{-2.5} spectral
+//! tails on a pair at its own cutoff -- fine for the charge (~1e-5 loss) but a few-mHa ENERGY term once V_H / V_xc couple to it: Si SR
+//! Gamma sat ~5 mHa below CP2K at s = 1.  s = 2 moves only the MID pairs one level up (the diffuse tail stays coarse) and squares the tail
+//! to ~e^{-5}.  CP2K's REL_CUTOFF default (30 Ry) is a ~3x stiffer ratio than the auto floor, so 2 is still on the lean side.
+//! One number for the pair rule (the MnD evaluator's \c PairLevel) and the ladder's completion rung (at \f$s\,e_{cut}^{ref}\f$), so the
+//! two agree by construction; moved off the basis to the ladder's tolerances by V-BS-RASTER step 2 (2026-11-07).
+inline constexpr double kRelCutoffSafety = 2.0;
 
 //! \brief The GPW evaluator's tolerances.  Every default is today's behaviour; none of them is a convenience knob.
 struct GPWTolerances
@@ -41,6 +52,9 @@ struct GPWTolerances
     bool VlocEpsDerived() const {return vlocRoutingEta>0.0;}
     //! The rung gate's calibration: the facade writes \c GridAccuracy::rungGateC.
     double rungGateC = kRungGateC;
+    //! The relative pair->level rule's stiffness: the facade writes \c GridAccuracy::relCutoffSafety; bound on the molecular basis with
+    //! the other pair-loop tolerances (its \c PairLevel reads it), so the pair rule and the ladder read ONE value.
+    double relCutoffSafety = kRelCutoffSafety;
     //! The ABSOLUTE pair->level rule kappa (Ha per unit pair exponent) of the local-PP sweeps: every pair's spectral tail is
     //! bounded by e^{-kappa/2} independent of the field's sharpness.  30 Ha (e^{-15}) is CP2K's REL_CUTOFF 60 Ry; 60 is the
     //! self-convergence check.
@@ -167,6 +181,7 @@ struct GridAccuracy : AccuracyTarget
     //! place the two pieces meet.
     double VlocEps() const {return RigorousVlocEps()/vlocRoutingEta;}
     double rungGateC = kRungGateC;   //!< EMPIRICAL: see \c kRungGateC
+    double relCutoffSafety = kRelCutoffSafety;   //!< EMPIRICAL: see \c kRelCutoffSafety
     //! \brief EMPIRICAL: the rho-tilde sampler's NUFFT calibration eta = delivered / bound (expert `solid.accuracyCalibration.samplerEta`),
     //! dividing the rigorous alias bound (\c NUFFT::Type2::Bound) in the width choice -- set BEFORE the SCF and never changed inside it
     //! (user ruling 2026-11-04).  The default decomposes, like \c vlocRoutingEta, as (measured max delivered/bound) x (margin):

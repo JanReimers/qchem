@@ -7,8 +7,10 @@
 // routing policy and the GPWTolerances.  So a k222 run held eight identical ladders.  This is the ladder built ONCE per geometry point
 // (the cell moves in a SolidSession) and shared, by \c MakeRasterLadder.
 //
-// STEP 1 (bit-identical): the ladder's basis input is still the EXPONENT RANGE (alpha_max, alpha_min, RelCutoffSafety) through
-// GaussianSharpness, exactly the arithmetic the evaluator does.  Step 2 switches it to \c MakeResolution(eps), judged by a sweep.
+// THE BASIS INPUT (step 2, 2026-11-07) is the basis's own answer to "how fine must a grid over your density reach", \c MakeResolution
+// at \c kResolutionEps: the ladder reads the sharpest and the most diffuse pair product off it (the basis owns the factor 2), and asks
+// no exponent of any block.  The pair rule's stiffness is the run's \c GPWTolerances::relCutoffSafety (a named calibration), the
+// same value the basis's own pair->level assignment is bound with.
 // MULTIGRID-READY: the pair -> level cap (\c PairCap) is the ladder's, so a per-primitive level scheme replaces only its internals.
 module;
 #include <cstddef>
@@ -19,7 +21,7 @@ module;
 export module qchem.BasisSet.Gaussian.Lattice.RasterLadder;
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // the typed tolerances the ladder is sized by
 export import qchem.BasisSet.PlaneWave.Evaluators;             // PlaneWave::PW_Grid_Evaluator (a level) + RasterFields
-import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;              // GaussianSharpness: the exponent range (step 1's basis input)
+export import qchem.BasisSet.GridResolution;                     // Resolution: the basis's answer the ladder is sized from
 import qchem.BasisSet;                                           // Real_BS (the molecular basis a ladder is sized from)
 import qchem.BasisSet.Orbital_PP_IBS;                            // SpeciesRadialField(_Gaussian): the local PP's sharpness
 import qchem.Symmetry.Lattice_3D.SpaceGroup;                     // DirectOp {W|τ} (the grids report's {G}-star column)
@@ -63,13 +65,18 @@ class GpwRasterLadder
 {
 public:
     //! \param cell the direct lattice (its reciprocal cell spans every level's {G}).
-    //! \param basis the molecular Gaussian basis's exponent range (step 1; \c MakeResolution in step 2).
+    //! \param resolution the molecular basis's \c MakeResolution at \a resolutionEps: its density's finest and coarsest cutoffs, from
+    //!        which the ladder reads the sharpest and the most diffuse pair product (\f$p=\tfrac12G^2/\ln(1/\epsilon)\f$).
     //! \param densityEcut <0 AUTO (floor \a cutoffFactor * alpha_max), 0 no DFT tier (no grid), >0 explicit Ha (warned if under the floor).
     //! \param ppSharpness the local PP's \c LocalPPSharpness (0: none known -- a bare block's ladder; V_long then files no audit row
     //!        here).  STEP 1 states it as this one number; step 2 replaces it with the PP set's own resolution answer, combined with
     //!        the basis's (the PP sharper than the orbital basis is exactly what it must size).
-    GpwRasterLadder(const UnitCell& cell, const GaussianSharpness& basis, double densityEcut, double cutoffFactor, double ladderFactor,
-                    PlaneWave::RasterFields rasterFields, const GPWTolerances& tol, double ppSharpness=0.0);
+    GpwRasterLadder(const UnitCell& cell, const BasisSet::Resolution& resolution, double resolutionEps, double densityEcut, double cutoffFactor,
+                    double ladderFactor, PlaneWave::RasterFields rasterFields, const GPWTolerances& tol, double ppSharpness=0.0);
+
+    //! The tolerance a ladder asks the basis's resolution at.  Any eps in (0,1) names the same pair exponents (the Gaussian answer is
+    //! linear in ln(1/eps)); this one is the collocation floor's, so the round trip sits at the ulp.
+    static constexpr double kResolutionEps = 1.0e-10;
 
     //! The density / collocation grid (level 0 of \c Levels()); null when the DFT tier is off (densityEcut 0).
     const std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>& DensityGrid() const {return itsGrid;}
@@ -113,7 +120,10 @@ private:
     RasterLadderInputs itsInputs;
     UnitCell      itsCell;          //!< the direct cell (the audits' raster Nyquist radius)
     double        itsPPSharpness=0.0;
-    double        itsAlphaMax, itsAlphaMin, itsRelCutoffSafety;
+    //! The sharpest and the most diffuse FUNCTION exponents, read off the basis's resolution: half its sharpest / most diffuse pair
+    //! product.  The ladder's arithmetic (the floor C*alpha_max, the pair caps, the field floors) is written in them.
+    double        itsAlphaMax, itsAlphaMin;
+    double        itsRelCutoffSafety;   //!< the run's GPWTolerances::relCutoffSafety (EMPIRICAL, record at kRelCutoffSafety)
     double        itsLadderFactor;
     double        itsRelFieldSharp=-1.0;
     GPWTolerances itsTol;
@@ -121,7 +131,7 @@ private:
     RasterLevels  itsLevels;
 };
 
-//! \brief Build a ladder over \a cell from \a mol's one Gaussian orbital block (its exponent range).  The one place a ladder is made
+//! \brief Build a ladder over \a cell from \a mol's one Gaussian orbital block (its \c MakeResolution).  The one place a ladder is made
 //! from a molecular basis: \c BasisSet::Lattice::MakeRasterLadder (per geometry point) and a bare block's convenience ctor both call it.
 //! Throws if \a mol has more than one orbital block, or none that is Gaussian.
 std::shared_ptr<const GpwRasterLadder> MakeRasterLadder(const UnitCell& cell, const BasisSet::Real_BS& mol, const RasterLadderInputs& in,

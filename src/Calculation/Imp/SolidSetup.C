@@ -245,6 +245,8 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
         }
         if (!(a.rungGateC>=0.0)) throw std::invalid_argument("SolidCalcOptions: accuracy rungGateC must be >= 0 (0 = no completion rung)");
         s->opts.tolerances.rungGateC=a.rungGateC;   // with or without a target: the ladder's gate is not derived from eps
+        if (!(a.relCutoffSafety>0.0)) throw std::invalid_argument("SolidCalcOptions: accuracy relCutoffSafety (the pair->level rule's stiffness) must be > 0");
+        s->opts.tolerances.relCutoffSafety=a.relCutoffSafety;   // nor is the pair rule's stiffness
     }
     if (s->planeWave)
     {
