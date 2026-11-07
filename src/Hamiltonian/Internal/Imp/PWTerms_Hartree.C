@@ -42,7 +42,7 @@ Vee_Hartree::Vee_Hartree(fbs_t fb)
     : itsFitBasis(fb)
 {}
 
-template <class U> hmat_t<U> Vee_Hartree::MakeMatrixT(const tobs_t<U>* bs, const Spin&, const cChargeDensity* cd) const
+template <class U> hmat_t<U> Vee_Hartree::MakeMatrixT(const tobs_t<U>* bs, const Spin&, DensityID id) const
 {
     // The two-axis DFT face (V1.1): a real TRIM block is Orbital_DFT_IBS<double,dcmplx> -- same complex
     // fit side, so the SAME Repulsion3C tensor serves both; only the final block is narrowed.
@@ -54,12 +54,12 @@ template <class U> hmat_t<U> Vee_Hartree::MakeMatrixT(const tobs_t<U>* bs, const
     // grid; the Coulomb kernel is forward-only, already in V_H).  So forward AND backward run on the one fit grid
     // (doc/GPWPlan §0e step 2).  The FIELD is the one the refresh built (V1.41 stage 2): a block READS it, and
     // \a cd only names which density it must be.
-    const ΔG_Map& VH=RefreshedField(cd);
+    const ΔG_Map& VH=RefreshedField(id);
     return blazem::NarrowExact<U>(ContractAdjoint(bft->Repulsion3C(*itsFitBasis),
         [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; }));
 }
-chmat_t Vee_Hartree::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
-rsmat_t Vee_Hartree::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
+chmat_t Vee_Hartree::MakeMatrix(const cobs_t* bs, const Spin& s, DensityID id) const {return MakeMatrixT<dcmplx>(bs,s,id);}
+rsmat_t Vee_Hartree::MakeMatrix(const robs_t* bs, const Spin& s, DensityID id) const {return MakeMatrixT<double>(bs,s,id);}
 
 // V_H(dm) for this density, kept until the density's serial moves (declaration doc in PWTerms.C).
 const ΔG_Map& Vee_Hartree::CoulombField(const cChargeDensity* cd) const
@@ -72,6 +72,7 @@ const ΔG_Map& Vee_Hartree::CoulombField(const cChargeDensity* cd) const
         assert(fd && "Vee_Hartree requires a FourierDensity (periodic) charge density");
         itsField       =fd->GetRepulsion3C(*itsFitBasis);
         itsFieldVersion=cd->Version();
+        itsFieldID=DensityID(cd);
     }
     return itsField;
 }
@@ -79,9 +80,9 @@ const ΔG_Map& Vee_Hartree::CoulombField(const cChargeDensity* cd) const
 // The block path's read (V1.41 stage 2, ruling C): one current field, filled by RefreshForDensity (or the energy
 // pass), checked against the density's identity.  A miss is a caller that skipped the refresh, a broken contract
 // no caller can act on, so it throws instead of building the field inside the block loop.
-const ΔG_Map& Vee_Hartree::RefreshedField(const cChargeDensity* cd) const
+const ΔG_Map& Vee_Hartree::RefreshedField(DensityID id) const
 {
-    if (!cd || cd->Version()!=itsFieldVersion)
+    if (id.IsNone() || !(id==itsFieldID))
         throw std::logic_error("Vee_Hartree: block asked for a density the refresh did not see (RefreshForDensity first)");
     return itsField;
 }

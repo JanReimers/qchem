@@ -182,7 +182,7 @@ template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,c
     // Leave these terms out if we don't have guess for the charge density.
     if (cd)
     {
-        for (auto& t:itsDHTs)   H+=t->GetMatrix(bs,S,cd);             // per-irrep dynamic (DFT/fitted)
+        for (auto& t:itsDHTs)   H+=t->GetMatrix(bs,S,DensityID(cd));  // per-irrep dynamic (DFT/fitted)
         for (auto& t:itsHF_HTs) H+=t->GetMatrix(bs,S,cd,wholeBasis);  // whole-system HF (needs the composite basis)
     }
     return H;
@@ -202,11 +202,11 @@ template <class HT> const Static_HT_RealBlock& StaticRealOf(const HT& t)
                                     "Static_HT_RealBlock capability (RealComplexPlan Step 3c-1)");
     return *rb;
 }
-template <class HT> const Dynamic_HT_RealBlock& DynamicRealOf(const HT& t)
+template <class HT> const tDynamic_CC<double>& DynamicRealOf(const HT& t)
 {
-    auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&t);
+    auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&t);   // abstract to abstract: the term's real block face (V1.35)
     if (!rb) throw std::logic_error("Hamiltonian real-block assembly: a dynamic term does not carry the "
-                                    "Dynamic_HT_RealBlock capability (RealComplexPlan Step 3c-1)");
+                                    "real block face tDynamic_CC<double> (RealComplexPlan Step 3c-1)");
     return *rb;
 }
 } //anon
@@ -221,7 +221,7 @@ template <class T> hmat_t<double> tHamiltonianImp<T>::GetMatrix(const tobs_t<dou
     for (auto& t:itsSHTs) H+=StaticRealOf(*t).GetMatrix(bs,S);
     if (cd)
     {
-        for (auto& t:itsDHTs) H+=DynamicRealOf(*t).GetMatrix(bs,S,cd);
+        for (auto& t:itsDHTs) H+=DynamicRealOf(*t).GetMatrix(bs,S,DensityID(cd));
         // No whole-system HF on the periodic path (exact exchange is real-molecular-only by construction);
         // a real block asked of an HF term would be a wiring error.
         if (!itsHF_HTs.empty())
@@ -277,7 +277,7 @@ template <class T> std::vector<hmat_t<T>> tHamiltonianImp<T>::MakeTermMatrices(c
     if (!itsHF_HTs.empty()) throw std::logic_error("Hamiltonian::MakeTermMatrices: whole-system HF terms are not audited (no raster in them)");
     std::vector<hmat_t<T>> out;
     for (auto& t:itsSHTs) out.push_back(t->GetMatrix(bs,S));
-    for (auto& t:itsDHTs) out.push_back(t->GetMatrix(bs,S,cd));
+    for (auto& t:itsDHTs) out.push_back(t->GetMatrix(bs,S,DensityID(cd)));
     return out;
 }
 
@@ -290,7 +290,7 @@ template <class T> std::vector<hmat_t<double>> tHamiltonianImp<T>::MakeTermMatri
         if (!itsHF_HTs.empty()) throw std::logic_error("Hamiltonian::MakeTermMatrices: whole-system HF terms cannot serve a real TRIM block");
         std::vector<hmat_t<double>> out;
         for (auto& t:itsSHTs) out.push_back(StaticRealOf(*t).GetMatrix(bs,S));
-        for (auto& t:itsDHTs) out.push_back(DynamicRealOf(*t).GetMatrix(bs,S,cd));
+        for (auto& t:itsDHTs) out.push_back(DynamicRealOf(*t).GetMatrix(bs,S,DensityID(cd)));
         return out;
     }
     else throw std::logic_error("Hamiltonian::MakeTermMatrices: a real block of a REAL Hamiltonian is the native overload");

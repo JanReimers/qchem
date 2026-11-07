@@ -318,13 +318,13 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
     Vee_Hartree::fbs_t fb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
     Vee_Hartree vh(fb);
     {
-        auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&vh);
+        auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&vh);
         ASSERT_NE(rb,nullptr) << "Vee_Hartree must carry the real-block capability (Step 3c)";
         // Concrete-typed calls are ambiguous across the two GetMatrix base classes; go through the faces.
         RefreshTerm(static_cast<const cDynamic_HT&>(vh), cd.get());    // each arm refreshed for ITS density (KAxisPlan P2)
-        const chmat_t Vc=static_cast<const cDynamic_HT&>(vh).GetMatrix(rig.cx.get(), Spin::None, cd.get());
+        const chmat_t Vc=static_cast<const cDynamic_HT&>(vh).GetMatrix(rig.cx.get(), Spin::None, DensityID(cd.get()));
         RefreshTerm(static_cast<const cDynamic_HT&>(vh), cdr.get());
-        const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, cdr.get());
+        const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, DensityID(cdr.get()));
         ExpectBitwiseEqual(Vr, Vc, "Vee_Hartree");
     }
 
@@ -335,12 +335,12 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
     auto engine=ChargeDensity::MakeDensitySampler(dfb, q);   // ONE bundle to both collaborators
     Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), engine, SpinGroup::UnPolarized);
     {
-        auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&vxc);
+        auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&vxc);
         ASSERT_NE(rb,nullptr) << "Vxc_Quadrature must carry the real-block capability (Step 3c)";
         RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cd.get());    // each arm refreshed for ITS density (KAxisPlan P2)
-        const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, cd.get());
+        const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, DensityID(cd.get()));
         RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cdr.get());
-        const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, cdr.get());
+        const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, DensityID(cdr.get()));
         ExpectMachineEqual(Vr, Vc, "Vxc_Quadrature");
     }
 }
@@ -440,12 +440,12 @@ TEST(RealComplexTerms, RawRouteXcServesTheRealBlockBitwise)
     auto cdr = rig.MakeRealDensity();   // the real arm's twin (screen-consistent pairing; file header)
     ChargeDensity::fitbasis_t fb(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
     Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized);
-    auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&vxc);
+    auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&vxc);
     ASSERT_NE(rb,nullptr) << "Vxc_Quadrature must carry the real-block capability (Step 3c)";
     RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cd.get());    // each arm refreshed for ITS density (KAxisPlan P2)
-    const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, cd.get());
+    const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, DensityID(cd.get()));
     RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cdr.get());
-    const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, cdr.get());
+    const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, DensityID(cdr.get()));
     ExpectBitwiseEqual(Vr, Vc, "Vxc_Quadrature (pair) raw");
 }
 

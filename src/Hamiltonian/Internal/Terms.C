@@ -289,7 +289,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
 private:
-    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const;
     std::unique_ptr<ChargeDensity::FittedCD> itsFittedChargeDensity;   //!< owned (was a leaked raw ptr)
 };
 
@@ -308,7 +308,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
 private:
-    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const;
     void Fit(const rChargeDensity&) const;
     std::unique_ptr<Fitting::GridDensityFit> itsFit;
     double itsNumElectrons;
@@ -358,10 +358,10 @@ public:
     virtual void RefreshForDensity(const rChargeDensity* cd) const override;
     virtual void          GetEnergy       (EnergyBreakdown&,const rDM_CD*) const override;
     //! The ENERGY block of spin \a s, Sum_a c_a <Oi|f_a|Oj>, from the eps^s fit GetEnergy made for \a cd (a read; throws otherwise).
-    virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const override;
+    virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,DensityID) const override;
     virtual std::ostream& Write           (std::ostream&) const override;
 private:
-    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity*) const override;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const override;
 
     //! The fitter PAIR of one spin irrep, each half guarded by the density serial it currently holds.
     struct SpinFit
@@ -370,6 +370,8 @@ private:
         std::unique_ptr<Fitting::ScalarFit<double>> eps;   //!< E: the eps^sigma fit (the energy pass's density)
         size_t  vVersion  =size_t(-1);
         size_t  epsVersion=size_t(-1);
+        DensityID vID  =DensityID(static_cast<const rChargeDensity*>(nullptr));   //!< the identity of the density vVersion names
+        DensityID epsID=DensityID(static_cast<const rChargeDensity*>(nullptr));   //!< ...and of epsVersion's
         rsmat_t epsMat;                                        //!< GetEMatrix's returned block (per spin: no aliasing)
     };
     //! This spin irrep's pair -- THROWS for a spin the term was not built for (a block of the other subgroup).

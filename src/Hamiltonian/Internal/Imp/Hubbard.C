@@ -892,7 +892,7 @@ void Hubbard_U::PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const
 void Hubbard_U::RefreshForDensity(const cChargeDensity* cd) const
 {
     EnsureOccupations(cd);
-    itsRefreshedVersion = cd ? cd->Version() : size_t(-1);   // what the block path checks (V1.41 stage 2)
+    itsRefreshedID=DensityID(cd);   // what the block path checks (V1.41 stage 2)
 }
 
 //------------------------------------------------------------------------------ HubbardProjection (ACBN0)
@@ -966,7 +966,7 @@ void Hubbard_U::FreezeOccupations(bool frozen)
     if (was && !frozen)
     {
         itsOccVersion=size_t(-1);
-        itsRefreshedVersion=size_t(-1);
+        itsRefreshedID=DensityID(static_cast<const cChargeDensity*>(nullptr));
         cDynamic_HT_Imp::InvalidateCache();
         Dynamic_HT_RealBlock_Imp::InvalidateRealCache();
     }
@@ -977,7 +977,7 @@ void Hubbard_U::FreezeOccupations(bool frozen)
 void Hubbard_U::ApplyWrite()
 {
     itsOccVersion=size_t(-1);                               // W depends on U/alpha: the next refresh rebuilds it from n
-    itsRefreshedVersion=size_t(-1);                         // ...and no block may read the old W before it does
+    itsRefreshedID=DensityID(static_cast<const cChargeDensity*>(nullptr));                         // ...and no block may read the old W before it does
     if (itsFrozen)
     {
         bool held=!itsChannels.empty();
@@ -1040,11 +1040,11 @@ const rvec_t& Hubbard_U::Occupations(size_t M, const Spin& s) const
 }
 
 //------------------------------------------------------------------------------------------ the matrix
-template <class U> hmat_t<U> Hubbard_U::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
+template <class U> hmat_t<U> Hubbard_U::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, DensityID id) const
 {
     // A READ (V1.41 stage 2, ruling C): the refresh built n and W for this density; a block only checks it did.  A miss (no refresh,
     // or a U/alpha write since) is a caller that skipped the refresh, a broken contract no caller can act on.
-    if (!cd || cd->Version()!=itsRefreshedVersion)
+    if (id.IsNone() || !(id==itsRefreshedID))
         throw std::logic_error("Hubbard_U: block asked for a density the refresh did not see (RefreshForDensity first)");
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);
     const Spin chan = (itsGroup==SpinGroup::UnPolarized) ? Spin::None : s;
@@ -1055,8 +1055,8 @@ template <class U> hmat_t<U> Hubbard_U::MakeMatrixT(const tobs_t<U>* bs, const S
     if (ch.W.size()==0 || ch.W.size()!=NumCoefficients()) return blazem::zeroH<U>(bs->GetNumFunctions());   // before any density (both 0 on the seed)
     return Projector<U>(orb).Adjoint(ch.W);                       // V_k = T_k W T_k^dagger
 }
-chmat_t Hubbard_U::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
-rsmat_t Hubbard_U::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
+chmat_t Hubbard_U::MakeMatrix(const cobs_t* bs, const Spin& s, DensityID id) const {return MakeMatrixT<dcmplx>(bs,s,id);}
+rsmat_t Hubbard_U::MakeMatrix(const robs_t* bs, const Spin& s, DensityID id) const {return MakeMatrixT<double>(bs,s,id);}
 
 // FROZEN, the energy is the +U functional LINEARISED about the held occupations n0:
 //     E = E_U(n0) + Tr[W0 (n - n0)]      (W0 includes the alpha*1 shift)

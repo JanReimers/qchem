@@ -381,15 +381,15 @@ hmat_t<dcmplx> ProbeBlockMatrix(Hamiltonian::cDynamic_HT& t, const BasisSet::Com
     t.RefreshForDensity(cd);
     if (const auto* rb=bs.GetRealIBS(i))
     {
-        const auto* face=dynamic_cast<const Hamiltonian::Dynamic_HT_RealBlock*>(&t);
+        const auto* face=dynamic_cast<const ChargeDensity::tDynamic_CC<double>*>(&t);
         if (!face) throw std::runtime_error("ProbeBlockMatrix: a real block needs the term's real-block face (3c-1)");
-        const rsmat_t R=face->GetMatrix(rb,Spin::None,cd);
+        const rsmat_t R=face->GetMatrix(rb,Spin::None,ChargeDensity::DensityID(cd));
         hmat_t<dcmplx> M(R.rows());
         for (size_t r=0;r<R.rows();r++)
             for (size_t s=r;s<R.columns();s++) M(r,s)=R(r,s);
         return M;
     }
-    return t.GetMatrix(bs[i],Spin::None,cd);
+    return t.GetMatrix(bs[i],Spin::None,ChargeDensity::DensityID(cd));
 }
 
 XCProbe ProbeXC(const std::string& label, const GpwHandles& h,

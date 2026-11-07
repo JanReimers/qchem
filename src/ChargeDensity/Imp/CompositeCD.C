@@ -204,8 +204,8 @@ template <class T> rvec_t tComposite_CD<T>::ProjectOnto(const Fitting::ScalarPro
 
 // The energy contractions, MIXED-AWARE (Step 3c-2b): a same-scalar child contracts natively; a REAL
 // child inside a complex run contracts through the term's real-block contract clients -- the static one
-// IS a tStatic_CC<double> (same signature), the dynamic one is the run-typed Dynamic_CC_RealBlock the
-// real periodic leaf consumes via its RealBlockEnergy_CD capability.
+// IS a tStatic_CC<double> (same signature), the dynamic one a tDynamic_CC<double> asked for the RUN's density (V1.35), which
+// the real periodic leaf consumes via its RealBlockEnergy_CD capability.
 template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) const
 {
     double ret=0.0;
@@ -236,13 +236,13 @@ template <class T> double tComposite_CD<T>::DM_Contract(const tDynamic_CC<T>* v,
             if constexpr (std::is_same_v<BT,tDM_CD<T>>) return b->DM_Contract(v,cd);
             else if constexpr (std::is_same_v<T,dcmplx>)
             {
-                auto* rcv=dynamic_cast<const Dynamic_CC_RealBlock*>(v);
-                if (!rcv) throw std::logic_error("tComposite_CD: a real child needs the term's run-typed "
-                                                 "energy client (Dynamic_CC_RealBlock, RealComplexPlan 3c-2b)");
+                auto* rcv=dynamic_cast<const tDynamic_CC<double>*>(v);
+                if (!rcv) throw std::logic_error("tComposite_CD: a real child needs the term's real-block "
+                                                 "energy client (tDynamic_CC<double>, RealComplexPlan 3c-2b)");
                 auto* rb=dynamic_cast<const RealBlockEnergy_CD*>(b);
                 if (!rb) throw std::logic_error("tComposite_CD: a real child density must carry the "
                                                 "RealBlockEnergy_CD capability (PeriodicIrrepCD<double>)");
-                return rb->DM_ContractE(rcv, cd);
+                return rb->DM_ContractE(rcv, DensityID(cd));
             }
             else throw std::logic_error("tComposite_CD: a complex child inside a real-faced run is impossible");
         }, blk.cd);

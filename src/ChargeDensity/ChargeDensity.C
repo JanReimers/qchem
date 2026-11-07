@@ -142,6 +142,21 @@ template <class T> using ProjectedDensityBase =
 template <class T> class tChargeDensity;   // forward (the DFT face the framework consumes)
 template <class T> class tDM_CD;           // forward (the density-matrix face)
 
+//! \brief THE IDENTITY of one density state (OOD V1.41, ruled 2026-10-27): it wraps \c Version() and is constructible
+//! ONLY from a density, so a block query that carries one can LOOK UP what the refresh built for that density but cannot
+//! compute from rho.  A null density (the iteration-0 core guess: no dynamic terms) has an identity too -- "no density".
+//! It lives here, beside \c tDynamic_CC, because the block face takes it (V1.35, user ruling 2026-11-07).
+class DensityID
+{
+public:
+    template <class T> explicit DensityID(const tChargeDensity<T>* cd) : itsVersion(cd ? cd->Version() : kNone) {}
+    bool operator==(const DensityID&) const=default;
+    bool IsNone() const {return itsVersion==kNone;}
+private:
+    static constexpr size_t kNone=size_t(-1);
+    size_t itsVersion;
+};
+
 template <class T> class tStatic_CC //Contract client for static Ham terms.
 {
 public:
@@ -163,34 +178,27 @@ public:
     //! two faces shared the \c GetMatrix spelling a term could only ever offer ONE of the two matrices, which
     //! is why the xc terms had to hang a second \c tDynamic_CC object (an "eps adapter") off the side purely
     //! to carry the other one.  Distinct names dissolve that collision (V1.3).
-    virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
+    virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>*,const Spin&,DensityID) const=0;
+    //! This irrep's POTENTIAL block (V) for basis \a bs / spin \a s, for the density \a id names -- what the Fock/KS assembly
+    //! adds up.  A READ of what the term's refresh built for that density (V1.41): the block cannot compute from rho, and a
+    //! block of the other scalar (a real TRIM block of a complex run) is the \c tDynamic_CC<double> face of the same term
+    //! (V1.35: the mixed corner is not a type).
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,DensityID) const=0;
 };
 
 //====================================================================================================
-//  REAL-BLOCK CONTRACT CLIENTS (doc/RealComplexPlan.md Step 3c-2b).  A real TRIM block inside a
-//  COMPLEX run energy-contracts against the run's terms.  The STATIC case needs no new face at all:
-//  Static_HT_RealBlock::GetMatrix has exactly tStatic_CC<double>'s signature, so the term's real-block
-//  mixin simply IS a tStatic_CC<double> and the real leaf's native DM_Contract serves.  The DYNAMIC
-//  case cannot reuse tDynamic_CC<double> -- its energy matrix takes the RUN's density, which is
-//  complex-faced -- hence this one run-typed client, implemented by the dynamic term's real-block
-//  mixin (default: the E=D·V identity, i.e. its real GetMatrix; the periodic xc terms never take the
-//  DM_Contract route, so no eps override is needed).
-class Dynamic_CC_RealBlock
-{
-public:
-    virtual ~Dynamic_CC_RealBlock() {};
-    virtual const hmat_t<double>& GetEMatrixR(const tobs_t<double>*,const Spin&,
-                                              const tChargeDensity<dcmplx>*) const=0;
-};
-
+//  REAL-BLOCK CONTRACT CLIENTS (doc/RealComplexPlan.md Step 3c-2b).  A real TRIM block inside a COMPLEX run
+//  energy-contracts against the run's terms.  Both cases are the ordinary real faces: a static term's real-block
+//  capability IS a tStatic_CC<double>, and since the block face takes a DensityID instead of the run's density
+//  (V1.35, 2026-11-07) a dynamic term's IS a tDynamic_CC<double>.  The run-typed Dynamic_CC_RealBlock is gone.
 //! \brief The capability of a REAL block density living inside a COMPLEX run: energy-contract this
-//! block's (real) D against the run-typed dynamic client above.  Carried by the real periodic leaf
+//! block's (real) D against the term's real block face, for the RUN's density \a id.  Carried by the real periodic leaf
 //! alone (PeriodicIrrepCD<double>); the composite's cross-scalar contract arm cross-casts to it.
 class RealBlockEnergy_CD
 {
 public:
     virtual ~RealBlockEnergy_CD() {};
-    virtual double DM_ContractE(const Dynamic_CC_RealBlock*, const tChargeDensity<dcmplx>*) const=0;
+    virtual double DM_ContractE(const tDynamic_CC<double>*, DensityID) const=0;
 };
 
 // Naming convention (mirrors rsmat_t/chmat_t in Common/Types.C): r* = <double>, c* = <dcmplx>.

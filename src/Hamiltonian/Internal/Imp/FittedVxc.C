@@ -120,6 +120,7 @@ void FittedVxc::EnsureVFit(SpinFit& f, const Spin& s, const rChargeDensity* cd) 
     Channels ch(cd);
     f.v->DoFit(VxcField(itsEx.get(), ch.up, ch.dn, FunctionalSpin(s)));
     f.vVersion=cd->Version();
+    f.vID=DensityID(cd);
 }
 
 // THE EAGER PHASE (R1.0h): every spin irrep's v fit, out of the block loop.
@@ -130,6 +131,7 @@ void FittedVxc::EnsureEpsFit(SpinFit& f, const Spin& s, const rChargeDensity* cd
     Channels ch(cd);
     f.eps->DoFit(EpsXcField(itsEx.get(), ch.up, ch.dn, FunctionalSpin(s)));
     f.epsVersion=cd->Version();
+    f.epsID=DensityID(cd);
 }
 
 void FittedVxc::RefreshForDensity(const rChargeDensity* cd) const
@@ -151,10 +153,10 @@ void FittedVxc::RefreshForDensity(const rChargeDensity* cd) const
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the fitter's contraction face.
-rsmat_t FittedVxc::MakeMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
+rsmat_t FittedVxc::MakeMatrix(const robs_t* bs,const Spin& s,DensityID id) const
 {
     SpinFit& f=FitFor(s);
-    if (!cd || f.vVersion!=cd->Version())              // a READ (V1.41 stage 2): the refresh fitted v for this density
+    if (id.IsNone() || !(id==f.vID))              // a READ (V1.41 stage 2): the refresh fitted v for this density
         throw std::logic_error("FittedVxc: block asked for a density the refresh did not see (RefreshForDensity first)");
     const odftbs_t& dftbs=dynamic_cast<const odftbs_t&>(*bs);
     return f.v->Overlap(dftbs);
@@ -162,11 +164,11 @@ rsmat_t FittedVxc::MakeMatrix(const robs_t* bs,const Spin& s,const rChargeDensit
 
 //  The E half of the V/E pair (see tDynamic_CC::GetEMatrix).  Same shape as MakeMatrix above, but fitting
 //  the ENERGY DENSITY eps^sigma instead of the potential v^sigma, on the same fit basis.
-const rsmat_t& FittedVxc::GetEMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
+const rsmat_t& FittedVxc::GetEMatrix(const robs_t* bs,const Spin& s,DensityID id) const
 {
     SpinFit& f=FitFor(s);
     // A READ (V1.41 stage 2): GetEnergy fitted eps for this density before it contracted (EnsureEpsFit).
-    if (!cd || f.epsVersion!=cd->Version())
+    if (id.IsNone() || !(id==f.epsID))
         throw std::logic_error("FittedVxc: energy block asked for a density GetEnergy did not fit eps for");
     const odftbs_t& dftbs=dynamic_cast<const odftbs_t&>(*bs);
     f.epsMat=f.eps->Overlap(dftbs);   // Sum_a c_a <Oi|f_a|Oj>  (per-irrep basis; runs every call)

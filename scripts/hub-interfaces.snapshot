@@ -206,23 +206,28 @@ namespace qchem::ChargeDensity {
     template <class T> using ProjectedDensityBase = std::conditional_t<std::is_same_v<T,double>, Fitting::CoulombMetric_ProjectedDensity, NoProjectedDensity>;
     template <class T> class tChargeDensity;
     template <class T> class tDM_CD;
+    class DensityID {
+    public:
+        template <class T> explicit DensityID(const tChargeDensity<T>* cd);
+        bool operator==(const DensityID&) const=default;
+        bool IsNone() const;
+    private:
+        static constexpr size_t kNone=size_t(-1);
+        size_t itsVersion;
+    };
     template <class T> class tStatic_CC {
     public:
         virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&) const=0;
     };
     template <class T> class tDynamic_CC {
     public:
-        virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
-    };
-    class Dynamic_CC_RealBlock {
-    public:
-        virtual ~Dynamic_CC_RealBlock();
-        virtual const hmat_t<double>& GetEMatrixR(const tobs_t<double>*,const Spin&, const tChargeDensity<dcmplx>*) const=0;
+        virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>*,const Spin&,DensityID) const=0;
+        virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,DensityID) const=0;
     };
     class RealBlockEnergy_CD {
     public:
         virtual ~RealBlockEnergy_CD();
-        virtual double DM_ContractE(const Dynamic_CC_RealBlock*, const tChargeDensity<dcmplx>*) const=0;
+        virtual double DM_ContractE(const tDynamic_CC<double>*, DensityID) const=0;
     };
     using rStatic_CC = tStatic_CC<double>;
     using cStatic_CC = tStatic_CC<dcmplx>;
@@ -353,6 +358,7 @@ namespace qchem::Hamiltonian {
     using ChargeDensity::cDM_CD;
     using ChargeDensity::rDM_CD;
     using ChargeDensity::TransitionDensity;
+    using ChargeDensity::DensityID;
     template <class TRun> class HT_SlotOwner {
     public:
         virtual ~HT_SlotOwner() = default;
@@ -368,9 +374,8 @@ namespace qchem::Hamiltonian {
     };
     template <class T> class tDynamic_HT : public virtual Streamable , public virtual tDynamic_CC<T> , public virtual HT_SlotOwner<T> {
     public:
-        virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
         virtual void RefreshForDensity(const tChargeDensity<T>*) const=0;
-        virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const override;
+        virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>* bs,const Spin& s,DensityID id) const override;
         virtual void GetEnergy(EnergyBreakdown&, const tDM_CD<T>*) const=0;
         virtual rvec_t SiteMoments(const tChargeDensity<T>*) const;
         virtual bool IsRelativistic() const;
@@ -401,11 +406,6 @@ namespace qchem::Hamiltonian {
     public:
         virtual ~Static_HT_RealBlock();
     };
-    class Dynamic_HT_RealBlock : public virtual ChargeDensity::Dynamic_CC_RealBlock , public virtual HT_SlotOwner<dcmplx> {
-    public:
-        virtual ~Dynamic_HT_RealBlock();
-        virtual const hmat_t<double>& GetMatrix(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const=0;
-    };
     class Ham_RealBlock {
     public:
         virtual ~Ham_RealBlock();
@@ -414,15 +414,6 @@ namespace qchem::Hamiltonian {
     struct NoHam_RealBlock {
     };
     template <class T> using HamRealBlockBase = std::conditional_t<std::is_same_v<T,dcmplx>, Ham_RealBlock, NoHam_RealBlock>;
-    class DensityID {
-    public:
-        template <class T> explicit DensityID(const tChargeDensity<T>* cd);
-        bool operator==(const DensityID&) const=default;
-        bool IsNone() const;
-    private:
-        static constexpr size_t kNone=size_t(-1);
-        size_t itsVersion;
-    };
     struct TermEnergy {
         std::string label, entries;
         double E=0.0;

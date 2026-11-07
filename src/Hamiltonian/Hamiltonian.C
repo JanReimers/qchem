@@ -31,6 +31,7 @@ using ChargeDensity::rDM_CD;
 using ChargeDensity::cDM_CD;
 using ChargeDensity::rDM_CD;
 using ChargeDensity::TransitionDensity;
+using ChargeDensity::DensityID;   // moved down beside tDynamic_CC (V1.35); Hamiltonian clients keep the old spelling
 
 //! \brief A Hamiltonian is a sum of additive terms (a "HamiltonianTerm", HT) in three families, split by
 //! what each needs to assemble its one-irrep matrix block:
@@ -145,9 +146,8 @@ template <class T> class tDynamic_HT
     , public virtual HT_SlotOwner<T>      //!< it owns an Irrep-keyed cache, so it has slots (R1.0h)
 {
 public:
-    //! This irrep's POTENTIAL block (V) for basis \a bs / spin \a s, built from the current density \a cd --
-    //! what the Fock/KS assembly adds up.
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
+    // GetMatrix(bs, s, DensityID), the block query, comes from tDynamic_CC<T> (V1.35, user ruling 2026-11-07): the block is a
+    // read of what RefreshForDensity built, so it names the density and never receives it.
     //! \brief PRE-WARM every density-dependent memo of this term for \a cd -- the EAGER REFRESH PHASE.
     //!
     //! WHAT PROBLEM THIS SOLVES (doc/OpenWork.md item **KP**, 2026-09-07).  A term's expensive
@@ -181,8 +181,8 @@ public:
     //! Default: \f$E=D\cdot V\f$, so the energy matrix IS the potential block.  Overridden ONLY where that
     //! identity fails -- the xc family, whose energy density \f$\epsilon_{xc}\f$ is not its potential
     //! \f$v_{xc}\f$ (see \c tDynamic_CC::GetEMatrix).
-    virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const override
-    {return GetMatrix(bs,s,cd);}
+    virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>* bs,const Spin& s,DensityID id) const override
+    {return this->GetMatrix(bs,s,id);}
     //! Add this term's energy contribution (density matrix \a cd) into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     //! \brief The INTEGRATED per-site spin moments \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\f$ of
@@ -310,7 +310,7 @@ public:
 //====================================================================================================
 //  Each face IS-A real-block CONTRACT CLIENT too (Step 3c-2b): the static one's GetMatrix has exactly
 //  tStatic_CC<double>'s signature, so the real leaf's native DM_Contract serves its energy; the dynamic
-//  one carries the run-typed GetEMatrixR (see ChargeDensity::Dynamic_CC_RealBlock).
+//  one IS ChargeDensity::tDynamic_CC<double>.
 class Static_HT_RealBlock
     : public virtual ChargeDensity::tStatic_CC<double>
     , public virtual HT_SlotOwner<dcmplx>   //!< a SECOND Irrep-keyed cache -> the SAME hook (R1.0h)
@@ -320,19 +320,9 @@ public:
     // GetMatrix(const tobs_t<double>*, const Spin&) comes from tStatic_CC<double> -- one declaration,
     // one override (the caching Imp mixin's), serving BOTH the Fock fold and the energy contraction.
 };
-class Dynamic_HT_RealBlock
-    : public virtual ChargeDensity::Dynamic_CC_RealBlock
-    , public virtual HT_SlotOwner<dcmplx>   //!< a SECOND Irrep-keyed cache -> the SAME hook (R1.0h)
-{
-public:
-    virtual ~Dynamic_HT_RealBlock() {};
-    //! \a cd is the RUN's density (complex-faced composite): the term's density-dependent state is
-    //! block-independent, so the real block consumes the same \f$V_H(G)\f$ / \f$\rho\f$ raster.
-    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const=0;
-    // PrepareSlots comes from HT_SlotOwner<dcmplx>, shared with the scalar face -- ONE hook since
-    // 2026-09-10.  A term serving both corners overrides it once and prepares both caches; the ambiguity
-    // until it does is the diamond doing its job (see HT_SlotOwner).
-};
+// The DYNAMIC real-block face is no longer a type (V1.35, user ruling 2026-11-07): the block query takes a DensityID, so a
+// complex run's term serves a real TRIM block through the ordinary ChargeDensity::tDynamic_CC<double> -- the mixed corner
+// was only ever the density argument.  Its caching mixin (Dynamic_HT_RealBlock_Imp, Internal) carries the second slot hook.
 
 //! \brief The REAL-BLOCK ASSEMBLY face of a complex-run Hamiltonian (Step 3c-2): fold the term set's
 //! Static/Dynamic_HT_RealBlock capabilities into one real Fock/KS block for a real TRIM basis block.
@@ -350,19 +340,6 @@ struct NoHam_RealBlock {};
 template <class T> using HamRealBlockBase =
     std::conditional_t<std::is_same_v<T,dcmplx>, Ham_RealBlock, NoHam_RealBlock>;
 
-//! \brief THE IDENTITY of one density state (OOD V1.41, ruled 2026-10-27): it wraps \c Version() and is constructible
-//! ONLY from a density, so a block query that carries one can LOOK UP what the refresh built for that density but cannot
-//! compute from rho.  A null density (the iteration-0 core guess: no dynamic terms) has an identity too -- "no density".
-class DensityID
-{
-public:
-    template <class T> explicit DensityID(const tChargeDensity<T>* cd) : itsVersion(cd ? cd->Version() : kNone) {}
-    bool operator==(const DensityID&) const=default;
-    bool IsNone() const {return itsVersion==kNone;}
-private:
-    static constexpr size_t kNone=size_t(-1);
-    size_t itsVersion;
-};
 
 //! \brief ONE TERM's identity and OWN energy at a density -- the GRID AUDIT's row (\c SolidCalculation::GridAudit,
 //! doc/GridEpsilonPlan.md §3): two rasters' SUMMED Fock can agree by cancellation while one term is off (which is what forces see), so

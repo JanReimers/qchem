@@ -81,9 +81,9 @@ template <class T> rvec_t tVxc_Quadrature<T>::PotentialAt(const Spin& fs, const 
 }
 // The block path (V1.41 stage 2, ruling C): it READS what the refresh built for \a cd and computes nothing from rho.  A
 // miss is a caller that skipped the refresh, a broken contract no caller can act on, so it throws.
-template <class T> const typename tVxc_Quadrature<T>::Refreshed& tVxc_Quadrature<T>::RefreshedFor(const tChargeDensity<T>* cd) const
+template <class T> const typename tVxc_Quadrature<T>::Refreshed& tVxc_Quadrature<T>::RefreshedFor(DensityID id) const
 {
-    if (!cd || cd->Version()!=itsRefreshed.version)
+    if (id.IsNone() || !(id==itsRefreshed.id))
         throw std::logic_error("tVxc_Quadrature: block asked for a density the refresh did not see (RefreshForDensity first)");
     // What THIS V_xc saw (pin 28): recorded by the FOCK pass, which is the only pass that asks for blocks, so the energy
     // pass at rho_out reports the source and group residual of the potential the Fock was built from.
@@ -92,16 +92,16 @@ template <class T> const typename tVxc_Quadrature<T>::Refreshed& tVxc_Quadrature
     itsFockGroupResidual=itsRefreshed.groupResidual;
     return itsRefreshed;
 }
-template <class T> hmat_t<T> tVxc_Quadrature<T>::MakeMatrix(const tobs_t<T>* bs, const Spin& s, const tChargeDensity<T>* cd) const
+template <class T> hmat_t<T> tVxc_Quadrature<T>::MakeMatrix(const tobs_t<T>* bs, const Spin& s, DensityID id) const
 {
-    const Refreshed& R=RefreshedFor(cd);
+    const Refreshed& R=RefreshedFor(id);
     const int c = s==Spin::Down ? 1 : 0;
     SizeFourierSampling(s, R, [&](const rvec_t& f){return itsSampler->Matrix(bs, f);});
     return itsSampler->Matrix(bs, R.v[c]);
 }
-rsmat_t Vxc_Quadrature::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const
+rsmat_t Vxc_Quadrature::MakeMatrix(const robs_t* bs, const Spin& s, DensityID id) const
 {
-    const Refreshed& R=RefreshedFor(cd);
+    const Refreshed& R=RefreshedFor(id);
     const int c = s==Spin::Down ? 1 : 0;
     SizeFourierSampling(s, R, [&](const rvec_t& f){return itsPeriodic->Matrix(bs, f);});
     return itsPeriodic->Matrix(bs, R.v[c]);
@@ -330,7 +330,7 @@ template <class T> void tVxc_Quadrature<T>::RefreshForDensity(const tChargeDensi
                 if (const auto* dn=ChargeDensity::ChannelOf(cd,Spin::Down); dn) N=std::min(up->GetTotalCharge(), dn->GetTotalCharge());
         R.seedN=N;
     }
-    R.version=cd->Version();
+    R.id=DensityID(cd);
 }
 
 template class tVxc_Quadrature<double>;   // the molecular / atom path (V-XC-ONE-TERM, 2026-10-31)

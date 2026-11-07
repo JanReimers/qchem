@@ -325,9 +325,9 @@ public:
     //!@}
 
 private:
-    virtual chmat_t MakeMatrix (const cobs_t*, const Spin&, const cChargeDensity*) const override;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const override;
-    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, DensityID) const override;
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, DensityID) const override;   // the real TRIM block (V1.35: an overload)
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, DensityID) const;
 
     //! The block's pair, built on first use (the overlap is geometry-fixed) and keyed like the XC route's.
     template <class U> const LowdinProjector<U>& Projector(const BasisSet::Orbital_DFT_IBS<U,dcmplx>&) const;
@@ -380,7 +380,7 @@ private:
     mutable std::vector<std::vector<std::string>> itsComponents;          //!< per manifold: its functions' names (BuildSymmetry)
     mutable std::map<Spin,Channel> itsChannels;   //!< one per spin irrep of the subgroup
     mutable size_t itsOccVersion = size_t(-1);
-    mutable size_t itsRefreshedVersion = size_t(-1);   //!< the density the last refresh saw: the block path's check (V1.41 stage 2)
+    mutable DensityID itsRefreshedID=DensityID(static_cast<const cChargeDensity*>(nullptr));   //!< the density the last refresh saw: the block path's check (V1.41 stage 2)
     mutable double itsEU = 0.0;
     mutable SymMap<LowdinProjector<dcmplx>> itsProj;    //!< per Bloch block
     mutable SymMap<LowdinProjector<double>> itsProjR;   //!< per real TRIM block

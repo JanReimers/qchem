@@ -264,9 +264,9 @@ public:
     //! ✅ BIT-IDENTICAL: the same matrix, evaluated once instead of twice.
     virtual Spin CacheSpin(const Spin&) const {return Spin::None;}
 private:
-    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
-    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, DensityID) const;
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, DensityID) const;   // the real TRIM block (Step 3c; V1.35: an overload)
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, DensityID) const;
 
     //! \brief \f$V_H(\Delta G)\f$ for \a cd, MEMOIZED ON THE DENSITY'S LOGICAL-CLOCK SERIAL.
     //!
@@ -278,7 +278,7 @@ private:
     const ΔG_Map& CoulombField(const cChargeDensity*) const;
     //! The BLOCK path's read of that memo: the field the refresh built for \a cd, or a throw if the refresh never saw
     //! \a cd.  A block never builds the field (V1.41 stage 2), so the per-block loop writes nothing.
-    const ΔG_Map& RefreshedField(const cChargeDensity*) const;
+    const ΔG_Map& RefreshedField(DensityID) const;
 
     //! \brief \f$\Omega\f$, the cell volume, as the fit raster's own quadrature answers it:
     //! \f$\int 1\,d^3r\f$.  Asked ONCE (the grid is geometry-fixed) through the abstract raster face --
@@ -292,6 +292,7 @@ private:
     mutable double itsVolume=0.0;   //!< \c Volume()'s memo (0 = not asked yet)
     mutable size_t itsFieldVersion=size_t(-1);  //!< density serial \c itsField holds (-1 = empty)
     mutable ΔG_Map itsField;                    //!< \c CoulombField()'s memo: \f$V_H\f$ at that serial
+    mutable DensityID itsFieldID=DensityID(static_cast<const cChargeDensity*>(nullptr));   //!< ...and that density's identity
 };
 
 //! \brief THE exchange-correlation term of a periodic Kohn-Sham Hamiltonian -- ONE term for either imposed
@@ -337,7 +338,7 @@ public:
     virtual double        L1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const override;
     virtual std::ostream& Write(std::ostream&) const override;
 protected:
-    virtual hmat_t<T> MakeMatrix(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const override;
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>*, const Spin&, DensityID) const override;
     //! The two channel rasters of \a cd as the functional sees them: the sampler's Up/Down pair, or the
     //! folded doublet's one raster halved (borrowed reference + scratch, hence the pair of references).
     struct Rasters { const rvec_t& up; const rvec_t& dn; };
@@ -350,7 +351,7 @@ protected:
     //! the |f_xc| fields and the charge the tau sizing needs.  One current state, checked against the density's serial.
     struct Refreshed
     {
-        size_t version=size_t(-1);
+        DensityID id=DensityID(static_cast<const tChargeDensity<T>*>(nullptr));
         rvec_t v[2];
         std::optional<ChargeDensity::XCRhoSource> source;
         std::optional<double> groupResidual;
@@ -358,7 +359,7 @@ protected:
         double seedN=0.0;
     };
     //! The block path's read of \c itsRefreshed: throws if the refresh never saw \a cd; records the Fock pass's pin-28 source.
-    const Refreshed& RefreshedFor(const tChargeDensity<T>* cd) const;
+    const Refreshed& RefreshedFor(DensityID) const;
     //! \brief THE rho-tilde SAMPLER'S ONE TOLERANCE tau (step 2, user rulings 2026-11-04), derived HERE because only this term has
     //! v_xc and f_xc in hand: on the SEED density (every Fock block of the first build, before the sampler's first sized use freezes
     //! it), from the accuracy the run stated on my quadrature.  \a matrixOf contracts a field into this block's matrix.
@@ -418,7 +419,8 @@ public:
     { tDynamic_HT_Imp<dcmplx>::PrepareSlots(bs, cd); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
     Vxc_Quadrature(const xc_t&, std::shared_ptr<const ChargeDensity::DensitySampler>, SpinGroup g);
 private:
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const override;   // Step 3c
+    using tVxc_Quadrature<dcmplx>::MakeMatrix;
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, DensityID) const override;   // the real TRIM block (Step 3c; V1.35)
     std::shared_ptr<const ChargeDensity::DensitySampler> itsPeriodic;   //!< the same sampler, through its periodic face
     //! The response state (R2): \f$f_{xc}^{\sigma\sigma'}\f$ at the linearisation density, per point, and the
     //! last δ's \f$\delta v^\sigma\f$.

@@ -180,7 +180,7 @@ TEST(PW_Terms, PWDynamicTermsMatchBasis)
     std::unique_ptr<qchem::Hamiltonian::Vee_Hartree> h(NewPWHartree(F.pw));
     qchem::Hamiltonian::cDynamic_HT* ht=h.get();
     RefreshTerm(*ht, static_cast<const qchem::ChargeDensity::cChargeDensity*>(&cd));
-    const chmat_t& Mh = ht->GetMatrix(&F.pw, Spin::None, &cd);
+    const chmat_t& Mh = ht->GetMatrix(&F.pw, Spin::None, ChargeDensity::DensityID(&cd));
     chmat_t refh = RepulsionField(F.pw, cd);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
@@ -192,7 +192,7 @@ TEST(PW_Terms, PWDynamicTermsMatchBasis)
     std::unique_ptr<qchem::Hamiltonian::Vxc_Quadrature> xc(NewPWXC(F.pw, dirac));
     qchem::Hamiltonian::cDynamic_HT* xt=xc.get();
     RefreshTerm(*xt, static_cast<const qchem::ChargeDensity::cChargeDensity*>(&cd));
-    const chmat_t& Mx = xt->GetMatrix(&F.pw, Spin::None, &cd);
+    const chmat_t& Mx = xt->GetMatrix(&F.pw, Spin::None, ChargeDensity::DensityID(&cd));
     rvec_t rho=DensityGridOf(F.pw).RhoOnGrid(RhoTilde(F.pw, D));
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
@@ -227,7 +227,7 @@ TEST(PW_Terms, ItemK_RelCutoffDensifiesAndConvergesVxc)
             new qchem::Hamiltonian::Vxc_Quadrature(dirac, qchem::ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized));
         qchem::Hamiltonian::cDynamic_HT* t=xc.get();
         RefreshTerm(*t, static_cast<const qchem::ChargeDensity::cChargeDensity*>(&cd));
-        return chmat_t(t->GetMatrix(&F.pw, Spin::None, &cd));
+        return chmat_t(t->GetMatrix(&F.pw, Spin::None, ChargeDensity::DensityID(&cd)));
     };
     auto froDiff=[&](const chmat_t& A, const chmat_t& B)
     {
@@ -279,12 +279,12 @@ TEST(PW_Terms, DynamicTermCacheFreshAcrossDensity)
     qchem::Hamiltonian::cDynamic_HT* ht=hart.get();
     using qchem::ChargeDensity::cChargeDensity;
     RefreshTerm(*ht, static_cast<const cChargeDensity*>(&cd1));
-    ht->GetMatrix(&F.pw, Spin::None, &cd1);                       // fills the cache for cd1
+    ht->GetMatrix(&F.pw, Spin::None, ChargeDensity::DensityID(&cd1));                       // fills the cache for cd1
     // THE CONTRACT (KAxisPlan P2): a density the term was not refreshed for is REFUSED -- it used to be served by a
     // self-resetting cache, and before that (the original bug) by cd1's stale matrix.
-    EXPECT_THROW(ht->GetMatrix(&F.pw, Spin::None, &cd2), std::logic_error);
+    EXPECT_THROW(ht->GetMatrix(&F.pw, Spin::None, ChargeDensity::DensityID(&cd2)), std::logic_error);
     RefreshTerm(*ht, static_cast<const cChargeDensity*>(&cd2));
-    const chmat_t& M2 = ht->GetMatrix(&F.pw, Spin::None, &cd2);   // ...and after the refresh, cd2's own matrix
+    const chmat_t& M2 = ht->GetMatrix(&F.pw, Spin::None, ChargeDensity::DensityID(&cd2));   // ...and after the refresh, cd2's own matrix
 
     chmat_t ref2=RepulsionField(F.pw, cd2);                            // the correct V_H for cd2
     double  diff=0.0;
