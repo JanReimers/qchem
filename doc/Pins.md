@@ -397,23 +397,28 @@ Consequences:
 
 ## 31. One accuracy target, judged by what the client consumes (user, 2026-11-01)
 
-Every GPW raster is sized from the run's one ε by the error it DELIVERS on the measure its client consumes.
-- A single-point energy: each raster term's |ΔE| ≤ ε per atom.
+Every numerical grid a run uses (uniform or not: the GPW density and potential grids, a Becke/atom-centred mesh, a radial
+grid) is sized from the run's one ε by the error it DELIVERS on the quantity its client consumes.
+- A single-point energy: each grid-dependent term's |ΔE| ≤ ε per atom.
 - Anything that produces forces, a geometry or a surface: max|ΔH_ij| ≤ ε per element.  The energy error cancels in
-  Tr D ΔH (MnO V_long: 0.26 Ha in H against 5 μHa in E), so an energy-sized raster is blind to what forces see.
+  Tr D ΔH (MnO V_long: 0.26 Ha in H against 5 μHa in E), so a grid sized on the energy is blind to what forces see.
 
-The run answers the question; the user never picks a metric.  The rigorous bound (the fitted alias tail) and the
-measured calibration (the pilot audit) stay isolated in code, and the XC raster, which has no bound, is reported as
-MEASURED.  Test defaults: 1e-5 Ha/atom (energy) and 1e-5 Ha per element (H).  Earned by NaF: BallOnly's −941 μHa was the
-XC raster, and the F site's "curvature" was the grid's egg-box (doc/GridEpsilonPlan.md §1).
+The run answers the question; the user never picks a metric.  Where a grid has a rigorous error bound (for a uniform
+grid, the fitted alias tail), the bound and its measured calibration (the pilot audit) stay separate in code.  Where
+no bound exists, as for the grid that projects XC onto its fit basis, the error is reported as MEASURED.  Test defaults:
+1e-5 Ha/atom (energy) and 1e-5 Ha per element (H).  Earned by NaF: the −941 μHa of the ball-only route was the XC grid,
+and the F site's "curvature" was the grid's egg-box effect (doc/GridEpsilonPlan.md §1).
 
-**Extended (user, 2026-11-03): ε governs EVERY numerical approximation, not only the rasters, and for EVERY structure type -- atom, molecule and solid alike** (today ε exists on the solid facade only: OOD-SOLID-Cleanup V-FACADE-ACCURACY).  *"If ε works for every term then
-the concept is easy to understand.  If it is hit and miss then it becomes far less useful."*  Every tolerance, cutoff, mesh and
-screen that approximates the CHOSEN model is either sized from ε (a rigorous formula plus a named calibration, CLAUDE.md Design)
-or audited against ε by the run.  A fixed tolerance that ignores ε is a DEFECT, however harmless it measures today.  MODEL choices
-are not approximations and are exempt: functional, orbital basis, pseudopotential, smearing kT, and the structure.  A STATED
-value is honoured and reported against ε, never silently.  Earned by the density G-ball: auto 2·α_max sat outside ε in every
-cell, H₂O MOLOPT +330 μHa against CP2K, while the rasters beside it were ε-sized (OpenWork history, 2026-11-03).
+**Extended (user, 2026-11-03): ε governs EVERY numerical approximation, not only the grids, and for EVERY structure type --
+atom, molecule and solid alike** (today ε exists on the solid facade only: OOD-SOLID-Cleanup V-FACADE-ACCURACY).  *"If ε
+works for every term then the concept is easy to understand.  If it is hit and miss then it becomes far less useful."*
+Every tolerance, cutoff, grid and screen that approximates the CHOSEN model is either sized from ε (a rigorous formula
+plus a named calibration, CLAUDE.md Design) or audited against ε by the run.  A fixed tolerance that ignores ε is a
+DEFECT, however harmless it measures today.  MODEL choices are not approximations and are exempt: functional, orbital
+basis, pseudopotential, smearing kT, and the structure.  A STATED value is honoured and reported against ε, never
+silently.  Earned by the density G-ball (the plane-wave cutoff of the fitted density): the automatic 2·α_max sat
+outside ε in every cell, H₂O MOLOPT +330 μHa against CP2K, while the grids beside it were ε-sized (OpenWork history,
+2026-11-03).
 
 ## 32. A fitted term's H is the gradient of its own E: the same object on both sides (user, 2026-11-07)
 
