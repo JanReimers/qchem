@@ -1780,7 +1780,9 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     itsImp->rastersSettled=itsImp->converged;
     itsImp->pilotCost.settled=itsImp->rastersSettled && metEveryTarget;   // NOT SETTLED at the round cap is not settled (it read true)
     const rpt::json restate=RestateKeys(itsImp->setup->opts.tolerances, itsImp->setup->opts.cutoffFactor, itsImp->setup->xcMesh);
-    std::cout<<tag<<"a deck restates these grids as: "<<restate.dump()<<std::endl;   // json writes each double round-trip exact
+    // NOT SETTLED keeps the grids it reached, so the keys still restate THIS run -- but not a run that met the target: the line says so.
+    std::cout<<tag<<"a deck restates these grids"<<(itsImp->pilotCost.settled ? "" : " (NOT SETTLED: these miss the target)")<<" as: "
+             <<restate.dump()<<std::endl;   // json writes each double round-trip exact
     std::cout<<tag<<"cost: "<<itsImp->pilotCost.rounds<<" audit round(s), "<<itsImp->pilotCost.reconvergeIterations
              <<" re-convergence iteration(s) beyond the run's own"<<std::endl;
     rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
