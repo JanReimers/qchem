@@ -10,7 +10,7 @@ step 5 lands.  The rows stay the record of what is open; this file holds only th
 |---|---|---|---|
 | 1 | `§I.1`, `D13`, `BM(1)` | independent, small | sweep; a move is re-judged against the oracle |
 | 2 | `V1.34` | ruled shape (3) not yet realised, and it blocks the rest | sweep, 0 moves |
-| 3 | `R1.0q`: `FittedVxc`, then `Vee_Hartree` and the quadrature XC terms | needs step 2 | sweep, 0 moves |
+| 3 | `R1.0q`: `FittedVxc`, then `Vee_Hartree` and the quadrature XC terms | needs step 2 | sweep, 0 moves · ✅ closed FOR NOW 2026-11-07 (`Vee_Hartree` stays on `Contract`/`ContractAdjoint`); the general return-type question is open with the user, design nothing for it (`doc/Records/CleanupHistory3.md`, R1.0q) |
 | 3b | `V1.1b`: `Vee_DFT`, Dunlap and normal | see the ruling below; touches the term step 3 passes through | design note first; sweep, 0 moves on the default route |
 | 4 | `V1.35` with `V1.41` stages 2-3, planned together | the `*_RealBlock` caches are in both; both change the tier-1 `Hamiltonian` hub | design notes first; sweep + panel at 4 threads; one timed MnO or TeF₆ run before and after |
 | 5 | `V-XC-ONE-TERM`, then `V-NONLINEAR-MESH` | the term loses mesh ownership in the second | `VxcProductSpace`; moves re-judged against PySCF; one timed run |
