@@ -147,6 +147,7 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, con
     // built over THAT copy below so it cannot outlive its atoms).
     GaussianBasisRecipe rec=recipe;
     rec.tolerances=opts.tolerances;   // the options are the one source of the run's tolerances; the recipe binds them on every build
+    rec.tolerances.relCutoffSafety=opts.accuracy.relCutoffSafety;   // the pair rule's stiffness is a calibration: Decide writes the same value
     GaussianBasisRecipe frozen=rec;
     const std::shared_ptr<const Structure> cell=lat.GetStructure();
     std::shared_ptr<const BasisSet::Real_BS> mol;

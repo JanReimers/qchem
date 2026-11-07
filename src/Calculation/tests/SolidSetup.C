@@ -73,6 +73,31 @@ TEST(SolidSetup, TheRungGateCalibrationReachesTheLadderTolerances)
     EXPECT_EQ(SolidSetup::Resolve(lat, recipe, o)->opts.tolerances.rungGateC, 6.0);
 }
 
+// The pair rule's stiffness (V-BS-RASTER step 2) is ONE value read twice: the ladder's tolerances and the basis's own pair->level
+// assignment.  A stated calibration must reach BOTH -- the basis is built before Decide derives the run's tolerances, and a basis bound
+// with the default would make the GPW evaluator refuse the run (it checks the two agree).
+TEST(SolidSetup, TheRelCutoffSafetyCalibrationReachesTheLadderAndTheBasis)
+{
+    Lattice_3D lat(TwoNa(5.0), ivec3_t(1,1,1));
+    SolidCalcOptions o=kNa2;
+    const GaussianBasisRecipe recipe{.data=BasisSetData::VALENCE_LOWQ_VA};
+    auto bound=[](const SolidSetup& s)
+    {
+        for (auto ibs : s.mol->Iterate<BasisSet::Real_OIBS>())
+            if (const auto* g=dynamic_cast<const BasisSet::Gaussian::GaussianSharpness*>(ibs)) return g->Tolerances().relCutoffSafety;
+        return -1.0;
+    };
+    const auto d=SolidSetup::Resolve(lat, recipe, o);
+    EXPECT_EQ(d->opts.tolerances.relCutoffSafety, BasisSet::Gaussian::kRelCutoffSafety);
+    EXPECT_EQ(bound(*d), BasisSet::Gaussian::kRelCutoffSafety);
+    o.accuracy.relCutoffSafety=3.0;
+    const auto s=SolidSetup::Resolve(lat, recipe, o);
+    EXPECT_EQ(s->opts.tolerances.relCutoffSafety, 3.0) << "the ladder's";
+    EXPECT_EQ(bound(*s), 3.0) << "the basis's pair rule";
+    o.accuracy.relCutoffSafety=0.0;
+    EXPECT_THROW(SolidSetup::Resolve(lat, recipe, o), std::invalid_argument) << "a stiffness is > 0";
+}
+
 TEST(SolidSetup, APreBuiltBasisHasNoRecipe)
 {
     UnitCell cell=TwoNa(20.0);

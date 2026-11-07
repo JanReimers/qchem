@@ -630,6 +630,12 @@ TEST(Deck, AVlocRoutingCalibrationReachesTheEvaluatorAndAStatedVlocEpsWins)
     EXPECT_FALSE(g.solid.accuracy.eta.has_value()) << "rungGateC alone states no raster eta either";
     deck::RunSpec back; deck::FromJson(deck::ToJson(g),back);
     EXPECT_EQ(back.solid.accuracy.rungGateC, 6.0) << "the record carries it";
+    EXPECT_EQ(d.solid.accuracy.relCutoffSafety, 2.0) << "the pair rule's stiffness, default";
+    const deck::RunSpec rs=read({{"accuracyCalibration",{{"relCutoffSafety",3.0}}}});
+    EXPECT_EQ(rs.solid.accuracy.relCutoffSafety, 3.0);
+    EXPECT_FALSE(rs.solid.accuracy.eta.has_value()) << "relCutoffSafety alone states no raster eta";
+    { deck::RunSpec b2; deck::FromJson(deck::ToJson(rs),b2); EXPECT_EQ(b2.solid.accuracy.relCutoffSafety, 3.0) << "the record carries it"; }
+    EXPECT_ANY_THROW(read({{"accuracyCalibration",{{"relCutoffSafety",0.0}}}})) << "a stiffness is > 0";
     EXPECT_DOUBLE_EQ(f.solid.accuracy.VlocEps(), 5e-6);
     { const json j=deck::ToJson(f); deck::RunSpec back; deck::FromJson(j,back); EXPECT_TRUE(back.solid.accuracy==f.solid.accuracy); }
     EXPECT_FALSE(deck::ToJson(d).at("solid").contains("accuracyCalibration")) << "the default calibration is not written";
