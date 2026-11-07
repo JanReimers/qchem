@@ -295,7 +295,49 @@ reference is avoided (judge each rung against the next rung up, not a fixed fine
    all three solids.
 6. **The ρ client's cheap prediction 2 E_H δq / N is not yet a sizing rule**: measured/predicted spans 0.15–3.4 per rung on TeF₆ and
    the calibration rests on two systems (one element pair); the solids cannot add to it until the δ Coulomb route exists on a cell.
-7. **The audit is the expensive part** (×15 the SCF as run on MnO, ×6 for a lean walk), its reference mesh above all.
+7. **The audit is the expensive part** (×15 the SCF as run on MnO, ×6 for a lean walk), its reference mesh above all.  **CORRECTED
+   2026-11-07:** the ×15 is this PROBE's fixed (300, 77 GL) reference.  The production geometry pilot already judges the Becke mesh against
+   the next rung up, with no fixed reference; see the addendum below.
 
 Not measured: the ρ client on solids (the δ route is refused on a cell); a seed of ours for Te (TeF₆ used PySCF spherical atoms);
 a geometry or +U change between the two steps; the radial rule under test (all of this is today's MHL m2/m3 α2 default); kT > 0.
+
+## Addendum (2026-11-07): the production pilot's next-rung rule, replayed against the fixed reference
+
+**Correction.**  The ×15 audit cost above came from this probe's FIXED (300, 77 GL) reference.  The geometry pilot in main
+(`SolidCalculation::CalibrateRasters` with `ClientConsumes::MatrixElements`) never builds one:
+- it judges the Becke mesh against the NEXT RUNG UP, one rung per axis (`BeckeAngularRungAbove`, `BeckeRadialRungAbove`);
+- it enters at the calibrated `BeckeEntryRung`;
+- its stopping rule is the geometric tail estimate d/(1 − r), with d = max|H(rung) − H(rung above)| and r = d / d one rung below.
+
+A fixed reference survives only in the postSCF `xcMeshAudit` diagnostic.  The OpenWork row that asked for "next rung instead of a
+fixed reference" named the wrong defect.
+
+**The replay.**  `~/Code/qchem6-runs/SeedSizing/nextrung.py` replays that rule offline on this test's banked V_xc matrices (each rung
+at one fixed D) and judges where it stops against the fixed-reference truth.  Output: `nextrung_Df.txt`.
+- The climb starts at the smallest rung, raises the axis whose estimate is further over, and stops when both axes meet ε.
+- The ladder is this probe's ladder, not the pilot's: unrotated rules, degrees 23-65 with GL at 41 and 47.
+
+| system, ε | the climb stops at | the fixed-reference pick | true max\|ΔH\|/ε, \|ΔE\|/εN there | raises, rung references |
+|---|---|---|---|---|
+| LiF, 1e-4 | (60, GL41) | (60, GL41) | 0.26, 0.01 | 5, 12 |
+| LiF, 1e-5 | (100, L65) | (100, GL47) — one rung finer | 0.58, 0.00 | 10, 21 |
+| NaF, 1e-4 | (60, L35) | (40, L35) — one rung finer | 0.17, 0.03 | 4, 10 |
+| NaF, 1e-5 | (60, GL41) | (60, GL41) | 0.22, 0.05 | 5, 12 |
+| MnO, 1e-4 | (60, GL41) | (60, GL41) | 0.36, 0.03 | 3, 8 |
+| MnO, 1e-5 | (80, L65) | (80, L65) | 0.27, 0.05 | 7, 15 |
+
+At Df shown; at D4 the six climbs stop on the same rungs.  So **6 of 6 meet ε, 4 exactly at the truth and 2 one rung finer** (the safe
+side), with no big reference.  On MnO at 1e-5 the 15 rung references cost about ×5 the SCF, against ×15 for the probe's ladder.
+
+**The per-axis caveat.**  One axis's difference cannot see the other axis's error.  At LiF nR 30, the angular difference GL47 → L53
+is 1.1e-6 while the rung's true error is 1.8e-3, almost all of it radial.  The rule survives because the climb checks BOTH axes at
+every rung and stops only when both meet ε: the radial difference at that rung is 1.4e-3 and raises nR.  A stopping rule on one axis
+alone would accept that rung.
+
+**Non-monotone steps make the estimate conservative, never unsafe.**  When r approaches 1, d/(1 − r) blows up: LiF nR 60, GL47
+reads d 2.9e-5 but an estimate of 5.0e-4.  That forces an extra raise rather than an early stop.
+
+**What the replay does not test.**  The rotated rules of the production ladder (`angRot` 0.5), its degrees 77 and 89, and
+re-convergence between raises (the replay holds D fixed, which is the one-round climb's premise; the seed test's
+D4-pick = Df-pick on 5 of 5 is the evidence for that premise).
