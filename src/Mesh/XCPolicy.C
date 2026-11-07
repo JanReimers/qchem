@@ -164,7 +164,7 @@ struct BeckeLadderCalibration
     double radialError100=2.3e-7;   //!< max|dH_xc| of nR 100, on both materials
     double radialFactor  =0.1;      //!< its fall per 20 radial shells: the smooth sNormDH series on both materials
     double radialShare   =0.1;      //!< the share of the target the radial error may take, so the entry rung's error stays angular
-    //! \brief The rigid rotation of a ladder rule above degree 35 (\c MeshParams::angRot).  An octahedral rule on the cubic axes aliases a cubic
+    //! \brief The rigid rotation of a default or ladder rule (\c MeshParams::angRot).  An octahedral rule on the cubic axes aliases a cubic
     //! site's own harmonics: 3-4x worse than GL at equal degree (MnO L 47 6.3e-5, LiF 1.0e-4), rotated 7-8e-6.  0.5 has NO theory behind it: at
     //! L >= 53 the two measured angles agree, and the rule-only measure M(theta) ranks |dE|, not max|dH|, so it cannot pick this angle.
     double angRot        =0.5;
@@ -180,11 +180,16 @@ MeshParams BeckeEntryRung(const MeshParams& from, double target, const BeckeLadd
 //! \brief The nested ladder's two axes, moved independently: \a mp one rung up in the angular degree, or in the radial count, every other field
 //! kept (each audited against the run at a fixed D, not the egg-box: an atom-centred mesh moves with the atoms, so a rigid translation is blind
 //! to it).  Degrees 29, 35, 41, 47, 53, 65, 77, 89; counts 40, 60, 80, 100, 120, 140.  Rule: Lebedev where the menu has one, GaussLegendre
-//! between and past it; above degree 35 rotated by \c cal.angRot.  None past the end of the axis, which the pilot reports as not settled.  A
+//! between and past it; every rung rotated by \c cal.angRot.  None past the end of the axis, which the pilot reports as not settled.  A
 //! \a siteAdapted mesh ends at degree 53: the invariant rule exists there and not at degree 59 for MnO's 12-op site group (2026-11-05), and a lower-symmetry
 //! site can fail sooner, which \c MakeInvariantAngularMesh reports.
 std::optional<MeshParams> BeckeAngularRungAbove(const MeshParams& mp, const BeckeLadderCalibration& cal, bool siteAdapted);
 std::optional<MeshParams> BeckeRadialRungAbove(const MeshParams& mp);
+
+//! \brief The reference an \c xcMeshAudit compares \a run with: the run's own recipe (MHL scale, Becke order, ...) at the stated sizes, Lebedev at
+//! degrees 29-35 and GaussLegendre otherwise, and never aligned.  An aligned reference carries the error it is there to measure: (200,35) sat
+//! 2.05e-5 Ha off the converged TeF6 box, and L 35 2.4e-4 off MnO (2026-11-06), so a run that states \c angRot 0 is still audited against a rotated rule.
+MeshParams XCAuditReference(MeshParams run, int nRadial, int angularDegree, const BeckeLadderCalibration& cal);
 
 //! \brief What the Uniform-vs-Becke comparison needs to know about a run: its geometry and its two
 //! SHARPNESS sources, both expressed as Gaussian exponents so one predicate covers both.
@@ -318,7 +323,20 @@ MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
     mp.angular = (angularDegree>=29) ? AngularKind::Lebedev : AngularKind::GaussLegendre;
     mp.angularDegree=angularDegree;   // ONE meaning for both schemes: GL takes it directly, Lebedev resolves
                                       // it to the cheapest rule of at least that degree (R2.15).
+    // Lebedev rotated off the cubic axes: free, and it reaches only the plain mesh (a site-adapted rule is the site's own, UnitCell.C).
+    // MEASURED 2026-11-06 at 40/29 against GL: max|dH| 2-9x and |dE| 1.5-3.4x better on MnO, NaF, TeF6 at equal points (doc/Records/
+    // OpenWork_History5.md, "40/29 on an energy run").  The price is exact cubic invariance on a symmetric geometry: at 40/29 the rule
+    // and its C4 image differ by 9.6e-6 on NaF, 1.7e-5 on TeF6 per H element, under the rule's own error, and by 2e-7 Ha along a path.
+    if (mp.angular==AngularKind::Lebedev) mp.angRot=BeckeLadderCalibration{}.angRot;
     return mp;
+}
+
+MeshParams XCAuditReference(MeshParams m, int nRadial, int angularDegree, const BeckeLadderCalibration& cal)
+{
+    m.cellKind=CellKind::RecipeStated(UnitCellKind::Becke); m.nRadial=nRadial; m.angularDegree=angularDegree;
+    m.angular = (angularDegree>=29 && angularDegree<=35) ? AngularKind::Lebedev : AngularKind::GaussLegendre;
+    if (m.angRot==0.0) m.angRot=cal.angRot;
+    return m;
 }
 
 static constexpr int kBeckeDegrees[]={29,35,41,47,53,65,77,89};
@@ -332,7 +350,7 @@ static MeshParams AtBeckeDegree(MeshParams m, int degree, const BeckeLadderCalib
     bool tabulated=false;
     for (const auto& r : LebedevMenu()) tabulated=tabulated || r.degree==degree;
     m.angular = tabulated ? AngularKind::Lebedev : AngularKind::GaussLegendre;
-    if (degree>35) m.angRot=cal.angRot;
+    m.angRot=cal.angRot;
     return m;
 }
 
@@ -504,7 +522,7 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s)
         // ARMED 2026-08-08 (V2.4).  Opt-OUT now, not opt-in: the two systems the selector routes to uniform
         // were measured by converged-run A/B (GPW_SCF.DISABLED_GridRouteAB_*) and uniform at its own cutoff
         // matched the fine reference at least as well as the PRODUCTION Becke mesh, for 4-15x fewer points.
-        // To get the unconditional Becke, state it: xcMesh.cellKind=UnitCellKind::Becke (the old env valve
+        // To get the unconditional Becke, state it: xcMesh.cellKind=CellKind::RecipeStated(UnitCellKind::Becke) (the old env valve
         // GPW_XCGRID_NOSELECT was a second, silent way to say the same thing -- removed, D-ENV).
         if (!uniformWins)
         {

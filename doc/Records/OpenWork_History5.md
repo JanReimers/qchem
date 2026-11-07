@@ -1707,6 +1707,54 @@ The row "rebuilds an identical Becke mesh 8 times" named the repeated build.  Th
 
 Original row: | **Molecular PP terms are quadrature, solids' are analytic: a structure gap** (user 2026-11-05) | GPW assembles the local PP from the analytic form factor and the KB projections analytically (`GPW_Evaluator`, `ProjectOntoGaussianYlm`); the molecule's `PP_Local` / `PP_NonLocal` integrate both on a Becke mesh (`MolecularPseudopotentialPlan.md` §3, "Path A", which claimed the mesh "nails it").  TeF₆ on GTH-q6: the default mesh is −6.1e-4 Ha off its best value, worse than all-electron; lane B's fixed-density audit will say how much is these terms | if the audit confirms it: take the molecular terms to the same analytic forms (Gaussian short part, erf long part, Gaussian-Y_lm projectors), which removes a grid from ε's inventory.  They are static, so this is accuracy, not run time · `src/Hamiltonian/Internal/Imp/Hamiltonians.C`, `GPW_Evaluator.C` |
 
+
+## 40/29 on an energy run, and the box's 9× (lane A, 2026-11-06)
+
+**Which runs reach the aligned rule.**  `ResolveImposition` (`Imposition.C`) decides.  An imposed run, and a free run with `xcMeshSymmetric` true (the default), take the site-adapted mesh, never the aligned rule.  A free run with `xcMeshSymmetric` false takes the plain mesh, aligned unless `angRot` is stated: every `SolidSession`, every deck `displace` path (both require it), `IntegrationTests/GPW/LiF.C:27`, `NaF.C:300,345`, `src/Calculation/tests/SolidSession.C`, and the 7 `decks/probes/*_molopt.json`.  The ladder rotates only above degree 35, so its rungs 29 and 35 are aligned.  Si-like systems under Auto, and the Becke veto, run the uniform raster and have no angular rule.  Molecules: plain, aligned, order 2, `mhl_m` 3.
+
+**40/29 at each run's own converged D**, against a GL reference ((100,53) on MnO and NaF, (150,53) on TeF₆), ε = 1e-5:
+
+| run | points | max\|ΔH\| | ΔE | ΔE / ε·N | wall |
+|---|---|---|---|---|---|
+| MnO plain | 31,664 | 1.062e-3 | −4.857e-4 | 12 | 8:57 |
+| MnO rotated 0.5 | 31,840 | 1.118e-4 | +1.618e-4 | 4.0 | 8:31 |
+| MnO site-adapted | 97,256 | 2.847e-4 | +3.964e-5 | 1.0 | 23:41 |
+| NaF plain | 15,928 | 1.120e-4 | −6.829e-5 | 3.4 | 3:21 |
+| NaF rotated 0.5 | 16,016 | 5.981e-5 | −4.482e-5 | 2.2 | 3:14 |
+| NaF site-adapted | 41,440 | 6.401e-5 | −5.079e-5 | 2.5 | 5:42 |
+| TeF₆ plain | 63,620 | 1.435e-4 | −1.333e-4 | 1.9 | 15:02 |
+| TeF₆ rotated 0.5 | 64,152 | 5.404e-5 | −3.910e-5 | 0.56 | 13:35 |
+| TeF₆ site-adapted | 202,184 | 7.023e-5 | −5.934e-5 | 0.85 | 34:09 |
+
+ε·N is 4e-5, 2e-5, 7e-5.  Walls ran beside other jobs, so read them as rough.  Rotation is free and beats the plain rule on every row.  Site-adapted costs 2-3× the wall and does not beat rotation on max\|ΔH\| anywhere; its one better ΔE, on MnO, is a single sign-changing number.  Decks: `~/Code/qchem6-runs/{MnO,NaF,TeF6}/energy40/`.
+
+**The 9× is the Becke order.**  The molecule ran order 2 and `mhl_m` 3 (`MoleculeSetup.C`), the box order 3 and `mhl_m` 2 (`BeckeXCParams`).  One change at a time on the box at (80,29), which is the row's question:
+
+| box at (80,29) | points | vs (200,35) max\|ΔH\|, ΔE | vs (150,53 GL) max\|ΔH\|, ΔE |
+|---|---|---|---|
+| as run: order 3, m 2 | 127,980 | 6.704e-5, −6.744e-5 | 8.754e-5, −8.791e-5 |
+| `beckeEps` 1e-10 | 129,432 | 6.704e-5, −6.731e-5 | 8.754e-5, −8.788e-5 |
+| Cartesian | 127,980 | 6.658e-5, −6.550e-5 | 8.694e-5, −8.538e-5 |
+| `mhl_m` 3 | 115,210 | 6.146e-5, −6.357e-5 | 8.196e-5, −8.417e-5 |
+| rotated 0.5 | 128,908 | 1.534e-5, +5.270e-6 | 1.249e-5, +1.033e-6 |
+| **order 2** | 134,504 | **7.647e-6**, −1.471e-6 | 9.201e-6, −3.497e-6 |
+| order 2, m 3 (the molecule's mesh) | 121,038 | 7.436e-6, −2.052e-5 | 8.991e-6, −2.249e-5 |
+| order 2, m 3, rotated | 120,812 | 4.741e-6, −1.945e-5 | 4.763e-6, −1.923e-5 |
+
+The molecule read 7.36e-6, ΔE −2.19e-5, as an XC-only fixed-density audit (the PP matrices never entered, so the analytic PP landing does not change it).  The box on the molecule's mesh reads 7.4e-6, ΔE −2.05e-5: no box effect is left.  The dropped tails were never the cause: at `beckeEps` 1e-10 the box still drops 39,688, because those points carry no weight.  The error needs both the aligned rule and order 3, since rotation or order 2 alone removes most of it; why they combine is not measured.
+
+**Order 2 is not a general cure.**  NaF plain 40/29: 7.63e-5, −5.46e-5 (order 3 1.12e-4, −6.83e-5); rotated 5.79e-5, −3.80e-5.  MnO plain: 8.11e-4 but ΔE −7.13e-4, worse than order 3's −4.86e-4 (first audit only; stopped, as the second audit was not needed).  And the periodic partition pays for it: TeF₆ (80,29) 1,264 s to build against about 58 s, NaF 40/29 1:32:39 of wall against 3:21, because the softer cutoff widens the image series the screen must sum.  `beckeOrder` stays 3.
+
+**The audit's reference carried the same error.**  Every mesh above that is converged gives one number: run minus ΔE against (150,53 GL) is −153.403944 on order 3 plain, order 3 rotated, and order 2.  The aligned (200,35) sits 2.05e-5 off it, the rotated one 4e-6.  `xcRef` copies the run's `angRot`, so a plain run's Lebedev reference is aligned.  This confirms the audit's sign too, on all three materials.
+
+**Box against molecule, closed.**  Box at converged XC −153.4039436; add back V_long −5.2e-5 and Hartree −2.8e-6 from the pilot's audit: −153.4038888.  The exact-J spherical molecule at 200_53_gl reads −153.4038870.  They agree to 1.8e-6, where `TeF6EpsilonReport.md` §6 had 2.5e-5 from the aligned reference.  That molecule number predates the analytic PP and was not rerun.
+
+Original rows, verbatim:
+
+| **Does the energy default carry the aligned-Lebedev error?** (lane A's ladder note, 2026-11-05) | aligned Lebedev is 5× worse than rotated at L=35 on MnO, ΔE 2.4e-4 against ε·N = 4e-5, and 40/29 and 60/35 are aligned Lebedev.  But a free run with the default `xcMeshSymmetric` true uses the site-adapted rule, and rotation only reaches a plain mesh, so the affected runs are not yet known | first list which runs reach the aligned rule, and measure 40/29 itself.  Only then decide on rotating it, perhaps with an M-chosen angle (M ranks \|ΔE\|); that moves anchors, so its own batch under pin 10 · `BeckeXCParams`, `AngularFactory.C` |
+
+| **A box's XC error at a nominal Becke mesh is 9× the molecule's at the same mesh, and the raster pilot does not size that mesh** (lane B, 2026-11-05, from TeF₆ in a 20 bohr cube, GTH-LDA, DZVP-MOLOPT-SR-GTH, ε 1e-5) | The pilot settles every raster term inside ε·N and leaves `XC L0` at 0, so `xcMesh` stays at its default (40,29): against (200,35) that is ΔE −1.13e-4 (1.6× ε·N) and max\|ΔH\| 1.23e-4 (12× ε), a miss only a stated `xcMeshAudit` shows.  At a stated (80,29) the box reads max\|ΔH\| 6.7e-5, worst on Te d; the molecule at (80,29) reads 7.4e-6 against 400_77_gl.  The two are not the same mesh or basis: the box drops 24% of its points as tails (`beckeEps` 1e-6, 127,980 against 168,688) and is spherical, the molecule Cartesian.  Cause unmeasured | rerun the box at (80,29) with `beckeEps` 0 (or far below 1e-6) and Cartesian, one change at a time; then decide whether the pilot should size the XC mesh.  Record: `~/Code/qchem6-runs/TeF6/TeF6_report.md` §6 |
+
 **Multipole's ρ̃ leg and its `lMax` guard ✅ (2026-11-06, lane S, `28eae5f9b`).**  Cause: ρ̃ synthesized onto the mesh lost charge, 30× the mesh's error, unmoved by L and falling 10× with nR.  ρ̃_A is now integrated on its own complete shells with unpartitioned weights (`SiteMultipoles::OwnShellOverlap`), where Y_lm is exactly orthonormal, so ρ̃'s charge is the mesh's and the diagnostic is right by construction.  Water 80/29: +530 → +32 μHa, δ's level; TeF₆ PP 80/29 +540 μHa (δ +542).  The bound is rigorous: 2·lMax ≤ the angular degree, `MultipoleLMaxBound`, refused by `AdmitCoulomb`.  The two loosened oracle tolerances are tightened to 5e-5.  The rows' claim "flat in l" was premature: see the open row on multipole Vxc.
 
 Original rows:
@@ -1714,3 +1762,13 @@ Original rows:
 | **Multipole's coarse-rung error is located but not explained, and its charge diagnostic cannot see it** (user question 2026-11-06) | same potential and SCF as δ × Poisson: on TeF₆ PP 80/29 Ekin, Een and Exc agree to every printed digit, and only Eee differs, 347.15030 against 347.14392 (6.4 mHa, before the radial-map fix `b0f1ea7e`), so it is all the energy's ρ̃ leg.  Flat in l (water 8-20 to 0.03 mHa), so not l truncation.  `HartreeChargeError` reads the δ mesh charge, 3.347e-5 on both routes, so a multipole run reports ratio 6.9 while its real error is about 13× that | **Multipole stays a real option, and its Eee must be right (user 2026-11-06: δ being better is not known to be universal).**  Lane S, after its TeF₆ table: measure ρ̃ − ρ at the mesh points (its integral, where it sits, by shell and by site) at fixed D, then nR alone and L alone; fix the cause; report ρ̃'s own charge on the multipole route · `src/BasisSet/MultipoleFit_IBS.C`, `src/Mesh/SiteMultipoles.C` |
 
 | **Multipole `lMax` has no guard against the angular degree** (lane S 2026-11-06) | on `CoulombFit::Multipole`, `lMax` too high for the mesh aliases: water at 80/29 is flat to 0.03 mHa for l = 8-20, then 5 mHa out at l = 24, silently.  The route's own ρ̃ leg needs the shells to resolve it, so a user can reach this | derive the bound from the rule's degree, keep any measured margin a separate named calibration, refuse above it with an Outcome in `AdmitCoulomb` · `src/Hamiltonian/Imp/Factory.C` |
+
+**The aligned rule leaves the default ✅ (2026-11-06, lane A).**  `BeckeXCParams` now rotates a Lebedev rule by 0.5, every ladder rung rotates, and `XCAuditReference` never gives an aligned reference (a run stating `angRot` 0 keeps its rule and is still audited against a rotated one).  It reaches only the plain mesh; site-adapted and imposed runs are bit-identical.  (40,29) stays the energy ballpark with no energy-stage climb, under the "H before E" ruling.
+
+What rotation gives up, measured on the rule against its own C4z image at the converged D (temporary probe, not committed; the aligned control reads 6.7e-16): NaF 40/29 max|ΔH| 9.6e-6, ΔE 3e-12; NaF 60/35 5.5e-6, 3e-10; TeF₆ box 40/29 1.65e-5, 2e-9.  In a NaF session with F at ±0.1 bohr on each axis, the rotated rule splits the axes by 2.0e-7 Ha on a curvature of 2.7e-5, and the ± mirror holds to 2e-9 (aligned 9e-10).  So exact cubic equality is lost at about ε on H at this mesh, under the rule's own error (5.4e-5 TeF₆, 6e-5 NaF).
+
+Anchors, by anchordiff against main-0b0626aa at tol 1e-10, final sweep: 0 of 1317 short tests and 1 of 14 long ones moved (a first sweep moved one short test, below).  `GPW_LiF.Γ_Becke_XCMeshAuditReadsTheCurvatureError_Long` re-judged under pin 10 against GL (80,48): curvature minus the audited mesh error is 1.22e-5 aligned, 1.245e-5 rotated, and Etot minus ΔE agrees to 1e-6; max|ΔH| falls 2.1e-3 to 2.0e-4 and the mesh error on the curvature 1.97e-5 to 6.8e-6.  The gate now pins that difference too.  `SolidSession.SessionSizesItsRastersOnMatrixElements` states a deliberately coarse Lebedev 5, which inherited the rotation (Etot +8e-2 at 12 directions): it now states `angRot` 0 and matches the baseline.  A deck stating a low Lebedev degree inherits the rotation the same way; below 29 the rotated rule is unmeasured.
+
+The health audit is dropped.  One rung up, rotated, on the TeF₆ box is about 60 s, 48 s of it the mesh build: a third of a 3:00 stated-raster run, about 4% of the 23:41 pilot run.  That misses the 5% bar on the run it would cost most, and a stated `xcMeshAudit` already does it.  It read well: (60,35) gave 5.37e-5, −3.66e-5 where (150,53 GL) gave 5.40e-5, −3.91e-5.
+
+Original row: | **The energy default still carries the aligned-Lebedev error on the plain route, and `xcMeshAudit`'s Lebedev references carry it too** (lane A, 2026-11-06) | 40/29 measured on MnO, NaF and the TeF₆ box.  On the plain route rotation costs nothing and cuts max\|ΔH\| 2-9× and \|ΔE\| 1.5-3.4×; site-adapted and imposed runs do not reach the aligned rule.  An audit reference at degree 29-35 copies the run's alignment, so (200,35) was 2e-5 off on TeF₆.  No route meets max\|ΔH\| ≤ ε at 40/29 (5-106×), which under "H before E" is not a defect of the energy default | proposal with the controller: rotate the plain rungs below degree 36, rotate audit references, report one health audit, no energy-stage climb · `XCPolicy.C`, `Deck.C` `xcRef`; record `doc/Records/OpenWork_History5.md`, "40/29 on an energy run" |
