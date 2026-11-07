@@ -227,3 +227,9 @@ follows with the cell and egg-box questions of §7.
 2. **The force threshold:** derive it from ε (§5's 15·ε_H × 3, one-system calibration), or state it, with ε derived from it?
 3. **FD's reach:** is benzene-size (≈ 70 SCFs per gradient) enough for the molecular phase, so analytic forces wait for the
    forces note?
+
+## 10. Rulings (user 2026-11-07)
+
+1. **Cartesian**, behind a coordinate map, so the optimizer sees only q and dE/dq; molecules map Cartesian, solids map cell + Wyckoff parameters; redundant internals could be a second molecular map later.
+2. **The force threshold is derived from ε** through a NAMED calibration (the 15× is one system): *"If we learn that we need a fudge factor that is fine."*
+3. **No finite-difference force product.**  FD gradients spoil the superlinear convergence of BFGS / Newton near the minimum (Numerical Recipes); libcint and PySCF are the oracles; FD would delay the real thing: *"at some point soon we need to take on the real version."*  So the next step is the ANALYTIC-forces design note (molecules first, every term with its oracle: libcint derivative integrals, PySCF whole-molecule gradients, or a per-term finite difference at fixed D as a unit test).  The optimizer is built against analytic model surfaces in unit tests; §1's `FiniteDifferenceForces` survives only as a test helper.  §5's H₂O grid-force measurement stays as evidence for ε.
