@@ -24,7 +24,7 @@ std::unique_ptr<CoulombOperator> MakeMultipoleCoulomb(std::shared_ptr<const qcMe
     return std::make_unique<MultipoleCoulomb>(std::move(sites), std::move(metric));
 }
 
-std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
+std::unique_ptr<GridDensityFit>
 MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::unique_ptr<CoulombOperator> op)
 {
     return std::make_unique<GridDensityFitter>(std::move(deltaBasis), std::move(op));

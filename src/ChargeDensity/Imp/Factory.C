@@ -67,9 +67,4 @@ std::unique_ptr<FittedCD> FittedCD_Factory(fbs_t& fbs, double totalCharge)
     return std::make_unique<FittedCDImp<double>>(fbs,totalCharge);
 }
 
-std::unique_ptr<FittedCD> FittedCD_Factory(std::unique_ptr<Fitting::FunctionFitter_Density_NonOrtho<double>> fitter, double totalCharge)
-{
-    return std::make_unique<FittedCDImp<double>>(std::move(fitter),totalCharge);
-}
-
 } //namespace

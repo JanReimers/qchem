@@ -5,12 +5,12 @@
 //     potential  v(r_g) = op(w_g rho(r_g))         -- the CoulombOperator's whole job
 //     adjoint    sum_g w_g v(r_g) chi_i chi_j      -- the same quadrature XC uses
 //
-// ENERGY IS FIRST ORDER (user ruling 2026-11-06).  Tr(DV) = sum_g w_g rho_g v_g = <rho~|rho~> here, so FittedVee's Dunlap
-// combination 2 EeeFit - EeeFitFit collapses to the plain 1/2 <rho~|rho~>.  It is second-order only where the cross term is
-// exact, which on the Gaussian route it is.  Nothing needs changing in FittedVee; the term reports which route it is.
+// ENERGY IS FIRST ORDER (user ruling 2026-11-06).  Tr(DV) = sum_g w_g rho_g v_g = <rho~|rho~> here, so the energy is the plain
+// 1/2 <rho~|rho~>; Dunlap's 2 EeeFit - EeeFitFit is second-order only where the cross term is exact, which needs a real rho~ with a
+// solved potential.  The operator answers (HartreeEnergy), so a multipole fit keeps its two legs and Vee_DFT never asks which it got.
 //
 // NO CHARGE CONSTRAINT (user ruling 2026-11-06).  Dunlap's shift is a Coulomb-metric object, and a uniform rescale was declined
-// for now: the mesh's charge error is reported instead (FittedVee, as a diagnostic).  So Integral() is the mesh's charge, not N.
+// for now: the mesh's charge error is reported instead (Vee_DFT, as a diagnostic).  So Integral() is the mesh's charge, not N.
 module;
 #include <cassert>
 #include <map>
@@ -30,7 +30,7 @@ export namespace qchem::Fitting
 {
 
 class GridDensityFitter
-    : public virtual FunctionFitter_Density_NonOrtho<double>
+    : public virtual GridDensityFit
     , public virtual DensityProjector
 {
 public:
@@ -71,6 +71,11 @@ public:
     double FitGetSelfRepulsion() const override
     {
         return itsOperator->SelfRepulsion(Projection(),itsV);
+    }
+    double HartreeEnergy(double trDV) const override
+    {
+        if (itsV.size()==0) throw std::logic_error("GridDensityFitter: asked for an energy before any DoFit");
+        return itsOperator->HartreeEnergy(trDV,Projection(),itsV);
     }
     double Integral() const override
     {

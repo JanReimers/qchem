@@ -159,7 +159,7 @@ private:
 //!
 //! THE SECOND LEG IS THE ONE THING THIS ROUTE ADDS OVER \f$\delta\f$ x Poisson.  \f$v\f$ and \f$J\f$ are the same numbers.  But here the
 //! fit is a function, so \f$\langle\tilde\rho|\tilde\rho\rangle\f$ is available, taken on each site's own shells (see
-//! \c SiteMultipoles::OwnShellOverlap), and FittedVee's \f$2E_{fit}-E_{fitfit}\f$ cancels the \f$l\f$ truncation to second order.  The
+//! \c SiteMultipoles::OwnShellOverlap), and the two-leg \f$2E_{fit}-E_{fitfit}\f$ cancels the \f$l\f$ truncation to second order.  The
 //! mesh's own charge error stays, first order, so at a given rung this matches \f$\delta\f$ and does not beat it.  What it buys is a lower
 //! \f$l\f$: at fixed density, all-electron TeF₆ 150/47 is -6.6e-5 at l = 8, where \f$\delta\f$ needs l = 20 for -7.0e-5.
 class MultipoleCoulomb : public virtual CoulombOperator
@@ -177,6 +177,11 @@ public:
         for (size_t a=0; a<c.size(); a++) c[a]=q[a]/itsMetric[a];
         return itsSites->OwnShellOverlap(itsSites->Split(c),itsSites->Split(v));
     }
+    //! \copydoc CoulombOperator::HartreeEnergy
+    //! Here the legs differ, and the second is what cancels the \f$l\f$ truncation: first order in the mesh, second in \f$l\f$
+    //! (accepted 2026-11-06).  \a trDV is NOT \f$q\cdot v\f$: each site's channels hold only that site's own potential, so \f$q\cdot v\f$
+    //! misses every cross-site term (23.5 Ha on water).
+    double HartreeEnergy(double trDV, const rvec_t& q, const rvec_t& v) const override {return trDV-0.5*SelfRepulsion(q,v);}
 private:
     std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;
     RadialPoissonSolver itsSolver;

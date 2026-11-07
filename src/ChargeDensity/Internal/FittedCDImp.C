@@ -23,7 +23,7 @@ template <class T> class FittedCDImp
 public:
     typedef std::unique_ptr<Fitting::FunctionFitter_Density_NonOrtho<T>> fitter_t;
     FittedCDImp(fbs_t&, double totalCharge);
-    FittedCDImp(fitter_t, double totalCharge);   //!< a fitter the caller already built (the grid routes)
+    FittedCDImp(fitter_t, double totalCharge);
     FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint
 
     // FittedCD  (every finite density -- matrix-backed or matrix-free seed -- fits through its own AO face)

@@ -1,4 +1,4 @@
-// File: CDFittedVee.C  Exact Coulomb potential
+// File: Vee_DFT.C  The two DFT Hartree terms, Dunlap and normal.
 module;
 #include <cassert>
 #include <iostream>
@@ -15,7 +15,7 @@ import qchem.Hamiltonian.Types;
 namespace qchem::Hamiltonian
 {
 
-FittedVee::FittedVee(fbs_t& chargeDensityFitBasisSet, double numElectrons)
+Vee_DFT_Dunlap::Vee_DFT_Dunlap(fbs_t& chargeDensityFitBasisSet, double numElectrons)
 {
     // The CD fit basis arrives as the narrow Coulomb-metric (rFIT_CD_ABS) face -- exactly what the
     // density-fitting machinery takes; thread it straight through (no down-cast to the concrete Fit_IBS).
@@ -23,14 +23,7 @@ FittedVee::FittedVee(fbs_t& chargeDensityFitBasisSet, double numElectrons)
     assert(itsFittedChargeDensity);
 };
 
-FittedVee::FittedVee(std::unique_ptr<Fitting::FunctionFitter_Density_NonOrtho<double>> gridFitter, double numElectrons)
-    : itsGridCharge(numElectrons)
-{
-    itsFittedChargeDensity=ChargeDensity::FittedCD_Factory(std::move(gridFitter),numElectrons);
-    assert(itsFittedChargeDensity);
-}
-
-FittedVee::~FittedVee() = default;   // FittedCD is complete here, so the unique_ptr deletes it correctly
+Vee_DFT_Dunlap::~Vee_DFT_Dunlap() = default;   // FittedCD is complete here, so the unique_ptr deletes it correctly
 
 //########################################################################
 //
@@ -42,7 +35,7 @@ FittedVee::~FittedVee() = default;   // FittedCD is complete here, so the unique
 //  Where ro is the fitted charge density.
 //
 
-rsmat_t FittedVee::MakeMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
+rsmat_t Vee_DFT_Dunlap::MakeMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
 {
     if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
     auto dft_bs=dynamic_cast<const odftbs_t*>(bs);
@@ -53,12 +46,12 @@ rsmat_t FittedVee::MakeMatrix(const robs_t* bs,const Spin& s,const rChargeDensit
 // THE EAGER PHASE (R1.0h): fit ONCE, before the block loop, instead of on whichever block asked first.
 // Same guard as MakeMatrix's -- newCD is the density-serial test, so driving it here simply moves WHEN the
 // one fit happens; a caller outside the phase still gets a correct (lazily fitted) answer.
-void FittedVee::RefreshForDensity(const rChargeDensity* cd) const
+void Vee_DFT_Dunlap::RefreshForDensity(const rChargeDensity* cd) const
 {
     if (cd && newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
 }
 
-void FittedVee::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
+void Vee_DFT_Dunlap::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     assert(itsFittedChargeDensity);
     if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
@@ -70,12 +63,42 @@ void FittedVee::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
     te.AddDiagnostic("EeeFit",    eeeFit);
     te.AddDiagnostic("EeeFitFit", eeeFitFit);
     te.Add("Eee", 2*eeeFit - eeeFitFit, EnergyRole::Potential);
-    if (itsGridCharge>0.0)
-    {
-        const double dq=itsFittedChargeDensity->GetChargeError();
-        te.AddDiagnostic("HartreeChargeError",  dq);
-        te.AddDiagnostic("HartreeChargeEnergy", 2*eeeFitFit*dq/itsGridCharge);
-    }
+}
+
+Vee_DFT::Vee_DFT(std::unique_ptr<Fitting::GridDensityFit> fit, double numElectrons)
+    : itsFit(std::move(fit))
+    , itsNumElectrons(numElectrons)
+{
+    assert(itsFit);
+    assert(itsNumElectrons>0);
+}
+
+Vee_DFT::~Vee_DFT() = default;
+
+// Every finite density presents its own ProjectedDensity_AO: a matrix its forward, a seed its field.  The fitter asks which.
+void Vee_DFT::Fit(const rChargeDensity& cd) const
+{
+    itsFit->DoFit(dynamic_cast<const Fitting::ProjectedDensity_AO&>(cd));
+}
+
+rsmat_t Vee_DFT::MakeMatrix(const robs_t* bs,const Spin&,const rChargeDensity* cd) const
+{
+    if (newCD(cd)) Fit(*cd);
+    return itsFit->Repulsion(bs);
+}
+
+void Vee_DFT::RefreshForDensity(const rChargeDensity* cd) const
+{
+    if (cd && newCD(cd)) Fit(*cd);
+}
+
+void Vee_DFT::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
+{
+    if (newCD(cd)) Fit(*cd);
+    const double e=itsFit->HartreeEnergy(cd->DM_Contract(this,cd)), dq=itsFit->Integral()-itsNumElectrons;
+    te.Add("Eee", e, EnergyRole::Potential);
+    te.AddDiagnostic("HartreeChargeError",  dq);
+    te.AddDiagnostic("HartreeChargeEnergy", 2*e*dq/itsNumElectrons);
 }
 
 } //namespace
