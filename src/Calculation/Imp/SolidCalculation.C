@@ -1417,6 +1417,19 @@ std::string BeckeName(const qcMesh::MeshParams& m)
     return "Becke (nR="+std::to_string(m.nRadial)+", L="+std::to_string(m.angularDegree)
            +(m.angular==qcMesh::AngularKind::Lebedev ? " Lebedev" : " GL")+(m.angRot!=0.0 ? " rotated)" : ")");
 }
+//! The grids the pilot settled, spelled as the deck keys that restate them (with \c accuracy 0, so no pilot runs again).  A deck that
+//! copies only the rasters is not the same run: \c vlocEps falls back to the no-target routing without a target, 5.8 uHa on MnO VA
+//! (lane A, 2026-11-06).  So every grid the pilot's choice depends on is here, at full precision.
+qchem::report::json RestateKeys(const BasisSet::Gaussian::GPWTolerances& t, double cutoffFactor, const qcMesh::MeshParams& m)
+{
+    qchem::report::json j={{"accuracy",0},{"solid",{{"cutoffFactor",cutoffFactor},
+                 {"tolerances",{{"rasterX",t.rasterX},{"vlocRasterX",t.vlocRasterX},{"xcRasterX",t.xcRasterX},{"vlocEps",t.vlocEps}}}}}};
+    if (m.cellKind==qcMesh::UnitCellKind::Becke)
+        j["solid"]["xcMesh"]={{"cellKind","Becke"},{"nRadial",m.nRadial},{"angularDegree",m.angularDegree},
+                              {"angular",m.angular==qcMesh::AngularKind::Lebedev ? "Lebedev" : "GaussLegendre"},{"angRot",m.angRot},
+                              {"beckeOrder",m.beckeOrder},{"mhlM",m.mhl_m}};
+    return j;
+}
 //! One function of a block as a human reads it: its atom, its shell and l.  The shells' order is the block's function order (\c AoShellSource).
 std::string FunctionName(const std::vector<Symmetry::Molecule::AoShell>& shells, const Structure& st, size_t f)
 {
@@ -1766,11 +1779,13 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     }
     itsImp->rastersSettled=itsImp->converged;
     itsImp->pilotCost.settled=itsImp->rastersSettled && metEveryTarget;   // NOT SETTLED at the round cap is not settled (it read true)
+    const rpt::json restate=RestateKeys(itsImp->setup->opts.tolerances, itsImp->setup->opts.cutoffFactor, itsImp->setup->xcMesh);
+    std::cout<<tag<<"a deck restates these grids as: "<<restate.dump()<<std::endl;   // json writes each double round-trip exact
     std::cout<<tag<<"cost: "<<itsImp->pilotCost.rounds<<" audit round(s), "<<itsImp->pilotCost.reconvergeIterations
              <<" re-convergence iteration(s) beyond the run's own"<<std::endl;
     rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
                                              {"rasters",RasterName(itsImp->setup->opts.tolerances)},
-                                             {"xcMesh", itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(itsImp->setup->xcMesh) : std::string("uniform")},{"settled",itsImp->pilotCost.settled},
+                                             {"xcMesh", itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(itsImp->setup->xcMesh) : std::string("uniform")},{"settled",itsImp->pilotCost.settled},{"restate",restate},
                                              {"auditRounds",itsImp->pilotCost.rounds},{"reconvergeIterations",(long)itsImp->pilotCost.reconvergeIterations}});
 }
 
