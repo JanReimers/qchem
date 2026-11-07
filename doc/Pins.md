@@ -414,3 +414,23 @@ or audited against ε by the run.  A fixed tolerance that ignores ε is a DEFECT
 are not approximations and are exempt: functional, orbital basis, pseudopotential, smearing kT, and the structure.  A STATED
 value is honoured and reported against ε, never silently.  Earned by the density G-ball: auto 2·α_max sat outside ε in every
 cell, H₂O MOLOPT +330 μHa against CP2K, while the rasters beside it were ε-sized (OpenWork history, 2026-11-03).
+
+## 32. A fitted term's H is the gradient of its own E: the same object on both sides (user, 2026-11-07)
+
+A term that reaches H through a fit must deliver H = ∂E/∂D for the E it reports, because forces, GDM and every
+stationarity test read that E.  For a Coulomb-type fit the test is the implied four-index integral: it must be symmetric
+under ij ↔ kl, which holds exactly when the SAME object sits on both pairs.
+- **Consistent:** Oᵀ K O with K symmetric (a δ or grid fit through a discrete Coulomb operator, GPW's collocate /
+  4π/G² / adjoint gather; first order), and Cᵀ G⁻¹ C (Dunlap; second order).
+- **Not consistent:** Cᵀ S⁻¹ O, a Coulomb integral on one pair and an overlap on the other: any overlap-metric fit
+  with an analytic Coulomb element, the one-sided (ij|δ) form included.  Its H has no energy function, so its SCF
+  stops at a point that is not stationary in E.
+- **Accuracy of H alone never picks the form.**  The more accurate H can be the inconsistent one; the consistent
+  average J^c = ½(J^a + J^b) is the gradient.  An approximate K between two identical O's stays consistent; an exact
+  element on one side breaks it.  K's own symmetry (`CoulombOperatorSymmetry`) is part of the gate.
+- **The same question for every fitted term:** before a new fit lands (Hartree, a Vxc fit, a projector), write down
+  its implied second derivative ∂²E/∂D∂D and check it is symmetric.  A nonlinear term evaluated on ρ[D] at points
+  (pin 28) is consistent by construction: H = Oᵀ f′(O D).
+
+Earned by the TeF₆ δ measurement (2026-11-06, `doc/Records/HartreeFitConsistency.md`): the one-sided analytic form J^a
+was 15× more accurate in max|ΔJ| than J^b and would have been chosen on accuracy, yet it is the one with no energy.
