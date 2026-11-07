@@ -10,6 +10,10 @@
 // differs from PG's (xx,xy,yy,xz,yz,zz) for l>=2, so a wrong permutation would show up here (s,p alone
 // would not catch it).
 #include "gtest/gtest.h"
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <memory>
 #include <vector>
 
 import qchem.StructureData;
@@ -138,4 +142,52 @@ TEST(M_LibCint, spherical_grid_eval_matches_matrices)
             EXPECT_NEAR(K(i,j), Ko(i,j), 1e-9)  << "kinetic ("<<i<<","<<j<<")";
         }
     delete o;
+}
+
+// THE 1E GEOMETRY GRADIENTS (the analytic force's Pulay, kinetic and nuclear terms; doc/GeometryOptimizationPlan.md §4-§5): libcint's
+// dM/dR_A against a central finite difference of OUR engine's matrices (McMurchie-Davidson) at moved atoms -- two engines, two methods.
+// The nuclear matrix moves twice: its basis centres and its nuclei.  Translation invariance: the gradients sum to zero over the atoms.
+TEST(M_LibCint, matrix_1E_geometry_gradients_match_finite_differences_of_the_MnD_matrices)
+{
+    Molecule* h2o = MakeWater();
+    const rvec_t exps{1.0, 0.25};
+    const size_t L=2;                                           // s + p + d (the d reorder and its renormalization)
+    Orbital_IBS ibs(exps, L, h2o);
+    LibCintEval lc(dynamic_cast<const PGData&>(ibs), h2o);
+    const auto dS=lc.OverlapGradient(), dK=lc.KineticGradient(), dV=lc.NuclearGradient();
+    const size_t nAtoms=h2o->GetNumAtoms(), n=lc.size();
+    ASSERT_EQ(dS.size(), nAtoms);
+    std::vector<rvec3_t> R0; h2o->ForEachSite([&](int, const rvec3_t& r, bool){ R0.push_back(r); });
+    const double h=1e-4;
+    double largest=0.0;
+    for (size_t A=0;A<nAtoms;++A)
+        for (int c=0;c<3;++c)
+        {
+            auto at=[&](double s)
+            {
+                auto R=R0;
+                (c==0 ? R[A].x : c==1 ? R[A].y : R[A].z)+=s;
+                std::shared_ptr<Structure> st=h2o->Clone(); st->MoveSites(R);
+                Orbital_IBS b(exps, L, st.get());
+                const BasisSet::Orbital_1E_IBS<double>& b1=b;
+                return std::array<rsmat_t,3>{b1.Overlap(), b1.Kinetic(), b1.Nuclear(st.get())};
+            };
+            const auto p=at(h), m=at(-h);
+            for (size_t i=0;i<n;++i) for (size_t j=0;j<n;++j)
+            {
+                const double fS=(p[0](i,j)-m[0](i,j))/(2*h), fK=(p[1](i,j)-m[1](i,j))/(2*h), fV=(p[2](i,j)-m[2](i,j))/(2*h);
+                EXPECT_NEAR(dS[A][c](i,j), fS, 1e-7) << "dS/dR atom " << A << " axis " << c << " (" << i << "," << j << ")";
+                EXPECT_NEAR(dK[A][c](i,j), fK, 2e-7) << "dK/dR atom " << A << " axis " << c << " (" << i << "," << j << ")";
+                EXPECT_NEAR(dV[A][c](i,j), fV, 2e-7) << "dV/dR atom " << A << " axis " << c << " (" << i << "," << j << ")";
+                largest=std::max({largest, std::fabs(fS), std::fabs(fV)});
+            }
+        }
+    EXPECT_GT(largest, 0.1) << "the derivatives tested are not trivially zero";
+    for (int c=0;c<3;++c)
+        for (size_t i=0;i<n;++i) for (size_t j=0;j<n;++j)
+        {
+            double s=0.0, k=0.0, v=0.0;
+            for (size_t A=0;A<nAtoms;++A) { s+=dS[A][c](i,j); k+=dK[A][c](i,j); v+=dV[A][c](i,j); }
+            EXPECT_NEAR(s, 0.0, 1e-12); EXPECT_NEAR(k, 0.0, 1e-11); EXPECT_NEAR(v, 0.0, 1e-11);
+        }
 }

@@ -15,6 +15,8 @@ module;
 #include <cmath>
 #include <cassert>
 #include <ostream>
+#include <array>
+#include <stdexcept>
 #include <string>
 extern "C" {
 #include "cint_funcs.h"   // pulls cint.h: slot constants, FINT/CACHE_SIZE_T, the int*_cart functions
@@ -301,6 +303,65 @@ rsmat_t NR_Evaluator::Build1(int which) const
         }
     return M;
 }
+// --- geometry gradients of the 1E matrices --------------------------------------------------------
+// libcint's ip integrals differentiate the BRA function with respect to the electron coordinate: X(i,j) = <d_c i|O|j>.  A function centred
+// on A has d/dA = -d/dr, so for a centre-only operator dM_ij/dR_A = -(X(i,j)[i on A] + X(j,i)[j on A]).  The nuclear operator also moves:
+// with Y(i,j) = <d_c i| 1/|r - R_C| |j> (int1e_iprinv, its origin on C), translation invariance of the three-body integral gives
+// d<i|1/r_C|j>/dR_C = Y(i,j) + Y(j,i), so dV/dR_C picks up -Z_C (Y + Y^T).
+NR_Evaluator::GradientMatrices NR_Evaluator::BuildGradient(int which) const
+{
+    const Imp& m=*itsImp;
+    if (m.spherical) throw std::logic_error("PG_LibCint::NR_Evaluator: the 1E geometry gradients are Cartesian-only (no client asks for spherical yet)");
+    std::vector<const ShellDesc*> self; for (auto& s:m.shells) self.push_back(&s);
+    std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(m.atoms, self, atm,bas,env);
+    const int natm=(int)m.atoms.size(), nbas=(int)m.shells.size();
+    const double pre = which==1 ? 2.0 : 1.0;   // <-nabla^2> = 2 x libcint's T
+    std::vector<int> compAtom(m.N, -1);
+    for (const auto& sh : m.shells) for (size_t g : sh.lc2pg) compAtom[g]=sh.atom;
+    // X_c(i,j) = <d_c i| O |j> over every ordered shell pair (not symmetric), scaled into the delivered normalization
+    auto ip=[&](IntFn fn)
+    {
+        std::array<rmat_t,3> X; for (auto& x : X) x=rmat_t(m.N, m.N, 0.0);
+        std::vector<double> buf;
+        for (size_t si=0;si<m.shells.size();++si)
+            for (size_t sj=0;sj<m.shells.size();++sj)
+            {
+                const int di=m.dim(m.shells[si].l), dj=m.dim(m.shells[sj].l);
+                buf.assign((size_t)di*dj*3, 0.0);
+                int shls[2]={(int)si,(int)sj};
+                fn(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
+                for (int c=0;c<3;++c)
+                    for (int p=0;p<di;++p){ const size_t gi=m.shells[si].lc2pg[p];
+                        for (int q=0;q<dj;++q){ const size_t gj=m.shells[sj].lc2pg[q];
+                            X[c](gi,gj) = pre * buf[p+di*(q+dj*c)] * m.scale[gi]*m.scale[gj]; } }
+            }
+        return X;
+    };
+    GradientMatrices G(m.atoms.size());
+    for (auto& a : G) for (auto& x : a) x=rmat_t(m.N, m.N, 0.0);
+    IntFn fn = which==0 ? int1e_ipovlp_cart : which==1 ? int1e_ipkin_cart : int1e_ipnuc_cart;
+    const std::array<rmat_t,3> X=ip(fn);
+    for (int c=0;c<3;++c)
+        for (size_t i=0;i<m.N;++i) for (size_t j=0;j<m.N;++j)
+        {
+            G[compAtom[i]][c](i,j)-=X[c](i,j);
+            G[compAtom[j]][c](i,j)-=X[c](j,i);
+        }
+    if (which==2)   // the nuclei move too: one int1e_iprinv per nucleus, its origin on it
+        for (size_t C=0;C<m.atoms.size();++C)
+        {
+            env[PTR_RINV_ORIG]=m.atoms[C].x; env[PTR_RINV_ORIG+1]=m.atoms[C].y; env[PTR_RINV_ORIG+2]=m.atoms[C].z;
+            const std::array<rmat_t,3> Y=ip(int1e_iprinv_cart);
+            const double Z=m.atoms[C].Z;
+            for (int c=0;c<3;++c)
+                for (size_t i=0;i<m.N;++i) for (size_t j=0;j<m.N;++j) G[C][c](i,j)-=Z*(Y[c](i,j)+Y[c](j,i));
+        }
+    return G;
+}
+NR_Evaluator::GradientMatrices NR_Evaluator::OverlapGradient() const {return BuildGradient(0);}
+NR_Evaluator::GradientMatrices NR_Evaluator::KineticGradient() const {return BuildGradient(1);}
+NR_Evaluator::GradientMatrices NR_Evaluator::NuclearGradient() const {return BuildGradient(2);}
+
 rsmat_t NR_Evaluator::OverlapMatrix()             const {return Build1(0);}
 rsmat_t NR_Evaluator::KineticMatrix()             const {return Build1(1);}
 rsmat_t NR_Evaluator::NuclearMatrix(const Structure*) const {return Build1(2);} // atm already carries the nuclei
