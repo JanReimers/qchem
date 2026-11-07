@@ -73,31 +73,38 @@ template <class T> typename tVxc_Quadrature<T>::Rasters tVxc_Quadrature<T>::Chan
 // GEMM).  ONE body for both block scalars (Step 3c): the rasters are block-independent; only the final
 // quadrature (typed Phi table) differs.  A folded-doublet block (Spin::None) is the same field either
 // channel would see, so it asks for Up by convention.
-template <class T> rvec_t tVxc_Quadrature<T>::PotentialAt(const Spin& s, const tChargeDensity<T>* cd) const
+template <class T> rvec_t tVxc_Quadrature<T>::PotentialAt(const Spin& fs, const Rasters& r) const
 {
-    rvec_t half;
-    const Rasters r=ChannelRasters(cd, half);
-    {
-        std::lock_guard<std::mutex> lock(itsFockSourceLock.m);
-        itsFockSource=itsSampler->RhoSource();   // what THIS V_xc saw (pin 28), read while the sampler's cache is cd's
-        itsFockGroupResidual=itsSampler->GroupResidual();   // ...and how far from the group it was handed (R2.1)
-    }
-    const Spin fs = s==Spin::None ? Spin::Up : s;
     rvec_t v(r.up.size());
     for (size_t g=0; g<v.size(); g++) v[g]=itsXc->GetVxc(r.up[g], r.dn[g], fs);
     return v;
 }
+// The block path (V1.41 stage 2, ruling C): it READS what the refresh built for \a cd and computes nothing from rho.  A
+// miss is a caller that skipped the refresh, a broken contract no caller can act on, so it throws.
+template <class T> const typename tVxc_Quadrature<T>::Refreshed& tVxc_Quadrature<T>::RefreshedFor(const tChargeDensity<T>* cd) const
+{
+    if (!cd || cd->Version()!=itsRefreshed.version)
+        throw std::logic_error("tVxc_Quadrature: block asked for a density the refresh did not see (RefreshForDensity first)");
+    // What THIS V_xc saw (pin 28): recorded by the FOCK pass, which is the only pass that asks for blocks, so the energy
+    // pass at rho_out reports the source and group residual of the potential the Fock was built from.
+    std::lock_guard<std::mutex> lock(itsFockSourceLock.m);
+    itsFockSource=itsRefreshed.source;
+    itsFockGroupResidual=itsRefreshed.groupResidual;
+    return itsRefreshed;
+}
 template <class T> hmat_t<T> tVxc_Quadrature<T>::MakeMatrix(const tobs_t<T>* bs, const Spin& s, const tChargeDensity<T>* cd) const
 {
-    const rvec_t v=PotentialAt(s,cd);
-    SizeFourierSampling(s, cd, v, [&](const rvec_t& f){return itsSampler->Matrix(bs, f);});
-    return itsSampler->Matrix(bs, v);
+    const Refreshed& R=RefreshedFor(cd);
+    const int c = s==Spin::Down ? 1 : 0;
+    SizeFourierSampling(s, R, [&](const rvec_t& f){return itsSampler->Matrix(bs, f);});
+    return itsSampler->Matrix(bs, R.v[c]);
 }
 rsmat_t Vxc_Quadrature::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const
 {
-    const rvec_t v=PotentialAt(s,cd);
-    SizeFourierSampling(s, cd, v, [&](const rvec_t& f){return itsPeriodic->Matrix(bs, f);});
-    return itsPeriodic->Matrix(bs, v);
+    const Refreshed& R=RefreshedFor(cd);
+    const int c = s==Spin::Down ? 1 : 0;
+    SizeFourierSampling(s, R, [&](const rvec_t& f){return itsPeriodic->Matrix(bs, f);});
+    return itsPeriodic->Matrix(bs, R.v[c]);
 }
 
 // THE ONE TOLERANCE tau on max|delta rho| of a Fourier series sampled on my points (the rho-tilde sampler, step 2; doc/Pins.md pin 31).
@@ -110,8 +117,9 @@ rsmat_t Vxc_Quadrature::MakeMatrixR(const robs_t* bs, const Spin& s, const cChar
 // An energy run takes min(tau_E, tau_R), a geometry run min(tau_E, tau_H, tau_R).  ON THE SEED, once (user ruling 2026-11-04: never a
 // per-iteration input): every block of the first Fock build lowers it, and the sampler's first SIZED Load freezes it.
 template <class T> template <class Mat>
-void tVxc_Quadrature<T>::SizeFourierSampling(const Spin& s, const tChargeDensity<T>* cd, const rvec_t& v, Mat matrixOf) const
+void tVxc_Quadrature<T>::SizeFourierSampling(const Spin& s, const Refreshed& R, Mat matrixOf) const
 {
+    const rvec_t& v=R.v[s==Spin::Down ? 1 : 0];
     SamplingTarget* tgt=itsSampler->FourierTarget();
     if (!tgt || tgt->loads>0 || !(tgt->accuracy.target>0.0)) return;   // no stated accuracy, or tau already frozen by its first use
     std::lock_guard<std::mutex> lock(itsSamplingLock.m);
@@ -125,23 +133,13 @@ void tVxc_Quadrature<T>::SizeFourierSampling(const Spin& s, const tChargeDensity
     std::string from="the XC energy";
     if (A.perElement)
     {
-        rvec_t half;
-        const Rasters r=ChannelRasters(cd, half);
-        const Spin fs = s==Spin::None ? Spin::Up : s;
-        rvec_t f(v.size());
-        for (size_t g=0; g<f.size(); g++)
-            f[g] = pol ? std::fabs(itsXc->GetFxc(r.up[g], r.dn[g], fs, Spin::Up))+std::fabs(itsXc->GetFxc(r.up[g], r.dn[g], fs, Spin::Down))
-                       : 0.5*std::fabs(itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up, Spin::Up)+itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up, Spin::Down));
-        const auto M=matrixOf(f);
+        const auto M=matrixOf(R.seedFxc[s==Spin::Down ? 1 : 0]);
         for (size_t i=0; i<M.rows(); i++) itsSeedPH=std::max(itsSeedPH, std::abs(M(i,i)));
         if (itsSeedPH>0.0 && A.target/itsSeedPH<tau) {tau=A.target/itsSeedPH; from="the XC matrix elements";}
     }
     if (A.residualGate>0.0)
     {
-        double N=cd->GetTotalCharge();
-        if (pol)
-            if (const auto* up=ChargeDensity::ChannelOf(cd,Spin::Up); up)
-                if (const auto* dn=ChargeDensity::ChannelOf(cd,Spin::Down); dn) N=std::min(up->GetTotalCharge(), dn->GetTotalCharge());
+        const double N=R.seedN;
         const double W=itsSampler->Integrate(rvec_t(v.size(), 1.0));
         if (N>0.0 && W>0.0)
             if (const double tR=A.residualMargin*A.residualGate*N/(2.0*W); tR<tau) {tau=tR; from="the SCF residual";}
@@ -295,9 +293,44 @@ template <class T> std::ostream& tVxc_Quadrature<T>::Write(std::ostream& os) con
 // rho on the quadrature's points is k-INDEPENDENT -- one array (or one pair), correct for every Bloch block
 // -- but it was filled by whichever block asked first.  Warming it here makes the block loop read-only in
 // the ordinary path, which is the precondition for running the blocks concurrently.
+// ★ V1.41 STAGE 2: the refresh also builds v^sigma, once per spin channel, which every block then only reads (it used to be
+// recomputed per block from the rasters).  And on the seed, while tau is unfrozen, the |f_xc| fields and the charge the sizing needs.
 template <class T> void tVxc_Quadrature<T>::RefreshForDensity(const tChargeDensity<T>* cd) const
 {
-    itsSampler->WarmForDensity(cd, itsGroup==SpinGroup::Polarized);
+    assert(cd);
+    const bool pol=itsGroup==SpinGroup::Polarized;
+    itsSampler->WarmForDensity(cd, pol);
+    rvec_t half;
+    const Rasters r=ChannelRasters(cd, half);
+    Refreshed& R=itsRefreshed;
+    R.source=itsSampler->RhoSource();          // read while the sampler's cache is cd's
+    R.groupResidual=itsSampler->GroupResidual();
+    const int nc = pol ? 2 : 1;               // a folded doublet (Spin::None) is the same field either channel would see: Up
+    for (int c=0; c<nc; c++) R.v[c]=PotentialAt(c==1 ? Spin::Down : Spin::Up, r);
+    for (int c=nc; c<2; c++) R.v[c]=rvec_t();
+    const SamplingTarget* tgt=itsSampler->FourierTarget();
+    const bool sizing = tgt && tgt->loads==0 && tgt->accuracy.target>0.0;
+    for (int c=0; c<2; c++) R.seedFxc[c]=rvec_t();
+    R.seedN=0.0;
+    if (sizing && tgt->accuracy.perElement)
+        for (int c=0; c<nc; c++)
+        {
+            const Spin fs = c==1 ? Spin::Down : Spin::Up;
+            rvec_t& f=R.seedFxc[c];
+            f.resize(r.up.size());
+            for (size_t g=0; g<f.size(); g++)
+                f[g] = pol ? std::fabs(itsXc->GetFxc(r.up[g], r.dn[g], fs, Spin::Up))+std::fabs(itsXc->GetFxc(r.up[g], r.dn[g], fs, Spin::Down))
+                           : 0.5*std::fabs(itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up, Spin::Up)+itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up, Spin::Down));
+        }
+    if (sizing && tgt->accuracy.residualGate>0.0)
+    {
+        double N=cd->GetTotalCharge();
+        if (pol)
+            if (const auto* up=ChargeDensity::ChannelOf(cd,Spin::Up); up)
+                if (const auto* dn=ChargeDensity::ChannelOf(cd,Spin::Down); dn) N=std::min(up->GetTotalCharge(), dn->GetTotalCharge());
+        R.seedN=N;
+    }
+    R.version=cd->Version();
 }
 
 template class tVxc_Quadrature<double>;   // the molecular / atom path (V-XC-ONE-TERM, 2026-10-31)

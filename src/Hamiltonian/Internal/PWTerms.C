@@ -338,17 +338,31 @@ public:
     virtual std::ostream& Write(std::ostream&) const override;
 protected:
     virtual hmat_t<T> MakeMatrix(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const override;
-    //! \f$v^\sigma\f$ at my points for the block of spin \a s, recording the pin-28 source of the \f$\rho\f$ it saw -- what
-    //! every \f$V_{xc}\f$ build (Bloch block or real TRIM block) contracts against.
-    rvec_t PotentialAt(const Spin& s, const tChargeDensity<T>* cd) const;
     //! The two channel rasters of \a cd as the functional sees them: the sampler's Up/Down pair, or the
     //! folded doublet's one raster halved (borrowed reference + scratch, hence the pair of references).
     struct Rasters { const rvec_t& up; const rvec_t& dn; };
     Rasters ChannelRasters(const tChargeDensity<T>* cd, rvec_t& scratch) const;
+    //! \f$v^{fs}\f$ on the channel rasters \a r: what every \f$V_{xc}\f$ build (Bloch block or real TRIM block) contracts against.
+    //! Called by the refresh only.
+    rvec_t PotentialAt(const Spin& fs, const Rasters& r) const;
+    //! \brief What the refresh builds for ONE density and every block then reads (V1.41 stage 2, ruling C): v^sigma per channel
+    //! (index 0 = Up or the folded doublet, 1 = Down), the pin-28 rho source and group residual the potential saw, and on the seed
+    //! the |f_xc| fields and the charge the tau sizing needs.  One current state, checked against the density's serial.
+    struct Refreshed
+    {
+        size_t version=size_t(-1);
+        rvec_t v[2];
+        std::optional<ChargeDensity::XCRhoSource> source;
+        std::optional<double> groupResidual;
+        rvec_t seedFxc[2];
+        double seedN=0.0;
+    };
+    //! The block path's read of \c itsRefreshed: throws if the refresh never saw \a cd; records the Fock pass's pin-28 source.
+    const Refreshed& RefreshedFor(const tChargeDensity<T>* cd) const;
     //! \brief THE rho-tilde SAMPLER'S ONE TOLERANCE tau (step 2, user rulings 2026-11-04), derived HERE because only this term has
     //! v_xc and f_xc in hand: on the SEED density (every Fock block of the first build, before the sampler's first sized use freezes
     //! it), from the accuracy the run stated on my quadrature.  \a matrixOf contracts a field into this block's matrix.
-    template <class Mat> void SizeFourierSampling(const Spin& s, const tChargeDensity<T>* cd, const rvec_t& v, Mat matrixOf) const;
+    template <class Mat> void SizeFourierSampling(const Spin& s, const Refreshed& R, Mat matrixOf) const;
     //! Reports tau ONCE, when the sampler's first sized use froze it (the settings the SCF runs under).
     void ReportFourierSampling() const;
 
@@ -359,6 +373,7 @@ protected:
     //! The pin-28 audit: the source of the rho my most recent V_xc BUILD sampled (MakeMatrixT), which my energy pass
     //! reports in \c ChargeBreakdown::xcRho.  The latest build, not a drained log: GDM's line search calls the energy
     //! many times per iteration, and a log emptied by each call would hand the trace an empty cell.
+    mutable Refreshed itsRefreshed;   //!< the refresh's one current state (V1.41 stage 2)
     mutable std::optional<ChargeDensity::XCRhoSource> itsFockSource;
     mutable std::optional<double> itsFockGroupResidual;   //!< R2.1: the same build's density vs the imposed group (\c xcGroupResidual)
     qchem::LazyLock itsFockSourceLock;   //!< every Fock block writes it (the same value): concurrent blocks take turns
