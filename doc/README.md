@@ -37,6 +37,7 @@ links INSIDE moved files (`../src/…`) are one level off.
 | `InnovationCandidates.md` | TENTATIVE list of possibly-innovative techniques (user 2026-11-04): factored ρ, periodic Becke grids, global ε error control (the user's pick for most consequential), orbital-resolved self-consistent DFT+U with Gaussians -- each with its known prior-art leads; never a novelty claim |
 | file | why it is here |
 |---|---|
+| **`CalcNetworkReview.md`** | the calculation-network / PES design (V-CALCNET, retired as a row 2026-11-06); cited by OpenWork's geometry level-1 row and the PES remainders (§3, §7).  Moved from the top of `doc/` 2026-11-07 |
 | **`OpenWork_History1…5.md`**, **`CleanupHistory.md`/`2`/`3`**, **`BenchmarkHistory.md`** (incl. Benchmark.md verbatim as of 2026-10-01), **`GPWHistory.md`**, **`SymmetryUpgradeHistory.md`**, **`HubbardUHistory.md`** | the append-only closed record; trackers WRITE to these (History5 = the v3 tracker verbatim; CleanupHistory3 = the v2 worklist verbatim).  ★ A record of what was TRIED AND REJECTED is worth more than a record of what landed |
 | **`LinearResponsePlan.md`** | A7 (DONE 2026-10-21): the theory-neutral `ResponseKernel` design (DFPT-U / CPHF / MP2 Z-vector), stages R0–R4 with their oracles and execution records; open items → OpenWork §2/§3 |
 | **`CP2KBuild.md`** / **`CP2Kresults.md`** | how the primary oracle is built, and what it says |
