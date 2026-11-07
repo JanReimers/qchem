@@ -23,6 +23,8 @@ step 5 lands.  The rows stay the record of what is open; this file holds only th
 
 **Step 4 hub surface APPROVED (user 2026-11-07)** as lane S proposed it: `DensityID` moves to `qchem.ChargeDensity`; `tDynamic_CC<T>` gains `GetMatrix(bs, s, DensityID)`, and `GetEMatrix` takes `DensityID`; the `*_RealBlock` classes and the 31 `*R` methods go; in stage 3, `tDynamic_HF_HT<T>::GetMatrix(bs, s, DensityID, wholeBasis)`.  **Added (user 2026-11-07, option (a)):** `tDynamic_HF_HT<T>::RefreshForDensity(wholeBasis, cd)`, so the HF J/K is built in the refresh and not lazily on the first block; the wholeBasis latch moves there.  HF stage 2 runs after `Hubbard_U`.  **Corrected (user 2026-11-07):** `RealBlockEnergy_CD::DM_ContractE` (its own face in `qchem.ChargeDensity`, not on `Dynamic_CC_RealBlock`) becomes `DM_ContractE(const tDynamic_CC<double>*, DensityID) const`; the class stays, `tChargeDensity::DM_Contract` unchanged.
 
+**Step 5 also adds `VxcFit::Multipole` as a column of `VxcProductSpace` (user 2026-11-07):** `AdmitVxc` admits it and `GridHartree.C` tests it, but the 27-cell gate never sees it.
+
 Not in the sprint: `V1.39` (its own trigger is GGA), `V-BLOCKED-MATRIX` (it may fall out of step 4; decide there).
 
 **While in each file (user 2026-11-06, `OOD-SOLID-Cleanup.md` header):** concrete classes not seen by clients are low priority, but look for the same sequence of code appearing in two structure-specific classes, and log or fold it.
