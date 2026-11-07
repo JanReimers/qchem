@@ -11,7 +11,7 @@
 // Fully inline (no separate Imp TU): a template term must have its definition visible where it is
 // instantiated -- IonIon<double> in the molecular Hamiltonians, IonIon<dcmplx> in the plane-wave ones.
 module;
-#include <type_traits>   // is_same_v -- the conditional real-block base (PrepareSlots)
+#include <type_traits>   // is_same_v -- the conditional real-block base (BuildBlocks)
 #include <cassert>
 #include <functional>
 #include <iostream>
@@ -39,16 +39,16 @@ template <class T> class IonIon
     , public         StaticRealBlockBase<T,IonIon<T>>   // real-block capability on the dcmplx instantiation (Step 3c)
 {
 public:
-    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! \copydoc HT_BlockOwner::BuildBlocks
     //! ⚠ THE CONDITIONAL-BASE CASE.  On \c <dcmplx> this term carries BOTH caches (its own and the
     //! real-block mixin's) and must prepare both; on \c <double> \c StaticRealBlockBase is \c NoRealBlock,
     //! which has no slots and no such method -- so the second call is compiled out rather than guarded at
     //! run time.  The ambiguity that forces this override on the complex instantiation is the shared
-    //! \c HT_SlotOwner base doing its job (see it).
-    virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
+    //! \c HT_BlockOwner base doing its job (see it).
+    virtual void BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
     {
-        tStatic_HT_Imp<T>::PrepareSlots(bs, cd);
-        if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T,IonIon<T>>::PrepareSlots(bs, cd);
+        tStatic_HT_Imp<T>::BuildBlocks(bs, cd);
+        if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T,IonIon<T>>::BuildBlocks(bs, cd);
     }
     //! A constant energy: its (zero) block is the same for every spin channel, so ONE cached slot.
     virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}

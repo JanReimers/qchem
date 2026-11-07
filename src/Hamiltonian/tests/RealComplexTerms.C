@@ -22,6 +22,7 @@
 #include <type_traits>
 
 import qchem.Structure;
+import qchem.Tests.PW_Fields;   // OneBlockBS (a one-block whole basis for the refresh)
 import qchem.UnitCell;
 import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Point.Factory;
@@ -201,9 +202,17 @@ void ExpectFactoredMatchesFull(const BasisSet::DeltaFit_IBS<dcmplx>& dfit,
 } //anon
 
 namespace {
-//! THE CONTRACT (doc/KAxisPlan.md P2, 2026-10-27): a term is refreshed for a density -- slots stamped, refits done -- before
-//! GetMatrix is asked of it; GetMatrix THROWS otherwise.  A test that drives a term directly does what the eager phase does.
-template <class Term, class CD> void RefreshTerm(const Term& t, const CD* cd) { t.PrepareSlots(nullptr, cd); t.RefreshForDensity(cd); }
+//! THE CONTRACT (doc/KAxisPlan.md P2; V1.41 stage 3): a term's state is refreshed for a density, then its blocks are built from it,
+//! before GetMatrix -- a pure read -- is asked; GetMatrix THROWS otherwise.  A test that drives a term directly does what the eager
+//! phase does, on the one block \a b it will read.
+template <class Term, class CD, class B> void RefreshTerm(const Term& t, const CD* cd, const B* b)
+{
+    t.RefreshForDensity(cd);
+    using TRun=std::remove_cvref_t<decltype(*cd)>;
+    using S=std::conditional_t<std::is_base_of_v<qchem::ChargeDensity::tChargeDensity<dcmplx>,TRun>, dcmplx, double>;
+    qchem::tests::pw::OneBlockBS<S> bs(b);
+    t.BuildBlocks(&bs, cd);
+}
 }
 
 TEST(RealComplexTerms, FactoredRhoMatchesFullQuadraticFormBothScalars)
@@ -321,9 +330,9 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
         auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&vh);
         ASSERT_NE(rb,nullptr) << "Vee_Hartree must carry the real-block capability (Step 3c)";
         // Concrete-typed calls are ambiguous across the two GetMatrix base classes; go through the faces.
-        RefreshTerm(static_cast<const cDynamic_HT&>(vh), cd.get());    // each arm refreshed for ITS density (KAxisPlan P2)
+        RefreshTerm(static_cast<const cDynamic_HT&>(vh), cd.get(), rig.cx.get());    // each arm refreshed for ITS density (KAxisPlan P2)
         const chmat_t Vc=static_cast<const cDynamic_HT&>(vh).GetMatrix(rig.cx.get(), Spin::None, DensityID(cd.get()));
-        RefreshTerm(static_cast<const cDynamic_HT&>(vh), cdr.get());
+        RefreshTerm(static_cast<const cDynamic_HT&>(vh), cdr.get(), rig.re.get());
         const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, DensityID(cdr.get()));
         ExpectBitwiseEqual(Vr, Vc, "Vee_Hartree");
     }
@@ -337,9 +346,9 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
     {
         auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&vxc);
         ASSERT_NE(rb,nullptr) << "Vxc_Quadrature must carry the real-block capability (Step 3c)";
-        RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cd.get());    // each arm refreshed for ITS density (KAxisPlan P2)
+        RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cd.get(), rig.cx.get());    // each arm refreshed for ITS density (KAxisPlan P2)
         const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, DensityID(cd.get()));
-        RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cdr.get());
+        RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cdr.get(), rig.re.get());
         const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, DensityID(cdr.get()));
         ExpectMachineEqual(Vr, Vc, "Vxc_Quadrature");
     }
@@ -442,9 +451,9 @@ TEST(RealComplexTerms, RawRouteXcServesTheRealBlockBitwise)
     Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized);
     auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&vxc);
     ASSERT_NE(rb,nullptr) << "Vxc_Quadrature must carry the real-block capability (Step 3c)";
-    RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cd.get());    // each arm refreshed for ITS density (KAxisPlan P2)
+    RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cd.get(), rig.cx.get());    // each arm refreshed for ITS density (KAxisPlan P2)
     const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, DensityID(cd.get()));
-    RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cdr.get());
+    RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cdr.get(), rig.re.get());
     const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, DensityID(cdr.get()));
     ExpectBitwiseEqual(Vr, Vc, "Vxc_Quadrature (pair) raw");
 }
@@ -469,10 +478,11 @@ TEST(RealComplexTerms, HamiltonianAssemblyServesTheRealBlockBitwise)
     ham.Add(new Ven_PP_NonLocal(rig.st, &gth.nonlocal));
     ham.Add(new Vee_Hartree(Vee_Hartree::fbs_t(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}))));
 
-    ham.RefreshForDensity(nullptr, cd.get());    // the contract (KAxisPlan P2): each arm refreshed for ITS density
+    const qchem::tests::pw::OneBlockBS<dcmplx> cxBS(rig.cx.get()), reBS(rig.re.get());   // the block each arm reads: BuildBlocks builds it (V1.41 stage 3)
+    ham.RefreshForDensity(&cxBS, cd.get());    // the contract (KAxisPlan P2): each arm refreshed for ITS density
     const chmat_t Hc = ham.GetMatrix(rig.cx.get(), Spin::None, cd.get(), nullptr);
     auto& rb = dynamic_cast<Hamiltonian::Ham_RealBlock&>(ham);   // the face a real WF child drives
-    ham.RefreshForDensity(nullptr, cdr.get());
+    ham.RefreshForDensity(&reBS, cdr.get());
     const rsmat_t Hr = rb.GetMatrix(rig.re.get(), Spin::None, cdr.get(), nullptr);
     ExpectBitwiseEqual(Hr, Hc, "Ham_RealBlock fold");
 }
@@ -535,10 +545,11 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
     EXPECT_EQ(mixed.DM_Contract(static_cast<const cStatic_CC*>(&kin)),
               cplx .DM_Contract(static_cast<const cStatic_CC*>(&kin)));
 
-    // DYNAMIC arm: the real block face tDynamic_CC<double>::GetEMatrix (E=D.V identity over the real cache).
+    // DYNAMIC arm: the real block face tDynamic_CC<double>::GetEMatrix, which Vee_Hartree BUILDS from the refreshed field (the
+    // energy pass builds no blocks, V1.41 stage 3), against the complex one.
     auto cdrun = rig.MakeDensity();   // the run's density (defines V_H)
     Vee_Hartree vh(Vee_Hartree::fbs_t(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{})));
-    RefreshTerm(static_cast<const cDynamic_HT&>(vh), cdrun.get());   // the contract (KAxisPlan P2)
+    static_cast<const cDynamic_HT&>(vh).RefreshForDensity(cdrun.get());   // the contract (KAxisPlan P2): the energy pass's refresh
     EXPECT_EQ(mixed.DM_Contract(static_cast<const cDynamic_CC*>(&vh), cdrun.get()),
               cplx .DM_Contract(static_cast<const cDynamic_CC*>(&vh), cdrun.get()));
 

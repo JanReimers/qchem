@@ -293,7 +293,14 @@ public:
     //! would be wrong for it: taking a density MATRIX here is the one thing keeping a seed out, so this argument type is load-bearing.
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
+    //! Hartree depends on the TOTAL density: one block for every spin channel.
+    virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
+    //! The ENERGY block GetEnergy contracts: BUILT from the fit the energy pass refreshed, with no memo -- the energy refresh has
+    //! no basis, so it builds no blocks (V1.41 stage 3; the same shape as FittedVxc's eps block).
+    virtual const rsmat_t& GetEMatrix(const robs_t* bs,const Spin& s,DensityID id) const override
+    {itsEMat=MakeMatrix(bs,s,id); return itsEMat;}
 private:
+    mutable rsmat_t itsEMat;   //!< GetEMatrix's returned block (one serial contraction reads it at once)
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const;
     std::unique_ptr<ChargeDensity::FittedCD> itsFittedChargeDensity;   //!< owned (was a leaked raw ptr)
 };
@@ -312,7 +319,14 @@ public:
     virtual void RefreshForDensity(const rChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
+    //! Hartree depends on the TOTAL density: one block for every spin channel.
+    virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
+    //! The ENERGY block GetEnergy contracts: BUILT from the fit the energy pass refreshed, with no memo -- the energy refresh has
+    //! no basis, so it builds no blocks (V1.41 stage 3; the same shape as FittedVxc's eps block).
+    virtual const rsmat_t& GetEMatrix(const robs_t* bs,const Spin& s,DensityID id) const override
+    {itsEMat=MakeMatrix(bs,s,id); return itsEMat;}
 private:
+    mutable rsmat_t itsEMat;   //!< GetEMatrix's returned block (one serial contraction reads it at once)
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const;
     void Fit(const rChargeDensity&) const;
     std::unique_ptr<Fitting::GridDensityFit> itsFit;
@@ -364,6 +378,8 @@ public:
     virtual void          GetEnergy       (EnergyBreakdown&,const rDM_CD*) const override;
     //! The ENERGY block of spin \a s, Sum_a c_a <Oi|f_a|Oj>, from the eps^s fit GetEnergy made for \a cd (a read; throws otherwise).
     virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,DensityID) const override;
+    //! The spins the Fock loop asks for: the imposed subgroup's (V1.41 stage 3: BuildBlocks builds exactly these).
+    virtual std::vector<Spin> BlockSpins() const override {return SpinIrreps(itsGroup);}
     virtual std::ostream& Write           (std::ostream&) const override;
 private:
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const override;

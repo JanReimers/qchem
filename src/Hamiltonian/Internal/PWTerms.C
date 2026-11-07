@@ -74,13 +74,13 @@ class Ven_PP_Short
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
-    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
-    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
+    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::BuildBlocks(bs, cd); Static_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -110,13 +110,13 @@ class Ven_PP_NonLocal
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
-    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
-    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
+    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::BuildBlocks(bs, cd); Static_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -157,13 +157,13 @@ class Ven_PP_Long
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
-    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
-    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
+    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::BuildBlocks(bs, cd); Static_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -238,13 +238,13 @@ public:
     virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s,
                              const TransitionDensity<dcmplx>& delta) const override;
     //!@}
-    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
-    { cDynamic_HT_Imp::PrepareSlots(bs, cd); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
+    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cDynamic_HT_Imp::BuildBlocks(bs, cd); Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
     typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
     //! Built with the density-fit basis (from the orbital basis's factory, exactly as \c FittedVee is).
     //! No structure and no pseudopotential model: pure \f$V_H[\rho]\f$ has no use for either.
@@ -263,7 +263,15 @@ public:
     //! per SCF iteration, against an integrate-back that is 71% of the run (doc/OpenWork.md bin 1).
     //! ✅ BIT-IDENTICAL: the same matrix, evaluated once instead of twice.
     virtual Spin CacheSpin(const Spin&) const {return Spin::None;}
+    //! The ENERGY block, for the eh_trace A/B only (GetEnergy pairs in G space and reads no block): BUILT from the field the
+    //! energy pass refreshed, with no memo -- the energy refresh has no basis, so it builds no blocks (V1.41 stage 3).
+    virtual const chmat_t& GetEMatrix(const cobs_t* bs, const Spin& s, DensityID id) const override
+    {itsEMat=MakeMatrix(bs,s,id); return itsEMat;}
+    virtual const rsmat_t& GetEMatrix(const robs_t* bs, const Spin& s, DensityID id) const override
+    {itsEMatR=MakeMatrix(bs,s,id); return itsEMatR;}
 private:
+    mutable chmat_t itsEMat;    //!< GetEMatrix's returned block (one serial contraction reads it at once)
+    mutable rsmat_t itsEMatR;   //!< ...and its real TRIM twin
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, DensityID) const;
     virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, DensityID) const;   // the real TRIM block (Step 3c; V1.35: an overload)
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, DensityID) const;
@@ -326,6 +334,8 @@ public:
     //! Pre-warm the channel raster(s) on the quadrature's points for \a cd (the EAGER REFRESH PHASE).
     virtual void          RefreshForDensity(const tChargeDensity<T>* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const tDM_CD<T>*) const override;
+    //! The spins the Fock loop asks for: the imposed subgroup's (V1.41 stage 3: BuildBlocks builds exactly these).
+    virtual std::vector<Spin> BlockSpins() const override {return SpinIrreps(itsGroup);}
     //! \copydoc tDynamic_HT::SiteMoments
     //! The atom-centred partition lives on my quadrature and both channel rasters are my working data, so
     //! I am the term that computes the observable (doc/OpenWork.md N1/T2).  Empty when the quadrature has
@@ -409,13 +419,13 @@ public:
     virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s,
                              const TransitionDensity<dcmplx>& delta) const override;
     //!@}
-    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
-    { tDynamic_HT_Imp<dcmplx>::PrepareSlots(bs, cd); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
+    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
+    { tDynamic_HT_Imp<dcmplx>::BuildBlocks(bs, cd); Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
     Vxc_Quadrature(const xc_t&, std::shared_ptr<const ChargeDensity::DensitySampler>, SpinGroup g);
 private:
     using tVxc_Quadrature<dcmplx>::MakeMatrix;

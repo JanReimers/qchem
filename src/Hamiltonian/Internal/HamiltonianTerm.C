@@ -8,6 +8,7 @@
 module;
 #include <stdexcept>
 #include <map>
+#include <vector>
 #include <cassert>
 #include <cstddef>
 #include <type_traits>   // std::conditional_t/is_same_v (StaticRealBlockBase -- Step 3c)
@@ -43,6 +44,10 @@ public:
     //! The spin this term's matrix depends on.  Default \a s (spin-resolved, the safe answer).
     //! Override to \c Spin::None when the matrix is the SAME for every channel.
     virtual Spin CacheSpin(const Spin& s) const {return s;}
+    //! The spins the run will ask this term's blocks for, which \c BuildBlocks builds (each folded through \c CacheSpin, so a
+    //! spin-blind term builds one block per irrep).  Default all three; a term built for an imposed spin subgroup answers
+    //! \c SpinIrreps(g), so it builds exactly the channels the Fock loop reads and no more.
+    virtual std::vector<Spin> BlockSpins() const {return {Spin::None, Spin::Up, Spin::Down};}
 };
 
 template <class T> class tHT_Common
@@ -53,7 +58,7 @@ protected:
     mutable CacheMap   itsCache;       //Cache the H matrices for total energy calculations.
 
     //! \brief CREATE (empty) one slot per irrep of \a bs, so the block loop only fills existing nodes.
-    //! R1.0h; the rationale is on \c HT_SlotOwner::PrepareSlots.
+    //! R1.0h; the rationale is on \c HT_BlockOwner::BuildBlocks.
     //!
     //! ★ AN EMPTY MATRIX IS THE "NOT FILLED YET" SENTINEL, and it is a safe one: a Fock/KS block always has
     //! rows, so 0x0 cannot be a legitimate cached value.  That is what lets a pre-created slot be
@@ -99,9 +104,10 @@ public:
         return slot;
     }
 
-    //! \copydoc HT_SlotOwner::PrepareSlots
-    //! No clear: a static term's blocks are geometry-fixed, so a slot once filled stays valid for the run.
-    virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>*) const override {this->PrepareCacheSlots(bs);}
+    //! \copydoc HT_BlockOwner::BuildBlocks
+    //! A static term's blocks NEVER change (geometry-fixed), the one case where lazy caching is allowed (CLAUDE.md): this creates
+    //! the slots, never clears them, and \c GetMatrix fills each on its first read -- the same value whenever it is filled.
+    virtual void BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>*) const override {this->PrepareCacheSlots(bs);}
 
 protected:
     // Unconditional calculation, does not use cache.
@@ -116,38 +122,39 @@ public:
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,DensityID id) const
     {
         assert(bs);
-        // The cache keys on Irrep, not the density.  If the density has changed (its logical-clock serial
-        // differs from the one the cache was built for), the cached matrices are stale -- drop them and
-        // recompute for the new cd.  This makes GetMatrix self-correcting for ANY caller (the serial is
-        // intrinsic to the density, stamped at construction/mutation), not just densities the SCFIterator
-        // hands us -- which is why a plain density-pointer key, or an SCFIterator-only stamp, both failed.
-        // This is now the SOLE owner of cache-freshness; newCD() only signals the concrete term to refit.
-        // THE STAMP IS THE CONTRACT (doc/KAxisPlan.md P2): PrepareSlots(bs, cd) -- the refresh -- recorded this density;
-        // GetMatrix never resets the cache itself (it used to, on first use, which the concurrent block loop cannot have).
+        // A PURE READ (V1.41 stage 3, user rulings 2026-11-07): BuildBlocks -- the refresh -- built every block the run asks for,
+        // for the density it stamped.  No fill, no insertion, so the block loop writes nothing and can run concurrently.
         if (id.IsNone() || !(id==itsCacheID))
             throw std::logic_error("Hamiltonian term GetMatrix for a density it was not refreshed for -- call "
                                    "tHamiltonian::RefreshForDensity(bs, cd) first (doc/KAxisPlan.md P2)");
-        Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
-        // FILL-IF-EMPTY (R1.0h): the refresh pre-created this node, so operator[] finds it and mutates nothing; a 0x0
-        // matrix means "slot exists, not filled for this density".  A serial caller that refreshed with bs = null (energy
-        // evaluation) still creates the node here -- an insertion, so never from inside a concurrent loop.
-        hmat_t<T>& slot=this->itsCache[qns];
-        if (slot.rows()==0) slot=MakeMatrix(bs,s,id);
-        return slot;   //Cache hit (same density serial, already computed for this Irrep)
+        auto it=this->itsCache.find(bs->GetIrrep(this->CacheSpin(s)));
+        if (it==this->itsCache.end() || it->second.rows()==0)
+            throw std::logic_error("Hamiltonian term GetMatrix: a block the refresh did not build (its BlockSpins, or the "
+                                   "basis BuildBlocks was handed, does not cover it)");
+        return it->second;
     }
 
-    //! \copydoc HT_SlotOwner::PrepareSlots
-    //! Drops the previous iteration's blocks first (the same density-serial test \c GetMatrix makes, and
-    //! it must stay in BOTH: this phase is optional, that one is the correctness mechanism), then creates
-    //! this iteration's empty slots.
-    virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
+    //! \copydoc HT_BlockOwner::BuildBlocks
+    //! ALWAYS rebuilds (no "same density, skip"): no Fock refresh runs twice at one density, and a parameter write under the
+    //! same density (DFT+U's U) is then visible as the next refresh, with nothing to invalidate.  The term's own
+    //! RefreshForDensity(cd) has run first, so MakeMatrix reads state built for \a cd.  \a bs null (an energy evaluation):
+    //! nothing to build, and the memo keeps the Fock density's blocks.
+    virtual void BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
     {
-        if (cd && !(DensityID(cd)==itsCacheID))   // a NEW density: last one's values are stale -- drop them, stamp this one
+        if (!cd || !bs) return;
+        this->itsCache.clear();
+        itsCacheID=DensityID(cd);
+        const DensityID id(cd);
+        for (size_t i=0;i<bs->GetNumIBS();++i)
         {
-            this->itsCache.clear();
-            itsCacheID=DensityID(cd);
+            if (bs->GetRealIBS(i)) continue;   // the real cache's (Dynamic_HT_RealBlock_Imp)
+            if (const tobs_t<T>* b=(*bs)[i])
+                for (const Spin& s : this->BlockSpins())
+                {
+                    hmat_t<T>& slot=this->itsCache[b->GetIrrep(this->CacheSpin(s))];
+                    if (slot.rows()==0) slot=MakeMatrix(b,s,id);   // a spin-blind term folds the spins onto one block
+                }
         }
-        this->PrepareCacheSlots(bs);
     }
 
 protected:
@@ -174,7 +181,6 @@ protected:
             throw std::logic_error("Hamiltonian term: block asked for a density its refresh did not fit (RefreshForDensity first)");
     }
 
-    void InvalidateCache() const {itsCacheID=itsFitID=NoDensity();}
     static DensityID NoDensity() {return DensityID(static_cast<const tChargeDensity<T>*>(nullptr));}
 
     mutable DensityID itsCacheID=NoDensity();   //!< the identity of the density the Irrep cache was built for
@@ -182,9 +188,9 @@ protected:
 };
 
 //! The REAL-BLOCK caching mixin of a complex run's static term (V1.35): the term's ordinary \c tStatic_CC<double> face for a real
-//! TRIM block.  Its slot hook is the run's (HT_SlotOwner<dcmplx>).
+//! TRIM block.  Its BuildBlocks hook is the run's (HT_BlockOwner<dcmplx>).
 class Static_HT_RealBlock_Imp : public virtual ChargeDensity::tStatic_CC<double>
-                              , public virtual HT_SlotOwner<dcmplx>   //!< a SECOND Irrep-keyed cache -> the SAME hook (R1.0h)
+                              , public virtual HT_BlockOwner<dcmplx>   //!< a SECOND Irrep-keyed block cache -> the SAME BuildBlocks (R1.0h)
                               , public virtual HT_SpinDependence
 {
 public:
@@ -196,10 +202,10 @@ public:
         if (slot.rows()==0) slot=MakeMatrix(bs,s);
         return slot;
     }
-    //! \copydoc HT_SlotOwner::PrepareSlots
-    //! MY (real) cache's slots.  A term that also has a scalar cache overrides this once and calls BOTH
-    //! mixins -- see HT_SlotOwner for why the ambiguity until it does is the point.
-    virtual void PrepareSlots(const tbs_t<dcmplx>* bs, const tChargeDensity<dcmplx>*) const override
+    //! \copydoc HT_BlockOwner::BuildBlocks
+    //! MY (real) cache's slots, filled on first read (static: never changes).  A term that also has a scalar cache overrides this
+    //! once and calls BOTH mixins -- see HT_BlockOwner for why the ambiguity until it does is the point.
+    virtual void BuildBlocks(const tbs_t<dcmplx>* bs, const tChargeDensity<dcmplx>*) const override
     {
         if (!bs) return;                                // no clear: geometry-fixed, like the scalar sibling
         for (size_t i=0;i<bs->GetNumIBS();++i)
@@ -223,9 +229,9 @@ protected:
 };
 
 //! The REAL-BLOCK caching mixin of a complex run's dynamic term (V1.35): the term's ordinary \c tDynamic_CC<double> face, for a
-//! real TRIM block, asked with the RUN's density identity.  Its slot hook is the run's (HT_SlotOwner<dcmplx>).
+//! real TRIM block, asked with the RUN's density identity.  Its BuildBlocks hook is the run's (HT_BlockOwner<dcmplx>).
 class Dynamic_HT_RealBlock_Imp : public virtual ChargeDensity::tDynamic_CC<double>
-                               , public virtual HT_SlotOwner<dcmplx>   //!< a SECOND Irrep-keyed cache -> the SAME hook (R1.0h)
+                               , public virtual HT_BlockOwner<dcmplx>   //!< a SECOND Irrep-keyed block cache -> the SAME BuildBlocks (R1.0h)
                                , public virtual HT_SpinDependence
 {
 public:
@@ -235,23 +241,26 @@ public:
         if (!(id==itsRealCacheID))
             throw std::logic_error("Hamiltonian term (real block) GetMatrix for a density it was not refreshed for -- call "
                                    "tHamiltonian::RefreshForDensity(bs, cd) first (doc/KAxisPlan.md P2)");
-        Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
-        hmat_t<double>& slot=itsRealCache[qns];        // FILL-IF-EMPTY (R1.0h) -- see tDynamic_HT_Imp
-        if (slot.rows()==0) slot=MakeMatrix(bs,s,id);
-        return slot;
+        auto it=itsRealCache.find(bs->GetIrrep(this->CacheSpin(s)));   // a PURE READ -- see tDynamic_HT_Imp::GetMatrix
+        if (it==itsRealCache.end() || it->second.rows()==0)
+            throw std::logic_error("Hamiltonian term (real block) GetMatrix: a block the refresh did not build");
+        return it->second;
     }
-    virtual void PrepareSlots(const tbs_t<dcmplx>* bs, const tChargeDensity<dcmplx>* cd) const override
+    //! \copydoc HT_BlockOwner::BuildBlocks
+    //! The real TRIM blocks of \a bs, built like tDynamic_HT_Imp's (always rebuilt; \a bs null builds nothing).
+    virtual void BuildBlocks(const tbs_t<dcmplx>* bs, const tChargeDensity<dcmplx>* cd) const override
     {
-        if (cd && !(DensityID(cd)==itsRealCacheID))   // a NEW density: drop the old values, stamp this one
-        {
-            itsRealCache.clear();
-            itsRealCacheID=DensityID(cd);
-        }
-        if (!bs) return;
+        if (!cd || !bs) return;
+        itsRealCache.clear();
+        itsRealCacheID=DensityID(cd);
+        const DensityID id(cd);
         for (size_t i=0;i<bs->GetNumIBS();++i)
             if (const tobs_t<double>* b=bs->GetRealIBS(i))
-                for (const Spin& s : {Spin::None, Spin::Up, Spin::Down})
-                    itsRealCache[b->GetIrrep(this->CacheSpin(s))];
+                for (const Spin& s : this->BlockSpins())
+                {
+                    hmat_t<double>& slot=itsRealCache[b->GetIrrep(this->CacheSpin(s))];
+                    if (slot.rows()==0) slot=MakeMatrix(b,s,id);
+                }
     }
     //! E = D.V for the real block too (the periodic xc terms never take the DM_Contract route, so no eps override is needed).
     virtual const hmat_t<double>& GetEMatrix(const tobs_t<double>* bs,const Spin& s,DensityID id) const
@@ -259,7 +268,6 @@ public:
 protected:
     virtual hmat_t<double> MakeMatrix(const tobs_t<double>*,const Spin&,DensityID) const=0;
     mutable std::map<Irrep,hmat_t<double>> itsRealCache;
-    void InvalidateRealCache() const {itsRealCacheID=DensityID(static_cast<const tChargeDensity<dcmplx>*>(nullptr));}
     mutable DensityID itsRealCacheID=DensityID(static_cast<const tChargeDensity<dcmplx>*>(nullptr));
 };
 

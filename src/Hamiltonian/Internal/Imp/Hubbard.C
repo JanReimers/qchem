@@ -865,11 +865,24 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
     }
 }
 
-void Hubbard_U::PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const
+// The geometry-fixed pieces first (the Lowdin pairs, the manifold symmetry), then the occupations they let the first refresh
+// size, then every V_k block from W.  The term's RefreshForDensity(cd) ran before this; on the very first one there were no
+// pairs yet, so EnsureOccupations here is the call that does the work then, and a lookup ever after.
+void Hubbard_U::BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const
 {
-    cDynamic_HT_Imp::PrepareSlots(bs, cd);
-    Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd);
-    if (!bs) return;   // a refresh with no block list (energy evaluation): the stamp only (KAxisPlan P2)
+    BuildGeometry(bs);
+    if (cd)
+    {
+        EnsureOccupations(cd);
+        itsRefreshedID=DensityID(cd);
+    }
+    cDynamic_HT_Imp::BuildBlocks(bs, cd);
+    Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd);
+}
+
+void Hubbard_U::BuildGeometry(const cbs_t* bs) const
+{
+    if (!bs) return;   // a refresh with no block list (energy evaluation): nothing geometric to build
     // The mixed-aware walk (RealComplexPlan step 3c-2): a real TRIM block inside the complex-faced set
     // answers GetRealIBS; every other block is a Bloch block.  The pairs are geometry-fixed, so build them all now.
     for (size_t i=0;i<bs->GetNumIBS();i++)
@@ -889,8 +902,11 @@ void Hubbard_U::PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const
     }
 }
 
+// Before the first BuildBlocks the term has no Lowdin pairs, so it cannot size n: the occupations wait for BuildBlocks, which
+// builds the pairs first (the fold refreshes every term's state, THEN builds the blocks -- V1.41 stage 3).
 void Hubbard_U::RefreshForDensity(const cChargeDensity* cd) const
 {
+    if (itsProj.empty() && itsProjR.empty()) return;
     EnsureOccupations(cd);
     itsRefreshedID=DensityID(cd);   // what the block path checks (V1.41 stage 2)
 }
@@ -966,9 +982,7 @@ void Hubbard_U::FreezeOccupations(bool frozen)
     if (was && !frozen)
     {
         itsOccVersion=size_t(-1);
-        itsRefreshedID=DensityID(static_cast<const cChargeDensity*>(nullptr));
-        cDynamic_HT_Imp::InvalidateCache();
-        Dynamic_HT_RealBlock_Imp::InvalidateRealCache();
+        itsRefreshedID=DensityID(static_cast<const cChargeDensity*>(nullptr));   // the next refresh rebuilds n, W and the blocks
     }
 }
 // ⚠ FROZEN WAS A TRAP BEFORE 2026-09-29: EnsureOccupations returns at once when frozen, so a SetU on a frozen
@@ -989,8 +1003,8 @@ void Hubbard_U::ApplyWrite()
             if (itsGroup==SpinGroup::UnPolarized) itsEU*=2.0;
         }
     }
-    cDynamic_HT_Imp::InvalidateCache();                     // the cached V_k blocks are the OLD W's (same density serial!)
-    Dynamic_HT_RealBlock_Imp::InvalidateRealCache();
+    // No cache to invalidate (V1.41 stage 3): the V_k blocks are rebuilt by the next refresh, which always rebuilds, so the write
+    // is seen as that refresh in the run sequence.
 }
 template <class U> static std::vector<mat_t<U>> LowdinOf(const LowdinProjector<U>& P, const mat_t<U>& C)
 {
@@ -1020,7 +1034,7 @@ HubbardSlots Hubbard_U::SlotProjectors(size_t M) const
     HubbardSlots out;
     if (!itsEigenForm) return out;                                   // the population form: no symmetry, one subspace
     if (M>=itsSym.size() || !itsSym[M])
-        throw std::logic_error("Hubbard_U::SlotProjectors: the term has not seen a basis yet (slots are built in PrepareSlots)");
+        throw std::logic_error("Hubbard_U::SlotProjectors: the term has not seen a basis yet (slots are built in BuildBlocks)");
     const ManifoldSymmetry& S=*itsSym[M];
     out.components=itsComponents[M];
     for (const auto& s : S.Slots())

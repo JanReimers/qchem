@@ -45,15 +45,17 @@ using ChargeDensity::DensityID;   // moved down beside tDynamic_CC (V1.35); Hami
 //! lattice lineage).  \c hmat_t<double> IS \c rsmat_t and \c tobs_t<double> IS \c robs_t, so the \c <double>
 //! aliases below leave all existing real code unchanged.
 
-//! \brief THE CAPABILITY OF OWNING IRREP-KEYED PER-BLOCK CACHES -- and therefore of having SLOTS to
-//! pre-create before the Fock loop (R1.0h).  \a TRun is the RUN's scalar: the composite basis a term is
+//! \brief THE CAPABILITY OF OWNING IRREP-KEYED PER-BLOCK CACHES -- and therefore of having BLOCKS to
+//! build before the Fock loop (R1.0h; V1.41 stage 3).  \a TRun is the RUN's scalar: the composite basis a term is
 //! handed, whatever the scalar of the individual blocks it serves.
 //!
 //! ★★ WHY THIS FACE EXISTS, AND WHY IT IS A DIAMOND ON PURPOSE (user, 2026-09-10: *"Diamonds are a very
-//! useful design pattern IF they are done correctly"*).  Slot preparation is a property of OWNING A CACHE.
+//! useful design pattern IF they are done correctly"*).  Building blocks is a property of OWNING A BLOCK CACHE.  (It was
+//! HT_SlotOwner while the Fock loop filled the cache lazily and the hook only pre-inserted map nodes for it; the blocks are built
+//! here now, so the class is named for what it owns -- user, 2026-11-07, "let's keep name honest".)
 //! It is not a property of being dynamic rather than static, and not a property of a block's scalar -- so it
 //! belongs on neither of those hierarchies, and putting it on both is what produced two hooks
-//! (`PrepareSlots` + `PrepareRealSlots`) for one idea.  Hoisting it to a data-free abstract base that BOTH
+//! (`PrepareSlots` + `PrepareRealSlots`, now `BuildBlocks`) for one idea.  Hoisting it to a data-free abstract base that BOTH
 //! hierarchies inherit VIRTUALLY is exactly the pattern CLAUDE.md describes as this project's design, and
 //! it collapses the two hooks into one.
 //!
@@ -67,31 +69,28 @@ using ChargeDensity::DensityID;   // moved down beside tDynamic_CC (V1.35); Hami
 //! `*R`-suffixed methods.  The corner was only ever the density argument: once the block query takes a \c DensityID, a complex
 //! run's term serves a real block through its ordinary \c tStatic_CC<double> / \c tDynamic_CC<double> faces, and this hook is
 //! what such a term's second cache shares.
-template <class TRun> class HT_SlotOwner
+template <class TRun> class HT_BlockOwner
 {
 public:
-    virtual ~HT_SlotOwner() = default;
-    //! \brief CREATE (empty) this iteration's per-irrep cache slots for the blocks of \a bs, so the Fock
-    //! loop below only FILLS nodes that already exist.
+    virtual ~HT_BlockOwner() = default;
+    //! \brief BUILD EVERY BLOCK THE RUN WILL ASK FOR, for the density \a cd, so the block query is a pure READ (user ruling
+    //! 2026-11-07, "Approve, rename it"; it was PrepareSlots, which only created empty slots for a lazy fill).
     //!
-    //! ★ WHY SLOT CREATION IS THE THING THAT MATTERS, and not the fill.  A `std::map` INSERTION mutates the
-    //! tree, so two blocks inserting concurrently race even though their keys differ; writing to two
-    //! ALREADY-EXISTING nodes does not, because map nodes are address-stable.  \c tDynamic_HT::RefreshForDensity
-    //! hoisted the k-INDEPENDENT memos out of the loop; this hoists the per-block INSERTIONS, which is what
-    //! was left -- and unlike those memos these are k-DEPENDENT, so they cannot be warmed, only pre-slotted.
+    //! ★ WHY THE BLOCKS ARE BUILT HERE.  Density-dependent state is built at the refresh, never lazily (CLAUDE.md).  A block
+    //! query that filled its own slot was a hidden write in the block path, and under threads over blocks a race on the cache
+    //! map.  The refresh knows every irrep (\a bs) and the Fock loop reads every block anyway, so building them all here costs
+    //! the same work, and \c GetMatrix then mutates nothing.
     //!
-    //! ★ AND IT STAMPS THE DENSITY (doc/KAxisPlan.md P2, user 2026-10-27: "require RefreshForDensity before any GetMatrix
-    //! everywhere; GetMatrix only asserts the stamped version").  A dynamic cache that sees a NEW \a cd (its Version) drops its
-    //! values and records that version HERE, once, before the block loop; \c GetMatrix then only fills its own pre-created slot
-    //! and THROWS for a density it was not stamped with.  It used to reset itself on first use -- the first block of every
-    //! iteration wiping the map the other blocks would be filling, which made the loop impossible to run concurrently.  Every
-    //! caller therefore refreshes first: \c tHamiltonian::RefreshForDensity(bs, cd) (the SCF's eager phase; energy evaluation
-    //! does it inside \c GetTotalEnergy).  Idempotent for the same density.  \a cd null (no density yet): slots only.
-    //! A STATIC term ignores \a cd (its cache is density-independent and never cleared).
+    //! ★ THE CONTRACT (doc/KAxisPlan.md P2).  The caller is \c tHamiltonian::RefreshForDensity(bs, cd), which runs each term's
+    //! own \c RefreshForDensity(cd) first, so the blocks are built from state made for \a cd.  A dynamic term ALWAYS rebuilds
+    //! (a parameter written under the same density is seen by the next refresh, so nothing is ever invalidated) and stamps
+    //! \a cd's \c DensityID, against which \c GetMatrix checks and THROWS.  \a bs null (an energy evaluation): no blocks to
+    //! build.  \a cd null (no density yet): static slots only.  A STATIC term's blocks never change, so it creates the slots and
+    //! may fill each on first read.
     //!
     //! ⛔ PURE, never defaulted: a defaulted no-op is how a term silently skips a phase it needs, which is
     //! exactly what happened while \c RefreshForDensity had one (see there).
-    virtual void PrepareSlots(const tbs_t<TRun>* bs, const tChargeDensity<TRun>* cd) const=0;
+    virtual void BuildBlocks(const tbs_t<TRun>* bs, const tChargeDensity<TRun>* cd) const=0;
 };
 
 //! \brief A density-INDEPENDENT Hamiltonian term (kinetic, nuclear attraction, ...): built once and reused
@@ -99,15 +98,13 @@ public:
 template <class T> class tStatic_HT
     : public virtual Streamable
     , public virtual tStatic_CC<T>
-    , public virtual HT_SlotOwner<T>      //!< it owns an Irrep-keyed cache, so it has slots (R1.0h)
+    , public virtual HT_BlockOwner<T>      //!< it owns an Irrep-keyed block cache, which BuildBlocks fills (R1.0h; V1.41 stage 3)
 {
 public:
     //! One-irrep matrix block \f$\langle i|\hat h|j\rangle\f$ for basis \a bs and spin \a s.
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&) const=0;
-    // PrepareSlots comes from HT_SlotOwner<T>.  ⚠ A static term's cache is NEVER cleared (its blocks are
-    // geometry-fixed), so it creates each slot once and every later call is a lookup -- it is in the phase
-    // anyway because iteration ONE would otherwise still insert from inside the block loop, and "read-only
-    // from the second iteration" is not read-only.
+    // BuildBlocks comes from HT_BlockOwner<T>.  ⚠ A static term's cache is NEVER cleared (its blocks are
+    // geometry-fixed): it creates each slot in the phase, so no block read ever inserts, and fills a slot on first read.
     //! Add this term's energy contribution (contracted against the density matrix \a cd) into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
@@ -142,7 +139,7 @@ public:
 template <class T> class tDynamic_HT
     : public virtual Streamable
     , public virtual tDynamic_CC<T>
-    , public virtual HT_SlotOwner<T>      //!< it owns an Irrep-keyed cache, so it has slots (R1.0h)
+    , public virtual HT_BlockOwner<T>      //!< it owns an Irrep-keyed block cache, which BuildBlocks fills (R1.0h; V1.41 stage 3)
 {
 public:
     // GetMatrix(bs, s, DensityID), the block query, comes from tDynamic_CC<T> (V1.35, user ruling 2026-11-07): the block is a
@@ -174,7 +171,7 @@ public:
     //! ⇒ Every term ANSWERS, and a term with genuinely nothing to warm writes `{}` and says WHY -- which
     //! ISOLATES the one such term (\c FittedVcorrPol) instead of hiding it in a default.
     virtual void RefreshForDensity(const tChargeDensity<T>*) const=0;
-    // PrepareSlots comes from HT_SlotOwner<T> -- see it.  Hoisted there 2026-09-10 so that a term owning a
+    // BuildBlocks comes from HT_BlockOwner<T> -- see it.  Hoisted there 2026-09-10 so that a term owning a
     // SECOND cache (the real-block one) overrides ONE function instead of two.
     //! \copybrief tDynamic_CC::GetEMatrix
     //! Default: \f$E=D\cdot V\f$, so the energy matrix IS the potential block.  Overridden ONLY where that

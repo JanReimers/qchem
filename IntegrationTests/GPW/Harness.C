@@ -377,8 +377,8 @@ struct XCProbe
 hmat_t<dcmplx> ProbeBlockMatrix(Hamiltonian::cDynamic_HT& t, const BasisSet::Complex_BS& bs, size_t i,
                                 const qchem::ChargeDensity::cDM_CD* cd)
 {
-    t.PrepareSlots(&bs, cd);   // THE CONTRACT (doc/KAxisPlan.md P2): refresh the term for cd before GetMatrix
-    t.RefreshForDensity(cd);
+    t.RefreshForDensity(cd);   // THE CONTRACT (doc/KAxisPlan.md P2): the term's state for cd, then its blocks from it (V1.41 stage 3)
+    t.BuildBlocks(&bs, cd);
     if (const auto* rb=bs.GetRealIBS(i))
     {
         const auto* face=dynamic_cast<const ChargeDensity::tDynamic_CC<double>*>(&t);

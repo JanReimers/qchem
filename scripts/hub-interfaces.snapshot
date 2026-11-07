@@ -359,12 +359,12 @@ namespace qchem::Hamiltonian {
     using ChargeDensity::rDM_CD;
     using ChargeDensity::TransitionDensity;
     using ChargeDensity::DensityID;
-    template <class TRun> class HT_SlotOwner {
+    template <class TRun> class HT_BlockOwner {
     public:
-        virtual ~HT_SlotOwner() = default;
-        virtual void PrepareSlots(const tbs_t<TRun>* bs, const tChargeDensity<TRun>* cd) const=0;
+        virtual ~HT_BlockOwner() = default;
+        virtual void BuildBlocks(const tbs_t<TRun>* bs, const tChargeDensity<TRun>* cd) const=0;
     };
-    template <class T> class tStatic_HT : public virtual Streamable , public virtual tStatic_CC<T> , public virtual HT_SlotOwner<T> {
+    template <class T> class tStatic_HT : public virtual Streamable , public virtual tStatic_CC<T> , public virtual HT_BlockOwner<T> {
     public:
         virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&) const=0;
         virtual void GetEnergy(EnergyBreakdown&, const tDM_CD<T>*) const=0;
@@ -372,7 +372,7 @@ namespace qchem::Hamiltonian {
         virtual bool IsVirialValid () const;
         virtual bool PreservesReal () const;
     };
-    template <class T> class tDynamic_HT : public virtual Streamable , public virtual tDynamic_CC<T> , public virtual HT_SlotOwner<T> {
+    template <class T> class tDynamic_HT : public virtual Streamable , public virtual tDynamic_CC<T> , public virtual HT_BlockOwner<T> {
     public:
         virtual void RefreshForDensity(const tChargeDensity<T>*) const=0;
         virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>* bs,const Spin& s,DensityID id) const override;
