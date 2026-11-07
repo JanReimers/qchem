@@ -1772,3 +1772,28 @@ Anchors, by anchordiff against main-0b0626aa at tol 1e-10, final sweep: 0 of 131
 The health audit is dropped.  One rung up, rotated, on the TeF₆ box is about 60 s, 48 s of it the mesh build: a third of a 3:00 stated-raster run, about 4% of the 23:41 pilot run.  That misses the 5% bar on the run it would cost most, and a stated `xcMeshAudit` already does it.  It read well: (60,35) gave 5.37e-5, −3.66e-5 where (150,53 GL) gave 5.40e-5, −3.91e-5.
 
 Original row: | **The energy default still carries the aligned-Lebedev error on the plain route, and `xcMeshAudit`'s Lebedev references carry it too** (lane A, 2026-11-06) | 40/29 measured on MnO, NaF and the TeF₆ box.  On the plain route rotation costs nothing and cuts max\|ΔH\| 2-9× and \|ΔE\| 1.5-3.4×; site-adapted and imposed runs do not reach the aligned rule.  An audit reference at degree 29-35 copies the run's alignment, so (200,35) was 2e-5 off on TeF₆.  No route meets max\|ΔH\| ≤ ε at 40/29 (5-106×), which under "H before E" is not a defect of the energy default | proposal with the controller: rotate the plain rungs below degree 36, rotate audit references, report one health audit, no energy-stage climb · `XCPolicy.C`, `Deck.C` `xcRef`; record `doc/Records/OpenWork_History5.md`, "40/29 on an energy run" |
+
+## CP2K MnO at matched accuracy: no cutoff meets the H target (lane A, 2026-11-06)
+
+MnO AFM-II, the 118-function VA span, free, kT 5e-3, both codes serial and both stopping at max|ΔP| 1e-8 (rule 3f).  CP2K `mpirun -np 1`, `~/Code/cp2k-runs/MnO/lanea_time_c{576,2304}`, REL_CUTOFF 60, Broyden.  qchem `~/Code/qchem6-runs/MnO/match/`, Kerker/Pulay, `QCHEM_OPENMP_THREADS=1`, 99% CPU.
+
+**CP2K has no matched cutoff for H.**  At one fixed density, max|ΔH_ij| against 3200 Ry reads 1.08e-3 at 1152 Ry, 2.66e-4 at 1600, 4.34e-4 at 1800, 3.71e-4 at 2000, 2.19e-4 at 2304: no decay past 1600, a floor 20 to 40 times ε.  REL_CUTOFF changes nothing.  The worst element is the diagonal of index 89/106, O's last s by my reading, not verified.  Off the diagonal the maximum is 1 to 2e-4.  This is the same floor our uniform XC raster showed on Si, and CP2K's XC is on a uniform raster, but the cause in CP2K is unmeasured.  So the rows below are the energy match and the best H CP2K reaches.
+
+| run | max\|ΔH\| | Etot (Ha) | steps | wall | setup | s/step | peak RSS | load |
+|---|---|---|---|---|---|---|---|---|
+| CP2K 576 Ry, the energy match | 1.4e-2 ᵃ | −61.30305970 | 116 | 1587 s | 9 s | 13.6 | 0.64 GB | 5–7 |
+| CP2K 2304 Ry, the best H | 2.2e-4 | −61.30305343 | 119 | 2749 s | 12 s | 23.0 | 3.9 GB | 2–5 |
+| qchem, grids stated | 5.3e-6 | −61.30305473 | 18 | 1523 s | 246 s | 70.9 | 2.8 GB | 1 |
+| qchem, the pilot sizes the grids from nothing | 5.3e-6 | −61.30305473 | 18+10+4 ᵇ | 7508 s | | | 3.5 GB | 7 → 1 |
+
+ᵃ Against 2304 Ry, r240, at fixed density.  ᵇ The H pilot's own SCFs; its 7508 s includes the 777 s energy run the deck does first, and 3 audit rounds.  The rest of that run is one displaced point, 1328 s, 17 iterations.
+
+CP2K's energy ladder 144/288/576 Ry gives −61.30332518, −61.30309458, −61.30305970, limit about −61.303054: 576 Ry is 5.7 μHa off it, and 2304 Ry is 1.3 μHa from us.  The qchem H figure is the audit's XC angular term against one rung up; Hartree is 1.1e-7, the density ball 3.4e-7.  The two H columns are measured differently: CP2K's against its own higher cutoff, ours against the pilot's reference.
+
+**Reading.**  With grids known, a qchem H-sized run costs what CP2K's energy match costs, and 0.55 of its best-H run, at an H error 40 times below that floor.  The win is entirely the step count.  Per step CP2K is 3 to 5 times cheaper, and 116 Broyden steps against 18 Pulay steps is a mixer difference I did not try to tune away, so a better CP2K mixer would move this.  A single run that pays for its own sizing costs 2.7 times CP2K's 2304 Ry wall; the pilot pays once for a series that shares a grid set.  qchem's own energy default is not in the table because it does not match: 40/29 here is −61.3028931, 1.6e-4 off, 4 times ε·N, as already measured above (777 s).
+
+Walls are not quiet-box numbers for CP2K.  qchem's 61 s/iteration held from load 7 to 1 in the pilot, and an earlier CP2K 576 run took 2015 s at unknown load against 1587 s here, so read CP2K's walls to about 25%.
+
+**The stated run first came out 5.8 μHa high.**  `accuracy` 0 drops the derived `vlocEps` 1e-6 back to the no-target routing, −61.30304896.  Stating `vlocEps` 1e-6 gives −61.3030547298, the pilot's value to every printed digit, cold from IonicSAD.  So the settled grids are a complete description only with `vlocEps`.
+
+Original row: | **CP2K MnO timing at MATCHED accuracy** (user, 2026-11-03; step 3 of the sequence above) | the §5a parity rows compare CP2K at 288 Ry, whose own cutoff ladder still moves E by 35 μHa (144/288/576 Ry), against our ε-sized grids; raise CP2K's CUTOFF/REL_CUTOFF until its max|ΔH_ij| (or the energy, for an energy run) meets the same 1e-5, and time that, serial, `mpirun -np 1` · `doc/Benchmark.md` §5a, `~/Code/cp2k-runs/MnO/`
