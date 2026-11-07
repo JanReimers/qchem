@@ -1272,6 +1272,61 @@ TEST(GPW_Si, Γ_GridAuditSeparatesTheRasterTerms)
     fs::remove_all(dir);
 }
 
+// THE PILOT'S LAST ROUND IS NOT MEASURED TWICE (lane H beta (d), 2026-11-07; 2,460 s on Li q3): a postSCF `gridAudit` at the pilot's margin
+// on the D the pilot's last round audited IS that audit, so it is reused and says so; any other margin is measured.  Checked against a FRESH
+// audit of the same grids: the pilot's own restate line run cold at accuracy 0 (the D agrees to the SCF gate, so the audits agree to its
+// square).  And every audit's `ok` is judged against the run's own target (lane H beta (c): it was always true): |dE| <= eps N here.
+TEST(GPW_Si, Γ_GridAuditReusesThePilotsLastRound)
+{
+    namespace fs=std::filesystem;
+    using nlohmann::json;
+    const json scf={{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-9},{"deltaRhoMeasure","MaxDeltaD"}};
+    json deck={{"structure","Si_diamond"},{"kmesh",{1,1,1}},{"basis",{{"data","SIPP_SR"}}},{"solid",json::object()},{"scf",scf},
+               {"postSCF",{{{"gridAudit",json::object()}}, {{"gridAudit",{{"referenceMargin",12.0}}}}}}};
+    const fs::path dir=fs::temp_directory_path()/("qchem_it_si_reuse_"+std::to_string(::getpid()));
+    fs::remove_all(dir);
+    qchem::deck::Provenance pv; pv.codeVersion="it";
+    auto run=[&](const json& d, std::string& console)
+    {
+        qchem::deck::RunSpec spec; qchem::deck::FromJson(d, spec);
+        testing::internal::CaptureStdout();
+        const auto out=qchem::deck::Run(spec, pv, dir);
+        console=testing::internal::GetCapturedStdout();
+        EXPECT_TRUE(out.converged) << out.summary;
+        std::ifstream in(out.revision); return json::parse(in)["results"]["postSCF"];
+    };
+    std::string conA, conB;
+    const json A=run(deck, conA);
+    ASSERT_EQ(A.size(), 2u);
+    const std::string reused="(the pilot's last round, not re-measured)";
+    EXPECT_NE(A[0]["reference"].get<std::string>().find(reused), std::string::npos) << A[0]["reference"];
+    EXPECT_NE(conA.find(reused), std::string::npos) << "the console says it too";
+    EXPECT_EQ(A[1]["reference"].get<std::string>().find(reused), std::string::npos) << "another margin is measured";
+    for (const auto& a : A)
+    {
+        ASSERT_TRUE(a["target"].is_number()) << "an energy run with a target is judged";
+        EXPECT_EQ(a["measure"], "absDE");
+        EXPECT_EQ(a["ok"].get<bool>(), std::abs(a["dE"].get<double>())<=a["target"].get<double>()) << a["summary"];
+    }
+    // The fresh audit: A's restate line, cold, no pilot.
+    const std::string tag="a deck restates these grids as: ";
+    const size_t at=conA.rfind(tag);
+    ASSERT_NE(at, std::string::npos);
+    const json restate=json::parse(conA.substr(at+tag.size(), conA.find('\n',at)-at-tag.size()));
+    json b=deck; b["postSCF"]={{{"gridAudit",json::object()}}};
+    b["accuracy"]=restate["accuracy"];
+    for (auto it=restate["solid"].begin(); it!=restate["solid"].end(); ++it) b["solid"][it.key()]=it.value();
+    const json B=run(b, conB);
+    ASSERT_EQ(B.size(), 1u);
+    EXPECT_EQ(B[0]["reference"].get<std::string>().find(reused), std::string::npos) << "no pilot ran: measured";
+    EXPECT_TRUE(B[0]["target"].is_null()) << "accuracy 0 has no target";
+    EXPECT_TRUE(B[0]["ok"].get<bool>()) << "...so it is not judged";
+    EXPECT_NEAR(A[0]["maxAbsDH"].get<double>(), B[0]["maxAbsDH"].get<double>(), 1e-3*B[0]["maxAbsDH"].get<double>())
+        << "the reused audit is the measured one";
+    EXPECT_NEAR(A[0]["dE"].get<double>(), B[0]["dE"].get<double>(), 1e-9);
+    fs::remove_all(dir);
+}
+
 // THE EGG-BOX GATE (doc/GridEpsilonPlan.md §5 verdict 5): a rigid translation of every atom at the converged D.  An exact method is
 // translation-invariant, so every ANALYTIC term (kinetic, short-range PP, KB, Ewald -- lattice sums over the same relative vectors) must
 // read 0 to roundoff on BOTH max|dH_ij| and dE, while the raster terms (density collocation, V_loc long, the uniform XC raster) carry the
