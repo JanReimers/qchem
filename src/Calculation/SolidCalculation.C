@@ -433,6 +433,8 @@ public:
     //! verdict (grids.auditDensity / auditVlocLong) AND the reference's, so the predicted alias of whichever side is the coarse one can be
     //! read against the delivered difference.  Reports to the
     //! console and to the run report (section `gridAudit`).  THROWS on a plane-wave run (no raster) or a margin <= 0.
+    //! REFUSED ON RESOURCES (the failure half, with a `policy` row) when even the low end of the reference's calibrated memory band
+    //! (\c qchem.AuditFootprint) exceeds the memory available; it then builds nothing, and the run's result is untouched.
     //! label/entries: \c TermEnergy's.  \c bound / \c eta: the term's RIGOROUS alias bound at the COARSE side's x (GPWTolerances.C
     //! \c AliasTail) and the measured eta = delivered / bound -- on max|dH_ij| for V_loc long (what forces see), on |dE|/|E| for Hartree;
     //! \c etaOn names which ("H", "E"), or "measured" for the XC raster (no rigorous bound: v_xc[rho] is nonlinear), or "" (analytic).
@@ -458,7 +460,7 @@ public:
     };
     static constexpr double kReferenceMargin=8.0;   //!< EMPIRICAL: the audit's default x_ref - x_run, chosen for the tail ratio \c GridAudit derives
     static constexpr int    kPilotRounds=4;         //!< the pilot's cap on audit + re-convergence rounds (\c CalibrateRasters)
-    GridAuditResult GridAudit(double referenceMargin = kReferenceMargin) const;
+    Outcome<GridAuditResult, ResourceRefusal> GridAudit(double referenceMargin = kReferenceMargin) const;
     //! \brief WHAT THIS RUN'S CLIENT CONSUMES (user ruling 2026-10-31, doc/GridEpsilonPlan.md §1): the measure the one accuracy target
     //! is judged on.  A calculation built on its own answers an \c Energy; one a \c SolidSession builds for a geometry point (a
     //! surface, forces, a relaxation) answers \c MatrixElements.  The run answers it from who built it -- the user never picks a metric.
@@ -480,11 +482,11 @@ public:
     //! the egg-box.  FIXED-D, and sufficient as a gate: at a converged (stationary) D the self-consistent egg-box differs from this only
     //! at second order.  THROWS on a plane-wave run, on an imposed group (the SALC phases follow the origin, so blocks would not match
     //! function for function), and on a setup resolved from a pre-built basis (no recipe to remake it at the shifted atoms).
-    GridAuditResult EggBox(const rvec3_t& shift) const;
+    Outcome<GridAuditResult, ResourceRefusal> EggBox(const rvec3_t& shift) const;   //!< refused on resources as \c GridAudit
     //! \brief THE XC-MESH AUDIT: the run against the SAME rasters with the XC quadrature replaced by \a reference, at the same D, term by
     //! term -- the gate of an atom-centred mesh, which the egg-box cannot see (the mesh moves with the atoms).  The pilot's nested Becke
     //! ladder is this comparison against \c qcMesh::BeckeAngularRungAbove and \c BeckeRadialRungAbove; a test gates a settled mesh against a rung of its own choosing.
-    GridAuditResult XCMeshAudit(const qcMesh::MeshParams& reference) const;
+    Outcome<GridAuditResult, ResourceRefusal> XCMeshAudit(const qcMesh::MeshParams& reference) const;   //!< refused on resources as \c GridAudit
     //! \brief The SELF-CONSISTENT channel response at q = 0 over the run's Hubbard manifolds
     //! (doc/LinearResponsePlan.md stage R2): \f$(1-\mathcal R_0\mathcal K)\,\delta D=\mathcal R_0V_J\f$ with the
     //! Hamiltonian's ANALYTIC kernel (Hartree + ALDA f_xc; +U frozen or at U = 0 answers zero, H4), linearised
@@ -653,6 +655,19 @@ private:
                                     std::vector<hmat_t<dcmplx>>* xcΔH=nullptr) const;
     //! The reference tolerances of a grid audit: every raster demand at what the run's raster DELIVERS plus \a margin.
     BasisSet::Gaussian::GPWTolerances ReferenceRasters(double margin) const;
+    //! \brief What a \c CompareAtFixedD reference on (\a raster, \a ballScale, \a xcMesh) will build, in sizes known BEFORE building it:
+    //! its ladder's points (the ladder alone is built: no basis block, no Hamiltonian), its XC mesh's points (\c qcMesh::BeckeMeshCost or
+    //! n^3), and the run's blocks.  The input of the audit RSS policy (\c AdmitReference).
+    AuditReferenceSize SizeReference(const std::string& name, const BasisSet::Gaussian::GPWTolerances& raster, double ballScale,
+                                     const qcMesh::MeshParams* xcMesh) const;
+    //! \brief THE AUDIT RSS POLICY (OpenWork (e), ruled 2026-11-07): may a reference of \a size be built now?  Its calibrated estimate
+    //! (\c EstimateAuditFootprint) against \c QueryAvailableMemory: REFUSE (returned, with a `resource` policy row) when even the band's low
+    //! end will not fit, WARN AND RUN (a `warn` row) when only its high end will not, silent when it fits.  \a when and \a escape go
+    //! into the row and the refusal.
+    std::optional<ResourceRefusal> AdmitReference(const AuditReferenceSize& size, const std::string& when, const std::string& escape) const;
+    //! The pilot's round-0 references (x + 8 and the density ball x 2, each with its Becke rung on a geometry run), admitted BEFORE the
+    //! first SCF of a run that will pilot: a refusal then costs nothing.  None on a resolved setup or a plane-wave run.
+    std::optional<ResourceRefusal> PilotPreflight() const;
     //! \brief THE PILOT (C2 step 3, doc/GridEpsilonPlan.md §1): on a setup whose rasters are not resolved, after the FINAL stage converged
     //! with \a params, audit every raster term against references \c kReferenceMargin finer, fit each over-target term's measured tail
     //! (\c GridAccuracy::MeasuredDemand) at the target for what the client consumes (\c Consumes), and -- when any term demands more --
