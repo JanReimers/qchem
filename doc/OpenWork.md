@@ -282,7 +282,10 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
   - our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`).
 
   New force derivatives are Enzyme only.  Next action: when the user makes Enzyme non-optional, move each one to an in-place AD registration
-  beside its value, behind an FD gate, and delete the hand version.
+  beside its value, behind an FD gate, and delete the hand version.  **TRIGGER (user 2026-11-08):** if the per-face FD gates of the force work
+  (lane B, §13.2) turn up a lot of testing and fixing in these hand gradient functions, that is the signal to make Enzyme non-optional NOW
+  and use it consistently everywhere, rather than keep repairing hand derivatives.  The lane that hits it reports the count (gates failed,
+  functions fixed) to the controller.
 · **Enzyme's silent failures are unreported upstream** (lane B 2026-11-08; `doc/Records/EnzymeSpike.md` §4, §6).  Two defects, each with a
   self-contained repro and a DRAFT issue (record §6):
   - (A) a wrong reverse-mode gradient, silent, at any `-O`: a loop-local array filled through an inner loop with a data-dependent trip
