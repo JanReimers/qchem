@@ -359,6 +359,12 @@ struct SolidSetup
     //! or settled by a pilot audit (\c SolidCalculation::SizedSetup).  false = this setup's first SCF is the PILOT: it runs on the ball's
     //! own rasters and \c SolidCalculation sizes them from what it delivered.  A plane-wave run has no raster: true.
     bool rastersResolved = true;
+    //! \brief WHO SET the raster demands this setup runs (the report's \c grids.rasterSource): the user (\c Stated, accuracy 0), a stated
+    //! calibration at Resolve (\c Calibration), the pilot audit (\c Pilot: on the ball's own rasters until it raises them), a saved state
+    //! sized for this eps (\c SavedState), or the start raised for an ill-conditioned overlap (\c Conditioning).  Every place that writes
+    //! \c opts.tolerances' raster demands writes this beside it; a reader of the grids can then tell a deck value from a measured one.
+    enum class RasterSource { Stated, Calibration, Pilot, SavedState, Conditioning };
+    RasterSource rasterSource = RasterSource::Stated;
 
 private:
     SolidSetup(Pseudopotential::PseudopotentialSet p, const Lattice_3D& lat)

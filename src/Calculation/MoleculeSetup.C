@@ -38,7 +38,10 @@ enum class Angular { Cartesian, Spherical };
 //! `model` selects the Hamiltonian; pass 1 wires the non-DFT factory path (HF is the default).
 struct CalcOptions
 {
-    std::string basis = "sto-3g";
+    //! The orbital basis: a file stem in the basis data directory ("dzvp", "valence_lowq_sr", ...; BasisNames()).  NO DEFAULT: an
+    //! unstated basis is refused at \c Resolve (policy BasisUnstated), naming the registered bases that cover the structure -- the
+    //! old default "sto-3g" had no file, so a run that relied on it could never build.
+    std::string basis;
     Model       model = Model::HF;   //!< HF (default) | Xalpha | LDA | E1/DE1/DHF (test-only)
     SpinGroup         spin  = SpinGroup::UnPolarized;   //!< the imposed spin subgroup (V1.37)
     //! Spin multiplicity 2S+1.  0 (default) = minimal spin: closed-shell singlet for even Ne, doublet for

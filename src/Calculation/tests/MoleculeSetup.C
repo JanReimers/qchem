@@ -22,17 +22,17 @@ Molecule OneAtom(int Z)
 
 TEST(MoleculeSetup, AnOpenShellIsPromotedToPolarizedAndItsParityIsChecked)
 {
-    const auto s=MoleculeSetup::Resolve(OneAtom(7), {.multiplicity=4});
+    const auto s=MoleculeSetup::Resolve(OneAtom(7), {.basis="dzvp", .multiplicity=4});
     EXPECT_EQ(s->opts.spin, SpinGroup::Polarized);
     EXPECT_EQ(s->Ne, 7);
     EXPECT_FALSE(s->pp) << "no pp named: all-electron";
-    EXPECT_THROW(MoleculeSetup::Resolve(OneAtom(7), {.multiplicity=3}), std::runtime_error) << "a triplet of 7 electrons";
+    EXPECT_THROW(MoleculeSetup::Resolve(OneAtom(7), {.basis="dzvp", .multiplicity=3}), std::runtime_error) << "a triplet of 7 electrons";
 }
 
 TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructure)
 {
     const Molecule na=OneAtom(11);
-    const auto s=MoleculeSetup::Resolve(na, {.model=Model::LDA, .pp="gth-lda-valence"});
+    const auto s=MoleculeSetup::Resolve(na, {.basis="valence_lowq_sr", .model=Model::LDA, .pp="gth-lda-valence"});
     ASSERT_TRUE(s->pp);
     EXPECT_EQ(s->Ne, s->pp->Valence("Na"));
     const auto point=s->PointStructure(na);
@@ -57,7 +57,7 @@ TEST(MoleculeSetup, ABasisWithoutAnElementIsRefusedAtResolveNamingTheBasesThatCo
 
 TEST(MoleculeSetup, AnUnknownAcceleratorIsRefusedAtResolve)
 {
-    EXPECT_THROW(MoleculeSetup::Resolve(OneAtom(2), {}, {.type="Anderson"}), std::runtime_error);
+    EXPECT_THROW(MoleculeSetup::Resolve(OneAtom(2), {.basis="dzvp"}, {.type="Anderson"}), std::runtime_error);
 }
 
 // EVERY KNOB OF THE MOLECULAR CHAIN REACHES THE FACTORY'S DOOR (2026-11-02): the GDM trust radius and the Ladder's hand-off triggers were
