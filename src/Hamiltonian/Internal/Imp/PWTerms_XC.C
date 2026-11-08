@@ -295,11 +295,27 @@ template <class T> std::ostream& tVxc_Quadrature<T>::Write(std::ostream& os) con
 // the ordinary path, which is the precondition for running the blocks concurrently.
 // ★ V1.41 STAGE 2: the refresh also builds v^sigma, once per spin channel, which every block then only reads (it used to be
 // recomputed per block from the rasters).  And on the seed, while tau is unfrozen, the |f_xc| fields and the charge the sizing needs.
+// Every refresh, the energy pass's included: warm the channel raster(s) GetEnergy integrates.  The potential is not built here:
+// only the blocks read it, so BuildPotential builds it in the Fock refresh's BuildBlocks (the energy pass, bs = null, never pays
+// for v^sigma on the whole mesh: +2.4 s of a 247 s MnO run when it did, lane S 2026-11-07).
 template <class T> void tVxc_Quadrature<T>::RefreshForDensity(const tChargeDensity<T>* cd) const
 {
     assert(cd);
+    itsSampler->WarmForDensity(cd, itsGroup==SpinGroup::Polarized);
+}
+
+template <class T> void tVxc_Quadrature<T>::BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const
+{
+    BuildPotential(bs, cd);
+    tDynamic_HT_Imp<T>::BuildBlocks(bs, cd);
+}
+
+// The block-only state for cd, built at the Fock refresh (RefreshForDensity(cd) has warmed the rasters just before, so
+// ChannelRasters reads the sampler's cache).  bs null: an energy evaluation, no blocks, nothing to build.
+template <class T> void tVxc_Quadrature<T>::BuildPotential(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const
+{
+    if (!cd || !bs) return;
     const bool pol=itsGroup==SpinGroup::Polarized;
-    itsSampler->WarmForDensity(cd, pol);
     rvec_t half;
     const Rasters r=ChannelRasters(cd, half);
     Refreshed& R=itsRefreshed;

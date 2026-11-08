@@ -331,8 +331,11 @@ public:
     //! \a g is the imposed spin subgroup: which rasters the sampler is asked for (its Rho / RhoPol caches
     //! are mutually exclusive on one engine, so the choice is fixed for the run).
     tVxc_Quadrature(const xc_t&, sampler_t, SpinGroup g);
-    //! Pre-warm the channel raster(s) on the quadrature's points for \a cd (the EAGER REFRESH PHASE).
+    //! Pre-warm the channel raster(s) on the quadrature's points for \a cd (the EAGER REFRESH PHASE): all the energy pass needs.
     virtual void          RefreshForDensity(const tChargeDensity<T>* cd) const override;
+    //! \copydoc HT_BlockOwner::BuildBlocks
+    //! Builds v^sigma (\c BuildPotential) first: block-only state, so only a Fock refresh pays for it.
+    virtual void          BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const tDM_CD<T>*) const override;
     //! The spins the Fock loop asks for: the imposed subgroup's (V1.41 stage 3: BuildBlocks builds exactly these).
     virtual std::vector<Spin> BlockSpins() const override {return SpinIrreps(itsGroup);}
@@ -369,6 +372,8 @@ protected:
     };
     //! The block path's read of \c itsRefreshed: throws if the refresh never saw \a cd; records the Fock pass's pin-28 source.
     const Refreshed& RefreshedFor(DensityID) const;
+    //! Fill \c itsRefreshed for \a cd: what the blocks read and the energy does not.  Called by \c BuildBlocks only.
+    void BuildPotential(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const;
     //! \brief THE rho-tilde SAMPLER'S ONE TOLERANCE tau (step 2, user rulings 2026-11-04), derived HERE because only this term has
     //! v_xc and f_xc in hand: on the SEED density (every Fock block of the first build, before the sampler's first sized use freezes
     //! it), from the accuracy the run stated on my quadrature.  \a matrixOf contracts a field into this block's matrix.
@@ -425,7 +430,7 @@ public:
     //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
     virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
-    { tDynamic_HT_Imp<dcmplx>::BuildBlocks(bs, cd); Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
+    { BuildPotential(bs, cd); tDynamic_HT_Imp<dcmplx>::BuildBlocks(bs, cd); Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
     Vxc_Quadrature(const xc_t&, std::shared_ptr<const ChargeDensity::DensitySampler>, SpinGroup g);
 private:
     using tVxc_Quadrature<dcmplx>::MakeMatrix;
