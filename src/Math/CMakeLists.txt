@@ -26,7 +26,7 @@ target_sources(qcMath PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     ScalarFunction.C
     VectorFunction.C
     DIIS.C
-    FitCoefficients.C
+    Projections.C
 )
 
 set_property(TARGET qcMath PROPERTY CXX_STANDARD 20)

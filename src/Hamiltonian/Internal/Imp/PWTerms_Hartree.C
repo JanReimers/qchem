@@ -55,8 +55,8 @@ template <class U> hmat_t<U> Vee_Hartree::MakeMatrixT(const tobs_t<U>* bs, const
     // (doc/GPWPlan §0e step 2).  The FIELD is the one the refresh built (V1.41 stage 2): a block READS it, and
     // \a cd only names which density it must be.
     //
-    // ON THE PAIR (R1.0q's original target, V-ONE-OF-N 2/4): the adjoint is the G-space integrator's, a view of the
-    // same cached Repulsion3C tensor, taking V_H as the record.  This term never asks which realization it holds.
+    // The adjoint is the G-space integrator's, a view of the same cached Repulsion3C tensor.  (3b moves V_H out of the
+    // term and into the plane-wave fitter, doc/Records/VOneOfN_D2Design.md §2a row 7.)
     return blazem::NarrowExact<U>(GSpacePairProjectionIntegrator<dcmplx>(bft->Repulsion3C(*itsFitBasis))
                                   .Adjoint(RefreshedField(id)));
 }
@@ -64,7 +64,7 @@ chmat_t Vee_Hartree::MakeMatrix(const cobs_t* bs, const Spin& s, DensityID id) c
 rsmat_t Vee_Hartree::MakeMatrix(const robs_t* bs, const Spin& s, DensityID id) const {return MakeMatrixT<double>(bs,s,id);}
 
 // V_H(dm) for this density, kept until the density's serial moves (declaration doc in PWTerms.C).
-const FitCoefficients& Vee_Hartree::CoulombField(const cChargeDensity* cd) const
+const ΔG_Map& Vee_Hartree::CoulombField(const cChargeDensity* cd) const
 {
     assert(cd);
     if (!(DensityID(cd)==itsFieldID))
@@ -72,7 +72,7 @@ const FitCoefficients& Vee_Hartree::CoulombField(const cChargeDensity* cd) const
         qchem::report::Timed miss("scf: E_H V_H field build (memo miss)");
         auto* fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
         assert(fd && "Vee_Hartree requires a FourierDensity (periodic) charge density");
-        itsField       =FitCoefficients(fd->GetRepulsion3C(*itsFitBasis));
+        itsField       =fd->GetRepulsion3C(*itsFitBasis);
         itsFieldID=DensityID(cd);
     }
     return itsField;
@@ -81,7 +81,7 @@ const FitCoefficients& Vee_Hartree::CoulombField(const cChargeDensity* cd) const
 // The block path's read (V1.41 stage 2, ruling C): one current field, filled by RefreshForDensity (or the energy
 // pass), checked against the density's identity.  A miss is a caller that skipped the refresh, a broken contract
 // no caller can act on, so it throws instead of building the field inside the block loop.
-const FitCoefficients& Vee_Hartree::RefreshedField(DensityID id) const
+const ΔG_Map& Vee_Hartree::RefreshedField(DensityID id) const
 {
     if (id.IsNone() || !(id==itsFieldID))
         throw std::logic_error("Vee_Hartree: block asked for a density the refresh did not see (RefreshForDensity first)");
@@ -144,9 +144,7 @@ void Vee_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     auto* pk=dynamic_cast<const BasisSet::G_PoissonKernel*>(itsFitBasis.get());
     assert(pk && "Vee_Hartree: the CD fit basis carries no Poisson kernel (G_PoissonKernel) face");
     qchem::report::Timed timer("scf: E_H G-space pairing (no matrix)");
-    // .GMap() HERE IS TEMPORARY (V-ONE-OF-N 2/4): the Parseval pairing below is a kernel-weighted inner product of
-    // the record with itself, the operation the mixers need too; it becomes a dispatcher with them (sub-step 4).
-    const ΔG_Map& VH=CoulombField(cd).GMap();              // 4pi rho-tilde/|G|^2 (Poisson, kernel baked)
+    const ΔG_Map& VH=CoulombField(cd);                     // 4pi rho-tilde/|G|^2 (Poisson, kernel baked)
     double e=0.0;
     for (const auto& [dm,v] : VH)
         if (const double k=pk->CoulombKernel(dm); k>0.0) e+=std::norm(v)/k;   // conj(rho-tilde) V_H = |V_H|^2/k

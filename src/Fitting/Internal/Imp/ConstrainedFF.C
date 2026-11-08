@@ -4,6 +4,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <vector>
+#include <stdexcept>
 module qchem.Fitting.Internal.FunctionFitterImp;
 import qchem.Fitting.Types;
 import qchem.BasisSet.PairProjection;   // DensePairProjectionIntegrator + PairProjection (the borrowed tensor)
@@ -98,6 +99,14 @@ template <class T> void ConstrainedFF<T>::DoFit(const ProjectedDensity<T>& pd)
     this->itsFitCoeff -= lambda * blazem::trans(gS);                // enforce g.c = N exactly
 }
 
+template <class T> Projections ConstrainedFF<T>::ProjectField(const ScalarFunction<double>& f) const
+{
+    const auto* sf=dynamic_cast<const BasisSet::FIT_SF_NonOrtho*>(this->itsBasisSet.get());   // the overlap metric-solve face
+    if (!sf) throw std::logic_error("ConstrainedFF::ProjectField: the fit basis has no overlap metric (FIT_SF_NonOrtho face)");
+    const rvec_t c0=sf->InvOverlap()*sf->Overlap(f);                       // S^-1 <f|rho>
+    return Projections(rvec_t(this->itsBasisSet->Repulsion()*c0));          // G c0: the Coulomb projections of that fit
+}
+
 //---------------------------------------------------------------------------
 //
 //  Fit-derived quantities the clients query (the "what's your repulsion with this basis?" side).
@@ -107,7 +116,7 @@ template <class T> hmat_t<T> ConstrainedFF<T>::Repulsion(const robs_t<T>* bs) co
     // robs_t is the 1E base; the 3-centre tier is the DFT one -- the cross-cast the periodic fitters also make.
     const auto& dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,T>&>(*bs);
     // THE ADJOINT HALF, off the same object whose forward the density contracted D into (R1.0q).
-    hmat_t<T> J=Integrator(dftbs).Adjoint(FitCoefficients(this->itsFitCoeff));
+    hmat_t<T> J=Integrator(dftbs).Adjoint(this->itsFitCoeff);
     assert(!blazem::isnan(J));
     return J;
 }

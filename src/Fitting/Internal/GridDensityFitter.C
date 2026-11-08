@@ -65,7 +65,7 @@ public:
     {
         if (itsV.size()==0) throw std::logic_error("GridDensityFitter: asked for a repulsion before any DoFit");
         const auto& dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<double,double>&>(*bs);
-        return Integrator(dftbs).Adjoint(FitCoefficients(itsV));   // sum_g w_g v_g chi_i chi_j
+        return Integrator(dftbs).Adjoint(itsV);   // sum_g w_g v_g chi_i chi_j
     }
 
     double FitGetSelfRepulsion() const override
@@ -91,6 +91,8 @@ public:
     // DensityProjector
     const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const override {return Integrator(orb);}
     size_t NumCoefficients() const override {return itsW.size();}
+    //! A field's projection on the δ basis: its values at the points (\c OrthogonalFit), the axis \c Forward uses.
+    Projections ProjectField(const ScalarFunction<double>& f) const override {return Projections(OrthogonalFit(*itsFitBasis,f));}
 
 private:
     rvec_t Projection() const {return itsW*itsC;}   // <f_a|rho>.  Blaze: element-wise for two column vectors

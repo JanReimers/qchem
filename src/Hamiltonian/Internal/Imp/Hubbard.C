@@ -79,7 +79,7 @@ template <class U> LowdinProjector<U>::LowdinProjector(const hmat_t<U>& S, const
     }
 }
 
-template <class U> FitCoefficients LowdinProjector<U>::Forward(const hmat_t<U>& D) const
+template <class U> Projections LowdinProjector<U>::Forward(const hmat_t<U>& D) const
 {
     rvec_t out(itsN, 0.0);
     size_t at=0;
@@ -96,12 +96,11 @@ template <class U> FitCoefficients LowdinProjector<U>::Forward(const hmat_t<U>& 
             }
         at+=m*m;
     }
-    return FitCoefficients(std::move(out));
+    return Projections(std::move(out));
 }
 
-template <class U> hmat_t<U> LowdinProjector<U>::Adjoint(const FitCoefficients& c) const
+template <class U> hmat_t<U> LowdinProjector<U>::Adjoint(const rvec_t& W) const
 {
-    const rvec_t& W=c.Vector();
     assert(W.size()==itsN && "LowdinProjector::Adjoint: one entry per occupation-matrix element");
     const size_t n=itsT.empty() ? 0 : itsT[0].rows();
     mat_t<U> V(n,n,U(0));
@@ -120,9 +119,8 @@ template <class U> hmat_t<U> LowdinProjector<U>::Adjoint(const FitCoefficients& 
     return H;
 }
 
-template <class U> double LowdinProjector<U>::Integrate(const FitCoefficients& c) const
+template <class U> double LowdinProjector<U>::Integrate(const rvec_t& f) const
 {
-    const rvec_t& f=c.Vector();
     double tr=0.0; size_t at=0;
     for (const mat_t<U>& T : itsT)
     {
@@ -1069,7 +1067,7 @@ template <class U> hmat_t<U> Hubbard_U::MakeMatrixT(const tobs_t<U>* bs, const S
         throw std::logic_error("Hubbard_U: asked for a spin block this term was not built for (SpinIrreps(g))");
     const Channel& ch=it->second;
     if (ch.W.size()==0 || ch.W.size()!=NumCoefficients()) return blazem::zeroH<U>(bs->GetNumFunctions());   // before any density (both 0 on the seed)
-    return Projector<U>(orb).Adjoint(FitCoefficients(ch.W));                       // V_k = T_k W T_k^dagger
+    return Projector<U>(orb).Adjoint(ch.W);                       // V_k = T_k W T_k^dagger
 }
 chmat_t Hubbard_U::MakeMatrix(const cobs_t* bs, const Spin& s, DensityID id) const {return MakeMatrixT<dcmplx>(bs,s,id);}
 rsmat_t Hubbard_U::MakeMatrix(const robs_t* bs, const Spin& s, DensityID id) const {return MakeMatrixT<double>(bs,s,id);}

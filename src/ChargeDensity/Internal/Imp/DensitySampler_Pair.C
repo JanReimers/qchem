@@ -352,7 +352,7 @@ template <class U> hmat_t<U> PairDensitySampler::MatrixT(const tobs_t<U>* bs, co
     // tensor is dcmplx whichever scalar the BLOCK is (a real TRIM block contracts against the run's complex
     // fit axis, 3c-3), so the narrow stays here.
     if (const qcMesh::MatrixAdjoint<dcmplx>* adj=BlockAdjoint(orb))
-        return blazem::NarrowExact<U>(adj->Adjoint(FitCoefficients(v)));   // the raster realization: values at its points
+        return blazem::NarrowExact<U>(adj->Adjoint(v));
     if constexpr (std::is_same_v<U,dcmplx>)
     {
         std::lock_guard<std::mutex> lock(itsScalarFitterLock.m);   // ONE fitter refit per call: concurrent blocks take turns

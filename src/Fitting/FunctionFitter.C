@@ -29,6 +29,7 @@ export module qchem.Fitting.FunctionFitter;
 export import qchem.Mesh.Integrator;   // MatrixForward -- what ScalarProjector vends (2026-09-09)
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
 import qchem.Fitting.Types;           // robs_t<T>
+export import qchem.BasisSet.PairProjector;   // the density-facing projector (V-ONE-OF-N 3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;  // rFIT_SF_ABS / rFIT_CD_ABS (the fit faces) + Orbital_DFT_IBS (FitContraction's argument)
 
 export namespace qchem::Fitting
@@ -74,14 +75,12 @@ public:
 //! \note Real-only and \c TFit==double, deliberately: this is the FINITE lineage (real Gaussians on a real
 //! auxiliary basis); the periodic \c ScalarProjector spells its axes \c dcmplx for the same reason in the
 //! other direction.  The two faces are the SAME shape on the two fit metrics, which is the point.
+//!
+//! ⚠ V-ONE-OF-N 3a (2026-11-08): it is now \c BasisSet::PairProjector<double>, the face the density hub names, kept as an
+//! alias until 3c retires it (doc/Records/VOneOfN_D2Design.md §3).
 class DensityProjector
-{
-public:
-    virtual ~DensityProjector() = default;
-    //! The forward integrator for THIS orbital block -- by reference, a finite fit basis always has one.
-    virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>&) const=0;
-    virtual size_t NumCoefficients() const=0;   //!< the fit basis's function count (the forward's length)
-};
+    : public virtual BasisSet::PairProjector<double>
+{};
 
 //! \brief COULOMB-metric projection: a density that carries a MATRIX, so it can supply the Coulomb RHS
 //! \f$\langle\rho|c\rangle=\sum_{ab}D_{ab}\langle ab|c\rangle\f$ and the fit is \f$c_0=J^{-1}\langle\rho|c\rangle\f$.
@@ -189,10 +188,16 @@ public:
     virtual size_t NumCoefficients() const=0;
 };
 
+//!
+//! ⚠ V-ONE-OF-N 3a (2026-11-08): its forward faces are now \c BasisSet::PairProjector<dcmplx>'s, the face the density hub
+//! names; this alias keeps the field-projection half until 3c (doc/Records/VOneOfN_D2Design.md §3).
 class ScalarProjector
     : public virtual FieldProjector
+    , public virtual BasisSet::PairProjector<dcmplx>
 {
 public:
+    //! Declared once more here so the two bases' \c NumCoefficients resolve to one name (both describe the same axis).
+    virtual size_t NumCoefficients() const override=0;
     //! \brief THE FORWARD HALF of the assembly for a \a U-scalar orbital block -- what a matrix-backed
     //! density contracts its own \f$D\f$ (or thin \f$L\f$) into.
     //!
@@ -206,8 +211,7 @@ public:
     //! \note By REFERENCE, deliberately: a \f$\delta\f$ fit basis always realises the forward, so
     //! "haven't got one" is not a state this face can be in.  The nullable question -- *does this LINEAGE
     //! collocate at all?* -- belongs to the BASIS-side vendor (\c Orbital_DFT_IBS), not here.
-    virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const=0;
-    virtual const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;
+    using BasisSet::PairProjector<dcmplx>::Forward;
 };
 
 //! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) CORE.  Fit a pointwise field

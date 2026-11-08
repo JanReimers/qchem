@@ -59,6 +59,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/Cache2.C
   Internal/Cache3.C
   PairProjection.C
+  PairProjector.C
   GMap.C
   Internal/ERI4.C
   Internal/ERI4T.C

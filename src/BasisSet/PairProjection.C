@@ -51,7 +51,7 @@ module;
 // (`doc/CleanupCandidates.md` D2 + V1.20b).  The visibility is the deliverable here, not the cure.
 export module qchem.BasisSet.PairProjection;
 export import qchem.Types;
-export import qchem.FitCoefficients;  // ΔG_Map, its field algebra, and the one-of-N record (moved there, V-ONE-OF-N 2/4)
+export import qchem.Projections;  // ΔG_Map, its field algebra, and the one-of-N record (moved there, V-ONE-OF-N 2/4)
 export import qchem.Mesh.Integrator;   // MatrixForward<T>/MatrixAdjoint<T> -- the two halves the raw pair realises
 import qchem.Blaze;    // rvec_t, hmat_t<T> + complex/double arithmetic
 
@@ -243,19 +243,17 @@ public:
     //! Un-hide the base's FACTORED overload before overriding this one (see qchem.Mesh.Integrator's
     //! warning): without it `Forward(L)` converts a thin factor into an hmat_t adaptor and Blaze throws.
     using qcMesh::MatrixForward<T>::Forward;
-    virtual FitCoefficients Forward(const hmat_t<T>& D) const override {return FitCoefficients(itsG.applyRaw(D));}
+    virtual Projections Forward(const hmat_t<T>& D) const override {return Projections(itsG.applyRaw(D));}
     //! The FAST factored path when the tensor has one; otherwise the base's default (form \f$LL^\dagger\f$,
     //! delegate) answers -- correct either way, which is what makes it not a capability.
-    virtual FitCoefficients Forward(const mat_t<T>& L) const override
+    virtual Projections Forward(const mat_t<T>& L) const override
     {
-        if (itsG.applyRawFactored) return FitCoefficients(itsG.applyRawFactored(L));
+        if (itsG.applyRawFactored) return Projections(itsG.applyRawFactored(L));
         return qcMesh::MatrixForward<T>::Forward(L);
     }
-    //! A raster realization: the paired reads below are values at the raster's points.
-    virtual hmat_t<T> Adjoint(const FitCoefficients& v) const override {return itsG.applyRawAdjoint(v.Vector());}
-    virtual double    Integrate(const FitCoefficients& c) const override
+    virtual hmat_t<T> Adjoint(const rvec_t& v)    const override {return itsG.applyRawAdjoint(v);}
+    virtual double    Integrate(const rvec_t& f)  const override
     {
-        const rvec_t& f=c.Vector();
         assert(f.size()==itsW.size() && "ScreenedMatrixIntegrator::Integrate: one value per raster point");
         if (itsRule) return itsRule(f);                  // the client's pinned rule (see the ctor)
         double s=0.0;
@@ -304,25 +302,23 @@ public:
 
     using qcMesh::MatrixForward<T>::Forward;   // un-hide the factored overload (see qchem.Mesh.Integrator)
     //! \f$\rho_a=\sum_{ab}D_{ab}\langle ab|a\rangle\f$ -- the loop \c FiniteIrrepCD::GetRepulsion3C ran.
-    virtual FitCoefficients Forward(const hmat_t<T>& D) const override
+    virtual Projections Forward(const hmat_t<T>& D) const override
     {
         rvec_t ret(itsG.dense.size());
         for (size_t a=0; a<itsG.dense.size(); ++a)
             ret[a]=IReal(blazem::sum(D % itsG.dense[a]));
-        return FitCoefficients(std::move(ret));
+        return Projections(std::move(ret));
     }
     //! \f$\langle i|v|j\rangle=\sum_a v_a\langle ij|a\rangle\f$ -- the loop \c ConstrainedFF::Repulsion ran.
-    virtual hmat_t<T> Adjoint(const FitCoefficients& c) const override
+    virtual hmat_t<T> Adjoint(const rvec_t& v) const override
     {
-        const rvec_t& v=c.Vector();   // the analytic realization: one coefficient per fit function
         assert(v.size()==itsG.dense.size() && "DensePairProjectionIntegrator::Adjoint: one coefficient per fit function");
         hmat_t<T> J=blazem::zeroH<T>(itsG.dense.empty() ? 0 : itsG.dense[0].rows());
         for (size_t a=0; a<v.size(); ++a) J+=v[a]*itsG.dense[a];
         return J;
     }
-    virtual double Integrate(const FitCoefficients& c) const override
+    virtual double Integrate(const rvec_t& f) const override
     {
-        const rvec_t& f=c.Vector();
         assert(f.size()==itsInt.size() && "DensePairProjectionIntegrator::Integrate: one value per fit function");
         double s=0.0;
         for (size_t a=0; a<f.size(); ++a) s+=itsInt[a]*f[a];
@@ -339,21 +335,17 @@ private:
     rvec_t               itsInt;   //!< \f$\langle f_a|1\rangle\f$ per fit function
 };
 
-//! \brief The G-SPACE realization of the forward/adjoint pair -- a \c PairProjection whose forward is \ref
-//! Contract (plane-wave columns, or GPW's matrix-free \ref PairProjection::apply) and whose adjoint is \ref
-//! ContractAdjoint (\ref PairProjection::applyAdjoint).  Its coefficients are the \c ΔG_Map realization of
-//! \c FitCoefficients: \f$\tilde\rho(G)\f$ through an \c Overlap3C, \f$V_H(G)=4\pi\tilde\rho/|G|^2\f$ through a
-//! \c Repulsion3C (the kernel is in the forward; the adjoint is always the overlap integrate-back).
+//! \brief The G-SPACE realization: a \c PairProjection whose forward is \ref Contract (plane-wave columns, or GPW's
+//! matrix-free \ref PairProjection::apply), and whose adjoint is \ref ContractAdjoint (\ref PairProjection::applyAdjoint).
+//! The forward returns the \c ΔG_Map realization of \c Projections: \f$\tilde\rho(G)\f$ through an \c Overlap3C.
 //!
-//! ★ THIS IS WHERE `Vee_Hartree` JOINS THE PAIR (R1.0q's original target, V-ONE-OF-N 2/4).  Before the record
-//! existed, \c MatrixForward returned a real \c rvec_t and a complex, Δm-keyed \f$V_H(G)\f$ could not travel
-//! in it, so the Hartree term and the ortho fitter called \c Contract / \c ContractAdjoint by hand on ONE
-//! tensor.  Now both halves come off this one view of that one tensor, as for the other three realizations.
+//! ★ IT IMPLEMENTS \c MatrixForward ONLY.  Its adjoint takes the plane-wave fitter's OWN coefficients, a \c ΔG_Map, so it
+//! is a typed member here and not \c MatrixAdjoint (whose input is a vector): fit coefficients are each fitter's private
+//! type (user ruling 2026-11-08 (b), doc/Records/VOneOfN_D2Design.md §2a), and nothing generic calls a G-space adjoint.
 //!
 //! \warning A VIEW: it borrows \a g, which the producing basis's integral cache owns for the run.
 template <class T> class GSpacePairProjectionIntegrator
     : public virtual qcMesh::MatrixForward<T>
-    , public virtual qcMesh::MatrixAdjoint<T>
 {
 public:
     //! THROWS unless \a g realises both G-space directions (a forward -- columns or \c apply -- and \c
@@ -366,27 +358,16 @@ public:
     }
 
     using qcMesh::MatrixForward<T>::Forward;   // un-hide the factored overload (see qchem.Mesh.Integrator)
-    virtual FitCoefficients Forward(const hmat_t<T>& D) const override {return FitCoefficients(Contract(itsG, D));}
-    //! \f$\langle i|f|j\rangle=\sum_G f(G)\,W_G(i,j)\f$; a G absent from the map reads as 0.
-    virtual hmat_t<T> Adjoint(const FitCoefficients& c) const override
+    virtual Projections Forward(const hmat_t<T>& D) const override {return Projections(Contract(itsG, D));}
+    //! \f$\langle i|f|j\rangle=\sum_G f(G)\,W_G(i,j)\f$ for a field \a f on the same \f$\{G\}\f$; a G absent from the map reads as 0.
+    hmat_t<T> Adjoint(const ΔG_Map& f) const
     {
-        const ΔG_Map& f=c.GMap();   // the G-space realization
         return ContractAdjoint(itsG, [&f](const ivec3_t& dm)->T
         {
             auto it=f.find(dm);
             if constexpr (std::is_floating_point_v<T>) return it==f.end() ? T(0) : std::real(it->second);
             else                                         return it==f.end() ? T(0) : it->second;
         });
-    }
-    //! \f$\int f\,d^3r=\Omega\,f(G=0)\f$.  THROWS when the tensor carries no cell volume (a producer that never set
-    //! it): there is then no honest answer, and a zero would be a silent one.
-    virtual double Integrate(const FitCoefficients& c) const override
-    {
-        if (itsG.volume<=0.0)
-            throw std::logic_error("GSpacePairProjectionIntegrator::Integrate: this PairProjection carries no cell volume");
-        const ΔG_Map& f=c.GMap();
-        auto it=f.find(ivec3_t(0,0,0));
-        return it==f.end() ? 0.0 : itsG.volume*std::real(it->second);
     }
     //! The number of plane-wave columns.  THROWS for the matrix-free realization: its G set is the closure's
     //! own business and has no length to report (a ΔG_Map is sized by its keys, not by a count).

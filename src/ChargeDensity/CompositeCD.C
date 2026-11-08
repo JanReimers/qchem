@@ -134,7 +134,10 @@ public:
     //! \copydoc tDM_CD::ProjectOnto
     //! ALL BLOCKS SUMMED -- for a polarized composite \f$\rho=\rho_\uparrow+\rho_\downarrow\f$, the total a
     //! spin-agnostic consumer wants.  The SPIN-RESOLVED consumer does not come here: it asks each CHANNEL.
-    virtual FitCoefficients ProjectOnto(const Fitting::ScalarProjector&) const;
+    virtual Projections Project(const BasisSet::PairProjector<double>&) const override;   //!< sum of the blocks' projections
+    virtual Projections Project(const BasisSet::PairProjector<dcmplx>&) const override;   //!< sum of the blocks' projections
+    //! The old face, kept one commit (V-ONE-OF-N 3a): forwards to \c Project.
+    virtual Projections ProjectOnto(const Fitting::ScalarProjector& p) const {return this->Project(p);}
 
     virtual double GetTotalCharge      (                     ) const;
 

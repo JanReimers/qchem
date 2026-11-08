@@ -59,6 +59,8 @@ public:
         {return Self_().template Integrator<double>(orb);}
     const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
         {return Self_().template Integrator<dcmplx>(orb);}
+    //! \copydoc BasisSet::PairProjector<dcmplx>::ProjectField -- a δ basis's projection of a field is its values at the points.
+    Projections ProjectField(const ScalarFunction<double>& f) const override {return Projections(Self_().Project(f));}
 private:
     const Self& Self_() const {return static_cast<const Self&>(*this);}
 };
@@ -90,7 +92,7 @@ public:
     //! digit and no iteration count moved (doc/CleanupCandidates.md R1.0 increment 3).
     virtual void DoFit(const ProjectedScalar_R& ps) override
     {
-        itsC=FitCoefficients(OrthogonalFit(*itsFitBasis, *ps.GetScalarFunction()));
+        itsC=OrthogonalFit(*itsFitBasis, *ps.GetScalarFunction());
     }
     //! \copydoc Fitting::FieldProjector::Project
     //! Structurally identical to \c DoFit and deliberately NOT sharing its buffer: the same projection, returned.
@@ -211,7 +213,7 @@ private:
     mutable SymMap<ScreenedMatrixIntegrator<dcmplx>> itsInt;
     qchem::LazyLock itsCacheLock;   //!< the four maps above: filled from the parallel Fock pass (see Integrator)
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
-    FitCoefficients itsC; //!< MY fit coefficients over that basis (see DoFit): the vector realization (values at my points)
+    rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit): fitter-private (doc/Records/VOneOfN_D2Design.md §2a)
 };
 
 } //namespace

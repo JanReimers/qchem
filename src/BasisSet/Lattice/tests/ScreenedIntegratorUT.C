@@ -80,7 +80,7 @@ TEST(ScreenedMatrixIntegrator, ItForwardsBothDirectionsToTheTensor)
     EXPECT_DOUBLE_EQ(rho[1], 8.0);
 
     const rvec_t ones(2,1.0);
-    EXPECT_DOUBLE_EQ(I.Integrate(FitCoefficients(ones)), 1.0);      // 0.25 + 0.75
+    EXPECT_DOUBLE_EQ(I.Integrate(ones), 1.0);      // 0.25 + 0.75
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -97,9 +97,9 @@ TEST(ScreenedMatrixIntegrator, ForwardAndAdjointAreExactlyAdjoint)
 
     rvec_t vrho=I.Forward(D).Vector();
     for (size_t p=0;p<2;p++) vrho[p]*=v[p];
-    const double lhs=I.Integrate(FitCoefficients(vrho));
+    const double lhs=I.Integrate(vrho);
 
-    const hmat_t<double> H=I.Adjoint(FitCoefficients(v));
+    const hmat_t<double> H=I.Adjoint(v);
     double rhs=0.0;
     for (size_t i=0;i<2;i++) for (size_t j=0;j<2;j++) rhs+=H(i,j)*D(i,j);
 
@@ -107,48 +107,48 @@ TEST(ScreenedMatrixIntegrator, ForwardAndAdjointAreExactlyAdjoint)
 }
 
 //===================================================================================================
-// THE ONE-OF-N RECORD (V-ONE-OF-N 2/4, user rulings 2026-11-07/08): a FitCoefficients holds exactly one
+// THE ONE-OF-N RECORD (V-ONE-OF-N 2/4, user rulings 2026-11-07/08): a Projections holds exactly one
 // realization; the paired implementation reads it with Vector()/GMap(), a wrong read THROWS, and everyone
 // else combines records with the dispatchers.
-TEST(FitCoefficients, AWrongTypedReadThrows)
+TEST(Projections, AWrongTypedReadThrows)
 {
-    const FitCoefficients a(rvec_t{1.0, 2.0});
+    const Projections a(rvec_t{1.0, 2.0});
     ΔG_Map m; m[ivec3_t(0,0,1)]=dcmplx(0.5,-0.25);
-    const FitCoefficients g(m);
+    const Projections g(m);
     EXPECT_NO_THROW(a.Vector());
     EXPECT_NO_THROW(g.GMap());
     EXPECT_THROW(a.GMap(),   std::logic_error);
     EXPECT_THROW(g.Vector(), std::logic_error);
-    const FitCoefficients empty;
+    const Projections empty;
     EXPECT_THROW(empty.Vector(), std::logic_error);
     EXPECT_THROW(empty.GMap(),   std::logic_error);
 }
 
-TEST(FitCoefficients, TheEmptyRecordIsTheAdditiveIdentityAndAMismatchThrows)
+TEST(Projections, TheEmptyRecordIsTheAdditiveIdentityAndAMismatchThrows)
 {
-    FitCoefficients s;                                   // a sum over blocks starts here, realization unknown
-    s+=FitCoefficients(rvec_t{1.0, -2.0});
-    s+=FitCoefficients(rvec_t{0.5,  4.0});
+    Projections s;                                   // a sum over blocks starts here, realization unknown
+    s+=Projections(rvec_t{1.0, -2.0});
+    s+=Projections(rvec_t{0.5,  4.0});
     s*=2.0;
     ASSERT_EQ(s.Vector().size(), 2u);
     EXPECT_DOUBLE_EQ(s.Vector()[0], 3.0);
     EXPECT_DOUBLE_EQ(s.Vector()[1], 4.0);
     EXPECT_DOUBLE_EQ(s.MaxAbs(), 4.0);
-    FitCoefficients d; d-=FitCoefficients(rvec_t{1.0, 0.0});
+    Projections d; d-=Projections(rvec_t{1.0, 0.0});
     EXPECT_DOUBLE_EQ(d.Vector()[0], -1.0);
 
     ΔG_Map m; m[ivec3_t(1,0,0)]=dcmplx(0.0,3.0);
-    FitCoefficients g(m);
-    g+=FitCoefficients(m);
+    Projections g(m);
+    g+=Projections(m);
     EXPECT_DOUBLE_EQ(g.MaxAbs(), 6.0);
     EXPECT_THROW(s+=g, std::logic_error);                          // rvec_t += ΔG_Map
-    EXPECT_THROW(s+=FitCoefficients(rvec_t{1.0}), std::logic_error); // different lengths
+    EXPECT_THROW(s+=Projections(rvec_t{1.0}), std::logic_error); // different lengths
 }
 
 // The rvalue read MOVES the member out, so binding a reference to a temporary's member cannot dangle.
-TEST(FitCoefficients, TheRvalueReadIsAValue)
+TEST(Projections, TheRvalueReadIsAValue)
 {
-    const rvec_t& v=FitCoefficients(rvec_t{7.0, 8.0}).Vector();   // lifetime-extended prvalue
+    const rvec_t& v=Projections(rvec_t{7.0, 8.0}).Vector();   // lifetime-extended prvalue
     ASSERT_EQ(v.size(), 2u);
     EXPECT_DOUBLE_EQ(v[1], 8.0);
 }
@@ -188,22 +188,21 @@ TEST(GSpacePairProjectionIntegrator, AHalfPairOrADenseProjectionIsRejectedAtCons
     EXPECT_NO_THROW(GSpacePairProjectionIntegrator<dcmplx>{ok});
 }
 
-// Forward is Contract, Adjoint is ContractAdjoint, both carrying the G-space record; a vector record throws.
+// Forward is Contract, returning the G-space record; the typed Adjoint is ContractAdjoint on the owner's own map.
 TEST(GSpacePairProjectionIntegrator, ForwardAndAdjointCarryTheGSpaceRecord)
 {
     const PairProjection<dcmplx> g=MakeColumnPair(2.0);
     const GSpacePairProjectionIntegrator<dcmplx> I(g);
     hmat_t<dcmplx> D(2); D(0,0)=1.0; D(0,1)=dcmplx(0.3,0.4); D(1,1)=3.0;
 
-    const FitCoefficients rho=I.Forward(D);
+    const Projections rho=I.Forward(D);
     const ΔG_Map ref=Contract(g, D);
     ASSERT_EQ(rho.GMap().size(), ref.size());
     for (const auto& [k,v] : ref) EXPECT_EQ(rho.GMap().at(k), v);
-    EXPECT_DOUBLE_EQ(I.Integrate(rho), 2.0*std::real(ref.at(m0)));   // Omega f(G=0) = Tr D
     EXPECT_EQ(I.NumCoefficients(), 3u);
+    EXPECT_THROW(rho.Vector(), std::logic_error);   // the G-space realization: a vector read throws
 
-    const hmat_t<dcmplx> H=I.Adjoint(rho);
+    const hmat_t<dcmplx> H=I.Adjoint(ref);
     EXPECT_EQ(H(0,0), ref.at(m0));
     EXPECT_EQ(H(0,1), ref.at(ivec3_t(-1,0,0)));
-    EXPECT_THROW(I.Adjoint(FitCoefficients(rvec_t{1.0,2.0,3.0})), std::logic_error);
 }

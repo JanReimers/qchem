@@ -97,7 +97,11 @@ public:
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;
-    virtual FitCoefficients ProjectOnto(const Fitting::ScalarProjector&) const;
+    //! \copydoc tChargeDensity::Project -- the PERIODIC lineage: contract my D into the block's forward.
+    virtual Projections Project(const BasisSet::PairProjector<dcmplx>&) const override;
+    using tChargeDensity<T>::Project;   // the molecular overload (FiniteIrrepCD overrides it)
+    //! The old face, kept one commit (V-ONE-OF-N 3a): forwards to \c Project.
+    virtual Projections ProjectOnto(const Fitting::ScalarProjector& p) const {return this->Project(p);}
     virtual double GetTotalCharge(                      ) const;
 
     virtual size_t Version() const {return itsVersion;}
@@ -143,8 +147,12 @@ public:
     virtual void AddAODensity(rsmat_t& Dao) const;
     //! AO (auxiliary-basis) projection <rho|c> -- the finite path's ProjectedDensity_AO face.
     virtual double FitGetConstraint() const {return this->GetTotalCharge();}   // AO fit RHS: the charge N
+    //! \copydoc tChargeDensity::Project -- the MOLECULAR lineage: contract my D into the block's forward.
+    virtual Projections Project(const BasisSet::PairProjector<double>&) const override;
+    using IrrepCD_Core<double>::Project;   // the periodic overload
     //! \copydoc Fitting::CoulombMetric_ProjectedDensity::GetRepulsion3C
-    virtual rvec_t GetRepulsion3C(const Fitting::DensityProjector&) const;
+    //! The old face, kept one commit (V-ONE-OF-N 3a): forwards to \c Project.
+    virtual rvec_t GetRepulsion3C(const Fitting::DensityProjector& p) const {return this->Project(p).Vector();}
     //! \f$\nabla\rho\f$ from the density matrix (the molecular contraction).
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 
@@ -213,10 +221,11 @@ template <class Leaf> class FactoredRho : public Leaf
 public:
     using Leaf::Leaf;                       // as the leaves already do from the core
 
-    //! \copydoc IrrepCD_Core::ProjectOnto
-    //! Factored route; falls back to \c Leaf::ProjectOnto (the full quadratic form) whenever the factor
+    //! \copydoc IrrepCD_Core::Project
+    //! Factored route; falls back to \c Leaf::Project (the full quadratic form) whenever the factor
     //! does not apply -- D not PSD, or a rank too fat to pay for itself.  Same values either way.
-    virtual FitCoefficients ProjectOnto(const Fitting::ScalarProjector&) const;
+    virtual Projections Project(const BasisSet::PairProjector<dcmplx>&) const override;
+    using Leaf::Project;
 
 private:
     //! The factor, memoized per DENSITY SERIAL.  \c ProjectOnto is const and the factorisation is a pure

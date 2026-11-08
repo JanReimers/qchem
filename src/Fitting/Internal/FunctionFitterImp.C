@@ -89,6 +89,10 @@ public:
     //! \copydoc Fitting::DensityProjector::Forward
     virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>&) const override;
     virtual size_t NumCoefficients() const override {return this->itsBasisSet->GetNumFunctions();}
+    //! \brief A field's COULOMB projections \f$\langle f_a|1/r_{12}|\rho\rangle\f$, the axis \c Forward uses: the field is
+    //! overlap-fitted first (\f$c_0=S^{-1}\langle f|\rho\rangle\f$) and then pushed through the Coulomb metric, \f$G\,c_0\f$, so
+    //! \c DoFit's \f$G^{-1}\f$ hands back \f$c_0\f$ (a matrix-free seed's honest fit).  Not called until 3c switches the seed route.
+    virtual Projections ProjectField(const ScalarFunction<double>&) const override;
 
     virtual std::ostream& Write(std::ostream&) const         override;
 protected:

@@ -172,6 +172,7 @@ namespace qchem::BasisSet {
 ### qchem.ChargeDensity   (src/ChargeDensity/ChargeDensity.C)
 export import qchem.Symmetry.Spin;
 export import qchem.ChargeDensity.FourierDensity;
+export import qchem.BasisSet.PairProjector;
 export import qchem.Fitting.FunctionFitter;
 namespace qchem::ChargeDensity {
     inline size_t NextDensityVersion();
@@ -237,6 +238,8 @@ namespace qchem::ChargeDensity {
     public:
         virtual double GetTotalCharge() const=0;
         virtual void ReScale(double factor) =0;
+        virtual Projections Project(const BasisSet::PairProjector<double>& p) const;
+        virtual Projections Project(const BasisSet::PairProjector<dcmplx>& p) const;
         virtual size_t Version() const=0;
         virtual bool isActive() const;
         virtual void JoinLineage(const LineagePtr&);
@@ -252,7 +255,7 @@ namespace qchem::ChargeDensity {
     template <class T> class tProjectable_CD {
     public:
         virtual ~tProjectable_CD() = default;
-        virtual FitCoefficients ProjectOnto(const Fitting::ScalarProjector& p) const=0;
+        virtual Projections ProjectOnto(const Fitting::ScalarProjector& p) const=0;
     };
     template <class T> class tMixableDensity : public virtual tChargeDensity<T> {
     public:
@@ -502,6 +505,7 @@ namespace qchem::WaveFunction {
 ### qchem.Fitting.FunctionFitter   (src/Fitting/FunctionFitter.C)
 export import qchem.Mesh.Integrator;
 export import qchem.ScalarFunction;
+export import qchem.BasisSet.PairProjector;
 export import qchem.BasisSet.Orbital_DFT_IBS;
 namespace qchem::Fitting {
     template <class T> class ProjectedDensity {
@@ -512,11 +516,7 @@ namespace qchem::Fitting {
     public:
         virtual double FitGetConstraint() const=0;
     };
-    class DensityProjector {
-    public:
-        virtual ~DensityProjector() = default;
-        virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>&) const=0;
-        virtual size_t NumCoefficients() const=0;
+    class DensityProjector : public virtual BasisSet::PairProjector<double> {
     };
     class CoulombMetric_ProjectedDensity : public virtual ProjectedDensity_AO {
     public:
@@ -544,10 +544,10 @@ namespace qchem::Fitting {
         virtual rvec_t Project(const ScalarFunction<double>& f) const=0;
         virtual size_t NumCoefficients() const=0;
     };
-    class ScalarProjector : public virtual FieldProjector {
+    class ScalarProjector : public virtual FieldProjector , public virtual BasisSet::PairProjector<dcmplx> {
     public:
-        virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const=0;
-        virtual const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;
+        virtual size_t NumCoefficients() const override=0;
+        using BasisSet::PairProjector<dcmplx>::Forward;
     };
     class FunctionFitter_Scalar {
     public:

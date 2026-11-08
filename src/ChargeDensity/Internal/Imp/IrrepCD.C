@@ -144,12 +144,12 @@ template <class Leaf> void IrrepCD_HFPair<Leaf>::CompleteExchangePair(rsmat_t& K
 //
 //  Required by fitting routines.
 //
-// AO density-fit projection <rho|c> = Sum_ab D_ab <ab|c>, the finite path's ProjectedDensity_AO face.
+// AO density-fit projection <rho|c> = Sum_ab D_ab <ab|c>: the molecular lineage of tChargeDensity::Project.
 // The periodic density is NOT a ProjectedDensity_AO and does not inherit this leaf at all, so there is
 // nothing to guard: V1.32 removed the if-constexpr along with the template parameter it tested.
-rvec_t FiniteIrrepCD::GetRepulsion3C(const Fitting::DensityProjector& p) const
+Projections FiniteIrrepCD::Project(const BasisSet::PairProjector<double>& p) const
 {
-    if (this->IsZero()) return rvec_t(p.NumCoefficients(),0.0);
+    if (this->IsZero()) return Projections(rvec_t(p.NumCoefficients(),0.0));
     // R1.0q (2026-09-19), the analytic instance of the pattern IrrepCD_Core::ProjectOnto already runs on the
     // periodic route: ask the projector for the FORWARD of this block, then contract MY D into it.  What
     // crosses is D -- which this class owns -- and what stays inside the integrator is the basis's own
@@ -157,9 +157,7 @@ rvec_t FiniteIrrepCD::GetRepulsion3C(const Fitting::DensityProjector& p) const
     // it here, while the fitter looped over the same borrowed array for the adjoint -- two callers on one
     // tensor, agreeing by convention; both now come off the one object the fitter built.
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<double,double>&>(*this->itsBasisSet);
-    // .Vector() HERE IS TEMPORARY (V-ONE-OF-N 2/4): this face still returns rvec_t until D2 (3/4) folds it into
-    // RepulsionCoefficients -> FitCoefficients, and then the density only hands the record on.
-    return p.Forward(orb).Forward(this->itsDensityMatrix).Vector();   // <rho|c> = Sum_ab D_ab <ab|c>, per block
+    return p.Forward(orb).Forward(this->itsDensityMatrix);   // <rho|c> = Sum_ab D_ab <ab|c>, per block
 }
 
 
@@ -431,11 +429,11 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     return true;
 }
 
-template <class T> FitCoefficients IrrepCD_Core<T>::ProjectOnto(const Fitting::ScalarProjector& p) const
+template <class T> Projections IrrepCD_Core<T>::Project(const BasisSet::PairProjector<dcmplx>& p) const
 {
     // A zero block is a zero COEFFICIENT VECTOR: a ScalarProjector vends only vector-axis forwards (Gaussian, delta,
     // mesh, occupation), and NumCoefficients sizes them -- so no realization is guessed here.
-    if (IsZero()) return FitCoefficients(rvec_t(p.NumCoefficients(), 0.0));
+    if (IsZero()) return Projections(rvec_t(p.NumCoefficients(), 0.0));
     // ASK THE BASIS FOR ITS INTEGRAL, then contract MY matrix into it (R1.0; the 3-centre form,
     // 2026-08-23).  <delta_g|rho> = Sum_ij D_ij <delta_g|chi_i chi_j>, so what crosses is D -- which this
     // class owns -- and what stays inside is the basis's own Phi table and weights.  The GEMM itself, its
@@ -664,9 +662,9 @@ template class PeriodicIrrepCD<dcmplx>;
 // ProjectOnto, i.e. an O(n^3) pstrf on EVERY call -- and DensitySampler::RhoPol calls it twice per
 // iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
 //
-template <class Leaf> FitCoefficients FactoredRho<Leaf>::ProjectOnto(const Fitting::ScalarProjector& p) const
+template <class Leaf> Projections FactoredRho<Leaf>::Project(const BasisSet::PairProjector<dcmplx>& p) const
 {
-    if (this->IsZero()) return FitCoefficients(rvec_t(p.NumCoefficients(), 0.0));   // as IrrepCD_Core::ProjectOnto
+    if (this->IsZero()) return Projections(rvec_t(p.NumCoefficients(), 0.0));   // as IrrepCD_Core::ProjectOnto
 
     // Tr(D) -- the memo's integrity check AND, on a miss, the value to remember.  A STALE FACTOR IS A
     // SILENTLY WRONG rho, so the version key is not trusted alone: any mutation of D that failed to bump
@@ -700,7 +698,7 @@ template <class Leaf> FitCoefficients FactoredRho<Leaf>::ProjectOnto(const Fitti
     // GEMM plus the O(n^3) factorisation is not obviously cheaper than the square one.  A fat rank is not an
     // error -- it is the answer for a metal at large smearing, where the thermal tail fills the spectrum --
     // so it takes the fallback, not a throw.
-    if (!itsFactorable || 2*itsRank >= this->itsBasisSet->GetNumFunctions()) return Leaf::ProjectOnto(p);
+    if (!itsFactorable || 2*itsRank >= this->itsBasisSet->GetNumFunctions()) return Leaf::Project(p);
 
     // ONE integral, TWO representations of D (2026-08-23).  Which form this density holds -- and whether
     // the rank pays -- is decided HERE, where the factor and its memo live; the contraction against

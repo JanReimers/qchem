@@ -13,6 +13,7 @@ import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
 export import qchem.Symmetry.Spin;
 export import qchem.ChargeDensity.FourierDensity;   // FourierDensityBase<T> (the periodic face)
 import qchem.ScalarFunction;
+export import qchem.BasisSet.PairProjector;   // the one projection face a density answers (V-ONE-OF-N 3a)
 export import qchem.Fitting.FunctionFitter;   // Fitting::ScalarProjector -- named on tDM_CD's own face,
                                               // so every consumer of that face needs it
 import qchem.ChargeDensity.Types;
@@ -228,6 +229,18 @@ public:
     virtual double GetTotalCharge() const=0;       // <ro>
     virtual void   ReScale(double factor)     =0;  // Ro *= factor
 
+    //! \brief THE DENSITY'S ONE PROJECTION OPERATION (V-ONE-OF-N 3a, user rulings 2026-11-08,
+    //! doc/Records/VOneOfN_D2Design.md §2): \f$\langle c|\rho\rangle\f$ for every function \f$c\f$ of \a p's basis.
+    //! A density with a matrix contracts its own D into \a p's per-block forward; one without projects its FIELD.  No fit
+    //! concept is named: what \a p's basis is, and what the caller then solves, are the caller's.  One overload per fit
+    //! lineage (\c PairProjector's two specializations).
+    //!
+    //! ★ IT HAS A DEFAULT, AND IT IS LIVE (not the dead field default of 2026-08-25): a density with NO matrix -- a seed, a
+    //! mixed field, a numeric atom sum -- is exactly a \c ScalarFunction, and handing it to \c ProjectField is its honest
+    //! answer.  The DM densities override the lineage they carry a matrix for.
+    virtual Projections Project(const BasisSet::PairProjector<double>& p) const {return p.ProjectField(*this);}
+    virtual Projections Project(const BasisSet::PairProjector<dcmplx>& p) const {return p.ProjectField(*this);}
+
     //  rho at MANY points is INHERITED, not re-declared: ScalarFunction<double>::operator()(rvec3vec_t)
     //  already IS that function (same signature after alias expansion), with the same pointwise-loop
     //  default.  A density that can vectorize the batch overrides THAT (FourierMixCD's factorized phase
@@ -320,7 +333,7 @@ public:
     //!
     //! It returns the one-of-N record (V-ONE-OF-N 2/4): a density only HANDS the forward's coefficients on (and
     //! sums its blocks with +=); the projector's paired implementation reads the realization.
-    virtual FitCoefficients ProjectOnto(const Fitting::ScalarProjector& p) const=0;
+    virtual Projections ProjectOnto(const Fitting::ScalarProjector& p) const=0;
 };
 
 //! \brief A charge density that can be MIXED IN PLACE -- the whole of what an SCF density mixer needs of

@@ -98,12 +98,12 @@ public:
     static hmat_t<U> Represented(const mat_t<U>& B, const hmat_t<U>& S);
 
     using qcMesh::MatrixForward<U>::Forward;   // un-hide the factored overload (qchem.Mesh.Integrator)
-    //! The coefficient axis is the occupation blocks, an \c rvec_t: this pair's realization of \c FitCoefficients
-    //! (it is a paired implementation, so it reads the record with \c Vector()).
-    virtual FitCoefficients Forward(const hmat_t<U>& D) const override;
-    virtual hmat_t<U> Adjoint(const FitCoefficients& W) const override;
+    //! The forward's axis is the occupation blocks: the \c rvec_t realization of \c Projections (this term is the
+    //! consumer of its own projections, so it reads them with \c Vector()).  The adjoint takes its own W (an \c rvec_t).
+    virtual Projections Forward(const hmat_t<U>& D) const override;
+    virtual hmat_t<U> Adjoint(const rvec_t& W)    const override;
     //! The "integral" of an occupation-shaped vector is its TRACE per manifold, summed: the manifold charge.
-    virtual double    Integrate(const FitCoefficients& f) const override;
+    virtual double    Integrate(const rvec_t& f) const override;
     virtual size_t    NumCoefficients() const override {return itsN;}
     size_t NumManifolds() const {return itsT.size();}
     size_t Size(size_t M) const {return itsT[M].columns();}   //!< \f$m_M=2l+1\f$
@@ -325,6 +325,8 @@ public:
     virtual const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const override;
     //! A matrix-free density has no occupation matrix: zeros (a seed; see the header).
     virtual rvec_t Project(const ScalarFunction<double>&) const override {return rvec_t(NumCoefficients(),0.0);}
+    //! A density with no D carries no occupations: zero on every manifold (the term never asks one; see DensityOccupations).
+    virtual Projections ProjectField(const ScalarFunction<double>&) const override {return Projections(rvec_t(NumCoefficients(),0.0));}
     virtual size_t NumCoefficients() const override {return itsNCoeff;}
     //!@}
 

@@ -56,7 +56,7 @@ TEST(LowdinProjector, ForwardAndAdjointAreExactlyAdjoint_Real)
     const rvec_t W{0.9, -0.4, -0.4, 1.7};   // a symmetric 2x2, flattened
     const rvec_t n=P.Forward(D).Vector();
     double lhs=0.0; for (size_t a=0;a<4;a++) lhs+=W[a]*n[a];
-    const hmat_t<double> V=P.Adjoint(FitCoefficients(W));
+    const hmat_t<double> V=P.Adjoint(W);
     double rhs=0.0; for (size_t i=0;i<4;i++) for (size_t j=0;j<4;j++) rhs+=V(i,j)*D(i,j);
     EXPECT_NEAR(lhs, rhs, 1e-13) << "Tr(W n) != Tr(V D): the pair is not adjoint";
 }
@@ -69,7 +69,7 @@ TEST(LowdinProjector, ForwardAndAdjointAreExactlyAdjoint_Complex)
     const rvec_t W{0.9, -0.4, -0.4, 1.7};
     const rvec_t n=P.Forward(D).Vector();
     double lhs=0.0; for (size_t a=0;a<4;a++) lhs+=W[a]*n[a];
-    const hmat_t<dcmplx> V=P.Adjoint(FitCoefficients(W));
+    const hmat_t<dcmplx> V=P.Adjoint(W);
     dcmplx rhs=0.0; for (size_t i=0;i<4;i++) for (size_t j=0;j<4;j++) rhs+=V(i,j)*std::conj(dcmplx(D(i,j)));
     // With a REAL symmetric W the forward keeps only Re(T^dag D T), so the adjoint identity holds on the
     // real part; Tr(V D) is real for Hermitian V, D.
@@ -96,7 +96,7 @@ TEST(LowdinProjector, AnIdempotentDensityInTheManifoldHasOccupations0And1)
     EXPECT_NEAR(n[1], 0.0, 1e-12);
     EXPECT_NEAR(n[2], 0.0, 1e-12);
     EXPECT_NEAR(n[3], 0.0, 1e-12);
-    EXPECT_NEAR(P.Integrate(FitCoefficients(n)), 1.0, 1e-12);   // the manifold charge
+    EXPECT_NEAR(P.Integrate(n), 1.0, 1e-12);   // the manifold charge
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -158,7 +158,7 @@ TEST(LowdinProjector, AtomicSet_ForwardAndAdjointAreExactlyAdjoint)
         const rvec_t W{0.7, 0.9, -0.4, -0.4, 1.7};
         const rvec_t n=P.Forward(D).Vector();
         double lhs=0.0; for (size_t a=0;a<W.size();a++) lhs+=W[a]*n[a];
-        const hmat_t<dcmplx> V=P.Adjoint(FitCoefficients(W));
+        const hmat_t<dcmplx> V=P.Adjoint(W);
         dcmplx rhs=0.0; for (size_t i=0;i<4;i++) for (size_t j=0;j<4;j++) rhs+=V(i,j)*std::conj(dcmplx(D(i,j)));
         EXPECT_NEAR(lhs, std::real(rhs), 1e-13);
         // Q = T^dagger: an orbital's coefficients on the manifold functions are its projector amplitudes.
@@ -191,7 +191,7 @@ TEST(LowdinProjector, AtomicSet_OrthoAtomicOccupationsAre0And1)
     EXPECT_NEAR(n[2], 0.0, 1e-12);
     EXPECT_NEAR(n[3], 0.0, 1e-12);
     EXPECT_NEAR(n[4], 0.0, 1e-12);
-    EXPECT_NEAR(P.Integrate(FitCoefficients(n)), 1.0, 1e-12);
+    EXPECT_NEAR(P.Integrate(n), 1.0, 1e-12);
 }
 
 // Represented == O for a set inside the span (the "captured" diagnostic reads 1); a set function OUTSIDE the

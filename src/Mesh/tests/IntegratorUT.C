@@ -66,11 +66,11 @@ TEST(MatrixIntegrator, ForwardAndAdjointAreExactlyAdjoint)
     ASSERT_EQ(rho.size(), m.size());
     rvec_t vrho(m.size());
     for (size_t g=0; g<m.size(); g++) vrho[g]=v[g]*rho[g];
-    const double lhs=I.Integrate(FitCoefficients(vrho));
+    const double lhs=I.Integrate(vrho);
 
     // RHS: contract the assembled matrix with D.  Full double sum, since D and the matrix are Hermitian
     // adaptors and the off-diagonals must count twice.
-    const hmat_t<double> H=I.Adjoint(FitCoefficients(v));
+    const hmat_t<double> H=I.Adjoint(v);
     double rhs=0.0;
     for (size_t i=0;i<3;i++) for (size_t j=0;j<3;j++) rhs += H(i,j)*D(i,j);
 
@@ -108,7 +108,7 @@ TEST(MatrixIntegrator, IntegrateIsTheMeshRuleAndNumCoefficientsSizesTheArrays)
     EXPECT_EQ(I.NumCoefficients(), m.size());
     rvec_t ones(I.NumCoefficients(), 1.0);
     double w=0.0; for (size_t g=0;g<m.size();g++) w+=m.Weights()[g];
-    EXPECT_DOUBLE_EQ(I.Integrate(FitCoefficients(ones)), w);      // integral of 1 == total weight
+    EXPECT_DOUBLE_EQ(I.Integrate(ones), w);      // integral of 1 == total weight
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -139,9 +139,9 @@ class AssemblerLike
 {
 public:
     hmat_t<double> Assemble(const qcMesh::MatrixAdjoint<double>& adj, const rvec_t& v) const
-        {return adj.Adjoint(FitCoefficients(v));}
+        {return adj.Adjoint(v);}
     double Energy(const qcMesh::MatrixAdjoint<double>& adj, const rvec_t& f) const
-        {return adj.Integrate(FitCoefficients(f));}
+        {return adj.Integrate(f);}
 };
 
 } // anon

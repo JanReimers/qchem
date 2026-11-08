@@ -195,10 +195,16 @@ template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std
 // (3c-3): each child asks the quadrature with its OWN scalar and gets the matching table back, which is
 // what replaced the two threaded table maps.  A cross-scalar (real) child inside a complex run is served
 // by the same call it would make in a real run.
-template <class T> FitCoefficients tComposite_CD<T>::ProjectOnto(const Fitting::ScalarProjector& p) const
+template <class T> Projections tComposite_CD<T>::Project(const BasisSet::PairProjector<double>& p) const
 {
-    FitCoefficients ro;   // the additive identity: the blocks' sum adopts their realization
-    for (const Block& b:itsBlocks) std::visit([&](const auto* c){ ro+=c->ProjectOnto(p); }, b.cd);
+    Projections ro;   // the additive identity: the blocks' sum adopts their realization
+    for (const Block& b:itsBlocks) std::visit([&](const auto* c){ ro+=c->Project(p); }, b.cd);
+    return ro;
+}
+template <class T> Projections tComposite_CD<T>::Project(const BasisSet::PairProjector<dcmplx>& p) const
+{
+    Projections ro;
+    for (const Block& b:itsBlocks) std::visit([&](const auto* c){ ro+=c->Project(p); }, b.cd);
     return ro;
 }
 
@@ -267,15 +273,7 @@ template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const Fitting::Densit
 {
     if constexpr (std::is_same_v<T,double>)
     {
-        rvec_t ret(p.NumCoefficients(),0);
-        for (const Block& b:itsBlocks)
-            std::visit([&](const auto* c)
-            {
-                auto* ao=dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(c);
-                assert(ao && "composite block has no Coulomb-metric projection face (finite path)");
-                ret+=ao->GetRepulsion3C(p);
-            }, b.cd);
-        return ret;
+        return this->Project(p).Vector();   // the old face, kept one commit (V-ONE-OF-N 3a): forwards to Project
     }
     else
         return rvec_t();   // inert: a periodic density carries no AO projection
