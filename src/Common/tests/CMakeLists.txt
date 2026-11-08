@@ -10,6 +10,7 @@ add_executable(UTCommon gtestmain.C
     RunPolicy.C
     Diagnostics.C
     HDF5.C   # the saved-SCF-state carrier (CK-1)
+    PositionJet.C   # qchem.PositionJet (qcMath): the first-order jet in the atom positions
 )
 
 target_compile_definitions(UTCommon PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
