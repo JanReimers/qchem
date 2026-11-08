@@ -225,8 +225,12 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     whose tag is implied by which member is filled.  Examples: `Projector3<T>` (dense ⟨ab|c⟩ / PW columns + kernel / apply closures);
     the fit-coefficient record (`rvec_t` or `ΔG_Map`, so `Vee_Hartree` sits on `MatrixForward`/`MatrixAdjoint`); `BasisSet::Overlap` for
     a sparse PW basis (dense / diagonal / identity); `BlockedMatrix`'s real and complex maps.  The rules that keep OOD intact:
-    - **Clients ask, never inspect.**  They call dispatching functions (`Contract`, `ContractAdjoint`, `Tr`, `Solve`), never read a
-      member or test which one is filled.  Which realization exists is the producer's private detail; a client branching on it is a defect.
+    - **Two levels of client** (user, 2026-11-08).  The record's OWN clients are the implementations paired with it, the ones that
+      produce or consume one realization (for `FitCoefficients`, the `FunctionFitter` derived classes and their samplers).  They read
+      it through a typed accessor (`Vector()`, `GMap()`) that THROWS on a mismatch: they get the answer they need, or else.  Every
+      client above them (the SCF, the mixers, a Hamiltonian term) asks through dispatching functions (`Contract`, `ContractAdjoint`,
+      `Tr`, `Solve`, `+=`, `Dot`) and never reads a member or tests which one is filled.  Such a client branching on the realization
+      is a defect.  A grep for the typed accessors lists exactly the realization-aware code.
     - **A mismatch THROWS**: a dispatcher asked for something its populated realization cannot give throws (an assert is dead in Release).
       A client that needs a dense matrix asks for one and gets it BUILT; identity costs nothing.
     - **Not the alternatives**: inheritance plus a cast to a concrete realization (breaks the cast rule above); `std::variant` with a
