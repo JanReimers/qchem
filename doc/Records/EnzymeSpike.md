@@ -75,16 +75,22 @@ Cost, against one energy evaluated by the same kernel at `-O2`:
      corrupted ("malloc(): unaligned tcache chunk") whenever the region captured a constant pointer beside an active one.
    - The fix keeps OpenMP outside the differentiated code: each serial block is differentiated, the calls run in parallel, and their
      gradients are summed in block order.  This is deterministic, and it keeps the tape per block.
-4. **Optimisation level and vector width (the dangerous one).** Repro: `doc/Records/enzyme_flags_repro.cpp`.
-   - **`-O3` gives a SILENTLY WRONG dE/dD** (−0.0131 vs FD −1.1419).  dE/dR is fine on the same kernel.
-   - **`-O2 -march=native` (or `-O1`) SEGFAULTS** on this AVX2 box.
-   - `-O2` without `-march`, and `-O2 -march=native -mprefer-vector-width=128`, are exact.
+4. **A WRONG gradient, silently: Enzyme's loop caching (the dangerous one).**
+   - Minimised after the spike to `doc/Records/enzyme_loopcache_repro.cpp` (§6, issue A), about 30 lines.  A callee fills a loop-local
+     stack array through an inner loop whose trip count is read from data, and the reverse pass returns a wrong dE/dD at EVERY `-O` level:
+     0.851 against the FD's 4.571.
+   - The kernel met it in a shape-dependent way.  The spike first saw it as "wrong at `-O3`, right at `-O2`" on the whole kernel, and as
+     dE/dD ≡ 0 in the tree.  The tree's present kernel shape is exact at the flags it builds with, which is why **every AD gradient is
+     gated by a finite-difference test**: no flag set makes Enzyme safe.
+   - **A segfault, separately.** At `-O2 -march=native` (AVX2, i7-10700) the reverse pass of the spike's three-block kernel crashes:
+     `doc/Records/enzyme_flags_repro.cpp` (§6, issue B, not minimised below that file).  Without `-march`, with
+     `-mprefer-vector-width=128`, or with one block, it is exact.
    - The tree compiles `-O3 -march=native`, and `-march` must stay (a .pcm and its importers agree on target features).  So `qcAD` appends
      `-O2 -mprefer-vector-width=128`.
-   - **Every AD gradient needs a finite-difference gate**, because a wrong derivative raises no error.
-5. **Enzyme's tuple wrapper `enzyme::autodiff` returned dE/dD ≡ 0.** It stores the active pointer in a tuple that the activity analysis reads
-   as constant: the "Mismatched activity … derivative will be assumed zero" warning at compile time.  The classic marker entry
-   (`__enzyme_autodiff(fn, enzyme_dup, x, dx, enzyme_const, ctx)`) is correct.  Its untyped function pointer stays inside `qcAD`'s wrapper.
+5. **RETRACTED (2026-11-08, after minimising): "Enzyme's tuple wrapper `enzyme::autodiff` zeroes the gradient".**  On a correct case the
+   wrapper gives the right gradient.  On the loop-cache case it gives the same wrong one as the marker entry.  The zero seen in the tree
+   was defect 4 in another shape.  `qcAD` stays on the classic marker entry (`__enzyme_autodiff(fn, enzyme_dup, x, dx, enzyme_const, ctx)`),
+   because it states each argument's activity explicitly; it was never a fix.
 6. **C++ details.**
    - Enzyme's entry is a declared-never-defined template, so an argument type in an anonymous namespace is ill-formed ("used but not
      defined … its type does not have linkage"); the context structs need module linkage.
@@ -115,3 +121,32 @@ Cost, against one energy evaluated by the same kernel at `-O2`:
 - A polarized density, spherical shells, GGA, and the δ Hartree.
 - A larger system's cost scaling: the block structure is linear in points, as the energy is.
 - Upstream bug reports for friction items 3 and 4 (OpenWork row).
+
+## 6. Draft upstream issues (NOT filed: posting to GitHub is the user's call)
+
+Versions:
+- Enzyme `main` at `1a87ccc` (2026-11-07, after v0.0.307), the clang plugin `ClangEnzyme-21.so`.
+- LLVM / clang 21.1.6, the official Linux x86-64 release binary.
+- Ubuntu, Intel i7-10700 (AVX2, no AVX-512).
+
+**Not yet re-run on the latest release v0.0.308 or on `main` 871de19f** (2026-11-08).  Building them here needs the user's approval: the
+permission check refused building freshly fetched external code.  The source worktree is ready at `~/Code/Enzyme-main`, the build recipe is
+§1, and no newer clang is needed (LLVM 21 is supported).  v0.0.308 contains 562c47b4, "Clamp negative hoisted loop sublimits to zero in
+CacheUtility::getSubLimits", which is in the loop-caching code issue A exercises.  So re-run it there before filing; they will ask.
+
+**Issue A.**  Title: "Reverse mode returns a wrong gradient when a callee fills a loop-local array through an inner loop with a
+data-dependent trip count".
+
+> Enzyme main 1a87ccc, clang/LLVM 21.1.6 (release binary), Linux x86-64.  The attached file (30 lines, no headers beyond <cmath>/<cstdio>)
+> computes E(D) = Σ_p (φ_pᵀ D φ_p)², where φ_p is filled by a callee `Fill` through an inner loop whose trip count `nk[i]` is read from a
+> constant data struct (all 1 here).  `__enzyme_autodiff(E, enzyme_dup, D, dD, enzyme_const, &data)`, then dD[0] is compared with a
+> central finite difference.
+> Expected: `AD 4.5709930…  FD 4.5709930…`.  Actual: `AD 0.8510516320  FD 4.5709930507`, at -O1, -O2 and -O3, with or without
+> -march=native.  No warning or error is printed.  Replacing the inner loop by its single iteration gives the correct value.
+> Build: `clang++ -std=c++17 -O2 -fplugin=ClangEnzyme-21.so enzyme_loopcache_repro.cpp`.
+
+**Issue B.**  Title: "Reverse-mode segfault at -O2 -march=native (AVX2) for a blocked reduction into a duplicated scratch buffer".
+
+> Same versions.  The attached file (~150 lines, self-contained) differentiates a blocked sum: 3 blocks write partials into a buffer passed
+> `enzyme_dup`, and are summed after the loop.  At `-O2` it is correct.  At `-O2 -march=native` on an AVX2 machine the reverse pass
+> segfaults.  `-mprefer-vector-width=128`, or a single block, avoids it.  (The same file at `-O3` also shows issue A's wrong value.)

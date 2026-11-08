@@ -261,11 +261,13 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
   A hand-coded XC gradient is typically 3–4× an energy, so AD is about 5× slower than hand-coded here.  For a force, asked once per geometry,
   that is affordable.
 - **The danger is silent.**
-  - At the tree's `-O3` Enzyme returned a WRONG dE/dD with no diagnostic.
-  - At `-O2 -march=native` (256-bit vectors) it segfaulted.
-  - Its tuple wrapper zeroed the D gradient.
-  - So AD code compiles at `-O2 -mprefer-vector-width=128`, on Enzyme's classic marker entry.  **Every AD gradient is gated by a
+  - Enzyme's loop caching returns a WRONG reverse-mode gradient with no diagnostic, at any `-O`, for a loop-local array filled through
+    an inner loop with a data-dependent trip count.  Minimised: `doc/Records/enzyme_loopcache_repro.cpp`.  The kernel met it as "wrong at
+    `-O3`".
+  - At `-O2 -march=native` (256-bit vectors) the spike's blocked kernel segfaulted.
+  - So AD code compiles at `-O2 -mprefer-vector-width=128`.  No flag set makes it safe, so **every AD gradient is gated by a
     finite-difference test**, and the Enzyme commit is pinned (`1a87ccc`).
+  - Draft upstream issues: record §6 (not filed).
 - **ARCHITECTURE (user, 2026-11-08): each Imp TU differentiates ITS OWN leaf functions in place, and the derivatives COMPOSE by the
   chain rule across the OOD faces.**
   - In place means the leaf function and its `__enzyme_autodiff` registration sit side by side, in the TU that defines the leaf.

@@ -1,12 +1,15 @@
-// doc/Records/enzyme_flags_repro.cpp -- Enzyme 1a87ccc (built against LLVM 21.1.6) differentiating the AD spike's XC block kernel
-// (src/AD/Imp/XCKernel.C as of 2026-11-08, restated without modules), dE/dD by reverse mode against a central finite difference.
-// Lane B, 2026-11-08; the record is doc/Records/EnzymeSpike.md.
+// doc/Records/enzyme_flags_repro.cpp -- Enzyme 1a87ccc (built against LLVM 21.1.6): the AD spike's XC block kernel (src/AD/Imp/XCKernel.C
+// as of 2026-11-08, restated without modules, no qchem dependency), dE/dD by reverse mode against a central finite difference.
+// Lane B, 2026-11-08; the record is doc/Records/EnzymeSpike.md.  THE SEGFAULT REPRO (not minimised below this file: a three-block loop
+// writing partials into a duplicated scratch buffer is needed, and the small cases built from it do not crash):
 //
 //   P=$HOME/Code/Enzyme/build/Enzyme/ClangEnzyme-21.so; I=$HOME/Code/Enzyme/enzyme/include; CXX=/opt/LLVM-21.1.6-Linux-X64/bin/clang++
 //   $CXX -std=c++20 -O2                                      -fplugin=$P -I$I enzyme_flags_repro.cpp && ./a.out   # AD == FD
-//   $CXX -std=c++20 -O3                                      -fplugin=$P -I$I enzyme_flags_repro.cpp && ./a.out   # AD WRONG, silently
+//   $CXX -std=c++20 -O3                                      -fplugin=$P -I$I enzyme_flags_repro.cpp && ./a.out   # AD WRONG (the
+//                                                                                     loop-cache defect: enzyme_loopcache_repro.cpp)
 //   $CXX -std=c++20 -O2 -march=native                        -fplugin=$P -I$I enzyme_flags_repro.cpp && ./a.out   # SEGFAULT (AVX2 box)
 //   $CXX -std=c++20 -O2 -march=native -mprefer-vector-width=128 -fplugin=$P -I$I enzyme_flags_repro.cpp && ./a.out   # AD == FD
+//   (with d.nBlocks=1 in main(), -O2 -march=native is exact)
 // The line printed is "full <k> AD <value> FD <value>" for three entries of D.
 #include <enzyme/enzyme>
 #include <array>

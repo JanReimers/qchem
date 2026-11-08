@@ -275,16 +275,15 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
 
 · **ninja does not rebuild an importer of the umbrella module `qchem` when a module it re-exports changes** (lane B 2026-11-08).  `MoleculeCalculation` grew members; `allTests` rebuilt `qchem.pcm` (src/Umbrella) but not `IntegrationTests/M_Umbrella.C.o`, its only importer (object 00:05, umbrella BMI 00:24), so `M_Umbrella.FrontDoorViaUmbrella` built the facade on the stack at the OLD size and SEGFAULTED in the sweep.  Touching the file fixed it.  A layout change through the umbrella is a silent stale object: the test then reads as a code crash.  Next action: check the dyndep / `.ddi` entries of an umbrella importer against `qcUmbrella`'s BMI (`reference_ninja_dyndep_recovery` memory has the ladder); until fixed, touch `IntegrationTests/M_Umbrella.C` after an exported class's layout changes.
 · **The molecular mesh pilot has no cost budget** (lane B 2026-11-08; GeometryOptimizationPlan §14.2).  Round 0 of `MoleculeCalculation::PilotMesh` raises without a limit (`cap = 0`).  Every rung it probes builds and refreshes a reference Hamiltonian, and a raise re-converges on the new rung.  Nothing predicts that cost or notices a climb that is not converging.  On the δ-ρ direct-sum route the Hartree error sits near 1e-2 on every rung, so the climb walked toward the ladder's top at O(N²) per reference, and `M_DFT.WaterLDA_DeltaCoulomb_Long` ran ~10 h instead of 196 s.  Fixed for that route: `HartreeConvergesWithMesh` leaves the term out of the distance, with a WARN row `DirectSumHartreeNotClimbed`.  The general hole remains for the next term whose error stalls.  Next action: (a) stop and WARN when a raise does not shrink the distance (a stalled climb); (b) before each raise, estimate the rung's cost (points, and the route's scaling) from what setup knows, and WARN AND RUN or REFUSE ON RESOURCES per the three-outcome rule.  The solid's raster climb wants the same two guards.
-· **Enzyme's silent failures are unreported upstream** (lane B 2026-11-08; `doc/Records/EnzymeSpike.md` §4).  Enzyme 1a87ccc on LLVM 21.1.6:
-  - `-O3` gives a WRONG reverse-mode dE/dD with no diagnostic.
-  - `-O1` / `-O2 -march=native` (AVX2) segfaults.
-  - An OpenMP region capturing a constant pointer beside an active one corrupts the heap.
-  - Its `enzyme::autodiff` tuple wrapper zeroes an active pointer's gradient.
+· **Enzyme's silent failures are unreported upstream** (lane B 2026-11-08; `doc/Records/EnzymeSpike.md` §4, §6).  Two defects, each with a
+  self-contained repro and a DRAFT issue (record §6):
+  - (A) a wrong reverse-mode gradient, silent, at any `-O`: a loop-local array filled through an inner loop with a data-dependent trip
+    count, `enzyme_loopcache_repro.cpp`, 30 lines;
+  - (B) a segfault at `-O2 -march=native`, AVX2, `enzyme_flags_repro.cpp`.
 
-  `qcAD` works around all four (`-O2 -mprefer-vector-width=128`, the classic marker entry, OpenMP outside the differentiated code), and every
-  AD gradient has an FD gate.  Next action: file the `-O3` and AVX2 cases upstream from `doc/Records/enzyme_flags_repro.cpp` (one file, four
-  command lines in its header).  Re-test on each Enzyme bump before moving the pinned commit.
-
+  The "tuple wrapper zeroes the gradient" item is RETRACTED (it was A in another shape).  Next action: build Enzyme v0.0.308 / `main` 871de19f
+  (source at `~/Code/Enzyme-main`, needs the user's approval; v0.0.308's 562c47b4 touches the loop cache) and re-run both repros there.  Then
+  the user decides whether to file.  Re-test on each Enzyme bump before moving the pinned commit.
 · **densityEcut reads source "floor" when the pilot chose its cutoffFactor** (lane G 2026-11-08).  When the pilot doubles cutoffFactor, `grids.densityEcut` is the floor at a factor the PILOT picked, but the ladder that writes the key doesn't know that; only the Calculation does.  Next action: the ladder takes the factor's source as an input (or a `cutoffFactorSource`), so the report reads "floor at the pilot's factor".  RasterLadder (lane B's area).
 ## 4. PERFORMANCE — summary (detail and levers: `doc/Benchmark.md` §10, instrument §5a)
 
