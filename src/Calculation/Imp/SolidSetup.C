@@ -252,8 +252,8 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
                                         "target -- the target derives them; state accuracy 0 to give the rasters yourself");
         if (!s->planeWave && a.eps>0.0)
         {
-            if (a.eta) s->opts.tolerances=a.Stated(t);
-            else       s->rastersResolved=false;
+            if (a.eta) {s->opts.tolerances=a.Stated(t); s->rasterSource=SolidSetup::RasterSource::Calibration;}
+            else       {s->rastersResolved=false;       s->rasterSource=SolidSetup::RasterSource::Pilot;}
             // V_loc long's routing tolerance from the same target (a STATED vlocEps is honoured, like a stated densityEcut)
             if (s->opts.tolerances.vlocEps==0.0)
             {
