@@ -547,3 +547,40 @@ magnetic test sits on a dropping mesh; the meshes that drop are spatial (Na k222
 Original row:
 
 | **R1.0r** | ρ star-averaged under a BIGGER group than the k-mesh has.  Landed for the spatial group (`ecc9fe23`: `MapsMeshOntoItself` erases the ops from `recipDensity` / `directDensity`, `Imposition.C:71`).  The MAGNETIC branch of `ResolveImposition` returns before that filter, so a Shubnikov run keeps its full set | **RULED 2026-10-29 (user): the INTERSECTION** (a density symmetrized beyond its sampling is not variational, so its forces are not dE/dR).  Apply it on the magnetic branch, or state why a Shubnikov set cannot exceed the mesh · H2 R1.0r |
+
+### V1.41 + V1.35 + V-NOCACHE-DEAD ✅ (2026-11-07, lane S, sprint step 4, 0 moves)
+
+**V1.41 (option C, user 2026-11-06).**  Each term holds ONE current state, built by its refresh; a block query is a pure read,
+checked by the `DensityID` it is handed (`DensityID` now lives in `qchem.ChargeDensity`).  Stage 2, one term at a time:
+`Vee_Hartree` (`b2da6000`, the field is `RefreshedField(id)`, which throws on a density the refresh did not see),
+`tVxc_Quadrature` (`f1dc5c08`, a `Refreshed` record of v^σ, the Fock source and the group residual), `Hubbard_U`
+(`db7097ed`, the keep-n branches gone: a density with no density matrix behind it has n = 0 unless frozen, proved over 16 Γ_U
+tests at 4 threads), the HF terms (`7f825d12`, a `RefreshForDensity` on `tDynamic_HF_HT<T>`), the molecular fitted terms
+(`3e073721`, `Vee_DFT`/`Vee_DFT_Dunlap` read the refresh's fit; `FittedVxc`'s ε fit moves into `GetEnergy`).  Stage 3:
+the duplicate `size_t` serials are DensityIDs (`fe069235`); `HT_SlotOwner::PrepareSlots` became
+`HT_BlockOwner::BuildBlocks(bs, cd)` (`56e22fca`, user: "keep the name honest"), which the fold calls after every term's
+`RefreshForDensity`: a dynamic term rebuilds every block for its `BlockSpins()` there, an energy refresh (bs = null) builds
+nothing, and static blocks still fill on first read (they never change).  `InvalidateCache` is gone; a Hubbard U/α write
+resets the term's own stamps.
+
+**V1.35.**  The mixed corner is not a type: the block face is `tDynamic_CC<T>::GetMatrix(bs, s, DensityID)` and a real TRIM
+block goes through the ordinary `tDynamic_CC<double>`/`tStatic_CC<double>` faces (`aecb2863`: `Dynamic_HT_RealBlock`,
+`Dynamic_CC_RealBlock` deleted, `RealBlockEnergy_CD::DM_ContractE` takes a `tDynamic_CC<double>`; `4e6695d3`:
+`Static_HT_RealBlock` deleted, the static `*R` twins are `MakeMatrix` overloads, a CRTP `Static_HT_RealBlock_Of<D>` routes
+the real block of `Kinetic<T>`/`IonIon<T>` to one `template<class U> MakeBlock`).  No `*R` method is left.  No `TRun`
+parameter was needed: once the block signature names no run scalar, the two-parameter template has nothing to carry.
+
+**V-NOCACHE-DEAD.**  `tDynamic_HT_Imp_NoCache<T>` deleted with V1.35 (`aecb2863`).
+
+**Pin 32.**  No fitted term changed its H form: `Vee_Hartree` (GPW) is Oᵀ K O, `Vee_DFT_Dunlap` Cᵀ G⁻¹ C, `Vee_DFT` Oᵀ K O,
+the quadrature XC Oᵀ f′(O D); step 4 moved WHERE their state is built, not what it is.
+
+**Gates.**  Short 1341/1341 vs main-95927d22 and long 13/13 vs main-2bdb1256, 0 moves at 1e-10; panel|periodic at 4 threads
+24/25, 0 moves (TiO₂ k222 Kerker_Pulay over budget, as on every main baseline); the 5 panel-red cases failed for their known
+reasons (NMaxIter cap; Si m = 0.19), no throw.  RelChecked clean; vet-decks 65/65.  The timed MnO pair is pending a quiet box.
+
+Original rows:
+
+| **V1.41** ★★ | **The Hamiltonian carries density-derived STATE, keyed implicitly to "the density I saw last"** (user 2026-10-27).  V_H, the XC ρ/fit, Hubbard occupations and per-irrep matrix caches live inside the terms.  Stage 1 is landed: `tHamiltonianAt<T>`, identity a strong `DensityID`, the Fock loop threaded on it.  Still in the terms: `Vee_Hartree::CoulombField(cd)`, `Hubbard_U::EnsureOccupations(cd)`, `tVxc_Quadrature::ChannelRasters(cd)` and `itsFockSource`, which recompute or look up per block.  RULED (user 2026-10-27): the block path takes the density's ID, not the density, so block code cannot compute from ρ; the term-level interface is `MakeMatrix(bs, s, DensityID)` | Stage 2: move each term's density-derived state into the value, one term at a time.  Stage 3: delete the caches, stamps and `newCD` from the terms.  Plan with V1.35 (the `*_RealBlock` caches) · `doc/KAxisPlan.md` P2, H3 "V1.41" |
+| **V1.35** ★★ | `Dynamic`/`Static` and the BLOCK SCALAR are orthogonal axes, fused: `Dynamic_HT_RealBlock` is the mixed corner (block double, run dcmplx), so cross-axis capabilities are declared twice.  Cure: two-parameter `tDynamic_HT<TBlock,TRun>`; `*_RealBlock` faces vanish.  TWO-library campaign (`Dynamic_CC_RealBlock` too) | Prereqs: R1.0q first term ✅, +U scalar-generic ✅, **V1.34 ruling (shape 3) still to be realised**.  THEN plan V1.35 (not an increment).  Finish line: the `*R`-suffixed methods gone (today `MakeMatrixR` at 18 sites, `GetEMatrixR` at 3; `GetMatrixR` is already gone, and the comment at `Hamiltonian.C:67` still says 31).  A term inheriting both instantiations writes one explicit `PrepareSlots` · H2 V1.35, V1.35a |
+| **V-NOCACHE-DEAD** | `tDynamic_HT_Imp_NoCache<T>` has no user, only its definition and aliases (`HamiltonianTerm.C:179`, `:329`; lane S 2026-11-06) | Delete with V1.35, which rewrites that file |
