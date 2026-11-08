@@ -211,7 +211,9 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
 - **The tier-1 abstract hubs are PROTECTED** (user, 2026-11-03; `doc/OOD-SOLID-Cleanup.md` V-INTERFACE-TIERS): `qchem.BasisSet`, `Orbital_DFT_IBS`,
     `Orbital_1E_IBS`, `G_FieldEvaluator`, `ChargeDensity`, `LASolver`, `Hamiltonian`, `WaveFunction`, `Fitting.FunctionFitter`, `Symmetry.Representation`.
     Adding to or changing their inheritance or member functions needs a DESIGN DISCUSSION with the user first; trimming a re-export under the
-    re-export rule does not (user, 2026-11-05).  ctest `HubInterfaceAudit` (`scripts/audit-hub-interfaces`) fails on any
+    re-export rule does not (user, 2026-11-05).  PRE-APPROVED (user, 2026-11-08): augmenting a hub's integral / evaluation faces with the
+    DERIVATIVE version of an existing method, beside it (a `Make…Pullback` returning an `Outcome`, an evaluation face's jets); cite the
+    ruling in the snapshot commit.  ctest `HubInterfaceAudit` (`scripts/audit-hub-interfaces`) fails on any
     change to their exported declarations or re-exports until `scripts/hub-interfaces.snapshot` is regenerated (`--update`) in a commit citing the
     ruling.  Every `Get` on such a face is scrutinised: why does A hold B, what will the client do with it, why can't A do it?
 - **Lazy caching only for what never changes; density-dependent state is built at the refresh** (user, 2026-11-07).  A pure function of
