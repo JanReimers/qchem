@@ -30,6 +30,7 @@ import qchem.Symmetry.Molecule.PointGroup;           // DetectPointGroup (a sess
 import qchem.Hamiltonian.Factory;
 import qchem.Response;          // MakeReference, MakeOrbitalFrame, MakeDipoleProbe
 import qchem.Response.Solver;   // LinearResponse
+import qchem.BasisSet.AoShellSource;   // MeshAudit: the largest element named by atom, shell and l
 
 namespace qchem
 {
@@ -341,6 +342,71 @@ std::unique_ptr<qchem::ChargeDensity::rDM_CD> MoleculeCalculation::MakeCarriedDe
     if (b!=carry.D.size())
         throw std::logic_error("qchem::MoleculeCalculation: the carried density has more blocks than this point's basis");
     return cd;
+}
+
+GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& reference) const
+{
+    namespace rpt = qchem::report;
+    const auto* wf = itsScf ? itsScf->GetWaveFunction() : nullptr;
+    if (!wf || !itsDensity) throw std::logic_error("qchem::MoleculeCalculation::MeshAudit: no converged density yet (the audit runs at a fixed D)");
+    const CalcOptions& opts=itsSetup->opts;
+    const qchem::ChargeDensity::rDM_CD* d=itsDensity.get();
+    const std::vector<hmat_t<double>> D=BlockDensities(false);
+    GridAuditResult R;
+    std::vector<std::vector<Symmetry::Molecule::AoShell>> shellsOf;   // per basis block: its AO shells, empty for a SALC block
+    R.reference = "Becke mesh ("+std::to_string(reference.nRadial)+", "+std::to_string(reference.angularDegree)+")";
+    {
+        // FENCED: the reference Hamiltonian files its meshes and fit bases as it builds and first evaluates; a nested run keeps them out
+        // of this run's `hamiltonian` section.  RAII: an exception mid-audit must not leave the report nested.
+        struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} } fence("meshAudit reference ("+R.reference+")");
+        std::unique_ptr<qchem::Hamiltonian::rHamiltonian> hamRef(itsSetup->pp
+            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, reference, itsBasis, opts.vxcFit, opts.coulomb)
+            : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure, reference, itsBasis, opts.xalpha, opts.vxcFit, opts.coulomb));
+        itsHam->RefreshForDensity(itsBasis, d);
+        hamRef->RefreshForDensity(itsBasis, d);
+        const std::vector<qchem::Hamiltonian::TermEnergy> eRun=itsHam->MakeTermEnergies(d), eRef=hamRef->MakeTermEnergies(d);
+        if (eRun.size()!=eRef.size()) throw std::logic_error("MeshAudit: the reference Hamiltonian has a different term list");
+        for (size_t t=0;t<eRun.size();t++)
+        {
+            // Matched by the ENERGY ENTRIES, not the label: a mesh term's description states its own point count, which is what differs.
+            if (eRun[t].entries!=eRef[t].entries)
+                throw std::logic_error("MeshAudit: term "+std::to_string(t)+" reports '"+eRun[t].entries+"' here, '"+eRef[t].entries+"' on the reference");
+            R.terms.push_back({eRun[t].label, eRun[t].entries, 0.0, eRun[t].E-eRef[t].E, eRun[t].E});
+            R.ΔE+=eRun[t].E-eRef[t].E;
+        }
+        size_t channel=0;   // the carry's block order: spin irreps outer, basis blocks inner (BlockDensities')
+        for (Spin s : SpinIrreps(opts.spin))
+        {
+            size_t block=0;
+            for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
+            {
+                const std::unique_ptr<LASolver<double>> frame(LASolver<double>::Factory(qchem::Cholesky));
+                frame->SetBasisOverlap(ibs->Overlap());
+                const std::string spin = s==Spin::Up ? "up" : s==Spin::Down ? "down" : "none";
+                FoldΔH(itsHam->MakeTermMatrices(ibs,s,d), hamRef->MakeTermMatrices(ibs,s,d), D.at(channel), 1.0, *frame, spin, block, R.terms);
+                if (shellsOf.size()<=block)   // a block's shells, once (the spin channels share the blocks); a SALC block is not an AO block
+                {
+                    const auto* src=dynamic_cast<const BasisSet::AoShellSource*>(ibs);
+                    shellsOf.push_back(src && !opts.symmetry ? src->GetAoShells() : std::vector<Symmetry::Molecule::AoShell>{});
+                }
+                ++block; ++channel;
+            }
+        }
+    }
+    for (auto& t : R.terms) if (t.maxAbsΔH>0.0 && !shellsOf.at(t.maxElement.block).empty())   // the largest element of each term, named
+    {
+        t.maxElement.functionI=FunctionName(shellsOf[t.maxElement.block], *itsStructure, t.maxElement.i);
+        t.maxElement.functionJ=FunctionName(shellsOf[t.maxElement.block], *itsStructure, t.maxElement.j);
+    }
+    for (auto& t : R.terms)
+    {
+        R.maxAbsΔH=std::max(R.maxAbsΔH, t.maxAbsΔH);
+        if (t.entries=="Exc" && t.maxAbsΔH>0.0) t.etaOn="measured";   // the XC mesh has no rigorous bound
+    }
+    const ClientConsumes c=Consumes();
+    ReportGridAudit(R, "[mesh audit]", "Becke mesh ("+std::to_string(opts.mesh.nRadial)+", "+std::to_string(opts.mesh.angularDegree)+")",
+                    c==ClientConsumes::Energy ? 'E' : 'H', opts.accuracy.Target(c, itsStructure->GetNumAtoms()));
+    return R;
 }
 
 //====================================================================================================

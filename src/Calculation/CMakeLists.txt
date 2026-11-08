@@ -28,6 +28,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     SCFFailure.C
     SCFRecipeReport.C
     Policy.C
+    GridAudit.C
     BasisCoverage.C
 )
 target_include_directories(qchem PRIVATE

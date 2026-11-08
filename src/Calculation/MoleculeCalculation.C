@@ -34,6 +34,7 @@ import qchem.ChargeDensity;        // rDM_CD
 import qchem.ChargeDensity.Seed;   // SeedStrategy
 export import qchem.Response.Reference;   // ResponseFailure: StaticPolarizability's failure
 export import qchem.LASolver.Krylov;       // KrylovParams (StaticPolarizability)
+export import qchem.GridAudit;             // GridAuditResult (MeshAudit)
 
 export namespace qchem
 {
@@ -147,6 +148,14 @@ public:
     //! (doc/GeometryOptimizationPlan.md §13: W is the facade's, WaveFunction gains nothing); a cached Get would hold matrices no other
     //! client wants.  THROWS before a Converge (no wave function).
     std::vector<hmat_t<double>> MakeEnergyWeightedDensity() const;
+    //! \brief THE XC-MESH AUDIT (doc/GeometryOptimizationPlan.md §14.3; pin 31): the run against a Hamiltonian rebuilt on the SAME basis
+    //! with every mesh-borne term on \a reference (the XC mesh, and a δ-ρ Hartree rung that rides it), at the converged D, term by term.
+    //! A molecule's basis does not depend on its mesh, so nothing is restored: the one density serves both sides.  Terms the mesh does not
+    //! touch (kinetic, Ven, the GTH terms, Dunlap J, ion-ion) read 0.  The run's own Hamiltonian is re-refreshed for that D.  Writes the
+    //! console table and its fields AT THE REPORT CURSOR: the caller opens the scope (the report nesting rule); the reference
+    //! Hamiltonian's own mesh reports go to a nested run, so this run's `hamiltonian` keeps describing the meshes it USED.  Judged on
+    //! \c Consumes(): |ΔE| against eps x N_atoms, or max|ΔH_ij| against eps.  THROWS before a Converge.
+    GridAuditResult MeshAudit(const qcMesh::MeshParams& reference) const;
 
 private:
     //! The finite-difference response ORACLE (src/Response/tests, ruling D6) drives the SAME Reference/frame/
