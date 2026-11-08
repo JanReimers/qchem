@@ -62,10 +62,12 @@ Cost, against one energy evaluated by the same kernel at `-O2`:
    - A call into another TU is refused at compile time ("No augmented forward pass found").
    - A call into another shared library is refused the same way.  Every qchem library is a `.so`, so LTO cannot help across them.
    - LTO plus `LLDEnzyme` worked across two TUs (probe p3).
-   - So a differentiable kernel restates the library formulas it needs: the Becke cutoff and the functional.  A unit test holds each copy
-     equal to its library home.  Making a library formula `inline` in its module interface would let a kernel import it instead.
-2. **No virtual dispatch.** A virtual call through a `Const` object is refused ("No create nofree of unknown value").  So the OOD term
-   hierarchy (`FittedVxc` → `ExFunctional` → …) is opaque to AD.  AD applies to KERNELS, never to the library's object graph.
+   - The spike's kernel therefore restated the library formulas it needed (the Becke cutoff, the functional), each held equal to its
+     library home by a test.  That was the demonstration, not the architecture: the user's ruling (2026-11-08, the plan's verdict) is that
+     each Imp TU differentiates its OWN leaves in place, and the derivatives compose by the chain rule across the faces (item 9).
+2. **No virtual dispatch.** A virtual call through a `Const` object is refused ("No create nofree of unknown value").  So Enzyme never
+   differentiates THROUGH the OOD term hierarchy (`FittedVxc` → `ExFunctional` → …).  Each leaf behind a face is differentiated where it
+   is defined, and the faces compose those derivatives.
 3. **OpenMP.**
    - A `reduction` clause is refused (`__kmpc_reduce_nowait`).
    - A simple `parallel for` with per-block partials works and threads its reverse pass (probe p2b).
@@ -93,6 +95,19 @@ Cost, against one energy evaluated by the same kernel at `-O2`:
    `qchem.Types` and `qchem.Outcome` .pcm's built without the plugin, and their importers are untouched.
 8. **Blaze: worked in a probe** (`x^T A x + Σ exp(x)` through Blaze expressions, BLAS mode on and off).  The kernel itself uses plain
    arrays, with Blaze only at its boundary.
+
+9. **What Enzyme can see from an imported module** (scratch probes, 2026-11-08).
+   - An exported `inline` function and an exported template differentiate in the importer.
+   - An exported non-inline function is "No reverse pass found" in the importer, and so is an in-class member of an exported class (not
+     implicitly inline in a module).
+   - Both differentiate when the `__enzyme_autodiff` call sits in their own defining unit, and the importer of that derivative needs no
+     plugin: the in-place architecture (the plan's verdict).
+10. **The AD flags' cost on ENERGY code** (no plugin calls, serial).
+    - The XC kernel energy (72,480 points, 16 functions) is 0.0290 s at `-O3 -march=native`, 0.0302 s at `-O2 -march=native`, and 0.0288 s
+      at `-O2 -march=native -mprefer-vector-width=128`.
+    - A strict-order φᵀDφ contraction (nbf 200, 2e5 points) is 7.84 s and 7.91 s, and 7.94 s with no AVX at all: it is not
+      autovectorised.
+    - A .pcm built at either flag set imports into a TU at the other.
 
 ## 5. What the spike did not cover
 
