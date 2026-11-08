@@ -385,6 +385,19 @@ SKIPPED as a WARN-AND-RUN policy row that gives its predicted cost and the reaso
   what it buys without any library code: climb Te and F separately and compare points against the uniform climb.  The radial-rule
   report already found that α per element buys nothing; (nR, L) per element is the untested half.
 
+**Q1 MEASURED (lane B 2026-11-08, the ruled replay): per-species (nR, L) is NOT built.**  TeF₆ at its frozen D, XC only, today's rule
+(MHL m3 α2, order 2), the C++ ladder (radials 40-140, degrees 29-65 with the Lebedev menu's own rounding), ε = 1e-5, against the
+(400, 77 GL) reference.  Each species' points form their own block, so every (Te rung, F rung) pair is a sum; a pick must pass with
+every rung above it passing too.  Cheapest mesh meeting BOTH |ΔE| ≤ ε·N and max|ΔH| ≤ ε:
+
+| system | uniform | per species (Te, F) | saving |
+|---|---|---|---|
+| PP | 168,688 at (80, 29) | the same | 0% |
+| AE | 301,212 at (100, 35) | 282,474 at Te (80, 29), F (100, 35) | 6.2% |
+
+On E alone the PP pair saves 21.5% (F (60, 29)), but H decides the mesh, as on LiF.  6% is below the rung step, so the climb stays one
+(nR, L) for every atom, and `MakeMolecularMesh` keeps its one `MeshParams`.  Data: `~/Code/qchem6-runs/RadialRule/species_replay.{py,log}`.
+
 ### 14.4 Files, for sequencing with lane G
 
 | file | change | overlap |
