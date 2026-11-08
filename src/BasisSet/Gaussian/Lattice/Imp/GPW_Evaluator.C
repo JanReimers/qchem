@@ -232,7 +232,7 @@ Gaussian::LatticeSum1E::cellphase_t GPW_Evaluator::CellPhase() const
     return [k,trim](const ivec3_t& n)->dcmplx { return BlochPhase(k,n,trim); };
 }
 
-// The matrix-free density->rho-tilde / ->V_H map (the Projector3<dcmplx>::apply realization -- the CP2K analytic
+// The matrix-free density->rho-tilde / ->V_H map (the PairProjection<dcmplx>::apply realization -- the CP2K analytic
 // collocation, doc/GPWPlan.md S0).  The density is collocated ANALYTICALLY per (pair, screened cross-cell
 // offset) on compact exp-tail boxes, modulo-wrapped, each pair on the coarsest REL_CUTOFF level resolving its
 // product exponent (LatticeSum1E::CollocateDensity); each level is FFT'd and rho-tilde is combined NESTED in
@@ -240,7 +240,7 @@ Gaussian::LatticeSum1E::cellphase_t GPW_Evaluator::CellPhase() const
 // construction).  rho-tilde(G)=FFT[rho]/Npts (the grid quadrature's 1/Omega and Omega/Npts cancel).  For
 // Coulomb the diagonal Poisson kernel 4pi/|G|^2 is folded in (V_H = 4pi rho-tilde/G^2; G=0 -> 0).  The closure
 // keeps the level grids + molecular basis alive (captured shared_ptrs) since it lives in the framework-cached
-// Projector3<dcmplx>.
+// PairProjection<dcmplx>.
 std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulomb, std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
     // The ladder derives from the REQUESTED fit grid (not the block's own itsFFT_R_G_Grids); the closure captures it.
@@ -291,9 +291,9 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
 // short-circuits Contract), so `kernel` stays empty.
 // Over the REQUESTED fit grid: columns are grid's {G}, the collocation ladder derives from grid.  The no-arg
 // overloads below are the block's-own-grid convenience (Repulsion3CTensor(itsFFT_R_G_Grids)).
-Projector3<dcmplx> GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
+PairProjection<dcmplx> GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
-    Projector3<dcmplx> g;
+    PairProjection<dcmplx> g;
     g.volume=grid->Volume();
     for (const ivec3_t& dm : grid->Gs()) g.columns.push_back({dm,{}});
     g.apply       =MakeCollocator(/*coulomb*/true, grid);   // forward: D -> V_H (Coulomb baked)
@@ -301,9 +301,9 @@ Projector3<dcmplx> GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const PlaneW
     return g;
 }
 // Overlap 3-centre tensor: the same analytic map, no kernel (the density's own rho-tilde).
-Projector3<dcmplx> GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
+PairProjection<dcmplx> GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
-    Projector3<dcmplx> g;
+    PairProjection<dcmplx> g;
     g.volume=grid->Volume();
     for (const ivec3_t& dm : grid->Gs()) g.columns.push_back({dm,{}});
     g.apply       =MakeCollocator(/*coulomb*/false, grid);  // forward: D -> rho-tilde
@@ -313,7 +313,7 @@ Projector3<dcmplx> GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const PlaneWav
     return g;
 }
 
-// The Projector3<dcmplx> BACKWARD realization (the adjoint of MakeCollocator): a SELF-CONTAINED integrate-back closure over
+// The PairProjection<dcmplx> BACKWARD realization (the adjoint of MakeCollocator): a SELF-CONTAINED integrate-back closure over
 // the fit \a grid's REL_CUTOFF ladder -- <i|f|j> = analytic per-pair gather of the field f (LatticeSum1E::
 // IntegratePotential), the exact adjoint of the collocation on the SAME grid.  So Overlap3C/Repulsion3C(fit)
 // carry BOTH directions on the fit grid; the KS matrix is built by ContractAdjoint (doc/GPWPlan §0e step2).
@@ -685,8 +685,8 @@ mat_t<dcmplx> GPW_Evaluator::TransitionRawAdjoint(const std::string& key, const 
     return Transition().IntegrateTransition(V_L, CellPhase(), q, itsCell, L.N, L.ecut, itsRelFieldSharp);
 }
 
-Projector3<dcmplx> GPW_Evaluator::Repulsion3CTensor() const {return Repulsion3CTensor(itsFFT_R_G_Grids);}
-Projector3<dcmplx> GPW_Evaluator::Overlap3CTensor  () const {return Overlap3CTensor  (itsFFT_R_G_Grids);}
+PairProjection<dcmplx> GPW_Evaluator::Repulsion3CTensor() const {return Repulsion3CTensor(itsFFT_R_G_Grids);}
+PairProjection<dcmplx> GPW_Evaluator::Overlap3CTensor  () const {return Overlap3CTensor  (itsFFT_R_G_Grids);}
 
 // The potential->KS bridge (the applyAdjoint realization) -- the ANALYTIC integrate-back,
 // the exact adjoint of MakeCollocator's density collocation.  Restrict Vtilde to each REL_CUTOFF level's own

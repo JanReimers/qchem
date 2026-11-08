@@ -1,4 +1,8 @@
-// File: BasisSet/Projector3.C  The 3-centre projection tensor <ab|c> -- ONE type, several realizations.
+// File: BasisSet/PairProjection.C  The orbital-PAIR to fit-basis projection <ab|c> -- ONE type, several realizations.
+//
+// NAMED FOR WHAT IT IS (V-ONE-OF-N, user 2026-11-07; was Projector3): it projects an orbital-pair product onto a fit
+// basis, and by realization it is a 3-index (dense <ab|c>), 2-index (PW columns + kernel) or 1-index-per-call (the
+// closures) object, so "3" named only its first realization (doc/Records/VOneOfNDesign.md §4).
 //
 // V1.1: the merge of the molecular ERI3 (a dense std::vector of <ab|c> matrices) and the reciprocal-space
 // G_ERI3 (delta support / matrix-free closures).  The NAME says what both contraction directions do
@@ -19,7 +23,7 @@
 //   - apply*   : the matrix-free GPW realization -- closures that collocate/integrate on grids
 //                without ever materializing a per-column tensor.
 module;
-#include <stdexcept>   // ScreenedMatrixIntegrator: the missing-pair throw
+#include <stdexcept>   // the realization-mismatch throws (Contract, ContractAdjoint, the integrators)
 #include <cassert>
 #include <algorithm>   // std::max (MaxAbs)
 #include <cmath>       // std::abs (MaxAbs)
@@ -32,7 +36,7 @@ module;
 // ★ IT IS DELIBERATELY NOT `.Internal.` (promoted 2026-09-10) -- and the label was not merely unhelpful,
 // it was ILLEGAL.  CLAUDE.md: *"Only re-export modules that don't have `.Internal.` in the module name; the
 // goal is to avoid importing internals across library boundaries."*  Two PUBLIC modules were re-exporting
-// this one -- `qchem.BasisSet.Orbital_DFT_IBS` and `qchem.BasisSet.GMap` -- which means `Projector3<T>` and
+// this one -- `qchem.BasisSet.Orbital_DFT_IBS` and `qchem.BasisSet.GMap` -- which means `PairProjection<T>` and
 // `ΔG_Map` have been de facto public vocabulary for as long as `Overlap3C` / `Repulsion3C` have named them
 // in their signatures.  The label was a claim the interface had already falsified.
 //
@@ -45,7 +49,7 @@ module;
 // is an implementation currency that ideally would not appear in high-level abstract faces, but the
 // `Overlap3C` family has to return SOMETHING and that something varies with the basis
 // (`doc/CleanupCandidates.md` D2 + V1.20b).  The visibility is the deliverable here, not the cure.
-export module qchem.BasisSet.Projector3;
+export module qchem.BasisSet.PairProjection;
 export import qchem.Types;
 export import qchem.Mesh.Integrator;   // MatrixForward<T>/MatrixAdjoint<T> -- the two halves the raw pair realises
 import qchem.Blaze;    // rvec_t, hmat_t<T> + complex/double arithmetic
@@ -111,7 +115,7 @@ template <class Range> inline ΔG_Map LinearCombination(const Range& fields, con
 //! G-space by \ref ContractAdjoint.  DENSITY-FREE either way: a basis produces this from its own
 //! functions; \f$D\f$ never enters the basis.  Exactly ONE realization group is populated (dense, or
 //! columns[+kernel], or the apply closures) -- which one is intrinsic to the producing basis lineage.
-template <class T> struct Projector3
+template <class T> struct PairProjection
 {
     //! DENSE realization (molecular / atomic): one \f$\langle ab|c\rangle\f$ matrix per fit function c,
     //! in the fit basis's own function order.  RAM-hungry; empty for the G-space lineages.
@@ -130,7 +134,7 @@ template <class T> struct Projector3
     //! \f$\to V_H\f$, kernel folded in) map to \f$D\f$ WITHOUT materializing a per-column tensor -- the basis
     //! sets it to a closure that collocates \f$\rho=\sum_{ij}D_{ij}\chi_i\chi_j\f$ analytically on compact
     //! boxes (multi-grid) then FFTs.  When set it takes priority in \ref Contract.  Type-erased so this
-    //! leaf names no GPW/grid type.  The Projector3 stays a static-data "spec of required transfers" with an
+    //! leaf names no GPW/grid type.  The PairProjection stays a static-data "spec of required transfers" with an
     //! optional realization.
     std::function<ΔG_Map(const hmat_t<T>& D)> apply;
     //! MATRIX-FREE BACKWARD -- the ADJOINT of \ref apply: assemble the KS matrix \f$\langle i|f|j\rangle=\sum_k
@@ -166,17 +170,21 @@ template <class T> struct Projector3
 };
 
 //! \brief G-space FORWARD contraction: \f$\tilde\rho(\Delta m)=\frac{k_c}\Omega\sum_{(i,j)\in
-//! \text{col}(\Delta m)}D_{ij}\f$, with the per-column metric \f$k_c\f$ (\ref Projector3::kernel;
+//! \text{col}(\Delta m)}D_{ij}\f$, with the per-column metric \f$k_c\f$ (\ref PairProjection::kernel;
 //! \f$k_c\equiv 1\f$ when empty).  The reciprocal-space mirror of the molecular
 //! \f$\langle\rho|c\rangle=\sum_{ab}D_{ab}\langle ab|c\rangle\f$ (which the density runs itself over
-//! \ref Projector3::dense -- a ΔG_Map is the wrong currency for it).  Dispatches to the matrix-free
-//! \ref Projector3::apply when the basis set one.
-template <class T> ΔG_Map Contract(const Projector3<T>& g, const hmat_t<T>& D)
+//! \ref PairProjection::dense -- a ΔG_Map is the wrong currency for it).  Dispatches to the matrix-free
+//! \ref PairProjection::apply when the basis set one.
+template <class T> ΔG_Map Contract(const PairProjection<T>& g, const hmat_t<T>& D)
 {
     // Matrix-free realization (GPW analytic collocation): the closure applies the whole density->rho-tilde
     // (or ->V_H, kernel folded in) map to D directly -- no per-column tensor.  Takes priority when set.
     if (g.apply) return g.apply(D);
-    assert(g.dense.empty() && "Contract: a dense Projector3 is contracted by its owner (IrrepCD), not here");
+    // A MISMATCH THROWS (V-ONE-OF-N): an assert is dead in Release, and a dense projection contracted here would return an
+    // empty map, i.e. a silent zero density.  Once per call, so it costs nothing.
+    if (!g.dense.empty())
+        throw std::logic_error("Contract: this PairProjection is the dense <ab|c> realization; its forward is "
+                               "DensePairProjectionIntegrator::Forward, not the G-space Contract");
     ΔG_Map rg;
     for (size_t c=0; c<g.columns.size(); ++c)   // plane-wave delta path: k_c/Omega Sum_{(i,j):dm} D_ij
     {
@@ -189,24 +197,26 @@ template <class T> ΔG_Map Contract(const Projector3<T>& g, const hmat_t<T>& D)
 
 //! The G-space BACKWARD contraction \f$\langle i|f|j\rangle=\sum_k f(G_k)W_k(i,j)\f$ -- the ADJOINT of \ref
 //! Contract, building a KS matrix from a fitted G-space field \a f.  Delegates to the matrix-free \ref
-//! Projector3::applyAdjoint the basis set (PW Fourier lookup / GPW integrate-back on the FIT grid the tensor
+//! PairProjection::applyAdjoint the basis set (PW Fourier lookup / GPW integrate-back on the FIT grid the tensor
 //! was built over) -- so \c ⟨i|v_xc|j⟩ = ContractAdjoint(orb.Overlap3C(vxc_fit), v_xc_tilde), replacing the
 //! grid-less \c MakeOverlap(field) bridge (doc/GPWPlan §0e step 2).
 // (the field parameter is type_identity_t so a bare lambda still binds -- T deduces from the tensor alone)
-template <class T> hmat_t<T> ContractAdjoint(const Projector3<T>& g,
+template <class T> hmat_t<T> ContractAdjoint(const PairProjection<T>& g,
                                              const std::type_identity_t<std::function<T(const ivec3_t&)>>& f)
 {
-    assert(g.applyAdjoint && "ContractAdjoint: the basis must realise Projector3::applyAdjoint (field->matrix)");
+    if (!g.applyAdjoint)
+        throw std::logic_error("ContractAdjoint: this PairProjection does not realise the G-space adjoint (applyAdjoint); "
+                               "a dense one is DensePairProjectionIntegrator::Adjoint");
     return g.applyAdjoint(f);
 }
 
 //! Frobenius distance between two DENSE realizations (test oracle).
-template <class T> double fnorm(const Projector3<T>& a, const Projector3<T>& b);
-template <class T> double relative_fnorm(const Projector3<T>& a, const Projector3<T>& b);
+template <class T> double fnorm(const PairProjection<T>& a, const PairProjection<T>& b);
+template <class T> double relative_fnorm(const PairProjection<T>& a, const PairProjection<T>& b);
 
 
 //! \brief The SCREENED realization of \c qcMesh::MatrixForward + \c qcMesh::MatrixAdjoint: a
-//! \c Projector3's raw forward/adjoint pair, presented behind the mesh-level faces.
+//! \c PairProjection's raw forward/adjoint pair, presented behind the mesh-level faces.
 //!
 //! ⚠ IT DERIVES FROM THE TWO HALVES, NOT FROM A PAIR FACE (2026-09-09).  There was a
 //! \c qcMesh::MatrixIntegrator<T> naming the pair; it was deleted because nothing held it (user: *"nobody
@@ -231,7 +241,7 @@ template <class T> double relative_fnorm(const Projector3<T>& a, const Projector
 //! dense realization is its natural reference: same answer to quadrature accuracy, at
 //! \f$O(n_{pts}n^2)\f$ instead of the screened pair count.
 //!
-//! \warning It borrows the \c Projector3 -- which is owned by the basis's integral cache and outlives any
+//! \warning It borrows the \c PairProjection -- which is owned by the basis's integral cache and outlives any
 //! assembly -- so this object is a VIEW and must not outlive it.
 template <class T> class ScreenedMatrixIntegrator
     : public virtual qcMesh::MatrixForward<T>
@@ -250,15 +260,15 @@ public:
     //! that knows.  Leaving it to the call site is how an object ends up with two defensible answers and a
     //! caller picking by accident, which is the whole failure this family exists to prevent.
     //!
-    //! THROWS when the raw pair is absent rather than assembling half a route: a \c Projector3 with a
+    //! THROWS when the raw pair is absent rather than assembling half a route: a \c PairProjection with a
     //! forward and no adjoint cannot be an integrator, and finding that out at the first \c Adjoint call --
     //! inside an SCF iteration -- is strictly worse than finding it out here.
-    ScreenedMatrixIntegrator(const Projector3<T>& g, rvec_t weights,
+    ScreenedMatrixIntegrator(const PairProjection<T>& g, rvec_t weights,
                              std::function<double(const rvec_t&)> rule={})
         : itsG(g), itsW(std::move(weights)), itsRule(std::move(rule))
     {
         if (!g.applyRaw || !g.applyRawAdjoint)
-            throw std::runtime_error("ScreenedMatrixIntegrator: this Projector3 does not realise the raw "
+            throw std::runtime_error("ScreenedMatrixIntegrator: this PairProjection does not realise the raw "
                 "forward/adjoint pair.  An integrator is the PAIR -- a tensor that can collocate but not "
                 "integrate back (or the reverse) is not one, and pretending otherwise is exactly the "
                 "mismatch this interface exists to prevent.");
@@ -287,14 +297,14 @@ public:
     virtual size_t NumCoefficients() const override {return itsW.size();}
 
 private:
-    const Projector3<T>& itsG;   //!< borrowed: owned by the basis's integral cache
+    const PairProjection<T>& itsG;   //!< borrowed: owned by the basis's integral cache
     rvec_t               itsW;   //!< the integration raster's weights (also the coefficient-axis length)
     //! The constructing client's own energy quadrature, when it has a pinned one; empty => use \c itsW.
     std::function<double(const rvec_t&)> itsRule;
 };
 
-//! \brief The DENSE, ANALYTIC realization of the forward/adjoint pair -- a \c Projector3 whose
-//! \ref Projector3::dense holds one full \f$\langle ab|c\rangle\f$ matrix per fit function (the
+//! \brief The DENSE, ANALYTIC realization of the forward/adjoint pair -- a \c PairProjection whose
+//! \ref PairProjection::dense holds one full \f$\langle ab|c\rangle\f$ matrix per fit function (the
 //! molecular Gaussian auxiliary basis; Coulomb or overlap metric, the tensor says which).
 //!
 //! ★ THIS IS R1.0q's FIRST ANALYTIC INSTANCE (2026-09-19), AND R1.0p's PROOF BY CONSTRUCTION: nothing here
@@ -307,21 +317,21 @@ private:
 //! order is kept so the move is bit-identical.
 //!
 //! \warning A VIEW: it borrows \a g, which the producing basis's integral cache owns for the run.
-template <class T> class DenseProjector3Integrator
+template <class T> class DensePairProjectionIntegrator
     : public virtual qcMesh::MatrixForward<T>
     , public virtual qcMesh::MatrixAdjoint<T>
 {
 public:
     //! \a integrals are the fit functions' own \f$\langle f_a|1\rangle\f$ (\c Charge()), which is what
     //! \c Integrate contracts a coefficient vector against -- function integrals, never point weights.
-    DenseProjector3Integrator(const Projector3<T>& g, rvec_t integrals)
+    DensePairProjectionIntegrator(const PairProjection<T>& g, rvec_t integrals)
         : itsG(g), itsInt(std::move(integrals))
     {
         if (itsG.dense.empty())
-            throw std::runtime_error("DenseProjector3Integrator: this Projector3 has no dense realization -- "
+            throw std::runtime_error("DensePairProjectionIntegrator: this PairProjection has no dense realization -- "
                 "it is the analytic (molecular/atomic) integrator and needs one <ab|c> matrix per fit function.");
         if (itsInt.size()!=itsG.dense.size())
-            throw std::runtime_error("DenseProjector3Integrator: one function integral per fit function");
+            throw std::runtime_error("DensePairProjectionIntegrator: one function integral per fit function");
     }
 
     using qcMesh::MatrixForward<T>::Forward;   // un-hide the factored overload (see qchem.Mesh.Integrator)
@@ -336,14 +346,14 @@ public:
     //! \f$\langle i|v|j\rangle=\sum_a v_a\langle ij|a\rangle\f$ -- the loop \c ConstrainedFF::Repulsion ran.
     virtual hmat_t<T> Adjoint(const rvec_t& v) const override
     {
-        assert(v.size()==itsG.dense.size() && "DenseProjector3Integrator::Adjoint: one coefficient per fit function");
+        assert(v.size()==itsG.dense.size() && "DensePairProjectionIntegrator::Adjoint: one coefficient per fit function");
         hmat_t<T> J=blazem::zeroH<T>(itsG.dense.empty() ? 0 : itsG.dense[0].rows());
         for (size_t a=0; a<v.size(); ++a) J+=v[a]*itsG.dense[a];
         return J;
     }
     virtual double Integrate(const rvec_t& f) const override
     {
-        assert(f.size()==itsInt.size() && "DenseProjector3Integrator::Integrate: one value per fit function");
+        assert(f.size()==itsInt.size() && "DensePairProjectionIntegrator::Integrate: one value per fit function");
         double s=0.0;
         for (size_t a=0; a<f.size(); ++a) s+=itsInt[a]*f[a];
         return s;
@@ -355,7 +365,7 @@ private:
     {
         if constexpr (std::is_floating_point_v<U>) return x; else return std::real(x);
     }
-    const Projector3<T>& itsG;     //!< borrowed: owned by the basis's integral cache
+    const PairProjection<T>& itsG;     //!< borrowed: owned by the basis's integral cache
     rvec_t               itsInt;   //!< \f$\langle f_a|1\rangle\f$ per fit function
 };
 

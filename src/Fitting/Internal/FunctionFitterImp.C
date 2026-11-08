@@ -7,7 +7,7 @@ export module qchem.Fitting.Internal.FunctionFitterImp;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar/_Density, the *FFClients, ScalarFunction
 import qchem.Fitting.Types;
 import qchem.Symmetry;               // SymMap -- the per-block integrator cache
-import qchem.BasisSet.Projector3;    // DenseProjector3Integrator (the analytic forward/adjoint pair)
+import qchem.BasisSet.PairProjection;    // DensePairProjectionIntegrator (the analytic forward/adjoint pair)
 import qchem.Parallel;               // LazyLock -- itsInt's guard
 //--------------------------------------------------------------------------
 //
@@ -64,7 +64,7 @@ public:
 
 //---------------------------------------------------------------- Density (Coulomb-metric) impl
 //! ★ AND IT IS "ACTOR 2" ON THE ANALYTIC ROUTE (R1.0q, 2026-09-19), exactly as \c DeltaScalarFitter is on
-//! the periodic one: it builds ONE \c DenseProjector3Integrator per orbital block over the basis's
+//! the periodic one: it builds ONE \c DensePairProjectionIntegrator per orbital block over the basis's
 //! Coulomb tensor \f$\langle ab|c\rangle\f$ and hands each client its half -- the density the FORWARD
 //! (through the \c DensityProjector face, when it projects itself in \c DoFit), the term the ADJOINT
 //! (through \c Repulsion).  Before this the density and this fitter each fetched the borrowed tensor and
@@ -101,8 +101,8 @@ protected:
 private:
     //! The (forward, adjoint) VIEW for one orbital block, built on first use over the basis's cached
     //! tensor and keyed by the block's spatial symmetry -- the same idiom as \c DeltaScalarFitter::Integrator.
-    const DenseProjector3Integrator<T>& Integrator(const BasisSet::Orbital_DFT_IBS<T,T>&) const;
-    mutable SymMap<DenseProjector3Integrator<T>> itsInt;   //!< by value: no ownership question to get wrong
+    const DensePairProjectionIntegrator<T>& Integrator(const BasisSet::Orbital_DFT_IBS<T,T>&) const;
+    mutable SymMap<DensePairProjectionIntegrator<T>> itsInt;   //!< by value: no ownership question to get wrong
     qchem::LazyLock itsIntLock;   //!< itsInt is reached per block from the parallel Fock pass (DeltaScalarFitter::Integrator)
     vec_t<T> g;
     row_t<T> gS;

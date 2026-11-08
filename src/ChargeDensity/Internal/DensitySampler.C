@@ -34,7 +34,7 @@ import qchem.ChargeDensity;
 import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quadrature the engine integrates on)
 import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 import qchem.Symmetry;                      // sym_t / SymMap: the per-block adjoint views, by spatial symmetry
-import qchem.BasisSet.Projector3;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
+import qchem.BasisSet.PairProjection;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Types;
 
@@ -350,7 +350,7 @@ private:
     //! it has functions, so a caller holding a raster array must ask the raster (2026-08-23).
     const BasisSet::G_RasterTransform& Raster() const;
     //! \brief MY ADJOINT HALF for one orbital block -- null when this lineage has no raw pair (then the
-    //! BALL fallback answers).  The \c Projector3 behind it is the basis's own cached tensor; the view is
+    //! BALL fallback answers).  The \c PairProjection behind it is the basis's own cached tensor; the view is
     //! cached HERE, keyed by block, because the face hands back a reference and the view borrows.
     //!
     //! ★ I HOLD THE ADJOINT AND NOTHING ELSE (2026-09-09, user: *"nobody should need both sides"*).  The

@@ -64,7 +64,7 @@ public:
 
 //! \brief WHAT A MATRIX-CARRYING DENSITY PROJECTS ITSELF ONTO IN THE COULOMB METRIC -- the analytic
 //! (Gaussian auxiliary basis) mirror of \c ScalarProjector, and R1.0q's first molecular instance
-//! (2026-09-19).  It vends the FORWARD half of a \c DenseProjector3Integrator built once per orbital
+//! (2026-09-19).  It vends the FORWARD half of a \c DensePairProjectionIntegrator built once per orbital
 //! block over the basis's \f$\langle ab|c\rangle\f$ Coulomb tensor; the density contracts its own \f$D\f$
 //! into it and never names the tensor.  The fitter that realises this face holds the ADJOINT half of the
 //! same object for \f$\sum_a c_a\langle i|f_a/r_{12}|j\rangle\f$ -- so the density's forward and the
@@ -151,7 +151,7 @@ public:
 //!  - it carries NO matrix (a seed, a \f$\tilde\rho\f$-mixed field) -> \c Project itself as a FIELD.
 //!
 //! WHY THE FITTER HOLDS THE \f$\Phi\f$ HANDLES (user, 2026-08-24: *"DeltaScalarFitter needs to hold a
-//! shallow copy of \f$\Phi_{gi}=\chi_i(r_g)\f$"*).  \c Projector3 IS that shallow copy: three closures
+//! shallow copy of \f$\Phi_{gi}=\chi_i(r_g)\f$"*).  \c PairProjection IS that shallow copy: three closures
 //! over the fit basis's own address-stable table, ~100 bytes against the table's tens of MB.  Holding it
 //! here is what makes the adjoint pairing a CLASS INVARIANT rather than a convention -- the \f$\rho\f$
 //! FORWARD (\c applyRaw / \c applyRawFactored) and the \f$H_{xc}\f$ ADJOINT (\c applyRawAdjoint) now come
@@ -197,7 +197,7 @@ public:
     //! density contracts its own \f$D\f$ (or thin \f$L\f$) into.
     //!
     //! ★ IT RETURNS THE ABSTRACTION, NOT THE TENSOR (2026-09-09).  It used to hand back
-    //! \c const Projector3<U>& -- the concrete 3-centre tensor -- so \c IrrepCD reached into a
+    //! \c const PairProjection<U>& -- the concrete 3-centre tensor -- so \c IrrepCD reached into a
     //! \c std::function member (`o3.applyRaw(D)`) and asserted on another (`o3.applyRawFactored`).  The
     //! density has no business naming either: it owns \f$D\f$ and wants ONE thing done with it.
     //! \c qcMesh::MatrixForward is that thing, and its factored overload has a default, so there is

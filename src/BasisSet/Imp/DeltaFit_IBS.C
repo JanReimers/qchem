@@ -181,7 +181,7 @@ template <class T> template <class U> const mat_t<U>& DeltaFit_IBS<T>::Table(Sym
 // object: rank-3 and never materialised, so what the caller gets is the two contractions of it (three, once
 // the density's factored form is counted -- one integral, two representations of D).  Phi and w stay in
 // here; the caller supplies only what it owns, its coefficients or its density matrix.
-template <class T> template <class U> const Projector3<U>& DeltaFit_IBS<T>::Tensor(SymMap<Projector3<U>>& cache,
+template <class T> template <class U> const PairProjection<U>& DeltaFit_IBS<T>::Tensor(SymMap<PairProjection<U>>& cache,
                                                              SymMap<mat_t<U>>& phis,
                                                              const Orbital_1E_IBS<U>& orb) const
 {
@@ -192,14 +192,14 @@ template <class T> template <class U> const Projector3<U>& DeltaFit_IBS<T>::Tens
     // Bind the table ONCE here: std::map nodes are address-stable, so the closures may capture it by
     // reference and no contraction re-does the lookup.
     const mat_t<U>& P=Table(phis, orb);
-    Projector3<U> g;
+    PairProjection<U> g;
     g.applyRawAdjoint  =[this,&P](const rvec_t& c)   {return AdjointT<U>(P, c);};
     g.applyRaw         =[this,&P](const hmat_t<U>& D){return ForwardT<U>(P, D);};
     g.applyRawFactored =[this,&P](const mat_t<U>& L) {return ForwardFactoredT<U>(P, L);};
     return cache.emplace(id, std::move(g)).first->second;
 }
 
-template <class T> const Projector3<T>& DeltaFit_IBS<T>::Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const
+template <class T> const PairProjection<T>& DeltaFit_IBS<T>::Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const
 {
     if constexpr (std::is_same_v<T,double>) return Tensor(itsO3R, itsPhiR, orb);   // a block's table is typed by the BLOCK's scalar
     else                                    return Tensor(itsO3 , itsPhi , orb);

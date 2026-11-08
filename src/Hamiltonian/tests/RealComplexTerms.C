@@ -157,7 +157,7 @@ template <class U> U FactorEntry(size_t i, size_t m)
     else                                    return a;
 }
 
-//! \f$\rho\f$ from \f$L\f$ two ways over ONE \c Projector3: the factored contraction against the full
+//! \f$\rho\f$ from \f$L\f$ two ways over ONE \c PairProjection: the factored contraction against the full
 //! quadratic form of \f$D=LL^\dagger\f$.  PSD by construction, so the factored route is always applicable.
 template <class U>
 void ExpectFactoredMatchesFull(const BasisSet::DeltaFit_IBS<dcmplx>& dfit,
@@ -185,7 +185,7 @@ void ExpectFactoredMatchesFull(const BasisSet::DeltaFit_IBS<dcmplx>& dfit,
         D(i,j)=s;
     }
 
-    const Projector3<U>& o3=static_cast<const BasisSet::Integrals_Overlap3C<U,dcmplx>&>(dfit).Overlap3C(orb);   // through the face: the real-block overload lives on the periodic base
+    const PairProjection<U>& o3=static_cast<const BasisSet::Integrals_Overlap3C<U,dcmplx>&>(dfit).Overlap3C(orb);   // through the face: the real-block overload lives on the periodic base
     ASSERT_TRUE(bool(o3.applyRaw))         << what << ": the delta basis must realise the raw forward";
     ASSERT_TRUE(bool(o3.applyRawFactored)) << what << ": ...and its factored sibling";
     const rvec_t full=o3.applyRaw(D), fact=o3.applyRawFactored(L);

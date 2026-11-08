@@ -17,7 +17,7 @@ module;
 #include <functional>   // the ApplySpectralFilter multiplier k(|G|^2)
 export module qchem.BasisSet.PlaneWave.Evaluators.PeriodicGrid;
 export import qchem.ReciprocalLattice;        // ReciprocalLattice / UnitCell (the B cell; source of G)
-export import qchem.BasisSet.Projector3;   // ΔG_Map
+export import qchem.BasisSet.PairProjection;   // ΔG_Map
 export import qchem.Mesh;                     // qcMesh::Mesh -- the raster AS points+weights (the universal face)
 import qchem.Types;                           // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, dcmplx
 

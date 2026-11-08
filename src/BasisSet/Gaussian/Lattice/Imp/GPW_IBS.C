@@ -192,12 +192,12 @@ template <class T> hmat_t<T> tGPW_IBS<T>::MakeSetOverlap(const BasisSet::AtomCen
 // it, so we RETURN THE REQUESTED TABLE rather than overriding the caller's fit-grid choice with the block's own
 // (the shared Lattice::Orbital_DFT_IBS mixin dropped \a c).  Bit-identical while the factory wraps DensityGrid();
 // the seam is what lets the fit grid diverge (the deferred GGA Vxc densification) without touching these.
-template <class T> Projector3<dcmplx> tGPW_IBS<T>::MakeRepulsion3C(const cFIT_CD_ABS& c) const
+template <class T> PairProjection<dcmplx> tGPW_IBS<T>::MakeRepulsion3C(const cFIT_CD_ABS& c) const
 {
     const auto& grid = dynamic_cast<const PlaneWave::PW_Grid_Evaluator&>(c);   // throws bad_cast on a non-grid fit basis (loud)
     return GPW_Evaluator::Repulsion3CTensor(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid));
 }
-template <class T> Projector3<dcmplx> tGPW_IBS<T>::MakeOverlap3C(const cFIT_SF_ABS& c) const
+template <class T> PairProjection<dcmplx> tGPW_IBS<T>::MakeOverlap3C(const cFIT_SF_ABS& c) const
 {
     const auto& grid = dynamic_cast<const PlaneWave::PW_Grid_Evaluator&>(c);
     return GPW_Evaluator::Overlap3CTensor(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid));
@@ -207,13 +207,13 @@ template <class T> Projector3<dcmplx> tGPW_IBS<T>::MakeOverlap3C(const cFIT_SF_A
 // capture this evaluator's mutable per-SCF state (CollocMemo D-screen, stream caches), so they must die
 // with the run -- the base class's process-wide DBCache route leaked the D-screen into every later
 // identical run (the 2026-08-18 first-run anomaly).  Same lookup-or-make contract, instance lifetime.
-template <class T> const Projector3<dcmplx>& tGPW_IBS<T>::Overlap3C(const cFIT_SF_ABS& c) const
+template <class T> const PairProjection<dcmplx>& tGPW_IBS<T>::Overlap3C(const cFIT_SF_ABS& c) const
 {
     auto [it,fresh]=its3Cs.try_emplace("O|"+c.BasisSetID());
     if (fresh) it->second=MakeOverlap3C(c);
     return it->second;
 }
-template <class T> const Projector3<dcmplx>& tGPW_IBS<T>::Repulsion3C(const cFIT_CD_ABS& c) const
+template <class T> const PairProjection<dcmplx>& tGPW_IBS<T>::Repulsion3C(const cFIT_CD_ABS& c) const
 {
     auto [it,fresh]=its3Cs.try_emplace("R|"+c.BasisSetID());
     if (fresh) it->second=MakeRepulsion3C(c);

@@ -11,7 +11,7 @@ module;
 #include <deque>
 #include <vector>
 export module qchem.ChargeDensity.Internal.FieldMixer;
-export import qchem.ChargeDensity.FourierDensity;         // FourierDensity, ΔG_Map + its field algebra (Projector3)
+export import qchem.ChargeDensity.FourierDensity;         // FourierDensity, ΔG_Map + its field algebra (PairProjection)
 export import qchem.ChargeDensity.FourierMixCD;           // FourierMixCD (the field's PRESENTATION as a density)
 export import qchem.ReciprocalLattice;                    // KerkerStep's |G|
 import qchem.BasisSet.G_FieldEvaluator;            // G_SpectralFilter: the raster Kerker step (0.5(f2))
@@ -240,7 +240,7 @@ inline rvec_t RawCombine(const rvec_t& a, const rvec_t& b, double sign, double s
 }
 //! The Pulay RESIDUAL metric \f$\mathrm{Re}\sum_{G\neq0}\overline{a_G}\,b_G\f$ -- G=0 is excluded because it is
 //! never part of the mix's residual (the (0,0,0) coefficient is the charge, fixed by construction).  A
-//! mixer-specific inner product, which is why it is here and not with the field algebra in Projector3.
+//! mixer-specific inner product, which is why it is here and not with the field algebra in PairProjection.
 inline double ResidualInnerRe(const ΔG_Map& a, const ΔG_Map& b)
 {
     double s=0.0;

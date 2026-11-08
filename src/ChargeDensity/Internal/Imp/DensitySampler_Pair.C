@@ -348,7 +348,7 @@ template <class U> hmat_t<U> PairDensitySampler::MatrixT(const tobs_t<U>* bs, co
     //
     // ▶ THE CAPABILITY TEST IS NOW `BlockAdjoint` RETURNING NULL (2026-09-09), which is the same question
     // asked once per block instead of once per call -- and the answer comes back as the ADJOINT FACE rather
-    // than as the tensor, so this function no longer names `applyRawAdjoint` or `Projector3` at all.  The
+    // than as the tensor, so this function no longer names `applyRawAdjoint` or `PairProjection` at all.  The
     // tensor is dcmplx whichever scalar the BLOCK is (a real TRIM block contracts against the run's complex
     // fit axis, 3c-3), so the narrow stays here.
     if (const qcMesh::MatrixAdjoint<dcmplx>* adj=BlockAdjoint(orb))
@@ -379,7 +379,7 @@ template <class U> hmat_t<U> PairDensitySampler::MatrixT(const tobs_t<U>* bs, co
 // construction rather than by the caller remembering which to use.
 //
 // ⚠ The view is CACHED per block because the face returns a reference and a ScreenedMatrixIntegrator
-// BORROWS its Projector3; a temporary would dangle on use.  The tensor itself is the basis's own cached
+// BORROWS its PairProjection; a temporary would dangle on use.  The tensor itself is the basis's own cached
 // one, so this map holds ~100 bytes per block, not a table.
 template <class U> const qcMesh::MatrixAdjoint<dcmplx>*
 PairDensitySampler::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
@@ -388,13 +388,13 @@ PairDensitySampler::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb)
     std::lock_guard<std::mutex> lock(itsAdjLock.m);  // k-block workers (KAxisPlan P1): the ↑ and ↓ pairs share a block
     auto it=itsAdj.find(id);
     if (it!=itsAdj.end()) return &it->second;
-    const Projector3<dcmplx>& g=orb.Overlap3C(*itsFitBasis);
+    const PairProjection<dcmplx>& g=orb.Overlap3C(*itsFitBasis);
     if (!g.applyRawAdjoint) return nullptr;           // a plane-wave lineage: the ball fit answers instead
     const BasisSet::G_RasterTransform& r=Raster();
     rvec_t w(r.RasterSize(), 0.0);                    // sizes the coefficient axis; the RULE does the sum
     // LIFETIME: the lambda captures the raster BY REFERENCE, and that reference points into *itsFitBasis --
     // which this engine co-owns through a shared_ptr, so it outlives every view in this map.  The same
-    // invariant ScreenedMatrixIntegrator relies on for the Projector3 it borrows; stated because a stored
+    // invariant ScreenedMatrixIntegrator relies on for the PairProjection it borrows; stated because a stored
     // closure over a reference is the kind of thing that is only safe on purpose.
     return &itsAdj.emplace(id, ScreenedMatrixIntegrator<dcmplx>(g, std::move(w),
                                [&r](const rvec_t& f){return r.Integral(f);})).first->second;

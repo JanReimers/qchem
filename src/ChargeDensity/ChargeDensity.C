@@ -288,7 +288,7 @@ public:
     //!
     //! THE DENSITY ASKS THE FITTER (2026-08-24).  \f$D\f$ is this class's private business and the
     //! \f$\Phi\f$ TABLE is the fit basis's, so neither travels: the fitter hands over the CONTRACTIBLE
-    //! integral (\c Projector3, a shallow handle on its cached table) and each block contracts its own
+    //! integral (\c PairProjection, a shallow handle on its cached table) and each block contracts its own
     //! \f$D\f$ or thin \f$L\f$ into it.  MIXED-aware for free -- a real TRIM block asks with \c double
     //! while its complex siblings ask with \c dcmplx (doc/RealComplexPlan.md 3c-3).
     //!

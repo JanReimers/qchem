@@ -12,7 +12,7 @@ module;
 export module qchem.BasisSet.Internal.DB_Cache_RAM;
 export import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.ERI4;
-import qchem.BasisSet.Projector3;    // Projector3<T> (the 3-centre tensor, all realizations)
+import qchem.BasisSet.PairProjection;    // PairProjection<T> (the 3-centre tensor, all realizations)
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.Cache2;
 import qchem.BasisSet.Internal.Cache3;
@@ -33,7 +33,7 @@ public:
     virtual const hmat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<hmat_t<T>()>) override;
     virtual const hmat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<hmat_t<T>()>) override;
     virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()>) override;
-    virtual const Projector3<T>& Get(I3C,const DBCacheClient*,const DBCacheClient*, std::function<Projector3<T>()>) override;
+    virtual const PairProjection<T>& Get(I3C,const DBCacheClient*,const DBCacheClient*, std::function<PairProjection<T>()>) override;
     virtual const ERI4     & Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()>) override;
     virtual const rvec_t&    Get(I1C,const DBCacheClient*,const Mesh_ID_t&,                      std::function<rvec_t()>) override;
     virtual const rmat_t&    Get(I2x,const DBCacheClient*,const DBCacheClient*,const Mesh_ID_t&, std::function<rmat_t()>) override;
@@ -77,7 +77,7 @@ private:
     using map2_t=std::map<key2_t ,hmat_t<T>>;
     using mapn_t=std::map<keyn_t ,hmat_t<T>>;
     using mapx_t=std::map<keyx_t , mat_t<T>>;
-    using map3_t=std::map<key3_t , Projector3<T>>;   // 3-centre tensors, every realization (V1.1)
+    using map3_t=std::map<key3_t , PairProjection<T>>;   // 3-centre tensors, every realization (V1.1)
     using map4_t=std::map<IBS_ID_t,std::map<IBS_ID_t,ERI4>>;
 
     using map1m_t =std::map<key1m_t  ,rvec_t>;

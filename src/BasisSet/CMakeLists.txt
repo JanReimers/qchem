@@ -18,7 +18,7 @@ target_sources(qcBasisSet PRIVATE
   Internal/Imp/Cache4.C
   Internal/Imp/Cache2.C
   Internal/Imp/Cache3.C
-  Imp/Projector3.C
+  Imp/PairProjection.C
   Internal/Imp/ERI4.C
   Internal/Imp/ERI4T.C
   Internal/Imp/DB_Cache_RAM.C
@@ -58,7 +58,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/Cache4.C
   Internal/Cache2.C
   Internal/Cache3.C
-  Projector3.C
+  PairProjection.C
   GMap.C
   Internal/ERI4.C
   Internal/ERI4T.C

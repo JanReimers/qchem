@@ -36,7 +36,7 @@ import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // GPW_IBS (the basis unde
 import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
 import qchem.Mesh.Quadrature;                // qcMesh::Mesh (the delta basis's quadrature)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
-import qchem.BasisSet.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
+import qchem.BasisSet.GMap;            // PairProjection<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the v_xc/eps_xc face; XC-consistency probe)
 import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange -- the SCF's own X term)
 import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5 -- the SCF's own C term)
@@ -106,8 +106,8 @@ TEST(GPW_XC, PotentialConsistencyFD)
     qchem::Hamiltonian::VWN_Correlation corr;
     const qchem::Hamiltonian::ExFunctional* xcs[2]={&exch,&corr};
 
-    Projector3<dcmplx> ov =ev.Overlap3CTensor();                     // rho-tilde (no kernel) -- the pair-quadrature route
-    Projector3<dcmplx> cou=ev.Repulsion3CTensor();                   // V_H (Coulomb kernel baked) -- the control
+    PairProjection<dcmplx> ov =ev.Overlap3CTensor();                     // rho-tilde (no kernel) -- the pair-quadrature route
+    PairProjection<dcmplx> cou=ev.Repulsion3CTensor();                   // V_H (Coulomb kernel baked) -- the control
 
     auto rhoOf=[&](const chmat_t& D)->rvec_t { return grid.RhoOnGrid(Contract(ov,D)); };
     auto Exc=[&](const rvec_t& rho)->double              // == Vxc_Quadrature::GetEnergy (both terms)
@@ -228,7 +228,7 @@ TEST(GPW_XC, RawConsistencyFD)
     qchem::Hamiltonian::VWN_Correlation corr;
     const qchem::Hamiltonian::ExFunctional* xcs[2]={&exch,&corr};
 
-    Projector3<dcmplx> ov=ev.Overlap3CTensor();
+    PairProjection<dcmplx> ov=ev.Overlap3CTensor();
     ASSERT_TRUE(bool(ov.applyRaw))        << "GPW must realise the raw-raster forward";
     ASSERT_TRUE(bool(ov.applyRawAdjoint)) << "GPW must realise the raw-raster adjoint";
 

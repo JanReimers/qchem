@@ -39,22 +39,22 @@ namespace qchem::BasisSet {
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import :Fit_IBS;
-export import qchem.BasisSet.Projector3;
+export import qchem.BasisSet.PairProjection;
 namespace qchem::BasisSet {
     template <class T, class TFit = T> class Orbital_DFT_IBS : public virtual Orbital_1E_IBS<T> , public virtual IrrepBasisSet_IDs {
     public:
-        virtual const Projector3<TFit>& Overlap3C (const FIT_SF_ABS<TFit>& c) const;
-        virtual const Projector3<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
+        virtual const PairProjection<TFit>& Overlap3C (const FIT_SF_ABS<TFit>& c) const;
+        virtual const PairProjection<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
         virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const=0;
         virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;
     protected:
-        virtual Projector3<TFit> MakeOverlap3C (const FIT_SF_ABS<TFit>& c) const=0;
-        virtual Projector3<TFit> MakeRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
+        virtual PairProjection<TFit> MakeOverlap3C (const FIT_SF_ABS<TFit>& c) const=0;
+        virtual PairProjection<TFit> MakeRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
     };
     typedef Orbital_DFT_IBS<double> Real_DFT_OIBS;
-    template <class T> const Projector3<T>& FIT_SF_ABS<T>::Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const;
-    template const Projector3<double>& FIT_SF_ABS<double>::Overlap3C(const Orbital_DFT_IBS<double,double>&) const;
-    template const Projector3<dcmplx>& FIT_SF_ABS<dcmplx>::Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>&) const;
+    template <class T> const PairProjection<T>& FIT_SF_ABS<T>::Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const;
+    template const PairProjection<double>& FIT_SF_ABS<double>::Overlap3C(const Orbital_DFT_IBS<double,double>&) const;
+    template const PairProjection<dcmplx>& FIT_SF_ABS<dcmplx>::Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>&) const;
 }
 
 ### qchem.BasisSet.Orbital_DFT_IBS:Fit_IBS   (src/BasisSet/Fit_IBS.C)
@@ -62,13 +62,13 @@ export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
 export import qchem.Mesh;
 export import qchem.BasisSet.Orbital_1E_IBS;
-export import qchem.BasisSet.Projector3;
+export import qchem.BasisSet.PairProjection;
 namespace qchem::BasisSet {
     template <class T, class TFit> class Orbital_DFT_IBS;
     template <class U, class TFit> class Integrals_Overlap3C {
     public:
         virtual ~Integrals_Overlap3C() = default;
-        virtual const Projector3<U>& Overlap3C(const Orbital_DFT_IBS<U,TFit>& orb) const=0;
+        virtual const PairProjection<U>& Overlap3C(const Orbital_DFT_IBS<U,TFit>& orb) const=0;
     };
     template <class T> class FIT_CD_ABS : public virtual IrrepBasisSet<T> {
     public:
@@ -87,7 +87,7 @@ namespace qchem::BasisSet {
     public:
         virtual bool isOrtho() const=0;
         virtual vec_t<T> Overlap(const ScalarFunction<double>& f) const=0;
-        const Projector3<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
+        const PairProjection<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
         virtual vec_t<T> Charge() const=0;
         virtual vec_t<T> OverlapDiagonal() const=0;
     };

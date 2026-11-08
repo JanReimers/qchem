@@ -181,8 +181,8 @@ public:
     //! process).  Instance scope = run scope: every run replays fresh-process behaviour bit-for-bit.
     //! (Within a run nothing changes -- the same instance serves every iteration, and cross-k-block stream
     //! sharing lives in the SHARED molecular basis, not in these closures.)
-    virtual const Projector3<dcmplx>& Overlap3C  (const cFIT_SF_ABS& c) const override;
-    virtual const Projector3<dcmplx>& Repulsion3C(const cFIT_CD_ABS& c) const override;
+    virtual const PairProjection<dcmplx>& Overlap3C  (const cFIT_SF_ABS& c) const override;
+    virtual const PairProjection<dcmplx>& Repulsion3C(const cFIT_CD_ABS& c) const override;
 
     virtual std::ostream& Write(std::ostream&) const override;
 
@@ -193,8 +193,8 @@ protected:
     //! the table returned is the one REQUESTED, honouring the factory's grid choice rather than silently
     //! overriding it with the block's own (doc/GPWPlan §0e).  Overrides the shared \c Lattice::Orbital_DFT_IBS mixin
     //! (which dropped \a c); the block's own no-arg tensors remain the convenience/test path.
-    virtual Projector3<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
-    virtual Projector3<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS& c) const override;
+    virtual PairProjection<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
+    virtual PairProjection<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS& c) const override;
 
     // (The ctor-injected crystal ops live on GPW_Evaluator -- SetSymmetryOps/SymmetryOps: ONE storage for
     //  the T1 {G}-star fold and the Vxc-raster star-average.)
@@ -203,7 +203,7 @@ private:
     void CheckTransitionPair(const BasisSet::Transition_DFT_IBS& bra, size_t rows, size_t cols) const;
     //! The instance-scoped 3C tensor memo (see Overlap3C/Repulsion3C above).  Key = "O|"/"R|" + the fit
     //! basis's BasisSetID (content identity, never a pointer).
-    mutable std::map<std::string,Projector3<dcmplx>> its3Cs;
+    mutable std::map<std::string,PairProjection<dcmplx>> its3Cs;
 };
 
 //! Every pre-Step-3 spelling: the general-k complex block.  A TRIM block is tGPW_IBS<double>.

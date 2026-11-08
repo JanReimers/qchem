@@ -462,7 +462,7 @@ template <class T> rvec_t IrrepCD_Core<T>::ProjectOnto(const Fitting::ScalarProj
     // What crosses the boundary is D (mine) one way and the coefficients the other; the Phi table, the
     // weights and any grid stay inside the integrator.
     //
-    // THE ABSTRACTION, NOT THE TENSOR (2026-09-09).  This used to take a `const Projector3<T>&` back and
+    // THE ABSTRACTION, NOT THE TENSOR (2026-09-09).  This used to take a `const PairProjection<T>&` back and
     // reach into its `applyRaw` std::function, with an assert for the case where it was empty.  A density
     // owns D and wants ONE thing done with it; naming the concrete 3-centre tensor to get that was the
     // dependency inversion this face was missing.  The assert is gone with it: if you hold a
@@ -582,7 +582,7 @@ template <class Leaf> rvec_t IrrepCD_Fourier<Leaf>::GetRhoOnGrid(const BasisSet:
 {
     auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<typename Leaf::scalar_t,dcmplx>*>(self().itsBasisSet);
     assert(fb && "GetRhoOnGrid requires a periodic (G-space) Orbital_DFT_IBS basis");
-    const Projector3<dcmplx>& g=fb->Overlap3C(c);
+    const PairProjection<dcmplx>& g=fb->Overlap3C(c);
     return g.applyRaw ? g.applyRaw(self().itsDensityMatrix) : rvec_t{};
 }
 

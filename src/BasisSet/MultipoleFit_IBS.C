@@ -62,14 +62,14 @@ public:
         return c;
     }
     //! \copydoc BasisSet::Integrals_Overlap3C::Overlap3C
-    const Projector3<double>& Overlap3C(const Orbital_DFT_IBS<double,double>& orb) const override
+    const PairProjection<double>& Overlap3C(const Orbital_DFT_IBS<double,double>& orb) const override
     {
-        const Projector3<double>& d=itsDelta->Overlap3C(orb);   // the δ basis's own lock, taken before mine
+        const PairProjection<double>& d=itsDelta->Overlap3C(orb);   // the δ basis's own lock, taken before mine
         std::lock_guard<std::mutex> lock(itsLock.m);
         const sym_t& id=orb.GetSymt();
         auto it=itsO3.find(id);
         if (it!=itsO3.end()) return it->second;
-        Projector3<double> g;
+        PairProjection<double> g;
         g.applyRaw       =[this,&d](const hmat_t<double>& D) {return Channels(d.applyRaw(D));};
         g.applyRawAdjoint=[this,&d](const rvec_t& c) {return d.applyRawAdjoint(itsSites->Synthesize(itsSites->Split(c)));};
         if (d.applyRawFactored) g.applyRawFactored=[this,&d](const mat_t<double>& L) {return Channels(d.applyRawFactored(L));};
@@ -109,7 +109,7 @@ private:
     std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;
     rvec_t itsW;          //!< the mesh's weights
     rvec_t itsDiagonal;   //!< the shell weight of each channel
-    mutable SymMap<Projector3<double>> itsO3;   //!< the composed pairs, by SPATIAL symmetry
+    mutable SymMap<PairProjection<double>> itsO3;   //!< the composed pairs, by SPATIAL symmetry
     qchem::LazyLock itsLock;
 };
 

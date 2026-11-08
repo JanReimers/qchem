@@ -45,7 +45,7 @@ import qchem.BasisSet.DeltaFit_IBS;          // DeltaFit_IBS (the delta represen
 import qchem.Fitting.FitOperations;          // OrthogonalFit -- the projection/metric invariant this gate pins
 import qchem.Mesh.Quadrature;                // qcMesh::Mesh (the delta basis's quadrature)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
-import qchem.BasisSet.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
+import qchem.BasisSet.GMap;            // PairProjection<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Blaze;                             // hmat_t element access / rows()
 import qchem.Vector3D;                          // rvec3_t arithmetic (r + R0)
 import qchem.Types;
@@ -203,7 +203,7 @@ TEST(GPW, LatticeSumConvergesToFiniteAsCellGrows)
 namespace
 {
 // The G=0 column of a collocation tensor (the fit function G_c = 0).
-int G0Column(const Projector3<dcmplx>& t)
+int G0Column(const PairProjection<dcmplx>& t)
 {
     for (size_t c=0;c<t.columns.size();c++)
     {
@@ -230,7 +230,7 @@ TEST(GPW, CollocationOverlapMatchesAnalytic)
     GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0);
 
     const GPW_Evaluator& ev = gpw;
-    Projector3<dcmplx> ov = ev.Overlap3CTensor();
+    PairProjection<dcmplx> ov = ev.Overlap3CTensor();
     ASSERT_GE(G0Column(ov), 0);
     ASSERT_TRUE(bool(ov.apply)) << "the GPW tensor must carry the matrix-free analytic-collocation map";
 
@@ -273,7 +273,7 @@ TEST(GPW, SharpestPairChargeConservation)
     for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=dcmplx(0.0);
     D(is,is)=dcmplx(1.0);                      // unit load on the sharpest product -- the top rung's customer
 
-    Projector3<dcmplx> ov=ev.Overlap3CTensor();
+    PairProjection<dcmplx> ov=ev.Overlap3CTensor();
     ASSERT_TRUE(bool(ov.apply));
     ΔG_Map rho=Contract(ov, D);
     const double integral=std::real(rho[ivec3_t(0,0,0)])*ov.volume;
@@ -330,7 +330,7 @@ TEST(GPW, IllConditionedChargeProbe)   // RE-ENABLED 2026-09-15 (TE phase 5): se
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++) { D(i,j)=dcmplx(0.5*(Si(i,j)+Si(j,i)),0.0); dmax=std::max(dmax,std::fabs(Si(i,j))); }
 
-    Projector3<dcmplx> ov=ev.Overlap3CTensor();
+    PairProjection<dcmplx> ov=ev.Overlap3CTensor();
     ASSERT_TRUE(bool(ov.apply));
     ΔG_Map rho=Contract(ov, D);
     const double integral=std::real(rho[ivec3_t(0,0,0)])*ov.volume;
@@ -439,7 +439,7 @@ TEST(GPW, AnalyticCollocationCrystalChargeConservation)
     const Complex_OIBS& g=gpw;
     const size_t n=g.GetNumFunctions();
     chmat_t D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.0);
-    Projector3<dcmplx> ov=ev.Overlap3CTensor();
+    PairProjection<dcmplx> ov=ev.Overlap3CTensor();
     ASSERT_TRUE(bool(ov.apply));
     ΔG_Map rho=Contract(ov, D);                                  // the SCF's own contraction (multi-grid)
     const double integral=std::real(rho[ivec3_t(0,0,0)])*ov.volume;
@@ -491,7 +491,7 @@ TEST(GPW, AnalyticIntegrateBackAdjoint)
     // (2) seam-level, MULTI-GRID: Tr(D OverlapMatrix(field)) == Omega Sum_G apply(D)(G) field(G)
     chmat_t H=ev.OverlapMatrix(field);                         // the SCF KS bridge (multi-grid analytic)
     dcmplx trDH(0.0); for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) trDH+=dcmplx(D(i,j))*dcmplx(H(j,i));
-    Projector3<dcmplx> ovt=ev.Overlap3CTensor();
+    PairProjection<dcmplx> ovt=ev.Overlap3CTensor();
     ΔG_Map rhoT=Contract(ovt, D);                        // the SCF density map (multi-grid, nested)
     dcmplx eG(0.0); for (const auto& [dm,c] : rhoT) eG+=c*field(dm);
     eG*=ovt.volume;
@@ -2601,7 +2601,7 @@ TEST(GPW, TightPrimitiveCollocationOracle)
             const Real_OIBS* obs=nullptr;
             for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
             const size_t nf=g.GetNumFunctions();
-            const Projector3<dcmplx> ov=ev.Overlap3CTensor();
+            const PairProjection<dcmplx> ov=ev.Overlap3CTensor();
             double worst=0.0;
             for (size_t p : {size_t(0), size_t(4), size_t(5)})   // s, x^2, xy
             {
@@ -2698,7 +2698,7 @@ TEST(GPW, RasterAliasCalibration)
             ASSERT_TRUE(obs);
             const auto& S=obs->Overlap();
             const size_t nf=gc.GetNumFunctions();
-            const Projector3<dcmplx> ov=ev.Overlap3CTensor();
+            const PairProjection<dcmplx> ov=ev.Overlap3CTensor();
             double er=0.0, evl=0.0;
             for (size_t p=0;p<obs->GetNumFunctions();p++)
             {

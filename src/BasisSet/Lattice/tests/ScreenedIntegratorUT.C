@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice/tests/ScreenedIntegratorUT.C  ScreenedMatrixIntegrator -- the Projector3 raw
+// File: BasisSet/Lattice/tests/ScreenedIntegratorUT.C  ScreenedMatrixIntegrator -- the PairProjection raw
 // pair behind the mesh-level MatrixForward/MatrixAdjoint faces.
 //
 // Synthetic closures, deliberately: what is under test is the ADAPTER and its contract, not GPW's
@@ -7,11 +7,11 @@
 #include "gtest/gtest.h"
 #include <stdexcept>
 
-import qchem.BasisSet.Projector3;
+import qchem.BasisSet.PairProjection;
 import qchem.Types;
 
 using namespace qchem;
-using qchem::Projector3;
+using qchem::PairProjection;
 using qchem::ScreenedMatrixIntegrator;
 
 namespace {
@@ -20,9 +20,9 @@ namespace {
 const double P[2][2] = {{1.0, 2.0},{3.0,-1.0}};   // P[g][i]
 const rvec_t W{0.25, 0.75};
 
-Projector3<double> MakeAdjointPair()
+PairProjection<double> MakeAdjointPair()
 {
-    Projector3<double> g;
+    PairProjection<double> g;
     g.applyRaw = [](const hmat_t<double>& D)
     {
         rvec_t rho(2,0.0);
@@ -46,19 +46,19 @@ Projector3<double> MakeAdjointPair()
 } // anon
 
 //---------------------------------------------------------------------------------------------------
-// ★ THE CONTRACT: an integrator is the PAIR.  A Projector3 that can collocate but not integrate back --
+// ★ THE CONTRACT: an integrator is the PAIR.  A PairProjection that can collocate but not integrate back --
 // or the reverse -- is not one, and saying so at CONSTRUCTION beats discovering it at the first Adjoint
 // call inside an SCF iteration.
 TEST(ScreenedMatrixIntegrator, AHalfPairIsRejectedAtConstruction)
 {
-    Projector3<double> fwdOnly;  fwdOnly.applyRaw       =[](const hmat_t<double>&){return rvec_t(2,0.0);};
-    Projector3<double> adjOnly;  adjOnly.applyRawAdjoint=[](const rvec_t&){return hmat_t<double>(2);};
-    Projector3<double> neither;
+    PairProjection<double> fwdOnly;  fwdOnly.applyRaw       =[](const hmat_t<double>&){return rvec_t(2,0.0);};
+    PairProjection<double> adjOnly;  adjOnly.applyRawAdjoint=[](const rvec_t&){return hmat_t<double>(2);};
+    PairProjection<double> neither;
 
     EXPECT_THROW((ScreenedMatrixIntegrator<double>(fwdOnly, W)), std::runtime_error);
     EXPECT_THROW((ScreenedMatrixIntegrator<double>(adjOnly, W)), std::runtime_error);
     EXPECT_THROW((ScreenedMatrixIntegrator<double>(neither, W)), std::runtime_error);
-    const Projector3<double> ok=MakeAdjointPair();
+    const PairProjection<double> ok=MakeAdjointPair();
     EXPECT_NO_THROW((ScreenedMatrixIntegrator<double>(ok, W)));
 }
 
@@ -66,7 +66,7 @@ TEST(ScreenedMatrixIntegrator, AHalfPairIsRejectedAtConstruction)
 // The adapter forwards to the tensor's own closures -- no arithmetic of its own in either direction.
 TEST(ScreenedMatrixIntegrator, ItForwardsBothDirectionsToTheTensor)
 {
-    const Projector3<double> g=MakeAdjointPair();
+    const PairProjection<double> g=MakeAdjointPair();
     const ScreenedMatrixIntegrator<double> I(g, W);
     EXPECT_EQ(I.NumCoefficients(), 2u);
 
@@ -87,7 +87,7 @@ TEST(ScreenedMatrixIntegrator, ItForwardsBothDirectionsToTheTensor)
 // IDENTICALLY in both directions, so this is the gate a future screening change has to survive.
 TEST(ScreenedMatrixIntegrator, ForwardAndAdjointAreExactlyAdjoint)
 {
-    const Projector3<double> g=MakeAdjointPair();
+    const PairProjection<double> g=MakeAdjointPair();
     const ScreenedMatrixIntegrator<double> I(g, W);
 
     hmat_t<double> D(2); D(0,0)=1.3; D(0,1)=-0.7; D(1,1)=2.1;

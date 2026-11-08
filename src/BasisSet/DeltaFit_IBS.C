@@ -58,7 +58,7 @@ template <class Self> class DeltaPeriodicFaces<Self,dcmplx>
 {
 public:
     //! \copydoc BasisSet::Integrals_Overlap3C::Overlap3C
-    const Projector3<double>& Overlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Self_().RealTensor(orb);}
+    const PairProjection<double>& Overlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Self_().RealTensor(orb);}
     //! \copydoc BasisSet::Transition_Overlap3C::TransitionForward
     //! Two Φ tables from the same per-block cache the ground state fills, so a response adds no table build.
     cvec_t TransitionForward(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
@@ -125,7 +125,7 @@ public:
     //! orbital basis's own \c op(r) -- no orbital-side 3-centre machinery is asked for or needed.  The SAME-scalar block
     //! here; on the periodic axis a real TRIM block takes \c DeltaPeriodicFaces' overload, through the same templated
     //! body (its \f$\Phi\f$ table is typed by the ORBITAL block, so a real block contracts in real arithmetic).
-    const Projector3<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
+    const PairProjection<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
 
     // ---- the integrals over my own functions, one entry per FUNCTION (FIT_SF_ABS) ---------------------
     //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal
@@ -189,14 +189,14 @@ private:
     }
     //! The real-block tensor (\c DeltaPeriodicFaces' 3c-3 overload) and the transition pair's bodies: periodic-axis work,
     //! reached only through that base.
-    const Projector3<double>& RealTensor(const Orbital_DFT_IBS<double,dcmplx>& orb) const {return Tensor(itsO3R, itsPhiR, orb);}
+    const PairProjection<double>& RealTensor(const Orbital_DFT_IBS<double,dcmplx>& orb) const {return Tensor(itsO3R, itsPhiR, orb);}
     cvec_t        TransitionForwardImp(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
                                        const mat_t<dcmplx>& dD) const;
     mat_t<dcmplx> TransitionAdjointImp(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
                                        const cvec_t& v) const;
     //! ONE body for both \c Overlap3C overloads, each with its own typed cache.  R2.9(i) idiom: the
     //! accessor is const and the tensor is a lazily-built, geometry-fixed cache, so the maps are \c mutable.
-    template <class U> const Projector3<U>& Tensor(SymMap<Projector3<U>>& cache,
+    template <class U> const PairProjection<U>& Tensor(SymMap<PairProjection<U>>& cache,
                                                    SymMap<mat_t<U>>& phis,
                                                    const Orbital_1E_IBS<U>& orb) const;
     //! \f$\Phi_{gi}=\chi_i(r_g)\f$ -- HOW this class evaluates its own 3-centre integral, cached per block.
@@ -211,8 +211,8 @@ private:
     template <class U> rvec_t ForwardFactoredT(const mat_t<U>& P, const mat_t<U>& L) const;
     mutable SymMap<mat_t<dcmplx>> itsPhi;    //!< Bloch blocks' tables (npts x n), keyed by the block's SPATIAL symmetry
     mutable SymMap<mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (disjoint symmetries -- 3c-3)
-    mutable SymMap<Projector3<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors
-    mutable SymMap<Projector3<double>> itsO3R;  //!< ...and the real TRIM blocks'
+    mutable SymMap<PairProjection<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors
+    mutable SymMap<PairProjection<double>> itsO3R;  //!< ...and the real TRIM blocks'
     qchem::LazyLock itsTableLock;    //!< itsPhi / itsPhiR: filled per block, reachable from the parallel Fock pass
     qchem::LazyLock itsTensorLock;   //!< itsO3 / itsO3R (taken BEFORE itsTableLock, never after)
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags

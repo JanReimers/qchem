@@ -6,7 +6,7 @@ module;
 #include <vector>
 module qchem.Fitting.Internal.FunctionFitterImp;
 import qchem.Fitting.Types;
-import qchem.BasisSet.Projector3;   // DenseProjector3Integrator + Projector3 (the borrowed tensor)
+import qchem.BasisSet.PairProjection;   // DensePairProjectionIntegrator + PairProjection (the borrowed tensor)
 import qchem.Blaze;
 
 namespace qchem::Fitting
@@ -58,7 +58,7 @@ template <class T> void ConstrainedFF<T>::DoFitUnconstrained(const ProjectedDens
     this->itsFitCoeff = om->GetUnconstrainedFit(this->itsBasisSet.get());   // a seed's own S^-1 <f|rho>
 }
 
-template <class T> const DenseProjector3Integrator<T>&
+template <class T> const DensePairProjectionIntegrator<T>&
 ConstrainedFF<T>::Integrator(const BasisSet::Orbital_DFT_IBS<T,T>& orb) const
 {
     std::lock_guard<std::mutex> lock(itsIntLock.m);   // a parallel Fock pass's blocks share this fitter (see DeltaScalarFitter::Integrator)
@@ -67,8 +67,8 @@ ConstrainedFF<T>::Integrator(const BasisSet::Orbital_DFT_IBS<T,T>& orb) const
     if (it!=itsInt.end()) return it->second;
     // The basis's cached, D-free Coulomb tensor <ab|c> (built once, keyed by BasisSetID) -- borrowed by the
     // integrator, which is a VIEW of it; the fit functions' own <f_a|1> size its energy quadrature.
-    const Projector3<T>& R3=orb.Repulsion3C(*this->itsBasisSet);
-    return itsInt.emplace(id, DenseProjector3Integrator<T>(R3, this->itsBasisSet->Charge())).first->second;
+    const PairProjection<T>& R3=orb.Repulsion3C(*this->itsBasisSet);
+    return itsInt.emplace(id, DensePairProjectionIntegrator<T>(R3, this->itsBasisSet->Charge())).first->second;
 }
 
 template <class T> const qcMesh::MatrixForward<double>&
