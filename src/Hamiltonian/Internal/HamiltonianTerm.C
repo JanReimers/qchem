@@ -8,6 +8,7 @@
 module;
 #include <stdexcept>
 #include <map>
+#include <vector>
 #include <cassert>
 #include <cstddef>
 #include <type_traits>   // std::conditional_t/is_same_v (StaticRealBlockBase -- Step 3c)
@@ -43,6 +44,10 @@ public:
     //! The spin this term's matrix depends on.  Default \a s (spin-resolved, the safe answer).
     //! Override to \c Spin::None when the matrix is the SAME for every channel.
     virtual Spin CacheSpin(const Spin& s) const {return s;}
+    //! The spins the run will ask this term's blocks for, which \c BuildBlocks builds (each folded through \c CacheSpin, so a
+    //! spin-blind term builds one block per irrep).  Default all three; a term built for an imposed spin subgroup answers
+    //! \c SpinIrreps(g), so it builds exactly the channels the Fock loop reads and no more.
+    virtual std::vector<Spin> BlockSpins() const {return {Spin::None, Spin::Up, Spin::Down};}
 };
 
 template <class T> class tHT_Common
@@ -53,7 +58,7 @@ protected:
     mutable CacheMap   itsCache;       //Cache the H matrices for total energy calculations.
 
     //! \brief CREATE (empty) one slot per irrep of \a bs, so the block loop only fills existing nodes.
-    //! R1.0h; the rationale is on \c HT_SlotOwner::PrepareSlots.
+    //! R1.0h; the rationale is on \c HT_BlockOwner::BuildBlocks.
     //!
     //! ★ AN EMPTY MATRIX IS THE "NOT FILLED YET" SENTINEL, and it is a safe one: a Fock/KS block always has
     //! rows, so 0x0 cannot be a legitimate cached value.  That is what lets a pre-created slot be
@@ -99,9 +104,10 @@ public:
         return slot;
     }
 
-    //! \copydoc HT_SlotOwner::PrepareSlots
-    //! No clear: a static term's blocks are geometry-fixed, so a slot once filled stays valid for the run.
-    virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>*) const override {this->PrepareCacheSlots(bs);}
+    //! \copydoc HT_BlockOwner::BuildBlocks
+    //! A static term's blocks NEVER change (geometry-fixed), the one case where lazy caching is allowed (CLAUDE.md): this creates
+    //! the slots, never clears them, and \c GetMatrix fills each on its first read -- the same value whenever it is filled.
+    virtual void BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>*) const override {this->PrepareCacheSlots(bs);}
 
 protected:
     // Unconditional calculation, does not use cache.
@@ -113,128 +119,78 @@ template <class T> class tDynamic_HT_Imp
     , protected tHT_Common<T>
 {
 public:
-    tDynamic_HT_Imp() : itsCacheVersion(size_t(-1)), itsFitVersion(size_t(-1)) {}
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,DensityID id) const
     {
         assert(bs);
-        assert(cd);
-        // The cache keys on Irrep, not the density.  If the density has changed (its logical-clock serial
-        // differs from the one the cache was built for), the cached matrices are stale -- drop them and
-        // recompute for the new cd.  This makes GetMatrix self-correcting for ANY caller (the serial is
-        // intrinsic to the density, stamped at construction/mutation), not just densities the SCFIterator
-        // hands us -- which is why a plain density-pointer key, or an SCFIterator-only stamp, both failed.
-        // This is now the SOLE owner of cache-freshness; newCD() only signals the concrete term to refit.
-        // THE STAMP IS THE CONTRACT (doc/KAxisPlan.md P2): PrepareSlots(bs, cd) -- the refresh -- recorded this density;
-        // GetMatrix never resets the cache itself (it used to, on first use, which the concurrent block loop cannot have).
-        if (cd->Version()!=itsCacheVersion)
+        // A PURE READ (V1.41 stage 3, user rulings 2026-11-07): BuildBlocks -- the refresh -- built every block the run asks for,
+        // for the density it stamped.  No fill, no insertion, so the block loop writes nothing and can run concurrently.
+        if (id.IsNone() || !(id==itsCacheID))
             throw std::logic_error("Hamiltonian term GetMatrix for a density it was not refreshed for -- call "
                                    "tHamiltonian::RefreshForDensity(bs, cd) first (doc/KAxisPlan.md P2)");
-        Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
-        // FILL-IF-EMPTY (R1.0h): the refresh pre-created this node, so operator[] finds it and mutates nothing; a 0x0
-        // matrix means "slot exists, not filled for this density".  A serial caller that refreshed with bs = null (energy
-        // evaluation) still creates the node here -- an insertion, so never from inside a concurrent loop.
-        hmat_t<T>& slot=this->itsCache[qns];
-        if (slot.rows()==0) slot=MakeMatrix(bs,s,cd);
-        return slot;   //Cache hit (same density serial, already computed for this Irrep)
+        auto it=this->itsCache.find(bs->GetIrrep(this->CacheSpin(s)));
+        if (it==this->itsCache.end() || it->second.rows()==0)
+            throw std::logic_error("Hamiltonian term GetMatrix: a block the refresh did not build (its BlockSpins, or the "
+                                   "basis BuildBlocks was handed, does not cover it)");
+        return it->second;
     }
 
-    //! \copydoc HT_SlotOwner::PrepareSlots
-    //! Drops the previous iteration's blocks first (the same density-serial test \c GetMatrix makes, and
-    //! it must stay in BOTH: this phase is optional, that one is the correctness mechanism), then creates
-    //! this iteration's empty slots.
-    virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
+    //! \copydoc HT_BlockOwner::BuildBlocks
+    //! ALWAYS rebuilds (no "same density, skip"): no Fock refresh runs twice at one density, and a parameter write under the
+    //! same density (DFT+U's U) is then visible as the next refresh, with nothing to invalidate.  The term's own
+    //! RefreshForDensity(cd) has run first, so MakeMatrix reads state built for \a cd.  \a bs null (an energy evaluation):
+    //! nothing to build, and the memo keeps the Fock density's blocks.
+    virtual void BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
     {
-        if (cd && cd->Version()!=itsCacheVersion)   // a NEW density: last one's values are stale -- drop them, stamp this one
+        if (!cd || !bs) return;
+        this->itsCache.clear();
+        itsCacheID=DensityID(cd);
+        const DensityID id(cd);
+        for (size_t i=0;i<bs->GetNumIBS();++i)
         {
-            this->itsCache.clear();
-            itsCacheVersion=cd->Version();
+            if (bs->GetRealIBS(i)) continue;   // the real cache's (Dynamic_HT_RealBlock_Imp)
+            if (const tobs_t<T>* b=(*bs)[i])
+                for (const Spin& s : this->BlockSpins())
+                {
+                    hmat_t<T>& slot=this->itsCache[b->GetIrrep(this->CacheSpin(s))];
+                    if (slot.rows()==0) slot=MakeMatrix(b,s,id);   // a spin-blind term folds the spins onto one block
+                }
         }
-        this->PrepareCacheSlots(bs);
     }
 
 protected:
-    // Unconditional calculation, does not use cache.
-    virtual hmat_t<T> MakeMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>* cd) const=0;
+    // Unconditional calculation, does not use cache: a READ of what the term's refresh built for the density \a id names
+    // (V1.41 stage 2), never a compute from rho.
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>*,const Spin&,DensityID id) const=0;
     // Refit trigger only (the OTHER half of the former itsCD double-duty): true exactly once per new
     // density serial, so a concrete term (FittedVee/FittedVxc) refits its fitted potential exactly once.
-    // Cache-freshness is GetMatrix's job (itsCacheVersion) -- newCD no longer touches the cache.
+    // Cache-freshness is GetMatrix's job (itsCacheID) -- newCD no longer touches the cache.
     bool newCD(const tChargeDensity<T>* cd) const
     {
         assert(cd);
-        if (cd->Version()==itsFitVersion) return false;
-        itsFitVersion=cd->Version();
+        if (DensityID(cd)==itsFitID) return false;
+        itsFitID=DensityID(cd);
         return true;
     }
 
     //! A term whose PARAMETERS changed under the SAME density (DFT+U's U rewritten by the ACBN0 outer
     //! loop) must say so: the density serial cannot know, so the next GetMatrix would serve the old matrix.
-    void InvalidateCache() const {itsCacheVersion=size_t(-1); itsFitVersion=size_t(-1);}
-
-    mutable size_t itsCacheVersion;   //!< density serial the Irrep cache was built for
-    mutable size_t itsFitVersion;     //!< density serial the concrete term last refit for
-};
-
-// Used for polarized potentials (Vxc) where each polarization handles its own cache, so this variant
-// ALWAYS recomputes.  It still stores the result PER IRREP rather than in one shared slot -- see below.
-template <class T> class tDynamic_HT_Imp_NoCache
-    : public virtual tDynamic_HT<T>
-    , protected tHT_Common<T>
-{
-public:
-    //! Recompute unconditionally (that is what NoCache means), but keep the returned reference's lifetime
-    //! IDENTICAL to tDynamic_HT_Imp's: valid until the next call FOR THE SAME Irrep.
-    //!
-    //! R2.9(ii): this used to write into a single `mutable hmat_t<T> itsMat`, so every call invalidated the
-    //! previous call's reference.  The two implementations of one interface then made DIFFERENT lifetime
-    //! promises -- the caching sibling keys on Irrep (which folds in Spin via GetIrrep(s)), so its Up and
-    //! Down blocks live in separate slots, while here they aliased.  A caller holding `tDynamic_HT<T>*`
-    //! cannot tell which it has, and the natural spin-polarized idiom
-    //!     const auto& up = t->GetMatrix(bs,Spin::Up,  cd);
-    //!     const auto& dn = t->GetMatrix(bs,Spin::Down,cd);   // `up` silently became `dn`
-    //! is correct against one sibling and wrong against the other.  Nothing in the tree stores the
-    //! reference today (every consumer is an immediate `H += t->GetMatrix(...)`), so this is a latent trap
-    //! rather than a live bug -- and FittedVxcPol, one object serving both spin channels, is exactly where
-    //! it would have been sprung.  Keying the scratch removes the asymmetry instead of documenting it;
-    //! the cost is one matrix per Irrep, the same bound the sibling already carries.
-    //! \copydoc HT_SlotOwner::PrepareSlots
-    //! The scratch slots are pre-created too: this class recomputes unconditionally, but it still WRITES
-    //! into a per-Irrep map node, and an absent node is an insertion like any other.
-    virtual void PrepareSlots(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
+    //! The block path's check (V1.41 stage 2): the term's refresh fitted \a cd (\c newCD stamped it).  Throws otherwise.
+    void RequireFitFor(DensityID id) const
     {
-        if (cd) itsStampVersion=cd->Version();   // nothing to drop (recomputed every call); the stamp is the contract
-        this->PrepareCacheSlots(bs);
+        if (id.IsNone() || !(id==itsFitID))
+            throw std::logic_error("Hamiltonian term: block asked for a density its refresh did not fit (RefreshForDensity first)");
     }
 
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const
-    {
-        assert(bs);
-        if (!cd || cd->Version()!=itsStampVersion)
-            throw std::logic_error("Hamiltonian term (no-cache) GetMatrix for a density it was not refreshed for -- call "
-                                   "tHamiltonian::RefreshForDensity(bs, cd) first (doc/KAxisPlan.md P2)");
-        // ⛔ DELIBERATELY NOT CacheSpin(s) -- see R2.9(ii) above.  Here `qns` keys a SCRATCH SLOT whose job
-        // is the returned reference's LIFETIME, not the avoidance of an evaluation (this class recomputes
-        // unconditionally, by definition).  Folding two channels onto one key would make Up and Down alias
-        // again, which is precisely the trap that note documents.  CacheSpin belongs only where a hit
-        // SKIPS work.
-        Irrep qns(bs->GetIrrep(s));
-        return this->itsCache[qns]=MakeMatrix(bs,s,cd);   // assign, never look up: no caching
-    }
+    static DensityID NoDensity() {return DensityID(static_cast<const tChargeDensity<T>*>(nullptr));}
 
-protected:
-    virtual hmat_t<T> MakeMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>* cd) const=0;
-    mutable size_t itsStampVersion=size_t(-1);   //!< the density PrepareSlots last stamped
+    mutable DensityID itsCacheID=NoDensity();   //!< the identity of the density the Irrep cache was built for
+    mutable DensityID itsFitID  =NoDensity();   //!< ...and of the one the concrete term last refit for
 };
 
-//====================================================================================================
-//  REAL-BLOCK CACHING MIXINS (Step 3c) -- the Imp halves of the Static/Dynamic_HT_RealBlock capability
-//  faces, mirroring tStatic/tDynamic_HT_Imp's Irrep-keyed cache discipline over the real narrow.  A
-//  term inherits the mixin PUBLICLY (the capability cross-cast needs the path) and supplies ONE
-//  MakeMatrixR -- in practice a thunk into the same scalar-generic template body its native MakeMatrix
-//  uses.  The real cache is its own map (real blocks are distinct irreps, so the two maps' key sets
-//  are disjoint) -- the "container inherits the decision" of RealComplexPlan §4 item 2, realized as a
-//  typed pair rather than a variant map so the molecular path is untouched.
-//====================================================================================================
-class Static_HT_RealBlock_Imp : public virtual Static_HT_RealBlock
+//! The REAL-BLOCK caching mixin of a complex run's static term (V1.35): the term's ordinary \c tStatic_CC<double> face for a real
+//! TRIM block.  Its BuildBlocks hook is the run's (HT_BlockOwner<dcmplx>).
+class Static_HT_RealBlock_Imp : public virtual ChargeDensity::tStatic_CC<double>
+                              , public virtual HT_BlockOwner<dcmplx>   //!< a SECOND Irrep-keyed block cache -> the SAME BuildBlocks (R1.0h)
                               , public virtual HT_SpinDependence
 {
 public:
@@ -243,13 +199,13 @@ public:
         assert(bs);
         Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
         hmat_t<double>& slot=itsRealCache[qns];        // FILL-IF-EMPTY (R1.0h) -- see tDynamic_HT_Imp
-        if (slot.rows()==0) slot=MakeMatrixR(bs,s);
+        if (slot.rows()==0) slot=MakeMatrix(bs,s);
         return slot;
     }
-    //! \copydoc HT_SlotOwner::PrepareSlots
-    //! MY (real) cache's slots.  A term that also has a scalar cache overrides this once and calls BOTH
-    //! mixins -- see HT_SlotOwner for why the ambiguity until it does is the point.
-    virtual void PrepareSlots(const tbs_t<dcmplx>* bs, const tChargeDensity<dcmplx>*) const override
+    //! \copydoc HT_BlockOwner::BuildBlocks
+    //! MY (real) cache's slots, filled on first read (static: never changes).  A term that also has a scalar cache overrides this
+    //! once and calls BOTH mixins -- see HT_BlockOwner for why the ambiguity until it does is the point.
+    virtual void BuildBlocks(const tbs_t<dcmplx>* bs, const tChargeDensity<dcmplx>*) const override
     {
         if (!bs) return;                                // no clear: geometry-fixed, like the scalar sibling
         for (size_t i=0;i<bs->GetNumIBS();++i)
@@ -258,63 +214,66 @@ public:
                     itsRealCache[b->GetIrrep(this->CacheSpin(s))];
     }
 protected:
-    virtual hmat_t<double> MakeMatrixR(const tobs_t<double>*,const Spin&) const=0;
+    virtual hmat_t<double> MakeMatrix(const tobs_t<double>*,const Spin&) const=0;
     mutable std::map<Irrep,hmat_t<double>> itsRealCache;
 };
 
-class Dynamic_HT_RealBlock_Imp : public virtual Dynamic_HT_RealBlock
+//! \brief THE BLOCK HELPER of a T-templated static term (V1.35 wrinkle 2): a virtual cannot carry a \c requires clause, so on
+//! \c T=double a term's real-block \c MakeMatrix(const tobs_t<double>*) would collide with its native one.  The term instead writes
+//! ONE \c template<class U> MakeBlock body, and this mixin (present on the \c dcmplx instantiation only) routes the real block to it.
+template <class D> class Static_HT_RealBlock_Of : public Static_HT_RealBlock_Imp
+{
+protected:
+    virtual hmat_t<double> MakeMatrix(const tobs_t<double>* bs,const Spin& s) const override
+    {return static_cast<const D&>(*this).template MakeBlock<double>(bs,s);}
+};
+
+//! The REAL-BLOCK caching mixin of a complex run's dynamic term (V1.35): the term's ordinary \c tDynamic_CC<double> face, for a
+//! real TRIM block, asked with the RUN's density identity.  Its BuildBlocks hook is the run's (HT_BlockOwner<dcmplx>).
+class Dynamic_HT_RealBlock_Imp : public virtual ChargeDensity::tDynamic_CC<double>
+                               , public virtual HT_BlockOwner<dcmplx>   //!< a SECOND Irrep-keyed block cache -> the SAME BuildBlocks (R1.0h)
                                , public virtual HT_SpinDependence
 {
 public:
-    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>* bs,const Spin& s,const tChargeDensity<dcmplx>* cd) const
+    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>* bs,const Spin& s,DensityID id) const
     {
         assert(bs);
-        assert(cd);
-        // The same contract as tDynamic_HT_Imp::GetMatrix: the refresh stamped the density; never reset here.
-        if (cd->Version()!=itsRealCacheVersion)
+        if (!(id==itsRealCacheID))
             throw std::logic_error("Hamiltonian term (real block) GetMatrix for a density it was not refreshed for -- call "
                                    "tHamiltonian::RefreshForDensity(bs, cd) first (doc/KAxisPlan.md P2)");
-        Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
-        hmat_t<double>& slot=itsRealCache[qns];        // FILL-IF-EMPTY (R1.0h) -- see tDynamic_HT_Imp
-        if (slot.rows()==0) slot=MakeMatrixR(bs,s,cd);
-        return slot;
+        auto it=itsRealCache.find(bs->GetIrrep(this->CacheSpin(s)));   // a PURE READ -- see tDynamic_HT_Imp::GetMatrix
+        if (it==itsRealCache.end() || it->second.rows()==0)
+            throw std::logic_error("Hamiltonian term (real block) GetMatrix: a block the refresh did not build");
+        return it->second;
     }
-    //! \copydoc HT_SlotOwner::PrepareSlots
-    //! The REAL blocks of \a bs -- \c GetRealIBS, not \c operator[]: this cache serves the real TRIM
-    //! blocks of a complex-faced set (3c-3), and those are exactly the indices that answer non-null there.
-    virtual void PrepareSlots(const tbs_t<dcmplx>* bs, const tChargeDensity<dcmplx>* cd) const override
+    //! \copydoc HT_BlockOwner::BuildBlocks
+    //! The real TRIM blocks of \a bs, built like tDynamic_HT_Imp's (always rebuilt; \a bs null builds nothing).
+    virtual void BuildBlocks(const tbs_t<dcmplx>* bs, const tChargeDensity<dcmplx>* cd) const override
     {
-        if (cd && cd->Version()!=itsRealCacheVersion)   // a NEW density: drop the old values, stamp this one
-        {
-            itsRealCache.clear();
-            itsRealCacheVersion=cd->Version();
-        }
-        if (!bs) return;
+        if (!cd || !bs) return;
+        itsRealCache.clear();
+        itsRealCacheID=DensityID(cd);
+        const DensityID id(cd);
         for (size_t i=0;i<bs->GetNumIBS();++i)
             if (const tobs_t<double>* b=bs->GetRealIBS(i))
-                for (const Spin& s : {Spin::None, Spin::Up, Spin::Down})
-                    itsRealCache[b->GetIrrep(this->CacheSpin(s))];
+                for (const Spin& s : this->BlockSpins())
+                {
+                    hmat_t<double>& slot=itsRealCache[b->GetIrrep(this->CacheSpin(s))];
+                    if (slot.rows()==0) slot=MakeMatrix(b,s,id);
+                }
     }
-    //! The run-typed ENERGY matrix (ChargeDensity::Dynamic_CC_RealBlock, Step 3c-2b): the E=D·V identity
-    //! over the same real cache.  Valid for every term that takes the DM_Contract energy route (Hartree,
-    //! the statics); the periodic xc family integrates on its mesh instead and never consumes this.
-    virtual const hmat_t<double>& GetEMatrixR(const tobs_t<double>* bs,const Spin& s,
-                                              const tChargeDensity<dcmplx>* cd) const
-    { return GetMatrix(bs,s,cd); }
+    //! E = D.V for the real block too (the periodic xc terms never take the DM_Contract route, so no eps override is needed).
+    virtual const hmat_t<double>& GetEMatrix(const tobs_t<double>* bs,const Spin& s,DensityID id) const
+    { return GetMatrix(bs,s,id); }
 protected:
-    virtual hmat_t<double> MakeMatrixR(const tobs_t<double>*,const Spin&,const tChargeDensity<dcmplx>*) const=0;
+    virtual hmat_t<double> MakeMatrix(const tobs_t<double>*,const Spin&,DensityID) const=0;
     mutable std::map<Irrep,hmat_t<double>> itsRealCache;
-    //! \copydoc tDynamic_HT_Imp::InvalidateCache
-    void InvalidateRealCache() const {itsRealCacheVersion=size_t(-1);}
-    mutable size_t itsRealCacheVersion=size_t(-1);
+    mutable DensityID itsRealCacheID=DensityID(static_cast<const tChargeDensity<dcmplx>*>(nullptr));
 };
 
-//! Conditional attachment for T-TEMPLATED terms (Kinetic, IonIon): the dcmplx instantiation carries the
-//! real-block capability, the double one an empty base.  The term declares its MakeMatrixR
-//! unconditionally (on the double instantiation it is a harmless never-called virtual).
 struct NoRealBlock {};
-template <class T> using StaticRealBlockBase =
-    std::conditional_t<std::is_same_v<T,dcmplx>, Static_HT_RealBlock_Imp, NoRealBlock>;
+template <class T, class D> using StaticRealBlockBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, Static_HT_RealBlock_Of<D>, NoRealBlock>;
 
 // tFittablePotential is GONE (R2.6).  It existed for exactly one derivation, LDAVxc, whose only real job
 // was to answer the fitter's "what field am I fitting?" question -- and which had to fake MakeMatrix and
@@ -326,6 +285,5 @@ template <class T> using StaticRealBlockBase =
 using rHT_Common              = tHT_Common<double>;              using cHT_Common              = tHT_Common<dcmplx>;
 using rStatic_HT_Imp          = tStatic_HT_Imp<double>;          using cStatic_HT_Imp          = tStatic_HT_Imp<dcmplx>;
 using rDynamic_HT_Imp         = tDynamic_HT_Imp<double>;         using cDynamic_HT_Imp         = tDynamic_HT_Imp<dcmplx>;
-using rDynamic_HT_Imp_NoCache = tDynamic_HT_Imp_NoCache<double>; using cDynamic_HT_Imp_NoCache = tDynamic_HT_Imp_NoCache<dcmplx>;
 
 } //namespace

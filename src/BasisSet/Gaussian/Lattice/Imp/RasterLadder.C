@@ -314,7 +314,10 @@ std::vector<RasterVerdict> GpwRasterLadder::DeliveredRasterVerdicts() const
 void GpwRasterLadder::ReportGrids(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops) const
 {
     namespace rpt = qchem::report;
-    rpt::Set("densityEcut",  itsInputs.cutoffFactor * itsAlphaMax);   // the auto density-grid floor Ecut
+    // The density ball the ladder RUNS: a stated densityEcut (honoured even under the floor, warned above), else the auto floor C*alpha_max.
+    // It printed the floor even when a value was stated (lane G, 2026-11-07: Si Γ stated 4 Ha read as the floor), so the source rides with it.
+    const bool statedEcut=itsInputs.densityEcut>0.0;
+    rpt::Set("densityEcut",  { {"value", statedEcut ? itsInputs.densityEcut : itsInputs.cutoffFactor * itsAlphaMax}, {"source", statedEcut ? "stated" : "floor"} });
     rpt::Set("cutoffFactor", itsInputs.cutoffFactor);
     rpt::Set("raster",       { {"x", itsTol.rasterX}, {"vlocX", itsTol.vlocRasterX}, {"xcX", itsTol.xcRasterX} });   // the demands (0 = the ball's own)
     // The relative pair rule, its RIGOROUS form (a pair p is resolved at ecut >= s ecut_ref p / 2 alpha_max) beside its EMPIRICAL

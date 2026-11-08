@@ -44,7 +44,7 @@ export import qchem.BasisSet.Lattice.BasisSet;    // VetStageTrim (pin 22)
 import qchem.Hamiltonian.Internal.PWTerms;        // Vxc_Quadrature (the XC probes)
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
-import qchem.Hamiltonian;                         // cDynamic_HT, Dynamic_HT_RealBlock
+import qchem.Hamiltonian;                         // cDynamic_HT, and a term's real block face
 import qchem.ChargeDensity;                       // cDM_CD
 import qchem.ChargeDensity.Seed;                  // SeedStrategy
 import qchem.SCFAccelerator.Factory;              // SCFAccelerators::Type
@@ -377,19 +377,19 @@ struct XCProbe
 hmat_t<dcmplx> ProbeBlockMatrix(Hamiltonian::cDynamic_HT& t, const BasisSet::Complex_BS& bs, size_t i,
                                 const qchem::ChargeDensity::cDM_CD* cd)
 {
-    t.PrepareSlots(&bs, cd);   // THE CONTRACT (doc/KAxisPlan.md P2): refresh the term for cd before GetMatrix
-    t.RefreshForDensity(cd);
+    t.RefreshForDensity(cd);   // THE CONTRACT (doc/KAxisPlan.md P2): the term's state for cd, then its blocks from it (V1.41 stage 3)
+    t.BuildBlocks(&bs, cd);
     if (const auto* rb=bs.GetRealIBS(i))
     {
-        const auto* face=dynamic_cast<const Hamiltonian::Dynamic_HT_RealBlock*>(&t);
+        const auto* face=dynamic_cast<const ChargeDensity::tDynamic_CC<double>*>(&t);
         if (!face) throw std::runtime_error("ProbeBlockMatrix: a real block needs the term's real-block face (3c-1)");
-        const rsmat_t R=face->GetMatrix(rb,Spin::None,cd);
+        const rsmat_t R=face->GetMatrix(rb,Spin::None,ChargeDensity::DensityID(cd));
         hmat_t<dcmplx> M(R.rows());
         for (size_t r=0;r<R.rows();r++)
             for (size_t s=r;s<R.columns();s++) M(r,s)=R(r,s);
         return M;
     }
-    return t.GetMatrix(bs[i],Spin::None,cd);
+    return t.GetMatrix(bs[i],Spin::None,ChargeDensity::DensityID(cd));
 }
 
 XCProbe ProbeXC(const std::string& label, const GpwHandles& h,

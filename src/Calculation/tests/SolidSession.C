@@ -135,7 +135,11 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     // A geometry pilot STARTS ITS RASTERS AT THE BOUND (rigorous L(eps), eta = 1): they meet it at once.  The DENSITY BALL does not
     // (2026-11-02, OpenWork F "density ball unjudged"): measured on this cell, max|dH| of Hartree against twice the ball 1.3e-2 / 6.7e-5 /
     // 1.4e-5 / 6.4e-7 at cutoffFactor 2 / 4 / 8 / 16, so it settles on 16 in 4 rounds, 24 re-convergence iterations.
-    EXPECT_TRUE(pes.Current()->PilotCost().settled);
+    // ... but its STATED coarse Becke mesh reads 1.8e-2 per element, OVER: honoured and reported, so the pilot is NOT settled (pin 31 rule 3;
+    // it read settled until lane G's Si Γ catch, 2026-11-07) and says why: statedOver, with a StatedXCMeshMissesEps warn row.
+    EXPECT_FALSE(pes.Current()->PilotCost().settled) << "a stated grid over its target is not settled";
+    EXPECT_TRUE(pes.Current()->PilotCost().statedOver);
+    EXPECT_FALSE(single.PilotCost().statedOver) << "the energy run does not audit the Becke mesh (an H-run audit)";
     EXPECT_EQ(pes.Current()->PilotCost().rounds, 4) << "the rasters at the bound; the ball climbs cutoffFactor 2 -> 16";
     EXPECT_LE(pes.Current()->PilotCost().reconvergeIterations, 30u);
     EXPECT_EQ(pes.Current()->SizedSetup()->opts.cutoffFactor, 16.0);

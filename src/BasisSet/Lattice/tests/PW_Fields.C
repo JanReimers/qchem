@@ -15,6 +15,7 @@ module;
 #include <algorithm>
 #include <iostream>
 #include <cstdio>
+#include <type_traits>
 export module qchem.Tests.PW_Fields;
 export import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 export import qchem.BasisSet.PlaneWave.Evaluators;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
@@ -309,5 +310,27 @@ int MaxGComponent(const PlaneWave_IBS& pw)
     }
     return m;
 }
+
+//! A NON-OWNING one-block whole basis: what a test that drives one term (or one Hamiltonian) on one block hands the refresh, whose
+//! \c BuildBlocks builds every block of the basis it is given (V1.41 stage 3).  \a b is the block; for a complex set it may be a
+//! REAL TRIM block instead.
+template <class T> class OneBlockBS : public virtual qchem::BasisSet::tBasisSet<T>
+{
+public:
+    explicit OneBlockBS(const qchem::BasisSet::Orbital_1E_IBS<T>* b) : itsB(b) {}
+    explicit OneBlockBS(const qchem::BasisSet::Orbital_1E_IBS<double>* r) requires std::is_same_v<T,dcmplx> : itsR(r) {}
+    virtual size_t GetNumFunctions() const override {return itsB ? itsB->GetNumFunctions() : itsR->GetNumFunctions();}
+    virtual qchem::BasisSet::irrepv_t GetIrreps(const Spin& s) const override {return {itsB ? itsB->GetIrrep(s) : itsR->GetIrrep(s)};}
+    virtual const qchem::Symmetry::SymmetryImposition* GetImposition() const override {return nullptr;}
+    virtual size_t GetNumIBS() const override {return 1;}
+    virtual const qchem::BasisSet::Orbital_1E_IBS<double>* GetRealIBS(size_t) const override
+    {if constexpr (std::is_same_v<T,dcmplx>) return itsR; else return nullptr;}
+    virtual std::ostream& Write(std::ostream& os) const override {return os;}
+protected:
+    virtual const qchem::BasisSet::Orbital_1E_IBS<T>* GetIBS(size_t) const override {return itsB;}
+private:
+    const qchem::BasisSet::Orbital_1E_IBS<T>*      itsB=nullptr;
+    const qchem::BasisSet::Orbital_1E_IBS<double>* itsR=nullptr;
+};
 
 } // namespace qchem::tests::pw

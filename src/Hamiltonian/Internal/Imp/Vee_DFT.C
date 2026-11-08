@@ -35,9 +35,9 @@ Vee_DFT_Dunlap::~Vee_DFT_Dunlap() = default;   // FittedCD is complete here, so 
 //  Where ro is the fitted charge density.
 //
 
-rsmat_t Vee_DFT_Dunlap::MakeMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
+rsmat_t Vee_DFT_Dunlap::MakeMatrix(const robs_t* bs,const Spin& s,DensityID id) const
 {
-    if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
+    RequireFitFor(id);   // a READ (V1.41 stage 2): the refresh fitted this density
     auto dft_bs=dynamic_cast<const odftbs_t*>(bs);
     assert(dft_bs);
     return itsFittedChargeDensity->GetRepulsion(dft_bs);
@@ -81,9 +81,9 @@ void Vee_DFT::Fit(const rChargeDensity& cd) const
     itsFit->DoFit(dynamic_cast<const Fitting::ProjectedDensity_AO&>(cd));
 }
 
-rsmat_t Vee_DFT::MakeMatrix(const robs_t* bs,const Spin&,const rChargeDensity* cd) const
+rsmat_t Vee_DFT::MakeMatrix(const robs_t* bs,const Spin&,DensityID id) const
 {
-    if (newCD(cd)) Fit(*cd);
+    RequireFitFor(id);   // a READ (V1.41 stage 2): the refresh fitted this density
     return itsFit->Repulsion(bs);
 }
 

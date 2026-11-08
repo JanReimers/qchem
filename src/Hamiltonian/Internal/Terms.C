@@ -167,7 +167,10 @@ public:
     //! Fock build: assemble the whole-system blocks ONCE per (density, spin) from the composite \a wholeBasis
     //! using ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, return this
     //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
-    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity*,const rbs_t* wholeBasis) const;
+    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,DensityID,const rbs_t* wholeBasis) const;
+    //! The ground-state refresh: latch \a wholeBasis (null = keep the latched one) and build the blocks of every spin irrep
+    //! \a cd resolves (\c SpinIrrepsOf, folded through \c CacheSpin).
+    virtual void RefreshForDensity(const rbs_t* wholeBasis, const rChargeDensity* cd) const override;
     //! \name THE RESPONSE (doc/LinearResponsePlan.md H2): J[δD] / K[δD] through the SAME contraction body,
     //! into a SEPARATE cache slot keyed on δ's serial -- a response build never overwrites the ground-state
     //! blocks.  \a D0 is not needed: the operators are linear.  q = 0 only (bra == ket).
@@ -197,19 +200,25 @@ protected:
     //! The density my spin-\a s blocks are built from: the \c CacheSpin(s) channel of \a cd (the whole of \a cd
     //! for \c Spin::None).  THROWS if \a cd does not resolve that channel or carries no density matrix.
     const rDM_CD*  DensityFor(const rChargeDensity* cd, const Spin& s) const;
-    //! Contract \a cd into the whole-system blocks for spin \a s (a CacheSpin) if stale for this density.
-    //! Uses itsWholeBasis (stashed from the Fock build), so GetEnergy -- which has no whole-basis -- gets the
-    //! same symmetry-banked contraction for its (post-diagonalization) density.
-    const std::map<std::string,rsmat_t>& ContractAll(const rChargeDensity* cd, const Spin& s) const;
+    //! The blocks the refresh built for \a cd and spin \a s (a CacheSpin): a READ, for \c GetMatrix and \c GetEnergy.  THROWS if
+    //! the refresh never saw \a cd (a caller that skipped \c RefreshForDensity).
+    const std::map<std::string,rsmat_t>& RefreshedBlocks(DensityID id, const Spin& s) const;
 
-    mutable const rbs_t* itsWholeBasis=nullptr;    //!< whole basis (stashed from the Fock build; stable across the run)
+    mutable const rbs_t* itsWholeBasis=nullptr;    //!< whole basis (latched by the first Fock refresh; stable across the run)
     //! The J (Coulomb) or K (exchange) per-irrep blocks of ONE spin: accumulated (over irreps) and contracted
     //! (over that spin's D) for the density ID'd by \c version.  Keyed by ab-basis BasisSetID, already scaled.
-    struct Blocks { size_t version=size_t(-1); std::map<std::string,rsmat_t> jk; };
+    struct Blocks
+    {
+        size_t version=size_t(-1);   //!< the operand's serial (a ground-state density, or a transition density for the response)
+        DensityID id=DensityID(static_cast<const rChargeDensity*>(nullptr));   //!< a ground-state density's identity (GetMatrix's check)
+        std::map<std::string,rsmat_t> jk;
+    };
     mutable std::map<Spin,Blocks> itsJKs;          //!< one Blocks per CacheSpin this run asks for
 private:
-    //! Latch the composite basis on first use; THROW on a null or a changed one (see GetMatrix).
+    //! Latch the composite basis on first use; THROW on a changed one, or on a null one before any latch.
     void LatchWholeBasis(const rbs_t* wholeBasis) const;
+    //! Contract \a cd into the whole-system blocks for spin \a s (a CacheSpin) if stale for this density (the refresh's body).
+    const std::map<std::string,rsmat_t>& ContractAll(const rChargeDensity* cd, const Spin& s) const;
     //! The response blocks of CacheSpin \a s for \a delta (its \a s channel through the HF sweep face).
     const std::map<std::string,rsmat_t>& ContractResponse(const ChargeDensity::TransitionDensity<double>& delta,
                                                           const Spin& s) const;
@@ -284,8 +293,15 @@ public:
     //! would be wrong for it: taking a density MATRIX here is the one thing keeping a seed out, so this argument type is load-bearing.
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
+    //! Hartree depends on the TOTAL density: one block for every spin channel.
+    virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
+    //! The ENERGY block GetEnergy contracts: BUILT from the fit the energy pass refreshed, with no memo -- the energy refresh has
+    //! no basis, so it builds no blocks (V1.41 stage 3; the same shape as FittedVxc's eps block).
+    virtual const rsmat_t& GetEMatrix(const robs_t* bs,const Spin& s,DensityID id) const override
+    {itsEMat=MakeMatrix(bs,s,id); return itsEMat;}
 private:
-    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
+    mutable rsmat_t itsEMat;   //!< GetEMatrix's returned block (one serial contraction reads it at once)
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const;
     std::unique_ptr<ChargeDensity::FittedCD> itsFittedChargeDensity;   //!< owned (was a leaked raw ptr)
 };
 
@@ -303,8 +319,15 @@ public:
     virtual void RefreshForDensity(const rChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
+    //! Hartree depends on the TOTAL density: one block for every spin channel.
+    virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
+    //! The ENERGY block GetEnergy contracts: BUILT from the fit the energy pass refreshed, with no memo -- the energy refresh has
+    //! no basis, so it builds no blocks (V1.41 stage 3; the same shape as FittedVxc's eps block).
+    virtual const rsmat_t& GetEMatrix(const robs_t* bs,const Spin& s,DensityID id) const override
+    {itsEMat=MakeMatrix(bs,s,id); return itsEMat;}
 private:
-    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
+    mutable rsmat_t itsEMat;   //!< GetEMatrix's returned block (one serial contraction reads it at once)
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const;
     void Fit(const rChargeDensity&) const;
     std::unique_ptr<Fitting::GridDensityFit> itsFit;
     double itsNumElectrons;
@@ -353,25 +376,28 @@ public:
     //! wrong one and they would be refit anyway.
     virtual void RefreshForDensity(const rChargeDensity* cd) const override;
     virtual void          GetEnergy       (EnergyBreakdown&,const rDM_CD*) const override;
-    //! The ENERGY block of spin \a s: re-fits eps^s for this density and returns Sum_a c_a <Oi|f_a|Oj>.
-    virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const override;
+    //! The ENERGY block of spin \a s, Sum_a c_a <Oi|f_a|Oj>, from the eps^s fit GetEnergy made for \a cd (a read; throws otherwise).
+    virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,DensityID) const override;
+    //! The spins the Fock loop asks for: the imposed subgroup's (V1.41 stage 3: BuildBlocks builds exactly these).
+    virtual std::vector<Spin> BlockSpins() const override {return SpinIrreps(itsGroup);}
     virtual std::ostream& Write           (std::ostream&) const override;
 private:
-    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity*) const override;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const override;
 
     //! The fitter PAIR of one spin irrep, each half guarded by the density serial it currently holds.
     struct SpinFit
     {
         std::unique_ptr<Fitting::ScalarFit<double>> v;     //!< V: the v^sigma fit (the Fock pass's density)
         std::unique_ptr<Fitting::ScalarFit<double>> eps;   //!< E: the eps^sigma fit (the energy pass's density)
-        size_t  vVersion  =size_t(-1);
-        size_t  epsVersion=size_t(-1);
+        DensityID vID  =DensityID(static_cast<const rChargeDensity*>(nullptr));   //!< the density the v fit holds
+        DensityID epsID=DensityID(static_cast<const rChargeDensity*>(nullptr));   //!< ...and the one the eps fit holds
         rsmat_t epsMat;                                        //!< GetEMatrix's returned block (per spin: no aliasing)
     };
     //! This spin irrep's pair -- THROWS for a spin the term was not built for (a block of the other subgroup).
     SpinFit& FitFor(const Spin& s) const;
     //! Bring \a s's v fit up to \a cd (a no-op when it already holds this serial).
     void EnsureVFit(SpinFit&, const Spin& s, const rChargeDensity* cd) const;
+    void EnsureEpsFit(SpinFit&, const Spin& s, const rChargeDensity* cd) const;   //!< GetEnergy's eps^sigma fit, on rho_out
 
     ex_t                                itsEx;     //!< the XC functional (owned, shared): both faces, both fits
     SpinGroup                           itsGroup;  //!< the imposed subgroup this term was built for

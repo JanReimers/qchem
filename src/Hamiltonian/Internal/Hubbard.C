@@ -23,7 +23,7 @@
 // the XC route); the term keeps the adjoint.  Neither can name the other direction.
 //
 // ★ SCALAR-GENERIC (ruled 2026-09-19, so CleanupCandidates V1.35 collapses it for free): ONE template body
-// per operation over the BLOCK scalar; MakeMatrix / MakeMatrixR are one-line instantiations, as Vee_Hartree.
+// per operation over the BLOCK scalar; the two MakeMatrix overloads are one-line instantiations, as Vee_Hartree.
 //
 // WHERE D COMES FROM.  The Fock build sees the MIXED density, which on the Kerker/Pulay recipes has no D;
 // the occupations are taken from the DM-backed SOURCE the mixer retains (tDM_Sourced_CD::DMSource, one cast
@@ -291,10 +291,12 @@ public:
     Hubbard_U(const std::shared_ptr<const Structure>& st, std::vector<HubbardManifold> manifolds, SpinGroup g);
     ~Hubbard_U();
 
-    //! \copydoc HT_SlotOwner::PrepareSlots  (two caches: the Bloch one and the real TRIM one) -- AND the
+    //! \copydoc HT_BlockOwner::BuildBlocks  (two caches: the Bloch one and the real TRIM one) -- AND the
     //! geometry phase of this term: every block's pair is built here, so \c NumCoefficients is known before
     //! the first density asks for its occupations (the composite sizes its sum by it BEFORE any block runs).
-    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override;
+    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override;
+    //! The spins the Fock loop asks for: the imposed subgroup's (V1.41 stage 3).
+    virtual std::vector<Spin> BlockSpins() const override {return SpinIrreps(itsGroup);}
     //! THE EAGER PHASE: the occupations are k-independent, so they are taken here, once per density.
     virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const override;
@@ -307,7 +309,7 @@ public:
     //! \name Orbital resolution (increment 2): the U slots and what each level holds
     //!@{
     //! The manifold's U slots: one per (site irrep, grey parent) intersection, in \c Uirrep order; empty
-    //! before \c PrepareSlots (or under CP2K's population form, which has no eigenvectors to name).
+    //! before \c BuildBlocks (or under CP2K's population form, which has no eigenvectors to name).
     const std::vector<ManifoldSymmetry::Slot>& Slots(size_t M) const;
     //! \f$\sum\lambda\f$ per slot of manifold \a M in channel \a s (the occupation of each level).
     const rvec_t& OccupationByLabel(size_t M, const Spin& s) const;
@@ -325,15 +327,16 @@ public:
     //!@}
 
 private:
-    virtual chmat_t MakeMatrix (const cobs_t*, const Spin&, const cChargeDensity*) const override;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const override;
-    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, DensityID) const override;
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, DensityID) const override;   // the real TRIM block (V1.35: an overload)
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, DensityID) const;
 
     //! The block's pair, built on first use (the overlap is geometry-fixed) and keyed like the XC route's.
     template <class U> const LowdinProjector<U>& Projector(const BasisSet::Orbital_DFT_IBS<U,dcmplx>&) const;
     template <class U> SymMap<LowdinProjector<U>>& Cache() const;
     //! Bring the occupations up to \a cd (a no-op when frozen or already at this serial).
     void EnsureOccupations(const cChargeDensity* cd) const;
+    void BuildGeometry(const cbs_t* bs) const;   //!< the Lowdin pairs and manifold symmetry of \a bs's blocks (geometry-fixed)
     //! Per channel: eigen-decompose \a n (flattened, all manifolds), fill the channel's occupations, slot
     //! sums, labelling and \f$W\f$, return its \f$E_U\f$.
     struct Channel;
@@ -347,7 +350,7 @@ private:
     template <class U> LowdinProjector<U> AtomicProjector(const BasisSet::Orbital_DFT_IBS<U,dcmplx>&) const;
     std::vector<Symmetry::Molecule::AoShell> SetShells(size_t M) const;
     //!@}
-    //! Build \c itsSym[M] from the manifold's shells and its \c siteOps / \c greyOps (once, in PrepareSlots),
+    //! Build \c itsSym[M] from the manifold's shells and its \c siteOps / \c greyOps (once, in BuildBlocks),
     //! and say the slot table once (pin 17).
     void BuildSymmetry(size_t M, const std::vector<Symmetry::Molecule::AoShell>& shells) const;
 
@@ -376,10 +379,11 @@ private:
         std::vector<rvec_t> byLabel;   //!< per manifold: \f$\sum\lambda\f$ per slot (the printed resolution)
         std::vector<ManifoldSymmetry::Labelling> lab;   //!< per manifold: the last labelling's diagnostics
     };
-    mutable std::vector<std::shared_ptr<const ManifoldSymmetry>> itsSym;   //!< per manifold, built in PrepareSlots (null = C_1 or the population form)
+    mutable std::vector<std::shared_ptr<const ManifoldSymmetry>> itsSym;   //!< per manifold, built in BuildBlocks (null = C_1 or the population form)
     mutable std::vector<std::vector<std::string>> itsComponents;          //!< per manifold: its functions' names (BuildSymmetry)
     mutable std::map<Spin,Channel> itsChannels;   //!< one per spin irrep of the subgroup
     mutable size_t itsOccVersion = size_t(-1);
+    mutable DensityID itsRefreshedID=DensityID(static_cast<const cChargeDensity*>(nullptr));   //!< the density the last refresh saw: the block path's check (V1.41 stage 2)
     mutable double itsEU = 0.0;
     mutable SymMap<LowdinProjector<dcmplx>> itsProj;    //!< per Bloch block
     mutable SymMap<LowdinProjector<double>> itsProjR;   //!< per real TRIM block
