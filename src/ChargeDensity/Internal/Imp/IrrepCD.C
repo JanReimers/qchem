@@ -157,7 +157,9 @@ rvec_t FiniteIrrepCD::GetRepulsion3C(const Fitting::DensityProjector& p) const
     // it here, while the fitter looped over the same borrowed array for the adjoint -- two callers on one
     // tensor, agreeing by convention; both now come off the one object the fitter built.
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<double,double>&>(*this->itsBasisSet);
-    return p.Forward(orb).Forward(this->itsDensityMatrix);   // <rho|c> = Sum_ab D_ab <ab|c>, per block
+    // .Vector() HERE IS TEMPORARY (V-ONE-OF-N 2/4): this face still returns rvec_t until D2 (3/4) folds it into
+    // RepulsionCoefficients -> FitCoefficients, and then the density only hands the record on.
+    return p.Forward(orb).Forward(this->itsDensityMatrix).Vector();   // <rho|c> = Sum_ab D_ab <ab|c>, per block
 }
 
 
@@ -429,9 +431,11 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     return true;
 }
 
-template <class T> rvec_t IrrepCD_Core<T>::ProjectOnto(const Fitting::ScalarProjector& p) const
+template <class T> FitCoefficients IrrepCD_Core<T>::ProjectOnto(const Fitting::ScalarProjector& p) const
 {
-    if (IsZero()) return rvec_t(p.NumCoefficients(), 0.0);
+    // A zero block is a zero COEFFICIENT VECTOR: a ScalarProjector vends only vector-axis forwards (Gaussian, delta,
+    // mesh, occupation), and NumCoefficients sizes them -- so no realization is guessed here.
+    if (IsZero()) return FitCoefficients(rvec_t(p.NumCoefficients(), 0.0));
     // ASK THE BASIS FOR ITS INTEGRAL, then contract MY matrix into it (R1.0; the 3-centre form,
     // 2026-08-23).  <delta_g|rho> = Sum_ij D_ij <delta_g|chi_i chi_j>, so what crosses is D -- which this
     // class owns -- and what stays inside is the basis's own Phi table and weights.  The GEMM itself, its
@@ -660,9 +664,9 @@ template class PeriodicIrrepCD<dcmplx>;
 // ProjectOnto, i.e. an O(n^3) pstrf on EVERY call -- and DensitySampler::RhoPol calls it twice per
 // iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
 //
-template <class Leaf> rvec_t FactoredRho<Leaf>::ProjectOnto(const Fitting::ScalarProjector& p) const
+template <class Leaf> FitCoefficients FactoredRho<Leaf>::ProjectOnto(const Fitting::ScalarProjector& p) const
 {
-    if (this->IsZero()) return rvec_t(p.NumCoefficients(), 0.0);
+    if (this->IsZero()) return FitCoefficients(rvec_t(p.NumCoefficients(), 0.0));   // as IrrepCD_Core::ProjectOnto
 
     // Tr(D) -- the memo's integrity check AND, on a miss, the value to remember.  A STALE FACTOR IS A
     // SILENTLY WRONG rho, so the version key is not trusted alone: any mutation of D that failed to bump

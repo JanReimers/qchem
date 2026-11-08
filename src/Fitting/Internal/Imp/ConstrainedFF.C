@@ -107,7 +107,7 @@ template <class T> hmat_t<T> ConstrainedFF<T>::Repulsion(const robs_t<T>* bs) co
     // robs_t is the 1E base; the 3-centre tier is the DFT one -- the cross-cast the periodic fitters also make.
     const auto& dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,T>&>(*bs);
     // THE ADJOINT HALF, off the same object whose forward the density contracted D into (R1.0q).
-    hmat_t<T> J=Integrator(dftbs).Adjoint(this->itsFitCoeff);
+    hmat_t<T> J=Integrator(dftbs).Adjoint(FitCoefficients(this->itsFitCoeff));
     assert(!blazem::isnan(J));
     return J;
 }

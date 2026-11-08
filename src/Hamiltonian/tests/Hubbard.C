@@ -54,9 +54,9 @@ TEST(LowdinProjector, ForwardAndAdjointAreExactlyAdjoint_Real)
     EXPECT_EQ(P.NumCoefficients(), 4u);   // 2x2 flattened
     hmat_t<double> D(4); D(0,0)=1.3; D(0,1)=-0.7; D(0,2)=0.2; D(0,3)=0.1; D(1,1)=2.1; D(1,2)=0.4; D(1,3)=-0.3; D(2,2)=0.6; D(2,3)=0.05; D(3,3)=0.9;
     const rvec_t W{0.9, -0.4, -0.4, 1.7};   // a symmetric 2x2, flattened
-    const rvec_t n=P.Forward(D);
+    const rvec_t n=P.Forward(D).Vector();
     double lhs=0.0; for (size_t a=0;a<4;a++) lhs+=W[a]*n[a];
-    const hmat_t<double> V=P.Adjoint(W);
+    const hmat_t<double> V=P.Adjoint(FitCoefficients(W));
     double rhs=0.0; for (size_t i=0;i<4;i++) for (size_t j=0;j<4;j++) rhs+=V(i,j)*D(i,j);
     EXPECT_NEAR(lhs, rhs, 1e-13) << "Tr(W n) != Tr(V D): the pair is not adjoint";
 }
@@ -67,9 +67,9 @@ TEST(LowdinProjector, ForwardAndAdjointAreExactlyAdjoint_Complex)
     hmat_t<dcmplx> D(4);
     D(0,0)=1.3; D(0,1)=dcmplx(-0.7,0.2); D(0,2)=dcmplx(0.2,-0.1); D(0,3)=0.1; D(1,1)=2.1; D(1,2)=dcmplx(0.4,0.3); D(1,3)=-0.3; D(2,2)=0.6; D(2,3)=dcmplx(0.05,0.02); D(3,3)=0.9;
     const rvec_t W{0.9, -0.4, -0.4, 1.7};
-    const rvec_t n=P.Forward(D);
+    const rvec_t n=P.Forward(D).Vector();
     double lhs=0.0; for (size_t a=0;a<4;a++) lhs+=W[a]*n[a];
-    const hmat_t<dcmplx> V=P.Adjoint(W);
+    const hmat_t<dcmplx> V=P.Adjoint(FitCoefficients(W));
     dcmplx rhs=0.0; for (size_t i=0;i<4;i++) for (size_t j=0;j<4;j++) rhs+=V(i,j)*std::conj(dcmplx(D(i,j)));
     // With a REAL symmetric W the forward keeps only Re(T^dag D T), so the adjoint identity holds on the
     // real part; Tr(V D) is real for Hermitian V, D.
@@ -91,12 +91,12 @@ TEST(LowdinProjector, AnIdempotentDensityInTheManifoldHasOccupations0And1)
     hmat_t<double> D(4);
     for (size_t i=0;i<4;i++) for (size_t j=i;j<4;j++) D(i,j)=Sinvh(i,1)*Sinvh(j,1);
     const LowdinProjector<double> P(S, M);
-    const rvec_t n=P.Forward(D);           // the 2x2 block over {1,2}: should be [[1,0],[0,0]]
+    const rvec_t n=P.Forward(D).Vector();           // the 2x2 block over {1,2}: should be [[1,0],[0,0]]
     EXPECT_NEAR(n[0], 1.0, 1e-12);
     EXPECT_NEAR(n[1], 0.0, 1e-12);
     EXPECT_NEAR(n[2], 0.0, 1e-12);
     EXPECT_NEAR(n[3], 0.0, 1e-12);
-    EXPECT_NEAR(P.Integrate(n), 1.0, 1e-12);   // the manifold charge
+    EXPECT_NEAR(P.Integrate(FitCoefficients(n)), 1.0, 1e-12);   // the manifold charge
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -106,7 +106,7 @@ TEST(LowdinProjector, TheFactoredForwardAgreesWithTheUnfactoredOne)
     rmat_t L(4,2); L(0,0)=1.0; L(0,1)=0.2; L(1,0)=-0.5; L(1,1)=1.5; L(2,0)=0.3; L(2,1)=-0.4; L(3,0)=0.1; L(3,1)=0.7;
     hmat_t<double> D(4);
     for (size_t i=0;i<4;i++) for (size_t j=i;j<4;j++) { double s=0; for (size_t m=0;m<2;m++) s+=L(i,m)*L(j,m); D(i,j)=s; }
-    const rvec_t a=P.Forward(D), b=P.Forward(L);
+    const rvec_t a=P.Forward(D).Vector(), b=P.Forward(L).Vector();
     ASSERT_EQ(a.size(), b.size());
     for (size_t k=0;k<a.size();k++) EXPECT_NEAR(a[k], b[k], 1e-13);
 }
@@ -156,9 +156,9 @@ TEST(LowdinProjector, AtomicSet_ForwardAndAdjointAreExactlyAdjoint)
         hmat_t<dcmplx> D(4);
         D(0,0)=1.3; D(0,1)=dcmplx(-0.7,0.2); D(0,2)=dcmplx(0.2,-0.1); D(0,3)=0.1; D(1,1)=2.1; D(1,2)=dcmplx(0.4,0.3); D(1,3)=-0.3; D(2,2)=0.6; D(2,3)=dcmplx(0.05,0.02); D(3,3)=0.9;
         const rvec_t W{0.7, 0.9, -0.4, -0.4, 1.7};
-        const rvec_t n=P.Forward(D);
+        const rvec_t n=P.Forward(D).Vector();
         double lhs=0.0; for (size_t a=0;a<W.size();a++) lhs+=W[a]*n[a];
-        const hmat_t<dcmplx> V=P.Adjoint(W);
+        const hmat_t<dcmplx> V=P.Adjoint(FitCoefficients(W));
         dcmplx rhs=0.0; for (size_t i=0;i<4;i++) for (size_t j=0;j<4;j++) rhs+=V(i,j)*std::conj(dcmplx(D(i,j)));
         EXPECT_NEAR(lhs, std::real(rhs), 1e-13);
         // Q = T^dagger: an orbital's coefficients on the manifold functions are its projector amplitudes.
@@ -185,13 +185,13 @@ TEST(LowdinProjector, AtomicSet_OrthoAtomicOccupationsAre0And1)
     const mat_t<dcmplx> X=X0*InvSqrt(O);
     hmat_t<dcmplx> D(4);
     for (size_t i=0;i<4;i++) for (size_t j=i;j<4;j++) D(i,j)= i==j ? dcmplx(std::norm(X(i,1)),0.0) : X(i,1)*std::conj(X(j,1));
-    const rvec_t n=P.Forward(D);                            // [n0 | n1 (2x2)]
+    const rvec_t n=P.Forward(D).Vector();                            // [n0 | n1 (2x2)]
     EXPECT_NEAR(n[0], 0.0, 1e-12);
     EXPECT_NEAR(n[1], 1.0, 1e-12);
     EXPECT_NEAR(n[2], 0.0, 1e-12);
     EXPECT_NEAR(n[3], 0.0, 1e-12);
     EXPECT_NEAR(n[4], 0.0, 1e-12);
-    EXPECT_NEAR(P.Integrate(n), 1.0, 1e-12);
+    EXPECT_NEAR(P.Integrate(FitCoefficients(n)), 1.0, 1e-12);
 }
 
 // Represented == O for a set inside the span (the "captured" diagnostic reads 1); a set function OUTSIDE the

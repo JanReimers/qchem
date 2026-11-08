@@ -65,7 +65,7 @@ public:
     {
         if (itsV.size()==0) throw std::logic_error("GridDensityFitter: asked for a repulsion before any DoFit");
         const auto& dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<double,double>&>(*bs);
-        return Integrator(dftbs).Adjoint(itsV);   // sum_g w_g v_g chi_i chi_j
+        return Integrator(dftbs).Adjoint(FitCoefficients(itsV));   // sum_g w_g v_g chi_i chi_j
     }
 
     double FitGetSelfRepulsion() const override

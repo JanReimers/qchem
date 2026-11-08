@@ -51,21 +51,11 @@ module;
 // (`doc/CleanupCandidates.md` D2 + V1.20b).  The visibility is the deliverable here, not the cure.
 export module qchem.BasisSet.PairProjection;
 export import qchem.Types;
+export import qchem.FitCoefficients;  // ΔG_Map, its field algebra, and the one-of-N record (moved there, V-ONE-OF-N 2/4)
 export import qchem.Mesh.Integrator;   // MatrixForward<T>/MatrixAdjoint<T> -- the two halves the raw pair realises
 import qchem.Blaze;    // rvec_t, hmat_t<T> + complex/double arithmetic
 
 export namespace qchem {
-
-//! Lexicographic comparator so a reciprocal-index triple \f$\Delta m\f$ can key a map.
-struct IVec3Less
-{
-    bool operator()(const ivec3_t& a, const ivec3_t& b) const
-    { if (a.x!=b.x) return a.x<b.x; if (a.y!=b.y) return a.y<b.y; return a.z<b.z; }
-};
-
-//! G-space components (density \f$\tilde\rho\f$ or potential \f$\tilde V\f$) keyed by the reciprocal-index
-//! difference \f$\Delta m\f$ (\f$\Delta G = B\,\Delta m\f$).
-using ΔG_Map = std::map<ivec3_t, dcmplx, IVec3Less>;
 
 //! \brief A Bloch-\f$q\f$ G-space field -- \f$\delta\tilde\rho(G+q)\f$ or \f$\delta\tilde V(G+q)\f$ of a transition
 //! density -- keyed by the INTEGER G index \f$\Delta m\f$, with the one \f$q\f$ (fractional reciprocal coordinates)
@@ -80,30 +70,6 @@ struct ΔGq_Map
     rvec3_t q{0,0,0};   //!< the wave vector every key is shifted by (fractional reciprocal coordinates)
     ΔG_Map  c;          //!< the coefficient of \f$e^{i(G+q)\cdot r}\f$, keyed by G's integer index
 };
-
-//---------------------------------------------------------------------------------------------------------
-//  THE FIELD ALGEBRA of a ΔG_Map -- a sparse G-space field with the usual linear-space operations.  Found by
-//  ADL through IVec3Less (namespace qchem), so a caller need only import this module.  A key absent from one
-//  operand reads as 0, so `a - b` spans the UNION of the two index sets (what a residual ‖out−in‖ needs).
-//  (V1.18: these were seven Map* helpers private to the density mixers; a mixer's arithmetic should READ as
-//  arithmetic, and the type's algebra belongs with the type.)
-//---------------------------------------------------------------------------------------------------------
-inline ΔG_Map& operator+=(ΔG_Map& a, const ΔG_Map& b) { for (const auto& [k,v] : b) a[k]+=v; return a; }
-inline ΔG_Map& operator-=(ΔG_Map& a, const ΔG_Map& b) { for (const auto& [k,v] : b) a[k]-=v; return a; }
-inline ΔG_Map& operator*=(ΔG_Map& a, double s)         { for (auto& [k,v] : a) v=s*v; return a; }
-inline ΔG_Map  operator+ (ΔG_Map a, const ΔG_Map& b)   { return a+=b; }
-inline ΔG_Map  operator- (ΔG_Map a, const ΔG_Map& b)   { return a-=b; }
-inline ΔG_Map  operator* (double s, ΔG_Map a)          { return a*=s; }
-inline ΔG_Map  operator* (ΔG_Map a, double s)          { return a*=s; }
-//! \f$\max_G|f(G)|\f$ -- the ∞-norm (a mixer's convergence gate).
-inline double  MaxAbs(const ΔG_Map& m) { double x=0.0; for (const auto& [k,v] : m) x=std::max(x,std::abs(v)); return x; }
-//! \f$\sum_i c_i f_i\f$ over any range of fields (a DIIS/Pulay extrapolation).
-template <class Range> inline ΔG_Map LinearCombination(const Range& fields, const rvec_t& c)
-{
-    ΔG_Map r; size_t i=0;
-    for (const auto& f : fields) { for (const auto& [k,v] : f) r[k]+=c[i]*v; ++i; }
-    return r;
-}
 
 //! \brief The 3-centre projection tensor \f$\langle ab|c\rangle\f$ between an orbital basis (indices a,b)
 //! and an auxiliary fit basis (index c) -- the currency of every density-fitted Coulomb/Vxc build.
@@ -277,17 +243,19 @@ public:
     //! Un-hide the base's FACTORED overload before overriding this one (see qchem.Mesh.Integrator's
     //! warning): without it `Forward(L)` converts a thin factor into an hmat_t adaptor and Blaze throws.
     using qcMesh::MatrixForward<T>::Forward;
-    virtual rvec_t    Forward(const hmat_t<T>& D) const override {return itsG.applyRaw(D);}
+    virtual FitCoefficients Forward(const hmat_t<T>& D) const override {return FitCoefficients(itsG.applyRaw(D));}
     //! The FAST factored path when the tensor has one; otherwise the base's default (form \f$LL^\dagger\f$,
     //! delegate) answers -- correct either way, which is what makes it not a capability.
-    virtual rvec_t    Forward(const mat_t<T>& L) const override
+    virtual FitCoefficients Forward(const mat_t<T>& L) const override
     {
-        if (itsG.applyRawFactored) return itsG.applyRawFactored(L);
+        if (itsG.applyRawFactored) return FitCoefficients(itsG.applyRawFactored(L));
         return qcMesh::MatrixForward<T>::Forward(L);
     }
-    virtual hmat_t<T> Adjoint(const rvec_t& v)    const override {return itsG.applyRawAdjoint(v);}
-    virtual double    Integrate(const rvec_t& f)  const override
+    //! A raster realization: the paired reads below are values at the raster's points.
+    virtual hmat_t<T> Adjoint(const FitCoefficients& v) const override {return itsG.applyRawAdjoint(v.Vector());}
+    virtual double    Integrate(const FitCoefficients& c) const override
     {
+        const rvec_t& f=c.Vector();
         assert(f.size()==itsW.size() && "ScreenedMatrixIntegrator::Integrate: one value per raster point");
         if (itsRule) return itsRule(f);                  // the client's pinned rule (see the ctor)
         double s=0.0;
@@ -336,23 +304,25 @@ public:
 
     using qcMesh::MatrixForward<T>::Forward;   // un-hide the factored overload (see qchem.Mesh.Integrator)
     //! \f$\rho_a=\sum_{ab}D_{ab}\langle ab|a\rangle\f$ -- the loop \c FiniteIrrepCD::GetRepulsion3C ran.
-    virtual rvec_t Forward(const hmat_t<T>& D) const override
+    virtual FitCoefficients Forward(const hmat_t<T>& D) const override
     {
         rvec_t ret(itsG.dense.size());
         for (size_t a=0; a<itsG.dense.size(); ++a)
             ret[a]=IReal(blazem::sum(D % itsG.dense[a]));
-        return ret;
+        return FitCoefficients(std::move(ret));
     }
     //! \f$\langle i|v|j\rangle=\sum_a v_a\langle ij|a\rangle\f$ -- the loop \c ConstrainedFF::Repulsion ran.
-    virtual hmat_t<T> Adjoint(const rvec_t& v) const override
+    virtual hmat_t<T> Adjoint(const FitCoefficients& c) const override
     {
+        const rvec_t& v=c.Vector();   // the analytic realization: one coefficient per fit function
         assert(v.size()==itsG.dense.size() && "DensePairProjectionIntegrator::Adjoint: one coefficient per fit function");
         hmat_t<T> J=blazem::zeroH<T>(itsG.dense.empty() ? 0 : itsG.dense[0].rows());
         for (size_t a=0; a<v.size(); ++a) J+=v[a]*itsG.dense[a];
         return J;
     }
-    virtual double Integrate(const rvec_t& f) const override
+    virtual double Integrate(const FitCoefficients& c) const override
     {
+        const rvec_t& f=c.Vector();
         assert(f.size()==itsInt.size() && "DensePairProjectionIntegrator::Integrate: one value per fit function");
         double s=0.0;
         for (size_t a=0; a<f.size(); ++a) s+=itsInt[a]*f[a];
@@ -367,6 +337,68 @@ private:
     }
     const PairProjection<T>& itsG;     //!< borrowed: owned by the basis's integral cache
     rvec_t               itsInt;   //!< \f$\langle f_a|1\rangle\f$ per fit function
+};
+
+//! \brief The G-SPACE realization of the forward/adjoint pair -- a \c PairProjection whose forward is \ref
+//! Contract (plane-wave columns, or GPW's matrix-free \ref PairProjection::apply) and whose adjoint is \ref
+//! ContractAdjoint (\ref PairProjection::applyAdjoint).  Its coefficients are the \c ΔG_Map realization of
+//! \c FitCoefficients: \f$\tilde\rho(G)\f$ through an \c Overlap3C, \f$V_H(G)=4\pi\tilde\rho/|G|^2\f$ through a
+//! \c Repulsion3C (the kernel is in the forward; the adjoint is always the overlap integrate-back).
+//!
+//! ★ THIS IS WHERE `Vee_Hartree` JOINS THE PAIR (R1.0q's original target, V-ONE-OF-N 2/4).  Before the record
+//! existed, \c MatrixForward returned a real \c rvec_t and a complex, Δm-keyed \f$V_H(G)\f$ could not travel
+//! in it, so the Hartree term and the ortho fitter called \c Contract / \c ContractAdjoint by hand on ONE
+//! tensor.  Now both halves come off this one view of that one tensor, as for the other three realizations.
+//!
+//! \warning A VIEW: it borrows \a g, which the producing basis's integral cache owns for the run.
+template <class T> class GSpacePairProjectionIntegrator
+    : public virtual qcMesh::MatrixForward<T>
+    , public virtual qcMesh::MatrixAdjoint<T>
+{
+public:
+    //! THROWS unless \a g realises both G-space directions (a forward -- columns or \c apply -- and \c
+    //! applyAdjoint): an integrator is the PAIR, and finding a missing half at the first SCF call is worse.
+    explicit GSpacePairProjectionIntegrator(const PairProjection<T>& g) : itsG(g)
+    {
+        if (!g.dense.empty() || !g.applyAdjoint || (!g.apply && g.columns.empty()))
+            throw std::runtime_error("GSpacePairProjectionIntegrator: this PairProjection does not realise the G-space "
+                "forward (columns or apply) and adjoint (applyAdjoint) pair");
+    }
+
+    using qcMesh::MatrixForward<T>::Forward;   // un-hide the factored overload (see qchem.Mesh.Integrator)
+    virtual FitCoefficients Forward(const hmat_t<T>& D) const override {return FitCoefficients(Contract(itsG, D));}
+    //! \f$\langle i|f|j\rangle=\sum_G f(G)\,W_G(i,j)\f$; a G absent from the map reads as 0.
+    virtual hmat_t<T> Adjoint(const FitCoefficients& c) const override
+    {
+        const ΔG_Map& f=c.GMap();   // the G-space realization
+        return ContractAdjoint(itsG, [&f](const ivec3_t& dm)->T
+        {
+            auto it=f.find(dm);
+            if constexpr (std::is_floating_point_v<T>) return it==f.end() ? T(0) : std::real(it->second);
+            else                                         return it==f.end() ? T(0) : it->second;
+        });
+    }
+    //! \f$\int f\,d^3r=\Omega\,f(G=0)\f$.  THROWS when the tensor carries no cell volume (a producer that never set
+    //! it): there is then no honest answer, and a zero would be a silent one.
+    virtual double Integrate(const FitCoefficients& c) const override
+    {
+        if (itsG.volume<=0.0)
+            throw std::logic_error("GSpacePairProjectionIntegrator::Integrate: this PairProjection carries no cell volume");
+        const ΔG_Map& f=c.GMap();
+        auto it=f.find(ivec3_t(0,0,0));
+        return it==f.end() ? 0.0 : itsG.volume*std::real(it->second);
+    }
+    //! The number of plane-wave columns.  THROWS for the matrix-free realization: its G set is the closure's
+    //! own business and has no length to report (a ΔG_Map is sized by its keys, not by a count).
+    virtual size_t NumCoefficients() const override
+    {
+        if (itsG.columns.empty())
+            throw std::logic_error("GSpacePairProjectionIntegrator::NumCoefficients: a matrix-free G-space projection has no fixed coefficient count");
+        return itsG.columns.size();
+    }
+
+private:
+    const PairProjection<T>& itsG;   //!< borrowed: owned by the basis's integral cache
 };
 
 } // namespace qchem

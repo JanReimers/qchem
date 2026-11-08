@@ -46,10 +46,12 @@ module;
 #include <cassert>
 #include <complex>
 #include <type_traits>
+#include <utility>
 export module qchem.Mesh.Integrator;
 export import qchem.Mesh;
 export import qchem.Mesh.Quadrature;   // MatrixOverlap -- the dense adjoint
 export import qchem.VectorFunction;
+export import qchem.FitCoefficients;   // what Forward returns and Adjoint / Integrate take (V-ONE-OF-N 2/4)
 
 
 namespace qchem::qcMesh
@@ -87,7 +89,12 @@ public:
     //! \f$\rho(r_a)=\sum_{ij}D_{ij}\overline{\chi_i(r_a)}\chi_j(r_a)\f$, which is why the two readings
     //! were never distinguished; on a plane-wave basis the same call returns \f$\tilde\rho(G_a)\f$.
     //! Real by construction for Hermitian \a D -- a density is an observable.
-    virtual rvec_t Forward(const hmat_t<T>& D) const=0;
+    //!
+    //! ★ IT RETURNS THE ONE-OF-N RECORD (V-ONE-OF-N, user rulings 2026-11-07/08): a Gaussian, \f$\delta\f$ or
+    //! mesh realization fills its \c rvec_t, a plane-wave one its \c ΔG_Map.  The realization's paired
+    //! client reads its member (\c Vector() / \c GMap(), throwing on a mismatch); every other client only
+    //! hands the record on or combines it.
+    virtual FitCoefficients Forward(const hmat_t<T>& D) const=0;
 
     //! \brief The SAME forward for a caller holding \f$D\f$ in FACTORED form \f$D=LL^\dagger\f$ (a thin
     //! \f$n\times r\f$ pivoted-Cholesky / natural-orbital factor):
@@ -103,7 +110,7 @@ public:
     //! ⚠ This replaces a runtime capability test: `applyRawFactored` is empty on realizations that cannot
     //! left-multiply a value table, and `IrrepCD::FactoredRho` asserted on it before every use.  A default
     //! makes the question disappear instead of moving it.
-    virtual rvec_t Forward(const mat_t<T>& L) const
+    virtual FitCoefficients Forward(const mat_t<T>& L) const
     {
         const size_t n=L.rows(), r=L.columns();
         hmat_t<T> D(n);
@@ -138,12 +145,12 @@ public:
     //! field expanded on the SAME basis, in the same order, that the paired \c MatrixForward returns.
     //! The exact transpose of \c Forward -- same \f$\langle f_a|\chi_i\chi_j\rangle\f$, contracted the
     //! other way -- which is what makes \f$H=\partial E/\partial D\f$ hold.
-    virtual hmat_t<T> Adjoint(const rvec_t& v) const=0;
+    virtual hmat_t<T> Adjoint(const FitCoefficients& v) const=0;
     //! \f$\int f\,d^3r=\sum_a f_a\,\langle f_a|1\rangle\f$ -- the energy quadrature on the same axis.
     //! ⚠ The weights here are the FUNCTION INTEGRALS \f$\langle f_a|1\rangle\f$, not point weights; on a
     //! \f$\delta\f$ basis they coincide, which is why that distinction only surfaced when a second
     //! realization needed them (2026-09-09).
-    virtual double Integrate(const rvec_t& f) const=0;
+    virtual double Integrate(const FitCoefficients& f) const=0;
     virtual size_t NumCoefficients() const=0;   //!< length of the array \c Adjoint accepts
 };
 
@@ -181,13 +188,14 @@ public:
     //! the \c hmat_t one would otherwise hide it, and `Forward(L)` would convert into the wrong overload.
     using MatrixForward<T>::Forward;
 
-    virtual rvec_t Forward(const hmat_t<T>& D) const override;
-    virtual hmat_t<T> Adjoint(const rvec_t& v) const override
+    virtual FitCoefficients Forward(const hmat_t<T>& D) const override;
+    virtual hmat_t<T> Adjoint(const FitCoefficients& f) const override
     {
+        const rvec_t& v=f.Vector();   // a mesh realization: values at its points
         assert(v.size()==itsMesh.size() && "DenseMatrixIntegrator::Adjoint: one field value per mesh point");
         return MatrixOverlap(itsMesh, itsBasis, v);
     }
-    virtual double Integrate(const rvec_t& f) const override {return qcMesh::Integrate(itsMesh, f);}
+    virtual double Integrate(const FitCoefficients& f) const override {return qcMesh::Integrate(itsMesh, f.Vector());}
     virtual size_t NumCoefficients() const override {return itsMesh.size();}
 
 private:
@@ -198,7 +206,7 @@ private:
 //! \f$\rho(r_g)=\sum_{ij}D_{ij}\overline{\chi_i}\chi_j\f$ -- the exact adjoint of \c MatrixOverlap: the
 //! same \f$\overline{\chi_i}\ldots\chi_j\f$ ordering, and the weights deliberately NOT applied here (they
 //! belong to the integration, not to the density, and applying them on both sides would square them).
-template <class T> rvec_t DenseMatrixIntegrator<T>::Forward(const hmat_t<T>& D) const
+template <class T> FitCoefficients DenseMatrixIntegrator<T>::Forward(const hmat_t<T>& D) const
 {
     const size_t n=itsBasis.GetVectorSize();
     assert(D.rows()==n && "DenseMatrixIntegrator::Forward: the density matrix must match the basis");
@@ -213,7 +221,7 @@ template <class T> rvec_t DenseMatrixIntegrator<T>::Forward(const hmat_t<T>& D) 
                 s += IConj(p[i])*D(i,j)*p[j];
         rho[g] = IReal(s);          // Hermitian D => real; the imaginary part is roundoff and is dropped
     }
-    return rho;
+    return FitCoefficients(std::move(rho));
 }
 
 } // namespace

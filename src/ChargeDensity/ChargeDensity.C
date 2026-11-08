@@ -317,7 +317,10 @@ public:
     //!
     //! Same shape as V1.16 on the Coulomb side: each capability is a face you either HAVE or do not, and
     //! there is no fallback left to hit by accident.
-    virtual rvec_t ProjectOnto(const Fitting::ScalarProjector& p) const=0;
+    //!
+    //! It returns the one-of-N record (V-ONE-OF-N 2/4): a density only HANDS the forward's coefficients on (and
+    //! sums its blocks with +=); the projector's paired implementation reads the realization.
+    virtual FitCoefficients ProjectOnto(const Fitting::ScalarProjector& p) const=0;
 };
 
 //! \brief A charge density that can be MIXED IN PLACE -- the whole of what an SCF density mixer needs of

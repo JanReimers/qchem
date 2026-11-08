@@ -89,7 +89,7 @@ template <class T> const Fitting::FieldProjector& tSinglesDensitySampler<T>::Fie
 }
 template <class T> rvec_t tSinglesDensitySampler<T>::ProjectDM(const tDM_CD<T>& dm) const
 {
-    if (const Fitting::ScalarProjector* sp=MatrixProjector()) return dm.ProjectOnto(*sp);
+    if (const Fitting::ScalarProjector* sp=MatrixProjector()) return dm.ProjectOnto(*sp).Vector();   // the paired sampler: a delta fit's values
     return FieldProjection().Project(dm);
 }
 

@@ -90,7 +90,7 @@ public:
     //! digit and no iteration count moved (doc/CleanupCandidates.md R1.0 increment 3).
     virtual void DoFit(const ProjectedScalar_R& ps) override
     {
-        itsC=OrthogonalFit(*itsFitBasis, *ps.GetScalarFunction());
+        itsC=FitCoefficients(OrthogonalFit(*itsFitBasis, *ps.GetScalarFunction()));
     }
     //! \copydoc Fitting::FieldProjector::Project
     //! Structurally identical to \c DoFit and deliberately NOT sharing its buffer: the same projection, returned.
@@ -211,7 +211,7 @@ private:
     mutable SymMap<ScreenedMatrixIntegrator<dcmplx>> itsInt;
     qchem::LazyLock itsCacheLock;   //!< the four maps above: filled from the parallel Fock pass (see Integrator)
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
-    rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit)
+    FitCoefficients itsC; //!< MY fit coefficients over that basis (see DoFit): the vector realization (values at my points)
 };
 
 } //namespace

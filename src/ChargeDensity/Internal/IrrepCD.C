@@ -97,7 +97,7 @@ public:
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;
-    virtual rvec_t ProjectOnto(const Fitting::ScalarProjector&) const;
+    virtual FitCoefficients ProjectOnto(const Fitting::ScalarProjector&) const;
     virtual double GetTotalCharge(                      ) const;
 
     virtual size_t Version() const {return itsVersion;}
@@ -216,7 +216,7 @@ public:
     //! \copydoc IrrepCD_Core::ProjectOnto
     //! Factored route; falls back to \c Leaf::ProjectOnto (the full quadratic form) whenever the factor
     //! does not apply -- D not PSD, or a rank too fat to pay for itself.  Same values either way.
-    virtual rvec_t ProjectOnto(const Fitting::ScalarProjector&) const;
+    virtual FitCoefficients ProjectOnto(const Fitting::ScalarProjector&) const;
 
 private:
     //! The factor, memoized per DENSITY SERIAL.  \c ProjectOnto is const and the factorisation is a pure

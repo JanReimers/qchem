@@ -98,10 +98,12 @@ public:
     static hmat_t<U> Represented(const mat_t<U>& B, const hmat_t<U>& S);
 
     using qcMesh::MatrixForward<U>::Forward;   // un-hide the factored overload (qchem.Mesh.Integrator)
-    virtual rvec_t    Forward(const hmat_t<U>& D) const override;
-    virtual hmat_t<U> Adjoint(const rvec_t& W)    const override;
+    //! The coefficient axis is the occupation blocks, an \c rvec_t: this pair's realization of \c FitCoefficients
+    //! (it is a paired implementation, so it reads the record with \c Vector()).
+    virtual FitCoefficients Forward(const hmat_t<U>& D) const override;
+    virtual hmat_t<U> Adjoint(const FitCoefficients& W) const override;
     //! The "integral" of an occupation-shaped vector is its TRACE per manifold, summed: the manifold charge.
-    virtual double    Integrate(const rvec_t& f) const override;
+    virtual double    Integrate(const FitCoefficients& f) const override;
     virtual size_t    NumCoefficients() const override {return itsN;}
     size_t NumManifolds() const {return itsT.size();}
     size_t Size(size_t M) const {return itsT[M].columns();}   //!< \f$m_M=2l+1\f$

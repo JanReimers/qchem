@@ -51,7 +51,7 @@ template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const BasisSet::Orbit
 {
     // THE ADJOINT HALF (R1.0q): no forward exists here, v(rho(r)) is pointwise nonlinear so no D is ever contracted.  Built per call,
     // not held per block as ConstrainedFF does: the basis's cache keys the tensor by BasisSetID, a SymMap here would key it by symmetry.
-    const hmat_t<T> J=DensePairProjectionIntegrator<T>(this->itsBasisSet->Overlap3C(orb), this->itsBasisSet->Charge()).Adjoint(this->itsFitCoeff);
+    const hmat_t<T> J=DensePairProjectionIntegrator<T>(this->itsBasisSet->Overlap3C(orb), this->itsBasisSet->Charge()).Adjoint(FitCoefficients(this->itsFitCoeff));
     assert(!blazem::isnan(J));
     return J;
 }

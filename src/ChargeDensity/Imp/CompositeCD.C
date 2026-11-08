@@ -195,9 +195,9 @@ template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std
 // (3c-3): each child asks the quadrature with its OWN scalar and gets the matching table back, which is
 // what replaced the two threaded table maps.  A cross-scalar (real) child inside a complex run is served
 // by the same call it would make in a real run.
-template <class T> rvec_t tComposite_CD<T>::ProjectOnto(const Fitting::ScalarProjector& p) const
+template <class T> FitCoefficients tComposite_CD<T>::ProjectOnto(const Fitting::ScalarProjector& p) const
 {
-    rvec_t ro(p.NumCoefficients(), 0.0);
+    FitCoefficients ro;   // the additive identity: the blocks' sum adopts their realization
     for (const Block& b:itsBlocks) std::visit([&](const auto* c){ ro+=c->ProjectOnto(p); }, b.cd);
     return ro;
 }

@@ -252,7 +252,7 @@ namespace qchem::ChargeDensity {
     template <class T> class tProjectable_CD {
     public:
         virtual ~tProjectable_CD() = default;
-        virtual rvec_t ProjectOnto(const Fitting::ScalarProjector& p) const=0;
+        virtual FitCoefficients ProjectOnto(const Fitting::ScalarProjector& p) const=0;
     };
     template <class T> class tMixableDensity : public virtual tChargeDensity<T> {
     public:

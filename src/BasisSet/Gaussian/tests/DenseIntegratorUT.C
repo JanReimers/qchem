@@ -47,12 +47,12 @@ TEST(DensePairProjectionIntegrator, TheForwardIsTheFullDoubleContraction)
     EXPECT_EQ(I.NumCoefficients(), 2u);
 
     hmat_t<double> D(3); D(0,0)=1.0; D(0,1)=0.5; D(0,2)=0.0; D(1,1)=2.0; D(1,2)=-1.0; D(2,2)=0.5;
-    const rvec_t rho=I.Forward(D);
+    const rvec_t rho=I.Forward(D).Vector();
     double a=0.0, b=0.0;
     for (size_t i=0;i<3;i++) for (size_t j=0;j<3;j++) {a+=D(i,j)*g.dense[0](i,j); b+=D(i,j)*g.dense[1](i,j);}
     EXPECT_DOUBLE_EQ(rho[0], a);
     EXPECT_DOUBLE_EQ(rho[1], b);
-    EXPECT_DOUBLE_EQ(I.Integrate(rvec_t{1.0,1.0}), 2.5);   // 0.8 + 1.7
+    EXPECT_DOUBLE_EQ(I.Integrate(FitCoefficients(rvec_t{1.0,1.0})), 2.5);   // 0.8 + 1.7
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -65,11 +65,11 @@ TEST(DensePairProjectionIntegrator, ForwardAndAdjointAreExactlyAdjoint)
     hmat_t<double> D(3); D(0,0)=1.3; D(0,1)=-0.7; D(0,2)=0.2; D(1,1)=2.1; D(1,2)=0.4; D(2,2)=-0.6;
     const rvec_t v{0.9, -1.4};
 
-    const rvec_t rho=I.Forward(D);
+    const rvec_t rho=I.Forward(D).Vector();
     double lhs=0.0;
     for (size_t a=0;a<2;a++) lhs+=v[a]*rho[a];
 
-    const hmat_t<double> H=I.Adjoint(v);
+    const hmat_t<double> H=I.Adjoint(FitCoefficients(v));
     double rhs=0.0;
     for (size_t i=0;i<3;i++) for (size_t j=0;j<3;j++) rhs+=H(i,j)*D(i,j);
 
@@ -87,7 +87,7 @@ TEST(DensePairProjectionIntegrator, TheFactoredForwardAgreesWithTheUnfactoredOne
     hmat_t<double> D(3);
     for (size_t i=0;i<3;i++) for (size_t j=i;j<3;j++) {double s=0; for (size_t m=0;m<2;m++) s+=L(i,m)*L(j,m); D(i,j)=s;}
 
-    const rvec_t full=I.Forward(D), fact=I.Forward(L);
+    const rvec_t full=I.Forward(D).Vector(), fact=I.Forward(L).Vector();
     ASSERT_EQ(full.size(), fact.size());
     for (size_t a=0;a<full.size();a++) EXPECT_NEAR(full[a], fact[a], 1e-14);
 }

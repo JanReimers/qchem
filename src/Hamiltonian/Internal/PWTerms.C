@@ -283,10 +283,10 @@ private:
     //! IRREP BLOCK, and the energy pairing -- ask for the SAME field whenever the density has not moved, so
     //! the term keeps the last one.  The key is \c ChargeDensity::Version(), the same intrinsic serial the
     //! Irrep matrix cache above it keys on (\c tDynamic_HT_Imp::GetMatrix).
-    const ΔG_Map& CoulombField(const cChargeDensity*) const;
+    const FitCoefficients& CoulombField(const cChargeDensity*) const;
     //! The BLOCK path's read of that memo: the field the refresh built for \a cd, or a throw if the refresh never saw
     //! \a cd.  A block never builds the field (V1.41 stage 2), so the per-block loop writes nothing.
-    const ΔG_Map& RefreshedField(DensityID) const;
+    const FitCoefficients& RefreshedField(DensityID) const;
 
     //! \brief \f$\Omega\f$, the cell volume, as the fit raster's own quadrature answers it:
     //! \f$\int 1\,d^3r\f$.  Asked ONCE (the grid is geometry-fixed) through the abstract raster face --
@@ -298,7 +298,7 @@ private:
     mutable size_t itsDeltaVersion=size_t(-1);  //!< the transition density's serial \c itsDeltaField holds
     mutable ΔGq_Map itsDeltaField;              //!< \f$\delta V_H(G+q)\f$ of that transition density (R2, R3)
     mutable double itsVolume=0.0;   //!< \c Volume()'s memo (0 = not asked yet)
-    mutable ΔG_Map itsField;                    //!< \c CoulombField()'s memo: \f$V_H\f$ at that serial
+    mutable FitCoefficients itsField;                    //!< \c CoulombField()'s memo: \f$V_H\f$ at that serial
     mutable DensityID itsFieldID=DensityID(static_cast<const cChargeDensity*>(nullptr));   //!< the density \c itsField holds (none = empty)
 };
 
