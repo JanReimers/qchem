@@ -14,6 +14,7 @@ module;
 #include <cstdlib>   // std::getenv -- the banner's thread state
 #include <memory>
 #include <optional>
+#include <set>         // the audit RSS policy's filed rows
 #include <stdexcept>
 #include <sstream>
 #include <string>
@@ -130,6 +131,12 @@ struct SolidCalculation::Imp
     size_t pilotLastAuditGeneration = 0;
     //! The pilot's start rasters were already raised once for the overlap's conditioning (\c Converge): never a second time.
     bool startRaisedForConditioning = false;
+    //! \brief THE AUDIT RSS POLICY's refusal (\c AdmitReference), once one fired: before the first SCF (nothing ran) or mid-pilot (the
+    //! converged run and the pilot's record are kept).  \c Outcome_ then answers it, whatever the SCF did.
+    std::optional<ResourceRefusal> resourceRefusal;
+    bool pilotPreflightDone = false;   //!< \c PilotPreflight ran (once per calculation, before its first SCF)
+    //! The (reference, sizes, verdict) rows already filed: a reference judged the same twice (the preflight, then round 0) files once.
+    mutable std::set<std::string> footprintRowsFiled;
     //! \brief THE rho-tilde SAMPLER'S ONE TIGHTENING (step 2, user rulings 2026-11-04).  The sampler's tau is fixed from the seed and never
     //! changes inside an SCF; what it delivers is the samp/τ column.  When an SCF of this run ends with a row over target (> 1), the NEXT
     //! SCF BOUNDARY that rebuilds the Hamiltonian (\c BuildRun: the pilot's next round, a re-seat) scales tau by 1/(1.5 x worst) --
@@ -782,6 +789,18 @@ std::string RunDiagnostics::Summary() const
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() const
 {
     using O = Outcome<Converged, SCFFailure>;
+    if (itsImp->resourceRefusal)
+    {   // REFUSED ON RESOURCES: before the first SCF (nothing ran), or mid-pilot (the run converged on the rasters it had; its state and
+        // the pilot's record are kept, but the eps the pilot was to deliver is not).
+        SCFFailure f;
+        f.why       =SCFFailure::Why::ResourceRefused;
+        f.iterations=itsImp->scf ? itsImp->scf->GetIterationCount() : 0;
+        if (itsImp->converged) f.lastEnergy=itsImp->scf->GetEnergy().GetTotalEnergy();
+        f.details   =itsImp->resourceRefusal->Summary();
+        if (itsImp->converged) f.details+="  [the SCF converged on the rasters it had; that state and the pilot's record are kept, NOT SETTLED]";
+        f.resource  =itsImp->resourceRefusal;
+        return O::Fail(std::move(f));
+    }
     const RunDiagnostics& d = itsImp->diag;
     auto fail=[&](SCFFailure::Why why, std::string what)
     {
@@ -1062,6 +1081,14 @@ void ReportBandSlotWeights(const std::string& label, const qchem::WaveFunction::
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(const SCFParams& params)
 {
     assert(itsImp->scf);
+    // THE AUDIT RSS POLICY, BEFORE THE FIRST SCF (OpenWork (e), ruled 2026-11-07): a run that will pilot builds two references at its
+    // converged D.  Their sizes are known now, so a pilot that cannot fit is refused before any iteration is spent on it.
+    if (!itsImp->pilotPreflightDone)
+    {
+        itsImp->pilotPreflightDone=true;
+        if (auto r=PilotPreflight()) itsImp->resourceRefusal=std::move(r);
+    }
+    if (itsImp->resourceRefusal) return Outcome_();
     // THE RESTORED STAGE'S STEP (the Auto policy, MakeAccelerator): an Auto accelerator on a restored density pairs with a LINEAR
     // mixer, and a converged density wants a restart's step, not the ground state's (relax 1.0 diverged a restart, Si Γ 2026-09-29).
     SCFParams own=params;
@@ -1522,8 +1549,109 @@ BasisSet::Gaussian::GPWTolerances SolidCalculation::ReferenceRasters(double marg
     return t;
 }
 
-SolidCalculation::GridAuditResult SolidCalculation::GridAudit(double referenceMargin) const
+namespace {
+//! The escape a pilot refusal names: the pilot sizes the grids, so a run that states them runs unpiloted (reported against eps).
+const char* const kPilotEscape="state the grids and the run proceeds unpiloted, reported against eps: accuracy 0 (the ball's own rasters), "
+                               "or the keys a smaller run's pilot prints as 'a deck restates these grids as'";
+//! The escape a postSCF audit refusal names: the audit is optional, and its cost is per k block.
+const char* const kAuditEscape="the run's result stands without this audit; run the audit on a smaller k mesh (its cost is per k block) "
+                               "or with more memory";
+} //anon
+
+AuditReferenceSize SolidCalculation::SizeReference(const std::string& name, const BasisSet::Gaussian::GPWTolerances& raster, double ballScale,
+                                                    const qcMesh::MeshParams* xcMesh) const
 {
+    namespace L3 = BasisSet::Lattice;
+    const SolidSetup&       S    = *itsImp->setup;
+    const SolidCalcOptions& opts = S.opts;
+    AuditReferenceSize z;
+    z.name=name;
+    // THE LADDER ALONE, as CompareAtFixedD's reference states it (the same GPWParams, the same PP sharpness): its levels are the raster
+    // points.  No imposition is resolved and no basis block is built -- sizing must not cost what it is guarding.
+    const bool autoBall = opts.densityEcut<0.0;
+    const L3::GPWParams p{
+        .densityEcut = autoBall ? opts.densityEcut : ballScale*opts.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.cutoffFactor : opts.cutoffFactor,
+        .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
+        .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = raster,
+        .hamPreservesReal = !opts.forceComplex};
+    const std::shared_ptr<const Structure> held=itsImp->lat->GetStructure();
+    const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(*held, *Pseudopotential::MakeMultiSpeciesLocal(S.pp.Species(*held), S.pp.Functional()));
+    const auto ladder=L3::MakeRasterLadder(*itsImp->lat, itsImp->mol, p, ppSharpness);
+    if (ladder->DensityGrid())
+        for (const ivec3_t& N : ladder->Levels().N) z.rasterPoints+=double(N.x)*double(N.y)*double(N.z);
+    // THE XC MESH, before it exists: the XC selector's own count for a Becke mesh (qcMesh::BeckeMeshCost: atoms x radial x directions,
+    // x 2 for the site-adapted invariant mesh, before the tail screen drops ~5%), n^3 for a uniform one.
+    const qcMesh::MeshParams& m = xcMesh ? *xcMesh : S.xcMesh;
+    const UnitCell& cell=itsImp->lat->GetUnitCell();
+    if (m.cellKind==qcMesh::UnitCellKind::Becke)
+    {
+        qcMesh::XCMeshSharpness sh;
+        sh.cellEdge=cell.GetMaximumCellEdge();
+        sh.nAtoms  =int(cell.GetNumAtoms());
+        sh.imposed =S.imposed || opts.xcMeshSymmetric;   // either way the mesh is the invariant one
+        z.meshPoints=double(qcMesh::BeckeMeshCost(m, sh));
+    }
+    else
+    {
+        const double n = m.eCut>0.0 ? double(qcMesh::UniformDivisions(cell.GetMaximumCellEdge(), m.eCut)) : double(m.nUniform);
+        z.meshPoints=n*n*n;
+    }
+    const BasisSet::Complex_BS& bs=*itsImp->bs;
+    for (size_t i=0;i<bs.GetNumIBS();++i)
+    {
+        const auto* r=bs.GetRealIBS(i);
+        z.blocks.push_back({r ? r->GetNumFunctions() : bs[i]->GetNumFunctions(), r!=nullptr});
+    }
+    z.spinChannels = S.polarized ? 2 : 1;
+    return z;
+}
+
+std::optional<ResourceRefusal> SolidCalculation::AdmitReference(const AuditReferenceSize& size, const std::string& when,
+                                                                const std::string& escape) const
+{
+    const AuditFootprint  f=EstimateAuditFootprint(size, itsImp->setup->opts.auditFootprint);
+    const AvailableMemory a=QueryAvailableMemory();
+    const FootprintVerdict v=Judge(f, a.bytes);
+    if (v==FootprintVerdict::Fits) return std::nullopt;
+    const ResourceRefusal r{f, a, when, escape};
+    const bool refuse = v==FootprintVerdict::Refuse;
+    std::ostringstream key; key<<size.name<<'|'<<size.rasterPoints<<'|'<<size.meshPoints<<'|'<<int(v);
+    if (itsImp->footprintRowsFiled.insert(key.str()).second)
+    {
+        std::cout<<"["<<itsImp->setup->opts.label<<" audit memory] "<<(refuse ? "REFUSED ON RESOURCES: " : "WARNING (it may not fit): ")<<r.Summary()<<std::endl;
+        const std::string reason = refuse
+            ? "even the low end of the calibrated band (x "+std::to_string(f.cal.bandLow)+") exceeds the memory available, so it cannot fit; "+escape
+            : "the high end of the calibrated band (x "+std::to_string(f.cal.bandHigh)+") exceeds the memory available, the low end does not: it is "
+              "built, and may swap or be throttled";
+        policy::Report("AuditReferenceMemory", "the "+size.name+" reference "+(refuse ? "is NOT built" : "is built")+" ("+when+")",
+                       refuse ? policy::Verdict::Resource : policy::Verdict::Warn, reason, policy::Cost{.memoryBytes=f.estimate}, Describe(f, a));
+    }
+    return refuse ? std::optional<ResourceRefusal>(r) : std::nullopt;
+}
+
+std::optional<ResourceRefusal> SolidCalculation::PilotPreflight() const
+{
+    const SolidSetup& S=*itsImp->setup;
+    if (S.planeWave || S.rastersResolved || itsImp->rastersSettled || !itsImp->ladder) return std::nullopt;
+    // ROUND 0's two references, exactly as CalibrateRasters names and builds them (a geometry run on Becke carries the rungs).
+    const qcMesh::MeshParams& xcCur=S.xcMesh;
+    const bool xcOnBecke = itsImp->consumes==BasisSet::Gaussian::ClientConsumes::MatrixElements && xcCur.cellKind==qcMesh::UnitCellKind::Becke;
+    std::optional<qcMesh::MeshParams> xcAngular, xcRadial;
+    if (xcOnBecke)
+    {
+        xcAngular=qcMesh::BeckeAngularRungAbove(xcCur, S.opts.beckeLadder, S.imposed);
+        xcRadial =qcMesh::BeckeRadialRungAbove(xcCur);
+    }
+    auto withRung=[](std::string name, const std::optional<qcMesh::MeshParams>& rung) {return rung ? name+" + "+BeckeName(*rung) : name;};   // the round's names
+    const std::string when="before the first SCF";
+    if (auto r=AdmitReference(SizeReference(withRung("pilot reference (x + "+std::to_string(int(kReferenceMargin))+")", xcAngular),
+                                            ReferenceRasters(kReferenceMargin), 1.0, xcAngular ? &*xcAngular : nullptr), when, kPilotEscape)) return r;
+    return AdmitReference(SizeReference(withRung("density ball x 2", xcRadial), S.opts.tolerances, 2.0, xcRadial ? &*xcRadial : nullptr), when, kPilotEscape);
+}
+
+Outcome<SolidCalculation::GridAuditResult, ResourceRefusal> SolidCalculation::GridAudit(double referenceMargin) const
+{
+    using O=Outcome<GridAuditResult, ResourceRefusal>;
     const SolidSetup& S=*itsImp->setup;
     if (S.planeWave) throw std::invalid_argument("SolidCalculation::GridAudit: a plane-wave run has no raster to audit");
     if (!(referenceMargin>0.0)) throw std::invalid_argument("SolidCalculation::GridAudit: the reference must be FINER than the run (margin > 0)");
@@ -1534,10 +1662,11 @@ SolidCalculation::GridAuditResult SolidCalculation::GridAudit(double referenceMa
         R.reference+=" (the pilot's last round, not re-measured)";
         std::cout<<"[grid audit] "<<R.reference<<": max|dH_ij| "<<R.maxAbsΔH<<", dE "<<R.ΔE<<" Ha"<<std::endl;
         qchem::report::Log("[grid audit] reused "+R.reference);
-        return R;
+        return O::Ok(std::move(R));
     }
     const BasisSet::Gaussian::GPWTolerances ref=ReferenceRasters(referenceMargin);
-    return CompareAtFixedD(ref, rvec3_t(0,0,0), RasterName(ref));
+    if (auto r=AdmitReference(SizeReference(RasterName(ref), ref, 1.0, nullptr), "postSCF gridAudit", kAuditEscape)) return O::Fail(std::move(*r));
+    return O::Ok(CompareAtFixedD(ref, rvec3_t(0,0,0), RasterName(ref)));
 }
 
 ClientConsumes SolidCalculation::Consumes() const {return itsImp->consumes;}
@@ -1559,6 +1688,11 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     namespace rpt = qchem::report;
     if (itsImp->setup->rastersResolved || itsImp->rastersSettled) return;
     const std::string tag="["+itsImp->setup->opts.label+" raster pilot] ";
+    if (itsImp->resourceRefusal)
+    {
+        std::cout<<tag<<"SKIPPED: refused on resources ("<<itsImp->resourceRefusal->when<<")"<<std::endl;
+        return;
+    }
     if (!itsImp->converged)
     {
         std::cout<<tag<<"SKIPPED: the SCF did not converge, so there is no D to audit -- the rasters stay the ball's own"<<std::endl;
@@ -1604,6 +1738,22 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         }
         auto withRung=[](std::string name, const std::optional<qcMesh::MeshParams>& rung) {return rung ? name+" + "+BeckeName(*rung) : name;};
         std::vector<hmat_t<dcmplx>> ΔHangular, ΔHradial;   // the two rungs' XC H_run - H_rung: the Becke climb's first cache entries
+        // THE AUDIT RSS POLICY, EVERY ROUND (OpenWork (e)): round 0 repeats the preflight's sizes at the run's real usage; a raised round's
+        // references are knowable only now.  A refusal keeps the converged run and this record, and ends the pilot NOT SETTLED.
+        {
+            const std::string when="pilot round "+std::to_string(round);
+            std::optional<ResourceRefusal> r=AdmitReference(SizeReference(withRung("pilot reference (x + "+std::to_string(int(kReferenceMargin))+")", xcAngular),
+                                                                          ReferenceRasters(kReferenceMargin), 1.0, xcAngular ? &*xcAngular : nullptr), when, kPilotEscape);
+            if (!r) r=AdmitReference(SizeReference(withRung("density ball x 2", xcRadial), itsImp->setup->opts.tolerances, 2.0, xcRadial ? &*xcRadial : nullptr),
+                                     when, kPilotEscape);
+            if (r)
+            {
+                std::cout<<tag<<"round "<<round<<"  REFUSED ON RESOURCES: the pilot stops here, NOT SETTLED -- "<<r->Summary()<<std::endl;
+                rounds.push_back({{"round",round},{"rasters",RasterName(itsImp->setup->opts.tolerances)},{"refused",Describe(r->footprint, r->available)}});
+                itsImp->resourceRefusal=std::move(r);
+                break;
+            }
+        }
         const GridAuditResult R =CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), withRung("pilot reference (x + "+std::to_string(int(kReferenceMargin))+")", xcAngular),
                                                  xcAngular ? &*xcAngular : nullptr, 1.0, xcAngular ? &ΔHangular : nullptr);
         const GridAuditResult Bl=CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), withRung("density ball x 2", xcRadial), xcRadial ? &*xcRadial : nullptr, 2.0,
@@ -1682,9 +1832,15 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             if (xcAngular) ΔHof[key(*xcAngular)]=std::move(ΔHangular);
             if (xcRadial)  ΔHof[key(*xcRadial)] =std::move(ΔHradial);
             int built=0;   // references the climb built beyond the round's two
+            // A climb rung the audit RSS policy refuses: the distance callback has no failure channel (qcMesh::ClimbBeckeLadder asks it for a
+            // number), so the refusal leaves the climb as this local type and is caught right around it.
+            struct ClimbRefused { ResourceRefusal r; };
             auto ΔHat=[&](const qcMesh::MeshParams& m) -> const std::vector<hmat_t<dcmplx>>&
             {
                 if (auto it=ΔHof.find(key(m)); it!=ΔHof.end()) return it->second;
+                if (auto r=AdmitReference(SizeReference("Becke climb: "+BeckeName(m), itsImp->setup->opts.tolerances, 1.0, &m),
+                                          "Becke climb, pilot round "+std::to_string(round), kPilotEscape))
+                    throw ClimbRefused{std::move(*r)};
                 std::vector<hmat_t<dcmplx>> d;
                 (void)CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), "Becke climb: "+BeckeName(m), &m, 1.0, &d);
                 ++built;
@@ -1709,7 +1865,15 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                 return worst;
             };
             const int cap = (stated || round>0) ? 1 : 0;   // a stated mesh is only measured; a confirming round raises at most once
-            const qcMesh::BeckeClimbResult climb=qcMesh::ClimbBeckeLadder(xcCur, target, itsImp->setup->opts.beckeLadder, itsImp->setup->imposed, distance, cap);
+            qcMesh::BeckeClimbResult climb;
+            try { climb=qcMesh::ClimbBeckeLadder(xcCur, target, itsImp->setup->opts.beckeLadder, itsImp->setup->imposed, distance, cap); }
+            catch (ClimbRefused& c)
+            {
+                std::cout<<tag<<"round "<<round<<"  REFUSED ON RESOURCES in the Becke climb: the pilot stops here, NOT SETTLED -- "<<c.r.Summary()<<std::endl;
+                rounds.push_back({{"round",round},{"rasters",RasterName(t)},{"terms",terms},{"refused",Describe(c.r.footprint, c.r.available)}});
+                itsImp->resourceRefusal=std::move(c.r);
+            }
+            if (itsImp->resourceRefusal) break;
             for (const qcMesh::BeckeClimbStep& step : climb.steps)
             {
                 std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<(std::string("XC mesh, ")+step.axis)<<std::right<<" delivered "<<std::scientific
@@ -1867,7 +2031,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             break;
         }
     }
-    itsImp->rastersSettled=itsImp->converged;
+    itsImp->rastersSettled=itsImp->converged && !itsImp->resourceRefusal;   // a refused pilot sized nothing: its rasters are not the run's answer
     itsImp->pilotCost.settled=itsImp->rastersSettled && metEveryTarget;   // NOT SETTLED at the round cap is not settled (it read true)
     itsImp->pilotCost.statedOver=xcStatedOver || ballStatedOver;
     // EVERY STATED MISS REPORTS ITSELF (pin 31 rule 3; CLAUDE.md, every policy reports itself): the run keeps the user's grid and runs, and
@@ -1902,19 +2066,24 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
                                              {"rasters",RasterName(itsImp->setup->opts.tolerances)},
                                              {"xcMesh", itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(itsImp->setup->xcMesh) : std::string("uniform")},{"settled",itsImp->pilotCost.settled},{"statedOver",statedOver},{"restate",restate},
-                                             {"auditRounds",itsImp->pilotCost.rounds},{"reconvergeIterations",(long)itsImp->pilotCost.reconvergeIterations}});
+                                             {"auditRounds",itsImp->pilotCost.rounds},{"reconvergeIterations",(long)itsImp->pilotCost.reconvergeIterations},
+                                             {"refusedOnResources",itsImp->resourceRefusal ? rpt::json(itsImp->resourceRefusal->Summary()) : rpt::json(nullptr)}});
 }
 
-SolidCalculation::GridAuditResult SolidCalculation::XCMeshAudit(const qcMesh::MeshParams& reference) const
+Outcome<SolidCalculation::GridAuditResult, ResourceRefusal> SolidCalculation::XCMeshAudit(const qcMesh::MeshParams& reference) const
 {
+    using O=Outcome<GridAuditResult, ResourceRefusal>;
     if (itsImp->setup->planeWave) throw std::invalid_argument("SolidCalculation::XCMeshAudit: a plane-wave run has no GPW basis to rebuild");
     qchem::report::Timed timed("postSCF: XC-mesh audit (reference Hamiltonian + term matrices)");
-    return CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), reference.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(reference)
-                                                                                                                         : std::string("uniform XC"), &reference);
+    const std::string name = reference.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(reference) : std::string("uniform XC");
+    if (auto r=AdmitReference(SizeReference(name, itsImp->setup->opts.tolerances, 1.0, &reference), "postSCF xcMeshAudit", kAuditEscape))
+        return O::Fail(std::move(*r));
+    return O::Ok(CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), name, &reference));
 }
 
-SolidCalculation::GridAuditResult SolidCalculation::EggBox(const rvec3_t& shift) const
+Outcome<SolidCalculation::GridAuditResult, ResourceRefusal> SolidCalculation::EggBox(const rvec3_t& shift) const
 {
+    using O=Outcome<GridAuditResult, ResourceRefusal>;
     const SolidSetup& S=*itsImp->setup;
     if (S.planeWave) throw std::invalid_argument("SolidCalculation::EggBox: a plane-wave basis is translation-invariant by construction -- nothing to gate");
     if (S.imposed)   throw std::invalid_argument("SolidCalculation::EggBox: an IMPOSED group's SALC phases follow the origin, so the shifted blocks "
@@ -1926,7 +2095,9 @@ SolidCalculation::GridAuditResult SolidCalculation::EggBox(const rvec3_t& shift)
                                                               "not follow the shift -- gate the U = 0 twin");
     qchem::report::Timed timed("postSCF: egg-box (shifted basis + Hamiltonian + term matrices)");
     std::ostringstream os; os<<"shift ("<<shift.x<<", "<<shift.y<<", "<<shift.z<<") bohr";
-    return CompareAtFixedD(S.opts.tolerances, shift, os.str());
+    if (auto r=AdmitReference(SizeReference("egg-box "+os.str(), S.opts.tolerances, 1.0, nullptr), "postSCF eggBox", kAuditEscape))
+        return O::Fail(std::move(*r));
+    return O::Ok(CompareAtFixedD(S.opts.tolerances, shift, os.str()));
 }
 
 SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift,
