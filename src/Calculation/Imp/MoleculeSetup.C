@@ -1,6 +1,8 @@
 // File: Calculation/Imp/MoleculeSetup.C  The molecular run setup: every decision made ONCE, before a geometry point is built.
 module;
 #include <memory>
+#include <cctype>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
@@ -10,6 +12,8 @@ import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the 
 import qchem.Policy;          // policy::Refuse / Report: each policy files its row where it fires
 import qchem.ChargeDensity.AtomicDensity;   // HasAtomicDensity: the SAD seed's coverage
 import qchem.BasisSet.Gaussian.Point.Factory; // RegisteredBasis, BasisSetData: which registered files are all-electron
+import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisFileOfName: the basis name's file, for the coverage pre-flight
+import qchem.BasisCoverage;   // RequireBasisCovers: a basis lacking an element is refused before anything is built
 
 namespace qchem
 {
@@ -45,6 +49,14 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     s->reference=st.Clone();   // polymorphic deep copy: a UnitCell stays periodic, not sliced to a Molecule
     const std::shared_ptr<const Structure> point=s->PointStructure(*s->reference);
     s->Ne=int(point->GetNumElectrons());
+    // Coverage, when the name is a basis file (an unknown name is the build's refusal, which lists every name there).
+    {
+        std::string stem=opts.basis;
+        for (char& c : stem) c=char(std::tolower((unsigned char)c));
+        const auto names=BasisSet::Gaussian::BasisNames();
+        if (std::find(names.begin(), names.end(), stem)!=names.end())
+            RequireBasisCovers(BasisSet::Gaussian::BasisFileOfName(opts.basis), opts.basis, *point);
+    }
 
     // The multiplicity 2S+1 -> (nUp, nDown) must be realisable: 0 <= 2S <= Ne and Ne-2S even (fail loud, not a silent miscount).
     if (opts.multiplicity > 0)

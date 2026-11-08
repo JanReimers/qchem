@@ -2,6 +2,7 @@
 // once -- spin promotion, the valence electron count from the pseudopotential set, the parity and accelerator refusals.
 #include <gtest/gtest.h>
 #include <stdexcept>
+#include <string>
 #include <nlohmann/json.hpp>
 import qchem.MoleculeCalculation;
 import qchem.Structure;
@@ -37,6 +38,21 @@ TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructur
     const auto point=s->PointStructure(na);
     EXPECT_EQ(int(point->GetNumElectrons()), s->Ne);
     EXPECT_EQ(int(s->reference->GetNumElectrons()), 11) << "the reference keeps the TRUE charges; only a point is valence-charged";
+}
+
+TEST(MoleculeSetup, ABasisWithoutAnElementIsRefusedAtResolveNamingTheBasesThatCoverIt)
+{
+    try
+    {
+        (void)MoleculeSetup::Resolve(OneAtom(6), {.basis="sipp"});
+        FAIL() << "sipp has no carbon: the setup must refuse it before anything is built";
+    }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string what=e.what();
+        EXPECT_NE(what.find("basis sipp has no block for C"), std::string::npos) << what;
+        EXPECT_NE(what.find("dzvp"), std::string::npos) << "the registered bases that cover carbon are named: " << what;
+    }
 }
 
 TEST(MoleculeSetup, AnUnknownAcceleratorIsRefusedAtResolve)
