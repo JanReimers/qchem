@@ -4,6 +4,21 @@ RECORD, cited by `doc/HamiltonianSprintPlan.md` step 5 and `doc/OOD-SOLID-Cleanu
 questions at the end):** the §6 surface including `MatrixForward`'s return type; ONE NON-template `FitCoefficients` (an empty
 member is cheap; §2's `template <class T>` sketch is superseded); `Projector3` → `PairProjection<T>`; `Overlap`'s identity /
 diagonal realizations wait for a sparse PW basis (§7).  Written before step 4 landed, so line numbers are as of 06e976a3.
+**RULED (user 2026-11-08, sub-step 2, option (B)):** *"In general there are multiple levels of clients. I was thinking of the
+client for the union data structure, so that means the Fitter derived implementations."*  So the record also has
+`const rvec_t& Vector() const` and `const ΔG_Map& GMap() const`, each THROWING on a mismatch (§3a).  CLAUDE.md "Two levels of
+client" (main d374041dd) is the convention.
+
+## 3a. Two levels of client (ruled 2026-11-08)
+
+The paired implementations, the code that built or was handed the producer and so already knows the realization, read it
+through the typed accessors `Vector()` / `GMap()`: the `FunctionFitter` derived classes (`ConstrainedFF`, `DeltaFunctionFitter`,
+`GridDensityFitter`, the ortho fitter), their samplers (`DensitySampler_*` on a δ fit), `Hubbard_U`'s own integrator, and the
+fitters' own adjoints.  None of them branches on which member is filled; a wrong call throws.  Everything above them (the SCF,
+the mixers, the Hamiltonian terms) uses the dispatchers only (`+=`, `*=`, `MaxAbs`, `Dot`, `Contract` / `ContractAdjoint`).
+A grep for `.Vector()` and `.GMap()` lists exactly the realization-aware code.  The alternatives the user did not take: (A) an
+operation on the record per numeric consumer (a solve, a pointwise map, a positivity guard), most of them meaningless for a
+ΔG map; (C) `MatrixForward` keeps returning `rvec_t`, which would have changed §6 and closed R1.0q by declaring it out of scope.
 
 Read-only, from the tree at lane-s-h-sprint 06e976a3 (step 4 landed on it, not yet on main).  Nothing built or run for this note.
 It touches three tier-1 hubs (`qchem.ChargeDensity`, `qchem.Fitting.FunctionFitter`, possibly `qchem.BasisSet` through
