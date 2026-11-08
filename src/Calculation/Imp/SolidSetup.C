@@ -1,6 +1,7 @@
 // File: Calculation/Imp/SolidSetup.C  The periodic run setup: every decision made ONCE, before a geometry point is built.
 module;
 #include <algorithm>   // std::max (alpha_pp)
+#include <cassert>
 #include <iostream>    // the stated-trim line
 #include <memory>
 #include <stdexcept>
@@ -16,6 +17,7 @@ import qchem.Pseudopotential.GTH_Potentials;   // GetGTH -> HGH local PP -> alph
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::spherical)
+import qchem.Policy;                           // policy::Refuse: each refusal files its row where it fires
 
 namespace qchem
 {
@@ -112,6 +114,20 @@ void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st
 //  the parity check could never fire on it: bcc Li (1 e/cell) ran a fully spin-up doublet, 53 mHa off, and reported CONVERGED
 //  (OpenWork §3).  Under spinsShareFermi the counts are only the split the occupations start from -- one Fermi level decides them --
 //  so an odd count keeps the nel%2 split there.
+//---------------------------------------------------------------------------------------------------
+//  ROUTES THE CODE DOES NOT REALIZE YET, refused from the options alone -- so BEFORE the basis is built (priority 3: refuse
+//  before spending).  The words are the deck's (solid.vxcFit, basis.ecut), with the C++ field beside them.
+static void RefuseUnrealizedRoutes(const SolidCalcOptions& o)
+{
+    if (o.vxcFit==Hamiltonian::VxcFit::Auxiliary)
+        policy::Refuse("VxcProductSpace", "solid.vxcFit Auxiliary (the Dunlap auxiliary fit) on a periodic cell",
+                       "the auxiliary Vxc fit is a molecular / atom fit with no periodic realization yet, an open cell of the Vxc "
+                       "product space (doc/Pins.md pin 30) -- state vxcFit Delta or PlaneWave");
+    if (o.orbitalBasis==SolidCalcOptions::OrbitalBasis::PlaneWave && !(o.planeWaveEcut>0.0))
+        policy::Refuse("PlaneWaveEcut", "basis.family planeWave (SolidCalcOptions::orbitalBasis) with no cutoff",
+                       "a plane-wave basis is its cutoff -- state basis.ecut (planeWaveEcut) > 0 Ha");
+}
+
 std::pair<int,int> SpinChannelCounts(const SolidCalcOptions& o, int nel)
 {
     const bool singlet = o.multiplicity==1 && !o.spinsShareFermi;
@@ -134,6 +150,7 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, std
                                                       const SCFAccelerators::SolidAcceleratorOptions& acc)
 {
     qchem::SetRunPolicy(opts.policy);   // D-ENV 6b: the policy is part of the run's options, installed ONCE here, before any factory consults it
+    RefuseUnrealizedRoutes(opts);
     return Decide(lat, std::move(mol), opts, acc);
 }
 
@@ -142,6 +159,7 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, con
                                                       const SCFAccelerators::SolidAcceleratorOptions& acc)
 {
     qchem::SetRunPolicy(opts.policy);   // before the vet loop builds its Bloch blocks, as before every other factory
+    RefuseUnrealizedRoutes(opts);      // before the basis is built: nothing is spent on a run that cannot go
     const auto pp=Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.species);
     // THE BASIS, made over a structure the setup will hold (Decide's setup keeps its own copy of the same cell, and the basis is
     // built over THAT copy below so it cannot outlive its atoms).
@@ -253,15 +271,17 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     {
         // THE PLANE-WAVE FAMILY (OpenWork §2 PW-1).  The factory builds ONE Γ block and knows no symmetry, so
         // anything else is refused here rather than silently run as Γ / unimposed.
-        if (!(opts.planeWaveEcut>0.0))
-            throw std::invalid_argument("SolidCalcOptions: orbitalBasis PlaneWave needs planeWaveEcut > 0 (Ha)");
+        assert(opts.planeWaveEcut>0.0 && "RefuseUnrealizedRoutes refused a plane-wave run with no cutoff");
         if (lat.MakeKMesh(opts.kShift).size()!=1 || opts.kShift!=rvec3_t(0,0,0))
-            throw std::invalid_argument("SolidCalcOptions: the plane-wave family is Γ-only so far (k-mesh 1x1x1, no shift)");
+            policy::Refuse("PlaneWaveGammaOnly", "basis.family planeWave off Γ (a k-mesh or a kShift)",
+                           "the plane-wave factory builds one Γ block so far -- state kmesh [1,1,1] and no kShift");
         // A MAGNETIC imposition is the (D_up, D_dn) pair projection on the one Γ block (PW_BasisSet, OpenWork §2 PW-5).  A
         // grey / spatial imposition would need the per-channel density star-average the plane-wave route does not have.
         const bool magnetic=std::any_of(s->siteSpins.begin(), s->siteSpins.end(), [](int v){return v!=0;});
         if (s->imposed && !magnetic)
-            throw std::invalid_argument("SolidCalcOptions: the plane-wave family imposes only a MAGNETIC (Shubnikov) group so far -- state siteSpins");
+            policy::Refuse("PlaneWaveMagneticOnly", "basis.family planeWave with an imposed grey / spatial group",
+                           "the plane-wave route imposes only a MAGNETIC (Shubnikov) group so far -- state solid.siteSpins, or "
+                           "solid.imposeSymmetry false");
         // Plane waves ARE orthonormal: the default Cholesky would factor an identity S into two dense identity
         // factors per spin block.  A stated non-default ortho is obeyed (an A/B door).
         if (s->opts.ortho==qchem::Cholesky) s->opts.ortho=qchem::Orthonormal;
@@ -280,6 +300,10 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     else
         s->xcMesh = qcMesh::ResolveXCMesh(opts.xcMesh, GatherSharpness(lat, *s->mol, s->pp, s->imposed),
                                           theRunPolicy().BeckeXC());
+    // The Vxc product space's admission (pin 30), asked of the Hamiltonian's rule HERE, before the Hamiltonian is built: the
+    // Factory would throw the same reason later, after the basis and its fits.
+    if (const auto a=Hamiltonian::AdmitVxc(*st, opts.vxcFit, s->xcMesh); !a)
+        policy::Refuse("AdmitVxc", "the stated Vxc fit and XC mesh on this cell", a.Error());
 
     // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches
     // a singlet asked of an odd electron count BEFORE integer division silently empties a channel.

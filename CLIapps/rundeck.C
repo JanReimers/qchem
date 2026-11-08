@@ -16,6 +16,7 @@
 #include <nlohmann/json.hpp>
 import qchem.Deck;
 import qchem.Environment;   // RetiredEnvironmentSet / WarnRetiredEnvironment (D-ENV step 6a)
+import qchem.Reporting;     // report::Run: the driver opens the run the deck is read in
 
 extern char** environ;
 
@@ -62,7 +63,13 @@ int main(int argc, char** argv)
         nlohmann::json payload=qchem::deck::LoadDeck(deckPath, version);
         for (const auto& s : sets) qchem::deck::ApplySet(payload, s);
         qchem::deck::RunSpec spec;
-        qchem::deck::FromJson(payload, spec);                 // strict: an unknown key (or a --set typo) throws here
+        {   // the driver opens the run the deck is READ in, so a refusal while reading it files its record (its policy rows) too;
+            // deck::Run opens the next one, for the resolve, build and SCF
+            qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
+            const qchem::report::Run read(fs::path(deckPath).stem().string()+" deck");
+            qchem::deck::FromJson(payload, spec);             // strict: an unknown key (or a --set typo) throws here
+            qchem::report::ClearConsole();
+        }
 
         if (check)
         {
