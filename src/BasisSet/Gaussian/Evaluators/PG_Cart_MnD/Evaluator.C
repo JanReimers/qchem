@@ -1626,7 +1626,7 @@ public:
             s["tasks"]      = (long)nTasks;
             s["bytes"]      = (long)(nTasks*sizeof(BoxTask));
             s["eps"]        = kDensityEps();
-            qchem::report::EmitAt("grids", "boxTasks", s);
+            qchem::report::Set("boxTasks", s);   // a work statistic, one level into the scope of whoever first collocates (no root anchor)
         }
         return itsBoxTasks;
     }
