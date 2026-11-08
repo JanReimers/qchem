@@ -12,8 +12,14 @@ nothing built or run for this note.
   implementation holds its own coefficient type privately, and the metric solve sits inside it (new §2a).
 - **(c)** Q1 is YES: the PW Hartree term becomes the first-order fitted term on a diagonal Poisson operator.  Dunlap stays
   Gaussian-only.
-- **Still open:** Q2 (seed / mixed-density arithmetic) and Q4 (`Vee_Hartree`'s response half, inside the controller's proposed
-  rename of the Vee family).
+- **(e)** Q2 and Q4 RULED (user 2026-11-08):
+  - *"getting clean code is more important than pinning out to old number.  The priority 1) get right numbers, is really get the
+    right absolute numbers, not 'don't let the numbers drift 1e-10 when you refactor'."*  This is now CLAUDE.md priority 1 (main
+    648ad4edd).  So the matrix-free densities take the CLEAN route (§2), and the gate is energies converged within ε, with any
+    anchor that moves beyond roundoff re-judged against an independent route (pin 10) and listed (§4).
+  - Renames: `Vee_DFT` → **`Vee_Fit`**, `Vee_DFT_Dunlap` → **`Vee_FitDunlap`**, `Vee_Hartree`'s response half →
+    **`Vee_Response`**.  The exact-J `Vee` is unchanged.  The note uses the new names from here on.
+- **Still open:** Q5 (A vs B, §1a), being re-explained by the controller.
 - **(d)** A correction (user 2026-11-08): 1/r₁₂ plays TWO roles, and the note must keep them apart.  One is the fit METRIC, a
   fitter's choice; the other is the PHYSICS.  §1a is new, and §1's "k(G) in the fitter" is withdrawn.
 
@@ -27,12 +33,12 @@ nothing built or run for this note.
 4. Say where numbers can move, and which gates prove 0 moves.
 5. Moving `DensitySampler_*` / `FittedCD` out of qcChargeDensity is a separate row, not this step.
 
-## 1. The finding that makes it small: the PW Hartree term already IS `Vee_DFT`, written by hand
+## 1. The finding that makes it small: the PW Hartree term already IS `Vee_Fit`, written by hand
 
-The molecular "normal" Hartree term `Vee_DFT` (`src/Hamiltonian/Internal/Imp/Vee_DFT.C`) runs on `GridDensityFitter`
+The molecular "normal" Hartree term `Vee_Fit` (`src/Hamiltonian/Internal/Imp/Vee_DFT.C`) runs on `GridDensityFitter`
 (`src/Fitting/Internal/GridDensityFitter.C`), and its shape is exactly what the user describes:
 
-| step | `Vee_DFT` + `GridDensityFitter` (δ mesh, molecular) | `Vee_Hartree` (PW / GPW, today) |
+| step | `Vee_Fit` + `GridDensityFitter` (δ mesh, molecular) | `Vee_Hartree` (PW / GPW, today) |
 |---|---|---|
 | projection | the density contracts D into the fitter's forward: ρ(r_g) | the density contracts D into `Repulsion3C`: **k·ρ̃(G)**, kernel baked |
 | "the fit" | orthogonal basis: the projection IS the fit | orthonormal {G}: the projection IS the fit (`OrthoFunctionFitter` says so) |
@@ -46,7 +52,7 @@ So the cure is not a new PW design.  The PW route becomes this same row with a d
   already star-averaged.
 - **The fit** is ρ̃ itself.  An orthonormal basis needs no metric solve, and no kernel appears anywhere in the fitter (§1a).
 - **The physics, k(G) = 4π/|G|²** with k(0)=0, is the Hartree term's: the second-round repulsion of §1a.
-- **The term** is the first-order fitted Hartree term (`Vee_DFT`, whatever the Vee rename calls it).
+- **The term** is the first-order fitted Hartree term (`Vee_Fit`).
 
 The kernel then lives in ONE place, the physics round, instead of three:
 - the PW `Repulsion3CTensor`'s `kernel` column array;
@@ -76,7 +82,7 @@ So the PW route has two misplacements today, and the mesh route has the same kin
 **How the term applies the physics while the coefficients stay fitter-private (ruling (b)).**  The term may not read the fitter's c
 (ρ̃ for PW).  There are three shapes:
 - **(A) The physics is the BASIS's Coulomb integrals, and the term asks the fitter to contract with them.**  ✔ RECOMMENDED.  This
-  is exactly Dunlap: `Vee_DFT_Dunlap::MakeMatrix` → `FittedCD::GetRepulsion(bs)`, contracting the private c with the fit basis's
+  is exactly Dunlap: `Vee_FitDunlap::MakeMatrix` → `FittedCD::GetRepulsion(bs)`, contracting the private c with the fit basis's
   ⟨ab|1/r|f⟩.  The PW basis's Coulomb 3-centre integral is ⟨ab|1/r|G⟩ = k(G)·⟨ab|G⟩.  So `Repulsion3C` KEEPS the kernel, but
   only in the physics round: its adjoint applies k, and nobody calls its forward any more.  Today it is the other way round: the
   kernel is forward-only, and the forward is the projection.  The PW fit basis's Coulomb metric ⟨G|1/r|G'⟩ = Ω k δ gives the energy.
@@ -93,11 +99,11 @@ So the PW route has two misplacements today, and the mesh route has the same kin
 builds the operator (the factory already chooses it) and hands it to the fitter's two physics calls.  That is (B), on the one fitter
 whose coefficient type is fixed (`rvec_t`), so (B)'s typing objection does not arise there.  It touches:
 - `GridDensityFitter`: `DoFit` stops calling `Potential`; `Repulsion` and `HartreeEnergy` take the operator;
-- `Vee_DFT`: it holds the operator;
+- `Vee_Fit`: it holds the operator;
 - its factory.
 
 That is three files and 0 moves (the same calls in the same order).  **I recommend it in the same step (3b)**, since 3b already makes
-`Vee_DFT` the shared term.  If the user prefers 3b smaller, it becomes its own `OOD-SOLID-Cleanup` row.
+`Vee_Fit` the shared term.  If the user prefers 3b smaller, it becomes its own `OOD-SOLID-Cleanup` row.
 
 ## 2. The density's one operation, and the record's name
 
@@ -124,15 +130,19 @@ template <class TFit> class PairProjector               // qcBasisSet; implement
   composite then star-averages, as `GetFourierDensity` does today.  The only realization-specific line is that one star-average
   call, and the composite already owns the crystal point ops.
 - **A matrix-free density** (`NumericCD`, `SeedCD`, `FourierMixCD`) has no D.  It answers `p.Project(*this)`, the projection face
-  every fit basis already has (`OrthogonalFit`, `Overlap(ScalarFunction)`).  ⚠ **This is where numbers WOULD move**: today
-  `SeedCD` returns an ANALYTIC structure-factor ρ̃ and `FourierMixCD` returns its stored map.  Sampling them and FFTing would
-  change bits at the iteration-0 seed, and on every mixed density.  So `PairProjector` needs a second matrix-free entry that
-  keeps today's arithmetic:
-  - **Recommended:** `Projections Project(const G_StructureFactor& seedSource)` for the seed, and an identity answer
-    `Project(const Projections& mine, BasisSetID)` for a density that IS a projection record on the same basis (the mixed
-    density).  A mismatched basis THROWS.  It is a basis-identity check, not a realization check.
-  - **The alternative**, accepting the sampled route and re-judging the anchors, is pin 10 work, not a refactor.  I would not
-    take it here.
+  every fit basis already has (`OrthogonalFit`, `Overlap(ScalarFunction)`).  **The clean route (RULED Q2)** has no
+  seed-specific or mixer-specific projector entries.  A G-space projector asks the function for a GENERIC capability:
+  - **`AnalyticFourier`**: a `ScalarFunction` that knows its own Fourier components f̃(G).  It is data-free, beside
+    `ScalarFunction`, and asked with the usual "I want more" cross-cast between abstract faces.  The projector then evaluates f̃ on
+    its own {G}; a function without the capability is sampled on the projector's raster and FFT'd.
+  - `SeedCD` has it: its structure-factor sum Σ_species S(G)·f̃_atom(G) is that function's analytic transform.
+  - `FourierMixCD` has it trivially: it IS a G-series.  A mixed density projected onto the SAME basis it was mixed on may also
+    return its own record directly, a basis-identity check that throws on another basis.  Both readings give the same numbers.
+  - `NumericCD` (molecular, real space) has no transform, so it takes `Overlap(ScalarFunction)` on the Gaussian fit basis, as today.
+    The S⁻¹ solve moves from the density into `ConstrainedFF` (§3).
+
+  Numbers may move here, and that is accepted: the seed's ρ̃ evaluated by the projector rather than by the seed, and NumericCD's
+  solve in a different place.  §4 lists them, and the gate is energies within ε (ruling (e)).
 
 **The record's name: `Projections` (RULED (a)).**  It carries ⟨c|ρ⟩, the forward's output, and nothing else.  The adjoint's input
 is a fitter's own coefficients (§2a), so the record no longer serves two roles.  The rename is mechanical: one module
@@ -184,7 +194,7 @@ new names.
 | `OverlapMetric_ProjectedDensity::GetUnconstrainedFit` (the S⁻¹ solve inside `NumericCD`) | Fitting hub + `NumericCD` | the seed projects (`p.Project(*this)`), and `ConstrainedFF` does its own solve |
 | `ProjectedDensity_G`, `OrthoFunctionFitter`'s cast to it | Fitting hub | the fitter receives `Projections` |
 | `OrthoFunctionFitter::Repulsion`, a throwing "obsolete" stub | Fitting | it becomes the real Hartree matrix (§1) |
-| `Vee_Hartree`'s ground-state half: field memo, Parseval energy loop, `Volume()` | `PWTerms_Hartree.C` | it becomes `Vee_DFT` (see the next table for the response half) |
+| `Vee_Hartree`'s ground-state half: field memo, Parseval energy loop, `Volume()` | `PWTerms_Hartree.C` | it becomes `Vee_Fit` (see the next table for the response half) |
 | the kernel in the PW tensor's FORWARD (`Contract`'s `kernel` columns) and GPW's `MakeCollocator(coulomb=true)` | `PairProjection.C`, `PW Evaluator`, `GPW_Evaluator.C` | nothing asks for a kernel-baked PROJECTION any more.  Under §1a (A), `Repulsion3C` survives with the kernel moved to its ADJOINT (the physics round) |
 | `OrthoFunctionFitter` | Fitting | replaced by `GSpaceDensityFitter` (§2a row 7), the PW fitter class that owns its G-keyed coefficients |
 
@@ -198,8 +208,8 @@ new names.
 | `GetRhoOnGrid` / raster ρ_DM(r) | sub-step 4 (R1.0n/o), unchanged here |
 | `OrthoNormalScalarFitter` (the XC raster fit, wrap-around lookup) | not a Hartree object; V-XC-ONE-TERM's |
 
-**What has to become scalar-generic for this.**  `Vee_DFT` is a molecular term (`rsmat_t MakeMatrix`).  The PW term has both
-block corners (`cobs_t` and `robs_t`).  So the merged term is `tVee_DFT<T>`, or `Vee_DFT` gains the two periodic `MakeMatrix`
+**What has to become scalar-generic for this.**  `Vee_Fit` is a molecular term (`rsmat_t MakeMatrix`).  The PW term has both
+block corners (`cobs_t` and `robs_t`).  So the merged term is `tVee_Fit<T>`, or `Vee_Fit` gains the two periodic `MakeMatrix`
 overloads.  It holds a fitter through the same narrow face it uses now (`DoFit` / `Repulsion` / `HartreeEnergy` / `Integral`),
 whichever class implements it.  `GridDensityFitter` / `CoulombOperator` stay `rvec_t` (ruling (b)), and the energy's inner
 product lives inside each fitter, so no new record dispatcher is needed for the Hartree term.  The mixers' inner product is still
@@ -207,7 +217,10 @@ sub-step 4's.
 
 ## 4. Where numbers can move, and the gates that say they did not
 
-Every item below is a reordering of the same arithmetic, so it should be roundoff (≲1e-15 relative).  The gates show whether it is.
+Under ruling (e), numbers MAY move.  The gate is the converged energy within the run's ε, and an anchor that moves beyond roundoff
+is re-judged against an independent route (pin 10: CP2K / QE / ABINIT for PW and GPW, PySCF for molecular) and LISTED, never
+refreshed silently.  Rows 1–5 below are reorderings of the same arithmetic, so roundoff (≲1e-15 relative) is expected there.  Rows 6
+and 8 are real changes of route.
 
 | # | change | today | after | expected |
 |---|---|---|---|---|
@@ -216,16 +229,19 @@ Every item below is a reordering of the same arithmetic, so it should be roundof
 | 3 | G=0 | k(0)=0 drops it | same `CoulombKernel`, and ρ̃(0)=N/Ω is carried and multiplied by 0 | exact |
 | 4 | the energy | ½Ω Σ \|kρ̃\|²/k | ½Ω Σ k\|ρ̃\|² (or ½⟨ρ̃, kρ̃⟩) | roundoff; it was already "not bit-identical" with the trace form (`eh_trace`) |
 | 5 | GPW forward | a Coulomb closure: collocate, FFT, combine, ×k | the overlap closure (collocate / memo replay, FFT, combine), then ×k in the physics round (`Repulsion3C`'s adjoint, §1a (A)) | ×k on the same combined value is the same IEEE op; the CollocMemo replays one closure instead of two |
-| 6 | seeds / mixed density | `SeedCD`/`FourierMixCD` hand-apply k·rt | the physics round applies k to their unchanged ρ̃ | exact if §2's identity and structure-factor entries are taken; **moves** if they are sampled instead |
-| 7 | `Vee_DFT` charge diagnostic | absent on PW | `HartreeChargeError` = Ω ρ̃(0) − N, a new diagnostic line | a report change, not a number change |
+| 6 | seeds / mixed density | `SeedCD`/`FourierMixCD` hand-apply k·rt to their own ρ̃ | the projector evaluates their `AnalyticFourier` f̃(G) on its {G}, and the physics round applies k | the same analytic values should give ~roundoff.  Any difference lands only on the iteration-0 seed and the mixed iterates, so the CONVERGED energy should not move beyond ε |
+| 8 | `NumericCD`'s S⁻¹ solve | inside the density (`GetUnconstrainedFit`) | inside `ConstrainedFF`, on `Overlap(ScalarFunction)` | same linear algebra in another place: roundoff, at the molecular seed only |
+| 7 | `Vee_Fit` charge diagnostic | absent on PW | `HartreeChargeError` = Ω ρ̃(0) − N, a new diagnostic line | a report change, not a number change |
 
 **Gates, in order.**
 1. **Before anything is deleted:** a unit gate, in `UTLattice_BS`, the PW + GPW toys, checking that k·`Contract(Overlap3C, D)`
    equals `Contract(Repulsion3C, D)` to 1e-15 relative, per G.  It proves #1, #2 and #5 on their own.
 2. `eh_trace` A/B on the PW and GPW anchors: G-space energy vs Tr(D V_H), the pin-32 shape check.  Before vs after, side by side.
-3. The short tier, the long tier, and `-L "panel|periodic"` (the mixers move in this step), each through
-   `scripts/anchordiff --tol 1e-10`.  The PW/GPW anchors that carry the claim are listed below; the `WILL_FAIL` panel cases are
-   listed apart, each with its failure reason checked.
+3. The short tier, the long tier, and `-L "panel|periodic"` (the mixers move in this step), all green.  `scripts/anchordiff`
+   is the INSTRUMENT that lists every move, not the pass criterion.  Each anchor that moves beyond roundoff gets a line in the
+   commit and in `doc/Records`: its old value, new value, the run's ε, and its independent-route value (pin 10).  An iteration-count
+   change is listed the same way.  The PW/GPW anchors that carry the claim are listed below; the `WILL_FAIL` panel cases are listed
+   apart, each with its failure reason checked.
    - `GPW_NaF.Γ_Imp_eqExactResume` / `eqColdStart`
    - the MnO AFM-II anchor
    - PW Si, NaF and CsI
@@ -251,14 +267,14 @@ Every item below is a reordering of the same arithmetic, so it should be roundof
   - `PairProjector` in BasisSet; `tChargeDensity::Project`, implemented by every density.  The old faces stay alive one commit,
     forwarding to it.
 
-  0 moves.
+  Expected roundoff; NumericCD's solve moves (§4 row 8).
 - **3b.**
   - `GSpaceDensityFitter` (ρ̃ private, no kernel), replacing `OrthoFunctionFitter`.
   - PW / GPW `Repulsion3C` with the kernel moved into its adjoint, plus the PW fit basis's Coulomb metric (§1a (A)).
-  - `Vee_DFT` scalar-generic, and holding the mesh `CoulombOperator` (§1a, the mesh misplacement).
-  - The PW / GPW Hartree term becomes `Vee_DFT` on it, with gate 1 first, and `Vee_Hartree` keeps only the response half.
+  - `Vee_Fit` scalar-generic, and holding the mesh `CoulombOperator` (§1a, the mesh misplacement).
+  - The PW / GPW Hartree term becomes `Vee_Fit` on it, with gate 1 first, and `Vee_Hartree`'s response half becomes `Vee_Response`.
 
-  0 moves, or roundoff, judged by the gates.
+  Judged by §4's gates: ε, with moves listed and re-judged.
 - **3c.** Delete everything §3 retires, the `FourierDensity` face and the 11 casts with it.  Regenerate the hub snapshot.
 - Then sub-step 4 (R1.0n/o) as planned.  It is smaller now, since the mixers already ask `Project`.
 
@@ -269,10 +285,11 @@ periodic `Repulsion3C` loses its last periodic client, while the molecular one s
 ## Questions for the user
 
 1. ✅ RULED (c): the PW Hartree term becomes the first-order fitted term on a diagonal Poisson operator; Dunlap is Gaussian-only.
-2. (OPEN) Matrix-free densities keep today's arithmetic through two `PairProjector` entries (a structure-factor seed; an identity for a
-   projection record on the same basis, which throws on another basis) rather than being sampled (§2).  Agreed?
+2. ✅ RULED (e): the clean route.  Matrix-free densities project through a generic `AnalyticFourier` capability, or are sampled;
+   numbers may move, judged against ε and re-judged against an independent route (§2, §4).
 3. ✅ RULED (a): `Projections`.
 5. (NEW, correction (d)) How the term applies the physics while the coefficients stay private: §1a's (A), physics = the basis's
    Coulomb integrals, as in Dunlap (my pick), or (B), the term lends its operator per call?  And does the mesh `CoulombOperator`
    move to the term in 3b (my pick), or as its own row?
-4. (OPEN, part of the controller's proposed Vee-family rename) `Vee_Hartree` keeps only the response half, δV_H(G+q), until the response route is redone.  Agreed?
+4. ✅ RULED (e): `Vee_Fit` → `Vee_Fit`, `Vee_FitDunlap` → `Vee_FitDunlap`, and `Vee_Hartree`'s response half → `Vee_Response`
+   (δV_H(G+q), until the response route is redone).
