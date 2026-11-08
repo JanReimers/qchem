@@ -9,6 +9,9 @@ module;
 #include <set>
 #include <algorithm>
 #include <cassert>
+#include <iomanip>
+#include <map>
+#include <sstream>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
 module qchem.MoleculeCalculation;
@@ -31,6 +34,8 @@ import qchem.Hamiltonian.Factory;
 import qchem.Response;          // MakeReference, MakeOrbitalFrame, MakeDipoleProbe
 import qchem.Response.Solver;   // LinearResponse
 import qchem.BasisSet.AoShellSource;   // MeshAudit: the largest element named by atom, shell and l
+import qchem.Mesh.BeckeClimb;          // ClimbBeckeLadder: the mesh pilot's climb at a fixed D
+import qchem.Policy;                   // policy::Report: the pilot's decision files itself
 
 namespace qchem
 {
@@ -84,8 +89,8 @@ MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> se
 {}
 
 MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
-                         const SCFParams& scf, Observer onIteration)
-    : MoleculeCalculation(BuildOnly{}, std::move(setup), at, std::move(carry), std::move(onIteration))
+                         const SCFParams& scf, Observer onIteration, bool geometryPoint)
+    : MoleculeCalculation(BuildOnly{}, std::move(setup), at, std::move(carry), std::move(onIteration), geometryPoint)
 {
     (void)Converge(scf);                              // so Energy()/Density() are ready on return; Result() is its outcome
 }
@@ -100,8 +105,9 @@ std::unique_ptr<MoleculeCalculation> MoleculeCalculation::Prepare(std::shared_pt
 }
 
 MoleculeCalculation::MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
-                         std::unique_ptr<const Carry> carry, Observer onIteration)
-    : itsSetup(std::move(setup))
+                         std::unique_ptr<const Carry> carry, Observer onIteration, bool geometryPoint)
+    : itsGeometryPoint(geometryPoint)
+    , itsSetup(std::move(setup))
     // A pseudopotential run works on the VALENCE ions (Z-Zion charge) so the electron count is the valence count -- the
     // structure the basis and the EC both read.
     , itsStructure(itsSetup->PointStructure(at))
@@ -151,10 +157,7 @@ void MoleculeCalculation::BuildGraph()
     decltype(itsHam.get()) ham=nullptr;
     {
         rpt::Scope hamiltonian("hamiltonian");
-        ham = itsSetup->pp
-            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, opts.mesh, itsBasis, opts.vxcFit, opts.coulomb)
-            : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure,
-                                          opts.mesh, itsBasis, opts.xalpha, opts.vxcFit, opts.coulomb);
+        ham = MakeHamiltonianOn(itsSetup->mesh);
     }
     {
         rpt::Section basis("basis");
@@ -187,23 +190,25 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
     // The SCF writes into the CALLER'S report run: a facade never opens one (user ruling D, 2026-11-02 -- drivers own the
     // runs, the caller sets the context one level up).  With no run open every write is a no-op.
     namespace rpt = qchem::report;
-    { rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type); ReportAccuracy(itsSetup->opts.accuracy, kNoAccuracyConsumerYet); }   // the "what recipe am I running" header
+    {   // the "what recipe am I running" header; eps is consumed by the XC mesh wherever there is one (pin 31)
+        rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type);
+        ReportAccuracy(itsSetup->opts.accuracy, !HasXCMesh()           ? std::string(kNoAccuracyConsumerYet)
+                                              : itsSetup->meshResolved ? std::string("the Becke XC mesh (sized by an earlier pilot)")
+                                              : itsSetup->meshStated   ? std::string("the Becke XC mesh (stated: audited, never raised)")
+                                              :                          std::string("the Becke XC mesh (climbed at the converged density)"));
+    }
     if (itsPrepared) itsPrepared=false;                       // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
-    itsLastRow.reset();
-    itsScf->SetObserver([this](const qchem::SCFIterator::IterationRow& row)   // keep the last row: a failure states its gates
-    {
-        itsLastRow = row;
-        if (itsObserver) itsObserver(row);
-    });
+    AttachObserver();
     (void)itsScf->Iterate(params);   // the outcome is the iterator's Converged(), minted below
+    RebuildSampling();
+    if (!itsPiloted && HasXCMesh() && !itsSetup->meshResolved && itsScf->Converged()) PilotMesh(params);
 
     // Snapshot the integrals cache into the run's `cache` section (RunReportPlan step 4), inside the bracket.
     // The cache is a process-wide singleton NEVER cleared between runs, so this is cumulative-to-this-point --
     // exact for a one-run process, the running total in a multi-run one.
     qchem::BasisSet::EmitIntegralsCacheReport();
 
-    RebuildSampling();
     ReportResult("molecule", itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
                  itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()));
     return Outcome_();
@@ -359,9 +364,7 @@ GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& referen
         // FENCED: the reference Hamiltonian files its meshes and fit bases as it builds and first evaluates; a nested run keeps them out
         // of this run's `hamiltonian` section.  RAII: an exception mid-audit must not leave the report nested.
         struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} } fence("meshAudit reference ("+R.reference+")");
-        std::unique_ptr<qchem::Hamiltonian::rHamiltonian> hamRef(itsSetup->pp
-            ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, reference, itsBasis, opts.vxcFit, opts.coulomb)
-            : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure, reference, itsBasis, opts.xalpha, opts.vxcFit, opts.coulomb));
+        std::unique_ptr<qchem::Hamiltonian::rHamiltonian> hamRef(MakeHamiltonianOn(reference));
         itsHam->RefreshForDensity(itsBasis, d);
         hamRef->RefreshForDensity(itsBasis, d);
         const std::vector<qchem::Hamiltonian::TermEnergy> eRun=itsHam->MakeTermEnergies(d), eRef=hamRef->MakeTermEnergies(d);
@@ -404,9 +407,206 @@ GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& referen
         if (t.entries=="Exc" && t.maxAbsΔH>0.0) t.etaOn="measured";   // the XC mesh has no rigorous bound
     }
     const ClientConsumes c=Consumes();
-    ReportGridAudit(R, "[mesh audit]", "Becke mesh ("+std::to_string(opts.mesh.nRadial)+", "+std::to_string(opts.mesh.angularDegree)+")",
+    ReportGridAudit(R, "[mesh audit]", "Becke mesh ("+std::to_string(itsSetup->mesh.nRadial)+", "+std::to_string(itsSetup->mesh.angularDegree)+")",
                     c==ClientConsumes::Energy ? 'E' : 'H', opts.accuracy.Target(c, itsStructure->GetNumAtoms()));
     return R;
+}
+
+qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const qcMesh::MeshParams& mesh) const
+{
+    const CalcOptions& opts=itsSetup->opts;
+    return itsSetup->pp
+        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, itsBasis, opts.vxcFit, opts.coulomb)
+        : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure, mesh, itsBasis, opts.xalpha, opts.vxcFit, opts.coulomb);
+}
+
+bool MoleculeCalculation::HasXCMesh() const {return qchem::Hamiltonian::IsDFT(itsSetup->opts.model) || itsSetup->pp.has_value();}
+
+ClientConsumes MoleculeCalculation::Consumes() const {return itsGeometryPoint ? ClientConsumes::MatrixElements : ClientConsumes::Energy;}
+
+void MoleculeCalculation::AttachObserver()
+{
+    itsLastRow.reset();
+    itsScf->SetObserver([this](const qchem::SCFIterator::IterationRow& row)   // keep the last row: a failure states its gates
+    {
+        itsLastRow = row;
+        if (itsObserver) itsObserver(row);
+    });
+}
+
+namespace
+{
+std::string MeshName(const qcMesh::MeshParams& m)
+{
+    return "("+std::to_string(m.nRadial)+", "+std::to_string(m.angularDegree)+(m.angular==qcMesh::AngularKind::GaussLegendre ? " GL" : "")+")";
+}
+//! Does the Hartree term's error FALL as the mesh rises, so a climb can size it?  The δ-ρ direct sum's does not: a Becke mesh is a poor rule
+//! for the singular kernel near each point, and its J error sits at about 1e-2 on every rung tried (TeF₆: no better at 80 radial points than
+//! at 50; Fitting/Internal/DirectSumCoulomb.C).  Chasing it raised water to the ladder's top at O(N²) per reference and per re-convergence
+//! iteration (lane B, 2026-11-08: M_DFT.WaterLDA_DeltaCoulomb_Long ran ~10 h where its entry rung takes 196 s).  Every other route's
+//! mesh-borne Hartree (δ-ρ by radial Poisson, the multipole channels) converges with the mesh and is climbed.
+bool HartreeConvergesWithMesh(const Hamiltonian::CoulombRoute& c)
+{
+    return !(c.fit==Hamiltonian::CoulombFit::Delta && c.solver==Hamiltonian::CoulombSolver::DirectSum);
+}
+}
+
+// THE MESH PILOT (doc/GeometryOptimizationPlan.md §14.2; pin 31).  The run has converged at its entry rung.  Climb the Becke ladder AT
+// THIS D (qchem.Mesh.BeckeClimb, the solid's rule): each step compares the rung against the rung above on each axis, a molecule's basis
+// does not depend on its mesh, so both sides are the SAME basis and the SAME D, and nothing is restored.  The distance is the run's own
+// measure (Consumes), the worst over the mesh-borne terms (XC, and a δ-ρ Hartree rung riding the mesh; every other term reads 0), less a
+// Hartree whose error does not fall with the mesh (HartreeConvergesWithMesh: the direct sum, WARNed, never chased).  If the
+// climb raised: rebuild the point on the settled rung, re-converge ONCE from the carried D, and audit again (one raise at most) -- up to
+// kPilotRounds.  A STATED mesh is audited once and never raised.  Then FREEZE: SizedSetup() carries the settled rung, resolved.
+void MoleculeCalculation::PilotMesh(const SCFParams& params)
+{
+    namespace rpt = qchem::report;
+    itsPiloted=true;
+    const bool   stated=itsSetup->meshStated;
+    const ClientConsumes c=Consumes();
+    const bool   onE=c==ClientConsumes::Energy;
+    const double target=itsSetup->opts.accuracy.Target(c, itsStructure->GetNumAtoms());
+    const qcMesh::BeckeLadderCalibration cal{.angRot=0.0};   // the ladder's rungs unrotated, as the entry rung is (the rotation is a cubic-site calibration)
+    const qcMesh::MeshParams entry=itsSetup->mesh;
+    const std::string tag="[mesh pilot] ";
+    const std::streamsize prec0=std::cout.precision();
+    rpt::Section pilot("xcMeshPilot");
+    rpt::Set("measure", onE ? "E" : "H"); rpt::Set("target", target); rpt::Set("stated", stated); rpt::Set("entry", MeshName(entry));
+    const bool climbHartree=HartreeConvergesWithMesh(itsSetup->opts.coulomb);
+    if (!climbHartree)
+    {
+        std::cout<<tag<<"WARNING: the δ-ρ DIRECT-SUM Hartree is not climbed: its error (about 1e-2) does not fall with the mesh; the climb sizes the "
+                 <<"other mesh-borne terms (XC).  Leave the solver unstated (radial Poisson) for a Hartree that reaches the target"<<std::endl;
+        policy::Report("DirectSumHartreeNotClimbed", "the mesh climb leaves the δ-ρ direct-sum Hartree term out of its distance", policy::Verdict::Warn,
+                       "the direct sum's J error sits near 1e-2 on every rung (no better at 80 radial points than at 50), so no rung meets the target "
+                       +std::to_string(target)+" on it, and chasing it costs O(N_points^2) per rung; the solver is the run's stated choice, so the "
+                       "run keeps it and its Hartree is the solver's, not the mesh's");
+    }
+    rpt::Set("climbsHartree", climbHartree);
+    std::string endWhy;
+    for (int round=0; ; round++)
+    {
+        rpt::Row row("rounds");
+        // Each rung sampled ONCE at this D: every term's energy and every (term, channel) block, keyed by the rung's spelling.
+        struct Probe { std::vector<double> E; std::vector<bool> climbed; std::vector<std::vector<hmat_t<double>>> H; };   // H[term][channel]
+        const qchem::ChargeDensity::rDM_CD* d=itsDensity.get();
+        std::map<std::string, Probe> probes;
+        auto sample=[&](const qchem::Hamiltonian::rHamiltonian& h)
+        {
+            Probe p;
+            for (const auto& te : h.MakeTermEnergies(d)) { p.E.push_back(te.E); p.climbed.push_back(climbHartree || te.entries!="Eee"); }
+            p.H.resize(p.E.size());
+            for (Spin s : SpinIrreps(itsSetup->opts.spin))
+                for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
+                {
+                    auto blocks=h.MakeTermMatrices(ibs, s, d);
+                    if (blocks.size()!=p.E.size()) throw std::logic_error("MoleculeCalculation::PilotMesh: a block's term list differs from the energies'");
+                    for (size_t t=0;t<blocks.size();t++) p.H[t].push_back(std::move(blocks[t]));
+                }
+            return p;
+        };
+        itsHam->RefreshForDensity(itsBasis, d);
+        probes.emplace(MeshName(itsSetup->mesh), sample(*itsHam));
+        auto probe=[&](const qcMesh::MeshParams& m) -> const Probe&
+        {
+            if (auto it=probes.find(MeshName(m)); it!=probes.end()) return it->second;
+            // FENCED: a reference's own mesh and fit reports go to a nested run, so this run's `hamiltonian` keeps describing what it USED.
+            struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} } fence("mesh pilot reference "+MeshName(m));
+            const std::unique_ptr<qchem::Hamiltonian::rHamiltonian> h(MakeHamiltonianOn(m));
+            h->RefreshForDensity(itsBasis, d);
+            ++itsPilotCost.referencesBuilt;
+            return probes.emplace(MeshName(m), sample(*h)).first->second;   // std::map: references stay valid across later inserts
+        };
+        const qcMesh::BeckeRungDistance distance=[&](const qcMesh::MeshParams& a, const qcMesh::MeshParams& b)
+        {
+            const Probe& pa=probe(a);
+            const Probe& pb=probe(b);
+            if (pa.E.size()!=pb.E.size()) throw std::logic_error("MoleculeCalculation::PilotMesh: two meshes hand back different term lists");
+            double worst=0.0;
+            for (size_t t=0;t<pa.E.size();t++)
+            {
+                if (!pa.climbed[t]) continue;   // a Hartree the mesh cannot size (HartreeConvergesWithMesh)
+                if (onE) { worst=std::max(worst, std::fabs(pa.E[t]-pb.E[t])); continue; }
+                for (size_t k=0;k<pa.H[t].size();k++)
+                {
+                    const auto& x=pa.H[t][k]; const auto& y=pb.H[t][k];
+                    for (size_t r=0;r<x.rows();r++) for (size_t q=r;q<x.columns();q++) worst=std::max(worst, std::fabs(x(r,q)-y(r,q)));
+                }
+            }
+            return worst;
+        };
+        const int cap = (stated || round>0) ? 1 : 0;   // a stated mesh is only measured; a confirming round raises at most once
+        const qcMesh::BeckeClimbResult climb=qcMesh::ClimbBeckeLadder(itsSetup->mesh, target, cal, false, distance, cap);
+        itsPilotCost.rounds=round+1;
+        rpt::json steps=rpt::json::array();
+        bool over=false;
+        for (const qcMesh::BeckeClimbStep& step : climb.steps)
+        {
+            over = over || step.over;
+            std::cout<<tag<<"round "<<round<<"  "<<std::setw(8)<<std::left<<step.axis<<std::right<<" delivered "<<std::scientific<<std::setprecision(3)
+                     <<step.delivered<<" (tail estimate "<<step.tailEstimate<<") on "<<MeshName(step.rung)<<" against "<<MeshName(step.reference)<<"  "
+                     <<(!step.over ? "meets " : stated ? "OVER, and the mesh is STATED: honoured, " : "OVER ")<<(onE ? "|ΔE| " : "max|ΔH| ")<<"target "
+                     <<target<<std::endl<<std::defaultfloat<<std::setprecision(prec0);
+            steps.push_back({{"axis",step.axis},{"delivered",step.delivered},{"tailEstimate",step.tailEstimate},{"mesh",MeshName(step.rung)},
+                             {"reference",MeshName(step.reference)},{"over",step.over}});
+        }
+        const char* end = climb.end==qcMesh::BeckeClimbResult::End::Settled ? "settled"
+                        : climb.end==qcMesh::BeckeClimbResult::End::AxisEnd ? "axisEnd" : "raiseCap";
+        rpt::Set("round", round); rpt::Set("from", MeshName(itsSetup->mesh)); rpt::Set("to", MeshName(climb.mesh));
+        rpt::Set("raises", climb.raises); rpt::Set("end", end); rpt::Set("steps", steps);
+        if (climb.end==qcMesh::BeckeClimbResult::End::AxisEnd) endWhy=climb.why;
+        if (stated)
+        {
+            itsPilotCost.statedOver=over;
+            itsPilotCost.settled=!over && climb.end==qcMesh::BeckeClimbResult::End::Settled;
+            break;
+        }
+        std::cout<<tag<<"round "<<round<<"  "<<(round==0 ? "climb" : "confirming audit")<<" at this D: "<<MeshName(itsSetup->mesh);
+        if (climb.raises>0) std::cout<<" -> "<<MeshName(climb.mesh)<<" in "<<climb.raises<<" raise(s)";
+        std::cout<<"; "<<(climb.end==qcMesh::BeckeClimbResult::End::Settled ? std::string("both axes meet the target")
+                       : climb.end==qcMesh::BeckeClimbResult::End::AxisEnd ? climb.why : std::string("one raise, audited at the next round's D"))<<std::endl;
+        if (climb.raises==0) { itsPilotCost.settled = climb.end==qcMesh::BeckeClimbResult::End::Settled; break; }
+        if (round+1>=kPilotRounds) { itsPilotCost.settled=false; endWhy="the pilot's round cap ("+std::to_string(kPilotRounds)+")"; break; }
+        // RAISED: rebuild the point on the settled rung and re-converge ONCE from this D (the carry: same basis, block for block).
+        auto next=std::make_shared<MoleculeSetup>(*itsSetup);
+        next->mesh=climb.mesh;
+        itsSetup=next;
+        itsCarry=std::make_unique<const Carry>(MakeCarry());
+        BuildGraph();
+        AttachObserver();
+        (void)itsScf->Iterate(params);
+        itsPilotCost.reconvergeIterations+=itsScf->GetIterationCount();
+        RebuildSampling();
+        if (!itsScf->Converged()) { itsPilotCost.settled=false; endWhy="the re-convergence on "+MeshName(itsSetup->mesh)+" did not converge"; break; }
+    }
+    // FREEZE (§2 rule 4): a session steps every later point on this mesh.  A stated mesh stays stated (it was never the pilot's to move).
+    if (!stated)
+    {
+        auto sized=std::make_shared<MoleculeSetup>(*itsSetup);
+        sized->meshResolved=true;
+        itsSetup=sized;
+    }
+    rpt::Set("rounds", itsPilotCost.rounds); rpt::Set("referencesBuilt", itsPilotCost.referencesBuilt);
+    rpt::Set("reconvergeIterations", (long)itsPilotCost.reconvergeIterations); rpt::Set("settled", itsPilotCost.settled);
+    rpt::Set("statedOver", itsPilotCost.statedOver); rpt::Set("mesh", MeshName(itsSetup->mesh));
+    const std::string cost=std::to_string(itsPilotCost.rounds)+" round(s), "+std::to_string(itsPilotCost.referencesBuilt)+" reference Hamiltonian(s), "
+                          +std::to_string(itsPilotCost.reconvergeIterations)+" re-convergence iteration(s)";
+    if (itsPilotCost.statedOver)
+    {
+        std::cout<<tag<<"WARNING: the STATED XC mesh "<<MeshName(itsSetup->mesh)<<" misses the target "<<target<<"; honoured (leave the mesh unstated to let the run size it)"<<std::endl;
+        policy::Report("StatedXCMeshMissesEps", "the stated Becke XC mesh "+MeshName(itsSetup->mesh)+" is kept", policy::Verdict::Warn,
+                       "a stated mesh is honoured, never raised (pin 31 rule 3), and its delivered error is over the target "+std::to_string(target)
+                       +" on "+(onE ? "|ΔE|" : "max|ΔH_ij|"));
+    }
+    else if (!stated && itsPilotCost.settled)
+        policy::Report("MolecularXCMeshSettled", "the Becke XC mesh "+MeshName(itsSetup->mesh)+" (entered at "+MeshName(entry)+")", policy::Verdict::Choose,
+                       "climbed at the converged density until both axes meet the target "+std::to_string(target)+" on "+(onE ? "|ΔE|" : "max|ΔH_ij|")+"; "+cost);
+    else if (!stated)
+    {
+        std::cout<<tag<<"WARNING: the XC mesh is NOT SETTLED at "<<MeshName(itsSetup->mesh)<<": "<<endWhy<<std::endl;
+        policy::Report("MolecularXCMeshNotSettled", "the Becke XC mesh stops at "+MeshName(itsSetup->mesh), policy::Verdict::Warn,
+                       endWhy+"; the delivered error may be over the target "+std::to_string(target)+"; "+cost);
+    }
 }
 
 //====================================================================================================
@@ -458,9 +658,10 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
     std::unique_ptr<const MoleculeCalculation::Carry> carry;
     if (itsPoint) carry=std::make_unique<const MoleculeCalculation::Carry>(itsPoint->MakeCarry());
     itsPoint.reset();   // one point's memory at a time
-    itsPoint.reset(new MoleculeCalculation(itsSetup, *at, std::move(carry), itsSCF, itsObserver));
+    itsPoint.reset(new MoleculeCalculation(itsSetup, *at, std::move(carry), itsSCF, itsObserver, /*geometryPoint*/true));
     auto out=itsPoint->Result();
     if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
+    itsSetup=itsPoint->SizedSetup();   // the first point's pilot froze the mesh: every later point steps on it (§2 rule 4)
     return O::Ok(PESPoint{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()});
 }
 

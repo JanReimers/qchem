@@ -86,13 +86,31 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
                        : (dft || !opts.pp.empty()) ? "a DFT run with an element the atomic-density library lacks, and no seed stated"
                                                    : "a Hartree-Fock / one-electron run, and no seed stated");
 
+    // THE XC MESH (pin 31; doc/GeometryOptimizationPlan.md §14.1): an axis left at 0 is unstated and takes the entry rung's; a mesh with
+    // neither stated climbs from there at the converged D (MoleculeCalculation's pilot), only up.  A stated one is honoured and audited.
+    s->mesh=opts.mesh;
+    const bool statedR=opts.mesh.nRadial>0, statedL=opts.mesh.angularDegree>0;
+    s->meshStated=statedR || statedL;
+    if (!statedR) s->mesh.nRadial      =kMolecularMeshEntryRadial;
+    if (!statedL) s->mesh.angularDegree=kMolecularMeshEntryDegree;
+    if (dft || !opts.pp.empty())
+    {
+        const std::string rung="("+std::to_string(s->mesh.nRadial)+", "+std::to_string(s->mesh.angularDegree)+")";
+        if (!s->meshStated)
+            policy::Report("MolecularXCMeshClimbs", "the Becke XC mesh climbs from "+rung+" to eps at the converged density", policy::Verdict::Choose,
+                           "no XC mesh stated: the run sizes it from the accuracy target (pin 31), from the entry rung and only up");
+        else if (!statedR || !statedL)
+            policy::Report("MolecularXCMeshPartlyStated", "the Becke XC mesh "+rung+": the unstated axis takes the entry rung's", policy::Verdict::Choose,
+                           std::string("the mesh states only its ")+(statedR ? "radial count" : "angular degree")+"; a stated mesh is audited, never raised");
+    }
+
     // The Vxc product space's admission (pin 30) and the Hartree route's, asked of the Hamiltonian's rules HERE, before the basis
     // and the Hamiltonian are built: the Factory throws the same reason, but only once the work is done.
     if (dft || !opts.pp.empty())
     {
-        if (const auto a=Hamiltonian::AdmitVxc(*point, opts.vxcFit, opts.mesh); !a)
+        if (const auto a=Hamiltonian::AdmitVxc(*point, opts.vxcFit, s->mesh); !a)
             policy::Refuse("AdmitVxc", "the stated Vxc fit and XC mesh on this molecule", a.Error());
-        if (const auto a=Hamiltonian::AdmitCoulomb(*point, opts.coulomb, opts.mesh, opts.vxcFit); !a)
+        if (const auto a=Hamiltonian::AdmitCoulomb(*point, opts.coulomb, s->mesh, opts.vxcFit); !a)
             policy::Refuse("AdmitCoulomb", "the stated Hartree route on this molecule", a.Error());
     }
 

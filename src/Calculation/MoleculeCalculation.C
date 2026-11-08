@@ -156,6 +156,22 @@ public:
     //! Hamiltonian's own mesh reports go to a nested run, so this run's `hamiltonian` keeps describing the meshes it USED.  Judged on
     //! \c Consumes(): |ΔE| against eps x N_atoms, or max|ΔH_ij| against eps.  THROWS before a Converge.
     GridAuditResult MeshAudit(const qcMesh::MeshParams& reference) const;
+    //! \brief WHAT THIS RUN'S CLIENT CONSUMES (pin 31; the solid's rule): a run built on its own answers an \c Energy, judged on |ΔE| against
+    //! eps x N_atoms; a point a \c MoleculeSession builds (a surface, forces, an optimization) answers \c MatrixElements, max|ΔH_ij| against eps.
+    ClientConsumes Consumes() const override;
+    //! \brief THE MESH PILOT's cap on climb + re-convergence rounds (the solid's \c kPilotRounds): round 0 climbs at the first converged D,
+    //! each later round is the CONFIRMING audit (one raise at most) at the re-converged D.
+    static constexpr int kPilotRounds=4;
+    //! \brief What the mesh pilot COST, reported, never hidden (doc/GeometryOptimizationPlan.md §14.2 step 5): its rounds, the reference
+    //! Hamiltonians it built, and the SCF iterations of its re-convergences (on top of the run's own).  settled: the climb met the target
+    //! on both axes (not the round cap, not a ladder end, not a stated mesh over it).  statedOver: a STATED mesh missed the target --
+    //! honoured, reported (a `warn` policy row), and not settled (pin 31 rule 3).  All zero on a run with no mesh (HF) or a resolved one.
+    struct MeshPilotCost { int rounds=0; int referencesBuilt=0; size_t reconvergeIterations=0; bool settled=false; bool statedOver=false; };
+    MeshPilotCost PilotCost() const {return itsPilotCost;}
+    //! \brief The setup with THIS run's XC mesh FROZEN into it: the rung the pilot settled on, marked resolved -- what a \c MoleculeSession
+    //! steps the rest of its points on, so every point integrates on the same mesh (a re-sized mesh per point would make the surface
+    //! discontinuous; §2 rule 4).  A stated mesh stays stated.  The setup itself when nothing was piloted.
+    std::shared_ptr<const MoleculeSetup> SizedSetup() const {return itsSetup;}
 
 private:
     //! The finite-difference response ORACLE (src/Response/tests, ruling D6) drives the SAME Reference/frame/
@@ -176,12 +192,23 @@ private:
     struct BuildOnly {};
     //! Everything but the SCF: the members and the electron configuration (the graph is \c BuildGraph's).
     MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
-                Observer onIteration);
+                Observer onIteration, bool geometryPoint=false);
     //! The accelerator, the basis (first time), the Hamiltonian and the SCF iterator -- inside the caller's open report run.
     void BuildGraph();
     bool itsPrepared = false;   //!< \c Prepare built the graph: the next Converge reuses it instead of rebuilding
     MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
-                const SCFParams& scf, Observer onIteration);
+                const SCFParams& scf, Observer onIteration, bool geometryPoint=false);
+    //! The point's Hamiltonian on \a mesh (the setup's model or pseudopotential, this basis): the graph's, and every audit reference's.
+    qchem::Hamiltonian::rHamiltonian* MakeHamiltonianOn(const qcMesh::MeshParams& mesh) const;
+    //! Does this run integrate on a mesh at all (a DFT model or a pseudopotential)?  HF has none: nothing to audit or climb.
+    bool HasXCMesh() const;
+    //! THE MESH PILOT (§14.2): climb at the converged D, rebuild + re-converge once per raise, freeze into \c itsSetup.  From \c Converge.
+    void PilotMesh(const SCFParams& params);
+    //! Point the new iterator's observer at this facade (the last row, and the caller's sink).
+    void AttachObserver();
+    bool          itsGeometryPoint = false;   //!< built by a MoleculeSession: answers MatrixElements (\c Consumes)
+    bool          itsPiloted       = false;   //!< the pilot ran (once per calculation: a later Converge keeps its mesh)
+    MeshPilotCost itsPilotCost;
     Carry MakeCarry() const;
     //! Σ f c cᵀ (or Σ f ε c cᵀ, \a energyWeighted) per block, in the carry's order: one loop for the carry and for W.
     std::vector<hmat_t<double>> BlockDensities(bool energyWeighted) const;
