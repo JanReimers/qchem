@@ -314,3 +314,100 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
 - the Becke weight gradient;
 - dS / dK / dV;
 - the contracted Dunlap 3c / 2c gradients.
+
+## 14. ε on the molecular facade: step 6's design (DESIGN, for agreement before code; lane B 2026-11-07)
+
+Pin 31 rule 1 ("ε is structure neutral") on `MoleculeCalculation`.  Today `CalcOptions::accuracy` is consumed by no term (the run
+says "none yet").  This section says what ε sizes on a molecule, how the two-step run of §2 works there, and what the audit is.
+No Hamiltonian hub change: the audit reads `MakeTermEnergies` and `MakeTermMatrices`, which the solid audit already uses.
+
+### 14.1 What ε sizes, and with what measure
+
+The measure is `Consumes()`.  A run built on its own answers `Energy`, so it is judged on |ΔE| ≤ ε·N_atoms.  A `MoleculeSession`
+point (a surface, forces, an optimization) answers `MatrixElements`, so it is judged on max|ΔH_ij| ≤ ε, in the normalised basis.  This
+is the solid's rule.  `MoleculeCalculation` gains the override; today it inherits `Energy` from the base.
+
+| what | today | under ε | class after |
+|---|---|---|---|
+| **Becke XC mesh (nR, L)** | stated default (MHL m3 α2, 80, Lebedev 29, order 2); F₂ GTH misses ε by 2.7× on E | climbed by `qchem.Mesh.BeckeClimb` at a fixed D, on the run's measure | ε-AUDITED + raised |
+| **δ-ρ Hartree rung** (`CoulombFit::Delta`, non-default) | sits on the XC mesh (or `coulomb.nRadial`) at `ResolvedLMax` 16 | rides the SAME climb: its distance is the max over every mesh-borne term, so the mesh meets ε for all of them | ε-AUDITED (the lMax cut stays FIXED, flagged) |
+| **Coulomb fit set** (Dunlap, the default) | the orbital basis's own fit set, unaudited | audited at fixed D against EXACT J (ERI4, four-centre: no fit at all), on the run's measure | ε-AUDITED, WARN on a miss (see Q2) |
+| screens (`screenEps` 1e-10, PGData, Hermite, ERI4 floors) | FIXED | not in this item; they stay rows of `doc/Records/EpsilonInventory.md` §3 | FIXED |
+| SCF gate | stated per deck | geometry runs take `MinFD` from f_tol (§8 item 4); energy runs stay the user's open call (inventory §4 ⚑) | — |
+
+The audits compare term by term, so a term that does not change between the two meshes reads 0, with no special case.  That covers
+the analytic terms: kinetic, Ven, the GTH local and non-local terms, Dunlap J, and ion-ion.
+
+**Where the climb starts: today's default.**  `CalcOptions::mesh` becomes unstated by default (the solid's `xcMesh Auto`).  An
+unstated mesh enters the ladder at today's (80, 29) and only ever goes UP.  So an anchor moves only where today's mesh misses ε,
+toward the converged value.  Each move is re-judged against the (150, 47) reference (pin 10), and those are the anchors pin 31 calls
+wrong.  Entering lower, which saves points, is a separate lever with its own measurement: the radial-rule row (m = 2, the outer-shell
+drop) and its pending ruling.
+
+**A STATED mesh** is audited and reported against ε.  If it is OVER, the report says by how much and it is never raised (pin 31
+rule 3; the solid's stated-Becke rule).
+
+### 14.2 The two-step run (§2 applied)
+
+1. **Converge at the entry rung.**  An energy run uses the run's own ε.  A geometry point uses ε = 1e-4 for this step only (§2 step 1).
+2. **Climb at that D.**  Call `ClimbBeckeLadder(entry, target, cal, false, distance, 0)`.  `distance(a, b)` builds the mesh-borne terms
+   on meshes a and b over the SAME basis and the SAME D (a molecule's basis does not depend on its mesh, so nothing is restored),
+   refreshes them, and returns |ΔE| or max|ΔH| per `Consumes()`.  It caches by rung, because each step's reference is the next
+   step's rung.
+3. **If the climb raised:** rebuild the point on the settled mesh and re-converge ONCE from the carried D (`MakeCarriedDensity`, this
+   branch).  Then confirm with one more audit (`maxRaises 1`).  This is the solid pilot's shape, `kPilotRounds` included.
+4. **Freeze.**  `SizedSetup()` returns the setup with the settled mesh stated in it and marked resolved.  A `MoleculeSession` steps
+   every later point on it, so the mesh parameters never change mid-optimization (§2 rule 4).  At the final geometry the run audits
+   once more and REPORTS whether the pick differs.  Acting on that is the next run's business (§2 rule 5).
+5. **Cost:** report it, never hide it (`PilotCost()`: audit rounds and re-convergence iterations).  On water at (80, 29) one climb
+   step is two XC builds at about 1.3-1.7× the run's points, below one SCF iteration each.  No cost policy fires.
+
+**The Coulomb fit audit** runs once, after step 1 (it has no ladder to climb).  It measures |ΔE_J| and max|ΔH_J| between Dunlap J
+and exact J at the same D.  Exact J is O(N⁴) through ERI4.  Above a size that setup can compute from the basis count, the audit is
+SKIPPED as a WARN-AND-RUN policy row that gives its predicted cost and the reason.
+
+**Every decision is a `policy` row** (CLAUDE.md, every policy reports itself), in the scope where it fires:
+- the mesh's origin (stated / climbed from / settled at) and each audit's delivered value against its target;
+- the fit audit's verdict, or why it was skipped;
+- the `[accuracy] consumed by:` banner, which changes from "none yet" to the terms that consume ε.
+
+### 14.3 The audit's code shape
+
+- **`MoleculeCalculation::MeshAudit(const MeshParams& reference)`** and **`CoulombFitAudit()`**: both are fixed-D, term-by-term
+  comparisons.  They return the solid's `GridAuditResult` (per term ΔE and max|ΔH| with the element named, plus the totals).  They
+  report under a `gridAudit` scope opened by their caller.
+- **The result type and the normalised-basis fold (`FoldΔH`)** move out of `SolidCalculation` into a facade-neutral
+  `qchem.GridAudit` module in qcCalculation.  The molecular side uses it first.  `SolidCalculation` adopts it AFTER lane A's R1.0r
+  lands, as one small follow-up commit, so this item does not touch lane A's file.
+- **Per species: measure before building (Q1).**  `MakeMolecularMesh` takes ONE `MeshParams` for every atom, as the solid's mesh
+  does, and the climb climbs one.  Making (nR, L) per species is a qcStructure interface change, plus a climb with one axis pair per
+  species.  The banked TeF₆ frozen-D data (`~/Code/qchem6-runs/RadialRule/`; the numpy mesh reproduces ours to 1e-14) can answer
+  what it buys without any library code: climb Te and F separately and compare points against the uniform climb.  The radial-rule
+  report already found that α per element buys nothing; (nR, L) per element is the untested half.
+
+### 14.4 Files, for sequencing with lane G
+
+| file | change | overlap |
+|---|---|---|
+| `src/Calculation/MoleculeSetup.C` | `mesh` unstated by default (an Auto marker, as `SolidCalcOptions::xcMesh`); `MoleculeSetup` gains the resolved mesh + `meshResolved` | **lane G** (policy rows) |
+| `src/Calculation/Imp/MoleculeSetup.C` | resolve the entry rung; the stated/unstated policy row | **lane G** |
+| `src/Calculation/MoleculeCalculation.C`, `Imp/MoleculeCalculation.C` | `Consumes()`, `MeshAudit`, `CoulombFitAudit`, the pilot, `SizedSetup`, `PilotCost`, the banner | **lane G** if the "molecular bridge" includes `Outcome_` (survey row 25) |
+| `src/Calculation/PotentialEnergySurface.C` / `MoleculeSession` (in `MoleculeCalculation.C`) | answers `MatrixElements`; pilots at the first point, steps on `SizedSetup` | as above |
+| new `src/Calculation/GridAudit.C` (+ CMake) | the facade-neutral audit result and fold | none |
+| `src/Calculation/tests/` (UTCalculation) + `IntegrationTests/` | water/F₂: the climb raises F₂ and leaves water; a stated mesh is reported OVER and not raised; the fit audit against ERI4 | none |
+| **not touched** | the Hamiltonian hub, `SolidCalculation` (R1.0r), `Deck.C` (molecules in the deck stay step 6's second half), `pybind/`, `XCPolicy.C` (no new calibration: the entry rung is today's default) | — |
+
+**Order and estimate:** GridAudit lift + `MeshAudit` + `CoulombFitAudit` (1), then the pilot and `SizedSetup` + `Consumes` (1), then
+the session (0.5), then the per-species replay (0.5, measurement only).  About 3 lane-days.  The first piece touches only the
+MoleculeCalculation files and the new module, so lane G's `MoleculeSetup.C` edits can land first.
+
+### 14.5 Questions
+
+1. **Per species:** run the TeF₆ replay first, and build per-species (nR, L) only if it saves more than the rung step (≈ 20% of the
+   points)?
+2. **The Coulomb fit set, MODEL or NUMERIC** (inventory §3 ⚑)?  If NUMERIC, a miss must raise it, which needs a ladder of fit sets
+   (we have one set per orbital basis).  If MODEL, a miss WARNs (pin 31: model choices are exempt, but the code warns where it sees
+   a poor one).  Lane B proposes MODEL with the audit as the WARN, until a fit-set ladder exists.
+3. **Energy runs pay one audit by default** (two XC builds at fixed D).  The solid today audits its Becke mesh only on geometry runs
+   (inventory §2, known miss 1).  Lane B proposes that both facades audit every run, and that the solid's energy-run gap become its
+   own row.
