@@ -18,6 +18,7 @@ import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (eleme
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::spherical)
 import qchem.Policy;                           // policy::Refuse: each refusal files its row where it fires
+import qchem.BasisCoverage;                    // RequireBasisCovers: a basis lacking an element is refused before the build
 
 namespace qchem
 {
@@ -324,6 +325,10 @@ std::shared_ptr<const BasisSet::Real_BS> GaussianBasisRecipe::Make(const Structu
     // D-BASIS-PP: the basis file's declared pseudopotential q per element must be the q this run's terms use.
     const auto species=pp.Species(cell);
     if (file.empty()) CheckPPProvenance(data, species); else CheckPPProvenance(file, species);
+    {   // ... and the file must hold every element (the policy row names the bases that do), before anything is read from it
+        const std::string name=file.empty() ? BasisName(data) : file;   // the deck's own word: the registered name, or the stated file
+        RequireBasisCovers(file.empty() ? name+".bsd" : file, name, cell);
+    }
     std::unique_ptr<BasisSet::Real_BS> built(file.empty() ? Factory(data, &cell, Engine::MnD, Angular::Cartesian, trim)
                                                           : FactoryFromFile(file, &cell, Engine::MnD, Angular::Cartesian, trim));
     // D-ENV-TOL option A: bind the run's pair-loop tolerances while the basis is still OURS and mutable -- before a view wraps it and
