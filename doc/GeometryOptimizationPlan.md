@@ -383,6 +383,79 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
 - dS / dK / dV;
 - the contracted Dunlap 3c / 2c gradients.
 
+### 13.1 PROPOSAL: a value-with-derivatives carrier on the derivative-aware faces (DESIGN, for the user before code; lane B 2026-11-08)
+
+The user's input (2026-11-08): *"I used to work with Rall algebra where every function evaluation returns {f, df/dx1, df/dx2, ...}.  With
+all that info in one blob, chaining is trivial and it makes no difference whether it is a cross library or inter planetary function
+call."*  So the currency on every derivative-aware face is a typed carrier, {value, ∂value/∂R}: forward mode at the interface.  Enzyme fills
+it INSIDE each Imp, and chaining across a face is ordinary arithmetic on carriers, so library and vtable boundaries stop mattering.  This is
+first-order forward AD by operator overloading at the face level (Rall numbers, dual numbers, jets), with Enzyme doing the leaves.
+
+**The type.** A first-order jet in the atom positions, SPARSE in atoms: a value plus a short list of (atom index, ∂/∂R_atom) entries.
+- Its arithmetic writes the chain rule ONCE: sums and products merge the atom lists; `exp`, `sqrt`, a functional's ε(ρ) and so on carry f′.
+- A matrix-valued jet ({S, ∂S/∂R_A}) holds a libcint integral's derivative.  Its non-zeros are the pairs on atom A, so it is sparse too.
+- The name is open.  Name it for what it IS: `PositionJet<T>`, or `WithGradient<T>`.  One family, with the matrix and mesh-array
+  realizations as the V-ONE-OF-N record.
+
+**(1) Cost.**
+- A DENSE carrier (3N components on every value) is plain forward mode, ∝ 3N per value: ~10× the energy on H₂O (3N = 9) and ~60× on 20
+  atoms.  That is no.
+- Our derivatives are SPARSE in atoms:
+  - a basis function χ_i(r_g) depends on its own centre, and on the point's owner (the point rides with it): at most 2 atoms;
+  - ρ_g = Σ D_ij χ_i χ_j depends on the k_g atoms whose functions reach g (`PGData::Reaches`, the magnitude screen pin 1 allows);
+  - the Becke weight w_g depends on every atom: no exact sparsity, only magnitude.
+- So the carrier is sparse in atoms, and filling one costs:
+  - **χ:** one 3-vector, ∇χ, serves both atoms.  MEASURED: Enzyme vector-forward (width 3) on a d shell (6 components, 3 primitives)
+    gives value + 3 derivatives in 83.7 ns against 36.2 ns for the value alone, **2.31×**, exact against FD, with no tape.
+  - **ρ:** the value costs O(nbf_g²), dominated by Dχ.  The jet is ∂ρ/∂R = 2 Σ_i (Dχ)_i ∂χ_i, an extra O(3 nbf_g), so ≈ 1.1–1.3× the value.
+    The width k_g never multiplies the cost, because each χ_i carries one atom.
+  - **w_g:** a scalar of all n atoms, so REVERSE mode fills its jet, at a few × the O(n²) weight (§2 below).  For 20 atoms that is 400
+    cutoff evaluations per point, against ~10⁴ for ρ at nbf_g ~ 100: a small share.
+- ESTIMATED from these pieces, not measured end to end: an XC force at about 2.5–3.5× one XC energy, on H₂O and on 20 atoms alike.  The
+  spike's reverse-mode kernel MEASURED 17–21× on H₂O.  The jet form also keeps no tape: each point's jets are transient.
+
+**(2) Where reverse mode stays right, and both directions on one face.**
+- **A scalar of many inputs:**
+  - the Becke weight w_g(R_1..R_n);
+  - the final E, which is a sum over points of a scalar times jets, so it needs no adjoint pass: it is linear at the top.
+- **A large linear operator between ρ and E:** the δ-ρ Hartree, E_H = ½ ρᵀKρ.
+  - Pushing ρ's jets through K forward costs one solve per derivative direction.
+  - The adjoint is ONE solve, and it already exists: v = Kρ.  Likewise the Dunlap fit, whose adjoint is its coefficients.
+- So a face offers both directions:
+  - FORWARD: return jets of its outputs;
+  - PULLBACK: given ∂E/∂(its outputs), return ∂E/∂R as one jet.
+  - The term picks per output.  XC: forward χ jets into ρ jets, w_g's jet by reverse, then a pullback of E through the scalar functional.
+    Hartree on the mesh: the potential v_g as ρ_g's adjoint, then ρ_g's jets contracted with it.
+  - The carrier holds the forward derivative.  The adjoint is a plain value the term already has (v_xc, v_H, fit coefficients).
+- **This also sidesteps Enzyme's silent defect.** Forward mode is EXACT on the loop-cache repro (`doc/Records/enzyme_loopcache_repro.cpp`)
+  on both 1a87ccc and 871de19f, at `-O2` and `-O3`; the defect is in reverse mode's caching.  Reverse is left only for small scalar
+  leaves (the Becke weight), each FD-gated.
+
+**(3) Enzyme's forward mode as the in-Imp filler.**
+- `__enzyme_fwddiff(f, enzyme_width, k, enzyme_dupv, stride, x, dx, ..., enzyme_dupv, stride, out, dout)` gives k tangents in one call, a
+  vector-forward width of 3 per atom.  That fills χ's jet in the basis Imp.
+- The Becke Imp fills w_g's jet by `__enzyme_autodiff`: one scalar, n inputs.
+- The functionals keep their hand `GetVxc` FOR NOW (the ruling above), so ε(ρ)'s jet is ε′ = (v − ε)/ρ.  When Enzyme becomes non-optional,
+  forward mode replaces it in place.
+
+**(4) What it replaces in §13.**
+- The hub surface is unchanged: `MissingGradients()`, `tHamiltonianAt::Forces(W)`.
+- `tGeometryGradient::AddForces` stays as each term's face.  Behind it, the hand composition the AD verdict described (the face-level
+  products F_A = Σ ρε ∂w/∂R_A + Σ w v ∂ρ/∂R_A) is no longer written per term.  A term evaluates its OWN energy expression on jets, or calls
+  a pullback, and the chain rule lives once, in the jet type.
+- The basis face `qchem.BasisSet.GeometryDerivatives` returns jets: χ at points (forward, Enzyme) and matrix jets for the integrals
+  (libcint's derivative integrals, as committed).  The Pulay term is Tr(W S) with S a matrix jet.
+- Gates:
+  - the jet type's own unit tests (its arithmetic against FD);
+  - each term's per-term FD gate at fixed D, unchanged;
+  - the hand Becke oracle.
+
+**Open for the user before code:**
+1. The carrier, sparse in atoms, as the face currency.
+2. The two directions per face: forward jets, and a pullback of a given adjoint.
+3. The name.
+4. Second order (a Hessian-vector product for level 2) is a second-order jet or a forward-over-pullback.  Not proposed now.
+
 ## 14. ε on the molecular facade: step 6's design (DESIGN, for agreement before code; lane B 2026-11-07)
 
 Pin 31 rule 1 ("ε is structure neutral") on `MoleculeCalculation`.  Today `CalcOptions::accuracy` is consumed by no term (the run
