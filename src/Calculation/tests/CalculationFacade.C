@@ -5,6 +5,8 @@
 #include <cmath>
 #include <vector>
 #include <memory>
+#include <string>
+#include <stdexcept>
 import qchem.MoleculeCalculation;
 import qchem.AtomCalculation;   // AtomCalculation::Prepare (the atom's Build -> Run)
 import qchem.Structure;         // Atom (the atom's report ID)
@@ -181,6 +183,32 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySC
     MoleculeCalculation once(setup);
     EXPECT_DOUBLE_EQ(r->Energy(), once.Energy()) << "Prepare + Converge must be the constructor, bit for bit";
     EXPECT_EQ(r->IterationCount(), once.IterationCount());
+}
+
+//! EVERY DEFAULT BUILDS (controller ruling 2026-11-07, after the sto-3g default that had no file): a molecule stating ONLY its basis
+//! -- and, for the DFT defaults (XC mesh, Vxc fit, Hartree route), only its model besides -- builds its whole graph.  A default that
+//! cannot build is a silent trap; this is the test that would have caught it.  The basis itself has no default: unstated, it is
+//! refused at Resolve, naming the registered bases that cover the structure.
+TEST(CalculationFacade, EveryDefaultBuildsAndAnUnstatedBasisIsRefusedNamingTheBasesThatCoverIt)
+{
+    for (const CalcOptions& opts : {CalcOptions{.basis="dzvp"}, CalcOptions{.basis="dzvp", .model=Model::LDA}})
+    {
+        std::unique_ptr<MoleculeCalculation> calc;
+        EXPECT_NO_THROW(calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(GetMolecule("H2O"), opts)))
+            << "model " << int(opts.model) << ": a default failed to build";
+    }
+    try
+    {
+        (void)MoleculeSetup::Resolve(GetMolecule("H2O"), {});
+        FAIL() << "an unstated basis must be refused";
+    }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string what=e.what();
+        EXPECT_NE(what.find("no basis stated"), std::string::npos) << what;
+        EXPECT_NE(what.find("H, O: "), std::string::npos) << "the elements are named: " << what;
+        EXPECT_NE(what.find("dzvp"), std::string::npos) << "the bases that cover them are named: " << what;
+    }
 }
 
 //! Two Gaussian auxiliary fits in one run: each files its fit basis and its private mesh in its own term, so neither overwrites the other
