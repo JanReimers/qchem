@@ -67,6 +67,16 @@ public:
     virtual rsmat_t MakeOverlap()                 const;
     virtual rsmat_t MakeKinetic()                 const;
     virtual rsmat_t MakeNuclear(const Structure* cl) const;
+    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
+    virtual bool CanPullbackOverlap() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "overlap pullback");}
+    virtual bool CanPullbackKinetic() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<double>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "kinetic pullback");}
+    virtual bool CanPullbackNuclear() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<double>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "nuclear pullback");}
     // Species fields (O^T M_raw O), when the raw basis can assemble them.
     virtual bool    CanAssembleField     (const SpeciesRadialField&)  const;
     virtual bool    CanAssembleProjectors(const SpeciesProjectorSet&) const;
@@ -114,6 +124,10 @@ public:
 
     // VectorFunction: a SALC evaluated at r is O^T applied to the raw AO values.
     virtual rvec_t     operator()(const rvec3_t&) const;
+    // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
+    virtual bool CanGiveJets() const override {return false;}
+    virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, BasisSet::PointJets<double>&) const override
+        {return BasisSet::NoGeometryDerivativeYet<size_t>("a symmetry-adapted (SALC) block", "function jets");}
     virtual rvec3vec_t Gradient  (const rvec3_t&) const;
 
     virtual std::ostream& Write(std::ostream&) const;

@@ -70,6 +70,10 @@ public:
     virtual size_t GetNumFunctions() const override {return Cast().size();}
     // using statements in the final class don't seem to work, so we need to function forward.
     virtual rvec_t     operator() (const rvec3_t& r) const override {return Cast().operator()(r);}
+    // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
+    virtual bool CanGiveJets() const override {return false;}
+    virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, BasisSet::PointJets<double>&) const override
+        {return BasisSet::NoGeometryDerivativeYet<size_t>("a radial (atom) block", "function jets");}
     virtual rvec3vec_t Gradient   (const rvec3_t& r) const override {return Cast().Gradient  (r);}
 
     // ImplicitAngular_IBS -- an atom block IS radial: its functions omit the irrep's Y_lm (see the face).
@@ -90,6 +94,11 @@ protected:
 template <is1E_Evaluator E> class Integrals_Overlap
 : public virtual BasisSet::Integrals_Overlap<double>
 {
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
+    virtual bool CanPullbackOverlap() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a radial (atom) block", "overlap pullback");}
 protected:
     virtual smat_t<double> MakeOverlap() const 
     {
@@ -105,6 +114,11 @@ protected:
 template <is1E_Evaluator E> class Integrals_Kinetic
 : public virtual BasisSet::Integrals_Kinetic<double>
 {
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
+    virtual bool CanPullbackKinetic() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<double>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a radial (atom) block", "kinetic pullback");}
 protected:
     // Builds the kinetic BUILDING BLOCK \f$\langle p^2\rangle=\langle -\nabla^2\rangle\f$ (NOT energy,
     // no 1/2 -- see BasisSet/Orbital_1E_IBS.C).  For atoms \f$-\nabla^2\f$ splits into the radial
@@ -124,6 +138,11 @@ protected:
 template <is1E_Evaluator E> class Integrals_Nuclear
 : public virtual BasisSet::Integrals_Nuclear<double>
 {
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
+    virtual bool CanPullbackNuclear() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<double>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a radial (atom) block", "nuclear pullback");}
 protected:
     virtual smat_t<double> MakeNuclear(const Structure* cl) const 
     {
@@ -297,6 +316,11 @@ public:
     // block (Integrals_Kinetic::MakeKinetic, no 1/2) as the overlap.  Any \f$1/(4c^2)\f$ normally
     // expected here is absent -- presumed to cancel against RestMass/scaling elsewhere; UNVERIFIED
     // (see the \warning in BasisSet/Internal/Orbital_DHF_IBS.C).
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet (its MakeOverlap is the small-component metric).
+    virtual bool CanPullbackOverlap() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the radial RKB small-component block", "overlap pullback");}
     virtual rsmat_t MakeOverlap() const
     {
         return Integrals_Kinetic<E>::MakeKinetic();

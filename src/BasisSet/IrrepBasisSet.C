@@ -1,7 +1,13 @@
 // File: BasisSet/IrrepBasisSet.C  Interface for an Irrep Basis Set (IBS)
 module;
+#include <cstddef>
 #include <string>
+#include <vector>
 export module qchem.BasisSet.IrrepBasisSet;
+export import :PointJets;             // the slab of function jets Evaluatable_IBS::JetsOn fills (GeometryOptimizationPlan §13.2)
+export import qchem.AD;               // NoGradient: a family with no derivative yet refuses
+export import qchem.Outcome;
+export import qchem.Structure;        // the atoms a derivative is taken in
 export import qchem.Symmetry.Irrep;
 export import qchem.BasisSet.DBCacheClient;         // the cache-key contract this face implements (V1.20d: the cache MECHANISM is Internal and no longer re-exported)
 export import qchem.VectorFunction;   // Evaluatable_IBS's base (NOT IrrepBasisSet's -- see above)
@@ -23,6 +29,13 @@ public:
     virtual std::string GetID() const {return BasisSetID();}
 };
 
+//! The one-line refusal of a family with no geometry derivative yet (GeometryOptimizationPlan §13.2): \a family names the block, \a what
+//! the derivative ("the overlap pullback", "the function jets").
+template <class V> Outcome<V,AD::NoGradient> NoGeometryDerivativeYet(const std::string& family, const std::string& what)
+{
+    return Outcome<V,AD::NoGradient>::Fail({family+" gives no "+what+" yet (no geometry derivative in this basis family)"});
+}
+
 //--------------------------------------------------------------------------------
 //
 //! The method of integral evaluation is of course strongly dependant on the
@@ -39,6 +52,17 @@ template <class T> class Integrals_Overlap : public virtual IrrepBasisSet_IDs
 public:
     virtual hmat_t<T>  MakeOverlap() const=0; //Only called once for a given {radial,angular} ID pair.
     const   hmat_t<T>&     Overlap() const;
+
+    //! \name d/dR (the user's ruling 2026-11-08: a derivative version beside a hub face's method; GeometryOptimizationPlan §13.2)
+    //!@{
+    //! Can this block give MakeOverlapPullback?  CLIENT: a term's MissingGradients() entry at setup (the Pulay sum asks it), before an
+    //! optimization starts.  False exactly when MakeOverlapPullback would refuse.
+    virtual bool CanPullbackOverlap() const=0;
+    //! THE PULLBACK of S: given the adjoint W = ∂E/∂S (the energy-weighted density, for the Pulay term), Σ_ij Re(W_ij* ∂S_ij/∂R_A) for every
+    //! atom A of \a st, in its site order.  Exact zeros for functions that do not move with the atoms (plane waves); NoGradient for a family
+    //! with no derivative yet.
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<T>& W, const Structure* st) const=0;
+    //!@}
 };
 //----------------------------------------------------------------------------
 //
@@ -107,6 +131,21 @@ template <class T> class Evaluatable_IBS
 public:
     //! \c VectorFunction's size IS the function count -- the one place the two vocabularies meet.
     size_t GetVectorSize() const override {return this->GetNumFunctions();}
+
+    //! \name d/dR, FORWARD (the user's ruling 2026-11-08; GeometryOptimizationPlan §13.1-§13.2)
+    //!@{
+    //! Can this block give JetsOn?  CLIENT: the δ XC term's MissingGradients() entry at setup.  False exactly when JetsOn would refuse.
+    virtual bool CanGiveJets() const=0;
+    //! The block's functions on a slab of points \a pts that all ride with atom \a owner of \a st, as jets into \a out (a caller-owned buffer,
+    //! reused slab after slab).  Ok = the number of points filled.  NoGradient for a family with no derivative yet.
+    virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t& pts, size_t owner, const Structure* st, PointJets<T>& out) const=0;
+    //!@}
+protected:
+    //! The one writer's door, for a family's JetsOn (friendship is not inherited): \a out sized and stamped, its tables returned to fill.
+    static typename PointJets<T>::Tables FillJets(PointJets<T>& out, size_t owner, size_t nPoints, const std::vector<size_t>& centres)
+    {
+        return out.Fill(owner, nPoints, centres);
+    }
 };
 
 } //namespace

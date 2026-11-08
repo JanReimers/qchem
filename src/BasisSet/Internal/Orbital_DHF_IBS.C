@@ -53,9 +53,23 @@ public:
     virtual smat_t<T> MakeOverlap () const;
     virtual smat_t<T> MakeKinetic () const;
     virtual smat_t<T> MakeNuclear (const Structure*) const;
+    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
+    virtual bool CanPullbackOverlap() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<T>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the Dirac (RKB) block", "overlap pullback");}
+    virtual bool CanPullbackKinetic() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<T>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the Dirac (RKB) block", "kinetic pullback");}
+    virtual bool CanPullbackNuclear() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<T>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the Dirac (RKB) block", "nuclear pullback");}
     virtual smat_t<T> MakeRestMass() const;
     
     virtual size_t GetNumFunctions() const {return itsRKBL->GetNumFunctions() + itsRKBS->GetNumFunctions(); }
+    // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
+    virtual bool CanGiveJets() const override {return false;}
+    virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, BasisSet::PointJets<T>&) const override
+        {return BasisSet::NoGeometryDerivativeYet<size_t>("the Dirac (RKB) block", "function jets");}
     virtual vec_t<T> operator() (const rvec3_t& r) const 
     {
         vec_t<T> Lr=(*itsRKBL)(r), Sr=(*itsRKBS)(r);

@@ -54,9 +54,23 @@ public:
     virtual chmat_t MakeOverlap() const;                 //!< <phi_i|phi_j>
     virtual chmat_t MakeKinetic() const;                 //!< <p^2> = <phi_i|-grad^2|phi_j> (NO 1/2)
     virtual chmat_t MakeNuclear(const Structure*) const; //!< <phi_i|V|phi_j>, V=-Z/r (uses the ctor Z)
+    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
+    virtual bool CanPullbackOverlap() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<dcmplx>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("LAPW", "overlap pullback");}
+    virtual bool CanPullbackKinetic() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<dcmplx>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("LAPW", "kinetic pullback");}
+    virtual bool CanPullbackNuclear() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<dcmplx>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("LAPW", "nuclear pullback");}
 
     // VectorFunction: interstitial plane-wave value (in-sphere augmentation not evaluated pointwise).
     virtual cvec_t     operator() (const rvec3_t& r) const;
+    // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
+    virtual bool CanGiveJets() const override {return false;}
+    virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, BasisSet::PointJets<dcmplx>&) const override
+        {return BasisSet::NoGeometryDerivativeYet<size_t>("LAPW", "function jets");}
     virtual cvec3vec_t Gradient   (const rvec3_t& r) const;
 
     virtual std::string Name      () const {return "LAPW";}

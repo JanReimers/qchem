@@ -13,6 +13,7 @@
 // data and are orbital-only (an auxiliary fit basis does not answer them).
 module;
 #include <functional>
+#include <stdexcept>
 #include <iosfwd>
 #include <string>
 
@@ -48,6 +49,20 @@ class PlaneWave_IBS
     , public         PW_Evaluator                     // the shared grid engine (Cast() target for the mixins)
     , public         Symmetry::MonomialRepresentation // M_g = a phased permutation of the G list (S3; never a dense matrix)
 {
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): a plane wave does not move with the atoms, so S and K have EXACT ZERO geometry derivatives,
+    // and there is no Pulay term.  An implementation, not a refusal.  The nuclear (structure-factor Hellmann-Feynman) pullback is
+    // NOT zero (the operator moves); it refuses through the lattice default until it is built.
+    virtual bool CanPullbackOverlap() const override {return true;}
+    virtual bool CanPullbackKinetic() const override {return true;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<dcmplx>&, const Structure* st) const override {return Zeros(st);}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<dcmplx>&, const Structure* st) const override {return Zeros(st);}
+private:
+    static Outcome<rvec3vec_t,AD::NoGradient> Zeros(const Structure* st)
+    {
+        if (!st) throw std::invalid_argument("PlaneWave_IBS: a geometry pullback needs the structure (its atom count)");
+        return Outcome<rvec3vec_t,AD::NoGradient>::Ok(rvec3vec_t(st->GetNumAtoms(), rvec3_t(0,0,0)));
+    }
 protected:
     //! An op \f$g=\{W|\tau\}\f$ maps a plane wave onto ONE plane wave times a phase,
     //! \f$\phi_m(g^{-1}r)=e^{-2\pi i\,m'\cdot\tau}\phi_{m'}(r)\f$ with \f$m'=W^{-\top}m\f$.  Built at Γ only (the little-group

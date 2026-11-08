@@ -112,11 +112,15 @@ namespace qchem::BasisSet {
     public:
         virtual hmat_t<T> MakeKinetic() const=0;
         const hmat_t<T>& Kinetic() const;
+        virtual bool CanPullbackKinetic() const=0;
+        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<T>& D, const Structure* st) const=0;
     };
     template <class T> class Integrals_Nuclear : public virtual IrrepBasisSet_IDs {
     public:
         virtual hmat_t<T> MakeNuclear(const Structure* cl) const=0;
         const hmat_t<T>& Nuclear(const Structure* cl) const;
+        virtual bool CanPullbackNuclear() const=0;
+        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<T>& D, const Structure* cl) const=0;
     };
     template <class T> class Orbital_1E_IBS : public virtual Evaluatable_IBS<T> , public virtual Integrals_Overlap<T> , public virtual Integrals_Kinetic<T> , public virtual Integrals_Nuclear<T> {
     public:
