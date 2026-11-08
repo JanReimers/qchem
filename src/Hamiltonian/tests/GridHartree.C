@@ -9,7 +9,7 @@
 #include <vector>
 #include <memory>
 #include <numbers>
-import qchem.Fitting.CoulombOperator;
+import qchem.Mesh.CoulombOperator;
 import qchem.Hamiltonian.Factory;
 import qchem.Blaze;
 import qchem.Mesh;
@@ -47,7 +47,7 @@ TEST(DirectSumCoulomb, GaussianChargeSelfEnergy)
         const auto& r=mesh.Points()[g];
         q[g]=mesh.Weights()[g]*Rho(a,r.x*r.x+r.y*r.y+r.z*r.z);
     }
-    const rvec_t v=Fitting::MakeDirectSumCoulomb(mesh)->Potential(q);
+    const rvec_t v=qcMesh::MakeDirectSumCoulomb(mesh)->Potential(q);
     double selfEnergy=0.0, charge=0.0;
     for (size_t g=0; g<mesh.size(); g++) {selfEnergy+=q[g]*v[g]; charge+=q[g];}
     EXPECT_NEAR(charge, 1.0, 1e-8);
@@ -69,7 +69,7 @@ TEST(RadialPoissonCoulomb, GaussianChargePotential)
             const auto& r=mesh.Points()[g];
             q[g]=mesh.Weights()[g]*Rho(a,r.x*r.x+r.y*r.y+r.z*r.z);
         }
-        const rvec_t v=Fitting::MakeRadialPoissonCoulomb(Sites(mesh,mp,4))->Potential(q);
+        const rvec_t v=qcMesh::MakeRadialPoissonCoulomb(Sites(mesh,mp,4))->Potential(q);
         double worst=0.0;
         for (size_t g=0; g<mesh.size(); g++)
         {
@@ -99,7 +99,7 @@ TEST(RadialPoissonCoulomb, OffCentreGaussianNeedsHigherL)
     }
     auto worstAt=[&](int l)
     {
-        const rvec_t v=Fitting::MakeRadialPoissonCoulomb(Sites(mesh,theMesh,l))->Potential(q);
+        const rvec_t v=qcMesh::MakeRadialPoissonCoulomb(Sites(mesh,theMesh,l))->Potential(q);
         double worst=0.0;
         for (size_t g=0; g<mesh.size(); g+=13)
         {
@@ -120,7 +120,7 @@ TEST(DirectSumCoulomb, Linear)
     const qcMesh::Mesh mesh=OneAtomMesh();
     rvec_t q(mesh.size());
     for (size_t g=0; g<mesh.size(); g++) q[g]=mesh.Weights()[g]*std::exp(-double(g%7));
-    const auto op=Fitting::MakeDirectSumCoulomb(mesh);
+    const auto op=qcMesh::MakeDirectSumCoulomb(mesh);
     const rvec_t v=op->Potential(q), v2=op->Potential(2.0*q);
     for (size_t g=0; g<mesh.size(); g+=997) EXPECT_NEAR(v2[g], 2.0*v[g], 1e-10*std::fabs(v[g]));
     EXPECT_EQ(op->HartreeEnergy(7.0,q,v), 0.5*op->SelfRepulsion(q,v)) << "on points both legs are one number, so Tr(DV) is not needed";
@@ -139,7 +139,7 @@ TEST(RadialPoissonCoulomb, GaussianSelfEnergyIsNotBiasedByTheRadialMap)
         const auto& r=mesh.Points()[g];
         q[g]=mesh.Weights()[g]*Rho(a,r.x*r.x+r.y*r.y+r.z*r.z);
     }
-    const rvec_t v=Fitting::MakeRadialPoissonCoulomb(Sites(mesh,mp,0))->Potential(q);
+    const rvec_t v=qcMesh::MakeRadialPoissonCoulomb(Sites(mesh,mp,0))->Potential(q);
     double selfEnergy=0.0;
     for (size_t g=0; g<mesh.size(); g++) selfEnergy+=q[g]*v[g];
     const double exact=std::sqrt(2*a/std::numbers::pi);
@@ -208,7 +208,7 @@ TEST(SiteMultipoles, OwnShellSelfEnergyMatchesTheClosedForm)
         return d;
     }();
     const rvec_t qf=sites->Flatten(Q);
-    const auto op=Fitting::MakeMultipoleCoulomb(sites,metric);
+    const auto op=qcMesh::MakeMultipoleCoulomb(sites,metric);
     const rvec_t v=op->Potential(qf);
     const double p=a*b/(a+b);
     const double exact=std::sqrt(2*a/std::numbers::pi)+std::sqrt(2*b/std::numbers::pi)+2*std::erf(std::sqrt(p)*R)/R;
@@ -245,7 +245,7 @@ TwoChargeSets ChargesOn(const std::vector<std::pair<int,rvec3_t>>& atoms, const 
     }
     return {std::move(mesh),std::move(centres),std::move(q),std::move(p)};
 }
-double Asymmetry(const Fitting::CoulombOperator& K, const rvec_t& q, const rvec_t& p)
+double Asymmetry(const qcMesh::CoulombOperator& K, const rvec_t& q, const rvec_t& p)
 {
     const rvec_t Kq=K.Potential(q), Kp=K.Potential(p);
     double pKq=0.0, qKp=0.0;
@@ -258,9 +258,9 @@ TEST(CoulombOperatorSymmetry, DirectSumIsSymmetricAndThePoissonAsymmetryIsSmall)
     const std::vector<std::pair<int,rvec3_t>> water={{8,rvec3_t(0,0,0)},{1,rvec3_t(0,1.431,1.107)},{1,rvec3_t(0,-1.431,1.107)}};
     qcMesh::MeshParams mp=theMesh; mp.nRadial=40; mp.angularDegree=17;
     const auto c=ChargesOn(water,mp);
-    EXPECT_NEAR(Asymmetry(*Fitting::MakeDirectSumCoulomb(c.mesh),c.q,c.p), 0.0, 1e-9);
+    EXPECT_NEAR(Asymmetry(*qcMesh::MakeDirectSumCoulomb(c.mesh),c.q,c.p), 0.0, 1e-9);
     const auto f=ChargesOn(water,theMesh);
-    EXPECT_NEAR(Asymmetry(*Fitting::MakeRadialPoissonCoulomb(Sites(f.mesh,theMesh,14,f.centres)),f.q,f.p), 0.0, 1e-5) << "measured -2.6e-6";
+    EXPECT_NEAR(Asymmetry(*qcMesh::MakeRadialPoissonCoulomb(Sites(f.mesh,theMesh,14,f.centres)),f.q,f.p), 0.0, 1e-5) << "measured -2.6e-6";
 }
 
 // A multipole fit is the one combination refused on a periodic structure: a correctness limit, stated as one.  The direct sum runs

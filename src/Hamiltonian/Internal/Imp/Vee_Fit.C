@@ -11,7 +11,6 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity;
-import qchem.FittedCD;
 import qchem.Hamiltonian.Types;
 import qchem.Diagnostics;                      // eh_trace (the first-order energy vs Tr(DV) A/B)
 import qchem.Reporting;                        // report::Timed
@@ -21,15 +20,12 @@ import qchem.BasisSet.Transition_DFT_IBS;       // the (k+q, k) pair's adjoint g
 namespace qchem::Hamiltonian
 {
 
-Vee_FitDunlap::Vee_FitDunlap(fbs_t& chargeDensityFitBasisSet, double numElectrons)
+Vee_FitDunlap::Vee_FitDunlap(FitPtr fit) : itsFit(std::move(fit))
 {
-    // The CD fit basis arrives as the narrow Coulomb-metric (rFIT_CD_ABS) face -- exactly what the
-    // density-fitting machinery takes; thread it straight through (no down-cast to the concrete Fit_IBS).
-    itsFittedChargeDensity=ChargeDensity::FittedCD_Factory(chargeDensityFitBasisSet,numElectrons);
-    assert(itsFittedChargeDensity);
-};
+    if (!itsFit) throw std::logic_error("Vee_FitDunlap: no fitter");
+}
 
-Vee_FitDunlap::~Vee_FitDunlap() = default;   // FittedCD is complete here, so the unique_ptr deletes it correctly
+Vee_FitDunlap::~Vee_FitDunlap() = default;
 
 //########################################################################
 //
@@ -44,9 +40,7 @@ Vee_FitDunlap::~Vee_FitDunlap() = default;   // FittedCD is complete here, so th
 rsmat_t Vee_FitDunlap::MakeMatrix(const robs_t* bs,const Spin& s,DensityID id) const
 {
     RequireFitFor(id);   // a READ (V1.41 stage 2): the refresh fitted this density
-    auto dft_bs=dynamic_cast<const odftbs_t*>(bs);
-    assert(dft_bs);
-    return itsFittedChargeDensity->GetRepulsion(dft_bs);
+    return itsFit->Repulsion(dynamic_cast<const BasisSet::Orbital_DFT_IBS<double,double>&>(*bs));
 }
 
 // THE EAGER PHASE (R1.0h): fit ONCE, before the block loop, instead of on whichever block asked first.
@@ -54,18 +48,17 @@ rsmat_t Vee_FitDunlap::MakeMatrix(const robs_t* bs,const Spin& s,DensityID id) c
 // one fit happens; a caller outside the phase still gets a correct (lazily fitted) answer.
 void Vee_FitDunlap::RefreshForDensity(const rChargeDensity* cd) const
 {
-    if (cd && newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
+    if (cd && newCD(cd)) Fit(*cd);
 }
 
 void Vee_FitDunlap::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
-    assert(itsFittedChargeDensity);
-    if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
+    if (newCD(cd)) Fit(*cd);
     // The Dunlap combination of THIS term's two fit pieces is the contribution; the pieces themselves are
     // diagnostics (reported, never summed).  Tr(D V) is left ABSENT: under density mixing the fitted V_H's
     // expectation in the Fock is Tr(D_out V[rho_in]) -- the Harris-Foulkes subtlety -- not 2 eeeFit.
     double eeeFit   =0.5*cd->DM_Contract(this,cd);
-    double eeeFitFit=itsFittedChargeDensity->GetSelfRepulsion();
+    double eeeFitFit=itsFit->SelfRepulsion();
     te.AddDiagnostic("EeeFit",    eeeFit);
     te.AddDiagnostic("EeeFitFit", eeeFitFit);
     te.Add("Eee", 2*eeeFit - eeeFitFit, EnergyRole::Potential);

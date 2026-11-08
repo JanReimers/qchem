@@ -1,4 +1,4 @@
-// File: Fitting/Internal/RadialPoissonCoulomb.C  The Coulomb potential of a mesh's charges, by a radial Poisson solve per (site, l, m).
+// File: Mesh/Internal/RadialPoissonCoulomb.C  The Coulomb potential of a mesh's charges, by a radial Poisson solve per (site, l, m).
 //
 // Becke & Dickson 1988.  qchem.Mesh.SiteMultipoles turns the charges into each site's shell moments Q_lm(i) and carries channels
 // back to the points; what is here is the solve between the two.  Each (A,l,m) channel has the 1-D potential
@@ -22,13 +22,13 @@ module;
 #include <numbers>
 #include <stdexcept>
 #include <vector>
-export module qchem.Fitting.Internal.RadialPoissonCoulomb;
-export import qchem.Fitting.CoulombOperator;
+export module qchem.Mesh.Internal.RadialPoissonCoulomb;
+export import qchem.Mesh.CoulombOperator;
 import qchem.Mesh.SiteMultipoles;
 import qchem.Parallel;   // OuterFor: every item writes only its own slots
 import qchem.Types;
 
-export namespace qchem::Fitting
+export namespace qchem::qcMesh
 {
 
 //! \brief The radial Poisson solve of one site's channels, in place of a density's charge channels their potential's.

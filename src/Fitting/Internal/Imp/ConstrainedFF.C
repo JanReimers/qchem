@@ -94,9 +94,28 @@ template <class T> void ConstrainedFF<T>::DoFit(const ProjectedDensity<T>& pd)
     // Minimizes the Coulomb self-energy of the residual subject to exact charge, so the fitted Vee is
     // variational (error second order in the fit error) rather than relying on a post-hoc rescale.
     DoFitUnconstrained(ffc);                                        // c0 -> itsFitCoeff (unconstrained)
-    T N      = ffc.FitGetConstraint();
+    Constrain(ffc.FitGetConstraint());
+}
+
+template <class T> void ConstrainedFF<T>::Constrain(T N)
+{
     T lambda = (blazem::trans(g)*this->itsFitCoeff - N) / gSg;
     this->itsFitCoeff -= lambda * blazem::trans(gS);                // enforce g.c = N exactly
+}
+
+// The DunlapDensityFit route: the density's Coulomb projections (a matrix density's forward, or a seed's ProjectField) and its
+// charge.  Same solve and constraint as above, with no cast: the axis is this fitter's own.
+template <class T> void ConstrainedFF<T>::DoFit(const Projections& rho, double charge)
+{
+    this->itsFitCoeff = this->itsBasisSet->InvRepulsion() * rho.Vector();   // c0 = G^-1 <f|1/r12|rho>
+    Constrain(charge);
+}
+
+template <class T> hmat_t<T> ConstrainedFF<T>::Repulsion(const BasisSet::Orbital_DFT_IBS<T,T>& orb) const
+{
+    hmat_t<T> J=Integrator(orb).Adjoint(this->itsFitCoeff);   // THE ADJOINT HALF of the forward the density contracted D into
+    assert(!blazem::isnan(J));
+    return J;
 }
 
 template <class T> Projections ConstrainedFF<T>::ProjectField(const ScalarFunction<double>& f) const

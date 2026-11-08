@@ -22,7 +22,8 @@ import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Types;
-import qchem.Fitting.CoulombOperator;            // the grid Hartree route: the operator and the fitter it is paired with
+import qchem.Fitting.CoulombOperator;            // the grid Hartree route: the fitter (the operators are qcMesh's, re-exported)
+import qchem.BasisSet.CoulombDeltaFit_IBS;       // a δ basis with its Coulomb integrals
 import qchem.Mesh.Radial;                         // MakeRadial: the radial rule the Poisson operator shares with the mesh
 import qchem.Structure;
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
@@ -115,7 +116,9 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
     if (coulomb.fit!=CoulombFit::Delta && coulomb.fit!=CoulombFit::Multipole)
     {
         Vee_FitDunlap::fbs_t fb=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
-        return new Vee_FitDunlap(fb, st->GetNumElectrons());
+        // Dunlap needs a Coulomb METRIC, so a δ basis (none) cannot reach it: the route enum picks the fit, and this branch only
+        // ever builds the Gaussian one.  Ruling (g)'s "refuse Dunlap on a δ basis" has no deck path to fire on today.
+        return new Vee_FitDunlap(Fitting::MakeDunlapDensityFitter(fb));
     }
     qcMesh::MeshParams hmp=mp;
     if (coulomb.nRadial>0) hmp.nRadial=coulomb.nRadial;
@@ -133,12 +136,15 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
         return bs->CreateVxcFitBasisSet(st.get(), hmp, VxcFit::Delta, &quad);
     });
     const qcMesh::Mesh& mesh=*quad.GetMesh();
-    if (direct) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(fb, Fitting::MakeDirectSumCoulomb(mesh)), st->GetNumElectrons());
+    // The δ basis carries its Coulomb integrals (V-ONE-OF-N 3b-ii, ruling (f)): the operator is the BASIS's physics, chosen here.
+    auto withCoulomb=[&](std::unique_ptr<qcMesh::CoulombOperator> op)
+        {return std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(fb, std::move(op), sym_t(new UnitQN));};
+    if (direct) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeDirectSumCoulomb(mesh))), st->GetNumElectrons());
     const auto sites=MakeSiteMultipoles(st, mesh, hmp, lMax);
-    if (!multipole) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(fb, Fitting::MakeRadialPoissonCoulomb(sites)), st->GetNumElectrons());
+    if (!multipole) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeRadialPoissonCoulomb(sites))), st->GetNumElectrons());
+    // A multipole fit basis owns its own solve (over its sites, in its own metric).
     const auto mfb=std::make_shared<const BasisSet::MultipoleFit_IBS>(fb, sites, sym_t(new UnitQN));
-    auto op=Fitting::MakeMultipoleCoulomb(sites, mfb->OverlapDiagonal());
-    return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(mfb, std::move(op)), st->GetNumElectrons());
+    return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(mfb), st->GetNumElectrons());
 }
 
 Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)

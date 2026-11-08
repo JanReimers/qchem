@@ -50,6 +50,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/Fit_IBS.C
   DeltaFit_IBS.C
   MultipoleFit_IBS.C
+  CoulombDeltaFit_IBS.C
   Internal/SymmetryAdapted_IBS.C
   Internal/BasisSetImp.C
   Internal/IrrepBasisSetImp.C

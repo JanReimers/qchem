@@ -5,6 +5,7 @@ module;
 #include <type_traits>   // std::is_same_v (the real-lineage static_assert)
 export module qchem.Fitting.Internal.FunctionFitterImp;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar/_Density, the *FFClients, ScalarFunction
+export import qchem.Fitting.CoulombOperator; // DunlapDensityFit (what ConstrainedFF realizes for Vee_FitDunlap)
 import qchem.Fitting.Types;
 import qchem.Symmetry;               // SymMap -- the per-block integrator cache
 import qchem.BasisSet.PairProjection;    // DensePairProjectionIntegrator (the analytic forward/adjoint pair)
@@ -72,6 +73,7 @@ public:
 template <class T> class ConstrainedFF
     : public FitImpBase<T, FunctionFitter_Density_NonOrtho<T>, BasisSet::FIT_CD_NonOrtho>
     , public virtual DensityProjector   // the FORWARD vendor (real lineage only; see the static_assert)
+    , public virtual DunlapDensityFit<double>   // what Vee_FitDunlap holds (V-ONE-OF-N 3b)
 {
     typedef FitImpBase<T, FunctionFitter_Density_NonOrtho<T>, BasisSet::FIT_CD_NonOrtho> Base;
     static_assert(std::is_same_v<T,double>, "ConstrainedFF: the Gaussian density fit is the REAL lineage");
@@ -85,6 +87,11 @@ public:
     virtual hmat_t<T> Repulsion(const robs_t<T>*) const       override; // Sum_a c_a <Oi|f_a/r12|Oj> -- the ADJOINT half
     virtual double    FitGetSelfRepulsion() const            override; // <fit|1/r12|fit>
     virtual double    Integral () const                      override;
+
+    // --- DunlapDensityFit: the projections are COULOMB ones, ⟨f_a|1/r₁₂|ρ⟩ (Forward's axis, and ProjectField's)
+    virtual void      DoFit        (const Projections& rho, double charge) override;   //!< \f$c=G^{-1}p\f$, then the constraint
+    virtual hmat_t<T> Repulsion    (const BasisSet::Orbital_DFT_IBS<T,T>&) const override;
+    virtual double    SelfRepulsion() const override {return 0.5*FitGetSelfRepulsion();}
 
     //! \copydoc Fitting::DensityProjector::Forward
     virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>&) const override;
@@ -103,6 +110,8 @@ protected:
     //! Coulomb repulsion energy with another fit (self-repulsion uses *this).
     double FitGetRepulsion(const ConstrainedFF*) const;
 private:
+    //! Dunlap's charge constraint on the unconstrained \c itsFitCoeff: \f$g\cdot c=N\f$ exactly, by one Lagrange correction.
+    void Constrain(T N);
     //! The (forward, adjoint) VIEW for one orbital block, built on first use over the basis's cached
     //! tensor and keyed by the block's spatial symmetry -- the same idiom as \c DeltaScalarFitter::Integrator.
     const DensePairProjectionIntegrator<T>& Integrator(const BasisSet::Orbital_DFT_IBS<T,T>&) const;

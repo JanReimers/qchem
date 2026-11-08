@@ -15,7 +15,6 @@ import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (compos
 import qchem.Fitting.CoulombOperator;         // Fitting::FirstOrderDensityFit (what Vee_Fit holds)
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.TransitionDensity;   // δD: the response face (LinearResponsePlan C1/H2)
-import qchem.FittedCD;
 import qchem.Hamiltonian.Types;
 import qchem.BasisSet.Orbital_PP_IBS;          // SpeciesRadialField / SpeciesProjectorSet_R (the real-space views the molecular PP terms quadrature)
 import qchem.Mesh;                             // qcMesh::MeshParams (the quadrature mesh spec)
@@ -284,8 +283,10 @@ class Vee_FitDunlap : public virtual rDynamic_HT, private rDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
-    Vee_FitDunlap(fbs_t& chargeDensityFitBasisSet, double numElectrons);
-    ~Vee_FitDunlap();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
+    typedef std::unique_ptr<Fitting::DunlapDensityFit<double>> FitPtr;
+    //! The fitter is the factory's choice (\c Fitting::MakeDunlapDensityFitter); this term holds only its face (ruling (g)).
+    explicit Vee_FitDunlap(FitPtr fit);
+    ~Vee_FitDunlap();
     //! \copydoc tDynamic_HT::RefreshForDensity
     //! The fitted charge density is k-INDEPENDENT and refit once per density serial, so it is exactly what
     //! this phase is for.  It used to be fit LAZILY inside \c MakeMatrix, i.e. from inside the block loop.
@@ -303,7 +304,9 @@ public:
 private:
     mutable rsmat_t itsEMat;   //!< GetEMatrix's returned block (one serial contraction reads it at once)
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const;
-    std::unique_ptr<ChargeDensity::FittedCD> itsFittedChargeDensity;   //!< owned (was a leaked raw ptr)
+    //! The density projects ITSELF onto the fitter, and the fit is constrained to the density's own charge.
+    void Fit(const rChargeDensity& cd) const {itsFit->DoFit(cd.Project(*itsFit), cd.GetTotalCharge());}
+    FitPtr itsFit;   //!< owned
 };
 
 //

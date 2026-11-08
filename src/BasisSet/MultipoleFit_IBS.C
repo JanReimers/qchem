@@ -25,6 +25,7 @@ module;
 export module qchem.BasisSet.MultipoleFit_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.Mesh.SiteMultipoles;
+export import qchem.BasisSet.CoulombDeltaFit_IBS;   // PointCoulombIntegrals: this basis answers its own Coulomb integrals
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Blaze;
 import qchem.Parallel;   // LazyLock -- the per-block cache's guard
@@ -37,6 +38,7 @@ export namespace qchem::BasisSet
 //! \brief The multipole realization of the scalar fit face, over a \f$\delta\f$ basis on the same mesh.
 class MultipoleFit_IBS
     : public virtual rFIT_SF_ABS
+    , public virtual PointCoulombIntegrals   //!< its own radial-Poisson solve over the sites (V-ONE-OF-N 3b-ii, ruling (f))
     , public         IrrepBasisSetImp<double>
     , public         Symmetry::IdentityRepresentation<double>
 {
@@ -46,6 +48,11 @@ public:
         : IrrepBasisSetImp<double>(sym), itsDelta(std::move(delta)), itsSites(std::move(sites))
         , itsW(itsDelta->Charge()), itsDiagonal(MakeDiagonal())
     {}
+    // --- its Coulomb integrals: the multipole solve over its own sites, with its own metric (the shell weights)
+    rvec_t Potential    (const rvec_t& q) const override                               {return Coulomb().Potential(q);}
+    double SelfRepulsion(const rvec_t& q, const rvec_t& v) const override              {return Coulomb().SelfRepulsion(q,v);}
+    double HartreeEnergy(double trDV, const rvec_t& q, const rvec_t& v) const override {return Coulomb().HartreeEnergy(trDV,q,v);}
+    bool   UsesTrDV     () const override                                              {return Coulomb().UsesTrDV();}
 
     bool isOrtho() const override {return true;}   //!< no metric solve: see the file header
 
@@ -96,6 +103,13 @@ private:
         return d;
     }
     //! A density's values at the points, as its coefficients on my functions.
+    //! The solve, built on first use: a pure function of the sites and the metric (fixed), and an XC-only fit basis never needs it.
+    const qcMesh::CoulombOperator& Coulomb() const
+    {
+        std::lock_guard<std::mutex> lock(itsLock.m);
+        if (!itsCoulomb) itsCoulomb=qcMesh::MakeMultipoleCoulomb(itsSites, itsDiagonal);
+        return *itsCoulomb;
+    }
     rvec_t Channels(const rvec_t& rho) const
     {
         rvec_t q(rho.size());
@@ -109,6 +123,7 @@ private:
     std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;
     rvec_t itsW;          //!< the mesh's weights
     rvec_t itsDiagonal;   //!< the shell weight of each channel
+    mutable std::unique_ptr<qcMesh::CoulombOperator> itsCoulomb;   //!< its Coulomb integrals, built on first use (Coulomb())
     mutable SymMap<PairProjection<double>> itsO3;   //!< the composed pairs, by SPATIAL symmetry
     qchem::LazyLock itsLock;
 };

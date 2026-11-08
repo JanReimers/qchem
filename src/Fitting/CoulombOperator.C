@@ -18,34 +18,10 @@ export module qchem.Fitting.CoulombOperator;
 export import qchem.Fitting.FunctionFitter;   // FunctionFitter_Density_NonOrtho (what a grid fit is reached through)
 export import qchem.Mesh;                     // qcMesh::Mesh (the points a direct sum runs over)
 export import qchem.Mesh.SiteMultipoles;      // what a radial solve runs over
+export import qchem.Mesh.CoulombOperator;     // the point set's Coulomb integrals (moved to qcMesh, V-ONE-OF-N 3b-ii)
 
 export namespace qchem::Fitting
 {
-
-//! \brief The Coulomb potential of a density on a fit basis.  Data-free.  \a q and the answer are both indexed like the fit basis's
-//! functions.  \a q is \f$\langle f_a|\rho\rangle\f$, so on a \f$\delta\f$ basis \f$q_g=w_g\rho(r_g)\f$, a CHARGE, and an operator
-//! never needs the density's own values.  The answer is the potential's coefficients on the same functions: its values at the points.
-class CoulombOperator
-{
-public:
-    virtual ~CoulombOperator() = default;
-    virtual rvec_t Potential(const rvec_t& q) const=0;   //!< the coefficients of \f$v\f$
-    //! \f$\langle\tilde\rho|\tilde\rho\rangle\f$ for \a q and its own \a v.  On points that is \f$\sum_gq_gv_g\f$; an operator whose
-    //! functions overlap between sites owes its own answer.
-    virtual double SelfRepulsion(const rvec_t& q, const rvec_t& v) const
-    {
-        double e=0.0;
-        for (size_t g=0; g<q.size(); g++) e+=q[g]*v[g];
-        return e;
-    }
-    //! \brief The Hartree energy of \a q and its own \a v.  \a trDV is \f$\mathrm{Tr}(DV)\f$, which only the density can supply.  On points
-    //! both legs of \f$\mathrm{Tr}(DV)-\tfrac12\langle\tilde\rho|\tilde\rho\rangle\f$ are the same number, so it is \f$\tfrac12\sum_gq_gv_g\f$
-    //! and \a trDV is not needed: first order in the mesh (ruled 2026-11-06).
-    virtual double HartreeEnergy(double /*trDV*/, const rvec_t& q, const rvec_t& v) const {return 0.5*SelfRepulsion(q,v);}
-    //! Does \c HartreeEnergy read \a trDV?  Only an operator whose two legs differ does (the multipole); the caller then
-    //! pays for \f$\mathrm{Tr}(DV)\f$, a full matrix contraction, only when it is used.
-    virtual bool UsesTrDV() const {return false;}
-};
 
 //! \brief THE FIRST-ORDER FITTED HARTREE FACE, GENERIC OVER THE FIT BASIS (V-ONE-OF-N 3b; user rulings 2026-11-08 (b), (f),
 //! (g), doc/Records/VOneOfN_D2Design.md §1a): what \c Vee_Fit holds, whichever fit basis -- Gaussian, \f$\delta\f$ mesh,
@@ -80,16 +56,27 @@ public:
     virtual double Integral() const=0;
 };
 
-//! \brief The direct sum over \a mesh's points: \f$v(r_g)=\sum_{h\ne g}q_h/|r_g-r_h|\f$ plus a self term.  \f$O(N^2)\f$,
-//! matrix-free.  Copies the points: an operator outlives no borrowed mesh.
-std::unique_ptr<CoulombOperator> MakeDirectSumCoulomb(const qcMesh::Mesh& mesh);
+//! \brief THE DUNLAP FITTED HARTREE FACE, GENERIC OVER THE FIT BASIS (V-ONE-OF-N 3b, user ruling 2026-11-08 (g)): what
+//! \c Vee_FitDunlap holds.  The second-order formula \f$2E_{fit}-E_{fitfit}\f$ is the TERM's; the fitter supplies its pieces.
+//!   - \c DoFit takes the density's projections on the fitter's own axis (from \c tChargeDensity::Project(*this)) and the charge the
+//!     fit must carry, \a charge: Dunlap's fit is charge-CONSTRAINED, and the charge is the density's, not the projections'.
+//!   - \c Repulsion is the physics round, as on \c FirstOrderDensityFit; \c SelfRepulsion is
+//!     \f$\tfrac12\langle\tilde\rho|1/r_{12}|\tilde\rho\rangle\f$, the fit basis's Coulomb metric.
+//! Realized today on a Gaussian fit basis only (\c ConstrainedFF).  A plane-wave one is ACCEPTED by the ruling (its metric is
+//! diagonal, so it reduces to \c Vee_Fit) and not built; a \f$\delta\f$ basis has no Coulomb metric to offer (OpenWork row).
+template <class T> class DunlapDensityFit;
+template <> class DunlapDensityFit<double> : public virtual BasisSet::PairProjector<double>
+{
+public:
+    virtual ~DunlapDensityFit() = default;
+    virtual void DoFit(const Projections& rho, double charge)=0;                           //!< fit, constrained to \a charge
+    virtual hmat_t<double> Repulsion(const BasisSet::Orbital_DFT_IBS<double,double>&) const=0; //!< \f$\sum_f c_f\langle ab|1/r|f\rangle\f$
+    virtual double SelfRepulsion() const=0;                                                //!< \f$\tfrac12\langle\tilde\rho|1/r_{12}|\tilde\rho\rangle\f$
+    virtual double Integral() const=0;                                                     //!< the fit's charge
+};
 
-//! \brief The radial Poisson solve on an atom-centred mesh, to the \a sites' own lMax, for charges at the points.  The sites' radial
-//! rule must be uniform in its index.  \f$O(N_{pts}N_{sites}(l+1)^2)\f$.
-std::unique_ptr<CoulombOperator> MakeRadialPoissonCoulomb(std::shared_ptr<const qcMesh::SiteMultipoles> sites);
-
-//! \brief The same solve for a multipole fit over \a sites: \a metric is that basis's diagonal.
-std::unique_ptr<CoulombOperator> MakeMultipoleCoulomb(std::shared_ptr<const qcMesh::SiteMultipoles> sites, rvec_t metric);
+//! \brief The Dunlap fit on a Gaussian (non-orthogonal, Coulomb-metric) fit basis \a fbs.  THROWS when \a fbs has no Coulomb metric.
+std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs);
 
 //! \brief A density fit on a mesh: the Gaussian fit's face, plus the energy, which only its \c CoulombOperator can answer (V1.1b).
 //! Its own class here, beside the hub.  Data-free.
@@ -105,10 +92,11 @@ public:
     virtual double Integral() const override=0;            // one name for the two bases' Integral
 };
 
-//! \brief A density fit on \a deltaBasis (an orthogonal, \f$\delta\f$-like fit basis), with \a op finding the potential.
-//! THROWS when \a deltaBasis is not orthogonal: a diagonal metric is what makes the projection the fit.
+//! \brief A density fit on \a deltaBasis (an orthogonal, \f$\delta\f$-like fit basis that answers its own Coulomb integrals,
+//! \c BasisSet::PointCoulombIntegrals: a \c CoulombDeltaFit_IBS or a \c MultipoleFit_IBS).  THROWS when the basis is not orthogonal or
+//! carries no Coulomb integrals.
 std::unique_ptr<GridDensityFit>
-MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::unique_ptr<CoulombOperator> op);
+MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis);
 
 //! \brief A density fit on a PLANE-WAVE fit basis \a pw (orthonormal {G}): the fit is \f$\tilde\rho(G)\f$ itself, held privately;
 //! the physics is the basis's Coulomb integrals.  THROWS when \a pw is not orthonormal or lacks the G-space faces.
