@@ -378,8 +378,13 @@ void ResolveGpwPoint(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real
     namespace L3 = BasisSet::Lattice;
     const std::shared_ptr<const Structure> held=lat.GetStructure();   // held: GetStructure may hand back a fresh object
     const Structure& st=*held;
-    p.imposition=std::make_shared<const CrystalImposition>(ResolveImposition(lat, ImpositionOptions{
-        .imposeSymmetry=p.imposeSymmetry, .siteSpins=p.siteSpins, .freeMeshInvariant=p.freeMeshInvariant, .kShift=p.kShift}));
+    {
+        // The imposition is a POLICY (what the run symmetrizes, and the R1.0r intersection with the k mesh), so it reports one level
+        // into the run report's `policy` scope.
+        qchem::report::Scope policy("policy"), sym("symmetry");
+        p.imposition=std::make_shared<const CrystalImposition>(ResolveImposition(lat, ImpositionOptions{
+            .imposeSymmetry=p.imposeSymmetry, .siteSpins=p.siteSpins, .freeMeshInvariant=p.freeMeshInvariant, .kShift=p.kShift}));
+    }
     const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(st, *Pseudopotential::MakeMultiSpeciesLocal(pp.Species(st), pp.Functional()));
     p.ladder=L3::MakeRasterLadder(lat, std::move(mol), p, ppSharpness);
 }
@@ -1596,8 +1601,12 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         const GridAuditResult Bl=CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), withRung("density ball x 2", xcRadial), xcRadial ? &*xcRadial : nullptr, 2.0);
         // R is GridAudit(kReferenceMargin) at this D exactly when its reference carries no XC rung (a postSCF gridAudit keeps the run's mesh).
         if (xcAngular) itsImp->pilotLastAudit.reset();
-        else { itsImp->pilotLastAudit=R; itsImp->pilotLastAudit->reference=RasterName(ReferenceRasters(kReferenceMargin));
-               itsImp->pilotLastAuditGeneration=itsImp->dGeneration; }
+        else
+        {   // the round's own name, then the rasters it measured (a reader of the reused audit sees both)
+            itsImp->pilotLastAudit=R;
+            itsImp->pilotLastAudit->reference=R.reference+" = "+RasterName(ReferenceRasters(kReferenceMargin));
+            itsImp->pilotLastAuditGeneration=itsImp->dGeneration;
+        }
         G::GPWTolerances t=itsImp->setup->opts.tolerances;
         double dDens=0.0, dV=0.0, dXC=0.0;
         rpt::json terms=rpt::json::array();
