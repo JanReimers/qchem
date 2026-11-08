@@ -42,10 +42,8 @@ Vee_Hartree::Vee_Hartree(fbs_t fb)
     : itsFitBasis(fb)
 {}
 
-template <class U> hmat_t<U> Vee_Hartree::MakeMatrixT(const tobs_t<U>* bs, const Spin&, const cChargeDensity* cd) const
+template <class U> hmat_t<U> Vee_Hartree::MakeMatrixT(const tobs_t<U>* bs, const Spin&, DensityID id) const
 {
-    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);   // (V_H itself: built by the refresh, KAxisPlan P2)
-    assert(fd && "Vee_Hartree requires a FourierDensity (periodic) charge density");
     // The two-axis DFT face (V1.1): a real TRIM block is Orbital_DFT_IBS<double,dcmplx> -- same complex
     // fit side, so the SAME Repulsion3C tensor serves both; only the final block is narrowed.
     auto bft=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(bs);
@@ -54,27 +52,37 @@ template <class U> hmat_t<U> Vee_Hartree::MakeMatrixT(const tobs_t<U>* bs, const
     // V_H(dm) [FORWARD]; the KS matrix <i|V_H|j> = Σ_k V_H(G_k) <i|e^{iG_k}|j> is the BACKWARD contraction of the
     // SAME Repulsion3C tensor over the CD fit basis (its applyAdjoint -- the overlap integrate-back on the fit
     // grid; the Coulomb kernel is forward-only, already in V_H).  So forward AND backward run on the one fit grid
-    // (doc/GPWPlan §0e step 2).  The FIELD is memoized on the density serial (CoulombField): every irrep block
-    // of one Fock build asks for the identical map, and so does the energy.
-    const ΔG_Map& VH=CoulombField(cd);
+    // (doc/GPWPlan §0e step 2).  The FIELD is the one the refresh built (V1.41 stage 2): a block READS it, and
+    // \a cd only names which density it must be.
+    const ΔG_Map& VH=RefreshedField(id);
     return blazem::NarrowExact<U>(ContractAdjoint(bft->Repulsion3C(*itsFitBasis),
         [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; }));
 }
-chmat_t Vee_Hartree::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
-rsmat_t Vee_Hartree::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
+chmat_t Vee_Hartree::MakeMatrix(const cobs_t* bs, const Spin& s, DensityID id) const {return MakeMatrixT<dcmplx>(bs,s,id);}
+rsmat_t Vee_Hartree::MakeMatrix(const robs_t* bs, const Spin& s, DensityID id) const {return MakeMatrixT<double>(bs,s,id);}
 
 // V_H(dm) for this density, kept until the density's serial moves (declaration doc in PWTerms.C).
 const ΔG_Map& Vee_Hartree::CoulombField(const cChargeDensity* cd) const
 {
     assert(cd);
-    if (cd->Version()!=itsFieldVersion)
+    if (!(DensityID(cd)==itsFieldID))
     {
         qchem::report::Timed miss("scf: E_H V_H field build (memo miss)");
         auto* fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
         assert(fd && "Vee_Hartree requires a FourierDensity (periodic) charge density");
         itsField       =fd->GetRepulsion3C(*itsFitBasis);
-        itsFieldVersion=cd->Version();
+        itsFieldID=DensityID(cd);
     }
+    return itsField;
+}
+
+// The block path's read (V1.41 stage 2, ruling C): one current field, filled by RefreshForDensity (or the energy
+// pass), checked against the density's identity.  A miss is a caller that skipped the refresh, a broken contract
+// no caller can act on, so it throws instead of building the field inside the block loop.
+const ΔG_Map& Vee_Hartree::RefreshedField(DensityID id) const
+{
+    if (id.IsNone() || !(id==itsFieldID))
+        throw std::logic_error("Vee_Hartree: block asked for a density the refresh did not see (RefreshForDensity first)");
     return itsField;
 }
 

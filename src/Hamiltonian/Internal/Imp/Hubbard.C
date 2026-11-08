@@ -810,17 +810,17 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
 {
     if (!cd || itsFrozen) return;
     if (cd->Version()==itsOccVersion) return;
-    // A channel with NO source (the matrix-free seed) KEEPS whatever occupations it has -- only before any
-    // occupations exist is n=0 the answer.
+    // A density with NO source (the matrix-free seed) has n = 0 (V = U/2 P, E_U = 0), whatever came before: the occupations are a
+    // function of THIS density alone (V1.41 Decision 2, user ruling 2026-11-06).  It used to KEEP the last n; a throw on every
+    // keep of a non-zero n stayed silent over the 16 GPW Γ_U_ tests and the +U panel (lane S, 2026-11-07), so the keep only
+    // ever kept zeros.  Frozen n is the one exception, and it is a parameter (above).
     const std::map<Spin,rvec_t> dn=DensityOccupations(cd);
     bool any=false;
     for (const auto& [s,n] : dn) any = any || n.size()>0;
     if (!any)
     {
         if (itsProj.empty() && itsProjR.empty()) return;    // before any block: nothing to size n by (seed)
-        for (const auto& [s,ch] : itsChannels) if (ch.W.size()==NumCoefficients()) return;   // keep the last n
-        // nothing yet: n = 0 in every channel (V = U/2 P, E_U = 0); the version is NOT stamped so the first
-        // DM-backed density does the real work.
+        // n = 0 in every channel; the version is NOT stamped so the first DM-backed density does the real work.
         for (auto& [s,ch] : itsChannels) { ch.n=rvec_t(NumCoefficients(),0.0); Analyse(s,ch); }
         return;
     }
@@ -828,8 +828,7 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
     for (auto& [s,ch] : itsChannels)
     {
         const rvec_t& n=dn.at(s);
-        if (n.size()>0) ch.n=n;                                // a source-less channel keeps its n
-        if (ch.n.size()!=NumCoefficients()) ch.n=rvec_t(NumCoefficients(),0.0);
+        ch.n = n.size()==NumCoefficients() ? n : rvec_t(NumCoefficients(),0.0);   // a source-less channel: n = 0
         itsEU+=Analyse(s,ch);
     }
     if (itsGroup==SpinGroup::UnPolarized) itsEU*=2.0;    // both (identical) channels
@@ -866,11 +865,24 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
     }
 }
 
-void Hubbard_U::PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const
+// The geometry-fixed pieces first (the Lowdin pairs, the manifold symmetry), then the occupations they let the first refresh
+// size, then every V_k block from W.  The term's RefreshForDensity(cd) ran before this; on the very first one there were no
+// pairs yet, so EnsureOccupations here is the call that does the work then, and a lookup ever after.
+void Hubbard_U::BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const
 {
-    cDynamic_HT_Imp::PrepareSlots(bs, cd);
-    Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd);
-    if (!bs) return;   // a refresh with no block list (energy evaluation): the stamp only (KAxisPlan P2)
+    BuildGeometry(bs);
+    if (cd)
+    {
+        EnsureOccupations(cd);
+        itsRefreshedID=DensityID(cd);
+    }
+    cDynamic_HT_Imp::BuildBlocks(bs, cd);
+    Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd);
+}
+
+void Hubbard_U::BuildGeometry(const cbs_t* bs) const
+{
+    if (!bs) return;   // a refresh with no block list (energy evaluation): nothing geometric to build
     // The mixed-aware walk (RealComplexPlan step 3c-2): a real TRIM block inside the complex-faced set
     // answers GetRealIBS; every other block is a Bloch block.  The pairs are geometry-fixed, so build them all now.
     for (size_t i=0;i<bs->GetNumIBS();i++)
@@ -890,9 +902,13 @@ void Hubbard_U::PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const
     }
 }
 
+// Before the first BuildBlocks the term has no Lowdin pairs, so it cannot size n: the occupations wait for BuildBlocks, which
+// builds the pairs first (the fold refreshes every term's state, THEN builds the blocks -- V1.41 stage 3).
 void Hubbard_U::RefreshForDensity(const cChargeDensity* cd) const
 {
+    if (itsProj.empty() && itsProjR.empty()) return;
     EnsureOccupations(cd);
+    itsRefreshedID=DensityID(cd);   // what the block path checks (V1.41 stage 2)
 }
 
 //------------------------------------------------------------------------------ HubbardProjection (ACBN0)
@@ -966,8 +982,7 @@ void Hubbard_U::FreezeOccupations(bool frozen)
     if (was && !frozen)
     {
         itsOccVersion=size_t(-1);
-        cDynamic_HT_Imp::InvalidateCache();
-        Dynamic_HT_RealBlock_Imp::InvalidateRealCache();
+        itsRefreshedID=DensityID(static_cast<const cChargeDensity*>(nullptr));   // the next refresh rebuilds n, W and the blocks
     }
 }
 // ⚠ FROZEN WAS A TRAP BEFORE 2026-09-29: EnsureOccupations returns at once when frozen, so a SetU on a frozen
@@ -976,6 +991,7 @@ void Hubbard_U::FreezeOccupations(bool frozen)
 void Hubbard_U::ApplyWrite()
 {
     itsOccVersion=size_t(-1);                               // W depends on U/alpha: the next refresh rebuilds it from n
+    itsRefreshedID=DensityID(static_cast<const cChargeDensity*>(nullptr));                         // ...and no block may read the old W before it does
     if (itsFrozen)
     {
         bool held=!itsChannels.empty();
@@ -987,8 +1003,8 @@ void Hubbard_U::ApplyWrite()
             if (itsGroup==SpinGroup::UnPolarized) itsEU*=2.0;
         }
     }
-    cDynamic_HT_Imp::InvalidateCache();                     // the cached V_k blocks are the OLD W's (same density serial!)
-    Dynamic_HT_RealBlock_Imp::InvalidateRealCache();
+    // No cache to invalidate (V1.41 stage 3): the V_k blocks are rebuilt by the next refresh, which always rebuilds, so the write
+    // is seen as that refresh in the run sequence.
 }
 template <class U> static std::vector<mat_t<U>> LowdinOf(const LowdinProjector<U>& P, const mat_t<U>& C)
 {
@@ -1018,7 +1034,7 @@ HubbardSlots Hubbard_U::SlotProjectors(size_t M) const
     HubbardSlots out;
     if (!itsEigenForm) return out;                                   // the population form: no symmetry, one subspace
     if (M>=itsSym.size() || !itsSym[M])
-        throw std::logic_error("Hubbard_U::SlotProjectors: the term has not seen a basis yet (slots are built in PrepareSlots)");
+        throw std::logic_error("Hubbard_U::SlotProjectors: the term has not seen a basis yet (slots are built in BuildBlocks)");
     const ManifoldSymmetry& S=*itsSym[M];
     out.components=itsComponents[M];
     for (const auto& s : S.Slots())
@@ -1038,9 +1054,12 @@ const rvec_t& Hubbard_U::Occupations(size_t M, const Spin& s) const
 }
 
 //------------------------------------------------------------------------------------------ the matrix
-template <class U> hmat_t<U> Hubbard_U::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
+template <class U> hmat_t<U> Hubbard_U::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, DensityID id) const
 {
-    EnsureOccupations(cd);   // a LOOKUP: the refresh (the contract, KAxisPlan P2) filled it for this density
+    // A READ (V1.41 stage 2, ruling C): the refresh built n and W for this density; a block only checks it did.  A miss (no refresh,
+    // or a U/alpha write since) is a caller that skipped the refresh, a broken contract no caller can act on.
+    if (id.IsNone() || !(id==itsRefreshedID))
+        throw std::logic_error("Hubbard_U: block asked for a density the refresh did not see (RefreshForDensity first)");
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);
     const Spin chan = (itsGroup==SpinGroup::UnPolarized) ? Spin::None : s;
     auto it=itsChannels.find(chan);
@@ -1050,8 +1069,8 @@ template <class U> hmat_t<U> Hubbard_U::MakeMatrixT(const tobs_t<U>* bs, const S
     if (ch.W.size()==0 || ch.W.size()!=NumCoefficients()) return blazem::zeroH<U>(bs->GetNumFunctions());   // before any density (both 0 on the seed)
     return Projector<U>(orb).Adjoint(ch.W);                       // V_k = T_k W T_k^dagger
 }
-chmat_t Hubbard_U::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
-rsmat_t Hubbard_U::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
+chmat_t Hubbard_U::MakeMatrix(const cobs_t* bs, const Spin& s, DensityID id) const {return MakeMatrixT<dcmplx>(bs,s,id);}
+rsmat_t Hubbard_U::MakeMatrix(const robs_t* bs, const Spin& s, DensityID id) const {return MakeMatrixT<double>(bs,s,id);}
 
 // FROZEN, the energy is the +U functional LINEARISED about the held occupations n0:
 //     E = E_U(n0) + Tr[W0 (n - n0)]      (W0 includes the alpha*1 shift)

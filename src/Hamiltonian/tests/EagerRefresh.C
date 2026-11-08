@@ -41,10 +41,10 @@ public:
     mutable int refreshes=0;
     mutable int matrices=0;
     mutable int slotPreps=0;
-    virtual const rsmat_t& GetMatrix(const robs_t*, const Spin&, const rChargeDensity*) const override
+    virtual const rsmat_t& GetMatrix(const robs_t*, const Spin&, DensityID) const override
     { ++matrices; return itsM; }
     virtual void RefreshForDensity(const rChargeDensity*) const override {++refreshes;}
-    virtual void PrepareSlots(const rbs_t*, const rChargeDensity*) const override {++slotPreps;}
+    virtual void BuildBlocks(const rbs_t*, const rChargeDensity*) const override {++slotPreps;}
     virtual void GetEnergy(EnergyBreakdown&, const rDM_CD*) const override {}
     virtual std::ostream& Write(std::ostream& os) const override {return os;}
 private:
@@ -61,10 +61,10 @@ private:
 class SilentDynamic : public virtual rDynamic_HT
 {
 public:
-    virtual const rsmat_t& GetMatrix(const robs_t*, const Spin&, const rChargeDensity*) const override
+    virtual const rsmat_t& GetMatrix(const robs_t*, const Spin&, DensityID) const override
     { return itsM; }
     virtual void RefreshForDensity(const rChargeDensity*) const override {}   // no memo: nothing to warm
-    virtual void PrepareSlots(const rbs_t*, const rChargeDensity*) const override {}                 // no cache: no slots
+    virtual void BuildBlocks(const rbs_t*, const rChargeDensity*) const override {}                 // no cache: no slots
     virtual void GetEnergy(EnergyBreakdown&, const rDM_CD*) const override {}
     virtual std::ostream& Write(std::ostream& os) const override {return os;}
 private:
@@ -78,7 +78,7 @@ public:
     mutable int touched=0;
     mutable int slotPreps=0;
     virtual const rsmat_t& GetMatrix(const robs_t*, const Spin&) const override {++touched; return itsM;}
-    virtual void PrepareSlots(const rbs_t*, const rChargeDensity*) const override {++slotPreps;}
+    virtual void BuildBlocks(const rbs_t*, const rChargeDensity*) const override {++slotPreps;}
     virtual void GetEnergy(EnergyBreakdown&, const rDM_CD*) const override {}
     virtual std::ostream& Write(std::ostream& os) const override {return os;}
 private:
@@ -133,7 +133,7 @@ TEST(EagerRefresh, AssemblyWithoutAPriorRefreshIsLegal)
     tHamiltonianImp<double> H(SpinGroup::UnPolarized);
     auto* a=new SpyDynamic;
     H.Add(a);
-    EXPECT_NO_THROW(a->GetMatrix(nullptr, Spin::Up, nullptr));
+    EXPECT_NO_THROW(a->GetMatrix(nullptr, Spin::Up, DensityID(static_cast<const rChargeDensity*>(nullptr))));
     EXPECT_EQ(a->refreshes, 0) << "assembly must not require -- nor silently trigger -- the phase";
 }
 

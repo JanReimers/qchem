@@ -52,9 +52,10 @@ re-bank window ran, baselines in `~/Code/qchem6-runs/anchors/`); it also found t
 - **Fixed today, re-judge before trusting older numbers**: GDM's virtuals carried other virtuals' energies (χ₀ 5×–400× too small after
   ANY GDM-finished stage, restarts included; fixed `7fb46357`, the response now refuses a non-eigenpair reference).  Any χ/U/gap/ACBN0
   produced right after a GDM-finished stage before 2026-10-27 is suspect.
-- **Design rulings to honour** (OOD-SOLID-Cleanup **V1.41**): the Hamiltonian's state is debt — `GetMatrix` now THROWS unless
-  `RefreshForDensity` stamped that density (`bb86b6a9`); the cure is an immutable `H.At(cd)` value with a strong `DensityID` on the
-  block path (staged plan in the row).  A temporary SOLID violation is allowed if logged the same day in `doc/OOD-SOLID-Cleanup.md`.
+- **Design rulings to honour** (**V1.41**, ✅ 2026-11-07, `doc/Records/CleanupHistory3.md`): every term builds its density state in
+  `RefreshForDensity` and its blocks in `BuildBlocks`; a block read is pure and THROWS on a `DensityID` the refresh did not see.  New
+  +U/response state follows the same rule (CLAUDE.md "Lazy caching only for what never changes"; open: V-RESPONSE-STATE).  A temporary
+  SOLID violation is allowed if logged the same day in `doc/OOD-SOLID-Cleanup.md`.
 **Read `doc/HubbardUPlan.md` ▶ START HERE** for the exact next actions, gates and gotchas; the full history is
 `doc/Records/HubbardUHistory.md` (including this section as it stood before 2026-10-01).
 
