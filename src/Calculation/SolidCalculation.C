@@ -469,7 +469,9 @@ public:
     std::shared_ptr<const SolidSetup> SizedSetup() const;
     //! \brief What the pilot COST (C2 step 3; the controller's condition: a user pays it, so it is reported and gated, never hidden): its
     //! audit rounds, and the SCF iterations of its re-convergences (on top of the run's own).  All zero on a resolved setup.
-    struct RasterPilotCost { int rounds=0; size_t reconvergeIterations=0; bool settled=false; };   //!< settled: every term met its target (not the round cap)
+    //! settled: every term met its target (not the round cap, and no STATED grid over it).  statedOver: a stated densityEcut or XC mesh
+    //! missed the target -- honoured, reported (a `warn` policy row), and NOT settled (pin 31 rule 3; lane G's Si Γ catch, 2026-11-07).
+    struct RasterPilotCost { int rounds=0; size_t reconvergeIterations=0; bool settled=false; bool statedOver=false; };
     RasterPilotCost PilotCost() const;
     //! \brief THE EGG-BOX GATE (doc/GridEpsilonPlan.md §5 verdict 5): every atom translated rigidly by \a shift (bohr), basis and Hamiltonian
     //! rebuilt there (the molecular basis remade from the setup's frozen recipe), the SAME AO density matrix restored (a rigid

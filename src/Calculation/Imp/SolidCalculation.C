@@ -37,6 +37,7 @@ import qchem.BasisSet.Orbital_DFT_IBS;         // the block an orbital set lives
 import qchem.Environment;                   // WarnRetiredEnvironment (D-ENV step 6a)
 import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeEntryRung and the rungs above (a geometry run's XC route and its nested ladder)
 import qchem.Mesh.BeckeClimb;                   // ClimbBeckeLadder: the pilot's one-round Becke climb at a fixed D
+import qchem.Policy;                            // policy::Report: a stated grid that misses eps reports itself (StatedDensityEcutMissesEps)
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.SCFCap;                           // SetupSCF -- the seed's atomic solves are not the run's iterations
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
@@ -1574,12 +1575,15 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     rpt::json rounds=rpt::json::array();
     std::optional<std::pair<double,double>> xcBefore;   // the XC term's (x, delivered) one round back: the power-law fit's first point
     bool xcOver=false;                                  // the XC term was over its target in the last round audited
-    bool xcStatedOver=false;                            // a STATED Becke mesh was over its target (honoured, reported)
+    bool xcStatedOver=false;                            // a STATED Becke mesh was over its target in the last round (honoured, reported)
+    double xcStatedMiss=0.0;                            // ... its worst tail estimate there
     std::optional<std::pair<std::string,double>> ballBefore;    // (ball, its difference) one round back
-    bool ballStatedOver=false;                          // a STATED densityEcut was over its target (honoured, reported)
+    bool ballStatedOver=false;                          // a STATED densityEcut was over its target in the last round (honoured, reported)
+    double ballStatedMiss=0.0;                          // ... its tail estimate there
     bool metEveryTarget=false;                          // the SETTLED line, not the round cap, ended the ladder
     for (int round=0;; ++round)
     {
+        xcStatedOver=false; xcStatedMiss=0.0; ballStatedOver=false; ballStatedMiss=0.0;   // a stated grid is judged at the round that ends the pilot
         const G::RasterExponents x=itsImp->ladder->DeliveredRasterExponents();
         const double xV = x.vlocLong>0.0 ? x.vlocLong : x.density;   // no own V_long ladder (the kappa-sweep path): the density's
         // TWO REFERENCES A ROUND, FOUR AUDITS.  On a Becke mesh the XC term depends on the mesh alone: only the delta fit is admitted there (AdmitVxc), and it
@@ -1708,7 +1712,11 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                 std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<(std::string("XC mesh, ")+step.axis)<<std::right<<" delivered "<<std::scientific
                          <<std::setprecision(3)<<step.delivered<<" (tail estimate "<<step.tailEstimate<<") on "<<BeckeName(step.rung)<<" against "<<BeckeName(step.reference)<<"  ";
                 if (!step.over)    std::cout<<"meets "<<target<<std::endl;
-                else if (stated) { std::cout<<"OVER, and the mesh is STATED: honoured (state xcMesh Auto to let the pilot size it)"<<std::endl; xcStatedOver=true; }
+                else if (stated)
+                {
+                    std::cout<<"OVER, and the mesh is STATED: honoured (state xcMesh Auto to let the pilot size it)"<<std::endl;
+                    xcStatedOver=true; xcStatedMiss=std::max(xcStatedMiss, step.tailEstimate);
+                }
                 else             std::cout<<"OVER"<<std::endl;
                 std::cout<<std::defaultfloat<<std::setprecision(prec0);
                 terms.push_back({{"term","XC Becke mesh"},{"axis",step.axis},{"delivered",step.delivered},{"tailEstimate",step.tailEstimate},{"mesh",BeckeName(step.rung)},
@@ -1767,7 +1775,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<"density ball"<<std::right<<" delivered "<<std::scientific
                      <<std::setprecision(3)<<d<<" ["<<worst<<"] (tail estimate "<<est<<") on "<<ball<<" against twice it  ";
             if (est<=target) std::cout<<"meets "<<target<<std::endl;
-            else if (stated) { std::cout<<"OVER, and densityEcut is STATED: honoured (leave it auto to let the pilot size the ball)"<<std::endl; ballStatedOver=true; }
+            else if (stated) { std::cout<<"OVER, and densityEcut is STATED: honoured (leave it auto to let the pilot size the ball)"<<std::endl; ballStatedOver=true; ballStatedMiss=est; }
             else             { std::cout<<"OVER: the ball doubles (cutoffFactor "<<2.0*o.cutoffFactor<<")"<<std::endl; ballNext=2.0*o.cutoffFactor; }
             if (dOther>target)
             {
@@ -1800,11 +1808,15 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         }
         if (t==was && !xcMeshNext && !ballNext)
         {
-            std::cout<<tag<<"SETTLED after "<<round<<" re-convergence(s): every raster term meets "<<target<<" Ha on "<<RasterName(t);
+            // A STATED grid over its target is a miss the pilot may not fix (pin 31 rule 3: honoured and REPORTED, never silently), so the
+            // run is NOT settled: Si Γ at a stated densityEcut 4 Ha read settled while its ball missed by 2.9 mHa, 140x eps (lane G, 2026-11-07).
+            const bool statedOver=xcStatedOver || ballStatedOver;
+            std::cout<<tag<<(statedOver ? "NOT SETTLED (a STATED grid misses the target)" : "SETTLED")<<" after "<<round<<" re-convergence(s): every raster term meets "
+                     <<target<<" Ha on "<<RasterName(t);
             if (onH && xcCur.cellKind==qcMesh::UnitCellKind::Becke) std::cout<<", the XC on "<<BeckeName(xcCur)<<(xcStatedOver ? " (STATED, OVER)" : "");
             std::cout<<", the density ball "<<(ballStatedOver ? "(STATED, OVER)" : "meets it");
             std::cout<<std::endl;
-            metEveryTarget=true;
+            metEveryTarget=!statedOver;
             break;
         }
         if (round+1>=kPilotRounds)
@@ -1854,6 +1866,30 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     }
     itsImp->rastersSettled=itsImp->converged;
     itsImp->pilotCost.settled=itsImp->rastersSettled && metEveryTarget;   // NOT SETTLED at the round cap is not settled (it read true)
+    itsImp->pilotCost.statedOver=xcStatedOver || ballStatedOver;
+    // EVERY STATED MISS REPORTS ITSELF (pin 31 rule 3; CLAUDE.md, every policy reports itself): the run keeps the user's grid and runs, and
+    // the policy row carries what it delivered against the target.
+    auto miss=[&](double d) {std::ostringstream os; os<<std::scientific<<std::setprecision(3)<<d<<" Ha against the target "<<target<<" Ha ("
+                                                      <<std::defaultfloat<<std::setprecision(3)<<d/target<<"x)"; return os.str();};
+    rpt::json statedOver=rpt::json::array();
+    if (ballStatedOver)
+    {
+        const std::string ecut=std::to_string(itsImp->setup->opts.densityEcut);
+        std::cout<<tag<<"WARNING: the STATED densityEcut "<<ecut<<" Ha misses eps: the density ball delivers "<<miss(ballStatedMiss)<<std::endl;
+        policy::Report("StatedDensityEcutMissesEps", "densityEcut "+ecut+" Ha kept as stated", policy::Verdict::Warn,
+                       "the density-ball audit (the run against twice the ball, at the converged D) delivers "+miss(ballStatedMiss)
+                       +": a stated grid is honoured and reported, never raised (pin 31 rule 3); leave densityEcut auto to let the pilot size it");
+        statedOver.push_back({{"grid","densityEcut"},{"value",itsImp->setup->opts.densityEcut},{"delivered",ballStatedMiss},{"target",target}});
+    }
+    if (xcStatedOver)
+    {
+        const std::string mesh=BeckeName(itsImp->setup->xcMesh);
+        std::cout<<tag<<"WARNING: the STATED XC mesh "<<mesh<<" misses eps: its rung audit delivers "<<miss(xcStatedMiss)<<std::endl;
+        policy::Report("StatedXCMeshMissesEps", mesh+" kept as stated", policy::Verdict::Warn,
+                       "the XC-mesh audit (each axis against its next rung, at the converged D) delivers "+miss(xcStatedMiss)
+                       +": a stated grid is honoured and reported, never raised (pin 31 rule 3); state xcMesh Auto to let the pilot size it");
+        statedOver.push_back({{"grid","xcMesh"},{"value",mesh},{"delivered",xcStatedMiss},{"target",target}});
+    }
     const rpt::json restate=RestateKeys(itsImp->setup->opts.tolerances, itsImp->setup->opts.cutoffFactor, itsImp->setup->xcMesh);
     // NOT SETTLED keeps the grids it reached, so the keys still restate THIS run -- but not a run that met the target: the line says so.
     std::cout<<tag<<"a deck restates these grids"<<(itsImp->pilotCost.settled ? "" : " (NOT SETTLED: these miss the target)")<<" as: "
@@ -1862,7 +1898,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
              <<" re-convergence iteration(s) beyond the run's own"<<std::endl;
     rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
                                              {"rasters",RasterName(itsImp->setup->opts.tolerances)},
-                                             {"xcMesh", itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(itsImp->setup->xcMesh) : std::string("uniform")},{"settled",itsImp->pilotCost.settled},{"restate",restate},
+                                             {"xcMesh", itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(itsImp->setup->xcMesh) : std::string("uniform")},{"settled",itsImp->pilotCost.settled},{"statedOver",statedOver},{"restate",restate},
                                              {"auditRounds",itsImp->pilotCost.rounds},{"reconvergeIterations",(long)itsImp->pilotCost.reconvergeIterations}});
 }
 

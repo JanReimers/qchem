@@ -191,7 +191,7 @@ TEST(GPW_Si, Γ_Imp_Schema)
         if (it.value().contains("basis")) basis=&it.value()["basis"];
     }
     ASSERT_NE(grids, nullptr) << "no run emitted a grids section";
-    EXPECT_GT((*grids)["densityEcut"].get<double>(), 0.0);
+    EXPECT_GT((*grids)["densityEcut"]["value"].get<double>(), 0.0);
     EXPECT_TRUE(grids->contains("cutoffFactor"));
     EXPECT_TRUE(grids->contains("raster"));
     ASSERT_TRUE(grids->contains("ladder"));
