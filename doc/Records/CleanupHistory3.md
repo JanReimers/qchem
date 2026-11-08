@@ -577,7 +577,15 @@ the quadrature XC Oᵀ f′(O D); step 4 moved WHERE their state is built, not w
 
 **Gates.**  Short 1341/1341 vs main-95927d22 and long 13/13 vs main-2bdb1256, 0 moves at 1e-10; panel|periodic at 4 threads
 24/25, 0 moves (TiO₂ k222 Kerker_Pulay over budget, as on every main baseline); the 5 panel-red cases failed for their known
-reasons (NMaxIter cap; Si m = 0.19), no throw.  RelChecked clean; vet-decks 65/65.  The timed MnO pair is pending a quiet box.
+reasons (NMaxIter cap; Si m = 0.19), no throw.  RelChecked clean; vet-decks 65/65.
+
+**Timing** (`MnO_AFM2_free`, 4 threads, quiet box; `~/Code/qchem6-runs/MnO/lanes-h4-*`).  Before = main 09eb3caa (frozen
+rundeck), 4:01.8 wall; Etot -61.30311314 Ha in every run.  The first after-run (a3a95ffb) caught a regression: the
+energy pass (`scf: total energy`, x25) went 1.18 -> 3.58 s because `tVxc_Quadrature`'s refresh built v^sigma on the whole mesh
+for the energy-only refresh too; fixed in `3a3a657c` (v^sigma and the f_xc seed built in its `BuildBlocks`, the Fock refresh
+only).  After the fix, step 4's own buckets: energy pass 1.18 -> 1.12 s, Fock build (assembly + eager refresh) 1.03 -> 0.96 s,
+i.e. neutral; wall 3:41.0, the rest of the gap being main's setup levers (short-PP, 1E sums, mesh) and run-to-run noise (the
+identical pair scatter/gather moved 9% between the two after-runs).
 
 Original rows:
 
