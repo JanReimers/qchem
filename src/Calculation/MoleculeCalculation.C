@@ -141,12 +141,21 @@ public:
                                                 .angular=qcMesh::AngularKind::Lebedev, .angularDegree=35, .beckeOrder=3},
         const KrylovParams& krylov = {.tol=1e-10}) const;
     const Structure& GetStructure()   const {return *itsStructure;}
+    //! \brief THE ENERGY-WEIGHTED DENSITY W = Σ f ε c cᵀ of the converged point, per basis block, in the carry's order (spin irreps outer,
+    //! basis blocks inner), so Σ_blocks Tr(W S) = Σ_levels f ε.  PUBLIC, and why (CLAUDE.md: say why at the declaration): its client is the
+    //! analytic force's orthonormality (Pulay) term +Tr(W ∂S/∂R), which the force assembly needs above the wave function
+    //! (doc/GeometryOptimizationPlan.md §13: W is the facade's, WaveFunction gains nothing); a cached Get would hold matrices no other
+    //! client wants.  THROWS before a Converge (no wave function).
+    std::vector<hmat_t<double>> MakeEnergyWeightedDensity() const;
 
 private:
     //! The finite-difference response ORACLE (src/Response/tests, ruling D6) drives the SAME Reference/frame/
     //! probe/solver as StaticPolarizability with its own kernel, so it needs this run's Hamiltonian, wave
     //! function and basis -- which the facade deliberately does not expose.
     friend class ::ResponseFacadeTests;
+    //! The per-term finite difference at FIXED D (doc/GeometryOptimizationPlan.md §6): a term's energy at moved atoms with the carried
+    //! density frozen, which needs this point's Hamiltonian and the carried density on its basis -- both private.
+    friend class ::ForceFacadeTests;
     //! \name THE GEOMETRY POINT a MoleculeSession steps to (step 8)
     //!@{
     friend class MoleculeSession;
@@ -165,6 +174,11 @@ private:
     MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
                 const SCFParams& scf, Observer onIteration);
     Carry MakeCarry() const;
+    //! Σ f c cᵀ (or Σ f ε c cᵀ, \a energyWeighted) per block, in the carry's order: one loop for the carry and for W.
+    std::vector<hmat_t<double>> BlockDensities(bool energyWeighted) const;
+    //! \a carry's blocks as a density on THIS point's basis (throws when the blocks do not match): the carry's WorkingDensity, and the
+    //! frozen D of a fixed-D finite difference.
+    std::unique_ptr<qchem::ChargeDensity::rDM_CD> MakeCarriedDensity(const Carry& carry) const;
     std::unique_ptr<const Carry> itsCarry;   //!< consumed by the first Converge, which builds the basis it is re-homed onto
     //!@}
     //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift.

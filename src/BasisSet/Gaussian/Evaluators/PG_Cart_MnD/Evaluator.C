@@ -33,6 +33,7 @@ module;
 #include <memory>     // std::shared_ptr (the per-atom operator GaussianRF, shared across its polynomial terms)
 #include <cstdlib>    // std::getenv/std::atoi (the QCHEM_OPENMP_THREADS opt-in knob)
 #include <cstring>    // std::memcpy (the integrate-census field hash)
+#include <format>     // the R-resolved series memo keys (exact doubles)
 // GPW pair-loop parallelism (opt-in via QCHEM_OPENMP_THREADS).  Gated on QCHEM_OPENMP -- our OWN macro (defined
 // by CMake when the OpenMP flags are applied) rather than _OPENMP, because this LLVM toolchain ships no
 // libomp and the libgomp fallback (-fopenmp=libgomp) honours the pragmas but does NOT define _OPENMP.  The
@@ -132,7 +133,7 @@ public:
             throw std::runtime_error("NR_Evaluator::BindTolerances: tolerances changed after this basis computed collocation work "
                                      "(old: "+itsPGTol.Describe()+" ; new: "+t.Describe()+") -- one molecular basis cannot serve two tolerance settings");
         itsPGTol=t;
-        itsBoxTasks.clear(); itsBoxTaskOrder.clear(); itsIntegrateMemos.clear(); itsFieldHistory.clear();
+        itsBoxTasks.clear(); itsBoxTaskOrder.clear(); itsIntegrateMemos.clear(); itsFieldHistory.clear(); itsSeries.clear();
     }
     //! \brief ⛔ THE TOLERANCE POLICY IS NOT DECIDED HERE ANY MORE (doc/OldPlans/ScreeningPlan.md, 2026-09-04).
     //!
@@ -180,7 +181,9 @@ public:
     // magnitude screen the collocation kernels use): THERE IS NO CUT in r SPACE (doc/Pins.md pin 1).  The caller supplies only the phase oracle + the cell; no radius or translation list exists.
     // Hermitian: fill the upper triangle (the (i,j) Bloch element); the (i,i) enumeration is inversion-
     // symmetric so the diagonal is real (projected explicitly against roundoff).
-    template <class Kernel> chmat_t LatticeSum(const cellphase_t& phase, const UnitCell& A, Kernel K) const
+    // THE PER-k ROUTE: the definition, kept as the reference the R-resolved route is gated against (UTGaussian_BS
+    // LatticeSeries.*).  Production phases the cached series below instead.
+    template <class Kernel> chmat_t LatticeSumPerK(const cellphase_t& phase, const UnitCell& A, Kernel K) const
     {
         chmat_t S(size());
         const bool trace=(qchem::Diagnostics::Enabled("rss_trace"));
@@ -209,35 +212,95 @@ public:
         }
         return S;
     }
-    chmat_t MakeOverlap(const cellphase_t& phase, const UnitCell& A) const
-    {   return LatticeSum(phase,A,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Overlap2C(cj,pols[i],pols[j]);}); }
-    chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const
-    {   return LatticeSum(phase,A,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);}); }
-    chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const
-    {   return LatticeSum(phase,A,[this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}); }
-
-    // Gaussian::LatticeSum1E: the analytic 3-centre (Overlap3C) MATRIX of a per-atom LOCAL Gaussian operator --
-    // <chi_i^k | Sum_a g_a | chi_j^k>, the local pseudopotential's short-range assembly (doc/GPWPlan.md 0e-PP).
-    // Each atom's operator g_a = opForZ(Z_a) sits in the OPERATOR (C) slot of Overlap3C, between chi_i and the
-    // lattice-imaged chi_j; a compact operator's image atoms are negligible so only home-cell atoms are placed.
-    // The LatticeSum's chi_i-chi_j magnitude screen suffices: a screened-in pair whose product is disjoint from
-    // g_a gives Overlap3C ~ 0 (the integrand needs all three overlapping), and a screened-OUT pair (chi_i,chi_j
-    // disjoint) has product ~ 0 everywhere, so no significant 3-centre term is dropped.
-    chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
-                              const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const
+    // ---- THE R-RESOLVED ROUTE (short-PP lever 2, lane A 2026-11-07; OpenWork §4) ---------------------------------------------
+    // The kernel K_ij(n) = <chi_i|O|chi_j(.-R_n)> does not depend on k: only the phase does.  The per-k route recomputed it for every
+    // k block (the q3 aug Li pilot: 72 IBZ blocks x 6 s for the short PP alone).  So the series {(n, K_ij(n))} is built ONCE per
+    // (operator, cell, structure) -- a pure function of fixed inputs, cached for the life of the basis (CLAUDE.md lazy rule) -- and
+    // each k only sums phase(n) K_ij(n).  Phase() repeats LatticeSumPerK's arithmetic term for term (the same enumeration order,
+    // s += phase(n)*K, then s *= ns_i ns_j), so the two routes agree BIT FOR BIT.  Memory: one (n, K) per screened (pair, offset).
+    struct LatticeSeries
     {
-        const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,&A);   // periodic: operator over its screened images
-        // 3-CENTRE MAGNITUDE SCREEN (the localized-PP anchor).  The chi_i-chi_j pair screen (ForImageOffsets)
-        // enumerates every image a DIFFUSE pair reaches -- but the local PP g is LOCALIZED at its atom, so a
-        // (chi_i, chi_j image) product disjoint from g contributes ~0.  Screen each op by the EXACT 3-Gaussian
-        // leading magnitude exp(-(ab|AB|^2 + ac|AC|^2 + bc|BC|^2)/(a+b+c)) (M&D's Eabc), using each radial's
-        // MOST DIFFUSE primitive (a=MinExponent -> largest reach -> conservative: drops only sub-eps terms), and
-        // SKIP the expensive Overlap3C when it is below eps.  This is the 3-centre analogue of the pair reach
-        // sqrt(-ln eps (1/a_i+1/a_j)): a diffuse orbital no longer forces a huge operator sum, because g anchors
-        // the product to its atom.  (3-centre kernel under LatticeSum's size-0 GeometryCacheBudget: each surviving
-        // triple's Hermite3 block is built, used, and evicted -- O(1) resident.)
+        struct Term { ivec3_t n; double K; };
+        std::vector<size_t> start;   //!< per (i, j in indices(i)) pair, in LatticeSumPerK's order: its first term; one past the end last
+        std::vector<Term>   terms;
+    };
+    template <class Kernel> LatticeSeries MakeLatticeSeries(const UnitCell& A, Kernel K) const
+    {
+        LatticeSeries S;
+        const GeometryCacheBudget geoBudget;   // as LatticeSumPerK: each image clone is evicted as the next is inserted
+        for (auto i:indices())
+            for (auto j:indices(i))
+            {
+                S.start.push_back(S.terms.size());
+                const rvec3_t cj=radials[j]->GetCenter();
+                ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
+                                { S.terms.push_back({n, K(i, j, radials[j]->AtCenter(cj+Roff))}); });
+            }
+        S.start.push_back(S.terms.size());
+        return S;
+    }
+    chmat_t Phase(const LatticeSeries& S, const cellphase_t& phase) const
+    {
+        chmat_t M(size());
+        size_t p=0;
+        for (auto i:indices())
+            for (auto j:indices(i))
+            {
+                dcmplx s(0.0);
+                for (size_t t=S.start[p]; t<S.start[p+1]; ++t) s += phase(S.terms[t].n) * S.terms[t].K;
+                s *= ns[i]*ns[j];
+                M(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;
+                ++p;
+            }
+        return M;
+    }
+    // The memo key is CONTENT, never a pointer: the cell's three lattice vectors, the sites (Z, R), and for a local operator the
+    // Gaussian each site's Z maps to.  (screenEps is bound once per basis; BindTolerances drops the memo.)
+    static std::string KeyOf(double x) {return std::format("{:.17g},",x);}
+    static std::string CellKey(const UnitCell& A)
+    {
+        std::string k="cell=";
+        for (const rvec3_t& e : {rvec3_t(1,0,0),rvec3_t(0,1,0),rvec3_t(0,0,1)})
+        {   const rvec3_t a=A.ToCartesian(e); k+=KeyOf(a.x)+KeyOf(a.y)+KeyOf(a.z); }
+        return k;
+    }
+    static std::string SitesKey(const Structure* cl)
+    {
+        std::string k="|sites=";
+        for (const Site& a : cl->Sites()) k+=std::to_string(a.Z)+":"+KeyOf(a.R.x)+KeyOf(a.R.y)+KeyOf(a.R.z);
+        return k;
+    }
+    //! \a make builds the series on a miss only (a hit costs no operator or image setup).
+    template <class Make> const LatticeSeries& GetLatticeSeries(const std::string& key, Make make) const
+    {
+        std::lock_guard<std::mutex> lock(itsSeriesLock.m);   // concurrent k blocks wait for the one build they all need
+        auto it=itsSeries.find(key);
+        if (it==itsSeries.end()) it=itsSeries.emplace(key, std::make_shared<const LatticeSeries>(make())).first;
+        return *it->second;
+    }
+
+    auto OverlapKernel() const {return [this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Overlap2C(cj,pols[i],pols[j]);};}
+    auto KineticKernel() const {return [this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);};}
+    auto NuclearKernel(const Structure* cl) const
+    {   return [this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}; }
+    chmat_t MakeOverlap(const cellphase_t& phase, const UnitCell& A) const
+    {   return Phase(GetLatticeSeries("S|"+CellKey(A), [&]{return MakeLatticeSeries(A,OverlapKernel());}), phase); }
+    chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const
+    {   return Phase(GetLatticeSeries("T|"+CellKey(A), [&]{return MakeLatticeSeries(A,KineticKernel());}), phase); }
+    chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const
+    {   return Phase(GetLatticeSeries("V|"+CellKey(A)+SitesKey(cl), [&]{return MakeLatticeSeries(A,NuclearKernel(cl));}), phase); }
+    // The per-k reference routes (UTGaussian_BS LatticeSeries.*: the gate that the series equals them).
+    chmat_t MakeOverlapPerK(const cellphase_t& phase, const UnitCell& A) const {return LatticeSumPerK(phase,A,OverlapKernel());}
+    chmat_t MakeKineticPerK(const cellphase_t& phase, const UnitCell& A) const {return LatticeSumPerK(phase,A,KineticKernel());}
+    chmat_t MakeNuclearPerK(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const
+    {   return LatticeSumPerK(phase,A,NuclearKernel(cl)); }
+
+    // The 3-centre kernel of the periodic local Gaussian operator (the screen is described in MakeLocalGaussian).  Holds \a ops by
+    // reference: the series it feeds is built before the caller's ops go out of scope.
+    template <class OpTerms> auto LocalGaussianKernel(const OpTerms& ops) const   // OpTerms = std::vector<OpTerm> (declared below)
+    {
         const double lne=-std::log(kScreenEps());
-        return LatticeSum(phase,A,[this,&ops,lne](size_t i,size_t j,const GaussianRF& cj)
+        return [this,&ops,lne](size_t i,size_t j,const GaussianRF& cj)
         {
             const rvec3_t Ri=radials[i]->GetCenter(), Rj=cj.GetCenter();   // chi_i home, chi_j imaged
             const double ai=MinExponent(i), aj=MinExponent(j);            // AtCenter preserves exponents
@@ -252,7 +315,44 @@ public:
                 s += ot.c * ot.gr->Overlap3C(*radials[i], cj, pols[i], pols[j], ot.pol);
             }
             return s;
-        });
+        };
+    }
+    // Gaussian::LatticeSum1E: the analytic 3-centre (Overlap3C) MATRIX of a per-atom LOCAL Gaussian operator --
+    // <chi_i^k | Sum_a g_a | chi_j^k>, the local pseudopotential's short-range assembly (doc/GPWPlan.md 0e-PP).
+    // Each atom's operator g_a = opForZ(Z_a) sits in the OPERATOR (C) slot of Overlap3C, between chi_i and the
+    // lattice-imaged chi_j; a compact operator's image atoms are negligible so only home-cell atoms are placed.
+    // The LatticeSum's chi_i-chi_j magnitude screen suffices: a screened-in pair whose product is disjoint from
+    // g_a gives Overlap3C ~ 0 (the integrand needs all three overlapping), and a screened-OUT pair (chi_i,chi_j
+    // disjoint) has product ~ 0 everywhere, so no significant 3-centre term is dropped.
+    chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
+                              const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const
+    {
+        // 3-CENTRE MAGNITUDE SCREEN (the localized-PP anchor).  The chi_i-chi_j pair screen (ForImageOffsets)
+        // enumerates every image a DIFFUSE pair reaches -- but the local PP g is LOCALIZED at its atom, so a
+        // (chi_i, chi_j image) product disjoint from g contributes ~0.  Screen each op by the EXACT 3-Gaussian
+        // leading magnitude exp(-(ab|AB|^2 + ac|AC|^2 + bc|BC|^2)/(a+b+c)) (M&D's Eabc), using each radial's
+        // MOST DIFFUSE primitive (a=MinExponent -> largest reach -> conservative: drops only sub-eps terms), and
+        // SKIP the expensive Overlap3C when it is below eps.  This is the 3-centre analogue of the pair reach
+        // sqrt(-ln eps (1/a_i+1/a_j)): a diffuse orbital no longer forces a huge operator sum, because g anchors
+        // the product to its atom.  (3-centre kernel under LatticeSum's size-0 GeometryCacheBudget: each surviving
+        // triple's Hermite3 block is built, used, and evicted -- O(1) resident.)
+        std::string key="G|"+CellKey(A)+SitesKey(cl)+"|op=";
+        for (const Site& a : cl->Sites())
+        {
+            const auto g=opForZ(a.Z); key+=std::to_string(a.Z)+":"+KeyOf(g.alpha);
+            for (const auto& t : g.terms) key+=std::to_string(t.p.n)+std::to_string(t.p.l)+std::to_string(t.p.m)+"*"+KeyOf(t.c);
+        }
+        return Phase(GetLatticeSeries(key, [&]
+        {
+            const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,&A);   // periodic: operator over its screened images
+            return MakeLatticeSeries(A, LocalGaussianKernel(ops));
+        }), phase);
+    }
+    chmat_t MakeLocalGaussianPerK(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
+                                  const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const
+    {
+        const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,&A);
+        return LatticeSumPerK(phase,A,LocalGaussianKernel(ops));
     }
     // The FINITE (home-term-only) <chi_i | Sum_a g_a | chi_j>: the molecule/box limit (no lattice), real symmetric.
     chmat_t MakeLocalGaussian(const Structure* cl,
@@ -2948,6 +3048,8 @@ private:
     mutable std::vector<std::shared_ptr<const IntegrateMemo>> itsIntegrateMemos;  //!< phase-independent B_ij(n) per exact field (LRU)
     qchem::LazyLock                    itsIntegrateMemosLock;   //!< the LRU is read and published from concurrent Fock blocks
     mutable std::unique_ptr<StreamFold> itsStreamFold;     //!< T3 route (b) (pair, R) orbit fold (null = free run)
+    mutable std::map<std::string, std::shared_ptr<const LatticeSeries>> itsSeries;   //!< the R-resolved 1E series (content-keyed)
+    qchem::LazyLock                    itsSeriesLock;      //!< filled from concurrent k blocks
 };
 
 static_assert(is1E_Evaluator <NR_Evaluator>, "NR_Evaluator must satisfy is1E_Evaluator");
