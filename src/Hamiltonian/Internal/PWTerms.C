@@ -74,13 +74,13 @@ class Ven_PP_Short
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
-    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
-    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
+    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::BuildBlocks(bs, cd); Static_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -92,7 +92,7 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&) const;   // Step 3c: the real TRIM block
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const;    // Step 3c: the real TRIM block (V1.35: an overload)
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
@@ -110,13 +110,13 @@ class Ven_PP_NonLocal
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
-    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
-    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
+    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::BuildBlocks(bs, cd); Static_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -129,7 +129,7 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&) const;   // Step 3c: the real TRIM block
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const;    // Step 3c: the real TRIM block (V1.35: an overload)
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::SeparablePotential* itsSep;   //!< KB nonlocal model (non-owning).
@@ -157,13 +157,13 @@ class Ven_PP_Long
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
-    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
-    { cStatic_HT_Imp::PrepareSlots(bs, cd); Static_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
+    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cStatic_HT_Imp::BuildBlocks(bs, cd); Static_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
@@ -176,7 +176,7 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&) const;   // Step 3c: the real TRIM block
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const;    // Step 3c: the real TRIM block (V1.35: an overload)
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
@@ -238,13 +238,13 @@ public:
     virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s,
                              const TransitionDensity<dcmplx>& delta) const override;
     //!@}
-    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
-    { cDynamic_HT_Imp::PrepareSlots(bs, cd); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
+    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
+    { cDynamic_HT_Imp::BuildBlocks(bs, cd); Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
     typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
     //! Built with the density-fit basis (from the orbital basis's factory, exactly as \c FittedVee is).
     //! No structure and no pseudopotential model: pure \f$V_H[\rho]\f$ has no use for either.
@@ -263,10 +263,18 @@ public:
     //! per SCF iteration, against an integrate-back that is 71% of the run (doc/OpenWork.md bin 1).
     //! ✅ BIT-IDENTICAL: the same matrix, evaluated once instead of twice.
     virtual Spin CacheSpin(const Spin&) const {return Spin::None;}
+    //! The ENERGY block, for the eh_trace A/B only (GetEnergy pairs in G space and reads no block): BUILT from the field the
+    //! energy pass refreshed, with no memo -- the energy refresh has no basis, so it builds no blocks (V1.41 stage 3).
+    virtual const chmat_t& GetEMatrix(const cobs_t* bs, const Spin& s, DensityID id) const override
+    {itsEMat=MakeMatrix(bs,s,id); return itsEMat;}
+    virtual const rsmat_t& GetEMatrix(const robs_t* bs, const Spin& s, DensityID id) const override
+    {itsEMatR=MakeMatrix(bs,s,id); return itsEMatR;}
 private:
-    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
-    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
+    mutable chmat_t itsEMat;    //!< GetEMatrix's returned block (one serial contraction reads it at once)
+    mutable rsmat_t itsEMatR;   //!< ...and its real TRIM twin
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, DensityID) const;
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, DensityID) const;   // the real TRIM block (Step 3c; V1.35: an overload)
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, DensityID) const;
 
     //! \brief \f$V_H(\Delta G)\f$ for \a cd, MEMOIZED ON THE DENSITY'S LOGICAL-CLOCK SERIAL.
     //!
@@ -276,6 +284,9 @@ private:
     //! the term keeps the last one.  The key is \c ChargeDensity::Version(), the same intrinsic serial the
     //! Irrep matrix cache above it keys on (\c tDynamic_HT_Imp::GetMatrix).
     const ΔG_Map& CoulombField(const cChargeDensity*) const;
+    //! The BLOCK path's read of that memo: the field the refresh built for \a cd, or a throw if the refresh never saw
+    //! \a cd.  A block never builds the field (V1.41 stage 2), so the per-block loop writes nothing.
+    const ΔG_Map& RefreshedField(DensityID) const;
 
     //! \brief \f$\Omega\f$, the cell volume, as the fit raster's own quadrature answers it:
     //! \f$\int 1\,d^3r\f$.  Asked ONCE (the grid is geometry-fixed) through the abstract raster face --
@@ -287,8 +298,8 @@ private:
     mutable size_t itsDeltaVersion=size_t(-1);  //!< the transition density's serial \c itsDeltaField holds
     mutable ΔGq_Map itsDeltaField;              //!< \f$\delta V_H(G+q)\f$ of that transition density (R2, R3)
     mutable double itsVolume=0.0;   //!< \c Volume()'s memo (0 = not asked yet)
-    mutable size_t itsFieldVersion=size_t(-1);  //!< density serial \c itsField holds (-1 = empty)
     mutable ΔG_Map itsField;                    //!< \c CoulombField()'s memo: \f$V_H\f$ at that serial
+    mutable DensityID itsFieldID=DensityID(static_cast<const cChargeDensity*>(nullptr));   //!< the density \c itsField holds (none = empty)
 };
 
 //! \brief THE exchange-correlation term of a periodic Kohn-Sham Hamiltonian -- ONE term for either imposed
@@ -320,9 +331,14 @@ public:
     //! \a g is the imposed spin subgroup: which rasters the sampler is asked for (its Rho / RhoPol caches
     //! are mutually exclusive on one engine, so the choice is fixed for the run).
     tVxc_Quadrature(const xc_t&, sampler_t, SpinGroup g);
-    //! Pre-warm the channel raster(s) on the quadrature's points for \a cd (the EAGER REFRESH PHASE).
+    //! Pre-warm the channel raster(s) on the quadrature's points for \a cd (the EAGER REFRESH PHASE): all the energy pass needs.
     virtual void          RefreshForDensity(const tChargeDensity<T>* cd) const override;
+    //! \copydoc HT_BlockOwner::BuildBlocks
+    //! Builds v^sigma (\c BuildPotential) first: block-only state, so only a Fock refresh pays for it.
+    virtual void          BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const tDM_CD<T>*) const override;
+    //! The spins the Fock loop asks for: the imposed subgroup's (V1.41 stage 3: BuildBlocks builds exactly these).
+    virtual std::vector<Spin> BlockSpins() const override {return SpinIrreps(itsGroup);}
     //! \copydoc tDynamic_HT::SiteMoments
     //! The atom-centred partition lives on my quadrature and both channel rasters are my working data, so
     //! I am the term that computes the observable (doc/OpenWork.md N1/T2).  Empty when the quadrature has
@@ -334,18 +350,34 @@ public:
     virtual double        L1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const override;
     virtual std::ostream& Write(std::ostream&) const override;
 protected:
-    virtual hmat_t<T> MakeMatrix(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const override;
-    //! \f$v^\sigma\f$ at my points for the block of spin \a s, recording the pin-28 source of the \f$\rho\f$ it saw -- what
-    //! every \f$V_{xc}\f$ build (Bloch block or real TRIM block) contracts against.
-    rvec_t PotentialAt(const Spin& s, const tChargeDensity<T>* cd) const;
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>*, const Spin&, DensityID) const override;
     //! The two channel rasters of \a cd as the functional sees them: the sampler's Up/Down pair, or the
     //! folded doublet's one raster halved (borrowed reference + scratch, hence the pair of references).
     struct Rasters { const rvec_t& up; const rvec_t& dn; };
     Rasters ChannelRasters(const tChargeDensity<T>* cd, rvec_t& scratch) const;
+    //! \f$v^{fs}\f$ on the channel rasters \a r: what every \f$V_{xc}\f$ build (Bloch block or real TRIM block) contracts against.
+    //! Called by the refresh only.
+    rvec_t PotentialAt(const Spin& fs, const Rasters& r) const;
+    //! \brief What the refresh builds for ONE density and every block then reads (V1.41 stage 2, ruling C): v^sigma per channel
+    //! (index 0 = Up or the folded doublet, 1 = Down), the pin-28 rho source and group residual the potential saw, and on the seed
+    //! the |f_xc| fields and the charge the tau sizing needs.  One current state, checked against the density's serial.
+    struct Refreshed
+    {
+        DensityID id=DensityID(static_cast<const tChargeDensity<T>*>(nullptr));
+        rvec_t v[2];
+        std::optional<ChargeDensity::XCRhoSource> source;
+        std::optional<double> groupResidual;
+        rvec_t seedFxc[2];
+        double seedN=0.0;
+    };
+    //! The block path's read of \c itsRefreshed: throws if the refresh never saw \a cd; records the Fock pass's pin-28 source.
+    const Refreshed& RefreshedFor(DensityID) const;
+    //! Fill \c itsRefreshed for \a cd: what the blocks read and the energy does not.  Called by \c BuildBlocks only.
+    void BuildPotential(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const;
     //! \brief THE rho-tilde SAMPLER'S ONE TOLERANCE tau (step 2, user rulings 2026-11-04), derived HERE because only this term has
     //! v_xc and f_xc in hand: on the SEED density (every Fock block of the first build, before the sampler's first sized use freezes
     //! it), from the accuracy the run stated on my quadrature.  \a matrixOf contracts a field into this block's matrix.
-    template <class Mat> void SizeFourierSampling(const Spin& s, const tChargeDensity<T>* cd, const rvec_t& v, Mat matrixOf) const;
+    template <class Mat> void SizeFourierSampling(const Spin& s, const Refreshed& R, Mat matrixOf) const;
     //! Reports tau ONCE, when the sampler's first sized use froze it (the settings the SCF runs under).
     void ReportFourierSampling() const;
 
@@ -356,6 +388,7 @@ protected:
     //! The pin-28 audit: the source of the rho my most recent V_xc BUILD sampled (MakeMatrixT), which my energy pass
     //! reports in \c ChargeBreakdown::xcRho.  The latest build, not a drained log: GDM's line search calls the energy
     //! many times per iteration, and a log emptied by each call would hand the trace an empty cell.
+    mutable Refreshed itsRefreshed;   //!< the refresh's one current state (V1.41 stage 2)
     mutable std::optional<ChargeDensity::XCRhoSource> itsFockSource;
     mutable std::optional<double> itsFockGroupResidual;   //!< R2.1: the same build's density vs the imposed group (\c xcGroupResidual)
     qchem::LazyLock itsFockSourceLock;   //!< every Fock block writes it (the same value): concurrent blocks take turns
@@ -391,16 +424,17 @@ public:
     virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s,
                              const TransitionDensity<dcmplx>& delta) const override;
     //!@}
-    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
     //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs, const cChargeDensity* cd) const override
-    { tDynamic_HT_Imp<dcmplx>::PrepareSlots(bs, cd); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs, cd); }
+    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
+    { BuildPotential(bs, cd); tDynamic_HT_Imp<dcmplx>::BuildBlocks(bs, cd); Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
     Vxc_Quadrature(const xc_t&, std::shared_ptr<const ChargeDensity::DensitySampler>, SpinGroup g);
 private:
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const override;   // Step 3c
+    using tVxc_Quadrature<dcmplx>::MakeMatrix;
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, DensityID) const override;   // the real TRIM block (Step 3c; V1.35)
     std::shared_ptr<const ChargeDensity::DensitySampler> itsPeriodic;   //!< the same sampler, through its periodic face
     //! The response state (R2): \f$f_{xc}^{\sigma\sigma'}\f$ at the linearisation density, per point, and the
     //! last δ's \f$\delta v^\sigma\f$.

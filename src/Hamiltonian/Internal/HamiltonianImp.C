@@ -26,7 +26,7 @@ public:
 
     using tHamiltonian<T>::GetMatrix;   // keep the base 3-arg (null-basis) convenience overload visible
     virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin& S,const tChargeDensity<T>*,const tbs_t<T>* wholeBasis) const;
-    //! The REAL-BLOCK assembly (Step 3c-2): fold the terms' Static/Dynamic_HT_RealBlock capability faces.
+    //! The REAL-BLOCK assembly (Step 3c-2): fold the terms' real block faces (tStatic_CC<double> / tDynamic_CC<double>).
     //! Declared unconditionally (on the <double> instantiation it overrides nothing and is never called);
     //! on <dcmplx> it is the Ham_RealBlock face the real WF children drive.
     virtual hmat_t<double>  GetMatrix(const tobs_t<double>*,const Spin& S,const tChargeDensity<dcmplx>*,
@@ -84,13 +84,16 @@ public:
     {
         // ONE call per term, whatever caches it owns (R1.0h + V1.35, 2026-09-10).  This used to be four
         // calls with two cross-casts and an `if constexpr`, because the real-block cache sat behind a
-        // SEPARATE hook on a SEPARATE face.  Both faces now inherit `HT_SlotOwner<T>` virtually, so a term
-        // with two caches presents ONE `PrepareSlots` that prepares both -- the fold stopped needing to know
+        // SEPARATE hook on a SEPARATE face.  Both faces now inherit `HT_BlockOwner<T>` virtually, so a term
+        // with two caches presents ONE `BuildBlocks` that prepares both -- the fold stopped needing to know
         // that two caches are even possible.
-        for (const auto& t : itsSHTs) t->PrepareSlots(bs, cd);
-        for (const auto& t : itsDHTs) t->PrepareSlots(bs, cd);   // ...and STAMPS cd: GetMatrix throws without it (KAxisPlan P2)
-        if (!cd) return;
-        for (const auto& t : itsDHTs) t->RefreshForDensity(cd);
+        if (cd)
+        {
+            for (const auto& t : itsDHTs) t->RefreshForDensity(cd);           // each term's own state, for cd...
+            for (const auto& t : itsHF_HTs) t->RefreshForDensity(bs, cd);     // whole-system J/K (V1.41 stage 2)
+        }
+        for (const auto& t : itsSHTs) t->BuildBlocks(bs, cd);
+        for (const auto& t : itsDHTs) t->BuildBlocks(bs, cd);   // ...then every block from it, STAMPED: GetMatrix only reads
     }
     virtual std::ostream&   Write(std::ostream&) const;
 

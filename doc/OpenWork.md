@@ -52,9 +52,10 @@ re-bank window ran, baselines in `~/Code/qchem6-runs/anchors/`); it also found t
 - **Fixed today, re-judge before trusting older numbers**: GDM's virtuals carried other virtuals' energies (χ₀ 5×–400× too small after
   ANY GDM-finished stage, restarts included; fixed `7fb46357`, the response now refuses a non-eigenpair reference).  Any χ/U/gap/ACBN0
   produced right after a GDM-finished stage before 2026-10-27 is suspect.
-- **Design rulings to honour** (OOD-SOLID-Cleanup **V1.41**): the Hamiltonian's state is debt — `GetMatrix` now THROWS unless
-  `RefreshForDensity` stamped that density (`bb86b6a9`); the cure is an immutable `H.At(cd)` value with a strong `DensityID` on the
-  block path (staged plan in the row).  A temporary SOLID violation is allowed if logged the same day in `doc/OOD-SOLID-Cleanup.md`.
+- **Design rulings to honour** (**V1.41**, ✅ 2026-11-07, `doc/Records/CleanupHistory3.md`): every term builds its density state in
+  `RefreshForDensity` and its blocks in `BuildBlocks`; a block read is pure and THROWS on a `DensityID` the refresh did not see.  New
+  +U/response state follows the same rule (CLAUDE.md "Lazy caching only for what never changes"; open: V-RESPONSE-STATE).  A temporary
+  SOLID violation is allowed if logged the same day in `doc/OOD-SOLID-Cleanup.md`.
 **Read `doc/HubbardUPlan.md` ▶ START HERE** for the exact next actions, gates and gotchas; the full history is
 `doc/Records/HubbardUHistory.md` (including this section as it stood before 2026-10-01).
 
@@ -267,6 +268,7 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
 · **Resolve the accuracy audit by term × species × l, and name the worst term in the iteration column** (user 2026-11-07, pin 31).  Today `[grid audit]` (`SolidCalculation.C`) is per term, locating only the worst element (spin, block, i, j, functions by atom/shell/l) plus Tr(DΔH) by channel; the SCF column is one aggregate.  L and nR are chosen per species, and a 3d shell needs a higher angular degree than an s shell, so the useful breakdown is |ΔE| and max|ΔH_ij| per term × species × shell l (irrep / k-block secondary, for catching block bugs: k-blocks say nothing about angular content).  Next action: (1) the audit and the pilot's audit rounds emit that table into the run report; (2) the iteration column stays COMPACT: the worst term's name and value/ε, flagged over 1 (e.g. `Vxc_DFT 3.2ε`), the breakdown only in the report; settings still fixed mid-SCF.  Then the pilot can grow (nR, L) for the species that misses instead of for all.
 
 · **A capped molecular SCF reports residual 0.00e+00** (lane G survey 2026-11-07).  `MoleculeCalculation::Outcome_` never fills `SCFFailure::residual`, so the failure message states a false number.  Next action: fill it from the iterator's last [F,D]/Δρ as the solid path does; a unit test on a deliberately capped molecule.
+· **The molecular facade's default basis cannot build** (lane G 2026-11-07).  `CalcOptions::basis` defaults to `"sto-3g"`, and there is no `sto-3g.bsd`: `Gaussian::Factory` throws "unknown basis".  Resolve-only tests pass because they never build a basis.  "No tokens" is supposed to be what a user gets (CLAUDE.md test grammar), so the default must name a basis that exists, or there is no default and the deck must state one (a refuse policy row).  Next action: decide which; a facade unit test that BUILDS with every default.
 ## 4. PERFORMANCE — summary (detail and levers: `doc/Benchmark.md` §10, instrument §5a)
 
 qchem started at **67× CP2K's per-iteration cost on MnO** (573 s vs 8.5 s).  Now, serial, one thread each: ahead

@@ -185,7 +185,7 @@ public:
     virtual rvec3_t Gradient(const rvec3_t&) const;
     //! The run-typed energy contraction (RealBlockEnergy_CD; meaningful for T==double only -- on the
     //! complex instantiation this overrides nothing and is never called).
-    virtual double DM_ContractE(const Dynamic_CC_RealBlock*, const tChargeDensity<dcmplx>*) const;
+    virtual double DM_ContractE(const tDynamic_CC<double>*, DensityID) const;
 
 private:
     friend class IrrepCD_Fourier<PeriodicIrrepCD<T>>;  // the trio uses this block's own D/basis

@@ -28,6 +28,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     SCFFailure.C
     SCFRecipeReport.C
     Policy.C
+    BasisCoverage.C
 )
 target_include_directories(qchem PRIVATE
     ${PROJECT_SOURCE_DIR}/src                       # forward.H (the unit-test friend declarations)

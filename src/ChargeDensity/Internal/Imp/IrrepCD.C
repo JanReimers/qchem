@@ -173,7 +173,7 @@ template <class T> double IrrepCD_Core<T>::DM_Contract(const tStatic_CC<T>* v) c
 
 template <class T> double IrrepCD_Core<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const
 {
-    T ComplexE=blazem::sum(itsDensityMatrix % blazem::trans(v->GetEMatrix(itsBasisSet,itsSpin,cd)));
+    T ComplexE=blazem::sum(itsDensityMatrix % blazem::trans(v->GetEMatrix(itsBasisSet,itsSpin,DensityID(cd))));
     assert(fabs(std::imag(ComplexE))<1e-8);
     return std::real(ComplexE);
 }
@@ -633,12 +633,11 @@ template <class T> rvec3_t PeriodicIrrepCD<T>::Gradient(const rvec3_t&) const
 }
 
 // The run-typed energy contraction (Step 3c-2b): this REAL block's D against the complex run's dynamic
-// term, through the term's Dynamic_CC_RealBlock face.  Same trace identity as the core's DM_Contract.
-template <class T> double PeriodicIrrepCD<T>::DM_ContractE(const Dynamic_CC_RealBlock* v,
-                                                           const tChargeDensity<dcmplx>* cd) const
+// term, through the term's real block face for the run's density \a id.  Same trace identity as the core's DM_Contract.
+template <class T> double PeriodicIrrepCD<T>::DM_ContractE(const tDynamic_CC<double>* v, DensityID id) const
 {
     if constexpr (std::is_same_v<T,double>)
-        return blazem::sum(this->itsDensityMatrix % blazem::trans(v->GetEMatrixR(this->itsBasisSet,this->itsSpin,cd)));
+        return blazem::sum(this->itsDensityMatrix % blazem::trans(v->GetEMatrix(this->itsBasisSet,this->itsSpin,id)));
     else
         throw std::logic_error("PeriodicIrrepCD<dcmplx>::DM_ContractE: the run-typed contraction serves "
                                "REAL blocks inside a complex run; a complex block contracts natively");
