@@ -124,6 +124,10 @@ So `FourierDensityBase<T>` and its `std::conditional_t` go, and every `dynamic_c
   - `tChargeDensity<T>` gains `Coefficients(const FIT_SF_ABS<T>&) const` and `RepulsionCoefficients(const FIT_CD_ABS<T>&) const`,
     both returning `FitCoefficients`.
   - The `FourierDensity` face and `FourierDensityBase<T>` are deleted, and the re-export `qchem.ChargeDensity.FourierDensity` goes.
+  - **RULED (user 2026-11-08, sub-step 2, option (1)):** `ProjectOnto(const ScalarProjector&)` returns `FitCoefficients`, not
+    `rvec_t`.  It is a pass-through of `MatrixForward::Forward`, so the density only hands the record on and sums its blocks with
+    `+=`; the δ samplers and `Hubbard_U` (the paired implementations) read `.Vector()`.  The alternative, the density reading
+    `.Vector()` at the pass-through, would have made the density a realization-aware client.
 - **`qchem.Fitting.FunctionFitter`:**
   - `ProjectedDensity<T>` carries a `FitCoefficients`, and `ProjectedDensity_G` is deleted.
   - `DensityProjector::Forward` / `ScalarProjector::Forward` keep their signatures: they return a `MatrixForward`, whose `Forward`
