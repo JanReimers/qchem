@@ -4,6 +4,17 @@ RECORD, for the user's approval before any hub code.  It supersedes `doc/Records
 `ProjectOnto` line (sub-step 2's ruled option 1) is revisited in §2 below.  Read-only from lane-s-h-sprint at d09e98dc1;
 nothing built or run for this note.
 
+**Revised 2026-11-08 for the user's rulings on the first draft**, relayed by the controller:
+- **(a)** The record is named **`Projections`**.  The "slightly wrong" tension came from one type serving both the forward's
+  OUTPUT (projections) and the adjoint's INPUT (coefficients).
+- **(b)** **Fit coefficients do NOT use the one-of-N record**: *"if the fitter imp data structure for the fit coefficients needs
+  to be different for two different fit basis set types, then just make different fitter imp classes for each."*  Each fitter
+  implementation holds its own coefficient type privately, and the metric solve sits inside it (new §2a).
+- **(c)** Q1 is YES: the PW Hartree term becomes the first-order fitted term on a diagonal Poisson operator.  Dunlap stays
+  Gaussian-only.
+- **Still open:** Q2 (seed / mixed-density arithmetic) and Q4 (`Vee_Hartree`'s response half, inside the controller's proposed
+  rename of the Vee family).
+
 **The user's ruling, 2026-11-08, relayed by the controller.**
 1. The density answers ONE contraction of its own D with a three-index object the caller hands in.  It returns projections,
    index- or G-keyed.  No fit concept and no "Coefficients" appear in its names, and the record is renamed.
@@ -80,15 +91,36 @@ template <class TFit> class PairProjector               // qcBasisSet; implement
   - **The alternative**, accepting the sampled route and re-judging the anchors, is pin 10 work, not a refactor.  I would not
     take it here.
 
-**The record's name.** It carries ⟨c|ρ⟩ from a forward and a field's expansion into an adjoint.  For an orthogonal basis (δ, PW)
-those coincide.  For a Gaussian one the fitter's solve sits between them.  So the name must not claim either role:
+**The record's name: `Projections` (RULED (a)).**  It carries ⟨c|ρ⟩, the forward's output, and nothing else.  The adjoint's input
+is a fitter's own coefficients (§2a), so the record no longer serves two roles.  The rename is mechanical: one module
+(`src/Math/FitCoefficients.C` → `Projections.C`) and about 25 sites.
 
-- **`Projections`**: what a forward returns.  It is honest for the density's side, and slightly wrong for the adjoint's input.
-- **`AuxComponents`**: "components on an auxiliary basis's index axis", neutral on primal vs dual.  ✔ my pick.
-- `FieldComponents`: suggests real-space values.
+## 2a. Fit coefficients are fitter-private (RULED (b)): every place one crosses a generic interface today
 
-I write `Projections` above for readability; the user picks.  The rename is mechanical: one module (`src/Math/FitCoefficients.C`)
-and about 25 sites.
+The rule: a fitter implementation holds its coefficients in its own type and does its own metric solve (S⁻¹, G⁻¹, Dunlap's
+constraint, or the identity).  Where two fit-basis types need two coefficient types, they get two fitter classes.  What leaves a
+fitter is a matrix (`Repulsion`, `Overlap`) or a number (`HartreeEnergy`, `Integral`, `SelfRepulsion`), never a coefficient vector.
+
+| # | where a coefficient vector crosses an interface today (tree at d09e98dc1) | who holds it | after |
+|---|---|---|---|
+| 1 | `qcMesh::MatrixAdjoint<T>::Adjoint(const FitCoefficients&)` and `Integrate(const FitCoefficients&)`, sub-step 2's signatures | the caller's coefficients | **reverts to `rvec_t`** (the vector realizations: mesh, raster, δ, Gaussian, occupations).  The coefficient-side `.Vector()` reads sub-step 2 added go away: `DenseMatrixIntegrator`, `ScreenedMatrixIntegrator`, `DensePairProjectionIntegrator`, `LowdinProjector` |
+| 2 | `GSpacePairProjectionIntegrator::Adjoint(const FitCoefficients&)` (`.GMap()` read) | `Vee_Hartree`'s V_H | it **stops implementing `MatrixAdjoint`**.  It keeps `MatrixForward` (its output is `Projections` holding ρ̃) and gains a typed `Adjoint(const ΔG_Map&)`, called only by the PW fitter that owns it.  Nothing generic calls a G-space adjoint today: every fitter holds its integrator CONCRETELY (`ConstrainedFF`, `GridDensityFitter`, `DeltaFunctionFitter`, `FunctionFitterImp`, `Hubbard_U`), and the one face-level caller, `DensitySampler_Pair::BlockAdjoint`, is raster-only |
+| 3 | `ConstrainedFF::Repulsion`, `FunctionFitterImp::Overlap` → `Adjoint(FitCoefficients(itsFitCoeff))` | `itsFitCoeff` (rvec_t) | `Adjoint(itsFitCoeff)`.  It was already private; only sub-step 2's wrap goes |
+| 4 | `DeltaFunctionFitter::Contract` → `Adjoint(itsC)`; sub-step 2 made `itsC` a `FitCoefficients` | `itsC` | back to `rvec_t itsC`: the δ fitter's own type |
+| 5 | `GridDensityFitter::Repulsion` → `Adjoint(FitCoefficients(itsV))`; `CoulombOperator::Potential(q)→v`, `SelfRepulsion(q,v)` | `itsC`, `itsV` (rvec_t) | `rvec_t`, unchanged.  `CoulombOperator` stays the MESH fitter's private strategy |
+| 6 | `Hubbard_U` → `LowdinProjector::Adjoint(FitCoefficients(ch.W))`, `Integrate` | `ch.W` (its potential on occupation axes) | `Adjoint(ch.W)`.  Hubbard_U is its own paired implementation |
+| 7 | `Vee_Hartree`'s field memo `itsField` (sub-step 2: `FitCoefficients`), its adjoint, and the `.GMap()` Parseval energy | the TERM holds V_H today, which is the leak | **into a new PW density fitter** (`GSpaceDensityFitter`, replacing `OrthoFunctionFitter`).  It holds ρ̃ and V_H as private `ΔG_Map`s, applies k(G) itself (its diagonal Poisson operator, G-typed: a sibling of `CoulombOperator`, not a realization of it), and answers `Repulsion(bs)`, `HartreeEnergy(trDV)` and `Integral()`.  The term holds no field |
+| 8 | `DensitySampler::Matrix(bs, const rvec_t& v)`: v_xc on the δ points / raster, computed by the XC TERM pointwise | the term | **not this step.**  It is the XC side of the same leak (the term computes the potential coefficients and hands them to the "fitter", the sampler).  It is V-XC-ONE-TERM's job: the sampler takes the functional and keeps v |
+| 9 | `FittedVxc`'s v and ε fits | the fitters (private) | unchanged |
+| 10 | the density mixers (ρ̃ maps, raster values) | the mixers | these are PROJECTIONS (the density's ⟨c|ρ⟩), not coefficients, so they ride `Projections` (sub-step 4) |
+| 11 | `ConstrainedFF::FitGetRepulsion(const ConstrainedFF*)`: another fitter's `itsFitCoeff` | same class | unchanged.  It is one class reading its sibling instance |
+
+So after D2 the record sits only on the FORWARD side: `MatrixForward::Forward → Projections`, and `tChargeDensity::Project →
+Projections`.  Its typed reads are done only by the fitters that consume their own projections:
+- `ConstrainedFF` reads `.Vector()` before its J⁻¹ solve;
+- the δ samplers read `.Vector()` as values at their points;
+- `Hubbard_U` reads `.Vector()` as occupations;
+- `GSpaceDensityFitter` reads `.GMap()` as ρ̃.
 
 **Sub-step 2 (committed, unlanded) is reworked by this, not discarded.**  Its record, `GSpacePairProjectionIntegrator`, the
 integrators' new signatures and every paired `.Vector()` / `.GMap()` read stand.  What changes is the rename, plus
@@ -111,12 +143,13 @@ new names.
 | `OrthoFunctionFitter::Repulsion`, a throwing "obsolete" stub | Fitting | it becomes the real Hartree matrix (§1) |
 | `Vee_Hartree`'s ground-state half: field memo, Parseval energy loop, `Volume()` | `PWTerms_Hartree.C` | it becomes `Vee_DFT` (see the next table for the response half) |
 | the PW tensor's `kernel` array; GPW's `MakeCollocator(coulomb=true)` and `Repulsion3CTensor` | `PairProjection.C`, `PW Evaluator`, `GPW_Evaluator.C` | nothing asks for a kernel-baked forward any more |
+| `OrthoFunctionFitter` | Fitting | replaced by `GSpaceDensityFitter` (§2a row 7), the PW fitter class that owns its G-keyed coefficients |
 
 **Stays PW-specific, because it genuinely is.**
 
 | what | why |
 |---|---|
-| the diagonal Poisson operator (`ReciprocalLattice::CoulombKernel`, k(0)=0) | the periodic 1/r: a `CoulombOperator` realization beside `DirectSumCoulomb` / `RadialPoissonCoulomb` |
+| the diagonal Poisson operator (`ReciprocalLattice::CoulombKernel`, k(0)=0) | the periodic 1/r, applied inside `GSpaceDensityFitter` to its own G-keyed coefficients.  It is not a `CoulombOperator` realization (that face is `rvec_t`, the mesh fitter's private strategy), per ruling (b) |
 | the IBZ star-average (`SymmetrizeGMap`) inside the periodic composite's `Project` | crystal point ops belong to the k-composite |
 | the response's δV_H(G+q) (`TransitionRepulsion`, `CoulombKernel(m,q)`, `ΔGq_Map`) | a Bloch-q field.  It stays on `Vee_Hartree`'s response half until the response route is redone.  ⚠ This means `Vee_Hartree` does not fully retire in this step: its response methods move to a small `Vee_Hartree_Response`, or stay with a ground-state body that delegates |
 | `GetRhoOnGrid` / raster ρ_DM(r) | sub-step 4 (R1.0n/o), unchanged here |
@@ -124,9 +157,10 @@ new names.
 
 **What has to become scalar-generic for this.**  `Vee_DFT` is a molecular term (`rsmat_t MakeMatrix`).  The PW term has both
 block corners (`cobs_t` and `robs_t`).  So the merged term is `tVee_DFT<T>`, or `Vee_DFT` gains the two periodic `MakeMatrix`
-overloads.  `GridDensityFitter` / `CoulombOperator` carry `rvec_t`, so they take the record (§2) and the operator gains a
-G-realization.  Energy = ½⟨q,v⟩_w is a weighted inner product on the record, **the same dispatcher the mixers need in sub-step 4**,
-so it is added once, here.
+overloads.  It holds a fitter through the same narrow face it uses now (`DoFit` / `Repulsion` / `HartreeEnergy` / `Integral`),
+whichever class implements it.  `GridDensityFitter` / `CoulombOperator` stay `rvec_t` (ruling (b)), and the energy's inner
+product lives inside each fitter, so no new record dispatcher is needed for the Hartree term.  The mixers' inner product is still
+sub-step 4's.
 
 ## 4. Where numbers can move, and the gates that say they did not
 
@@ -167,10 +201,20 @@ Every item below is a reordering of the same arithmetic, so it should be roundof
 
 ## 5. Order, if approved
 
-- **3a.** The rename of the record; `PairProjector` in BasisSet; `tChargeDensity::Project`; every density implements it.  The old
-  faces stay alive one commit, forwarding to it.  0 moves.
-- **3b.** A G-space `CoulombOperator`; `GridDensityFitter` on the record; `Vee_DFT` scalar-generic.  The PW / GPW Hartree term
-  becomes `Vee_DFT` (with gate 1 first), and `Vee_Hartree` keeps only the response half.  0 moves, or roundoff, judged by the gates.
+- **3a.**
+  - The rename (`FitCoefficients` → `Projections`).
+  - `MatrixAdjoint::Adjoint` / `Integrate` revert to `rvec_t`, and the coefficient-side wraps go (§2a rows 1–6).
+  - `GSpacePairProjectionIntegrator` gets its typed adjoint.
+  - `PairProjector` in BasisSet; `tChargeDensity::Project`, implemented by every density.  The old faces stay alive one commit,
+    forwarding to it.
+
+  0 moves.
+- **3b.**
+  - `GSpaceDensityFitter` (G-keyed ρ̃ / V_H private, k(G) inside), replacing `OrthoFunctionFitter`.
+  - `Vee_DFT` scalar-generic.
+  - The PW / GPW Hartree term becomes `Vee_DFT` on it, with gate 1 first, and `Vee_Hartree` keeps only the response half.
+
+  0 moves, or roundoff, judged by the gates.
 - **3c.** Delete everything §3 retires, the `FourierDensity` face and the 11 casts with it.  Regenerate the hub snapshot.
 - Then sub-step 4 (R1.0n/o) as planned.  It is smaller now, since the mixers already ask `Project`.
 
@@ -180,8 +224,8 @@ periodic `Repulsion3C` loses its last periodic client, while the molecular one s
 
 ## Questions for the user
 
-1. The PW Hartree term becomes `Vee_DFT` on a diagonal Poisson `CoulombOperator` (first order, §1), not the Dunlap path.  Agreed?
-2. Matrix-free densities keep today's arithmetic through two `PairProjector` entries (a structure-factor seed; an identity for a
+1. ✅ RULED (c): the PW Hartree term becomes the first-order fitted term on a diagonal Poisson operator; Dunlap is Gaussian-only.
+2. (OPEN) Matrix-free densities keep today's arithmetic through two `PairProjector` entries (a structure-factor seed; an identity for a
    projection record on the same basis, which throws on another basis) rather than being sampled (§2).  Agreed?
-3. The record's name: `AuxComponents` (my pick), `Projections`, or another?
-4. `Vee_Hartree` keeps only the response half, δV_H(G+q), until the response route is redone.  Agreed?
+3. ✅ RULED (a): `Projections`.
+4. (OPEN, part of the controller's proposed Vee-family rename) `Vee_Hartree` keeps only the response half, δV_H(G+q), until the response route is redone.  Agreed?
