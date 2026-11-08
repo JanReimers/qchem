@@ -3,6 +3,7 @@
 module;
 #include <cassert>
 #include <iostream>   // the [symmetry] imposition line; the [XC mesh] / [Becke grid] lines
+#include <format>     // the k shift on that line, independent of the stream's precision
 #include <memory>
 #include <vector>
 module qchem.Lattice_3D.Imposition;
@@ -32,14 +33,37 @@ CrystalImposition ResolveImposition(const Lattice_3D& lat, const ImpositionOptio
         return ops;
     }
 
+    // THE INTERSECTION RULE (R1.0r, user ruling 2026-10-29): the imposed group is the detected group (spatial or Shubnikov)
+    // INTERSECTED with the ops that map the k mesh onto itself.  The k-sum only samples the mesh, so star-averaging ρ over an op
+    // the mesh does not respect symmetrizes it beyond its sampling: the density is then not the variational one, and its forces
+    // are not dE/dR (a shifted-MP Si run read 1.02 mHa low before ecc9fe23).  The ops that map a mesh onto itself form a group,
+    // so the intersection of two groups is a group and the imposition gate below still holds.  When it drops ops it reports
+    // itself, one level into the caller's scope.
+    const ivec3_t N=lat.GetLimits();
+    auto offMesh=[&](const Matrix3D<double>& W){ return !SL::MapsMeshOntoItself(Transpose(W),N,o.kShift); };   // U = W^T
+    auto reportDropped=[&](const char* group, size_t detected, size_t dropped)
+    {
+        if (dropped==0) return;
+        std::cout << "[symmetry] the k mesh " << N.x << "x" << N.y << "x" << N.z << " (shift "
+                  << std::format("{:g},{:g},{:g}",o.kShift.x,o.kShift.y,o.kShift.z) << ") keeps " << detected-dropped << " of the " << detected << " " << group
+                  << " ops: the other " << dropped << " do not map it onto itself, and rho is symmetrized only under ops its sampling has"
+                  << std::endl;
+        report::Set("kMeshIntersection", report::json{{"group",group},{"detected",detected},{"kept",detected-dropped},{"dropped",dropped},
+            {"kMesh",{N.x,N.y,N.z}},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
+            {"why","the imposed group is intersected with the ops that map the k mesh onto itself (R1.0r): a density symmetrized beyond its sampling is not variational"}});
+    };
+
     const bool magnetic = [&]{ for (int s : o.siteSpins) if (s!=0) return true; return false; }();
     if (magnetic)
     {
         ops.magneticDirect = lat.ShubnikovOps(o.siteSpins);
+        const size_t nShubnikov=ops.magneticDirect.size();
+        const size_t nOff=std::erase_if(ops.magneticDirect, [&](const SL::SymOp& op){ return offMesh(op.W); });
         size_t nFlip=0; for (const auto& op : ops.magneticDirect) if (op.sigma==SL::SpinAction::Flip) nFlip++;
         std::cout << "[symmetry] IMPOSING the SHUBNIKOV group of the declared ordering: "
                   << ops.magneticDirect.size() << " ops (" << ops.magneticDirect.size()-nFlip
                   << " spatial + " << nFlip << " spin-flip; the grey group would erase the order)" << std::endl;
+        reportDropped("Shubnikov", nShubnikov, nOff);
         // The density faces get ONLY the σ=None (sublattice-preserving) subgroup.  MEASURED (MnO run 37, 2026-08-11): they must
         // NOT get the flip ops' spatial parts -- the composite star-average is applied PER CHANNEL (each channel's
         // GetFourierDensity/GetRhoOnGrid symmetrizes ITSELF, and the ρ̃ MIXER consumes the channels separately through exactly
@@ -72,10 +96,11 @@ CrystalImposition ResolveImposition(const Lattice_3D& lat, const ImpositionOptio
     // already uses just that subgroup.  Star-averaging rho over ops the mesh does not respect would sample a LARGER k-set
     // than the one whose bands are summed -- so impose the same subgroup on rho.
     {
-        const ivec3_t N=lat.GetLimits();
-        auto bad=[&](const Matrix3D<double>& U){ return !SL::MapsMeshOntoItself(U,N,o.kShift); };
-        std::erase_if(ops.recipDensity,  [&](const auto& op){ return bad(op.U); });
-        std::erase_if(ops.directDensity, [&](const auto& op){ return bad(Transpose(op.W)); });
+        const size_t nDetected=ops.directDensity.size();
+        std::erase_if(ops.recipDensity,  [&](const auto& op){ return offMesh(Transpose(op.U)); });
+        const size_t nOff=std::erase_if(ops.directDensity, [&](const auto& op){ return offMesh(op.W); });
+        assert(ops.recipDensity.size()==ops.directDensity.size());
+        reportDropped("spatial", nDetected, nOff);
     }
     // ★ THE IMPOSITION GATE -- see the magnetic branch.  The reciprocal set is the transpose of this one, so closure of {W|τ}
     // settles both.  DirectOp carries no σ (a spatial group), so it lifts to SymOp with σ=None.

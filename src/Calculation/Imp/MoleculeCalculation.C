@@ -174,21 +174,7 @@ void MoleculeCalculation::BuildGraph()
         {
             // THE CARRY (a MoleculeSession step): the previous point's D, block for block, onto THIS point's basis -- a
             // WorkingDensity of the moved Hamiltonian, consumed here once.
-            using namespace qchem::ChargeDensity;
-            auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetImposition() ? itsBasis->GetImposition()->DensityStarOps()
-                                                                                   : std::vector<Symmetry::Lattice_3D::ReciprocalOp>{});
-            size_t b=0;
-            for (Spin s : SpinIrreps(opts.spin))
-                for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
-                {
-                    if (b>=itsCarry->D.size() || itsCarry->D[b].rows()!=ibs->GetNumFunctions())
-                        throw std::logic_error("qchem::MoleculeCalculation: the carried density's blocks do not match this point's basis");
-                    const Irrep irr=ibs->GetIrrep(s);
-                    cd->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(itsCarry->D[b++], ibs, irr)), irr);
-                }
-            if (b!=itsCarry->D.size())
-                throw std::logic_error("qchem::MoleculeCalculation: the carried density has more blocks than this point's basis");
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), cd.release(), itsStructure.get(),
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), MakeCarriedDensity(*itsCarry).release(), itsStructure.get(),
                                  qchem::Auto, 0.0, qchem::SCFIterator::SeedRole::WorkingDensity);
             itsCarry.reset();
         }
@@ -304,29 +290,51 @@ void MoleculeCalculation::RebuildSampling()
 
 void MoleculeCalculation::OnIteration(Observer obs) {itsObserver = std::move(obs);}
 
-MoleculeCalculation::Carry MoleculeCalculation::MakeCarry() const
+std::vector<hmat_t<double>> MoleculeCalculation::BlockDensities(bool energyWeighted) const
 {
     const auto* wf = itsScf ? itsScf->GetWaveFunction() : nullptr;
-    if (!wf) throw std::logic_error("qchem::MoleculeCalculation::MakeCarry: no wave function yet");
-    Carry c;
+    if (!wf) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet (a block density needs a Converge)");
+    std::vector<hmat_t<double>> out;
     for (Spin s : SpinIrreps(itsSetup->opts.spin))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             const size_t n=ibs->GetNumFunctions();
             const auto* os=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(wf->GetOrbitals(ibs->GetIrrep(s)));
-            if (!os) throw std::logic_error("qchem::MoleculeCalculation::MakeCarry: a block's orbitals are not real");
+            if (!os) throw std::logic_error("qchem::MoleculeCalculation: a block's orbitals are not real");
             hmat_t<double> D(n);
             for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) D(a,b)=0.0;
             for (const auto* o : os->Iterate<qchem::Orbitals::TOrbital<double>>())
             {
-                const double f=o->GetOccupation();
-                if (f==0.0) continue;
+                const double f=o->GetOccupation()*(energyWeighted ? o->GetEigenEnergy() : 1.0);
+                if (o->GetOccupation()==0.0) continue;
                 const auto& v=o->GetCoeff();
                 for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) D(a,b)+=f*v[a]*v[b];
             }
-            c.D.push_back(std::move(D));
+            out.push_back(std::move(D));
         }
-    return c;
+    return out;
+}
+
+MoleculeCalculation::Carry MoleculeCalculation::MakeCarry() const {return Carry{BlockDensities(false)};}
+std::vector<hmat_t<double>> MoleculeCalculation::MakeEnergyWeightedDensity() const {return BlockDensities(true);}
+
+std::unique_ptr<qchem::ChargeDensity::rDM_CD> MoleculeCalculation::MakeCarriedDensity(const Carry& carry) const
+{
+    using namespace qchem::ChargeDensity;
+    auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetImposition() ? itsBasis->GetImposition()->DensityStarOps()
+                                                                           : std::vector<Symmetry::Lattice_3D::ReciprocalOp>{});
+    size_t b=0;
+    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+        for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
+        {
+            if (b>=carry.D.size() || carry.D[b].rows()!=ibs->GetNumFunctions())
+                throw std::logic_error("qchem::MoleculeCalculation: the carried density's blocks do not match this point's basis");
+            const Irrep irr=ibs->GetIrrep(s);
+            cd->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(carry.D[b++], ibs, irr)), irr);
+        }
+    if (b!=carry.D.size())
+        throw std::logic_error("qchem::MoleculeCalculation: the carried density has more blocks than this point's basis");
+    return cd;
 }
 
 //====================================================================================================

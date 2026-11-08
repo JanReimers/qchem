@@ -393,3 +393,59 @@ TEST(GPWTolerances, TheRouteHooksAreUlpLevelAndReset)
     EXPECT_FALSE(NR_Evaluator::ExpRecurrenceOverride().has_value());
     EXPECT_FALSE(NR_Evaluator::SphereScreenOverride().has_value());
 }
+
+// ---- THE R-RESOLVED 1E SERIES (short-PP lever 2, lane A 2026-11-07) -------------------------------------------------------------
+// The MnD evaluator now builds each lattice-summed 1E operator's series {(n, K_ij(n))} once and phases it per k.  The gate: at
+// several k (Gamma, a TRIM, two generic) on a two-atom cell, the series route equals the per-k definition block by block.  The
+// series repeats the per-k arithmetic term for term, so the two agree to the last bit; the bound allows a roundoff ulp.
+namespace {
+void SeriesEqualsPerK(BasisSetData data, const UnitCell& cell, const char* what)
+{
+    using Evaluators::PG_Cart_MnD::NR_Evaluator;
+    std::shared_ptr<const BasisSet::Real_BS> bs(Factory(data, &cell, Engine::MnD, Angular::Cartesian));
+    const NR_Evaluator* ev=nullptr;
+    size_t n=0;
+    for (auto ibs : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_OIBS>())
+    {   ev=dynamic_cast<const NR_Evaluator*>(ibs); n=ibs->GetNumFunctions(); break; }   // unit tests may cast to the concrete
+    ASSERT_NE(ev, nullptr) << what;
+    // A local Gaussian operator with a polynomial part, as the GTH short PP: g(r) = (-1.3 + 0.4 r^2) e^{-0.9 r^2}, same at every Z.
+    auto opForZ=[](int)
+    {
+        LatticeSum1E::GaussianFunction g; g.alpha=0.9;
+        g.terms.push_back({{0,0,0},-1.3});
+        g.terms.push_back({{2,0,0},0.4}); g.terms.push_back({{0,2,0},0.4}); g.terms.push_back({{0,0,2},0.4});
+        return g;
+    };
+    auto maxDiff=[&](const chmat_t& a, const chmat_t& b, double& scale)
+    {
+        double d=0; scale=0;
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+        {   d=std::max(d,std::abs(dcmplx(a(i,j))-dcmplx(b(i,j)))); scale=std::max(scale,std::abs(dcmplx(b(i,j)))); }
+        return d;
+    };
+    for (const rvec3_t& k : {rvec3_t(0,0,0), rvec3_t(0.5,0,0), rvec3_t(0.25,0.0,0.125), rvec3_t(0.1,0.3,-0.2)})
+    {
+        const auto phase=PhaseOf(k);
+        struct Op { const char* name; chmat_t series, perK; };
+        const Op ops[]={
+            {"overlap", ev->MakeOverlap(phase,cell),            ev->MakeOverlapPerK(phase,cell)},
+            {"kinetic", ev->MakeKinetic(phase,cell),            ev->MakeKineticPerK(phase,cell)},
+            {"nuclear", ev->MakeNuclear(phase,cell,&cell),      ev->MakeNuclearPerK(phase,cell,&cell)},
+            {"local Gaussian", ev->MakeLocalGaussian(phase,cell,&cell,opForZ), ev->MakeLocalGaussianPerK(phase,cell,&cell,opForZ)}};
+        for (const Op& o : ops)
+        {
+            double scale=0;
+            const double d=maxDiff(o.series, o.perK, scale);
+            EXPECT_GT(scale, 0.0) << what << " " << o.name;
+            EXPECT_LE(d, 1e-14*scale) << what << " " << o.name << " at k=(" << k.x << "," << k.y << "," << k.z << ")";
+        }
+    }
+    // The memo is a function of its inputs: a second call at another k reads the same series and still matches.
+    const auto phase=PhaseOf(rvec3_t(0.375,-0.125,0.25));
+    double scale=0;
+    EXPECT_LE(maxDiff(ev->MakeLocalGaussian(phase,cell,&cell,opForZ), ev->MakeLocalGaussianPerK(phase,cell,&cell,opForZ), scale), 1e-14*scale);
+}
+} // namespace
+
+TEST(LatticeSeries, TheRResolvedRouteEqualsThePerKRoute_Si)  { SeriesEqualsPerK(BasisSetData::SIPP_SR, SiCell(),  "Si SIPP_SR"); }
+TEST(LatticeSeries, TheRResolvedRouteEqualsThePerKRoute_MnO) { SeriesEqualsPerK(BasisSetData::VALENCE_LOWQ_VA, MnOCell(), "MnO valence (d shells)"); }

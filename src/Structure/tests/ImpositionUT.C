@@ -120,6 +120,45 @@ TEST(Imposition, AStaggeringImposesTheShubnikovGroupAndItsSigmaNoneDensity)
     EXPECT_EQ(grey.directDensity.size(), lat.GetSpaceGroup().DirectOps().size()) << "no staggering: the grey group";
 }
 
+//! THE INTERSECTION RULE ON THE MAGNETIC BRANCH (R1.0r, user ruling 2026-10-29): the imposed Shubnikov group is intersected with the
+//! ops that map the k mesh onto itself, exactly as the spatial branch is -- every face (the Shubnikov set itself, the σ=None density
+//! faces) carries only ops the mesh respects, in detection order.  An anisotropic mesh (2x2x1) and a shifted one on the MnO AFM-II
+//! cell both drop ops; the Γ-centred isotropic one drops none.
+TEST(Imposition, AShubnikovImpositionIsRestrictedToTheMeshToo)
+{
+    const std::vector<int> afm{+1,-1,0,0};
+    struct Mesh { ivec3_t N; rvec3_t shift; bool drops; };
+    for (const Mesh m : {Mesh{ivec3_t(2,2,2),rvec3_t(0,0,0),false}, Mesh{ivec3_t(2,2,1),rvec3_t(0,0,0),true},
+                         Mesh{ivec3_t(2,2,2),rvec3_t(0.5,0,0),true}})
+    {
+        const Lattice_3D lat(MnO_AFM2(), m.N);
+        const CrystalImposition imp=ResolveImposition(lat, {.imposeSymmetry=true, .siteSpins=afm, .kShift=m.shift});
+        const auto shub=lat.ShubnikovOps(afm);
+        size_t kept=0, nNone=0, nFlip=0;
+        for (const auto& op : shub)
+        {
+            if (!SL::MapsMeshOntoItself(Transpose(op.W), m.N, m.shift)) continue;
+            ASSERT_LT(kept, imp.magneticDirect.size());
+            EXPECT_TRUE(Same(imp.magneticDirect[kept].W, op.W) && Same(imp.magneticDirect[kept].tau, op.tau));
+            EXPECT_EQ(imp.magneticDirect[kept].sigma, op.sigma);
+            kept++;
+            if (op.sigma==SL::SpinAction::Flip) {nFlip++; continue;}
+            ASSERT_LT(nNone, imp.directDensity.size());
+            EXPECT_TRUE(Same(imp.directDensity[nNone].W, op.W) && Same(imp.directDensity[nNone].tau, op.tau));
+            EXPECT_TRUE(Same(imp.recipDensity[nNone].U, Transpose(op.W)));
+            nNone++;
+        }
+        EXPECT_EQ(imp.magneticDirect.size(), kept);
+        EXPECT_EQ(imp.directDensity.size(), nNone);
+        EXPECT_EQ(imp.recipDensity.size(), nNone);
+        for (const auto& op : imp.directDensity)
+            EXPECT_TRUE(SL::MapsMeshOntoItself(Transpose(op.W), m.N, m.shift)) << "no density op the mesh does not respect";
+        if (m.drops) EXPECT_LT(kept, shub.size()) << "this mesh does not respect the whole Shubnikov group";
+        else         EXPECT_EQ(kept, shub.size()) << "a Γ-centred isotropic mesh respects the whole group";
+        EXPECT_GT(nFlip, 0u) << "the kept set still carries spin-flip ops (the order is still imposed)";
+    }
+}
+
 //! The imposition BUILDS the run's XC mesh under its own ops (XCMeshSource, V-BS-SYMMETRY S2): the cell's plain mesh when it
 //! imposes nothing and asks no invariance (point for point what the cell itself builds); an invariant, orbit-folded mesh when it
 //! imposes; and, magnetically, one Shubnikov spin tag per op and a flip-fixed flag per mesh point.

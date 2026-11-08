@@ -534,3 +534,16 @@ Landed as `725d9fb91` (the ladder takes the basis's `Resolution`; `relCutoffSafe
 
 Row as it stood: | **V-BS-RASTER** ★ (user + controller, 2026-11-02) | Step 1 is landed: one `GpwRasterLadder` per geometry point (`MakeRasterLadder`), injected; the downcasting audits are gone.  OPEN: (a) the ladder and the auto densityEcut still read exponents (`GaussianSharpness`); `tBasisSet::MakeResolution` exists and nothing consumes it; (b) `RelCutoffSafety` still answers on the evaluator side, ruled to move to the ladder; (c) a solid's `grids` report is the ladder's flat bag, not one entry per grid (FacadeMatrix Solid Prepare cell); (d) the evaluator's Gstars field beside the ladder's rows is interim | Step 2: the ladder and the auto floor consume `MakeResolution(eps) -> {cutoff, coarseCutoff, radius}`, judged by a sweep, paired with lane A; also the molecular radial extent (`logStop`).  Gate: report diff on one GPW Γ and one k222 test · H3 "V-BS-RASTER", `src/BasisSet/Gaussian/Lattice/RasterLadder.C` |
 
+### R1.0r ✅ (lane A, 2026-11-07)
+
+Landed as `dabf2d6a4`.  The imposed group is the detected group INTERSECTED with the ops that map the k mesh onto itself, on BOTH branches of
+`ResolveImposition`: the spatial one (`ecc9fe23`) and now the magnetic one, which used to return before the filter and keep the full Shubnikov set.
+A Shubnikov set CAN exceed the mesh (MnO AFM-II keeps 8 of 24 on 2x2x1 and on a (0.5,0,0) shift), so it is applied, not argued away.  When ops
+drop, the run says so (`[symmetry] the k mesh ... keeps K of the D <group> ops`) and writes `policy.symmetry.kMeshIntersection`.  Unit test
+`Imposition.AShubnikovImpositionIsRestrictedToTheMeshToo`.  Sweep lane-a-r10r: short 1320/1320, long 13/13, panel at 4 threads 24/25 (TiO2 k222
+over budget, as on every main baseline; the 5 panel-red cases failed for their known reasons); 0 anchor moves vs main-ae36ba40.  No current
+magnetic test sits on a dropping mesh; the meshes that drop are spatial (Na k222s, Si k211, Si k222s), filtered since ecc9fe23 and now reported.
+
+Original row:
+
+| **R1.0r** | ρ star-averaged under a BIGGER group than the k-mesh has.  Landed for the spatial group (`ecc9fe23`: `MapsMeshOntoItself` erases the ops from `recipDensity` / `directDensity`, `Imposition.C:71`).  The MAGNETIC branch of `ResolveImposition` returns before that filter, so a Shubnikov run keeps its full set | **RULED 2026-10-29 (user): the INTERSECTION** (a density symmetrized beyond its sampling is not variational, so its forces are not dE/dR).  Apply it on the magnetic branch, or state why a Shubnikov set cannot exceed the mesh · H2 R1.0r |
