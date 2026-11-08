@@ -1,6 +1,6 @@
 # V-ONE-OF-N sub-step 3 (D2), redesigned: the density projects, the Hartree term applies the physics (design note, lane S 2026-11-08)
 
-RECORD, for the user's approval before any hub code.  It supersedes `doc/Records/VOneOfNDesign.md` §5–§6 for D2, and §6's
+RECORD, APPROVED 2026-11-08 (all five questions ruled; see (a)–(f)).  It supersedes `doc/Records/VOneOfNDesign.md` §5–§6 for D2, and §6's
 `ProjectOnto` line (sub-step 2's ruled option 1) is revisited in §2 below.  Read-only from lane-s-h-sprint at d09e98dc1;
 nothing built or run for this note.
 
@@ -19,7 +19,11 @@ nothing built or run for this note.
     anchor that moves beyond roundoff re-judged against an independent route (pin 10) and listed (§4).
   - Renames: `Vee_DFT` → **`Vee_Fit`**, `Vee_DFT_Dunlap` → **`Vee_FitDunlap`**, `Vee_Hartree`'s response half →
     **`Vee_Response`**.  The exact-J `Vee` is unchanged.  The note uses the new names from here on.
-- **Still open:** Q5 (A vs B, §1a), being re-explained by the controller.
+- **(f)** Q5 RULED (user 2026-11-08): *"A is fine, B is too fancy I think."*  So shape (A) holds EVERYWHERE: the Hartree physics is the
+  fit BASIS's Coulomb integrals.  For PW that is k(G)⟨ab|G⟩, used only in the physics round and in the energy's Coulomb metric,
+  never in the projection; the fitter contracts its private coefficients with it.  The mesh's `CoulombOperator` moves from
+  `GridDensityFitter` to the δ basis (the point set) as ITS Coulomb integrals.  **All five questions are ruled, and this note is
+  APPROVED as the plan** (3a, 3b, 3c in order, each its own commit with its gates).
 - **(d)** A correction (user 2026-11-08): 1/r₁₂ plays TWO roles, and the note must keep them apart.  One is the fit METRIC, a
   fitter's choice; the other is the PHYSICS.  §1a is new, and §1's "k(G) in the fitter" is withdrawn.
 
@@ -95,15 +99,12 @@ So the PW route has two misplacements today, and the mesh route has the same kin
   ΔG for PW), so the term's fitter face is no longer one face.  It is a template or a cast.
 - **(C) The fitter hands ρ̃ to the term, which applies k.**  This contradicts ruling (b).  Listed only to rule it out.
 
-**The mesh misplacement (`GridDensityFitter` owns `CoulombOperator`).**  Under (A) the cheapest correct home is the term, which
-builds the operator (the factory already chooses it) and hands it to the fitter's two physics calls.  That is (B), on the one fitter
-whose coefficient type is fixed (`rvec_t`), so (B)'s typing objection does not arise there.  It touches:
-- `GridDensityFitter`: `DoFit` stops calling `Potential`; `Repulsion` and `HartreeEnergy` take the operator;
-- `Vee_Fit`: it holds the operator;
-- its factory.
-
-That is three files and 0 moves (the same calls in the same order).  **I recommend it in the same step (3b)**, since 3b already makes
-`Vee_Fit` the shared term.  If the user prefers 3b smaller, it becomes its own `OOD-SOLID-Cleanup` row.
+**The mesh misplacement (`GridDensityFitter` owns `CoulombOperator`), RULED (f): (A) here too.**  The δ basis (the point set,
+`DeltaFit_IBS`) owns its `CoulombOperator` as its Coulomb integrals, the mesh's analogue of a Gaussian basis's `Repulsion()` /
+`Repulsion3C`.  `GridDensityFitter` holds no operator.  Its `DoFit` stores ρ(r_g) only, and its `Repulsion` / `HartreeEnergy`
+contract the private coefficients through the basis's Coulomb face.  Where the operator is chosen today (the factory, by deck),
+it is handed to the δ basis at construction instead of to the fitter.  This rides 3b, since 3b already makes `Vee_Fit` the shared
+term.
 
 ## 2. The density's one operation, and the record's name
 
@@ -160,7 +161,7 @@ fitter is a matrix (`Repulsion`, `Overlap`) or a number (`HartreeEnergy`, `Integ
 | 2 | `GSpacePairProjectionIntegrator::Adjoint(const FitCoefficients&)` (`.GMap()` read) | `Vee_Hartree`'s V_H | it **stops implementing `MatrixAdjoint`**.  It keeps `MatrixForward` (its output is `Projections` holding ρ̃) and gains a typed `Adjoint(const ΔG_Map&)`, called only by the PW fitter that owns it.  Nothing generic calls a G-space adjoint today: every fitter holds its integrator CONCRETELY (`ConstrainedFF`, `GridDensityFitter`, `DeltaFunctionFitter`, `FunctionFitterImp`, `Hubbard_U`), and the one face-level caller, `DensitySampler_Pair::BlockAdjoint`, is raster-only |
 | 3 | `ConstrainedFF::Repulsion`, `FunctionFitterImp::Overlap` → `Adjoint(FitCoefficients(itsFitCoeff))` | `itsFitCoeff` (rvec_t) | `Adjoint(itsFitCoeff)`.  It was already private; only sub-step 2's wrap goes |
 | 4 | `DeltaFunctionFitter::Contract` → `Adjoint(itsC)`; sub-step 2 made `itsC` a `FitCoefficients` | `itsC` | back to `rvec_t itsC`: the δ fitter's own type |
-| 5 | `GridDensityFitter::Repulsion` → `Adjoint(FitCoefficients(itsV))`; `CoulombOperator::Potential(q)→v`, `SelfRepulsion(q,v)` | `itsC`, `itsV` (rvec_t) | `rvec_t`, private.  The `CoulombOperator` (role 2, physics) moves to the Hartree term and is lent to `Repulsion` / `HartreeEnergy` (§1a), so `itsV` is computed at the physics call, not in `DoFit` |
+| 5 | `GridDensityFitter::Repulsion` → `Adjoint(FitCoefficients(itsV))`; `CoulombOperator::Potential(q)→v`, `SelfRepulsion(q,v)` | `itsC`, `itsV` (rvec_t) | `rvec_t`, private.  The `CoulombOperator` (role 2, physics) moves to the δ basis as its Coulomb integrals (RULED (f)), so `itsV` is computed at the physics call through the basis, not in `DoFit` |
 | 6 | `Hubbard_U` → `LowdinProjector::Adjoint(FitCoefficients(ch.W))`, `Integrate` | `ch.W` (its potential on occupation axes) | `Adjoint(ch.W)`.  Hubbard_U is its own paired implementation |
 | 7 | `Vee_Hartree`'s field memo `itsField` (sub-step 2: `FitCoefficients`), its adjoint, and the `.GMap()` Parseval energy | the TERM holds V_H today, which is the leak | **a new PW density fitter** (`GSpaceDensityFitter`, replacing `OrthoFunctionFitter`) holds ρ̃, its fit, as a private `ΔG_Map`.  It has **no k(G) and no V_H**: the physics is the PW basis's Coulomb integrals (§1a (A)), reached when the term asks `Repulsion(bs)` (the `Repulsion3C` adjoint, k applied there) and `HartreeEnergy(trDV)` (½ ρ̃ᵀ⟨G|1/r|G'⟩ρ̃ = ½Ω Σ k\|ρ̃\|²).  The term holds no field |
 | 8 | `DensitySampler::Matrix(bs, const rvec_t& v)`: v_xc on the δ points / raster, computed by the XC TERM pointwise | the term | **not this step.**  It is the XC side of the same leak (the term computes the potential coefficients and hands them to the "fitter", the sampler).  It is V-XC-ONE-TERM's job: the sampler takes the functional and keeps v |
@@ -271,7 +272,7 @@ and 8 are real changes of route.
 - **3b.**
   - `GSpaceDensityFitter` (ρ̃ private, no kernel), replacing `OrthoFunctionFitter`.
   - PW / GPW `Repulsion3C` with the kernel moved into its adjoint, plus the PW fit basis's Coulomb metric (§1a (A)).
-  - `Vee_Fit` scalar-generic, and holding the mesh `CoulombOperator` (§1a, the mesh misplacement).
+  - `Vee_Fit` scalar-generic; the mesh `CoulombOperator` moves into the δ basis as its Coulomb integrals (§1a, RULED (f)).
   - The PW / GPW Hartree term becomes `Vee_Fit` on it, with gate 1 first, and `Vee_Hartree`'s response half becomes `Vee_Response`.
 
   Judged by §4's gates: ε, with moves listed and re-judged.
@@ -288,8 +289,7 @@ periodic `Repulsion3C` loses its last periodic client, while the molecular one s
 2. ✅ RULED (e): the clean route.  Matrix-free densities project through a generic `AnalyticFourier` capability, or are sampled;
    numbers may move, judged against ε and re-judged against an independent route (§2, §4).
 3. ✅ RULED (a): `Projections`.
-5. (NEW, correction (d)) How the term applies the physics while the coefficients stay private: §1a's (A), physics = the basis's
-   Coulomb integrals, as in Dunlap (my pick), or (B), the term lends its operator per call?  And does the mesh `CoulombOperator`
-   move to the term in 3b (my pick), or as its own row?
-4. ✅ RULED (e): `Vee_Fit` → `Vee_Fit`, `Vee_FitDunlap` → `Vee_FitDunlap`, and `Vee_Hartree`'s response half → `Vee_Response`
+5. ✅ RULED (f): (A) everywhere.  The physics is the fit basis's Coulomb integrals; the mesh's `CoulombOperator` belongs to the δ
+   basis; 3b.
+4. ✅ RULED (e): `Vee_DFT` → `Vee_Fit`, `Vee_DFT_Dunlap` → `Vee_FitDunlap`, and `Vee_Hartree`'s response half → `Vee_Response`
    (δV_H(G+q), until the response route is redone).
