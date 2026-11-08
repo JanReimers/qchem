@@ -160,9 +160,9 @@ template <auto F, class C>
 void ReverseInto(const double* x, double* g, const C* c)
 {
 #ifdef QCHEM_ENZYME
-    // Enzyme's CLASSIC entry (activity markers), not its tuple wrapper enzyme::autodiff: the wrapper stores the active pointer in a
-    // tuple Enzyme's activity analysis reads as constant ("Mismatched activity ... its derivative will be assumed zero"), and dE/dD came
-    // back identically ZERO through it (2026-11-08).  The untyped function pointer is Enzyme's ABI and stops here.
+    // Enzyme's CLASSIC entry: every argument's activity stated explicitly (enzyme_dup / enzyme_const).  The untyped function pointer
+    // is Enzyme's ABI and stops here.  (Its tuple wrapper enzyme::autodiff is equivalent: a zero gradient once blamed on it was Enzyme's
+    // loop-cache defect, doc/Records/EnzymeSpike.md §4.)
     __enzyme_autodiff<void>(reinterpret_cast<void*>(F), enzyme_dup, x, g, enzyme_const, c);
 #else
     (void)x; (void)g; (void)c;

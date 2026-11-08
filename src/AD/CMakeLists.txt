@@ -18,9 +18,10 @@ target_link_libraries(qcAD PUBLIC qcMath qcCommon)
 if(QCHEM_ENZYME)
     # PRIVATE, both: the plugin and the macro change only how qcAD's own TUs compile; its interface (and so every importer's .pcm) is
     # the same either way -- Available() is a function, not a macro.
-    # -O2 -mprefer-vector-width=128 (after the tree's -O3, so they win): Enzyme 1a87ccc on LLVM 21.1.6 gives a SILENTLY WRONG dE/dD at
-    # -O3, and SEGFAULTS at -O1/-O2 with 256-bit vectors (-march=native, AVX2); -march itself must stay (a .pcm and its importers agree
-    # on target features).  Repro: doc/Records/EnzymeSpike.md.  Every AD gradient is gated by a finite-difference test for this reason.
+    # -O2 -mprefer-vector-width=128 (after the tree's -O3, so they win): Enzyme 1a87ccc on LLVM 21.1.6 SEGFAULTED at -O2 -march=native
+    # (256-bit vectors, AVX2) on the spike's blocked kernel, and its loop-cache defect gave a silently wrong dE/dD at -O3 there (it is
+    # shape-dependent, at any -O); -march itself must stay (a .pcm and its importers agree on target features).  Repros and the record:
+    # doc/Records/EnzymeSpike.md.  No flag set makes Enzyme safe: every AD gradient is gated by a finite-difference test.
     target_compile_options(qcAD PRIVATE "-fplugin=${QCHEM_ENZYME_PLUGIN}" -O2 -mprefer-vector-width=128)
     target_compile_definitions(qcAD PRIVATE QCHEM_ENZYME)
     target_include_directories(qcAD PRIVATE "${QCHEM_ENZYME_INCLUDE}")
