@@ -383,7 +383,20 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
 - dS / dK / dV;
 - the contracted Dunlap 3c / 2c gradients.
 
-### 13.1 PROPOSAL: a value-with-derivatives carrier on the derivative-aware faces (DESIGN, for the user before code; lane B 2026-11-08)
+### 13.1 A value-with-derivatives carrier on the derivative-aware faces (lane B 2026-11-08)
+
+**APPROVED (user, 2026-11-08: "Looks good").**  The approved shape:
+- The sparse-in-atom first-order jet is the currency on the derivative-aware faces.
+- Each face offers both directions: forward jets, and a pullback of a given adjoint.
+- **The name is `PositionJet<T>`** (user: "I like PositionJet<T> now that I know it's a diff geom term").  Its declaration says what it
+  is: the first-order jet in the atom positions, in Ehresmann's sense, the same object as a Rall number or a dual number.
+- Second order is deferred.
+- Its matrix and mesh-array realizations form one V-ONE-OF-N record (CLAUDE.md), if more than one exists.
+- `qchem.BasisSet.GeometryDerivatives` sits behind a tier-1 hub (`BasisSet`), so its exported surface goes to the controller before that
+  part is committed.
+
+Code starts after the Becke leaf lands.  The proposal as written follows.
+
 
 The user's input (2026-11-08): *"I used to work with Rall algebra where every function evaluation returns {f, df/dx1, df/dx2, ...}.  With
 all that info in one blob, chaining is trivial and it makes no difference whether it is a cross library or inter planetary function
