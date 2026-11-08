@@ -105,6 +105,12 @@ qchem::SCFParams scf_params(const qcb_request& req)
     gate(p.MinFD, req.gateFD); gate(p.MinΔρPerElectron, req.gateDrho); gate(p.MinΔE, req.gateDE); gate(p.MinΔFD, req.gateDFD);
     p.UseMOM = req.useMOM != 0;
     if (req.momStart   > 0)   p.MOMStartIter    = req.momStart;
+    using M = qchem::SCFParams::Mixing;
+    const std::string mixer = req.mixer ? req.mixer : "";
+    p.Mixer = mixer.empty() || mixer == "Auto" ? M::Auto : mixer == "Linear" ? M::Linear : mixer == "Kerker" ? M::Kerker
+            : mixer == "Pulay" ? M::Pulay
+            : throw std::invalid_argument("qchem_py: unknown mixer \"" + mixer + "\" (Auto | Linear | Kerker | Pulay)");
+    p.SmearingkT = req.smearingkT;
     return p;
 }
 
@@ -141,12 +147,11 @@ std::string why_name(qchem::SCFFailure::Why w)
     return "unknown SCF failure";
 }
 
-//! The SCFFailure as one line for Python: why, after how many iterations, the residual, and the facade's details.
+//! The SCFFailure as one line for Python: why, after how many iterations, and the facade's details (which gates missed, and by
+//! how much, are the run's own last row: the GUI shows it).
 std::string describe(const qchem::SCFFailure& f)
 {
-    char residual[32];
-    std::snprintf(residual, sizeof residual, "%.2e", f.residual);
-    std::string s = why_name(f.why) + " after " + std::to_string(f.iterations) + " iterations (residual " + residual + ")";
+    std::string s = why_name(f.why) + " after " + std::to_string(f.iterations) + " iterations";
     if (!f.details.empty()) s += ": " + f.details;
     return s;
 }
@@ -215,12 +220,13 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char
         if (req->diisEngageFD > 0.0) acc.eMax  = req->diisEngageFD;
         if (req->ladderSwitchAt >= 0.0) acc.ladderSwitchAt = req->ladderSwitchAt;   // 0 = no tail trigger (stall only)
 
+        // The bridge is the DRIVER (user ruling D): it opens the run the facade writes into -- "<ID>", as for a Converge --
+        // BEFORE the setup's checks, so a refusal there files its record (its policy rows) too.
+        h->id     = mol.ID();
+        const qchem::report::Run run(h->id);
         const auto setup = qchem::MoleculeSetup::Resolve(mol, opts, acc);   // deep-copies mol
         // The observer rides the constructor, so the trace of ITS SCF streams from the first iteration.
         h->params = scf_params(*req);
-        h->id     = mol.ID();
-        // The bridge is the DRIVER (user ruling D): it opens the run the facade writes into -- "<ID>", as for a Converge.
-        const qchem::report::Run run(h->id);
         h->calc = std::make_unique<MoleculeCalculation>(setup, h->params,
                                                 step ? forward_to(step, sink) : MoleculeCalculation::Observer{});
         // The sink lives only for this call: detach it before returning (qcb_converge attaches its own).
@@ -325,8 +331,13 @@ qcb_solid* qcb_solid_make(const char* deckJson, char* err, int errlen)
     try
     {
         auto h = std::make_unique<qcb_solid>();
-        qchem::deck::FromJson(nlohmann::json::parse(deckJson), h->spec);   // strict: an unknown key throws, naming it
-        const qchem::report::Run run(h->spec.StructureName() + " build");   // the bridge is the driver: it opens the runs
+        const auto deck = nlohmann::json::parse(deckJson);
+        // The bridge is the driver: it opens the runs -- this one BEFORE the deck is read, so a refusal while reading it files
+        // its record too.  Its name is RunSpec::StructureName's, read off the raw deck (the spec does not exist yet).
+        const auto& st = deck.contains("structure") ? deck["structure"] : nlohmann::json();
+        const std::string name = st.is_string() ? st.get<std::string>() : st.is_object() ? st.value("name", std::string("inline")) : "deck";
+        const qchem::report::Run run(name + " build");
+        qchem::deck::FromJson(deck, h->spec);                               // strict: an unknown key throws, naming it
         h->calc = qchem::deck::Build(h->spec);                              // the observer is attached per Converge
         return h.release();
     }

@@ -82,14 +82,14 @@ public:
                const std::string& accelerator, int meshRadial, int meshAngular, double relaxStart, double relaxMax,
                int diisDepth, double diisSVTol, double diisEngageFD, bool mom, int momStart, double relaxMin,
                double ladderSwitchAt, double gateFD, double gateDrho, double gateDE, double gateDFD,
-               nb::object onIteration)
+               const std::string& mixer, double smearingkT, nb::object onIteration)
     {
         if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
         const qcb_request req{Z.data(), int(Z.size()), pos.data(), basis.c_str(), model.c_str(), pp.c_str(),
                               accelerator.c_str(), symmetry ? 1 : 0, polarized ? 1 : 0, multiplicity, maxIter,
                               meshRadial, meshAngular, relaxStart, relaxMax, diisDepth, diisSVTol, diisEngageFD,
                               mom ? 1 : 0, momStart, relaxMin, ladderSwitchAt,
-                              gateFD, gateDrho, gateDE, gateDFD};
+                              gateFD, gateDrho, gateDE, gateDFD, mixer.c_str(), smearingkT};
         qcb_sink sink{onIteration, std::nullopt};
         const bool stream = !onIteration.is_none();
         char err[errlen] = {0};
@@ -258,7 +258,8 @@ NB_MODULE(qchem_py, mod)
     nb::class_<Calculator>(mod, "Calculator")
         .def(nb::init<const std::vector<int>&, const std::vector<double>&, const std::string&, const std::string&,
                       bool, bool, int, int, const std::string&, const std::string&, int, int, double, double,
-                      int, double, double, bool, int, double, double, double, double, double, double, nb::object>(),
+                      int, double, double, bool, int, double, double, double, double, double, double,
+                      const std::string&, double, nb::object>(),
              nb::arg("numbers"), nb::arg("positions"), nb::arg("basis") = "dzvp", nb::arg("model") = "HF",
              nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("max_iter") = 100,
              nb::arg("pp") = "", nb::arg("accelerator") = "DIIS", nb::arg("mesh_radial") = 0, nb::arg("mesh_angular") = 0,
@@ -266,6 +267,7 @@ NB_MODULE(qchem_py, mod)
              nb::arg("diis_engage_fd") = 0.0, nb::arg("mom") = false, nb::arg("mom_start") = 0,
              nb::arg("relax_min") = 0.0, nb::arg("ladder_switch_at") = -1.0,
              nb::arg("gate_fd") = -1.0, nb::arg("gate_drho") = -1.0, nb::arg("gate_de") = -1.0, nb::arg("gate_dfd") = -1.0,
+             nb::arg("mixer") = "Auto", nb::arg("smearing_kT") = 0.0,
              nb::arg("on_iteration") = nb::none(),
              "MoleculeSetup::Resolve + converge.  Atomic numbers + flat 3N bohr positions.  on_iteration(iter, E, cells), "
              "if given, streams the SCF live (the GIL is released during the solve); cells = [(title, value, text, "
@@ -275,13 +277,14 @@ NB_MODULE(qchem_py, mod)
              "mom_start: the Maximum Overlap Method and its reference-capture iteration (0 = the lib's default throughout).  relax_min: the "
              "adaptive linear step's floor.  ladder_switch_at: the Ladder's DIIS -> GDM hand-off at |dE/E| below it (0 = stall only, "
              "< 0 = the lib's 1e-6).  gate_fd / gate_drho / gate_de / gate_dfd: the convergence gates [F,D], Δρ per electron, "
-             "|ΔE/E|, |Δ[F,D]| (> 0 the gate, 0 = off, < 0 = the lib's default).")
+             "|ΔE/E|, |Δ[F,D]| (> 0 the gate, 0 = off, < 0 = the lib's default).  mixer: SCFParams::Mixing by name (Auto | Linear | "
+             "Kerker | Pulay; the facade refuses what a molecule cannot mix).  smearing_kT: Fermi-Dirac smearing, Ha (0 = off).")
         .def("run_scf", &Calculator::RunSCF, nb::arg("on_iteration"), nb::arg("max_iter") = 100,
              "Re-run the SCF from the seed, streaming each iteration; returns converged.")
         .def("total_energy", &Calculator::TotalEnergy)
         .def("converged",    &Calculator::Converged)
         .def("failure",      &Calculator::Failure, "Why the last SCF did not converge (SCFFailure: why, iterations, "
-             "residual, details); None when it converged.")
+             "details); None when it converged.")
         .def("iterations",   &Calculator::Iterations)
         .def("structure",    &Calculator::Structure)
         .def("levels",       &Calculator::Levels, "Every MO, lowest first: [{'e','occ','spin','label'}].")

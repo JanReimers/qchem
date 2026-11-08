@@ -84,14 +84,15 @@ struct CalcOptions
     //! e.g. "gth-lda-valence": each element's smallest-q GTH-LDA entry); EMPTY (default) = all-electron.  The set also fixes the
     //! functional the entries were generated for.  Multi-species is native (a per-Z router over the molecule's elements).
     //! Requires a valence basis in \c basis (an all-electron basis has spurious core shells under a PP) -- e.g.
-    //! {.basis="sipp", .pp="gth-lda-valence"} for silicon.  Ignores \c model (the PP front door is always LSDA today).
+    //! {.basis="sipp", .model=Model::LDA, .pp="gth-lda-valence"} for silicon.  The PP front door is LSDA, so \c model must be LDA:
+    //! any other is refused at \c Resolve (it would be ignored -- a silent substitution).
     //! See doc/MolecularPseudopotentialPlan.md and doc/CalcNetworkReview.md §4.
     std::string pp;
     //! Per-element valence overrides on top of \c pp's set: `(element, q)` replaces the set's q for that element (or adds the element).
     //! E.g. a semicore Na q9 run: {.pp="gth-lda-valence", .ppOverride={{"Na",9}}}.
     std::vector<std::pair<std::string,int>> ppOverride;
-    //! SCF seed.  Default == auto: DFT seeds from SAD (superposition of atomic densities), HF/1-e take
-    //! the core guess.  Set explicitly to override -- e.g. {.seed=SAD} drives HF's matrix-free-seed
+    //! SCF seed.  Default == auto: a DFT run seeds from SAD (superposition of atomic densities) when the atomic-density library has
+    //! every element, else from the core guess, as HF/1-e do (the choice files a `policy` row, AutoSeed).  Set explicitly to override -- e.g. {.seed=SAD} drives HF's matrix-free-seed
     //! bootstrap (the iterator manufactures a D0 via a one-step LDA sibling).
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
     //! \brief The ONE accuracy target eps (doc/Pins.md pin 31; V-FACADE-ACCURACY, user ruling 2026-11-03: every structure type carries

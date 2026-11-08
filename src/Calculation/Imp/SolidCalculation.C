@@ -91,6 +91,7 @@ struct SolidCalculation::Imp
     qchem::OccupationConfig lastOccupation;
     double lastCommutator = std::numeric_limits<double>::quiet_NaN();
     double lastDensityChange = std::numeric_limits<double>::quiet_NaN();   //!< the last iteration's Δρ (the saved state's residual)
+    std::optional<qchem::SCFIterator::IterationRow> lastRow;   //!< the last iterate's row: a run that misses its gates says by how much
     double charge    = 0.0;
     //! The OUTCOME DETECTORS' record (N1/T3-T4).  Accumulates across every attempt this object makes --
     //! an annealed schedule and a re-Converge are CONTINUATIONS of one SCF, and an order that died in
@@ -811,7 +812,8 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
                     "signature of an UNDAMPED low-G charge mode -- the density has piled up, so the last "
                     "iterate's energy is not comparable with a healthy run's")
              : fail(SCFFailure::Why::NotConverged,
-                    "the SCF reached its iteration limit with the residual still above tolerance");
+                    "the SCF reached its iteration limit with the residual still above tolerance"
+                    +(itsImp->lastRow ? "; the last iterate: "+itsImp->lastRow->GatesText() : std::string()));
 
     // ★ T2/T4 -- THE POSTCONDITION ON AN IMPOSITION.  Imposing a MAGNETIC (Shubnikov) group asserts that
     // the solution carries that order.  A run that imposes it and then loses the order has not found a
@@ -935,6 +937,7 @@ void SolidCalculation::AttachProbes()
         itsImp->lastCommutator = itsImp->stageAccel==SCFAccelerators::Type::Null
                                ? std::numeric_limits<double>::quiet_NaN() : row.ValueOf("[F,D]");
         itsImp->lastDensityChange = row.ValueOf("Δρ");
+        itsImp->lastRow = row;
         if (const auto& r=row.eb.charge.samplingOverTau; r)   // the rho-tilde sampler's audit (the samp/τ column)
         {
             itsImp->samplingScfWorst=std::max(itsImp->samplingScfWorst, *r);
