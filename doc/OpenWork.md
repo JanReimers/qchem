@@ -281,9 +281,9 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
     count, `enzyme_loopcache_repro.cpp`, 30 lines;
   - (B) a segfault at `-O2 -march=native`, AVX2, `enzyme_flags_repro.cpp`.
 
-  The "tuple wrapper zeroes the gradient" item is RETRACTED (it was A in another shape).  Next action: build Enzyme v0.0.308 / `main` 871de19f
-  (source at `~/Code/Enzyme-main`, needs the user's approval; v0.0.308's 562c47b4 touches the loop cache) and re-run both repros there.  Then
-  the user decides whether to file.  Re-test on each Enzyme bump before moving the pinned commit.
+  The "tuple wrapper zeroes the gradient" item is RETRACTED (it was A in another shape).  Both defects REPRODUCE unchanged on Enzyme `main`
+  871de19f (⊇ v0.0.308, 2026-11-08; record §6).  Next action: the user decides whether to file the two drafts (record §6).  Re-test on each
+  Enzyme bump before moving the pinned commit.
 · **densityEcut reads source "floor" when the pilot chose its cutoffFactor** (lane G 2026-11-08).  When the pilot doubles cutoffFactor, `grids.densityEcut` is the floor at a factor the PILOT picked, but the ladder that writes the key doesn't know that; only the Calculation does.  Next action: the ladder takes the factor's source as an input (or a `cutoffFactorSource`), so the report reads "floor at the pilot's factor".  RasterLadder (lane B's area).
 ## 4. PERFORMANCE — summary (detail and levers: `doc/Benchmark.md` §10, instrument §5a)
 

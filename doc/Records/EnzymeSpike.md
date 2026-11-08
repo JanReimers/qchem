@@ -129,15 +129,23 @@ Versions:
 - LLVM / clang 21.1.6, the official Linux x86-64 release binary.
 - Ubuntu, Intel i7-10700 (AVX2, no AVX-512).
 
-**Not yet re-run on the latest release v0.0.308 or on `main` 871de19f** (2026-11-08).  Building them here needs the user's approval: the
-permission check refused building freshly fetched external code.  The source worktree is ready at `~/Code/Enzyme-main`, the build recipe is
-§1, and no newer clang is needed (LLVM 21 is supported).  v0.0.308 contains 562c47b4, "Clamp negative hoisted loop sublimits to zero in
-CacheUtility::getSubLimits", which is in the loop-caching code issue A exercises.  So re-run it there before filing; they will ask.
+**Re-run on Enzyme `main` 871de19f (2026-11-08), which contains the latest release v0.0.308.**  It was built by the controller's session on
+the user's approval, with the same `/opt` LLVM 21.1.6 and lld shim; no newer clang is needed.  Both defects are UNCHANGED, value for value:
+
+| repro | flags | 1a87ccc | 871de19f (⊇ v0.0.308) |
+|---|---|---|---|
+| A `enzyme_loopcache_repro.cpp` | `-O1`, `-O2`, `-O3`, `-O2 -march=native` | AD 0.8510516320, FD 4.5709930… | the same |
+| B `enzyme_flags_repro.cpp` | `-O2` | exact (−1.1419468942) | exact |
+| B | `-O3` | AD −0.0130734452 (wrong) | the same |
+| B | `-O2 -march=native` | SEGFAULT | SEGFAULT |
+| B | `-O2 -march=native -mprefer-vector-width=128` | exact | exact |
+
+So v0.0.308's 562c47b4 (the CacheUtility loop-sublimit clamp) does not cure A.  The issues below can say "reproduced on main 871de19f".
 
 **Issue A.**  Title: "Reverse mode returns a wrong gradient when a callee fills a loop-local array through an inner loop with a
 data-dependent trip count".
 
-> Enzyme main 1a87ccc, clang/LLVM 21.1.6 (release binary), Linux x86-64.  The attached file (30 lines, no headers beyond <cmath>/<cstdio>)
+> Enzyme main 1a87ccc and 871de19f (after v0.0.308), clang/LLVM 21.1.6 (release binary), Linux x86-64, Intel i7-10700.  The attached file (30 lines, no headers beyond <cmath>/<cstdio>)
 > computes E(D) = Σ_p (φ_pᵀ D φ_p)², where φ_p is filled by a callee `Fill` through an inner loop whose trip count `nk[i]` is read from a
 > constant data struct (all 1 here).  `__enzyme_autodiff(E, enzyme_dup, D, dD, enzyme_const, &data)`, then dD[0] is compared with a
 > central finite difference.
@@ -147,6 +155,6 @@ data-dependent trip count".
 
 **Issue B.**  Title: "Reverse-mode segfault at -O2 -march=native (AVX2) for a blocked reduction into a duplicated scratch buffer".
 
-> Same versions.  The attached file (~150 lines, self-contained) differentiates a blocked sum: 3 blocks write partials into a buffer passed
+> Same versions (both commits).  The attached file (~150 lines, self-contained) differentiates a blocked sum: 3 blocks write partials into a buffer passed
 > `enzyme_dup`, and are summed after the loop.  At `-O2` it is correct.  At `-O2 -march=native` on an AVX2 machine the reverse pass
 > segfaults.  `-mprefer-vector-width=128`, or a single block, avoids it.  (The same file at `-O3` also shows issue A's wrong value.)
