@@ -27,6 +27,6 @@ target_include_directories(UTCalculation PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
 )
 
-target_link_libraries(UTCalculation PRIVATE qchem gtest)
+target_link_libraries(UTCalculation PRIVATE qchem qcAD gtest)
 
 qchem_discover_tests(UTCalculation)

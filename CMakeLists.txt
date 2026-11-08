@@ -205,6 +205,23 @@ set(CXX_SCAN_FOR_MODULES on)
 # See project_msym_layout_ub.
 option(QCHEM_RELCHECKED "Release codegen with asserts live + blaze bounds checks (no NDEBUG)" OFF)
 
+# QCHEM_ENZYME: the automatic-differentiation path (src/AD, qchem.AD; doc/GeometryOptimizationPlan.md, the AD spike).  Enzyme is
+# TOOLCHAIN and OPTIONAL (controller ruling 2026-11-08): OFF builds everything, and every AD gradient REFUSES with NoGradient (an
+# Outcome naming why); no hand-coded fallback derivative is kept beside the AD one.  ON needs an Enzyme built against THIS clang
+# (LLVM 21): -DQCHEM_ENZYME=ON -DQCHEM_ENZYME_PLUGIN=<build>/Enzyme/ClangEnzyme-21.so -DQCHEM_ENZYME_INCLUDE=<src>/enzyme/include.
+# The plugin rides ONLY qcAD's compile (it differentiates the kernels defined in its own TUs), so no other target's .pcm or
+# compile command changes.
+option(QCHEM_ENZYME "Build the Enzyme automatic-differentiation path (qchem.AD); OFF = AD gradients refuse with NoGradient" OFF)
+set(QCHEM_ENZYME_PLUGIN  "" CACHE FILEPATH "Enzyme's clang plugin, ClangEnzyme-<LLVM major>.so (QCHEM_ENZYME=ON)")
+set(QCHEM_ENZYME_INCLUDE "" CACHE PATH     "Enzyme's C++ headers, <Enzyme source>/enzyme/include (QCHEM_ENZYME=ON)")
+if(QCHEM_ENZYME)
+    if(NOT EXISTS "${QCHEM_ENZYME_PLUGIN}" OR NOT EXISTS "${QCHEM_ENZYME_INCLUDE}/enzyme/enzyme")
+        message(FATAL_ERROR "QCHEM_ENZYME=ON needs QCHEM_ENZYME_PLUGIN (ClangEnzyme-21.so) and QCHEM_ENZYME_INCLUDE (holding enzyme/enzyme); "
+                            "got '${QCHEM_ENZYME_PLUGIN}' and '${QCHEM_ENZYME_INCLUDE}'")
+    endif()
+    message(STATUS "QCHEM_ENZYME: AD on, plugin ${QCHEM_ENZYME_PLUGIN}")
+endif()
+
 # QCHEM_ARCH_EXPERIMENT: the -O3 / -march=native A/B (doc/OpenWork.md Step 3), OPT-IN and OFF by default.
 # Release's -O2 is a DELIBERATE choice (below), not a flag-order accident, so the bar for changing it is a
 # measurement -- and -march=native is not free: it licenses FMA CONTRACTION, so floating-point results
@@ -305,7 +322,7 @@ add_subdirectory(./IntegrationTests)
 add_subdirectory(./CLIapps)
 
 add_custom_target(allTests
-    DEPENDS ITMain UTCommon UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTGaussian_BS UTLattice_BS UTLASolver UTSCFAccelerator UTSCFIterator UTResponse UTWaveFunction
+    DEPENDS ITMain UTAD UTCommon UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTGaussian_BS UTLattice_BS UTLASolver UTSCFAccelerator UTSCFIterator UTResponse UTWaveFunction
     COMMENT "Build all unit test executables"
 )
 # Disable embedded submodule tests so ctest only runs this project's tests.
