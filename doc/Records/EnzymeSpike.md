@@ -142,6 +142,13 @@ the user's approval, with the same `/opt` LLVM 21.1.6 and lld shim; no newer cla
 
 So v0.0.308's 562c47b4 (the CacheUtility loop-sublimit clamp) does not cure A.  The issues below can say "reproduced on main 871de19f".
 
+The spike's own checks also pass on 871de19f (`qcAD` and `BeckePartition.C` built against its plugin, 2026-11-08), with the same numbers:
+- `ADSpike.*` 3/3 at 1 and 4 threads: the kernel equals the term to 8e-13, Σ_A F_A ≈ 1e-16, and max|dE/dD − H| = 2e-12.
+- Cost: dE/dR 15× / 22×, dE/dD 6.0× / 7.6×.
+- `UTAD` 3/3, and `UTMesh BeckePartition*` 3/3: the in-place Becke leaf equals the hand oracle to 1e-13.
+
+The pin can move to 871de19f whenever useful.  Nothing in the tree depends on the difference.
+
 **Issue A.**  Title: "Reverse mode returns a wrong gradient when a callee fills a loop-local array through an inner loop with a
 data-dependent trip count".
 
