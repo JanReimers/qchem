@@ -15,3 +15,5 @@ class DeckTests;                // src/Calculation/tests/Deck.C -- an inline-str
                                 // SAME restart fingerprint (SolidCalculation::Fingerprint is private).
 class ResponseFacadeTests;      // src/Response/tests -- the same oracle, driven through a converged
                                 // qchem::MoleculeCalculation (its Hamiltonian / wave function / basis).
+class ForceFacadeTests;         // src/Calculation/tests/ForceFacade.C -- a term's energy at moved atoms with D frozen (the per-term
+                                // finite difference of doc/GeometryOptimizationPlan.md §6) needs MoleculeCalculation's Hamiltonian.
