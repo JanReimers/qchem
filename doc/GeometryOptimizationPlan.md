@@ -305,17 +305,19 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
       - So per-file flags suffice.  A separate AD-only translation of the same source is the fallback if a hot TU ever measures slower:
         the leaf `inline` in its interface, the energy TU at the tree's flags, an AD TU at the AD flags.
 - **DERIVATIVES ARE ENZYME'S (user, 2026-11-08: "either 1) hand code all derivatives (and maintain them!!!) xor 2) Use Enzyme ... not some
-  blend").**
-  - A build without Enzyme has energies and no forces; the XC force refuses with `NoGradient`.  That is the intent.
-  - The tree's hand derivatives then go one by one, as their AD replacement lands and passes its FD gate.  The ones found so far:
-    - `qcMesh::BeckePartitionGradient` (2026-11-07);
-    - the basis `Gradient(r)` faces (`PrimGaussian`, `GaussianRF`, ∇_r χ);
-    - the functionals' `GetVxc` / `GetFxc` (dε/dρ and its second derivative, hand-coded in `SlaterExchange` / `VWN_Correlation`).
-  - Whether v_xc and f_xc fall under the ruling, or stay as the functional's definition, is a question for the user.
-  - **Recommended for `BeckePartitionGradient`:** keep it ONLY as test code, an oracle in `src/Mesh/tests`, not a production path.  AD's
-    failure mode is silent (the `-O3` case gave a wrong number with no diagnostic).  The per-term FD resolves only ~1e-9 at h = 1e-4,
-    while the hand oracle gates the AD Becke gradient at 1e-13.  As test code it costs maintenance only when the partition formula
-    changes, and then it fails loudly instead of drifting.
+  blend").**  A build without Enzyme has energies and no forces; the XC force refuses with `NoGradient`.  That is the intent.
+  - **The principle: ONE derivative method for every derivative, Enzyme** (user, 2026-11-08: "Clean (consistent) code dictates that all
+    derivatives are done the same way.  BUT then Enzyme becomes non-optional.  So I say that temporarily we leave gradients as they are,
+    simply because we still need them even if Enzyme+Forces are turned off").
+  - **New force derivatives are Enzyme only.**
+  - **The ENERGY path's existing hand derivatives stay, FOR NOW**, because a build without Enzyme still needs them: the basis `Gradient(r)`
+    faces (`PrimGaussian`, `GaussianRF`, `IrrepBasisSet`; ∇_r χ) and our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`,
+    `VWN_Correlation`; libxc's are libxc's).  They move to Enzyme when Enzyme becomes non-optional: an OpenWork row holds that deferred
+    decision.
+  - **`BeckePartitionGradient` (2026-11-07) is retired from the production path** (user, 2026-11-08).  It was a force derivative, which no
+    energy path uses.  The production `qcMesh::BeckePartitionGradient` is now Enzyme's AD of `BeckePartitionWeight`, registered in place
+    in `BeckePartition.C`.  The hand derivation stays ONLY as the test oracle in `src/Mesh/tests/BeckePartitionTests.C`: it gates the AD
+    gradient at 1e-13, where FD resolves ~1e-9, and AD's failures are silent.
 
 ## 13. The `Forces` surface on the hub (DESIGN, for the user before code; lane B 2026-11-07)
 
