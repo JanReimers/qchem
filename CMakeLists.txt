@@ -221,6 +221,20 @@ if(QCHEM_ENZYME)
     endif()
     message(STATUS "QCHEM_ENZYME: AD on, plugin ${QCHEM_ENZYME_PLUGIN}")
 endif()
+# qchem_enzyme_sources(<target> <source>...): the TUs that REGISTER derivatives of their own leaf functions (doc/GeometryOptimizationPlan.md,
+# the AD verdict: each Imp TU differentiates its own leaves in place).  Under QCHEM_ENZYME they compile with the plugin, its headers and
+# the QCHEM_ENZYME macro, at -O2 -mprefer-vector-width=128 (after the tree's -O3, so they win): Enzyme 1a87ccc segfaulted at
+# -O2 -march=native (256-bit vectors) and gave a wrong adjoint in a shape its -O3 produced (doc/Records/EnzymeSpike.md).  -march stays (a
+# .pcm and its importers agree on target features); the flags cost the energy nothing measurable (the record §4 item 10).  Per FILE,
+# so no other TU of the target changes.  OFF: nothing, and the files' #ifdef QCHEM_ENZYME branches refuse with NoGradient.
+function(qchem_enzyme_sources target)
+    if(QCHEM_ENZYME)
+        set_source_files_properties(${ARGN} TARGET_DIRECTORY ${target} PROPERTIES
+            COMPILE_OPTIONS "-fplugin=${QCHEM_ENZYME_PLUGIN};-O2;-mprefer-vector-width=128"
+            COMPILE_DEFINITIONS QCHEM_ENZYME
+            INCLUDE_DIRECTORIES "${QCHEM_ENZYME_INCLUDE}")
+    endif()
+endfunction()
 
 # QCHEM_ARCH_EXPERIMENT: the -O3 / -march=native A/B (doc/OpenWork.md Step 3), OPT-IN and OFF by default.
 # Release's -O2 is a DELIBERATE choice (below), not a flag-order accident, so the bar for changing it is a

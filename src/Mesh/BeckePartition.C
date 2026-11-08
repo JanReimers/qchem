@@ -9,44 +9,38 @@
 //     w_A(r) = P_A(r) / Σ_i P_i(r),   P_i(r) = Π_{j≠i} s(μ_ij),   μ_ij = (|r − R_i| − |r − R_j|) / |R_i − R_j|,
 // with s = BeckeCutoff (the iterated polynomial).  No atomic-size adjustment (the production partition has none).
 //
-// THE GRADIENT.  A mesh point rides with its owner (r = R_A + a fixed offset), so for every atom D:
-//     ∂|r − R_i|/∂R_D = u_i (δ_AD − δ_iD),            u_i = (r − R_i)/|r − R_i|
-//     ∂|R_i − R_j|/∂R_D = e_ij (δ_iD − δ_jD),          e_ij = (R_i − R_j)/|R_i − R_j|
-//     ∂μ_ij/∂R_D = (∂|r − R_i| − ∂|r − R_j|)/R_ij − μ_ij ∂R_ij/R_ij
-// and the product and quotient rules through P and w.  The XC force's grid-response term is Σ_g (w_rad w_ang)_g e_xc(ρ_g) ∂w_g/∂R_D
-// (Johnson, Gill and Pople, J. Chem. Phys. 98, 5612 (1993)).  Translation invariance makes Σ_D ∂w/∂R_D = 0 exactly: the unit test's check,
-// and the reason the XC force needs this term at all (without it Σ_D F_D ≠ 0).
+// THE GRADIENT is Enzyme's (the user's ruling, 2026-11-08: derivatives are Enzyme's, not hand-coded; doc/GeometryOptimizationPlan.md, the
+// AD verdict): BeckePartitionWeight is a derivative LEAF, differentiated in place in this unit, with the point riding with its owner
+// (r = R_A + a fixed offset).  The XC force's grid-response term is Σ_g (w_rad w_ang)_g e_xc(ρ_g) ∂w_g/∂R_D (Johnson, Gill and Pople,
+// J. Chem. Phys. 98, 5612 (1993)), and translation invariance makes Σ_D ∂w/∂R_D = 0 exactly.  A build without Enzyme refuses with
+// NoGradient.  The hand derivation it replaced (2026-11-07) is the unit test's ORACLE (src/Mesh/tests/BeckePartitionTests.C), not a
+// production path.
 module;
 #include <cmath>
 #include <vector>
+#ifdef QCHEM_ENZYME
+#include <enzyme/enzyme>
+#endif
 export module qchem.Mesh.BeckePartition;
-export import qchem.Mesh;   // BeckeCutoff, rvec3_t
+export import qchem.Mesh;      // BeckeCutoff (inline: a leaf this unit differentiates through), rvec3_t
+export import qchem.AD;        // NoGradient
+export import qchem.Outcome;
 
 export namespace qchem::qcMesh
 {
-
-//! \brief ds/dμ of \c BeckeCutoff(μ, k): s = ½(1 − f^{k+1}(μ)), f(μ) = ½(3μ − μ³), so ds/dμ = −½ Π_{i=0}^{k} f′(μ_i), μ_0 = μ, μ_{i+1} = f(μ_i).
-double BeckeCutoffDerivative(double mu, int k);
 
 //! \brief The partition weight w_owner(r) (the formula in the file header), at atoms \a R, Becke order \a k.  One atom: 1.  Coincident atoms
 //! (R_ij = 0) give μ = 0, as the mesh build always has.
 double BeckePartitionWeight(const std::vector<rvec3_t>& R, size_t owner, const rvec3_t& r, int k);
 
-//! \brief ∂w_owner(r)/∂R_D for every atom D, with the point riding with its owner (r = R_owner + a fixed offset).  Sums to zero over D.
-//! O(n³) per point: written for exactness and the unit test first; the force kernel can restructure it.
-std::vector<rvec3_t> BeckePartitionGradient(const std::vector<rvec3_t>& R, size_t owner, const rvec3_t& r, int k);
+//! \brief ∂w_owner(r)/∂R_D for every atom D, with the point riding with its owner (r = R_owner + a fixed offset), by reverse-mode AD of
+//! \c BeckePartitionWeight.  Sums to zero over D.  NoGradient in a build without Enzyme (QCHEM_ENZYME=OFF).
+Outcome<std::vector<rvec3_t>,AD::NoGradient> BeckePartitionGradient(const std::vector<rvec3_t>& R, size_t owner, const rvec3_t& r, int k);
 
 } // namespace qchem::qcMesh
 
 namespace qchem::qcMesh
 {
-
-double BeckeCutoffDerivative(double mu, int k)
-{
-    double d=1.0;
-    for (int i=k; i>=0; i--) { d*=1.5*(1.0-mu*mu); mu=0.5*(3*mu - mu*mu*mu); }
-    return -0.5*d;
-}
 
 double BeckePartitionWeight(const std::vector<rvec3_t>& R, size_t owner, const rvec3_t& r, int k)
 {
@@ -70,51 +64,38 @@ double BeckePartitionWeight(const std::vector<rvec3_t>& R, size_t owner, const r
     return (sum>0.0) ? P[owner]/sum : 0.0;
 }
 
-std::vector<rvec3_t> BeckePartitionGradient(const std::vector<rvec3_t>& R, size_t owner, const rvec3_t& r, int k)
+// THE LEAF'S DERIVATIVE, registered right below it.  Enzyme's entry takes the weight as a function of the positions alone (flattened,
+// active), the owner, its offset and the order as a constant context; it differentiates BeckePartitionWeight, BeckeCutoff and norm in
+// this unit's IR (doc/Records/EnzymeSpike.md).  Struct and kernel have module linkage, not internal: Enzyme's entry is a template
+// declared and never defined, and an internal-linkage argument type makes that ill-formed.
+struct BeckeWeightCtx { size_t n, owner; rvec3_t offset; int k; };
+double BeckeWeightOfPositions(const double* Rflat, const BeckeWeightCtx* c)
 {
+    std::vector<rvec3_t> R(c->n);
+    for (size_t i=0;i<c->n;i++) R[i]=rvec3_t(Rflat[3*i], Rflat[3*i+1], Rflat[3*i+2]);
+    return BeckePartitionWeight(R, c->owner, R[c->owner]+c->offset, c->k);
+}
+
+Outcome<std::vector<rvec3_t>,AD::NoGradient> BeckePartitionGradient(const std::vector<rvec3_t>& R, size_t owner, const rvec3_t& r, int k)
+{
+    using Result=Outcome<std::vector<rvec3_t>,AD::NoGradient>;
     const size_t n=R.size();
     std::vector<rvec3_t> out(n, rvec3_t(0,0,0));
-    if (n==1) return out;
-    std::vector<double> d(n);
-    std::vector<rvec3_t> u(n);
-    for (size_t i=0;i<n;i++) { d[i]=norm(r-R[i]); u[i] = d[i]>0.0 ? (1.0/d[i])*(r-R[i]) : rvec3_t(0,0,0); }
-    // s_ij, s'_ij and ∂μ_ij/∂R_D for every ordered pair, every D
-    std::vector<double> s(n*n, 1.0), sp(n*n, 0.0);
-    std::vector<rvec3_t> dmu(n*n*n, rvec3_t(0,0,0));   // dmu[(i*n+j)*n+D]
-    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) if (j!=i)
-    {
-        const double Rij=norm(R[i]-R[j]);
-        if (!(Rij>0.0)) { s[i*n+j]=BeckeCutoff(0.0,k); continue; }   // coincident atoms: μ = 0, held there (no gradient through it)
-        const rvec3_t e=(1.0/Rij)*(R[i]-R[j]);
-        const double mu=(d[i]-d[j])/Rij;
-        s[i*n+j]=BeckeCutoff(mu,k); sp[i*n+j]=BeckeCutoffDerivative(mu,k);
-        for (size_t D=0;D<n;D++)
-        {
-            const double a=(owner==D)-(i==D), b=(owner==D)-(j==D), c=double(i==D)-double(j==D);
-            dmu[(i*n+j)*n+D]=(1.0/Rij)*(a*u[i]-b*u[j]) - (mu*c/Rij)*e;
-        }
-    }
-    std::vector<double> P(n, 1.0);
-    std::vector<rvec3_t> dP(n*n, rvec3_t(0,0,0));   // dP[i*n+D]
-    for (size_t i=0;i<n;i++)
-    {
-        for (size_t j=0;j<n;j++) if (j!=i) P[i]*=s[i*n+j];
-        for (size_t j=0;j<n;j++) if (j!=i)
-        {
-            double others=1.0;   // Π_{m≠i,j} s_im, without dividing by s_ij (it can be 0)
-            for (size_t m=0;m<n;m++) if (m!=i && m!=j) others*=s[i*n+m];
-            const double f=sp[i*n+j]*others;
-            if (f!=0.0) for (size_t D=0;D<n;D++) dP[i*n+D]+=f*dmu[(i*n+j)*n+D];
-        }
-    }
-    double Z=0.0; for (double p : P) Z+=p;
-    if (!(Z>0.0)) return out;
-    for (size_t D=0;D<n;D++)
-    {
-        rvec3_t dZ(0,0,0); for (size_t i=0;i<n;i++) dZ+=dP[i*n+D];
-        out[D]=(1.0/Z)*dP[owner*n+D] - (P[owner]/(Z*Z))*dZ;
-    }
-    return out;
+    // One atom (w = 1), or the point AT its owner's nucleus: there μ_Aj = -1, where every cutoff is flat (s' = 0), so the gradient is
+    // exactly zero -- and |r - R_A| = 0 would put d√x/dx = ∞ into the reverse pass (0·∞ = NaN).
+    const rvec3_t offset=r-R[owner];
+    if (n==1 || norm(offset)==0.0) return Result::Ok(std::move(out));
+#ifdef QCHEM_ENZYME
+    std::vector<double> x(3*n), g(3*n, 0.0);
+    for (size_t i=0;i<n;i++) { x[3*i]=R[i].x; x[3*i+1]=R[i].y; x[3*i+2]=R[i].z; }
+    const BeckeWeightCtx c{n, owner, offset, k};
+    __enzyme_autodiff<void>(reinterpret_cast<void*>(BeckeWeightOfPositions), enzyme_dup, x.data(), g.data(), enzyme_const, &c);
+    for (size_t i=0;i<n;i++) out[i]=rvec3_t(g[3*i], g[3*i+1], g[3*i+2]);
+    return Result::Ok(std::move(out));
+#else
+    (void)k;
+    return Result::Fail({"this build has no Enzyme (QCHEM_ENZYME=OFF): the Becke partition's geometry gradient is not available"});
+#endif
 }
 
 } // namespace qchem::qcMesh

@@ -1,6 +1,6 @@
 // File: AD/tests/BeckeAD.C  The AD kernel's Becke partition against qchem.Mesh.BeckePartition: its weight equals the library's, and its
-// AD gradient equals the HAND-DERIVED BeckePartitionGradient (the spike's first comparison: the same derivative two ways).  Without
-// Enzyme the gradient refuses with NoGradient.
+// AD gradient equals the library's (which is AD of the library's own weight, in place: src/Mesh/tests checks THAT against the hand
+// oracle).  Without Enzyme both gradients refuse with NoGradient.
 #include <gtest/gtest.h>
 #include <cmath>
 #include <vector>
@@ -42,7 +42,9 @@ TEST(BeckeAD, ItsADGradientIsTheHandDerivedOne)
                     return;
                 }
                 ASSERT_TRUE(g);
-                const auto hand=qcMesh::BeckePartitionGradient(R, A, R[A]+u, k);
+                const auto lib=qcMesh::BeckePartitionGradient(R, A, R[A]+u, k);
+                ASSERT_TRUE(lib);
+                const auto& hand=*lib;
                 rvec3_t sum(0,0,0);
                 for (size_t D=0;D<R.size();D++)
                 {

@@ -176,7 +176,14 @@ private:
 //! (A. D. Becke, J. Chem. Phys. 88, 2547 (1988)).  \f$ s:[-1,1]\to[1,0] \f$, with \f$s(\mp1)\f$
 //! pinned at 1/0 and the transition sharpened by each iteration.  Shared by the molecular
 //! (MakeMolecularMesh) and periodic (UnitCell) fuzzy-Voronoi partitions.
-double BeckeCutoff(double mu, int k);
+//! INLINE (lane B, 2026-11-08): a derivative leaf.  Enzyme differentiates only bodies it can see, and an importer sees an exported
+//! function's body only when it is inline (doc/GeometryOptimizationPlan.md, the AD verdict), so the Becke partition's unit can
+//! differentiate through it in place.  The same operations in the same order: bit-identical.
+inline double BeckeCutoff(double mu, int k)
+{
+    for (int i=k; i>=0; i--) mu=0.5*(3*mu - mu*mu*mu);
+    return 0.5*(1.0-mu);
+}
 
 //! \brief Typed, fully-defaulted mesh parameters.  Set only the knobs you actually use
 //! (C++20 designated initializers); no field is required-but-unused.
@@ -281,12 +288,6 @@ void Mesh::ShiftOrigin(const rvec3_t& o)
 {
     itsSampling.reset();   // the raster it described has moved
     for (size_t i=0; i<itsR.size(); i++) itsR[i]+=o;
-}
-
-double BeckeCutoff(double mu, int k)
-{
-    for (int i=k; i>=0; i--) mu=0.5*(3*mu - mu*mu*mu);
-    return 0.5*(1.0-mu);
 }
 
 int UniformDivisions(double cellEdge, double eCut)
