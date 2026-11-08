@@ -193,6 +193,21 @@ static const char* SeedName(qchem::ChargeDensity::SeedStrategy s)
         default:           return "Default";
     }
 }
+//! The report's \c grids.rasterSource: who set the raster demands the run samples on.
+static const char* RasterSourceName(SolidSetup::RasterSource r)
+{
+    using R=SolidSetup::RasterSource;
+    switch (r)
+    {
+        case R::Stated:       return "stated";
+        case R::Calibration:  return "calibration";
+        case R::Pilot:        return "pilot";
+        case R::SavedState:   return "savedState";
+        case R::Conditioning: return "conditioning";
+    }
+    return "?";
+}
+
 static const char* AccelName(SCFAccelerators::Type t)
 {
     using T=SCFAccelerators::Type;
@@ -470,6 +485,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
             qchem::report::Log("the grid ladder");
             qchem::report::Section grids("grids");   // the point's grids: the ladder and the lattice sums report one level in
             L3::EmitGpwGrids(*itsImp->ladder, *itsImp->mol, *itsImp->imposition);
+            qchem::report::Set("rasterSource", RasterSourceName(S.rasterSource));   // the ladder runs the demands; the setup knows who set them
         }
     }
 
@@ -1091,6 +1107,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
         itsImp->startRaisedForConditioning=true;
         auto sized=std::make_shared<SolidSetup>(*itsImp->setup);
         sized->opts.tolerances=t;
+        sized->rasterSource=SolidSetup::RasterSource::Conditioning;
         const Lattice_3D lat=*itsImp->lat;
         const auto mol=itsImp->mol;
         const SCFAccelerators::Type asked=itsImp->stageAccelAsked;
@@ -1309,6 +1326,7 @@ SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const 
             const bool adoptBall = cf && !(setup->opts.densityEcut>0.0);  // a STATED densityEcut is the user's, never the pilot's
             if (adoptBall) adopted->opts.cutoffFactor=*cf;
             adopted->rastersResolved=true;
+            adopted->rasterSource=SolidSetup::RasterSource::SavedState;
             std::cout<<tag<<"adopting the saved state's rasters x(density, V_long, XC L0)=("<<*rx<<", "<<*vx<<", "<<*xx<<")";
             if (adoptBall) std::cout<<" and its density ball (cutoffFactor "<<*cf<<")";
             std::cout<<": it was sized for this accuracy (eps "<<*eps<<")"<<std::endl;
@@ -1841,6 +1859,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         std::cout<<" and re-converging from this D"<<std::endl;
         const SavedState st=Carry();
         auto sized=std::make_shared<SolidSetup>(*itsImp->setup);
+        if (!(t==itsImp->setup->opts.tolerances)) sized->rasterSource=SolidSetup::RasterSource::Pilot;   // only xcMesh / the ball rising leaves the rasters' source
         sized->opts.tolerances=t;
         if (xcMeshNext) sized->xcMesh=*xcMeshNext;
         if (ballNext)   sized->opts.cutoffFactor=*ballNext;

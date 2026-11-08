@@ -8,7 +8,9 @@ Brief notes about module/library conventions, naming, and includes.
     1. **Get the right numbers for the given input deck**: the chosen model solved to ε.  A poor MODEL choice (a terrible basis set,
        too high an imposed symmetry, the wrong functional) gives a different kind of "wrong" number: the code solves what was asked,
        and where it can see the choice is poor (basis trim, a broken-symmetry probe) it WARNS, it does not substitute (pin 31: model
-       choices are exempt from ε).
+       choices are exempt from ε).  "Right" means right in ABSOLUTE terms, not bit-stable across a refactor (user, 2026-11-08): clean
+       code outranks pinning an old number to 1e-10.  A refactor may move numbers by roundoff; judge them against ε and an
+       independent route (`doc/Pins.md` pin 10), and never contort a design to keep the old bits.
     2. **Do it quickly** (CPU, threads) **and efficiently** (threads, RAM).
     3. **Put the burden in the code, not on the user**, as far as possible: be kind to the new grad student.  (Inspiration: the ISO C++
        committee's philosophy of putting the burden on the compiler writers.)  So the run picks its own grids from ε, refuses a bad
@@ -225,8 +227,12 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     whose tag is implied by which member is filled.  Examples: `Projector3<T>` (dense ⟨ab|c⟩ / PW columns + kernel / apply closures);
     the fit-coefficient record (`rvec_t` or `ΔG_Map`, so `Vee_Hartree` sits on `MatrixForward`/`MatrixAdjoint`); `BasisSet::Overlap` for
     a sparse PW basis (dense / diagonal / identity); `BlockedMatrix`'s real and complex maps.  The rules that keep OOD intact:
-    - **Clients ask, never inspect.**  They call dispatching functions (`Contract`, `ContractAdjoint`, `Tr`, `Solve`), never read a
-      member or test which one is filled.  Which realization exists is the producer's private detail; a client branching on it is a defect.
+    - **Two levels of client** (user, 2026-11-08).  The record's OWN clients are the implementations paired with it, the ones that
+      produce or consume one realization (for `FitCoefficients`, the `FunctionFitter` derived classes and their samplers).  They read
+      it through a typed accessor (`Vector()`, `GMap()`) that THROWS on a mismatch: they get the answer they need, or else.  Every
+      client above them (the SCF, the mixers, a Hamiltonian term) asks through dispatching functions (`Contract`, `ContractAdjoint`,
+      `Tr`, `Solve`, `+=`, `Dot`) and never reads a member or tests which one is filled.  Such a client branching on the realization
+      is a defect.  A grep for the typed accessors lists exactly the realization-aware code.
     - **A mismatch THROWS**: a dispatcher asked for something its populated realization cannot give throws (an assert is dead in Release).
       A client that needs a dense matrix asks for one and gets it BUILT; identity costs nothing.
     - **Not the alternatives**: inheritance plus a cast to a concrete realization (breaks the cast rule above); `std::variant` with a
