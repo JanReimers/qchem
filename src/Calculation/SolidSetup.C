@@ -26,6 +26,7 @@ import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKi
 import qchem.Mesh.XCPolicy;                   // qcMesh::XCMeshDefault (the BeckeXCParams recipe under Auto)
 import qchem.RunPolicy;                       // RunPolicySpec
 import qchem.LASolver;                        // qchem::Ortho
+export import qchem.AuditFootprint;           // AuditFootprintCalibration (the audit RSS policy's expert knob)
 export import qchem.Pseudopotential.Set;      // PseudopotentialSet -- the setup's resolved choice
 
 export namespace qchem
@@ -109,6 +110,9 @@ struct SolidCalcOptions
     qcMesh::MeshParams xcMesh=qcMesh::XCMeshDefault();
     //! Where a geometry run's pilot enters the Becke ladder, and the rotation of its rules (expert deck `solid.beckeLadder`).
     qcMesh::BeckeLadderCalibration beckeLadder;
+    //! The audit RSS policy's calibration: estimate = eta x byte count + kappa x raster points, and the band of measured / estimate it
+    //! refuses and warns on (expert deck `solid.auditFootprint`; the default carries its measurement record, \c kAuditFootprintCalibration).
+    AuditFootprintCalibration auditFootprint = kAuditFootprintCalibration;
     //! The GPW basis's numerical TOLERANCES (local-PP G-ball eps, local-PP kappa, the HartreeOnly floor fraction, an explicit
     //! multigrid cutoff list).  Tier-2 numerical policy, typed (D-ENV step 5): the defaults are today's behaviour, and the
     //! environment (GPW_VLOC_EPS, ...) is applied on top as an OVERRIDE LAYER when the run resolves its options -- every

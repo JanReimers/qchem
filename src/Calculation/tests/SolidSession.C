@@ -180,18 +180,21 @@ TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
     EXPECT_LE(c.PilotCost().rounds, 4) << "the density ball doubles three times beside the mesh's climb (cutoffFactor 2 -> 16, 2026-11-02)";
     EXPECT_LE(c.PilotCost().reconvergeIterations, 35u) << "three re-convergences (27 measured 2026-11-02)";
     // The pilot reads the mesh's error off its raster reference, so the mesh's XC term must not feel a raster at all.
-    for (const auto& t : c.GridAudit().terms) if (t.entries=="Exc") EXPECT_EQ(t.maxAbsΔH, 0.0) << "a raster reached the Becke XC term: " << t.label;
+    const auto G=c.GridAudit();
+    ASSERT_TRUE(G) << G.Error().Summary();
+    for (const auto& t : G->terms) if (t.entries=="Exc") EXPECT_EQ(t.maxAbsΔH, 0.0) << "a raster reached the Becke XC term: " << t.label;
 
     const double eps=o.accuracy.eps;   // per matrix element on a geometry run (GridAccuracy::Target)
     const qcMesh::BeckeLadderCalibration cal;   // two rungs up on the angular axis, one on the radial
     const auto A=c.XCMeshAudit(*qcMesh::BeckeRadialRungAbove(*qcMesh::BeckeAngularRungAbove(*qcMesh::BeckeAngularRungAbove(xc, cal, false), cal, false)));
+    ASSERT_TRUE(A) << A.Error().Summary();
     double dXC=0.0;
-    for (const auto& t : A.terms) if (t.entries=="Exc") dXC=std::max(dXC, t.maxAbsΔH);
+    for (const auto& t : A->terms) if (t.entries=="Exc") dXC=std::max(dXC, t.maxAbsΔH);
     EXPECT_GT(dXC, 0.0) << "the audit compared two different meshes";
     EXPECT_LE(dXC, eps) << "max|dH_xc| against a mesh two rungs finer";
     // Cauchy-Schwarz in the S metric ties the D-weighted measure to the norm: |Tr(D dH)| <= |dH|_S |D|_S, with |D|_S = sqrt(sum f^2).
     const double normD=4.0;   // Si2, 8 electrons: at most four orbitals at f = 2 in a channel
-    for (const auto& t : A.terms)
+    for (const auto& t : A->terms)
     {
         ASSERT_FALSE(t.trDdH.empty()) << t.label;
         for (double c : t.trDdH) EXPECT_LE(std::fabs(c), t.sNormDH*normD*(1.0+1e-10)) << t.label;

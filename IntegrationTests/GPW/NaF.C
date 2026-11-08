@@ -311,8 +311,9 @@ TEST(GPW_NaF, Γ_GeometryRunSizesItsBeckeMesh_Long)
     EXPECT_TRUE(c.PilotCost().settled);
     const qcMesh::BeckeLadderCalibration cal;   // two rungs up on the angular axis, one on the radial
     const auto A=c.XCMeshAudit(*qcMesh::BeckeRadialRungAbove(*qcMesh::BeckeAngularRungAbove(*qcMesh::BeckeAngularRungAbove(xc, cal, false), cal, false)));
+    ASSERT_TRUE(A) << A.Error().Summary();
     double dXC=0.0;
-    for (const auto& t : A.terms) if (t.entries=="Exc") dXC=std::max(dXC, t.maxAbsΔH);
+    for (const auto& t : A->terms) if (t.entries=="Exc") dXC=std::max(dXC, t.maxAbsΔH);
     std::cout<<"[XC mesh] settled nR="<<xc.nRadial<<" L="<<xc.angularDegree<<"  max|dH_xc| two rungs up "<<dXC<<std::endl;
     EXPECT_GT(dXC, 0.0) << "the audit compared two different meshes";
     EXPECT_LE(dXC, o.accuracy.eps) << "max|dH_xc| against a mesh two rungs finer";
