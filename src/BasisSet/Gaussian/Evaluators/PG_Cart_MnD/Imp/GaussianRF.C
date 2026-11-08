@@ -546,9 +546,12 @@ double PrimGaussian::operator()(const rvec3_t& r) const
     return exp(-itsExponent*dr*dr);
 }
 
+// ∇_r exp(-α|r-C|²) = -2α (r - C) exp(-α|r-C|²).  The SIGN was flipped before 2026-11-08 (dr = C - r here): the first FD gate on it
+// (tests/M_GeometryDerivatives.C, GeometryOptimizationPlan §13.2) caught it, the s functions reading exactly -FD.  Its consumers then were
+// ∇ρ / ∇φ outputs that no LDA energy reads, which is how it stayed hidden.
 rvec3_t PrimGaussian::Gradient(const rvec3_t& r) const
 {
-    rvec3_t dr = itsCenter-r;
+    const rvec3_t dr = r-itsCenter;
     return -2*itsExponent* (*this)(r) * dr;
 }
 
