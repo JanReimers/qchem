@@ -43,6 +43,10 @@ class IrrepBasisSet
         virtual size_t  GetNumFunctions() const {return SphData::size();}
         virtual size_t  size() const {return SphData::size();}
         virtual rvec_t     operator() (const rvec3_t&) const;
+        // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
+        virtual bool CanGiveJets() const override {return false;}
+        virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, qchem::BasisSet::PointJets<double>&) const override
+            {return qchem::BasisSet::NoGeometryDerivativeYet<size_t>("PG_Spherical", "function jets");}
         virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
         virtual std::string BasisSetID() const {return SphData::BasisSetID();} // geometry-aware cache identity (molecular: no RadialID/AngularID)
@@ -88,6 +92,10 @@ public:
     //! The run report's name for this fit.  Not the cache identity: \c BasisSetID stays the shells' own.
     virtual std::string Name() const override {return itsName;}
     virtual rsmat_t MakeOverlap  () const {return MakeOverlap2C(this);}
+    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative for this fit block yet (the Dunlap increment adds the fit faces').
+    virtual bool CanPullbackOverlap() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
+        {return qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the PG_Spherical fit block", "overlap pullback");}
     virtual  rvec_t MakeCharge   () const;
     virtual rsmat_t MakeRepulsion() const {return MakeRepulsion2C(this);}
     virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& b) const;

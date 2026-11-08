@@ -1,0 +1,285 @@
+// File: BasisSet/Gaussian/tests/M_GeometryDerivatives.C  The derivative methods on the integral faces (GeometryOptimizationPlan §13.2),
+// one unit gate per derivative method per family that implements it (the user, 2026-11-08: "we will need to make sure these are all
+// correct").  FD tolerances are stated against the central difference's own truncation error, h²/6 |f‴|, at each test.
+// - PointJets, filled with analytic s Gaussians through its test friend (no family's JetsOn exists yet): each function's jet, ρ's jet and
+//   the density pullback against central finite differences, each point riding with its owner and each function with its centre.
+// - PG_Cart's overlap / kinetic / nuclear pullbacks, asked of the faces the block already is: libcint's gradient matrices (gated in
+//   M_LibCint.C) contracted with the adjoint; translation invariance; a mismatched adjoint throws.
+// - A family with no derivative yet answers Can...() false and refuses with NoGradient.
+#include "gtest/gtest.h"
+#include <array>
+#include <cmath>
+#include <memory>
+#include <random>
+#include <stdexcept>
+#include <vector>
+#include "forward.H"
+import qchem.StructureData;
+import qchem.BasisSet.IrrepBasisSet;
+import qchem.BasisSet.Orbital_1E_IBS;
+import qchem.BasisSet.Gaussian.PG_Cart;
+import qchem.BasisSet.Gaussian.Point.PG_Spherical;
+import qchem.BasisSet.Gaussian.Point.BasisFiles;          // BasisFile (the contracted dzvp)
+import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
+import qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;
+import qchem.Structure;
+import qchem.Types;
+
+using namespace qchem;
+using BasisSet::Gaussian::PG_Cart::Orbital_IBS;
+
+namespace
+{
+// THREE s Gaussians, one per atom of a bent triatomic: φ_i(r) = exp(-α_i |r - R_i|²), ∇_r φ_i = -2 α_i (r - R_i) φ_i.
+const std::vector<rvec3_t> kR={rvec3_t(0,0,0.2), rvec3_t(0,1.4,-0.9), rvec3_t(0.3,-1.3,-0.8)};
+const double kAlpha[3]={0.9, 0.5, 0.7};
+double Phi(const std::vector<rvec3_t>& R, size_t i, const rvec3_t& r) {const rvec3_t d=r-R[i]; return std::exp(-kAlpha[i]*(d*d));}
+const std::vector<rvec3_t> kOffsets={rvec3_t(0.3,-0.2,0.1), rvec3_t(-0.4,0.5,0.2), rvec3_t(0.1,0.1,-0.6)};
+rmat_t SomeD() { rmat_t D(3,3); const double v[9]={0.9,0.2,-0.1, 0.2,0.6,0.05, -0.1,0.05,0.4}; for (size_t k=0;k<9;k++) D(k/3,k%3)=v[k]; return D; }
+double Rho(const std::vector<rvec3_t>& R, const rvec3_t& r, const rmat_t& D)
+{ double s=0.0; for (size_t i=0;i<3;i++) for (size_t j=0;j<3;j++) s+=Phi(R,i,r)*D(i,j)*Phi(R,j,r); return s; }
+double& C(rvec3_t& v, int k) {return k==0 ? v.x : k==1 ? v.y : v.z;}
+double  C(const rvec3_t& v, int k) {return k==0 ? v.x : k==1 ? v.y : v.z;}
+}
+
+//! The friend (forward.H): fills a PointJets with the analytic functions above, at the points of one owner's slab.
+class PointJetsTests
+{
+public:
+    static BasisSet::PointJets<double> Analytic(const std::vector<rvec3_t>& R, size_t owner, const rvec3vec_t& pts)
+    {
+        BasisSet::PointJets<double> J;
+        auto t=J.Fill(owner, pts.size(), {0,1,2});
+        for (size_t q=0;q<pts.size();q++) for (size_t i=0;i<3;i++)
+        {
+            const double f=Phi(R,i,pts[q]); const rvec3_t g=(-2.0*kAlpha[i]*f)*(pts[q]-R[i]);
+            t.phi(q,i)=f; t.grad[0](q,i)=g.x; t.grad[1](q,i)=g.y; t.grad[2](q,i)=g.z;
+        }
+        return J;
+    }
+};
+
+TEST(PointJets, AFunctionsAndADensitysJetsAreTheFiniteDifferenceWithThePointRidingWithItsOwner)
+{
+    const rmat_t D=SomeD();
+    const double h=1e-6;
+    for (size_t owner=0;owner<3;owner++)
+    {
+        rvec3vec_t pts(kOffsets.size()); for (size_t q=0;q<pts.size();q++) pts[q]=kR[owner]+kOffsets[q];
+        const auto J=PointJetsTests::Analytic(kR, owner, pts);
+        ASSERT_EQ(J.NumPoints(), pts.size());
+        for (size_t q=0;q<pts.size();q++)
+        {
+            const auto rho=J.Density(q, D);
+            EXPECT_NEAR(rho.Value(), Rho(kR, pts[q], D), 1e-15);
+            for (size_t A=0;A<3;A++) for (int k=0;k<3;k++)
+            {
+                auto p=kR, m=kR; C(p[A],k)+=h; C(m[A],k)-=h;
+                const rvec3_t rp=p[owner]+kOffsets[q], rm=m[owner]+kOffsets[q];   // the point rides with its owner
+                EXPECT_NEAR(C(rho.D(A),k), (Rho(p,rp,D)-Rho(m,rm,D))/(2*h), 1e-8) << "dρ/dR owner " << owner << " point " << q << " atom " << A << " axis " << k;
+                for (size_t i=0;i<3;i++)
+                    EXPECT_NEAR(C(J.Jet(q,i).D(A),k), (Phi(p,i,rp)-Phi(m,i,rm))/(2*h), 1e-8) << "dφ_" << i << "/dR atom " << A << " axis " << k;
+            }
+            EXPECT_LT(norm(J.Jet(q,owner).D(owner)), 1e-15) << "a function riding with its own point does not change";
+        }
+    }
+}
+
+TEST(PointJets, TheDensityPullbackIsTheWeightedSumOfTheDensityJets)
+{
+    const rmat_t D=SomeD();
+    rvec3vec_t pts(kOffsets.size()); for (size_t q=0;q<pts.size();q++) pts[q]=kR[1]+kOffsets[q];
+    const auto J=PointJetsTests::Analytic(kR, 1, pts);
+    rvec_t a(pts.size()); for (size_t q=0;q<a.size();q++) a[q]=0.3+0.2*q;
+    rvec3vec_t F(3, rvec3_t(0,0,0)), G(3, rvec3_t(0,0,0));
+    J.AddDensityPullback(D, a, F);
+    for (size_t q=0;q<pts.size();q++) { const auto rho=J.Density(q,D); for (size_t A=0;A<3;A++) G[A]+=a[q]*rho.D(A); }
+    for (size_t A=0;A<3;A++) EXPECT_LT(norm(F[A]-G[A]), 1e-14) << "atom " << A;
+    rvec3_t sum(0,0,0); for (size_t A=0;A<F.size();A++) sum+=F[A];   // an index loop: Blaze iterators lack op!= here (CLAUDE.md)
+    EXPECT_LT(norm(sum), 1e-14) << "translation invariance";
+    rvec3vec_t small(2);
+    EXPECT_THROW(J.AddDensityPullback(D, a, small), std::out_of_range);
+    EXPECT_THROW(J.AddDensityPullback(D, rvec_t(2), F), std::invalid_argument);
+}
+
+TEST(GeometryDerivatives, PG_CartsPullbacksAreLibcintsGradientsContractedAndTranslationInvariant)
+{
+    std::unique_ptr<Molecule> h2o(new Molecule(StructureData::GetMolecule("H2O")));
+    const Orbital_IBS ibs(rvec_t{1.0, 0.25}, 2, h2o.get());
+    const BasisSet::Orbital_1E_IBS<double>& block=ibs;   // a term holds this face; it asks it, no cast
+    ASSERT_TRUE(block.CanPullbackOverlap() && block.CanPullbackKinetic() && block.CanPullbackNuclear());
+    const size_t n=block.GetNumFunctions();
+    std::mt19937 rng(11); std::uniform_real_distribution<double> U(-1,1);
+    hmat_t<double> A(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) A(i,j)=U(rng);
+    const BasisSet::Gaussian::Evaluators::PG_LibCint::NR_Evaluator lc(dynamic_cast<const BasisSet::Gaussian::Evaluators::PG_Cart_MnD::PGData&>(ibs), h2o.get());
+    const auto dS=lc.OverlapGradient(), dK=lc.KineticGradient(), dV=lc.NuclearGradient();
+    const auto FS=block.MakeOverlapPullback(A,h2o.get()), FK=block.MakeKineticPullback(A,h2o.get()), FV=block.MakeNuclearPullback(A,h2o.get());
+    ASSERT_TRUE(FS && FK && FV);
+    ASSERT_EQ(FS->size(), h2o->GetNumAtoms());
+    rvec3_t sS(0,0,0), sK(0,0,0), sV(0,0,0);
+    for (size_t at=0;at<FS->size();at++)
+    {
+        for (int k=0;k<3;k++)
+        {
+            double s=0, kk=0, v=0;
+            for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) { s+=A(i,j)*dS[at][k](i,j); kk+=A(i,j)*dK[at][k](i,j); v+=A(i,j)*dV[at][k](i,j); }
+            EXPECT_DOUBLE_EQ(C((*FS)[at],k), s); EXPECT_DOUBLE_EQ(C((*FK)[at],k), kk); EXPECT_DOUBLE_EQ(C((*FV)[at],k), v);
+        }
+        sS+=(*FS)[at]; sK+=(*FK)[at]; sV+=(*FV)[at];
+    }
+    EXPECT_LT(norm(sS), 1e-11); EXPECT_LT(norm(sK), 1e-10); EXPECT_LT(norm(sV), 1e-10);
+    EXPECT_THROW((void)block.MakeOverlapPullback(hmat_t<double>(n+1), h2o.get()), std::invalid_argument) << "a mismatched adjoint throws";
+}
+
+namespace
+{
+std::unique_ptr<Molecule> Water() {return std::make_unique<Molecule>(StructureData::GetMolecule("H2O"));}
+std::vector<rvec3_t> Sites(const Structure& st) {std::vector<rvec3_t> R; st.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); }); return R;}
+//! The contracted DZVP block of \a st (s, p, d shells, contracted Cartesian Gaussians).
+std::unique_ptr<Orbital_IBS> Dzvp(const Structure* st)
+{
+    BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
+    return std::make_unique<Orbital_IBS>(&reader, st);
+}
+double TrAM(const hmat_t<double>& A, const hmat_t<double>& M)
+{ double t=0.0; for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.rows();j++) t+=A(i,j)*M(i,j); return t; }
+}
+
+// GATE 1, PG_Cart's pullbacks: Σ A ∂M/∂R_A against the central difference of Tr(A M) of the SAME matrices (our M&D engine) at displaced
+// atoms, on the contracted DZVP block.  Step h = 1e-4: the truncation error is h²/6 |∂³Tr(AM)/∂R³| ~ 2e-9 |∂³|, and with a random ±1 A
+// over ~25² entries |∂³| stays below ~1e2, so 2e-6 (relative above 1) is ~10× the estimate.  Translation invariance: S and K (only the
+// functions move), and V with the nuclei moving too.
+TEST(GeometryDerivatives, PG_CartsPullbacksAreTheFiniteDifferenceOfItsOwnMatricesAndTranslationInvariant)
+{
+    const auto h2o=Water();
+    const auto ibs=Dzvp(h2o.get());
+    const BasisSet::Orbital_1E_IBS<double>& block=*ibs;
+    const size_t n=block.GetNumFunctions();
+    std::mt19937 rng(7); std::uniform_real_distribution<double> U(-1,1);
+    hmat_t<double> A(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) A(i,j)=U(rng);
+    const auto FS=block.MakeOverlapPullback(A,h2o.get()), FK=block.MakeKineticPullback(A,h2o.get()), FV=block.MakeNuclearPullback(A,h2o.get());
+    ASSERT_TRUE(FS && FK && FV);
+    const double h=1e-4;
+    const auto R=Sites(*h2o);
+    rvec3_t sS(0,0,0), sK(0,0,0), sV(0,0,0);
+    for (size_t at=0;at<R.size();at++)
+    {
+        sS+=(*FS)[at]; sK+=(*FK)[at]; sV+=(*FV)[at];
+        for (int k=0;k<3;k++)
+        {
+            auto at_=[&](double s){ auto Rs=R; C(Rs[at],k)+=s; std::shared_ptr<Structure> st=h2o->Clone(); st->MoveSites(Rs);
+                                     auto b=Dzvp(st.get()); const BasisSet::Orbital_1E_IBS<double>& b1=*b;
+                                     return std::array<double,3>{TrAM(A,b1.Overlap()), TrAM(A,b1.Kinetic()), TrAM(A,b1.Nuclear(st.get()))}; };
+            const auto p=at_(h), m=at_(-h);
+            const double fS=(p[0]-m[0])/(2*h), fK=(p[1]-m[1])/(2*h), fV=(p[2]-m[2])/(2*h);
+            EXPECT_NEAR(C((*FS)[at],k), fS, 2e-6*std::max(1.0,std::fabs(fS))) << "overlap atom " << at << " axis " << k;
+            EXPECT_NEAR(C((*FK)[at],k), fK, 2e-6*std::max(1.0,std::fabs(fK))) << "kinetic atom " << at << " axis " << k;
+            EXPECT_NEAR(C((*FV)[at],k), fV, 2e-6*std::max(1.0,std::fabs(fV))) << "nuclear atom " << at << " axis " << k;
+        }
+    }
+    EXPECT_LT(norm(sS), 1e-10); EXPECT_LT(norm(sK), 1e-9); EXPECT_LT(norm(sV), 1e-9);
+}
+
+// GATE 2, PG_Cart's hand Gradient(r), load-bearing for the jets: against the central difference of operator()(r), every component of
+// every shell, for s through g (uncontracted, two exponents) and the contracted DZVP, at points near (0.3 bohr) and far (3 bohr) from the
+// centres.  Step h = 1e-5: the error h²/6 |φ‴| is about 2e-11 |φ‴|, and |φ‴| ≲ (2α)^{3/2} for the exponents probed (≲ 1e3 for the DZVP
+// cores at 0.3 bohr), so 1e-7 absolute (relative above 1) is ≥ 5× the estimate.  The magnitude screen (|φ| < 1e-10 → 0) never fires here.
+TEST(GeometryDerivatives, PG_CartsHandGradientIsTheFiniteDifferenceOfItsValuesForEveryShellType)
+{
+    const auto h2o=Water();
+    const auto R=Sites(*h2o);
+    std::vector<std::unique_ptr<Orbital_IBS>> blocks;
+    blocks.push_back(std::make_unique<Orbital_IBS>(rvec_t{1.3, 0.35}, 4, h2o.get()));   // s, p, d, f, g
+    blocks.push_back(Dzvp(h2o.get()));                                                 // contracted s, p, d
+    const double h=1e-5;
+    for (const auto& b : blocks)
+        for (const rvec3_t& base : R)
+            for (const rvec3_t& off : {rvec3_t(0.17,-0.21,0.12), rvec3_t(1.9,1.2,-1.8)})
+            {
+                const rvec3_t r=base+off;
+                const rvec3vec_t g=b->Gradient(r);
+                for (int k=0;k<3;k++)
+                {
+                    rvec3_t p=r, m=r; C(p,k)+=h; C(m,k)-=h;
+                    const rvec_t vp=(*b)(p), vm=(*b)(m);
+                    for (size_t i=0;i<b->GetNumFunctions();i++)
+                    {
+                        const double fd=(vp[i]-vm[i])/(2*h);
+                        EXPECT_NEAR(C(g[i],k), fd, 1e-7*std::max(1.0,std::fabs(fd))) << "function " << i << " axis " << k << " at " << r;
+                    }
+                }
+            }
+}
+
+// GATE 3, PG_Cart's jets: JetsOn's φ jets, ρ's jet and the density pullback against central differences in the ATOM positions, the block
+// rebuilt at each displaced geometry and each point riding with its owner.  Step h = 1e-5, the error as GATE 2: 1e-7 (relative above 1).
+TEST(GeometryDerivatives, PG_CartsJetsAreTheFiniteDifferenceInTheAtomPositionsWithThePointRidingItsOwner)
+{
+    const auto h2o=Water();
+    const auto R=Sites(*h2o);
+    const auto ibs=Dzvp(h2o.get());
+    const BasisSet::Evaluatable_IBS<double>& eval=*ibs;
+    ASSERT_TRUE(eval.CanGiveJets());
+    const size_t n=eval.GetNumFunctions();
+    rmat_t D(n,n); std::mt19937 rng(3); std::uniform_real_distribution<double> U(-0.5,0.5);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=D(j,i)=U(rng);
+    const std::vector<rvec3_t> offsets={rvec3_t(0.2,-0.3,0.1), rvec3_t(-0.6,0.5,0.4), rvec3_t(1.1,0.2,-0.7)};
+    const double h=1e-5;
+    for (size_t owner=0;owner<R.size();owner++)
+    {
+        rvec3vec_t pts(offsets.size()); for (size_t q=0;q<pts.size();q++) pts[q]=R[owner]+offsets[q];
+        BasisSet::PointJets<double> J;
+        const auto filled=eval.JetsOn(pts, owner, h2o.get(), J);
+        ASSERT_TRUE(filled); ASSERT_EQ(*filled, pts.size());
+        rvec_t a(pts.size()); for (size_t q=0;q<a.size();q++) a[q]=0.4+0.3*q;
+        rvec3vec_t F(R.size(), rvec3_t(0,0,0));
+        J.AddDensityPullback(D, a, F);
+        for (size_t A=0;A<R.size();A++) for (int k=0;k<3;k++)
+        {
+            auto rebuilt=[&](double s){ auto Rs=R; C(Rs[A],k)+=s; std::shared_ptr<Structure> st=h2o->Clone(); st->MoveSites(Rs);
+                                         auto b=Dzvp(st.get()); std::vector<rvec_t> v;
+                                         for (const auto& off : offsets) v.push_back((*b)(Rs[owner]+off));   // the point rides with its owner
+                                         return v; };
+            const auto vp=rebuilt(h), vm=rebuilt(-h);
+            double sumFD=0.0;
+            for (size_t q=0;q<pts.size();q++)
+            {
+                double rp=0.0, rm=0.0;
+                for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) { rp+=vp[q][i]*D(i,j)*vp[q][j]; rm+=vm[q][i]*D(i,j)*vm[q][j]; }
+                const double fdRho=(rp-rm)/(2*h);
+                EXPECT_NEAR(C(J.Density(q,D).D(A),k), fdRho, 1e-7*std::max(1.0,std::fabs(fdRho))) << "dρ/dR owner " << owner << " point " << q << " atom " << A << " axis " << k;
+                sumFD+=a[q]*fdRho;
+                for (size_t i=0;i<n;i++)
+                {
+                    const double fd=(vp[q][i]-vm[q][i])/(2*h);
+                    EXPECT_NEAR(C(J.Jet(q,i).D(A),k), fd, 1e-7*std::max(1.0,std::fabs(fd))) << "dφ_" << i << "/dR owner " << owner << " atom " << A << " axis " << k;
+                }
+            }
+            EXPECT_NEAR(C(F[A],k), sumFD, 1e-7*std::max(1.0,std::fabs(sumFD))) << "pullback owner " << owner << " atom " << A << " axis " << k;
+        }
+    }
+}
+
+// GATE 4, the refusals: a family with no derivative yet answers Can...() false AND its methods refuse with a reason (the Outcome); a family
+// that gives them answers Can...() true AND its methods answer.  PG_Spherical refuses all four in increment 1; PG_Cart gives all four.
+TEST(GeometryDerivatives, EachCanQueryAgreesWithWhetherItsMethodAnswers)
+{
+    const auto h2o=Water();
+    BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
+    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(&reader, h2o.get());
+    const auto cart=Dzvp(h2o.get());
+    for (const BasisSet::Orbital_1E_IBS<double>* b : {static_cast<const BasisSet::Orbital_1E_IBS<double>*>(&sph), static_cast<const BasisSet::Orbital_1E_IBS<double>*>(cart.get())})
+    {
+        const hmat_t<double> A(b->GetNumFunctions());
+        BasisSet::PointJets<double> J;
+        const auto s=b->MakeOverlapPullback(A,h2o.get()), k=b->MakeKineticPullback(A,h2o.get()), v=b->MakeNuclearPullback(A,h2o.get());
+        const auto j=b->JetsOn(rvec3vec_t(1, rvec3_t(0.1,0.2,0.3)), 0, h2o.get(), J);
+        EXPECT_EQ(b->CanPullbackOverlap(), bool(s)); EXPECT_EQ(b->CanPullbackKinetic(), bool(k));
+        EXPECT_EQ(b->CanPullbackNuclear(), bool(v)); EXPECT_EQ(b->CanGiveJets(), bool(j));
+        if (!s) EXPECT_FALSE(s.Error().why.empty());
+        if (!j) EXPECT_FALSE(j.Error().why.empty());
+    }
+    EXPECT_FALSE(sph.CanPullbackOverlap()) << "PG_Spherical has no geometry derivative in increment 1";
+    EXPECT_TRUE(cart->CanPullbackOverlap() && cart->CanGiveJets()) << "PG_Cart gives them";
+}

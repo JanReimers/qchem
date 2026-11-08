@@ -48,6 +48,10 @@ class IrrepBasisSet
         virtual size_t  GetNumFunctions() const {return NR_Evaluator::size();}
         virtual size_t  size() const {return NR_Evaluator::size();}
         virtual rvec_t     operator() (const rvec3_t&) const;
+        // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
+        virtual bool CanGiveJets() const override {return false;}
+        virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, qchem::BasisSet::PointJets<double>&) const override
+            {return qchem::BasisSet::NoGeometryDerivativeYet<size_t>("PG_LibCint", "function jets");}
         virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
         // Geometry-aware cache key with a DISTINCT prefix per engine+mode: the global Jac/Kab cache keys on

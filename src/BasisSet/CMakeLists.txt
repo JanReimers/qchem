@@ -37,6 +37,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   AtomCentredSet.C                      # an atom-centred function set + 'my overlap with it' (+U projectors, HubbardProjectorPlan D1/D2)
   BareCoulombSource.C                   # 'bare (m1m2|m3m4) over a function subset' -- the ACBN0 face (+U increment 3; 2026-09-21)
   IrrepBasisSet.C
+  PointJets.C                           # :PointJets, a partition of qchem.BasisSet.IrrepBasisSet: the slab of function jets (§13.2; 2026-11-08)
   Orbital_1E_IBS.C
   ImplicitAngular_IBS.C
   G_FieldEvaluator.C

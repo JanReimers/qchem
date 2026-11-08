@@ -13,6 +13,8 @@
 #include "gtest/gtest.h"
 
 import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
+import qchem.BasisSet.Orbital_1E_IBS;        // the derivative methods on the 1E faces (GeometryOptimizationPlan §13.2)
+import qchem.Structure;                       // Molecule, Site (the atoms a pullback is sized to)
 import qchem.BasisSet.Lattice.BandStructure;  // THE SolveBands (V1.21: this file no longer keeps its own)
 import qchem.BasisSet.G_FieldEvaluator;      // G_PoissonKernel / G_RasterTransform -- the fit basis's G-space seams
 import qchem.Mesh;                            // qcMesh::MeshParams (the fit-basis factory's argument)
@@ -642,4 +644,29 @@ TEST(PlaneWave_AtomCentredSet, CapturedFractionRisesToOne)
         prev=cap;
     }
     EXPECT_GT(prev, 0.9999);
+}
+
+// THE DERIVATIVE METHODS on the PW faces (GeometryOptimizationPlan §13.2), one gate per method.  A plane wave does not depend on the atoms
+// at all (the block is built from the reciprocal lattice, the k index and the cutoff, never a position), so the FD of S and K in any atom
+// position is identically zero: the pullbacks must be EXACT zeros, sized to the structure, and the Can queries say so.  The nuclear
+// pullback (the structure-factor Hellmann-Feynman force, non-zero) is not built yet: it refuses, and CanPullbackNuclear says so.
+TEST_F(PlaneWaveTests, ThePWOverlapAndKineticPullbacksAreExactZerosAndTheNuclearOneRefuses)
+{
+    UnitCell cell(5.0);
+    ivec3_t N(4,4,4);
+    Lattice_3D lat(cell,N);
+    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
+    const BasisSet::Orbital_1E_IBS<dcmplx>& block=pw;
+    Molecule three; three.Insert(Site{1,rvec3_t(0,0,0)}); three.Insert(Site{8,rvec3_t(1,0,0)}); three.Insert(Site{1,rvec3_t(0,1,0)});
+    const size_t n=block.GetNumFunctions();
+    hmat_t<dcmplx> A(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) A(i,j)=dcmplx(0.1*((i+2*j)%5)-0.2, i==j ? 0.0 : 0.05*((i*j)%3));
+    ASSERT_TRUE(block.CanPullbackOverlap()); ASSERT_TRUE(block.CanPullbackKinetic());
+    const auto FS=block.MakeOverlapPullback(A,&three), FK=block.MakeKineticPullback(A,&three);
+    ASSERT_TRUE(FS && FK);
+    ASSERT_EQ(FS->size(), 3u); ASSERT_EQ(FK->size(), 3u);
+    for (size_t a=0;a<3;a++) { EXPECT_EQ(norm((*FS)[a]), 0.0); EXPECT_EQ(norm((*FK)[a]), 0.0); }
+    EXPECT_FALSE(block.CanPullbackNuclear());
+    const auto FV=block.MakeNuclearPullback(A,&three);
+    ASSERT_FALSE(FV) << "the structure-factor force is not built yet";
+    EXPECT_FALSE(FV.Error().why.empty());
 }
