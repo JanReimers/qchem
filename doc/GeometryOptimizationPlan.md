@@ -469,6 +469,53 @@ first-order forward AD by operator overloading at the face level (Rall numbers, 
 3. The name.
 4. Second order (a Hessian-vector product for level 2) is a second-order jet or a forward-over-pullback.  Not proposed now.
 
+### 13.2 The derivatives live ON the integral faces (user ruling 2026-11-08; supersedes §13's separate basis face)
+
+The user, on a separate geometry-derivative face and on parallel `_dR` twins: *"why not just add the derivative version right into
+Integrals_Overlap<T>, they (mostly) go together"* and *"yes a large number of these classes are all going to be augmented with differential
+versions.  I accept that in advance."*  That pre-approval is in CLAUDE.md's hub bullet (main 75b87fd28): a derivative method beside a hub
+face's existing method needs no design discussion, and the HubInterfaceAudit snapshot commit cites the ruling.  So:
+- **Each integral face gains its derivative beside its method,** as a pullback: given the adjoint A = ∂E/∂M, it returns
+  Σ_ij Re(A_ij* ∂M_ij/∂R_atom) per atom, in the structure's site order, as `Outcome<rvec3vec_t, AD::NoGradient>`.
+  - `Integrals_Overlap<T>::MakeOverlapPullback(W, st)` beside `MakeOverlap`: the Pulay term.
+  - `Integrals_Kinetic<T>::MakeKineticPullback(D, st)`.
+  - `Integrals_Nuclear<T>::MakeNuclearPullback(D, st)`: the basis centres AND the nuclei moving.
+  - `Evaluatable_IBS<T>::JetsOn(pts, owner, st, PointJets&)` beside `operator()(r)`.  It is FORWARD, on the reviewed slab shape, and its
+    gradient source is still with the user.
+  - The fit faces gain theirs when Dunlap needs them: `Orbital_DFT_IBS`'s 3-centre repulsion, and the fit metric (k|l).  ∫f_k does not
+    move, so the charges need none.
+- **Every family answers each method:**
+  - Gaussian: libcint's derivative integrals (gated in `M_LibCint.C`).
+  - Plane waves: a real implementation.  The functions do not move, so Overlap, Kinetic and the jets are EXACT ZEROS.  The operators that
+    move with the atoms (Nuclear, the PP) are the structure-factor Hellmann–Feynman force.  The user notes that the zero is where the
+    one-of-N idea helps later, not now.
+  - A family with no derivative yet: a one-line `NoGradient` refusal.  The methods are pure virtual, so the compiler makes every family
+    decide (compile-time over run-time).
+- **No factory cross-casts.** A term asks the face it already holds.
+- **The capability query is per FACE, named for what its client does with the answer** (controller, 2026-11-08: one block-wide bool is
+  too coarse).  The faces' queries are `CanPullbackOverlap()`, `CanPullbackKinetic()`, `CanPullbackNuclear()` and `CanGiveJets()`, each
+  false exactly when its method would refuse.  `MissingGradients()` is each term asking its own faces; it never calls a pullback to find
+  out, and needs no shared capability base.
+- **Built in increment 1:**
+  - PG_Cart: libcint pullbacks, through the Gaussian point mixin, chosen at compile time by its evaluator type.
+  - Plane waves: exact zeros for Overlap and Kinetic.
+  - Everything else refuses in one line: the other Gaussian evaluators, Bloch Gaussians, PW nuclear, LAPW, radial, Dirac, SALC and the fit
+    blocks.
+  - `JetsOn`: real on PG_Cart; every other family refuses.
+- **`JetsOn`'s gradient source: the existing hand `Gradient(r)`** (user ruling 2026-11-08, "Use Gradient(r)").  ∂φ/∂R_centre = −∇_r φ,
+  so there is no second (Enzyme) derivative of φ, the jets work without Enzyme, and a Gaussian Cartesian block never refuses.  When Enzyme
+  becomes non-optional (the OpenWork row), `Gradient(r)` moves to Enzyme and `JetsOn` follows for free.  The plain shell-evaluator
+  extraction (the Enzyme χ leaf of the AD verdict) is NOT needed for this increment.
+- **Every derivative method has its own unit gate, per family that implements it** (the user, 2026-11-08: "we will need to make sure
+  these are all correct").  Each gate is a central FD of the SAME quantity at displaced geometry, with the step and the truncation-error
+  estimate written at the test, plus translation invariance where it must hold: `src/BasisSet/Gaussian/tests/M_GeometryDerivatives.C`
+  and `src/BasisSet/Lattice/tests/PlaneWaveUT.C`.
+  - **The first gate on the hand `Gradient(r)` found it WRONG.** `PrimGaussian::Gradient` had its sign flipped: the s functions read
+    exactly −FD, so every PG_Cart and PG_Spherical ∇φ was wrong.  The fix was one line.  Its consumers then were ∇ρ / ∇φ outputs that no
+    LDA energy reads, which is how it stayed hidden.  This is the first entry in the "Enzyme non-optional" row's tally.
+- §13's separate `qchem.BasisSet.GeometryDerivatives` module, and the `_dR` twins, are WITHDRAWN.  `PositionJet<T>` (committed, qcMath)
+  and `PointJets` (now a value type beside `Evaluatable_IBS`) stand.
+
 ## 14. ε on the molecular facade: step 6's design (DESIGN, for agreement before code; lane B 2026-11-07)
 
 Pin 31 rule 1 ("ε is structure neutral") on `MoleculeCalculation`.  Today `CalcOptions::accuracy` is consumed by no term (the run
