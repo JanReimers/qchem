@@ -344,30 +344,31 @@ private:
 //! type (user ruling 2026-11-08 (b), doc/Records/VOneOfN_D2Design.md §2a), and nothing generic calls a G-space adjoint.
 //!
 //! \warning A VIEW: it borrows \a g, which the producing basis's integral cache owns for the run.
-template <class T> class GSpacePairProjectionIntegrator
-    : public virtual qcMesh::MatrixForward<T>
+//! \a U is the orbital BLOCK's scalar; the fit axis is complex either way (a real TRIM block contracts against the run's
+//! complex fit axis, 3c-3), so the tensor is always a \c PairProjection<dcmplx>.
+template <class U> class GSpacePairProjectionIntegrator
+    : public virtual qcMesh::MatrixForward<U>
 {
 public:
     //! THROWS unless \a g realises both G-space directions (a forward -- columns or \c apply -- and \c
     //! applyAdjoint): an integrator is the PAIR, and finding a missing half at the first SCF call is worse.
-    explicit GSpacePairProjectionIntegrator(const PairProjection<T>& g) : itsG(g)
+    explicit GSpacePairProjectionIntegrator(const PairProjection<dcmplx>& g) : itsG(g)
     {
         if (!g.dense.empty() || !g.applyAdjoint || (!g.apply && g.columns.empty()))
             throw std::runtime_error("GSpacePairProjectionIntegrator: this PairProjection does not realise the G-space "
                 "forward (columns or apply) and adjoint (applyAdjoint) pair");
     }
 
-    using qcMesh::MatrixForward<T>::Forward;   // un-hide the factored overload (see qchem.Mesh.Integrator)
-    virtual Projections Forward(const hmat_t<T>& D) const override {return Projections(Contract(itsG, D));}
-    //! \f$\langle i|f|j\rangle=\sum_G f(G)\,W_G(i,j)\f$ for a field \a f on the same \f$\{G\}\f$; a G absent from the map reads as 0.
-    hmat_t<T> Adjoint(const ΔG_Map& f) const
+    using qcMesh::MatrixForward<U>::Forward;   // un-hide the factored overload (see qchem.Mesh.Integrator)
+    virtual Projections Forward(const hmat_t<U>& D) const override {return Projections(Contract(itsG, D));}
+    //! No native factored path: a rebuilt \f$LL^\dagger\f$ would only cost a matrix and roundoff (see MatrixForward::FactorPays).
+    virtual bool FactorPays() const override {return false;}
+    //! \f$\langle i|f|j\rangle=\sum_G f(G)\,W_G(i,j)\f$ for a field \a f on the same \f$\{G\}\f$; a G absent from the map reads
+    //! as 0.  Complex for either block scalar (the caller narrows a real TRIM block, as every periodic term does).
+    hmat_t<dcmplx> Adjoint(const ΔG_Map& f) const
     {
-        return ContractAdjoint(itsG, [&f](const ivec3_t& dm)->T
-        {
-            auto it=f.find(dm);
-            if constexpr (std::is_floating_point_v<T>) return it==f.end() ? T(0) : std::real(it->second);
-            else                                         return it==f.end() ? T(0) : it->second;
-        });
+        return ContractAdjoint(itsG, [&f](const ivec3_t& dm)->dcmplx
+            { auto it=f.find(dm); return it==f.end() ? dcmplx(0.0) : it->second; });
     }
     //! The number of plane-wave columns.  THROWS for the matrix-free realization: its G set is the closure's
     //! own business and has no length to report (a ΔG_Map is sized by its keys, not by a count).
@@ -379,7 +380,7 @@ public:
     }
 
 private:
-    const PairProjection<T>& itsG;   //!< borrowed: owned by the basis's integral cache
+    const PairProjection<dcmplx>& itsG;   //!< borrowed: owned by the basis's integral cache
 };
 
 } // namespace qchem

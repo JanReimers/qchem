@@ -35,6 +35,7 @@ export namespace qchem::ChargeDensity
 class SeedCD
     : public virtual tChargeDensity<dcmplx>
     , public virtual FourierDensity
+    , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
 {
 public:
     //! Build the seed for density-fit basis \a fitBasis (from the orbital basis's CreateCDFitBasisSet) and
@@ -59,6 +60,7 @@ public:
     // no D, so its rho-tilde IS the structure-factor density (fit basis ignored); V_H applies the diagonal
     // kernel to it (bit-identical to the old Repulsion(rho-tilde) path).
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
+    virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override {return GetFourierDensity(c);}
     virtual ΔG_Map GetRepulsion3C   (const BasisSet::cFIT_CD_ABS& c) const;
 
     // ScalarFunction<double> -- real-space rho(r) = Sum_atoms rho_atom(|r-R|) (not used by the PW Fock build,
@@ -113,6 +115,7 @@ private:
 class PolarizedSeedCD
     : public virtual tChargeDensity<dcmplx>
     , public virtual FourierDensity
+    , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
     , public virtual cSpinResolved_CD
 {
 public:
@@ -125,6 +128,7 @@ public:
 
     // FourierDensity -- the ↑+↓ TOTAL (what Hartree consumes; spin never enters V_H).
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
+    virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override {return GetFourierDensity(c);}
     virtual ΔG_Map GetRepulsion3C   (const BasisSet::cFIT_CD_ABS& c) const;
 
     // ScalarFunction<double> -- the total rho(r).

@@ -149,7 +149,7 @@ template <class Leaf> void IrrepCD_HFPair<Leaf>::CompleteExchangePair(rsmat_t& K
 // nothing to guard: V1.32 removed the if-constexpr along with the template parameter it tested.
 Projections FiniteIrrepCD::Project(const BasisSet::PairProjector<double>& p) const
 {
-    if (this->IsZero()) return Projections(rvec_t(p.NumCoefficients(),0.0));
+    if (this->IsZero()) return p.Zero();
     // R1.0q (2026-09-19), the analytic instance of the pattern IrrepCD_Core::ProjectOnto already runs on the
     // periodic route: ask the projector for the FORWARD of this block, then contract MY D into it.  What
     // crosses is D -- which this class owns -- and what stays inside the integrator is the basis's own
@@ -431,9 +431,9 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
 
 template <class T> Projections IrrepCD_Core<T>::Project(const BasisSet::PairProjector<dcmplx>& p) const
 {
-    // A zero block is a zero COEFFICIENT VECTOR: a ScalarProjector vends only vector-axis forwards (Gaussian, delta,
-    // mesh, occupation), and NumCoefficients sizes them -- so no realization is guessed here.
-    if (IsZero()) return Projections(rvec_t(p.NumCoefficients(), 0.0));
+    // A zero block answers in the PROJECTOR's own realization (a G-space projector's empty map, a δ projector's zero
+    // vector), so a composite summing its blocks never meets two realizations.
+    if (IsZero()) return p.Zero();
     // ASK THE BASIS FOR ITS INTEGRAL, then contract MY matrix into it (R1.0; the 3-centre form,
     // 2026-08-23).  <delta_g|rho> = Sum_ij D_ij <delta_g|chi_i chi_j>, so what crosses is D -- which this
     // class owns -- and what stays inside is the basis's own Phi table and weights.  The GEMM itself, its
@@ -664,7 +664,11 @@ template class PeriodicIrrepCD<dcmplx>;
 //
 template <class Leaf> Projections FactoredRho<Leaf>::Project(const BasisSet::PairProjector<dcmplx>& p) const
 {
-    if (this->IsZero()) return Projections(rvec_t(p.NumCoefficients(), 0.0));   // as IrrepCD_Core::ProjectOnto
+    if (this->IsZero()) return p.Zero();   // as IrrepCD_Core::Project
+    {   // A forward with no native factored path wants D itself: no factorisation, no rebuilt L L^dagger (MatrixForward::FactorPays).
+        const auto& o=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*this->itsBasisSet);
+        if (!p.Forward(o).FactorPays()) return Leaf::Project(p);
+    }
 
     // Tr(D) -- the memo's integrity check AND, on a miss, the value to remember.  A STALE FACTOR IS A
     // SILENTLY WRONG rho, so the version key is not trusted alone: any mutation of D that failed to bump

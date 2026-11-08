@@ -182,6 +182,7 @@ public:
     //! (accepted 2026-11-06).  \a trDV is NOT \f$q\cdot v\f$: each site's channels hold only that site's own potential, so \f$q\cdot v\f$
     //! misses every cross-site term (23.5 Ha on water).
     double HartreeEnergy(double trDV, const rvec_t& q, const rvec_t& v) const override {return trDV-0.5*SelfRepulsion(q,v);}
+    bool UsesTrDV() const override {return true;}
 private:
     std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;
     RadialPoissonSolver itsSolver;

@@ -244,7 +244,11 @@ PairProjection<dcmplx> PW_Evaluator::Repulsion3CTensor() const
     for (size_t c=0;c<g.columns.size();c++)
         g.kernel[c]=itsRecip.CoulombKernel(g.columns[c].dm);   // diagonal Poisson kernel (dm=0 -> 0)
     g.volume=Volume();
-    g.applyAdjoint=AdjointLookup();   // <i|f|j> = f(G_i-G_j) (overlap metric; the kernel is forward-only)
+    // THE COULOMB 3-CENTRE INTEGRAL IN BOTH DIRECTIONS (doc/Records/VOneOfN_D2Design.md §1a (A), user 2026-11-08): the
+    // adjoint is <i|1/r|G> = k(G)<i|G|j>, the "second round of 3-centre repulsion integrals" a fitted Hartree term contracts
+    // its fit with -- the physics, applied when the term asks for repulsion and never in a projection.
+    g.applyAdjoint=[lookup=AdjointLookup(), recip=itsRecip](const std::function<dcmplx(const ivec3_t&)>& f) -> chmat_t
+        {return lookup([&](const ivec3_t& dm){return recip.CoulombKernel(dm)*f(dm);});};
     return g;
 }
 

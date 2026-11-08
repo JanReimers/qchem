@@ -13,6 +13,7 @@
 // for now: the mesh's charge error is reported instead (Vee_DFT, as a diagnostic).  So Integral() is the mesh's charge, not N.
 module;
 #include <cassert>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -72,10 +73,22 @@ public:
     {
         return itsOperator->SelfRepulsion(Projection(),itsV);
     }
-    double HartreeEnergy(double trDV) const override
+    double HartreeEnergy(const std::function<double()>& trDV) const override
     {
         if (itsV.size()==0) throw std::logic_error("GridDensityFitter: asked for an energy before any DoFit");
-        return itsOperator->HartreeEnergy(trDV,Projection(),itsV);
+        return itsOperator->HartreeEnergy(itsOperator->UsesTrDV() ? trDV() : 0.0, Projection(), itsV);
+    }
+    //! \copydoc FirstOrderDensityFit<double>::DoFit -- on a δ basis the projections ARE the fit (values at the points).
+    void DoFit(const Projections& rho) override
+    {
+        itsC=rho.Vector();
+        itsV=itsOperator->Potential(Projection());
+    }
+    //! \copydoc FirstOrderDensityFit<double>::Repulsion
+    hmat_t<double> Repulsion(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const override
+    {
+        if (itsV.size()==0) throw std::logic_error("GridDensityFitter: asked for a repulsion before any DoFit");
+        return Integrator(orb).Adjoint(itsV);   // sum_g w_g v_g chi_i chi_j
     }
     double Integral() const override
     {

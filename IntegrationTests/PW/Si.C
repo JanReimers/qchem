@@ -27,7 +27,7 @@ import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 import qchem.BasisSet.PlaneWave.Evaluators;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
 import qchem.BasisSet.Lattice.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
-import qchem.Mesh;                           // qcMesh::MeshParams (Vee_Hartree's fit-basis factory arg; ignored)
+import qchem.Mesh;                           // qcMesh::MeshParams (the Hartree fit basis factory arg; ignored)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
@@ -35,7 +35,9 @@ import qchem.Blaze;          // mat_t<dcmplx>
 import qchem.Math;           // Pi
 import qchem.Hamiltonian.Internal.SlaterExchange;   // Dirac exchange (alpha=2/3), eps_x = 3/4 v_x
 import qchem.Hamiltonian.Internal.VWN_Correlation;  // VWN5 correlation (validated vs libxc)
-import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long, Vee_Hartree (dcmplx Hamiltonian terms)
+import qchem.Hamiltonian.Internal.Terms;            // Vee_Fit<dcmplx> (the periodic Hartree term)
+import qchem.Fitting.CoulombOperator;               // MakeGSpaceDensityFitter
+import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long (dcmplx Hamiltonian terms)
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
@@ -167,7 +169,10 @@ TEST(PW_Si, Γ_eqPrototype)
     // The LONG-range core-charge V_long is its OWN term (the CP2K local-PP split, doc/GPWPlan.md 0e-PP);
     // a manual Hamiltonian must add it explicitly or it drops V_long entirely.
     ham.Add(new Ven_PP_Long(si, &loc));                                 // electron-ion LONG-range
-    ham.Add(new Vee_Hartree(Vee_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}))));
+    {
+        std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}));
+        ham.Add(new Vee_Fit<dcmplx>(qchem::Fitting::MakeGSpaceDensityFitter(fb), 0.0, fb));   // the periodic Hartree term (V-ONE-OF-N 3b)
+    }
     ham.Add(NewPWXC(pw, std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
     ham.Add(NewPWXC(pw, std::make_shared<VWN_Correlation>()));          // VWN5 correlation
 

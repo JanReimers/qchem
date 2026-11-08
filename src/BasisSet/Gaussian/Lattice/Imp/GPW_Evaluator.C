@@ -297,7 +297,9 @@ PairProjection<dcmplx> GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const Pl
     g.volume=grid->Volume();
     for (const ivec3_t& dm : grid->Gs()) g.columns.push_back({dm,{}});
     g.apply       =MakeCollocator(/*coulomb*/true, grid);   // forward: D -> V_H (Coulomb baked)
-    g.applyAdjoint=MakeIntegrator(grid);                    // backward: field -> <i|f|j> (overlap; kernel fwd-only)
+    // backward: the COULOMB integral <i|1/r|G> = k(G)<i|G|j>, the physics round (doc/Records/VOneOfN_D2Design.md §1a (A))
+    g.applyAdjoint=[integ=MakeIntegrator(grid), recip=grid->Recip()](const std::function<dcmplx(const ivec3_t&)>& f) -> chmat_t
+        {return integ([&](const ivec3_t& dm){return recip.CoulombKernel(dm)*f(dm);});};
     return g;
 }
 // Overlap 3-centre tensor: the same analytic map, no kernel (the density's own rho-tilde).

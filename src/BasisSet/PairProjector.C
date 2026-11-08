@@ -14,11 +14,13 @@
 // It replaces Fitting::ScalarProjector / Fitting::DensityProjector (which become thin aliases of it until 3c), so that the
 // density hub no longer names a Fitting type.
 module;
+#include <vector>
 export module qchem.BasisSet.PairProjector;
 export import qchem.BasisSet.Orbital_DFT_IBS;   // Orbital_DFT_IBS<U,TFit> (the block faces)
 export import qchem.Mesh.Integrator;            // MatrixForward<U>
 export import qchem.ScalarFunction;             // ScalarFunction<double> (a matrix-free density's field)
 export import qchem.Projections;                // what a density returns
+export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // ReciprocalOp (the k-composite's IBZ star-average)
 
 export namespace qchem::BasisSet
 {
@@ -36,6 +38,9 @@ public:
     //! transform); the answer is on the SAME axis as \c Forward's.
     virtual Projections ProjectField(const ScalarFunction<double>&) const=0;
     virtual size_t NumCoefficients() const=0;   //!< the basis's function count (a vector realization's length)
+    //! The projections of a ZERO density, in my own realization (a zero block answers with it, so a sum over blocks never mixes
+    //! realizations).  The default is the vector realization every molecular projector uses.
+    virtual Projections Zero() const {return Projections(rvec_t(NumCoefficients(), 0.0));}
 };
 
 //! \brief The PERIODIC lineage: complex Bloch blocks and real TRIM blocks, both on the complex fit axis.
@@ -47,6 +52,26 @@ public:
     virtual const qcMesh::MatrixForward<dcmplx>& Forward(const Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;   //!< a Bloch block
     virtual Projections ProjectField(const ScalarFunction<double>&) const=0;   //!< \copydoc PairProjector<double>::ProjectField
     virtual size_t NumCoefficients() const=0;
+    //! \copydoc PairProjector<double>::Zero -- the default is the vector realization (δ points, occupations); a G-space projector
+    //! overrides it with an empty map.
+    virtual Projections Zero() const {return Projections(rvec_t(NumCoefficients(), 0.0));}
+    //! \brief Star-average \a p over the crystal point group \a ops, IN THIS BASIS'S OWN TERMS: a k-composite summing its
+    //! IBZ blocks asks it, because it owns the ops but not the basis.  Only the basis knows how its functions transform:
+    //! a plane-wave basis permutes its G's (\c SymmetrizeGMap); a \f$\delta\f$ basis on a site-adapted invariant mesh, or
+    //! an occupation axis, is already symmetric there, so the default does nothing -- which is today's behaviour for both.
+    virtual void StarAverage(Projections& /*p*/, const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& /*ops*/) const {}
+};
+
+//! \brief A field that knows its own FOURIER COMPONENTS on a plane-wave basis -- a generic \c ScalarFunction capability (user
+//! ruling 2026-11-08 (e), doc/Records/VOneOfN_D2Design.md §2): a superposition of atomic densities has an analytic
+//! transform (its structure-factor sum), a G-series density has its own map.  A G-space projector asks for it with the
+//! usual cross-cast between abstract faces, and samples + transforms a field that lacks it.  Data-free.
+class AnalyticFourier
+{
+public:
+    virtual ~AnalyticFourier() = default;
+    //! \f$\tilde f(G)\f$ on \a onBasis's own \f$\{G\}\f$, in the projector's convention \f$f(r)=\sum_G\tilde f(G)e^{iG\cdot r}\f$.
+    virtual ΔG_Map FourierComponents(const cFIT_SF_ABS& onBasis) const=0;
 };
 
 } // namespace qchem::BasisSet

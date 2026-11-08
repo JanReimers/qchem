@@ -2444,11 +2444,21 @@ TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
         for (const auto& [dm,c] : ket.TransitionRepulsion(*cd, ket, Dm, q0).c) Vq.c[dm]=smooth(dm);
         auto field=[&Vq](const ivec3_t& dm)->dcmplx { auto it=Vq.c.find(dm); return it==Vq.c.end()?dcmplx(0.0):it->second; };
         const mat_t<dcmplx> t=ket.TransitionPotential(*cd, ket, Vq);
-        const chmat_t g=ket.Repulsion3C(*cd).applyAdjoint(field);
+        // The OVERLAP gather on the CD fit grid (V-ONE-OF-N 3b: Repulsion3C's adjoint is now the Coulomb integral, k applied).
+        const auto& cdAsSF=dynamic_cast<const BasisSet::cFIT_SF_ABS&>(*cd);
+        const chmat_t g=ket.Overlap3C(cdAsSF).applyAdjoint(field);
         double diff=0, sc=0;
         for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) {diff=std::max(diff, std::abs(t(i,j)-dcmplx(g(i,j)))); sc=std::max(sc, std::abs(dcmplx(g(i,j))));}
         std::cout << "[B2] q=0 Hartree gather vs applyAdjoint  rel " << maxRel(diff,sc) << std::endl;
         EXPECT_LT(maxRel(diff,sc), 1e-12) << "q = 0 Hartree gather != the ground-state gather";
+        // ...and the Coulomb integral IS the overlap gather of k(G)·f (doc/Records/VOneOfN_D2Design.md §1a (A), gate 1).
+        const auto& pk=dynamic_cast<const BasisSet::G_PoissonKernel&>(*cd);
+        const chmat_t gc=ket.Repulsion3C(*cd).applyAdjoint(field);
+        const chmat_t gk=ket.Overlap3C(cdAsSF).applyAdjoint([&](const ivec3_t& dm){return pk.CoulombKernel(dm)*field(dm);});
+        double dk=0, sk=0;
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) {dk=std::max(dk, std::abs(dcmplx(gc(i,j))-dcmplx(gk(i,j)))); sk=std::max(sk, std::abs(dcmplx(gk(i,j))));}
+        std::cout << "[B2] Repulsion3C adjoint vs overlap gather of k f  rel " << maxRel(dk,sk) << std::endl;
+        EXPECT_LT(maxRel(dk,sk), 1e-14) << "the Coulomb 3-centre adjoint is not k(G) times the overlap gather";
     }
     {   // the raw gather vs Overlap3C.applyRawAdjoint, for a real field
         rvec_t vre(u.size());

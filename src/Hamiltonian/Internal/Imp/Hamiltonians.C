@@ -11,7 +11,7 @@ module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
 import qchem.BasisSet.Orbital_PP_IBS;              // the closed-form species-field service (NeedsPPQuadrature)
 import qchem.BasisSet.ImplicitAngular_IBS;         // the radial capability (NeedsPPQuadrature)
-import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vee_Hartree, Vxc_Quadrature + MakeDensitySampler (the periodic KS terms)
+import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vxc_Quadrature + MakeDensitySampler (the periodic KS terms)
 import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Kinetic;        // Kinetic<T>: kinetic energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Hubbard;        // Hubbard_U: DFT+U (programme step 5)
@@ -114,8 +114,8 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
 {
     if (coulomb.fit!=CoulombFit::Delta && coulomb.fit!=CoulombFit::Multipole)
     {
-        Vee_DFT_Dunlap::fbs_t fb=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
-        return new Vee_DFT_Dunlap(fb, st->GetNumElectrons());
+        Vee_FitDunlap::fbs_t fb=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
+        return new Vee_FitDunlap(fb, st->GetNumElectrons());
     }
     qcMesh::MeshParams hmp=mp;
     if (coulomb.nRadial>0) hmp.nRadial=coulomb.nRadial;
@@ -133,12 +133,12 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
         return bs->CreateVxcFitBasisSet(st.get(), hmp, VxcFit::Delta, &quad);
     });
     const qcMesh::Mesh& mesh=*quad.GetMesh();
-    if (direct) return new Vee_DFT(Fitting::MakeGridDensityFitter(fb, Fitting::MakeDirectSumCoulomb(mesh)), st->GetNumElectrons());
+    if (direct) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(fb, Fitting::MakeDirectSumCoulomb(mesh)), st->GetNumElectrons());
     const auto sites=MakeSiteMultipoles(st, mesh, hmp, lMax);
-    if (!multipole) return new Vee_DFT(Fitting::MakeGridDensityFitter(fb, Fitting::MakeRadialPoissonCoulomb(sites)), st->GetNumElectrons());
+    if (!multipole) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(fb, Fitting::MakeRadialPoissonCoulomb(sites)), st->GetNumElectrons());
     const auto mfb=std::make_shared<const BasisSet::MultipoleFit_IBS>(fb, sites, sym_t(new UnitQN));
     auto op=Fitting::MakeMultipoleCoulomb(sites, mfb->OverlapDiagonal());
-    return new Vee_DFT(Fitting::MakeGridDensityFitter(mfb, std::move(op)), st->GetNumElectrons());
+    return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(mfb, std::move(op)), st->GetNumElectrons());
 }
 
 Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)
@@ -237,12 +237,12 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     mp.relCutoff=max(exch->GridCutoffFactor(), corr->GridCutoffFactor());
 
     // The Hartree (CD) fit basis is created ONCE here from the basis's factory (never assuming orbital==fit),
-    // exactly as the molecular DFT ctor builds Vee_DFT_Dunlap's fit basis -- rho is cell-periodic so it is
+    // exactly as the molecular DFT ctor builds Vee_FitDunlap's fit basis -- rho is cell-periodic so it is
     // Gamma (k=0).  A plane-wave fit basis reads only mp.relCutoff.
     // ★ 1.1(b): the four phases of this builder each get a bucket, so the ctor's 23 s/call stops being one
     // number.  report::Timed is exclusive, so the Becke mesh build and the Φ tables -- already bucketed
     // deeper down -- stay children of the two fit-basis scopes and are not double-counted here.
-    Vee_Hartree::fbs_t CFitBasis;                          // a shared_ptr; filled in the bucket below
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> CFitBasis;   // filled in the bucket below
     {
         qchem::report::Timed timed("setup: Hartree CD fit basis");
         CFitBasis=BuildTermFit<BasisSet::cFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
@@ -256,7 +256,11 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     Add(new Ven_PP_Short(st, loc));                            // electron-ion SHORT-range local (+ short G=0)
     Add(new Ven_PP_Long (st, loc));                            // electron-ion LONG-range core charge (+ long G=0)
     if (nl) Add(new Ven_PP_NonLocal(st, nl));                  // KB projectors -- omitted for a local-only PP
-    Add(new Vee_Hartree (CFitBasis));                          // electron-electron Hartree V_H[rho]
+    // electron-electron Hartree V_H[rho]: the first-order fitted term on the plane-wave density fitter (V-ONE-OF-N 3b); the
+    // fit basis also carries the response half's δV_H(G+q)
+    // numElectrons 0: no charge diagnostic here -- a pseudopotential cell's electron count is the valence count, which this
+    // builder does not hold, and a wrong N would report a fake charge error (the molecular routes pass N).
+    Add(new Vee_Fit<dcmplx>(Fitting::MakeGSpaceDensityFitter(CFitBasis), 0.0, CFitBasis));
     // The FIT/GRID separation (doc/SymmetryUpgradePlan.md §6a, user 2026-08-01): WHICH fit basis
     // represents v_xc (VxcFit) and WHICH real-space grid quadratures it (xcMesh.cellKind) are
     // ORTHOGONAL choices.  Auto = the historical pairing (Delta on Becke, PlaneWave on the raster).

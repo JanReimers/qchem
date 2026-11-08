@@ -18,14 +18,16 @@ import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 import qchem.BasisSet.PlaneWave.Evaluators;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
 import qchem.BasisSet.Lattice.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
-import qchem.Mesh;                           // qcMesh::MeshParams (Vee_Hartree's fit-basis factory arg; ignored)
+import qchem.Mesh;                           // qcMesh::MeshParams (the Hartree fit basis factory arg; ignored)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
 import qchem.Blaze;          // mat_t<dcmplx>
 import qchem.Math;           // Pi
 import qchem.Hamiltonian.Internal.SlaterExchange;   // Dirac exchange (alpha=2/3), eps_x = 3/4 v_x
-import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long, Vee_Hartree (dcmplx Hamiltonian terms)
+import qchem.Hamiltonian.Internal.Terms;            // Vee_Fit<dcmplx> (the periodic Hartree term)
+import qchem.Fitting.CoulombOperator;               // MakeGSpaceDensityFitter
+import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long (dcmplx Hamiltonian terms)
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
@@ -54,14 +56,13 @@ using Pseudopotential::GTH_PP;
 
 namespace
 {
-// Vee_Hartree/Vxc_Quadrature now take their fit basis (from the basis's own factory) at construction, like
+// The Hartree term / Vxc_Quadrature now take their fit basis (from the basis's own factory) at construction, like
 // FittedVee/FittedVxc.  These low-level term tests build one straight from the plane-wave basis at hand.
-qchem::Hamiltonian::Vee_Hartree* NewPWHartree(const PlaneWave_IBS& pw)
+qchem::Hamiltonian::Vee_Fit<dcmplx>* NewPWHartree(const PlaneWave_IBS& pw)
 {
-    // Pure V_H[rho]: the Hartree term takes ONLY its fit basis now -- the long-range core-charge fold that
-    // used to need a structure + local model here is its own term, Ven_PP_Long (doc/GPWPlan.md 0e-PP).
-    return new qchem::Hamiltonian::Vee_Hartree(
-        qchem::Hamiltonian::Vee_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{})));
+    // The periodic Hartree term is the first-order fitted term on the plane-wave density fitter (V-ONE-OF-N 3b).
+    std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}));
+    return new qchem::Hamiltonian::Vee_Fit<dcmplx>(qchem::Fitting::MakeGSpaceDensityFitter(fb), 0.0, fb);
 }
 // The XC term takes a QUADRATURE, and MakeDensitySampler reads off the strategy the fit basis supports --
 // here a plane-wave (raster) basis, so the pair/collocation one.
@@ -185,7 +186,7 @@ TEST(PW_Terms, PWDynamicTermsMatchBasis)
     qchem::ChargeDensity::PeriodicIrrepCD<dcmplx> cd(D, &F.pw, irr);
 
     // Hartree term matrix == basis Repulsion of the same density.
-    std::unique_ptr<qchem::Hamiltonian::Vee_Hartree> h(NewPWHartree(F.pw));
+    std::unique_ptr<qchem::Hamiltonian::Vee_Fit<dcmplx>> h(NewPWHartree(F.pw));
     qchem::Hamiltonian::cDynamic_HT* ht=h.get();
     RefreshTerm(*ht, static_cast<const qchem::ChargeDensity::cChargeDensity*>(&cd), &F.pw);
     const chmat_t& Mh = ht->GetMatrix(&F.pw, Spin::None, ChargeDensity::DensityID(&cd));
@@ -283,7 +284,7 @@ TEST(PW_Terms, DynamicTermCacheFreshAcrossDensity)
     hmat_t<dcmplx> D2=blazem::zeroH<dcmplx>(n);  D2(0,0)=1.0; D2(0,1)=1.0; D2(1,1)=1.0;  // modulated density
     qchem::ChargeDensity::PeriodicIrrepCD<dcmplx> cd1(D1,&F.pw,irr), cd2(D2,&F.pw,irr);
 
-    std::unique_ptr<qchem::Hamiltonian::Vee_Hartree> hart(NewPWHartree(F.pw));
+    std::unique_ptr<qchem::Hamiltonian::Vee_Fit<dcmplx>> hart(NewPWHartree(F.pw));
     qchem::Hamiltonian::cDynamic_HT* ht=hart.get();
     using qchem::ChargeDensity::cChargeDensity;
     RefreshTerm(*ht, static_cast<const cChargeDensity*>(&cd1), &F.pw);

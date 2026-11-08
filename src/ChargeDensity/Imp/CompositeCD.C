@@ -205,6 +205,9 @@ template <class T> Projections tComposite_CD<T>::Project(const BasisSet::PairPro
 {
     Projections ro;
     for (const Block& b:itsBlocks) std::visit([&](const auto* c){ ro+=c->Project(p); }, b.cd);
+    // THE IBZ STAR-AVERAGE, ONCE, ON THE SUM (as GetFourierDensity always did).  I own the point ops; the BASIS owns how its
+    // functions transform under them, so it does the averaging (a no-op on a delta / occupation axis: today's behaviour).
+    if (!itsPointOps.empty()) p.StarAverage(ro, itsPointOps);
     return ro;
 }
 

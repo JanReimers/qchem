@@ -58,6 +58,7 @@ export namespace qchem::ChargeDensity
 class PolarizedMixCD
     : public virtual tChargeDensity<dcmplx>
     , public virtual FourierDensity
+    , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
     , public virtual cSpinResolved_CD
     , public virtual cDM_SourceSink   //!< the driver seats the polarized D here; the view splits it per channel
 {
@@ -90,6 +91,7 @@ public:
     // channels' answers IS the total's answer.
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const override
     { return Fourier(itsUp).GetFourierDensity(c) + Fourier(itsDn).GetFourierDensity(c); }
+    virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override {return GetFourierDensity(c);}
     virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const override
     { return Fourier(itsUp).GetRepulsion3C(c) + Fourier(itsDn).GetRepulsion3C(c); }
     //! The raw-raster shadow, summed -- empty (pipeline off) unless BOTH channels answer on the same raster.

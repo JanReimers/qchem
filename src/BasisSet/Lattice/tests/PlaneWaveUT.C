@@ -524,7 +524,7 @@ TEST_F(PlaneWaveTests, FitBasisAnswersPoissonKernelAndVolume)
     std::unique_ptr<const BasisSet::cFIT_CD_ABS> fit(pw.CreateCDFitBasisSet(nullptr,mp));
 
     auto* pk=dynamic_cast<const BasisSet::G_PoissonKernel*>(fit.get());
-    ASSERT_TRUE(pk) << "the CD fit basis must carry the Poisson-kernel seam (Vee_Hartree asks it)";
+    ASSERT_TRUE(pk) << "the CD fit basis must carry the Poisson-kernel seam (the plane-wave density fitter asks it)";
     EXPECT_DOUBLE_EQ(pk->CoulombKernel(ivec3_t(0,0,0)),0.0);   // the dropped neutralising background
     for (const ivec3_t& dm : {ivec3_t(1,0,0),ivec3_t(0,-2,0),ivec3_t(1,1,1),ivec3_t(2,-1,3)})
     {
@@ -533,7 +533,7 @@ TEST_F(PlaneWaveTests, FitBasisAnswersPoissonKernelAndVolume)
     }
 
     auto* rt=dynamic_cast<const BasisSet::G_RasterTransform*>(fit.get());
-    ASSERT_TRUE(rt) << "the CD fit basis must carry the raster seam (Vee_Hartree's Omega)";
+    ASSERT_TRUE(rt) << "the CD fit basis must carry the raster seam (the plane-wave density fitter's Omega)";
     EXPECT_NEAR(rt->Integral(rvec_t(rt->RasterSize(),1.0)), a*a*a, 1e-9*a*a*a);   // Omega = integral of 1
 }
 

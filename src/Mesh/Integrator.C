@@ -134,6 +134,11 @@ public:
     //! ⇒ **Every implementation must say `using MatrixForward<T>::Forward;`** -- the two in this tree do,
     //! and a new one that forgets fails the `TheFactoredForwardAgreesWithTheUnfactoredOne` gate.
     virtual size_t NumCoefficients() const=0;   //!< length of the array \c Forward returns
+    //! \brief Does handing me the thin FACTOR \f$L\f$ instead of \f$D\f$ pay?  Asked by the density that holds both (\c FactoredRho),
+    //! which then picks the overload.  TRUE by default (today's behaviour for every collocating forward).  A forward with no
+    //! native factored path whose answer must be the EXACT contraction of \f$D\f$ (the G-space pair, whose projections feed the
+    //! Hartree fit and the GPW collocation memo's exact-equality replay) says FALSE, so it never sees a rebuilt \f$LL^\dagger\f$.
+    virtual bool FactorPays() const {return true;}
 };
 
 //! \brief THE ADJOINT HALF: a field's coefficients back to a matrix.  See \c MatrixForward for why they

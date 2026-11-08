@@ -39,6 +39,7 @@ export namespace qchem::ChargeDensity
 class FourierMixCD
     : public virtual tChargeDensity<dcmplx>
     , public virtual FourierDensity
+    , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
     , public virtual cDM_Sourced_CD   //!< the DM-backed density this field was mixed FROM (see the face)
     , public virtual cDM_SourceSink   //!< ...and the write side the loop driver seats it through (V1.18)
 {
@@ -64,6 +65,7 @@ public:
 
     // --- FourierDensity: the map IS the density (metric-free), like SeedCD ---
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS&) const override;  //!< the overlap projection = rho-tilde
+    virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override {return GetFourierDensity(c);}
     virtual ΔG_Map GetRepulsion3C   (const BasisSet::cFIT_CD_ABS&) const override;  //!< V_H = 4pi rho-tilde/|G|^2
     //! The RAW-raster shadow of the mix (doc/GPWPlan 0.5(f2)): the MIXER maintains rho_raw(r) by the same
     //! Kerker/Pulay algebra it applies to rho-tilde (the filter is a smooth spectral multiplier -- no Gibbs)

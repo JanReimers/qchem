@@ -2,6 +2,7 @@
 module;
 #include <iosfwd>
 #include <memory>
+#include <type_traits>
 #include <map>
 #include <string>
 #include <vector>
@@ -11,7 +12,7 @@ import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Structure;
 import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (composed; clients never see the impl)
-import qchem.Fitting.CoulombOperator;         // Fitting::GridDensityFit (what Vee_DFT holds)
+import qchem.Fitting.CoulombOperator;         // Fitting::FirstOrderDensityFit (what Vee_Fit holds)
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.TransitionDensity;   // δD: the response face (LinearResponsePlan C1/H2)
 import qchem.FittedCD;
@@ -273,18 +274,18 @@ protected:
 //
 // Where Ro is actually a fitted charge density.  Two terms, because two formulas (V1.1b, ruled 2026-11-06; shapes in
 // doc/Records/HartreeFitConsistency.md).  Neither serves a solid: neither constructor takes a complex fit, and the periodic route is
-// Vee_Hartree.
+// Vee_Fit<dcmplx>.
 //
 // DUNLAP, C^T G^-1 C.  Ro_fit is expanded in an auxilliary basis in the Coulomb metric, charge constrained, so the matrix elements
 // are three center integrals and the four center ones of Hartree-Fock never appear.  Second order in the fit error.  Refused on
-// solids by construction: a periodic Gaussian fit has no (ij|f) to call, and on plane waves this and Vee_DFT are one formula.
+// solids by construction: a periodic Gaussian fit has no (ij|f) to call, and on plane waves this and Vee_Fit are one formula.
 //
-class Vee_DFT_Dunlap : public virtual rDynamic_HT, private rDynamic_HT_Imp
+class Vee_FitDunlap : public virtual rDynamic_HT, private rDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
-    Vee_DFT_Dunlap(fbs_t& chargeDensityFitBasisSet, double numElectrons);
-    ~Vee_DFT_Dunlap();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
+    Vee_FitDunlap(fbs_t& chargeDensityFitBasisSet, double numElectrons);
+    ~Vee_FitDunlap();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
     //! \copydoc tDynamic_HT::RefreshForDensity
     //! The fitted charge density is k-INDEPENDENT and refit once per density serial, so it is exactly what
     //! this phase is for.  It used to be fit LAZILY inside \c MakeMatrix, i.e. from inside the block loop.
@@ -310,26 +311,90 @@ private:
 // the mesh.  Unconstrained, so it reports the mesh's charge error (\c HartreeChargeError) and the first-order energy effect of it
 // (\c HartreeChargeEnergy, \f$2E_H\,\delta q/N\f$; ruled 2026-11-06, reported not rescaled).
 //
-class Vee_DFT : public virtual rDynamic_HT, private rDynamic_HT_Imp
+//! \brief THE RESPONSE HALF of the periodic fitted Hartree term (the user's \c Vee_Response, 2026-11-08): the transition density's
+//! own G+q Poisson, \f$\delta V_H(G+q)=4\pi\,\delta\tilde\rho(G+q)/|G+q|^2\f$, then each (k+q, k) pair's exact adjoint
+//! (doc/LinearResponsePlan.md R2, R3).  Linear, so no D0.  A Bloch-q field (\c ΔGq_Map), so it stays its own machinery until the
+//! response route is redone; \c Vee_Fit<dcmplx> carries it as a mixin.
+class Vee_Response : public virtual tResponse_HT<dcmplx>
 {
 public:
-    Vee_DFT(std::unique_ptr<Fitting::GridDensityFit> fit, double numElectrons);
-    ~Vee_DFT();
+    explicit Vee_Response(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb) : itsFitBasis(std::move(fb)) {}
+    virtual void RefreshForDensity(const cbs_t* wholeBasis, const cChargeDensity* D0, const TransitionDensity<dcmplx>& delta) const override;
+    virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s, const TransitionDensity<dcmplx>& delta) const override;
+private:
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> itsFitBasis;   //!< the CD fit basis the transition density projects on
+    mutable size_t  itsDeltaVersion=size_t(-1);                 //!< the transition density's serial \c itsDeltaField holds
+    mutable ΔGq_Map itsDeltaField;                              //!< \f$\delta V_H(G+q)\f$ of that transition density
+};
+
+//! The per-run-scalar corners of \c Vee_Fit: nothing on the molecular instantiation; on the periodic one, the real TRIM block's
+//! cache (its matrix is the same \c MakeBlock) and the response half.
+template <class T, class D> class VeeFitCorners
+{
+public:
+    explicit VeeFitCorners(std::shared_ptr<const BasisSet::FIT_CD_ABS<T>>) {}
+};
+template <class D> class VeeFitCorners<dcmplx,D>
+    : public Dynamic_HT_RealBlock_Imp
+    , public Vee_Response
+{
+public:
+    explicit VeeFitCorners(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb) : Vee_Response(std::move(fb)) {}
+    //! The real block's ENERGY block: built, as the scalar one is (the energy refresh builds no blocks).
+    virtual const rsmat_t& GetEMatrix(const robs_t* bs,const Spin& s,DensityID id) const override
+    {itsEMatR=MakeMatrix(bs,s,id); return itsEMatR;}
+protected:
+    virtual rsmat_t MakeMatrix(const robs_t* bs,const Spin& s,DensityID id) const override
+    {return static_cast<const D&>(*this).template MakeBlock<double>(bs,s,id);}
+private:
+    mutable rsmat_t itsEMatR;
+};
+
+//
+// THE FIRST-ORDER FITTED HARTREE TERM, GENERIC OVER THE FIT BASIS (V-ONE-OF-N 3b; user rulings 2026-11-08 (c), (e), (f), (g),
+// doc/Records/VOneOfN_D2Design.md §1, §1a).  It was Vee_DFT (molecular δ mesh) and Vee_Hartree (plane wave / GPW), the same
+// formula written twice.  ONE code path, no basis-kind branch:
+//   - the density projects itself onto the fitter (\c tChargeDensity::Project), and the fitter keeps its coefficients;
+//   - the matrix is the PHYSICS round: the fitter contracts them with its basis's COULOMB 3-centre integrals,
+//     \f$\sum_f c_f\langle ab|1/r|f\rangle\f$ -- a δ mesh through its Coulomb operator, a plane wave as \f$k(G)\langle ab|G\rangle\f$;
+//   - the energy is the fitter's first-order \f$E_H\f$; \f$\mathrm{Tr}(DV)\f$ is computed only for a fitter that reads it.
+// Unconstrained, so it reports the fit's charge error (\c HartreeChargeError) and its first-order energy effect
+// (\c HartreeChargeEnergy, \f$2E_H\,\delta q/N\f$; ruled 2026-11-06, reported not rescaled), when \a numElectrons is known (> 0).
+//
+template <class T> class Vee_Fit
+    : public virtual tDynamic_HT<T>
+    , private        tDynamic_HT_Imp<T>
+    , public         VeeFitCorners<T, Vee_Fit<T>>
+{
+public:
+    using FitPtr = std::unique_ptr<Fitting::FirstOrderDensityFit<T>>;
+    //! \a responseFit: the CD fit basis the periodic response half projects δρ on (unused, and may be null, on a molecule).
+    Vee_Fit(FitPtr fit, double numElectrons, std::shared_ptr<const BasisSet::FIT_CD_ABS<T>> responseFit=nullptr);
+    ~Vee_Fit();
+    using tDynamic_HT<T>::RefreshForDensity;
     //! \copydoc tDynamic_HT::RefreshForDensity
-    virtual void RefreshForDensity(const rChargeDensity* cd) const override;
-    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
-    virtual std::ostream& Write    (std::ostream& os) const {return os;}
+    virtual void RefreshForDensity(const tChargeDensity<T>* cd) const override;
+    //! \copydoc HT_BlockOwner::BuildBlocks -- on the periodic instantiation I own two caches (Bloch, real TRIM) and prepare both.
+    virtual void BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override
+    {
+        tDynamic_HT_Imp<T>::BuildBlocks(bs, cd);
+        if constexpr (std::is_same_v<T,dcmplx>) Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd);
+    }
+    virtual void          GetEnergy(EnergyBreakdown&,const tDM_CD<T>* cd) const;
+    virtual std::ostream& Write    (std::ostream& os) const;
     //! Hartree depends on the TOTAL density: one block for every spin channel.
     virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
-    //! The ENERGY block GetEnergy contracts: BUILT from the fit the energy pass refreshed, with no memo -- the energy refresh has
-    //! no basis, so it builds no blocks (V1.41 stage 3; the same shape as FittedVxc's eps block).
-    virtual const rsmat_t& GetEMatrix(const robs_t* bs,const Spin& s,DensityID id) const override
+    //! The ENERGY block (read only by a fitter whose energy needs Tr(DV), and by the eh_trace A/B): BUILT from the fit the energy pass
+    //! refreshed, with no memo -- the energy refresh has no basis, so it builds no blocks (V1.41 stage 3).
+    virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>* bs,const Spin& s,DensityID id) const override
     {itsEMat=MakeMatrix(bs,s,id); return itsEMat;}
+    //! One block's matrix, for either block scalar \a U on this run's fit axis: the fitter's physics round.  Public for the corner.
+    template <class U> hmat_t<U> MakeBlock(const tobs_t<U>* bs, const Spin&, DensityID id) const;
 private:
-    mutable rsmat_t itsEMat;   //!< GetEMatrix's returned block (one serial contraction reads it at once)
-    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const;
-    void Fit(const rChargeDensity&) const;
-    std::unique_ptr<Fitting::GridDensityFit> itsFit;
+    mutable hmat_t<T> itsEMat;   //!< GetEMatrix's returned block (one serial contraction reads it at once)
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>* bs,const Spin& s,DensityID id) const override {return MakeBlock<T>(bs,s,id);}
+    void Fit(const tChargeDensity<T>& cd) const;
+    FitPtr itsFit;
     double itsNumElectrons;
 };
 
