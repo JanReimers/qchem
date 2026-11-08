@@ -1060,6 +1060,21 @@ double IterationRow::ValueOf(std::string_view title) const
     return std::numeric_limits<double>::quiet_NaN();
 }
 
+std::string IterationRow::GatesText() const
+{
+    std::ostringstream os;
+    os<<std::scientific<<std::setprecision(2);
+    bool first=true;
+    for (const auto& c : cells)
+    {
+        if (!c.tolerance || !std::isfinite(c.value)) continue;
+        const bool met=std::abs(c.value)<*c.tolerance;
+        os<<(first ? "" : ", ")<<c.title<<" "<<std::abs(c.value)<<(met ? " < " : " > ")<<*c.tolerance<<(met ? " (met)" : " (missed)");
+        first=false;
+    }
+    return first ? std::string("no gated column") : os.str();
+}
+
 template <class T> std::vector<ColumnData> tSCFIterator<T>::RowColumns(const SCFParams& ipar, size_t idealVirial) const
 {
     std::vector<ColumnData> var; AccumulateColumns(var, ipar, idealVirial);   // this layout's VARIABLE columns (a subclass edits
