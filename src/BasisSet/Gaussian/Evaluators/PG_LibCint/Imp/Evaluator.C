@@ -15,12 +15,15 @@ module;
 #include <cmath>
 #include <cassert>
 #include <ostream>
+#include <array>
+#include <stdexcept>
 #include <string>
 extern "C" {
 #include "cint_funcs.h"   // pulls cint.h: slot constants, FINT/CACHE_SIZE_T, the int*_cart functions
 // cint_funcs.h omits prototypes for the 3-centre integrals (the symbols are in libcint); declare them.
 CINTIntegralFunction int3c1e_cart;   // 3-centre overlap  <ab|c>
 CINTIntegralFunction int3c2e_cart;   // 3-centre Coulomb  (ab|c)
+CINTIntegralFunction int2c2e_cart;   // 2-centre Coulomb  (a|b)
 double CINTcommon_fac_sp(FINT l);      // the s/p factor libcint folds into every integral (g1e.h, not in the public header)
 }
 module qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;
@@ -301,6 +304,65 @@ rsmat_t NR_Evaluator::Build1(int which) const
         }
     return M;
 }
+// --- geometry gradients of the 1E matrices --------------------------------------------------------
+// libcint's ip integrals differentiate the BRA function with respect to the electron coordinate: X(i,j) = <d_c i|O|j>.  A function centred
+// on A has d/dA = -d/dr, so for a centre-only operator dM_ij/dR_A = -(X(i,j)[i on A] + X(j,i)[j on A]).  The nuclear operator also moves:
+// with Y(i,j) = <d_c i| 1/|r - R_C| |j> (int1e_iprinv, its origin on C), translation invariance of the three-body integral gives
+// d<i|1/r_C|j>/dR_C = Y(i,j) + Y(j,i), so dV/dR_C picks up -Z_C (Y + Y^T).
+NR_Evaluator::GradientMatrices NR_Evaluator::BuildGradient(int which) const
+{
+    const Imp& m=*itsImp;
+    if (m.spherical) throw std::logic_error("PG_LibCint::NR_Evaluator: the 1E geometry gradients are Cartesian-only (no client asks for spherical yet)");
+    std::vector<const ShellDesc*> self; for (auto& s:m.shells) self.push_back(&s);
+    std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(m.atoms, self, atm,bas,env);
+    const int natm=(int)m.atoms.size(), nbas=(int)m.shells.size();
+    const double pre = which==1 ? 2.0 : 1.0;   // <-nabla^2> = 2 x libcint's T
+    std::vector<int> compAtom(m.N, -1);
+    for (const auto& sh : m.shells) for (size_t g : sh.lc2pg) compAtom[g]=sh.atom;
+    // X_c(i,j) = <d_c i| O |j> over every ordered shell pair (not symmetric), scaled into the delivered normalization
+    auto ip=[&](IntFn fn)
+    {
+        std::array<rmat_t,3> X; for (auto& x : X) x=rmat_t(m.N, m.N, 0.0);
+        std::vector<double> buf;
+        for (size_t si=0;si<m.shells.size();++si)
+            for (size_t sj=0;sj<m.shells.size();++sj)
+            {
+                const int di=m.dim(m.shells[si].l), dj=m.dim(m.shells[sj].l);
+                buf.assign((size_t)di*dj*3, 0.0);
+                int shls[2]={(int)si,(int)sj};
+                fn(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
+                for (int c=0;c<3;++c)
+                    for (int p=0;p<di;++p){ const size_t gi=m.shells[si].lc2pg[p];
+                        for (int q=0;q<dj;++q){ const size_t gj=m.shells[sj].lc2pg[q];
+                            X[c](gi,gj) = pre * buf[p+di*(q+dj*c)] * m.scale[gi]*m.scale[gj]; } }
+            }
+        return X;
+    };
+    GradientMatrices G(m.atoms.size());
+    for (auto& a : G) for (auto& x : a) x=rmat_t(m.N, m.N, 0.0);
+    IntFn fn = which==0 ? int1e_ipovlp_cart : which==1 ? int1e_ipkin_cart : int1e_ipnuc_cart;
+    const std::array<rmat_t,3> X=ip(fn);
+    for (int c=0;c<3;++c)
+        for (size_t i=0;i<m.N;++i) for (size_t j=0;j<m.N;++j)
+        {
+            G[compAtom[i]][c](i,j)-=X[c](i,j);
+            G[compAtom[j]][c](i,j)-=X[c](j,i);
+        }
+    if (which==2)   // the nuclei move too: one int1e_iprinv per nucleus, its origin on it
+        for (size_t C=0;C<m.atoms.size();++C)
+        {
+            env[PTR_RINV_ORIG]=m.atoms[C].x; env[PTR_RINV_ORIG+1]=m.atoms[C].y; env[PTR_RINV_ORIG+2]=m.atoms[C].z;
+            const std::array<rmat_t,3> Y=ip(int1e_iprinv_cart);
+            const double Z=m.atoms[C].Z;
+            for (int c=0;c<3;++c)
+                for (size_t i=0;i<m.N;++i) for (size_t j=0;j<m.N;++j) G[C][c](i,j)-=Z*(Y[c](i,j)+Y[c](j,i));
+        }
+    return G;
+}
+NR_Evaluator::GradientMatrices NR_Evaluator::OverlapGradient() const {return BuildGradient(0);}
+NR_Evaluator::GradientMatrices NR_Evaluator::KineticGradient() const {return BuildGradient(1);}
+NR_Evaluator::GradientMatrices NR_Evaluator::NuclearGradient() const {return BuildGradient(2);}
+
 rsmat_t NR_Evaluator::OverlapMatrix()             const {return Build1(0);}
 rsmat_t NR_Evaluator::KineticMatrix()             const {return Build1(1);}
 rsmat_t NR_Evaluator::NuclearMatrix(const Structure*) const {return Build1(2);} // atm already carries the nuclei
@@ -333,6 +395,96 @@ Projector3<double> NR_Evaluator::Build3(const NR_Evaluator& fit, int which) cons
             }
     return s3;
 }
+// --- the Dunlap force's integrals, contracted -------------------------------------------------------
+// ip1 differentiates the FIRST orbital function and ip2 the fit function, with respect to the electron coordinate; a centre derivative is
+// minus that.  Over ORDERED orbital pairs (i, j), the ip1 sum is the first function's derivative; the second function's is the same sum
+// relabelled (D and (ij|k) are symmetric in i, j), hence the factor 2.  ip2 runs over the same ordered pairs once.
+std::vector<rvec3_t> NR_Evaluator::RepulsionThreeC_Gradient(const NR_Evaluator& fit, const rmat_t& D, const rvec_t& cf) const
+{
+    const Imp& a=*itsImp; const Imp& c=*fit.itsImp;
+    if (a.spherical || c.spherical) throw std::logic_error("PG_LibCint::NR_Evaluator: the 3-centre gradient is Cartesian-only");
+    if (D.rows()!=a.N || D.columns()!=a.N || cf.size()!=c.N)
+        throw std::invalid_argument("PG_LibCint::RepulsionThreeC_Gradient: D is "+std::to_string(D.rows())+"x"+std::to_string(D.columns())+" and c has "
+                                    +std::to_string(cf.size())+" for "+std::to_string(a.N)+" orbital and "+std::to_string(c.N)+" fit functions");
+    std::vector<const ShellDesc*> sh; for (auto& s:a.shells) sh.push_back(&s);
+    const size_t cOff=sh.size();      for (auto& s:c.shells) sh.push_back(&s);
+    std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(a.atoms, sh, atm,bas,env);
+    const int natm=(int)a.atoms.size(), nbas=(int)sh.size();
+    std::vector<rvec3_t> g(a.atoms.size(), rvec3_t(0,0,0));
+    std::vector<double> buf;
+    for (size_t sk=0;sk<c.shells.size();++sk)
+        for (size_t si=0;si<a.shells.size();++si)
+            for (size_t sj=0;sj<a.shells.size();++sj)
+            {
+                const int di=a.dim(a.shells[si].l), dj=a.dim(a.shells[sj].l), dk=c.dim(c.shells[sk].l);
+                int shls[3]={(int)si,(int)sj,(int)(cOff+sk)};
+                for (int which=0; which<2; ++which)
+                {
+                    buf.assign((size_t)di*dj*dk*3, 0.0);
+                    (which==0 ? int3c2e_ip1_cart : int3c2e_ip2_cart)(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
+                    const int on = which==0 ? a.shells[si].atom : c.shells[sk].atom;
+                    double acc[3]={0,0,0};
+                    for (int x=0;x<3;++x)
+                        for (int p=0;p<di;++p){ const size_t gi=a.shells[si].lc2pg[p];
+                            for (int q=0;q<dj;++q){ const size_t gj=a.shells[sj].lc2pg[q]; const double dij=D(gi,gj)*a.scale[gi]*a.scale[gj];
+                                for (int r=0;r<dk;++r){ const size_t gk=c.shells[sk].lc2pg[r];
+                                    acc[x]+=dij*cf[gk]*c.scale[gk]*buf[p+di*(q+dj*(r+dk*x))]; } } }
+                    g[on]-=(which==0 ? 2.0 : 1.0)*rvec3_t(acc[0], acc[1], acc[2]);
+                }
+            }
+    return g;
+}
+
+std::vector<rvec3_t> NR_Evaluator::RepulsionTwoC_Gradient(const rvec_t& cf) const
+{
+    const Imp& c=*itsImp;
+    if (c.spherical) throw std::logic_error("PG_LibCint::NR_Evaluator: the 2-centre gradient is Cartesian-only");
+    if (cf.size()!=c.N) throw std::invalid_argument("PG_LibCint::RepulsionTwoC_Gradient: c has "+std::to_string(cf.size())+" for "+std::to_string(c.N)+" fit functions");
+    std::vector<const ShellDesc*> sh; for (auto& s:c.shells) sh.push_back(&s);
+    std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(c.atoms, sh, atm,bas,env);
+    const int natm=(int)c.atoms.size(), nbas=(int)sh.size();
+    std::vector<rvec3_t> g(c.atoms.size(), rvec3_t(0,0,0));
+    std::vector<double> buf;
+    for (size_t sk=0;sk<c.shells.size();++sk)
+        for (size_t sl=0;sl<c.shells.size();++sl)
+        {
+            const int dk=c.dim(c.shells[sk].l), dl=c.dim(c.shells[sl].l);
+            buf.assign((size_t)dk*dl*3, 0.0);
+            int shls[2]={(int)sk,(int)sl};
+            int2c2e_ip1_cart(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
+            double acc[3]={0,0,0};
+            for (int x=0;x<3;++x)
+                for (int p=0;p<dk;++p){ const size_t gk=c.shells[sk].lc2pg[p];
+                    for (int q=0;q<dl;++q){ const size_t gl=c.shells[sl].lc2pg[q];
+                        acc[x]+=cf[gk]*cf[gl]*c.scale[gk]*c.scale[gl]*buf[p+dk*(q+dl*x)]; } }
+            g[c.shells[sk].atom]-=2.0*rvec3_t(acc[0], acc[1], acc[2]);   // ordered (k, l): the k derivative; the l one is the same sum relabelled
+        }
+    return g;
+}
+
+rsmat_t NR_Evaluator::RepulsionTwoC_Matrix() const
+{
+    const Imp& c=*itsImp;
+    if (c.spherical) throw std::logic_error("PG_LibCint::NR_Evaluator: the 2-centre Coulomb metric is Cartesian-only");
+    std::vector<const ShellDesc*> sh; for (auto& s:c.shells) sh.push_back(&s);
+    std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(c.atoms, sh, atm,bas,env);
+    const int natm=(int)c.atoms.size(), nbas=(int)sh.size();
+    rsmat_t M(c.N);
+    std::vector<double> buf;
+    for (size_t sk=0;sk<c.shells.size();++sk)
+        for (size_t sl=sk;sl<c.shells.size();++sl)
+        {
+            const int dk=c.dim(c.shells[sk].l), dl=c.dim(c.shells[sl].l);
+            buf.assign((size_t)dk*dl, 0.0);
+            int shls[2]={(int)sk,(int)sl};
+            int2c2e_cart(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
+            for (int p=0;p<dk;++p){ const size_t gk=c.shells[sk].lc2pg[p];
+                for (int q=0;q<dl;++q){ const size_t gl=c.shells[sl].lc2pg[q];
+                    M(gk,gl)=buf[p+dk*q]*c.scale[gk]*c.scale[gl]; } }
+        }
+    return M;
+}
+
 Projector3<double> NR_Evaluator::OverlapThreeC_Matrix  (const NR_Evaluator& fit) const {return Build3(fit,0);}
 Projector3<double> NR_Evaluator::RepulsionThreeC_Matrix(const NR_Evaluator& fit) const {return Build3(fit,1);}
 
