@@ -140,7 +140,7 @@ static Molecule MakeMolecule(const string& name)
     return m;
 }
 
-int main(int argc, char** argv)
+static int Main(int argc, char** argv)
 {
     // ---- defaults ----
     int    Z=2, q=0, maxiter=50;
@@ -175,8 +175,9 @@ int main(int argc, char** argv)
         "                        PP = local-pseudopotential pseudo-atom, needs --valence)\n"
         "  --alpha <float>    Xalpha exchange parameter (default: per-Z optimized)\n"
         "  --pol <U|P>        Unpolarized or Polarized                (default U)\n"
-        "  --basis <name>     Slater|Gaussian|BSpline6|BSpliner6|Slater_RKB|Gaussian_RKB\n"
-        "                       (default Slater, or Slater_RKB for Dirac models)\n"
+        "  --basis <name>     atoms: Slater|Gaussian|BSpline6|BSpliner6|Slater_RKB|Gaussian_RKB\n"
+        "                       (default Slater, or Slater_RKB for Dirac models);\n"
+        "                     molecules: a basis file stem (dzvp, ...), REQUIRED -- unstated is refused, naming the bases that cover it\n"
         "  --acc <name>       Low | Medium | High basis pool         (default Low)\n"
         "  --accel <name>     DIIS | GDM | Ladder | directmin         (default DIIS)\n"
         "  --maxiter <int>    max SCF iterations                      (default 50)\n"
@@ -271,7 +272,7 @@ int main(int argc, char** argv)
     bool dirac = (model=="DHF" || model=="DE1");
     bool dft   = (model=="LDA" || model=="DFT" || model=="Xalpha");
     bool ppmodel = (model=="PP"); // local-pseudopotential pseudo-atom (Ham_PP); --valence = valence e- count
-    if (basis.empty() && molname.empty()) basis = dirac ? "Slater_RKB" : "Slater";  // atomic default (molecules: dzvp, below)
+    if (basis.empty() && molname.empty()) basis = dirac ? "Slater_RKB" : "Slater";  // atomic default (a molecule has none: it states a basis file)
     accj["type"]=accel;
 
     // ---- string -> enum maps ----
@@ -298,7 +299,9 @@ int main(int argc, char** argv)
     // ---- MOLECULAR path (the facade -- same knobs, per-iteration trace, iters/energy report) ----
     if (!molname.empty())
     {
-        const string mbasis = basis.empty() ? "dzvp" : basis;   // molecular basis is a string (dzvp/sto-3g/...)
+        // The molecular basis is a file stem (dzvp, valence_lowq_sr, ...): NO fallback -- an unstated one is the setup's refusal
+        // (BasisUnstated), which names the bases that cover this molecule (one rule for every driver, 2026-11-07).
+        const string& mbasis = basis;
         CalcOptions copts; copts.basis=mbasis; copts.multiplicity=mult; copts.symmetry=sym;
         if (dft) { copts.model=(model=="Xalpha")?Model::Xalpha:Model::LDA; if(model=="Xalpha") copts.xalpha=alpha>0?alpha:0.7; }
         else if (models.count(model)) copts.model=models[model];
@@ -382,4 +385,11 @@ int main(int argc, char** argv)
             DumpRadialDensity(calc.Density(), Z, Z-q, functional, out, rmin, rmax, ngrid);
     }
     return 0;
+}
+
+//! A refusal (a policy's std::invalid_argument, a missing file) is said in one line and exits 2, as rundeck does -- not std::terminate.
+int main(int argc, char** argv)
+{
+    try { return Main(argc, argv); }
+    catch (const std::exception& e) { std::cerr<<"scfrun: "<<e.what()<<std::endl; return 2; }
 }
