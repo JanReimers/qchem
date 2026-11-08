@@ -13,6 +13,7 @@ import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
 export import qchem.Symmetry.Spin;
 export import qchem.ChargeDensity.FourierDensity;   // FourierDensityBase<T> (the periodic face)
 import qchem.ScalarFunction;
+import qchem.Structure;   // DM_Pullback: the atoms a force is taken in
 export import qchem.Fitting.FunctionFitter;   // Fitting::ScalarProjector -- named on tDM_CD's own face,
                                               // so every consumer of that face needs it
 import qchem.ChargeDensity.Types;
@@ -161,6 +162,17 @@ template <class T> class tStatic_CC //Contract client for static Ham terms.
 {
 public:
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&) const=0;
+};
+
+//! \brief The PULLBACK client of a static term: the force twin of \c tStatic_CC (doc/GeometryOptimizationPlan.md §13.2; the user's ruling
+//! 2026-11-08: a derivative version beside a hub face's method).  For ONE irrep block (\a bs, \a s) and that block's density matrix \a D,
+//! Σ_ij Re(D_ij* ∂M_ij/∂R_A) per atom of \a st, where M is the term's matrix: what \c tDM_CD::DM_Pullback sums over the blocks, exactly
+//! as \c DM_Contract sums the energy.
+template <class T> class tStatic_PC
+{
+public:
+    virtual ~tStatic_PC() = default;
+    virtual rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const=0;
 };
 
 template <class T> class tDynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
@@ -382,6 +394,10 @@ template <class T> class tDM_CD
 public:
     virtual double DM_Contract(const tStatic_CC<T>*) const=0; //Amounts to Integral(ro*V*d3r);
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const=0; //Integral(ro*V(ro)*d3r);
+    //! d/dR (§13.2; beside DM_Contract): Σ over this density's blocks of the client's per-block pullback, Σ_ij Re(D_ij* ∂M_ij/∂R_A) per atom
+    //! of \a st.  For an energy E = Tr(D M) at fixed D this IS ∂E/∂R; for the energy-weighted density W and the overlap it is the
+    //! Pulay sum Tr(W ∂S/∂R).
+    virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>*, const Structure* st) const=0;
     //! Energy contraction of THIS density against a per-irrep Fock-block map (keyed by BasisSetID):
     //! \f$\sum_i \mathrm{sum}(D_i \odot B_i^\mathsf{T}) = \mathrm{Tr}(D\,B)\f$.  The whole-system DUAL of
     //! AccumulateDirectAll -- lets a whole-system term (HF Coulomb/exchange) take its energy from its own

@@ -226,6 +226,30 @@ template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) 
     return ret;
 }
 
+// THE FORCE TWIN of the static contraction (GeometryOptimizationPlan §13.2): every block's pullback summed.  Increment 1 is molecular, so
+// a REAL child inside a complex run (a TRIM block) THROWS by name until a term gives a real-block pullback client.
+template <class T> rvec3vec_t tComposite_CD<T>::DM_Pullback(const tStatic_PC<T>* v, const Structure* st) const
+{
+    rvec3vec_t F;
+    for (const Block& blk:itsBlocks)
+    {
+        const rvec3vec_t f=std::visit([&](const auto* b)->rvec3vec_t
+        {
+            using BT=std::remove_const_t<std::remove_pointer_t<std::decay_t<decltype(b)>>>;
+            if constexpr (std::is_same_v<BT,tDM_CD<T>>) return b->DM_Pullback(v, st);
+            else throw std::logic_error("tComposite_CD::DM_Pullback: a real block inside a complex run has no pullback client yet "
+                                        "(GeometryOptimizationPlan §13.2, increment 1 is molecular)");
+        }, blk.cd);
+        if (F.size()==0) F=f;
+        else
+        {
+            if (f.size()!=F.size()) throw std::logic_error("tComposite_CD::DM_Pullback: two blocks answered for different atom counts");
+            for (size_t A=0;A<F.size();A++) F[A]+=f[A];
+        }
+    }
+    return F;
+}
+
 template <class T> double tComposite_CD<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const
 {
     double ret=0.0;

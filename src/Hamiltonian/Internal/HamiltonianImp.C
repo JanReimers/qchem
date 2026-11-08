@@ -68,6 +68,9 @@ public:
     virtual HubbardUTarget* GetHubbardUTarget() override;
     virtual std::unique_ptr<ResponseKernel<T>> MakeResponseKernel(const tbs_t<T>* wholeBasis,
                                                                   const tChargeDensity<T>* D0) const override;
+    // The force fold (GeometryOptimizationPlan §13): Imp/HamiltonianForces.C.
+    virtual std::vector<std::string> MissingGradients(const tbs_t<T>* wholeBasis, const Structure* st) const override;
+    virtual rvec3vec_t MakeForces(const tbs_t<T>* wholeBasis, const tDM_CD<T>* D, const tDM_CD<T>* W, const Structure* st) const override;
     //! THE EAGER REFRESH PHASE (doc/OpenWork.md item **KP**): pre-warm every term's k-independent,
     //! density-dependent memo, once, before the caller's per-block Fock loop.  Folded over the DYNAMIC
     //! terms only -- a static term is density-independent by definition, so it has nothing to warm.

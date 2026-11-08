@@ -7,6 +7,7 @@ module;
 #include <string>
 #include <variant>
 export module qchem.CompositeCD;
+import qchem.Structure;   // DM_Pullback (GeometryOptimizationPlan §13.2)
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.DensityMatrixDistance;
 export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (summed over k-blocks)
@@ -131,6 +132,7 @@ public:
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;   // sum over irrep blocks
+    virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>*, const Structure* st) const;   // sum over irrep blocks (§13.2)
     //! \copydoc tDM_CD::ProjectOnto
     //! ALL BLOCKS SUMMED -- for a polarized composite \f$\rho=\rho_\uparrow+\rho_\downarrow\f$, the total a
     //! spin-agnostic consumer wants.  The SPIN-RESOLVED consumer does not come here: it asks each CHANNEL.

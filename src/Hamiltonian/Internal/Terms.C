@@ -8,6 +8,7 @@ module;
 #include <functional>
 export module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.Term;
+import qchem.Hamiltonian.Internal.GeometryGradient;   // Ven's force face (GeometryOptimizationPlan §13.2; lane B)
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Structure;
 import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (composed; clients never see the impl)
@@ -59,12 +60,17 @@ private:
 //  Electron-Nuclear attraction potential.
 //
 class Ven : public virtual rStatic_HT, private rStatic_HT_Imp
+          , public virtual tGeometryGradient_HT<double>, public virtual tStatic_PC<double>   // its force (§13.2; lane B): Imp/Ven_Forces.C
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
     Ven(const st_t& st);
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream&) const;
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/Ven_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
 private:
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
     st_t theStructure;

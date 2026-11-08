@@ -83,6 +83,20 @@ public:
         return g;
     }
     static const Structure& Structure_(const MoleculeCalculation& c) {return *c.itsStructure;}
+    //! THE HAMILTONIAN'S FORCE (GeometryOptimizationPlan §13) at the carried density \a D with the energy-weighted density \a W.
+    static rvec3vec_t Forces(const MoleculeCalculation& c, const MoleculeCalculation::Carry& D, const MoleculeCalculation::Carry& W)
+    {
+        const auto cd=c.MakeCarriedDensity(D), wd=c.MakeCarriedDensity(W);
+        return c.itsHam->At(c.itsBasis, cd.get()).Forces(wd.get(), c.itsStructure.get());
+    }
+    static std::vector<std::string> MissingGradients(const MoleculeCalculation& c) {return c.itsHam->MissingGradients(c.itsBasis, c.itsStructure.get());}
+    static MoleculeCalculation::Carry EnergyWeighted(const MoleculeCalculation& c) {return {c.MakeEnergyWeightedDensity()};}
+    static MoleculeCalculation::Carry Zero(const MoleculeCalculation::Carry& like)
+    {
+        MoleculeCalculation::Carry z{like.D};
+        for (auto& b : z.D) b=hmat_t<double>(b.rows());   // Blaze zero-initialises
+        return z;
+    }
     //! The term's H at the point \a c with the carried \a D frozen: the sum of the blocks whose terms report \a entries (one block: the
     //! unblocked molecular basis).
     static hmat_t<double> TermMatrix(const MoleculeCalculation& c, const MoleculeCalculation::Carry& D, const std::string& entries)
@@ -316,4 +330,99 @@ TEST(ADSpike, ItsDGradientIsTheTermsH)
         EXPECT_NEAR((*g)(i,j), H(i,j), 1e-11) << "dE/dD_" << i << j << " against the term's H";
     }
     std::cout<<"[AD spike] pin 32: max|dE/dD - H| = "<<worst<<" (max|H| "<<largest<<")"<<std::endl;
+}
+
+// ============================================================================================================================
+// THE HAMILTONIAN'S FORCE (GeometryOptimizationPlan §13; lane B 2026-11-08), layer by layer on the one-electron model E1 (Kinetic + Ven +
+// IonIon, no electron-electron term), where every term has its force: (1) at D = 0 and W = 0 it is the ion-ion force alone; (2) at the
+// converged D with W = 0 it is the terms' Hellmann-Feynman sum, the per-term finite difference at fixed D; (3) with W it is the whole force,
+// the finite difference of the RE-CONVERGED energy (the Pulay term is what makes the fixed-D sum into that).  MissingGradients() is empty
+// for E1 and names the electron-electron terms for HF and LDA.
+// ============================================================================================================================
+namespace
+{
+std::shared_ptr<Structure> MovedH2O(const Molecule& h2o, size_t A, int x, double s)
+{
+    std::vector<rvec3_t> R; h2o.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+    (x==0 ? R[A].x : x==1 ? R[A].y : R[A].z)+=s;
+    std::shared_ptr<Structure> st=h2o.Clone(); st->MoveSites(R);
+    return st;
+}
+}
+
+TEST(HamiltonianForces, OnBareNucleiTheForceIsTheIonIonForce)
+{
+    const Molecule h2o=GetMolecule("H2O");
+    const auto setup=MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::E1});
+    MoleculeCalculation c(setup, Tight());
+    ASSERT_TRUE(c.IsConverged());
+    EXPECT_TRUE(ForceFacadeTests::MissingGradients(c).empty()) << "E1 has every term's force";
+    const auto D0=ForceFacadeTests::Zero(ForceFacadeTests::Carry(c));
+    const rvec3vec_t F=ForceFacadeTests::Forces(c, D0, D0);   // D = 0, W = 0: the electrons contribute nothing
+    // E_nn is a closed form, so the FD is limited by its own h²/6 |E‴| ~ 2e-10 at h = 1e-5: 1e-8.
+    const double h=1e-5;
+    for (size_t A=0;A<F.size();A++) for (int x=0;x<3;x++)
+    {
+        const double fd=(Entry(ForceFacadeTests::TermEnergiesAt(c.SizedSetup(), *MovedH2O(h2o,A,x,h), D0), "Enn")
+                        -Entry(ForceFacadeTests::TermEnergiesAt(c.SizedSetup(), *MovedH2O(h2o,A,x,-h), D0), "Enn"))/(2*h);
+        EXPECT_NEAR(C(F[A],x), -fd, 1e-8) << "atom " << A << " axis " << x;
+    }
+}
+
+TEST(HamiltonianForces, AtFixedDTheTermsForceIsThePerTermFiniteDifference)
+{
+    const Molecule h2o=GetMolecule("H2O");
+    const auto setup=MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::E1});
+    MoleculeCalculation c(setup, Tight());
+    ASSERT_TRUE(c.IsConverged());
+    const auto D=ForceFacadeTests::Carry(c);
+    const rvec3vec_t F=ForceFacadeTests::Forces(c, D, ForceFacadeTests::Zero(D));   // W = 0: the terms' sum alone
+    // The fixed-D energy is smooth in R; at h = 1e-4 the central difference's h²/6 |E‴| is ≲ 1e-8, so 2e-6 (relative above 1).
+    const double h=1e-4;
+    rvec3_t sum(0,0,0);
+    for (size_t A=0;A<F.size();A++)
+    {
+        sum+=F[A];
+        for (int x=0;x<3;x++)
+        {
+            auto E=[&](double s){ const auto es=ForceFacadeTests::TermEnergiesAt(c.SizedSetup(), *MovedH2O(h2o,A,x,s), D);
+                                  return Entry(es,"Kinetic")+Entry(es,"Een")+Entry(es,"Enn"); };
+            const double fd=(E(h)-E(-h))/(2*h);
+            EXPECT_NEAR(C(F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << "atom " << A << " axis " << x;
+        }
+    }
+    EXPECT_LT(norm(sum), 1e-8) << "translation invariance (the basis, the nuclei and the ions all move together)";
+}
+
+TEST(HamiltonianForces, WithThePulayTermItIsTheFiniteDifferenceOfTheReconvergedEnergy)
+{
+    const Molecule h2o=GetMolecule("H2O");
+    const auto setup=MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::E1});
+    MoleculeCalculation c(setup, Tight());
+    ASSERT_TRUE(c.IsConverged());
+    const rvec3vec_t F=ForceFacadeTests::Forces(c, ForceFacadeTests::Carry(c), ForceFacadeTests::EnergyWeighted(c));
+    // Each displaced point is a full SCF (MinΔρ/N 1e-9: its energy error is second order, ≲ 1e-12).  h = 1e-4 puts the FD's h²/6 |E‴| at
+    // ≲ 1e-8, so 2e-6 (relative above 1) leaves room for both.
+    const double h=1e-4;
+    for (size_t A=0;A<F.size();A++) for (int x=0;x<3;x++)
+    {
+        auto E=[&](double s){ MoleculeCalculation m(MoleculeSetup::Resolve(dynamic_cast<const Molecule&>(*MovedH2O(h2o,A,x,s)), {.basis="dzvp", .model=Model::E1}), Tight());
+                              EXPECT_TRUE(m.IsConverged()); return m.Energy(); };
+        const double fd=(E(h)-E(-h))/(2*h);
+        EXPECT_NEAR(C(F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << "atom " << A << " axis " << x;
+    }
+}
+
+TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
+{
+    for (auto model : {Model::HF, Model::LDA})
+    {
+        MoleculeCalculation c(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=model}), Tight());
+        ASSERT_TRUE(c.IsConverged());
+        const auto missing=ForceFacadeTests::MissingGradients(c);
+        EXPECT_FALSE(missing.empty()) << "the electron-electron terms have no force yet";
+        for (const auto& m : missing) { EXPECT_NE(m.find("no geometry gradient"), std::string::npos) << m; std::cout<<"[forces] missing: "<<m<<std::endl; }
+        const auto D=ForceFacadeTests::Carry(c);
+        EXPECT_THROW((void)ForceFacadeTests::Forces(c, D, D), std::logic_error) << "Forces refuses what MissingGradients names";
+    }
 }
