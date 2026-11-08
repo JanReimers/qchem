@@ -282,10 +282,12 @@ TEST(M_DFT, WaterLDA_MultipoleCoulomb_eqLCut_Long)
 }
 
 // Multipole for Vxc, through the fitter as the A1 route is.  The Hartree stays on the default route, so only the XC term changed.
+// RE-JUDGED 2026-11-08 (pin 10, lane B): the gap was the MESH's, not the multipole Vxc's.  At (80, 29) this run sat -140 μHa off the
+// A1-Hartree value; the mesh pilot (GeometryOptimizationPlan §14) climbs it to (100, 41 GL), and it sits -5.1 μHa off, inside eps x N.
 TEST(M_DFT, WaterLDA_MultipoleVxc)
 {
     MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
                                                                                        .vxcFit = Hamiltonian::VxcFit::Multipole}));
     ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -75.87944736, 1e-2) << "the A1 Hartree value; the gap is the multipole Vxc's";
+    EXPECT_NEAR(calc.Energy(), -75.87944736, 3e-5) << "the A1 Hartree value (PySCF, exact XC); eps x N_atoms, the run's own target";
 }
