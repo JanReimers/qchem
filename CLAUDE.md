@@ -8,7 +8,9 @@ Brief notes about module/library conventions, naming, and includes.
     1. **Get the right numbers for the given input deck**: the chosen model solved to ε.  A poor MODEL choice (a terrible basis set,
        too high an imposed symmetry, the wrong functional) gives a different kind of "wrong" number: the code solves what was asked,
        and where it can see the choice is poor (basis trim, a broken-symmetry probe) it WARNS, it does not substitute (pin 31: model
-       choices are exempt from ε).
+       choices are exempt from ε).  "Right" means right in ABSOLUTE terms, not bit-stable across a refactor (user, 2026-11-08): clean
+       code outranks pinning an old number to 1e-10.  A refactor may move numbers by roundoff; judge them against ε and an
+       independent route (`doc/Pins.md` pin 10), and never contort a design to keep the old bits.
     2. **Do it quickly** (CPU, threads) **and efficiently** (threads, RAM).
     3. **Put the burden in the code, not on the user**, as far as possible: be kind to the new grad student.  (Inspiration: the ISO C++
        committee's philosophy of putting the burden on the compiler writers.)  So the run picks its own grids from ε, refuses a bad
