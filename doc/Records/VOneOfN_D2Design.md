@@ -37,6 +37,23 @@ nothing built or run for this note.
 4. Say where numbers can move, and which gates prove 0 moves.
 5. Moving `DensitySampler_*` / `FittedCD` out of qcChargeDensity is a separate row, not this step.
 
+- **(g)** 3b's two terms are GENERIC over the fit basis (user 2026-11-08): *"Vee_DFT should work for any fit basis set, not just
+  molecular δ mesh. Similarly Vee_DFT_Dunlap should work for any fit basis set, not just molecular Gaussians."*  The user then
+  confirmed (A): `Vee_Fit` asks for the Coulomb contraction ⟨ab|1/r|f⟩ rather than the overlap ⟨ab|f⟩, so *"the fitter ends up
+  applying 1/|G|² but triggered by the hamiltonian term."*
+  - **One code path per term, no basis-kind branch.**  `Vee_Fit` and `Vee_FitDunlap` are written against the generic fit basis
+    (forward ⟨ab|f⟩, Coulomb ⟨ab|1/r|f⟩, metric).  Each basis answers with its own realization: Gaussian analytic, δ through
+    its `CoulombOperator`, PW as k(G)⟨ab|G⟩.
+  - **`Vee_FitDunlap` on a PW fit basis is ACCEPTED.**  The Coulomb metric is diagonal, so Dunlap reduces to `Vee_Fit`.  Gate,
+    if 3b's surface makes it cheap: `Vee_FitDunlap ≡ Vee_Fit` on a PW fit basis.  Otherwise it is noted on OpenWork row
+    (main 4f402322f).
+  - **`Vee_FitDunlap` on a δ basis is REFUSED by a POLICY**, not by the term or the basis.  The user: *"impractical for sure"*;
+    the metric is singular and a dense N_g².  The refusal sits in the factory/facade with a `policy` report row (CLAUDE.md
+    framework vs efficiency).
+  - **Dunlap on a periodic GAUSSIAN fit basis is an implementation gap** (a lattice-summed Coulomb metric; G=0 and the net
+    charge).  It is OpenWork §2 (main 4f402322f), not this step.  Today's refusal stays, and moves out of BasisSet into the policy
+    layer when convenient.
+
 ## 1. The finding that makes it small: the PW Hartree term already IS `Vee_Fit`, written by hand
 
 The molecular "normal" Hartree term `Vee_Fit` (`src/Hamiltonian/Internal/Imp/Vee_DFT.C`) runs on `GridDensityFitter`
@@ -274,6 +291,9 @@ and 8 are real changes of route.
   - PW / GPW `Repulsion3C` with the kernel moved into its adjoint, plus the PW fit basis's Coulomb metric (§1a (A)).
   - `Vee_Fit` scalar-generic; the mesh `CoulombOperator` moves into the δ basis as its Coulomb integrals (§1a, RULED (f)).
   - The PW / GPW Hartree term becomes `Vee_Fit` on it, with gate 1 first, and `Vee_Hartree`'s response half becomes `Vee_Response`.
+  - Both `Vee_Fit` and `Vee_FitDunlap` are generic over the fit basis (ruling (g)), with no basis-kind branch.
+  - A factory policy refuses `Vee_FitDunlap` on a δ basis, with a `policy` row.
+  - The gate `Vee_FitDunlap ≡ Vee_Fit` on a PW fit basis, if cheap.
 
   Judged by §4's gates: ε, with moves listed and re-judged.
 - **3c.** Delete everything §3 retires, the `FourierDensity` face and the 11 casts with it.  Regenerate the hub snapshot.
