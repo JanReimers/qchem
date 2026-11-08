@@ -49,6 +49,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     s->reference=st.Clone();   // polymorphic deep copy: a UnitCell stays periodic, not sliced to a Molecule
     const std::shared_ptr<const Structure> point=s->PointStructure(*s->reference);
     s->Ne=int(point->GetNumElectrons());
+    RequireBasisStated(opts.basis, *point);   // no default basis: an unstated one is refused, naming the bases that cover this structure
     // Coverage, when the name is a basis file (an unknown name is the build's refusal, which lists every name there).
     {
         std::string stem=opts.basis;
