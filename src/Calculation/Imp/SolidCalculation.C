@@ -36,6 +36,7 @@ import qchem.Diagnostics;                      // u_bands: the per-band +U slot 
 import qchem.BasisSet.Orbital_DFT_IBS;         // the block an orbital set lives on (EstimateHubbardU)
 import qchem.Environment;                   // WarnRetiredEnvironment (D-ENV step 6a)
 import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeEntryRung and the rungs above (a geometry run's XC route and its nested ladder)
+import qchem.Mesh.BeckeClimb;                   // ClimbBeckeLadder: the pilot's one-round Becke climb at a fixed D
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.SCFCap;                           // SetupSCF -- the seed's atomic solves are not the run's iterations
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
@@ -1573,7 +1574,6 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     rpt::json rounds=rpt::json::array();
     std::optional<std::pair<double,double>> xcBefore;   // the XC term's (x, delivered) one round back: the power-law fit's first point
     bool xcOver=false;                                  // the XC term was over its target in the last round audited
-    std::optional<std::pair<std::string,double>> beckeBeforeL, beckeBeforeNR;   // per axis, (rung, its difference) one round back: the convergence ratio
     bool xcStatedOver=false;                            // a STATED Becke mesh was over its target (honoured, reported)
     std::optional<std::pair<std::string,double>> ballBefore;    // (ball, its difference) one round back
     bool ballStatedOver=false;                          // a STATED densityEcut was over its target (honoured, reported)
@@ -1596,9 +1596,11 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             xcRadial =qcMesh::BeckeRadialRungAbove(xcCur);
         }
         auto withRung=[](std::string name, const std::optional<qcMesh::MeshParams>& rung) {return rung ? name+" + "+BeckeName(*rung) : name;};
+        std::vector<hmat_t<dcmplx>> ΔHangular, ΔHradial;   // the two rungs' XC H_run - H_rung: the Becke climb's first cache entries
         const GridAuditResult R =CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), withRung("pilot reference (x + "+std::to_string(int(kReferenceMargin))+")", xcAngular),
-                                                 xcAngular ? &*xcAngular : nullptr);
-        const GridAuditResult Bl=CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), withRung("density ball x 2", xcRadial), xcRadial ? &*xcRadial : nullptr, 2.0);
+                                                 xcAngular ? &*xcAngular : nullptr, 1.0, xcAngular ? &ΔHangular : nullptr);
+        const GridAuditResult Bl=CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), withRung("density ball x 2", xcRadial), xcRadial ? &*xcRadial : nullptr, 2.0,
+                                                 xcRadial ? &ΔHradial : nullptr);
         // R is GridAudit(kReferenceMargin) at this D exactly when its reference carries no XC rung (a postSCF gridAudit keeps the run's mesh).
         if (xcAngular) itsImp->pilotLastAudit.reset();
         else
@@ -1652,45 +1654,86 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         std::string xcLadderEnd;   // an axis with no finer rung: nothing checks it, so it blocks SETTLED, honestly
         if (xcOnBecke)
         {
-            // ONE RUNG PER AXIS: the angular and the radial error have different shapes and different largest elements (2026-11-05), so one joint
-            // rung cannot say which to move.  The axis further over moves.
+            // THE ONE-ROUND CLIMB (lane B, 2026-11-07; qchem.Mesh.BeckeClimb, the rule this loop used to walk one rung per round).  An unstated
+            // mesh climbs the nested ladder to SETTLED at THIS D, with no re-convergence between rungs: MnO from the smallest rung was 7 raises,
+            // so 7 re-convergences, and the seed test's addendum replays this rule at one fixed D (6 of 6 climbs meet eps;
+            // doc/Records/SeedTestReport.md).  Round 0 climbs; every later round, at the re-converged D, is the CONFIRMING audit (one raise at
+            // most).  A STATED mesh is audited on both axes and never raised.  ONE RUNG PER AXIS, the axis further over moves (the angular and
+            // the radial error have different shapes and different largest elements, 2026-11-05).
+            // Every rung pair is compared THROUGH the run: H(a) - H(b) = (H_run - H(b)) - (H_run - H(a)), each mesh sampled once at this D and
+            // cached (the round's two references seed the cache, so a mesh that meets the target at once costs no extra build).  The XC term on
+            // Becke depends on the mesh alone (above), so a reference on the run's own rasters isolates it.  A confirming round has no ratio from
+            // the round before (that was another D): its estimate is d alone, as the addendum's replay ran it.
             const bool stated=itsImp->setup->opts.xcMesh.cellKind!=qcMesh::UnitCellKind::Auto;
-            struct Axis {const char* name; const std::optional<qcMesh::MeshParams>& ref; const GridAuditResult& audit; std::optional<std::pair<std::string,double>>* before;};
-            const Axis axes[]={{"angular", xcAngular, R,  &beckeBeforeL},
-                               {"radial",  xcRadial,  Bl, &beckeBeforeNR}};
-            double worst=0.0;
-            for (const Axis& a : axes)
+            auto key=[](const qcMesh::MeshParams& m)
             {
-                if (!a.ref) { xcLadderEnd=std::string("the ladder's ")+a.name+" axis ends at "+BeckeName(xcCur)+", so that axis is unaudited"; continue; }
-                double d=0.0;
-                for (const auto& T : a.audit.terms) if (T.entries=="Exc") d=std::max(d, T.maxAbsΔH);
-                // The rung difference UNDER-states the rung's own error when the ladder converges slowly: Si Gamma halves per rung (1.8e-5,
-                // 8.9e-6), so its error is ~ the whole geometric tail d/(1 - r), r the measured ratio to the rung below -- twice d there.  One
-                // rung measured: d alone (no ratio yet); a ratio >= 1 (not converging) also falls back to d, and then the next rung measures again.
-                // The ratio is between two RUNGS: a round that re-audits the SAME rung (another ladder moved, this one did not) has no ratio --
-                // d/d ~ 1 made the estimate blow up (NaF geometry, 2026-11-02: 4.7e-7 re-measured on the same mesh read as a 5.2e-2 tail).
-                double est=d;
-                auto& before=*a.before;
-                if (before && before->first!=BeckeName(xcCur) && d<before->second) est=d/(1.0-d/before->second);
-                before=std::pair{BeckeName(xcCur), d};
-                std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<(std::string("XC mesh, ")+a.name)<<std::right<<" delivered "<<std::scientific
-                         <<std::setprecision(3)<<d<<" (tail estimate "<<est<<") on "<<BeckeName(xcCur)<<" against "<<BeckeName(*a.ref)<<"  ";
-                if (est<=target) std::cout<<"meets "<<target<<std::endl;
-                else if (stated) { std::cout<<"OVER, and the mesh is STATED: honoured (state xcMesh Auto to let the pilot size it)"<<std::endl; xcStatedOver=true; }
-                else
+                std::ostringstream os; os<<BeckeName(m)<<" rot "<<std::setprecision(17)<<m.angRot<<" kind "<<int(m.angular);
+                return os.str();
+            };
+            std::map<std::string, std::vector<hmat_t<dcmplx>>> ΔHof;   // keyed by the rung's spelling (never a pointer); empty = the run itself
+            ΔHof[key(xcCur)]={};
+            if (xcAngular) ΔHof[key(*xcAngular)]=std::move(ΔHangular);
+            if (xcRadial)  ΔHof[key(*xcRadial)] =std::move(ΔHradial);
+            int built=0;   // references the climb built beyond the round's two
+            auto ΔHat=[&](const qcMesh::MeshParams& m) -> const std::vector<hmat_t<dcmplx>>&
+            {
+                if (auto it=ΔHof.find(key(m)); it!=ΔHof.end()) return it->second;
+                std::vector<hmat_t<dcmplx>> d;
+                (void)CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), "Becke climb: "+BeckeName(m), &m, 1.0, &d);
+                ++built;
+                return ΔHof.emplace(key(m), std::move(d)).first->second;   // std::map: references stay valid across later inserts
+            };
+            const qcMesh::BeckeRungDistance distance=[&](const qcMesh::MeshParams& a, const qcMesh::MeshParams& b)
+            {
+                const auto& da=ΔHat(a);
+                const auto& db=ΔHat(b);
+                if (!da.empty() && !db.empty() && da.size()!=db.size())
+                    throw std::logic_error("CalibrateRasters: two Becke references hand back different XC block lists");
+                double worst=0.0;
+                for (size_t k=0;k<std::max(da.size(), db.size());k++)
                 {
-                    std::cout<<"OVER"<<std::endl;
-                    if (est>worst) { worst=est; xcMeshNext=*a.ref; }
+                    const size_t n = da.empty() ? db[k].rows() : da[k].rows();
+                    for (size_t r=0;r<n;r++) for (size_t c=r;c<n;c++)
+                    {
+                        const dcmplx x = (db.empty() ? dcmplx(0.0) : db[k](r,c)) - (da.empty() ? dcmplx(0.0) : da[k](r,c));
+                        worst=std::max(worst, std::abs(x));
+                    }
                 }
-                std::cout<<std::defaultfloat<<std::setprecision(prec0);
-                terms.push_back({{"term","XC Becke mesh"},{"axis",a.name},{"delivered",d},{"tailEstimate",est},{"mesh",BeckeName(xcCur)},{"reference",BeckeName(*a.ref)},
-                                 {"over",est>target}});
-            }
-            if (stated && !xcLadderEnd.empty())   // a stated mesh is honoured wherever it sits, and the run says what that left unchecked
+                return worst;
+            };
+            const int cap = (stated || round>0) ? 1 : 0;   // a stated mesh is only measured; a confirming round raises at most once
+            const qcMesh::BeckeClimbResult climb=qcMesh::ClimbBeckeLadder(xcCur, target, itsImp->setup->opts.beckeLadder, itsImp->setup->imposed, distance, cap);
+            for (const qcMesh::BeckeClimbStep& step : climb.steps)
             {
-                std::cout<<tag<<xcLadderEnd<<": the mesh is STATED, honoured"<<std::endl;
-                xcLadderEnd.clear();
+                std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<(std::string("XC mesh, ")+step.axis)<<std::right<<" delivered "<<std::scientific
+                         <<std::setprecision(3)<<step.delivered<<" (tail estimate "<<step.tailEstimate<<") on "<<BeckeName(step.rung)<<" against "<<BeckeName(step.reference)<<"  ";
+                if (!step.over)    std::cout<<"meets "<<target<<std::endl;
+                else if (stated) { std::cout<<"OVER, and the mesh is STATED: honoured (state xcMesh Auto to let the pilot size it)"<<std::endl; xcStatedOver=true; }
+                else             std::cout<<"OVER"<<std::endl;
+                std::cout<<std::defaultfloat<<std::setprecision(prec0);
+                terms.push_back({{"term","XC Becke mesh"},{"axis",step.axis},{"delivered",step.delivered},{"tailEstimate",step.tailEstimate},{"mesh",BeckeName(step.rung)},
+                                 {"reference",BeckeName(step.reference)},{"over",step.over}});
             }
+            const char* end = climb.end==qcMesh::BeckeClimbResult::End::Settled ? "settled"
+                            : climb.end==qcMesh::BeckeClimbResult::End::AxisEnd ? "axisEnd" : "raiseCap";
+            if (stated)
+            {
+                if (climb.end==qcMesh::BeckeClimbResult::End::AxisEnd)   // a stated mesh is honoured wherever it sits, and the run says what that left unchecked
+                    std::cout<<tag<<climb.why<<": the mesh is STATED, honoured"<<std::endl;
+            }
+            else
+            {
+                if (climb.raises>0) xcMeshNext=climb.mesh;
+                if (climb.end==qcMesh::BeckeClimbResult::End::AxisEnd) xcLadderEnd=climb.why;
+                std::cout<<tag<<"round "<<round<<"  XC mesh "<<(round==0 ? "climb" : "confirming audit")<<" at this D: "<<BeckeName(xcCur);
+                if (climb.raises>0) std::cout<<" -> "<<BeckeName(climb.mesh)<<" in "<<climb.raises<<" raise(s)";
+                std::cout<<", "<<built<<" reference(s) built beyond the round's two; "
+                         <<(climb.end==qcMesh::BeckeClimbResult::End::Settled  ? std::string("both axes meet the target")
+                          : climb.end==qcMesh::BeckeClimbResult::End::AxisEnd  ? climb.why
+                          :                                                      std::string("one raise, audited at the next round's D"))<<std::endl;
+            }
+            terms.push_back({{"term","XC Becke climb"},{"from",BeckeName(xcCur)},{"to",BeckeName(climb.mesh)},{"raises",climb.raises},
+                             {"referencesBuilt",built},{"end",end},{"stated",stated},{"confirming",round>0}});
         }
         // THE DENSITY BALL (2026-11-02, OpenWork F "density ball unjudged"): the G-ball the density is collocated into is NOT a raster --
         // the x + 8 reference above keeps the run's ball, so its truncation sat on BOTH sides and cancelled (lane B: H2O MOLOPT O, auto
@@ -1849,7 +1892,7 @@ SolidCalculation::GridAuditResult SolidCalculation::EggBox(const rvec3_t& shift)
 
 SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift,
                                                                     const std::string& referenceName, const qcMesh::MeshParams* xcMesh,
-                                                                    double ballScale) const
+                                                                    double ballScale, std::vector<hmat_t<dcmplx>>* xcΔH) const
 {
     namespace rpt=qchem::report;
     const SolidSetup&       S    = *itsImp->setup;
@@ -1954,8 +1997,19 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(opts.ortho, opts.orthoTol));
             frame->SetBasisOverlap(S);
             const std::string spin = s==Spin::Up ? "up" : s==Spin::Down ? "down" : "none";
-            if (rb) FoldΔH(itsImp->ham->MakeTermMatrices(rb,s,dRun), hamRef->MakeTermMatrices(rr,s,dRef), sb, *frame, spin, i, R.terms);
-            else    FoldΔH(itsImp->ham->MakeTermMatrices((*itsImp->bs)[i],s,dRun), hamRef->MakeTermMatrices((*bsRef)[i],s,dRef), sb, *frame, spin, i, R.terms);
+            auto fold=[&](const auto& a, const auto& b)
+            {
+                FoldΔH(a, b, sb, *frame, spin, i, R.terms);
+                if (xcΔH) for (size_t t=0;t<a.size();t++) if (R.terms[t].entries=="Exc")   // the climb's cache: H_run - H_reference, as FoldΔH reads it
+                {
+                    const size_t n=a[t].rows();
+                    hmat_t<dcmplx> d(n);
+                    for (size_t r=0;r<n;r++) for (size_t c=r;c<n;c++) d(r,c)=dcmplx(a[t](r,c))-dcmplx(b[t](r,c));
+                    xcΔH->push_back(std::move(d));
+                }
+            };
+            if (rb) fold(itsImp->ham->MakeTermMatrices(rb,s,dRun), hamRef->MakeTermMatrices(rr,s,dRef));
+            else    fold(itsImp->ham->MakeTermMatrices((*itsImp->bs)[i],s,dRun), hamRef->MakeTermMatrices((*bsRef)[i],s,dRef));
         }
     {   // the largest element of each term, named: block 0's shells speak for every block (AoShellSource's contract)
         const auto* src = itsImp->bs->GetRealIBS(0) ? dynamic_cast<const BasisSet::AoShellSource*>(itsImp->bs->GetRealIBS(0))

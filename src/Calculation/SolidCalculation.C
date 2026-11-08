@@ -644,9 +644,11 @@ private:
     //! for the raster audit), at the same D, term by term.  \a reference names the reference in the report.  \a xcMesh: the reference's XC
     //! quadrature (null = the run's own; the pilot's nested Becke audit passes the next ladder rung).  \a ballScale: the reference's density
     //! G-ball cutoff over the run's (1 = the run's own; the pilot's nested ball audit passes 2 -- \c cutoffFactor when the ball is auto,
-    //! \c densityEcut when it is stated).
+    //! \c densityEcut when it is stated).  \a xcΔH: when given, also hands back the XC term(s)' H_run - H_reference, one matrix per (channel,
+    //! Exc term) in the fold's order -- the Becke climb's cache (\c CalibrateRasters), which compares two REFERENCE meshes through the run's.
     GridAuditResult CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift, const std::string& reference,
-                                    const qcMesh::MeshParams* xcMesh=nullptr, double ballScale=1.0) const;
+                                    const qcMesh::MeshParams* xcMesh=nullptr, double ballScale=1.0,
+                                    std::vector<hmat_t<dcmplx>>* xcΔH=nullptr) const;
     //! The reference tolerances of a grid audit: every raster demand at what the run's raster DELIVERS plus \a margin.
     BasisSet::Gaussian::GPWTolerances ReferenceRasters(double margin) const;
     //! \brief THE PILOT (C2 step 3, doc/GridEpsilonPlan.md §1): on a setup whose rasters are not resolved, after the FINAL stage converged
@@ -655,9 +657,9 @@ private:
     //! rebuild the point on the raised rasters and re-converge from this D (a restored stage: the Ladder on its GDM rung at kT = 0).
     //! Repeats until every term meets its target (at most \c kPilotRounds); idempotent once settled.  No-op on a resolved setup.
     //! A run whose client consumes H on a Becke XC mesh also audits that mesh against the next rung on each axis of the nested ladder
-    //! (\c qcMesh::BeckeAngularRungAbove, \c BeckeRadialRungAbove) and, when the mesh was the facade's choice (\c xcMesh Auto), moves the axis
-    //! that is over; a STATED Becke
-    //! mesh is audited and reported, never raised (the grid is a user decision).
+    //! (\c qcMesh::BeckeAngularRungAbove, \c BeckeRadialRungAbove).  When the mesh was the facade's choice (\c xcMesh Auto) it CLIMBS at the
+    //! audited D (\c qcMesh::ClimbBeckeLadder): round 0 walks the ladder to settled with no re-convergence between rungs, and every later round
+    //! is the confirming audit (one raise at most).  A STATED Becke mesh is audited and reported, never raised (the grid is a user decision).
     void CalibrateRasters(const SCFParams& params);
     std::unique_ptr<Imp> itsImp;
 };
