@@ -251,6 +251,35 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
 
 **Automatic differentiation spike (user 2026-11-07, "a very sound use of two days"):** before any term gradient is hand-derived, 1-2 days with Enzyme (an LLVM plugin, built from source against our LLVM 21) on the Becke-mesh δ XC energy at fixed D, H₂O: against the per-term finite difference, Σ_A F_A = 0, cost vs one energy, tape memory, friction with modules / Blaze / OpenMP; then dE/dD by AD against the term's H (a pin 32 checker).  Never differentiate through the SCF iterations: forces are dE/dR at the converged D plus the Pulay term.  The result decides the architecture: libcint for integral derivatives, AD for grid and fit terms (and Hessian-vector products for level 2), or hand derivation.
 
+**AD SPIKE VERDICT (lane B, 2026-11-08; evidence, numbers and friction: `doc/Records/EnzymeSpike.md`).  AD works on a flat KERNEL, and only there.**
+- **Exact.** The δ XC kernel (`qchem.AD.XCKernel`, a pure E_xc(R, D) on plain arrays) equals the library's term to 8e-13.
+  - Its AD dE/dR equals the per-term FD at fixed D to the FD's own error (≤ 2.3e-9), and Σ_A F_A ≈ 1e-16.
+  - Its AD dE/dD equals the term's H to 2e-12 (pin 32 holds).
+  - Its Becke-weight gradient equals the hand-derived `BeckePartitionGradient` to 1e-13.
+  - All are deterministic, and threaded: OpenMP over independently differentiated serial blocks.
+- **Cost** (untuned, against one energy): dE/dR 17× serial and 21× on 4 threads; dE/dD 6.5× / 7.7×.  The tape is < 1 MB, because it is per block.
+  A hand-coded XC gradient is typically 3–4× an energy, so AD is about 5× slower than hand-coded here.  For a force, asked once per geometry,
+  that is affordable.
+- **It does not reach through the library.**
+  - Enzyme sees only bodies in its own TU, or one LTO link.  Every qchem library is a shared library, and a virtual call is refused.
+  - So AD never differentiates the OOD term graph.  A term hands a kernel in `qcAD` its plain data, and the kernel restates the formulas
+    it needs, each held equal to its library home by a test.
+  - The interface that hands that data over is a design item for §13's term faces.
+- **The danger is silent.**
+  - At the tree's `-O3` Enzyme returned a WRONG dE/dD with no diagnostic.
+  - At `-O2 -march=native` (256-bit vectors) it segfaulted.
+  - Its tuple wrapper zeroed the D gradient.
+  - So `qcAD` compiles at `-O2 -mprefer-vector-width=128`, on Enzyme's classic marker entry.  **Every AD gradient is gated by a
+    finite-difference test**, and the Enzyme commit is pinned (`1a87ccc`).
+- **Architecture, as proposed:** libcint for the integral derivatives (one-electron already gated in `ForceFacade.C`; two-electron and the
+  PP next).  AD for the GRID and FIT terms' geometric response (XC, the δ / multipole Hartree on the mesh), as qcAD kernels.  Hand derivation
+  only where neither fits.  Hessian-vector products (level 2) were not tried.
+- **⚠ FOR THE USER: one consequence of "Enzyme is optional, and no hand-coded fallback".**  A build without Enzyme has no DFT forces: the XC
+  term refuses with `NoGradient`, so no DFT geometry optimization runs.  Is that the intent?
+  - The library already holds one hand derivative of this kind, `qcMesh::BeckePartitionGradient` (2026-11-07).
+  - Under the ruling it is a fallback beside the AD one, so it either retires when the XC force lands on AD, or stays as the AD kernel's
+    test oracle.
+
 ## 13. The `Forces` surface on the hub (DESIGN, for the user before code; lane B 2026-11-07)
 
 Ruling §11.1 puts forces on the `Hamiltonian`, beside the energy.  The hub already has the shape twice:
