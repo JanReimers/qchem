@@ -78,6 +78,10 @@ struct IterationRow
     //! The value of the cell titled \a title, NaN when this layout has no such column -- for a caller that consumes one
     //! number by NAME (the facade's detectors read "[F,D]" and "Δρ"; the density column's title is \c tHamiltonian::DeltaRhoLabel).
     double ValueOf(std::string_view title) const;
+    //! Every gated cell with its value, its gate and whether it was met, in display order: "[F,D] 2.42e-04 > 1.00e-05 (missed),
+    //! Δρ 3.01e-05 < 1.00e-04 (met)" -- what a run that stopped on this row still lacked, in the console's own titles (a
+    //! facade's failure message reads it).  "no gated column" when the layout gates nothing.
+    std::string GatesText() const;
 };
 
 //! Everything one SCF step exposes to the per-system iteration display (doc/GPWPlan1.md item 2).  The base

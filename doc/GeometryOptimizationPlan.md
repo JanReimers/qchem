@@ -411,3 +411,6 @@ MoleculeCalculation files and the new module, so lane G's `MoleculeSetup.C` edit
 3. **Energy runs pay one audit by default** (two XC builds at fixed D).  The solid today audits its Becke mesh only on geometry runs
    (inventory §2, known miss 1).  Lane B proposes that both facades audit every run, and that the solid's energy-run gap become its
    own row.
+
+**§13 and §14 APPROVED (user 2026-11-07, "All approved"):** the §13 `Forces` surface on the `Hamiltonian` hub (`tHamiltonian::MissingGradients()`, `tHamiltonianAt::Forces(W)`; term faces, the basis `GeometryDerivatives` face and W behind the hub); the §14 molecular-ε design with the controller's answers: (1) replay the banked TeF₆ fixed-D data before building per-species (nR, L); (2) the Coulomb fit set is NUMERICAL (pin 31 lists fit-basis incompleteness as non-model), so a miss WARNs with a policy row until a fit-set ladder exists, which gets its own row; (3) the sizing climb runs by default on energy runs on both facades, the separate post-SCF confirmation audit stays opt-in.  The Enzyme build is approved too.
+

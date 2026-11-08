@@ -34,7 +34,6 @@ struct SCFFailure
     };
     Why         why        = Why::NotConverged;
     size_t      iterations = 0;
-    double      residual   = 0.0;
     //! The last iterate's energy.  DIAGNOSTIC ONLY -- it is deliberately not reachable as "the energy",
     //! because handing back a plausible number from a failed run is the defect this whole type exists to
     //! prevent (four such numbers were produced in one session: -45.5, -46.3, -56.4, -38.5).

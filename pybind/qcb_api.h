@@ -78,6 +78,9 @@ typedef struct qcb_request
     double        gateDrho;       //!< Δρ per electron (MinΔρPerElectron; default 1e-4)
     double        gateDE;         //!< |ΔE/E| (MinΔE; default off)
     double        gateDFD;        //!< |Δ[F,D]| (MinΔFD; default off)
+    const char*   mixer;          //!< SCFParams::Mixing by name: "Auto" | "Linear" | "Kerker" | "Pulay" ("" = Auto); the facade refuses
+                                  //!< what a molecule cannot mix (Kerker needs G space)
+    double        smearingkT;     //!< Fermi-Dirac smearing kT, Ha (SCFParams::SmearingkT), 0 = off
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
@@ -86,7 +89,7 @@ void      qcb_free(qcb_calc* h);
 //! Re-run the SCF from the seed, streaming each iteration to `step`.  Returns converged (1) / not (0) / failed (-1).
 //! On 0 the SCFFailure's reason is written to `err` (as qcb_failure does).
 int       qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char* err, int errlen);
-//! Why the last SCF did not converge (SCFFailure: why, iterations, residual, details) written to `out`; returns 0 and
+//! Why the last SCF did not converge (SCFFailure: why, iterations, details) written to `out`; returns 0 and
 //! leaves `out` empty when it converged.
 int       qcb_failure(const qcb_calc* h, char* out, int outlen);
 

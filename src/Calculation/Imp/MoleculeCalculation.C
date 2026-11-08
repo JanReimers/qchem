@@ -189,7 +189,12 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
     { rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type); ReportAccuracy(itsSetup->opts.accuracy, kNoAccuracyConsumerYet); }   // the "what recipe am I running" header
     if (itsPrepared) itsPrepared=false;                       // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
-    if (itsObserver) itsScf->SetObserver(itsObserver);
+    itsLastRow.reset();
+    itsScf->SetObserver([this](const qchem::SCFIterator::IterationRow& row)   // keep the last row: a failure states its gates
+    {
+        itsLastRow = row;
+        if (itsObserver) itsObserver(row);
+    });
     (void)itsScf->Iterate(params);   // the outcome is the iterator's Converged(), minted below
 
     // Snapshot the integrals cache into the run's `cache` section (RunReportPlan step 4), inside the bracket.
@@ -215,6 +220,7 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Outcome
     f.iterations = itsScf->GetIterationCount();
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
     f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
+    if (!refused && itsLastRow) f.details += "; the last iterate: "+itsLastRow->GatesText();
     return O::Fail(std::move(f));
 }
 
