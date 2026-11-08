@@ -151,6 +151,7 @@ data-dependent trip count".
 > central finite difference.
 > Expected: `AD 4.5709930…  FD 4.5709930…`.  Actual: `AD 0.8510516320  FD 4.5709930507`, at -O1, -O2 and -O3, with or without
 > -march=native.  No warning or error is printed.  Replacing the inner loop by its single iteration gives the correct value.
+> Forward mode (`__enzyme_fwddiff` with the tangent on D_00) gives the correct 4.5709930494 on both commits, so the defect is in reverse mode.
 > Build: `clang++ -std=c++17 -O2 -fplugin=ClangEnzyme-21.so enzyme_loopcache_repro.cpp`.
 
 **Issue B.**  Title: "Reverse-mode segfault at -O2 -march=native (AVX2) for a blocked reduction into a duplicated scratch buffer".
