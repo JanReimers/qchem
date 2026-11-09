@@ -413,6 +413,23 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
   - The per-term fixed-D FD differs from the term's force by exactly the λ piece (measured: 2e-4 relative on water), so it cannot
     gate this term.
 
+**BUILT (lane B 2026-11-08): the closed-form PP forces.**
+- `Orbital_PP_IBS` gains `Can/MakeSpeciesFieldPullback(st, field, range, D)` and `Can/MakeProjectorPullback(st, ps, D)`, beside the
+  two assemblies.
+- PG_Cart answers through libcint.  Each field Gaussian (homogeneous in degree) is ONE auxiliary Cartesian shell:
+  - the projectors' b_i = ⟨i|β Y_lm⟩ through int1e_ipovlp, weighted by 2 w_p (D b)_i, with the values b from our own engine;
+  - the local short part through int3c1e_ip1;
+  - its erf long part, the Coulomb potential of a Gaussian charge, through int3c2e_ip1/ip2.
+- PG_Spherical, SALC, PW and GPW refuse.  The PW/GPW force is the structure-factor row.
+- `PP_Local` and `PP_NonLocal` gain the term face (`Imp/PP_Forces.C`).  Only the closed-form route has a force; the mesh-quadrature
+  route (the mesh moves) and the radial atomic route (one centre) are MissingGradients() entries.
+- Gates:
+  - The faces against the FD of the same closed-form matrices on a two-species pair, every field term reached; translation
+    invariance; every Can agrees with its Make.
+  - GTH-LDA water: the local PP, KB, kinetic and ion-ion forces each against the FD of its own energy at fixed D.  Each is linear
+    in D, so there is no λ piece.
+- With this, the only molecular LDA term still without a force is the δ XC (waiting on lane S's 3b/3c).
+
 ### 13.1 A value-with-derivatives carrier on the derivative-aware faces (lane B 2026-11-08)
 
 **APPROVED (user, 2026-11-08: "Looks good").**  The approved shape:
