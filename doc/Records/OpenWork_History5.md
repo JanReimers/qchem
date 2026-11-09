@@ -1904,3 +1904,42 @@ The row as it stood in `doc/OpenWork.md` §3:
 
 **The one move, traced:** the uniform seed's composite (`Seed.C`) held no ops, yet its raster was averaged (the basis carried the ops) and its ρ̃ was not.  With the ops off the basis it lost both; it now holds the run's group, so both are averaged.  Sweep vs main-daaaa917: short 1430/1430, long 15/15 with 0 moves; 13 GPW imposed Γ tests move by at most 7.4e-7 Ha, by ±1-2 iterations (one iteration's ΔE at the gates' convergence; the baseline spreads 1.1e-6 between eqUnfolded's two arms).  Every other piece is bit-identical by construction (UT `PlaneWaveFields.TheRasterAndGMapImagesOfAnOpAgree`).  Remainders: OpenWork §3 "Star-average remainders".
 
+
+## ✅ E is evaluated on the idempotent D_out (lane S, 2026-11-09, d21377785 + bab40220d + a4afb9989)
+
+The row as it stood in `doc/OpenWork.md` §3:
+
+| **PW ball-route XC is non-variational: ±1e-8 Ha noise floor** (lane S, 2026-11-08) ⛔ | On a cold, all-full plane-wave run the ball-route XC energy is not variational in the density, so the total energy wanders ±1e-8 Ha between runs that differ only by roundoff (measured on the V-ONE-OF-N 3a binary too: pre-existing, not 3b).  Two 1e-8 gates sit on that floor and are NOT loosened (user ruling 2026-11-08): `SolidState.ExactResume_PlaneWave` and `Deck.ASavedStateRestartsAndTheRevisionNamesItsParent`, both listed in `QCHEM_KNOWN_RED` (root CMakeLists.txt, `ctest -L knownRed`).  When either goes red (passes its gate) it comes off the list and this row closes | owner V-XC-ONE-TERM: make the ball-route E_xc the functional the V_xc is the derivative of (one sampling for both), then re-run both gates · record: this row (lane S 3b sweep classification, group B) |
+
+**Re-diagnosed: the XC was never the cause.**  `PW_Terms.TheXCMatrixIsItsEnergysDerivative` (715c81b9f) checks, on a complex PW
+block at fixed D, that FD of E equals Re Tr(HΔ) to the FD error: Dirac 7e-10, LDA 1.3e-10, Hartree 3.6e-11.  The ball route IS
+variational.  The floor came from WHERE E was evaluated: under D-mixing (`LinearMixer`, `PulayDMixer`) `Mix` overwrote the working
+D with the mix, and `tSCFIterator` then called `TotalEnergy(itsCD)` on it.  A mix of D_out's is not idempotent, so E there is FIRST
+order in the mixing error: ±1e-8..1e-7 Ha at Δρ ~1e-8.  `Deck.ASavedState...` (a GPW run, not PW) ended at -7.1150678405; its own
+restart at [F,D] 7e-15 read -7.1150678654, 2.5e-8 lower.  A field mixer (Kerker/Pulay ρ̃) always kept its own running field, so its
+E was already E[D_out].
+
+**Fix (d21377785).**
+- `OwnedDIn<T>` (`LinearMixer.C`): a D-mixer keeps the mixed D_in as its own untracked copy and hands it to the next Fock through
+  `FockDensity` only for the D_out it mixed (a `Version()` match); otherwise the working density.  At relax == 1 nothing is stored.
+- STRUCTURAL GUARD: `tDensityMixer::Mix(const cd_t& working, ...)` -- no mixer can write the SCF's density.  `LinearMixer::Adapt`
+  re-mixes its own D_in on a retraction (algebraically the old quarter step), and the iterator no longer recomputes E.
+- ASSERT (live in RelChecked): `tSCFIterator::EnergyDensityIsTheOutput()` -- the density E is evaluated on equals this iteration's
+  C f C† output (‖ΔD‖ ≤ 1e-10 N).  With in-place mixing restored it fires on `Deck.ASavedState...` (exit 134); silent on the fix.
+  It compares densities through the existing `GetChangeFrom`, so the protected `ChargeDensity` hub is unchanged.
+- E CONSUMERS all read E_out now, because itsCD is never mixed: the ΔE gates and `SetEnergy` (the Ladder's ΔE/E hand-off), `GetEnergy()`
+  (the facades' `Energy()`, `ReportResult`, the saved-state summary), and GDM's start.
+
+**Gates.**  Both knownRed cases PASS and left the list: `Deck.ASavedState...` 9 iterations to -7.1150678654 = its restart (main 15);
+`SolidState.ExactResume_PlaneWave` 16 iterations (main 74, a ±1e-7 stall).  `SCFTrace` goldens re-captured (bab40220d): only E and its
+derived columns move, [F,D] / Δρ byte-identical; E[D_out] is second order (Si Γ iteration 4: -7.1150545 vs -7.1140720 on the mix).
+
+**Anchor moves** (anchordiff vs `main-08d9536c`, tol 1e-10; controller accepted): short 68 moved, all |ΔE| ≤ 1.7e-8 Ha, all on
+D-mixing runs (atoms and molecules at relax < 1 D-mix too); molecular moves ≤ 2e-10 at unchanged iteration counts.  Iteration counts
+mostly DROP (ExactResume_PlaneWave 74→16, PartialEigensolve 31→15, ten SolidState gates 15→12, LittleGroup / OrbitalImage 28→12,
+LR 163→138).  Long: 6 moved, ≤ 5e-10.  Two cases it EXPOSED (no numerical defect; rows in §3, a4afb9989):
+`GPW_Si.Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel` (the Ladder's ΔE/E hand-off: panel-red) and `A/A_SL_HF_ion.A/60` (a noise-floor
+[F,D] gate on cond(S) = 1e15: knownRed, trim first).
+
+**Cost:** a D-mixing run now refreshes the Hamiltonian twice per iteration (E on D_out, the Fock on the mixed D_in), as a field-mixing
+run already did.
