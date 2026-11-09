@@ -134,6 +134,10 @@ include(GoogleTest)
 #      as a PASS_REGULAR_EXPRESSION on gtest's own "[  FAILED  ] 1 test", so a red case whose filter matched nothing, or that
 #      crashed, is red too (bare WILL_FAIL would invert "no tests were run" into a pass).  When one is fixed it goes red: remove
 #      it from the list and close its row.
+#      ⚠ A RED CASE PASSES ON AN ASSERTION FAILURE, NEVER ON A THROW (lane B 2026-11-09): both red tiers also carry
+#      FAIL_REGULAR_EXPRESSION "C++ exception with description" (ctest's FAIL regex wins over PASS), so a case that throws for an
+#      unrelated reason -- a deck refusal, a rotted setup -- reads Failed, not Passed.  Earned by GPW_MnO's ordering gate: disabled
+#      since 2026-10-04, it had rotted (R2.5 made it state siteSpins) and threw in 43 ms, which the PASS regex alone read as Passed.
 set(QCHEM_PANEL_RED
     "GPW_Na2Box.Γ_Pol_Null_Linear_SpinSeed_Converges_Panel"                # OpenWork §3 "Na₂ polarized singlet won't converge from AFM seed"
     "GPW_MnOBox.Γ_M6_GDM_Converges_Panel_Long"                # OpenWork §3 "GDM crawls at a near-degenerate frontier"
@@ -144,13 +148,20 @@ set(QCHEM_PANEL_RED
 )
 #   6. KNOWN RED (user ruling 2026-11-08, CLAUDE.md DISABLED_/WILL_FAIL rule): a NON-panel case that fails today for a reason an
 #      open OpenWork §3 row names, and whose gate must NOT be loosened, is listed in QCHEM_KNOWN_RED with its row.  It runs in its
-#      own tier as the panel-red cases do (PASSES only on gtest's "[  FAILED  ] 1 test"), label `knownRed`: `ctest -L knownRed`
+#      own tier as the panel-red cases do (PASSES only on gtest's "[  FAILED  ] 1 test", never on a throw), label `knownRed` (a `_Long` one also `long`): `ctest -L knownRed`
 #      lists them.  A sweep report lists them separately with their reason.  When one goes red (fixed), remove it and close the row.
 set(QCHEM_KNOWN_RED
     "SolidState.ExactResume_PlaneWave"                         # OpenWork §3 "PW ball-route XC is non-variational: ±1e-8 Ha noise floor"
     "Deck.ASavedStateRestartsAndTheRevisionNamesItsParent"     # same row
+    "GPW_MnO.Γ_Shub_Pol_Smear_Ordering_Long"                   # OpenWork §3 "MnO ordering at Γ/SR: FM lies BELOW AFM-II" (the 136-function span); was DISABLED_
 )
 list(JOIN QCHEM_KNOWN_RED ":" _qchemKnownRed)
+set(_qchemKnownRedFast ${QCHEM_KNOWN_RED})        # a _Long known-red case keeps the long label and timeout
+list(FILTER _qchemKnownRedFast EXCLUDE REGEX "_Long$")
+set(_qchemKnownRedLong ${QCHEM_KNOWN_RED})
+list(FILTER _qchemKnownRedLong INCLUDE REGEX "_Long$")
+list(JOIN _qchemKnownRedFast ":" _qchemKnownRedFast)
+list(JOIN _qchemKnownRedLong ":" _qchemKnownRedLong)
 set(QCHEM_PERIODIC
     "GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long"                                   # twin: GPW_MnO.Γ_U_Shub_Pol_Smear_Saved_CP2K_Long (vendored states)
     "ResponseLittleGroup.GPW_Si_k222_q222_Becke_ReducedEqualsFull_Long"     # twin: ResponseLittleGroup.GPW_Si_k222_q211_Becke_ReducedEqualsFull
@@ -170,7 +181,7 @@ function(qchem_discover_tests target)
         DISCOVERY_EXTRA_ARGS --gtest_output=
         PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run")
     gtest_discover_tests(${target}
-        TEST_FILTER *_Long-*_Panel_Long:${_qchemPeriodic}
+        TEST_FILTER *_Long-*_Panel_Long:${_qchemPeriodic}:${_qchemKnownRed}
         DISCOVERY_EXTRA_ARGS --gtest_output=
         PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS long TIMEOUT 3600)
     gtest_discover_tests(${target}
@@ -188,15 +199,23 @@ function(qchem_discover_tests target)
     gtest_discover_tests(${target}
         TEST_FILTER ${_qchemPanelRedFast}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" LABELS "panel\;panelRed")
+        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" FAIL_REGULAR_EXPRESSION "C\\+\\+ exception with description" LABELS "panel\;panelRed")
     gtest_discover_tests(${target}
         TEST_FILTER ${_qchemPanelRedLong}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" LABELS "long\;panel\;panelRed" TIMEOUT 14400)
-    gtest_discover_tests(${target}
-        TEST_FILTER ${_qchemKnownRed}
-        DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" LABELS knownRed)
+        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" FAIL_REGULAR_EXPRESSION "C\\+\\+ exception with description" LABELS "long\;panel\;panelRed" TIMEOUT 14400)
+    if(NOT "${_qchemKnownRedFast}" STREQUAL "")   # an EMPTY filter would discover every test as known-red
+        gtest_discover_tests(${target}
+            TEST_FILTER ${_qchemKnownRedFast}
+            DISCOVERY_EXTRA_ARGS --gtest_output=
+            PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" FAIL_REGULAR_EXPRESSION "C\\+\\+ exception with description" LABELS knownRed)
+    endif()
+    if(NOT "${_qchemKnownRedLong}" STREQUAL "")
+        gtest_discover_tests(${target}
+            TEST_FILTER ${_qchemKnownRedLong}
+            DISCOVERY_EXTRA_ARGS --gtest_output=
+            PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" FAIL_REGULAR_EXPRESSION "C\\+\\+ exception with description" LABELS "long\;knownRed" TIMEOUT 3600)
+    endif()
 endfunction()
 set(BUILD_GMOCK OFF CACHE BOOL "Disable GoogleMock for this project" FORCE)
 add_subdirectory(./submodules/googletest)
