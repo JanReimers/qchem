@@ -38,7 +38,8 @@ public:
         if (rr<1e-12) return l==0 ? v.RadialR(Z,p,0.0)*RealYlm(0,0,0,0,0) : 0.0;
         return v.RadialR(Z,p,rr) * RealYlm(l,m, d.x/rr, d.y/rr, d.z/rr);
     }
-    rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}   // unused by Overlap
+    //! No gradient: the overlap samples values only.  It returned a silent 0 until the hand-gradient audit (2026-11-09).
+    rvec3_t Gradient(const rvec3_t&) const override {throw std::logic_error("BetaYlmField::Gradient: the sampled KB projector has no gradient (the overlap samples values only)");}
 };
 
 } //anon

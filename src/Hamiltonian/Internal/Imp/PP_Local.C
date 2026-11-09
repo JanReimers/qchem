@@ -34,7 +34,8 @@ public:
         for (size_t i=0;i<cl.GetNumAtoms();i++) { const Site& a=cl.Sites()[i]; s+=v.ValueR(a.Z, norm(r-a.R), BasisSet::FieldRange::Full); }
         return s;
     }
-    rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}   // unused by MatrixOverlap
+    //! No gradient: MatrixOverlap samples values only.  It returned a silent 0 until the hand-gradient audit (2026-11-09).
+    rvec3_t Gradient(const rvec3_t&) const override {throw std::logic_error("VlocField::Gradient: the sampled local-PP field has no gradient (MatrixOverlap samples values only)");}
 };
 
 } //anon

@@ -391,7 +391,8 @@ public:
     // ortho fitter uses the bulk overload).  Make the grid-bound contract explicit rather than silently wrong.
     virtual double  operator()(const rvec3_t&) const override
         {throw std::logic_error("SampledField is grid-bound: sample it in bulk on the fit grid, not pointwise");}
-    virtual rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0,0,0);}
+    virtual rvec3_t Gradient  (const rvec3_t&) const override   // a silent 0 until the hand-gradient audit (2026-11-09)
+        {throw std::logic_error("SampledField is grid-bound and has no gradient");}
 
     // Bulk: the precomputed values, which were computed AT the fit basis's own points -- so the only thing
     // that can go wrong is a different point COUNT, and that is what the assert pins.
