@@ -257,7 +257,37 @@ protected:
         else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
                                    {return aE.RepulsionThreeC(ia, aE, ib, cE, ic);});
     }
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): libcint's int3c2e_ip1/_ip2 on the two blocks' own PGData, for the Cartesian PG_Cart evaluator
+    // when the fit block is one too (the same E, as MakeRepulsion3C casts it).  Every other pairing refuses until it has them.
+    virtual bool CanPullbackRepulsion3C(const rFIT_CD_ABS& c) const override
+    {
+        if constexpr (kLibcint) return dynamic_cast<const E*>(&c)!=nullptr;
+        else return false;
+    }
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const rFIT_CD_ABS& c, const hmat_t<double>& D, const rvec_t& a,
+                                                                       const Structure* st) const override
+    {
+        if constexpr (kLibcint)
+        {
+            if (!CanPullbackRepulsion3C(c)) return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block against a fit of another family", "3-centre repulsion pullback");
+            if (!st) throw std::invalid_argument("Gaussian Orbital_DFT_IBS: a geometry pullback needs the structure");
+            using LC=Evaluators::PG_LibCint::NR_Evaluator;
+            using PGD=Evaluators::PG_Cart_MnD::PGData;
+            const LC orb(static_cast<const PGD&>(dynamic_cast<const E&>(*this)), st), fit(static_cast<const PGD&>(dynamic_cast<const E&>(c)), st);
+            if (D.rows()!=orb.size() || a.size()!=fit.size())
+                throw std::invalid_argument("Gaussian Orbital_DFT_IBS::MakeRepulsion3CPullback: D is "+std::to_string(D.rows())+" square and a has "
+                                            +std::to_string(a.size())+", for "+std::to_string(orb.size())+" orbital and "+std::to_string(fit.size())+" fit functions");
+            rmat_t Dd(D.rows(), D.columns());
+            for (size_t i=0;i<D.rows();i++) for (size_t j=0;j<D.columns();j++) Dd(i,j)=D(i,j);
+            const std::vector<rvec3_t> g=orb.RepulsionThreeC_Gradient(fit, Dd, a);
+            rvec3vec_t F(g.size()); for (size_t A=0;A<g.size();A++) F[A]=g[A];
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(F);
+        }
+        else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", "3-centre repulsion pullback");
+    }
 private:
+    static constexpr bool kLibcint=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
     // For each fit component ic, build the symmetric (ia,ib) block via the supplied named 3-centre kernel
     // (which folds in all three normalizations).
     template <class Kernel>

@@ -56,6 +56,11 @@ public:
                                "from the density's Repulsion3C tensor (PW_Hartree), not the density fitter.");
     }
 
+    //! d/dR (GeometryOptimizationPlan §13.2): the plane-wave Hartree's force is the structure-factor row (OpenWork §2), not this face.
+    virtual bool CanPullbackRepulsion(const robs_t<dcmplx>*) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const robs_t<dcmplx>*, const hmat_t<dcmplx>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the orthonormal G-space fitter", "Coulomb-fit repulsion pullback");}
+
     //! ScalarFunction (core): the fitted DENSITY rho_fit(r) = Re Σ_dm rho-tilde(dm) e^{i(B·dm)·r}.  We hold
     //! only the structure-neutral {G} fit face, so we DELEGATE the inverse transform to the basis's
     //! G_FieldEvaluator (DIP) -- a sanctioned "I want more" cross-cast to a capability, never a cast to

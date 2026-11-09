@@ -124,6 +124,41 @@ template <class T> double ConstrainedFF<T>::FitGetSelfRepulsion() const
     return FitGetRepulsion(this);   // <fit|1/r12|fit>
 }
 
+//---------------------------------------------------------------------------
+//
+//  The geometry derivatives at fixed c (GeometryOptimizationPlan §13.2).  The Dunlap fit is variational, so a force needs only these: the
+//  c-derivative of its energy is λ g with g = ∫f_k fixed (a function's integral does not move with it), and g·c = N, so c's response
+//  enters only as λ dN/dR, which is the caller's to account (Hamiltonian/Internal/Imp/Vee_DFT_Dunlap_Forces.C).
+//
+template <class T> bool ConstrainedFF<T>::CanPullbackRepulsion(const robs_t<T>* bs) const
+{
+    const auto* dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,T>*>(bs);
+    return dftbs && dftbs->CanPullbackRepulsion3C(*this->itsBasisSet);
+}
+
+template <class T> Outcome<rvec3vec_t,AD::NoGradient> ConstrainedFF<T>::MakeRepulsionPullback(const robs_t<T>* bs, const hmat_t<T>& D,
+                                                                                          const Structure* st) const
+{
+    const auto* dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,T>*>(bs);
+    if (!dftbs) return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a block without the DFT tier", "Coulomb-fit repulsion pullback");
+    // Repulsion(bs) = Σ_k c_k (ij|k) exactly (the integrator's Adjoint has no screen), so its pullback is the tensor's against D ⊗ c.
+    return dftbs->MakeRepulsion3CPullback(*this->itsBasisSet, D, this->itsFitCoeff, st);
+}
+
+template <class T> bool ConstrainedFF<T>::CanPullbackSelfRepulsion() const
+{
+    return this->itsBasisSet->CanPullbackRepulsion();
+}
+
+template <class T> Outcome<rvec3vec_t,AD::NoGradient> ConstrainedFF<T>::MakeSelfRepulsionPullback(const Structure* st) const
+{
+    // FitGetSelfRepulsion = cᵀ G c, so the adjoint of G is c cᵀ.
+    const vec_t<T>& c=this->itsFitCoeff;
+    rsmat_t A(c.size());
+    for (size_t k=0;k<c.size();k++) for (size_t l=k;l<c.size();l++) A(k,l)=c[k]*c[l];
+    return this->itsBasisSet->MakeRepulsionPullback(A, st);
+}
+
 template <class T> double ConstrainedFF<T>::Integral() const
 {
     const vec_t<T> q=this->itsBasisSet->Charge();   // <f_a|1>, by value (one signature for both fit faces)

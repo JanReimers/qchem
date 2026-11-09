@@ -115,6 +115,10 @@ protected:
     virtual Projector3<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const;
     virtual Projector3<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const;
 public:
+    // d/dR (GeometryOptimizationPlan §13.2): a SALC block refuses for now, as its 1E pullbacks do.
+    virtual bool CanPullbackRepulsion3C(const rFIT_CD_ABS&) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const rFIT_CD_ABS&, const hmat_t<double>&, const rvec_t&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "3-centre repulsion pullback");}
 
     // The per-irrep cache distinction lives in BasisSetID() (raw id + "[label]"), so each irrep's
     // transformed blocks key separately.  (No RadialID/AngularID -- those are the atom identity face;

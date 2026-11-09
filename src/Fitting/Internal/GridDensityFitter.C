@@ -68,6 +68,15 @@ public:
         return Integrator(dftbs).Adjoint(itsV);   // sum_g w_g v_g chi_i chi_j
     }
 
+    // d/dR (GeometryOptimizationPlan §13.2): the grid Hartree's force needs the mesh's own motion (Becke weights) and the operator's;
+    // not yet (OpenWork §2's force row).
+    bool CanPullbackRepulsion(const robs_t<double>*) const override {return false;}
+    Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const robs_t<double>*, const hmat_t<double>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the grid density fitter", "Coulomb-fit repulsion pullback");}
+    bool CanPullbackSelfRepulsion() const override {return false;}
+    Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the grid density fitter", "self-repulsion pullback");}
+
     double FitGetSelfRepulsion() const override
     {
         return itsOperator->SelfRepulsion(Projection(),itsV);

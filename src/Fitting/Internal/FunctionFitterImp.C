@@ -85,6 +85,11 @@ public:
     virtual hmat_t<T> Repulsion(const robs_t<T>*) const       override; // Sum_a c_a <Oi|f_a/r12|Oj> -- the ADJOINT half
     virtual double    FitGetSelfRepulsion() const            override; // <fit|1/r12|fit>
     virtual double    Integral () const                      override;
+    // d/dR (GeometryOptimizationPlan §13.2): the two pieces of the Dunlap force at fixed c, each forwarded to the basis face that owns it.
+    virtual bool CanPullbackRepulsion(const robs_t<T>* bs) const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const robs_t<T>* bs, const hmat_t<T>& D, const Structure* st) const override;
+    virtual bool CanPullbackSelfRepulsion() const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure* st) const override;
 
     //! \copydoc Fitting::DensityProjector::Forward
     virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>&) const override;

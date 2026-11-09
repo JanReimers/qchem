@@ -2,6 +2,9 @@
 export module qchem.FittedCD;
 import qchem.ChargeDensity.Types;
 import qchem.ChargeDensity;            // rDM_CD (the density to fit; cross-cast to its AO face in the Imp)
+import qchem.Outcome;                  // the pullbacks' refusal (GeometryOptimizationPlan §13.2)
+import qchem.AD;                       // NoGradient
+import qchem.Structure;                // the atoms a pullback is taken in
 
 export namespace qchem::ChargeDensity
 {
@@ -30,6 +33,14 @@ public:
     //! The fit's charge minus the charge it should carry.  Zero by construction on a constrained fit; on a grid fit it is the
     //! mesh's own charge error, which the Hartree term reports (user ruling 2026-11-06: reported, not rescaled away).
     virtual double  GetChargeError  (                              ) const=0;
+    //! The geometry derivatives AT FIXED FIT COEFFICIENTS (GeometryOptimizationPlan §13.2): what the Dunlap force needs, since the
+    //! constrained fit is variational.  CLIENT: Vee_DFT_Dunlap's force.  Each \c Can is false exactly when its \c Make would refuse.
+    //!   MakeRepulsionPullback(bs, D)  = Σ_ij D_ij ∂GetRepulsion(bs)_ij/∂R_A, the block's and the fit's centres moving;
+    //!   MakeSelfRepulsionPullback()   = ∂GetSelfRepulsion()/∂R_A, the fit's centres moving (halved, as the value is).
+    virtual bool CanPullbackRepulsion    (const odftbs_t*) const=0;
+    virtual bool CanPullbackSelfRepulsion(               ) const=0;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback    (const odftbs_t*, const hmat_t<double>& D, const Structure*) const=0;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure*) const=0;
     // NO Clone().  It was a pure virtual whose SOLE implementation was assert(false)+nullptr -- a contract
     // clause no implementor could honour and no caller ever used (R2.7).  Its stated purpose, building a
     // polarized CD from an unpolarized one, has a REAL blocker recorded in that assert: it needs a

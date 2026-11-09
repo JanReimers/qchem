@@ -438,8 +438,17 @@ std::vector<rvec3_t> NR_Evaluator::RepulsionThreeC_Gradient(const NR_Evaluator& 
 std::vector<rvec3_t> NR_Evaluator::RepulsionTwoC_Gradient(const rvec_t& cf) const
 {
     const Imp& c=*itsImp;
-    if (c.spherical) throw std::logic_error("PG_LibCint::NR_Evaluator: the 2-centre gradient is Cartesian-only");
     if (cf.size()!=c.N) throw std::invalid_argument("PG_LibCint::RepulsionTwoC_Gradient: c has "+std::to_string(cf.size())+" for "+std::to_string(c.N)+" fit functions");
+    rsmat_t A(c.N);
+    for (size_t k=0;k<c.N;++k) for (size_t l=k;l<c.N;++l) A(k,l)=cf[k]*cf[l];
+    return RepulsionTwoC_Gradient(A);
+}
+
+std::vector<rvec3_t> NR_Evaluator::RepulsionTwoC_Gradient(const rsmat_t& A) const
+{
+    const Imp& c=*itsImp;
+    if (c.spherical) throw std::logic_error("PG_LibCint::NR_Evaluator: the 2-centre gradient is Cartesian-only");
+    if (A.rows()!=c.N) throw std::invalid_argument("PG_LibCint::RepulsionTwoC_Gradient: the adjoint is "+std::to_string(A.rows())+" square for "+std::to_string(c.N)+" fit functions");
     std::vector<const ShellDesc*> sh; for (auto& s:c.shells) sh.push_back(&s);
     std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(c.atoms, sh, atm,bas,env);
     const int natm=(int)c.atoms.size(), nbas=(int)sh.size();
@@ -456,8 +465,8 @@ std::vector<rvec3_t> NR_Evaluator::RepulsionTwoC_Gradient(const rvec_t& cf) cons
             for (int x=0;x<3;++x)
                 for (int p=0;p<dk;++p){ const size_t gk=c.shells[sk].lc2pg[p];
                     for (int q=0;q<dl;++q){ const size_t gl=c.shells[sl].lc2pg[q];
-                        acc[x]+=cf[gk]*cf[gl]*c.scale[gk]*c.scale[gl]*buf[p+dk*(q+dl*x)]; } }
-            g[c.shells[sk].atom]-=2.0*rvec3_t(acc[0], acc[1], acc[2]);   // ordered (k, l): the k derivative; the l one is the same sum relabelled
+                        acc[x]+=A(gk,gl)*c.scale[gk]*c.scale[gl]*buf[p+dk*(q+dl*x)]; } }
+            g[c.shells[sk].atom]-=2.0*rvec3_t(acc[0], acc[1], acc[2]);   // ordered (k, l): the k derivative; the l one is the same sum relabelled (A symmetric)
         }
     return g;
 }

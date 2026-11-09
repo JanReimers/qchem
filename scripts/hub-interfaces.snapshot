@@ -45,6 +45,8 @@ namespace qchem::BasisSet {
     public:
         virtual const Projector3<TFit>& Overlap3C (const FIT_SF_ABS<TFit>& c) const;
         virtual const Projector3<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
+        virtual bool CanPullbackRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
+        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const FIT_CD_ABS<TFit>& c, const hmat_t<T>& D, const vec_t<TFit>& a, const Structure* st) const=0;
         virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const=0;
         virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;
     protected:
@@ -80,6 +82,8 @@ namespace qchem::BasisSet {
     public:
         virtual rvec_t Charge() const=0;
         virtual const rsmat_t& Repulsion () const=0;
+        virtual bool CanPullbackRepulsion() const=0;
+        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t& A, const Structure* st) const=0;
         virtual const rmat_t& Repulsion (const rFIT_CD_ABS& g) const=0;
         virtual const rsmat_t& InvRepulsion() const=0;
     };
@@ -424,6 +428,10 @@ namespace qchem::Hamiltonian {
         std::string label, entries;
         double E=0.0;
     };
+    struct TermForce {
+        std::string label, missing;
+        rvec3vec_t F;
+    };
     template <class T> class tHamiltonian;
     template <class T> class tHamiltonianAt {
     public:
@@ -465,6 +473,7 @@ namespace qchem::Hamiltonian {
         virtual void RefreshForDensity(const tbs_t<T>*, const tChargeDensity<T>*) const;
         tHamiltonianAt<T> At(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* cd) const;
         virtual std::vector<TermEnergy> MakeTermEnergies(const tDM_CD<T>*) const;
+        virtual std::vector<TermForce> MakeTermForces(const tbs_t<T>*, const tDM_CD<T>*, const Structure*) const;
         virtual std::vector<hmat_t<T>> MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const;
         virtual std::vector<hmat_t<double>> MakeTermMatrices(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const;
     };
@@ -586,11 +595,15 @@ namespace qchem::Fitting {
         virtual ~FunctionFitter_Density() = default;
         virtual void DoFit (const ProjectedDensity<T>&)=0;
         virtual hmat_t<T> Repulsion (const robs_t<T>*) const =0;
+        virtual bool CanPullbackRepulsion(const robs_t<T>* bs) const=0;
+        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const robs_t<T>* bs, const hmat_t<T>& D, const Structure* st) const=0;
         virtual std::ostream& Write (std::ostream&) const =0;
     };
     template <class T> class FunctionFitter_Density_NonOrtho : public virtual FunctionFitter_Density<T> {
     public:
         virtual double FitGetSelfRepulsion() const=0;
+        virtual bool CanPullbackSelfRepulsion() const=0;
+        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure* st) const=0;
         virtual double Integral () const=0;
         virtual void ReScale (double factor)=0;
     };

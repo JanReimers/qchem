@@ -170,6 +170,10 @@ template <isFit_Evaluator Evaluator> class EFit_IBS
 public:
     EFit_IBS(const Evaluator& e, const Structure& st, const qcMesh::MeshParams& mp)
         : Fit_IBS(st,mp), IrrepBasisSetImp<Evaluator>(Symmetry::YFactory()), Evaluator(e) {};
+    // d/dR (GeometryOptimizationPlan §13.2): a one-centre (atom) fit has no geometry to move.
+    virtual bool CanPullbackRepulsion() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the radial fit block", "Coulomb-metric pullback");}
 
     virtual rsmat_t MakeRepulsion(                ) const 
     {
@@ -245,6 +249,12 @@ protected:
         return S3;
 
     }
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): a one-centre (atom) block has no geometry to move.
+    virtual bool CanPullbackRepulsion3C(const rFIT_CD_ABS&) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const rFIT_CD_ABS&, const hmat_t<double>&, const rvec_t&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a radial (atom) block", "3-centre repulsion pullback");}
+protected:
     virtual Projector3<double> MakeRepulsion3C(const rFIT_CD_ABS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);

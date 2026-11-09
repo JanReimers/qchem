@@ -5,8 +5,11 @@
 //   the density pullback against central finite differences, each point riding with its owner and each function with its centre.
 // - PG_Cart's overlap / kinetic / nuclear pullbacks, asked of the faces the block already is: libcint's gradient matrices (gated in
 //   M_LibCint.C) contracted with the adjoint; translation invariance; a mismatched adjoint throws.
+// - PG_Cart's Coulomb-fit (Dunlap) pullbacks, MakeRepulsion3CPullback and its fit's MakeRepulsionPullback, against the central difference
+//   of the same faces' contractions at displaced atoms; translation invariance; a mismatched adjoint throws.
 // - A family with no derivative yet answers Can...() false and refuses with NoGradient.
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <memory>
@@ -17,6 +20,8 @@
 import qchem.StructureData;
 import qchem.BasisSet.IrrepBasisSet;
 import qchem.BasisSet.Orbital_1E_IBS;
+import qchem.BasisSet.Orbital_DFT_IBS;                    // Repulsion3C + the Coulomb-fit faces (the Dunlap pieces)
+import qchem.Mesh;                                        // qcMesh::MeshParams (the fit basis's own mesh, unused by the Coulomb metric)
 import qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Point.PG_Spherical;
 import qchem.BasisSet.Gaussian.Point.BasisFiles;          // BasisFile (the contracted dzvp)
@@ -282,4 +287,89 @@ TEST(GeometryDerivatives, EachCanQueryAgreesWithWhetherItsMethodAnswers)
     }
     EXPECT_FALSE(sph.CanPullbackOverlap()) << "PG_Spherical has no geometry derivative in increment 1";
     EXPECT_TRUE(cart->CanPullbackOverlap() && cart->CanGiveJets()) << "PG_Cart gives them";
+}
+
+// GATE 5, the Dunlap pieces (§13.2): the DZVP block's MakeRepulsion3CPullback(fit, D, a) = Σ D_ij a_k ∂(ij|k)/∂R and its Coulomb fit's
+// MakeRepulsionPullback(A) = Σ A_kl ∂(k|l)/∂R, against the central difference of the SAME faces' contractions (our M&D engine:
+// Repulsion3C and the fit's Repulsion) at displaced atoms, the block, the fit and their centres all rebuilt.  Step h = 1e-4: the
+// truncation error h²/6 |f‴| is ~2e-9 |f‴|, and with random ±1 adjoints (D over ~25², a over the fit, A over its square) |f‴| stays below
+// ~1e2 relative to |f′|, so 2e-6 (relative above 1) is ~10× the estimate.  Translation invariance: every centre is an atom's.
+TEST(GeometryDerivatives, PG_CartsCoulombFitPullbacksAreTheFiniteDifferenceOfItsOwnIntegralsAndTranslationInvariant)
+{
+    const auto h2o=Water();
+    const qcMesh::MeshParams mp{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};
+    auto build=[&](const Structure* st)
+    {
+        auto b=Dzvp(st);
+        std::unique_ptr<BasisSet::rFIT_CD_ABS> f(b->CreateCDFitBasisSet(st, mp));
+        return std::pair{std::move(b), std::move(f)};
+    };
+    auto [ibs, fit]=build(h2o.get());
+    const BasisSet::Orbital_DFT_IBS<double>& dft=*ibs;
+    const auto& metric=dynamic_cast<const BasisSet::FIT_CD_NonOrtho&>(*fit);
+    const size_t n=dft.GetNumFunctions(), nf=fit->GetNumFunctions();
+    std::mt19937 rng(11); std::uniform_real_distribution<double> U(-1,1);
+    hmat_t<double> D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=U(rng);
+    rvec_t a(nf); for (size_t k=0;k<nf;k++) a[k]=U(rng);
+    rsmat_t A(nf); for (size_t k=0;k<nf;k++) for (size_t l=k;l<nf;l++) A(k,l)=U(rng);
+    ASSERT_TRUE(dft.CanPullbackRepulsion3C(*fit)); ASSERT_TRUE(metric.CanPullbackRepulsion());
+    const auto F3=dft.MakeRepulsion3CPullback(*fit, D, a, h2o.get());
+    const auto F2=metric.MakeRepulsionPullback(A, h2o.get());
+    ASSERT_TRUE(F3 && F2);
+    auto contractions=[&](const Structure* st)
+    {
+        auto [b, f]=build(st);
+        const BasisSet::Orbital_DFT_IBS<double>& d=*b;
+        const auto& P=d.Repulsion3C(*f);
+        double s3=0.0; for (size_t k=0;k<nf;k++) s3+=a[k]*TrAM(D, P.dense[k]);
+        const auto& G=dynamic_cast<const BasisSet::FIT_CD_NonOrtho&>(*f).Repulsion();
+        double s2=0.0; for (size_t k=0;k<nf;k++) for (size_t l=0;l<nf;l++) s2+=A(k,l)*G(k,l);
+        return std::array<double,2>{s3, s2};
+    };
+    const double h=1e-4;
+    const auto R=Sites(*h2o);
+    rvec3_t s3(0,0,0), s2(0,0,0);
+    double largest=0.0;
+    for (size_t at=0;at<R.size();at++)
+    {
+        s3+=(*F3)[at]; s2+=(*F2)[at];
+        for (int k=0;k<3;k++)
+        {
+            auto at_=[&](double s){ auto Rs=R; C(Rs[at],k)+=s; std::shared_ptr<Structure> st=h2o->Clone(); st->MoveSites(Rs); return contractions(st.get()); };
+            const auto p=at_(h), m=at_(-h);
+            const double f3=(p[0]-m[0])/(2*h), f2=(p[1]-m[1])/(2*h);
+            EXPECT_NEAR(C((*F3)[at],k), f3, 2e-6*std::max(1.0,std::fabs(f3))) << "Σ D a ∂(ij|k)/∂R, atom " << at << " axis " << k;
+            EXPECT_NEAR(C((*F2)[at],k), f2, 2e-6*std::max(1.0,std::fabs(f2))) << "Σ A ∂(k|l)/∂R, atom " << at << " axis " << k;
+            largest=std::max({largest, std::fabs(f3), std::fabs(f2)});
+        }
+    }
+    EXPECT_GT(largest, 0.1) << "the contractions move with the atoms";
+    EXPECT_LT(norm(s3), 1e-9); EXPECT_LT(norm(s2), 1e-9);
+    EXPECT_THROW((void)dft.MakeRepulsion3CPullback(*fit, hmat_t<double>(n+1), a, h2o.get()), std::invalid_argument) << "a mismatched D";
+    EXPECT_THROW((void)metric.MakeRepulsionPullback(rsmat_t(nf+1), h2o.get()), std::invalid_argument) << "a mismatched adjoint";
+}
+
+// The Coulomb-fit Can queries agree with their methods: PG_Cart with its own fit answers both; PG_Spherical, and its own fit, refuse both
+// with a reason.
+TEST(GeometryDerivatives, EachCoulombFitCanQueryAgreesWithWhetherItsMethodAnswers)
+{
+    const auto h2o=Water();
+    const qcMesh::MeshParams mp{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};
+    BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
+    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(&reader, h2o.get());
+    const auto cart=Dzvp(h2o.get());
+    for (const BasisSet::Orbital_DFT_IBS<double>* b : {static_cast<const BasisSet::Orbital_DFT_IBS<double>*>(&sph), static_cast<const BasisSet::Orbital_DFT_IBS<double>*>(cart.get())})
+    {
+        std::unique_ptr<BasisSet::rFIT_CD_ABS> f(b->CreateCDFitBasisSet(h2o.get(), mp));
+        const auto& metric=dynamic_cast<const BasisSet::FIT_CD_NonOrtho&>(*f);
+        const auto r3=b->MakeRepulsion3CPullback(*f, hmat_t<double>(b->GetNumFunctions()), rvec_t(f->GetNumFunctions(), 0.0), h2o.get());
+        const auto r2=metric.MakeRepulsionPullback(rsmat_t(f->GetNumFunctions()), h2o.get());
+        EXPECT_EQ(b->CanPullbackRepulsion3C(*f), bool(r3)); EXPECT_EQ(metric.CanPullbackRepulsion(), bool(r2));
+        if (!r3) EXPECT_FALSE(r3.Error().why.empty());
+        if (!r2) EXPECT_FALSE(r2.Error().why.empty());
+    }
+    std::unique_ptr<BasisSet::rFIT_CD_ABS> fc(cart->CreateCDFitBasisSet(h2o.get(), mp)), fs(sph.CreateCDFitBasisSet(h2o.get(), mp));
+    EXPECT_TRUE(cart->CanPullbackRepulsion3C(*fc)) << "PG_Cart with its own fit gives it";
+    EXPECT_FALSE(sph.CanPullbackRepulsion3C(*fs)) << "PG_Spherical has no geometry derivative yet";
+    EXPECT_FALSE(cart->CanPullbackRepulsion3C(*fs)) << "a fit of another family: refused, not cast";
 }

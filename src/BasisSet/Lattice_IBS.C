@@ -193,6 +193,12 @@ protected:
     virtual Projector3<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS&) const override {return Cast().Repulsion3CTensor();}
     virtual Projector3<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS&) const override {return Cast().Overlap3CTensor();}
     const E& Cast() const {return dynamic_cast<const E&>(*this);}
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): the reciprocal-space Hartree has no 3-centre pullback (its force is the PW structure-factor
+    // row in OpenWork §2, not this face).
+    virtual bool CanPullbackRepulsion3C(const cFIT_CD_ABS&) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const cFIT_CD_ABS&, const hmat_t<T>&, const cvec_t&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a lattice block", "3-centre repulsion pullback");}
 };
 
 } //namespace

@@ -96,6 +96,9 @@ public:
     virtual bool CanPullbackOverlap() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
         {return qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the PG_Spherical fit block", "overlap pullback");}
+    virtual bool CanPullbackRepulsion() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t&, const Structure*) const override
+        {return qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the PG_Spherical fit block", "Coulomb-metric pullback");}
     virtual  rvec_t MakeCharge   () const;
     virtual rsmat_t MakeRepulsion() const {return MakeRepulsion2C(this);}
     virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& b) const;

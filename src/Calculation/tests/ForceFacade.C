@@ -90,7 +90,33 @@ public:
         return c.itsHam->At(c.itsBasis, cd.get()).Forces(wd.get(), c.itsStructure.get());
     }
     static std::vector<std::string> MissingGradients(const MoleculeCalculation& c) {return c.itsHam->MissingGradients(c.itsBasis, c.itsStructure.get());}
+    //! EVERY TERM'S FORCE at structure \a at with \a D frozen (MakeTermEnergies' twin, index for index): TermEnergiesAt's analytic partner.
+    static std::vector<Hamiltonian::TermForce> TermForcesAt(std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
+                                                            const MoleculeCalculation::Carry& D)
+    {
+        MoleculeCalculation c(MoleculeCalculation::BuildOnly{}, setup, at, nullptr, nullptr);
+        c.BuildGraph();
+        const auto cd=c.MakeCarriedDensity(D);
+        c.itsHam->RefreshForDensity(c.itsBasis, cd.get());
+        return c.itsHam->MakeTermForces(c.itsBasis, cd.get(), c.itsStructure.get());
+    }
     static MoleculeCalculation::Carry EnergyWeighted(const MoleculeCalculation& c) {return {c.MakeEnergyWeightedDensity()};}
+    //! THE PULAY SUM, Σ_blocks Tr(W ∂S/∂R) by each block's overlap pullback, in Forces' sign (added to F): for a model whose Forces()
+    //! refuses on a term that is identically zero (Xα at α = 0).
+    static rvec3vec_t Pulay(const MoleculeCalculation& c, const MoleculeCalculation::Carry& W)
+    {
+        rvec3vec_t F(c.itsStructure->GetNumAtoms(), rvec3_t(0,0,0));
+        size_t b=0;
+        for (Spin s : SpinIrreps(c.itsSetup->opts.spin)) { (void)s;
+            for (auto ibs : c.itsBasis->Iterate<BasisSet::Real_OIBS>())
+            {
+                const auto g=ibs->MakeOverlapPullback(W.D[b++], c.itsStructure.get());
+                EXPECT_TRUE(bool(g));
+                if (g) for (size_t A=0;A<F.size();A++) F[A]+=(*g)[A];
+            } }
+        EXPECT_EQ(b, W.D.size());
+        return F;
+    }
     static MoleculeCalculation::Carry Zero(const MoleculeCalculation::Carry& like)
     {
         MoleculeCalculation::Carry z{like.D};
@@ -425,4 +451,71 @@ TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
         const auto D=ForceFacadeTests::Carry(c);
         EXPECT_THROW((void)ForceFacadeTests::Forces(c, D, D), std::logic_error) << "Forces refuses what MissingGradients names";
     }
+}
+
+// ============================================================================================================================
+// THE PER-TERM FORCE (MakeTermForces, MakeTermEnergies' derivative twin) and the DUNLAP HARTREE term's force (§13.2; lane B 2026-11-08).
+// ============================================================================================================================
+TEST(HamiltonianForces, ThePerTermForcesSumToTheForceWithoutItsPulayTerm)
+{
+    // E1 water: every term has its force, so Σ_t F_t is Forces at W = 0, term order is MakeTermEnergies', and nothing is missing.
+    const Molecule h2o=GetMolecule("H2O");
+    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::E1}), Tight());
+    ASSERT_TRUE(c.IsConverged());
+    const auto D=ForceFacadeTests::Carry(c);
+    const auto Ft=ForceFacadeTests::TermForcesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
+    const auto Et=ForceFacadeTests::TermEnergiesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
+    ASSERT_EQ(Ft.size(), Et.size()) << "one force per term energy";
+    const rvec3vec_t F=ForceFacadeTests::Forces(c, D, ForceFacadeTests::Zero(D));
+    rvec3vec_t sum(F.size(), rvec3_t(0,0,0));
+    for (const auto& t : Ft) { ASSERT_TRUE(t.missing.empty()) << t.missing; ASSERT_EQ(t.F.size(), F.size()); for (size_t A=0;A<F.size();A++) sum[A]+=t.F[A]; }
+    for (size_t A=0;A<F.size();A++) EXPECT_LT(norm(sum[A]-F[A]), 1e-12) << "atom " << A;
+}
+
+TEST(HamiltonianForces, WithTheDunlapHartreeTheForceIsTheFiniteDifferenceOfTheReconvergedEnergy_Long)
+{
+    // Xα at α = 0: the XC term adds EXACTLY nothing (energy and potential ∝ α), so the Hamiltonian is Kinetic + Ven + IonIon + the default
+    // (Dunlap) Hartree, and the force is their per-term forces plus the Pulay sum -- Forces() itself refuses while the XC term has no face,
+    // so the test sums MakeTermForces and Tr(W ∂S/∂R) the way MakeForces does, skipping only that zero.  The WHOLE force is the gate, not
+    // the Dunlap term's fixed-D finite difference: its fit's charge target N = Tr(DS) moves with the basis, and that λ Tr(D ∂S/∂R) is left
+    // out of the term's force and cancelled by the Pulay sum (the contract on tGeometryGradient_HT::AddForces).  Each displaced point is a
+    // full SCF (MinΔρ/N 1e-9, energy error second order); h = 1e-4 puts the FD's h²/6 |E‴| at ≲ 1e-8, so 2e-6 (relative above 1).
+    // _Long: 18 displaced SCFs, ~59 s CPU serial (2026-11-08).
+    const Molecule h2o=GetMolecule("H2O");
+    const CalcOptions opts{.basis="dzvp", .model=Model::Xalpha, .xalpha=0.0};
+    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, opts), Tight());
+    ASSERT_TRUE(c.IsConverged());
+    const auto D=ForceFacadeTests::Carry(c);
+    const auto Ft=ForceFacadeTests::TermForcesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
+    const auto Et=ForceFacadeTests::TermEnergiesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
+    ASSERT_EQ(Ft.size(), Et.size());
+    rvec3vec_t F=ForceFacadeTests::Pulay(c, ForceFacadeTests::EnergyWeighted(c));
+    size_t missing=0; bool dunlap=false;
+    for (size_t t=0;t<Ft.size();t++)
+    {
+        if (!Ft[t].missing.empty())
+        {
+            ++missing;
+            EXPECT_EQ(Et[t].E, 0.0) << "only the α = 0 XC term may lack a force: " << Ft[t].missing;
+            continue;
+        }
+        if (Et[t].entries=="Eee") dunlap=true;
+        for (size_t A=0;A<F.size();A++) F[A]+=Ft[t].F[A];
+    }
+    EXPECT_EQ(missing, 1u) << "the XC term";
+    EXPECT_TRUE(dunlap) << "the Dunlap Hartree has its force";
+    const double h=1e-4;
+    rvec3_t sum(0,0,0);
+    for (size_t A=0;A<F.size();A++)
+    {
+        sum+=F[A];
+        for (int x=0;x<3;x++)
+        {
+            auto E=[&](double s){ MoleculeCalculation m(MoleculeSetup::Resolve(dynamic_cast<const Molecule&>(*MovedH2O(h2o,A,x,s)), opts), Tight());
+                                  EXPECT_TRUE(m.IsConverged()); return m.Energy(); };
+            const double fd=(E(h)-E(-h))/(2*h);
+            EXPECT_NEAR(C(F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << "atom " << A << " axis " << x;
+        }
+    }
+    EXPECT_LT(norm(sum), 1e-8) << "translation invariance";
 }

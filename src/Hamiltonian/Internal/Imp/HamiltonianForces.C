@@ -83,11 +83,31 @@ template <class T> rvec3vec_t tHamiltonianImp<T>::MakeForces(const tbs_t<T>* bs,
     return F;
 }
 
-// Only THIS file's two members: the class itself is explicitly instantiated in Imp/HamiltonianImp.C (a second class-level instantiation
+template <class T> std::vector<TermForce> tHamiltonianImp<T>::MakeTermForces(const tbs_t<T>* bs, const tDM_CD<T>* D, const Structure* st) const
+{
+    if (!st || !D) throw std::invalid_argument("Hamiltonian::MakeTermForces: needs the structure and the density matrix");
+    if (!itsHF_HTs.empty()) throw std::logic_error("Hamiltonian::MakeTermForces: whole-system HF terms are not audited (as MakeTermEnergies)");
+    std::vector<TermForce> out;
+    auto one=[&](const auto& t)
+    {
+        TermForce f{NameOf(t), "", {}};
+        const auto* g=dynamic_cast<const tGeometryGradient_HT<T>*>(&t);
+        f.missing = g ? g->MissingGradient(bs, st) : f.label+": no geometry gradient (the term has no tGeometryGradient_HT face yet)";
+        if (f.missing.empty()) { f.F=rvec3vec_t(st->GetNumAtoms(), rvec3_t(0,0,0)); g->AddForces(f.F, D, st); }
+        out.push_back(std::move(f));
+    };
+    for (const auto& t : itsSHTs) one(*t);   // MakeTermEnergies' order: static, then dynamic
+    for (const auto& t : itsDHTs) one(*t);
+    return out;
+}
+
+// Only THIS file's members: the class itself is explicitly instantiated in Imp/HamiltonianImp.C (a second class-level instantiation
 // would be a duplicate definition).
 template std::vector<std::string> tHamiltonianImp<double>::MissingGradients(const tbs_t<double>*, const Structure*) const;
 template std::vector<std::string> tHamiltonianImp<dcmplx>::MissingGradients(const tbs_t<dcmplx>*, const Structure*) const;
 template rvec3vec_t tHamiltonianImp<double>::MakeForces(const tbs_t<double>*, const tDM_CD<double>*, const tDM_CD<double>*, const Structure*) const;
 template rvec3vec_t tHamiltonianImp<dcmplx>::MakeForces(const tbs_t<dcmplx>*, const tDM_CD<dcmplx>*, const tDM_CD<dcmplx>*, const Structure*) const;
+template std::vector<TermForce> tHamiltonianImp<double>::MakeTermForces(const tbs_t<double>*, const tDM_CD<double>*, const Structure*) const;
+template std::vector<TermForce> tHamiltonianImp<dcmplx>::MakeTermForces(const tbs_t<dcmplx>*, const tDM_CD<dcmplx>*, const Structure*) const;
 
 } // namespace qchem::Hamiltonian

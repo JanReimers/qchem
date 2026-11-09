@@ -70,6 +70,13 @@ public:
     
     virtual rvec_t Charge() const=0; //!< \copydoc BasisSet::FIT_SF_ABS::Charge 
     virtual const rsmat_t& Repulsion   () const=0;  //!< Coulomb metric <f_a|1/r12|f_b>, cached.
+    //! Can this fit give MakeRepulsionPullback?  CLIENT: the Dunlap Hartree term's MissingGradients() entry, through its fitter.  False
+    //! exactly when it would refuse.
+    virtual bool CanPullbackRepulsion() const=0;
+    //! THE PULLBACK of Repulsion() (GeometryOptimizationPlan §13.2; the user's 2026-11-08 pre-approval of derivative faces): given the
+    //! symmetric adjoint \a A = dE/dG, F[B] = Σ_kl A_kl ∂(f_k|f_l)/∂R_B for every atom B, the fit centres moving.  A family without it
+    //! refuses with NoGradient.
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t& A, const Structure* st) const=0;
     virtual const  rmat_t& Repulsion   (const rFIT_CD_ABS& g) const=0; //!< cross Coulomb <f_a|1/r12|g_b>, cached.
     virtual const rsmat_t& InvRepulsion() const=0;  //!< inverse of the Coulomb metric, cached.
 };

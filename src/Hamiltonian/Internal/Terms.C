@@ -286,8 +286,13 @@ protected:
 // solids by construction: a periodic Gaussian fit has no (ij|f) to call, and on plane waves this and Vee_DFT are one formula.
 //
 class Vee_DFT_Dunlap : public virtual rDynamic_HT, private rDynamic_HT_Imp
+                     , public virtual tGeometryGradient_HT<double>, public virtual tStatic_PC<double>   // its force (§13.2; lane B): Imp/Vee_DFT_Dunlap_Forces.C
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/Vee_DFT_Dunlap_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
     Vee_DFT_Dunlap(fbs_t& chargeDensityFitBasisSet, double numElectrons);
     ~Vee_DFT_Dunlap();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it

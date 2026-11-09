@@ -7,6 +7,9 @@ import qchem.ChargeDensity.Types;
 import qchem.ChargeDensity;            // rDM_CD (cross-cast to its AO projection face)
 import qchem.FittedCD;
 import qchem.Fitting.FunctionFitter;   // FunctionFitter_Density (composed) + ProjectedDensity_AO (the AO face)
+import qchem.Outcome;
+import qchem.AD;
+import qchem.Structure;
 
 export namespace qchem::ChargeDensity
 {
@@ -31,6 +34,10 @@ public:
     virtual smat_t<T> GetRepulsion    (const odftbs_t*) const;
     virtual double    GetSelfRepulsion(               ) const;  //Does GetRepulsion(*this);
     virtual double    GetChargeError  (               ) const;
+    virtual bool CanPullbackRepulsion    (const odftbs_t*) const;
+    virtual bool CanPullbackSelfRepulsion(               ) const;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback    (const odftbs_t*, const hmat_t<double>& D, const Structure*) const;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure*) const;
 
 private:
     std::unique_ptr<Fitting::FunctionFitter_Density_NonOrtho<T>> itsFitter;   //!< COMPOSED non-ortho fit (was inherited)

@@ -325,6 +325,13 @@ public:
     virtual ~FunctionFitter_Density() = default;
     virtual void   DoFit           (const ProjectedDensity<T>&)=0;  //!< fit a density (impl cross-casts to its projection)
     virtual hmat_t<T> Repulsion    (const robs_t<T>*) const     =0;  //!< Sum_a c_a <Oi|f_a/r12|Oj>
+    //! Can this fitter give MakeRepulsionPullback on the block \a bs?  CLIENT: the Hartree term's MissingGradients() entry.
+    virtual bool CanPullbackRepulsion(const robs_t<T>* bs) const=0;
+    //! THE PULLBACK of Repulsion(bs) AT FIXED FIT COEFFICIENTS (GeometryOptimizationPlan §13.2; the user's 2026-11-08 pre-approval of
+    //! derivative faces): F[A] = Σ_ij Re(D_ij* ∂Repulsion(bs)_ij/∂R_A), the block's and the fit's centres moving.  Fixed c is what a
+    //! VARIATIONAL fit's force needs (its c-derivative is zero, or along a constraint whose own R-derivative the caller accounts).  A fitter
+    //! without it refuses.
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const robs_t<T>* bs, const hmat_t<T>& D, const Structure* st) const=0;
     virtual std::ostream& Write    (std::ostream&) const        =0;  //!< describe the fit
 };
 
@@ -337,6 +344,11 @@ template <class T> class FunctionFitter_Density_NonOrtho
 {
 public:
     virtual double FitGetSelfRepulsion() const=0;      //!< <fit|1/r12|fit> (caller halves)
+    //! Can this fitter give MakeSelfRepulsionPullback?  CLIENT: the Dunlap Hartree term's MissingGradients() entry.
+    virtual bool CanPullbackSelfRepulsion() const=0;
+    //! THE PULLBACK of FitGetSelfRepulsion() at fixed fit coefficients: F[A] = ∂<fit|1/r12|fit>/∂R_A, the fit centres moving (caller halves,
+    //! as it halves the value).  A fitter without it refuses.
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure* st) const=0;
     virtual double Integral           () const=0;      //!< total charge Sum_a c_a integral f_a
     virtual void   ReScale            (double factor)=0; //!< c *= factor
 };

@@ -63,6 +63,23 @@ template <class T> double FittedCDImp<T>::GetChargeError() const
     return itsFitter->Integral()-itsTotalCharge;
 }
 
+// The geometry derivatives at fixed c: the fitter's, which asks the basis faces that own the integrals.
+template <class T> bool FittedCDImp<T>::CanPullbackRepulsion(const odftbs_t* bs) const {return itsFitter->CanPullbackRepulsion(bs);}
+template <class T> bool FittedCDImp<T>::CanPullbackSelfRepulsion() const {return itsFitter->CanPullbackSelfRepulsion();}
+template <class T> Outcome<rvec3vec_t,AD::NoGradient> FittedCDImp<T>::MakeRepulsionPullback(const odftbs_t* bs, const hmat_t<double>& D,
+                                                                                        const Structure* st) const
+{
+    return itsFitter->MakeRepulsionPullback(bs, D, st);
+}
+template <class T> Outcome<rvec3vec_t,AD::NoGradient> FittedCDImp<T>::MakeSelfRepulsionPullback(const Structure* st) const
+{
+    auto r=itsFitter->MakeSelfRepulsionPullback(st);   // of <fit|1/r12|fit>; GetSelfRepulsion halves it, so its pullback does too
+    if (!r) return r;
+    rvec3vec_t F=r.TakeValue();
+    for (size_t A=0;A<F.size();A++) F[A]*=0.5;
+    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(std::move(F));
+}
+
 template class FittedCDImp<double>;
 
 } //namespace
