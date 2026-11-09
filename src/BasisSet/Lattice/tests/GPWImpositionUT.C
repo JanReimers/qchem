@@ -31,7 +31,8 @@ TEST(GPWImposition, AHandedInImpositionBuildsTheSameIBZAndAMismatchIsRefused)
     const std::unique_ptr<BasisSet::Complex_BS> handed(BasisSet::Lattice::GPWFactory(lat, mol, p));
     ASSERT_EQ(handed->GetNumIBS(), own->GetNumIBS()) << "the same IBZ fold";
     EXPECT_LT(own->GetNumIBS(), 8u) << "an imposed k222 run folds";
-    EXPECT_EQ(handed->GetImposition()->DensityStarOps().size(), own->GetImposition()->DensityStarOps().size());
+    ASSERT_TRUE(handed->GetImposition()->DensityGroup() && own->GetImposition()->DensityGroup()) << "an imposed run averages its density";
+    EXPECT_EQ(handed->GetImposition()->DensityGroup()->size(), own->GetImposition()->DensityGroup()->size());
 
     p.imposition=std::make_shared<const CrystalImposition>(ResolveImposition(lat, {.imposeSymmetry=false}));
     EXPECT_THROW(BasisSet::Lattice::GPWFactory(lat, mol, p), std::invalid_argument);

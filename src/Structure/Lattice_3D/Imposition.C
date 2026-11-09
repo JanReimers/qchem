@@ -34,9 +34,10 @@ struct ImpositionOptions
 //! Faces and their consumers:
 //!  - \c recipFold: reciprocal LINEAR ops U (+time reversal, τ=0 W-only guard) -- the basis folds its k-mesh to the IBZ.
 //!    Time reversal supplies the inversion a non-symmorphic Td subgroup lacks, so the fold is maximal without the glide.
-//!  - \c recipDensity {U|τ}: the full crystal point group with fractional translations -- the composite density
-//!    star-averages ρ̃ in G-space with the glide phase \f$e^{+2\pi i(Um)\cdot\tau}\f$.  No time reversal.
-//!  - \c directDensity {W|τ}: the real-space partner (the GPW raster star-average, voxel shift N·τ).
+//!  - \c densityGroup: the full crystal point group with fractional translations {W|τ}, as the GROUP the composite density
+//!    star-averages under (ρ̃ in G-space with the glide phase, the raster ρ with the voxel shift N·τ).  No time reversal.
+//!  - \c directDensity {W|τ}: the same ops as a list, still read by the GPW blocks (the T1 {G} fold, the stream fold, the
+//!    grid report) -- the remainder of V-SYM-SEQUESTER-OPS.
 //!  - \c magneticDirect {W|τ,σ}: the Shubnikov group on a magnetic imposition ({} otherwise).  The two density faces are then
 //!    its σ=None subgroup only (a sublattice swap is not a symmetry of ONE channel); σ is consumed by the spin-pair machinery.
 //!  - \c meshInvariance: FREE run only, the detected spatial group the XC mesh is built invariant under (no density average).
@@ -63,14 +64,14 @@ class CrystalImposition : public virtual Symmetry::SymmetryImposition, public vi
 {
 public:
     const std::vector<Symmetry::SymOp>&               SpinPairOps   () const override {return spinPairOps;}
-    const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& DensityStarOps() const override {return recipDensity;}
+    std::shared_ptr<const Symmetry::StarGroup> DensityGroup() const override {return densityGroup;}
     qcMesh::FoldedMesh MakeXCMesh(const qcMesh::MeshParams& mp) const override;
 
     ImpositionOptions                                    options;        //!< what this was resolved from (a consumer handed both checks they agree)
     Symmetry::Lattice_3D::SymmetryPolicy                 policy;         //!< the ONE run-level imposition decision (§3)
     std::vector<Matrix3D<double>>                        recipFold;      //!< linear reciprocal ops (+TR) for the k-fold ({} unless imposed, grey)
-    std::vector<Symmetry::Lattice_3D::ReciprocalOp>      recipDensity;   //!< {U|τ} for the G-space density star-average ({} unless imposed)
-    std::vector<Symmetry::Lattice_3D::DirectOp>          directDensity;  //!< {W|τ} for the real-space raster star-average ({} unless imposed)
+    std::shared_ptr<const Symmetry::StarGroup>           densityGroup;   //!< the density's star-average group (null = {E}: not imposed)
+    std::vector<Symmetry::Lattice_3D::DirectOp>          directDensity;  //!< the same {W|τ} as a list, for the GPW blocks ({} unless imposed)
     std::vector<Symmetry::Lattice_3D::SymOp>             magneticDirect; //!< the Shubnikov group of a magnetic imposition ({} = grey or free)
     std::vector<Symmetry::Lattice_3D::SymOp>             meshInvariance; //!< free run: the XC mesh's invariance group ({} when imposing)
     std::vector<Symmetry::SymOp>                         spinPairOps;    //!< magneticDirect on a single unshifted Γ block, else {}

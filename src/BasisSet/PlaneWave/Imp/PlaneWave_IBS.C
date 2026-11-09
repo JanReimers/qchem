@@ -23,6 +23,7 @@ module qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 import qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS;   // the auxiliary density-fit basis CreateCDFitBasisSet builds
 import qchem.Symmetry.Factory;   // BlochFactory (the convenience ctor builds the Bloch irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (prys k out of the abstract Bloch irrep)
+import qchem.Symmetry.Lattice_3D.SpaceGroup;   // ImageOfGIndex (the one plane-wave transform rule, MakeMonomial)
 import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeNuclear
 import qchem.SpecialFunctions;   // LegendreP (the (2l+1)P_l angular factor)
 import qchem.BasisSet.PlaneWave.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
@@ -44,18 +45,18 @@ PlaneWave_IBS::Monomial PlaneWave_IBS::MakeMonomial(const Symmetry::SymOp& g) co
     const std::vector<ivec3_t>& G=Gs();
     std::map<std::tuple<int,int,int>,size_t> index;
     for (size_t i=0;i<G.size();i++) index[{G[i].x,G[i].y,G[i].z}]=i;
-    const Matrix3D<double> WinvT=Transpose(Invert(g.W));
+    // THE one plane-wave rule (Symmetry::Lattice_3D::ImageOfGIndex, shared with the ρ̃ star-average): wave j goes to W^T G_j
+    // with e^{+2πi G_j·τ}.  The operator rep reads the same pairing as a GATHER -- column i takes wave perm[i]=j, where
+    // G_i = W^T G_j (i.e. G_j = W^{-T} G_i) -- with the conjugate phase.
     Monomial rep{std::vector<size_t>(G.size()), cvec_t(G.size())};
-    for (size_t i=0;i<G.size();i++)
+    for (size_t j=0;j<G.size();j++)
     {
-        const rvec3_t m=WinvT*rvec3_t(G[i].x,G[i].y,G[i].z);
-        const ivec3_t mi(std::lround(m.x),std::lround(m.y),std::lround(m.z));
-        if (std::fabs(m.x-mi.x)+std::fabs(m.y-mi.y)+std::fabs(m.z-mi.z)>=1e-8)
-            throw std::logic_error("PlaneWave_IBS::MakeMonomial: W is not a lattice operation");
-        auto it=index.find({mi.x,mi.y,mi.z});
+        const Symmetry::Lattice_3D::GIndexImage img=Symmetry::Lattice_3D::ImageOfGIndex(g, G[j]);
+        if (img.offLattice>=1e-8) throw std::logic_error("PlaneWave_IBS::MakeMonomial: W is not a lattice operation");
+        auto it=index.find({img.m.x,img.m.y,img.m.z});
         if (it==index.end()) throw std::logic_error("PlaneWave_IBS::MakeMonomial: the op maps a plane wave out of the cutoff ball -- it is not a symmetry of the lattice");
-        rep.perm[i]=it->second;
-        rep.phase[i]=std::exp(dcmplx(0.0,-2.0*std::numbers::pi*(mi.x*g.tau.x+mi.y*g.tau.y+mi.z*g.tau.z)));
+        rep.perm[it->second]=j;
+        rep.phase[it->second]=std::conj(img.phase);
     }
     return rep;
 }
@@ -342,7 +343,7 @@ chmat_t PlaneWave_IBS::MakeSetOverlap(const AtomCentredSet& set) const
 BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
     PW_Grid_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*std::max(4.0, mp.relCutoff));
-    return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "densityFit", {}, /*holdsOrbitalPairs*/true);
+    return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "densityFit", /*holdsOrbitalPairs*/true);
 }
 
 // The overlap-metric (Vxc) sibling: a DISTINCT fit-basis instance (same k=0 Gamma grid as the CD one when
@@ -356,7 +357,7 @@ BasisSet::cFIT_SF_ABS* PlaneWave_IBS::CreateVxcFitBasisSet(const Structure*, con
     // Ecut_fit = 4 Ecut -- the density ball, as the CD fit above and QE's density grid.  At relCutoff 1 (every LDA) this ball was
     // the WAVEFUNCTION ball: XC saw rho[D] with its G_max..2 G_max shell cut off (the PW harness anchors; RequirePin28 caught it).
     PW_Grid_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*std::max(4.0, mp.relCutoff));
-    return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "vxcFitGrid", {}, /*holdsOrbitalPairs*/true);
+    return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "vxcFitGrid", /*holdsOrbitalPairs*/true);
 }
 
 std::string PlaneWave_IBS::BasisSetID() const

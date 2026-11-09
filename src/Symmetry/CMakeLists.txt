@@ -30,6 +30,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Spin.C
     SymOp.C
     Representation.C   # Representation<T>: Image / AdjointImage, Identity / Dense / Monomial (V-BS-SYMMETRY S3)
+    StarGroup.C        # StarGroup + StarField: the density star-average (V-SYM-SEQUESTER-OPS, first piece)
     Imposition.C       # SymmetryImposition + ProjectSpinPair (V-BS-SYMMETRY S3)
     Symmetry.C
     SelectionRule.C
