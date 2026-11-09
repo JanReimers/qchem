@@ -96,8 +96,7 @@ public:
 
     double          GetNormalization(const Polarization&) const;
     double          GetCharge       (const Polarization&) const;
-    double          operator()(const rvec3_t&) const;
-    rvec3_t         Gradient  (const rvec3_t&) const;
+    double          operator()(const rvec3_t&) const;   //!< a value leaf of GaussianRF::Gradient: inline below
 
     // M&D integral kernels over primitives -- one named function per integral, no enum/switch dispatch
     // (that was residue of the retired multiple-dispatch gauntlet).  a/b/c/d are primitive Gaussians.
@@ -167,6 +166,13 @@ const Ω&        findΩ   (const GData& a, const GData& b);                     
 const RNLM&     findRNLM(const GData& ab, const GData& c);                         // 3/4-centre RNLM
 const Hermite3& findH3  (const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c); // <ab|c>
 
+// INLINE: a value leaf of the Enzyme-registered GaussianRF::Gradient (Imp/GaussianRF_AD.C differentiates its body).
+inline double PrimGaussian::operator()(const rvec3_t& r) const
+{
+    const rvec3_t dr=itsCenter-r;
+    return std::exp(-itsExponent*dr*dr);
+}
+
 } // namespace (module-internal: PrimGaussian, GData, Ω, find* are not exported)
 
 export namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
@@ -215,7 +221,7 @@ public:
     GaussianRF& operator=(GaussianRF&&) = default;
     ~GaussianRF();
 
-    const rvec3_t& GetCenter() const {return itsCenter;}
+    inline const rvec3_t& GetCenter() const {return itsCenter;}   // explicit inline: GaussianRF_AD.C differentiates through it
     int            GetL     () const {return itsL;}
 
     // Raw primitive data, for an external integral engine (libcint) that packs its own atm/bas/env.
@@ -245,8 +251,15 @@ public:
 
     virtual std::ostream& Write(std::ostream&  ) const;
 
+    //! \f$g(r)=\sum_k c_k e^{-\alpha_k|r-C|^2}\f$.  A VALUE LEAF of the gradients below, so inline (after the class).
     virtual double  operator()(const rvec3_t&) const;
+    //! \f$\nabla_r g\f$ (the ScalarFunction face): the polarized gradient below with \f$p=(0,0,0)\f$.
     virtual rvec3_t Gradient  (const rvec3_t&) const;
+    //! \f$\nabla_r[\,p(r-C)\,g(r)\,]\f$, one Cartesian component of this shell: Enzyme's reverse-mode derivative of exactly the
+    //! value operator()(r) and Polarization::operator() compute (GeometryOptimizationPlan, "DERIVATIVES ARE ENZYME'S"; registered in
+    //! Imp/GaussianRF_AD.C, gated against the central difference of the values in tests/M_GeometryDerivatives.C).  Every Cartesian
+    //! evaluator (PG_Cart, PG_LibCint, PG_Spherical) takes its basis gradient from here; there is no hand derivative.
+    rvec3_t         Gradient  (const Polarization& p, const rvec3_t& r) const;
 
 private:
     rvec3_t                                    itsCenter;
@@ -254,5 +267,12 @@ private:
     std::vector<std::unique_ptr<PrimGaussian>> itsPrims;
     rvec_t                                     itsCoeff;  // normalization-folded contraction coeffs
 };
+
+inline double GaussianRF::operator()(const rvec3_t& r) const
+{
+    double ret = 0.0;
+    for (size_t i=0;i<itsPrims.size();++i) ret += itsCoeff[i]*(*itsPrims[i])(r);
+    return ret;
+}
 
 } //namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD  

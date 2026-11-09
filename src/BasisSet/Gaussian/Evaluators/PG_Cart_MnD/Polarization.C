@@ -3,7 +3,6 @@ module;
 #include <iosfwd>
 export module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Types;
-import qchem.IntPow;
 import qchem.Math.Angular;                                     // Monomial (the shared (n,l,m) index skeleton)
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.Index3;  // Cartesian->Hermite index seam
 
@@ -30,11 +29,15 @@ public:
     Polarization  operator- (const Polarization& p) const {return Polarization(n-p.n, l-p.l, m-p.m);}
     bool          operator> (const Polarization& p) const {return n>p.n || l>p.l || m>p.m;}
 
-    double operator   ()(const rvec3_t& r) const
+    //! \f$x^n y^l z^m\f$.  A VALUE LEAF of the Enzyme-registered basis gradient (GaussianRF::Gradient), so it is inline (the AD unit
+    //! differentiates its body) and branch-free: \c intpow returns 0 at x = 0 through a branch, and the derivative of a branch is the
+    //! branch's, so AD through it would read \f$\partial x/\partial x = 0\f$ at every mesh point on an axis through the centre.
+    inline double operator()(const rvec3_t& r) const   // explicit inline: a module's in-class body is NOT inline, so not importable
     {
-        return intpow(r.x,n)*intpow(r.y,l)*intpow(r.z,m);
+        return Power(r.x,n)*Power(r.y,l)*Power(r.z,m);
     }
-    rvec3_t  Gradient     (const rvec3_t& r) const;
+    //! \f$x^k\f$, k >= 0, as a plain product (see operator()).
+    static inline double Power(double x, int k) {double p=1.0; for (int i=0;i<k;i++) p*=x; return p;}
 
     // A Cartesian polarization IS a Hermite (N,L,M) index to the generic MnD core (RNLM etc.).  Implicit so
     // existing rnlm(pa+pb) call sites are unchanged.
