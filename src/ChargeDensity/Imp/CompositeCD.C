@@ -248,8 +248,8 @@ template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) 
     return ret;
 }
 
-// THE FORCE TWIN of the static contraction (GeometryOptimizationPlan §13.2): every block's pullback summed.  Increment 1 is molecular, so
-// a REAL child inside a complex run (a TRIM block) THROWS by name until a term gives a real-block pullback client.
+// THE FORCE TWIN of the static contraction (GeometryOptimizationPlan §13.2): every block's pullback summed.  MIXED-AWARE as DM_Contract
+// is: a REAL child inside a complex run (a TRIM block) is walked through the term's real-block pullback client, tStatic_PC<double>.
 template <class T> rvec3vec_t tComposite_CD<T>::DM_Pullback(const tStatic_PC<T>* v, const Structure* st) const
 {
     rvec3vec_t F;
@@ -259,8 +259,14 @@ template <class T> rvec3vec_t tComposite_CD<T>::DM_Pullback(const tStatic_PC<T>*
         {
             using BT=std::remove_const_t<std::remove_pointer_t<std::decay_t<decltype(b)>>>;
             if constexpr (std::is_same_v<BT,tDM_CD<T>>) return b->DM_Pullback(v, st);
-            else throw std::logic_error("tComposite_CD::DM_Pullback: a real block inside a complex run has no pullback client yet "
-                                        "(GeometryOptimizationPlan §13.2, increment 1 is molecular)");
+            else if constexpr (std::is_same_v<T,dcmplx>)
+            {
+                auto* rv=dynamic_cast<const tStatic_PC<double>*>(v);
+                if (!rv) throw std::logic_error("tComposite_CD::DM_Pullback: a real child needs the term's real-block pullback client "
+                                                "(tStatic_PC<double>, GeometryOptimizationPlan §13.2)");
+                return b->DM_Pullback(rv, st);
+            }
+            else throw std::logic_error("tComposite_CD::DM_Pullback: a complex child inside a real-faced run is impossible");
         }, blk.cd);
         if (F.size()==0) F=f;
         else

@@ -74,12 +74,14 @@ class Ven_PP_Short
     , private        cStatic_HT_Imp
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
     , public virtual tGeometryGradient_HT<dcmplx>, public virtual tStatic_PC<dcmplx>   // its force (§13.2; lane B), after the private base
+    , public virtual tStatic_PC<double>   // ... and a real TRIM block's (§13.2; lane B)
 {
 public:
     // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
     virtual std::string MissingGradient(const tbs_t<dcmplx>* bs, const Structure* st) const override;
     virtual void        AddForces(rvec3vec_t& F, const cDM_CD* D, const Structure* st) const override;
     virtual rvec3vec_t  Pullback(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
@@ -115,12 +117,14 @@ class Ven_PP_NonLocal
     , private        cStatic_HT_Imp
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
     , public virtual tGeometryGradient_HT<dcmplx>, public virtual tStatic_PC<dcmplx>   // its force (§13.2; lane B), after the private base
+    , public virtual tStatic_PC<double>   // ... and a real TRIM block's (§13.2; lane B)
 {
 public:
     // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
     virtual std::string MissingGradient(const tbs_t<dcmplx>* bs, const Structure* st) const override;
     virtual void        AddForces(rvec3vec_t& F, const cDM_CD* D, const Structure* st) const override;
     virtual rvec3vec_t  Pullback(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
@@ -167,12 +171,14 @@ class Ven_PP_Long
     , private        cStatic_HT_Imp
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
     , public virtual tGeometryGradient_HT<dcmplx>, public virtual tStatic_PC<dcmplx>   // its force (§13.2; lane B), after the private base
+    , public virtual tStatic_PC<double>   // ... and a real TRIM block's (§13.2; lane B)
 {
 public:
     // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
     virtual std::string MissingGradient(const tbs_t<dcmplx>* bs, const Structure* st) const override;
     virtual void        AddForces(rvec3vec_t& F, const cDM_CD* D, const Structure* st) const override;
     virtual rvec3vec_t  Pullback(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my

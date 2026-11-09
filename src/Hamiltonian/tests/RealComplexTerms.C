@@ -16,9 +16,12 @@
 // accidentally sharing one DBCache'd closure.  The pair-quadrature RAW-route real path needs the full
 // collocation feed and is gated with the 3c-2 SCF wiring.
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <memory>
+#include <stdexcept>
+#include <string>
 #include <type_traits>
 
 import qchem.Structure;
@@ -37,6 +40,8 @@ import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own m
 import qchem.BasisSet.DeltaFit_IBS;                // DeltaFit_IBS -- the delta basis the singles strategy runs on
 import qchem.Symmetry.Factory;                     // BlochFactory (its Gamma irrep)
 import qchem.Hamiltonian.Internal.SlaterExchange;  // SlaterExchange (the Dirac-exchange functional)
+import qchem.BasisSet.Orbital_PP_IBS;              // the real child's own PP pullbacks (the force-walk gate)
+import qchem.Hamiltonian.Internal.GeometryGradient;   // tStatic_PC (the force-walk gate)
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH (Si GTH-LDA-q4)
 import qchem.ChargeDensity.Imp.IrrepCD;            // PeriodicIrrepCD (the periodic leaf -- 3c-2b)
 import qchem.CompositeCD;                          // tComposite_CD<dcmplx> (the run-shaped density)
@@ -575,4 +580,131 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
     ΔG_Map vm=fm.GetRepulsion3C(*fb2), vc=fx.GetRepulsion3C(*fb2);
     ASSERT_EQ(vm.size(), vc.size());
     for (const auto& [dm,v] : vm) { auto it=vc.find(dm); ASSERT_NE(it,vc.end()); EXPECT_EQ(v,it->second); }
+}
+
+
+// ===== THE FORCE WALK ON A MIXED RUN (GeometryOptimizationPlan §13.2; lane B 2026-11-09) =====================================================
+// A real TRIM block inside a complex run is walked through the term's REAL-BLOCK pullback client, tStatic_PC<double>, as DM_Contract reaches
+// tStatic_CC<double>.  The real TRIM blocks a run builds today (tGPW_IBS<double>) give no pullback yet, so the walk's arithmetic is gated on a
+// real block that does: a molecular Gaussian block (MnD, whose pullbacks ride libcint) posing as the real child of a complex-faced basis.  The claim is the WIRING: the mixed walk
+// must equal the same block's walk in an all-real run (whose Kinetic and Pulay pullbacks the molecular gates hold to the finite difference),
+// bit for bit, since it is the same body on the same scalar.
+namespace
+{
+struct RealChildRig
+{
+    UnitCell cell{8.0};
+    std::shared_ptr<const Real_BS> mol;
+    const BasisSet::Orbital_1E_IBS<double>* blk=nullptr;
+    rsmat_t D;
+    RealChildRig()
+    {
+        cell.AddAtom(14,{0.40,0.50,0.50});
+        cell.AddAtom(14,{0.62,0.55,0.47});   // two atoms, off any symmetric arrangement: every per-atom pullback is nonzero
+        namespace M = qchem::BasisSet::Gaussian;
+        mol.reset(M::Factory(M::BasisSetData::SIPP, &cell, M::Engine::MnD, M::Angular::Cartesian));   // MnD: its pullbacks ride libcint
+        blk=(*mol)[0];
+        const size_t n=blk->GetNumFunctions();
+        D=rsmat_t(n);
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<=i;j++) D(i,j)=D(j,i)=std::sin(1.0+i+2.0*j)/(1.0+i+j);   // symmetric, every entry nonzero
+    }
+    Irrep Q() const {return blk->GetIrrep(Spin::None);}
+    std::unique_ptr<ChargeDensity::tComposite_CD<dcmplx>> Mixed() const
+    {
+        auto cd=std::make_unique<ChargeDensity::tComposite_CD<dcmplx>>();
+        cd->Insert(std::unique_ptr<ChargeDensity::tDM_CD<double>>(new ChargeDensity::PeriodicIrrepCD<double>(D, blk, Q())), Q());
+        return cd;
+    }
+    std::unique_ptr<ChargeDensity::tComposite_CD<double>> Real() const
+    {
+        auto cd=std::make_unique<ChargeDensity::tComposite_CD<double>>();
+        cd->Insert(std::unique_ptr<ChargeDensity::tDM_CD<double>>(new ChargeDensity::PeriodicIrrepCD<double>(D, blk, Q())), Q());
+        return cd;
+    }
+};
+struct RealHam : Hamiltonian::tHamiltonianImp<double> { RealHam() : tHamiltonianImp<double>(SpinGroup::UnPolarized) {} };
+void ExpectSameForces(const rvec3vec_t& a, const rvec3vec_t& b, const char* what)
+{
+    ASSERT_EQ(a.size(), b.size()) << what;
+    double big=0.0;
+    for (size_t A=0;A<a.size();A++)
+    {
+        EXPECT_EQ(a[A].x, b[A].x) << what << " atom " << A;
+        EXPECT_EQ(a[A].y, b[A].y) << what << " atom " << A;
+        EXPECT_EQ(a[A].z, b[A].z) << what << " atom " << A;
+        big=std::max({big, std::fabs(b[A].x), std::fabs(b[A].y), std::fabs(b[A].z)});
+    }
+    EXPECT_GT(big, 1e-3) << what << ": a vanishing force cannot show the walk is wired";
+}
+} // namespace
+
+TEST(RealComplexTerms, TheForceWalksARealTRIMBlockThroughItsRealPullbackFace)
+{
+    const RealChildRig rig;
+    const auto mixed=rig.Mixed();
+    const auto real =rig.Real();
+    const size_t nA=rig.cell.GetNumAtoms();
+
+    // The term: Kinetic<dcmplx> on the mixed composite against Kinetic<double> on the all-real one.
+    Kinetic<dcmplx> kc;
+    Kinetic<double> kr;
+    rvec3vec_t Fc(nA, rvec3_t(0,0,0)), Fr(nA, rvec3_t(0,0,0));
+    kc.AddForces(Fc, mixed.get(), &rig.cell);
+    kr.AddForces(Fr, real.get(),  &rig.cell);
+    ExpectSameForces(Fc, Fr, "Kinetic");
+
+    // The Hamiltonian: MissingGradients walks the real child (no throw, nothing missing), and MakeForces' Pulay sum reaches it (W = D).
+    const qchem::tests::pw::OneBlockBS<dcmplx> mixedBS(rig.blk);
+    const qchem::tests::pw::OneBlockBS<double> realBS(rig.blk);
+    MixedHam hc; hc.Add(new Kinetic<dcmplx>);
+    RealHam  hr; hr.Add(new Kinetic<double>);
+    EXPECT_TRUE(hc.MissingGradients(&mixedBS, &rig.cell).empty());
+    ExpectSameForces(hc.MakeForces(&mixedBS, mixed.get(), mixed.get(), &rig.cell),
+                     hr.MakeForces(&realBS,  real.get(),  real.get(),  &rig.cell), "Kinetic + Pulay");
+
+    // The PW PP terms' real face: the walk hands the real child to the block's own species-field / projector pullback.
+    const auto gth=Pseudopotential::GetGTH("Si","LDA",4);
+    const auto st=rig.cell.Clone();
+    const auto* pp=dynamic_cast<const BasisSet::Orbital_PP_IBS<double>*>(rig.blk);
+    ASSERT_NE(pp, nullptr);
+    ASSERT_TRUE(pp->CanPullbackSpeciesField(gth.local));
+    ASSERT_TRUE(pp->CanPullbackProjectors(gth.nonlocal));
+    Ven_PP_Short    vs(st, &gth.local);
+    Ven_PP_NonLocal vn(st, &gth.nonlocal);
+    EXPECT_TRUE(vs.MissingGradient(&mixedBS, st.get()).empty());
+    EXPECT_TRUE(vn.MissingGradient(&mixedBS, st.get()).empty());
+    ExpectSameForces(mixed->DM_Pullback(static_cast<const tStatic_PC<dcmplx>*>(&vs), st.get()),
+                     *pp->MakeSpeciesFieldPullback(st.get(), gth.local, BasisSet::FieldRange::Short, rig.D), "Ven_PP_Short");
+    ExpectSameForces(mixed->DM_Pullback(static_cast<const tStatic_PC<dcmplx>*>(&vn), st.get()),
+                     *pp->MakeProjectorPullback(st.get(), gth.nonlocal, rig.D), "Ven_PP_NonLocal");
+}
+
+TEST(RealComplexTerms, ARealTRIMBlockWithoutAPullbackIsNamedNotThrown)
+{
+    // The real TRIM block a GPW run builds (tGPW_IBS<double>) has no pullback yet: every face names it, the Pulay check included.
+    Rig rig;
+    const qchem::tests::pw::OneBlockBS<dcmplx> reBS(rig.re.get());
+    const auto gth=Pseudopotential::GetGTH("Si","LDA",4);
+    Kinetic<dcmplx> kin;
+    Ven_PP_Short    vs(rig.st, &gth.local);
+    EXPECT_NE(kin.MissingGradient(&reBS, rig.st.get()).find("gives no kinetic pullback"), std::string::npos);
+    EXPECT_NE(vs .MissingGradient(&reBS, rig.st.get()).find("gives no species-field pullback"), std::string::npos);
+    MixedHam ham; ham.Add(new Kinetic<dcmplx>);
+    const auto missing=ham.MissingGradients(&reBS, rig.st.get());
+    ASSERT_FALSE(missing.empty());
+    bool pulay=false;
+    for (const auto& m : missing) pulay = pulay || m.find("Pulay")!=std::string::npos;
+    EXPECT_TRUE(pulay) << "the Pulay check must walk the real block too";
+}
+
+TEST(RealComplexTerms, AClientWithoutARealPullbackFaceThrowsByNameOnARealChild)
+{
+    struct ComplexOnly : tStatic_PC<dcmplx>
+    {
+        rvec3vec_t Pullback(const cobs_t*, const Spin&, const chmat_t&, const Structure*) const override {return {};}
+    };
+    const RealChildRig rig;
+    const ComplexOnly client;
+    try { rig.Mixed()->DM_Pullback(&client, &rig.cell); FAIL() << "a real child walked by a complex-only client must throw"; }
+    catch (const std::logic_error& e) { EXPECT_NE(std::string(e.what()).find("tStatic_PC<double>"), std::string::npos) << e.what(); }
 }

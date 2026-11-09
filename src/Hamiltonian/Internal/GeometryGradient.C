@@ -3,6 +3,7 @@
 // abstract cross-cast (as MakeResponseKernel reaches tResponse_HT), and a term WITHOUT it is a MissingGradients() entry: never a silent zero.
 module;
 #include <string>
+#include <type_traits>
 export module qchem.Hamiltonian.Internal.GeometryGradient;
 export import qchem.Hamiltonian;   // tbs_t, tDM_CD and the Types vocabulary
 export import qchem.Structure;     // the atoms a force is taken in
@@ -29,5 +30,32 @@ public:
     //! force by exactly that piece, so its gate is the whole force against the re-converged energy.
     virtual void AddForces(rvec3vec_t& F, const tDM_CD<T>* D, const Structure* st) const=0;
 };
+
+//! Visits every block of \a bs with ITS OWN scalar: a complex set's real TRIM child as \c tobs_t<double>, every other block as
+//! \c tobs_t<T>, so \a f is a generic callable.  CLIENT: a term's MissingGradient (and the Pulay check), which must name a real TRIM
+//! block's missing pullback rather than throw on it: the typed \c Iterate view throws on a cross-scalar child.
+template <class T, class F> void ForEachBlock(const tbs_t<T>* bs, F&& f)
+{
+    for (size_t i=0;i<bs->GetNumIBS();++i)
+    {
+        if constexpr (std::is_same_v<T,dcmplx>)
+            if (const tobs_t<double>* r=bs->GetRealIBS(i)) { f(r); continue; }
+        f((*bs)[i]);
+    }
+}
+
+//! \brief THE REAL-BLOCK PULLBACK of a T-templated static term's complex instantiation (the force twin of \c Static_HT_RealBlock_Of): a
+//! real TRIM block inside a complex run is walked through the term's \c tStatic_PC<double> face (\c tComposite_CD::DM_Pullback's
+//! cross-cast, as \c DM_Contract reaches \c tStatic_CC<double>).  The term writes ONE \c template<class U> PullbackBlock body and this
+//! mixin, present on the \c dcmplx instantiation only, routes the real block to it (a virtual cannot carry a \c requires clause).
+template <class D> class tStatic_PC_RealBlock_Of : public virtual tStatic_PC<double>
+{
+public:
+    virtual rvec3vec_t Pullback(const tobs_t<double>* bs, const Spin& s, const hmat_t<double>& Dm, const Structure* st) const override
+    {return static_cast<const D&>(*this).template PullbackBlock<double>(bs, s, Dm, st);}
+};
+struct NoRealPullback {};
+template <class T, class D> using RealPullbackBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, tStatic_PC_RealBlock_Of<D>, NoRealPullback>;
 
 } // namespace qchem::Hamiltonian

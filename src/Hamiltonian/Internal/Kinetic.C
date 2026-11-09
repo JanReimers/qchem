@@ -43,6 +43,7 @@ template <class T> class Kinetic
     , public         StaticRealBlockBase<T,Kinetic<T>>   // real-block capability on the dcmplx instantiation (Step 3c)
     , public virtual tGeometryGradient_HT<T>             // its force (GeometryOptimizationPlan §13.2), after the private base (the cross-cast trap)
     , public virtual tStatic_PC<T>                       // the per-block pullback client DM_Pullback walks
+    , public         RealPullbackBase<T,Kinetic<T>>      // ... and on <dcmplx> the real TRIM block's (§13.2; lane B)
 {
 public:
     //! \copydoc HT_BlockOwner::BuildBlocks
@@ -75,16 +76,13 @@ public:
     virtual std::string MissingGradient(const tbs_t<T>* bs, const Structure*) const override
     {
         if (!bs) return "Kinetic: no basis to differentiate";
-        for (const auto* b : bs->template Iterate<tobs_t<T>>())
-            if (!b->CanPullbackKinetic()) return "Kinetic: the basis block "+b->Name()+" gives no kinetic pullback";
-        return "";
+        std::string why;
+        ForEachBlock(bs, [&](const auto* b)
+            { if (why.empty() && !b->CanPullbackKinetic()) why="Kinetic: the basis block "+b->Name()+" gives no kinetic pullback"; });
+        return why;
     }
-    virtual rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin&, const hmat_t<T>& D, const Structure* st) const override
-    {
-        const auto r=bs->MakeKineticPullback(D, st);
-        if (!r) throw std::logic_error("Kinetic::Pullback: "+r.Error().why+" (MissingGradients() names it before a force is asked)");
-        return *r;
-    }
+    virtual rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const override
+    {return PullbackBlock<T>(bs, s, D, st);}
     virtual void AddForces(rvec3vec_t& F, const tDM_CD<T>* D, const Structure* st) const override
     {
         const rvec3vec_t g=D->DM_Pullback(this, st);
@@ -99,7 +97,15 @@ private:
     {
         return 0.5*bs->Kinetic();   // T = 1/2 <p^2>; Kinetic() is the cached <p^2> accessor
     }
+    //! ONE pullback body for both block scalars: the native block, and on <dcmplx> the real TRIM block (tStatic_PC_RealBlock_Of).
+    template <class U> rvec3vec_t PullbackBlock(const tobs_t<U>* bs, const Spin&, const hmat_t<U>& D, const Structure* st) const
+    {
+        const auto r=bs->MakeKineticPullback(D, st);
+        if (!r) throw std::logic_error("Kinetic::Pullback: "+r.Error().why+" (MissingGradients() names it before a force is asked)");
+        return *r;
+    }
     friend class Static_HT_RealBlock_Of<Kinetic<T>>;
+    friend class tStatic_PC_RealBlock_Of<Kinetic<T>>;
 };
 
 } //namespace

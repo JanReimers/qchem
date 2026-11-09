@@ -19,11 +19,14 @@ namespace qchem::Hamiltonian
 {
 namespace
 {
-//! The Pulay sum's per-block client: the overlap's pullback, asked of the block the density walk hands it.
-template <class T> class OverlapPullback : public virtual tStatic_PC<T>
+//! The Pulay sum's per-block client: the overlap's pullback, asked of the block the density walk hands it (on a complex run a real TRIM
+//! block too, through the real-block mixin).
+template <class T> class OverlapPullback : public virtual tStatic_PC<T>, public RealPullbackBase<T,OverlapPullback<T>>
 {
 public:
-    rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin&, const hmat_t<T>& W, const Structure* st) const override
+    rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& W, const Structure* st) const override
+    {return PullbackBlock<T>(bs, s, W, st);}
+    template <class U> rvec3vec_t PullbackBlock(const tobs_t<U>* bs, const Spin&, const hmat_t<U>& W, const Structure* st) const
     {
         const auto r=bs->MakeOverlapPullback(W, st);
         if (!r) throw std::logic_error("Hamiltonian::Forces, the Pulay term: "+r.Error().why);
@@ -56,8 +59,8 @@ template <class T> std::vector<std::string> tHamiltonianImp<T>::MissingGradients
     for (const auto& t : itsDHTs)   ask(*t);
     for (const auto& t : itsHF_HTs) ask(*t);
     if (!bs) out.push_back("Pulay, Tr(W dS/dR): no basis to differentiate");
-    else for (const auto* b : bs->template Iterate<tobs_t<T>>())
-        if (!b->CanPullbackOverlap()) out.push_back("Pulay, Tr(W dS/dR): the basis block "+b->Name()+" gives no overlap pullback");
+    else ForEachBlock(bs, [&](const auto* b)
+        { if (!b->CanPullbackOverlap()) out.push_back("Pulay, Tr(W dS/dR): the basis block "+b->Name()+" gives no overlap pullback"); });
     return out;
 }
 
