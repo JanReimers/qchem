@@ -163,13 +163,14 @@ int qcb_space_group(const double* lattice9, const int* species, int nat, const d
 
 // -- crystal FILES and the MATERIALS layers (qchem.CrystalFiles, StructureData's layers; OpenWork §2, ruled 2026-11-09) --------
 
-//! One materials request as JSON text, its answer as JSON text (`{"error": "..."}` on a refusal, in the library's words):
-//!   {"op":"list"}                                    -> {"materials":[{name, layer: shipped|user|workspace, file, entry, lattice_bohr}]}
-//!   {"op":"import","path":P}                         -> {entry, name, warnings, lattice_bohr}   (CIF / POSCAR / extended xyz)
-//!   {"op":"export","entry":E,"format":F,"name":N}    -> {text}   (F: cif | poscar | xyz)
-//!   {"op":"save","name":N,"entry":E,"replace":B}     -> {path}   (the user's library)
-//!   {"op":"add_workspace","path":P}                  -> {}
-//!   {"op":"cell","entry":E}                          -> {lattice_bohr}   (rows a, b, c; a Bravais entry's vectors)
+//! One materials request as JSON text, its answer as JSON text (`{"error": "..."}` on a refusal, in the library's words).  The
+//! library reads no environment: the caller passes every library it layers over the shipped one, as
+//! `"libraries": [{"layer": "user"|"workspace", "path": P}, ...]` (the GUI resolves ~/.qchem/materials.json itself):
+//!   {"op":"list","libraries":L}                          -> {"materials":[{name, layer: shipped|user|workspace, file, entry, lattice_bohr}]}
+//!   {"op":"import","path":P}                             -> {entry, name, warnings, lattice_bohr}   (CIF / POSCAR / extended xyz)
+//!   {"op":"export","entry":E,"format":F,"name":N}        -> {text}   (F: cif | poscar | xyz)
+//!   {"op":"save","into":{layer,path},"name":N,"entry":E,"replace":B,"libraries":L}  -> {path}   (L: the OTHER layers it may not collide with)
+//!   {"op":"cell","entry":E}                              -> {lattice_bohr}   (rows a, b, c; a Bravais entry's vectors)
 //! TWO CALLS: with `out` null the request RUNS and its answer is kept (the return is its length); then a call with a buffer
 //! copies that answer (`req` ignored).  So a save runs once.
 int qcb_materials(const char* req, char* out, int outlen);

@@ -512,10 +512,18 @@ nlohmann::ordered_json MaterialsAnswer(const std::string& req)
     using json=nlohmann::ordered_json;
     const json r=json::parse(req);
     const std::string op=r.at("op").get<std::string>();
+    auto layerOf=[](const json& l)
+    {
+        const std::string k=l.at("layer").get<std::string>();
+        if (k!="user" && k!="workspace") throw std::invalid_argument("a library layer is user or workspace, not '"+k+"'");
+        return SD::LibraryFile{k=="user" ? SD::Layer::User : SD::Layer::Workspace, l.at("path").get<std::string>()};
+    };
+    std::vector<SD::LibraryFile> libraries;
+    for (const auto& l : r.value("libraries", json::array())) libraries.push_back(layerOf(l));
     if (op=="list")
     {
         json all=json::array();
-        for (const auto& e : SD::CellEntries())
+        for (const auto& e : SD::CellEntries(libraries))
             all.push_back({{"name", e.name}, {"layer", e.layer==SD::Layer::Shipped ? "shipped" : e.layer==SD::Layer::User ? "user" : "workspace"},
                            {"file", e.file}, {"entry", json::parse(e.entryJson)}, {"lattice_bohr", LatticeRows(e.entryJson)}});
         return {{"materials", all}};
@@ -534,12 +542,12 @@ nlohmann::ordered_json MaterialsAnswer(const std::string& req)
     }
     if (op=="save")
     {
-        SD::SaveUserMaterial(r.at("name").get<std::string>(), r.at("entry").dump(), r.value("replace", false));
-        return {{"path", SD::UserLibraryPath()}};
+        const SD::LibraryFile into=layerOf(r.at("into"));
+        SD::SaveMaterial(into, r.at("name").get<std::string>(), r.at("entry").dump(), r.value("replace", false), libraries);
+        return {{"path", into.path}};
     }
-    if (op=="add_workspace") { SD::AddWorkspaceLibrary(r.at("path").get<std::string>()); return json::object(); }
     if (op=="cell") return {{"lattice_bohr", LatticeRows(r.at("entry").dump())}};
-    throw std::invalid_argument("materials op '"+op+"' (known: list, import, export, save, add_workspace, cell)");
+    throw std::invalid_argument("materials op '"+op+"' (known: list, import, export, save, cell)");
 }
 } // namespace
 

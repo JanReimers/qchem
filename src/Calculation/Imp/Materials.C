@@ -62,18 +62,13 @@ int Material::Nelec() const
 
 namespace
 {
-Material FromEntry(const std::string& name, const json& e, double aOverride, const std::string& pp)
+Material FromEntry(const std::string& name, const json& e, double aOverride)
 {
-    const std::string set = e.contains("pp") ? e.at("pp").get<std::string>() : pp;
-    if (set.empty()) throw std::runtime_error("Materials: '" + name + "' names no pseudopotential set (its 'pp', or the run's)");
-    return FromCell(name, StructureData::GetCell(name, aOverride), set);
+    return FromCell(name, StructureData::GetCell(name, aOverride), e.at("pp").get<std::string>());
 }
 } // anonymous
 
-Material Get(const std::string& name, double a, const std::string& pp)
-{
-    return FromEntry(name, json::parse(StructureData::GetCellEntry(name).entryJson), a, pp);   // any layer: shipped, user, workspace
-}
+Material Get(const std::string& name, double a) { return FromEntry(name, json::parse(StructureData::GetCellEntry(name).entryJson), a); }   // shipped
 
 Material Inline(const std::string& entryJson, const std::string& pp)
 {

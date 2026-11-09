@@ -232,7 +232,12 @@ TEST(Deck, AStatedValenceOverridesTheMaterialAndBadStructuresAreRefused)
     EXPECT_THROW(deck::FromJson(json{{"solid",json::object()}}, r), std::runtime_error);                 // structure is required
     EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"lattice",{{"a",10.0}}}}, r), std::runtime_error);   // no restating the structure
     deck::RunSpec bad; bad.structure="NoSuchMaterial";
-    try { deck::Resolve(bad); FAIL(); } catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("Si_diamond"),std::string::npos) << "lists the known names"; }
+    try { deck::Resolve(bad); FAIL(); }
+    catch (const std::runtime_error& e)
+    {
+        EXPECT_NE(std::string(e.what()).find("Si_diamond"),std::string::npos) << "lists the known names";
+        EXPECT_NE(std::string(e.what()).find("stated INLINE"),std::string::npos) << "a deck never names a user material: it says to inline it (controller ruling 2026-11-09)";
+    }
     deck::RunSpec mol; mol.structure=StructureData::MoleculeNames().front();
     EXPECT_THROW(deck::Resolve(mol), std::runtime_error);
 }

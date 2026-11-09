@@ -361,7 +361,7 @@ NB_MODULE(qchem_py, mod)
         return out;
     }, nb::arg("request"),
        "Crystal files and the materials layers (JSON text in, JSON text out; {\"error\": ...} on a refusal): list | import | "
-       "export | save | add_workspace | cell -- see qcb_api.h qcb_materials.");
+       "export | save | cell -- see qcb_api.h qcb_materials (the caller passes the user / workspace library paths).");
 
     nb::class_<SolidRun>(mod, "SolidRun")
         .def(nb::init<const std::string&>(), nb::arg("deck_json"),
