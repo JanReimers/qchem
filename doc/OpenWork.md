@@ -291,9 +291,10 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
   `~/Code/Enzyme-main` by default, checks the pin 871de19f and runs a smoke derivative; a tree with an empty plugin cache finds it on
   reconfigure; (2) the hand derivatives below move to in-place AD registrations, one family per commit, each behind its existing FD gate;
   the hand version is deleted.  While EnzymeAD/Enzyme#3747 (a SILENT wrong reverse-mode gradient) is open, every Enzyme derivative keeps
-  its FD gate.  The principle is one derivative method for all derivatives, Enzyme.  These are still hand-coded:
-  - the basis `Gradient(r)` faces (`PrimGaussian`, `GaussianRF`, PG_Cart `IrrepBasisSet`, ∇_r χ);
-  - our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`).
+  its FD gate.  The principle is one derivative method for all derivatives, Enzyme.
+  - **DONE (lane B bafecbbb)**: the basis `Gradient(r)` faces (`PrimGaussian`, `GaussianRF`, `Polarization`; PG_Cart, PG_LibCint,
+    PG_Spherical consume it), Enzyme's in `GaussianRF_AD.C`; the FD gates gained a permanent on-axis point.
+  - Still hand-coded: our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`).
 
   New force derivatives are Enzyme only.  Next action (lane B, under way): move each one to an in-place AD registration beside its value,
   one family per commit, behind its existing FD gate, and delete the hand version.  While EnzymeAD/Enzyme#3747 is open every Enzyme
