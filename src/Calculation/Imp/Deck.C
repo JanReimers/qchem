@@ -136,6 +136,8 @@ const auto kAngular= NAMES(AngularKind, {"Lebedev",AngularKind::Lebedev}, {"Gaus
 using Measure = SCFParams::Measure;
 using BasisSet::Gaussian::BasisSetData;
 const auto kMeasure= NAMES(Measure, {"L1PerElectron",Measure::L1PerElectron}, {"MaxDeltaD",Measure::MaxΔD});
+const auto kDegenerateFill = NAMES(SCFParams::DegenerateLevelFill, {"Auto",SCFParams::DegenerateLevelFill::Auto},
+    {"OrbitalByOrbital",SCFParams::DegenerateLevelFill::OrbitalByOrbital}, {"Shared",SCFParams::DegenerateLevelFill::Shared});
 const auto kMixing = NAMES(SCFParams::Mixing, {"Auto",SCFParams::Mixing::Auto}, {"Linear",SCFParams::Mixing::Linear},
                             {"Kerker",SCFParams::Mixing::Kerker}, {"Pulay",SCFParams::Mixing::Pulay});
 
@@ -175,7 +177,7 @@ static json GateJson(const Gate& g) {return g ? json(*g) : json("off");}   //!< 
 json ToJson(const SCFParams& p)
 {
     return {{"NMaxIter",p.NMaxIter},{"minDeltaRhoPerElectron",GateJson(p.MinΔρPerElectron)},{"deltaRhoMeasure",NameOf(p.Δρmeasure,kMeasure)},{"minDeltaFD",GateJson(p.MinΔFD)},
-            {"minDeltaE",GateJson(p.MinΔE)},{"minVirial",GateJson(p.MinVirial)},{"minFD",GateJson(p.MinFD)},{"mixer",NameOf(p.Mixer,kMixing)},{"startingRelaxRo",p.StartingRelaxRo},{"maxRelaxRo",p.MaxRelaxRo},{"minRelaxRo",p.MinRelaxRo},{"mergeTol",p.MergeTol},
+            {"minDeltaE",GateJson(p.MinΔE)},{"minVirial",GateJson(p.MinVirial)},{"minFD",GateJson(p.MinFD)},{"mixer",NameOf(p.Mixer,kMixing)},{"startingRelaxRo",p.StartingRelaxRo},{"maxRelaxRo",p.MaxRelaxRo},{"minRelaxRo",p.MinRelaxRo},{"mergeTol",p.MergeTol},{"degenerateLevelFill",NameOf(p.DegenerateLevels,kDegenerateFill)},
             {"verbose",p.Verbose},{"xcCuspDeficit",p.XCCuspDeficit},{"kerkerG0",p.KerkerG0},{"useMOM",p.UseMOM},{"pulayDepth",p.PulayDepth},
             {"pulayStart",p.PulayStart},{"momStartIter",p.MOMStartIter},{"smearingkT",p.SmearingkT},{"momSmearPenalty",p.MOMSmearPenalty},
             {"stopOnAccelExhausted",p.StopOnAccelExhausted},
@@ -189,7 +191,7 @@ void FromJson(const json& j, SCFParams& p)
                                  "electron on the run's quadrature (the old number meant something different per mixer)");
     f.Get("NMaxIter",p.NMaxIter); f.GetGate("minDeltaRhoPerElectron",p.MinΔρPerElectron); f.GetEnum("deltaRhoMeasure",p.Δρmeasure,kMeasure);
     f.GetGate("minDeltaFD",p.MinΔFD); f.GetGate("minDeltaE",p.MinΔE); f.GetGate("minVirial",p.MinVirial); f.GetGate("minFD",p.MinFD);
-    f.GetEnum("mixer",p.Mixer,kMixing); f.Get("startingRelaxRo",p.StartingRelaxRo); f.Get("maxRelaxRo",p.MaxRelaxRo); f.Get("minRelaxRo",p.MinRelaxRo); f.Get("mergeTol",p.MergeTol); f.Get("verbose",p.Verbose);
+    f.GetEnum("mixer",p.Mixer,kMixing); f.Get("startingRelaxRo",p.StartingRelaxRo); f.Get("maxRelaxRo",p.MaxRelaxRo); f.Get("minRelaxRo",p.MinRelaxRo); f.Get("mergeTol",p.MergeTol); f.GetEnum("degenerateLevelFill",p.DegenerateLevels,kDegenerateFill); f.Get("verbose",p.Verbose);
     f.Get("xcCuspDeficit",p.XCCuspDeficit); f.Get("kerkerG0",p.KerkerG0); f.Get("useMOM",p.UseMOM);
     f.Get("pulayDepth",p.PulayDepth); f.Get("pulayStart",p.PulayStart); f.Get("momStartIter",p.MOMStartIter);
     f.Get("smearingkT",p.SmearingkT); f.Get("momSmearPenalty",p.MOMSmearPenalty); f.Get("stopOnAccelExhausted",p.StopOnAccelExhausted);

@@ -27,6 +27,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     Deck.C
     SCFFailure.C
     SCFRecipeReport.C
+    DegenerateFill.C
     Policy.C
     GridAudit.C
     BasisCoverage.C

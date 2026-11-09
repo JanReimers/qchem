@@ -118,6 +118,23 @@ double FermiOccupancy(double e, double mu, double kT);
 //! cross-k fill, so ONE unweighted solver serves both (the global weight rides in \a g).  Requires
 //! \a e.size()==g.size()>0 and \f$\sum g\ge\text{target}\f$ (capacity).  Returns μ (doc/GPWPlan1.md item 3).
 double FermiLevel(const rvec_t& e, const rvec_t& g, double target, double kT);
+//! \brief THE kT = 0 FILL: distribute \a ne electrons over orbitals of energy \a e and capacity \a g; returns each
+//! orbital's occupation (sum = min(ne, sum g)).
+//!
+//! A DEGENERATE LEVEL is the set of orbitals within \a levelTol of its lowest energy (energies sorted, a new level
+//! starts where e - e_start > levelTol).  Levels fill whole, in turn, and the one the budget only partly fills gives
+//! every member the SAME share, occ_i = g_i x left / G (G = the level's capacity): the kT -> 0 limit of the Fermi fill.
+//! WHY (user ruling 2026-11-08, D-DEGEN-FILL): filled orbital by orbital, a degenerate level's occupied subspace is
+//! whichever orbitals the eigensolver happened to list first, so D depends on an arbitrary rotation inside the level
+//! and a roundoff change elsewhere can flip the converged state (PW_NaF Γ: 4 e- into a 6-fold level filled 2+2+0,
+//! the SCF capped 0.147 Ha high; GPW_Al Γ: one 3p electron).  Shared equally, D is invariant to that rotation.
+//!
+//! ONLY AN UNSTATED AUFBAU SHARES (controller/user 2026-11-08): the fill shares a level that nothing chose among.  A STATED
+//! order wins exactly -- \a rank non-empty (a MOM ranking: the overlap with a reference picks the orbitals) or \a levelTol <= 0
+//! (a HELD fill, which must reproduce the very block a geodesic rotated) is the orbital-by-orbital fill, in \a rank's order
+//! (descending) or the stored one.  A configuration stated per irrep (Atom_EC per m) never reaches a shared level: each of
+//! its blocks has its own prescribed count and one orbital per energy.
+rvec_t ShareDegenerateLevels(const rvec_t& e, const rvec_t& g, const rvec_t& rank, double ne, double levelTol);
 
 template <class T> class TOrbitals
     : public virtual Orbitals

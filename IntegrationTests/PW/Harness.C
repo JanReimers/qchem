@@ -364,6 +364,8 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     SCFParams par;
     par.NMaxIter=120; par.MinΔρPerElectron=1e-6; par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=false;
+    // The iterator, driven directly, has no facade to choose the degenerate-level rule: state the solid facade's (D-DEGEN-FILL).
+    par.DegenerateLevels=SCFParams::DegenerateLevelFill::Shared;
     scf.Iterate(par);
     const qchem::WaveFunction::cWaveFunction* wf=scf.GetWaveFunction();
     auto cd=wf->GetChargeDensity();

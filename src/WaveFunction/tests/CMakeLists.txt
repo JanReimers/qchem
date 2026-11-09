@@ -2,6 +2,7 @@
 add_executable(UTWaveFunction ../../Common/tests/gtestmain.C
     EigenRowsUT.C
     ReservoirChargeUT.C
+    DegenerateFillUT.C  # the kT = 0 fill kernel (D-DEGEN-FILL)
 )
 target_compile_definitions(UTWaveFunction PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTWaveFunction PROPERTY CXX_STANDARD 20)

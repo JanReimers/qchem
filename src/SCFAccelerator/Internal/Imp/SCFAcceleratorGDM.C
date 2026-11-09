@@ -170,6 +170,10 @@ template <class T> bool tSCFIrrepAcceleratorGDM<T>::ComputeStep()
     // gate ComputeStep and not merely Ready(), because NextOrbitals() TAKES the step whenever ComputeStep
     // succeeds -- a check only in Ready() would still let the fallback path commit a full geodesic step.
     if (!itsBlockOccupied) return false;
+    // The idempotency half, for the same reason (D-DEGEN-FILL, 2026-11-08): a declined (fractional) D' must not get a geodesic either.
+    // Only Ready() checked it, so the fallback path took ONE held integer step from a shared degenerate level -- boron LDA's first
+    // iterate jumped to the symmetry-broken state and GDM re-engaged on it (2.4 mHa below the shared state the Ladder converged).
+    if (!itsIdempotent) return false;
     if (!itsHaveC || itsEn>=itsParams.EngageBelowFD) return false;
     // A PASSIVE block (no electrons, or every orbital full) has no occupied-virtual pair, so no geodesic: its density is
     // 0 or g*1 whatever its orbitals, and its step is a plain diagonalization of F' -- exact, and it keeps the block's
