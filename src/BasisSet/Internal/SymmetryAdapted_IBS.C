@@ -67,28 +67,27 @@ public:
     virtual rsmat_t MakeOverlap()                 const;
     virtual rsmat_t MakeKinetic()                 const;
     virtual rsmat_t MakeNuclear(const Structure* cl) const;
-    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
-    virtual bool CanPullbackOverlap() const override {return false;}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "overlap pullback");}
-    virtual bool CanPullbackKinetic() const override {return false;}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<double>&, const Structure*) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "kinetic pullback");}
-    virtual bool CanPullbackNuclear() const override {return false;}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<double>&, const Structure*) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "nuclear pullback");}
+    // d/dR (GeometryOptimizationPlan §13.2).  M_Γ = Oᵀ M_raw O with the SALC columns O FIXED (they are symmetry-operation images, not
+    // functions of R), so Tr(D ∂M_Γ/∂R) = Tr(O D Oᵀ ∂M_raw/∂R): every pullback below is the RAW basis's, handed this block's density
+    // folded up to AO (AddAODensity), and a block can give one exactly when its raw basis can.  Summed over the irreps the AO densities
+    // add to the whole-molecule D, so the force is the AO force of the same density -- along a symmetry-breaking direction too, since a
+    // symmetric SCF density is stationary against the off-irrep rotations the blocking left out (F has no off-irrep block).
+    virtual bool CanPullbackOverlap() const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>& D, const Structure* st) const override;
+    virtual bool CanPullbackKinetic() const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<double>& D, const Structure* st) const override;
+    virtual bool CanPullbackNuclear() const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<double>& D, const Structure* st) const override;
     // Species fields (O^T M_raw O), when the raw basis can assemble them.
     virtual bool    CanAssembleField     (const SpeciesRadialField&)  const;
     virtual bool    CanAssembleProjectors(const SpeciesProjectorSet&) const;
     virtual rsmat_t MakeSpeciesFieldMatrix(const Structure*, const SpeciesRadialField&, FieldRange) const;
     virtual rsmat_t MakeProjectorMatrix   (const Structure*, const SpeciesProjectorSet&) const;
-    // d/dR (GeometryOptimizationPlan §13.2): a SALC block refuses for now, as its 1E pullbacks do.
-    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const override {return false;}
-    virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override {return false;}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure*, const SpeciesRadialField&, FieldRange, const hmat_t<double>&) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "species-field pullback");}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure*, const SpeciesProjectorSet&, const hmat_t<double>&) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "projector pullback");}
+    // d/dR (GeometryOptimizationPlan §13.2): the raw basis's, on the AO-folded D (as the 1E pullbacks above).
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const override;
+    virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure*, const SpeciesRadialField&, FieldRange, const hmat_t<double>&) const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure*, const SpeciesProjectorSet&, const hmat_t<double>&) const override;
 
     // 2-electron (HF): build the AO Coulomb/exchange from the cd-irrep's density block (linear
     // in D, so no 4-index ERI transform) and slice to this irrep.  Summed over the cd irreps by
@@ -103,18 +102,19 @@ public:
                                       const Orbital_HF_IBS<double>* cd) const;
     virtual void AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const rsmat_t& Di, const rsmat_t& Dj,
                                         const Orbital_HF_IBS<double>* cd) const;
-    // d/dR (GeometryOptimizationPlan §13.2): a SALC block refuses for now, as its 1E pullbacks do.
-    virtual bool CanPullbackERI4(const Orbital_HF_IBS<double>*) const override {return false;}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeDirectPullback(const rsmat_t&, const rsmat_t&, const Orbital_HF_IBS<double>*, const Structure*) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "Coulomb pullback");}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const rsmat_t&, const rsmat_t&, const Orbital_HF_IBS<double>*, const Structure*) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "exchange pullback");}
+    // d/dR (GeometryOptimizationPlan §13.2): the raw basis's ERI pullback on BOTH blocks' AO-folded densities, the partner folding its own
+    // block through the abstract whole-system face (as PairAOFock does).  Correct for any pair, but each call is one whole-AO pullback: the
+    // composite's whole-system route (MakeAOPullback below) folds every block first and calls ONE, so a run never walks these N² times.
+    virtual bool CanPullbackERI4(const Orbital_HF_IBS<double>* other) const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeDirectPullback  (const rsmat_t& Da, const rsmat_t& Db, const Orbital_HF_IBS<double>* other, const Structure* st) const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const rsmat_t& Da, const rsmat_t& Db, const Orbital_HF_IBS<double>* other, const Structure* st) const override;
 
     // --- WholeSystemFock_IBS (V1.31): the route the composite density actually takes for a SALC basis ---
     virtual size_t  AODimension() const {return itsO.rows();}
     virtual void    AddAODensity(rsmat_t& Dao, const rsmat_t& D) const;   // Dao += O D O^T
     virtual rsmat_t MakeAOFock  (const rsmat_t& Dao, bool exchange) const;// the ONE whole-AO build
     virtual void    SliceAOFock (rsmat_t& Fab, const rsmat_t& Fao) const; // Fab += O^T Fao O
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeAOPullback(const rsmat_t& Dao, bool exchange, const Structure* st) const; // ∂Tr(Dao X[Dao])/∂R
 
     // DFT 3-centre fitted Coulomb / Vxc.  The cached accessors Overlap3C/Repulsion3C are inherited
     // from Orbital_DFT_IBS unchanged: they key the *transformed* block under this irrep's
@@ -128,10 +128,9 @@ protected:
     virtual Projector3<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const;
     virtual Projector3<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const;
 public:
-    // d/dR (GeometryOptimizationPlan §13.2): a SALC block refuses for now, as its 1E pullbacks do.
-    virtual bool CanPullbackRepulsion3C(const rFIT_CD_ABS&) const override {return false;}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const rFIT_CD_ABS&, const hmat_t<double>&, const rvec_t&, const Structure*) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "3-centre repulsion pullback");}
+    // d/dR (GeometryOptimizationPlan §13.2): the raw DFT basis's, on the AO-folded D (the fit basis is the raw one's, atom-centred).
+    virtual bool CanPullbackRepulsion3C(const rFIT_CD_ABS& c) const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const rFIT_CD_ABS& c, const hmat_t<double>& D, const rvec_t& a, const Structure* st) const override;
 
     // The per-irrep cache distinction lives in BasisSetID() (raw id + "[label]"), so each irrep's
     // transformed blocks key separately.  (No RadialID/AngularID -- those are the atom identity face;
@@ -154,6 +153,7 @@ private:
     //! face), we build once.  V1.10 -- no reach into a sibling's private SALC columns.
     rsmat_t      PairAOFock(const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd, bool exchange) const;
     rsmat_t      Transform(const rsmat_t& Mraw) const;          // O^T Mraw O, symmetrized
+    rsmat_t      FoldUp(const rsmat_t& D) const;                // O D O^T, symmetrized: the pullbacks' AO density
     Projector3<double> Transform3C(const Projector3<double>& raw) const; // Transform each fit-function matrix
 
     const Orbital_1E_IBS<double>*  itsRaw;            // raw whole-molecule AO basis (not owned)

@@ -7,6 +7,8 @@
 //   M_LibCint.C) contracted with the adjoint; translation invariance; a mismatched adjoint throws.
 // - PG_Cart's Coulomb-fit (Dunlap) pullbacks, MakeRepulsion3CPullback and its fit's MakeRepulsionPullback, against the central difference
 //   of the same faces' contractions at displaced atoms; translation invariance; a mismatched adjoint throws.
+// - The SALC decorator's pullbacks (1E, and the ERI pair and whole-system ones) against the central difference of its OWN blocks' matrices,
+//   the raw basis rebuilt at displaced atoms under the SAME SALC columns.
 // - A family with no derivative yet answers Can...() false and refuses with NoGradient.
 #include "gtest/gtest.h"
 #include <algorithm>
@@ -29,6 +31,10 @@ import qchem.BasisSet.Gaussian.Point.BasisFiles;          // BasisFile (the cont
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
 import qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;
+import qchem.BasisSet.Gaussian.PG_Cart.Symmetry;               // ExtractAoShells, StructureToSymPoints (the SALC gate)
+import qchem.BasisSet.Internal.SymmetryAdapted_IBS;
+import qchem.BasisSet.Gaussian.Point.SymmetryAdaptedBasisSet;
+import qchem.Symmetry.Molecule.SALC;                            // BuildAbelianGroup, BuildSALCs
 import qchem.Structure;
 import qchem.Types;
 
@@ -431,5 +437,105 @@ TEST(GeometryDerivatives, PG_CartsERI4PullbacksAreTheFiniteDifferenceOfItsOwnCon
     const BasisSet::Orbital_HF_IBS<double>& S=sph;
     EXPECT_FALSE(S.CanPullbackERI4(&S)) << "PG_Spherical has no geometry derivative yet";
     const auto r=S.MakeDirectPullback(rsmat_t(sph.GetNumFunctions()), rsmat_t(sph.GetNumFunctions()), &S, h2o.get());
+    EXPECT_FALSE(bool(r)); if (!r) EXPECT_FALSE(r.Error().why.empty());
+}
+
+// GATE 6, the SALC decorator (§13.2; lane B 2026-11-09): every C2v block of water's DZVP gets a random symmetric density D_Γ, and
+//   Σ_Γ MakeXPullback(D_Γ)                         (X = overlap, kinetic, nuclear),
+//   Σ_ΓΔ MakeDirect/ExchangePullback(D_Γ, D_Δ, Δ)  (every ordered pair), and the whole-system MakeAOPullback(Σ_Γ O_Γ D_Γ O_Γᵀ),
+// against the central difference of Σ_Γ Tr(D_Γ M_Γ) and Σ_ΓΔ Tr(D_Γ X_Γ[D_Δ]) of the SAME blocks' own matrices and contractions, the raw
+// basis rebuilt at displaced atoms under the SAME SALC columns (O is held: it is made of symmetry-operation images, not of R).  Step and
+// tolerance as gates 1 and 5; the whole-system pullback is the pair sum to roundoff (the pair pullback is bilinear).
+TEST(GeometryDerivatives, SALCPullbacksAreTheFiniteDifferenceOfTheirOwnBlocksWithTheColumnsHeld)
+{
+    using SALCBlock=BasisSet::SymmetryAdapted_IBS;
+    const auto h2o=Water();
+    const auto R=Sites(*h2o);
+    const auto raw=Dzvp(h2o.get());
+    const auto pts=BasisSet::Gaussian::PG_Cart::StructureToSymPoints(*h2o);
+    const auto grp=Symmetry::Molecule::BuildAbelianGroup(pts, 1e-4);
+    const auto salc=Symmetry::Molecule::BuildSALCs(BasisSet::Gaussian::PG_Cart::ExtractAoShells(*raw), grp, Symmetry::Molecule::Centroid(pts), 1e-4);
+    auto blocks=[&](const BasisSet::Gaussian::SymmetryAdaptedBasisSet& sab)
+    {
+        std::vector<const SALCBlock*> b;
+        for (auto oi : sab.Iterate<BasisSet::Real_OIBS>()) b.push_back(dynamic_cast<const SALCBlock*>(oi));   // a test may cheat
+        return b;
+    };
+    const BasisSet::Gaussian::SymmetryAdaptedBasisSet sab(raw.get(), salc);
+    const auto B=blocks(sab);
+    ASSERT_GE(B.size(), 2u);
+    std::mt19937 rng(23); std::uniform_real_distribution<double> U(-1,1);
+    std::vector<rsmat_t> D;
+    rsmat_t Dao(raw->GetNumFunctions());
+    for (const SALCBlock* b : B)
+    {
+        ASSERT_NE(b, nullptr);
+        ASSERT_TRUE(b->CanPullbackOverlap() && b->CanPullbackKinetic() && b->CanPullbackNuclear());
+        const size_t n=b->GetNumFunctions();
+        rsmat_t X(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) X(i,j)=U(rng);
+        b->AddAODensity(Dao, X);
+        D.push_back(X);
+    }
+    const size_t nat=R.size();
+    rvec3vec_t FS(nat, rvec3_t(0,0,0)), FK=FS, FV=FS, FJ=FS, FX=FS;
+    auto add=[](rvec3vec_t& F, const Outcome<rvec3vec_t,AD::NoGradient>& g){ ASSERT_TRUE(bool(g)) << (g ? "" : g.Error().why); for (size_t A=0;A<F.size();A++) F[A]+=(*g)[A]; };
+    for (size_t k=0;k<B.size();k++)
+    {
+        add(FS, B[k]->MakeOverlapPullback(D[k], h2o.get())); add(FK, B[k]->MakeKineticPullback(D[k], h2o.get()));
+        add(FV, B[k]->MakeNuclearPullback(D[k], h2o.get()));
+        for (size_t l=0;l<B.size();l++)
+        {
+            ASSERT_TRUE(B[k]->CanPullbackERI4(B[l]));
+            add(FJ, B[k]->MakeDirectPullback(D[k], D[l], B[l], h2o.get())); add(FX, B[k]->MakeExchangePullback(D[k], D[l], B[l], h2o.get()));
+        }
+    }
+    const auto WJ=B[0]->MakeAOPullback(Dao, false, h2o.get()), WK=B[0]->MakeAOPullback(Dao, true, h2o.get());
+    ASSERT_TRUE(WJ && WK);
+    for (size_t A=0;A<nat;A++) { EXPECT_LT(norm((*WJ)[A]-FJ[A]), 1e-10) << "whole-system Coulomb, atom " << A;
+                                 EXPECT_LT(norm((*WK)[A]-FX[A]), 1e-10) << "whole-system exchange, atom " << A; }
+    auto contractions=[&](const Structure* st)
+    {
+        const auto r1=Dzvp(st);
+        const BasisSet::Gaussian::SymmetryAdaptedBasisSet s1(r1.get(), salc);   // the SAME columns
+        const auto B1=blocks(s1);
+        std::array<double,5> t{0,0,0,0,0};
+        for (size_t k=0;k<B1.size();k++)
+        {
+            t[0]+=TrAM(D[k], B1[k]->Overlap()); t[1]+=TrAM(D[k], B1[k]->Kinetic()); t[2]+=TrAM(D[k], B1[k]->Nuclear(st));
+            for (size_t l=0;l<B1.size();l++)
+            {
+                rsmat_t J(D[k].rows()), K(D[k].rows());
+                B1[k]->AccumulateDirect(J, D[l], B1[l]); B1[k]->AccumulateExchange(K, D[l], B1[l]);
+                t[3]+=TrAM(D[k], J); t[4]+=TrAM(D[k], K);
+            }
+        }
+        return t;
+    };
+    const std::array<const rvec3vec_t*,5> F{&FS, &FK, &FV, &FJ, &FX};
+    const char* name[5]={"overlap", "kinetic", "nuclear", "Coulomb", "exchange"};
+    const double h=1e-4;
+    std::array<rvec3_t,5> sum; sum.fill(rvec3_t(0,0,0));
+    double largest=0.0;
+    for (size_t at=0;at<nat;at++)
+    {
+        for (size_t q=0;q<5;q++) sum[q]+=(*F[q])[at];
+        for (int k=0;k<3;k++)
+        {
+            auto at_=[&](double s){ auto Rs=R; C(Rs[at],k)+=s; std::shared_ptr<Structure> st=h2o->Clone(); st->MoveSites(Rs); return contractions(st.get()); };
+            const auto p=at_(h), m=at_(-h);
+            for (size_t q=0;q<5;q++)
+            {
+                const double fd=(p[q]-m[q])/(2*h);
+                EXPECT_NEAR(C((*F[q])[at],k), fd, 2e-6*std::max(1.0,std::fabs(fd))) << name[q] << ", atom " << at << " axis " << k;
+                largest=std::max(largest, std::fabs(fd));
+            }
+        }
+    }
+    EXPECT_GT(largest, 0.1) << "the contractions move with the atoms";
+    for (size_t q=0;q<5;q++) EXPECT_LT(norm(sum[q]), 1e-8) << name[q] << ": translation invariance";
+    // A partner with no whole-system face (the raw AO block itself) cannot fold into this block's AO space: refused by name, Can agreeing.
+    const BasisSet::Orbital_HF_IBS<double>& rawHF=*raw;
+    EXPECT_FALSE(B[0]->CanPullbackERI4(&rawHF));
+    const auto r=B[0]->MakeDirectPullback(D[0], rsmat_t(raw->GetNumFunctions()), &rawHF, h2o.get());
     EXPECT_FALSE(bool(r)); if (!r) EXPECT_FALSE(r.Error().why.empty());
 }

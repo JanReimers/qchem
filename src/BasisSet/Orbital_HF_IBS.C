@@ -81,7 +81,7 @@ public:
 //! by that position (down there the only thing in hand is a matrix, so no density Version() is reachable).
 //! With the whole-system route the memo has nothing to memoize and is gone, along with its incomplete key.
 //!
-//! Three primitives, no stubs and no default bodies: a basis either has this face or does not have it.
+//! Three primitives and the pullback of the build, no stubs and no default bodies: a basis either has this face or does not have it.
 template <class T> class WholeSystemFock_IBS
 {
 public:
@@ -94,6 +94,12 @@ public:
     virtual hmat_t<T> MakeAOFock(const hmat_t<T>& Dao, bool exchange) const=0;
     //! \f$F_{ab} \mathrel{+}= O^\mathsf{T} F_{AO} O\f$: slice the whole-system Fock into THIS block.
     virtual void      SliceAOFock(hmat_t<T>& Fab, const hmat_t<T>& Fao) const=0;
+    //! THE PULLBACK of MakeAOFock (GeometryOptimizationPlan §13.2; a derivative beside the build, user ruling 2026-11-08):
+    //! \f$F_A = \partial\,\mathrm{Tr}(D_{AO} X[D_{AO}])/\partial R_A\f$ at fixed \a Dao, X = J (Coulomb) or K (\a exchange), all four
+    //! centres moving -- the AO pair pullback with the assembled density on both sides.  CLIENT: the composite's whole-system force route,
+    //! which folds every block up first (the pair pullback is bilinear, so that is exact) and calls this ONCE.  NoGradient when the
+    //! underlying AO basis has no ERI pullback (the blocks' CanPullbackERI4 says so first).
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeAOPullback(const hmat_t<T>& Dao, bool exchange, const Structure* st) const=0;
 };
 
 typedef Orbital_HF_IBS<double>    Real_HF_OIBS;

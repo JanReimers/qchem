@@ -187,6 +187,98 @@ rsmat_t SymmetryAdapted_IBS::MakeProjectorMatrix(const Structure* st, const Spec
     return Transform(dynamic_cast<const Orbital_PP_IBS<double>&>(*itsRaw).MakeProjectorMatrix(st,ps));
 }
 
+// --- d/dR (GeometryOptimizationPlan §13.2; lane B 2026-11-09) --------------------------------------------------
+// Every pullback is the RAW basis's on this block's density folded up to AO (see the header): Tr(D ∂(Oᵀ M O)) = Tr(O D Oᵀ ∂M), O fixed.
+rsmat_t SymmetryAdapted_IBS::FoldUp(const rsmat_t& D) const
+{
+    rsmat_t Dao=blazem::zero<double>(AODimension());
+    AddAODensity(Dao, D);
+    return Dao;
+}
+namespace
+{
+const Orbital_PP_IBS<double>* RawPP(const Orbital_1E_IBS<double>* raw) {return dynamic_cast<const Orbital_PP_IBS<double>*>(raw);}  // abstract -> abstract
+Outcome<rvec3vec_t,AD::NoGradient> NoRaw(const char* face, const char* what)
+{return NoGeometryDerivativeYet<rvec3vec_t>(std::string("a symmetry-adapted (SALC) block whose raw basis has no ")+face, what);}
+}
+
+bool SymmetryAdapted_IBS::CanPullbackOverlap() const {return itsRaw->CanPullbackOverlap();}
+bool SymmetryAdapted_IBS::CanPullbackKinetic() const {return itsRaw->CanPullbackKinetic();}
+bool SymmetryAdapted_IBS::CanPullbackNuclear() const {return itsRaw->CanPullbackNuclear();}
+Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeOverlapPullback(const hmat_t<double>& D, const Structure* st) const
+{return itsRaw->MakeOverlapPullback(FoldUp(D), st);}
+Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeKineticPullback(const hmat_t<double>& D, const Structure* st) const
+{return itsRaw->MakeKineticPullback(FoldUp(D), st);}
+Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeNuclearPullback(const hmat_t<double>& D, const Structure* st) const
+{return itsRaw->MakeNuclearPullback(FoldUp(D), st);}
+
+bool SymmetryAdapted_IBS::CanPullbackSpeciesField(const SpeciesRadialField& f) const
+{
+    const auto* pp=RawPP(itsRaw);
+    return pp && pp->CanPullbackSpeciesField(f);
+}
+bool SymmetryAdapted_IBS::CanPullbackProjectors(const SpeciesProjectorSet& ps) const
+{
+    const auto* pp=RawPP(itsRaw);
+    return pp && pp->CanPullbackProjectors(ps);
+}
+Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeSpeciesFieldPullback(const Structure* st, const SpeciesRadialField& f, FieldRange r,
+                                                                                const hmat_t<double>& D) const
+{
+    const auto* pp=RawPP(itsRaw);
+    if (!pp) return NoRaw("species-field face", "species-field pullback");
+    return pp->MakeSpeciesFieldPullback(st, f, r, FoldUp(D));
+}
+Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeProjectorPullback(const Structure* st, const SpeciesProjectorSet& ps, const hmat_t<double>& D) const
+{
+    const auto* pp=RawPP(itsRaw);
+    if (!pp) return NoRaw("species-field face", "projector pullback");
+    return pp->MakeProjectorPullback(st, ps, FoldUp(D));
+}
+
+bool SymmetryAdapted_IBS::CanPullbackRepulsion3C(const rFIT_CD_ABS& c) const {return itsRawDFT && itsRawDFT->CanPullbackRepulsion3C(c);}
+Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeRepulsion3CPullback(const rFIT_CD_ABS& c, const hmat_t<double>& D, const rvec_t& a,
+                                                                               const Structure* st) const
+{
+    if (!itsRawDFT) return NoRaw("DFT face", "3-centre repulsion pullback");
+    return itsRawDFT->MakeRepulsion3CPullback(c, FoldUp(D), a, st);
+}
+
+// The partner must fold its own block up (the whole-system face) into the SAME AO space; the raw basis must pull back against itself.
+bool SymmetryAdapted_IBS::CanPullbackERI4(const Orbital_HF_IBS<double>* other) const
+{
+    const auto* ws=dynamic_cast<const WholeSystemFock_IBS<double>*>(other);
+    return ws && ws->AODimension()==AODimension() && itsRawHF && itsRawHF->CanPullbackERI4(itsRawHF);
+}
+static Outcome<rvec3vec_t,AD::NoGradient> PairERI4(const SymmetryAdapted_IBS& self, const Orbital_HF_IBS<double>* rawHF, const rsmat_t& Dao_a,
+                                                    const rsmat_t& Db, const Orbital_HF_IBS<double>* other, const Structure* st, bool exchange)
+{
+    const char* what = exchange ? "exchange pullback" : "Coulomb pullback";
+    if (!self.CanPullbackERI4(other))
+        return NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block against a partner it cannot fold into its AO space, or "
+                                                   "over a raw basis with no ERI pullback", what);
+    rsmat_t Dao_b=blazem::zero<double>(self.AODimension());
+    dynamic_cast<const WholeSystemFock_IBS<double>&>(*other).AddAODensity(Dao_b, Db);   // the partner uses its OWN columns
+    return exchange ? rawHF->MakeExchangePullback(Dao_a, Dao_b, rawHF, st) : rawHF->MakeDirectPullback(Dao_a, Dao_b, rawHF, st);
+}
+Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeDirectPullback(const rsmat_t& Da, const rsmat_t& Db, const Orbital_HF_IBS<double>* other,
+                                                                          const Structure* st) const
+{return PairERI4(*this, itsRawHF, FoldUp(Da), Db, other, st, false);}
+Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeExchangePullback(const rsmat_t& Da, const rsmat_t& Db, const Orbital_HF_IBS<double>* other,
+                                                                            const Structure* st) const
+{return PairERI4(*this, itsRawHF, FoldUp(Da), Db, other, st, true);}
+
+// The whole-system twin of MakeAOFock: ONE raw pullback with the assembled AO density on both sides.
+Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeAOPullback(const rsmat_t& Dao, bool exchange, const Structure* st) const
+{
+    const char* what = exchange ? "exchange pullback" : "Coulomb pullback";
+    if (!itsRawHF || !itsRawHF->CanPullbackERI4(itsRawHF)) return NoRaw("ERI pullback", what);
+    if (!st) throw std::invalid_argument("SymmetryAdapted_IBS::MakeAOPullback: a geometry pullback needs the structure");
+    if (Dao.rows()!=AODimension()) throw std::logic_error("SymmetryAdapted_IBS::MakeAOPullback: the AO density is not AO-sized");
+    if (blazem::max(blazem::abs(Dao))==0.0) return Outcome<rvec3vec_t,AD::NoGradient>::Ok(rvec3vec_t(st->GetNumAtoms(), rvec3_t(0,0,0)));   // bilinear: an empty density gives zero
+    return exchange ? itsRawHF->MakeExchangePullback(Dao, Dao, itsRawHF, st) : itsRawHF->MakeDirectPullback(Dao, Dao, itsRawHF, st);
+}
+
 std::string SymmetryAdapted_IBS::BasisSetID() const {return itsRaw->BasisSetID() + "[" + itsLabel + "]";}
 std::string SymmetryAdapted_IBS::Name()       const {return itsRaw->Name() + "[" + itsLabel + "]";}
 

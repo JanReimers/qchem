@@ -90,6 +90,7 @@ public:
         return c.itsHam->At(c.itsBasis, cd.get()).Forces(wd.get(), c.itsStructure.get());
     }
     static std::vector<std::string> MissingGradients(const MoleculeCalculation& c) {return c.itsHam->MissingGradients(c.itsBasis, c.itsStructure.get());}
+    static size_t NumBlocks(const MoleculeCalculation& c) {return c.itsBasis->GetNumIBS();}
     //! EVERY TERM'S FORCE at structure \a at with \a D frozen (MakeTermEnergies' twin, index for index): TermEnergiesAt's analytic partner.
     static std::vector<Hamiltonian::TermForce> TermForcesAt(std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
                                                             const MoleculeCalculation::Carry& D)
@@ -643,4 +644,76 @@ TEST(HamiltonianForces, TheHFForceIsTheFiniteDifferenceOfTheReconvergedEnergy)
     }
     EXPECT_GT(largest, 1e-2) << "the force is not trivially small (a sign would show)";
     EXPECT_LT(norm(sum), 1e-8) << "translation invariance";
+}
+
+// ============================================================================================================================
+// A SYMMETRY-BLOCKED RUN'S FORCE (§13.2; lane B 2026-11-09): each SALC block's pullback is the raw AO basis's on its density folded up
+// (O D Oᵀ), and the HF sweep folds every block first and pulls back once.
+// ============================================================================================================================
+namespace
+{
+//! \a h2o scaled by \a f about its nuclear centroid: a similarity about a point every symmetry element holds, so the point group is kept.
+Molecule StretchedH2O(const Molecule& h2o, double f)
+{
+    std::vector<rvec3_t> R; h2o.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+    rvec3_t c(0,0,0); for (const auto& r : R) c+=r; c/=double(R.size());
+    for (auto& r : R) r=c+f*(r-c);
+    std::shared_ptr<Structure> st=h2o.Clone(); st->MoveSites(R);
+    return dynamic_cast<const Molecule&>(*st);
+}
+}
+
+TEST(HamiltonianForces, ASymmetryBlockedRunsForceIsTheUnblockedRunsForce)
+{
+    // SALC blocking (.symmetry=true) changes how D is stored, not the physics, so at the same converged density the blocked run's force is
+    // the unblocked run's -- whose own gates above check it against the finite difference.  Water stretched 8% about its centroid (C2v kept,
+    // forces ~1e-1, checked non-trivial).  Every term's force at fixed D is compared, and the whole force (the Pulay sum included) where the
+    // model has every term's.  Both SCFs reach MinΔρ/N 1e-9 and a force is first order in the density's error, so 1e-6.  The cases cover
+    // the 1E faces (E1), the HF whole-system sweep (RHF, UHF), and under LDA the Dunlap 3-centre and the PP faces; LDA's XC term has no
+    // force in either run.
+    const Molecule h2o=StretchedH2O(GetMolecule("H2O"), 1.08);
+    const std::vector<CalcOptions> cases{{.basis="dzvp", .model=Model::E1}, {.basis="dzvp", .model=Model::HF},
+                                         {.basis="dzvp", .model=Model::HF, .spin=SpinGroup::Polarized}, {.basis="dzvp", .model=Model::LDA},
+                                         {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}};
+    for (CalcOptions free : cases)
+    {
+        CalcOptions blocked=free; blocked.symmetry=true;
+        const std::string what=std::string(free.model==Model::E1 ? "E1" : free.model==Model::HF ? "HF" : "LDA")
+                              +(free.spin==SpinGroup::Polarized ? " polarized" : "")+(free.pp.empty() ? "" : " PP");
+        MoleculeCalculation f(MoleculeSetup::Resolve(h2o, free), Tight()), b(MoleculeSetup::Resolve(h2o, blocked), Tight());
+        ASSERT_TRUE(f.IsConverged() && b.IsConverged()) << what;
+        ASSERT_EQ(ForceFacadeTests::NumBlocks(f), 1u) << what;
+        ASSERT_GT(ForceFacadeTests::NumBlocks(b), 1u) << what << ": the run is blocked";
+        EXPECT_NEAR(b.Energy(), f.Energy(), 1e-8) << what << ": the same state";
+        EXPECT_EQ(ForceFacadeTests::MissingGradients(b), ForceFacadeTests::MissingGradients(f)) << what;
+
+        const auto Ff=ForceFacadeTests::TermForcesAt(f.SizedSetup(), ForceFacadeTests::Structure_(f), ForceFacadeTests::Carry(f));
+        const auto Fb=ForceFacadeTests::TermForcesAt(b.SizedSetup(), ForceFacadeTests::Structure_(b), ForceFacadeTests::Carry(b));
+        ASSERT_EQ(Fb.size(), Ff.size()) << what;
+        double largest=0.0; size_t compared=0;
+        for (size_t t=0;t<Ff.size();t++)
+        {
+            ASSERT_EQ(Fb[t].label, Ff[t].label) << what;
+            EXPECT_EQ(Fb[t].missing.empty(), Ff[t].missing.empty()) << what << ", " << Ff[t].label << ": " << Fb[t].missing;
+            if (!Fb[t].missing.empty() || !Ff[t].missing.empty()) continue;
+            ++compared;
+            for (size_t A=0;A<Ff[t].F.size();A++) for (int x=0;x<3;x++)
+            {
+                EXPECT_NEAR(C(Fb[t].F[A],x), C(Ff[t].F[A],x), 1e-6) << what << ", " << Ff[t].label << ", atom " << A << " axis " << x;
+                largest=std::max(largest, std::fabs(C(Ff[t].F[A],x)));
+            }
+        }
+        EXPECT_GE(compared, 3u) << what;
+        EXPECT_GT(largest, 1e-2) << what << ": the terms' forces are not trivially small";
+        if (!ForceFacadeTests::MissingGradients(f).empty()) continue;
+        const rvec3vec_t Wf=ForceFacadeTests::Forces(f, ForceFacadeTests::Carry(f), ForceFacadeTests::EnergyWeighted(f));
+        const rvec3vec_t Wb=ForceFacadeTests::Forces(b, ForceFacadeTests::Carry(b), ForceFacadeTests::EnergyWeighted(b));
+        double total=0.0;
+        for (size_t A=0;A<Wf.size();A++) for (int x=0;x<3;x++)
+        {
+            EXPECT_NEAR(C(Wb[A],x), C(Wf[A],x), 1e-6) << what << ", the whole force, atom " << A << " axis " << x;
+            total=std::max(total, std::fabs(C(Wf[A],x)));
+        }
+        EXPECT_GT(total, 1e-2) << what << ": the force is not trivially small";
+    }
 }

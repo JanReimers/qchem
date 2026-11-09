@@ -183,13 +183,36 @@ template <class Comp> void Composite_HFSystem<Comp>::AccumulateExchangeAll(std::
     for (const auto& g:self().Groups()) SweepGroup(g.begin, g.end, Kall, true);
 }
 
+// The force twin of WholeSystemAll: a basis that builds ONE AO Fock (a SALC decorator) folds EVERY block's density up to AO and pulls back
+// ONCE.  The pair pullback P(Dk,Dl) is bilinear, so Σ_kl P(Dk,Dl) = P(Σ Dk, Σ Dl): exact, and one whole-AO pullback where the pair loop
+// would make N².  Returns false when no block has the route (every ERI4 basis), leaving the pair loop untouched.
+template <class Blocks> static bool WholeSystemPullback(const Blocks& cds, const Structure* st, bool exchange, rvec3vec_t& F)
+{
+    if (cds.empty()) return false;
+    const BasisSet::WholeSystemFock_IBS<double>* ws0=SameT<double>(cds[0].cd).WholeSystemFock();
+    if (!ws0) return false;
+    hmat_t<double> Dao=blazem::zeroH<double>(ws0->AODimension());
+    for (const auto& b:cds)
+    {
+        if (!SameT<double>(b.cd).WholeSystemFock())
+            throw std::logic_error("Composite_HFSystem: mixed whole-system and pair bases in one composite density");
+        SameT<double>(b.cd).AddAODensity(Dao);
+    }
+    const auto r=ws0->MakeAOPullback(Dao, exchange, st);    // the ONE pullback
+    if (!r) throw std::logic_error("Composite_HFSystem: "+r.Error().why+" (the HF term's MissingGradients() names it before a force is asked)");
+    if (r->size()!=F.size()) throw std::logic_error("Composite_HFSystem: the whole-system pullback differs in atom count");
+    F=*r;
+    return true;
+}
+
 // The sweeps' pullbacks (GeometryOptimizationPlan §13.2): ∂Tr(D X[D])/∂R over EVERY ordered pair of blocks, whatever their group -- the
-// energy contracts the whole density against blocks every group summed into, so no pair is left out.  No WholeSystemAll route: a basis
-// that has one (a SALC decorator) refuses the pullback at its ERI face.
+// energy contracts the whole density against blocks every group summed into, so no pair is left out.  A whole-system basis (a SALC
+// decorator) takes the one-pullback route above instead.
 template <class Comp> rvec3vec_t Composite_HFSystem<Comp>::PairPullback(const Structure* st, bool exchange) const
 {
     if (!st) throw std::invalid_argument("Composite_HFSystem: a geometry pullback needs the structure");
     const auto& cds=self().itsBlocks;
+    if (rvec3vec_t W(st->GetNumAtoms(), rvec3_t(0,0,0)); WholeSystemPullback(cds, st, exchange, W)) return W;
     rvec3vec_t F(st->GetNumAtoms(), rvec3_t(0,0,0));
     for (size_t k=0;k<cds.size();++k)
         for (size_t l=0;l<cds.size();++l)
