@@ -47,6 +47,8 @@ template <class Self> class Transition_HFSystem : public virtual tHF_System_CD<d
 public:
     virtual void AccumulateDirectAll  (std::vector<hmat_t<double>>& Jall) const override {Sweep().AccumulateDirectAll(Jall);}
     virtual void AccumulateExchangeAll(std::vector<hmat_t<double>>& Kall) const override {Sweep().AccumulateExchangeAll(Kall);}
+    virtual rvec3vec_t DirectPullback  (const Structure* st) const override {return Sweep().DirectPullback(st);}
+    virtual rvec3vec_t ExchangePullback(const Structure* st) const override {return Sweep().ExchangePullback(st);}
 private:
     const tHF_System_CD<double>& Sweep() const
     {

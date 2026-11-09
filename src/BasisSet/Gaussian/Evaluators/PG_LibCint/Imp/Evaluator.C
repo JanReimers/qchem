@@ -600,6 +600,61 @@ std::vector<rvec3_t> NR_Evaluator::GaussianRepulsionGradient(size_t gAtom, doubl
     return out;
 }
 
+// THE HF GRADIENT.  f = Σ Da_ij Db_kl (ij|kl) (Coulomb) or (ik|jl) (exchange), i, j on this evaluator, k, l on the other.  int2e_ip1
+// differentiates the FIRST function; the symmetries (ij|kl) = (ji|kl) = (kl|ij) and real orbitals give every other position from a
+// relabelling, with Da, Db symmetric:
+//   Coulomb : the i and j derivatives are equal, Bra(a; Da, Db); the k and l ones are Bra(b; Db, Da);
+//   exchange: (ik|jl) = (jl|ik) makes j equal i, BraX(a; Da, Db); (ik|jl) = (ki|lj) makes k (and l) BraX(b; Db, Da),
+// each counted twice.  ∂φ/∂R = −∇φ.
+std::vector<rvec3_t> NR_Evaluator::ERI4Gradient(const NR_Evaluator& other, const rmat_t& Da, const rmat_t& Db, bool exchange) const
+{
+    const Imp& A=*itsImp; const Imp& B=*other.itsImp;
+    if (A.spherical || B.spherical) throw std::logic_error("PG_LibCint::NR_Evaluator: the ERI4 gradient is Cartesian-only");
+    if (Da.rows()!=A.N || Da.columns()!=A.N || Db.rows()!=B.N || Db.columns()!=B.N)
+        throw std::invalid_argument("PG_LibCint::ERI4Gradient: Da is "+std::to_string(Da.rows())+" and Db "+std::to_string(Db.rows())+" square, for "
+                                    +std::to_string(A.N)+" and "+std::to_string(B.N)+" functions");
+    if (A.atoms.size()!=B.atoms.size()) throw std::invalid_argument("PG_LibCint::ERI4Gradient: the two blocks are on different structures");
+    std::vector<const ShellDesc*> sh; for (auto& s:A.shells) sh.push_back(&s);
+    const size_t oB=sh.size();        for (auto& s:B.shells) sh.push_back(&s);
+    std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(A.atoms, sh, atm,bas,env);
+    const int natm=(int)A.atoms.size(), nbas=(int)sh.size();
+    std::vector<rvec3_t> g(A.atoms.size(), rvec3_t(0,0,0));
+    std::vector<double> buf;
+    // One side: X's shells carry the differentiated function (offset oX), Y's the other density (offset oY).
+    auto side=[&](const Imp& X, size_t oX, const rmat_t& DX, const Imp& Y, size_t oY, const rmat_t& DY)
+    {
+        for (size_t si=0;si<X.shells.size();++si)
+        {
+            double acc[3]={0,0,0};
+            const int di=X.dim(X.shells[si].l);
+            for (size_t sj=0;sj<X.shells.size();++sj)
+                for (size_t sk=0;sk<Y.shells.size();++sk)
+                    for (size_t sl=0;sl<Y.shells.size();++sl)
+                    {
+                        const int dj=X.dim(X.shells[sj].l), dk=Y.dim(Y.shells[sk].l), dl=Y.dim(Y.shells[sl].l);
+                        buf.assign((size_t)di*dj*dk*dl*3, 0.0);
+                        // Coulomb (i j | k l); exchange (i k | j l): the buffer's index order follows the shell order.
+                        int shls[4];
+                        if (!exchange) { shls[0]=int(oX+si); shls[1]=int(oX+sj); shls[2]=int(oY+sk); shls[3]=int(oY+sl); }
+                        else           { shls[0]=int(oX+si); shls[1]=int(oY+sk); shls[2]=int(oX+sj); shls[3]=int(oY+sl); }
+                        int2e_ip1_cart(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
+                        for (int x=0;x<3;++x)
+                            for (int p=0;p<di;++p){ const size_t gi=X.shells[si].lc2pg[p];
+                                for (int q=0;q<dj;++q){ const size_t gj=X.shells[sj].lc2pg[q]; const double dij=DX(gi,gj)*X.scale[gi]*X.scale[gj];
+                                    if (dij==0.0) continue;
+                                    for (int r=0;r<dk;++r){ const size_t gk=Y.shells[sk].lc2pg[r];
+                                        for (int t=0;t<dl;++t){ const size_t gl=Y.shells[sl].lc2pg[t];
+                                            const size_t at = !exchange ? p+di*(q+dj*(r+dk*(t+dl*x))) : p+di*(r+dk*(q+dj*(t+dl*x)));
+                                            acc[x]+=dij*DY(gk,gl)*Y.scale[gk]*Y.scale[gl]*buf[at]; } } } }
+                    }
+            g[X.shells[si].atom]-=2.0*rvec3_t(acc[0],acc[1],acc[2]);   // twice: the partner position on the same side
+        }
+    };
+    side(A, 0,  Da, B, oB, Db);
+    side(B, oB, Db, A, 0,  Da);
+    return g;
+}
+
 rsmat_t NR_Evaluator::RepulsionTwoC_Matrix() const
 {
     const Imp& c=*itsImp;

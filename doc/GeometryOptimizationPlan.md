@@ -430,6 +430,24 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
     in D, so there is no λ piece.
 - With this, the only molecular LDA term still without a force is the δ XC (waiting on lane S's 3b/3c).
 
+**BUILT (lane B 2026-11-08): the HF Coulomb and exchange forces.**
+- `Orbital_HF_IBS` gains `CanPullbackERI4` and `MakeDirect/ExchangePullback(Da, Db, other, st)`, beside the four `Accumulate*`
+  methods: Σ Da Db ∂(ab|cd), and the exchange ordering, for two blocks with all four centres moving.
+- PG_Cart answers through libcint int2e_ip1, with the permutational symmetry giving the other three positions
+  (`PG_LibCint::ERI4Gradient`).  PG_Spherical, radial, Dirac (RKB) and SALC refuse.
+- The ChargeDensity hub (derivative-beside pre-approval) gains `tHF_System_CD::Direct/ExchangePullback(st)`, beside the two
+  sweeps: ∂Tr(D X[D]) over EVERY ordered pair of blocks.  It is carried by the pair protocol's twins on `tHF_Pair_CD`
+  (`…PullbackWith` / `Complete…Pullback`), implemented in `IrrepCD_HFPair`, `Composite_HFSystem` and `Transition_HFSystem`.
+- `Vee` and `Vxc` gain the term face (`Imp/HF_Forces.C`): F −= ½ ∂Tr(DJ), and F −= ½ Σ_σ Scale(σ) ∂Tr(D_σ K_σ).  Each matrix is its
+  energy's D-gradient, so nothing is left out.
+- `MakeTermForces` now lists the HF terms after the static and dynamic ones; `MakeTermEnergies` still leaves them out.
+- Gates:
+  - The faces (self pair, and a cross pair of different shell sets) against the FD of the same block's own M&D contractions.
+  - RHF and UHF water: J and K each against the FD of its energy entry at fixed D.
+  - The WHOLE RHF force (every HF term now has one, the Pulay sum included) against the FD of the re-converged energy, with one H
+    pulled 0.15 bohr off: the stored water sits ~1e-4 Ha/bohr from its HF/DZVP minimum, where 2e-6 could not tell a sign.
+- So molecular HF has a complete analytic force on Cartesian Gaussians.
+
 ### 13.1 A value-with-derivatives carrier on the derivative-aware faces (lane B 2026-11-08)
 
 **APPROVED (user, 2026-11-08: "Looks good").**  The approved shape:

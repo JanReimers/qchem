@@ -246,8 +246,12 @@ private:
 };
 
 class Vee : public Dynamic_HF_HT_Imp
+         , public virtual tGeometryGradient_HT<double>   // its force (§13.2; lane B): Imp/HF_Forces.C
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/HF_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 protected:
@@ -269,8 +273,12 @@ protected:
 //  only differences, and both are functions of the block's spin.)
 //
 class Vxc : public Dynamic_HF_HT_Imp
+         , public virtual tGeometryGradient_HT<double>   // its force (§13.2; lane B): Imp/HF_Forces.C
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/HF_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
     virtual void           GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
 protected:

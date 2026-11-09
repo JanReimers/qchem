@@ -76,8 +76,13 @@ public:
                                         const BasisSet::Orbital_HF_IBS<double>* bs_i) const;
     virtual void CompleteExchangePair  (rsmat_t& Ki, rsmat_t& Kj, const rsmat_t& Di,
                                         const BasisSet::Orbital_HF_IBS<double>* bs_i) const;
+    virtual rvec3vec_t DirectPullbackWith      (const tHF_Pair_CD<double>& other, const Structure* st) const;
+    virtual rvec3vec_t ExchangePullbackWith    (const tHF_Pair_CD<double>& other, const Structure* st) const;
+    virtual rvec3vec_t CompleteDirectPullback  (const rsmat_t& Di, const BasisSet::Orbital_HF_IBS<double>* bs_i, const Structure* st) const;
+    virtual rvec3vec_t CompleteExchangePullback(const rsmat_t& Di, const BasisSet::Orbital_HF_IBS<double>* bs_i, const Structure* st) const;
 private:
     const Leaf& self() const {return static_cast<const Leaf&>(*this);}
+    rvec3vec_t CompletePullback(const rsmat_t& Di, const BasisSet::Orbital_HF_IBS<double>* bs_i, const Structure* st, bool exchange) const;
 };
 
 //! \brief THE SHARED DENSITY-MATRIX CORE: every operation both lineages support identically -- the

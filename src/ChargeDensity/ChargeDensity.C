@@ -83,6 +83,12 @@ public:
     virtual void AccumulateDirectAll  (std::vector<hmat_t<T>>& Jall) const=0;
     //! Exchange analogue.  Exchange is SAME-SPIN, so the whole-system build runs per single-spin density.
     virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const=0;
+    //! THE PULLBACKS of the two sweeps (GeometryOptimizationPlan §13.2), at this fixed density, over EVERY ordered pair of its blocks
+    //! (a, b): F[A] = Σ_ab Σ D^a_ij D^b_kl ∂(ij|kl)/∂R_A = ∂Tr(D J[D])/∂R_A (Coulomb), and the same with the exchange tensor,
+    //! ∂Tr(D K[D])/∂R_A.  Exchange is same-spin, so its caller hands it ONE spin channel's density (or the folded RHF total).  The basis
+    //! centres move.  THROWS when a block's basis refuses: the term's MissingGradients() names it first.
+    virtual rvec3vec_t DirectPullback  (const Structure* st) const=0;
+    virtual rvec3vec_t ExchangePullback(const Structure* st) const=0;
 };
 
 //! \brief The PAIR-PARTNER face: the composite<->leaf collaboration protocol for ONE canonical irrep pair.
@@ -116,6 +122,12 @@ public:
                                       const BasisSet::Orbital_HF_IBS<T>* bs_i) const=0;
     virtual void CompleteExchangePair(hmat_t<T>& Ki, hmat_t<T>& Kj, const hmat_t<T>& Di,
                                       const BasisSet::Orbital_HF_IBS<T>* bs_i) const=0;
+    //! The pullback twins of the pair protocol (GeometryOptimizationPlan §13.2): this block (D_i, bs_i) against \a other's,
+    //! Σ D^i D^j ∂(ij|kl)/∂R (or the exchange tensor), finished by the partner exactly as the Complete*Pair methods finish a contraction.
+    virtual rvec3vec_t DirectPullbackWith    (const tHF_Pair_CD<T>& other, const Structure* st) const=0;
+    virtual rvec3vec_t ExchangePullbackWith  (const tHF_Pair_CD<T>& other, const Structure* st) const=0;
+    virtual rvec3vec_t CompleteDirectPullback  (const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i, const Structure* st) const=0;
+    virtual rvec3vec_t CompleteExchangePullback(const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i, const Structure* st) const=0;
 };
 
 //! Empty stand-ins: the periodic (dcmplx) path has no exact exchange, so it inherits nothing at all.

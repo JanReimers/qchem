@@ -101,6 +101,15 @@ public:
         return c.itsHam->MakeTermForces(c.itsBasis, cd.get(), c.itsStructure.get());
     }
     static MoleculeCalculation::Carry EnergyWeighted(const MoleculeCalculation& c) {return {c.MakeEnergyWeightedDensity()};}
+    //! The whole energy breakdown at structure \a at with \a D frozen: for terms MakeTermEnergies leaves out (the whole-system HF ones).
+    static EnergyBreakdown TotalEnergyAt(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, const MoleculeCalculation::Carry& D)
+    {
+        MoleculeCalculation c(MoleculeCalculation::BuildOnly{}, setup, at, nullptr, nullptr);
+        c.BuildGraph();
+        const auto cd=c.MakeCarriedDensity(D);
+        c.itsHam->RefreshForDensity(c.itsBasis, cd.get());
+        return c.itsHam->GetTotalEnergy(cd.get());
+    }
     //! THE PULAY SUM, Σ_blocks Tr(W ∂S/∂R) by each block's overlap pullback, in Forces' sign (added to F): for a model whose Forces()
     //! refuses on a term that is identically zero (Xα at α = 0).
     static rvec3vec_t Pulay(const MoleculeCalculation& c, const MoleculeCalculation::Carry& W)
@@ -441,12 +450,13 @@ TEST(HamiltonianForces, WithThePulayTermItIsTheFiniteDifferenceOfTheReconvergedE
 
 TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
 {
-    for (auto model : {Model::HF, Model::LDA})
+    // LDA: the XC term has no force yet.  (HF has every term's force since the HF Coulomb and exchange landed: see its gates below.)
+    for (auto model : {Model::LDA})
     {
         MoleculeCalculation c(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=model}), Tight());
         ASSERT_TRUE(c.IsConverged());
         const auto missing=ForceFacadeTests::MissingGradients(c);
-        EXPECT_FALSE(missing.empty()) << "the electron-electron terms have no force yet";
+        EXPECT_FALSE(missing.empty()) << "the XC term has no force yet";
         for (const auto& m : missing) { EXPECT_NE(m.find("no geometry gradient"), std::string::npos) << m; std::cout<<"[forces] missing: "<<m<<std::endl; }
         const auto D=ForceFacadeTests::Carry(c);
         EXPECT_THROW((void)ForceFacadeTests::Forces(c, D, D), std::logic_error) << "Forces refuses what MissingGradients names";
@@ -506,6 +516,7 @@ TEST(HamiltonianForces, WithTheDunlapHartreeTheForceIsTheFiniteDifferenceOfTheRe
     EXPECT_TRUE(dunlap) << "the Dunlap Hartree has its force";
     const double h=1e-4;
     rvec3_t sum(0,0,0);
+    double largest=0.0;
     for (size_t A=0;A<F.size();A++)
     {
         sum+=F[A];
@@ -515,8 +526,10 @@ TEST(HamiltonianForces, WithTheDunlapHartreeTheForceIsTheFiniteDifferenceOfTheRe
                                   EXPECT_TRUE(m.IsConverged()); return m.Energy(); };
             const double fd=(E(h)-E(-h))/(2*h);
             EXPECT_NEAR(C(F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << "atom " << A << " axis " << x;
+            largest=std::max(largest, std::fabs(fd));
         }
     }
+    EXPECT_GT(largest, 1e-2) << "the force is not trivially small (a sign would show)";
     EXPECT_LT(norm(sum), 1e-8) << "translation invariance";
 }
 
@@ -560,4 +573,74 @@ TEST(HamiltonianForces, UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysF
         }
         EXPECT_LT(norm(sum), 1e-8) << Et[t].label << ": translation invariance";
     }
+}
+
+// ============================================================================================================================
+// THE HF FORCE (§13.2; lane B 2026-11-08): the Coulomb and exchange terms through the density's sweep pullbacks, so every HF term has one.
+// ============================================================================================================================
+TEST(HamiltonianForces, TheHFCoulombAndExchangeForcesAtFixedDAreTheirEnergysFiniteDifference)
+{
+    // HF water, DZVP, RHF and UHF: the Coulomb (Eee = ½ Tr DJ) and exchange (Exc = ½ Σ_σ Scale Tr D_σ K_σ) forces at the converged D
+    // frozen, against the central difference of each one's energy entry at R ± h.  Both are quadratic in D and their matrices are their
+    // energies' D-gradients, so nothing is left out.  Smooth in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6 (relative above 1).
+    const Molecule h2o=GetMolecule("H2O");
+    for (SpinGroup spin : {SpinGroup::UnPolarized, SpinGroup::Polarized})
+    {
+        MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::HF, .spin=spin}), Tight());
+        ASSERT_TRUE(c.IsConverged());
+        EXPECT_TRUE(ForceFacadeTests::MissingGradients(c).empty()) << "every HF term has its force";
+        const auto D=ForceFacadeTests::Carry(c);
+        const auto Ft=ForceFacadeTests::TermForcesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
+        for (const auto& [label, entry] : {std::pair<std::string,std::string>{"Coulomb potential", "Eee"}, {"Hartree-Fock exchange", "Exc"}})
+        {
+            const Hamiltonian::TermForce* t=nullptr;
+            for (const auto& f : Ft) if (f.label.rfind(label,0)==0) t=&f;
+            ASSERT_NE(t, nullptr) << "no term labelled " << label;
+            ASSERT_TRUE(t->missing.empty()) << t->missing;
+            const double h=1e-4;
+            rvec3_t sum(0,0,0);
+            for (size_t A=0;A<t->F.size();A++)
+            {
+                sum+=t->F[A];
+                for (int x=0;x<3;x++)
+                {
+                    auto E=[&](double s){ return ForceFacadeTests::TotalEnergyAt(c.SizedSetup(), *MovedH2O(h2o,A,x,s), D)[entry]; };
+                    const double fd=(E(h)-E(-h))/(2*h);
+                    EXPECT_NEAR(C(t->F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd)))
+                        << (spin==SpinGroup::Polarized ? "UHF " : "RHF ") << label << ", atom " << A << " axis " << x;
+                }
+            }
+            EXPECT_LT(norm(sum), 1e-8) << label << ": translation invariance";
+        }
+    }
+}
+
+TEST(HamiltonianForces, TheHFForceIsTheFiniteDifferenceOfTheReconvergedEnergy)
+{
+    // RHF water, DZVP: every term has its force, so Forces() is the whole thing (the Pulay sum included), against the central difference
+    // of the re-converged energy.  Each displaced point is a full SCF (MinΔρ/N 1e-9, energy error second order); h = 1e-4 puts the FD's
+    // h²/6 |E‴| at ≲ 1e-8, so 2e-6 (relative above 1).  The stored water sits within ~1e-4 Ha/bohr of its HF/DZVP minimum, where that
+    // tolerance could not tell a sign, so one H is pulled 0.15 bohr off it: forces of ~1e-1, checked non-trivial below.
+    const Molecule h2o=dynamic_cast<const Molecule&>(*MovedH2O(GetMolecule("H2O"), 1, 0, 0.15));
+    const CalcOptions opts{.basis="dzvp", .model=Model::HF};
+    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, opts), Tight());
+    ASSERT_TRUE(c.IsConverged());
+    const rvec3vec_t F=ForceFacadeTests::Forces(c, ForceFacadeTests::Carry(c), ForceFacadeTests::EnergyWeighted(c));
+    const double h=1e-4;
+    rvec3_t sum(0,0,0);
+    double largest=0.0;
+    for (size_t A=0;A<F.size();A++)
+    {
+        sum+=F[A];
+        for (int x=0;x<3;x++)
+        {
+            auto E=[&](double s){ MoleculeCalculation m(MoleculeSetup::Resolve(dynamic_cast<const Molecule&>(*MovedH2O(h2o,A,x,s)), opts), Tight());
+                                  EXPECT_TRUE(m.IsConverged()); return m.Energy(); };
+            const double fd=(E(h)-E(-h))/(2*h);
+            EXPECT_NEAR(C(F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << "atom " << A << " axis " << x;
+            largest=std::max(largest, std::fabs(fd));
+        }
+    }
+    EXPECT_GT(largest, 1e-2) << "the force is not trivially small (a sign would show)";
+    EXPECT_LT(norm(sum), 1e-8) << "translation invariance";
 }
