@@ -756,7 +756,7 @@ Materials::Material Resolve(RunSpec& spec)
         if (StructureData::KindOf(spec.structure)==StructureData::Kind::Molecule)      // KindOf THROWS, listing every known name, on a miss
             throw std::runtime_error("deck: structure '"+spec.structure+"' is a molecule (molecules.json); the deck currently drives "
                                      "periodic runs only (a cell from materials.json)");
-        m=Materials::Get(spec.structure, 0.0, spec.solid.pp);   // an imported (user / workspace) entry names no pp: the deck's
+        m=Materials::Get(spec.structure);
     }
     if (spec.basis.autoTrim && !spec.basis.trim.empty())
         throw std::runtime_error("deck: basis.autoTrim and basis.trim are exclusive (an autoTrim computes the trim; a stated trim is the A/B for it)");
