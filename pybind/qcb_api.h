@@ -161,6 +161,19 @@ int qcb_point_group(const int* species, int nat, const double* pos3, double tol,
 int qcb_space_group(const double* lattice9, const int* species, int nat, const double* frac3, double tol,
                     double* W9, int maxops, int* symmorphic, char* err, int errlen);
 
+// -- crystal FILES and the MATERIALS layers (qchem.CrystalFiles, StructureData's layers; OpenWork §2, ruled 2026-11-09) --------
+
+//! One materials request as JSON text, its answer as JSON text (`{"error": "..."}` on a refusal, in the library's words):
+//!   {"op":"list"}                                    -> {"materials":[{name, layer: shipped|user|workspace, file, entry, lattice_bohr}]}
+//!   {"op":"import","path":P}                         -> {entry, name, warnings, lattice_bohr}   (CIF / POSCAR / extended xyz)
+//!   {"op":"export","entry":E,"format":F,"name":N}    -> {text}   (F: cif | poscar | xyz)
+//!   {"op":"save","name":N,"entry":E,"replace":B}     -> {path}   (the user's library)
+//!   {"op":"add_workspace","path":P}                  -> {}
+//!   {"op":"cell","entry":E}                          -> {lattice_bohr}   (rows a, b, c; a Bravais entry's vectors)
+//! TWO CALLS: with `out` null the request RUNS and its answer is kept (the return is its length); then a call with a buffer
+//! copies that answer (`req` ignored).  So a save runs once.
+int qcb_materials(const char* req, char* out, int outlen);
+
 #ifdef __cplusplus
 }
 #endif
