@@ -8,9 +8,10 @@
 // it), and g·c = N, so the second term is λ dN/dR = 0: N is fixed, not Tr(DS).  What remains is
 //     Σ_ij D_ij c_k ∂(ij|k)/∂R_A − ½ Σ_kl c_k c_l ∂(k|l)/∂R_A,
 // the first the density walk of the fitter's repulsion pullback (orbital AND fit centres moving), the second its self-repulsion pullback.
-// (Before the ruling the constraint was Tr(DS), and λ Tr(D ∂S/∂R) was the contract's stated exception; lane B retires that text.)
-// So the per-term fixed-D finite difference is exactly this (lane B re-enables that gate), and the whole-force gate is against the re-converged energy
-// (Calculation/tests/ForceFacade.C, Xα at α = 0: Dunlap is the only electron-electron term).
+// (Before the ruling the constraint was Tr(DS), and λ Tr(D ∂S/∂R) was the contract's stated exception; retired 2026-11-09.)
+// So the per-term fixed-D finite difference is exactly this (HamiltonianForces.TheDunlapHartreesForceAtFixedDIsItsEnergysFiniteDifference),
+// and the whole-force gate is against the re-converged energy (Calculation/tests/ForceFacade.C, Xα at α = 0: Dunlap is the only
+// electron-electron term).
 module;
 #include <stdexcept>
 #include <string>

@@ -23,6 +23,9 @@ import qchem.Lattice_3D;
 import qchem.UnitCell;
 import qchem.Mesh;
 import qchem.Types;
+import qchem.Structure;                     // Molecule, Site (the SAD seed's charge gate)
+import qchem.ElectronConfiguration.Molecule;  // Molecule_EC
+import qchem.BasisSet.Gaussian.Point.Factory; // Gaussian::Factory (the block the seed is built against)
 
 using namespace qchem;
 using namespace qchem::ChargeDensity;
@@ -189,4 +192,24 @@ TEST(SeedHandGradient, EachSeedDensitysGradientIsTheFiniteDifferenceOfItsValues)
     const std::vector<rvec3_t> pts{a*kMn[0]+rvec3_t(0.35,-0.28,0.21), a*kO[1]+rvec3_t(-0.4,0.3,0.25), rvec3_t(0.15,11.9,0.3)};
     check(seed,  pts, "SeedCD");
     check(pseed, pts, "PolarizedSeedCD");
+}
+
+// THE SAD SEED UNDER THE FIXED-N DUNLAP FIT (lane B 2026-11-09; the user's ruling 2026-11-08 constrains the Dunlap fit to the FIXED electron
+// count N, which Vee_FitDunlap takes from st->GetNumElectrons()).  The molecular SAD seed is a NumericCD, and before the ruling the fit was
+// constrained to the density's own GetTotalCharge().  The seed's GetTotalCharge() IS st->GetNumElectrons() (MakeSeedDensity passes it, and a
+// NumericCD is not a tMixableDensity, so no mixer ever rescales it), so the seed iteration's constraint is the SAME double under both rules:
+// the ruling cannot move a first iteration.  Gated on an ANION, where the neutral-atom superposition integrates to ΣZ = 9 and N = 10: the
+// constraint is N, not the field's own integral -- as it was before the ruling.
+TEST(SADSeed, ItsChargeIsTheElectronCountTheDunlapFitIsConstrainedTo)
+{
+    Molecule oh;
+    oh.Insert(Site{8, rvec3_t(0,0,0), /*netCharge*/-1.0});
+    oh.Insert(Site{1, rvec3_t(0,0,1.83)});
+    ASSERT_EQ(oh.GetNumElectrons(), 10.0);
+    const std::unique_ptr<BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, &oh,
+                                                BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    const Molecule_EC ec(10);
+    const std::unique_ptr<tChargeDensity<double>> seed(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &oh, &ec));
+    ASSERT_TRUE(seed);
+    EXPECT_EQ(seed->GetTotalCharge(), oh.GetNumElectrons());   // bit-equal: the same double the Dunlap term holds
 }

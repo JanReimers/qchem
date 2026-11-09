@@ -487,9 +487,8 @@ TEST(HamiltonianForces, WithTheDunlapHartreeTheForceIsTheFiniteDifferenceOfTheRe
 {
     // Xα at α = 0: the XC term adds EXACTLY nothing (energy and potential ∝ α), so the Hamiltonian is Kinetic + Ven + IonIon + the default
     // (Dunlap) Hartree, and the force is their per-term forces plus the Pulay sum -- Forces() itself refuses while the XC term has no face,
-    // so the test sums MakeTermForces and Tr(W ∂S/∂R) the way MakeForces does, skipping only that zero.  The WHOLE force is the gate, not
-    // the Dunlap term's fixed-D finite difference: its fit's charge target N = Tr(DS) moves with the basis, and that λ Tr(D ∂S/∂R) is left
-    // out of the term's force and cancelled by the Pulay sum (the contract on tGeometryGradient_HT::AddForces).  Each displaced point is a
+    // so the test sums MakeTermForces and Tr(W ∂S/∂R) the way MakeForces does, skipping only that zero.  (The Dunlap term's own fixed-D
+    // gate is TheDunlapHartreesForceAtFixedDIsItsEnergysFiniteDifference, since the fit's target is the fixed N.)  Each displaced point is a
     // full SCF (MinΔρ/N 1e-9, energy error second order); h = 1e-4 puts the FD's h²/6 |E‴| at ≲ 1e-8, so 2e-6 (relative above 1).
     // _Long: 18 displaced SCFs, ~59 s CPU serial (2026-11-08).
     const Molecule h2o=GetMolecule("H2O");
@@ -536,10 +535,10 @@ TEST(HamiltonianForces, WithTheDunlapHartreeTheForceIsTheFiniteDifferenceOfTheRe
 
 TEST(HamiltonianForces, UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysFiniteDifference)
 {
-    // GTH-LDA water, DZVP, closed-form PP (GeometryOptimizationPlan §13.2): the local PP, the KB projectors, the kinetic term and the
-    // ion-ion term (valence charges) each against the central difference of its own energy at R ± h with the converged D frozen.  The
-    // Dunlap Hartree is gated elsewhere: its fixed-D derivative carries the λ piece its force leaves out.  The XC term has no force yet,
-    // and is the only term missing one.  Each is linear in D, and smooth in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6.
+    // GTH-LDA water, DZVP, closed-form PP (GeometryOptimizationPlan §13.2): the local PP, the KB projectors, the kinetic term, the ion-ion
+    // term (valence charges) and the Dunlap Hartree each against the central difference of its own energy at R ± h with the converged D
+    // frozen (the Dunlap fit re-solved at each point under the FIXED N, so no λ piece: 2026-11-09).  The XC term has no force yet, and is
+    // the only term missing one.  Each is smooth in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6.
     const Molecule h2o=GetMolecule("H2O");
     MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}), Tight());
     ASSERT_TRUE(c.IsConverged());
@@ -551,7 +550,6 @@ TEST(HamiltonianForces, UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysF
     for (size_t t=0;t<Ft.size();t++)
     {
         if (!Ft[t].missing.empty()) { ++missing; std::cout<<"[forces] PP water still missing: "<<Ft[t].missing<<std::endl; continue; }
-        if (Et[t].entries=="Eee") continue;
         local |= Et[t].label.rfind("Local pseudopotential",0)==0;
         kb    |= Et[t].label.rfind("Separable (KB)",0)==0;
         gated.push_back(t);
@@ -574,6 +572,42 @@ TEST(HamiltonianForces, UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysF
         }
         EXPECT_LT(norm(sum), 1e-8) << Et[t].label << ": translation invariance";
     }
+}
+
+TEST(HamiltonianForces, TheDunlapHartreesForceAtFixedDIsItsEnergysFiniteDifference)
+{
+    // All-electron LDA water, DZVP, the default (Dunlap) Hartree: its force at the converged D frozen against the central difference of
+    // its own energy entry, the fit re-solved at R ± h.  The fit is charge-constrained to the FIXED electron count N (user ruling
+    // 2026-11-08, landed with lane S's 3b/3c), so stationarity in c leaves λ dN/dR = 0 and the fixed-D derivative IS the term's force --
+    // the gate this term could not have while the target was Tr(DS), which moved with the basis (2e-4 relative on water then).  Smooth
+    // in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6 (relative above 1).
+    const Molecule h2o=GetMolecule("H2O");
+    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA}), Tight());
+    ASSERT_TRUE(c.IsConverged());
+    const auto D=ForceFacadeTests::Carry(c);
+    const auto Ft=ForceFacadeTests::TermForcesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
+    const auto Et=ForceFacadeTests::TermEnergiesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
+    ASSERT_EQ(Ft.size(), Et.size());
+    size_t t=Ft.size();
+    for (size_t i=0;i<Ft.size();i++) if (Et[i].entries=="Eee") t=i;
+    ASSERT_LT(t, Ft.size()) << "no Hartree (Eee) term";
+    ASSERT_TRUE(Ft[t].missing.empty()) << Ft[t].missing;
+    const double h=1e-4;
+    rvec3_t sum(0,0,0);
+    double largest=0.0;
+    for (size_t A=0;A<Ft[t].F.size();A++)
+    {
+        sum+=Ft[t].F[A];
+        for (int x=0;x<3;x++)
+        {
+            auto E=[&](double s){ return ForceFacadeTests::TermEnergiesAt(c.SizedSetup(), *MovedH2O(h2o,A,x,s), D)[t].E; };
+            const double fd=(E(h)-E(-h))/(2*h);
+            EXPECT_NEAR(C(Ft[t].F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << Et[t].label << ", atom " << A << " axis " << x;
+            largest=std::max(largest, std::fabs(fd));
+        }
+    }
+    EXPECT_GT(largest, 1e-2) << "the force is not trivially small (a sign would show)";
+    EXPECT_LT(norm(sum), 1e-8) << "translation invariance";
 }
 
 // ============================================================================================================================
