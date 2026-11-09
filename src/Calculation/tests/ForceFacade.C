@@ -717,3 +717,44 @@ TEST(HamiltonianForces, ASymmetryBlockedRunsForceIsTheUnblockedRunsForce)
         EXPECT_GT(total, 1e-2) << what << ": the force is not trivially small";
     }
 }
+
+// ============================================================================================================================
+// THE HAND-GRADIENT AUDIT (lane B 2026-11-09): the converged state's fields' Gradient(r) -- ρ (the composite of irrep densities, each
+// Σ D ∇φ φ), m = ρ↑−ρ↓ (the spin density), and every MO (Σ c ∇φ) -- against the central difference of their own values, RHF and UHF
+// water, free and SALC-blocked.  Step h = 1e-5 and tolerance as M_GeometryDerivatives GATE 2 (1e-7, relative above 1); the largest
+// derivative probed must be 0.1 or more (the spin density's 0.01: water's UHF m is small), so a sign would show.
+// ============================================================================================================================
+TEST(HandGradient, TheConvergedStatesFieldsGradientsAreTheFiniteDifferenceOfTheirValues)
+{
+    const Molecule h2o=GetMolecule("H2O");
+    std::vector<rvec3_t> pts; h2o.ForEachSite([&](int, const rvec3_t& r, bool){ pts.push_back(r+rvec3_t(0.23,-0.17,0.31)); });
+    pts.push_back(rvec3_t(1.4,-0.9,2.2));
+    auto check=[&](const ScalarFunction<double>& f, const std::string& who, double floor)
+    {
+        const double h=1e-5;
+        double largest=0.0;
+        for (const rvec3_t& r : pts)
+        {
+            const rvec3_t g=f.Gradient(r);
+            for (int k=0;k<3;k++)
+            {
+                rvec3_t p=r, m=r; (k==0 ? p.x : k==1 ? p.y : p.z)+=h; (k==0 ? m.x : k==1 ? m.y : m.z)-=h;
+                const double fd=(f(p)-f(m))/(2*h);
+                EXPECT_NEAR(C(g,k), fd, 1e-7*std::max(1.0,std::fabs(fd))) << who << ": axis " << k << " at " << r;
+                largest=std::max(largest, std::fabs(fd));
+            }
+        }
+        EXPECT_GT(largest, floor) << who << ": the derivatives probed are not trivially small";
+    };
+    for (SpinGroup spin : {SpinGroup::UnPolarized, SpinGroup::Polarized})
+        for (bool sym : {false, true})
+        {
+            const std::string what=std::string(spin==SpinGroup::Polarized ? "UHF" : "RHF")+(sym ? " SALC" : " free");
+            MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::HF, .spin=spin, .multiplicity=spin==SpinGroup::Polarized ? 3 : 0, .symmetry=sym}), Tight());
+            ASSERT_TRUE(c.IsConverged()) << what;
+            check(c.Density(), what+" density", 0.1);
+            if (spin==SpinGroup::Polarized) check(c.GetSpinDensity(), what+" spin density", 0.01);
+            size_t n=0;
+            for (const auto& L : c.GetLevels()) if (n++<8) check(*L.phi, what+" MO "+L.label, 0.1);
+        }
+}

@@ -27,6 +27,7 @@ import qchem.BasisSet.Orbital_DFT_IBS;                    // Repulsion3C + the C
 import qchem.Mesh;                                        // qcMesh::MeshParams (the fit basis's own mesh, unused by the Coulomb metric)
 import qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Point.PG_Spherical;
+import qchem.BasisSet.Gaussian.Point.PG_LibCint;               // its own hand Gradient(r) (the hand-gradient audit)
 import qchem.BasisSet.Gaussian.Point.BasisFiles;          // BasisFile (the contracted dzvp)
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
@@ -538,4 +539,58 @@ TEST(GeometryDerivatives, SALCPullbacksAreTheFiniteDifferenceOfTheirOwnBlocksWit
     EXPECT_FALSE(B[0]->CanPullbackERI4(&rawHF));
     const auto r=B[0]->MakeDirectPullback(D[0], rsmat_t(raw->GetNumFunctions()), &rawHF, h2o.get());
     EXPECT_FALSE(bool(r)); if (!r) EXPECT_FALSE(r.Error().why.empty());
+}
+
+// GATE 7, THE HAND-GRADIENT AUDIT (lane B 2026-11-09, ahead of the user's Enzyme decision): every other point-Gaussian family's hand
+// Gradient(r) against the central difference of its own operator()(r), every function, at points near (≈0.3 bohr) and far (≈3 bohr) from
+// each atom.  PG_Spherical (s through g uncontracted, and the contracted DZVP), PG_LibCint Cartesian and spherical (the same two), and a
+// SALC block of water's DZVP (Oᵀ applied to the raw gradients).  Step and tolerance as GATE 2; the largest derivative probed must be
+// 0.1 or more (each family's is O(1) except the SALC A2 block, d functions only, ~0.36), so a sign or a missing factor would show.
+TEST(GeometryDerivatives, EveryPointGaussianFamilysHandGradientIsTheFiniteDifferenceOfItsValues)
+{
+    const auto h2o=Water();
+    const auto R=Sites(*h2o);
+    BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
+    std::vector<std::pair<std::string, std::unique_ptr<BasisSet::Orbital_1E_IBS<double>>>> blocks;
+    blocks.emplace_back("PG_Spherical spdfg", std::make_unique<BasisSet::Gaussian::PG_Spherical::Orbital_IBS>(rvec_t{1.3, 0.35}, 4, h2o.get()));
+    blocks.emplace_back("PG_Spherical DZVP",  std::make_unique<BasisSet::Gaussian::PG_Spherical::Orbital_IBS>(&reader, h2o.get()));
+    for (bool sph : {false, true})
+    {
+        const std::string tag=sph ? "PG_LibCint spherical " : "PG_LibCint Cartesian ";
+        blocks.emplace_back(tag+"spdfg", std::make_unique<BasisSet::Gaussian::PG_LibCint::Orbital_IBS>(rvec_t{1.3, 0.35}, 4, h2o.get(), sph));
+        blocks.emplace_back(tag+"DZVP",  std::make_unique<BasisSet::Gaussian::PG_LibCint::Orbital_IBS>(&reader, h2o.get(), sph));
+    }
+    const auto raw=Dzvp(h2o.get());
+    const auto pts=BasisSet::Gaussian::PG_Cart::StructureToSymPoints(*h2o);
+    const auto grp=Symmetry::Molecule::BuildAbelianGroup(pts, 1e-4);
+    const auto salc=Symmetry::Molecule::BuildSALCs(BasisSet::Gaussian::PG_Cart::ExtractAoShells(*raw), grp, Symmetry::Molecule::Centroid(pts), 1e-4);
+    const BasisSet::Gaussian::SymmetryAdaptedBasisSet sab(raw.get(), salc);
+    std::vector<std::pair<std::string, const BasisSet::Orbital_1E_IBS<double>*>> all;
+    for (const auto& [n,b] : blocks) all.emplace_back(n, b.get());
+    for (auto oi : sab.Iterate<BasisSet::Real_OIBS>()) all.emplace_back("SALC "+oi->Name(), dynamic_cast<const BasisSet::Orbital_1E_IBS<double>*>(oi));
+    const double h=1e-5;
+    for (const auto& [name, b] : all)
+    {
+        ASSERT_NE(b, nullptr) << name;
+        double largest=0.0;
+        for (const rvec3_t& base : R)
+            for (const rvec3_t& off : {rvec3_t(0.17,-0.21,0.12), rvec3_t(1.9,1.2,-1.8)})
+            {
+                const rvec3_t r=base+off;
+                const rvec3vec_t g=b->Gradient(r);
+                ASSERT_EQ(g.size(), b->GetNumFunctions()) << name;
+                for (int k=0;k<3;k++)
+                {
+                    rvec3_t p=r, m=r; C(p,k)+=h; C(m,k)-=h;
+                    const rvec_t vp=(*b)(p), vm=(*b)(m);
+                    for (size_t i=0;i<b->GetNumFunctions();i++)
+                    {
+                        const double fd=(vp[i]-vm[i])/(2*h);
+                        EXPECT_NEAR(C(g[i],k), fd, 1e-7*std::max(1.0,std::fabs(fd))) << name << ": function " << i << " axis " << k << " at " << r;
+                        largest=std::max(largest, std::fabs(fd));
+                    }
+                }
+            }
+        EXPECT_GT(largest, 0.1) << name << ": the derivatives probed are not trivially small";
+    }
 }

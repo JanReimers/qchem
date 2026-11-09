@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <memory>
 using std::cout;
 using std::endl;
 
@@ -13,6 +14,7 @@ import qchem.BasisSet.Radial.Evaluators;
 import qchem.BasisSet.Radial.IBS;          // Radial::RadialAngularID (the atom radial|angular identity face)
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;   // tests may cheat: the ERI4 substrate face
 import qchem.BasisSet;
+import qchem.BasisSet.Orbital_DHF_IBS;     // Real_ORKB: the Dirac blocks (the hand-gradient audit)
 
 import qchem.Structure;
 import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/BasisField
@@ -472,5 +474,60 @@ TEST_F(BasisSet_BS,IDs)
         EXPECT_EQ(ibs->Name(),"BSpline<6>");
         EXPECT_EQ(ibs->RadialID(),"BSpline<6> grid: N=6 {0,0.25,0.5 ... 4}");
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
+    }
+}
+
+//----------------------------------------------------------------------------------------
+//
+//  THE HAND-GRADIENT AUDIT (lane B 2026-11-09, ahead of the user's Enzyme decision): every radial family's hand Gradient(r), through
+//  the blocks the Factory builds, against the central difference of the same block's operator()(r), every function and axis.  Slater,
+//  Gaussian, BSpline<6> (r^l and plain), and the two Dirac (RKB) families, whose blocks stack the large and small components.  Points
+//  0.3 to 2.1 bohr off the nucleus, off every BSpline knot.  Step h = 1e-5: the central difference's h²/6 |φ‴| is ≲ 1e-10 |φ‴| for the
+//  exponents here (≤ 10), so 1e-7 (relative above 1).  The largest derivative probed must be O(1e-1) or more, so a sign would show.
+//  (The kinetic Grad2 gates above use Gradient quadratically, so they cannot see a sign, and never reached the RKB blocks.)
+//
+TEST(RadialHandGradient, EveryRadialFamilysGradientIsTheFiniteDifferenceOfItsValues)
+{
+    using enum Type;
+    const std::vector<std::pair<Type,nlohmann::json>> cases{
+        {Slater,    {{"type",Slater},   {"ltrim",0},{"exponents",{0.5,1.0,2.0,4.0}}}},
+        {Gaussian,  {{"type",Gaussian}, {"ltrim",0},{"exponents",{0.5,1.0,2.0,4.0}}}},
+        {BSpline6,  {{"type",BSpline6}, {"rmin",0.25},{"rmax",4},{"N",5}}},
+        {BSpliner6, {{"type",BSpliner6},{"rmin",0.25},{"rmax",4},{"N",5}}},
+        {Gaussian_RKB, {{"type",Gaussian_RKB},{"N",4},{"emin",0.5},{"emax",8}}},
+        {Slater_RKB,   {{"type",Slater_RKB},  {"N",4},{"emin",0.5},{"emax",8}}}};
+    const std::vector<rvec3_t> pts{rvec3_t(0.21,-0.13,0.17), rvec3_t(0.9,0.55,-0.7), rvec3_t(-1.3,1.1,1.2)};
+    const double h=1e-5;
+    for (const auto& [t,js] : cases)
+    {
+        std::unique_ptr<Real_BS> bs(Factory(js, 30));   // Zn: s, p and d blocks
+        const bool rkb = t==Gaussian_RKB || t==Slater_RKB;
+        std::vector<const VectorFunction<double>*> blocks;
+        if (rkb) for (auto b : bs->Iterate<BasisSet::Real_ORKB>()) blocks.push_back(b);
+        else     for (auto b : bs->Iterate<Real_OIBS>())           blocks.push_back(b);
+        ASSERT_GE(blocks.size(), 3u) << js.dump();
+        double largest=0.0;
+        for (size_t ib=0;ib<blocks.size();ib++)
+        {
+            const VectorFunction<double>& f=*blocks[ib];
+            for (const rvec3_t& r : pts)
+            {
+                const rvec3vec_t g=f.Gradient(r);
+                const rvec_t v=f(r);
+                ASSERT_EQ(g.size(), v.size()) << js.dump() << " block " << ib << ": one gradient per function";
+                for (int k=0;k<3;k++)
+                {
+                    rvec3_t p=r, m=r; (k==0 ? p.x : k==1 ? p.y : p.z)+=h; (k==0 ? m.x : k==1 ? m.y : m.z)-=h;
+                    const rvec_t vp=f(p), vm=f(m);
+                    for (size_t i=0;i<v.size();i++)
+                    {
+                        const double fd=(vp[i]-vm[i])/(2*h), an=(k==0 ? g[i].x : k==1 ? g[i].y : g[i].z);
+                        EXPECT_NEAR(an, fd, 1e-7*std::max(1.0,std::fabs(fd))) << js.dump() << " block " << ib << " function " << i << " axis " << k << " at " << r;
+                        largest=std::max(largest, std::fabs(fd));
+                    }
+                }
+            }
+        }
+        EXPECT_GT(largest, 0.1) << js.dump() << ": the derivatives probed are not trivially small";
     }
 }
