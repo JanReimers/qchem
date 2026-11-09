@@ -285,7 +285,9 @@ public:
     typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
     typedef std::unique_ptr<Fitting::DunlapDensityFit<double>> FitPtr;
     //! The fitter is the factory's choice (\c Fitting::MakeDunlapDensityFitter); this term holds only its face (ruling (g)).
-    explicit Vee_FitDunlap(FitPtr fit);
+    //! \a numElectrons is the FIXED N the fit is constrained to (user ruling 2026-11-08, via lane B: not the density's Tr(DS),
+    //! which moves with the geometry at fixed D and would put a λ Tr(D ∂S/∂R) term into the force).
+    Vee_FitDunlap(FitPtr fit, double numElectrons);
     ~Vee_FitDunlap();
     //! \copydoc tDynamic_HT::RefreshForDensity
     //! The fitted charge density is k-INDEPENDENT and refit once per density serial, so it is exactly what
@@ -304,9 +306,10 @@ public:
 private:
     mutable rsmat_t itsEMat;   //!< GetEMatrix's returned block (one serial contraction reads it at once)
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const;
-    //! The density projects ITSELF onto the fitter, and the fit is constrained to the density's own charge.
-    void Fit(const rChargeDensity& cd) const {itsFit->DoFit(cd.Project(*itsFit), cd.GetTotalCharge());}
+    //! The density projects ITSELF onto the fitter, and the fit is constrained to the fixed electron count N.
+    void Fit(const rChargeDensity& cd) const {itsFit->DoFit(cd.Project(*itsFit), itsNumElectrons);}
     FitPtr itsFit;   //!< owned
+    double itsNumElectrons;   //!< the fixed N of the charge constraint
 };
 
 //

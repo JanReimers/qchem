@@ -20,9 +20,10 @@ import qchem.BasisSet.Transition_DFT_IBS;       // the (k+q, k) pair's adjoint g
 namespace qchem::Hamiltonian
 {
 
-Vee_FitDunlap::Vee_FitDunlap(FitPtr fit) : itsFit(std::move(fit))
+Vee_FitDunlap::Vee_FitDunlap(FitPtr fit, double numElectrons) : itsFit(std::move(fit)), itsNumElectrons(numElectrons)
 {
     if (!itsFit) throw std::logic_error("Vee_FitDunlap: no fitter");
+    if (!(itsNumElectrons>0.0)) throw std::logic_error("Vee_FitDunlap: the charge constraint needs the electron count N > 0");
 }
 
 Vee_FitDunlap::~Vee_FitDunlap() = default;
