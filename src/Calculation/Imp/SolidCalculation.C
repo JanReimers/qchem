@@ -43,6 +43,7 @@ import qchem.Parallel;                         // WorkerThreads() -- half of the
 import qchem.SCFCap;                           // SetupSCF -- the seed's atomic solves are not the run's iterations
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
 import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
+import qchem.DegenerateFillReport;                   // the `choose` row for a kT = 0 fill that shared a degenerate level
 import qchem.Hamiltonian.Factory;
 import qchem.RunPolicy;
 
@@ -134,6 +135,7 @@ struct SolidCalculation::Imp
     //! \brief THE AUDIT RSS POLICY's refusal (\c AdmitReference), once one fired: before the first SCF (nothing ran) or mid-pilot (the
     //! converged run and the pilot's record are kept).  \c Outcome_ then answers it, whatever the SCF did.
     std::optional<ResourceRefusal> resourceRefusal;
+    bool degenerateRuleReported = false;   //!< the facade's degenerate-level `choose` row is filed (once per calculation)
     bool pilotPreflightDone = false;   //!< \c PilotPreflight ran (once per calculation, before its first SCF)
     //! The (reference, sizes, verdict) rows already filed: a reference judged the same twice (the preflight, then round 0) files once.
     mutable std::set<std::string> footprintRowsFiled;
@@ -1154,8 +1156,14 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
     return R;
 }
 
-Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage(const SCFParams& params)
+Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage(const SCFParams& asked)
 {
+    // THE DEGENERATE-LEVEL RULE (D-DEGEN-FILL, user 2026-11-08): a stated rule passes; Auto is THIS facade's policy -- Shared, the
+    // kT -> 0 limit of the Fermi fill every periodic DFT run here approximates -- reported once per calculation.
+    const SCFParams params=ResolveDegenerateLevelFill(asked, SCFParams::DegenerateLevelFill::Shared,
+        "a periodic DFT run: a partly filled degenerate level (a band touching at a high-symmetry k) takes the kT -> 0 Fermi limit, so "
+        "its density does not depend on the eigensolver's rotation inside the level", !itsImp->degenerateRuleReported);
+    itsImp->degenerateRuleReported=true;
     // ★ THE CONVERGE RESIDUE (doc/ParallelAndOraclePlan.md 1.1(a)).  The work AFTER Iterate returns is not
     // bookkeeping: GetChargeDensity() builds a fresh composite density and GetSpinDensity() rasters BOTH
     // spin channels, once per stage -- and an annealed run has a stage per schedule entry.
@@ -1167,7 +1175,10 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
                   itsImp->stageAccelAsked==SCFAccelerators::Type::Auto);
     { qchem::report::Section scf("scf"); ReportSCFRecipe(resolved, AccelName(itsImp->stageAccel)); }   // the run report's "what recipe am I running" header, as every facade files it
     itsImp->lastOccupation = {.useMOM=params.UseMOM, .momStartIter=(int)params.MOMStartIter,
-                              .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty};   // the iterator's own conversion
+                              .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty,
+                              .degenerate=params.DegenerateLevels==SCFParams::DegenerateLevelFill::Shared
+                                          ? qchem::OccupationConfig::DegenerateLevels::Shared : qchem::OccupationConfig::DegenerateLevels::OrbitalByOrbital,
+                              .levelTol=params.MergeTol};   // the iterator's own conversion
     itsImp->lastkT     = params.SmearingkT;
     itsImp->lastRecipe = std::string("accel=")+AccelName(itsImp->stageAccel)+" kT="+std::to_string(params.SmearingkT)
                        + " MOM="+(params.UseMOM?"on":"off")+" KerkerG0="+std::to_string(resolved.KerkerG0)

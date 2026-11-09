@@ -42,6 +42,12 @@ struct BlockFill
     double mu=0.0;       //!< the shared chemical potential (FermiAtMu only -- solved over the whole reservoir)
     double kT=0.0;       //!< Fermi temperature, Hartree (Fermi/FermiAtMu; >0)
     rvec_t ranking;      //!< Integer: priority (empty = stored order); Fermi*: eShift (empty = bare ε)
+    //! Integer only: the width of a DEGENERATE LEVEL.  Orbitals within \c levelTol of a level's lowest
+    //! energy are ONE level, and a level the budget only partly fills gives each orbital the SAME share
+    //! (occ_i = g_i x left / G): the kT -> 0 limit of the Fermi fill, so D is invariant to any rotation inside
+    //! the level (user ruling 2026-11-08, D-DEGEN-FILL).  0 = orbital by orbital, in ranking order -- what a
+    //! HELD fill needs (it must reproduce the stored block a geodesic rotated).
+    double levelTol=0.0;
 };
 
 } // namespace qchem

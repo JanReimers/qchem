@@ -1,7 +1,8 @@
 {
  "_doc": [
   "CONVERGENCE PANEL (doc/SCFRobustnessPlan.md §4), regime 2' (degenerate frontier at kT = 0).  The Mn-O dimer in a 16-bohr box (MnO_box16), VA spherical, multiplicity 6, standalone GDM at kT = 0 from the IonicSAD seed (= ~/Code/qchem6-runs/MnO_box16/mno_box16_va.json --set solid.accelerator=GDM --set scf.smearingkT=0, records r007/r008).",
-  "RED case: GDM crawls (OpenWork §3 'GDM crawls'), -30.342242 at iteration 44, ~200 to converge, 5.65 mHa above CP2K OT (-30.34790).  Cap = target budget 15; the target STATE is provisionally CP2K's (ruling 7, 2026-10-29)."
+  "RED case: GDM crawls (OpenWork §3 'GDM crawls'), -30.342242 at iteration 44, ~200 to converge, 5.65 mHa above CP2K OT (-30.34790).  Cap = target budget 15; the target STATE is provisionally CP2K's (ruling 7, 2026-10-29).",
+  "degenerateLevelFill OrbitalByOrbital is STATED (D-DEGEN-FILL, 2026-11-08): the subject is GDM on the integer-occupation manifold, as CP2K OT's; the solid default shares the half-filled degenerate pi pair, a D' GDM declines to rotate."
  ],
  "structure": "MnO_box16",
  "basis": {
@@ -28,6 +29,7 @@
   "startingRelaxRo": 0.3,
   "mergeTol": 0.0001,
   "useMOM": false,
-  "smearingkT": 0.0
+  "smearingkT": 0.0,
+  "degenerateLevelFill": "OrbitalByOrbital"
  }
 }

@@ -59,8 +59,9 @@ public:
 private:
     // The five ex-TakeElectrons* bodies, now Fill's private realizations (one per meaningful point of the
     // BlockFill product -- V1.11 inc 4; they stopped being face members, not being code).
-    ds_t TakeElectrons      (double ne);
-    ds_t TakeElectrons      (double ne, const rvec_t& priority);
+    //! The integer (kT = 0) fill: \c ShareDegenerateLevels over this block's orbitals (\a priority empty = energy
+    //! order; \a levelTol <= 0 = orbital by orbital, the held fill).
+    ds_t TakeElectrons      (double ne, const rvec_t& priority, double levelTol);
     ds_t TakeElectronsFermi (double ne, double kT, const rvec_t& eShift);
     ds_t SetFermiOccupationsAtMu (double mu, double kT, const rvec_t& eShift);
     TOrbitalsImp(const TOrbitalsImp&);

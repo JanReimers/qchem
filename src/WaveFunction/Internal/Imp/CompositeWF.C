@@ -583,7 +583,6 @@ template <class T> void tCompositeWF<T>::FillReservoirRanked(OccupationPolicy<T>
                                                              const std::vector<iwf_ref_t>& wfs, double mergeTol,
                                                              bool useMOM)
 {
-    struct Slot { double key; iwf_ref_t w; double cap; };
     assert(!wfs.empty());
     const Spin s = IrrepOf(wfs.front()).ms;
     double Nc = (double)itsEC->GetN(IrrepOf(wfs.front()));   // total electrons in this spin channel
@@ -598,33 +597,38 @@ template <class T> void tCompositeWF<T>::FillReservoirRanked(OccupationPolicy<T>
         mom[IrrepOf(w)]=pol.Scores(IrrepOf(w),*v);
     }
 
-    std::vector<Slot> slots;                                  // every orbital across the channel
+    // Every orbital across the channel, and who owns it.  The kT = 0 kernel then decides each one's occupation: whole
+    // levels in turn and a partly filled DEGENERATE level shared equally (D-DEGEN-FILL 2026-11-08) -- across blocks too,
+    // since a level the point group splits over several irreps is still one level (a p shell over D2h's three).
+    size_t ntot=0;
+    for (auto w : wfs) ntot += OrbitalsOf(w)->GetNumOrbitals();
+    std::vector<iwf_ref_t> owner; owner.reserve(ntot);
+    // The rank K: MOM's scores; or, for an orbital-by-orbital aufbau (no level width), -energy -- the orbitals arrive irrep by
+    // irrep, and the kernel keeps a rankless caller's STORED order (2026-11-08: water C2v HF filled 5A1 over 1B1 without it).
+    // A shared fill passes no rank: the kernel groups by energy itself.
+    const bool aufbauRank = !useMOM && pol.LevelWidth()<=0.0;
+    rvec_t E(ntot), G(ntot), K((useMOM || aufbauRank) ? ntot : 0);
+    size_t at=0;
     for (auto w : wfs)
     {
         size_t idx=0;
         const rvec_t& sc = mom[IrrepOf(w)];               // empty unless MOM active & referenced
         for (auto o : OrbitalsOf(w)->Iterate())
         {
-            // MOM: higher overlap = occupy first (unreferenced/empty irrep scores 0).
-            // Aufbau: lower eigenvalue = occupy first, so key on -energy for a common "bigger wins".
-            double key = useMOM ? (idx<sc.size() ? sc[idx] : 0.0) : -o->GetEigenEnergy();
-            slots.push_back({key, w, (double)o->GetDegeneracy()});
-            ++idx;
+            owner.push_back(w);
+            E[at]=o->GetEigenEnergy();
+            G[at]=(double)o->GetDegeneracy();
+            if (useMOM) K[at]=idx<sc.size() ? sc[idx] : 0.0;   // MOM: higher overlap first (unreferenced = 0)
+            else if (aufbauRank) K[at]=-E[at];                 // aufbau: lower eigenvalue first
+            ++idx; ++at;
         }
     }
-    std::sort(slots.begin(), slots.end(), [](const Slot& a, const Slot& b){return a.key>b.key;});
+    const rvec_t occ=qchem::Orbitals::ShareDegenerateLevels(E, G, K, Nc, pol.LevelWidth());
 
     std::map<Irrep,double>& ne = itsAufbauNe[s];
     for (auto w : wfs) ne[IrrepOf(w)]=0.0;
     assert(ne.size()==wfs.size() && "aufbau key collision: irreps must be unique within a spin channel");
-    double rem = Nc;
-    for (const auto& sl : slots)                              // fill highest-priority first
-    {
-        if (rem<=0.0) break;
-        double take = std::min(sl.cap, rem);
-        ne[IrrepOf(sl.w)] += take;
-        rem -= take;
-    }
+    for (size_t i=0;i<occ.size();++i) ne[IrrepOf(owner[i])] += occ[i];
 
     for (auto w : wfs)                                        // occupy + collect energy levels
     {

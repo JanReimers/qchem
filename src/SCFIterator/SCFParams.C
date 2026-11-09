@@ -70,7 +70,15 @@ export struct SCFParams
     //! The FLOOR of linear D-mixing's adaptive step: a retraction (a step that made [F,D] worse) shrinks α by 0.8, never below
     //! this.  0 (default) = no floor -- every recipe means what it meant.
     double MinRelaxRo      = 0.0;
-    double MergeTol        = 1e-4;   //Merge eigen levels (like Px,Py Pz) that are equal within +/- MergeTol
+    //! The linear D-mixing CEILING once a direct minimiser (GDM) has DECLINED this run's density as outside its
+    //! integer-occupation manifold -- a kT = 0 fill that shares a partly filled degenerate level (D-DEGEN-FILL) is the
+    //! case: GDM's steps then fall back to mixed fixed-point steps for the rest of the run, and CLAUDE.md's rule is that a
+    //! declined GDM's linear fallback runs at 0.2-0.3, never 1.0 (the passthrough a molecular GDM recipe otherwise
+    //! carries).  Applied once, announced as a hand-off; a field mixer (Kerker/Pulay) is left alone.
+    double DeclinedDirectMinRelax = 0.25;
+    //! Merge eigen levels (like Px,Py Pz) that are equal within +/- MergeTol -- in the level table AND, under
+    //! \c DegenerateLevels = Shared, in the kT = 0 fill (\c OccupationConfig::levelTol; D-DEGEN-FILL 2026-11-08).
+    double MergeTol        = 1e-4;
     bool   Verbose         = true;   //Display iteration details.  ON by default (user, 2026-10-05): a run's console without its iteration table hides where the time goes.
     //! \brief Feed \f$V_{xc}\f$ the CUSP-DEFICIT correction \f$\rho[D]-\tilde\rho_{fit}\f$ on top of the mixed density,
     //! instead of the fitted \f$\tilde\rho_{mix}\f$ alone (doc/OpenWork.md N4) -- how a Kerker/Pulay run meets doc/Pins.md pin 28
@@ -155,6 +163,14 @@ export struct SCFParams
     //! run that cannot mix in G space.
     enum class Mixing { Auto, Linear, Kerker, Pulay };
     Mixing Mixer           = Mixing::Auto;
+    //! \brief HOW a kT = 0 fill distributes a partly filled DEGENERATE level that nothing stated (D-DEGEN-FILL, user 2026-11-08):
+    //! \c OrbitalByOrbital (the occupied orbitals inside the level are whichever the eigensolver listed first) or \c Shared (every
+    //! member the same share: the kT -> 0 Fermi limit, D invariant to the rotation inside the level; the level is \c MergeTol wide).
+    //! \c Auto = the FACADE chooses, as a policy that reports itself (Solid: Shared; Molecule: by model); a caller that drives the
+    //! iterator directly gets OrbitalByOrbital, the framework's plain integer rule.  A stated order (MOM, a held fill, an Atom_EC
+    //! count per m) wins exactly under either.  Deck key \c degenerateLevelFill.
+    enum class DegenerateLevelFill { Auto, OrbitalByOrbital, Shared };
+    DegenerateLevelFill DegenerateLevels = DegenerateLevelFill::Auto;
 };
 
 //! The density-mixing recipe \c Mixing::Auto resolves to on a periodic run (\c ResolveMixing).
