@@ -109,8 +109,8 @@ Material Inline(const std::string& entryJson, const std::string& pp)
     catch (const json::exception& x) { throw std::runtime_error(std::string("Materials: an inline structure is not JSON: ") + x.what()); }
     if (!e.is_object()) throw std::runtime_error("Materials: an inline structure must be an object (a materials.json entry)");
     for (const auto& [k,v] : e.items())
-        if (k!="name" && k!="comment" && k!="lattice" && k!="atoms" && k!="pp")
-            throw std::runtime_error("Materials: unknown key '" + k + "' in an inline structure (known: name, comment, lattice, atoms, pp)");
+        if (k!="name" && k!="comment" && k!="lattice" && k!="atoms" && k!="pp" && k!="provenance")
+            throw std::runtime_error("Materials: unknown key '" + k + "' in an inline structure (known: name, comment, lattice, atoms, pp, provenance)");
     const std::string name = e.contains("name") ? e.at("name").get<std::string>() : std::string("inline");
     if (name.empty() || name[0]=='_' || name.find('/')!=std::string::npos)
         throw std::runtime_error("Materials: inline structure name '" + name + "' must be non-empty, not start with '_' and not contain '/' (it is a file stem)");

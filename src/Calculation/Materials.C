@@ -37,7 +37,7 @@ struct Material
 //! the entry's primary lattice constant (a ladder or an equation-of-state scan), 0 = the banked value.
 Material Get(const std::string& name, double a=0.0);
 //! \brief A material stated INLINE, not in the data file (a deck's object `structure`): one \c materials.json entry -- `lattice`
-//! (Bravais or `vectors_bohr`), `atoms`, optional `comment` -- as JSON TEXT, with an optional `name` (a file stem; it names the
+//! (Bravais or `vectors_bohr`), `atoms`, optional `comment` and `provenance` (an imported entry's record: \c qchem.CrystalFiles) -- as JSON TEXT, with an optional `name` (a file stem; it names the
 //! run's revisions; default "inline") and an optional `pp` (the pseudopotential SET; default \a pp, the run's).  The cell is built
 //! by the data file's own parser, so an inline copy of a named entry IS that material.  Throws on an unknown key, a bad name, no
 //! set, or anything \c StructureData::CellFromEntry refuses.

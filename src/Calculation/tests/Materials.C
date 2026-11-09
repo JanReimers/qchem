@@ -12,6 +12,7 @@
 #include <vector>
 
 import qchem.Materials;
+import qchem.CrystalFiles;   // an imported entry IS an entry: it runs through Inline
 import qchem.Pseudopotential.Set;
 import qchem.Types;
 
@@ -123,4 +124,20 @@ TEST(Materials, BoxesAndMoleculesAndMisses)
     EXPECT_THROW(M::Get("Unobtainium"), std::runtime_error);
     EXPECT_THROW(M::Get("_doc"),        std::runtime_error) << "the documentation key is not an entry";
     EXPECT_THROW(M::Get("H2O"),         std::runtime_error) << "a molecule is not a material";
+}
+
+// AN IMPORT IS AN ENTRY (OpenWork §2, ruled 2026-11-09): what a CIF translates to, provenance and all, is a material the deck path
+// (Inline) takes as it is -- rocksalt NaF from a two-site F m -3 m asymmetric unit lands on the shipped NaF_rocksalt cell.
+TEST(Materials, AnImportedCrystalIsAnInlineMaterial)
+{
+    const std::string cif="data_NaF\n_cell_length_a 4.619717051183\n_cell_length_b 4.619717051183\n_cell_length_c 4.619717051183\n"
+        "_cell_angle_alpha 90\n_cell_angle_beta 90\n_cell_angle_gamma 90\n"
+        "loop_\n_symmetry_equiv_pos_as_xyz\nx,y,z\nx,1/2+y,1/2+z\n1/2+x,y,1/2+z\n1/2+x,1/2+y,z\n-x,-y,-z\n"
+        "loop_\n_atom_site_label\n_atom_site_fract_x\n_atom_site_fract_y\n_atom_site_fract_z\nNa 0 0 0\nF 0.5 0.5 0.5\n";
+    const auto imp=CrystalFiles::Read(cif, CrystalFiles::Format::CIF, "NaF.cif", "2026-11-09");
+    const Materials::Material m=Materials::Inline(imp.entry, "gth-lda-valence");
+    const Materials::Material shipped=Materials::Get("NaF_rocksalt");
+    EXPECT_EQ(m.cell->GetNumAtoms(), 2u);
+    EXPECT_EQ(m.Nelec(), shipped.Nelec());
+    EXPECT_NEAR(m.cell->GetCellVolume(), shipped.cell->GetCellVolume(), 1e-9) << "a = 8.73 bohr, the shipped cell";
 }

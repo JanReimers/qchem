@@ -7,7 +7,8 @@
     "which gives each element its valence variant.  Nelec is DERIVED (sum of valence over atoms), never stored.  NOTHING about a run lives here -- k-mesh, XC",
     "grid, kT, basis set are the calculation's axes.  Boxes (an atom or molecule in a periodic cell whose",
     "oracle is the molecular facade) are materials too: their 'box' size and 'd' bond length are geometry.",
-    "Lattice constants are the ones the anchored tests were banked at; changing one moves anchors."
+    "Lattice constants are the ones the anchored tests were banked at; changing one moves anchors.  An IMPORTED entry (qchem.CrystalFiles:",
+    "CIF / POSCAR / extended xyz) carries `provenance` {source, format, imported, database, doi, spaceGroup, ...} beside `comment`."
   ],
   "Si_diamond": {
     "comment": "Si conventional cubic a = 5.43 A; FCC primitive cell, two-atom diamond basis",
