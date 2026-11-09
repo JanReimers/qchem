@@ -145,6 +145,7 @@ set(QCHEM_PANEL_RED
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_Converges_Panel_Long" # OpenWork §3 "Kerker+Pulay overshoots β-MnO₂'s U = 1 eV basin"
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long"     # same row: control U = 2 eV limit-cycles under plain Kerker
     "ResponsePolarizability.GPW_Si_Γ_Pol_OneSpinAlpha_KeepsZeroMoment_Panel" # OpenWork §3 "Polarized Γ Si JUMPS" (panel #10)
+    "GPW_Si.Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel"   # OpenWork §3 "The Ladder's |ΔE/E| hand-off fires on a lucky tie, starves on a cycle" (exposed by E[D_out])
 )
 #   6. KNOWN RED (user ruling 2026-11-08, CLAUDE.md DISABLED_/WILL_FAIL rule): a NON-panel case that fails today for a reason an
 #      open OpenWork §3 row names, and whose gate must NOT be loosened, is listed in QCHEM_KNOWN_RED with its row.  It runs in its
@@ -152,6 +153,7 @@ set(QCHEM_PANEL_RED
 #      lists them.  A sweep report lists them separately with their reason.  When one goes red (fixed), remove it and close the row.
 set(QCHEM_KNOWN_RED
     "GPW_MnO.Γ_Shub_Pol_Smear_Ordering_Long"                   # OpenWork §3 "MnO ordering at Γ/SR: FM lies BELOW AFM-II" (the 136-function span); was DISABLED_
+    "A/A_SL_HF_ion.A/2"                                         # (ctest name A/A_SL_HF_ion.A/60: Z = 60) OpenWork §3 "Nd⁵⁹⁺ [F,D] gate sits on the cond(S) = 1e15 floor"
 )
 list(JOIN QCHEM_KNOWN_RED ":" _qchemKnownRed)
 set(_qchemKnownRedFast ${QCHEM_KNOWN_RED})        # a _Long known-red case keeps the long label and timeout
