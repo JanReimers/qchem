@@ -17,8 +17,6 @@ module;
 #include <cstddef>
 #include <vector>
 export module qchem.AD.XCKernel;
-export import qchem.AD;        // NoGradient
-export import qchem.Outcome;
 export import qchem.Types;     // rvec_t, rmat_t, rvec3_t
 
 export namespace qchem::AD
@@ -47,16 +45,16 @@ struct XCKernelData
 
 //! THE ENERGY at positions \a R (3 natom, bohr).  THROWS when the data exceeds the kernel's fixed per-point tables (kMaxAtoms, kMaxBF).
 double XCEnergy(const XCKernelData& data, const std::vector<double>& R);
-//! dE/dR by reverse-mode AD (3 natom: atom A's x, y, z at 3A..3A+2).  NoGradient in a build without Enzyme.
-Outcome<rvec_t,NoGradient> XCEnergyGradientR(const XCKernelData& data, const std::vector<double>& R);
-//! dE/dD_ij by reverse-mode AD, every entry independent (so the result is the term's H: pin 32).  NoGradient without Enzyme.
-Outcome<rmat_t,NoGradient> XCEnergyGradientD(const XCKernelData& data, const std::vector<double>& R);
+//! dE/dR by reverse-mode AD (3 natom: atom A's x, y, z at 3A..3A+2).
+rvec_t XCEnergyGradientR(const XCKernelData& data, const std::vector<double>& R);
+//! dE/dD_ij by reverse-mode AD, every entry independent (so the result is the term's H: pin 32).
+rmat_t XCEnergyGradientD(const XCKernelData& data, const std::vector<double>& R);
 
 //! The basis values at a point (for a test: the kernel's phi against the library's).
 std::vector<double> XCKernelAOValues(const XCKernelData& data, const std::vector<double>& R, const rvec3_t& r);
 //! The kernel's own Becke weight of point \a u (offset from atom \a owner) and its AD gradient in R (the point rides with its owner):
 //! for a test against qchem.Mesh.BeckePartition's hand-derived one.
 double XCKernelBeckeWeight(const std::vector<double>& R, size_t owner, const rvec3_t& u, int k);
-Outcome<rvec_t,NoGradient> XCKernelBeckeWeightGradient(const std::vector<double>& R, size_t owner, const rvec3_t& u, int k);
+rvec_t XCKernelBeckeWeightGradient(const std::vector<double>& R, size_t owner, const rvec3_t& u, int k);
 
 } // namespace qchem::AD

@@ -35,23 +35,14 @@ TEST(BeckeAD, ItsADGradientIsTheHandDerivedOne)
             for (const rvec3_t& u : Offsets())
             {
                 const auto g=AD::XCKernelBeckeWeightGradient(Flat(R), A, u, k);
-                if (!AD::Available())
-                {
-                    ASSERT_FALSE(g) << "a build without Enzyme refuses";
-                    EXPECT_FALSE(g.Error().why.empty());
-                    return;
-                }
-                ASSERT_TRUE(g);
-                const auto lib=qcMesh::BeckePartitionGradient(R, A, R[A]+u, k);
-                ASSERT_TRUE(lib);
-                const auto& hand=*lib;
+                const auto hand=qcMesh::BeckePartitionGradient(R, A, R[A]+u, k);
                 rvec3_t sum(0,0,0);
                 for (size_t D=0;D<R.size();D++)
                 {
-                    EXPECT_NEAR((*g)[3*D],   hand[D].x, 1e-13) << "owner " << A << " atom " << D;
-                    EXPECT_NEAR((*g)[3*D+1], hand[D].y, 1e-13) << "owner " << A << " atom " << D;
-                    EXPECT_NEAR((*g)[3*D+2], hand[D].z, 1e-13) << "owner " << A << " atom " << D;
-                    sum+=rvec3_t((*g)[3*D], (*g)[3*D+1], (*g)[3*D+2]);
+                    EXPECT_NEAR(g[3*D],   hand[D].x, 1e-13) << "owner " << A << " atom " << D;
+                    EXPECT_NEAR(g[3*D+1], hand[D].y, 1e-13) << "owner " << A << " atom " << D;
+                    EXPECT_NEAR(g[3*D+2], hand[D].z, 1e-13) << "owner " << A << " atom " << D;
+                    sum+=rvec3_t(g[3*D], g[3*D+1], g[3*D+2]);
                 }
                 EXPECT_LT(norm(sum), 1e-14) << "translation invariance: the weight's gradient sums to zero";
             }

@@ -14,8 +14,11 @@ take dE/dD by AD and check it against the term's H (pin 32).  The verdict is in 
   2. The `/opt` `ld.lld` needs `libxml2.so.2`, which this box does not have (it has `.so.16`).  A private shim in `~/Code/Enzyme/build/lldshim/`
      fixes it: an `ld.lld` wrapper that sets `LD_LIBRARY_PATH`, plus `libxml2.so.2 -> /usr/lib/x86_64-linux-gnu/libxml2.so.16`.  lld uses
      libxml2 only for COFF manifests.  The build passes `--ld-path=<shim>/ld.lld` in the three `CMAKE_*_LINKER_FLAGS`.  Nothing system-wide changed.
-- **In qchem** the path is `-DQCHEM_ENZYME=ON -DQCHEM_ENZYME_PLUGIN=…/ClangEnzyme-21.so -DQCHEM_ENZYME_INCLUDE=…/enzyme/include`.  The default
-  is OFF, and then every AD gradient refuses with `NoGradient`.  The plugin flags ride `qcAD` only.  Toggling the option rebuilt `qcAD` and
+- **In qchem** the path was `-DQCHEM_ENZYME=ON -DQCHEM_ENZYME_PLUGIN=…/ClangEnzyme-21.so -DQCHEM_ENZYME_INCLUDE=…/enzyme/include`, default
+  OFF, and then every AD gradient refused with `NoGradient`.  **Superseded 2026-11-09: Enzyme is REQUIRED** (user ruling).  `QCHEM_ENZYME`
+  is retired; configure finds `~/Code/Enzyme-main` (871de19f, ⊇ v0.0.308, the same build recipe) by default, checks the pin and runs a
+  smoke derivative (root `CMakeLists.txt`, `cmake/EnzymeSmoke.cpp`).  The plugin flags ride `qcAD` and the files named by
+  `qchem_enzyme_sources` (e.g. `BeckePartition.C`), nothing else.  Toggling the old option rebuilt `qcAD` and
   nothing else: `ninja -n` claims ~600 objects, but that is a dry-run artifact of the dyndep step.
 
 ## 2. What was built
@@ -122,7 +125,13 @@ Cost, against one energy evaluated by the same kernel at `-O2`:
 - A larger system's cost scaling: the block structure is linear in points, as the energy is.
 - Upstream bug reports for friction items 3 and 4 (OpenWork row).
 
-## 6. Draft upstream issues (NOT filed: posting to GitHub is the user's call)
+## 6. Upstream issues -- FILED by the user 2026-11-09
+
+- A, loop cache: https://github.com/EnzymeAD/Enzyme/issues/3747 "Enzyme reverse mode returns a WRONG gradient"
+- B, AVX2 segfault: https://github.com/EnzymeAD/Enzyme/issues/3748 "Enzyme reverse mode SEGFAULTS with -march=native (AVX2)"
+
+The user gets GitHub's emails.  When a fix lands, re-run both repros on the fixing commit before moving the pin, and keep the per-file
+`-mprefer-vector-width=128` flags until B is fixed.  The text as filed follows.
 
 Versions:
 - Enzyme `main` at `1a87ccc` (2026-11-07, after v0.0.307), the clang plugin `ClangEnzyme-21.so`.
@@ -149,8 +158,17 @@ The spike's own checks also pass on 871de19f (`qcAD` and `BeckePartition.C` buil
 
 The pin can move to 871de19f whenever useful.  Nothing in the tree depends on the difference.
 
-**Issue A.**  Title: "Reverse mode returns a wrong gradient when a callee fills a loop-local array through an inner loop with a
-data-dependent trip count".
+**Environment block for both issues** (paste-ready, no local paths; 2026-11-09):
+
+```
+Enzyme:   main 871de19fb1973f7efc3e7231f8db5b2916431b09 (v0.0.308-3-g871de19f); also reproduced on 1a87cccd
+Plugin:   ClangEnzyme-21.so (ENZYME_CLANG=ON, ENZYME_ENABLE_PLUGINS=ON, CMAKE_BUILD_TYPE=Release)
+LLVM:     21.1.6, official LLVM release binary for Linux x86-64 (clang version 21.1.6, llvm-project a832a5222e48),
+          Enzyme built with LLVM_DIR from that release and linked with its lld
+OS / CPU: Ubuntu 26.04.1 LTS, Linux 7.0.0, x86-64, Intel Core i7-10700 (AVX2, no AVX-512)
+```
+
+**Issue A.**  Title: "Enzyme reverse mode returns a WRONG gradient" (user, 2026-11-09).
 
 > Enzyme main 1a87ccc and 871de19f (after v0.0.308), clang/LLVM 21.1.6 (release binary), Linux x86-64, Intel i7-10700.  The attached file (30 lines, no headers beyond <cmath>/<cstdio>)
 > computes E(D) = Σ_p (φ_pᵀ D φ_p)², where φ_p is filled by a callee `Fill` through an inner loop whose trip count `nk[i]` is read from a
@@ -161,7 +179,7 @@ data-dependent trip count".
 > Forward mode (`__enzyme_fwddiff` with the tangent on D_00) gives the correct 4.5709930494 on both commits, so the defect is in reverse mode.
 > Build: `clang++ -std=c++17 -O2 -fplugin=ClangEnzyme-21.so enzyme_loopcache_repro.cpp`.
 
-**Issue B.**  Title: "Reverse-mode segfault at -O2 -march=native (AVX2) for a blocked reduction into a duplicated scratch buffer".
+**Issue B.**  Title: "Enzyme reverse mode SEGFAULTS with -march=native (AVX2)" (2026-11-09).  Both repro files are paste-ready (no internal notes) and were re-verified on 871de19f after the cleanup.
 
 > Same versions (both commits).  The attached file (~150 lines, self-contained) differentiates a blocked sum: 3 blocks write partials into a buffer passed
 > `enzyme_dup`, and are summed after the loop.  At `-O2` it is correct.  At `-O2 -march=native` on an AVX2 machine the reverse pass

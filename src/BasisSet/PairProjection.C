@@ -53,6 +53,7 @@ export module qchem.BasisSet.PairProjection;
 export import qchem.Types;
 export import qchem.Projections;  // ΔG_Map, its field algebra, and the one-of-N record (moved there, V-ONE-OF-N 2/4)
 export import qchem.Mesh.Integrator;   // MatrixForward<T>/MatrixAdjoint<T> -- the two halves the raw pair realises
+import qchem.Structure;   // applyAdjointPullback: the atoms a pullback is taken in
 import qchem.Blaze;    // rvec_t, hmat_t<T> + complex/double arithmetic
 
 export namespace qchem {
@@ -110,6 +111,12 @@ template <class T> struct PairProjection
     //! carries the fit grid -- so the KS matrix is 100% consistent with the density that fit basis collocated.
     //! Empty until a basis sets it (forward-only contexts leave it empty).
     std::function<hmat_t<T>(const std::function<T(const ivec3_t&)>& f)> applyAdjoint;
+    //! THE DERIVATIVE of \ref applyAdjoint, beside it (GeometryOptimizationPlan §13.2; the user's 2026-11-08 pre-approval of derivative
+    //! realizations): \f$G_A=\partial_{R_A}\mathrm{Re}\,\mathrm{Tr}(D\,\mathrm{applyAdjoint}(f))\f$ at FIXED \a f and FIXED Hermitian \a D,
+    //! the orbitals' atoms moving (the fit functions do not: a plane wave has no centre), one entry per site of the structure.  So
+    //! a Hartree or XC term whose matrix is \c applyAdjoint(f) with \f$f=\delta E/\delta\tilde\rho\f$ gets its fixed-D force from it.
+    //! Set with \ref applyAdjoint by a basis that can differentiate its own gather (GPW); empty otherwise.
+    std::function<rvec3vec_t(const std::function<T(const ivec3_t&)>& f, const hmat_t<T>& D, const Structure* st)> applyAdjointPullback;
     //! \brief RAW-RASTER forward (doc/GPWPlan 0.5(f2)): \f$\rho_{DM}(r)\f$ on the tensor's integration
     //! raster -- the D-weighted collocated level densities combined SPECTRALLY (zero-pad, no ball
     //! restriction anywhere), the finest level kept raw.  Because \f$D\f$ is PSD, \f$\rho_{DM}=\phi^T D\phi
@@ -176,6 +183,21 @@ template <class T> hmat_t<T> ContractAdjoint(const PairProjection<T>& g,
         throw std::logic_error("ContractAdjoint: this PairProjection does not realise the G-space adjoint (applyAdjoint); "
                                "a dense one is DensePairProjectionIntegrator::Adjoint");
     return g.applyAdjoint(f);
+}
+
+//! Can \ref ContractAdjointPullback answer for \a g?  CLIENT: a fitter's \c CanPullbackRepulsion (a term's MissingGradients() entry).
+template <class T> bool RealisesAdjointPullback(const PairProjection<T>& g) {return bool(g.applyAdjointPullback);}
+//! The PULLBACK of \ref ContractAdjoint (its derivative beside it): \f$\partial_{R_A}\mathrm{Re}\,\mathrm{Tr}(D\,\langle i|f|j\rangle)\f$ at fixed \a f
+//! and \a D, per site of \a st.  A realization that cannot give it (dense, delta columns, a GPW tensor without the closure) THROWS:
+//! \ref RealisesAdjointPullback says so first.
+template <class T> rvec3vec_t ContractAdjointPullback(const PairProjection<T>& g,
+                                                      const std::type_identity_t<std::function<T(const ivec3_t&)>>& f,
+                                                      const hmat_t<T>& D, const Structure* st)
+{
+    if (!g.applyAdjointPullback)
+        throw std::logic_error("ContractAdjointPullback: this PairProjection realises no adjoint pullback (applyAdjointPullback); "
+                               "RealisesAdjointPullback() says so before a force is asked");
+    return g.applyAdjointPullback(f, D, st);
 }
 
 //! Frobenius distance between two DENSE realizations (test oracle).

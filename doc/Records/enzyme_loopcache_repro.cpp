@@ -1,12 +1,12 @@
-// doc/Records/enzyme_loopcache_repro.cpp -- Enzyme reverse mode returns a WRONG gradient, with no diagnostic, when a callee fills a
-// loop-local stack array through an inner loop whose trip count is read from data.  Self-contained: no Enzyme header, no qchem code.
-// Lane B, 2026-11-08; the record and the draft issue are in doc/Records/EnzymeSpike.md §6.
+// Enzyme reverse mode returns a WRONG gradient, with no diagnostic, when a callee fills a loop-local stack array through an
+// inner loop whose trip count is read from data.  Self-contained: no Enzyme header needed.
 //
-//   CXX=/opt/LLVM-21.1.6-Linux-X64/bin/clang++; P=$HOME/Code/Enzyme/build/Enzyme/ClangEnzyme-21.so
-//   $CXX -std=c++17 -O2 -fplugin=$P enzyme_loopcache_repro.cpp && ./a.out
+//   clang++ -std=c++17 -O2 -fplugin=ClangEnzyme-21.so repro.cpp && ./a.out
 //   expected:  dE/dD_00: AD 4.5709930...  FD 4.5709930...
 //   actual:    dE/dD_00: AD 0.8510516320  FD 4.5709930507        (the same at -O1, -O2, -O3, with or without -march=native)
-// Replacing the inner k loop by its one iteration (or a compile-time trip count) gives the right answer.
+//
+// Replacing the inner k loop by its one iteration (or a compile-time trip count) gives the right answer.  Forward mode
+// (__enzyme_fwddiff with the tangent on D_00) gives the right answer.
 #include <cmath>
 #include <cstdio>
 extern int enzyme_dup, enzyme_const;

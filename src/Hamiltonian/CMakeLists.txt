@@ -7,6 +7,7 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/Ven.C
     Internal/Imp/Ven_Forces.C             # Ven's force (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/Vee_FitDunlap_Forces.C   # the Dunlap Hartree force (GeometryOptimizationPlan §13.2; 2026-11-08)
+    Internal/Imp/Vee_Fit_Forces.C         # the first-order fitted Hartree force (GeometryOptimizationPlan §13.2; 2026-11-09)
     Internal/Imp/PP_Forces.C              # the two PP terms' forces (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/HF_Forces.C              # the HF Coulomb and exchange forces (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/PP_Local.C

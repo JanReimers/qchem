@@ -42,6 +42,16 @@ public:
     virtual hmat_t<double> Repulsion(const BasisSet::Orbital_DFT_IBS<double,double>&) const=0; //!< \f$\sum_f c_f\langle ab|1/r|f\rangle\f$
     virtual double HartreeEnergy(const std::function<double()>& trDV) const=0;             //!< the first-order \f$E_H\f$ of the last fit
     virtual double Integral() const=0;                                                     //!< the fit's charge \f$\int\tilde\rho\f$
+    //! \name THE DERIVATIVE of \c Repulsion beside it, at the FIXED fit (GeometryOptimizationPlan §13.2, lane B 2026-11-09; the user's
+    //! 2026-11-08 pre-approval): \f$F_A=\partial_{R_A}\mathrm{Re}\,\mathrm{Tr}(D\,\mathrm{Repulsion}(orb))\f$, the block's centres moving.
+    //! On an orthonormal fit basis whose functions do not move that is the first-order Hartree term's whole fixed-D force: \f$E_H\f$ is
+    //! quadratic in D through the projection, and its R-derivative at fixed D is this, once.  \c Can is false exactly when \c Make refuses.
+    //! CLIENT: Vee_Fit's force.
+    //!@{
+    virtual bool CanPullbackRepulsion(const BasisSet::Orbital_DFT_IBS<double,double>&) const=0;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<double,double>&, const hmat_t<double>& D,
+                                                                     const Structure* st) const=0;
+    //!@}
 };
 template <> class FirstOrderDensityFit<dcmplx> : public virtual BasisSet::PairProjector<dcmplx>
 {
@@ -52,6 +62,15 @@ public:
     virtual hmat_t<dcmplx> Repulsion(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;   //!< a Bloch block
     virtual double HartreeEnergy(const std::function<double()>& trDV) const=0;
     virtual double Integral() const=0;
+    //! \name The derivative of \c Repulsion beside it, as on \c FirstOrderDensityFit<double>: a real TRIM block and a Bloch block.
+    //!@{
+    virtual bool CanPullbackRepulsion(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const=0;
+    virtual bool CanPullbackRepulsion(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&, const hmat_t<double>& D,
+                                                                     const Structure* st) const=0;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const hmat_t<dcmplx>& D,
+                                                                     const Structure* st) const=0;
+    //!@}
 };
 
 //! \brief THE DUNLAP FITTED HARTREE FACE, GENERIC OVER THE FIT BASIS (V-ONE-OF-N 3b, user ruling 2026-11-08 (g)): what

@@ -353,6 +353,11 @@ chmat_t Orbital_IBS::IntegratePotential(const std::vector<rvec_t>& V_L, const ce
                                         const chmat_t* screenD, double fieldSharpness, double relFieldSharp,
                                         const std::vector<size_t>* pairLevels) const
 {   return NR_Evaluator::IntegratePotential(V_L,phase,A,N_L,ecut_L,screener,relCutoffScale,screenD,fieldSharpness,relFieldSharp,pairLevels); }
+rvec3vec_t Orbital_IBS::IntegratePotentialPullback(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
+                                                   const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                   const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                                   double relFieldSharp, const Structure* st) const
+{   return NR_Evaluator::IntegratePotentialPullback(V_L,D,phase,A,N_L,ecut_L,screener,relFieldSharp,st); }
 std::vector<cvec_t> Orbital_IBS::CollocateTransition(const mat_t<dcmplx>& dD, const cellphase_t& ketPhase, const rvec3_t& q,
                                                      const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                                      const std::vector<double>& ecut_L, double relFieldSharp) const

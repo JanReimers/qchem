@@ -51,6 +51,15 @@ Brief notes about module/library conventions, naming, and includes.
     crawl, not a corpse.  Context: the box now has a 32G swapfile (`/swap2.img`); the Aug-13 `ITMain`
     OOM kills happened because the old 4G swap sat chronically full, leaving the kernel nothing but the
     kill.  The `-j` discipline above remains the first-line defense; memsafe is the safety net.
+- **Enzyme is REQUIRED: configure STOPS without it** (user ruling 2026-11-09: "Yes I think we make it required. Seems like a small burden for a lot of functionality.").  The AD derivatives (`src/AD`, the per-file `qchem_enzyme_sources` registrations) need the clang plugin; there is no `QCHEM_ENZYME` option any more (an old cache entry is dropped with a status line).  The pinned build is **`~/Code/Enzyme-main` at 871de19f (⊇ v0.0.308)**, built against `/opt/LLVM-21.1.6-Linux-X64` (recipe: `doc/Records/EnzymeSpike.md` §1, lld shim included).  Configure FINDS it there by default; to name it explicitly:
+      `-DQCHEM_ENZYME_PLUGIN=$HOME/Code/Enzyme-main/build/Enzyme/ClangEnzyme-21.so -DQCHEM_ENZYME_INCLUDE=$HOME/Code/Enzyme-main/enzyme/include`.
+      Configure then checks three things and prints `-- Enzyme: v0.0.308-3-g871de19f (pin 871de19f), plugin …; smoke d(x^2)/dx = 6`:
+      - the plugin and headers EXIST, else `Enzyme is REQUIRED (user ruling 2026-11-09) and was not found:` with both paths and the flags above;
+      - the headers' git checkout HOLDS the pin, else `Enzyme at <dir> ('<describe>') does not hold the pinned commit 871de19f` (the old
+        `~/Code/Enzyme` at 1a87ccc fails here: it silently gave a wrong gradient in the spike);
+      - a smoke derivative through the plugin under THIS clang gives 6 (`cmake/EnzymeSmoke.cpp`), else `does not differentiate under this clang`.
+      The derivative TUs compile at `-O2 -mprefer-vector-width=128` (EnzymeAD/Enzyme#3748, an AVX2 segfault) until #3748 is fixed, and every
+      Enzyme derivative keeps its finite-difference gate while EnzymeAD/Enzyme#3747 (a silently wrong gradient) is open.
 - **A build tree WITHOUT OpenMP silently ignores `QCHEM_OPENMP_THREADS`.**  The /opt clang has no `omp.h`, so `find_package(OpenMP)` fails QUIETLY and every threaded region compiles serial; configure with apt's libomp (the flags in the root `CMakeLists.txt` comment: `-DOpenMP_CXX_FLAGS="-fopenmp -I/usr/lib/llvm-21/lib/clang/21/include" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=/usr/lib/x86_64-linux-gnu/libomp.so`).  Check: `ldd build/Release/CLIapps/rundeck | grep omp`, and the run banner's `OpenMP regions=N`.  (qchem1's Release lacked it until 2026-10-27; the 2026-10-26 overnight NiO run is serial because of it.)
 - **To attribute anchor moves, diff two sweeps test by test**: keep each sweep's `build/Release/Testing/Temporary/LastTest.log`
     and run `scripts/anchordiff BASE.log NEW.log --tol 1e-10` (per test: last printed `Etot` and summed SCF iterations).

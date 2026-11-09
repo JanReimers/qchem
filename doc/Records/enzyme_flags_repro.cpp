@@ -1,33 +1,37 @@
-// doc/Records/enzyme_flags_repro.cpp -- Enzyme 1a87ccc (built against LLVM 21.1.6): the AD spike's XC block kernel (src/AD/Imp/XCKernel.C
-// as of 2026-11-08, restated without modules, no qchem dependency), dE/dD by reverse mode against a central finite difference.
-// Lane B, 2026-11-08; the record is doc/Records/EnzymeSpike.md.  THE SEGFAULT REPRO (not minimised below this file: a three-block loop
-// writing partials into a duplicated scratch buffer is needed, and the small cases built from it do not crash):
+// Enzyme reverse mode SEGFAULTS with -march=native (AVX2).
 //
-//   P=$HOME/Code/Enzyme/build/Enzyme/ClangEnzyme-21.so; I=$HOME/Code/Enzyme/enzyme/include; CXX=/opt/LLVM-21.1.6-Linux-X64/bin/clang++
-//   $CXX -std=c++20 -O2                                      -fplugin=$P -I$I enzyme_flags_repro.cpp && ./a.out   # AD == FD
-//   $CXX -std=c++20 -O3                                      -fplugin=$P -I$I enzyme_flags_repro.cpp && ./a.out   # AD WRONG (the
-//                                                                                     loop-cache defect: enzyme_loopcache_repro.cpp)
-//   $CXX -std=c++20 -O2 -march=native                        -fplugin=$P -I$I enzyme_flags_repro.cpp && ./a.out   # SEGFAULT (AVX2 box)
-//   $CXX -std=c++20 -O2 -march=native -mprefer-vector-width=128 -fplugin=$P -I$I enzyme_flags_repro.cpp && ./a.out   # AD == FD
-//   (with d.nBlocks=1 in main(), -O2 -march=native is exact)
-// The line printed is "full <k> AD <value> FD <value>" for three entries of D.
+// E(D) = sum over grid points of w * rho * eps(rho), rho = phi^T D phi, with phi a few Cartesian Gaussians on two atoms, a Becke
+// partition weight per point, and an LDA energy density eps.  The point loop is split into 3 blocks; each block writes its partial
+// sum into a scratch buffer `part` (passed enzyme_dup), and the partials are summed after the loop.  dE/dD by __enzyme_autodiff is
+// compared with a central finite difference for three entries of D.
+//
+//   clang++ -std=c++20 -O2                                         -fplugin=ClangEnzyme-21.so -I<enzyme>/include repro.cpp && ./a.out
+//       AD == FD
+//   clang++ -std=c++20 -O2 -march=native                           -fplugin=ClangEnzyme-21.so -I<enzyme>/include repro.cpp && ./a.out
+//       Segmentation fault (AVX2 machine)
+//   clang++ -std=c++20 -O2 -march=native -mprefer-vector-width=128 -fplugin=ClangEnzyme-21.so -I<enzyme>/include repro.cpp && ./a.out
+//       AD == FD
+//   clang++ -std=c++20 -O3                                         -fplugin=ClangEnzyme-21.so -I<enzyme>/include repro.cpp && ./a.out
+//       AD wrong, no diagnostic (AD -0.0130734452 against FD -1.1419468942 for D_00)
+//
+// With nBlocks = 1 in main(), -O2 -march=native is correct.  Smaller cases cut down from this file did not crash.
 #include <enzyme/enzyme>
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <vector>
-struct XCShell { size_t atom=0, offset=0; std::vector<std::array<int,3>> powers; std::vector<double> norms, exponents, coefficients; };
-struct XCKernelData { size_t natom=0, nbf=0; int beckeOrder=3; std::vector<double> u, w; std::vector<XCShell> shells; std::vector<double> D; int nBlocks=256; };
+struct Shell { size_t atom=0, offset=0; std::vector<std::array<int,3>> powers; std::vector<double> norms, exponents, coefficients; };
+struct Data { size_t natom=0, nbf=0; int beckeOrder=3; std::vector<double> u, w; std::vector<Shell> shells; std::vector<double> D; int nBlocks=256; };
 namespace K {
-constexpr size_t kMaxAtoms=64, kMaxBF=512;   // the per-point stack tables (checked once, at the entry points)
+constexpr size_t kMaxAtoms=64, kMaxBF=512;
 
-//! qchem.Mesh's BeckeCutoff (Mesh.C), restated: s(mu) = (1 - f^{k+1}(mu))/2, f(mu) = (3 mu - mu^3)/2.
+// Becke's cutoff: s(mu) = (1 - f^{k+1}(mu))/2, f(mu) = (3 mu - mu^3)/2.
 inline double Cutoff(double mu, int k)
 {
     for (int i=0;i<=k;i++) mu=0.5*(3.0*mu-mu*mu*mu);
     return 0.5*(1.0-mu);
 }
-//! qchem.Mesh.BeckePartition's BeckePartitionWeight, restated on plain arrays: atom \a owner's weight at the point \a r.
+// Becke partition weight of atom `owner` at the point r.
 inline double Becke(const double* R, size_t n, size_t owner, const double* r, int k)
 {
     if (n==1) return 1.0;
@@ -54,8 +58,7 @@ inline double Becke(const double* R, size_t n, size_t owner, const double* r, in
     return sum>0.0 ? own/sum : 0.0;
 }
 
-//! The unpolarized LDA energy density per particle, eps_x + eps_c: SlaterExchange(2/3) (eps_x = 3/4 v_x, v_x = -3 alpha (3 rho_s/4 pi)^(1/3)
-//! with rho_s = rho/2, in its operation order) + VWN_Correlation's paramagnetic G(x; P), x = sqrt(r_s).
+// LDA energy density per particle: Slater exchange + VWN paramagnetic correlation.
 constexpr double kPi=3.14159265358979323846, kFourPi=4.0*kPi;
 inline double EpsXc(double rho)
 {
@@ -71,10 +74,10 @@ inline double EpsXc(double rho)
 
 inline double IntPow(double x, int n) { double p=1.0; for (int i=0;i<n;i++) p*=x; return p; }
 
-//! The basis values at \a r: Cartesian Gaussians riding with their atoms.
-inline void AO(const XCKernelData& d, const double* R, const double* r, double* phi)
+// Basis function values at r: Cartesian Gaussians centred on the atoms.
+inline void AO(const Data& d, const double* R, const double* r, double* phi)
 {
-    for (const XCShell& s : d.shells)
+    for (const Shell& s : d.shells)
     {
         const double dx=r[0]-R[3*s.atom], dy=r[1]-R[3*s.atom+1], dz=r[2]-R[3*s.atom+2], r2=dx*dx+dy*dy+dz*dz;
         double rad=0.0;
@@ -84,12 +87,11 @@ inline void AO(const XCKernelData& d, const double* R, const double* r, double* 
     }
 }
 
-//! THE KERNEL: E_xc(R, D).  \a part: d.nBlocks doubles of scratch, one partial sum per block (the file header).
-double Energy(const double* R, const double* D, const XCKernelData& d, double* part)
+// E(R, D).  part: d.nBlocks doubles of scratch, one partial sum per block.
+double Energy(const double* R, const double* D, const Data& d, double* part)
 {
     const size_t nq=d.w.size(), npair=d.natom*nq, nbf=d.nbf;
     const int nb=d.nBlocks;
-//SERIALTEST #pragma omp parallel for schedule(static)
     for (int b=0;b<nb;b++)
     {
         const size_t lo=npair*size_t(b)/size_t(nb), hi=npair*size_t(b+1)/size_t(nb);
@@ -97,7 +99,7 @@ double Energy(const double* R, const double* D, const XCKernelData& d, double* p
         for (size_t p=lo;p<hi;p++)
         {
             const size_t A=p/nq, q=p%nq;
-            if (d.w[q]==0.0) continue;                  // MHL's r = 0 node: before any distance (the file header)
+            if (d.w[q]==0.0) continue;
             const double r[3]={R[3*A]+d.u[3*q], R[3*A+1]+d.u[3*q+1], R[3*A+2]+d.u[3*q+2]};
             const double wB=Becke(R, d.natom, A, r, d.beckeOrder);
             if (wB==0.0) continue;
@@ -121,27 +123,16 @@ double Energy(const double* R, const double* D, const XCKernelData& d, double* p
 
 }
 
-// The kernels Enzyme differentiates, and their constant contexts.  NOT in the anonymous namespace: Enzyme's entry point is a function
-// template DECLARED and never defined (the plugin supplies it), and a template used with an argument type of internal linkage is
-// ill-formed ("used but not defined ... its type does not have linkage").  Module linkage is enough.
-namespace xc_detail
+// Outside an anonymous namespace: __enzyme_autodiff is a template the plugin supplies, and its argument types need linkage.
+namespace detail
 {
 using namespace K;
-// The two energy kernels: the same energy, active in R or in D.
-struct Ctx { const XCKernelData* d; const double* R; const double* D; };
-double KernelR(const double* R, const Ctx* c, double* part) {return Energy(R, c->D, *c->d, part);}
+struct Ctx { const Data* d; const double* R; const double* D; };
 double KernelD(const double* D, const Ctx* c, double* part) {return Energy(c->R, D, *c->d, part);}
-
-struct BeckeCtx { size_t n, owner; double u[3]; int k; };
-double KernelBecke(const double* R, const BeckeCtx* c, double*)
-{
-    const double r[3]={R[3*c->owner]+c->u[0], R[3*c->owner+1]+c->u[1], R[3*c->owner+2]+c->u[2]};
-    return Becke(R, c->n, c->owner, r, c->k);
-}
-} // namespace xc_detail
-using namespace K; using namespace xc_detail;
+} // namespace detail
+using namespace K; using namespace detail;
 int main(){
-    XCKernelData d; d.natom=2; d.beckeOrder=3; d.nBlocks=3;
+    Data d; d.natom=2; d.beckeOrder=3; d.nBlocks=3;
     const double u[][3]={{0.3,0.1,-0.2},{-0.7,0.9,0.4},{1.1,-0.5,0.8},{0.2,0.2,0.2},{-0.4,-0.6,0.1}};
     for (auto& p : u) { d.u.push_back(p[0]); d.u.push_back(p[1]); d.u.push_back(p[2]); d.w.push_back(0.37); }
     d.shells.push_back({0, 0, {{0,0,0}}, {1.3}, {0.8, 2.5}, {0.6, 0.4}});
@@ -154,5 +145,5 @@ int main(){
     Ctx c{&d, R.data(), nullptr};
     std::vector<double> D=d.D, g(25,0.0), part(3), dpart(3,0.0);
     __enzyme_autodiff<void>((void*)KernelD, enzyme_dup, D.data(), g.data(), enzyme_const, &c, enzyme_dup, part.data(), dpart.data());
-    double h=1e-6; for(int k : {0,1,6}){ auto p=D,m=D; p[k]+=h; m[k]-=h; std::vector<double> pp(3),pm(3); std::printf("full %d AD %.10f FD %.10f\n",k,g[k],(KernelD(p.data(),&c,pp.data())-KernelD(m.data(),&c,pm.data()))/(2*h)); }
+    double h=1e-6; for(int k : {0,1,6}){ auto p=D,m=D; p[k]+=h; m[k]-=h; std::vector<double> pp(3),pm(3); std::printf("D_%d: AD %.10f FD %.10f\n",k,g[k],(KernelD(p.data(),&c,pp.data())-KernelD(m.data(),&c,pm.data()))/(2*h)); }
 }

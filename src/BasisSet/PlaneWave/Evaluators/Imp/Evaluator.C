@@ -19,6 +19,7 @@ import qchem.BasisSet.PlaneWave.Internal.GVectors;   // BuildGs
 import qchem.FFT;                // NextPow2 (the XC grid geometry)
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 import qchem.Blaze;
+import qchem.Structure;          // the zero pullbacks' atom count
 
 namespace qchem::BasisSet::PlaneWave
 {
@@ -246,6 +247,7 @@ PairProjection<dcmplx> PW_Evaluator::Repulsion3CTensor() const
     // projects through Overlap3C, so nothing contracts D into this tensor.
     g.applyAdjoint=[lookup=AdjointLookup(), recip=itsRecip](const std::function<dcmplx(const ivec3_t&)>& f) -> chmat_t
         {return lookup([&](const ivec3_t& dm){return recip.CoulombKernel(dm)*f(dm);});};
+    g.applyAdjointPullback=ZeroPullback();
     return g;
 }
 
@@ -256,7 +258,20 @@ PairProjection<dcmplx> PW_Evaluator::Overlap3CTensor() const
     BuildPairProjectionColumns(itsG, g.columns);
     g.volume=Volume();
     g.applyAdjoint=AdjointLookup();
+    g.applyAdjointPullback=ZeroPullback();
     return g;
+}
+
+// The pullback of the Fourier lookup (GeometryOptimizationPlan §13.2, lane B 2026-11-09): IDENTICALLY ZERO.  A plane wave has no centre,
+// so <i|f|j> at fixed f does not move with any atom: a plane-wave Hartree or XC term has no fixed-D force (its structure-factor
+// force is the PP terms').  A realization, not a refusal: the zero is the exact answer.
+std::function<rvec3vec_t(const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure*)> PW_Evaluator::ZeroPullback()
+{
+    return [](const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure* st) -> rvec3vec_t
+    {
+        if (!st) throw std::invalid_argument("PW_Evaluator: a pullback needs the structure (its atom count)");
+        return rvec3vec_t(st->GetNumAtoms(), rvec3_t(0,0,0));
+    };
 }
 
 // The PairProjection<dcmplx> BACKWARD realization for plane waves: <i|f|j> = f(m_i-m_j) (== OverlapMatrix), the Fourier lookup.

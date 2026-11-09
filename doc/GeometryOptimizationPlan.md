@@ -305,15 +305,16 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
       - So per-file flags suffice.  A separate AD-only translation of the same source is the fallback if a hot TU ever measures slower:
         the leaf `inline` in its interface, the energy TU at the tree's flags, an AD TU at the AD flags.
 - **DERIVATIVES ARE ENZYME'S (user, 2026-11-08: "either 1) hand code all derivatives (and maintain them!!!) xor 2) Use Enzyme ... not some
-  blend").**  A build without Enzyme has energies and no forces; the XC force refuses with `NoGradient`.  That is the intent.
+  blend").**  **Enzyme is REQUIRED** (user ruling 2026-11-09: "Yes I think we make it required.  Seems like a small burden for a lot
+  of functionality."): configure stops without the plugin (root `CMakeLists.txt`: the pin 871de19f, a smoke derivative), so there is no
+  build without forces and no "built without Enzyme" refusal.  (Before the ruling a build without Enzyme had energies and no forces.)
   - **The principle: ONE derivative method for every derivative, Enzyme** (user, 2026-11-08: "Clean (consistent) code dictates that all
     derivatives are done the same way.  BUT then Enzyme becomes non-optional.  So I say that temporarily we leave gradients as they are,
     simply because we still need them even if Enzyme+Forces are turned off").
   - **New force derivatives are Enzyme only.**
-  - **The ENERGY path's existing hand derivatives stay, FOR NOW**, because a build without Enzyme still needs them: the basis `Gradient(r)`
-    faces (`PrimGaussian`, `GaussianRF`, `IrrepBasisSet`; ∇_r χ) and our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`,
-    `VWN_Correlation`; libxc's are libxc's).  They move to Enzyme when Enzyme becomes non-optional: an OpenWork row holds that deferred
-    decision.
+  - **The ENERGY path's existing hand derivatives move to Enzyme** now that it is required: the basis `Gradient(r)` faces (`PrimGaussian`,
+    `GaussianRF`, `IrrepBasisSet`; ∇_r χ) and our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`; libxc's are
+    libxc's).  One family per commit, each behind its existing FD gate, the hand version deleted (the OpenWork row).
   - **`BeckePartitionGradient` (2026-11-07) is retired from the production path** (user, 2026-11-08).  It was a force derivative, which no
     energy path uses.  The production `qcMesh::BeckePartitionGradient` is now Enzyme's AD of `BeckePartitionWeight`, registered in place
     in `BeckePartition.C`.  The hand derivation stays ONLY as the test oracle in `src/Mesh/tests/BeckePartitionTests.C`: it gates the AD
@@ -467,9 +468,9 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
   - The PW pullbacks at a NON-TRIM k (genuinely complex D) against the FD of the same assemblies on a distorted Si cell.
   - `EwaldForces` against the FD of `EwaldEnergy` (Si, and a neutral CsCl), η-independent, summing to zero; the pair sum likewise.
   - The PW PP and ion-ion term forces through the term face against the FD of each term's own energy at fixed D.
-- Not yet: GPW's G-space side (its Bloch Gaussians move, so collocation needs jets); and a PW whole-force gate.  That last needs the
-  PW Hartree and XC terms to report their EXACT ZERO fixed-D force (nothing in them moves on a plane-wave basis with a raster mesh),
-  and a solid-facade test friend.  (A real TRIM block inside a complex run: BUILT 2026-11-09, below.)
+- Not yet: the rest of GPW's G-space side (the Hartree gather: BUILT 2026-11-09, below); and a PW whole-force gate.  That last needs
+  the PW XC term to report its EXACT ZERO fixed-D force (the PW Hartree now does: its Coulomb tensor's pullback is zero, nothing on a
+  plane-wave basis has a centre), and a solid-facade test friend.  (A real TRIM block inside a complex run: BUILT 2026-11-09, below.)
 
 **BUILT (lane B 2026-11-09): a real TRIM block inside a complex run.**
 - The composite's `DM_Pullback` walks a real child of a complex run through the term's `tStatic_PC<double>` face, as `DM_Contract`
@@ -500,6 +501,28 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
     unblocked, E1, RHF, UHF, LDA and GTH-LDA: the same energy, the same `MissingGradients()`, every term's force at fixed D within
     1e-6, and the whole force where the model has every term's.
 - Cost: the 1E, PP and 3-centre pullbacks still go once per irrep (OpenWork §4 row).
+
+**BUILT (lane B 2026-11-09): the GPW Hartree force (collocation jets).**
+- E_H = ½Ω Σ_G k(G)|ρ̃(G)|², ρ̃ = Contract(Overlap3C, D), is quadratic in D, so at fixed D its R-derivative is the pullback of the physics
+  round at the FIXED fit: Re Tr(D ∂_R h[ρ̃]), taken once (no ½).  The fit functions are plane waves, so only the block's centres move.
+- The kernel is the derivative of `LatticeCollocation::IntegratePotential`, beside it: `IntegratePotentialPullback(V_L, D, …, st)`.
+  Per pair (i ≤ j) and offset n the weight is c·w·Re[D_ij* e^{ik·R_n}], and the integrand is −∇χ_i χ_j V on χ_i's atom and −χ_i ∇χ_j V
+  on χ_j's (the image moves with its atom).  Same task list, levels, screener plan and tolerance as the gather, never folded.  The
+  reference box walk gains a jet twin (`ForShellPairBoxJets`): the monomial power tables give ∇ of a Cartesian Gaussian in closed form.
+- The tensors carry it as a realization: `PairProjection::applyAdjointPullback`, dispatched by `RealisesAdjointPullback` /
+  `ContractAdjointPullback`.  GPW's Overlap3C and Repulsion3C set it (the ladder, the level restriction, the Coulomb kernel); the plane-
+  wave tensors set an exact zero.  `GSpaceDensityFitter` answers `MakeRepulsionPullback` through it (a real TRIM block's D promoted);
+  `GridDensityFitter` refuses (its mesh moves with the atoms).  `Vee_Fit` gains the term face (`Imp/Vee_Fit_Forces.C`).
+- Gates:
+  - Kernel (`M_CollocationPullback`): Si (SIPP), H₃ (contracted DZVP) and MnO through the spherical view, a two-level ladder, a non-
+    TRIM k, a fixed cosine field, random Hermitian D, against the Richardson FD of Re Tr(D h) with the basis rebuilt at displaced atoms:
+    ~2e-9 at |G| ~ 6e-2.  Under a constant field the atom pullbacks sum to the egg-box only.
+  - Tensor chain (`GPW_Force`): FCC Si at a non-TRIM k, ContractAdjointPullback(Repulsion3C, ρ̃, D) against the FD of E_H: 3e-7
+    relative.  E_H = ½Tr(DV) only to ~1e-9 relative: the collocation screens on the signed Re[D e^{-ikR}], the gather on |D|.
+  - Term (`RealComplexTerms`): the force through a real and a complex GPW block is bitwise equal; |ΣF| is the egg-box (1.4e-5 at max|F|
+    0.11, Ecut 20; measured 1.0e-1 / 1.3e-4 / 5.3e-5 relative at Ecut 10 / 20 / 40).
+- Not yet: the contracted-cube fast path (the production kernel; its derivative is the cube gather at degree lp+1); the raster-XC
+  pullback (cp2kCompat); Becke-mesh XC (the GPW default: its mesh weights move); GPW overlap / kinetic / PP pullbacks.
 
 ### 13.1 A value-with-derivatives carrier on the derivative-aware faces (lane B 2026-11-08)
 
@@ -621,8 +644,8 @@ face's existing method needs no design discussion, and the HubInterfaceAudit sna
     blocks.  (Since answered: PW nuclear, SALC, the Coulomb fit blocks; see §13.)
   - `JetsOn`: real on PG_Cart; every other family refuses.
 - **`JetsOn`'s gradient source: the existing hand `Gradient(r)`** (user ruling 2026-11-08, "Use Gradient(r)").  ∂φ/∂R_centre = −∇_r φ,
-  so there is no second (Enzyme) derivative of φ, the jets work without Enzyme, and a Gaussian Cartesian block never refuses.  When Enzyme
-  becomes non-optional (the OpenWork row), `Gradient(r)` moves to Enzyme and `JetsOn` follows for free.  The plain shell-evaluator
+  so there is no second (Enzyme) derivative of φ, and a Gaussian Cartesian block never refuses.  Enzyme is now required (2026-11-09):
+  `Gradient(r)` moves to Enzyme (the OpenWork row) and `JetsOn` follows for free.  The plain shell-evaluator
   extraction (the Enzyme χ leaf of the AD verdict) is NOT needed for this increment.
 - **Every derivative method has its own unit gate, per family that implements it** (the user, 2026-11-08: "we will need to make sure
   these are all correct").  Each gate is a central FD of the SAME quantity at displaced geometry, with the step and the truncation-error

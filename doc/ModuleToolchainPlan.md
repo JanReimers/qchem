@@ -14,6 +14,9 @@ workaround is `#include <complex>` in each such TU's global-module fragment (e.g
 - **GCC is OUT of the picture for now** — its C++20-module + `import std` support is too far behind Clang's.
   Do not target GCC for the module build; do not add GCC-compatibility workarounds. (`g++` may still exist on
   the box for one-off checks, but it is not a supported build path.)
+- **GCC is now PERMANENTLY out** (user ruling 2026-11-09, Enzyme REQUIRED): Enzyme differentiates LLVM IR, so only LLVM front ends
+  (clang, flang) can build qchem, whatever GCC's module support becomes.  An LLVM MAJOR upgrade (21 → 22) needs Enzyme rebuilt against it,
+  and waits on Enzyme supporting that major.
 - CMake 4.2.3, ninja 1.13.2 (bleeding-edge modules stack; see `reference_ninja_dyndep_recovery`).
 - CMakeLists.txt already has the `import std` toggle **scaffolded and commented out**:
   `# set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "0e5b6991-d74f-4b3d-a41c-cf096e0b2508")` and
