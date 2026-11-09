@@ -415,19 +415,27 @@ TEST(Reporting, RenderJsonRoundTrips)
     EXPECT_EQ(json::parse(dumped), r);
 }
 
-// Visual eyeball of the console layout (run: --gtest_also_run_disabled_tests
-// --gtest_filter='*VisualDump*').  Not an assertion -- a human-readable sample.
-TEST(Reporting, DISABLED_VisualDump)
+// The console layout of a whole sample run, rendered at once and section by section, and printed so a human can eyeball it (the
+// test's output).  Was DISABLED_VisualDump, a zero-assert preview (CLAUDE.md DISABLED_ rule, lane B 2026-11-09): both renderings now
+// must carry every value of the sample -- a section, a key/value line, every row of a table -- so a renderer that drops one goes red.
+TEST(Reporting, TheConsoleRendersEveryValueOfASampleRunWholeAndSectionBySection)
 {
-    std::cout << "\n===== whole-run RenderConsole =====\n";
-    RenderConsole(SampleRun(), std::cout);
-    std::cout << "\n===== incremental EmitSection (console) =====\n";
-    SetConsole(std::cout, Detail::Normal);
-    Begin("H2O", "2026-07-26T10:00:00");
     const json run = SampleRun();
+    std::ostringstream whole;
+    RenderConsole(run, whole);
+    std::ostringstream inc;
+    SetConsole(inc, Detail::Normal);
+    Begin("H2O", "2026-07-26T10:00:00");
     for (auto it = run.begin(); it != run.end(); ++it) EmitSection(it.key(), it.value());
     End();
     ClearConsole();
+    for (const std::string want : {"H2O / LDA", "valence_lowq", "A1", "B2", "12.3", "4.5", "Ker"})
+    {
+        EXPECT_NE(whole.str().find(want), std::string::npos) << "the whole-run rendering lost " << want << ":\n" << whole.str();
+        EXPECT_NE(inc.str().find(want),   std::string::npos) << "the section-by-section rendering lost " << want << ":\n" << inc.str();
+    }
+    std::cout << "\n===== whole-run RenderConsole =====\n" << whole.str()
+              << "\n===== incremental EmitSection (console) =====\n" << inc.str();
 }
 
 // THE NESTED-OBJECT SCOPE (user ruling 2026-11-02: the caller sets the context, the callee reports one level in).  Purely

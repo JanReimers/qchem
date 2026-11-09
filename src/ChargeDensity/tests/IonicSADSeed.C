@@ -11,15 +11,21 @@
 #include <algorithm>
 #include <complex>
 #include <cmath>
+#include <string>
 
 import qchem.ChargeDensity.Seed;            // IonicSADTargets, MagneticDecoration
 import qchem.ChargeDensity.SeedCD;          // SeedCD, PolarizedSeedCD
 import qchem.ChargeDensity.AtomicDensity;   // HasAtomicSpinPair, GetAtomicDensity
+import qchem.ChargeDensity.NumericCD;       // NumericCD (the hand-gradient audit)
+import qchem.ScalarFunction;
 import qchem.BasisSet.Lattice.BasisSet;     // BasisSet::Lattice::Factory(PW)
 import qchem.Lattice_3D;
 import qchem.UnitCell;
 import qchem.Mesh;
 import qchem.Types;
+import qchem.Structure;                     // Molecule, Site (the SAD seed's charge gate)
+import qchem.ElectronConfiguration.Molecule;  // Molecule_EC
+import qchem.BasisSet.Gaussian.Point.Factory; // Gaussian::Factory (the block the seed is built against)
 
 using namespace qchem;
 using namespace qchem::ChargeDensity;
@@ -143,4 +149,67 @@ TEST(IonicSADSeed, AMixedValenceSeedIsTheSumOfItsChargeStates)
         }
         EXPECT_LT(maxErr, 1e-12*maxRho) << (polarized ? "polarized" : "total") << " seed: rho~(G) = rho~_A(G) + rho~_B(G)";
     }
+}
+
+// THE HAND-GRADIENT AUDIT (lane B 2026-11-09): the seed densities' Gradient(r) against the central difference of their own values.  Each
+// is a SUM of RecentredAtomicDensity gradients (over sites and, for a seed, cell images, each scaled), and RecentredAtomicDensity's own
+// gradient is itself a central difference (h = 1e-4) of its radial table -- so this gates the sums (an image, a scale or a sign dropped),
+// with a tolerance set by the two steps' disagreement: h²/6 |ρ‴| at h = 1e-4 is ≲ 1e-8 |ρ‴|, and |ρ‴| stays ≲ 1e2 |ρ′| off the nuclei
+// probed here, so 1e-5 (relative above 1).  The largest derivative probed must be 0.01 or more.  NumericCD (the molecular seed) on two
+// atoms; SeedCD and PolarizedSeedCD on the mixed-valence MnO cell, at points near a site and across the cell boundary.
+TEST(SeedHandGradient, EachSeedDensitysGradientIsTheFiniteDifferenceOfItsValues)
+{
+    auto check=[](const ScalarFunction<double>& f, const std::vector<rvec3_t>& pts, const std::string& who)
+    {
+        const double h=1e-5;
+        double largest=0.0;
+        for (const rvec3_t& r : pts)
+        {
+            const rvec3_t g=f.Gradient(r);
+            for (int k=0;k<3;k++)
+            {
+                rvec3_t p=r, m=r; (k==0 ? p.x : k==1 ? p.y : p.z)+=h; (k==0 ? m.x : k==1 ? m.y : m.z)-=h;
+                const double fd=(f(p)-f(m))/(2*h), an=(k==0 ? g.x : k==1 ? g.y : g.z);
+                EXPECT_NEAR(an, fd, 1e-5*std::max(1.0,std::fabs(fd))) << who << ": axis " << k << " at " << r;
+                largest=std::max(largest, std::fabs(fd));
+            }
+        }
+        EXPECT_GT(largest, 0.01) << who << ": the derivatives probed are not trivially small";
+    };
+    {
+        auto O=std::make_shared<const RadialDensity>(GetAtomicDensity(8, "LDA"));
+        NumericCD cd(16.0);
+        cd.Insert(std::make_shared<RecentredAtomicDensity>(O, rvec3_t(0,0,0)));
+        cd.Insert(std::make_shared<RecentredAtomicDensity>(O, rvec3_t(0,0,2.3)));
+        check(cd, {rvec3_t(0.31,0.22,-0.4), rvec3_t(-0.5,0.7,1.2), rvec3_t(0.9,-0.6,2.8)}, "NumericCD");
+    }
+    bool all[3]={true,true,true};
+    Box box(Cell(all,true));
+    const std::vector<int> t=IonicSADTargets(box.st.get(), kMnQ7);
+    const SeedCD seed(box.fitCD, box.lat.GetUnitCell(), kMnQ7, t);
+    const PolarizedSeedCD pseed(box.fitCD, box.lat.GetUnitCell(), kMnQ7, t);
+    const double a=12.0;
+    const std::vector<rvec3_t> pts{a*kMn[0]+rvec3_t(0.35,-0.28,0.21), a*kO[1]+rvec3_t(-0.4,0.3,0.25), rvec3_t(0.15,11.9,0.3)};
+    check(seed,  pts, "SeedCD");
+    check(pseed, pts, "PolarizedSeedCD");
+}
+
+// THE SAD SEED UNDER THE FIXED-N DUNLAP FIT (lane B 2026-11-09; the user's ruling 2026-11-08 constrains the Dunlap fit to the FIXED electron
+// count N, which Vee_FitDunlap takes from st->GetNumElectrons()).  The molecular SAD seed is a NumericCD, and before the ruling the fit was
+// constrained to the density's own GetTotalCharge().  The seed's GetTotalCharge() IS st->GetNumElectrons() (MakeSeedDensity passes it, and a
+// NumericCD is not a tMixableDensity, so no mixer ever rescales it), so the seed iteration's constraint is the SAME double under both rules:
+// the ruling cannot move a first iteration.  Gated on an ANION, where the neutral-atom superposition integrates to ΣZ = 9 and N = 10: the
+// constraint is N, not the field's own integral -- as it was before the ruling.
+TEST(SADSeed, ItsChargeIsTheElectronCountTheDunlapFitIsConstrainedTo)
+{
+    Molecule oh;
+    oh.Insert(Site{8, rvec3_t(0,0,0), /*netCharge*/-1.0});
+    oh.Insert(Site{1, rvec3_t(0,0,1.83)});
+    ASSERT_EQ(oh.GetNumElectrons(), 10.0);
+    const std::unique_ptr<BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, &oh,
+                                                BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    const Molecule_EC ec(10);
+    const std::unique_ptr<tChargeDensity<double>> seed(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &oh, &ec));
+    ASSERT_TRUE(seed);
+    EXPECT_EQ(seed->GetTotalCharge(), oh.GetNumElectrons());   // bit-equal: the same double the Dunlap term holds
 }

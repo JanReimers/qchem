@@ -181,14 +181,10 @@ TEST(SCFTrace, SolidPP_ShowsGridColumnsAndNoVirial)
     EXPECT_FALSE(Has(h,"V/K"))    << "a pseudopotential run must NOT show a virial column: " << h;
 }
 
-// Combo 4 of 4: SOLID x NON-PP -- an ALL-ELECTRON periodic run, which should bring the virial column BACK.
-//
-// DISABLED for a PHYSICS reason, not a plumbing one: no all-electron periodic path exists yet (the APW/LAPW
-// tests are themselves DISABLED_), so there is no way to make a solid Hamiltonian whose IsVirialValid() is
-// true.  When that path lands, enable this -- and expect it to FAIL first, because SolidSCFIterator
-// hard-codes the virial's absence instead of deriving it from IsVirialValid() the way the base layout now
-// does.  Closing that gap is the point of the {Molecular,Solid}x{PP,Non-PP} mixin decomposition (V1.27).
-TEST(SCFTrace, DISABLED_SolidNonPP_ShouldBringTheVirialColumnBack) {}
+// Combo 4 of 4, SOLID x NON-PP (an all-electron periodic run), has no test: no all-electron solid path exists to build one.  Its
+// placeholder (an empty DISABLED_ body) was deleted 2026-11-09 under the DISABLED_ rule; its worry -- that SolidSCFIterator hard-codes
+// the virial's absence -- is gone: SolidSCFIterator::AccumulateColumns calls the base layout, which adds the virial exactly when
+// IsVirialValid().
 
 // R2.7: a live [F,D] gate reading exactly 0 at convergence throws (the G3 shape: the Null accelerator's [F,D] = 0); a gate that is
 // off may read 0, and a tiny but COMPUTED value is a verdict, not an absence.

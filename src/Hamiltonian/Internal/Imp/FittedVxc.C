@@ -29,7 +29,8 @@ public:
     VxcField(const ExFunctional* ex, const ScalarFunction<double>* up, const ScalarFunction<double>* dn, Spin s)
         : itsEx(ex), itsUp(up), itsDn(dn), itsS(s) {}
     virtual double  operator()(const rvec3_t& r) const {return itsEx->GetVxc((*itsUp)(r),(*itsDn)(r),itsS);}
-    virtual rvec3_t Gradient  (const rvec3_t&  ) const {return rvec3_t(0,0,0);} // unused by the fit
+    //! No gradient: the fit samples values only.  It returned a silent 0 until the hand-gradient audit (2026-11-09).
+    virtual rvec3_t Gradient  (const rvec3_t&  ) const {throw std::logic_error("VxcField::Gradient: the fitted v_xc field has no gradient (the fit samples values only)");}
     virtual const ScalarFunction<double>* GetScalarFunction() const {return this;}
 private:
     const ExFunctional*           itsEx;
@@ -45,7 +46,8 @@ public:
     EpsXcField(const ExFunctional* ex, const ScalarFunction<double>* up, const ScalarFunction<double>* dn, Spin s)
         : itsEx(ex), itsUp(up), itsDn(dn), itsS(s) {}
     virtual double  operator()(const rvec3_t& r) const {return itsEx->GetEpsXc((*itsUp)(r),(*itsDn)(r),itsS);}
-    virtual rvec3_t Gradient  (const rvec3_t&  ) const {return rvec3_t(0,0,0);} // unused by the fit
+    //! No gradient: the fit samples values only.  It returned a silent 0 until the hand-gradient audit (2026-11-09).
+    virtual rvec3_t Gradient  (const rvec3_t&  ) const {throw std::logic_error("EpsXcField::Gradient: the fitted eps_xc field has no gradient (the fit samples values only)");}
     virtual const ScalarFunction<double>* GetScalarFunction() const {return this;}
 private:
     const ExFunctional*           itsEx;
@@ -62,7 +64,7 @@ class HalfDensity : public virtual ScalarFunction<double>
 public:
     HalfDensity(const ScalarFunction<double>* rho) : itsRho(rho) {}
     virtual double  operator()(const rvec3_t& r) const {return 0.5*(*itsRho)(r);}
-    virtual rvec3_t Gradient  (const rvec3_t&  ) const {return rvec3_t(0,0,0);}
+    virtual rvec3_t Gradient  (const rvec3_t& r) const {return 0.5*itsRho->Gradient(r);}   // a silent 0 until the hand-gradient audit (2026-11-09)
 private:
     const ScalarFunction<double>* itsRho;
 };

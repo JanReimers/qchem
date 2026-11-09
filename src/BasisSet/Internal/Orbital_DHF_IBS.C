@@ -84,9 +84,20 @@ public:
 
         return ret;
     };
+    //! Stacked as operator() stacks the values: the large component's N gradients, then the small component's N.  (It ADDED the two,
+    //! N gradients for 2N functions, until the hand-gradient audit of 2026-11-09.)
     virtual vec3vec_t<T> Gradient(const rvec3_t& r) const
     {
-        return itsRKBL->Gradient(r) + itsRKBS->Gradient(r);
+        const vec3vec_t<T> Lg=itsRKBL->Gradient(r), Sg=itsRKBS->Gradient(r);
+        const size_t N=Lg.size();
+        assert(Sg.size()==N);
+        vec3vec_t<T> ret(2*N);
+        for (size_t i:iv_t(0,N))
+        {
+            ret[i]=Lg[i];
+            ret[i+N]=Sg[i];
+        }
+        return ret;
     }
 
     // Neutral identity: compose from the L/S components' own BasisSetID (each an atom base whose id is

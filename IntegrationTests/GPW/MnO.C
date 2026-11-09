@@ -656,17 +656,20 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_Saved_CP2K_Long)   // ~5.5 min serial: ~150 s 
 // The AFM arm is run FROM A DECK (deck::Run -- which also gates the deck system on the production recipe: the anchor above pins the SAME
 // energy built by hand, to its tolerance); the FM arm is built here, in the test, because FM-vs-AFM is a property of THIS test and not of the
 // calculation framework: the same Bravais cell with no spin flip, multiplicity 11 (two d^5 Mn).  LONG: two arms of ~7 min.
-// ⚠ DISABLED_ because the CLAIM IS CURRENTLY FALSE (CLAUDE.md: a real claim currently failing is an open tracker row, not a green test):
+// ⚠ KNOWN RED (root CMakeLists QCHEM_KNOWN_RED; DISABLED_ until 2026-11-09): the CLAIM IS CURRENTLY FALSE, so it runs and PASSES only
+// while its ordering EXPECT fails (never on a throw), beside its open row; the day the ordering is right it goes red -- take it off the list:
 // RE-MEASURED 2026-10-23 after the V_short image fix: E_AFM=-61.35052 vs E_FM=-61.35215 -- FM 1.63 mHa below (was 38 mHa), as CP2K on the
 // comparable VA span (FM below by 1.46); CP2K's 136-function SR puts AFM 8.87 mHa below, so the claim still fails on THIS 122-function span.
 // MEASURED 2026-10-04, E_AFM=-61.414547 vs E_FM=-61.452697 -- the FM arm is 38 mHa BELOW (doc/OpenWork.md §3, "MnO ordering at Γ/SR").  The
-// deck-vs-anchor assertion and the FM charge assertion below passed; only the ordering EXPECT failed.  Re-enable when the ordering is right.
-TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Ordering_Long)
+// deck-vs-anchor assertion and the FM charge assertion below passed; only the ordering EXPECT failed -- the one failure a known-red run expects.
+// (It rotted while disabled: since R2.5 an imposed polarized run must STATE siteSpins, so it threw before any SCF.  Stated 2026-11-09:
+// AFM-II {+1,-1,0,0} in the deck, FM {+1,+1,0,0}.)
+TEST(GPW_MnO, Γ_Shub_Pol_Smear_Ordering_Long)
 {
     namespace fs=std::filesystem;
     const nlohmann::json deck={
         {"structure","MnO_AFM2"}, {"basis",{{"data","VALENCE_LOWQ_SR"}}},
-        {"solid",{{"multiplicity",1},{"seed","IonicSAD"},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4},{"accelerator","Null"},{"imposeSymmetry",true}}},
+        {"solid",{{"multiplicity",1},{"seed","IonicSAD"},{"siteSpins",{1,-1,0,0}},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4},{"accelerator","Null"},{"imposeSymmetry",true}}},
         {"scf",{{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-6},{"deltaRhoMeasure","MaxDeltaD"},{"minDeltaE","off"},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},
                 {"startingRelaxRo",0.45},{"mergeTol",1e-4},{"pulayDepth",8},{"pulayStart",5},{"kerkerG0",1.0},{"useMOM",false},{"smearingkT",5e-3}}}};
     qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
@@ -684,7 +687,7 @@ TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Ordering_Long)
     cellp->AddAtom(8,  {0.25,0.25,0.25});     cellp->AddAtom(8,  {0.75,0.75,0.75});
     Lattice_3D lat(*cellp, ivec3_t(1,1,1));
     qchem::deck::RunSpec resolved=spec; qchem::deck::Resolve(resolved);     // fills Nelec / species from the material, as the AFM arm's run did
-    SolidCalcOptions o=resolved.solid; o.multiplicity=11; o.label="MnO FM Gamma (imposed)";
+    SolidCalcOptions o=resolved.solid; o.multiplicity=11; o.siteSpins={+1,+1,0,0}; o.label="MnO FM Gamma (imposed)";
     const SCFParams par=spec.scf;
     GpwReport report("MnO FM", false);
     qchem::SolidCalculation fm(SolidSetup::Resolve(lat, MakeBasisLowQ(*cellp, BasisSetData::VALENCE_LOWQ_SR), o), par);

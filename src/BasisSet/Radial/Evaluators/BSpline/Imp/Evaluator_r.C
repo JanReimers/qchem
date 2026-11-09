@@ -106,8 +106,10 @@ template <size_t K> rvec3vec_t Evaluator_r<K>::Gradient(const rvec3_t& r) const
     size_t i=0;
     for (auto s:splines) 
     {
+        // d/dr [s(r)/r] = (s'(r) - s(r)/r)/r.  (It was s'(r) alone -- the plain Evaluator's formula, for values ns s(r) -- until the
+        // hand-gradient audit of 2026-11-09.)
         auto dsdx=transformSpline(bspline::operators::Dx<1>{},s);
-        ret[i]*=ns[i]*dsdx(mr);
+        ret[i]*=ns[i]*(dsdx(mr)-s(mr)/mr)/mr;
         ++i;
     }
     return ret;

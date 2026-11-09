@@ -44,7 +44,16 @@ rvec3vec_t RKBS_Evaluator::Gradient(const rvec3_t& r) const
         ret=rvec3_t{0,0,0};
         return ret;
     }
-    rvec_t grad=eval(r)*(l/mr-es);
+    // d/dr [f(r) g(r)] with f = -ζ (+ (2κ+1)/r for κ>0) and g the large-component Slater: f g' + f' g.  (It was f g' alone until the
+    // hand-gradient audit of 2026-11-09.)
+    int κ = Getκ();
+    rvec_t f=-es, fp(es.size(), 0.0);
+    if (κ>0)
+    {
+        f +=(2*κ+1)/mr;
+        fp-=(2*κ+1)/(mr*mr);
+    }
+    rvec_t grad=f*grad_slater(mr,l,es,ns)+fp*slater(mr,l,es,ns);
    
     // std::cout << "grad=";
     // for (auto g:grad) std::cout << g << " ";

@@ -32,6 +32,7 @@ add_executable(UTLattice_BS ../../Radial/tests/gtestmain.C
     TRIMRepresentationUT.C   # a real TRIM block off Γ: the complex block's answer or a refusal naming k (V-BS-SYMMETRY S3)
     ShubnikovPairUT.C   # the Shubnikov pair projection on the Γ block (2026-10-29)
     PlaneWave_FieldsUT.C  # the PW basis / FFT / Poisson unit tests (idem)
+    HandGradientUT.C    # the hand-gradient audit: every lattice family's Gradient(r) vs the FD of its values (2026-11-09)
 )
 
 target_compile_definitions(UTLattice_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})  # GTH data path now baked into qcPseudopotential
