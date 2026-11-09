@@ -467,9 +467,9 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
   - The PW pullbacks at a NON-TRIM k (genuinely complex D) against the FD of the same assemblies on a distorted Si cell.
   - `EwaldForces` against the FD of `EwaldEnergy` (Si, and a neutral CsCl), η-independent, summing to zero; the pair sum likewise.
   - The PW PP and ion-ion term forces through the term face against the FD of each term's own energy at fixed D.
-- Not yet: GPW's G-space side (its Bloch Gaussians move, so collocation needs jets); and a PW whole-force gate.  That last needs the
-  PW Hartree and XC terms to report their EXACT ZERO fixed-D force (nothing in them moves on a plane-wave basis with a raster mesh),
-  and a solid-facade test friend.  (A real TRIM block inside a complex run: BUILT 2026-11-09, below.)
+- Not yet: the rest of GPW's G-space side (the Hartree gather: BUILT 2026-11-09, below); and a PW whole-force gate.  That last needs
+  the PW XC term to report its EXACT ZERO fixed-D force (the PW Hartree now does: its Coulomb tensor's pullback is zero, nothing on a
+  plane-wave basis has a centre), and a solid-facade test friend.  (A real TRIM block inside a complex run: BUILT 2026-11-09, below.)
 
 **BUILT (lane B 2026-11-09): a real TRIM block inside a complex run.**
 - The composite's `DM_Pullback` walks a real child of a complex run through the term's `tStatic_PC<double>` face, as `DM_Contract`
@@ -500,6 +500,28 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
     unblocked, E1, RHF, UHF, LDA and GTH-LDA: the same energy, the same `MissingGradients()`, every term's force at fixed D within
     1e-6, and the whole force where the model has every term's.
 - Cost: the 1E, PP and 3-centre pullbacks still go once per irrep (OpenWork §4 row).
+
+**BUILT (lane B 2026-11-09): the GPW Hartree force (collocation jets).**
+- E_H = ½Ω Σ_G k(G)|ρ̃(G)|², ρ̃ = Contract(Overlap3C, D), is quadratic in D, so at fixed D its R-derivative is the pullback of the physics
+  round at the FIXED fit: Re Tr(D ∂_R h[ρ̃]), taken once (no ½).  The fit functions are plane waves, so only the block's centres move.
+- The kernel is the derivative of `LatticeCollocation::IntegratePotential`, beside it: `IntegratePotentialPullback(V_L, D, …, st)`.
+  Per pair (i ≤ j) and offset n the weight is c·w·Re[D_ij* e^{ik·R_n}], and the integrand is −∇χ_i χ_j V on χ_i's atom and −χ_i ∇χ_j V
+  on χ_j's (the image moves with its atom).  Same task list, levels, screener plan and tolerance as the gather, never folded.  The
+  reference box walk gains a jet twin (`ForShellPairBoxJets`): the monomial power tables give ∇ of a Cartesian Gaussian in closed form.
+- The tensors carry it as a realization: `PairProjection::applyAdjointPullback`, dispatched by `RealisesAdjointPullback` /
+  `ContractAdjointPullback`.  GPW's Overlap3C and Repulsion3C set it (the ladder, the level restriction, the Coulomb kernel); the plane-
+  wave tensors set an exact zero.  `GSpaceDensityFitter` answers `MakeRepulsionPullback` through it (a real TRIM block's D promoted);
+  `GridDensityFitter` refuses (its mesh moves with the atoms).  `Vee_Fit` gains the term face (`Imp/Vee_Fit_Forces.C`).
+- Gates:
+  - Kernel (`M_CollocationPullback`): Si (SIPP), H₃ (contracted DZVP) and MnO through the spherical view, a two-level ladder, a non-
+    TRIM k, a fixed cosine field, random Hermitian D, against the Richardson FD of Re Tr(D h) with the basis rebuilt at displaced atoms:
+    ~2e-9 at |G| ~ 6e-2.  Under a constant field the atom pullbacks sum to the egg-box only.
+  - Tensor chain (`GPW_Force`): FCC Si at a non-TRIM k, ContractAdjointPullback(Repulsion3C, ρ̃, D) against the FD of E_H: 3e-7
+    relative.  E_H = ½Tr(DV) only to ~1e-9 relative: the collocation screens on the signed Re[D e^{-ikR}], the gather on |D|.
+  - Term (`RealComplexTerms`): the force through a real and a complex GPW block is bitwise equal; |ΣF| is the egg-box (1.4e-5 at max|F|
+    0.11, Ecut 20; measured 1.0e-1 / 1.3e-4 / 5.3e-5 relative at Ecut 10 / 20 / 40).
+- Not yet: the contracted-cube fast path (the production kernel; its derivative is the cube gather at degree lp+1); the raster-XC
+  pullback (cp2kCompat); Becke-mesh XC (the GPW default: its mesh weights move); GPW overlap / kinetic / PP pullbacks.
 
 ### 13.1 A value-with-derivatives carrier on the derivative-aware faces (lane B 2026-11-08)
 
