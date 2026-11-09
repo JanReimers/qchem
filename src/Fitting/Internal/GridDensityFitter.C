@@ -32,8 +32,7 @@ export namespace qchem::Fitting
 {
 
 class GridDensityFitter
-    : public virtual GridDensityFit
-    , public virtual DensityProjector
+    : public virtual FirstOrderDensityFit<double>
 {
 public:
     typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;
@@ -53,29 +52,6 @@ public:
         itsC=rvec_t(itsW.size(),1.0/total);   // the initial guess: a uniform density of unit charge, as ConstrainedFF's guess is
     }
 
-    //! A density with a matrix contracts its D into the forward I vend; a matrix-free seed has only its own field to offer.
-    void DoFit(const ProjectedDensity<double>& pd) override
-    {
-        if (auto* cm=dynamic_cast<const CoulombMetric_ProjectedDensity*>(&pd))
-            itsC=cm->GetRepulsion3C(*this);
-        else if (auto* f=dynamic_cast<const ScalarFunction<double>*>(&pd))
-            itsC=OrthogonalFit(*itsFitBasis,*f);
-        else
-            throw std::logic_error("GridDensityFitter: this density offers neither a matrix (the Coulomb face) nor a field");
-        itsV=itsCoulomb->Potential(Projection());
-    }
-
-    hmat_t<double> Repulsion(const robs_t<double>* bs) const override
-    {
-        if (itsV.size()==0) throw std::logic_error("GridDensityFitter: asked for a repulsion before any DoFit");
-        const auto& dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<double,double>&>(*bs);
-        return Integrator(dftbs).Adjoint(itsV);   // sum_g w_g v_g chi_i chi_j
-    }
-
-    double FitGetSelfRepulsion() const override
-    {
-        return itsCoulomb->SelfRepulsion(Projection(),itsV);
-    }
     double HartreeEnergy(const std::function<double()>& trDV) const override
     {
         if (itsV.size()==0) throw std::logic_error("GridDensityFitter: asked for an energy before any DoFit");
@@ -99,12 +75,7 @@ public:
         for (size_t g=0; g<itsC.size(); g++) n+=itsCharge[g]*itsC[g];
         return n;
     }
-    void ReScale(double factor) override {itsC*=factor; itsV*=factor;}   // v is linear in rho
-
-    std::ostream& Write(std::ostream& os) const override
-        {return os << "GridDensityFitter (a density on " << itsFitBasis->Name() << ", first-order energy)" << std::endl;}
-
-    // DensityProjector
+    // PairProjector<double>
     const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const override {return Integrator(orb);}
     size_t NumCoefficients() const override {return itsW.size();}
     //! A field's projection on the δ basis: its values at the points (\c OrthogonalFit), the axis \c Forward uses.

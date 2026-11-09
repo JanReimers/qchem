@@ -21,7 +21,7 @@ module;
 #include <cstddef>
 export module qchem.ChargeDensity.SeedCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>, cSpinResolved_CD, Spin
-export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, ΔG_Map
+export import qchem.ChargeDensity.RasterDensity;   // RasterDensity (the interim raw-raster face)
 export import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAtomicDensity, GetAtomicDensity
 import qchem.BasisSet.Orbital_DFT_IBS;                      // cFIT_CD_ABS (the density-fit basis it builds rho-tilde through)
 import qchem.Structure;                             // Structure, Atom
@@ -34,7 +34,7 @@ export namespace qchem::ChargeDensity
 
 class SeedCD
     : public virtual tChargeDensity<dcmplx>
-    , public virtual FourierDensity
+    , public virtual RasterDensity                //!< no raw raster (the empty default): a mixer still reads the face
     , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
 {
 public:
@@ -56,15 +56,13 @@ public:
                   const SeedKey& key=SeedKey{}, const std::vector<int>& ionicNvalBySite = {},
                   const Spin& channel = Spin::None);
 
-    // FourierDensity -- the native G-space representation the PW Hartree/XC terms consume.  The seed carries
-    // no D, so its rho-tilde IS the structure-factor density (fit basis ignored); V_H applies the diagonal
-    // kernel to it (bit-identical to the old Repulsion(rho-tilde) path).
-    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
-    virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override {return GetFourierDensity(c);}
-    virtual ΔG_Map GetRepulsion3C   (const BasisSet::cFIT_CD_ABS& c) const;
+    // AnalyticFourier -- the native G-space representation a G-space projector asks for (V-ONE-OF-N 3c: through
+    // tChargeDensity::Project's field default).  The seed carries no D, so its rho-tilde IS the structure-factor
+    // density (fit basis ignored).  No raw raster (RasterDensity's empty default).
+    virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override;
 
     // ScalarFunction<double> -- real-space rho(r) = Sum_atoms rho_atom(|r-R|) (not used by the PW Fock build,
-    // which goes through GetFourierDensity, but provided so the type is whole).
+    // which goes through FourierComponents, but provided so the type is whole).
     virtual double  operator()(const rvec3_t&) const;
     virtual rvec3_t Gradient  (const rvec3_t&) const;
     //! Batch \f$\rho(r_g)\f$ over a whole mesh -- the \c ScalarFunction default loop, THREADED (opt-in,
@@ -95,7 +93,6 @@ private:
     };
     ΔG_Map GroupDensity(const Group&) const;
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> itsFitBasis; //!< density-fit basis (its grid engine builds rho-tilde); owned
-    ReciprocalLattice            itsRecip;        //!< the cell's reciprocal lattice (B): the seed's Poisson metric
     const UnitCell*              itsCell;         //!< atom Z + positions (+ spin-flip bits) and the periodic real-space image sums; not owned
     Spin                         itsChannel;      //!< None = spin-agnostic total; Up/Down = one polarized channel
     std::vector<Group>           itsGroups;       //!< the G-assembly partition (see \c Group); at least one
@@ -110,11 +107,11 @@ private:
 //! tables + per-atom flip bits = the collinear magnetic configuration, e.g. the MnO AFM-II staggering).
 //! The matrix-free polarized sibling of the polarized composite: the spin-native XC engine reads the channels
 //! through the cSpinResolved_CD face; the total-density consumers (PW_Hartree) see the ↑+↓ sum through
-//! the same FourierDensity face every seed has.  The polarized twin of NumericCD/SeedCD -- no density
+//! the same AnalyticFourier face every seed has.  The polarized twin of NumericCD/SeedCD -- no density
 //! matrix, so none of the tDM_CD contract appears anywhere.
 class PolarizedSeedCD
     : public virtual tChargeDensity<dcmplx>
-    , public virtual FourierDensity
+    , public virtual RasterDensity                //!< no raw raster (the empty default): a mixer still reads the face
     , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
     , public virtual cSpinResolved_CD
 {
@@ -126,10 +123,8 @@ public:
     // cSpinResolved_CD -- the spin-native XC engine's channel access.
     virtual const cChargeDensity* GetChannel(const Spin&) const;
 
-    // FourierDensity -- the ↑+↓ TOTAL (what Hartree consumes; spin never enters V_H).
-    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
-    virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override {return GetFourierDensity(c);}
-    virtual ΔG_Map GetRepulsion3C   (const BasisSet::cFIT_CD_ABS& c) const;
+    // AnalyticFourier -- the ↑+↓ TOTAL (what Hartree consumes; spin never enters V_H).
+    virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override;
 
     // ScalarFunction<double> -- the total rho(r).
     virtual double  operator()(const rvec3_t&) const;

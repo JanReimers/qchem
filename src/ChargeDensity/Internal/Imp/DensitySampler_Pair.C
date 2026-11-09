@@ -24,7 +24,7 @@ module;
 module qchem.ChargeDensity.Internal.DensitySampler;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.ChargeDensity;
-import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
+import qchem.ChargeDensity.RasterDensity;    // the raw-raster face (interim, sub-step 4)
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
@@ -46,6 +46,7 @@ namespace qchem::ChargeDensity
 PairDensitySampler::PairDensitySampler(fbs_t fb)
     : itsFitBasis(std::move(fb))
     , itsScalarFitter(Fitting::Factory(itsFitBasis))   // the ortho (G-space) scalar fit -- BALL route only
+    , itsRhoProjector(BasisSet::MakeGSpaceDensityProjector(itsFitBasis, "xc: rho-tilde IBZ star-average (SymmetrizeGMap)"))
 {
     assert(itsFitBasis);
 }
@@ -97,16 +98,16 @@ XCRhoSource PairSource(const cChargeDensity* cd, bool isRaw, bool ballHoldsPairs
 rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) const
 {
     assert(cd);
-    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-    assert(fd && "PairDensitySampler requires a FourierDensity (periodic) charge density");
-    rvec_t rho=fd->GetRhoOnGrid(*itsFitBasis);
+    auto rd=dynamic_cast<const qchem::ChargeDensity::RasterDensity*>(cd);   // the interim raw-raster face (abstract -> abstract)
+    if (!rd) throw std::logic_error("PairDensitySampler requires a periodic charge density (a RasterDensity)");
+    rvec_t rho=rd->GetRhoOnGrid(*itsFitBasis);
     isRaw=(rho.size()!=0);
     RequireRawForCusp(cd, isRaw, BallHoldsPairs(*itsFitBasis));
     if (!isRaw)
     {
         auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
         assert(ge && "PairDensitySampler: the BALL route needs the fit basis's raster transforms");
-        rho=ge->RhoOnGrid(fd->GetFourierDensity(*itsFitBasis));
+        rho=ge->RhoOnGrid(cd->Project(*itsRhoProjector).GMap());   // ρ̃ from the density's own projection
     }
     return rho;
 }

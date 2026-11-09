@@ -107,7 +107,8 @@ TEST(GPW_XC, PotentialConsistencyFD)
     const qchem::Hamiltonian::ExFunctional* xcs[2]={&exch,&corr};
 
     PairProjection<dcmplx> ov =ev.Overlap3CTensor();                     // rho-tilde (no kernel) -- the pair-quadrature route
-    PairProjection<dcmplx> cou=ev.Repulsion3CTensor();                   // V_H (Coulomb kernel baked) -- the control
+    // The control V_H = k(G)·ρ̃: Repulsion3C has no forward since V-ONE-OF-N 3c (the kernel is the physics round's).
+    auto VHof=[&](const chmat_t& D)->ΔG_Map { ΔG_Map v=Contract(ov,D); for (auto& [dm,c] : v) c*=grid.Recip().CoulombKernel(dm); return v; };
 
     auto rhoOf=[&](const chmat_t& D)->rvec_t { return grid.RhoOnGrid(Contract(ov,D)); };
     auto Exc=[&](const rvec_t& rho)->double              // == Vxc_Quadrature::GetEnergy (both terms)
@@ -133,7 +134,7 @@ TEST(GPW_XC, PotentialConsistencyFD)
     };
     auto EH=[&](const chmat_t& D)->double                // == PW_Hartree::GetEnergy: 1/2 Tr(D H_H(D))
     {
-        ΔG_Map VH=Contract(cou,D);
+        ΔG_Map VH=VHof(D);
         chmat_t HH=ev.OverlapMatrix([&](const ivec3_t& dm)->dcmplx
             { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
         dcmplx tr(0.0);
@@ -163,7 +164,7 @@ TEST(GPW_XC, PotentialConsistencyFD)
         // Hartree control at h=1e-3 (bilinear: FD error only).
         const double hc=1e-3;
         double fdH=(EH(shifted(D,dD,+hc))-EH(shifted(D,dD,-hc)))/(2.0*hc);
-        ΔG_Map VH=Contract(cou,D);
+        ΔG_Map VH=VHof(D);
         rvec_t rho0=rhoOf(D);                            // ALSO leaves the colloc memo (screenD) at D
         chmat_t HH=ev.OverlapMatrix([&](const ivec3_t& dm)->dcmplx
             { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });

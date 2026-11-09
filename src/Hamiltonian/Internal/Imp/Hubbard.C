@@ -797,7 +797,7 @@ std::map<Spin,rvec_t> Hubbard_U::DensityOccupations(const cChargeDensity* cd) co
         rvec_t n;
         if (dm)
         {
-            n=dm->ProjectOnto(*this).Vector();   // this term is the paired implementation: its axis is an rvec_t
+            n=dm->Project(*this).Vector();   // this term is the paired implementation: its axis is an rvec_t
             if (n.size()!=NumCoefficients()) n=rvec_t(NumCoefficients(),0.0);
             if (s==Spin::None) n*=0.5;                         // the zeta=0 collapse: n_sigma = n_tot/2
         }

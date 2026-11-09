@@ -9,9 +9,12 @@ module;
 #include <algorithm>
 #include <cassert>
 #include <deque>
+#include <stdexcept>
 #include <vector>
 export module qchem.ChargeDensity.Internal.FieldMixer;
-export import qchem.ChargeDensity.FourierDensity;         // FourierDensity, ΔG_Map + its field algebra (PairProjection)
+export import qchem.ChargeDensity;                        // tChargeDensity<dcmplx>::Project, ΔG_Map + its field algebra
+export import qchem.ChargeDensity.RasterDensity;          // the raw-raster shadow's face (interim, sub-step 4)
+import qchem.BasisSet.GSpaceDensityProjector;             // the ρ̃ projector factory (V-ONE-OF-N 3c; it returns the PairProjector face)
 export import qchem.ChargeDensity.FourierMixCD;           // FourierMixCD (the field's PRESENTATION as a density)
 export import qchem.ReciprocalLattice;                    // KerkerStep's |G|
 import qchem.BasisSet.G_FieldEvaluator;            // G_SpectralFilter: the raster Kerker step (0.5(f2))
@@ -58,6 +61,17 @@ struct GField
     ΔG_Map tilde;    //!< \f$\tilde f(G)\f$ on the fit basis's difference set
     rvec_t raster;   //!< the raw-raster shadow (doc/GPWPlan 0.5(f2)); empty = the raw pipeline is off
 };
+
+//! The ledger row a mixer's ρ̃ star-average is timed under (its projector's; the Hartree fitter keeps its own).
+inline constexpr const char* kMixerStarAverageBucket="mixer: rho-tilde IBZ star-average (SymmetrizeGMap)";
+
+//! \brief \a d's field on \a fit's G-space: ρ̃(G), the density's projection onto \a p (\a fit's ρ̃ projector; V-ONE-OF-N 3c, it
+//! used to be a FourierDensity face of the density's own), and its raw-raster shadow (empty when \a d has no raw path).
+inline GField FieldOf(const tChargeDensity<dcmplx>& d, const BasisSet::PairProjector<dcmplx>& p, const BasisSet::cFIT_SF_ABS& fit)
+{
+    auto* rd=dynamic_cast<const RasterDensity*>(&d);   // the interim raw-raster face (abstract -> abstract)
+    return {d.Project(p).GMap(), rd ? rd->GetRhoOnGrid(fit) : rvec_t{}};
+}
 
 //! The result of ONE Kerker step on a field: the mixed map, plus the two pieces of PROVENANCE the mixed
 //! density's presentation carries for XC (see \c cDM_Sourced_CD): the N4 correction map (empty unless asked
@@ -112,13 +126,15 @@ class KerkerPreconditioner
 {
 public:
     KerkerPreconditioner(double relax, double G0, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, ReciprocalLattice recip)
-        : itsRelax(relax), itsG0(G0), itsFit(std::move(fit)), itsRecip(std::move(recip)) {}
-    //! \a d's field on this mixer's G-space: ρ̃(G) and its raster shadow.
+        : itsRelax(relax), itsG0(G0), itsFit(std::move(fit))
+        , itsProjector(itsFit ? BasisSet::MakeGSpaceDensityProjector(itsFit, kMixerStarAverageBucket) : nullptr)
+        , itsRecip(std::move(recip)) {}
+    //! \a d's field on this mixer's G-space: ρ̃(G) and its raster shadow.  A preconditioner built with no fit basis (a unit test
+    //! driving the algebra on hand-made fields) cannot answer.
     GField FieldOf(const tChargeDensity<dcmplx>& d) const
     {
-        auto* fd = dynamic_cast<const FourierDensity*>(&d);
-        assert(fd);
-        return {fd->GetFourierDensity(*itsFit), fd->GetRhoOnGrid(*itsFit)};
+        if (!itsProjector) throw std::logic_error("KerkerPreconditioner::FieldOf: built with no fit basis, so it has no G-space to project onto");
+        return ChargeDensity::FieldOf(d, *itsProjector, *itsFit);
     }
     //! The filtered step on the (in, out) pair the extrapolator chose (\c KerkerStep; \a cusp forms the N4 correction).
     KerkerStepResult Step(const ΔG_Map& in, const ΔG_Map& out, bool cusp=false) const
@@ -135,6 +151,7 @@ public:
 private:
     double itsRelax, itsG0;
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFit;
+    std::shared_ptr<const BasisSet::PairProjector<dcmplx>> itsProjector;   //!< ρ̃ on itsFit (shared: a preconditioner is copyable)
     ReciprocalLattice itsRecip;
 };
 

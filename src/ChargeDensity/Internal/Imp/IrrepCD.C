@@ -564,19 +564,6 @@ rvec3_t FiniteIrrepCD::Gradient(const rvec3_t& r) const
     return GradientContraction(gphir,phir,this->itsDensityMatrix);
 }
 
-// rho-tilde from the density matrix, via the basis's G-space capability (plane-wave / dcmplx only).
-// itsDensityMatrix already carries the BZ weight w_k (TOrbitals::GetChargeDensity scales it), so the
-// composite's sum over blocks is the BZ average Sum_k w_k rho_k.
-template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
-{
-    // Contract D against the basis's D-free OVERLAP tensor (empty kernel) HERE -- the DENSITY owns D, so
-    // this is where rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij is formed.  The overlap-metric sibling
-    // of GetRepulsion3C above; D never crosses into the basis.
-    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<typename Leaf::scalar_t,dcmplx>*>(self().itsBasisSet);
-    assert(fb && "GetFourierDensity requires a periodic (G-space) Orbital_DFT_IBS basis");
-    return Contract(fb->Overlap3C(c), self().itsDensityMatrix);
-}
-
 // Raw rho_DM(r) on c's raster (doc/GPWPlan 0.5(f2)): the basis's collocation-native forward, when it has
 // one (GPW's Overlap3C carries applyRaw; a plane-wave basis leaves it empty -> we answer empty and the
 // caller falls back to the ball route).  itsDensityMatrix carries the BZ weight, exactly as above.
@@ -587,16 +574,6 @@ template <class Leaf> rvec_t IrrepCD_Fourier<Leaf>::GetRhoOnGrid(const BasisSet:
     const PairProjection<dcmplx>& g=fb->Overlap3C(c);
     return g.applyRaw ? g.applyRaw(self().itsDensityMatrix) : rvec_t{};
 }
-
-// V_H(dm) = 4pi rho-tilde(dm)/|G|^2: contract D against the basis's D-free COULOMB tensor (Repulsion3C(c), the
-// diagonal kernel baked in) -- the reciprocal mirror of the finite GetRepulsion3C(fbs) above.  D stays here.
-template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
-{
-    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<typename Leaf::scalar_t,dcmplx>*>(self().itsBasisSet);
-    assert(fb && "GetRepulsion3C requires a periodic (G-space) Orbital_DFT_IBS basis");
-    return Contract(fb->Repulsion3C(c), self().itsDensityMatrix);
-}
-
 
 //-----------------------------------------------------------------------
 //

@@ -1,13 +1,13 @@
 // File: BasisSet/PairProjection.C  The orbital-PAIR to fit-basis projection <ab|c> -- ONE type, several realizations.
 //
 // NAMED FOR WHAT IT IS (V-ONE-OF-N, user 2026-11-07; was Projector3): it projects an orbital-pair product onto a fit
-// basis, and by realization it is a 3-index (dense <ab|c>), 2-index (PW columns + kernel) or 1-index-per-call (the
+// basis, and by realization it is a 3-index (dense <ab|c>), 2-index (PW columns) or 1-index-per-call (the
 // closures) object, so "3" named only its first realization (doc/Records/VOneOfNDesign.md §4).
 //
 // V1.1: the merge of the molecular ERI3 (a dense std::vector of <ab|c> matrices) and the reciprocal-space
 // G_ERI3 (delta support / matrix-free closures).  The NAME says what both contraction directions do
 // (user, 2026-08-16): FORWARD projects the density into the fit space, <rho|c> = Sum_ab D_ab <ab|c> --
-// a metric projection, the kernel field says which metric -- and the ADJOINT expands fit-space
+// an OVERLAP projection (V-ONE-OF-N 3c: no kernel in any forward) -- and the ADJOINT expands fit-space
 // coefficients back to an orbital matrix <i|f|j> = Sum_c f_c <ij|c>.  ("Map3" was rejected: in this
 // code region a Map is a keyed container -- ΔG_Map -- and this is an operator.  "ERI3" was rejected as
 // inaccurate: the overlap-metric tensor has no "repulsion integral" in it.)
@@ -18,8 +18,8 @@
 //   - dense    : the molecular/atomic finite-basis realization -- one full <ab|c> matrix per fit
 //                function (RAM-hungry, O(Norb^2 x Nfit)).
 //   - columns  : the plane-wave delta support -- for each fit function Delta-m, just the index pairs
-//                (i,j): G_i-G_j = Delta-m (weight 1), maximally sparse; `kernel` is the per-column
-//                diagonal metric applied on contraction (4pi/|G_c|^2 Coulomb, or EMPTY = overlap).
+//                (i,j): G_i-G_j = Delta-m (weight 1), maximally sparse.  (The per-column Coulomb `kernel` went in
+//                V-ONE-OF-N 3c: a periodic Repulsion3C carries only its adjoint, k(G) applied there.)
 //   - apply*   : the matrix-free GPW realization -- closures that collocate/integrate on grids
 //                without ever materializing a per-column tensor.
 module;
@@ -80,7 +80,7 @@ struct ΔGq_Map
 //! orbital matrix \f$\langle i|f|j\rangle=\sum_c f_c\langle ij|c\rangle\f$ -- dense by the fitter's loop,
 //! G-space by \ref ContractAdjoint.  DENSITY-FREE either way: a basis produces this from its own
 //! functions; \f$D\f$ never enters the basis.  Exactly ONE realization group is populated (dense, or
-//! columns[+kernel], or the apply closures) -- which one is intrinsic to the producing basis lineage.
+//! columns, or the apply closures; a periodic Repulsion3C is adjoint-only) -- which one is intrinsic to the producing basis lineage.
 template <class T> struct PairProjection
 {
     //! DENSE realization (molecular / atomic): one \f$\langle ab|c\rangle\f$ matrix per fit function c,
@@ -93,11 +93,10 @@ template <class T> struct PairProjection
         std::vector<std::pair<int,int>>    pairs;  //!< \f$(i,j):G_i-G_j=\Delta m\f$, row-major (\f$i\f$ outer)
     };
     std::vector<Column> columns;   //!< plane-wave delta support; one per fit function (empty for dense/GPW)
-    rvec_t              kernel;    //!< per-column \f$4\pi/|G_c|^2\f$ (Coulomb) or EMPTY (overlap, \f$\equiv 1\f$)
     double              volume=0.0;//!< cell volume \f$\Omega\f$ (the \f$1/\Omega\f$ normalisation)
 
-    //! \brief MATRIX-FREE realization (GPW analytic collocation): applies the density-to-\f$\tilde\rho\f$ (or
-    //! \f$\to V_H\f$, kernel folded in) map to \f$D\f$ WITHOUT materializing a per-column tensor -- the basis
+    //! \brief MATRIX-FREE realization (GPW analytic collocation): applies the density-to-\f$\tilde\rho\f$
+    //! map to \f$D\f$ WITHOUT materializing a per-column tensor -- the basis
     //! sets it to a closure that collocates \f$\rho=\sum_{ij}D_{ij}\chi_i\chi_j\f$ analytically on compact
     //! boxes (multi-grid) then FFTs.  When set it takes priority in \ref Contract.  Type-erased so this
     //! leaf names no GPW/grid type.  The PairProjection stays a static-data "spec of required transfers" with an
@@ -106,8 +105,8 @@ template <class T> struct PairProjection
     //! MATRIX-FREE BACKWARD -- the ADJOINT of \ref apply: assemble the KS matrix \f$\langle i|f|j\rangle=\sum_k
     //! f(G_k)\,W_k(i,j)\f$ from a fitted G-space field \a f (\f$v_{xc}\f$ or \f$V_H\f$).  For a plane-wave basis
     //! this is the Fourier lookup \f$f(m_i-m_j)\f$; for GPW the analytic integrate-back on the fit grid's
-    //! REL_CUTOFF ladder.  Always the OVERLAP-metric adjoint (no \ref kernel -- a Coulomb field already carries
-    //! \f$4\pi/G^2\f$ from the forward apply).  Because it is produced by \c Overlap3C/Repulsion3C(fitBasis), it
+    //! REL_CUTOFF ladder.  On \c Overlap3C the overlap-metric adjoint; on a periodic \c Repulsion3C the COULOMB one,
+    //! \f$k(G)\langle i|G|j\rangle\f$ (the Hartree term's physics round, V-ONE-OF-N 3b).  Because it is produced by \c Overlap3C/Repulsion3C(fitBasis), it
     //! carries the fit grid -- so the KS matrix is 100% consistent with the density that fit basis collocated.
     //! Empty until a basis sets it (forward-only contexts leave it empty).
     std::function<hmat_t<T>(const std::function<T(const ivec3_t&)>& f)> applyAdjoint;
@@ -135,28 +134,31 @@ template <class T> struct PairProjection
     std::function<rvec_t(const mat_t<T>& L)> applyRawFactored;
 };
 
-//! \brief G-space FORWARD contraction: \f$\tilde\rho(\Delta m)=\frac{k_c}\Omega\sum_{(i,j)\in
-//! \text{col}(\Delta m)}D_{ij}\f$, with the per-column metric \f$k_c\f$ (\ref PairProjection::kernel;
-//! \f$k_c\equiv 1\f$ when empty).  The reciprocal-space mirror of the molecular
+//! \brief G-space FORWARD contraction: \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{(i,j)\in
+//! \text{col}(\Delta m)}D_{ij}\f$ (an overlap projection: no kernel, V-ONE-OF-N 3c).  The reciprocal-space mirror of the molecular
 //! \f$\langle\rho|c\rangle=\sum_{ab}D_{ab}\langle ab|c\rangle\f$ (which the density runs itself over
 //! \ref PairProjection::dense -- a ΔG_Map is the wrong currency for it).  Dispatches to the matrix-free
 //! \ref PairProjection::apply when the basis set one.
 template <class T> ΔG_Map Contract(const PairProjection<T>& g, const hmat_t<T>& D)
 {
     // Matrix-free realization (GPW analytic collocation): the closure applies the whole density->rho-tilde
-    // (or ->V_H, kernel folded in) map to D directly -- no per-column tensor.  Takes priority when set.
+    // map to D directly -- no per-column tensor.  Takes priority when set.
     if (g.apply) return g.apply(D);
     // A MISMATCH THROWS (V-ONE-OF-N): an assert is dead in Release, and a dense projection contracted here would return an
     // empty map, i.e. a silent zero density.  Once per call, so it costs nothing.
     if (!g.dense.empty())
         throw std::logic_error("Contract: this PairProjection is the dense <ab|c> realization; its forward is "
                                "DensePairProjectionIntegrator::Forward, not the G-space Contract");
+    // An adjoint-only tensor (a periodic Repulsion3C since V-ONE-OF-N 3c: the kernel is the physics round's) has no forward.
+    if (g.columns.empty())
+        throw std::logic_error("Contract: this PairProjection realises no G-space forward (no columns, no apply): "
+                               "a density projects through Overlap3C, not Repulsion3C");
     ΔG_Map rg;
-    for (size_t c=0; c<g.columns.size(); ++c)   // plane-wave delta path: k_c/Omega Sum_{(i,j):dm} D_ij
+    for (size_t c=0; c<g.columns.size(); ++c)   // plane-wave delta path: 1/Omega Sum_{(i,j):dm} D_ij
     {
         dcmplx s(0.0);
         for (const auto& [i,j] : g.columns[c].pairs) s += D(i,j);   // Sum_{(i,j): G_i-G_j=dm} D_ij (row-major)
-        rg[g.columns[c].dm] = g.kernel.size()==0 ? s/g.volume : g.kernel[c]*s/g.volume;
+        rg[g.columns[c].dm] = s/g.volume;
     }
     return rg;
 }

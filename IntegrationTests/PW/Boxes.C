@@ -95,17 +95,17 @@ TEST(PW_Mn2Box, Γ_Pol_SeedStaggered)
     EXPECT_NEAR(A.GetTotalSpin(),    0.0, 1e-10);                 // AFM: <up>-<down> = 0 by symmetry
     EXPECT_NEAR(A.GetChannel(Spin::Up)->GetTotalCharge(), 7.0, 0.01);
 
-    // The channel rho-tilde maps.  A channel is a matrix-free FourierDensity; the seed ignores the SF fit
+    // The channel rho-tilde maps.  A channel is a matrix-free seed with its own Fourier components; the seed ignores the SF fit
     // basis argument (its support is its own CD fit basis's difference set), so every map shares one key set.
     auto fd=[&](const qchem::ChargeDensity::cChargeDensity* cd)->ΔG_Map
     {
-        auto* f=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-        EXPECT_TRUE(f) << "a seed channel must be a FourierDensity";
-        return f->GetFourierDensity(*fsf);
+        auto* f=dynamic_cast<const qchem::BasisSet::AnalyticFourier*>(cd);
+        EXPECT_TRUE(f) << "a seed channel must carry its Fourier components";
+        return f->FourierComponents(*fsf);
     };
     ΔG_Map upA=fd(A.GetChannel(Spin::Up)), dnA=fd(A.GetChannel(Spin::Down));
     ΔG_Map dnB=fd(B.GetChannel(Spin::Down));
-    ΔG_Map tot=T.GetFourierDensity(*fsf);
+    ΔG_Map tot=T.FourierComponents(*fsf);
 
     // (1) The staggered ORDER PARAMETER at the AFM wavevector G=(1,1,1): identical species on both sites
     // means the TOTAL suffers the CsCl extinction there (F_maj+F_min alike, phases +1/-1), while the spin

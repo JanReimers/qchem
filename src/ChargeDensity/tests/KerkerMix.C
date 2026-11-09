@@ -16,6 +16,7 @@ import qchem.ChargeDensity.FourierMixCD;         // FourierMixCD, ΔG_Map
 import qchem.ChargeDensity.Internal.FieldMixer;  // KerkerStep (tests may import Internal)
 import qchem.ChargeDensity.Internal.PolarizedDensityMixer;   // the composed per-channel mixer (the factory's polarized product)
 import qchem.ChargeDensity.DensityMixer;         // KerkerMixerFactory, KerkerParams
+import qchem.BasisSet.GSpaceDensityProjector;    // ρ̃ through the one projection face
 import qchem.RunPolicy;                          // SetRunPolicy -- the tests pin the channel basis they contract
 import qchem.ChargeDensity.SeedCD;               // PolarizedSeedCD (the spin-SAD seed, no SCF)
 import qchem.CompositeCD;                   // tComposite_CD -- the SCF density (one composite over full Irreps, V1.37)
@@ -241,11 +242,12 @@ struct ScopedChannelBasis
     explicit ScopedChannelBasis(bool rhoM) : policy(Spec(rhoM)) {}
 };
 
-const FourierDensity& FourierOf(const cChargeDensity* cd)
+//! A channel density's ρ̃ on \a fit, through the one projection face (V-ONE-OF-N 3c; it was a FourierDensity cast).
+ΔG_Map RhoTildeOf(const cChargeDensity* cd, const BasisSet::cFIT_SF_ABS& fit)
 {
-    auto* f=dynamic_cast<const FourierDensity*>(cd);
-    if (!f) throw std::runtime_error("test: a channel density must carry the FourierDensity face");
-    return *f;
+    if (!cd) throw std::runtime_error("test: no channel density");
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> view(&fit, [](const BasisSet::cFIT_SF_ABS*){});   // non-owning: the box owns the basis
+    return cd->Project(*BasisSet::MakeGSpaceDensityProjector(view)).GMap();
 }
 //! Two ρ̃ maps agree entry for entry (same G set, same coefficients to \a tol).
 void ExpectSameMap(const ΔG_Map& a, const ΔG_Map& b, double tol, const char* what)
@@ -260,7 +262,7 @@ void ExpectSameMap(const ΔG_Map& a, const ΔG_Map& b, double tol, const char* w
 }
 
 //! A polarized WORKING density for the mixer to read: two FourierMixCD channels and nothing else.  The
-//! mixer reaches the channels through the face (ChannelOf) and each channel's ρ̃ through FourierDensity,
+//! mixer reaches the channels through the face (ChannelOf) and each channel's ρ̃ through Project,
 //! which is all a Mix step touches; the binary lineage operations are never called and say so.
 class TwoChannelWorking : public virtual tMixableDensity<dcmplx>, public virtual cSpinResolved_CD
 {
@@ -312,10 +314,10 @@ TEST(KerkerMix, PolarizedSeedComposesPerChannel)
     EXPECT_NEAR(fock->GetTotalCharge(), seed.GetTotalCharge(), 1e-12);
     EXPECT_NEAR(up->GetTotalCharge()-dn->GetTotalCharge(), seed.GetTotalSpin(), 1e-12)
         << "the presented moment is the seed's moment";
-    ExpectSameMap(FourierOf(up).GetFourierDensity(*box.fitSF),
-                  FourierOf(ChannelOf(&seed, Spin::Up)).GetFourierDensity(*box.fitSF), 1e-12, "up channel at iteration 0");
-    ExpectSameMap(FourierOf(dn).GetFourierDensity(*box.fitSF),
-                  FourierOf(ChannelOf(&seed, Spin::Down)).GetFourierDensity(*box.fitSF), 1e-12, "down channel at iteration 0");
+    ExpectSameMap(RhoTildeOf(up, *box.fitSF),
+                  RhoTildeOf(ChannelOf(&seed, Spin::Up), *box.fitSF), 1e-12, "up channel at iteration 0");
+    ExpectSameMap(RhoTildeOf(dn, *box.fitSF),
+                  RhoTildeOf(ChannelOf(&seed, Spin::Down), *box.fitSF), 1e-12, "down channel at iteration 0");
 }
 
 // The step itself mixes EACH channel against its OWN output: a fresh density whose channels moved the
@@ -331,8 +333,8 @@ TEST(KerkerMix, PolarizedStepMovesEachChannelAtAlpha)
     auto mixer=KerkerMixerFactory(KerkerParams{.relax=alpha, .G0=1.0}, box.bs.get(), box.lat.GetUnitCell(), &seed);
     ASSERT_NE(dynamic_cast<PolarizedDensityMixer*>(mixer.get()), nullptr);
 
-    const ΔG_Map up0=FourierOf(ChannelOf(&seed, Spin::Up  )).GetFourierDensity(*box.fitSF);
-    const ΔG_Map dn0=FourierOf(ChannelOf(&seed, Spin::Down)).GetFourierDensity(*box.fitSF);
+    const ΔG_Map up0=RhoTildeOf(ChannelOf(&seed, Spin::Up  ), *box.fitSF);
+    const ΔG_Map dn0=RhoTildeOf(ChannelOf(&seed, Spin::Down), *box.fitSF);
     const ivec3_t G0(0,0,0);
     ASSERT_TRUE(up0.count(G0) && dn0.count(G0));
     ΔG_Map upOut=up0, dnOut=dn0;
@@ -345,8 +347,8 @@ TEST(KerkerMix, PolarizedStepMovesEachChannelAtAlpha)
     EXPECT_NEAR(resid, delta, 1e-12) << "the residual is the worse channel's ‖ρ̃_out−ρ̃_in‖∞";
 
     const cChargeDensity* fock=mixer->FockDensity(out);
-    const ΔG_Map upMix=FourierOf(ChannelOf(fock, Spin::Up  )).GetFourierDensity(*box.fitSF);
-    const ΔG_Map dnMix=FourierOf(ChannelOf(fock, Spin::Down)).GetFourierDensity(*box.fitSF);
+    const ΔG_Map upMix=RhoTildeOf(ChannelOf(fock, Spin::Up  ), *box.fitSF);
+    const ΔG_Map dnMix=RhoTildeOf(ChannelOf(fock, Spin::Down), *box.fitSF);
     EXPECT_NEAR(std::real(dcmplx(upMix.at(G0))), std::real(dcmplx(up0.at(G0)))+alpha*delta, 1e-12);
     EXPECT_NEAR(std::real(dcmplx(dnMix.at(G0))), std::real(dcmplx(dn0.at(G0)))-alpha*delta, 1e-12);
     EXPECT_NEAR(std::real(dcmplx(upMix.at(G0))+dcmplx(dnMix.at(G0))),
@@ -371,8 +373,8 @@ TEST(KerkerMix, PolarizedStepInRhoMBasisMovesTheMomentLinearly)
     auto mixer=KerkerMixerFactory(KerkerParams{.relax=alpha, .G0=1.0}, box.bs.get(), box.lat.GetUnitCell(), &seed);
     ASSERT_NE(dynamic_cast<PolarizedDensityMixer*>(mixer.get()), nullptr);
 
-    const ΔG_Map up0=FourierOf(ChannelOf(&seed, Spin::Up  )).GetFourierDensity(*box.fitSF);
-    const ΔG_Map dn0=FourierOf(ChannelOf(&seed, Spin::Down)).GetFourierDensity(*box.fitSF);
+    const ΔG_Map up0=RhoTildeOf(ChannelOf(&seed, Spin::Up  ), *box.fitSF);
+    const ΔG_Map dn0=RhoTildeOf(ChannelOf(&seed, Spin::Down), *box.fitSF);
     const ivec3_t G0(0,0,0);
     ΔG_Map upOut=up0, dnOut=dn0;
     upOut[G0]=dcmplx(upOut[G0])+delta;
@@ -384,8 +386,8 @@ TEST(KerkerMix, PolarizedStepInRhoMBasisMovesTheMomentLinearly)
     EXPECT_NEAR(resid, 2*delta, 1e-12) << "the residual is the m channel's: the whole step was a moment move";
 
     const cChargeDensity* fock=mixer->FockDensity(out);
-    const ΔG_Map upMix=FourierOf(ChannelOf(fock, Spin::Up  )).GetFourierDensity(*box.fitSF);
-    const ΔG_Map dnMix=FourierOf(ChannelOf(fock, Spin::Down)).GetFourierDensity(*box.fitSF);
+    const ΔG_Map upMix=RhoTildeOf(ChannelOf(fock, Spin::Up  ), *box.fitSF);
+    const ΔG_Map dnMix=RhoTildeOf(ChannelOf(fock, Spin::Down), *box.fitSF);
     EXPECT_NEAR(std::real(dcmplx(upMix.at(G0))), std::real(dcmplx(up0.at(G0)))+alpha*delta, 1e-12) << "m at alpha, rebuilt into up";
     EXPECT_NEAR(std::real(dcmplx(dnMix.at(G0))), std::real(dcmplx(dn0.at(G0)))-alpha*delta, 1e-12) << "m at alpha, rebuilt into down";
     EXPECT_NEAR(std::real(dcmplx(upMix.at(G0))+dcmplx(dnMix.at(G0))),
@@ -423,7 +425,7 @@ TEST(KerkerMix, CuspDeficitIsPerSpinOnThePulayArmInEitherChannelBasis)
         auto* src=dynamic_cast<const cDM_Sourced_CD*>(ch);
         if (!src) throw std::runtime_error("test: a presented channel must carry the DM-sourced face");
         auto c=src->XCCorrection();
-        return c ? FourierOf(c.get()).GetFourierDensity(fit) : ΔG_Map{};
+        return c ? RhoTildeOf(c.get(), fit) : ΔG_Map{};
     };
     for (bool rhoM : {false, true})
         for (bool cusp : {true, false})
@@ -433,8 +435,8 @@ TEST(KerkerMix, CuspDeficitIsPerSpinOnThePulayArmInEitherChannelBasis)
             PolarizedSeedCD seed(box.fitCD, box.lat.GetUnitCell(), box.key);
             PulayParams p; p.relax=0.5; p.G0=1.0; p.cuspDeficit=cusp; p.depth=8; p.start=3;   // step 1 primes: plain Kerker
             auto mixer=PulayMixerFactory(p, box.bs.get(), box.lat.GetUnitCell(), &seed);
-            const ΔG_Map up0=FourierOf(ChannelOf(&seed, Spin::Up  )).GetFourierDensity(*box.fitSF);
-            const ΔG_Map dn0=FourierOf(ChannelOf(&seed, Spin::Down)).GetFourierDensity(*box.fitSF);
+            const ΔG_Map up0=RhoTildeOf(ChannelOf(&seed, Spin::Up  ), *box.fitSF);
+            const ΔG_Map dn0=RhoTildeOf(ChannelOf(&seed, Spin::Down), *box.fitSF);
             const double qUp=ChannelOf(&seed, Spin::Up)->GetTotalCharge(), qDn=ChannelOf(&seed, Spin::Down)->GetTotalCharge();
             const ivec3_t G0(0,0,0);
             ΔG_Map upOut=up0, dnOut=dn0;
@@ -449,7 +451,7 @@ TEST(KerkerMix, CuspDeficitIsPerSpinOnThePulayArmInEitherChannelBasis)
                 const cChargeDensity* ch=ChannelOf(fock, s);
                 const ΔG_Map corr=corrOf(ch, *box.fitSF);
                 if (!cusp) { EXPECT_TRUE(corr.empty()) << tag << ": the correction must not even be formed"; continue; }
-                const ΔG_Map mix=FourierOf(ch).GetFourierDensity(*box.fitSF);
+                const ΔG_Map mix=RhoTildeOf(ch, *box.fitSF);
                 const ΔG_Map& o=(s==Spin::Up) ? upOut : dnOut;
                 ΔG_Map expect=mix;
                 for (const auto& [g,v] : o) expect[g]=dcmplx(expect[g])-dcmplx(v);
@@ -458,8 +460,8 @@ TEST(KerkerMix, CuspDeficitIsPerSpinOnThePulayArmInEitherChannelBasis)
             }
             if (!cusp) continue;
             // THE FIXED POINT: feed back exactly what the mixer presented, so out = in -- the deficit is zero.
-            const ΔG_Map upIn=FourierOf(ChannelOf(fock, Spin::Up  )).GetFourierDensity(*box.fitSF);
-            const ΔG_Map dnIn=FourierOf(ChannelOf(fock, Spin::Down)).GetFourierDensity(*box.fitSF);
+            const ΔG_Map upIn=RhoTildeOf(ChannelOf(fock, Spin::Up  ), *box.fitSF);
+            const ΔG_Map dnIn=RhoTildeOf(ChannelOf(fock, Spin::Down), *box.fitSF);
             TwoChannelWorking same(upIn, dnIn, ReciprocalLattice(box.lat.GetUnitCell().MakeReciprocal()), qUp, qDn);
             (void)mixer->Mix(same, same);
             const cChargeDensity* fock2=mixer->FockDensity(same);

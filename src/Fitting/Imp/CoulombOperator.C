@@ -8,12 +8,13 @@ import qchem.Fitting.Internal.GridDensityFitter;
 import qchem.Fitting.Internal.GSpaceDensityFitter;
 import qchem.Fitting.Internal.FunctionFitterImp;   // IntegralConstrainedFF (the Gaussian Dunlap fit)
 import qchem.BasisSet.G_FieldEvaluator;
+import qchem.BasisSet.GSpaceDensityProjector;   // the ρ̃ projector factory (the fitter's projection half)
 import qchem.BasisSet.CoulombDeltaFit_IBS;   // PointCoulombIntegrals   // the plane-wave fit basis faces the factory gathers
 
 namespace qchem::Fitting
 {
 
-std::unique_ptr<GridDensityFit>
+std::unique_ptr<FirstOrderDensityFit<double>>
 MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis)
 {
     // The factory gathers the basis's Coulomb-integral face (the concrete association lives here, not in the class).
@@ -43,7 +44,10 @@ std::unique_ptr<FirstOrderDensityFit<dcmplx>> MakeGSpaceDensityFitter(std::share
     auto* rt=dynamic_cast<const BasisSet::G_RasterTransform*>(pw.get());
     if (!sf || !pk || !rt)
         throw std::logic_error("MakeGSpaceDensityFitter: the fit basis '"+pw->Name()+"' lacks a G-space face (overlap, Poisson kernel, raster)");
-    return std::make_unique<GSpaceDensityFitter>(std::move(pw), *sf, *pk, *rt);
+    // The projection half: ρ̃ on the same object's overlap face, co-owned through pw (an aliasing shared_ptr).
+    auto projector=BasisSet::MakeGSpaceDensityProjector(std::shared_ptr<const BasisSet::cFIT_SF_ABS>(pw, sf),
+                                                       "scf: rho-tilde IBZ star-average (SymmetrizeGMap)");
+    return std::make_unique<GSpaceDensityFitter>(std::move(pw), *pk, *rt, std::move(projector));
 }
 
 } //namespace

@@ -2415,9 +2415,11 @@ TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
     const mat_t<dcmplx> Dm(Dh);
     const rvec3_t q0(0,0,0);
     auto maxRel=[](double d, double s){ return s>0 ? d/s : d; };
-    {   // the Hartree collocation vs Repulsion3C.apply (D-aware screen on the ground-state side)
+    {   // the Hartree collocation vs k(G)·(the overlap forward on the CD fit grid): Repulsion3C has no forward since V-ONE-OF-N 3c,
+        // the kernel is the physics round's (D-aware screen on the ground-state side)
         const ΔGq_Map t=ket.TransitionRepulsion(*cd, ket, Dm, q0);
-        const ΔG_Map  g=ket.Repulsion3C(*cd).apply(Dh);
+        ΔG_Map g=ket.Overlap3C(dynamic_cast<const BasisSet::cFIT_SF_ABS&>(*cd)).apply(Dh);   // tests may cheat
+        for (auto& [dm,c] : g) c*=grid.Recip().CoulombKernel(dm);
         double diff=0, sc=0;
         for (const auto& [dm,c] : g)
         {

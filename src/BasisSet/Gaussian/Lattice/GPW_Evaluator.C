@@ -292,11 +292,11 @@ private:
     std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the ladder's density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Orbital_DFT_IBS<dcmplx>::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
-    //! \brief Last-density collocation memo, SHARED by the two \c MakeCollocator closures (Coulomb + overlap
-    //! tensors): each SCF iteration collocates the SAME \f$D\f$ twice -- once for \f$\rho\f$ on the grid
-    //! (XC/charge) and once for the Coulomb apply -- so the second call replays the level densities for free
+    //! \brief Last-density collocation memo, SHARED by every \c MakeCollocator closure of this evaluator (one per fit grid's
+    //! overlap tensor): each SCF iteration collocates the SAME \f$D\f$ for several clients -- the XC / mixer
+    //! \f$\tilde\rho\f$ and the Hartree fit's -- so a later call on the same ladder replays the level densities for free
     //! (exact-equality keyed on \f$D\f$; the phase/cell/ladder are fixed per evaluator, i.e. per k-block).
-    //! The G-space post-processing (FFT + nested combine +/- Coulomb kernel) stays per-call.
+    //! The G-space post-processing (FFT + nested combine) stays per-call.
     //! \c ecut pins the LADDER the cached \c rho was collocated on: the memo dedups the two same-grid closures
     //! (Coulomb + overlap) collocating the same \f$D\f$ per iteration, but the SAME \f$D\f$ can be collocated on
     //! a DIFFERENT grid (a coarse block asked for a fine fit grid -- the grid-continuation seed), where replaying
@@ -401,7 +401,7 @@ private:
     //! the \c PairProjection<dcmplx>::apply realization.
     //! The collocator over an EXPLICIT fit grid: the ladder derives from \a grid (the tensor's requested
     //! \f$\{G\}\f$), NOT the block's own \c itsFFT_R_G_Grids -- the closure captures its own ladder built from \a grid.
-    std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb, std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    std::function<ΔG_Map(const chmat_t&)> MakeCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     //! The BACKWARD adjoint of \c MakeCollocator: a self-contained field->matrix integrate-back over \a grid's
     //! ladder -- the \c PairProjection<dcmplx>::applyAdjoint the Overlap3C/Repulsion3C(grid) tensors carry (doc/GPWPlan §0e step2).
     std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)>

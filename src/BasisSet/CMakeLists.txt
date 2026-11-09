@@ -19,6 +19,7 @@ target_sources(qcBasisSet PRIVATE
   Internal/Imp/Cache2.C
   Internal/Imp/Cache3.C
   Imp/PairProjection.C
+  Imp/GSpaceDensityProjector.C
   Internal/Imp/ERI4.C
   Internal/Imp/ERI4T.C
   Internal/Imp/DB_Cache_RAM.C
@@ -51,6 +52,8 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   DeltaFit_IBS.C
   MultipoleFit_IBS.C
   CoulombDeltaFit_IBS.C
+  GSpaceDensityProjector.C              # the ρ̃ projector FACTORY (returns the PairProjector<dcmplx> face)
+  Internal/GSpaceDensityProjector.C     # ...its class (only the factory names it)
   Internal/SymmetryAdapted_IBS.C
   Internal/BasisSetImp.C
   Internal/IrrepBasisSetImp.C

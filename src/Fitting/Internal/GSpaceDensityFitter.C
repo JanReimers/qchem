@@ -25,7 +25,6 @@ export import qchem.Fitting.CoulombOperator;   // FirstOrderDensityFit<dcmplx>
 import qchem.BasisSet.Orbital_DFT_IBS;          // Orbital_DFT_IBS<U,dcmplx>, cFIT_CD_ABS / cFIT_SF_ABS
 import qchem.BasisSet.PairProjection;           // GSpacePairProjectionIntegrator
 import qchem.BasisSet.G_FieldEvaluator;         // G_PoissonKernel, G_RasterTransform (the PW fit basis's own faces)
-import qchem.BasisSet.GMap;                     // SymmetrizeGMap (the IBZ star-average in G)
 import qchem.Blaze;                             // blazem::NarrowExact
 import qchem.Parallel;                          // LazyLock -- the per-block caches' guard
 import qchem.Reporting;                         // report::Timed
@@ -37,40 +36,29 @@ class GSpaceDensityFitter : public virtual FirstOrderDensityFit<dcmplx>
 {
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
-    //! The constructor DEMANDS the fit basis's four views (CLAUDE.md "Constructors pass concrete objects"): its Coulomb face
-    //! \a pw (co-owned), and the overlap, Poisson-kernel and raster faces of the SAME object.  Gathering them is the
-    //! factory's job (\c MakeGSpaceDensityFitter), so this class casts nothing.
-    GSpaceDensityFitter(fbs_t pw, const BasisSet::cFIT_SF_ABS& sf, const BasisSet::G_PoissonKernel& pk,
-                        const BasisSet::G_RasterTransform& rt)
-        : itsCD(std::move(pw)), itsSF(&sf), itsPK(&pk), itsRT(&rt)
+    typedef std::unique_ptr<const BasisSet::PairProjector<dcmplx>> projector_t;
+    //! The constructor DEMANDS what it uses (CLAUDE.md "Constructors pass concrete objects"): the fit basis's Coulomb face \a pw
+    //! (co-owned), its Poisson-kernel and raster faces of the SAME object, and the ρ̃ projector \a projector over that basis's
+    //! overlap face (the projection half; \c BasisSet::MakeGSpaceDensityProjector).  Gathering them is the factory's job
+    //! (\c MakeGSpaceDensityFitter), so this class casts nothing.
+    GSpaceDensityFitter(fbs_t pw, const BasisSet::G_PoissonKernel& pk, const BasisSet::G_RasterTransform& rt, projector_t projector)
+        : itsCD(std::move(pw)), itsPK(&pk), itsRT(&rt), itsProjector(std::move(projector))
     {
+        if (!itsProjector) throw std::logic_error("GSpaceDensityFitter: no projector");
         if (!itsCD) throw std::logic_error("GSpaceDensityFitter: no fit basis");
         if (!itsCD->isOrtho())
             throw std::logic_error("GSpaceDensityFitter: the fit basis '"+itsCD->Name()+"' is not orthonormal, so its projection is not its fit");
         itsVolume=itsRT->Integral(rvec_t(itsRT->RasterSize(),1.0));                 // Ω through the raster's own rule
     }
 
-    // --- the projector the density contracts its D into (PairProjector<dcmplx>)
-    const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Integrator<double>(orb);}
-    const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return Integrator<dcmplx>(orb);}
-    //! A density with no D: its own Fourier components when it knows them (\c AnalyticFourier), else sampled on my raster and
-    //! transformed -- either way ρ̃ on my {G}, the axis \c Forward uses.
-    Projections ProjectField(const ScalarFunction<double>& f) const override
-    {
-        // A cross-cast between abstract faces, and the one seam there is: a density with no D reaches me as a ScalarFunction
-        // through tChargeDensity::Project's default, and a second Project entry per capability is what ruling (e) declined.
-        if (auto* af=dynamic_cast<const BasisSet::AnalyticFourier*>(&f)) return Projections(af->FourierComponents(*itsSF));
-        return Projections(itsRT->FieldCoeffs(itsRT->ForwardFFT(itsRT->Sample(f))));
-    }
-    size_t NumCoefficients() const override {return itsCD->GetNumFunctions();}
-    //! A zero density's ρ̃: the empty map (an absent G reads as 0).
-    Projections Zero() const override {return Projections(ΔG_Map{});}
-    //! The IBZ star-average of ρ̃: my functions are plane waves, so a point op permutes their G's.
+    // --- the projector the density contracts its D into (PairProjector<dcmplx>): ρ̃ on my {G}, by the shared projector
+    const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return itsProjector->Forward(orb);}
+    const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return itsProjector->Forward(orb);}
+    Projections ProjectField(const ScalarFunction<double>& f) const override {return itsProjector->ProjectField(f);}
+    size_t NumCoefficients() const override {return itsProjector->NumCoefficients();}
+    Projections Zero() const override {return itsProjector->Zero();}
     void StarAverage(Projections& p, const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& ops) const override
-    {
-        qchem::report::Timed timed("scf: rho-tilde IBZ star-average (SymmetrizeGMap)");
-        p=Projections(SymmetrizeGMap(p.GMap(), ops));
-    }
+        {itsProjector->StarAverage(p,ops);}
 
     // --- the first-order fitted Hartree face
     void DoFit(const Projections& rho) override {itsRho=rho.GMap(); itsFitted=true;}
@@ -101,31 +89,18 @@ private:
     template <class U> hmat_t<U> RepulsionT(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
     {
         RequireFit("a repulsion");
-        return blazem::NarrowExact<U>(GSpacePairProjectionIntegrator<U>(orb.Repulsion3C(*itsCD)).Adjoint(itsRho));
+        // Adjoint-only: the Coulomb tensor has no forward (V-ONE-OF-N 3c), so no integrator pair is built over it.
+        const ΔG_Map& rho=itsRho;
+        return blazem::NarrowExact<U>(ContractAdjoint(orb.Repulsion3C(*itsCD), [&rho](const ivec3_t& dm)->dcmplx
+            { auto it=rho.find(dm); return it==rho.end() ? dcmplx(0.0) : it->second; }));
     }
-    //! The projection VIEW for one orbital block, over the basis's cached OVERLAP tensor, by spatial symmetry (as every fitter).
-    template <class U> const GSpacePairProjectionIntegrator<U>& Integrator(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
-    {
-        auto& cache=Cache<U>();
-        std::lock_guard<std::mutex> lock(itsCacheLock.m);
-        const sym_t& id=orb.GetSymt();
-        auto it=cache.find(id);
-        if (it!=cache.end()) return it->second;
-        return cache.emplace(id, GSpacePairProjectionIntegrator<U>(orb.Overlap3C(*itsSF))).first->second;
-    }
-    template <class U> SymMap<GSpacePairProjectionIntegrator<U>>& Cache() const
-    { if constexpr (std::is_same_v<U,double>) return itsIntR; else return itsIntC; }
-
     fbs_t itsCD;                                    //!< the plane-wave fit basis (its Coulomb face)
-    const BasisSet::cFIT_SF_ABS*       itsSF=nullptr;   //!< ...its overlap face (the projection)
     const BasisSet::G_PoissonKernel*   itsPK=nullptr;   //!< ...its diagonal Coulomb metric
     const BasisSet::G_RasterTransform* itsRT=nullptr;   //!< ...its raster
     double itsVolume=0.0;                           //!< Ω
     ΔG_Map itsRho;                                  //!< the fit = ρ̃(G), private
     bool   itsFitted=false;
-    mutable SymMap<GSpacePairProjectionIntegrator<double>> itsIntR;   //!< real TRIM blocks
-    mutable SymMap<GSpacePairProjectionIntegrator<dcmplx>> itsIntC;   //!< Bloch blocks
-    qchem::LazyLock itsCacheLock;
+    projector_t itsProjector;                       //!< the projection half (ρ̃ on the same basis's overlap face)
 };
 
 } //namespace

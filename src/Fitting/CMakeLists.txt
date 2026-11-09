@@ -7,7 +7,6 @@ target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     CoulombOperator.C
     FitOperations.C
     Internal/FunctionFitterImp.C
-    Internal/OrthoFunctionFitter.C
     Internal/OrthoNormalFunctionFitter.C
     Internal/DeltaFunctionFitter.C
     Internal/GridDensityFitter.C

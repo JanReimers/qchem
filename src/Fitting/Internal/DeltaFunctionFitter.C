@@ -42,16 +42,16 @@ export namespace qchem::Fitting
 
 //! \brief THE PERIODIC FIT AXIS'S EXTRA FACES (2026-10-31), which only a fitter over a COMPLEX (Bloch) \f$\delta\f$ basis has:
 //! the real TRIM block's contraction (3c-3, \c FitContraction<double,dcmplx>) and the FORWARD vendor the periodic density
-//! projects onto (\c ScalarProjector, whose faces are the Bloch blocks').  A base that exists only for \c dcmplx (CRTP: the
+//! projects onto (\c BasisSet::PairProjector<dcmplx>, whose faces are the Bloch blocks').  A base that exists only for \c dcmplx (CRTP: the
 //! bodies are the fitter's own), so the real (molecular) instantiation carries no face it cannot serve.
 template <class Self, class T> class DeltaPeriodicFitFaces {};
 template <class Self> class DeltaPeriodicFitFaces<Self,dcmplx>
-    : public virtual ScalarProjector                 // ...the FORWARD direction, off the same handles
+    : public virtual BasisSet::PairProjector<dcmplx>   // ...the FORWARD direction, off the same handles
     , public virtual FitContraction<double,dcmplx>   // a real TRIM block's quadrature runs in real arithmetic
 {
 public:
     virtual hmat_t<double> Overlap(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Self_().template Contract<double>(orb);}
-    //! \copydoc Fitting::ScalarProjector::Forward
+    //! \copydoc BasisSet::PairProjector<dcmplx>::Forward
     //! Built over the SAME held handle the adjoint contracts -- which is the point of holding it: the density's forward and
     //! the term's adjoint come off ONE constructed object.  ▶ The fitter is "ACTOR 2": it builds that object per block and
     //! hands each client only its own half -- `IrrepCD` the FORWARD (through this face), the XC term the ADJOINT (\c Overlap).

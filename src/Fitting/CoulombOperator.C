@@ -1,12 +1,9 @@
-// File: Fitting/CoulombOperator.C  How a grid fit's potential is found, kept apart from what the fit IS.
+// File: Fitting/CoulombOperator.C  The DENSITY fits a Hartree term holds: the first-order face and the Dunlap face, and their factories.
 //
-// A fit basis says what a function is; a CoulombOperator says how the potential of a density on it is found (user ruling
-// 2026-11-06, on lane S's design note).  The Gaussian route needs neither name: (ij|a) never forms v at points, so
-// ConstrainedFF stays as it is.  The grid routes (a density sampled on a mesh) all end the same way -- v at the mesh's
-// points, then the same quadrature XC uses -- and differ only in how v is found, so that is the one thing that varies.
-//
-// Its own module, beside the qchem.Fitting.FunctionFitter hub rather than on it.  The concrete classes stay Internal: a
-// caller holds this face and the Make functions below, which is where the concrete pairing lives.
+// (The module keeps its 2026-11-06 name; its operators moved to qcMesh in V-ONE-OF-N 3b-ii, and since 3c it is the home of the
+// density-fit faces the qchem.Fitting.FunctionFitter hub used to carry.)  A fit basis says what a function is and answers its own
+// Coulomb integrals (ruling (f)); a fitter projects, solves in its own metric, and keeps its coefficients private (ruling (b)).
+// The concrete classes stay Internal: a caller holds these faces and the Make functions below, where the concrete pairing lives.
 //
 // MEASURED (lane S prototype, TeF₆ at a fixed density, doc/Records/ on the row): at a mesh's own rung the J error of any
 // route that forms v at points is floored by the final contraction, 4.7e-4 per element at 80/29.  Analytic (ij|a) has no
@@ -15,7 +12,8 @@ module;
 #include <functional>
 #include <memory>
 export module qchem.Fitting.CoulombOperator;
-export import qchem.Fitting.FunctionFitter;   // FunctionFitter_Density_NonOrtho (what a grid fit is reached through)
+export import qchem.BasisSet.PairProjector;    // what both density-fit faces are (the density projects itself onto them)
+export import qchem.BasisSet.Orbital_DFT_IBS;  // the fit-basis faces and the orbital block
 export import qchem.Mesh;                     // qcMesh::Mesh (the points a direct sum runs over)
 export import qchem.Mesh.SiteMultipoles;      // what a radial solve runs over
 export import qchem.Mesh.CoulombOperator;     // the point set's Coulomb integrals (moved to qcMesh, V-ONE-OF-N 3b-ii)
@@ -78,24 +76,10 @@ public:
 //! \brief The Dunlap fit on a Gaussian (non-orthogonal, Coulomb-metric) fit basis \a fbs.  THROWS when \a fbs has no Coulomb metric.
 std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs);
 
-//! \brief A density fit on a mesh: the Gaussian fit's face, plus the energy, which only its \c CoulombOperator can answer (V1.1b).
-//! Its own class here, beside the hub.  Data-free.
-class GridDensityFit
-    : public virtual FunctionFitter_Density_NonOrtho<double>
-    , public virtual FirstOrderDensityFit<double>
-{
-public:
-    using FunctionFitter_Density_NonOrtho<double>::DoFit;   // the old face (3c retires it)
-    using FirstOrderDensityFit<double>::DoFit;
-    using FunctionFitter_Density_NonOrtho<double>::Repulsion;
-    using FirstOrderDensityFit<double>::Repulsion;
-    virtual double Integral() const override=0;            // one name for the two bases' Integral
-};
-
 //! \brief A density fit on \a deltaBasis (an orthogonal, \f$\delta\f$-like fit basis that answers its own Coulomb integrals,
 //! \c BasisSet::PointCoulombIntegrals: a \c CoulombDeltaFit_IBS or a \c MultipoleFit_IBS).  THROWS when the basis is not orthogonal or
 //! carries no Coulomb integrals.
-std::unique_ptr<GridDensityFit>
+std::unique_ptr<FirstOrderDensityFit<double>>
 MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis);
 
 //! \brief A density fit on a PLANE-WAVE fit basis \a pw (orthonormal {G}): the fit is \f$\tilde\rho(G)\f$ itself, held privately;

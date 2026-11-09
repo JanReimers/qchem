@@ -27,7 +27,6 @@ module qchem.ChargeDensity.Internal.DensitySampler;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
 import qchem.ChargeDensity;
-import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
@@ -78,7 +77,7 @@ template <class T> tSinglesDensitySampler<T>::tSinglesDensitySampler(fit_t fit, 
 // qcFitting's operation, and this strategy holds a fitter that already owns the fit basis's Phi handles
 // for the adjoint direction (user).  So both directions of the SAME tensor now come off ONE object, which
 // is the invariant this class's own header argues for one level up.
-template <class T> const Fitting::ScalarProjector* tSinglesDensitySampler<T>::MatrixProjector() const
+template <class T> const BasisSet::PairProjector<dcmplx>* tSinglesDensitySampler<T>::MatrixProjector() const
 {
     if constexpr (std::is_same_v<T,dcmplx>) return itsScalarFitter.get();   // the periodic δ fitter's
     else return nullptr;                                                    // none on the real axis
@@ -89,7 +88,7 @@ template <class T> const Fitting::FieldProjector& tSinglesDensitySampler<T>::Fie
 }
 template <class T> rvec_t tSinglesDensitySampler<T>::ProjectDM(const tDM_CD<T>& dm) const
 {
-    if (const Fitting::ScalarProjector* sp=MatrixProjector()) return dm.ProjectOnto(*sp).Vector();   // the paired sampler: a delta fit's values
+    if (const BasisSet::PairProjector<dcmplx>* sp=MatrixProjector()) return dm.Project(*sp).Vector();   // the paired sampler: a delta fit's values
     return FieldProjection().Project(dm);
 }
 

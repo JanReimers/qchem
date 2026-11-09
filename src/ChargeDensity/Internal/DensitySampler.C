@@ -35,6 +35,7 @@ import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quad
 import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 import qchem.Symmetry;                      // sym_t / SymMap: the per-block adjoint views, by spatial symmetry
 import qchem.BasisSet.PairProjection;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
+import qchem.BasisSet.GSpaceDensityProjector;   // the BALL route's ρ̃ (V-ONE-OF-N 3c)
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Types;
 
@@ -154,7 +155,7 @@ protected:   // the periodic subclass contracts through the same fitter and tabl
     //! \brief MY FITTER'S PROJECTION FACE -- what a density projects itself onto (2026-08-24).
     //! The fitter holds the fit basis's \f$\Phi\f$ handles, so the \f$\rho\f$ FORWARD and the
     //! \f$H_{xc}\f$ ADJOINT come off one object instead of two callers asking the basis separately.
-    const Fitting::ScalarProjector* MatrixProjector() const;
+    const BasisSet::PairProjector<dcmplx>* MatrixProjector() const;
     //! The FIELD projection face every δ fitter carries, on either fit axis -- the pointwise route.
     const Fitting::FieldProjector& FieldProjection() const;
     //! \f$\rho\f$ of a density-matrix density over my points: contracted through the fitter's matrix-forward handles when it has
@@ -335,6 +336,8 @@ private:
     //! nothing: "no ball fit anywhere").  Built once; its own grid is this basis's raster.
     std::unique_ptr<Fitting::ScalarFit<dcmplx>> itsScalarFitter;
     qchem::LazyLock itsScalarFitterLock;          //!< the BALL fallback refits per call: concurrent blocks take turns
+    //! The BALL route's ρ̃ on this basis: what a density projects itself onto (it used to answer a FourierDensity face).
+    std::unique_ptr<BasisSet::PairProjector<dcmplx>> itsRhoProjector;
     mutable rvec_t itsRho;                        //!< ρ(r) on the raster for the current density serial
     mutable size_t itsRhoVersion=size_t(-1);      //!< density logical-clock serial itsRho was built for
     mutable bool   itsRhoIsRaw=false;             //!< is itsRho the RAW collocated ρ_DM (vs the ball round trip)?

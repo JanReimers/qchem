@@ -13,6 +13,7 @@ module;
 export module qchem.ChargeDensity.Internal.PolarizedDensityMixer;
 export import qchem.ChargeDensity.DensityMixer;
 export import qchem.ChargeDensity.Internal.FieldMixer;
+import qchem.BasisSet.GSpaceDensityProjector;   // the ρ̃ projector factory
 import qchem.ReciprocalLattice;
 import qchem.Types;
 
@@ -57,7 +58,7 @@ export namespace qchem::ChargeDensity
 //! leaf mixers, which outlive every Fock build they feed; \c Seat re-points it after each mix.
 class PolarizedMixCD
     : public virtual tChargeDensity<dcmplx>
-    , public virtual FourierDensity
+    , public virtual RasterDensity              //!< the summed raw-raster shadow (the interim face)
     , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
     , public virtual cSpinResolved_CD
     , public virtual cDM_SourceSink   //!< the driver seats the polarized D here; the view splits it per channel
@@ -87,17 +88,13 @@ public:
         assert(itsUp && itsDn && "PolarizedMixCD: never seated");
         return s==Spin::Up ? itsUp : itsDn;
     }
-    // FourierDensity -- the ↑+↓ TOTAL.  Both quantities are LINEAR in ρ̃ (V_H = 4π ρ̃/|G|²), so summing the
-    // channels' answers IS the total's answer.
-    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const override
-    { return Fourier(itsUp).GetFourierDensity(c) + Fourier(itsDn).GetFourierDensity(c); }
-    virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override {return GetFourierDensity(c);}
-    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const override
-    { return Fourier(itsUp).GetRepulsion3C(c) + Fourier(itsDn).GetRepulsion3C(c); }
+    // AnalyticFourier -- the ↑+↓ TOTAL.  ρ̃ is linear, so summing the channels' components IS the total's.
+    virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override
+    { return Fourier(itsUp).FourierComponents(c) + Fourier(itsDn).FourierComponents(c); }
     //! The raw-raster shadow, summed -- empty (pipeline off) unless BOTH channels answer on the same raster.
     virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const override
     {
-        rvec_t u=Fourier(itsUp).GetRhoOnGrid(c), d=Fourier(itsDn).GetRhoOnGrid(c);
+        rvec_t u=Raster(itsUp).GetRhoOnGrid(c), d=Raster(itsDn).GetRhoOnGrid(c);
         if (u.size()==0 || u.size()!=d.size()) return rvec_t{};
         u+=d;
         return u;
@@ -132,11 +129,18 @@ public:
         return itsVersion;
     }
 private:
-    //! The channel's Fourier face -- a ρ̃ mixer's output always has it (checked at construction, not here).
-    static const FourierDensity& Fourier(const cChargeDensity* cd)
+    //! The channel's Fourier components -- a ρ̃ mixer's output (a FourierMixCD) always has them.
+    static const BasisSet::AnalyticFourier& Fourier(const cChargeDensity* cd)
     {
-        auto* f=dynamic_cast<const FourierDensity*>(cd);
-        assert(f && "PolarizedMixCD: a channel density must carry the FourierDensity face");
+        auto* f=dynamic_cast<const BasisSet::AnalyticFourier*>(cd);
+        if (!f) throw std::logic_error("PolarizedMixCD: a channel density must carry its Fourier components (AnalyticFourier)");
+        return *f;
+    }
+    //! ...and its raw-raster shadow face.
+    static const RasterDensity& Raster(const cChargeDensity* cd)
+    {
+        auto* f=dynamic_cast<const RasterDensity*>(cd);
+        if (!f) throw std::logic_error("PolarizedMixCD: a channel density must carry the raw-raster face");
         return *f;
     }
     //! The channel's sink face -- a ρ̃ mixer's output always has it (a FourierMixCD).
@@ -196,7 +200,8 @@ public:
                           const ReciprocalLattice& recip,
                           ChannelBasis basis, bool cusp=false)
         : itsUp(std::move(a)), itsDn(std::move(b)), itsBasis(basis), itsCuspDeficit(cusp)
-        , itsFit(std::move(fit)), itsRecip(recip)
+        , itsFit(std::move(fit))
+        , itsProjector(itsFit ? BasisSet::MakeGSpaceDensityProjector(itsFit, kMixerStarAverageBucket) : nullptr), itsRecip(recip)
     {
         itsAF=dynamic_cast<tFieldMixer*>(itsUp.get());
         itsBF=dynamic_cast<tFieldMixer*>(itsDn.get());
@@ -261,11 +266,9 @@ public:
     ResidualPair ResidualDensities(const cd_t& working) const override
     {
         auto [wu,wd]=Channels(working);
-        const FourierDensity& fu=FourierOf(wu);
-        const FourierDensity& fd=FourierOf(wd);
         const double qUp=wu->GetTotalCharge(), qDn=wd->GetTotalCharge();
-        auto outUp=Present(GField{fu.GetFourierDensity(*itsFit), fu.GetRhoOnGrid(*itsFit)}, itsRecip, qUp);
-        auto outDn=Present(GField{fd.GetFourierDensity(*itsFit), fd.GetRhoOnGrid(*itsFit)}, itsRecip, qDn);
+        auto outUp=Present(FieldOf(*wu, *itsProjector, *itsFit), itsRecip, qUp);
+        auto outDn=Present(FieldOf(*wd, *itsProjector, *itsFit), itsRecip, qDn);
         const GField& a=itsAF->Field();
         const GField& b=itsBF->Field();
         std::shared_ptr<FourierMixCD> inUp, inDn;
@@ -301,20 +304,13 @@ private:
     struct LeafFields { GField a, b; ΔG_Map up, dn; };
     LeafFields LeafFieldsOf(const cChargeDensity* wu, const cChargeDensity* wd) const
     {
-        const FourierDensity& fu=FourierOf(wu);
-        const FourierDensity& fd=FourierOf(wd);
+        GField gu=FieldOf(*wu, *itsProjector, *itsFit), gd=FieldOf(*wd, *itsProjector, *itsFit);
         LeafFields l;
-        l.up=fu.GetFourierDensity(*itsFit); l.dn=fd.GetFourierDensity(*itsFit);
-        const rvec_t rup=fu.GetRhoOnGrid(*itsFit), rdn=fd.GetRhoOnGrid(*itsFit);
+        l.up=std::move(gu.tilde); l.dn=std::move(gd.tilde);
+        const rvec_t rup=std::move(gu.raster), rdn=std::move(gd.raster);
         if (itsBasis==ChannelBasis::SpinChannels) { l.a=GField{l.up, rup}; l.b=GField{l.dn, rdn}; }
         else { l.a=GField{l.up+l.dn, RawCombine(rup,rdn,+1.0,1.0)}; l.b=GField{l.up-l.dn, RawCombine(rup,rdn,-1.0,1.0)}; }
         return l;
-    }
-    static const FourierDensity& FourierOf(const tChargeDensity<dcmplx>* cd)
-    {
-        auto* f=dynamic_cast<const FourierDensity*>(cd);
-        assert(f && "PolarizedDensityMixer: a spin channel must carry the FourierDensity face");
-        return *f;
     }
     //! (ρ,m) mode only: rebuild the CHANNEL pair the Fock consumes, ρ̃_σ = (ρ̃ ± m̃)/2, from the two leaves'
     //! mixed combinations, and re-seat the view on them.  Rebuilt (rather than viewed) because a fresh
@@ -338,6 +334,7 @@ private:
     ChannelBasis itsBasis;
     bool         itsCuspDeficit=false;   //!< (ρ,m) only: form the per-spin N4 corrections (a (ρ↑,ρ↓) leaf forms its own)
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFit;   //!< reads the working channels' ρ̃
+    std::shared_ptr<const BasisSet::PairProjector<dcmplx>> itsProjector;   //!< ρ̃ on itsFit (V-ONE-OF-N 3c)
     ReciprocalLattice itsRecip;                            //!< metric of the rebuilt channels ((ρ,m) mode)
     tFieldMixer *itsAF=nullptr, *itsBF=nullptr;            //!< the leaves' FIELD face
     tFieldExtrapolator *itsAH=nullptr, *itsBH=nullptr;     //!< ...and their HISTORY face (null = memoryless)

@@ -171,7 +171,8 @@ namespace qchem::BasisSet {
 
 ### qchem.ChargeDensity   (src/ChargeDensity/ChargeDensity.C)
 export import qchem.Symmetry.Spin;
-export import qchem.ChargeDensity.FourierDensity;
+export import qchem.ChargeDensity.RasterDensity;
+export import qchem.BasisSet.PairProjection;
 export import qchem.BasisSet.PairProjector;
 export import qchem.Fitting.FunctionFitter;
 namespace qchem::ChargeDensity {
@@ -183,8 +184,6 @@ namespace qchem::ChargeDensity {
         size_t Head() const;
     };
     using LineagePtr = std::shared_ptr<Lineage>;
-    struct NoProjectedDensity {
-    };
     template <class T> class tHF_System_CD {
     public:
         virtual ~tHF_System_CD() = default;
@@ -204,7 +203,6 @@ namespace qchem::ChargeDensity {
     struct NoHF_Pair {
     };
     template <class T> using HF_PairBase = std::conditional_t<std::is_same_v<T,double>, tHF_Pair_CD<double>, NoHF_Pair>;
-    template <class T> using ProjectedDensityBase = std::conditional_t<std::is_same_v<T,double>, Fitting::CoulombMetric_ProjectedDensity, NoProjectedDensity>;
     template <class T> class tChargeDensity;
     template <class T> class tDM_CD;
     class DensityID {
@@ -252,11 +250,6 @@ namespace qchem::ChargeDensity {
         virtual bool isActive() const override;
         virtual void JoinLineage(const LineagePtr& l) override;
     };
-    template <class T> class tProjectable_CD {
-    public:
-        virtual ~tProjectable_CD() = default;
-        virtual Projections ProjectOnto(const Fitting::ScalarProjector& p) const=0;
-    };
     template <class T> class tMixableDensity : public virtual tChargeDensity<T> {
     public:
         virtual void Axpy (double c, const tMixableDensity<T>&) =0;
@@ -266,7 +259,7 @@ namespace qchem::ChargeDensity {
         virtual double GetChangeFrom(const tMixableDensity<T>& ) const=0;
         virtual double GetMaxChangeFrom(const tMixableDensity<T>& ) const=0;
     };
-    template <class T> class tDM_CD : public virtual tMixableDensity<T> , public virtual tProjectable_CD<T> {
+    template <class T> class tDM_CD : public virtual tMixableDensity<T> {
     public:
         virtual double DM_Contract(const tStatic_CC<T>*) const=0;
         virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const=0;
@@ -508,31 +501,6 @@ export import qchem.ScalarFunction;
 export import qchem.BasisSet.PairProjector;
 export import qchem.BasisSet.Orbital_DFT_IBS;
 namespace qchem::Fitting {
-    template <class T> class ProjectedDensity {
-    public:
-        virtual ~ProjectedDensity() = default;
-    };
-    class ProjectedDensity_AO : public virtual ProjectedDensity<double> {
-    public:
-        virtual double FitGetConstraint() const=0;
-    };
-    class DensityProjector : public virtual BasisSet::PairProjector<double> {
-    };
-    class CoulombMetric_ProjectedDensity : public virtual ProjectedDensity_AO {
-    public:
-        virtual rvec_t GetRepulsion3C(const DensityProjector&) const=0;
-    };
-    class OverlapMetric_ProjectedDensity : public virtual ProjectedDensity_AO {
-    public:
-        virtual rvec_t GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const=0;
-    };
-    class ProjectedDensity_G : public virtual ProjectedDensity<dcmplx> {
-    public:
-        explicit ProjectedDensity_G(const ΔG_Map& rhoTilde);
-        const ΔG_Map& Map() const;
-    private:
-        ΔG_Map itsMap;
-    };
     class ProjectedScalar_R {
     public:
         virtual ~ProjectedScalar_R() = default;
@@ -543,11 +511,6 @@ namespace qchem::Fitting {
         virtual ~FieldProjector() = default;
         virtual rvec_t Project(const ScalarFunction<double>& f) const=0;
         virtual size_t NumCoefficients() const=0;
-    };
-    class ScalarProjector : public virtual FieldProjector , public virtual BasisSet::PairProjector<dcmplx> {
-    public:
-        virtual size_t NumCoefficients() const override=0;
-        using BasisSet::PairProjector<dcmplx>::Forward;
     };
     class FunctionFitter_Scalar {
     public:
@@ -565,25 +528,12 @@ namespace qchem::Fitting {
     };
     template <class T> class DeltaScalarFit : public virtual ScalarFit<T> , public virtual FieldProjector {
     };
-    template <> class DeltaScalarFit<dcmplx> : public virtual ScalarFit<dcmplx> , public virtual FitContraction<double,dcmplx> , public virtual ScalarProjector {
-    };
-    template <class T> class FunctionFitter_Density {
+    template <> class DeltaScalarFit<dcmplx> : public virtual ScalarFit<dcmplx> , public virtual FitContraction<double,dcmplx> , public virtual FieldProjector , public virtual BasisSet::PairProjector<dcmplx> {
     public:
-        virtual ~FunctionFitter_Density() = default;
-        virtual void DoFit (const ProjectedDensity<T>&)=0;
-        virtual hmat_t<T> Repulsion (const robs_t<T>*) const =0;
-        virtual std::ostream& Write (std::ostream&) const =0;
-    };
-    template <class T> class FunctionFitter_Density_NonOrtho : public virtual FunctionFitter_Density<T> {
-    public:
-        virtual double FitGetSelfRepulsion() const=0;
-        virtual double Integral () const=0;
-        virtual void ReScale (double factor)=0;
+        virtual size_t NumCoefficients() const override=0;
     };
     template <class T> std::unique_ptr<ScalarFit<T>> Factory(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
     template <class T> std::unique_ptr<DeltaScalarFit<T>> MakeDeltaScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
-    std::unique_ptr<FunctionFitter_Density_NonOrtho<double>> Factory(std::shared_ptr<const BasisSet::rFIT_CD_ABS>&);
-    std::unique_ptr<FunctionFitter_Density<dcmplx>> Factory(std::shared_ptr<const BasisSet::cFIT_CD_ABS>&);
 }
 
 ### qchem.Symmetry.Representation   (src/Symmetry/Representation.C)

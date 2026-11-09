@@ -32,7 +32,7 @@ export module qchem.ChargeDensity.Imp.IrrepCD;
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.DensityMatrixDistance;
 export import qchem.Symmetry.Irrep;
-export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (periodic lineage)
+export import qchem.ChargeDensity.RasterDensity;    // the raw-raster face (periodic lineage)
 import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
@@ -45,19 +45,13 @@ export namespace qchem::ChargeDensity
 //  be a summation of these guys.
 //
 
-//! \brief The reciprocal-space trio for a PERIODIC leaf block -- BOTH scalars (Step 3c-2b: a real TRIM
-//! block's D contributes to ρ̃ exactly like a complex block's; the tensors follow TFit==dcmplx either
-//! way, so ONE mixin body serves both).  Same CRTP shape as \c IrrepCD_HFPair: the implementation
-//! reaches the block's own D and basis without any of it becoming public.
-template <class Leaf> class IrrepCD_Fourier : public virtual FourierDensity
+//! \brief The raw-raster face for a PERIODIC leaf block -- BOTH scalars (Step 3c-2b: a real TRIM block contributes like a complex
+//! one).  Its ρ̃ is \c Project's (V-ONE-OF-N 3c: D contracted into a \c GSpaceDensityProjector's overlap forward).  Same CRTP shape
+//! as \c IrrepCD_HFPair: the implementation reaches the block's own D and basis without any of it becoming public.
+template <class Leaf> class IrrepCD_Fourier : public virtual RasterDensity
 {
 public:
-    //! Metric-free rho-tilde(Delta-m) of THIS block: D contracted against the basis's D-free OVERLAP tensor
-    //! Overlap3C(c) (empty kernel) -- the periodic density's native representation.
-    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
     virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // raw rho_DM (0.5(f2)); empty if no raw path
-    //! V_H(Delta-m) of THIS block: D contracted against the basis's D-free Coulomb tensor Repulsion3C(c).
-    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
 private:
     const Leaf& self() const {return static_cast<const Leaf&>(*this);}
 };
@@ -101,7 +95,6 @@ public:
     virtual Projections Project(const BasisSet::PairProjector<dcmplx>&) const override;
     using tChargeDensity<T>::Project;   // the molecular overload (FiniteIrrepCD overrides it)
     //! The old face, kept one commit (V-ONE-OF-N 3a): forwards to \c Project.
-    virtual Projections ProjectOnto(const Fitting::ScalarProjector& p) const {return this->Project(p);}
     virtual double GetTotalCharge(                      ) const;
 
     virtual size_t Version() const {return itsVersion;}
@@ -133,7 +126,6 @@ protected:
 //! than reaching them through scalar-keyed conditionals that had one live branch each.
 class FiniteIrrepCD
     : public IrrepCD_Core<double>
-    , public Fitting::CoulombMetric_ProjectedDensity   // AO projection (was ProjectedDensityBase<T>)
     , public IrrepCD_HFPair<FiniteIrrepCD>             // exact-exchange pair partner (was IrrepHF_PairBase)
 {
 public:
@@ -145,14 +137,9 @@ public:
     //! density up to AO.
     virtual const BasisSet::WholeSystemFock_IBS<double>* WholeSystemFock() const;
     virtual void AddAODensity(rsmat_t& Dao) const;
-    //! AO (auxiliary-basis) projection <rho|c> -- the finite path's ProjectedDensity_AO face.
-    virtual double FitGetConstraint() const {return this->GetTotalCharge();}   // AO fit RHS: the charge N
     //! \copydoc tChargeDensity::Project -- the MOLECULAR lineage: contract my D into the block's forward.
     virtual Projections Project(const BasisSet::PairProjector<double>&) const override;
     using IrrepCD_Core<double>::Project;   // the periodic overload
-    //! \copydoc Fitting::CoulombMetric_ProjectedDensity::GetRepulsion3C
-    //! The old face, kept one commit (V-ONE-OF-N 3a): forwards to \c Project.
-    virtual rvec_t GetRepulsion3C(const Fitting::DensityProjector& p) const {return this->Project(p).Vector();}
     //! \f$\nabla\rho\f$ from the density matrix (the molecular contraction).
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 

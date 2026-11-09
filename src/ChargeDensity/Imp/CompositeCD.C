@@ -9,7 +9,6 @@ module;
 #include <map>
 #include <string>
 module qchem.CompositeCD;
-import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO (each finite block's AO face)
 import qchem.BasisSet.GMap;             // SymmetrizeGMap
 import qchem.BasisSet.G_FieldEvaluator;  // G_RasterTransform -- the raster face that star-averages a grid field
 import qchem.Blaze;
@@ -265,22 +264,6 @@ template <class T> double tComposite_CD<T>::GetTotalCharge() const
     return ret;
 }
 
-//------------------------------------------------------------------------------
-//
-//  Required by fitting routines.
-//
-// AO density-fit projection: sum the blocks' <rho|c>.  Each block is cross-cast to its AO face (finite
-// path only -- a periodic composite is not a ProjectedDensity_AO, so the dcmplx body is inert), mirroring
-// the FourierDensity cross-cast in GetFourierDensity below.
-template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const Fitting::DensityProjector& p) const
-{
-    if constexpr (std::is_same_v<T,double>)
-    {
-        return this->Project(p).Vector();   // the old face, kept one commit (V-ONE-OF-N 3a): forwards to Project
-    }
-    else
-        return rvec_t();   // inert: a periodic density carries no AO projection
-}
 
 //-------------------------------------------------------------------------
 //
@@ -448,21 +431,12 @@ template <class T> rvec3_t tComposite_CD<T>::Gradient  (const rvec3_t& r) const
     return ret;
 }
 
-// The periodic face.  Each block's Fourier face, or a loud failure: every block on the plane-wave path is one.
-static const FourierDensity& FourierOf(const cd_ref_t& c)
+// The periodic face.  Each block's raw-raster face, or a loud failure: every block on the plane-wave path is one.
+static const RasterDensity& RasterOf(const cd_ref_t& c)
 {
-    const FourierDensity* fc=std::visit([](const auto* b){return dynamic_cast<const FourierDensity*>(b);}, c);
-    assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+    const RasterDensity* fc=std::visit([](const auto* b){return dynamic_cast<const RasterDensity*>(b);}, c);
+    assert(fc && "composite block is not a RasterDensity (plane-wave path)");
     return *fc;
-}
-
-// rho-tilde(Delta-m) = Sum_blocks rho-tilde_k (each block already BZ-weighted) = the BZ average Sum_k w_k rho_k.
-template <class Comp> ΔG_Map Composite_Fourier<Comp>::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
-{
-    ΔG_Map rg;
-    for (const auto& b : self().itsBlocks)
-        for (const auto& kv : FourierOf(b.cd).GetFourierDensity(c)) rg[kv.first]+=kv.second;
-    return SymmetrizeGMap(rg, self().itsPointOps);   // IBZ star-average (no-op when {E}) -- doc/GPWPlan1.md item 3
 }
 
 // Raw rho_DM = Sum_k w_k rho_k(r) on c's ONE raster (the weights ride in each block's D).  ALL-OR-NOTHING:
@@ -473,7 +447,7 @@ template <class Comp> rvec_t Composite_Fourier<Comp>::GetRhoOnGrid(const BasisSe
     rvec_t sum;
     for (const auto& b : self().itsBlocks)
     {
-        rvec_t r=FourierOf(b.cd).GetRhoOnGrid(c);
+        rvec_t r=RasterOf(b.cd).GetRhoOnGrid(c);
         if (r.size()==0) return rvec_t{};
         if (sum.size()==0) sum=std::move(r);
         else               sum+=r;
@@ -487,41 +461,6 @@ template <class Comp> rvec_t Composite_Fourier<Comp>::GetRhoOnGrid(const BasisSe
     return sum;
 }
 
-// V_H = Sum_blocks V_H_k (V_H is linear in rho-tilde, so summing the per-block Coulomb projections == the
-// projection of the summed density).  Each block bakes the kernel via its own Repulsion3C(c).
-template <class Comp> ΔG_Map Composite_Fourier<Comp>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
-{
-    // ★ SPLIT INTO TWO BUCKETS (1.3b, 2026-09-06).  This whole call is 8.35 s of a 67 s MnO run and it
-    // threads at 1.00×; doc/Benchmark.md §7c attributes it to the star-average, which had never been
-    // measured apart from the per-block merge above it.  Both are ΔG_Map (std::map) walks, so both are
-    // plausible -- hence two buckets rather than one guess.
-    // ★ MERGE ALL BLOCKS RAW, THEN STAR-AVERAGE ONCE (2026-09-07, doc/ParallelAndOraclePlan.md 1.3b): a
-    // polarized run used to pay the IBZ star-average TWICE for one field (once per channel).  The average
-    // is linear, so Sym(up)+Sym(dn) is Sym(up+dn) exactly, and V_H depends on the TOTAL density anyway.
-    // Measured on MnO: 6.5 s of a 63 s run at 0.042 s a call, so the duplicate was ~3 s of the wall.
-    ΔG_Map rg=GetRepulsion3C_Raw(c);
-    // V_H is linear in ρ̃ and |UG|=|G|, so symmetrizing V_H(G) == V_H of the symmetrized density -- exact.
-    StarAverage(rg);
-    return rg;
-}
-
-// The RAW half of the pair (FourierDensity): the per-block merge, WITHOUT the star-average.
-template <class Comp> ΔG_Map Composite_Fourier<Comp>::GetRepulsion3C_Raw(const BasisSet::cFIT_CD_ABS& c) const
-{
-    qchem::report::Timed timed("scf: V_H per-block ΔG_Map merge");
-    ΔG_Map rg;
-    for (const auto& b : self().itsBlocks)
-        for (const auto& kv : FourierOf(b.cd).GetRepulsion3C_Raw(c)) rg[kv.first]+=kv.second;
-    return rg;
-}
-
-// The averaging half: THIS composite owns the crystal point ops, so it owns the star average.
-template <class Comp> void Composite_Fourier<Comp>::StarAverage(ΔG_Map& rg) const
-{
-    if (self().itsPointOps.empty()) return;                 // {E}: exact no-op, and no bucket entry either
-    qchem::report::Timed timed("scf: V_H IBZ star-average (SymmetrizeGMap)");
-    rg=SymmetrizeGMap(rg, self().itsPointOps);
-}
 
 template class Composite_HFSystem<tComposite_CD<double>>;
 template class tComposite_CD<double>;
