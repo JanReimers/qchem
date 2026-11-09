@@ -234,6 +234,99 @@ public:
             }
         return V;
     }
+
+    // d/dR (GeometryOptimizationPlan §13.2): libcint's derivative integrals on this block's own PGData, each field Gaussian an auxiliary
+    // shell (PG_LibCint::NR_Evaluator's PP gradients), for the Cartesian PG_Cart evaluator; every other evaluator refuses.  The VALUES
+    // the projector pullback weights by (b_i = <i|β Y_lm>) are this engine's, exactly as MakeProjectorMatrix forms them.
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField& f) const override {return kLibcint && CanAssembleField(f);}
+    virtual bool CanPullbackProjectors(const SpeciesProjectorSet& ps) const override {return kLibcint && CanAssembleProjectors(ps);}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure* st, const SpeciesRadialField& f, FieldRange range,
+                                                                        const hmat_t<double>& D) const override
+    {
+        if constexpr (kLibcint)
+        {
+            if (!CanAssembleField(f)) return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block, a field with no closed form", "species-field pullback");
+            const auto lc=LibCintOf(st);
+            const rmat_t Dd=Dense(D, lc.size());
+            const auto& gs=dynamic_cast<const SpeciesRadialField_Gaussian&>(f);
+            const auto& gc=dynamic_cast<const SpeciesRadialField_GaussianCharge&>(f);
+            rvec3vec_t F(st->GetNumAtoms(), rvec3_t(0,0,0));
+            auto add=[&](const std::vector<rvec3_t>& g, double s){ for (size_t A=0;A<g.size();A++) F[A]+=s*g[A]; };
+            for (size_t A=0;A<st->GetNumAtoms();A++)
+            {
+                const Site& a=st->Sites()[A];
+                if (range!=FieldRange::Long)
+                    for (const auto& t : gs.AsGaussians(a.Z,FieldRange::Short))
+                        add(lc.OperatorThreeCGradient(Math::CartGaussian{a.R, t.alpha, Math::MultiplyR2({Math::CartTerm{Math::Monomial{0,0,0},t.c}}, t.n)}, A, Dd), 1.0);
+                if (range!=FieldRange::Short)
+                {
+                    const GaussianCharge q=gc.AsGaussianCharge(a.Z);
+                    add(lc.GaussianRepulsionGradient(A, q.alpha, Dd), -q.q*std::pow(q.alpha/Pi,1.5));
+                }
+            }
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(F);
+        }
+        else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", "species-field pullback");
+    }
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure* st, const SpeciesProjectorSet& ps, const hmat_t<double>& D) const override
+    {
+        if constexpr (kLibcint)
+        {
+            if (!CanAssembleProjectors(ps)) return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block, projectors with no closed form", "projector pullback");
+            const E& e=dynamic_cast<const E&>(*this);
+            const auto lc=LibCintOf(st);
+            const size_t n=e.size();
+            if (D.rows()!=n) throw std::invalid_argument("Gaussian EOrbital_PP_IBS::MakeProjectorPullback: D is "+std::to_string(D.rows())+" square for "+std::to_string(n)+" functions");
+            const auto& gp=dynamic_cast<const SpeciesProjectorSet_Gaussian&>(ps);
+            rvec3vec_t F(st->GetNumAtoms(), rvec3_t(0,0,0));
+            // E = Σ_{a,p,m} w_p bᵀ D b, b_i = Σ_t <i|g_t>: so F[A] = Σ_{a,p,m} 2 w_p Σ_t Σ_i (D b)_i ∂<i|g_t>/∂R_A.
+            for (size_t A=0;A<st->GetNumAtoms();A++)
+            {
+                const Site& a=st->Sites()[A];
+                for (size_t p=0; p<ps.Count(a.Z); p++)
+                {
+                    const int l=ps.L(a.Z,p);
+                    const double wp=ps.Weight(a.Z,p);
+                    const auto radial=gp.AsGaussians(a.Z,p);
+                    for (int m=-l; m<=l; m++)
+                    {
+                        std::vector<Math::CartGaussian> gs;
+                        rvec_t b(n,0.0);
+                        for (const auto& t : radial)
+                        {
+                            Math::CartGaussian g{a.R, t.alpha, Math::MultiplyR2(Math::YlmCartesian(l,m), t.n)};
+                            for (auto& c : g.terms) c.c*=t.c;
+                            for (auto i:e.indices()) b[i]+=e.OverlapWith(i,g);
+                            gs.push_back(std::move(g));
+                        }
+                        rvec_t w(n,0.0);
+                        for (size_t i=0;i<n;i++) { double s=0.0; for (size_t j=0;j<n;j++) s+=D(i,j)*b[j]; w[i]=2.0*wp*s; }
+                        for (const auto& g : gs)
+                        {
+                            const auto dg=lc.OverlapWithGradient(g, A, w);
+                            for (size_t B=0;B<dg.size();B++) F[B]+=dg[B];
+                        }
+                    }
+                }
+            }
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(F);
+        }
+        else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", "projector pullback");
+    }
+private:
+    static constexpr bool kLibcint=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
+    //! The libcint evaluator on this block's own PGData (a TEMPLATE body, instantiated only in the kLibcint branch).
+    template <class EE=E> Evaluators::PG_LibCint::NR_Evaluator LibCintOf(const Structure* st) const
+    {
+        if (!st) throw std::invalid_argument("Gaussian EOrbital_PP_IBS: a geometry pullback needs the structure");
+        return Evaluators::PG_LibCint::NR_Evaluator(static_cast<const Evaluators::PG_Cart_MnD::PGData&>(dynamic_cast<const EE&>(*this)), st);
+    }
+    static rmat_t Dense(const hmat_t<double>& D, size_t n)
+    {
+        if (D.rows()!=n) throw std::invalid_argument("Gaussian EOrbital_PP_IBS: D is "+std::to_string(D.rows())+" square for "+std::to_string(n)+" functions");
+        rmat_t Dd(n,n); for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) Dd(i,j)=D(i,j);
+        return Dd;
+    }
 };
 
 // --- 3-centre (DFT fit): <ab|c> for each fit component c ------------------------------------------

@@ -519,3 +519,45 @@ TEST(HamiltonianForces, WithTheDunlapHartreeTheForceIsTheFiniteDifferenceOfTheRe
     }
     EXPECT_LT(norm(sum), 1e-8) << "translation invariance";
 }
+
+TEST(HamiltonianForces, UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysFiniteDifference)
+{
+    // GTH-LDA water, DZVP, closed-form PP (GeometryOptimizationPlan §13.2): the local PP, the KB projectors, the kinetic term and the
+    // ion-ion term (valence charges) each against the central difference of its own energy at R ± h with the converged D frozen.  The
+    // Dunlap Hartree is gated elsewhere: its fixed-D derivative carries the λ piece its force leaves out.  The XC term has no force yet,
+    // and is the only term missing one.  Each is linear in D, and smooth in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6.
+    const Molecule h2o=GetMolecule("H2O");
+    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}), Tight());
+    ASSERT_TRUE(c.IsConverged());
+    const auto D=ForceFacadeTests::Carry(c);
+    const auto Ft=ForceFacadeTests::TermForcesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
+    const auto Et=ForceFacadeTests::TermEnergiesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
+    ASSERT_EQ(Ft.size(), Et.size());
+    std::vector<size_t> gated; size_t missing=0; bool local=false, kb=false;
+    for (size_t t=0;t<Ft.size();t++)
+    {
+        if (!Ft[t].missing.empty()) { ++missing; std::cout<<"[forces] PP water still missing: "<<Ft[t].missing<<std::endl; continue; }
+        if (Et[t].entries=="Eee") continue;
+        local |= Et[t].label.rfind("Local pseudopotential",0)==0;
+        kb    |= Et[t].label.rfind("Separable (KB)",0)==0;
+        gated.push_back(t);
+    }
+    EXPECT_EQ(missing, 1u) << "only the XC term";
+    EXPECT_TRUE(local && kb) << "both PP terms have their force";
+    const double h=1e-4;
+    for (size_t t : gated)
+    {
+        rvec3_t sum(0,0,0);
+        for (size_t A=0;A<Ft[t].F.size();A++)
+        {
+            sum+=Ft[t].F[A];
+            for (int x=0;x<3;x++)
+            {
+                auto E=[&](double s){ return ForceFacadeTests::TermEnergiesAt(c.SizedSetup(), *MovedH2O(h2o,A,x,s), D)[t].E; };
+                const double fd=(E(h)-E(-h))/(2*h);
+                EXPECT_NEAR(C(Ft[t].F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << Et[t].label << ", atom " << A << " axis " << x;
+            }
+        }
+        EXPECT_LT(norm(sum), 1e-8) << Et[t].label << ": translation invariance";
+    }
+}

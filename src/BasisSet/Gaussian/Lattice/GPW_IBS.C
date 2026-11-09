@@ -166,6 +166,13 @@ public:
     //! sweep over the whole field (a unit-test oracle == Long + Short).
     virtual hmat_t<T> MakeSpeciesFieldMatrix(const Structure* cl, const SpeciesRadialField& f, FieldRange) const override;
     virtual hmat_t<T> MakeProjectorMatrix   (const Structure* cl, const SpeciesProjectorSet& nl) const override;
+    // d/dR (GeometryOptimizationPlan §13.2): the periodic PP force is the structure-factor row (OpenWork §2), not these faces yet.
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const override {return false;}
+    virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure*, const SpeciesRadialField&, FieldRange, const hmat_t<T>&) const override
+        {return ::qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a GPW block", "species-field pullback");}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure*, const SpeciesProjectorSet&, const hmat_t<T>&) const override
+        {return ::qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a GPW block", "projector pullback");}
     virtual std::map<int,hmat_t<T>> MakeProjectorMatrixByL(const Structure* cl, const SpeciesProjectorSet& nl) const override;
 
     virtual std::string Name      () const override {return "GPW";}

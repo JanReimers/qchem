@@ -108,6 +108,13 @@ public:
     virtual chmat_t MakeSpeciesFieldMatrix(const Structure* cl, const SpeciesRadialField& f, FieldRange) const override;
     //! \brief Assemble the separable (Kleinman-Bylander) nonlocal potential (rank-1 per atom, projector, m).
     virtual chmat_t MakeProjectorMatrix(const Structure* cl, const SpeciesProjectorSet& v) const override;
+    // d/dR (GeometryOptimizationPlan §13.2): the PW structure-factor force is its own row (OpenWork §2), not these faces yet.
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const override {return false;}
+    virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure*, const SpeciesRadialField&, FieldRange, const chmat_t&) const override
+        {return ::qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a plane-wave block", "species-field pullback");}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure*, const SpeciesProjectorSet&, const chmat_t&) const override
+        {return ::qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a plane-wave block", "projector pullback");}
 
     //! \brief \f$B_{G,a}=\langle k+G|\chi_a\rangle=\tilde\chi_a(k+G)/\sqrt\Omega\f$, the Bloch sum's Fourier transform: a
     //! set function \f$c\,r^{l+2n}e^{-\alpha r^2}Y(\hat r)\f$ about \f$C\f$ transforms in closed form,

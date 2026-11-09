@@ -85,8 +85,13 @@ private:
 //  STATIC (density-independent), so it is built once.  V_loc is the species radial field's real-space view (SpeciesRadialField::ValueR).
 //
 class PP_Local : public virtual rStatic_HT, private rStatic_HT_Imp
+              , public virtual tGeometryGradient_HT<double>, public virtual tStatic_PC<double>   // its force (§13.2; lane B): Imp/PP_Forces.C
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/PP_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     virtual bool IsVirialValid() const {return false;}
@@ -123,8 +128,13 @@ private:
 //  Verified against the reciprocal (2l+1)P_l form; per-l gate A_PP.PerLKleinmanBylanderOracle (s,p,d,f).
 //
 class PP_NonLocal : public virtual rStatic_HT, private rStatic_HT_Imp
+                 , public virtual tGeometryGradient_HT<double>, public virtual tStatic_PC<double>   // its force (§13.2; lane B): Imp/PP_Forces.C
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/PP_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     virtual bool IsVirialValid() const {return false;}

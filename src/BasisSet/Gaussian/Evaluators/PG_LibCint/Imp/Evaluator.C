@@ -24,6 +24,7 @@ extern "C" {
 CINTIntegralFunction int3c1e_cart;   // 3-centre overlap  <ab|c>
 CINTIntegralFunction int3c2e_cart;   // 3-centre Coulomb  (ab|c)
 CINTIntegralFunction int2c2e_cart;   // 2-centre Coulomb  (a|b)
+CINTIntegralFunction int3c1e_ip1_cart;   // <∇a b|c>: the local PP's short-part gradient
 double CINTcommon_fac_sp(FINT l);      // the s/p factor libcint folds into every integral (g1e.h, not in the public header)
 }
 module qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;
@@ -32,6 +33,8 @@ import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Structure;
 import qchem.Types;
+import qchem.Math.SolidHarmonics;   // Math::CartGaussian
+import qchem.Math.Angular;          // Math::CartTerm / Monomial (the charge Gaussian's one term)
 
 namespace qchem::BasisSet::Gaussian::Evaluators::PG_LibCint
 {
@@ -469,6 +472,132 @@ std::vector<rvec3_t> NR_Evaluator::RepulsionTwoC_Gradient(const rsmat_t& A) cons
             g[c.shells[sk].atom]-=2.0*rvec3_t(acc[0], acc[1], acc[2]);   // ordered (k, l): the k derivative; the l one is the same sum relabelled (A symmetric)
         }
     return g;
+}
+
+// --- the closed-form PP gradients -----------------------------------------------------------------------
+// A species field's Gaussian as an AUXILIARY shell: one primitive (coefficient 1, i.e. the raw e^{-α r²}) of momentum L at atom gAtom,
+// with the per-component weights the CartGaussian's terms carry, in libcint's Cartesian order.  libcint folds CINTcommon_fac_sp(L) into
+// every integral over an s or p shell, so the weights take it back out.
+namespace
+{
+struct FieldShell { ShellDesc shell; std::vector<double> w; };
+FieldShell MakeFieldShell(const Math::CartGaussian& g, size_t gAtom, const std::vector<AtomRec>& atoms)
+{
+    if (gAtom>=atoms.size()) throw std::out_of_range("PG_LibCint: the field's atom is past the structure");
+    const AtomRec& a=atoms[gAtom];
+    if (std::fabs(a.x-g.center.x)+std::fabs(a.y-g.center.y)+std::fabs(a.z-g.center.z)>1e-8)
+        throw std::invalid_argument("PG_LibCint: the field Gaussian is not centred on atom "+std::to_string(gAtom));
+    if (g.terms.empty()) throw std::invalid_argument("PG_LibCint: an empty field Gaussian");
+    const int L=g.terms[0].p.n+g.terms[0].p.l+g.terms[0].p.m;
+    FieldShell f;
+    f.shell.atom=(int)gAtom; f.shell.l=L; f.shell.exp={g.alpha}; f.shell.coef={1.0};
+    f.w.assign(ncart(L), 0.0);
+    for (const auto& t : g.terms)
+    {
+        if (t.p.n+t.p.l+t.p.m!=L) throw std::invalid_argument("PG_LibCint: a field Gaussian must be homogeneous in degree (one shell)");
+        int k=0;   // libcint's Cartesian order: lx descending, then ly descending
+        for (int lx=L; lx>=0; --lx) for (int ly=L-lx; ly>=0; --ly) { if (lx==t.p.n && ly==t.p.l) f.w[k]+=t.c; ++k; }
+    }
+    for (double& x : f.w) x/=CINTcommon_fac_sp(L);
+    return f;
+}
+} // namespace
+
+std::vector<rvec3_t> NR_Evaluator::OverlapWithGradient(const Math::CartGaussian& g, size_t gAtom, const rvec_t& w) const
+{
+    const Imp& a=*itsImp;
+    if (a.spherical) throw std::logic_error("PG_LibCint::NR_Evaluator: the PP gradients are Cartesian-only");
+    if (w.size()!=a.N) throw std::invalid_argument("PG_LibCint::OverlapWithGradient: "+std::to_string(w.size())+" weights for "+std::to_string(a.N)+" functions");
+    const FieldShell f=MakeFieldShell(g, gAtom, a.atoms);
+    std::vector<const ShellDesc*> sh; for (auto& s:a.shells) sh.push_back(&s);
+    const int fOff=(int)sh.size(); sh.push_back(&f.shell);
+    std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(a.atoms, sh, atm,bas,env);
+    const int natm=(int)a.atoms.size(), nbas=(int)sh.size(), dk=ncart(f.shell.l);
+    std::vector<rvec3_t> out(a.atoms.size(), rvec3_t(0,0,0));
+    std::vector<double> buf;
+    for (size_t si=0;si<a.shells.size();++si)
+    {
+        const int di=a.dim(a.shells[si].l);
+        buf.assign((size_t)di*dk*3, 0.0);
+        int shls[2]={(int)si, fOff};
+        int1e_ipovlp_cart(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);   // <∇i|g>
+        double acc[3]={0,0,0};
+        for (int x=0;x<3;++x)
+            for (int p=0;p<di;++p){ const size_t gi=a.shells[si].lc2pg[p]; const double wi=w[gi]*a.scale[gi];
+                for (int k=0;k<dk;++k) acc[x]+=wi*f.w[k]*buf[p+di*(k+dk*x)]; }
+        const rvec3_t v(acc[0],acc[1],acc[2]);
+        out[a.shells[si].atom]-=v;   // ∂φ_i/∂R_i = −∇φ_i
+        out[gAtom]+=v;               // and g moves the other way (translation invariance of a 2-centre integral)
+    }
+    return out;
+}
+
+std::vector<rvec3_t> NR_Evaluator::OperatorThreeCGradient(const Math::CartGaussian& g, size_t gAtom, const rmat_t& D) const
+{
+    const Imp& a=*itsImp;
+    if (a.spherical) throw std::logic_error("PG_LibCint::NR_Evaluator: the PP gradients are Cartesian-only");
+    if (D.rows()!=a.N || D.columns()!=a.N)
+        throw std::invalid_argument("PG_LibCint::OperatorThreeCGradient: D is "+std::to_string(D.rows())+"x"+std::to_string(D.columns())+" for "+std::to_string(a.N)+" functions");
+    const FieldShell f=MakeFieldShell(g, gAtom, a.atoms);
+    std::vector<const ShellDesc*> sh; for (auto& s:a.shells) sh.push_back(&s);
+    const int fOff=(int)sh.size(); sh.push_back(&f.shell);
+    std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(a.atoms, sh, atm,bas,env);
+    const int natm=(int)a.atoms.size(), nbas=(int)sh.size(), dk=ncart(f.shell.l);
+    std::vector<rvec3_t> out(a.atoms.size(), rvec3_t(0,0,0));
+    std::vector<double> buf;
+    for (size_t si=0;si<a.shells.size();++si)
+        for (size_t sj=0;sj<a.shells.size();++sj)
+        {
+            const int di=a.dim(a.shells[si].l), dj=a.dim(a.shells[sj].l);
+            buf.assign((size_t)di*dj*dk*3, 0.0);
+            int shls[3]={(int)si,(int)sj,fOff};
+            int3c1e_ip1_cart(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);   // <∇i j|g>
+            double acc[3]={0,0,0};
+            for (int x=0;x<3;++x)
+                for (int p=0;p<di;++p){ const size_t gi=a.shells[si].lc2pg[p];
+                    for (int q=0;q<dj;++q){ const size_t gj=a.shells[sj].lc2pg[q]; const double dij=D(gi,gj)*a.scale[gi]*a.scale[gj];
+                        for (int k=0;k<dk;++k) acc[x]+=dij*f.w[k]*buf[p+di*(q+dj*(k+dk*x))]; } }
+            const rvec3_t v=2.0*rvec3_t(acc[0],acc[1],acc[2]);   // D symmetric: the j-centre's derivative is the same sum relabelled
+            out[a.shells[si].atom]-=v;
+            out[gAtom]+=v;                                       // translation invariance: the field takes the opposite
+        }
+    return out;
+}
+
+std::vector<rvec3_t> NR_Evaluator::GaussianRepulsionGradient(size_t gAtom, double alpha, const rmat_t& D) const
+{
+    const Imp& a=*itsImp;
+    if (a.spherical) throw std::logic_error("PG_LibCint::NR_Evaluator: the PP gradients are Cartesian-only");
+    if (D.rows()!=a.N || D.columns()!=a.N)
+        throw std::invalid_argument("PG_LibCint::GaussianRepulsionGradient: D is "+std::to_string(D.rows())+"x"+std::to_string(D.columns())+" for "+std::to_string(a.N)+" functions");
+    if (gAtom>=a.atoms.size()) throw std::out_of_range("PG_LibCint::GaussianRepulsionGradient: the atom is past the structure");
+    const AtomRec& at=a.atoms[gAtom];
+    const FieldShell f=MakeFieldShell(Math::CartGaussian{rvec3_t(at.x,at.y,at.z), alpha, {Math::CartTerm{Math::Monomial{0,0,0},1.0}}}, gAtom, a.atoms);
+    std::vector<const ShellDesc*> sh; for (auto& s:a.shells) sh.push_back(&s);
+    const int fOff=(int)sh.size(); sh.push_back(&f.shell);
+    std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(a.atoms, sh, atm,bas,env);
+    const int natm=(int)a.atoms.size(), nbas=(int)sh.size();
+    std::vector<rvec3_t> out(a.atoms.size(), rvec3_t(0,0,0));
+    std::vector<double> buf;
+    for (size_t si=0;si<a.shells.size();++si)
+        for (size_t sj=0;sj<a.shells.size();++sj)
+        {
+            const int di=a.dim(a.shells[si].l), dj=a.dim(a.shells[sj].l);
+            int shls[3]={(int)si,(int)sj,fOff};
+            for (int which=0; which<2; ++which)
+            {
+                buf.assign((size_t)di*dj*3, 0.0);
+                (which==0 ? int3c2e_ip1_cart : int3c2e_ip2_cart)(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
+                double acc[3]={0,0,0};
+                for (int x=0;x<3;++x)
+                    for (int p=0;p<di;++p){ const size_t gi=a.shells[si].lc2pg[p];
+                        for (int q=0;q<dj;++q){ const size_t gj=a.shells[sj].lc2pg[q];
+                            acc[x]+=D(gi,gj)*a.scale[gi]*a.scale[gj]*f.w[0]*buf[p+di*(q+dj*x)]; } }
+                const int on = which==0 ? a.shells[si].atom : (int)gAtom;
+                out[on]-=(which==0 ? 2.0 : 1.0)*rvec3_t(acc[0],acc[1],acc[2]);   // ip1 on i (and, D symmetric, on j); ip2 on the charge
+            }
+        }
+    return out;
 }
 
 rsmat_t NR_Evaluator::RepulsionTwoC_Matrix() const

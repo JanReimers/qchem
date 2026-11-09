@@ -82,6 +82,13 @@ public:
     virtual bool    CanAssembleProjectors(const SpeciesProjectorSet&) const;
     virtual rsmat_t MakeSpeciesFieldMatrix(const Structure*, const SpeciesRadialField&, FieldRange) const;
     virtual rsmat_t MakeProjectorMatrix   (const Structure*, const SpeciesProjectorSet&) const;
+    // d/dR (GeometryOptimizationPlan §13.2): a SALC block refuses for now, as its 1E pullbacks do.
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const override {return false;}
+    virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure*, const SpeciesRadialField&, FieldRange, const hmat_t<double>&) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "species-field pullback");}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure*, const SpeciesProjectorSet&, const hmat_t<double>&) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "projector pullback");}
 
     // 2-electron (HF): build the AO Coulomb/exchange from the cd-irrep's density block (linear
     // in D, so no 4-index ERI transform) and slice to this irrep.  Summed over the cd irreps by
