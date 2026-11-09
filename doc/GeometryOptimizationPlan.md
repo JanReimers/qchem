@@ -370,7 +370,8 @@ template <class T> class tHamiltonianAt          // existing: the Hamiltonian at
 
 **The first increment's limits, each refused by name, never silently zero:**
 - symmetry-blocked runs (SALC blocks): a displacement breaks the blocks, so the contraction needs the AO-level D.  It is a
-  `MissingGradients()` entry until the AO assembly lands; the optimizer's symmetrized map does not need SALC blocks.
+  `MissingGradients()` entry until the AO assembly lands; the optimizer's symmetrized map does not need SALC blocks.  (BUILT 2026-11-09:
+  see the SALC block below.)
 - HF exchange; +U.
 - every non-default route (§11.2).
 
@@ -420,7 +421,7 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
   - the projectors' b_i = ⟨i|β Y_lm⟩ through int1e_ipovlp, weighted by 2 w_p (D b)_i, with the values b from our own engine;
   - the local short part through int3c1e_ip1;
   - its erf long part, the Coulomb potential of a Gaussian charge, through int3c2e_ip1/ip2.
-- PG_Spherical, SALC, PW and GPW refuse.  The PW/GPW force is the structure-factor row.
+- PG_Spherical, PW and GPW refuse (SALC refused until 2026-11-09).  The PW/GPW force is the structure-factor row.
 - `PP_Local` and `PP_NonLocal` gain the term face (`Imp/PP_Forces.C`).  Only the closed-form route has a force; the mesh-quadrature
   route (the mesh moves) and the radial atomic route (one centre) are MissingGradients() entries.
 - Gates:
@@ -434,7 +435,7 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
 - `Orbital_HF_IBS` gains `CanPullbackERI4` and `MakeDirect/ExchangePullback(Da, Db, other, st)`, beside the four `Accumulate*`
   methods: Σ Da Db ∂(ab|cd), and the exchange ordering, for two blocks with all four centres moving.
 - PG_Cart answers through libcint int2e_ip1, with the permutational symmetry giving the other three positions
-  (`PG_LibCint::ERI4Gradient`).  PG_Spherical, radial, Dirac (RKB) and SALC refuse.
+  (`PG_LibCint::ERI4Gradient`).  PG_Spherical, radial and Dirac (RKB) refuse (SALC refused until 2026-11-09).
 - The ChargeDensity hub (derivative-beside pre-approval) gains `tHF_System_CD::Direct/ExchangePullback(st)`, beside the two
   sweeps: ∂Tr(D X[D]) over EVERY ordered pair of blocks.  It is carried by the pair protocol's twins on `tHF_Pair_CD`
   (`…PullbackWith` / `Complete…Pullback`), implemented in `IrrepCD_HFPair`, `Composite_HFSystem` and `Transition_HFSystem`.
@@ -460,9 +461,39 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
   - The PW pullbacks at a NON-TRIM k (genuinely complex D) against the FD of the same assemblies on a distorted Si cell.
   - `EwaldForces` against the FD of `EwaldEnergy` (Si, and a neutral CsCl), η-independent, summing to zero; the pair sum likewise.
   - The PW PP and ion-ion term forces through the term face against the FD of each term's own energy at fixed D.
-- Not yet: a real TRIM block inside a complex run (the composite's mixed-run pullback throws); GPW's G-space side (its Bloch
-  Gaussians move, so collocation needs jets); and a PW whole-force gate.  That last needs the PW Hartree and XC terms to report
-  their EXACT ZERO fixed-D force (nothing in them moves on a plane-wave basis with a raster mesh), and a solid-facade test friend.
+- Not yet: GPW's G-space side (its Bloch Gaussians move, so collocation needs jets); and a PW whole-force gate.  That last needs the
+  PW Hartree and XC terms to report their EXACT ZERO fixed-D force (nothing in them moves on a plane-wave basis with a raster mesh),
+  and a solid-facade test friend.  (A real TRIM block inside a complex run: BUILT 2026-11-09, below.)
+
+**BUILT (lane B 2026-11-09): a real TRIM block inside a complex run.**
+- The composite's `DM_Pullback` walks a real child of a complex run through the term's `tStatic_PC<double>` face, as `DM_Contract`
+  walks it through `tStatic_CC<double>`.  Kinetic, the Pulay sum and the three PW PP terms give that face: the same body on the real
+  scalar (`RealPullbackBase` / `PullbackBlock<U>` in `GeometryGradient.C`).
+- `MissingGradient` walks every block, a real child included (`ForEachBlock`), so a real block that refuses is NAMED, not thrown on; a
+  client with no real face throws by name.
+- Latent in production: the real TRIM blocks a run builds today are `Lattice_IBS` (`tGPW_IBS<double>`), which answers no pullback and is
+  a `MissingGradients()` entry.
+- Gates (`RealComplexTerms`): a molecular block posed as the real child gives forces bitwise equal to the real run's (Kinetic, the Pulay
+  sum, the short and non-local PP); the GPW real block is named; a faceless client throws.
+
+**BUILT (lane B 2026-11-09): SALC-blocked (symmetry) runs.**
+- M_Γ = Oᵀ M_raw O with the SALC columns O held (they are symmetry-operation images, not functions of R), so Tr(D ∂M_Γ) =
+  Tr(O D Oᵀ ∂M_raw).  `SymmetryAdapted_IBS` answers every pullback (overlap, kinetic, nuclear, species field, projectors, 3-centre
+  repulsion, and the ERI pair) as the RAW basis's on its density folded up, and can exactly when the raw basis can.  The ERI pair's
+  partner folds its own block through the abstract `WholeSystemFock_IBS` face, as the Fock path's `PairAOFock` does.
+- Summed over the irreps the folded densities are the whole-molecule D, so the force is the AO force of the same density.  That holds
+  along a symmetry-breaking direction too: a symmetric SCF density is stationary against the off-irrep rotations the blocking left out.
+- `WholeSystemFock_IBS` gains `MakeAOPullback(Dao, exchange, st)` beside `MakeAOFock` (derivative-beside ruling, 2026-11-08), and the
+  composite's HF sweep pullback takes the whole-system route as its Fock sweep does: fold every block, ONE raw pullback, where the
+  pair loop would make N².  Exact, since the pair pullback is bilinear.
+- Gates:
+  - Unit (`GeometryDerivatives.SALC…`): water's C2v DZVP blocks with random densities, every 1E face and every ordered ERI pair
+    against the FD of the SAME blocks' own matrices and contractions, the raw basis rebuilt at displaced atoms under the same columns;
+    the whole-system pullback equals the pair sum to roundoff; a partner with no whole-system face is refused, Can agreeing.
+  - Facade (`HamiltonianForces.ASymmetryBlockedRunsForceIsTheUnblockedRunsForce`): water stretched 8% about its centroid, blocked vs
+    unblocked, E1, RHF, UHF, LDA and GTH-LDA: the same energy, the same `MissingGradients()`, every term's force at fixed D within
+    1e-6, and the whole force where the model has every term's.
+- Cost: the 1E, PP and 3-centre pullbacks still go once per irrep (OpenWork §4 row).
 
 ### 13.1 A value-with-derivatives carrier on the derivative-aware faces (lane B 2026-11-08)
 
@@ -581,7 +612,7 @@ face's existing method needs no design discussion, and the HubInterfaceAudit sna
   - PG_Cart: libcint pullbacks, through the Gaussian point mixin, chosen at compile time by its evaluator type.
   - Plane waves: exact zeros for Overlap and Kinetic.
   - Everything else refuses in one line: the other Gaussian evaluators, Bloch Gaussians, PW nuclear, LAPW, radial, Dirac, SALC and the fit
-    blocks.
+    blocks.  (Since answered: PW nuclear, SALC, the Coulomb fit blocks; see §13.)
   - `JetsOn`: real on PG_Cart; every other family refuses.
 - **`JetsOn`'s gradient source: the existing hand `Gradient(r)`** (user ruling 2026-11-08, "Use Gradient(r)").  ∂φ/∂R_centre = −∇_r φ,
   so there is no second (Enzyme) derivative of φ, the jets work without Enzyme, and a Gaussian Cartesian block never refuses.  When Enzyme
