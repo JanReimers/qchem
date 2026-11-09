@@ -39,7 +39,7 @@ target_include_directories(qcMesh PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze
 # qcSymmetry: FoldedMesh pairs a mesh with its orbit partition (Symmetry::Lattice_3D::Fold), which is pure
 # INDEX bookkeeping -- no geometry -- so the dependency is on a partition type, not on group theory.
 # qcSymmetry imports nothing from qcMesh, so this closes no cycle (checked both directions 2026-09-08).
-target_link_libraries(qcMesh PUBLIC qcMath qcCommon qcSymmetry qcAD)   # qcAD: NoGradient (BeckePartitionGradient's Outcome)
+target_link_libraries(qcMesh PUBLIC qcMath qcCommon qcSymmetry)
 # BeckePartition.C differentiates its own leaf (the Becke weight) in place: the Enzyme flags ride that one file.
 qchem_enzyme_sources(qcMesh BeckePartition.C)
 

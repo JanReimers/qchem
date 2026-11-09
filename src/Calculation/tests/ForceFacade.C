@@ -265,7 +265,7 @@ TEST(ForceFacade, ATermsEnergyAtFixedDMovesAsItsAnalyticGradientSays)
 // THE ENZYME AD SPIKE (doc/GeometryOptimizationPlan.md, "Automatic differentiation spike"; lane B, 2026-11-08).  The Becke-mesh delta
 // XC energy at fixed D on water, as qchem.AD.XCKernel's pure kernel of (R, D): the kernel IS the term (its energy and basis values
 // equal the library's), its AD gradient in R IS the per-term finite difference (the library term's energy at R +- h with D frozen),
-// it sums to zero over the atoms, and its AD gradient in D IS the term's H (pin 32).  Built without Enzyme, the gradients refuse.
+// it sums to zero over the atoms, and its AD gradient in D IS the term's H (pin 32).
 // ============================================================================================================================
 namespace
 {
@@ -310,8 +310,6 @@ TEST(ADSpike, ItsADForceIsThePerTermFiniteDifferenceAndSumsToZero)
     const AD::XCKernelData d=ForceFacadeTests::XCData(c, D);
     const std::vector<double> R=Positions(ForceFacadeTests::Structure_(c));
     const auto g=AD::XCEnergyGradientR(d, R);
-    if (!AD::Available()) { ASSERT_FALSE(g) << "a build without Enzyme refuses"; std::cout<<"[AD spike] "<<g.Error().why<<std::endl; return; }
-    ASSERT_TRUE(g);
     // COST: one energy, one gradient (R), one gradient (D), wall time on this process's OpenMP threads; TAPE: the gradient's peak RSS
     // above the RSS it started at.
     using clk=std::chrono::steady_clock;
@@ -325,22 +323,21 @@ TEST(ADSpike, ItsADForceIsThePerTermFiniteDifferenceAndSumsToZero)
     const double tE=std::chrono::duration<double>(t1-t0).count(), tR=std::chrono::duration<double>(t3-t2).count(), tD=std::chrono::duration<double>(t5-t4).count();
     std::cout<<"[AD spike] "<<d.w.size()*d.natom<<" mesh points, "<<d.nbf<<" basis functions; E "<<E<<"\n[AD spike] energy "<<tE<<" s, dE/dR "<<tR<<" s ("
              <<tR/tE<<" x), dE/dD "<<tD<<" s ("<<tD/tE<<" x); tape (peak RSS above start) dE/dR "<<tapeR/1024.0<<" MB, dE/dD "<<tapeD/1024.0<<" MB"<<std::endl;
-    ASSERT_TRUE(g2 && gD);
-    for (size_t i=0;i<R.size();i++) EXPECT_EQ((*g)[i], (*g2)[i]) << "the gradient is deterministic (block sums in block order)";
+    for (size_t i=0;i<R.size();i++) EXPECT_EQ(g[i], g2[i]) << "the gradient is deterministic (block sums in block order)";
     // THE PER-TERM FINITE DIFFERENCE: the library's delta XC term at R +- h with D frozen (basis centres, mesh points and partition move).
     const double h=1e-4;
     rvec3_t sum(0,0,0);
     for (size_t A=0;A<d.natom;++A)
     {
-        sum+=rvec3_t((*g)[3*A], (*g)[3*A+1], (*g)[3*A+2]);
+        sum+=rvec3_t(g[3*A], g[3*A+1], g[3*A+2]);
         for (int x=0;x<3;++x)
         {
             auto at=[&](double s){ std::vector<rvec3_t> Rv; for (size_t B=0;B<d.natom;B++) Rv.push_back(rvec3_t(R[3*B],R[3*B+1],R[3*B+2]));
                                     (x==0 ? Rv[A].x : x==1 ? Rv[A].y : Rv[A].z)+=s; std::shared_ptr<Structure> st=h2o.Clone(); st->MoveSites(Rv);
                                     return Entry(ForceFacadeTests::TermEnergiesAt(c.SizedSetup(), *st, D), "Exc"); };
             const double fd=(at(h)-at(-h))/(2*h);
-            std::cout<<"[AD spike] dExc/dR atom "<<A<<" axis "<<x<<": AD "<<std::setprecision(10)<<(*g)[3*A+x]<<"  FD "<<fd<<"  diff "<<(*g)[3*A+x]-fd<<std::endl;
-            EXPECT_NEAR((*g)[3*A+x], fd, 2e-6*std::max(1.0, std::fabs(fd))) << "dExc/dR atom " << A << " axis " << x;
+            std::cout<<"[AD spike] dExc/dR atom "<<A<<" axis "<<x<<": AD "<<std::setprecision(10)<<g[3*A+x]<<"  FD "<<fd<<"  diff "<<g[3*A+x]-fd<<std::endl;
+            EXPECT_NEAR(g[3*A+x], fd, 2e-6*std::max(1.0, std::fabs(fd))) << "dExc/dR atom " << A << " axis " << x;
         }
     }
     std::cout<<"[AD spike] Σ_A dExc/dR_A = "<<sum<<std::endl;
@@ -355,15 +352,13 @@ TEST(ADSpike, ItsDGradientIsTheTermsH)
     const auto D=ForceFacadeTests::Carry(c);
     const AD::XCKernelData d=ForceFacadeTests::XCData(c, D);
     const auto g=AD::XCEnergyGradientD(d, Positions(ForceFacadeTests::Structure_(c)));
-    if (!AD::Available()) { ASSERT_FALSE(g) << "a build without Enzyme refuses"; return; }
-    ASSERT_TRUE(g);
     const hmat_t<double> H=ForceFacadeTests::TermMatrix(c, D, "Exc");
     ASSERT_EQ(H.rows(), d.nbf);
     double worst=0.0, largest=0.0;
     for (size_t i=0;i<d.nbf;i++) for (size_t j=0;j<d.nbf;j++)
     {
-        worst=std::max(worst, std::fabs((*g)(i,j)-H(i,j))); largest=std::max(largest, std::fabs(H(i,j)));
-        EXPECT_NEAR((*g)(i,j), H(i,j), 1e-11) << "dE/dD_" << i << j << " against the term's H";
+        worst=std::max(worst, std::fabs(g(i,j)-H(i,j))); largest=std::max(largest, std::fabs(H(i,j)));
+        EXPECT_NEAR(g(i,j), H(i,j), 1e-11) << "dE/dD_" << i << j << " against the term's H";
     }
     std::cout<<"[AD spike] pin 32: max|dE/dD - H| = "<<worst<<" (max|H| "<<largest<<")"<<std::endl;
 }

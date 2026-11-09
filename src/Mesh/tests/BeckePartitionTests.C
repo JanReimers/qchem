@@ -99,22 +99,13 @@ TEST(BeckePartition, TheWeightsAreAPartitionOfUnity)
 
 TEST(BeckePartition, TheGradientIsTheFiniteDifferenceAndTheOracleWithThePointRidingWithItsOwner)
 {
-    if (!AD::Available())
-    {
-        const auto g=qcMesh::BeckePartitionGradient(kAtoms, 0, kAtoms[0]+kOffsets[0], 2);
-        ASSERT_FALSE(g) << "a build without Enzyme refuses";
-        EXPECT_FALSE(g.Error().why.empty());
-        return;
-    }
     const double h=1e-5;
     double largest=0.0;   // the points must sit where the partition actually moves, or the test proves nothing
     for (int k : {2,3})
         for (size_t A=0;A<kAtoms.size();++A)
             for (const auto& off : kOffsets)
             {
-                const auto ad=qcMesh::BeckePartitionGradient(kAtoms, A, kAtoms[A]+off, k);
-                ASSERT_TRUE(ad);
-                const auto& g=*ad;
+                const auto g=qcMesh::BeckePartitionGradient(kAtoms, A, kAtoms[A]+off, k);
                 const auto hand=HandGradient(kAtoms, A, kAtoms[A]+off, k);
                 ASSERT_EQ(g.size(), kAtoms.size());
                 rvec3_t sum(0,0,0);
@@ -133,9 +124,8 @@ TEST(BeckePartition, TheGradientIsTheFiniteDifferenceAndTheOracleWithThePointRid
             }
     EXPECT_GT(largest, 0.1) << "the sampled points are in the partition's transition regions";
     const auto one=qcMesh::BeckePartitionGradient({rvec3_t(0,0,0)}, 0, rvec3_t(1,0,0), 2);
-    ASSERT_TRUE(one); ASSERT_EQ(one->size(), 1u);
-    EXPECT_EQ(norm((*one)[0]), 0.0) << "one atom: the weight is 1 everywhere";
+    ASSERT_EQ(one.size(), 1u);
+    EXPECT_EQ(norm(one[0]), 0.0) << "one atom: the weight is 1 everywhere";
     const auto atNucleus=qcMesh::BeckePartitionGradient(kAtoms, 1, kAtoms[1], 3);
-    ASSERT_TRUE(atNucleus);
-    for (size_t D=0;D<kAtoms.size();++D) EXPECT_LT(norm((*atNucleus)[D]-HandGradient(kAtoms, 1, kAtoms[1], 3)[D]), 1e-15) << "at the owner's nucleus: zero";
+    for (size_t D=0;D<kAtoms.size();++D) EXPECT_LT(norm(atNucleus[D]-HandGradient(kAtoms, 1, kAtoms[1], 3)[D]), 1e-15) << "at the owner's nucleus: zero";
 }
