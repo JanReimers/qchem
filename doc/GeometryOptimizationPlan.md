@@ -448,6 +448,22 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
     pulled 0.15 bohr off: the stored water sits ~1e-4 Ha/bohr from its HF/DZVP minimum, where 2e-6 could not tell a sign.
 - So molecular HF has a complete analytic force on Cartesian Gaussians.
 
+**BUILT (lane B 2026-11-08): the plane-wave structure-factor force, and the Ewald force.**
+- Every PW species matrix is Σ_a V^a_ij with V^a_ij ∝ e^{-iΔG_ij·τ_a}, and the plane waves do not move, so ∂V_ij/∂τ_a = −iΔG_ij V^a_ij
+  exactly.  `PlaneWave_IBS` answers `MakeSpeciesFieldPullback` (every range), `MakeProjectorPullback` and `MakeNuclearPullback` (the
+  bare Coulomb, all-electron) through one body, `StructureFactorPullback`.
+- `Structure::IonIonForces` sits beside `IonIonEnergy` (a hub face, under the derivative-beside pre-approval): the pair sum's closed
+  form for a finite structure, and `EwaldForces` for a cell.  `EwaldForces` uses the SAME split, cutoffs and images as `EwaldEnergy`,
+  so it is the derivative of the number the energy returns.  `IonIon` takes it from the structure, so the periodic refusal is gone.
+- The PW PP terms (`Ven_PP_Short`, `Ven_PP_Long`, `Ven_PP_NonLocal`) gain the term face (`Imp/PWTerms_PP_Forces.C`).
+- Gates:
+  - The PW pullbacks at a NON-TRIM k (genuinely complex D) against the FD of the same assemblies on a distorted Si cell.
+  - `EwaldForces` against the FD of `EwaldEnergy` (Si, and a neutral CsCl), η-independent, summing to zero; the pair sum likewise.
+  - The PW PP and ion-ion term forces through the term face against the FD of each term's own energy at fixed D.
+- Not yet: a real TRIM block inside a complex run (the composite's mixed-run pullback throws); GPW's G-space side (its Bloch
+  Gaussians move, so collocation needs jets); and a PW whole-force gate.  That last needs the PW Hartree and XC terms to report
+  their EXACT ZERO fixed-D force (nothing in them moves on a plane-wave basis with a raster mesh), and a solid-facade test friend.
+
 ### 13.1 A value-with-derivatives carrier on the derivative-aware faces (lane B 2026-11-08)
 
 **APPROVED (user, 2026-11-08: "Looks good").**  The approved shape:
