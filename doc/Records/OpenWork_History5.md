@@ -1893,3 +1893,22 @@ Seen on the way: the MnO dimer under Shared at 0.45 / 0.2 converges to −30.348
 two capped runs end lower still (−30.34914, not converged): a different state, relevant to the "GDM crawls" row.  The solid banner
 prints the unresolved alpha (0.5) while the Auto Pulay-D runs at 0.45 → new OpenWork §3 row.  Sweep vs main-8473b2e0: short
 1418/0, long 14/0, 0 moves (panel not run: no iterator change, and its one GDM deck states its fill).
+
+### ✅ HF with a STATED shared degenerate fill starts from an integer seed (lane A, 2026-11-09)
+FIXED in `tSCFIterator::Initialize`: an HF run seeded through its LDA sibling (a matrix-free SAD seed) now sets
+`itsFreshSeedFill`, so a stated Shared rule refills the sibling's integer-filled orbitals at the first Iterate, as it
+does for any fresh seed.  Gate `M_Calculation.BoronUHFStatedSharedTakesTheSharedState` (Boron UHF/dzvp, SAD seed
+STATED): −24.4076937683 (7 iterations) with the fix, −24.5259316138 (8, the integer state) without it, so it
+discriminates.  The seed must be stated: HF's default seed is the core guess (MoleculeSetup's AutoSeed row), which
+never takes the sibling path, so the first gate drafted on the default seed passed with the fix disabled.
+Seen on the way: O₂ singlet HF + Shared from SAD lands on the broken −149.5438874 either way (its π_g splits beyond
+MergeTol at that fixed point); from the core guess it reaches the shared −149.2962220 → new §3 row "A stated Shared fill
+does not guarantee the symmetric state".
+
+### ✅ A solid run's banner prints the UNRESOLVED mixer alpha (lane A, 2026-11-09)
+The diagnosis was WRONG: the banner already received the resolved params.  The cause was a cout precision leaked by an
+earlier `setprecision(1)`, which printed the Auto Pulay-D step 0.45 as `alpha=0.5`.  FIXED: `EmitSCFBanner` states its
+own format (defaultfloat, precision 6) and restores cout's.  The remaining leak sites → new §3 row "cout precision
+leaks between prints".
+Sweep for both (vs main-cf1c8366 short/panel, main-08d9536c long): short 1443/0, 0 moved (+1 new gate); long 15/0,
+0 moved; panel|periodic at 4 threads 25/25, 0 moved.
