@@ -122,7 +122,13 @@ Cost, against one energy evaluated by the same kernel at `-O2`:
 - A larger system's cost scaling: the block structure is linear in points, as the energy is.
 - Upstream bug reports for friction items 3 and 4 (OpenWork row).
 
-## 6. Draft upstream issues (NOT filed: posting to GitHub is the user's call)
+## 6. Upstream issues -- FILED by the user 2026-11-09
+
+- A, loop cache: https://github.com/EnzymeAD/Enzyme/issues/3747 "Enzyme reverse mode returns a WRONG gradient"
+- B, AVX2 segfault: https://github.com/EnzymeAD/Enzyme/issues/3748 "Enzyme reverse mode SEGFAULTS with -march=native (AVX2)"
+
+The user gets GitHub's emails.  When a fix lands, re-run both repros on the fixing commit before moving the pin, and keep the per-file
+`-mprefer-vector-width=128` flags until B is fixed.  The text as filed follows.
 
 Versions:
 - Enzyme `main` at `1a87ccc` (2026-11-07, after v0.0.307), the clang plugin `ClangEnzyme-21.so`.
@@ -149,8 +155,17 @@ The spike's own checks also pass on 871de19f (`qcAD` and `BeckePartition.C` buil
 
 The pin can move to 871de19f whenever useful.  Nothing in the tree depends on the difference.
 
-**Issue A.**  Title: "Reverse mode returns a wrong gradient when a callee fills a loop-local array through an inner loop with a
-data-dependent trip count".
+**Environment block for both issues** (paste-ready, no local paths; 2026-11-09):
+
+```
+Enzyme:   main 871de19fb1973f7efc3e7231f8db5b2916431b09 (v0.0.308-3-g871de19f); also reproduced on 1a87cccd
+Plugin:   ClangEnzyme-21.so (ENZYME_CLANG=ON, ENZYME_ENABLE_PLUGINS=ON, CMAKE_BUILD_TYPE=Release)
+LLVM:     21.1.6, official LLVM release binary for Linux x86-64 (clang version 21.1.6, llvm-project a832a5222e48),
+          Enzyme built with LLVM_DIR from that release and linked with its lld
+OS / CPU: Ubuntu 26.04.1 LTS, Linux 7.0.0, x86-64, Intel Core i7-10700 (AVX2, no AVX-512)
+```
+
+**Issue A.**  Title: "Enzyme reverse mode returns a WRONG gradient" (user, 2026-11-09).
 
 > Enzyme main 1a87ccc and 871de19f (after v0.0.308), clang/LLVM 21.1.6 (release binary), Linux x86-64, Intel i7-10700.  The attached file (30 lines, no headers beyond <cmath>/<cstdio>)
 > computes E(D) = Σ_p (φ_pᵀ D φ_p)², where φ_p is filled by a callee `Fill` through an inner loop whose trip count `nk[i]` is read from a
@@ -161,7 +176,7 @@ data-dependent trip count".
 > Forward mode (`__enzyme_fwddiff` with the tangent on D_00) gives the correct 4.5709930494 on both commits, so the defect is in reverse mode.
 > Build: `clang++ -std=c++17 -O2 -fplugin=ClangEnzyme-21.so enzyme_loopcache_repro.cpp`.
 
-**Issue B.**  Title: "Reverse-mode segfault at -O2 -march=native (AVX2) for a blocked reduction into a duplicated scratch buffer".
+**Issue B.**  Title: "Enzyme reverse mode SEGFAULTS with -march=native (AVX2)" (2026-11-09).  Both repro files are paste-ready (no internal notes) and were re-verified on 871de19f after the cleanup.
 
 > Same versions (both commits).  The attached file (~150 lines, self-contained) differentiates a blocked sum: 3 blocks write partials into a buffer passed
 > `enzyme_dup`, and are summed after the loop.  At `-O2` it is correct.  At `-O2 -march=native` on an AVX2 machine the reverse pass
