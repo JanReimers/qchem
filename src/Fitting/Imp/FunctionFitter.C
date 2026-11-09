@@ -5,8 +5,7 @@ module;
 #include <stdexcept>
 #include <type_traits>
 module qchem.Fitting.FunctionFitter;
-import qchem.Fitting.Internal.FunctionFitterImp;   // FunctionFitterImp (Scalar) + IntegralConstrainedFF (Density)
-import qchem.Fitting.Internal.OrthoFunctionFitter;       // OrthoFunctionFitter (the orthonormal G-space density fit)
+import qchem.Fitting.Internal.FunctionFitterImp;   // FunctionFitterImp (the Gaussian scalar fit)
 import qchem.Fitting.Internal.OrthoNormalFunctionFitter; // OrthoNormalScalarFitter (the orthoNORMAL potential fit)
 import qchem.Fitting.Internal.DeltaFunctionFitter;       // DeltaScalarFitter (the delta/identity potential fit)
 import qchem.BasisSet.Orbital_DFT_IBS;                     // FIT_CD_NonOrtho (the Coulomb metric-solve face)
@@ -67,26 +66,5 @@ MakeDeltaScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>& bs)
 }
 template std::unique_ptr<DeltaScalarFit<double>> MakeDeltaScalarFitter<double>(std::shared_ptr<const BasisSet::FIT_SF_ABS<double>>&);
 template std::unique_ptr<DeltaScalarFit<dcmplx>> MakeDeltaScalarFitter<dcmplx>(std::shared_ptr<const BasisSet::FIT_SF_ABS<dcmplx>>&);
-
-std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
-Factory(std::shared_ptr<const BasisSet::rFIT_CD_ABS>& bs)
-{
-    // A real (Gaussian/Slater/BSpline) density fit needs the Coulomb metric-solve face.  isOrtho()==false is the
-    // basis's CONTRACT that it carries that face, so the down-cast is GUARANTEED.  (An orthonormal PW density
-    // fit basis is dcmplx -> the other overload.)
-    assert(!bs->isOrtho() && "Fitting::Factory(rFIT_CD_ABS): a real density-fit basis must be non-orthonormal");
-    auto nonOrtho = std::dynamic_pointer_cast<const BasisSet::FIT_CD_NonOrtho>(bs);
-    assert(nonOrtho && "isOrtho()==false contract broken: a real density-fit basis must IS-A FIT_CD_NonOrtho");
-    return std::make_unique<IntegralConstrainedFF<double>>(nonOrtho);
-}
-
-std::unique_ptr<FunctionFitter_Density<dcmplx>>
-Factory(std::shared_ptr<const BasisSet::cFIT_CD_ABS>& bs)
-{
-    // An orthonormal (plane-wave) {G} fit basis: the projection IS the fit, so the minimal core fitter
-    // (no metric-solve refinement).  It holds the fit basis but delegates Repulsion to the orbital basis.
-    assert(bs->isOrtho() && "Fitting::Factory(cFIT_CD_ABS): a plane-wave density-fit basis must be orthogonal");
-    return std::make_unique<OrthoFunctionFitter>(bs);
-}
 
 } //namespace

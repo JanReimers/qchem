@@ -4,7 +4,7 @@ export module qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import :Fit_IBS;   // the fit-basis faces: a PARTITION of this module since 2026-08-24
-export import qchem.BasisSet.Projector3;
+export import qchem.BasisSet.PairProjection;
 import qchem.Structure;  // Structure (the fit factories' argument)
 
 export namespace qchem::BasisSet
@@ -37,9 +37,9 @@ template <class T, class TFit = T> class Orbital_DFT_IBS
 public:
     //! 3 centre overlap used for DFT \f$ \left\langle ab\left|1\right|c\right\rangle \f$.  The fit \a c is an
     //! overlap-metric (scalar-function) aux basis, in the FIT representation.
-    virtual const Projector3<TFit>& Overlap3C  (const FIT_SF_ABS<TFit>& c) const;
+    virtual const PairProjection<TFit>& Overlap3C  (const FIT_SF_ABS<TFit>& c) const;
     //! 3 centre repulsion used for DFT.  The fit \a c is a Coulomb-metric (charge-density) aux basis.
-    virtual const Projector3<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
+    virtual const PairProjection<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
     //! Can this block give MakeRepulsion3CPullback against the fit \a c?  CLIENT: the Dunlap Hartree term's MissingGradients() entry,
     //! through its fitter.  False exactly when it would refuse.
     virtual bool CanPullbackRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
@@ -59,11 +59,11 @@ public:
     // V1.1(ii): the tensor element type follows TFit, NOT T.  The integrand is g_a g_b f_c, so complex FIT
     // functions make <ab|c> complex even with real orbitals: TFit is right for all three meaningful
     // combinations and wrong only for <dcmplx,double>, which is never instantiated.  The tensor TYPE is the
-    // unified Projector3<TFit> (dense realization for the finite lineages, delta/matrix-free for the
+    // unified PairProjection<TFit> (dense realization for the finite lineages, delta/matrix-free for the
     // reciprocal-space ones) -- the reconciliation that let the old Band_FT_IBS become an INSTANTIATION of this face.
 protected:
-    virtual Projector3<TFit> MakeOverlap3C  (const FIT_SF_ABS<TFit>& c) const=0;
-    virtual Projector3<TFit> MakeRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
+    virtual PairProjection<TFit> MakeOverlap3C  (const FIT_SF_ABS<TFit>& c) const=0;
+    virtual PairProjection<TFit> MakeRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
 };
 
 typedef Orbital_DFT_IBS<double> Real_DFT_OIBS;
@@ -75,14 +75,14 @@ typedef Orbital_DFT_IBS<double> Real_DFT_OIBS;
 //
 // And since 2026-08-24 there is no cast in it: the parameter IS the DFT face, so "this orbital basis has a
 // 3-centre tier" is checked by the compiler at every call site instead of thrown from here.
-template <class T> const Projector3<T>& FIT_SF_ABS<T>::Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const
+template <class T> const PairProjection<T>& FIT_SF_ABS<T>::Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const
 {
     return orb.Overlap3C(*this);
 }
 // ...and it must still be EXPLICITLY INSTANTIATED.  The partition move removed the module cycle and with
 // it the free-function indirection, but not this: the class is declared in a sibling partition, so Clang
 // does not instantiate the out-of-line member on demand in a downstream TU.  Two scalars, two lines.
-template const Projector3<double>& FIT_SF_ABS<double>::Overlap3C(const Orbital_DFT_IBS<double,double>&) const;
-template const Projector3<dcmplx>& FIT_SF_ABS<dcmplx>::Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>&) const;
+template const PairProjection<double>& FIT_SF_ABS<double>::Overlap3C(const Orbital_DFT_IBS<double,double>&) const;
+template const PairProjection<dcmplx>& FIT_SF_ABS<dcmplx>::Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>&) const;
 
 } //namespace

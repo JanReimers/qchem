@@ -177,12 +177,12 @@ template <class Leaf> void IrrepCD_HFPair<Leaf>::CompleteExchangePair(rsmat_t& K
 //
 //  Required by fitting routines.
 //
-// AO density-fit projection <rho|c> = Sum_ab D_ab <ab|c>, the finite path's ProjectedDensity_AO face.
+// AO density-fit projection <rho|c> = Sum_ab D_ab <ab|c>: the molecular lineage of tChargeDensity::Project.
 // The periodic density is NOT a ProjectedDensity_AO and does not inherit this leaf at all, so there is
 // nothing to guard: V1.32 removed the if-constexpr along with the template parameter it tested.
-rvec_t FiniteIrrepCD::GetRepulsion3C(const Fitting::DensityProjector& p) const
+Projections FiniteIrrepCD::Project(const BasisSet::PairProjector<double>& p) const
 {
-    if (this->IsZero()) return rvec_t(p.NumCoefficients(),0.0);
+    if (this->IsZero()) return p.Zero();
     // R1.0q (2026-09-19), the analytic instance of the pattern IrrepCD_Core::ProjectOnto already runs on the
     // periodic route: ask the projector for the FORWARD of this block, then contract MY D into it.  What
     // crosses is D -- which this class owns -- and what stays inside the integrator is the basis's own
@@ -462,9 +462,11 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     return true;
 }
 
-template <class T> rvec_t IrrepCD_Core<T>::ProjectOnto(const Fitting::ScalarProjector& p) const
+template <class T> Projections IrrepCD_Core<T>::Project(const BasisSet::PairProjector<dcmplx>& p) const
 {
-    if (IsZero()) return rvec_t(p.NumCoefficients(), 0.0);
+    // A zero block answers in the PROJECTOR's own realization (a G-space projector's empty map, a δ projector's zero
+    // vector), so a composite summing its blocks never meets two realizations.
+    if (IsZero()) return p.Zero();
     // ASK THE BASIS FOR ITS INTEGRAL, then contract MY matrix into it (R1.0; the 3-centre form,
     // 2026-08-23).  <delta_g|rho> = Sum_ij D_ij <delta_g|chi_i chi_j>, so what crosses is D -- which this
     // class owns -- and what stays inside is the basis's own Phi table and weights.  The GEMM itself, its
@@ -495,7 +497,7 @@ template <class T> rvec_t IrrepCD_Core<T>::ProjectOnto(const Fitting::ScalarProj
     // What crosses the boundary is D (mine) one way and the coefficients the other; the Phi table, the
     // weights and any grid stay inside the integrator.
     //
-    // THE ABSTRACTION, NOT THE TENSOR (2026-09-09).  This used to take a `const Projector3<T>&` back and
+    // THE ABSTRACTION, NOT THE TENSOR (2026-09-09).  This used to take a `const PairProjection<T>&` back and
     // reach into its `applyRaw` std::function, with an assert for the case where it was empty.  A density
     // owns D and wants ONE thing done with it; naming the concrete 3-centre tensor to get that was the
     // dependency inversion this face was missing.  The assert is gone with it: if you hold a
@@ -595,19 +597,6 @@ rvec3_t FiniteIrrepCD::Gradient(const rvec3_t& r) const
     return GradientContraction(gphir,phir,this->itsDensityMatrix);
 }
 
-// rho-tilde from the density matrix, via the basis's G-space capability (plane-wave / dcmplx only).
-// itsDensityMatrix already carries the BZ weight w_k (TOrbitals::GetChargeDensity scales it), so the
-// composite's sum over blocks is the BZ average Sum_k w_k rho_k.
-template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
-{
-    // Contract D against the basis's D-free OVERLAP tensor (empty kernel) HERE -- the DENSITY owns D, so
-    // this is where rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij is formed.  The overlap-metric sibling
-    // of GetRepulsion3C above; D never crosses into the basis.
-    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<typename Leaf::scalar_t,dcmplx>*>(self().itsBasisSet);
-    assert(fb && "GetFourierDensity requires a periodic (G-space) Orbital_DFT_IBS basis");
-    return Contract(fb->Overlap3C(c), self().itsDensityMatrix);
-}
-
 // Raw rho_DM(r) on c's raster (doc/GPWPlan 0.5(f2)): the basis's collocation-native forward, when it has
 // one (GPW's Overlap3C carries applyRaw; a plane-wave basis leaves it empty -> we answer empty and the
 // caller falls back to the ball route).  itsDensityMatrix carries the BZ weight, exactly as above.
@@ -615,19 +604,9 @@ template <class Leaf> rvec_t IrrepCD_Fourier<Leaf>::GetRhoOnGrid(const BasisSet:
 {
     auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<typename Leaf::scalar_t,dcmplx>*>(self().itsBasisSet);
     assert(fb && "GetRhoOnGrid requires a periodic (G-space) Orbital_DFT_IBS basis");
-    const Projector3<dcmplx>& g=fb->Overlap3C(c);
+    const PairProjection<dcmplx>& g=fb->Overlap3C(c);
     return g.applyRaw ? g.applyRaw(self().itsDensityMatrix) : rvec_t{};
 }
-
-// V_H(dm) = 4pi rho-tilde(dm)/|G|^2: contract D against the basis's D-free COULOMB tensor (Repulsion3C(c), the
-// diagonal kernel baked in) -- the reciprocal mirror of the finite GetRepulsion3C(fbs) above.  D stays here.
-template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
-{
-    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<typename Leaf::scalar_t,dcmplx>*>(self().itsBasisSet);
-    assert(fb && "GetRepulsion3C requires a periodic (G-space) Orbital_DFT_IBS basis");
-    return Contract(fb->Repulsion3C(c), self().itsDensityMatrix);
-}
-
 
 //-----------------------------------------------------------------------
 //
@@ -693,9 +672,13 @@ template class PeriodicIrrepCD<dcmplx>;
 // ProjectOnto, i.e. an O(n^3) pstrf on EVERY call -- and DensitySampler::RhoPol calls it twice per
 // iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
 //
-template <class Leaf> rvec_t FactoredRho<Leaf>::ProjectOnto(const Fitting::ScalarProjector& p) const
+template <class Leaf> Projections FactoredRho<Leaf>::Project(const BasisSet::PairProjector<dcmplx>& p) const
 {
-    if (this->IsZero()) return rvec_t(p.NumCoefficients(), 0.0);
+    if (this->IsZero()) return p.Zero();   // as IrrepCD_Core::Project
+    {   // A forward with no native factored path wants D itself: no factorisation, no rebuilt L L^dagger (MatrixForward::FactorPays).
+        const auto& o=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*this->itsBasisSet);
+        if (!p.Forward(o).FactorPays()) return Leaf::Project(p);
+    }
 
     // Tr(D) -- the memo's integrity check AND, on a miss, the value to remember.  A STALE FACTOR IS A
     // SILENTLY WRONG rho, so the version key is not trusted alone: any mutation of D that failed to bump
@@ -729,7 +712,7 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::ProjectOnto(const Fitting::Scala
     // GEMM plus the O(n^3) factorisation is not obviously cheaper than the square one.  A fat rank is not an
     // error -- it is the answer for a metal at large smearing, where the thermal tail fills the spectrum --
     // so it takes the fallback, not a throw.
-    if (!itsFactorable || 2*itsRank >= this->itsBasisSet->GetNumFunctions()) return Leaf::ProjectOnto(p);
+    if (!itsFactorable || 2*itsRank >= this->itsBasisSet->GetNumFunctions()) return Leaf::Project(p);
 
     // ONE integral, TWO representations of D (2026-08-23).  Which form this density holds -- and whether
     // the rank pays -- is decided HERE, where the factor and its memo live; the contraction against

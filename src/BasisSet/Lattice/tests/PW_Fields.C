@@ -21,7 +21,7 @@ export import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 export import qchem.BasisSet.PlaneWave.Evaluators;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
 export import qchem.BasisSet.Lattice.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 export import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
-export import qchem.Mesh;                           // qcMesh::MeshParams (Vee_Hartree's fit-basis factory arg; ignored)
+export import qchem.Mesh;                           // qcMesh::MeshParams (the Hartree fit basis factory arg; ignored)
 export import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 export import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 export import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t

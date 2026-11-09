@@ -10,7 +10,7 @@ export module qchem.CompositeCD;
 import qchem.Structure;   // DM_Pullback (GeometryOptimizationPlan §13.2)
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.DensityMatrixDistance;
-export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (summed over k-blocks)
+export import qchem.ChargeDensity.RasterDensity;    // the raw-raster face (summed over k-blocks)
 export import qchem.Symmetry.Lattice_3D.SpaceGroup; // ReciprocalOp {U|τ} -- the IBZ density-symmetrization ops (glide phase)
 export import qchem.Symmetry.Irrep;                 // the block label (spatial ⊗ ms)
 
@@ -34,25 +34,19 @@ using cd_ref_t   = std::variant<tDM_CD<double>*, tDM_CD<dcmplx>*>;
 //  Templated on the matrix element type T (rX/cX); the <double> alias preserves the existing
 //  real callers, the <dcmplx> instantiation aggregates the plane-wave (Bloch-irrep) densities.
 //
-//! \brief The reciprocal-space trio for a COMPOSITE -- periodic path only (V1.7).  Each block already
-//! carries its BZ weight, so every one of these is a straight sum over the leaves.  CRTP for the same reason
-//! as the leaf's: reach the contained blocks without exposing them.
-template <class Comp> class Composite_Fourier : public virtual FourierDensity
+//! \brief The raw-raster face for a COMPOSITE -- periodic path only (V1.7).  Each block already carries its BZ weight, so it is a
+//! straight sum over the leaves.  (ρ̃ and the Hartree projection are \c Project's since V-ONE-OF-N 3c, star-averaged there once.)
+//! CRTP for the same reason as the leaf's: reach the contained blocks without exposing them.
+template <class Comp> class Composite_Fourier : public virtual RasterDensity
 {
 public:
-    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
     virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // empty if any block lacks the raw path
-    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
-    //! The raw/average pair (see FourierDensity): this composite owns the crystal point ops, so it owns
-    //! the star average -- split out so the polarized case merges BOTH channels raw and averages ONCE.
-    virtual ΔG_Map GetRepulsion3C_Raw(const BasisSet::cFIT_CD_ABS& c) const;
-    virtual void   StarAverage(ΔG_Map& rg) const;
 private:
     const Comp& self() const {return static_cast<const Comp&>(*this);}
 };
 
 template <class T, class Comp> using CompositeFourierBase =
-    std::conditional_t<std::is_same_v<T,dcmplx>, Composite_Fourier<Comp>, NoFourierDensity>;
+    std::conditional_t<std::is_same_v<T,dcmplx>, Composite_Fourier<Comp>, NoRasterDensity>;
 
 //! \brief The whole-system exact-exchange sweep for a COMPOSITE -- real path only (V1.6, completing it).
 //! Same CRTP shape as \c Composite_Fourier, and for the same reason the LEAF got one: inheriting the
@@ -106,7 +100,6 @@ template <class T> class tComposite_CD
     , public virtual tDensityMatrixDistance<T>
     , public virtual tLineageTracked<T> // Layer-2: this top-level density tracks its SCF lineage head
     , public virtual tSpinResolved_CD<T> // the channel VIEW face (V1.37)
-    , public ProjectedDensityBase<T> // AO projection on the finite (double) path; empty on the periodic path
     , public CompositeFourierBase<T,tComposite_CD<T>>   // reciprocal trio: periodic path only (V1.7)
     , public CompositeHFBase<T,tComposite_CD<T>>        // whole-system exact exchange: real path only (V1.6)
 {
@@ -140,7 +133,9 @@ public:
     //! \copydoc tDM_CD::ProjectOnto
     //! ALL BLOCKS SUMMED -- for a polarized composite \f$\rho=\rho_\uparrow+\rho_\downarrow\f$, the total a
     //! spin-agnostic consumer wants.  The SPIN-RESOLVED consumer does not come here: it asks each CHANNEL.
-    virtual rvec_t ProjectOnto(const Fitting::ScalarProjector&) const;
+    virtual Projections Project(const BasisSet::PairProjector<double>&) const override;   //!< sum of the blocks' projections
+    virtual Projections Project(const BasisSet::PairProjector<dcmplx>&) const override;   //!< sum of the blocks' projections
+    //! The old face, kept one commit (V-ONE-OF-N 3a): forwards to \c Project.
 
     virtual double GetTotalCharge      (                     ) const;
 
@@ -151,8 +146,6 @@ public:
     virtual size_t Version() const
     {return itsBlocks.empty() ? 0 : std::visit([](const auto* c){return c->Version();}, itsBlocks.front().cd);}
 
-    virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
-    virtual rvec_t GetRepulsion3C(const Fitting::DensityProjector&) const;
 
     virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor
     virtual void   Axpy         (double c, const tMixableDensity<T>&)   ;  //this += c*that.

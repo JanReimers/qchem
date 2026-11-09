@@ -23,7 +23,7 @@
 module;
 #include <complex>   // std::real -- the Charge() narrow (2026-09-09)
 #include <cassert>
-#include <map>           // the per-block Phi handles (shallow Projector3 copies)
+#include <map>           // the per-block Phi handles (shallow PairProjection copies)
 #include <memory>
 #include <mutex>         // std::lock_guard over itsCacheLock (the per-block caches are filled from a parallel Fock pass)
 #include <ostream>
@@ -42,16 +42,16 @@ export namespace qchem::Fitting
 
 //! \brief THE PERIODIC FIT AXIS'S EXTRA FACES (2026-10-31), which only a fitter over a COMPLEX (Bloch) \f$\delta\f$ basis has:
 //! the real TRIM block's contraction (3c-3, \c FitContraction<double,dcmplx>) and the FORWARD vendor the periodic density
-//! projects onto (\c ScalarProjector, whose faces are the Bloch blocks').  A base that exists only for \c dcmplx (CRTP: the
+//! projects onto (\c BasisSet::PairProjector<dcmplx>, whose faces are the Bloch blocks').  A base that exists only for \c dcmplx (CRTP: the
 //! bodies are the fitter's own), so the real (molecular) instantiation carries no face it cannot serve.
 template <class Self, class T> class DeltaPeriodicFitFaces {};
 template <class Self> class DeltaPeriodicFitFaces<Self,dcmplx>
-    : public virtual ScalarProjector                 // ...the FORWARD direction, off the same handles
+    : public virtual BasisSet::PairProjector<dcmplx>   // ...the FORWARD direction, off the same handles
     , public virtual FitContraction<double,dcmplx>   // a real TRIM block's quadrature runs in real arithmetic
 {
 public:
     virtual hmat_t<double> Overlap(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Self_().template Contract<double>(orb);}
-    //! \copydoc Fitting::ScalarProjector::Forward
+    //! \copydoc BasisSet::PairProjector<dcmplx>::Forward
     //! Built over the SAME held handle the adjoint contracts -- which is the point of holding it: the density's forward and
     //! the term's adjoint come off ONE constructed object.  ▶ The fitter is "ACTOR 2": it builds that object per block and
     //! hands each client only its own half -- `IrrepCD` the FORWARD (through this face), the XC term the ADJOINT (\c Overlap).
@@ -59,6 +59,8 @@ public:
         {return Self_().template Integrator<double>(orb);}
     const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
         {return Self_().template Integrator<dcmplx>(orb);}
+    //! \copydoc BasisSet::PairProjector<dcmplx>::ProjectField -- a δ basis's projection of a field is its values at the points.
+    Projections ProjectField(const ScalarFunction<double>& f) const override {return Projections(Self_().Project(f));}
 private:
     const Self& Self_() const {return static_cast<const Self&>(*this);}
 };
@@ -140,13 +142,13 @@ private:
     }
     //! \brief THE SHALLOW Φ HANDLE for one orbital block, held for the run (user, 2026-08-24).
     //!
-    //! \c Projector3 is three closures over the fit basis's OWN address-stable \f$\Phi\f$ table, so a copy
+    //! \c PairProjection is three closures over the fit basis's OWN address-stable \f$\Phi\f$ table, so a copy
     //! is ~100 bytes and the npts×n table is never duplicated -- which is what makes "hold it" affordable
     //! at all.  Held rather than re-fetched so BOTH directions demonstrably come off one object.
     //! \warning the closures capture the producing basis: valid only while \c itsFitBasis lives, which it
     //! does, because this class co-owns it.
     //! \pre the caller holds \c itsCacheLock (\c Integrator, its only caller).
-    template <class U> const Projector3<U>& Handle(SymMap<Projector3<U>>& cache,
+    template <class U> const PairProjection<U>& Handle(SymMap<PairProjection<U>>& cache,
                                                    const BasisSet::Orbital_DFT_IBS<U,T>& orb) const
     {
         const sym_t& id=orb.GetSymt();             // the block's SPATIAL symmetry, as the basis's own table cache uses
@@ -158,7 +160,7 @@ private:
         return cache.emplace(id, face.Overlap3C(orb)).first->second;   // shallow: closures, not the table
     }
     //! Which typed cache \a U uses -- so \c Contract and \c Overlap3C name one place, not two.
-    template <class U> SymMap<Projector3<U>>& Cache() const
+    template <class U> SymMap<PairProjection<U>>& Cache() const
     {
         if constexpr (std::is_same_v<U,double>) return itsO3R;
         else                                    return itsO3;
@@ -175,7 +177,7 @@ private:
     //! which is what CLAUDE.md's ownership rule is for.
     //!
     //! It must be CACHED, not returned by value: the faces hand back a reference, and a
-    //! \c ScreenedMatrixIntegrator borrows its \c Projector3, so a temporary would dangle the moment the
+    //! \c ScreenedMatrixIntegrator borrows its \c PairProjection, so a temporary would dangle the moment the
     //! caller used it.  Keyed on the same spatial \c Symmetry as the tensor, and created only after the tensor is,
     //! so the two maps never disagree about which blocks exist.
     //!
@@ -193,7 +195,7 @@ private:
         const sym_t& id=orb.GetSymt();
         auto it=fwd.find(id);
         if (it!=fwd.end()) return it->second;
-        const Projector3<U>& g=Handle(Cache<U>(), orb);   // materialise (or find) the tensor first
+        const PairProjection<U>& g=Handle(Cache<U>(), orb);   // materialise (or find) the tensor first
         // The integrator's "weights" are the FUNCTION integrals <f_a|1> of my coefficient axis, not point
         // weights -- which on a delta basis are numerically the mesh weights, and on any other fit basis
         // are still the right thing.  Charge() is that vector; it is real for a real-valued fit basis, and
@@ -204,14 +206,14 @@ private:
         return fwd.emplace(id, ScreenedMatrixIntegrator<U>(g, std::move(w))).first->second;
     }
 
-    mutable SymMap<Projector3<double>> itsO3R;   //!< real TRIM blocks' handles (3c-3), by SPATIAL symmetry
-    mutable SymMap<Projector3<dcmplx>> itsO3;    //!< Bloch blocks' handles
+    mutable SymMap<PairProjection<double>> itsO3R;   //!< real TRIM blocks' handles (3c-3), by SPATIAL symmetry
+    mutable SymMap<PairProjection<dcmplx>> itsO3;    //!< Bloch blocks' handles
     //! Their forward+adjoint views -- BOTH halves off one object per block (2026-09-09).
     mutable SymMap<ScreenedMatrixIntegrator<double>> itsIntR;
     mutable SymMap<ScreenedMatrixIntegrator<dcmplx>> itsInt;
     qchem::LazyLock itsCacheLock;   //!< the four maps above: filled from the parallel Fock pass (see Integrator)
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
-    rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit)
+    rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit): fitter-private (doc/Records/VOneOfN_D2Design.md §2a)
 };
 
 } //namespace

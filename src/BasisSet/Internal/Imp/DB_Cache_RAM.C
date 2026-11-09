@@ -308,7 +308,7 @@ template <class T> const mat_t<T>& IntegralsCache_RAM<T>::Get(I2x i2x,const DBCa
 // ONE map for every 3-centre realization (V1.1): dense molecular tensors and the reciprocal-space
 // delta / matrix-free ones share the (op, orbital-ID, fit-ID) key axis.  CacheDim cross-check applies
 // only to the dense realization (the G-space ones self-describe via their columns / closures).
-template <class T> const Projector3<T>& IntegralsCache_RAM<T>::Get(I3C i3c,const DBCacheClient* a,const DBCacheClient* b,std::function<Projector3<T>()> make)
+template <class T> const PairProjection<T>& IntegralsCache_RAM<T>::Get(I3C i3c,const DBCacheClient* a,const DBCacheClient* b,std::function<PairProjection<T>()> make)
 {
     IBS_ID_t ida=a->BasisSetID(), idb=b->BasisSetID();
     key3_t key(i3c,ida,idb);

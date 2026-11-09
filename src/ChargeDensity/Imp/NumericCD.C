@@ -45,17 +45,5 @@ void NumericCD::ReScale(double factor)
     itsVersion = NextDensityVersion();
 }
 
-// The seed's UNCONSTRAINED fit coefficients c0.  A numeric (SAD) seed has no density matrix, so its natural
-// fit is the OVERLAP-metric fit of its own rho(r): c0 = S^-1 <f|rho> (sampling op(r)).  It is NOT a Coulomb
-// fit -- so it overrides GetUnconstrainedFit directly (the ProjectedDensity_AO metric strategy) instead of
-// faking a Coulomb RHS and letting the fitter's J^-1 cancel it.  Only the overlap face is needed: one honest
-// "I want more" cross-cast to the S metric (item F removed the redundant J round-trip + Coulomb-face cast).
-// The fitter then imposes the Dunlap charge constraint on top.
-rvec_t NumericCD::GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const
-{
-    const auto* sf = dynamic_cast<const BasisSet::FIT_SF_NonOrtho*>(fbs);   // the overlap metric-solve face
-    assert(sf && "NumericCD::GetUnconstrainedFit: the seed overlap-fit needs the S metric (FIT_SF_NonOrtho face)");
-    return sf->InvOverlap() * sf->Overlap(*this);   // c0 = S^-1 <f|rho>  (samples our rho(r))
-}
 
 } //namespace

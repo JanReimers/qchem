@@ -22,7 +22,7 @@ module;
 #include <vector>
 export module qchem.BasisSet.PlaneWave.Evaluators;
 export import qchem.ReciprocalLattice;   // ReciprocalLattice / UnitCell (the B cell; source of G, |k+G|)
-export import qchem.BasisSet.Projector3;   // ΔG_Map, Projector3
+export import qchem.BasisSet.PairProjection;   // ΔG_Map, PairProjection
 export import qchem.BasisSet.G_FieldEvaluator;  // the abstract grid-engine seam PW_Evaluator implements
 import qchem.BasisSet.PlaneWave.Evaluators.PeriodicGrid; // the shared FFT/Poisson grid engine (held, delegated to)
 import qchem.Types;                      // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, cvec3vec_t, chmat_t, dcmplx
@@ -119,12 +119,12 @@ public:
     //     engine's own {G}.  Drive the Orbital_DFT_IBS<dcmplx> MakeRepulsion3C/MakeOverlap3C (cached one level up). ---
     //! \brief Coulomb tensor \f$\langle G_iG_j|G_c\rangle=(4\pi/|G_c|^2)\,\delta_{G_c,G_i-G_j}/\Omega\f$: the
     //! delta support with the diagonal Poisson kernel filled (\f$\Delta m=0\to0\f$).
-    Projector3<dcmplx> Repulsion3CTensor() const;
+    PairProjection<dcmplx> Repulsion3CTensor() const;
     //! \brief Overlap tensor \f$\langle G_iG_j|G_c\rangle=\delta_{G_c,G_i-G_j}/\Omega\f$: the delta support,
     //! empty kernel (overlap metric).
-    Projector3<dcmplx> Overlap3CTensor() const;
+    PairProjection<dcmplx> Overlap3CTensor() const;
 private:
-    //! The tensors' Projector3<dcmplx>::applyAdjoint (field->matrix backward): \f$\langle i|f|j\rangle=f(m_i-m_j)\f$, the
+    //! The tensors' PairProjection<dcmplx>::applyAdjoint (field->matrix backward): \f$\langle i|f|j\rangle=f(m_i-m_j)\f$, the
     //! plane-wave Fourier lookup (== \c OverlapMatrix), self-contained so it survives in the tensor cache.
     std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)> AdjointLookup() const;
 public:

@@ -35,7 +35,7 @@ import qchem.BasisSet.AtomCentredSet;              // AtomCentredSet_Gaussian (t
 import qchem.Mesh;                                 // qcMesh::MeshParams (the PP-quadrature integration mesh)
 import qchem.BasisSet;                             // Real_BS (the molecular Gaussian basis we own)
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)
-export import qchem.BasisSet.Projector3;   // Projector3<dcmplx>, ΔG_Map
+export import qchem.BasisSet.PairProjection;   // PairProjection<dcmplx>, ΔG_Map
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // DirectOp, ReciprocalOp
 import qchem.UnitCell;                             // UnitCell (the direct lattice; ToCartesian)
 import qchem.Structure;                            // Structure (the nuclear-attraction centres)
@@ -105,18 +105,18 @@ public:
     //! kernel \f$4\pi/|G_c|^2\f$ (the \f$r_2\f$ integral \f$\int e^{iG_c\cdot r_2}/r_{12}\f$ in reciprocal space).
     //! So the full two-electron Coulomb is \c weight\f$\times\f$\c kernel, factorised through G-space -- never a
     //! 2-\f$r\f$ integral.  Density contracts \f$D\f$ against this via \c Contract.
-    Projector3<dcmplx>  Repulsion3CTensor() const;
+    PairProjection<dcmplx>  Repulsion3CTensor() const;
     //! \brief Overlap 3-centre tensor: the same single-\f$r\f$ weight \f$W_c(i,j)\f$, EMPTY kernel -- the density's
     //! Fourier coefficient \f$\tilde\rho(G_c)=\sum_{ij}D_{ij}W_c(i,j)\f$ (no Poisson).
-    Projector3<dcmplx>  Overlap3CTensor() const;
+    PairProjection<dcmplx>  Overlap3CTensor() const;
     //! \brief The SAME two tables over an EXPLICIT fit grid \a grid (rather than the block's own \c DensityGrid).
     //! The tensor columns are \a grid's \f$\{G\}\f$ and the collocation multi-grid ladder derives from \a grid --
     //! so the fit-basis GRID/\f$\{G\}\f$ policy (set by \c CreateCD/VxcFitBasisSet) is HONOURED, not silently
     //! overridden by the block's own grid.  These are the seam \c GPW_IBS::MakeRepulsion3C/MakeOverlap3C call
     //! with the requested fit basis's grid; the no-arg overloads above are \c Repulsion3CTensor(itsFFT_R_G_Grids)
     //! convenience (tests + the block's own fit basis).  (doc/GPWPlan §0e -- "return the requested table".)
-    Projector3<dcmplx>  Repulsion3CTensor(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
-    Projector3<dcmplx>  Overlap3CTensor  (std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    PairProjection<dcmplx>  Repulsion3CTensor(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    PairProjection<dcmplx>  Overlap3CTensor  (std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     //! \brief The potential->KS-matrix bridge (collocation's EXACT adjoint): \f$\langle\chi_i^k|V|\chi_j^k\rangle\f$
     //! by the ANALYTIC per-pair integrate-back (\c Gaussian::LatticeSum1E::IntegratePotential) on the REL_CUTOFF
     //! multi-grid ladder -- \a Vtilde is restricted to each level's own \f$\{G\}\f$ (a SPECTRAL low-pass, no
@@ -292,11 +292,11 @@ private:
     std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the ladder's density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Orbital_DFT_IBS<dcmplx>::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
-    //! \brief Last-density collocation memo, SHARED by the two \c MakeCollocator closures (Coulomb + overlap
-    //! tensors): each SCF iteration collocates the SAME \f$D\f$ twice -- once for \f$\rho\f$ on the grid
-    //! (XC/charge) and once for the Coulomb apply -- so the second call replays the level densities for free
+    //! \brief Last-density collocation memo, SHARED by every \c MakeCollocator closure of this evaluator (one per fit grid's
+    //! overlap tensor): each SCF iteration collocates the SAME \f$D\f$ for several clients -- the XC / mixer
+    //! \f$\tilde\rho\f$ and the Hartree fit's -- so a later call on the same ladder replays the level densities for free
     //! (exact-equality keyed on \f$D\f$; the phase/cell/ladder are fixed per evaluator, i.e. per k-block).
-    //! The G-space post-processing (FFT + nested combine +/- Coulomb kernel) stays per-call.
+    //! The G-space post-processing (FFT + nested combine) stays per-call.
     //! \c ecut pins the LADDER the cached \c rho was collocated on: the memo dedups the two same-grid closures
     //! (Coulomb + overlap) collocating the same \f$D\f$ per iteration, but the SAME \f$D\f$ can be collocated on
     //! a DIFFERENT grid (a coarse block asked for a fine fit grid -- the grid-continuation seed), where replaying
@@ -310,7 +310,7 @@ private:
     //! no-cut pin): the union keeps the adjoint exact on every channel's active set, at worst
     //! gathering pairs a later iterate abandoned.
     //! LIFETIME PIN (2026-08-18): because \c Dscr only ever WIDENS, the closures capturing this memo
-    //! must never outlive their SCF run.  When the matrix-free \c Projector3 closures sat in the
+    //! must never outlive their SCF run.  When the matrix-free \c PairProjection closures sat in the
     //! process-wide DBCache, a second identical run inherited the first run's converged union -- its
     //! seed Fock swept the full pair set where a fresh process's (screened by the seed's diagonal SAD
     //! \f$D\f$) is diagonal-only: the first-run anomaly (seed s-levels ~0.24 Ha apart, converged E
@@ -398,15 +398,15 @@ private:
     //! The matrix-free density->\f$\tilde\rho\f$ (\a coulomb=false) or ->\f$V_H\f$ (\a coulomb=true,
     //! \f$4\pi/G^2\f$ folded in) map, as a closure: ANALYTIC per-pair collocation on the multi-grid ladder
     //! (\c LatticeSum1E::CollocateDensity), one FFT per level, \f$\tilde\rho\f$ combined NESTED in G-space --
-    //! the \c Projector3<dcmplx>::apply realization.
+    //! the \c PairProjection<dcmplx>::apply realization.
     //! The collocator over an EXPLICIT fit grid: the ladder derives from \a grid (the tensor's requested
     //! \f$\{G\}\f$), NOT the block's own \c itsFFT_R_G_Grids -- the closure captures its own ladder built from \a grid.
-    std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb, std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    std::function<ΔG_Map(const chmat_t&)> MakeCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     //! The BACKWARD adjoint of \c MakeCollocator: a self-contained field->matrix integrate-back over \a grid's
-    //! ladder -- the \c Projector3<dcmplx>::applyAdjoint the Overlap3C/Repulsion3C(grid) tensors carry (doc/GPWPlan §0e step2).
+    //! ladder -- the \c PairProjection<dcmplx>::applyAdjoint the Overlap3C/Repulsion3C(grid) tensors carry (doc/GPWPlan §0e step2).
     std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)>
         MakeIntegrator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
-    //! \brief The RAW-RASTER pair (doc/GPWPlan 0.5(f2)) -- \c Projector3<dcmplx>::applyRaw / \c applyRawAdjoint.
+    //! \brief The RAW-RASTER pair (doc/GPWPlan 0.5(f2)) -- \c PairProjection<dcmplx>::applyRaw / \c applyRawAdjoint.
     //! \c MakeRawCollocator: \f$D\to\rho_{DM}(r)\f$ on \a grid's raster -- the finest ladder level kept RAW
     //! (its analytic samples are pointwise \f$\ge 0\f$ to screening-\f$\varepsilon\f$ for PSD \f$D\f$), every
     //! other level transferred SPECTRALLY (zero-pad up / band-drop down, no ball restriction anywhere).

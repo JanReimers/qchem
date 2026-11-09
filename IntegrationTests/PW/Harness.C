@@ -22,13 +22,15 @@ export import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 export import qchem.BasisSet.PlaneWave.Evaluators;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
 export import qchem.BasisSet.Lattice.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 export import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
-export import qchem.Mesh;                           // qcMesh::MeshParams (Vee_Hartree's fit-basis factory arg; ignored)
+export import qchem.Mesh;                           // qcMesh::MeshParams (the Hartree fit basis factory arg; ignored)
 export import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 export import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 export import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
 export import qchem.Blaze;          // mat_t<dcmplx>
 export import qchem.Math;           // Pi
-import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long, Vee_Hartree (dcmplx Hamiltonian terms)
+import qchem.Hamiltonian.Internal.Terms;            // Vee_Fit<dcmplx> (the periodic Hartree term)
+import qchem.Fitting.CoulombOperator;               // MakeGSpaceDensityFitter
+import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long (dcmplx Hamiltonian terms)
 export import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
 export import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 export import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
@@ -58,14 +60,13 @@ using Pseudopotential::HGH_SeparablePotential;
 using Pseudopotential::GetGTH;
 using Pseudopotential::GTH_PP;
 
-// Vee_Hartree/Vxc_Quadrature now take their fit basis (from the basis's own factory) at construction, like
+// The Hartree term / Vxc_Quadrature now take their fit basis (from the basis's own factory) at construction, like
 // FittedVee/FittedVxc.  These low-level term tests build one straight from the plane-wave basis at hand.
-qchem::Hamiltonian::Vee_Hartree* NewPWHartree(const PlaneWave_IBS& pw)
+qchem::Hamiltonian::Vee_Fit<dcmplx>* NewPWHartree(const PlaneWave_IBS& pw)
 {
-    // Pure V_H[rho]: the Hartree term takes ONLY its fit basis now -- the long-range core-charge fold that
-    // used to need a structure + local model here is its own term, Ven_PP_Long (doc/GPWPlan.md 0e-PP).
-    return new qchem::Hamiltonian::Vee_Hartree(
-        qchem::Hamiltonian::Vee_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{})));
+    // The periodic Hartree term is the first-order fitted term on the plane-wave density fitter (V-ONE-OF-N 3b).
+    std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}));
+    return new qchem::Hamiltonian::Vee_Fit<dcmplx>(qchem::Fitting::MakeGSpaceDensityFitter(fb), 0.0, fb);
 }
 // The XC term takes a QUADRATURE, and MakeDensitySampler reads off the strategy the fit basis supports --
 // here a plane-wave (raster) basis, so the pair/collocation one.

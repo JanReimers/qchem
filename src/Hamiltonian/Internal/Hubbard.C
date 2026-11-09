@@ -52,7 +52,7 @@ export import qchem.Hamiltonian.Factory;        // HubbardManifold (the public i
 import qchem.Hamiltonian.Types;                 // cobs_t / robs_t / tobs_t<U>
 export import qchem.Hamiltonian.HubbardChannels; // the public projector face HubbardProjection extends (LinearResponsePlan R0)
 export import qchem.Hamiltonian.HubbardUTarget;  // the public write face HubbardProjection extends (LinearResponsePlan §3d Q6)
-import qchem.Fitting.FunctionFitter;            // Fitting::ScalarProjector (the forward vendor face)
+import qchem.Fitting.FunctionFitter;            // the fitter faces (the forward vendor is BasisSet::PairProjector, via the density hub)
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.AtomCentredSet;            // the pseudo-atomic projector functions (HubbardProjectorPlan D1/D2)
 import qchem.BasisSet.BareCoulombSource;         // ERI4Block (ManifoldIntegrals)          // Orbital_DFT_IBS<U,dcmplx> (what ProjectOnto hands the vendor)
@@ -98,7 +98,9 @@ public:
     static hmat_t<U> Represented(const mat_t<U>& B, const hmat_t<U>& S);
 
     using qcMesh::MatrixForward<U>::Forward;   // un-hide the factored overload (qchem.Mesh.Integrator)
-    virtual rvec_t    Forward(const hmat_t<U>& D) const override;
+    //! The forward's axis is the occupation blocks: the \c rvec_t realization of \c Projections (this term is the
+    //! consumer of its own projections, so it reads them with \c Vector()).  The adjoint takes its own W (an \c rvec_t).
+    virtual Projections Forward(const hmat_t<U>& D) const override;
     virtual hmat_t<U> Adjoint(const rvec_t& W)    const override;
     //! The "integral" of an occupation-shaped vector is its TRACE per manifold, summed: the manifold charge.
     virtual double    Integrate(const rvec_t& f) const override;
@@ -237,7 +239,7 @@ class Hubbard_U
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
     , public         Dynamic_HT_RealBlock_Imp
-    , public virtual Fitting::ScalarProjector      //!< the FORWARD vendor the density projects onto
+    , public virtual BasisSet::PairProjector<dcmplx>   //!< the FORWARD vendor the density projects onto
     , public virtual HubbardProjection             //!< what the ACBN0 estimator consumes (increment 3)
     , public virtual tResponse_HT<dcmplx>          //!< its linearisation: ZERO when frozen or U = 0 (R2, H4)
 {
@@ -317,12 +319,12 @@ public:
     const ManifoldSymmetry::Labelling& LastLabelling(size_t M, const Spin& s) const;
     //!@}
 
-    //! \name Fitting::ScalarProjector -- the forward vendor (what tDM_CD::ProjectOnto asks)
+    //! \name BasisSet::PairProjector<dcmplx> -- the forward vendor (what tChargeDensity::Project asks)
     //!@{
     virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const override;
     virtual const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const override;
-    //! A matrix-free density has no occupation matrix: zeros (a seed; see the header).
-    virtual rvec_t Project(const ScalarFunction<double>&) const override {return rvec_t(NumCoefficients(),0.0);}
+    //! A density with no D carries no occupations: zero on every manifold (the term never asks one; see DensityOccupations).
+    virtual Projections ProjectField(const ScalarFunction<double>&) const override {return Projections(rvec_t(NumCoefficients(),0.0));}
     virtual size_t NumCoefficients() const override {return itsNCoeff;}
     //!@}
 

@@ -6,7 +6,7 @@ module;
 export module qchem.BasisSet.Internal.DB_Cache;
 export import qchem.BasisSet.DBCacheClient;   // the key contract (public since V1.20d); the mechanism stays here
 import qchem.BasisSet.Internal.ERI4;
-import qchem.BasisSet.Projector3;    // Projector3<T> (the 3-centre tensor, all realizations)
+import qchem.BasisSet.PairProjection;    // PairProjection<T> (the 3-centre tensor, all realizations)
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.Cache2;
 import qchem.BasisSet.Internal.Cache3;
@@ -68,7 +68,7 @@ public:
     // 3-centre tensor <ab|c> -- ONE slot for every realization (V1.1): the molecular dense vector lands in
     // the double cache, the plane-wave delta / GPW matrix-free tensors in the dcmplx cache; the element type
     // follows the FIT basis, so callers key by TFit (see Imp/Orbital_DFT_IBS.C).
-    virtual const Projector3<T>& Get(I3C,const DBCacheClient*,const DBCacheClient*, std::function<Projector3<T>()> make)=0; // 3 centre
+    virtual const PairProjection<T>& Get(I3C,const DBCacheClient*,const DBCacheClient*, std::function<PairProjection<T>()> make)=0; // 3 centre
     virtual const ERI4&      Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()> make)=0; // 4 centre
     // Numerically integrated variants, keyed also by a mesh ID.
     virtual const rvec_t&    Get(I1C,const DBCacheClient*,const Mesh_ID_t&,                      std::function<rvec_t()> make)=0; // Norm

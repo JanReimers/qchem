@@ -19,7 +19,7 @@
 // immutable rule -- chosen once, shared by every k-block, every SCF iteration and every OpenMP worker --
 // with no density reference to reseat, nothing that can go stale, and no thread-safety invariant to
 // state.  The staleness class that produced this tree's three most expensive recent defects (the
-// CollocMemo depth-1 thrash, the XC itsSrcVersion "STALE" warning, the cross-run Projector3 pollution)
+// CollocMemo depth-1 thrash, the XC itsSrcVersion "STALE" warning, the cross-run PairProjection pollution)
 // is UNREPRESENTABLE here rather than guarded against.
 module;
 #include <cassert>

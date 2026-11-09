@@ -30,18 +30,10 @@ FourierMixCD::FourierMixCD(ΔG_Map rhoTilde, ReciprocalLattice recip, double cha
     , itsRecip(std::move(recip)), itsCharge(charge), itsVersion(NextDensityVersion())
 {}
 
-ΔG_Map FourierMixCD::GetFourierDensity(const BasisSet::cFIT_SF_ABS&) const
+ΔG_Map FourierMixCD::FourierComponents(const BasisSet::cFIT_SF_ABS&) const
 {
     if (itsScale==1.0) return itsRho;
     ΔG_Map r=itsRho; for (auto& [dm,v] : r) v = itsScale*dcmplx(v); return r;   // apply ReScale on the way out
-}
-
-ΔG_Map FourierMixCD::GetRepulsion3C(const BasisSet::cFIT_CD_ABS&) const
-{
-    ΔG_Map VH;                                                       // V_H = 4pi rho-tilde/|G|^2 (diagonal Poisson)
-    for (const auto& [dm, rt] : itsRho)
-        if (double k=itsRecip.CoulombKernel(dm); k!=0.0) VH[dm]=k*(itsScale*dcmplx(rt));   // skip dm=0 (k==0)
-    return VH;
 }
 
 double FourierMixCD::operator()(const rvec3_t& r) const

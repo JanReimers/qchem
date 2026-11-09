@@ -11,7 +11,7 @@ export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
 import qchem.Structure;               // Structure (the ctor builds the quadrature mesh from it)
 export import qchem.BasisSet.Orbital_1E_IBS;  // Orbital_1E_IBS<U> -- the block Integrals_Overlap3C takes
-export import qchem.BasisSet.Projector3;  // Projector3<U> -- the house CONTRACTIBLE 3-centre object
+export import qchem.BasisSet.PairProjection;  // PairProjection<U> -- the house CONTRACTIBLE 3-centre object
 
 export namespace qchem::BasisSet
 {
@@ -40,7 +40,7 @@ template <class U, class TFit> class Integrals_Overlap3C
 {
 public:
     virtual ~Integrals_Overlap3C() = default;
-    virtual const Projector3<U>& Overlap3C(const Orbital_DFT_IBS<U,TFit>& orb) const=0;
+    virtual const PairProjection<U>& Overlap3C(const Orbital_DFT_IBS<U,TFit>& orb) const=0;
 };
 
 
@@ -100,7 +100,7 @@ public:
     //! \note DEFINED OUT-OF-LINE in this module's PRIMARY interface unit, after \c Orbital_DFT_IBS is
     //! complete.  That is the whole reason this file became a partition of it (2026-08-24): the body needs
     //! the orbital face, which used to be a different module and therefore a cycle.
-    const Projector3<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
+    const PairProjection<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
 
     
     virtual vec_t<T> Charge() const=0; //!< \copydoc BasisSet::FIT_SF_ABS::Charge 

@@ -27,7 +27,6 @@ import qchem.Tests.GPW_Harness;      // the recipe vocabulary + the instruments 
 import qchem.UnitCell;               // Supercell, BravaisCell (the MnO cell's named construction)
 import qchem.Matrix3D;
 import qchem.ChargeDensity;          // cSpinResolved_CD
-import qchem.ChargeDensity.FourierDensity;
 import qchem.ScalarFunction;
 import qchem.Symmetry.Spin;
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type

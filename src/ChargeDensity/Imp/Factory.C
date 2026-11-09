@@ -6,7 +6,6 @@ module;
 module qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.BasisSet.Orbital_DFT_IBS;   // the periodic-lineage probe (Orbital_DFT_IBS<T,dcmplx>)
-import qchem.ChargeDensity.Imp.FittedCD;
 import qchem.RunPolicy;   // the resolved deviation set (doc/OpenWork.md N5) -- NOT a getenv here
 
 namespace qchem::ChargeDensity
@@ -61,10 +60,5 @@ template tDM_CD<double>* IrrepCD_Factory<double>(hmat_t<double>,const tobs_t<dou
 template tDM_CD<dcmplx>* IrrepCD_Factory<dcmplx>(hmat_t<dcmplx>,const tobs_t<dcmplx>*, Irrep, RhoRoute);
 template tDM_CD<double>* IrrepCD_Factory<double>(hmat_t<double>,const tobs_t<double>*, Irrep);
 template tDM_CD<dcmplx>* IrrepCD_Factory<dcmplx>(hmat_t<dcmplx>,const tobs_t<dcmplx>*, Irrep);
-
-std::unique_ptr<FittedCD> FittedCD_Factory(fbs_t& fbs, double totalCharge)
-{
-    return std::make_unique<FittedCDImp<double>>(fbs,totalCharge);
-}
 
 } //namespace

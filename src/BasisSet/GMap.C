@@ -1,9 +1,9 @@
 // File: BasisSet/GMap.C  Reciprocal-space (G-space) SYMMETRY currencies for the plane-wave / GPW paths.
 //
-// The ΔG_Map container and the 3-centre tensor now live in qchem.BasisSet.Projector3 (V1.1: one
-// Projector3<T> type serves the molecular dense and the reciprocal-space realizations); this module keeps the
+// The ΔG_Map container and the 3-centre tensor now live in qchem.BasisSet.PairProjection (V1.1: one
+// PairProjection<T> type serves the molecular dense and the reciprocal-space realizations); this module keeps the
 // SYMMETRY operations on a G-space field -- star averages, reduced evaluation, per-op defect diagnostics --
-// which need the Lattice_3D space-group vocabulary that the structure-neutral Projector3 module must not import.
+// which need the Lattice_3D space-group vocabulary that the structure-neutral PairProjection module must not import.
 module;
 #include <cassert>
 #include <complex>   // std::operator*(double,complex) / operator/(complex,double) -- std header, not a Blaze dep
@@ -25,7 +25,7 @@ module;
 // tChargeDensity?"), governed by the PW-fitting-uniform-interface pin.  Until that lands, the visibility
 // is the deliverable: a module named for what it is, where anyone can see who depends on it.
 export module qchem.BasisSet.GMap;
-export import qchem.BasisSet.Projector3;  // IVec3Less, ΔG_Map, Projector3<T> + Contract/ContractAdjoint
+export import qchem.BasisSet.PairProjection;  // IVec3Less, ΔG_Map, PairProjection<T> + Contract/ContractAdjoint
 import qchem.Types;    // ivec3_t, dcmplx
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;  // ReciprocalOp {U|tau} for the non-symmorphic glide phase
 import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the T1 {G}-star reduced evaluation)

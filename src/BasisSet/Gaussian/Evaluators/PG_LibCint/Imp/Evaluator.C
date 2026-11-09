@@ -371,7 +371,7 @@ rsmat_t NR_Evaluator::KineticMatrix()             const {return Build1(1);}
 rsmat_t NR_Evaluator::NuclearMatrix(const Structure*) const {return Build1(2);} // atm already carries the nuclei
 
 // --- 3-centre <ab|c>: one symmetric (ia,ib) block per fit component ic ----------------------------
-Projector3<double> NR_Evaluator::Build3(const NR_Evaluator& fit, int which) const
+PairProjection<double> NR_Evaluator::Build3(const NR_Evaluator& fit, int which) const
 {
     const Imp& a=*itsImp; const Imp& c=*fit.itsImp;
     assert(!a.spherical && "3-centre (DFT) is Cartesian-only for the libcint evaluator");
@@ -381,7 +381,7 @@ Projector3<double> NR_Evaluator::Build3(const NR_Evaluator& fit, int which) cons
     int natm=(int)a.atoms.size(), nbas=(int)sh.size();
     IntFn fn = which==0 ? int3c1e_cart : int3c2e_cart;   // overlap : Coulomb
 
-    Projector3<double> s3; s3.dense.reserve(c.N); for (size_t i=0;i<c.N;++i) s3.dense.push_back(rsmat_t(a.N));
+    PairProjection<double> s3; s3.dense.reserve(c.N); for (size_t i=0;i<c.N;++i) s3.dense.push_back(rsmat_t(a.N));
     std::vector<double> buf;
     for (size_t sk=0;sk<c.shells.size();++sk)
         for (size_t si=0;si<a.shells.size();++si)
@@ -678,8 +678,8 @@ rsmat_t NR_Evaluator::RepulsionTwoC_Matrix() const
     return M;
 }
 
-Projector3<double> NR_Evaluator::OverlapThreeC_Matrix  (const NR_Evaluator& fit) const {return Build3(fit,0);}
-Projector3<double> NR_Evaluator::RepulsionThreeC_Matrix(const NR_Evaluator& fit) const {return Build3(fit,1);}
+PairProjection<double> NR_Evaluator::OverlapThreeC_Matrix  (const NR_Evaluator& fit) const {return Build3(fit,0);}
+PairProjection<double> NR_Evaluator::RepulsionThreeC_Matrix(const NR_Evaluator& fit) const {return Build3(fit,1);}
 
 // --- 4-centre (ab|cd): dense reordered+renormalized tensor over four (this/partner) slots ----------
 std::vector<double> NR_Evaluator::Compute4(const NR_Evaluator& B, const NR_Evaluator& C,

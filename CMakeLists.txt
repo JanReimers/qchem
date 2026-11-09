@@ -142,6 +142,15 @@ set(QCHEM_PANEL_RED
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long"     # same row: control U = 2 eV limit-cycles under plain Kerker
     "ResponsePolarizability.GPW_Si_Γ_Pol_OneSpinAlpha_KeepsZeroMoment_Panel" # OpenWork §3 "Polarized Γ Si JUMPS" (panel #10)
 )
+#   6. KNOWN RED (user ruling 2026-11-08, CLAUDE.md DISABLED_/WILL_FAIL rule): a NON-panel case that fails today for a reason an
+#      open OpenWork §3 row names, and whose gate must NOT be loosened, is listed in QCHEM_KNOWN_RED with its row.  It runs in its
+#      own tier as the panel-red cases do (PASSES only on gtest's "[  FAILED  ] 1 test"), label `knownRed`: `ctest -L knownRed`
+#      lists them.  A sweep report lists them separately with their reason.  When one goes red (fixed), remove it and close the row.
+set(QCHEM_KNOWN_RED
+    "SolidState.ExactResume_PlaneWave"                         # OpenWork §3 "PW ball-route XC is non-variational: ±1e-8 Ha noise floor"
+    "Deck.ASavedStateRestartsAndTheRevisionNamesItsParent"     # same row
+)
+list(JOIN QCHEM_KNOWN_RED ":" _qchemKnownRed)
 set(QCHEM_PERIODIC
     "GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long"                                   # twin: GPW_MnO.Γ_U_Shub_Pol_Smear_Saved_CP2K_Long (vendored states)
     "ResponseLittleGroup.GPW_Si_k222_q222_Becke_ReducedEqualsFull_Long"     # twin: ResponseLittleGroup.GPW_Si_k222_q211_Becke_ReducedEqualsFull
@@ -157,7 +166,7 @@ list(JOIN _qchemPanelRedFast ":" _qchemPanelRedFast)
 list(JOIN _qchemPanelRedLong ":" _qchemPanelRedLong)
 function(qchem_discover_tests target)
     gtest_discover_tests(${target}
-        TEST_FILTER -*_Long:*_Panel
+        TEST_FILTER -*_Long:*_Panel:${_qchemKnownRed}
         DISCOVERY_EXTRA_ARGS --gtest_output=
         PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run")
     gtest_discover_tests(${target}
@@ -184,6 +193,10 @@ function(qchem_discover_tests target)
         TEST_FILTER ${_qchemPanelRedLong}
         DISCOVERY_EXTRA_ARGS --gtest_output=
         PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" LABELS "long\;panel\;panelRed" TIMEOUT 14400)
+    gtest_discover_tests(${target}
+        TEST_FILTER ${_qchemKnownRed}
+        DISCOVERY_EXTRA_ARGS --gtest_output=
+        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" LABELS knownRed)
 endfunction()
 set(BUILD_GMOCK OFF CACHE BOOL "Disable GoogleMock for this project" FORCE)
 add_subdirectory(./submodules/googletest)

@@ -79,7 +79,7 @@ template <class U> LowdinProjector<U>::LowdinProjector(const hmat_t<U>& S, const
     }
 }
 
-template <class U> rvec_t LowdinProjector<U>::Forward(const hmat_t<U>& D) const
+template <class U> Projections LowdinProjector<U>::Forward(const hmat_t<U>& D) const
 {
     rvec_t out(itsN, 0.0);
     size_t at=0;
@@ -96,7 +96,7 @@ template <class U> rvec_t LowdinProjector<U>::Forward(const hmat_t<U>& D) const
             }
         at+=m*m;
     }
-    return out;
+    return Projections(std::move(out));
 }
 
 template <class U> hmat_t<U> LowdinProjector<U>::Adjoint(const rvec_t& W) const
@@ -797,7 +797,7 @@ std::map<Spin,rvec_t> Hubbard_U::DensityOccupations(const cChargeDensity* cd) co
         rvec_t n;
         if (dm)
         {
-            n=dm->ProjectOnto(*this);
+            n=dm->Project(*this).Vector();   // this term is the paired implementation: its axis is an rvec_t
             if (n.size()!=NumCoefficients()) n=rvec_t(NumCoefficients(),0.0);
             if (s==Spin::None) n*=0.5;                         // the zeta=0 collapse: n_sigma = n_tot/2
         }

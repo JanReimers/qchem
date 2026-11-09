@@ -22,7 +22,7 @@ module;
 #include <cmath>
 export module qchem.ChargeDensity.FourierMixCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>
-export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, ΔG_Map
+export import qchem.ChargeDensity.RasterDensity;   // RasterDensity (the interim raw-raster face)
 export import qchem.ReciprocalLattice;             // ReciprocalLattice (|G| for f_K, the Coulomb kernel for V_H)
 import qchem.BasisSet.Orbital_DFT_IBS;                      // cFIT_CD_ABS / cFIT_SF_ABS (the FourierDensity face args)
 import qchem.Types;                                 // dcmplx
@@ -32,13 +32,14 @@ export namespace qchem::ChargeDensity
 {
 
 //! A periodic density holding a raw \f$\tilde\rho(G)\f$ (a \c ΔG_Map) + the reciprocal lattice (for \f$|G|\f$ and
-//! the Coulomb kernel).  It provides the \c FourierDensity face (metric-free: the map IS the density), so the
+//! the Coulomb kernel).  It provides the \c AnalyticFourier face (metric-free: the map IS the density), so the
 //! plane-wave Hartree/XC terms drive a Fock build from it exactly as from the SAD seed.  The mixing ALGEBRA is
 //! not here: a G-space mixer owns its running field and builds one of these as the PRESENTATION of it each
 //! step (Internal/FieldMixer.C: KerkerStep).
 class FourierMixCD
     : public virtual tChargeDensity<dcmplx>
-    , public virtual FourierDensity
+    , public virtual RasterDensity              //!< the raw-raster shadow of the mix (the interim face)
+    , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
     , public virtual cDM_Sourced_CD   //!< the DM-backed density this field was mixed FROM (see the face)
     , public virtual cDM_SourceSink   //!< ...and the write side the loop driver seats it through (V1.18)
 {
@@ -62,9 +63,8 @@ public:
     FourierMixCD(ΔG_Map rhoTilde, ReciprocalLattice recip, double charge);
     FourierMixCD(ΔG_Map rhoTilde, ReciprocalLattice recip, double charge, Extras extras);
 
-    // --- FourierDensity: the map IS the density (metric-free), like SeedCD ---
-    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS&) const override;  //!< the overlap projection = rho-tilde
-    virtual ΔG_Map GetRepulsion3C   (const BasisSet::cFIT_CD_ABS&) const override;  //!< V_H = 4pi rho-tilde/|G|^2
+    // --- AnalyticFourier: the map IS the density (metric-free), like SeedCD; a G-space projector asks for it ---
+    virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS&) const override;  //!< rho-tilde, with ReScale applied
     //! The RAW-raster shadow of the mix (doc/GPWPlan 0.5(f2)): the MIXER maintains rho_raw(r) by the same
     //! Kerker/Pulay algebra it applies to rho-tilde (the filter is a smooth spectral multiplier -- no Gibbs)
     //! and deposits it here, so the XC feed stays raw THROUGH the SCF dynamics, not just at the seed and the
