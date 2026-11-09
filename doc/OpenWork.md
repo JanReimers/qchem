@@ -281,14 +281,16 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
 
 · **ninja does not rebuild an importer of the umbrella module `qchem` when a module it re-exports changes** (lane B 2026-11-08).  `MoleculeCalculation` grew members; `allTests` rebuilt `qchem.pcm` (src/Umbrella) but not `IntegrationTests/M_Umbrella.C.o`, its only importer (object 00:05, umbrella BMI 00:24), so `M_Umbrella.FrontDoorViaUmbrella` built the facade on the stack at the OLD size and SEGFAULTED in the sweep.  Touching the file fixed it.  A layout change through the umbrella is a silent stale object: the test then reads as a code crash.  Next action: check the dyndep / `.ddi` entries of an umbrella importer against `qcUmbrella`'s BMI (`reference_ninja_dyndep_recovery` memory has the ladder); until fixed, touch `IntegrationTests/M_Umbrella.C` after an exported class's layout changes.
 · **The molecular mesh pilot has no cost budget** (lane B 2026-11-08; GeometryOptimizationPlan §14.2).  Round 0 of `MoleculeCalculation::PilotMesh` raises without a limit (`cap = 0`).  Every rung it probes builds and refreshes a reference Hamiltonian, and a raise re-converges on the new rung.  Nothing predicts that cost or notices a climb that is not converging.  On the δ-ρ direct-sum route the Hartree error sits near 1e-2 on every rung, so the climb walked toward the ladder's top at O(N²) per reference, and `M_DFT.WaterLDA_DeltaCoulomb_Long` ran ~10 h instead of 196 s.  Fixed for that route: `HartreeConvergesWithMesh` leaves the term out of the distance, with a WARN row `DirectSumHartreeNotClimbed`.  The general hole remains for the next term whose error stalls.  Next action: (a) stop and WARN when a raise does not shrink the distance (a stalled climb); (b) before each raise, estimate the rung's cost (points, and the route's scaling) from what setup knows, and WARN AND RUN or REFUSE ON RESOURCES per the three-outcome rule.  The solid's raster climb wants the same two guards.
-· **Enzyme non-optional, then the energy path's hand derivatives move to Enzyme** (user ruling 2026-11-08; GeometryOptimizationPlan, the AD
-  verdict).  The principle is one derivative method for all derivatives, Enzyme.  Until Enzyme is a required toolchain, these stay hand-coded,
-  because a build without Enzyme still needs them:
+· **The energy path's hand derivatives move to Enzyme** (user ruling 2026-11-08; GeometryOptimizationPlan, the AD verdict).  The principle
+  is one derivative method for all derivatives, Enzyme.  **Enzyme is REQUIRED since 2026-11-09** (user ruling; lane B: configure stops
+  without the plugin, pin 871de19f), so these hand-coded derivatives now move:
   - the basis `Gradient(r)` faces (`PrimGaussian`, `GaussianRF`, PG_Cart `IrrepBasisSet`, ∇_r χ);
   - our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`).
 
-  New force derivatives are Enzyme only.  Next action: when the user makes Enzyme non-optional, move each one to an in-place AD registration
-  beside its value, behind an FD gate, and delete the hand version.  **TRIGGER (user 2026-11-08):** if the per-face FD gates of the force work
+  New force derivatives are Enzyme only.  Next action (lane B, under way): move each one to an in-place AD registration beside its value,
+  one family per commit, behind its existing FD gate, and delete the hand version.  While EnzymeAD/Enzyme#3747 is open every Enzyme
+  derivative keeps its FD gate; its trigger (a callee filling a loop-local array through an inner loop with a data-dependent trip count) is
+  common in `Gradient(r)` contraction loops.  **TRIGGER (user 2026-11-08):** if the per-face FD gates of the force work
   (lane B, §13.2) turn up a lot of testing and fixing in these hand gradient functions, that is the signal to make Enzyme non-optional NOW
   and use it consistently everywhere, rather than keep repairing hand derivatives.  The lane that hits it reports the count (gates failed,
   functions fixed) to the controller.

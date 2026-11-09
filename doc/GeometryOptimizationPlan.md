@@ -305,15 +305,16 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
       - So per-file flags suffice.  A separate AD-only translation of the same source is the fallback if a hot TU ever measures slower:
         the leaf `inline` in its interface, the energy TU at the tree's flags, an AD TU at the AD flags.
 - **DERIVATIVES ARE ENZYME'S (user, 2026-11-08: "either 1) hand code all derivatives (and maintain them!!!) xor 2) Use Enzyme ... not some
-  blend").**  A build without Enzyme has energies and no forces; the XC force refuses with `NoGradient`.  That is the intent.
+  blend").**  **Enzyme is REQUIRED** (user ruling 2026-11-09: "Yes I think we make it required.  Seems like a small burden for a lot
+  of functionality."): configure stops without the plugin (root `CMakeLists.txt`: the pin 871de19f, a smoke derivative), so there is no
+  build without forces and no "built without Enzyme" refusal.  (Before the ruling a build without Enzyme had energies and no forces.)
   - **The principle: ONE derivative method for every derivative, Enzyme** (user, 2026-11-08: "Clean (consistent) code dictates that all
     derivatives are done the same way.  BUT then Enzyme becomes non-optional.  So I say that temporarily we leave gradients as they are,
     simply because we still need them even if Enzyme+Forces are turned off").
   - **New force derivatives are Enzyme only.**
-  - **The ENERGY path's existing hand derivatives stay, FOR NOW**, because a build without Enzyme still needs them: the basis `Gradient(r)`
-    faces (`PrimGaussian`, `GaussianRF`, `IrrepBasisSet`; ∇_r χ) and our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`,
-    `VWN_Correlation`; libxc's are libxc's).  They move to Enzyme when Enzyme becomes non-optional: an OpenWork row holds that deferred
-    decision.
+  - **The ENERGY path's existing hand derivatives move to Enzyme** now that it is required: the basis `Gradient(r)` faces (`PrimGaussian`,
+    `GaussianRF`, `IrrepBasisSet`; ∇_r χ) and our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`; libxc's are
+    libxc's).  One family per commit, each behind its existing FD gate, the hand version deleted (the OpenWork row).
   - **`BeckePartitionGradient` (2026-11-07) is retired from the production path** (user, 2026-11-08).  It was a force derivative, which no
     energy path uses.  The production `qcMesh::BeckePartitionGradient` is now Enzyme's AD of `BeckePartitionWeight`, registered in place
     in `BeckePartition.C`.  The hand derivation stays ONLY as the test oracle in `src/Mesh/tests/BeckePartitionTests.C`: it gates the AD
@@ -643,8 +644,8 @@ face's existing method needs no design discussion, and the HubInterfaceAudit sna
     blocks.  (Since answered: PW nuclear, SALC, the Coulomb fit blocks; see §13.)
   - `JetsOn`: real on PG_Cart; every other family refuses.
 - **`JetsOn`'s gradient source: the existing hand `Gradient(r)`** (user ruling 2026-11-08, "Use Gradient(r)").  ∂φ/∂R_centre = −∇_r φ,
-  so there is no second (Enzyme) derivative of φ, the jets work without Enzyme, and a Gaussian Cartesian block never refuses.  When Enzyme
-  becomes non-optional (the OpenWork row), `Gradient(r)` moves to Enzyme and `JetsOn` follows for free.  The plain shell-evaluator
+  so there is no second (Enzyme) derivative of φ, and a Gaussian Cartesian block never refuses.  Enzyme is now required (2026-11-09):
+  `Gradient(r)` moves to Enzyme (the OpenWork row) and `JetsOn` follows for free.  The plain shell-evaluator
   extraction (the Enzyme χ leaf of the AD verdict) is NOT needed for this increment.
 - **Every derivative method has its own unit gate, per family that implements it** (the user, 2026-11-08: "we will need to make sure
   these are all correct").  Each gate is a central FD of the SAME quantity at displaced geometry, with the step and the truncation-error
