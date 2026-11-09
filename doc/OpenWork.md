@@ -294,10 +294,14 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
   its FD gate.  The principle is one derivative method for all derivatives, Enzyme.
   - **DONE (lane B bafecbbb)**: the basis `Gradient(r)` faces (`PrimGaussian`, `GaussianRF`, `Polarization`; PG_Cart, PG_LibCint,
     PG_Spherical consume it), Enzyme's in `GaussianRF_AD.C`; the FD gates gained a permanent on-axis point.
-  - Still hand-coded: our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`).
+  - **DONE (lane B 6a95ce87f)**: our LDA functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`): each states its energy
+    density once, v is Enzyme's reverse mode, f forward over it (`Imp/SlaterExchange.C`, `Imp/VWN_Correlation.C`).  A negative channel maps
+    to the physical point BEFORE AD; the kernel alone floors the minority at 1e-10 rho (libxc's zeta threshold); Slater is rho^{4/3} and VWN's
+    rs constant sits outside the cube root, so the subnormal tail (1e-323 in the H atom) stays finite.  The base `ExFunctional::GetFxc` FD
+    default remains for libxc's functionals only.  No hand derivative family is left in the list.
 
-  New force derivatives are Enzyme only.  Next action (lane B, under way): move each one to an in-place AD registration beside its value,
-  one family per commit, behind its existing FD gate, and delete the hand version.  While EnzymeAD/Enzyme#3747 is open every Enzyme
+  New force derivatives are Enzyme only.  Both listed families are moved (in-place AD registrations beside their values, one family per
+  commit, behind their FD gates, the hand versions deleted); next action: none on the energy path, a new hand derivative found later moves the same way.  While EnzymeAD/Enzyme#3747 is open every Enzyme
   derivative keeps its FD gate; its trigger (a callee filling a loop-local array through an inner loop with a data-dependent trip count) is
   common in `Gradient(r)` contraction loops.  **TRIGGER (user 2026-11-08):** if the per-face FD gates of the force work
   (lane B, §13.2) turn up a lot of testing and fixing in these hand gradient functions, that is the signal to make Enzyme non-optional NOW

@@ -318,8 +318,10 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
     **Family 1 DONE (lane B bafecbbb, 2026-11-09)**: the Cartesian Gaussian ∇_r[p(r-C) g(r)] is Enzyme's reverse mode of the inline
     value leaves (`PrimGaussian` / `GaussianRF` / `Polarization::operator()`), registered in `PG_Cart_MnD/Imp/GaussianRF_AD.C`; PG_Cart,
     PG_LibCint and PG_Spherical consume it.  `Polarization`'s value is branch-free (`intpow`'s x = 0 branch would make AD read
-    ∂x/∂x = 0 on every axis through the centre), and the FD gates carry a permanent on-axis point for it.  Family 2 (`GetVxc` /
-    `GetFxc`) is next.
+    ∂x/∂x = 0 on every axis through the centre), and the FD gates carry a permanent on-axis point for it.
+    **Family 2 DONE (lane B 6a95ce87f, 2026-11-09)**: Slater and VWN state their energy density once; v is Enzyme's reverse mode, f forward
+    over it, registered in `Hamiltonian/Internal/Imp/{SlaterExchange,VWN_Correlation}.C`.  The physical-point projection runs before AD,
+    the kernel floors the minority channel at 1e-10 rho, and both functionals are finite down to the smallest subnormal density.
   - **`BeckePartitionGradient` (2026-11-07) is retired from the production path** (user, 2026-11-08).  It was a force derivative, which no
     energy path uses.  The production `qcMesh::BeckePartitionGradient` is now Enzyme's AD of `BeckePartitionWeight`, registered in place
     in `BeckePartition.C`.  The hand derivation stays ONLY as the test oracle in `src/Mesh/tests/BeckePartitionTests.C`: it gates the AD
