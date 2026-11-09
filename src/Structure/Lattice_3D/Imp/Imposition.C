@@ -15,6 +15,17 @@ import qchem.Reporting;                  // report::Timed -- the XC-mesh buckets
 namespace qchem
 {
 
+// The density's star-average group, from the closed {W|τ} set the gate just checked (null = trivial {E}).  It holds the DIRECT
+// ops; a G-space field derives its index map W^T itself (Symmetry::Lattice_3D::ImageOfGIndex), so no reciprocal copy travels.
+static std::shared_ptr<const Symmetry::StarGroup> DensityGroupOf(const std::vector<Symmetry::Lattice_3D::DirectOp>& direct)
+{
+    if (direct.empty()) return nullptr;
+    std::vector<Symmetry::SymOp> ops;
+    ops.reserve(direct.size());
+    for (const auto& op : direct) ops.push_back({op.W, op.tau});
+    return std::make_shared<const Symmetry::StarGroup>(std::move(ops));
+}
+
 CrystalImposition ResolveImposition(const Lattice_3D& lat, const ImpositionOptions& o)
 {
     namespace SL = qchem::Symmetry::Lattice_3D;
@@ -77,11 +88,8 @@ CrystalImposition ResolveImposition(const Lattice_3D& lat, const ImpositionOptio
         // 864 of 2304 products outside it.  Closure, NOT completeness -- the σ=None subgroup below is a legal partial projector.
         SL::RequireClosedGroup(ops.magneticDirect, "crystal imposition (Shubnikov group)");
         for (const auto& op : ops.magneticDirect)
-            if (op.sigma==SL::SpinAction::None)
-            {
-                ops.directDensity.push_back({op.W, op.tau});
-                ops.recipDensity .push_back({Transpose(op.W), op.tau});   // the G-index scatter U = W^T
-            }
+            if (op.sigma==SL::SpinAction::None) ops.directDensity.push_back({op.W, op.tau});
+        ops.densityGroup=DensityGroupOf(ops.directDensity);
         // The PAIR projection needs every op to map the one block onto itself with no Bloch phase: a single unshifted Γ block.
         // A multi-k magnetic run keeps the partial (σ=None) projection the density faces carry.
         if (lat.GetLimits()==ivec3_t(1,1,1) && o.kShift==rvec3_t(0,0,0)) ops.spinPairOps=ops.magneticDirect;
@@ -90,26 +98,23 @@ CrystalImposition ResolveImposition(const Lattice_3D& lat, const ImpositionOptio
         return ops;
     }
     ops.recipFold     = sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);  // fold: linear + TR
-    ops.recipDensity  = sg.ReciprocalOps();                                    // density G-space: {U|τ}
-    ops.directDensity = sg.DirectOps();                                        // density raster: {W|τ}
+    ops.directDensity = sg.DirectOps();                                        // density: {W|τ}
     // The k-sum only respects the mesh-symmetry SUBGROUP (a shifted fcc MP mesh is not Oh-invariant), and the fold above
     // already uses just that subgroup.  Star-averaging rho over ops the mesh does not respect would sample a LARGER k-set
     // than the one whose bands are summed -- so impose the same subgroup on rho.
     {
         const size_t nDetected=ops.directDensity.size();
-        std::erase_if(ops.recipDensity,  [&](const auto& op){ return offMesh(Transpose(op.U)); });
         const size_t nOff=std::erase_if(ops.directDensity, [&](const auto& op){ return offMesh(op.W); });
-        assert(ops.recipDensity.size()==ops.directDensity.size());
         reportDropped("spatial", nDetected, nOff);
     }
-    // ★ THE IMPOSITION GATE -- see the magnetic branch.  The reciprocal set is the transpose of this one, so closure of {W|τ}
-    // settles both.  DirectOp carries no σ (a spatial group), so it lifts to SymOp with σ=None.
+    // ★ THE IMPOSITION GATE -- see the magnetic branch.  DirectOp carries no σ (a spatial group), so it lifts to SymOp with σ=None.
     {
         std::vector<SL::SymOp> spatial;
         spatial.reserve(ops.directDensity.size());
         for (const auto& op : ops.directDensity) spatial.push_back({op.W, op.tau});
         SL::RequireClosedGroup(spatial, "crystal imposition (spatial space group)");
     }
+    ops.densityGroup=DensityGroupOf(ops.directDensity);
     return ops;
 }
 

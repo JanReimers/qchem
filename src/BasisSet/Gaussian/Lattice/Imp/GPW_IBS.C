@@ -30,7 +30,7 @@ template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irre
     , GPW_Evaluator(std::move(mol), cell, std::move(ladder), Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
                     images==CellImages::HomeCellOnly, tol) // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1)
 {
-    SetSymmetryOps(std::move(directOps));   // ONE storage (the evaluator): T1 {G} fold + Vxc-raster star ops
+    SetSymmetryOps(std::move(directOps));   // the evaluator's T1 {G} fold
 }
 
 // A bare block: its own ladder from the same builder the factory uses, then the primary constructor.
@@ -103,7 +103,8 @@ template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(cons
     // the delta basis is a property of the run's quadrature and not of any one Bloch block.
     // {G}_vxc = relCutoff * {G}_rho.  LDA relCutoff==1 => == DensityGrid(); a GGA's denser grid is not wired yet.
     assert(mp.relCutoff<=1.0 && "GPW: relCutoff>1 (GGA denser Vxc grid) not wired -- the LDA Vxc grid = the CD grid");
-    // The Vxc fit basis carries the τ=0 direct ops so its raster STAR-AVERAGES itself under IBZ (empty = no-op).
+    // The SAME basis as CreateCDFitBasisSet's (same {G} ball, same BasisSetID): since 2026-11-09 it stores no crystal ops -- the
+    // run's group star-averages the raster through G_RasterStarField -- so the two instances are identical.
     // ROLE = "vxcFitGrid", NOT "xcQuadrature" (2026-08-20).  This object is the PLANE-WAVE Vxc fit grid;
     // whether it is the run's XC QUADRATURE is the Hamiltonian's route decision, which a basis factory
     // cannot see.  It used to announce itself as "xcQuadrature" unconditionally, so a Becke run printed
@@ -111,7 +112,7 @@ template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(cons
     // -- the same report key answering the reader's question two different ways on one run.  The route now
     // owns that key exclusively (Hamiltonians.C, both branches).
     return new PlaneWave::PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
-                                "vxcFitGrid", SymmetryOps());
+                                "vxcFitGrid");
 }
 
 // The species-field integral service.  Both matrices are STATIC across an SCF but rebuilt PER k-BLOCK, so

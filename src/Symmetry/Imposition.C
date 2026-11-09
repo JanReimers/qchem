@@ -5,10 +5,11 @@
 // later (V-FACADE-PARITY) -- a run without one hands nullptr, which is a stage, not a design.
 module;
 #include <cassert>
+#include <memory>
 #include <vector>
 export module qchem.Symmetry.Imposition;
 export import qchem.Symmetry.Representation;
-export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // ReciprocalOp {U|τ} (the density star average)
+export import qchem.Symmetry.StarGroup;   // StarGroup (the density star average)
 import qchem.Blaze;
 
 export namespace qchem::Symmetry
@@ -22,8 +23,9 @@ public:
     //! The σ-carrying group the (D↑, D↓) PAIR is projected under ({} = no magnetic pair projection).  Only ops that map every
     //! orbital block onto ITSELF belong here: a flip op relates the two channels, so only a caller holding both can impose it.
     virtual const std::vector<SymOp>& SpinPairOps() const=0;
-    //! The \f${U|\tau}\f$ ops the composite density star-averages ρ̃ under in G space ({} = none).
-    virtual const std::vector<Lattice_3D::ReciprocalOp>& DensityStarOps() const=0;
+    //! The group the composite density star-averages under (ρ̃ in G space and the raster ρ alike), or null = the trivial {E}.
+    //! Shared, because every density built under this imposition holds it.
+    virtual std::shared_ptr<const StarGroup> DensityGroup() const=0;
 };
 
 //! \brief Impose \a imp's spin-pair group on a block's (D↑, D↓), in place:

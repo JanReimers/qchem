@@ -323,15 +323,15 @@ template <class T> void tCompositeWF<T>::MoveOrbitals(OccupationPolicy<T>& pol, 
     FillOrbitals(pol,mergeTol);
 }
 
-// The composite density's star-average ops: the imposition's, when the basis was built under one ({} = trivial {E}).
-template <class T> std::vector<Symmetry::Lattice_3D::ReciprocalOp> DensityStarOps(const tbs_t<T>& bs)
+// The composite density's star-average group: the imposition's, when the basis was built under one (null = trivial {E}).
+template <class T> std::shared_ptr<const Symmetry::StarGroup> DensityGroup(const tbs_t<T>& bs)
 {
     const auto* imp=bs.GetImposition();
-    return imp ? imp->DensityStarOps() : std::vector<Symmetry::Lattice_3D::ReciprocalOp>{};
+    return imp ? imp->DensityGroup() : nullptr;
 }
 
 // THE density (V1.37): ONE composite over every child, spin irrep by spin irrep.  IBZ point group
-// ctor-injected straight from the basis (empty {} for molecules / unfolded crystals = a trivial no-op).  The
+// ctor-injected straight from the basis (null for molecules / unfolded crystals = a trivial no-op).  The
 // basis does NOT own the crystal symmetry (the lattice detects it, ResolveImposition decides what is imposed); it
 // carries the ops its k fold was built under, so no setter is threaded through the SCF (V-BS-SYMMETRY).  Each block BUILDS its own
 // density, typed by ITS scalar; the composite's typed Insert overloads (Step 2a) take either alternative --
@@ -370,7 +370,7 @@ template <class T> void InsertDensities(qchem::ChargeDensity::tComposite_CD<T>& 
 template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::GetChargeDensity() const
 {
     using qchem::ChargeDensity::tComposite_CD;
-    auto cd = std::make_unique<tComposite_CD<T>>(DensityStarOps(*itsBS));
+    auto cd = std::make_unique<tComposite_CD<T>>(DensityGroup(*itsBS));
     for (Spin s:SpinIrreps(itsSpinGroup)) InsertDensities(*cd, s, itsSpinWFs, itsSpinGroup, *itsBS);
     return cd;
 }
@@ -385,7 +385,7 @@ template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::GetChargeDensity(
     if (i==itsSpinWFs.end())
         throw std::logic_error("tCompositeWF::GetChargeDensity(Spin): this wave function was built under the "
                                "other imposed spin subgroup and has no such spin irrep");
-    auto cd = std::make_unique<tComposite_CD<T>>(DensityStarOps(*itsBS));
+    auto cd = std::make_unique<tComposite_CD<T>>(DensityGroup(*itsBS));
     InsertDensities(*cd, s, itsSpinWFs, itsSpinGroup, *itsBS);
     return cd;
 }

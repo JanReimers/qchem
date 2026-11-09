@@ -91,7 +91,11 @@ template <class T> static tChargeDensity<T>* UniformSeed(const BasisSet::tBasisS
             const int    N = ec->GetN(irr);
             hmat_t<double> D0=blazem::zeroH<double>(n);
             for (size_t i=0;i<n;i++) D0(i,i)=double(N)/double(n);
-            auto* comp=new tComposite_CD<dcmplx>();
+            // The run's density group, like every composite of this run (SolidState): the seed's ρ̃ AND its raster are star-averaged
+            // under it.  Before 2026-11-09 this composite held no ops, yet its raster was averaged anyway (the fit basis carried
+            // them) while its ρ̃ was not -- one density, two symmetries (V-SYM-SEQUESTER-OPS).
+            const auto* imp=bs->GetImposition();
+            auto* comp=new tComposite_CD<dcmplx>(imp ? imp->DensityGroup() : nullptr);
             comp->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(D0, rb, irr)), irr);
             return comp;
         }

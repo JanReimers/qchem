@@ -153,7 +153,6 @@ namespace qchem::BasisSet {
         virtual cvec_t ForwardFFT (const rvec_t& V) const=0;
         virtual dcmplx GridCoeff (const cvec_t& Vt, const ivec3_t& dm) const=0;
         virtual ΔG_Map FieldCoeffs(const cvec_t& Vt) const=0;
-        virtual void Symmetrize (rvec_t& ) const;
     };
     class G_StructureFactor {
     public:

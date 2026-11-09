@@ -2,6 +2,8 @@
 module;
 #include <cmath>      // std::sqrt (runtime reconstruction of the signed value)
 #include <cassert>
+#include <stdexcept>
+#include <string>
 module qchem.BasisSet.Radial.Evaluators.Internal.Wigner3j;
 
 namespace qchem {
@@ -9,6 +11,12 @@ namespace qchem {
 using namespace w3j_detail;
 
 const Wigner3j Wigner3j::w3j{};
+
+void Wigner3j::CheckL(int l)
+{
+    if (l<0 || l>LMax)
+        throw std::out_of_range("Wigner3j: l="+std::to_string(l)+" exceeds the 3j table (LMax="+std::to_string(LMax)+")");
+}
 
 double Wigner3j::operator()(int la, int lb, int k, int ma, int mb) const
 {

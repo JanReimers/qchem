@@ -32,6 +32,9 @@ import qchem.Symmetry.Irrep;                        // Irrep
 import qchem.LASolver;                              // complex Hermitian eigensolver
 import qchem.Structure;                             // Molecule, Atom (the Si diamond basis)
 import qchem.Matrix3D;                              // Matrix3D<double> (the FCC cell matrix)
+import qchem.Symmetry.StarGroup;                    // StarGroup (the density star-average)
+import qchem.Symmetry.Lattice_3D.SpaceGroup;        // SpaceGroup::Detect (the cubic ops)
+import qchem.BasisSet.G_RasterStarField;            // the raster as a star field
 
 using namespace qchem;
 using namespace qchem::tests::pw;
@@ -245,6 +248,52 @@ TEST(PlaneWaveFields, BasisIntegralPotentialConstAndCosine)
     EXPECT_TRUE(found);
 }
 
+
+//! THE TWO IMAGES ARE ONE GROUP ACTION (V-SYM-SEQUESTER-OPS, 2026-11-09): the run's group averages ρ̃ through the G-map field
+//! (\c GMapStarField: m -> W^T m with e^{+2πi m·τ}) and the raster ρ through the fit basis's raster field (voxel W·x after an
+//! exact FFT shift by τ).  For every O_h op, with τ=0 and with a NON-lattice glide τ (the FFT shift path), the image of a
+//! random band-limited ρ under ONE op must agree between the two: raster image transformed back to G == G-map image.
+TEST(PlaneWaveFields, TheRasterAndGMapImagesOfAnOpAgree)
+{
+    PWFixture F;
+    std::unique_ptr<const BasisSet::cFIT_SF_ABS> fit(F.pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}));
+    const auto& rt=dynamic_cast<const BasisSet::G_RasterTransform&>(*fit);
+    const auto& rs=dynamic_cast<const BasisSet::G_RasterStarField&>(*fit);
+    // A random Hermitian ρ̃ over the fit ball (so ρ(r) is real and band-limited on the raster).
+    ΔG_Map rho=rt.FieldCoeffs(rt.ForwardFFT(rvec_t(rt.RasterSize(), 0.0)));
+    unsigned seed=12345;
+    auto rnd=[&]{seed=seed*1103515245u+12345u; return double((seed>>8)&0xffff)/65536.0-0.5;};
+    for (auto& [m,v] : rho)
+    {
+        const ivec3_t mm(-m.x,-m.y,-m.z);
+        if (m==ivec3_t(0,0,0)) v=dcmplx(rnd(),0.0);
+        else if (IVec3Less()(m,mm)) {v=dcmplx(rnd(),rnd()); rho[mm]=std::conj(v);}
+    }
+    const rvec_t raster=rt.RhoOnGrid(rho);
+    std::vector<qchem::Symmetry::Lattice_3D::AtomSite> basis={{14, rvec3_t(0,0,0)}};
+    const auto cubic=qchem::Symmetry::Lattice_3D::SpaceGroup::Detect(Matrix3D<double>(), basis).DirectOps();
+    ASSERT_EQ(cubic.size(), 48u);
+    double worst=0.0, scale=0.0;
+    for (const auto& [m,v] : rho) scale=std::max(scale, std::abs(v));
+    for (const rvec3_t tau : {rvec3_t(0,0,0), rvec3_t(0.25,0.5,0.0)})
+        for (const auto& op : cubic)
+        {
+            const qchem::Symmetry::StarGroup one({qchem::Symmetry::SymOp{op.W, tau}});   // a one-op "group": average == image
+            ΔG_Map g=rho;
+            GMapStarField gf(g);
+            one.StarAverage(gf);
+            rvec_t r=raster;
+            one.StarAverage(*rs.MakeStarField(r));
+            const ΔG_Map fromRaster=rt.FieldCoeffs(rt.ForwardFFT(r));
+            for (const auto& [m,v] : fromRaster)
+            {
+                auto it=g.find(m);
+                const dcmplx want=it==g.end() ? dcmplx(0.0) : it->second;
+                worst=std::max(worst, std::abs(v-want));
+            }
+        }
+    EXPECT_LT(worst, 1e-12*scale) << "the raster and G-map images of one op differ: two group actions";
+}
 
 // (OrthoFitterRealSpaceField RETIRED 2026-11-08 with OrthoFunctionFitter, V-ONE-OF-N 3c: rho_fit(r) on {G} is RhoOnGrid's claim.)
 

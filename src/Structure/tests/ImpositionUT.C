@@ -48,7 +48,7 @@ TEST(Imposition, AFreeRunImposesNothingAndKeepsTheDetectedMeshGroup)
     const CrystalImposition imp=ResolveImposition(lat, o);
     EXPECT_FALSE(imp.policy.Imposes());
     EXPECT_TRUE(imp.options==o);
-    EXPECT_TRUE(imp.recipFold.empty() && imp.recipDensity.empty() && imp.directDensity.empty() && imp.magneticDirect.empty());
+    EXPECT_TRUE(imp.recipFold.empty() && !imp.densityGroup && imp.directDensity.empty() && imp.magneticDirect.empty());
     const auto& direct=lat.GetSpaceGroup().DirectOps();
     ASSERT_EQ(imp.meshInvariance.size(), direct.size());
     for (size_t i=0;i<direct.size();i++)
@@ -74,18 +74,18 @@ TEST(Imposition, GreyImpositionIsTheDetectedGroupRestrictedToTheMesh)
         const auto fold=sg.ReciprocalPointOps(true, true);
         ASSERT_EQ(imp.recipFold.size(), fold.size());
         for (size_t i=0;i<fold.size();i++) EXPECT_TRUE(Same(imp.recipFold[i], fold[i]));
-        // The density faces: exactly the detected ops that map the mesh onto itself, in detection order, reciprocal = W^T.
+        // The density faces: exactly the detected ops that map the mesh onto itself, in detection order; the density GROUP holds the same set.
         size_t kept=0;
         for (const auto& op : sg.DirectOps())
         {
             if (!SL::MapsMeshOntoItself(Transpose(op.W), lat.GetLimits(), shift)) continue;
             ASSERT_LT(kept, imp.directDensity.size());
             EXPECT_TRUE(Same(imp.directDensity[kept].W, op.W) && Same(imp.directDensity[kept].tau, op.tau));
-            EXPECT_TRUE(Same(imp.recipDensity[kept].U, Transpose(op.W)) && Same(imp.recipDensity[kept].tau, op.tau));
             kept++;
         }
         EXPECT_EQ(imp.directDensity.size(), kept);
-        EXPECT_EQ(imp.recipDensity.size(), kept);
+        ASSERT_TRUE(imp.densityGroup) << "the density is averaged under the group";
+        EXPECT_EQ(imp.densityGroup->size(), kept);
         if (shift==rvec3_t(0,0,0)) EXPECT_EQ(kept, sg.DirectOps().size()) << "a Γ-centred mesh respects the whole group";
     }
 }
@@ -107,12 +107,12 @@ TEST(Imposition, AStaggeringImposesTheShubnikovGroupAndItsSigmaNoneDensity)
         if (shub[i].sigma==SL::SpinAction::Flip) {nFlip++; continue;}
         ASSERT_LT(nNone, imp.directDensity.size());
         EXPECT_TRUE(Same(imp.directDensity[nNone].W, shub[i].W) && Same(imp.directDensity[nNone].tau, shub[i].tau));
-        EXPECT_TRUE(Same(imp.recipDensity[nNone].U, Transpose(shub[i].W)));
         nNone++;
     }
     EXPECT_GT(nFlip, 0u) << "AFM-II has spin-flip ops: the case this branch exists for";
     EXPECT_EQ(imp.directDensity.size(), nNone);
-    EXPECT_EQ(imp.recipDensity.size(), nNone);
+    ASSERT_TRUE(imp.densityGroup);
+    EXPECT_EQ(imp.densityGroup->size(), nNone);
     EXPECT_TRUE(imp.recipFold.empty() && imp.meshInvariance.empty());
 
     const CrystalImposition grey=ResolveImposition(lat, {.imposeSymmetry=true, .siteSpins={0,0,0,0}});
@@ -145,12 +145,12 @@ TEST(Imposition, AShubnikovImpositionIsRestrictedToTheMeshToo)
             if (op.sigma==SL::SpinAction::Flip) {nFlip++; continue;}
             ASSERT_LT(nNone, imp.directDensity.size());
             EXPECT_TRUE(Same(imp.directDensity[nNone].W, op.W) && Same(imp.directDensity[nNone].tau, op.tau));
-            EXPECT_TRUE(Same(imp.recipDensity[nNone].U, Transpose(op.W)));
             nNone++;
         }
         EXPECT_EQ(imp.magneticDirect.size(), kept);
         EXPECT_EQ(imp.directDensity.size(), nNone);
-        EXPECT_EQ(imp.recipDensity.size(), nNone);
+        ASSERT_TRUE(imp.densityGroup);
+        EXPECT_EQ(imp.densityGroup->size(), nNone);
         for (const auto& op : imp.directDensity)
             EXPECT_TRUE(SL::MapsMeshOntoItself(Transpose(op.W), m.N, m.shift)) << "no density op the mesh does not respect";
         if (m.drops) EXPECT_LT(kept, shub.size()) << "this mesh does not respect the whole Shubnikov group";

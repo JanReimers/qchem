@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 #include <cmath>
 #include <iostream>
+#include <stdexcept>
 import qchem.BasisSet.Radial.Evaluators.Internal.Wigner3j;        //Wigner::wigner3j (home-grown core)
 import qchem.BasisSet.Radial.Evaluators.Internal.RelWigner3j;
 import qchem.BasisSet.Radial.Evaluators.Internal.RelAngularIntegrals;
@@ -121,4 +122,21 @@ TEST_F(RelAngularIntegralsTests, CombinedShellsEqualNR)
         for (size_t k=0; k<Ak_rel.size(); k++)
             EXPECT_NEAR(Ak_rel[k], 4.0*Ak_nr[k], 1e-8) << "l=" << l << " k=" << k;
     }
+}
+
+// The fixed-size 3j tables THROW beyond their bound at the entry point (CLAUDE.md "Where to check, and with what";
+// OpenWork row "Fixed-size tables ... guarded by ASSERT only", 2026-11-04).  Wigner3j's table holds l <= LMax and is
+// checked once at the angular evaluators' construction (NR_Angular, RKB_Angular call CheckL); RelWigner3j checks its
+// κ/k bounds (the Racah core's Fact-table reach) at each lookup, which sits outside any hot loop.
+TEST_F(RelWigner3jTests, TablesRefuseBeyondTheirBound)
+{
+    EXPECT_NO_THROW(Wigner3j::CheckL(Wigner3j::LMax));
+    EXPECT_THROW   (Wigner3j::CheckL(Wigner3j::LMax+1), std::out_of_range);
+    EXPECT_THROW   (Wigner3j::CheckL(-1)              , std::out_of_range);
+    const int K=RelWigner3j::KMax, Kk=RelWigner3j::KkMax;
+    EXPECT_NO_THROW(RelWigner3j::w3j(-K, -K, Kk-1));
+    EXPECT_THROW   (RelWigner3j::w3j(K+1, -1, 0)     , std::out_of_range);
+    EXPECT_THROW   (RelWigner3j::w3j(0, -1, 0)       , std::out_of_range);
+    EXPECT_THROW   (RelWigner3j::w3j(-1, -1, Kk+1)   , std::out_of_range);
+    EXPECT_THROW   (RelWigner3j::w3j(-K-1, -1, 0, 0.5, 0.5), std::out_of_range);
 }
