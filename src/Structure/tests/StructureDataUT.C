@@ -1,7 +1,12 @@
 // File: src/Structure/tests/StructureDataUT.C  qchem.StructureData: the pre-defined molecules and cells
 // (D-STRUCTDATA).  Structure only -- valence counts are the MoleculeCalculation library's (src/Calculation/tests/Materials.C).
 #include "gtest/gtest.h"
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <functional>
 #include <stdexcept>
+#include <unistd.h>
 #include <string>
 #include <vector>
 
@@ -47,4 +52,81 @@ TEST(StructureData, AKindMismatchOrAMissThrows)
     EXPECT_THROW(SD::GetMolecule("Si_diamond"), std::runtime_error) << "a cell is not a molecule";
     EXPECT_THROW(SD::GetMolecule("C60"),        std::runtime_error);
     EXPECT_THROW(SD::KindOf("_doc"),            std::runtime_error) << "the documentation key is not an entry";
+}
+
+// ------------------------------------------------------------------------------------- THE LAYERS (OpenWork §2, ruled 2026-11-09)
+// The shipped file stays curated; imports go to the user's library (here a temp file through QCHEM_USER_MATERIALS), a workspace
+// adds its own on top, and one name is one structure across all of them.
+namespace
+{
+struct UserLibrary
+{
+    std::string path;
+    UserLibrary()
+    {
+        path=(std::filesystem::temp_directory_path() / ("qchem-ut-materials-"+std::to_string(::getpid())+"-"+std::to_string(++n)+".json")).string();
+        std::filesystem::remove(path);
+        ::setenv("QCHEM_USER_MATERIALS", path.c_str(), 1);
+    }
+    ~UserLibrary() { std::filesystem::remove(path); ::setenv("QCHEM_USER_MATERIALS", "/nonexistent/qchem-test-user-materials.json", 1); }
+    static inline int n=0;
+};
+const char* kRocksalt=R"({"comment": "an import", "lattice": {"vectors_bohr": [[0,4,4],[4,0,4],[4,4,0]]},
+                          "atoms": [{"el":"Mg","frac":[0,0,0]},{"el":"O","frac":[0.5,0.5,0.5]}], "provenance": {"source":"x.cif"}})";
+std::string Thrown(const std::function<void()>& f)
+{
+    try { f(); } catch (const std::exception& e) { return e.what(); }
+    return "";
+}
+}
+
+TEST(StructureData, ASavedMaterialIsAUserLayerCellBesideTheShippedOnes)
+{
+    UserLibrary lib;
+    const size_t shipped=SD::CellNames().size();
+    SD::SaveUserMaterial("MgO_imported", kRocksalt);
+    ASSERT_EQ(SD::CellNames().size(), shipped+1);
+    EXPECT_EQ(SD::CellNames().back(), "MgO_imported") << "the user's layer follows the shipped one";
+    const SD::CellEntry e=SD::GetCellEntry("MgO_imported");
+    EXPECT_EQ(e.layer, SD::Layer::User);
+    EXPECT_EQ(e.file, lib.path);
+    EXPECT_EQ(SD::KindOf("MgO_imported"), SD::Kind::Cell);
+    EXPECT_EQ(SD::GetCell("MgO_imported").GetNumAtoms(), 2u);
+    EXPECT_NE(e.entryJson.find("provenance"), std::string::npos) << "the entry is saved whole";
+    // a second save of the name is refused unless it says replace; a replace keeps the entry's place
+    EXPECT_NE(Thrown([]{ SD::SaveUserMaterial("MgO_imported", kRocksalt); }).find("replace it, or choose another name"), std::string::npos);
+    SD::SaveUserMaterial("Second", kRocksalt);
+    SD::SaveUserMaterial("MgO_imported", kRocksalt, /*replace*/true);
+    EXPECT_EQ(SD::CellNames()[shipped], "MgO_imported");
+}
+
+TEST(StructureData, AUserEntryMayNotReuseAShippedNameAndTheShippedFileIsUntouched)
+{
+    UserLibrary lib;
+    EXPECT_NE(Thrown([]{ SD::SaveUserMaterial("NaF_rocksalt", kRocksalt, true); }).find("already in the shipped materials"), std::string::npos);
+    EXPECT_NE(Thrown([]{ SD::SaveUserMaterial("H2O", kRocksalt); }).find("shipped molecule name"), std::string::npos);
+    EXPECT_NE(Thrown([]{ SD::SaveUserMaterial("_x", kRocksalt); }).find("must be non-empty, not start with '_'"), std::string::npos);
+    EXPECT_NE(Thrown([]{ SD::SaveUserMaterial("bad", R"({"lattice":{"vectors_bohr":[[1,0,0],[0,1,0],[0,0,1]]},"atoms":[{"el":"Qq","frac":[0,0,0]}]})"); })
+              .find("unknown element symbol 'Qq'"), std::string::npos) << "the parser refuses before the file is written";
+    EXPECT_FALSE(std::filesystem::exists(lib.path)) << "nothing refused reached the file";
+    // a hand-edited library that reuses a shipped name is refused the moment it is read, naming the file
+    { std::ofstream f(lib.path); f << R"({"Si_diamond": )" << kRocksalt << "}"; }
+    const std::string why=Thrown([]{ (void)SD::CellNames(); });
+    EXPECT_NE(why.find(lib.path), std::string::npos) << why;
+    EXPECT_NE(why.find("'Si_diamond' is already a name in the shipped materials"), std::string::npos) << why;
+}
+
+TEST(StructureData, AWorkspaceLibraryLayersOnTopAndMayNotCollideWithTheUsers)
+{
+    UserLibrary lib;
+    SD::SaveUserMaterial("Mine", kRocksalt);
+    const std::string ws=lib.path+".workspace.json";
+    { std::ofstream f(ws); f << R"({"Theirs": )" << kRocksalt << R"(, "Mine": )" << kRocksalt << "}"; }
+    EXPECT_NE(Thrown([&]{ SD::AddWorkspaceLibrary(ws); }).find("'Mine' is already a name in your materials library"), std::string::npos);
+    { std::ofstream f(ws); f << R"({"Theirs": )" << kRocksalt << "}"; }
+    SD::AddWorkspaceLibrary(ws);
+    EXPECT_EQ(SD::GetCellEntry("Theirs").layer, SD::Layer::Workspace);
+    EXPECT_EQ(SD::CellNames().back(), "Theirs");
+    EXPECT_NE(Thrown([]{ SD::SaveUserMaterial("Theirs", kRocksalt); }).find("already in a workspace library"), std::string::npos);
+    std::filesystem::remove(ws);   // a missing file is an empty layer, so the rest of this process is unaffected
 }

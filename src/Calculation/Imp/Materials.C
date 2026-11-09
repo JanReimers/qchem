@@ -22,38 +22,6 @@ namespace
 {
 using json = nlohmann::ordered_json;   // ORDERED: file order is the pick-list order
 
-const json& Database(const char* file)
-{
-    // One parse per file per process; the files are small and read-only.
-    static std::map<std::string, json> dbs;
-    auto it=dbs.find(file);
-    if (it!=dbs.end()) return it->second;
-    std::ifstream f(std::filesystem::path(STRUCTURE_DATA_PATH) / file);
-    if (!f) throw std::runtime_error(std::string("Materials: cannot open ") + file + " under " STRUCTURE_DATA_PATH);
-    json j; f >> j;
-    return dbs.emplace(file, std::move(j)).first->second;
-}
-
-std::vector<std::string> EntryNames(const json& db)
-{
-    std::vector<std::string> names;
-    for (const auto& [k,v] : db.items()) if (!k.empty() && k[0]!='_') names.push_back(k);
-    return names;
-}
-
-const json& Entry(const char* file, const std::string& name)
-{
-    const json& db=Database(file);
-    auto it=db.find(name);
-    if (it==db.end() || name.empty() || name[0]=='_')
-    {
-        std::string known;
-        for (const auto& n : EntryNames(db)) known += (known.empty() ? "" : ", ") + n;
-        throw std::runtime_error("Materials: no entry '" + name + "' in " + file + "; known: " + known);
-    }
-    return *it;
-}
-
 int ZOf(const std::string& el)
 {
     const size_t Z=thePeriodicTable().GetZ(el);
@@ -94,13 +62,18 @@ int Material::Nelec() const
 
 namespace
 {
-Material FromEntry(const std::string& name, const json& e, double aOverride)
+Material FromEntry(const std::string& name, const json& e, double aOverride, const std::string& pp)
 {
-    return FromCell(name, StructureData::GetCell(name, aOverride), e.at("pp").get<std::string>());
+    const std::string set = e.contains("pp") ? e.at("pp").get<std::string>() : pp;
+    if (set.empty()) throw std::runtime_error("Materials: '" + name + "' names no pseudopotential set (its 'pp', or the run's)");
+    return FromCell(name, StructureData::GetCell(name, aOverride), set);
 }
 } // anonymous
 
-Material Get(const std::string& name, double a) { return FromEntry(name, Entry("materials.json", name), a); }
+Material Get(const std::string& name, double a, const std::string& pp)
+{
+    return FromEntry(name, json::parse(StructureData::GetCellEntry(name).entryJson), a, pp);   // any layer: shipped, user, workspace
+}
 
 Material Inline(const std::string& entryJson, const std::string& pp)
 {

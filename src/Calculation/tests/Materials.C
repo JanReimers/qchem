@@ -5,6 +5,8 @@
 // one re-based cell (MnO AFM-II) reproduces the nine literals the campaign wrote by hand, and the decoration
 // reaches the atoms.  A lattice constant in the file that drifts moves an anchor -- these tests do not pin
 // the constants themselves (the anchored SCF tests do), only that the file says what the tests expect.
+#include <filesystem>
+#include <cstdlib>
 #include "gtest/gtest.h"
 #include <set>
 #include <stdexcept>
@@ -12,6 +14,7 @@
 #include <vector>
 
 import qchem.Materials;
+import qchem.StructureData;   // SaveUserMaterial: the user layer
 import qchem.CrystalFiles;   // an imported entry IS an entry: it runs through Inline
 import qchem.Pseudopotential.Set;
 import qchem.Types;
@@ -140,4 +143,19 @@ TEST(Materials, AnImportedCrystalIsAnInlineMaterial)
     EXPECT_EQ(m.cell->GetNumAtoms(), 2u);
     EXPECT_EQ(m.Nelec(), shipped.Nelec());
     EXPECT_NEAR(m.cell->GetCellVolume(), shipped.cell->GetCellVolume(), 1e-9) << "a = 8.73 bohr, the shipped cell";
+}
+
+// A SAVED IMPORT RUNS BY NAME: a user-layer entry names no pseudopotential set, so it takes the run's; a shipped entry keeps its own.
+TEST(Materials, AUserMaterialRunsByNameWithTheRunsPseudopotentials)
+{
+    const std::string lib=(std::filesystem::temp_directory_path() / "qchem-ut-calc-materials.json").string();
+    std::filesystem::remove(lib);
+    ::setenv("QCHEM_USER_MATERIALS", lib.c_str(), 1);
+    StructureData::SaveUserMaterial("NaF_mine", R"({"lattice":{"vectors_bohr":[[0,4.365,4.365],[4.365,0,4.365],[4.365,4.365,0]]},"atoms":[{"el":"Na","frac":[0,0,0]},{"el":"F","frac":[0.5,0.5,0.5]}]})");
+    EXPECT_THROW(Materials::Get("NaF_mine"), std::runtime_error) << "no pp in the entry and none from the run";
+    const Materials::Material m=Materials::Get("NaF_mine", 0.0, "gth-lda-valence");
+    EXPECT_EQ(m.Nelec(), Materials::Get("NaF_rocksalt").Nelec());
+    EXPECT_EQ(Materials::Get("NaF_rocksalt", 0.0, "no-such-set").pp, "gth-lda-valence") << "a shipped entry's own pp wins";
+    std::filesystem::remove(lib);
+    ::setenv("QCHEM_USER_MATERIALS", "/nonexistent/qchem-test-user-materials.json", 1);
 }

@@ -1,6 +1,7 @@
 // File: Structure/Imp/StructureData.C  The JSON reader behind qchem.StructureData (structure fields ONLY).
 module;
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <filesystem>
 #include <map>
@@ -41,12 +42,18 @@ std::vector<std::string> EntryNames(const json& db)
 }
 
 bool Has(const json& db, const std::string& name) { return !name.empty() && name[0]!='_' && db.contains(name); }
+bool HasCell(const std::string& name)
+{
+    if (name.empty() || name[0]=='_') return false;
+    for (const auto& e : CellEntries()) if (e.name==name) return true;
+    return false;
+}
 
 std::string KnownNames()
 {
     std::string known;
-    for (const char* f : {"molecules.json","materials.json"})
-        for (const auto& n : EntryNames(Database(f))) known += (known.empty() ? "" : ", ") + n;
+    for (const auto& n : EntryNames(Database("molecules.json"))) known += (known.empty() ? "" : ", ") + n;
+    for (const auto& e : CellEntries()) known += (known.empty() ? "" : ", ") + e.name;
     return known;
 }
 
@@ -74,7 +81,7 @@ Bravais TypeOf(const std::string& s)
 
 Kind KindOf(const std::string& name)
 {
-    const bool mol=Has(Database("molecules.json"), name), cell=Has(Database("materials.json"), name);
+    const bool mol=Has(Database("molecules.json"), name), cell=HasCell(name);
     if (mol && cell) throw std::runtime_error("StructureData: '" + name + "' is in BOTH molecules.json and materials.json");
     if (mol)  return Kind::Molecule;
     if (cell) return Kind::Cell;
@@ -170,7 +177,8 @@ UnitCell CellOf(const json& e, const std::string& name, double aOverride)
 UnitCell GetCell(const std::string& name, double aOverride)
 {
     if (KindOf(name)!=Kind::Cell) throw std::runtime_error("StructureData: '" + name + "' is a MOLECULE, not a periodic cell (use GetMolecule)");
-    return CellOf(Database("materials.json").at(name), name, aOverride);
+    const CellEntry e=GetCellEntry(name);
+    return CellOf(json::parse(e.entryJson), name, aOverride);
 }
 
 UnitCell CellFromEntry(const std::string& entryJson, const std::string& who)
@@ -180,7 +188,127 @@ UnitCell CellFromEntry(const std::string& entryJson, const std::string& who)
     catch (const json::exception& x) { throw std::runtime_error("StructureData: '" + who + "': not JSON: " + x.what()); }
     return CellOf(e, who, 0.0);
 }
-std::vector<std::string> CellNames() { return EntryNames(Database("materials.json")); }
+std::vector<std::string> CellNames()
+{
+    std::vector<std::string> names;
+    for (const auto& e : CellEntries()) names.push_back(e.name);
+    return names;
+}
+
+// ---------------------------------------------------------------------------------------------- THE LAYERS (OpenWork §2, 2026-11-09)
+namespace
+{
+std::vector<std::string>& WorkspacePaths() { static std::vector<std::string> v; return v; }
+
+//! A library file (materials.json schema), re-read when it changed on disk; a missing file is an empty layer.
+const json& Library(const std::string& path)
+{
+    static std::map<std::string, std::pair<std::filesystem::file_time_type, json>> cache;
+    static const json none=json::object();
+    std::error_code ec;
+    const auto t=std::filesystem::last_write_time(path, ec);
+    if (ec) { cache.erase(path); return none; }
+    if (auto it=cache.find(path); it!=cache.end() && it->second.first==t) return it->second.second;
+    std::ifstream f(path);
+    json j;
+    try { f >> j; }
+    catch (const json::exception& x) { throw std::runtime_error("StructureData: materials library " + path + " is not JSON: " + x.what()); }
+    if (!j.is_object()) throw std::runtime_error("StructureData: materials library " + path + " must be an object of named entries");
+    return (cache[path]={t, std::move(j)}).second;
+}
+
+std::string LayerName(Layer l) { return l==Layer::Shipped ? "the shipped materials" : l==Layer::User ? "your materials library" : "a workspace library"; }
+
+void RequireLegalName(const std::string& name, const std::string& where)
+{
+    if (name.empty() || name[0]=='_' || name.find('/')!=std::string::npos)
+        throw std::runtime_error("StructureData: " + where + ": name '" + name + "' must be non-empty, not start with '_' and not contain '/'");
+}
+} // anonymous
+
+std::string UserLibraryPath()
+{
+    if (const char* p=std::getenv("QCHEM_USER_MATERIALS"); p && *p) return p;
+    const char* home=std::getenv("HOME");
+    if (!home || !*home) throw std::runtime_error("StructureData: no HOME (and no QCHEM_USER_MATERIALS) to find the user's materials library in");
+    return (std::filesystem::path(home) / ".qchem" / "materials.json").string();
+}
+
+std::vector<CellEntry> CellEntries()
+{
+    std::vector<CellEntry> out;
+    std::map<std::string, std::string> owner;   // name -> the layer + file that holds it
+    for (const auto& n : EntryNames(Database("molecules.json"))) owner[n]="the shipped molecules";
+    const std::string shipped=(std::filesystem::path(STRUCTURE_DATA_PATH) / "materials.json").string();
+    for (const auto& n : EntryNames(Database("materials.json")))
+    {
+        out.push_back({n, Layer::Shipped, shipped, Database("materials.json").at(n).dump()});
+        owner[n]=LayerName(Layer::Shipped);
+    }
+    std::vector<std::pair<Layer,std::string>> layers={{Layer::User, UserLibraryPath()}};
+    for (const auto& w : WorkspacePaths()) layers.push_back({Layer::Workspace, w});
+    for (const auto& [layer, path] : layers)
+    {
+        const json& db=Library(path);
+        for (const auto& n : EntryNames(db))
+        {
+            if (auto it=owner.find(n); it!=owner.end())
+                throw std::runtime_error("StructureData: " + path + ": '" + n + "' is already a name in " + it->second
+                                         + " -- one name, one structure: rename it in " + path);
+            owner[n]=LayerName(layer)+" ("+path+")";
+            out.push_back({n, layer, path, db.at(n).dump()});
+        }
+    }
+    return out;
+}
+
+CellEntry GetCellEntry(const std::string& name)
+{
+    for (auto& e : CellEntries()) if (e.name==name) return e;
+    throw std::runtime_error("StructureData: no cell '" + name + "'; known: " + KnownNames());
+}
+
+void AddWorkspaceLibrary(const std::string& path)
+{
+    if (!std::filesystem::exists(path)) throw std::runtime_error("StructureData: workspace materials library " + path + " does not exist");
+    if (std::find(WorkspacePaths().begin(), WorkspacePaths().end(), path)!=WorkspacePaths().end()) return;
+    WorkspacePaths().push_back(path);
+    try
+    {
+        for (const auto& e : CellEntries())
+            if (e.file==path) { RequireLegalName(e.name, path); (void)CellOf(json::parse(e.entryJson), e.name, 0.0); }
+    }
+    catch (...) { WorkspacePaths().pop_back(); throw; }
+}
+
+void SaveUserMaterial(const std::string& name, const std::string& entryJson, bool replace)
+{
+    const std::string path=UserLibraryPath();
+    RequireLegalName(name, path);
+    json e;
+    try { e=json::parse(entryJson); }
+    catch (const json::exception& x) { throw std::runtime_error("StructureData: '" + name + "' is not JSON: " + x.what()); }
+    if (!e.is_object()) throw std::runtime_error("StructureData: '" + name + "' must be an object (a materials.json entry)");
+    e.erase("name");                                  // the KEY names it
+    (void)CellOf(e, name, 0.0);                       // the parser refuses before the file is touched
+    if (Has(Database("molecules.json"), name)) throw std::runtime_error("StructureData: '" + name + "' is a shipped molecule name -- choose another");
+    for (const auto& c : CellEntries())
+        if (c.name==name && !(c.layer==Layer::User && replace))
+            throw std::runtime_error("StructureData: '" + name + "' is already in " + LayerName(c.layer)
+                                     + (c.layer==Layer::User ? " -- replace it, or choose another name" : " -- choose another name"));
+    json db=Library(path);
+    db[name]=e;                                       // ordered: a replaced entry keeps its place, a new one goes last
+    const std::filesystem::path p(path);
+    std::filesystem::create_directories(p.parent_path());
+    const std::filesystem::path tmp=p.string()+".tmp";
+    {
+        std::ofstream f(tmp);
+        if (!f) throw std::runtime_error("StructureData: cannot write " + tmp.string());
+        f << db.dump(2) << "\n";
+        if (!f) throw std::runtime_error("StructureData: writing " + tmp.string() + " failed");
+    }
+    std::filesystem::rename(tmp, p);                  // whole or not at all
+}
 
 UnitCell AtomInBox(const std::string& element, double a)
 {
