@@ -9,6 +9,7 @@
 
 import qchem.MoleculeCalculation;
 import qchem.SCFParams;
+import qchem.ChargeDensity.Seed;   // SeedStrategy (HF from a SAD seed)
 import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;
 import qchem.Types;        // Vector3D
@@ -217,6 +218,20 @@ TEST(M_Calculation, BoronUHFPureGDM)
     const double E_ref = -24.525932;   // same anchor as the Ladder run (the two agree to ~1e-12 Ha)
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / std::fabs(E_ref)), 1e-5);
     EXPECT_GT(calc.IterationCount(), 0u);
+}
+
+// HF with degenerateLevelFill: Shared STATED, from a SAD seed: the symmetric (shared) UHF state, -24.40769 on dzvp, 118 mHa above the
+// integer state (the same-spin self-interaction a fractional HF occupation pays).  A matrix-free (SAD) seed reaches HF through an LDA
+// sibling whose own fill is integer; the stated rule must refill that seed, or the run starts symmetry-broken and STAYS there.
+// DISCRIMINATES (lane A 2026-11-09): without the sibling's refill this run lands on the integer state -24.5259316 (8 iterations).
+// The seed must be stated: HF's default seed is the core guess, which never takes the sibling path.
+TEST(M_Calculation, BoronUHFStatedSharedTakesTheSharedState)
+{
+    SCFParams shared; shared.DegenerateLevels=SCFParams::DegenerateLevelFill::Shared;
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeBoron(), {.basis = "dzvp", .multiplicity = 2,
+                                                          .seed = qchem::ChargeDensity::SeedStrategy::SAD}), shared);
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -24.40769, 1e-5) << "the shared state, not the integer one (-24.525932)";
 }
 
 // D-DEGEN-FILL x GDM (user ruling 2026-11-08, item 3): under DFT the facade's default SHARES boron's partly filled 2p level (one up

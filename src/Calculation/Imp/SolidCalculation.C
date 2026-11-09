@@ -316,7 +316,12 @@ static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccel
     // to copy beside a row, so it has to say both.
     // A D-MIXER (linear, or Pulay at KerkerG0 = 0 -- PulayDMixer) hands the Fock the mixed density MATRIX: XC sees rho[D].
     const bool dMixer = p.Mixer==M::Linear || (p.Mixer==M::Pulay && p.KerkerG0<=0.0);
-    std::cout<<"["<<label<<" scf] mixer: "
+    // Precision STATED, not inherited from whatever an earlier print left on cout: a leaked setprecision(1) printed the Auto
+    // Pulay-D step 0.45 as "alpha=0.5" (lane A, 2026-11-09, the MnO dimer and Si triplet box banners).
+    const std::ios_base::fmtflags flags=std::cout.flags();
+    const std::streamsize         prec =std::cout.precision();
+    std::cout<<std::defaultfloat<<std::setprecision(6)
+             <<"["<<label<<" scf] mixer: "
              <<(p.Mixer==M::Linear ? std::string("LINEAR D-mixing (no G-space preconditioner)")
               : dMixer             ? std::string("D-mixing (no G-space preconditioner)")
               :                      "Kerker(G0="+std::to_string(p.KerkerG0)+")")
@@ -332,6 +337,7 @@ static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccel
              <<";  accel: "<<AccelName(acc)<<(autoAccel ? " [accel: Auto]" : "")
              <<";  kT="<<p.SmearingkT<<" MOM="<<(p.UseMOM?"on":"off")
              <<" NMaxIter="<<p.NMaxIter<<std::endl;
+    std::cout.flags(flags); std::cout.precision(prec);
 }
 
 //! The per-stage summary the campaign reads its numbers from.  AT A STATED PRECISION: these are the
