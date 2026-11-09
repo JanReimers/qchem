@@ -123,6 +123,8 @@ public:
     //! \brief Overlap tensor \f$\langle G_iG_j|G_c\rangle=\delta_{G_c,G_i-G_j}/\Omega\f$: the delta support,
     //! empty kernel (overlap metric).
     PairProjection<dcmplx> Overlap3CTensor() const;
+    //! The tensors' applyAdjointPullback: identically zero (a plane wave has no centre).  §13.2, lane B.
+    static std::function<rvec3vec_t(const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure*)> ZeroPullback();
 private:
     //! The tensors' PairProjection<dcmplx>::applyAdjoint (field->matrix backward): \f$\langle i|f|j\rangle=f(m_i-m_j)\f$, the
     //! plane-wave Fourier lookup (== \c OverlapMatrix), self-contained so it survives in the tensor cache.

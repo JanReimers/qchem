@@ -317,6 +317,13 @@ public:
         return CongruenceC(itsLat->IntegratePotential(V_L,phase,A,N_L,ecut_L,screener,absRelCutoff,sd,
                                                       fieldSharpness,relFieldSharp,pairLevels));
     }
+    //! Through T: Tr(D_sph h_sph) = Tr(D_cart h_cart) with D_cart = T D_sph T^T, and T is geometry-free (a fixed cart->sphere map on
+    //! each shell), so the pullback is the inner block's at the expanded density.
+    virtual rvec3vec_t IntegratePotentialPullback(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
+                                                  const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                  const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                                  double relFieldSharp, const Structure* st) const override
+    { return itsLat->IntegratePotentialPullback(V_L,Expand(D),phase,A,N_L,ecut_L,screener,relFieldSharp,st); }
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                       double beta, double lnEps) const override
     { return itsLat->StaticFieldPairLevels(ecut_L,beta,lnEps); }

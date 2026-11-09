@@ -350,6 +350,15 @@ public:
                                        const chmat_t* screenD=nullptr, double fieldSharpness=0.0,
                                        double relFieldSharp=-1.0,
                                        const std::vector<size_t>* pairLevels=nullptr) const = 0;
+    //! \brief THE DERIVATIVE of \c IntegratePotential beside it (GeometryOptimizationPlan §13.2; the user's 2026-11-08 pre-approval):
+    //! \f$G_A=\partial_{R_A}\mathrm{Re}\,\mathrm{Tr}(D\,h[V])\f$ at FIXED level fields \a V_L and FIXED Hermitian \a D, for the KS gather's
+    //! call (no D screen, the relative rule, \a relFieldSharp), one entry per site of \a st, both the bra's atom and the ket image's moving.
+    //! So for a field V = δE/δρ held on the levels, the term's force is \f$-G\f$ summed over the blocks.  The jet twin of the reference box
+    //! walk on the SAME task list and screens (never the stream fold).  CLIENT: the GPW 3-centre tensors' \c applyAdjointPullback.
+    virtual rvec3vec_t IntegratePotentialPullback(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
+                                                  const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                  const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                                  double relFieldSharp, const Structure* st) const = 0;
 
     //! \brief Per-pair level assignment for integrating a STATIC EXTERNAL G-space field of effective Gaussian
     //! exponent \a beta (its spectrum decays as \f$e^{-G^2/4\beta}\f$; the erf-Coulomb local-PP long tail has

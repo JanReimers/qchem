@@ -5,6 +5,7 @@ add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
    M_SALCRepresentation.C   # a molecular SALC block end to end: Identity exact against the raw block's Dense rep (V-BS-SYMMETRY S3)
    M_PG_BoxWalk.C
    M_TransitionCollocation.C   # the (k+q, k) transition collocation + adjoint (LinearResponsePlan B1, R3 step 2)
+   M_CollocationPullback.C   # the GPW gather's pullback (jet walk) vs its finite difference (GeometryOptimizationPlan §13.2)
    M_LatticeScreener.C
    M_PG_MeshIntegrals.C
    M_Gaussian94Reader.C   # a missing element THROWS naming element + file (was a garbage-byte parse, 2026-10-21)

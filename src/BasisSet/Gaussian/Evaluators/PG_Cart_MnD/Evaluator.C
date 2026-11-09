@@ -1398,6 +1398,23 @@ public:
     template <class F>
     void ForShellPairBox(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
                          const UnitCell& A, const ivec3_t& N, F&& f, double epsEff=-1.0) const   // epsEff<0: the floor kDensityEps()
+    {   WalkShellPairBox<false>(i0,nI,j0,nJ,Roff,A,N,std::forward<F>(f),epsEff); }
+    //! The components and their r-GRADIENTS at one walk point (\c ForShellPairBoxJets): \c f[a] and \c g[c][a] = \f$\partial_c\f$ of it.
+    struct PointJets { const double* f; const double* g[3]; };
+    //! \brief THE JET TWIN of \c ForShellPairBox (GeometryOptimizationPlan §13.2, lane B 2026-11-09): the SAME box, chord, screens,
+    //! wrap and points, delivering each component's value AND its gradient in r, \c f(rasterIndex, jetsI, jetsJ).  One walk body
+    //! (\c WalkShellPairBox) serves both, so the twin cannot drift from the reference: its values are BIT-IDENTICAL to the walk's.
+    //! The gradient of a Cartesian Gaussian in closed form, per axis:
+    //! \f$\partial_x[x^n y^l z^m R(r^2)]=n x^{n-1}y^l z^m R+x^{n+1}y^l z^m\,2R'\f$, \f$2R'=\sum_p g_p(-2\alpha_p)e^{-\alpha_p r^2}\f$.
+    //! CLIENT: \c IntegratePotentialPullback (the derivative of the gather at fixed field).
+    template <class F>
+    void ForShellPairBoxJets(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
+                             const UnitCell& A, const ivec3_t& N, F&& f, double epsEff) const
+    {   WalkShellPairBox<true>(i0,nI,j0,nJ,Roff,A,N,std::forward<F>(f),epsEff); }
+    //! The ONE walk body: \a kJets adds the gradients, and nothing else changes (the non-jet arm is the historical walk, unchanged).
+    template <bool kJets, class F>
+    void WalkShellPairBox(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
+                          const UnitCell& A, const ivec3_t& N, F&& f, double epsEff) const
     {
         const size_t i=i0, j=j0;                             // the shell's representative (radials are shared)
         const rvec_t ei=radials[i]->GetExponents(), gi=radials[i]->GetCoeffs();
@@ -1462,7 +1479,9 @@ public:
         }
         assert(LxI<=kMaxDeg && LyI<=kMaxDeg && LzI<=kMaxDeg && LxJ<=kMaxDeg && LyJ<=kMaxDeg && LzJ<=kMaxDeg
                && "ForShellPairBox: monomial degree beyond kMaxDeg");
-        double pxI[kMaxDeg+1], pyI[kMaxDeg+1], pzI[kMaxDeg+1], pxJ[kMaxDeg+1], pyJ[kMaxDeg+1], pzJ[kMaxDeg+1];
+        // +2: the jet arm reads x^{n+1} (the non-jet arm fills and reads only 0..L, as it always did).
+        double pxI[kMaxDeg+2], pyI[kMaxDeg+2], pzI[kMaxDeg+2], pxJ[kMaxDeg+2], pyJ[kMaxDeg+2], pzJ[kMaxDeg+2];
+        [[maybe_unused]] double gIx[kMaxShell], gIy[kMaxShell], gIz[kMaxShell], gJx[kMaxShell], gJy[kMaxShell], gJz[kMaxShell];   // the jet arm's
         // INCREMENTAL MODULO WRAP (2026-08-26).  The wrap used to cost SIX integer divisions per point
         // (((g%N)+N)%N on each axis) even though the grid index advances by exactly ONE per loop step.
         // Starting from an in-range residue and bumping it by 1 with a compare reproduces the same
@@ -1504,6 +1523,8 @@ public:
                     const rvec3_t di=r-Ri, dj=r-Rj;
                     const double ri2=di.x*di.x+di.y*di.y+di.z*di.z, rj2=dj.x*dj.x+dj.y*dj.y+dj.z*dj.z;
                     if (aMinI*ri2+aMinJ*rj2 > lnCut) continue;   // slowest term < eps*e^-12 -> skip exp/poly evals
+                    if constexpr (!kJets)
+                    {
                     double radI=0.0; for (size_t p=0;p<ei.size();p++) radI+=gi[p]*std::exp(-ei[p]*ri2);
                     double radJ=0.0; for (size_t q=0;q<ej.size();q++) radJ+=gj[q]*std::exp(-ej[q]*rj2);
                     // Associated exactly as the unblocked (ni*pols[i](di)*radI)*(nj*pols[j](dj)*radJ) was.
@@ -1513,6 +1534,36 @@ public:
                     for (size_t b=0;b<nJ;b++) fJ[b]=ns[j0+b]*((pxJ[pnJ[b]]*pyJ[plJ[b]])*pzJ[pmJ[b]])*radJ;
                     assert(mz==size_t((((cz+dz)%N.z)+N.z)%N.z) && "incremental z wrap drifted from the modulo");
                     f(rowBase+mz, fI, fJ);
+                    }
+                    else
+                    {
+                    double radI=0.0, rdI=0.0;   // R and 2R' (the radial's r^2-derivative, doubled)
+                    for (size_t p=0;p<ei.size();p++) { const double e=gi[p]*std::exp(-ei[p]*ri2); radI+=e; rdI-=2.0*ei[p]*e; }
+                    double radJ=0.0, rdJ=0.0;
+                    for (size_t q=0;q<ej.size();q++) { const double e=gj[q]*std::exp(-ej[q]*rj2); radJ+=e; rdJ-=2.0*ej[q]*e; }
+                    PowerTable(di.x,LxI+1,pxI); PowerTable(di.y,LyI+1,pyI); PowerTable(di.z,LzI+1,pzI);
+                    PowerTable(dj.x,LxJ+1,pxJ); PowerTable(dj.y,LyJ+1,pyJ); PowerTable(dj.z,LzJ+1,pzJ);
+                    // d/dx [x^n y^l z^m R] = n x^{n-1} y^l z^m R + x^{n+1} y^l z^m 2R'
+                    auto jet=[](int n, const double* p, double R, double Rd)
+                    { return (n>0 ? double(n)*p[n-1]*R : 0.0) + p[n+1]*Rd; };
+                    for (size_t a=0;a<nI;a++)
+                    {
+                        const double c=ns[i0+a], X=pxI[pnI[a]], Y=pyI[plI[a]], Z=pzI[pmI[a]];
+                        fI [a]=c*((X*Y)*Z)*radI;
+                        gIx[a]=c*jet(pnI[a],pxI,radI,rdI)*Y*Z;
+                        gIy[a]=c*X*jet(plI[a],pyI,radI,rdI)*Z;
+                        gIz[a]=c*X*Y*jet(pmI[a],pzI,radI,rdI);
+                    }
+                    for (size_t b=0;b<nJ;b++)
+                    {
+                        const double c=ns[j0+b], X=pxJ[pnJ[b]], Y=pyJ[plJ[b]], Z=pzJ[pmJ[b]];
+                        fJ [b]=c*((X*Y)*Z)*radJ;
+                        gJx[b]=c*jet(pnJ[b],pxJ,radJ,rdJ)*Y*Z;
+                        gJy[b]=c*X*jet(plJ[b],pyJ,radJ,rdJ)*Z;
+                        gJz[b]=c*X*Y*jet(pmJ[b],pzJ,radJ,rdJ);
+                    }
+                    f(rowBase+mz, PointJets{fI,{gIx,gIy,gIz}}, PointJets{fJ,{gJx,gJy,gJz}});
+                    }
                 }
             }
         }
@@ -2594,6 +2645,123 @@ public:
         fillImages();
         publish();
         return h;
+    }
+
+    //! \brief THE PULLBACK OF THE GATHER (GeometryOptimizationPlan §13.2; lane B 2026-11-09; the user's 2026-11-08 pre-approval of a
+    //! derivative beside its method): \f$G_A=\partial_{R_A}\,\mathrm{Re}\,\mathrm{Tr}(D\,h[V])\f$ at FIXED level fields \a V_L and FIXED \a D,
+    //! with \f$h\f$ = \c IntegratePotential(V_L, ...) as the KS gather calls it (no D screen, the relative rule, \a relFieldSharp).  Per
+    //! (pair i<=j, offset n) the weight is \f$c_{ij}w\,\mathrm{Re}[\bar D_{ij}e^{ik\cdot R_n}]\f$ (\f$c\f$ = 1 on the diagonal, 2 off it)
+    //! and the integrand \f$\sum_g V(g)\,\partial_R[\chi_i(r_g-R_i)\chi_j(r_g-R_j-R_n)]\f$: the image moves with its atom, so the i side
+    //! gives \f$-\nabla\chi_i\,\chi_j\f$ to \f$\chi_i\f$'s atom and the j side \f$-\chi_i\nabla\chi_j\f$ to \f$\chi_j\f$'s.
+    //!
+    //! THE SAME DISCRETE SUM: the SAME task list, level per shell pair, screener plan and union tolerance as \c IntegratePotential, walked by
+    //! the jet twin of the reference box walk.  So it is the derivative of the discretized gather (the screens' truncation radii are step
+    //! functions of R, dropped: an eps-level term), and of the production contracted-cube gather to the walk-vs-cube agreement (1e-10
+    //! relative, M_TransitionCollocation.WalkAndContractionRoutesAgree).  NEVER FOLDED: the stream fold is an energy-side symmetry economy
+    //! and a force along a symmetry-breaking direction must not lean on it, so every pair is walked (the full sum the fold stands for).
+    //! Returns one entry per site of \a st; each function's centre must sit on one of them.  THROWS on a mis-sized D or a stray centre.
+    rvec3vec_t IntegratePotentialPullback(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
+                                          const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                                          const LatticeScreener& screener, double relFieldSharp, const Structure* st) const
+    {
+        const size_t K=N_L.size(), nn=size();
+        if (K==0 || ecut_L.size()!=K || V_L.size()!=K)
+            throw std::invalid_argument("IntegratePotentialPullback: the level fields, grids and cutoffs disagree in count");
+        if (D.rows()!=nn)
+            throw std::invalid_argument("IntegratePotentialPullback: D is "+std::to_string(D.rows())+" square for "+std::to_string(nn)+" functions");
+        if (!st) throw std::invalid_argument("IntegratePotentialPullback: the pullback needs the structure (the atoms the functions sit on)");
+        std::vector<rvec3_t> R; st->ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+        std::vector<size_t> atom(nn);
+        for (size_t i=0;i<nn;i++)
+        {
+            const rvec3_t c=radials[i]->GetCenter();
+            size_t best=R.size(); double d2=0.0;
+            for (size_t a=0;a<R.size();a++) { const rvec3_t d=R[a]-c; const double e=d*d; if (best==R.size() || e<d2) {best=a; d2=e;} }
+            if (best==R.size() || d2>1e-20)
+                throw std::logic_error("IntegratePotentialPullback: function "+std::to_string(i)+" sits on no site of the structure");
+            atom[i]=best;
+        }
+        qchem::report::Timed timer("force: gather pullback (jet walk)");
+        const std::vector<ShellPairTasks>& tl=BoxTasks(A);
+        const std::vector<Shell>& shells=Shells();
+        std::vector<std::pair<size_t,size_t>> sprs;   // enumerated exactly as BoxTasks and IntegratePotential do
+        for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) sprs.push_back({a,b});
+        auto pullShell=[&](size_t sp, rvec3vec_t& G)
+        {
+            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
+            const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
+            const size_t l=PairLevel(si.begin,sj.begin,ecut_L,0.0,0.0,relFieldSharp);
+            const rvec_t& V=V_L[l];
+            const double  w=A.GetCellVolume()/double(V.size());
+            rmat_t cij(nIs,nJs,0.0);   // the unit weight IntegratePotential presents with no screenD, on the pairs it gathers (j >= i)
+            for (size_t a=0;a<nIs;a++) for (size_t b=0;b<nJs;b++) if (sj.begin+b>=si.begin+a) cij(a,b)=1.0;
+            ScreenPlan plan;
+            std::vector<size_t> ia, jb; std::vector<double> c, acc;
+            for (const BoxTask& task : tl[sp].tasks)
+            {
+                screener.Screen(task.n,task.pf,cij,plan);
+                if (plan.Dead()) continue;
+                ia.clear(); jb.clear(); c.clear();
+                const dcmplx ph=phase(task.n);
+                for (size_t a=0;a<nIs;a++)
+                    for (size_t b=0;b<nJs;b++)
+                    {
+                        if (cij(a,b)==0.0 || !plan.Keeps(a,b)) continue;
+                        const size_t i=si.begin+a, j=sj.begin+b;
+                        const double cw=(i==j ? 1.0 : 2.0)*w*std::real(std::conj(dcmplx(D(i,j)))*ph);
+                        if (cw==0.0) continue;
+                        ia.push_back(a); jb.push_back(b); c.push_back(cw);
+                    }
+                if (c.empty()) continue;
+                acc.assign(6*c.size(),0.0);   // per kept pair: ∇ on the i side (3), on the j side (3)
+                ForShellPairBoxJets(si.begin,nIs,sj.begin,nJs,task.Roff,A,N_L[l],
+                                    [&](size_t idx, const PointJets& I, const PointJets& J)
+                {
+                    const double Vv=V[idx];
+                    for (size_t q=0;q<c.size();q++)
+                    {
+                        const double vJ=Vv*J.f[jb[q]], vI=Vv*I.f[ia[q]];
+                        double* o=&acc[6*q];
+                        o[0]+=vJ*I.g[0][ia[q]]; o[1]+=vJ*I.g[1][ia[q]]; o[2]+=vJ*I.g[2][ia[q]];
+                        o[3]+=vI*J.g[0][jb[q]]; o[4]+=vI*J.g[1][jb[q]]; o[5]+=vI*J.g[2][jb[q]];
+                    }
+                }, plan.Tolerance());
+                for (size_t q=0;q<c.size();q++)   // ∂/∂R = -∇ on each side
+                {
+                    const double* o=&acc[6*q];
+                    G[atom[si.begin+ia[q]]]-=c[q]*rvec3_t(o[0],o[1],o[2]);
+                    G[atom[sj.begin+jb[q]]]-=c[q]*rvec3_t(o[3],o[4],o[5]);
+                }
+            }
+        };
+        rvec3vec_t G(R.size(), rvec3_t(0,0,0));
+#ifdef QCHEM_OPENMP
+        if (const int nthreads=PairThreads(); nthreads>1)
+        {
+            const std::vector<size_t>& order=BoxTaskOrder(A);
+            std::exception_ptr firstEx;
+            #pragma omp parallel num_threads(nthreads)
+            {
+                rvec3vec_t Gt(R.size(), rvec3_t(0,0,0));
+                #pragma omp for schedule(dynamic)
+                for (size_t q=0;q<order.size();q++)
+                {
+                    try { pullShell(order[q], Gt); }
+                    catch (...)
+                    {
+                        #pragma omp critical (gpw_pair_throw)
+                        if (!firstEx) firstEx=std::current_exception();
+                    }
+                }
+                #pragma omp critical (gpw_pullback_reduce)
+                for (size_t a=0;a<R.size();a++) G[a]+=Gt[a];
+            }
+            if (firstEx) std::rethrow_exception(firstEx);
+            return G;
+        }
+#endif
+        for (size_t sp=0;sp<sprs.size();sp++) pullShell(sp, G);
+        return G;
     }
 
     // =========================== THE TRANSITION COLLOCATION (LinearResponsePlan §3d B1) ===========================

@@ -400,8 +400,18 @@ template <class T> class Vee_Fit
     : public virtual tDynamic_HT<T>
     , private        tDynamic_HT_Imp<T>
     , public         VeeFitCorners<T, Vee_Fit<T>>
+    , public virtual tGeometryGradient_HT<T>            // its force (§13.2; lane B 2026-11-09): Imp/Vee_Fit_Forces.C
+    , public virtual tStatic_PC<T>                      // the per-block pullback client DM_Pullback walks
+    , public         RealPullbackBase<T,Vee_Fit<T>>     // ... and on <dcmplx> the real TRIM block's
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/Vee_Fit_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<T>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const tDM_CD<T>* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const override
+    {return PullbackBlock<T>(bs, s, D, st);}
+    //! ONE pullback body for both block scalars (the native block, and on <dcmplx> the real TRIM block): the fitter's.  Public for the mixin.
+    template <class U> rvec3vec_t PullbackBlock(const tobs_t<U>* bs, const Spin&, const hmat_t<U>& D, const Structure* st) const;
     using FitPtr = std::unique_ptr<Fitting::FirstOrderDensityFit<T>>;
     //! \a responseFit: the CD fit basis the periodic response half projects δρ on (unused, and may be null, on a molecule).
     Vee_Fit(FitPtr fit, double numElectrons, std::shared_ptr<const BasisSet::FIT_CD_ABS<T>> responseFit=nullptr);
