@@ -287,15 +287,18 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
 · **Enzyme non-optional, then the energy path's hand derivatives move to Enzyme** (user ruling 2026-11-08; GeometryOptimizationPlan, the AD
   verdict).  **RULED 2026-11-09 (user, on the audit's 5 of ~30): Enzyme is REQUIRED** -- *"Seems like a small burden for a lot of
   functionality."*  Work in this order: (1) configure FAILS, with a clear message, when the plugin is missing (no OFF build); every tree
-  (Release, RelChecked, the lane trees, the GUI's) gets configured with it; (2) the hand derivatives below move to in-place AD
-  registrations, one family per commit, each behind its existing FD gate; the hand version is deleted.  While EnzymeAD/Enzyme#3747
-  (a SILENT wrong reverse-mode gradient) is open, every Enzyme derivative keeps its FD gate.  The principle is one derivative method for all derivatives, Enzyme.  Until Enzyme is a required toolchain, these stay hand-coded,
-  because a build without Enzyme still needs them:
+  (Release, RelChecked, the lane trees, the GUI's) gets configured with it -- **DONE (lane B 4c65d826)**: root `CMakeLists.txt` finds
+  `~/Code/Enzyme-main` by default, checks the pin 871de19f and runs a smoke derivative; a tree with an empty plugin cache finds it on
+  reconfigure; (2) the hand derivatives below move to in-place AD registrations, one family per commit, each behind its existing FD gate;
+  the hand version is deleted.  While EnzymeAD/Enzyme#3747 (a SILENT wrong reverse-mode gradient) is open, every Enzyme derivative keeps
+  its FD gate.  The principle is one derivative method for all derivatives, Enzyme.  These are still hand-coded:
   - the basis `Gradient(r)` faces (`PrimGaussian`, `GaussianRF`, PG_Cart `IrrepBasisSet`, ∇_r χ);
   - our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`).
 
-  New force derivatives are Enzyme only.  Next action: when the user makes Enzyme non-optional, move each one to an in-place AD registration
-  beside its value, behind an FD gate, and delete the hand version.  **TRIGGER (user 2026-11-08):** if the per-face FD gates of the force work
+  New force derivatives are Enzyme only.  Next action (lane B, under way): move each one to an in-place AD registration beside its value,
+  one family per commit, behind its existing FD gate, and delete the hand version.  While EnzymeAD/Enzyme#3747 is open every Enzyme
+  derivative keeps its FD gate; its trigger (a callee filling a loop-local array through an inner loop with a data-dependent trip count) is
+  common in `Gradient(r)` contraction loops.  **TRIGGER (user 2026-11-08):** if the per-face FD gates of the force work
   (lane B, §13.2) turn up a lot of testing and fixing in these hand gradient functions, that is the signal to make Enzyme non-optional NOW
   and use it consistently everywhere, rather than keep repairing hand derivatives.  The lane that hits it reports the count (gates failed,
   functions fixed) to the controller.

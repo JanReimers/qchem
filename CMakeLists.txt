@@ -238,35 +238,79 @@ set(CXX_SCAN_FOR_MODULES on)
 # See project_msym_layout_ub.
 option(QCHEM_RELCHECKED "Release codegen with asserts live + blaze bounds checks (no NDEBUG)" OFF)
 
-# QCHEM_ENZYME: the automatic-differentiation path (src/AD, qchem.AD; doc/GeometryOptimizationPlan.md, the AD spike).  Enzyme is
-# TOOLCHAIN and OPTIONAL (controller ruling 2026-11-08): OFF builds everything, and every AD gradient REFUSES with NoGradient (an
-# Outcome naming why); no hand-coded fallback derivative is kept beside the AD one.  ON needs an Enzyme built against THIS clang
-# (LLVM 21): -DQCHEM_ENZYME=ON -DQCHEM_ENZYME_PLUGIN=<build>/Enzyme/ClangEnzyme-21.so -DQCHEM_ENZYME_INCLUDE=<src>/enzyme/include.
-# The plugin rides ONLY qcAD's compile (it differentiates the kernels defined in its own TUs), so no other target's .pcm or
-# compile command changes.
-option(QCHEM_ENZYME "Build the Enzyme automatic-differentiation path (qchem.AD); OFF = AD gradients refuse with NoGradient" OFF)
-set(QCHEM_ENZYME_PLUGIN  "" CACHE FILEPATH "Enzyme's clang plugin, ClangEnzyme-<LLVM major>.so (QCHEM_ENZYME=ON)")
-set(QCHEM_ENZYME_INCLUDE "" CACHE PATH     "Enzyme's C++ headers, <Enzyme source>/enzyme/include (QCHEM_ENZYME=ON)")
-if(QCHEM_ENZYME)
-    if(NOT EXISTS "${QCHEM_ENZYME_PLUGIN}" OR NOT EXISTS "${QCHEM_ENZYME_INCLUDE}/enzyme/enzyme")
-        message(FATAL_ERROR "QCHEM_ENZYME=ON needs QCHEM_ENZYME_PLUGIN (ClangEnzyme-21.so) and QCHEM_ENZYME_INCLUDE (holding enzyme/enzyme); "
-                            "got '${QCHEM_ENZYME_PLUGIN}' and '${QCHEM_ENZYME_INCLUDE}'")
-    endif()
-    message(STATUS "QCHEM_ENZYME: AD on, plugin ${QCHEM_ENZYME_PLUGIN}")
+# ENZYME IS REQUIRED (user ruling 2026-11-09: "Yes I think we make it required. Seems like a small burden for a lot of
+# functionality.").  Enzyme (an LLVM plugin) differentiates the IR of the TUs that ask for a derivative (src/AD, and the per-file
+# registrations below; doc/GeometryOptimizationPlan.md, the AD spike; doc/Records/EnzymeSpike.md).  There is no build without it:
+# configure STOPS with a reason when the plugin is missing, built against another LLVM, older than the pin, or does not differentiate.
+#   QCHEM_ENZYME_PLUGIN   ClangEnzyme-<LLVM major>.so, built against THIS clang (found under ~/Code/Enzyme-main/build/Enzyme by default)
+#   QCHEM_ENZYME_INCLUDE  <Enzyme source>/enzyme/include (found under ~/Code/Enzyme-main by default)
+# PIN: Enzyme 871de19f (⊇ v0.0.308, which fixed the 2026-11-08 spike's loop-cache defect).  Configure checks the include tree's git
+# checkout holds that commit.  Two upstream defects stay open, so every Enzyme derivative keeps its finite-difference gate:
+# EnzymeAD/Enzyme#3747 (a silently wrong gradient: a callee filling a loop-local array through an inner loop with a data-dependent trip
+# count) and #3748 (a segfault under 256-bit vectors, hence -mprefer-vector-width=128 below).
+if(DEFINED CACHE{QCHEM_ENZYME})
+    unset(QCHEM_ENZYME CACHE)
+    message(STATUS "QCHEM_ENZYME is retired and ignored: Enzyme is required (user ruling 2026-11-09)")
 endif()
-# qchem_enzyme_sources(<target> <source>...): the TUs that REGISTER derivatives of their own leaf functions (doc/GeometryOptimizationPlan.md,
-# the AD verdict: each Imp TU differentiates its own leaves in place).  Under QCHEM_ENZYME they compile with the plugin, its headers and
-# the QCHEM_ENZYME macro, at -O2 -mprefer-vector-width=128 (after the tree's -O3, so they win): Enzyme 1a87ccc segfaulted at
-# -O2 -march=native (256-bit vectors) and gave a wrong adjoint in a shape its -O3 produced (doc/Records/EnzymeSpike.md).  -march stays (a
-# .pcm and its importers agree on target features); the flags cost the energy nothing measurable (the record §4 item 10).  Per FILE,
-# so no other TU of the target changes.  OFF: nothing, and the files' #ifdef QCHEM_ENZYME branches refuse with NoGradient.
-function(qchem_enzyme_sources target)
-    if(QCHEM_ENZYME)
-        set_source_files_properties(${ARGN} TARGET_DIRECTORY ${target} PROPERTIES
-            COMPILE_OPTIONS "-fplugin=${QCHEM_ENZYME_PLUGIN};-O2;-mprefer-vector-width=128"
-            COMPILE_DEFINITIONS QCHEM_ENZYME
-            INCLUDE_DIRECTORIES "${QCHEM_ENZYME_INCLUDE}")
+set(QCHEM_ENZYME_PIN 871de19f)
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(FATAL_ERROR "Enzyme is required and is a clang plugin; this compiler is ${CMAKE_CXX_COMPILER_ID}")
+endif()
+string(REGEX MATCH "^[0-9]+" _qchemLLVMMajor "${CMAKE_CXX_COMPILER_VERSION}")
+foreach(_v QCHEM_ENZYME_PLUGIN QCHEM_ENZYME_INCLUDE)   # an empty cached value (a tree configured before the ruling) searches again
+    if(DEFINED CACHE{${_v}} AND "${${_v}}" STREQUAL "")
+        unset(${_v} CACHE)
     endif()
+endforeach()
+find_file(QCHEM_ENZYME_PLUGIN ClangEnzyme-${_qchemLLVMMajor}.so HINTS "$ENV{HOME}/Code/Enzyme-main/build/Enzyme"
+          DOC "Enzyme's clang plugin, ClangEnzyme-<LLVM major>.so, built against this clang (required)")
+find_path(QCHEM_ENZYME_INCLUDE enzyme/enzyme HINTS "$ENV{HOME}/Code/Enzyme-main/enzyme/include"
+          DOC "Enzyme's C++ headers, <Enzyme source>/enzyme/include (required)")
+set(_qchemEnzymeHow "Build Enzyme ${QCHEM_ENZYME_PIN} against this clang (LLVM ${_qchemLLVMMajor}) and configure with\n"
+    "  -DQCHEM_ENZYME_PLUGIN=<Enzyme>/build/Enzyme/ClangEnzyme-${_qchemLLVMMajor}.so -DQCHEM_ENZYME_INCLUDE=<Enzyme>/enzyme/include\n"
+    "(the build recipe: doc/Records/EnzymeSpike.md).")
+if(NOT EXISTS "${QCHEM_ENZYME_PLUGIN}" OR NOT EXISTS "${QCHEM_ENZYME_INCLUDE}/enzyme/enzyme")
+    message(FATAL_ERROR "Enzyme is REQUIRED (user ruling 2026-11-09) and was not found:\n"
+        "  QCHEM_ENZYME_PLUGIN  = '${QCHEM_ENZYME_PLUGIN}' (want ClangEnzyme-${_qchemLLVMMajor}.so)\n"
+        "  QCHEM_ENZYME_INCLUDE = '${QCHEM_ENZYME_INCLUDE}' (want the directory holding enzyme/enzyme)\n" ${_qchemEnzymeHow})
+endif()
+# The pin: the include tree's checkout must hold QCHEM_ENZYME_PIN (Enzyme's own version number is not maintained in its CMake).
+get_filename_component(_qchemEnzymeSrc "${QCHEM_ENZYME_INCLUDE}/../.." ABSOLUTE)
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${_qchemEnzymeSrc}" merge-base --is-ancestor ${QCHEM_ENZYME_PIN} HEAD
+                    RESULT_VARIABLE _qchemPinRC OUTPUT_QUIET ERROR_QUIET)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${_qchemEnzymeSrc}" describe --tags --always
+                    OUTPUT_VARIABLE _qchemEnzymeRev OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(NOT _qchemPinRC EQUAL 0)
+        message(FATAL_ERROR "Enzyme at ${_qchemEnzymeSrc} ('${_qchemEnzymeRev}') does not hold the pinned commit ${QCHEM_ENZYME_PIN} "
+            "(⊇ v0.0.308: older Enzymes silently gave a wrong gradient in the 2026-11-08 spike).\n" ${_qchemEnzymeHow})
+    endif()
+else()
+    set(_qchemEnzymeRev "unverified: no git")
+    message(WARNING "Cannot check the Enzyme pin ${QCHEM_ENZYME_PIN} (no git); the smoke test below still runs")
+endif()
+# The smoke test: the plugin must load into this clang and differentiate (a plugin built against another LLVM fails here, not mid-build).
+try_run(_qchemEnzymeRun _qchemEnzymeCompile
+        SOURCES "${PROJECT_SOURCE_DIR}/cmake/EnzymeSmoke.cpp"
+        COMPILE_DEFINITIONS "-fplugin=${QCHEM_ENZYME_PLUGIN}" -O2 -mprefer-vector-width=128
+        CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${QCHEM_ENZYME_INCLUDE}"
+        COMPILE_OUTPUT_VARIABLE _qchemEnzymeCompileOut RUN_OUTPUT_VARIABLE _qchemEnzymeRunOut)
+if(NOT _qchemEnzymeCompile OR NOT _qchemEnzymeRun EQUAL 0)
+    message(FATAL_ERROR "The Enzyme plugin ${QCHEM_ENZYME_PLUGIN} does not differentiate under this clang (LLVM ${_qchemLLVMMajor}): "
+        "d(x^2)/dx at 3 gave '${_qchemEnzymeRunOut}' (want 6).\n${_qchemEnzymeCompileOut}\n" ${_qchemEnzymeHow})
+endif()
+message(STATUS "Enzyme: ${_qchemEnzymeRev} (pin ${QCHEM_ENZYME_PIN}), plugin ${QCHEM_ENZYME_PLUGIN}; smoke d(x^2)/dx = 6")
+# qchem_enzyme_sources(<target> <source>...): the TUs that REGISTER derivatives of their own leaf functions (doc/GeometryOptimizationPlan.md,
+# the AD verdict: each Imp TU differentiates its own leaves in place).  They compile with the plugin and its headers at -O2
+# -mprefer-vector-width=128 (after the tree's -O3, so they win): Enzyme 1a87ccc segfaulted at -O2 -march=native (256-bit vectors,
+# EnzymeAD/Enzyme#3748, still open at the pin) and gave a wrong adjoint in a shape its -O3 produced (doc/Records/EnzymeSpike.md).  -march
+# stays (a .pcm and its importers agree on target features); the flags cost the energy nothing measurable (the record §4 item 10).  Per
+# FILE, so no other TU of the target changes.
+function(qchem_enzyme_sources target)
+    set_source_files_properties(${ARGN} TARGET_DIRECTORY ${target} PROPERTIES
+        COMPILE_OPTIONS "-fplugin=${QCHEM_ENZYME_PLUGIN};-O2;-mprefer-vector-width=128"
+        INCLUDE_DIRECTORIES "${QCHEM_ENZYME_INCLUDE}")
 endfunction()
 
 # QCHEM_ARCH_EXPERIMENT: the -O3 / -march=native A/B (doc/OpenWork.md Step 3), OPT-IN and OFF by default.

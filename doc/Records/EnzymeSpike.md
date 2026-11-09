@@ -14,8 +14,11 @@ take dE/dD by AD and check it against the term's H (pin 32).  The verdict is in 
   2. The `/opt` `ld.lld` needs `libxml2.so.2`, which this box does not have (it has `.so.16`).  A private shim in `~/Code/Enzyme/build/lldshim/`
      fixes it: an `ld.lld` wrapper that sets `LD_LIBRARY_PATH`, plus `libxml2.so.2 -> /usr/lib/x86_64-linux-gnu/libxml2.so.16`.  lld uses
      libxml2 only for COFF manifests.  The build passes `--ld-path=<shim>/ld.lld` in the three `CMAKE_*_LINKER_FLAGS`.  Nothing system-wide changed.
-- **In qchem** the path is `-DQCHEM_ENZYME=ON -DQCHEM_ENZYME_PLUGIN=…/ClangEnzyme-21.so -DQCHEM_ENZYME_INCLUDE=…/enzyme/include`.  The default
-  is OFF, and then every AD gradient refuses with `NoGradient`.  The plugin flags ride `qcAD` only.  Toggling the option rebuilt `qcAD` and
+- **In qchem** the path was `-DQCHEM_ENZYME=ON -DQCHEM_ENZYME_PLUGIN=…/ClangEnzyme-21.so -DQCHEM_ENZYME_INCLUDE=…/enzyme/include`, default
+  OFF, and then every AD gradient refused with `NoGradient`.  **Superseded 2026-11-09: Enzyme is REQUIRED** (user ruling).  `QCHEM_ENZYME`
+  is retired; configure finds `~/Code/Enzyme-main` (871de19f, ⊇ v0.0.308, the same build recipe) by default, checks the pin and runs a
+  smoke derivative (root `CMakeLists.txt`, `cmake/EnzymeSmoke.cpp`).  The plugin flags ride `qcAD` and the files named by
+  `qchem_enzyme_sources` (e.g. `BeckePartition.C`), nothing else.  Toggling the old option rebuilt `qcAD` and
   nothing else: `ninja -n` claims ~600 objects, but that is a dry-run artifact of the dyndep step.
 
 ## 2. What was built

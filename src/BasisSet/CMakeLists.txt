@@ -76,7 +76,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
 target_include_directories(qcBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/src)
 set_property(TARGET qcBasisSet PROPERTY CXX_STANDARD 20)
 target_include_directories(qcBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
-target_link_libraries(qcBasisSet PUBLIC qcElConfig qcStructure qcMesh qcLASolver)
+target_link_libraries(qcBasisSet PUBLIC qcElConfig qcStructure qcMesh qcLASolver qcAD)   # qcAD: NoGradient, the derivative faces' refusal
 target_compile_definitions(qcBasisSet PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 add_subdirectory(Radial)      # the O(3) engine (was Atom/; TaxonomyPlan step 2)
 add_subdirectory(PlaneWave)   # the plane-wave engine: a leaf over the core (TaxonomyPlan 1a)

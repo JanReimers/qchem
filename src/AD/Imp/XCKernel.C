@@ -18,9 +18,7 @@ module;
 #include <stdexcept>
 #include <string>
 #include <vector>
-#ifdef QCHEM_ENZYME
 #include <enzyme/enzyme>
-#endif
 module qchem.AD.XCKernel;
 
 namespace qchem::AD
@@ -159,16 +157,11 @@ using namespace xc_detail;
 template <auto F, class C>
 void ReverseInto(const double* x, double* g, const C* c)
 {
-#ifdef QCHEM_ENZYME
     // Enzyme's CLASSIC entry: every argument's activity stated explicitly (enzyme_dup / enzyme_const).  The untyped function pointer
     // is Enzyme's ABI and stops here.  (Its tuple wrapper enzyme::autodiff is equivalent: a zero gradient once blamed on it was Enzyme's
     // loop-cache defect, doc/Records/EnzymeSpike.md §4.)
     __enzyme_autodiff<void>(reinterpret_cast<void*>(F), enzyme_dup, x, g, enzyme_const, c);
-#else
-    (void)x; (void)g; (void)c;
-#endif
 }
-NoGradient Unavailable() {return {"this build has no Enzyme (QCHEM_ENZYME=OFF): AD gradients are not available"};}
 
 //! The gradient of the whole energy in the \a n doubles at \a x: one block per call, the calls in parallel (each into its own row),
 //! the rows summed in block order.  \a C gets the block index from \a ctx(b).
@@ -201,26 +194,24 @@ double XCEnergy(const XCKernelData& d, const std::vector<double>& R)
     return Energy(R.data(), d.D.data(), d);
 }
 
-Outcome<rvec_t,NoGradient> XCEnergyGradientR(const XCKernelData& d, const std::vector<double>& R)
+rvec_t XCEnergyGradientR(const XCKernelData& d, const std::vector<double>& R)
 {
     Check(d,R);
-    if (!Available()) return Outcome<rvec_t,NoGradient>::Fail(Unavailable());
     // No alias of the active R in the constant context (Enzyme's activity analysis).
     const auto g=BlockGradient<KernelR>(R.data(), R.size(), d.nBlocks, [&](int b){ return Ctx{&d, nullptr, d.D.data(), b}; });
     rvec_t out(R.size());
     for (size_t i=0;i<R.size();i++) out[i]=g[i];
-    return Outcome<rvec_t,NoGradient>::Ok(std::move(out));
+    return out;
 }
 
-Outcome<rmat_t,NoGradient> XCEnergyGradientD(const XCKernelData& d, const std::vector<double>& R)
+rmat_t XCEnergyGradientD(const XCKernelData& d, const std::vector<double>& R)
 {
     Check(d,R);
-    if (!Available()) return Outcome<rmat_t,NoGradient>::Fail(Unavailable());
     const std::vector<double> D=d.D;   // a COPY: the active D is not the constant context's d.D
     const auto g=BlockGradient<KernelD>(D.data(), D.size(), d.nBlocks, [&](int b){ return Ctx{&d, R.data(), nullptr, b}; });
     rmat_t out(d.nbf, d.nbf);
     for (size_t i=0;i<d.nbf;i++) for (size_t j=0;j<d.nbf;j++) out(i,j)=g[i*d.nbf+j];
-    return Outcome<rmat_t,NoGradient>::Ok(std::move(out));
+    return out;
 }
 
 std::vector<double> XCKernelAOValues(const XCKernelData& d, const std::vector<double>& R, const rvec3_t& r)
@@ -240,17 +231,16 @@ double XCKernelBeckeWeight(const std::vector<double>& R, size_t owner, const rve
     return KernelBecke(R.data(), &c);
 }
 
-Outcome<rvec_t,NoGradient> XCKernelBeckeWeightGradient(const std::vector<double>& R, size_t owner, const rvec3_t& u, int k)
+rvec_t XCKernelBeckeWeightGradient(const std::vector<double>& R, size_t owner, const rvec3_t& u, int k)
 {
     const size_t n=R.size()/3;
     if (n>kMaxAtoms || owner>=n) throw std::invalid_argument("XCKernelBeckeWeightGradient: owner or atom count out of range");
-    if (!Available()) return Outcome<rvec_t,NoGradient>::Fail(Unavailable());
     const BeckeCtx c{n, owner, {u.x, u.y, u.z}, k};
     std::vector<double> g(R.size(), 0.0);
     ReverseInto<KernelBecke>(R.data(), g.data(), &c);
     rvec_t out(R.size());
     for (size_t i=0;i<R.size();i++) out[i]=g[i];
-    return Outcome<rvec_t,NoGradient>::Ok(std::move(out));
+    return out;
 }
 
 } // namespace qchem::AD

@@ -33,17 +33,15 @@ TEST(XCKernelAD, ItsGradientsAreItsFiniteDifferences)
     const AD::XCKernelData d=Small();
     const auto gR=AD::XCEnergyGradientR(d, R0);
     const auto gD=AD::XCEnergyGradientD(d, R0);
-    if (!AD::Available()) { EXPECT_FALSE(gR); EXPECT_FALSE(gD); return; }
-    ASSERT_TRUE(gR && gD);
     const double h=1e-5;
     for (size_t i=0;i<R0.size();i++)
     {
         auto p=R0, m=R0; p[i]+=h; m[i]-=h;
-        EXPECT_NEAR((*gR)[i], (AD::XCEnergy(d,p)-AD::XCEnergy(d,m))/(2*h), 1e-8) << "dE/dR " << i;
+        EXPECT_NEAR(gR[i], (AD::XCEnergy(d,p)-AD::XCEnergy(d,m))/(2*h), 1e-8) << "dE/dR " << i;
     }
     for (size_t i=0;i<d.nbf;i++) for (size_t j=0;j<d.nbf;j++)
     {
         auto p=d, m=d; p.D[i*d.nbf+j]+=h; m.D[i*d.nbf+j]-=h;
-        EXPECT_NEAR((*gD)(i,j), (AD::XCEnergy(p,R0)-AD::XCEnergy(m,R0))/(2*h), 1e-8) << "dE/dD " << i << j;
+        EXPECT_NEAR(gD(i,j), (AD::XCEnergy(p,R0)-AD::XCEnergy(m,R0))/(2*h), 1e-8) << "dE/dD " << i << j;
     }
 }
