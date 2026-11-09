@@ -289,6 +289,22 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
   (lane B, §13.2) turn up a lot of testing and fixing in these hand gradient functions, that is the signal to make Enzyme non-optional NOW
   and use it consistently everywhere, rather than keep repairing hand derivatives.  The lane that hits it reports the count (gates failed,
   functions fixed) to the controller.
+  **AUDIT DONE (lane B 2026-11-09): 5 wrong of ~30 live hand gradients.**  Every family now has an FD gate against its own values:
+  - `GeometryDerivatives.EveryPointGaussian…` (PG_Spherical, PG_LibCint, SALC);
+  - `RadialHandGradient.*` (Slater, Gaussian, BSpline, BSpline r^l, both Dirac RKB);
+  - `HandGradient.EveryLatticeFamilys…` (PW, LAPW, APW, GPW, the spherical view);
+  - `SeedHandGradient.*` (NumericCD, SeedCD, PolarizedSeedCD);
+  - `HandGradient.TheConvergedStates…` (ρ, m, every MO; free and SALC).
+
+  The 5 wrong:
+  - the 2026-11-08 `PrimGaussian` sign;
+  - `BSpline::Evaluator_r` (s′ for s/r);
+  - the Dirac block's `Gradient`, which added L and S where `operator()` stacks them;
+  - both `RKBS_Evaluator`s, which missed f′g.
+
+  All four new ones are in the atom (radial) families, which the ⟨∇φ|∇φ⟩ kinetic gates cannot see.  None was on an energy path.  Six
+  silent zero-gradient stubs now throw by name, and `HalfDensity` is exact.  XC `GetVxc`/`GetFxc` were already gated (vs libxc; FD
+  kernels).
 · **Enzyme's silent failures are unreported upstream** (lane B 2026-11-08; `doc/Records/EnzymeSpike.md` §4, §6).  Two defects, each with a
   self-contained repro and a DRAFT issue (record §6):
   - (A) a wrong reverse-mode gradient, silent, at any `-O`: a loop-local array filled through an inner loop with a data-dependent trip
