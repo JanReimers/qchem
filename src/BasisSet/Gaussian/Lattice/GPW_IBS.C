@@ -132,7 +132,7 @@ public:
     tGPW_IBS(const UnitCell& cell, const sym_t& irrep,
             std::shared_ptr<const BasisSet::Real_BS> mol, std::shared_ptr<const GpwRasterLadder> ladder,
             CellImages images = CellImages::Periodic,
-            std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {},   //!< crystal direct ops {W|τ} for the IBZ Vxc-raster star-average
+            std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {},   //!< crystal direct ops {W|τ} for the T1 {G}-star fold
             const GPWTolerances& tol = {});                               //!< the typed numerical tolerances (D-ENV step 5)
 
     //! \brief A block built BARE (the unit tests): its OWN ladder from \a densityEcut (\f$<0\f$ AUTO floor
@@ -203,8 +203,8 @@ protected:
     virtual PairProjection<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
     virtual PairProjection<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS& c) const override;
 
-    // (The ctor-injected crystal ops live on GPW_Evaluator -- SetSymmetryOps/SymmetryOps: ONE storage for
-    //  the T1 {G}-star fold and the Vxc-raster star-average.)
+    // (The ctor-injected crystal ops live on GPW_Evaluator -- SetSymmetryOps/SymmetryOps: the T1 {G}-star fold's.  The
+    //  raster star-average is the run's group's since 2026-11-09, not the basis's.)
 private:
     //! THROWS unless \a bra is built over my molecular AOs and \a rows x \a cols is bra x ket (finding 6).
     void CheckTransitionPair(const BasisSet::Transition_DFT_IBS& bra, size_t rows, size_t cols) const;

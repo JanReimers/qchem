@@ -20,7 +20,7 @@ export import qchem.BasisSet.Orbital_DFT_IBS;   // Orbital_DFT_IBS<U,TFit> (the 
 export import qchem.Mesh.Integrator;            // MatrixForward<U>
 export import qchem.ScalarFunction;             // ScalarFunction<double> (a matrix-free density's field)
 export import qchem.Projections;                // what a density returns
-export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // ReciprocalOp (the k-composite's IBZ star-average)
+export import qchem.Symmetry.StarGroup;   // StarGroup (the k-composite's IBZ star-average)
 
 export namespace qchem::BasisSet
 {
@@ -55,11 +55,12 @@ public:
     //! \copydoc PairProjector<double>::Zero -- the default is the vector realization (δ points, occupations); a G-space projector
     //! overrides it with an empty map.
     virtual Projections Zero() const {return Projections(rvec_t(NumCoefficients(), 0.0));}
-    //! \brief Star-average \a p over the crystal point group \a ops, IN THIS BASIS'S OWN TERMS: a k-composite summing its
-    //! IBZ blocks asks it, because it owns the ops but not the basis.  Only the basis knows how its functions transform:
-    //! a plane-wave basis permutes its G's (\c SymmetrizeGMap); a \f$\delta\f$ basis on a site-adapted invariant mesh, or
-    //! an occupation axis, is already symmetric there, so the default does nothing -- which is today's behaviour for both.
-    virtual void StarAverage(Projections& /*p*/, const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& /*ops*/) const {}
+    //! \brief Star-average \a p over \a group, IN THIS BASIS'S OWN TERMS: a k-composite summing its IBZ blocks asks it,
+    //! because it holds the group but not the basis.  The group iterates its own ops (\c Symmetry::StarGroup::StarAverage);
+    //! only the basis knows how its projections transform under one: a plane-wave basis wraps them as a G-map field
+    //! (\c GMapStarField); a \f$\delta\f$ basis on a site-adapted invariant mesh, or an occupation axis, is already
+    //! symmetric there, so the default does nothing -- which is today's behaviour for both.
+    virtual void StarAverage(Projections& /*p*/, const Symmetry::StarGroup& /*group*/) const {}
 };
 
 //! \brief A field that knows its own FOURIER COMPONENTS on a plane-wave basis -- a generic \c ScalarFunction capability (user

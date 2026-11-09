@@ -664,8 +664,7 @@ RestoreDensity(const SavedState& st, const BasisSet::Complex_BS& bs, SpinGroup g
             else              Symmetry::ProjectSpinPair(*imp, *refs[b].cplx, Dc[b], Dc[b+N]);
         }
     }
-    auto cd=std::make_unique<tComposite_CD<dcmplx>>(bs.GetImposition() ? bs.GetImposition()->DensityStarOps()
-                                                                         : std::vector<Symmetry::Lattice_3D::ReciprocalOp>{});
+    auto cd=std::make_unique<tComposite_CD<dcmplx>>(bs.GetImposition() ? bs.GetImposition()->DensityGroup() : nullptr);
     for (size_t b=0;b<refs.size();b++)
     {
         const BlockRef& r=refs[b];

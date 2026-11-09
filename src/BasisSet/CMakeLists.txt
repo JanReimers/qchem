@@ -42,6 +42,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Orbital_1E_IBS.C
   ImplicitAngular_IBS.C
   G_FieldEvaluator.C
+  G_RasterStarField.C                   # a raster field the density group star-averages (V-SYM-SEQUESTER-OPS; 2026-11-09)
   Orbital_HF_IBS.C
   Orbital_DFT_IBS.C
   Transition_DFT_IBS.C                  # the (k+q, k) transition-density faces (LinearResponsePlan B2)

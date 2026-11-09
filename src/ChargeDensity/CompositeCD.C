@@ -11,7 +11,7 @@ import qchem.Structure;   // DM_Pullback (GeometryOptimizationPlan §13.2)
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.DensityMatrixDistance;
 export import qchem.ChargeDensity.RasterDensity;    // the raw-raster face (summed over k-blocks)
-export import qchem.Symmetry.Lattice_3D.SpaceGroup; // ReciprocalOp {U|τ} -- the IBZ density-symmetrization ops (glide phase)
+export import qchem.Symmetry.StarGroup;             // StarGroup -- the IBZ density star-average group
 export import qchem.Symmetry.Irrep;                 // the block label (spatial ⊗ ms)
 
 
@@ -104,12 +104,13 @@ template <class T> class tComposite_CD
     , public CompositeHFBase<T,tComposite_CD<T>>        // whole-system exact exchange: real path only (V1.6)
 {
 public:
-    //! \a pointOps = the reciprocal point group for IBZ density symmetrization (doc/GPWPlan1.md item 3).  The
-    //! G-space density accessors then return the STAR AVERAGE, which is what makes an IBZ-reduced density exact
-    //! (the star weights alone give only the correct band sum).  Default {} = trivial group {E} = exact no-op
-    //! -- molecules / Γ / unreduced crystals pass through untouched (the general form; "no symmetry" = trivial).
-    //! It is a ctor argument, not a setter: the symmetry is a fixed property of the density, set once at build.
-    explicit tComposite_CD(std::vector<Symmetry::Lattice_3D::ReciprocalOp> pointOps = {});
+    //! \a group = the point group for IBZ density symmetrization (doc/GPWPlan1.md item 3), which I ASK to star-average
+    //! (ρ̃ through the projector, the raster through its engine; V-SYM-SEQUESTER-OPS): the density accessors then return the
+    //! STAR AVERAGE, which is what makes an IBZ-reduced density exact (the star weights alone give only the correct band
+    //! sum).  Default null = trivial group {E} = exact no-op -- molecules / Γ / unreduced crystals pass through untouched
+    //! (the general form; "no symmetry" = trivial).  It is a ctor argument, not a setter: the symmetry is a fixed property
+    //! of the density, set once at build.
+    explicit tComposite_CD(std::shared_ptr<const Symmetry::StarGroup> group = nullptr);
     ~tComposite_CD();
     //! TAKES OWNERSHIP of \a cd (V1.25), labelled by its FULL irrep \a qns (spatial ⊗ ms -- the spin is
     //! what the channel views filter on).  TWO overloads, one per child scalar (doc/RealComplexPlan.md
@@ -153,7 +154,7 @@ public:
     virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const;  //Max over blocks of MaxAbs(delta density matrix)
     virtual double SquaredDistanceTo(const tMixableDensity<T>&   ) const;  //Sum over blocks of Tr(dD S dD S)
     virtual double Dot          (const tMixableDensity<T>&       ) const;  //Sum over blocks of Re Tr(A^dagger B)
-    //! A deep, untracked copy: same point ops, a copy of every block (a view copies into an OWNING composite).
+    //! A deep, untracked copy: same group, a copy of every block (a view copies into an OWNING composite).
     virtual std::unique_ptr<tMixableDensity<T>> MakeCopy() const;
 
     virtual double operator()(const rvec3_t&) const;
@@ -169,8 +170,8 @@ private:
 
     //! One block: its full label and the (non-owning) block density.
     struct Block { Irrep qns; cd_ref_t cd; };
-    //! A VIEW: non-owning, over \a blocks, sharing the parent's point ops.  Only GetChannel builds one.
-    tComposite_CD(std::vector<Block> blocks, const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& pointOps);
+    //! A VIEW: non-owning, over \a blocks, sharing the parent's group.  Only GetChannel builds one.
+    tComposite_CD(std::vector<Block> blocks, std::shared_ptr<const Symmetry::StarGroup> group);
     //! One contiguous run of same-spin blocks in the walk (the HF sweep's unit; also what the views filter on).
     struct Group { Spin s; size_t begin, end; };
     std::vector<Group> Groups() const;
@@ -179,7 +180,7 @@ private:
 
     std::vector<cd_child_t> itsOwned;    // ownership (EMPTY in a view); the §4 child slot, per-block scalar
     std::vector<Block>      itsBlocks;   // the walk order: insertion == the basis order, per spin irrep
-    std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsPointOps;   //!< reciprocal {U|τ} point group for IBZ symmetrization ({E} when empty)
+    std::shared_ptr<const Symmetry::StarGroup> itsGroup;          //!< the IBZ star-average group (null = {E})
     std::map<Spin,std::unique_ptr<tComposite_CD>> itsChannels;     //!< the channel views (empty in a view / single-spin set)
 };
 

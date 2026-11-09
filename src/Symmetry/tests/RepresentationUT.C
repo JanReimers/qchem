@@ -71,9 +71,8 @@ mat_t<dcmplx> DenseOf(const MonomialRepresentation::Monomial& m)
 struct TestImposition : public SymmetryImposition
 {
     std::vector<SymOp> pair;
-    std::vector<Lattice_3D::ReciprocalOp> star;
     const std::vector<SymOp>& SpinPairOps() const override {return pair;}
-    const std::vector<Lattice_3D::ReciprocalOp>& DensityStarOps() const override {return star;}
+    std::shared_ptr<const StarGroup> DensityGroup() const override {return nullptr;}
 };
 }
 
