@@ -1844,3 +1844,33 @@ record kept.  The postSCF audits return `Outcome<GridAuditResult, ResourceRefusa
 deck key `solid.auditFootprint`.  Not calibrated: a polarized run, a PlaneWave Vxc fit, a non-imposed Becke mesh.  The
 mid-pilot refusal paths (round > 1, a climb rung) have no deterministic test; the two doors that do (preflight, postSCF) are
 `AuditFootprint.*` in UTCalculation.
+
+## ✅ D-DEGEN-FILL: a partly filled degenerate level at kT = 0 (lane A, 2026-11-08, 675bf14b8)
+
+Row opened by lane S (2172f88d7, on its 3b branch): at kT = 0 a merged degenerate level that nothing stated was filled orbital by
+orbital in the eigensolver's order, so D depended on roundoff (`PW_NaF.Γ_Anchor` 4 e⁻ into a 3-orbital level as 2+2+0; on lane
+S's 3b tree the run never converged).  User rulings 2026-11-08: keep the OccupationPolicy framework -- each option its own
+`OccupancyRule`, chosen by a value in `OccupationConfig`, reachable from the deck, the default a facade policy reporting itself as
+one `choose` row; HF defaults to the integer fill ("does one of B give the lower symmetry, lower energy? If so then B": Boron
+UHF/dzvp shared −24.40769 vs integer −24.525932, the same-spin self-interaction a fractional HF occupation pays); option C (an HF
+warning row) dropped ("C will confuse users"); a STATED configuration (MOM, a held fill, Atom_EC per m) wins exactly.
+
+Landed: `IntegerOccupancy` / `SharedDegenerateOccupancy` (`OccupationConfig::degenerate`, width = `SCFParams::MergeTol`); the one
+kernel `qchem::Orbitals::ShareDegenerateLevels` for the per-block fill and the ranked molecular reservoir (a level split over
+irreps is one level); `SCFParams::DegenerateLevels` = deck key `degenerateLevelFill` (Auto | OrbitalByOrbital | Shared), Auto
+decided in `qchem.DegenerateFillReport` (DFT and solids share, HF integer).  Found on the way: GDM's `ComputeStep` took one held
+integer step on a non-idempotent D' (now refused, like `Ready`); a declined direct minimiser's adaptive linear fallback is capped at
+`DeclinedDirectMinRelax` 0.25; the iterator's constructor fills a fresh seed under the default rule, so a Shared run refills it at
+the first Iterate (re-running Init instead pushed the seed Fock into DIIS twice: NaF "converged" at iteration 1).  Two fill-order
+traps the landing sweep caught: the reservoir hands orbitals over irrep by irrep (water C2v HF filled 5A1 over 1B1, +3.24 Ha), so
+it states its aufbau as a −energy rank; and a rankless fill must keep the STORED order, which for GDM is its leading occupied block
+(an energy re-sort moved the MnO dimer off GDM's manifold).
+
+Gates: `PW_NaF.Γ_Anchor` IonicSAD 16 / Uniform 28 iterations, one state (1.2e-9 Ha apart, test tightened to 1e-7);
+`GPW_Al.Γ_Imp_Converges` −1.9212152506 in 9 (main −1.9212127589 in 14, the state lane S's 3b reaches); Boron UHF Ladder / PureGDM
+on the −24.5259316 anchor; `M_Calculation.BoronLDASharedLevelGDMDeclines` (the GDM interplay).  Sweep (vs lane-a-e): short 1369/1369,
+moves Si2_PP_U.LargeSeparation −0.605 (a BoundedSCF 2-iteration iterate; its claim reads Enn), GPW_Al −2.49e-6, GPW_NaF Becke
++1.9e-9 and ExactResume −2e-10 (noise), iterations only on PW_NaF 108→88, GPW_SiBox eqUnfolded 122→75 / eqFinite 74→52; long 13/13,
+iterations only NaF Becke-mesh 31→29, LiF XCMeshAudit 42→54; panel at 4 threads vs main-c153c0fb: only the MnO dimer GDM case
+moved, restored bit-identical by its deck stating OrbitalByOrbital; TiO₂ k222 59 vs 49 as on main (now on QCHEM_PANEL_RED).
+Remainders → OpenWork §3: HF + stated Shared starts from an integer sibling seed; a stated GDM on a solid meets the shared default.
