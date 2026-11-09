@@ -294,6 +294,10 @@ PairProjection<dcmplx> GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const Pl
     // backward: the COULOMB integral <i|1/r|G> = k(G)<i|G|j>, the physics round (doc/Records/VOneOfN_D2Design.md §1a (A))
     g.applyAdjoint=[integ=MakeIntegrator(grid), recip=grid->Recip()](const std::function<dcmplx(const ivec3_t&)>& f) -> chmat_t
         {return integ([&](const ivec3_t& dm){return recip.CoulombKernel(dm)*f(dm);});};
+    // ... and its derivative, the same kernel applied (the Hartree force at fixed D, §13.2)
+    g.applyAdjointPullback=[pull=MakeIntegratorPullback(grid), recip=grid->Recip()]
+        (const std::function<dcmplx(const ivec3_t&)>& f, const chmat_t& D, const Structure* st) -> rvec3vec_t
+        {return pull([&](const ivec3_t& dm){return recip.CoulombKernel(dm)*f(dm);}, D, st);};
     return g;
 }
 // Overlap 3-centre tensor: the same analytic map, no kernel (the density's own rho-tilde).
@@ -304,6 +308,7 @@ PairProjection<dcmplx> GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const Plan
     for (const ivec3_t& dm : grid->Gs()) g.columns.push_back({dm,{}});
     g.apply       =MakeCollocator(grid);                    // forward: D -> rho-tilde
     g.applyAdjoint=MakeIntegrator(grid);                    // backward: v_xc-tilde -> <i|v_xc|j>
+    g.applyAdjointPullback=MakeIntegratorPullback(grid);    //           ... its derivative at fixed D (§13.2)
     g.applyRaw       =MakeRawCollocator(grid);              // 0.5(f2): D -> rho_DM(r) raw (XC feed)
     g.applyRawAdjoint=MakeRawIntegrator(grid);              //          v(r) -> <i|v|j> (exact transpose)
     return g;
@@ -368,6 +373,36 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator
         return h;
     };
 }
+// The derivative of MakeIntegrator's closure at fixed D (§13.2; lane B 2026-11-09): the SAME ladder from the SAME fit grid, the SAME
+// spectral restriction of the field to each level, then the gather's pullback on the SAME screener and relative rule.  No memo: a force
+// is asked once per geometry.
+std::function<rvec3vec_t(const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure*)>
+GPW_Evaluator::MakeIntegratorPullback(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
+{
+    RasterLevels lad=itsLadder->MakeLevels(grid);
+    auto levels=std::move(lad.levels);
+    auto N_L=std::move(lad.N);
+    auto ecut_L=std::move(lad.ecut);
+    const UnitCell A = itsCell;
+    auto mol   = itsMol;                                    // keep the molecular basis (lat) alive in the closure
+    const Gaussian::Periodic_Gaussian_IBS* lat = itsLat;
+    auto phase = CellPhase();
+    auto screen= itsScreener;
+    return [A,levels,N_L,ecut_L,mol,lat,phase,screen,relFS=itsRelFieldSharp]
+        (const std::function<dcmplx(const ivec3_t&)>& Vtilde, const chmat_t& D, const Structure* st) -> rvec3vec_t
+    {
+        const size_t K=levels.size();
+        std::vector<rvec_t> V_L(K);
+        for (size_t L=0;L<K;L++)
+        {
+            ΔG_Map vmapL;
+            for (const ivec3_t& dm : levels[L]->Gs()) vmapL[dm]=Vtilde(dm);   // restrict to level L's {G}, as MakeIntegrator does
+            V_L[L]=levels[L]->RhoOnGrid(vmapL);
+        }
+        return lat->IntegratePotentialPullback(V_L, D, phase, A, N_L, ecut_L, *screen, relFS, st);
+    };
+}
+
 // doc/GPWPlan 0.5(f2): spectral transfer between two FFT rasters, in ForwardFFT coefficient layout.
 // Copies every mode in the ALIAS-FREE band of BOTH boxes (2|m| < N per axis on each side -- the same strict
 // band RhoOnGrid/GridCoeff speak) and drops the rest: source->finer = exact zero-pad upsampling of the

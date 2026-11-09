@@ -69,6 +69,12 @@ public:
         if (itsV.size()==0) throw std::logic_error("GridDensityFitter: asked for a repulsion before any DoFit");
         return Integrator(orb).Adjoint(itsV);   // sum_g w_g v_g chi_i chi_j
     }
+    //! REFUSED: a δ mesh's points ride with the atoms (the Becke partition and the radial shells move), so the fixed-D derivative of
+    //! this repulsion carries the moving-mesh terms (V-NONLINEAR-MESH), which no face here gives yet.
+    bool CanPullbackRepulsion(const BasisSet::Orbital_DFT_IBS<double,double>&) const override {return false;}
+    Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<double,double>&, const hmat_t<double>&,
+                                                             const Structure*) const override
+    {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"a delta-mesh density fit gives no repulsion pullback yet (its mesh moves with the atoms)"});}
     double Integral() const override
     {
         double n=0.0;

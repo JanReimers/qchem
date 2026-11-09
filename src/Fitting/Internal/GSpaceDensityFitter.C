@@ -28,6 +28,7 @@ import qchem.BasisSet.G_FieldEvaluator;         // G_PoissonKernel, G_RasterTran
 import qchem.Blaze;                             // blazem::NarrowExact
 import qchem.Parallel;                          // LazyLock -- the per-block caches' guard
 import qchem.Reporting;                         // report::Timed
+import qchem.Structure;                         // the pullbacks' atoms
 
 export namespace qchem::Fitting
 {
@@ -82,7 +83,34 @@ public:
         return it==itsRho.end() ? 0.0 : itsVolume*std::real(it->second);
     }
 
+    //! The pullback of the physics round at my FIXED ρ̃: the fit functions are plane waves (no centre), so only the block's moving
+    //! centres contribute, through the Coulomb tensor's own derivative realization (GPW: the jet walk of the gather; a plane-wave
+    //! block: exactly zero).  A real TRIM block's D is promoted: the tensor is complex for both block scalars.
+    bool CanPullbackRepulsion(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return RealisesAdjointPullback(orb.Repulsion3C(*itsCD));}
+    bool CanPullbackRepulsion(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return RealisesAdjointPullback(orb.Repulsion3C(*itsCD));}
+    Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb, const hmat_t<double>& D,
+                                                             const Structure* st) const override
+    {
+        chmat_t Dc(D.rows());
+        for (size_t i=0;i<D.rows();i++) for (size_t j=i;j<D.rows();j++) Dc(i,j)=dcmplx(D(i,j),0.0);
+        return RepulsionPullbackT(orb, Dc, st);
+    }
+    Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb, const hmat_t<dcmplx>& D,
+                                                             const Structure* st) const override
+    {return RepulsionPullbackT(orb, D, st);}
+
 private:
+    template <class U> Outcome<rvec3vec_t,AD::NoGradient> RepulsionPullbackT(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb, const chmat_t& D,
+                                                                             const Structure* st) const
+    {
+        RequireFit("a repulsion pullback");
+        const PairProjection<dcmplx>& g=orb.Repulsion3C(*itsCD);
+        if (!RealisesAdjointPullback(g))
+            return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the block "+orb.Name()+"'s Coulomb tensor against the plane-wave fit gives no pullback"});
+        const ΔG_Map& rho=itsRho;
+        return Outcome<rvec3vec_t,AD::NoGradient>::Ok(ContractAdjointPullback(g, [&rho](const ivec3_t& dm)->dcmplx
+            { auto it=rho.find(dm); return it==rho.end() ? dcmplx(0.0) : it->second; }, D, st));
+    }
     void RequireFit(const char* what) const
     { if (!itsFitted) throw std::logic_error(std::string("GSpaceDensityFitter: asked for ")+what+" before any DoFit"); }
     //! The PHYSICS round: my private ρ̃ contracted with the fit basis's Coulomb 3-centre integrals (k applied in its adjoint).

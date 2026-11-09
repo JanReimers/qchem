@@ -17,6 +17,7 @@
 // collocation feed and is gated with the 3c-2 SCF wiring.
 #include "gtest/gtest.h"
 #include <algorithm>
+#include <cstdio>
 #include <cmath>
 #include <complex>
 #include <memory>
@@ -712,4 +713,57 @@ TEST(RealComplexTerms, AClientWithoutARealPullbackFaceThrowsByNameOnARealChild)
     const ComplexOnly client;
     try { rig.Mixed()->DM_Pullback(&client, &rig.cell); FAIL() << "a real child walked by a complex-only client must throw"; }
     catch (const std::logic_error& e) { EXPECT_NE(std::string(e.what()).find("tStatic_PC<double>"), std::string::npos) << e.what(); }
+}
+
+// THE GPW HARTREE FORCE AT THE TERM (GeometryOptimizationPlan §13.2; lane B 2026-11-09): Vee_Fit<dcmplx> on the plane-wave fit has its
+// force face, MissingGradient is empty for a Bloch AND a real TRIM GPW block, and the two arms give the same force (the real child walked
+// through the term's tStatic_PC<double> face, its D promoted onto the same complex Coulomb tensor).  The force is the tensors' pullback,
+// gated against the energy's finite difference in UTLattice_BS (GPW_Force); here the PHYSICS check is translation: E_H at fixed D does
+// not move when every atom moves together, so the per-atom forces sum to the raster's egg-box while each one does not.
+TEST(RealComplexTerms, TheGPWHartreeForceWalksBothBlockScalarsAndSumsToTheEggBox)
+{
+    UnitCell cell(8.0);
+    cell.AddAtom(14,{0.40,0.50,0.50});
+    cell.AddAtom(14,{0.62,0.55,0.47});
+    namespace M = qchem::BasisSet::Gaussian;
+    std::shared_ptr<const Real_BS> mol(M::Factory(M::BasisSetData::SIPP, &cell, M::Engine::MnD, M::Angular::Cartesian));
+    tGPW_IBS<double> re(cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+    tGPW_IBS<dcmplx> cx(cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+    const size_t n=cx.GetNumFunctions();
+    rsmat_t Dr(n); chmat_t Dc(n);
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<=i;j++) { const double d=std::sin(1.0+i+2.0*j)/(1.0+i+j); Dr(i,j)=Dr(j,i)=d; Dc(j,i)=dcmplx(d,0.0); }
+    using namespace qchem::ChargeDensity;
+    auto cdc=std::make_unique<tComposite_CD<dcmplx>>();
+    cdc->Insert(std::unique_ptr<tDM_CD<dcmplx>>(new PeriodicIrrepCD<dcmplx>(Dc, &cx, cx.GetIrrep(Spin::None))), cx.GetIrrep(Spin::None));
+    auto cdr=std::make_unique<tComposite_CD<dcmplx>>();
+    cdr->Insert(std::unique_ptr<tDM_CD<double>>(new PeriodicIrrepCD<double>(Dr, &re, re.GetIrrep(Spin::None))), re.GetIrrep(Spin::None));
+
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(cx.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
+    Vee_Fit<dcmplx> vh(Fitting::MakeGSpaceDensityFitter(fb), 0.0, fb);
+    const qchem::tests::pw::OneBlockBS<dcmplx> cxBS(&cx), reBS(&re);
+    EXPECT_EQ(vh.MissingGradient(&cxBS, &cell), "") << "a Bloch GPW block has the Hartree force";
+    EXPECT_EQ(vh.MissingGradient(&reBS, &cell), "") << "a real TRIM GPW block has the Hartree force";
+
+    rvec3vec_t Fc(2, rvec3_t(0,0,0)), Fr(2, rvec3_t(0,0,0));
+    RefreshTerm(static_cast<const cDynamic_HT&>(vh), cdc.get(), &cx);
+    vh.AddForces(Fc, cdc.get(), &cell);
+    RefreshTerm(static_cast<const cDynamic_HT&>(vh), cdr.get(), &re);
+    vh.AddForces(Fr, cdr.get(), &cell);
+    double big=0.0, d=0.0;
+    rvec3_t sum(0,0,0);
+    for (size_t A=0;A<2;A++)
+    {
+        big=std::max({big, std::fabs(Fc[A].x), std::fabs(Fc[A].y), std::fabs(Fc[A].z)});
+        d  =std::max({d, std::fabs(Fc[A].x-Fr[A].x), std::fabs(Fc[A].y-Fr[A].y), std::fabs(Fc[A].z-Fr[A].z)});
+        sum=sum+Fc[A];
+        std::printf("  [GPW Hartree force] atom %zu  (% .10e, % .10e, % .10e)\n", A, Fc[A].x, Fc[A].y, Fc[A].z);
+    }
+    const double s=std::max({std::fabs(sum.x), std::fabs(sum.y), std::fabs(sum.z)});
+    std::printf("  [GPW Hartree force] max|F| %.3e  |F_complex - F_real| %.2e  |Σ F| %.3e\n", big, d, s);
+    ASSERT_GT(big, 1e-3) << "a vanishing force cannot show the term is wired";
+    EXPECT_LT(d, 1e-12*big) << "the real TRIM block and the Bloch block give different Hartree forces";
+    // MEASURED 2026-11-09 (|Σ F| / max|F|): Ecut 10 -> 1.0e-1, 20 -> 1.3e-4, 40 -> 5.3e-5.  It falls with the grid, so it is the DISCRETE
+    // energy's egg-box (the force is that energy's exact derivative: GPW_Force, M_CollocationPullback), floored by the ladder's relative
+    // level rule, not by this code.  The bound catches a missing or doubled side (which would leave Σ F of order max|F|).
+    EXPECT_LT(s, 1e-3*big) << "a rigid translation at fixed D must cost the Hartree energy only the raster's egg-box";
 }
