@@ -131,12 +131,12 @@ TEST(IonicSADSeed, AMixedValenceSeedIsTheSumOfItsChargeStates)
         auto sA=seed(cA.get(), tA), sB=seed(cB.get(), tB);
         EXPECT_NEAR(full->GetTotalCharge(), sA->GetTotalCharge()+sB->GetTotalCharge(), 1e-10);
 
-        auto* fF=dynamic_cast<const FourierDensity*>(full.get());
-        auto* fA=dynamic_cast<const FourierDensity*>(sA.get());
-        auto* fB=dynamic_cast<const FourierDensity*>(sB.get());
+        auto* fF=dynamic_cast<const BasisSet::AnalyticFourier*>(full.get());   // a seed's own Fourier components
+        auto* fA=dynamic_cast<const BasisSet::AnalyticFourier*>(sA.get());
+        auto* fB=dynamic_cast<const BasisSet::AnalyticFourier*>(sB.get());
         ASSERT_TRUE(fF && fA && fB);
         auto fitSF=box.bs->CreateVxcFitBasisSet(box.st.get(), qcMesh::MeshParams{});
-        auto rF=fF->GetFourierDensity(*fitSF), rA=fA->GetFourierDensity(*fitSF), rB=fB->GetFourierDensity(*fitSF);
+        auto rF=fF->FourierComponents(*fitSF), rA=fA->FourierComponents(*fitSF), rB=fB->FourierComponents(*fitSF);
         ASSERT_GT(rF.size(), 1u);
         double maxErr=0, maxRho=0;
         for (const auto& [dm,v] : rF)

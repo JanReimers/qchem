@@ -39,24 +39,24 @@ namespace qchem::BasisSet {
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import :Fit_IBS;
-export import qchem.BasisSet.Projector3;
+export import qchem.BasisSet.PairProjection;
 namespace qchem::BasisSet {
     template <class T, class TFit = T> class Orbital_DFT_IBS : public virtual Orbital_1E_IBS<T> , public virtual IrrepBasisSet_IDs {
     public:
-        virtual const Projector3<TFit>& Overlap3C (const FIT_SF_ABS<TFit>& c) const;
-        virtual const Projector3<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
+        virtual const PairProjection<TFit>& Overlap3C (const FIT_SF_ABS<TFit>& c) const;
+        virtual const PairProjection<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
         virtual bool CanPullbackRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
         virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const FIT_CD_ABS<TFit>& c, const hmat_t<T>& D, const vec_t<TFit>& a, const Structure* st) const=0;
         virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const=0;
         virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;
     protected:
-        virtual Projector3<TFit> MakeOverlap3C (const FIT_SF_ABS<TFit>& c) const=0;
-        virtual Projector3<TFit> MakeRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
+        virtual PairProjection<TFit> MakeOverlap3C (const FIT_SF_ABS<TFit>& c) const=0;
+        virtual PairProjection<TFit> MakeRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
     };
     typedef Orbital_DFT_IBS<double> Real_DFT_OIBS;
-    template <class T> const Projector3<T>& FIT_SF_ABS<T>::Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const;
-    template const Projector3<double>& FIT_SF_ABS<double>::Overlap3C(const Orbital_DFT_IBS<double,double>&) const;
-    template const Projector3<dcmplx>& FIT_SF_ABS<dcmplx>::Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>&) const;
+    template <class T> const PairProjection<T>& FIT_SF_ABS<T>::Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const;
+    template const PairProjection<double>& FIT_SF_ABS<double>::Overlap3C(const Orbital_DFT_IBS<double,double>&) const;
+    template const PairProjection<dcmplx>& FIT_SF_ABS<dcmplx>::Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>&) const;
 }
 
 ### qchem.BasisSet.Orbital_DFT_IBS:Fit_IBS   (src/BasisSet/Fit_IBS.C)
@@ -64,13 +64,13 @@ export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
 export import qchem.Mesh;
 export import qchem.BasisSet.Orbital_1E_IBS;
-export import qchem.BasisSet.Projector3;
+export import qchem.BasisSet.PairProjection;
 namespace qchem::BasisSet {
     template <class T, class TFit> class Orbital_DFT_IBS;
     template <class U, class TFit> class Integrals_Overlap3C {
     public:
         virtual ~Integrals_Overlap3C() = default;
-        virtual const Projector3<U>& Overlap3C(const Orbital_DFT_IBS<U,TFit>& orb) const=0;
+        virtual const PairProjection<U>& Overlap3C(const Orbital_DFT_IBS<U,TFit>& orb) const=0;
     };
     template <class T> class FIT_CD_ABS : public virtual IrrepBasisSet<T> {
     public:
@@ -91,7 +91,7 @@ namespace qchem::BasisSet {
     public:
         virtual bool isOrtho() const=0;
         virtual vec_t<T> Overlap(const ScalarFunction<double>& f) const=0;
-        const Projector3<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
+        const PairProjection<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
         virtual vec_t<T> Charge() const=0;
         virtual vec_t<T> OverlapDiagonal() const=0;
     };
@@ -179,7 +179,9 @@ namespace qchem::BasisSet {
 
 ### qchem.ChargeDensity   (src/ChargeDensity/ChargeDensity.C)
 export import qchem.Symmetry.Spin;
-export import qchem.ChargeDensity.FourierDensity;
+export import qchem.ChargeDensity.RasterDensity;
+export import qchem.BasisSet.PairProjection;
+export import qchem.BasisSet.PairProjector;
 export import qchem.Fitting.FunctionFitter;
 namespace qchem::ChargeDensity {
     inline size_t NextDensityVersion();
@@ -190,8 +192,6 @@ namespace qchem::ChargeDensity {
         size_t Head() const;
     };
     using LineagePtr = std::shared_ptr<Lineage>;
-    struct NoProjectedDensity {
-    };
     template <class T> class tHF_System_CD {
     public:
         virtual ~tHF_System_CD() = default;
@@ -217,7 +217,6 @@ namespace qchem::ChargeDensity {
     struct NoHF_Pair {
     };
     template <class T> using HF_PairBase = std::conditional_t<std::is_same_v<T,double>, tHF_Pair_CD<double>, NoHF_Pair>;
-    template <class T> using ProjectedDensityBase = std::conditional_t<std::is_same_v<T,double>, Fitting::CoulombMetric_ProjectedDensity, NoProjectedDensity>;
     template <class T> class tChargeDensity;
     template <class T> class tDM_CD;
     class DensityID {
@@ -256,6 +255,8 @@ namespace qchem::ChargeDensity {
     public:
         virtual double GetTotalCharge() const=0;
         virtual void ReScale(double factor) =0;
+        virtual Projections Project(const BasisSet::PairProjector<double>& p) const;
+        virtual Projections Project(const BasisSet::PairProjector<dcmplx>& p) const;
         virtual size_t Version() const=0;
         virtual bool isActive() const;
         virtual void JoinLineage(const LineagePtr&);
@@ -268,11 +269,6 @@ namespace qchem::ChargeDensity {
         virtual bool isActive() const override;
         virtual void JoinLineage(const LineagePtr& l) override;
     };
-    template <class T> class tProjectable_CD {
-    public:
-        virtual ~tProjectable_CD() = default;
-        virtual rvec_t ProjectOnto(const Fitting::ScalarProjector& p) const=0;
-    };
     template <class T> class tMixableDensity : public virtual tChargeDensity<T> {
     public:
         virtual void Axpy (double c, const tMixableDensity<T>&) =0;
@@ -282,7 +278,7 @@ namespace qchem::ChargeDensity {
         virtual double GetChangeFrom(const tMixableDensity<T>& ) const=0;
         virtual double GetMaxChangeFrom(const tMixableDensity<T>& ) const=0;
     };
-    template <class T> class tDM_CD : public virtual tMixableDensity<T> , public virtual tProjectable_CD<T> {
+    template <class T> class tDM_CD : public virtual tMixableDensity<T> {
     public:
         virtual double DM_Contract(const tStatic_CC<T>*) const=0;
         virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const=0;
@@ -531,37 +527,9 @@ namespace qchem::WaveFunction {
 ### qchem.Fitting.FunctionFitter   (src/Fitting/FunctionFitter.C)
 export import qchem.Mesh.Integrator;
 export import qchem.ScalarFunction;
+export import qchem.BasisSet.PairProjector;
 export import qchem.BasisSet.Orbital_DFT_IBS;
 namespace qchem::Fitting {
-    template <class T> class ProjectedDensity {
-    public:
-        virtual ~ProjectedDensity() = default;
-    };
-    class ProjectedDensity_AO : public virtual ProjectedDensity<double> {
-    public:
-        virtual double FitGetConstraint() const=0;
-    };
-    class DensityProjector {
-    public:
-        virtual ~DensityProjector() = default;
-        virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>&) const=0;
-        virtual size_t NumCoefficients() const=0;
-    };
-    class CoulombMetric_ProjectedDensity : public virtual ProjectedDensity_AO {
-    public:
-        virtual rvec_t GetRepulsion3C(const DensityProjector&) const=0;
-    };
-    class OverlapMetric_ProjectedDensity : public virtual ProjectedDensity_AO {
-    public:
-        virtual rvec_t GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const=0;
-    };
-    class ProjectedDensity_G : public virtual ProjectedDensity<dcmplx> {
-    public:
-        explicit ProjectedDensity_G(const ΔG_Map& rhoTilde);
-        const ΔG_Map& Map() const;
-    private:
-        ΔG_Map itsMap;
-    };
     class ProjectedScalar_R {
     public:
         virtual ~ProjectedScalar_R() = default;
@@ -572,11 +540,6 @@ namespace qchem::Fitting {
         virtual ~FieldProjector() = default;
         virtual rvec_t Project(const ScalarFunction<double>& f) const=0;
         virtual size_t NumCoefficients() const=0;
-    };
-    class ScalarProjector : public virtual FieldProjector {
-    public:
-        virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const=0;
-        virtual const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;
     };
     class FunctionFitter_Scalar {
     public:
@@ -594,29 +557,12 @@ namespace qchem::Fitting {
     };
     template <class T> class DeltaScalarFit : public virtual ScalarFit<T> , public virtual FieldProjector {
     };
-    template <> class DeltaScalarFit<dcmplx> : public virtual ScalarFit<dcmplx> , public virtual FitContraction<double,dcmplx> , public virtual ScalarProjector {
-    };
-    template <class T> class FunctionFitter_Density {
+    template <> class DeltaScalarFit<dcmplx> : public virtual ScalarFit<dcmplx> , public virtual FitContraction<double,dcmplx> , public virtual FieldProjector , public virtual BasisSet::PairProjector<dcmplx> {
     public:
-        virtual ~FunctionFitter_Density() = default;
-        virtual void DoFit (const ProjectedDensity<T>&)=0;
-        virtual hmat_t<T> Repulsion (const robs_t<T>*) const =0;
-        virtual bool CanPullbackRepulsion(const robs_t<T>* bs) const=0;
-        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const robs_t<T>* bs, const hmat_t<T>& D, const Structure* st) const=0;
-        virtual std::ostream& Write (std::ostream&) const =0;
-    };
-    template <class T> class FunctionFitter_Density_NonOrtho : public virtual FunctionFitter_Density<T> {
-    public:
-        virtual double FitGetSelfRepulsion() const=0;
-        virtual bool CanPullbackSelfRepulsion() const=0;
-        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure* st) const=0;
-        virtual double Integral () const=0;
-        virtual void ReScale (double factor)=0;
+        virtual size_t NumCoefficients() const override=0;
     };
     template <class T> std::unique_ptr<ScalarFit<T>> Factory(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
     template <class T> std::unique_ptr<DeltaScalarFit<T>> MakeDeltaScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
-    std::unique_ptr<FunctionFitter_Density_NonOrtho<double>> Factory(std::shared_ptr<const BasisSet::rFIT_CD_ABS>&);
-    std::unique_ptr<FunctionFitter_Density<dcmplx>> Factory(std::shared_ptr<const BasisSet::cFIT_CD_ABS>&);
 }
 
 ### qchem.Symmetry.Representation   (src/Symmetry/Representation.C)

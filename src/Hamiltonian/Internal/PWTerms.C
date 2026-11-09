@@ -26,7 +26,7 @@ import qchem.ChargeDensity.DensitySampler; // the XC SAMPLING ENGINE the three X
                                                 // NOT re-exported: it is an .Internal. module, so a client
                                                 // that wants MakeDensitySampler imports it by name (CLAUDE.md).
 import qchem.BasisSet.Orbital_DFT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
-import qchem.Fitting.FunctionFitter;         // FunctionFitter_Density<dcmplx> (the fitter Vee_Hartree holds, built once)
+import qchem.Fitting.FunctionFitter;         // the fitter faces the XC terms hold
 import qchem.BasisSet.Orbital_PP_IBS;              // the species-field integral service the terms cross-cast the basis to (V1.2)
 import qchem.Pseudopotential.LocalPotential;       // the local / separable models the terms own
 import qchem.Pseudopotential.SeparablePotential;
@@ -53,7 +53,7 @@ export namespace qchem::Hamiltonian
 //   Ven_PP_Short     V_loc(short)                                -> E_een   (static)
 //   Ven_PP_Long      V_loc(long), the Gaussian-core-charge fold  -> E_een   (static)
 //   Ven_PP_NonLocal  the KB separable projectors                 -> E_een   (static)
-//   Vee_Hartree      V_H[rho_elec]                               -> E_ee    (dynamic -- the ONLY one that
+//   Vee_Fit<dcmplx>  V_H[rho_elec]                               -> E_ee    (dynamic -- the ONLY one that
 //                                                                            depends on the density)
 //
 // The two LOCAL halves own their own dropped-G=0 alignment (E_alphaZ), Short and Long respectively; each
@@ -211,118 +211,8 @@ private:
 // The ion-ion (Ewald) ENERGY term is now the T-templated IonIon<T>
 // (qchem.Hamiltonian.Internal.IonIon); the plane-wave Hamiltonian builds IonIon<dcmplx>.
 
-//! Periodic HARTREE term for a plane-wave basis (density-dependent): the classical electron-electron
-//! Coulomb potential \f$V_H[\rho_{elec}]\f$ and nothing else.  The Fock block is
-//! \f$\langle i|V_H|j\rangle\f$ and the energy is \f$E_{ee}=\tfrac12\mathrm{Tr}(D V_H)\f$ -- the
-//! \f$\tfrac12\f$ being the electron-electron double-counting factor.  Mirrors the molecular \c FittedVee
-//! in ROLE, but not in mechanism: \c FittedVee runs a charge-constrained COULOMB-METRIC (Dunlap) fit and
-//! takes its energy from the robust \f$2E_{fit}-E_{fit,fit}\f$ combination, whereas here the G-space
-//! projection needs no metric SOLVE (see the V1.1/V1.1b metric discussion).
-//!
-//! Careful with "the projection IS the fit" -- it runs together two INDEPENDENT questions:
-//!   1. the METRIC: an orthonormal fit basis makes \f$S=I\f$, so the normal equations collapse to
-//!      \f$c=\langle f|\rho\rangle\f$.  That is about COST and CONDITIONING, not accuracy.
-//!   2. the SPAN: whether \f$\rho\f$ actually LIES in \f$\mathrm{span}\{G\}\f$.  That is what decides
-//!      whether \f$\tilde\rho=\rho\f$, and orthonormality says nothing about it.
-//! The answer to (2) differs by lineage.  For PLANE-WAVE orbitals \f$\rho=\psi^*\psi\f$ is exactly
-//! band-limited to the difference set \f$\{G_i-G_j\}\f$, and the CD fit basis is built at the \f$4\times\f$
-//! cutoff that covers it (\c PlaneWave_IBS::CreateCDFitBasisSet says so) -- so there the representation is
-//! exact and no information is lost.  For GPW (GAUSSIAN orbitals) it is NOT: a Gaussian product has
-//! infinite bandwidth, so a finite \f$\{G\}\f$ ball truncates it -- which is precisely what the
-//! \c ReportGridCharge diagnostic measures (charge lost to grid truncation, CP2K's "Electronic density on
-//! regular grids" line).  GPW's Hartree is therefore a genuine approximation, exact only as the density
-//! cutoff grows.
-//!
-//! Neither case is a rank-2-into-rank-1 squeeze, though.  What is represented is \f$\rho(r)\f$ -- the
-//! DIAGONAL \f$\rho(r,r)\f$ -- which is genuinely a function of one point.  The map \f$D\to\tilde\rho\f$ is
-//! many-to-one (it sums \f$D_{ab}\f$ over each difference \f$G_b-G_a\f$), so \f$D\f$ cannot be recovered
-//! from \f$\tilde\rho\f$; but Hartree and LDA only ever need the diagonal.  The full \f$\rho(r,r')\f$ WOULD
-//! be needed for exact exchange -- and consistently, the periodic density NA-asserts on the HF
-//! accumulators (the finite leaf's AccumulateExchange).
-//!
-//! The LONG-range local-PP fold that used to live here is now its own term, \c Ven_PP_Long: it is
-//! density-INDEPENDENT and electron-ION, so it belonged in neither this term's matrix nor its energy.
-class Vee_Hartree
-    : public virtual cDynamic_HT
-    , private        cDynamic_HT_Imp
-    , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
-    , public virtual tResponse_HT<dcmplx>       // V_H is LINEAR in rho: its response is its own Poisson of δρ̃ (R2)
-{
-public:
-    //! \name THE RESPONSE (doc/LinearResponsePlan.md R2, R3): \f$\delta V_H(G+q)=4\pi\,\delta\tilde\rho(G+q)/|G+q|^2\f$
-    //! from the transition density's Hartree face (\c TransitionFourierDensity), then each (k+q, k) pair's exact
-    //! adjoint through the KET block's B2 capability -- memoised on δ's serial in a slot of its own.  \a D0 is not
-    //! needed (linear).  Any q; complex blocks only (a real TRIM pair rides \c forceComplex, ruling Q8).
-    //!@{
-    using cDynamic_HT::RefreshForDensity;
-    virtual void   RefreshForDensity(const cbs_t* wholeBasis, const cChargeDensity* D0,
-                                     const TransitionDensity<dcmplx>& delta) const override;
-    virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s,
-                             const TransitionDensity<dcmplx>& delta) const override;
-    //!@}
-    //! \copydoc HT_BlockOwner::BuildBlocks
-    //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
-    //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
-    //! this term, and the term is what states it.
-    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
-    { cDynamic_HT_Imp::BuildBlocks(bs, cd); Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
-    typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
-    //! Built with the density-fit basis (from the orbital basis's factory, exactly as \c FittedVee is).
-    //! No structure and no pseudopotential model: pure \f$V_H[\rho]\f$ has no use for either.
-    explicit Vee_Hartree(fbs_t chargeDensityFitBasisSet);
-    //! Pre-warm \f$V_H[\rho]\f$ for \a cd -- the EAGER REFRESH PHASE (doc/OpenWork.md **KP**).  The
-    //! Coulomb field is a function of the density alone, so ONE evaluation serves every Bloch block; it
-    //! was previously computed inside whichever block's \c MakeMatrix ran first.
-    virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
-    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
-    virtual std::ostream& Write(std::ostream&) const;
-    //! \brief \f$V_H[\rho]\f$ IS THE SAME OPERATOR FOR EVERY SPIN CHANNEL -- it depends on the TOTAL
-    //! density and nothing else, which is why \c MakeMatrixT ignores its \c Spin argument outright.
-    //!
-    //! Saying so here is what stops the two channels missing each other in the Irrep cache and building
-    //! the identical KS matrix twice.  Measured 2026-09-04 on the MnO parity row: ~2.1 duplicate gathers
-    //! per SCF iteration, against an integrate-back that is 71% of the run (doc/OpenWork.md bin 1).
-    //! ✅ BIT-IDENTICAL: the same matrix, evaluated once instead of twice.
-    virtual Spin CacheSpin(const Spin&) const {return Spin::None;}
-    //! The ENERGY block, for the eh_trace A/B only (GetEnergy pairs in G space and reads no block): BUILT from the field the
-    //! energy pass refreshed, with no memo -- the energy refresh has no basis, so it builds no blocks (V1.41 stage 3).
-    virtual const chmat_t& GetEMatrix(const cobs_t* bs, const Spin& s, DensityID id) const override
-    {itsEMat=MakeMatrix(bs,s,id); return itsEMat;}
-    virtual const rsmat_t& GetEMatrix(const robs_t* bs, const Spin& s, DensityID id) const override
-    {itsEMatR=MakeMatrix(bs,s,id); return itsEMatR;}
-private:
-    mutable chmat_t itsEMat;    //!< GetEMatrix's returned block (one serial contraction reads it at once)
-    mutable rsmat_t itsEMatR;   //!< ...and its real TRIM twin
-    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, DensityID) const;
-    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, DensityID) const;   // the real TRIM block (Step 3c; V1.35: an overload)
-    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, DensityID) const;
-
-    //! \brief \f$V_H(\Delta G)\f$ for \a cd, MEMOIZED ON THE DENSITY'S LOGICAL-CLOCK SERIAL.
-    //!
-    //! The map is not free: assembling it star-averages the whole \f$\{G\}\f$ set over the imposed point
-    //! group (measured 16 ms/call on Si \f$\Gamma\f$, 48 ops).  Both consumers -- the KS matrix, once per
-    //! IRREP BLOCK, and the energy pairing -- ask for the SAME field whenever the density has not moved, so
-    //! the term keeps the last one.  The key is \c ChargeDensity::Version(), the same intrinsic serial the
-    //! Irrep matrix cache above it keys on (\c tDynamic_HT_Imp::GetMatrix).
-    const ΔG_Map& CoulombField(const cChargeDensity*) const;
-    //! The BLOCK path's read of that memo: the field the refresh built for \a cd, or a throw if the refresh never saw
-    //! \a cd.  A block never builds the field (V1.41 stage 2), so the per-block loop writes nothing.
-    const ΔG_Map& RefreshedField(DensityID) const;
-
-    //! \brief \f$\Omega\f$, the cell volume, as the fit raster's own quadrature answers it:
-    //! \f$\int 1\,d^3r\f$.  Asked ONCE (the grid is geometry-fixed) through the abstract raster face --
-    //! the term has no \c Structure by design (see the class note), and this is the only constant the
-    //! G-space energy pairing needs.
-    double Volume() const;
-
-    fbs_t itsFitBasis;   //!< the CD (Coulomb-metric) fit basis, handed to the density's GetRepulsion3C
-    mutable size_t itsDeltaVersion=size_t(-1);  //!< the transition density's serial \c itsDeltaField holds
-    mutable ΔGq_Map itsDeltaField;              //!< \f$\delta V_H(G+q)\f$ of that transition density (R2, R3)
-    mutable double itsVolume=0.0;   //!< \c Volume()'s memo (0 = not asked yet)
-    mutable ΔG_Map itsField;                    //!< \c CoulombField()'s memo: \f$V_H\f$ at that serial
-    mutable DensityID itsFieldID=DensityID(static_cast<const cChargeDensity*>(nullptr));   //!< the density \c itsField holds (none = empty)
-};
+// The periodic HARTREE term is Vee_Fit<dcmplx> (qchem.Hamiltonian.Internal.Terms, V-ONE-OF-N 3b): the first-order fitted Hartree
+// term, generic over the fit basis, on the plane-wave density fitter.  Its response half is Vee_Response, beside it.
 
 //! \brief THE exchange-correlation term of a periodic Kohn-Sham Hamiltonian -- ONE term for either imposed
 //! spin subgroup (V1.37 step 3; it replaced Vxc_Quadrature + Vxc_QuadraturePol + Vcorr_QuadraturePol),

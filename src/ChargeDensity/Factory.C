@@ -3,13 +3,11 @@ module;
 #include <memory>
 export module qchem.ChargeDensity.Factory;
 export import qchem.ChargeDensity;
-export import qchem.FittedCD;
 import qchem.ChargeDensity.Types;
 
 
 export namespace qchem::ChargeDensity
 {
-    typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< the Coulomb-metric (density-fit) face
 
     //! \brief WHICH ROUTE evaluates \f$\rho(r)\f$ from D -- the ONLY factorisation detail that crosses this
     //! boundary (doc/OpenWork.md, the factored-rho design ruling).  D stays the truth in every case: the
@@ -34,6 +32,5 @@ export namespace qchem::ChargeDensity
                                                   RhoRoute route);
     //! Same, taking the default route -- so every existing call site is untouched.
     template <class T> tDM_CD<T>* IrrepCD_Factory(hmat_t<T> DM,const tobs_t<T>* bs, Irrep); // DM Hermitian; BY VALUE: pass an rvalue and it is moved in, not copied
-    std::unique_ptr<FittedCD> FittedCD_Factory(fbs_t&, double totalCharge); //!< caller owns the result
 
 } //namespace

@@ -6,7 +6,7 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/RestMass.C 
     Internal/Imp/Ven.C
     Internal/Imp/Ven_Forces.C             # Ven's force (GeometryOptimizationPlan §13.2; 2026-11-08)
-    Internal/Imp/Vee_DFT_Dunlap_Forces.C  # the Dunlap Hartree force (GeometryOptimizationPlan §13.2; 2026-11-08)
+    Internal/Imp/Vee_FitDunlap_Forces.C   # the Dunlap Hartree force (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/PP_Forces.C              # the two PP terms' forces (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/HF_Forces.C              # the HF Coulomb and exchange forces (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/PP_Local.C
@@ -14,13 +14,12 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/HF_HT.C
     Internal/Imp/Vee.C
     Internal/Imp/Vxc.C
-    Internal/Imp/Vee_DFT.C
+    Internal/Imp/Vee_Fit.C
     Internal/Imp/FittedVxc.C
     # The periodic (plane-wave / GPW) term set -- ONE module interface, five implementation units, the
     # same shape Internal/Terms.C has always had.  Split 2026-09-08 out of a single 1213-line TU.
     Internal/Imp/PWTerms_PP.C
     Internal/Imp/PWTerms_PP_Forces.C      # the PW PP structure-factor forces (GeometryOptimizationPlan §13.2; 2026-11-08)
-    Internal/Imp/PWTerms_Hartree.C
     Internal/Imp/PWTerms_XC.C
     Internal/Imp/Hubbard.C                # DFT+U (programme step 5, 2026-09-19)
     Internal/Imp/ACBN0.C                  # DFT+U increment 3: the ACBN0 (U,J) estimator (2026-09-21)

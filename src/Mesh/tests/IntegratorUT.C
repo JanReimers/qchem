@@ -62,7 +62,7 @@ TEST(MatrixIntegrator, ForwardAndAdjointAreExactlyAdjoint)
     for (size_t g=0; g<m.size(); g++) v[g]=std::sin(1.7*double(g))+0.5;
 
     // LHS: integrate v against the collocated density, using the mesh's own quadrature
-    const rvec_t rho=I.Forward(D);
+    const rvec_t rho=I.Forward(D).Vector();
     ASSERT_EQ(rho.size(), m.size());
     rvec_t vrho(m.size());
     for (size_t g=0; g<m.size(); g++) vrho[g]=v[g]*rho[g];
@@ -91,7 +91,7 @@ TEST(MatrixIntegrator, ForwardOfAPSDDensityMatrixIsNonNegative)
     const rvec_t c{0.6,-1.2,0.8};
     for (size_t i=0;i<3;i++) for (size_t j=i;j<3;j++) D(i,j)=c[i]*c[j];
 
-    const rvec_t rho=I.Forward(D);
+    const rvec_t rho=I.Forward(D).Vector();
     for (size_t g=0; g<rho.size(); g++)
         EXPECT_GE(rho[g], -1e-14) << "a PSD density matrix must collocate to a non-negative density";
 }
@@ -128,7 +128,7 @@ class DensityLike
 {
 public:
     explicit DensityLike(hmat_t<double> D) : itsD(std::move(D)) {}
-    rvec_t ProjectOnto(const qcMesh::MatrixForward<double>& fwd) const {return fwd.Forward(itsD);}
+    rvec_t ProjectOnto(const qcMesh::MatrixForward<double>& fwd) const {return fwd.Forward(itsD).Vector();}
 private:
     hmat_t<double> itsD;                       // private: only the density contracts its own D
 };
@@ -204,8 +204,8 @@ TEST(MatrixIntegrator, TheFactoredForwardAgreesWithTheUnfactoredOne)
     for (size_t i=0;i<3;i++) for (size_t j=i;j<3;j++)
     { double s=0; for (size_t k=0;k<2;k++) s+=L(i,k)*L(j,k); D(i,j)=s; }
 
-    const rvec_t rhoD=I.Forward(D);
-    const rvec_t rhoL=I.Forward(L);
+    const rvec_t rhoD=I.Forward(D).Vector();
+    const rvec_t rhoL=I.Forward(L).Vector();
     ASSERT_EQ(rhoD.size(), rhoL.size());
     for (size_t g=0; g<rhoD.size(); g++)
         EXPECT_NEAR(rhoL[g], rhoD[g], 1e-13*std::max(1.0,std::abs(rhoD[g])))

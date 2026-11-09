@@ -232,11 +232,11 @@ template <isDFT_Evaluator E> class Orbital_DFT_IBS
     : public virtual BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual Projector3<double> MakeOverlap3C  (const rFIT_SF_ABS& _c) const
+    virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
-        Projector3<double> S3;
+        PairProjection<double> S3;
         for (auto ic:c.indices())
         {
             rsmat_t S(ab.size());
@@ -255,11 +255,11 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const rFIT_CD_ABS&, const hmat_t<double>&, const rvec_t&, const Structure*) const override
         {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a radial (atom) block", "3-centre repulsion pullback");}
 protected:
-    virtual Projector3<double> MakeRepulsion3C(const rFIT_CD_ABS& _c) const
+    virtual PairProjection<double> MakeRepulsion3C(const rFIT_CD_ABS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
-        Projector3<double> S3;
+        PairProjection<double> S3;
         for (auto ic:c.indices()) 
         {
             rsmat_t S(ab.size());

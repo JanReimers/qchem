@@ -1,4 +1,4 @@
-// File: Fitting/Internal/RadialPoissonCoulomb.C  The Coulomb potential of a mesh's charges, by a radial Poisson solve per (site, l, m).
+// File: Mesh/Internal/RadialPoissonCoulomb.C  The Coulomb potential of a mesh's charges, by a radial Poisson solve per (site, l, m).
 //
 // Becke & Dickson 1988.  qchem.Mesh.SiteMultipoles turns the charges into each site's shell moments Q_lm(i) and carries channels
 // back to the points; what is here is the solve between the two.  Each (A,l,m) channel has the 1-D potential
@@ -22,13 +22,13 @@ module;
 #include <numbers>
 #include <stdexcept>
 #include <vector>
-export module qchem.Fitting.Internal.RadialPoissonCoulomb;
-export import qchem.Fitting.CoulombOperator;
+export module qchem.Mesh.Internal.RadialPoissonCoulomb;
+export import qchem.Mesh.CoulombOperator;
 import qchem.Mesh.SiteMultipoles;
 import qchem.Parallel;   // OuterFor: every item writes only its own slots
 import qchem.Types;
 
-export namespace qchem::Fitting
+export namespace qchem::qcMesh
 {
 
 //! \brief The radial Poisson solve of one site's channels, in place of a density's charge channels their potential's.
@@ -182,6 +182,7 @@ public:
     //! (accepted 2026-11-06).  \a trDV is NOT \f$q\cdot v\f$: each site's channels hold only that site's own potential, so \f$q\cdot v\f$
     //! misses every cross-site term (23.5 Ha on water).
     double HartreeEnergy(double trDV, const rvec_t& q, const rvec_t& v) const override {return trDV-0.5*SelfRepulsion(q,v);}
+    bool UsesTrDV() const override {return true;}
 private:
     std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;
     RadialPoissonSolver itsSolver;

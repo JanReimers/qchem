@@ -25,7 +25,7 @@ import qchem.BasisSet.Gaussian.PG_Cart;                           // Orbital_IBS
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
-import qchem.BasisSet.Projector3;
+import qchem.BasisSet.PairProjection;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.Structure;
 import qchem.Types;

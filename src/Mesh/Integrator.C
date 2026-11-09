@@ -46,10 +46,12 @@ module;
 #include <cassert>
 #include <complex>
 #include <type_traits>
+#include <utility>
 export module qchem.Mesh.Integrator;
 export import qchem.Mesh;
 export import qchem.Mesh.Quadrature;   // MatrixOverlap -- the dense adjoint
 export import qchem.VectorFunction;
+export import qchem.Projections;   // what Forward returns (V-ONE-OF-N; the adjoint takes the fitter's own coefficients)
 
 
 namespace qchem::qcMesh
@@ -87,7 +89,13 @@ public:
     //! \f$\rho(r_a)=\sum_{ij}D_{ij}\overline{\chi_i(r_a)}\chi_j(r_a)\f$, which is why the two readings
     //! were never distinguished; on a plane-wave basis the same call returns \f$\tilde\rho(G_a)\f$.
     //! Real by construction for Hermitian \a D -- a density is an observable.
-    virtual rvec_t Forward(const hmat_t<T>& D) const=0;
+    //!
+    //! ★ IT RETURNS THE ONE-OF-N RECORD \c Projections (V-ONE-OF-N, user rulings 2026-11-07/08): a Gaussian,
+    //! \f$\delta\f$ or mesh realization fills its \c rvec_t, a plane-wave one its \c ΔG_Map.  The fitter that
+    //! consumes its own projections reads the member (\c Vector() / \c GMap(), throwing on a mismatch); every
+    //! other client only hands the record on or combines it.  ⚠ The ADJOINT side is not the record: fit
+    //! coefficients are each fitter's private type (user ruling (b), doc/Records/VOneOfN_D2Design.md §2a).
+    virtual Projections Forward(const hmat_t<T>& D) const=0;
 
     //! \brief The SAME forward for a caller holding \f$D\f$ in FACTORED form \f$D=LL^\dagger\f$ (a thin
     //! \f$n\times r\f$ pivoted-Cholesky / natural-orbital factor):
@@ -103,7 +111,7 @@ public:
     //! ⚠ This replaces a runtime capability test: `applyRawFactored` is empty on realizations that cannot
     //! left-multiply a value table, and `IrrepCD::FactoredRho` asserted on it before every use.  A default
     //! makes the question disappear instead of moving it.
-    virtual rvec_t Forward(const mat_t<T>& L) const
+    virtual Projections Forward(const mat_t<T>& L) const
     {
         const size_t n=L.rows(), r=L.columns();
         hmat_t<T> D(n);
@@ -126,6 +134,11 @@ public:
     //! ⇒ **Every implementation must say `using MatrixForward<T>::Forward;`** -- the two in this tree do,
     //! and a new one that forgets fails the `TheFactoredForwardAgreesWithTheUnfactoredOne` gate.
     virtual size_t NumCoefficients() const=0;   //!< length of the array \c Forward returns
+    //! \brief Does handing me the thin FACTOR \f$L\f$ instead of \f$D\f$ pay?  Asked by the density that holds both (\c FactoredRho),
+    //! which then picks the overload.  TRUE by default (today's behaviour for every collocating forward).  A forward with no
+    //! native factored path whose answer must be the EXACT contraction of \f$D\f$ (the G-space pair, whose projections feed the
+    //! Hartree fit and the GPW collocation memo's exact-equality replay) says FALSE, so it never sees a rebuilt \f$LL^\dagger\f$.
+    virtual bool FactorPays() const {return true;}
 };
 
 //! \brief THE ADJOINT HALF: a field's coefficients back to a matrix.  See \c MatrixForward for why they
@@ -181,7 +194,7 @@ public:
     //! the \c hmat_t one would otherwise hide it, and `Forward(L)` would convert into the wrong overload.
     using MatrixForward<T>::Forward;
 
-    virtual rvec_t Forward(const hmat_t<T>& D) const override;
+    virtual Projections Forward(const hmat_t<T>& D) const override;
     virtual hmat_t<T> Adjoint(const rvec_t& v) const override
     {
         assert(v.size()==itsMesh.size() && "DenseMatrixIntegrator::Adjoint: one field value per mesh point");
@@ -198,7 +211,7 @@ private:
 //! \f$\rho(r_g)=\sum_{ij}D_{ij}\overline{\chi_i}\chi_j\f$ -- the exact adjoint of \c MatrixOverlap: the
 //! same \f$\overline{\chi_i}\ldots\chi_j\f$ ordering, and the weights deliberately NOT applied here (they
 //! belong to the integration, not to the density, and applying them on both sides would square them).
-template <class T> rvec_t DenseMatrixIntegrator<T>::Forward(const hmat_t<T>& D) const
+template <class T> Projections DenseMatrixIntegrator<T>::Forward(const hmat_t<T>& D) const
 {
     const size_t n=itsBasis.GetVectorSize();
     assert(D.rows()==n && "DenseMatrixIntegrator::Forward: the density matrix must match the basis");
@@ -213,7 +226,7 @@ template <class T> rvec_t DenseMatrixIntegrator<T>::Forward(const hmat_t<T>& D) 
                 s += IConj(p[i])*D(i,j)*p[j];
         rho[g] = IReal(s);          // Hermitian D => real; the imaginary part is roundoff and is dropped
     }
-    return rho;
+    return Projections(std::move(rho));
 }
 
 } // namespace

@@ -17,7 +17,7 @@ import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 import qchem.BasisSet.PlaneWave.Evaluators;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
 import qchem.BasisSet.Lattice.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
-import qchem.Mesh;                           // qcMesh::MeshParams (Vee_Hartree's fit-basis factory arg; ignored)
+import qchem.Mesh;                           // qcMesh::MeshParams (the Hartree fit basis factory arg; ignored)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
@@ -246,48 +246,6 @@ TEST(PlaneWaveFields, BasisIntegralPotentialConstAndCosine)
 }
 
 
-// Item B: the ortho (plane-wave) density fitter's fitted field is a REAL, evaluatable ScalarFunction --
-// rho_fit(r) = Re Σ_dm rho~(dm) e^{i(B·dm)·r} (what the GUI plots).  Fit a non-uniform density through the
-// production Factory path, then check the fitter's op(r)/Gradient via the G_FieldEvaluator DIP seam against
-// (a) an independent inverse transform, (b) the FFT route RhoOnGrid at r=0, (c) finite-difference gradient.
-TEST(PlaneWaveFields, OrthoFitterRealSpaceField)
-{
-    PWFixture F;
-    size_t n=F.pw.GetNumFunctions();
-    hmat_t<dcmplx> D=blazem::zeroH<dcmplx>(n);
-    D(0,0)=1.0; D(0,1)=1.0; D(1,1)=1.0;                   // Hermitian, non-uniform -> a non-trivial rho~(dm)
-    ΔG_Map rhoTilde=RhoTilde(F.pw, D);
-
-    // The Factory-built ortho density fitter (the production path).
-    auto fb=std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS>(F.pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}));
-    auto fitter=qchem::Fitting::Factory(fb);
-    fitter->DoFit(qchem::Fitting::ProjectedDensity_G(rhoTilde));
-    // The fitted FIELD is a CAPABILITY, not part of the fitter face (2026-08-24): an AO fit could only
-    // deliver it by handing its coefficients back to the basis, so the whole chain went.  A plane-wave fit
-    // genuinely can -- it inverse-transforms its own {G} -- so it derives ScalarFunction itself and a
-    // consumer asks.  Same cross-cast the scalar-fitter sibling above already makes.
-    const ScalarFunction<double>& rhoFit=dynamic_cast<const ScalarFunction<double>&>(*fitter);
-
-    const CellGeometry& B=F.B();
-    auto direct=[&](const rvec3_t& r)                     // independent inverse transform (B.ToCartesian, not GetGCartesian)
-    {
-        dcmplx s(0.0);
-        for (const auto& kv:rhoTilde){rvec3_t G=B.ToCartesian(rvec3_t(kv.first)); double ph=G*r; s+=kv.second*dcmplx(std::cos(ph),std::sin(ph));}
-        return s.real();
-    };
-    for (const rvec3_t& r : {rvec3_t(0.0,0.0,0.0), rvec3_t(1.0,2.0,0.5), rvec3_t(3.1,1.7,2.4)})
-        EXPECT_NEAR(rhoFit(r), direct(r), 1e-11);
-
-    // Cross-check against the independent FFT route: RhoOnGrid[0] = rho(r=0) = Σ rho~(dm).
-    rvec_t grid=GridOf(F.pw).RhoOnGrid(rhoTilde);
-    EXPECT_NEAR(rhoFit(rvec3_t(0.0,0.0,0.0)), grid[0], 1e-11);
-
-    // Gradient: finite-difference the field at a generic point.
-    rvec3_t r0(1.3,0.7,2.1), g=rhoFit.Gradient(r0);
-    const double h=1e-5;
-    EXPECT_NEAR(g.x, (rhoFit(rvec3_t(r0.x+h,r0.y,r0.z))-rhoFit(rvec3_t(r0.x-h,r0.y,r0.z)))/(2*h), 1e-4);
-    EXPECT_NEAR(g.y, (rhoFit(rvec3_t(r0.x,r0.y+h,r0.z))-rhoFit(rvec3_t(r0.x,r0.y-h,r0.z)))/(2*h), 1e-4);
-    EXPECT_NEAR(g.z, (rhoFit(rvec3_t(r0.x,r0.y,r0.z+h))-rhoFit(rvec3_t(r0.x,r0.y,r0.z-h)))/(2*h), 1e-4);
-}
+// (OrthoFitterRealSpaceField RETIRED 2026-11-08 with OrthoFunctionFitter, V-ONE-OF-N 3c: rho_fit(r) on {G} is RhoOnGrid's claim.)
 
 } //namespace

@@ -216,7 +216,7 @@ namespace
 {
 // The delta support: one column per difference dm=G_i-G_j, listing the (i,j) pairs that hit it, row-major
 // (i outer, j inner) so a per-column left-fold reproduces the density contraction exactly.
-void BuildProjector3Columns(const std::vector<ivec3_t>& G, std::vector<Projector3<dcmplx>::Column>& cols)
+void BuildPairProjectionColumns(const std::vector<ivec3_t>& G, std::vector<PairProjection<dcmplx>::Column>& cols)
 {
     size_t n=G.size();
     cols.clear();
@@ -236,30 +236,30 @@ void BuildProjector3Columns(const std::vector<ivec3_t>& G, std::vector<Projector
 
 // Coulomb 3-centre tensor over this engine's {G}: delta support + diagonal Poisson kernel 4pi/|G_c|^2
 // (dm=0 -> 0, the dropped G=0 background).  A density contracts D against it (Contract) for V_H.
-Projector3<dcmplx> PW_Evaluator::Repulsion3CTensor() const
+PairProjection<dcmplx> PW_Evaluator::Repulsion3CTensor() const
 {
-    Projector3<dcmplx> g;
-    BuildProjector3Columns(itsG, g.columns);
-    g.kernel.resize(g.columns.size());
-    for (size_t c=0;c<g.columns.size();c++)
-        g.kernel[c]=itsRecip.CoulombKernel(g.columns[c].dm);   // diagonal Poisson kernel (dm=0 -> 0)
+    PairProjection<dcmplx> g;
     g.volume=Volume();
-    g.applyAdjoint=AdjointLookup();   // <i|f|j> = f(G_i-G_j) (overlap metric; the kernel is forward-only)
+    // THE COULOMB 3-CENTRE INTEGRAL, ADJOINT ONLY (doc/Records/VOneOfN_D2Design.md §1a (A), user 2026-11-08; the forward went
+    // in 3c): <i|1/r|G> = k(G)<i|G|j>, the "second round of 3-centre repulsion integrals" a fitted Hartree term contracts its
+    // fit with -- the physics, applied when the term asks for repulsion and never in a projection.  No columns: a density
+    // projects through Overlap3C, so nothing contracts D into this tensor.
+    g.applyAdjoint=[lookup=AdjointLookup(), recip=itsRecip](const std::function<dcmplx(const ivec3_t&)>& f) -> chmat_t
+        {return lookup([&](const ivec3_t& dm){return recip.CoulombKernel(dm)*f(dm);});};
     return g;
 }
 
 // Overlap 3-centre tensor: delta support, EMPTY kernel (overlap metric).
-Projector3<dcmplx> PW_Evaluator::Overlap3CTensor() const
+PairProjection<dcmplx> PW_Evaluator::Overlap3CTensor() const
 {
-    Projector3<dcmplx> g;
-    BuildProjector3Columns(itsG, g.columns);
-    g.kernel.clear();                // EMPTY => overlap metric
+    PairProjection<dcmplx> g;
+    BuildPairProjectionColumns(itsG, g.columns);
     g.volume=Volume();
     g.applyAdjoint=AdjointLookup();
     return g;
 }
 
-// The Projector3<dcmplx> BACKWARD realization for plane waves: <i|f|j> = f(m_i-m_j) (== OverlapMatrix), the Fourier lookup.
+// The PairProjection<dcmplx> BACKWARD realization for plane waves: <i|f|j> = f(m_i-m_j) (== OverlapMatrix), the Fourier lookup.
 // Self-contained (captures the orbital {G} by value), so the closure outlives the evaluator in the tensor cache.
 std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)> PW_Evaluator::AdjointLookup() const
 {

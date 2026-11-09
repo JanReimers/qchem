@@ -6,10 +6,6 @@ import qchem.Fitting.Types;
 namespace qchem::Fitting
 {
 
-template <class T> IntegralConstrainedFF<T>::IntegralConstrainedFF()
-    : ConstrainedFF<T>()
-{};
-
 template <class T> IntegralConstrainedFF<T>::
 IntegralConstrainedFF(fbs_t& fbs)
     : ConstrainedFF<T>(fbs,fbs->Charge())

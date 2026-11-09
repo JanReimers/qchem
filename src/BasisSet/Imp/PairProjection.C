@@ -1,12 +1,12 @@
 module;
 #include <cassert>
 #include <iostream>
-module qchem.BasisSet.Projector3;
+module qchem.BasisSet.PairProjection;
 import qchem.Blaze;
 
 namespace qchem {
 
-template <class T> double fnorm(const Projector3<T>& a, const Projector3<T>& b)
+template <class T> double fnorm(const PairProjection<T>& a, const PairProjection<T>& b)
 {
     double ret=0.0;
     assert(a.dense.size()==b.dense.size());
@@ -20,7 +20,7 @@ template <class T> double fnorm(const Projector3<T>& a, const Projector3<T>& b)
     return sqrt(ret);
 }
 
-template <class T> double relative_fnorm(const Projector3<T>& a, const Projector3<T>& b)
+template <class T> double relative_fnorm(const PairProjection<T>& a, const PairProjection<T>& b)
 {
     double ret=0.0;
     assert(a.dense.size()==b.dense.size());
@@ -36,7 +36,7 @@ template <class T> double relative_fnorm(const Projector3<T>& a, const Projector
     return sqrt(ret);
 }
 
-template double          fnorm<double>(const Projector3<double>& a, const Projector3<double>& b);
-template double relative_fnorm<double>(const Projector3<double>& a, const Projector3<double>& b);
+template double          fnorm<double>(const PairProjection<double>& a, const PairProjection<double>& b);
+template double relative_fnorm<double>(const PairProjection<double>& a, const PairProjection<double>& b);
 
 } // namespace qchem

@@ -7,12 +7,10 @@ target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     CoulombOperator.C
     FitOperations.C
     Internal/FunctionFitterImp.C
-    Internal/OrthoFunctionFitter.C
     Internal/OrthoNormalFunctionFitter.C
     Internal/DeltaFunctionFitter.C
-    Internal/DirectSumCoulomb.C
     Internal/GridDensityFitter.C
-    Internal/RadialPoissonCoulomb.C
+    Internal/GSpaceDensityFitter.C
     Types.C
 )
 set_property(TARGET qcFitting PROPERTY CXX_STANDARD 20)

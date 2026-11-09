@@ -22,7 +22,7 @@ import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 import qchem.BasisSet.PlaneWave.Evaluators;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
 import qchem.BasisSet.Lattice.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
-import qchem.Mesh;                           // qcMesh::MeshParams (Vee_Hartree's fit-basis factory arg; ignored)
+import qchem.Mesh;                           // qcMesh::MeshParams (the Hartree fit basis factory arg; ignored)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
@@ -95,17 +95,17 @@ TEST(PW_Mn2Box, Γ_Pol_SeedStaggered)
     EXPECT_NEAR(A.GetTotalSpin(),    0.0, 1e-10);                 // AFM: <up>-<down> = 0 by symmetry
     EXPECT_NEAR(A.GetChannel(Spin::Up)->GetTotalCharge(), 7.0, 0.01);
 
-    // The channel rho-tilde maps.  A channel is a matrix-free FourierDensity; the seed ignores the SF fit
+    // The channel rho-tilde maps.  A channel is a matrix-free seed with its own Fourier components; the seed ignores the SF fit
     // basis argument (its support is its own CD fit basis's difference set), so every map shares one key set.
     auto fd=[&](const qchem::ChargeDensity::cChargeDensity* cd)->ΔG_Map
     {
-        auto* f=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-        EXPECT_TRUE(f) << "a seed channel must be a FourierDensity";
-        return f->GetFourierDensity(*fsf);
+        auto* f=dynamic_cast<const qchem::BasisSet::AnalyticFourier*>(cd);
+        EXPECT_TRUE(f) << "a seed channel must carry its Fourier components";
+        return f->FourierComponents(*fsf);
     };
     ΔG_Map upA=fd(A.GetChannel(Spin::Up)), dnA=fd(A.GetChannel(Spin::Down));
     ΔG_Map dnB=fd(B.GetChannel(Spin::Down));
-    ΔG_Map tot=T.GetFourierDensity(*fsf);
+    ΔG_Map tot=T.FourierComponents(*fsf);
 
     // (1) The staggered ORDER PARAMETER at the AFM wavevector G=(1,1,1): identical species on both sites
     // means the TOTAL suffers the CsCl extinction there (F_maj+F_min alike, phases +1/-1), while the spin

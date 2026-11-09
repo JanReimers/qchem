@@ -3,22 +3,14 @@
 // There are only TWO actors here -- a Client (the thing being fit / using the fit) and the Fitter:
 //
 //   Client -> Fitter :  "please fit me."                                     [DoFit(client)]
-//   Fitter -> Client :  "fine, but answer a couple of questions first --     [the *FFClient callbacks:
-//                        what's your value at r? (or: your charge and your    GetScalarFunction(), or
-//                        3-centre repulsion with my fit basis?)"              FitGetConstraint()+GetRepulsion3C()]
-//   Client -> Fitter :  "great.  Now, what's your overlap / repulsion with   [Overlap / Repulsion,
-//                        this other (orbital) basis?"                          FitGetSelfRepulsion, Integral]
+//   Fitter -> Client :  "fine, but answer a question first --                [the ProjectedScalar_R callback:
+//                        what's your value at r?"                            GetScalarFunction()]
+//   Client -> Fitter :  "great.  Now, what's your overlap with this other    [Overlap]
+//                        (orbital) basis?"
 //
-// The FFClient callbacks are simply how the Fitter asks the Client its questions, so they live here with
-// the Fitter -- a client imports this ONE module and has everything.  (The old separate FittedFunction
-// interface was a spurious third actor: the Fitter *is* the fitted result you query.)
-//
-// The fitter is split along its METRIC axis into two ISP faces -- FunctionFitter_Scalar (the overlap
-// metric, for potential fits v_xc) and FunctionFitter_Density (the Coulomb metric + charge constraint,
-// for density fits rho).  Each takes its OWN narrow fit-basis face (rFIT_SF_ABS / rFIT_CD_ABS), so the
-// consumers no longer down-cast the narrow face back up to the concrete Fit_IBS.  Each face has a Gaussian
-// (non-ortho) impl and a plane-wave (orthonormal {G}) impl -- the ortho OrthoFunctionFitter /
-// OrthoScalarFitter, where the projection IS the fit (no metric solve).
+// This hub holds the SCALAR (overlap-metric, potential) fitter.  The DENSITY fits left it in V-ONE-OF-N 3c (2026-11-08): a
+// density projects itself onto a BasisSet::PairProjector, and the Hartree terms hold Fitting::FirstOrderDensityFit /
+// DunlapDensityFit (qchem.Fitting.CoulombOperator), whose implementations keep their coefficients privately.
 //
 // Clients COMPOSE a fitter obtained from the Factory and use only the relevant face; the concrete
 // implementation stays hidden behind the Factory.
@@ -26,106 +18,15 @@ module;
 #include <iosfwd>
 #include <memory>
 export module qchem.Fitting.FunctionFitter;
-export import qchem.Mesh.Integrator;   // MatrixForward -- what ScalarProjector vends (2026-09-09)
+export import qchem.Mesh.Integrator;   // MatrixForward -- what a forward vendor vends (2026-09-09)
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
 import qchem.Fitting.Types;           // robs_t<T>
+export import qchem.BasisSet.PairProjector;   // the density-facing projector (V-ONE-OF-N 3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;  // rFIT_SF_ABS / rFIT_CD_ABS (the fit faces) + Orbital_DFT_IBS (FitContraction's argument)
 
 export namespace qchem::Fitting
 {
 
-//! \brief The density projected onto the fit basis -- the \f$\langle c|\rho\rangle\f$ a density fitter
-//! consumes, with the storage CONTAINER hidden.  A neutral MARKER base so the fitter face names ONE argument
-//! type; each concrete projection (the dense AO \c rvec_t below, or the orthonormal G-space map) is recovered
-//! by the paired fitter via a sanctioned abstract->abstract cross-cast.  Templated on the fit's scalar type
-//! \a T (AO projection = \c double; the reciprocal-space map = \c dcmplx) so it matches the fitter's \a T.
-//! This is why no lattice/"Fourier" container leaks into the structure-neutral fitting interface.
-template <class T> class ProjectedDensity
-{
-public:
-    virtual ~ProjectedDensity() = default;
-};
-
-//! \brief The density projected onto the fit basis, for a NON-orthonormal (AO: Gaussian/Slater/BSpline)
-//! basis.  The fitter asks for the UNCONSTRAINED fit coefficients (in the projection's own metric) plus the
-//! charge, then applies the Dunlap charge constraint.  The "which metric" is a STRATEGY dispatched by
-//! polymorphism (not a runtime enum): a density with a matrix uses the Coulomb metric (default); a matrix-free
-//! seed uses the overlap metric (override).
-class ProjectedDensity_AO : public virtual ProjectedDensity<double>
-{
-public:
-    virtual double FitGetConstraint() const=0;                                  //!< "what charge?" (= N)
-    //! (2026-09-19) \c GetUnconstrainedFit is no longer declared here.  The two metric faces below each say
-    //! what they CAN supply: a matrix-free seed its own overlap-metric fit, a matrix-carrying density the
-    //! Coulomb RHS through a \c DensityProjector -- and the fitter, which owns the metric solve, asks the
-    //! face it finds.  A neutral method both had to answer was the "which metric" guess this base does
-    //! not make (V1.16), still sitting on it under another name.
-};
-
-//! \brief WHAT A MATRIX-CARRYING DENSITY PROJECTS ITSELF ONTO IN THE COULOMB METRIC -- the analytic
-//! (Gaussian auxiliary basis) mirror of \c ScalarProjector, and R1.0q's first molecular instance
-//! (2026-09-19).  It vends the FORWARD half of a \c DenseProjector3Integrator built once per orbital
-//! block over the basis's \f$\langle ab|c\rangle\f$ Coulomb tensor; the density contracts its own \f$D\f$
-//! into it and never names the tensor.  The fitter that realises this face holds the ADJOINT half of the
-//! same object for \f$\sum_a c_a\langle i|f_a/r_{12}|j\rangle\f$ -- so the density's forward and the
-//! term's adjoint come off ONE object, as on the periodic route, instead of two libraries contracting
-//! one borrowed tensor from opposite sides.
-//!
-//! \note Real-only and \c TFit==double, deliberately: this is the FINITE lineage (real Gaussians on a real
-//! auxiliary basis); the periodic \c ScalarProjector spells its axes \c dcmplx for the same reason in the
-//! other direction.  The two faces are the SAME shape on the two fit metrics, which is the point.
-class DensityProjector
-{
-public:
-    virtual ~DensityProjector() = default;
-    //! The forward integrator for THIS orbital block -- by reference, a finite fit basis always has one.
-    virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>&) const=0;
-    virtual size_t NumCoefficients() const=0;   //!< the fit basis's function count (the forward's length)
-};
-
-//! \brief COULOMB-metric projection: a density that carries a MATRIX, so it can supply the Coulomb RHS
-//! \f$\langle\rho|c\rangle=\sum_{ab}D_{ab}\langle ab|c\rangle\f$ and the fit is \f$c_0=J^{-1}\langle\rho|c\rangle\f$.
-//!
-//! V1.16: the metric used to be a DEFAULT on the base plus a poisoned sibling -- \c GetUnconstrainedFit
-//! defaulted to the Coulomb solve and \c GetRepulsion3C's default asserted, so the contract was "override
-//! the OTHER method and this one becomes poison".  That pairing was implicit and unenforceable: a
-//! matrix-free density that forgot to override \c GetUnconstrainedFit compiled fine and died at run time,
-//! and nothing in the type system said why.  Now each metric is a face you either HAVE or do not, the
-//! Coulomb RHS is PURE virtual on the face that owns it, and there is no poisoned default left to hit.
-class CoulombMetric_ProjectedDensity : public virtual ProjectedDensity_AO
-{
-public:
-    //! The Coulomb-metric RHS of a real density MATRIX, \f$\langle\rho|c\rangle\f$ -- each block contracting
-    //! its own \f$D\f$ into the forward the projector vends for it (R1.0q, 2026-09-19; it used to take the
-    //! fit BASIS and reach into its tensor's \c dense array).  Composite/polarized densities SUM this
-    //! across their blocks, so the fitter's single \f$J^{-1}\f$ is applied once to the total.
-    virtual rvec_t GetRepulsion3C(const DensityProjector&) const=0;
-};
-
-//! \brief OVERLAP-metric projection: a MATRIX-FREE density (a seed) that fits its own \f$\rho(r)\f$ directly,
-//! \f$c_0=S^{-1}\langle f|\rho\rangle\f$ -- no \f$J\f$ round-trip and no Coulomb RHS to supply.  It is not
-//! that such a density declines to answer \c GetRepulsion3C; it is that the question does not apply to it,
-//! which is exactly what having a different face says.
-class OverlapMetric_ProjectedDensity : public virtual ProjectedDensity_AO
-{
-public:
-    virtual rvec_t GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const=0;
-};
-
-//! \brief The plane-wave counterpart of ProjectedDensity_AO.  On the orthonormal {G} basis the projection
-//! is already DIAGONAL -- rho-tilde(Dm) = (1/Omega) Sum_{m_i-m_j=Dm} D_ij (= Contract), a map keyed
-//! by Dm (efficiency, rule #2: the delta collapses Sum_ij D_ij<ij|c> to a gather over Dm-shells).  So here
-//! the projection IS the fit (no metric solve): this simply WRAPS the density's G-space coefficients, keeping
-//! the ΔG_Map container OFF the neutral ProjectedDensity<dcmplx> face (the ortho fitter cross-casts to it
-//! in DoFit, mirroring how the AO fitter cross-casts to ProjectedDensity_AO).
-class ProjectedDensity_G : public virtual ProjectedDensity<dcmplx>
-{
-public:
-    explicit ProjectedDensity_G(const ΔG_Map& rhoTilde) : itsMap(rhoTilde) {}
-    const ΔG_Map& Map() const {return itsMap;}   //!< the density's rho-tilde (the fit itself)
-private:
-    ΔG_Map itsMap;
-};
 
 //! \brief The REAL-SPACE (\c _R) scalar projection: the argument a SCALAR (overlap-metric) fitter's \c DoFit
 //! consumes.  It carries only the real-space FIELD \f$f(\vec r)\f$ (e.g. \f$v_{xc}(\rho(\vec r))\f$) --
@@ -151,7 +52,7 @@ public:
 //!  - it carries NO matrix (a seed, a \f$\tilde\rho\f$-mixed field) -> \c Project itself as a FIELD.
 //!
 //! WHY THE FITTER HOLDS THE \f$\Phi\f$ HANDLES (user, 2026-08-24: *"DeltaScalarFitter needs to hold a
-//! shallow copy of \f$\Phi_{gi}=\chi_i(r_g)\f$"*).  \c Projector3 IS that shallow copy: three closures
+//! shallow copy of \f$\Phi_{gi}=\chi_i(r_g)\f$"*).  \c PairProjection IS that shallow copy: three closures
 //! over the fit basis's own address-stable table, ~100 bytes against the table's tens of MB.  Holding it
 //! here is what makes the adjoint pairing a CLASS INVARIANT rather than a convention -- the \f$\rho\f$
 //! FORWARD (\c applyRaw / \c applyRawFactored) and the \f$H_{xc}\f$ ADJOINT (\c applyRawAdjoint) now come
@@ -189,26 +90,8 @@ public:
     virtual size_t NumCoefficients() const=0;
 };
 
-class ScalarProjector
-    : public virtual FieldProjector
-{
-public:
-    //! \brief THE FORWARD HALF of the assembly for a \a U-scalar orbital block -- what a matrix-backed
-    //! density contracts its own \f$D\f$ (or thin \f$L\f$) into.
-    //!
-    //! ★ IT RETURNS THE ABSTRACTION, NOT THE TENSOR (2026-09-09).  It used to hand back
-    //! \c const Projector3<U>& -- the concrete 3-centre tensor -- so \c IrrepCD reached into a
-    //! \c std::function member (`o3.applyRaw(D)`) and asserted on another (`o3.applyRawFactored`).  The
-    //! density has no business naming either: it owns \f$D\f$ and wants ONE thing done with it.
-    //! \c qcMesh::MatrixForward is that thing, and its factored overload has a default, so there is
-    //! nothing left to assert.
-    //!
-    //! \note By REFERENCE, deliberately: a \f$\delta\f$ fit basis always realises the forward, so
-    //! "haven't got one" is not a state this face can be in.  The nullable question -- *does this LINEAGE
-    //! collocate at all?* -- belongs to the BASIS-side vendor (\c Orbital_DFT_IBS), not here.
-    virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const=0;
-    virtual const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;
-};
+// RETIRED 2026-11-08 (V-ONE-OF-N 3c): ScalarProjector (FieldProjector + PairProjector<dcmplx>) and DensityProjector
+// (PairProjector<double>), the 3a aliases.  A forward vendor is a BasisSet::PairProjector<T>; a field projection a FieldProjector.
 
 //! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) CORE.  Fit a pointwise field
 //! (e.g. v_xc(rho(r))) onto the fit basis in the overlap norm, then contract it against an orbital basis as an
@@ -293,8 +176,13 @@ template <class T> class DeltaScalarFit
 template <> class DeltaScalarFit<dcmplx>
     : public virtual ScalarFit<dcmplx>
     , public virtual FitContraction<double,dcmplx>
-    , public virtual ScalarProjector
-{};
+    , public virtual FieldProjector
+    , public virtual BasisSet::PairProjector<dcmplx>
+{
+public:
+    //! Declared once more here so the two bases' \c NumCoefficients resolve to one name (both describe the same axis).
+    virtual size_t NumCoefficients() const override=0;
+};
 
 // RETIRED 2026-08-22: the GriddedScalarFitter refinement.  It existed so the XC term could borrow the
 // FFT grid THROUGH the fitter -- "one owner", instead of the term cross-casting the fit basis a second
@@ -304,54 +192,10 @@ template <> class DeltaScalarFit<dcmplx>
 // once again just a FunctionFitter_Scalar<dcmplx> that happens to fit on a raster -- which is its own
 // business, exactly as the AO fitter's own quadrature mesh is.
 
-//! \brief Abstract density fitter -- the MINIMAL CORE a Hartree term needs: fit a density, then contract it
-//! against an orbital basis as a Coulomb (Vee) matrix Sum_a c_a <Oi|f_a/r12|Oj>.  Orthonormality-neutral (no
-//! metric bookkeeping), so an orthonormal (plane-wave) fitter implements this + the evaluatable field and
-//! nothing more (mirror of the rFIT_CD_ABS / FIT_CD_NonOrtho split on the fit-basis side).  Like the scalar
-//! core, the fitted density \f$\rho_{fit}(r)\f$ is a real, evaluatable \c ScalarFunction (AO eval / PW inverse
-//! transform) -- the GUI plots it and the fit-residual \f$\rho-\rho_{fit}\f$ measures the fit quality.
-//! \note It does NOT promise an evaluatable fitted FIELD.  \c ScalarFunction<double> used to be a base
-//! here, so every density fitter advertised \f$\rho_{fit}(r)\f$ at an arbitrary \a r -- and the AO fitter
-//! could only deliver it by handing its COEFFICIENTS back to the basis (\c FieldEvaluator::EvalField), i.e.
-//! by exposing them, which is the smell that got the whole chain deleted (user, 2026-08-24): anything
-//! holding \a c holds the basis too, so a separate hand-the-coefficients-over face buys nothing.  Measured
-//! before removal: ZERO calls across all 758 tests, and none in pybind/, viz-demo/ or CLIapps/ either.
-//! Same shape as \c FunctionFitter_Scalar, which lost the base earlier for the same kind of reason: the
-//! fitters that CAN evaluate -- the plane-wave one, by inverse transform over its own \f$\{G\}\f$ --
-//! derive \c ScalarFunction themselves, and a consumer that wants the field cross-casts for it.
-template <class T> class FunctionFitter_Density
-{
-public:
-    virtual ~FunctionFitter_Density() = default;
-    virtual void   DoFit           (const ProjectedDensity<T>&)=0;  //!< fit a density (impl cross-casts to its projection)
-    virtual hmat_t<T> Repulsion    (const robs_t<T>*) const     =0;  //!< Sum_a c_a <Oi|f_a/r12|Oj>
-    //! Can this fitter give MakeRepulsionPullback on the block \a bs?  CLIENT: the Hartree term's MissingGradients() entry.
-    virtual bool CanPullbackRepulsion(const robs_t<T>* bs) const=0;
-    //! THE PULLBACK of Repulsion(bs) AT FIXED FIT COEFFICIENTS (GeometryOptimizationPlan §13.2; the user's 2026-11-08 pre-approval of
-    //! derivative faces): F[A] = Σ_ij Re(D_ij* ∂Repulsion(bs)_ij/∂R_A), the block's and the fit's centres moving.  Fixed c is what a
-    //! VARIATIONAL fit's force needs (its c-derivative is zero, or along a constraint whose own R-derivative the caller accounts).  A fitter
-    //! without it refuses.
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const robs_t<T>* bs, const hmat_t<T>& D, const Structure* st) const=0;
-    virtual std::ostream& Write    (std::ostream&) const        =0;  //!< describe the fit
-};
-
-//! \brief The NON-orthonormal (Gaussian) density-fitter refinement: the charge-constrained Coulomb-metric fit
-//! (Dunlap-Connolly-Sabin) also exposes its self-energy, total charge, and initial-guess rescale -- the
-//! genuinely-Coulomb/charge extras the molecular FittedCD consumes.  An orthonormal fitter (the projection IS
-//! the fit) carries NONE of these (the real-space value now lives on the core, above).
-template <class T> class FunctionFitter_Density_NonOrtho
-    : public virtual FunctionFitter_Density<T>
-{
-public:
-    virtual double FitGetSelfRepulsion() const=0;      //!< <fit|1/r12|fit> (caller halves)
-    //! Can this fitter give MakeSelfRepulsionPullback?  CLIENT: the Dunlap Hartree term's MissingGradients() entry.
-    virtual bool CanPullbackSelfRepulsion() const=0;
-    //! THE PULLBACK of FitGetSelfRepulsion() at fixed fit coefficients: F[A] = ∂<fit|1/r12|fit>/∂R_A, the fit centres moving (caller halves,
-    //! as it halves the value).  A fitter without it refuses.
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure* st) const=0;
-    virtual double Integral           () const=0;      //!< total charge Sum_a c_a integral f_a
-    virtual void   ReScale            (double factor)=0; //!< c *= factor
-};
+// RETIRED 2026-11-08 (V-ONE-OF-N 3c, doc/Records/VOneOfN_D2Design.md §3): the density-fitter faces FunctionFitter_Density /
+// _NonOrtho, their ProjectedDensity<T> argument family (_AO, CoulombMetric_, OverlapMetric_, _G) and their two Factory overloads.
+// A density fit is now a PairProjector the density projects itself onto (tChargeDensity::Project), holding its coefficients
+// privately: Fitting::FirstOrderDensityFit (Vee_Fit) and Fitting::DunlapDensityFit (Vee_FitDunlap), qchem.Fitting.CoulombOperator.
 
 //! \name Fitter factory
 //! Create the fitter matched to a fit basis, dispatched by the basis's fit face (density vs potential) and its
@@ -377,17 +221,6 @@ Factory(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
 template <class T> std::unique_ptr<DeltaScalarFit<T>>
 MakeDeltaScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>&);
 
-//! Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given non-ortho fit basis.  Returns the
-//! non-ortho refinement (the molecular FittedCD needs its self-energy/charge/rescale/eval).
-std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
-Factory(std::shared_ptr<const BasisSet::rFIT_CD_ABS>&);
-
-//! Create a DENSITY fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  Returns the minimal CORE face --
-//! the projection IS the fit, so no metric solve / self-energy / rescale (an ortho fitter carries none of the
-//! non-ortho refinement); DoFit receives a ProjectedDensity_G and Repulsion delegates the Poisson solve to the
-//! orbital Orbital_DFT_IBS<dcmplx>.
-std::unique_ptr<FunctionFitter_Density<dcmplx>>
-Factory(std::shared_ptr<const BasisSet::cFIT_CD_ABS>&);
 //!@}
 
 } //namespace

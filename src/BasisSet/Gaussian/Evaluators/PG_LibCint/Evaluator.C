@@ -32,7 +32,7 @@ module;
 export module qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;
 import qchem.BasisSet.Gaussian.Evaluators;                       // Evaluator + the isM_* concepts
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;    // PGData (component layout + ordering)
-import qchem.BasisSet.Projector3;                       // Projector3<double>
+import qchem.BasisSet.PairProjection;                       // PairProjection<double>
 import qchem.BasisSet.Internal.ERI4;                             // ERI4
 import qchem.Structure;
 import qchem.Types;
@@ -111,8 +111,8 @@ public:
     std::vector<rvec3_t> ERI4Gradient(const NR_Evaluator& other, const rmat_t& Da, const rmat_t& Db, bool exchange) const;
 
     // --- isM_DFT (3-centre <ab|c>, one symmetric (ia,ib) block per fit component ic) ---
-    Projector3<double> OverlapThreeC_Matrix  (const NR_Evaluator& fit) const;   // int3c1e (overlap)
-    Projector3<double> RepulsionThreeC_Matrix(const NR_Evaluator& fit) const;   // int3c2e (Coulomb)
+    PairProjection<double> OverlapThreeC_Matrix  (const NR_Evaluator& fit) const;   // int3c1e (overlap)
+    PairProjection<double> RepulsionThreeC_Matrix(const NR_Evaluator& fit) const;   // int3c2e (Coulomb)
 
     // --- isM_HF (4-centre (ab|cd)).  ExchangeMatrix reproduces Orbital_ERI4_IBS::MakeExchange's packing
     // (the documented isM_ friction: an opaque assembler must duplicate the 0.5 / ib<id branching). ---
@@ -132,7 +132,7 @@ private:
 
     rsmat_t             Build1(int which) const;                          // 0=ovlp 1=kin 2=nuc
     GradientMatrices    BuildGradient(int which) const;                   // 0=ovlp 1=kin 2=nuc
-    Projector3<double>  Build3(const NR_Evaluator& fit, int which) const; // 0=overlap 1=Coulomb
+    PairProjection<double>  Build3(const NR_Evaluator& fit, int which) const; // 0=overlap 1=Coulomb
     std::vector<double> Compute4(const NR_Evaluator& B, const NR_Evaluator& C,
                                  const NR_Evaluator& D) const;            // (this B | C D), PG order
 };

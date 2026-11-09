@@ -28,7 +28,7 @@ namespace qchem::ChargeDensity
 SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const UnitCell& cell,
                              const SeedKey& seedKey, const std::vector<int>& ionicNvalBySite,
                              const Spin& channel)
-    : itsFitBasis(fitBasis), itsRecip(cell.MakeReciprocal()), itsCell(&cell)
+    : itsFitBasis(fitBasis), itsCell(&cell)
     , itsChannel(channel), itsCharge(0.0)
     , itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
@@ -158,20 +158,9 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Unit
 
 // The seed's metric-free rho-tilde: no D to contract, so it IS the structure-factor density (the Vxc fit
 // basis argument is ignored -- the seed's support is the orbital difference set, like every rho-tilde).
-ΔG_Map SeedCD::GetFourierDensity(const BasisSet::cFIT_SF_ABS&) const
+ΔG_Map SeedCD::FourierComponents(const BasisSet::cFIT_SF_ABS&) const
 {
     return StructureFactorDensity();
-}
-
-// The seed's Coulomb projection V_H = 4pi rho-tilde/|G|^2: apply the diagonal Poisson kernel (reciprocal-
-// LATTICE physics -- needs only B, not the basis's {G} set) to the structure-factor rho-tilde.  The seed
-// owns its reciprocal lattice (itsRecip, built at construction), so there is NO basis round-trip.
-ΔG_Map SeedCD::GetRepulsion3C(const BasisSet::cFIT_CD_ABS&) const
-{
-    ΔG_Map VH;
-    for (const auto& [dm,rt] : StructureFactorDensity())
-        if (double k=itsRecip.CoulombKernel(dm); k!=0.0) VH[dm]=k*rt;   // skip dm=0 (k==0)
-    return VH;
 }
 
 // PERIODIC real-space evaluation (2026-08-11).  A plane-wave seed is cell-periodic, and its mesh consumers
@@ -286,18 +275,11 @@ const cChargeDensity* PolarizedSeedCD::GetChannel(const Spin& s) const
     return s==Spin::Up ? static_cast<const cChargeDensity*>(&itsUp) : &itsDn;
 }
 
-ΔG_Map PolarizedSeedCD::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
+ΔG_Map PolarizedSeedCD::FourierComponents(const BasisSet::cFIT_SF_ABS& c) const
 {
-    ΔG_Map ro = itsUp.GetFourierDensity(c);
-    for (const auto& [dm,rt] : itsDn.GetFourierDensity(c)) ro[dm]+=rt;
+    ΔG_Map ro = itsUp.FourierComponents(c);
+    for (const auto& [dm,rt] : itsDn.FourierComponents(c)) ro[dm]+=rt;
     return ro;
-}
-
-ΔG_Map PolarizedSeedCD::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
-{
-    ΔG_Map VH = itsUp.GetRepulsion3C(c);
-    for (const auto& [dm,rt] : itsDn.GetRepulsion3C(c)) VH[dm]+=rt;
-    return VH;
 }
 
 double  PolarizedSeedCD::operator()(const rvec3_t& r) const {return itsUp(r)+itsDn(r);}

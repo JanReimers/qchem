@@ -33,6 +33,8 @@ import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;          // tGPW_IBS<T> (both bl
 import qchem.Hamiltonian;                          // the terms and their real block faces
 import qchem.Hamiltonian.Internal.Kinetic;         // Kinetic<T> (tests may cheat-import internals)
 import qchem.Hamiltonian.Internal.Hamiltonian;     // tHamiltonianImp<dcmplx> (the 3c-2 assembly gate)
+import qchem.Hamiltonian.Internal.Terms;            // Vee_Fit<dcmplx> (the periodic Hartree term)
+import qchem.Fitting.CoulombOperator;               // MakeGSpaceDensityFitter
 import qchem.Hamiltonian.Internal.PWTerms;         // the periodic term set + the two DensitySampler strategies
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
                                                   // since 2026-09-08; .Internal. modules are
@@ -46,7 +48,8 @@ import qchem.Pseudopotential.GTH_Potentials;       // GetGTH (Si GTH-LDA-q4)
 import qchem.ChargeDensity.Imp.IrrepCD;            // PeriodicIrrepCD (the periodic leaf -- 3c-2b)
 import qchem.CompositeCD;                          // tComposite_CD<dcmplx> (the run-shaped density)
 import qchem.Mesh;                                 // qcMesh::MeshParams
-import qchem.Fitting.FunctionFitter;               // CoulombMetric_ProjectedDensity (the honest-probe check)
+import qchem.Fitting.FunctionFitter;               // DeltaScalarFit
+import qchem.BasisSet.GSpaceDensityProjector;      // ρ̃ through the one projection face (V-ONE-OF-N 3c)
 import qchem.Types;
 
 using namespace qchem;
@@ -148,7 +151,7 @@ struct DeltaProjector
         : basis(std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(
                     std::move(q), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0))))
         , fitter(Fitting::MakeDeltaScalarFitter(basis)) {}
-    const Fitting::ScalarProjector& operator()() const
+    const BasisSet::PairProjector<dcmplx>& operator()() const
         {return *fitter;}
     const BasisSet::DeltaFit_IBS<dcmplx>&   Basis() const
         {return dynamic_cast<const BasisSet::DeltaFit_IBS<dcmplx>&>(*basis);}
@@ -162,7 +165,7 @@ template <class U> U FactorEntry(size_t i, size_t m)
     else                                    return a;
 }
 
-//! \f$\rho\f$ from \f$L\f$ two ways over ONE \c Projector3: the factored contraction against the full
+//! \f$\rho\f$ from \f$L\f$ two ways over ONE \c PairProjection: the factored contraction against the full
 //! quadratic form of \f$D=LL^\dagger\f$.  PSD by construction, so the factored route is always applicable.
 template <class U>
 void ExpectFactoredMatchesFull(const BasisSet::DeltaFit_IBS<dcmplx>& dfit,
@@ -190,7 +193,7 @@ void ExpectFactoredMatchesFull(const BasisSet::DeltaFit_IBS<dcmplx>& dfit,
         D(i,j)=s;
     }
 
-    const Projector3<U>& o3=static_cast<const BasisSet::Integrals_Overlap3C<U,dcmplx>&>(dfit).Overlap3C(orb);   // through the face: the real-block overload lives on the periodic base
+    const PairProjection<U>& o3=static_cast<const BasisSet::Integrals_Overlap3C<U,dcmplx>&>(dfit).Overlap3C(orb);   // through the face: the real-block overload lives on the periodic base
     ASSERT_TRUE(bool(o3.applyRaw))         << what << ": the delta basis must realise the raw forward";
     ASSERT_TRUE(bool(o3.applyRawFactored)) << what << ": ...and its factored sibling";
     const rvec_t full=o3.applyRaw(D), fact=o3.applyRawFactored(L);
@@ -277,7 +280,7 @@ TEST(RealComplexTerms, FactoredLeafMatchesDirectLeafBothScalars)
         }
         FactoredRho<PeriodicIrrepCD<U>> fac(D, &orb, orb.GetIrrep(Spin::None));
         PeriodicIrrepCD<U>              dir(D, &orb, orb.GetIrrep(Spin::None));
-        const rvec_t rf=fac.ProjectOnto(dp()), rd=dir.ProjectOnto(dp());
+        const rvec_t rf=fac.Project(dp()).Vector(), rd=dir.Project(dp()).Vector();
         ASSERT_EQ(rf.size(), rd.size()) << what;
         double scale=0.0;
         for (size_t g=0; g<rd.size(); g++) scale=std::max(scale, std::fabs(rd[g]));
@@ -329,17 +332,17 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
     auto cd  = rig.MakeDensity();       // the complex arm's density (complex child on cx)
     auto cdr = rig.MakeRealDensity();   // the real arm's TWIN (real child on re -- the 3c-3 mixed shape)
 
-    Vee_Hartree::fbs_t fb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
-    Vee_Hartree vh(fb);
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    Vee_Fit<dcmplx> vh(Fitting::MakeGSpaceDensityFitter(fb), 0.0, fb);
     {
         auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&vh);
-        ASSERT_NE(rb,nullptr) << "Vee_Hartree must carry the real-block capability (Step 3c)";
+        ASSERT_NE(rb,nullptr) << "the periodic Hartree term must carry the real-block capability (Step 3c)";
         // Concrete-typed calls are ambiguous across the two GetMatrix base classes; go through the faces.
         RefreshTerm(static_cast<const cDynamic_HT&>(vh), cd.get(), rig.cx.get());    // each arm refreshed for ITS density (KAxisPlan P2)
         const chmat_t Vc=static_cast<const cDynamic_HT&>(vh).GetMatrix(rig.cx.get(), Spin::None, DensityID(cd.get()));
         RefreshTerm(static_cast<const cDynamic_HT&>(vh), cdr.get(), rig.re.get());
         const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, DensityID(cdr.get()));
-        ExpectBitwiseEqual(Vr, Vc, "Vee_Hartree");
+        ExpectBitwiseEqual(Vr, Vc, "Vee_Fit<dcmplx>");
     }
 
     auto q = BasisSet::MakeXCQuadrature(*rig.st, qcMesh::MeshParams{}, nullptr);   // a bare block: no imposition, the plain mesh
@@ -416,15 +419,16 @@ TEST(RealComplexTerms, SeedDensityTrioMatches_FccDiamond)
     PeriodicIrrepCD<dcmplx> cdc(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None));
     EXPECT_NEAR(cdr.GetTotalCharge(), cdc.GetTotalCharge(), 1e-13);
 
-    Vee_Hartree::fbs_t fb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
-    ΔG_Map rr=cdr.GetRepulsion3C(*fb), rc=cdc.GetRepulsion3C(*fb);
+    // ρ̃(dm) through the one projection face (V-ONE-OF-N 3c; V_H = k·ρ̃ is the Hartree fitter's, so this was the V_H claim too).
+    const auto proj=BasisSet::MakeGSpaceDensityProjector(sf);
+    const ΔG_Map rr=cdr.Project(*proj).GMap(), rc=cdc.Project(*proj).GMap();
     ASSERT_EQ(rr.size(), rc.size());
     for (const auto& [dm,v] : rr)
     {
         auto it=rc.find(dm);
         ASSERT_NE(it, rc.end());
-        EXPECT_EQ(v, it->second) << "V_H(dm) mismatch";
+        EXPECT_EQ(v, it->second) << "rho-tilde(dm) mismatch";
     }
     const rvec_t gr=cdr.GetRhoOnGrid(*sf), gc=cdc.GetRhoOnGrid(*sf);
     ASSERT_EQ(gr.size(), gc.size());
@@ -436,8 +440,8 @@ TEST(RealComplexTerms, SeedDensityTrioMatches_FccDiamond)
         new PeriodicIrrepCD<double>(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None))), rig.re->GetIrrep(Spin::None));
     tComposite_CD<dcmplx> cplx;   cplx.Insert(std::unique_ptr<tDM_CD<dcmplx>>(
         new PeriodicIrrepCD<dcmplx>(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None))), rig.cx->GetIrrep(Spin::None));
-    const auto& fm=dynamic_cast<const FourierDensity&>(mixed);
-    const auto& fx=dynamic_cast<const FourierDensity&>(cplx);
+    const auto& fm=dynamic_cast<const RasterDensity&>(mixed);
+    const auto& fx=dynamic_cast<const RasterDensity&>(cplx);
     const rvec_t cgr=fm.GetRhoOnGrid(*sf), cgc=fx.GetRhoOnGrid(*sf);
     ASSERT_EQ(cgr.size(), cgc.size());
     for (size_t g=0; g<cgr.size(); g++) EXPECT_EQ(cgr[g], cgc[g]) << "composite raw rho mismatch at g="<<g;
@@ -481,7 +485,10 @@ TEST(RealComplexTerms, HamiltonianAssemblyServesTheRealBlockBitwise)
     ham.Add(new Ven_PP_Short   (rig.st, &gth.local));
     ham.Add(new Ven_PP_Long    (rig.st, &gth.local));
     ham.Add(new Ven_PP_NonLocal(rig.st, &gth.nonlocal));
-    ham.Add(new Vee_Hartree(Vee_Hartree::fbs_t(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}))));
+    {
+        std::shared_ptr<const BasisSet::cFIT_CD_ABS> hfb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+        ham.Add(new Vee_Fit<dcmplx>(Fitting::MakeGSpaceDensityFitter(hfb), 0.0, hfb));
+    }
 
     const qchem::tests::pw::OneBlockBS<dcmplx> cxBS(rig.cx.get()), reBS(rig.re.get());   // the block each arm reads: BuildBlocks builds it (V1.41 stage 3)
     ham.RefreshForDensity(&cxBS, cd.get());    // the contract (KAxisPlan P2): each arm refreshed for ITS density
@@ -508,20 +515,20 @@ TEST(RealComplexTerms, RealPeriodicLeafFourierTrioMatchesComplexBitwise)
     PeriodicIrrepCD<double> cdr(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None));
     PeriodicIrrepCD<dcmplx> cdc(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None));
 
-    // Both leaves carry the Fourier face; NEITHER carries the finite (AO/HF) faces -- the honest probes.
-    EXPECT_NE(dynamic_cast<const FourierDensity*>(&cdr), nullptr);
-    EXPECT_EQ(dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(&cdr), nullptr);
+    // Both leaves carry the raw-raster face; NEITHER carries the finite (HF) faces -- the honest probes.
+    EXPECT_NE(dynamic_cast<const RasterDensity*>(&cdr), nullptr);
     EXPECT_EQ(dynamic_cast<const tHF_Pair_CD<double>*>(&cdr), nullptr);
 
-    Vee_Hartree::fbs_t fb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
-    ΔG_Map rr=cdr.GetRepulsion3C(*fb), rc=cdc.GetRepulsion3C(*fb);
+    // ρ̃(dm) through the one projection face (V-ONE-OF-N 3c; V_H = k·ρ̃ is the Hartree fitter's, so this was the V_H claim too).
+    const auto proj=BasisSet::MakeGSpaceDensityProjector(sf);
+    const ΔG_Map rr=cdr.Project(*proj).GMap(), rc=cdc.Project(*proj).GMap();
     ASSERT_EQ(rr.size(), rc.size());
     for (const auto& [dm,v] : rr)
     {
         auto it=rc.find(dm);
         ASSERT_NE(it, rc.end());
-        EXPECT_EQ(v, it->second) << "V_H(dm) mismatch";
+        EXPECT_EQ(v, it->second) << "rho-tilde(dm) mismatch";
     }
     const rvec_t gr=cdr.GetRhoOnGrid(*sf), gc=cdc.GetRhoOnGrid(*sf);
     ASSERT_EQ(gr.size(), gc.size());
@@ -550,10 +557,11 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
     EXPECT_EQ(mixed.DM_Contract(static_cast<const cStatic_CC*>(&kin)),
               cplx .DM_Contract(static_cast<const cStatic_CC*>(&kin)));
 
-    // DYNAMIC arm: the real block face tDynamic_CC<double>::GetEMatrix, which Vee_Hartree BUILDS from the refreshed field (the
+    // DYNAMIC arm: the real block face tDynamic_CC<double>::GetEMatrix, which the periodic Hartree term BUILDS from its refreshed fit (the
     // energy pass builds no blocks, V1.41 stage 3), against the complex one.
     auto cdrun = rig.MakeDensity();   // the run's density (defines V_H)
-    Vee_Hartree vh(Vee_Hartree::fbs_t(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{})));
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> vfb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    Vee_Fit<dcmplx> vh(Fitting::MakeGSpaceDensityFitter(vfb), 0.0, vfb);
     static_cast<const cDynamic_HT&>(vh).RefreshForDensity(cdrun.get());   // the contract (KAxisPlan P2): the energy pass's refresh
     EXPECT_EQ(mixed.DM_Contract(static_cast<const cDynamic_CC*>(&vh), cdrun.get()),
               cplx .DM_Contract(static_cast<const cDynamic_CC*>(&vh), cdrun.get()));
@@ -567,17 +575,14 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
     pts[1]=rig.cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
     pts[2]=rig.cell.ToCartesian(rvec3_t(0.1,0.9,0.2));
     DeltaProjector qpts(BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}});
-    const rvec_t rm=mixed.ProjectOnto(qpts());
-    const rvec_t rc=cplx .ProjectOnto(qpts());
+    const rvec_t rm=mixed.Project(qpts()).Vector();
+    const rvec_t rc=cplx .Project(qpts()).Vector();
     for (size_t g=0; g<pts.size(); g++) EXPECT_EQ(rm[g], rc[g]) << "rho mismatch at point "<<g;
 
-    // And the composite Fourier trio (the generic visit) now reaches the REAL child's face too.
-    // Through the FourierDensity FACE: the composite's own AO-projection GetRepulsion3C(rFIT*) hides the
-    // Fourier overload at concrete type (member-name hiding); the face is how every consumer reaches it.
-    Vee_Hartree::fbs_t fb2(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
-    const auto& fm=dynamic_cast<const FourierDensity&>(mixed);
-    const auto& fx=dynamic_cast<const FourierDensity&>(cplx);
-    ΔG_Map vm=fm.GetRepulsion3C(*fb2), vc=fx.GetRepulsion3C(*fb2);
+    // And the composite's ρ̃ (the generic visit, through the one projection face) reaches the REAL child too.
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf2(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    const auto proj2=BasisSet::MakeGSpaceDensityProjector(sf2);
+    const ΔG_Map vm=mixed.Project(*proj2).GMap(), vc=cplx.Project(*proj2).GMap();
     ASSERT_EQ(vm.size(), vc.size());
     for (const auto& [dm,v] : vm) { auto it=vc.find(dm); ASSERT_NE(it,vc.end()); EXPECT_EQ(v,it->second); }
 }

@@ -30,7 +30,7 @@ export module qchem.BasisSet.Lattice_IBS;
 import qchem.VectorFunction;                          // VectorFunction<T> (the pointwise-loop default of the point-SET op)
 import qchem.BasisSet.IrrepBasisSet;                  // IrrepBasisSet<T> (op()(r), GetNumFunctions)
 import qchem.BasisSet.Orbital_1E_IBS;                 // Orbital_1E_IBS<T> (MakeOverlap/MakeKinetic/MakeNuclear)
-import qchem.BasisSet.Orbital_DFT_IBS;                // Orbital_DFT_IBS<T,dcmplx> (MakeRepulsion3C/MakeOverlap3C) + Projector3<dcmplx>
+import qchem.BasisSet.Orbital_DFT_IBS;                // Orbital_DFT_IBS<T,dcmplx> (MakeRepulsion3C/MakeOverlap3C) + PairProjection<dcmplx>
 import qchem.Structure;                               // Structure (MakeNuclear arg)
 import qchem.Types;                                   // cvec_t, cvec3vec_t, chmat_t, rvec3_t
 
@@ -63,8 +63,8 @@ template <class E> concept isLattice_1E_Evaluator = requires (const E e, const r
 //! consumed it.  It belongs to the fit side of \c Orbital_DFT_IBS<T,TFit>.)
 template <class E> concept isLattice_DFT_Evaluator = isLattice_1E_Evaluator<E> && requires (const E e)
 {
-    {e.Repulsion3CTensor()} -> std::same_as<Projector3<dcmplx>>;
-    {e.Overlap3CTensor()  } -> std::same_as<Projector3<dcmplx>>;
+    {e.Repulsion3CTensor()} -> std::same_as<PairProjection<dcmplx>>;
+    {e.Overlap3CTensor()  } -> std::same_as<PairProjection<dcmplx>>;
 };
 
 //====================================================================================================
@@ -190,8 +190,8 @@ class Orbital_DFT_IBS
     : public virtual BasisSet::Orbital_DFT_IBS<T,dcmplx>
 {
 protected:
-    virtual Projector3<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS&) const override {return Cast().Repulsion3CTensor();}
-    virtual Projector3<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS&) const override {return Cast().Overlap3CTensor();}
+    virtual PairProjection<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS&) const override {return Cast().Repulsion3CTensor();}
+    virtual PairProjection<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS&) const override {return Cast().Overlap3CTensor();}
     const E& Cast() const {return dynamic_cast<const E&>(*this);}
 public:
     // d/dR (GeometryOptimizationPlan §13.2): the reciprocal-space Hartree has no 3-centre pullback (its force is the PW structure-factor

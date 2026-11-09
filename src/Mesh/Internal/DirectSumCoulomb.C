@@ -1,4 +1,4 @@
-// File: Fitting/Internal/DirectSumCoulomb.C  The plain Coulomb sum over a mesh's points.
+// File: Mesh/Internal/DirectSumCoulomb.C  The plain Coulomb sum over a mesh's points.
 //
 // The simplest operator that must exist.  It is not the one to use: a Becke mesh is dense at nuclei and sparse between them,
 // which is a poor rule for a singular kernel near each point (TeF₆: J good to about 1e-2 where radial Poisson reaches the
@@ -13,12 +13,12 @@ module;
 #include <cmath>
 #include <numbers>
 #include <vector>
-export module qchem.Fitting.Internal.DirectSumCoulomb;
-export import qchem.Fitting.CoulombOperator;
+export module qchem.Mesh.Internal.DirectSumCoulomb;
+export import qchem.Mesh.CoulombOperator;
 import qchem.Parallel;   // OuterFor: each block of points writes only its own slots
 import qchem.Types;
 
-export namespace qchem::Fitting
+export namespace qchem::qcMesh
 {
 
 class DirectSumCoulomb : public virtual CoulombOperator

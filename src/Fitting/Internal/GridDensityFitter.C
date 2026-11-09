@@ -2,7 +2,7 @@
 //
 // The density-side sibling of DeltaScalarFitter, on the same δ fit basis and the same forward/adjoint pair:
 //     forward    rho(r_g)                          -- the density contracts its own D, per block, as it does for a Gaussian fit
-//     potential  v(r_g) = op(w_g rho(r_g))         -- the CoulombOperator's whole job
+//     potential  v(r_g) = op(w_g rho(r_g))         -- the BASIS's Coulomb integrals (PointCoulombIntegrals, V-ONE-OF-N 3b-ii)
 //     adjoint    sum_g w_g v(r_g) chi_i chi_j      -- the same quadrature XC uses
 //
 // ENERGY IS FIRST ORDER (user ruling 2026-11-06).  Tr(DV) = sum_g w_g rho_g v_g = <rho~|rho~> here, so the energy is the plain
@@ -13,6 +13,7 @@
 // for now: the mesh's charge error is reported instead (Vee_DFT, as a diagnostic).  So Integral() is the mesh's charge, not N.
 module;
 #include <cassert>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -20,6 +21,7 @@ module;
 #include <stdexcept>
 export module qchem.Fitting.Internal.GridDensityFitter;
 export import qchem.Fitting.CoulombOperator;
+import qchem.BasisSet.CoulombDeltaFit_IBS;   // PointCoulombIntegrals (the basis answers its Coulomb integrals)
 import qchem.Fitting.Types;           // robs_t
 import qchem.Fitting.FitOperations;   // OrthogonalFit: a matrix-free seed samples itself
 import qchem.BasisSet.Orbital_DFT_IBS;
@@ -30,15 +32,16 @@ export namespace qchem::Fitting
 {
 
 class GridDensityFitter
-    : public virtual GridDensityFit
-    , public virtual DensityProjector
+    : public virtual FirstOrderDensityFit<double>
 {
 public:
     typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;
-    GridDensityFitter(fbs_t fbs, std::unique_ptr<CoulombOperator> op)
-        : itsFitBasis(std::move(fbs)), itsOperator(std::move(op))
+    //! The constructor DEMANDS the basis's Coulomb-integral face \a coulomb (the same object as \a fbs, gathered by the factory): the
+    //! physics belongs to the basis (ruling (f)), and this fitter only asks it.
+    GridDensityFitter(fbs_t fbs, const BasisSet::PointCoulombIntegrals& coulomb)
+        : itsFitBasis(std::move(fbs)), itsCoulomb(&coulomb)
     {
-        if (!itsFitBasis || !itsOperator) throw std::logic_error("GridDensityFitter: needs a fit basis and a Coulomb operator");
+        if (!itsFitBasis) throw std::logic_error("GridDensityFitter: needs a fit basis");
         if (!itsFitBasis->isOrtho())
             throw std::logic_error("GridDensityFitter: the fit basis '"+itsFitBasis->Name()+"' is not orthogonal, so its projection "
                                    "is not its fit -- a grid density fit needs a diagonal metric");
@@ -49,42 +52,22 @@ public:
         itsC=rvec_t(itsW.size(),1.0/total);   // the initial guess: a uniform density of unit charge, as ConstrainedFF's guess is
     }
 
-    //! A density with a matrix contracts its D into the forward I vend; a matrix-free seed has only its own field to offer.
-    void DoFit(const ProjectedDensity<double>& pd) override
-    {
-        if (auto* cm=dynamic_cast<const CoulombMetric_ProjectedDensity*>(&pd))
-            itsC=cm->GetRepulsion3C(*this);
-        else if (auto* f=dynamic_cast<const ScalarFunction<double>*>(&pd))
-            itsC=OrthogonalFit(*itsFitBasis,*f);
-        else
-            throw std::logic_error("GridDensityFitter: this density offers neither a matrix (the Coulomb face) nor a field");
-        itsV=itsOperator->Potential(Projection());
-    }
-
-    hmat_t<double> Repulsion(const robs_t<double>* bs) const override
-    {
-        if (itsV.size()==0) throw std::logic_error("GridDensityFitter: asked for a repulsion before any DoFit");
-        const auto& dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<double,double>&>(*bs);
-        return Integrator(dftbs).Adjoint(itsV);   // sum_g w_g v_g chi_i chi_j
-    }
-
-    // d/dR (GeometryOptimizationPlan §13.2): the grid Hartree's force needs the mesh's own motion (Becke weights) and the operator's;
-    // not yet (OpenWork §2's force row).
-    bool CanPullbackRepulsion(const robs_t<double>*) const override {return false;}
-    Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const robs_t<double>*, const hmat_t<double>&, const Structure*) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the grid density fitter", "Coulomb-fit repulsion pullback");}
-    bool CanPullbackSelfRepulsion() const override {return false;}
-    Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure*) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the grid density fitter", "self-repulsion pullback");}
-
-    double FitGetSelfRepulsion() const override
-    {
-        return itsOperator->SelfRepulsion(Projection(),itsV);
-    }
-    double HartreeEnergy(double trDV) const override
+    double HartreeEnergy(const std::function<double()>& trDV) const override
     {
         if (itsV.size()==0) throw std::logic_error("GridDensityFitter: asked for an energy before any DoFit");
-        return itsOperator->HartreeEnergy(trDV,Projection(),itsV);
+        return itsCoulomb->HartreeEnergy(itsCoulomb->UsesTrDV() ? trDV() : 0.0, Projection(), itsV);
+    }
+    //! \copydoc FirstOrderDensityFit<double>::DoFit -- on a δ basis the projections ARE the fit (values at the points).
+    void DoFit(const Projections& rho) override
+    {
+        itsC=rho.Vector();
+        itsV=itsCoulomb->Potential(Projection());
+    }
+    //! \copydoc FirstOrderDensityFit<double>::Repulsion
+    hmat_t<double> Repulsion(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const override
+    {
+        if (itsV.size()==0) throw std::logic_error("GridDensityFitter: asked for a repulsion before any DoFit");
+        return Integrator(orb).Adjoint(itsV);   // sum_g w_g v_g chi_i chi_j
     }
     double Integral() const override
     {
@@ -92,14 +75,11 @@ public:
         for (size_t g=0; g<itsC.size(); g++) n+=itsCharge[g]*itsC[g];
         return n;
     }
-    void ReScale(double factor) override {itsC*=factor; itsV*=factor;}   // v is linear in rho
-
-    std::ostream& Write(std::ostream& os) const override
-        {return os << "GridDensityFitter (a density on " << itsFitBasis->Name() << ", first-order energy)" << std::endl;}
-
-    // DensityProjector
+    // PairProjector<double>
     const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const override {return Integrator(orb);}
     size_t NumCoefficients() const override {return itsW.size();}
+    //! A field's projection on the δ basis: its values at the points (\c OrthogonalFit), the axis \c Forward uses.
+    Projections ProjectField(const ScalarFunction<double>& f) const override {return Projections(OrthogonalFit(*itsFitBasis,f));}
 
 private:
     rvec_t Projection() const {return itsW*itsC;}   // <f_a|rho>.  Blaze: element-wise for two column vectors
@@ -118,7 +98,7 @@ private:
     mutable SymMap<ScreenedMatrixIntegrator<double>> itsInt;   //!< per block, by SPATIAL symmetry
     qchem::LazyLock itsCacheLock;
     fbs_t  itsFitBasis;                             //!< co-owned: the integrators' closures capture it
-    std::unique_ptr<CoulombOperator> itsOperator;
+    const BasisSet::PointCoulombIntegrals* itsCoulomb;   //!< the basis's own Coulomb integrals (a face of itsFitBasis, co-owned there)
     rvec_t itsW;        //!< \f$\langle f_a|f_a\rangle\f$: the mesh weights on a \f$\delta\f$ basis
     rvec_t itsCharge;   //!< \f$\langle f_a|1\rangle\f$: the same numbers there, not on a multipole basis
     rvec_t itsC;   //!< the fit: on a \f$\delta\f$ basis, the density's values at the points
