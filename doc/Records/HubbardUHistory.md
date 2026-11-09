@@ -2679,3 +2679,35 @@ declines lp ≥ kMaxPoly at run time).
 test reached a C3/C4 local PP — or any other 3-centre overlap with a per-axis power above 3 — and the overrun had no suite coverage
 before the operator UT.  Energy gate added: `GPW_LiBox.Γ_M2_CP2K_Long` (IntegrationTests/GPW/Li.C, 139 s, 1.7 GB): above CP2K
 ATOM's −7.3007906 (the variational floor the defect broke) and within 1 mHa of CP2K QS on the same basis (holds the open 0.64 mHa).
+
+## 2026-11-09 — μ_Li with Li q3 after the Hermite3 fix; lane H handoff
+
+**μ_Li (bcc Li, GTH-PADE-q3, VALENCE_LOWQ_VA liq3, a = 6.52145 bohr, Oh imposed, Becke XC, raster ×8, kT 1e-3, 4 threads,
+main c3ba56b6 + lane-h docs):**
+
+| k-mesh | A = E − TS (Ha/atom) | −TS | iters | wall SCF | peak RSS |
+|---|---|---|---|---|---|
+| k12 | **−7.3656394** | −7.7e-5 | 11 | 456 s | 2.4 GB |
+| k16 | −7.3658023 | −5.9e-5 | 11 | 915 s | 4.5 GB |
+
+k12 → k16 moves 0.16 mHa (0.004 V at one Li per formula unit against the 3.7 mHa per 0.1 V scale): **μ_Li(q3) = −7.3656394 Ha**.
+The pre-fix q3 value (2026-11-01, `Li/mu/Li_bcc_q3_k12_u.log`) was −7.4347925: the overrun moved bcc Li by **69 mHa**, more than
+the atom's 9–30 mHa, so every pre-0fb143c0 q3 number is void, not just the atom.
+
+Sanity, cohesive energy: against our q3 atom in the SAME basis (−7.2857262) E_coh = 2.17 eV, too high; against CP2K ATOM's
+complete-basis q3 atom (−7.3007906) it is **1.76 eV** (LDA ~1.8; q1 + p gave 1.79).  The 0.41 eV excess is basis incompleteness of
+the ISOLATED atom (our finite-basis atom sits 15 mHa above the complete-basis value; in the crystal the neighbours' functions fill it
+in), not a q3 defect.  It does not reach the voltage: μ_Li is a bulk energy, and LiMn₂O₄ carries the same bulk-like Li basis error.
+
+Run data: decks + logs `~/Code/qchem6-runs/Li/mu/q3fixed/Li_bcc_q3_k{12,16}_u.{json,log}`.  (Deck note: `basis.vet` was retired
+2026-11-04; the pre-fix decks carry it and are refused by today's rundeck.)
+
+**HANDOFF (lane H, end of session 2026-11-09).**  Open Li work, in the order a new session would take it:
+- **ΔE_ins Li-basis choice** (S6 ruling above): blocked on LiMn₂O₄ / λ-MnO₂ geometry.  With q3 unblocked the ladder is q1 + p
+  (s0.03 trimmed) vs q3 (liq3 basis); the q3 μ_Li above is ready, the q1 + p one is in `Li/mu/Li_bcc_q1_k12_p*`.  Geometry decks need
+  Li q3 (OpenWork §3: a light-PP ion has no restoring force on its site).
+- **Li q3 0.64 mHa below CP2K QS** (OpenWork §3 row; guard `GPW_LiBox.Γ_M2_CP2K_Long` at 1 mHa): next = split by term against CP2K's
+  printed breakdown.  Repro `Li/mu/q3fixed/gpw_L12.json`; CP2K QS decks `~/Code/cp2k-runs/Li/atom/qs/`.
+- **Fixed-size tables guarded by assert only** (OpenWork §3 row: Boys AuxillaryFJ, Wigner3j, RelWigner3j): make each throw at entry
+  (CLAUDE.md "Where to check, and with what").
+Small helper scripts from this session: `~/Code/qchem6-runs/lane-h-scratch/`.
