@@ -21,11 +21,13 @@ public:
     static const RelWigner3j w3j; //Static instance with short name for convenience.
     double operator()(int κa, int κb, int k) const;
     double operator()(int κa, int κb, int k, double mja, double mjb) const;
+    //! Both lookups THROW std::out_of_range for κ=0, |κ|>KMax or k outside [0,KkMax] (the Fact table's reach).
+    static void Check(int κa, int κb, int k);
+    static constexpr int LMax = 4;
+    static constexpr int KMax = LMax+1;       //max |κ|
+    static constexpr int KkMax= 2*LMax+1;     //max k: ja+jb <= 2*(LMax+0.5) = 2*LMax+1
 private:
     RelWigner3j()=default;
-    static const int LMax = 4;
-    static const int KMax = LMax+1;       //max |κ|
-    static const int KkMax= 2*LMax+1;     //max k: ja+jb <= 2*(LMax+0.5) = 2*LMax+1
 };
 
 } // namespace qchem
