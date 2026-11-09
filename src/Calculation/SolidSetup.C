@@ -357,6 +357,12 @@ struct SolidSetup
     //! polarized run without +U only -- derived from the seed.  EMPTY when the run imposes nothing or imposes the grey group.
     std::vector<int> siteSpins;
     std::vector<int> decoration;   //!< \c siteSpins, or all zeros: the per-site spins the run was built with (the +U site groups read it)
+    //! \brief THE GROUP A GEOMETRY STEP MUST KEEP, read at \a at: the space group detected there (\c GetSpaceGroup's \f$\{W|\tau\}\f$, or
+    //! the Shubnikov group under \c siteSpins) when the setup is \c imposed, P1 (the identity alone) when it is free.  ONE rule for its two
+    //! clients, so they cannot drift: \c SolidSession::ConvergeAt refuses a geometry that keeps fewer ops than the reference, and
+    //! \c MakeSolidGeometryRun builds the coordinate map that keeps exactly these.  It is the DETECTED group, not the k-mesh intersection
+    //! the density is star-averaged under: the positions keep the whole group, which is what the session checks.
+    std::vector<Symmetry::SymOp> KeptOps(const Lattice_3D& at) const;
     qcMesh::MeshParams xcMesh;     //!< the XC quadrature, \c Auto RESOLVED (the facade's decision 1)
     int nUp = 0, nDown = 0;        //!< the electron counts per spin channel (decision 2: multiplicity -> (nUp, nDown))
     //! \brief The GPW raster demands in \c opts.tolerances are FINAL (C2 step 3): stated (accuracy 0), derived from a stated calibration,

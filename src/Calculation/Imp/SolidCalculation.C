@@ -2880,6 +2880,12 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
     return c;
 }
 
+std::vector<std::string> SolidCalculation::MissingGradients() const
+{
+    if (!itsImp->ham) throw std::logic_error("SolidCalculation::MissingGradients: no Hamiltonian yet");
+    return itsImp->ham->MissingGradients(itsImp->bs.get(), itsImp->st.get());
+}
+
 SavedState SolidCalculation::Carry() const
 {
     const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
@@ -2908,6 +2914,22 @@ SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<
 }
 SolidSession::~SolidSession() = default;
 
+SolidGeometryRun MakeSolidGeometryRun(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule,
+                                      SolidCalculation::Observer onIteration, SolidSession::Carry carry)
+{
+    if (!setup) throw std::invalid_argument("MakeSolidGeometryRun: no setup");
+    const std::vector<Symmetry::SymOp> ops=setup->KeptOps(setup->reference);
+    SolidGeometryRun run;
+    run.surface=std::make_unique<SolidSession>(setup, std::move(schedule), std::move(onIteration), carry);
+    // The map's symmetry check at the DETECTION tolerance (GetSpaceGroup's 1e-4, fractional), in bohr along the longest lattice vector:
+    // a reference the session accepts as having these ops must not be refused by the map that keeps them.
+    const PESGeometry ref=run.surface->Reference();
+    double aMax=0.0;
+    for (size_t j=1;j<=3;j++) aMax=std::max(aMax, std::sqrt((*ref.cell)(1,j)*(*ref.cell)(1,j)+(*ref.cell)(2,j)*(*ref.cell)(2,j)+(*ref.cell)(3,j)*(*ref.cell)(3,j)));
+    run.map=std::make_unique<const WyckoffMap>(ref, ops, 1e-4*aMax);
+    return run;
+}
+
 PESGeometry SolidSession::Reference() const
 {
     PESGeometry g;
@@ -2929,9 +2951,19 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
         throw std::invalid_argument("SolidSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
     if (!cell)
         throw std::invalid_argument("SolidSession::ConvergeAt: a solid's geometry has a cell -- pass Reference().cell for a fixed-cell step");
-    if (want.forces || want.stress)
-        return O::Fail({Why::NoGradient, std::string(want.stress ? "stress" : "forces")+": no term implements its geometry gradient yet "
-                        "(doc/CalcNetworkReview.md §3.3, step 9) -- difference ConvergeAt energies meanwhile"});
+    if (want.stress)
+        return O::Fail({Why::NoGradient, "stress: no term implements its cell gradient yet (doc/CalcNetworkReview.md §3.3, step 9) -- "
+                        "difference ConvergeAt energies at strained setups meanwhile"});
+    // FORCES: the point's own Hamiltonian names what it lacks (GeometryOptimizationPlan §13).  The term set is the SETUP's, the same at
+    // every point, so a session that already holds a point asks THAT one, before any SCF; the first point must be built to be asked.
+    auto missingForces=[](const std::vector<std::string>& missing)
+    {
+        std::string why="forces: these cannot give their geometry gradient yet (Hamiltonian::MissingGradients):";
+        for (const auto& m : missing) why+="\n    "+m;
+        return O::Fail({Why::NoGradient, why});
+    };
+    if (want.forces && itsPoint)
+        if (auto missing=itsPoint->calc->MissingGradients(); !missing.empty()) return missingForces(missing);
     // THE CELL IS THE SETUP'S, for now: the Bloch basis, the grids (sized from the cell) and the imposed group were all built for it.
     // The signature takes the cell so a variable-cell driver needs no new face when the basis/grid side can follow one.
     {
@@ -2954,8 +2986,7 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     // THROW, not an Outcome: every driver that moves atoms off the group runs a lower-group setup, so this is a wiring defect.
     if (S.imposed && moved>0.0)
     {
-        auto order=[&](const Lattice_3D& l){ return S.siteSpins.empty() ? l.GetSpaceGroup().Order() : l.ShubnikovOps(S.siteSpins).size(); };
-        if (const size_t now=order(latR), was=order(S.reference); now<was)
+        if (const size_t now=S.KeptOps(latR).size(), was=S.KeptOps(S.reference).size(); now<was)
             throw std::invalid_argument("SolidSession::ConvergeAt: these positions keep "+std::to_string(now)+" of the imposed group's "+std::to_string(was)
                                         +" operations -- step through a map that keeps the group (WyckoffMap), or resolve a new setup with the lower group");
     }
@@ -3004,6 +3035,14 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
 
     auto out=itsPoint->calc->Result();
     if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
+    if (want.forces)
+    {
+        if (auto missing=itsPoint->calc->MissingGradients(); !missing.empty()) return missingForces(missing);
+        // Every term has its face, but nothing here sums them over the Bloch blocks with W yet: refused by name, not thrown (a deck can
+        // reach it), and the day this fires on a real setup is the day to wire Hamiltonian::Forces here.
+        return O::Fail({Why::NoGradient, "forces: every term names its geometry gradient, but the solid force sum (Hamiltonian::Forces over "
+                        "the Bloch blocks, with W) is not wired into SolidSession yet"});
+    }
     // THE RASTERS ARE FROZEN at the first converged point (C2 step 3): every later point samples on the rasters this one's pilot settled,
     // as it runs on the basis the setup froze -- a raster re-sized per point would make the surface jump.
     if (!itsSetup->rastersResolved) itsSetup=itsPoint->calc->SizedSetup();

@@ -55,6 +55,7 @@ import qchem.Outcome;                         // Outcome<T,E> -- the fallible-ca
 export import qchem.SolidState;               // RestartRefusal (Restart's failure), the saved-state layer (CK-1)
 export import qchem.SolidSetup;               // SolidCalcOptions + the resolved SolidSetup a run is built from (step 6)
 export import qchem.PotentialEnergySurface;   // the face SolidSession implements (step 8)
+export import qchem.WyckoffMap;               // WyckoffMap, CoordinateMap: the map MakeSolidGeometryRun pairs with a session
 export import qchem.SCFFailure;               // SCFFailure: why an attempt has no answer (shared with the molecular facade)
 export import qchem.Calculation;              // the abstract base of the three facades
 
@@ -619,6 +620,9 @@ private:
                                                         std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
                                                         const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration);
     SavedState Carry() const;   //!< the last iterate's per-block D, for the next point
+    //! The point's Hamiltonian's \c MissingGradients over its Bloch basis: the terms (and the Pulay sum) that cannot give a geometry
+    //! gradient, each named; EMPTY = forces are available.  The session's \c NoGradient refusal lists them.
+    std::vector<std::string> MissingGradients() const;
     //!@}
     //! Point + run + the first Converge (the constructors' common body), and the rest of an annealed schedule.
     void Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
@@ -686,10 +690,12 @@ private:
 //! molecular basis remade from the setup's frozen recipe (the trim is NOT re-vetted) -- seeded from the previous point's density
 //! carried onto it.
 //!
-//! WHAT A POINT REFUSES (each a \c PESFailure, never a crash): positions that break the setup's IMPOSED group (ruling Q4); a
+//! WHAT A POINT REFUSES (each a \c PESFailure, never a crash; positions that break the setup's IMPOSED group THROW, ruling Q4 and a wiring
+//! defect since \c MakeSolidGeometryRun pairs every geometry run with a map that keeps the group): a
 //! basis that, at these positions, would lose functions in the ortho step the trim was decided to avoid (ruling Q3: the frozen
 //! basis left its conditioning window -- checked when the setup states an \c orthoTol); a moved cell (the basis and grids
-//! are built for one); forces or stress (no term has its gradient yet: step 9).  +U is held at the setup's values along the surface (ruling Q5).
+//! are built for one); stress (no term has its cell gradient yet: step 9); forces while the point's Hamiltonian names a term without its
+//! geometry gradient (\c NoGradient lists them, from the session's current point before any SCF, or the first point once built).  +U is held at the setup's values along the surface (ruling Q5).
 class SolidSession : public virtual PotentialEnergySurface
 {
 public:
@@ -721,5 +727,21 @@ private:
     Carry                             itsCarry;
     std::unique_ptr<Point>            itsPoint;
 };
+
+//! \brief A SOLID GEOMETRY RUN: the surface a geometry driver samples and the coordinate map it steps through, built from ONE group.
+//! The two must agree on that group (a map that keeps fewer ops than the session imposes would hand it an off-group R, which THROWS),
+//! so neither is built alone for a geometry run: this factory reads the group once, \c SolidSetup::KeptOps at the reference, and gives
+//! the map exactly those ops (CLAUDE.md: factories concentrate the concrete associations).  An IMPOSED setup gets the level-1
+//! \c WyckoffMap over its detected (or Shubnikov) group: q = the free Wyckoff parameters, the cell fixed.  A FREE setup gets the
+//! same map over P1: q = all 3N Cartesian coordinates, the three rigid translations held.
+struct SolidGeometryRun
+{
+    std::unique_ptr<SolidSession>        surface;
+    std::unique_ptr<const CoordinateMap> map;
+};
+//! The arguments are \c SolidSession's.  THROWS as \c SolidSession and \c WyckoffMap do (a reference not symmetric under its own
+//! group is a broken invariant).
+SolidGeometryRun MakeSolidGeometryRun(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule,
+                                      SolidCalculation::Observer onIteration = nullptr, SolidSession::Carry carry = SolidSession::Carry::AO);
 
 } //export namespace qchem
