@@ -1893,3 +1893,23 @@ Seen on the way: the MnO dimer under Shared at 0.45 / 0.2 converges to −30.348
 two capped runs end lower still (−30.34914, not converged): a different state, relevant to the "GDM crawls" row.  The solid banner
 prints the unresolved alpha (0.5) while the Auto Pulay-D runs at 0.45 → new OpenWork §3 row.  Sweep vs main-8473b2e0: short
 1418/0, long 14/0, 0 moves (panel not run: no iterator change, and its one GDM deck states its fill).
+
+## ✅ Fixed-size tables indexed by a runtime L: a THROW at the entry, not an assert (lane H, 2026-11-09, 98e91b4bb)
+
+The row, verbatim:
+
+| **Fixed-size tables indexed by a runtime L are guarded by ASSERT only** (F, contract; lane H 2026-11-04, sibling survey of the Hermite3 overrun) | `Boys::AuxillaryFJ::theLookUp[121][23]` (assert `Fj.size() < thejMax+6` is looser than the table: jmax ≤ 16 is the real bound); `Wigner3j` (constexpr LMax 4); `RelWigner3j` (KMax).  All dead in Release (NDEBUG), so an over-L caller reads past the table silently, exactly as Hermite3 did.  `PG_Cart_MnD::kMaxPoly` is SAFE (declines at run time); Hermite1 now throws at construction | Make each a THROW at construction/entry naming L and the bound (Hermite1's pattern), or size it from L (Hermite3's); one UT per table that asks for L = bound+1 · HubbardUHistory.md 2026-11-04 |
+
+Landed (CLAUDE.md "Where to check, and with what": the bound checked ONCE at the entry, thrown, never assert-only):
+- **Boys `AuxillaryFJ`** takes jmax at construction and throws `std::out_of_range` for jmax outside [0, 16].  The real bound is the
+  table's: the Taylor step reads columns jmax..jmax+6 of `theLookUp[121][23]`, so jmax <= 16 (a `static_assert` pins the width).
+  The old `assert(Fj.size()<thejMax+6)` was dead in Release AND looser than the table (it let jmax reach 20, column 26 of 23).
+  `RNLM` constructs it first, before indexing its static `theRjs[thejMax-Max]`.  Reachable by Ltotal = La+Lb+Lc+Ld > 16 (four h shells).
+- **`Wigner3j`** (constexpr table, LMax 4): `Wigner3j::CheckL(l)` throws, called once from the `NR_Angular` and `RKB_Angular`
+  constructors (one per irrep basis), so the per-lookup asserts in the angular loops stay asserts.  Found on the way: `RelWigner3j`'s
+  KMax = 5 admits κ = +5, whose l = 5 indexes the integer 3j table past LMax on the RKB path -- the RKB constructor's `CheckL(l(κ))`
+  closes it.  A `static_assert` ties LMax to the `Fact` table the Racah core indexes (n = 4 LMax + 2 at worst).
+- **`RelWigner3j`** has no table of its own; its κ/k bounds are the `Fact` table's reach (`static_assert`).  `RelWigner3j::Check`
+  throws at each lookup (not in a hot loop: only the unit tests call it today).
+UTs: `M_BoysTable.RefusesJBeyondTheTable` (and `RNLM(17, ...)` throws), `M_BoysTable.ValuesAtTheBound` (F_j(0) = 1/(2j+1) and
+F_j(5) against the defining integral, j <= 16), `RelWigner3jTests.TablesRefuseBeyondTheirBound`.
