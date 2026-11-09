@@ -23,6 +23,7 @@ import qchem.WaveFunction;                           // WaveFunction (GetChargeD
 import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
 import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
+import qchem.DegenerateFillReport;                   // the `choose` row for a kT = 0 fill that shared a degenerate level
 import qchem.BasisSet.Orbital_1E_IBS;                // Real_OIBS -- the per-irrep blocks a carry is re-homed onto
 import qchem.CompositeCD;                            // tComposite_CD (the carried density's shape)
 import qchem.ChargeDensity.Factory;                  // IrrepCD_Factory
@@ -181,11 +182,26 @@ void MoleculeCalculation::BuildGraph()
     }
 }
 
-Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converge(const SCFParams& params)
+Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converge(const SCFParams& asked)
 {
     // The SCF writes into the CALLER'S report run: a facade never opens one (user ruling D, 2026-11-02 -- drivers own the
     // runs, the caller sets the context one level up).  With no run open every write is a no-op.
     namespace rpt = qchem::report;
+    // THE DEGENERATE-LEVEL RULE (D-DEGEN-FILL, user 2026-11-08): a stated rule passes; Auto is THIS facade's policy, by model.
+    //   * DFT (LDA, Xalpha, any PP run): Shared, the kT -> 0 Fermi limit (D invariant to the rotation inside the level);
+    //   * HF and the one-electron models: OrbitalByOrbital (user ruling 2026-11-08, "if B gives the lower symmetry, lower energy, then
+    //     B"): HF charges a fractional open shell its same-spin self-interaction, so the integer symmetry-broken state lies lower
+    //     (Boron UHF/dzvp: -24.525932 integer vs -24.40769 shared).  Which of the equivalent orbitals fills is arbitrary among them.
+    using qchem::Hamiltonian::Model;
+    const Model model=itsSetup->opts.model;
+    const bool isDFT = itsSetup->pp || model==Model::LDA || model==Model::Xalpha;
+    const SCFParams params=ResolveDegenerateLevelFill(asked,
+        isDFT ? SCFParams::DegenerateLevelFill::Shared : SCFParams::DegenerateLevelFill::OrbitalByOrbital,
+        isDFT ? "a DFT model: a partly filled degenerate level takes the kT -> 0 Fermi limit, so its density does not depend on the "
+                "eigensolver's rotation inside the level"
+              : "HF: integer fill, the lower-energy symmetry-broken state; which degenerate orbital fills is arbitrary among equivalent ones "
+                "(a fractionally shared HF open shell pays its same-spin self-interaction: Boron UHF/dzvp 118 mHa higher).  State "
+                "degenerateLevelFill: Shared for the symmetric state", true);
     { rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type); ReportAccuracy(itsSetup->opts.accuracy, kNoAccuracyConsumerYet); }   // the "what recipe am I running" header
     if (itsPrepared) itsPrepared=false;                       // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();

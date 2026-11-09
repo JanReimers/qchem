@@ -77,3 +77,44 @@ TEST(ResponseWeight, FactoryBuildsTheRuleThePolicyUses)
     EXPECT_FALSE(fermi->RequiresResolvedGap());
     EXPECT_EQ   (fermi->kT(), 0.02);
 }
+
+// ---- D-DEGEN-FILL (user 2026-11-08): the two integer rules are two objects on the occupancy axis, chosen by the config VALUE.
+
+// Option B, the framework's plain rule: it stamps nothing, so the fill is orbital by orbital (BlockFill::levelTol 0) and the rule
+// shares nothing across blocks either.
+TEST(DegenerateLevelRule, IntegerOccupancyFillsOrbitalByOrbital)
+{
+    IntegerOccupancy r;
+    BlockFill f; f.budget=4.0;
+    r.Apply(f);
+    EXPECT_EQ(f.rule, BlockFill::Rule::Integer);
+    EXPECT_EQ(f.levelTol, 0.0);
+    EXPECT_EQ(r.LevelWidth(), 0.0);
+}
+
+// Option A: the shared rule stamps its level width on the fill and answers it to a cross-block fill; the response weight inside one
+// shared level (every f equal) is the integer rule's zero.
+TEST(DegenerateLevelRule, SharedDegenerateOccupancyStampsItsLevelWidth)
+{
+    SharedDegenerateOccupancy r(2e-4);
+    BlockFill f; f.budget=4.0;
+    r.Apply(f);
+    EXPECT_EQ(f.rule, BlockFill::Rule::Integer);
+    EXPECT_EQ(f.levelTol, 2e-4);
+    EXPECT_EQ(r.LevelWidth(), 2e-4);
+    EXPECT_EQ(r.ResponseWeight(0.1, 4.0/6.0, 0.1, 4.0/6.0), 0.0);
+    EXPECT_TRUE(r.RequiresResolvedGap());
+}
+
+// The config value picks the object (kT > 0 is Fermi whatever the integer choice), and the run policy forwards the width.
+TEST(DegenerateLevelRule, TheConfigValueChoosesTheRule)
+{
+    using DL=OccupationConfig::DegenerateLevels;
+    EXPECT_EQ(MakeOccupancyRule({.degenerate=DL::OrbitalByOrbital})->LevelWidth(), 0.0);
+    EXPECT_EQ(MakeOccupancyRule({.degenerate=DL::Shared, .levelTol=1e-4})->LevelWidth(), 1e-4);
+    EXPECT_GT(MakeOccupancyRule({.kT=0.01, .degenerate=DL::Shared})->kT(), 0.0);
+    EXPECT_EQ(MakeOccupancyRule({.kT=0.01, .degenerate=DL::Shared})->LevelWidth(), 0.0) << "a smeared fill shares by construction";
+    OccupationState st;
+    EXPECT_EQ(MakeOccupationPolicy<double>({.degenerate=DL::Shared, .levelTol=1e-4}, st)->LevelWidth(), 1e-4);
+    EXPECT_EQ(MakeOccupationPolicy<double>({}, st)->LevelWidth(), 0.0) << "the default config is the plain integer rule";
+}
