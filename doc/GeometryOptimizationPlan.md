@@ -315,6 +315,11 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
   - **The ENERGY path's existing hand derivatives move to Enzyme** now that it is required: the basis `Gradient(r)` faces (`PrimGaussian`,
     `GaussianRF`, `IrrepBasisSet`; ∇_r χ) and our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`; libxc's are
     libxc's).  One family per commit, each behind its existing FD gate, the hand version deleted (the OpenWork row).
+    **Family 1 DONE (lane B bafecbbb, 2026-11-09)**: the Cartesian Gaussian ∇_r[p(r-C) g(r)] is Enzyme's reverse mode of the inline
+    value leaves (`PrimGaussian` / `GaussianRF` / `Polarization::operator()`), registered in `PG_Cart_MnD/Imp/GaussianRF_AD.C`; PG_Cart,
+    PG_LibCint and PG_Spherical consume it.  `Polarization`'s value is branch-free (`intpow`'s x = 0 branch would make AD read
+    ∂x/∂x = 0 on every axis through the centre), and the FD gates carry a permanent on-axis point for it.  Family 2 (`GetVxc` /
+    `GetFxc`) is next.
   - **`BeckePartitionGradient` (2026-11-07) is retired from the production path** (user, 2026-11-08).  It was a force derivative, which no
     energy path uses.  The production `qcMesh::BeckePartitionGradient` is now Enzyme's AD of `BeckePartitionWeight`, registered in place
     in `BeckePartition.C`.  The hand derivation stays ONLY as the test oracle in `src/Mesh/tests/BeckePartitionTests.C`: it gates the AD
@@ -643,9 +648,9 @@ face's existing method needs no design discussion, and the HubInterfaceAudit sna
   - Everything else refuses in one line: the other Gaussian evaluators, Bloch Gaussians, PW nuclear, LAPW, radial, Dirac, SALC and the fit
     blocks.  (Since answered: PW nuclear, SALC, the Coulomb fit blocks; see §13.)
   - `JetsOn`: real on PG_Cart; every other family refuses.
-- **`JetsOn`'s gradient source: the existing hand `Gradient(r)`** (user ruling 2026-11-08, "Use Gradient(r)").  ∂φ/∂R_centre = −∇_r φ,
+- **`JetsOn`'s gradient source: `Gradient(r)`** (user ruling 2026-11-08, "Use Gradient(r)").  ∂φ/∂R_centre = −∇_r φ,
   so there is no second (Enzyme) derivative of φ, and a Gaussian Cartesian block never refuses.  Enzyme is now required (2026-11-09):
-  `Gradient(r)` moves to Enzyme (the OpenWork row) and `JetsOn` follows for free.  The plain shell-evaluator
+  `Gradient(r)` is Enzyme's since lane B bafecbbb (`GaussianRF_AD.C`; the hand version is deleted) and `JetsOn` followed for free.  The plain shell-evaluator
   extraction (the Enzyme χ leaf of the AD verdict) is NOT needed for this increment.
 - **Every derivative method has its own unit gate, per family that implements it** (the user, 2026-11-08: "we will need to make sure
   these are all correct").  Each gate is a central FD of the SAME quantity at displaced geometry, with the step and the truncation-error
