@@ -215,7 +215,7 @@ public:
     //! Read both channels' fresh ρ̃, form the pair of channel fields, and mix them.  The SCF gate is the WORSE
     //! channel (both must converge -- an AFM solution whose total has settled while the staggering still moves
     //! is not converged).
-    double Mix(cd_t& working, const cd_t& /*old*/) override
+    double Mix(const cd_t& working, const cd_t& /*old*/) override
     {
         auto [wu,wd]=Channels(working);
         const LeafFields lf=LeafFieldsOf(wu,wd);

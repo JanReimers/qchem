@@ -38,10 +38,15 @@ public:
     //! the call, so ownership never needed to be shared with the mixer at all.
     typedef tMixableDensity<T> cd_t;
     virtual ~tDensityMixer() {}
-    //! Fold the fresh \a working density into the running one; returns ‖Δρ‖ (the convergence gate).
-    virtual double Mix(cd_t& working, const cd_t& old) = 0;
-    //! The density that drives the NEXT Fock: the working density itself for a D-mixer, the running mixed
-    //! field for a G-space mixer.
+    //! Fold the fresh \a working density (this step's D_out) into the running one; returns ‖Δρ‖ (the legacy number).
+    //! ★ CONST (2026-11-09): a mixer READS the loop's working density and never writes it.  The loop evaluates the energy, saves
+    //! the state and hands out the converged density from it, and all of those need the diagonalisation's idempotent output;
+    //! a mixer that wrote its mix there (the D-mixers did, until 2026-11-09) made E first order in the mixing error.  What the
+    //! next Fock sees is the mixer's own (\c FockDensity).
+    virtual double Mix(const cd_t& working, const cd_t& old) = 0;
+    //! The density that drives the NEXT Fock: the mixer's own mixed D_in for a D-mixer (the working density itself until it
+    //! has mixed it), the running mixed field for a G-space mixer.  Either way NOT the working density the loop holds, which
+    //! stays the idempotent D_out (2026-11-09).
     virtual const tChargeDensity<T>* FockDensity(const cd_t& working) const = 0;
     //! \brief The convergence residual's PAIR (D-MINDRHO, 2026-10-22): rho_in and rho_out in ONE representation, asked
     //! BEFORE \c Mix.  EMPTY for a D-mixer: the caller compares \c FockDensity(old) with \a out directly (both density
@@ -80,19 +85,18 @@ public:
 //! it builds the mixer, and a fixed-step mixer implements nothing.
 //!
 //! This replaced three defaulted hooks (WantsReDamp / ReDampMix / UpdateRelax, V1.18) whose choreography
-//! had the ITERATOR rebuilding ρ_out from the wave function so the mixer could re-mix it -- unnecessary,
-//! because the mix is LINEAR: the re-damped density is reachable from the already-mixed one (see
-//! LinearMixer::Adapt).  The energy recompute stays the iterator's: a mixer is not an energy service, it
-//! just says whether it changed the density under the caller's feet.
+//! had the ITERATOR rebuilding ρ_out from the wave function so the mixer could re-mix it -- unnecessary:
+//! the mixer keeps the step's D_in and is handed its D_out (see LinearMixer::Adapt).  Since 2026-11-09 a
+//! re-damp changes only the mixer's own D_in, never the loop's working D_out, so no energy is recomputed.
 template <class T> class tAdaptiveMixer
 {
 public:
     typedef tMixableDensity<T> cd_t;
     virtual ~tAdaptiveMixer() {}
-    //! POST-ENERGY hook, once this step's E and [F,D] are known.  May RE-MIX \a working with a smaller step;
-    //! returns true when it did, with \a dRho the new convergence gate -- the caller must then recompute
-    //! whatever it derived from \a working.  Either way, sets the step for the NEXT iteration.
-    virtual bool Adapt(const MixSignals&, cd_t& working, const cd_t& old, double& dRho) = 0;
+    //! POST-ENERGY hook, once this step's E and [F,D] are known.  May RE-MIX the next Fock's D_in with a smaller step from this
+    //! step's \a out (the loop's working D_out, which it leaves alone); returns true when it did.  Either way, sets the step for
+    //! the NEXT iteration.  The energy is unaffected: it is E[D_out] (2026-11-09).
+    virtual bool Adapt(const MixSignals&, const cd_t& out) = 0;
 };
 
 //=========================================================================================================

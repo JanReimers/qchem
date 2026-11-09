@@ -489,8 +489,8 @@ TEST(LinearMixer, ARetractionNeverShrinksTheStepBelowTheFloor)
         auto m=LinearMixerFactory<dcmplx>(0.5, 1.0, floor);
         auto* adapt=dynamic_cast<tAdaptiveMixer<dcmplx>*>(m.get());
         if (!adapt) throw std::logic_error("the linear mixer adapts its step");
-        auto working=density(); const auto old=density();
-        for (int i=0; i<k; ++i) { double dRho=0.0; adapt->Adapt(MixSignals{.E=0.0, .FD=2.0, .FDold=1.0}, *working, *old, dRho); }
+        const auto out=density();
+        for (int i=0; i<k; ++i) adapt->Adapt(MixSignals{.E=0.0, .FD=2.0, .FDold=1.0}, *out);
         return m->GetRelax();
     };
     EXPECT_NEAR(relaxAfterRetractions(0.0,  1), 0.4,  1e-15) << "no floor: 0.8 x 0.5";

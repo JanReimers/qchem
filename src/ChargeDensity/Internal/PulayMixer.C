@@ -44,7 +44,7 @@ public:
     {}
 
     //! The density-face entry: extract ρ̃_out + the raster shadow, then do the G-space arithmetic below.
-    double Mix(cd_t& working, const cd_t&) override { return MixField(itsPC.FieldOf(working)); }
+    double Mix(const cd_t& working, const cd_t&) override { return MixField(itsPC.FieldOf(working)); }
     const GField&       Field() const override { return itsIn; }
     //! The residual pair (D-MINDRHO): this mixer's input field and the fresh output's field, presented alike.
     typename tDensityMixer<dcmplx>::ResidualPair ResidualDensities(const cd_t& out) const override

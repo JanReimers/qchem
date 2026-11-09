@@ -483,7 +483,11 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         ChargeDensityChange = ipar.Δρmeasure==SCFParams::Measure::MaxΔD ? itsCD->GetMaxChangeFrom(*itsOldCD) : itsResidual;
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
+        // THE ENERGY OF THE IDEMPOTENT D_out (2026-11-09): itsCD is the diagonalisation's output on every driver -- a D-mixer keeps
+        // its mixed D_in to itself (OwnedDIn), as a field mixer always kept its field.  Evaluated on the mixed D, E was first order
+        // in the mixing error (OpenWork §3: the ±1e-8..1e-7 Ha floor; Deck.ASavedState read 2.5e-8 above its own restart).
         eb=TotalEnergy(itsCD.get());        // includes the Mermin −TS => E is the free energy A when smearing on
+        assert(EnergyDensityIsTheOutput() && "SCF: the energy is evaluated on a density that is not this iteration's C f C† output");
         RequirePin28(eb, itsIterationCount, itsMixer->HasGFilter(), lineSearch);
         ReportImposedGroup(eb.charge.xcGroupResidual, itsIterationCount);
         E=eb.GetTotalEnergy();
@@ -542,19 +546,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
             itsIterationCount++;   // match the for-increment the break skips (the -- below assumes it ran)
             break;
         }
-        // A mixer that ADAPTS its step (the linear D-mixer's [F,D]-keyed α) is told this step's signals and may
-        // re-mix the working density under us -- then the energy is recomputed HERE (the mixer is not an
-        // energy service).  No second density build any more: the re-mix is algebraic on the mixed density
-        // (LinearMixer::Adapt).  SKIPPED under direct-min: GDM/OT own the density update (see lineSearch).
-        if (!lineSearch && itsAdaptive)
-        {
-            double d=ChargeDensityChange;   // (the re-damp's own ‖Δρ‖ is not the gate any more -- D-MINDRHO)
-            if (itsAdaptive->Adapt({E,FD,FDold}, *itsCD, *itsOldCD, d))
-            {
-                qchem::report::Timed timed("scf: adaptive re-damp (re-mix + second energy)");
-                eb=TotalEnergy(itsCD.get());
-            }
-        }
+        // A mixer that ADAPTS its step (the linear D-mixer's [F,D]-keyed α) is told this step's signals and may re-mix the NEXT
+        // Fock's D_in from this step's D_out.  The energy is not recomputed: it is E[D_out], which a re-damp does not touch
+        // (2026-11-09; it used to be E of the re-mixed, non-idempotent D).  SKIPPED under direct-min: GDM/OT own the update.
+        if (!lineSearch && itsAdaptive) itsAdaptive->Adapt({E,FD,FDold}, *itsCD);
 
         // Eoldold=Eold;
         Eold=E;
@@ -805,6 +800,13 @@ template <class T> void tSCFIterator<T>::DisplayEigen() const
 
 // (KerkerSetup/KerkerUpdate/FockDensity moved into qchem.ChargeDensity.DensityMixer -- the density-face
 //  seam.  The iterator now builds a tDensityMixer at the top of Iterate and delegates via Mix/FockDensity.)
+
+template <class T> bool tSCFIterator<T>::EnergyDensityIsTheOutput() const
+{
+    const auto out=itsWaveFunction->GetChargeDensity();
+    const double N=std::max(1.0, std::fabs(itsCD->GetTotalCharge()));
+    return itsCD->GetChangeFrom(*out) <= 1e-10*N;
+}
 
 template <class T> EnergyBreakdown tSCFIterator<T>::GetEnergy() const
 {

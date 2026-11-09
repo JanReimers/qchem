@@ -151,8 +151,6 @@ set(QCHEM_PANEL_RED
 #      own tier as the panel-red cases do (PASSES only on gtest's "[  FAILED  ] 1 test", never on a throw), label `knownRed` (a `_Long` one also `long`): `ctest -L knownRed`
 #      lists them.  A sweep report lists them separately with their reason.  When one goes red (fixed), remove it and close the row.
 set(QCHEM_KNOWN_RED
-    "SolidState.ExactResume_PlaneWave"                         # OpenWork §3 "PW ball-route XC is non-variational: ±1e-8 Ha noise floor"
-    "Deck.ASavedStateRestartsAndTheRevisionNamesItsParent"     # same row
     "GPW_MnO.Γ_Shub_Pol_Smear_Ordering_Long"                   # OpenWork §3 "MnO ordering at Γ/SR: FM lies BELOW AFM-II" (the 136-function span); was DISABLED_
 )
 list(JOIN QCHEM_KNOWN_RED ":" _qchemKnownRed)

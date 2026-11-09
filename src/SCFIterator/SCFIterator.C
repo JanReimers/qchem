@@ -314,6 +314,12 @@ private:
     //! (0 with no smearing => plain E).  The entropy is a WF-side scalar (the Hamiltonian terms never
     //! see occupations), so the iterator -- which owns both -- is the seam that joins them.  doc/GPWPlan1.md 4b.
     EnergyBreakdown TotalEnergy(const tDM_CD<T>* cd) const;
+    //! \brief THE ENERGY'S DENSITY IS THIS ITERATION'S OUTPUT (an assert-level invariant, 2026-11-09): the working density -- what
+    //! the energy pass, the saved state and the converged result read -- equals the wavefunction's own C f C† for the fill it
+    //! assigned this iteration, to roundoff.  Fractional fills included (smearing, a shared degenerate level), where an
+    //! idempotency test DSD = D would be wrong.  It fires when a driver or a mixer leaves anything else in the loop's hands (a
+    //! mixed D made E first order in the mixing error).  One density build: asserted once per iteration, never in a hot loop.
+    bool EnergyDensityIsTheOutput() const;
     cd_t DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density; used by DirectMinDriver)
 
     void DisplayEigen   () const;
