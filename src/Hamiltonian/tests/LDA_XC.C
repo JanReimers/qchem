@@ -16,7 +16,7 @@
 
 import qchem.Hamiltonian.Internal.VWN_Correlation;   // the production functional under test
 import qchem.Hamiltonian.Internal.ExFunctional;      // the kernel face (GetFxc, H3)
-import qchem.Hamiltonian.Internal.SlaterExchange;    // its analytic kernel override
+import qchem.Hamiltonian.Internal.SlaterExchange;    // its Enzyme kernel override
 import qchem.Hamiltonian.Internal.Libxc_LDA;         // the libxc wrapper's XC_POLARIZED face
 import qchem.Symmetry.Spin;                          // Spin::Up / Spin::Down for the polarized face
 using namespace qchem;
@@ -235,7 +235,7 @@ TEST_F(LDA_XC, NegativeChannelClampsToFullPolarization)
     EXPECT_DOUBLE_EQ(vwn.GetVxc(-1e-3,1.0,Spin::Down), vwn.GetVxc(0.0,1.0-1e-3,Spin::Down));
 }
 
-// The zeta=0 collapse of the spin-native face must equal the scalar (paramagnetic) face byte-for-byte:
+// The zeta=0 collapse of the spin-native face must equal the scalar (paramagnetic) face:
 // rho_up=rho_down=rho/2  =>  eps_c(rho/2,rho/2)==GetEpsXc(rho), v_c^up==v_c^down==GetVxc(rho).
 TEST_F(LDA_XC, SpinNativeCollapsesToScalarFace)
 {
@@ -252,8 +252,11 @@ TEST_F(LDA_XC, SpinNativeCollapsesToScalarFace)
 }
 
 //=====================================================================================================
-//  THE XC KERNEL f_xc = dv/drho (doc/LinearResponsePlan.md H3).  The default is a four-point difference of
-//  the functional's own spin-native v; these gates pin what that default must satisfy.
+//  THE XC POTENTIAL AND KERNEL ARE DERIVATIVES (doc/LinearResponsePlan.md H3; Enzyme since 2026-11-09).
+//  Slater and VWN write only their energy; v = de/drho_sigma is Enzyme's reverse mode, f = dv/drho_sigma'
+//  forward mode over it.  These are the finite-difference gates every Enzyme derivative keeps while
+//  EnzymeAD/Enzyme#3747 (a SILENTLY wrong reverse-mode gradient) is open: v against the FD of e, f against
+//  the FD of v.  (The base class's own default kernel is a four-point difference of v, for libxc.)
 //=====================================================================================================
 namespace {
 double Dv(const qchem::Hamiltonian::ExFunctional& f, double up, double dn, Spin s, Spin t, double h)
@@ -261,6 +264,73 @@ double Dv(const qchem::Hamiltonian::ExFunctional& f, double up, double dn, Spin 
     auto v=[&](double k){return t==Spin::Down ? f.GetVxc(up,dn+k*h,s) : f.GetVxc(up+k*h,dn,s);};
     return (45.0*(v(1)-v(-1)) - 9.0*(v(2)-v(-2)) + (v(3)-v(-3)))/(60.0*h);
 }
+}
+
+//! v^sigma is the derivative of the energy per volume e = sum_sigma rho_sigma eps^sigma, for both LDA functionals, at a
+//! spread of densities and polarisations, near-full polarization included (the AD's input there is the physical point).
+TEST(XCKernel, VxcIsTheEnergysDerivative)
+{
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    qchem::Hamiltonian::SlaterExchange  x(2.0/3.0);
+    for (const qchem::Hamiltonian::ExFunctional* f : {static_cast<const qchem::Hamiltonian::ExFunctional*>(&vwn),
+                                                      static_cast<const qchem::Hamiltonian::ExFunctional*>(&x)})
+        for (double rho : {1e-4, 0.05, 1.0, 20.0})
+            for (double z : {0.0, 1e-3, 0.3, -0.7, 0.999})
+            {
+                const double up=0.5*rho*(1+z), dn=0.5*rho*(1-z);
+                for (Spin s : {Spin::Up, Spin::Down})
+                {
+                    const double h=1e-4*(s==Spin::Down?dn:up);
+                    auto e=[&](double k){return s==Spin::Down ? f->GetExcDensity(up,dn+k*h) : f->GetExcDensity(up+k*h,dn);};
+                    const double ref=(45.0*(e(1)-e(-1)) - 9.0*(e(2)-e(-2)) + (e(3)-e(-3)))/(60.0*h);
+                    // Tolerance = truncation (1e-8 relative) + the FD's ROUNDOFF bound: e(rho) carries BOTH channels, so a
+                    // minority channel's step h = 1e-4 rho_sigma differences a number dominated by the majority's energy;
+                    // the six-point stencil's roundoff is ~ (45+9+1)/30 eps_mach |e|/h <= 1e-15 |e|/h.  (Slater at zeta 0.999:
+                    // AD agrees with the closed form to 1e-17, the FD reference is off by 1.2e-8 relative from roundoff.)
+                    const double tol=1e-8*std::fabs(ref) + 1e-15*std::fabs(e(0))/h + 1e-12;
+                    EXPECT_NEAR(f->GetVxc(up,dn,s), ref, tol) << (f==&x ? "Slater" : "VWN") << " rho=" << rho << " z=" << z << " s=" << int(s);
+                }
+            }
+}
+
+//! The kernel stays FINITE where the polarization is full or a channel rings negative: the plane-wave XC term evaluates it
+//! at every raster point (PWTerms_XC.C), and a NaN there poisons the response.  f''(zeta) diverges at zeta = +-1, so the
+//! minority channel is floored at a stated zeta threshold first; the same point twice gives the same kernel.
+TEST(XCKernel, VWN_FxcIsFiniteAtFullPolarization)
+{
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    for (double rho : {1e-6, 0.01, 1.0})
+        for (double dn : {0.0, -1e-3*rho})
+            for (Spin s : {Spin::Up, Spin::Down})
+                for (Spin t : {Spin::Up, Spin::Down})
+                {
+                    EXPECT_TRUE(std::isfinite(vwn.GetFxc(rho-dn,dn,s,t))) << "rho=" << rho << " dn=" << dn << " s,t=" << int(s) << int(t);
+                    EXPECT_TRUE(std::isfinite(vwn.GetFxc(dn,rho-dn,s,t))) << "mirror rho=" << rho << " up=" << dn;
+                }
+    EXPECT_DOUBLE_EQ(vwn.GetFxc(1.25,-0.25,Spin::Up,Spin::Up), vwn.GetFxc(1.0,0.0,Spin::Up,Spin::Up));   // same total, exactly
+}
+
+//! An atom's far tail reaches SUBNORMAL densities (1e-323 in the H atom on an SG mesh), and every face must stay finite there.
+//! Written with the constant inside a cube root, cbrt(c rho) underflows (Slater: AD's cbrt(x)/(3x) = 0/0) or cbrt(c/rho)
+//! overflows (VWN: x = sqrt(rs) = inf); the H atom's first Fock matrix was NaN until the constants moved out (2026-11-09).
+TEST(XCKernel, LDA_IsFiniteInTheSubnormalTail)
+{
+    qchem::Hamiltonian::SlaterExchange   x(2.0/3.0);
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    for (double rho : {5e-324, 2e-323, 1e-310, 1e-300})
+    {
+        EXPECT_TRUE(std::isfinite(x.GetVxc(rho)))     << "Slater v  rho=" << rho;
+        EXPECT_TRUE(std::isfinite(x.GetEpsXc(rho)))   << "Slater eps rho=" << rho;
+        EXPECT_TRUE(std::isfinite(vwn.GetVxc(rho)))   << "VWN v  rho=" << rho;
+        EXPECT_TRUE(std::isfinite(vwn.GetEpsXc(rho))) << "VWN eps rho=" << rho;
+        for (Spin s : {Spin::Up, Spin::Down})
+        {
+            EXPECT_TRUE(std::isfinite(vwn.GetVxc(rho,0.0,s)))           << "VWN v_s (rho,0) rho=" << rho;
+            EXPECT_TRUE(std::isfinite(vwn.GetEpsXc(rho,0.0,s)))         << "VWN eps (rho,0) rho=" << rho;
+            EXPECT_TRUE(std::isfinite(vwn.GetFxc(rho,0.0,s,Spin::Up)))  << "VWN f (rho,0) rho=" << rho;
+            EXPECT_TRUE(std::isfinite(x.GetFxc(rho,0.0,s,s)))           << "Slater f (rho,0) rho=" << rho;
+        }
+    }
 }
 
 //! VWN5 at a spread of densities and polarisations: GetFxc is the derivative of GetVxc, and f^{ud} = f^{du}
@@ -298,9 +368,8 @@ TEST(XCKernel, VWN_ZetaZeroCollapse)
     }
 }
 
-//! Slater exchange carries an ANALYTIC override of the kernel: it must be the derivative of its own GetVxc,
-//! with no cross-spin term.
-TEST(XCKernel, Slater_AnalyticFxcIsTheDerivative)
+//! Slater exchange's kernel (Enzyme's) must be the derivative of its own GetVxc, with no cross-spin term.
+TEST(XCKernel, Slater_FxcIsTheDerivative)
 {
     qchem::Hamiltonian::SlaterExchange x(2.0/3.0);
     for (double rho : {1e-3, 0.05, 1.0, 20.0})
