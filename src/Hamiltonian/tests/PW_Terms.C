@@ -10,6 +10,7 @@
 #include <functional>
 #include <algorithm>
 #include <iostream>
+#include <iomanip>
 #include <cstdio>
 #include "gtest/gtest.h"
 
@@ -25,6 +26,8 @@ import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
 import qchem.Blaze;          // mat_t<dcmplx>
 import qchem.Math;           // Pi
 import qchem.Hamiltonian.Internal.SlaterExchange;   // Dirac exchange (alpha=2/3), eps_x = 3/4 v_x
+import qchem.Hamiltonian.Internal.VWN_Correlation;   // VWN5 (full LDA in the XC FD test)
+import qchem.Hamiltonian.Internal.ExFunctional;      // CompositeExFunctional
 import qchem.Hamiltonian.Internal.Terms;            // Vee_Fit<dcmplx> (the periodic Hartree term)
 import qchem.Fitting.CoulombOperator;               // MakeGSpaceDensityFitter
 import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long (dcmplx Hamiltonian terms)
@@ -398,5 +401,60 @@ TEST(PW_Terms, ThePPAndIonIonForcesAtFixedDAreTheirEnergysFiniteDifference)
             largest=std::max(largest, std::fabs(fd));
         }
         EXPECT_GT(largest, 1e-3) << terms[t].first << " moves with the atoms";
+    }
+}
+
+// THE PW BALL-ROUTE XC IS VARIATIONAL (OpenWork §3 "PW ball-route XC is non-variational", V-XC-ONE-TERM): the term's Fock block is the
+// derivative of its own energy, H_xc = dE_xc/dD, so a converged SCF sits at a stationary point and the energy is second order in the
+// density error.  At a fixed density D (near-uniform so rho > 0, genuinely complex: k = b1/4 is not a TRIM) and a Hermitian direction
+// Δ, the central difference of E_xc(D + sΔ) must equal Re Tr(H Δ).  Central difference at s = 1e-4: h²/6 |E'''| is far below 1e-9.
+TEST(PW_Terms, TheXCMatrixIsItsEnergysDerivative)
+{
+    const double a=10.26, h=0.5*a;
+    Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
+    auto cell=std::make_shared<UnitCell>(Amat);
+    cell->AddAtom(14,rvec3_t(0.0,0.0,0.0));
+    cell->AddAtom(14,rvec3_t(0.25,0.25,0.25));
+    const ivec3_t N(4,4,4);
+    Lattice_3D    lat(*cell, N);
+    PlaneWave_IBS pw(lat.Reciprocal(), N, ivec3_t(1,0,0), 4.0);
+    const size_t n=pw.GetNumFunctions();
+    const Irrep irr=pw.GetIrrep(Spin::None);
+    hmat_t<dcmplx> D(n), Delta(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+    {
+        D(i,j)    = i==j ? dcmplx(8.0/double(n),0.0) : dcmplx(0.004*((3*i+5*j)%7)-0.012, 0.003*((i+3*j)%5)-0.006);
+        Delta(i,j)= i==j ? dcmplx(0.01*((5*i)%7)-0.03,0.0) : dcmplx(0.01*((2*i+7*j)%5)-0.02, 0.01*((4*i+j)%3)-0.01);
+    }
+    auto dirac=std::make_shared<qchem::Hamiltonian::SlaterExchange>(2.0/3.0);
+    auto lda=std::make_shared<qchem::Hamiltonian::CompositeExFunctional>(std::vector<std::shared_ptr<qchem::Hamiltonian::ExFunctional>>
+        {std::make_shared<qchem::Hamiltonian::SlaterExchange>(2.0/3.0), std::make_shared<qchem::Hamiltonian::VWN_Correlation>()});
+    std::vector<std::pair<std::string,std::unique_ptr<qchem::Hamiltonian::cDynamic_HT>>> terms;
+    terms.emplace_back("Exc", NewPWXC(pw, dirac));
+    terms.emplace_back("Exc", NewPWXC(pw, lda));
+    terms.emplace_back("Eee", NewPWHartree(pw));
+    for (const auto& [key,term] : terms) {
+    const qchem::Hamiltonian::cDynamic_HT* t=term.get();
+    auto energy=[&](double s)
+    {
+        const hmat_t<dcmplx> Ds=D+s*Delta;
+        const qchem::ChargeDensity::PeriodicIrrepCD<dcmplx> cd(Ds, &pw, irr);
+        t->RefreshForDensity(static_cast<const qchem::ChargeDensity::cChargeDensity*>(&cd));
+        EnergyBreakdown eb; t->GetEnergy(eb, &cd);
+        return eb[key];
+    };
+    const qchem::ChargeDensity::PeriodicIrrepCD<dcmplx> cd0(D, &pw, irr);
+    RefreshTerm(*t, static_cast<const qchem::ChargeDensity::cChargeDensity*>(&cd0), &pw);
+    const chmat_t H=t->GetMatrix(&pw, Spin::None, ChargeDensity::DensityID(&cd0));
+    double an=0.0, anT=0.0;
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
+    {
+        an +=std::real(dcmplx(H(i,j))*dcmplx(Delta(j,i)));
+        anT+=std::real(dcmplx(H(i,j))*dcmplx(Delta(i,j)));
+    }
+    const double ds=1e-4, fd=(energy(ds)-energy(-ds))/(2*ds);
+    std::cout << "[FD " << key << "] n=" << n << " fd=" << std::setprecision(14) << fd << " Tr(H Delta)=" << an << " Tr(H Delta^T)=" << anT
+              << " rel=" << std::fabs(an-fd)/std::fabs(fd) << std::endl;
+    EXPECT_NEAR(an, fd, 1e-9*std::max(1.0,std::fabs(fd))) << key;
     }
 }
