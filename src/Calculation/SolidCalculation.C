@@ -616,9 +616,12 @@ private:
     //! converged on the schedule's FINAL stage only (the earlier stages exist to deliver a density the carry already is).
     //! \a lowdin: move \a carry onto this point's basis through the Löwdin frame (\c LowdinCarry) before it seeds the run.
     //! \a onIteration: the session's observer, attached before the point's first iteration.
+    //! \a needForces: a point whose Hamiltonian names a missing geometry gradient (\c MissingGradients) STOPS after its Hamiltonian is
+    //! built and BEFORE its SCF -- unconverged, for the caller to refuse and discard: the term set alone decides it, so no SCF is spent.
     static std::unique_ptr<SolidCalculation> AtGeometry(std::shared_ptr<const SolidSetup>, const Lattice_3D& lat,
                                                         std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
-                                                        const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration);
+                                                        const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration,
+                                                        bool needForces=false);
     SavedState Carry() const;   //!< the last iterate's per-block D, for the next point
     //! The point's Hamiltonian's \c MissingGradients over its Bloch basis: the terms (and the Pulay sum) that cannot give a geometry
     //! gradient, each named; EMPTY = forces are available.  The session's \c NoGradient refusal lists them.

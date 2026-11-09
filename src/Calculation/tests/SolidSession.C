@@ -25,6 +25,7 @@ import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type
 import qchem.LASolver;                 // qchem::CholeskyPivoted (the Q3 conditioning window)
 import qchem.Types;
 import qchem.Blaze;                    // rvec_t arithmetic (q0 + step)
+import qchem.SCFIterator;              // IterationRow (the observer counts SCF iterations)
 
 using namespace qchem;
 
@@ -338,11 +339,13 @@ TEST(SolidSession, AGeometryRunPairsTheSessionWithAMapThatKeepsItsGroup)
     EXPECT_LT(norm(shift), 1e-12) << "the rigid translations are held";
 }
 
-// FORCES: the session names what is missing, from the point's own Hamiltonian, instead of a blanket refusal -- and the optimizer
-// over a factory-built run stops on that, named.  The first point is built to be asked; a later ask reads the point it holds.
-TEST(SolidSession, AForceRequestNamesTheMissingGradients)
+// FORCES: the session names what is missing, from the point's own Hamiltonian, instead of a blanket refusal -- and spends NO SCF finding
+// out: MissingGradients needs the built terms and blocks, not a converged density.  The first point is built to its Hamiltonian, asked and
+// discarded; a later ask reads the point the session holds.  The optimizer over a factory-built run stops on that, named.
+TEST(SolidSession, AForceRequestNamesTheMissingGradientsBeforeAnySCF)
 {
-    auto run=MakeSolidGeometryRun(SiSetup(), {SCFStage{Tight(), SCFAccelerators::Type::Auto}});
+    size_t rows=0;
+    auto run=MakeSolidGeometryRun(SiSetup(), {SCFStage{Tight(), SCFAccelerators::Type::Auto}}, [&](const SCFIterator::IterationRow&){ ++rows; });
     const PESGeometry ref=run.surface->Reference();
     auto F=run.surface->ConvergeAt(ref.cell, ref.R, {.forces=true});
     ASSERT_FALSE(F);
@@ -350,12 +353,18 @@ TEST(SolidSession, AForceRequestNamesTheMissingGradients)
     EXPECT_NE(F.Error().details.find("MissingGradients"), std::string::npos) << F.Error().details;
     EXPECT_NE(F.Error().details.find("\n    "), std::string::npos) << "at least one term named: " << F.Error().details;
     std::cout << "[Si Γ forces] " << F.Error().details << std::endl;
+    EXPECT_EQ(rows, 0u) << "the refusal spent no SCF iteration";
+    EXPECT_EQ(run.surface->Current(), nullptr) << "the unconverged point is discarded, never held as a carry";
+
+    ASSERT_TRUE(run.surface->ConvergeAt(ref.cell, ref.R));   // an ENERGY point: held
     const SolidCalculation* held=run.surface->Current();
     ASSERT_NE(held, nullptr);
+    const size_t afterEnergy=rows;
     std::vector<rvec3_t> R=ref.R; R[1].x+=0.05;
     auto G=run.surface->ConvergeAt(ref.cell, R, {.forces=true});
     ASSERT_FALSE(G); EXPECT_EQ(G.Error().why, PESFailure::Why::NoGradient);
-    EXPECT_EQ(run.surface->Current(), held) << "a later ask reads the held point: no new point, no SCF";
+    EXPECT_EQ(run.surface->Current(), held) << "a later ask reads the held point: no new point";
+    EXPECT_EQ(rows, afterEnergy) << "and no SCF";
 
     OptimizerOptions o; o.maxSteps=3;
     auto opt=GeometryOptimizer(*run.surface, *run.map, o).Run();
@@ -363,4 +372,5 @@ TEST(SolidSession, AForceRequestNamesTheMissingGradients)
     EXPECT_EQ(opt.Error().why, OptimizeFailure::Why::PES);
     ASSERT_TRUE(opt.Error().pes);
     EXPECT_EQ(opt.Error().pes->why, PESFailure::Why::NoGradient);
+    EXPECT_EQ(rows, afterEnergy) << "the optimizer's refusal spent no SCF either";
 }

@@ -2804,7 +2804,8 @@ const BasisSet::Complex_BS& SolidCalculation::Basis() const { return *itsImp->bs
 //====================================================================================================
 std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat,
                                                                std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
-                                                               const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration)
+                                                               const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration,
+                                                               bool needForces)
 {
     if (schedule.empty())
         throw std::runtime_error("SolidCalculation: an EMPTY schedule has no meaning -- pass at least one stage.");
@@ -2858,6 +2859,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
         if (!carry)
         {
             c->BuildRun(nullptr, schedule.front().params, schedule.front().accelerator, /*restored*/false, /*exactResume*/false);
+            if (needForces && !c->MissingGradients().empty()) return c;   // refused before any SCF (the caller discards it)
             (void)c->Converge(schedule.front().params);
         }
         else
@@ -2872,6 +2874,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
             if (!cd) throw std::logic_error("SolidCalculation::AtGeometry: the carried density does not fit the new point: "+cd.Error().details);
             const SCFStage& last=schedule.back();
             c->BuildRun(cd.TakeValue(), last.params, last.accelerator, /*restored*/false, /*exactResume*/false);
+            if (needForces && !c->MissingGradients().empty()) return c;   // refused before any SCF (the caller discards it)
             (void)c->Converge(last.params);
         }
     }
@@ -2954,8 +2957,10 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     if (want.stress)
         return O::Fail({Why::NoGradient, "stress: no term implements its cell gradient yet (doc/CalcNetworkReview.md §3.3, step 9) -- "
                         "difference ConvergeAt energies at strained setups meanwhile"});
-    // FORCES: the point's own Hamiltonian names what it lacks (GeometryOptimizationPlan §13).  The term set is the SETUP's, the same at
-    // every point, so a session that already holds a point asks THAT one, before any SCF; the first point must be built to be asked.
+    // FORCES: the point's own Hamiltonian names what it lacks (GeometryOptimizationPlan §13), and NO SCF is spent finding out: the term
+    // set is the SETUP's, the same at every point, so a session that already holds a point asks THAT one here; the first point is built
+    // up to its Hamiltonian, asked, and discarded unconverged (AtGeometry's needForces) -- MissingGradients needs the built terms and
+    // blocks, never the converged density.
     auto missingForces=[](const std::vector<std::string>& missing)
     {
         std::string why="forces: these cannot give their geometry gradient yet (Hamiltonian::MissingGradients):";
@@ -3030,14 +3035,15 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     if (itsPoint) carry=itsPoint->calc->Carry();
     itsPoint.reset();
     point->calc=SolidCalculation::AtGeometry(itsSetup, latR, point->mol, carry ? &*carry : nullptr, itsSchedule, itsCarry==Carry::Lowdin,
-                                         itsObserver);
+                                         itsObserver, want.forces);
+    if (want.forces)   // unconverged when it names a gap: never held, so it never seeds the next point
+        if (auto missing=point->calc->MissingGradients(); !missing.empty()) return missingForces(missing);
     itsPoint=std::move(point);
 
     auto out=itsPoint->calc->Result();
     if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
     if (want.forces)
     {
-        if (auto missing=itsPoint->calc->MissingGradients(); !missing.empty()) return missingForces(missing);
         // Every term has its face, but nothing here sums them over the Bloch blocks with W yet: refused by name, not thrown (a deck can
         // reach it), and the day this fires on a real setup is the day to wire Hamiltonian::Forces here.
         return O::Fail({Why::NoGradient, "forces: every term names its geometry gradient, but the solid force sum (Hamiltonian::Forces over "
