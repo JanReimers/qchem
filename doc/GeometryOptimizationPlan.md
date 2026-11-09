@@ -383,6 +383,17 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
 - dS / dK / dV;
 - the contracted Dunlap 3c / 2c gradients.
 
+**BUILT (lane B 2026-11-08, 9f4a79423):**
+- The hub surface: `tHamiltonian::MissingGradients(wholeBasis, st)` / `MakeForces`, and `tHamiltonianAt::Forces(W, st)`.  Both take the
+  Structure, and MissingGradients the basis, for the per-face `Can…` queries.
+- The term face `tGeometryGradient_HT` (qchem.Hamiltonian.Internal.GeometryGradient), with Kinetic, Ven and IonIon (closed form; periodic
+  refuses).
+- The density walk `tDM_CD::DM_Pullback(tStatic_PC, st)`.
+- The Pulay sum, Tr(W ∂S), in `Imp/HamiltonianForces.C`.
+- Gated on E1 (bare nuclei): the ion-ion force; the fixed-D per-term FD; and the FD of the RE-CONVERGED energy, which checks the Pulay term.
+- Still missing: the Dunlap Hartree, the δ XC (after lane S's 3b/3c: V-XC-ONE-TERM), the PP terms, HF exchange, and the PW
+  structure-factor nuclear force.  `MissingGradients()` names each.
+
 ### 13.1 A value-with-derivatives carrier on the derivative-aware faces (lane B 2026-11-08)
 
 **APPROVED (user, 2026-11-08: "Looks good").**  The approved shape:
