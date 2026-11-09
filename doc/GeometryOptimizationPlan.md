@@ -394,6 +394,25 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
 - Still missing: the Dunlap Hartree, the δ XC (after lane S's 3b/3c: V-XC-ONE-TERM), the PP terms, HF exchange, and the PW
   structure-factor nuclear force.  `MissingGradients()` names each.
 
+**BUILT (lane B 2026-11-08): the Dunlap Hartree force.**
+- The faces, each a derivative beside an existing method (the user's pre-approval):
+  - `Orbital_DFT_IBS::MakeRepulsion3CPullback(fit, D, a)` beside `Repulsion3C`.
+  - `FIT_CD_NonOrtho::MakeRepulsionPullback(A)` beside `Repulsion()`.
+  - `FunctionFitter_Density::MakeRepulsionPullback` and `_NonOrtho::MakeSelfRepulsionPullback`, at fixed c.
+  - `FittedCD`'s two, forwarded.
+  - `tHamiltonian::MakeTermForces`, the per-term twin of `MakeTermEnergies`.
+  - PG_Cart answers through libcint (int3c2e_ip1/ip2, int2c2e_ip1).  Every other family refuses.
+- The force: Σ D c ∂(ij|k) − ½ Σ c c ∂(k|l).  The fit's response enters only as λ dN/dR, and N = Tr(DS) moves with the basis at
+  fixed D.
+- **That λ Tr(D ∂S/∂R) is LEFT OUT**, by the contract now written on `tGeometryGradient_HT::AddForces`: a term's force is taken with
+  ITS MATRIX as its D-gradient.  The Dunlap matrix is V, not V + λS (λS shifts every level and moves no orbital), so the Pulay sum's W
+  lacks the λD that would cancel it.
+- Gates:
+  - The faces against the FD of the same faces' own (M&D) contractions, with translation invariance.
+  - The WHOLE force of an XC-free DFT (Xα, α = 0) against the FD of the re-converged energy (`_Long`).
+  - The per-term fixed-D FD differs from the term's force by exactly the λ piece (measured: 2e-4 relative on water), so it cannot
+    gate this term.
+
 ### 13.1 A value-with-derivatives carrier on the derivative-aware faces (lane B 2026-11-08)
 
 **APPROVED (user, 2026-11-08: "Looks good").**  The approved shape:
