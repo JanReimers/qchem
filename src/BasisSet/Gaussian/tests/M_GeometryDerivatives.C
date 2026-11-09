@@ -20,6 +20,7 @@
 import qchem.StructureData;
 import qchem.BasisSet.IrrepBasisSet;
 import qchem.BasisSet.Orbital_1E_IBS;
+import qchem.BasisSet.Orbital_HF_IBS;                     // the ERI4 contractions + their pullbacks (the HF pieces)
 import qchem.BasisSet.Orbital_DFT_IBS;                    // Repulsion3C + the Coulomb-fit faces (the Dunlap pieces)
 import qchem.Mesh;                                        // qcMesh::MeshParams (the fit basis's own mesh, unused by the Coulomb metric)
 import qchem.BasisSet.Gaussian.PG_Cart;
@@ -372,4 +373,63 @@ TEST(GeometryDerivatives, EachCoulombFitCanQueryAgreesWithWhetherItsMethodAnswer
     EXPECT_TRUE(cart->CanPullbackRepulsion3C(*fc)) << "PG_Cart with its own fit gives it";
     EXPECT_FALSE(sph.CanPullbackRepulsion3C(*fs)) << "PG_Spherical has no geometry derivative yet";
     EXPECT_FALSE(cart->CanPullbackRepulsion3C(*fs)) << "a fit of another family: refused, not cast";
+}
+
+// GATE 6, the HF pieces (§13.2): PG_Cart's MakeDirectPullback / MakeExchangePullback(Da, Db, other) against the central difference of the
+// SAME block's own contractions, Σ Da (J or K)[Db] through AccumulateDirect / AccumulateExchange (our M&D ERI4), at displaced atoms, all
+// four centres rebuilt.  Two pairings: the DZVP block with itself, and the DZVP block against an even-tempered s+p block (the cross
+// pair: two different shell sets).  Step h = 1e-4: the truncation error h²/6 |f‴| is ~2e-9 |f‴|, and with random ±1 densities |f‴| stays
+// below ~1e2 relative to |f′|, so 2e-6 (relative above 1) is ~10× the estimate.  Translation invariance; the Can query agrees.
+TEST(GeometryDerivatives, PG_CartsERI4PullbacksAreTheFiniteDifferenceOfItsOwnContractionsAndTranslationInvariant)
+{
+    const auto h2o=Water();
+    const auto R=Sites(*h2o);
+    auto even=[](const Structure* st){ return std::make_unique<Orbital_IBS>(rvec_t{1.0,0.25}, 1, st); };
+    for (bool cross : {false, true})
+    {
+        const auto a=Dzvp(h2o.get());
+        const auto bOwn=even(h2o.get());
+        const BasisSet::Orbital_HF_IBS<double>& A=*a;
+        const BasisSet::Orbital_HF_IBS<double>& B=cross ? static_cast<const BasisSet::Orbital_HF_IBS<double>&>(*bOwn) : A;
+        const size_t na=a->GetNumFunctions(), nb=cross ? bOwn->GetNumFunctions() : na;
+        std::mt19937 rng(cross ? 17 : 13); std::uniform_real_distribution<double> U(-1,1);
+        rsmat_t Da(na), Db(nb);
+        for (size_t i=0;i<na;i++) for (size_t j=i;j<na;j++) Da(i,j)=U(rng);
+        for (size_t i=0;i<nb;i++) for (size_t j=i;j<nb;j++) Db(i,j)=U(rng);
+        ASSERT_TRUE(A.CanPullbackERI4(&B));
+        const auto FJ=A.MakeDirectPullback(Da, Db, &B, h2o.get()), FK=A.MakeExchangePullback(Da, Db, &B, h2o.get());
+        ASSERT_TRUE(FJ && FK);
+        auto contractions=[&](const Structure* st)
+        {
+            const auto a1=Dzvp(st); const auto b1=even(st);
+            const BasisSet::Orbital_HF_IBS<double>& A1=*a1;
+            const BasisSet::Orbital_HF_IBS<double>& B1=cross ? static_cast<const BasisSet::Orbital_HF_IBS<double>&>(*b1) : A1;
+            rsmat_t J(na), K(na);
+            A1.AccumulateDirect(J, Db, &B1); A1.AccumulateExchange(K, Db, &B1);
+            return std::array<double,2>{TrAM(Da, J), TrAM(Da, K)};
+        };
+        const double h=1e-4;
+        rvec3_t sJ(0,0,0), sK(0,0,0); double largest=0.0;
+        for (size_t at=0;at<R.size();at++)
+        {
+            sJ+=(*FJ)[at]; sK+=(*FK)[at];
+            for (int k=0;k<3;k++)
+            {
+                auto at_=[&](double s){ auto Rs=R; C(Rs[at],k)+=s; std::shared_ptr<Structure> st=h2o->Clone(); st->MoveSites(Rs); return contractions(st.get()); };
+                const auto p=at_(h), m=at_(-h);
+                const double fJ=(p[0]-m[0])/(2*h), fK=(p[1]-m[1])/(2*h);
+                EXPECT_NEAR(C((*FJ)[at],k), fJ, 2e-6*std::max(1.0,std::fabs(fJ))) << (cross ? "cross " : "self ") << "Coulomb, atom " << at << " axis " << k;
+                EXPECT_NEAR(C((*FK)[at],k), fK, 2e-6*std::max(1.0,std::fabs(fK))) << (cross ? "cross " : "self ") << "exchange, atom " << at << " axis " << k;
+                largest=std::max({largest, std::fabs(fJ), std::fabs(fK)});
+            }
+        }
+        EXPECT_GT(largest, 0.1) << "the contractions move with the atoms";
+        EXPECT_LT(norm(sJ), 1e-8); EXPECT_LT(norm(sK), 1e-8);
+    }
+    BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
+    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(&reader, h2o.get());
+    const BasisSet::Orbital_HF_IBS<double>& S=sph;
+    EXPECT_FALSE(S.CanPullbackERI4(&S)) << "PG_Spherical has no geometry derivative yet";
+    const auto r=S.MakeDirectPullback(rsmat_t(sph.GetNumFunctions()), rsmat_t(sph.GetNumFunctions()), &S, h2o.get());
+    EXPECT_FALSE(bool(r)); if (!r) EXPECT_FALSE(r.Error().why.empty());
 }

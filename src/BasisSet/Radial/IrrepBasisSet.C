@@ -283,6 +283,13 @@ template <isHF_Evaluator E> class Orbital_ERI4_IBS
     : public virtual BasisSet::Orbital_ERI4_IBS<double> 
 
 {
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): a one-centre (atom) block has no geometry to move.
+    virtual bool CanPullbackERI4(const BasisSet::Orbital_HF_IBS<double>*) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeDirectPullback(const rsmat_t&, const rsmat_t&, const BasisSet::Orbital_HF_IBS<double>*, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a radial (atom) block", "Coulomb pullback");}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const rsmat_t&, const rsmat_t&, const BasisSet::Orbital_HF_IBS<double>*, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a radial (atom) block", "exchange pullback");}
 protected:
     virtual ERI4 MakeDirect  (const BasisSet::Orbital_ERI4_IBS<double>& _c) const;
     virtual ERI4 MakeExchange(const BasisSet::Orbital_ERI4_IBS<double>& _c) const;

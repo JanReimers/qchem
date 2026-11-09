@@ -65,8 +65,12 @@ template <class Comp> class Composite_HFSystem : public virtual tHF_System_CD<do
 public:
     virtual void AccumulateDirectAll  (std::vector<hmat_t<double>>& Jall) const;
     virtual void AccumulateExchangeAll(std::vector<hmat_t<double>>& Kall) const;
+    virtual rvec3vec_t DirectPullback  (const Structure* st) const;
+    virtual rvec3vec_t ExchangePullback(const Structure* st) const;
 private:
     const Comp& self() const {return static_cast<const Comp&>(*this);}
+    //! The pullbacks' one body: every ordered pair of blocks through the pair protocol.
+    rvec3vec_t PairPullback(const Structure* st, bool exchange) const;
     //! One spin group's sweep (blocks begin..end of the walk) into \a Fall -- Coulomb or exchange.
     void SweepGroup(size_t begin, size_t end, std::vector<hmat_t<double>>& Fall, bool exchange) const;
 };

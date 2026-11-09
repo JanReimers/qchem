@@ -135,6 +135,13 @@ template <class T> class Orbital_RKB_HF_IBS_Imp
     virtual ERI4       MakeExchange(const Orbital_ERI4_IBS<T>& c) const;
     virtual ERI4       MakeDirectAgainstL  (const Orbital_ERI4_IBS<T>& aL) const;
     virtual ERI4       MakeExchangeAgainstL(const Orbital_ERI4_IBS<T>& aL) const;
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): a Dirac (RKB) block is radial (one centre): no geometry to move.
+    virtual bool CanPullbackERI4(const Orbital_HF_IBS<T>*) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeDirectPullback(const smat_t<T>&, const smat_t<T>&, const Orbital_HF_IBS<T>*, const Structure*) const override
+        {return NoGeometryDerivativeYet<rvec3vec_t>("a Dirac (RKB) block", "Coulomb pullback");}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const smat_t<T>&, const smat_t<T>&, const Orbital_HF_IBS<T>*, const Structure*) const override
+        {return NoGeometryDerivativeYet<rvec3vec_t>("a Dirac (RKB) block", "exchange pullback");}
 protected:
     Orbital_RKB_HF_IBS_Imp(Orbital_RKBL_IBS<T>* rkbl,Orbital_RKBS_IBS<T>* rkbs) : Orbital_RKB_IBS_Imp<T>(rkbl,rkbs) {};
 private:

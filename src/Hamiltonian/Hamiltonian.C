@@ -325,7 +325,7 @@ template <class T> using HamRealBlockBase =
 //! the audit compares term by term.  \c label = the term's own description (its Write's first line); \c entries = the
 //! \c EnergyBreakdown names it reports (two terms may share one, e.g. the local-PP halves both report Een); \c E = its own sum.
 struct TermEnergy { std::string label, entries; double E=0.0; };
-//! One term's force at fixed D (GeometryOptimizationPlan §13.2), MakeTermEnergies' derivative twin, index for index: \c label as there;
+//! One term's force at fixed D (GeometryOptimizationPlan §13.2), MakeTermEnergies' derivative twin, index for index (the HF terms follow): \c label as there;
 //! \c missing = the term's MissingGradient (empty exactly when \c F holds its −∂E_term/∂R_A, one entry per atom).
 struct TermForce { std::string label, missing; rvec3vec_t F; };
 
@@ -485,8 +485,9 @@ public:
     //! Empty for a Hamiltonian with no term list.
     virtual std::vector<TermEnergy>     MakeTermEnergies(const tDM_CD<T>*) const {return {};}
     //! THE PER-TERM FORCE at \a cd (GeometryOptimizationPlan §13.2; the user's 2026-11-08 pre-approval of derivative versions beside an
-    //! existing method): MakeTermEnergies' twin, in its term order, with no Pulay term (that is the basis's, not a term's).  For the gates
-    //! that check each term's force against the finite difference of its own energy at fixed D; \a cd refreshed for, as there.
+    //! existing method): MakeTermEnergies' twin, in its term order, with no Pulay term (that is the basis's, not a term's), and then the
+    //! whole-system HF terms MakeTermEnergies leaves out.  For the gates that check each term's force against the finite difference of its
+    //! own energy at fixed D; \a cd refreshed for, as there.
     virtual std::vector<TermForce>      MakeTermForces(const tbs_t<T>*, const tDM_CD<T>*, const Structure*) const {return {};}
     virtual std::vector<hmat_t<T>>      MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const {return {};}
     //! The REAL-TRIM-block twin (a real block of a complex run; see the real-block \c GetMatrix).

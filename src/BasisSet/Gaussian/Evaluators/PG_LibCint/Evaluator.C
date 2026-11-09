@@ -103,6 +103,13 @@ public:
     std::vector<rvec3_t> OperatorThreeCGradient   (const Math::CartGaussian& g, size_t gAtom, const rmat_t& D) const;
     std::vector<rvec3_t> GaussianRepulsionGradient(size_t gAtom, double alpha, const rmat_t& D) const;
 
+    // --- the HF pieces of the force, CONTRACTED (lane B 2026-11-08).  For a symmetric density Da on THIS evaluator's functions (i, j) and
+    // Db on \a other's (k, l), per atom A, all four centres moving (int2e_ip1, with the permutational symmetry for the other three):
+    //   ERI4Gradient(other, Da, Db, false)[A] = Σ Da_ij Db_kl ∂(ij|kl)/∂R_A   (Coulomb)
+    //   ERI4Gradient(other, Da, Db, true )[A] = Σ Da_ij Db_kl ∂(ik|jl)/∂R_A   (exchange)
+    // CLIENT: Gaussian Orbital_ERI4_IBS's HF pullbacks; tests gate them against a central difference of our engine's (MnD) J and K.
+    std::vector<rvec3_t> ERI4Gradient(const NR_Evaluator& other, const rmat_t& Da, const rmat_t& Db, bool exchange) const;
+
     // --- isM_DFT (3-centre <ab|c>, one symmetric (ia,ib) block per fit component ic) ---
     Projector3<double> OverlapThreeC_Matrix  (const NR_Evaluator& fit) const;   // int3c1e (overlap)
     Projector3<double> RepulsionThreeC_Matrix(const NR_Evaluator& fit) const;   // int3c2e (Coulomb)

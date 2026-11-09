@@ -197,6 +197,8 @@ namespace qchem::ChargeDensity {
         virtual ~tHF_System_CD() = default;
         virtual void AccumulateDirectAll (std::vector<hmat_t<T>>& Jall) const=0;
         virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const=0;
+        virtual rvec3vec_t DirectPullback (const Structure* st) const=0;
+        virtual rvec3vec_t ExchangePullback(const Structure* st) const=0;
     };
     template <class T> class tHF_Pair_CD {
     public:
@@ -205,6 +207,10 @@ namespace qchem::ChargeDensity {
         virtual void AccumulateExchangeBoth(hmat_t<T>& Ki, hmat_t<T>& Kj, const tHF_Pair_CD<T>& other) const=0;
         virtual void CompleteDirectPair (hmat_t<T>& Ji, hmat_t<T>& Jj, const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i) const=0;
         virtual void CompleteExchangePair(hmat_t<T>& Ki, hmat_t<T>& Kj, const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i) const=0;
+        virtual rvec3vec_t DirectPullbackWith (const tHF_Pair_CD<T>& other, const Structure* st) const=0;
+        virtual rvec3vec_t ExchangePullbackWith (const tHF_Pair_CD<T>& other, const Structure* st) const=0;
+        virtual rvec3vec_t CompleteDirectPullback (const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i, const Structure* st) const=0;
+        virtual rvec3vec_t CompleteExchangePullback(const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i, const Structure* st) const=0;
     };
     struct NoHF_System {
     };

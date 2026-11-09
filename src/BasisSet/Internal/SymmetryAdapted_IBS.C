@@ -103,6 +103,12 @@ public:
                                       const Orbital_HF_IBS<double>* cd) const;
     virtual void AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const rsmat_t& Di, const rsmat_t& Dj,
                                         const Orbital_HF_IBS<double>* cd) const;
+    // d/dR (GeometryOptimizationPlan §13.2): a SALC block refuses for now, as its 1E pullbacks do.
+    virtual bool CanPullbackERI4(const Orbital_HF_IBS<double>*) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeDirectPullback(const rsmat_t&, const rsmat_t&, const Orbital_HF_IBS<double>*, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "Coulomb pullback");}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const rsmat_t&, const rsmat_t&, const Orbital_HF_IBS<double>*, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a symmetry-adapted (SALC) block: increment 1 needs the AO-level D", "exchange pullback");}
 
     // --- WholeSystemFock_IBS (V1.31): the route the composite density actually takes for a SALC basis ---
     virtual size_t  AODimension() const {return itsO.rows();}

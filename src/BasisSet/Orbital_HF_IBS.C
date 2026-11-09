@@ -51,6 +51,16 @@ public:
     //! only -- the caller (a single-spin density) supplies \a Di, \a Dj from one spin channel.
     virtual void AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const smat_t<T>& Di, const smat_t<T>& Dj,
                                         const Orbital_HF_IBS<T>* cd) const=0;
+    //! Can this block give the two pullbacks below against \a other?  CLIENT: the HF terms' MissingGradients() entries.  False exactly
+    //! when they would refuse.
+    virtual bool CanPullbackERI4(const Orbital_HF_IBS<T>* other) const=0;
+    //! THE PULLBACKS of the two contractions (GeometryOptimizationPlan §13.2), for the density pair (\a Da on this block, \a Db on
+    //! \a other), both symmetric: F[A] = Σ Da_ab Db_cd ∂(ab|cd)/∂R_A (Coulomb, AccumulateDirect's tensor) and Σ Da_ab Db_cd ∂(ad|cb)/∂R_A
+    //! (exchange, AccumulateExchange's), all four centres moving.  A family without them refuses with NoGradient.
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeDirectPullback  (const smat_t<T>& Da, const smat_t<T>& Db, const Orbital_HF_IBS<T>* other,
+                                                                    const Structure* st) const=0;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const smat_t<T>& Da, const smat_t<T>& Db, const Orbital_HF_IBS<T>* other,
+                                                                    const Structure* st) const=0;
 };
 
 //--------------------------------------------------------------------------------

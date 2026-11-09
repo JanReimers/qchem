@@ -412,6 +412,38 @@ class Orbital_ERI4_IBS
     , public virtual ::qchem::BasisSet::BareCoulombSource   // the raw (m1m2|m3m4) over a subset (ACBN0, 2026-09-21)
 {
 public:
+    // d/dR (GeometryOptimizationPlan §13.2): libcint's int2e_ip1 on the two blocks' own PGData, for the Cartesian PG_Cart evaluator when
+    // the partner block is one too.  Every other pairing refuses until it has them.
+    virtual bool CanPullbackERI4(const ::qchem::BasisSet::Orbital_HF_IBS<double>* other) const override
+    {
+        if constexpr (kLibcintERI) return dynamic_cast<const E*>(other)!=nullptr;
+        else return false;
+    }
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeDirectPullback(const rsmat_t& Da, const rsmat_t& Db, const ::qchem::BasisSet::Orbital_HF_IBS<double>* other,
+                                                                  const Structure* st) const override {return ERI4Pullback(Da, Db, other, st, false);}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const rsmat_t& Da, const rsmat_t& Db, const ::qchem::BasisSet::Orbital_HF_IBS<double>* other,
+                                                                    const Structure* st) const override {return ERI4Pullback(Da, Db, other, st, true);}
+private:
+    static constexpr bool kLibcintERI=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
+    Outcome<rvec3vec_t,AD::NoGradient> ERI4Pullback(const rsmat_t& Da, const rsmat_t& Db, const ::qchem::BasisSet::Orbital_HF_IBS<double>* other,
+                                                    const Structure* st, bool exchange) const
+    {
+        const char* what = exchange ? "exchange pullback" : "Coulomb pullback";
+        if constexpr (kLibcintERI)
+        {
+            if (!CanPullbackERI4(other)) return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block against a partner of another family", what);
+            if (!st) throw std::invalid_argument("Gaussian Orbital_ERI4_IBS: a geometry pullback needs the structure");
+            using LC=Evaluators::PG_LibCint::NR_Evaluator;
+            using PGD=Evaluators::PG_Cart_MnD::PGData;
+            const LC a(static_cast<const PGD&>(dynamic_cast<const E&>(*this)), st), b(static_cast<const PGD&>(dynamic_cast<const E&>(*other)), st);
+            auto dense=[](const rsmat_t& D){ rmat_t M(D.rows(), D.columns()); for (size_t i=0;i<D.rows();i++) for (size_t j=0;j<D.columns();j++) M(i,j)=D(i,j); return M; };
+            const std::vector<rvec3_t> g=a.ERI4Gradient(b, dense(Da), dense(Db), exchange);
+            rvec3vec_t F(g.size()); for (size_t A=0;A<g.size();A++) F[A]=g[A];
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(F);
+        }
+        else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", what);
+    }
+public:
     //! \copydoc BasisSet::BareCoulombSource::BareCoulomb
     //! The per-element FourC kernel (all four norms folded in), the 8-fold symmetry used once per orbit.  A
     //! matrix-delivery engine (libcint) has no per-element kernel: not this increment, it throws.

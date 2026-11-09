@@ -86,7 +86,6 @@ template <class T> rvec3vec_t tHamiltonianImp<T>::MakeForces(const tbs_t<T>* bs,
 template <class T> std::vector<TermForce> tHamiltonianImp<T>::MakeTermForces(const tbs_t<T>* bs, const tDM_CD<T>* D, const Structure* st) const
 {
     if (!st || !D) throw std::invalid_argument("Hamiltonian::MakeTermForces: needs the structure and the density matrix");
-    if (!itsHF_HTs.empty()) throw std::logic_error("Hamiltonian::MakeTermForces: whole-system HF terms are not audited (as MakeTermEnergies)");
     std::vector<TermForce> out;
     auto one=[&](const auto& t)
     {
@@ -96,8 +95,9 @@ template <class T> std::vector<TermForce> tHamiltonianImp<T>::MakeTermForces(con
         if (f.missing.empty()) { f.F=rvec3vec_t(st->GetNumAtoms(), rvec3_t(0,0,0)); g->AddForces(f.F, D, st); }
         out.push_back(std::move(f));
     };
-    for (const auto& t : itsSHTs) one(*t);   // MakeTermEnergies' order: static, then dynamic
-    for (const auto& t : itsDHTs) one(*t);
+    for (const auto& t : itsSHTs)   one(*t);   // MakeTermEnergies' order: static, then dynamic ...
+    for (const auto& t : itsDHTs)   one(*t);
+    for (const auto& t : itsHF_HTs) one(*t);   // ... then the whole-system HF terms, which MakeTermEnergies leaves out (its grid audit has no raster in them)
     return out;
 }
 

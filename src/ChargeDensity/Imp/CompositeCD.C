@@ -183,6 +183,28 @@ template <class Comp> void Composite_HFSystem<Comp>::AccumulateExchangeAll(std::
     for (const auto& g:self().Groups()) SweepGroup(g.begin, g.end, Kall, true);
 }
 
+// The sweeps' pullbacks (GeometryOptimizationPlan §13.2): ∂Tr(D X[D])/∂R over EVERY ordered pair of blocks, whatever their group -- the
+// energy contracts the whole density against blocks every group summed into, so no pair is left out.  No WholeSystemAll route: a basis
+// that has one (a SALC decorator) refuses the pullback at its ERI face.
+template <class Comp> rvec3vec_t Composite_HFSystem<Comp>::PairPullback(const Structure* st, bool exchange) const
+{
+    if (!st) throw std::invalid_argument("Composite_HFSystem: a geometry pullback needs the structure");
+    const auto& cds=self().itsBlocks;
+    rvec3vec_t F(st->GetNumAtoms(), rvec3_t(0,0,0));
+    for (size_t k=0;k<cds.size();++k)
+        for (size_t l=0;l<cds.size();++l)
+        {
+            const tHF_Pair_CD<double>& pk=PairOf(SameT<double>(cds[k].cd));
+            const tHF_Pair_CD<double>& pl=PairOf(SameT<double>(cds[l].cd));
+            const rvec3vec_t g = exchange ? pk.ExchangePullbackWith(pl, st) : pk.DirectPullbackWith(pl, st);
+            if (g.size()!=F.size()) throw std::logic_error("Composite_HFSystem: a pair pullback differs in atom count");
+            for (size_t A=0;A<F.size();++A) F[A]+=g[A];
+        }
+    return F;
+}
+template <class Comp> rvec3vec_t Composite_HFSystem<Comp>::DirectPullback  (const Structure* st) const {return PairPullback(st, false);}
+template <class Comp> rvec3vec_t Composite_HFSystem<Comp>::ExchangePullback(const Structure* st) const {return PairPullback(st, true);}
+
 template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>& blocks) const
 {
     double ret=0.0;
