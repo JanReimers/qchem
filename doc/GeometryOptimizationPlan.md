@@ -94,7 +94,7 @@ each row.  Estimates are lane-days, with the shared layer of §5 paid once (2.5 
 | **PP local** (GTH, closed form when every block `CanAssembleField`) | three-centre: two basis centres + the PP centre (the PP centre's part = − the sum of the other two, by translation invariance) | FD at fixed D; no libcint GTH, so our engine's l±1 identity (∂/∂A_x of a Cartesian Gaussian = 2α G(l+1) − l G(l−1)) on the existing closed form | PySCF GTH (`pseudo=gth-pade`; worked on H₂O, §8) | static | 1.5 |
 | **PP local, quadrature route** (a block that cannot assemble the field) | needs the PP mesh's weight derivatives | FD at fixed D | — | static | `NoGradient` first; with the XC weight derivative, 0.5 |
 | **PP non-local** (KB projectors) | Σ D_ij h_pq ∂(⟨χ_i\|p⟩⟨p\|χ_j⟩): two-centre ⟨χ\|p⟩ derivatives | FD at fixed D; l±1 on the closed-form ⟨χ\|p⟩ | PySCF GTH | static | 1.0 |
-| **Hartree, `Vee_DFT_Dunlap`** (default) | 2 cᵀ ∂C/∂R · D − cᵀ ∂G/∂R c, plus the charge constraint's λ ∂N_fit/∂R (fit functions move with their atoms) | FD at fixed D, with c re-solved at R±h (stationary in c, so dc/dR drops out analytically: the FD checks that); `int3c2e_ip1` (orbital centres), `int3c2e_ip2` (fit centre), `int2c2e_ip1` | PySCF DF-J with the SAME auxiliary basis (Coulomb metric, no charge constraint: a near oracle, its gap measured once) | **consistent** (Cᵀ G⁻¹ C) | 1.5 |
+| **Hartree, `Vee_DFT_Dunlap`** (default) | 2 cᵀ ∂C/∂R · D − cᵀ ∂G/∂R c; the charge constraint is the FIXED N (user ruling 2026-11-08), so its λ dN/dR is 0 | FD at fixed D, with c re-solved at R±h (stationary in c, so dc/dR drops out analytically: the FD checks that); `int3c2e_ip1` (orbital centres), `int3c2e_ip2` (fit centre), `int2c2e_ip1` | PySCF DF-J with the SAME auxiliary basis (Coulomb metric, no charge constraint: a near oracle, its gap measured once) | **consistent** (Cᵀ G⁻¹ C) | 1.5 |
 | Hartree, `Vee_DFT` δ (radial Poisson / direct sum) | qᵀ K ∂q/∂R + ½ qᵀ ∂K/∂R q: the points and weights move, and K (radial Poisson) moves with the sites | FD at fixed D | PySCF (exact J) at a converged grid | consistent (Oᵀ K O), first order | `NoGradient` first; 2-3 |
 | Hartree, multipole | as δ, plus the channel expansion | FD at fixed D | — | **implied second derivative not yet checked** | `NoGradient`; check first |
 | **XC, `Vxc_DFT` δ on the Becke mesh** (default) | (a) Σ_g w_g v_xc ∂ρ(r_g)/∂R: basis-function derivatives at the points, and the points ride with their atom; (b) the GRID RESPONSE Σ_g ∂w_g/∂R e_xc(ρ_g): the Becke partition's derivative (Johnson–Gill–Pople 1993), through its iterated s(μ) (order 2 = three iterations) | FD at fixed D on the moving mesh, (a) and (b) together; (b) alone as a qcMesh unit test: ∂w_g/∂R by FD of the weights.  Σ_A F_A = 0 is the invariance check (b) is needed for | PySCF with `grid_response=True` where its grid can match ours (original Becke, no radii adjustment), else at a converged grid (the H₂O probe agreed to 3.5e-7 Ha/bohr) | **consistent** (pin 28: H = Oᵀ f′(OD)) | (a) 1.0, (b) 2.0 |
@@ -403,16 +403,22 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
   - `FittedCD`'s two, forwarded.
   - `tHamiltonian::MakeTermForces`, the per-term twin of `MakeTermEnergies`.
   - PG_Cart answers through libcint (int3c2e_ip1/ip2, int2c2e_ip1).  Every other family refuses.
-- The force: Σ D c ∂(ij|k) − ½ Σ c c ∂(k|l).  The fit's response enters only as λ dN/dR, and N = Tr(DS) moves with the basis at
-  fixed D.
-- **That λ Tr(D ∂S/∂R) is LEFT OUT**, by the contract now written on `tGeometryGradient_HT::AddForces`: a term's force is taken with
-  ITS MATRIX as its D-gradient.  The Dunlap matrix is V, not V + λS (λS shifts every level and moves no orbital), so the Pulay sum's W
-  lacks the λD that would cancel it.
+- The force: Σ D c ∂(ij|k) − ½ Σ c c ∂(k|l).  The fit's response enters only as λ dN/dR, and N is the FIXED electron count, so
+  that piece is 0.
+- History: until 2026-11-09 the constraint was the density's Tr(DS), which moves with the basis at fixed D.  That left a λ Tr(D ∂S/∂R)
+  out of the term's force (the Dunlap matrix is V, not V + λS, so the Pulay sum's W lacked the λD that would cancel it), and the
+  `AddForces` contract carried it as its one stated exception.  The user ruled the target back to N ("we originally constrained to
+  N"; lane S 614949f2f), and lane B removed the exception: each term's force is its own energy's fixed-D R-derivative, no exception.
+- The SAD seed is unchanged by the ruling: it is a NumericCD whose charge IS `st->GetNumElectrons()` (never rescaled: it is not a
+  mixable density), so the seed iteration's constraint is the same double under both rules and cannot move a first iteration
+  (gate `SADSeed.ItsChargeIsTheElectronCountTheDunlapFitIsConstrainedTo`, on OH⁻ where the neutral-atom field integrates to 9 and N
+  = 10).  The moves lane S measured (U/A_PG_DFT Z36 +3.1e-5, Z18 +3.8e-6) come from later iterates, where Tr(DS) and N differ by
+  ~1e-13 and a slow Δρ tail stops at a different point; both pass their 1e-3 PySCF gate (pin 10).
 - Gates:
   - The faces against the FD of the same faces' own (M&D) contractions, with translation invariance.
+  - The per-term fixed-D FD (`HamiltonianForces.TheDunlapHartreesForceAtFixedDIsItsEnergysFiniteDifference`, all-electron LDA water
+    dzvp, 2e-6 relative); the PP water per-term gate now includes the Dunlap term too.
   - The WHOLE force of an XC-free DFT (Xα, α = 0) against the FD of the re-converged energy (`_Long`).
-  - The per-term fixed-D FD differs from the term's force by exactly the λ piece (measured: 2e-4 relative on water), so it cannot
-    gate this term.
 
 **BUILT (lane B 2026-11-08): the closed-form PP forces.**
 - `Orbital_PP_IBS` gains `Can/MakeSpeciesFieldPullback(st, field, range, D)` and `Can/MakeProjectorPullback(st, ps, D)`, beside the
