@@ -137,6 +137,7 @@ include(GoogleTest)
 set(QCHEM_PANEL_RED
     "GPW_Na2Box.Γ_Pol_Null_Linear_SpinSeed_Converges_Panel"                # OpenWork §3 "Na₂ polarized singlet won't converge from AFM seed"
     "GPW_MnOBox.Γ_M6_GDM_Converges_Panel_Long"                # OpenWork §3 "GDM crawls at a near-degenerate frontier"
+    "GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long" # OpenWork §3 "SCF panel iteration budgets predate the raster pilot": 59 vs 49 (red on main since c153c0fb)
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_Converges_Panel_Long" # OpenWork §3 "Kerker+Pulay overshoots β-MnO₂'s U = 1 eV basin"
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long"     # same row: control U = 2 eV limit-cycles under plain Kerker
     "ResponsePolarizability.GPW_Si_Γ_Pol_OneSpinAlpha_KeepsZeroMoment_Panel" # OpenWork §3 "Polarized Γ Si JUMPS" (panel #10)
@@ -217,6 +218,37 @@ set(CXX_SCAN_FOR_MODULES on)
 # (Release, not a custom config name, because libxc's safeguard rejects unknown build types).
 # See project_msym_layout_ub.
 option(QCHEM_RELCHECKED "Release codegen with asserts live + blaze bounds checks (no NDEBUG)" OFF)
+
+# QCHEM_ENZYME: the automatic-differentiation path (src/AD, qchem.AD; doc/GeometryOptimizationPlan.md, the AD spike).  Enzyme is
+# TOOLCHAIN and OPTIONAL (controller ruling 2026-11-08): OFF builds everything, and every AD gradient REFUSES with NoGradient (an
+# Outcome naming why); no hand-coded fallback derivative is kept beside the AD one.  ON needs an Enzyme built against THIS clang
+# (LLVM 21): -DQCHEM_ENZYME=ON -DQCHEM_ENZYME_PLUGIN=<build>/Enzyme/ClangEnzyme-21.so -DQCHEM_ENZYME_INCLUDE=<src>/enzyme/include.
+# The plugin rides ONLY qcAD's compile (it differentiates the kernels defined in its own TUs), so no other target's .pcm or
+# compile command changes.
+option(QCHEM_ENZYME "Build the Enzyme automatic-differentiation path (qchem.AD); OFF = AD gradients refuse with NoGradient" OFF)
+set(QCHEM_ENZYME_PLUGIN  "" CACHE FILEPATH "Enzyme's clang plugin, ClangEnzyme-<LLVM major>.so (QCHEM_ENZYME=ON)")
+set(QCHEM_ENZYME_INCLUDE "" CACHE PATH     "Enzyme's C++ headers, <Enzyme source>/enzyme/include (QCHEM_ENZYME=ON)")
+if(QCHEM_ENZYME)
+    if(NOT EXISTS "${QCHEM_ENZYME_PLUGIN}" OR NOT EXISTS "${QCHEM_ENZYME_INCLUDE}/enzyme/enzyme")
+        message(FATAL_ERROR "QCHEM_ENZYME=ON needs QCHEM_ENZYME_PLUGIN (ClangEnzyme-21.so) and QCHEM_ENZYME_INCLUDE (holding enzyme/enzyme); "
+                            "got '${QCHEM_ENZYME_PLUGIN}' and '${QCHEM_ENZYME_INCLUDE}'")
+    endif()
+    message(STATUS "QCHEM_ENZYME: AD on, plugin ${QCHEM_ENZYME_PLUGIN}")
+endif()
+# qchem_enzyme_sources(<target> <source>...): the TUs that REGISTER derivatives of their own leaf functions (doc/GeometryOptimizationPlan.md,
+# the AD verdict: each Imp TU differentiates its own leaves in place).  Under QCHEM_ENZYME they compile with the plugin, its headers and
+# the QCHEM_ENZYME macro, at -O2 -mprefer-vector-width=128 (after the tree's -O3, so they win): Enzyme 1a87ccc segfaulted at
+# -O2 -march=native (256-bit vectors) and gave a wrong adjoint in a shape its -O3 produced (doc/Records/EnzymeSpike.md).  -march stays (a
+# .pcm and its importers agree on target features); the flags cost the energy nothing measurable (the record §4 item 10).  Per FILE,
+# so no other TU of the target changes.  OFF: nothing, and the files' #ifdef QCHEM_ENZYME branches refuse with NoGradient.
+function(qchem_enzyme_sources target)
+    if(QCHEM_ENZYME)
+        set_source_files_properties(${ARGN} TARGET_DIRECTORY ${target} PROPERTIES
+            COMPILE_OPTIONS "-fplugin=${QCHEM_ENZYME_PLUGIN};-O2;-mprefer-vector-width=128"
+            COMPILE_DEFINITIONS QCHEM_ENZYME
+            INCLUDE_DIRECTORIES "${QCHEM_ENZYME_INCLUDE}")
+    endif()
+endfunction()
 
 # QCHEM_ARCH_EXPERIMENT: the -O3 / -march=native A/B (doc/OpenWork.md Step 3), OPT-IN and OFF by default.
 # Release's -O2 is a DELIBERATE choice (below), not a flag-order accident, so the bar for changing it is a
@@ -318,7 +350,7 @@ add_subdirectory(./IntegrationTests)
 add_subdirectory(./CLIapps)
 
 add_custom_target(allTests
-    DEPENDS ITMain UTCommon UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTGaussian_BS UTLattice_BS UTLASolver UTSCFAccelerator UTSCFIterator UTResponse UTWaveFunction
+    DEPENDS ITMain UTAD UTCommon UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTGaussian_BS UTLattice_BS UTLASolver UTSCFAccelerator UTSCFIterator UTResponse UTWaveFunction
     COMMENT "Build all unit test executables"
 )
 # Disable embedded submodule tests so ctest only runs this project's tests.

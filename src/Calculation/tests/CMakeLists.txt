@@ -11,8 +11,10 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     MoleculeSession.C   # the molecular potential energy surface: reference == single point, carried step == fresh (step 8)
     SolidSetup.C        # the periodic run setup: the frozen basis recipe, provenance without a deck (step 6)
     SolidSession.C      # the solid potential energy surface: reference == single point, carried step == fresh (step 8)
+    AuditFootprint.C    # the audit RSS policy: the byte count, the calibration against its record, the refusal doors (OpenWork (e))
     ForceFacade.C       # W and the per-term finite difference at fixed D, gated on Ven / kinetic by libcint (GeometryOptimizationPlan §6)
     GeometryOptimizer.C # the geometry optimizer on analytic model surfaces only (doc/GeometryOptimizationPlan.md §1, ruling §12.3)
+    MeshAudit.C         # the molecular XC-mesh audit at a fixed D (GeometryOptimizationPlan §14.3)
     FacadeMatrix.C      # the facade PARITY MATRIX: {atom, molecule, solid} x every capability, expected failures named (V-FACADE-MATRIX)
 )
 
@@ -26,6 +28,6 @@ target_include_directories(UTCalculation PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
 )
 
-target_link_libraries(UTCalculation PRIVATE qchem gtest)
+target_link_libraries(UTCalculation PRIVATE qchem qcAD gtest)
 
 qchem_discover_tests(UTCalculation)

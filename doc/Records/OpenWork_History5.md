@@ -1828,3 +1828,49 @@ audit/pilot/raster subset 31/31), long 13/13; anchordiff 0 moves in both.  Open:
 Row as it stood:
 
 · **The short-range local-PP block is rebuilt on every basis build, and per k** (lane A, 2026-11-07, measured on the bcc Li q3 aug pilot, main 09eb3caa, 4 threads, `~/Code/qchem6-runs/Li/mu/pilot2/Li_bcc_q3_aug_pilot.log`).  `setup: local-PP SHORT (analytic lattice sum)` is the run's largest bucket: 2,610 s over 432 calls, 6 s each, = 6 builds (run setup, the re-convergence rebuild, 4 audit references) × 72 IBZ blocks.  `MakeLocalPPShort` is a pure function of (molecular basis, structure, PP, k phase) and never reads the rasters, and `CompareAtFixedD` hands each reference the run's own basis and PP (only the egg-box remakes it).  Two fixes, in order (controller 2026-11-07): (1) build once and hand the blocks to every rebuild and reference (allowed under the lazy rule: fixed inputs), saving ~5/6 = 2,175 s (36% of that run), expect 0 moves; (2) the real-space lattice sum is k-independent, so sum it once R-resolved and phase it to each k (`LatticeSum1E::MakeLocalGaussian`; check whether S, T and the other 1E lattice sums share the per-k pattern, which would make it one fix for every 1E term), gated by a unit test that the R-resolved route equals the per-k one block by block to roundoff on a small cell with several k; the summation order changes, so name and re-judge every test that moves (pin 10) · `src/BasisSet/Gaussian/Lattice/Imp/GPW_Evaluator.C`, `src/Calculation/Imp/SolidCalculation.C`
+
+## ✅ Grid-pilot beta-test finding (e) on Li: the audit's reference RSS refusal (lane A, 2026-11-08, d54bec926)
+
+The q3 atom L28 run was OOM-killed (globally) in a postSCF audit at 4.3 GB RSS.  Measured (lane A 2026-11-07, a temporary
+VmRSS/VmHWM probe around each reference build, malloc_trim at entry; tables in the shared notes `laneA_e_rss_calibration.md`): an
+audit reference's cost is per k BLOCK and grid-sized.  On Li q3 aug k12 (72 blocks) the Becke audit alone added 2.0 GB to a
+1.3 GB run.  Fix (controller ruling 2026-11-07): `qchem.AuditFootprint` sizes every reference before it is built. It keeps three
+named pieces apart: the byte count (Phi tables on the XC mesh plus one raster field per block); the eta/kappa calibration (1.09,
+156 B per raster point, from 20 real audits on Li k444/k666/k12 and NaF k222, with the record at its declaration); and the band
+(0.78 - 1.50; 0.78 rather than the ruled 0.79 because the record's minimum is 0.788, accepted by the controller).  REFUSE ON RESOURCES when the low
+end exceeds the memory available (the nearest cgroup limit minus its usage, else MemAvailable; the row names its source), WARN AND
+RUN when only the high end does.  The pilot is checked before the first SCF (no iteration spent).  A mid-pilot refusal stops it NOT SETTLED with its
+record kept.  The postSCF audits return `Outcome<GridAuditResult, ResourceRefusal>`.  Policy row `AuditReferenceMemory`.  Expert
+deck key `solid.auditFootprint`.  Not calibrated: a polarized run, a PlaneWave Vxc fit, a non-imposed Becke mesh.  The
+mid-pilot refusal paths (round > 1, a climb rung) have no deterministic test; the two doors that do (preflight, postSCF) are
+`AuditFootprint.*` in UTCalculation.
+
+## ✅ D-DEGEN-FILL: a partly filled degenerate level at kT = 0 (lane A, 2026-11-08, 675bf14b8)
+
+Row opened by lane S (2172f88d7, on its 3b branch): at kT = 0 a merged degenerate level that nothing stated was filled orbital by
+orbital in the eigensolver's order, so D depended on roundoff (`PW_NaF.Γ_Anchor` 4 e⁻ into a 3-orbital level as 2+2+0; on lane
+S's 3b tree the run never converged).  User rulings 2026-11-08: keep the OccupationPolicy framework -- each option its own
+`OccupancyRule`, chosen by a value in `OccupationConfig`, reachable from the deck, the default a facade policy reporting itself as
+one `choose` row; HF defaults to the integer fill ("does one of B give the lower symmetry, lower energy? If so then B": Boron
+UHF/dzvp shared −24.40769 vs integer −24.525932, the same-spin self-interaction a fractional HF occupation pays); option C (an HF
+warning row) dropped ("C will confuse users"); a STATED configuration (MOM, a held fill, Atom_EC per m) wins exactly.
+
+Landed: `IntegerOccupancy` / `SharedDegenerateOccupancy` (`OccupationConfig::degenerate`, width = `SCFParams::MergeTol`); the one
+kernel `qchem::Orbitals::ShareDegenerateLevels` for the per-block fill and the ranked molecular reservoir (a level split over
+irreps is one level); `SCFParams::DegenerateLevels` = deck key `degenerateLevelFill` (Auto | OrbitalByOrbital | Shared), Auto
+decided in `qchem.DegenerateFillReport` (DFT and solids share, HF integer).  Found on the way: GDM's `ComputeStep` took one held
+integer step on a non-idempotent D' (now refused, like `Ready`); a declined direct minimiser's adaptive linear fallback is capped at
+`DeclinedDirectMinRelax` 0.25; the iterator's constructor fills a fresh seed under the default rule, so a Shared run refills it at
+the first Iterate (re-running Init instead pushed the seed Fock into DIIS twice: NaF "converged" at iteration 1).  Two fill-order
+traps the landing sweep caught: the reservoir hands orbitals over irrep by irrep (water C2v HF filled 5A1 over 1B1, +3.24 Ha), so
+it states its aufbau as a −energy rank; and a rankless fill must keep the STORED order, which for GDM is its leading occupied block
+(an energy re-sort moved the MnO dimer off GDM's manifold).
+
+Gates: `PW_NaF.Γ_Anchor` IonicSAD 16 / Uniform 28 iterations, one state (1.2e-9 Ha apart, test tightened to 1e-7);
+`GPW_Al.Γ_Imp_Converges` −1.9212152506 in 9 (main −1.9212127589 in 14, the state lane S's 3b reaches); Boron UHF Ladder / PureGDM
+on the −24.5259316 anchor; `M_Calculation.BoronLDASharedLevelGDMDeclines` (the GDM interplay).  Sweep (vs lane-a-e): short 1369/1369,
+moves Si2_PP_U.LargeSeparation −0.605 (a BoundedSCF 2-iteration iterate; its claim reads Enn), GPW_Al −2.49e-6, GPW_NaF Becke
++1.9e-9 and ExactResume −2e-10 (noise), iterations only on PW_NaF 108→88, GPW_SiBox eqUnfolded 122→75 / eqFinite 74→52; long 13/13,
+iterations only NaF Becke-mesh 31→29, LiF XCMeshAudit 42→54; panel at 4 threads vs main-c153c0fb: only the MnO dimer GDM case
+moved, restored bit-identical by its deck stating OrbitalByOrbital; TiO₂ k222 59 vs 49 as on main (now on QCHEM_PANEL_RED).
+Remainders → OpenWork §3: HF + stated Shared starts from an integer sibling seed; a stated GDM on a solid meets the shared default.

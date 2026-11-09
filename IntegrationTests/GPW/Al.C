@@ -76,6 +76,10 @@ using namespace qchem::tests::gpw;   // the harness: Materials cells, gates, rec
 // annealed anchor's kT-independent internal energy (-1.92115, Γ_Imp_Anneal_Anchor).  (A FREE aufbau run converges too,
 // to a symmetry-broken state with a small gap: -1.92294.)  Smearing stays the principled route for a metal; this gate pins
 // that the honest residual no longer mistakes a D rotation for an unconverged field.
+// D-DEGEN-FILL (2026-11-08): the lone 3p electron is now SHARED over the three orbitals (1/3 each, the kT -> 0 Fermi limit), so
+// D no longer depends on which orbital the eigensolver lists first.  Before, the run reached -1.9212128 in 14 iterations on main
+// and -1.9212153 on lane S's tree (one step jumped 6e-3 with the Fock otherwise identical to 1e-15: two states, picked by
+// roundoff).  Now -1.9212152506 in 9, one state, and the run files a `choose` row (DegenerateLevelFill).
 TEST(GPW_Al, Γ_Imp_Converges)
 {
     const Material al=qchem::Materials::Get("Al_fcc");        // Al (Zion=3): 3s^2 3p^1

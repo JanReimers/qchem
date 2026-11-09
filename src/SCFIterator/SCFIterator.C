@@ -360,10 +360,15 @@ private:
 
     size_t          itsIterationCount;
     bool            itsConverged;
+    bool            itsDeclinedRelaxApplied=false;   //!< the declined-GDM linear ceiling (SCFParams::DeclinedDirectMinRelax) is in force
     bool            itsGeodesicTaken=false;   //!< the last \c DirectMinStep committed a geodesic (else it fell back to a MIXED step)
     std::string     itsUnphysicalStop;   //!< \c UnphysicalStop: empty unless the last Iterate refused its first energy
     std::shared_ptr<tDM_CD<T>> itsCarried;   //!< a WorkingDensity / ExactResume seed, held to the first Iterate (see SeedRole)
     bool            itsCarriedIsWorking=false;   //!< ExactResume: the carried D becomes the working density there
+    //! A FRESH seed's iteration-0 orbitals are pending a refill under the run's own degenerate-level rule (D-DEGEN-FILL): the
+    //! constructor fills them on the policy's default, orbital by orbital, and on a symmetric seed that alone breaks the symmetry a
+    //! Shared run exists to keep (boron LDA, 2026-11-08).  Cleared by the first Iterate.
+    bool            itsFreshSeedFill=false;
     Observer        itsObserver;   //!< optional live-progress sink (default empty)
 
     // Density-face state.  The mixer (Linear / Kerker; see qchem.ChargeDensity.DensityMixer) is built per-run

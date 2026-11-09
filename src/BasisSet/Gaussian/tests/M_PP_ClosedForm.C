@@ -2,7 +2,10 @@
 // independent route: the same field quadratured on a fine Becke mesh.  The quadrature converges to the
 // closed form, and a wrong sign, norm or Y_lm convention misses by far more than the tolerance.
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <cmath>
+#include <random>
+#include <stdexcept>
 #include <memory>
 #include <vector>
 import qchem.BasisSet;
@@ -156,4 +159,76 @@ TEST(PP_ClosedForm, RefusesAFieldWithNoClosedForm)
     const auto st=TwoSpecies();
     const BasisSet::Gaussian::PG_Cart::Orbital_IBS bs(rvec_t{0.45}, 0, st.get());
     EXPECT_FALSE(bs.CanAssembleField(Plain()));
+}
+
+// THE PULLBACKS (GeometryOptimizationPlan §13.2; lane B 2026-11-08): PG_Cart's MakeSpeciesFieldPullback (each range) and
+// MakeProjectorPullback, libcint's derivative integrals with each field Gaussian an auxiliary shell, against the central difference of
+// Tr(D M) of the SAME closed-form matrices (our M&D engine) at displaced atoms, the block rebuilt on the moved sites.  Every term of the
+// test field is reached (r^0..r^6 short-range monomials, the erf long part, l = 0..2 projectors, a two-term radial), on a two-species
+// pair with no symmetry axis.  Step h = 1e-4: the truncation error h²/6 |f‴| is ~2e-9 |f‴|, and with a random ±1 D over the block
+// |f‴| stays below ~1e2 relative to |f′|, so 2e-6 (relative above 1) is ~10× the estimate.  Translation invariance: the basis and the
+// species' sites all ride on the two atoms.
+TEST(PP_ClosedForm, CartesianPullbacksAreTheFiniteDifferenceOfItsOwnMatricesAndTranslationInvariant)
+{
+    const auto st=TwoSpecies();
+    using IBS=BasisSet::Gaussian::PG_Cart::Orbital_IBS;
+    const IBS bs(rvec_t{0.45,1.6}, 2, st.get());
+    const size_t n=bs.GetVectorSize();
+    std::mt19937 rng(5); std::uniform_real_distribution<double> U(-1,1);
+    hmat_t<double> D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=U(rng);
+    const TestField field; const TestProjectors ps;
+    ASSERT_TRUE(bs.CanPullbackSpeciesField(field)); ASSERT_TRUE(bs.CanPullbackProjectors(ps));
+    auto TrDM=[&](const rsmat_t& M){ double t=0.0; for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) t+=D(i,j)*M(i,j); return t; };
+    std::vector<rvec3_t> R; st->ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+    const double h=1e-4;
+    auto check=[&](const rvec3vec_t& F, auto value, const char* what)
+    {
+        rvec3_t sum(0,0,0); double largest=0.0;
+        for (size_t A=0;A<R.size();A++)
+        {
+            sum+=F[A];
+            for (int k=0;k<3;k++)
+            {
+                auto at=[&](double s){ auto Rs=R; (k==0 ? Rs[A].x : k==1 ? Rs[A].y : Rs[A].z)+=s; std::shared_ptr<Structure> m=st->Clone(); m->MoveSites(Rs);
+                                       const IBS b(rvec_t{0.45,1.6}, 2, m.get()); return value(b, m.get()); };
+                const double fd=(at(h)-at(-h))/(2*h), an = k==0 ? F[A].x : k==1 ? F[A].y : F[A].z;
+                EXPECT_NEAR(an, fd, 2e-6*std::max(1.0,std::fabs(fd))) << what << ", atom " << A << " axis " << k;
+                largest=std::max(largest, std::fabs(fd));
+            }
+        }
+        EXPECT_GT(largest, 1e-2) << what << " moves with the atoms";
+        EXPECT_LT(norm(sum), 1e-9) << what << ": translation invariance";
+    };
+    for (FieldRange range : {FieldRange::Short, FieldRange::Long, FieldRange::Full})
+    {
+        const auto F=bs.MakeSpeciesFieldPullback(st.get(), field, range, D);
+        ASSERT_TRUE(F);
+        check(*F, [&](const IBS& b, const Structure* m){ return TrDM(b.MakeSpeciesFieldMatrix(m, field, range)); },
+              range==FieldRange::Short ? "local short" : range==FieldRange::Long ? "local long" : "local full");
+    }
+    const auto P=bs.MakeProjectorPullback(st.get(), ps, D);
+    ASSERT_TRUE(P);
+    check(*P, [&](const IBS& b, const Structure* m){ return TrDM(b.MakeProjectorMatrix(m, ps)); }, "projectors");
+    EXPECT_THROW((void)bs.MakeSpeciesFieldPullback(st.get(), field, FieldRange::Full, hmat_t<double>(n+1)), std::invalid_argument) << "a mismatched D";
+    EXPECT_THROW((void)bs.MakeProjectorPullback(st.get(), ps, hmat_t<double>(n+1)), std::invalid_argument) << "a mismatched D";
+}
+
+//! The pullbacks' Can queries agree with their methods: PG_Cart answers both; PG_Spherical refuses both with a reason.
+TEST(PP_ClosedForm, EachPullbackCanQueryAgreesWithWhetherItsMethodAnswers)
+{
+    const auto st=TwoSpecies();
+    const BasisSet::Gaussian::PG_Cart::Orbital_IBS cart(rvec_t{0.45,1.6}, 2, st.get());
+    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(rvec_t{0.45,1.6}, 2, st.get());
+    const TestField field; const TestProjectors ps;
+    for (const BasisSet::Orbital_PP_IBS<double>* b : {static_cast<const BasisSet::Orbital_PP_IBS<double>*>(&cart), static_cast<const BasisSet::Orbital_PP_IBS<double>*>(&sph)})
+    {
+        const size_t n=dynamic_cast<const BasisSet::Orbital_1E_IBS<double>&>(*b).GetNumFunctions();
+        const auto f=b->MakeSpeciesFieldPullback(st.get(), field, FieldRange::Full, hmat_t<double>(n));
+        const auto p=b->MakeProjectorPullback(st.get(), ps, hmat_t<double>(n));
+        EXPECT_EQ(b->CanPullbackSpeciesField(field), bool(f)); EXPECT_EQ(b->CanPullbackProjectors(ps), bool(p));
+        if (!f) EXPECT_FALSE(f.Error().why.empty());
+        if (!p) EXPECT_FALSE(p.Error().why.empty());
+    }
+    EXPECT_TRUE(cart.CanPullbackSpeciesField(field) && cart.CanPullbackProjectors(ps)) << "PG_Cart gives them";
+    EXPECT_FALSE(sph.CanPullbackSpeciesField(field) || sph.CanPullbackProjectors(ps)) << "PG_Spherical has no geometry derivative yet";
 }

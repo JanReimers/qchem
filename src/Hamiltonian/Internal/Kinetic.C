@@ -16,6 +16,8 @@
 module;
 #include <type_traits>   // is_same_v -- the conditional real-block base (BuildBlocks)
 #include <iostream>
+#include <stdexcept>
+#include <string>
 export module qchem.Hamiltonian.Internal.Kinetic;
 import qchem.Hamiltonian.Internal.Term;   // tStatic_HT<T> / tStatic_HT_Imp<T> (+ Energy/Types via re-export)
 // Needed for blaze's scalar*matrix below.  A module that DEFINES a template using blaze operators must
@@ -23,6 +25,7 @@ import qchem.Hamiltonian.Internal.Term;   // tStatic_HT<T> / tStatic_HT_Imp<T> (
 // enough that the instantiating TU imports it.  (Non-template code in an Imp TU never hits this -- it
 // is why the old non-template Kinetic needed nothing.)  No <blaze/Math.h> include required.
 import qchem.Blaze;
+import qchem.Hamiltonian.Internal.GeometryGradient;   // the term's force face (GeometryOptimizationPlan §13.2)
 
 export namespace qchem::Hamiltonian
 {
@@ -38,6 +41,8 @@ template <class T> class Kinetic
     : public virtual tStatic_HT<T>
     , private        tStatic_HT_Imp<T>
     , public         StaticRealBlockBase<T,Kinetic<T>>   // real-block capability on the dcmplx instantiation (Step 3c)
+    , public virtual tGeometryGradient_HT<T>             // its force (GeometryOptimizationPlan §13.2), after the private base (the cross-cast trap)
+    , public virtual tStatic_PC<T>                       // the per-block pullback client DM_Pullback walks
 {
 public:
     //! \copydoc HT_BlockOwner::BuildBlocks
@@ -64,6 +69,27 @@ public:
     virtual std::ostream& Write(std::ostream& os) const override
     {
         return os << "    Kinetic energy 1/2<p^2>." << std::endl;
+    }
+
+    // --- the force (GeometryOptimizationPlan §13.2): E = ½ Tr(D K) at fixed D, so ∂E/∂R = ½ Tr(D ∂K/∂R), each block's from its basis face ---
+    virtual std::string MissingGradient(const tbs_t<T>* bs, const Structure*) const override
+    {
+        if (!bs) return "Kinetic: no basis to differentiate";
+        for (const auto* b : bs->template Iterate<tobs_t<T>>())
+            if (!b->CanPullbackKinetic()) return "Kinetic: the basis block "+b->Name()+" gives no kinetic pullback";
+        return "";
+    }
+    virtual rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin&, const hmat_t<T>& D, const Structure* st) const override
+    {
+        const auto r=bs->MakeKineticPullback(D, st);
+        if (!r) throw std::logic_error("Kinetic::Pullback: "+r.Error().why+" (MissingGradients() names it before a force is asked)");
+        return *r;
+    }
+    virtual void AddForces(rvec3vec_t& F, const tDM_CD<T>* D, const Structure* st) const override
+    {
+        const rvec3vec_t g=D->DM_Pullback(this, st);
+        if (g.size()!=F.size()) throw std::logic_error("Kinetic::AddForces: the pullback and the force array differ in atom count");
+        for (size_t A=0;A<F.size();A++) F[A]-=0.5*g[A];
     }
 
 private:

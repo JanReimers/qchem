@@ -71,6 +71,18 @@ public:
     virtual hmat_t<double> Repulsion(const BasisSet::Orbital_DFT_IBS<double,double>&) const=0; //!< \f$\sum_f c_f\langle ab|1/r|f\rangle\f$
     virtual double SelfRepulsion() const=0;                                                //!< \f$\tfrac12\langle\tilde\rho|1/r_{12}|\tilde\rho\rangle\f$
     virtual double Integral() const=0;                                                     //!< the fit's charge
+    //! \name The geometry derivatives AT FIXED FIT COEFFICIENTS (GeometryOptimizationPlan §13.2, lane B; the user's 2026-11-08
+    //! pre-approval of derivative faces beside a face's methods).  What the Dunlap force needs, since the constrained fit is
+    //! variational and N is fixed.  CLIENT: Vee_FitDunlap's force.  Each \c Can is false exactly when its \c Make would refuse.
+    //!@{
+    //! \f$F_A=\sum_{ij}D_{ij}\,\partial\,\mathrm{Repulsion}(orb)_{ij}/\partial R_A\f$, the block's and the fit's centres moving.
+    virtual bool CanPullbackRepulsion(const BasisSet::Orbital_DFT_IBS<double,double>&) const=0;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<double,double>&, const hmat_t<double>& D,
+                                                                     const Structure* st) const=0;
+    //! \f$\partial\,\mathrm{SelfRepulsion}()/\partial R_A\f$, the fit's centres moving -- scaled as the value is (the ½ included).
+    virtual bool CanPullbackSelfRepulsion() const=0;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure* st) const=0;
+    //!@}
 };
 
 //! \brief The Dunlap fit on a Gaussian (non-orthogonal, Coulomb-metric) fit basis \a fbs.  THROWS when \a fbs has no Coulomb metric.

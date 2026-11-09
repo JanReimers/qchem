@@ -218,6 +218,26 @@ TEST(M_Calculation, BoronUHFPureGDM)
     EXPECT_GT(calc.IterationCount(), 0u);
 }
 
+// D-DEGEN-FILL x GDM (user ruling 2026-11-08, item 3): under DFT the facade's default SHARES boron's partly filled 2p level (one up
+// electron, 1/3 per orbital), so D' is not idempotent and GDM must decline it.  The Ladder then stays on its DIIS rung; standalone
+// GDM's every step becomes a mixed fixed-point step, and its linear mixer runs under the declined ceiling (0.25, CLAUDE.md: never
+// the 1.0 passthrough).  Both reach the SAME shared state -- the energy is the claim that the decline is harmless.
+TEST(M_Calculation, BoronLDASharedLevelGDMDeclines)
+{
+    // The facade converges in its constructor, so the capture brackets the construction.
+    testing::internal::CaptureStdout();
+    MoleculeCalculation ladder(MoleculeSetup::Resolve(MakeBoron(), {.basis = "dzvp", .model = qchem::Model::LDA, .multiplicity = 2}, {.type = "Ladder"}));
+    const std::string outL=testing::internal::GetCapturedStdout();
+    testing::internal::CaptureStdout();
+    MoleculeCalculation gdm   (MoleculeSetup::Resolve(MakeBoron(), {.basis = "dzvp", .model = qchem::Model::LDA, .multiplicity = 2}, {.type = "GDM"}));
+    const std::string outG=testing::internal::GetCapturedStdout();
+    ASSERT_TRUE(ladder.Result()) << outL;
+    ASSERT_TRUE(gdm.Result())    << outG;
+    EXPECT_NE(outL.find("is NOT ENGAGEABLE"), std::string::npos) << "the Ladder must veto GDM on a shared (fractional) D'";
+    EXPECT_NE(outG.find("linear mixing capped at relax 0.25"), std::string::npos) << "a declined GDM's fallback runs under the ceiling";
+    EXPECT_NEAR(ladder.Energy(), gdm.Energy(), 1e-5) << "one shared state, whichever accelerator declined (to the run's eps)";
+}
+
 // Unpolarized (folded-doublet D'=2P) GDM: closed-shell water under standalone GDM must reach the DIIS
 // anchor.  GDM used to decline every unpolarized run and silently diagonalize (same energy, no GDM) -- so
 // the energy alone cannot tell; the console must carry no "DECLINING" line (checked by hand via ITMain -v).

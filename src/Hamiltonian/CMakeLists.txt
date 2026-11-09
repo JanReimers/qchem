@@ -5,6 +5,10 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/DiracKinetic.C
     Internal/Imp/RestMass.C 
     Internal/Imp/Ven.C
+    Internal/Imp/Ven_Forces.C             # Ven's force (GeometryOptimizationPlan §13.2; 2026-11-08)
+    Internal/Imp/Vee_FitDunlap_Forces.C   # the Dunlap Hartree force (GeometryOptimizationPlan §13.2; 2026-11-08)
+    Internal/Imp/PP_Forces.C              # the two PP terms' forces (GeometryOptimizationPlan §13.2; 2026-11-08)
+    Internal/Imp/HF_Forces.C              # the HF Coulomb and exchange forces (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/PP_Local.C
     Internal/Imp/PP_NonLocal.C
     Internal/Imp/HF_HT.C
@@ -24,6 +28,7 @@ target_sources(qcHamiltonian PRIVATE
     # it cannot go to qcFitting (that would close a cycle -- see the module header).
     # doc/CleanupCandidates.md R1.0e.
         Internal/Imp/HamiltonianImp.C
+    Internal/Imp/HamiltonianForces.C      # the force fold over the terms (GeometryOptimizationPlan §13; 2026-11-08)
     Internal/Imp/Hamiltonians.C 
     Internal/Imp/SlaterExchange.C 
     Internal/Imp/Libxc_LDA.C
@@ -39,6 +44,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Types.C
     Internal/HamiltonianImp.C 
     Internal/RealSpaceResidual.C
+    Internal/GeometryGradient.C           # the term face of the analytic force (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/HamiltonianTerm.C 
     Internal/Hamiltonians.C 
     Internal/ExchangeFunctional.C  

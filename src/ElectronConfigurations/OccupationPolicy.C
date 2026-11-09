@@ -132,6 +132,13 @@ struct OccupationConfig
     int    momStartIter = 10;     //!< the delayed-IMOM settling window, in fills of the block
     double kT           = 0.0;    //!< Fermi smearing temperature, Hartree; 0 = integer fills
     double momPenalty   = 0.0;    //!< Λ: the MOM-masked-Fermi effective-energy shift (smeared runs only)
+    //! kT = 0 only: HOW a partly filled DEGENERATE level that nothing stated is filled -- the choice between the two integer
+    //! occupancy rules (D-DEGEN-FILL, user 2026-11-08).  The facade chooses it as a policy (reported as a `choose` row).
+    enum class DegenerateLevels { OrbitalByOrbital, Shared };
+    DegenerateLevels degenerate = DegenerateLevels::OrbitalByOrbital;   //!< IntegerOccupancy | SharedDegenerateOccupancy
+    //! The width of one degenerate level for the Shared rule: the run's \c SCFParams::MergeTol, so the level the table shows
+    //! merged is the level the fill shares.
+    double levelTol     = 1e-4;
 };
 
 //! \name The OCCUPANCY axis -- HOW a block's electron budget is distributed.
@@ -157,20 +164,41 @@ public:
     //! false for a smeared rule, whose weight is bounded (\f$|f'|\le1/4kT\f$).  The client (the response's
     //! reference state) gates on the answer: it measures the response gap and returns an Outcome.
     virtual bool   RequiresResolvedGap() const = 0;
+    //! The width of a degenerate level this rule SHARES a partial fill over (\c BlockFill::levelTol); 0 = it shares none.
+    //! Asked by a fill that distributes a budget across several blocks itself (the ranked molecular reservoir), so a level the
+    //! point group splits over irreps is shared exactly as one block's would be.
+    virtual double LevelWidth() const {return 0.0;}
 };
 
 //! Prescribed integer count-down -- the aufbau/seed occupancy, and \c BlockFill's own default, so this is
-//! the axis's null object as well as a member of it.
-class IntegerOccupancy final : public OccupancyRule
+//! the axis's null object as well as a member of it.  ORBITAL BY ORBITAL: a partly filled degenerate level goes to whichever
+//! of its orbitals come first (the eigensolver's order) -- the occupied subspace inside the level is then an accident of the
+//! rotation the eigensolver returned (D-DEGEN-FILL option B, user 2026-11-08).
+class IntegerOccupancy : public OccupancyRule
 {
 public:
-    virtual void Apply(BlockFill&) const override {}   // BlockFill::Rule::Integer is the default
+    virtual void Apply(BlockFill&) const override {}   // BlockFill::Rule::Integer, levelTol 0: the defaults
     //! Zero between equally-occupied levels (the same full/empty/partial level, or two of them);
     //! otherwise the plain quotient.  ⛔ THROWS on \f$\varepsilon_n=\varepsilon_m\f$ with \f$f_n\ne f_m\f$:
     //! the caller must have gated on the response gap first (\c RequiresResolvedGap), so reaching it is a
     //! broken invariant, never a value.
     virtual double ResponseWeight(double en, double fn, double em, double fm) const override;
     virtual bool   RequiresResolvedGap() const override {return true;}
+};
+
+//! \brief Integer count-down that SHARES a partly filled degenerate level (D-DEGEN-FILL option A, user 2026-11-08): orbitals within
+//! \a levelTol of a level's lowest energy are one level, whole levels fill in turn, and the one the budget only partly fills gives
+//! every member the same share (\c Orbitals::ShareDegenerateLevels) -- the kT -> 0 limit of the Fermi fill, so D does not depend on
+//! the eigensolver's rotation inside the level.  Everything else is the integer rule (the response weight too: inside one shared
+//! level every f is equal).  A STATED order still wins exactly: a MOM ranking or a held fill shares nothing.
+class SharedDegenerateOccupancy final : public IntegerOccupancy
+{
+public:
+    explicit SharedDegenerateOccupancy(double levelTol) : itsLevelTol(levelTol) {}
+    virtual void   Apply(BlockFill& f) const override {f.levelTol=itsLevelTol;}
+    virtual double LevelWidth() const override {return itsLevelTol;}
+private:
+    double itsLevelTol;
 };
 
 //! FERMI SMEARING (doc/GPWPlan1.md 4b): solve μ per block by bisection on Σg_i f_i=ne and fill
@@ -279,6 +307,8 @@ public:
     virtual bool   HoldsStoredBlocks() const = 0;
     virtual bool   UseMOM()            const = 0;
     virtual double SmearingkT()        const = 0;   //!< 0 = integer fills; >0 = Fermi (Hartree)
+    //! The occupancy rule's degenerate-level width (\c OccupancyRule::LevelWidth): what a cross-block fill shares over.
+    virtual double LevelWidth()        const = 0;
 
     //! \brief The END-OF-FILL hook: this block was just filled (V1.11's two calls, collapsed).  Advances
     //! the block's clock and lets the ranking capture a reference if it wants one and it is due.
@@ -328,6 +358,7 @@ public:
     virtual bool   HoldsStoredBlocks() const override {return false;}
     virtual bool   UseMOM()            const override {return itsRanking->UsesReferences();}
     virtual double SmearingkT()        const override {return itsOccupancy->kT();}
+    virtual double LevelWidth()        const override {return itsOccupancy->LevelWidth();}
     virtual void   OnBlockFilled(const Irrep& q, const OrbitalView<T>& own) override
     {
         this->itsState.CountFill(q);
@@ -362,6 +393,7 @@ public:
     virtual bool   HoldsStoredBlocks() const override {return true;}
     virtual bool   UseMOM()            const override {return false;}  // never rank a trial by overlap
     virtual double SmearingkT()        const override {return 0.0;}    // never re-smear a trial; −TS==0
+    virtual double LevelWidth()        const override {return 0.0;}    // a held fill reproduces the stored block: shares nothing
     //! The clock still ticks; the capture never fires (never from a trial state).
     virtual void   OnBlockFilled(const Irrep& q, const OrbitalView<T>&) override {this->itsState.CountFill(q);}
 };

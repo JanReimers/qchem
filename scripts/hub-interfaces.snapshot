@@ -45,6 +45,8 @@ namespace qchem::BasisSet {
     public:
         virtual const PairProjection<TFit>& Overlap3C (const FIT_SF_ABS<TFit>& c) const;
         virtual const PairProjection<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
+        virtual bool CanPullbackRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
+        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const FIT_CD_ABS<TFit>& c, const hmat_t<T>& D, const vec_t<TFit>& a, const Structure* st) const=0;
         virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const=0;
         virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;
     protected:
@@ -80,6 +82,8 @@ namespace qchem::BasisSet {
     public:
         virtual rvec_t Charge() const=0;
         virtual const rsmat_t& Repulsion () const=0;
+        virtual bool CanPullbackRepulsion() const=0;
+        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t& A, const Structure* st) const=0;
         virtual const rmat_t& Repulsion (const rFIT_CD_ABS& g) const=0;
         virtual const rsmat_t& InvRepulsion() const=0;
     };
@@ -112,11 +116,15 @@ namespace qchem::BasisSet {
     public:
         virtual hmat_t<T> MakeKinetic() const=0;
         const hmat_t<T>& Kinetic() const;
+        virtual bool CanPullbackKinetic() const=0;
+        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<T>& D, const Structure* st) const=0;
     };
     template <class T> class Integrals_Nuclear : public virtual IrrepBasisSet_IDs {
     public:
         virtual hmat_t<T> MakeNuclear(const Structure* cl) const=0;
         const hmat_t<T>& Nuclear(const Structure* cl) const;
+        virtual bool CanPullbackNuclear() const=0;
+        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<T>& D, const Structure* cl) const=0;
     };
     template <class T> class Orbital_1E_IBS : public virtual Evaluatable_IBS<T> , public virtual Integrals_Overlap<T> , public virtual Integrals_Kinetic<T> , public virtual Integrals_Nuclear<T> {
     public:
@@ -189,6 +197,8 @@ namespace qchem::ChargeDensity {
         virtual ~tHF_System_CD() = default;
         virtual void AccumulateDirectAll (std::vector<hmat_t<T>>& Jall) const=0;
         virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const=0;
+        virtual rvec3vec_t DirectPullback (const Structure* st) const=0;
+        virtual rvec3vec_t ExchangePullback(const Structure* st) const=0;
     };
     template <class T> class tHF_Pair_CD {
     public:
@@ -197,6 +207,10 @@ namespace qchem::ChargeDensity {
         virtual void AccumulateExchangeBoth(hmat_t<T>& Ki, hmat_t<T>& Kj, const tHF_Pair_CD<T>& other) const=0;
         virtual void CompleteDirectPair (hmat_t<T>& Ji, hmat_t<T>& Jj, const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i) const=0;
         virtual void CompleteExchangePair(hmat_t<T>& Ki, hmat_t<T>& Kj, const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i) const=0;
+        virtual rvec3vec_t DirectPullbackWith (const tHF_Pair_CD<T>& other, const Structure* st) const=0;
+        virtual rvec3vec_t ExchangePullbackWith (const tHF_Pair_CD<T>& other, const Structure* st) const=0;
+        virtual rvec3vec_t CompleteDirectPullback (const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i, const Structure* st) const=0;
+        virtual rvec3vec_t CompleteExchangePullback(const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i, const Structure* st) const=0;
     };
     struct NoHF_System {
     };
@@ -217,6 +231,11 @@ namespace qchem::ChargeDensity {
     template <class T> class tStatic_CC {
     public:
         virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&) const=0;
+    };
+    template <class T> class tStatic_PC {
+    public:
+        virtual ~tStatic_PC() = default;
+        virtual rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const=0;
     };
     template <class T> class tDynamic_CC {
     public:
@@ -263,6 +282,7 @@ namespace qchem::ChargeDensity {
     public:
         virtual double DM_Contract(const tStatic_CC<T>*) const=0;
         virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const=0;
+        virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>*, const Structure* st) const=0;
         virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const=0;
         virtual const BasisSet::WholeSystemFock_IBS<T>* WholeSystemFock() const;
         virtual void AddAODensity(hmat_t<T>& Dao) const;
@@ -410,12 +430,17 @@ namespace qchem::Hamiltonian {
         std::string label, entries;
         double E=0.0;
     };
+    struct TermForce {
+        std::string label, missing;
+        rvec3vec_t F;
+    };
     template <class T> class tHamiltonian;
     template <class T> class tHamiltonianAt {
     public:
         hmat_t<T> GetMatrix(const tobs_t<T>* bs, const Spin& s) const;
         hmat_t<double> GetMatrix(const tobs_t<double>* bs, const Spin& s) const requires std::is_same_v<T,dcmplx>;
         EnergyBreakdown GetTotalEnergy() const;
+        rvec3vec_t Forces(const tDM_CD<T>* W, const Structure* st) const;
         const DensityID& ID() const;
     private:
         friend class tHamiltonian<T>;
@@ -445,14 +470,18 @@ namespace qchem::Hamiltonian {
         virtual const HubbardChannels* GetHubbardChannels() const;
         virtual HubbardUTarget* GetHubbardUTarget();
         virtual std::unique_ptr<ResponseKernel<T>> MakeResponseKernel(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* D0) const=0;
+        virtual std::vector<std::string> MissingGradients(const tbs_t<T>* wholeBasis, const Structure* st) const=0;
+        virtual rvec3vec_t MakeForces(const tbs_t<T>* wholeBasis, const tDM_CD<T>* D, const tDM_CD<T>* W, const Structure* st) const=0;
         virtual void RefreshForDensity(const tbs_t<T>*, const tChargeDensity<T>*) const;
         tHamiltonianAt<T> At(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* cd) const;
         virtual std::vector<TermEnergy> MakeTermEnergies(const tDM_CD<T>*) const;
+        virtual std::vector<TermForce> MakeTermForces(const tbs_t<T>*, const tDM_CD<T>*, const Structure*) const;
         virtual std::vector<hmat_t<T>> MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const;
         virtual std::vector<hmat_t<double>> MakeTermMatrices(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const;
     };
     template <class T> hmat_t<T> tHamiltonianAt<T>::GetMatrix(const tobs_t<T>* bs, const Spin& s) const;
     template <class T> hmat_t<double> tHamiltonianAt<T>::GetMatrix(const tobs_t<double>* bs, const Spin& s) const requires std::is_same_v<T,dcmplx>;
+    template <class T> rvec3vec_t tHamiltonianAt<T>::Forces(const tDM_CD<T>* W, const Structure* st) const;
     template <class T> EnergyBreakdown tHamiltonianAt<T>::GetTotalEnergy() const;
     using rStatic_HT = tStatic_HT<double>;
     using cStatic_HT = tStatic_HT<dcmplx>;

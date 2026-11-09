@@ -28,6 +28,7 @@ module;
 #include <type_traits>
 #include <memory>
 export module qchem.ChargeDensity.Imp.IrrepCD;
+import qchem.Structure;   // DM_Pullback (GeometryOptimizationPlan §13.2)
 
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.DensityMatrixDistance;
@@ -69,8 +70,13 @@ public:
                                         const BasisSet::Orbital_HF_IBS<double>* bs_i) const;
     virtual void CompleteExchangePair  (rsmat_t& Ki, rsmat_t& Kj, const rsmat_t& Di,
                                         const BasisSet::Orbital_HF_IBS<double>* bs_i) const;
+    virtual rvec3vec_t DirectPullbackWith      (const tHF_Pair_CD<double>& other, const Structure* st) const;
+    virtual rvec3vec_t ExchangePullbackWith    (const tHF_Pair_CD<double>& other, const Structure* st) const;
+    virtual rvec3vec_t CompleteDirectPullback  (const rsmat_t& Di, const BasisSet::Orbital_HF_IBS<double>* bs_i, const Structure* st) const;
+    virtual rvec3vec_t CompleteExchangePullback(const rsmat_t& Di, const BasisSet::Orbital_HF_IBS<double>* bs_i, const Structure* st) const;
 private:
     const Leaf& self() const {return static_cast<const Leaf&>(*this);}
+    rvec3vec_t CompletePullback(const rsmat_t& Di, const BasisSet::Orbital_HF_IBS<double>* bs_i, const Structure* st, bool exchange) const;
 };
 
 //! \brief THE SHARED DENSITY-MATRIX CORE: every operation both lineages support identically -- the
@@ -90,6 +96,7 @@ public:
 
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
+    virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>* v, const Structure* st) const {return v->Pullback(itsBasisSet, itsSpin, itsDensityMatrix, st);}
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;
     //! \copydoc tChargeDensity::Project -- the PERIODIC lineage: contract my D into the block's forward.
     virtual Projections Project(const BasisSet::PairProjector<dcmplx>&) const override;

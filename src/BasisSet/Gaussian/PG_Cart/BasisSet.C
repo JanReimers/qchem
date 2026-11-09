@@ -44,6 +44,10 @@ class IrrepBasisSet
         virtual size_t  GetNumFunctions() const {return PGData::size();}
         virtual size_t  size() const {return PGData::size();}
         virtual rvec_t     operator() (const rvec3_t&) const;
+        // d/dR, forward (GeometryOptimizationPlan §13.2; the user's ruling 2026-11-08: "Use Gradient(r)"): the jets come from this block's
+        // values and its hand Gradient(r), since ∂φ/∂R_centre = -∇_r φ.  So they need no Enzyme, and the block never refuses.
+        virtual bool CanGiveJets() const override {return true;}
+        virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t& pts, size_t owner, const Structure* st, qchem::BasisSet::PointJets<double>& out) const override;
         virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
         virtual std::string BasisSetID() const {return PGData::BasisSetID();} // geometry-aware cache identity (molecular: no RadialID/AngularID)
@@ -147,6 +151,13 @@ public:
     //! The run report's name for this fit.  Not the cache identity: \c BasisSetID stays the shells' own.
     virtual std::string Name() const override {return itsName;}
     virtual rsmat_t MakeOverlap() const {return MakeOverlap2C(this);}
+    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative for this fit block yet (the Dunlap increment adds the fit faces').
+    virtual bool CanPullbackOverlap() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
+        {return qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the PG_Cart fit block", "overlap pullback");}
+    // The Coulomb metric's pullback (the Dunlap force, §13.2): libcint's int2c2e_ip1 on this block's own PGData (Imp/Fit_IBS.C).
+    virtual bool CanPullbackRepulsion() const override {return true;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t& A, const Structure* st) const override;
     virtual  rvec_t MakeCharge   () const;
     virtual rsmat_t MakeRepulsion() const {return MakeRepulsion2C(this);}
     virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& b) const;

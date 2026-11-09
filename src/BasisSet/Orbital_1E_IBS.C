@@ -38,6 +38,15 @@ public:
     virtual hmat_t<T>  MakeKinetic() const=0;
     //! Cached accessor for the \f$\langle p^2\rangle\f$ block (see MakeKinetic()).
     const   hmat_t<T>&     Kinetic() const;
+
+    //! \name d/dR (the user's ruling 2026-11-08: a derivative version beside a hub face's method; GeometryOptimizationPlan §13.2)
+    //!@{
+    //! Can this block give MakeKineticPullback?  CLIENT: the kinetic term's MissingGradients() entry at setup.  False exactly when it would refuse.
+    virtual bool CanPullbackKinetic() const=0;
+    //! THE PULLBACK of K = <-∇²> (no ½, as MakeKinetic): Σ_ij Re(D_ij* ∂K_ij/∂R_A) for every atom A of \a st, in its site order.  Exact zeros
+    //! for functions that do not move with the atoms (plane waves); NoGradient for a family with no derivative yet.
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<T>& D, const Structure* st) const=0;
+    //!@}
 };
 
 //! \brief Interface for electron-nucleus attraction integrals.
@@ -47,6 +56,15 @@ template <class T> class Integrals_Nuclear : public virtual IrrepBasisSet_IDs
 public:
     virtual hmat_t<T>  MakeNuclear(const Structure* cl) const=0; //Only called once for a given {radial,angular, structure} ID triple.
     const   hmat_t<T>&     Nuclear(const Structure* cl) const;
+
+    //! \name d/dR (the user's ruling 2026-11-08; GeometryOptimizationPlan §13.2)
+    //!@{
+    //! Can this block give MakeNuclearPullback?  CLIENT: the nuclear-attraction term's MissingGradients() entry at setup.
+    virtual bool CanPullbackNuclear() const=0;
+    //! THE PULLBACK of V: Σ_ij Re(D_ij* ∂V_ij/∂R_A) for every atom A of \a cl, with the basis centres AND the nuclei moving.  On plane waves
+    //! the basis does not move but V does: the structure-factor Hellmann-Feynman force.  NoGradient for a family with no derivative yet.
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<T>& D, const Structure* cl) const=0;
+    //!@}
 };
 
 

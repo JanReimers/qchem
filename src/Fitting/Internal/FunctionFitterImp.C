@@ -91,6 +91,11 @@ public:
     virtual hmat_t<T> Repulsion    (const BasisSet::Orbital_DFT_IBS<T,T>&) const override;
     virtual double    SelfRepulsion() const override;   //!< \f$\tfrac12 c^TGc\f$
     virtual double    Integral     () const override;   //!< \f$\sum_a c_a\int f_a\f$
+    // d/dR (GeometryOptimizationPlan §13.2, lane B): the two pieces of the Dunlap force at fixed c, each forwarded to the basis face that owns it.
+    virtual bool CanPullbackRepulsion(const BasisSet::Orbital_DFT_IBS<T,T>&) const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<T,T>&, const hmat_t<T>& D, const Structure* st) const override;
+    virtual bool CanPullbackSelfRepulsion() const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure* st) const override;
 private:
     //! Dunlap's charge constraint on the unconstrained fit: \f$g\cdot c=N\f$ exactly, by one Lagrange correction.
     void Constrain(T N);

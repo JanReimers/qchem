@@ -208,6 +208,7 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     // now, where it used to be an accident of SetSmearing arriving only at Iterate (the D11 charge loss).
     SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, *itsOccPolicy, 0.0001))); //first real (matrix-backed) density
     assert(itsCD);
+    itsFreshSeedFill = role!=SeedRole::WorkingDensity && role!=SeedRole::ExactResume;   // see itsFreshSeedFill
     // A CARRIED seed -- a restored state (Restart), an anneal / +-alpha / U-loop stage; the CALLER says so (SeedRole).  The
     // fill above runs on the policy's DEFAULT (integer aufbau, kT = 0, no MOM: this run's own policy is only set in Iterate),
     // and iteration 1 used to start from that kT = 0 RE-FILL (OpenWork §3 "A carried density is re-filled at kT = 0",
@@ -364,9 +365,26 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     // clock and aggregate survives the reconfiguration.
     itsOccPolicy = qchem::MakeOccupationPolicy<T>(
         {.useMOM=ipar.UseMOM, .momStartIter=(int)ipar.MOMStartIter,
-         .kT=ipar.SmearingkT, .momPenalty=ipar.MOMSmearPenalty}, itsOccState);
+         .kT=ipar.SmearingkT, .momPenalty=ipar.MOMSmearPenalty,
+         .degenerate=ipar.DegenerateLevels==SCFParams::DegenerateLevelFill::Shared ? qchem::OccupationConfig::DegenerateLevels::Shared
+                                                                                   : qchem::OccupationConfig::DegenerateLevels::OrbitalByOrbital,
+         .levelTol=ipar.MergeTol}, itsOccState);
     // A CARRIED seed's iteration-0 fill, redone under THIS run's policy when that is not the default (see SeedRole and
     // Initialize).  Once per construction.
+    // A FRESH seed's iteration-0 orbitals, REFILLED under a Shared degenerate-level rule (D-DEGEN-FILL): the constructor filled them
+    // orbital by orbital (the policy's default), which on a symmetric seed already picks orbitals inside a degenerate level.  Only the
+    // fill is redone -- the orbitals are already the seed Fock's, and rebuilding that Fock would push it into the DIIS history twice
+    // (iteration 1 then extrapolated back onto the seed: PW_NaF read dρ 1e-15 and "converged", 2026-11-08).  Only for Shared at kT = 0:
+    // every other recipe's iteration 0 IS the default fill, so it stays bit-identical.  Once per construction.
+    if (itsFreshSeedFill)
+    {
+        if (ipar.SmearingkT<=0.0 && !ipar.UseMOM && ipar.DegenerateLevels==SCFParams::DegenerateLevelFill::Shared)
+        {
+            itsWaveFunction->FillOrbitals(*itsOccPolicy, ipar.MergeTol);
+            SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity()));
+        }
+        itsFreshSeedFill=false;
+    }
     if (itsCarried)
     {
         if (ipar.SmearingkT>0.0 || ipar.UseMOM)
@@ -394,6 +412,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     // ipar.Mixer -- Kerker/Pulay ρ̃-mixing on a periodic run, else linear D-mixing at α=StartingRelaxRo (1.0 = passthrough).
     itsMixer = CreateMixer(ipar, itsBS, itsCD.get());
     itsAdaptive = dynamic_cast<qchem::ChargeDensity::tAdaptiveMixer<T>*>(itsMixer.get());   // null = fixed step
+    itsDeclinedRelaxApplied=false;   // a new mixer, at this Iterate's own recipe
     // THE FIRST FIELD'S PROVENANCE (OpenWork §3 "A CARRIED density's first iteration feeds XC the FITTED rho", 2026-10-28): a
     // field mixer PRESENTS the working D as its first field, but the D it came from was only ever seated after a Mix -- so
     // iteration 1's XC found no DM source and took the FITTED rho (the trace's `fitted`), on every Kerker/Pulay run.  On a
@@ -417,6 +436,25 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         // (GDM/OT: geodesic line search, no mixing) or fixed-point (diagonalize + density-mix).  Queried
         // every iteration so a ladder tail hand-off flips the loop the moment it switches rungs.  The step
         // BODY is virtual (was a mode `if`); the density LIFECYCLE stays here behind the context callbacks.
+        // A DECLINED direct minimiser (D-DEGEN-FILL): GDM has seen a D' outside its integer-occupation manifold (a kT = 0 fill
+        // sharing a degenerate level), so its every step from here is a MIXED fixed-point step.  A linear (adaptive) mixer then
+        // runs under the declined ceiling, not the passthrough a molecular GDM recipe carries (CLAUDE.md: 0.2-0.3, never 1.0).
+        if (!itsDeclinedRelaxApplied && itsAdaptive && itsAccelerator->WantsLineSearch() && !itsAccelerator->Engageable()
+            && itsMixer->GetRelax()>ipar.DeclinedDirectMinRelax)
+        {
+            SCFParams capped=ipar;
+            capped.StartingRelaxRo=std::min(ipar.StartingRelaxRo, ipar.DeclinedDirectMinRelax);
+            capped.MaxRelaxRo     =std::min(ipar.MaxRelaxRo,      ipar.DeclinedDirectMinRelax);
+            capped.MinRelaxRo     =std::min(ipar.MinRelaxRo,      capped.MaxRelaxRo);
+            itsMixer   =CreateMixer(capped, itsBS, itsCD.get());
+            itsAdaptive=dynamic_cast<qchem::ChargeDensity::tAdaptiveMixer<T>*>(itsMixer.get());
+            SeatDMSource(*itsMixer, itsCD);
+            std::ostringstream why;
+            why<<"the direct minimiser DECLINED this density (fractional occupations, outside its integer manifold): linear mixing "
+                 "capped at relax "<<capped.MaxRelaxRo;
+            HandOff({itsAccelerator->Tag(), "mixed fixed-point steps", why.str()}, false);
+            itsDeclinedRelaxApplied=true;
+        }
         LoopContext<T> lc{ itsHamiltonian, itsWaveFunction.get(), itsOccPolicy.get(), itsMixer.get(), &itsCD, &itsOldCD, ipar.MergeTol, Eold,
                            [this](cd_t x){ itsOldCD=itsCD; SetWorkingCD(std::move(x)); },
                            [this](double e,double tol){ return DirectMinStep(e,tol); },

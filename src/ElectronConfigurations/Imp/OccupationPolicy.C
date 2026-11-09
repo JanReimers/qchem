@@ -144,8 +144,10 @@ double FermiOccupancy::ResponseWeight(double en, double fn, double em, double fm
 
 std::unique_ptr<OccupancyRule> MakeOccupancyRule(const OccupationConfig& cfg)
 {
-    return cfg.kT>0.0 ? std::unique_ptr<OccupancyRule>(new FermiOccupancy(cfg.kT))
-                      : std::unique_ptr<OccupancyRule>(new IntegerOccupancy());
+    using DL=OccupationConfig::DegenerateLevels;
+    if (cfg.kT>0.0)                  return std::unique_ptr<OccupancyRule>(new FermiOccupancy(cfg.kT));
+    if (cfg.degenerate==DL::Shared)  return std::unique_ptr<OccupancyRule>(new SharedDegenerateOccupancy(cfg.levelTol));
+    return std::unique_ptr<OccupancyRule>(new IntegerOccupancy());
 }
 
 // The two axes are chosen HERE, once per Iterate.  Note what is NOT here: no flag survives into the

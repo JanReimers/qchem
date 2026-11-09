@@ -53,9 +53,23 @@ public:
     virtual smat_t<T> MakeOverlap () const;
     virtual smat_t<T> MakeKinetic () const;
     virtual smat_t<T> MakeNuclear (const Structure*) const;
+    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
+    virtual bool CanPullbackOverlap() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<T>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the Dirac (RKB) block", "overlap pullback");}
+    virtual bool CanPullbackKinetic() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<T>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the Dirac (RKB) block", "kinetic pullback");}
+    virtual bool CanPullbackNuclear() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<T>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the Dirac (RKB) block", "nuclear pullback");}
     virtual smat_t<T> MakeRestMass() const;
     
     virtual size_t GetNumFunctions() const {return itsRKBL->GetNumFunctions() + itsRKBS->GetNumFunctions(); }
+    // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
+    virtual bool CanGiveJets() const override {return false;}
+    virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, BasisSet::PointJets<T>&) const override
+        {return BasisSet::NoGeometryDerivativeYet<size_t>("the Dirac (RKB) block", "function jets");}
     virtual vec_t<T> operator() (const rvec3_t& r) const 
     {
         vec_t<T> Lr=(*itsRKBL)(r), Sr=(*itsRKBS)(r);
@@ -121,6 +135,13 @@ template <class T> class Orbital_RKB_HF_IBS_Imp
     virtual ERI4       MakeExchange(const Orbital_ERI4_IBS<T>& c) const;
     virtual ERI4       MakeDirectAgainstL  (const Orbital_ERI4_IBS<T>& aL) const;
     virtual ERI4       MakeExchangeAgainstL(const Orbital_ERI4_IBS<T>& aL) const;
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): a Dirac (RKB) block is radial (one centre): no geometry to move.
+    virtual bool CanPullbackERI4(const Orbital_HF_IBS<T>*) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeDirectPullback(const smat_t<T>&, const smat_t<T>&, const Orbital_HF_IBS<T>*, const Structure*) const override
+        {return NoGeometryDerivativeYet<rvec3vec_t>("a Dirac (RKB) block", "Coulomb pullback");}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const smat_t<T>&, const smat_t<T>&, const Orbital_HF_IBS<T>*, const Structure*) const override
+        {return NoGeometryDerivativeYet<rvec3vec_t>("a Dirac (RKB) block", "exchange pullback");}
 protected:
     Orbital_RKB_HF_IBS_Imp(Orbital_RKBL_IBS<T>* rkbl,Orbital_RKBS_IBS<T>* rkbs) : Orbital_RKB_IBS_Imp<T>(rkbl,rkbs) {};
 private:

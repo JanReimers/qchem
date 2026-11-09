@@ -21,6 +21,8 @@ export module qchem.BasisSet.Orbital_PP_IBS;
 import qchem.Math.Gaussian;                   // Math::Gaussian -- one c r^{2n} e^{-alpha r^2} term (the _Gaussian faces answer in it)
 import qchem.Structure;                       // Structure -- the positions and species the lattice sums run over
 import qchem.Types;                           // hmat_t<T>
+export import qchem.AD;                       // NoGradient: a family with no PP geometry derivative refuses (GeometryOptimizationPlan §13.2)
+export import qchem.Outcome;
 
 export namespace qchem::BasisSet
 {
@@ -150,6 +152,14 @@ public:
     //! \f$\langle i|\sum_a\sum_p w_p|\beta^a_p\rangle\langle\beta^a_p|\,|j\rangle\f$ (Hermitian), the \f$m\f$
     //! sum done by the basis (a plane-wave basis via the \f$(2l+1)P_l(\cos\gamma)\f$ addition theorem).
     virtual hmat_t<T> MakeProjectorMatrix(const Structure*, const SpeciesProjectorSet&) const=0;
+    //! The PULLBACKS of the two assemblies (GeometryOptimizationPlan §13.2): given the block's density matrix \a D (Hermitian),
+    //! F[A] = Σ_ij Re(D_ij* ∂M_ij/∂R_A) for every atom A, the basis centres AND the species' sites moving.  CLIENT: the PP terms' forces.
+    //! Each \c Can is false exactly when its \c Make refuses (NoGradient: a family or a field with no derivative yet).
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const=0;
+    virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const=0;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure*, const SpeciesRadialField& field, FieldRange,
+                                                                        const hmat_t<T>& D) const=0;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure*, const SpeciesProjectorSet&, const hmat_t<T>& D) const=0;
     //! \brief The PER-ANGULAR-CHANNEL decomposition of \c MakeProjectorMatrix: one matrix per \f$l\f$, summing
     //! exactly to the whole.  DIAGNOSTIC (doc/SphericalLatticePlan.md I0: the MnO ordering campaign reads
     //! \f$E^{(l)}=\mathrm{Tr}(DV^{(l)})\f$ per channel).  Default: the whole lumped under \f$l=-1\f$, so a basis

@@ -206,6 +206,10 @@ public:
     }
 
     // ---- point values (the GPW mesh path): v_sph = T^T v_cart ----
+    // d/dR, forward (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
+    virtual bool CanGiveJets() const override {return false;}
+    virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, qchem::BasisSet::PointJets<double>&) const override
+        {return qchem::BasisSet::NoGeometryDerivativeYet<size_t>("the spherical lattice view", "function jets");}
     virtual rvec_t operator()(const rvec3_t& r) const override
     {
         const rvec_t v=(*itsObs)(r);
@@ -233,6 +237,16 @@ public:
     virtual hmat_t<double> MakeOverlap() const override {return CongruenceR(itsObs->Overlap());}
     virtual hmat_t<double> MakeKinetic() const override {return CongruenceR(itsObs->Kinetic());}
     virtual hmat_t<double> MakeNuclear(const Structure* cl) const override {return CongruenceR(itsObs->Nuclear(cl));}
+    // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
+    virtual bool CanPullbackOverlap() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the spherical lattice view", "overlap pullback");}
+    virtual bool CanPullbackKinetic() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<double>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the spherical lattice view", "kinetic pullback");}
+    virtual bool CanPullbackNuclear() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<double>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the spherical lattice view", "nuclear pullback");}
 
     // ---- LatticeSum1E: matrices/vectors by congruence, densities expanded, policy faces forwarded ----
     virtual chmat_t MakeOverlap(const cellphase_t& phase, const UnitCell& A) const override

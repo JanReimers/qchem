@@ -5,8 +5,10 @@
 // now import it from here.
 module;
 #include <cstddef>
+#include <optional>
 #include <string>
 export module qchem.SCFFailure;
+export import qchem.AuditFootprint;   // ResourceRefusal: the numbers a refusal on resources carries
 
 export namespace qchem
 {
@@ -30,7 +32,10 @@ struct SCFFailure
         OrderLost,
         //! the FIRST iterate's electronic energy was physically impossible (above the electrons-at-infinity limit 0) and the SCF refused to iterate it: the
         //! Hamiltonian is broken, so no number of iterations would make the answer trustworthy (\c tSCFIterator::UnphysicalStop)
-        UnphysicalEnergy
+        UnphysicalEnergy,
+        //! an audit reference the run needs (the raster pilot's) cannot fit in the memory available: REFUSED ON RESOURCES (CLAUDE.md, three
+        //! outcomes).  \c resource carries the numbers and the escape; a refusal mid-pilot keeps the converged run and its record.
+        ResourceRefused
     };
     Why         why        = Why::NotConverged;
     size_t      iterations = 0;
@@ -39,6 +44,7 @@ struct SCFFailure
     //! prevent (four such numbers were produced in one session: -45.5, -46.3, -56.4, -38.5).
     double      lastEnergy = 0.0;
     std::string details;
+    std::optional<ResourceRefusal> resource;   //!< set exactly when \c why is ResourceRefused
 };
 
 } // namespace qchem

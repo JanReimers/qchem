@@ -233,29 +233,35 @@ TEST(M_DFT, WaterLDA_DeltaCoulomb_Long)
     MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
                                                                                        .coulomb = {.fit = Hamiltonian::CoulombFit::Delta, .solver = Hamiltonian::CoulombSolver::DirectSum}}));
     ASSERT_TRUE(calc.Result());
+    // The mesh pilot sizes XC and leaves this Hartree out (its error does not fall with the mesh, HartreeConvergesWithMesh): chasing it
+    // walked the ladder at O(N²) per rung and ran ~10 h (2026-11-08).  A settled climb is the proof it was not chased.
+    EXPECT_TRUE(calc.PilotCost().settled);
     EXPECT_NEAR(calc.Energy(), -75.8917526160, 1e-5);   // anchor
     EXPECT_NEAR(calc.Energy(), -75.87729931, 2e-2) << "ORACLE: PySCF, exact J and XC; the gap (-14.5 mHa) is the direct sum";
 }
 
 // ...and with the radial Poisson solve, the route to use: the same mesh, the operator at the mesh's own limit.  It sits 15x closer
-// to exact J than the Gaussian A1 fit does (-2.1 mHa, the PySCF A1_coul row).
+// to exact J than the Gaussian A1 fit does (-2.1 mHa, the PySCF A1_coul row).  RE-JUDGED 2026-11-08 (pin 10, lane B): the unstated mesh
+// now climbs to eps (GeometryOptimizationPlan §14): δ-ρ Hartree rides it and misses eps x N at (80, 29), so the pilot raises it to
+// (100, 29), and the energy moves -39.9 μHa, from +30.6 to -9.3 μHa off the exact-J oracle.
 TEST(M_DFT, WaterLDA_DeltaCoulomb_Poisson)
 {
     MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
                                                                                        .coulomb = {.fit = Hamiltonian::CoulombFit::Delta}}));
     ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -75.8772687138, 1e-6);   // anchor
-    EXPECT_NEAR(calc.Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC; the gap (+31 μHa) is the mesh's";
+    EXPECT_NEAR(calc.Energy(), -75.8773086479, 1e-6);   // anchor (re-judged 2026-11-08, above)
+    EXPECT_NEAR(calc.Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC; the gap (-9 μHa) is the mesh's, inside eps x N";
 }
 
-// The multipole fit has δ x Poisson's potential, so its SCF is the same one; only the energy's second leg differs.
+// The multipole fit has δ x Poisson's potential, so its SCF is the same one; only the energy's second leg differs.  Re-judged with the
+// δ case above (2026-11-08): the pilot's (100, 29) moves it -39.5 μHa, from +32 to -7.9 μHa off the oracle.
 TEST(M_DFT, WaterLDA_MultipoleCoulomb)
 {
     MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
                                                                                        .coulomb = {.fit = Hamiltonian::CoulombFit::Multipole}}));
     ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -75.8772677710, 1e-6);   // anchor
-    EXPECT_NEAR(calc.Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC: delta's level, +32 μHa.  This rung was 530 out when rho-tilde was synthesized onto the mesh";
+    EXPECT_NEAR(calc.Energy(), -75.8773072275, 1e-6);   // anchor (re-judged 2026-11-08, above)
+    EXPECT_NEAR(calc.Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC: delta's level, -8 μHa.  This rung was 530 out when rho-tilde was synthesized onto the mesh";
 }
 
 // The multipole route's energy depends less on the l cut than δ's: at 150/35, 11 μHa between l = 12 and 16 where δ moves 35.
@@ -276,10 +282,12 @@ TEST(M_DFT, WaterLDA_MultipoleCoulomb_eqLCut_Long)
 }
 
 // Multipole for Vxc, through the fitter as the A1 route is.  The Hartree stays on the default route, so only the XC term changed.
+// RE-JUDGED 2026-11-08 (pin 10, lane B): the gap was the MESH's, not the multipole Vxc's.  At (80, 29) this run sat -140 μHa off the
+// A1-Hartree value; the mesh pilot (GeometryOptimizationPlan §14) climbs it to (100, 41 GL), and it sits -5.1 μHa off, inside eps x N.
 TEST(M_DFT, WaterLDA_MultipoleVxc)
 {
     MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
                                                                                        .vxcFit = Hamiltonian::VxcFit::Multipole}));
     ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -75.87944736, 1e-2) << "the A1 Hartree value; the gap is the multipole Vxc's";
+    EXPECT_NEAR(calc.Energy(), -75.87944736, 3e-5) << "the A1 Hartree value (PySCF, exact XC); eps x N_atoms, the run's own target";
 }

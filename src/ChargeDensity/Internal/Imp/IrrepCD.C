@@ -106,6 +106,39 @@ template <class Leaf> void IrrepCD_HFPair<Leaf>::CompleteDirectPair(rsmat_t& Ji,
     bs_i->AccumulateDirectBoth(Ji,Jj,Di,self().itsDensityMatrix,bs_j);
 }
 
+// The pullback twins (GeometryOptimizationPlan §13.2): the same hand-over as the contraction -- our block to the partner, the partner's
+// block to the basis -- for EVERY ordered pair, the diagonal included (Σ D^i D^i ∂(..) is its own pair; there is no bra-ket fusion to undo).
+template <class Leaf> rvec3vec_t IrrepCD_HFPair<Leaf>::DirectPullbackWith(const tHF_Pair_CD<double>& other, const Structure* st) const
+{
+    const rohfbs_t* bs_i=dynamic_cast<const rohfbs_t*>(self().itsBasisSet);
+    if (!bs_i) throw std::logic_error("IrrepCD::DirectPullbackWith: this block's basis has no HF contraction face");
+    return other.CompleteDirectPullback(self().itsDensityMatrix, bs_i, st);
+}
+template <class Leaf> rvec3vec_t IrrepCD_HFPair<Leaf>::ExchangePullbackWith(const tHF_Pair_CD<double>& other, const Structure* st) const
+{
+    const rohfbs_t* bs_i=dynamic_cast<const rohfbs_t*>(self().itsBasisSet);
+    if (!bs_i) throw std::logic_error("IrrepCD::ExchangePullbackWith: this block's basis has no HF contraction face");
+    return other.CompleteExchangePullback(self().itsDensityMatrix, bs_i, st);
+}
+template <class Leaf> rvec3vec_t IrrepCD_HFPair<Leaf>::CompleteDirectPullback(const rsmat_t& Di, const BasisSet::Orbital_HF_IBS<double>* bs_i,
+                                                                             const Structure* st) const
+{return CompletePullback(Di, bs_i, st, false);}
+template <class Leaf> rvec3vec_t IrrepCD_HFPair<Leaf>::CompleteExchangePullback(const rsmat_t& Di, const BasisSet::Orbital_HF_IBS<double>* bs_i,
+                                                                               const Structure* st) const
+{return CompletePullback(Di, bs_i, st, true);}
+template <class Leaf> rvec3vec_t IrrepCD_HFPair<Leaf>::CompletePullback(const rsmat_t& Di, const BasisSet::Orbital_HF_IBS<double>* bs_i,
+                                                                       const Structure* st, bool exchange) const
+{
+    if (!st) throw std::invalid_argument("IrrepCD: a geometry pullback needs the structure");
+    if (blazem::isZero(Di) || self().IsZero()) return rvec3vec_t(st->GetNumAtoms(), rvec3_t(0,0,0));   // bilinear: either empty gives zero
+    const rohfbs_t* bs_j=dynamic_cast<const rohfbs_t*>(self().itsBasisSet);
+    if (!bs_j) throw std::logic_error("IrrepCD::CompletePullback: this block's basis has no HF contraction face");
+    const auto r = exchange ? bs_i->MakeExchangePullback(Di, self().itsDensityMatrix, bs_j, st)
+                            : bs_i->MakeDirectPullback  (Di, self().itsDensityMatrix, bs_j, st);
+    if (!r) throw std::logic_error("IrrepCD: "+r.Error().why+" (the HF term's MissingGradients() names it before a force is asked)");
+    return *r;
+}
+
 // --- V1.31 whole-system route ---------------------------------------------------------------------------
 // The basis answers whether it has one; this block only has to fold its own density up to the AO space.  The
 // SLICE back down needs no density, so the composite drives that through the basis face directly.

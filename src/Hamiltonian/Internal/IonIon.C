@@ -14,13 +14,18 @@ module;
 #include <type_traits>   // is_same_v -- the conditional real-block base (BuildBlocks)
 #include <cassert>
 #include <functional>
+#include <cmath>
+#include <stdexcept>
+#include <vector>
 #include <iostream>
+#include <string>
 #include <memory>
 #include <utility>
 export module qchem.Hamiltonian.Internal.IonIon;
 import qchem.Hamiltonian.Internal.Term;   // tStatic_HT<T> / tStatic_HT_Imp<T> (+ Energy/Types via re-export)
 import qchem.Structure;                    // Structure::IonIonEnergy()/GetNumAtoms()
 import qchem.Blaze;                        // blazem::zeroH<T> (the zero matrix contribution)
+import qchem.Hamiltonian.Internal.GeometryGradient;   // the term's force face (GeometryOptimizationPlan §13.2)
 
 export namespace qchem::Hamiltonian
 {
@@ -37,6 +42,7 @@ template <class T> class IonIon
     : public virtual tStatic_HT<T>
     , private        tStatic_HT_Imp<T>
     , public         StaticRealBlockBase<T,IonIon<T>>   // real-block capability on the dcmplx instantiation (Step 3c)
+    , public virtual tGeometryGradient_HT<T>            // its force (GeometryOptimizationPlan §13.2), after the private base (the cross-cast trap)
 {
 public:
     //! \copydoc HT_BlockOwner::BuildBlocks
@@ -78,6 +84,29 @@ public:
     virtual void GetEnergy(EnergyBreakdown& te, const tDM_CD<T>*) const override
     {
         te.Add("Enn", itsEnn, EnergyRole::Constant, 0.0);   // merges by name: a second Enn contributor adds, never clobbers (R1.2)
+    }
+
+    // --- the force (GeometryOptimizationPlan §13.2), closed form: E_nn = Σ_{A<B} q_A q_B / |R_A - R_B|, so
+    //     -∂E_nn/∂R_A = Σ_{B≠A} q_A q_B (R_A - R_B) / |R_A - R_B|³, with the same ion charges as the energy (itsZionOf). ---
+    virtual std::string MissingGradient(const tbs_t<T>*, const Structure* st) const override
+    {
+        if (!st) return "IonIon: no structure";
+        if (st->HasTranslationSymmetry()) return "IonIon: the periodic (Ewald) ion-ion gradient is not built yet";
+        return "";
+    }
+    virtual void AddForces(rvec3vec_t& F, const tDM_CD<T>*, const Structure* st) const override
+    {
+        if (!st || st->HasTranslationSymmetry()) throw std::logic_error("IonIon::AddForces: "+MissingGradient(nullptr, st));
+        std::vector<rvec3_t> R; std::vector<double> q;
+        st->ForEachSite([&](int Z, const rvec3_t& r, bool){ R.push_back(r); q.push_back(itsZionOf(Z)); });
+        if (R.size()!=F.size()) throw std::logic_error("IonIon::AddForces: the force array and the structure differ in atom count");
+        for (size_t A=0;A<R.size();A++)
+            for (size_t B=0;B<R.size();B++) if (B!=A)
+            {
+                const rvec3_t d=R[A]-R[B];
+                const double r=norm(d);
+                F[A]+=(q[A]*q[B]/(r*r*r))*d;
+            }
     }
 
     virtual std::ostream& Write(std::ostream& os) const override

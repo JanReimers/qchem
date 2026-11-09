@@ -40,6 +40,14 @@ public:
     virtual const PairProjection<TFit>& Overlap3C  (const FIT_SF_ABS<TFit>& c) const;
     //! 3 centre repulsion used for DFT.  The fit \a c is a Coulomb-metric (charge-density) aux basis.
     virtual const PairProjection<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
+    //! Can this block give MakeRepulsion3CPullback against the fit \a c?  CLIENT: the Dunlap Hartree term's MissingGradients() entry,
+    //! through its fitter.  False exactly when it would refuse.
+    virtual bool CanPullbackRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
+    //! THE PULLBACK of Repulsion3C(c) (GeometryOptimizationPlan §13.2; the user's 2026-11-08 pre-approval of derivative faces), for the
+    //! factored adjoint D ⊗ a (the Dunlap force's: D the block's density matrix, a the fit coefficients): F[A] = Σ_ijk Re(D_ij* a_k*
+    //! ∂(ij|k)/∂R_A) for every atom A, the orbital AND the fit centres moving.  \a D Hermitian.  A family without it refuses with NoGradient.
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const FIT_CD_ABS<TFit>& c, const hmat_t<T>& D, const vec_t<TFit>& a,
+                                                                       const Structure* st) const=0;
 
     virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const=0;
     virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;

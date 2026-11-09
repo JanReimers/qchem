@@ -3,7 +3,7 @@
 # aggregate library (it leans on the basis/Hamiltonian/accelerator/iterator pieces already linked
 # there).  The Imp #includes nlohmann/json for the two json factories, so the json include lands here.
 target_sources(qchem PRIVATE Imp/MoleculeCalculation.C Imp/Calculation.C
-    Imp/AtomCalculation.C Imp/SolidCalculation.C Imp/SolidSetup.C Imp/MoleculeSetup.C Imp/ValenceBasisGen.C Imp/Materials.C Imp/SolidState.C Imp/Deck.C Imp/PseudoAtomOrbital.C)
+    Imp/AtomCalculation.C Imp/SolidCalculation.C Imp/SolidSetup.C Imp/MoleculeSetup.C Imp/ValenceBasisGen.C Imp/Materials.C Imp/SolidState.C Imp/Deck.C Imp/PseudoAtomOrbital.C Imp/AuditFootprint.C)
 # qchem.Materials reads the `pp` (pseudopotential set name) field of src/Structure/Data/materials.json at run time; the set is qchem.Pseudopotential.Set's.
 # The structure fields are qcStructure's (qchem.StructureData).
 target_compile_definitions(qchem PRIVATE ${StructureDataPath})
@@ -27,8 +27,11 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     Deck.C
     SCFFailure.C
     SCFRecipeReport.C
+    DegenerateFill.C
     Policy.C
+    GridAudit.C
     BasisCoverage.C
+    AuditFootprint.C
 )
 target_include_directories(qchem PRIVATE
     ${PROJECT_SOURCE_DIR}/src                       # forward.H (the unit-test friend declarations)

@@ -133,6 +133,10 @@ class Irrep_IBS
 public:
     virtual size_t       GetNumFunctions()          const override {return Cast().size();}
     virtual vec_t<T>     operator()(const rvec3_t& r) const override {return ToScalar<T>(Cast().Eval(r));}
+    // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
+    virtual bool CanGiveJets() const override {return false;}
+    virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, BasisSet::PointJets<T>&) const override
+        {return BasisSet::NoGeometryDerivativeYet<size_t>("a lattice block", "function jets");}
     //! Batch: route to the evaluator's point-SET Bloch sum where it has one (GPW -- it pushes the image
     //! sum down into the molecular seam, so a transformed basis transforms once per POINT, not per
     //! image).  An evaluator without one (PW) keeps VectorFunction's pointwise default; the concept is
@@ -161,6 +165,17 @@ public:
     virtual hmat_t<T> MakeOverlap() const override {return ToScalar<T>(Cast().OverlapMatrix());}
     virtual hmat_t<T> MakeKinetic() const override {return ToScalar<T>(Cast().KineticMatrix());}
     virtual hmat_t<T> MakeNuclear(const Structure* cl) const override {return ToScalar<T>(Cast().NuclearMatrix(cl));}
+    // d/dR (GeometryOptimizationPlan §13.2): the lattice family's default.  PlaneWave_IBS overrides Overlap and Kinetic with exact zeros
+    // (its functions do not move with the atoms); the Bloch Gaussians (GPW) and the PW nuclear (structure factor) refuse for now.
+    virtual bool CanPullbackOverlap() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<T>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a lattice block", "overlap pullback");}
+    virtual bool CanPullbackKinetic() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<T>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a lattice block", "kinetic pullback");}
+    virtual bool CanPullbackNuclear() const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<T>&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a lattice block", "nuclear pullback");}
 };
 
 // --- Orbital DFT tier: the D-free reciprocal-space 3-centre tensors, forwarded to the evaluator.  Supplies
@@ -178,6 +193,12 @@ protected:
     virtual PairProjection<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS&) const override {return Cast().Repulsion3CTensor();}
     virtual PairProjection<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS&) const override {return Cast().Overlap3CTensor();}
     const E& Cast() const {return dynamic_cast<const E&>(*this);}
+public:
+    // d/dR (GeometryOptimizationPlan §13.2): the reciprocal-space Hartree has no 3-centre pullback (its force is the PW structure-factor
+    // row in OpenWork §2, not this face).
+    virtual bool CanPullbackRepulsion3C(const cFIT_CD_ABS&) const override {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const cFIT_CD_ABS&, const hmat_t<T>&, const cvec_t&, const Structure*) const override
+        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a lattice block", "3-centre repulsion pullback");}
 };
 
 } //namespace

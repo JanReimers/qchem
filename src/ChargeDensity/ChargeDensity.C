@@ -13,6 +13,7 @@ export import qchem.Symmetry.Spin;
 export import qchem.ChargeDensity.RasterDensity;    // the interim raw-raster face (V-ONE-OF-N 3c; sub-step 4 retires it)
 export import qchem.BasisSet.PairProjection;        // ΔG_Map algebra + Contract (was re-exported through the retired FourierDensity module)
 import qchem.ScalarFunction;
+import qchem.Structure;   // DM_Pullback: the atoms a force is taken in
 export import qchem.BasisSet.PairProjector;   // the one projection face a density answers (V-ONE-OF-N 3a)
 export import qchem.Fitting.FunctionFitter;   // the scalar fitter faces this hub's consumers reach through it (no hub
                                               // declaration names it since V-ONE-OF-N 3c: trimming it is a follow-up)
@@ -77,6 +78,12 @@ public:
     virtual void AccumulateDirectAll  (std::vector<hmat_t<T>>& Jall) const=0;
     //! Exchange analogue.  Exchange is SAME-SPIN, so the whole-system build runs per single-spin density.
     virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const=0;
+    //! THE PULLBACKS of the two sweeps (GeometryOptimizationPlan §13.2), at this fixed density, over EVERY ordered pair of its blocks
+    //! (a, b): F[A] = Σ_ab Σ D^a_ij D^b_kl ∂(ij|kl)/∂R_A = ∂Tr(D J[D])/∂R_A (Coulomb), and the same with the exchange tensor,
+    //! ∂Tr(D K[D])/∂R_A.  Exchange is same-spin, so its caller hands it ONE spin channel's density (or the folded RHF total).  The basis
+    //! centres move.  THROWS when a block's basis refuses: the term's MissingGradients() names it first.
+    virtual rvec3vec_t DirectPullback  (const Structure* st) const=0;
+    virtual rvec3vec_t ExchangePullback(const Structure* st) const=0;
 };
 
 //! \brief The PAIR-PARTNER face: the composite<->leaf collaboration protocol for ONE canonical irrep pair.
@@ -110,6 +117,12 @@ public:
                                       const BasisSet::Orbital_HF_IBS<T>* bs_i) const=0;
     virtual void CompleteExchangePair(hmat_t<T>& Ki, hmat_t<T>& Kj, const hmat_t<T>& Di,
                                       const BasisSet::Orbital_HF_IBS<T>* bs_i) const=0;
+    //! The pullback twins of the pair protocol (GeometryOptimizationPlan §13.2): this block (D_i, bs_i) against \a other's,
+    //! Σ D^i D^j ∂(ij|kl)/∂R (or the exchange tensor), finished by the partner exactly as the Complete*Pair methods finish a contraction.
+    virtual rvec3vec_t DirectPullbackWith    (const tHF_Pair_CD<T>& other, const Structure* st) const=0;
+    virtual rvec3vec_t ExchangePullbackWith  (const tHF_Pair_CD<T>& other, const Structure* st) const=0;
+    virtual rvec3vec_t CompleteDirectPullback  (const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i, const Structure* st) const=0;
+    virtual rvec3vec_t CompleteExchangePullback(const hmat_t<T>& Di, const BasisSet::Orbital_HF_IBS<T>* bs_i, const Structure* st) const=0;
 };
 
 //! Empty stand-ins: the periodic (dcmplx) path has no exact exchange, so it inherits nothing at all.
@@ -150,6 +163,17 @@ template <class T> class tStatic_CC //Contract client for static Ham terms.
 {
 public:
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&) const=0;
+};
+
+//! \brief The PULLBACK client of a static term: the force twin of \c tStatic_CC (doc/GeometryOptimizationPlan.md §13.2; the user's ruling
+//! 2026-11-08: a derivative version beside a hub face's method).  For ONE irrep block (\a bs, \a s) and that block's density matrix \a D,
+//! Σ_ij Re(D_ij* ∂M_ij/∂R_A) per atom of \a st, where M is the term's matrix: what \c tDM_CD::DM_Pullback sums over the blocks, exactly
+//! as \c DM_Contract sums the energy.
+template <class T> class tStatic_PC
+{
+public:
+    virtual ~tStatic_PC() = default;
+    virtual rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const=0;
 };
 
 template <class T> class tDynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
@@ -334,6 +358,10 @@ template <class T> class tDM_CD
 public:
     virtual double DM_Contract(const tStatic_CC<T>*) const=0; //Amounts to Integral(ro*V*d3r);
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const=0; //Integral(ro*V(ro)*d3r);
+    //! d/dR (§13.2; beside DM_Contract): Σ over this density's blocks of the client's per-block pullback, Σ_ij Re(D_ij* ∂M_ij/∂R_A) per atom
+    //! of \a st.  For an energy E = Tr(D M) at fixed D this IS ∂E/∂R; for the energy-weighted density W and the overlap it is the
+    //! Pulay sum Tr(W ∂S/∂R).
+    virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>*, const Structure* st) const=0;
     //! Energy contraction of THIS density against a per-irrep Fock-block map (keyed by BasisSetID):
     //! \f$\sum_i \mathrm{sum}(D_i \odot B_i^\mathsf{T}) = \mathrm{Tr}(D\,B)\f$.  The whole-system DUAL of
     //! AccumulateDirectAll -- lets a whole-system term (HF Coulomb/exchange) take its energy from its own

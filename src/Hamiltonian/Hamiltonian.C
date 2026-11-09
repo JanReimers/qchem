@@ -9,6 +9,7 @@ module;
 export module qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 import qchem.Streamable;
+import qchem.Structure;   // the atoms a force is taken in (GeometryOptimizationPlan §13)
 export import qchem.Energy;
 export import qchem.Hamiltonian.Types;
 export import qchem.Hamiltonian.HubbardEstimator;   // HubbardUEstimator / HubbardEstimate / ACBN0Estimator (DFT+U increment 3, H5)
@@ -324,6 +325,9 @@ template <class T> using HamRealBlockBase =
 //! the audit compares term by term.  \c label = the term's own description (its Write's first line); \c entries = the
 //! \c EnergyBreakdown names it reports (two terms may share one, e.g. the local-PP halves both report Een); \c E = its own sum.
 struct TermEnergy { std::string label, entries; double E=0.0; };
+//! One term's force at fixed D (GeometryOptimizationPlan §13.2), MakeTermEnergies' derivative twin, index for index (the HF terms follow): \c label as there;
+//! \c missing = the term's MissingGradient (empty exactly when \c F holds its −∂E_term/∂R_A, one entry per atom).
+struct TermForce { std::string label, missing; rvec3vec_t F; };
 
 template <class T> class tHamiltonian;
 //! \brief THE HAMILTONIAN AT ONE DENSITY (OOD V1.41 stage 1): what the SCF consumes -- the Fock/KS blocks and the energy
@@ -344,6 +348,11 @@ public:
     hmat_t<double>  GetMatrix(const tobs_t<double>* bs, const Spin& s) const requires std::is_same_v<T,dcmplx>;
     //! The energy at this density.  THROWS unless the density is a density-MATRIX one (a seed has no energy).
     EnergyBreakdown GetTotalEnergy() const;
+    //! \brief −dE/dR_A for every atom of \a st, Ha/bohr, in its site order (doc/GeometryOptimizationPlan.md §13, approved 2026-11-07): Σ over
+    //! the terms of their own derivative at this density, plus the orthonormality (Pulay) term +Tr(W ∂S/∂R_A).  \a W is the energy-weighted
+    //! density Σ f ε c cᵀ, in the same blocks and spin channels as this value's density.  THROWS when MissingGradients() is not empty: a
+    //! caller that did not ask first is a defect, not an outcome (the Outcome was the session's, before the optimization).
+    rvec3vec_t Forces(const tDM_CD<T>* W, const Structure* st) const;
     const DensityID& ID() const {return itsID;}
 private:
     friend class tHamiltonian<T>;
@@ -444,6 +453,12 @@ public:
     //! capability (ruling Q2, 2026-09-28): at construction, never mid-solve.  Built once per linearisation point.
     virtual std::unique_ptr<ResponseKernel<T>> MakeResponseKernel(const tbs_t<T>* wholeBasis,
                                                                   const tChargeDensity<T>* D0) const=0;
+    //! \brief The terms that cannot give a geometry gradient on \a wholeBasis for \a st, each as "<term>: <what is missing>", and the Pulay
+    //! sum's own need (the overlap pullback): EMPTY = Forces is available (GeometryOptimizationPlan §13, §13.2).  A session asks it BEFORE the
+    //! first SCF of an optimization and refuses with NoGradient listing them.  Folded over the terms like IsVirialValid.
+    virtual std::vector<std::string> MissingGradients(const tbs_t<T>* wholeBasis, const Structure* st) const=0;
+    //! The force sum behind tHamiltonianAt::Forces: every term's own derivative at the density matrix \a D, plus the Pulay term from \a W.
+    virtual rvec3vec_t MakeForces(const tbs_t<T>* wholeBasis, const tDM_CD<T>* D, const tDM_CD<T>* W, const Structure* st) const=0;
     //! \brief Run the EAGER REFRESH PHASE over every term: fill the k-independent density-dependent memos
     //! ONCE, before any Bloch block is assembled.
     //!
@@ -469,6 +484,11 @@ public:
     //! audit only (it compares each term across two rasters at one D); \a cd must have been refreshed for (\c At / RefreshForDensity).
     //! Empty for a Hamiltonian with no term list.
     virtual std::vector<TermEnergy>     MakeTermEnergies(const tDM_CD<T>*) const {return {};}
+    //! THE PER-TERM FORCE at \a cd (GeometryOptimizationPlan §13.2; the user's 2026-11-08 pre-approval of derivative versions beside an
+    //! existing method): MakeTermEnergies' twin, in its term order, with no Pulay term (that is the basis's, not a term's), and then the
+    //! whole-system HF terms MakeTermEnergies leaves out.  For the gates that check each term's force against the finite difference of its
+    //! own energy at fixed D; \a cd refreshed for, as there.
+    virtual std::vector<TermForce>      MakeTermForces(const tbs_t<T>*, const tDM_CD<T>*, const Structure*) const {return {};}
     virtual std::vector<hmat_t<T>>      MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const {return {};}
     //! The REAL-TRIM-block twin (a real block of a complex run; see the real-block \c GetMatrix).
     virtual std::vector<hmat_t<double>> MakeTermMatrices(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const {return {};}
@@ -482,6 +502,12 @@ template <class T> hmat_t<double> tHamiltonianAt<T>::GetMatrix(const tobs_t<doub
     requires std::is_same_v<T,dcmplx>
 {
     return static_cast<const Ham_RealBlock&>(*itsH).GetMatrix(bs, s, itsCD, itsWholeBasis);
+}
+template <class T> rvec3vec_t tHamiltonianAt<T>::Forces(const tDM_CD<T>* W, const Structure* st) const
+{
+    auto* dm=dynamic_cast<const tDM_CD<T>*>(itsCD);   // abstract -> abstract
+    if (!dm) throw std::logic_error("tHamiltonianAt::Forces: a force needs a density-MATRIX density (this one is a seed or a fit)");
+    return itsH->MakeForces(itsWholeBasis, dm, W, st);
 }
 template <class T> EnergyBreakdown tHamiltonianAt<T>::GetTotalEnergy() const
 {

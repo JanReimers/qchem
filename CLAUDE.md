@@ -108,7 +108,10 @@ Brief notes about module/library conventions, naming, and includes.
     needed; a campaign whose verdict is BANKED in `doc/` → delete; a real claim currently FAILING → an open
     tracker row.  Zero-assert tests are campaign leftovers: delete them.  **Exception (ruled 2026-10-29): a failing claim ON THE
     PANEL (`_Panel`/`_Panel_Long`) is NOT disabled -- it runs as `WILL_FAIL` (CMake) beside its open tracker row, so the panel goes red
-    the day it is fixed and forces the row closed.**  ⚠ A `WILL_FAIL` case PASSES on ANY gtest failure, so a count of "N passed"
+    the day it is fixed and forces the row closed.**  **Extended (user, 2026-11-08, "as long as they don't get lost"): any claim that a
+    landing exposes as failing for a KNOWN defect owned by other work runs the same way**, listed BY NAME in the root CMakeLists `knownRed`
+    list, labelled `knownRed` (`ctest -L knownRed` lists them all), each beside an open row naming the work that fixes it; its gate stays
+    as stated, never loosened.  The fixing lane takes it off the list when the case goes red.  ⚠ A `WILL_FAIL` case PASSES on ANY gtest failure, so a count of "N passed"
     cannot show that a new throw or assert fired inside one (the 2026-11-07 Hubbard n=0 proof had 2 among 16).  In any proof or sweep count,
     list the `WILL_FAIL` cases separately and read WHY each failed (its known reason, e.g. the NMaxIter cap), not just that it did.
 - **An SCF that hits NMaxIter FAILS its test** (user, 2026-10-29).  `qchem.SCFCap`: the SCF reports every cap hit and
@@ -211,7 +214,9 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
 - **The tier-1 abstract hubs are PROTECTED** (user, 2026-11-03; `doc/OOD-SOLID-Cleanup.md` V-INTERFACE-TIERS): `qchem.BasisSet`, `Orbital_DFT_IBS`,
     `Orbital_1E_IBS`, `G_FieldEvaluator`, `ChargeDensity`, `LASolver`, `Hamiltonian`, `WaveFunction`, `Fitting.FunctionFitter`, `Symmetry.Representation`.
     Adding to or changing their inheritance or member functions needs a DESIGN DISCUSSION with the user first; trimming a re-export under the
-    re-export rule does not (user, 2026-11-05).  ctest `HubInterfaceAudit` (`scripts/audit-hub-interfaces`) fails on any
+    re-export rule does not (user, 2026-11-05).  PRE-APPROVED (user, 2026-11-08): augmenting a hub's integral / evaluation faces with the
+    DERIVATIVE version of an existing method, beside it (a `Make…Pullback` returning an `Outcome`, an evaluation face's jets); cite the
+    ruling in the snapshot commit.  ctest `HubInterfaceAudit` (`scripts/audit-hub-interfaces`) fails on any
     change to their exported declarations or re-exports until `scripts/hub-interfaces.snapshot` is regenerated (`--update`) in a commit citing the
     ruling.  Every `Get` on such a face is scrutinised: why does A hold B, what will the client do with it, why can't A do it?
 - **Lazy caching only for what never changes; density-dependent state is built at the refresh** (user, 2026-11-07).  A pure function of

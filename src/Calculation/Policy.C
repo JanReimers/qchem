@@ -4,7 +4,7 @@
 // Policies live only in the policy layer (the facades, their setups and factories; CLAUDE.md framework-vs-efficiency), and each one
 // that ACTS writes one row, at its report cursor -- the caller set the context, so the row sits where the policy fired (the run's own
 // level, basis, ...), and a reader collects every `policy` array in the run's tree (ruled 2026-11-07).  The row:
-//     {name, decided, verdict: refuse | resource | warn | choose, reason, cost?: {wallSeconds?, memoryBytes?}}
+//     {name, decided, verdict: refuse | resource | warn | choose, reason, cost?: {wallSeconds?, memoryBytes?}, detail?: {...}}
 // `name` is the policy's identifier in the code, so grepping the report's names finds the code.  `choose` is an AUTOMATIC setting a
 // policy picked because the caller stated none.  A refusal writes its row and then throws: the driver has opened the run before
 // any refusal can fire, so the record of a refused run carries it.  Outside a run the row is inert (the report's own rule).
@@ -39,9 +39,11 @@ inline const char* NameOf(Verdict v)
     return "?";
 }
 
-//! One decision, as a row of the `policy` array at the report cursor.  \a decided is one line (what), \a reason why.
+//! One decision, as a row of the `policy` array at the report cursor.  \a decided is one line (what), \a reason why.  \a detail (optional)
+//! carries the numbers the decision was made from, as the policy's own json (a resource policy: its estimate, calibration and the memory
+//! available), so a reader need not parse them out of \a reason.
 inline void Report(const std::string& name, const std::string& decided, Verdict verdict, const std::string& reason,
-                   const std::optional<Cost>& cost = std::nullopt)
+                   const std::optional<Cost>& cost = std::nullopt, const qchem::report::json& detail = qchem::report::json())
 {
     namespace rpt = qchem::report;
     const rpt::Row row("policy");
@@ -56,6 +58,7 @@ inline void Report(const std::string& name, const std::string& decided, Verdict 
         if (cost->memoryBytes) c["memoryBytes"] = *cost->memoryBytes;
         rpt::Set("cost", c);
     }
+    if (!detail.is_null()) rpt::Set("detail", detail);
 }
 
 //! A refusal: its row, then std::invalid_argument("<decided> -- <reason>") -- a user-reachable choice the caller cannot run as asked

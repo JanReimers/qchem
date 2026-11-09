@@ -9,6 +9,7 @@ module;
 #include <functional>
 export module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.Term;
+import qchem.Hamiltonian.Internal.GeometryGradient;   // Ven's force face (GeometryOptimizationPlan §13.2; lane B)
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Structure;
 import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (composed; clients never see the impl)
@@ -59,12 +60,17 @@ private:
 //  Electron-Nuclear attraction potential.
 //
 class Ven : public virtual rStatic_HT, private rStatic_HT_Imp
+          , public virtual tGeometryGradient_HT<double>, public virtual tStatic_PC<double>   // its force (§13.2; lane B): Imp/Ven_Forces.C
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
     Ven(const st_t& st);
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream&) const;
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/Ven_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
 private:
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
     st_t theStructure;
@@ -79,8 +85,13 @@ private:
 //  STATIC (density-independent), so it is built once.  V_loc is the species radial field's real-space view (SpeciesRadialField::ValueR).
 //
 class PP_Local : public virtual rStatic_HT, private rStatic_HT_Imp
+              , public virtual tGeometryGradient_HT<double>, public virtual tStatic_PC<double>   // its force (§13.2; lane B): Imp/PP_Forces.C
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/PP_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     virtual bool IsVirialValid() const {return false;}
@@ -117,8 +128,13 @@ private:
 //  Verified against the reciprocal (2l+1)P_l form; per-l gate A_PP.PerLKleinmanBylanderOracle (s,p,d,f).
 //
 class PP_NonLocal : public virtual rStatic_HT, private rStatic_HT_Imp
+                 , public virtual tGeometryGradient_HT<double>, public virtual tStatic_PC<double>   // its force (§13.2; lane B): Imp/PP_Forces.C
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/PP_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     virtual bool IsVirialValid() const {return false;}
@@ -230,8 +246,12 @@ private:
 };
 
 class Vee : public Dynamic_HF_HT_Imp
+         , public virtual tGeometryGradient_HT<double>   // its force (§13.2; lane B): Imp/HF_Forces.C
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/HF_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 protected:
@@ -253,8 +273,12 @@ protected:
 //  only differences, and both are functions of the block's spin.)
 //
 class Vxc : public Dynamic_HF_HT_Imp
+         , public virtual tGeometryGradient_HT<double>   // its force (§13.2; lane B): Imp/HF_Forces.C
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/HF_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
     virtual void           GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
 protected:
@@ -280,8 +304,13 @@ protected:
 // solids by construction: a periodic Gaussian fit has no (ij|f) to call, and on plane waves this and Vee_Fit are one formula.
 //
 class Vee_FitDunlap : public virtual rDynamic_HT, private rDynamic_HT_Imp
+                    , public virtual tGeometryGradient_HT<double>, public virtual tStatic_PC<double>   // its force (§13.2; lane B): Imp/Vee_FitDunlap_Forces.C
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): Imp/Vee_DFT_Dunlap_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
     typedef std::unique_ptr<Fitting::DunlapDensityFit<double>> FitPtr;
     //! The fitter is the factory's choice (\c Fitting::MakeDunlapDensityFitter); this term holds only its face (ruling (g)).

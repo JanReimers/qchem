@@ -56,17 +56,22 @@ struct CalcOptions
     Engine      engine  = Engine::MnD;
     Angular     angular = Angular::Cartesian;
     //! DFT-only knobs (ignored when model is HF/1-e/Dirac).  xalpha: the Slater exchange parameter, used
-    //! only by model==Xalpha.  mesh: the numerical XC integration grid; a designated initializer overrides just
-    //! the resolution you care about, e.g. {.nRadial=50}.
-    //! The default is CONVERGED, MHL 80 / Lebedev 29 (302 directions), measured 2026-10-31 against MHL 150 / Lebedev 35:
-    //! per atom, water LDA 1 μHa, N₂ Xalpha 3 μHa, F₂ GTH q7 27 μHa.  It was MHL 30 / Lebedev 5 (12 directions), proven on
-    //! HF only (no mesh there) and 20 mHa/atom LOW on water LDA, 0.52 Ha/atom on F₂ -- the error is ANGULAR (30/29 is 0.7 mHa
-    //! from converged on water, 80/5 still 65 mHa) and NOT variational, so a coarse mesh reads as a better energy.  Cost:
-    //! ~20x the 30/5 SCF wall on water (0.14 s -> 2.8 s single-threaded); 100/35 buys ~1 μHa/atom more for 1.75x again.
+    //! only by model==Xalpha.
     double      xalpha = 0.7;
-    qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 80,
+    //! \brief THE XC MESH, SIZED FROM EPS BY DEFAULT (pin 31 rule 1; doc/GeometryOptimizationPlan.md §14): \c nRadial 0 and
+    //! \c angularDegree 0 say UNSTATED, and the run climbs the Becke ladder (\c qchem.Mesh.BeckeClimb) at its converged D from the entry
+    //! rung (\c kMolecularMeshEntryRadial / \c kMolecularMeshEntryDegree: 80 / 29), only UP, to the rung that meets \c accuracy on what the client consumes.  A STATED mesh
+    //! (either number set) is honoured: audited and reported against eps, never raised (rule 3); an axis left at 0 takes the entry
+    //! rung's.  The other fields (MHL m3 alpha 2, Lebedev, Becke order 2) are the rule the climb walks on.
+    //! The entry rung was the converged default of 2026-10-31.  MEASURED 2026-11-08 at the converged D against (300, 65), after the
+    //! closed-form PP integrals: water LDA |ΔE| 2e-7, max|ΔH| 1e-6; F₂ GTH q7 |ΔE| 2.3e-6, max|ΔH| 2.4e-5 -- so F₂ meets an energy
+    //! run's eps x N_atoms and a geometry run raises it (its 2026-10-31 "27 μHa/atom" was the PP's own mesh error, gone since).
+    //! It was MHL 30 / Lebedev 5 (12 directions),
+    //! 20 mHa/atom LOW on water LDA, 0.52 Ha/atom on F₂ -- the error is ANGULAR and NOT variational, so a coarse mesh reads as a
+    //! better energy.
+    qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 0,
                               .mhl_m    = 3,                         .mhl_alpha = 2.0,
-                              .angular  = qcMesh::AngularKind::Lebedev, .angularDegree = 29,   // the 302-direction rule
+                              .angular  = qcMesh::AngularKind::Lebedev, .angularDegree = 0,   // unstated: climbed from (80, 29)
                               .beckeOrder = 2};
     //! The Vxc FIT BASIS (2026-10-31): \c Auto = \c Delta, the DEFAULT (user ruling "δ default, A1 kept") -- the δ basis on
     //! \c mesh's own points, v_xc and eps_xc sampled where the quadrature integrates, no fit; \c Auxiliary = the Gaussian auxiliary
@@ -142,6 +147,11 @@ nlohmann::json ToAcceleratorJson(const AcceleratorOptions& acc, double eMax);
 //! electron counts, the seed, the accelerator and its EMax gate.  The basis, the Hamiltonian and the electron configuration
 //! belong to a geometry point and are built from this by \c MoleculeCalculation.  Built only by \c Resolve, held as
 //! \c shared_ptr<const MoleculeSetup>.
+//! The Becke XC mesh's ENTRY RUNG on a molecule (pin 31; doc/GeometryOptimizationPlan.md §14.1): an unstated mesh starts here and
+//! climbs only up, so an anchor moves only where this rung misses eps.  Today's former default, kept so nothing moves that met eps.
+inline constexpr int kMolecularMeshEntryRadial = 80;
+inline constexpr int kMolecularMeshEntryDegree = 29;
+
 struct MoleculeSetup
 {
     //! \brief THE ONE RESOLVE PHASE.  THROWS on options that contradict each other or the structure: a multiplicity whose parity
@@ -158,6 +168,11 @@ struct MoleculeSetup
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;   //!< \c Default resolved per model
     SCFAccelerators::Type accelerator = SCFAccelerators::Type::DIIS;   //!< \c acc.type, by name
     double eMax = 0.0;         //!< \c acc.eMax, or the model's default when it was left <= 0
+    //! THE RUN'S XC MESH: \c opts.mesh with an unstated axis at the entry rung (\c kMolecularMeshEntryRadial / \c kMolecularMeshEntryDegree), or the rung a pilot settled
+    //! on (\c MoleculeCalculation::SizedSetup).  Every Hamiltonian of a point is built on this, never on \c opts.mesh.
+    qcMesh::MeshParams mesh;
+    bool meshStated   = false;   //!< the caller stated \c opts.mesh (either number): audited against eps, never raised (pin 31 rule 3)
+    bool meshResolved = false;   //!< a pilot settled \c mesh already (a session's later points): no climb, no audit
 
     //! The structure a geometry point is built over: \a st's atoms, each carrying its VALENCE charge Z - Zion under a
     //! pseudopotential (so the electron count is the valence count), or \a st as is when all-electron.  Deep-copied.

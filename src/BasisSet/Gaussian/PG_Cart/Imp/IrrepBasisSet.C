@@ -1,6 +1,7 @@
 // File: BasisSet.C  Polarized Gaussian basis set, for MO calculations.
 module;
 #include <cassert>
+#include <stdexcept>
 #include <complex>   // dcmplx operators (phase*chi in BlochPointValues); same as GPW's Evaluator.C
 #include <algorithm> //Need std::max
 #include <iostream>
@@ -200,6 +201,34 @@ rvec3vec_t IrrepBasisSet::Gradient   (const rvec3_t& r) const
         ret[i]= ns[i]*(pols[i].Gradient(dr) * rf(r) + pols[i](dr) * rf.Gradient(r));
     }
     return ret;
+}
+
+// THE JETS of this block's functions on a slab of points riding with atom `owner` (GeometryOptimizationPlan §13.2): φ from operator(), ∇φ
+// from the hand Gradient(r) (the user's ruling, 2026-11-08), and each function's centre matched to an atom of `st`.  The jet itself
+// (φ, (centre, -∇φ), (owner, +∇φ)) is PointJets' to assemble.
+Outcome<size_t,AD::NoGradient> IrrepBasisSet::JetsOn(const rvec3vec_t& pts, size_t owner, const Structure* st, qchem::BasisSet::PointJets<double>& out) const
+{
+    if (!st) throw std::invalid_argument("PG_Cart::IrrepBasisSet::JetsOn: the jets need the structure (the atoms the functions sit on)");
+    std::vector<rvec3_t> R; st->ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+    if (owner>=R.size()) throw std::out_of_range("PG_Cart::IrrepBasisSet::JetsOn: owner "+std::to_string(owner)+" of "+std::to_string(R.size())+" atoms");
+    const size_t n=size();
+    std::vector<size_t> centre(n);
+    for (size_t i=0;i<n;i++)
+    {
+        const rvec3_t c=radials[i]->GetCenter();
+        size_t best=R.size(); double d2=0.0;
+        for (size_t A=0;A<R.size();A++) { const rvec3_t d=R[A]-c; const double e=d*d; if (best==R.size() || e<d2) {best=A; d2=e;} }
+        if (best==R.size() || d2>1e-24) throw std::logic_error("PG_Cart::IrrepBasisSet::JetsOn: function "+std::to_string(i)+" sits on no atom of the structure");
+        centre[i]=best;
+    }
+    auto t=Evaluatable_IBS<double>::FillJets(out, owner, pts.size(), centre);
+    for (size_t q=0;q<pts.size();q++)
+    {
+        const rvec_t     v=(*this)(pts[q]);
+        const rvec3vec_t g=Gradient(pts[q]);
+        for (size_t i=0;i<n;i++) { t.phi(q,i)=v[i]; t.grad[0](q,i)=g[i].x; t.grad[1](q,i)=g[i].y; t.grad[2](q,i)=g[i].z; }
+    }
+    return Outcome<size_t,AD::NoGradient>::Ok(pts.size());
 }
 
 std::ostream& IrrepBasisSet::Write(std::ostream& os) const

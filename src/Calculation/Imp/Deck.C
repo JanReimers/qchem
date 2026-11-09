@@ -136,6 +136,8 @@ const auto kAngular= NAMES(AngularKind, {"Lebedev",AngularKind::Lebedev}, {"Gaus
 using Measure = SCFParams::Measure;
 using BasisSet::Gaussian::BasisSetData;
 const auto kMeasure= NAMES(Measure, {"L1PerElectron",Measure::L1PerElectron}, {"MaxDeltaD",Measure::MaxΔD});
+const auto kDegenerateFill = NAMES(SCFParams::DegenerateLevelFill, {"Auto",SCFParams::DegenerateLevelFill::Auto},
+    {"OrbitalByOrbital",SCFParams::DegenerateLevelFill::OrbitalByOrbital}, {"Shared",SCFParams::DegenerateLevelFill::Shared});
 const auto kMixing = NAMES(SCFParams::Mixing, {"Auto",SCFParams::Mixing::Auto}, {"Linear",SCFParams::Mixing::Linear},
                             {"Kerker",SCFParams::Mixing::Kerker}, {"Pulay",SCFParams::Mixing::Pulay});
 
@@ -175,7 +177,7 @@ static json GateJson(const Gate& g) {return g ? json(*g) : json("off");}   //!< 
 json ToJson(const SCFParams& p)
 {
     return {{"NMaxIter",p.NMaxIter},{"minDeltaRhoPerElectron",GateJson(p.MinΔρPerElectron)},{"deltaRhoMeasure",NameOf(p.Δρmeasure,kMeasure)},{"minDeltaFD",GateJson(p.MinΔFD)},
-            {"minDeltaE",GateJson(p.MinΔE)},{"minVirial",GateJson(p.MinVirial)},{"minFD",GateJson(p.MinFD)},{"mixer",NameOf(p.Mixer,kMixing)},{"startingRelaxRo",p.StartingRelaxRo},{"maxRelaxRo",p.MaxRelaxRo},{"minRelaxRo",p.MinRelaxRo},{"mergeTol",p.MergeTol},
+            {"minDeltaE",GateJson(p.MinΔE)},{"minVirial",GateJson(p.MinVirial)},{"minFD",GateJson(p.MinFD)},{"mixer",NameOf(p.Mixer,kMixing)},{"startingRelaxRo",p.StartingRelaxRo},{"maxRelaxRo",p.MaxRelaxRo},{"minRelaxRo",p.MinRelaxRo},{"mergeTol",p.MergeTol},{"degenerateLevelFill",NameOf(p.DegenerateLevels,kDegenerateFill)},
             {"verbose",p.Verbose},{"xcCuspDeficit",p.XCCuspDeficit},{"kerkerG0",p.KerkerG0},{"useMOM",p.UseMOM},{"pulayDepth",p.PulayDepth},
             {"pulayStart",p.PulayStart},{"momStartIter",p.MOMStartIter},{"smearingkT",p.SmearingkT},{"momSmearPenalty",p.MOMSmearPenalty},
             {"stopOnAccelExhausted",p.StopOnAccelExhausted},
@@ -189,7 +191,7 @@ void FromJson(const json& j, SCFParams& p)
                                  "electron on the run's quadrature (the old number meant something different per mixer)");
     f.Get("NMaxIter",p.NMaxIter); f.GetGate("minDeltaRhoPerElectron",p.MinΔρPerElectron); f.GetEnum("deltaRhoMeasure",p.Δρmeasure,kMeasure);
     f.GetGate("minDeltaFD",p.MinΔFD); f.GetGate("minDeltaE",p.MinΔE); f.GetGate("minVirial",p.MinVirial); f.GetGate("minFD",p.MinFD);
-    f.GetEnum("mixer",p.Mixer,kMixing); f.Get("startingRelaxRo",p.StartingRelaxRo); f.Get("maxRelaxRo",p.MaxRelaxRo); f.Get("minRelaxRo",p.MinRelaxRo); f.Get("mergeTol",p.MergeTol); f.Get("verbose",p.Verbose);
+    f.GetEnum("mixer",p.Mixer,kMixing); f.Get("startingRelaxRo",p.StartingRelaxRo); f.Get("maxRelaxRo",p.MaxRelaxRo); f.Get("minRelaxRo",p.MinRelaxRo); f.Get("mergeTol",p.MergeTol); f.GetEnum("degenerateLevelFill",p.DegenerateLevels,kDegenerateFill); f.Get("verbose",p.Verbose);
     f.Get("xcCuspDeficit",p.XCCuspDeficit); f.Get("kerkerG0",p.KerkerG0); f.Get("useMOM",p.UseMOM);
     f.Get("pulayDepth",p.PulayDepth); f.Get("pulayStart",p.PulayStart); f.Get("momStartIter",p.MOMStartIter);
     f.Get("smearingkT",p.SmearingkT); f.Get("momSmearPenalty",p.MOMSmearPenalty); f.Get("stopOnAccelExhausted",p.StopOnAccelExhausted);
@@ -356,6 +358,9 @@ json ToJson(const SolidCalcOptions& o)
     if (o.accuracy.samplerEta!=BasisSet::Gaussian::GridAccuracy{}.samplerEta) out["accuracyCalibration"]["samplerEta"]=o.accuracy.samplerEta;
     if (o.accuracy.samplerResidualMargin!=BasisSet::Gaussian::GridAccuracy{}.samplerResidualMargin)
         out["accuracyCalibration"]["samplerResidualMargin"]=o.accuracy.samplerResidualMargin;
+    if (o.auditFootprint!=kAuditFootprintCalibration)
+        out["auditFootprint"]={{"eta",o.auditFootprint.eta},{"kappa",o.auditFootprint.kappa},{"bandLow",o.auditFootprint.bandLow},
+                               {"bandHigh",o.auditFootprint.bandHigh}};
     if (o.beckeLadder!=qcMesh::BeckeLadderCalibration{})
         out["beckeLadder"]={{"angularError53",o.beckeLadder.angularError53},{"angularFactor",o.beckeLadder.angularFactor},
                             {"radialError100",o.beckeLadder.radialError100},{"radialFactor",o.beckeLadder.radialFactor},
@@ -405,6 +410,15 @@ void FromJson(const json& j, SolidCalcOptions& o)
             throw std::runtime_error("deck: 'solid.beckeLadder' errors are measured max|dH_xc| values, > 0");
         if (!(b.angularFactor>0.0 && b.angularFactor<1.0 && b.radialFactor>0.0 && b.radialFactor<1.0 && b.radialShare>0.0 && b.radialShare<=1.0))
             throw std::runtime_error("deck: 'solid.beckeLadder' factors are falls per rung, in (0, 1), and radialShare is in (0, 1]");
+    }
+    if (j.contains("auditFootprint"))   // STATED (expert): the audit RSS policy's calibration (absent = its measured record)
+    {
+        Fields c(f.At("auditFootprint"),"solid.auditFootprint");
+        AuditFootprintCalibration& a=o.auditFootprint;
+        c.Get("eta",a.eta); c.Get("kappa",a.kappa); c.Get("bandLow",a.bandLow); c.Get("bandHigh",a.bandHigh);
+        c.Done();
+        if (!(a.eta>0.0 && a.kappa>=0.0 && a.bandLow>0.0 && a.bandLow<=a.bandHigh))
+            throw std::runtime_error("deck: 'solid.auditFootprint' needs eta > 0, kappa >= 0 (bytes per raster point) and 0 < bandLow <= bandHigh");
     }
     if (j.contains("accuracyCalibration"))   // STATED (expert); absent = self-calibrated by the run's pilot audit
     {
@@ -1114,7 +1128,11 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         out.converged=true; out.energy=calc->LastIterateTerms().GetTotalEnergy();
         out.summary="CONVERGED  "+calc->Diagnostics().Summary();
     }
-    else out.summary="NOT converged: "+R.Error().details;
+    else out.summary=(R.Error().why==SCFFailure::Why::ResourceRefused ? "REFUSED ON RESOURCES: " : "NOT converged: ")+R.Error().details;
+    // A run REFUSED ON RESOURCES (the audit RSS policy) did not reach the state its postSCF actions read: before the first SCF there is no D
+    // at all, and mid-pilot the rasters are not settled.  Each action is recorded as skipped, and the record carries the refusal's numbers.
+    std::optional<ResourceRefusal> refused;
+    if (const auto R=calc->Result(); !R && R.Error().resource) refused=R.Error().resource;
 
     // postSCF: each action on the converged calculation, in order, each reporting itself; the summaries go in the revision's `results`.  A failed
     // action (a response gate, an unconverged FD step) is a RESULT, not an exception: the remaining actions still run.
@@ -1123,6 +1141,14 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     {
         RunOutcome::PostResult pr; pr.action=PostName(a.kind);
         json rj={{"action",pr.action}};
+        if (refused)
+        {
+            pr.ok=false; pr.summary="SKIPPED: the run was refused on resources ("+refused->when+")";
+            std::cout<<"["<<stem<<"] postSCF: "<<pr.action<<"  "<<pr.summary<<std::endl;
+            rj["ok"]=pr.ok; rj["summary"]=pr.summary; results.push_back(rj);
+            out.postSCF.push_back(pr);
+            continue;
+        }
         std::cout<<"["<<stem<<"] postSCF: "<<pr.action<<(out.converged ? "" : "  (the SCF did NOT converge -- a diagnostic only)")<<std::endl;
         using K=PostAction::Kind;
         switch (a.kind)
@@ -1250,9 +1276,16 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
                 const auto S=calc->SizedSetup();
                 return qcMesh::XCAuditReference(S->xcMesh, a.xcRefNRadial, a.xcRefAngularDegree, S->opts.beckeLadder);
             };
-            const auto R= a.kind==K::EggBox      ? calc->EggBox(a.shift)
+            const auto O= a.kind==K::EggBox      ? calc->EggBox(a.shift)
                         : a.kind==K::XCMeshAudit ? calc->XCMeshAudit(xcRef())
                         :                          calc->GridAudit(a.referenceMargin);
+            if (!O)
+            {   // REFUSED ON RESOURCES (the audit RSS policy): nothing was built; the record carries the numbers and the escape
+                const ResourceRefusal& r=O.Error();
+                rj["refused"]=Describe(r.footprint, r.available); rj["escape"]=r.escape;
+                pr.ok=false; pr.summary="REFUSED ON RESOURCES: "+r.Summary(); break;
+            }
+            const auto& R=O.Value();
             json t=json::array();
             for (const auto& x : R.terms) t.push_back({{"term",x.label},{"entries",x.entries},{"maxAbsDH",x.maxAbsΔH},{"dE",x.ΔE},
                                                        {"x",x.x},{"bound",x.bound},{"eta",x.eta},{"etaOn",x.etaOn},
@@ -1280,10 +1313,11 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         out.postSCF.push_back(pr);
     }
     qchem::report::EmitTimings();   // sorted by cost + PEAK RSS, inside the report bracket (what scripts/bench greps)
-    if (!results.empty())
+    if (!results.empty() || refused)
     {   // fold the results into the record (the revision written before the run keeps the deck; `results` is what the run produced)
         std::ifstream in(out.revision); json rec=json::parse(in); in.close();
         rec["results"]={{"converged",out.converged},{"postSCF",results}};
+        if (refused) rec["results"]["refusedOnResources"]=Describe(refused->footprint, refused->available);
         if (out.energy) rec["results"]["energy"]=*out.energy;
         std::ofstream os(out.revision,std::ios::trunc); os<<rec.dump(2)<<"\n";
     }

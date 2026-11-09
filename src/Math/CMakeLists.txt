@@ -27,6 +27,7 @@ target_sources(qcMath PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     VectorFunction.C
     DIIS.C
     Projections.C
+    PositionJet.C
 )
 
 set_property(TARGET qcMath PROPERTY CXX_STANDARD 20)

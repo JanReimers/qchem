@@ -91,32 +91,21 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const mat_t<T>& U, const
 
     }
 }
-template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons(double ne)
+// The kT = 0 fill (both old TakeElectrons bodies, D-DEGEN-FILL 2026-11-08): the shared kernel decides each orbital's
+// occupation -- whole levels in turn, a partly filled DEGENERATE level shared equally (the kT -> 0 Fermi limit, so D is
+// invariant to a rotation inside the level); \a priority = the MOM ranking (empty = aufbau, by energy); \a levelTol <= 0 =
+// orbital by orbital (a held fill).  \a ne left over (too few orbitals) is forwarded to the caller.
+template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons(double ne, const rvec_t& priority, double levelTol)
 {
-    // Dump electrons into orbitals, starting from the lowest energy.
-    for (auto o:this->Iterate())
-    {
-        ne=o->TakeElectrons(ne);
-        if (ne<=0.0) break;
-    }
-    return BuildDensity(ne);
-}
-
-// MOM: occupy the highest-\a priority (max overlap onto the reference) orbitals first, rather than the
-// lowest energy -- the within-irrep occupied-subspace continuity that stops a diving diffuse virtual from
-// being aufbau-captured (doc/GPWPlan §0b″).  Stable order: ties keep the stored (energy) order.
-template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons(double ne, const rvec_t& priority)
-{
-    assert(priority.size()==itsOrbitals.size());
-    std::vector<size_t> order(itsOrbitals.size());
-    std::iota(order.begin(),order.end(),0);
-    std::stable_sort(order.begin(),order.end(),[&](size_t a,size_t b){return priority[a]>priority[b];});
-    for (size_t idx:order)
-    {
-        ne=itsOrbitals[idx]->TakeElectrons(ne);
-        if (ne<=0.0) break;
-    }
-    return BuildDensity(ne);
+    const size_t n=itsOrbitals.size();
+    assert(priority.size()==0 || priority.size()==n);
+    rvec_t e(n), g(n);
+    for (size_t i=0;i<n;++i) { e[i]=itsOrbitals[i]->GetEigenEnergy(); g[i]=itsOrbitals[i]->GetDegeneracy(); }
+    const rvec_t occ=ShareDegenerateLevels(e, g, priority, ne, levelTol);
+    double taken=0.0;
+    for (size_t i=0;i<n;++i) { itsOrbitals[i]->SetOccupation(occ[i]); taken+=occ[i]; }
+    const double left=ne-taken;   // > 0 only when the block has too few orbitals; roundoff in a share is not "left over"
+    return BuildDensity(left>1e-12*std::max(1.0,ne) ? left : 0.0);
 }
 
 // THE fill primitive (V1.11 inc 4): dispatch the BlockFill spec -- the §5b occupancy×ranking product,
@@ -127,8 +116,7 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::Fill(const qc
     using Rule=qchem::BlockFill::Rule;
     switch (f.rule)
     {
-        case Rule::Integer:   return f.ranking.size() ? TakeElectrons(f.budget, f.ranking)
-                                                      : TakeElectrons(f.budget);
+        case Rule::Integer:   return TakeElectrons(f.budget, f.ranking, f.levelTol);
         case Rule::Fermi:     return TakeElectronsFermi(f.budget, f.kT, f.ranking);
         case Rule::FermiAtMu: return SetFermiOccupationsAtMu(f.mu, f.kT, f.ranking);
     }

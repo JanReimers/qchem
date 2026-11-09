@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <iostream>
 #include <cstdio>
+#include <iomanip>
 #include "gtest/gtest.h"
 
 import qchem.Tests.PW_Harness;   // the PW drivers + the direct-grid oracles + PWFixture
@@ -84,14 +85,19 @@ TEST(PW_NaF, Γ_Anchor)
     const qchem::ChargeDensity::SeedKey key("LDA", {{11,1},{9,7}});   // the Ham's Na q1 / F q7 (Na has a q9 seed too)
     FwResult I=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam, "NaF IonicSAD", SS::IonicSAD, key);
     FwResult U=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam, "NaF Uniform",  SS::Uniform,  key);
-    std::cout << "[NaF seed compare] IonicSAD iters="<<I.iters<<"  Uniform iters="<<U.iters << std::endl;
+    std::cout << "[NaF seed compare] IonicSAD iters="<<I.iters<<"  Uniform iters="<<U.iters << std::setprecision(12)
+              << "  E(IonicSAD)="<<I.E.GetTotalEnergy()<<"  E(Uniform)="<<U.E.GetTotalEnergy() << std::setprecision(6) << std::endl;
 
     EXPECT_TRUE(I.converged);
     EXPECT_NEAR(I.charge, 8.0, 1e-6);             // 1 (Na) + 7 (F) valence electrons, conserved by the ionic seed
     // Regression anchor (Ecut=6, Gamma-only -> underconverged but deterministic), like the Si total.
     // Negative: the ionic Madelung (Enn~-14) + G=0 alignment dominate.
     EXPECT_NEAR(I.E.GetTotalEnergy(), -20.3293, 5e-3) << "Enn="<<I.E["Enn"]<<" E_alphaZ="<<I.E["E_alphaZ"];
-    EXPECT_NEAR(I.E.GetTotalEnergy(), U.E.GetTotalEnergy(), 1e-3);   // seed-independence of the converged answer
+    // Seed-independence of the converged answer, to the SCF's own precision (D-DEGEN-FILL, 2026-11-08).  The Uniform seed's
+    // first spectrum has a partly filled 6-fold level (4 e- in three spatial orbitals); filled orbital by orbital (2+2+0) its
+    // D depended on the eigensolver's rotation inside the level, and a roundoff change elsewhere once capped it at 120
+    // iterations 0.147 Ha high (lane S).  Shared equally, both seeds reach ONE state: 1.2e-9 Ha apart at Δρ 1e-6 (was a 1e-3 band).
+    EXPECT_NEAR(I.E.GetTotalEnergy(), U.E.GetTotalEnergy(), 1e-7);
     // IonicSAD now HALVES the iterations vs Uniform (17 vs 35 at Ecut=6) -- the DIFFUSE F- pseudo-valence
     // density does it.  History: the old seed scaled the NEUTRAL F valence x8/7 (too COMPACT -> high-G noise ->
     // 69 vs 58, WORSE).  Fix (2026-07-12): SeedCD/IonicSAD now pull the library's CHARGE-STATE density (F-,

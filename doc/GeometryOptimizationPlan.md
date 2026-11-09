@@ -251,6 +251,74 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
 
 **Automatic differentiation spike (user 2026-11-07, "a very sound use of two days"):** before any term gradient is hand-derived, 1-2 days with Enzyme (an LLVM plugin, built from source against our LLVM 21) on the Becke-mesh δ XC energy at fixed D, H₂O: against the per-term finite difference, Σ_A F_A = 0, cost vs one energy, tape memory, friction with modules / Blaze / OpenMP; then dE/dD by AD against the term's H (a pin 32 checker).  Never differentiate through the SCF iterations: forces are dE/dR at the converged D plus the Pulay term.  The result decides the architecture: libcint for integral derivatives, AD for grid and fit terms (and Hessian-vector products for level 2), or hand derivation.
 
+**AD SPIKE VERDICT (lane B, 2026-11-08; evidence, numbers and friction: `doc/Records/EnzymeSpike.md`).  AD works wherever Enzyme sees the body: a leaf differentiated in its own defining TU, or inline / template code it imports.**
+- **Exact.** The δ XC kernel (`qchem.AD.XCKernel`, a pure E_xc(R, D) on plain arrays) equals the library's term to 8e-13.
+  - Its AD dE/dR equals the per-term FD at fixed D to the FD's own error (≤ 2.3e-9), and Σ_A F_A ≈ 1e-16.
+  - Its AD dE/dD equals the term's H to 2e-12 (pin 32 holds).
+  - Its Becke-weight gradient equals the hand-derived `BeckePartitionGradient` to 1e-13.
+  - All are deterministic, and threaded: OpenMP over independently differentiated serial blocks.
+- **Cost** (untuned, against one energy): dE/dR 17× serial and 21× on 4 threads; dE/dD 6.5× / 7.7×.  The tape is < 1 MB, because it is per block.
+  A hand-coded XC gradient is typically 3–4× an energy, so AD is about 5× slower than hand-coded here.  For a force, asked once per geometry,
+  that is affordable.
+- **The danger is silent.**
+  - Enzyme's loop caching returns a WRONG reverse-mode gradient with no diagnostic, at any `-O`, for a loop-local array filled through
+    an inner loop with a data-dependent trip count.  Minimised: `doc/Records/enzyme_loopcache_repro.cpp`.  The kernel met it as "wrong at
+    `-O3`".
+  - At `-O2 -march=native` (256-bit vectors) the spike's blocked kernel segfaulted.
+  - So AD code compiles at `-O2 -mprefer-vector-width=128`.  No flag set makes it safe, so **every AD gradient is gated by a
+    finite-difference test**, and the Enzyme commit is pinned (`1a87ccc`).
+  - Draft upstream issues: record §6 (not filed).
+- **ARCHITECTURE (user, 2026-11-08): each Imp TU differentiates ITS OWN leaf functions in place, and the derivatives COMPOSE by the
+  chain rule across the OOD faces.**
+  - In place means the leaf function and its `__enzyme_autodiff` registration sit side by side, in the TU that defines the leaf.
+  - For the XC force:
+    - the basis Imp delivers ∂χ/∂R;
+    - the Becke Imp delivers ∂w/∂R;
+    - the XC term's Imp delivers ∂E/∂ρ_g = w_g v_g and ∂E/∂w_g = ρ_g ε_g;
+    - the face-level code multiplies them, F_A = Σ_g ρ_g ε_g ∂w_g/∂R_A + Σ_g w_g v_g ∂ρ_g/∂R_A.  That is composition, not a hand derivation of
+      a formula.
+  - The spike's `qchem.AD.XCKernel`, a separate library restating the formulas, was the DEMONSTRATION only.  Under this architecture
+    `qcAD` keeps the typed wrapper (`ReverseInto` on Enzyme's marker entry, `NoGradient`), and the restated kernel retires once the leaves
+    land.
+  - What the model COSTS (measured 2026-11-08, scratch probes; record §4 items 1 and 9):
+    - **Visibility.** Imported `inline` and template code IS visible to Enzyme, instantiated into the TU's IR.  A non-inline function
+      defined in another unit is NOT ("No reverse pass found"), and neither is an in-class member of an exported class: in a module that
+      is not implicitly inline.  Registered in its OWN defining unit, either one works, and the importer needs no plugin.  So the rule
+      is: register where the body is, or make the leaf `inline` in its interface.
+    - **Leaves that exist today.**
+      - The Becke weight: `qcMesh::BeckePartitionWeight` is a free function.  Its `BeckeCutoff` is defined in another unit (`Mesh.C`), so
+        it moves `inline` into `qchem.Mesh`'s interface, or into the same unit.
+      - The LDA functionals: `VWN_Correlation`'s and `SlaterExchange`'s energy functions sit in their own units.
+      - libxc is external C, with its own analytic derivatives; not ours to maintain.
+    - **Leaves that need extracting.** The basis has none.  The PG_Cart point sweep (`IrrepBasisSet::operator()`) calls `GaussianRF` /
+      `PrimGaussian` objects defined in another unit (`Evaluators/PG_Cart_MnD`), through pointers.  It needs a plain shell evaluator
+      (centre, exponents, coefficients, Cartesian powers, norms → component values) that both the sweep and its AD call: one
+      implementation, and its registration beside it.  The same holds for PG_Spherical.  The libcint delivery has its own derivative
+      evaluators (`GTOval_ip_*`).
+    - **The composition.** It is new code on §13's term faces, the face-level products above.  Each composition is gated against the
+      per-term FD, because a leaf's AD cannot see a mistake in how the leaves are combined.
+    - **Flags.** A TU that registers derivatives compiles at `-O2 -mprefer-vector-width=128`, a per-file CMake property: it is
+      .pcm-compatible both ways, and `-march` is unchanged.  Its ENERGY speed showed no measurable cost:
+      - the XC kernel energy: 0.0290 s at the tree's `-O3 -march=native`, 0.0288 s at the AD flags;
+      - a strict-order φᵀDφ contraction: 7.84 s against 7.91 s.  An FP reduction is not autovectorised without fast-math, and Blaze's own
+        SIMD is chosen by `-march`, which the vector-width preference does not touch.
+      - So per-file flags suffice.  A separate AD-only translation of the same source is the fallback if a hot TU ever measures slower:
+        the leaf `inline` in its interface, the energy TU at the tree's flags, an AD TU at the AD flags.
+- **DERIVATIVES ARE ENZYME'S (user, 2026-11-08: "either 1) hand code all derivatives (and maintain them!!!) xor 2) Use Enzyme ... not some
+  blend").**  A build without Enzyme has energies and no forces; the XC force refuses with `NoGradient`.  That is the intent.
+  - **The principle: ONE derivative method for every derivative, Enzyme** (user, 2026-11-08: "Clean (consistent) code dictates that all
+    derivatives are done the same way.  BUT then Enzyme becomes non-optional.  So I say that temporarily we leave gradients as they are,
+    simply because we still need them even if Enzyme+Forces are turned off").
+  - **New force derivatives are Enzyme only.**
+  - **The ENERGY path's existing hand derivatives stay, FOR NOW**, because a build without Enzyme still needs them: the basis `Gradient(r)`
+    faces (`PrimGaussian`, `GaussianRF`, `IrrepBasisSet`; ∇_r χ) and our functionals' `GetVxc` / `GetFxc` (`SlaterExchange`,
+    `VWN_Correlation`; libxc's are libxc's).  They move to Enzyme when Enzyme becomes non-optional: an OpenWork row holds that deferred
+    decision.
+  - **`BeckePartitionGradient` (2026-11-07) is retired from the production path** (user, 2026-11-08).  It was a force derivative, which no
+    energy path uses.  The production `qcMesh::BeckePartitionGradient` is now Enzyme's AD of `BeckePartitionWeight`, registered in place
+    in `BeckePartition.C`.  The hand derivation stays ONLY as the test oracle in `src/Mesh/tests/BeckePartitionTests.C`: it gates the AD
+    gradient at 1e-13, where FD resolves ~1e-9, and AD's failures are silent.
+
 ## 13. The `Forces` surface on the hub (DESIGN, for the user before code; lane B 2026-11-07)
 
 Ruling §11.1 puts forces on the `Hamiltonian`, beside the energy.  The hub already has the shape twice:
@@ -314,6 +382,204 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
 - the Becke weight gradient;
 - dS / dK / dV;
 - the contracted Dunlap 3c / 2c gradients.
+
+**BUILT (lane B 2026-11-08, 9f4a79423):**
+- The hub surface: `tHamiltonian::MissingGradients(wholeBasis, st)` / `MakeForces`, and `tHamiltonianAt::Forces(W, st)`.  Both take the
+  Structure, and MissingGradients the basis, for the per-face `Can…` queries.
+- The term face `tGeometryGradient_HT` (qchem.Hamiltonian.Internal.GeometryGradient), with Kinetic, Ven and IonIon (closed form; periodic
+  refuses).
+- The density walk `tDM_CD::DM_Pullback(tStatic_PC, st)`.
+- The Pulay sum, Tr(W ∂S), in `Imp/HamiltonianForces.C`.
+- Gated on E1 (bare nuclei): the ion-ion force; the fixed-D per-term FD; and the FD of the RE-CONVERGED energy, which checks the Pulay term.
+- Still missing: the Dunlap Hartree, the δ XC (after lane S's 3b/3c: V-XC-ONE-TERM), the PP terms, HF exchange, and the PW
+  structure-factor nuclear force.  `MissingGradients()` names each.
+
+**BUILT (lane B 2026-11-08): the Dunlap Hartree force.**
+- The faces, each a derivative beside an existing method (the user's pre-approval):
+  - `Orbital_DFT_IBS::MakeRepulsion3CPullback(fit, D, a)` beside `Repulsion3C`.
+  - `FIT_CD_NonOrtho::MakeRepulsionPullback(A)` beside `Repulsion()`.
+  - `FunctionFitter_Density::MakeRepulsionPullback` and `_NonOrtho::MakeSelfRepulsionPullback`, at fixed c.
+  - `FittedCD`'s two, forwarded.
+  - `tHamiltonian::MakeTermForces`, the per-term twin of `MakeTermEnergies`.
+  - PG_Cart answers through libcint (int3c2e_ip1/ip2, int2c2e_ip1).  Every other family refuses.
+- The force: Σ D c ∂(ij|k) − ½ Σ c c ∂(k|l).  The fit's response enters only as λ dN/dR, and N = Tr(DS) moves with the basis at
+  fixed D.
+- **That λ Tr(D ∂S/∂R) is LEFT OUT**, by the contract now written on `tGeometryGradient_HT::AddForces`: a term's force is taken with
+  ITS MATRIX as its D-gradient.  The Dunlap matrix is V, not V + λS (λS shifts every level and moves no orbital), so the Pulay sum's W
+  lacks the λD that would cancel it.
+- Gates:
+  - The faces against the FD of the same faces' own (M&D) contractions, with translation invariance.
+  - The WHOLE force of an XC-free DFT (Xα, α = 0) against the FD of the re-converged energy (`_Long`).
+  - The per-term fixed-D FD differs from the term's force by exactly the λ piece (measured: 2e-4 relative on water), so it cannot
+    gate this term.
+
+**BUILT (lane B 2026-11-08): the closed-form PP forces.**
+- `Orbital_PP_IBS` gains `Can/MakeSpeciesFieldPullback(st, field, range, D)` and `Can/MakeProjectorPullback(st, ps, D)`, beside the
+  two assemblies.
+- PG_Cart answers through libcint.  Each field Gaussian (homogeneous in degree) is ONE auxiliary Cartesian shell:
+  - the projectors' b_i = ⟨i|β Y_lm⟩ through int1e_ipovlp, weighted by 2 w_p (D b)_i, with the values b from our own engine;
+  - the local short part through int3c1e_ip1;
+  - its erf long part, the Coulomb potential of a Gaussian charge, through int3c2e_ip1/ip2.
+- PG_Spherical, SALC, PW and GPW refuse.  The PW/GPW force is the structure-factor row.
+- `PP_Local` and `PP_NonLocal` gain the term face (`Imp/PP_Forces.C`).  Only the closed-form route has a force; the mesh-quadrature
+  route (the mesh moves) and the radial atomic route (one centre) are MissingGradients() entries.
+- Gates:
+  - The faces against the FD of the same closed-form matrices on a two-species pair, every field term reached; translation
+    invariance; every Can agrees with its Make.
+  - GTH-LDA water: the local PP, KB, kinetic and ion-ion forces each against the FD of its own energy at fixed D.  Each is linear
+    in D, so there is no λ piece.
+- With this, the only molecular LDA term still without a force is the δ XC (waiting on lane S's 3b/3c).
+
+**BUILT (lane B 2026-11-08): the HF Coulomb and exchange forces.**
+- `Orbital_HF_IBS` gains `CanPullbackERI4` and `MakeDirect/ExchangePullback(Da, Db, other, st)`, beside the four `Accumulate*`
+  methods: Σ Da Db ∂(ab|cd), and the exchange ordering, for two blocks with all four centres moving.
+- PG_Cart answers through libcint int2e_ip1, with the permutational symmetry giving the other three positions
+  (`PG_LibCint::ERI4Gradient`).  PG_Spherical, radial, Dirac (RKB) and SALC refuse.
+- The ChargeDensity hub (derivative-beside pre-approval) gains `tHF_System_CD::Direct/ExchangePullback(st)`, beside the two
+  sweeps: ∂Tr(D X[D]) over EVERY ordered pair of blocks.  It is carried by the pair protocol's twins on `tHF_Pair_CD`
+  (`…PullbackWith` / `Complete…Pullback`), implemented in `IrrepCD_HFPair`, `Composite_HFSystem` and `Transition_HFSystem`.
+- `Vee` and `Vxc` gain the term face (`Imp/HF_Forces.C`): F −= ½ ∂Tr(DJ), and F −= ½ Σ_σ Scale(σ) ∂Tr(D_σ K_σ).  Each matrix is its
+  energy's D-gradient, so nothing is left out.
+- `MakeTermForces` now lists the HF terms after the static and dynamic ones; `MakeTermEnergies` still leaves them out.
+- Gates:
+  - The faces (self pair, and a cross pair of different shell sets) against the FD of the same block's own M&D contractions.
+  - RHF and UHF water: J and K each against the FD of its energy entry at fixed D.
+  - The WHOLE RHF force (every HF term now has one, the Pulay sum included) against the FD of the re-converged energy, with one H
+    pulled 0.15 bohr off: the stored water sits ~1e-4 Ha/bohr from its HF/DZVP minimum, where 2e-6 could not tell a sign.
+- So molecular HF has a complete analytic force on Cartesian Gaussians.
+
+### 13.1 A value-with-derivatives carrier on the derivative-aware faces (lane B 2026-11-08)
+
+**APPROVED (user, 2026-11-08: "Looks good").**  The approved shape:
+- The sparse-in-atom first-order jet is the currency on the derivative-aware faces.
+- Each face offers both directions: forward jets, and a pullback of a given adjoint.
+- **The name is `PositionJet<T>`** (user: "I like PositionJet<T> now that I know it's a diff geom term").  Its declaration says what it
+  is: the first-order jet in the atom positions, in Ehresmann's sense, the same object as a Rall number or a dual number.
+- Second order is deferred.
+- Its matrix and mesh-array realizations form one V-ONE-OF-N record (CLAUDE.md), if more than one exists.
+- `qchem.BasisSet.GeometryDerivatives` sits behind a tier-1 hub (`BasisSet`), so its exported surface goes to the controller before that
+  part is committed.
+
+Code starts after the Becke leaf lands.  The proposal as written follows.
+
+
+The user's input (2026-11-08): *"I used to work with Rall algebra where every function evaluation returns {f, df/dx1, df/dx2, ...}.  With
+all that info in one blob, chaining is trivial and it makes no difference whether it is a cross library or inter planetary function
+call."*  So the currency on every derivative-aware face is a typed carrier, {value, ∂value/∂R}: forward mode at the interface.  Enzyme fills
+it INSIDE each Imp, and chaining across a face is ordinary arithmetic on carriers, so library and vtable boundaries stop mattering.  This is
+first-order forward AD by operator overloading at the face level (Rall numbers, dual numbers, jets), with Enzyme doing the leaves.
+
+**The type.** A first-order jet in the atom positions, SPARSE in atoms: a value plus a short list of (atom index, ∂/∂R_atom) entries.
+- Its arithmetic writes the chain rule ONCE: sums and products merge the atom lists; `exp`, `sqrt`, a functional's ε(ρ) and so on carry f′.
+- A matrix-valued jet ({S, ∂S/∂R_A}) holds a libcint integral's derivative.  Its non-zeros are the pairs on atom A, so it is sparse too.
+- The name is open.  Name it for what it IS: `PositionJet<T>`, or `WithGradient<T>`.  One family, with the matrix and mesh-array
+  realizations as the V-ONE-OF-N record.
+
+**(1) Cost.**
+- A DENSE carrier (3N components on every value) is plain forward mode, ∝ 3N per value: ~10× the energy on H₂O (3N = 9) and ~60× on 20
+  atoms.  That is no.
+- Our derivatives are SPARSE in atoms:
+  - a basis function χ_i(r_g) depends on its own centre, and on the point's owner (the point rides with it): at most 2 atoms;
+  - ρ_g = Σ D_ij χ_i χ_j depends on the k_g atoms whose functions reach g (`PGData::Reaches`, the magnitude screen pin 1 allows);
+  - the Becke weight w_g depends on every atom: no exact sparsity, only magnitude.
+- So the carrier is sparse in atoms, and filling one costs:
+  - **χ:** one 3-vector, ∇χ, serves both atoms.  MEASURED: Enzyme vector-forward (width 3) on a d shell (6 components, 3 primitives)
+    gives value + 3 derivatives in 83.7 ns against 36.2 ns for the value alone, **2.31×**, exact against FD, with no tape.
+  - **ρ:** the value costs O(nbf_g²), dominated by Dχ.  The jet is ∂ρ/∂R = 2 Σ_i (Dχ)_i ∂χ_i, an extra O(3 nbf_g), so ≈ 1.1–1.3× the value.
+    The width k_g never multiplies the cost, because each χ_i carries one atom.
+  - **w_g:** a scalar of all n atoms, so REVERSE mode fills its jet, at a few × the O(n²) weight (§2 below).  For 20 atoms that is 400
+    cutoff evaluations per point, against ~10⁴ for ρ at nbf_g ~ 100: a small share.
+- ESTIMATED from these pieces, not measured end to end: an XC force at about 2.5–3.5× one XC energy, on H₂O and on 20 atoms alike.  The
+  spike's reverse-mode kernel MEASURED 17–21× on H₂O.  The jet form also keeps no tape: each point's jets are transient.
+
+**(2) Where reverse mode stays right, and both directions on one face.**
+- **A scalar of many inputs:**
+  - the Becke weight w_g(R_1..R_n);
+  - the final E, which is a sum over points of a scalar times jets, so it needs no adjoint pass: it is linear at the top.
+- **A large linear operator between ρ and E:** the δ-ρ Hartree, E_H = ½ ρᵀKρ.
+  - Pushing ρ's jets through K forward costs one solve per derivative direction.
+  - The adjoint is ONE solve, and it already exists: v = Kρ.  Likewise the Dunlap fit, whose adjoint is its coefficients.
+- So a face offers both directions:
+  - FORWARD: return jets of its outputs;
+  - PULLBACK: given ∂E/∂(its outputs), return ∂E/∂R as one jet.
+  - The term picks per output.  XC: forward χ jets into ρ jets, w_g's jet by reverse, then a pullback of E through the scalar functional.
+    Hartree on the mesh: the potential v_g as ρ_g's adjoint, then ρ_g's jets contracted with it.
+  - The carrier holds the forward derivative.  The adjoint is a plain value the term already has (v_xc, v_H, fit coefficients).
+- **This also sidesteps Enzyme's silent defect.** Forward mode is EXACT on the loop-cache repro (`doc/Records/enzyme_loopcache_repro.cpp`)
+  on both 1a87ccc and 871de19f, at `-O2` and `-O3`; the defect is in reverse mode's caching.  Reverse is left only for small scalar
+  leaves (the Becke weight), each FD-gated.
+
+**(3) Enzyme's forward mode as the in-Imp filler.**
+- `__enzyme_fwddiff(f, enzyme_width, k, enzyme_dupv, stride, x, dx, ..., enzyme_dupv, stride, out, dout)` gives k tangents in one call, a
+  vector-forward width of 3 per atom.  That fills χ's jet in the basis Imp.
+- The Becke Imp fills w_g's jet by `__enzyme_autodiff`: one scalar, n inputs.
+- The functionals keep their hand `GetVxc` FOR NOW (the ruling above), so ε(ρ)'s jet is ε′ = (v − ε)/ρ.  When Enzyme becomes non-optional,
+  forward mode replaces it in place.
+
+**(4) What it replaces in §13.**
+- The hub surface is unchanged: `MissingGradients()`, `tHamiltonianAt::Forces(W)`.
+- `tGeometryGradient::AddForces` stays as each term's face.  Behind it, the hand composition the AD verdict described (the face-level
+  products F_A = Σ ρε ∂w/∂R_A + Σ w v ∂ρ/∂R_A) is no longer written per term.  A term evaluates its OWN energy expression on jets, or calls
+  a pullback, and the chain rule lives once, in the jet type.
+- The basis face `qchem.BasisSet.GeometryDerivatives` returns jets: χ at points (forward, Enzyme) and matrix jets for the integrals
+  (libcint's derivative integrals, as committed).  The Pulay term is Tr(W S) with S a matrix jet.
+- Gates:
+  - the jet type's own unit tests (its arithmetic against FD);
+  - each term's per-term FD gate at fixed D, unchanged;
+  - the hand Becke oracle.
+
+**Open for the user before code:**
+1. The carrier, sparse in atoms, as the face currency.
+2. The two directions per face: forward jets, and a pullback of a given adjoint.
+3. The name.
+4. Second order (a Hessian-vector product for level 2) is a second-order jet or a forward-over-pullback.  Not proposed now.
+
+### 13.2 The derivatives live ON the integral faces (user ruling 2026-11-08; supersedes §13's separate basis face)
+
+The user, on a separate geometry-derivative face and on parallel `_dR` twins: *"why not just add the derivative version right into
+Integrals_Overlap<T>, they (mostly) go together"* and *"yes a large number of these classes are all going to be augmented with differential
+versions.  I accept that in advance."*  That pre-approval is in CLAUDE.md's hub bullet (main 75b87fd28): a derivative method beside a hub
+face's existing method needs no design discussion, and the HubInterfaceAudit snapshot commit cites the ruling.  So:
+- **Each integral face gains its derivative beside its method,** as a pullback: given the adjoint A = ∂E/∂M, it returns
+  Σ_ij Re(A_ij* ∂M_ij/∂R_atom) per atom, in the structure's site order, as `Outcome<rvec3vec_t, AD::NoGradient>`.
+  - `Integrals_Overlap<T>::MakeOverlapPullback(W, st)` beside `MakeOverlap`: the Pulay term.
+  - `Integrals_Kinetic<T>::MakeKineticPullback(D, st)`.
+  - `Integrals_Nuclear<T>::MakeNuclearPullback(D, st)`: the basis centres AND the nuclei moving.
+  - `Evaluatable_IBS<T>::JetsOn(pts, owner, st, PointJets&)` beside `operator()(r)`.  It is FORWARD, on the reviewed slab shape, and its
+    gradient source is still with the user.
+  - The fit faces gain theirs when Dunlap needs them: `Orbital_DFT_IBS`'s 3-centre repulsion, and the fit metric (k|l).  ∫f_k does not
+    move, so the charges need none.
+- **Every family answers each method:**
+  - Gaussian: libcint's derivative integrals (gated in `M_LibCint.C`).
+  - Plane waves: a real implementation.  The functions do not move, so Overlap, Kinetic and the jets are EXACT ZEROS.  The operators that
+    move with the atoms (Nuclear, the PP) are the structure-factor Hellmann–Feynman force.  The user notes that the zero is where the
+    one-of-N idea helps later, not now.
+  - A family with no derivative yet: a one-line `NoGradient` refusal.  The methods are pure virtual, so the compiler makes every family
+    decide (compile-time over run-time).
+- **No factory cross-casts.** A term asks the face it already holds.
+- **The capability query is per FACE, named for what its client does with the answer** (controller, 2026-11-08: one block-wide bool is
+  too coarse).  The faces' queries are `CanPullbackOverlap()`, `CanPullbackKinetic()`, `CanPullbackNuclear()` and `CanGiveJets()`, each
+  false exactly when its method would refuse.  `MissingGradients()` is each term asking its own faces; it never calls a pullback to find
+  out, and needs no shared capability base.
+- **Built in increment 1:**
+  - PG_Cart: libcint pullbacks, through the Gaussian point mixin, chosen at compile time by its evaluator type.
+  - Plane waves: exact zeros for Overlap and Kinetic.
+  - Everything else refuses in one line: the other Gaussian evaluators, Bloch Gaussians, PW nuclear, LAPW, radial, Dirac, SALC and the fit
+    blocks.
+  - `JetsOn`: real on PG_Cart; every other family refuses.
+- **`JetsOn`'s gradient source: the existing hand `Gradient(r)`** (user ruling 2026-11-08, "Use Gradient(r)").  ∂φ/∂R_centre = −∇_r φ,
+  so there is no second (Enzyme) derivative of φ, the jets work without Enzyme, and a Gaussian Cartesian block never refuses.  When Enzyme
+  becomes non-optional (the OpenWork row), `Gradient(r)` moves to Enzyme and `JetsOn` follows for free.  The plain shell-evaluator
+  extraction (the Enzyme χ leaf of the AD verdict) is NOT needed for this increment.
+- **Every derivative method has its own unit gate, per family that implements it** (the user, 2026-11-08: "we will need to make sure
+  these are all correct").  Each gate is a central FD of the SAME quantity at displaced geometry, with the step and the truncation-error
+  estimate written at the test, plus translation invariance where it must hold: `src/BasisSet/Gaussian/tests/M_GeometryDerivatives.C`
+  and `src/BasisSet/Lattice/tests/PlaneWaveUT.C`.
+  - **The first gate on the hand `Gradient(r)` found it WRONG.** `PrimGaussian::Gradient` had its sign flipped: the s functions read
+    exactly −FD, so every PG_Cart and PG_Spherical ∇φ was wrong.  The fix was one line.  Its consumers then were ∇ρ / ∇φ outputs that no
+    LDA energy reads, which is how it stayed hidden.  This is the first entry in the "Enzyme non-optional" row's tally.
+- §13's separate `qchem.BasisSet.GeometryDerivatives` module, and the `_dR` twins, are WITHDRAWN.  `PositionJet<T>` (committed, qcMath)
+  and `PointJets` (now a value type beside `Evaluatable_IBS`) stand.
 
 ## 14. ε on the molecular facade: step 6's design (DESIGN, for agreement before code; lane B 2026-11-07)
 
@@ -384,6 +650,19 @@ SKIPPED as a WARN-AND-RUN policy row that gives its predicted cost and the reaso
   species.  The banked TeF₆ frozen-D data (`~/Code/qchem6-runs/RadialRule/`; the numpy mesh reproduces ours to 1e-14) can answer
   what it buys without any library code: climb Te and F separately and compare points against the uniform climb.  The radial-rule
   report already found that α per element buys nothing; (nR, L) per element is the untested half.
+
+**Q1 MEASURED (lane B 2026-11-08, the ruled replay): per-species (nR, L) is NOT built.**  TeF₆ at its frozen D, XC only, today's rule
+(MHL m3 α2, order 2), the C++ ladder (radials 40-140, degrees 29-65 with the Lebedev menu's own rounding), ε = 1e-5, against the
+(400, 77 GL) reference.  Each species' points form their own block, so every (Te rung, F rung) pair is a sum; a pick must pass with
+every rung above it passing too.  Cheapest mesh meeting BOTH |ΔE| ≤ ε·N and max|ΔH| ≤ ε:
+
+| system | uniform | per species (Te, F) | saving |
+|---|---|---|---|
+| PP | 168,688 at (80, 29) | the same | 0% |
+| AE | 301,212 at (100, 35) | 282,474 at Te (80, 29), F (100, 35) | 6.2% |
+
+On E alone the PP pair saves 21.5% (F (60, 29)), but H decides the mesh, as on LiF.  6% is below the rung step, so the climb stays one
+(nR, L) for every atom, and `MakeMolecularMesh` keeps its one `MeshParams`.  Data: `~/Code/qchem6-runs/RadialRule/species_replay.{py,log}`.
 
 ### 14.4 Files, for sequencing with lane G
 

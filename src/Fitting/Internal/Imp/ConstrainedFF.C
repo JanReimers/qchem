@@ -91,6 +91,38 @@ template <class T> double ConstrainedFF<T>::SelfRepulsion() const
     return 0.5*(blazem::trans(itsFitCoeff) * itsBasisSet->Repulsion(*itsBasisSet) * itsFitCoeff);   // 1/2 <fit|1/r12|fit>
 }
 
+//---------------------------------------------------------------------------
+//
+//  The geometry derivatives at fixed c (GeometryOptimizationPlan §13.2).  The Dunlap fit is variational, so a force needs only these: the
+//  c-derivative of its energy is λ g with g = ∫f_k fixed (a function's integral does not move with it), and g·c = N, so c's response
+//  enters only as λ dN/dR, which is ZERO: N is the fixed electron count (user ruling 2026-11-08; Hamiltonian/Internal/Imp/Vee_FitDunlap_Forces.C).
+//
+template <class T> bool ConstrainedFF<T>::CanPullbackRepulsion(const BasisSet::Orbital_DFT_IBS<T,T>& orb) const
+{
+    return orb.CanPullbackRepulsion3C(*itsBasisSet);
+}
+
+template <class T> Outcome<rvec3vec_t,AD::NoGradient> ConstrainedFF<T>::MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<T,T>& orb, const hmat_t<T>& D,
+                                                                                          const Structure* st) const
+{
+    // Repulsion(orb) = Σ_k c_k (ij|k) exactly (the integrator's Adjoint has no screen), so its pullback is the tensor's against D ⊗ c.
+    return orb.MakeRepulsion3CPullback(*itsBasisSet, D, itsFitCoeff, st);
+}
+
+template <class T> bool ConstrainedFF<T>::CanPullbackSelfRepulsion() const
+{
+    return itsBasisSet->CanPullbackRepulsion();
+}
+
+template <class T> Outcome<rvec3vec_t,AD::NoGradient> ConstrainedFF<T>::MakeSelfRepulsionPullback(const Structure* st) const
+{
+    // SelfRepulsion = ½ cᵀ G c, so the adjoint of G is ½ c cᵀ (upper triangle; the basis face reads it symmetric).
+    const vec_t<T>& c=itsFitCoeff;
+    rsmat_t A(c.size());
+    for (size_t k=0;k<c.size();k++) for (size_t l=k;l<c.size();l++) A(k,l)=0.5*c[k]*c[l];
+    return itsBasisSet->MakeRepulsionPullback(A, st);
+}
+
 template <class T> double ConstrainedFF<T>::Integral() const
 {
     const vec_t<T> q=itsBasisSet->Charge();   // <f_a|1>, by value (one signature for both fit faces)

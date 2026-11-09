@@ -182,6 +182,28 @@ template <class Comp> void Composite_HFSystem<Comp>::AccumulateExchangeAll(std::
     for (const auto& g:self().Groups()) SweepGroup(g.begin, g.end, Kall, true);
 }
 
+// The sweeps' pullbacks (GeometryOptimizationPlan §13.2): ∂Tr(D X[D])/∂R over EVERY ordered pair of blocks, whatever their group -- the
+// energy contracts the whole density against blocks every group summed into, so no pair is left out.  No WholeSystemAll route: a basis
+// that has one (a SALC decorator) refuses the pullback at its ERI face.
+template <class Comp> rvec3vec_t Composite_HFSystem<Comp>::PairPullback(const Structure* st, bool exchange) const
+{
+    if (!st) throw std::invalid_argument("Composite_HFSystem: a geometry pullback needs the structure");
+    const auto& cds=self().itsBlocks;
+    rvec3vec_t F(st->GetNumAtoms(), rvec3_t(0,0,0));
+    for (size_t k=0;k<cds.size();++k)
+        for (size_t l=0;l<cds.size();++l)
+        {
+            const tHF_Pair_CD<double>& pk=PairOf(SameT<double>(cds[k].cd));
+            const tHF_Pair_CD<double>& pl=PairOf(SameT<double>(cds[l].cd));
+            const rvec3vec_t g = exchange ? pk.ExchangePullbackWith(pl, st) : pk.DirectPullbackWith(pl, st);
+            if (g.size()!=F.size()) throw std::logic_error("Composite_HFSystem: a pair pullback differs in atom count");
+            for (size_t A=0;A<F.size();++A) F[A]+=g[A];
+        }
+    return F;
+}
+template <class Comp> rvec3vec_t Composite_HFSystem<Comp>::DirectPullback  (const Structure* st) const {return PairPullback(st, false);}
+template <class Comp> rvec3vec_t Composite_HFSystem<Comp>::ExchangePullback(const Structure* st) const {return PairPullback(st, true);}
+
 template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>& blocks) const
 {
     double ret=0.0;
@@ -232,6 +254,30 @@ template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) 
             else throw std::logic_error("tComposite_CD: a complex child inside a real-faced run is impossible");
         }, blk.cd);
     return ret;
+}
+
+// THE FORCE TWIN of the static contraction (GeometryOptimizationPlan §13.2): every block's pullback summed.  Increment 1 is molecular, so
+// a REAL child inside a complex run (a TRIM block) THROWS by name until a term gives a real-block pullback client.
+template <class T> rvec3vec_t tComposite_CD<T>::DM_Pullback(const tStatic_PC<T>* v, const Structure* st) const
+{
+    rvec3vec_t F;
+    for (const Block& blk:itsBlocks)
+    {
+        const rvec3vec_t f=std::visit([&](const auto* b)->rvec3vec_t
+        {
+            using BT=std::remove_const_t<std::remove_pointer_t<std::decay_t<decltype(b)>>>;
+            if constexpr (std::is_same_v<BT,tDM_CD<T>>) return b->DM_Pullback(v, st);
+            else throw std::logic_error("tComposite_CD::DM_Pullback: a real block inside a complex run has no pullback client yet "
+                                        "(GeometryOptimizationPlan §13.2, increment 1 is molecular)");
+        }, blk.cd);
+        if (F.size()==0) F=f;
+        else
+        {
+            if (f.size()!=F.size()) throw std::logic_error("tComposite_CD::DM_Pullback: two blocks answered for different atom counts");
+            for (size_t A=0;A<F.size();A++) F[A]+=f[A];
+        }
+    }
+    return F;
 }
 
 template <class T> double tComposite_CD<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const

@@ -16,6 +16,7 @@ add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
    M_PP_ClosedForm.C    # the closed-form molecular PP integrals against a fine mesh
    M_BareCoulomb.C      # the BareCoulombSource face vs the d-shell Slater averages (ACBN0, +U increment 3; 2026-09-21)
    M_LibCint.C
+   M_GeometryDerivatives.C   # the derivative methods on the integral faces: PointJets, the PG_Cart pullbacks, the refusals (§13.2)
    DenseIntegratorUT.C
 )
 
@@ -25,6 +26,7 @@ target_compile_definitions(UTGaussian_BS PRIVATE ORACLE_DATA_PATH="${PROJECT_SOU
 set_property(TARGET UTGaussian_BS PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTGaussian_BS PRIVATE
+    ${PROJECT_SOURCE_DIR}/src   # forward.H (PointJetsTests)
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include

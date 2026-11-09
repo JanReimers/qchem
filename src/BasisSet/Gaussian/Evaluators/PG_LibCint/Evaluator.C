@@ -36,6 +36,7 @@ import qchem.BasisSet.PairProjection;                       // PairProjection<do
 import qchem.BasisSet.Internal.ERI4;                             // ERI4
 import qchem.Structure;
 import qchem.Types;
+import qchem.Math.SolidHarmonics;                                  // Math::CartGaussian (a species field's Gaussian, the PP gradients)
 
 export namespace qchem::BasisSet::Gaussian::Evaluators::PG_LibCint
 {
@@ -82,11 +83,32 @@ public:
     // density D (this evaluator's order, symmetric) and fit coefficients c (\a fit's order), per atom A:
     //   RepulsionThreeC_Gradient(fit, D, c)[A] = Σ_ijk D_ij c_k ∂(ij|k)/∂R_A   (orbital and fit centres moving: int3c2e_ip1, int3c2e_ip2)
     //   RepulsionTwoC_Gradient(c)[A]          = Σ_kl  c_k c_l ∂(k|l)/∂R_A      (on a FIT evaluator: int2c2e_ip1)
-    // CLIENT: Vee_DFT_Dunlap's gradient, 2·first − second (its charge constraint has no geometry derivative: ∫f_k does not move).
-    // tests/M_LibCint.C checks each against a central difference of our engine's (MnD) contraction at moved atoms.
+    //   RepulsionTwoC_Gradient(A)[B]          = Σ_kl  A_kl ∂(k|l)/∂R_B         (the same, for a symmetric adjoint A: the fit face's pullback)
+    // CLIENT: Vee_DFT_Dunlap's gradient, E = c·b − ½ cᵀGc, so first − ½ second (its charge constraint has no geometry derivative: ∫f_k does
+    // not move).  tests/M_LibCint.C checks each against a central difference of our engine's (MnD) contraction at moved atoms.
     std::vector<rvec3_t> RepulsionThreeC_Gradient(const NR_Evaluator& fit, const rmat_t& D, const rvec_t& c) const;
     std::vector<rvec3_t> RepulsionTwoC_Gradient  (const rvec_t& c) const;
+    std::vector<rvec3_t> RepulsionTwoC_Gradient  (const rsmat_t& A) const;
     rsmat_t              RepulsionTwoC_Matrix    () const;   //!< the Coulomb metric (k|l) of this (fit) basis: int2c2e, the gradient's gate
+
+    // --- the closed-form PP pieces of the force, CONTRACTED (lane B 2026-11-08; GeometryOptimizationPlan §13.2).  A species field's
+    // Gaussian g = Σ_t c_t x^a y^b z^c e^{-α|r-C|²} is homogeneous of one degree L about C, i.e. ONE libcint Cartesian shell (one
+    // primitive) whose components carry the c_t; C must be the position of atom \a gAtom.  Per atom A, the orbital centres AND g moving:
+    //   OverlapWithGradient(g, gAtom, w)[A]       = Σ_i  w_i  ∂<i|g>/∂R_A                 (int1e_ipovlp; a KB projector's b_i)
+    //   OperatorThreeCGradient(g, gAtom, D)[A]    = Σ_ij D_ij ∂<i|g|j>/∂R_A               (int3c1e_ip1; the local PP's short part)
+    //   GaussianRepulsionGradient(gAtom, α, D)[A] = Σ_ij D_ij ∂(ij|e^{-α|r-R_gAtom|²})/∂R_A (int3c2e_ip1/ip2; its erf long part)
+    // D symmetric.  CLIENT: Gaussian::EOrbital_PP_IBS's pullbacks; tests/M_PP_ClosedForm.C gates them against a central difference
+    // of our engine's (MnD) closed-form matrices at moved atoms.
+    std::vector<rvec3_t> OverlapWithGradient      (const Math::CartGaussian& g, size_t gAtom, const rvec_t& w) const;
+    std::vector<rvec3_t> OperatorThreeCGradient   (const Math::CartGaussian& g, size_t gAtom, const rmat_t& D) const;
+    std::vector<rvec3_t> GaussianRepulsionGradient(size_t gAtom, double alpha, const rmat_t& D) const;
+
+    // --- the HF pieces of the force, CONTRACTED (lane B 2026-11-08).  For a symmetric density Da on THIS evaluator's functions (i, j) and
+    // Db on \a other's (k, l), per atom A, all four centres moving (int2e_ip1, with the permutational symmetry for the other three):
+    //   ERI4Gradient(other, Da, Db, false)[A] = Σ Da_ij Db_kl ∂(ij|kl)/∂R_A   (Coulomb)
+    //   ERI4Gradient(other, Da, Db, true )[A] = Σ Da_ij Db_kl ∂(ik|jl)/∂R_A   (exchange)
+    // CLIENT: Gaussian Orbital_ERI4_IBS's HF pullbacks; tests gate them against a central difference of our engine's (MnD) J and K.
+    std::vector<rvec3_t> ERI4Gradient(const NR_Evaluator& other, const rmat_t& Da, const rmat_t& Db, bool exchange) const;
 
     // --- isM_DFT (3-centre <ab|c>, one symmetric (ia,ib) block per fit component ic) ---
     PairProjection<double> OverlapThreeC_Matrix  (const NR_Evaluator& fit) const;   // int3c1e (overlap)
