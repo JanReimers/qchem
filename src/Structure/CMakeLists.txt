@@ -5,6 +5,7 @@ target_sources(qcStructure PRIVATE
     Imp/Molecule.C 
     Imp/UnitCell.C
     Imp/StructureData.C
+    Imp/CrystalFiles.C
     Lattice_3D/Imp/Lattice_3D.C
     Lattice_3D/Imp/Imposition.C
     )
@@ -14,6 +15,7 @@ target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     LatticePoints.C   # qchem.LatticePoints: the lattice points of a box in a sphere (images and G vectors; V-STRUCTURE-ISP F2)
     Ewald.C
     StructureData.C   # qchem.StructureData: molecules/cells from Data/{molecules,materials}.json (D-STRUCTDATA)
+    CrystalFiles.C    # qchem.CrystalFiles: CIF / POSCAR / extended xyz <-> one materials.json entry (OpenWork §2, ruled 2026-11-09)
     Lattice_3D/ReciprocalLattice.C
     Lattice_3D/KMesh.C
     Lattice_3D/Lattice_3D.C

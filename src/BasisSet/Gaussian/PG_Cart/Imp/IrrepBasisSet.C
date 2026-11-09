@@ -197,14 +197,13 @@ rvec3vec_t IrrepBasisSet::Gradient   (const rvec3_t& r) const
     for (size_t i=0;i<n;i++)
     {
         const GaussianRF& rf=*radials[i];
-        rvec3_t dr=r-rf.GetCenter();
-        ret[i]= ns[i]*(pols[i].Gradient(dr) * rf(r) + pols[i](dr) * rf.Gradient(r));
+        ret[i]= ns[i]*rf.Gradient(pols[i], r);   // Enzyme's (GaussianRF_AD.C)
     }
     return ret;
 }
 
 // THE JETS of this block's functions on a slab of points riding with atom `owner` (GeometryOptimizationPlan §13.2): φ from operator(), ∇φ
-// from the hand Gradient(r) (the user's ruling, 2026-11-08), and each function's centre matched to an atom of `st`.  The jet itself
+// from Gradient(r) (the user's ruling, 2026-11-08; Enzyme's since 2026-11-09, GaussianRF_AD.C), and each function's centre matched to an atom of `st`.  The jet itself
 // (φ, (centre, -∇φ), (owner, +∇φ)) is PointJets' to assemble.
 Outcome<size_t,AD::NoGradient> IrrepBasisSet::JetsOn(const rvec3vec_t& pts, size_t owner, const Structure* st, qchem::BasisSet::PointJets<double>& out) const
 {

@@ -352,6 +352,17 @@ NB_MODULE(qchem_py, mod)
        "The DETECTED space group (Symmetry::Lattice_3D::SpaceGroup::Detect) of a primitive cell: {'order', 'symmorphic', "
        "'W' (each op's linear part in lattice coordinates, flat row-major 9 per op)}.");
 
+    mod.def("materials", [](const std::string& req)
+    {
+        int n;
+        { nb::gil_scoped_release nogil; n = qcb_materials(req.c_str(), nullptr, 0); }
+        std::string out(size_t(n) + 1, '\0');
+        out.resize(size_t(qcb_materials(nullptr, out.data(), int(out.size()))));
+        return out;
+    }, nb::arg("request"),
+       "Crystal files and the materials layers (JSON text in, JSON text out; {\"error\": ...} on a refusal): list | import | "
+       "export | save | cell -- see qcb_api.h qcb_materials (the caller passes the user / workspace library paths).");
+
     nb::class_<SolidRun>(mod, "SolidRun")
         .def(nb::init<const std::string&>(), nb::arg("deck_json"),
              "deck::Build: parse the input deck (JSON text, schema 1 -- the file rundeck runs) and build its periodic "

@@ -9,6 +9,7 @@ target_sources(qcGaussian_BS PRIVATE
     PG_Cart_MnD/Imp/PGData.C
     PG_Cart_MnD/Imp/Polarization.C
     PG_Cart_MnD/Imp/GaussianRF.C
+    PG_Cart_MnD/Imp/GaussianRF_AD.C      # GaussianRF::Gradient, Enzyme's (the plugin rides this file only)
     PG_Cart_MnD/Internal/Imp/Block.C
     PG_Cart_MnD/Internal/Imp/Hermite3.C
     PG_Cart_MnD/Internal/Imp/Hermite1.C
@@ -46,3 +47,6 @@ target_include_directories(qcGaussian_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/libcint/include
     ${PROJECT_BINARY_DIR}/submodules/libcint/include)
 target_link_libraries(qcGaussian_BS PUBLIC cint)
+
+# The Cartesian basis gradient is Enzyme's AD of the inline value leaves (doc/GeometryOptimizationPlan.md, the AD verdict).
+qchem_enzyme_sources(qcGaussian_BS PG_Cart_MnD/Imp/GaussianRF_AD.C)
