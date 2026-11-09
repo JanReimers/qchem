@@ -14,6 +14,7 @@
 // which an orthonormal {G} basis omits), so there are ZERO stubs here.
 module;
 #include <iosfwd>
+#include <memory>
 #include <string>
 #include <vector>
 #include <cmath>
@@ -24,7 +25,7 @@ import qchem.BasisSet.PlaneWave.Evaluators;         // PW_Evaluator base -- INTE
 import qchem.BasisSet.Lattice_IBS;                       // Lattice::Irrep_IBS<E> (the shared evaluation tier of the G=T spec)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep, shared with the orbital basis)
-import qchem.Symmetry.Lattice_3D.SpaceGroup;             // DirectOp {W|τ} -- the direct ops (glide τ) for the raster star-average
+import qchem.BasisSet.G_RasterStarField;                 // G_RasterStarField: my raster as a field the run's group averages
 import qchem.Types;                                      // dcmplx
 import qchem.Matrix3D;                                   // Matrix3D
 
@@ -42,23 +43,21 @@ class PlaneWaveFit_IBS
     , public         Symmetry::IdentityRepresentation<dcmplx> // identity at E only: no matrix-image client of a fit set (S3)
     , public         PW_Grid_Evaluator                // the DENSITY/FIT evaluator (grid + G_FieldEvaluator); Cast() target
     , public virtual BasisSet::G_OrbitalPairBall      // the pin-28 audit's question (see there)
+    , public virtual BasisSet::G_RasterStarField      // how my raster transforms under a crystal op (the group averages)
 {
 public:
     //! Build over a density/fit grid evaluator (the FFT/Poisson grid the XC + SAD paths quadrature on),
-    //! carrying the Bloch irrep \a sym.  \a directOps = the crystal DIRECT point ops \f${W|\tau}\f$ (empty {} =
-    //! trivial = no symmetrization) ctor-injected here, where the grid is built, for the IBZ real-space raster
-    //! star-average -- \f$\tau\f$ carries the glide/screw sublattice shift for non-symmorphic crystals.
+    //! carrying the Bloch irrep \a sym.  It stores NO crystal ops (2026-11-09): the run's group star-averages the raster,
+    //! asking me only how my voxels transform under one op (\c MakeStarField).
     //! \a role labels this grid's JOB in the run report ("vxcFitGrid" / "densityFit") -- a construction-time
     //! fact only the creating factory knows (CreateVxcFitBasisSet vs CreateCDFitBasisSet), stamped here so the
     //! basis can SELF-report: every created grid announces at birth, labeled, and a grid that is never used
     //! still shows up -- deliberately, so stale grid construction is visible (user ruling 2026-08-16).
     //! \a holdsOrbitalPairs: the creating ORBITAL basis states that this ball holds every one of its pair differences
     //! (\c G_OrbitalPairBall) -- only \c PlaneWave_IBS at >= 4 Ecut does; a GPW block's fit never can.
-    PlaneWaveFit_IBS(const PW_Grid_Evaluator& e, const sym_t& sym, const std::string& role,
-                     std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {}, bool holdsOrbitalPairs=false)
+    PlaneWaveFit_IBS(const PW_Grid_Evaluator& e, const sym_t& sym, const std::string& role, bool holdsOrbitalPairs=false)
         : BasisSet::IrrepBasisSetImp<dcmplx>(sym)
         , PW_Grid_Evaluator(e)
-        , itsDirectOps(std::move(directOps))
         , itsHoldsOrbitalPairs(holdsOrbitalPairs)
     { AnnounceGrid(role); }
     virtual bool HoldsEveryOrbitalPair() const override {return itsHoldsOrbitalPairs;}
@@ -107,69 +106,17 @@ public:
     //! satisfying the \c isOrtho contract for BOTH the density and potential fit faces.
     bool isOrtho() const override {return true;}
 
-    //! \copydoc BasisSet::G_RasterTransform::Symmetrize
-    //! IBZ real-space raster star-average (doc/GPWPlan1.md items 3 + 5): ρ_sym[x]=(1/|ops|)Σ_op ρ(W·x + τ) over
-    //! the crystal DIRECT ops \f${W|\tau}\f$.  The rotation \f$W\cdot x\f$ is an exact integer voxel permutation;
-    //! the glide translation \f$\tau\f$ is applied EXACTLY via the FFT shift theorem (\f$\rho(x+\tau)=\mathcal
-    //! F^{-1}[e^{+iG\cdot\tau}\hat\rho]\f$) -- one FFT round-trip per distinct \f$\tau\f$, so a diamond ¼ glide is
-    //! exact even on the \f$n=15\f$ grid (a grid NOT commensurate with τ; nearest-voxel/interpolation would
-    //! alias/blur the density and mistune the SCF).  τ=0 for a symmorphic crystal, so this collapses to the plain
-    //! permutation average.  Real-space average of a (near-)non-negative raster stays ≥0, so XC keeps its ρ_DM
-    //! feed.  No-op when unfolded ({} ops).  Needs the CUBIC FFT grid (axis-mixing W).
-    //! \note It overrides the RASTER face since 2026-08-24, not the fit face: every line below is voxels and
-    //! FFTs, which is what \c G_RasterTransform is.  The override stays HERE rather than on the grid engine
-    //! because \c itsDirectOps -- the ops to average over -- is this class's ctor-injected state.
-    void Symmetrize(rvec_t& rho) const override
-    {
-        if (itsDirectOps.empty()) return;                                  // trivial {E}: exact no-op
-        const ivec3_t N = this->FFTGrid();
-        const int n = N.x;
-        if (N.y!=n || N.z!=n || (size_t)n*n*n != rho.size()) return;        // guard: cubic grid == the raster
-        auto at=[n](long ix,long iy,long iz)->size_t
-                { auto m=[n](long i){return size_t(((i%n)+n)%n);}; return (m(ix)*n+m(iy))*n+m(iz); };
-
-        // Exact fractional shift of the (periodic, band-limited) raster by +τ via the FFT phase.  n odd here
-        // (5-smooth AutoGrid) -> no Nyquist bin, so the signed-frequency phase e^{+2πi m·τ} is the exact
-        // fractional-delay filter (Hermitian -> the inverse transform is real).
-        const double twoPi = 8.0*std::atan(1.0);
-        auto shiftBy=[&](const rvec3_t& tau)->rvec_t
-        {
-            cvec_t F = this->ForwardFFT(rho);                              // physical, /Npts-normalised (raster order)
-            for (int ax=0; ax<n; ++ax) for (int ay=0; ay<n; ++ay) for (int az=0; az<n; ++az)
-            {
-                int mx=ax<=n/2?ax:ax-n, my=ay<=n/2?ay:ay-n, mz=az<=n/2?az:az-n;   // signed frequency (-n/2..n/2)
-                double ph = twoPi*(mx*tau.x + my*tau.y + mz*tau.z);
-                F[(size_t(ax)*n+ay)*n+az] *= std::polar(1.0, ph);          // e^{+iG·τ}
-            }
-            return this->BackwardFFT(F);
-        };
-
-        // Pre-shift the raster once per DISTINCT nonzero τ (diamond: a single ¼-glide τ shared by 24 ops).
-        std::vector<rvec3_t> taus; std::vector<rvec_t> shifted;
-        auto srcFor=[&](const rvec3_t& tau)->const rvec_t&
-        {
-            if (std::fabs(tau.x)<1e-9 && std::fabs(tau.y)<1e-9 && std::fabs(tau.z)<1e-9) return rho;
-            for (size_t i=0;i<taus.size();++i)
-                if (std::fabs(taus[i].x-tau.x)<1e-9 && std::fabs(taus[i].y-tau.y)<1e-9 && std::fabs(taus[i].z-tau.z)<1e-9)
-                    return shifted[i];
-            taus.push_back(tau); shifted.push_back(shiftBy(tau)); return shifted.back();
-        };
-
-        rvec_t out(rho.size(), 0.0);
-        const double w = 1.0/double(itsDirectOps.size());
-        for (int ix=0; ix<n; ++ix) for (int iy=0; iy<n; ++iy) for (int iz=0; iz<n; ++iz)
-        {
-            double s=0.0;
-            for (const auto& op : itsDirectOps)
-            {
-                const rvec_t& src = srcFor(op.tau);                        // ρ(·+τ), pre-shifted exactly
-                rvec3_t g = op.W * rvec3_t(double(ix),double(iy),double(iz));   // W·x (exact integer permutation)
-                s += src[at(std::lround(g.x),std::lround(g.y),std::lround(g.z))];
-            }
-            out[(size_t(ix)*n+iy)*n+iz] = w*s;
-        }
-        rho = std::move(out);
-    }
+    //! \copydoc BasisSet::G_RasterStarField::MakeStarField
+    //! The IBZ real-space raster star-average (doc/GPWPlan1.md items 3 + 5) is then
+    //! \f$\rho_{sym}[x]=\frac1{|G|}\sum_{\{W|\tau\}}\rho(W\cdot x+\tau)\f$ over the RUN's group.  The rotation \f$W\cdot x\f$ is an
+    //! exact integer voxel permutation; the glide translation \f$\tau\f$ is applied EXACTLY via the FFT shift theorem
+    //! (\f$\rho(x+\tau)=\mathcal F^{-1}[e^{+iG\cdot\tau}\hat\rho]\f$) -- one FFT round-trip per distinct \f$\tau\f$, so a diamond
+    //! ¼ glide is exact even on the \f$n=15\f$ grid (a grid NOT commensurate with τ; nearest-voxel/interpolation would
+    //! alias/blur the density and mistune the SCF).  τ=0 for a symmorphic crystal: the plain permutation average.  A
+    //! real-space average of a (near-)non-negative raster stays ≥0, so XC keeps its ρ_DM feed.  Needs the CUBIC FFT grid
+    //! (axis-mixing W); on any other raster the field is left as it is (the behaviour the stored-ops version had).
+    std::unique_ptr<Symmetry::StarField> MakeStarField(rvec_t& rho) const override
+        {return std::make_unique<RasterStarField>(*this, rho);}
 
     // G_FieldEvaluator (EvalField/EvalFieldGradient + the FFT quadrature grid engine) is inherited from
     // PW_Evaluator -- the fit basis quadratures v_xc on its OWN grid, no per-class grid logic here.
@@ -180,7 +127,78 @@ public:
         {return os << Name() << " fit IBS: " << PW_Evaluator::size() << " plane waves";}
 
 private:
-    std::vector<Symmetry::Lattice_3D::DirectOp> itsDirectOps;   //!< crystal direct ops {W|τ} for the IBZ raster star-average ({} = no-op)
+    //! The raster as a star field: StartStar zeroes the accumulator, AddImage gathers \f$\rho(W\cdot x+\tau)\f$ voxel by voxel
+    //! from the raster pre-shifted by τ (cached per distinct τ for the whole average), FinishStar scales once -- the same
+    //! per-voxel summation order and single scale the stored-ops average used, so its bits are unchanged.
+    class RasterStarField : public Symmetry::StarField
+    {
+    public:
+        RasterStarField(const PW_Grid_Evaluator& e, rvec_t& rho) : itsE(&e), itsRho(&rho) {}
+        void StartStar() override
+        {
+            const ivec3_t N=itsE->FFTGrid();
+            itsN=N.x;
+            itsCubic=(N.y==itsN && N.z==itsN && size_t(itsN)*itsN*itsN==itsRho->size());   // guard: cubic grid == the raster
+            itsAcc=rvec_t(itsCubic ? itsRho->size() : 0, 0.0);
+            itsTaus.clear(); itsShifted.clear();
+        }
+        void AddImage(const Symmetry::SymOp& g) override
+        {
+            if (!itsCubic) return;
+            const long n=itsN;
+            auto at=[n](long ix,long iy,long iz)->size_t
+                    { auto m=[n](long i){return size_t(((i%n)+n)%n);}; return (m(ix)*n+m(iy))*n+m(iz); };
+            const rvec_t& src=SourceFor(g.tau);                                // ρ(·+τ), pre-shifted exactly
+            for (long ix=0; ix<n; ++ix) for (long iy=0; iy<n; ++iy) for (long iz=0; iz<n; ++iz)
+            {
+                const rvec3_t w=g.W*rvec3_t(double(ix),double(iy),double(iz));   // W·x (exact integer permutation)
+                itsAcc[(size_t(ix)*n+iy)*n+iz] += src[at(std::lround(w.x),std::lround(w.y),std::lround(w.z))];
+            }
+        }
+        void FinishStar(double w) override
+        {
+            if (!itsCubic) return;
+            for (size_t i=0;i<itsAcc.size();++i) itsAcc[i]=w*itsAcc[i];
+            *itsRho=std::move(itsAcc);
+            itsAcc=rvec_t();
+            itsTaus.clear(); itsShifted.clear();
+        }
+    private:
+        // Exact fractional shift of the (periodic, band-limited) raster by +τ via the FFT phase.  n odd here (5-smooth
+        // AutoGrid) -> no Nyquist bin, so the signed-frequency phase e^{+2πi m·τ} is the exact fractional-delay filter
+        // (Hermitian -> the inverse transform is real).
+        rvec_t ShiftBy(const rvec3_t& tau) const
+        {
+            const int n=itsN;
+            const double twoPi = 8.0*std::atan(1.0);
+            cvec_t F = itsE->ForwardFFT(*itsRho);                              // physical, /Npts-normalised (raster order)
+            for (int ax=0; ax<n; ++ax) for (int ay=0; ay<n; ++ay) for (int az=0; az<n; ++az)
+            {
+                int mx=ax<=n/2?ax:ax-n, my=ay<=n/2?ay:ay-n, mz=az<=n/2?az:az-n;   // signed frequency (-n/2..n/2)
+                double ph = twoPi*(mx*tau.x + my*tau.y + mz*tau.z);
+                F[(size_t(ax)*n+ay)*n+az] *= std::polar(1.0, ph);          // e^{+iG·τ}
+            }
+            return itsE->BackwardFFT(F);
+        }
+        //! The raster shifted by τ: the field itself at τ=0, else a copy shifted once per DISTINCT τ (diamond: one ¼ glide
+        //! shared by 24 ops).
+        const rvec_t& SourceFor(const rvec3_t& tau)
+        {
+            if (std::fabs(tau.x)<1e-9 && std::fabs(tau.y)<1e-9 && std::fabs(tau.z)<1e-9) return *itsRho;
+            for (size_t i=0;i<itsTaus.size();++i)
+                if (std::fabs(itsTaus[i].x-tau.x)<1e-9 && std::fabs(itsTaus[i].y-tau.y)<1e-9 && std::fabs(itsTaus[i].z-tau.z)<1e-9)
+                    return itsShifted[i];
+            itsTaus.push_back(tau); itsShifted.push_back(ShiftBy(tau)); return itsShifted.back();
+        }
+        const PW_Grid_Evaluator* itsE;      //!< the raster's engine (FFT pair, grid)
+        rvec_t*                  itsRho;    //!< the field averaged in place (not owned)
+        int                      itsN=0;    //!< voxels per axis
+        bool                     itsCubic=false;
+        rvec_t                   itsAcc;    //!< the unweighted image sum
+        std::vector<rvec3_t>     itsTaus;   //!< distinct nonzero τ met so far ...
+        std::vector<rvec_t>      itsShifted;//!< ... and the raster shifted by each
+    };
+
     bool itsHoldsOrbitalPairs=false;   //!< see HoldsEveryOrbitalPair (stated by the creating orbital basis)
 };
 

@@ -57,8 +57,8 @@ public:
     Projections ProjectField(const ScalarFunction<double>& f) const override {return itsProjector->ProjectField(f);}
     size_t NumCoefficients() const override {return itsProjector->NumCoefficients();}
     Projections Zero() const override {return itsProjector->Zero();}
-    void StarAverage(Projections& p, const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& ops) const override
-        {itsProjector->StarAverage(p,ops);}
+    void StarAverage(Projections& p, const Symmetry::StarGroup& group) const override
+        {itsProjector->StarAverage(p,group);}
 
     // --- the first-order fitted Hartree face
     void DoFit(const Projections& rho) override {itsRho=rho.GMap(); itsFitted=true;}

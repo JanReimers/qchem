@@ -28,6 +28,7 @@ export module qchem.BasisSet.GMap;
 export import qchem.BasisSet.PairProjection;  // IVec3Less, ΔG_Map, PairProjection<T> + Contract/ContractAdjoint
 import qchem.Types;    // ivec3_t, dcmplx
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;  // ReciprocalOp {U|tau} for the non-symmorphic glide phase
+export import qchem.Symmetry.StarGroup;   // StarField (GMapStarField realizes it), StarGroup
 import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the T1 {G}-star reduced evaluation)
 
 export namespace qchem {
@@ -44,35 +45,58 @@ export namespace qchem {
 //! crystal the phase is what makes the glide-related star partners reconstruct correctly.  This is what makes an
 //! IBZ-reduced density exact: the star weights alone give the right band sum, but the Hartree/XC density needs
 //! this average.  The TRIVIAL group (empty \a ops = \f${E}\f$) is a no-op -- molecules / Γ / unreduced crystals.
+inline ΔG_Map SymmetrizeGMap(const ΔG_Map& rg, const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& ops);
+
+//! \brief A G-space field as a \c Symmetry::StarField: its image under a direct op \f$\{W|\tau\}\f$ scatters
+//! \f$\tilde\rho(m)\f$ onto \f$W^\top m\f$ with the input-index glide phase (\c Symmetry::Lattice_3D::ImageOfGIndex, the one
+//! plane-wave rule).  What a k-composite's GROUP averages ρ̃ through (\c StarGroup::StarAverage): the group owns the ops, this
+//! field owns how a G-map transforms.  Wraps the map by reference; the map is replaced at \c FinishStar.
+class GMapStarField : public Symmetry::StarField
+{
+public:
+    explicit GMapStarField(ΔG_Map& f) : itsField(&f) {}
+    void StartStar() override {itsOps.clear();}
+    //! DEFERRED: the op joins the list and the scatter runs once at FinishStar, sweeping MY entries once with the ops
+    //! inner -- the loop order (and so the summation order, bit for bit) the op-vector average always had, and one map
+    //! walk instead of one per op.
+    void AddImage(const Symmetry::SymOp& g) override {itsOps.push_back(g);}
+    void FinishStar(double w) override
+    {
+        ΔG_Map out;
+        // ⚠ THE GLIDE PHASE IS THE ONLY TRANSCENDENTAL IN HERE, AND FOR A SYMMORPHIC OP IT IS EXACTLY 1 (2026-09-06,
+        // doc/ParallelAndOraclePlan.md 1.3b: this loop runs |{G}| x |ops| times and was 6.8 s of a 67 s MnO run).
+        // ImageOfGIndex skips the sincos at τ=0, and the per-op flag below (hoisted, not per iteration) the multiply.
+        std::vector<char> symmorphic(itsOps.size());
+        for (size_t o=0; o<itsOps.size(); ++o)
+            symmorphic[o]=(itsOps[o].tau.x==0.0 && itsOps[o].tau.y==0.0 && itsOps[o].tau.z==0.0);
+        for (const auto& [m, val] : *itsField)            // scatter ρ̃(m) onto every W^T·m with the input-index phase
+        {
+            const dcmplx wv=w*val;                        // loop-invariant in op
+            for (size_t o=0; o<itsOps.size(); ++o)
+            {
+                const Symmetry::Lattice_3D::GIndexImage img=Symmetry::Lattice_3D::ImageOfGIndex(itsOps[o], m);
+                if (symmorphic[o]) out[img.m] += wv;      // e^{i0}=1 EXACTLY -- not an approximation
+                else               out[img.m] += img.phase*wv;
+            }
+        }
+        *itsField=std::move(out);
+        itsOps.clear();
+    }
+private:
+    ΔG_Map*                      itsField;   //!< the field averaged in place (not owned)
+    std::vector<Symmetry::SymOp> itsOps;     //!< the ops met since StartStar (the group's, in its order)
+};
+
+//! The op-vector spelling of the same average (unit tests and oracles): the group of \a ops, averaged through \c GMapStarField.
 inline ΔG_Map SymmetrizeGMap(const ΔG_Map& rg, const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& ops)
 {
     if (ops.empty()) return rg;                       // {E}: exact no-op
-    ΔG_Map out;
-    const double w = 1.0/double(ops.size());
-    // ⚠ THE GLIDE PHASE IS THE ONLY TRANSCENDENTAL IN HERE, AND FOR A SYMMORPHIC OP IT IS EXACTLY 1
-    // (2026-09-06, doc/ParallelAndOraclePlan.md 1.3b).  This loop runs |{G}| x |ops| times per call and
-    // this call is 6.8 s of a 67 s MnO run, so a sincos per iteration on ops that all have tau=0 is pure
-    // waste.  Hoisted, not branched-in-the-hot-loop: the test is per OP, evaluated once.
-    std::vector<char> symmorphic(ops.size());
-    for (size_t o=0; o<ops.size(); ++o)
-        symmorphic[o] = (ops[o].tau.x==0.0 && ops[o].tau.y==0.0 && ops[o].tau.z==0.0);
-    for (const auto& [m, val] : rg)                   // scatter ρ̃(m) onto every U·m with the input-index phase
-    {
-        const dcmplx wv = w*val;                      // loop-invariant in op
-        const rvec3_t md(double(m.x), double(m.y), double(m.z));
-        for (size_t o=0; o<ops.size(); ++o)
-        {
-            const auto& op = ops[o];
-            rvec3_t um = op.U * md;
-            ivec3_t Um((int)std::lround(um.x), (int)std::lround(um.y), (int)std::lround(um.z));
-            if (symmorphic[o]) out[Um] += wv;         // e^{i0}=1 EXACTLY -- not an approximation
-            else
-            {
-                const double phase = 2.0*Pi*(m.x*op.tau.x + m.y*op.tau.y + m.z*op.tau.z);   // e^{+2πi m.τ}
-                out[Um] += std::polar(1.0, phase) * wv;
-            }
-        }
-    }
+    std::vector<Symmetry::SymOp> direct;
+    direct.reserve(ops.size());
+    for (const auto& op : ops) direct.push_back({Transpose(op.U), op.tau});   // U = W^T  =>  W = U^T (exact transpose)
+    ΔG_Map out=rg;
+    GMapStarField f(out);
+    Symmetry::StarGroup(std::move(direct)).StarAverage(f);
     return out;
 }
 

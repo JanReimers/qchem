@@ -8,13 +8,14 @@ module;
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 export module qchem.BasisSet.Internal.GSpaceDensityProjector;
 export import qchem.BasisSet.PairProjector;     // PairProjector<dcmplx>, AnalyticFourier
 import qchem.BasisSet.PairProjection;           // GSpacePairProjectionIntegrator
 import qchem.BasisSet.Orbital_DFT_IBS;          // cFIT_SF_ABS, Orbital_DFT_IBS<U,dcmplx>
 import qchem.BasisSet.G_FieldEvaluator;         // G_RasterTransform (the raster a field is sampled on)
-import qchem.BasisSet.GMap;                     // SymmetrizeGMap
+import qchem.BasisSet.GMap;                     // GMapStarField (ρ̃ as a field the group averages)
 import qchem.Symmetry;                          // SymMap
 import qchem.Parallel;                          // LazyLock
 import qchem.Reporting;                         // report::Timed
@@ -50,10 +51,14 @@ public:
     //! A zero density's ρ̃: the empty map (an absent G reads as 0).
     Projections Zero() const override {return Projections(ΔG_Map{});}
     //! The IBZ star-average of ρ̃: my functions are plane waves, so a point op permutes their G's.
-    void StarAverage(Projections& p, const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& ops) const override
+    void StarAverage(Projections& p, const Symmetry::StarGroup& group) const override
     {
+        if (group.IsTrivial()) return;
         qchem::report::Timed timed(itsBucket);
-        p=Projections(SymmetrizeGMap(p.GMap(), ops));
+        ΔG_Map rho=std::move(p).GMap();   // moved out, averaged in place, moved back
+        GMapStarField f(rho);
+        group.StarAverage(f);
+        p=Projections(std::move(rho));
     }
 
 private:

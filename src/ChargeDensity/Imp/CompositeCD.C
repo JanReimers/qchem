@@ -9,8 +9,7 @@ module;
 #include <map>
 #include <string>
 module qchem.CompositeCD;
-import qchem.BasisSet.GMap;             // SymmetrizeGMap
-import qchem.BasisSet.G_FieldEvaluator;  // G_RasterTransform -- the raster face that star-averages a grid field
+import qchem.BasisSet.G_RasterStarField; // the raster as a field my group star-averages
 import qchem.Blaze;
 import qchem.Reporting;                 // report::Timed -- splitting the V_H field build (ParallelAndOraclePlan 1.3b)
 import qchem.ChargeDensity.Types;
@@ -22,16 +21,16 @@ namespace qchem::ChargeDensity
 //
 //  Construction zone.
 //
-template <class T> tComposite_CD<T>::tComposite_CD(std::vector<Symmetry::Lattice_3D::ReciprocalOp> pointOps)
-    : itsPointOps(std::move(pointOps))
+template <class T> tComposite_CD<T>::tComposite_CD(std::shared_ptr<const Symmetry::StarGroup> group)
+    : itsGroup(std::move(group))
 {};
 
 // The VIEW ctor (V1.37): the parent's blocks, filtered by the caller, nothing owned.  Private -- only
 // GetChannel builds one, and only over its own blocks, so a view can never outlive what it views.
 template <class T> tComposite_CD<T>::tComposite_CD(std::vector<Block> blocks,
-                                                   const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& pointOps)
+                                                   std::shared_ptr<const Symmetry::StarGroup> group)
     : itsBlocks(std::move(blocks))
-    , itsPointOps(pointOps)
+    , itsGroup(std::move(group))
 {};
 
 template <class T> tComposite_CD<T>::~tComposite_CD() {}
@@ -75,7 +74,7 @@ template <class T> void tComposite_CD<T>::RebuildChannels()
         if (!IsPolarized(g.s)) continue;
         std::vector<Block> mine;
         for (const Block& b:itsBlocks) if (b.qns.ms==g.s) mine.push_back(b);
-        itsChannels[g.s].reset(new tComposite_CD(std::move(mine), itsPointOps));
+        itsChannels[g.s].reset(new tComposite_CD(std::move(mine), itsGroup));
     }
 }
 
@@ -249,9 +248,10 @@ template <class T> Projections tComposite_CD<T>::Project(const BasisSet::PairPro
 {
     Projections ro;
     for (const Block& b:itsBlocks) std::visit([&](const auto* c){ ro+=c->Project(p); }, b.cd);
-    // THE IBZ STAR-AVERAGE, ONCE, ON THE SUM (as GetFourierDensity always did).  I own the point ops; the BASIS owns how its
-    // functions transform under them, so it does the averaging (a no-op on a delta / occupation axis: today's behaviour).
-    if (!itsPointOps.empty()) p.StarAverage(ro, itsPointOps);
+    // THE IBZ STAR-AVERAGE, ONCE, ON THE SUM (as GetFourierDensity always did).  I hold the group; the BASIS owns how its
+    // functions transform under one op, so the projector wraps ro as a field the group averages (a no-op on a delta /
+    // occupation axis: today's behaviour).
+    if (itsGroup) p.StarAverage(ro, *itsGroup);
     return ro;
 }
 
@@ -409,7 +409,7 @@ template <class T> double tComposite_CD<T>::Dot(const tMixableDensity<T>& cd) co
 
 template <class T> std::unique_ptr<tMixableDensity<T>> tComposite_CD<T>::MakeCopy() const
 {
-    auto c=std::make_unique<tComposite_CD<T>>(itsPointOps);
+    auto c=std::make_unique<tComposite_CD<T>>(itsGroup);
     for (const Block& b : itsBlocks)
         std::visit([&](const auto* child)
         {
@@ -528,11 +528,15 @@ template <class Comp> rvec_t Composite_Fourier<Comp>::GetRhoOnGrid(const BasisSe
         else               sum+=r;
     }
     // IBZ: star-average the summed raster IN REAL SPACE (voxel permutation) so XC sees ρ_sym while staying
-    // on the non-negative ρ_DM grid.  ASK THE RASTER (2026-08-24): the operation is a voxel permutation plus
-    // an FFT glide, so it lives on G_RasterTransform, not on the fit face -- and this array IS a raster
-    // array, so the cross-cast is the same "I want more" ask GetRhoOnGrid's whole route is built on.  A fit
-    // basis without a raster cannot answer, and cannot have produced this array either.
-    dynamic_cast<const BasisSet::G_RasterTransform&>(c).Symmetrize(sum);
+    // on the non-negative ρ_DM grid.  MY GROUP averages (V-SYM-SEQUESTER-OPS, 2026-11-09); the RASTER says how its voxels
+    // transform under one op (a permutation plus an FFT glide), so the cross-cast asks the engine that produced this array --
+    // the same "I want more" ask GetRhoOnGrid's whole route is built on.  A fit basis without a raster cannot answer, and
+    // cannot have produced this array either.
+    if (const auto& group=self().itsGroup)
+    {
+        const std::unique_ptr<Symmetry::StarField> f=dynamic_cast<const BasisSet::G_RasterStarField&>(c).MakeStarField(sum);
+        group->StarAverage(*f);
+    }
     return sum;
 }
 

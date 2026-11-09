@@ -349,8 +349,7 @@ std::vector<hmat_t<double>> MoleculeCalculation::MakeEnergyWeightedDensity() con
 std::unique_ptr<qchem::ChargeDensity::rDM_CD> MoleculeCalculation::MakeCarriedDensity(const Carry& carry) const
 {
     using namespace qchem::ChargeDensity;
-    auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetImposition() ? itsBasis->GetImposition()->DensityStarOps()
-                                                                           : std::vector<Symmetry::Lattice_3D::ReciprocalOp>{});
+    auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetImposition() ? itsBasis->GetImposition()->DensityGroup() : nullptr);
     size_t b=0;
     for (Spin s : SpinIrreps(itsSetup->opts.spin))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())

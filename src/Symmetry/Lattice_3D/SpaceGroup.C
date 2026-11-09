@@ -9,6 +9,9 @@
 // it operates on a cell matrix + a list of fractional AtomSites, so a thin
 // UnitCell -> {A, basis} adapter can sit on top without qcSymmetry depending on qcStructure.
 module;
+#include <cmath>
+#include <complex>
+#include <numbers>
 #include <vector>
 export module qchem.Symmetry.Lattice_3D.SpaceGroup;
 export import qchem.Types;       // rvec3_t, ivec3_t, vec3_t
@@ -80,6 +83,29 @@ inline DirectOp DirectOf(const ReciprocalOp& op) {return {Transpose(op.U), op.ta
 //! \f$U=W^\top\f$, same \f$\tau\f$, same \f$\sigma\f$ -- the S2 currency converter for handing a
 //! Shubnikov group (built in the direct frame by \c ShubnikovOps) to the G-space star-average.
 inline SymOp ReciprocalOf(const SymOp& op) {return {Transpose(op.W), op.tau, op.sigma};}
+
+//! \brief Where a plane wave goes under a DIRECT-frame op: the image of G-index \a m under \f$g=\{W|\tau\}\f$ is the G-index
+//! \f$W^\top m\f$ with the phase \f$e^{+2\pi i\,m\cdot\tau}\f$ -- THE one plane-wave transform rule (V-SYM-SEQUESTER-OPS), shared
+//! by the ρ̃ star-average (a scatter: \f$\tilde\rho_{sym}[W^\top m]\mathrel{+}=e^{+2\pi i m\cdot\tau}\tilde\rho(m)\f$) and the
+//! plane-wave basis's operator rep (\c PlaneWave_IBS::MakeMonomial, the same pairing read as a gather, with the conjugate phase).
+//! The phase is EXACTLY 1 at \f$\tau=0\f$ (no sincos: a symmorphic op is a plain permutation).  \c offLattice is the distance of
+//! \f$W^\top m\f$ from the integer it was rounded to: zero for a lattice op, so a caller that must refuse a non-lattice \f$W\f$
+//! tests it (\c MakeMonomial does; the star-average's ops passed the imposition gate).
+struct GIndexImage
+{
+    ivec3_t m;            //!< the image index \f$W^\top m\f$
+    std::complex<double> phase;   //!< \f$e^{+2\pi i\,m\cdot\tau}\f$ on the INPUT index
+    double  offLattice;   //!< \f$|W^\top m-\mathrm{round}(W^\top m)|_1\f$
+};
+inline GIndexImage ImageOfGIndex(const SymOp& g, const ivec3_t& m)
+{
+    const rvec3_t um=Transpose(g.W)*rvec3_t(double(m.x), double(m.y), double(m.z));
+    const ivec3_t mi((int)std::lround(um.x), (int)std::lround(um.y), (int)std::lround(um.z));
+    const double off=std::fabs(um.x-mi.x)+std::fabs(um.y-mi.y)+std::fabs(um.z-mi.z);
+    if (g.tau.x==0.0 && g.tau.y==0.0 && g.tau.z==0.0) return {mi, std::complex<double>(1.0, 0.0), off};
+    const double phase=2.0*std::numbers::pi*(m.x*g.tau.x + m.y*g.tau.y + m.z*g.tau.z);
+    return {mi, std::polar(1.0, phase), off};
+}
 
 //! \brief RUN-LEVEL symmetry-imposition policy (doc/SymmetryUpgradePlan.md §3).  Every symmetry
 //! reduction -- the k-fold, the {G}/{r} folds, the stream reduction, the density star-average --

@@ -59,7 +59,7 @@ PW_BasisSet::PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut, const std:
     // Its XC quadrature is the cell's plain mesh too (no Shubnikov fold: the δ route's (ρ,m) star-average is GPW's), so the
     // magnetic face is cleared with them and the imposition builds the plain mesh (V-BS-SYMMETRY S2).
     auto imp=std::make_shared<CrystalImposition>(ResolveImposition(lat, {.imposeSymmetry=true, .siteSpins=siteSpins}));
-    imp->recipDensity.clear();
+    imp->densityGroup=nullptr;
     imp->directDensity.clear();
     imp->magneticDirect.clear();
     SetImposition(std::move(imp));
