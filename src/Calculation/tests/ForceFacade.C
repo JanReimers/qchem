@@ -13,6 +13,13 @@
 #include <vector>
 #include "forward.H"
 import qchem.MoleculeCalculation;
+import qchem.SolidCalculation;        // the GPW gate: a Bloch basis's MissingGradients
+import qchem.Materials;
+import qchem.Lattice_3D;
+import qchem.UnitCell;
+import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData::SIPP_SR
+import qchem.Mesh;                     // qcMesh::UnitCellKind
+import qchem.Mesh.XCPolicy;            // qcMesh::BeckeXCParams
 import qchem.StructureData;
 import qchem.Structure;
 import qchem.SCFParams;
@@ -91,6 +98,9 @@ public:
     }
     static std::vector<std::string> MissingGradients(const MoleculeCalculation& c) {return c.itsHam->MissingGradients(c.itsBasis, c.itsStructure.get());}
     static size_t NumBlocks(const MoleculeCalculation& c) {return c.itsBasis->GetNumIBS();}
+    //! The solid's: its Hamiltonian's refusals over the Bloch basis (the Pulay sum included), and every term's force or refusal.
+    static std::vector<std::string>        MissingGradients(const SolidCalculation& c) {return c.ForceMissingGradients();}
+    static std::vector<Hamiltonian::TermForce> TermForces(const SolidCalculation& c) {return c.ForceTermForces();}
     //! EVERY TERM'S FORCE at structure \a at with \a D frozen (MakeTermEnergies' twin, index for index): TermEnergiesAt's analytic partner.
     static std::vector<Hamiltonian::TermForce> TermForcesAt(std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
                                                             const MoleculeCalculation::Carry& D)
@@ -456,6 +466,53 @@ TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
         for (const auto& m : missing) { EXPECT_NE(m.find("no geometry gradient"), std::string::npos) << m; std::cout<<"[forces] missing: "<<m<<std::endl; }
         const auto D=ForceFacadeTests::Carry(c);
         EXPECT_THROW((void)ForceFacadeTests::Forces(c, D, D), std::logic_error) << "Forces refuses what MissingGradients names";
+    }
+}
+
+//! NO SILENT INCOMPLETE FORCE ON A GPW BLOCK (controller request 2026-11-09, from lane H's factory wiring).  On a Bloch Gaussian block only
+//! the Hartree term has a pullback (c3516017d: the collocation gather's jets, gated by GPW_Force and M_CollocationPullback); kinetic, the
+//! PP's short / long / non-local parts and XC on either mesh have none, nor has the block the overlap pullback the Pulay sum needs.  The
+//! danger is a term WITHOUT a GPW force that answers MissingGradient with "": once its neighbours gain theirs, the force would come back
+//! complete-looking and wrong.  So every term not on kGated must name itself, MissingGradients must carry each of those names plus the
+//! Pulay sum's, and a term on kGated must deliver its force.  A term that gains a GPW pullback fails here on purpose: it lands with its
+//! finite-difference gate and joins kGated.
+TEST(HamiltonianForces, OnAGPWBlockEveryTermWithoutAPullbackNamesItself)
+{
+    // The terms whose force a GPW block cannot spoil, by label prefix: the GPW Hartree (c3516017d, GPW_Force: 3e-7 of the FD of E_H), and
+    // the ion-ion (Ewald) sum, which depends on the structure alone.
+    const std::vector<std::string> kGated={"Fitted Hartree", "Ion-Ion"};
+    auto gated=[&](const std::string& label){ for (const auto& g : kGated) if (label.rfind(g,0)==0) return true; return false; };
+    const auto mat=Materials::Get("Si_diamond");
+    SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-6; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
+    for (bool becke : {false, true})   // XC on the raster (Uniform), and on the Becke mesh (pin 31)
+    {
+        SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.label="gpw forces"; o.accuracy.eps=0.0;   // stated rasters: no pilot (not the subject)
+        if (becke) o.xcMesh=qcMesh::BeckeXCParams(); else o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+        SolidCalculation c(SolidSetup::Resolve(Lattice_3D(UnitCell(*mat.cell), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o), p);
+        ASSERT_TRUE(c.Result());
+        const auto missing=ForceFacadeTests::MissingGradients(c);
+        const auto terms  =ForceFacadeTests::TermForces(c);
+        ASSERT_FALSE(terms.empty());
+        auto listed=[&](const std::string& m){ for (const auto& x : missing) if (x==m) return true; return false; };
+        size_t refusals=0;
+        for (const auto& t : terms)
+        {
+            std::cout << "[forces] GPW " << (becke ? "Becke" : "uniform") << " " << t.label << ": " << (t.missing.empty() ? "HAS ITS FORCE" : t.missing) << std::endl;
+            if (gated(t.label))
+            {
+                EXPECT_TRUE(t.missing.empty()) << t.label << ": gated GPW pullback, refused: " << t.missing;
+                EXPECT_EQ(t.F.size(), 2u) << t.label << ": one force per Si atom";
+                continue;
+            }
+            EXPECT_FALSE(t.missing.empty()) << t.label << ": answers that it HAS a force on a GPW block, but has no gated GPW pullback";
+            EXPECT_EQ(t.F.size(), 0u) << t.label << ": computed a force it cannot have";
+            EXPECT_TRUE(listed(t.missing)) << t.label << " is not in MissingGradients: " << t.missing;
+            refusals++;
+        }
+        size_t pulay=0;   // one entry per Bloch block without the overlap pullback
+        for (const auto& m : missing) if (m.find("Pulay")!=std::string::npos) pulay++;
+        EXPECT_GT(pulay, 0u) << "the Pulay sum's missing overlap pullback is not named";
+        EXPECT_EQ(missing.size(), refusals+pulay) << "MissingGradients = every refusing term + the Pulay sum, nothing else";
     }
 }
 

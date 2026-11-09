@@ -2780,6 +2780,17 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
 
 // THE FD ORACLE'S DOOR (friend only, forward.H).
 qchem::Hamiltonian::cHamiltonian& SolidCalculation::ResponseHamiltonian() const {return *itsImp->ham;}
+std::vector<std::string> SolidCalculation::ForceMissingGradients() const
+{
+    if (!itsImp->ham) throw std::logic_error("SolidCalculation::ForceMissingGradients: no Hamiltonian yet");
+    return itsImp->ham->MissingGradients(itsImp->bs.get(), itsImp->st.get());
+}
+std::vector<Hamiltonian::TermForce> SolidCalculation::ForceTermForces() const
+{
+    if (!itsImp->ham || !itsImp->cd) throw std::logic_error("SolidCalculation::ForceTermForces: no converged run");
+    itsImp->ham->RefreshForDensity(itsImp->bs.get(), itsImp->cd.get());   // the terms' density state (a post-SCF audit may have moved it)
+    return itsImp->ham->MakeTermForces(itsImp->bs.get(), itsImp->cd.get(), itsImp->st.get());
+}
 const WaveFunction::cWaveFunction& SolidCalculation::ResponseWaveFunction() const
 {
     const auto* wf=itsImp->scf->GetWaveFunction();
