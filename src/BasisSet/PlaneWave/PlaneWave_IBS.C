@@ -57,7 +57,12 @@ public:
     virtual bool CanPullbackKinetic() const override {return true;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<dcmplx>&, const Structure* st) const override {return Zeros(st);}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<dcmplx>&, const Structure* st) const override {return Zeros(st);}
+    //! The bare-Coulomb nuclear block is the structure-factor field f = −4πZ/|ΔG|²: its pullback is the same formula (the nuclei move).
+    virtual bool CanPullbackNuclear() const override {return true;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<dcmplx>& D, const Structure* st) const override;
 private:
+    //! THE ONE BODY: F[a] = Σ_ij Re(conj(D_ij) (−iΔG_ij) V^a_ij), V^a_ij = \a perAtom(i, j, a) the atom's own matrix element, phase included.
+    template <class PerAtom> rvec3vec_t StructureFactorPullback(const Structure* st, const chmat_t& D, PerAtom&& perAtom) const;
     static Outcome<rvec3vec_t,AD::NoGradient> Zeros(const Structure* st)
     {
         if (!st) throw std::invalid_argument("PlaneWave_IBS: a geometry pullback needs the structure (its atom count)");
@@ -108,13 +113,12 @@ public:
     virtual chmat_t MakeSpeciesFieldMatrix(const Structure* cl, const SpeciesRadialField& f, FieldRange) const override;
     //! \brief Assemble the separable (Kleinman-Bylander) nonlocal potential (rank-1 per atom, projector, m).
     virtual chmat_t MakeProjectorMatrix(const Structure* cl, const SpeciesProjectorSet& v) const override;
-    // d/dR (GeometryOptimizationPlan §13.2): the PW structure-factor force is its own row (OpenWork §2), not these faces yet.
-    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const override {return false;}
-    virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override {return false;}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure*, const SpeciesRadialField&, FieldRange, const chmat_t&) const override
-        {return ::qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a plane-wave block", "species-field pullback");}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure*, const SpeciesProjectorSet&, const chmat_t&) const override
-        {return ::qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a plane-wave block", "projector pullback");}
+    // d/dR (GeometryOptimizationPlan §13.2): THE STRUCTURE-FACTOR FORCE.  Every species matrix is Σ_a V^a_ij with V^a_ij ∝ e^{-iΔG_ij·τ_a}
+    // (ΔG_ij = G_i − G_j) and the plane waves do not move, so ∂V_ij/∂τ_a = −iΔG_ij V^a_ij exactly: Imp/PlaneWave_IBS.C.
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const override {return true;}
+    virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override {return true;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure* cl, const SpeciesRadialField& f, FieldRange, const chmat_t& D) const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure* cl, const SpeciesProjectorSet& v, const chmat_t& D) const override;
 
     //! \brief \f$B_{G,a}=\langle k+G|\chi_a\rangle=\tilde\chi_a(k+G)/\sqrt\Omega\f$, the Bloch sum's Fourier transform: a
     //! set function \f$c\,r^{l+2n}e^{-\alpha r^2}Y(\hat r)\f$ about \f$C\f$ transforms in closed form,

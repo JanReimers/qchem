@@ -731,6 +731,7 @@ namespace qchem {
         virtual double GetNumElectrons () const;
         virtual double GetNetCharge () const;
         virtual double IonIonEnergy (const std::function<double(int Z)>& zionOf) const;
+        virtual rvec3vec_t IonIonForces (const std::function<double(int Z)>& zionOf) const;
         virtual double G0Background (const std::function<double(int Z)>& f) const;
         virtual bool HasTranslationSymmetry() const;
         SiteRange Sites() const;

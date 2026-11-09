@@ -19,6 +19,7 @@ target_sources(qcHamiltonian PRIVATE
     # The periodic (plane-wave / GPW) term set -- ONE module interface, five implementation units, the
     # same shape Internal/Terms.C has always had.  Split 2026-09-08 out of a single 1213-line TU.
     Internal/Imp/PWTerms_PP.C
+    Internal/Imp/PWTerms_PP_Forces.C      # the PW PP structure-factor forces (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/PWTerms_Hartree.C
     Internal/Imp/PWTerms_XC.C
     Internal/Imp/Hubbard.C                # DFT+U (programme step 5, 2026-09-19)

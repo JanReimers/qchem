@@ -92,6 +92,9 @@ public:
     //! set: Atom, Molecule), the Ewald lattice sum on a periodic \c UnitCell (V-STRUCTURE-ISP F3: was a free
     //! \c NuclearRepulsion that asked \c isFinite() and down-cast to the concrete UnitCell).
     virtual double IonIonEnergy     (const std::function<double(int Z)>& zionOf) const;
+    //! \brief The FORCE of that energy, \f$-\partial E_{nn}/\partial R_a\f$ per site (GeometryOptimizationPlan §13.2), with the same charges
+    //! and the same sum: the pair sum's closed form here, the Ewald sum's on a periodic \c UnitCell.
+    virtual rvec3vec_t IonIonForces (const std::function<double(int Z)>& zionOf) const;
 
     //! \brief The G = 0 NEUTRALISING-BACKGROUND term of a per-species form factor \a f: \f$\frac1\Omega\sum_a f(Z_a)\f$
     //! for a periodic structure (the per-volume mean a reciprocal-space term drops from its matrix and carries

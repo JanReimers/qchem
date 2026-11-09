@@ -102,4 +102,59 @@ export double EwaldEnergy(const UnitCell& cell, const rvec_t& q, double eta=0.0)
     return Er + Eg + Eself + Ebg;
 }
 
+//! THE FORCE of \c EwaldEnergy on each ion, \f$F_a=-\partial E/\partial\tau_a\f$ (GeometryOptimizationPlan §13.2), with the SAME split, cutoffs
+//! and image enumeration, so it is the derivative of the number the energy returns.  The self and background terms do not depend on the
+//! positions.  Per term:
+//!   real:        F_a += Σ_{b,R}' q_a q_b [erfc(ηr)/r² + (2η/√π) e^{-η²r²}/r] d/r,   d = τ_a − τ_b + R
+//!   reciprocal:  F_a += (4π/Ω) q_a Σ_{G≠0} (e^{-G²/4η²}/G²) G [Re S sin(G·τ_a) − Im S cos(G·τ_a)]
+//! The result is η-independent and sums to zero (a uniform translation moves nothing).
+export std::vector<rvec3_t> EwaldForces(const UnitCell& cell, const rvec_t& q, double eta=0.0)
+{
+    const size_t N = cell.GetNumAtoms();
+    assert(q.size()==N);
+    const double Ω = cell.GetCellVolume();
+    std::vector<rvec3_t> τ(N);
+    for (size_t a=0; a<N; a++) τ[a]=cell.Sites()[a].R;
+    if (eta<=0.0) eta = sqrt(Pi)/cbrt(Ω);
+    const double p    = 34.0;             // the energy's truncation, kept identical
+    const double rcut = sqrt(p)/eta;
+    const double gcut = 2.0*eta*sqrt(p);
+    std::vector<rvec3_t> F(N, rvec3_t(0,0,0));
+
+    double span=0.0;
+    for (size_t a=0; a<N; a++) for (size_t b=0; b<N; b++) span=std::max(span, norm(τ[a]-τ[b]));
+    for (const vec3_t<int>& n : LatticePointsInSphere(cell, rcut+span))
+    {
+        const rvec3_t R = cell.ToCartesian(rvec3_t(n.x,n.y,n.z));
+        const bool R0 = (n.x==0 && n.y==0 && n.z==0);
+        for (size_t a=0; a<N; a++)
+            for (size_t b=0; b<N; b++)
+            {
+                if (R0 && a==b) continue;
+                const rvec3_t d = τ[a]-τ[b]+R;
+                const double  r = norm(d);
+                if (r<1e-12 || r>rcut) continue;
+                const double s = q[a]*q[b]*(erfc(eta*r)/(r*r) + 2.0*eta/sqrt(Pi)*exp(-eta*eta*r*r)/r)/r;
+                F[a] += s*d;
+            }
+    }
+
+    const CellGeometry recip=cell.MakeReciprocal();
+    for (const vec3_t<int>& n : LatticePointsInSphere(recip, gcut))
+    {
+        if (n.x==0 && n.y==0 && n.z==0) continue;
+        const rvec3_t G  = recip.ToCartesian(rvec3_t(n.x,n.y,n.z));
+        const double  G2 = G*G;
+        double Sre=0.0, Sim=0.0;
+        for (size_t a=0; a<N; a++) { const double φ=G*τ[a]; Sre+=q[a]*cos(φ); Sim+=q[a]*sin(φ); }
+        const double w = 4.0*Pi/Ω*exp(-G2/(4.0*eta*eta))/G2;
+        for (size_t a=0; a<N; a++)
+        {
+            const double φ=G*τ[a];
+            F[a] += (w*q[a]*(Sre*sin(φ)-Sim*cos(φ)))*G;
+        }
+    }
+    return F;
+}
+
 } // namespace qchem

@@ -22,6 +22,22 @@ double Structure::IonIonEnergy(const std::function<double(int)>& zionOf) const
     return vnn;
 }
 
+// Its force: -∂/∂R_a of the pair sum, Σ_{b≠a} q_a q_b (R_a - R_b)/|R_a - R_b|³ (coincident sites skipped, as in the energy).
+rvec3vec_t Structure::IonIonForces(const std::function<double(int)>& zionOf) const
+{
+    const auto& S=Sites();
+    rvec3vec_t F(S.size(), rvec3_t(0,0,0));
+    for (size_t a=0;a<S.size();a++)
+        for (size_t b=0;b<S.size();b++)
+        {
+            const rvec3_t d=S[a].R-S[b].R;
+            if (b==a || d==rvec3_t(0,0,0)) continue;
+            const double r=norm(d);
+            F[a]+=(zionOf(S[a].Z)*zionOf(S[b].Z)/(r*r*r))*d;
+        }
+    return F;
+}
+
 // The site visitor (V1.19): one place reads the atom fields, every seed/decoration consumer asks the
 // question.  Index order matters -- consumers build tables parallel to the atom list.
 void Structure::ForEachSite(const std::function<void(int, const rvec3_t&, bool)>& f) const

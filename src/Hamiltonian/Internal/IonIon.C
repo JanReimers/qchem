@@ -86,29 +86,19 @@ public:
         te.Add("Enn", itsEnn, EnergyRole::Constant, 0.0);   // merges by name: a second Enn contributor adds, never clobbers (R1.2)
     }
 
-    // --- the force (GeometryOptimizationPlan §13.2), closed form: E_nn = Σ_{A<B} q_A q_B / |R_A - R_B|, so
-    //     -∂E_nn/∂R_A = Σ_{B≠A} q_A q_B (R_A - R_B) / |R_A - R_B|³, with the same ion charges as the energy (itsZionOf). ---
+    // --- the force (GeometryOptimizationPlan §13.2): the structure's own, beside its energy (Structure::IonIonForces) -- the pair sum's
+    //     closed form for a finite site set, the Ewald sum's for a periodic cell -- with the same ion charges as the energy (itsZionOf). ---
     virtual std::string MissingGradient(const tbs_t<T>*, const Structure* st) const override
     {
-        if (!st) return "IonIon: no structure";
-        if (st->HasTranslationSymmetry()) return "IonIon: the periodic (Ewald) ion-ion gradient is not built yet";
-        return "";
+        return st ? "" : "IonIon: no structure";
     }
     virtual void AddForces(rvec3vec_t& F, const tDM_CD<T>*, const Structure* st) const override
     {
-        if (!st || st->HasTranslationSymmetry()) throw std::logic_error("IonIon::AddForces: "+MissingGradient(nullptr, st));
-        std::vector<rvec3_t> R; std::vector<double> q;
-        st->ForEachSite([&](int Z, const rvec3_t& r, bool){ R.push_back(r); q.push_back(itsZionOf(Z)); });
-        if (R.size()!=F.size()) throw std::logic_error("IonIon::AddForces: the force array and the structure differ in atom count");
-        for (size_t A=0;A<R.size();A++)
-            for (size_t B=0;B<R.size();B++) if (B!=A)
-            {
-                const rvec3_t d=R[A]-R[B];
-                const double r=norm(d);
-                F[A]+=(q[A]*q[B]/(r*r*r))*d;
-            }
+        if (!st) throw std::logic_error("IonIon::AddForces: no structure");
+        const rvec3vec_t f=st->IonIonForces(itsZionOf);
+        if (f.size()!=F.size()) throw std::logic_error("IonIon::AddForces: the force array and the structure differ in atom count");
+        for (size_t A=0;A<F.size();A++) F[A]+=f[A];
     }
-
     virtual std::ostream& Write(std::ostream& os) const override
     {
         os << "    Ion-Ion energy E_nn = " << itsEnn << " Ha over " << theStructure->GetNumAtoms()

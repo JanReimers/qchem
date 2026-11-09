@@ -813,6 +813,15 @@ double UnitCell::IonIonEnergy(const std::function<double(int)>& zionOf) const
     return EwaldEnergy(*this, q);
 }
 
+rvec3vec_t UnitCell::IonIonForces(const std::function<double(int)>& zionOf) const
+{
+    rvec_t q(GetNumAtoms());
+    for (size_t a=0; a<GetNumAtoms(); a++) q[a]=zionOf(Sites()[a].Z);
+    const std::vector<rvec3_t> f=EwaldForces(*this, q);
+    rvec3vec_t F(f.size()); for (size_t a=0;a<f.size();a++) F[a]=f[a];
+    return F;
+}
+
 // The G = 0 background per cell volume (was Structure::SumFormFactors / GetCellVolume, same order of operations).
 double UnitCell::G0Background(const std::function<double(int)>& f) const
 {

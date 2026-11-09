@@ -20,6 +20,7 @@ module;
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.RealSpaceResidual;   // the quadrature owner's capability
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
+import qchem.Hamiltonian.Internal.GeometryGradient;   // the PP terms' force face (GeometryOptimizationPlan §13.2; lane B)
 import qchem.Parallel;                          // LazyLock (per-block writes from concurrent Fock blocks)
 import qchem.ChargeDensity.DensitySampler; // the XC SAMPLING ENGINE the three XC terms compose with.
                                                 // NOT re-exported: it is an .Internal. module, so a client
@@ -72,8 +73,13 @@ class Ven_PP_Short
     : public virtual cStatic_HT
     , private        cStatic_HT_Imp
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
+    , public virtual tGeometryGradient_HT<dcmplx>, public virtual tStatic_PC<dcmplx>   // its force (§13.2; lane B), after the private base
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<dcmplx>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const cDM_CD* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
     //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
@@ -108,8 +114,13 @@ class Ven_PP_NonLocal
     : public virtual cStatic_HT
     , private        cStatic_HT_Imp
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
+    , public virtual tGeometryGradient_HT<dcmplx>, public virtual tStatic_PC<dcmplx>   // its force (§13.2; lane B), after the private base
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<dcmplx>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const cDM_CD* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
     //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
@@ -155,8 +166,13 @@ class Ven_PP_Long
     : public virtual cStatic_HT
     , private        cStatic_HT_Imp
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
+    , public virtual tGeometryGradient_HT<dcmplx>, public virtual tStatic_PC<dcmplx>   // its force (§13.2; lane B), after the private base
 {
 public:
+    // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
+    virtual std::string MissingGradient(const tbs_t<dcmplx>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const cDM_CD* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
     //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my

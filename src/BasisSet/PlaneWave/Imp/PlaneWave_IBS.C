@@ -130,6 +130,72 @@ chmat_t PlaneWave_IBS::MakeProjectorMatrix(const Structure* cl, const SpeciesPro
     return V;
 }
 
+//------------------------------------------------------------------------------ the structure-factor pullbacks (GeometryOptimizationPlan §13.2)
+// E = Tr(D V) = Σ_ij conj(D_ij) V_ij for Hermitian D and V, and V = Σ_a V^a with V^a_ij ∝ e^{-iΔG_ij·τ_a}: the plane waves stay put, so the
+// atom's own block is all that moves, ∂V_ij/∂τ_a = −iΔG_ij V^a_ij.  The ΔG = 0 element drops out by its factor.
+template <class PerAtom> rvec3vec_t PlaneWave_IBS::StructureFactorPullback(const Structure* cl, const chmat_t& D, PerAtom&& perAtom) const
+{
+    if (!cl) throw std::invalid_argument("PlaneWave_IBS: a geometry pullback needs the structure");
+    const size_t n=GetNumFunctions();
+    if (D.rows()!=n) throw std::invalid_argument("PlaneWave_IBS: D is "+std::to_string(D.rows())+" square for "+std::to_string(n)+" plane waves");
+    const CellGeometry& B=Recip().GetCell();
+    const std::vector<ivec3_t>& G=Gs();
+    const size_t N=cl->GetNumAtoms();
+    rvec3vec_t F(N, rvec3_t(0,0,0));
+    for (size_t i=0; i<n; i++)
+        for (size_t j=0; j<n; j++)
+        {
+            if (G[i]==G[j]) continue;
+            const rvec3_t dG=B.ToCartesian(rvec3_t(G[i]-G[j]));
+            const dcmplx cD=std::conj(D(i,j));
+            for (size_t a=0; a<N; a++)
+                F[a]+=std::real(cD*dcmplx(0.0,-1.0)*perAtom(i,j,a,dG))*dG;
+        }
+    return F;
+}
+
+Outcome<rvec3vec_t,AD::NoGradient> PlaneWave_IBS::MakeSpeciesFieldPullback(const Structure* cl, const SpeciesRadialField& f, FieldRange rng,
+                                                                          const chmat_t& D) const
+{
+    const double Om=Volume();
+    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(StructureFactorPullback(cl, D, [&](size_t, size_t, size_t a, const rvec3_t& dG)
+    {
+        const Site& s=cl->Sites()[a];
+        return f.ValueQ(s.Z, dG*dG, rng)*std::exp(dcmplx(0.0,-(dG*s.R)))/Om;
+    }));
+}
+
+Outcome<rvec3vec_t,AD::NoGradient> PlaneWave_IBS::MakeNuclearPullback(const hmat_t<dcmplx>& D, const Structure* cl) const
+{
+    const double Om=Volume();
+    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(StructureFactorPullback(cl, D, [&](size_t, size_t, size_t a, const rvec3_t& dG)
+    {
+        const Site& s=cl->Sites()[a];
+        return (-FourPi*s.Z/(dG*dG))*std::exp(dcmplx(0.0,-(dG*s.R)))/Om;
+    }));
+}
+
+Outcome<rvec3vec_t,AD::NoGradient> PlaneWave_IBS::MakeProjectorPullback(const Structure* cl, const SpeciesProjectorSet& v, const chmat_t& D) const
+{
+    const CellGeometry& B=Recip().GetCell();
+    Internal::KPlusG kg(B, kFrac(), Gs());
+    int maxL=0;
+    for (const Site& a : cl->Sites()) for (size_t p=0; p<v.Count(a.Z); p++) maxL=std::max(maxL, v.L(a.Z,p));
+    const double Om=Volume();
+    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(StructureFactorPullback(cl, D, [&](size_t i, size_t j, size_t a, const rvec3_t& dG)
+    {
+        const Site& s=cl->Sites()[a];
+        const rvec_t P=SpecialFunctions::LegendreP(maxL, kg.CosGamma(i,j));
+        double t=0.0;   // as MakeProjectorMatrix: Σ_p (2l+1) P_l(cos γ) β̃_p(q_i) D_p β̃_p(q_j)
+        for (size_t p=0; p<v.Count(s.Z); p++)
+        {
+            const int l=v.L(s.Z,p);
+            t+=(2*l+1)*P[l]*v.RadialQ(s.Z,p,kg.Norm(i))*v.Weight(s.Z,p)*v.RadialQ(s.Z,p,kg.Norm(j));
+        }
+        return t*std::exp(dcmplx(0.0,-(dG*s.R)))/Om;
+    }));
+}
+
 //------------------------------------------------------------------------------ the +U projector set (OpenWork PW-3)
 namespace
 {

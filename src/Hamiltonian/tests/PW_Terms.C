@@ -29,6 +29,7 @@ import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long, Vee_Ha
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
+import qchem.Hamiltonian.Internal.GeometryGradient;   // the terms' force face (GeometryOptimizationPlan §13.2)
 import qchem.Hamiltonian.Internal.IonIon;           // IonIon<double> (ion-ion term: the structure's own pair sum / Ewald)
 import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
 import qchem.Energy;                                // EnergyBreakdown
@@ -334,3 +335,67 @@ TEST(PW_Terms, HartreeFromFourierMatchesPointwise)
 }
 
 } //namespace
+
+// THE STRUCTURE-FACTOR FORCES of the plane-wave PP terms and the Ewald ion-ion term (GeometryOptimizationPlan §13.2; lane B 2026-11-08):
+// each term's force at a FIXED (random, Hermitian, genuinely complex: k = b1/4 is not a TRIM) density, driven through the term face
+// (tGeometryGradient_HT::AddForces, the density walk to the basis pullback), against the central difference of that term's own energy,
+// Re Tr(D V) (+ E_nn for the ion-ion term), at displaced atoms of a distorted two-atom Si cell.  The plane waves do not move, so one
+// basis and one density serve every displaced point.  Smooth in τ: at h = 1e-4 the h²/6 |E‴| is ~1e-9, so 2e-6 (relative above 1).
+TEST(PW_Terms, ThePPAndIonIonForcesAtFixedDAreTheirEnergysFiniteDifference)
+{
+    const double a=10.26, h=0.5*a;
+    Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
+    auto cell=std::make_shared<UnitCell>(Amat);
+    cell->AddAtom(14,rvec3_t(0.0,0.0,0.0));
+    cell->AddAtom(14,rvec3_t(0.27,0.24,0.26));
+    const ivec3_t N(4,4,4);
+    Lattice_3D    lat(*cell, N);
+    PlaneWave_IBS pw(lat.Reciprocal(), N, ivec3_t(1,0,0), 4.0);
+    const size_t n=pw.GetNumFunctions();
+    hmat_t<dcmplx> D(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+        D(i,j)= i==j ? dcmplx(0.3+0.01*((7*i)%11),0.0) : dcmplx(0.02*((3*i+5*j)%7)-0.06, 0.015*((i+3*j)%5)-0.03);
+    const Irrep irr=pw.GetIrrep(Spin::None);
+    const qchem::ChargeDensity::PeriodicIrrepCD<dcmplx> cd(D, &pw, irr);
+    const GTH_PP siPP=GetGTH("Si","LDA",4);
+    const qchem::tests::pw::OneBlockBS<dcmplx> whole(&pw);
+
+    using Term=std::unique_ptr<qchem::Hamiltonian::cStatic_HT>;
+    auto build=[&](const std::shared_ptr<const Structure>& st)
+    {
+        std::vector<std::pair<std::string,Term>> t;
+        t.emplace_back("Ven_PP_Short",    Term(new qchem::Hamiltonian::Ven_PP_Short(st, &siPP.local)));
+        t.emplace_back("Ven_PP_Long",     Term(new qchem::Hamiltonian::Ven_PP_Long(st, &siPP.local)));
+        t.emplace_back("Ven_PP_NonLocal", Term(new qchem::Hamiltonian::Ven_PP_NonLocal(st, &siPP.nonlocal)));
+        t.emplace_back("IonIon",          Term(new qchem::Hamiltonian::IonIon<dcmplx>(st, [](int){return 4.0;})));
+        return t;
+    };
+    auto energy=[&](const qchem::Hamiltonian::cStatic_HT& t)
+    {
+        const chmat_t M=t.GetMatrix(&pw, Spin::None);
+        double e=0.0; for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) e+=std::real(std::conj(dcmplx(D(i,j)))*dcmplx(M(i,j)));
+        EnergyBreakdown eb; t.GetEnergy(eb, &cd);
+        return e+eb["Enn"];   // the ion-ion term's constant; the PP terms' E_alphaZ is N·α, fixed at fixed D and cell
+    };
+    std::vector<rvec3_t> R; cell->ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+    const std::shared_ptr<const Structure> st=cell;
+    const auto terms=build(st);
+    for (size_t t=0;t<terms.size();t++)
+    {
+        const auto& g=dynamic_cast<const qchem::Hamiltonian::tGeometryGradient_HT<dcmplx>&>(*terms[t].second);
+        EXPECT_EQ(g.MissingGradient(&whole, st.get()), "") << terms[t].first;
+        rvec3vec_t F(R.size(), rvec3_t(0,0,0));
+        g.AddForces(F, &cd, st.get());
+        const double dh=1e-4; double largest=0.0;
+        for (size_t A=0;A<R.size();A++) for (int k=0;k<3;k++)
+        {
+            auto E=[&](double s){ auto Rs=R; (k==0 ? Rs[A].x : k==1 ? Rs[A].y : Rs[A].z)+=s;
+                                  std::shared_ptr<Structure> m=cell->Clone(); m->MoveSites(Rs);
+                                  return energy(*build(m)[t].second); };
+            const double fd=-(E(dh)-E(-dh))/(2*dh), an = k==0 ? F[A].x : k==1 ? F[A].y : F[A].z;
+            EXPECT_NEAR(an, fd, 2e-6*std::max(1.0,std::fabs(fd))) << terms[t].first << ", atom " << A << " axis " << k;
+            largest=std::max(largest, std::fabs(fd));
+        }
+        EXPECT_GT(largest, 1e-3) << terms[t].first << " moves with the atoms";
+    }
+}

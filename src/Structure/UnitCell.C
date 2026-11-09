@@ -90,6 +90,8 @@ public:
 
     //! The Ewald lattice sum of the point ions in a uniform neutralising background (\c EwaldEnergy, \c qchem.Ewald).
     double IonIonEnergy(const std::function<double(int Z)>& zionOf) const override;
+    //! Its force, the Ewald sum differentiated term by term (\c EwaldForces).
+    rvec3vec_t IonIonForces(const std::function<double(int Z)>& zionOf) const override;
 
     //! The periodic G = 0 background PER CELL VOLUME: \f$\frac1\Omega\sum_a f(Z_a)\f$.
     double G0Background(const std::function<double(int Z)>& f) const override;

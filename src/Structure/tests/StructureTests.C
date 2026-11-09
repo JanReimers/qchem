@@ -1,3 +1,6 @@
+#include <cmath>
+#include <algorithm>
+#include <memory>
 #include <memory>
 #include <vector>
 #include <ranges>
@@ -186,6 +189,59 @@ TEST_F(StructureTests, EwaldEtaIndependence)
     si2.AddAtom(14,{0.10,0.20,0.30});
     si2.AddAtom(14,{0.35,0.45,0.55});
     EXPECT_NEAR(EwaldEnergy(si2,q),eAuto,1e-9);
+}
+
+// THE ION-ION FORCES (GeometryOptimizationPlan §13.2; lane B 2026-11-08): EwaldForces against the central difference of EwaldEnergy on a
+// distorted Si cell (net charge 8) and a distorted neutral CsCl cell, η-independent, summing to zero; and the finite pair sum's
+// IonIonForces against the FD of its IonIonEnergy.  The energy's own truncation (e^{-34}) and the FD's h²/6 |E‴| at h = 1e-4 put the
+// difference far below 1e-7.
+TEST_F(StructureTests, EwaldForcesAreTheFiniteDifferenceOfTheEnergyAndEtaIndependent)
+{
+    auto check=[](const UnitCell& cell, const rvec_t& q, const char* what)
+    {
+        const std::vector<rvec3_t> F=EwaldForces(cell,q), Flo=EwaldForces(cell,q,0.15), Fhi=EwaldForces(cell,q,0.50);
+        std::vector<rvec3_t> R; cell.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+        const double h=1e-4; rvec3_t sum(0,0,0); double largest=0.0;
+        for (size_t a=0;a<R.size();a++)
+        {
+            sum+=F[a];
+            EXPECT_LT(norm(F[a]-Flo[a]), 1e-8) << what << ": η-independence, atom " << a;
+            EXPECT_LT(norm(F[a]-Fhi[a]), 1e-8) << what << ": η-independence, atom " << a;
+            for (int k=0;k<3;k++)
+            {
+                auto E=[&](double s){ auto Rs=R; (k==0 ? Rs[a].x : k==1 ? Rs[a].y : Rs[a].z)+=s;
+                                      std::shared_ptr<Structure> m=cell.Clone(); m->MoveSites(Rs);
+                                      return EwaldEnergy(dynamic_cast<const UnitCell&>(*m),q); };
+                const double fd=-(E(h)-E(-h))/(2*h), an = k==0 ? F[a].x : k==1 ? F[a].y : F[a].z;
+                EXPECT_NEAR(an, fd, 1e-7*std::max(1.0,std::fabs(fd))) << what << ", atom " << a << " axis " << k;
+                largest=std::max(largest, std::fabs(fd));
+            }
+        }
+        EXPECT_GT(largest, 1e-3) << what << ": the distorted cell has forces (far above the 1e-7 gate, so a sign would show)";
+        EXPECT_LT(norm(sum), 1e-9) << what << ": the forces sum to zero";
+    };
+    FCCUnitCell si(10.26);
+    si.AddAtom(14,{0.0,0.0,0.0});
+    si.AddAtom(14,{0.27,0.24,0.26});
+    check(si, rvec_t{4.0,4.0}, "Si");
+    UnitCell cscl(7.0);
+    cscl.AddAtom(55,{0.0,0.0,0.0});
+    cscl.AddAtom(17,{0.53,0.46,0.51});
+    check(cscl, rvec_t{1.0,-1.0}, "CsCl");
+    // The structure's own face routes to the same sums: Ewald for a cell, the pair sum's closed form for a molecule.
+    const auto Fsi=si.IonIonForces([](int){return 4.0;});
+    const auto Esi=EwaldForces(si, rvec_t{4.0,4.0});
+    for (size_t a=0;a<Esi.size();a++) EXPECT_LT(norm(Fsi[a]-Esi[a]), 1e-14);
+    Molecule m; m.Insert(Site{8,rvec3_t(0,0,0.1)}); m.Insert(Site{1,rvec3_t(0,1.4,-0.9)}); m.Insert(Site{1,rvec3_t(0.2,-1.3,-0.8)});
+    auto zid=[](int Z){return double(Z);};
+    const auto Fm=m.IonIonForces(zid);
+    std::vector<rvec3_t> R; m.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+    for (size_t a=0;a<R.size();a++) for (int k=0;k<3;k++)
+    {
+        auto E=[&](double s){ auto Rs=R; (k==0 ? Rs[a].x : k==1 ? Rs[a].y : Rs[a].z)+=s; std::shared_ptr<Structure> c=m.Clone(); c->MoveSites(Rs); return c->IonIonEnergy(zid); };
+        const double fd=-(E(1e-5)-E(-1e-5))/(2e-5), an = k==0 ? Fm[a].x : k==1 ? Fm[a].y : Fm[a].z;
+        EXPECT_NEAR(an, fd, 1e-7*std::max(1.0,std::fabs(fd))) << "molecule, atom " << a << " axis " << k;
+    }
 }
 
 // Absolute anchor against a textbook Madelung constant.  CsCl = a simple-cubic cell with a +1 cation at

@@ -14,6 +14,7 @@
 
 import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 import qchem.BasisSet.Orbital_1E_IBS;        // the derivative methods on the 1E faces (GeometryOptimizationPlan §13.2)
+import qchem.BasisSet.Orbital_PP_IBS;        // the species-field / projector pullbacks (the structure-factor force)
 import qchem.Structure;                       // Molecule, Site (the atoms a pullback is sized to)
 import qchem.BasisSet.Lattice.BandStructure;  // THE SolveBands (V1.21: this file no longer keeps its own)
 import qchem.BasisSet.G_FieldEvaluator;      // G_PoissonKernel / G_RasterTransform -- the fit basis's G-space seams
@@ -648,9 +649,8 @@ TEST(PlaneWave_AtomCentredSet, CapturedFractionRisesToOne)
 
 // THE DERIVATIVE METHODS on the PW faces (GeometryOptimizationPlan §13.2), one gate per method.  A plane wave does not depend on the atoms
 // at all (the block is built from the reciprocal lattice, the k index and the cutoff, never a position), so the FD of S and K in any atom
-// position is identically zero: the pullbacks must be EXACT zeros, sized to the structure, and the Can queries say so.  The nuclear
-// pullback (the structure-factor Hellmann-Feynman force, non-zero) is not built yet: it refuses, and CanPullbackNuclear says so.
-TEST_F(PlaneWaveTests, ThePWOverlapAndKineticPullbacksAreExactZerosAndTheNuclearOneRefuses)
+// position is identically zero: the pullbacks must be EXACT zeros, sized to the structure, and the Can queries say so.
+TEST_F(PlaneWaveTests, ThePWOverlapAndKineticPullbacksAreExactZeros)
 {
     UnitCell cell(5.0);
     ivec3_t N(4,4,4);
@@ -665,8 +665,51 @@ TEST_F(PlaneWaveTests, ThePWOverlapAndKineticPullbacksAreExactZerosAndTheNuclear
     ASSERT_TRUE(FS && FK);
     ASSERT_EQ(FS->size(), 3u); ASSERT_EQ(FK->size(), 3u);
     for (size_t a=0;a<3;a++) { EXPECT_EQ(norm((*FS)[a]), 0.0); EXPECT_EQ(norm((*FK)[a]), 0.0); }
-    EXPECT_FALSE(block.CanPullbackNuclear());
-    const auto FV=block.MakeNuclearPullback(A,&three);
-    ASSERT_FALSE(FV) << "the structure-factor force is not built yet";
-    EXPECT_FALSE(FV.Error().why.empty());
+}
+
+// THE STRUCTURE-FACTOR PULLBACKS (§13.2; lane B 2026-11-08): the nuclear, the species-field (each range) and the projector pullbacks of a
+// PW block against the central difference of Re Σ_ij conj(D_ij) M_ij of the SAME assemblies at displaced atoms, with a random Hermitian
+// D at a NON-TRIM k (so D and M are genuinely complex), on a distorted two-atom Si cell (GTH-LDA q4 local and KB parts, the all-electron
+// Z = 14 Coulomb for the nuclear block).  Each M_ij depends on τ_a only through e^{-iΔG·τ_a}, so the FD error is h²/6 |ΔG|³ ~ 2e-9 |f′|
+// at h = 1e-4 for the |ΔG| of a 4 Ha cutoff: 2e-6 (relative above 1).  (No translation check: at a FIXED D in the plane-wave basis a
+// rigid move is not a symmetry -- D would rotate by the same phases.)
+TEST_F(PlaneWaveTests, ThePWStructureFactorPullbacksAreTheFiniteDifferenceOfItsOwnMatrices)
+{
+    using BasisSet::FieldRange;
+    FCCUnitCell si(10.26);
+    si.AddAtom(14,{0.0,0.0,0.0});
+    si.AddAtom(14,{0.27,0.24,0.26});
+    const ivec3_t N(4,4,4);
+    Lattice_3D lat(si,N);
+    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(1,0,0),4.0);   // k = b1/4: not a TRIM
+    const size_t n=pw.GetNumFunctions();
+    hmat_t<dcmplx> D(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+        D(i,j)= i==j ? dcmplx(0.3+0.01*((7*i)%11),0.0) : dcmplx(0.02*((3*i+5*j)%7)-0.06, 0.015*((i+3*j)%5)-0.03);
+    const GTH_PP pp=GetGTH("Si","LDA",4);
+    const auto& loc=pp.local; const auto& nl=pp.nonlocal;
+    const BasisSet::Orbital_PP_IBS<dcmplx>& face=pw;
+    const BasisSet::Orbital_1E_IBS<dcmplx>& one=pw;
+    ASSERT_TRUE(face.CanPullbackSpeciesField(loc) && face.CanPullbackProjectors(nl) && one.CanPullbackNuclear());
+    std::vector<rvec3_t> R; si.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+    auto ReTr=[&](const chmat_t& M){ double t=0.0; for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) t+=std::real(std::conj(dcmplx(D(i,j)))*dcmplx(M(i,j))); return t; };
+    auto check=[&](const rvec3vec_t& F, auto value, const char* what)
+    {
+        const double h=1e-4; double largest=0.0;
+        ASSERT_EQ(F.size(), R.size()) << what;
+        for (size_t a=0;a<R.size();a++) for (int k=0;k<3;k++)
+        {
+            auto at=[&](double s){ auto Rs=R; (k==0 ? Rs[a].x : k==1 ? Rs[a].y : Rs[a].z)+=s; std::shared_ptr<Structure> m=si.Clone(); m->MoveSites(Rs); return value(m.get()); };
+            const double fd=(at(h)-at(-h))/(2*h), an = k==0 ? F[a].x : k==1 ? F[a].y : F[a].z;
+            EXPECT_NEAR(an, fd, 2e-6*std::max(1.0,std::fabs(fd))) << what << ", atom " << a << " axis " << k;
+            largest=std::max(largest, std::fabs(fd));
+        }
+        EXPECT_GT(largest, 1e-3) << what << " moves with the atoms";
+    };
+    check(*one.MakeNuclearPullback(D,&si), [&](const Structure* m){ return ReTr(one.MakeNuclear(m)); }, "nuclear");
+    for (FieldRange range : {FieldRange::Short, FieldRange::Long, FieldRange::Full})
+        check(*face.MakeSpeciesFieldPullback(&si, loc, range, D), [&](const Structure* m){ return ReTr(face.MakeSpeciesFieldMatrix(m, loc, range)); },
+              range==FieldRange::Short ? "local short" : range==FieldRange::Long ? "local long" : "local full");
+    check(*face.MakeProjectorPullback(&si, nl, D), [&](const Structure* m){ return ReTr(face.MakeProjectorMatrix(m, nl)); }, "projectors");
+    EXPECT_THROW((void)face.MakeProjectorPullback(&si, nl, hmat_t<dcmplx>(n+1)), std::invalid_argument) << "a mismatched D";
 }
