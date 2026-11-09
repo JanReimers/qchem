@@ -236,7 +236,7 @@ TEST(Deck, AStatedValenceOverridesTheMaterialAndBadStructuresAreRefused)
     catch (const std::runtime_error& e)
     {
         EXPECT_NE(std::string(e.what()).find("Si_diamond"),std::string::npos) << "lists the known names";
-        EXPECT_NE(std::string(e.what()).find("stated INLINE"),std::string::npos) << "a deck never names a user material: it says to inline it (controller ruling 2026-11-09)";
+        EXPECT_NE(std::string(e.what()).find("a user material must be inlined in the deck"),std::string::npos) << "a deck never names a user material: it says to inline it (controller ruling 2026-11-09)";
     }
     deck::RunSpec mol; mol.structure=StructureData::MoleculeNames().front();
     EXPECT_THROW(deck::Resolve(mol), std::runtime_error);

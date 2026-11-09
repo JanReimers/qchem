@@ -152,7 +152,8 @@ TEST(Materials, AUserMaterialRunsInlineNeverByName)
                                           (std::filesystem::temp_directory_path() / "qchem-ut-calc-materials.json").string()};
     std::filesystem::remove(mine.path);
     StructureData::SaveMaterial(mine, "NaF_mine", R"({"lattice":{"vectors_bohr":[[0,4.365,4.365],[4.365,0,4.365],[4.365,4.365,0]]},"atoms":[{"el":"Na","frac":[0,0,0]},{"el":"F","frac":[0.5,0.5,0.5]}],"provenance":{"source":"NaF.cif"}})");
-    EXPECT_THROW(Materials::Get("NaF_mine"), std::runtime_error) << "not a shipped name";
+    try { (void)Materials::Get("NaF_mine"); ADD_FAILURE() << "a user material ran by name"; }
+    catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("a user material must be inlined in the deck"), std::string::npos) << e.what(); }
     const Materials::Material m=Materials::Inline(StructureData::GetCellEntry("NaF_mine", {mine}).entryJson, "gth-lda-valence");
     EXPECT_EQ(m.Nelec(), Materials::Get("NaF_rocksalt").Nelec());
     std::filesystem::remove(mine.path);

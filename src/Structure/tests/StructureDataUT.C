@@ -94,7 +94,7 @@ TEST(StructureData, ASavedMaterialIsAUserLayerEntryBesideTheShippedOnes)
     EXPECT_EQ(SD::CellFromEntry(e.entryJson, e.name).GetNumAtoms(), 2u);
     EXPECT_NE(e.entryJson.find("provenance"), std::string::npos) << "the entry is saved whole";
     EXPECT_EQ(SD::CellNames().size(), shipped) << "the shipped list (what a deck may name) is unchanged";
-    EXPECT_NE(Thrown([]{ (void)SD::KindOf("MgO_imported"); }).find("stated INLINE"), std::string::npos) << "a deck never names it";
+    EXPECT_NE(Thrown([]{ (void)SD::KindOf("MgO_imported"); }).find("a user material must be inlined in the deck"), std::string::npos) << "a deck never names it";
     // a second save of the name is refused unless it says replace; a replace keeps the entry's place
     EXPECT_NE(Thrown([&]{ SD::SaveMaterial(mine.file, "MgO_imported", kRocksalt); }).find("replace it, or choose another name"), std::string::npos);
     SD::SaveMaterial(mine.file, "Second", kRocksalt);

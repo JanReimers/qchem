@@ -165,7 +165,7 @@ int qcb_space_group(const double* lattice9, const int* species, int nat, const d
 
 //! One materials request as JSON text, its answer as JSON text (`{"error": "..."}` on a refusal, in the library's words).  The
 //! library reads no environment: the caller passes every library it layers over the shipped one, as
-//! `"libraries": [{"layer": "user"|"workspace", "path": P}, ...]` (the GUI resolves ~/.qchem/materials.json itself):
+//! `"libraries": [{"layer": "user"|"workspace", "path": P}, ...]` (the GUI resolves ~/.solid2/materials.json itself):
 //!   {"op":"list","libraries":L}                          -> {"materials":[{name, layer: shipped|user|workspace, file, entry, lattice_bohr}]}
 //!   {"op":"import","path":P}                             -> {entry, name, warnings, lattice_bohr}   (CIF / POSCAR / extended xyz)
 //!   {"op":"export","entry":E,"format":F,"name":N}        -> {text}   (F: cif | poscar | xyz)

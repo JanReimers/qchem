@@ -44,7 +44,7 @@ std::vector<std::string> CellNames();
 //! \brief THE LAYERS of the materials (OpenWork §2, ruled 2026-11-09).  The SHIPPED file stays CURATED: its lattice constants
 //! anchor tests, and promoting a material into it is a deliberate commit.  Imports go to the USER's own library (same schema), and
 //! a workspace may add its own on top.  The library reads NO environment for them (controller ruling 2026-11-09, the getenv
-//! audit): whoever knows where a library lives -- the GUI resolves ~/.qchem/materials.json -- passes its PATH in.  And a DECK
+//! audit): whoever knows where a library lives -- the GUI resolves ~/.solid2/materials.json -- passes its PATH in.  And a DECK
 //! never names a non-shipped material: it inlines the entry (the deck is the one source of a run's numbers, D-ENV), so
 //! \c KindOf / \c GetCell stay shipped-only.  A name lives in ONE layer: a user or workspace entry may not reuse a shipped (or
 //! molecule) name, nor another layer's.

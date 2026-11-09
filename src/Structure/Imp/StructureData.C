@@ -79,7 +79,7 @@ Kind KindOf(const std::string& name)
     if (mol)  return Kind::Molecule;
     if (cell) return Kind::Cell;
     throw std::runtime_error("StructureData: no entry '" + name + "' among the shipped structures; known: " + KnownNames()
-                             + " -- a material of your own is stated INLINE (the entry itself as the structure), never by name");
+                             + " -- a user material must be inlined in the deck (its entry as the structure), never named");
 }
 
 Molecule GetMolecule(const std::string& name)
@@ -244,7 +244,8 @@ CellEntry GetCellEntry(const std::string& name, const std::vector<LibraryFile>& 
     const auto all=CellEntries(layers);
     for (const auto& e : all) if (e.name==name) return e;
     std::string known; for (const auto& e : all) known += (known.empty() ? "" : ", ") + e.name;
-    throw std::runtime_error("StructureData: no material '" + name + "'; known: " + known);
+    throw std::runtime_error("StructureData: no material '" + name + "'; known: " + known
+                             + (layers.empty() ? " -- a user material must be inlined in the deck (its entry as the structure), never named" : ""));
 }
 
 void SaveMaterial(const LibraryFile& into, const std::string& name, const std::string& entryJson, bool replace,
