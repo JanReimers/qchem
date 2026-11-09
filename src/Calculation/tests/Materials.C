@@ -5,6 +5,7 @@
 // one re-based cell (MnO AFM-II) reproduces the nine literals the campaign wrote by hand, and the decoration
 // reaches the atoms.  A lattice constant in the file that drifts moves an anchor -- these tests do not pin
 // the constants themselves (the anchored SCF tests do), only that the file says what the tests expect.
+#include <filesystem>
 #include "gtest/gtest.h"
 #include <set>
 #include <stdexcept>
@@ -12,6 +13,8 @@
 #include <vector>
 
 import qchem.Materials;
+import qchem.StructureData;   // SaveMaterial, GetCellEntry: the user layer
+import qchem.CrystalFiles;   // an imported entry IS an entry: it runs through Inline
 import qchem.Pseudopotential.Set;
 import qchem.Types;
 
@@ -123,4 +126,35 @@ TEST(Materials, BoxesAndMoleculesAndMisses)
     EXPECT_THROW(M::Get("Unobtainium"), std::runtime_error);
     EXPECT_THROW(M::Get("_doc"),        std::runtime_error) << "the documentation key is not an entry";
     EXPECT_THROW(M::Get("H2O"),         std::runtime_error) << "a molecule is not a material";
+}
+
+// AN IMPORT IS AN ENTRY (OpenWork §2, ruled 2026-11-09): what a CIF translates to, provenance and all, is a material the deck path
+// (Inline) takes as it is -- rocksalt NaF from a two-site F m -3 m asymmetric unit lands on the shipped NaF_rocksalt cell.
+TEST(Materials, AnImportedCrystalIsAnInlineMaterial)
+{
+    const std::string cif="data_NaF\n_cell_length_a 4.619717051183\n_cell_length_b 4.619717051183\n_cell_length_c 4.619717051183\n"
+        "_cell_angle_alpha 90\n_cell_angle_beta 90\n_cell_angle_gamma 90\n"
+        "loop_\n_symmetry_equiv_pos_as_xyz\nx,y,z\nx,1/2+y,1/2+z\n1/2+x,y,1/2+z\n1/2+x,1/2+y,z\n-x,-y,-z\n"
+        "loop_\n_atom_site_label\n_atom_site_fract_x\n_atom_site_fract_y\n_atom_site_fract_z\nNa 0 0 0\nF 0.5 0.5 0.5\n";
+    const auto imp=CrystalFiles::Read(cif, CrystalFiles::Format::CIF, "NaF.cif", "2026-11-09");
+    const Materials::Material m=Materials::Inline(imp.entry, "gth-lda-valence");
+    const Materials::Material shipped=Materials::Get("NaF_rocksalt");
+    EXPECT_EQ(m.cell->GetNumAtoms(), 2u);
+    EXPECT_EQ(m.Nelec(), shipped.Nelec());
+    EXPECT_NEAR(m.cell->GetCellVolume(), shipped.cell->GetCellVolume(), 1e-9) << "a = 8.73 bohr, the shipped cell";
+}
+
+// A SAVED MATERIAL RUNS INLINE, NEVER BY NAME (controller ruling 2026-11-09): the deck is the one source of a run's numbers, so a
+// material of the user's own enters it as the entry itself -- which Inline takes, provenance and all -- and Get refuses its name.
+TEST(Materials, AUserMaterialRunsInlineNeverByName)
+{
+    const StructureData::LibraryFile mine{StructureData::Layer::User,
+                                          (std::filesystem::temp_directory_path() / "qchem-ut-calc-materials.json").string()};
+    std::filesystem::remove(mine.path);
+    StructureData::SaveMaterial(mine, "NaF_mine", R"({"lattice":{"vectors_bohr":[[0,4.365,4.365],[4.365,0,4.365],[4.365,4.365,0]]},"atoms":[{"el":"Na","frac":[0,0,0]},{"el":"F","frac":[0.5,0.5,0.5]}],"provenance":{"source":"NaF.cif"}})");
+    try { (void)Materials::Get("NaF_mine"); ADD_FAILURE() << "a user material ran by name"; }
+    catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("a user material must be inlined in the deck"), std::string::npos) << e.what(); }
+    const Materials::Material m=Materials::Inline(StructureData::GetCellEntry("NaF_mine", {mine}).entryJson, "gth-lda-valence");
+    EXPECT_EQ(m.Nelec(), Materials::Get("NaF_rocksalt").Nelec());
+    std::filesystem::remove(mine.path);
 }
