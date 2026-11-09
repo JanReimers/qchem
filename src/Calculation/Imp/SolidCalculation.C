@@ -2950,13 +2950,14 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     cellR.MoveSites(R);
     const Lattice_3D latR(cellR, S.reference.GetLimits());
 
-    // THE IMPOSED GROUP must survive (Q4): a geometry that lowers it is a NEW setup, the user's choice -- never a silent re-fold.
+    // THE IMPOSED GROUP must survive (Q4): a geometry that lowers it is a NEW setup, the user's choice -- never a silent re-fold.  A
+    // THROW, not an Outcome: every driver that moves atoms off the group runs a lower-group setup, so this is a wiring defect.
     if (S.imposed && moved>0.0)
     {
         auto order=[&](const Lattice_3D& l){ return S.siteSpins.empty() ? l.GetSpaceGroup().Order() : l.ShubnikovOps(S.siteSpins).size(); };
         if (const size_t now=order(latR), was=order(S.reference); now<was)
-            return O::Fail({Why::SymmetryBroken, "these positions keep "+std::to_string(now)+" of the imposed group's "+std::to_string(was)
-                            +" operations -- symmetrize the step, or resolve a new setup with the lower group"});
+            throw std::invalid_argument("SolidSession::ConvergeAt: these positions keep "+std::to_string(now)+" of the imposed group's "+std::to_string(was)
+                                        +" operations -- step through a map that keeps the group (WyckoffMap), or resolve a new setup with the lower group");
     }
 
     auto point=std::make_unique<Point>();

@@ -218,8 +218,7 @@ TEST(SolidSession, RefusalsAreOutcomesAndAWrongCountThrows)
     ASSERT_FALSE(F); EXPECT_EQ(F.Error().why, PESFailure::Why::NoGradient);
 
     std::vector<rvec3_t> broken=R; broken[1].x+=0.05;
-    auto B=pes.ConvergeAt(ref.cell, broken);
-    ASSERT_FALSE(B); EXPECT_EQ(B.Error().why, PESFailure::Why::SymmetryBroken) << B.Error().details;
+    EXPECT_THROW((void)pes.ConvergeAt(ref.cell, broken), std::invalid_argument) << "an off-group R on an imposed setup is a wiring defect";
 
     rmat3d_t strained=*ref.cell; for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) strained(i,j)*=1.01;   // a 1% isotropic strain
     auto C=pes.ConvergeAt(strained, R);

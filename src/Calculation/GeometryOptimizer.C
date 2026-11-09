@@ -3,7 +3,7 @@
 // qchem::GeometryOptimizer -- a structure-neutral quasi-Newton optimizer that drives a PotentialEnergySurface through a CoordinateMap
 // (doc/GeometryOptimizationPlan.md §1; user rulings 2026-11-07, §12: Cartesian behind a coordinate map, the force threshold derived from
 // eps by a named calibration, no finite-difference forces).  It sees only q, E(q) and dE/dq.  A molecule maps Cartesian (the external
-// modes projected out); a solid will map its cell and free Wyckoff parameters through the same face.
+// modes projected out); a solid maps its free Wyckoff parameters through the same face (\c WyckoffMap, qchem.WyckoffMap; the cell later).
 //
 // THE METHOD.  BFGS on the Hessian in q, a rational-function (RFO) step in the map's step space, capped by a trust radius that grows on
 // a well-predicted step and shrinks on a poor one; a step that RAISES the energy is rejected and the radius cut.  No line search: every
@@ -166,7 +166,7 @@ CartesianMap::CartesianMap(const PESGeometry& reference, External external, std:
     : itsRef(reference), itsExternal(external), itsOps(std::move(ops))
 {
     if (itsRef.R.empty()) throw std::invalid_argument("CartesianMap: the reference has no atoms");
-    if (itsRef.cell)      throw std::invalid_argument("CartesianMap: the reference carries a cell -- a solid needs its own map (cell + Wyckoff)");
+    if (itsRef.cell)      throw std::invalid_argument("CartesianMap: the reference carries a cell -- a solid maps through WyckoffMap");
     for (size_t k=0;k<itsOps.size();++k)
         if (itsOps[k].perm.size()!=itsRef.R.size())
             throw std::invalid_argument("CartesianMap: operation "+std::to_string(k)+" permutes "+std::to_string(itsOps[k].perm.size())+" atoms, the reference has "

@@ -65,8 +65,7 @@ TEST(MoleculeSession, RefusalsAreOutcomesAndAWrongCountThrows)
     ASSERT_FALSE(F); EXPECT_EQ(F.Error().why, PESFailure::Why::NoGradient);
 
     std::vector<rvec3_t> broken=R; broken[1].x+=0.05; broken[1].y-=0.03;   // one H only: C2v -> Cs
-    auto B=pes.ConvergeAt(std::nullopt, broken);
-    ASSERT_FALSE(B); EXPECT_EQ(B.Error().why, PESFailure::Why::SymmetryBroken) << B.Error().details;
+    EXPECT_THROW((void)pes.ConvergeAt(std::nullopt, broken), std::invalid_argument) << "an off-group R on an imposed setup is a wiring defect";
 
     EXPECT_THROW((void)pes.ConvergeAt(std::nullopt, {R[0]}), std::invalid_argument);
     rmat3d_t box; for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) box(i,j)= i==j ? 20.0 : 0.0;
