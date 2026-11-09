@@ -1874,3 +1874,22 @@ moves Si2_PP_U.LargeSeparation −0.605 (a BoundedSCF 2-iteration iterate; its c
 iterations only NaF Becke-mesh 31→29, LiF XCMeshAudit 42→54; panel at 4 threads vs main-c153c0fb: only the MnO dimer GDM case
 moved, restored bit-identical by its deck stating OrbitalByOrbital; TiO₂ k222 59 vs 49 as on main (now on QCHEM_PANEL_RED).
 Remainders → OpenWork §3: HF + stated Shared starts from an integer sibling seed; a stated GDM on a solid meets the shared default.
+
+## ✅ A STATED GDM meets the shared degenerate fill: guide the user (lane A, 2026-11-09, caba39d09)
+
+Row opened from D-DEGEN-FILL: the solid default shares a partly filled degenerate level at kT = 0, GDM cannot rotate a
+non-idempotent D', so a deck stating `accelerator: GDM` never ran GDM.  User ruling 2026-11-08: "Many users will have no idea
+that GDM only works for integers. So we need to guide them."  Landed in `qchem.DegenerateFillReport`, both facades: a STATED GDM
+with the fill unstated takes `OrbitalByOrbital`, its `choose` row teaching why and how to get the symmetric state; GDM and
+`Shared` both stated file a `warn` row `DegenerateLevelFillUnderGDM` naming the fallback that runs instead, at its relax
+(`DescribeDeclinedFallback`).  Unit tests `DegenerateFillPolicy.*` (six, molecule and solid).
+
+Pulay-D fallback cap: NOT capped, measured.  Shared + GDM (declining every step), stated Pulay-D depth 8, alpha 0.45 / 0.3 / 0.25 /
+0.2: Si triplet box (`Si_box16`, SIPP_SR) 12 / 11 / 11 / 11 iterations; MnO dimer (`MnO_box16`) 67 / cap 200 / cap 200 / 57.  The
+step does not decide a Pulay history's convergence, and a 0.25 ceiling would fail the MnO case.  The linear-fallback cap
+(`DeclinedDirectMinRelax` 0.25, CLAUDE.md) stays as it is.  Logs: `~/Code/qchem6-runs/{Si_box16,MnO_box16}/degen_gdm_shared_statedpulayd_a*.log`.
+
+Seen on the way: the MnO dimer under Shared at 0.45 / 0.2 converges to −30.3485166 / −30.3485171 Ha, below CP2K OT −30.34790; the
+two capped runs end lower still (−30.34914, not converged): a different state, relevant to the "GDM crawls" row.  The solid banner
+prints the unresolved alpha (0.5) while the Auto Pulay-D runs at 0.45 → new OpenWork §3 row.  Sweep vs main-8473b2e0: short
+1418/0, long 14/0, 0 moves (panel not run: no iterator change, and its one GDM deck states its fill).

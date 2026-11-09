@@ -1162,7 +1162,10 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
     // kT -> 0 limit of the Fermi fill every periodic DFT run here approximates -- reported once per calculation.
     const SCFParams params=ResolveDegenerateLevelFill(asked, SCFParams::DegenerateLevelFill::Shared,
         "a periodic DFT run: a partly filled degenerate level (a band touching at a high-symmetry k) takes the kT -> 0 Fermi limit, so "
-        "its density does not depend on the eigensolver's rotation inside the level", !itsImp->degenerateRuleReported);
+        "its density does not depend on the eigensolver's rotation inside the level", !itsImp->degenerateRuleReported,
+        // A GDM stage (user 2026-11-08: guide the user; GDM works only on integer occupations): the fallback is the stage's own mixer.
+        DegenerateFillContext{.directMin = itsImp->stageAccel==SCFAccelerators::Type::GDM,
+                              .fallback  = DescribeDeclinedFallback(itsImp->scf->ResolveMixing(asked))});
     itsImp->degenerateRuleReported=true;
     // ★ THE CONVERGE RESIDUE (doc/ParallelAndOraclePlan.md 1.1(a)).  The work AFTER Iterate returns is not
     // bookkeeping: GetChargeDensity() builds a fresh composite density and GetSpinDensity() rasters BOTH

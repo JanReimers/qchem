@@ -8,6 +8,7 @@
 #include <cmath>
 
 import qchem.MoleculeCalculation;
+import qchem.SCFParams;
 import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;
 import qchem.Types;        // Vector3D
@@ -229,7 +230,10 @@ TEST(M_Calculation, BoronLDASharedLevelGDMDeclines)
     MoleculeCalculation ladder(MoleculeSetup::Resolve(MakeBoron(), {.basis = "dzvp", .model = qchem::Model::LDA, .multiplicity = 2}, {.type = "Ladder"}));
     const std::string outL=testing::internal::GetCapturedStdout();
     testing::internal::CaptureStdout();
-    MoleculeCalculation gdm   (MoleculeSetup::Resolve(MakeBoron(), {.basis = "dzvp", .model = qchem::Model::LDA, .multiplicity = 2}, {.type = "GDM"}));
+    // GDM with the fill UNSTATED takes the integer fill (user 2026-11-08: guide the user); the shared state is stated here.
+    SCFParams shared; shared.DegenerateLevels=SCFParams::DegenerateLevelFill::Shared;
+    MoleculeCalculation gdm   (MoleculeSetup::Resolve(MakeBoron(), {.basis = "dzvp", .model = qchem::Model::LDA, .multiplicity = 2}, {.type = "GDM"}),
+                               shared);
     const std::string outG=testing::internal::GetCapturedStdout();
     ASSERT_TRUE(ladder.Result()) << outL;
     ASSERT_TRUE(gdm.Result())    << outG;

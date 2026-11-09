@@ -205,7 +205,10 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
                 "eigensolver's rotation inside the level"
               : "HF: integer fill, the lower-energy symmetry-broken state; which degenerate orbital fills is arbitrary among equivalent ones "
                 "(a fractionally shared HF open shell pays its same-spin self-interaction: Boron UHF/dzvp 118 mHa higher).  State "
-                "degenerateLevelFill: Shared for the symmetric state", true);
+                "degenerateLevelFill: Shared for the symmetric state", true,
+        // A GDM run (user 2026-11-08: guide the user; GDM works only on integer occupations): a molecule mixes in D space.
+        DegenerateFillContext{.directMin = itsSetup->accelerator==SCFAccelerators::Type::GDM,
+                              .fallback  = DescribeDeclinedFallback(ResolveMixing(asked, /*gSpace*/false))});
     {   // the "what recipe am I running" header; eps is consumed by the XC mesh wherever there is one (pin 31)
         rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type);
         ReportAccuracy(itsSetup->opts.accuracy, !HasXCMesh()           ? std::string(kNoAccuracyConsumerYet)
