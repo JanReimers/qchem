@@ -7,6 +7,8 @@
 #include <memory>
 #include <string>
 #include <stdexcept>
+#include <filesystem>
+#include <fstream>
 import qchem.MoleculeCalculation;
 import qchem.AtomCalculation;   // AtomCalculation::Prepare (the atom's Build -> Run)
 import qchem.Structure;         // Atom (the atom's report ID)
@@ -15,6 +17,7 @@ import qchem.SCFParams;
 import qchem.SCFIterator;
 import qchem.Types;
 import qchem.SCFCap;   // BoundedSCF: the failure arm runs a deliberately bounded SCF
+import qchem.BasisSet.Gaussian.Point.BasisFiles;   // BasisFile / BasisFileChecksum (a stated basis file)
 import qchem.Reporting;   // the run report the molecular mesh files itself into
 
 using namespace qchem;
@@ -239,6 +242,45 @@ TEST(CalculationFacade, EveryDefaultBuildsAndAnUnstatedBasisIsRefusedNamingTheBa
 
 //! Two Gaussian auxiliary fits in one run: each files its fit basis and its private mesh in its own term, so neither overwrites the other
 //! (one grids.auxiliaryFit key did, until the terms got scopes; user ruling 2026-11-04).
+//! A STATED BASIS FILE (CalcOptions::basisFile, lane G 2026-11-10: the GUI's Basis Set Exchange downloads): the same file
+//! contents at another path build the same calculation bit for bit; the report states the path and the checksum; a saved state
+//! refuses an EDITED file (the checksum, not the path, identifies it) and a run on the shipped name alone.
+TEST(CalculationFacade, AStatedBasisFileIsItsContentsAndASavedStateRefusesAnEditedOne)
+{
+    namespace fs=std::filesystem;
+    const fs::path dir=fs::temp_directory_path()/"qchem_UT_basisFile";
+    fs::create_directories(dir);
+    const fs::path copy=dir/"mine.bsd", edited=dir/"edited.bsd", state=dir/"water.h5";
+    fs::copy_file(BasisSet::Gaussian::BasisFile("dzvp.bsd"), copy, fs::copy_options::overwrite_existing);
+    fs::copy_file(copy, edited, fs::copy_options::overwrite_existing);
+    std::ofstream(edited, std::ios::app) << "\nan edit after the last block\n";
+
+    MoleculeCalculation named(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
+    std::unique_ptr<MoleculeCalculation> mine;
+    { qchem::report::Run run("H2O basisFile"); mine=std::make_unique<MoleculeCalculation>(
+        MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .basisFile=copy.string()})); }
+    ASSERT_TRUE(named.IsConverged() && mine->IsConverged());
+    EXPECT_DOUBLE_EQ(mine->Energy(), named.Energy()) << "the same contents are the same basis";
+    EXPECT_EQ(mine->IterationCount(), named.IterationCount());
+    const auto* run=FiledRun("H2O basisFile@");
+    ASSERT_NE(run, nullptr);
+    EXPECT_EQ((*run)["basis"]["file"].get<std::string>(), copy.string());
+    EXPECT_EQ((*run)["basis"]["checksum"].get<std::string>(), BasisSet::Gaussian::BasisFileChecksum(copy.string()));
+
+    mine->SaveState(state.string());
+    auto judged=[&](const CalcOptions& o){ return MoleculeCalculation(MoleculeSetup::Resolve(GetMolecule("H2O"), o)).JudgeState(state.string()); };
+    const auto same=judged({.basis="dzvp", .basisFile=copy.string()});
+    ASSERT_TRUE(same) << same.Error().details;
+    EXPECT_TRUE(same->empty()) << "the same file: an exact resume";
+    const auto ed=judged({.basis="dzvp", .basisFile=edited.string()});
+    ASSERT_FALSE(ed) << "an edited file passed as the same basis";
+    EXPECT_NE(ed.Error().details.find("basis.fileChecksum"), std::string::npos) << ed.Error().details;
+    const auto shipped=judged({.basis="dzvp"});
+    ASSERT_FALSE(shipped) << "a state made on a stated file restarted a run on the shipped name";
+    EXPECT_NE(shipped.Error().details.find("basis.fileChecksum"), std::string::npos) << shipped.Error().details;
+    fs::remove_all(dir);
+}
+
 TEST(CalculationFacade, EachAuxiliaryFitFilesInItsOwnTerm)
 {
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary});

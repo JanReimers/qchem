@@ -81,6 +81,7 @@ typedef struct qcb_request
     const char*   mixer;          //!< SCFParams::Mixing by name: "Auto" | "Linear" | "Kerker" | "Pulay" ("" = Auto); the facade refuses
                                   //!< what a molecule cannot mix (Kerker needs G space)
     double        smearingkT;     //!< Fermi-Dirac smearing kT, Ha (SCFParams::SmearingkT), 0 = off
+    const char*   basisFile;      //!< a .bsd path used instead of the shipped file `basis` names (CalcOptions::basisFile); null/"" = none
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
@@ -159,6 +160,14 @@ int        qcb_solid_iterations(const qcb_solid* h);
 //! it needs (excluding the NUL); writes at most outlen-1 chars.
 int        qcb_solid_resolved(const qcb_solid* h, char* out, int outlen);
 
+//! A crystal's density (spin != 0: its magnetization m = ρ↑−ρ↓; the zero field when unpolarized) on the Cartesian box the
+//! caller states: n3[0] x n3[1] x n3[2] points (C-order, the last fastest) at origin + (i, j, k) * spacing, bohr -- the unit cell's
+//! bounding box or a supercell's, the caller's choice (ρ is periodic, so any box is valid).  iterate == 0: the CONVERGED density
+//! (Converged::Density / SpinDensity; refused, saying so, when the last SCF did not converge); iterate != 0: the CURRENT iterate's
+//! (SolidCalculation::MakeIterateDensity -- only from the row callback, or between converges).  `out` holds the product of n3.
+//! 1 on success, 0 with `err`.
+int        qcb_solid_field(const qcb_solid* h, int spin, int iterate, const int* n3, const double* origin, const double* spacing,
+                           double* out, char* err, int errlen);
 //! As qcb_judge_state / qcb_restarted_from, for a crystal (the deck saves and restarts through state.save / state.restartFrom).
 int        qcb_solid_judge_state(const qcb_solid* h, const char* path, char* out, int outlen);
 int        qcb_solid_restarted_from(const qcb_solid* h, char* out, int outlen);
@@ -198,6 +207,12 @@ int qcb_space_group(const double* lattice9, const int* species, int nat, const d
 //! TWO CALLS: with `out` null the request RUNS and its answer is kept (the return is its length); then a call with a buffer
 //! copies that answer (`req` ignored).  So a save runs once.
 int qcb_materials(const char* req, char* out, int outlen);
+
+//! A Gaussian94 basis from outside (the Basis Set Exchange's "gaussian94" text) TRANSLATED into the BasisSetData layout
+//! (BasisSet::Gaussian::ImportGaussian94): {"text": T, "title": S, "provenance": [lines]} -> {bsd, elements, maxL, notes}, or
+//! {"error": why} when the library cannot represent it (an ECP block, a scaled shell, ...).  The text is parsed as data only.
+//! The same two calls as qcb_materials.
+int qcb_basis_import(const char* req, char* out, int outlen);
 
 #ifdef __cplusplus
 }

@@ -51,6 +51,9 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     s->Ne=int(point->GetNumElectrons());
     RequireBasisStated(opts.basis, *point);   // no default basis: an unstated one is refused, naming the bases that cover this structure
     // Coverage, when the name is a basis file (an unknown name is the build's refusal, which lists every name there).
+    if (!opts.basisFile.empty())
+        RequireBasisCovers(opts.basisFile, opts.basis, *point);   // a stated file: it must cover every element (a missing one throws)
+    else
     {
         std::string stem=opts.basis;
         for (char& c : stem) c=char(std::tolower((unsigned char)c));

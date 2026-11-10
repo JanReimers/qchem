@@ -76,6 +76,12 @@ struct RunSpec
         //! OVERRIDE: a path to a .bsd file used INSTEAD of the file \c data names (\c data is then only a label).  Empty = use \c data.
         //! Lets a new basis be tried from the command line (`--set basis.file=/path/x.bsd`) with no registry entry or rebuild.
         std::string file;
+        //! A basis carried INLINE: the BasisSetData-layout text, one line per entry, its preamble the attribution (the Basis Set
+        //! Exchange name + version, the references, the download date).  User ruling 2026-11-10: a deck that uses a non-shipped basis
+        //! INLINES it -- only the elements the deck uses -- so it never depends on a per-user file (~/.solid2/bases) to run.  \c Resolve
+        //! turns a non-shipped \c file into this; a run builds from the text (written once to a content-addressed cache file, so its
+        //! checksum is the text's).  Exclusive with \c file.
+        std::vector<std::string> inlineBsd;
         bool spherical=false;
         std::vector<Trim> trim;     //!< a STATED trim (built once, no vet loop)
         bool autoTrim=false;        //!< the vet-stage trim at \c solid.orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)
