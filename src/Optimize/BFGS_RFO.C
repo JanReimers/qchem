@@ -6,15 +6,13 @@
 // a poor one.  No line search: an evaluation can be a whole SCF, and the radius is the cheaper safeguard.  The step space is found by
 // diagonalising the projector, O(n³) per step: fine for a geometry (n up to ~10³), not for ~10⁵ parameters (L-BFGS).
 //
-// THE NOISE RULES (§4; the rutile model collapsed its radius at a converged point because each retry rose by roundoff):
-//   1. a rise within the noise (δ(here) + δ(there), the driver's) is not a rise: the trial is ACCEPTED;
-//   2. the trust ratio is judged only when the predicted change exceeds the noise; below it the radius is HELD, neither grown nor cut;
-//   3. (the driver's) every evaluated point is judged by the client's rule, accepted or not.
+// THE NOISE RULES (§4; the rutile model collapsed its radius at a converged point because each retry rose by roundoff): rules 1 and 2
+// are the shared \c TrustRegion's (qchem.Optimize.TrustRegion), rule 3 the driver's.
 module;
 #include <optional>
 #include <string>
 export module qchem.Optimize.BFGS_RFO;
-export import qchem.Optimize.Minimize;
+export import qchem.Optimize.TrustRegion;
 
 export namespace qchem::Optimize
 {
@@ -24,12 +22,10 @@ class BFGS_RFO : public virtual Stepper
 public:
     struct Options
     {
-        double trustInitial     = 0.3;
-        double trustMax         = 1.0;
-        double trustMin         = 1.0e-6;   //!< a rejection that cuts the radius below this ends the run: Verdict Collapsed
-        double initialCurvature = 0.5;      //!< H₀ = this x 1 when the cost offers no ModelHessian
+        TrustOptions trust;
+        double       initialCurvature = 0.5;   //!< H₀ = this x 1 when the cost offers no ModelHessian
     };
-    //! THROWS on inconsistent options (0 < trustMin, 0 < trustInitial <= trustMax, initialCurvature > 0).
+    //! THROWS on inconsistent options (the trust radii: \c TrustRegion; initialCurvature > 0).
     explicit BFGS_RFO(const Options& options);
     BFGS_RFO();   //!< the default options (a separate constructor: a default argument cannot use the nested struct's initialisers here)
     std::string                Name() const override {return "BFGS-RFO";}
@@ -41,7 +37,7 @@ private:
     Options             itsOpts;
     const Projected*    itsProjected = nullptr;   //!< the cost's step space, if it has one (non-owning: the run's cost outlives the run)
     rmat_t              itsH;
-    double              itsTrust = 0.0;
+    TrustRegion         itsTrust;
     rvec_t              itsQ, itsG;               //!< the incumbent and its projected gradient
     double              itsValue = 0.0;
     double              itsPredicted = 0.0;       //!< the model's change for the last proposal

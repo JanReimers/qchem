@@ -129,17 +129,27 @@ std::string History(const std::vector<Optimize::Iteration>& h)
     return o.str();
 }
 
+using Algorithm=OptimizerOptions::Algorithm;
+std::string Name(Algorithm a) {return a==Algorithm::BFGS_RFO ? "BFGS_RFO" : "L_BFGS";}
+
 OptimizerOptions Tight()
 {
     // maxStep 1e-6.  This test once needed 1e-4: with |g| at 1e-9 the next step's energy change was below the energy's roundoff, and
     // the optimizer rejected a roundoff rise as a rise until its radius collapsed (lane H, 2026-11-09).  The noise rules of
     // V-OPTIMIZE-DIP §4 (qcOptimize's BFGS-RFO) fixed it; this test is their gate on a real map.
-    OptimizerOptions o; o.maxGradient=1e-8; o.rmsGradient=1e-8; o.maxStep=1e-6; o.energyChange=1e-14; o.stepper.initialCurvature=1.0;
+    OptimizerOptions o; o.maxGradient=1e-8; o.rmsGradient=1e-8; o.maxStep=1e-6; o.energyChange=1e-14; o.initialCurvature=1.0;
     return o;
 }
 }
 
-TEST(WyckoffMap, RutileHasOneFreeParameterAndTheOptimizerFindsItsMinimum)
+//! THE LSP PAIR (V-OPTIMIZE-DIP §8 step 3): the solid map's optimizer gates run, unchanged, under each stepper.
+class WyckoffMapBoth : public ::testing::TestWithParam<Algorithm>
+{
+protected:
+    OptimizerOptions With(OptimizerOptions o) const {o.algorithm=GetParam(); return o;}
+};
+
+TEST_P(WyckoffMapBoth, RutileHasOneFreeParameterAndTheOptimizerFindsItsMinimum)
 {
     const auto R0=Cartesian(RutileA, RutileFrac(0.28));
     PeriodicPairSurface S(RutileA, R0, RutileZ, IonPair, ivec3_t(4,4,6));
@@ -156,7 +166,7 @@ TEST(WyckoffMap, RutileHasOneFreeParameterAndTheOptimizerFindsItsMinimum)
     const double uStar=GoldenMin([&](double u){return S.Energy(Cartesian(RutileA, RutileFrac(u)));}, 0.2, 0.45);
     ASSERT_GT(uStar, 0.21); ASSERT_LT(uStar, 0.44) << "the model's minimum is interior";
 
-    auto out=GeometryOptimizer(S, map, Tight()).Run();
+    auto out=GeometryOptimizer(S, map, With(Tight())).Run();
     ASSERT_TRUE(out) << out.Error().details << History(out.Error().history);
     const double u=(Invert(RutileA)*out->geometry.R[2]).x;
     EXPECT_NEAR(u, uStar, 1e-7);
@@ -171,14 +181,14 @@ TEST(WyckoffMap, RutileHasOneFreeParameterAndTheOptimizerFindsItsMinimum)
     }
 }
 
-TEST(WyckoffMap, AsymmetricForceNoiseNeverLeavesTheGroup)
+TEST_P(WyckoffMapBoth, AsymmetricForceNoiseNeverLeavesTheGroup)
 {
     const auto R0=Cartesian(RutileA, RutileFrac(0.28));
     PeriodicPairSurface S(RutileA, R0, RutileZ, IonPair, ivec3_t(4,4,6), /*noise*/1e-3);
     const WyckoffMap map(S.Reference(), Detect(RutileA, R0, RutileZ));
     // The noise carries a symmetric part, which moves the minimum: the claim here is the GROUP, not the optimum.
     OptimizerOptions o=Tight(); o.maxGradient=1e-6; o.rmsGradient=1e-6; o.maxStep=1e-5;
-    auto out=GeometryOptimizer(S, map, o).Run();
+    auto out=GeometryOptimizer(S, map, With(o)).Run();
     ASSERT_TRUE(out) << out.Error().details << History(out.Error().history);
     for (const auto& R : S.visited)
     {
@@ -190,7 +200,7 @@ TEST(WyckoffMap, AsymmetricForceNoiseNeverLeavesTheGroup)
     for (const auto& h : out->history) EXPECT_GE(h.maxGradient, 0.0);
 }
 
-TEST(WyckoffMap, WurtziteIsPolarAndItsFloatingOriginIsHeld)
+TEST_P(WyckoffMapBoth, WurtziteIsPolarAndItsFloatingOriginIsHeld)
 {
     const double a=6.14, c=9.83, u0=0.36;
     const rmat3d_t A=Columns(rvec3_t(a,0,0), rvec3_t(-a/2, a*std::sqrt(3.0)/2, 0), rvec3_t(0,0,c));
@@ -207,7 +217,7 @@ TEST(WyckoffMap, WurtziteIsPolarAndItsFloatingOriginIsHeld)
 
     const double uStar=GoldenMin([&](double u){return S.Energy(Cartesian(A, frac(0.0, u)));}, 0.25, 0.5);
     ASSERT_GT(uStar, 0.26); ASSERT_LT(uStar, 0.49);
-    auto out=GeometryOptimizer(S, map, Tight()).Run();
+    auto out=GeometryOptimizer(S, map, With(Tight())).Run();
     ASSERT_TRUE(out) << out.Error().details << History(out.Error().history);
     const rmat3d_t Ainv=Invert(A);
     const double zZn=(Ainv*out->geometry.R[0]).z, zO=(Ainv*out->geometry.R[2]).z;
@@ -248,3 +258,6 @@ TEST(WyckoffMap, Refusals)
     EXPECT_THROW((void)map.At(rvec_t(2, 0.0)), std::invalid_argument);
     EXPECT_THROW((void)map.Gradient(map.Start(), {rvec3_t(0,0,0)}), std::invalid_argument);
 }
+
+INSTANTIATE_TEST_SUITE_P(WyckoffMap, WyckoffMapBoth, ::testing::Values(Algorithm::BFGS_RFO, Algorithm::L_BFGS),
+                         [](const ::testing::TestParamInfo<Algorithm>& i){return Name(i.param);});

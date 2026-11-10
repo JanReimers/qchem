@@ -2,12 +2,14 @@
 // doc/GeometryOptimizationPlan.md §12.3: no real optimization before analytic forces).  Each model is a PotentialEnergySurface with
 // exact forces, so what is tested is the adapter (PESCost) and the coordinate map: a quadratic driven end to end through the adapter,
 // a symmetric step that stays on its group under asymmetric force noise, rigid-mode projection, the typed refusals, and the
-// eps-derived rule.  The ALGORITHM's own gates (Rosenbrock, the soft mode, the noise rules, the faces) moved down to UTOptimize
-// (src/Optimize/tests/Minimize.C, V-OPTIMIZE-DIP §8 steps 1-2).
+// eps-derived rule; the map gates run under BOTH steppers (the LSP pair).  The ALGORITHM's own gates (Rosenbrock, the soft mode, the
+// noise rules, a threshold below the gradient noise, the faces) moved down to UTOptimize (src/Optimize/tests/Minimize.C,
+// V-OPTIMIZE-DIP §8 steps 1-3).
 #include "gtest/gtest.h"
 #include <cmath>
 #include <functional>
 #include <optional>
+#include <string>
 #include <stdexcept>
 #include <vector>
 import qchem.GeometryOptimizer;
@@ -94,17 +96,27 @@ std::vector<SymmetryOperation> C2v()
     return {{diag( 1, 1,1), {0,1,2}}, {diag(-1,-1,1), {0,2,1}}, {diag(1,-1,1), {0,1,2}}, {diag(-1,1,1), {0,2,1}}};
 }
 
+using Algorithm=OptimizerOptions::Algorithm;
+std::string Name(Algorithm a) {return a==Algorithm::BFGS_RFO ? "BFGS_RFO" : "L_BFGS";}
+
 OptimizerOptions Tight()
 {
-    OptimizerOptions o; o.maxGradient=1e-7; o.rmsGradient=1e-7; o.maxStep=1e-6; o.energyChange=1e-14; o.stepper.initialCurvature=1.0;
+    OptimizerOptions o; o.maxGradient=1e-7; o.rmsGradient=1e-7; o.maxStep=1e-6; o.energyChange=1e-14; o.initialCurvature=1.0;
     return o;
 }
 }
 
-TEST(GeometryOptimizer, ThePESCostDrivesTheMinimizerThroughTheMap)
+//! THE LSP PAIR (V-OPTIMIZE-DIP §8 step 3): the geometry gates run, unchanged, under each stepper on the same PESCost.
+class GeometryOptimizerBoth : public ::testing::TestWithParam<Algorithm>
+{
+protected:
+    OptimizerOptions With(OptimizerOptions o) const {o.algorithm=GetParam(); return o;}
+};
+
+TEST_P(GeometryOptimizerBoth, ThePESCostDrivesTheMinimizerThroughTheMap)
 {
     // The adapter end to end: n = 6 (two atoms, all Cartesians), condition number 10, off-diagonal coupling.  The same quadratic as
-    // UTOptimize's bowl, here as a SURFACE over positions seen through CartesianMap, so the count is the algorithm's (11 steps).
+    // UTOptimize's bowl, here as a SURFACE over positions seen through CartesianMap, so the count is the algorithm's.
     const size_t n=6;
     rmat_t A(n, n, 0.0);
     for (size_t i=0;i<n;++i) { A(i,i)=1.0+9.0*double(i)/double(n-1); if (i+1<n) { A(i,i+1)=0.3; A(i+1,i)=0.3; } }
@@ -112,14 +124,14 @@ TEST(GeometryOptimizer, ThePESCostDrivesTheMinimizerThroughTheMap)
     const std::vector<rvec3_t> R0={rvec3_t(0.18,-0.12,0.25), rvec3_t(1.05,0.43,-0.32)};
     ModelSurface S=Bowl(R0, x0, A);
     const CartesianMap map(S.Reference(), CartesianMap::External::None);
-    auto R=GeometryOptimizer(S, map, Tight()).Run();
+    auto R=GeometryOptimizer(S, map, With(Tight())).Run();
     ASSERT_TRUE(bool(R)) << R.Error().details;
     for (size_t i=0;i<n;++i) EXPECT_NEAR(R->q[i], x0[i], 1e-6);
-    EXPECT_LE(R->Steps(), 2*n) << "BFGS on a quadratic: about n steps (measured " << R->Steps() << "; 11 on 2026-11-07, superlinear to |g| 1e-7 without a line search)";
+    EXPECT_LE(R->Steps(), 2*n+2) << "about n steps to |g| 1e-7 without a line search (UTOptimize's bowl: BFGS-RFO 11, L-BFGS 12); measured " << R->Steps();
     EXPECT_EQ(S.evaluations, R->history.size());
 }
 
-TEST(GeometryOptimizer, ASymmetrizedStepStaysOnTheGroupUnderAsymmetricForceNoise)
+TEST_P(GeometryOptimizerBoth, ASymmetrizedStepStaysOnTheGroupUnderAsymmetricForceNoise)
 {
     // Force noise 1e-5 (the model of a grid's), the threshold 10x above it: the calibration margin's own rule.
     const double noise=1e-5;
@@ -127,7 +139,7 @@ TEST(GeometryOptimizer, ASymmetrizedStepStaysOnTheGroupUnderAsymmetricForceNoise
     {
         ModelSurface S=Triatomic(TriatomicStart(), noise);
         const CartesianMap map(S.Reference(), CartesianMap::External::Rigid, C2v());
-        auto R=GeometryOptimizer(S, map, o).Run();
+        auto R=GeometryOptimizer(S, map, With(o)).Run();
         ASSERT_TRUE(bool(R)) << R.Error().details;
         for (const auto& Rv : S.visited)
         {
@@ -141,32 +153,18 @@ TEST(GeometryOptimizer, ASymmetrizedStepStaysOnTheGroupUnderAsymmetricForceNoise
         ModelSurface S=Triatomic(TriatomicStart(), noise);
         const CartesianMap plain(S.Reference(), CartesianMap::External::Rigid);
         const CartesianMap probe(S.Reference(), CartesianMap::External::Rigid, C2v());
-        auto R=GeometryOptimizer(S, plain, o).Run();
+        auto R=GeometryOptimizer(S, plain, With(o)).Run();
         ASSERT_TRUE(bool(R)) << R.Error().details;
         EXPECT_GT(probe.Asymmetry(R->q), 1e-8) << "without the map the noise breaks the symmetry";
     }
 }
 
-TEST(GeometryOptimizer, AThresholdBelowTheForceNoiseFailsHonestly)
-{
-    // Below the noise the optimizer chases it: the noisy gradient's zero is not E's minimum, so the trial where the gradient meets the
-    // threshold sits above the incumbent (GradientDisagrees), or the radius collapses first.  The run must END IN A FAILURE, never report convergence it did not reach -- which is why the threshold is derived with a margin (§8).
-    ModelSurface S=Triatomic(TriatomicStart(), 1e-5);
-    const CartesianMap map(S.Reference(), CartesianMap::External::Rigid, C2v());
-    OptimizerOptions o; o.maxGradient=1e-7; o.rmsGradient=1e-7; o.maxSteps=100;
-    auto R=GeometryOptimizer(S, map, o).Run();
-    ASSERT_FALSE(bool(R)) << "converged below the noise it carries";
-    const auto why=R.Error().why;
-    EXPECT_TRUE(why==OptimizeFailure::Why::GradientDisagrees || why==OptimizeFailure::Why::TrustCollapsed || why==OptimizeFailure::Why::MaxSteps)
-        << R.Error().details;
-}
-
-TEST(GeometryOptimizer, TheMolecularMapNeverMovesTheMoleculeAsAWhole)
+TEST_P(GeometryOptimizerBoth, TheMolecularMapNeverMovesTheMoleculeAsAWhole)
 {
     ModelSurface S=Triatomic({rvec3_t(0.1,0.2,0.0), rvec3_t(1.4,0.3,1.0), rvec3_t(-1.6,0.1,1.3)}, 0.0);
     const CartesianMap map(S.Reference(), CartesianMap::External::Rigid);
     OptimizerOptions o; o.maxGradient=1e-7; o.rmsGradient=1e-7;
-    auto R=GeometryOptimizer(S, map, o).Run();
+    auto R=GeometryOptimizer(S, map, With(o)).Run();
     ASSERT_TRUE(bool(R)) << R.Error().details;
     for (size_t k=1;k<S.visited.size();++k)
     {
@@ -232,3 +230,6 @@ TEST(GeometryOptimizer, TheForceThresholdIsDerivedFromEpsThroughANamedCalibratio
     EXPECT_DOUBLE_EQ(o.energyNoise,  1e-5) << "the points' energies agree to eps and no better";
     EXPECT_THROW(OptimizerOptions::FromEps(0.0), std::invalid_argument);
 }
+
+INSTANTIATE_TEST_SUITE_P(GeometryOptimizer, GeometryOptimizerBoth, ::testing::Values(Algorithm::BFGS_RFO, Algorithm::L_BFGS),
+                         [](const ::testing::TestParamInfo<Algorithm>& i){return Name(i.param);});

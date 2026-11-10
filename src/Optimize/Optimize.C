@@ -3,4 +3,6 @@
 export module qchem.Optimize;
 export import qchem.Optimize.Cost;
 export import qchem.Optimize.Minimize;
+export import qchem.Optimize.TrustRegion;
 export import qchem.Optimize.BFGS_RFO;
+export import qchem.Optimize.L_BFGS;

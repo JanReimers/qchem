@@ -8,7 +8,7 @@
 //   - \c PESCost: THE ADAPTER that makes a PotentialEnergySurface seen through a map look like a cost of q (user ruling 2026-11-09,
 //     decision 1): R = map.At(q), (E, F) = pes.ConvergeAt(R), g = map.Gradient(q, F);
 //   - \c ForceThresholdCalibration and \c OptimizerOptions: the client's stopping rule, derived from eps;
-//   - \c GeometryOptimizer: PESCost + the rule + a Stepper (BFGS-RFO by default), run by Optimize::Minimize.
+//   - \c GeometryOptimizer: PESCost + the rule + a Stepper (BFGS-RFO or L-BFGS, a reported policy by size), run by Optimize::Minimize.
 // The algorithm (BFGS + RFO + trust radius, and its noise rules) lives in qcOptimize, which knows no chemistry.
 module;
 #include <cmath>
@@ -23,6 +23,7 @@ export import qchem.Optimize;                 // the cost faces, the stepper, Mi
 export import qchem.Types;                    // rvec_t, rmat_t, rvec3_t, rmat3d_t
 import qchem.Blaze;                           // eigen
 import qchem.Reporting;                       // the point's SCF iterations, into the minimizer's row
+import qchem.Policy;                          // the Auto algorithm choice reports itself
 
 export namespace qchem
 {
@@ -98,13 +99,23 @@ struct OptimizerOptions
     //! Ha: two evaluations of one geometry may differ by this much (\c PESCost's ValueNoise).  0: exact to roundoff (a model surface).
     double energyNoise  = 0.0;
     size_t maxSteps     = 200;
-    Optimize::BFGS_RFO::Options stepper;   //!< the default stepper's trust radii and initial curvature
+    //! The algorithm.  \c Auto is a POLICY (reported under \c policy): BFGS-RFO up to \c kDenseStepperMaxDimension parameters,
+    //! L-BFGS above.  Either minimises the same PESCost under the same rule (V-OPTIMIZE-DIP §8 step 3).
+    enum class Algorithm {Auto, BFGS_RFO, L_BFGS};
+    Algorithm              algorithm = Algorithm::Auto;
+    Optimize::TrustOptions trust;                    //!< the stepper's trust radii (both steppers)
+    double                 initialCurvature = 0.5;   //!< Ha/bohr²: H₀ = this x 1 (BFGS-RFO, without a model Hessian), 1/this (L-BFGS)
+    size_t                 memory = 8;               //!< L-BFGS's (s, y) pairs
     //! The thresholds DERIVED from eps (ruling §12.2): max|g| from the calibration, rms 2/3 of it, the step 4x it (the conventional ratios,
     //! Gaussian's 4.5e-4 / 3.0e-4 / 1.8e-3), and the energy change eps.  The energy noise is eps too: the run's grids are sized per point
     //! from eps, so two nearby points' energies agree to about eps and no better.  The stepper keeps its defaults.
     static OptimizerOptions FromEps(double eps, const ForceThresholdCalibration& cal={});
     Optimize::GradientStepValue Rule() const;
 };
+
+//! The \c Algorithm::Auto policy's switch: BFGS-RFO diagonalises the dense n x n step-space projector every step (O(n³): 1e9 flops at
+//! 10³), so above this L-BFGS (O(memory · n), matrix-free) takes over (doc/Records/VOptimizeDIP_Design.md §5).
+inline constexpr size_t kDenseStepperMaxDimension = 1000;
 
 //! \brief THE ADAPTER: a PotentialEnergySurface seen through a CoordinateMap, as a cost of q.  Every evaluation asks for forces; a
 //! point that cannot give them (\c NoGradient) or fails its SCF is the cost's failure, carried back typed (\c PESFailure).  Its
@@ -131,12 +142,13 @@ struct OptimizedGeometry : Optimize::Minimum
 };
 using OptimizeFailure = Optimize::MinimizeFailure<PESFailure>;   //!< \c why Cost carries the point's own \c PESFailure
 
-//! \brief Minimise the surface over the map's coordinates: PESCost + the options' rule + a stepper (BFGS-RFO unless one is given).
+//! \brief Minimise the surface over the map's coordinates: PESCost + the options' rule + a stepper.
 class GeometryOptimizer
 {
 public:
+    //! The stepper \a options.algorithm names (the \c Auto policy reports its choice).
     GeometryOptimizer(PotentialEnergySurface& surface, const CoordinateMap& map, const OptimizerOptions& options={});
-    //! With a chosen algorithm: any Stepper minimises the same cost (the LSP claim of V-OPTIMIZE-DIP §8 step 3).
+    //! With a stepper of the caller's: any Stepper minimises the same cost (the LSP claim of V-OPTIMIZE-DIP §8 step 3).
     GeometryOptimizer(PotentialEnergySurface& surface, const CoordinateMap& map, const OptimizerOptions& options,
                       std::unique_ptr<Optimize::Stepper> stepper);
     Outcome<OptimizedGeometry, OptimizeFailure> Run();
@@ -296,8 +308,32 @@ double PESCost::Noise(const rvec_t&, double value) const {return std::max(itsNoi
 //------------------------------------------------------------------------------------------------------------------------------------
 // GeometryOptimizer
 
+namespace
+{
+//! THE FACTORY for the default stepper, with the \c Auto policy.
+std::unique_ptr<Optimize::Stepper> MakeStepper(const OptimizerOptions& o, size_t n)
+{
+    using A=OptimizerOptions::Algorithm;
+    A a=o.algorithm;
+    if (a==A::Auto)
+    {
+        a = n<=kDenseStepperMaxDimension ? A::BFGS_RFO : A::L_BFGS;
+        policy::Report("GeometryOptimizer.Algorithm", a==A::BFGS_RFO ? "BFGS-RFO" : "L-BFGS", policy::Verdict::Choose,
+                       std::to_string(n)+" parameters "+(a==A::BFGS_RFO ? "<=" : ">")+" "+std::to_string(kDenseStepperMaxDimension)
+                       +": BFGS-RFO diagonalises a dense step-space projector every step, O(n³)");
+    }
+    if (a==A::BFGS_RFO)
+    {
+        Optimize::BFGS_RFO::Options b; b.trust=o.trust; b.initialCurvature=o.initialCurvature;
+        return std::make_unique<Optimize::BFGS_RFO>(b);
+    }
+    Optimize::L_BFGS::Options l; l.trust=o.trust; l.initialCurvature=o.initialCurvature; l.memory=o.memory;
+    return std::make_unique<Optimize::L_BFGS>(l);
+}
+}
+
 GeometryOptimizer::GeometryOptimizer(PotentialEnergySurface& surface, const CoordinateMap& map, const OptimizerOptions& options)
-    : GeometryOptimizer(surface, map, options, std::make_unique<Optimize::BFGS_RFO>(options.stepper)) {}
+    : GeometryOptimizer(surface, map, options, MakeStepper(options, map.Dimension())) {}
 
 GeometryOptimizer::GeometryOptimizer(PotentialEnergySurface& surface, const CoordinateMap& map, const OptimizerOptions& options,
                                      std::unique_ptr<Optimize::Stepper> stepper)

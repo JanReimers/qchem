@@ -13,7 +13,6 @@ namespace qchem::Optimize
 
 namespace
 {
-std::string Sci(double x) {char b[32]; std::snprintf(b, sizeof b, "%.3g", x); return b;}
 rvec_t Apply(const Projected* P, const rvec_t& q, const rvec_t& v) {return P ? P->Project(q, v) : v;}
 
 //! An orthonormal basis (the columns) of the step space at q: the eigenvectors of the projector with eigenvalue ~ 1.
@@ -40,10 +39,8 @@ rmat_t StepBasis(const Projected* P, const rvec_t& q)
 
 BFGS_RFO::BFGS_RFO() : BFGS_RFO(Options{}) {}
 
-BFGS_RFO::BFGS_RFO(const Options& options) : itsOpts(options)
+BFGS_RFO::BFGS_RFO(const Options& options) : itsOpts(options), itsTrust(options.trust)
 {
-    if (!(itsOpts.trustInitial>0.0 && itsOpts.trustMin>0.0 && itsOpts.trustMax>=itsOpts.trustInitial))
-        throw std::invalid_argument("BFGS_RFO: the trust radii must satisfy 0 < trustMin, 0 < trustInitial <= trustMax");
     if (!(itsOpts.initialCurvature>0.0)) throw std::invalid_argument("BFGS_RFO: the initial curvature must be > 0");
 }
 
@@ -59,7 +56,7 @@ void BFGS_RFO::Start(const Cost& cost, const rvec_t& q, const CostValue& here)
     }
     else
         for (size_t i=0;i<n;++i) itsH(i,i)=itsOpts.initialCurvature;
-    itsTrust=itsOpts.trustInitial;
+    itsTrust.Reset();
     itsQ=q; itsG=here.gradient; itsValue=here.value;
 }
 
@@ -69,7 +66,7 @@ Proposal BFGS_RFO::Propose(const rvec_t& q, const CostValue& here)
     // THE RFO STEP in the step space: the lowest eigenvector of [[Hr, gr], [grᵀ, 0]] gives s = v/v_last, a descent direction for any Hr.
     const rmat_t B=StepBasis(itsProjected, q);
     const size_t m=B.columns();
-    Proposal p; p.bound=itsTrust;
+    Proposal p; p.bound=itsTrust.Radius();
     if (m==0) return p;   // nothing may move
     const rmat_t Hr=blazem::trans(B)*itsH*B;
     const rvec_t gr=blazem::trans(B)*itsG;
@@ -81,7 +78,7 @@ Proposal BFGS_RFO::Propose(const rvec_t& q, const CostValue& here)
     rvec_t sr(m);
     if (std::fabs(V(m,0))>1e-12) for (size_t i=0;i<m;++i) sr[i]=V(i,0)/V(m,0);
     else                         sr=-gr;   // the RFO's degenerate case: fall back on steepest descent, which the radius then caps
-    if (const double l=blazem::norm(sr); l>itsTrust) { sr*=itsTrust/l; p.limited=true; }
+    if (const double l=blazem::norm(sr); l>p.bound) { sr*=p.bound/l; p.limited=true; }
     p.step=Apply(itsProjected, q, rvec_t(B*sr));
     itsPredicted=blazem::dot(itsG, p.step)+0.5*blazem::dot(p.step, rvec_t(itsH*p.step));
     itsLimited=p.limited;
@@ -105,22 +102,8 @@ Verdict BFGS_RFO::Tell(const rvec_t& step, const CostValue& there, double noise)
             if (sHs>0.0) itsH-=(Hs*blazem::trans(Hs))/sHs;
         }
     }
-    const double change=there.value-itsValue;
-    if (change>noise)   // RULE 1: only a rise beyond the noise is a rise.  Undo the step, cut the radius.
-    {
-        itsTrust*=0.25;
-        if (itsTrust<itsOpts.trustMin)
-            return {Verdict::Kind::Collapsed, "the trust radius fell below "+Sci(itsOpts.trustMin)+" after a value rise of "
-                                              +Sci(change)+" (noise bound "+Sci(noise)+")"};
-        return {Verdict::Kind::Reject, {}};
-    }
-    // RULE 2: the ratio means something only when the model predicted a change above the noise; below it, hold the radius.
-    if (std::fabs(itsPredicted)>noise)
-    {
-        const double ratio = itsPredicted<0.0 ? change/itsPredicted : 0.0;
-        if      (ratio>0.75 && itsLimited) itsTrust=std::min(2.0*itsTrust, itsOpts.trustMax);
-        else if (ratio<0.25)               itsTrust=std::max(0.5*itsTrust, itsOpts.trustMin);
-    }
+    const Verdict v=itsTrust.Judge(there.value-itsValue, itsPredicted, noise, itsLimited);
+    if (v.kind!=Verdict::Kind::Accept) return v;
     itsQ+=step; itsG=there.gradient; itsValue=there.value;
     return {Verdict::Kind::Accept, {}};
 }
