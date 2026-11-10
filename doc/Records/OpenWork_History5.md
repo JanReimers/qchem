@@ -1912,3 +1912,27 @@ own format (defaultfloat, precision 6) and restores cout's.  The remaining leak 
 leaks between prints".
 Sweep for both (vs main-cf1c8366 short/panel, main-08d9536c long): short 1443/0, 0 moved (+1 new gate); long 15/0,
 0 moved; panel|periodic at 4 threads 25/25, 0 moved.
+
+### ✅ A molecule's wavefunction cannot be saved or restarted (user 2026-11-09; lane A, V-FACADE-STATE)
+DONE as ruled (doc/OOD-SOLID-Cleanup.md V-FACADE-STATE, now in CleanupHistory3).  The shared half is the new module
+`qchem.SCFState` (src/Calculation/SCFState.C): the framing, the base fingerprint keys, the comparison, the writer and reader, the
+Löwdin carry (generalised from the solid's) and the restore checks.  The abstract `Calculation` gained a public non-virtual
+`SaveState(path)` and `JudgeState(path)` (the refusal or the warm list, without restarting: the binding's ask), a public
+`RestartedFrom()` (exact / warm lines / displacement / Löwdin-carried / the electrons the restored D holds on the run's basis), the
+protected template method `RecordState(StateRecord&, kT)` (the base writes the structure, electron and block keys, each facade
+overrides, calls it and adds its own), and `JudgeRestart` (kind check, comparison, carry, the EXACT RESUME / WARM START lines).
+`MoleculeCalculation::Restart` / `PrepareRestart` and `AtomCalculation::Restart` / `PrepareRestart` mirror the solid's: an exact
+resume seeds `SeedRole::ExactResume` and a Ladder starts on its GDM rung at kT = 0 (a `startOnGDM` key on the json accelerator
+door); a molecular setup with an unstated, unsized XC mesh adopts the saved state's mesh when the eps agrees (a `policy` row).
+FORMAT: `qchem-state 2.0`, root attr `kind`, per block an `irrep` label and the overlap `S`; the reader still takes the solid's
+`qchem-solid-state 1.x` (as kind solid; no S, so a moved-atom restart from one carries verbatim, as it always did), so the
+vendored decks/states/ files resume unchanged.
+Gates: FacadeMatrix SaveRestartRoundTrips green for Atom (O, LDA) and Molecule (H2O PP LDA, the fresh setup adopting the mesh);
+M_Calculation `BoronUHFExactResumeStartsAtTheSavedAnswer` and `WaterLDASymmetryExactResumeStartsAtTheSavedAnswer` (first iterate
+within 1e-9 of the saved E, <= 2 iterations); `WaterRestartAtMovedAtomsCarriesTheDensityThroughTheLowdinFrame` (one H moved
+0.064 bohr: Tr(D S') = 10 to 1e-12, then the fresh run's energy to 1e-8; DISCRIMINATES: the verbatim carry holds 9.99506);
+`ASavedStateIsJudgedByClass` (another basis REFUSED by name, HF -> LDA a named WARM start, a molecule state to an atom refused by
+KIND); UTCalculation `SolidState.AVendoredFormat1StateReadsThroughTheSharedReader`.  Found on the way: a by-value
+`RestartedFrom()` dangled in a range-for over `->warm` (segfault): it returns a reference.
+Follow-ups (OpenWork §2/§3): the binding + GUI (lane G) and the molecular deck keys (V-FACADE-OPTS); the geometry session's
+verbatim carry; a SALC basis identified by name, irreps and sizes only.
