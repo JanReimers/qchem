@@ -311,7 +311,7 @@ class SolidProbe : public FacadeProbe
     static SCFParams Params()
     {
         SCFParams p;
-        p.NMaxIter=80; p.MinΔρPerElectron=1e-7; p.MinΔE=1e-10; p.MinΔFD=1e30; p.MinVirial=1e30; p.MinFD=1e30;
+        p.NMaxIter=80; p.MinΔρPerElectron=1e-7; p.MinΔE=1e-10; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;   // off (a Gate of 1e30 would be a LIVE gate)
         return p;
     }
     static std::shared_ptr<const SolidSetup> Setup(SCFAccelerators::Type type=SCFAccelerators::Type::Auto,
