@@ -176,3 +176,22 @@ Total for the cell half beyond lane B's gaps: about 10 lane-days.
 3. **Cell coordinates in bohr (L·e) with a bulk-modulus `ModelHessian`** (recommended) or ASE's N_atoms strain scaling.
 4. **Order.**  GPW rutile directly (recommended: it is the production route and CP2K is its stress oracle), or a PW-route proof on
    Si / NaF first.
+
+### §6 RULED (user, 2026-11-10)
+
+1. **Frozen fractional rule plus a strain allowance (A).**  The user asked what the other codes do; checked by the controller:
+   - **QE** `vc-relax` freezes the G-vector set at the starting cell, then runs a "final scf calculation with G-vectors for final cell"
+     (`PW/src/run_pwscf.f90:289`).  So A plus a final check; the note's "fixed Ecut, QE's default" above was WRONG.
+   - **VASP** `ISIF=3` keeps the plane-wave set fixed and warns of Pulay stress (advice: ENCUT ×1.3 and restart).  So A, with no check.
+   - **CP2K** `CELL_OPT` keeps the grid point counts, which scale with the cell; `CELL_REF` sizes the grids for a stated reference
+     cell.  So A, with our strain allowance.
+   - **ABINIT** `optcell` keeps Ecut fixed and grows the plane-wave sphere (`dilatmx`), with `ecutsm` smoothing E(cell) and the
+     Pulay stress (it refuses `optcell` without it).  The only fixed-cutoff route, and it needs smoothing.
+   Our final audit at the converged cell plays QE's final-scf role.
+2. **Both.**  The user: *"I would have guessed both on H and on each term, H just sums the term contributions.  In any case I can
+   confirm that adding 'the derivative version of an existing method, beside it' is the right design."*  So `Stress` goes on the
+   Hamiltonian beside `Forces`, summing each term's virial, and the per-term virial goes beside each `Make…Pullback`.  Both fall
+   under the confirmed rule.  Regenerate the hub snapshot citing this ruling.
+3. **Bohr cell coordinates with a bulk-modulus `ModelHessian` (A).**
+4. **The user left the order to us; controller: the PW-route proof on Si / NaF FIRST** (channel B against QE).  Rutile waits on lane
+   B's six GPW gaps regardless, so this costs no critical-path time and proves the new channel early.  Then the GPW rutile gates.
