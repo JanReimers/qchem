@@ -876,7 +876,8 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
     at->MoveSites(R);
 
     // THE IMPOSED GROUP must survive (Q4): the SALC blocks are built on the abelian point group, so a step that changes it changes
-    // the blocks the carry and the energy surface are written in -- a NEW setup, the user's choice.
+    // the blocks the carry and the energy surface are written in -- a NEW setup, the user's choice.  A THROW: every driver that moves
+    // atoms off the group runs a lower-group setup, so an off-group R here is a wiring defect (PotentialEnergySurface.C).
     if (itsSetup->opts.symmetry)
     {
         auto abelian=[&](const Structure& st)
@@ -886,8 +887,8 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
             return qchem::Symmetry::Molecule::DetectPointGroup(pts, itsSetup->opts.symmetryTol).abelian;
         };
         if (const std::string now=abelian(*at), was=abelian(ref); now!=was)
-            return O::Fail({Why::SymmetryBroken, "these positions lower the imposed abelian group "+was+" to "+now
-                            +" -- symmetrize the step, or resolve a new setup without the symmetry"});
+            throw std::invalid_argument("MoleculeSession::ConvergeAt: these positions lower the imposed abelian group "+was+" to "+now
+                                        +" -- step through a map given the group's operations (CartesianMap), or resolve a new setup without the symmetry");
     }
 
     // THE CARRY (lane A, 2026-11-09): the previous point's state, carried onto this point's basis when it is built, by the function a

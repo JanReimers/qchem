@@ -341,7 +341,7 @@ TEST(GPW_NaF, Γ_PathIsContinuous_Long)
 {
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     SolidCalcOptions o=NaFOptions(naf, "NaF PES path");
-    o.imposeSymmetry=false;   // a displaced F lowers the group: an imposed session refuses the step (SymmetryBroken)
+    o.imposeSymmetry=false;   // a displaced F lowers the group: an imposed session throws on it: a displaced-atom driver runs a lower-group setup
     o.xcMeshSymmetric=false;  // ... and a free session's XC mesh must not follow the group detected at each point (see above)
     o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default: the CONTINUITY claim only -- a site curvature on it is 4-10x off (LiF/NaF, OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);

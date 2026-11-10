@@ -43,14 +43,17 @@ struct PESPoint
 };
 
 //! WHY a point produced no energy -- a legitimate outcome the driver must act on (stop, back-track, or ask the user for a new
-//! setup), never a crash.  A request that is a PROGRAMMING error (the wrong number of positions) throws instead.
+//! setup), never a crash.  A request that is a PROGRAMMING error (the wrong number of positions) throws instead -- and so does a
+//! geometry that breaks an imposed setup's group (lane H, 2026-11-09; OpenWork §2 geometry row): the drivers that move atoms off
+//! the group (finite-difference forces, phonons, NEB, the level-2 symmetry probe) run a setup at the lower group, and the level-1
+//! optimizer steps through a map that keeps R on the group by construction (\c WyckoffMap, \c CartesianMap given the ops), so an
+//! off-group R reaching an imposed session is a wiring defect no driver can act on, not a point to back-track from.
 struct PESFailure
 {
     enum class Why
     {
         SCF,                 //!< the point's SCF did not converge (details: the SCF's own failure)
         BasisConditioning,   //!< at these positions the frozen basis leaves the conditioning window it was trimmed in (ruling Q3)
-        SymmetryBroken,      //!< the positions break the setup's imposed group (ruling Q4: lowering it is a NEW setup)
         CellChange,          //!< a solid's cell differs from the setup's: the basis and grids cannot follow a cell yet (variable cell)
         NoGradient           //!< forces or stress were asked of a setup whose terms cannot supply them yet
     };
@@ -76,7 +79,8 @@ public:
     //! advances the surface's state.
     //! \param cell  lattice vectors as the COLUMNS of a 3x3 matrix, in BOHR; EMPTY for a molecule.  A molecule given a cell, or a
     //!               solid given none, is a broken invariant (throws); a solid's cell that moved is \c PESFailure::CellChange today.
-    //! \param R     atom positions, CARTESIAN, in BOHR, \c Reference()'s atom order.  THROWS unless one per atom.
+    //! \param R     atom positions, CARTESIAN, in BOHR, \c Reference()'s atom order.  THROWS unless one per atom, and THROWS when an
+//!               imposed setup's group does not survive them (a lower group is a NEW setup, ruling Q4).
     virtual Outcome<PESPoint, PESFailure> ConvergeAt(const std::optional<rmat3d_t>& cell, const std::vector<rvec3_t>& R,
                                                      const PESRequest& want = {}) = 0;
 };

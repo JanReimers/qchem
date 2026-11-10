@@ -24,6 +24,8 @@ import qchem.SCFParams;
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type
 import qchem.LASolver;                 // qchem::CholeskyPivoted (the Q3 conditioning window)
 import qchem.Types;
+import qchem.Blaze;                    // rvec_t arithmetic (q0 + step)
+import qchem.SCFIterator;              // IterationRow (the observer counts SCF iterations)
 
 using namespace qchem;
 
@@ -218,8 +220,7 @@ TEST(SolidSession, RefusalsAreOutcomesAndAWrongCountThrows)
     ASSERT_FALSE(F); EXPECT_EQ(F.Error().why, PESFailure::Why::NoGradient);
 
     std::vector<rvec3_t> broken=R; broken[1].x+=0.05;
-    auto B=pes.ConvergeAt(ref.cell, broken);
-    ASSERT_FALSE(B); EXPECT_EQ(B.Error().why, PESFailure::Why::SymmetryBroken) << B.Error().details;
+    EXPECT_THROW((void)pes.ConvergeAt(ref.cell, broken), std::invalid_argument) << "an off-group R on an imposed setup is a wiring defect";
 
     rmat3d_t strained=*ref.cell; for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) strained(i,j)*=1.01;   // a 1% isotropic strain
     auto C=pes.ConvergeAt(strained, R);
@@ -298,4 +299,78 @@ TEST(SolidSession, TheLowdinCarryLandsOnTheSameSurface)
         if (i>0) { nAO+=ao[i].second; nLW+=lw[i].second; }
     }
     std::cout << "[Si Γ carry] carried steps: AO " << nAO << " iterations, Löwdin " << nLW << std::endl;
+}
+
+// THE GEOMETRY RUN FACTORY (OpenWork §2 geometry row, (a)): the session and its coordinate map are built from ONE group, so every
+// geometry the map can produce is one the session accepts.  Si Γ carries it: perfect diamond imposed has no free parameter (both atoms
+// on 8a); the bond stretched along [111] lowers Oh to D3d -- the inversion through the bond centre still swaps the two atoms, so ONE
+// orbit with one free z, the bond length; a free setup gets P1, 3N coordinates with the rigid translations held.
+TEST(SolidSession, AGeometryRunPairsTheSessionWithAMapThatKeepsItsGroup)
+{
+    const std::vector<SCFStage> stages{SCFStage{Tight(), SCFAccelerators::Type::Auto}};
+    {
+        auto run=MakeSolidGeometryRun(SiSetup(nullptr, /*imposed*/true), stages);
+        EXPECT_EQ(run.map->Dimension(), 0u) << "diamond Si: both atoms on the 8a sites, no free Wyckoff parameter";
+    }
+    const PESGeometry perfect=SolidSession(SiSetup(), stages).Reference();
+    std::vector<rvec3_t> stretched=perfect.R;
+    stretched[1]+=rvec3_t(1,1,1)*(0.05/std::sqrt(3.0));   // along the bond, the 3-fold axis through atom 0
+    auto run=MakeSolidGeometryRun(SiSetup(&stretched, /*imposed*/true), stages);
+    ASSERT_EQ(run.map->Dimension(), 1u) << "D3d: the two atoms are one orbit, one free z along the 3-fold axis";
+    const rvec_t q0=run.map->Start();
+    rvec_t v(1); v[0]=0.04;
+    const rvec_t s=run.map->Project(q0, v);
+    EXPECT_NEAR(s[0], v[0], 1e-12) << "a non-polar group holds nothing";
+    const PESGeometry g=run.map->At(q0+s);
+    const rvec3_t b0=stretched[1]-stretched[0], b1=g.R[1]-g.R[0];
+    EXPECT_NEAR(norm(b1-b0*(norm(b1)/norm(b0))), 0.0, 1e-12) << "the step stretches the bond along [111], nothing else";
+    EXPECT_GT(std::fabs(norm(b1)-norm(b0)), 1e-3) << "and it does move";
+    for (size_t a=0;a<g.R.size();a++) EXPECT_LT(norm(run.map->At(q0).R[a]-stretched[a]), 1e-12) << "q0 is the reference";
+    // The real wiring proof: the map's step is a geometry the IMPOSED session accepts (an off-group one would throw).
+    auto P=run.surface->ConvergeAt(g.cell, g.R);
+    ASSERT_TRUE(P) << P.Error().details;
+
+    // FREE: P1, all 3N coordinates; a step never moves the cell's contents as a whole.
+    auto free=MakeSolidGeometryRun(SiSetup(), stages);
+    ASSERT_EQ(free.map->Dimension(), 6u);
+    rvec_t w(6); for (size_t i=0;i<6;i++) w[i]=0.1*double(i+1)-0.25;
+    const PESGeometry f=free.map->At(free.map->Start()+free.map->Project(free.map->Start(), w));
+    const rvec3_t shift=(f.R[0]+f.R[1])-(perfect.R[0]+perfect.R[1]);
+    EXPECT_LT(norm(shift), 1e-12) << "the rigid translations are held";
+}
+
+// FORCES: the session names what is missing, from the point's own Hamiltonian, instead of a blanket refusal -- and spends NO SCF finding
+// out: MissingGradients needs the built terms and blocks, not a converged density.  The first point is built to its Hamiltonian, asked and
+// discarded; a later ask reads the point the session holds.  The optimizer over a factory-built run stops on that, named.
+TEST(SolidSession, AForceRequestNamesTheMissingGradientsBeforeAnySCF)
+{
+    size_t rows=0;
+    auto run=MakeSolidGeometryRun(SiSetup(), {SCFStage{Tight(), SCFAccelerators::Type::Auto}}, [&](const SCFIterator::IterationRow&){ ++rows; });
+    const PESGeometry ref=run.surface->Reference();
+    auto F=run.surface->ConvergeAt(ref.cell, ref.R, {.forces=true});
+    ASSERT_FALSE(F);
+    EXPECT_EQ(F.Error().why, PESFailure::Why::NoGradient);
+    EXPECT_NE(F.Error().details.find("MissingGradients"), std::string::npos) << F.Error().details;
+    EXPECT_NE(F.Error().details.find("\n    "), std::string::npos) << "at least one term named: " << F.Error().details;
+    std::cout << "[Si Γ forces] " << F.Error().details << std::endl;
+    EXPECT_EQ(rows, 0u) << "the refusal spent no SCF iteration";
+    EXPECT_EQ(run.surface->Current(), nullptr) << "the unconverged point is discarded, never held as a carry";
+
+    ASSERT_TRUE(run.surface->ConvergeAt(ref.cell, ref.R));   // an ENERGY point: held
+    const SolidCalculation* held=run.surface->Current();
+    ASSERT_NE(held, nullptr);
+    const size_t afterEnergy=rows;
+    std::vector<rvec3_t> R=ref.R; R[1].x+=0.05;
+    auto G=run.surface->ConvergeAt(ref.cell, R, {.forces=true});
+    ASSERT_FALSE(G); EXPECT_EQ(G.Error().why, PESFailure::Why::NoGradient);
+    EXPECT_EQ(run.surface->Current(), held) << "a later ask reads the held point: no new point";
+    EXPECT_EQ(rows, afterEnergy) << "and no SCF";
+
+    OptimizerOptions o; o.maxSteps=3;
+    auto opt=GeometryOptimizer(*run.surface, *run.map, o).Run();
+    ASSERT_FALSE(opt);
+    EXPECT_EQ(opt.Error().why, OptimizeFailure::Why::Cost);
+    ASSERT_TRUE(opt.Error().cost);
+    EXPECT_EQ(opt.Error().cost->why, PESFailure::Why::NoGradient);
+    EXPECT_EQ(rows, afterEnergy) << "the optimizer's refusal spent no SCF either";
 }

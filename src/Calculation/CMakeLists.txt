@@ -21,6 +21,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     PotentialEnergySurface.C
     GeometryOptimizer.C
     SCFState.C
+    WyckoffMap.C
     SolidState.C
     ValenceBasisGen.C
     PseudoAtomOrbital.C

@@ -2061,3 +2061,23 @@ FIRST ITERATE (within 1e-5 Ha of the converged energy; measured 1.7e-6): UTCalcu
 `MoleculeSession.EveryStepsFirstIterateStartsNearItsAnswer` (two steps) and ITMain `M_Calculation.WaterRestartAtMovedAtomsStartsNearItsAnswer`;
 with the carry switched off the first iterate is 4.1 Ha out and the session gate fails.  The earlier V-FACADE-STATE entry above
 (its Löwdin carry and Tr = N gate) is superseded by this one.
+
+## ✅ GeometryOptimizer rejected a roundoff-level energy rise after the gradient had converged (lane H, 2026-11-09, 07f5e89e5 + 7bbeb3647)
+
+The row as it stood:
+| **`GeometryOptimizer` rejects a roundoff-level energy rise after the gradient has converged** (lane H, 2026-11-09, the `WyckoffMap` rutile model) | at max\|g\| 2e-9 the next step's ΔE is below E's roundoff (E −4.53 Ha); a 1-ulp "rise" rejects the step and cuts the trust radius ×¼ ten times until `TrustCollapsed`, on a point whose gradient (8e-16) had already converged.  A real SCF point's energy noise is its convergence tolerance, far above 1 ulp, so any maxStep tighter than the step that noise allows fails the same way | accept a step whose rise is below an energy noise floor (the surface's own ε, or `energyChange`) when the new point meets the force criteria, or test convergence at the trial point before the rise check; a UT: the quadratic bowl at maxStep 1e-7 converges.  For V-OPTIMIZE-DIP (`doc/OOD-SOLID-Cleanup.md`), which owns the algorithm half · `src/Calculation/GeometryOptimizer.C` (Run) |
+
+**Closed by V-OPTIMIZE-DIP §8 steps 1-2** (`doc/Records/VOptimizeDIP_Design.md` §4).  The algorithm moved to qcOptimize's `BFGS_RFO`
+with three noise rules:
+1. a rise within δ(here) + δ(there) is accepted;
+2. the trust ratio is judged only when the predicted change exceeds the noise;
+3. every evaluated point is judged by the client's rule.  A REJECTED trial whose gradient meets the rule is the new
+   `Why::GradientDisagrees`, never a radius collapse.
+
+δ is the cost's `ValueNoise`, or 16 ε_mach |value| when the cost states none.  The geometry client's `PESCost` states
+`OptimizerOptions::energyNoise`, which `FromEps` sets to eps.
+
+Gates:
+- `WyckoffMap.RutileHasOneFreeParameterAndTheOptimizerFindsItsMinimum` runs at maxStep 1e-6, without the 1e-4 workaround;
+- UTOptimize `Minimize.ARiseWithinTheValueNoiseIsNotARise`: a variational value noise of 1e-6.  Declared, it converges in 23
+  steps; the undeclared twin collapses at step 30.

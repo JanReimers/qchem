@@ -341,4 +341,13 @@ std::shared_ptr<const BasisSet::Real_BS> GaussianBasisRecipe::Make(const Structu
     return b;
 }
 
+std::vector<Symmetry::SymOp> SolidSetup::KeptOps(const Lattice_3D& at) const
+{
+    if (!imposed) return {Symmetry::SymOp{Matrix3D<double>(1,0,0, 0,1,0, 0,0,1), rvec3_t(0,0,0)}};
+    if (!siteSpins.empty()) return at.ShubnikovOps(siteSpins);
+    std::vector<Symmetry::SymOp> ops;
+    for (const auto& op : at.GetSpaceGroup().Ops()) ops.push_back({op.W, op.tau});
+    return ops;
+}
+
 } //namespace qchem
