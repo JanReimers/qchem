@@ -47,6 +47,10 @@ template <class T> struct LoopContext
     //! (in, out); the driver writes it to \c *residualOut, evaluated where both densities still exist.
     std::function<double(const qchem::ChargeDensity::tChargeDensity<T>&, const qchem::ChargeDensity::tChargeDensity<T>&)> residual;
     double* residualOut = nullptr;
+    //! THE LAST MOMENT BOTH OF THIS STEP'S DENSITIES EXIST AND ARE ACTIVE (2026-11-09): (D_in that built this Fock, D_out of its
+    //! diagonalisation), called before installNew supersedes D_in, before the residual, and before Mix replaces D_in.  The iterator forms the first-order energy E_T there (see
+    //! tSCFIterator::TaylorEnergy).  Optional: a null callback is skipped.
+    std::function<void(const qchem::ChargeDensity::tChargeDensity<T>& in, const qchem::ChargeDensity::tDM_CD<T>& out)> beforeMix;
 };
 
 //! The loop-face: perform one iteration's density update; returns ‖Δρ‖.
@@ -78,9 +82,18 @@ public:
     {
         c.wf->DoSCFIteration(*c.H, c.mixer->FockDensity(**c.cur));  // eigen orbitals from the (mixed) Fock
         c.wf->FillOrbitals(*c.pol, c.mergeTol);
+        typename LoopContext<T>::cd_t fresh;
         {
             qchem::report::Timed timed("scf: new density from D (install + lineage)");
-            c.installNew(typename LoopContext<T>::cd_t(c.wf->GetChargeDensity()));
+            fresh=typename LoopContext<T>::cd_t(c.wf->GetChargeDensity());
+        }
+        // BOTH DENSITIES LIVE AND ACTIVE: D_in (the working density, or the mixer's own copy) before installNew supersedes it and
+        // before Mix replaces it; and before the residual, which samples D_out on the XC mesh -- that sampler caches one density,
+        // so E[D_in] asked after it re-sampled D_in (MnO PulD: 27 -> 38 samplings, measured 2026-11-09).
+        if (c.beforeMix) c.beforeMix(*c.mixer->FockDensity(**c.cur), *fresh);
+        {
+            qchem::report::Timed timed("scf: new density from D (install + lineage)");
+            c.installNew(std::move(fresh));
         }
         // THE RESIDUAL, before Mix replaces the field: rho_in is the density THIS Fock was built from (the mixer's
         // presentation for Kerker/Pulay; the working D for linear mixing -- FockDensity of the previous working D).

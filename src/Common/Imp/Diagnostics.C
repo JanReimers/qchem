@@ -23,6 +23,7 @@ const std::vector<Entry>& Registry()
         {"becke_count",      "GPW_BECKE_COUNT",       "census of Becke per-point partition costs"},
         {"dm_rank",          "GPW_DM_RANK",           "rank / PSD census of D and the IPR of its Cholesky orbitals (the pin-21 canary)"},
         {"eh_trace",         "GPW_EH_TRACE",          "E_H G-space pairing trace"},
+        {"energy_taylor",    "",                      "per D-mixing iteration, the exact E_KS[D_out] beside the trace's first-order E_T, their gap and the Taylor step |D_out-D_in|_F (one extra density refresh per iteration)"},
         {"field_spectrum",   "GPW_FIELD_SPECTRUM",    "cumulative |c|^2 spectrum of a fitted field"},
         {"gdm_trace",        "GPW_GDMTRACE",          "GDM line-search energy trace"},
         {"frontier",         "",                      "the frontier level window e(occ/degen) on every SCF trace row; value = levels each side (default 4) (was test-only ReportBandGap)"},

@@ -72,6 +72,7 @@ public:
     double GetRelax() const override { return itsRelax; }
     const char* Tag() const override { return "Lin"; }
     bool HasGFilter() const override { return false; }   // mixes D itself
+    bool PassesOutputThrough() const override { return itsRelax==1.0; }   // Mix's own passthrough test
 
     //! The [F,D]-keyed policy, in one place: if this step made [F,D] WORSE, retract it to a quarter step and shrink α by 0.8;
     //! if it improved, grow α by the GOLDEN RATIO -- and approach the ceiling without ever landing on it.

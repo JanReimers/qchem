@@ -78,6 +78,11 @@ public:
     //! deficit is pin 28's EXCUSED form only when such a filter forces the step into the fit's {G}; without one the
     //! history could live on D (doc/Pins.md pin 28), so the trace marks that cusp route distinctly.
     virtual bool HasGFilter() const = 0;
+    //! Will the NEXT \c Mix hand the working density straight back, so \c FockDensity(working) IS this step's D_out?  Client: the
+    //! SCF's energy pass (tSCFIterator::TaylorEnergy, 2026-11-09) -- when it is, E_KS[D_out] costs nothing (it is the next Fock's
+    //! refresh), so the first-order E_T is not formed.  Asked BEFORE Mix; a later re-mix (an adaptive retraction) only costs a
+    //! refresh, never accuracy.  Default false: every field mixer, and a D-mixer with a step, presents a density of its own.
+    virtual bool PassesOutputThrough() const {return false;}
 };
 
 //! \brief Capability face: a mixer whose STEP SIZE adapts to the loop's signals.  Only the linear D-mixer has

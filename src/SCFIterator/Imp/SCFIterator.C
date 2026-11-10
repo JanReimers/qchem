@@ -17,6 +17,7 @@ module;
 #include <utility>
 #include <cctype>
 #include <memory>
+#include <deque>
 #include <type_traits>
 
 module qchem.SCFIterator;
@@ -407,6 +408,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     double FD=0,FDold=1e10,dFD=1e10;
     // double Eoldold=0;
     EnergyBreakdown eb;
+    bool energyIsTaylor=false;   //!< the last iteration's E is the first-order E_T, not E_KS[D_out] (see the energy pass)
     itsConverged=false;
     // Density-face mixer for this run (the density-mixing policy + state; doc/SCFStrategyPlan.md): the RESOLVED
     // ipar.Mixer -- Kerker/Pulay ρ̃-mixing on a periodic run, else linear D-mixing at α=StartingRelaxRo (1.0 = passthrough).
@@ -460,6 +462,11 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
                            [this](double e,double tol){ return DirectMinStep(e,tol); },
                            [this](const tChargeDensity<T>& a, const tChargeDensity<T>& b){ return itsHamiltonian->DeltaRho(&a,&b); },
                            &itsResidual };
+        // THE FIRST-ORDER ENERGY'S INPUT (TaylorEnergy), formed while D_in and D_out are both live and active -- and only when the
+        // mixer will NOT hand D_out straight to the next Fock (then E_KS[D_out] is that Fock's refresh, i.e. free).
+        std::optional<EnergyBreakdown> taylor;
+        lc.beforeMix=[&](const tChargeDensity<T>& in, const tDM_CD<T>& out)
+        { if (!itsMixer->PassesOutputThrough()) taylor=TaylorEnergy(in, out); };   // null for a field mixer's ρ̃
         // Direct-min (GDM/OT) OWNS the density update via its geodesic line search, so it must DISABLE the
         // density mixer entirely -- both the per-step Mix() (already: DirectMinDriver never calls it) AND the
         // post-step adaptive re-mix below (an adaptive mixer would otherwise re-mix
@@ -486,8 +493,41 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         // THE ENERGY OF THE IDEMPOTENT D_out (2026-11-09): itsCD is the diagonalisation's output on every driver -- a D-mixer keeps
         // its mixed D_in to itself (OwnedDIn), as a field mixer always kept its field.  Evaluated on the mixed D, E was first order
         // in the mixing error (OpenWork §3: the ±1e-8..1e-7 Ha floor; Deck.ASavedState read 2.5e-8 above its own restart).
-        eb=TotalEnergy(itsCD.get());        // includes the Mermin −TS => E is the free energy A when smearing on
-        assert(EnergyDensityIsTheOutput() && "SCF: the energy is evaluated on a density that is not this iteration's C f C† output");
+        // TWO ROUTES TO IT, chosen by what is FREE (controller ruling 2026-11-09, option B):
+        //   * EXACT E_KS[D_out] when the next Fock is built from D_out itself (a field mixer, a passthrough, direct-min): that
+        //     refresh is the next Fock's, so the energy costs nothing extra.
+        //   * E_T, the first-order Taylor estimate (TaylorEnergy), when a D-mixer's NEXT Fock is a different D: E_KS[D_out] would
+        //     be a second collocation per iteration.  Second order in D_out - D_in; exact again at the end of the loop (below).
+        // E_T STEERS, E_KS JUDGES (controller ruling 2026-11-09).  STEER (read whichever this is): the MinΔE gate (dE), the Ladder's
+        // |ΔE/E| hand-off (SetEnergy), the virial gate, the trace row and the observer, and through the rows the run's TREND checks
+        // (charge slosh: Eee against its run minimum; order collapse: the site moment below 1 % of its peak, sustained) -- factor-scale
+        // trends of a mixed D_in that follows the D_out's.  JUDGE (exact E_KS[D_out], refreshed where they judge): the iteration-1
+        // refusal (below), the final E, the saved state's summary and the RelChecked assert (after the loop).  The GDM line search is
+        // neither: it measures its own E(t=0).
+        const bool useTaylor = !lineSearch && taylor && itsMixer->FockDensity(*itsCD)!=static_cast<const tChargeDensity<T>*>(itsCD.get());
+        if (useTaylor)
+        {
+            eb=*taylor;
+            eb.Add("MinusTS", itsOccPolicy->EntropyTerm(), EnergyRole::Entropy, 0.0);   // as TotalEnergy: -TS of THIS fill
+            if (!energyIsTaylor)
+                qchem::report::Set("energyPerIteration", "E_T = E[D_in] + Re Tr(F[D_in](D_out-D_in)): second order in D_out-D_in "
+                                   "(a D-mixer's next Fock is not D_out); the final E is the exact E_KS[D_out]");
+        }
+        else
+        {
+            eb=TotalEnergy(itsCD.get());        // includes the Mermin −TS => E is the free energy A when smearing on
+            assert(EnergyDensityIsTheOutput() && "SCF: the energy is evaluated on a density that is not this iteration's C f C† output");
+        }
+        energyIsTaylor=useTaylor;
+        // THE SECOND-ORDER CLAIM, MEASURED (diagnostic energy_taylor): the exact E_KS[D_out] beside E_T.  The extra refresh at D_out
+        // changes no number -- the next Fock refreshes at D_in again, and every memo underneath replays exactly.
+        if (useTaylor && qchem::Diagnostics::Enabled("energy_taylor"))
+        {
+            const double EKS=TotalEnergy(itsCD.get()).GetTotalEnergy(), ET=eb.GetTotalEnergy();
+            cout << "[energy_taylor] it " << itsIterationCount << std::setprecision(15) << " E_T " << ET << " E_KS " << EKS
+                 << std::scientific << std::setprecision(6) << " gap " << std::fabs(ET-EKS) << " step " << eb.Diagnostic("TaylorStep")
+                 << std::defaultfloat << endl;
+        }
         RequirePin28(eb, itsIterationCount, itsMixer->HasGFilter(), lineSearch);
         ReportImposedGroup(eb.charge.xcGroupResidual, itsIterationCount);
         E=eb.GetTotalEnergy();
@@ -534,10 +574,16 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         if (itsObserver) itsObserver(MakeRow(ipar, *tr));
         // THE FIRST ENERGY MUST BE PHYSICAL (UnphysicalStop; the bound is the layout's, FirstEnergyRefusal).  Refused AFTER the row is
         // out, so the trace shows the number it was refused on; iteration 1 only -- a later excursion is the mixer's to recover.
-        if (std::string why; itsIterationCount==1 && !(why=FirstEnergyRefusal(eb, itsCD->GetTotalCharge())).empty())
+        // E_T STEERS, E_KS JUDGES (controller ruling 2026-11-09): a refusal is a judgement on THIS iterate, so it reads the exact
+        // E_KS[D_out] even where the row carries the first-order E_T -- at iteration 1 E_T is a few Ha off by construction (O2 HF:
+        // 3.4 Ha), and a bound that happens to sit far from it would be luck, not design.  One extra refresh per run.
+        const std::optional<EnergyBreakdown> judged = itsIterationCount==1 && energyIsTaylor
+                                                    ? std::optional<EnergyBreakdown>(TotalEnergy(itsCD.get())) : std::nullopt;
+        const EnergyBreakdown& ebJ = judged ? *judged : eb;
+        if (std::string why; itsIterationCount==1 && !(why=FirstEnergyRefusal(ebJ, itsCD->GetTotalCharge())).empty())
         {
             std::ostringstream os;
-            os << why << " (Etot " << std::setprecision(6) << E << ", Ekin " << eb["Kinetic"] << ", Eee " << eb["Eee"] << "), so the Hamiltonian "
+            os << why << " (Etot " << std::setprecision(6) << ebJ.GetTotalEnergy() << ", Ekin " << ebJ["Kinetic"] << ", Eee " << ebJ["Eee"] << "), so the Hamiltonian "
                << "it was built from is broken -- on a GPW run, an "
                << "aliased raster that an ill-conditioned overlap amplifies (raise the rasters, or state the accuracy target and let the "
                << "conditioning size them), or a basis the orthogonalization should have trimmed";
@@ -604,6 +650,22 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
             break;
         }
         // DisplayEigen();
+    }
+    // THE EXACT ENERGY AT THE END (controller ruling 2026-11-09): when the last iteration reported the first-order E_T, refresh
+    // once at the converged D_out -- the final E, the saved state's summary, the cap message and every post-SCF consumer (the
+    // grid audit, forces) read E_KS[D_out] and a Hamiltonian refreshed there, as before.  The gap is printed: it is the
+    // second-order remainder, the one number that shows E_T was what it claims.
+    if (energyIsTaylor)
+    {
+        const double ET=E;
+        eb=TotalEnergy(itsCD.get());
+        assert(EnergyDensityIsTheOutput() && "SCF: the final energy is evaluated on a density that is not the C f C† output");
+        E=eb.GetTotalEnergy();
+        energyIsTaylor=false;
+        qchem::report::Set("energyTaylorGap", std::fabs(ET-E));
+        if (ipar.Verbose)
+            cout << "[energy] final E_KS[D_out] = " << std::setprecision(12) << E << "  (the trace's first-order E_T: |E_T - E_KS| = "
+                 << std::scientific << std::setprecision(2) << std::fabs(ET-E) << std::defaultfloat << " Ha, second order)" << endl;
     }
     // NEVER SILENT: whatever the recipe, a run that ENDS non-aufbau is reported (the honest instrument --
     // the old εH/εL line masked exactly this; doc/GPWPlan 0h).
@@ -822,6 +884,57 @@ template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>*
     qchem::report::Timed timed("scf: total energy (all terms)");
     EnergyBreakdown eb=itsHamiltonian->At(nullptr, cd).GetTotalEnergy();   // the Hamiltonian AT cd (OOD V1.41)
     eb.Add("MinusTS", itsOccPolicy->EntropyTerm(), EnergyRole::Entropy, 0.0);   // the Mermin -TS: an energy, not in any eigenvalue
+    return eb;
+}
+
+namespace
+{
+//! \brief F[D_in] AS A FIXED MATRIX: at a fixed density the Fock is a static operator, so the density's own static contraction
+//! (\c tDM_CD::DM_Contract(tStatic_CC*)) computes \f$\mathrm{Tr}(D\,F[D_{in}])\f$ over every spin/k/irrep block, the real TRIM blocks
+//! of a complex run included (their face is the \c tStatic_CC<double> base).  The blocks are assembled from the Hamiltonian AT D_in
+//! (OOD V1.41: a READ of what the refresh built; the gather's exact V replay serves the GPW integrate-back).  Held by value in a
+//! deque only because the face returns a reference.
+template <class T> class FockAtDensity;
+template <> class FockAtDensity<double> : public virtual qchem::ChargeDensity::tStatic_CC<double>
+{
+public:
+    explicit FockAtDensity(const qchem::Hamiltonian::tHamiltonianAt<double>& H) : itsH(H) {}
+    const hmat_t<double>& GetMatrix(const qchem::ChargeDensity::tobs_t<double>* bs, const Spin& s) const override
+    { itsBlocks.push_back(itsH.GetMatrix(bs,s)); return itsBlocks.back(); }
+private:
+    const qchem::Hamiltonian::tHamiltonianAt<double>& itsH;
+    mutable std::deque<hmat_t<double>> itsBlocks;
+};
+template <> class FockAtDensity<dcmplx> : public virtual qchem::ChargeDensity::tStatic_CC<dcmplx>, public virtual qchem::ChargeDensity::tStatic_CC<double>
+{
+public:
+    explicit FockAtDensity(const qchem::Hamiltonian::tHamiltonianAt<dcmplx>& H) : itsH(H) {}
+    const hmat_t<dcmplx>& GetMatrix(const qchem::ChargeDensity::tobs_t<dcmplx>* bs, const Spin& s) const override
+    { itsC.push_back(itsH.GetMatrix(bs,s)); return itsC.back(); }
+    const hmat_t<double>& GetMatrix(const qchem::ChargeDensity::tobs_t<double>* bs, const Spin& s) const override   // a real TRIM block (Step 3c-2)
+    { itsR.push_back(itsH.GetMatrix(bs,s)); return itsR.back(); }
+private:
+    const qchem::Hamiltonian::tHamiltonianAt<dcmplx>& itsH;
+    mutable std::deque<hmat_t<dcmplx>> itsC;
+    mutable std::deque<hmat_t<double>> itsR;
+};
+} // anon
+
+template <class T> std::optional<EnergyBreakdown> tSCFIterator<T>::TaylorEnergy(const tChargeDensity<T>& in, const tDM_CD<T>& out) const
+{
+    const auto* din=dynamic_cast<const tDM_CD<T>*>(&in);   // abstract -> abstract: a field mixer's ρ̃ has no D
+    if (!din) return std::nullopt;
+    qchem::report::Timed timed("scf: first-order energy E_T (E[D_in] + Tr F[D_in](D_out-D_in))");
+    // E[D_in]: the Hamiltonian is ALREADY refreshed at D_in (this step's Fock), so this is the terms' energy pass only.
+    const auto H=itsHamiltonian->At(itsBS, din);
+    EnergyBreakdown eb=H.GetTotalEnergy();
+    // Re Tr(F[D_in] ΔD), ΔD = D_out - D_in formed by the density's own arithmetic (one contraction, one block assembly).
+    auto dD=out.MakeCopy();
+    dD->Axpy(-1.0, *din);
+    const FockAtDensity<T> F(H);
+    const double first=dynamic_cast<const tDM_CD<T>&>(*dD).DM_Contract(static_cast<const qchem::ChargeDensity::tStatic_CC<T>*>(&F));
+    eb.Add("FirstOrder", first, EnergyRole::Potential);   // NAMED: the Taylor step from E[D_in] to E_T, never a term of E_KS
+    eb.AddDiagnostic("TaylorStep", std::sqrt(dD->Dot(*dD)));   // ‖D_out - D_in‖_F: the expansion step the remainder is second order in
     return eb;
 }
 

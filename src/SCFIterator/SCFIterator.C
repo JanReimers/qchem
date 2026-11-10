@@ -320,6 +320,16 @@ private:
     //! idempotency test DSD = D would be wrong.  It fires when a driver or a mixer leaves anything else in the loop's hands (a
     //! mixed D made E first order in the mixing error).  One density build: asserted once per iteration, never in a hot loop.
     bool EnergyDensityIsTheOutput() const;
+    //! \brief THE FIRST-ORDER ENERGY E_T of a mixed step (controller ruling 2026-11-09, option B): the energy TAYLOR-expanded about
+    //! the density \a in that built this Fock, evaluated at the diagonalisation's output \a out,
+    //! \f[ E_T=E[D_{in}]+\mathrm{Re}\,\mathrm{Tr}\big(F[D_{in}](D_{out}-D_{in})\big),\qquad E_{KS}[D_{out}]-E_T=O(\lVert D_{out}-D_{in}\rVert^2). \f]
+    //! RIGOROUS, not calibrated: F = dE/dD (the terms' faces; PW_Terms.TheXCMatrixIsItsEnergysDerivative gates it), so the gap is the
+    //! second-order remainder \f$\tfrac12\Delta D\,K\,\Delta D\f$ and nothing else.  F and D are spin-resolved block by block (the density's
+    //! own contraction walks its spin and k blocks), so a polarized run stays second order.  Why: E_KS[D_out] needs \f$\rho[D_{out}]\f$
+    //! collocated, a second collocation per iteration on a D-mixing run (+33 % per iteration on MnO PulD, measured 2026-11-09); E_T reuses
+    //! the refresh the Fock already paid for.  Null when \a in is not a density matrix (a field mixer's ρ̃: E_KS[D_out] is free there).
+    //! The entropy is added by the caller, as for \c TotalEnergy.
+    std::optional<EnergyBreakdown> TaylorEnergy(const tChargeDensity<T>& in, const tDM_CD<T>& out) const;
     cd_t DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density; used by DirectMinDriver)
 
     void DisplayEigen   () const;
