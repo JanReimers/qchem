@@ -1992,3 +1992,72 @@ Landed (CLAUDE.md "Where to check, and with what": the bound checked ONCE at the
   throws at each lookup (not in a hot loop: only the unit tests call it today).
 UTs: `M_BoysTable.RefusesJBeyondTheTable` (and `RNLM(17, ...)` throws), `M_BoysTable.ValuesAtTheBound` (F_j(0) = 1/(2j+1) and
 F_j(5) against the defining integral, j <= 16), `RelWigner3jTests.TablesRefuseBeyondTheirBound`.
+
+### ✅ HF with a STATED shared degenerate fill starts from an integer seed (lane A, 2026-11-09)
+FIXED in `tSCFIterator::Initialize`: an HF run seeded through its LDA sibling (a matrix-free SAD seed) now sets
+`itsFreshSeedFill`, so a stated Shared rule refills the sibling's integer-filled orbitals at the first Iterate, as it
+does for any fresh seed.  Gate `M_Calculation.BoronUHFStatedSharedTakesTheSharedState` (Boron UHF/dzvp, SAD seed
+STATED): −24.4076937683 (7 iterations) with the fix, −24.5259316138 (8, the integer state) without it, so it
+discriminates.  The seed must be stated: HF's default seed is the core guess (MoleculeSetup's AutoSeed row), which
+never takes the sibling path, so the first gate drafted on the default seed passed with the fix disabled.
+Seen on the way: O₂ singlet HF + Shared from SAD lands on the broken −149.5438874 either way (its π_g splits beyond
+MergeTol at that fixed point); from the core guess it reaches the shared −149.2962220 → new §3 row "A stated Shared fill
+does not guarantee the symmetric state".
+
+### ✅ A solid run's banner prints the UNRESOLVED mixer alpha (lane A, 2026-11-09)
+The diagnosis was WRONG: the banner already received the resolved params.  The cause was a cout precision leaked by an
+earlier `setprecision(1)`, which printed the Auto Pulay-D step 0.45 as `alpha=0.5`.  FIXED: `EmitSCFBanner` states its
+own format (defaultfloat, precision 6) and restores cout's.  The remaining leak sites → new §3 row "cout precision
+leaks between prints".
+Sweep for both (vs main-cf1c8366 short/panel, main-08d9536c long): short 1443/0, 0 moved (+1 new gate); long 15/0,
+0 moved; panel|periodic at 4 threads 25/25, 0 moved.
+
+### ✅ A molecule's wavefunction cannot be saved or restarted (user 2026-11-09; lane A, V-FACADE-STATE)
+DONE as ruled (doc/OOD-SOLID-Cleanup.md V-FACADE-STATE, now in CleanupHistory3).  The shared half is the new module
+`qchem.SCFState` (src/Calculation/SCFState.C): the framing, the base fingerprint keys, the comparison, the writer and reader, the
+Löwdin carry (generalised from the solid's) and the restore checks.  The abstract `Calculation` gained a public non-virtual
+`SaveState(path)` and `JudgeState(path)` (the refusal or the warm list, without restarting: the binding's ask), a public
+`RestartedFrom()` (exact / warm lines / displacement / Löwdin-carried / the electrons the restored D holds on the run's basis), the
+protected template method `RecordState(StateRecord&, kT)` (the base writes the structure, electron and block keys, each facade
+overrides, calls it and adds its own), and `JudgeRestart` (kind check, comparison, carry, the EXACT RESUME / WARM START lines).
+`MoleculeCalculation::Restart` / `PrepareRestart` and `AtomCalculation::Restart` / `PrepareRestart` mirror the solid's: an exact
+resume seeds `SeedRole::ExactResume` and a Ladder starts on its GDM rung at kT = 0 (a `startOnGDM` key on the json accelerator
+door); a molecular setup with an unstated, unsized XC mesh adopts the saved state's mesh when the eps agrees (a `policy` row).
+FORMAT: `qchem-state 2.0`, root attr `kind`, per block an `irrep` label and the overlap `S`; the reader still takes the solid's
+`qchem-solid-state 1.x` (as kind solid; no S, so a moved-atom restart from one carries verbatim, as it always did), so the
+vendored decks/states/ files resume unchanged.
+Gates: FacadeMatrix SaveRestartRoundTrips green for Atom (O, LDA) and Molecule (H2O PP LDA, the fresh setup adopting the mesh);
+M_Calculation `BoronUHFExactResumeStartsAtTheSavedAnswer` and `WaterLDASymmetryExactResumeStartsAtTheSavedAnswer` (first iterate
+within 1e-9 of the saved E, <= 2 iterations); `WaterRestartAtMovedAtomsCarriesTheDensityThroughTheLowdinFrame` (one H moved
+0.064 bohr: Tr(D S') = 10 to 1e-12, then the fresh run's energy to 1e-8; DISCRIMINATES: the verbatim carry holds 9.99506);
+`ASavedStateIsJudgedByClass` (another basis REFUSED by name, HF -> LDA a named WARM start, a molecule state to an atom refused by
+KIND); UTCalculation `SolidState.AVendoredFormat1StateReadsThroughTheSharedReader`.  Found on the way: a by-value
+`RestartedFrom()` dangled in a range-for over `->warm` (segfault): it returns a reference.
+Follow-ups (OpenWork §2/§3): the binding + GUI (lane G) and the molecular deck keys (V-FACADE-OPTS); the geometry session's
+verbatim carry; a SALC basis identified by name, irreps and sizes only.
+
+**✅ The moved-atom carry, MEASURED: the verbatim AO carry stays, for file restarts and geometry sessions alike (lane A,
+2026-11-09; was the OpenWork row "A geometry session carries D verbatim: Tr(D S') != N").**  The row's premise was wrong.  The
+V-FACADE-STATE landing (035a9900f) carried a moved-atom restart through the Löwdin frame to hold Tr(D S') = N, and the same was
+asked of `MoleculeSession`.  Measured on H2O dzvp, one step from the converged reference, first-iterate E1 - E_final (Ha):
+
+| carry | Tr(D S') | LDA O 0.02 | LDA H 0.064 | LDA H 0.137 | HF O 0.02 | HF H 0.064 | HF H 0.137 |
+|---|---|---|---|---|---|---|---|
+| verbatim AO | 10.006 / 9.995 / 9.995 | 1.3e-5 | 4.6e-6 | 2.0e-5 | 5.8e-7 | 1.7e-6 | 1.6e-5 |
+| Löwdin frame, A = S'^-1/2 S^1/2 | 10 | 1.4e-4 | 9.0e-6 | 1.4e-4 | 3.2e-6 | 4.3e-6 | 4.5e-5 |
+| natural orbitals re-orthonormalised in S' (= McWeeny of the verbatim D) | 10 | 1.2e-4 | 2.4e-5 | 1.2e-4 | 2.1e-6 | 1.5e-6 | 1.3e-5 |
+| projection S'^-1 <new\|old> C, re-orthonormalised (controller's request) | 10 | 1.5e-4 | 1.9e-4 | 7.8e-4 | 6.3e-6 | 5.5e-6 | 3.3e-5 |
+
+Every N-exact carry starts LDA about 10x further from the answer; HF is a near-tie with the natural orbitals.  The fixed-N
+Gaussian Coulomb fit does NOT explain it: with the Hartree term on the mesh (`CoulombFit::Delta`) verbatim still wins by the same
+factor (1.4e-5 vs 1.2e-4 to 1.6e-4).  The projection, which keeps the density where it WAS in space, is worst: the density
+follows its nuclei, and so do the AO coefficients.  Iteration counts were recorded too but are accelerator noise (a DIIS period-2
+cycle under LDA; 11 to 85 for the same start quality).  The solid side had found the same earlier (`SolidSession::Carry`, AO
+default, 2026-10-30: Si 41 vs 42, NaF 110 vs 96 -- no lever).  Landed: one shared `CarryToMovedAtoms` (qchem.SCFState: D kept as
+AO coefficients, the new S attached; the table at its declaration) used by `Calculation::JudgeRestart` and by the session's
+step (`MoleculeCalculation::CarryOntoThisBasis`, which also files the step in `RestartedFrom()`); `RestartSummary::lowdinCarried`
+is gone, `electrons` stays as a diagnostic; `LowdinCarry` remains as the solid session's `Carry::Lowdin` option.  Gates on the
+FIRST ITERATE (within 1e-5 Ha of the converged energy; measured 1.7e-6): UTCalculation
+`MoleculeSession.EveryStepsFirstIterateStartsNearItsAnswer` (two steps) and ITMain `M_Calculation.WaterRestartAtMovedAtomsStartsNearItsAnswer`;
+with the carry switched off the first iterate is 4.1 Ha out and the session gate fails.  The earlier V-FACADE-STATE entry above
+(its Löwdin carry and Tr = N gate) is superseded by this one.

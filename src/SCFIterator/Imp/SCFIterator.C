@@ -200,6 +200,9 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
                 return std::unique_ptr<H::rHamiltonian>(H::Factory(pol, stView, 2.0/3.0, qcMesh::MeshParams{}, bs)); }();   // Dirac exchange (alpha=2/3)
             SetWorkingCD(cd_t(itsWaveFunction->Init(*dftSibling, seed, *itsOccPolicy, 0.0001)));  // D0: a real (matrix-backed) density
             assert(itsCD);
+            // The sibling filled ITS orbitals under the default (integer) rule; a stated Shared rule refills them at the first
+            // Iterate, like any fresh seed, so an HF run that states Shared starts from a symmetric D0 (OpenWork §3, lane A 2026-11-09).
+            itsFreshSeedFill = true;
             return;
         }
     }

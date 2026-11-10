@@ -15,7 +15,7 @@ import qchem.Materials;
 import qchem.StructureData;   // MoleculeNames
 import qchem.ChargeDensity.Seed;
 import qchem.LASolver;
-import qchem.SolidState;          // StateFingerprint, CompareFingerprints
+import qchem.SolidState;          // StateFingerprint, CompareSolidFingerprints
 import qchem.SCFCap;              // BoundedSCF: the vlocRouting test builds the evaluator with one iteration
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // AccuracyCalibration: the vlocRouting test states eta (no pilot)
 import qchem.Reporting;           // the filed run: its grids.audit* rows (the write-only gate)
@@ -963,13 +963,13 @@ TEST(Deck, AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint)
 {
     const auto a=deck::Build(SiDeck("Si_diamond"));
     const auto b=deck::Build(SiDeck(SiInline()));
-    auto cmp=CompareFingerprints(DeckTests::Fingerprint(*a), DeckTests::Fingerprint(*b));
+    auto cmp=CompareSolidFingerprints(DeckTests::Fingerprint(*a), DeckTests::Fingerprint(*b));
     ASSERT_TRUE(cmp) << cmp.Error().details;
     EXPECT_TRUE(cmp->empty()) << "a warm difference: " << (cmp->empty() ? "" : cmp->front());
     // and a moved atom IS a different cell (the comparison is not vacuous)
     json moved=SiInline(); moved["atoms"][1]["frac"]={0.25,0.25,0.26};
     const auto c=deck::Build(SiDeck(moved));
-    auto cmp2=CompareFingerprints(DeckTests::Fingerprint(*a), DeckTests::Fingerprint(*c));
+    auto cmp2=CompareSolidFingerprints(DeckTests::Fingerprint(*a), DeckTests::Fingerprint(*c));
     EXPECT_TRUE(!cmp2 || !cmp2->empty()) << "a moved atom left the fingerprint unchanged";
 }
 

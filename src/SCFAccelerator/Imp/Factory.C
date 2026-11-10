@@ -62,7 +62,12 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
             std::vector<std::unique_ptr<SCFAccelerator>> rungs;
             { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EMax, .SVTol=SVTol})); }
             { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorGDM ({.EngageBelowFD=1e10, .Trust=Trust})); } //always steps once it is the active rung
-            acc=new SCFAcceleratorLadder(std::move(rungs),ethresh,stall,floor,swat,signal);
+            // "startOnGDM": the seed is a RESTORED state (a molecule's or an atom's exact resume): start on the GDM rung, as the solid
+            // door's ladderStartOnGDM does, so DIIS does not step the restored density away (NaF, 2026-10-02).
+            const size_t start = js.contains("startOnGDM") && js["startOnGDM"].template get<bool>() ? rungs.size()-1 : 0;
+            if (start>0) std::cout << "  *** SCF accelerator ladder: starting on rung " << start
+                                   << " (GDM) -- the seed is a restored state ***" << std::endl;
+            acc=new SCFAcceleratorLadder(std::move(rungs),ethresh,stall,floor,swat,signal,start);
             break;
         }
         case Type::Null: acc=new SCFAcceleratorNull(); break;

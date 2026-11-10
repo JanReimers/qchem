@@ -84,6 +84,7 @@ struct SolidCalculation::Imp
     mutable std::unique_ptr<SolidCalculation::sf_t>       spin;
     SCFAccelerators::Type                       stageAccel = SCFAccelerators::Type::DIIS;  //!< the CURRENT stage's, RESOLVED (banner, [F,D])
     SCFAccelerators::Type                       stageAccelAsked = SCFAccelerators::Type::Auto;  //!< ...as ASKED: what an FD/U-loop stage re-resolves
+    std::optional<RestartSummary>               restartedFrom;          //!< what PrepareRestart did (RestartedFrom), empty otherwise
     bool                                        stageRestored = false;  //!< the CURRENT stage starts from a RESTORED state (Restart: same Hamiltonian)
     //! An EXACT RESUME's saved energy, until the first Converge reports the resumed one beside it (then cleared): the line
     //! belongs to the restored stage's convergence, whoever runs it (\c Restart, or a \c PrepareRestart caller).
@@ -316,7 +317,12 @@ static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccel
     // to copy beside a row, so it has to say both.
     // A D-MIXER (linear, or Pulay at KerkerG0 = 0 -- PulayDMixer) hands the Fock the mixed density MATRIX: XC sees rho[D].
     const bool dMixer = p.Mixer==M::Linear || (p.Mixer==M::Pulay && p.KerkerG0<=0.0);
-    std::cout<<"["<<label<<" scf] mixer: "
+    // Precision STATED, not inherited from whatever an earlier print left on cout: a leaked setprecision(1) printed the Auto
+    // Pulay-D step 0.45 as "alpha=0.5" (lane A, 2026-11-09, the MnO dimer and Si triplet box banners).
+    const std::ios_base::fmtflags flags=std::cout.flags();
+    const std::streamsize         prec =std::cout.precision();
+    std::cout<<std::defaultfloat<<std::setprecision(6)
+             <<"["<<label<<" scf] mixer: "
              <<(p.Mixer==M::Linear ? std::string("LINEAR D-mixing (no G-space preconditioner)")
               : dMixer             ? std::string("D-mixing (no G-space preconditioner)")
               :                      "Kerker(G0="+std::to_string(p.KerkerG0)+")")
@@ -332,6 +338,7 @@ static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccel
              <<";  accel: "<<AccelName(acc)<<(autoAccel ? " [accel: Auto]" : "")
              <<";  kT="<<p.SmearingkT<<" MOM="<<(p.UseMOM?"on":"off")
              <<" NMaxIter="<<p.NMaxIter<<std::endl;
+    std::cout.flags(flags); std::cout.precision(prec);
 }
 
 //! The per-stage summary the campaign reads its numbers from.  AT A STATED PRECISION: these are the
@@ -1265,6 +1272,14 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
 //====================================================================================================
 StateFingerprint SolidCalculation::Fingerprint(double kT) const
 {
+    StateRecord r;
+    RecordState(r, kT);
+    return r.fp;
+}
+
+void SolidCalculation::RecordState(StateRecord& r, double kT) const
+{
+    Calculation::RecordState(r, kT);   // the shared keys and the blocks (StateBlocks)
     const auto& o=itsImp->setup->opts;
     std::ostringstream xc;
     xc<<MeshName(itsImp->setup->xcMesh.cellKind);
@@ -1273,9 +1288,9 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     // A free run on the PLAIN mesh (xcMeshSymmetric=false, what a SolidSession needs) quadratures on different points: name it, so a
     // restart across the choice says the quadrature changed.  Only then -- every state written before the option keeps its string.
     if (!itsImp->setup->imposed && !itsImp->setup->planeWave && !o.xcMeshSymmetric) xc<<" plain";
-    RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .ppSet=itsImp->setup->pp.Name(),
+    RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .ppSet=itsImp->setup->pp.Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
-                         .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT,
+                         .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol,
                          .orbitalBasis=itsImp->setup->planeWave ? "planeWave" : "gaussian", .planeWaveEcut=o.planeWaveEcut};
     // The numerics that move the ground state (OpenWork §3 "A restart's fingerprint is incomplete" gap 2).  The fit is the one the
     // Hamiltonian RESOLVES (Ham_PW_DFT: Auto -> Delta on a Becke mesh, else the plane-wave fit).
@@ -1298,25 +1313,32 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     // The run's OWN policy table, resolved from its stated spec (not the process's installed one, which a later run may have replaced).
     for (const Deviation& d : RunPolicy(o.policy).Deviations())
         if (d.movesState) id.policy[d.knob]=d.value;
-    return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,
-                                o.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, id);
+    AddSolidKeys(r.fp, itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->bs, StateSpin(), id);
 }
 
-void SolidCalculation::SaveState(const std::string& path) const
+SpinGroup SolidCalculation::StateSpin() const
 {
-    const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
-    if (!wf) throw std::logic_error("SolidCalculation::SaveState: no wave function yet");
-    const StateSummary sum{.label=itsImp->setup->opts.label, .converged=itsImp->converged,
-                           .iterations=itsImp->scf->GetIterationCount(),
-                           .energy=itsImp->scf->GetEnergy().GetTotalEnergy(), .charge=itsImp->charge,
-                           .commutator=itsImp->lastCommutator, .recipe=itsImp->lastRecipe,
-                           .densityChange=itsImp->lastDensityChange};
-    {
-        qchem::report::Timed timed("state: save (HDF5)");
-        WriteSolidState(path, Fingerprint(itsImp->lastkT), sum, *itsImp->bs, *wf);
-    }
-    std::cout << "["<<itsImp->setup->opts.label<<"] state saved to "<<path
-              << (itsImp->converged ? "" : "  (NOT converged -- a restart will say so)") << std::endl;
+    return itsImp->setup->opts.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+}
+const Structure& SolidCalculation::StateStructure() const {return *itsImp->st;}
+const std::optional<RestartSummary>& SolidCalculation::RestartedFrom() const {return itsImp->restartedFrom;}
+Calculation::StateIdentity SolidCalculation::MakeStateIdentity() const
+{
+    const auto& o=itsImp->setup->opts;
+    return {.Nelec=o.Nelec, .spin=StateSpin(), .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .kT=itsImp->lastkT};
+}
+std::vector<StateBlock> SolidCalculation::StateBlocks(bool withOrbitals) const
+{
+    const auto* wf=withOrbitals && itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
+    if (withOrbitals && !wf) throw std::logic_error("SolidCalculation: no wave function yet (a saved state needs a Converge)");
+    return SolidStateBlocks(*itsImp->bs, StateSpin(), wf);
+}
+StateSummary SolidCalculation::MakeStateSummary() const
+{
+    if (!itsImp->scf || !itsImp->scf->GetWaveFunction()) throw std::logic_error("SolidCalculation: no wave function yet");
+    return {.label=itsImp->setup->opts.label, .converged=itsImp->converged, .iterations=itsImp->scf->GetIterationCount(),
+            .energy=itsImp->scf->GetEnergy().GetTotalEnergy(), .charge=itsImp->charge, .commutator=itsImp->lastCommutator,
+            .recipe=itsImp->lastRecipe, .densityChange=itsImp->lastDensityChange};
 }
 
 Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
@@ -1385,37 +1407,19 @@ SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const 
     auto mol=setup->mol;
     c->BuildPoint(std::move(setup), reference, std::move(mol));
     c->itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
-    // Judged against the BUILT blocks (k, weight, size), not against a re-derivation of what they would be.
-    auto warm=CompareFingerprints(saved->fingerprint, c->Fingerprint(params.SmearingkT));
-    if (!warm) return refuse(warm.Error());
-    auto cd=RestoreDensity(*saved, *c->itsImp->bs, c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized);
+    // Judged against the BUILT blocks (k, weight, size), not against a re-derivation of what they would be: the base's judgement
+    // (Calculation::JudgeRestart -- the comparison, the Löwdin carry at moved atoms, the EXACT RESUME / WARM START lines).
+    SavedState state=saved.TakeValue();
+    auto judged=c->JudgeRestart(state, params.SmearingkT, tag);
+    if (!judged) return O::Fail(judged.Error());
+    auto cd=RestoreDensity(state, *c->itsImp->bs, c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized);
     if (!cd) return refuse(cd.Error());
-
-    const bool exact=warm->empty();
-    {
-        std::ostringstream os;
-        os<<tag<<(exact ? "EXACT RESUME" : "WARM START")<<" from "<<path<<" (saved by '"<<saved->summary.label<<"', "
-          <<(saved->summary.converged ? "converged" : "NOT converged")<<" after "<<saved->summary.iterations
-          <<" iterations, E="<<std::setprecision(10)<<saved->summary.energy<<"; "<<saved->summary.recipe<<")";
-        for (const std::string& d : *warm) os<<"\n"<<tag<<"  differs: "<<d;
-        // THE SAVED STATE'S OWN RESIDUAL (gap 4, user 2026-10-29): even an exact resume starts where the state was SAVED, not at
-        // the fixed point.  A density-MIXED run (Null accelerator: no [F,D] measured) stops with D a mixture, one undamped Fock
-        // away from self-consistency, so its first iteration re-opens that residual (amplified on a soft system).
-        const StateSummary& ss=saved->summary;
-        if (std::isfinite(ss.densityChange))
-        {
-            os<<"\n"<<tag<<"  saved at Δρ "<<std::setprecision(3)<<ss.densityChange;
-            if (std::isfinite(ss.commutator)) os<<", [F,D] "<<ss.commutator;
-            else os<<" by a density-MIXED run (no [F,D]): D is a mixture, so the first Fock re-opens a residual of about that size -- "
-                     "amplified on a soft system (β-MnO₂ r015: 40x), where even an exact resume iterates";
-        }
-        else os<<"\n"<<tag<<"  saved residual not recorded (a format-1.0 state, before 2026-10-30)";
-        std::cout<<os.str()<<std::endl;
-    }
+    const bool exact=judged->exact;
+    c->itsImp->restartedFrom=*judged;
     c->BuildRun(cd.TakeValue(), params, accel, /*restored*/true, exact);
     // The restored stage's accelerator is BUILT (BuildRun consumed the GDM-rung start); later stages on this calculation start as asked.
     c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;
-    if (exact) c->itsImp->resumedFrom=saved->summary.energy;   // the first Converge reports the resumed energy beside it
+    if (exact) c->itsImp->resumedFrom=state.summary.energy;   // the first Converge reports the resumed energy beside it
     return O::Ok(std::move(c));
 }
 

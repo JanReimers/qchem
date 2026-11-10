@@ -90,6 +90,26 @@ public:
     static std::unique_ptr<MoleculeCalculation> Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration = nullptr);
     //!@}
 
+    //! \name RESTART FROM A SAVED STATE (V-FACADE-STATE; \c SaveState / \c JudgeState are the base's)
+    //! The molecular twins of \c SolidCalculation::Restart / \c PrepareRestart.  The state's fingerprint is judged against THIS
+    //! setup's (\c Calculation::JudgeRestart): REFUSED on another kind, another basis, other electrons or blocks (a value, never a
+    //! throw: the caller decides on a fresh run); an EXACT RESUME when nothing differs -- the saved D drives the first Fock
+    //! (\c SeedRole::ExactResume) and a Ladder starts on its GDM rung (kT = 0), so the run starts AT the saved answer -- else a WARM
+    //! START (\c SeedRole::WorkingDensity), every difference named.  At MOVED atoms the density is carried as AO coefficients
+    //! (\c CarryToMovedAtoms, the measured best first iterate).  A setup whose XC mesh is neither stated nor sized ADOPTS the saved state's mesh when the
+    //! state was made for the same accuracy eps (its pilot sized it for that eps): no second pilot, and the resume stays exact.
+    //!@{
+    static Outcome<std::unique_ptr<MoleculeCalculation>, RestartRefusal>
+        Restart(const std::string& path, std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf = {}, Observer onIteration = nullptr);
+    //! \c Restart up to its SCF (the graph built over the restored density, into the caller's report run); run it with \c Converge.
+    static Outcome<std::unique_ptr<MoleculeCalculation>, RestartRefusal>
+        PrepareRestart(const std::string& path, std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf = {},
+                       Observer onIteration = nullptr);
+    //! \c PrepareRestart's judgement, or a \c MoleculeSession point's carry from the previous point (path "(previous geometry
+    //! point)", warm, its displacement and the electrons the carried D holds there); empty for a fresh run.
+    const std::optional<RestartSummary>& RestartedFrom() const override;
+    //!@}
+
     //! Re-run the SCF (e.g. with tighter tolerances) and hand back the ANSWERS or the REASON (it was a bool until 2026-10-31).
     //! Invalidates references previously handed out by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is rebuilt --
     //! and any \c Converged from an earlier attempt.  \c [[nodiscard]] via \c Outcome.
@@ -186,7 +206,16 @@ private:
     friend class MoleculeSession;
     //! What crosses from one point to the next: every block's physical D = Σ f c cᵀ, spin irreps outer, basis blocks inner --
     //! the SAME basis recipe at moved atoms has the same blocks, so block b of one point is block b of the next.
-    struct Carry { std::vector<hmat_t<double>> D; };
+    //! A SESSION STEP fills \c moved instead (\c D empty): the previous point's state, carried onto this point's basis by \c BuildGraph
+    //! once that basis exists, through the SAME function a file restart at moved atoms uses (\c CarryToMovedAtoms), which files the
+    //! step in \c RestartedFrom.  \c D is the plain AO carry, for the same geometry (the pilot's re-convergence) and for the fixed-D
+    //! probes of a finite difference, which DEFINE the frozen D as an AO matrix.
+    struct Carry
+    {
+        std::vector<hmat_t<double>> D;
+        std::optional<SavedState>   moved;              //!< a session step: D and S of the previous point (\c MakeMovedCarry)
+        double                      displacement = 0.0; //!< the step's largest atom move (bohr), for \c RestartedFrom
+    };
     //! The point at \a at (\c setup->reference's atoms, moved), seeded from \a carry when given (a WorkingDensity), else from the
     //! setup's seed strategy.  The public setup constructor is this at the reference with no carry.
     struct BuildOnly {};
@@ -210,6 +239,11 @@ private:
     bool          itsPiloted       = false;   //!< the pilot ran (once per calculation: a later Converge keeps its mesh)
     MeshPilotCost itsPilotCost;
     Carry MakeCarry() const;
+    //! The carry a session hands the NEXT point: this point's blocks (\c SnapshotState), carried there by \c CarryOntoThisBasis.
+    Carry MakeMovedCarry(double displacement) const;
+    //! \a carry's \c moved state taken onto THIS point's basis (\c CarryToMovedAtoms), as an AO carry; files what it did in
+    //! \c itsRestartedFrom (a warm start from the previous point, with the electrons it holds here).
+    Carry CarryOntoThisBasis(const Carry& carry);
     //! Σ f c cᵀ (or Σ f ε c cᵀ, \a energyWeighted) per block, in the carry's order: one loop for the carry and for W.
     std::vector<hmat_t<double>> BlockDensities(bool energyWeighted) const;
     //! \a carry's blocks as a density on THIS point's basis (throws when the blocks do not match): the carry's WorkingDensity, and the
@@ -217,6 +251,19 @@ private:
     std::unique_ptr<qchem::ChargeDensity::rDM_CD> MakeCarriedDensity(const Carry& carry) const;
     std::unique_ptr<const Carry> itsCarry;   //!< consumed by the first Converge, which builds the basis it is re-homed onto
     //!@}
+    //! \name THE STATE HOOKS (\c Calculation's template method, V-FACADE-STATE)
+    //!@{
+    void                    RecordState(StateRecord&, double kT) const override;   //!< the base's keys + the basis, PP, model, mesh
+    std::string             StateKind() const override {return "molecule";}
+    const Structure&        StateStructure() const override {return *itsStructure;}
+    StateIdentity           MakeStateIdentity() const override;
+    std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
+    StateSummary            MakeStateSummary() const override;
+    //!@}
+    std::optional<RestartSummary> itsRestartedFrom;   //!< what PrepareRestart (or a session's moved carry) did, empty for a fresh run
+    bool   itsCarryExact = false;   //!< \c itsCarry is an EXACT RESUME (\c PrepareRestart): the first Fock is built from it
+    bool   itsStartOnGDM = false;   //!< the next accelerator built is a Ladder started on its GDM rung (an exact resume at kT = 0), once
+    double itsLastkT     = 0.0;     //!< the last Converge's smearing (the saved state's scf.kT)
     //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift.
     Outcome<Converged, SCFFailure> Outcome_() const;
     typedef std::pair<double, const sf_t*> occ_t;   //!< (eigen-energy, orbital) for HOMO/Orbital(i)
