@@ -527,6 +527,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         if (useTaylor && qchem::Diagnostics::Enabled("energy_taylor"))
         {
             const double EKS=TotalEnergy(itsCD.get()).GetTotalEnergy(), ET=eb.GetTotalEnergy();
+            qchem::report::FormatGuard keep(cout);
             cout << "[energy_taylor] it " << itsIterationCount << std::setprecision(15) << " E_T " << ET << " E_KS " << EKS
                  << std::scientific << std::setprecision(6) << " gap " << std::fabs(ET-EKS) << " step " << eb.Diagnostic("TaylorStep")
                  << std::defaultfloat << endl;
@@ -667,8 +668,11 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         energyIsTaylor=false;
         qchem::report::Set("energyTaylorGap", std::fabs(ET-E));
         if (ipar.Verbose)
-            cout << "[energy] final E_KS[D_out] = " << std::setprecision(12) << E << "  (the trace's first-order E_T: |E_T - E_KS| = "
-                 << std::scientific << std::setprecision(2) << std::fabs(ET-E) << std::defaultfloat << " Ha, second order)" << endl;
+        {
+            qchem::report::FormatGuard keep(cout);
+            cout << "[energy] final E_KS[D_out] = " << std::defaultfloat << std::setprecision(13) << E << "  (the trace's first-order E_T: |E_T - E_KS| = "
+                 << std::scientific << std::setprecision(2) << std::fabs(ET-E) << " Ha, second order)" << endl;
+        }
     }
     // NEVER SILENT: whatever the recipe, a run that ENDS non-aufbau is reported (the honest instrument --
     // the old εH/εL line masked exactly this; doc/GPWPlan 0h).
@@ -696,6 +700,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     nprec-=ndigits;
     if (ipar.Verbose)
     {
+        qchem::report::FormatGuard keep(cout);
         cout << "----------------------------------------------------------------------------------------------------------" << endl;
         // cout << "ndigits=" << ndigits << " nprec=" << nprec << endl;
         cout << "Energy    Breakdown  "
@@ -813,8 +818,11 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         // jumped branch between trial points (MnO: +1.45e+01 Ha at t=2.4e-4).  The two are worth telling
         // apart by eye, which is why the number is printed and not just the verdict.
         if (trace)
+        {
+            qchem::report::FormatGuard keep(std::cout);
             std::cout << "[gdm] " << (found ? "DESCENT " : "FALLBACK") << " t=" << std::scientific << setprecision(2)
-                      << t << " k=" << k << "  best(Et-E0)=" << (best-E0) << std::defaultfloat << std::endl;
+                      << t << " k=" << k << "  best(Et-E0)=" << (best-E0) << std::endl;
+        }
         if (found)
         {
             itsWaveFunction->MoveOrbitals(held,t,true,mergeTol);    //commit at t
@@ -1259,6 +1267,7 @@ template <class T> IterationRow tSCFIterator<T>::MakeRow(const SCFParams& ipar, 
 template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const SCFParams& ipar,
                                                        const IterationTrace& tr) const
 {
+    qchem::report::FormatGuard keep(os);   // every cell sets its own format; the row leaves the stream as it found it
     os.setf(ios::fixed,ios::floatfield);
     os << setw(W_ITER) << tr.iteration << " ";            // "#" -- the row's key, not a cell
     for (const auto& c : RowColumns(ipar, tr.idealVirial)) c.value(os,tr);   // the ONE list the observer's row is built from

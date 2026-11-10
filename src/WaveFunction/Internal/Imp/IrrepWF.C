@@ -17,6 +17,7 @@ import qchem.Diagnostics;                     // the ONE diagnostics registry (D
 import qchem.SCFAccelerator;
 import qchem.Orbitals.Factory;
 import qchem.Blaze;
+import qchem.Reporting;   // FormatGuard
 
 namespace qchem::WaveFunction
 {
@@ -75,10 +76,11 @@ template <class M> static void DumpH(const M& F)   // on the MATRIX type: hmat_t
             if (havePrev) { const dcmplx d=z-prev[i*F.columns()+j];
                             dFro+=std::norm(d); dMaxIm=std::max(dMaxIm,std::abs(std::imag(d))); }
         }
+    report::FormatGuard keep(std::cout);
     std::cout << "[H dump] n=" << F.rows() << "  ||F||=" << std::setprecision(12) << std::sqrt(fro)
               << "  Tr=" << std::real(tr) << "  maxIm=" << maxIm;
     if (havePrev) std::cout << "   | dV=F-Fprev: ||dV||=" << std::sqrt(dFro) << "  maxIm(dV)=" << dMaxIm;
-    std::cout << std::setprecision(6) << std::endl;
+    std::cout << std::endl;
     prev.swap(cur); prevN=F.rows();
 }
 

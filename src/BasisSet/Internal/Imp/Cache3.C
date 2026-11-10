@@ -8,6 +8,7 @@ module;
 #include <iomanip>
 #include <string>
 module qchem.BasisSet.Internal.Cache3;
+import qchem.Reporting;   // FormatGuard
 
 namespace qchem {
 
@@ -38,6 +39,7 @@ size_t Cache3::RAMsize() const
 
 void Cache3::Report(std::ostream& os, const std::string& name) const
 {
+    qchem::report::FormatGuard keep(os);
     double reuse = itsLookups ? 100.0*(1.0 - double(itsInserts)/double(itsLookups)) : 0.0;
     os << "    " << std::left << std::setw(12) << name << std::right
        << " entries=" << std::setw(9) << itsInserts

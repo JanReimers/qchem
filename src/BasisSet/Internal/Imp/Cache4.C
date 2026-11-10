@@ -7,6 +7,7 @@ module;
 #include <string>
 #include <cassert>
 module qchem.BasisSet.Internal.Cache4;
+import qchem.Reporting;   // FormatGuard
 
 namespace qchem {
 
@@ -98,6 +99,7 @@ const Cacheable4* Cache4::loop_4(size_t _i4)  const
 
 void Cache4::Report(std::ostream& os, const std::string& name) const
 {
+    qchem::report::FormatGuard keep(os);
     double reuse = itsLookups ? 100.0*(1.0 - double(itsInserts)/double(itsLookups)) : 0.0;
     os << "    " << std::left << std::setw(12) << name << std::right
        << " entries=" << std::setw(9) << itsInserts

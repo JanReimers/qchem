@@ -443,6 +443,7 @@ bool SCFAcceleratorGDM::Engageable() const
 void SCFAcceleratorGDM::ShowLabels(std::ostream& os) const { os << "  |∇|  Nactive"; }
 void SCFAcceleratorGDM::ShowConvergence(std::ostream& os) const
 {
+    report::FormatGuard keep(os);
     os << std::scientific << GetError() << " ";
     size_t nactive=0;
     for (auto k:itsIrreps)

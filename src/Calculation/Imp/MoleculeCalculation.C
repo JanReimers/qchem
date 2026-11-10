@@ -380,6 +380,7 @@ MoleculeCalculation::Carry MoleculeCalculation::CarryOntoThisBasis(const Carry& 
     moved<<"structure.positions: the atoms moved by up to "<<std::setprecision(6)<<carry.displacement<<" bohr from the previous point";
     itsRestartedFrom=RestartSummary{.path="(previous geometry point)", .exact=false, .warm={moved.str()},
                                     .maxDisplacement=carry.displacement, .electrons=Electrons(st, now)};
+    report::FormatGuard keep(std::cout);
     std::cout<<"[molecule session] the previous point's density is carried as AO coefficients (atoms moved up to "
              <<std::setprecision(6)<<carry.displacement<<" bohr): "<<std::setprecision(12)<<itsRestartedFrom->electrons
              <<" electrons on this basis"<<std::endl;
@@ -526,6 +527,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
     const qcMesh::MeshParams entry=itsSetup->mesh;
     const std::string tag="[mesh pilot] ";
     const std::streamsize prec0=std::cout.precision();
+    report::FormatGuard keep(std::cout);
     rpt::Section pilot("xcMeshPilot");
     rpt::Set("measure", onE ? "E" : "H"); rpt::Set("target", target); rpt::Set("stated", stated); rpt::Set("entry", MeshName(entry));
     const bool climbHartree=HartreeConvergesWithMesh(itsSetup->opts.coulomb);

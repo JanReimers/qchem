@@ -27,8 +27,9 @@
 //     was already settled (dE/E ~ 1e-13) -- chasing [F,D] further is chasing numerical dust,
 //     so GDM there is marginal value and real risk.  GDM's genuine payoff is when DIIS is
 //     stuck *and the energy is still moving* (genuine non-convergence: bad guess, near
-//     degeneracy, open shell).  So we gate the hand-off on |dE/E| > EThresh AND the rung
-//     being Exhausted() AND its error not improving for `stall` steps.
+//     degeneracy, open shell).  So we gate the hand-off on |dE/E| > EThresh AND the rung's
+//     error not improving for `stall` steps.  (It also required the rung to be Exhausted() until
+//     2026-11-10: a DIIS LIMIT CYCLE is never Exhausted, so the stall never fired on one -- see Imp.)
 //
 //  3. GDM only pays off when it OWNS the loop.  Running GDM as a per-macro-iteration orbital
 //     producer inside the SCF density-mixing loop caps it: the outer relax/MixIn damping
@@ -85,15 +86,15 @@ private:
 
 // (ScheduleSignal moved to the public qchem.SCFAccelerator 2026-08-09 -- documented there.)
 
-// Top-level: chain {DIIS, GDM, ...}.  Switch when the active rung is Exhausted() and stalled.
+// Top-level: chain {DIIS, GDM, ...}.  Switch when the active rung has stalled, or reached the tail.
 // NON-template (doc/RealComplexPlan.md §6): the rungs are themselves scalar-agnostic managers, and the
 // ladder's own state is scheduling scalars, so one ladder serves real and complex blocks alike.
 class SCFAcceleratorLadder : public virtual SCFAccelerator
 {
 public:
     // Two distinct hand-off triggers (see the design notes above):
-    //   STALL  -- the active rung is Exhausted() AND its error has not improved for `stall`
-    //             steps AND the energy is still moving (|dE/E| > ethresh): a genuine
+    //   STALL  -- the active rung's error has not improved for `stall` steps (a limit cycle, or a
+    //             rung out of steam) AND the energy is still moving (|dE/E| > ethresh): a genuine
     //             non-convergence the next rung should rescue.  `floor` is a low backstop.
     //   TAIL   -- the active rung has driven the SCHEDULE SIGNAL below `switchat` (i.e. we are near
     //             convergence): hand off to the next rung to POLISH the tail.  This is the

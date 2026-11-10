@@ -253,6 +253,7 @@ void PairDensitySampler::Refresh(const cChargeDensity* cd) const
     // DIAGNOSTIC (env GPW_XCROUTE): which V_xc route fires this iteration -- RAW (applyRawAdjoint, FD-exact/
     // variational; gate GPW.RawXCConsistencyFD) vs BALL (DoFit/Overlap, non-variational on the ball's own raster;
     // gate GPW.XCPotentialConsistencyFD).  Answers whether GDM is fighting the ball non-variationality.
+    report::FormatGuard keep(std::cout);   // the three diagnostics below set precision; restore it for the run's later prints
     if (qchem::Diagnostics::Enabled("xc_route"))
     {
         double rmin=1e300, rmax=-1e300;
