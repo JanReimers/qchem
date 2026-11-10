@@ -374,8 +374,7 @@ const std::optional<RestartSummary>& AtomCalculation::RestartedFrom() const {ret
 std::unique_ptr<qchem::ChargeDensity::rDM_CD> AtomCalculation::RestoredDensity() const
 {
     using namespace qchem::ChargeDensity;
-    auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetImposition() ? itsBasis->GetImposition()->DensityStarOps()
-                                                                           : std::vector<Symmetry::Lattice_3D::ReciprocalOp>{});
+    auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetImposition() ? itsBasis->GetImposition()->DensityGroup() : nullptr);
     size_t b=0;
     for (Spin s : SpinIrreps(itsOpts.spin))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
