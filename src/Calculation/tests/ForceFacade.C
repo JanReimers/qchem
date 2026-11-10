@@ -516,6 +516,66 @@ TEST(HamiltonianForces, OnAGPWBlockEveryTermWithoutAPullbackNamesItself)
     }
 }
 
+//! THE PLANE-WAVE WHOLE FORCE (doc/GeometryOptimizationPlan.md §13.2; lane B 2026-11-09).  On a plane-wave basis nothing has a centre: the
+//! kinetic, overlap, Hartree (its Coulomb tensor) and XC (the ball fit's overlap tensor) pullbacks are EXACT zeros, the PP terms carry their
+//! structure-factor forces and the ion-ion term its Ewald force.  So every term has its force (MissingGradients() is empty: no Pulay
+//! entry either, since the overlap pullback is an exact zero), the XC term's is identically zero, and their sum is the whole force: the
+//! Hellmann-Feynman theorem with no basis motion.  Gated against the central difference of the RE-CONVERGED energy at displaced atoms of a
+//! distorted two-atom Si cell (Γ, Ecut 4 Ha).
+TEST(HamiltonianForces, OnPlaneWavesTheWholeForceIsTheFiniteDifferenceOfTheReconvergedEnergy)
+{
+    const double a=10.26, hf=0.5*a;
+    Matrix3D<double> Amat(0.0,hf,hf,  hf,0.0,hf,  hf,hf,0.0);
+    UnitCell cell(Amat);
+    cell.AddAtom(14,rvec3_t(0.0,0.0,0.0));
+    cell.AddAtom(14,rvec3_t(0.27,0.24,0.26));   // off the diamond site: every force component nonzero
+    // Δρ/N 1e-7: the energy is settled to 1e-15 by then (measured), and Δρ/N floats at ~2e-8 below it on this cell.
+    SCFParams p; p.NMaxIter=60; p.MinΔρPerElectron=1e-7; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
+    auto run=[&](const UnitCell& c)
+    {
+        SolidCalcOptions o; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0; o.label="pw forces";
+        o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0;
+        return std::make_unique<SolidCalculation>(SolidSetup::Resolve(Lattice_3D(c, ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o), p);
+    };
+    const auto c0=run(cell);
+    ASSERT_TRUE(c0->Result());
+    const auto missing=ForceFacadeTests::MissingGradients(*c0);
+    for (const auto& m : missing) ADD_FAILURE() << "a plane-wave term has no force: " << m;
+    const auto terms=ForceFacadeTests::TermForces(*c0);
+    std::vector<rvec3_t> R; cell.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+    rvec3vec_t F(R.size(), rvec3_t(0,0,0));
+    bool sawXC=false;
+    for (const auto& t : terms)
+    {
+        ASSERT_TRUE(t.missing.empty()) << t.label << ": " << t.missing;
+        ASSERT_EQ(t.F.size(), R.size()) << t.label;
+        std::cout << "[forces] PW " << t.label << ": F0 = " << t.F[0] << "  F1 = " << t.F[1] << std::endl;
+        if (t.label.find("XC")!=std::string::npos)
+        {
+            sawXC=true;
+            for (size_t A=0;A<R.size();A++) EXPECT_EQ(norm(t.F[A]), 0.0) << t.label << ": a plane wave has no centre, so its XC force at fixed D is EXACTLY zero";
+        }
+        for (size_t A=0;A<R.size();A++) F[A]+=t.F[A];
+    }
+    EXPECT_TRUE(sawXC) << "no XC term among the plane-wave terms";
+    const double h=1e-3;
+    for (size_t A=0;A<R.size();A++) for (int k=0;k<3;k++)
+    {
+        auto E=[&](double s)
+        {
+            auto Rs=R; (k==0 ? Rs[A].x : k==1 ? Rs[A].y : Rs[A].z)+=s;
+            std::shared_ptr<Structure> m=cell.Clone(); m->MoveSites(Rs);
+            const auto c=run(dynamic_cast<const UnitCell&>(*m));
+            EXPECT_TRUE(c->Result());
+            return c->Result() ? c->Result()->Energy() : 0.0;
+        };
+        const double fd=-(E(h)-E(-h))/(2*h), an = k==0 ? F[A].x : k==1 ? F[A].y : F[A].z;
+        std::cout << "[forces] PW atom " << A << " axis " << k << ": analytic " << an << "  FD " << fd << "  diff " << an-fd << std::endl;
+        // Measured 2026-11-09: |an - fd| <= 4.4e-9 at max|F| 0.041, the FD's own h²/6 |E'''| at h = 1e-3; 2e-8 leaves room for it.
+        EXPECT_NEAR(an, fd, 2e-8) << "atom " << A << " axis " << k;
+    }
+}
+
 // ============================================================================================================================
 // THE PER-TERM FORCE (MakeTermForces, MakeTermEnergies' derivative twin) and the DUNLAP HARTREE term's force (§13.2; lane B 2026-11-08).
 // ============================================================================================================================

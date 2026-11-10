@@ -157,6 +157,13 @@ public:
     //! Sum_a c_a <Oi|f_a|Oj>.  By REFERENCE: there is no meaningful null block, and a caller that had to
     //! cross-cast to get here gets a throw rather than release-mode UB.
     virtual hmat_t<U> Overlap(const BasisSet::Orbital_DFT_IBS<U,TFit>&) const=0;
+    //! THE DERIVATIVE BESIDE \c Overlap (doc/GeometryOptimizationPlan.md §13.2; the user's pre-approval 2026-11-08): per atom of \a st,
+    //! Re Tr(D ∂_R Overlap(orb)) at the FIXED fit -- only the block's functions move.  CLIENT: the XC term's fixed-D force, through the
+    //! density sampler's \c MakeMatrixPullback.  The default REFUSES by name (a fitter that has not stated its derivative has none).
+    virtual bool CanPullbackOverlap(const BasisSet::Orbital_DFT_IBS<U,TFit>&) const {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const BasisSet::Orbital_DFT_IBS<U,TFit>& orb, const hmat_t<U>&,
+                                                                   const Structure*) const
+    {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"this fitter gives no pullback of its contraction against the block "+orb.Name()});}
 };
 
 //! \brief A scalar fitter that contracts same-scalar blocks: what \c Factory hands back (OOD V1.34, shape 3, ruled 2026-09-19; surface

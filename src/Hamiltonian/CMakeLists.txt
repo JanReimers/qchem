@@ -22,6 +22,7 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/PWTerms_PP.C
     Internal/Imp/PWTerms_PP_Forces.C      # the PW PP structure-factor forces (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/PWTerms_XC.C
+    Internal/Imp/Vxc_Forces.C             # the XC term's force at fixed D (GeometryOptimizationPlan §13.2; lane B)
     Internal/Imp/Hubbard.C                # DFT+U (programme step 5, 2026-09-19)
     Internal/Imp/ACBN0.C                  # DFT+U increment 3: the ACBN0 (U,J) estimator (2026-09-21)
     # ⚠ THE SAMPLING ENGINE -- its OWN module since 2026-09-08 (qchem.Hamiltonian.Internal.DensitySampler).

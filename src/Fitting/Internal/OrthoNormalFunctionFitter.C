@@ -75,6 +75,19 @@ public:
         return ContractAdjoint(itsFitBasis->Overlap3C(orb),
                                      [&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }
+    //! The derivative of \c Overlap at my FIXED \f$\tilde v\f$ (§13.2): the SAME tensor's adjoint pullback, the same coefficient lookup.  A
+    //! plane-wave block's is an exact zero (no centre); a GPW block's is the jet walk of the gather.
+    virtual bool CanPullbackOverlap(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
+    {return RealisesAdjointPullback(itsFitBasis->Overlap3C(orb));}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb, const chmat_t& D,
+                                                                   const Structure* st) const override
+    {
+        const PairProjection<dcmplx>& g=itsFitBasis->Overlap3C(orb);
+        if (!RealisesAdjointPullback(g))
+            return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the block "+orb.Name()+"'s overlap tensor against the plane-wave fit gives no pullback"});
+        const BasisSet::G_RasterTransform& fit=FitRaster();
+        return Outcome<rvec3vec_t,AD::NoGradient>::Ok(ContractAdjointPullback(g, [&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);}, D, st));
+    }
 
     virtual void ReScale(double factor) override
     {

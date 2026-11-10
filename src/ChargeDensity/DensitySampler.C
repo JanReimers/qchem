@@ -170,6 +170,14 @@ public:
     //! \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}v_g\chi_j(r_g)\f$ -- the EXACT ADJOINT of
     //! whatever route \c Rho took, weights included (a caller passes the bare field \f$v\f$).
     virtual hmat_t<T> Matrix(const tobs_t<T>* bs, const rvec_t& v) const=0;
+    //! THE DERIVATIVE BESIDE \c Matrix (doc/GeometryOptimizationPlan.md §13.2; lane B 2026-11-09): per atom of \a st,
+    //! Re Tr(D ∂_R Matrix(bs, v)) at the FIXED field \a v -- the XC term's force at fixed D, since \f$\partial E_{xc}/\partial\rho\f$
+    //! at the points IS v and this quadrature's \c Matrix is the exact adjoint of its \c Rho.  CLIENT: the XC term's force face.
+    //! The default REFUSES by name: a strategy that has not stated its derivative has none (a moving mesh, a table on fixed points).
+    //! \c CanPullbackMatrix answers the same question without the work (CLIENT: the XC term's MissingGradient, at setup).
+    virtual bool CanPullbackMatrix(const tobs_t<T>*) const {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const tobs_t<T>* bs, const rvec_t&, const hmat_t<T>&, const Structure*) const
+    {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the XC quadrature's strategy gives no pullback of its matrix on the block "+bs->Name()});}
     //! \brief Pre-warm this engine's per-density caches for \a cd -- the EAGER REFRESH PHASE
     //! (doc/OpenWork.md item **KP**).  \a polarized picks which shape to warm, because the two are
     //! mutually exclusive on one engine (see the cross-invalidation warning on both implementations: an
@@ -209,6 +217,12 @@ public:
     virtual mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const=0;
     //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's quadrature runs in REAL arithmetic.
     virtual rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const=0;
+    using tDensitySampler<dcmplx>::MakeMatrixPullback;
+    using tDensitySampler<dcmplx>::CanPullbackMatrix;
+    virtual bool CanPullbackMatrix(const robs_t*) const {return false;}
+    //! The REAL-BLOCK sibling of \c MakeMatrixPullback (the derivative beside the real \c Matrix).  Default: a named refusal.
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const robs_t* bs, const rvec_t&, const hmat_t<double>&, const Structure*) const
+    {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the XC quadrature's strategy gives no pullback of its matrix on the real block "+bs->Name()});}
 };
 
 //! \brief Pick the assembly strategy for \a fb -- CAPABILITY decides, and the answer is fixed for the run.
