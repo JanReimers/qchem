@@ -66,6 +66,20 @@ configures with `CMAKE_PREFIX_PATH` already set.  **Spack** is the HPC-native al
 desktop.  Recommendation: the FetchContent table first (it is useful alone and costs nothing to outsiders), the shared prefix
 second, the image third; Spack only on a cluster request.
 
+## 2b. As built (step 2, lane G 2026-11-10)
+
+* `~/Code/deps/src/<name>-<commit>/` -- every pin's SOURCE (the archive, SHA-256 checked, unpacked read-only).  A tree uses it in
+  place of a download (FetchContent's own `FETCHCONTENT_SOURCE_DIR_<NAME>`).
+* `~/Code/deps/<compiler>/<name>-<commit>-release/build/` -- libxc and libcint BUILT once, read-only, with a `KEY` file stating
+  pin, compiler and flags.  It is a build TREE, not an install: the project consumes libxc's build layout (`#include <src/xc.h>`,
+  four lane-S files) and libcint's generated `include/cint.h`, so the build tree is what an install would have had to re-create.
+  The project links them as imported targets of the same names (`xc` shared, `cint` static PIC).
+* ONE flavor, `release` (`-O3 -DNDEBUG`), for every tree: RelChecked changes only the C++ flags, exactly as the in-tree build did.
+* googletest stays a prefix SOURCE only: it is C++, so it compiles with each tree's own NATIVE flags (never a prefix library).
+* Measured: the prefix's libcint objects are byte-identical to the in-tree ones (26/26); libxc's differ only in one embedded
+  `__FILE__` path string (the source location), with identical disassembly (checked on every differing object compared).
+* Filling the prefix: 83 s, 671 MB (sources 8 pins + the two C builds).
+
 ## 3. What changes, and the order
 
 1. `cmake/Dependencies.cmake`: the pin table + `find_package`-else-`FetchContent` per dependency.  Root CMake includes it in

@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""deps-install -- fill the SHARED DEPENDENCY PREFIX from the pin table (doc/SharedDependenciesPlan.md, step 2).
+
+    scripts/deps-install [--prefix ~/Code/deps] [--cc /opt/LLVM-21.1.6-Linux-X64/bin/clang] [-j N]
+
+Reads cmake/Dependencies.cmake's QCHEM_PINS (name | repository | commit | archive SHA-256) and, for each pin missing from the
+prefix:
+  * SOURCES   <prefix>/src/<name>-<commit>/           every dependency: the GitHub archive of the pin, SHA-256 verified, unpacked
+  * C LIBRARIES <prefix>/<compiler>/<name>-<commit>-<flavor>/build/   libxc and libcint, BUILT once (the project consumes their
+                build-tree layout: <src/xc.h>, include/cint.h), with the options the in-tree build used
+Each key is IMMUTABLE once written (made read-only; a new pin is a new directory), so trees on different pins coexist and no
+tree can break another.  googletest is NOT built here: it is C++, compiled with each tree's own (NATIVE) flags.
+
+THE PREFIX INVARIANT (ruled 2026-11-10): a key is PORTABLE plain -O3, never -march/-mtune/native, so one prefix serves every
+tree on this machine and janr1 over NFS.  This script REFUSES such a flag in CFLAGS / CXXFLAGS / its own arguments.
+The one flavor, release = -O3 -DNDEBUG, serves every tree (RelChecked changes the C++ flags only, as the in-tree build did).
+Downloads are untrusted data: each lands in its own fresh directory under the prefix, is hash-checked, and only then unpacked.
+"""
+import argparse, hashlib, os, pathlib, re, shutil, stat, subprocess, sys, tarfile, tempfile, urllib.request
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+BUILT = {   # the C libraries built into the prefix, with the cache options the in-tree build gave them
+    "libxc":   ["-DBUILD_TESTING=OFF"],
+    "libcint": ["-DBUILD_TESTING=OFF", "-DENABLE_STATIC=ON", "-DWITH_FORTRAN=OFF", "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"],
+}
+NATIVE = re.compile(r"-march|-mtune|-mcpu|native")
+
+
+def pins():
+    text = (ROOT / "cmake" / "Dependencies.cmake").read_text()
+    block = text[text.index("set(QCHEM_PINS"):]
+    block = block[:block.index("\n)")]
+    rows = re.findall(r'"([^"|]+)\|([^"|]+)\|([0-9a-f]{40})\|([0-9a-f]{64})"', block)
+    if len(rows) < 1:
+        sys.exit("deps-install: no pins found in cmake/Dependencies.cmake")
+    return rows
+
+
+def compiler_key(cc):
+    out = subprocess.run([cc, "--version"], capture_output=True, text=True, check=True).stdout
+    m = re.search(r"(clang|gcc) version (\d+\.\d+\.\d+)", out) or re.search(r"\(GCC\) (\d+\.\d+\.\d+)", out)
+    if not m:
+        sys.exit(f"deps-install: cannot read a compiler version from '{cc} --version'")
+    return f"{m.group(1)}-{m.group(2)}" if m.lastindex == 2 else f"gcc-{m.group(1)}"
+
+
+def read_only(path):
+    for p in [path, *path.rglob("*")]:
+        if not p.is_symlink():
+            p.chmod(p.stat().st_mode & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH))
+
+
+def fetch_source(prefix, name, repo, commit, sha):
+    dest = prefix / "src" / f"{name}-{commit}"
+    if dest.exists():
+        return dest
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    incoming = pathlib.Path(tempfile.mkdtemp(prefix=f".incoming-{name}-", dir=dest.parent))
+    try:
+        url = f"{repo}/archive/{commit}.tar.gz"
+        print(f"  fetch {name} {commit[:12]}  {url}")
+        archive = incoming / "archive.tar.gz"
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "qchem deps-install"}), timeout=300) as r:
+            archive.write_bytes(r.read())
+        got = hashlib.sha256(archive.read_bytes()).hexdigest()
+        if got != sha:
+            sys.exit(f"deps-install: {name}: archive SHA-256 {got} is not the pinned {sha} -- refusing it")
+        out = incoming / "out"
+        with tarfile.open(archive) as t:
+            t.extractall(out, filter="data")            # data filter: no absolute paths, links out, devices
+        (top,) = list(out.iterdir())
+        top.rename(dest)
+        read_only(dest)
+        return dest
+    finally:
+        shutil.rmtree(incoming, ignore_errors=True)
+
+
+def build_library(prefix, ckey, flavor, cc, name, commit, src, jobs):
+    dest = prefix / ckey / f"{name}-{commit}-{flavor}"
+    if (dest / "build").exists():
+        print(f"  have  {dest}")
+        return
+    partial = dest.with_name(dest.name + ".partial")
+    shutil.rmtree(partial, ignore_errors=True)
+    partial.mkdir(parents=True)
+    cflags = "-O3 -DNDEBUG"
+    cmd = ["cmake", "-S", str(src), "-B", str(partial / "build"), "-G", "Ninja", f"-DCMAKE_C_COMPILER={cc}",
+           "-DCMAKE_BUILD_TYPE=Release", f"-DCMAKE_C_FLAGS_RELEASE={cflags}", *BUILT[name]]
+    print("  build " + " ".join(cmd))
+    env = {k: v for k, v in os.environ.items() if k not in ("CFLAGS", "CXXFLAGS", "LDFLAGS")}   # the key's flags are these, nothing ambient
+    subprocess.run(cmd, check=True, env=env, stdout=subprocess.DEVNULL)
+    subprocess.run(["ninja", "-C", str(partial / "build"), f"-j{jobs}"], check=True, env=env, stdout=subprocess.DEVNULL)
+    (partial / "KEY").write_text(f"{name} {commit}\ncompiler {ckey} ({cc})\nflavor {flavor}: CMAKE_C_FLAGS_RELEASE={cflags}\n"
+                                 f"options {' '.join(BUILT[name])}\n")
+    partial.rename(dest)
+    read_only(dest)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--prefix", default=str(pathlib.Path.home() / "Code" / "deps"))
+    ap.add_argument("--cc", default=os.environ.get("CC", "/opt/LLVM-21.1.6-Linux-X64/bin/clang"))
+    ap.add_argument("-j", type=int, default=4)
+    a = ap.parse_args()
+    for where, value in (("CFLAGS", os.environ.get("CFLAGS", "")), ("CXXFLAGS", os.environ.get("CXXFLAGS", "")),
+                         ("--cc", a.cc)):
+        if NATIVE.search(value):
+            sys.exit(f"deps-install: REFUSED -- {where} carries an architecture flag ('{value}'): a prefix key is portable plain "
+                     "-O3, never native (doc/SharedDependenciesPlan.md §2(3); janr1 reads this prefix over NFS)")
+    prefix = pathlib.Path(a.prefix).expanduser()
+    ckey = compiler_key(a.cc)
+    print(f"deps-install: prefix {prefix}, compiler {ckey}, flavor release")
+    for name, repo, commit, sha in pins():
+        src = fetch_source(prefix, name, repo, commit, sha)
+        if name in BUILT:
+            build_library(prefix, ckey, "release", a.cc, name, commit, src, a.j)
+    print("deps-install: done")
+
+
+if __name__ == "__main__":
+    main()

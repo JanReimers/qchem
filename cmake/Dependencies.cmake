@@ -7,8 +7,10 @@
 # (blaze, libxc) are the user's: change the fork, push, bump the pin + hash here.  To build against a LOCAL checkout while a
 # fork patch is unpushed: -DFETCHCONTENT_SOURCE_DIR_<NAME>=/path (CMake's own override; NAME upper-case, e.g. LIBXC).
 #
-# Step 2 adds the shared install prefix (~/Code/deps/<compiler>/<dep>-<pin>, found first); this file stays the fallback for a
-# tree with no prefix -- an outsider's clone, CI.
+# THE SHARED PREFIX FIRST (step 2): QCHEM_DEPS_PREFIX (default ~/Code/deps, filled by scripts/deps-install) holds every pin's
+# SOURCES at <prefix>/src/<name>-<commit> and libxc / libcint BUILT at <prefix>/<compiler>/<name>-<commit>-<flavor>/build.  A
+# pin found there is used as is (no download, no rebuild); a pin missing from it is fetched here, as before -- the fallback for a
+# tree with no prefix (an outsider's clone, CI).  The prefix's keys are portable -O3, never native (the invariant).
 #
 # What the project reads, after include():
 #   QCHEM_BLAZE_DIR         blaze sources (headers; its cmake/ holds Blaze_Import)
@@ -20,6 +22,13 @@
 #   QCHEM_LIBXC_BUILD       libxc's BUILD dir (its generated headers); target xc
 #   QCHEM_LIBCINT_SOURCE / QCHEM_LIBCINT_BUILD   libcint source and build dirs (include/ in each); target cint
 include(FetchContent)
+
+set(QCHEM_DEPS_PREFIX "$ENV{HOME}/Code/deps" CACHE PATH "the shared dependency prefix (scripts/deps-install); a pin missing from it is fetched")
+#! The C libraries' key: the compiler, and the flavor -- "release" (-O3 -DNDEBUG) for EVERY tree, RelChecked and Debug included,
+#! exactly as the in-tree build gave them (RelChecked changes the C++ flags only).
+# (the C++ compiler's id: the project requires clang++ and clang from one toolchain, and C is not enabled yet at this point)
+string(TOLOWER "${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}" QCHEM_DEPS_COMPILER)
+set(QCHEM_DEPS_FLAVOR release)
 
 #  one row per dependency: name | repository (no .git) | commit | SHA-256 of the GitHub archive of that commit
 set(QCHEM_PINS
@@ -42,6 +51,13 @@ foreach(row IN LISTS QCHEM_PINS)
     list(GET pin 1 repo)
     list(GET pin 2 commit)
     list(GET pin 3 sha)
+    set(QCHEM_PIN_${name} ${commit})
+    # A prefix SOURCE stands in for the download (CMake's own override), unless the caller already points this pin elsewhere.
+    string(TOUPPER "${name}" _NAME)
+    if(NOT FETCHCONTENT_SOURCE_DIR_${_NAME} AND IS_DIRECTORY "${QCHEM_DEPS_PREFIX}/src/${name}-${commit}")
+        set(FETCHCONTENT_SOURCE_DIR_${_NAME} "${QCHEM_DEPS_PREFIX}/src/${name}-${commit}")
+        message(STATUS "dependency ${name}: the shared prefix's source (${FETCHCONTENT_SOURCE_DIR_${_NAME}})")
+    endif()
     set(_sub "")
     if(name IN_LIST _qchemHeaderOnly)
         set(_sub SOURCE_SUBDIR qchem-headers-only-no-cmake)
@@ -69,14 +85,37 @@ set(QCHEM_GTEST_INCLUDE ${googletest_SOURCE_DIR}/googletest/include)
 
 # libxc / libcint are BUILT later (qchem_build_c_dependencies, after the project's targets), but src/ names their include
 # directories before that: FetchContent's own layout says where they will be, and the macro checks it once they exist.
-set(QCHEM_LIBXC_BUILD    ${FETCHCONTENT_BASE_DIR}/libxc-build)
-set(QCHEM_LIBCINT_SOURCE ${FETCHCONTENT_BASE_DIR}/libcint-src)
-set(QCHEM_LIBCINT_BUILD  ${FETCHCONTENT_BASE_DIR}/libcint-build)
+# From the prefix when its key is there (built by scripts/deps-install), else where FetchContent will build them.
+set(_xcKey   "${QCHEM_DEPS_PREFIX}/${QCHEM_DEPS_COMPILER}/libxc-${QCHEM_PIN_libxc}-${QCHEM_DEPS_FLAVOR}/build")
+set(_cintKey "${QCHEM_DEPS_PREFIX}/${QCHEM_DEPS_COMPILER}/libcint-${QCHEM_PIN_libcint}-${QCHEM_DEPS_FLAVOR}/build")
+if(EXISTS "${_xcKey}/libxc.so" AND EXISTS "${_cintKey}/libcint.a")
+    set(QCHEM_C_DEPS_FROM_PREFIX ON)
+    set(QCHEM_LIBXC_BUILD    ${_xcKey})
+    set(QCHEM_LIBCINT_SOURCE ${QCHEM_DEPS_PREFIX}/src/libcint-${QCHEM_PIN_libcint})
+    set(QCHEM_LIBCINT_BUILD  ${_cintKey})
+    message(STATUS "dependencies libxc, libcint: the shared prefix's builds (${QCHEM_DEPS_COMPILER}, ${QCHEM_DEPS_FLAVOR})")
+else()
+    set(QCHEM_C_DEPS_FROM_PREFIX OFF)
+    set(QCHEM_LIBXC_BUILD    ${FETCHCONTENT_BASE_DIR}/libxc-build)
+    if(FETCHCONTENT_SOURCE_DIR_LIBCINT)                       # a prefix (or local) source, built here
+        set(QCHEM_LIBCINT_SOURCE ${FETCHCONTENT_SOURCE_DIR_LIBCINT})
+    else()
+        set(QCHEM_LIBCINT_SOURCE ${FETCHCONTENT_BASE_DIR}/libcint-src)
+    endif()
+    set(QCHEM_LIBCINT_BUILD  ${FETCHCONTENT_BASE_DIR}/libcint-build)
+endif()
 
 #! The C libraries the project builds and links (libxc, libcint), made available where the root CMakeLists asks -- AFTER its
 #! own targets, with BUILD_TESTING off (their tests are not ours), exactly as the retired add_subdirectory(submodules/...) did.
 #! Both compile at plain -O3 (the root applies -march=native to C++ TUs only), which step 2's portable prefix relies on.
 macro(qchem_build_c_dependencies)
+  if(QCHEM_C_DEPS_FROM_PREFIX)
+    # The prefix's builds, as the targets the project links by name (xc shared, cint static and PIC).
+    add_library(xc SHARED IMPORTED GLOBAL)
+    set_target_properties(xc PROPERTIES IMPORTED_LOCATION "${QCHEM_LIBXC_BUILD}/libxc.so")
+    add_library(cint STATIC IMPORTED GLOBAL)
+    set_target_properties(cint PROPERTIES IMPORTED_LOCATION "${QCHEM_LIBCINT_BUILD}/libcint.a")
+  else()
     set(BUILD_TESTING OFF CACHE BOOL "Disable embedded dependency tests" FORCE)
     FetchContent_MakeAvailable(libxc)
     # libcint (Apache-2.0): static, no Fortran interface (we call the C API directly).
@@ -92,4 +131,5 @@ macro(qchem_build_c_dependencies)
             message(FATAL_ERROR "Dependencies.cmake: ${_named} was announced as '${${_named}}' but FetchContent put it at '${${_actual}}'")
         endif()
     endforeach()
+  endif()
 endmacro()
