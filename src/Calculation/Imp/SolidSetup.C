@@ -2,6 +2,9 @@
 module;
 #include <algorithm>   // std::max (alpha_pp)
 #include <cassert>
+#include <cmath>       // std::pow (the strain allowance's cost)
+#include <iomanip>
+#include <sstream>
 #include <iostream>    // the stated-trim line
 #include <memory>
 #include <stdexcept>
@@ -146,21 +149,44 @@ std::pair<int,int> SpinChannelCounts(const SolidCalcOptions& o, int nel)
 //---------------------------------------------------------------------------------------------------
 //  THE RESOLVE PHASE.  What used to be the decision half of SolidCalculation::BuildBasis, in the order it decided them; the
 //  build half (the Bloch basis, its report, the electron configuration) is SolidCalculation::BuildPoint.
-std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+namespace
+{
+//! THE STRAIN-ALLOWANCE POLICY (the cell half's frozen rule): the reference lattice with its sizing box set to (1+s) A_ref, reported
+//! under policy.  s = 0 returns the lattice untouched (every size decided on the cell itself, bit for bit as before).
+Lattice_3D SizedForStrain(const Lattice_3D& lat, const SolidCalcOptions& opts)
+{
+    const double s=opts.cellStrainAllowance;
+    if (!(s>=0.0)) throw std::invalid_argument("SolidCalcOptions: cellStrainAllowance must be >= 0 (a linear fraction, 0.03 = 3%)");
+    if (s==0.0) return lat;
+    if (s>0.25) throw std::invalid_argument("SolidCalcOptions: cellStrainAllowance "+std::to_string(s)+" > 0.25: the sets sized for a cell that "
+                                            "much larger cost (1+s)^3 in every grid -- relax in stages, re-resolving the setup at the new cell");
+    UnitCell cell=lat.GetUnitCell();
+    cell.SetSizingCell((1.0+s)*cell.GetCellMatrix());
+    std::ostringstream why;
+    why<<"every G set, raster and mesh count is decided on the reference cell grown by "<<100.0*s<<"% and held as the cell strains (the frozen "
+         "rule; CP2K's CELL_REF): E(cell) stays smooth for any cell whose largest principal stretch is <= "<<1.0+s<<", and the reference point "
+         "runs on sets ~"<<std::setprecision(3)<<std::pow(1.0+s, 3.0)<<"x the fixed-cell size";
+    policy::Report("SolidSetup.CellStrainAllowance", "sizing box (1+"+std::to_string(s)+") A_ref", policy::Verdict::Choose, why.str());
+    return Lattice_3D(cell, lat.GetLimits());
+}
+}
+
+std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, std::shared_ptr<const BasisSet::Real_BS> mol,
                                                       const SolidCalcOptions& opts,
                                                       const SCFAccelerators::SolidAcceleratorOptions& acc)
 {
     qchem::SetRunPolicy(opts.policy);   // D-ENV 6b: the policy is part of the run's options, installed ONCE here, before any factory consults it
     RefuseUnrealizedRoutes(opts);
-    return Decide(lat, std::move(mol), opts, acc);
+    return Decide(SizedForStrain(lat0, opts), std::move(mol), opts, acc);
 }
 
-std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
+std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, const GaussianBasisRecipe& recipe,
                                                       const SolidCalcOptions& opts,
                                                       const SCFAccelerators::SolidAcceleratorOptions& acc)
 {
     qchem::SetRunPolicy(opts.policy);   // before the vet loop builds its Bloch blocks, as before every other factory
     RefuseUnrealizedRoutes(opts);      // before the basis is built: nothing is spent on a run that cannot go
+    const Lattice_3D lat=SizedForStrain(lat0, opts);   // the vet loop's Bloch blocks are sized as every later point's will be
     const auto pp=Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.species);
     // THE BASIS, made over a structure the setup will hold (Decide's setup keeps its own copy of the same cell, and the basis is
     // built over THAT copy below so it cannot outlive its atoms).

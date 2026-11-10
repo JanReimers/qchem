@@ -67,7 +67,7 @@ ivec3_t PW_Evaluator::AutoGrid() const
         {
             // ISOTROPIC, as the policy rasters are: an imposed run star-averages the raster under the crystal ops, which needs a grid every
             // op maps onto itself -- per-axis N broke it on Si's 2x1x1 supercell (XC off by 2.3 Ha, C2 step 3, 2026-10-31).
-            const CellGeometry A=itsRecip.GetCell().MakeReciprocal();
+            const CellGeometry A=itsRecip.GetCell().MakeReciprocal().SizingGeometry();   // the frozen rule: N decided on the sizing box
             auto need=[&](const rvec3_t& e){ return int(std::ceil(itsNyquistG*norm(A.ToCartesian(e))/Pi*(1.0-1e-12))); };
             nn=std::max({nn, need(rvec3_t(1,0,0)), need(rvec3_t(0,1,0)), need(rvec3_t(0,0,1))});
             itsAutoGrid=ivec3_t(nn,nn,nn);
@@ -361,12 +361,11 @@ std::string PW_Evaluator::IDFragment() const
     // share an nG.  So append B's three Cartesian columns (B.e_i = ToCartesian of the unit fractional axes),
     // which pin |G|^2 and Omega exactly.  (Without this the process-wide cache could hand a same-nG neighbour
     // the wrong kernel -- the per-instance member cache this replaces could never collide.)
-    const CellGeometry& B=itsRecip.GetCell();
-    auto v=[](const rvec3_t& c){ return std::to_string(c.x)+","+std::to_string(c.y)+","+std::to_string(c.z); };
+    // B (and its sizing box) at full precision: a finite-difference strain must never share a neighbour's kernel.
     return std::string("|k=")+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
                  +"|Ecut="+std::to_string(itsEcut)
                  +"|nG="+std::to_string(itsG.size())
-                 +"|B="+v(B.ToCartesian(rvec3_t(1,0,0)))+";"+v(B.ToCartesian(rvec3_t(0,1,0)))+";"+v(B.ToCartesian(rvec3_t(0,0,1)));
+                 +"|B="+itsRecip.GetCell().KeyFragment();
 }
 
 } //namespace

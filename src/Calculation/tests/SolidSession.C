@@ -53,6 +53,21 @@ SolidCalcOptions SiGamma(bool imposed=false, bool statedRasters=true)
 }
 const GaussianBasisRecipe kSiBasis{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR};
 
+//! Si at the reference with a cell STRAIN ALLOWANCE: every size decided on the reference grown by \a allowance (the frozen rule).
+std::shared_ptr<const SolidSetup> SiStrainSetup(double allowance)
+{
+    SolidCalcOptions o=SiGamma();
+    o.cellStrainAllowance=allowance;
+    return SolidSetup::Resolve(Lattice_3D(UnitCell(*Materials::Get("Si_diamond").cell), ivec3_t(1,1,1)), kSiBasis, o);
+}
+//! The Si reference under the homogeneous strain F: the cell and the atoms ride it.
+std::pair<rmat3d_t, std::vector<rvec3_t>> Strained(const PESGeometry& ref, const rmat3d_t& F)
+{
+    std::vector<rvec3_t> R; for (const auto& r : ref.R) R.push_back(F*r);
+    return {F*(*ref.cell), R};
+}
+rmat3d_t Hydrostatic(double e) {return rmat3d_t(1+e,0,0, 0,1+e,0, 0,0,1+e);}
+
 std::shared_ptr<const SolidSetup> SiSetup(const std::vector<rvec3_t>* at=nullptr, bool imposed=false, bool statedRasters=true)
 {
     const auto mat=Materials::Get("Si_diamond");
@@ -377,4 +392,49 @@ TEST(SolidSession, AForceRequestNamesTheMissingGradientsBeforeAnySCF)
     ASSERT_TRUE(opt.Error().cost);
     EXPECT_EQ(opt.Error().cost->why, PESFailure::Why::NoGradient);
     EXPECT_EQ(rows, afterEnergy) << "the optimizer's refusal spent no SCF either";
+}
+
+// THE CELL HALF, step 2 (doc/Records/CellHalf_Design.md §3 and §4 step 2, ruled 2026-11-10): the session FOLLOWS a strained cell under
+// the frozen rule -- every size decided once on the reference grown by the allowance -- so E(cell) is one smooth surface.
+TEST(SolidSession, ACellWithinTheAllowanceIsFollowedAndARoundTripReturns)
+{
+    SolidSession pes(SiStrainSetup(0.03), {SCFStage{Tight(), SCFAccelerators::Type::Auto}});
+    const PESGeometry ref=pes.Reference();
+    auto P0=pes.ConvergeAt(ref.cell, ref.R); ASSERT_TRUE(P0) << P0.Error().details;
+    const auto [A1, R1]=Strained(ref, Hydrostatic(0.01));
+    auto P1=pes.ConvergeAt(A1, R1); ASSERT_TRUE(P1) << P1.Error().details;
+    EXPECT_GT(std::fabs(P1->energy-P0->energy), 1e-5) << "a 1% strain moves the energy";
+    auto P2=pes.ConvergeAt(ref.cell, ref.R); ASSERT_TRUE(P2) << P2.Error().details;
+    EXPECT_NEAR(P2->energy, P0->energy, 2e-8) << "back at the reference, on the same sets: the same answer (each stop good to ~1e-8)";
+
+    const auto [A4, R4]=Strained(ref, Hydrostatic(0.04));
+    auto P4=pes.ConvergeAt(A4, R4);
+    ASSERT_FALSE(P4); EXPECT_EQ(P4.Error().why, PESFailure::Why::CellChange);
+    EXPECT_NE(P4.Error().details.find("allowance"), std::string::npos) << P4.Error().details;
+}
+
+// THE WHOLE-CELL ORACLE's precondition: the re-converged E(e) is differentiable, so central differences at h and 2h agree to the Taylor
+// term E'''h^2/2 plus the SCF noise.  A G set, raster or mesh count re-decided at each cell jumps E inside the scan, and a jump d moves
+// the difference by ~d/(4h): at h = 5e-4 the gate sees d >~ 6e-8 Ha.  Measured 2026-11-10 at h = 2e-3: dE/de -1.41076 / -1.41093,
+// d2E/de2 13.495 / 13.482 (E''' ~ -86, so its Taylor term is ~1e-5 at h = 5e-4).
+TEST(SolidSession, TheReconvergedEnergyIsDifferentiableInTheStrain)
+{
+    SolidSession pes(SiStrainSetup(0.03), {SCFStage{Tight(1e-9), SCFAccelerators::Type::Auto}});
+    const PESGeometry ref=pes.Reference();
+    const double h=5e-4;
+    auto E=[&](double e)
+    {
+        const auto [A, R]=Strained(ref, Hydrostatic(e));
+        auto p=pes.ConvergeAt(A, R);
+        EXPECT_TRUE(p) << p.Error().details;
+        return p ? p->energy : 0.0;
+    };
+    const double Em2=E(-2*h), Em1=E(-h), E0=E(0.0), Ep1=E(h), Ep2=E(2*h);
+    const double d1=(Ep1-Em1)/(2*h), d2=(Ep2-Em2)/(4*h);
+    const double c1=(Ep1-2*E0+Em1)/(h*h), c2=(Ep2-2*E0+Em2)/(4*h*h);
+    std::cout<<std::setprecision(12)<<"[strain scan] E(-2h..2h) = "<<Em2<<" "<<Em1<<" "<<E0<<" "<<Ep1<<" "<<Ep2<<"  dE/de "<<d1<<" / "<<d2
+             <<"  d2E/de2 "<<c1<<" / "<<c2<<std::endl;
+    EXPECT_NEAR(d1, d2, 3e-5) << "dE/de at h and 2h";
+    EXPECT_NEAR(c1, c2, 0.01*std::fabs(c1)) << "d2E/de2 at h and 2h";
+    EXPECT_GT(c1, 0.0) << "Si's energy is convex in a hydrostatic strain near its reference";
 }

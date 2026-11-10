@@ -5,6 +5,7 @@ module;
 #include <vector>
 #include <functional>
 #include <memory>
+#include <optional>
 export module qchem.UnitCell;
 export import qchem.Types;
 import qchem.Structure;
@@ -47,8 +48,25 @@ public:
     //! needs to bound a sphere (\c LatticePointsInSphere).  Not \f$1/|a_i|\f$: oblique cells would be under-counted.
     rvec3_t InverseInterplanarSpacings() const;
 
-    //! The reciprocal box \f$B = 2\pi A^{-\top}\f$ (solid-state convention \f$b_i\cdot a_j = 2\pi\delta_{ij}\f$).
+    //! The reciprocal box \f$B = 2\pi A^{-\top}\f$ (solid-state convention \f$b_i\cdot a_j = 2\pi\delta_{ij}\f$).  A box with a
+    //! SIZING box hands the reciprocal of it on (below), so a reciprocal lattice selects its G sets on the same frozen metric.
     CellGeometry MakeReciprocal() const;
+
+    //! \brief THE SIZING BOX (the cell half's FROZEN RULE, doc/Records/CellHalf_Design.md §3, ruled 2026-11-10): the box every
+    //! DISCRETE size over this box is decided on -- the G set inside a cutoff ball (\c BuildGs), a raster's Nyquist point count, a
+    //! uniform mesh's divisions.  Absent, it is the box itself: today's behaviour, bit for bit.  Present, the integer sets are chosen
+    //! on it and PLACED on this box (G = B m with this box's B), so a cell that strains under a geometry run keeps every index set and
+    //! grid count, and its energy is a smooth function of the strain (CP2K's CELL_REF; what QE's vc-relax and VASP's ISIF=3 do).  The
+    //! policy that sets it (the reference cell grown by a stated strain allowance) lives in the setup, never here.
+    //! CLIENTS: the size deciders only.  Geometry (volumes, distances, images, phases) always reads the box itself.
+    CellGeometry SizingGeometry() const;
+    //! Decide this box's discrete sizes on the box \a sizing (cell matrix, a.u.).
+    void SetSizingCell(const Matrix3D<double>& sizing) {itsSizing=sizing;}
+    bool HasSizingCell() const {return itsSizing.has_value();}
+    //! The box (and its sizing box, when set) at full precision, for a cache key: two boxes that differ ANYWHERE, a finite-difference
+    //! strain of 1e-9 included, give different keys.  (The keys once printed volume and edge to 6 decimals, so a cell under a strain
+    //! that kept both could share another's cached integrals.)
+    std::string KeyFragment() const;
 
     //! \brief Announce a UNIFORM \f$N_1\times N_2\times N_3\f$ grid over THIS box: one console line
     //! (\c [uniform grid] <key>: N, points, \f$\Delta r_i=|a_i|/N_i\f$ a.u.) plus a \c <key> run-report entry, one
@@ -66,6 +84,7 @@ public:
 private:
     Matrix3D<double> itsA; //!< Cell matrix; columns are the lattice vectors \f$a_i\f$ (a.u.).
     Matrix3D<double> itsM; //!< Metric tensor \f$M = A^\top A\f$ (a.u.\f$^2\f$), cached.
+    std::optional<Matrix3D<double>> itsSizing;   //!< the sizing box's cell matrix; absent = this box (\c SizingGeometry)
 };
 
 //! \brief One periodic unit cell = a SITE SET (the atom basis) in a CellGeometry box (V-STRUCTURE-ISP F2).  Its images

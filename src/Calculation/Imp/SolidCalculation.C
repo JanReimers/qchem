@@ -2957,6 +2957,69 @@ PESGeometry SolidSession::Reference() const
 }
 const SolidCalculation* SolidSession::Current() const {return itsPoint ? itsPoint->calc.get() : nullptr;}
 
+//------------------------------------------------------------------------------------------------------------------------------------
+// THE CELL-FOLLOWING RULE (the cell half, doc/Records/CellHalf_Design.md §3 and §4 step 2; ruled 2026-11-10).  A free function of the
+// setup and the asked geometry, so it moves as it is when the PES leaves the session (V-PES-ISP: the composer will call it).
+//
+// THE FROZEN RULE: a strained point decides no size of its own.  The setup's reference cell carries its SIZING BOX ((1+s) A_ref, set
+// by SolidSetup's strain-allowance policy), the point's cell is built at the asked A with that same sizing box, and every library that
+// sizes a discrete set (BuildGs, a raster's Nyquist count, a uniform mesh) decides it on the sizing box -- so every point keeps the
+// reference's index sets and grid counts, and E(A) is smooth.  The allowance is what makes that sound: within it no G set is short of
+// its cutoff at the actual cell (|B' m| <= σ_max |B m|, σ_max the largest principal stretch of F = A A_ref⁻¹) and no raster short
+// of its demand (|a'_i| <= σ_max |a_i|).  Beyond it the point is REFUSED (CellChange): re-resolving at the new cell is the NEXT run's
+// business (pin 31 catch 2), and silently re-sizing would make the surface jump.
+namespace
+{
+struct FollowedCell
+{
+    UnitCell cell;
+    bool     cellMoved=false;
+};
+
+//! The largest principal stretch of F: √ of the largest eigenvalue of FᵀF.
+double LargestStretch(const rmat3d_t& F)
+{
+    const rmat3d_t C=Transpose(F)*F;
+    rhmat_t M(3);
+    for (size_t i=0;i<3;++i) for (size_t j=i;j<3;++j) M(i,j)=C(i+1,j+1);
+    rvec_t w; rmat_t U;
+    blazem::eigen(M, w, U);
+    double l=0.0; for (size_t i=0;i<3;++i) l=std::max(l, w[i]);
+    return std::sqrt(l);
+}
+
+Outcome<FollowedCell, PESFailure> FollowCell(const SolidSetup& S, const rmat3d_t& A, const std::vector<rvec3_t>& R)
+{
+    using O=Outcome<FollowedCell, PESFailure>;
+    using Why=PESFailure::Why;
+    const UnitCell& ref=S.reference.GetUnitCell();
+    const rmat3d_t& Aref=ref.GetCellMatrix();
+    double dA=0.0, scale=0.0;
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) { dA=std::max(dA, std::fabs(A(i,j)-Aref(i,j))); scale=std::max(scale, std::fabs(Aref(i,j))); }
+    if (!(dA>1e-12*scale))
+    {
+        FollowedCell f{ref, false};
+        f.cell.MoveSites(R);
+        return O::Ok(std::move(f));
+    }
+    const double s=S.opts.cellStrainAllowance;
+    if (s==0.0)
+        return O::Fail({Why::CellChange, "the cell moved (max |dA| = "+std::to_string(dA)+" bohr) and the setup states no strain allowance: its "
+                        "sizes were decided for ONE cell -- resolve it with SolidCalcOptions::cellStrainAllowance > 0 to let a geometry "
+                        "run follow the cell (the frozen rule), or resolve a new setup at that cell"});
+    const double stretch=LargestStretch(A*Invert(Aref));
+    if (stretch>1.0+s)
+        return O::Fail({Why::CellChange, "the cell's largest principal stretch from the reference is "+std::to_string(stretch)+", beyond the "
+                        "setup's strain allowance 1+"+std::to_string(s)+": its frozen G sets and rasters would fall short of their cutoffs "
+                        "-- resolve a new setup at a cell nearer this one (or with a larger allowance)"});
+    FollowedCell f{UnitCell(A), true};
+    f.cell.SetSizingCell(ref.SizingGeometry().GetCellMatrix());   // the frozen rule: the REFERENCE's sizing box, never this cell's
+    size_t a=0;
+    for (Site site : ref.Sites()) { site.R=R[a++]; f.cell.Insert(site); }   // every site's decoration rides (spinFlip, netCharge)
+    return O::Ok(std::move(f));
+}
+}
+
 Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3d_t>& cell, const std::vector<rvec3_t>& R,
                                                       const PESRequest& want)
 {
@@ -2984,37 +3047,28 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     };
     if (want.forces && itsPoint)
         if (auto missing=itsPoint->calc->MissingGradients(); !missing.empty()) return missingForces(missing);
-    // THE CELL IS THE SETUP'S, for now: the Bloch basis, the grids (sized from the cell) and the imposed group were all built for it.
-    // The signature takes the cell so a variable-cell driver needs no new face when the basis/grid side can follow one.
-    {
-        const rmat3d_t& A=ref.GetCellMatrix();
-        double dA=0.0, scale=0.0;
-        for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) { dA=std::max(dA, std::fabs((*cell)(i,j)-A(i,j))); scale=std::max(scale, std::fabs(A(i,j))); }
-        if (dA>1e-12*scale)
-            return O::Fail({Why::CellChange, "the cell moved (max |dA| = "+std::to_string(dA)+" bohr): a setup's basis and grids are built for "
-                            "ONE cell, and a variable-cell step is not supported yet -- resolve a new setup at that cell"});
-    }
-
-    // THE POINT'S CELL: the setup's, atoms at R.
-    UnitCell cellR(ref);
+    // THE POINT'S CELL, under the setup's frozen rule (FollowCell): the reference's, or a strained one within the allowance.
+    auto followed=FollowCell(S, *cell, R);
+    if (!followed) return O::Fail(followed.Error());
+    const bool cellMoved=followed->cellMoved;
+    const UnitCell& cellR=followed->cell;
     double moved=0.0;
-    for (size_t a=0;a<nAtoms;a++) moved=std::max(moved, norm(R[a]-cellR.Sites()[a].R));
-    cellR.MoveSites(R);
+    for (size_t a=0;a<nAtoms;a++) moved=std::max(moved, norm(R[a]-ref.Sites()[a].R));
     const Lattice_3D latR(cellR, S.reference.GetLimits());
 
     // THE IMPOSED GROUP must survive (Q4): a geometry that lowers it is a NEW setup, the user's choice -- never a silent re-fold.  A
     // THROW, not an Outcome: every driver that moves atoms off the group runs a lower-group setup, so this is a wiring defect.
-    if (S.imposed && moved>0.0)
+    if (S.imposed && (moved>0.0 || cellMoved))
     {
         if (const size_t now=S.KeptOps(latR).size(), was=S.KeptOps(S.reference).size(); now<was)
             throw std::invalid_argument("SolidSession::ConvergeAt: these positions keep "+std::to_string(now)+" of the imposed group's "+std::to_string(was)
-                                        +" operations -- step through a map that keeps the group (WyckoffMap), or resolve a new setup with the lower group");
+                                        +" operations -- step through a map that keeps the group (WyckoffMap, CellWyckoffMap), or resolve a new setup with the lower group");
     }
 
     auto point=std::make_unique<Point>();
     point->cell=latR.GetStructure();
-    if (moved==0.0)          point->mol=S.mol;   // the reference itself: the setup's own basis, bit for bit
-    else if (S.planeWave)    point->mol=S.mol;   // a plane-wave basis does not follow the atoms (the Gaussian one is unread)
+    if (moved==0.0 && !cellMoved) point->mol=S.mol;   // the reference itself: the setup's own basis, bit for bit
+    else if (S.planeWave)    point->mol=S.mol;   // a plane-wave basis does not follow the atoms or the cell (the Gaussian one is unread)
     else if (!S.recipe)
         throw std::invalid_argument("SolidSession: the atoms moved, but the setup was resolved from a PRE-BUILT basis that cannot follow "
                                     "them -- resolve it from a GaussianBasisRecipe");

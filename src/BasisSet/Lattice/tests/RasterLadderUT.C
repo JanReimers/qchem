@@ -162,3 +162,47 @@ TEST(RasterLadder, VlocLongsAuditIsAFunctionOfTheLadderAndThePP)
     EXPECT_GT(sized->DeliveredRasterExponents().vlocLong, 0.0);
     EXPECT_EQ(sized->DeliveredRasterExponents().density, bare->DeliveredRasterExponents().density) << "the PP touches only V_long's row";
 }
+
+//! THE FROZEN RULE (the cell half, doc/Records/CellHalf_Design.md §3 and §4 step 2): a STRAINED cell carrying the reference's SIZING BOX
+//! decides no size of its own -- every ladder level's FFT divisions, cutoff and G set, and the plane-wave orbital blocks' sizes, are
+//! the reference's to the integer, so the energy is a smooth function of the strain.  The sizing box (the reference grown by a 3%
+//! allowance) is what sets them: on the reference itself it enlarges the density ball over the plain cell's.
+TEST(RasterLadder, AStrainedCellCarryingTheReferencesSizingBoxKeepsEverySet)
+{
+    const UnitCell plain=SiDiamond();
+    const rmat3d_t A=plain.GetCellMatrix();
+    UnitCell ref=plain;
+    ref.SetSizingCell(1.03*A);
+    // A general strain (no symmetry kept), largest principal stretch < 1.03, inside the allowance.
+    const rmat3d_t F(1.020, 0.006, -0.004,  0.006, 0.990, 0.008,  -0.004, 0.008, 1.012);
+    UnitCell strained(F*A);
+    strained.SetSizingCell(ref.SizingGeometry().GetCellMatrix());
+    for (Site s : ref.Sites()) { s.R=F*s.R; strained.Insert(s); }
+    EXPECT_NE(ref.KeyFragment(), strained.KeyFragment()) << "the two cells must never share a cache entry";
+    EXPECT_NE(plain.KeyFragment(), ref.KeyFragment()) << "nor the sized reference the plain one";
+    EXPECT_TRUE(strained.MakeReciprocal().HasSizingCell()) << "the reciprocal box carries the sizing box on";
+
+    const Lattice_3D lr(ref, ivec3_t(1,1,1)), ls(strained, ivec3_t(1,1,1)), lp(plain, ivec3_t(1,1,1));
+    const BasisSet::Lattice::GPWParams p{.densityEcut=20.0};
+    const auto Lref=BasisSet::Lattice::MakeRasterLadder(lr, Mol(BasisSetData::SIPP, *lr.GetStructure()), p);
+    const auto Lstr=BasisSet::Lattice::MakeRasterLadder(ls, Mol(BasisSetData::SIPP, *ls.GetStructure()), p);
+    const auto Lpln=BasisSet::Lattice::MakeRasterLadder(lp, Mol(BasisSetData::SIPP, *lp.GetStructure()), p);
+    const auto& R=Lref->Levels();
+    const auto& S=Lstr->Levels();
+    ASSERT_EQ(R.levels.size(), S.levels.size()) << "the level count";
+    for (size_t l=0;l<R.levels.size();++l)
+    {
+        EXPECT_EQ(R.N[l].x, S.N[l].x) << "L" << l; EXPECT_EQ(R.N[l].y, S.N[l].y) << "L" << l; EXPECT_EQ(R.N[l].z, S.N[l].z) << "L" << l;
+        EXPECT_EQ(R.ecut[l], S.ecut[l]) << "L" << l << ": the cutoff, bitwise";
+        EXPECT_TRUE(R.levels[l]->Gs()==S.levels[l]->Gs()) << "L" << l << ": the G set, index for index";
+    }
+    EXPECT_GT(R.levels.front()->size(), Lpln->Levels().levels.front()->size()) << "the sizing box enlarges the reference's own density ball";
+
+    std::unique_ptr<BasisSet::Complex_BS> pwr(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lr, 4.0));
+    std::unique_ptr<BasisSet::Complex_BS> pws(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, ls, 4.0));
+    std::unique_ptr<BasisSet::Complex_BS> pwp(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lp, 4.0));
+    EXPECT_EQ(pwr->GetNumIBS(), pws->GetNumIBS());
+    EXPECT_EQ(pwr->GetNumFunctions(), pws->GetNumFunctions()) << "the plane-wave orbital set, frozen";
+    // >=, not >: at Ecut 4 Ha Si's orbital ball has no G between r and 1.03 r (measured: 113 both); the density ball above shows growth.
+    EXPECT_GE(pwr->GetNumFunctions(), pwp->GetNumFunctions()) << "and it contains the plain cell's";
+}

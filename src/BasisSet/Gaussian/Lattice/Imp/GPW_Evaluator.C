@@ -619,7 +619,7 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
 std::string GPW_Evaluator::TransitionID() const
 {
     return "mol="+itsOrb->BasisSetID()
-         +"|cell="+std::to_string(itsCell.GetCellVolume())+","+std::to_string(itsCell.GetMaximumCellEdge())
+         +"|cell="+itsCell.KeyFragment()
          +(itsHomeOnly?"|home":"");
 }
 
@@ -1299,13 +1299,13 @@ std::string GPW_Evaluator::LocalPPShortIDFragment(const SpeciesRadialField& loc)
     if (!dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc)) return IDFragment();   // the grid fallback reads the rasters
     return "|analytic|mol="+itsOrb->BasisSetID()
          +"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
-         +"|cell="+std::to_string(itsCell.GetCellVolume())+","+std::to_string(itsCell.GetMaximumCellEdge())
+         +"|cell="+itsCell.KeyFragment()
          +(itsHomeOnly?"|home":"")
          +"|screenEps="+std::format("{:.17g}",itsTol.screenEps);
 }
 
 // Cache key: the molecular basis's geometry-aware ID pins the radials + centres (atom positions); the CELL
-// VECTORS enter via volume + max edge (the atom positions alone cannot distinguish two cells); k + the
+// matrix and its sizing box enter at full precision (CellGeometry::KeyFragment); k + the
 // home-only mode + the density-grid cutoff distinguish the periodic block.
 std::string GPW_Evaluator::IDFragment() const
 {
@@ -1318,7 +1318,7 @@ std::string GPW_Evaluator::IDFragment() const
     const size_t sfold = itsLat ? itsLat->StreamFoldOrder() : 0;
     return "|mol="+itsOrb->BasisSetID()
          +"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
-         +"|cell="+std::to_string(itsCell.GetCellVolume())+","+std::to_string(itsCell.GetMaximumCellEdge())
+         +"|cell="+itsCell.KeyFragment()
          +(itsHomeOnly?"|home":"")
          +(sfold?"|sfold="+std::to_string(sfold):"")
          +"|dEcut="+(itsFFT_R_G_Grids?std::to_string(itsFFT_R_G_Grids->Ecut()):std::string("0"))
