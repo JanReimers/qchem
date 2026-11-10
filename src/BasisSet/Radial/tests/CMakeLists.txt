@@ -22,6 +22,7 @@ target_compile_definitions(UTRadial_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS}
 set_property(TARGET UTRadial_BS PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTRadial_BS PRIVATE
+    ${PROJECT_SOURCE_DIR}/src   # forward.H (A_Cache4's unit-test friend)
     ${QCHEM_BLAZE_DIR}
     ${QCHEM_JSON_INCLUDE}
     ${QCHEM_BSPLINE_INCLUDE}
