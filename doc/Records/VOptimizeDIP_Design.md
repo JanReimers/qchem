@@ -1,6 +1,6 @@
 # V-OPTIMIZE-DIP: design note (lane H, 2026-11-09)
 
-For the user, before any code.  Row: `doc/OOD-SOLID-Cleanup.md` V-OPTIMIZE-DIP.  Written from inside `GeometryOptimizer`: lane H
+For the user, before any code.  **APPROVED 2026-11-09 (§9: all four decisions as recommended).**  Row: `doc/OOD-SOLID-Cleanup.md` V-OPTIMIZE-DIP.  Written from inside `GeometryOptimizer`: lane H
 wrote `WyckoffMap` against it, wired `MakeSolidGeometryRun`, and found its roundoff defect (OpenWork §3, "GeometryOptimizer rejects
 a roundoff-level energy rise").  Implementation is lane B's, later.
 
@@ -383,7 +383,19 @@ in the unit tests are the example: they implement `Cost` directly.
 4. `LeastSquares` + Levenberg–Marquardt, with the grid tool.
 5. GDM onto the Stepper + `Retraction`: the riskiest step (the SCF panel moves).  It gets its own note first.
 
-## 9. Decisions for the user
+## 9. Decisions for the user -- RULED 2026-11-09: all four as recommended
+
+**User ruling (controller relay, 2026-11-09): "I agree on 1,2,3,4".**  The design is APPROVED; lane B implements it per §8.
+- (1) **Adapter**: the cost is a composite (PES × `CoordinateMap`; Hamiltonian + orbitals + exp(κ)), held by the minimizer only
+  through the cost face.
+- (2) **A new `qcOptimize` library**, depending on qcMath + qcCommon only; no chemistry in it.
+- (3) **The ask/tell `Stepper` is each algorithm's primitive**, and `Minimize` is the driver over it.
+- (4) **The value noise is a COST capability** (`ValueNoise`), not a tolerance in the client's stopping rule.
+
+The faces stay EMERGENT (ruling 4 above): no tier-1 hub and no `hub-interfaces.snapshot` entry, until BFGS-RFO and L-BFGS are
+LSP-substitutable on the same `PESCost` (§8 step 3).
+
+The questions as put to the user:
 
 1. **Adapter** (recommended, §7 and the two diagrams) or inheritance.
 2. **A new `qcOptimize` library** (recommended, §6) or a module inside qcMath, which would make qcMath link qcCommon.
