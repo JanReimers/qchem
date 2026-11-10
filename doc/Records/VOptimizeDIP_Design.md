@@ -384,7 +384,7 @@ in the unit tests are the example: they implement `Cost` directly.
 1. ✅ (lane H, 2026-11-09, `07f5e89e5`; owner moved from lane B to lane H by the controller for steps 1–3) Create qcOptimize (faces EMERGENT, ruling 4: no hub snapshot) with: `Cost`, `Projected`, `ModelHessian`, `ValueNoise`, `StoppingRule`, `Stepper` + `Minimize`, and the
    BFGS-RFO stepper MOVED with §4's three rules.  Its unit tests: today's model surfaces (bowl, Rosenbrock, soft mode, noise),
    moved down from `UTCalculation` to `UTOptimize` (CLAUDE.md: unit over integration).
-2. `GeometryOptimizer` becomes a thin client: `PESCost` + the ε rule + `Minimize`.  `OptimizedGeometry` and `OptimizeFailure` become
+2. ✅ (lane H, 2026-11-09, `7bbeb3647`; the TrustCollapsed row CLOSED) `GeometryOptimizer` becomes a thin client: `PESCost` + the ε rule + `Minimize`.  `OptimizedGeometry` and `OptimizeFailure` become
    `Minimum` and `MinimizeFailure<PESFailure>` plus the geometry.  The Wyckoff / Cartesian gates stay in `UTCalculation`.  Remove the
    rutile maxStep workaround.
 3. L-BFGS on the SAME `PESCost` as BFGS-RFO: the first LSP proof of the emergent base (ruling 4).  Gate: every model-surface test
