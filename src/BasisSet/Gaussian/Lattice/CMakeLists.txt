@@ -17,6 +17,7 @@ target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     SphericalLatticeView.C
     GPW_Evaluator.C
     GPW_IBS.C
+    LibcintPullbackWorkaround.C   # ⚠ TEMPORARY (EnzymeAD/Enzyme#3747): the lattice S/T derivatives, the one MnD/libcint seam
     RasterLadder.C       # the GPW raster ladder as ONE object, shared by every block of a point (V-BS-RASTER)
 )
 target_include_directories(qcGaussian_BS PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)

@@ -165,17 +165,53 @@ public:
     virtual hmat_t<T> MakeOverlap() const override {return ToScalar<T>(Cast().OverlapMatrix());}
     virtual hmat_t<T> MakeKinetic() const override {return ToScalar<T>(Cast().KineticMatrix());}
     virtual hmat_t<T> MakeNuclear(const Structure* cl) const override {return ToScalar<T>(Cast().NuclearMatrix(cl));}
-    // d/dR (GeometryOptimizationPlan §13.2): the lattice family's default.  PlaneWave_IBS overrides Overlap and Kinetic with exact zeros
-    // (its functions do not move with the atoms); the Bloch Gaussians (GPW) and the PW nuclear (structure factor) refuse for now.
-    virtual bool CanPullbackOverlap() const override {return false;}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<T>&, const Structure*) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a lattice block", "overlap pullback");}
-    virtual bool CanPullbackKinetic() const override {return false;}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<T>&, const Structure*) const override
-        {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a lattice block", "kinetic pullback");}
+    // d/dR and d/dε (GeometryOptimizationPlan §13.2; doc/Records/CellHalf_Design.md §5).  An engine that answers the lattice-sum one-electron
+    // pullbacks (GPW's Bloch Gaussians: libcint per image, over the energy series' own image list) gives the overlap and kinetic gradients AND
+    // the image virials, one walk each; any other engine refuses.  PlaneWave_IBS overrides the pullbacks with exact zeros (its functions do
+    // not move with the atoms).  A real TRIM block (T = double) hands its adjoint over widened: the Bloch sums at a TRIM k are real.
+    virtual bool CanPullbackOverlap() const override {if constexpr (kOneElectronPullback) return Cast().CanOneElectronPullback(); else return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<T>& W, const Structure* st) const override
+        {return PullbackOf(0, W, st, "overlap pullback");}
+    virtual bool CanPullbackKinetic() const override {if constexpr (kOneElectronPullback) return Cast().CanOneElectronPullback(); else return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<T>& D, const Structure* st) const override
+        {return PullbackOf(1, D, st, "kinetic pullback");}
+    virtual bool CanVirialOverlap() const override {if constexpr (kOneElectronPullback) return Cast().CanOneElectronPullback(); else return false;}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeOverlapVirial(const hmat_t<T>& W, const Structure* st) const override
+        {return VirialOf(0, W, st, "overlap virial");}
+    virtual bool CanVirialKinetic() const override {if constexpr (kOneElectronPullback) return Cast().CanOneElectronPullback(); else return false;}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeKineticVirial(const hmat_t<T>& D, const Structure* st) const override
+        {return VirialOf(1, D, st, "kinetic virial");}
     virtual bool CanPullbackNuclear() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<T>&, const Structure*) const override
         {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a lattice block", "nuclear pullback");}
+private:
+    static constexpr bool kOneElectronPullback = requires (const E& e, const chmat_t& A, const Structure* st)
+        { e.CanOneElectronPullback(); e.OneElectronPullback(0, A, st); };
+    static chmat_t Widen(const hmat_t<T>& A)
+    {
+        if constexpr (std::is_same_v<T,dcmplx>) return A;
+        else { chmat_t c(A.rows()); for (size_t i=0;i<A.rows();i++) for (size_t j=i;j<A.rows();j++) c(i,j)=dcmplx(A(i,j),0.0); return c; }
+    }
+    Outcome<rvec3vec_t,AD::NoGradient> PullbackOf(int which, const hmat_t<T>& A, const Structure* st, const char* what) const
+    {
+        if constexpr (kOneElectronPullback)
+        {
+            const auto r=Cast().OneElectronPullback(which, Widen(A), st);
+            if (!r) return Outcome<rvec3vec_t,AD::NoGradient>::Fail(r.Error());
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(r->gradient);
+        }
+        else return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a lattice block", what);
+    }
+    Outcome<rmat3d_t,AD::NoGradient> VirialOf(int which, const hmat_t<T>& A, const Structure* st, const char* what) const
+    {
+        if constexpr (kOneElectronPullback)
+        {
+            const auto r=Cast().OneElectronPullback(which, Widen(A), st);
+            if (!r) return Outcome<rmat3d_t,AD::NoGradient>::Fail(r.Error());
+            return Outcome<rmat3d_t,AD::NoGradient>::Ok(r->virial);
+        }
+        else return BasisSet::NoGeometryDerivativeYet<rmat3d_t>("a lattice block", what);
+    }
 };
 
 // --- Orbital DFT tier: the D-free reciprocal-space 3-centre tensors, forwarded to the evaluator.  Supplies

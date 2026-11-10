@@ -33,6 +33,19 @@ public:
         return *r;
     }
 };
+//! The Pulay term's virial client: the overlap's virial at W, block by block (CellHalf_Design §5).
+template <class T> class OverlapVirial : public virtual tStatic_VC<T>, public RealVirialBase<T,OverlapVirial<T>>
+{
+public:
+    rmat3d_t Virial(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& W, const Structure* st) const override
+    {return VirialBlock<T>(bs, s, W, st);}
+    template <class U> rmat3d_t VirialBlock(const tobs_t<U>* bs, const Spin&, const hmat_t<U>& W, const Structure* st) const
+    {
+        const auto r=bs->MakeOverlapVirial(W, st);
+        if (!r) throw std::logic_error("Hamiltonian::Stress, the Pulay term: "+r.Error().why);
+        return *r;
+    }
+};
 //! A term's name: the first non-blank line of its Write, trimmed.
 template <class Term> std::string NameOf(const Term& t)
 {
@@ -104,6 +117,66 @@ template <class T> std::vector<TermForce> tHamiltonianImp<T>::MakeTermForces(con
     return out;
 }
 
+// THE VIRIAL SUM (CellHalf_Design §5; user ruling §6.2, 2026-11-10): ∂E/∂ε = Σ_terms ∂E_term/∂ε|_D − Tr(W ∂S/∂ε), each term through its
+// tStrainGradient_HT face, the Pulay term through the overlap's virial at W, exactly as the forces fold.  MissingVirials() names every gap.
+template <class T> std::vector<std::string> tHamiltonianImp<T>::MissingVirials(const tbs_t<T>* bs, const Structure* st) const
+{
+    std::vector<std::string> out;
+    auto ask=[&](const auto& t)
+    {
+        if (const auto* g=dynamic_cast<const tStrainGradient_HT<T>*>(&t))
+        {
+            if (std::string m=g->MissingVirial(bs, st); !m.empty()) out.push_back(m);
+        }
+        else out.push_back(NameOf(t)+": no virial (the term has no tStrainGradient_HT face yet)");
+    };
+    for (const auto& t : itsSHTs)   ask(*t);
+    for (const auto& t : itsDHTs)   ask(*t);
+    for (const auto& t : itsHF_HTs) ask(*t);
+    if (!bs) out.push_back("Pulay, Tr(W dS/dε): no basis to differentiate");
+    else ForEachBlock(bs, [&](const auto* b)
+        { if (!b->CanVirialOverlap()) out.push_back("Pulay, Tr(W dS/dε): the basis block "+b->Name()+" gives no overlap virial"); });
+    return out;
+}
+
+template <class T> rmat3d_t tHamiltonianImp<T>::MakeVirial(const tbs_t<T>* bs, const tDM_CD<T>* D, const tDM_CD<T>* W, const Structure* st) const
+{
+    if (!st || !D || !W) throw std::invalid_argument("Hamiltonian::Stress: needs the cell, the density matrix and W");
+    if (const auto missing=MissingVirials(bs, st); !missing.empty())
+    {
+        std::string why;
+        for (const auto& m : missing) why+="\n    "+m;
+        throw std::logic_error("Hamiltonian::Stress: asked of a Hamiltonian that cannot give one (MissingVirials() says so):"+why);
+    }
+    rmat3d_t V(0,0,0, 0,0,0, 0,0,0);
+    auto add=[&](const auto& t){ dynamic_cast<const tStrainGradient_HT<T>&>(t).AddVirial(V, D, st); };
+    for (const auto& t : itsSHTs)   add(*t);
+    for (const auto& t : itsDHTs)   add(*t);
+    for (const auto& t : itsHF_HTs) add(*t);
+    const OverlapVirial<T> pulay;
+    const rmat3d_t vs=W->DM_Virial(&pulay, st);
+    for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) V(a,b)-=vs(a,b);
+    return V;
+}
+
+template <class T> std::vector<TermVirial> tHamiltonianImp<T>::MakeTermVirials(const tbs_t<T>* bs, const tDM_CD<T>* D, const Structure* st) const
+{
+    if (!st || !D) throw std::invalid_argument("Hamiltonian::MakeTermVirials: needs the structure and the density matrix");
+    std::vector<TermVirial> out;
+    auto one=[&](const auto& t)
+    {
+        TermVirial v{NameOf(t), "", rmat3d_t(0,0,0, 0,0,0, 0,0,0)};
+        const auto* g=dynamic_cast<const tStrainGradient_HT<T>*>(&t);
+        v.missing = g ? g->MissingVirial(bs, st) : v.label+": no virial (the term has no tStrainGradient_HT face yet)";
+        if (v.missing.empty()) g->AddVirial(v.V, D, st);
+        out.push_back(std::move(v));
+    };
+    for (const auto& t : itsSHTs)   one(*t);   // MakeTermForces' order
+    for (const auto& t : itsDHTs)   one(*t);
+    for (const auto& t : itsHF_HTs) one(*t);
+    return out;
+}
+
 // Only THIS file's members: the class itself is explicitly instantiated in Imp/HamiltonianImp.C (a second class-level instantiation
 // would be a duplicate definition).
 template std::vector<std::string> tHamiltonianImp<double>::MissingGradients(const tbs_t<double>*, const Structure*) const;
@@ -112,5 +185,11 @@ template rvec3vec_t tHamiltonianImp<double>::MakeForces(const tbs_t<double>*, co
 template rvec3vec_t tHamiltonianImp<dcmplx>::MakeForces(const tbs_t<dcmplx>*, const tDM_CD<dcmplx>*, const tDM_CD<dcmplx>*, const Structure*) const;
 template std::vector<TermForce> tHamiltonianImp<double>::MakeTermForces(const tbs_t<double>*, const tDM_CD<double>*, const Structure*) const;
 template std::vector<TermForce> tHamiltonianImp<dcmplx>::MakeTermForces(const tbs_t<dcmplx>*, const tDM_CD<dcmplx>*, const Structure*) const;
+template std::vector<std::string> tHamiltonianImp<double>::MissingVirials(const tbs_t<double>*, const Structure*) const;
+template std::vector<std::string> tHamiltonianImp<dcmplx>::MissingVirials(const tbs_t<dcmplx>*, const Structure*) const;
+template rmat3d_t tHamiltonianImp<double>::MakeVirial(const tbs_t<double>*, const tDM_CD<double>*, const tDM_CD<double>*, const Structure*) const;
+template rmat3d_t tHamiltonianImp<dcmplx>::MakeVirial(const tbs_t<dcmplx>*, const tDM_CD<dcmplx>*, const tDM_CD<dcmplx>*, const Structure*) const;
+template std::vector<TermVirial> tHamiltonianImp<double>::MakeTermVirials(const tbs_t<double>*, const tDM_CD<double>*, const Structure*) const;
+template std::vector<TermVirial> tHamiltonianImp<dcmplx>::MakeTermVirials(const tbs_t<dcmplx>*, const tDM_CD<dcmplx>*, const Structure*) const;
 
 } // namespace qchem::Hamiltonian

@@ -819,6 +819,14 @@ chmat_t GPW_Evaluator::OverlapMatrix()                 const
 chmat_t GPW_Evaluator::KineticMatrix()                 const
 {   qchem::report::Timed t("setup: analytic 1E lattice sums (S,T,V)");
     return itsHomeOnly ? Widen(itsOrb->Kinetic())    : itsLat->MakeKinetic(CellPhase(),itsCell); }
+Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient> GPW_Evaluator::OneElectronPullback(int which, const chmat_t& Abar,
+                                                                                                   const Structure* st) const
+{
+    using R=Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient>;
+    if (itsHomeOnly) return R::Fail({"a home-only (molecule in a box) GPW block gives no lattice pullback: its matrices are the finite molecule's"});
+    return R::Ok(which==0 ? itsLat->MakeLatticeOverlapPullback(Abar, CellPhase(), itsCell, st)
+                          : itsLat->MakeLatticeKineticPullback(Abar, CellPhase(), itsCell, st));
+}
 chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const
 {   qchem::report::Timed t("setup: analytic 1E lattice sums (S,T,V)");
     return itsHomeOnly ? Widen(itsOrb->Nuclear(cl))  : itsLat->MakeNuclear(CellPhase(),itsCell,cl); }

@@ -62,6 +62,14 @@ public:
     //! atom A of \a st, in its site order.  Exact zeros for functions that do not move with the atoms (plane waves); NoGradient for a family
     //! with no derivative yet.
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<T>& W, const Structure* st) const=0;
+    //! THE STRAIN DERIVATIVE beside it (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10: "the derivative version beside"):
+    //! the channel-A virial V_ab = Σ_X (∂E/∂X_a) X_b of E = Re Tr(W† S) over every UNFOLDED centre X (each image), at fixed W and fractional
+    //! k, i.e. ∂E/∂ε_ab under the homogeneous strain of cell and atoms, with the pullback's sign (a gradient, not a stress).  CLIENT: the
+    //! Pulay term of the Hamiltonian's Stress.  NOT pure: only a periodic family has a strain to answer, so every other family refuses by
+    //! default (a molecule has no cell).  \c CanVirialOverlap is false exactly when it would refuse.
+    virtual bool CanVirialOverlap() const {return false;}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeOverlapVirial(const hmat_t<T>&, const Structure*) const
+        {return NoGeometryDerivativeYet<rmat3d_t>("this basis block", "overlap virial (strain derivative)");}
     //!@}
 };
 //----------------------------------------------------------------------------

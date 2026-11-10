@@ -97,6 +97,7 @@ public:
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
     virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>* v, const Structure* st) const {return v->Pullback(itsBasisSet, itsSpin, itsDensityMatrix, st);}
+    virtual rmat3d_t   DM_Virial  (const tStatic_VC<T>* v, const Structure* st) const {return v->Virial  (itsBasisSet, itsSpin, itsDensityMatrix, st);}
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;
     //! \copydoc tChargeDensity::Project -- the PERIODIC lineage: contract my D into the block's forward.
     virtual Projections Project(const BasisSet::PairProjector<dcmplx>&) const override;

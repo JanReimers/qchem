@@ -478,9 +478,9 @@ TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
 //! finite-difference gate and joins kGated.
 TEST(HamiltonianForces, OnAGPWBlockEveryTermWithoutAPullbackNamesItself)
 {
-    // The terms whose force a GPW block cannot spoil, by label prefix: the GPW Hartree (c3516017d, GPW_Force: 3e-7 of the FD of E_H), and
-    // the ion-ion (Ewald) sum, which depends on the structure alone.
-    const std::vector<std::string> kGated={"Fitted Hartree", "Ion-Ion"};
+    // The terms whose force a GPW block cannot spoil, by label prefix: the GPW Hartree (c3516017d, GPW_Force: 3e-7 of the FD of E_H), the
+    // ion-ion (Ewald) sum, which depends on the structure alone, and the kinetic energy (libcint per image, 2026-11-10: M_LatticePullback).
+    const std::vector<std::string> kGated={"Fitted Hartree", "Ion-Ion", "Kinetic"};
     auto gated=[&](const std::string& label){ for (const auto& g : kGated) if (label.rfind(g,0)==0) return true; return false; };
     const auto mat=Materials::Get("Si_diamond");
     SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-6; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
@@ -509,10 +509,10 @@ TEST(HamiltonianForces, OnAGPWBlockEveryTermWithoutAPullbackNamesItself)
             EXPECT_TRUE(listed(t.missing)) << t.label << " is not in MissingGradients: " << t.missing;
             refusals++;
         }
-        size_t pulay=0;   // one entry per Bloch block without the overlap pullback
+        size_t pulay=0;   // the Pulay sum has its overlap pullback on a GPW block since 2026-11-10 (libcint per image)
         for (const auto& m : missing) if (m.find("Pulay")!=std::string::npos) pulay++;
-        EXPECT_GT(pulay, 0u) << "the Pulay sum's missing overlap pullback is not named";
-        EXPECT_EQ(missing.size(), refusals+pulay) << "MissingGradients = every refusing term + the Pulay sum, nothing else";
+        EXPECT_EQ(pulay, 0u) << "a GPW block gives the overlap pullback, so the Pulay sum is not missing";
+        EXPECT_EQ(missing.size(), refusals) << "MissingGradients = every refusing term, nothing else";
     }
 }
 

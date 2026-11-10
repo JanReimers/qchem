@@ -176,6 +176,16 @@ public:
     virtual rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const=0;
 };
 
+//! \brief The VIRIAL client of a static term, beside \c tStatic_PC (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10: "the
+//! derivative version beside").  For ONE irrep block and its density matrix \a D: V_ab = ∂ Re Tr(D† M)/∂ε_ab at fixed D and fractional k,
+//! the channel-A image virial Σ_X (∂E/∂X_a) X_b, with the pullback's sign.  What \c tDM_CD::DM_Virial sums over the blocks.
+template <class T> class tStatic_VC
+{
+public:
+    virtual ~tStatic_VC() = default;
+    virtual rmat3d_t Virial(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const=0;
+};
+
 template <class T> class tDynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
 {
 public:
@@ -362,6 +372,9 @@ public:
     //! of \a st.  For an energy E = Tr(D M) at fixed D this IS ∂E/∂R; for the energy-weighted density W and the overlap it is the
     //! Pulay sum Tr(W ∂S/∂R).
     virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>*, const Structure* st) const=0;
+    //! d/dε beside it (CellHalf_Design §5; user ruling §6.2): Σ over this density's blocks of the client's per-block virial.  For E = Tr(D M)
+    //! at fixed D this IS ∂E/∂ε (channel A); for W and the overlap it is the Pulay term's.
+    virtual rmat3d_t DM_Virial(const tStatic_VC<T>*, const Structure* st) const=0;
     //! Energy contraction of THIS density against a per-irrep Fock-block map (keyed by BasisSetID):
     //! \f$\sum_i \mathrm{sum}(D_i \odot B_i^\mathsf{T}) = \mathrm{Tr}(D\,B)\f$.  The whole-system DUAL of
     //! AccumulateDirectAll -- lets a whole-system term (HF Coulomb/exchange) take its energy from its own

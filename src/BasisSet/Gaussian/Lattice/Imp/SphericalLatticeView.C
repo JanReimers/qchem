@@ -284,6 +284,11 @@ public:
     }
     virtual chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const override
     { return CongruenceC(itsLat->MakeKinetic(phase,A)); }
+    //! Through T, as IntegratePotentialPullback: Re Tr(Ā_sph† TᵀMT) = Re Tr((TĀTᵀ)† M), and T is geometry-free.
+    virtual GeometryPullback MakeLatticeOverlapPullback(const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A, const Structure* st) const override
+    { return itsLat->MakeLatticeOverlapPullback(Expand(Abar),phase,A,st); }
+    virtual GeometryPullback MakeLatticeKineticPullback(const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A, const Structure* st) const override
+    { return itsLat->MakeLatticeKineticPullback(Expand(Abar),phase,A,st); }
     virtual chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const override
     { return CongruenceC(itsLat->MakeNuclear(phase,A,cl)); }
     virtual chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,

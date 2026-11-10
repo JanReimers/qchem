@@ -186,6 +186,17 @@ public:
     //! \f$\langle p^2\rangle_{ij}=\sum_R e^{ik\cdot R}\langle\chi_i|-\nabla^2|\chi_j(\cdot-R)\rangle\f$ (NO 1/2 --
     //! the Hamiltonian applies it, matching \c Integrals_Kinetic).
     virtual chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const = 0;
+
+    //! \brief THE DERIVATIVES of \c MakeOverlap(phase,A) and \c MakeKinetic(phase,A), beside them (GeometryOptimizationPlan §13.2;
+    //! doc/Records/CellHalf_Design.md §5; the user's 2026-11-08 / 2026-11-10 "derivative beside" rulings).  For the Hermitian adjoint
+    //! \f$\bar A\f$ (this block's order) of \f$E=\mathrm{Re\,Tr}(\bar A^\dagger M)\f$, at fixed \f$\bar A\f$ and fractional k:
+    //! \c gradient[c] = \f$\partial E/\partial R_c\f$ per site of \a st, and \c virial = \f$V_{ab}=\sum_X(\partial E/\partial X_a)X_b\f$
+    //! over every UNFOLDED centre \f$X\f$ (each image of each function), i.e. \f$\partial E/\partial\varepsilon_{ab}\f$ under the
+    //! homogeneous strain of cell and atoms.  ONE walk fills both: the image list and screen are the energy series' own.
+    //! THROWS on a mismatched adjoint or a missing structure (a broken invariant: the term above checked its block first).
+    struct GeometryPullback { rvec3vec_t gradient; rmat3d_t virial; };
+    virtual GeometryPullback MakeLatticeOverlapPullback(const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A, const Structure* st) const = 0;
+    virtual GeometryPullback MakeLatticeKineticPullback(const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A, const Structure* st) const = 0;
     //! \f$\sum_R e^{ik\cdot R}\langle\chi_i|\sum_c -Z_c/|r-R_c|\,|\chi_j(\cdot-R)\rangle\f$ over the atoms of \a cl.
     virtual chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const = 0;
 
