@@ -31,11 +31,11 @@ using namespace qchem;
 
 namespace
 {
-SCFParams Tight()
+SCFParams Tight(double minΔρPerElectron=1e-8)
 {
     SCFParams p;
     // Δρ/N 1e-8: above Si Γ's Δρ quadrature floor (ρ_lost/N ~1.8e-9 at densityEcut 20), where a 1e-9 gate wanders.
-    p.NMaxIter=100; p.MinΔρPerElectron=1e-8; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
+    p.NMaxIter=100; p.MinΔρPerElectron=minΔρPerElectron; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
     return p;
 }
 SolidCalcOptions SiGamma(bool imposed=false, bool statedRasters=true)
@@ -170,7 +170,11 @@ TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
     const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), kSiBasis, o);
     ASSERT_EQ(setup->xcMesh.cellKind, qcMesh::UnitCellKind::Uniform) << "the premise: Auto routes this system's energy run to the uniform raster";
 
-    SolidSession pes(setup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}});
+    // Δρ/N 1e-7, not Tight()'s 1e-8 (user, 2026-11-10): the pilot RE-converges from an already-converged D, and GDM descends E, which
+    // resolves a density change δ only as δ²·E -- at 1e-8 that is ~1e-15 Ha on Si's 7.1 Ha, the energy's roundoff floor.  There GDM's
+    // line search compared energies 0-16 ulps apart, stalled, reset its history, and the count went 20/24/30/52 across bit-only changes
+    // (lane S bisect, 2026-11-10).  Above the floor the iteration cap below is a regression detector again.
+    SolidSession pes(setup, {SCFStage{Tight(1e-7), SCFAccelerators::Type::Auto}});
     const PESGeometry ref=pes.Reference();
     std::vector<rvec3_t> R=ref.R;
     ASSERT_TRUE(pes.ConvergeAt(ref.cell, R));
@@ -180,7 +184,7 @@ TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
     EXPECT_GT(xc.nRadial, qcMesh::BeckeXCParams().nRadial) << "the energy-calibrated default does not meet 1e-5 per element on Si Gamma";
     EXPECT_TRUE(c.PilotCost().settled);
     EXPECT_LE(c.PilotCost().rounds, 4) << "the density ball doubles three times beside the mesh's climb (cutoffFactor 2 -> 16, 2026-11-02)";
-    EXPECT_LE(c.PilotCost().reconvergeIterations, 35u) << "three re-convergences (27 measured 2026-11-02)";
+    EXPECT_LE(c.PilotCost().reconvergeIterations, 28u) << "three re-convergences (24 measured 2026-11-10 at Δρ/N 1e-7, 0 GDM stalls)";
     // The pilot reads the mesh's error off its raster reference, so the mesh's XC term must not feel a raster at all.
     const auto G=c.GridAudit();
     ASSERT_TRUE(G) << G.Error().Summary();
