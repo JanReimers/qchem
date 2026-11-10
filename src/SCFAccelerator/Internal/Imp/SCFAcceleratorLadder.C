@@ -64,18 +64,27 @@ bool SCFAcceleratorLadder::CalculateProjections()
     bool ok = Active()->CalculateProjections();
 
     // Track the best error so far on this rung: a rung that keeps beating its own best is
-    // still making progress, so it is not "stuck".
+    // still making progress, so it is not "stuck".  The tracker starts at the FIRST REAL error: before
+    // any orbitals exist the rung reports err = 0, and a best of 0 is never beaten, so the count used to
+    // run from iteration 1 (lane A, 2026-11-10 -- masked while the stall also required Exhausted()).
     double err = Active()->GetError();
-    if (err < 0.999*itsBestErr) { itsBestErr=err; itsNoImprove=0; }
-    else                          itsNoImprove++;
+    if      (err<=0.0)                 {}
+    else if (err < 0.999*itsBestErr) { itsBestErr=err; itsNoImprove=0; }
+    else                               itsNoImprove++;
 
-    // Hand off only if the active rung is (a) Exhausted(), (b) stuck on its error for `stall`
-    // steps, (c) the ENERGY is still moving (not a converged plateau -- see the design notes
-    // at the top of the header), and (d) above an absolute noise floor.  See those notes for
-    // why the energy, not [F,D], is the decisive signal.
+    // STALL: hand off if the active rung's error has not beaten its own best for `stall` steps, while
+    // (c) the ENERGY is still moving (not a converged plateau -- see the design notes at the top of the
+    // header) and (d) the error is above an absolute noise floor.  NOT gated on Exhausted() (user ruling
+    // 2026-11-10, "yes that sounds like a good exit policy"): a DIIS LIMIT CYCLE extrapolates fine every step
+    // and goes nowhere, so it is never Exhausted (B singular), and the tail signal fires on it only by luck.
+    // MEASURED on GPW_Si.Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel (Si +U, DIIS period ~20, [F,D] floor
+    // 1.3e-3): the |ΔE/E| tail fired on a lucky tie at iteration 66 and GDM met the 100 cap; this exit hands
+    // off at iteration 8 and the run converges in 68 (all three SCFs 90 vs 136, the same U fixed point).  On
+    // 12 other Ladder cases it changed nothing or saved one iteration.  The alternatives measured there --
+    // the tail on [F,D] < 1e-2 / 1e-3, or on both signals -- either fire on a lucky trough or never fire,
+    // and cost NaF 5-17 iterations ("Ladder |ΔE/E| hand-off" row, doc/Records/OpenWork_History5.md).
     double relDE = (itsLastE!=0.0) ? std::fabs((itsLastE-itsPrevE)/itsLastE) : 1.0;
-    bool stallSwitch = Active()->Exhausted()
-                    && itsNoImprove>=itsStall && relDE>itsEThresh && err>itsFloor;
+    bool stallSwitch = itsNoImprove>=itsStall && relDE>itsEThresh && err>itsFloor;
     // TAIL hand-off: the SCHEDULE SIGNAL has dropped below switchat (near convergence).  Error ([F,D],
     // molecular default) or EnergyChange (|ΔE/E|, solids -- see ScheduleSignal).  The validity guard skips
     // the initial state: Error needs a real [F,D] (err>0, before any orbitals err==0); EnergyChange needs
@@ -104,7 +113,8 @@ bool SCFAcceleratorLadder::CalculateProjections()
         {
             std::ostringstream why;
             why << "ladder rung " << itsActive
-                << (tailSwitch ? (energyGated ? " near convergence, |dE/E|=" : " near convergence, err=") : " exhausted, |dE/E|=")
+                << (tailSwitch ? (energyGated ? " near convergence, |dE/E|=" : " near convergence, err=")
+                               : " stalled: no better error in "+std::to_string(itsNoImprove)+" steps, |dE/E|=")
                 << (tailSwitch ? tailMetric : relDE);
             itsHandOff=HandOffRequest{Active()->Tag(), itsRungs[itsActive+1]->Tag(), why.str()};
             itsActive++;
