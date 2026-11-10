@@ -184,3 +184,17 @@ TEST(Gaussian94Import, ASubsetKeepsThePreambleAndOnlyTheNamedElements)
     ASSERT_FALSE(fe);
     EXPECT_NE(fe.Error().find("no block for FE"), std::string::npos) << fe.Error();
 }
+
+// A preamble that opens with its own "!" lines (decks/panel/MnO2_control.bsd) costs the reader the file's FIRST block (TopOfFile
+// stops at the first "!"); its subset must not hand the reader a needed element first behind that marker (EveryShippedDeckVets, 2026-11-10).
+TEST(Gaussian94Import, ASubsetOfAFileWhosePreambleOpensWithBangKeepsItsFirstBlockReadable)
+{
+    const std::string file="!\n! a note that starts with a bang\nfree text\n!\nBASIS=\"t\"\n"
+                           " H   0\n S   1  1.00\n   1.0   1.0\n ****\n"
+                           " O   0\n S   1  1.00\n   2.0   1.0\n P   1  1.00\n   1.0   1.0\n ****\n";
+    const auto o=SubsetBasis(file, {"O"});
+    ASSERT_TRUE(o) << o.Error();
+    EXPECT_NE(o->find("a note that starts with a bang"), std::string::npos) << "the text stays";
+    Molecule m; m.Insert(Site{8, Vector3D(0.0, 0.0, 0.0)});
+    EXPECT_EQ(Functions(Written("bang_O", *o), m), 4u) << "O, the subset's first block, is read (1 s + 3 p)";
+}
