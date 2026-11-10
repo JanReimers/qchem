@@ -145,7 +145,8 @@ TEST(SolidState, FileLayoutIsWhatTheDocSays)
     auto o=H5::File::Open(s.path);
     ASSERT_TRUE(o) << o.Error();
     H5::File f=o.TakeValue();
-    EXPECT_EQ(f.AttrString("format"), "qchem-solid-state 1.1");
+    EXPECT_EQ(f.AttrString("format"), "qchem-state 2.0");
+    EXPECT_EQ(f.AttrString("kind"),   "solid");
     EXPECT_EQ(f.AttrInt("converged"), 1);
     EXPECT_TRUE(std::isfinite(f.AttrReal("densityChange"))) << "1.1: the residual the state was saved at";
     EXPECT_NEAR(f.AttrReal("energy"), s.energy, 1e-12);
@@ -184,19 +185,19 @@ TEST(SolidState, WarmClassDifferencesRestartAndAreNamed)
     auto st=ReadSolidState(SavedState(0, false).path);
     ASSERT_TRUE(st) << st.Error().details;
     StateFingerprint now=st->fingerprint;
-    auto same=CompareFingerprints(st->fingerprint, now);
+    auto same=CompareSolidFingerprints(st->fingerprint, now);
     ASSERT_TRUE(same);
     EXPECT_TRUE(same->empty()) << "a state compared with itself is an EXACT resume";
     now.warmNum["scf.kT"]={0.01};
     now.warmNum["hubbard.U"]={0.147};
-    auto warm=CompareFingerprints(st->fingerprint, now);
+    auto warm=CompareSolidFingerprints(st->fingerprint, now);
     ASSERT_TRUE(warm);
     ASSERT_EQ(warm->size(), 2u);
     EXPECT_NE((*warm)[0].find("hubbard.U"), std::string::npos);
     EXPECT_NE((*warm)[1].find("scf.kT"), std::string::npos);
     now.refuseNum["structure.cell"][0]+=0.01;
     now.refuseStr["pp.set"]="some-other-family";
-    auto refused=CompareFingerprints(st->fingerprint, now);
+    auto refused=CompareSolidFingerprints(st->fingerprint, now);
     ASSERT_FALSE(refused);
     EXPECT_EQ(refused.Error().why, RestartRefusal::Why::Mismatch);
     EXPECT_NE(refused.Error().details.find("structure.cell"), std::string::npos);
@@ -214,7 +215,7 @@ TEST(SolidState, AFunctionalChangeAndAMovedAtomAreWarmAndSayHowFar)
     now.warmNum["structure.positions"][0]+=0.03;
     now.warmNum["structure.positions"][1]+=0.04;
     now.warmNum["basis.shellCenters"][0]+=0.03;
-    auto warm=CompareFingerprints(st->fingerprint, now);
+    auto warm=CompareSolidFingerprints(st->fingerprint, now);
     ASSERT_TRUE(warm) << warm.Error().details;
     ASSERT_EQ(warm->size(), 2u);
     EXPECT_NE((*warm)[0].find("functional"), std::string::npos);
@@ -230,7 +231,7 @@ TEST(SolidState, AStateFromBeforeStep5StillLoads)
     for (const char* k : {"structure.positions","basis.shellCenters"}) { old.refuseNum[k]=old.warmNum.at(k); old.warmNum.erase(k); }
     old.refuseStr["functional"]=old.warmStr.at("functional"); old.warmStr.erase("functional");
     old.refuseStr.erase("pp.set");
-    auto same=CompareFingerprints(old, st->fingerprint);
+    auto same=CompareSolidFingerprints(old, st->fingerprint);
     ASSERT_TRUE(same) << same.Error().details;
     EXPECT_TRUE(same->empty()) << "an old file against the same run is an EXACT resume";
 }
@@ -251,38 +252,38 @@ TEST(SolidState, TheNumericsKeysAreWarmAndAnOlderStateIsStillExact)
     StateFingerprint old=fp;
     old.warmStr.erase("xc.fit"); old.warmStr.erase("grids.raster"); old.warmNum.erase("grids.ladderFactor");
     std::erase_if(old.warmNum, [](const auto& e){ return e.first.rfind("gpw.",0)==0; });
-    auto same=CompareFingerprints(old, fp);
+    auto same=CompareSolidFingerprints(old, fp);
     ASSERT_TRUE(same) << same.Error().details;
     EXPECT_TRUE(same->empty()) << "a state written before the numerics keys is an EXACT resume of the same run";
 
     EXPECT_TRUE(fp.warmNum.count("gpw.rungGateC"));
     StateFingerprint noGate=fp;
     noGate.warmNum.erase("gpw.rungGateC");
-    auto gateDefault=CompareFingerprints(noGate, fp);
+    auto gateDefault=CompareSolidFingerprints(noGate, fp);
     ASSERT_TRUE(gateDefault) << gateDefault.Error().details;
     EXPECT_TRUE(gateDefault->empty()) << "a state with no gpw.rungGateC was built on the default: an EXACT resume of a default run";
     StateFingerprint stated=fp;
     stated.warmNum["gpw.rungGateC"]={6.0};
-    auto gateMoved=CompareFingerprints(noGate, stated);
+    auto gateMoved=CompareSolidFingerprints(noGate, stated);
     ASSERT_TRUE(gateMoved) << gateMoved.Error().details;
     EXPECT_FALSE(gateMoved->empty()) << "...and differs from a run stating another C";
     EXPECT_TRUE(fp.warmNum.count("gpw.relCutoffSafety"));
     StateFingerprint noSafety=fp;
     noSafety.warmNum.erase("gpw.relCutoffSafety");
-    auto safetyDefault=CompareFingerprints(noSafety, fp);
+    auto safetyDefault=CompareSolidFingerprints(noSafety, fp);
     ASSERT_TRUE(safetyDefault) << safetyDefault.Error().details;
     EXPECT_TRUE(safetyDefault->empty()) << "a state with no gpw.relCutoffSafety was built on the evaluator's old constant, the default";
 
     StateFingerprint oldName=fp;
     oldName.warmStr["grids.raster"]="BallOnly";
-    auto alias=CompareFingerprints(oldName, fp);
+    auto alias=CompareSolidFingerprints(oldName, fp);
     ASSERT_TRUE(alias) << alias.Error().details;
     EXPECT_TRUE(alias->empty()) << "a state that says BallOnly is the same run: an EXACT resume";
 
     StateFingerprint now=fp;
     now.warmStr["xc.fit"]="Delta";
     now.warmNum["gpw.screenEps"]={1e-12};
-    auto warm=CompareFingerprints(fp, now);
+    auto warm=CompareSolidFingerprints(fp, now);
     ASSERT_TRUE(warm) << warm.Error().details;
     ASSERT_EQ(warm->size(), 2u);
     // Gap 3: each line says what the difference MEANS, not only the two values.
@@ -309,13 +310,13 @@ TEST(SolidState, ThePolicyRoutesAreWarmAndAnOlderStateIsStillExact)
 
     StateFingerprint old=fp;
     std::erase_if(old.warmStr, [](const auto& e){ return e.first.rfind("policy.",0)==0; });
-    auto same=CompareFingerprints(old, fp);
+    auto same=CompareSolidFingerprints(old, fp);
     ASSERT_TRUE(same) << same.Error().details;
     EXPECT_TRUE(same->empty()) << "a state written before the policy keys is an EXACT resume of the same run";
 
     StateFingerprint now=fp;
     now.warmStr.at("policy.xcFromDM")="on";
-    auto warm=CompareFingerprints(fp, now);
+    auto warm=CompareSolidFingerprints(fp, now);
     ASSERT_TRUE(warm) << warm.Error().details;
     ASSERT_EQ(warm->size(), 1u);
     EXPECT_NE((*warm)[0].find("policy.xcFromDM: saved 'off', now 'on' -- a declared CP2K-deviation route changed the Hamiltonian"),
@@ -342,13 +343,15 @@ TEST(SolidState, ARestartAcrossTheLadderPrintsItsLineAndConverges)
     EXPECT_NEAR(r->Energy(), s.energy, 1e-3) << "the ladder moves the answer only slightly";
 }
 
-//! The same state as the format-1.0 writer made it: every attribute, group and dataset EXCEPT the 1.1 fields, stamped
-//! "qchem-solid-state 1".  Built by copying, so the test needs no 1.0 writer kept alive in the library.
+//! The same state as the format-1.0 writer made it: every attribute, group and dataset EXCEPT the 1.1 fields and the 2.0 ones (kind,
+//! the block irrep labels and overlaps), stamped "qchem-solid-state 1".  Built by copying, so the test needs no 1.0 writer kept
+//! alive in the library.
 void CopyAsFormat10(const H5::Group& from, H5::Group& to, bool root)
 {
     for (const std::string& a : from.AttrNames())
     {
-        if (root && a=="densityChange") continue;
+        if (root && (a=="densityChange" || a=="kind")) continue;
+        if (a=="irrep" || a=="blocks.irrep") continue;   // 2.0: a block's label, and the fingerprint's list of them
         if (root && a=="format") { to.SetAttr("format", "qchem-solid-state 1"); continue; }
         if (from.AttrIsString(a)) { to.SetAttr(a, from.AttrString(a)); continue; }
         const double x=from.AttrReal(a);
@@ -359,9 +362,35 @@ void CopyAsFormat10(const H5::Group& from, H5::Group& to, bool root)
         bool isGroup=true;   // the wrapper has no "is a group" ask: a dataset refuses OpenGroup
         try { (void)from.OpenGroup(c); } catch (...) { isGroup=false; }
         if (isGroup) { H5::Group g=to.CreateGroup(c); CopyAsFormat10(from.OpenGroup(c), g, false); continue; }
+        if (c=="S") continue;                            // 2.0: the block overlap
         if (from.IsComplex(c)) to.Write(c, from.ReadComplex(c), from.Shape(c));
         else                   to.Write(c, from.ReadReal(c),    from.Shape(c));
     }
+}
+
+// V-FACADE-STATE (2026-11-09): the VENDORED solid 1.x states (decks/states/, written by the old WriteSolidState) read through the
+// shared 2.0 reader as kind "solid": every block's k arrives as its "k" extra, a 1.x block has no irrep label and no overlap (so the
+// Löwdin carry cannot move it, and says so), and the fingerprint still lists one entry per block.
+TEST(SolidState, AVendoredFormat1StateReadsThroughTheSharedReader)
+{
+    const std::string path=std::string(DECKS_DIR)+"/states/MnO2_beta_A1AFM_r015_U0.h5";
+    auto st=ReadState(path);
+    ASSERT_TRUE(st) << st.Error().details;
+    EXPECT_EQ(st->kind, "solid");
+    ASSERT_FALSE(st->blocks.empty());
+    for (const SavedBlock& b : st->blocks)
+    {
+        ASSERT_EQ(b.extras.count("k"), 1u);
+        EXPECT_EQ(b.extras.at("k").size(), 3u);
+        EXPECT_TRUE(b.irrep.empty()) << "1.x recorded no irrep labels";
+        EXPECT_EQ(b.S.rows(), 0u)    << "1.x recorded no overlap";
+        EXPECT_EQ(b.D.rows(), b.D.columns());
+    }
+    ASSERT_EQ(st->fingerprint.refuseNum.count("blocks.n"), 1u);
+    EXPECT_EQ(st->fingerprint.refuseNum.at("blocks.n").size(), st->blocks.size());
+    EXPECT_EQ(st->fingerprint.refuseStr.count("blocks.irrep"), 0u) << "the migration supplies it on comparison";
+    auto solid=ReadSolidState(path);
+    EXPECT_TRUE(solid);
 }
 
 // D-STATE-SCHEMA (CleanCode): a minor version only ADDS optional fields, so a state written BEFORE one (format 1.0, no

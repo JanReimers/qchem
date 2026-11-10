@@ -1,6 +1,6 @@
 # V-OPTIMIZE-DIP: design note (lane H, 2026-11-09)
 
-For the user, before any code.  Row: `doc/OOD-SOLID-Cleanup.md` V-OPTIMIZE-DIP.  Written from inside `GeometryOptimizer`: lane H
+For the user, before any code.  **APPROVED 2026-11-09 (§9: all four decisions as recommended).**  Row: `doc/OOD-SOLID-Cleanup.md` V-OPTIMIZE-DIP.  Written from inside `GeometryOptimizer`: lane H
 wrote `WyckoffMap` against it, wired `MakeSolidGeometryRun`, and found its roundoff defect (OpenWork §3, "GeometryOptimizer rejects
 a roundoff-level energy rise").  Implementation is lane B's, later.
 
@@ -321,6 +321,16 @@ Gate: the rutile model at maxGradient 1e-8, WITHOUT the maxStep 1e-4 workaround,
 injected value noise of 1e-8 converges to its gradient threshold instead of collapsing.  The workaround is then removed from the
 test, and the OpenWork row closes.
 
+**As built (lane H, 2026-11-09, `07f5e89e5`): rule 3 for a REJECTED trial.**  Rule 1 already accepts a rise within the noise, so
+a rejected trial has risen by MORE than the noise.  If its gradient still meets the rule, the gradient's zero is not the value's
+minimum: the gradient carries noise above the threshold, or it is not the value's gradient.  Returning "the lower-valued of the two"
+there would report convergence at a point the rule did not pass.  So that case is its own failure, `Failure::Why::GradientDisagrees`.
+An accepted trial that meets the rule converges as written.  The model gate went into UTOptimize
+`Minimize.ARiseWithinTheValueNoiseIsNotARise`: a one-signed (variational) value noise of 1e-6 on the soft-mode bowl.  Declared, the
+run converges in 23 steps; the undeclared twin ends in TrustCollapsed at step 30.  At noise 1e-8 the undeclared twin ends in
+GradientDisagrees at step 23.  A random-sign noise on a well-conditioned bowl did NOT separate the rules: BFGS converged before the
+accepted points drifted to the low tail of the noise.
+
 ## 5. The factories wire the concrete pairs
 
 Per CLAUDE.md, constructors demand concrete objects, and the factories hold every concrete association.
@@ -371,19 +381,43 @@ in the unit tests are the example: they implement `Cost` directly.
 
 ## 8. Migration (lane B), each step green on its own
 
-1. Create qcOptimize (faces EMERGENT, ruling 4: no hub snapshot) with: `Cost`, `Projected`, `ModelHessian`, `ValueNoise`, `StoppingRule`, `Stepper` + `Minimize`, and the
+1. ✅ (lane H, 2026-11-09, `07f5e89e5`; owner moved from lane B to lane H by the controller for steps 1–3) Create qcOptimize (faces EMERGENT, ruling 4: no hub snapshot) with: `Cost`, `Projected`, `ModelHessian`, `ValueNoise`, `StoppingRule`, `Stepper` + `Minimize`, and the
    BFGS-RFO stepper MOVED with §4's three rules.  Its unit tests: today's model surfaces (bowl, Rosenbrock, soft mode, noise),
    moved down from `UTCalculation` to `UTOptimize` (CLAUDE.md: unit over integration).
-2. `GeometryOptimizer` becomes a thin client: `PESCost` + the ε rule + `Minimize`.  `OptimizedGeometry` and `OptimizeFailure` become
+2. ✅ (lane H, 2026-11-09, `7bbeb3647`; the TrustCollapsed row CLOSED) `GeometryOptimizer` becomes a thin client: `PESCost` + the ε rule + `Minimize`.  `OptimizedGeometry` and `OptimizeFailure` become
    `Minimum` and `MinimizeFailure<PESFailure>` plus the geometry.  The Wyckoff / Cartesian gates stay in `UTCalculation`.  Remove the
    rutile maxStep workaround.
-3. L-BFGS on the SAME `PESCost` as BFGS-RFO: the first LSP proof of the emergent base (ruling 4).  Gate: every model-surface test
+3. ✅ (lane H, 2026-11-09, `03e7d4f96`) L-BFGS on the SAME `PESCost` as BFGS-RFO: the first LSP proof of the emergent base (ruling 4).  Gate: every model-surface test
    runs under both steppers with no change to the cost or the rule; where the faces had to bend for L-BFGS, bend them now (still
    not a hub).
+   **As built.**  No face had to bend: L-BFGS implements the same `Stepper` and reads the same `Cost`, `Projected` and
+   `ValueNoise`.  It does not use `ModelHessian` (it would need the inverse), which the face allows ("used when present").
+   - **Shared code:** the trust radius and §4 rules 1-2 moved into `TrustRegion`, so the pair judge a rise identically.
+   - **Gates:** every model gate runs under both steppers with no change to a cost or a rule: UTOptimize `Minimize/BothSteppers.*`;
+     UTCalculation `GeometryOptimizerBoth.*` and `WyckoffMapBoth.*`, rutile and wurtzite through `PESCost`.
+   - **Measured (BFGS-RFO / L-BFGS):** bowl 11 / 12, Rosenbrock 35 / 48, soft mode 23 / 19.
+   - **One claim did not survive the swap:** "a threshold below the gradient noise ENDS IN A FAILURE".  L-BFGS converged exactly at the
+     noisy gradient's zero.  The algorithm-invariant claim is the pair: a failure, or the noisy zero, never the minimum.
+   - **The algorithm choice:** `OptimizerOptions::Algorithm::Auto` is a reported policy (`GeometryOptimizer.Algorithm`): BFGS-RFO up to
+     10³ parameters, L-BFGS above.
+   - **Ruling 4's condition is now MET** (two LSP-substitutable optimizers on one cost).  Whether the faces now harden (a hub, a
+     snapshot) is the user's call; until then they stay emergent.
 4. `LeastSquares` + Levenberg–Marquardt, with the grid tool.
 5. GDM onto the Stepper + `Retraction`: the riskiest step (the SCF panel moves).  It gets its own note first.
 
-## 9. Decisions for the user
+## 9. Decisions for the user -- RULED 2026-11-09: all four as recommended
+
+**User ruling (controller relay, 2026-11-09): "I agree on 1,2,3,4".**  The design is APPROVED; lane B implements it per §8.
+- (1) **Adapter**: the cost is a composite (PES × `CoordinateMap`; Hamiltonian + orbitals + exp(κ)), held by the minimizer only
+  through the cost face.
+- (2) **A new `qcOptimize` library**, depending on qcMath + qcCommon only; no chemistry in it.
+- (3) **The ask/tell `Stepper` is each algorithm's primitive**, and `Minimize` is the driver over it.
+- (4) **The value noise is a COST capability** (`ValueNoise`), not a tolerance in the client's stopping rule.
+
+The faces stay EMERGENT (ruling 4 above): no tier-1 hub and no `hub-interfaces.snapshot` entry, until BFGS-RFO and L-BFGS are
+LSP-substitutable on the same `PESCost` (§8 step 3).
+
+The questions as put to the user:
 
 1. **Adapter** (recommended, §7 and the two diagrams) or inheritance.
 2. **A new `qcOptimize` library** (recommended, §6) or a module inside qcMath, which would make qcMath link qcCommon.

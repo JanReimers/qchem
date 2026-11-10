@@ -1,6 +1,5 @@
 // File: VWN_Correlation.C  Vosko-Wilk-Nusair (VWN5) LDA correlation functional.
 module;
-#include <cmath>
 #include <ostream>
 export module qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Internal.ExFunctional;
@@ -13,9 +12,15 @@ export namespace qchem::Hamiltonian
 //!
 //! SPIN-NATIVE: the primary formulation is the two-channel \f$\varepsilon_c(\rho_\uparrow,\rho_\downarrow)\f$
 //! with the per-channel potentials \f$v_c^\sigma\f$ (the two-channel GetEpsXc / GetVxc).  The spin-unpolarized scalar face
-//! (GetVxc / GetEpsXc) is the \f$\zeta=0\f$ collapse and is kept BYTE-IDENTICAL to the historical
-//! paramagnetic implementation (it drives the unpolarized LDA SCF anchors; the two-channel face routes
-//! exact \f$\zeta=0\f$ through it).
+//! (GetVxc / GetEpsXc) is the \f$\zeta=0\f$ collapse, kept as its own path because it is cheaper (one G, not
+//! three); the two-channel faces route exact \f$\zeta=0\f$ through it.
+//!
+//! DERIVATIVES ARE ENZYME'S (2026-11-09, the OpenWork "Enzyme REQUIRED" row, family 2).  The functional is written
+//! ONCE, as its energy per volume \f$e_c(\rho_\uparrow,\rho_\downarrow)=\rho\,\varepsilon_c\f$ (Imp/VWN_Correlation.C);
+//! \f$v_c^\sigma=\partial e_c/\partial\rho_\sigma\f$ is its reverse-mode derivative and the kernel
+//! \f$f_c^{\sigma\sigma'}=\partial v_c^\sigma/\partial\rho_{\sigma'}\f$ the forward-mode derivative of that.  The
+//! hand \f$dG/dx\f$, \f$f'(\zeta)\f$ and \f$(r_s,\zeta)\f$ partials are gone, and so is the base class's
+//! finite-difference kernel for VWN.  The FD gates stay (tests/LDA_XC.C) while EnzymeAD/Enzyme#3747 is open.
 //!
 //! Validated pointwise against libxc LDA_C_VWN (see LDA_XC_UT), both XC_UNPOLARIZED and XC_POLARIZED.
 //! Provides BOTH the potential \f$v_c\f$ and the energy density \f$\varepsilon_c\f$ -- the latter is
@@ -32,121 +37,24 @@ class VWN_Correlation : public ExFunctional
 public:
     VWN_Correlation() {}
 
-    // --- spin-unpolarized scalar face (zeta=0 collapse; BYTE-IDENTICAL to the historical code) ---
-    virtual double GetVxc  (double rho) const { return rho>0.0 ? Vc (rho) : 0.0; }
-    virtual double GetEpsXc(double rho) const { return rho>0.0 ? Eps(rho) : 0.0; }
+    // --- spin-unpolarized scalar face (the zeta=0 collapse) ---
+    virtual double GetVxc  (double rho) const;
+    virtual double GetEpsXc(double rho) const;
 
     // --- spin-native two-channel face (the primary formulation) ---
     //! Correlation energy density per particle \f$\varepsilon_c(\rho_\uparrow,\rho_\downarrow)\f$ -- the same
     //! for both channels (the Spin argument is the face's, not this functional's).  At EXACT \f$\zeta=0\f$
-    //! it takes the scalar path, so an unpolarized run's numbers are bit-identical to the historical code.
-    virtual double GetEpsXc(double rup, double rdn, const Spin&) const
-    {
-        if (rup==rdn) return GetEpsXc(rup+rdn);
-        double rho=rup+rdn;
-        return rho>0.0 ? EvalRZ(rho,Zeta(rup,rdn)).eps : 0.0;
-    }
-    //! Channel correlation potential \f$v_c^\sigma=\varepsilon_c+\rho\,\partial\varepsilon_c/\partial\rho_\sigma\f$.
+    //! it takes the scalar path.
+    virtual double GetEpsXc(double rup, double rdn, const Spin&) const;
+    //! Channel correlation potential \f$v_c^\sigma=\partial e_c/\partial\rho_\sigma\f$ (Enzyme).
     //! Note v_c^sigma COUPLES both channels (through r_s and zeta) -- it is NOT a function of rho_sigma alone.
-    virtual double GetVxc(double rup, double rdn, const Spin& s) const
-    {
-        if (rup==rdn) return GetVxc(rup+rdn);          // exact zeta=0: the byte-identical scalar path
-        double rho=rup+rdn;
-        if (rho<=0.0) return 0.0;
-        double z=Zeta(rup,rdn);
-        Eval e=EvalRZ(rho,z);
-        double rs=std::cbrt(3.0/(FourPi*rho));
-        double vc=e.eps - (rs/3.0)*e.depsdrs;          // the rs-derivative (spin-common) part
-        // + the zeta-derivative part:  rho d zeta/d rho_up = (1-zeta),  rho d zeta/d rho_down = -(1+zeta)
-        return s==Spin::Up ? vc + (1.0-z)*e.depsdz
-                           : vc - (1.0+z)*e.depsdz;
-    }
+    virtual double GetVxc(double rup, double rdn, const Spin& s) const;
+    //! The kernel \f$f_c^{\sigma\sigma'}=\partial v_c^\sigma/\partial\rho_{\sigma'}\f$ (Enzyme, forward over reverse).
+    //! At full polarization it diverges (\f$f''(\zeta)\propto(1\mp\zeta)^{-2/3}\f$), so the minority channel is
+    //! floored at a stated \f$\zeta\f$ threshold first (Imp/VWN_Correlation.C, \c kZetaThreshold).
+    virtual double GetFxc(double rup, double rdn, const Spin& s, const Spin& t) const override;
 
     virtual std::ostream& Write(std::ostream& os) const { return os << "VWN5"; }
-
-private:
-    //! One VWN function G(x;A,b,c,x0) -- the closed form shared by the para/ferro/stiffness branches.
-    struct Params { double A,b,c,x0; };
-
-    // VWN5 parameters (Hartree): paramagnetic, ferromagnetic, and spin stiffness alpha_c.
-    static constexpr double kPi = 3.14159265358979323846;
-    static constexpr Params P    {0.0310907 , 3.72744, 12.9352 , -0.10498   }; // paramagnetic eps_c^P
-    static constexpr Params F    {0.01554535, 7.06042, 18.0578 , -0.32500   }; // ferromagnetic eps_c^F
-    static constexpr Params Alpha{-1.0/(6.0*kPi*kPi), 1.13107, 13.0045, -0.0047584}; // spin stiffness, A=-1/(6 pi^2)
-
-    // f(zeta) spin-interpolation function and its derivative; f''(0) sets the stiffness normalization.
-    static double fz  (double z) { return (std::pow(1.0+z,4.0/3.0)+std::pow(1.0-z,4.0/3.0)-2.0)/kDen; }
-    static double dfz (double z) { return (4.0/3.0)*(std::cbrt(1.0+z)-std::cbrt(1.0-z))/kDen; }
-    static constexpr double kDen = 0.5198420997897464; // 2^{4/3}-2
-    static constexpr double kfpp0= 1.7099209341613657; // f''(0) = 4/(9(2^{1/3}-1))
-
-    //! \f$\zeta=(\rho_\uparrow-\rho_\downarrow)/\rho\f$, CLAMPED to the physical \f$[-1,1]\f$.
-    //!
-    //! \f$\zeta\f$ is a polarization FRACTION, so \f$|\zeta|>1\f$ is never physics -- it means one channel
-    //! came in slightly NEGATIVE, which a band-limited \f$\tilde\rho\f$ (or any quadrature-represented
-    //! density) does in the tails by ringing.  Unclamped it is fatal, not merely inaccurate: \c fz evaluates
-    //! \f$(1-\zeta)^{4/3}\f$ via \c std::pow, which is NaN for a negative base, and one NaN mesh point makes
-    //! the whole \f$v_c\f$ matrix non-Hermitian ("Invalid assignment to diagonal matrix element" out of
-    //! Blaze).  Guarding here mirrors the \c rho>0 guards on the scalar face -- the functional defends itself
-    //! against non-physical density values, at the ONE place both two-channel faces read \f$\zeta\f$.
-    //! Unreachable before 2026-08-07: every polarized periodic run was fed \f$\rho_\uparrow=\rho_\downarrow
-    //! =\rho/2\f$ by the spin-blind \f$\tilde\rho\f$ mixers, so \f$\zeta\f$ was identically 0 (the MnO AFM
-    //! collapse; doc/SymmetryUpgradePlan.md §7 step 7).
-    static double Zeta(double rup,double rdn)
-    {
-        double rho=rup+rdn;
-        if (rho<=0.0) return 0.0;
-        double z=(rup-rdn)/rho;
-        return z<-1.0 ? -1.0 : (z>1.0 ? 1.0 : z);
-    }
-
-    // G(x;p) and dG/dx for one parameter set.  rs=(3/4 pi rho)^{1/3}, x=sqrt(rs), X(x)=x^2+b x+c.
-    static double Xof(double x, const Params& p) { return x*x + p.b*x + p.c; } // X(x)=x^2+b x+c (exact op order)
-    static double Gval(double x, const Params& p)
-    {
-        double Q=std::sqrt(4.0*p.c-p.b*p.b), Xx=Xof(x,p), X0=Xof(p.x0,p);
-        double at=std::atan(Q/(2.0*x+p.b)), beta=p.b*p.x0/X0;
-        double t1=std::log(x*x/Xx)               + (2.0*p.b/Q)*at;
-        double t2=std::log((x-p.x0)*(x-p.x0)/Xx) + (2.0*(p.b+2.0*p.x0)/Q)*at;
-        return p.A*(t1 - beta*t2);
-    }
-    static double dGdx(double x, const Params& p)
-    {
-        double Xx=Xof(x,p), X0=Xof(p.x0,p), beta=p.b*p.x0/X0;
-        return p.A*( 2.0/x - (2.0*x+2.0*p.b)/Xx - beta*(2.0/(x-p.x0) - (2.0*x+2.0*p.b+2.0*p.x0)/Xx) );
-    }
-
-    // --- the scalar (paramagnetic) face: G(x;P), kept byte-identical to the historical Eps/Vc ---
-    static double Eps(double rho)        // eps_c^P
-    {
-        double x=std::sqrt(std::cbrt(3.0/(FourPi*rho)));
-        return Gval(x,P);
-    }
-    static double Vc(double rho)         // v_c^P = eps_c^P - (x/6) d eps_c^P/dx   (rs = x^2)
-    {
-        double x=std::sqrt(std::cbrt(3.0/(FourPi*rho)));
-        return Gval(x,P) - (x/6.0)*dGdx(x,P);
-    }
-
-    // --- the spin-native evaluation: eps_c and its (r_s, zeta) partials at one point ---
-    struct Eval { double eps, depsdrs, depsdz; };
-    static Eval EvalRZ(double rho, double z)
-    {
-        double rs=std::cbrt(3.0/(FourPi*rho)), x=std::sqrt(rs);
-        double epsP=Gval(x,P), epsF=Gval(x,F), ac=Gval(x,Alpha);
-        // d/d rs = (1/2x) d/dx
-        double dP=dGdx(x,P)/(2.0*x), dF=dGdx(x,F)/(2.0*x), dA=dGdx(x,Alpha)/(2.0*x);
-        double f=fz(z), df=dfz(z), z3=z*z*z, z4=z3*z;
-        double g  = (f/kfpp0)*(1.0-z4);                       // alpha_c weight
-        double dg = (df/kfpp0)*(1.0-z4) + (f/kfpp0)*(-4.0*z3);// d/d zeta of that weight
-        double h  = f*z4;                                     // (epsF-epsP) weight
-        double dh = df*z4 + f*4.0*z3;                         // d/d zeta of that weight
-        Eval e;
-        e.eps     = epsP + ac*g  + (epsF-epsP)*h;
-        e.depsdrs = dP   + dA*g  + (dF  -dP )*h;
-        e.depsdz  =        ac*dg + (epsF-epsP)*dh;
-        return e;
-    }
 };
 
 } //namespace

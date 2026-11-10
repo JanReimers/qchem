@@ -6,6 +6,7 @@ add_subdirectory(AD)                # qchem.AD: the Enzyme AD wrapper and its ke
 add_subdirectory(Mesh)
 add_subdirectory(Structure)
 add_subdirectory(LASolver)
+add_subdirectory(Optimize)          # qcOptimize: cost functions and minimizers, no chemistry (qcMath + qcCommon)
 add_subdirectory(Pseudopotential)
 add_subdirectory(BasisSet)
 add_subdirectory(Factory)

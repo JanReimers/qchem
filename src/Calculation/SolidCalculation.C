@@ -55,6 +55,7 @@ import qchem.Outcome;                         // Outcome<T,E> -- the fallible-ca
 export import qchem.SolidState;               // RestartRefusal (Restart's failure), the saved-state layer (CK-1)
 export import qchem.SolidSetup;               // SolidCalcOptions + the resolved SolidSetup a run is built from (step 6)
 export import qchem.PotentialEnergySurface;   // the face SolidSession implements (step 8)
+export import qchem.WyckoffMap;               // WyckoffMap, CoordinateMap: the map MakeSolidGeometryRun pairs with a session
 export import qchem.SCFFailure;               // SCFFailure: why an attempt has no answer (shared with the molecular facade)
 export import qchem.Calculation;              // the abstract base of the three facades
 
@@ -303,10 +304,9 @@ public:
                        Observer onIteration = nullptr);
     //!@}
 
-    //! \brief Write the LAST ITERATE's state -- every (k,σ) block's D, C, ε, f, the fingerprint and the run
-    //! summary -- to \a path (HDF5, layout in qchem.SolidState; atomic: written aside, renamed into place).
-    //! Converged or not: the file records which, and a restart reports it.  THROWS on an I/O failure.
-    void SaveState(const std::string& path) const;
+    const std::optional<RestartSummary>& RestartedFrom() const override;   //!< \c PrepareRestart's judgement; empty for a fresh run
+    //! SaveState(path) and JudgeState(path) are the base's (\c Calculation, V-FACADE-STATE): the LAST ITERATE's state -- every (k,σ)
+    //! block's D, C, ε, f, S, the fingerprint and the run summary -- in "qchem-state 2.0", kind "solid".
 
     SolidCalculation(const SolidCalculation&)            = delete;   // owns raw resources
     SolidCalculation& operator=(const SolidCalculation&) = delete;
@@ -591,6 +591,15 @@ private:
     qchem::Hamiltonian::cHamiltonian&       ResponseHamiltonian () const;
     const WaveFunction::cWaveFunction&      ResponseWaveFunction() const;
     //!@}
+    //! \name THE FORCE GATES' DOOR (src/Calculation/tests/ForceFacade.C; lane B 2026-11-09) -- what the converged run's Hamiltonian says
+    //! of its geometry gradient over the Bloch basis: every term's force or its refusal (MakeTermForces), and the whole list of refusals
+    //! the Pulay sum included (MissingGradients).  Friend only: a client asks a SolidSession for forces, which refuses with that list.
+    //! Retire ForceMissingGradients for lane H's public MissingGradients() when it lands (2a7f7cfa1).
+    //!@{
+    friend class ::ForceFacadeTests;
+    std::vector<std::string>                ForceMissingGradients() const;
+    std::vector<Hamiltonian::TermForce>     ForceTermForces      () const;
+    //!@}
     //! \name THE BUILD, in the two halves Restart needs a gap between (the fingerprint is judged against
     //! the BUILT basis, before anything expensive that depends on the seed)
     //!@{
@@ -615,10 +624,16 @@ private:
     //! converged on the schedule's FINAL stage only (the earlier stages exist to deliver a density the carry already is).
     //! \a lowdin: move \a carry onto this point's basis through the Löwdin frame (\c LowdinCarry) before it seeds the run.
     //! \a onIteration: the session's observer, attached before the point's first iteration.
+    //! \a needForces: a point whose Hamiltonian names a missing geometry gradient (\c MissingGradients) STOPS after its Hamiltonian is
+    //! built and BEFORE its SCF -- unconverged, for the caller to refuse and discard: the term set alone decides it, so no SCF is spent.
     static std::unique_ptr<SolidCalculation> AtGeometry(std::shared_ptr<const SolidSetup>, const Lattice_3D& lat,
                                                         std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
-                                                        const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration);
+                                                        const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration,
+                                                        bool needForces=false);
     SavedState Carry() const;   //!< the last iterate's per-block D, for the next point
+    //! The point's Hamiltonian's \c MissingGradients over its Bloch basis: the terms (and the Pulay sum) that cannot give a geometry
+    //! gradient, each named; EMPTY = forces are available.  The session's \c NoGradient refusal lists them.
+    std::vector<std::string> MissingGradients() const;
     //!@}
     //! Point + run + the first Converge (the constructors' common body), and the rest of an annealed schedule.
     void Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
@@ -626,8 +641,19 @@ private:
     void BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
     friend class ::DeckTests;   //!< tests/Deck.C: an inline deck and its named twin build the same fingerprint
     void RunRestOf(const std::vector<SCFStage>& schedule);
-    //! This run's saved-state fingerprint, with \a kT the recipe's temperature.
+    //! This run's saved-state fingerprint, with \a kT the recipe's temperature (the base's record: \c RecordState).
     StateFingerprint Fingerprint(double kT) const;
+    //! \name THE STATE HOOKS (\c Calculation's template method, V-FACADE-STATE)
+    //!@{
+    void                    RecordState(StateRecord&, double kT) const override;   //!< the base's keys + the solid's (\c AddSolidKeys)
+    std::string             StateKind() const override {return "solid";}
+    const Structure&        StateStructure() const override;
+    StateIdentity           MakeStateIdentity() const override;
+    std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
+    StateSummary            MakeStateSummary() const override;
+    FingerprintMigration    StateMigration() const override {return MigrateSolidFingerprint;}
+    SpinGroup               StateSpin() const;   //!< the spin group the blocks are walked under (a stated multiplicity >= 1: Polarized)
+    //!@}
     //!@}
     //! Stand up one stage's Hamiltonian + accelerator + iterator, seeded from \a carried when given.  \a params are the
     //! stage's (an \c Auto accelerator is resolved against them).
@@ -686,10 +712,12 @@ private:
 //! molecular basis remade from the setup's frozen recipe (the trim is NOT re-vetted) -- seeded from the previous point's density
 //! carried onto it.
 //!
-//! WHAT A POINT REFUSES (each a \c PESFailure, never a crash): positions that break the setup's IMPOSED group (ruling Q4); a
+//! WHAT A POINT REFUSES (each a \c PESFailure, never a crash; positions that break the setup's IMPOSED group THROW, ruling Q4 and a wiring
+//! defect since \c MakeSolidGeometryRun pairs every geometry run with a map that keeps the group): a
 //! basis that, at these positions, would lose functions in the ortho step the trim was decided to avoid (ruling Q3: the frozen
 //! basis left its conditioning window -- checked when the setup states an \c orthoTol); a moved cell (the basis and grids
-//! are built for one); forces or stress (no term has its gradient yet: step 9).  +U is held at the setup's values along the surface (ruling Q5).
+//! are built for one); stress (no term has its cell gradient yet: step 9); forces while the point's Hamiltonian names a term without its
+//! geometry gradient (\c NoGradient lists them, from the session's current point before any SCF, or the first point once built).  +U is held at the setup's values along the surface (ruling Q5).
 class SolidSession : public virtual PotentialEnergySurface
 {
 public:
@@ -721,5 +749,21 @@ private:
     Carry                             itsCarry;
     std::unique_ptr<Point>            itsPoint;
 };
+
+//! \brief A SOLID GEOMETRY RUN: the surface a geometry driver samples and the coordinate map it steps through, built from ONE group.
+//! The two must agree on that group (a map that keeps fewer ops than the session imposes would hand it an off-group R, which THROWS),
+//! so neither is built alone for a geometry run: this factory reads the group once, \c SolidSetup::KeptOps at the reference, and gives
+//! the map exactly those ops (CLAUDE.md: factories concentrate the concrete associations).  An IMPOSED setup gets the level-1
+//! \c WyckoffMap over its detected (or Shubnikov) group: q = the free Wyckoff parameters, the cell fixed.  A FREE setup gets the
+//! same map over P1: q = all 3N Cartesian coordinates, the three rigid translations held.
+struct SolidGeometryRun
+{
+    std::unique_ptr<SolidSession>        surface;
+    std::unique_ptr<const CoordinateMap> map;
+};
+//! The arguments are \c SolidSession's.  THROWS as \c SolidSession and \c WyckoffMap do (a reference not symmetric under its own
+//! group is a broken invariant).
+SolidGeometryRun MakeSolidGeometryRun(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule,
+                                      SolidCalculation::Observer onIteration = nullptr, SolidSession::Carry carry = SolidSession::Carry::AO);
 
 } //export namespace qchem

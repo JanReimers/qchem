@@ -84,6 +84,7 @@ struct SolidCalculation::Imp
     mutable std::unique_ptr<SolidCalculation::sf_t>       spin;
     SCFAccelerators::Type                       stageAccel = SCFAccelerators::Type::DIIS;  //!< the CURRENT stage's, RESOLVED (banner, [F,D])
     SCFAccelerators::Type                       stageAccelAsked = SCFAccelerators::Type::Auto;  //!< ...as ASKED: what an FD/U-loop stage re-resolves
+    std::optional<RestartSummary>               restartedFrom;          //!< what PrepareRestart did (RestartedFrom), empty otherwise
     bool                                        stageRestored = false;  //!< the CURRENT stage starts from a RESTORED state (Restart: same Hamiltonian)
     //! An EXACT RESUME's saved energy, until the first Converge reports the resumed one beside it (then cleared): the line
     //! belongs to the restored stage's convergence, whoever runs it (\c Restart, or a \c PrepareRestart caller).
@@ -316,7 +317,12 @@ static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccel
     // to copy beside a row, so it has to say both.
     // A D-MIXER (linear, or Pulay at KerkerG0 = 0 -- PulayDMixer) hands the Fock the mixed density MATRIX: XC sees rho[D].
     const bool dMixer = p.Mixer==M::Linear || (p.Mixer==M::Pulay && p.KerkerG0<=0.0);
-    std::cout<<"["<<label<<" scf] mixer: "
+    // Precision STATED, not inherited from whatever an earlier print left on cout: a leaked setprecision(1) printed the Auto
+    // Pulay-D step 0.45 as "alpha=0.5" (lane A, 2026-11-09, the MnO dimer and Si triplet box banners).
+    const std::ios_base::fmtflags flags=std::cout.flags();
+    const std::streamsize         prec =std::cout.precision();
+    std::cout<<std::defaultfloat<<std::setprecision(6)
+             <<"["<<label<<" scf] mixer: "
              <<(p.Mixer==M::Linear ? std::string("LINEAR D-mixing (no G-space preconditioner)")
               : dMixer             ? std::string("D-mixing (no G-space preconditioner)")
               :                      "Kerker(G0="+std::to_string(p.KerkerG0)+")")
@@ -332,6 +338,7 @@ static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccel
              <<";  accel: "<<AccelName(acc)<<(autoAccel ? " [accel: Auto]" : "")
              <<";  kT="<<p.SmearingkT<<" MOM="<<(p.UseMOM?"on":"off")
              <<" NMaxIter="<<p.NMaxIter<<std::endl;
+    std::cout.flags(flags); std::cout.precision(prec);
 }
 
 //! The per-stage summary the campaign reads its numbers from.  AT A STATED PRECISION: these are the
@@ -1265,6 +1272,14 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
 //====================================================================================================
 StateFingerprint SolidCalculation::Fingerprint(double kT) const
 {
+    StateRecord r;
+    RecordState(r, kT);
+    return r.fp;
+}
+
+void SolidCalculation::RecordState(StateRecord& r, double kT) const
+{
+    Calculation::RecordState(r, kT);   // the shared keys and the blocks (StateBlocks)
     const auto& o=itsImp->setup->opts;
     std::ostringstream xc;
     xc<<MeshName(itsImp->setup->xcMesh.cellKind);
@@ -1273,9 +1288,9 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     // A free run on the PLAIN mesh (xcMeshSymmetric=false, what a SolidSession needs) quadratures on different points: name it, so a
     // restart across the choice says the quadrature changed.  Only then -- every state written before the option keeps its string.
     if (!itsImp->setup->imposed && !itsImp->setup->planeWave && !o.xcMeshSymmetric) xc<<" plain";
-    RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .ppSet=itsImp->setup->pp.Name(),
+    RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .ppSet=itsImp->setup->pp.Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
-                         .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT,
+                         .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol,
                          .orbitalBasis=itsImp->setup->planeWave ? "planeWave" : "gaussian", .planeWaveEcut=o.planeWaveEcut};
     // The numerics that move the ground state (OpenWork §3 "A restart's fingerprint is incomplete" gap 2).  The fit is the one the
     // Hamiltonian RESOLVES (Ham_PW_DFT: Auto -> Delta on a Becke mesh, else the plane-wave fit).
@@ -1298,25 +1313,32 @@ StateFingerprint SolidCalculation::Fingerprint(double kT) const
     // The run's OWN policy table, resolved from its stated spec (not the process's installed one, which a later run may have replaced).
     for (const Deviation& d : RunPolicy(o.policy).Deviations())
         if (d.movesState) id.policy[d.knob]=d.value;
-    return MakeStateFingerprint(itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->st, *itsImp->bs,
-                                o.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, id);
+    AddSolidKeys(r.fp, itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->bs, StateSpin(), id);
 }
 
-void SolidCalculation::SaveState(const std::string& path) const
+SpinGroup SolidCalculation::StateSpin() const
 {
-    const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
-    if (!wf) throw std::logic_error("SolidCalculation::SaveState: no wave function yet");
-    const StateSummary sum{.label=itsImp->setup->opts.label, .converged=itsImp->converged,
-                           .iterations=itsImp->scf->GetIterationCount(),
-                           .energy=itsImp->scf->GetEnergy().GetTotalEnergy(), .charge=itsImp->charge,
-                           .commutator=itsImp->lastCommutator, .recipe=itsImp->lastRecipe,
-                           .densityChange=itsImp->lastDensityChange};
-    {
-        qchem::report::Timed timed("state: save (HDF5)");
-        WriteSolidState(path, Fingerprint(itsImp->lastkT), sum, *itsImp->bs, *wf);
-    }
-    std::cout << "["<<itsImp->setup->opts.label<<"] state saved to "<<path
-              << (itsImp->converged ? "" : "  (NOT converged -- a restart will say so)") << std::endl;
+    return itsImp->setup->opts.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+}
+const Structure& SolidCalculation::StateStructure() const {return *itsImp->st;}
+const std::optional<RestartSummary>& SolidCalculation::RestartedFrom() const {return itsImp->restartedFrom;}
+Calculation::StateIdentity SolidCalculation::MakeStateIdentity() const
+{
+    const auto& o=itsImp->setup->opts;
+    return {.Nelec=o.Nelec, .spin=StateSpin(), .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .kT=itsImp->lastkT};
+}
+std::vector<StateBlock> SolidCalculation::StateBlocks(bool withOrbitals) const
+{
+    const auto* wf=withOrbitals && itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
+    if (withOrbitals && !wf) throw std::logic_error("SolidCalculation: no wave function yet (a saved state needs a Converge)");
+    return SolidStateBlocks(*itsImp->bs, StateSpin(), wf);
+}
+StateSummary SolidCalculation::MakeStateSummary() const
+{
+    if (!itsImp->scf || !itsImp->scf->GetWaveFunction()) throw std::logic_error("SolidCalculation: no wave function yet");
+    return {.label=itsImp->setup->opts.label, .converged=itsImp->converged, .iterations=itsImp->scf->GetIterationCount(),
+            .energy=itsImp->scf->GetEnergy().GetTotalEnergy(), .charge=itsImp->charge, .commutator=itsImp->lastCommutator,
+            .recipe=itsImp->lastRecipe, .densityChange=itsImp->lastDensityChange};
 }
 
 Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
@@ -1385,37 +1407,19 @@ SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const 
     auto mol=setup->mol;
     c->BuildPoint(std::move(setup), reference, std::move(mol));
     c->itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
-    // Judged against the BUILT blocks (k, weight, size), not against a re-derivation of what they would be.
-    auto warm=CompareFingerprints(saved->fingerprint, c->Fingerprint(params.SmearingkT));
-    if (!warm) return refuse(warm.Error());
-    auto cd=RestoreDensity(*saved, *c->itsImp->bs, c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized);
+    // Judged against the BUILT blocks (k, weight, size), not against a re-derivation of what they would be: the base's judgement
+    // (Calculation::JudgeRestart -- the comparison, the Löwdin carry at moved atoms, the EXACT RESUME / WARM START lines).
+    SavedState state=saved.TakeValue();
+    auto judged=c->JudgeRestart(state, params.SmearingkT, tag);
+    if (!judged) return O::Fail(judged.Error());
+    auto cd=RestoreDensity(state, *c->itsImp->bs, c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized);
     if (!cd) return refuse(cd.Error());
-
-    const bool exact=warm->empty();
-    {
-        std::ostringstream os;
-        os<<tag<<(exact ? "EXACT RESUME" : "WARM START")<<" from "<<path<<" (saved by '"<<saved->summary.label<<"', "
-          <<(saved->summary.converged ? "converged" : "NOT converged")<<" after "<<saved->summary.iterations
-          <<" iterations, E="<<std::setprecision(10)<<saved->summary.energy<<"; "<<saved->summary.recipe<<")";
-        for (const std::string& d : *warm) os<<"\n"<<tag<<"  differs: "<<d;
-        // THE SAVED STATE'S OWN RESIDUAL (gap 4, user 2026-10-29): even an exact resume starts where the state was SAVED, not at
-        // the fixed point.  A density-MIXED run (Null accelerator: no [F,D] measured) stops with D a mixture, one undamped Fock
-        // away from self-consistency, so its first iteration re-opens that residual (amplified on a soft system).
-        const StateSummary& ss=saved->summary;
-        if (std::isfinite(ss.densityChange))
-        {
-            os<<"\n"<<tag<<"  saved at Δρ "<<std::setprecision(3)<<ss.densityChange;
-            if (std::isfinite(ss.commutator)) os<<", [F,D] "<<ss.commutator;
-            else os<<" by a density-MIXED run (no [F,D]): D is a mixture, so the first Fock re-opens a residual of about that size -- "
-                     "amplified on a soft system (β-MnO₂ r015: 40x), where even an exact resume iterates";
-        }
-        else os<<"\n"<<tag<<"  saved residual not recorded (a format-1.0 state, before 2026-10-30)";
-        std::cout<<os.str()<<std::endl;
-    }
+    const bool exact=judged->exact;
+    c->itsImp->restartedFrom=*judged;
     c->BuildRun(cd.TakeValue(), params, accel, /*restored*/true, exact);
     // The restored stage's accelerator is BUILT (BuildRun consumed the GDM-rung start); later stages on this calculation start as asked.
     c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;
-    if (exact) c->itsImp->resumedFrom=saved->summary.energy;   // the first Converge reports the resumed energy beside it
+    if (exact) c->itsImp->resumedFrom=state.summary.energy;   // the first Converge reports the resumed energy beside it
     return O::Ok(std::move(c));
 }
 
@@ -2780,6 +2784,17 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
 
 // THE FD ORACLE'S DOOR (friend only, forward.H).
 qchem::Hamiltonian::cHamiltonian& SolidCalculation::ResponseHamiltonian() const {return *itsImp->ham;}
+std::vector<std::string> SolidCalculation::ForceMissingGradients() const
+{
+    if (!itsImp->ham) throw std::logic_error("SolidCalculation::ForceMissingGradients: no Hamiltonian yet");
+    return itsImp->ham->MissingGradients(itsImp->bs.get(), itsImp->st.get());
+}
+std::vector<Hamiltonian::TermForce> SolidCalculation::ForceTermForces() const
+{
+    if (!itsImp->ham || !itsImp->cd) throw std::logic_error("SolidCalculation::ForceTermForces: no converged run");
+    itsImp->ham->RefreshForDensity(itsImp->bs.get(), itsImp->cd.get());   // the terms' density state (a post-SCF audit may have moved it)
+    return itsImp->ham->MakeTermForces(itsImp->bs.get(), itsImp->cd.get(), itsImp->st.get());
+}
 const WaveFunction::cWaveFunction& SolidCalculation::ResponseWaveFunction() const
 {
     const auto* wf=itsImp->scf->GetWaveFunction();
@@ -2804,7 +2819,8 @@ const BasisSet::Complex_BS& SolidCalculation::Basis() const { return *itsImp->bs
 //====================================================================================================
 std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat,
                                                                std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
-                                                               const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration)
+                                                               const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration,
+                                                               bool needForces)
 {
     if (schedule.empty())
         throw std::runtime_error("SolidCalculation: an EMPTY schedule has no meaning -- pass at least one stage.");
@@ -2858,6 +2874,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
         if (!carry)
         {
             c->BuildRun(nullptr, schedule.front().params, schedule.front().accelerator, /*restored*/false, /*exactResume*/false);
+            if (needForces && !c->MissingGradients().empty()) return c;   // refused before any SCF (the caller discards it)
             (void)c->Converge(schedule.front().params);
         }
         else
@@ -2872,12 +2889,19 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
             if (!cd) throw std::logic_error("SolidCalculation::AtGeometry: the carried density does not fit the new point: "+cd.Error().details);
             const SCFStage& last=schedule.back();
             c->BuildRun(cd.TakeValue(), last.params, last.accelerator, /*restored*/false, /*exactResume*/false);
+            if (needForces && !c->MissingGradients().empty()) return c;   // refused before any SCF (the caller discards it)
             (void)c->Converge(last.params);
         }
     }
     if (!carry && schedule.size()>1) c->RunRestOf(schedule);
     c->CalibrateRasters(schedule.back().params);   // C2 step 3: on an unresolved setup (a session's first point) the pilot sizes the rasters
     return c;
+}
+
+std::vector<std::string> SolidCalculation::MissingGradients() const
+{
+    if (!itsImp->ham) throw std::logic_error("SolidCalculation::MissingGradients: no Hamiltonian yet");
+    return itsImp->ham->MissingGradients(itsImp->bs.get(), itsImp->st.get());
 }
 
 SavedState SolidCalculation::Carry() const
@@ -2908,6 +2932,22 @@ SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<
 }
 SolidSession::~SolidSession() = default;
 
+SolidGeometryRun MakeSolidGeometryRun(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule,
+                                      SolidCalculation::Observer onIteration, SolidSession::Carry carry)
+{
+    if (!setup) throw std::invalid_argument("MakeSolidGeometryRun: no setup");
+    const std::vector<Symmetry::SymOp> ops=setup->KeptOps(setup->reference);
+    SolidGeometryRun run;
+    run.surface=std::make_unique<SolidSession>(setup, std::move(schedule), std::move(onIteration), carry);
+    // The map's symmetry check at the DETECTION tolerance (GetSpaceGroup's 1e-4, fractional), in bohr along the longest lattice vector:
+    // a reference the session accepts as having these ops must not be refused by the map that keeps them.
+    const PESGeometry ref=run.surface->Reference();
+    double aMax=0.0;
+    for (size_t j=1;j<=3;j++) aMax=std::max(aMax, std::sqrt((*ref.cell)(1,j)*(*ref.cell)(1,j)+(*ref.cell)(2,j)*(*ref.cell)(2,j)+(*ref.cell)(3,j)*(*ref.cell)(3,j)));
+    run.map=std::make_unique<const WyckoffMap>(ref, ops, 1e-4*aMax);
+    return run;
+}
+
 PESGeometry SolidSession::Reference() const
 {
     PESGeometry g;
@@ -2929,9 +2969,21 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
         throw std::invalid_argument("SolidSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
     if (!cell)
         throw std::invalid_argument("SolidSession::ConvergeAt: a solid's geometry has a cell -- pass Reference().cell for a fixed-cell step");
-    if (want.forces || want.stress)
-        return O::Fail({Why::NoGradient, std::string(want.stress ? "stress" : "forces")+": no term implements its geometry gradient yet "
-                        "(doc/CalcNetworkReview.md §3.3, step 9) -- difference ConvergeAt energies meanwhile"});
+    if (want.stress)
+        return O::Fail({Why::NoGradient, "stress: no term implements its cell gradient yet (doc/CalcNetworkReview.md §3.3, step 9) -- "
+                        "difference ConvergeAt energies at strained setups meanwhile"});
+    // FORCES: the point's own Hamiltonian names what it lacks (GeometryOptimizationPlan §13), and NO SCF is spent finding out: the term
+    // set is the SETUP's, the same at every point, so a session that already holds a point asks THAT one here; the first point is built
+    // up to its Hamiltonian, asked, and discarded unconverged (AtGeometry's needForces) -- MissingGradients needs the built terms and
+    // blocks, never the converged density.
+    auto missingForces=[](const std::vector<std::string>& missing)
+    {
+        std::string why="forces: these cannot give their geometry gradient yet (Hamiltonian::MissingGradients):";
+        for (const auto& m : missing) why+="\n    "+m;
+        return O::Fail({Why::NoGradient, why});
+    };
+    if (want.forces && itsPoint)
+        if (auto missing=itsPoint->calc->MissingGradients(); !missing.empty()) return missingForces(missing);
     // THE CELL IS THE SETUP'S, for now: the Bloch basis, the grids (sized from the cell) and the imposed group were all built for it.
     // The signature takes the cell so a variable-cell driver needs no new face when the basis/grid side can follow one.
     {
@@ -2950,13 +3002,13 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     cellR.MoveSites(R);
     const Lattice_3D latR(cellR, S.reference.GetLimits());
 
-    // THE IMPOSED GROUP must survive (Q4): a geometry that lowers it is a NEW setup, the user's choice -- never a silent re-fold.
+    // THE IMPOSED GROUP must survive (Q4): a geometry that lowers it is a NEW setup, the user's choice -- never a silent re-fold.  A
+    // THROW, not an Outcome: every driver that moves atoms off the group runs a lower-group setup, so this is a wiring defect.
     if (S.imposed && moved>0.0)
     {
-        auto order=[&](const Lattice_3D& l){ return S.siteSpins.empty() ? l.GetSpaceGroup().Order() : l.ShubnikovOps(S.siteSpins).size(); };
-        if (const size_t now=order(latR), was=order(S.reference); now<was)
-            return O::Fail({Why::SymmetryBroken, "these positions keep "+std::to_string(now)+" of the imposed group's "+std::to_string(was)
-                            +" operations -- symmetrize the step, or resolve a new setup with the lower group"});
+        if (const size_t now=S.KeptOps(latR).size(), was=S.KeptOps(S.reference).size(); now<was)
+            throw std::invalid_argument("SolidSession::ConvergeAt: these positions keep "+std::to_string(now)+" of the imposed group's "+std::to_string(was)
+                                        +" operations -- step through a map that keeps the group (WyckoffMap), or resolve a new setup with the lower group");
     }
 
     auto point=std::make_unique<Point>();
@@ -2998,11 +3050,20 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     if (itsPoint) carry=itsPoint->calc->Carry();
     itsPoint.reset();
     point->calc=SolidCalculation::AtGeometry(itsSetup, latR, point->mol, carry ? &*carry : nullptr, itsSchedule, itsCarry==Carry::Lowdin,
-                                         itsObserver);
+                                         itsObserver, want.forces);
+    if (want.forces)   // unconverged when it names a gap: never held, so it never seeds the next point
+        if (auto missing=point->calc->MissingGradients(); !missing.empty()) return missingForces(missing);
     itsPoint=std::move(point);
 
     auto out=itsPoint->calc->Result();
     if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
+    if (want.forces)
+    {
+        // Every term has its face, but nothing here sums them over the Bloch blocks with W yet: refused by name, not thrown (a deck can
+        // reach it), and the day this fires on a real setup is the day to wire Hamiltonian::Forces here.
+        return O::Fail({Why::NoGradient, "forces: every term names its geometry gradient, but the solid force sum (Hamiltonian::Forces over "
+                        "the Bloch blocks, with W) is not wired into SolidSession yet"});
+    }
     // THE RASTERS ARE FROZEN at the first converged point (C2 step 3): every later point samples on the rasters this one's pilot settled,
     // as it runs on the basis the setup froze -- a raster re-sized per point would make the surface jump.
     if (!itsSetup->rastersResolved) itsSetup=itsPoint->calc->SizedSetup();

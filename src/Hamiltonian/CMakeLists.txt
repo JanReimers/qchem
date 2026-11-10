@@ -32,7 +32,8 @@ target_sources(qcHamiltonian PRIVATE
         Internal/Imp/HamiltonianImp.C
     Internal/Imp/HamiltonianForces.C      # the force fold over the terms (GeometryOptimizationPlan §13; 2026-11-08)
     Internal/Imp/Hamiltonians.C 
-    Internal/Imp/SlaterExchange.C 
+    Internal/Imp/SlaterExchange.C         # e_x, and Enzyme's v_x / f_x (the plugin rides this file)
+    Internal/Imp/VWN_Correlation.C        # e_c, and Enzyme's v_c / f_c (the plugin rides this file)
     Internal/Imp/Libxc_LDA.C
     )
 target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
@@ -73,3 +74,7 @@ target_compile_definitions(qcHamiltonian PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS
 
 
 add_subdirectory(tests)
+
+# The LDA functionals' potentials and kernels are Enzyme's derivatives of their energies (Enzyme REQUIRED, family 2,
+# 2026-11-09); only these two files carry the plugin.
+qchem_enzyme_sources(qcHamiltonian Internal/Imp/SlaterExchange.C Internal/Imp/VWN_Correlation.C)
