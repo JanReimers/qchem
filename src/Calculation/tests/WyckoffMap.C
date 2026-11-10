@@ -121,19 +121,20 @@ double GoldenMin(const std::function<double(double)>& E, double lo, double hi, d
     return 0.5*(lo+hi);
 }
 
-std::string History(const std::vector<OptimizationStep>& h)
+std::string History(const std::vector<Optimize::Iteration>& h)
 {
     std::ostringstream o; o.precision(15);
-    for (const auto& s : h) o << "\n  step " << s.index << " E " << s.energy << " max|g| " << s.maxGradient << " |s| " << s.stepLength
-                              << " trust " << s.trust << (s.accepted ? "" : " REJECTED");
+    for (const auto& s : h) o << "\n  step " << s.index << " E " << s.value << " max|g| " << s.maxGradient << " |s| " << s.stepLength
+                              << " trust " << s.bound << (s.accepted ? "" : " REJECTED");
     return o.str();
 }
 
 OptimizerOptions Tight()
 {
-    // maxStep 1e-4, not tighter: with |g| at 1e-9 the next step's energy change is below the energy's roundoff, and the optimizer
-    // rejects a roundoff rise as an energy rise until the trust radius collapses (OpenWork §3 row, 2026-11-09).
-    OptimizerOptions o; o.maxGradient=1e-8; o.rmsGradient=1e-8; o.maxStep=1e-4; o.energyChange=1e-14; o.initialCurvature=1.0;
+    // maxStep 1e-6.  This test once needed 1e-4: with |g| at 1e-9 the next step's energy change was below the energy's roundoff, and
+    // the optimizer rejected a roundoff rise as a rise until its radius collapsed (lane H, 2026-11-09).  The noise rules of
+    // V-OPTIMIZE-DIP §4 (qcOptimize's BFGS-RFO) fixed it; this test is their gate on a real map.
+    OptimizerOptions o; o.maxGradient=1e-8; o.rmsGradient=1e-8; o.maxStep=1e-6; o.energyChange=1e-14; o.stepper.initialCurvature=1.0;
     return o;
 }
 }
@@ -160,7 +161,7 @@ TEST(WyckoffMap, RutileHasOneFreeParameterAndTheOptimizerFindsItsMinimum)
     const double u=(Invert(RutileA)*out->geometry.R[2]).x;
     EXPECT_NEAR(u, uStar, 1e-7);
     EXPECT_NEAR((Invert(RutileA)*out->geometry.R[2]).y, u, 1e-12) << "O stays on (u,u,0)";
-    EXPECT_NEAR(out->energy, S.Energy(Cartesian(RutileA, RutileFrac(uStar))), 1e-12);
+    EXPECT_NEAR(out->value, S.Energy(Cartesian(RutileA, RutileFrac(uStar))), 1e-12);
     EXPECT_LT(out->Steps(), 15u);
     ASSERT_GT(S.visited.size(), 2u);
     for (const auto& R : S.visited)

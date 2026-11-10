@@ -1,25 +1,28 @@
 // File: Calculation/GeometryOptimizer.C
 //
-// qchem::GeometryOptimizer -- a structure-neutral quasi-Newton optimizer that drives a PotentialEnergySurface through a CoordinateMap
-// (doc/GeometryOptimizationPlan.md §1; user rulings 2026-11-07, §12: Cartesian behind a coordinate map, the force threshold derived from
-// eps by a named calibration, no finite-difference forces).  It sees only q, E(q) and dE/dq.  A molecule maps Cartesian (the external
-// modes projected out); a solid maps its free Wyckoff parameters through the same face (\c WyckoffMap, qchem.WyckoffMap; the cell later).
-//
-// THE METHOD.  BFGS on the Hessian in q, a rational-function (RFO) step in the map's step space, capped by a trust radius that grows on
-// a well-predicted step and shrinks on a poor one; a step that RAISES the energy is rejected and the radius cut.  No line search: every
-// evaluation is a full SCF point, and the trust radius is the cheaper safeguard.  Tested on analytic model surfaces only until the
-// analytic forces exist (ruling §12.3).
+// qchem::GeometryOptimizer -- the GEOMETRY CLIENT of qcOptimize (V-OPTIMIZE-DIP §8 step 2, doc/Records/VOptimizeDIP_Design.md; user
+// rulings 2026-11-07, doc/GeometryOptimizationPlan.md §12: Cartesian behind a coordinate map, the force threshold derived from eps by a
+// named calibration, no finite-difference forces).  It holds what is GEOMETRY and nothing that is an algorithm:
+//   - \c CoordinateMap: q <-> (cell, R), forces -> dE/dq, the step space.  A molecule maps Cartesian (\c CartesianMap, the external
+//     modes projected out); a solid maps its free Wyckoff parameters (\c WyckoffMap, qchem.WyckoffMap);
+//   - \c PESCost: THE ADAPTER that makes a PotentialEnergySurface seen through a map look like a cost of q (user ruling 2026-11-09,
+//     decision 1): R = map.At(q), (E, F) = pes.ConvergeAt(R), g = map.Gradient(q, F);
+//   - \c ForceThresholdCalibration and \c OptimizerOptions: the client's stopping rule, derived from eps;
+//   - \c GeometryOptimizer: PESCost + the rule + a Stepper (BFGS-RFO by default), run by Optimize::Minimize.
+// The algorithm (BFGS + RFO + trust radius, and its noise rules) lives in qcOptimize, which knows no chemistry.
 module;
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 #include <stdexcept>
 export module qchem.GeometryOptimizer;
 export import qchem.PotentialEnergySurface;   // the surface it drives, PESGeometry, PESFailure
+export import qchem.Optimize;                 // the cost faces, the stepper, Minimize, BFGS-RFO
 export import qchem.Types;                    // rvec_t, rmat_t, rvec3_t, rmat3d_t
 import qchem.Blaze;                           // eigen
-import qchem.Reporting;                       // one row per step
+import qchem.Reporting;                       // the point's SCF iterations, into the minimizer's row
 
 export namespace qchem
 {
@@ -83,67 +86,65 @@ struct ForceThresholdCalibration
     double ForceThreshold(double eps) const {return margin*eta*eps;}   //!< Ha/bohr: 4.5e-4 at eps = 1e-5
 };
 
-//! The stopping thresholds and the trust region.  Converged when max|g| <= maxGradient, rms(g) <= rmsGradient, and either
-//! max|step| <= maxStep or |ΔE| <= energyChange.  Units Ha, bohr (q's units for a non-Cartesian map).
+//! \brief The geometry client's settings: its STOPPING RULE (converged when max|g| <= maxGradient, rms(g) <= rmsGradient, and either
+//! max|step| <= maxStep or |ΔE| <= energyChange; units Ha, bohr -- q's units for a non-Cartesian map), the ENERGY NOISE its points
+//! carry, and the default stepper's own knobs.
 struct OptimizerOptions
 {
     double maxGradient  = 4.5e-4;
     double rmsGradient  = 3.0e-4;
     double maxStep      = 1.8e-3;
     double energyChange = 1.0e-6;
-    double trustInitial = 0.3;
-    double trustMax     = 1.0;
-    double trustMin     = 1.0e-6;     //!< below it the optimizer stops: \c OptimizeFailure::Why::TrustCollapsed
-    double initialCurvature = 0.5;    //!< H₀ = this x 1, Ha/bohr² (until the Lindh model Hessian lands)
+    //! Ha: two evaluations of one geometry may differ by this much (\c PESCost's ValueNoise).  0: exact to roundoff (a model surface).
+    double energyNoise  = 0.0;
     size_t maxSteps     = 200;
+    Optimize::BFGS_RFO::Options stepper;   //!< the default stepper's trust radii and initial curvature
     //! The thresholds DERIVED from eps (ruling §12.2): max|g| from the calibration, rms 2/3 of it, the step 4x it (the conventional ratios,
-    //! Gaussian's 4.5e-4 / 3.0e-4 / 1.8e-3), and the energy change eps.  The trust region keeps its defaults.
+    //! Gaussian's 4.5e-4 / 3.0e-4 / 1.8e-3), and the energy change eps.  The energy noise is eps too: the run's grids are sized per point
+    //! from eps, so two nearby points' energies agree to about eps and no better.  The stepper keeps its defaults.
     static OptimizerOptions FromEps(double eps, const ForceThresholdCalibration& cal={});
+    Optimize::GradientStepValue Rule() const;
 };
 
-//! One evaluation of the optimizer's history (a VALUE: the report and the tests read it).
-struct OptimizationStep
+//! \brief THE ADAPTER: a PotentialEnergySurface seen through a CoordinateMap, as a cost of q.  Every evaluation asks for forces; a
+//! point that cannot give them (\c NoGradient) or fails its SCF is the cost's failure, carried back typed (\c PESFailure).  Its
+//! capabilities come from what it holds: the step space from the map, the value noise from the client.  Writes the point's SCF
+//! iterations into the caller's report row.
+class PESCost : public virtual Optimize::tCost<PESFailure>, public virtual Optimize::Projected, public virtual Optimize::ValueNoise
 {
-    size_t index        = 0;
-    double energy       = 0.0;
-    double maxGradient  = 0.0;   //!< of the PROJECTED gradient
-    double rmsGradient  = 0.0;
-    double stepLength   = 0.0;   //!< |s| of the step that led here (0 at the start)
-    double trust        = 0.0;   //!< the radius the step was taken under
-    bool   accepted     = true;  //!< false: the energy rose, the step was undone and the radius cut
-    bool   trustLimited = false; //!< the RFO step was longer than the radius and was scaled to it
-    size_t scfIterations= 0;     //!< the point's SCF iterations (PESPoint::iterations)
+public:
+    //! THROWS when \a energyNoise < 0.
+    PESCost(PotentialEnergySurface& surface, const CoordinateMap& map, double energyNoise);
+    size_t Dimension() const override {return itsMap.Dimension();}
+    Outcome<Optimize::CostValue, PESFailure> EvaluateTyped(const rvec_t& q, const Optimize::Want&) override;
+    rvec_t Project(const rvec_t& q, const rvec_t& v) const override {return itsMap.Project(q, v);}
+    double Noise(const rvec_t&, double value) const override;   //!< the larger of the client's energy noise and the value's roundoff
+private:
+    PotentialEnergySurface& itsSurface;
+    const CoordinateMap&    itsMap;
+    double                  itsNoise;
 };
 
-struct OptimizedGeometry
+struct OptimizedGeometry : Optimize::Minimum
 {
-    rvec_t                        q;
-    PESGeometry                   geometry;
-    double                        energy = 0.0;
-    std::vector<OptimizationStep> history;   //!< every evaluation in order, the start first
-    size_t Steps() const;                    //!< accepted steps
+    PESGeometry geometry;
 };
+using OptimizeFailure = Optimize::MinimizeFailure<PESFailure>;   //!< \c why Cost carries the point's own \c PESFailure
 
-struct OptimizeFailure
-{
-    enum class Why {PES, MaxSteps, TrustCollapsed};
-    Why                           why = Why::PES;
-    std::string                   details;
-    std::optional<PESFailure>     pes;       //!< the point's own failure, when \c why is \c PES
-    std::vector<OptimizationStep> history;
-};
-
-//! \brief Minimise the surface over the map's coordinates.  Every point is asked for forces; a point that cannot give them (\c NoGradient)
-//! or fails its SCF ends the run with that failure named.
+//! \brief Minimise the surface over the map's coordinates: PESCost + the options' rule + a stepper (BFGS-RFO unless one is given).
 class GeometryOptimizer
 {
 public:
     GeometryOptimizer(PotentialEnergySurface& surface, const CoordinateMap& map, const OptimizerOptions& options={});
+    //! With a chosen algorithm: any Stepper minimises the same cost (the LSP claim of V-OPTIMIZE-DIP §8 step 3).
+    GeometryOptimizer(PotentialEnergySurface& surface, const CoordinateMap& map, const OptimizerOptions& options,
+                      std::unique_ptr<Optimize::Stepper> stepper);
     Outcome<OptimizedGeometry, OptimizeFailure> Run();
 private:
-    PotentialEnergySurface& itsSurface;
-    const CoordinateMap&    itsMap;
-    OptimizerOptions        itsOpts;
+    PESCost                            itsCost;
+    const CoordinateMap&               itsMap;
+    OptimizerOptions                   itsOpts;
+    std::unique_ptr<Optimize::Stepper> itsStepper;
 };
 
 } // namespace qchem
@@ -251,7 +252,7 @@ rvec_t CartesianMap::Project(const rvec_t& q, const rvec_t& v) const
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------
-// OptimizerOptions, OptimizedGeometry
+// OptimizerOptions
 
 OptimizerOptions OptimizerOptions::FromEps(double eps, const ForceThresholdCalibration& cal)
 {
@@ -261,154 +262,62 @@ OptimizerOptions OptimizerOptions::FromEps(double eps, const ForceThresholdCalib
     o.rmsGradient =o.maxGradient*(2.0/3.0);
     o.maxStep     =o.maxGradient*4.0;
     o.energyChange=eps;
+    o.energyNoise =eps;
     return o;
 }
 
-size_t OptimizedGeometry::Steps() const
+Optimize::GradientStepValue OptimizerOptions::Rule() const
 {
-    size_t n=0;
-    for (size_t k=1;k<history.size();++k) if (history[k].accepted) ++n;
-    return n;
+    return Optimize::GradientStepValue(maxGradient, rmsGradient, maxStep, energyChange, maxSteps);
 }
+
+//------------------------------------------------------------------------------------------------------------------------------------
+// PESCost
+
+PESCost::PESCost(PotentialEnergySurface& surface, const CoordinateMap& map, double energyNoise)
+    : itsSurface(surface), itsMap(map), itsNoise(energyNoise)
+{
+    if (!(itsNoise>=0.0)) throw std::invalid_argument("PESCost: the energy noise must be >= 0");
+}
+
+Outcome<Optimize::CostValue, PESFailure> PESCost::EvaluateTyped(const rvec_t& q, const Optimize::Want&)
+{
+    using O=Outcome<Optimize::CostValue, PESFailure>;
+    const PESGeometry geo=itsMap.At(q);
+    auto p=itsSurface.ConvergeAt(geo.cell, geo.R, PESRequest{.forces=true});
+    if (!p) return O::Fail(p.Error());
+    report::Set("scfIterations", (long)p->iterations);
+    if (!p->forces) return O::Fail(PESFailure{PESFailure::Why::NoGradient, "the surface returned no forces for a forces request", std::nullopt});
+    return O::Ok(Optimize::CostValue{p->energy, itsMap.Gradient(q, *p->forces)});
+}
+
+double PESCost::Noise(const rvec_t&, double value) const {return std::max(itsNoise, Optimize::RoundoffNoise(value));}
 
 //------------------------------------------------------------------------------------------------------------------------------------
 // GeometryOptimizer
 
 GeometryOptimizer::GeometryOptimizer(PotentialEnergySurface& surface, const CoordinateMap& map, const OptimizerOptions& options)
-    : itsSurface(surface), itsMap(map), itsOpts(options)
-{
-    if (!(itsOpts.trustInitial>0.0 && itsOpts.trustMin>0.0 && itsOpts.trustMax>=itsOpts.trustInitial))
-        throw std::invalid_argument("GeometryOptimizer: the trust radii must satisfy 0 < trustMin, 0 < trustInitial <= trustMax");
-    if (!(itsOpts.initialCurvature>0.0)) throw std::invalid_argument("GeometryOptimizer: the initial curvature must be > 0");
-}
+    : GeometryOptimizer(surface, map, options, std::make_unique<Optimize::BFGS_RFO>(options.stepper)) {}
 
-namespace
+GeometryOptimizer::GeometryOptimizer(PotentialEnergySurface& surface, const CoordinateMap& map, const OptimizerOptions& options,
+                                     std::unique_ptr<Optimize::Stepper> stepper)
+    : itsCost(surface, map, options.energyNoise), itsMap(map), itsOpts(options), itsStepper(std::move(stepper))
 {
-double MaxAbs(const rvec_t& v) {double m=0.0; for (double x : v) m=std::max(m, std::fabs(x)); return m;}
-double Rms(const rvec_t& v)    {return v.size() ? Norm(v)/std::sqrt(double(v.size())) : 0.0;}
-
-//! An orthonormal basis (the columns) of the map's step space at q: the eigenvectors of the projector with eigenvalue ~ 1.
-rmat_t StepBasis(const CoordinateMap& map, const rvec_t& q)
-{
-    const size_t n=q.size();
-    rhmat_t P(n);
-    for (size_t j=0;j<n;++j)
-    {
-        rvec_t e(n, 0.0); e[j]=1.0;
-        const rvec_t c=map.Project(q, e);
-        for (size_t i=0;i<=j;++i) P(i,j)=c[i];   // P = Pᵀ (an orthogonal projector): the upper triangle carries it
-    }
-    rvec_t w; rmat_t U;
-    blazem::eigen(P, w, U);
-    size_t m=0; for (double x : w) if (x>0.5) ++m;
-    rmat_t B(n, m);
-    size_t k=0;
-    for (size_t j=0;j<n;++j) if (w[j]>0.5) { for (size_t i=0;i<n;++i) B(i,k)=U(i,j); ++k; }
-    return B;
-}
+    if (!itsStepper) throw std::invalid_argument("GeometryOptimizer: no stepper");
 }
 
 Outcome<OptimizedGeometry, OptimizeFailure> GeometryOptimizer::Run()
 {
     using O=Outcome<OptimizedGeometry, OptimizeFailure>;
-    namespace rpt=qchem::report;
-    std::vector<OptimizationStep> history;
-    auto evaluate=[&](const rvec_t& q, OptimizationStep& row, double& E, rvec_t& g)->std::optional<PESFailure>
-    {
-        const PESGeometry geo=itsMap.At(q);
-        auto p=itsSurface.ConvergeAt(geo.cell, geo.R, PESRequest{.forces=true});
-        if (!p) return p.Error();
-        if (!p->forces) return PESFailure{PESFailure::Why::NoGradient, "the surface returned no forces for a forces request", std::nullopt};
-        E=p->energy;
-        g=itsMap.Project(q, itsMap.Gradient(q, *p->forces));
-        row.energy=E; row.maxGradient=MaxAbs(g); row.rmsGradient=Rms(g); row.scfIterations=p->iterations;
-        return std::nullopt;
-    };
-    auto record=[&](const OptimizationStep& s)
-    {
-        history.push_back(s);
-        rpt::Row r("optimizer");
-        rpt::Set("step", (long)s.index); rpt::Set("energy", s.energy); rpt::Set("maxGradient", s.maxGradient); rpt::Set("rmsGradient", s.rmsGradient);
-        rpt::Set("stepLength", s.stepLength); rpt::Set("trust", s.trust); rpt::Set("accepted", s.accepted); rpt::Set("trustLimited", s.trustLimited);
-        rpt::Set("scfIterations", (long)s.scfIterations);
-    };
-    auto fail=[&](OptimizeFailure::Why why, std::string details, std::optional<PESFailure> pes={})
-    {
-        return O::Fail(OptimizeFailure{why, std::move(details), std::move(pes), history});
-    };
-    auto done=[&](const rvec_t& q, double E) {return O::Ok(OptimizedGeometry{q, itsMap.At(q), E, history});};
-
-    const size_t n=itsMap.Dimension();
-    rvec_t q=itsMap.Start();
-    if (q.size()!=n) throw std::logic_error("GeometryOptimizer: the map's start has "+std::to_string(q.size())+" coordinates for its dimension "+std::to_string(n));
-    double E=0.0; rvec_t g;
-    OptimizationStep s0; s0.trust=itsOpts.trustInitial;
-    if (auto f=evaluate(q, s0, E, g)) { record(s0); return fail(OptimizeFailure::Why::PES, "the starting point: "+f->details, *f); }
-    record(s0);
-    if (s0.maxGradient<=itsOpts.maxGradient && s0.rmsGradient<=itsOpts.rmsGradient) return done(q, E);   // already a stationary point
-
-    rmat_t H(n, n, 0.0);
-    for (size_t i=0;i<n;++i) H(i,i)=itsOpts.initialCurvature;
-    double trust=itsOpts.trustInitial;
-    for (size_t index=1; index<=itsOpts.maxSteps; ++index)
-    {
-        // THE RFO STEP in the step space: the lowest eigenvector of [[Hr, gr], [grᵀ, 0]] gives s = v/v_last, a descent direction for any Hr.
-        const rmat_t B=StepBasis(itsMap, q);
-        const size_t m=B.columns();
-        if (m==0) return done(q, E);   // nothing may move
-        const rmat_t Hr=blazem::trans(B)*H*B;
-        const rvec_t gr=blazem::trans(B)*g;
-        rhmat_t A(m+1);
-        for (size_t i=0;i<m;++i) { for (size_t j=i;j<m;++j) A(i,j)=0.5*(Hr(i,j)+Hr(j,i)); A(i,m)=gr[i]; }
-        A(m,m)=0.0;
-        rvec_t w; rmat_t V;
-        blazem::eigen(A, w, V);
-        rvec_t sr(m);
-        if (std::fabs(V(m,0))>1e-12) for (size_t i=0;i<m;++i) sr[i]=V(i,0)/V(m,0);
-        else                         sr=-gr;   // the RFO's degenerate case: fall back on steepest descent, which the radius then caps
-        OptimizationStep row; row.index=index; row.trust=trust;
-        if (const double l=Norm(sr); l>trust) { sr*=trust/l; row.trustLimited=true; }
-        rvec_t step=itsMap.Project(q, B*sr);
-        const double predicted=Dot(g, step)+0.5*Dot(step, rvec_t(H*step));
-        row.stepLength=Norm(step);
-
-        const rvec_t q1=q+step;
-        double E1=0.0; rvec_t g1;
-        if (auto f=evaluate(q1, row, E1, g1)) { row.accepted=false; record(row); return fail(OptimizeFailure::Why::PES, "step "+std::to_string(index)+": "+f->details, *f); }
-
-        // BFGS on the step that was TAKEN, accepted or not: a rejected step's (s, y) is curvature measured all the same, and dropping it
-        // wastes the evaluation (the 6-d bowl from 1.5 bohr: 3 rejections without this update, 2 with it, 2026-11-07).
-        // H += y yᵀ/(yᵀs) − (Hs)(Hs)ᵀ/(sᵀHs), skipped when the curvature condition fails, which keeps H positive definite.
-        {
-            const rvec_t y=itsMap.Project(q1, g1-g);
-            const double sy=Dot(step, y);
-            if (sy>1e-12*Norm(step)*Norm(y))
-            {
-                const rvec_t Hs=H*step;
-                const double sHs=Dot(step, Hs);
-                H+=(y*blazem::trans(y))/sy;
-                if (sHs>0.0) H-=(Hs*blazem::trans(Hs))/sHs;
-            }
-        }
-        if (E1>E)   // the energy ROSE: undo the step, cut the radius
-        {
-            row.accepted=false; record(row);
-            trust*=0.25;
-            if (trust<itsOpts.trustMin) return fail(OptimizeFailure::Why::TrustCollapsed, "the trust radius fell below "+std::to_string(itsOpts.trustMin)
-                                                    +" after an energy rise at step "+std::to_string(index));
-            continue;
-        }
-        record(row);
-        const double ratio = predicted<0.0 ? (E1-E)/predicted : 0.0;
-        if      (ratio>0.75 && row.trustLimited) trust=std::min(2.0*trust, itsOpts.trustMax);
-        else if (ratio<0.25)                     trust=std::max(0.5*trust, itsOpts.trustMin);
-        const double dE=E1-E;
-        q=q1; E=E1; g=g1;
-        const bool forces = row.maxGradient<=itsOpts.maxGradient && row.rmsGradient<=itsOpts.rmsGradient;
-        const bool moved  = MaxAbs(step)<=itsOpts.maxStep || std::fabs(dE)<=itsOpts.energyChange;
-        if (forces && moved) return done(q, E);
-    }
-    return fail(OptimizeFailure::Why::MaxSteps, "not converged after "+std::to_string(itsOpts.maxSteps)+" steps");
+    const rvec_t start=itsMap.Start();
+    if (start.size()!=itsMap.Dimension())
+        throw std::logic_error("GeometryOptimizer: the map's start has "+std::to_string(start.size())+" coordinates for its dimension "+std::to_string(itsMap.Dimension()));
+    auto r=Optimize::Minimize(itsCost, *itsStepper, itsOpts.Rule(), start);
+    if (!r) return O::Fail(r.Error());
+    OptimizedGeometry g;
+    static_cast<Optimize::Minimum&>(g)=r.TakeValue();
+    g.geometry=itsMap.At(g.q);
+    return O::Ok(std::move(g));
 }
 
 } // namespace qchem

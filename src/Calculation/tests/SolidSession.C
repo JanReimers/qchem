@@ -369,8 +369,8 @@ TEST(SolidSession, AForceRequestNamesTheMissingGradientsBeforeAnySCF)
     OptimizerOptions o; o.maxSteps=3;
     auto opt=GeometryOptimizer(*run.surface, *run.map, o).Run();
     ASSERT_FALSE(opt);
-    EXPECT_EQ(opt.Error().why, OptimizeFailure::Why::PES);
-    ASSERT_TRUE(opt.Error().pes);
-    EXPECT_EQ(opt.Error().pes->why, PESFailure::Why::NoGradient);
+    EXPECT_EQ(opt.Error().why, OptimizeFailure::Why::Cost);
+    ASSERT_TRUE(opt.Error().cost);
+    EXPECT_EQ(opt.Error().cost->why, PESFailure::Why::NoGradient);
     EXPECT_EQ(rows, afterEnergy) << "the optimizer's refusal spent no SCF either";
 }
