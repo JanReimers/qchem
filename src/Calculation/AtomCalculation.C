@@ -20,6 +20,7 @@ module;
 export module qchem.AtomCalculation;
 
 import qchem.Structure;             // Structure, Atom
+import qchem.Types;                 // hmat_t (a restored block density)
 import qchem.ScalarFunction;        // ScalarFunction<double>
 import qchem.BasisSet;              // BasisSet::Real_BS
 import qchem.BasisSet.Radial.Factory; // BasisSet::Radial::Type, BasisSetAccuracy (the atomic exponent-pool basis)
@@ -139,6 +140,21 @@ public:
     static std::unique_ptr<AtomCalculation> Prepare(int Z, int charge = 0, const AtomCalcOptions& opts = {},
                                                     const AcceleratorOptions& acc = {}, Observer onIteration = nullptr);
     //!@}
+    //! \name RESTART FROM A SAVED STATE (V-FACADE-STATE; \c SaveState / \c JudgeState are the base's)
+    //! The atomic twins of \c MoleculeCalculation::Restart / \c PrepareRestart, built from the same arguments as the constructor:
+    //! REFUSED on another kind, another radial basis, other electrons or blocks; an EXACT RESUME (the saved D drives the first Fock,
+    //! a Ladder starts on its GDM rung at kT = 0) when nothing differs; else a WARM START with every difference named.
+    //!@{
+    static Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>
+        Restart(const std::string& path, int Z, int charge = 0, const AtomCalcOptions& opts = {}, const SCFParams& params = {},
+                const AcceleratorOptions& acc = {}, Observer onIteration = nullptr);
+    //! \c Restart up to its SCF; run it with \c Converge.
+    static Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>
+        PrepareRestart(const std::string& path, int Z, int charge = 0, const AtomCalcOptions& opts = {}, const SCFParams& params = {},
+                       const AcceleratorOptions& acc = {}, Observer onIteration = nullptr);
+    const std::optional<RestartSummary>& RestartedFrom() const override;   //!< \c PrepareRestart's judgement; empty for a fresh run
+    //!@}
+
     bool Converge(const SCFParams& params = {});
     void OnIteration(Observer obs);
 
@@ -172,6 +188,23 @@ private:
     std::string AcceleratorTag() const;   //!< the accelerator type the caller asked for, as the scf header names it
     bool itsPrepared = false;             //!< \c Prepare built the graph: the next Converge reuses it instead of rebuilding
     void RebuildSampling();
+    //! \name THE STATE HOOKS (\c Calculation's template method, V-FACADE-STATE)
+    //!@{
+    void                    RecordState(StateRecord&, double kT) const override;   //!< the base's keys + the radial basis, model, mesh
+    std::string             StateKind() const override {return "atom";}
+    const Structure&        StateStructure() const override {return *itsStructure;}
+    StateIdentity           MakeStateIdentity() const override;
+    std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
+    StateSummary            MakeStateSummary() const override;
+    //!@}
+    //! A RESTORED density, per block in the canonical order, consumed by the next \c BuildGraph (\c PrepareRestart).
+    std::vector<hmat_t<double>>   itsRestored;
+    std::unique_ptr<qchem::ChargeDensity::rDM_CD> RestoredDensity() const;   //!< \c itsRestored as a density on this basis
+    std::string FunctionalName() const;                                        //!< the model as the fingerprint and summary name it
+    bool                          itsRestoredExact = false;
+    bool                          itsStartOnGDM    = false;   //!< the next accelerator is a Ladder started on its GDM rung, once
+    double                        itsLastkT        = 0.0;
+    std::optional<RestartSummary> itsRestartedFrom;
 
     int                                  itsZ;
     int                                  itsNe;          //!< electron count (Z - charge)

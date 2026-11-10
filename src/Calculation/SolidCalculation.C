@@ -303,10 +303,9 @@ public:
                        Observer onIteration = nullptr);
     //!@}
 
-    //! \brief Write the LAST ITERATE's state -- every (k,σ) block's D, C, ε, f, the fingerprint and the run
-    //! summary -- to \a path (HDF5, layout in qchem.SolidState; atomic: written aside, renamed into place).
-    //! Converged or not: the file records which, and a restart reports it.  THROWS on an I/O failure.
-    void SaveState(const std::string& path) const;
+    const std::optional<RestartSummary>& RestartedFrom() const override;   //!< \c PrepareRestart's judgement; empty for a fresh run
+    //! SaveState(path) and JudgeState(path) are the base's (\c Calculation, V-FACADE-STATE): the LAST ITERATE's state -- every (k,σ)
+    //! block's D, C, ε, f, S, the fingerprint and the run summary -- in "qchem-state 2.0", kind "solid".
 
     SolidCalculation(const SolidCalculation&)            = delete;   // owns raw resources
     SolidCalculation& operator=(const SolidCalculation&) = delete;
@@ -626,8 +625,19 @@ private:
     void BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
     friend class ::DeckTests;   //!< tests/Deck.C: an inline deck and its named twin build the same fingerprint
     void RunRestOf(const std::vector<SCFStage>& schedule);
-    //! This run's saved-state fingerprint, with \a kT the recipe's temperature.
+    //! This run's saved-state fingerprint, with \a kT the recipe's temperature (the base's record: \c RecordState).
     StateFingerprint Fingerprint(double kT) const;
+    //! \name THE STATE HOOKS (\c Calculation's template method, V-FACADE-STATE)
+    //!@{
+    void                    RecordState(StateRecord&, double kT) const override;   //!< the base's keys + the solid's (\c AddSolidKeys)
+    std::string             StateKind() const override {return "solid";}
+    const Structure&        StateStructure() const override;
+    StateIdentity           MakeStateIdentity() const override;
+    std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
+    StateSummary            MakeStateSummary() const override;
+    FingerprintMigration    StateMigration() const override {return MigrateSolidFingerprint;}
+    SpinGroup               StateSpin() const;   //!< the spin group the blocks are walked under (a stated multiplicity >= 1: Polarized)
+    //!@}
     //!@}
     //! Stand up one stage's Hamiltonian + accelerator + iterator, seeded from \a carried when given.  \a params are the
     //! stage's (an \c Auto accelerator is resolved against them).

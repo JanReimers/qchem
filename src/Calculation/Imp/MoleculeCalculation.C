@@ -135,8 +135,10 @@ void MoleculeCalculation::BuildGraph()
     const nlohmann::json jsacc = ToAcceleratorJson(itsSetup->acc, itsSetup->eMax);   // every knob of the chain, forwarded
     // The facade sets the context, the accelerator files what it was built with (THE RUN REPORT): one `accelerators` row per
     // accelerator built in this run (a solid rebuilds one per stage), its Ladder rungs one level further in.
+    nlohmann::json jsrun = jsacc;
+    if (itsStartOnGDM) { jsrun["startOnGDM"]=true; itsStartOnGDM=false; }   // the restored stage only (PrepareRestart)
     qchem::SCFAccelerators::SCFAccelerator* accel=nullptr;
-    { rpt::Row built("accelerators"); accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, jsacc); }
+    { rpt::Row built("accelerators"); accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, jsrun); }
     const auto seed = itsSetup->seed;
 
     // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
@@ -177,11 +179,13 @@ void MoleculeCalculation::BuildGraph()
             itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get());
         else
         {
-            // THE CARRY (a MoleculeSession step): the previous point's D, block for block, onto THIS point's basis -- a
-            // WorkingDensity of the moved Hamiltonian, consumed here once.
+            // THE CARRY (a MoleculeSession step, or a restored state): the D, block for block, onto THIS point's basis -- a
+            // WorkingDensity of the moved Hamiltonian, or an EXACT RESUME of a state saved by this very run, consumed here once.
             itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), MakeCarriedDensity(*itsCarry).release(), itsStructure.get(),
-                                 qchem::Auto, 0.0, qchem::SCFIterator::SeedRole::WorkingDensity);
+                                 qchem::Auto, 0.0, itsCarryExact ? qchem::SCFIterator::SeedRole::ExactResume
+                                                                 : qchem::SCFIterator::SeedRole::WorkingDensity);
             itsCarry.reset();
+            itsCarryExact=false;
         }
     }
 }
@@ -218,6 +222,7 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
     }
     if (itsPrepared) itsPrepared=false;                       // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
+    itsLastkT=params.SmearingkT;
     AttachObserver();
     (void)itsScf->Iterate(params);   // the outcome is the iterator's Converged(), minted below
     RebuildSampling();
@@ -626,6 +631,186 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
         policy::Report("MolecularXCMeshNotSettled", "the Becke XC mesh stops at "+MeshName(itsSetup->mesh), policy::Verdict::Warn,
                        endWhy+"; the delivered error may be over the target "+std::to_string(target)+"; "+cost);
     }
+}
+
+//====================================================================================================
+//  THE SAVED STATE (V-FACADE-STATE): the molecule's hooks and its restart
+//====================================================================================================
+namespace
+{
+std::string MoleculeModelName(const MoleculeSetup& su)
+{
+    using qchem::Hamiltonian::Model;
+    if (su.pp) return "LDA";   // the PP front door is LSDA (Resolve refuses any other model)
+    switch (su.opts.model)
+    {
+        case Model::HF:     return "HF";     case Model::E1:  return "E1";
+        case Model::DHF:    return "DHF";    case Model::DE1: return "DE1";
+        case Model::Xalpha: return "Xalpha"; case Model::LDA: return "LDA";
+    }
+    return "?";
+}
+} //anonymous namespace
+
+Calculation::StateIdentity MoleculeCalculation::MakeStateIdentity() const
+{
+    return {.Nelec=itsSetup->Ne, .spin=itsSetup->opts.spin, .multiplicity=itsSetup->opts.multiplicity,
+            .functional=MoleculeModelName(*itsSetup), .kT=itsLastkT};
+}
+
+std::vector<StateBlock> MoleculeCalculation::StateBlocks(bool withOrbitals) const
+{
+    if (!itsBasis) throw std::logic_error("qchem::MoleculeCalculation: no basis yet (a saved state needs the graph)");
+    const auto* wf = withOrbitals && itsScf ? itsScf->GetWaveFunction() : nullptr;
+    if (withOrbitals && !wf) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet (a saved state needs a Converge)");
+    std::vector<StateBlock> out;   // the carry's order: spin irreps outer, basis blocks inner
+    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+        for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
+        {
+            StateBlock b;
+            b.real=ibs;
+            b.irrep=ibs->GetIrrep(s);
+            if (wf) b.orbitals=wf->GetOrbitals(b.irrep);
+            out.push_back(std::move(b));
+        }
+    return out;
+}
+
+StateSummary MoleculeCalculation::MakeStateSummary() const
+{
+    if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet");
+    StateSummary s{.label="molecule", .converged=itsScf->Converged(), .iterations=itsScf->GetIterationCount(),
+                   .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0};
+    s.recipe="model "+MoleculeModelName(*itsSetup)+", basis "+itsSetup->opts.basis+", accelerator "+itsSetup->acc.type;
+    if (itsLastRow)
+    {
+        s.commutator   =itsLastRow->ValueOf("[F,D]");
+        s.densityChange=itsLastRow->ValueOf(itsHam ? itsHam->DeltaRhoLabel() : std::string("Δρ"));
+    }
+    return s;
+}
+
+void MoleculeCalculation::RecordState(StateRecord& r, double kT) const
+{
+    Calculation::RecordState(r, kT);   // the structure, electron and block keys, and the blocks
+    const CalcOptions& o=itsSetup->opts;
+    StateFingerprint& fp=r.fp;
+    // ---- REFUSE: the saved D is a matrix over THIS basis's functions ----
+    fp.refuseStr["basis.family"] ="gaussian";
+    fp.refuseStr["basis.name"]   =o.basis;
+    fp.refuseStr["basis.engine"] =o.engine==Engine::LibCint ? "libcint" : "mnd";
+    fp.refuseStr["basis.angular"]=o.angular==Angular::Spherical ? "spherical" : "cartesian";
+    fp.refuseStr["basis.blocks"] =o.symmetry ? "SALC" : "AO";
+    fp.refuseStr["pp.set"]       =itsSetup->pp ? itsSetup->pp->Name() : std::string();
+    {
+        std::string ov;
+        for (const auto& [el,q] : o.ppOverride) ov += (ov.empty() ? "" : ",") + el + ":" + std::to_string(q);
+        fp.refuseStr["pp.override"]=ov;
+    }
+    // The shells (an AO basis: each block reports its own; a SALC block is a combination of them, identified by its name, its
+    // irrep and its size -- the shared block keys).  A block that cannot report its shells is identified by name alone, and says so.
+    if (!o.symmetry)
+    {
+        std::vector<const BasisSet::Orbital_1E_IBS<double>*> blocks;
+        bool all=true;
+        for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
+        {
+            blocks.push_back(ibs);
+            all = all && dynamic_cast<const BasisSet::AoShellSource*>(ibs)!=nullptr;
+        }
+        if (all) AddShells(fp, blocks);
+        else     fp.refuseStr["basis.shells"]="unreported";
+    }
+    // ---- WARM: what moves the converged state without changing what D is a matrix over ----
+    if (o.model==Model::Xalpha) fp.warmNum["xc.xalpha"]={o.xalpha};
+    if (HasXCMesh())
+    {
+        fp.warmNum["grids.xcMeshRadial"]={double(itsSetup->mesh.nRadial)};
+        fp.warmNum["grids.xcMeshDegree"]={double(itsSetup->mesh.angularDegree)};
+        fp.warmNum["accuracy.eps"]={o.accuracy.eps};
+        fp.warmNum["xc.fit"]={double(int(o.vxcFit))};
+    }
+    fp.warmNum["coulomb.route"]={double(int(o.coulomb.fit)), double(int(o.coulomb.solver)), double(o.coulomb.lMax), double(o.coulomb.nRadial)};
+}
+
+const std::optional<RestartSummary>& MoleculeCalculation::RestartedFrom() const {return itsRestartedFrom;}
+
+Outcome<std::unique_ptr<MoleculeCalculation>, RestartRefusal>
+MoleculeCalculation::Restart(const std::string& path, std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
+{
+    auto R=PrepareRestart(path, std::move(setup), scf, std::move(onIteration));
+    if (R) (void)R.Value()->Converge(scf);   // the restored stage, on the graph PrepareRestart built
+    return R;
+}
+
+Outcome<std::unique_ptr<MoleculeCalculation>, RestartRefusal>
+MoleculeCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf,
+                                    Observer onIteration)
+{
+    using O=Outcome<std::unique_ptr<MoleculeCalculation>, RestartRefusal>;
+    namespace rpt = qchem::report;
+    const std::string tag="[molecule restart] ";
+    auto saved=ReadState(path);
+    if (!saved)
+    {
+        std::cout<<tag<<"REFUSED ("<<path<<"): "<<saved.Error().details<<std::endl;
+        return O::Fail(saved.Error());
+    }
+    // A STATE SIZED FOR THIS TARGET (the solid's raster adoption, for the molecule's XC mesh): a setup whose mesh is neither stated
+    // nor sized adopts the saved state's when the state was made for the same eps -- that mesh is what a pilot settled for this eps,
+    // so an exact resume stays exact (a fresh pilot would start at the entry rung, a warm difference, and climb again).
+    if (!setup->meshStated && !setup->meshResolved && saved->kind=="molecule")
+    {
+        const auto& w=saved->fingerprint.warmNum;
+        auto one=[&](const char* k)->std::optional<double>
+        { auto it=w.find(k); return it!=w.end() && it->second.size()==1 ? std::optional<double>(it->second[0]) : std::nullopt; };
+        const auto nR=one("grids.xcMeshRadial"), L=one("grids.xcMeshDegree"), eps=one("accuracy.eps");
+        if (nR && L && eps && *eps==setup->opts.accuracy.eps)
+        {
+            auto adopted=std::make_shared<MoleculeSetup>(*setup);
+            adopted->mesh.nRadial=int(*nR);
+            adopted->mesh.angularDegree=int(*L);
+            adopted->meshResolved=true;
+            std::ostringstream why;
+            why<<"the saved state's XC mesh ("<<int(*nR)<<" radial, degree "<<int(*L)<<") was sized for this accuracy (eps "<<*eps<<")";
+            qchem::policy::Report("RestartAdoptsMesh", "the restart integrates on the saved state's XC mesh, no pilot",
+                                  qchem::policy::Verdict::Choose, why.str());
+            std::cout<<tag<<"adopting "<<why.str()<<std::endl;
+            setup=std::move(adopted);
+        }
+    }
+    const Structure& ref=*setup->reference;
+    std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, ref, nullptr, std::move(onIteration)));
+    {
+        rpt::Scope basis("basis");
+        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsStructure);   // BuildGraph reuses it
+    }
+    SavedState state=saved.TakeValue();
+    auto judged=c->JudgeRestart(state, scf.SmearingkT, tag);
+    if (!judged) return O::Fail(judged.Error());
+    auto D=CheckedBlockDensities(state, c->StateBlocks(false));
+    if (!D)
+    {
+        std::cout<<tag<<"REFUSED ("<<path<<"): "<<D.Error().details<<std::endl;
+        return O::Fail(D.Error());
+    }
+    Carry carry;
+    for (const mat_t<dcmplx>& M : *D)
+    {
+        const size_t n=M.rows();
+        hmat_t<double> h(n);
+        for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) h(a,b)=M(a,b).real();
+        carry.D.push_back(std::move(h));
+    }
+    c->itsCarry=std::make_unique<const Carry>(std::move(carry));
+    c->itsCarryExact=judged->exact;
+    // At the answer: a Ladder starts on its GDM rung (kT = 0 only: a smeared stage restored from an integer state would let GDM
+    // engage and never apply the smearing -- the solid's rule, SolidCalculation::PrepareRestart).
+    c->itsStartOnGDM=judged->exact && scf.SmearingkT==0.0 && c->itsSetup->accelerator==SCFAccelerators::Type::Ladder;
+    c->itsRestartedFrom=*judged;
+    c->BuildGraph();
+    c->itsPrepared=true;
+    return O::Ok(std::move(c));
 }
 
 //====================================================================================================

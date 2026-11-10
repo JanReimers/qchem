@@ -5,9 +5,16 @@
 // scaffold.  Same geometry, same basis, same anchor.  Also a quick smoke of the ScalarFunction
 // sampling surface (Density/HOMO/Orbital), the win the API-ergonomics review highlighted.
 #include "gtest/gtest.h"
+#include <unistd.h>    // getpid: per-process temp names (ctest runs cases in parallel)
 #include <cmath>
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <vector>
 
 import qchem.MoleculeCalculation;
+import qchem.AtomCalculation;     // a molecule state offered to an atom run (refused by kind)
+import qchem.SCFIterator;         // IterationRow (a restart's iterates)
 import qchem.SCFParams;
 import qchem.ChargeDensity.Seed;   // SeedStrategy (HF from a SAD seed)
 import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
@@ -266,4 +273,137 @@ TEST(M_Calculation, WaterPureGDM)
 
     const double E_ref = -76.022903;                       // same anchor as WaterSymmetry
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
+}
+
+//====================================================================================================
+//  SAVE / RESTART (V-FACADE-STATE, lane A 2026-11-09)
+//====================================================================================================
+static std::string StatePath(const std::string& leaf)
+{
+    return (std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_"+leaf)).string();
+}
+
+//! A restart's iterates, as its observer sees them (the first one is the claim: CLAUDE.md, pin a restart's FIRST iterate).
+struct Iterates
+{
+    std::vector<double> E;
+    MoleculeCalculation::Observer Sink() {return [this](const qchem::SCFIterator::IterationRow& r){ E.push_back(r.eb.GetTotalEnergy()); };}
+};
+
+// CLAIM: an EXACT resume starts AT the saved answer -- the saved D drives the first Fock (SeedRole::ExactResume) and the Ladder
+// starts on its GDM rung -- so its first iterate is the saved energy, as the NaF gates show for the solid.  Boron UHF/dzvp is the
+// open shell (a degenerate 2p level filled by the integer rule).
+TEST(M_Calculation, BoronUHFExactResumeStartsAtTheSavedAnswer)
+{
+    const std::string path=StatePath("boron_uhf.h5");
+    const auto setup=[]{ return MoleculeSetup::Resolve(MakeBoron(), {.basis = "dzvp", .multiplicity = 2}, {.type = "Ladder"}); };
+    MoleculeCalculation calc(setup());
+    ASSERT_TRUE(calc.Result());
+    calc.SaveState(path);
+    Iterates it;
+    auto r=MoleculeCalculation::Restart(path, setup(), {}, it.Sink());
+    std::filesystem::remove(path);
+    ASSERT_TRUE(r) << r.Error().details;
+    ASSERT_TRUE((*r)->RestartedFrom());
+    EXPECT_TRUE((*r)->RestartedFrom()->exact);
+    ASSERT_TRUE((*r)->Result());
+    ASSERT_FALSE(it.E.empty());
+    EXPECT_NEAR(it.E.front(), calc.Energy(), 1e-9) << "the first iterate left the saved answer";
+    EXPECT_NEAR((*r)->Energy(), calc.Energy(), 1e-9);
+    EXPECT_LE((*r)->IterationCount(), 2u);
+}
+
+// The same claim for a closed shell under DFT on a symmetry-blocked (SALC) basis: H2O LDA/dzvp, C2v.
+TEST(M_Calculation, WaterLDASymmetryExactResumeStartsAtTheSavedAnswer)
+{
+    const std::string path=StatePath("h2o_lda_c2v.h5");
+    const auto setup=[]{ return MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+                                                       {.basis = "dzvp", .model = qchem::Model::LDA, .symmetry = true}); };
+    MoleculeCalculation calc(setup());
+    ASSERT_TRUE(calc.Result());
+    calc.SaveState(path);
+    Iterates it;
+    auto r=MoleculeCalculation::Restart(path, setup(), {}, it.Sink());
+    std::filesystem::remove(path);
+    ASSERT_TRUE(r) << r.Error().details;
+    ASSERT_TRUE((*r)->RestartedFrom());
+    EXPECT_TRUE((*r)->RestartedFrom()->exact) << "the fresh setup must adopt the saved state's XC mesh";
+    ASSERT_TRUE((*r)->Result());
+    ASSERT_FALSE(it.E.empty());
+    EXPECT_NEAR(it.E.front(), calc.Energy(), 1e-9) << "the first iterate left the saved answer";
+    EXPECT_NEAR((*r)->Energy(), calc.Energy(), 1e-9);
+    EXPECT_LE((*r)->IterationCount(), 2u);
+}
+
+// CLAIM (controller note 1, 2026-11-09): POSITIONS ARE WARM, and the density crosses the overlap change through the Löwdin frame.
+// A restart at a displaced H2O holds exactly N electrons on the NEW basis, Tr(D S') = 10 to 1e-12, at its first iterate, and
+// converges to the fresh run's energy.  DISCRIMINATES (lane A 2026-11-09, the carry disabled): the verbatim AO carry holds
+// 9.99506086599 electrons at this 0.064 bohr step.
+TEST(M_Calculation, WaterRestartAtMovedAtomsCarriesTheDensityThroughTheLowdinFrame)
+{
+    const std::string path=StatePath("h2o_moved.h5");
+    const Molecule water=qchem::StructureData::GetMolecule("H2O");
+    MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.basis = "dzvp"}));
+    ASSERT_TRUE(calc.Result());
+    calc.SaveState(path);
+
+    std::vector<Vector3D<double>> R;
+    water.ForEachSite([&](int, const Vector3D<double>& r, bool){ R.push_back(r); });
+    ASSERT_EQ(R.size(), 3u);
+    R[1]=R[1]+Vector3D<double>(0.0, 0.05, -0.04);   // one hydrogen, 0.064 bohr
+    std::shared_ptr<qchem::Structure> moved=water.Clone();
+    moved->MoveSites(R);
+    const auto setupMoved=MoleculeSetup::Resolve(*moved, {.basis = "dzvp"});
+
+    auto r=MoleculeCalculation::PrepareRestart(path, setupMoved);
+    std::filesystem::remove(path);
+    ASSERT_TRUE(r) << r.Error().details;
+    const auto how=(*r)->RestartedFrom();
+    ASSERT_TRUE(how);
+    EXPECT_FALSE(how->exact);
+    EXPECT_TRUE(how->lowdinCarried);
+    EXPECT_NEAR(how->maxDisplacement, std::sqrt(0.05*0.05+0.04*0.04), 1e-12);
+    EXPECT_NEAR(how->electrons, 10.0, 1e-12) << "Tr(D S') on the moved basis";
+    bool named=false;
+    for (const auto& w : how->warm) named |= w.rfind("structure.positions:",0)==0;
+    EXPECT_TRUE(named) << "the warm list names the move";
+
+    auto out=(*r)->Converge();
+    ASSERT_TRUE(out) << out.Error().details;
+    MoleculeCalculation fresh(setupMoved);
+    ASSERT_TRUE(fresh.Result());
+    EXPECT_NEAR((*r)->Energy(), fresh.Energy(), 1e-8) << "the carried start reaches the same ground state";
+}
+
+// The refusals and the warm differences a binding reads back (JudgeState), one per class: another BASIS is refused (the saved D is
+// a matrix over other functions), another MODEL is a warm start (named), and a molecule's state offered to an atom run is refused
+// by KIND.
+TEST(M_Calculation, ASavedStateIsJudgedByClass)
+{
+    const std::string path=StatePath("h2o_judged.h5");
+    const Molecule water=qchem::StructureData::GetMolecule("H2O");
+    MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.basis = "dzvp"}));
+    ASSERT_TRUE(calc.Result());
+    calc.SaveState(path);
+
+    auto same=calc.JudgeState(path);
+    ASSERT_TRUE(same) << same.Error().details;
+    EXPECT_TRUE(same->empty()) << "the run that saved it judges it an exact resume";
+
+    auto otherBasis=MoleculeCalculation::Restart(path, MoleculeSetup::Resolve(water, {.basis = "dzvp2"}));
+    ASSERT_FALSE(otherBasis);
+    EXPECT_EQ(otherBasis.Error().why, qchem::RestartRefusal::Why::Mismatch);
+    EXPECT_NE(otherBasis.Error().details.find("basis.name"), std::string::npos) << otherBasis.Error().details;
+
+    auto otherModel=MoleculeCalculation::PrepareRestart(path, MoleculeSetup::Resolve(water, {.basis = "dzvp", .model = qchem::Model::LDA}));
+    ASSERT_TRUE(otherModel) << otherModel.Error().details;
+    ASSERT_TRUE((*otherModel)->RestartedFrom());
+    bool named=false;
+    for (const auto& w : (*otherModel)->RestartedFrom()->warm) named |= w.rfind("functional:",0)==0;
+    EXPECT_TRUE(named) << "an HF state seeding an LDA run is a WARM start that names the functional";
+
+    auto atom=qchem::AtomCalculation::Restart(path, 8);
+    std::filesystem::remove(path);
+    ASSERT_FALSE(atom);
+    EXPECT_EQ(atom.Error().why, qchem::RestartRefusal::Why::Kind);
 }

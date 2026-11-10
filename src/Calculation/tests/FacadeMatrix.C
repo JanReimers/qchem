@@ -14,7 +14,9 @@
 #include <cmath>
 #include <exception>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
+#include <optional>
 #include <memory>
 #include <set>
 #include <sstream>
@@ -63,7 +65,7 @@ const char* ExpectedFailure(Kind k, Capability c)
         case Capability::PrepareFilesTheSetup:      return k==Kind::Solid ? "V-BS-RASTER" : nullptr;
         case Capability::ConvergeFilesTheScfHeader: return nullptr;
         case Capability::AcceleratorKnobsArrive:    return nullptr;
-        case Capability::SaveRestartRoundTrips:     return k==Kind::Solid ? nullptr : "V-FACADE-STATE";
+        case Capability::SaveRestartRoundTrips:     return nullptr;   // V-FACADE-STATE landed for the atom and the molecule, 2026-11-09
         case Capability::DeckRoundTrips:            return k==Kind::Solid ? nullptr : "V-FACADE-OPTS";
     }
     return nullptr;
@@ -205,6 +207,18 @@ public:
     }
 };
 
+//! The round trip's claim, for every kind (the solid's): an EXACT resume lands on the saved energy to 1e-8 within 3 iterations.
+std::string Resumed(bool converged, double E, double Esaved, size_t iters, size_t itersSaved, const std::optional<RestartSummary>& how)
+{
+    std::ostringstream why;
+    if (!converged) why << "the restart did not converge; ";
+    if (!how) why << "the restart does not report what it did (RestartedFrom); ";
+    else if (!how->exact) { why << "a WARM start, not an exact resume:"; for (const auto& w : how->warm) why << " [" << w << "]"; why << "; "; }
+    if (std::fabs(E-Esaved)>1e-8) why << "resumed at " << std::setprecision(12) << E << ", saved " << Esaved << "; ";
+    if (iters>3) why << "the resume took " << iters << " iterations (the reference " << itersSaved << ")";
+    return why.str();
+}
+
 class AtomProbe : public FacadeProbe
 {
     static constexpr int Z=8;
@@ -233,7 +247,18 @@ public:
         { report::Run run(ID()+" build"); AtomCalculation::Prepare(Z, 0, o); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
-    std::string SaveRestartRoundTrips() override {return "AtomCalculation has no SaveState / Restart";}
+    std::string SaveRestartRoundTrips() override
+    {
+        const std::string path=TempPath("facade_matrix_o_atom.h5");
+        AtomCalculation calc(Z, 0, Options());
+        if (!calc.IsConverged()) return "the O atom reference did not converge";
+        calc.SaveState(path);
+        auto restarted=AtomCalculation::Restart(path, Z, 0, Options());
+        std::filesystem::remove(path);
+        if (!restarted) return "the restart was refused: "+restarted.Error().details;
+        return Resumed((*restarted)->IsConverged(), (*restarted)->Energy(), calc.Energy(), (*restarted)->IterationCount(),
+                       calc.IterationCount(), (*restarted)->RestartedFrom());
+    }
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","B"}});}   // the atom molecules.json carries
 };
 
@@ -264,7 +289,20 @@ public:
                                               .ladderFloor=1e-9, .ladderSwitchAt=1e-5, .type="Ladder"})); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
-    std::string SaveRestartRoundTrips() override {return "MoleculeCalculation has no SaveState / Restart";}
+    std::string SaveRestartRoundTrips() override
+    {
+        const std::string path=TempPath("facade_matrix_h2o.h5");
+        const auto setup=Setup();
+        MoleculeCalculation calc(setup);
+        auto saved=calc.Result();
+        if (!saved) return "the H2O reference did not converge: "+saved.Error().details;
+        calc.SaveState(path);
+        auto restarted=MoleculeCalculation::Restart(path, Setup());   // a FRESH setup: its mesh is adopted from the state
+        std::filesystem::remove(path);
+        if (!restarted) return "the restart was refused: "+restarted.Error().details;
+        return Resumed((*restarted)->IsConverged(), (*restarted)->Energy(), saved->Energy(), (*restarted)->IterationCount(),
+                       saved->IterationCount(), (*restarted)->RestartedFrom());
+    }
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","H2O"}});}
 };
 
