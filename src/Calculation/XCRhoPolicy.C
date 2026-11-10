@@ -18,8 +18,9 @@ import qchem.Policy;
 export namespace qchem
 {
 
-//! File the ρ-axis decision for a molecular / atom DFT run stating \a fit and \a rho.  Called by the setups before the Hamiltonian is
-//! built; reports, never refuses (the cells it sees all run).
+//! File the ρ-axis decision for a DFT run stating \a fit and \a rho.  Called by the setups before the Hamiltonian is built (a solid
+//! passes the fit its Hamiltonian RESOLVES from Auto, so the row names the cell that runs); reports, never refuses (the cells it sees
+//! all run).
 inline void ReportXCRho(Hamiltonian::VxcFit fit, Hamiltonian::XCρ rho)
 {
     using Hamiltonian::VxcFit; using Hamiltonian::XCρ;
@@ -35,6 +36,10 @@ inline void ReportXCRho(Hamiltonian::VxcFit fit, Hamiltonian::XCρ rho)
     else if (rho==XCρ::Fit && (fit==VxcFit::Delta || fit==VxcFit::Auto))
         policy::Report("XCRhoProjected", "xc.rho fit on the delta Vxc fit: fit is exact here, P rho = rho[D]", policy::Verdict::Choose,
             "the delta basis IS the XC quadrature's points, so its projection is the identity there");
+    else if (rho==XCρ::Fit && fit==VxcFit::PlaneWave)
+        policy::Report("XCRhoProjected", "xc.rho fit on the plane-wave Vxc fit: XC sees the G-ball's projection of rho[D]", policy::Verdict::Choose,
+            "stated: the plane-wave fit is the density's Fourier series on its ball, so P rho = rho[D] wherever the ball holds every "
+            "orbital-pair wave vector");
 }
 
 //! \brief REFUSE what needs H = dE/dD on the Gaussian x δ cell (ruling (b): "everything that needs H = dE/dD refuses on it by name").

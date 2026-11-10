@@ -118,6 +118,7 @@ using qcMesh::UnitCellKind; using qcMesh::RadialKind; using qcMesh::AngularKind;
 const auto kImages = NAMES(CellImages,   {"Periodic",CellImages::Periodic}, {"HomeCellOnly",CellImages::HomeCellOnly});
 const auto kFamily = NAMES(SolidCalcOptions::OrbitalBasis, {"gaussian",SolidCalcOptions::OrbitalBasis::GPW}, {"planeWave",SolidCalcOptions::OrbitalBasis::PlaneWave});
 const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Auto}, {"PlaneWave",Hamiltonian::VxcFit::PlaneWave}, {"Delta",Hamiltonian::VxcFit::Delta}, {"Auxiliary",Hamiltonian::VxcFit::Auxiliary});
+const auto kRho    = NAMES(Hamiltonian::XCρ, {"exact",Hamiltonian::XCρ::Exact}, {"fit",Hamiltonian::XCρ::Fit});
 const auto kAcc    = NAMES(AccType, {"DIIS",AccType::DIIS}, {"GDM",AccType::GDM}, {"Ladder",AccType::Ladder}, {"Null",AccType::Null},
                          {"Auto",AccType::Auto});
 const auto kSignal = NAMES(SCFAccelerators::ScheduleSignal, {"Error",SCFAccelerators::ScheduleSignal::Error}, {"EnergyChange",SCFAccelerators::ScheduleSignal::EnergyChange});
@@ -346,7 +347,7 @@ json ToJson(const SolidCalcOptions& o)
             {"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
             {"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
             {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},
-            {"accuracy",o.accuracy.eps},{"policy",ToJson(o.policy)},{"vxcFit",NameOf(o.vxcFit,kVxc)},{"hubbard",hub},
+            {"accuracy",o.accuracy.eps},{"policy",ToJson(o.policy)},{"hubbard",hub},
             {"accelerator",NameOf(o.accelerator,kAcc)},{"perKFermiLevels",o.perKFermiLevels},{"imposeSymmetry",o.imposeSymmetry},{"xcMeshSymmetric",o.xcMeshSymmetric},
             {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho,kOrtho)},{"orthoTol",o.orthoTol},{"numBands",o.numBands},{"forceComplex",o.forceComplex},
             {"spinsShareFermi",o.spinsShareFermi},{"greyImposition",o.greyImposition},{"momFromSeed",o.momFromSeed},
@@ -454,7 +455,10 @@ void FromJson(const json& j, SolidCalcOptions& o)
         if (etaStated) o.accuracy.eta=eta;
     }
     if (j.contains("policy"))     FromJson(f.At("policy"),o.policy);         else f.At("policy");
-    f.GetEnum("vxcFit",o.vxcFit,kVxc);
+    if (j.contains("vxcFit"))             // RETIRED 2026-11-10 (V-XC-ONE-TERM step 3): the fit basis is one of the run's XC choices
+        throw std::runtime_error("deck: 'solid.vxcFit' is retired (2026-11-10): the Vxc fit basis moved into the run's 'xc' object -- "
+                                 "state \"xc\": {\"fit\": \""+(j.at("vxcFit").is_string() ? j.at("vxcFit").get<std::string>() : std::string("Delta"))
+                                 +"\"} (beside \"rho\": \"exact\" | \"fit\")");
     if (j.contains("hubbard"))
     {
         o.hubbard.clear();
@@ -644,6 +648,8 @@ json ToJson(const RunSpec& r)
     j["kmesh"]={r.kmesh.x,r.kmesh.y,r.kmesh.z}; j["basis"]=BasisJson(r.basis); j["solid"]=ToJson(r.solid);
     // The ONE accuracy target is the RUN's (V-FACADE-ACCURACY): the record states it at the top level, never as `solid.accuracy`.
     j["accuracy"]=j["solid"]["accuracy"]; j["solid"].erase("accuracy");
+    // THE XC CHOICES are the run's (like `accuracy`): which fit basis represents v_xc, and which density XC sees (user ruling 2026-11-09).
+    j["xc"]={{"fit",NameOf(r.solid.vxcFit,kVxc)},{"rho",NameOf(r.solid.xcRho,kRho)}};
     j["acceleratorOptions"]=ToJson(r.accel);
     if (!r.state.save.empty() || !r.state.restartFrom.empty())
     {
@@ -714,6 +720,13 @@ void FromJson(const json& j, RunSpec& r)
             report::Log(w);
         }
     }
+    // THE XC CHOICES (user ruling 2026-11-09, V-XC-ONE-TERM): `xc.fit` = the Vxc fit basis (was `solid.vxcFit`, refused by name above),
+    // `xc.rho` = "exact" (rho[D], the default) | "fit" (the fit's projection P rho).  The run's, copied into the facade's options.
+    if (j.contains("xc"))
+    {
+        Fields xf(f.At("xc"),"xc"); xf.GetEnum("fit",r.solid.vxcFit,kVxc); xf.GetEnum("rho",r.solid.xcRho,kRho); xf.Done();
+    }
+    else f.At("xc");
     if (j.contains("acceleratorOptions")) FromJson(f.At("acceleratorOptions"),r.accel); else f.At("acceleratorOptions");
     if (j.contains("postSCF"))
     {

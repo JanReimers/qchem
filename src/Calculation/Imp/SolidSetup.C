@@ -18,6 +18,7 @@ import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (eleme
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::spherical)
 import qchem.Policy;                           // policy::Refuse: each refusal files its row where it fires
+import qchem.XCRhoPolicy;                      // ReportXCRho: the XC rho-axis decision
 import qchem.BasisCoverage;                    // RequireBasisCovers: a basis lacking an element is refused before the build
 
 namespace qchem
@@ -117,13 +118,13 @@ void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st
 //  so an odd count keeps the nel%2 split there.
 //---------------------------------------------------------------------------------------------------
 //  ROUTES THE CODE DOES NOT REALIZE YET, refused from the options alone -- so BEFORE the basis is built (priority 3: refuse
-//  before spending).  The words are the deck's (solid.vxcFit, basis.ecut), with the C++ field beside them.
+//  before spending).  The words are the deck's (xc.fit, basis.ecut), with the C++ field beside them.
 static void RefuseUnrealizedRoutes(const SolidCalcOptions& o)
 {
     if (o.vxcFit==Hamiltonian::VxcFit::Auxiliary)
-        policy::Refuse("VxcProductSpace", "solid.vxcFit Auxiliary (the Dunlap auxiliary fit) on a periodic cell",
+        policy::Refuse("VxcProductSpace", "xc.fit Auxiliary (the Dunlap auxiliary fit) on a periodic cell",
                        "the auxiliary Vxc fit is a molecular / atom fit with no periodic realization yet, an open cell of the Vxc "
-                       "product space (doc/Pins.md pin 30) -- state vxcFit Delta or PlaneWave");
+                       "product space (doc/Pins.md pin 30) -- state xc.fit Delta or PlaneWave");
     if (o.orbitalBasis==SolidCalcOptions::OrbitalBasis::PlaneWave && !(o.planeWaveEcut>0.0))
         policy::Refuse("PlaneWaveEcut", "basis.family planeWave (SolidCalcOptions::orbitalBasis) with no cutoff",
                        "a plane-wave basis is its cutoff -- state basis.ecut (planeWaveEcut) > 0 Ha");
@@ -305,6 +306,12 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // Factory would throw the same reason later, after the basis and its fits.
     if (const auto a=Hamiltonian::AdmitVxc(*st, opts.vxcFit, s->xcMesh); !a)
         policy::Refuse("AdmitVxc", "the stated Vxc fit and XC mesh on this cell", a.Error());
+    {   // the rho axis, on the fit the Hamiltonian RESOLVES (Ham_PW_DFT: Auto -> Delta on a Becke mesh, else the plane-wave fit)
+        using Hamiltonian::VxcFit;
+        const bool becke=s->xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
+        const VxcFit fit= opts.vxcFit==VxcFit::Auto ? (becke ? VxcFit::Delta : VxcFit::PlaneWave) : opts.vxcFit;
+        ReportXCRho(fit, opts.xcRho);
+    }
 
     // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches
     // a singlet asked of an odd electron count BEFORE integer division silently empties a channel.
