@@ -11,6 +11,7 @@
 #include <cmath>
 #include <functional>
 #include <optional>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <stdexcept>
@@ -129,8 +130,12 @@ std::string History(const std::vector<Optimize::Iteration>& h)
     return o.str();
 }
 
-using Algorithm=OptimizerOptions::Algorithm;
-std::string Name(Algorithm a) {return a==Algorithm::BFGS_RFO ? "BFGS_RFO" : "L_BFGS";}
+//! The test's own name for the stepper: a local enum, so gtest finds \c PrintTo by ADL here and ctest names the case by it, not by
+//! its bytes.
+enum class Algo {BFGS_RFO, L_BFGS};
+std::string Name(Algo a) {return a==Algo::BFGS_RFO ? "BFGS_RFO" : "L_BFGS";}
+void PrintTo(Algo a, std::ostream* os) {*os << Name(a);}
+OptimizerOptions::Algorithm Of(Algo a) {return a==Algo::BFGS_RFO ? OptimizerOptions::Algorithm::BFGS_RFO : OptimizerOptions::Algorithm::L_BFGS;}
 
 OptimizerOptions Tight()
 {
@@ -143,10 +148,10 @@ OptimizerOptions Tight()
 }
 
 //! THE LSP PAIR (V-OPTIMIZE-DIP §8 step 3): the solid map's optimizer gates run, unchanged, under each stepper.
-class WyckoffMapBoth : public ::testing::TestWithParam<Algorithm>
+class WyckoffMapBoth : public ::testing::TestWithParam<Algo>
 {
 protected:
-    OptimizerOptions With(OptimizerOptions o) const {o.algorithm=GetParam(); return o;}
+    OptimizerOptions With(OptimizerOptions o) const {o.algorithm=Of(GetParam()); return o;}
 };
 
 TEST_P(WyckoffMapBoth, RutileHasOneFreeParameterAndTheOptimizerFindsItsMinimum)
@@ -259,5 +264,5 @@ TEST(WyckoffMap, Refusals)
     EXPECT_THROW((void)map.Gradient(map.Start(), {rvec3_t(0,0,0)}), std::invalid_argument);
 }
 
-INSTANTIATE_TEST_SUITE_P(WyckoffMap, WyckoffMapBoth, ::testing::Values(Algorithm::BFGS_RFO, Algorithm::L_BFGS),
-                         [](const ::testing::TestParamInfo<Algorithm>& i){return Name(i.param);});
+INSTANTIATE_TEST_SUITE_P(WyckoffMap, WyckoffMapBoth, ::testing::Values(Algo::BFGS_RFO, Algo::L_BFGS),
+                         [](const ::testing::TestParamInfo<Algo>& i){return Name(i.param);});

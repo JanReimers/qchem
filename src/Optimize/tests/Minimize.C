@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -63,6 +64,8 @@ BFGS_RFO::Options UnitCurvature() {BFGS_RFO::Options o; o.initialCurvature=1.0; 
 //! THE LSP PAIR (V-OPTIMIZE-DIP §8 step 3): every model-cost test below runs, unchanged, under each stepper.
 enum class Algo {BFGS_RFO, L_BFGS};
 std::string Name(Algo a) {return a==Algo::BFGS_RFO ? "BFGS_RFO" : "L_BFGS";}
+//! gtest prints the parameter with this (ctest names the case by it, not by its bytes).
+void PrintTo(Algo a, std::ostream* os) {*os << Name(a);}
 std::unique_ptr<Stepper> Make(Algo a, double initialCurvature=0.5)
 {
     if (a==Algo::BFGS_RFO) { BFGS_RFO::Options o; o.initialCurvature=initialCurvature; return std::make_unique<BFGS_RFO>(o); }

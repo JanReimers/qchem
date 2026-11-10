@@ -9,6 +9,7 @@
 #include <cmath>
 #include <functional>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <stdexcept>
 #include <vector>
@@ -96,8 +97,12 @@ std::vector<SymmetryOperation> C2v()
     return {{diag( 1, 1,1), {0,1,2}}, {diag(-1,-1,1), {0,2,1}}, {diag(1,-1,1), {0,1,2}}, {diag(-1,1,1), {0,2,1}}};
 }
 
-using Algorithm=OptimizerOptions::Algorithm;
-std::string Name(Algorithm a) {return a==Algorithm::BFGS_RFO ? "BFGS_RFO" : "L_BFGS";}
+//! The test's own name for the stepper: a local enum, so gtest finds \c PrintTo by ADL here and ctest names the case by it, not by
+//! its bytes.
+enum class Algo {BFGS_RFO, L_BFGS};
+std::string Name(Algo a) {return a==Algo::BFGS_RFO ? "BFGS_RFO" : "L_BFGS";}
+void PrintTo(Algo a, std::ostream* os) {*os << Name(a);}
+OptimizerOptions::Algorithm Of(Algo a) {return a==Algo::BFGS_RFO ? OptimizerOptions::Algorithm::BFGS_RFO : OptimizerOptions::Algorithm::L_BFGS;}
 
 OptimizerOptions Tight()
 {
@@ -107,10 +112,10 @@ OptimizerOptions Tight()
 }
 
 //! THE LSP PAIR (V-OPTIMIZE-DIP §8 step 3): the geometry gates run, unchanged, under each stepper on the same PESCost.
-class GeometryOptimizerBoth : public ::testing::TestWithParam<Algorithm>
+class GeometryOptimizerBoth : public ::testing::TestWithParam<Algo>
 {
 protected:
-    OptimizerOptions With(OptimizerOptions o) const {o.algorithm=GetParam(); return o;}
+    OptimizerOptions With(OptimizerOptions o) const {o.algorithm=Of(GetParam()); return o;}
 };
 
 TEST_P(GeometryOptimizerBoth, ThePESCostDrivesTheMinimizerThroughTheMap)
@@ -231,5 +236,5 @@ TEST(GeometryOptimizer, TheForceThresholdIsDerivedFromEpsThroughANamedCalibratio
     EXPECT_THROW(OptimizerOptions::FromEps(0.0), std::invalid_argument);
 }
 
-INSTANTIATE_TEST_SUITE_P(GeometryOptimizer, GeometryOptimizerBoth, ::testing::Values(Algorithm::BFGS_RFO, Algorithm::L_BFGS),
-                         [](const ::testing::TestParamInfo<Algorithm>& i){return Name(i.param);});
+INSTANTIATE_TEST_SUITE_P(GeometryOptimizer, GeometryOptimizerBoth, ::testing::Values(Algo::BFGS_RFO, Algo::L_BFGS),
+                         [](const ::testing::TestParamInfo<Algo>& i){return Name(i.param);});
