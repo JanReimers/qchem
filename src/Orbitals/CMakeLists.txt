@@ -10,7 +10,7 @@ target_sources(qcOrbitals PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
 )
 set_property(TARGET qcOrbitals PROPERTY CXX_STANDARD 20)
 target_include_directories(qcOrbitals PRIVATE 
-      ${PROJECT_SOURCE_DIR}/submodules/blaze
+      ${QCHEM_BLAZE_DIR}
 )
 # qcElConfig: TOrbitals implements the OrbitalView DIP face the OccupationPolicy consumes (V1.11 inc 3).
 target_link_libraries(qcOrbitals PUBLIC qcChargeDensity qcBasisSet qcSymmetry qcStructure qcMath qcCommon qcElConfig)

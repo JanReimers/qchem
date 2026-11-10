@@ -34,7 +34,7 @@ set_property(TARGET qcMath PROPERTY CXX_STANDARD 20)
 target_compile_definitions(qcMath PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 
 target_include_directories(qcMath PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/pocketfft   # pocketfft_hdronly.h (qchem.FFT mixed-radix engine)
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_POCKETFFT_DIR}   # pocketfft_hdronly.h (qchem.FFT mixed-radix engine)
 )
 target_link_libraries(qcMath PUBLIC)

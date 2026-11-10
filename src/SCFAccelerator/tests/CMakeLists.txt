@@ -8,8 +8,8 @@ target_compile_definitions(UTSCFAccelerator PRIVATE ${CXX_COMMON_COMPILE_DEFINIT
 set_property(TARGET UTSCFAccelerator PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTSCFAccelerator PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${QCHEM_GTEST_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
 )
 
 target_link_libraries(UTSCFAccelerator PRIVATE qcSCFAccelerator lapack gtest)

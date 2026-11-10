@@ -16,8 +16,8 @@ target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILE
     BasisSet.C
 )
 target_include_directories(qcLattice_BS PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_JSON_INCLUDE}
     ${PROJECT_SOURCE_DIR}/src
 )
 set_property(TARGET qcLattice_BS PROPERTY CXX_STANDARD 20)

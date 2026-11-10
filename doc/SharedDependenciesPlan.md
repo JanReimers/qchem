@@ -1,7 +1,7 @@
 # Shared dependencies across worktrees — DESIGN NOTE (for review, no code yet)
 
-OpenWork §4 row "Dependencies are vendored per worktree".  Lane G, 2026-11-10.  Status: **design for the user's and the
-controller's look**; it touches the root `CMakeLists.txt` and every tree's build, so nothing is built until it is ruled.
+OpenWork §4 row "Dependencies are vendored per worktree".  Lane G, 2026-11-10.  Status: **RULED 2026-11-10** (§5 below);
+lane G executes steps 1-3 of §3, one READY per gate.
 The user: *"Each time we add repo tree we should upgrade the priority of the submodule sharing work item"* … *"no huge rush."*
 
 ## 1. What is duplicated today (measured 2026-11-10)
@@ -42,13 +42,16 @@ table; the prefix gains a new key; trees pick it up when they bump.  Nothing pat
 (today `submodules/libxc` shows "modified content" in some trees -- exactly the drift this removes).  Blaze is header-only
 here (only its CMake module is used), so its "install" is its headers + `Blaze_Import` module at the pin.
 
-**(3) NATIVE flags across trees.**  Every tree's Release is `QCHEM_ARCH_EXPERIMENT=NATIVE` (`-O3 -march=native`, 15 of 15
+**(3) NATIVE flags across trees -- and THE PREFIX INVARIANT.**  Every tree's Release is `QCHEM_ARCH_EXPERIMENT=NATIVE` (`-O3 -march=native`, 15 of 15
 cache entries), but the root CMake applies that codegen to the C++ TUs ONLY: the C and Fortran TUs (libxc, libcint) keep plain
 `-O3` (root `CMakeLists.txt`, the NATIVE comment).  So the C dependencies are flag-independent of the tree's arch choice and a
-key needs only (compiler, build type, PIC).  Two cautions to keep in the key: (a) RelChecked / TSan / Debug trees -- TSan
+key needs only (compiler, build type, PIC).  **INVARIANT (ruled 2026-11-10): a prefix key is PORTABLE plain `-O3`, never
+`-march=native`; `scripts/deps-install` REFUSES a native (or any `-march`/`-mtune`) flag.**  That is what lets one prefix serve
+every tree on a machine AND another machine over NFS.  Two cautions to keep in the key: (a) RelChecked / TSan / Debug trees -- TSan
 needs an instrumented libxc only if libxc's own threads matter (they do not: libxc is called from our threads), so the Release
-prefix serves them; ASan/MSan would need their own key; (b) janr1 (the second machine, no FMA) gets its own prefix -- the
-prefix is per machine, never on NFS.
+prefix serves them; ASan/MSan would need their own key; (b) janr1 (the second machine, no FMA) may NFS-mount janr2's
+`~/Code/deps/` (the user: *"janr1 is idle for this work, but if we use it for anything we can NFS mount janr2 ~/Code/deps/"*) --
+safe ONLY because of the invariant above: a native key would carry janr2's instruction set (FMA) to a CPU without it.
 
 **(4) C++ module BMIs are never shared.**  `qchem.Blaze`, `qchem.Math` and every project module compile their BMIs per tree
 and per flag set (a BMI encodes the exact flags: `-march=native` once broke `qchem.Math.pcm`, root CMake comment).  Nothing
@@ -73,8 +76,16 @@ second, the image third; Spack only on a cluster request.
 3. Retire the submodules (`.gitmodules`, `submodules/`) once every tree has moved; the lanes move at their next main merge.
 4. The image (separate, later).
 
-## 4. Open questions for the user
+## 4. Open questions -- all ruled (§5)
 
-* The prefix location (`~/Code/deps/` proposed) and whether janr1 should mirror it.
-* Keep googletest as a FetchContent pin too (proposed), or the distro's `libgtest-dev`?
-* Retire the submodules in one landing, or keep `.gitmodules` for a transition period?
+## 5. Rulings (2026-11-10, the user via the controller)
+
+1. **The prefix is `~/Code/deps/`.**  janr1 NFS-mounts janr2's when it is used at all; hence the §2(3) invariant (portable `-O3`,
+   never native; `deps-install` refuses a native flag).
+2. **googletest is a FetchContent PIN, not the distro's `libgtest-dev`** (the controller, the user leaving it to him): test
+   discovery has already broken once on a googletest/CMake behaviour change (the Γ double-encoding: 48 tests silently skipped for
+   five days, CLAUDE.md), and an apt upgrade bumping googletest out of our control is exactly that risk; it is small and quick to
+   build.  **BLAS / LAPACK stay from the distro** (a stable ABI, no test-discovery coupling).
+3. **Retire the submodules in ONE landing** (step 3).  The FetchContent fallback keeps unmerged lane trees building.
+4. **Order:** step 1 (the pin table; a FRESH tree with no prefix sweeps 0 moved) → step 2 (`deps-install`; a tree on the prefix
+   sweeps identically) → step 3 (retire).  Each is its own READY.

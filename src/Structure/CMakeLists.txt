@@ -23,8 +23,8 @@ target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Lattice_3D/Imposition.C     # qchem.Lattice_3D.Imposition: the run's symmetry imposition (V-BS-SYMMETRY)
     )
 target_include_directories(qcStructure PRIVATE 
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
 )
 set_property(TARGET qcStructure PROPERTY CXX_STANDARD 20)
 target_compile_definitions(qcStructure PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})

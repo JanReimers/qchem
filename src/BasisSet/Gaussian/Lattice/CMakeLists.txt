@@ -19,4 +19,4 @@ target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     GPW_IBS.C
     RasterLadder.C       # the GPW raster ladder as ONE object, shared by every block of a point (V-BS-RASTER)
 )
-target_include_directories(qcGaussian_BS PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+target_include_directories(qcGaussian_BS PRIVATE ${QCHEM_BLAZE_DIR})

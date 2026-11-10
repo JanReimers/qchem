@@ -10,7 +10,7 @@ target_compile_definitions(UTLASolver PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTLASolver PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTLASolver PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
+    ${QCHEM_GTEST_INCLUDE}
 )
 
 target_link_libraries(UTLASolver PRIVATE qcLASolver lapack gtest)

@@ -34,7 +34,7 @@ target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
 # consumes it must agree on target features, so a lib that opts out of the common set makes any
 # global ISA flag unbuildable (measured 2026-08-20).  This lib previously set NO options at all and
 set_property(TARGET qcMesh PROPERTY CXX_STANDARD 20)
-target_include_directories(qcMesh PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+target_include_directories(qcMesh PRIVATE ${QCHEM_BLAZE_DIR})
 # Linking qcCommon is also what lets cmake/gcc find its exported .gcm (BMI) files.
 # qcSymmetry: FoldedMesh pairs a mesh with its orbit partition (Symmetry::Lattice_3D::Fold), which is pure
 # INDEX bookkeeping -- no geometry -- so the dependency is on a partition type, not on group theory.
