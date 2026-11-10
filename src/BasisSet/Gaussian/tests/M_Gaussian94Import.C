@@ -185,8 +185,8 @@ TEST(Gaussian94Import, ASubsetKeepsThePreambleAndOnlyTheNamedElements)
     EXPECT_NE(fe.Error().find("no block for FE"), std::string::npos) << fe.Error();
 }
 
-// A preamble that opens with its own "!" lines (decks/panel/MnO2_control.bsd) costs the reader the file's FIRST block (TopOfFile
-// stops at the first "!"); its subset must not hand the reader a needed element first behind that marker (EveryShippedDeckVets, 2026-11-10).
+// A preamble that opens with its own "!" lines (decks/panel/MnO2_control.bsd) once cost the reader the file's FIRST block; a subset
+// puts a NEEDED element first, so the subset of such a file is the case that caught it (EveryShippedDeckVets, 2026-11-10).  Read through.
 TEST(Gaussian94Import, ASubsetOfAFileWhosePreambleOpensWithBangKeepsItsFirstBlockReadable)
 {
     const std::string file="!\n! a note that starts with a bang\nfree text\n!\nBASIS=\"t\"\n"

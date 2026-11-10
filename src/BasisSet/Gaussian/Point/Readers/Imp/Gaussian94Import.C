@@ -193,14 +193,7 @@ Outcome<std::string, std::string> SubsetBasis(const std::string& bsd, const std:
             pre.push_back(l);
             if (!t.empty() && t[0].rfind("BASIS=",0)==0)
             {
-                // THE READER'S MARKER: Gaussian94Reader::TopOfFile seeks the FIRST "!" token and treats what follows up to the first
-                // "****" as skippable -- so a preamble that opens with its own "!" lines (decks/panel/MnO2_control.bsd) costs the
-                // file its FIRST element block, unseen while that element is unused.  A subset reorders nothing, but its first block
-                // may be one the run needs: keep exactly one marker, the "!" line before BASIS=, and drop '!' from the earlier lines
-                // (their text, the attribution, stays).
-                const size_t marker = pre.size()>=2 && Tokens(pre[pre.size()-2])==std::vector<std::string>{"!"} ? pre.size()-2 : pre.size();
-                for (size_t k=0; k<pre.size(); ++k)               // no "!" line right before BASIS=: the preamble as written
-                    out<<(marker<pre.size() && k+1<pre.size() && k!=marker ? Preamble(pre[k]) : pre[k])<<"\n";
+                for (const std::string& p : pre) out<<p<<"\n";      // verbatim: the attribution exactly as the file states it
                 body=true;
             }
             continue;
