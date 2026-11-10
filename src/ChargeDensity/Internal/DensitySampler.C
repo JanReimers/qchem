@@ -329,15 +329,15 @@ public:
     mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
-    //! The derivatives beside \c Matrix (§13.2): the BALL route through the scalar fitter's \c MakeOverlapPullback (a plane-wave
-    //! block: an exact zero); the RAW GPW gather refuses by name (its jets are not built).
-    bool CanPullbackMatrix(const cobs_t* bs) const override;
-    bool CanPullbackMatrix(const robs_t* bs) const override;
+    //! The derivatives beside \c Matrix (§13.2): this strategy is the RAW GPW raster gather only (the ball route is
+    //! \c ProjectedDensitySampler's since V-XC-ONE-TERM step 2), and its jets are not built -- so it answers \c false and refuses by
+    //! name, one \c MissingGradients() entry per block (lane B's hunks, moved by lane S 2026-11-10).
+    bool CanPullbackMatrix(const cobs_t*) const override {return false;}
+    bool CanPullbackMatrix(const robs_t*) const override {return false;}
     Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const override;
     Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
 private:
     template <class U> hmat_t<U> MatrixT(const tobs_t<U>* bs, const rvec_t& v) const;
-    template <class U> Outcome<rvec3vec_t,AD::NoGradient> MatrixPullbackT(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const;
     //! Ensure \c itsRho holds \f$\rho(r)\f$ on the raster for \a cd, recomputing only on a new density
     //! serial -- so the XC pair's two terms and their energies share ONE collocation per iteration.
     void Refresh(const cChargeDensity* cd) const;
@@ -431,6 +431,13 @@ public:
     //! ⛔ A real TRIM block: the ortho scalar fitter implements FitContraction<dcmplx,dcmplx> and not <double,dcmplx>, so it THROWS (a
     //! hole in the FITTING layer, V1.34; a plane-wave run has no real TRIM blocks today).
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
+    //! The derivatives beside \c Matrix (§13.2): the scalar fitter's own derivative of its contraction at the SAME fit of \a v that
+    //! \c Matrix contracts (one \c DoFit, same sampling, same lock) -- a plane-wave block: an exact zero.  A real block has no
+    //! contraction (V1.34), so it refuses by name.  (Lane B's ball-route override, moved here from the pair sampler, 2026-11-10.)
+    bool CanPullbackMatrix(const cobs_t* bs) const override;
+    bool CanPullbackMatrix(const robs_t*) const override {return false;}
+    Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const override;
+    Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
 private:
     const BasisSet::G_RasterTransform& Raster() const;
     //! \f$P\rho\f$ of ONE density object on my raster: its own projection onto the ball, then the inverse FFT.

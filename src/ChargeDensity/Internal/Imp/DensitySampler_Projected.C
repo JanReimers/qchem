@@ -146,6 +146,27 @@ rsmat_t ProjectedDensitySampler::Matrix(const robs_t*, const rvec_t&) const
                            "scalar fitter has no FitContraction<double,dcmplx> face (V1.34)");
 }
 
+// THE DERIVATIVE OF Matrix at the fixed field v (GeometryOptimizationPlan §13.2): the scalar fitter's own derivative of its contraction,
+// at the SAME fit Matrix contracts -- one DoFit of the same sampled field under the same lock, since the fitter's coefficients are
+// mutable state Matrix shares (lane B's ball-route override, moved here from the pair sampler with step 2, 2026-11-10).
+bool ProjectedDensitySampler::CanPullbackMatrix(const cobs_t* bs) const
+{
+    const auto* orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>*>(bs);
+    return orb && itsScalarFitter->CanPullbackOverlap(*orb);
+}
+Outcome<rvec3vec_t,AD::NoGradient> ProjectedDensitySampler::MakeMatrixPullback(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const
+{
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws), as Matrix
+    std::lock_guard<std::mutex> lock(itsScalarFitterLock.m);
+    itsScalarFitter->DoFit(SampledField(v, NumPoints()));
+    return itsScalarFitter->MakeOverlapPullback(orb, D, st);
+}
+Outcome<rvec3vec_t,AD::NoGradient> ProjectedDensitySampler::MakeMatrixPullback(const robs_t* bs, const rvec_t&, const hmat_t<double>&, const Structure*) const
+{
+    return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"a real TRIM block on the ball-fit XC route has no contraction, hence no "
+                                                     "geometry gradient, on the block "+bs->Name()});
+}
+
 cvec_t ProjectedDensitySampler::Sample(const TransitionDensity<dcmplx>&, const Spin&) const
 {
     throw std::logic_error("ProjectedDensitySampler::Sample: a linear response on the projected XC route is not realized -- a "
