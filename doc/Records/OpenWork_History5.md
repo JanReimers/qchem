@@ -1936,3 +1936,29 @@ KIND); UTCalculation `SolidState.AVendoredFormat1StateReadsThroughTheSharedReade
 `RestartedFrom()` dangled in a range-for over `->warm` (segfault): it returns a reference.
 Follow-ups (OpenWork §2/§3): the binding + GUI (lane G) and the molecular deck keys (V-FACADE-OPTS); the geometry session's
 verbatim carry; a SALC basis identified by name, irreps and sizes only.
+
+**✅ The moved-atom carry, MEASURED: the verbatim AO carry stays, for file restarts and geometry sessions alike (lane A,
+2026-11-09; was the OpenWork row "A geometry session carries D verbatim: Tr(D S') != N").**  The row's premise was wrong.  The
+V-FACADE-STATE landing (035a9900f) carried a moved-atom restart through the Löwdin frame to hold Tr(D S') = N, and the same was
+asked of `MoleculeSession`.  Measured on H2O dzvp, one step from the converged reference, first-iterate E1 - E_final (Ha):
+
+| carry | Tr(D S') | LDA O 0.02 | LDA H 0.064 | LDA H 0.137 | HF O 0.02 | HF H 0.064 | HF H 0.137 |
+|---|---|---|---|---|---|---|---|
+| verbatim AO | 10.006 / 9.995 / 9.995 | 1.3e-5 | 4.6e-6 | 2.0e-5 | 5.8e-7 | 1.7e-6 | 1.6e-5 |
+| Löwdin frame, A = S'^-1/2 S^1/2 | 10 | 1.4e-4 | 9.0e-6 | 1.4e-4 | 3.2e-6 | 4.3e-6 | 4.5e-5 |
+| natural orbitals re-orthonormalised in S' (= McWeeny of the verbatim D) | 10 | 1.2e-4 | 2.4e-5 | 1.2e-4 | 2.1e-6 | 1.5e-6 | 1.3e-5 |
+| projection S'^-1 <new\|old> C, re-orthonormalised (controller's request) | 10 | 1.5e-4 | 1.9e-4 | 7.8e-4 | 6.3e-6 | 5.5e-6 | 3.3e-5 |
+
+Every N-exact carry starts LDA about 10x further from the answer; HF is a near-tie with the natural orbitals.  The fixed-N
+Gaussian Coulomb fit does NOT explain it: with the Hartree term on the mesh (`CoulombFit::Delta`) verbatim still wins by the same
+factor (1.4e-5 vs 1.2e-4 to 1.6e-4).  The projection, which keeps the density where it WAS in space, is worst: the density
+follows its nuclei, and so do the AO coefficients.  Iteration counts were recorded too but are accelerator noise (a DIIS period-2
+cycle under LDA; 11 to 85 for the same start quality).  The solid side had found the same earlier (`SolidSession::Carry`, AO
+default, 2026-10-30: Si 41 vs 42, NaF 110 vs 96 -- no lever).  Landed: one shared `CarryToMovedAtoms` (qchem.SCFState: D kept as
+AO coefficients, the new S attached; the table at its declaration) used by `Calculation::JudgeRestart` and by the session's
+step (`MoleculeCalculation::CarryOntoThisBasis`, which also files the step in `RestartedFrom()`); `RestartSummary::lowdinCarried`
+is gone, `electrons` stays as a diagnostic; `LowdinCarry` remains as the solid session's `Carry::Lowdin` option.  Gates on the
+FIRST ITERATE (within 1e-5 Ha of the converged energy; measured 1.7e-6): UTCalculation
+`MoleculeSession.EveryStepsFirstIterateStartsNearItsAnswer` (two steps) and ITMain `M_Calculation.WaterRestartAtMovedAtomsStartsNearItsAnswer`;
+with the carry switched off the first iterate is 4.1 Ha out and the session gate fails.  The earlier V-FACADE-STATE entry above
+(its Löwdin carry and Tr = N gate) is superseded by this one.
