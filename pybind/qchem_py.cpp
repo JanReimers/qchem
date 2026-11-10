@@ -71,6 +71,18 @@ nb::dict grid_dict(const char* key, nb::ndarray<nb::numpy, double> arr, const do
 
 constexpr int errlen = 1024;
 
+//! A saved state the facade REFUSED to restart from (kind, basis, electrons, blocks, or an unreadable file): a value the caller acts
+//! on (a fresh run, or another state), raised as qchem_py.RestartRefused (a RuntimeError).
+struct RestartRefused : std::runtime_error { using std::runtime_error::runtime_error; };
+
+//! A bridge call that writes JSON text (length-returning, sized by a first call with outlen 0) -> the Python object.
+template <class F> nb::object json_call(F&& f)
+{
+    std::string out(size_t(f(nullptr, 0)) + 1, '\0');
+    out.resize(size_t(f(out.data(), int(out.size()))));
+    return nb::module_::import_("json").attr("loads")(nb::str(out.c_str(), out.size()));
+}
+
 } // namespace
 
 // The Python-facing owner of one bridge handle.
@@ -82,7 +94,7 @@ public:
                const std::string& accelerator, int meshRadial, int meshAngular, double relaxStart, double relaxMax,
                int diisDepth, double diisSVTol, double diisEngageFD, bool mom, int momStart, double relaxMin,
                double ladderSwitchAt, double gateFD, double gateDrho, double gateDE, double gateDFD,
-               const std::string& mixer, double smearingkT, nb::object onIteration)
+               const std::string& mixer, double smearingkT, const std::string& restartFrom, nb::object onIteration)
     {
         if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
         const qcb_request req{Z.data(), int(Z.size()), pos.data(), basis.c_str(), model.c_str(), pp.c_str(),
@@ -93,11 +105,13 @@ public:
         qcb_sink sink{onIteration, std::nullopt};
         const bool stream = !onIteration.is_none();
         char err[errlen] = {0};
+        int refused = 0;
         {
             nb::gil_scoped_release nogil;
-            h = qcb_make(&req, stream ? step_trampoline : nullptr, stream ? &sink : nullptr, err, errlen);
+            h = qcb_restart(&req, restartFrom.c_str(), stream ? step_trampoline : nullptr, stream ? &sink : nullptr, &refused, err, errlen);
         }
         if (sink.error) { if (h) qcb_free(h); h = nullptr; throw std::move(*sink.error); }
+        if (!h && refused) throw RestartRefused(err);
         if (!h) throw std::runtime_error(err);
     }
     ~Calculator() { qcb_free(h); }
@@ -125,6 +139,20 @@ public:
         char out[errlen] = {0};
         return qcb_failure(h, out, errlen) ? nb::object(nb::str(out)) : nb::none();
     }
+
+    //! SAVE the run's state (HDF5 "qchem-state 2.0"), converged or not.
+    void SaveState(const std::string& path) const
+    {
+        char err[errlen] = {0};
+        int ok;
+        { nb::gil_scoped_release nogil; ok = qcb_save_state(h, path.c_str(), err, errlen); }
+        if (!ok) throw std::runtime_error(err);
+    }
+    nb::object JudgeState(const std::string& path) const
+    {
+        return json_call([&](char* out, int n){ nb::gil_scoped_release nogil; return qcb_judge_state(h, path.c_str(), out, n); });
+    }
+    nb::object RestartedFrom() const { return json_call([&](char* out, int n){ return qcb_restarted_from(h, out, n); }); }
 
     double TotalEnergy() const { return qcb_energy(h); }
     bool   Converged()   const { return qcb_converged(h) == 1; }
@@ -239,6 +267,11 @@ public:
         return e == e ? nb::object(nb::float_(e)) : nb::none();
     }
     int Iterations() const { return qcb_solid_iterations(h); }
+    nb::object JudgeState(const std::string& path) const
+    {
+        return json_call([&](char* out, int n){ nb::gil_scoped_release nogil; return qcb_solid_judge_state(h, path.c_str(), out, n); });
+    }
+    nb::object RestartedFrom() const { return json_call([&](char* out, int n){ return qcb_solid_restarted_from(h, out, n); }); }
     std::string Resolved() const
     {
         std::string out(size_t(qcb_solid_resolved(h, nullptr, 0)) + 1, '\0');
@@ -255,11 +288,13 @@ NB_MODULE(qchem_py, mod)
     mod.doc() = "qchem -> Python bridge: a molecular SCF (qchem::MoleculeCalculation, fields sampled onto grids) and a periodic one "
                 "built from an input deck (qchem::deck::Build).";
 
+    nb::exception<RestartRefused>(mod, "RestartRefused", PyExc_RuntimeError);
+
     nb::class_<Calculator>(mod, "Calculator")
         .def(nb::init<const std::vector<int>&, const std::vector<double>&, const std::string&, const std::string&,
                       bool, bool, int, int, const std::string&, const std::string&, int, int, double, double,
                       int, double, double, bool, int, double, double, double, double, double, double,
-                      const std::string&, double, nb::object>(),
+                      const std::string&, double, const std::string&, nb::object>(),
              nb::arg("numbers"), nb::arg("positions"), nb::arg("basis") = "dzvp", nb::arg("model") = "HF",
              nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("max_iter") = 100,
              nb::arg("pp") = "", nb::arg("accelerator") = "DIIS", nb::arg("mesh_radial") = 0, nb::arg("mesh_angular") = 0,
@@ -267,7 +302,7 @@ NB_MODULE(qchem_py, mod)
              nb::arg("diis_engage_fd") = 0.0, nb::arg("mom") = false, nb::arg("mom_start") = 0,
              nb::arg("relax_min") = 0.0, nb::arg("ladder_switch_at") = -1.0,
              nb::arg("gate_fd") = -1.0, nb::arg("gate_drho") = -1.0, nb::arg("gate_de") = -1.0, nb::arg("gate_dfd") = -1.0,
-             nb::arg("mixer") = "Auto", nb::arg("smearing_kT") = 0.0,
+             nb::arg("mixer") = "Auto", nb::arg("smearing_kT") = 0.0, nb::arg("restart_from") = "",
              nb::arg("on_iteration") = nb::none(),
              "MoleculeSetup::Resolve + converge.  Atomic numbers + flat 3N bohr positions.  on_iteration(iter, E, cells), "
              "if given, streams the SCF live (the GIL is released during the solve); cells = [(title, value, text, "
@@ -278,9 +313,18 @@ NB_MODULE(qchem_py, mod)
              "adaptive linear step's floor.  ladder_switch_at: the Ladder's DIIS -> GDM hand-off at |dE/E| below it (0 = stall only, "
              "< 0 = the lib's 1e-6).  gate_fd / gate_drho / gate_de / gate_dfd: the convergence gates [F,D], Δρ per electron, "
              "|ΔE/E|, |Δ[F,D]| (> 0 the gate, 0 = off, < 0 = the lib's default).  mixer: SCFParams::Mixing by name (Auto | Linear | "
-             "Kerker | Pulay; the facade refuses what a molecule cannot mix).  smearing_kT: Fermi-Dirac smearing, Ha (0 = off).")
+             "Kerker | Pulay; the facade refuses what a molecule cannot mix).  smearing_kT: Fermi-Dirac smearing, Ha (0 = off).  "
+             "restart_from: a saved state (save_state's file) to start from (MoleculeCalculation::Restart): an exact resume or a "
+             "warm start (restarted_from() says which); a state the facade refuses raises RestartRefused.")
         .def("run_scf", &Calculator::RunSCF, nb::arg("on_iteration"), nb::arg("max_iter") = 100,
              "Re-run the SCF from the seed, streaming each iteration; returns converged.")
+        .def("save_state", &Calculator::SaveState, nb::arg("path"),
+             "Save the run's state (HDF5 'qchem-state 2.0'), converged or not; a later Calculator(..., restart_from=path) starts from it.")
+        .def("judge_state", &Calculator::JudgeState, nb::arg("path"),
+             "What a restart of this run from `path` would do, without doing it: {'exact', 'warm': [line, ...]} or "
+             "{'refused': {'why', 'details'}}.")
+        .def("restarted_from", &Calculator::RestartedFrom,
+             "What this run's restart did: {'path', 'exact', 'warm', 'maxDisplacement' (bohr), 'electrons'}; None for a fresh run.")
         .def("total_energy", &Calculator::TotalEnergy)
         .def("converged",    &Calculator::Converged)
         .def("failure",      &Calculator::Failure, "Why the last SCF did not converge (SCFFailure: why, iterations, "
@@ -374,5 +418,8 @@ NB_MODULE(qchem_py, mod)
         .def("failure",      &SolidRun::Failure, "Why the last SCF did not converge; None when it converged.")
         .def("total_energy", &SolidRun::TotalEnergy, "The converged total energy (hartree); None unless converged.")
         .def("iterations",   &SolidRun::Iterations)
+        .def("judge_state",  &SolidRun::JudgeState, nb::arg("path"), "As Calculator.judge_state, for this crystal.")
+        .def("restarted_from", &SolidRun::RestartedFrom,
+             "What the deck's state.restartFrom did (as Calculator.restarted_from); None for a fresh run.")
         .def("resolved",     &SolidRun::Resolved, "The resolved deck (JSON text): every default filled in, what rundeck records.");
 }
