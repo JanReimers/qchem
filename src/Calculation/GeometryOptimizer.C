@@ -37,11 +37,17 @@ public:
     virtual size_t Dimension() const = 0;
     virtual rvec_t Start() const = 0;                         //!< q of the reference geometry
     virtual PESGeometry At(const rvec_t& q) const = 0;        //!< the geometry q stands for
-    //! dE/dq at \a q from the point's forces (−dE/dR, Ha/bohr, the reference's atom order): −Jᵀ F, J = ∂R/∂q.
-    virtual rvec_t Gradient(const rvec_t& q, const std::vector<rvec3_t>& forces) const = 0;
+    //! What each point must carry for \c Gradient: forces always; the stress too when q holds cell coordinates.
+    virtual PESRequest PointRequest() const = 0;
+    //! dE/dq at \a q from the point's derivatives: −Jᵀ F (J = ∂R/∂q) for the positions, and the stress's share for a cell coordinate.
+    //! THROWS when the point lacks what \c PointRequest names, or carries the wrong number of forces.
+    virtual rvec_t Gradient(const rvec_t& q, const PESPoint& point) const = 0;
     //! \a v with the directions the map holds fixed at \a q removed: an ORTHOGONAL projection (P = Pᵀ = P²), applied to every gradient,
     //! step and Hessian-update vector, so the optimizer cannot move what the map fixes.
     virtual rvec_t Project(const rvec_t& q, const rvec_t& v) const = 0;
+    //! H₀ v: the model curvature a quasi-Newton history starts from, in q (Ha/q²).  \a atomCurvature (Ha/bohr²) is the client's guess
+    //! for a position coordinate; a map with other kinds of coordinate (a cell's strains) states its own model for those.
+    virtual rvec_t ApplyModelHessian(const rvec_t& q, const rvec_t& v, double atomCurvature) const = 0;
 };
 
 //! One point-group operation for \c CartesianMap's symmetrization: atom a goes to atom \c perm[a], at \c rotation · R_a (about the origin).
@@ -67,8 +73,10 @@ public:
     size_t      Dimension() const override {return 3*itsRef.R.size();}
     rvec_t      Start() const override;
     PESGeometry At(const rvec_t& q) const override;
-    rvec_t      Gradient(const rvec_t& q, const std::vector<rvec3_t>& forces) const override;
+    PESRequest  PointRequest() const override {return PESRequest{.forces=true};}
+    rvec_t      Gradient(const rvec_t& q, const PESPoint& point) const override;
     rvec_t      Project(const rvec_t& q, const rvec_t& v) const override;
+    rvec_t      ApplyModelHessian(const rvec_t&, const rvec_t& v, double atomCurvature) const override {return atomCurvature*v;}
     //! The largest |g·R_a − R_{g(a)}| over the operations at \a q (bohr): 0 on the group.  A test and report quantity.
     double      Asymmetry(const rvec_t& q) const;
 private:
@@ -104,7 +112,9 @@ struct OptimizerOptions
     enum class Algorithm {Auto, BFGS_RFO, L_BFGS};
     Algorithm              algorithm = Algorithm::Auto;
     Optimize::TrustOptions trust;                    //!< the stepper's trust radii (both steppers)
-    double                 initialCurvature = 0.5;   //!< Ha/bohr²: H₀ = this x 1 (BFGS-RFO, without a model Hessian), 1/this (L-BFGS)
+    //! Ha/bohr²: the curvature guess for a POSITION coordinate.  BFGS-RFO starts from the map's model Hessian built on it (this x 1 for
+    //! a positions-only map); L-BFGS's first step is 1/this.
+    double                 initialCurvature = 0.5;
     size_t                 memory = 8;               //!< L-BFGS's (s, y) pairs
     //! The thresholds DERIVED from eps (ruling §12.2): max|g| from the calibration, rms 2/3 of it, the step 4x it (the conventional ratios,
     //! Gaussian's 4.5e-4 / 3.0e-4 / 1.8e-3), and the energy change eps.  The energy noise is eps too: the run's grids are sized per point
@@ -117,23 +127,27 @@ struct OptimizerOptions
 //! 10³), so above this L-BFGS (O(memory · n), matrix-free) takes over (doc/Records/VOptimizeDIP_Design.md §5).
 inline constexpr size_t kDenseStepperMaxDimension = 1000;
 
-//! \brief THE ADAPTER: a PotentialEnergySurface seen through a CoordinateMap, as a cost of q.  Every evaluation asks for forces; a
-//! point that cannot give them (\c NoGradient) or fails its SCF is the cost's failure, carried back typed (\c PESFailure).  Its
-//! capabilities come from what it holds: the step space from the map, the value noise from the client.  Writes the point's SCF
-//! iterations into the caller's report row.
-class PESCost : public virtual Optimize::tCost<PESFailure>, public virtual Optimize::Projected, public virtual Optimize::ValueNoise
+//! \brief THE ADAPTER: a PotentialEnergySurface seen through a CoordinateMap, as a cost of q.  Every evaluation asks for what the map's
+//! \c PointRequest names (forces; and the stress for a cell map); a point that cannot give them (\c NoGradient) or fails its SCF is
+//! the cost's failure, carried back typed (\c PESFailure).  Its capabilities come from what it holds: the step space and the model
+//! Hessian from the map, the value noise and the atom curvature from the client.  Writes the point's SCF iterations into the caller's
+//! report row.
+class PESCost : public virtual Optimize::tCost<PESFailure>, public virtual Optimize::Projected, public virtual Optimize::ValueNoise,
+                public virtual Optimize::ModelHessian
 {
 public:
-    //! THROWS when \a energyNoise < 0.
-    PESCost(PotentialEnergySurface& surface, const CoordinateMap& map, double energyNoise);
+    //! THROWS when \a energyNoise < 0 or \a atomCurvature <= 0.
+    PESCost(PotentialEnergySurface& surface, const CoordinateMap& map, double energyNoise, double atomCurvature);
     size_t Dimension() const override {return itsMap.Dimension();}
     Outcome<Optimize::CostValue, PESFailure> EvaluateTyped(const rvec_t& q, const Optimize::Want&) override;
     rvec_t Project(const rvec_t& q, const rvec_t& v) const override {return itsMap.Project(q, v);}
     double Noise(const rvec_t&, double value) const override;   //!< the larger of the client's energy noise and the value's roundoff
+    rvec_t ApplyH0(const rvec_t& q, const rvec_t& v) const override {return itsMap.ApplyModelHessian(q, v, itsAtomCurvature);}
 private:
     PotentialEnergySurface& itsSurface;
     const CoordinateMap&    itsMap;
     double                  itsNoise;
+    double                  itsAtomCurvature;
 };
 
 struct OptimizedGeometry : Optimize::Minimum
@@ -203,8 +217,10 @@ PESGeometry CartesianMap::At(const rvec_t& q) const
     return g;
 }
 
-rvec_t CartesianMap::Gradient(const rvec_t&, const std::vector<rvec3_t>& forces) const
+rvec_t CartesianMap::Gradient(const rvec_t&, const PESPoint& point) const
 {
+    if (!point.forces) throw std::invalid_argument("CartesianMap::Gradient: the point carries no forces");
+    const std::vector<rvec3_t>& forces=*point.forces;
     if (forces.size()!=itsRef.R.size()) throw std::invalid_argument("CartesianMap::Gradient: "+std::to_string(forces.size())+" forces for "
                                                                     +std::to_string(itsRef.R.size())+" atoms");
     rvec_t g(Dimension());
@@ -286,21 +302,24 @@ Optimize::GradientStepValue OptimizerOptions::Rule() const
 //------------------------------------------------------------------------------------------------------------------------------------
 // PESCost
 
-PESCost::PESCost(PotentialEnergySurface& surface, const CoordinateMap& map, double energyNoise)
-    : itsSurface(surface), itsMap(map), itsNoise(energyNoise)
+PESCost::PESCost(PotentialEnergySurface& surface, const CoordinateMap& map, double energyNoise, double atomCurvature)
+    : itsSurface(surface), itsMap(map), itsNoise(energyNoise), itsAtomCurvature(atomCurvature)
 {
-    if (!(itsNoise>=0.0)) throw std::invalid_argument("PESCost: the energy noise must be >= 0");
+    if (!(itsNoise>=0.0))        throw std::invalid_argument("PESCost: the energy noise must be >= 0");
+    if (!(itsAtomCurvature>0.0)) throw std::invalid_argument("PESCost: the atom curvature must be > 0");
 }
 
 Outcome<Optimize::CostValue, PESFailure> PESCost::EvaluateTyped(const rvec_t& q, const Optimize::Want&)
 {
     using O=Outcome<Optimize::CostValue, PESFailure>;
     const PESGeometry geo=itsMap.At(q);
-    auto p=itsSurface.ConvergeAt(geo.cell, geo.R, PESRequest{.forces=true});
+    const PESRequest want=itsMap.PointRequest();
+    auto p=itsSurface.ConvergeAt(geo.cell, geo.R, want);
     if (!p) return O::Fail(p.Error());
     report::Set("scfIterations", (long)p->iterations);
-    if (!p->forces) return O::Fail(PESFailure{PESFailure::Why::NoGradient, "the surface returned no forces for a forces request", std::nullopt});
-    return O::Ok(Optimize::CostValue{p->energy, itsMap.Gradient(q, *p->forces)});
+    if (want.forces && !p->forces) return O::Fail(PESFailure{PESFailure::Why::NoGradient, "the surface returned no forces for a forces request", std::nullopt});
+    if (want.stress && !p->stress) return O::Fail(PESFailure{PESFailure::Why::NoGradient, "the surface returned no stress for a stress request", std::nullopt});
+    return O::Ok(Optimize::CostValue{p->energy, itsMap.Gradient(q, *p)});
 }
 
 double PESCost::Noise(const rvec_t&, double value) const {return std::max(itsNoise, Optimize::RoundoffNoise(value));}
@@ -337,7 +356,7 @@ GeometryOptimizer::GeometryOptimizer(PotentialEnergySurface& surface, const Coor
 
 GeometryOptimizer::GeometryOptimizer(PotentialEnergySurface& surface, const CoordinateMap& map, const OptimizerOptions& options,
                                      std::unique_ptr<Optimize::Stepper> stepper)
-    : itsCost(surface, map, options.energyNoise), itsMap(map), itsOpts(options), itsStepper(std::move(stepper))
+    : itsCost(surface, map, options.energyNoise, options.initialCurvature), itsMap(map), itsOpts(options), itsStepper(std::move(stepper))
 {
     if (!itsStepper) throw std::invalid_argument("GeometryOptimizer: no stepper");
 }

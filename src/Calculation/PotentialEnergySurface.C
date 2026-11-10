@@ -27,7 +27,8 @@ struct PESGeometry
     std::vector<int>        Z;   //!< the atomic number of each atom, in that order (fixed by the setup: a driver reads, never sets, it)
 };
 
-//! What a point is asked for besides the energy.  \c stress is the variable-cell seam (not implemented: a request refuses).
+//! What a point is asked for besides the energy.  \c stress is the variable-cell seam: the model surfaces supply it; no DFT session does
+//! yet (a request refuses with \c NoGradient, doc/Records/CellHalf_Design.md §4).
 struct PESRequest
 {
     bool forces = false;
@@ -39,6 +40,10 @@ struct PESPoint
 {
     double                              energy = 0.0;   //!< total energy, Ha
     std::optional<std::vector<rvec3_t>> forces;         //!< −dE/dR, Ha/bohr, in the reference's atom order -- present iff requested and supported
+    //! THE STRESS, Ha/bohr³: σ = (1/Ω) ∂E/∂ε, the derivative under a homogeneous strain R → (1+ε)R, A → (1+ε)A of the CURRENT cell
+    //! (the fractional coordinates held), symmetric.  The SIGN: tensile positive, so the pressure is P = −tr σ / 3 (QE and CP2K
+    //! print P, and QE's "total stress" is −σ).  Present iff requested and supported; a solid's only.
+    std::optional<rmat3d_t>             stress;
     size_t                              iterations = 0; //!< the point's SCF iterations, so a driver can see the carried seed working
 };
 
