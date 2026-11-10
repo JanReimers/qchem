@@ -39,6 +39,8 @@ import qchem.BasisSet.IrrepBasisSet;             // Integrals_Overlap (each bloc
 import qchem.BasisSet.Gaussian.Point.Factory;    // BasisSet::Gaussian::Factory (the facade's own basis builder)
 import qchem.Blaze;                              // blazem::eigen
 import qchem.Reporting;                          // report::GlobalReport (the run record the library keeps)
+import qchem.CrystalFiles;                       // CIF / POSCAR / extended xyz <-> one materials.json entry
+import qchem.StructureData;                      // the materials layers (shipped, user, workspace) and CellFromEntry
 
 // The opaque handle: the facade plus the request's geometry (for the sampling box).  extern "C++" attaches it to the
 // GLOBAL module, where qcb_api.h (in the GMF) forward-declares it -- a purview definition would be a different entity.
@@ -490,3 +492,74 @@ int qcb_space_group(const double* L, const int* species, int nat, const double* 
 }
 
 } // extern "C"
+
+// -- crystal files and the materials layers -------------------------------------------------------------------------------------
+
+namespace
+{
+nlohmann::ordered_json LatticeRows(const std::string& entryJson)
+{
+    const auto A=qchem::StructureData::CellFromEntry(entryJson, "entry").GetCellMatrix();   // columns are the lattice vectors
+    nlohmann::ordered_json rows=nlohmann::ordered_json::array();
+    for (int i=1;i<=3;i++) rows.push_back({A(1,i), A(2,i), A(3,i)});
+    return rows;
+}
+
+nlohmann::ordered_json MaterialsAnswer(const std::string& req)
+{
+    namespace SD=qchem::StructureData;
+    namespace CF=qchem::CrystalFiles;
+    using json=nlohmann::ordered_json;
+    const json r=json::parse(req);
+    const std::string op=r.at("op").get<std::string>();
+    auto layerOf=[](const json& l)
+    {
+        const std::string k=l.at("layer").get<std::string>();
+        if (k!="user" && k!="workspace") throw std::invalid_argument("a library layer is user or workspace, not '"+k+"'");
+        return SD::LibraryFile{k=="user" ? SD::Layer::User : SD::Layer::Workspace, l.at("path").get<std::string>()};
+    };
+    std::vector<SD::LibraryFile> libraries;
+    for (const auto& l : r.value("libraries", json::array())) libraries.push_back(layerOf(l));
+    if (op=="list")
+    {
+        json all=json::array();
+        for (const auto& e : SD::CellEntries(libraries))
+            all.push_back({{"name", e.name}, {"layer", e.layer==SD::Layer::Shipped ? "shipped" : e.layer==SD::Layer::User ? "user" : "workspace"},
+                           {"file", e.file}, {"entry", json::parse(e.entryJson)}, {"lattice_bohr", LatticeRows(e.entryJson)}});
+        return {{"materials", all}};
+    }
+    if (op=="import")
+    {
+        const auto imp=CF::ReadFile(r.at("path").get<std::string>());
+        return {{"entry", json::parse(imp.entry)}, {"name", imp.name}, {"warnings", imp.warnings}, {"lattice_bohr", LatticeRows(imp.entry)}};
+    }
+    if (op=="export")
+    {
+        const std::string f=r.at("format").get<std::string>();
+        const CF::Format fmt = f=="cif" ? CF::Format::CIF : f=="poscar" ? CF::Format::POSCAR : f=="xyz" ? CF::Format::ExtendedXYZ
+                             : throw std::invalid_argument("export format '"+f+"' (known: cif, poscar, xyz)");
+        return {{"text", CF::Write(r.at("entry").dump(), fmt, r.at("name").get<std::string>())}};
+    }
+    if (op=="save")
+    {
+        const SD::LibraryFile into=layerOf(r.at("into"));
+        SD::SaveMaterial(into, r.at("name").get<std::string>(), r.at("entry").dump(), r.value("replace", false), libraries);
+        return {{"path", into.path}};
+    }
+    if (op=="cell") return {{"lattice_bohr", LatticeRows(r.at("entry").dump())}};
+    throw std::invalid_argument("materials op '"+op+"' (known: list, import, export, save, cell)");
+}
+} // namespace
+
+extern "C" int qcb_materials(const char* req, char* out, int outlen)
+{
+    static thread_local std::string answer;
+    if (!out)
+    {
+        try { answer=MaterialsAnswer(req ? req : "").dump(); }
+        catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
+        return int(answer.size());
+    }
+    write_error(answer.c_str(), out, outlen);
+    return int(answer.size());
+}

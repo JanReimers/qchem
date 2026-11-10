@@ -11,6 +11,7 @@ add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
    M_Gaussian94Reader.C   # a missing element THROWS naming element + file (was a garbage-byte parse, 2026-10-21)
    M_PG_Oracle.C
    M_Evaluator.C
+   M_BoysTable.C        # the Boys F_j table THROWS beyond jmax 16 at construction (was assert-only, 2026-11-09)
    M_MEvaluator.C
    M_Spherical.C
    M_GridResolution.C   # the grid builders' question (GridResolution + tBasisSet::MakeResolution; V-BS-RASTER, 2026-11-02)

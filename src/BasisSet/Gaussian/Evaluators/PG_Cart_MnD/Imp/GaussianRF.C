@@ -540,21 +540,6 @@ double PrimGaussian::GetCharge(const Polarization& p) const
     return s*f/t;
 }
 
-double PrimGaussian::operator()(const rvec3_t& r) const
-{
-    rvec3_t dr = itsCenter-r;
-    return exp(-itsExponent*dr*dr);
-}
-
-// ∇_r exp(-α|r-C|²) = -2α (r - C) exp(-α|r-C|²).  The SIGN was flipped before 2026-11-08 (dr = C - r here): the first FD gate on it
-// (tests/M_GeometryDerivatives.C, GeometryOptimizationPlan §13.2) caught it, the s functions reading exactly -FD.  Its consumers then were
-// ∇ρ / ∇φ outputs that no LDA energy reads, which is how it stayed hidden.
-rvec3_t PrimGaussian::Gradient(const rvec3_t& r) const
-{
-    const rvec3_t dr = r-itsCenter;
-    return -2*itsExponent* (*this)(r) * dr;
-}
-
 //#######################################################################
 //
 //   GaussianRF: the single radial function (a contraction of >=1 primitives)
@@ -773,20 +758,6 @@ std::ostream& GaussianRF::Write(std::ostream& os) const
         os << "}";
     }
     return os;
-}
-
-double GaussianRF::operator()(const rvec3_t& r) const
-{
-    double ret = 0.0;
-    for (size_t i=0;i<itsPrims.size();++i) ret += itsCoeff[i]*(*itsPrims[i])(r);
-    return ret;
-}
-
-rvec3_t GaussianRF::Gradient(const rvec3_t& r) const
-{
-    rvec3_t ret(0,0,0);
-    for (size_t i=0;i<itsPrims.size();++i) ret += itsCoeff[i]*itsPrims[i]->Gradient(r);
-    return ret;
 }
 
 } //namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD

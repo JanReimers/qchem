@@ -8,11 +8,12 @@ add_executable(UTStructure ../../Common/tests/gtestmain.C
     BravaisUT.C
     SiteGroupsUT.C      # SiteRotations vs SiteEnvironmentRotations on MnO AFM-II and diamond (+U increment 2, 2026-09-21)
     StructureDataUT.C   # qchem.StructureData (D-STRUCTDATA)
+    CrystalFilesUT.C    # qchem.CrystalFiles: the import/export translators (round trips, a COD CIF, the refusals)
     ImpositionUT.C      # ResolveImposition: the run's symmetry policy (V-BS-SYMMETRY S1)
     PointSamplingUT.C   # the point set chooses how a Fourier series is sampled on it (the rho-tilde sampler)
 )
 
-target_compile_definitions(UTStructure PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
+target_compile_definitions(UTStructure PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS} STRUCTURE_TEST_DATA="${CMAKE_CURRENT_SOURCE_DIR}/data")
 set_property(TARGET UTStructure PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTStructure PRIVATE

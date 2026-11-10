@@ -103,6 +103,9 @@ namespace qchem::w3j_detail
         return a;
     }
     inline constexpr std::array<W,Size> Table=MakeTable();
+    // The Racah core indexes Fact up to n = j1+j2+j3+1.  The worst case the guarded callers reach is the RKB path's
+    // (j=LMax+1/2, k=2*LMax, j=LMax+1/2): n = 4*LMax+2.  CheckL(l) <= LMax therefore also guards the Fact table.
+    static_assert(4*LMax+2 < int(qchem::Fact.size()), "Wigner3j::LMax outgrew the Fact table");
 }
 
 //
@@ -120,8 +123,14 @@ public:
     //! The 3j SQUARE -- no sqrt.  Used by the exchange angular terms (which square the symbol anyway).
     double sq(int la, int lb, int k) const {return sq(la,lb,k,0,0);}
     double sq(int la, int lb, int k, int ma, int mb) const;
+
+    //! The table holds l <= LMax (k <= 2*LMax).  The lookups above check their indices by assert only (they
+    //! sit inside the angular loops); the bound is checked ONCE here, at the evaluator's construction
+    //! (NR_Angular, RKB_Angular), and THROWS std::out_of_range naming l and LMax (CLAUDE.md "Where to check,
+    //! and with what").  Without it an l=5 (h) basis reads past the table silently in Release.
+    static void CheckL(int l);
+    static constexpr int LMax=w3j_detail::LMax;
 private:
     Wigner3j()=default;
-    static constexpr int LMax=w3j_detail::LMax;
 };
 } // namespace qchem

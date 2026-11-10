@@ -94,9 +94,8 @@ rvec3vec_t IrrepBasisSet::Gradient (const rvec3_t& r) const
     for (size_t i=0;i<size();i++)
     {
         const GaussianRF& rf=*comps[i].radial;
-        rvec3_t dr=r-rf.GetCenter();
         rvec3_t g(0,0,0);
-        for (const auto& t:comps[i].terms) { const Polarization p(t.p); g += t.c*(p.Gradient(dr)*rf(r) + p(dr)*rf.Gradient(r)); }
+        for (const auto& t:comps[i].terms) g += t.c*rf.Gradient(Polarization(t.p), r);   // Enzyme's (GaussianRF_AD.C)
         ret[i]= ns[i]*g;
     }
     return ret;

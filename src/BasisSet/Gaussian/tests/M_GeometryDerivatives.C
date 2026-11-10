@@ -194,11 +194,12 @@ TEST(GeometryDerivatives, PG_CartsPullbacksAreTheFiniteDifferenceOfItsOwnMatrice
     EXPECT_LT(norm(sS), 1e-10); EXPECT_LT(norm(sK), 1e-9); EXPECT_LT(norm(sV), 1e-9);
 }
 
-// GATE 2, PG_Cart's hand Gradient(r), load-bearing for the jets: against the central difference of operator()(r), every component of
-// every shell, for s through g (uncontracted, two exponents) and the contracted DZVP, at points near (0.3 bohr) and far (3 bohr) from the
-// centres.  Step h = 1e-5: the error h²/6 |φ‴| is about 2e-11 |φ‴|, and |φ‴| ≲ (2α)^{3/2} for the exponents probed (≲ 1e3 for the DZVP
+// GATE 2, PG_Cart's Gradient(r) (Enzyme's since 2026-11-09, GaussianRF_AD.C), load-bearing for the jets: against the central difference
+// of operator()(r), every component of every shell, for s through g (uncontracted, two exponents) and the contracted DZVP, at points near
+// (0.3 bohr) and far (3 bohr) from the centres, and ON the z axis through each centre (x - C_x = 0 exactly: a branch on a zero coordinate,
+// as intpow has, would make AD read 0 there for a p_x function).  Step h = 1e-5: the error h²/6 |φ‴| is about 2e-11 |φ‴|, and |φ‴| ≲ (2α)^{3/2} for the exponents probed (≲ 1e3 for the DZVP
 // cores at 0.3 bohr), so 1e-7 absolute (relative above 1) is ≥ 5× the estimate.  The magnitude screen (|φ| < 1e-10 → 0) never fires here.
-TEST(GeometryDerivatives, PG_CartsHandGradientIsTheFiniteDifferenceOfItsValuesForEveryShellType)
+TEST(GeometryDerivatives, PG_CartsGradientIsTheFiniteDifferenceOfItsValuesForEveryShellType)
 {
     const auto h2o=Water();
     const auto R=Sites(*h2o);
@@ -208,7 +209,7 @@ TEST(GeometryDerivatives, PG_CartsHandGradientIsTheFiniteDifferenceOfItsValuesFo
     const double h=1e-5;
     for (const auto& b : blocks)
         for (const rvec3_t& base : R)
-            for (const rvec3_t& off : {rvec3_t(0.17,-0.21,0.12), rvec3_t(1.9,1.2,-1.8)})
+            for (const rvec3_t& off : {rvec3_t(0.17,-0.21,0.12), rvec3_t(1.9,1.2,-1.8), rvec3_t(0.0,0.0,0.4)})
             {
                 const rvec3_t r=base+off;
                 const rvec3vec_t g=b->Gradient(r);
@@ -541,12 +542,12 @@ TEST(GeometryDerivatives, SALCPullbacksAreTheFiniteDifferenceOfTheirOwnBlocksWit
     EXPECT_FALSE(bool(r)); if (!r) EXPECT_FALSE(r.Error().why.empty());
 }
 
-// GATE 7, THE HAND-GRADIENT AUDIT (lane B 2026-11-09, ahead of the user's Enzyme decision): every other point-Gaussian family's hand
-// Gradient(r) against the central difference of its own operator()(r), every function, at points near (≈0.3 bohr) and far (≈3 bohr) from
-// each atom.  PG_Spherical (s through g uncontracted, and the contracted DZVP), PG_LibCint Cartesian and spherical (the same two), and a
+// GATE 7, THE GRADIENT AUDIT (lane B 2026-11-09; the Cartesian families' Gradient(r) is Enzyme's since the same day): every other
+// point-Gaussian family's Gradient(r) against the central difference of its own operator()(r), every function, at points near (≈0.3 bohr),
+// far (≈3 bohr) and on the z axis through each atom (as GATE 2).  PG_Spherical (s through g uncontracted, and the contracted DZVP), PG_LibCint Cartesian and spherical (the same two), and a
 // SALC block of water's DZVP (Oᵀ applied to the raw gradients).  Step and tolerance as GATE 2; the largest derivative probed must be
 // 0.1 or more (each family's is O(1) except the SALC A2 block, d functions only, ~0.36), so a sign or a missing factor would show.
-TEST(GeometryDerivatives, EveryPointGaussianFamilysHandGradientIsTheFiniteDifferenceOfItsValues)
+TEST(GeometryDerivatives, EveryPointGaussianFamilysGradientIsTheFiniteDifferenceOfItsValues)
 {
     const auto h2o=Water();
     const auto R=Sites(*h2o);
@@ -574,7 +575,7 @@ TEST(GeometryDerivatives, EveryPointGaussianFamilysHandGradientIsTheFiniteDiffer
         ASSERT_NE(b, nullptr) << name;
         double largest=0.0;
         for (const rvec3_t& base : R)
-            for (const rvec3_t& off : {rvec3_t(0.17,-0.21,0.12), rvec3_t(1.9,1.2,-1.8)})
+            for (const rvec3_t& off : {rvec3_t(0.17,-0.21,0.12), rvec3_t(1.9,1.2,-1.8), rvec3_t(0.0,0.0,0.4)})
             {
                 const rvec3_t r=base+off;
                 const rvec3vec_t g=b->Gradient(r);

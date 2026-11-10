@@ -6,6 +6,7 @@ module;
 export module qchem.BasisSet.Radial.Evaluators.Internal.RKBL_Angular;
 export import qchem.BasisSet.Radial.Evaluators;
 import qchem.Symmetry.Atom.Spherical;
+import qchem.BasisSet.Radial.Evaluators.Internal.Wigner3j;
 
 export namespace qchem::BasisSet::Radial::Evaluators
 {
@@ -14,11 +15,13 @@ class RKB_Angular : public virtual Angular
 {
 public:
     // mjs empty → full mj sum (closed shell or spin-averaged)
-    RKB_Angular(int _κ, const rvec_t& _mjs={}) : κ(_κ), mjs(_mjs) {}
+    // Throws std::out_of_range for l(κ) beyond the 3j table (Wigner3j::CheckL), which also bounds the Racah
+    // core's Fact index on the jj path: checked once here, not per lookup.
+    RKB_Angular(int _κ, const rvec_t& _mjs={}) : κ(_κ), mjs(_mjs) {Wigner3j::CheckL(Getl());}
     RKB_Angular(const sym_t& sym)
         : κ  (Symmetry::Atom::Getκ  (sym))
         , mjs(Symmetry::Atom::Getmjs(sym)) 
-        {}
+        {Wigner3j::CheckL(Getl());}
 
     virtual rvec11_t    DirectAk  (const Evaluator& other) const override;
     virtual rvec11_t    ExchangeAk(const Evaluator& other) const override;

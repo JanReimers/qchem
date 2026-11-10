@@ -30,13 +30,10 @@ RNLM::RNLM(int Max, double α, const rvec3_t& dR)
         theRjsInitialized=true;
     }
 
-    assert(Max<=AuxillaryFJ::thejMax);
+    AuxillaryFJ FjCalculator(Max); // throws on Max > thejMax, before theRjs[thejMax-Max] below is indexed
     double T=α*dR*dR;
     rvec_t Fj(Max+1,0.0);
-    {
-        AuxillaryFJ FjCalculator;
-        FjCalculator.GetFjAt(T,Fj);
-    }
+    FjCalculator.GetFjAt(T,Fj);
 
 //  cout << "T=" << T << " Max = " << Max << "  Fj=" << Fj << std::endl;
     Triangle3D* Rjs=&theRjs[AuxillaryFJ::thejMax-Max];
