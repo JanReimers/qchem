@@ -387,9 +387,21 @@ in the unit tests are the example: they implement `Cost` directly.
 2. ✅ (lane H, 2026-11-09, `7bbeb3647`; the TrustCollapsed row CLOSED) `GeometryOptimizer` becomes a thin client: `PESCost` + the ε rule + `Minimize`.  `OptimizedGeometry` and `OptimizeFailure` become
    `Minimum` and `MinimizeFailure<PESFailure>` plus the geometry.  The Wyckoff / Cartesian gates stay in `UTCalculation`.  Remove the
    rutile maxStep workaround.
-3. L-BFGS on the SAME `PESCost` as BFGS-RFO: the first LSP proof of the emergent base (ruling 4).  Gate: every model-surface test
+3. ✅ (lane H, 2026-11-09, `03e7d4f96`) L-BFGS on the SAME `PESCost` as BFGS-RFO: the first LSP proof of the emergent base (ruling 4).  Gate: every model-surface test
    runs under both steppers with no change to the cost or the rule; where the faces had to bend for L-BFGS, bend them now (still
    not a hub).
+   **As built.**  No face had to bend: L-BFGS implements the same `Stepper` and reads the same `Cost`, `Projected` and
+   `ValueNoise`.  It does not use `ModelHessian` (it would need the inverse), which the face allows ("used when present").
+   - **Shared code:** the trust radius and §4 rules 1-2 moved into `TrustRegion`, so the pair judge a rise identically.
+   - **Gates:** every model gate runs under both steppers with no change to a cost or a rule: UTOptimize `Minimize/BothSteppers.*`;
+     UTCalculation `GeometryOptimizerBoth.*` and `WyckoffMapBoth.*`, rutile and wurtzite through `PESCost`.
+   - **Measured (BFGS-RFO / L-BFGS):** bowl 11 / 12, Rosenbrock 35 / 48, soft mode 23 / 19.
+   - **One claim did not survive the swap:** "a threshold below the gradient noise ENDS IN A FAILURE".  L-BFGS converged exactly at the
+     noisy gradient's zero.  The algorithm-invariant claim is the pair: a failure, or the noisy zero, never the minimum.
+   - **The algorithm choice:** `OptimizerOptions::Algorithm::Auto` is a reported policy (`GeometryOptimizer.Algorithm`): BFGS-RFO up to
+     10³ parameters, L-BFGS above.
+   - **Ruling 4's condition is now MET** (two LSP-substitutable optimizers on one cost).  Whether the faces now harden (a hub, a
+     snapshot) is the user's call; until then they stay emergent.
 4. `LeastSquares` + Levenberg–Marquardt, with the grid tool.
 5. GDM onto the Stepper + `Retraction`: the riskiest step (the SCF panel moves).  It gets its own note first.
 
