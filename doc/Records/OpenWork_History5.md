@@ -1941,8 +1941,37 @@ LR 163→138).  Long: 6 moved, ≤ 5e-10.  Two cases it EXPOSED (no numerical de
 `GPW_Si.Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel` (the Ladder's ΔE/E hand-off: panel-red) and `A/A_SL_HF_ion.A/60` (a noise-floor
 [F,D] gate on cond(S) = 1e15: knownRed, trim first).
 
-**Cost:** a D-mixing run now refreshes the Hamiltonian twice per iteration (E on D_out, the Fock on the mixed D_in), as a field-mixing
-run already did.
+**Cost, and the follow-up that removed it (controller ruling 2026-11-09, option B).**  As first landed, a D-mixing run refreshed
+the Hamiltonian at BOTH D_out (the energy) and the mixed D_in (the next Fock): one extra COLLOCATION of ρ[D_out] per spin per
+iteration and nothing else (serial, the two builds side by side): MnO AFM-II Γ PulD 6.1 → 8.1 s/iteration (+33 %, collocations
+28 → 48 over 12 iterations), Si k222 PulD and every Kerker run unchanged (a field mixer's Fock is its own presented field, so it
+always collocated D_out alone; the §5a rows and the banked solid recipe are Kerker).  An energy-only evaluation at D_out would not
+help (E_H and E_xc need ρ[D_out], which IS the cost); carrying a combined field through the mixer's Axpy needed a projector
+identity on a hub face, and recovering the mixer's coefficients inside the collocation memo by least squares was rejected (a
+tolerance, a guess at a relation the mixer knew, and the memo's bit-identical replay contract broken).
+
+The ruling: when a D-mixer's NEXT Fock is not D_out, the trace reports the first-order energy
+E_T = E[D_in] + Re Tr(F[D_in](D_out − D_in)) (`tSCFIterator::TaylorEnergy`; F[D_in] reaches the density's own static contraction
+through a `tStatic_CC` adapter on the Hamiltonian at D_in, so spin, k and real TRIM blocks are the density's own walk), and the
+loop refreshes ONCE at its end for the exact E_KS[D_out] (final E, saved state, the RelChecked assert, post-SCF consumers), printing
+|E_T − E_KS|.  Where the next Fock IS D_out (a field mixer, a relax-1 passthrough, direct-min) the exact energy is free and stays.
+**E_T steers, E_KS judges** (controller, 2026-11-09).  STEER (read E_T on a D-mixing step): the MinΔE gate, the Ladder's |ΔE/E|
+hand-off (`SetEnergy`), the virial gate, the trace and the observer, and through the rows the run's factor-scale TREND checks (charge
+slosh: Eee against its run minimum; order collapse: the site moment below 1 % of its peak, sustained), which a mixed D_in following
+the D_out's carries too.  JUDGE (exact E_KS[D_out], refreshed where it judges): the iteration-1 refusal (`FirstEnergyRefusal`: one
+extra refresh per run; E_T is a few Ha off there by construction, O₂ HF 3.4 Ha), the final E, the saved state's summary, the RelChecked
+assert.  Neither: the GDM line search (its own E(t=0)) and the linear mixer's `Adapt` (only [F,D]).  E_T is formed in the driver
+while both densities are live and ACTIVE (before `installNew` supersedes D_in: the Hamiltonian refuses a superseded density, which
+the RelChecked tree caught), and only when the mixer will not pass D_out straight through (`tDensityMixer::PassesOutputThrough`:
+a relax-1 linear mixer, every molecular default, keeps the free exact energy and pays nothing).
+- GATE `UTSCFIterator TaylorEnergy.*` (diagnostic `energy_taylor` prints E_KS[D_out] beside E_T, changing no number): Si k222 PulD
+  slope 2.09 over 8 iterations, gap/‖D_out−D_in‖² 0.032–0.058 while the gap falls 3.8e-3 → 4e-10 Ha; O₂ HF triplet (polarized,
+  exact exchange) slope 1.86, ratio 0.05–0.22 over 3.4 Ha → 5e-11 Ha; final |E_T − E_KS| 2.7e-15 / 5.7e-14 Ha.  At Si Γ the step
+  direction rotates between iterations (ratio 0.0006–0.056): second order as a BOUND, not a clean line -- why the gate is k222.
+- TIMING (MnO PulD, serial): collocations 26 per 12 iterations (28 before), XC samplings 26 (27), 6.5 s/iteration against 6.1.
+  The remainder is one XC-matrix quadrature per spin: the adapter re-assembles F[D_in] blocks the wave function already holds
+  (OpenWork §4 row).  `E_T` is evaluated BEFORE the residual: the residual samples D_out on the XC mesh, whose sampler caches one
+  density, and E[D_in] after it re-sampled D_in (27 → 38).
 
 ## ✅ Fixed-size tables indexed by a runtime L: a THROW at the entry, not an assert (lane H, 2026-11-09, 98e91b4bb)
 

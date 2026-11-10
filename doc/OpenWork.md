@@ -341,6 +341,14 @@ the parity routes; 262 vs 217 whole-run); threaded 4.14 vs 5.90 s/step.  QE: no 
 Open levers (one-liners; Benchmark §10): lever B (one gather/spin, behind N4) · lever C (behind OT) · cross-k
 gather memo (Si 6.9× Γ→8k vs CP2K 1.03×) · Becke grid sizing (policy call) · ρ̃-sampling bucket · per-iteration
 G-space folds · re-take §5a on rule 3f.  Rule: COPY the run command from §5a, never reconstruct it.
+· **E_T re-assembles F[D_in] that the wave function already holds** (lane S, 2026-11-09).  A D-mixing run's trace energy E_T
+  (`tSCFIterator::TaylorEnergy`) contracts ΔD = D_out − D_in against F[D_in] through a `tStatic_CC` adapter that calls
+  `tHamiltonianAt::GetMatrix` per block, so every block's Fock is assembled a SECOND time per iteration.  Most terms replay (the
+  GPW gather's exact-V memo, the static caches), but the XC quadrature H_xc does not: MnO AFM-II Γ PulD pays 24 extra H_xc
+  quadratures over 12 iterations, ~0.37 s/iteration (6.5 vs 6.1 s, +6 %).  Every `tIrrepWF` already holds its assembled F block
+  (`itsF`).  Next action: a design question, since `WaveFunction` is a protected hub: a face that contracts a density against the
+  wave function's own F blocks (Σ_b Tr(D_b F_b)), which removes the re-assembly.  Only D-mixing runs pay it: Kerker runs, the §5a rows
+  and passthrough molecules are untouched · record: `doc/Records/OpenWork_History5.md` "E is evaluated on the idempotent D_out", its cost paragraph
 · **A grid PLANNER with machine-tuned kernels; LLVM as a compiler at run time EVENTUALLY** (user 2026-11-09, long horizon: "I like our
   current work to see the horizon as much as possible").  The model is FFTW's planner: try variants, keep the best, cache the choice as
   "wisdom" per (machine, problem shape).  TWO searches, kept apart: (i) the ACCURACY plan meets ε (energy or max|ΔH|) with the fewest
