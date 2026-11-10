@@ -17,13 +17,16 @@ public:
     //! -- each channel holds \f$\rho/2\f$.  The per-channel \f$v_x^\sigma(\rho_\sigma)\f$ is the base
     //! class's channel-separable default, \f$v_x(2\rho_\sigma)\f$; the Spin-tagged ctor that used to select
     //! between the two is gone (V1.37 step 3) -- a functional does not know which subgroup is imposed.
+    //!
+    //! DERIVATIVES ARE ENZYME'S (2026-11-09, the OpenWork "Enzyme REQUIRED" row, family 2): the functional is written once,
+    //! as \f$\varepsilon_x(\rho)=-\tfrac94\alpha(3\rho/8\pi)^{1/3}\f$; \f$v_x=d(\rho\varepsilon_x)/d\rho\f$ and the kernel
+    //! are its derivatives (Imp/SlaterExchange.C).
     using ExFunctional::GetVxc;     // keep the two-channel face visible beside the scalar override
     using ExFunctional::GetEpsXc;
     virtual double GetVxc(double ChargeDensity) const;
-    //! \f$\varepsilon_x=\tfrac34 v_x\f$: the exchange virial, exact for this functional.
-    virtual double GetEpsXc(double ChargeDensity) const {return 0.75*GetVxc(ChargeDensity);}
-    //! ANALYTIC: exchange is channel-separable and \f$v_x^\sigma\propto\rho_\sigma^{1/3}\f$, so
-    //! \f$f^{\sigma\sigma}=v_x^\sigma/(3\rho_\sigma)\f$ and the cross-channel kernel is exactly 0.
+    virtual double GetEpsXc(double ChargeDensity) const;
+    //! Exchange is channel-separable, so the cross-channel kernel is exactly 0, and
+    //! \f$f^{\sigma\sigma}=d\,v_x(2\rho_\sigma)/d\rho_\sigma\f$ (Enzyme, forward over reverse).
     virtual double GetFxc(double up, double dn, const Spin& s, const Spin& t) const override;
 
 

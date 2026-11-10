@@ -590,6 +590,15 @@ private:
     qchem::Hamiltonian::cHamiltonian&       ResponseHamiltonian () const;
     const WaveFunction::cWaveFunction&      ResponseWaveFunction() const;
     //!@}
+    //! \name THE FORCE GATES' DOOR (src/Calculation/tests/ForceFacade.C; lane B 2026-11-09) -- what the converged run's Hamiltonian says
+    //! of its geometry gradient over the Bloch basis: every term's force or its refusal (MakeTermForces), and the whole list of refusals
+    //! the Pulay sum included (MissingGradients).  Friend only: a client asks a SolidSession for forces, which refuses with that list.
+    //! Retire ForceMissingGradients for lane H's public MissingGradients() when it lands (2a7f7cfa1).
+    //!@{
+    friend class ::ForceFacadeTests;
+    std::vector<std::string>                ForceMissingGradients() const;
+    std::vector<Hamiltonian::TermForce>     ForceTermForces      () const;
+    //!@}
     //! \name THE BUILD, in the two halves Restart needs a gap between (the fingerprint is judged against
     //! the BUILT basis, before anything expensive that depends on the seed)
     //!@{
