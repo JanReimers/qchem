@@ -33,7 +33,13 @@ export namespace qchem::BasisSet
 class Fit_IBS
     : public virtual FIT_CD_NonOrtho
     , public virtual FIT_SF_NonOrtho
-    , protected virtual Evaluatable_IBS<double> //Support op(r)
+    //! PUBLIC since V-XC-ONE-TERM step 3 (lane S, 2026-11-10; was protected).  Client: the overlap-metric PROJECTED XC sampler
+    //! (\c ChargeDensity::OverlapProjectedDensitySampler), which needs \f$f_a(r_g)\f$ at the XC mesh's points to evaluate \f$P\rho\f$
+    //! there and to project \f$v\f$ back with the SAME points and weights -- the exact adjoint.  The basis's own \c Overlap(f) would
+    //! not do: it integrates on this class's PRIVATE mesh, so \f$H\f$ would be the adjoint of a different quadrature than \f$E\f$'s.
+    //! The client reaches it by the house cross-cast between abstract faces (rFIT_SF_ABS -> Evaluatable_IBS<double>), never by
+    //! naming this class.
+    , public virtual Evaluatable_IBS<double> //Support op(r)
 {
 public:
     using Integrals_Overlap<double>::Overlap;       // un-hide the metric Overlap() past the Overlap(Sf) override

@@ -53,9 +53,9 @@ std::shared_ptr<const tDensitySampler<double>>
 MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad)
 {
     assert(fb);
-    if (!fb->isOrtho())
-        throw std::logic_error("MakeDensitySampler: a non-orthogonal (A1 auxiliary) Vxc fit has no sampler strategy yet -- an open "
-                               "gap of the Vxc product space (V-XC-ONE-TERM, pin 30)");
+    // A non-orthogonal (A1) fit is a PROJECTION P onto its span, and the projected strategy evaluates P rho on the XC mesh handed in
+    // (V-XC-ONE-TERM step 3).  The caller reaches it only for xc.rho "fit": the "exact" A1 cell is the fitted-v term, not a sampler.
+    if (!fb->isOrtho()) return std::make_shared<const OverlapProjectedDensitySampler>(fb, std::move(quad));
     return std::make_shared<const tSinglesDensitySampler<double>>(fb, std::move(quad));
 }
 

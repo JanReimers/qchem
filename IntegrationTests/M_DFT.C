@@ -226,6 +226,35 @@ TEST(M_DFT, F2_PP_AuxiliaryFit)
     EXPECT_NEAR(calc.Energy(), -48.20187971, 7e-3) << "ORACLE: PySCF A1_coul J-fit route; the gap (+4.8 mHa) is the A1 Vxc fit";
 }
 
+// THE A1 Pρ CELL (VxcFit::Auxiliary at XCρ::Fit; V-XC-ONE-TERM step 3, 2026-11-10): XC sees the A1 fit's projection of ρ[D], through
+// the ONE XC term (E = Σ w e(Pρ) on the run's Becke mesh, H = dE/dD exactly), where the ρ[D] cell above (FittedVxc) fits v and ε
+// separately on the fit's own mesh.  Its gap to PySCF's exact XC is the A1_exch basis's incompleteness for ρ ITSELF (water's Pρ holds
+// 9.958 of 10 electrons; it misses the O core).  THE INDEPENDENT ROUTE (pin 10, scripts/pyscf_prho_oracle.py): PySCF's own converged
+// density projected onto A1_exch in the overlap metric, E_xc[Pρ] - E_xc[ρ] at that fixed D; ours is self-consistent, so it sits a
+// second-order relaxation BELOW that (variational).
+TEST(M_DFT, WaterLDA_AuxiliaryFitProjected)
+{
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
+                                                   .vxcFit = Hamiltonian::VxcFit::Auxiliary, .xcRho = Hamiltonian::XCρ::Fit}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -75.8990130799, 1e-5);   // anchor
+    EXPECT_NEAR(calc.Energy(), -75.87944736-0.018298, 3e-3) << "ORACLE: PySCF exact XC + its first-order Pρ shift (-18.3 mHa); ours "
+                                                             "relaxes 1.3 mHa below it";
+    // VARIATIONAL: GDM descends the same E along H = dE/dD, so it lands on the same answer (the ρ[D] cell refuses GDM: pin 32).
+    MoleculeCalculation gdm(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
+                                                  .vxcFit = Hamiltonian::VxcFit::Auxiliary, .xcRho = Hamiltonian::XCρ::Fit}, {.type = "GDM"}));
+    ASSERT_TRUE(gdm.Result());
+    EXPECT_NEAR(gdm.Energy(), calc.Energy(), 1e-6) << "GDM and DIIS reach the same stationary point of the one Pρ energy";
+}
+TEST(M_DFT, F2_PP_AuxiliaryFitProjected)
+{
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .model = Model::LDA, .vxcFit = Hamiltonian::VxcFit::Auxiliary,
+                                                       .xcRho = Hamiltonian::XCρ::Fit, .pp = "gth-lda-valence"}));
+    ASSERT_TRUE(calc.Result());
+    EXPECT_NEAR(calc.Energy(), -48.2067928423, 1e-5);   // anchor
+    EXPECT_NEAR(calc.Energy(), -48.20187971-0.004782, 1e-3) << "ORACLE: PySCF exact XC + its first-order Pρ shift (-4.8 mHa)";
+}
+
 // THE δ HARTREE ROUTE (CoulombFit::Delta): ρ on the XC mesh, the direct Coulomb sum, first-order energy, through the same FittedVee.
 // The direct sum is coarse, by measurement (TeF₆ prototype: J to about 1e-2), so the oracle tolerance says so.
 TEST(M_DFT, WaterLDA_DeltaCoulomb_Long)

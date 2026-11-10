@@ -77,6 +77,10 @@ struct CalcOptions
     //! \c mesh's own points, v_xc and eps_xc sampled where the quadrature integrates, no fit; \c Auxiliary = the Gaussian auxiliary
     //! basis (DGauss A1).  Both reach the one XC term through the fit face (pin 30: Vxc = system x fit basis x grid).
     Hamiltonian::VxcFit vxcFit = Hamiltonian::VxcFit::Auto;
+    //! WHICH \f$\rho\f$ XC SEES (user ruling 2026-11-09, \c Hamiltonian::XCρ): \c Exact = \f$\rho[D]\f$, the default; \c Fit = the Vxc fit's
+    //! projection \f$P\rho\f$ (variational: \f$E=\int e(P\rho)\f$, \f$H=\partial E/\partial D\f$).  It matters only for \c VxcFit::Auxiliary, whose
+    //! \f$P\f$ is inexact: there \c Exact is the Gaussian x δ cell, which runs WITH A WARNING (H is not dE/dD, pin 32).
+    Hamiltonian::XCρ xcRho = Hamiltonian::XCρ::Exact;
     //! The Hartree route (2026-11-06): by default the Gaussian Coulomb fit; \c .fit=CoulombFit::Delta puts \f$\rho\f$ on a mesh, with a
     //! first-order energy and the mesh's charge error reported.  See \c Hamiltonian::CoulombRoute.
     Hamiltonian::CoulombRoute coulomb = {};

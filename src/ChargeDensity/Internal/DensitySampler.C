@@ -433,6 +433,63 @@ private:
     mutable XCRhoSource itsSource=XCRhoSource::Fitted;
 };
 
+//! \brief THE PROJECTED STRATEGY OVER AN OVERLAP-METRIC FIT (the molecular / atom A1 Gaussian basis): XC sees \f$P\rho\f$ at the XC
+//! mesh's points, and \f$H\f$ is its exact adjoint (V-XC-ONE-TERM step 3, lane S 2026-11-10; the \c XCρ::Fit cell of a non-orthogonal
+//! \c VxcFit).
+//!
+//! With \f$\Phi_{ga}=f_a(r_g)\f$ the fit functions at the mesh points, \f$w_g\f$ the mesh weights, \f$S\f$ the fit basis's analytic
+//! overlap and \f$\langle ij|a\rangle\f$ its analytic 3-centre overlap:
+//!  - \f$p_a=\langle f_a|\rho\rangle=\sum_{ij}D_{ij}\langle ij|a\rangle\f$ (the density projects ITSELF: \c tChargeDensity::Project),
+//!    \f$c=S^{-1}p\f$, \f$P\rho(r_g)=(\Phi c)_g\f$;
+//!  - \f$E=\sum_g w_g\,e(P\rho(r_g))\f$;
+//!  - \f$H_{ij}=\partial E/\partial D_{ij}=\sum_a\big(S^{-1}\Phi^T(w\circ v)\big)_a\langle ij|a\rangle\f$, \f$v=e'(P\rho)\f$.
+//! The pair is exact for ANY mesh: the forward and the adjoint are the same analytic tensor and the same \f$\Phi,w\f$, so the derivative
+//! needs no quadrature accuracy (gate: UTHamiltonian VxcProductSpace, the A1 Pρ cell's finite difference).  What the mesh's accuracy
+//! decides is how well \f$\sum_g w_g e(P\rho)\f$ approximates \f$\int e(P\rho)\f$ -- the same question as on the \f$\delta\f$ route.
+//!
+//! A density without a matrix (a seed, a numeric atom sum) projects its FIELD on my mesh, \f$p=\Phi^T(w\circ\rho)\f$ (\c ProjectField):
+//! the iteration-0 \f$\rho\f$ only, whose energy is discarded.
+//!
+//! What this cell is NOT: \f$P\rho\neq\rho[D]\f$ (the A1 basis is incomplete), so it departs from pin 28 by the user's explicit choice
+//! (\c xc.rho "fit").  The policy layer reports that; this class reports \c XCRhoSource::Projected.
+class OverlapProjectedDensitySampler
+    : public virtual tDensitySampler<double>
+{
+public:
+    typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;
+    //! \a fb: a non-orthogonal fit basis that can evaluate its functions at points (\c Evaluatable_IBS<double>) and carries the overlap
+    //! metric (\c FIT_SF_NonOrtho); THROWS naming the face it lacks.  \a quad: the XC mesh (its points and weights ARE my quadrature).
+    OverlapProjectedDensitySampler(fbs_t fb, BasisSet::FitQuadrature quad);
+    ~OverlapProjectedDensitySampler();
+    double Integrate(const rvec_t& f) const override;
+    size_t NumPoints() const override;
+    const rvec_t& Rho(const rChargeDensity* cd) const override;
+    const rvec_t& RhoPol(const rChargeDensity* cd, const Spin& s) const override;
+    //! Always \c Projected: an A1 basis does not hold every orbital pair, so \f$P\rho\neq\rho[D]\f$, and the run asked for \f$P\rho\f$.
+    XCRhoSource RhoSource() const override {return XCRhoSource::Projected;}
+    std::optional<double> GroupResidual() const override {return std::nullopt;}
+    //! The atom-partitioned integrals of my mesh (the XC term's site moments), as on the \f$\delta\f$ route.
+    rvec_t SiteIntegrals(const rvec_t& f) const override;
+    //! \f$\langle i|P\,v|j\rangle\f$: a pure function of \a v (no dependency on the density sampled last).
+    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
+private:
+    class Projector;                 //!< the \c PairProjector<double> a density projects itself onto (defined in the unit)
+    rvec_t SampleOne(const rChargeDensity* cd) const;   //!< \f$\Phi S^{-1}\langle f|\rho\rangle\f$
+    void Refresh   (const rChargeDensity* cd) const;
+    void RefreshPol(const rChargeDensity* cd) const;
+
+    fbs_t                                itsFitBasis;
+    const BasisSet::FIT_SF_NonOrtho*     itsMetric;   //!< the same object's overlap-metric face (S^-1, the 3-centre tensor)
+    BasisSet::FitQuadrature              itsQuad;     //!< the XC mesh
+    rmat_t                               itsPhi;      //!< f_a(r_g): points x functions, geometry-fixed
+    std::unique_ptr<Projector>           itsProjector;
+    mutable rvec_t itsRho;
+    mutable size_t itsRhoVersion=size_t(-1);
+    //! \warning As on the other strategies: the scalar and the spin caches have no cross-invalidation, so ONE engine answers one shape.
+    mutable rvec_t itsRhoUp, itsRhoDn;
+    mutable size_t itsPolVersion=size_t(-1);
+};
+
 } //namespace
 
 //======================================================================================================

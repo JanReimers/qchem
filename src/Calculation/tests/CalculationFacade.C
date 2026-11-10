@@ -3,6 +3,7 @@
 // the run is unpolarized, never an absence.
 #include <gtest/gtest.h>
 #include <cmath>
+#include <functional>
 #include <vector>
 #include <memory>
 #include <string>
@@ -274,4 +275,62 @@ TEST(CalculationFacade, EveryFacadeCarriesTheAccuracyTargetAndSaysWhoConsumesIt)
         EXPECT_EQ(base.Consumes(), ClientConsumes::Energy);
     }
     expectReported("eps molecule", 4e-6);
+}
+
+//! THE XC ρ AXIS'S POLICY (user ruling 2026-11-09, V-XC-ONE-TERM step 3): the Gaussian x δ cell (the A1 Vxc fit at xc.rho exact) RUNS
+//! WITH A WARNING, and what needs H = dE/dD refuses on it by name -- GDM and the Ladder (its GDM rung).  The variational A1 cell
+//! (xc.rho fit) reports its choice and takes GDM.
+TEST(CalculationFacade, TheGaussianDeltaXCCellWarnsAndRefusesGDM)
+{
+    const auto water=GetMolecule("H2O");
+    auto rowsNamed=[](const qchem::report::json& j, const std::string& name)
+    {
+        std::vector<qchem::report::json> out;
+        std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& x)
+        {
+            if (x.is_object())
+                for (auto it=x.begin(); it!=x.end(); ++it)
+                {
+                    if (it.key()=="policy" && it.value().is_array())
+                        for (const auto& r : it.value()) if (r.contains("name") && r["name"]==name) out.push_back(r);
+                    walk(it.value());
+                }
+            else if (x.is_array()) for (const auto& y : x) walk(y);
+        };
+        walk(j);
+        return out;
+    };
+    { qchem::report::Run run("H2O A1 rhoD resolve"); MoleculeSetup::Resolve(water, {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary}); }
+    const auto* warned=FiledRun("H2O A1 rhoD resolve@");
+    ASSERT_NE(warned, nullptr);
+    const auto w=rowsNamed(*warned, "XCRhoFittedPotential");
+    ASSERT_FALSE(w.empty()) << warned->dump(1);
+    for (const auto& r : w)
+    {
+        EXPECT_EQ(r["verdict"].get<std::string>(), "warn");
+        EXPECT_NE(r["reason"].get<std::string>().find("pin 32"), std::string::npos) << "the warning names the pin it departs from";
+    }
+
+    for (const char* type : {"GDM", "Ladder"})
+    {
+        try
+        {
+            MoleculeSetup::Resolve(water, {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary}, {.type=type});
+            ADD_FAILURE() << type << " on the Gaussian x δ cell was not refused";
+        }
+        catch (const std::invalid_argument& e)
+        {
+            EXPECT_NE(std::string(e.what()).find("not dE/dD"), std::string::npos) << e.what();
+        }
+    }
+    // The variational A1 cell takes GDM, and files its choice.
+    { qchem::report::Run run("H2O A1 Prho resolve");
+      EXPECT_NO_THROW(MoleculeSetup::Resolve(water, {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary,
+                                                     .xcRho=Hamiltonian::XCρ::Fit}, {.type="GDM"})); }
+    const auto* chose=FiledRun("H2O A1 Prho resolve@");
+    ASSERT_NE(chose, nullptr);
+    const auto c=rowsNamed(*chose, "XCRhoProjected");
+    ASSERT_FALSE(c.empty()) << chose->dump(1);
+    for (const auto& r : c) EXPECT_EQ(r["verdict"].get<std::string>(), "choose");
+    EXPECT_TRUE(rowsNamed(*chose, "XCRhoFittedPotential").empty()) << "the variational cell is not warned";
 }
