@@ -11,6 +11,7 @@ module;
 module qchem.ChargeDensity.Internal.FieldMixer;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.Types;
+import qchem.Reporting;                       // FormatGuard
 
 namespace qchem::ChargeDensity
 {
@@ -90,10 +91,10 @@ KerkerStepResult KerkerStep(const ΔG_Map& in, const ΔG_Map& out, double alpha,
                  <<r.alphaEff<<" RMS(f)="<<r.alphaEff/(alpha>0?alpha:1.0)
                  <<" <G>_pow="<<gPow/den<<" G0="<<G0<<"\n                  x=G/G0:";
         const char* lbl[kNBin]={"<0.5","0.5-1","1-2","2-3","3-5",">5"};
+        report::FormatGuard keep(std::cout);
         for (size_t b=0;b<kNBin;b++)
             std::cout<<"  "<<lbl[b]<<"="<<std::fixed<<std::setprecision(1)<<100.0*binPow[b]/den<<"%"
-                     <<"(f"<<std::setprecision(2)<<(binPow[b]>0?binF[b]/binPow[b]:0.0)<<")"
-                     <<std::setprecision(6)<<std::defaultfloat;
+                     <<"(f"<<std::setprecision(2)<<(binPow[b]>0?binF[b]/binPow[b]:0.0)<<")";
         std::cout<<std::endl;
     }
     return r;

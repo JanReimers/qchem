@@ -348,6 +348,7 @@ void EmitStageSummary(const std::string& label, size_t s, size_t n, double kT,
                       bool converged, size_t iters, const qchem::EnergyBreakdown& E)
 {
     const std::streamsize prec0=std::cout.precision();
+    report::FormatGuard keepFormat(std::cout);   // exact restore on every exit (prec0 alone missed the flags and the early returns)
     std::cout << "["<<label<<" stage "<<s+1<<"/"<<n<<"] kT="<<kT<<" conv="<<converged<<" iters="<<iters
               << std::setprecision(10)
               << " A=E-TS="<<E.GetTotalEnergy()<<" -TS="<<E["MinusTS"]
@@ -1081,6 +1082,7 @@ void ReportBandSlotWeights(const std::string& label, const qchem::WaveFunction::
         else throw std::logic_error("ReportBandSlotWeights: an orbital set of unknown scalar");
     }
     const std::streamsize prec0=std::cout.precision();
+    report::FormatGuard keepFormat(std::cout);   // exact restore on every exit (prec0 alone missed the flags and the early returns)
     for (auto& [s,bands] : bySpin)
     {
         std::sort(bands.begin(), bands.end(), [](const Band& a, const Band& b){ return a.e<b.e; });
@@ -1137,9 +1139,10 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
         const double x=std::max({lmin>0.0 ? std::log(1.0/lmin) : 0.0, had.density, had.vlocLong, had.xcL0});
         BasisSet::Gaussian::GPWTolerances t=itsImp->setup->opts.tolerances;
         t.rasterX=std::max(t.rasterX,x); t.vlocRasterX=std::max(t.vlocRasterX,x); t.xcRasterX=std::max(t.xcRasterX,x);
+        { report::FormatGuard keep(std::cout);
         std::cout<<"["<<itsImp->setup->opts.label<<" raster pilot] the first iterate was REFUSED on the ball's own rasters (x density "
                  <<had.density<<"), and the overlap's smallest eigenvalue is "<<std::scientific<<std::setprecision(3)<<lmin<<std::defaultfloat
-                 <<": restarting from the seed on rasters whose alias e^-x does not exceed it, x = "<<std::setprecision(4)<<x<<std::endl;
+                 <<": restarting from the seed on rasters whose alias e^-x does not exceed it, x = "<<std::setprecision(4)<<x<<std::endl; }
         itsImp->startRaisedForConditioning=true;
         auto sized=std::make_shared<SolidSetup>(*itsImp->setup);
         sized->opts.tolerances=t;
@@ -1156,6 +1159,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
     if (itsImp->resumedFrom)   // an EXACT RESUME's first convergence: judged against the energy the state was saved at
     {
         const double E=itsImp->scf->GetEnergy().GetTotalEnergy();
+        report::FormatGuard keep(std::cout);
         std::cout << "["<<itsImp->setup->opts.label<<" restart] resumed E="<<std::setprecision(10)<<E<<" vs saved "<<*itsImp->resumedFrom
                   << "  dE="<<std::setprecision(3)<<E-*itsImp->resumedFrom<<" after "<<itsImp->scf->GetIterationCount()<<" iterations"<<std::endl;
         itsImp->resumedFrom.reset();
@@ -1225,6 +1229,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
     {
         const qchem::EnergyBreakdown& E=itsImp->scf->GetEnergy();
         const std::streamsize prec0=std::cout.precision();
+        report::FormatGuard keepFormat(std::cout);   // exact restore on every exit (prec0 alone missed the flags and the early returns)
         // THE INTEGRATED SITE MOMENTS, a standard part of a polarized result (D-ENV step 3, user 2026-10-03: promoted from
         // the QCHEM_SITE_MOMENTS diagnostic).  An INTEGRATED observable -- the Becke-partitioned integral of w(rho_up -
         // rho_dn) per site -- never a point sample (doc/ feedback_integrated_observables).  A polarized run on an
@@ -1742,6 +1747,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     const double target=itsImp->setup->opts.accuracy.Target(c, nAtoms);
     qchem::report::Timed timed("postSCF: raster pilot (reference basis + audit; re-converge when a raster rises)");
     const std::streamsize prec0=std::cout.precision();
+    report::FormatGuard keepFormat(std::cout);   // exact restore on every exit (prec0 alone missed the flags and the early returns)
     std::cout<<tag<<"sizing the rasters to "<<std::defaultfloat<<std::setprecision(3)<<target<<std::setprecision(prec0)<<" Ha "   // a fixed left on cout printed 1e-5 as 0.000
              <<(onH ? std::string("per matrix element (max|ΔH_ij|): a geometry run")
                     : "per raster term's energy (eps x "+std::to_string(nAtoms)+" atoms): an energy run")<<std::endl;
@@ -2301,6 +2307,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
 
     // REPORT, contemporaneously (pin 17): console table + the run report's `gridAudit` section.
     const std::streamsize prec0=std::cout.precision();
+    report::FormatGuard keepFormat(std::cout);   // exact restore on every exit (prec0 alone missed the flags and the early returns)
     if (eggBox) std::cout<<"[egg box] rigid translation at the converged D (fixed D: the SCF egg-box differs at second order), "<<RasterName(opts.tolerances)
                          <<", "<<R.reference<<": analytic terms must read 0"<<std::endl;
     else        std::cout<<"[grid audit] delivered error at the converged D: "<<RasterName(opts.tolerances)<<" (this run) vs "<<R.reference<<" (reference)"<<std::endl;
@@ -2630,6 +2637,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     if (resolved) r.group=hp.manifold;
     r.Write(std::cout);
     const auto& lab=r.atQ[0].labels;
+    report::FormatGuard keep(std::cout);
     for (const auto& v : InterSiteHubbardV(r))
         std::cout << "[V] " << lab[v.from] << " -> " << lab[v.to]
                   << " R=(" << v.R.x << "," << v.R.y << "," << v.R.z << ")  d=" << std::fixed << std::setprecision(4) << v.distance
@@ -2772,6 +2780,7 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
     std::cout << "[LRT] unperturbed state restored: " << (R.restored ? "converged" : "NOT converged") << std::endl;
     if (failed) return O::Fail(*failed);
     R.chi=rvec_t(R.nPlus.size());
+    report::FormatGuard keep(std::cout);
     std::cout << "[LRT] chi_IJ = dn_I/dalpha_J, J = " << R.labels[J] << ", alpha = " << alpha << " Ha (1/Ha):";
     for (size_t I=0;I<R.chi.size();I++)
     {

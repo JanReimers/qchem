@@ -69,6 +69,7 @@ template <class T> size_t ReportConditioning(const tBasisSet<T>& bs)
         rpt::Set("wouldDrop",   (long)wouldDrop);
     }
     // Straight to cout, like the other tagged lines: report::Log is silent in a run with no console, and this line must never be.
+    report::FormatGuard keep(std::cout);
     std::cout<<"[basis trim] report only: "<<nBlocks<<" block(s), min eig S "<<std::scientific<<std::setprecision(3)<<lambdaMin<<" at "
              <<lambdaMinAt<<", max cond(S) "<<cond<<" at "<<condAt<<", "<<wouldDrop<<" AO(s) would drop at floor "<<std::setprecision(0)
         <<ConditioningFloor<<std::defaultfloat<<std::endl;

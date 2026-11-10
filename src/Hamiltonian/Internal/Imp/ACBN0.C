@@ -10,6 +10,7 @@ module;
 #include <type_traits>
 #include <vector>
 module qchem.Hamiltonian.Internal.ACBN0;
+import qchem.Reporting;   // FormatGuard
 import qchem.Blaze;
 
 namespace qchem::Hamiltonian
@@ -147,6 +148,7 @@ std::vector<HubbardEstimate> ACBN0::Evaluate() const
 
 std::ostream& ACBN0::Write(std::ostream& os) const
 {
+    qchem::report::FormatGuard keep(os);
     const double eV=27.211386245988;
     for (const ACBN0Estimate& e : Details())
         os<<"[ACBN0] site "<<e.site<<" l="<<e.l<<": U="<<std::fixed<<std::setprecision(4)<<e.Ubar*eV<<" J="<<e.Jbar*eV

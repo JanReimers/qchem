@@ -507,6 +507,7 @@ ManifoldSymmetry::Labelling ManifoldSymmetry::Label(const rsmat_t& n, rvec_t& la
 
 std::ostream& ManifoldSymmetry::WriteSlots(std::ostream& os, double U, const std::vector<double>& Uirrep) const
 {
+    report::FormatGuard keep(os);
     for (size_t k=0;k<itsSlots.size();k++)
     {
         const Slot& S=itsSlots[k];

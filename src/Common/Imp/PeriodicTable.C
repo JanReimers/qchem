@@ -10,10 +10,12 @@ module;
 #include <nlohmann/json.hpp>
 
 module qchem.PeriodicTable;
+import qchem.Reporting;   // FormatGuard
 
 
 std::ostream& operator<<(std::ostream& os, const OrbitalRecordSaito& o)
 {
+    qchem::report::FormatGuard keep(os);
     os << std::fixed;
     os << "    " << o.Symbol << " " << std::setw(14) << std::setprecision(11) << o.Energy_HF;
     os << std::fixed;
@@ -24,6 +26,7 @@ std::ostream& operator<<(std::ostream& os, const OrbitalRecordSaito& o)
 
 std::ostream& operator<<(std::ostream& os, const ElementRecordSaito& e)
 {
+    qchem::report::FormatGuard keep(os);
     os << e.Symbol << "(" << e.Z << ") " << e.ValConfigString << " " << e.Term
     << " E_HF=" << std::setw(14) << std::setprecision(6) << e.Energy_HF
     << " E_DHF=" << std::setw(14) << std::setprecision(6) << e.Energy_DHF

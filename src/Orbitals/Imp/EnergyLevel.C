@@ -4,6 +4,7 @@ module;
 #include <iostream>
 #include <iomanip>
 module qchem.EnergyLevel;
+import qchem.Reporting;   // FormatGuard
 
 namespace qchem::Orbitals
 {
@@ -31,6 +32,7 @@ void EnergyLevel::merge(const EnergyLevel& el)
 
 void EnergyLevel::Report(std::ostream& os) const
 {
+    report::FormatGuard keep(os);
     os.setf(std::ios::fixed,std::ios::floatfield);
     os << std::setw(14) << std::setprecision(8) << e 
        << " (" << std::setw(2) << std::setprecision(0) << occ 

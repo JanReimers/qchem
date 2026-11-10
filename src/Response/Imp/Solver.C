@@ -13,6 +13,7 @@ module;
 #include <type_traits>
 #include <vector>
 module qchem.Response.Solver;
+import qchem.Reporting;   // FormatGuard
 import qchem.Blaze;
 
 namespace qchem::Response
@@ -171,6 +172,7 @@ LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamilto
                       << "[krylov]      #   residual" << std::endl;
             kpc.observer=[](const KrylovStep& st)
             {
+                qchem::report::FormatGuard keep(std::cout);
                 std::cout << "[krylov] " << std::setw(6) << st.iteration << "   " << std::scientific << std::setprecision(3)
                           << st.residual << std::defaultfloat << (st.trueResidual ? "   (TRUE, restart)" : "") << std::endl;
             };

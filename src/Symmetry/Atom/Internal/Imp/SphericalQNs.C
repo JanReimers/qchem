@@ -16,6 +16,7 @@ module;
 #include <blaze/math/dense/DenseIterator.h> // so std::sort can see the Blaze iterator op==/op!=
 module qchem.Symmetry.Atom.Internal.SphericalQNs;
 import qchem.Strings;   // SPDFG / j2s label tables
+import qchem.Reporting; // FormatGuard
 
 using std::cout;
 using std::endl;
@@ -154,6 +155,7 @@ size_t Ωκmj::GetDegeneracy() const
 std::ostream& Ωκmj::Write(std::ostream& os) const
 {
     int jindex=Getj()-0.5;
+    report::FormatGuard keep(os);
     os << SPDFG[Getl()] << j2s[jindex] << " κ=" << std::setw(2) << κ << " mj={";
     for (double mj:mjs) os << std::fixed << std::setw(4) << std::setprecision(1) << mj << " ";
     os << "}";

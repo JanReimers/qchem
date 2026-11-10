@@ -11,6 +11,7 @@ module;
 #include <vector>
 module qchem.Response.Probe;
 import qchem.Blaze;
+import qchem.Reporting;   // FormatGuard
 
 namespace qchem::Response
 {
@@ -152,6 +153,7 @@ rmat_t ChannelResponse::RealSpace() const {return ToRealSpace(Nq, q, chi, 1e-10)
 
 std::ostream& ChannelResponse::Write(std::ostream& os, double perUnit, const std::string& unitName) const
 {
+    report::FormatGuard keep(os);
     const size_t nch=labels.size();
     os << "[chi0] independent-particle channel response, q-mesh " << Nq.x << "x" << Nq.y << "x" << Nq.z
        << ", " << nch << " channels, unit " << unitName << "; response gap "
