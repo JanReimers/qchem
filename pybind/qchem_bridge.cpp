@@ -38,6 +38,7 @@ import qchem.Symmetry.Lattice_3D.SpaceGroup;    // SpaceGroup::Detect
 import qchem.Reporting;                          // report::GlobalReport (the run record the library keeps)
 import qchem.CrystalFiles;                       // CIF / POSCAR / extended xyz <-> one materials.json entry
 import qchem.StructureData;                      // the materials layers (shipped, user, workspace) and CellFromEntry
+import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import;   // a downloaded basis -> the BasisSetData layout
 
 // The opaque handle: the facade plus the request's geometry (for the sampling box).  extern "C++" attaches it to the
 // GLOBAL module, where qcb_api.h (in the GMF) forward-declares it -- a purview definition would be a different entity.
@@ -204,6 +205,7 @@ MoleculeRequest molecule_request(const qcb_request* req)
     r.opts.basis        = req->basis;
     r.opts.model        = parse_model(req->model);
     r.opts.pp           = req->pp ? req->pp : "";
+    r.opts.basisFile    = req->basisFile ? req->basisFile : "";
     r.opts.symmetry     = req->symmetry != 0;
     r.opts.spin         = req->polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;
     r.opts.multiplicity = req->multiplicity;
@@ -652,6 +654,26 @@ extern "C" int qcb_materials(const char* req, char* out, int outlen)
     if (!out)
     {
         try { answer=MaterialsAnswer(req ? req : "").dump(); }
+        catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
+        return int(answer.size());
+    }
+    write_error(answer.c_str(), out, outlen);
+    return int(answer.size());
+}
+
+extern "C" int qcb_basis_import(const char* req, char* out, int outlen)
+{
+    static thread_local std::string answer;
+    if (!out)
+    {
+        try
+        {
+            const auto r=nlohmann::json::parse(req ? req : "");
+            const auto got=qchem::BasisSet::Gaussian::ImportGaussian94(r.at("text").get<std::string>(), r.at("title").get<std::string>(),
+                                                                     r.value("provenance", std::vector<std::string>{}));
+            answer=(got ? nlohmann::ordered_json{{"bsd", got->bsd}, {"elements", got->elements}, {"maxL", got->maxL}, {"notes", got->notes}}
+                        : nlohmann::ordered_json{{"error", got.Error()}}).dump(-1, ' ', false, nlohmann::ordered_json::error_handler_t::replace);
+        }
         catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
         return int(answer.size());
     }

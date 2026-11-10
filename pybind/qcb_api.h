@@ -81,6 +81,7 @@ typedef struct qcb_request
     const char*   mixer;          //!< SCFParams::Mixing by name: "Auto" | "Linear" | "Kerker" | "Pulay" ("" = Auto); the facade refuses
                                   //!< what a molecule cannot mix (Kerker needs G space)
     double        smearingkT;     //!< Fermi-Dirac smearing kT, Ha (SCFParams::SmearingkT), 0 = off
+    const char*   basisFile;      //!< a .bsd path used instead of the shipped file `basis` names (CalcOptions::basisFile); null/"" = none
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
@@ -198,6 +199,12 @@ int qcb_space_group(const double* lattice9, const int* species, int nat, const d
 //! TWO CALLS: with `out` null the request RUNS and its answer is kept (the return is its length); then a call with a buffer
 //! copies that answer (`req` ignored).  So a save runs once.
 int qcb_materials(const char* req, char* out, int outlen);
+
+//! A Gaussian94 basis from outside (the Basis Set Exchange's "gaussian94" text) TRANSLATED into the BasisSetData layout
+//! (BasisSet::Gaussian::ImportGaussian94): {"text": T, "title": S, "provenance": [lines]} -> {bsd, elements, maxL, notes}, or
+//! {"error": why} when the library cannot represent it (an ECP block, a scaled shell, ...).  The text is parsed as data only.
+//! The same two calls as qcb_materials.
+int qcb_basis_import(const char* req, char* out, int outlen);
 
 #ifdef __cplusplus
 }
