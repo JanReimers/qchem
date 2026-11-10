@@ -99,10 +99,10 @@ protected:
     //!@}
 
     //! \brief A RESTART'S JUDGEMENT, shared by every facade's Restart once its basis is built: refuse another kind's state, compare
-    //! \a saved's fingerprint with this run's at \a kT (after \c StateMigration), carry every block across MOVED atoms through the Löwdin
-    //! frame (\c LowdinCarry: Tr(D S') = N on the new basis; a solid 1.x file, which has no S, is carried verbatim, as it always
-    //! was), and print the EXACT RESUME / WARM START lines under \a tag.  On success \a saved holds the densities to restore, and
-    //! the summary says what the restart is (the facade keeps it for \c RestartedFrom).  A REFUSAL is printed too.
+    //! \a saved's fingerprint with this run's at \a kT (after \c StateMigration), carry every block across MOVED atoms as AO coefficients
+    //! (\c CarryToMovedAtoms: the measured best first iterate; Tr(D S') then N to first order, a diagnostic), and print the EXACT
+    //! RESUME / WARM START lines under \a tag.  On success \a saved holds the densities to restore, and the summary says what the
+    //! restart is (the facade keeps it for \c RestartedFrom).  A REFUSAL is printed too.
     Outcome<RestartSummary, RestartRefusal> JudgeRestart(SavedState& saved, double kT, const std::string& tag) const;
 };
 

@@ -175,6 +175,7 @@ void MoleculeCalculation::BuildGraph()
         delete itsScf; itsScf = nullptr;
         itsHam.reset(ham);
         itsAccel.reset(accel);
+        if (itsCarry && itsCarry->moved) itsCarry=std::make_unique<const Carry>(CarryOntoThisBasis(*itsCarry));   // a session step
         if (!itsCarry)
             itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get());
         else
@@ -352,6 +353,37 @@ std::vector<hmat_t<double>> MoleculeCalculation::BlockDensities(bool energyWeigh
 }
 
 MoleculeCalculation::Carry MoleculeCalculation::MakeCarry() const {return Carry{BlockDensities(false)};}
+MoleculeCalculation::Carry MoleculeCalculation::MakeMovedCarry(double displacement) const
+{
+    return Carry{.D={}, .moved=SnapshotState(StateBlocks(true), StateKind()), .displacement=displacement};
+}
+
+MoleculeCalculation::Carry MoleculeCalculation::CarryOntoThisBasis(const Carry& carry)
+{
+    assert(carry.moved);
+    SavedState st=*carry.moved;
+    const std::vector<StateBlock> now=StateBlocks(false);
+    CarryToMovedAtoms(st, now);   // the AO coefficients follow their atoms (the shared carry; its declaration has the measurement)
+    auto D=CheckedBlockDensities(st, now);
+    // Both points come from ONE setup (same recipe, same blocks), so a refusal here is a broken invariant, not a caller's choice.
+    if (!D) throw std::logic_error("qchem::MoleculeCalculation: a session step's carry does not fit the next point: "+D.Error().details);
+    Carry out;
+    for (const mat_t<dcmplx>& M : *D)
+    {
+        const size_t n=M.rows();
+        hmat_t<double> h(n);
+        for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) h(a,b)=M(a,b).real();
+        out.D.push_back(std::move(h));
+    }
+    std::ostringstream moved;
+    moved<<"structure.positions: the atoms moved by up to "<<std::setprecision(6)<<carry.displacement<<" bohr from the previous point";
+    itsRestartedFrom=RestartSummary{.path="(previous geometry point)", .exact=false, .warm={moved.str()},
+                                    .maxDisplacement=carry.displacement, .electrons=Electrons(st, now)};
+    std::cout<<"[molecule session] the previous point's density is carried as AO coefficients (atoms moved up to "
+             <<std::setprecision(6)<<carry.displacement<<" bohr): "<<std::setprecision(12)<<itsRestartedFrom->electrons
+             <<" electrons on this basis"<<std::endl;
+    return out;
+}
 std::vector<hmat_t<double>> MoleculeCalculation::MakeEnergyWeightedDensity() const {return BlockDensities(true);}
 
 std::unique_ptr<qchem::ChargeDensity::rDM_CD> MoleculeCalculation::MakeCarriedDensity(const Carry& carry) const
@@ -859,8 +891,17 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
                             +" -- symmetrize the step, or resolve a new setup without the symmetry"});
     }
 
+    // THE CARRY (lane A, 2026-11-09): the previous point's state, carried onto this point's basis when it is built, by the function a
+    // file restart at moved atoms uses (CarryToMovedAtoms: AO coefficients, the measured best first iterate).
     std::unique_ptr<const MoleculeCalculation::Carry> carry;
-    if (itsPoint) carry=std::make_unique<const MoleculeCalculation::Carry>(itsPoint->MakeCarry());
+    if (itsPoint)
+    {
+        std::vector<rvec3_t> was;
+        itsPoint->StateStructure().ForEachSite([&](int, const rvec3_t& r, bool){ was.push_back(r); });
+        double dmax=0.0;
+        for (size_t i=0;i<R.size();i++) dmax=std::max(dmax, norm(R[i]-was[i]));
+        carry=std::make_unique<const MoleculeCalculation::Carry>(itsPoint->MakeMovedCarry(dmax));
+    }
     itsPoint.reset();   // one point's memory at a time
     itsPoint.reset(new MoleculeCalculation(itsSetup, *at, std::move(carry), itsSCF, itsObserver, /*geometryPoint*/true));
     auto out=itsPoint->Result();

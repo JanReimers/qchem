@@ -108,29 +108,21 @@ Outcome<RestartSummary, RestartRefusal> Calculation::JudgeRestart(SavedState& sa
     auto warm=CompareFingerprints(saved.fingerprint, now.fp, StateMigration());
     if (!warm) return refuse(warm.Error());
 
-    // MOVED ATOMS (a geometry step, or a state from a nearby geometry): the saved D is a matrix over the OLD centres' functions.
-    // Handed verbatim to the new overlap it holds the wrong number of electrons, Tr(D S') != N -- which fixed-N fitting then papers
-    // over (lane S's moved-geometry MeshPilot run).  So carry it through the Löwdin frame, which holds the orbitals' S^{1/2} C fixed.
-    // A solid 1.x file carries no S: it is handed over verbatim, as it always was.
+    // MOVED ATOMS (a geometry step, or a state from a nearby geometry): the saved D is a matrix over the OLD centres' functions,
+    // carried onto the new ones as AO coefficients (CarryToMovedAtoms, whose declaration holds the measurement: the N-exact
+    // carries all started further from the answer).  Its Tr(D S') is a diagnostic, printed below.
     const FingerprintMigration migrate=StateMigration();
     const double moved=MaxDisplacement(migrate ? migrate(saved.fingerprint, now.fp) : saved.fingerprint, now.fp);
-    bool carried=false;
-    if (moved>1e-10)
-    {
-        bool haveS=!saved.blocks.empty();
-        for (const SavedBlock& b : saved.blocks) haveS = haveS && b.S.rows()>0;
-        if (haveS) { LowdinCarry(saved, now.blocks); carried=true; }
-    }
+    if (moved>1e-10) CarryToMovedAtoms(saved, now.blocks);
     RestartSummary R{.path=saved.path, .exact=warm->empty(), .warm=std::move(*warm), .maxDisplacement=std::max(0.0, moved),
-                     .lowdinCarried=carried, .electrons=Electrons(saved, now.blocks)};
+                     .electrons=Electrons(saved, now.blocks)};
     std::ostringstream os;
     os<<tag<<(R.exact ? "EXACT RESUME" : "WARM START")<<" from "<<saved.path<<" (saved by '"<<saved.summary.label<<"', "
       <<(saved.summary.converged ? "converged" : "NOT converged")<<" after "<<saved.summary.iterations
       <<" iterations, E="<<std::setprecision(10)<<saved.summary.energy<<"; "<<saved.summary.recipe<<")";
     for (const std::string& d : R.warm) os<<"\n"<<tag<<"  differs: "<<d;
     if (moved>1e-10)
-        os<<"\n"<<tag<<"  "<<(carried ? "the density is carried onto the moved basis through the Löwdin frame (Tr D S' = N)"
-                                     : "the file holds no overlap (a solid 1.x state): the density is carried VERBATIM onto the moved basis");
+        os<<"\n"<<tag<<"  the density is carried onto the moved basis as AO coefficients (the functions follow their atoms)";
     // THE SAVED STATE'S OWN RESIDUAL (gap 4, user 2026-10-29): even an exact resume starts where the state was SAVED, not at the
     // fixed point.  A density-MIXED run (no [F,D] measured) stops with D a mixture, one undamped Fock away from self-consistency, so
     // its first iteration re-opens that residual (amplified on a soft system).

@@ -9,7 +9,8 @@
 // WHAT IS SAVED, per block (spin irreps outer, basis blocks inner -- the order a composite wave function builds its children in):
 //   D     the block's AO density matrix, PHYSICAL occupations (a solid's BZ weight is stored beside it, never in it)
 //   C,ε,f ALL orbitals (occupied and virtual): a WaveFunction read from disk (χ₀ / ACBN0 / gaps on a stored state with no SCF)
-//   S     the block's overlap (2.0): what the Löwdin carry needs to take D onto a basis at MOVED atoms (\c LowdinCarry)
+//   S     the block's overlap (2.0): what a carry onto a basis at MOVED atoms may need (\c LowdinCarry); the default carry
+//         (\c CarryToMovedAtoms) needs only the new one
 // plus the FINGERPRINT and the run's own summary.  No mixer or accelerator history: a restart is a FRESH STAGE (the 2026-09-21
 // stale-Pulay lesson).
 //
@@ -101,7 +102,7 @@ struct SavedBlock
     std::map<std::string, std::vector<double>> extras;   //!< a solid's "k" (fractional)
     mat_t<dcmplx>         D;              //!< physical (unweighted) AO density matrix
     //! The SAVING basis's overlap: in a 2.0 file, and in an in-memory snapshot.  EMPTY from a solid 1.x file -- \c LowdinCarry
-    //! cannot move such a block.
+    //! cannot move such a block (\c CarryToMovedAtoms can).
     mat_t<dcmplx>         S;
 };
 
@@ -157,7 +158,26 @@ Outcome<SavedState, RestartRefusal> ReadState(const std::string& path);
 //! are left empty (the caller built both points from one setup, which is the comparison a file's fingerprint stands in for).
 SavedState SnapshotState(const std::vector<StateBlock>& blocks, const std::string& kind);
 
-//! \brief THE LÖWDIN CARRY: take each block's D from the basis it was saved on to \a blocks' -- the SAME recipe at moved atoms --
+//! \brief THE MOVED-ATOM CARRY, shared by a file restart at moved atoms and a geometry session's step: each block's D goes to
+//! \a blocks' basis (the SAME recipe at moved atoms) AS AO COEFFICIENTS, unchanged -- the AOs follow their atoms -- and the carry
+//! now holds the new overlap.  Tr D S' is then N only to first order in the move (H2O, one H moved 0.064 bohr: 9.99506 of 10): a
+//! DIAGNOSTIC (\c RestartSummary::electrons), not a defect -- the first diagonalisation fills exactly N.
+//!
+//! MEASURED (lane A, 2026-11-09; H2O dzvp, one step from the converged reference, first-iterate E1 - E_final in Ha):
+//! |            | LDA O 0.02 | LDA H 0.064 | LDA H 0.137 | HF O 0.02 | HF H 0.064 | HF H 0.137 |
+//! | verbatim AO (this) | 1.3e-5 | 4.6e-6 | 2.0e-5 | 5.8e-7 | 1.7e-6 | 1.6e-5 |
+//! | Löwdin frame (\c LowdinCarry) | 1.4e-4 | 9.0e-6 | 1.4e-4 | 3.2e-6 | 4.3e-6 | 4.5e-5 |
+//! | natural orbitals re-orthonormalised in S' (= McWeeny of the verbatim D) | 1.2e-4 | 2.4e-5 | 1.2e-4 | 2.1e-6 | 1.5e-6 | 1.3e-5 |
+//! | projection S'^{-1}<new|old>C, re-orthonormalised | 1.5e-4 | 1.9e-4 | 7.8e-4 | 6.3e-6 | 5.5e-6 | 3.3e-5 |
+//! Every N-exact carry starts LDA about 10x further from the answer; with the Hartree term on the mesh (no fixed-N Gaussian fit)
+//! the same, so the fit does not explain it.  The projection, which keeps the density where it WAS in space, is worst: the
+//! density follows its nuclei.  Iteration counts were measured too but are accelerator noise (a DIIS period-2 cycle; 11 to 85).
+//! Earlier, on solids (\c SolidSession::Carry, 2026-10-30): AO vs Löwdin, Si 41 vs 42 iterations, NaF 110 vs 96 -- no lever.
+//! THROWS if a block's size differs.
+void CarryToMovedAtoms(SavedState& carry, const std::vector<StateBlock>& blocks);
+
+//! \brief THE LÖWDIN CARRY (a solid session's \c Carry::Lowdin option; NOT the default, see \c CarryToMovedAtoms' measurement):
+//! take each block's D from the basis it was saved on to \a blocks' -- the SAME recipe at moved atoms --
 //! through the Löwdin-orthonormal frame, \f$D' = A D A^\dagger,\ A = S_{new}^{-1/2} S_{old}^{1/2}\f$.  The orbitals' Löwdin
 //! coefficients \f$S^{1/2}C\f$ are held fixed, so \f$\mathrm{Tr}\,D'S' = \mathrm{Tr}\,DS = N\f$ for ANY occupations, and D' stays
 //! idempotent in the new metric where D was in the old -- which the verbatim AO carry is not once the centres move.  THROWS if a
@@ -166,14 +186,14 @@ void LowdinCarry(SavedState& carry, const std::vector<StateBlock>& blocks);
 
 //! \brief WHAT A RESTART DID, for the run's clients (a GUI shows it; a gate checks it): where it came from, whether it resumed
 //! exactly, every warm difference (one line each, with what it means), how far the atoms moved, and the electrons the restored
-//! density holds on THIS run's basis, \f$\sum_b w_b\,\mathrm{Re\,Tr}(D_b S'_b)\f$ -- N when the carry is right.
+//! density holds on THIS run's basis, \f$\sum_b w_b\,\mathrm{Re\,Tr}(D_b S'_b)\f$ -- N at the saved geometry, N to first order in
+//! the move after \c CarryToMovedAtoms (a diagnostic).
 struct RestartSummary
 {
     std::string              path;
     bool                     exact = false;
     std::vector<std::string> warm;                  //!< empty = an exact resume
     double                   maxDisplacement = 0.0; //!< bohr
-    bool                     lowdinCarried = false; //!< the density was carried through the Löwdin frame (moved atoms, S saved)
     double                   electrons = 0.0;       //!< Σ_b w_b Re Tr(D_b S'_b) of the restored density, on this run's basis
 };
 

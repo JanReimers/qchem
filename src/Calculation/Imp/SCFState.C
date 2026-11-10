@@ -531,6 +531,20 @@ SavedState SnapshotState(const std::vector<StateBlock>& blocks, const std::strin
     return st;
 }
 
+void CarryToMovedAtoms(SavedState& carry, const std::vector<StateBlock>& blocks)
+{
+    if (blocks.size()!=carry.blocks.size())
+        throw std::logic_error("CarryToMovedAtoms: the carry has "+std::to_string(carry.blocks.size())+" blocks, the basis "+std::to_string(blocks.size()));
+    for (size_t b=0;b<blocks.size();b++)
+    {
+        SavedBlock& sb=carry.blocks[b];
+        if (sb.D.rows()!=blocks[b].n())
+            throw std::logic_error("CarryToMovedAtoms: block "+std::to_string(b)+" has "+std::to_string(sb.D.rows())+" functions, the basis "
+                                   +std::to_string(blocks[b].n()));
+        sb.S=BlockOverlap(blocks[b]);   // D stays: its AO coefficients follow their atoms
+    }
+}
+
 void LowdinCarry(SavedState& carry, const std::vector<StateBlock>& blocks)
 {
     if (blocks.size()!=carry.blocks.size())

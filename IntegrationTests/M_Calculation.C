@@ -335,11 +335,12 @@ TEST(M_Calculation, WaterLDASymmetryExactResumeStartsAtTheSavedAnswer)
     EXPECT_LE((*r)->IterationCount(), 2u);
 }
 
-// CLAIM (controller note 1, 2026-11-09): POSITIONS ARE WARM, and the density crosses the overlap change through the Löwdin frame.
-// A restart at a displaced H2O holds exactly N electrons on the NEW basis, Tr(D S') = 10 to 1e-12, at its first iterate, and
-// converges to the fresh run's energy.  DISCRIMINATES (lane A 2026-11-09, the carry disabled): the verbatim AO carry holds
-// 9.99506086599 electrons at this 0.064 bohr step.
-TEST(M_Calculation, WaterRestartAtMovedAtomsCarriesTheDensityThroughTheLowdinFrame)
+// CLAIM (controller note 1, 2026-11-09, revised on the measurement the same day): POSITIONS ARE WARM.  A restart at a displaced H2O
+// carries the saved D onto the new basis as AO coefficients (CarryToMovedAtoms, the measured best first iterate: the N-exact
+// carries started further away, the table at its declaration), its FIRST iterate is within 1e-5 Ha of the converged energy, and it
+// converges to the fresh run's energy.  Tr(D S') is a diagnostic: 9.99506086599 at this 0.064 bohr step.  DISCRIMINATING: a run
+// seeded afresh at the displaced atoms starts 4.1 Ha out (MoleculeSession.EveryStepsFirstIterateStartsNearItsAnswer, carry off).
+TEST(M_Calculation, WaterRestartAtMovedAtomsStartsNearItsAnswer)
 {
     const std::string path=StatePath("h2o_moved.h5");
     const Molecule water=qchem::StructureData::GetMolecule("H2O");
@@ -355,21 +356,24 @@ TEST(M_Calculation, WaterRestartAtMovedAtomsCarriesTheDensityThroughTheLowdinFra
     moved->MoveSites(R);
     const auto setupMoved=MoleculeSetup::Resolve(*moved, {.basis = "dzvp"});
 
-    auto r=MoleculeCalculation::PrepareRestart(path, setupMoved);
+    std::vector<double> E;
+    auto r=MoleculeCalculation::PrepareRestart(path, setupMoved, {},
+                                               [&](const qchem::SCFIterator::IterationRow& row){ E.push_back(row.eb.GetTotalEnergy()); });
     std::filesystem::remove(path);
     ASSERT_TRUE(r) << r.Error().details;
-    const auto how=(*r)->RestartedFrom();
+    const auto& how=(*r)->RestartedFrom();
     ASSERT_TRUE(how);
     EXPECT_FALSE(how->exact);
-    EXPECT_TRUE(how->lowdinCarried);
     EXPECT_NEAR(how->maxDisplacement, std::sqrt(0.05*0.05+0.04*0.04), 1e-12);
-    EXPECT_NEAR(how->electrons, 10.0, 1e-12) << "Tr(D S') on the moved basis";
+    EXPECT_NEAR(how->electrons, 10.0, 1e-2) << "Tr(D S') on the moved basis, a diagnostic";
     bool named=false;
     for (const auto& w : how->warm) named |= w.rfind("structure.positions:",0)==0;
     EXPECT_TRUE(named) << "the warm list names the move";
 
     auto out=(*r)->Converge();
     ASSERT_TRUE(out) << out.Error().details;
+    ASSERT_FALSE(E.empty());
+    EXPECT_LT(std::abs(E.front()-(*r)->Energy()), 1e-5) << "the first iterate of the carried restart";
     MoleculeCalculation fresh(setupMoved);
     ASSERT_TRUE(fresh.Result());
     EXPECT_NEAR((*r)->Energy(), fresh.Energy(), 1e-8) << "the carried start reaches the same ground state";
