@@ -174,4 +174,41 @@ Outcome<ImportedBasis, std::string> ImportGaussian94(const std::string& text, co
     out.bsd=f.str();
     return O::Ok(std::move(out));
 }
+
+Outcome<std::string, std::string> SubsetBasis(const std::string& bsd, const std::vector<std::string>& elements)
+{
+    using O=Outcome<std::string, std::string>;
+    std::set<std::string> want;
+    for (std::string e : elements) { for (char& c : e) c=(char)std::toupper((unsigned char)c); want.insert(e); }
+    std::istringstream is(bsd);
+    std::ostringstream out;
+    std::set<std::string> found;
+    bool body=false, keep=true, inBlock=false;
+    for (std::string l; std::getline(is, l);)
+    {
+        const auto t=Tokens(l);
+        if (!body)                                              // the preamble, through the BASIS= line, verbatim
+        {
+            out<<l<<"\n";
+            if (!t.empty() && t[0].rfind("BASIS=",0)==0) body=true;
+            continue;
+        }
+        if (!inBlock)
+        {
+            if (t.empty()) continue;
+            if (t.size()!=2 || t[1]!="0") break;               // past the last block: a free-text trailer
+            std::string sym=t[0];
+            for (char& c : sym) c=(char)std::toupper((unsigned char)c);
+            keep=want.count(sym)>0;
+            if (keep) found.insert(sym);
+            inBlock=true;
+        }
+        if (keep) out<<l<<"\n";
+        if (!t.empty() && t[0]=="****") inBlock=false;
+    }
+    if (!body) return O::Fail("no BASIS= header: not a BasisSetData-layout file");
+    for (const std::string& e : want)
+        if (!found.count(e)) return O::Fail("the basis has no block for "+e);
+    return O::Ok(out.str());
+}
 }

@@ -9,7 +9,9 @@ module;
 #include <cstdlib>
 #include <fcntl.h>
 #include <unistd.h>
+#include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <iomanip>
 #include <functional>
 #include <initializer_list>
@@ -38,6 +40,8 @@ import qchem.Outcome;
 import qchem.BasisSet.Lattice.BasisSet;   // VetStageTrim, GPWParams
 import qchem.BasisSet.Gaussian.Point.ShellTrim;
 import qchem.RunPolicy;
+import qchem.PeriodicTable;                 // the material's element symbols, for an inlined basis
+import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import;   // SubsetBasis: the elements a deck inlines
 import qchem.Mesh.XCPolicy;                 // ResolveXCMesh (a recipe field under cellKind Auto is refused at resolve)
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.StructureData;   // KindOf
@@ -141,10 +145,41 @@ const auto kDegenerateFill = NAMES(SCFParams::DegenerateLevelFill, {"Auto",SCFPa
 const auto kMixing = NAMES(SCFParams::Mixing, {"Auto",SCFParams::Mixing::Auto}, {"Linear",SCFParams::Mixing::Linear},
                             {"Kerker",SCFParams::Mixing::Kerker}, {"Pulay",SCFParams::Mixing::Pulay});
 
+//! An INLINE basis as a file the reader can open: written once to <temp>/qchem-inline-bases/<FNV-1a of the text>.bsd (content-
+//! addressed, so a second deck with the same text reuses it and the file's checksum IS the text's), via a temporary and a rename.
+std::string MaterializedBasis(const std::vector<std::string>& lines)
+{
+    namespace fs=std::filesystem;
+    std::string text;
+    for (const std::string& l : lines) text+=l+"\n";
+    unsigned long long h=1469598103934665603ULL;
+    for (unsigned char c : text) { h^=c; h*=1099511628211ULL; }
+    char hex[32]; std::snprintf(hex, sizeof hex, "%016llx", h);
+    const fs::path dir=fs::temp_directory_path()/"qchem-inline-bases", path=dir/(std::string(hex)+".bsd");
+    if (!fs::exists(path))
+    {
+        fs::create_directories(dir);
+        const fs::path tmp=dir/(std::string(hex)+".tmp"+std::to_string(::getpid()));
+        { std::ofstream out(tmp); out<<text; if (!out) throw std::runtime_error("deck: cannot write the inline basis to "+tmp.string()); }
+        fs::rename(tmp, path);
+    }
+    return path.string();
+}
+
+//! Whether a stated basis.file is one of the SHIPPED BasisSetData files (a bare name, or a path into that directory): those stay a
+//! path; any other file is inlined (user ruling 2026-11-10).
+bool ShippedBasisFile(const std::string& file)
+{
+    if (file.find('/')==std::string::npos) return true;
+    std::error_code ec;
+    return std::filesystem::equivalent(std::filesystem::path(file).parent_path(),
+                                       std::filesystem::path(BasisSet::Gaussian::BasisFile("dzvp.bsd")).parent_path(), ec);
+}
+
 //! The deck's basis block as the setup's RECIPE (the trim stated, or vetted once by SolidSetup::Resolve).
 GaussianBasisRecipe RecipeOf(const RunSpec::Basis& b)
 {
-    GaussianBasisRecipe r{.file=b.file, .autoTrim=b.autoTrim, .spherical=b.spherical};
+    GaussianBasisRecipe r{.file=b.inlineBsd.empty() ? b.file : MaterializedBasis(b.inlineBsd), .autoTrim=b.autoTrim, .spherical=b.spherical};
     // A REGISTERED name keeps its typed handle; any other stem in the data directory is read as that file.
     if (!BasisSet::Gaussian::RegisteredBasis(b.data, r.data) && r.file.empty()) r.file=BasisSet::Gaussian::BasisFileOfName(b.data);
     for (const auto& t : b.trim) r.trim.shells.push_back({t.Z, t.l, rvec_t(1,t.alpha)});
@@ -604,6 +639,7 @@ json BasisJson(const RunSpec::Basis& b)
 {
     json j={{"data",b.data},{"spherical",b.spherical}};
     if (!b.file.empty()) j["file"]=b.file;
+    if (!b.inlineBsd.empty()) j["inline"]=b.inlineBsd;
     if (b.autoTrim) j["autoTrim"]=true;
     if (b.family!=SolidCalcOptions::OrbitalBasis::GPW) { j["family"]=NameOf(b.family,kFamily); j["ecut"]=b.ecut; }
     if (!b.trim.empty())
@@ -618,7 +654,9 @@ void BasisFromJson(const json& j, RunSpec::Basis& b)
 {
     Fields f(j,"basis");
     f.Get("data",b.data); (void)BasisSet::Gaussian::BasisFileOfName(b.data);   // a name not in the data directory THROWS here, listing the names
-    f.Get("spherical",b.spherical); f.Get("file",b.file); f.Get("autoTrim",b.autoTrim);
+    f.Get("spherical",b.spherical); f.Get("file",b.file); f.Get("inline",b.inlineBsd); f.Get("autoTrim",b.autoTrim);
+    if (!b.file.empty() && !b.inlineBsd.empty())
+        throw std::runtime_error("deck: basis.file AND basis.inline -- state one (an inline basis IS the file's text)");
     if (j.contains("vet"))
         throw std::runtime_error("deck: 'basis.vet' is retired (2026-11-04): the conditioning report now always runs -- for the vet-stage trim state "
                                  "\"autoTrim\": true beside a solid.orthoTol > 0, and otherwise drop the key");
@@ -757,6 +795,22 @@ Materials::Material Resolve(RunSpec& spec)
             throw std::runtime_error("deck: structure '"+spec.structure+"' is a molecule (molecules.json); the deck currently drives "
                                      "periodic runs only (a cell from materials.json)");
         m=Materials::Get(spec.structure);
+    }
+    // A NON-SHIPPED BASIS FILE IS INLINED (user ruling 2026-11-10): the elements this material uses, the attribution in the preamble,
+    // so the resolved deck -- the revision record -- runs anywhere without the per-user file.
+    if (!spec.basis.file.empty() && !ShippedBasisFile(spec.basis.file))
+    {
+        std::ifstream in(spec.basis.file);
+        if (!in) throw std::runtime_error("deck: basis.file '"+spec.basis.file+"' cannot be read");
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        std::vector<std::string> elements;
+        m.cell->ForEachSite([&](int z, const rvec3_t&, bool){ elements.push_back(thePeriodicTable().GetSymbol(z)); });
+        const auto sub=BasisSet::Gaussian::SubsetBasis(text, elements);
+        if (!sub) throw std::runtime_error("deck: basis.file '"+spec.basis.file+"' -- "+sub.Error());
+        std::istringstream ls(sub.Value());
+        spec.basis.inlineBsd.clear();
+        for (std::string l; std::getline(ls, l);) spec.basis.inlineBsd.push_back(l);
+        spec.basis.file.clear();
     }
     if (spec.basis.autoTrim && !spec.basis.trim.empty())
         throw std::runtime_error("deck: basis.autoTrim and basis.trim are exclusive (an autoTrim computes the trim; a stated trim is the A/B for it)");
@@ -1024,7 +1078,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
     if (spec.basis.autoTrim) v.notes.push_back("basis.autoTrim: the vet-stage trim loop is NOT run by --check (function count is the untrimmed one)");
     std::ostringstream os;
     os<<spec.StructureName()<<(spec.inlineStructure.is_null() ? "" : " (inline)")<<": "<<mat.cell->GetNumAtoms()<<" atoms, Nelec "<<spec.solid.Nelec<<", multiplicity "<<spec.solid.multiplicity
-      <<", k-mesh "<<spec.kmesh.x<<"x"<<spec.kmesh.y<<"x"<<spec.kmesh.z<<", basis "<<(spec.basis.file.empty()?spec.basis.data:spec.basis.file)<<(spec.basis.spherical?" (spherical)":"")
+      <<", k-mesh "<<spec.kmesh.x<<"x"<<spec.kmesh.y<<"x"<<spec.kmesh.z<<", basis "<<(!spec.basis.inlineBsd.empty() ? spec.basis.data+" (inline)" : spec.basis.file.empty()?spec.basis.data:spec.basis.file)<<(spec.basis.spherical?" (spherical)":"")
       <<" "<<nf<<" functions, "<<spec.Stages().size()<<" SCF stage(s), "<<spec.solid.hubbard.size()<<" Hubbard manifold(s), "<<spec.postSCF.size()<<" postSCF action(s)"
       <<(spec.solid.imposeSymmetry?", symmetry IMPOSED":", symmetry FREE");
     v.summary=os.str();
@@ -1105,7 +1159,8 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     RunOutcome out;
     out.revision=ClaimRevision(outDir, spec.StructureName());
     prov.policyResolved=RunPolicy(spec.solid.policy).Banner();   // the stated policy is in the deck; what it RESOLVED to is the record
-    prov.basisFile=spec.basis.file.empty() ? BasisSet::Gaussian::BasisFileOfName(spec.basis.data) : spec.basis.file;
+    prov.basisFile=!spec.basis.inlineBsd.empty() ? MaterializedBasis(spec.basis.inlineBsd)
+                  : spec.basis.file.empty() ? BasisSet::Gaussian::BasisFileOfName(spec.basis.data) : spec.basis.file;
     prov.basisChecksum=BasisSet::Gaussian::BasisFileChecksum(prov.basisFile);
     WriteRevision(out.revision, ToJson(spec), prov);     // the record exists BEFORE the SCF: a crashed run still leaves it
     const std::string stem=out.revision.stem().string(); // <structure>.rNNN -- the run's name in its own output

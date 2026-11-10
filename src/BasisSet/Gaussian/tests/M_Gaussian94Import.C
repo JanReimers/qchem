@@ -168,3 +168,19 @@ TEST(Gaussian94Import, WhatTheLibraryCannotRepresentIsRefusedByName)
     EXPECT_NE(why("! only comments\n").find("no element block"), std::string::npos);
     EXPECT_EQ(why(h), "ACCEPTED");
 }
+
+TEST(Gaussian94Import, ASubsetKeepsThePreambleAndOnlyTheNamedElements)
+{
+    const auto r=ImportGaussian94(kCCpVDZ_HO, "cc-pVDZ", {"attribution: Basis Set Exchange, version 1"});
+    ASSERT_TRUE(r) << r.Error();
+    const auto o=SubsetBasis(r->bsd, {"o"});
+    ASSERT_TRUE(o) << o.Error();
+    EXPECT_NE(o->find("attribution: Basis Set Exchange"), std::string::npos);
+    EXPECT_NE(o->find(" O   0"), std::string::npos);
+    EXPECT_EQ(o->find(" H   0"), std::string::npos);
+    Molecule m; m.Insert(Site{8, Vector3D(0.0, 0.0, 0.0)});
+    EXPECT_EQ(Functions(Written("ccpvdz_O", *o), m), 15u) << "the O block whole";
+    const auto fe=SubsetBasis(r->bsd, {"O", "Fe"});
+    ASSERT_FALSE(fe);
+    EXPECT_NE(fe.Error().find("no block for FE"), std::string::npos) << fe.Error();
+}

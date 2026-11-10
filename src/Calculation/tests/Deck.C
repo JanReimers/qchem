@@ -380,6 +380,50 @@ TEST(Deck, BasisFileOverridesTheRegisteredDataFileAndABadPathFails)
     EXPECT_ANY_THROW(deck::Vet(bad,std::filesystem::temp_directory_path()));
 }
 
+// A NON-SHIPPED BASIS IS INLINED (user ruling 2026-11-10: "the more self contained the decks are the better"): Resolve turns a
+// basis.file outside BasisSetData into basis.inline -- the preamble (the attribution) and only the blocks of the material's
+// elements -- so the record runs without the file; the build is the same basis; a file AND inline text, or a file missing an
+// element the material uses, is refused.
+TEST(Deck, ANonShippedBasisFileIsInlinedForTheElementsItUsesWithItsAttribution)
+{
+    namespace fs=std::filesystem;
+    const fs::path shipped=fs::path(DECKS_DIR).parent_path()/"BasisSetData"/"valence_lowq_va.bsd";
+    const fs::path dir=fs::path(::testing::TempDir())/"deck_inline_basis";
+    fs::create_directories(dir);
+    const fs::path mine=dir/"mine.bsd";
+    {
+        std::ifstream in(shipped); std::ofstream out(mine);
+        out<<"MY DOWNLOAD (attribution: Basis Set Exchange, version 1, fetched 2026-11-10)\n"<<in.rdbuf();
+    }
+    deck::RunSpec reg, over;
+    deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_VA"}}}}, reg);
+    deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_VA"},{"file",mine.string()}}}}, over);
+    (void)deck::Resolve(over);
+    const json b=deck::ToJson(over)["basis"];
+    EXPECT_FALSE(b.contains("file")) << "the record must not name the per-user file";
+    ASSERT_TRUE(b.contains("inline"));
+    std::string text; for (const auto& l : b["inline"]) text+=l.get<std::string>()+"\n";
+    EXPECT_NE(text.find("attribution: Basis Set Exchange"), std::string::npos) << "the attribution rides along";
+    EXPECT_NE(text.find(" MN   0"), std::string::npos);
+    EXPECT_NE(text.find(" O   0"), std::string::npos);
+    EXPECT_EQ(text.find(" NA   0"), std::string::npos) << "only the elements the deck uses";
+    deck::RunSpec back; deck::FromJson(deck::ToJson(over), back);
+    EXPECT_EQ(deck::ToJson(back), deck::ToJson(over)) << "an inline deck round-trips";
+    fs::remove(mine);                                    // the record runs without the file
+    std::string inl=deck::Vet(back, fs::temp_directory_path()).summary;
+    const auto at=inl.find(" (inline)");
+    ASSERT_NE(at, std::string::npos) << "the summary says the basis is inline: " << inl;
+    EXPECT_EQ(inl.erase(at, 9), deck::Vet(reg, fs::temp_directory_path()).summary)
+        << "the inlined blocks are the same basis as the shipped file's (the same function count)";
+
+    deck::RunSpec both;
+    EXPECT_ANY_THROW(deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"file",shipped.string()},{"inline",json::array({"x"})}}}}, both));
+    { std::ofstream(dir/"h_only.bsd")<<"t\n!\nBASIS=\"t\"\n H   0\n S   1  1.00\n   1.0   1.0\n ****\n"; }
+    deck::RunSpec lacks; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"file",(dir/"h_only.bsd").string()}}}}, lacks);
+    try { (void)deck::Resolve(lacks); FAIL() << "a basis with no Mn block was inlined"; }
+    catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("no block for"), std::string::npos) << e.what(); }
+}
+
 // D-BASIS-REGISTRY: basis.data is a file STEM, any case -- an unregistered file is usable by name; a name that is not in the data
 // directory is refused when the deck is read, listing the names; the record keeps the name as written.
 TEST(Deck, TheBasisIsAFileStemAndAnUnknownOneIsRefusedListingTheNames)

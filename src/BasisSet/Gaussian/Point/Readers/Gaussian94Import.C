@@ -33,4 +33,10 @@ struct ImportedBasis
 //! unknown angular label, a malformed number or count, a repeated element, or no element at all.
 Outcome<ImportedBasis, std::string> ImportGaussian94(const std::string& text, const std::string& title,
                                                      const std::vector<std::string>& provenance = {});
+
+//! \brief The part of a BasisSetData-layout file a run USES: the whole preamble (title, attribution, PP-PROVENANCE, the "!" and
+//! BASIS= lines) verbatim and the blocks of \a elements (symbols, any case), in file order -- what a deck inlines (user ruling
+//! 2026-11-10: a deck carries a non-shipped basis inline, for the elements it uses, with its attribution).  FAILS naming an element
+//! the file has no block for.
+Outcome<std::string, std::string> SubsetBasis(const std::string& bsd, const std::vector<std::string>& elements);
 }
