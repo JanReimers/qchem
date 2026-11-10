@@ -185,6 +185,32 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySC
     EXPECT_EQ(r->IterationCount(), once.IterationCount());
 }
 
+//! THE CURRENT ITERATE, SAMPLED MID-RUN (OpenWork §2 "grab 3D plot data", user GUI pass 2026-11-02): from the observer -- the
+//! compute thread between iterations, the binding's row callback -- \c MakeIterateDensity builds the density of the latest
+//! diagonalisation.  Before any iteration there is none (a refusal, not garbage); mid-run it is a density of N electrons that is
+//! not yet the answer; after the last iteration it IS the converged \c Density(), point for point.
+TEST(CalculationFacade, TheCurrentIteratesDensityIsSampledFromTheObserverAndEndsAsTheConvergedOne)
+{
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"});
+    const rvec3_t on(0.0, 0.0, 0.3), off(0.0, 1.0, 1.2);
+    std::vector<double> mid;
+    std::unique_ptr<MoleculeCalculation> calc;
+    calc=MoleculeCalculation::Prepare(setup, [&](const SCFIterator::IterationRow& row)
+    {
+        const auto rho=calc->MakeIterateDensity();
+        if (row.iteration==2) mid={(*rho)(on), (*rho)(off)};
+        EXPECT_EQ(calc->MakeIterateSpinDensity()->operator()(off), 0.0) << "unpolarized: the zero field";
+    });
+    EXPECT_THROW((void)calc->MakeIterateDensity(), std::logic_error) << "no iteration has run: nothing to sample";
+    auto r=calc->Converge();
+    ASSERT_TRUE(r) << r.Error().details;
+    ASSERT_EQ(mid.size(), 2u) << "the observer sampled at iteration 2";
+    EXPECT_NE(mid[1], calc->Density()(off)) << "a mid-run iterate is not the answer";
+    const auto last=calc->MakeIterateDensity();
+    EXPECT_DOUBLE_EQ((*last)(on),  calc->Density()(on));
+    EXPECT_DOUBLE_EQ((*last)(off), calc->Density()(off));
+}
+
 //! EVERY DEFAULT BUILDS (controller ruling 2026-11-07, after the sto-3g default that had no file): a molecule stating ONLY its basis
 //! -- and, for the DFT defaults (XC mesh, Vxc fit, Hartree route), only its model besides -- builds its whole graph.  A default that
 //! cannot build is a silent trap; this is the test that would have caught it.  The basis itself has no default: unstated, it is

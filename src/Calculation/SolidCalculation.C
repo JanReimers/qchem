@@ -708,15 +708,17 @@ private:
 };
 
 //! \brief THE SOLID POTENTIAL ENERGY SURFACE (doc/CalcNetworkReview.md §3.1, §7; step 8): one fixed \c SolidSetup, sampled at
-//! positions the caller chooses.  Each \c ConvergeAt builds a new geometry point -- the setup's cell with the atoms moved, its
+//! positions (and, within the setup's strain allowance, cells) the caller chooses.  Each \c ConvergeAt builds a new geometry point -- the
+//! asked cell (the reference's unless the setup states \c cellStrainAllowance; then any cell within it, every size frozen at the
+//! reference's sizing box: the cell half's frozen rule, \c FollowCell) with the atoms moved, its
 //! molecular basis remade from the setup's frozen recipe (the trim is NOT re-vetted) -- seeded from the previous point's density
 //! carried onto it.
 //!
 //! WHAT A POINT REFUSES (each a \c PESFailure, never a crash; positions that break the setup's IMPOSED group THROW, ruling Q4 and a wiring
 //! defect since \c MakeSolidGeometryRun pairs every geometry run with a map that keeps the group): a
 //! basis that, at these positions, would lose functions in the ortho step the trim was decided to avoid (ruling Q3: the frozen
-//! basis left its conditioning window -- checked when the setup states an \c orthoTol); a moved cell (the basis and grids
-//! are built for one); stress (no term has its cell gradient yet: step 9); forces while the point's Hamiltonian names a term without its
+//! basis left its conditioning window -- checked when the setup states an \c orthoTol); a moved cell on a setup with no strain
+//! allowance, or one stretched beyond it (\c CellChange); stress (no term has its cell gradient yet: step 9); forces while the point's Hamiltonian names a term without its
 //! geometry gradient (\c NoGradient lists them, from the session's current point before any SCF, or the first point once built).  +U is held at the setup's values along the surface (ruling Q5).
 class SolidSession : public virtual PotentialEnergySurface
 {
@@ -735,7 +737,8 @@ public:
     PESGeometry Reference() const override;
     //! THROWS when \a cell is empty, when \a R has not one position per atom, or when the atoms MOVED on a setup resolved from a
     //! pre-built basis (no recipe to remake it with -- resolve the setup from a \c GaussianBasisRecipe).  A cell that differs
-    //! from the setup's is \c PESFailure::CellChange (the basis and grids are built for one cell).
+    //! from the setup's is followed when the setup states a \c cellStrainAllowance and the cell's largest principal stretch is
+    //! within it; otherwise it is \c PESFailure::CellChange.
     Outcome<PESPoint, PESFailure> ConvergeAt(const std::optional<rmat3d_t>& cell, const std::vector<rvec3_t>& R,
                                              const PESRequest& want = {}) override;
     //! The current point (the last \c ConvergeAt's), for a caller that wants its rich answers; null before the first.  Replaced

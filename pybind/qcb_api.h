@@ -131,6 +131,12 @@ void qcb_density     (const qcb_calc* h, int n, double pad, double* out, double*
 void qcb_spin_density(const qcb_calc* h, int n, double pad, double* out, double* origin, double* spacing);
 int  qcb_orbital     (const qcb_calc* h, int index, int n, double pad, double* out, double* origin, double* spacing);
 void qcb_gradient(const qcb_calc* h, int n, double pad, double* out, double* origin, double* spacing);
+//! The CURRENT ITERATE's density (spin != 0: its spin density, the zero field when unpolarized), sampled as qcb_density does:
+//! the wave function's latest diagonalisation, built fresh per call (MoleculeCalculation::MakeIterateDensity).  Call it ONLY
+//! from the row callback (`step`, on the compute thread between iterations) or between converges -- never from another thread
+//! while an SCF runs.  1 on success, 0 with `err` (no iteration yet).
+int  qcb_iterate_density(const qcb_calc* h, int spin, int n, double pad, double* out, double* origin, double* spacing,
+                         char* err, int errlen);
 
 // -- periodic runs: the INPUT DECK is the seam (qchem::deck::Build).  The GUI translates its own run spec into deck JSON
 //    (the same file `rundeck` runs), so the bridge restates none of the deck's resolve logic and every GUI crystal run is a

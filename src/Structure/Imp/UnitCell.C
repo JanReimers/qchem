@@ -1,5 +1,6 @@
 // File: Structure/UnitCell.C  Unit cell for a lattice.  Symbol/units conventions: see Lattice.C.
 module;
+#include <cstdio>
 #include <iomanip>
 #include <cassert>
 #include <cstdlib>
@@ -612,7 +613,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
     // manual mp.nUniform.  The Nyquist relation itself is qcMesh::UniformDivisions -- named once beside the
     // two MeshParams fields it relates, because the resolution CHECKS (is this mesh fine enough for the
     // basis? which grid is cheaper?) need the same mapping and must not re-derive it.
-    const int n = mp.eCut>0.0 ? qcMesh::UniformDivisions(GetMaximumCellEdge(), mp.eCut) : mp.nUniform;
+    const int n = mp.eCut>0.0 ? qcMesh::UniformDivisions(SizingGeometry().GetMaximumCellEdge(), mp.eCut) : mp.nUniform;   // the frozen rule
     assert(n>0);
     const double w=GetCellVolume()/(double(n)*n*n);   // equal weight Omega/n^3
     rvec3vec_t R(size_t(n)*n*n);
@@ -685,8 +686,24 @@ CellGeometry CellGeometry::MakeReciprocal() const
 {
     //  Solid-state convention bᵢ·aⱼ = 2π δᵢⱼ, i.e. B = 2π A⁻ᵀ.  Hence the
     //  reciprocal metric is BᵀB = (2π)² M⁻¹ (the 2π lives in B, not M).
-    return CellGeometry(2.0*Pi*Transpose(Invert(itsA)));
+    CellGeometry B(2.0*Pi*Transpose(Invert(itsA)));
+    if (itsSizing) B.SetSizingCell(2.0*Pi*Transpose(Invert(*itsSizing)));
+    return B;
 }
+
+std::string CellGeometry::KeyFragment() const
+{
+    auto m=[](const Matrix3D<double>& A)
+    {
+        std::string out;
+        char buf[32];
+        for (size_t i=1;i<=3;++i) for (size_t j=1;j<=3;++j) { std::snprintf(buf, sizeof buf, "%.17g", A(i,j)); out+=(out.empty() ? "" : ",")+std::string(buf); }
+        return out;
+    };
+    return "A="+m(itsA)+(itsSizing ? "|sizing="+m(*itsSizing) : std::string());
+}
+
+CellGeometry CellGeometry::SizingGeometry() const {return itsSizing ? CellGeometry(*itsSizing) : CellGeometry(itsA);}
 
 rvec3_t CellGeometry::ToCartesian(const rvec3_t& f) const
 {
