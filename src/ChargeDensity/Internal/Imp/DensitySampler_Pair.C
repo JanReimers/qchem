@@ -404,4 +404,37 @@ PairDensitySampler::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb)
 chmat_t PairDensitySampler::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
 rsmat_t PairDensitySampler::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
 
+// THE DERIVATIVE OF MatrixT at the fixed field v (GeometryOptimizationPlan §13.2): the same route decision, block by block.
+//   RAW  -- the GPW raster gather's jets are not built (its box truncation differs from the G-space integrator's, so the Hartree
+//           jets are not its exact derivative): a named refusal, a MissingGradients() entry.
+//   BALL -- the scalar fitter's own derivative of its contraction at the fit of v (a plane-wave block: an exact zero).
+template <class U> Outcome<rvec3vec_t,AD::NoGradient>
+PairDensitySampler::MatrixPullbackT(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const
+{
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws), as MatrixT
+    if (BlockAdjoint(orb))
+        return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the raw raster XC gather has no geometry gradient on the block "+bs->Name()
+                                                         +" (its collocation jets are not built)"});
+    if constexpr (std::is_same_v<U,dcmplx>)
+    {
+        std::lock_guard<std::mutex> lock(itsScalarFitterLock.m);
+        itsScalarFitter->DoFit(SampledField(v, NumPoints()));
+        return itsScalarFitter->MakeOverlapPullback(orb, D, st);
+    }
+    else
+        return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"a real TRIM block on the ball-fit XC route has no contraction, hence no "
+                                                         "geometry gradient, on the block "+bs->Name()});
+}
+// The same decision, without the work: no raw pair, a complex block, and the fitter can.
+bool PairDensitySampler::CanPullbackMatrix(const cobs_t* bs) const
+{
+    const auto* orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>*>(bs);
+    return orb && !BlockAdjoint(*orb) && itsScalarFitter->CanPullbackOverlap(*orb);
+}
+bool PairDensitySampler::CanPullbackMatrix(const robs_t*) const {return false;}   // MatrixPullbackT: a raw real block refuses, a ball one has no contraction
+Outcome<rvec3vec_t,AD::NoGradient> PairDensitySampler::MakeMatrixPullback(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const
+{return MatrixPullbackT<dcmplx>(bs, v, D, st);}
+Outcome<rvec3vec_t,AD::NoGradient> PairDensitySampler::MakeMatrixPullback(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const
+{return MatrixPullbackT<double>(bs, v, D, st);}
+
 } //namespace

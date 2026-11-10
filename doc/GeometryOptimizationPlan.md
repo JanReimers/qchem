@@ -475,9 +475,23 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
   - The PW pullbacks at a NON-TRIM k (genuinely complex D) against the FD of the same assemblies on a distorted Si cell.
   - `EwaldForces` against the FD of `EwaldEnergy` (Si, and a neutral CsCl), η-independent, summing to zero; the pair sum likewise.
   - The PW PP and ion-ion term forces through the term face against the FD of each term's own energy at fixed D.
-- Not yet: the rest of GPW's G-space side (the Hartree gather: BUILT 2026-11-09, below); and a PW whole-force gate.  That last needs
-  the PW XC term to report its EXACT ZERO fixed-D force (the PW Hartree now does: its Coulomb tensor's pullback is zero, nothing on a
-  plane-wave basis has a centre), and a solid-facade test friend.  (A real TRIM block inside a complex run: BUILT 2026-11-09, below.)
+- Not yet: the rest of GPW's G-space side (the Hartree gather: BUILT 2026-11-09, below).  (The PW whole force and a real TRIM block
+  inside a complex run: BUILT 2026-11-09, below.)
+
+**BUILT (lane B 2026-11-09): the XC term's force at fixed D, and the PLANE-WAVE WHOLE FORCE.**
+- E_xc = Σ_g w_g e(ρ(r_g)), ρ the sampler's collocation of D and its `Matrix` the exact adjoint (the sampler's class invariant), so at
+  fixed D the force is Re Tr(D ∂_R Matrix(v)) at the FIXED v = ∂e/∂ρ the refresh built.  Three derivatives beside existing methods:
+  `FitContraction::MakeOverlapPullback` beside `Overlap` (hub snapshot, the derivative-beside pre-approval), `tDensitySampler::
+  MakeMatrixPullback` beside `Matrix`, and the XC term's face (`Imp/Vxc_Forces.C`), each with its `Can…` answer for MissingGradients().
+- Routes: the ball fit (plane waves) through the fitter's Overlap3C tensor, an EXACT ZERO on a plane-wave block (no centre); the raw GPW
+  raster gather refuses by name (its jets are not built: the box truncation differs from the G-space integrator's, so the Hartree jets
+  are not its derivative); the δ quadrature refuses by name (block jets at its points; an atom-centred mesh's points and weights move).
+  The refusal names the ROUTE, not the block, so a symmetry-blocked run lists the same entry as its unblocked twin.
+- Gate (`HamiltonianForces.OnPlaneWavesTheWholeForceIsTheFiniteDifferenceOfTheReconvergedEnergy`): a distorted two-atom Si cell, Γ, PW
+  Ecut 4 Ha.  MissingGradients() is EMPTY (no Pulay entry: the overlap pullback is an exact zero, so Tr(W ∂S) = 0); Kinetic, Hartree
+  and XC give 0.0 exactly; Σ_t F_t (PP short / long / non-local + Ewald) matches the central difference of the re-converged energy to
+  <= 4.4e-9 at max|F| 0.041 (h = 1e-3, the FD's own h² term; gate 2e-8): Hellmann-Feynman with no basis motion, through the facade's
+  test door.
 
 **BUILT (lane B 2026-11-09): a real TRIM block inside a complex run.**
 - The composite's `DM_Pullback` walks a real child of a complex run through the term's `tStatic_PC<double>` face, as `DM_Contract`
