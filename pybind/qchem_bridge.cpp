@@ -400,6 +400,21 @@ void qcb_density(const qcb_calc* h, int n, double pad, double* out, double* orig
     sample(h, h->calc->Density(), n, pad, out, origin, spacing);
 }
 
+int qcb_iterate_density(const qcb_calc* h, int spin, int n, double pad, double* out, double* origin, double* spacing,
+                        char* err, int errlen)
+{
+    const HostLocale host;
+    try
+    {
+        const auto f = spin ? h->calc->MakeIterateSpinDensity() : h->calc->MakeIterateDensity();
+        sample(h, *f, n, pad, out, origin, spacing);
+        return 1;
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return 0;
+}
+
 void qcb_spin_density(const qcb_calc* h, int n, double pad, double* out, double* origin, double* spacing)
 {
     sample(h, h->calc->GetSpinDensity(), n, pad, out, origin, spacing);

@@ -191,6 +191,18 @@ public:
         return grid_dict("values", arr, o, s);
     }
 
+    //! The current iterate's density (spin: its m(r)); see qcb_iterate_density for WHEN it may be called.
+    nb::dict IterateDensity(int n, double pad, bool spin) const
+    {
+        auto arr = make_array({size_t(n), size_t(n), size_t(n)});
+        double o[3], s[3];
+        char err[errlen] = {0};
+        int ok;
+        { nb::gil_scoped_release nogil; ok = qcb_iterate_density(h, spin ? 1 : 0, n, pad, arr.data(), o, s, err, errlen); }
+        if (!ok) throw std::runtime_error(err);
+        return grid_dict("values", arr, o, s);
+    }
+
     nb::dict SpinDensity(int n, double pad) const
     {
         auto arr = make_array({size_t(n), size_t(n), size_t(n)});
@@ -338,6 +350,10 @@ NB_MODULE(qchem_py, mod)
              "m(r) = rho_up - rho_down; the zero field for an unpolarized run.")
         .def("orbital",      &Calculator::Orbital,     nb::arg("index") = 0, nb::arg("n") = 64, nb::arg("pad") = 5.0,
              "MO `index` in levels() order (0 = lowest).")
+        .def("iterate_density", &Calculator::IterateDensity, nb::arg("n") = 64, nb::arg("pad") = 5.0, nb::arg("spin") = false,
+             "The CURRENT SCF iterate's density (spin=True: its spin density), sampled like density(): the latest diagonalisation's, "
+             "built fresh per call.  Call it ONLY from run_scf's on_iteration callback (the compute thread, between iterations) or "
+             "between runs; raises before the first iteration.")
         .def("gradient", &Calculator::Gradient, nb::arg("n") = 24, nb::arg("pad") = 4.0);
 
     mod.def("report", []()

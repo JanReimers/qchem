@@ -7,6 +7,7 @@ module;
 #include <string>
 #include <utility>
 #include <set>
+#include <stdexcept>
 #include <algorithm>
 #include <cassert>
 #include <iomanip>
@@ -931,6 +932,23 @@ const MoleculeCalculation::sf_t& MoleculeCalculation::GetSpinDensity() const
 {
     assert(itsSpinDensity);
     return *itsSpinDensity;
+}
+
+std::unique_ptr<MoleculeCalculation::sf_t> MoleculeCalculation::MakeIterateDensity() const
+{
+    if (!itsScf || itsScf->GetIterationCount()==0)
+        throw std::logic_error("MoleculeCalculation::MakeIterateDensity: no iteration has run yet (a prepared run samples from "
+                               "its first observer row on)");
+    return itsScf->GetWaveFunction()->GetChargeDensity();
+}
+
+std::unique_ptr<MoleculeCalculation::sf_t> MoleculeCalculation::MakeIterateSpinDensity() const
+{
+    if (!itsScf || itsScf->GetIterationCount()==0)
+        throw std::logic_error("MoleculeCalculation::MakeIterateSpinDensity: no iteration has run yet");
+    const auto* wf=itsScf->GetWaveFunction();
+    if (wf->GetSpinGroup()==SpinGroup::Polarized) return wf->GetSpinDensity();
+    return std::make_unique<ZeroField>();
 }
 
 const MoleculeCalculation::sf_t& MoleculeCalculation::Orbital(size_t i) const

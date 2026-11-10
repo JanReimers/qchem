@@ -147,6 +147,18 @@ public:
     //! special case), so a caller needs no null branch.  Cached by each Converge; valid until the next.
     const sf_t& GetSpinDensity() const;
 
+    //! \name THE CURRENT ITERATE, for a client sampling a run IN PROGRESS (the GUI's "grab 3D plot data", OpenWork §2)
+    //! rho(r) / m(r) of the wave function's LATEST diagonalisation (this iteration's output density, before any mixing), BUILT
+    //! fresh on each call (an owned copy: one density build, so a client asks only when a person wants a picture).  Call it
+    //! from the observer (the compute thread, between iterations: the iterator has updated the wave function before it
+    //! reports the row) or between Converge calls -- never from another thread while an SCF runs.  THROWS before the first
+    //! iteration (a \c Prepare'd run that has not iterated has no orbitals yet).  Public because the binding samples it from
+    //! its row callback, where the cached \c Density() (the CONVERGED state, set after Converge returns) does not exist yet.
+    //!@{
+    std::unique_ptr<sf_t> MakeIterateDensity()     const;
+    std::unique_ptr<sf_t> MakeIterateSpinDensity() const;   //!< the zero field for an unpolarized run
+    //!@}
+
     size_t           IterationCount() const;
     bool             IsConverged()    const;
     //! \brief The static dipole POLARIZABILITY tensor \f$\alpha_{ij}=-\partial^2E/\partial F_i\partial F_j\f$
