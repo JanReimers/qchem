@@ -2081,3 +2081,30 @@ Gates:
 - `WyckoffMap.RutileHasOneFreeParameterAndTheOptimizerFindsItsMinimum` runs at maxStep 1e-6, without the 1e-4 workaround;
 - UTOptimize `Minimize.ARiseWithinTheValueNoiseIsNotARise`: a variational value noise of 1e-6.  Declared, it converges in 23
   steps; the undeclared twin collapses at step 30.
+
+
+## ✅ cout precision leaks between prints (lane A, 2026-11-10, 64db52231)
+
+The row as filed:
+
+| **cout precision leaks between prints** (lane A, 2026-11-09, from the solid banner) | several prints set `setprecision(1)` (some with `scientific`) and never restore it, so a later print inherits it: the solid banner read `alpha=0.5` for 0.45 (fixed: it now states its own format), and `[lattice sums] ... reach=3e+01` still prints at the leaked precision.  Sites: `SCFIterator.C` :116 :942 :1055, `Response/Imp/LittleGroup.C` :31, `FieldMixer.C`, `SCFAcceleratorDIIS.C`, `SphericalQNs.C` | every print that changes cout's format restores it (a small RAII `FormatGuard` in qchem.Reporting), or prints through an `ostringstream`; the console renderer of the run report already does · the sites above |
+
+**Closed.**  `qchem.Reporting` gained `report::FormatGuard`, an RAII object that saves a stream's flags, precision and fill
+and puts them back when its scope ends.  One is opened at the top of every scope that sends a format manipulator to cout,
+or to an `ostream&` it was handed, about 35 sites in 27 files.  Prints that saved and restored precision by hand
+(`prec0`) also got one, because `prec0` missed the flags and the early returns.
+
+Seen in the sweep:
+- `[lattice sums] ... alpha_max=4e+01 ... reach=3e+01` now prints `alpha_max=36 ... reach=30.3485`.
+- Two lines had been blessed WITH the leak, and now state their own format:
+  - `[energy] final E_KS[D_out]` read `-1.496295470276e+02`, because the trace row's `scientific` leaked onto it.  It now
+    prints defaultfloat at 13 significant figures.  The SCFTrace goldens were re-blessed for that line only.
+  - `GPW_Mn2Box.Γ_Becke_Shub_Pol_Smear_KeepsOrder`'s own result line read 10 digits only while an earlier print leaked
+    `setprecision(10)`.  anchordiff saw a 1.8e-5 "move" that was 6-digit rounding.
+
+A print that relies on cout's ambient format is the same defect from the other side: a value line states its format.
+
+Not done:
+- A runtime detector, for example a gtest listener that fails a test which leaves cout's format changed.  It would
+  catch a new leak only on paths the tests reach.
+- Math's own `operator<<` writers already save and restore by hand, and are below qcCommon, so they keep their own code.
