@@ -85,8 +85,27 @@ typedef struct qcb_request
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
 qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char* err, int errlen);
+//! qcb_make's general form.  `path` (null or "" = a fresh start): the SCF starts from that saved state
+//! (MoleculeCalculation::Restart; "qchem-state 2.0"): an EXACT RESUME when nothing differs, else a WARM START naming each
+//! difference (qcb_restarted_from).  `buildOnly` != 0: BUILD the whole graph and stop before iteration 1
+//! (MoleculeCalculation::Prepare / PrepareRestart), filed as the report run "<ID> build" (basis.perIrrep with the overlap's
+//! conditioning, every mesh); the first qcb_converge then runs the SCF on that graph.  Null on failure; a REFUSAL of the state
+//! (its kind, basis, electrons or blocks differ, or the file is unreadable) also sets *refused = 1, so the caller can tell it
+//! from a failure and decide on a fresh run.
+qcb_calc* qcb_start(const qcb_request* req, const char* path, int buildOnly, qcb_row_fn step, qcb_sink* sink, int* refused,
+                    char* err, int errlen);
 void      qcb_free(qcb_calc* h);
-//! Re-run the SCF from the seed, streaming each iteration to `step`.  Returns converged (1) / not (0) / failed (-1).
+//! SAVE the run's state to `path` (HDF5 "qchem-state 2.0", converged or not: a restart says which), filed as its own report run
+//! "<ID> state save".  1 on success, 0 with `err`.
+int       qcb_save_state(const qcb_calc* h, const char* path, char* err, int errlen);
+//! WHAT A RESTART OF THIS RUN FROM `path` WOULD DO, without doing it (Calculation::JudgeState), as JSON text:
+//! {"exact": B, "warm": [line, ...]} or {"refused": {"why": unreadable|format|kind|mismatch|realness, "details": S}}.
+//! Returns the length; call with outlen 0 to size it.
+int       qcb_judge_state(const qcb_calc* h, const char* path, char* out, int outlen);
+//! What this run's restart did (Calculation::RestartedFrom), as JSON text: {path, exact, warm: [...], maxDisplacement (bohr),
+//! electrons (the restored density's Tr DS on this basis)}, or "null" for a fresh run.  Returns the length.
+int       qcb_restarted_from(const qcb_calc* h, char* out, int outlen);
+//! Run the SCF (after a buildOnly qcb_start: on its graph; else again from the seed), streaming each iteration to `step`.  Returns converged (1) / not (0) / failed (-1).
 //! On 0 the SCFFailure's reason is written to `err` (as qcb_failure does).
 int       qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char* err, int errlen);
 //! Why the last SCF did not converge (SCFFailure: why, iterations, details) written to `out`; returns 0 and
@@ -134,11 +153,12 @@ int        qcb_solid_iterations(const qcb_solid* h);
 //! it needs (excluding the NUL); writes at most outlen-1 chars.
 int        qcb_solid_resolved(const qcb_solid* h, char* out, int outlen);
 
+//! As qcb_judge_state / qcb_restarted_from, for a crystal (the deck saves and restarts through state.save / state.restartFrom).
+int        qcb_solid_judge_state(const qcb_solid* h, const char* path, char* out, int outlen);
+int        qcb_solid_restarted_from(const qcb_solid* h, char* out, int outlen);
+
 // -- symmetry DETECTED from a structure (the lib's own detectors; nothing is imposed here) -------------------------------
 
-//! A molecule's orbital basis as the facade builds it (BasisSet::Gaussian::Factory, Cartesian, no SALC), with NO SCF:
-//! out4 = {number of functions, number of irrep blocks, min and max eigenvalue of the overlap S over every block}.
-//! The condition number is max/min.  1 on success, 0 with `err` on failure (an unknown basis, an element it lacks).
 //! The library's run record (report::GlobalReport) as JSON text: every run since the last clear, keyed "<name>@<start>", each
 //! holding the sections its providers emitted (basis, grids, scf, ...).  Returns the length; call with outlen 0 to size it.
 int  qcb_report(char* out, int outlen);
@@ -147,8 +167,6 @@ int  qcb_report(char* out, int outlen);
 int  qcb_current_report(char* out, int outlen);
 //! Drop the accumulated run record (a no-op while a run is open).
 void qcb_clear_report(void);
-
-int qcb_basis_info(const int* Z, int nat, const double* pos3, const char* basis, double* out4, char* err, int errlen);
 
 //! The molecular point group of `nat` points (`species` labels, flat 3N bohr `pos3`) within `tol` bohr: the full Schoenflies
 //! symbol into `symbol`, the abelian subgroup the SCF blocks by into `abelian`.  Returns the group order (0 for C∞v / D∞h),

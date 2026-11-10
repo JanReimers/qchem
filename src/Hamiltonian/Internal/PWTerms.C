@@ -236,9 +236,24 @@ template <class T> class tVxc_Quadrature
     : public virtual tDynamic_HT<T>
     , protected      tDynamic_HT_Imp<T>
     , public virtual tRealSpaceResidual<T>   //!< AFTER the protected base: declared before it, libstdc++'s cross-cast from tDynamic_HT returns null
+    , public virtual tGeometryGradient_HT<T>           // its force at fixed D (§13.2; lane B 2026-11-09): Imp/Vxc_Forces.C
+    , public virtual tStatic_PC<T>                     // the per-block pullback client DM_Pullback walks
+    , public         RealPullbackBase<T,tVxc_Quadrature<T>>   // ... and on <dcmplx> the real TRIM block's
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
+    //! \name THE FORCE AT FIXED D (doc/GeometryOptimizationPlan.md §13.2).  \f$E_{xc}=\sum_g w_g e(\rho(r_g))\f$ with \f$\rho\f$ the
+    //! sampler's \c Rho of D, whose \c Matrix is its exact adjoint; so at fixed D, \f$\partial E_{xc}/\partial R
+    //! = \mathrm{Re\,Tr}(D\,\partial_R\,\mathrm{Matrix}(v))\f$ at the FIXED \f$v=\partial e/\partial\rho\f$ -- the sampler's
+    //! \c MakeMatrixPullback, block by block and spin by spin, with the v the refresh built for D.  A plane-wave block's is an exact
+    //! zero; the δ and raw-raster routes refuse by name (a MissingGradients() entry, never a silent zero).
+    //!@{
+    virtual std::string MissingGradient(const tbs_t<T>* bs, const Structure* st) const override;
+    virtual void        AddForces(rvec3vec_t& F, const tDM_CD<T>* D, const Structure* st) const override;
+    virtual rvec3vec_t  Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const override
+    {return PullbackBlock<T>(bs, s, D, st);}
+    template <class U> rvec3vec_t PullbackBlock(const tobs_t<U>* bs, const Spin& s, const hmat_t<U>& D, const Structure* st) const;
+    //!@}
     typedef std::shared_ptr<const ChargeDensity::tDensitySampler<T>> sampler_t;   //!< const: every accessor is const (R2.9(i))
     //! \a g is the imposed spin subgroup: which rasters the sampler is asked for (its Rho / RhoPol caches
     //! are mutually exclusive on one engine, so the choice is fixed for the run).

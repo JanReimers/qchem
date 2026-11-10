@@ -86,6 +86,10 @@ export namespace qchem::ChargeDensity
 //! iteration: without it the pair re-evaluated the Bloch image sums pointwise FOUR times per iteration
 //! (2 terms x (rho sample + matrix quadrature)) -- measured 4.8 s/iteration on NaF, ~all of the Becke
 //! route's runtime premium.
+//! Why the δ quadrature gives no force (§13.2): the ONE wording its refusals share (MissingGradients() prints it).
+inline std::string NoPullbackWhy(const std::string& block)
+{return "the delta XC quadrature has no geometry gradient on the block "+block+" (it needs the block's jets at its points, and an "
+        "atom-centred mesh's points and weights move with the atoms)";}
 //! \note TEMPLATED on the density / block scalar (V-XC-ONE-TERM, 2026-10-31): a molecule's real δ basis samples the
 //! same way a crystal's Bloch one does.  The periodic \c SinglesDensitySampler below adds the response and real-TRIM faces.
 template <class T> class tSinglesDensitySampler
@@ -137,6 +141,10 @@ public:
     std::optional<double> GroupResidual() const override {return itsGroupResidual;}
     //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
     hmat_t<T> Matrix(const tobs_t<T>* bs, const rvec_t& v) const override;
+    //! The derivative beside \c Matrix: REFUSED by name (§13.2).  It needs the block's jets at my points, and on an atom-centred mesh
+    //! the points and weights themselves move with the atoms (V-NONLINEAR-MESH).
+    Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const tobs_t<T>* bs, const rvec_t&, const hmat_t<T>&, const Structure*) const override
+    {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({NoPullbackWhy(bs->Name())});}
     //! \f$\int w_A f\f$ per site over the INJECTED quadrature's mesh; empty when none was injected (or it
     //! has no site blocks -- a uniform grid has no atomic basins).  Ask, do not assume.  The MnO campaign's
     //! point probe (\f$m(r)\f$ 0.7 bohr off the nucleus, a spin DENSITY along one direction of an anisotropic
@@ -251,6 +259,10 @@ public:
     //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's \f$\Phi\f$ table is real, so its quadrature
     //! GEMM runs in REAL arithmetic -- the first place the Step-3 quadrature win is actually realized.
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
+    using tSinglesDensitySampler<dcmplx>::MakeMatrixPullback;
+    //! The real block's derivative: refused, as the Bloch block's.
+    Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const robs_t* bs, const rvec_t&, const hmat_t<double>&, const Structure*) const override
+    {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({NoPullbackWhy(bs->Name())});}
 };
 
 //! \brief THE PAIR STRATEGY: \f$\rho\f$ COLLOCATED from the density-matrix through the orbital-pair
@@ -317,8 +329,15 @@ public:
     mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
+    //! The derivatives beside \c Matrix (§13.2): the BALL route through the scalar fitter's \c MakeOverlapPullback (a plane-wave
+    //! block: an exact zero); the RAW GPW gather refuses by name (its jets are not built).
+    bool CanPullbackMatrix(const cobs_t* bs) const override;
+    bool CanPullbackMatrix(const robs_t* bs) const override;
+    Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const override;
+    Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
 private:
     template <class U> hmat_t<U> MatrixT(const tobs_t<U>* bs, const rvec_t& v) const;
+    template <class U> Outcome<rvec3vec_t,AD::NoGradient> MatrixPullbackT(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const;
     //! Ensure \c itsRho holds \f$\rho(r)\f$ on the raster for \a cd, recomputing only on a new density
     //! serial -- so the XC pair's two terms and their energies share ONE collocation per iteration.
     void Refresh(const cChargeDensity* cd) const;

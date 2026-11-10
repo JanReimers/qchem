@@ -18,6 +18,7 @@ module;
 #include <functional>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
@@ -34,10 +35,6 @@ import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
 import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
 import qchem.Symmetry.Molecule.PointGroup;      // DetectPointGroup
 import qchem.Symmetry.Lattice_3D.SpaceGroup;    // SpaceGroup::Detect
-import qchem.BasisSet;                           // Real_BS (Iterate over its irrep blocks)
-import qchem.BasisSet.IrrepBasisSet;             // Integrals_Overlap (each block's S)
-import qchem.BasisSet.Gaussian.Point.Factory;    // BasisSet::Gaussian::Factory (the facade's own basis builder)
-import qchem.Blaze;                              // blazem::eigen
 import qchem.Reporting;                          // report::GlobalReport (the run record the library keeps)
 import qchem.CrystalFiles;                       // CIF / POSCAR / extended xyz <-> one materials.json entry
 import qchem.StructureData;                      // the materials layers (shipped, user, workspace) and CellFromEntry
@@ -145,6 +142,7 @@ std::string why_name(qchem::SCFFailure::Why w)
         case Why::ChargeSlosh:  return "charge slosh (the Hartree term ran away)";
         case Why::OrderLost:    return "magnetic order lost";
         case Why::UnphysicalEnergy: return "unphysical first iterate (electronic energy > 0)";
+        case Why::ResourceRefused:  return "refused on resources (the run would not fit)";
     }
     return "unknown SCF failure";
 }
@@ -190,47 +188,122 @@ void sample(const qcb_calc* h, const MoleculeCalculation::sf_t& f, int n, double
     for_grid(h, n, pad, origin, spacing, [&](const rvec3_t& r){ out[idx++] = f(r); });
 }
 
+//! What a molecular request resolves to: the molecule and the facade's options, as qcb_make and qcb_restart both build them.
+struct MoleculeRequest
+{
+    qchem::Molecule           mol;
+    qchem::CalcOptions        opts;
+    qchem::AcceleratorOptions acc;
+};
+
+MoleculeRequest molecule_request(const qcb_request* req)
+{
+    MoleculeRequest r;
+    for (int a = 0; a < req->nat; ++a)
+        r.mol.Insert(qchem::Site{req->Z[a], rvec3_t(req->pos3[3*a], req->pos3[3*a+1], req->pos3[3*a+2])});
+    r.opts.basis        = req->basis;
+    r.opts.model        = parse_model(req->model);
+    r.opts.pp           = req->pp ? req->pp : "";
+    r.opts.symmetry     = req->symmetry != 0;
+    r.opts.spin         = req->polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;
+    r.opts.multiplicity = req->multiplicity;
+    if (req->meshRadial  > 0) r.opts.mesh.nRadial       = req->meshRadial;
+    if (req->meshAngular > 0) r.opts.mesh.angularDegree = req->meshAngular;
+    r.acc.type = req->accelerator && *req->accelerator ? req->accelerator : "DIIS";
+    if (req->diisDepth    > 0)   r.acc.nProj = req->diisDepth;
+    if (req->diisSVTol    > 0.0) r.acc.svTol = req->diisSVTol;
+    if (req->diisEngageFD > 0.0) r.acc.eMax  = req->diisEngageFD;
+    if (req->ladderSwitchAt >= 0.0) r.acc.ladderSwitchAt = req->ladderSwitchAt;   // 0 = no tail trigger (stall only)
+    return r;
+}
+
+const char* why_name(qchem::RestartRefusal::Why w)
+{
+    using W = qchem::RestartRefusal::Why;
+    switch (w)
+    {
+        case W::Unreadable: return "unreadable";
+        case W::Format:     return "format";
+        case W::Kind:       return "kind";
+        case W::Mismatch:   return "mismatch";
+        case W::Realness:   return "realness";
+    }
+    return "unknown";
+}
+
+nlohmann::ordered_json refusal_json(const qchem::RestartRefusal& r)
+{
+    return {{"refused", {{"why", why_name(r.why)}, {"details", r.details}}}};
+}
+
+//! A facade's RestartedFrom as JSON: null for a fresh run.
+nlohmann::ordered_json restarted_json(const std::optional<qchem::RestartSummary>& R)
+{
+    if (!R) return nullptr;
+    return {{"path", R->path}, {"exact", R->exact}, {"warm", R->warm}, {"maxDisplacement", R->maxDisplacement},
+            {"electrons", R->electrons}};
+}
+
+//! JudgeState as JSON: {"exact": B, "warm": [...]} or {"refused": {why, details}}.
+nlohmann::ordered_json judged_json(const qchem::Outcome<std::vector<std::string>, qchem::RestartRefusal>& j)
+{
+    if (!j) return refusal_json(j.Error());
+    return {{"exact", j.Value().empty()}, {"warm", j.Value()}};
+}
+
+int write_json(const nlohmann::ordered_json& j, char* out, int outlen)
+{
+    const std::string s = j.dump(-1, ' ', false, nlohmann::ordered_json::error_handler_t::replace);
+    write_error(s.c_str(), out, outlen);
+    return int(s.size());
+}
+
 } // anon namespace
 
 extern "C" {
 
 qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char* err, int errlen)
 {
+    return qcb_start(req, nullptr, 0, step, sink, nullptr, err, errlen);
+}
+
+qcb_calc* qcb_start(const qcb_request* req, const char* path, int buildOnly, qcb_row_fn step, qcb_sink* sink, int* refused,
+                    char* err, int errlen)
+{
     const HostLocale host;
+    if (refused) *refused = 0;
     try
     {
         auto h = std::make_unique<qcb_calc>();
         h->positions.assign(req->pos3, req->pos3 + 3*req->nat);
-
-        qchem::Molecule mol;
-        for (int a = 0; a < req->nat; ++a)
-            mol.Insert(qchem::Site{req->Z[a], rvec3_t(req->pos3[3*a], req->pos3[3*a+1], req->pos3[3*a+2])});
-
-        qchem::CalcOptions opts;
-        opts.basis        = req->basis;
-        opts.model        = parse_model(req->model);
-        opts.pp           = req->pp ? req->pp : "";
-        opts.symmetry     = req->symmetry != 0;
-        opts.spin         = req->polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;
-        opts.multiplicity = req->multiplicity;
-        if (req->meshRadial  > 0) opts.mesh.nRadial       = req->meshRadial;
-        if (req->meshAngular > 0) opts.mesh.angularDegree = req->meshAngular;
-        qchem::AcceleratorOptions acc;
-        acc.type = req->accelerator && *req->accelerator ? req->accelerator : "DIIS";
-        if (req->diisDepth    > 0)   acc.nProj = req->diisDepth;
-        if (req->diisSVTol    > 0.0) acc.svTol = req->diisSVTol;
-        if (req->diisEngageFD > 0.0) acc.eMax  = req->diisEngageFD;
-        if (req->ladderSwitchAt >= 0.0) acc.ladderSwitchAt = req->ladderSwitchAt;   // 0 = no tail trigger (stall only)
+        auto r = molecule_request(req);
 
         // The bridge is the DRIVER (user ruling D): it opens the run the facade writes into -- "<ID>", as for a Converge --
         // BEFORE the setup's checks, so a refusal there files its record (its policy rows) too.
-        h->id     = mol.ID();
-        const qchem::report::Run run(h->id);
-        const auto setup = qchem::MoleculeSetup::Resolve(mol, opts, acc);   // deep-copies mol
+        // A BUILD (no SCF) files "<ID> build", as a crystal's deck build does; its first qcb_converge reuses the graph.
+        h->id     = r.mol.ID();
+        const qchem::report::Run run(buildOnly ? h->id + " build" : h->id);
+        const auto setup = qchem::MoleculeSetup::Resolve(r.mol, r.opts, r.acc);   // deep-copies mol
         // The observer rides the constructor, so the trace of ITS SCF streams from the first iteration.
         h->params = scf_params(*req);
-        h->calc = std::make_unique<MoleculeCalculation>(setup, h->params,
-                                                step ? forward_to(step, sink) : MoleculeCalculation::Observer{});
+        auto observer = step ? forward_to(step, sink) : MoleculeCalculation::Observer{};
+        if (path && *path)
+        {
+            // A refusal is a VALUE (the facade's RestartRefusal): the caller decides on a fresh run, so it is told apart from a failure.
+            auto R = buildOnly ? MoleculeCalculation::PrepareRestart(path, setup, h->params, std::move(observer))
+                               : MoleculeCalculation::Restart(path, setup, h->params, std::move(observer));
+            if (!R)
+            {
+                if (refused) *refused = 1;
+                write_error(("restart refused (" + std::string(why_name(R.Error().why)) + "): " + R.Error().details).c_str(), err, errlen);
+                return nullptr;
+            }
+            h->calc = R.TakeValue();
+        }
+        else if (buildOnly)
+            h->calc = MoleculeCalculation::Prepare(setup, std::move(observer));
+        else
+            h->calc = std::make_unique<MoleculeCalculation>(setup, h->params, std::move(observer));
         // The sink lives only for this call: detach it before returning (qcb_converge attaches its own).
         h->calc->OnIteration(MoleculeCalculation::Observer{});
         return h.release();
@@ -238,6 +311,32 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char
     catch (const std::exception& e) { write_error(e.what(), err, errlen); }
     catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
     return nullptr;
+}
+
+int qcb_save_state(const qcb_calc* h, const char* path, char* err, int errlen)
+{
+    const HostLocale host;
+    try
+    {
+        // The save is its own run in the record, "<ID> state save" (its timing), so the SCF run stays the last one a reader picks.
+        const qchem::report::Run run(h->id + " state save");
+        h->calc->SaveState(path);
+        return 1;
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return 0;
+}
+
+int qcb_judge_state(const qcb_calc* h, const char* path, char* out, int outlen)
+{
+    const HostLocale host;
+    return write_json(judged_json(h->calc->JudgeState(path)), out, outlen);
+}
+
+int qcb_restarted_from(const qcb_calc* h, char* out, int outlen)
+{
+    return write_json(restarted_json(h->calc->RestartedFrom()), out, outlen);
 }
 
 void qcb_free(qcb_calc* h) { delete h; }
@@ -397,6 +496,17 @@ int qcb_solid_resolved(const qcb_solid* h, char* out, int outlen)
     return int(s.size());
 }
 
+int qcb_solid_judge_state(const qcb_solid* h, const char* path, char* out, int outlen)
+{
+    const HostLocale host;
+    return write_json(judged_json(h->calc->JudgeState(path)), out, outlen);
+}
+
+int qcb_solid_restarted_from(const qcb_solid* h, char* out, int outlen)
+{
+    return write_json(restarted_json(h->calc->RestartedFrom()), out, outlen);
+}
+
 // -- the run record ---------------------------------------------------------------------------------------------------
 
 int qcb_report(char* out, int outlen)
@@ -417,36 +527,6 @@ int qcb_current_report(char* out, int outlen)
 void qcb_clear_report() { if (qchem::report::Depth()==0) qchem::report::ClearGlobal(); }
 
 // -- detected symmetry -----------------------------------------------------------------------------------------------
-
-int qcb_basis_info(const int* Z, int nat, const double* pos3, const char* basis, double* out4, char* err, int errlen)
-{
-    const HostLocale host;
-    try
-    {
-        qchem::Molecule mol;
-        for (int a = 0; a < nat; ++a)
-            mol.Insert(qchem::Site{Z[a], rvec3_t(pos3[3*a], pos3[3*a+1], pos3[3*a+2])});
-        // the facade's defaults (MoleculeCalculation's BuildBasis with CalcOptions{}): MnD engine, Cartesian, no SALC blocking --
-        // a unitary re-blocking would not move S's spectrum
-        const std::unique_ptr<qchem::BasisSet::Real_BS> bs(qchem::BasisSet::Gaussian::Factory(
-            nlohmann::json{{"basis", basis}, {"engine", "mnd"}, {"angular", "cartesian"}}, &mol));
-        double smin = std::numeric_limits<double>::infinity(), smax = 0.0;
-        int nblocks = 0;
-        for (auto b : bs->Iterate())
-        {
-            const auto* ov = dynamic_cast<const qchem::BasisSet::Integrals_Overlap<double>*>(b);
-            assert(ov && "a molecular orbital block has an overlap");
-            rvec_t w; mat_t<double> U;
-            qchem::blazem::eigen(ov->Overlap(), w, U);            // ascending
-            if (w.size()) { smin = std::min(smin, w[0]); smax = std::max(smax, w[w.size()-1]); }
-            ++nblocks;
-        }
-        out4[0] = double(bs->GetNumFunctions()); out4[1] = nblocks; out4[2] = smin; out4[3] = smax;
-        return 1;
-    }
-    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
-    return 0;
-}
 
 int qcb_point_group(const int* species, int nat, const double* pos3, double tol,
                     char* symbol, int symlen, char* abelian, int ablen)
