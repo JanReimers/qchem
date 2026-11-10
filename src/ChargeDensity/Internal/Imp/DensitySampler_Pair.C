@@ -45,12 +45,11 @@ namespace qchem::ChargeDensity
 // construction, role-labeled (user ruling 2026-08-16).
 PairDensitySampler::PairDensitySampler(fbs_t fb)
     : itsFitBasis(std::move(fb))
-    , itsScalarFitter(Fitting::Factory(itsFitBasis))   // the ortho (G-space) scalar fit -- BALL route only
     , itsRhoProjector(BasisSet::MakeGSpaceDensityProjector(itsFitBasis, "xc: rho-tilde IBZ star-average (SymmetrizeGMap)"))
 {
     assert(itsFitBasis);
 }
-PairDensitySampler::~PairDensitySampler() = default;   // itsScalarFitter's abstract type is complete here
+PairDensitySampler::~PairDensitySampler() = default;
 
 
 // rho(r) on the raster for cd -- recomputed only on a new density serial, so the XC pair's two terms and
@@ -354,21 +353,10 @@ template <class U> hmat_t<U> PairDensitySampler::MatrixT(const tobs_t<U>* bs, co
     // fit axis, 3c-3), so the narrow stays here.
     if (const qcMesh::MatrixAdjoint<dcmplx>* adj=BlockAdjoint(orb))
         return blazem::NarrowExact<U>(adj->Adjoint(v));
-    if constexpr (std::is_same_v<U,dcmplx>)
-    {
-        std::lock_guard<std::mutex> lock(itsScalarFitterLock.m);   // ONE fitter refit per call: concurrent blocks take turns
-        itsScalarFitter->DoFit(SampledField(v, NumPoints()));
-        // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks on a complex fit axis.
-        return itsScalarFitter->Overlap(orb);
-    }
-    else
-        // ⛔ A REAL TRIM BLOCK ON THE BALL FIT IS STILL UNWIRED: the ortho scalar fitter implements FitContraction<dcmplx,dcmplx> and
-        // NOT the <double,dcmplx> face, so this branch cannot contract.  The face is expressible -- FitContraction is templated on
-        // the block scalar -- so this is a hole in the FITTING layer, not a fact about XC.  Whether it is reached depends on
-        // BlockAdjoint at run time, so it stays a named refusal (V1.34); the seed exemption above keeps it unreachable.
-        throw std::logic_error("PairDensitySampler: a real TRIM block on the legacy ball-fit XC route is not "
-                               "wired -- the ortho scalar fitter has no FitContraction<double,dcmplx> face. "
-                               "Use the raw collocated feed (the default) or the delta quadrature");
+    // A block with no raw pair is a plane-wave lineage, and MakeDensitySampler sends that to the PROJECTED strategy (V-XC-ONE-TERM
+    // step 2, 2026-11-09): the ball fit of v that used to answer here lives there now.  Reaching this is a factory defect.
+    throw std::logic_error("PairDensitySampler: this orbital block has no raw collocation adjoint (a plane-wave block?) -- the pair "
+                           "route cannot assemble H_xc for it; MakeDensitySampler should have chosen the projected strategy");
 }
 // MY ADJOINT HALF for one block, or null when this lineage has no raw pair (then the BALL fallback answers).
 //

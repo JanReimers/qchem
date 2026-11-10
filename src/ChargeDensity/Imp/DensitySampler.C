@@ -36,8 +36,16 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
     // collocation pair (Overlap3C's applyRaw/applyRawAdjoint) exists and the PAIR route is available --
     // and preferred, being the production GPW path.  Anything else can only be contracted through a Phi
     // table: SINGLES.  Note this asks what the basis CAN do, never what it IS.
+    // A ball that holds every orbital pair (a plane-wave orbital basis at >= 4 Ecut) makes P rho = rho[D] exactly: the PROJECTED
+    // strategy is the exact route there, and the pair route would have nothing to collocate (a plane-wave block has no raw pair).
+    // Any other raster ball (GPW) can only reach rho[D] by collocation: PAIR.  (V-XC-ONE-TERM step 2, 2026-11-09: the ball used
+    // to be the pair route's per-call fallback.)
     if (dynamic_cast<const BasisSet::G_RasterTransform*>(fb.get()))
+    {
+        auto* ball=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(fb.get());   // abstract -> abstract
+        if (ball && ball->HoldsEveryOrbitalPair()) return std::make_shared<const ProjectedDensitySampler>(fb);
         return std::make_shared<const PairDensitySampler>(fb);
+    }
     return std::make_shared<const SinglesDensitySampler>(fb, std::move(quad));
 }
 

@@ -270,9 +270,9 @@ public:
 //! what that permitted.
 //!
 //! \warning TWO ROUTES, LATCHED (R2.16).  A density-matrix-backed density answers \c GetRhoOnGrid with
-//! the RAW collocated \f$\rho_{DM}\f$; a plane-wave density or the matrix-free SEED answers EMPTY, and
-//! then \f$\rho\f$ comes from the BALL round trip (\f$\tilde\rho\f$ inverse-FFT) and \f$H\f$ from the
-//! ortho fitter, which is NON-variational.  These minimise DIFFERENT functionals, so the route is latched
+//! the RAW collocated \f$\rho_{DM}\f$; the matrix-free SEED answers EMPTY, and then \f$\rho\f$ comes from the
+//! BALL round trip (\f$\tilde\rho\f$ inverse-FFT) while \f$H\f$ stays the raw adjoint.  (A plane-wave lineage, whose
+//! ball holds every pair, no longer reaches this class: \c ProjectedDensitySampler, V-XC-ONE-TERM step 2, 2026-11-09.)  These minimise DIFFERENT functionals, so the route is latched
 //! on the first matrix-backed density and any later change THROWS.  Iteration 0 is the one unavoidable
 //! exception -- with no \f$D\f$ there is nothing to collocate -- and its energy is discarded anyway.
 class PairDensitySampler
@@ -332,11 +332,8 @@ private:
     void LatchRoute(const cChargeDensity* cd, bool isRaw) const;
 
     fbs_t itsFitBasis;      //!< the raster fit basis: quadrature, collocation key, Overlap3C key
-    //! The ortho scalar fitter over that basis -- used ONLY by the BALL fallback (the RAW route fits
-    //! nothing: "no ball fit anywhere").  Built once; its own grid is this basis's raster.
-    std::unique_ptr<Fitting::ScalarFit<dcmplx>> itsScalarFitter;
-    qchem::LazyLock itsScalarFitterLock;          //!< the BALL fallback refits per call: concurrent blocks take turns
-    //! The BALL route's ρ̃ on this basis: what a density projects itself onto (it used to answer a FourierDensity face).
+    //! The seed's ρ̃ on this basis (iteration 0 only: a matrix-free seed has no D to collocate).  The ball ADJOINT is gone from this
+    //! strategy (V-XC-ONE-TERM step 2): a plane-wave lineage runs on \c ProjectedDensitySampler.
     std::unique_ptr<BasisSet::PairProjector<dcmplx>> itsRhoProjector;
     mutable rvec_t itsRho;                        //!< ρ(r) on the raster for the current density serial
     mutable size_t itsRhoVersion=size_t(-1);      //!< density logical-clock serial itsRho was built for
@@ -367,6 +364,73 @@ private:
     BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const;
     mutable SymMap<ScreenedMatrixIntegrator<dcmplx>> itsAdj;   //!< per block, by its SPATIAL symmetry
     qchem::LazyLock itsAdjLock;                                  //!< itsAdj is filled lazily, possibly by k-block workers
+};
+
+
+//! \brief THE PROJECTED STRATEGY: XC sees \f$P\rho\f$, the projection of \f$\rho[D]\f$ onto the fit space, and \f$H\f$ is its exact
+//! adjoint \f$\langle ij|P\,v(P\rho)\rangle\f$ (V-XC-ONE-TERM step 2, lane S 2026-11-09; design note `lane-s-v-xc-one-term-design.md` §2).
+//!
+//! The \f$\rho\f$ axis of the XC product space has two values (user ruling 2026-11-09, `XCρ {Exact, Fit}`): \f$\rho[D]\f$ pointwise
+//! (the singles and pair strategies) or \f$P\rho\f$ (this one).  Both are variational: \f$E=\int e(P\rho)\f$ and
+//! \f$H=\partial E/\partial D=\langle ij|P\,v\rangle\f$, because \f$P\f$ is self-adjoint in the quadrature it is built on (gate:
+//! \c PW_Terms.TheXCMatrixIsItsEnergysDerivative).  Where \f$P\f$ is EXACT, \f$P\rho=\rho[D]\f$ and the cell is pin-28-legal by
+//! construction; elsewhere it is an explicit, non-default choice.
+//!
+//! REALIZED TODAY FOR ONE FIT BASIS: the plane-wave ball (\c G_RasterTransform + \c G_OrbitalPairBall).  For a plane-wave orbital basis
+//! at >= 4 Ecut the ball holds every pair difference, so \f$P\f$ is exact (Parseval), and this is the route a PW run takes.  It used to
+//! be the pair sampler's "BALL fallback", reached by a per-block capability test in its adjoint; it is now its own strategy, chosen
+//! once by the factory, so neither strategy carries the other's route.  The A1 Gaussian fit (molecule / atom) is the next realization
+//! of the same two faces (design note §4 step 3).
+//!
+//! \note \c Rho is the fit's coefficients of \f$\rho\f$ (the density's own projection, star-averaged) evaluated on the raster;
+//! \c Matrix fits \f$v\f$ on that raster onto the ball and contracts the coefficients with the orbital basis's 3-centre overlap.
+class ProjectedDensitySampler
+    : public virtual DensitySampler
+{
+public:
+    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
+    //! \a fb must be raster-backed (\c G_RasterTransform): the raster is where \f$P\rho\f$ is evaluated and integrated.
+    explicit ProjectedDensitySampler(fbs_t fb);
+    ~ProjectedDensitySampler();
+    double Integrate(const rvec_t& f) const override;
+    size_t NumPoints() const override;
+    const rvec_t& Rho(const cChargeDensity* cd) const override;
+    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
+    //! \c ExactFit when \f$P\f$ is exact (the ball holds every orbital pair), \c Fitted otherwise (pin 28).
+    XCRhoSource RhoSource() const override {return itsSource;}
+    //! This route does not star-average on a quadrature (the projection does it in G space), so it cannot say how far from the group
+    //! its input sat.
+    std::optional<double> GroupResidual() const override {return std::nullopt;}
+    //! ⛔ Not realized: a linear response on the projected route would need the transition density's own projection onto the fit
+    //! (the ball), which no transition density offers today.  THROWS, naming the gap.
+    cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
+    //! ⛔ Its adjoint: the same gap.
+    mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
+    //! \f$\langle i|P\,v|j\rangle\f$: \f$v\f$ fitted onto the ball on my raster, contracted with the block's 3-centre overlap.
+    //! A pure function of \a v: no dependency on which density was sampled last.
+    chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
+    //! ⛔ A real TRIM block: the ortho scalar fitter implements FitContraction<dcmplx,dcmplx> and not <double,dcmplx>, so it THROWS (a
+    //! hole in the FITTING layer, V1.34; a plane-wave run has no real TRIM blocks today).
+    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
+private:
+    const BasisSet::G_RasterTransform& Raster() const;
+    //! \f$P\rho\f$ of ONE density object on my raster: its own projection onto the ball, then the inverse FFT.
+    rvec_t SampleOne(const cChargeDensity* cd) const;
+    void Refresh   (const cChargeDensity* cd) const;
+    void RefreshPol(const cChargeDensity* cd) const;
+
+    fbs_t itsFitBasis;                                          //!< the ball: fit space, raster, Overlap3C key
+    bool  itsExact;                                             //!< does P hold every orbital pair (P rho = rho[D])?
+    std::unique_ptr<Fitting::ScalarFit<dcmplx>> itsScalarFitter; //!< P v: the ortho (G-space) fit of a sampled field
+    qchem::LazyLock itsScalarFitterLock;                         //!< Matrix refits per call: concurrent blocks take turns
+    std::unique_ptr<BasisSet::PairProjector<dcmplx>> itsRhoProjector;   //!< P rho: what a density projects itself onto
+    mutable rvec_t itsRho;                                      //!< P rho on the raster, for the current density serial
+    mutable size_t itsRhoVersion=size_t(-1);
+    //! \warning As on the other two strategies: the scalar and the spin caches have no cross-invalidation, so ONE engine answers one
+    //! shape (the asserts enforce it).
+    mutable rvec_t itsRhoUp, itsRhoDn;
+    mutable size_t itsPolVersion=size_t(-1);
+    mutable XCRhoSource itsSource=XCRhoSource::Fitted;
 };
 
 } //namespace
