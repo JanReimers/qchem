@@ -321,6 +321,16 @@ Gate: the rutile model at maxGradient 1e-8, WITHOUT the maxStep 1e-4 workaround,
 injected value noise of 1e-8 converges to its gradient threshold instead of collapsing.  The workaround is then removed from the
 test, and the OpenWork row closes.
 
+**As built (lane H, 2026-11-09, `07f5e89e5`): rule 3 for a REJECTED trial.**  Rule 1 already accepts a rise within the noise, so
+a rejected trial has risen by MORE than the noise.  If its gradient still meets the rule, the gradient's zero is not the value's
+minimum: the gradient carries noise above the threshold, or it is not the value's gradient.  Returning "the lower-valued of the two"
+there would report convergence at a point the rule did not pass.  So that case is its own failure, `Failure::Why::GradientDisagrees`.
+An accepted trial that meets the rule converges as written.  The model gate went into UTOptimize
+`Minimize.ARiseWithinTheValueNoiseIsNotARise`: a one-signed (variational) value noise of 1e-6 on the soft-mode bowl.  Declared, the
+run converges in 23 steps; the undeclared twin ends in TrustCollapsed at step 30.  At noise 1e-8 the undeclared twin ends in
+GradientDisagrees at step 23.  A random-sign noise on a well-conditioned bowl did NOT separate the rules: BFGS converged before the
+accepted points drifted to the low tail of the noise.
+
 ## 5. The factories wire the concrete pairs
 
 Per CLAUDE.md, constructors demand concrete objects, and the factories hold every concrete association.
@@ -371,7 +381,7 @@ in the unit tests are the example: they implement `Cost` directly.
 
 ## 8. Migration (lane B), each step green on its own
 
-1. Create qcOptimize (faces EMERGENT, ruling 4: no hub snapshot) with: `Cost`, `Projected`, `ModelHessian`, `ValueNoise`, `StoppingRule`, `Stepper` + `Minimize`, and the
+1. ✅ (lane H, 2026-11-09, `07f5e89e5`; owner moved from lane B to lane H by the controller for steps 1–3) Create qcOptimize (faces EMERGENT, ruling 4: no hub snapshot) with: `Cost`, `Projected`, `ModelHessian`, `ValueNoise`, `StoppingRule`, `Stepper` + `Minimize`, and the
    BFGS-RFO stepper MOVED with §4's three rules.  Its unit tests: today's model surfaces (bowl, Rosenbrock, soft mode, noise),
    moved down from `UTCalculation` to `UTOptimize` (CLAUDE.md: unit over integration).
 2. `GeometryOptimizer` becomes a thin client: `PESCost` + the ε rule + `Minimize`.  `OptimizedGeometry` and `OptimizeFailure` become
