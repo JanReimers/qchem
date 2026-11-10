@@ -192,6 +192,13 @@ struct SolidCalcOptions
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::IonicSAD;
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
+    //! THE CELL'S STRAIN ALLOWANCE s (linear, a fraction; the cell half's frozen rule, doc/Records/CellHalf_Design.md §3, ruled
+    //! 2026-11-10).  0 (default): the cell is fixed -- a geometry session refuses a moved cell (\c PESFailure::CellChange) and every size
+    //! is decided on the cell itself, as always.  > 0: every discrete size (G sets, raster and FFT counts, uniform-mesh divisions) is
+    //! decided ONCE on the SIZING BOX (1+s) A_ref and held as the cell strains (CP2K's CELL_REF), so E(cell) is smooth; a session then
+    //! follows any cell whose largest principal stretch from the reference is <= 1+s and refuses one beyond.  The price: the
+    //! reference point itself runs on sets sized for a cell s larger (a POLICY, reported).
+    double       cellStrainAllowance = 0.0;
     //! Bands (eigenpairs) kept per Bloch block, QE's nbnd: 0 (default) = all of them.  > 0 = a PARTIAL eigensolve of the
     //! lowest \c numBands -- a plane-wave block is thousands wide and the SCF occupies a few dozen.  Orthonormal basis only
     //! (the plane-wave family); must exceed the larger spin channel's electron count; refused beside a direct minimiser

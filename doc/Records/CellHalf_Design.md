@@ -156,6 +156,27 @@ NEXT run's business (pin 31 catch 2).  The final audit at the converged cell rep
 2. **The session follows the cell under the frozen rule** (§3), with the strain allowance policy.  This needs no analytic stress.
    It makes the WHOLE-CELL oracle possible: E(a, c) re-converged at ±h, tight SCF.  The same scan measures the stress noise for the
    calibration.  About 2.
+   - ✅ **AS BUILT (lane H, 2026-11-10).**  The seam is a SIZING BOX on `CellGeometry` (`SizingGeometry`, `SetSizingCell`): the box every
+     discrete size is decided on, absent by default (so every fixed-cell run is bit for bit as before).  `MakeReciprocal` carries its
+     reciprocal on.  A survey of the build found the cell enters the sizes in only three places, and each now reads the sizing box:
+     `BuildGs` (every G ball: the PW orbitals, the PW fit balls, the GPW ladder levels, V_loc long's levels, APW/LAPW); `AutoGrid`'s
+     Nyquist count (the GPW rasters, so the level count too); and a uniform mesh's divisions.  Every cutoff was already cell-free.
+     Ewald, the image lists and the Becke partition are ε-converged and re-derive at the actual cell, as they should; the ladder's
+     audits read the actual cell (what a raster delivers there), and within the allowance no raster is short of its demand.
+     - The POLICY is `SolidCalcOptions::cellStrainAllowance` s (default 0): `SolidSetup::Resolve` sets the reference's sizing box to
+       (1+s) A_ref and reports `policy: SolidSetup.CellStrainAllowance`.
+     - `FollowCell` (`Imp/SolidCalculation.C`, a free function of the setup and the asked geometry, so it moves as it is into the
+       V-PES-ISP composer) builds the point's cell at the asked A with the REFERENCE's sizing box, refusing (`CellChange`) a moved cell
+       at s = 0 or one whose largest principal stretch exceeds 1+s.
+     - The cache keys print the cell (and its sizing box) at %.17g (`CellGeometry::KeyFragment`): the GPW keys carried volume and
+       longest edge to 6 decimals, the PW key B to 6.  Their POSITION half (`Structure::ID`) is an OpenWork row.
+     - Gates: `UTLattice_BS RasterLadder.AStrainedCellCarryingTheReferencesSizingBoxKeepsEverySet` (a general strain: every ladder
+       level's N, cutoff and G set, and the PW orbital count, equal the reference's to the integer); `UTCalculation
+       SolidSession.ACellWithinTheAllowanceIsFollowedAndARoundTripReturns` (Si GPW, 3%: a 1% cell followed, back to the reference
+       within 2e-8 Ha, 4% refused naming the allowance); `SolidSession.TheReconvergedEnergyIsDifferentiableInTheStrain` (central
+       differences at h = 5e-4 and 2h agree: dE/dε -1.410728 / -1.410732, d²E/dε² 13.54 / 13.50, so no jump above ~6e-8 Ha).
+     - Not done here: the stress-noise measurement for the ε calibration (it needs rutile's terms); `MakeSolidGeometryRun` still pairs a
+       session with the fixed-cell `WyckoffMap` (a cell map needs the point's stress, step 3 on).
 3. **Ewald stress** (closed form): FD and the 1/L scaling.  About 0.5.
 4. **The channel-A virial beside every existing fold.**  These are the terms whose forces exist today: molecular-type pullbacks,
    PW structure factor, the Dunlap and GPW Hartree pullback.  Each is gated by its per-term FD and the origin shift.  About 2,
