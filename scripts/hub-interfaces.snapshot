@@ -551,6 +551,8 @@ namespace qchem::Fitting {
     public:
         virtual ~FitContraction() = default;
         virtual hmat_t<U> Overlap(const BasisSet::Orbital_DFT_IBS<U,TFit>&) const=0;
+        virtual bool CanPullbackOverlap(const BasisSet::Orbital_DFT_IBS<U,TFit>&) const;
+        virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const BasisSet::Orbital_DFT_IBS<U,TFit>& orb, const hmat_t<U>&, const Structure*) const;
     };
     template <class T> class ScalarFit : public virtual FunctionFitter_Scalar , public virtual FitContraction<T,T> {
     };
