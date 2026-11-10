@@ -424,3 +424,32 @@ The questions as put to the user:
 3. **The ask/tell `Stepper` as each algorithm's primitive** (recommended, §2; the only shape GDM can use), or `Minimize(cost)` only
    and GDM stays as it is.
 4. **The value noise as a COST capability** (recommended, §4) or a tolerance in the client's stopping rule.
+
+## 10. A known future client: molecular dynamics (user question, controller answer, 2026-11-10)
+
+The user asked whether the Stepper would do MD's Newtonian time steps.  **No.**  MD is a SIBLING of `Minimize` and a second client
+of the cost face, not a Stepper.  The ask/tell shape is shared (propose q, get E and ∇E back), but the contracts differ, so a Verlet
+integrator behind the Stepper face would break Liskov substitution:
+
+| | Stepper (under `Minimize`) | MD integrator |
+|---|---|---|
+| goal | drive f to a stationary point | follow a trajectory; f rises and falls |
+| state | q plus curvature history | q, p, t, masses, thermostat state |
+| accept / reject | a line search or trust radius may reject a step | every step is taken |
+| stops when | the StoppingRule sees ‖g‖ and Δf small | N steps or time T |
+| health check | f decreased | total energy conserved (drift per ps) |
+
+`Minimize`, `StoppingRule`, `Why::GradientDisagrees` and the noise checks all assume the Stepper is lowering f.  So MD sits in
+qcOptimize beside `Minimize` as an `Integrate` (or `Propagate`) driver over its own integrator face.  It reuses, unchanged, everything
+below the cost face: `PESCost`, the coordinate maps, `ValueNoise` and the density carry.  It also counts as a second consumer for the
+EMERGENT ruling (§9).
+
+Three demands MD puts on the existing pieces, to know before anyone bends the Stepper toward it:
+
+1. **Masses enter the metric.**  WyckoffMap's J is orthonormal, but MD needs the kinetic metric JᵀMJ.  Symmetry-constrained MD (free
+   Wyckoff parameters only) needs mass-weighted coordinates: a capability the coordinate map gains, not a change to the Stepper.
+2. **Force consistency becomes the test.**  An optimizer tolerates F ≠ −∂E/∂R by converging slightly off; MD turns it into energy
+   drift every step.  So MD is a sharp, cheap check on H = ∂E/∂D and the forces.
+3. **SCF stopping error becomes drift.**  Each step's SCF stops at a tolerance, and that error does not average out.  The standard cure
+   is extended-Lagrangian Born–Oppenheimer MD (Niklasson), which propagates an auxiliary density alongside the atoms.  In our terms,
+   `CarryToMovedAtoms` grows into a density integrator with history.  That is the main design work MD would bring.
