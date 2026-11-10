@@ -98,7 +98,9 @@ invariant strains anyway (§2), as it does the force gradient.
 
 **Units and metric.**  The optimizer wants one metric, so every coordinate is in bohr:
 - **Internals:** q_int is measured at the reference metric (A_ref f, bohr).  Its gradient is g_int = −J_fᵀ A_refᵀ Fᵀ F_atoms.
-- **Cell:** q_cell,k = L e_k with L = Ω_ref^{1/3}.  Its gradient is g_cell,k = (Ω/L) tr(σ F^{-T} E_k), in Ha/bohr like a force.
+- **Cell:** q_cell,k = L e_k with L = Ω_ref^{1/3}.  Its gradient is g_cell,k = (Ω/L) tr(F^{-1} σ E_k), in Ha/bohr like a force.
+  (CORRECTED as built, lane H 2026-11-10: this note first wrote tr(σ F^{-T} E_k), which differs once F and σ do not commute; the
+  contraction of ∂E/∂F = Ω σ F^{-T} with ∂F/∂q_k = E_k/L is the one above, and the triclinic FD gate holds it.)
   Here ∂E/∂F = Ω σ F^{-T} is the finite-strain relation.
 - **The model Hessian.**  The cell block's curvature is about Ω B / L² (rutile, B ≈ 210 GPa: ≈ 0.05 Ha/bohr²; atoms ≈ 0.3).  It
   comes from a stated bulk-modulus guess through the `ModelHessian` face: the first real client of that face.  The alternative is
@@ -134,6 +136,23 @@ NEXT run's business (pin 31 catch 2).  The final audit at the converged cell rep
    - Gates: wurtzite (a, c, u, with the floating origin held); a triclinic P1 cell (all 6 strains).
    - Gates: σ = 0 for an antisymmetric ε.
    - About 2 lane-days.
+   - ✅ **AS BUILT (lane H, 2026-11-10):** `CellWyckoffMap` in `src/Calculation/WyckoffMap.C`, beside `WyckoffMap` (which it holds for
+     the internal block).  The strains are the eigenvalue-1 space of the group average of ε → CεCᵀ on the 6 symmetric matrices.
+     The map faces grew three emergent members (no hub): `CoordinateMap::PointRequest` (what a point must carry: forces, plus stress
+     for a cell map), `Gradient(q, PESPoint)` (it was `Gradient(q, forces)`), and `ApplyModelHessian(q, v, atomCurvature)`.  So
+     `PESCost` now always offers `ModelHessian`: the bulk-modulus model (`ElasticModel`, B = 100 GPa and ν = ¼ stated; isotropic,
+     λ = μ = 0.6 B) seeds BFGS-RFO's cell block, and the positions-only maps return the old atomCurvature x 1, so their runs are
+     unchanged.  `PESPoint` grew `stress` (σ = (1/Ω)∂E/∂ε, tensile positive, P = −tr σ/3).  Gates, `UTCalculation`:
+     - `CellWyckoffMap.TheModelStressIsTheStrainDerivativeAndARotationCostsNothing` (all 9 components by FD, triclinic);
+     - `TheFreeStrainsAreTheGroups` (rutile 2, wurtzite 2, rock salt 1, P1 6; each strained crystal re-detects its group);
+     - `TheGradientIsTheFiniteDifferenceOfTheEnergyThroughTheMap` (P1 and P4₂/mnm, every coordinate, 1e-8).
+     And under both steppers (`CellWyckoffMapBoth`): rutile (a, c, u) against a Nelder-Mead minimum of E(a, c, u), with every
+     visited cell keeping 16 ops; wurtzite (a, c, u), the fractional origin held; and a sheared, displaced P1 start (24
+     coordinates) that finds the rutile minimum and its group by itself.
+     - The model's pair set had to change for the cell gates: the atom gates' `IonPair` is no rutile once the cell moves (O
+       collapses to u = ½).  `CellIonPair` (stiffer like-ion repulsion) keeps rutile a stable minimum in all 24 P1 coordinates.
+     - The cell gates DECLARE the model's energy noise, 1e-13 Ha: a lattice sum of ~10⁵ terms with heavy cancellation, above the
+       default 16 ε|E|.  Without it L-BFGS read a 2.2e-14 rise at max|g| 1e-9 as a real one (rule 3's "gradient disagrees").
 2. **The session follows the cell under the frozen rule** (§3), with the strain allowance policy.  This needs no analytic stress.
    It makes the WHOLE-CELL oracle possible: E(a, c) re-converged at ±h, tight SCF.  The same scan measures the stress noise for the
    calibration.  About 2.
