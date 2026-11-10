@@ -253,7 +253,6 @@ TEST(Gaussian94Reader, EveryShippedFileReadsEveryBlockItHolds)
 {
     for (const std::string& name : BasisNames())
     {
-        if (name=="demon_coul") continue;   // an HTML page, unreadable by design of its wrapping (OpenWork §3); refused by name above
         std::ifstream in(BasisFile(name+".bsd"));
         std::string line; bool body=false;
         for (; std::getline(in, line);)
