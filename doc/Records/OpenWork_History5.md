@@ -2108,3 +2108,46 @@ Not done:
 - A runtime detector, for example a gtest listener that fails a test which leaves cout's format changed.  It would
   catch a new leak only on paths the tests reach.
 - Math's own `operator<<` writers already save and restore by hand, and are below qcCommon, so they keep their own code.
+
+## ✅ The Ladder's |ΔE/E| hand-off fires on a lucky tie, starves on a cycle (lane A, 2026-11-10, 61c7c7a94)
+
+The row as filed:
+
+| **The Ladder's \|ΔE/E\| hand-off fires on a lucky tie, starves on a cycle** (lane S, 2026-11-09, exposed by E[D_out]) | `SCFAcceleratorLadder` hands DIIS → GDM on \|ΔE/E\| < 1e-6 alone.  `GPW_Si.Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel` (Si +U, linear D-mixing α 1): its [F,D] / Δρ trace is identical before and after E[D_out] through iteration 26.  On main it handed off at 27 because two MIXED-D energies tied to 2e-7 while [F,D] was still 1.3e-2 (a lucky tie), then GDM finished at 78.  On E[D_out] the DIIS limit cycle (period ~20: iterations 7-12 ≈ 27-32) shows its real ±1e-4 swings, the hand-off waits to 55, and GDM's ~50 linear iterations meet the 100 cap.  **On the panel-red list** (`QCHEM_PANEL_RED`, a4afb9989).  ⚠ The 1e-6 hand-off is the USER's own CLAUDE.md rule ("switches to GDM when ΔE/E<1e-6"): changing its criterion goes to the user with lane A's measurement | owner SCF robustness (lane A, after V-FACADE-STATE): gate the hand-off on [F,D] (or require both) and measure on the panel; take the case off `QCHEM_PANEL_RED` when it goes red · record: this row; traces `~/Code/qchem6-runs/anchors/lane-s-dout_short.log` vs `main-08d9536c_short.log` |
+
+**Closed.**  The tail criterion was not the defect.  The STALL trigger, which exists for "DIIS ran out of steam", was gated on
+`DIIS::Exhausted()` (B singular or not extrapolating for 3 steps), and a DIIS that extrapolates fine while going nowhere never reaches
+it.  User ruling 2026-11-10 ("yes that sounds like a good exit policy"):
+- STALL fires when the best [F,D] has not improved by 0.1 % for 5 DIIS steps, with |ΔE/E| > 1e-8 still required, and without `Exhausted()`.
+- The best-[F,D] tracker starts at the first REAL error.  It had been seeded from the err = 0 read before any orbitals, so
+  `itsNoImprove` counted from iteration 1.  `Exhausted()` masked this; un-gating without the fix (arm S) handed off at iteration 5
+  everywhere and broke the SCFTrace golden.
+- The CLAUDE.md tail rule (|ΔE/E| < 1e-6) is unchanged.
+- `GPW_Si.Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel` left `QCHEM_PANEL_RED`.
+- New UTs: `SCFAcceleratorLadder.ALimitCycleHandsOffAfterStallStepsWithoutABetterError`, `AStalledErrorOnASettledEnergyIsAPlateauNotAStall`,
+  `TheErrorBeforeAnyOrbitalsIsNotABest`.
+
+The measurement (main c70781405 plus a probe; logs `~/Code/qchem6-runs/anchors/ladder-handoff/arm_*.log`).  Summed SCF iterations
+per test; `!` = the 100 cap.  Arms: E = today (|ΔE/E| < 1e-6); F x = [F,D] < x alone; B x = both; T = E plus the un-gated stall (landed).
+
+| case | E | F 1e-2 | F 1e-3 | B 1e-2 | B 1e-3 | T |
+|---|---|---|---|---|---|---|
+| Si Γ U Ladder LR (panel-red) | 136 (h66, cap) | 79 (h14) | 100! | 100! | 100! | **90** (h8) |
+| NaF Imp eqColdStart | 40 | 45 | 57 | 45 | 57 | 39 |
+| NaF Imp eqExactResume | 38 | 44 | 56 | 44 | 56 | 37 |
+| NaF Imp Anchor | 21 | 21 | 25 | 21 | 25 | 20 |
+| NaF Becke Imp eqUni | 12 | 12 | 19 | 12 | 19 | 12 |
+| Boron UHF Ladder GDM | 11 | 11 | 7 | 11 | 7 | 11 |
+| SCFTrace blocked molecule | 22 | 23 | 23 | 22 | 22 | 22 |
+
+The other Ladder cases (LiBox, SiBox ×2, SolidSession, FacadeMatrix, the SCFTrace energy tail) were identical in every arm.  On Si the
+DIIS rung is in a period-~20 limit cycle with [F,D] between 1.3e-3 and 1e-1, so no threshold on that signal is a reliable trigger:
+|ΔE/E| fires on a lucky tie, [F,D] < 1e-2 on a lucky trough, and [F,D] < 1e-3 or "both" never fire.  [F,D] alone also costs NaF 5-17
+iterations, because GDM finishes well from [F,D] 1e-2..4e-2.
+
+Landing sweep `lane-a-ladder1`: short 1498/1498, long 15/15, panel|periodic (4 threads) 25/25; RelChecked builds.  Every WILL_FAIL case
+failed for its own known reason (the iteration cap on Na2Box, MnO2 ×2, MnOBox and A_SL_HF_ion 60; Si one-spin m ≠ 0; MnO ordering;
+TiO2 53 > 49, the same on main).  anchordiff against main c70781405 moves only the four Ladder cases above, by at most 1.5e-9 Ha.
+
+Caveat seen in arm T, not the hand-off's fault, logged beside "An SCF energy can jump with Δρ blind to it": NaF Anchor's cold SCF stopped
+8.9e-7 Ha above arm E's stop, on a GDM step with |ΔE/E| 1.9e-10 while [F,D] was 3e-3.  The restart lands both arms on the same energy to 1.5e-9.
