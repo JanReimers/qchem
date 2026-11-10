@@ -1,10 +1,10 @@
 # cmake/Dependencies.cmake -- THE PIN TABLE: every source dependency, at one exact commit, in one place
 # (doc/SharedDependenciesPlan.md, ruled 2026-11-10; step 1).
 #
-# Each dependency is fetched as the GitHub archive of its pinned commit, verified by SHA-256 (the archive's content, so a
-# re-tagged or rewritten upstream cannot change what builds), and placed under the build tree's _deps/.  The pins are the
-# commits the retiring submodules held (each archive measured identical to its submodule checkout, 2026-11-10).  The FORKS
-# (blaze, libxc) are the user's: change the fork, push, bump the pin + hash here.  To build against a LOCAL checkout while a
+# Each dependency is fetched by GIT at its pinned commit, named by its full 40-character SHA: the commit hash IS the integrity
+# check (a GitHub archive is NOT byte-stable over time -- its compression changed in Jan 2023 and broke archive checksums across
+# the ecosystem -- so no archive hash is pinned; controller, 2026-11-10).  The pins are the commits the retiring submodules held.
+# The FORKS (blaze, libxc) are the user's: change the fork, push, bump the commit here.  To build against a LOCAL checkout while a
 # fork patch is unpushed: -DFETCHCONTENT_SOURCE_DIR_<NAME>=/path (CMake's own override; NAME upper-case, e.g. LIBXC).
 #
 # THE SHARED PREFIX FIRST (step 2): QCHEM_DEPS_PREFIX (default ~/Code/deps, filled by scripts/deps-install) holds every pin's
@@ -30,27 +30,26 @@ set(QCHEM_DEPS_PREFIX "$ENV{HOME}/Code/deps" CACHE PATH "the shared dependency p
 string(TOLOWER "${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}" QCHEM_DEPS_COMPILER)
 set(QCHEM_DEPS_FLAVOR release)
 
-#  one row per dependency: name | repository (no .git) | commit | SHA-256 of the GitHub archive of that commit
+#  one row per dependency: name | repository (no .git) | the full 40-character commit
 set(QCHEM_PINS
-    "blaze|https://github.com/JanReimers/blaze|7478a70b992dffb9a366a0be405730d1368f3eb9|4139b5d986ab724830912b95c66941e878116a7275bee16fb7583cde62b0b466"
-    "json|https://github.com/nlohmann/json|568b708fd46deeb23a959381393a7564f1586588|283d800d754741c972e82d1a3bdccb10ef67904f090beed72bd6214da21e02c4"
-    "BSplinebasis|https://github.com/okruz/BSplinebasis|678b28d226f781d4405ec20027489b520688d9a5|b599ba908ae068861d160ca59d929ac2aea2186132cdd3041d5f6df966d27c72"
-    "tabulate|https://github.com/p-ranav/tabulate|b9026bf1e31dd561680e20cfda2a37716161aac1|edf6926366627047457e595d29c1c24b6fd44dfbda4d9b1df495254fd1f821f9"
-    "pocketfft|https://github.com/mreineck/pocketfft|c90e55b3d529f8efa40ed01a20de22405f45fc65|2d90016da31a8cc1dd0ac0c89c1f2fb55df8f4ccc3f0386dcfbad09ac6d1c3ba"
-    "googletest|https://github.com/google/googletest|175c1b55cfb3dbed519b94a370c083aac605009f|a21d61e995e222faa19f49e03cd53ca6985c44271f3fbdca2c56a2cd15e85543"
-    "libxc|https://github.com/JanReimers/libxc|d00e5d0e2696cb15d7fcf6cf01dc447334cc70e2|7c1fc5ac3647acaf1bd13a844acd872e8079d52c7d4a2a295595a04059c18c78"
-    "libcint|https://github.com/sunqm/libcint|c72d30662ba08048940c9000cc352a220c867712|c47663d737629742006f76895150aa9d5367ea4604adef6517f353b75075e0f3"
+    "blaze|https://github.com/JanReimers/blaze|7478a70b992dffb9a366a0be405730d1368f3eb9"
+    "json|https://github.com/nlohmann/json|568b708fd46deeb23a959381393a7564f1586588"
+    "BSplinebasis|https://github.com/okruz/BSplinebasis|678b28d226f781d4405ec20027489b520688d9a5"
+    "tabulate|https://github.com/p-ranav/tabulate|b9026bf1e31dd561680e20cfda2a37716161aac1"
+    "pocketfft|https://github.com/mreineck/pocketfft|c90e55b3d529f8efa40ed01a20de22405f45fc65"
+    "googletest|https://github.com/google/googletest|175c1b55cfb3dbed519b94a370c083aac605009f"
+    "libxc|https://github.com/JanReimers/libxc|d00e5d0e2696cb15d7fcf6cf01dc447334cc70e2"
+    "libcint|https://github.com/sunqm/libcint|c72d30662ba08048940c9000cc352a220c867712"
 )
 
 #! Declare every pin.  HEADER_ONLY ones are populated without add_subdirectory (SOURCE_SUBDIR points nowhere): their own
 #! CMakeLists (tests, install rules, options) are not ours to configure.
 set(_qchemHeaderOnly blaze json BSplinebasis tabulate pocketfft)
 foreach(row IN LISTS QCHEM_PINS)
-    string(REPLACE "|" ";" pin "${row}")   # one row: name | repository | commit | archive SHA-256
+    string(REPLACE "|" ";" pin "${row}")   # one row: name | repository | commit
     list(GET pin 0 name)
     list(GET pin 1 repo)
     list(GET pin 2 commit)
-    list(GET pin 3 sha)
     set(QCHEM_PIN_${name} ${commit})
     # A prefix SOURCE stands in for the download (CMake's own override), unless the caller already points this pin elsewhere.
     string(TOUPPER "${name}" _NAME)
@@ -63,9 +62,9 @@ foreach(row IN LISTS QCHEM_PINS)
         set(_sub SOURCE_SUBDIR qchem-headers-only-no-cmake)
     endif()
     FetchContent_Declare(${name}
-        URL      ${repo}/archive/${commit}.tar.gz
-        URL_HASH SHA256=${sha}
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        GIT_REPOSITORY ${repo}.git
+        GIT_TAG        ${commit}      # a full commit SHA: the integrity check (never a branch or tag that can move)
+        GIT_SUBMODULES ""             # a dependency's own submodules are not ours
         ${_sub})
 endforeach()
 

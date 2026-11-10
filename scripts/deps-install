@@ -3,9 +3,9 @@
 
     scripts/deps-install [--prefix ~/Code/deps] [--cc /opt/LLVM-21.1.6-Linux-X64/bin/clang] [-j N]
 
-Reads cmake/Dependencies.cmake's QCHEM_PINS (name | repository | commit | archive SHA-256) and, for each pin missing from the
-prefix:
-  * SOURCES   <prefix>/src/<name>-<commit>/           every dependency: the GitHub archive of the pin, SHA-256 verified, unpacked
+Reads cmake/Dependencies.cmake's QCHEM_PINS (name | repository | full commit) and, for each pin missing from the prefix:
+  * SOURCES   <prefix>/src/<name>-<commit>/           every dependency: git-fetched AT THE COMMIT SHA (the hash is the integrity
+                check -- a GitHub archive is not byte-stable over time), the checkout verified against it, .git removed
   * C LIBRARIES <prefix>/<compiler>/<name>-<commit>-<flavor>/build/   libxc and libcint, BUILT once (the project consumes their
                 build-tree layout: <src/xc.h>, include/cint.h), with the options the in-tree build used
 Each key is IMMUTABLE once written (made read-only; a new pin is a new directory), so trees on different pins coexist and no
@@ -14,9 +14,9 @@ tree can break another.  googletest is NOT built here: it is C++, compiled with 
 THE PREFIX INVARIANT (ruled 2026-11-10): a key is PORTABLE plain -O3, never -march/-mtune/native, so one prefix serves every
 tree on this machine and janr1 over NFS.  This script REFUSES such a flag in CFLAGS / CXXFLAGS / its own arguments.
 The one flavor, release = -O3 -DNDEBUG, serves every tree (RelChecked changes the C++ flags only, as the in-tree build did).
-Downloads are untrusted data: each lands in its own fresh directory under the prefix, is hash-checked, and only then unpacked.
+Downloads are untrusted data: each lands in its own fresh directory under the prefix and is used only once its commit matches.
 """
-import argparse, hashlib, os, pathlib, re, shutil, stat, subprocess, sys, tarfile, tempfile, urllib.request
+import argparse, os, pathlib, re, shutil, stat, subprocess, sys, tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BUILT = {   # the C libraries built into the prefix, with the cache options the in-tree build gave them
@@ -30,7 +30,7 @@ def pins():
     text = (ROOT / "cmake" / "Dependencies.cmake").read_text()
     block = text[text.index("set(QCHEM_PINS"):]
     block = block[:block.index("\n)")]
-    rows = re.findall(r'"([^"|]+)\|([^"|]+)\|([0-9a-f]{40})\|([0-9a-f]{64})"', block)
+    rows = re.findall(r'"([^"|]+)\|([^"|]+)\|([0-9a-f]{40})"', block)
     if len(rows) < 1:
         sys.exit("deps-install: no pins found in cmake/Dependencies.cmake")
     return rows
@@ -50,26 +50,24 @@ def read_only(path):
             p.chmod(p.stat().st_mode & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH))
 
 
-def fetch_source(prefix, name, repo, commit, sha):
+def fetch_source(prefix, name, repo, commit):
     dest = prefix / "src" / f"{name}-{commit}"
     if dest.exists():
         return dest
     dest.parent.mkdir(parents=True, exist_ok=True)
     incoming = pathlib.Path(tempfile.mkdtemp(prefix=f".incoming-{name}-", dir=dest.parent))
     try:
-        url = f"{repo}/archive/{commit}.tar.gz"
+        url = f"{repo}.git"
         print(f"  fetch {name} {commit[:12]}  {url}")
-        archive = incoming / "archive.tar.gz"
-        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "qchem deps-install"}), timeout=300) as r:
-            archive.write_bytes(r.read())
-        got = hashlib.sha256(archive.read_bytes()).hexdigest()
-        if got != sha:
-            sys.exit(f"deps-install: {name}: archive SHA-256 {got} is not the pinned {sha} -- refusing it")
-        out = incoming / "out"
-        with tarfile.open(archive) as t:
-            t.extractall(out, filter="data")            # data filter: no absolute paths, links out, devices
-        (top,) = list(out.iterdir())
-        top.rename(dest)
+        git = lambda *a: subprocess.run(["git", "-C", str(incoming), *a], check=True, capture_output=True, text=True).stdout.strip()
+        git("init", "-q")
+        git("fetch", "-q", "--depth", "1", url, commit)          # by the SHA itself: nothing a moved branch or tag can change
+        git("-c", "advice.detachedHead=false", "checkout", "-q", "FETCH_HEAD")
+        got = git("rev-parse", "HEAD")
+        if got != commit:
+            sys.exit(f"deps-install: {name}: fetched {got}, not the pinned {commit} -- refusing it")
+        shutil.rmtree(incoming / ".git")
+        incoming.rename(dest)
         read_only(dest)
         return dest
     finally:
@@ -111,8 +109,8 @@ def main():
     prefix = pathlib.Path(a.prefix).expanduser()
     ckey = compiler_key(a.cc)
     print(f"deps-install: prefix {prefix}, compiler {ckey}, flavor release")
-    for name, repo, commit, sha in pins():
-        src = fetch_source(prefix, name, repo, commit, sha)
+    for name, repo, commit in pins():
+        src = fetch_source(prefix, name, repo, commit)
         if name in BUILT:
             build_library(prefix, ckey, "release", a.cc, name, commit, src, a.j)
     print("deps-install: done")

@@ -68,7 +68,13 @@ second, the image third; Spack only on a cluster request.
 
 ## 2b. As built (step 2, lane G 2026-11-10)
 
-* `~/Code/deps/src/<name>-<commit>/` -- every pin's SOURCE (the archive, SHA-256 checked, unpacked read-only).  A tree uses it in
+* INTEGRITY IS THE COMMIT HASH (controller, 2026-11-10): both paths fetch by git at the full 40-character SHA and check the
+  checkout against it.  No archive hash is pinned: a GitHub archive is not byte-stable over time (its compression changed in Jan
+  2023 and broke archive checksums across the ecosystem).  Measured: the git checkouts equal the archives except libxc's six
+  export-ignored CI / dot files, and the libraries built from them are identical (libxc disassembly 326/326, libcint.a byte for
+  byte).  The cost lands on the FALLBACK only: a tree with no prefix clones full histories (2.1 GB of _deps, against 0.8 GB
+  from archives) -- the prefix exists so that no tree here takes that path.
+* `~/Code/deps/src/<name>-<commit>/` -- every pin's SOURCE (git-fetched at the SHA, verified, `.git` removed, read-only).  A tree uses it in
   place of a download (FetchContent's own `FETCHCONTENT_SOURCE_DIR_<NAME>`).
 * `~/Code/deps/<compiler>/<name>-<commit>-release/build/` -- libxc and libcint BUILT once, read-only, with a `KEY` file stating
   pin, compiler and flags.  It is a build TREE, not an install: the project consumes libxc's build layout (`#include <src/xc.h>`,
@@ -78,7 +84,9 @@ second, the image third; Spack only on a cluster request.
 * googletest stays a prefix SOURCE only: it is C++, so it compiles with each tree's own NATIVE flags (never a prefix library).
 * Measured: the prefix's libcint objects are byte-identical to the in-tree ones (26/26); libxc's differ only in one embedded
   `__FILE__` path string (the source location), with identical disassembly (checked on every differing object compared).
-* Filling the prefix: 83 s, 671 MB (sources 8 pins + the two C builds).
+* Filling the prefix: about 85 s, 671 MB (sources 8 pins + the two C builds).
+* `.vscode/c_cpp_properties.json` (the user's IntelliSense) reads blaze from the prefix
+  (`${env:HOME}/Code/deps/src/blaze-<commit>`, to bump with the pin); `settings.json`'s submodule exclusions go in step 3.
 
 ## 3. What changes, and the order
 
