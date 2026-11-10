@@ -131,7 +131,10 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke); o.xcMesh.nRadial=30; o.xcMesh.mhl_alpha=1.0; o.xcMesh.angularDegree=5; o.xcMesh.angRot=0.0;
     const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), kSiBasis, o);
     ASSERT_FALSE(setup->rastersResolved) << "the default setup self-calibrates";
-    SolidCalculation single(setup, Tight());
+    // Δρ/N 1e-7, not Tight()'s 1e-8 (user, 2026-11-10; see GeometryRunPicksAndSizesTheBeckeMesh_Long): a pilot re-converges from an
+    // already-converged D, and at 1e-8 GDM's line search works at the energy's roundoff floor, so the counts below went chaotic (8 stalls,
+    // 41 -> 54 and 15 -> 35 under a 4-thread roundoff change, 2026-11-10).  Above the floor the caps are regression detectors again.
+    SolidCalculation single(setup, Tight(1e-7));
     ASSERT_TRUE(single.Result());
     EXPECT_EQ(single.Consumes(), ClientConsumes::Energy);
     const auto sizedE=single.SizedSetup();
@@ -139,11 +142,10 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     // What the pilot costs (reported and gated, not hidden): the energy run raises the density raster once from the ball's.
     EXPECT_TRUE(single.PilotCost().settled);
     EXPECT_EQ(single.PilotCost().rounds, 2);
-    // 39 measured 2026-10-31: the re-converged energy is settled at its FIRST iterate (dE 1e-9), the rest is GDM's linear Δρ tail down
-    // to this gate's Δρ/N 1e-8 (x0.81 per iteration) -- a cost a user pays at a tight Δρ gate, so it is pinned here.
-    EXPECT_LE(single.PilotCost().reconvergeIterations, 45u);
+    // 2 measured 2026-11-10 at Δρ/N 1e-7, serial and 4 threads alike (39-54 at 1e-8, GDM's tail into the noise floor).
+    EXPECT_LE(single.PilotCost().reconvergeIterations, 4u);
 
-    SolidSession pes(setup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}});
+    SolidSession pes(setup, {SCFStage{Tight(1e-7), SCFAccelerators::Type::Auto}});
     const PESGeometry ref=pes.Reference();
     std::vector<rvec3_t> R=ref.R;
     ASSERT_TRUE(pes.ConvergeAt(ref.cell, R));
@@ -158,7 +160,7 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     EXPECT_TRUE(pes.Current()->PilotCost().statedOver);
     EXPECT_FALSE(single.PilotCost().statedOver) << "the energy run does not audit the Becke mesh (an H-run audit)";
     EXPECT_EQ(pes.Current()->PilotCost().rounds, 4) << "the rasters at the bound; the ball climbs cutoffFactor 2 -> 16";
-    EXPECT_LE(pes.Current()->PilotCost().reconvergeIterations, 30u);
+    EXPECT_LE(pes.Current()->PilotCost().reconvergeIterations, 16u) << "9 serial / 13 at 4 threads, 0 stalls (2026-11-10, Δρ/N 1e-7)";
     EXPECT_EQ(pes.Current()->SizedSetup()->opts.cutoffFactor, 16.0);
     EXPECT_EQ(single.SizedSetup()->opts.cutoffFactor, 4.0) << "the energy run's ball: 1.2e-3 Ha at 2, 3.3e-6 at 4";
     const auto sizedH=pes.Current()->SizedSetup();
