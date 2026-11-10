@@ -35,10 +35,6 @@ import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
 import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
 import qchem.Symmetry.Molecule.PointGroup;      // DetectPointGroup
 import qchem.Symmetry.Lattice_3D.SpaceGroup;    // SpaceGroup::Detect
-import qchem.BasisSet;                           // Real_BS (Iterate over its irrep blocks)
-import qchem.BasisSet.IrrepBasisSet;             // Integrals_Overlap (each block's S)
-import qchem.BasisSet.Gaussian.Point.Factory;    // BasisSet::Gaussian::Factory (the facade's own basis builder)
-import qchem.Blaze;                              // blazem::eigen
 import qchem.Reporting;                          // report::GlobalReport (the run record the library keeps)
 import qchem.CrystalFiles;                       // CIF / POSCAR / extended xyz <-> one materials.json entry
 import qchem.StructureData;                      // the materials layers (shipped, user, workspace) and CellFromEntry
@@ -268,10 +264,11 @@ extern "C" {
 
 qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char* err, int errlen)
 {
-    return qcb_restart(req, nullptr, step, sink, nullptr, err, errlen);
+    return qcb_start(req, nullptr, 0, step, sink, nullptr, err, errlen);
 }
 
-qcb_calc* qcb_restart(const qcb_request* req, const char* path, qcb_row_fn step, qcb_sink* sink, int* refused, char* err, int errlen)
+qcb_calc* qcb_start(const qcb_request* req, const char* path, int buildOnly, qcb_row_fn step, qcb_sink* sink, int* refused,
+                    char* err, int errlen)
 {
     const HostLocale host;
     if (refused) *refused = 0;
@@ -283,8 +280,9 @@ qcb_calc* qcb_restart(const qcb_request* req, const char* path, qcb_row_fn step,
 
         // The bridge is the DRIVER (user ruling D): it opens the run the facade writes into -- "<ID>", as for a Converge --
         // BEFORE the setup's checks, so a refusal there files its record (its policy rows) too.
+        // A BUILD (no SCF) files "<ID> build", as a crystal's deck build does; its first qcb_converge reuses the graph.
         h->id     = r.mol.ID();
-        const qchem::report::Run run(h->id);
+        const qchem::report::Run run(buildOnly ? h->id + " build" : h->id);
         const auto setup = qchem::MoleculeSetup::Resolve(r.mol, r.opts, r.acc);   // deep-copies mol
         // The observer rides the constructor, so the trace of ITS SCF streams from the first iteration.
         h->params = scf_params(*req);
@@ -292,7 +290,8 @@ qcb_calc* qcb_restart(const qcb_request* req, const char* path, qcb_row_fn step,
         if (path && *path)
         {
             // A refusal is a VALUE (the facade's RestartRefusal): the caller decides on a fresh run, so it is told apart from a failure.
-            auto R = MoleculeCalculation::Restart(path, setup, h->params, std::move(observer));
+            auto R = buildOnly ? MoleculeCalculation::PrepareRestart(path, setup, h->params, std::move(observer))
+                               : MoleculeCalculation::Restart(path, setup, h->params, std::move(observer));
             if (!R)
             {
                 if (refused) *refused = 1;
@@ -301,6 +300,8 @@ qcb_calc* qcb_restart(const qcb_request* req, const char* path, qcb_row_fn step,
             }
             h->calc = R.TakeValue();
         }
+        else if (buildOnly)
+            h->calc = MoleculeCalculation::Prepare(setup, std::move(observer));
         else
             h->calc = std::make_unique<MoleculeCalculation>(setup, h->params, std::move(observer));
         // The sink lives only for this call: detach it before returning (qcb_converge attaches its own).
@@ -526,36 +527,6 @@ int qcb_current_report(char* out, int outlen)
 void qcb_clear_report() { if (qchem::report::Depth()==0) qchem::report::ClearGlobal(); }
 
 // -- detected symmetry -----------------------------------------------------------------------------------------------
-
-int qcb_basis_info(const int* Z, int nat, const double* pos3, const char* basis, double* out4, char* err, int errlen)
-{
-    const HostLocale host;
-    try
-    {
-        qchem::Molecule mol;
-        for (int a = 0; a < nat; ++a)
-            mol.Insert(qchem::Site{Z[a], rvec3_t(pos3[3*a], pos3[3*a+1], pos3[3*a+2])});
-        // the facade's defaults (MoleculeCalculation's BuildBasis with CalcOptions{}): MnD engine, Cartesian, no SALC blocking --
-        // a unitary re-blocking would not move S's spectrum
-        const std::unique_ptr<qchem::BasisSet::Real_BS> bs(qchem::BasisSet::Gaussian::Factory(
-            nlohmann::json{{"basis", basis}, {"engine", "mnd"}, {"angular", "cartesian"}}, &mol));
-        double smin = std::numeric_limits<double>::infinity(), smax = 0.0;
-        int nblocks = 0;
-        for (auto b : bs->Iterate())
-        {
-            const auto* ov = dynamic_cast<const qchem::BasisSet::Integrals_Overlap<double>*>(b);
-            assert(ov && "a molecular orbital block has an overlap");
-            rvec_t w; mat_t<double> U;
-            qchem::blazem::eigen(ov->Overlap(), w, U);            // ascending
-            if (w.size()) { smin = std::min(smin, w[0]); smax = std::max(smax, w[w.size()-1]); }
-            ++nblocks;
-        }
-        out4[0] = double(bs->GetNumFunctions()); out4[1] = nblocks; out4[2] = smin; out4[3] = smax;
-        return 1;
-    }
-    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
-    return 0;
-}
 
 int qcb_point_group(const int* species, int nat, const double* pos3, double tol,
                     char* symbol, int symlen, char* abelian, int ablen)
