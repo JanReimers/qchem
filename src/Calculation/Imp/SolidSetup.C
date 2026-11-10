@@ -18,7 +18,7 @@ import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (eleme
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::spherical)
 import qchem.Policy;                           // policy::Refuse: each refusal files its row where it fires
-import qchem.XCRhoPolicy;                      // ReportXCRho: the XC rho-axis decision
+import qchem.XCRhoPolicy;                      // ReportSolidXCRho: the XC rho-axis decision
 import qchem.BasisCoverage;                    // RequireBasisCovers: a basis lacking an element is refused before the build
 
 namespace qchem
@@ -310,7 +310,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
         using Hamiltonian::VxcFit;
         const bool becke=s->xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
         const VxcFit fit= opts.vxcFit==VxcFit::Auto ? (becke ? VxcFit::Delta : VxcFit::PlaneWave) : opts.vxcFit;
-        ReportXCRho(fit, opts.xcRho);
+        ReportSolidXCRho(fit, opts.xcRho, s->planeWave);
     }
 
     // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches

@@ -186,12 +186,14 @@ TEST(SolidSetup, AnElectronCountThatDisagreesWithTheSpeciesIsRefused)
 namespace
 {
 //! Resolve Si (Gamma, stated grids) on a Becke mesh or the raster at \a rho in a run named \a tag; the `decided` lines of its XCRhoProjected rows.
-std::vector<std::string> XCRhoRows(bool becke, Hamiltonian::XCρ rho, const std::string& tag)
+enum class XCRhoCell { Becke, GPWRaster, PlaneWaveRaster };   // the solid cells the rho axis splits on
+std::vector<std::string> XCRhoRows(XCRhoCell cell, Hamiltonian::XCρ rho, const std::string& tag)
 {
     const auto mat=Materials::Get("Si_diamond");
     SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcRho=rho;
-    if (becke) o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);   // a small recipe: only the setup runs
-    else         o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+    if (cell==XCRhoCell::Becke) o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);   // a small recipe: only the setup runs
+    else                        o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+    if (cell==XCRhoCell::PlaneWaveRaster) { o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0; }
     { report::Run run(tag);
       (void)SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::SIPP_SR}, o); }
     const auto& G=report::GlobalReport();
@@ -220,11 +222,25 @@ std::vector<std::string> XCRhoRows(bool becke, Hamiltonian::XCρ rho, const std:
 //! plane-wave fit (its G-ball's projection).  The default (exact) files no rho row.
 TEST(SolidSetup, AStatedXCRhoFitIsAcceptedAndReportedOnTheResolvedFit)
 {
-    const auto becke=XCRhoRows(true, Hamiltonian::XCρ::Fit, "Si rho fit Becke");
+    const auto becke=XCRhoRows(XCRhoCell::Becke, Hamiltonian::XCρ::Fit, "Si rho fit Becke");
     ASSERT_EQ(becke.size(), 1u);
     EXPECT_NE(becke[0].find("fit is exact here"), std::string::npos) << becke[0];
-    const auto raster=XCRhoRows(false, Hamiltonian::XCρ::Fit, "Si rho fit raster");
-    ASSERT_EQ(raster.size(), 1u);
-    EXPECT_NE(raster[0].find("plane-wave"), std::string::npos) << raster[0];
-    EXPECT_TRUE(XCRhoRows(false, Hamiltonian::XCρ::Exact, "Si rho exact raster").empty()) << "the default files no rho row";
+    // Plane-wave orbitals: the Vxc ball is >= 4 Ecut, so it holds every orbital pair and P rho = rho[D] -- the row says so.
+    const auto pw=XCRhoRows(XCRhoCell::PlaneWaveRaster, Hamiltonian::XCρ::Fit, "Si rho fit PW raster");
+    ASSERT_EQ(pw.size(), 1u);
+    EXPECT_NE(pw[0].find("fit is exact here"), std::string::npos) << pw[0];
+    EXPECT_TRUE(XCRhoRows(XCRhoCell::GPWRaster, Hamiltonian::XCρ::Exact, "Si rho exact raster").empty()) << "the default files no rho row";
+}
+
+// GPW orbitals on the plane-wave Vxc fit: no ball holds a Gaussian pair product, and the realized route collocates rho[D] -- so a stated
+// xc.rho fit has no realization there.  It must be REFUSED by name, never run as rho[D] (the silent substitution; controller 2026-11-10).
+TEST(SolidSetup, AStatedXCRhoFitOnTheGPWBallIsRefusedByName)
+{
+    try { (void)XCRhoRows(XCRhoCell::GPWRaster, Hamiltonian::XCρ::Fit, "Si rho fit GPW raster"); FAIL() << "xc.rho fit on the GPW ball ran"; }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string what=e.what();
+        EXPECT_NE(what.find("xc.rho fit on the plane-wave Vxc fit over Gaussian (GPW) orbitals"), std::string::npos) << what;
+        EXPECT_NE(what.find("state xc.rho exact"), std::string::npos) << what;
+    }
 }
