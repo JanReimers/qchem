@@ -1017,6 +1017,30 @@ TEST(Deck, AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint)
     EXPECT_TRUE(!cmp2 || !cmp2->empty()) << "a moved atom left the fingerprint unchanged";
 }
 
+// THE CURRENT ITERATE OF A CRYSTAL, SAMPLED MID-RUN (lane G 2026-11-10, the twin of the molecular facade's): from the observer,
+// SolidCalculation::MakeIterateDensity builds the latest diagonalisation's density; before any iteration there is none (a refusal);
+// mid-run it is not the answer; after the last iteration it IS the converged Density(), point for point.
+TEST(Deck, ACrystalsCurrentIterateIsSampledFromTheObserverAndEndsAsTheConvergedDensity)
+{
+    deck::RunSpec spec=SiDeck("Si_diamond");
+    const rvec3_t bond(1.2825, 1.2825, 1.2825), interstitial(5.13, 5.13, 5.13);
+    std::vector<double> mid;
+    std::unique_ptr<SolidCalculation> calc;
+    calc=deck::Build(spec, [&](const auto& row)
+    {
+        if (row.iteration==2) { const auto rho=calc->MakeIterateDensity(); mid={(*rho)(bond), (*rho)(interstitial)}; }
+        EXPECT_EQ(calc->MakeIterateSpinDensity()->operator()(bond), 0.0) << "unpolarized: the zero field";
+    });
+    EXPECT_THROW((void)calc->MakeIterateDensity(), std::logic_error) << "no iteration has run: nothing to sample";
+    auto R=calc->Converge(deck::ScheduleToRun(spec));
+    ASSERT_TRUE(R);
+    ASSERT_EQ(mid.size(), 2u);
+    EXPECT_NE(mid[0], R->Density()(bond)) << "a mid-run iterate is not the answer";
+    const auto last=calc->MakeIterateDensity();
+    EXPECT_DOUBLE_EQ((*last)(bond),         R->Density()(bond));
+    EXPECT_DOUBLE_EQ((*last)(interstitial), R->Density()(interstitial));
+}
+
 // deck::Build STOPS BEFORE THE SCF, and Run is Build + Converge: the observer has seen nothing until the caller converges, and the
 // converged energy is Run's own, bit for bit (ONE path).
 TEST(Deck, BuildStopsBeforeTheSCFAndRunIsBuildPlusConverge)

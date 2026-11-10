@@ -2518,6 +2518,32 @@ SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCF
 
 const qchem::ChargeDensity::cDM_CD* SolidCalculation::LastIterateDensity() const {return itsImp->cd.get();}
 
+namespace
+{
+//! m(r) of an unpolarized run: a field, not an absence (the molecular facade's ZeroField twin).
+struct ZeroSpinField : public virtual ScalarFunction<double>
+{
+    double  operator()(const rvec3_t&) const override {return 0.0;}
+    rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0.0, 0.0, 0.0);}
+};
+}
+
+std::unique_ptr<SolidCalculation::sf_t> SolidCalculation::MakeIterateDensity() const
+{
+    if (!itsImp->scf || itsImp->scf->GetIterationCount()==0)
+        throw std::logic_error("SolidCalculation::MakeIterateDensity: no iteration has run yet (sample from the first observer row on)");
+    return itsImp->scf->GetWaveFunction()->GetChargeDensity();
+}
+
+std::unique_ptr<SolidCalculation::sf_t> SolidCalculation::MakeIterateSpinDensity() const
+{
+    if (!itsImp->scf || itsImp->scf->GetIterationCount()==0)
+        throw std::logic_error("SolidCalculation::MakeIterateSpinDensity: no iteration has run yet");
+    const auto* wf=itsImp->scf->GetWaveFunction();
+    if (wf->GetSpinGroup()==SpinGroup::Polarized) return wf->GetSpinDensity();
+    return std::make_unique<ZeroSpinField>();
+}
+
 Outcome<qchem::Response::ChannelResponse,qchem::Response::ResponseFailure>
 SolidCalculation::IndependentResponse(ivec3_t Nq) const
 {

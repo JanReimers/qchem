@@ -285,6 +285,18 @@ public:
         return json_call([&](char* out, int n){ nb::gil_scoped_release nogil; return qcb_solid_judge_state(h, path.c_str(), out, n); });
     }
     nb::object RestartedFrom() const { return json_call([&](char* out, int n){ return qcb_solid_restarted_from(h, out, n); }); }
+    //! The crystal's density (spin: m(r)) on a stated Cartesian box; iterate: the current iterate's (from the row callback only).
+    nb::dict Field(const std::vector<int>& n, const std::vector<double>& origin, const std::vector<double>& spacing, bool spin, bool iterate) const
+    {
+        if (n.size() != 3 || origin.size() != 3 || spacing.size() != 3)
+            throw std::invalid_argument("n, origin and spacing are three numbers each (the box's points and its corner and steps, bohr)");
+        auto arr = make_array({size_t(n[0]), size_t(n[1]), size_t(n[2])});
+        char err[errlen] = {0};
+        int ok;
+        { nb::gil_scoped_release nogil; ok = qcb_solid_field(h, spin ? 1 : 0, iterate ? 1 : 0, n.data(), origin.data(), spacing.data(), arr.data(), err, errlen); }
+        if (!ok) throw std::runtime_error(err);
+        return grid_dict("values", arr, origin.data(), spacing.data());
+    }
     std::string Resolved() const
     {
         std::string out(size_t(qcb_solid_resolved(h, nullptr, 0)) + 1, '\0');
@@ -434,6 +446,12 @@ NB_MODULE(qchem_py, mod)
         .def("total_energy", &SolidRun::TotalEnergy, "The converged total energy (hartree); None unless converged.")
         .def("iterations",   &SolidRun::Iterations)
         .def("judge_state",  &SolidRun::JudgeState, nb::arg("path"), "As Calculator.judge_state, for this crystal.")
+        .def("field", &SolidRun::Field, nb::arg("n"), nb::arg("origin"), nb::arg("spacing"), nb::arg("spin") = false,
+             nb::arg("iterate") = false,
+             "The crystal's density (spin=True: m = rho_up - rho_down, zero when unpolarized) on the Cartesian box the caller states: "
+             "n = (n0, n1, n2) points at origin + (i, j, k) * spacing (bohr; the cell's bounding box or a supercell's).  iterate=False: "
+             "the CONVERGED density (raises when the SCF did not converge); iterate=True: the current iterate's -- only from the "
+             "converge callback, or between converges.  {'values', 'origin', 'spacing'}.")
         .def("restarted_from", &SolidRun::RestartedFrom,
              "What the deck's state.restartFrom did (as Calculator.restarted_from); None for a fresh run.")
         .def("resolved",     &SolidRun::Resolved, "The resolved deck (JSON text): every default filled in, what rundeck records.");

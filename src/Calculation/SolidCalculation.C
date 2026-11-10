@@ -353,6 +353,17 @@ public:
     const qchem::ChargeDensity::cDM_CD* LastIterateDensity() const;
     //!@}
 
+    //! \name THE CURRENT ITERATE, for a client sampling a run IN PROGRESS (the GUI's live snapshot; the twin of
+    //! \c MoleculeCalculation::MakeIterateDensity, lane G 2026-11-10)
+    //! rho(r) / m(r) of the wave function's LATEST diagonalisation, built fresh per call (an owned field: one density build).  Call
+    //! it from the observer (the compute thread, between iterations) or between Converge calls -- never from another thread while
+    //! an SCF runs.  \c LastIterateDensity is the stage's END density (set when a stage finishes), so it cannot serve a run in
+    //! progress.  THROWS before the first iteration.  Public because the binding samples it from its row callback.
+    //!@{
+    std::unique_ptr<sf_t> MakeIterateDensity()     const;
+    std::unique_ptr<sf_t> MakeIterateSpinDensity() const;   //!< the zero field for an unpolarized run
+    //!@}
+
     //! \brief ACBN0 (DFT+U increment 3): \f$(\bar U,\bar J)\f$ per Hubbard manifold FROM THE LAST ITERATE's
     //! orbitals -- the paper's outer-loop estimate (SCF at \f$U^{(n)}\f$, estimate, run again at
     //! \f$U^{(n+1)}=\bar U-\bar J\f$ until \f$|\Delta U|<10^{-4}\f$ eV).  Fed block by block from the wave

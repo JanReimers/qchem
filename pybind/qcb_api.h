@@ -160,6 +160,14 @@ int        qcb_solid_iterations(const qcb_solid* h);
 //! it needs (excluding the NUL); writes at most outlen-1 chars.
 int        qcb_solid_resolved(const qcb_solid* h, char* out, int outlen);
 
+//! A crystal's density (spin != 0: its magnetization m = ρ↑−ρ↓; the zero field when unpolarized) on the Cartesian box the
+//! caller states: n3[0] x n3[1] x n3[2] points (C-order, the last fastest) at origin + (i, j, k) * spacing, bohr -- the unit cell's
+//! bounding box or a supercell's, the caller's choice (ρ is periodic, so any box is valid).  iterate == 0: the CONVERGED density
+//! (Converged::Density / SpinDensity; refused, saying so, when the last SCF did not converge); iterate != 0: the CURRENT iterate's
+//! (SolidCalculation::MakeIterateDensity -- only from the row callback, or between converges).  `out` holds the product of n3.
+//! 1 on success, 0 with `err`.
+int        qcb_solid_field(const qcb_solid* h, int spin, int iterate, const int* n3, const double* origin, const double* spacing,
+                           double* out, char* err, int errlen);
 //! As qcb_judge_state / qcb_restarted_from, for a crystal (the deck saves and restarts through state.save / state.restartFrom).
 int        qcb_solid_judge_state(const qcb_solid* h, const char* path, char* out, int outlen);
 int        qcb_solid_restarted_from(const qcb_solid* h, char* out, int outlen);
