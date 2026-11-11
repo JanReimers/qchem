@@ -11,9 +11,9 @@ target_compile_definitions(UTResponse PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTResponse PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTResponse PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_GTEST_INCLUDE}
+    ${QCHEM_JSON_INCLUDE}
     ${PROJECT_SOURCE_DIR}/src                       # forward.H (the FD oracle's friend)
 )
 

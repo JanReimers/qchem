@@ -25,9 +25,9 @@ set_property(TARGET UTCalculation PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTCalculation PRIVATE
     ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_GTEST_INCLUDE}
 )
 
 target_link_libraries(UTCalculation PRIVATE qchem qcAD gtest)

@@ -8,9 +8,9 @@ target_sources(qcRadial_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     BasisSet.C
 )
 target_include_directories(qcRadial_BS PRIVATE 
-    ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${QCHEM_BSPLINE_INCLUDE}
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
     ${PROJECT_SOURCE_DIR}/src
 )
 

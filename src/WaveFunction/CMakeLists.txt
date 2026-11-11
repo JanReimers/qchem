@@ -10,8 +10,8 @@ target_sources(qcWaveFunction PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FI
     Internal/IrrepWF.C   
 )
 target_include_directories(qcWaveFunction PRIVATE 
-    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${QCHEM_TABULATE_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
     )
 set_property(TARGET qcWaveFunction PROPERTY CXX_STANDARD 20)
 target_link_libraries(qcWaveFunction PUBLIC qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcBasisSet qcSymmetry qcStructure qcMath qcCommon)

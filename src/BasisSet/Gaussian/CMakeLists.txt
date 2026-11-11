@@ -13,7 +13,7 @@ add_library(qcGaussian_BS)
 # subdirectories can all contribute to it; the first declaration fixes the base directory.
 target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(qcGaussian_BS PRIVATE 
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${QCHEM_JSON_INCLUDE}
 )
 set_property(TARGET qcGaussian_BS PROPERTY CXX_STANDARD 20)
 target_compile_definitions(qcGaussian_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})

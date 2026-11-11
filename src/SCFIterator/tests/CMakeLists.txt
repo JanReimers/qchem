@@ -14,8 +14,8 @@ target_compile_definitions(UTSCFIterator PRIVATE ${CXX_COMMON_COMPILE_DEFINITION
 set_property(TARGET UTSCFIterator PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTSCFIterator PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${QCHEM_GTEST_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
 )
 
 target_link_libraries(UTSCFIterator PRIVATE qchem lapack gtest)

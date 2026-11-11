@@ -18,11 +18,11 @@ target_compile_definitions(UTHamiltonian PRIVATE ${CXX_COMMON_COMPILE_DEFINITION
 set_property(TARGET UTHamiltonian PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTHamiltonian PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
-    ${PROJECT_BINARY_DIR}/submodules/libxc
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BSPLINE_INCLUDE}
+    ${QCHEM_GTEST_INCLUDE}
+    ${QCHEM_LIBXC_BUILD}
 )
 
 # xc supplies the raw libxc C API exercised by Libxc.C and the oracle side of LDA_XC.C;
