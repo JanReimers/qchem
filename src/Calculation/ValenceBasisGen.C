@@ -28,9 +28,10 @@ export namespace qchem
     //! per-l exponent lists (l, exponents): the atomic pseudo-atom SCF is run in EXACTLY these shells to
     //! validate them (single source of truth -- validate what you emit), then they are emitted verbatim.  The
     //! atomic solver occupies only the l's the CHARGE STATE fills (\c electrons: F- 8, neutral F 7, Na 1), so
-    //! higher-l polarization shells ride along un-validated (as intended).  KEEP EXPONENTS DISJOINT ACROSS l:
-    //! the molecular Gaussian94 reader merges same-exponent shells (a flagged bug in PG_Cart::IrrepBasisSet),
-    //! so shared s/p exponents silently drop functions on load.
+    //! higher-l polarization shells ride along un-validated (as intended).  Exponents MAY be SHARED across l (an
+    //! SP-style set): the Gaussian94 reader keeps every l of a shared exponent (e7cd6cab, 2026-10-26; the old "keep them
+    //! disjoint" rule worked around a reader bug since fixed).  Sharing is supported, and is what the shell-block integrals
+    //! can exploit (OpenWork §4, shared-exponent superblocks; not yet measured).
     struct ValenceBasisRecipe
     {
         std::string  element;               //!< element symbol, e.g. "F", "Na"
@@ -43,7 +44,7 @@ export namespace qchem
         int          electrons   = -1;
         std::string  functional  = "LDA";   //!< GTH parameter set (the GPW/PP stack is LDA today)
         //! The per-l shells: (l, exponents), one uncontracted primitive each.  Validated AND emitted verbatim.
-        //! Exponents DISJOINT across shells (see the class note).  Higher-l polarization shells go here too.
+        //! Exponents may be shared across l (see the class note).  Higher-l polarization shells go here too.
         std::vector<std::pair<int,std::vector<double>>> shells;
         std::string  name;                  //!< reserved for future per-recipe naming (file title set at assembly)
         //! SPIN-RESOLVED seed density (doc/SCFSeedingPlan.md sec 10, GenerateSeedDensity only): run the

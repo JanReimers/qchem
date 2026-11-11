@@ -407,7 +407,8 @@ MnO campaign proceeds undisturbed in qchem6.
   l — the standard trick Pople calls an **"SP shell"** (a.k.a. **"L shell"**, e.g. 6-31G), generalized
   here to s+d.  CP2K's format encodes it natively (one set with `lmin..lmax`, e.g. `2 0 1 4 4 4`) and the
   MOLOPT families share one exponent set across s, p AND d.
-  **BLOCKED ON:** the flagged `PG_Cart::IrrepBasisSet` bug — the Gaussian94 reader MERGES same-exponent
+  **UNBLOCKED 2026-10-26 (e7cd6cab: the reader keeps every l of a shared exponent); valgen emits a shared window since
+  2026-11-11 (`--shell 0,1:N:emin:emax`, lane H bf2e2904f).**  Was BLOCKED ON: — the Gaussian94 reader MERGES same-exponent
   shells across l, which is why valgen carries the standing "KEEP EXPONENTS DISJOINT ACROSS l" rule.
   Multi-l shells must be representable before shared radials can be emitted.
   **MEASURE, DON'T ASSUME:** sharing exponents does not by itself remove the contaminant redundancy —

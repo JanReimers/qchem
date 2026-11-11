@@ -2315,3 +2315,20 @@ relinked them: a stale `rundeck` against a rebuilt libqchem segfaulted (lane G),
 (lane H, the doubled-exponent row above).  The root `CMakeLists.txt` now has `allApps` (the five apps) and `allTests` depends on it.
 Gate, measured: after touching `src/Pseudopotential/PseudopotentialSet.C` (a module interface), `ninja -n allTests` relinks all five.
 A new app in `CLIapps/` joins the `allApps` list.  `pybind/`'s target is separate and unchanged.
+
+
+## ✅ Shared exponents in valgen: the stale "keep them disjoint across l" advice retired (lane H, 2026-11-11, bf2e2904f)
+
+The row as it stood:
+
+| **Stale 'KEEP EXPONENTS DISJOINT ACROSS l' advice: the reader bug it works around was fixed 2026-10-26 (e7cd6cab)** (S; user 2026-11-02) | e7cd6cab made every orbital basis keep every l of a shared exponent (`ReadShells`, `KeepEachL`; UTs count functions on MnD cart/sph and libcint), and lane B's MOLOPT basis (7 exponents shared across s, p, d) now matches CP2K on CH4.  But the rule still stands in `CLIapps/valgen.C:210` (help text), `src/Calculation/ValenceBasisGen.C:32,47` (module interface comments) and `src/Response/tests/Kernel.C:590`, and the unblocked user idea R1.0b (SHARED RADIALS across l, `doc/Records/CleanupHistory2.md:402`) still reads BLOCKED.  User: shared exponents are WANTED -- integrals evaluate in blocks per exponent (more for HF than DFT/PP) | rewrite the advice (valgen help: sharing is fine and preferred; ValenceBasisGen.C comments ride the next real edit of that interface -- a comment-only change forces a rebuild); give valgen a shared-window form (one window, several l, e.g. `--shell 0,1:6:0.1:10`) and emit it as one shell set; then measure whether the Gaussian integral paths actually EXPLOIT shared exponents (the radial ExponentGrouper does; check the PG/GPW evaluators).  Context (user, 2026-11-02): the MnD integral code's best was ~4x libcint's run time, explained then as weaker exponent blocking than libcint's -- shared radials are where that gap would show; a project for another day, not this row's acceptance |
+
+**Done.**  The advice now reads (controller wording): sharing is SUPPORTED, and is what the shell-block integrals can exploit (OpenWork
+§4 "Shared-exponent superblocks"); no speed benefit is claimed until that row is measured.  Rewritten in the valgen `--shell` help, the
+`ValenceBasisRecipe` interface comments (`src/Calculation/ValenceBasisGen.C`), and two test comments (`src/Response/tests/Kernel.C`,
+`src/Calculation/tests/ValenceBasisGen.C`).  valgen's `--shell` takes a SHARED window `l1,l2:N:emin:emax` (every listed l on the same
+even-tempered exponents, an SP-style set; a repeated l is refused); `ValenceBasisGen` already emitted per-l shells verbatim, so the block
+is S and P lines on one exponent list.  Gate `ValenceBasisGen.ASharedSPWindowValidatesAndReadsBackWithEveryL`: Al q3 on a shared 6-exponent
+s+p window converges, its block lists the window for both l, and `FactoryFromFile` reads back 6 + 6×3 Cartesian functions (every l kept).
+R1.0b (`Records/CleanupHistory2.md`) marked unblocked.  Not done (the row's "then measure"): whether the PG/GPW evaluators exploit shared
+exponents -- that is the §4 superblock row.
