@@ -58,8 +58,11 @@ struct ZeroField : public virtual ScalarFunction<double>
 // shared_ptr that the returned SymmetryAdaptedBasisSet keep-alives -- so the facade owns (and deletes)
 // only the adapted basis, and the raw lifetime rides along.  PG::SymmetryAdapt throws if the basis has
 // no Cartesian PGData IBS (the guard); the facade only ever builds that basis today, so it is safe.
-static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_ptr<const Structure>& st)
+// \a ao receives the SALC run's raw basis (shared with the adapted one), whose shells identify a saved state; null without symmetry.
+static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_ptr<const Structure>& st,
+                                     std::shared_ptr<const BasisSet::Real_BS>& ao)
 {
+    ao.reset();
     const bool spherical = (opts.angular == Angular::Spherical);
     // SALC now supports the Cartesian PGData basis AND the in-house MnD-spherical basis (SphData;
     // doc/OldPlans/SphericalSALCPlan.md S3a/S4).  Only libcint-spherical is unwired (S3b) -- and it presents as a
@@ -78,6 +81,7 @@ static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_
               spherical ? BasisSet::Gaussian::Angular::Spherical : BasisSet::Gaussian::Angular::Cartesian);
     if (!opts.symmetry) return raw;
     std::shared_ptr<const BasisSet::Real_BS> rawShared(raw);
+    ao=rawShared;
     return PG::SymmetryAdapt(rawShared, *st, opts.symmetryTol);
 }
 
@@ -157,7 +161,7 @@ void MoleculeCalculation::BuildGraph()
     // whole basis once, complete, on close.  A later Converge reuses the basis.
     {
         rpt::Scope basis("basis");
-        if (!itsBasis) itsBasis = BuildBasis(opts, itsStructure);   // raw, or SALC-blocked if .symmetry
+        if (!itsBasis) itsBasis = BuildBasis(opts, itsStructure, itsAoBasis);   // raw, or SALC-blocked if .symmetry
     }
     // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh, orbital basis,
     // xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door instead (LSDA valence
@@ -752,13 +756,15 @@ void MoleculeCalculation::RecordState(StateRecord& r, double kT) const
         for (const auto& [el,q] : o.ppOverride) ov += (ov.empty() ? "" : ",") + el + ":" + std::to_string(q);
         fp.refuseStr["pp.override"]=ov;
     }
-    // The shells (an AO basis: each block reports its own; a SALC block is a combination of them, identified by its name, its
-    // irrep and its size -- the shared block keys).  A block that cannot report its shells is identified by name alone, and says so.
-    if (!o.symmetry)
+    // The shells, from the AO basis the run built: an AO run's own blocks, a SALC run's unsymmetrized basis (a SALC block is a
+    // combination of its shells and cannot report them itself).  So a .bsd edited under the same name refuses, SALC or not (lane A,
+    // 2026-11-10).  A block that cannot report its shells is identified by name alone, and says so.
     {
+        const BasisSet::Real_BS& ao = itsAoBasis ? *itsAoBasis : *itsBasis;
+        if (o.symmetry && !itsAoBasis) throw std::logic_error("MoleculeCalculation::RecordState: a SALC run without its AO basis");
         std::vector<const BasisSet::Orbital_1E_IBS<double>*> blocks;
         bool all=true;
-        for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
+        for (auto ibs : ao.Iterate<BasisSet::Real_OIBS>())
         {
             blocks.push_back(ibs);
             all = all && dynamic_cast<const BasisSet::AoShellSource*>(ibs)!=nullptr;
@@ -828,7 +834,7 @@ MoleculeCalculation::PrepareRestart(const std::string& path, std::shared_ptr<con
     std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, ref, nullptr, std::move(onIteration)));
     {
         rpt::Scope basis("basis");
-        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsStructure);   // BuildGraph reuses it
+        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsStructure, c->itsAoBasis);   // BuildGraph reuses it
     }
     SavedState state=saved.TakeValue();
     auto judged=c->JudgeRestart(state, scf.SmearingkT, tag);

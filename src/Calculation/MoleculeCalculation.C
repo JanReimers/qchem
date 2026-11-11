@@ -287,6 +287,9 @@ private:
     std::shared_ptr<const Structure>     itsStructure;  //!< the point's structure (valence-charged under a PP); the Hamiltonian shares it
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
+    //! A SALC run's UNSYMMETRIZED basis (the adapted one keeps it alive too; null without symmetry): its shells identify a saved
+    //! state (RecordState), which a SALC block, a combination of them, cannot report.
+    std::shared_ptr<const BasisSet::Real_BS> itsAoBasis;
     //! R2.22: the iterator no longer deletes what it is handed, so this facade owns the Hamiltonian and
     //! the accelerator.  Both are still REBUILT per Converge() -- a molecular Hamiltonian is cheap, so
     //! that stays as it was; assigning here frees the previous pair at exactly the old moment.  Declared
