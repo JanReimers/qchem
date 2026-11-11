@@ -128,10 +128,23 @@ template <class E> concept isM_DFT_Evaluator = std::derived_from<E, Evaluator>
 //! A scalar HF evaluator (\c isHF_Evaluator) that ALSO delivers a whole shell quartet of \c FourC at once, each value the one FourC
 //! gives: the ERI4 loops then walk shell quartets and do the per-primitive-quartet work once per quartet, not once per component
 //! quartet (lane H 2026-11-11, the molecular geometry point's ERI4 cost).  Additive: the per-element FourC stays (BareCoulomb, oracles).
+//! It also delivers whole GENERAL-CONTRACTION GROUP quartets (\c ShellGroups: consecutive shells on the same primitives; \c FourCGroupBlock),
+//! each primitive quartet evaluated once for every member quartet (McMurchie-Davidson's evaluation in blocks; OpenWork §4).
 template <class E> concept isShellBlock_HF_Evaluator = isHF_Evaluator<E> && requires (const E e, size_t i, double* out)
 {
     {e.ShellRanges()} -> std::same_as<std::vector<std::pair<size_t,size_t>>>;
+    {e.ShellGroups()} -> std::same_as<const std::vector<std::pair<size_t,size_t>>&>;
     {e.FourCBlock(i, i, e, i, i, e, i, i, e, i, i, out)} -> std::same_as<void>;
+    {e.FourCGroupBlock(i, e, i, e, i, e, i, out)} -> std::same_as<void>;
+};
+//! The 3-centre twin: a scalar DFT evaluator that also delivers a general-contraction GROUP TRIPLE of \c RepulsionThreeC / \c OverlapThreeC
+//! at once, each value the per-element kernel's (lane H 2026-11-11).  Additive: the per-element kernels stay (the gates' reference).
+template <class E> concept isShellBlock_DFT_Evaluator = isDFT_Evaluator<E> && requires (const E e, size_t i, double* out)
+{
+    {e.ShellRanges()} -> std::same_as<std::vector<std::pair<size_t,size_t>>>;
+    {e.ShellGroups()} -> std::same_as<const std::vector<std::pair<size_t,size_t>>&>;
+    {e.RepulsionThreeCGroupBlock(i, e, i, e, i, out)} -> std::same_as<void>;
+    {e.OverlapThreeCGroupBlock  (i, e, i, e, i, out)} -> std::same_as<void>;
 };
 template <class E> concept isM_HF_Evaluator = std::derived_from<E, Evaluator>
     && requires (const E e, const E partner)

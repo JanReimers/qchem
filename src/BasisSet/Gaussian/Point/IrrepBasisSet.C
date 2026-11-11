@@ -15,6 +15,7 @@
 //  - HF Direct/Exchange use the multi-centre M&D FourC kernel, NOT the atom Cache4/Grouper/Ak design.
 module;
 #include <cmath>
+#include <algorithm>
 #include <concepts>
 #include <stdexcept>
 #include <string>
@@ -343,6 +344,9 @@ protected:
     {
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).OverlapThreeC_Matrix(dynamic_cast<const E&>(c));
+        else if constexpr (Evaluators::isShellBlock_DFT_Evaluator<E>)
+            return Make3CGroups(c, [](const E& aE, size_t ga, size_t gb, const E& cE, size_t gc, double* out)
+                                   {aE.OverlapThreeCGroupBlock(ga, aE, gb, cE, gc, out);});
         else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
                                    {return aE.OverlapThreeC(ia, aE, ib, cE, ic);});
     }
@@ -350,6 +354,9 @@ protected:
     {
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).RepulsionThreeC_Matrix(dynamic_cast<const E&>(c));
+        else if constexpr (Evaluators::isShellBlock_DFT_Evaluator<E>)
+            return Make3CGroups(c, [](const E& aE, size_t ga, size_t gb, const E& cE, size_t gc, double* out)
+                                   {aE.RepulsionThreeCGroupBlock(ga, aE, gb, cE, gc, out);});
         else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
                                    {return aE.RepulsionThreeC(ia, aE, ib, cE, ic);});
     }
@@ -403,6 +410,46 @@ private:
         }
         return s3;
     }
+    //! The same tensor, walked as GENERAL-CONTRACTION GROUP triples (lane H 2026-11-11, OpenWork §4): each group pair ga <= gb of this
+    //! block against each fit group, every member triple from one \a block call (the primitive integrals once per group triple).  Each
+    //! value is the per-element kernel's bit for bit (tests/M_ThreeCBlocks.C), so this is \c Make3C's tensor exactly.  Groups are
+    //! consecutive shells, so a member pair sa <= sb visits every function pair ia <= ib once.
+    template <class Block>
+    PairProjection<double> Make3CGroups(const Real_IBS& _c, Block block) const
+    {
+        const E& aE=dynamic_cast<const E&>(*this);
+        const E& cE=dynamic_cast<const E&>(_c);
+        const size_t Na=aE.size(), Nc=cE.size();
+        PairProjection<double> s3;
+        s3.dense.assign(Nc, rsmat_t(Na));
+        const auto SA=aE.ShellRanges(), SC=cE.ShellRanges();
+        const auto& GA=aE.ShellGroups(); const auto& GC=cE.ShellGroups();
+        auto width=[](const std::vector<std::pair<size_t,size_t>>& S, size_t s){return S[s].second-S[s].first;};
+        std::vector<double> blk;
+        for (size_t gb=0;gb<GA.size();gb++) for (size_t ga=0;ga<=gb;ga++) for (size_t gc=0;gc<GC.size();gc++)
+        {
+            const size_t ma=GA[ga].second-GA[ga].first, mb=GA[gb].second-GA[gb].first, mc=GC[gc].second-GC[gc].first;
+            const size_t na=width(SA,GA[ga].first), nb=width(SA,GA[gb].first), nc=width(SC,GC[gc].first), n=na*nb*nc;
+            blk.resize(ma*mb*mc*n);
+            block(aE, ga, gb, cE, gc, blk.data());
+            for (size_t ia=0;ia<ma;ia++) for (size_t ib=0;ib<mb;ib++)
+            {
+                const size_t sa=GA[ga].first+ia, sb=GA[gb].first+ib;
+                if (sb<sa) continue;   // the pair's other orientation (same group): its functions are written by (sb, sa)
+                for (size_t ic=0;ic<mc;ic++)
+                {
+                    const double* o=&blk[((ia*mb+ib)*mc+ic)*n];
+                    const size_t a0=SA[sa].first, b0=SA[sb].first, c0=SC[GC[gc].first+ic].first;
+                    for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++)
+                    {
+                        if (b0+b<a0+a) continue;
+                        for (size_t c=0;c<nc;c++) s3.dense[c0+c](a0+a,b0+b)=o[(a*nb+b)*nc+c];
+                    }
+                }
+            }
+        }
+        return s3;
+    }
 };
 
 // --- 4-centre (HF): the ERI4 SUBSTRATE -- Direct (ab|cd) and Exchange -----------------------------
@@ -418,25 +465,59 @@ struct UniqueQuartets
 {
     std::vector<std::pair<size_t,size_t>> S;          //!< the shells, [begin, end)
     std::vector<size_t> shellOf, offIn;               //!< per function: its shell and its place in it
+    std::vector<size_t> rank;                         //!< per shell pair Pair(s,t): its place in the GROUP-MAJOR pair order
     std::vector<size_t> blockOff;                     //!< per canonical quartet: its block's start in v
     std::vector<double> v;
     static size_t Pair(size_t s, size_t t) {return t*(t+1)/2+s;}   //!< s <= t
+    size_t Rank(size_t s, size_t t) const {return rank[Pair(s,t)];}  //!< s <= t
     template <class E> void Build(const E& e)
     {
         S=e.ShellRanges();
         shellOf.assign(e.size(),0); offIn.assign(e.size(),0);
         for (size_t k=0;k<S.size();k++) for (size_t f=S[k].first;f<S[k].second;f++) { shellOf[f]=k; offIn[f]=f-S[k].first; }
+        // THE PAIR ORDER is GROUP-MAJOR (general-contraction groups, OpenWork §4): shell pairs ranked by their group pair first, then by
+        // themselves.  A canonical quartet is one whose bra pair ranks no higher than its ket pair, so a group quartet with bra group
+        // pair < ket group pair holds only canonical members, one with > holds none, and the canonical group quartets cover every
+        // canonical shell quartet ONCE -- no group quartet is evaluated in both orientations.
+        const auto& G=e.ShellGroups();
+        std::vector<size_t> groupOf(S.size());
+        for (size_t g=0;g<G.size();g++) for (size_t k=G[g].first;k<G[g].second;k++) groupOf[k]=g;
         const size_t nP=S.size()*(S.size()+1)/2;
+        std::vector<std::pair<size_t,size_t>> order;   // (group pair, shell pair)
+        for (size_t t=0;t<S.size();t++) for (size_t s=0;s<=t;s++) order.push_back({Pair(groupOf[s],groupOf[t]), Pair(s,t)});
+        std::sort(order.begin(), order.end());
+        rank.assign(nP,0);
+        for (size_t r=0;r<nP;r++) rank[order[r].second]=r;
         blockOff.assign(nP*(nP+1)/2, 0);
+        auto width=[&](size_t s){return S[s].second-S[s].first;};
         for (size_t sb=0;sb<S.size();sb++) for (size_t sa=0;sa<=sb;sa++)
             for (size_t sd=0;sd<S.size();sd++) for (size_t sc=0;sc<=sd;sc++)
             {
-                const size_t P1=Pair(sa,sb), P2=Pair(sc,sd);
+                const size_t P1=Rank(sa,sb), P2=Rank(sc,sd);
                 if (P2<P1) continue;
-                const size_t na=S[sa].second-S[sa].first, nb=S[sb].second-S[sb].first, nc=S[sc].second-S[sc].first, nd=S[sd].second-S[sd].first;
                 blockOff[P2*(P2+1)/2+P1]=v.size();
-                v.resize(v.size()+na*nb*nc*nd);
-                e.FourCBlock(S[sa].first,na, e,S[sb].first,nb, e,S[sc].first,nc, e,S[sd].first,nd, &v[blockOff[P2*(P2+1)/2+P1]]);
+                v.resize(v.size()+width(sa)*width(sb)*width(sc)*width(sd));
+            }
+        // Fill them a GROUP quartet at a time: one FourCGroupBlock evaluates the primitive integrals once for every member quartet, and each
+        // CANONICAL member is copied to its block -- FourC's value there bit for bit (tests/M_ERI4Blocks.C).
+        std::vector<double> blk;
+        for (size_t gb=0;gb<G.size();gb++) for (size_t ga=0;ga<=gb;ga++)
+            for (size_t gd=0;gd<G.size();gd++) for (size_t gc=0;gc<=gd;gc++)
+            {
+                if (Pair(gc,gd)<Pair(ga,gb)) continue;
+                const size_t ma=G[ga].second-G[ga].first, mb=G[gb].second-G[gb].first, mc=G[gc].second-G[gc].first, md=G[gd].second-G[gd].first;
+                const size_t n=width(G[ga].first)*width(G[gb].first)*width(G[gc].first)*width(G[gd].first);
+                blk.resize(ma*mb*mc*md*n);
+                e.FourCGroupBlock(ga, e, gb, e, gc, e, gd, blk.data());
+                size_t m=0;
+                for (size_t ia=0;ia<ma;ia++) for (size_t ib=0;ib<mb;ib++) for (size_t ic=0;ic<mc;ic++) for (size_t id=0;id<md;id++,m++)
+                {
+                    const size_t sa=G[ga].first+ia, sb=G[gb].first+ib, sc=G[gc].first+ic, sd=G[gd].first+id;
+                    if (sb<sa || sd<sc) continue;   // the other orientation of a same-group pair
+                    const size_t P1=Rank(sa,sb), P2=Rank(sc,sd);
+                    if (P2<P1) continue;            // only inside a group quartet whose bra and ket are the same group pair
+                    std::copy(&blk[m*n], &blk[m*n]+n, &v[blockOff[P2*(P2+1)/2+P1]]);
+                }
             }
     }
     double At(size_t ia, size_t ib, size_t ic, size_t id) const
@@ -445,7 +526,7 @@ struct UniqueQuartets
         size_t a=offIn[ia], b=offIn[ib], c=offIn[ic], d=offIn[id];
         if (sa>sb) { std::swap(sa,sb); std::swap(a,b); }
         if (sc>sd) { std::swap(sc,sd); std::swap(c,d); }
-        size_t P1=Pair(sa,sb), P2=Pair(sc,sd);
+        size_t P1=Rank(sa,sb), P2=Rank(sc,sd);
         if (P1>P2) { std::swap(P1,P2); std::swap(sa,sc); std::swap(sb,sd); std::swap(a,c); std::swap(b,d); }
         const size_t nb=S[sb].second-S[sb].first, nc=S[sc].second-S[sc].first, nd=S[sd].second-S[sd].first;
         return v[blockOff[P2*(P2+1)/2+P1]+((a*nb+b)*nc+c)*nd+d];
@@ -537,22 +618,34 @@ protected:
                 return J;
             }
             // SHELL-BLOCKED against another block: the same entries, the same values (FourCBlock = FourC element for element).
+            // GROUP-BLOCKED against another block (OpenWork §4): the same entries, the same values (a member of FourCGroupBlock = FourC).
             ERI4 J(aE.size(),cE.size());
             const auto SA=aE.ShellRanges(), SC=cE.ShellRanges();
+            const auto& GA=aE.ShellGroups(); const auto& GC=cE.ShellGroups();
             std::vector<double> blk;
-            for (size_t sa=0;sa<SA.size();sa++) for (size_t sb=sa;sb<SA.size();sb++)
-                for (size_t sc=0;sc<SC.size();sc++) for (size_t sd=sc;sd<SC.size();sd++)
+            for (size_t ga=0;ga<GA.size();ga++) for (size_t gb=ga;gb<GA.size();gb++)
+                for (size_t gc=0;gc<GC.size();gc++) for (size_t gd=gc;gd<GC.size();gd++)
                 {
-                    const size_t a0=SA[sa].first, na=SA[sa].second-a0, b0=SA[sb].first, nb=SA[sb].second-b0;
-                    const size_t c0=SC[sc].first, nc=SC[sc].second-c0, d0=SC[sd].first, nd=SC[sd].second-d0;
-                    blk.resize(na*nb*nc*nd);
-                    aE.FourCBlock(a0,na, aE,b0,nb, cE,c0,nc, cE,d0,nd, blk.data());   // (a a | c c) slots
-                    for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++)
+                    const size_t ma=GA[ga].second-GA[ga].first, mb=GA[gb].second-GA[gb].first, mc=GC[gc].second-GC[gc].first, md=GC[gd].second-GC[gd].first;
+                    const size_t na=SA[GA[ga].first].second-SA[GA[ga].first].first, nb=SA[GA[gb].first].second-SA[GA[gb].first].first;
+                    const size_t nc=SC[GC[gc].first].second-SC[GC[gc].first].first, nd=SC[GC[gd].first].second-SC[GC[gd].first].first;
+                    const size_t n=na*nb*nc*nd;
+                    blk.resize(ma*mb*mc*md*n);
+                    aE.FourCGroupBlock(ga, aE, gb, cE, gc, cE, gd, blk.data());   // (a a | c c) slots
+                    size_t m=0;
+                    for (size_t ia=0;ia<ma;ia++) for (size_t ib=0;ib<mb;ib++) for (size_t ic=0;ic<mc;ic++) for (size_t id=0;id<md;id++,m++)
                     {
-                        if (b0+b<a0+a) continue;
-                        rsmat_t& Jab=J(a0+a,b0+b);
-                        for (size_t c=0;c<nc;c++) for (size_t d=0;d<nd;d++)
-                            if (d0+d>=c0+c) Jab(c0+c,d0+d)=blk[((a*nb+b)*nc+c)*nd+d];
+                        const size_t sa=GA[ga].first+ia, sb=GA[gb].first+ib, sc=GC[gc].first+ic, sd=GC[gd].first+id;
+                        if (sb<sa || sd<sc) continue;
+                        const size_t a0=SA[sa].first, b0=SA[sb].first, c0=SC[sc].first, d0=SC[sd].first;
+                        const double* o=&blk[m*n];
+                        for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++)
+                        {
+                            if (b0+b<a0+a) continue;
+                            rsmat_t& Jab=J(a0+a,b0+b);
+                            for (size_t c=0;c<nc;c++) for (size_t d=0;d<nd;d++)
+                                if (d0+d>=c0+c) Jab(c0+c,d0+d)=o[((a*nb+b)*nc+c)*nd+d];
+                        }
                     }
                 }
             return J;
@@ -602,28 +695,39 @@ protected:
                 return K;
             }
             // SHELL-BLOCKED against another block, the packing below exactly (each K entry receives at most two halves).
+            // GROUP-BLOCKED (OpenWork §4): a member quartet of FourCGroupBlock is FourCBlock's, so the packing below is unchanged.
             ERI4 K(aE.size(),bE.size());
             const auto SA=aE.ShellRanges(), SB=bE.ShellRanges();
-            std::vector<double> blk;
-            for (size_t sa=0;sa<SA.size();sa++) for (size_t sc=sa;sc<SA.size();sc++)
-                for (size_t sb=0;sb<SB.size();sb++) for (size_t sd=0;sd<SB.size();sd++)
+            const auto& GA=aE.ShellGroups(); const auto& GB=bE.ShellGroups();
+            std::vector<double> gblk;
+            for (size_t ga=0;ga<GA.size();ga++) for (size_t gc=ga;gc<GA.size();gc++)
+                for (size_t gb=0;gb<GB.size();gb++) for (size_t gd=0;gd<GB.size();gd++)
                 {
-                    const size_t a0=SA[sa].first, na=SA[sa].second-a0, c0=SA[sc].first, nc=SA[sc].second-c0;
-                    const size_t b0=SB[sb].first, nb=SB[sb].second-b0, d0=SB[sd].first, nd=SB[sd].second-d0;
-                    blk.resize(na*nb*nc*nd);
-                    aE.FourCBlock(a0,na, bE,b0,nb, aE,c0,nc, bE,d0,nd, blk.data());   // (a b | a b) slots
-                    for (size_t a=0;a<na;a++) for (size_t c=0;c<nc;c++)
+                    const size_t ma=GA[ga].second-GA[ga].first, mc=GA[gc].second-GA[gc].first, mb=GB[gb].second-GB[gb].first, md=GB[gd].second-GB[gd].first;
+                    const size_t na=SA[GA[ga].first].second-SA[GA[ga].first].first, nc=SA[GA[gc].first].second-SA[GA[gc].first].first;
+                    const size_t nb=SB[GB[gb].first].second-SB[GB[gb].first].first, nd=SB[GB[gd].first].second-SB[GB[gd].first].first;
+                    const size_t n=na*nb*nc*nd;
+                    gblk.resize(ma*mb*mc*md*n);
+                    aE.FourCGroupBlock(ga, bE, gb, aE, gc, bE, gd, gblk.data());   // (a b | a b) slots
+                    for (size_t xa=0;xa<ma;xa++) for (size_t xb=0;xb<mb;xb++) for (size_t xc=0;xc<mc;xc++) for (size_t xd=0;xd<md;xd++)
                     {
-                        const size_t ia=a0+a, ic=c0+c;
-                        if (ic<ia) continue;
-                        rsmat_t& Kac=K(ia,ic);
-                        for (size_t b=0;b<nb;b++) for (size_t d=0;d<nd;d++)
+                        const size_t sa=GA[ga].first+xa, sc=GA[gc].first+xc, sb=GB[gb].first+xb, sd=GB[gd].first+xd;
+                        if (sc<sa) continue;
+                        const size_t a0=SA[sa].first, c0=SA[sc].first, b0=SB[sb].first, d0=SB[sd].first;
+                        const double* blk=&gblk[(((xa*mb+xb)*mc+xc)*md+xd)*n];
+                        for (size_t a=0;a<na;a++) for (size_t c=0;c<nc;c++)
                         {
-                            const size_t ib=b0+b, id=d0+d;
-                            const double v=blk[((a*nb+b)*nc+c)*nd+d];
-                            if (ib==id)      Kac(ib,id) = v;
-                            else if (ib<id)  Kac(ib,id)+= 0.5*v;
-                            else             Kac(id,ib)+= 0.5*v;
+                            const size_t ia=a0+a, ic=c0+c;
+                            if (ic<ia) continue;
+                            rsmat_t& Kac=K(ia,ic);
+                            for (size_t b=0;b<nb;b++) for (size_t d=0;d<nd;d++)
+                            {
+                                const size_t ib=b0+b, id=d0+d;
+                                const double v=blk[((a*nb+b)*nc+c)*nd+d];
+                                if (ib==id)      Kac(ib,id) = v;
+                                else if (ib<id)  Kac(ib,id)+= 0.5*v;
+                                else             Kac(id,ib)+= 0.5*v;
+                            }
                         }
                     }
                 }

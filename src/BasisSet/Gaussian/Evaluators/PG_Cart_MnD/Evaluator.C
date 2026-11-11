@@ -3562,6 +3562,94 @@ public:
             out[q] = out[q] * ns[a0+a] * eB.ns[b0+b] * eC.ns[c0+c] * eD.ns[d0+d];
     }
 
+    //! \brief THE GENERAL-CONTRACTION GROUPS (OpenWork §4, lane H 2026-11-11): the shell partition cut into maximal runs of CONSECUTIVE
+    //! shells built on the same primitives (\c GaussianRF::SharesPrimitivesWith) with the same component list -- MOLOPT's two s shells
+    //! on one exponent set are one group, a segmented basis's shells are groups of one.  Each entry is a half-open range of SHELL
+    //! indices into \c ShellRanges().  Consecutive only, so a group-ordered loop visits shells in order (the canonical-quartet logic
+    //! of the callers relies on it).  Geometry-fixed: built once.
+    const std::vector<std::pair<size_t,size_t>>& ShellGroups() const
+    {
+        const std::vector<Shell>& sh=Shells();   // before our own lock: Shells() takes its own
+        std::lock_guard<std::mutex> lock(itsGroupsLock.m);
+        std::vector<std::pair<size_t,size_t>>& g=itsGroups;
+        if (!g.empty() || sh.empty()) return g;
+        for (size_t s=0;s<sh.size();s++)
+        {
+            if (!g.empty())
+            {
+                const Shell& f=sh[g.back().first];   // the group's first shell
+                const size_t n=f.end-f.begin;
+                bool same = sh[s].end-sh[s].begin==n && radials[f.begin]->SharesPrimitivesWith(*radials[sh[s].begin]);
+                for (size_t i=0;same && i<n;i++) same = pols[f.begin+i]==pols[sh[s].begin+i];
+                if (same) { g.back().second=s+1; continue; }
+            }
+            g.push_back({s,s+1});
+        }
+        return g;
+    }
+    //! \brief A GROUP QUARTET of \c FourC at once (groups \a gA.. index each evaluator's \c ShellGroups): for member shells
+    //! (ia, ib, ic, id) of the four groups, \a out[m*n+q] with m=((ia*mb+ib)*mc+ic)*md+id and q=((a*nb+b)*nc+c)*nd+d (n=na*nb*nc*nd, the
+    //! components of one member) is FourC of those functions, BIT FOR BIT (\c GaussianRF::Repulsion4CGroupBlock, then the four norms in
+    //! FourC's order).  The per-primitive-quartet integrals are evaluated once per group quartet, not once per member quartet.
+    void FourCGroupBlock(size_t gA, const NR_Evaluator& eB, size_t gB, const NR_Evaluator& eC, size_t gC,
+                         const NR_Evaluator& eD, size_t gD, double* out) const
+    {
+        const GroupSlot A(*this,gA), B(eB,gB), C(eC,gC), D(eD,gD);
+        GaussianRF::Repulsion4CGroupBlock(A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, D.r.data(),D.m,
+                                          A.p,A.n, B.p,B.n, C.p,C.n, D.p,D.n, out);
+        const size_t n=A.n*B.n*C.n*D.n;
+        double* o=out;
+        for (size_t ia=0;ia<A.m;ia++) for (size_t ib=0;ib<B.m;ib++) for (size_t ic=0;ic<C.m;ic++) for (size_t id=0;id<D.m;id++, o+=n)
+        {
+            size_t q=0;
+            for (size_t a=0;a<A.n;a++) for (size_t b=0;b<B.n;b++) for (size_t c=0;c<C.n;c++) for (size_t d=0;d<D.n;d++,q++)
+                o[q] = o[q] * ns[A.f0[ia]+a] * eB.ns[B.f0[ib]+b] * eC.ns[C.f0[ic]+c] * eD.ns[D.f0[id]+d];
+        }
+    }
+    //! \brief A GROUP TRIPLE of \c RepulsionThreeC / \c OverlapThreeC at once (this is the A slot, \a eC the fit): \a out[m*n+q] with
+    //! m=(ia*mb+ib)*mc+ic and q=(a*nb+b)*nc+c is the per-element kernel's value BIT FOR BIT (the three norms in its order).
+    void RepulsionThreeCGroupBlock(size_t gA, const NR_Evaluator& eB, size_t gB, const NR_Evaluator& eC, size_t gC, double* out) const
+    {
+        const GroupSlot A(*this,gA), B(eB,gB), C(eC,gC);
+        GaussianRF::Repulsion3CGroupBlock(A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, A.p,A.n, B.p,B.n, C.p,C.n, out);
+        NormThreeC(A, eB, B, eC, C, out);
+    }
+    void OverlapThreeCGroupBlock(size_t gA, const NR_Evaluator& eB, size_t gB, const NR_Evaluator& eC, size_t gC, double* out) const
+    {
+        const GroupSlot A(*this,gA), B(eB,gB), C(eC,gC);
+        GaussianRF::Overlap3CGroupBlock(A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, A.p,A.n, B.p,B.n, C.p,C.n, out);
+        NormThreeC(A, eB, B, eC, C, out);
+    }
+private:
+    //! One slot of a group block: the group's member radials, their first functions, and the shared component list.
+    struct GroupSlot
+    {
+        std::vector<const GaussianRF*> r;
+        std::vector<size_t>            f0;
+        const Polarization*            p=nullptr;
+        size_t                         n=0, m=0;
+        GroupSlot(const NR_Evaluator& e, size_t g)
+        {
+            const std::vector<Shell>& sh=e.Shells();
+            const auto& G=e.ShellGroups();
+            if (g>=G.size()) throw std::out_of_range("NR_Evaluator group block: group "+std::to_string(g)+" of "+std::to_string(G.size()));
+            for (size_t s=G[g].first;s<G[g].second;s++) { r.push_back(e.radials[sh[s].begin]); f0.push_back(sh[s].begin); }
+            m=r.size(); n=sh[G[g].first].end-sh[G[g].first].begin; p=&e.pols[f0[0]];
+        }
+    };
+    void NormThreeC(const GroupSlot& A, const NR_Evaluator& eB, const GroupSlot& B, const NR_Evaluator& eC, const GroupSlot& C, double* out) const
+    {
+        const size_t n=A.n*B.n*C.n;
+        double* o=out;
+        for (size_t ia=0;ia<A.m;ia++) for (size_t ib=0;ib<B.m;ib++) for (size_t ic=0;ic<C.m;ic++, o+=n)
+        {
+            size_t q=0;
+            for (size_t a=0;a<A.n;a++) for (size_t b=0;b<B.n;b++) for (size_t c=0;c<C.n;c++,q++)
+                o[q] = o[q] * ns[A.f0[ia]+a] * eB.ns[B.f0[ib]+b] * eC.ns[C.f0[ic]+c];
+        }
+    }
+public:
+
 
 private:
     // One monomial term of a per-atom local Gaussian operator: the atom's GaussianRF (SHARED across its
@@ -3619,6 +3707,8 @@ private:
 
     GPWTolerances                      itsPGTol;           //!< the pair-loop tolerances (BindTolerances, by the builder); defaults = historical
     mutable std::vector<Shell>         itsShells;          //!< the shell partition (lazy; geometry-fixed)
+    mutable std::vector<std::pair<size_t,size_t>> itsGroups;   //!< the general-contraction groups (lazy; geometry-fixed)
+    qchem::LazyLock                    itsGroupsLock;
     qchem::LazyLock                    itsShellsLock, itsBoxTasksLock;   //!< the two lazies above/below (outer-loop workers)
     mutable std::vector<std::pair<size_t,size_t>> itsFieldHistory;  //!< GPW_INTEGRATE_CENSUS (field, screen) hashes
     mutable std::vector<ShellPairTasks> itsBoxTasks;      //!< the (shell pair, offset) geometry, derived once

@@ -424,8 +424,11 @@ double PrimGaussian::Repulsion3C(const PrimGaussian* ga, const PrimGaussian* gb,
                                  const Polarization& pa, const Polarization& pb, const Polarization& pc)
 {
     const Ω& ab(findΩ(ga->GetGData(), gb->GetGData()));
-    const RNLM&        R(findRNLM(ab.GetGData(), gc->GetGData()));
-
+    return Repulsion3C(ab, findRNLM(ab.GetGData(), gc->GetGData()), gc, pa, pb, pc);
+}
+double PrimGaussian::Repulsion3C(const Ω& ab, const RNLM& R, const PrimGaussian* gc,
+                                 const Polarization& pa, const Polarization& pb, const Polarization& pc)
+{
     auto NLMs = Ω::GetNMLs(ab.Ltotal);
     const Hermite1& Hc = gc->GetH1();
     const Polarization Pab = pa+pb;
@@ -815,26 +818,57 @@ void BuildHermiteTable(const Ω& w, const Polarization* p1, size_t n1, const Pol
 void GaussianRF::Repulsion4CBlock(rf_t& ra, rf_t& rb, rf_t& rc, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                                   const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out) const
 {
-    const size_t ni=ra.itsPrims.size(), nj=rb.itsPrims.size(),
-                 nk=rc.itsPrims.size(), nl=itsPrims.size();
-    const size_t n=na*nb*nc*nd;
-    for (size_t q=0;q<n;q++) out[q]=0.0;
+    const GaussianRF *A=&ra, *B=&rb, *C=&rc, *D=this;
+    Repulsion4CGroupBlock(&A,1, &B,1, &C,1, &D,1, pa,na, pb,nb, pc,nc, pd,nd, out);
+}
+
+bool GaussianRF::SharesPrimitivesWith(const GaussianRF& o) const
+{
+    if (itsL!=o.itsL || itsPrims.size()!=o.itsPrims.size()) return false;
+    for (size_t i=0;i<itsPrims.size();++i)
+        if (itsPrims[i]->GetID()!=o.itsPrims[i]->GetID()) return false;   // the content-interned (exponent, centre, L) identity
+    return true;
+}
+
+namespace
+{
+//! A group slot's members must share their primitives: the kernels read the primitives off member 0 for all of them.
+void RequireSharedPrimitives(const GaussianRF* const* r, size_t m, const char* slot)
+{
+    if (m==0) throw std::invalid_argument(std::string("GaussianRF group block: slot ")+slot+" has no members");
+    for (size_t i=1;i<m;i++)
+        if (!r[0]->SharesPrimitivesWith(*r[i]))
+            throw std::invalid_argument(std::string("GaussianRF group block: the members of slot ")+slot+" do not share their primitives");
+}
+}
+
+void GaussianRF::Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                       const GaussianRF* const* rc, size_t mc, const GaussianRF* const* rd, size_t md,
+                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                       const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out)
+{
+    RequireSharedPrimitives(ra,ma,"a"); RequireSharedPrimitives(rb,mb,"b"); RequireSharedPrimitives(rc,mc,"c"); RequireSharedPrimitives(rd,md,"d");
+    const GaussianRF &A=*ra[0], &B=*rb[0], &C=*rc[0], &D=*rd[0];   // the primitives, shared by every member of the slot
+    const size_t ni=A.itsPrims.size(), nj=B.itsPrims.size(),
+                 nk=C.itsPrims.size(), nl=D.itsPrims.size();
+    const size_t n=na*nb*nc*nd, M=ma*mb*mc*md;
+    for (size_t q=0;q<M*n;q++) out[q]=0.0;
     // The Ω borrows as Repulsion4C hoists them (the unbounded molecular budget keeps them alive for this call).
     std::vector<const Ω*> cdΩ(nk*nl);
     std::vector<HermiteTable> cdH(nk*nl);   // the cd side's Hermite tables, ONCE per primitive pair (not per ab primitive pair)
     for (size_t k=0;k<nk;++k)
         for (size_t l=0;l<nl;++l)
         {
-            cdΩ[k*nl+l] = &findΩ(rc.itsPrims[k]->GetGData(), itsPrims[l]->GetGData());
+            cdΩ[k*nl+l] = &findΩ(C.itsPrims[k]->GetGData(), D.itsPrims[l]->GetGData());
             BuildHermiteTable(*cdΩ[k*nl+l], pc, nc, pd, nd, cdH[k*nl+l]);
         }
     HermiteTable abH;
+    std::vector<double> t(n);   // one primitive quartet's integrals, every component quartet: computed ONCE for all members
     for (size_t i=0;i<ni;++i)
         for (size_t j=0;j<nj;++j)
         {
-            const Ω& ab = findΩ(ra.itsPrims[i]->GetGData(), rb.itsPrims[j]->GetGData());
+            const Ω& ab = findΩ(A.itsPrims[i]->GetGData(), B.itsPrims[j]->GetGData());
             BuildHermiteTable(ab, pa, na, pb, nb, abH);   // ONCE per ab primitive pair
-            const double cij = ra.itsCoeff[i]*rb.itsCoeff[j];
             for (size_t k=0;k<nk;++k)
                 for (size_t l=0;l<nl;++l)
                 {
@@ -842,7 +876,6 @@ void GaussianRF::Repulsion4CBlock(rf_t& ra, rf_t& rb, rf_t& rc, const Polarizati
                     const HermiteTable& cdT=cdH[k*nl+l];
                     const RNLM& rnlm=findRNLM(ab.GetGData(), cd.GetGData());   // ONCE per primitive quartet
                     const double lambda=PrimGaussian::Lambda4C(ab,cd);
-                    const double pref=cij*rc.itsCoeff[k]*itsCoeff[l];
                     size_t q=0;
                     for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++)
                     {
@@ -850,11 +883,82 @@ void GaussianRF::Repulsion4CBlock(rf_t& ra, rf_t& rb, rf_t& rc, const Polarizati
                         for (size_t c=0;c<nc;c++) for (size_t d=0;d<nd;d++,q++)
                         {
                             const size_t cd_=c*nd+d;
-                            out[q] += pref * PrimGaussian::Repulsion4CTab(&abH.h[abH.off[ab_]], abH.sum[ab_], &cdT.h[cdT.off[cd_]], cdT.sum[cd_], rnlm, lambda);
+                            t[q] = PrimGaussian::Repulsion4CTab(&abH.h[abH.off[ab_]], abH.sum[ab_], &cdT.h[cdT.off[cd_]], cdT.sum[cd_], rnlm, lambda);
+                        }
+                    }
+                    // Contract into every member quartet: pref is the per-shell kernel's coefficient product, in its association order.
+                    double* o=out;
+                    for (size_t ia=0;ia<ma;ia++) for (size_t ib=0;ib<mb;ib++)
+                    {
+                        const double cij = ra[ia]->itsCoeff[i]*rb[ib]->itsCoeff[j];
+                        for (size_t ic=0;ic<mc;ic++) for (size_t id=0;id<md;id++, o+=n)
+                        {
+                            const double pref=cij*rc[ic]->itsCoeff[k]*rd[id]->itsCoeff[l];
+                            for (size_t q2=0;q2<n;q2++) o[q2] += pref * t[q2];
                         }
                     }
                 }
         }
+}
+
+// --- 3-centre group blocks: per primitive triple the lookups and the component integrals ONCE, contracted into every member ---------
+void GaussianRF::Repulsion3CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                       const GaussianRF* const* rc, size_t mc,
+                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                       const Polarization* pc, size_t nc, double* out)
+{
+    RequireSharedPrimitives(ra,ma,"a"); RequireSharedPrimitives(rb,mb,"b"); RequireSharedPrimitives(rc,mc,"c");
+    const GaussianRF &A=*ra[0], &B=*rb[0], &C=*rc[0];
+    const size_t ni=A.itsPrims.size(), nj=B.itsPrims.size(), nk=C.itsPrims.size();
+    const size_t n=na*nb*nc, M=ma*mb*mc;
+    for (size_t q=0;q<M*n;q++) out[q]=0.0;
+    std::vector<double> t(n);
+    for (size_t i=0;i<ni;++i)
+        for (size_t j=0;j<nj;++j)
+        {
+            const Ω& ab=findΩ(A.itsPrims[i]->GetGData(), B.itsPrims[j]->GetGData());   // ONCE per ab primitive pair
+            for (size_t k=0;k<nk;++k)
+            {
+                const PrimGaussian* gc=C.itsPrims[k].get();
+                const RNLM& R=findRNLM(ab.GetGData(), gc->GetGData());                // ONCE per primitive triple
+                size_t q=0;
+                for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++) for (size_t c=0;c<nc;c++,q++)
+                    t[q]=PrimGaussian::Repulsion3C(ab, R, gc, pa[a], pb[b], pc[c]);
+                double* o=out;
+                for (size_t ia=0;ia<ma;ia++) for (size_t ib=0;ib<mb;ib++) for (size_t ic=0;ic<mc;ic++, o+=n)
+                {
+                    const double pref=ra[ia]->itsCoeff[i]*rb[ib]->itsCoeff[j]*rc[ic]->itsCoeff[k];   // Repulsion3C's product, its order
+                    for (size_t q2=0;q2<n;q2++) o[q2] += pref * t[q2];
+                }
+            }
+        }
+}
+void GaussianRF::Overlap3CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                     const GaussianRF* const* rc, size_t mc,
+                                     const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                     const Polarization* pc, size_t nc, double* out)
+{
+    RequireSharedPrimitives(ra,ma,"a"); RequireSharedPrimitives(rb,mb,"b"); RequireSharedPrimitives(rc,mc,"c");
+    const GaussianRF &A=*ra[0], &B=*rb[0], &C=*rc[0];
+    const size_t ni=A.itsPrims.size(), nj=B.itsPrims.size(), nk=C.itsPrims.size();
+    const size_t n=na*nb*nc, M=ma*mb*mc;
+    for (size_t q=0;q<M*n;q++) out[q]=0.0;
+    std::vector<double> t(n);
+    for (size_t i=0;i<ni;++i)
+        for (size_t j=0;j<nj;++j)
+            for (size_t k=0;k<nk;++k)
+            {
+                const Hermite3& H3=findH3(A.itsPrims[i].get(), B.itsPrims[j].get(), C.itsPrims[k].get());   // ONCE per primitive triple
+                size_t q=0;
+                for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++) for (size_t c=0;c<nc;c++,q++)
+                    t[q]=H3(pa[a],pb[b],pc[c]);
+                double* o=out;
+                for (size_t ia=0;ia<ma;ia++) for (size_t ib=0;ib<mb;ib++) for (size_t ic=0;ic<mc;ic++, o+=n)
+                {
+                    const double pref=ra[ia]->itsCoeff[i]*rb[ib]->itsCoeff[j]*rc[ic]->itsCoeff[k];   // Overlap3C's product, its order
+                    for (size_t q2=0;q2<n;q2++) o[q2] += pref * t[q2];
+                }
+            }
 }
 
 std::ostream& GaussianRF::Write(std::ostream& os) const
