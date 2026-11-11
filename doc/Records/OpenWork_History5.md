@@ -2170,3 +2170,23 @@ molecular console; MinRelaxRo") did all three.
 The rows were never moved.  One leftover was fixed on closing: `FacadeMatrix.C`'s SolidProbe still assigned `1e30` to three Gates,
 which with `std::optional` made them LIVE gates at 1e30 rather than off; they are now `std::nullopt`.
 The third row's open question (should a user cancel be an Outcome?) stays in the live tracker as its remainder.
+
+## ✅ SALC state identity: a molecular SALC state identifies its basis by name, irreps and sizes only (lane A, 2026-11-10, 76bf2f986)
+
+The row as filed:
+
+| **A molecular state identifies a SALC basis by name, irreps and sizes only** (lane A, 2026-11-09, from V-FACADE-STATE) | an AO-blocked molecular basis records its shells (REFUSE), but a symmetry-adapted one records the basis name, the block irrep labels and sizes: a `.bsd` edited under the same name with the same block sizes would restart without a refusal | record the UNSYMMETRIZED basis's shells beside the SALC blocks (the SALC builder holds them) · `MoleculeCalculation::RecordState` |
+
+**Closed.**  `BuildBasis` hands back the raw basis that `PG::SymmetryAdapt` adapts (the shared_ptr the adapted basis already
+keeps alive).  `MoleculeCalculation` holds it as `itsAoBasis`, and `RecordState` records its shells exactly as an AO run's:
+REFUSE `basis.shellL` / `shellComponents` / `shellPrimitives` / `exponents` / `coefficients`, WARM `shellCenters`.  No new
+face on any basis class: a SALC block cannot honestly answer `AoShellSource` (its functions are combinations), so the facade,
+which built both, holds the pair.
+
+Coordination with lane G's `basis.fileChecksum` (basisFile runs): the shells come from the basis the run BUILT, so a stated
+file records that file's shells and the two keys agree.  An edited file is ONE refusal listing both keys (the checksum also
+refuses a comment-only edit the shells cannot see: it is the stricter of the two, never the opposite verdict).
+A SALC state saved between 2026-11-09 and this commit refuses on the new keys; none is vendored.
+
+Gate: `M_Calculation.ASymmetryBlockedStateIdentifiesItsBasisByItsShells` (H2O dzvp: the SALC and AO states carry equal shell
+keys; before the fix the SALC state carried none).  Sweep `lane-a-salcid1`: short 1513/1513, long 15/15, 0 anchor moves.
