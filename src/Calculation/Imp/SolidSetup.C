@@ -21,6 +21,7 @@ import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (eleme
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::spherical)
 import qchem.Policy;                           // policy::Refuse: each refusal files its row where it fires
+import qchem.Reporting;                         // report::Scope: the vet-stage trim files under basisTrim
 import qchem.XCRhoPolicy;                      // ReportSolidXCRho: the XC rho-axis decision
 import qchem.BasisCoverage;                    // RequireBasisCovers: a basis lacking an element is refused before the build
 
@@ -205,7 +206,11 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, co
             throw std::invalid_argument("GaussianBasisRecipe: autoTrim needs an orthoTol > 0 to trim at -- at 0 it would drop nothing");
         // THE VET-STAGE TRIM, ONCE, at the reference geometry (pin 22); frozen below so a geometry step rebuilds the SAME shells.
         auto make=[&](const BasisSet::Gaussian::ShellTrim& t){ GaussianBasisRecipe r=rec; r.trim=t; return r.Make(*cell, pp); };
-        auto r=BasisSet::Lattice::VetStageTrim(lat, make, {.images=opts.images, .kShift=opts.kShift}, opts.orthoTol);
+        BasisSet::Lattice::VetTrimResult r;
+        {
+            qchem::report::Scope here("basisTrim");   // the vet stage files its passes and its verdict one level in
+            r=BasisSet::Lattice::VetStageTrim(lat, make, {.images=opts.images, .kShift=opts.kShift}, opts.orthoTol);
+        }
         frozen.trim=std::move(r.trim);
         frozen.autoTrim=false;
         mol=std::move(r.mol);
