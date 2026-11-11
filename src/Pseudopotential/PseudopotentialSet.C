@@ -28,9 +28,17 @@ public:
     const std::string& Name()       const {return itsName;}
     const std::string& Functional() const {return itsFunctional;}   //!< the XC functional the entries were generated for ("LDA", ...)
 
+    //! Does the set resolve \a element: an explicit entry, or (the RULE) any GTH entry for the set's functional.
     bool Covers(const std::string& element) const;
-    //! q, the valence electrons kept per atom of \a element (a key of GetGTH).  THROWS naming the set when it does not cover \a element.
+    //! q, the valence electrons kept per atom of \a element (a key of GetGTH): the set's explicit entry if it has one, else its RULE, the
+    //! SMALLEST q the GTH database holds for \a element at the set's functional (the valence-only, largest-core variant).  So every element
+    //! the database covers resolves; the explicit entries are the exceptions to the rule (OpenWork §3 "A deck cannot name Te with a PP",
+    //! 2026-11-11: the old per-element list was the rule written out by hand, and every element it lacked was refused).  THROWS naming the
+    //! set when neither covers \a element.
     int  Valence(const std::string& element) const;
+    //! The XC functional \a element's resolved potential was FITTED with ("PADE" for the GTH LDA entries; GTH_PP::fitted).  A query for the
+    //! policy that pairs or warns on a run whose functional differs (pending a user ruling; nothing reads it yet).  THROWS as \c Valence.
+    std::string FittedFunctional(const std::string& element) const;
     //! This set with \a overrides applied: each `(element, q)` replaces the set's q for that element, or ADDS the element when the set lacks it
     //! (a stated pseudopotential valence, e.g. Mn q15 semicore for one run).  The set's name and functional are kept.
     PseudopotentialSet With(const std::vector<std::pair<std::string,int>>& overrides) const;
