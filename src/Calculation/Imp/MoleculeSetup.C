@@ -107,6 +107,15 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
                            std::string("the mesh states only its ")+(statedR ? "radial count" : "angular degree")+"; a stated mesh is audited, never raised");
     }
 
+    // An HF run seeded from SAD reaches its first density matrix through ONE LDA (Xalpha) Fock (exact exchange needs a matrix, SAD has
+    // none), built on THIS mesh: the entry rung when none is stated, the mesh a DFT user gets (lane A 2026-11-10: the old hidden
+    // 12-direction rule split O2's pi_g by 13 mHa at the seed, and a stated Shared fill converged to the broken state).
+    if (!dft && opts.pp.empty() && s->seed==SeedStrategy::SAD)
+        policy::Report("HFSeedFockMesh", "the SAD seed reaches HF through one LDA Fock on the XC mesh ("+std::to_string(s->mesh.nRadial)+", "
+                       +std::to_string(s->mesh.angularDegree)+")", policy::Verdict::Choose,
+                       std::string(s->meshStated ? "the stated mesh" : "the molecular entry rung, no mesh stated")
+                       +": a seed Fock coarser than the run's mesh can break the molecule's symmetry before the first iteration");
+
     // The Vxc product space's admission (pin 30) and the Hartree route's, asked of the Hamiltonian's rules HERE, before the basis
     // and the Hamiltonian are built: the Factory throws the same reason, but only once the work is done.
     if (dft || !opts.pp.empty())

@@ -18,6 +18,7 @@ import qchem.ElectronConfiguration.OccupationPolicy;   // the iterator's occupat
 export import qchem.SCFParams;
 export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 export import qchem.UnitCell;   // UnitCell: what a SolidSCFIterator demands
+import qchem.Mesh;       // qcMesh::MeshParams (the mesh the HF SAD bootstrap's LDA sibling is built on)
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation knob, forwarded to the WF)
 import qchem.BasisSet.Orbital_DFT_IBS;   // BasisSet::FIT_SF_ABS<T> (the G-space fit basis for Kerker rho-tilde extraction)
 export import qchem.ChargeDensity.DensityMixer;   // tDensityMixer<T> (the density-face of SCF convergence)
@@ -176,9 +177,14 @@ public:
     // (default; needs S positive-definite) or Eigen/SVD with a cutoff that drops near-null eigen/singular
     // values -- canonical orthogonalisation for a linearly-dependent basis (e.g. GPW's diffuse Gaussians
     // on a dense lattice, whose Bloch overlap goes singular).  \a basisOrthoTol<=0 keeps all.
+    // \a seedMesh: the XC mesh of the LDA sibling an HF/DHF run builds its iteration-0 Fock on from a matrix-free (SAD) seed (see
+    // Initialize) -- the RUN's resolved mesh, which the facade states (lane A 2026-11-10).  A hidden default here was the 12-direction
+    // Lebedev rule, an icosahedron with no C4 axis: on O2 it split pi_g by 13 mHa at the seed, and a stated Shared fill then
+    // converged to the broken state 0.25 Ha below the shared one.  Unused when the seed needs no sibling.
     tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
-                 ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default,
-                 const Structure* st=nullptr,
+                 ChargeDensity::SeedStrategy seed,
+                 const Structure* st,
+                 const qcMesh::MeshParams& seedMesh,
                  qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0)
         requires std::is_same_v<T,double>;
     //! Grid-continuation / explicit-seed ctor (doc/GPWPlan §0e): seed the SCF from a PRE-BUILT density
@@ -196,6 +202,12 @@ public:
                  const Structure* st=nullptr,
                  qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, SeedRole role=SeedRole::Guess,
                  size_t numBands=0);   //!< \a numBands: lowest eigenpairs kept per block, 0 = all (LASolver::Factory)
+
+private:
+    //! The shared construction body both public ctors delegate to; \a seedMesh is the SeedStrategy ctor's (empty from the other).
+    tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*, tChargeDensity<T>* seedDensity, const Structure* st,
+                 std::optional<qcMesh::MeshParams> seedMesh, qchem::Ortho basisOrtho, double basisOrthoTol, SeedRole role, size_t numBands);
+public:
     virtual ~tSCFIterator();
     //! Iterate resolves \c ipar.Mixer first (\c ResolveMixing), so \c Mixing::Auto becomes this run's mixer.
     virtual bool Iterate(const SCFParams& ipar);
@@ -389,6 +401,9 @@ private:
 
     // Density-face state.  The mixer (Linear / Kerker; see qchem.ChargeDensity.DensityMixer) is built per-run
     // from SCFParams at the top of Iterate and owns the mixing policy + state (relax, the Kerker ρ̃, ...).
+    //! The HF/DHF SAD bootstrap's sibling mesh (the SeedStrategy ctor's \c seedMesh); empty from the explicit-seed ctor, whose
+    //! seed is matrix-backed, so a matrix-free seed arriving there with no mesh THROWS rather than picking one.
+    std::optional<qcMesh::MeshParams> itsSeedMesh;
     const tbs_t<T>*  itsBS = nullptr;         //!< orbital basis (for the Kerker G-space fit basis) -- from the ctor
     double             itsResidual=0.0;   //!< this iteration's \c tHamiltonian::DeltaRho (the driver writes it)
     std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>> itsMixer;  //!< the density-face concrete for this run

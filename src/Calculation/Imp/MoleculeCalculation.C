@@ -191,7 +191,7 @@ void MoleculeCalculation::BuildGraph()
         itsAccel.reset(accel);
         if (itsCarry && itsCarry->moved) itsCarry=std::make_unique<const Carry>(CarryOntoThisBasis(*itsCarry));   // a session step
         if (!itsCarry)
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get());
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsSetup->mesh);   // an HF SAD seed's sibling: the run's mesh
         else
         {
             // THE CARRY (a MoleculeSession step, or a restored state): the D, block for block, onto THIS point's basis -- a

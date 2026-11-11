@@ -242,6 +242,46 @@ TEST(M_Calculation, BoronUHFStatedSharedTakesTheSharedState)
     EXPECT_NEAR(calc.Energy(), -24.40769, 1e-5) << "the shared state, not the integer one (-24.525932)";
 }
 
+// Singlet O2 (2.282 bohr) HF/dzvp with a STATED Shared fill: the pi_g^2 pair shared, 1/2 per spin-orbital, -149.2962220 -- from the SAD
+// seed as from the core guess.  The symmetric state is a SADDLE (the integer-filled broken state is 0.25 Ha below it), so it holds
+// only if the seed is symmetric: the SCF keeps a symmetric start symmetric to roundoff (core guess: pi_g degenerate to 1e-8 every
+// iteration).  HF reaches its first D from SAD through one LDA Fock; that Fock's mesh was a hidden 12-direction Lebedev rule (an
+// icosahedron, no C4 axis), which split pi_g by 13.4 mHa at the seed, and the run converged to the broken -149.5438874 (8 iterations).
+// It is the run's own XC mesh now (lane A 2026-11-10).  Measured with the sibling's angular degree as the only change, SAD seed:
+//     degree 5 (today's old default)  split 13.4 mHa   -> -149.5438874 (broken)
+//     degree 7 / 11, axis-aligned     split 0          -> -149.2962220
+//     degree 11, grid rotated 0.37    split 0.096 mHa  -> -149.2962220 (just inside MergeTol 1e-4)
+//     degree 29, grid rotated 0.37    split 0.002 mHa  -> -149.2962220
+// Both orientations are gated: aligned with z (symmetry-blocked, pi_g split over b2g/b3g) and along a generic axis (one block), where no
+// finite angular rule is symmetric and only a fine one keeps the split far inside MergeTol.
+static Molecule MakeO2Along(const Vector3D<double>& axis)
+{
+    const Vector3D<double> u=axis/norm(axis);
+    Molecule m;
+    m.Insert(Site{8, u* 1.141});
+    m.Insert(Site{8, u*-1.141});
+    return m;
+}
+static void ExpectO2SharedFromBothSeeds(const Molecule& o2, bool symmetry)
+{
+    SCFParams shared; shared.DegenerateLevels=SCFParams::DegenerateLevelFill::Shared;
+    for (auto seed : {qchem::ChargeDensity::SeedStrategy::SAD, qchem::ChargeDensity::SeedStrategy::CoreGuess})
+    {
+        MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .symmetry = symmetry, .seed = seed}), shared);
+        ASSERT_TRUE(calc.Result());
+        EXPECT_NEAR(calc.Energy(), -149.2962220, 1e-6)
+            << (seed==qchem::ChargeDensity::SeedStrategy::SAD ? "SAD" : "core") << " seed: the shared state, not the broken -149.5438874";
+    }
+}
+TEST(M_Calculation, OxygenSingletHFStatedSharedFromBothSeedsAligned)
+{
+    ExpectO2SharedFromBothSeeds(MakeO2Along(Vector3D<double>(0, 0, 1)), true);
+}
+TEST(M_Calculation, OxygenSingletHFStatedSharedFromBothSeedsOffAxis)
+{
+    ExpectO2SharedFromBothSeeds(MakeO2Along(Vector3D<double>(1, 2, 3)), false);
+}
+
 // D-DEGEN-FILL x GDM (user ruling 2026-11-08, item 3): under DFT the facade's default SHARES boron's partly filled 2p level (one up
 // electron, 1/3 per orbital), so D' is not idempotent and GDM must decline it.  The Ladder then stays on its DIIS rung; standalone
 // GDM's every step becomes a mixed fixed-point step, and its linear mixer runs under the declined ceiling (0.25, CLAUDE.md: never
