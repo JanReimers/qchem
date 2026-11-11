@@ -129,7 +129,14 @@ struct AcceleratorOptions
     int    nProj = 4;
     double eMax  = 0.0;     //!< <=0 => Z*Z*0.1/32 (the proven molecular default)
     double eMin  = 1e-7;
-    double svTol = 5e-9;
+    //! DIIS history prune (\c DIISParams).  SCALE-FREE since 2026-11-11 (user ruling "Yes, both"): the ABSOLUTE floor \c svTol is OFF
+    //! (it was 5e-9 on svMin(B), and B scales as |[F,D]|^2, so it purged the history once [F,D] < ~7e-5 and every molecular tail ran
+    //! on linear mixing), and the RELATIVE prune \c svTolRel (svMin(B) < svTolRel * max_i B_ii, the solid door's 1e-4) guards a
+    //! genuinely dependent history.  It needs the loop's other half: the linear D mixer makes no downward move while DIIS extrapolates
+    //! (\c tAdaptiveMixer::ExtrapolatedStep) -- the relative prune ALONE made it worse (H2O2 relaxation 483 -> 791 SCF iterations), the
+    //! pair took it to 181 (doc/Records/OpenWork_History5.md, "The molecular DIIS switches itself off").
+    double svTol    = 0.0;
+    double svTolRel = 1e-4;
     //! GDM (standalone, and the Ladder's GDM rung): the trust radius -- the largest geodesic rotation (radians) per step.
     double trust = 0.1;
     //! LADDER only (DIIS -> GDM), the hand-off triggers (\c SCFAcceleratorLadder): energy still moving by more than \c ladderEThresh for

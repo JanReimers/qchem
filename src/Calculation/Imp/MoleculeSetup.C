@@ -157,7 +157,7 @@ std::shared_ptr<const Structure> MoleculeSetup::PointStructure(const Structure& 
 
 nlohmann::json ToAcceleratorJson(const AcceleratorOptions& acc, double eMax)
 {
-    return {{"NProj",acc.nProj},{"EMax",eMax},{"EMin",acc.eMin},{"SVTol",acc.svTol},{"Trust",acc.trust},
+    return {{"NProj",acc.nProj},{"EMax",eMax},{"EMin",acc.eMin},{"SVTol",acc.svTol},{"SVTolRel",acc.svTolRel},{"Trust",acc.trust},
             {"ethresh",acc.ladderEThresh},{"stall",acc.ladderStall},{"floor",acc.ladderFloor},{"switchat",acc.ladderSwitchAt},
             {"signal",acc.ladderSignal==SCFAccelerators::ScheduleSignal::EnergyChange ? "EnergyChange" : "Error"}};
 }

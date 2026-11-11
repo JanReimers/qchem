@@ -147,7 +147,8 @@ SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
 rsmat_t SCFAcceleratorDIIS::BuildPrunedB(double svmin)
 {
     md_t B=BuildB(); //Returns a SMat,double,double struct.
-    while ((B.sv<svmin || B.sv<itsParams.SVTolRel*B.scale) && GetNProj()>=2)
+    // scale==0: every stored residual is exactly zero (a one-electron or already-exact run), so nothing in the history is independent.
+    while ((B.sv<svmin || B.sv<itsParams.SVTolRel*B.scale || B.scale==0.0) && GetNProj()>=2)
     {
         Purge1(); //Must be a member function for this.
         B=BuildB();
