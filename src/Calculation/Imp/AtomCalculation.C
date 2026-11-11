@@ -223,7 +223,7 @@ void AtomCalculation::BuildGraph()
         itsHam.reset(ham);
         itsAccel.reset(accel);
         if (itsRestored.empty())
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), ortho);
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsOpts.mesh, ortho);   // an HF SAD seed's sibling: the run's mesh
         else
         {
             // A RESTORED state (PrepareRestart), consumed here once: an exact resume drives the first Fock from the saved D.

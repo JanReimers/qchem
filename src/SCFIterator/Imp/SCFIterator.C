@@ -139,15 +139,19 @@ template <class T> static OccupiedConfiguration OccupationsByBlock(const qchem::
 
 
 // The SeedStrategy ctor resolves the strategy into a concrete (heap, owned) density -- nullptr for
-// CoreGuess -- then DELEGATES to the explicit-seed ctor below.  \a st (the structure) is consumed only by
-// the SAD seed; bs/st are also forwarded (by the target ctor) for the HF/DHF bootstrap.
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol,size_t numBands) requires std::is_same_v<T,double>
-    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity(seed,bs,st,ec), st, basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
+// CoreGuess -- then DELEGATES to the shared construction body below.  \a st (the structure) is consumed only by
+// the SAD seed; bs/st and \a seedMesh are also forwarded for the HF/DHF bootstrap (its LDA sibling's mesh).
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,const qcMesh::MeshParams& seedMesh,qchem::Ortho basisOrtho,double basisOrthoTol,size_t numBands) requires std::is_same_v<T,double>
+    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity(seed,bs,st,ec), st, std::optional<qcMesh::MeshParams>(seedMesh), basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
 {}
 
 // The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in
-// Init) instead of a strategy enum.  Shared construction body -- the SeedStrategy ctor delegates here.
+// Init) instead of a strategy enum.  It states no seed mesh: its seeds are matrix-backed (a carried D, a coarse-grid density).
 template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol,SeedRole role,size_t numBands)
+    : tSCFIterator(bs,ec,H,acc, seedDensity, st, std::nullopt, basisOrtho, basisOrthoTol, role, numBands)
+{}
+
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,std::optional<qcMesh::MeshParams> seedMesh,qchem::Ortho basisOrtho,double basisOrthoTol,SeedRole role,size_t numBands)
     : itsHamiltonian (H )
     , itsAccelerator (acc)
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator,basisOrtho,basisOrthoTol,numBands) )
@@ -159,6 +163,7 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
     assert(itsHamiltonian);
     assert(itsWaveFunction);
     itsBS=bs;   // kept for the optional Kerker G-space fit basis (bs outlives the iterator; safe to hold raw)
+    itsSeedMesh=std::move(seedMesh);   // before Initialize: the HF/DHF SAD bootstrap builds its sibling on it
     Initialize(seedDensity, bs, st, role);   // Init owns the seed transiently (see Initialize)
 }
 
@@ -176,8 +181,8 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     // HF/DHF can't build a Fock from a matrix-FREE seed: their exact-exchange K needs the density MATRIX
     // (Vxc::MakeMatrix asserts the density is a rDM_CD).  So if the seed has no matrix (a SAD fit) and this
     // Hamiltonian RequiresDensityMatrix(), bootstrap: run the seed through a default Dirac-Xalpha (LDA) DFT
-    // SIBLING -- built right here from bs + st (H is basis-agnostic and never held them) + a defaulted seed
-    // mesh -- for one iteration-0 step to manufacture a real D0, then let the SCF loop continue with the real
+    // SIBLING -- built right here from bs + st (H is basis-agnostic and never held them) + the run's XC
+    // mesh (itsSeedMesh) -- for one iteration-0 step to manufacture a real D0, then let the SCF loop continue with the real
     // HF/DHF Hamiltonian seeded by D0.  HF/DHF thus get a SAD-quality start (better than the core guess) for
     // free.  Molecular (double) only: no dcmplx Hamiltonian requires a density matrix today.  Mirrors the
     // core guess (whose seed step also builds the first orbitals from a non-Fock operator).
@@ -196,8 +201,14 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
             // Non-owning: the sibling lives only for this Init call, and st outlives it (it is the ctor arg).
             H::st_t stView(st, [](const Structure*){});
             // Not the run's Hamiltonian, and its meshes and term scopes say so one level into this context.
+            // Its XC mesh is the RUN's (the facade states it): a coarse default broke the structure's symmetry at the seed (the
+            // 12-direction Lebedev icosahedron split O2's pi_g by 13 mHa, lane A 2026-11-10), and a seed that is not symmetric
+            // decides which state a degenerate open shell converges to.
+            if (!itsSeedMesh)
+                throw std::logic_error("tSCFIterator: an HF/DHF run handed a matrix-free seed needs the mesh its LDA seed sibling is built on "
+                                       "(the SeedStrategy constructor's seedMesh); the explicit-seed constructor takes a matrix-backed seed");
             std::unique_ptr<H::rHamiltonian> dftSibling=[&]{ qchem::report::Scope here("seedHamiltonian");
-                return std::unique_ptr<H::rHamiltonian>(H::Factory(pol, stView, 2.0/3.0, qcMesh::MeshParams{}, bs)); }();   // Dirac exchange (alpha=2/3)
+                return std::unique_ptr<H::rHamiltonian>(H::Factory(pol, stView, 2.0/3.0, *itsSeedMesh, bs)); }();   // Dirac exchange (alpha=2/3)
             SetWorkingCD(cd_t(itsWaveFunction->Init(*dftSibling, seed, *itsOccPolicy, 0.0001)));  // D0: a real (matrix-backed) density
             assert(itsCD);
             // The sibling filled ITS orbitals under the default (integer) rule; a stated Shared rule refills them at the first

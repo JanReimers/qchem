@@ -2201,3 +2201,31 @@ The row as it stood:
 
 **PIN-10 RE-JUDGEMENT.**  anchordiff against main-cfc1c5b2 moves 113 / 1537 short and 12 / 15 long.  Largest: Al Γ +1.76e-6; MnO −3.5e-7 (Saved_CP2K), −3.05e-7 (IonicSAD), −2.2e-7 (Ordering); LiF +1.39e-7; the Si Γ family +3.8e-8; Si k222/k311 +1.7e-8/+1.3e-8; NaF +1.6e-8; Mn2Box −1e-8.  β-MnO₂'s deliberately aliased first iterate (42 kHa, refused, the claim) moves +500 Ha through its ill-conditioned overlap.  The independent route is the same runs with ONLY the S / T / ⟨χ|g⟩ series at screenEps × 1e-6, every other screen unchanged, on 20 representatives.  Every NEW energy is within 2.9e-9 Ha of it; every OLD one is off by the full move (Al 1.77e-6, MnO 3.0-3.5e-7, LiF 1.4e-7, Si Γ 3.9e-8, NaF 1.9e-8).  So the moves are the removed bias.  Re-banked: `GPW_MnO.Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long` (−61.3031131432 → −61.3031134482; reference −61.3031134481) and the `SCFTrace` solid golden (−7.115054455314 → −7.115054417; reference −7.115054416154).  The other anchors hold within their stated tolerances.  `SolidSession.SessionSizesItsRastersOnMatrixElements` goes knownRed: its pilot's re-convergence count is 21 against cap 16 (18 on the reference build too, 9 before), round 3 crawling at E flat to 1e-14 with [F,D] contracting 0.81 per step.  That is the "GDM's line search runs below the energy's noise floor" row; its gate is kept.
 
+
+### ✅ HF's SAD seed Fock mesh broke the molecule's symmetry (lane A, 2026-11-10)
+FIXED (seed half of the §3 row "A stated Shared fill does not guarantee the symmetric state"): an HF run seeded from SAD reaches its
+first D through one LDA (Xα) Fock, built inside `tSCFIterator::Initialize` on `qcMesh::MeshParams{}` -- 30 radial × the 12-direction
+Lebedev rule, an icosahedron with no C4 axis.  The molecular iterator's SeedStrategy constructor now DEMANDS the seed mesh; the
+facades pass the run's resolved mesh (MoleculeCalculation: the entry rung (80, 29) unless stated; AtomCalculation: its own), and
+policy row `HFSeedFockMesh` reports it.  Gates `M_Calculation.OxygenSingletHFStatedSharedFromBothSeeds{Aligned,OffAxis}`.
+
+Measured (O₂ singlet HF/dzvp, stated Shared, π_g at the first fill; a temporary print, never committed):
+
+| arm | first-fill π_g split | final E |
+|---|---|---|
+| HF, SAD seed, old sibling mesh | 13.4 mHa (−0.16389 / −0.15045) | −149.5438874 (broken), 8 iterations |
+| HF, core seed | 0; ≤1e-8 every iteration | −149.2962220, 10 |
+| LDA, SAD seed | 0 | −149.2631697, 6 |
+| HF SAD, sibling degree 7 / 11, aligned | 0 | −149.2962220 |
+| HF SAD, sibling degree 11, grid rotated 0.37 rad | 0.096 mHa | −149.2962220 |
+| HF SAD, sibling degree 29, grid rotated 0.37 rad | 0.002 mHa | −149.2962220 |
+
+Symmetry blocking on or off gave the same numbers.  So the SAD density itself is exact, and the SCF keeps a symmetric start
+symmetric although the shared state is a saddle (the broken one is 0.25 Ha below it): the split was made at the seed only.  The
+REMAINDER (protecting Shared against a split from any other source) stays in the §3 row as optional hardening.
+
+
+Landing sweep against main-40df1233 (`anchordiff --tol 1e-10`): short 1540/1540, long 15/15, the asserts-live RelChecked build
+green.  One anchor moved: `M_HF_U.WaterSADseed`, 10 → 9 iterations, energy unchanged (the finer seed Fock is a better start).
+The three WILL_FAIL cases fail exactly as they do on main.  Panel (`-L "panel|periodic"`, 4 threads): 25/25, no anchor moved,
+the panelRed set identical to main's.
