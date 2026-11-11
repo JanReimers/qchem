@@ -16,6 +16,7 @@
 // pullbacks sum to (almost) zero while each one is not.
 #include "gtest/gtest.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <complex>
 #include <cstdio>
@@ -24,6 +25,7 @@
 #include <vector>
 
 import qchem.BasisSet.Gaussian.Point.Factory;     // Factory(BasisSetData, cell, engine, angular)
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator::ContractCubeOverride (the cube-vs-walk gate)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // LatticeCollocation
 import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;  // GeometryOnlyScreener, CollocationEps
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView
@@ -243,3 +245,47 @@ TEST(M_CollocationPullback, RefusesAMisSizedDensityAndAMissingStructure)
     EXPECT_THROW((void)b.lc->IntegratePotentialVirial(V, chmat_t(b.n+1), PhaseOf(kNonTRIM), cell, L.N, L.ecut, screen, -1.0),
                  std::invalid_argument);
 }
+
+//! THE FAST PATH IS THE REFERENCE WALK (lane H 2026-11-11): the contracted-cube jets (\c CubeJets, the production gather's policy) against
+//! the jet walk they stand in for, forced through the unit-test hook \c ContractCubeOverride, on the three fixtures: the pullback and the
+//! virial agree to the walk-vs-cube tier of the gather itself (M_TransitionCollocation.WalkAndContractionRoutesAgree: 1e-10 relative), and
+//! the cube is the faster (timed, printed; the FD gates above run on the cube, the default).
+void CubeIsTheWalk(const Fixture& x)
+{
+    using NR=Evaluators::PG_Cart_MnD::NR_Evaluator;
+    const Ladder L=Two();
+    const GeometryOnlyScreener screen(CollocationEps());
+    const std::vector<rvec_t> V=Field(L,false);
+    const UnitCell cell=CellOf(x);
+    const Block b=Make(x, cell);
+    ASSERT_TRUE(b.lc);
+    const chmat_t D=RandomHermitian(b.n, 0x9E3779B97F4A7C15ULL);
+    auto run=[&](bool cube, double& ms)
+    {
+        NR::ContractCubeOverride()=cube;
+        const auto t0=std::chrono::steady_clock::now();
+        const rvec3vec_t G=b.lc->IntegratePotentialPullback(V, D, PhaseOf(kNonTRIM), cell, L.N, L.ecut, screen, -1.0, &cell);
+        const rmat3d_t   W=b.lc->IntegratePotentialVirial  (V, D, PhaseOf(kNonTRIM), cell, L.N, L.ecut, screen, -1.0);
+        ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
+        NR::ContractCubeOverride().reset();
+        return std::make_pair(G, W);
+    };
+    double msWalk=0.0, msCube=0.0;
+    const auto [Gw, Ww]=run(false, msWalk);
+    const auto [Gc, Wc]=run(true,  msCube);
+    double big=0.0, worst=0.0;
+    for (size_t a=0;a<Gw.size();a++)
+        for (int c=0;c<3;c++)
+        {
+            const double w= c==0 ? Gw[a].x : c==1 ? Gw[a].y : Gw[a].z, q= c==0 ? Gc[a].x : c==1 ? Gc[a].y : Gc[a].z;
+            big=std::max(big,std::fabs(w)); worst=std::max(worst,std::fabs(w-q));
+        }
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) { big=std::max(big,std::fabs(Ww(i,j))); worst=std::max(worst,std::fabs(Ww(i,j)-Wc(i,j))); }
+    std::printf("  [cube jets] %-22s max|walk-cube| %.2e of max %.3e   walk %.0f ms  cube %.0f ms\n", x.what, worst, big, msWalk, msCube);
+    ASSERT_GT(big, 1e-4);
+    EXPECT_LT(worst, 1e-9*big) << x.what << ": the contracted-cube jets are not the walk's";
+    EXPECT_LT(msCube, msWalk) << x.what << ": the fast path is not faster";
+}
+TEST(M_CollocationPullback, TheCubeJetsAreTheWalksJets_Uncontracted) {CubeIsTheWalk(Si());}
+TEST(M_CollocationPullback, TheCubeJetsAreTheWalksJets_Contracted)   {CubeIsTheWalk(H3());}
+TEST(M_CollocationPullback, TheCubeJetsAreTheWalksJets_Spherical)    {CubeIsTheWalk(MnO());}
