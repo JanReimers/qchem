@@ -13,6 +13,7 @@ module qchem.Pseudopotential.Set;
 
 import qchem.PeriodicTable;   // GetSymbol(Z)
 import qchem.Structure;
+import qchem.Pseudopotential.GTH_Potentials;   // GetGTHValences: the set's rule reads the database
 
 #ifndef PSEUDO_DATA_PATH
 #error "PSEUDO_DATA_PATH must be defined by CMake"
@@ -42,7 +43,7 @@ struct SetReader
     static PseudopotentialSet Read(const std::string& name, const json& e)
     {
         std::vector<std::pair<std::string,int>> valence;
-        for (const auto& [el,q] : e.at("valence").items()) valence.emplace_back(el, q.get<int>());
+        if (e.contains("valence")) for (const auto& [el,q] : e.at("valence").items()) valence.emplace_back(el, q.get<int>());   // the exceptions
         return PseudopotentialSet(name, e.at("functional").get<std::string>(), std::move(valence));
     }
 };
@@ -70,13 +71,21 @@ PseudopotentialSet PseudopotentialSet::Get(const std::string& name)
 bool PseudopotentialSet::Covers(const std::string& element) const
 {
     for (const auto& [el,q] : itsValence) if (el==element) return true;
-    return false;
+    return !GetGTHValences(element, itsFunctional).empty();
 }
 
 int PseudopotentialSet::Valence(const std::string& element) const
 {
-    for (const auto& [el,q] : itsValence) if (el==element) return q;
-    throw std::runtime_error("PseudopotentialSet '" + itsName + "' has no entry for element '" + element + "'");
+    for (const auto& [el,q] : itsValence) if (el==element) return q;               // an explicit entry: the exception
+    const std::vector<int> qs=GetGTHValences(element, itsFunctional);               // ascending
+    if (!qs.empty()) return qs.front();                                             // the RULE: the smallest q
+    throw std::runtime_error("PseudopotentialSet '" + itsName + "' has no entry for element '" + element + "', and the GTH database has no '"
+                             + itsFunctional + "' potential for it");
+}
+
+std::string PseudopotentialSet::FittedFunctional(const std::string& element) const
+{
+    return GetGTH(element, itsFunctional, Valence(element)).fitted;
 }
 
 PseudopotentialSet PseudopotentialSet::With(const std::vector<std::pair<std::string,int>>& overrides) const

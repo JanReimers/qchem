@@ -2254,3 +2254,64 @@ at 50 μHa (was PADE at 1 mHa).  Remainder: OpenWork §3 "A GTH-PADE pseudopoten
 functional, so the code can pair or warn).  Every Li q3 number since the Hermite3 fix stands.  The banked CP2K decks (`IntegrationTests/CP2K/*.inp`, 31 with an XC block) all
 state `LDA_X` + `LDA_C_VWN`, i.e. our functional; only this hand-written Li deck said `PADE`, so no other CP2K gate carries the mismatch.
 Lesson: copy an oracle deck's XC block from `IntegrationTests/CP2K/`, never type it.
+
+
+## ✅ rundeck --check and the mixer: --check passed what the run refused (lane H, 2026-11-11, fc087e846)
+
+The row as it stood:
+
+| **`rundeck --check` passes a Pulay mixer with no `pulayDepth`, which the run then refuses** (lane H, 2026-11-03) | `--check` and the run-time admission disagree: a deck that vets can still fail at start | run the mixer's admission (the same Outcome the factory returns) inside `--check`; UT: `scf.mixer Pulay` without `pulayDepth` fails `--check` with the run-time message · `src/Calculation/Imp/Deck.C`, the mixer factory |
+
+**Fix.**  `deck::Resolve` (which `--check` and a run both call) now runs the iterator's own admission, `qchem::ResolveMixing`, on every
+stage, beside the spin and mesh pre-flights already there, and rethrows as `deck: scf.mixer -- <the run's message>` (or
+`schedule.N.scf.mixer`).  It refuses Pulay without `pulayDepth`, Kerker without `kerkerG0`, and a density history beside a STATED Fock
+extrapolator (DIIS, Ladder: R1.1).  The one case left to the run: an `Auto` accelerator on a RESTORED stage, where `MakeAccelerator`
+may pick DIIS / Ladder from the saved state; `--check` judges `Auto` as the cold-stage Null.  Gate `Deck.AMixerTheRunWouldRefuseIsRefusedAtResolve`;
+`Deck.EveryShippedDeckVets` still passes (no shipped deck is newly refused).
+
+
+## ✅ A PP set resolves every element the GTH database covers; each entry carries its fitted functional (lane H, 2026-11-11, 359d0b497)
+
+The row as it stood:
+
+| **A deck cannot name Te with a PP: `pseudopotentials.json` lacks elements the GTH data has** (lanes A and B, 2026-11-05) | `BasisSetData/GTH_POTENTIALS.txt` has Te (and U), but a solid deck needs an entry in `src/Pseudopotential/Data/pseudopotentials.json`; two lanes have added Te temporarily and restored the file | generate the entries from the GTH data, or have the deck resolve straight from it, for every element the data covers · `src/Pseudopotential/` |
+
+**What was there.**  The GTH data already had ONE source: `src/Pseudopotential/Data/gth_potentials.json` equals a fresh
+`doc/scripts/ParseGTH.py BasisSetData/GTH_POTENTIALS.txt` (checked 2026-11-11).  The gap was the SET (`pseudopotentials.json`,
+`gth-lda-valence`): an 18-element hand-written map element -> q.  Every one of its 18 entries was the SMALLEST q the database holds
+at LDA, i.e. the set's own stated rule written out, so any element missing from the list (Te) was refused although the data had it.
+
+**Fix.**  `PseudopotentialSet::Valence(el)`: an explicit `valence` entry if the set has one (the EXCEPTIONS, an overlay; none today),
+else the rule, `GetGTHValences(el, functional).front()`.  `Covers` follows.  The 18-element list is gone from the json; gate
+`PseudopotentialSet.TheBankedValencesAreTheRulesValences` pins the 18 values every anchor ran at.  For the pending PADE policy
+(controller's requirement): ParseGTH records per entry the functional of the block's PRIMARY name before the PADE -> LDA alias
+(`"fitted"`: PADE for all 161 LDA entries, the key itself for PBE / BLYP / ...), read into `GTH_PP::fitted` and asked through
+`PseudopotentialSet::FittedFunctional(el)`.  Nothing reads it yet: the warning or pairing waits on the user's ruling.
+Gates: `PseudopotentialSet.EveryElementTheDatabaseCoversResolvesToItsSmallestValenceAndCarriesItsFittedFunctional` (over the whole
+periodic table, no count pin), `Deck.AnyElementTheGTHDatabaseCoversResolvesOnTheDefaultSet` (an inline Te + F cell resolves to Te q6,
+F q7, Nelec 13 on defaults).  Remainder: no SHIPPED orbital basis has Te, so a Te deck still states its basis (the inline-basis row).
+
+
+## ✅ valgen's usage heat map showed Gaussian exponents DOUBLED -- not reproduced; gated (lane H, 2026-11-11)
+
+The row as it stood:
+
+| **valgen's usage heat map shows Gaussian exponents DOUBLED** (S; found 2026-11-02) | `valgen --element H --shell 0:5:0.08:20` emits a block with 0.08 … 20 but its usage table lists 0.16 … 40 (exactly 2x).  The table joins `basis.exponents`, written by `ExponentialEvaluator::Announce` (`src/BasisSet/Radial/Evaluators/Internal/Imp/Exponential_Evaluator.C:21`), which serializes its INTERNAL `es` -- apparently a 2α convention for Gaussians -- not the user-facing exponent.  Energies look right; the label is wrong, which defeats the heat map's purpose (choose emin/emax) | confirm the internal convention, then have Announce write the user-facing α (the reporting rule: the code that owns the value reports it in user terms); UT: announced exponents == the emitted .bsd block · this row |
+
+**Verdict.**  On today's tree the heat map's exponent column EQUALS the emitted .bsd block: `valgen --element H --shell 0:5:0.08:20`
+labels 0.08 ... 20, and `valgen --element O --shell 0:4:0.2:20 --shell 1:4:0.15:15` labels s 0.2 ... 20 and p 0.15 ... 15, as the
+block does.  The row's premise does not hold: the radial Gaussian evaluator's `es` IS the user's α (`Overlap` = I(α_i+α_j, 2l), the
+exp(-α r²) convention), so `Announce` already writes user terms and no declaration comment is needed.  The fix that removed the 2×
+was not identified (no commit since 2026-11-02 touches the Announce path's arithmetic).  ⚠ A STALE `valgen` binary cost a detour: it is
+not in `allTests`, so a sweep build does not relink it, and the stale one against a rebuilt libqchem printed no heat map at all;
+rebuild `ninja -C build/Release valgen` before judging valgen's output.  No compensation exists in qchem-GUI or pybind/ (the GUI's
+exponent display reads the GPW basis shells, a different source).  Gate: `UTRadial_BS BasisSet_Atom.EachShellAnnouncesTheExponentsItWasGiven`
+(Gaussian and Slater, every l of Ar: the announced values == the stated exponents).
+
+## ✅ The CLI apps ride every sweep build (lane H, 2026-11-11)
+
+The CLI apps (`scfrun`, `valgen`, `gpwprobe`, `rundeck`, `gth2upf`) were not in `allTests`, so a sweep or nightly build never
+relinked them: a stale `rundeck` against a rebuilt libqchem segfaulted (lane G), and a stale `valgen` silently printed no heat map
+(lane H, the doubled-exponent row above).  The root `CMakeLists.txt` now has `allApps` (the five apps) and `allTests` depends on it.
+Gate, measured: after touching `src/Pseudopotential/PseudopotentialSet.C` (a module interface), `ninja -n allTests` relinks all five.
+A new app in `CLIapps/` joins the `allApps` list.  `pybind/`'s target is separate and unchanged.

@@ -33,7 +33,7 @@ Output JSON, keyed for O(1) lookup by (element, functional, q):
 
 Usage:  python3 doc/scripts/ParseGTH.py \
             BasisSetData/GTH_POTENTIALS.txt \
-            src/BasisSet/Lattice_3D/Data/gth_potentials.json
+            src/Pseudopotential/Data/gth_potentials.json
 """
 
 import json
@@ -52,6 +52,14 @@ def functional_of(name):
         return None, None
     func, q = m.group(1).upper(), m.group(2)
     return FUNCTIONAL_ALIASES.get(func, func), q
+
+
+def fitted_of(name):
+    """The functional the potential was FITTED with, as the block's first (primary) name spells it, BEFORE the alias canonicalisation:
+    'GTH-PADE-q4' -> 'PADE' (the Goedecker-Teter-Hutter Pade LDA), 'GTH-PBE-q4' -> 'PBE'.  The lookup key stays the canonical family
+    ('LDA'); this is what a run asks to compare its own XC functional against."""
+    m = re.match(r"GTH-([A-Za-z0-9]+?)(?:-q(\d+))?$", name)
+    return m.group(1).upper() if m else None
 
 
 def read_blocks(lines):
@@ -116,6 +124,9 @@ def build_table(blocks):
     for header, data in blocks:
         symbol, names, rec = parse_block(header, data)
         q = str(rec["z_ion"])
+        fitted = fitted_of(names[0])
+        if fitted is not None:
+            rec["fitted"] = fitted
         for name in names:
             func, qn = functional_of(name)
             if func is None:
@@ -131,7 +142,7 @@ def build_table(blocks):
 
 def main():
     src = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("BasisSetData/GTH_POTENTIALS.txt")
-    dst = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("src/BasisSet/Lattice_3D/Data/gth_potentials.json")
+    dst = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("src/Pseudopotential/Data/gth_potentials.json")
 
     blocks = read_blocks(src.read_text().splitlines())
     table = build_table(blocks)

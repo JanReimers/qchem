@@ -4,11 +4,15 @@
     "(materials.json `pp`) or a deck can refer to, and for each element in it the pseudopotential VARIANT: `valence` = q, the number of",
     "valence electrons the GTH entry keeps (Zion), a key into gth_potentials.json for the entry's `functional`.  PP data is a property of",
     "(element, pseudopotential), NOT of the material: q7 vs q15 Mn is the same crystal.  The ONE reader is qchem.Pseudopotential.Set;",
-    "everyone else is handed the value.  A pseudopotential is generated for a specific functional, so the set names it."
+    "everyone else is handed the value.  A pseudopotential is generated for a specific functional, so the set names it.",
+    "THE RULE (2026-11-11, OpenWork §3 'A deck cannot name Te with a PP'): an element with no `valence` entry resolves to the SMALLEST q the",
+    "GTH database (gth_potentials.json, generated from BasisSetData/GTH_POTENTIALS.txt) holds at the set's functional, so every element the",
+    "database covers resolves.  `valence` lists only the EXCEPTIONS to that rule (none in gth-lda-valence today: its old 18-element list",
+    "was the rule written out by hand, and every element it lacked, Te for one, was refused)."
   ],
   "gth-lda-valence": {
-    "comment": "The smallest-q (valence-only, largest core) GTH-LDA entry of every element the shipped materials use; the recipe every banked anchor was run at.",
+    "comment": "The smallest-q (valence-only, largest core) GTH-LDA entry of every element: the recipe every banked anchor was run at.",
     "functional": "LDA",
-    "valence": { "Al": 3, "C": 4, "Cs": 1, "F": 7, "Fe": 8, "H": 1, "I": 7, "Li": 1, "Mn": 7, "N": 5, "Na": 1, "Ni": 10, "O": 6, "S": 6, "Si": 4, "Sr": 2, "Ti": 4, "V": 5 }
+    "valence": {}
   }
 }

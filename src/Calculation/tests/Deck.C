@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <set>
 #include <nlohmann/json.hpp>
 #include "forward.H"   // DeckTests: the restart fingerprint of a built calculation (SolidCalculation::Fingerprint is private)
@@ -895,6 +896,28 @@ TEST(Deck, AnXCMeshRecipeFieldUnderAutoIsRefusedAtResolve)
     EXPECT_EQ(msg(json::object()),"NO THROW") << "Auto with nothing set";
 }
 
+//! `rundeck --check` once passed a Pulay mixer with no pulayDepth, which the run then refused at its first iteration (OpenWork §3, lane H
+//! 2026-11-03).  Resolve now runs the iterator's own admission (ResolveMixing), so the deck is refused with the run's message, naming the stage.
+TEST(Deck, AMixerTheRunWouldRefuseIsRefusedAtResolve)
+{
+    auto msg=[](json extra)
+    {
+        json d={{"structure","Si_diamond"}}; d.update(extra);
+        deck::RunSpec s; deck::FromJson(d,s);
+        try { deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); }
+        return std::string("NO THROW");
+    };
+    EXPECT_NE(msg({{"scf",{{"mixer","Pulay"}}}}).find("deck: scf.mixer -- SCFParams: Mixing::Pulay needs PulayDepth > 0."),std::string::npos);
+    EXPECT_EQ(msg({{"scf",{{"mixer","Pulay"},{"pulayDepth",8}}}}),"NO THROW") << "the stated recipe";
+    EXPECT_NE(msg({{"scf",{{"mixer","Kerker"}}}}).find("KerkerG0 > 0"),std::string::npos);
+    EXPECT_NE(msg({{"scf",{{"mixer","Pulay"},{"pulayDepth",8}}},{"solid",{{"accelerator","DIIS"}}}}).find("R1.1"),std::string::npos)
+        << "a density history beside a stated Fock history";
+    EXPECT_EQ(msg({{"scf",{{"mixer","Pulay"},{"pulayDepth",8}}},{"solid",{{"accelerator","GDM"}}}}),"NO THROW");
+    EXPECT_NE(msg({{"schedule",{{{"accelerator","Null"},{"scf",{{"mixer","Linear"}}}},{{"accelerator","Null"},{"scf",{{"mixer","Pulay"}}}}}}})
+              .find("deck: schedule.1.scf.mixer -- "),std::string::npos) << "the message names the stage";
+    EXPECT_EQ(msg(json::object()),"NO THROW") << "Auto";
+}
+
 TEST(Deck, PostSCFRunsOnTheConvergedCalculationAndTheRecordKeepsTheResults)
 {
     const fs::path dir=TmpDir("post");
@@ -1029,6 +1052,20 @@ TEST(Deck, AnInlineStructureIsTheStructureKeyAsAnObjectAndRoundTrips)
 // The claim lane G binds to: an inline deck -- in lane G's shape, explicit lattice vectors -- and its named twin are the SAME run:
 // the fingerprint a saved state would carry, built by deck::Build (which stops before the SCF), agrees with no difference at all,
 // so either one's state resumes the other EXACTLY.
+//! OpenWork §3 "A deck cannot name Te with a PP" (2026-11-11): the default set (gth-lda-valence) once listed 18 elements by hand and refused
+//! every other one, so a Te deck needed the json edited.  The set now resolves any element the GTH database covers to its smallest q.
+TEST(Deck, AnyElementTheGTHDatabaseCoversResolvesOnTheDefaultSet)
+{
+    json te={{"lattice",{{"vectors_bohr",{{12.0,0.0,0.0},{0.0,12.0,0.0},{0.0,0.0,12.0}}}}},
+             {"atoms",json::array({{{"el","Te"},{"frac",{0.0,0.0,0.0}}}, {{"el","F"},{"frac",{0.15,0.0,0.0}}}})}};
+    deck::RunSpec r; deck::FromJson(json{{"structure",te}},r);
+    (void)deck::Resolve(r);
+    std::map<std::string,int> q; for (const auto& [el,v] : r.solid.species) q[el]=v;
+    EXPECT_EQ(q.at("Te"),6) << "GTH-PADE-q6, the only LDA Te";
+    EXPECT_EQ(q.at("F"),7);
+    EXPECT_EQ(r.solid.Nelec,13);
+}
+
 TEST(Deck, AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint)
 {
     const auto a=deck::Build(SiDeck("Si_diamond"));
