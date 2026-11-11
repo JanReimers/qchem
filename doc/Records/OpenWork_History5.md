@@ -2190,3 +2190,31 @@ A SALC state saved between 2026-11-09 and this commit refuses on the new keys; n
 
 Gate: `M_Calculation.ASymmetryBlockedStateIdentifiesItsBasisByItsShells` (H2O dzvp: the SALC and AO states carry equal shell
 keys; before the fix the SALC state carried none).  Sweep `lane-a-salcid1`: short 1513/1513, long 15/15, 0 anchor moves.
+
+### ✅ HF's SAD seed Fock mesh broke the molecule's symmetry (lane A, 2026-11-10)
+FIXED (seed half of the §3 row "A stated Shared fill does not guarantee the symmetric state"): an HF run seeded from SAD reaches its
+first D through one LDA (Xα) Fock, built inside `tSCFIterator::Initialize` on `qcMesh::MeshParams{}` -- 30 radial × the 12-direction
+Lebedev rule, an icosahedron with no C4 axis.  The molecular iterator's SeedStrategy constructor now DEMANDS the seed mesh; the
+facades pass the run's resolved mesh (MoleculeCalculation: the entry rung (80, 29) unless stated; AtomCalculation: its own), and
+policy row `HFSeedFockMesh` reports it.  Gates `M_Calculation.OxygenSingletHFStatedSharedFromBothSeeds{Aligned,OffAxis}`.
+
+Measured (O₂ singlet HF/dzvp, stated Shared, π_g at the first fill; a temporary print, never committed):
+
+| arm | first-fill π_g split | final E |
+|---|---|---|
+| HF, SAD seed, old sibling mesh | 13.4 mHa (−0.16389 / −0.15045) | −149.5438874 (broken), 8 iterations |
+| HF, core seed | 0; ≤1e-8 every iteration | −149.2962220, 10 |
+| LDA, SAD seed | 0 | −149.2631697, 6 |
+| HF SAD, sibling degree 7 / 11, aligned | 0 | −149.2962220 |
+| HF SAD, sibling degree 11, grid rotated 0.37 rad | 0.096 mHa | −149.2962220 |
+| HF SAD, sibling degree 29, grid rotated 0.37 rad | 0.002 mHa | −149.2962220 |
+
+Symmetry blocking on or off gave the same numbers.  So the SAD density itself is exact, and the SCF keeps a symmetric start
+symmetric although the shared state is a saddle (the broken one is 0.25 Ha below it): the split was made at the seed only.  The
+REMAINDER (protecting Shared against a split from any other source) stays in the §3 row as optional hardening.
+
+
+Landing sweep against main-40df1233 (`anchordiff --tol 1e-10`): short 1540/1540, long 15/15, the asserts-live RelChecked build
+green.  One anchor moved: `M_HF_U.WaterSADseed`, 10 → 9 iterations, energy unchanged (the finer seed Fock is a better start).
+The three WILL_FAIL cases fail exactly as they do on main.  Panel (`-L "panel|periodic"`, 4 threads): 25/25, no anchor moved,
+the panelRed set identical to main's.
