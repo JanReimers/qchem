@@ -110,6 +110,20 @@ public:
     // CLIENT: Gaussian Orbital_ERI4_IBS's HF pullbacks; tests gate them against a central difference of our engine's (MnD) J and K.
     std::vector<rvec3_t> ERI4Gradient(const NR_Evaluator& other, const rmat_t& Da, const rmat_t& Db, bool exchange) const;
 
+    // --- the LATTICE pieces (lane B 2026-11-10; GeometryOptimizationPlan §13.2, doc/Records/CellHalf_Design.md §5).  The shell table as
+    // a lattice block's pullback walks it, and one ORDERED shell pair with the KET shell translated by the lattice vector R:
+    //   ShellPairImageGradient(which, si, sj, R)[c](p,q) = <∂_c p| O |q(· − R)>,   O = 1 (which 0) or −∇² (which 1: no ½, like KineticMatrix),
+    // the electron-coordinate derivative of the BRA (libcint's ip convention; a function on A has d/dA = −d/dr), p over shell si's
+    // components and q over sj's, both in ShellComponents order, in the delivered (unit self-overlap) normalization.  Cartesian mode only.
+    // CLIENT: the GPW lattice-sum pullbacks and virials (PG_Cart::Orbital_IBS), which own the image list and the Bloch phases.
+    size_t                     NumShells() const;
+    const std::vector<size_t>& ShellComponents(size_t s) const;   //!< the shell's global (PG-order) component indices, in libcint order
+    size_t                     ShellAtom(size_t s) const;         //!< the site of the structure the shell sits on
+    std::array<rmat_t,3>       ShellPairImageGradient(int which, size_t si, size_t sj, const rvec3_t& R) const;
+    //! The VALUE beside it, <p|O|q(· − R)>: what the gradient differentiates.  CLIENT: the gate that libcint's lattice image integral is the
+    //! energy engine's (MnD) one, image by image (tests/M_LatticePullback.C), so a force/energy mismatch is attributed to the right code.
+    rmat_t                     ShellPairImageValue(int which, size_t si, size_t sj, const rvec3_t& R) const;
+
     // --- isM_DFT (3-centre <ab|c>, one symmetric (ia,ib) block per fit component ic) ---
     PairProjection<double> OverlapThreeC_Matrix  (const NR_Evaluator& fit) const;   // int3c1e (overlap)
     PairProjection<double> RepulsionThreeC_Matrix(const NR_Evaluator& fit) const;   // int3c2e (Coulomb)

@@ -10,6 +10,7 @@ export module qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 import qchem.Streamable;
 import qchem.Structure;   // the atoms a force is taken in (GeometryOptimizationPlan §13)
+import qchem.UnitCell;    // the cell a stress is taken in (its volume; CellHalf_Design §5)
 export import qchem.Energy;
 export import qchem.Hamiltonian.Types;
 export import qchem.Hamiltonian.HubbardEstimator;   // HubbardUEstimator / HubbardEstimate / ACBN0Estimator (DFT+U increment 3, H5)
@@ -328,6 +329,8 @@ struct TermEnergy { std::string label, entries; double E=0.0; };
 //! One term's force at fixed D (GeometryOptimizationPlan §13.2), MakeTermEnergies' derivative twin, index for index (the HF terms follow): \c label as there;
 //! \c missing = the term's MissingGradient (empty exactly when \c F holds its −∂E_term/∂R_A, one entry per atom).
 struct TermForce { std::string label, missing; rvec3vec_t F; };
+//! One term's virial at fixed D (MakeTermVirials, the strain twin of TermForce): EMPTY missing = V is its ∂E/∂ε, gradient sign, Ha.
+struct TermVirial { std::string label, missing; rmat3d_t V; };
 
 template <class T> class tHamiltonian;
 //! \brief THE HAMILTONIAN AT ONE DENSITY (OOD V1.41 stage 1): what the SCF consumes -- the Fock/KS blocks and the energy
@@ -353,6 +356,12 @@ public:
     //! density Σ f ε c cᵀ, in the same blocks and spin channels as this value's density.  THROWS when MissingGradients() is not empty: a
     //! caller that did not ask first is a defect, not an outcome (the Outcome was the session's, before the optimization).
     rvec3vec_t Forces(const tDM_CD<T>* W, const Structure* st) const;
+    //! \brief The STRESS beside the forces (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10: "H just sums the term
+    //! contributions"): σ = (1/Ω) ∂E/∂ε at this density and fractional k, Ha/bohr³, tensile positive, = (1/Ω)(Σ_terms V_term − V_S(W)), the
+    //! last the overlap's virial at the energy-weighted density (the Pulay term, entering as in the forces).  UNSYMMETRISED: the
+    //! antisymmetric part is a rotation and must vanish at a converged density (the client's gate).  Takes the CELL, so a molecule cannot
+    //! ask (no cell, no stress, at compile time).  THROWS when MissingVirials() is not empty, as Forces does.
+    rmat3d_t   Stress(const tDM_CD<T>* W, const UnitCell& cell) const;
     const DensityID& ID() const {return itsID;}
 private:
     friend class tHamiltonian<T>;
@@ -459,6 +468,11 @@ public:
     virtual std::vector<std::string> MissingGradients(const tbs_t<T>* wholeBasis, const Structure* st) const=0;
     //! The force sum behind tHamiltonianAt::Forces: every term's own derivative at the density matrix \a D, plus the Pulay term from \a W.
     virtual rvec3vec_t MakeForces(const tbs_t<T>* wholeBasis, const tDM_CD<T>* D, const tDM_CD<T>* W, const Structure* st) const=0;
+    //! \brief The terms that cannot give their virial (tStrainGradient_HT), each as "<term>: <what is missing>", and the Pulay term's need
+    //! (the overlap virial): EMPTY = Stress is available (CellHalf_Design §5).  Asked before a cell optimization, as MissingGradients.
+    virtual std::vector<std::string> MissingVirials(const tbs_t<T>* wholeBasis, const Structure* st) const=0;
+    //! The virial sum behind tHamiltonianAt::Stress: Σ_terms ∂E_term/∂ε at \a D minus the overlap's virial at \a W, gradient sign, Ha.
+    virtual rmat3d_t MakeVirial(const tbs_t<T>* wholeBasis, const tDM_CD<T>* D, const tDM_CD<T>* W, const Structure* st) const=0;
     //! \brief Run the EAGER REFRESH PHASE over every term: fill the k-independent density-dependent memos
     //! ONCE, before any Bloch block is assembled.
     //!
@@ -489,6 +503,9 @@ public:
     //! whole-system HF terms MakeTermEnergies leaves out.  For the gates that check each term's force against the finite difference of its
     //! own energy at fixed D; \a cd refreshed for, as there.
     virtual std::vector<TermForce>      MakeTermForces(const tbs_t<T>*, const tDM_CD<T>*, const Structure*) const {return {};}
+    //! THE PER-TERM VIRIAL at \a cd, MakeTermForces' strain twin (CellHalf_Design §5): in its term order, with no Pulay term.  For the gates
+    //! that check each term's virial against the strain finite difference of its own energy at fixed D.
+    virtual std::vector<TermVirial>     MakeTermVirials(const tbs_t<T>*, const tDM_CD<T>*, const Structure*) const {return {};}
     virtual std::vector<hmat_t<T>>      MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const {return {};}
     //! The REAL-TRIM-block twin (a real block of a complex run; see the real-block \c GetMatrix).
     virtual std::vector<hmat_t<double>> MakeTermMatrices(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const {return {};}
@@ -508,6 +525,16 @@ template <class T> rvec3vec_t tHamiltonianAt<T>::Forces(const tDM_CD<T>* W, cons
     auto* dm=dynamic_cast<const tDM_CD<T>*>(itsCD);   // abstract -> abstract
     if (!dm) throw std::logic_error("tHamiltonianAt::Forces: a force needs a density-MATRIX density (this one is a seed or a fit)");
     return itsH->MakeForces(itsWholeBasis, dm, W, st);
+}
+template <class T> rmat3d_t tHamiltonianAt<T>::Stress(const tDM_CD<T>* W, const UnitCell& cell) const
+{
+    auto* dm=dynamic_cast<const tDM_CD<T>*>(itsCD);   // abstract -> abstract
+    if (!dm) throw std::logic_error("tHamiltonianAt::Stress: a stress needs a density-MATRIX density (this one is a seed or a fit)");
+    const rmat3d_t V=itsH->MakeVirial(itsWholeBasis, dm, W, &cell);
+    const double Ω=cell.GetCellVolume();
+    rmat3d_t σ(0,0,0, 0,0,0, 0,0,0);
+    for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) σ(a,b)=V(a,b)/Ω;
+    return σ;
 }
 template <class T> EnergyBreakdown tHamiltonianAt<T>::GetTotalEnergy() const
 {

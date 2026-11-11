@@ -309,6 +309,27 @@ template <class T> rvec3vec_t tComposite_CD<T>::DM_Pullback(const tStatic_PC<T>*
     return F;
 }
 
+// THE VIRIAL TWIN (CellHalf_Design §5): every block's virial summed, mixed-aware as DM_Pullback (a real TRIM child through tStatic_VC<double>).
+template <class T> rmat3d_t tComposite_CD<T>::DM_Virial(const tStatic_VC<T>* v, const Structure* st) const
+{
+    rmat3d_t V(0,0,0, 0,0,0, 0,0,0);
+    for (const Block& blk:itsBlocks)
+        V+=std::visit([&](const auto* b)->rmat3d_t
+        {
+            using BT=std::remove_const_t<std::remove_pointer_t<std::decay_t<decltype(b)>>>;
+            if constexpr (std::is_same_v<BT,tDM_CD<T>>) return b->DM_Virial(v, st);
+            else if constexpr (std::is_same_v<T,dcmplx>)
+            {
+                auto* rv=dynamic_cast<const tStatic_VC<double>*>(v);
+                if (!rv) throw std::logic_error("tComposite_CD::DM_Virial: a real child needs the term's real-block virial client "
+                                                "(tStatic_VC<double>, CellHalf_Design §5)");
+                return b->DM_Virial(rv, st);
+            }
+            else throw std::logic_error("tComposite_CD::DM_Virial: a complex child inside a real-faced run is impossible");
+        }, blk.cd);
+    return V;
+}
+
 template <class T> double tComposite_CD<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const
 {
     double ret=0.0;

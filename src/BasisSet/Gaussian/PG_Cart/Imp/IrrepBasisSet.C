@@ -25,6 +25,7 @@ import qchem.Streamable;
 import qchem.Blaze;
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
+import qchem.BasisSet.Gaussian.Lattice.LibcintPullbackWorkaround;   // ⚠ TEMPORARY (#3747): the lattice S/T derivatives, the ONE MnD/libcint seam
 
 namespace qchem::BasisSet::Gaussian::PG_Cart
 {
@@ -330,6 +331,23 @@ double  Orbital_IBS::MakeOverlap(const Gaussian::LatticeSum1E::GaussianFunction&
                                  const Gaussian::LatticeSum1E::GaussianFunction& h) const {return NR_Evaluator::MakeOverlap(g,h);}
 chmat_t Orbital_IBS::MakeKinetic(const cellphase_t& phase, const UnitCell& A) const {return NR_Evaluator::MakeKinetic(phase,A);}
 chmat_t Orbital_IBS::MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const {return NR_Evaluator::MakeNuclear(phase,A,cl);}
+
+// THE LATTICE PULLBACKS (GeometryOptimizationPlan §13.2; doc/Records/CellHalf_Design.md §5; lane B 2026-11-10).  ⚠ TEMPORARY: both go
+// through the ONE MnD/libcint seam (LibcintPullbackWorkaround, the user's 2026-11-10 ruling) until Enzyme can differentiate the MnD kernel
+// (EnzymeAD/Enzyme#3747); then these two bodies become Enzyme over MnD and the seam is deleted.  They hand it MnD's own screened image list.
+Gaussian::LatticeSum1E::GeometryPullback Orbital_IBS::LatticePullback(int which, const chmat_t& Abar, const cellphase_t& phase,
+                                                                      const UnitCell& A, const Structure* st) const
+{
+    const LibcintWorkaround::ImageEnumerator images=[&](size_t i, size_t j, const std::function<void(const ivec3_t&, const rvec3_t&)>& cb)
+        { ForImageOffsets(i, j, A, cb); };
+    return LibcintWorkaround::LatticeOneElectronPullback(which, static_cast<const PGData&>(*this), images, Abar, phase, st);
+}
+Gaussian::LatticeSum1E::GeometryPullback Orbital_IBS::MakeLatticeOverlapPullback(const chmat_t& Abar, const cellphase_t& phase,
+                                                                                 const UnitCell& A, const Structure* st) const
+{   return LatticePullback(0, Abar, phase, A, st); }
+Gaussian::LatticeSum1E::GeometryPullback Orbital_IBS::MakeLatticeKineticPullback(const chmat_t& Abar, const cellphase_t& phase,
+                                                                                 const UnitCell& A, const Structure* st) const
+{   return LatticePullback(1, Abar, phase, A, st); }
 chmat_t Orbital_IBS::MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
                                        const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const
 {   return NR_Evaluator::MakeLocalGaussian(phase,A,cl,opForZ); }

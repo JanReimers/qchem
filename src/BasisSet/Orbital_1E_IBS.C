@@ -46,6 +46,12 @@ public:
     //! THE PULLBACK of K = <-∇²> (no ½, as MakeKinetic): Σ_ij Re(D_ij* ∂K_ij/∂R_A) for every atom A of \a st, in its site order.  Exact zeros
     //! for functions that do not move with the atoms (plane waves); NoGradient for a family with no derivative yet.
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<T>& D, const Structure* st) const=0;
+    //! THE STRAIN DERIVATIVE beside it (as Integrals_Overlap::MakeOverlapVirial; CellHalf_Design §5, user ruling §6.2): V_ab = ∂Re Tr(D† K)/∂ε_ab
+    //! at fixed D and fractional k (no ½), the channel-A image virial for functions that ride the atoms.  CLIENT: the kinetic term's virial.
+    //! NOT pure: a family without a strain derivative refuses by default.
+    virtual bool CanVirialKinetic() const {return false;}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeKineticVirial(const hmat_t<T>&, const Structure*) const
+        {return NoGeometryDerivativeYet<rmat3d_t>("this basis block", "kinetic virial (strain derivative)");}
     //!@}
 };
 

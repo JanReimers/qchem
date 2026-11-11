@@ -543,7 +543,36 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
   - Term (`RealComplexTerms`): the force through a real and a complex GPW block is bitwise equal; |ΣF| is the egg-box (1.4e-5 at max|F|
     0.11, Ecut 20; measured 1.0e-1 / 1.3e-4 / 5.3e-5 relative at Ecut 10 / 20 / 40).
 - Not yet: the contracted-cube fast path (the production kernel; its derivative is the cube gather at degree lp+1); the raster-XC
-  pullback (cp2kCompat); Becke-mesh XC (the GPW default: its mesh weights move); GPW overlap / kinetic / PP pullbacks.
+  pullback (cp2kCompat); Becke-mesh XC (the GPW default: its mesh weights move); GPW PP pullbacks (overlap / kinetic: BUILT 2026-11-10,
+  below).
+
+**BUILT (lane B 2026-11-10): the GPW overlap (Pulay) and kinetic pullbacks, and the first VIRIALS (doc/Records/CellHalf_Design.md §5).**
+- The series M_ij = Σ_n phase(n) K_ij(n) over MnD's own screened image list; the derivative of each image term is libcint's ip integral
+  of the ordered shell pair with the ket shell translated by R_n (`PG_LibCint::NR_Evaluator::ShellPairImageGradient`, a value twin
+  beside it).  ∂K/∂R_a = −X, ∂K/∂(R_b+R_n) = +X, so the image virial is −w ⊗ (R_i − R_j − R_n): one walk fills the gradient and the
+  virial before the fold.
+- ⚠ TEMPORARY (user ruling 2026-11-10, "libCint and our own MnD code should not be entangled ... I don't mind a temporary work around
+  while waiting for the Enzyme fix"): the MnD/libcint pairing lives in ONE seam module, `Lattice.LibcintPullbackWorkaround`, whose only
+  callers are PG_Cart's two `LatticeSum1E::MakeLattice{Overlap,Kinetic}Pullback` bodies.  When EnzymeAD/Enzyme#3747 is fixed they become
+  Enzyme over the MnD kernel and the seam is deleted (OpenWork row).
+- Faces (derivative-beside rulings 2026-11-08 / CellHalf §6.2, 2026-11-10; hub snapshot +17):
+  - basis: `MakeOverlapVirial` / `MakeKineticVirial` with `CanVirial…`, beside the pullbacks, NOT pure (only a periodic family has a
+    strain); the lattice mixin answers them through the evaluator's `OneElectronPullback`, a real TRIM block with its adjoint widened;
+  - density: `tStatic_VC<T>` and `tDM_CD::DM_Virial` beside `tStatic_PC` / `DM_Pullback`;
+  - term: `tStrainGradient_HT<T>` (`MissingVirial`, `AddVirial`), a SEPARATE face beside `tGeometryGradient_HT` (a term's force can
+    come long before its virial; a term without it is a named `MissingVirials()` entry); Kinetic has it;
+  - Hamiltonian: `MissingVirials`, `MakeVirial` (Σ_terms V − the overlap virial at W), `MakeTermVirials`, and
+    `tHamiltonianAt::Stress(W, const UnitCell&)` = MakeVirial/Ω, unsymmetrised; taking the cell makes "no cell" a compile error.
+- Gates:
+  - Face (`UTGaussian_BS M_LatticePullback`): Si SIPP_SR, H₃ contracted DZVP and MnO through the spherical view, non-TRIM k, random
+    Hermitian adjoint: the gradient and ALL NINE virial components against the Richardson central difference of MnD's own
+    MakeOverlap / MakeKinetic at displaced atoms and strained cells (fractional positions held) within 1e-7 relative; Σ_A g_A ≤ 1e-16;
+    libcint's value integral against MnD's image by image (1e-14).  At fixed D the virial is NOT symmetric (a rotation turns the centres,
+    not a p shell's axes): the rotation gate belongs to the converged Stress.  The gates bind screenEps 1e-16: the 1e-10 default drops
+    kinetic image terms up to 4.4e-8 and so puts steps in the screened energy (OpenWork row).
+  - Term (`RealComplexTerms.ARealTRIMGPWBlockGivesKineticAndPulayForceAndVirialAndNamesTheRest`): Kinetic + Pulay forces and virials
+    through a real TRIM and a Bloch GPW block are bitwise equal; Stress = MakeVirial/Ω; a term without the face makes Stress throw by
+    name.  `HamiltonianForces.OnAGPWBlockEveryTermWithoutAPullbackNamesItself`: Kinetic gated, no Pulay entry.
 
 ### 13.1 A value-with-derivatives carrier on the derivative-aware faces (lane B 2026-11-08)
 

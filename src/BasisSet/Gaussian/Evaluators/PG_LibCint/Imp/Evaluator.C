@@ -18,6 +18,7 @@ module;
 #include <array>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 extern "C" {
 #include "cint_funcs.h"   // pulls cint.h: slot constants, FINT/CACHE_SIZE_T, the int*_cart functions
 // cint_funcs.h omits prototypes for the 3-centre integrals (the symbols are in libcint); declare them.
@@ -362,6 +363,59 @@ NR_Evaluator::GradientMatrices NR_Evaluator::BuildGradient(int which) const
         }
     return G;
 }
+// --- the lattice pieces: one ordered shell pair, the ket shell's atom translated by R (a two-atom, two-shell libcint table per call:
+// the image is a new centre, so it cannot reuse the home table).  The same ip convention and scaling as BuildGradient's X.
+size_t NR_Evaluator::NumShells() const {return itsImp->shells.size();}
+const std::vector<size_t>& NR_Evaluator::ShellComponents(size_t s) const {return itsImp->shells.at(s).lc2pg;}
+size_t NR_Evaluator::ShellAtom(size_t s) const {return size_t(itsImp->shells.at(s).atom);}
+namespace
+{
+//! The two-centre table of one ordered shell pair, the ket shell's atom translated by R, run through \a fn into \a buf (ncomp components).
+template <class Imp, class Fn> void ShellPairImage(const Imp& m, size_t si, size_t sj, const rvec3_t& R, Fn fn, int ncomp, std::vector<double>& buf,
+                                                  int& di, int& dj)
+{
+    auto a=m.shells[si], b=m.shells[sj];
+    auto B=m.atoms[b.atom]; B.x+=R.x; B.y+=R.y; B.z+=R.z;
+    const std::vector<std::remove_cvref_t<decltype(B)>> atoms{m.atoms[a.atom], B};
+    a.atom=0; b.atom=1;
+    std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(atoms, {&a,&b}, atm,bas,env);
+    di=m.dim(a.l); dj=m.dim(b.l);
+    buf.assign((size_t)di*dj*ncomp, 0.0);
+    int shls[2]={0,1};
+    fn(buf.data(), nullptr, shls, atm.data(), 2, bas.data(), 2, env.data(), nullptr, nullptr);
+}
+} // namespace
+std::array<rmat_t,3> NR_Evaluator::ShellPairImageGradient(int which, size_t si, size_t sj, const rvec3_t& R) const
+{
+    const Imp& m=*itsImp;
+    if (m.spherical) throw std::logic_error("PG_LibCint::ShellPairImageGradient: the lattice gradients are Cartesian-only");
+    if (which!=0 && which!=1) throw std::invalid_argument("PG_LibCint::ShellPairImageGradient: which is 0 (overlap) or 1 (kinetic), not "+std::to_string(which));
+    if (si>=m.shells.size() || sj>=m.shells.size()) throw std::out_of_range("PG_LibCint::ShellPairImageGradient: a shell index is past the table");
+    std::vector<double> buf; int di=0, dj=0;
+    ShellPairImage(m, si, sj, R, which==0 ? int1e_ipovlp_cart : int1e_ipkin_cart, 3, buf, di, dj);
+    const double pre = which==1 ? 2.0 : 1.0;   // <-nabla^2> = 2 x libcint's T
+    const auto& P=m.shells[si].lc2pg; const auto& Q=m.shells[sj].lc2pg;
+    std::array<rmat_t,3> X; for (auto& x : X) x=rmat_t(di, dj);
+    for (int c=0;c<3;++c)
+        for (int p=0;p<di;++p) for (int q=0;q<dj;++q)
+            X[c](p,q) = pre * buf[p+di*(q+dj*c)] * m.scale[P[p]]*m.scale[Q[q]];
+    return X;
+}
+rmat_t NR_Evaluator::ShellPairImageValue(int which, size_t si, size_t sj, const rvec3_t& R) const
+{
+    const Imp& m=*itsImp;
+    if (m.spherical) throw std::logic_error("PG_LibCint::ShellPairImageValue: the lattice pieces are Cartesian-only");
+    if (which!=0 && which!=1) throw std::invalid_argument("PG_LibCint::ShellPairImageValue: which is 0 (overlap) or 1 (kinetic), not "+std::to_string(which));
+    if (si>=m.shells.size() || sj>=m.shells.size()) throw std::out_of_range("PG_LibCint::ShellPairImageValue: a shell index is past the table");
+    std::vector<double> buf; int di=0, dj=0;
+    ShellPairImage(m, si, sj, R, which==0 ? int1e_ovlp_cart : int1e_kin_cart, 1, buf, di, dj);
+    const double pre = which==1 ? 2.0 : 1.0;
+    const auto& P=m.shells[si].lc2pg; const auto& Q=m.shells[sj].lc2pg;
+    rmat_t M(di, dj);
+    for (int p=0;p<di;++p) for (int q=0;q<dj;++q) M(p,q) = pre * buf[p+di*q] * m.scale[P[p]]*m.scale[Q[q]];
+    return M;
+}
+
 NR_Evaluator::GradientMatrices NR_Evaluator::OverlapGradient() const {return BuildGradient(0);}
 NR_Evaluator::GradientMatrices NR_Evaluator::KineticGradient() const {return BuildGradient(1);}
 NR_Evaluator::GradientMatrices NR_Evaluator::NuclearGradient() const {return BuildGradient(2);}

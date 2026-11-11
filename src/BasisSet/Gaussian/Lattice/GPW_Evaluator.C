@@ -40,6 +40,8 @@ export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // DirectOp, ReciprocalOp
 import qchem.UnitCell;                             // UnitCell (the direct lattice; ToCartesian)
 import qchem.Structure;                            // Structure (the nuclear-attraction centres)
 import qchem.Types;                                // rvec3_t, cvec_t, cvec3vec_t, chmat_t, rmat_t
+import qchem.Outcome;                              // OneElectronPullback's refusal
+import qchem.AD;                                   // AD::NoGradient
 import qchem.Parallel;                             // LazyLock (the transition ladders, filled from outer-loop workers)
 
 export namespace qchem::BasisSet::Gaussian
@@ -95,6 +97,12 @@ public:
     chmat_t    OverlapMatrix()                 const;   //!< \f$\sum_R\langle i|j(\cdot-R)\rangle\f$
     chmat_t    KineticMatrix()                 const;   //!< \f$\sum_R\langle i|-\nabla^2|j(\cdot-R)\rangle\f$ (no 1/2)
     chmat_t    NuclearMatrix(const Structure* cl) const;//!< \f$\sum_R\langle i|\sum_c -Z_c/|r-R_c||j(\cdot-R)\rangle\f$
+    //! THE DERIVATIVES of \c OverlapMatrix (\a which 0) and \c KineticMatrix (\a which 1) at the adjoint \a Abar, beside them
+    //! (GeometryOptimizationPlan §13.2; doc/Records/CellHalf_Design.md §5): the per-site gradient and the image virial, the molecular seam's
+    //! \c LatticeSum1E::MakeLattice…Pullback at this block's phase and cell.  The home-only MODE refuses (its matrices are the finite
+    //! molecule's, which have no cell to strain).  CLIENT: \c Lattice::Orbital_1E_IBS's overlap and kinetic pullbacks and virials.
+    bool CanOneElectronPullback() const {return !itsHomeOnly;}
+    Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient> OneElectronPullback(int which, const chmat_t& Abar, const Structure* st) const;
 
     // --- isLattice_DFT_Evaluator surface: the DFT tier by COLLOCATION on the density grid (the genuinely-new GPW
     //     primitive).  All three route through the held PlaneWave::PW_Grid_Evaluator (its {r}/{G}/FFT/Poisson). ---
