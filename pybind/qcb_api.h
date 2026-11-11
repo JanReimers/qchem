@@ -215,6 +215,17 @@ int qcb_materials(const char* req, char* out, int outlen);
 //! The same two calls as qcb_materials.
 int qcb_basis_import(const char* req, char* out, int outlen);
 
+//! THE SHELL WHAT-IF of a deck's basis (deck::MakeBasisShells; the GUI's conditioning table, the user 2026-11-11): the cell's
+//! untrimmed basis analysed ONCE (analytic S per k, no grids), then queried per set of kept shells -- each query a few eigensolves.
+typedef struct qcb_shells qcb_shells;
+qcb_shells* qcb_shells_make(const char* deckJson, char* err, int errlen);
+void        qcb_shells_free(qcb_shells* h);
+//! {"kept": [bool per shell]} (absent: the deck's own trim) -> the library's basisTrimAnalysis RECORD (report::GlobalReport): floor,
+//! healthy, lambdaMin, worstK, cond, aoDrops, nFunctions, blocks [{k, nFunctions, lambdaMin, cond, aoDrops}], shells [{Z, l,
+//! exponents, nAO, kept, lambdaMinToggled, condToggled, aoDropsToggled, participation}], deckKept, autoTrimKept; or {"error"}.
+//! The same two calls as qcb_materials.
+int         qcb_shells_query(qcb_shells* h, const char* req, char* out, int outlen);
+
 #ifdef __cplusplus
 }
 #endif

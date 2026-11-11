@@ -8,6 +8,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 import qchem.SolidCalculation;
 import qchem.Lattice_3D;
 import qchem.Structure;
@@ -58,6 +59,49 @@ TEST(SolidSetup, ARecipeFreezesTheTrimTheVetLoopDecides)
     EXPECT_EQ(setup->mol->GetNumFunctions(), twin.mol->GetNumFunctions());
     // Rebuilt from the frozen recipe -- what a geometry step does -- the basis is the trimmed one, with no second vet.
     EXPECT_EQ(setup->recipe->Make(*setup->cell, setup->pp)->GetNumFunctions(), twin.mol->GetNumFunctions());
+}
+
+// THE SHELL WHAT-IF measures as the vet stage does (one metric): the trim autoTrim froze, asked of the UNTRIMMED basis's shell table,
+// gives the vet stage's own verdict -- its lambda_min AFTER, at the same k, and no AO drop at its orthoTol; with every shell kept, its
+// lambda_min BEFORE and drops.  The table's autoTrim reference is the same trim, and its record is filed one level in.
+TEST(SolidSetup, TheShellWhatIfMeasuresTheFrozenTrimAsTheVetStageDid)
+{
+    UnitCell cell=TwoNa(5.0);
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    const report::Run run("shell what-if");
+    const auto setup=SolidSetup::Resolve(lat, GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_VA, .autoTrim=true}, kNa2);
+    const auto vet=report::CurrentRunReport().at("basisTrim");   // a COPY: the scopes below grow the run document
+    ASSERT_FALSE(setup->recipe->trim.empty()) << "the compressed cell must be near-dependent, or this test tests nothing";
+    const auto table=setup->MakeShellConditioning();
+    const auto kept=table->KeptBy(setup->recipe->trim);
+    BasisSet::Lattice::ShellConditioning::Answer trimmed, untrimmed;
+    { const report::Scope s("trimmed");   trimmed  =table->Analyze(kept, kNa2.orthoTol); }
+    { const report::Scope s("untrimmed"); untrimmed=table->Analyze(std::vector<bool>(table->Shells().size(), true), kNa2.orthoTol); }
+    const double after=vet.at("lambdaMinAfter"), before=vet.at("lambdaMinBefore");
+    // eigenvalue roundoff is eps*||S|| (||S|| ~ 1 here), not relative to lambda_min: an ABSOLUTE tolerance
+    EXPECT_NEAR(trimmed.lambdaMin, after, 1e-12) << "deleting rows/columns of S IS the trimmed basis's overlap";
+    EXPECT_EQ(trimmed.worstK, vet.at("lambdaMinAfterAt").get<std::string>());
+    EXPECT_TRUE(trimmed.Healthy()) << "the vet stage stopped where no k-block drops an AO at its orthoTol";
+    EXPECT_NEAR(untrimmed.lambdaMin, before, 1e-12);
+    EXPECT_FALSE(untrimmed.Healthy());
+    EXPECT_EQ(table->KeptBy(setup->MakeVetTrim(kNa2.orthoTol)), kept) << "the reference trim is the loop Resolve ran";
+    double share=0.0; for (double p : trimmed.participation) share+=p;
+    EXPECT_NEAR(share, 1.0, 1e-10) << "the near-null space is shared out over the kept shells";
+    const auto rec=report::CurrentRunReport().at("trimmed");
+    EXPECT_EQ(rec.at("shells").size(), table->Shells().size());
+    EXPECT_EQ(rec.at("blocks").size(), trimmed.blocks.size());
+    EXPECT_TRUE(rec.at("healthy").get<bool>());
+}
+
+TEST(SolidSetup, TheShellWhatIfNeedsARecipe)
+{
+    UnitCell cell=TwoNa(5.0);
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_VA, &cell,
+        BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian, ShellTrim{}));
+    const auto setup=SolidSetup::Resolve(lat, mol, kNa2);
+    EXPECT_THROW(setup->MakeShellConditioning(), std::invalid_argument) << "a pre-built basis has no recipe to clear the trim of";
+    EXPECT_THROW(setup->MakeVetTrim(1e-4), std::invalid_argument);
 }
 
 TEST(SolidSetup, AnAutoTrimWithNoOrthoTolIsRefused)

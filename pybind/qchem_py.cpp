@@ -235,6 +235,34 @@ private:
     qcb_calc* h = nullptr;
 };
 
+// The Python-facing owner of one basis what-if table (deck::MakeBasisShells): built once from a deck, queried per kept-shell set.
+class BasisShells
+{
+public:
+    explicit BasisShells(const std::string& deckJson)
+    {
+        char err[errlen] = {0};
+        {
+            nb::gil_scoped_release nogil;
+            h = qcb_shells_make(deckJson.c_str(), err, errlen);
+        }
+        if (!h) throw std::runtime_error(err);
+    }
+    ~BasisShells() { qcb_shells_free(h); }
+    BasisShells(const BasisShells&)            = delete;
+    BasisShells& operator=(const BasisShells&) = delete;
+    std::string Query(const std::string& req)
+    {
+        int n;
+        { nb::gil_scoped_release nogil; n = qcb_shells_query(h, req.c_str(), nullptr, 0); }
+        std::string out(size_t(n) + 1, '\0');
+        out.resize(size_t(qcb_shells_query(h, nullptr, out.data(), int(out.size()))));
+        return out;
+    }
+private:
+    qcb_shells* h = nullptr;
+};
+
 // The Python-facing owner of one periodic calculation, built from a deck (qchem::deck::Build).
 class SolidRun
 {
@@ -433,6 +461,14 @@ NB_MODULE(qchem_py, mod)
     }, nb::arg("request"),
        "A Gaussian94 basis (the Basis Set Exchange's text) translated into the BasisSetData layout: JSON {text, title, provenance} "
        "in, JSON {bsd, elements, maxL, notes} or {error} out.");
+
+    nb::class_<BasisShells>(mod, "BasisShells")
+        .def(nb::init<const std::string&>(), nb::arg("deck_json"),
+             "The shell what-if of a deck's basis: the deck's setup resolved as Build does, its untrimmed basis analysed once (analytic S per k, no grids, no SCF)")
+        .def("query", &BasisShells::Query, nb::arg("request") = "{}",
+             "JSON {\"kept\": [bool per shell]} (absent: the deck's own trim) in; out: the library's basisTrimAnalysis record -- "
+             "the verdict (healthy, lambdaMin, worstK, cond, aoDrops at the floor), a row per k, a row per shell (lambdaMinToggled, "
+             "condToggled, aoDropsToggled, participation), deckKept and the autoTrimKept reference");
 
     nb::class_<SolidRun>(mod, "SolidRun")
         .def(nb::init<const std::string&>(), nb::arg("deck_json"),

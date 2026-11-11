@@ -4,6 +4,8 @@ module;
 #include <functional> // VetStageTrim's basis maker
 #include <stdexcept>  // VetStageTrim's refusals
 #include <cmath>     // lround (fractional k-point -> integer BZ-grid index)
+#include <complex>   // std::norm (ShellConditioning's participation)
+#include <limits>    // ShellConditioning: an empty block's lambda_min
 #include <iostream>  // std::cout (the run-start GPW grid diagnostic)
 #include <memory>    // std::shared_ptr / std::move (the GPW basis owns the molecular Gaussian basis)
 #include <sstream>   // irrep label for the pre-flight basis.perIrrep rows
@@ -353,6 +355,190 @@ VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
         std::cout << " from EVERY site of that element, every k" << std::endl;
     }
     throw std::runtime_error("VetStageTrim: 64 passes without a clean basis -- something other than diffuse shells is near-dependent");
+}
+
+//--------------------------------------------------------------------------------------------- THE SHELL WHAT-IF
+ShellConditioning::ShellConditioning(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> untrimmed, const GPWParams& p)
+{
+    std::vector<std::pair<int,rvec3_t>> sites;
+    lat.GetUnitCell().ForEachSite([&](int Z, const rvec3_t& R, bool){ sites.push_back({Z,R}); });
+    auto elementAt=[&](const rvec3_t& c)
+    {
+        for (const auto& [Z,R] : sites)
+        {
+            const rvec3_t d=c-R;
+            if (d.x*d.x+d.y*d.y+d.z*d.z < 1e-12) return Z;
+        }
+        throw std::logic_error("ShellConditioning: a basis shell whose centre is no site of the cell");
+    };
+    auto shellIndex=[&](int Z, int l, const rvec_t& e)       // one entry per (element, l, exponents): a basis fact, pin 22
+    {
+        for (size_t i=0;i<itsShells.size();++i)
+        {
+            const Shell& s=itsShells[i];
+            if (s.Z!=Z || s.l!=l || s.exponents.size()!=e.size()) continue;
+            bool same=true; for (size_t a=0;a<e.size();++a) same=same && s.exponents[a]==e[a];
+            if (same) return i;
+        }
+        itsShells.push_back({Z,l,e,0});
+        return itsShells.size()-1;
+    };
+    GPWParams full=p;
+    full.imposeSymmetry=false;                 // every k of the mesh, no fold: the rank question is the BASIS's (as VetStageTrim)
+    full.siteSpins.clear();
+    full.densityEcut=0.0;                      // analytic overlaps only
+    GPW_BasisSet bs(lat, untrimmed, full);
+    const Complex_BS& cbs=bs;
+    for (size_t i=0;i<cbs.GetNumIBS();++i)
+        std::visit([&](const auto& b)
+        {
+            std::ostringstream os; os << b->GetSymmetry();
+            itsK.push_back(os.str());
+            itsS.push_back(b->Overlap());                                    // the block's own scalar, as the vet stage factorizes it
+            const auto* src=dynamic_cast<const BasisSet::AoShellSource*>(b.get());   // abstract -> abstract
+            if (!src) throw std::logic_error("ShellConditioning: a Bloch block that cannot name its shells (no AoShellSource)");
+            std::vector<std::vector<size_t>> aos(itsShells.size());
+            for (const auto& sh : src->GetAoShells())
+            {
+                const size_t k=shellIndex(elementAt(sh.center), sh.rep->L(), sh.exponents);
+                if (aos.size()<itsShells.size()) aos.resize(itsShells.size());
+                for (size_t c=0;c<sh.nComponents();++c) aos[k].push_back(sh.offset+c);
+            }
+            itsAOs.push_back(std::move(aos));
+        }, bs.GetChild(i));
+    for (auto& aos : itsAOs) aos.resize(itsShells.size());     // a shell first met in a later block: empty in the earlier ones
+    if (!itsAOs.empty()) for (size_t k=0;k<itsShells.size();++k) itsShells[k].nAO=itsAOs[0][k].size();
+}
+
+std::vector<bool> ShellConditioning::KeptBy(const Gaussian::ShellTrim& trim) const
+{
+    std::vector<bool> kept(itsShells.size(), true);
+    for (size_t k=0;k<itsShells.size();++k) kept[k]=!trim.Removes(itsShells[k].Z, itsShells[k].l, itsShells[k].exponents);
+    return kept;
+}
+
+namespace
+{
+//! The AOs of the \a kept shells of one block, ascending (the trimmed basis keeps the untrimmed order).
+std::vector<size_t> KeptAOs(const std::vector<std::vector<size_t>>& aos, const std::vector<bool>& kept)
+{
+    std::vector<size_t> idx;
+    for (size_t k=0;k<aos.size();++k) if (kept[k]) idx.insert(idx.end(), aos[k].begin(), aos[k].end());
+    std::sort(idx.begin(), idx.end());
+    return idx;
+}
+//! S restricted to \a idx: exactly the overlap of the basis without the other shells.
+template <class M> M Restricted(const M& S, const std::vector<size_t>& idx)   // M: hmat_t<T> (an alias T cannot be deduced through)
+{
+    M R(idx.size());
+    for (size_t r=0;r<idx.size();++r) for (size_t c=r;c<idx.size();++c) R(r,c)=S(idx[r],idx[c]);
+    return R;
+}
+}
+
+ShellConditioning::Spectrum ShellConditioning::Measure(size_t block, const std::vector<bool>& kept, double floor) const
+{
+    const std::vector<size_t> idx=KeptAOs(itsAOs[block], kept);
+    Spectrum out{std::numeric_limits<double>::infinity(), 0.0, 0, idx.size()};   // no function at this k: nothing near-dependent
+    if (idx.empty()) return out;
+    std::visit([&](const auto& S)
+    {
+        using T=typename std::decay_t<decltype(S)>::ElementType;
+        const auto R=Restricted(S, idx);
+        rvec_t w; blazem::eigen(R, w);                                       // ascending
+        out.lambdaMin=w[0];
+        out.cond=w[w.size()-1]/w[0];
+        out.aoDrops=qchem::PivotedCholeskyDrops<T>(R, floor).size();         // the vet stage's own test
+    }, itsS[block]);
+    return out;
+}
+
+ShellConditioning::Answer ShellConditioning::Analyze(const std::vector<bool>& kept, double floor) const
+{
+    if (kept.size()!=itsShells.size())
+        throw std::invalid_argument("ShellConditioning::Analyze: "+std::to_string(kept.size())+" flags for "+std::to_string(itsShells.size())+" shells");
+    if (!(floor>0.0)) throw std::invalid_argument("ShellConditioning::Analyze: the floor must be > 0 (an orthoTol)");
+    Answer a;
+    size_t worst=0;
+    a.lambdaMin=std::numeric_limits<double>::infinity();
+    for (size_t b=0;b<itsS.size();++b)
+    {
+        const Spectrum sp=Measure(b, kept, floor);
+        const Block blk{itsK[b], sp.nFunctions, sp.lambdaMin, sp.cond, sp.aoDrops};
+        if (blk.lambdaMin<a.lambdaMin) { a.lambdaMin=blk.lambdaMin; a.worstK=blk.k; worst=b; }
+        a.cond=std::max(a.cond, blk.cond);
+        a.aoDrops+=blk.aoDrops;
+        a.nFunctions=blk.nFunctions;
+        a.blocks.push_back(blk);
+    }
+    // the near-null space at the worst k, and each shell's share of it
+    a.participation.assign(itsShells.size(), 0.0);
+    if (!itsS.empty())
+    {
+        const std::vector<size_t> idx=KeptAOs(itsAOs[worst], kept);
+        if (!idx.empty())
+            std::visit([&](const auto& S)
+            {
+                using T=typename std::decay_t<decltype(S)>::ElementType;
+                rvec_t w; mat_t<T> V; blazem::eigen(Restricted(S, idx), w, V);   // ascending, columns = eigenvectors
+                size_t nv=0; while (nv<w.size() && w[nv]<floor) ++nv;
+                const size_t use=std::max<size_t>(nv,1);
+                std::vector<size_t> pos(S.rows(), size_t(-1));
+                for (size_t r=0;r<idx.size();++r) pos[idx[r]]=r;
+                for (size_t k=0;k<itsShells.size();++k)
+                    if (kept[k])
+                        for (size_t ao : itsAOs[worst][k])
+                            for (size_t v=0;v<use;++v) a.participation[k]+=std::norm(V(pos[ao],v))/double(use);
+            }, itsS[worst]);
+    }
+    // what toggling each shell ALONE does, worst over k
+    a.lambdaMinToggled.assign(itsShells.size(), std::numeric_limits<double>::infinity());
+    a.condToggled.assign(itsShells.size(), 0.0);
+    a.aoDropsToggled.assign(itsShells.size(), 0);
+    for (size_t k=0;k<itsShells.size();++k)
+    {
+        std::vector<bool> t=kept; t[k]=!t[k];
+        for (size_t b=0;b<itsS.size();++b)
+        {
+            const Spectrum sp=Measure(b, t, floor);
+            a.lambdaMinToggled[k]=std::min(a.lambdaMinToggled[k], sp.lambdaMin);
+            a.condToggled[k]=std::max(a.condToggled[k], sp.cond);
+            a.aoDropsToggled[k]+=sp.aoDrops;
+        }
+    }
+    // THE RECORD, one level in (the caller opened the scope): the verdict, then a row per k and a row per shell.
+    qchem::report::Set("floor", floor);
+    qchem::report::Set("healthy", a.Healthy());
+    qchem::report::Set("lambdaMin", a.lambdaMin);
+    qchem::report::Set("worstK", a.worstK);
+    qchem::report::Set("cond", a.cond);
+    qchem::report::Set("aoDrops", (long)a.aoDrops);
+    qchem::report::Set("nFunctions", (long)a.nFunctions);
+    for (const Block& blk : a.blocks)
+    {
+        qchem::report::Row row("blocks");
+        qchem::report::Set("k", blk.k);
+        qchem::report::Set("nFunctions", (long)blk.nFunctions);
+        qchem::report::Set("lambdaMin", blk.lambdaMin);
+        qchem::report::Set("cond", blk.cond);
+        qchem::report::Set("aoDrops", (long)blk.aoDrops);
+    }
+    for (size_t k=0;k<itsShells.size();++k)
+    {
+        const Shell& sh=itsShells[k];
+        qchem::report::Row row("shells");
+        qchem::report::Set("Z", (long)sh.Z);
+        qchem::report::Set("l", (long)sh.l);
+        std::vector<double> e; for (size_t i=0;i<sh.exponents.size();++i) e.push_back(sh.exponents[i]);
+        qchem::report::Set("exponents", e);
+        qchem::report::Set("nAO", (long)sh.nAO);
+        qchem::report::Set("kept", bool(kept[k]));
+        qchem::report::Set("lambdaMinToggled", a.lambdaMinToggled[k]);
+        qchem::report::Set("condToggled", a.condToggled[k]);
+        qchem::report::Set("aoDropsToggled", (long)a.aoDropsToggled[k]);
+        qchem::report::Set("participation", a.participation[k]);
+    }
+    return a;
 }
 
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
