@@ -13,7 +13,7 @@ target_sources(qcAD PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
 )
 set_property(TARGET qcAD PROPERTY CXX_STANDARD 20)
 target_compile_definitions(qcAD PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_include_directories(qcAD PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+target_include_directories(qcAD PRIVATE ${QCHEM_BLAZE_DIR})
 target_link_libraries(qcAD PUBLIC qcMath qcCommon)
 # PRIVATE: the plugin changes only how qcAD's own TUs compile; its interface (and so every importer's .pcm) does not see it.
 # -O2 -mprefer-vector-width=128 (after the tree's -O3, so they win): Enzyme 1a87ccc on LLVM 21.1.6 SEGFAULTED at -O2 -march=native

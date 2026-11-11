@@ -1,8 +1,4 @@
 
-link_directories(
-    $<$<CONFIG:Debug>:  submodules/libxc/build>
-    $<$<CONFIG:Release>:  submodules/libxc/build>
-)
 
 # THE GPW HARNESS (doc/TestSuitePlan.md phase 2): the recipe vocabulary + instruments the GPW integration
 # tests and CLIapps/gpwprobe share.  Its own library so both compile one copy; no gtest in it.
@@ -11,9 +7,9 @@ target_sources(qcGPW_Harness PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
 target_compile_definitions(qcGPW_Harness PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET qcGPW_Harness PROPERTY CXX_STANDARD 20)
 target_include_directories(qcGPW_Harness PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_BINARY_DIR}/submodules/libxc
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_LIBXC_BUILD}
 )
 target_link_libraries(qcGPW_Harness PUBLIC qcUmbrella qchem qcMath qcCommon)
 
@@ -24,9 +20,9 @@ target_sources(qcPW_Harness PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILE
 target_compile_definitions(qcPW_Harness PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET qcPW_Harness PROPERTY CXX_STANDARD 20)
 target_include_directories(qcPW_Harness PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_BINARY_DIR}/submodules/libxc
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_LIBXC_BUILD}
 )
 target_link_libraries(qcPW_Harness PUBLIC qcPW_TestFields qcUmbrella qchem qcMath qcCommon)
 
@@ -55,19 +51,19 @@ target_sources(ITMain PRIVATE FILE_SET panel_modules TYPE CXX_MODULES FILES GPW/
 set_property(TARGET ITMain PROPERTY CXX_STANDARD 20)
 
 target_include_directories(ITMain PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
-    ${PROJECT_BINARY_DIR}/submodules/libxc
+    ${QCHEM_BSPLINE_INCLUDE}
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_TABULATE_INCLUDE}
+    ${QCHEM_GTEST_INCLUDE}
+    ${QCHEM_LIBXC_BUILD}
 )
 target_link_libraries(ITMain PRIVATE qcGPW_Harness qcPW_Harness qcUmbrella qchem qcMath qcCommon xc blas gtest)
 
 
 
 # add_executable(DiracHydrogen DiracHydrogen.C)
-# target_include_directories(DiracHydrogen PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+# target_include_directories(DiracHydrogen PRIVATE ${QCHEM_BLAZE_DIR})
 # target_link_libraries(DiracHydrogen PUBLIC qchem lapack blas)
 # set_property(TARGET DiracHydrogen PROPERTY CXX_STANDARD 20)
 

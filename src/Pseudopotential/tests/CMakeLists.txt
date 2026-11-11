@@ -9,8 +9,8 @@ target_compile_definitions(UTPseudopotential PRIVATE ${CXX_COMMON_COMPILE_DEFINI
 set_property(TARGET UTPseudopotential PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTPseudopotential PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_GTEST_INCLUDE}
 )
 
 # qcMesh supplies the radial mesh for the Bessel-transform quadrature.

@@ -11,10 +11,10 @@ target_compile_definitions(UTElConfig PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTElConfig PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTElConfig PRIVATE
-    # ${PROJECT_SOURCE_DIR}/submodules/blaze
-    # ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
+    # ${QCHEM_BLAZE_DIR}
+    # ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_TABULATE_INCLUDE}
+    ${QCHEM_GTEST_INCLUDE}
 )
 
 target_link_libraries(UTElConfig PRIVATE qcElConfig gtest)

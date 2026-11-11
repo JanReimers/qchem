@@ -7,10 +7,10 @@ add_executable(scfrun scfrun.C)
 target_compile_definitions(scfrun PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET scfrun PROPERTY CXX_STANDARD 20)
 target_include_directories(scfrun PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
+    ${QCHEM_BSPLINE_INCLUDE}
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_TABULATE_INCLUDE}
 )
 target_link_libraries(scfrun PUBLIC qchem qcMath qcCommon blas)
 
@@ -20,10 +20,10 @@ add_executable(valgen valgen.C)
 target_compile_definitions(valgen PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET valgen PROPERTY CXX_STANDARD 20)
 target_include_directories(valgen PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
+    ${QCHEM_BSPLINE_INCLUDE}
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_TABULATE_INCLUDE}
 )
 target_link_libraries(valgen PUBLIC qchem qcMath qcCommon blas)
 
@@ -35,8 +35,8 @@ add_executable(gpwprobe gpwprobe.C)
 target_compile_definitions(gpwprobe PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET gpwprobe PROPERTY CXX_STANDARD 20)
 target_include_directories(gpwprobe PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
 )
 target_link_libraries(gpwprobe PUBLIC qcGPW_Harness qchem qcMath qcCommon blas)
 
@@ -46,8 +46,8 @@ add_executable(rundeck rundeck.C)
 target_compile_definitions(rundeck PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET rundeck PROPERTY CXX_STANDARD 20)
 target_include_directories(rundeck PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
 )
 target_link_libraries(rundeck PUBLIC qchem qcMath qcCommon blas)
 
@@ -56,5 +56,5 @@ target_link_libraries(rundeck PUBLIC qchem qcMath qcCommon blas)
 add_executable(gth2upf gth2upf.C)
 target_compile_definitions(gth2upf PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET gth2upf PROPERTY CXX_STANDARD 20)
-target_include_directories(gth2upf PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze ${PROJECT_SOURCE_DIR}/submodules/json/single_include)
+target_include_directories(gth2upf PRIVATE ${QCHEM_BLAZE_DIR} ${QCHEM_JSON_INCLUDE})
 target_link_libraries(gth2upf PUBLIC qchem qcMath qcCommon blas)

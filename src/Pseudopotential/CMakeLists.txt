@@ -10,8 +10,8 @@ target_sources(qcPseudopotential PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     PseudopotentialSet.C
     )
 target_include_directories(qcPseudopotential PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BLAZE_DIR}
 )
 set_property(TARGET qcPseudopotential PROPERTY CXX_STANDARD 20)
 target_compile_definitions(qcPseudopotential PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS} ${PseudoDataPath})

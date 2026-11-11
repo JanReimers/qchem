@@ -6,8 +6,8 @@ add_executable(UTAD ../../Common/tests/gtestmain.C
 target_compile_definitions(UTAD PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTAD PROPERTY CXX_STANDARD 20)
 target_include_directories(UTAD PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_GTEST_INCLUDE}
 )
 target_link_libraries(UTAD PRIVATE qcAD qcMesh gtest)
 qchem_discover_tests(UTAD)
