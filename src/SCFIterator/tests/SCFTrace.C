@@ -255,26 +255,28 @@ Virial               V/K  :    -2.00407537653  Eee/Exc:      -6.150743647
 +-------------+--------------+--------------+-------------+--------------+-------------+
 [molecule] CONVERGED iters=20 charge=16.00000000000 Eelec=-177.67512108549 Etot=-149.6295470276  (Ekin=149.02222534747 Een=-410.56958538693 Eee=100.15575929635 Exc=-16.28352034239 Enn=28.04557405784)
 )G";
+// RE-JUDGED 2026-11-10 (lane B, the 1E lattice-sum screen on each kernel's own bound): E_KS -7.115054455314 -> -7.115054417 (+38 nHa,
+// the Si Γ anchors' move).  Pin 10's independent route, only the S / T / <chi|g> series at screenEps x 1e-6: -7.115054416154.
 const char* const kSolidGolden = R"G(  #               Etotal      [F,D]       ΔE/E        Δρ   ρ_lost/N    XC ρ    samp/τ  ρ_mix         accel   svMin    cfg       gap  
                                        (1e-06)   (1e-03)
 ----------------------------------------------------------------------------------------------------
-  1      -7.116180722895   2.70e-01  -1.00e+00  5.12e-02   2.35e-10      DM      ----  PulD 0.45     ----    ----          6.69e-02  
-  2      -7.115350767208   1.23e-02   1.17e-04  2.60e-02  -1.02e-09      DM      ----  PulD 0.45     ----    ----          6.83e-02  
-  3      -7.115141435234   6.46e-03   2.94e-05  1.34e-02  -1.38e-09      DM      ----  PulD 0.45     ----    ----          6.90e-02  
-  4      -7.115088757831   3.97e-03   7.40e-06  7.18e-03  -1.68e-09      DM      ----  PulD 0.45     ----    ----          6.93e-02  
-[energy] final E_KS[D_out] = -7.115054455314  (the trace's first-order E_T: |E_T - E_KS| = 3.43e-05 Ha, second order)
+  1      -7.116180684469   2.70e-01  -1.00e+00  5.12e-02   1.79e-09      DM      ----  PulD 0.45     ----    ----          6.69e-02  
+  2      -7.115350728843   1.23e-02   1.17e-04  2.60e-02   3.94e-10      DM      ----  PulD 0.45     ----    ----          6.83e-02  
+  3      -7.115141396884   6.46e-03   2.94e-05  1.34e-02  -3.81e-11      DM      ----  PulD 0.45     ----    ----          6.90e-02  
+  4      -7.115088719483   3.97e-03   7.40e-06  7.18e-03  -3.73e-10      DM      ----  PulD 0.45     ----    ----          6.93e-02  
+[energy] final E_KS[D_out] = -7.115054417  (the trace's first-order E_T: |E_T - E_KS| = 3.43e-05 Ha, second order)
 ----------------------------------------------------------------------------------------------------------
-Energy    Breakdown  Total:  -7.11505445531  Kinetic:   4.36165986768  Potential: -11.47671432300
-Potential Breakdown  Een  :  -1.13823286561  Eee    :   0.90114790101  Eex      :  -2.54427180641
-Een       Breakdown  Eloc :  -2.86263085138  EenNL  :   1.72439798577
-Virial               V/K  :  -2.63127219250  Eee/Exc:  -0.35418696176  
+Energy    Breakdown  Total:  -7.11505441700  Kinetic:   4.36165985660  Potential: -11.47671427360
+Potential Breakdown  Een  :  -1.13823278927  Eee    :   0.90114785581  Eex      :  -2.54427178815
+Een       Breakdown  Eloc :  -2.86263084616  EenNL  :   1.72439805689
+Virial               V/K  :  -2.63127218787  Eee/Exc:  -0.35418694654  
 +-----------+-------------+----------+
 | Occ/Degen |      ϵ (au) | Symmetry |
 +-----------+-------------+----------+
 |    2/2    | -0.11636597 | 2(0,0,0) |
 |    6/6    |  0.32414685 | 3(0,0,0) |
 +-----------+-------------+----------+
-[gpw] NOT converged iters=4 charge=8.00000000000 Eelec=1.58030309668 Etot=-7.1150544553  (Ekin=4.36165986768 Een=-1.13823286561 Eee=0.90114790101 Exc=-2.54427180641 Enn=-8.40046478619 E_alphaZ=-0.29489276580)
+[gpw] NOT converged iters=4 charge=8.00000000000 Eelec=1.58030313499 Etot=-7.1150544170  (Ekin=4.36165985660 Een=-1.13823278927 Eee=0.90114785581 Exc=-2.54427178815 Enn=-8.40046478619 E_alphaZ=-0.29489276580)
 [gpw raster pilot] SKIPPED: the SCF did not converge, so there is no D to audit -- the rasters stay the ball's own
 )G";
 }
