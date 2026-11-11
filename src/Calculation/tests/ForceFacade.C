@@ -741,7 +741,7 @@ TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFini
 
 // REAL TRIM BLOCKS ON A k-MESH (lane H 2026-11-11, the forces row's "real TRIM block of a lattice basis"): GPW Si at k222, where every
 // k is a TRIM point and the blocks run REAL (asserted below), each term that answers gives its force and its virial at fixed D equal to
-// the finite difference of its own energy: atoms moved (h 1e-4, every atom and axis) and the cell strained (h 1e-4, all 9 components), D
+// the finite difference of its own energy: an atom moved (h 1e-4, three axes) and the cell strained (h 1e-4, six components), D
 // frozen on the remade basis.  The sheared, distorted cell and 2 % allowance of the PW gates.  PP (lane B) and XC (the δ XC) name
 // themselves; the WHOLE force and stress against the re-converged energy wait on them.
 TEST(HamiltonianForces, OnRealTRIMBlocksAtK222EachTermsForceAndVirialAtFixedDAreItsEnergysFiniteDifference)
@@ -770,7 +770,9 @@ TEST(HamiltonianForces, OnRealTRIMBlocksAtK222EachTermsForceAndVirialAtFixedDAre
         return ForceFacadeTests::FrozenAt(c0, cell);
     };
     size_t gated=0; double bigF=0.0, bigV=0.0;
-    for (size_t A=0;A<f0.size();A++) for (int k=0;k<3;k++)
+    // COST (the user's unit-test budget): one atom's three axes and six strain components (the Γ and PW gates take every component);
+    // 18 frozen points, ~25 s under a -j4 sweep.
+    for (size_t A=1;A<2;A++) for (int k=0;k<3;k++)
     {
         const auto Ep=moved(A,k,h), Em=moved(A,k,-h);
         ASSERT_EQ(Ep.size(), F.size()) << "MakeTermForces is MakeTermEnergies' twin, index for index";
@@ -783,7 +785,8 @@ TEST(HamiltonianForces, OnRealTRIMBlocksAtK222EachTermsForceAndVirialAtFixedDAre
             bigF=std::max(bigF, std::fabs(fd));
         }
     }
-    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++)
+    const std::pair<size_t,size_t> comps[]={{1,1},{2,2},{3,3},{1,2},{2,3},{3,1}};
+    for (const auto& [i,j] : comps)
     {
         const auto Ep=ForceFacadeTests::FrozenAt(c0, PWStressStrained(i,j, h)), Em=ForceFacadeTests::FrozenAt(c0, PWStressStrained(i,j,-h));
         for (size_t t=0;t<V.size();t++)
