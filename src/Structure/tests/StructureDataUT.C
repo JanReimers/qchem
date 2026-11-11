@@ -1,6 +1,7 @@
 // File: src/Structure/tests/StructureDataUT.C  qchem.StructureData: the pre-defined molecules and cells
 // (D-STRUCTDATA).  Structure only -- valence counts are the MoleculeCalculation library's (src/Calculation/tests/Materials.C).
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -55,7 +56,7 @@ TEST(StructureData, AKindMismatchOrAMissThrows)
 
 // ------------------------------------------------------------------------------------- THE LAYERS (OpenWork §2, ruled 2026-11-09)
 // The shipped file stays curated; imports go to the user's library and a workspace adds its own on top -- each passed in as an
-// explicit PATH (the library reads no environment, controller ruling 2026-11-09) -- and one name is one structure across them.
+// explicit PATH (the library reads no environment, controller ruling 2026-11-09) -- and a later layer SHADOWS an earlier one (2026-11-11).
 namespace
 {
 struct TempLibrary
@@ -102,31 +103,42 @@ TEST(StructureData, ASavedMaterialIsAUserLayerEntryBesideTheShippedOnes)
     EXPECT_EQ(SD::CellEntries({mine.file})[shipped].name, "MgO_imported");
 }
 
-TEST(StructureData, AUserEntryMayNotReuseAShippedNameAndTheShippedFileIsNeverWritten)
+TEST(StructureData, AUserEntryMayReuseAShippedNameAndShadowsItAndTheShippedFileIsNeverWritten)
 {
     TempLibrary mine;
-    EXPECT_NE(Thrown([&]{ SD::SaveMaterial(mine.file, "NaF_rocksalt", kRocksalt, true); }).find("already in the shipped materials"), std::string::npos);
+    const size_t shipped=SD::CellEntries().size();
+    SD::SaveMaterial(mine.file, "NaF_rocksalt", kRocksalt);       // the user's (2026-11-11): MY materials may reuse a shipped name
+    const auto all=SD::CellEntries({mine.file});
+    ASSERT_EQ(all.size(), shipped+1) << "the shadowed shipped entry is still listed";
+    const auto it=std::find_if(all.begin(), all.end(), [](const SD::CellEntry& e){ return e.name=="NaF_rocksalt" && e.layer==SD::Layer::Shipped; });
+    ASSERT_NE(it, all.end());
+    EXPECT_TRUE(it->shadowed);
+    EXPECT_FALSE(all.back().shadowed);
+    const SD::CellEntry e=SD::GetCellEntry("NaF_rocksalt", {mine.file});
+    EXPECT_EQ(e.layer, SD::Layer::User) << "a lookup by name finds the topmost layer's";
+    EXPECT_EQ(SD::CellFromEntry(e.entryJson, e.name).GetNumAtoms(), 2u);
+    EXPECT_EQ(SD::GetCellEntry("NaF_rocksalt").layer, SD::Layer::Shipped) << "without the user's layer, the shipped one";
     EXPECT_NE(Thrown([&]{ SD::SaveMaterial(mine.file, "H2O", kRocksalt); }).find("shipped molecule name"), std::string::npos);
     EXPECT_NE(Thrown([&]{ SD::SaveMaterial(mine.file, "_x", kRocksalt); }).find("must be non-empty, not start with '_'"), std::string::npos);
     EXPECT_NE(Thrown([&]{ SD::SaveMaterial({SD::Layer::Shipped, mine.path}, "x", kRocksalt); }).find("CURATED"), std::string::npos);
     EXPECT_NE(Thrown([&]{ SD::SaveMaterial(mine.file, "bad", R"({"lattice":{"vectors_bohr":[[1,0,0],[0,1,0],[0,0,1]]},"atoms":[{"el":"Qq","frac":[0,0,0]}]})"); })
               .find("unknown element symbol 'Qq'"), std::string::npos) << "the parser refuses before the file is written";
-    EXPECT_FALSE(std::filesystem::exists(mine.path)) << "nothing refused reached the file";
-    // a hand-edited library that reuses a shipped name is refused the moment it is read, naming the file
-    { std::ofstream f(mine.path); f << R"({"Si_diamond": )" << kRocksalt << "}"; }
+    // a hand-edited library that uses a shipped MOLECULE name is refused the moment it is read, naming the file
+    { std::ofstream f(mine.path); f << R"({"H2O": )" << kRocksalt << "}"; }
     const std::string why=Thrown([&]{ (void)SD::CellEntries({mine.file}); });
     EXPECT_NE(why.find(mine.path), std::string::npos) << why;
-    EXPECT_NE(why.find("'Si_diamond' is already a name in the shipped materials"), std::string::npos) << why;
+    EXPECT_NE(why.find("'H2O' is a shipped molecule name"), std::string::npos) << why;
 }
 
-TEST(StructureData, AWorkspaceLibraryLayersOnTopAndMayNotCollideWithTheUsers)
+TEST(StructureData, AWorkspaceLibraryLayersOnTopAndShadowsTheUsers)
 {
     TempLibrary mine, ws(SD::Layer::Workspace);
     SD::SaveMaterial(mine.file, "Mine", kRocksalt);
     { std::ofstream f(ws.path); f << R"({"Theirs": )" << kRocksalt << R"(, "Mine": )" << kRocksalt << "}"; }
-    EXPECT_NE(Thrown([&]{ (void)SD::CellEntries({mine.file, ws.file}); }).find("'Mine' is already a name in your materials library"), std::string::npos);
-    { std::ofstream f(ws.path); f << R"({"Theirs": )" << kRocksalt << "}"; }
+    EXPECT_EQ(SD::GetCellEntry("Mine", {mine.file, ws.file}).layer, SD::Layer::Workspace) << "the workspace is the top layer";
+    EXPECT_EQ(SD::GetCellEntry("Mine", {mine.file}).layer, SD::Layer::User);
     EXPECT_EQ(SD::GetCellEntry("Theirs", {mine.file, ws.file}).layer, SD::Layer::Workspace);
-    EXPECT_EQ(SD::CellEntries({mine.file, ws.file}).back().name, "Theirs");
-    EXPECT_NE(Thrown([&]{ SD::SaveMaterial(mine.file, "Theirs", kRocksalt, false, {ws.file}); }).find("already in a workspace library"), std::string::npos);
+    EXPECT_EQ(SD::CellEntries({mine.file, ws.file}).back().name, "Mine");
+    SD::SaveMaterial(mine.file, "Theirs", kRocksalt);             // the user's layer may hold a name the workspace holds too
+    EXPECT_EQ(SD::GetCellEntry("Theirs", {mine.file, ws.file}).layer, SD::Layer::Workspace) << "and is shadowed by it";
 }

@@ -659,7 +659,7 @@ nlohmann::ordered_json MaterialsAnswer(const std::string& req)
         json all=json::array();
         for (const auto& e : SD::CellEntries(libraries))
             all.push_back({{"name", e.name}, {"layer", e.layer==SD::Layer::Shipped ? "shipped" : e.layer==SD::Layer::User ? "user" : "workspace"},
-                           {"file", e.file}, {"entry", json::parse(e.entryJson)}, {"lattice_bohr", LatticeRows(e.entryJson)}});
+                           {"file", e.file}, {"shadowed", e.shadowed}, {"entry", json::parse(e.entryJson)}, {"lattice_bohr", LatticeRows(e.entryJson)}});
         return {{"materials", all}};
     }
     if (op=="import")
@@ -677,7 +677,7 @@ nlohmann::ordered_json MaterialsAnswer(const std::string& req)
     if (op=="save")
     {
         const SD::LibraryFile into=layerOf(r.at("into"));
-        SD::SaveMaterial(into, r.at("name").get<std::string>(), r.at("entry").dump(), r.value("replace", false), libraries);
+        SD::SaveMaterial(into, r.at("name").get<std::string>(), r.at("entry").dump(), r.value("replace", false));
         return {{"path", into.path}};
     }
     if (op=="cell") return {{"lattice_bohr", LatticeRows(r.at("entry").dump())}};
