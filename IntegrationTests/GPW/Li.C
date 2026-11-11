@@ -63,12 +63,16 @@ TEST(GPW_Li, k444_Becke_Imp_Smear_ThreadedRunIsReproducibleAndMatchesSerial_Long
 // C3/C4 GTH (only Li q3 and Be q4 carry them), so a 1263-test sweep never saw it; GPW_UT LocalPPShortAnalyticMatchesGrid_C3C4 guards the
 // operator, this guards the energy.
 //
-// THE ORACLES (measured 2026-11-04):
-//   CP2K ATOM, complete basis       -7.3007906   a VARIATIONAL floor for any finite basis: falling below it is the defect's signature.
-//   CP2K QS GPW, this basis, L=12   -7.2850821   (CUTOFF 2000/4000 Ry agree) the like-for-like oracle.
-//   ours                            -7.2857262   0.64 mHa BELOW CP2K QS (q3-PP-specific: q1 on this same basis sits 97 μHa ABOVE CP2K).
-// The 1 mHa tolerance is set ABOVE an OPEN, TRACKED gap -- OpenWork §3 "Li GTH-PADE-q3: 0.64 mHa BELOW CP2K QS on the same basis".  It
-// does not certify that gap; tightening it (to the q1 level, ~0.1 mHa) is that row's CLOSING step.
+// THE ORACLES (2026-11-04; the like-for-like one re-run 2026-11-11 with OUR functional, lane H):
+//   CP2K ATOM, complete basis, PADE   -7.3007906   a VARIATIONAL floor for any finite basis: falling below it is the defect's
+//                                                  signature (PADE, not VWN5: the functionals differ by ~0.6 mHa here, the margin is 15 mHa).
+//   CP2K QS GPW, this basis, L=12,    -7.2857130   XALPHA 2/3 + VWN5, i.e. OUR LDA (Dirac + VWN5); EPS_DEFAULT 1e-14, CUTOFF 2000/150.
+//     Dirac + VWN5
+//   ours, default grids               -7.2857262   13 μHa below it (grid-converged Becke 100/35: -7.2857129, 0.1 μHa).
+// The 0.64 mHa "gap" this gate once sat above was the FUNCTIONAL, not the code: the old oracle ran CP2K's XC_FUNCTIONAL PADE (the
+// Goedecker-Teter-Hutter Padé LDA the GTH-PADE PPs are fitted with), -7.2850821, unchanged to 2e-10 at EPS_PGF_ORB 1e-30 / CUTOFF
+// 3000/300.  With VWN5 on both sides q1 on this basis agrees to 15 μHa too (-0.1840431 vs CP2K -0.1840584).  OpenWork §3 row closed
+// 2026-11-11; decks + outputs ~/Code/cp2k-runs/Li/atom/qs/li_q3_qs_L12{,_tight,_vwn5}.{inp,out}.
 TEST(GPW_LiBox, Γ_M2_CP2K_Long)
 {
     const nlohmann::json deck={
@@ -88,5 +92,5 @@ TEST(GPW_LiBox, Γ_M2_CP2K_Long)
     ASSERT_TRUE(out.converged) << out.summary;
     const double e=out.energy.value_or(0.0);
     EXPECT_GT(e, -7.3007906) << "below CP2K ATOM's complete-basis energy: the q3 local PP is non-variational again (the Hermite3 overrun class)";
-    EXPECT_NEAR(e, -7.2850821, 1e-3) << "CP2K QS GPW on the same basis + box (1 mHa sits above the OPEN 0.64 mHa row; tighten when it closes)";
+    EXPECT_NEAR(e, -7.2857130, 5e-5) << "CP2K QS GPW on the same basis + box + functional (Dirac + VWN5); default grids sit 13 μHa off";
 }
