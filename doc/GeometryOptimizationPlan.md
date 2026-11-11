@@ -846,7 +846,7 @@ Every run converged under the ε-derived rule and lands on PySCF's minimum: ener
 0.003°.  PySCF's own BFGS took 9 / 10 / 20 evaluations (from the experimental H₂O₂, 21).
 
 **What the runs showed** (each a row in `doc/OpenWork.md`):
-1. **The cost is the ERI4, not the optimizer or the SCF.**  H₂O₂ (34 functions) costs ~11 s a point, ~80 % of it the MnD ERI4 build at
+1. **The cost was the ERI4, not the optimizer or the SCF** (FIXED 2026-11-11: the unique-quartet MnD ERI4, OpenWork §4; the relaxation ~150 s → 32 s).  H₂O₂ (34 functions) costs ~11 s a point, ~80 % of it the MnD ERI4 build at
    the new geometry (`findRNLM`, `Hermite2`, `Repulsion4C`, the `Cache2` std::map lookups; `perf`, 60 s sample).
 2. **The molecular DIIS switches itself OFF near convergence**: its ABSOLUTE singular-value floor (`AcceleratorOptions::svTol` 5e-9) on B,
    whose scale is |[F,D]|², prunes the history to one entry once [F,D] ≲ 7e-5, and the tail runs on linear mixing at 0.5 (~0.76 per
@@ -859,7 +859,7 @@ Every run converged under the ε-derived rule and lands on PySCF's minimum: ener
 **Tests** (the user's budget, 2026-11-10): `UTCalculation` `MoleculeSession.AForcesRequestOnHFCarriesTheForceAtEveryPoint` (the wiring,
 against the session's own FD at two points), `MoleculeSession.RefusalsAreOutcomesAndAWrongCountThrows` (LDA refused by name with no point
 kept; stress refused); `MolecularRelaxation.HFWaterReachesPySCFsMinimum` (both steppers, 13 s) and the family's one end-to-end
-`MolecularRelaxation.HFPeroxideUnwindsItsTorsionToPySCFsMinimum_Long` (~150 s).  NH₃ is banked here, not gated.
+`MolecularRelaxation.HFPeroxideUnwindsItsTorsionToPySCFsMinimum` (~150 s then; 32 s since the ERI4 fix, short tier).  NH₃ is banked here, not gated.
 
 ### 15b. The solids on plane waves (lane H, 2026-11-11; OpenWork §2 "Real relaxations end to end", step 2, and the cell half's item (a))
 

@@ -3542,6 +3542,25 @@ public:
                                            pols[iA], eB.pols[iB], eC.pols[iC], eD.pols[iD])
              * ns[iA] * eB.ns[iB] * eC.ns[iC] * eD.ns[iD];
     }
+    //! The shell partition as half-open function ranges [begin, end): what a shell-blocked ERI loop walks (\c Shells).
+    std::vector<std::pair<size_t,size_t>> ShellRanges() const
+    {
+        std::vector<std::pair<size_t,size_t>> r;
+        for (const Shell& s : Shells()) r.push_back({s.begin, s.end});
+        return r;
+    }
+    //! \brief A SHELL QUARTET of \c FourC at once: \a out[((a*nb+b)*nc+c)*nd+d] = FourC(a0+a, eB, b0+b, eC, c0+c, eD, d0+d), each the
+    //! SAME value FourC gives (\c GaussianRF::Repulsion4CBlock, then the four norms in FourC's order).  The shells start at a0.. and
+    //! hold na.. functions (one radial each).
+    void FourCBlock(size_t a0, size_t na, const NR_Evaluator& eB, size_t b0, size_t nb,
+                    const NR_Evaluator& eC, size_t c0, size_t nc, const NR_Evaluator& eD, size_t d0, size_t nd, double* out) const
+    {
+        eD.radials[d0]->Repulsion4CBlock(*radials[a0], *eB.radials[b0], *eC.radials[c0],
+                                         &pols[a0], na, &eB.pols[b0], nb, &eC.pols[c0], nc, &eD.pols[d0], nd, out);
+        size_t q=0;
+        for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++) for (size_t c=0;c<nc;c++) for (size_t d=0;d<nd;d++,q++)
+            out[q] = out[q] * ns[a0+a] * eB.ns[b0+b] * eC.ns[c0+c] * eD.ns[d0+d];
+    }
 
 
 private:

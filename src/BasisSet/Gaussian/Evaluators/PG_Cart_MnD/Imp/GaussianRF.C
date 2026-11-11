@@ -451,13 +451,24 @@ double PrimGaussian::Repulsion3C(const PrimGaussian* ga, const PrimGaussian* gb,
     return s * 2*Pi52 * ab.Eij*factor;
 }
 
+double PrimGaussian::Lambda4C(const Ω& ab, const Ω& cd)
+{
+    double lambda = 2*Pi52/(ab.αₚ*cd.αₚ*sqrt(ab.αₚ+cd.αₚ)); //M&D 3.31
+    lambda *= ab.Eij*cd.Eij; //M&D 2.25
+    return lambda;
+}
+
 double PrimGaussian::Repulsion4C(const Ω& ab, const Ω& cd,
                                  const Polarization& pa, const Polarization& pb,
                                  const Polarization& pc, const Polarization& pd)
 {
-    double lambda = 2*Pi52/(ab.αₚ*cd.αₚ*sqrt(ab.αₚ+cd.αₚ)); //M&D 3.31
-    lambda *= ab.Eij*cd.Eij; //M&D 2.25
-    const RNLM& rnlm(findRNLM(ab.GetGData(), cd.GetGData())); //M&D section 4A
+    return Repulsion4C(ab, cd, findRNLM(ab.GetGData(), cd.GetGData()) /*M&D section 4A*/, Lambda4C(ab,cd), pa, pb, pc, pd);
+}
+
+double PrimGaussian::Repulsion4C(const Ω& ab, const Ω& cd, const RNLM& rnlm, double lambda,
+                                 const Polarization& pa, const Polarization& pb,
+                                 const Polarization& pc, const Polarization& pd)
+{
 
     // Iterate the CONTRIBUTING Hermite (N,L,M) terms directly -- those with each component <= the bra/ket
     // total (Pab/Pcd) -- instead of scanning the full GetNMLs() list and discarding most via operator>
@@ -745,6 +756,105 @@ double GaussianRF::Repulsion4C(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb,
                          * PrimGaussian::Repulsion4C(ab, *cdΩ[k*nl+l], pa, pb, pc, pd);
         }
     return s;
+}
+
+double PrimGaussian::Repulsion4CTab(const double* habT, const Polarization& Pab, const double* hcdT, const Polarization& Pcd,
+                                    const RNLM& rnlm, double lambda)
+{
+    double s = 0.0;
+    size_t ia=0;
+    for (int an=0; an<=Pab.n; ++an)
+     for (int al=0; al<=Pab.l; ++al)
+      for (int am=0; am<=Pab.m; ++am)
+      {
+          const double hab = habT[ia++];
+          if (hab==0.0) continue;
+          size_t ic=0;
+          for (int cn=0; cn<=Pcd.n; ++cn)
+           for (int cl=0; cl<=Pcd.l; ++cl)
+            for (int cm=0; cm<=Pcd.m; ++cm)
+            {
+                const double hcd = hcdT[ic++];
+                if (hcd==0.0) continue;
+                const double r = rnlm(Index3{an+cn, al+cl, am+cm});
+                if (r!=0.0)
+                {
+                    const double sign = ((cn+cl+cm)&1) ? -1.0 : 1.0;   // (-1)^(total of the cd term)
+                    s += hab*hcd*r*sign;
+                }
+            }
+      }
+    return s*lambda;
+}
+
+namespace
+{
+//! One primitive pair's Hermite expansion coefficients H2(N; p1[a], p2[b]) for every component pair (a, b), each over the Hermite triples
+//! of p1[a] + p2[b] in Repulsion4C's (n, l, m) order: off[a*n2+b] indexes h, sum[a*n2+b] is the pair's total polarization.
+struct HermiteTable
+{
+    std::vector<double>       h;
+    std::vector<size_t>       off;
+    std::vector<Polarization> sum;
+};
+void BuildHermiteTable(const Ω& w, const Polarization* p1, size_t n1, const Polarization* p2, size_t n2, HermiteTable& t)
+{
+    t.h.clear(); t.off.assign(n1*n2, 0); t.sum.clear(); t.sum.reserve(n1*n2);
+    for (size_t a=0;a<n1;a++)
+        for (size_t b=0;b<n2;b++)
+        {
+            const Polarization P=p1[a]+p2[b];
+            t.off[a*n2+b]=t.h.size();
+            t.sum.push_back(P);
+            for (int n=0;n<=P.n;++n) for (int l=0;l<=P.l;++l) for (int m=0;m<=P.m;++m)
+                t.h.push_back(w.H2(Polarization(n,l,m), p1[a], p2[b]));
+        }
+}
+}
+
+void GaussianRF::Repulsion4CBlock(rf_t& ra, rf_t& rb, rf_t& rc, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                  const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out) const
+{
+    const size_t ni=ra.itsPrims.size(), nj=rb.itsPrims.size(),
+                 nk=rc.itsPrims.size(), nl=itsPrims.size();
+    const size_t n=na*nb*nc*nd;
+    for (size_t q=0;q<n;q++) out[q]=0.0;
+    // The Ω borrows as Repulsion4C hoists them (the unbounded molecular budget keeps them alive for this call).
+    std::vector<const Ω*> cdΩ(nk*nl);
+    std::vector<HermiteTable> cdH(nk*nl);   // the cd side's Hermite tables, ONCE per primitive pair (not per ab primitive pair)
+    for (size_t k=0;k<nk;++k)
+        for (size_t l=0;l<nl;++l)
+        {
+            cdΩ[k*nl+l] = &findΩ(rc.itsPrims[k]->GetGData(), itsPrims[l]->GetGData());
+            BuildHermiteTable(*cdΩ[k*nl+l], pc, nc, pd, nd, cdH[k*nl+l]);
+        }
+    HermiteTable abH;
+    for (size_t i=0;i<ni;++i)
+        for (size_t j=0;j<nj;++j)
+        {
+            const Ω& ab = findΩ(ra.itsPrims[i]->GetGData(), rb.itsPrims[j]->GetGData());
+            BuildHermiteTable(ab, pa, na, pb, nb, abH);   // ONCE per ab primitive pair
+            const double cij = ra.itsCoeff[i]*rb.itsCoeff[j];
+            for (size_t k=0;k<nk;++k)
+                for (size_t l=0;l<nl;++l)
+                {
+                    const Ω& cd=*cdΩ[k*nl+l];
+                    const HermiteTable& cdT=cdH[k*nl+l];
+                    const RNLM& rnlm=findRNLM(ab.GetGData(), cd.GetGData());   // ONCE per primitive quartet
+                    const double lambda=PrimGaussian::Lambda4C(ab,cd);
+                    const double pref=cij*rc.itsCoeff[k]*itsCoeff[l];
+                    size_t q=0;
+                    for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++)
+                    {
+                        const size_t ab_=a*nb+b;
+                        for (size_t c=0;c<nc;c++) for (size_t d=0;d<nd;d++,q++)
+                        {
+                            const size_t cd_=c*nd+d;
+                            out[q] += pref * PrimGaussian::Repulsion4CTab(&abH.h[abH.off[ab_]], abH.sum[ab_], &cdT.h[cdT.off[cd_]], cdT.sum[cd_], rnlm, lambda);
+                        }
+                    }
+                }
+        }
 }
 
 std::ostream& GaussianRF::Write(std::ostream& os) const

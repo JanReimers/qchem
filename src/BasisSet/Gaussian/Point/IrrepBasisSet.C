@@ -19,6 +19,9 @@ module;
 #include <stdexcept>
 #include <string>
 #include <cassert>
+#include <memory>
+#include <mutex>
+#include <utility>
 #include <vector>
 export module qchem.BasisSet.Gaussian.Point.IBS;
 import qchem.BasisSet.Orbital_1E_IBS;
@@ -406,6 +409,49 @@ private:
 // The intricate ERI loop + symmetry packing is unchanged (hoisting it further is plan Goal D); the
 // per-element integral goes through the evaluator's FourC kernel (which folds in all four norms).
 // The HF CONTRACTION face (Accumulate*) is inherited from BasisSet::Orbital_ERI4_IBS -- see R1.7.
+//! \brief THE UNIQUE SHELL QUARTETS of one block against itself (lane H 2026-11-11, OpenWork §4): every (ab|cd) with the 8-fold
+//! permutational symmetry used ONCE, as whole shell-quartet blocks (\c FourCBlock), so the Direct (aa|cc) and the Exchange (ab|ab)
+//! tensors read one set instead of evaluating 0.75 N⁴ quartets between them against N⁴/8 unique.  A value is FourC at the CANONICAL
+//! permutation, so it agrees with another permutation's to roundoff (measured ≤ 1e-14 relative; tests/M_ERI4Blocks.C).  Geometry-fixed,
+//! so it may be built lazily and kept (CLAUDE.md: lazy caching only for what never changes).
+struct UniqueQuartets
+{
+    std::vector<std::pair<size_t,size_t>> S;          //!< the shells, [begin, end)
+    std::vector<size_t> shellOf, offIn;               //!< per function: its shell and its place in it
+    std::vector<size_t> blockOff;                     //!< per canonical quartet: its block's start in v
+    std::vector<double> v;
+    static size_t Pair(size_t s, size_t t) {return t*(t+1)/2+s;}   //!< s <= t
+    template <class E> void Build(const E& e)
+    {
+        S=e.ShellRanges();
+        shellOf.assign(e.size(),0); offIn.assign(e.size(),0);
+        for (size_t k=0;k<S.size();k++) for (size_t f=S[k].first;f<S[k].second;f++) { shellOf[f]=k; offIn[f]=f-S[k].first; }
+        const size_t nP=S.size()*(S.size()+1)/2;
+        blockOff.assign(nP*(nP+1)/2, 0);
+        for (size_t sb=0;sb<S.size();sb++) for (size_t sa=0;sa<=sb;sa++)
+            for (size_t sd=0;sd<S.size();sd++) for (size_t sc=0;sc<=sd;sc++)
+            {
+                const size_t P1=Pair(sa,sb), P2=Pair(sc,sd);
+                if (P2<P1) continue;
+                const size_t na=S[sa].second-S[sa].first, nb=S[sb].second-S[sb].first, nc=S[sc].second-S[sc].first, nd=S[sd].second-S[sd].first;
+                blockOff[P2*(P2+1)/2+P1]=v.size();
+                v.resize(v.size()+na*nb*nc*nd);
+                e.FourCBlock(S[sa].first,na, e,S[sb].first,nb, e,S[sc].first,nc, e,S[sd].first,nd, &v[blockOff[P2*(P2+1)/2+P1]]);
+            }
+    }
+    double At(size_t ia, size_t ib, size_t ic, size_t id) const
+    {
+        size_t sa=shellOf[ia], sb=shellOf[ib], sc=shellOf[ic], sd=shellOf[id];
+        size_t a=offIn[ia], b=offIn[ib], c=offIn[ic], d=offIn[id];
+        if (sa>sb) { std::swap(sa,sb); std::swap(a,b); }
+        if (sc>sd) { std::swap(sc,sd); std::swap(c,d); }
+        size_t P1=Pair(sa,sb), P2=Pair(sc,sd);
+        if (P1>P2) { std::swap(P1,P2); std::swap(sa,sc); std::swap(sb,sd); std::swap(a,c); std::swap(b,d); }
+        const size_t nb=S[sb].second-S[sb].first, nc=S[sc].second-S[sc].first, nd=S[sd].second-S[sd].first;
+        return v[blockOff[P2*(P2+1)/2+P1]+((a*nb+b)*nc+c)*nd+d];
+    }
+};
+
 template <class E> requires (Evaluators::isHF_Evaluator<E> || Evaluators::isM_HF_Evaluator<E>)
 class Orbital_ERI4_IBS
     : public virtual ::qchem::BasisSet::Orbital_ERI4_IBS<double>
@@ -473,6 +519,44 @@ protected:
     {
         if constexpr (Evaluators::isM_HF_Evaluator<E>)
             return dynamic_cast<const E&>(*this).DirectMatrix(dynamic_cast<const E&>(_c));
+        else if constexpr (Evaluators::isShellBlock_HF_Evaluator<E>)
+        {
+            const E& aE=dynamic_cast<const E&>(*this);
+            const E& cE=dynamic_cast<const E&>(_c);
+            if (&aE==&cE)   // THE BLOCK AGAINST ITSELF: read the unique quartets (each computed once for J and K together)
+            {
+                const auto held=Unique(aE); const UniqueQuartets& u=*held;
+                const size_t N=aE.size();
+                ERI4 J(N,N);
+                for (size_t ia=0;ia<N;ia++) for (size_t ib=ia;ib<N;ib++)
+                {
+                    rsmat_t& Jab=J(ia,ib);
+                    for (size_t ic=0;ic<N;ic++) for (size_t id=ic;id<N;id++) Jab(ic,id)=u.At(ia,ib,ic,id);
+                }
+                Release(/*direct*/true);
+                return J;
+            }
+            // SHELL-BLOCKED against another block: the same entries, the same values (FourCBlock = FourC element for element).
+            ERI4 J(aE.size(),cE.size());
+            const auto SA=aE.ShellRanges(), SC=cE.ShellRanges();
+            std::vector<double> blk;
+            for (size_t sa=0;sa<SA.size();sa++) for (size_t sb=sa;sb<SA.size();sb++)
+                for (size_t sc=0;sc<SC.size();sc++) for (size_t sd=sc;sd<SC.size();sd++)
+                {
+                    const size_t a0=SA[sa].first, na=SA[sa].second-a0, b0=SA[sb].first, nb=SA[sb].second-b0;
+                    const size_t c0=SC[sc].first, nc=SC[sc].second-c0, d0=SC[sd].first, nd=SC[sd].second-d0;
+                    blk.resize(na*nb*nc*nd);
+                    aE.FourCBlock(a0,na, aE,b0,nb, cE,c0,nc, cE,d0,nd, blk.data());   // (a a | c c) slots
+                    for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++)
+                    {
+                        if (b0+b<a0+a) continue;
+                        rsmat_t& Jab=J(a0+a,b0+b);
+                        for (size_t c=0;c<nc;c++) for (size_t d=0;d<nd;d++)
+                            if (d0+d>=c0+c) Jab(c0+c,d0+d)=blk[((a*nb+b)*nc+c)*nd+d];
+                    }
+                }
+            return J;
+        }
         else {
         const E& aE=dynamic_cast<const E&>(*this);
         const E& cE=dynamic_cast<const E&>(_c);
@@ -494,6 +578,57 @@ protected:
     {
         if constexpr (Evaluators::isM_HF_Evaluator<E>)
             return dynamic_cast<const E&>(*this).ExchangeMatrix(dynamic_cast<const E&>(_b));
+        else if constexpr (Evaluators::isShellBlock_HF_Evaluator<E>)
+        {
+            const E& aE=dynamic_cast<const E&>(*this);
+            const E& bE=dynamic_cast<const E&>(_b);
+            if (&aE==&bE)   // THE BLOCK AGAINST ITSELF: the unique quartets, the packing below exactly
+            {
+                const auto held=Unique(aE); const UniqueQuartets& u=*held;
+                const size_t N=aE.size();
+                ERI4 K(N,N);
+                for (size_t ia=0;ia<N;ia++) for (size_t ib=0;ib<N;ib++) for (size_t ic=ia;ic<N;ic++)
+                {
+                    rsmat_t& Kac=K(ia,ic);
+                    for (size_t id=0;id<N;id++)
+                    {
+                        const double v=u.At(ia,ib,ic,id);
+                        if (ib==id)      Kac(ib,id) = v;
+                        else if (ib<id)  Kac(ib,id)+= 0.5*v;
+                        else             Kac(id,ib)+= 0.5*v;
+                    }
+                }
+                Release(/*direct*/false);
+                return K;
+            }
+            // SHELL-BLOCKED against another block, the packing below exactly (each K entry receives at most two halves).
+            ERI4 K(aE.size(),bE.size());
+            const auto SA=aE.ShellRanges(), SB=bE.ShellRanges();
+            std::vector<double> blk;
+            for (size_t sa=0;sa<SA.size();sa++) for (size_t sc=sa;sc<SA.size();sc++)
+                for (size_t sb=0;sb<SB.size();sb++) for (size_t sd=0;sd<SB.size();sd++)
+                {
+                    const size_t a0=SA[sa].first, na=SA[sa].second-a0, c0=SA[sc].first, nc=SA[sc].second-c0;
+                    const size_t b0=SB[sb].first, nb=SB[sb].second-b0, d0=SB[sd].first, nd=SB[sd].second-d0;
+                    blk.resize(na*nb*nc*nd);
+                    aE.FourCBlock(a0,na, bE,b0,nb, aE,c0,nc, bE,d0,nd, blk.data());   // (a b | a b) slots
+                    for (size_t a=0;a<na;a++) for (size_t c=0;c<nc;c++)
+                    {
+                        const size_t ia=a0+a, ic=c0+c;
+                        if (ic<ia) continue;
+                        rsmat_t& Kac=K(ia,ic);
+                        for (size_t b=0;b<nb;b++) for (size_t d=0;d<nd;d++)
+                        {
+                            const size_t ib=b0+b, id=d0+d;
+                            const double v=blk[((a*nb+b)*nc+c)*nd+d];
+                            if (ib==id)      Kac(ib,id) = v;
+                            else if (ib<id)  Kac(ib,id)+= 0.5*v;
+                            else             Kac(id,ib)+= 0.5*v;
+                        }
+                    }
+                }
+            return K;
+        }
         else {
         const E& aE=dynamic_cast<const E&>(*this);
         const E& bE=dynamic_cast<const E&>(_b);
@@ -515,6 +650,28 @@ protected:
         return K;
         }
     }
+private:
+    //! The unique quartets of this block against itself, built on first use under a lock (Direct and Exchange may arrive from different
+    //! workers) and kept: they are a pure function of the fixed basis.
+    //! A SHARED handle: the caller holds it while it reads, so \c Release (another worker's) drops only the memo's own share.
+    template <class EE> std::shared_ptr<const UniqueQuartets> Unique(const EE& e) const
+    {
+        std::lock_guard<std::mutex> lock(itsUniqueLock->m);
+        if (!itsUnique) { auto u=std::make_shared<UniqueQuartets>(); u->Build(e); itsUnique=u; itsReadJ=itsReadK=false; }
+        return itsUnique;
+    }
+    //! Once BOTH J and K have read the quartets nothing else will (the integrals cache keeps J and K), so the memo -- about N⁴/8 doubles
+    //! beside them -- is dropped; a later ask (a cache eviction) rebuilds it.
+    void Release(bool direct) const
+    {
+        std::lock_guard<std::mutex> lock(itsUniqueLock->m);
+        (direct ? itsReadJ : itsReadK)=true;
+        if (itsReadJ && itsReadK) itsUnique.reset();
+    }
+    struct Lock { std::mutex m; };
+    mutable std::shared_ptr<const UniqueQuartets> itsUnique;
+    mutable bool itsReadJ=false, itsReadK=false;
+    std::shared_ptr<Lock> itsUniqueLock=std::make_shared<Lock>();
 };
 
 } //namespace

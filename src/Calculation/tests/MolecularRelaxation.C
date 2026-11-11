@@ -87,9 +87,10 @@ TEST(MolecularRelaxation, HFWaterReachesPySCFsMinimum)
 }
 
 // H2O2, HF/DZVP, the SOFT TORSION: started at HOOH 60 degrees (O-O 1.40 A, OOH 102), relaxed to PySCF's E -150.7819917055, r(OO) 2.636291,
-// r(OH) 1.792327 bohr, OOH 102.7434, HOOH 113.7064 degrees.  `_Long` (about 140 s, 13 points): the molecular family's ONE end-to-end
-// relaxation (user 2026-11-10, the test budget).  The cost is the ERI4 rebuild at every point (MnD, ~80 % of the wall), not the SCF.
-TEST(MolecularRelaxation, HFPeroxideUnwindsItsTorsionToPySCFsMinimum_Long)
+// r(OH) 1.792327 bohr, OOH 102.7434, HOOH 113.7064 degrees.  The molecular family's ONE end-to-end relaxation (user 2026-11-10, the test
+// budget), 13 points.  It was `_Long` at ~150 s, ~80 % of it the MnD ERI4 rebuilt per point; since the unique-quartet ERI4 (2026-11-11,
+// OpenWork §4) it is ~32 s, so it runs in the short tier.
+TEST(MolecularRelaxation, HFPeroxideUnwindsItsTorsionToPySCFsMinimum)
 {
     const Molecule h2o2=Make({{8,{-1.322808,0,0}}, {8,{1.322808,0,0}}, {1,{-0.949557,1.520749,0.878005}}, {1,{0.949557,-1.520749,0.878005}}});
     const auto r=Relax(h2o2, OptimizerOptions::Algorithm::BFGS_RFO, "H2O2");

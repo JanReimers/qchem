@@ -2229,3 +2229,28 @@ Landing sweep against main-40df1233 (`anchordiff --tol 1e-10`): short 1540/1540,
 green.  One anchor moved: `M_HF_U.WaterSADseed`, 10 → 9 iterations, energy unchanged (the finer seed Fock is a better start).
 The three WILL_FAIL cases fail exactly as they do on main.  Panel (`-L "panel|periodic"`, 4 threads): 25/25, no anchor moved,
 the panelRed set identical to main's.
+
+
+## ✅ Li GTH-PADE-q3: 0.64 mHa below CP2K QS on the same basis -- the FUNCTIONAL (lane H, 2026-11-11)
+
+The row as it stood:
+
+| **Li GTH-PADE-q3: 0.64 mHa BELOW CP2K QS on the same basis** (F, correctness; lane H 2026-11-03, HubbardUPlan S6; the 9-30 mHa non-variational defect is FIXED 2026-11-04 = a Hermite3 LMAX=3 table overrun by the C3/C4 monomials, HubbardUHistory 2026-11-04) | Li q3 atom, 12 bohr box, VALENCE_LOWQ_VA liq3: ours −7.2857262 vs CP2K QS GPW −7.2850821 (CUTOFF 2000/4000 agree), 0.64 mHa LOW, route-independent (Becke/uniform XC, densityEcut 480, cp2kCompat), box-independent (L20 −7.2857005).  q3-SPECIFIC: q1 on the SAME basis is 97 μHa ABOVE CP2K, q1 on its own basis 38 μHa above.  Now above the CP2K ATOM floor −7.3007906 (by 15 mHa) | SPLIT BY TERM against CP2K's printed breakdown (core Hamiltonian / Hartree / XC, or our terms at CP2K's density).  CLOSING STEP: tighten `GPW_LiBox.Γ_M2_CP2K_Long`'s 1 mHa tolerance, which sits above this OPEN gap, to the q1 level (~0.1 mHa).  Repro `~/Code/qchem6-runs/Li/mu/q3fixed/gpw_L12.json`; oracle `~/Code/cp2k-runs/Li/atom/qs/li_q3_qs_L12.inp` · HubbardUHistory.md 2026-11-04 |
+
+**Verdict: no code defect.**  The CP2K oracle ran `XC_FUNCTIONAL PADE` (the Goedecker-Teter-Hutter Padé LDA); our `Model::LDA` is
+Dirac + VWN5.  The term split pointed straight at it: E_xc ours −1.6667908 vs CP2K −1.6662521 (0.54 of the 0.64 mHa), and on q1 the
+sign flips (ours −0.1419458 vs −0.1420346), the signature of two LDA parametrisations crossing with density, not of a PP term.
+
+| CP2K QS, Li atom, L = 12 bohr, VALENCE_LOWQ_VA liq3 | Etot (Ha) | ours | Δ (ours − CP2K) |
+|---|---|---|---|
+| q3, PADE, EPS_DEFAULT 1e-14, CUTOFF 2000/150 (the old oracle) | −7.2850821 | −7.2857262 | −0.64 mHa |
+| q3, PADE, EPS_DEFAULT 1e-16, EPS_PGF_ORB/CORE_CHARGE/RHO 1e-30, CUTOFF 3000/300, EPS_SCF 1e-10 | −7.28508206950 | | (oracle settings move it 2e-10) |
+| q3, XALPHA 2/3 + VWN5 (= our LDA) | −7.2857130 | −7.2857262 default grids / −7.2857129 Becke 100/35 | −13 μHa / +0.1 μHa |
+| q1 on the q3 basis, XALPHA 2/3 + VWN5 | −0.1840584 | −0.1840431 | +15 μHa |
+
+Decks and outputs `~/Code/cp2k-runs/Li/atom/qs/li_q3_qs_L12{,_tight,_vwn5}.{inp,out}`, `li_q1onq3basis_qs_L12_vwn5`; ours
+`~/Code/qchem6-runs/Li/mu/q3fixed/gpw_L12*.log`.  Closing step done: `GPW_LiBox.Γ_M2_CP2K_Long` now gates against the VWN5 oracle
+at 50 μHa (was PADE at 1 mHa).  Remainder: OpenWork §3 "A GTH-PADE pseudopotential runs under VWN5" (a policy row: the PP names its
+functional, so the code can pair or warn).  Every Li q3 number since the Hermite3 fix stands.  The banked CP2K decks (`IntegrationTests/CP2K/*.inp`, 31 with an XC block) all
+state `LDA_X` + `LDA_C_VWN`, i.e. our functional; only this hand-written Li deck said `PADE`, so no other CP2K gate carries the mismatch.
+Lesson: copy an oracle deck's XC block from `IntegrationTests/CP2K/`, never type it.
