@@ -900,3 +900,39 @@ coordinates, translations held), the second atom started at (0.27, 0.24, 0.26). 
   within an allowance.
 So the END-TO-END CELL RELAXATION waits on a k-mesh for plane waves or on the GPW virials (rutile TiO₂, step 3).  Until then the cell
 path is gated at unit level: the σ gates above and `CellWyckoffMap` on model surfaces.
+
+### 15c. The GPW Hartree virial (lane H, 2026-11-11; agreed with lane B the same day)
+
+**The split** (the controller's assignment, lane B's agreement):
+- **Lane H:** the GPW virials that do not wait on Enzyme #3753.
+- **Lane B:** the three PP virials, landing with their PP forces.
+- **Nobody yet:** the Becke-mesh (and raster) XC virial goes with the GPW XC force once the δ XC work unblocks it, and the controller
+  assigns the two together.
+So the one term to build was **Vee_Fit's ORBITAL side** on a Bloch Gaussian block.  Its fit side (`MakeHartreeVirial`, the pair counts
+N_G held) already existed from the PW stress.
+
+**What it is.**  `PairProjection::applyAdjointVirial`'s convention, with the fit functions, the kernel and Ω held and only the pair counts
+N_G = ∫ρ_D e^{iG·r} moving, is the gather `h[V] = IntegratePotential(V_L)` at fixed level fields (per raster index) and fixed D, with the
+centres, image offsets and raster all strained:
+- the MOMENT: Σ c Σ_g V(g) [d_{i,b} ∂_aχ_i χ_j + χ_i d_{j,b} ∂_aχ_j], where d = r − R is each function's argument;
+- the DILATION: δ_ab Re Tr(D h[V]), from the raster weight Ω/N.
+
+`IntegratePotentialVirial` (`PG_Cart_MnD/Evaluator.C`) sits beside lane B's `IntegratePotentialPullback`, on the same task list, levels,
+screens, unit weight and jet walk, never folded.  The walk's `PointJets` gains the displacement `d` it already computed.  That is additive:
+the pullback gates still pass, and the non-jet arm the SCF gather uses is untouched.  The face is forwarded through `LatticeCollocation`,
+the spherical view (through T), `Orbital_IBS` and `GPW_Evaluator::MakeIntegratorVirial`.  `Repulsion3C` (kernel held) and `Overlap3C` now
+set `applyAdjointVirial`.  No libcint and no seam: it is all MnD collocation.
+
+**The fixed-D door** `SolidCalculation::FrozenTermEnergiesAt` now remakes a Gaussian setup's molecular basis at the strained centres (the
+frozen recipe, as a session step does).  It used to reuse the reference basis, which only a plane-wave basis may do.
+
+**Gates:**
+- `UTGaussian_BS` `M_CollocationPullback.TheGatherVirialIsItsStrainFiniteDifference_{Uncontracted,Contracted,Spherical}`: Si SIPP_SR,
+  contracted H₃ dzvp, MnO through the spherical view, at a non-TRIM k, against the Richardson central difference of Re Tr(D h[V]) on the
+  strained cell.  |Δ| ≤ 2.5e-8 at max 0.18, 4e-10, and 7e-9.
+- `UTCalculation` `HamiltonianStress.OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFiniteDifference`: on the sheared, distorted
+  Si cell (2 % allowance), every GPW term that answers is checked against the strain FD of its own energy at fixed D, all 9 components.
+  Fitted Hartree ≤ 1.7e-7, kinetic ≤ 5e-8, ion-ion ≤ 3e-8 (gate 1e-6).  Short-, long-range and KB PP and XC name themselves.
+
+**What a GPW stress still lacks:** the three PP terms (lane B, Enzyme #3753) and XC (Becke or raster, with the δ XC force).  Rutile's
+end-to-end cell run needs both.
