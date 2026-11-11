@@ -2254,3 +2254,17 @@ at 50 μHa (was PADE at 1 mHa).  Remainder: OpenWork §3 "A GTH-PADE pseudopoten
 functional, so the code can pair or warn).  Every Li q3 number since the Hermite3 fix stands.  The banked CP2K decks (`IntegrationTests/CP2K/*.inp`, 31 with an XC block) all
 state `LDA_X` + `LDA_C_VWN`, i.e. our functional; only this hand-written Li deck said `PADE`, so no other CP2K gate carries the mismatch.
 Lesson: copy an oracle deck's XC block from `IntegrationTests/CP2K/`, never type it.
+
+
+## ✅ rundeck --check and the mixer: --check passed what the run refused (lane H, 2026-11-11, fc087e846)
+
+The row as it stood:
+
+| **`rundeck --check` passes a Pulay mixer with no `pulayDepth`, which the run then refuses** (lane H, 2026-11-03) | `--check` and the run-time admission disagree: a deck that vets can still fail at start | run the mixer's admission (the same Outcome the factory returns) inside `--check`; UT: `scf.mixer Pulay` without `pulayDepth` fails `--check` with the run-time message · `src/Calculation/Imp/Deck.C`, the mixer factory |
+
+**Fix.**  `deck::Resolve` (which `--check` and a run both call) now runs the iterator's own admission, `qchem::ResolveMixing`, on every
+stage, beside the spin and mesh pre-flights already there, and rethrows as `deck: scf.mixer -- <the run's message>` (or
+`schedule.N.scf.mixer`).  It refuses Pulay without `pulayDepth`, Kerker without `kerkerG0`, and a density history beside a STATED Fock
+extrapolator (DIIS, Ladder: R1.1).  The one case left to the run: an `Auto` accelerator on a RESTORED stage, where `MakeAccelerator`
+may pick DIIS / Ladder from the saved state; `--check` judges `Auto` as the cold-stage Null.  Gate `Deck.AMixerTheRunWouldRefuseIsRefusedAtResolve`;
+`Deck.EveryShippedDeckVets` still passes (no shipped deck is newly refused).
