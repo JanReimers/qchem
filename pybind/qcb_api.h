@@ -199,10 +199,11 @@ int qcb_space_group(const double* lattice9, const int* species, int nat, const d
 //! One materials request as JSON text, its answer as JSON text (`{"error": "..."}` on a refusal, in the library's words).  The
 //! library reads no environment: the caller passes every library it layers over the shipped one, as
 //! `"libraries": [{"layer": "user"|"workspace", "path": P}, ...]` (the GUI resolves ~/.solid2/materials.json itself):
-//!   {"op":"list","libraries":L}                          -> {"materials":[{name, layer: shipped|user|workspace, file, entry, lattice_bohr}]}
+//!   {"op":"list","libraries":L}                          -> {"materials":[{name, layer: shipped|user|workspace, file, shadowed, entry, lattice_bohr}]}
 //!   {"op":"import","path":P}                             -> {entry, name, warnings, lattice_bohr}   (CIF / POSCAR / extended xyz)
 //!   {"op":"export","entry":E,"format":F,"name":N}        -> {text}   (F: cif | poscar | xyz)
-//!   {"op":"save","into":{layer,path},"name":N,"entry":E,"replace":B,"libraries":L}  -> {path}   (L: the OTHER layers it may not collide with)
+//!   {"op":"save","into":{layer,path},"name":N,"entry":E,"replace":B}  -> {path}   (a later layer SHADOWS an earlier one: a list's
+//!                                                          `shadowed` entry is one a later layer's same name hides)
 //!   {"op":"cell","entry":E}                              -> {lattice_bohr}   (rows a, b, c; a Bravais entry's vectors)
 //! TWO CALLS: with `out` null the request RUNS and its answer is kept (the return is its length); then a call with a buffer
 //! copies that answer (`req` ignored).  So a save runs once.
