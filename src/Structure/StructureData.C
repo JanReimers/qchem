@@ -46,8 +46,10 @@ std::vector<std::string> CellNames();
 //! a workspace may add its own on top.  The library reads NO environment for them (controller ruling 2026-11-09, the getenv
 //! audit): whoever knows where a library lives -- the GUI resolves ~/.solid2/materials.json -- passes its PATH in.  And a DECK
 //! never names a non-shipped material: it inlines the entry (the deck is the one source of a run's numbers, D-ENV), so
-//! \c KindOf / \c GetCell stay shipped-only.  A name lives in ONE layer: a user or workspace entry may not reuse a shipped (or
-//! molecule) name, nor another layer's.
+//! \c KindOf / \c GetCell stay shipped-only.  A LATER LAYER SHADOWS an earlier one (the user, 2026-11-11: "I am saving to MY
+//! materials so I should be allowed to reuse the shipped name"): a user entry may reuse a shipped name, a workspace one either;
+//! the listing keeps every entry and marks the shadowed ones, and a lookup by name finds the topmost.  Safe because a deck never
+//! names a non-shipped material.  A shipped MOLECULE name stays refused (a structure name means one kind).
 enum class Layer { Shipped, User, Workspace };
 //! \brief A library file layered over the shipped one (materials.json schema).  A missing file is an empty layer.
 struct LibraryFile
@@ -62,16 +64,16 @@ struct CellEntry
     Layer       layer;
     std::string file;
     std::string entryJson;
+    bool        shadowed=false;   //!< a later layer holds the same name: a lookup by name finds that one
 };
-//! \brief The shipped entries, then each of \a layers' in order.  Throws, naming the file, on a name two layers hold.
+//! \brief The shipped entries, then each of \a layers' in order, a shadowed one marked (see \c CellEntry::shadowed).
 std::vector<CellEntry> CellEntries(const std::vector<LibraryFile>& layers={});
-//! \brief The named entry over the shipped file and \a layers; throws (listing the known names) on a miss.
+//! \brief The named entry over the shipped file and \a layers, the topmost layer's; throws (listing the known names) on a miss.
 CellEntry GetCellEntry(const std::string& name, const std::vector<LibraryFile>& layers={});
 //! \brief Save \a entryJson under \a name in the library \a into (creating it), the file rewritten whole and in order.  Refuses
-//! the shipped layer, a shipped or molecule name, a name another of \a others holds, an illegal name (empty, leading '_', a '/'),
-//! an entry the parser refuses, and an existing name in \a into unless \a replace.
-void SaveMaterial(const LibraryFile& into, const std::string& name, const std::string& entryJson, bool replace=false,
-                  const std::vector<LibraryFile>& others={});
+//! the shipped layer, a shipped molecule name, an illegal name (empty, leading '_', a '/'), an entry the parser refuses, and an
+//! existing name in \a into unless \a replace.  A name another layer holds is allowed: the saved entry shadows or is shadowed.
+void SaveMaterial(const LibraryFile& into, const std::string& name, const std::string& entryJson, bool replace=false);
 
 //! \brief A parameterised BOX that is not in the data file: one \a element atom at the centre of an \a a-bohr cubic cell
 //! (the named boxes in the file are instances of this at the banked sizes).
