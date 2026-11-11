@@ -24,7 +24,7 @@ target_sources(qcPlaneWave_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FI
     PlaneWaveFit_IBS.C
 )
 target_include_directories(qcPlaneWave_BS PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${QCHEM_BLAZE_DIR}
     ${PROJECT_SOURCE_DIR}/src
 )
 set_property(TARGET qcPlaneWave_BS PROPERTY CXX_STANDARD 20)

@@ -69,8 +69,8 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
    
 set_property(TARGET qcHamiltonian PROPERTY CXX_STANDARD 20)
 target_include_directories(qcHamiltonian PRIVATE 
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_BINARY_DIR}/submodules/libxc
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_LIBXC_BUILD}
     )
 target_link_libraries(qcHamiltonian PUBLIC qcBasisSet qcFitting qcOrbitals qcSymmetry qcStructure qcMesh qcMath qcCommon qcLASolver qcPseudopotential xc)
 target_compile_definitions(qcHamiltonian PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})

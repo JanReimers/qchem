@@ -5,7 +5,7 @@
 #include <map>
 #include <string>
 #include <memory>
-#include "../../src/forward.H"
+#include "forward.H"
 #include <nlohmann/json.hpp>
 using std::cout;
 using std::endl;
