@@ -393,6 +393,7 @@ TEST(SolidSession, AForceRequestNamesTheMissingGradientsBeforeAnySCF)
     ASSERT_FALSE(S);
     EXPECT_EQ(S.Error().why, PESFailure::Why::NoGradient);
     EXPECT_NE(S.Error().details.find("MissingVirials"), std::string::npos) << S.Error().details;
+    std::cout << "[Si Γ stress] " << S.Error().details << std::endl;
     EXPECT_EQ(rows, 0u) << "the stress refusal spent no SCF iteration";
     EXPECT_EQ(run.surface->Current(), nullptr);
 

@@ -329,6 +329,12 @@ public:
                                                   const std::vector<double>& ecut_L, const LatticeScreener& screener,
                                                   double relFieldSharp, const Structure* st) const override
     { return itsLat->IntegratePotentialPullback(V_L,Expand(D),phase,A,N_L,ecut_L,screener,relFieldSharp,st); }
+    //! Through T as the pullback: T is geometry-free, so the strain derivative is the inner block's at the expanded density.
+    virtual rmat3d_t IntegratePotentialVirial(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
+                                              const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                              const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                              double relFieldSharp) const override
+    { return itsLat->IntegratePotentialVirial(V_L,Expand(D),phase,A,N_L,ecut_L,screener,relFieldSharp); }
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                       double beta, double lnEps) const override
     { return itsLat->StaticFieldPairLevels(ecut_L,beta,lnEps); }

@@ -696,6 +696,48 @@ TEST(HamiltonianStress, OnPlaneWavesTheWholeVirialIsTheStrainDerivativeOfTheReco
     }
 }
 
+// THE GPW TERMS' VIRIALS AT FIXED D (lane H 2026-11-11, agreed with lane B): on a Bloch Gaussian (GPW) basis, every term that answers a
+// virial against the strain finite difference of its own energy, D frozen and the molecular basis remade at the strained centres.  The
+// SAME sheared, distorted Si cell and 2 % allowance as the PW gates; the GPW Hartree (Vee_Fit: the fit side and the gather's moment +
+// dilation, IntegratePotentialVirial), the kinetic and ion-ion.  The PP terms (lane B, after Enzyme #3753) and XC (with the δ XC force)
+// name themselves and are skipped here; a term that gains its virial joins the gate by answering.
+TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFiniteDifference)
+{
+    SolidCalcOptions o; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0; o.label="gpw stress"; o.accuracy.eps=0.0;   // stated rasters
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.cellStrainAllowance=kPWStressAllowance;
+    const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
+    SCFParams p=PWStressParams(); p.MinΔρPerElectron=1e-6;   // D is frozen: its convergence is not the subject
+    SolidCalculation c0(setup, p);
+    ASSERT_TRUE(c0.Result());
+    for (const auto& m : ForceFacadeTests::MissingVirials(c0)) std::cout << "[stress] GPW missing: " << m << std::endl;
+    const auto V=ForceFacadeTests::TermVirials(c0);
+    const double h=1e-4;
+    std::vector<std::vector<Hamiltonian::TermEnergy>> Ep(9), Em(9);
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++)
+    {
+        Ep[3*(i-1)+j-1]=ForceFacadeTests::FrozenAt(c0, PWStressStrained(i,j, h));
+        Em[3*(i-1)+j-1]=ForceFacadeTests::FrozenAt(c0, PWStressStrained(i,j,-h));
+    }
+    ASSERT_EQ(Ep[0].size(), V.size()) << "MakeTermVirials is MakeTermEnergies' twin, index for index";
+    double largest=0.0;
+    bool sawHartree=false;
+    for (size_t t=0;t<V.size();t++)
+    {
+        if (!V[t].missing.empty()) { std::cout << "[stress] GPW " << V[t].label << ": " << V[t].missing << std::endl; continue; }
+        if (V[t].label.rfind("Fitted Hartree",0)==0) sawHartree=true;
+        for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++)
+        {
+            const size_t k=3*(i-1)+j-1;
+            const double fd=(Ep[k][t].E-Em[k][t].E)/(2*h), an=V[t].V(i,j);
+            std::cout << "[stress] GPW " << V[t].label << " (" << i << "," << j << "): analytic " << an << "  FD " << fd << "  diff " << an-fd << std::endl;
+            EXPECT_NEAR(an, fd, 1e-6) << V[t].label << " (" << i << "," << j << ")";
+            largest=std::max(largest, std::fabs(fd));
+        }
+    }
+    EXPECT_TRUE(sawHartree) << "the GPW Hartree answers its virial";
+    EXPECT_GT(largest, 0.1) << "the terms are stressed (far above the gate, so a sign would show)";
+}
+
 // THE SESSION'S FORCE ON PLANE WAVES: a forces request on the sheared, distorted Si cell carries −dE/dR at the converged D and its
 // energy-weighted W (the Pulay sum is a plane wave's exact zero, so W runs but contributes nothing here: the molecular gate below checks W
 // itself), against the central difference of the session's own re-converged energies, every atom and axis.  MEASURED 2026-11-11 (h 1e-3,

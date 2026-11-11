@@ -370,6 +370,15 @@ public:
                                                   const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                                   const std::vector<double>& ecut_L, const LatticeScreener& screener,
                                                   double relFieldSharp, const Structure* st) const = 0;
+    //! \brief THE STRAIN DERIVATIVE of \c IntegratePotential beside its pullback (doc/Records/CellHalf_Design.md §5; lane H 2026-11-11):
+    //! \f$V_{ab}=\partial\,\mathrm{Re}\,\mathrm{Tr}(D\,h[V])/\partial\varepsilon_{ab}\f$ at FIXED level fields \a V_L (per raster index) and FIXED
+    //! Hermitian \a D, the centres, images and raster strained together: the moment of the jets plus the raster weight's dilation.  The
+    //! jet twin of the reference box walk on the SAME task list and screens, as the pullback.  CLIENT: the GPW 3-centre tensors'
+    //! \c applyAdjointVirial (the orbital side of a fitted term's virial).
+    virtual rmat3d_t IntegratePotentialVirial(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
+                                              const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                              const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                              double relFieldSharp) const = 0;
 
     //! \brief Per-pair level assignment for integrating a STATIC EXTERNAL G-space field of effective Gaussian
     //! exponent \a beta (its spectrum decays as \f$e^{-G^2/4\beta}\f$; the erf-Coulomb local-PP long tail has

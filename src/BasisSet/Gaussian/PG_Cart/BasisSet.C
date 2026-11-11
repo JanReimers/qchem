@@ -131,6 +131,10 @@ public:
                                                   const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                                   const std::vector<double>& ecut_L, const LatticeScreener& screener,
                                                   double relFieldSharp, const Structure* st) const override;
+    virtual rmat3d_t IntegratePotentialVirial(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
+                                              const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                              const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                              double relFieldSharp) const override;
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                       double beta, double lnEps) const override;
     virtual void EmitLatticeSumReport(const UnitCell& A) const override;             // lattice-sum economy readout

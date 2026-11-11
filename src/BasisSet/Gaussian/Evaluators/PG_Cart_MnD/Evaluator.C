@@ -1591,8 +1591,9 @@ public:
     void ForShellPairBox(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
                          const UnitCell& A, const ivec3_t& N, F&& f, double epsEff=-1.0) const   // epsEff<0: the floor kDensityEps()
     {   WalkShellPairBox<false>(i0,nI,j0,nJ,Roff,A,N,std::forward<F>(f),epsEff); }
-    //! The components and their r-GRADIENTS at one walk point (\c ForShellPairBoxJets): \c f[a] and \c g[c][a] = \f$\partial_c\f$ of it.
-    struct PointJets { const double* f; const double* g[3]; };
+    //! The components and their r-GRADIENTS at one walk point (\c ForShellPairBoxJets): \c f[a] and \c g[c][a] = \f$\partial_c\f$ of it, and
+    //! the point's displacement \c d from the function's (imaged) centre, which a strain derivative weights the gradient by.
+    struct PointJets { const double* f; const double* g[3]; rvec3_t d; };   //!< \c d: the point's displacement from the function's centre (r − R)
     //! \brief THE JET TWIN of \c ForShellPairBox (GeometryOptimizationPlan §13.2, lane B 2026-11-09): the SAME box, chord, screens,
     //! wrap and points, delivering each component's value AND its gradient in r, \c f(rasterIndex, jetsI, jetsJ).  One walk body
     //! (\c WalkShellPairBox) serves both, so the twin cannot drift from the reference: its values are BIT-IDENTICAL to the walk's.
@@ -1754,7 +1755,7 @@ public:
                         gJy[b]=c*X*jet(plJ[b],pyJ,radJ,rdJ)*Z;
                         gJz[b]=c*X*Y*jet(pmJ[b],pzJ,radJ,rdJ);
                     }
-                    f(rowBase+mz, PointJets{fI,{gIx,gIy,gIz}}, PointJets{fJ,{gJx,gJy,gJz}});
+                    f(rowBase+mz, PointJets{fI,{gIx,gIy,gIz},di}, PointJets{fJ,{gJx,gJy,gJz},dj});
                     }
                 }
             }
@@ -2954,6 +2955,110 @@ public:
 #endif
         for (size_t sp=0;sp<sprs.size();sp++) pullShell(sp, G);
         return G;
+    }
+
+    //! \brief THE STRAIN DERIVATIVE OF THE GATHER, beside its pullback (doc/Records/CellHalf_Design.md §5; lane H 2026-11-11, agreed with lane
+    //! B): \f$V_{ab}=\partial\,\mathrm{Re}\,\mathrm{Tr}(D\,h[V])/\partial\varepsilon_{ab}\f$ under \f$r\to(1+\varepsilon)r\f$ (the centres, the
+    //! image offsets and the raster points all strained, the Gaussians' shapes kept) at FIXED level fields \a V_L per raster INDEX and FIXED
+    //! \a D: the ORBITAL side of \c PairProjection::applyAdjointVirial (only the pair counts move).  Two pieces:
+    //!   - the moment: \f$\sum c\sum_g V(g)\,[d_{i,b}\partial_a\chi_i\,\chi_j+\chi_i\,d_{j,b}\partial_a\chi_j]\f$, each function's argument
+    //!     \f$d=r-R\f$ scaling with the strain (\c PointJets::d);
+    //!   - the dilation: \f$\delta_{ab}\,\mathrm{Re}\,\mathrm{Tr}(D\,h[V])\f$, the raster weight \f$\Omega/N\f$ growing with the volume.
+    //! The SAME discrete sum as \c IntegratePotentialPullback (task list, levels, screens, unit weight, the jet walk; never folded), so it is
+    //! the derivative of the discretized gather, the screens' radii dropped as there.  THROWS on a mis-sized D.
+    rmat3d_t IntegratePotentialVirial(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
+                                      const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                                      const LatticeScreener& screener, double relFieldSharp) const
+    {
+        const size_t K=N_L.size(), nn=size();
+        if (K==0 || ecut_L.size()!=K || V_L.size()!=K)
+            throw std::invalid_argument("IntegratePotentialVirial: the level fields, grids and cutoffs disagree in count");
+        if (D.rows()!=nn)
+            throw std::invalid_argument("IntegratePotentialVirial: D is "+std::to_string(D.rows())+" square for "+std::to_string(nn)+" functions");
+        qchem::report::Timed timer("stress: gather virial (jet walk)");
+        const std::vector<ShellPairTasks>& tl=BoxTasks(A);
+        const std::vector<Shell>& shells=Shells();
+        std::vector<std::pair<size_t,size_t>> sprs;   // enumerated exactly as BoxTasks and IntegratePotential do
+        for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) sprs.push_back({a,b});
+        // out[0..8]: the moment, row-major (a,b); out[9]: Re Tr(D h), the dilation's coefficient
+        auto virialShell=[&](size_t sp, double* out)
+        {
+            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
+            const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
+            const size_t l=PairLevel(si.begin,sj.begin,ecut_L,0.0,0.0,relFieldSharp);
+            const rvec_t& V=V_L[l];
+            const double  w=A.GetCellVolume()/double(V.size());
+            rmat_t cij(nIs,nJs,0.0);   // the pullback's unit weight on the pairs the gather takes (j >= i)
+            for (size_t a=0;a<nIs;a++) for (size_t b=0;b<nJs;b++) if (sj.begin+b>=si.begin+a) cij(a,b)=1.0;
+            ScreenPlan plan;
+            std::vector<size_t> ia, jb; std::vector<double> c, acc;
+            for (const BoxTask& task : tl[sp].tasks)
+            {
+                screener.Screen(task.n,task.pf,cij,plan);
+                if (plan.Dead()) continue;
+                ia.clear(); jb.clear(); c.clear();
+                const dcmplx ph=phase(task.n);
+                for (size_t a=0;a<nIs;a++)
+                    for (size_t b=0;b<nJs;b++)
+                    {
+                        if (cij(a,b)==0.0 || !plan.Keeps(a,b)) continue;
+                        const size_t i=si.begin+a, j=sj.begin+b;
+                        const double cw=(i==j ? 1.0 : 2.0)*w*std::real(std::conj(dcmplx(D(i,j)))*ph);
+                        if (cw==0.0) continue;
+                        ia.push_back(a); jb.push_back(b); c.push_back(cw);
+                    }
+                if (c.empty()) continue;
+                acc.assign(10*c.size(),0.0);
+                ForShellPairBoxJets(si.begin,nIs,sj.begin,nJs,task.Roff,A,N_L[l],
+                                    [&](size_t idx, const PointJets& I, const PointJets& J)
+                {
+                    const double Vv=V[idx];
+                    const double dI[3]={I.d.x,I.d.y,I.d.z}, dJ[3]={J.d.x,J.d.y,J.d.z};
+                    for (size_t q=0;q<c.size();q++)
+                    {
+                        const double vJ=Vv*J.f[jb[q]], vI=Vv*I.f[ia[q]];
+                        double* o=&acc[10*q];
+                        for (int x=0;x<3;x++)
+                        {
+                            const double gi=vJ*I.g[x][ia[q]], gj=vI*J.g[x][jb[q]];
+                            for (int y=0;y<3;y++) o[3*x+y]+=gi*dI[y]+gj*dJ[y];
+                        }
+                        o[9]+=vJ*I.f[ia[q]];
+                    }
+                }, plan.Tolerance());
+                for (size_t q=0;q<c.size();q++) for (int k=0;k<10;k++) out[k]+=c[q]*acc[10*q+k];
+            }
+        };
+        double tot[10]={0,0,0,0,0,0,0,0,0,0};
+#ifdef QCHEM_OPENMP
+        if (const int nthreads=PairThreads(); nthreads>1)
+        {
+            const std::vector<size_t>& order=BoxTaskOrder(A);
+            std::exception_ptr firstEx;
+            #pragma omp parallel num_threads(nthreads)
+            {
+                double t[10]={0,0,0,0,0,0,0,0,0,0};
+                #pragma omp for schedule(dynamic)
+                for (size_t q=0;q<order.size();q++)
+                {
+                    try { virialShell(order[q], t); }
+                    catch (...)
+                    {
+                        #pragma omp critical (gpw_pair_throw)
+                        if (!firstEx) firstEx=std::current_exception();
+                    }
+                }
+                #pragma omp critical (gpw_virial_reduce)
+                for (int k=0;k<10;k++) tot[k]+=t[k];
+            }
+            if (firstEx) std::rethrow_exception(firstEx);
+        }
+        else
+#endif
+        for (size_t sp=0;sp<sprs.size();sp++) virialShell(sp, tot);
+        rmat3d_t Vab(0,0,0, 0,0,0, 0,0,0);
+        for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) Vab(a,b)=tot[3*(a-1)+(b-1)]+(a==b ? tot[9] : 0.0);
+        return Vab;
     }
 
     // =========================== THE TRANSITION COLLOCATION (LinearResponsePlan §3d B1) ===========================

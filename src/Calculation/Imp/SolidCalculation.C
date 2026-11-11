@@ -2852,9 +2852,18 @@ rmat3d_t SolidCalculation::ForceVirial() const
 std::vector<Hamiltonian::TermEnergy> SolidCalculation::FrozenTermEnergiesAt(const UnitCell& cell) const
 {
     const SavedState D=Carry();
-    const Lattice_3D lat(cell, itsImp->setup->reference.GetLimits());
+    const SolidSetup& S=*itsImp->setup;
+    const Lattice_3D lat(cell, S.reference.GetLimits());
+    // The molecular basis AT the strained centres (a Gaussian's centre moves, its shape is kept): the setup's frozen recipe, as a session
+    // step makes it.  A plane-wave basis does not read it.
+    std::shared_ptr<const BasisSet::Real_BS> mol=itsImp->mol;
+    if (!S.planeWave)
+    {
+        if (!S.recipe) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: a Gaussian setup resolved from a pre-built basis cannot follow a strain");
+        mol=S.recipe->Make(*lat.GetStructure(), S.pp);
+    }
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
-    c->BuildPoint(itsImp->setup, lat, itsImp->mol);
+    c->BuildPoint(itsImp->setup, lat, mol);
     const SpinGroup g=c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
     auto seed=RestoreDensity(D, *c->itsImp->bs, g);
     if (!seed) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: the density does not fit the point: "+seed.Error().details);

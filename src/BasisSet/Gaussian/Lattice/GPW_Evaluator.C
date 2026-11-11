@@ -419,6 +419,11 @@ private:
     //! \c LatticeCollocation::IntegratePotentialPullback at fixed D: \f$\partial_R\mathrm{Re}\,\mathrm{Tr}(D\,h[f])\f$ per site.
     std::function<rvec3vec_t(const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure*)>
         MakeIntegratorPullback(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    //! THE STRAIN DERIVATIVE of \c MakeIntegrator beside its pullback (doc/Records/CellHalf_Design.md §5; lane H 2026-11-11): the
+    //! \c PairProjection<dcmplx>::applyAdjointVirial the same tensors carry, the orbital side.  The SAME level restriction of the field
+    //! (held per G index, so per raster index), then \c LatticeCollocation::IntegratePotentialVirial at fixed D.
+    std::function<rmat3d_t(const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure*)>
+        MakeIntegratorVirial(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     //! \brief The RAW-RASTER pair (doc/GPWPlan 0.5(f2)) -- \c PairProjection<dcmplx>::applyRaw / \c applyRawAdjoint.
     //! \c MakeRawCollocator: \f$D\to\rho_{DM}(r)\f$ on \a grid's raster -- the finest ladder level kept RAW
     //! (its analytic samples are pointwise \f$\ge 0\f$ to screening-\f$\varepsilon\f$ for PSD \f$D\f$), every
