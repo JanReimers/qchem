@@ -261,7 +261,13 @@ private:
     //! \a carry's blocks as a density on THIS point's basis (throws when the blocks do not match): the carry's WorkingDensity, and the
     //! frozen D of a fixed-D finite difference.
     std::unique_ptr<qchem::ChargeDensity::rDM_CD> MakeCarriedDensity(const Carry& carry) const;
-    std::unique_ptr<const Carry> itsCarry;   //!< consumed by the first Converge, which builds the basis it is re-homed onto
+    //! THE POINT'S FORCE (doc/GeometryOptimizationPlan.md §13), −dE/dR in Ha/bohr in the structure's atom order: every term's force at
+    //! the converged D plus the Pulay sum Tr(W ∂S/∂R) at its energy-weighted density W.  For the session's forces request.  THROWS (the
+    //! Hamiltonian's std::logic_error) when \c MissingGradients is not empty, and before a Converge.
+    rvec3vec_t MakeForces() const;
+    //! The terms (and the Pulay sum) that cannot give their geometry gradient: the BUILT Hamiltonian's answer, no density needed.
+    std::vector<std::string> MissingGradients() const;
+    std::unique_ptr<const Carry> itsCarry;  //!< consumed by the first Converge, which builds the basis it is re-homed onto
     //!@}
     //! \name THE STATE HOOKS (\c Calculation's template method, V-FACADE-STATE)
     //!@{
@@ -311,8 +317,11 @@ private:
 //! made there (the same named basis) -- seeded from the previous point's density carried onto it, block for block.
 //!
 //! WHAT A POINT REFUSES (a \c PESFailure, never a crash): positions that change the abelian point group the SALC blocks are
-//! built on, when the setup imposes one (\c CalcOptions::symmetry; ruling Q4); forces (step 9).  The molecular basis is
-//! neither trimmed nor given an ortho tolerance by this facade, so it has no conditioning window to leave (Q3 is solid-only today).
+//! built on, when the setup imposes one (\c CalcOptions::symmetry; ruling Q4); forces while the point's Hamiltonian names a term
+//! without its geometry gradient (\c Hamiltonian::MissingGradients: LDA's XC term today), refused BEFORE any SCF; stress (a molecule has
+//! no cell).  A forces request otherwise carries −dE/dR (the terms' forces and the Pulay sum at the converged D and W) at every point.
+//! The molecular basis is neither trimmed nor given an ortho tolerance by this facade, so it has no conditioning window to leave (Q3 is
+//! solid-only today).
 class MoleculeSession : public virtual PotentialEnergySurface
 {
 public:
