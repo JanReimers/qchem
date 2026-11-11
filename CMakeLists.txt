@@ -153,6 +153,7 @@ set(QCHEM_PANEL_RED
 set(QCHEM_KNOWN_RED
     "GPW_MnO.Γ_Shub_Pol_Smear_Ordering_Long"                   # OpenWork §3 "MnO ordering at Γ/SR: FM lies BELOW AFM-II" (the 136-function span); was DISABLED_
     "A/A_SL_HF_ion.A/2"                                         # (ctest name A/A_SL_HF_ion.A/60: Z = 60) OpenWork §3 "Nd⁵⁹⁺ [F,D] gate sits on the cond(S) = 1e15 floor"
+    "SolidSession.SessionSizesItsRastersOnMatrixElements"       # OpenWork §3 "GDM's line search runs below the energy's noise floor": cap 16, 21 since the kinetic screen (lane B 2026-11-10)
 )
 list(JOIN QCHEM_KNOWN_RED ":" _qchemKnownRed)
 set(_qchemKnownRedFast ${QCHEM_KNOWN_RED})        # a _Long known-red case keeps the long label and timeout
