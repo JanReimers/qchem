@@ -90,10 +90,15 @@ TEST(MoleculeSession, EveryStepsFirstIterateStartsNearItsAnswer)
 
 TEST(MoleculeSession, RefusalsAreOutcomesAndAWrongCountThrows)
 {
-    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .symmetry=true}), Tight());
+    // LDA: the XC term has no analytic force yet, so a forces request is refused BY NAME before any point is built or converged.
+    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .symmetry=true}), Tight());
     const std::vector<rvec3_t> R=pes.Reference().R;
     auto F=pes.ConvergeAt(std::nullopt, R, {.forces=true});
     ASSERT_FALSE(F); EXPECT_EQ(F.Error().why, PESFailure::Why::NoGradient);
+    EXPECT_NE(F.Error().details.find("MissingGradients"), std::string::npos) << F.Error().details;
+    EXPECT_EQ(pes.Current(), nullptr) << "refused before any SCF: no point was kept";
+    auto S=pes.ConvergeAt(std::nullopt, R, {.stress=true});
+    ASSERT_FALSE(S); EXPECT_EQ(S.Error().why, PESFailure::Why::NoGradient) << "a molecule has no cell to strain";
 
     std::vector<rvec3_t> broken=R; broken[1].x+=0.05; broken[1].y-=0.03;   // one H only: C2v -> Cs
     EXPECT_THROW((void)pes.ConvergeAt(std::nullopt, broken), std::invalid_argument) << "an off-group R on an imposed setup is a wiring defect";
@@ -101,6 +106,31 @@ TEST(MoleculeSession, RefusalsAreOutcomesAndAWrongCountThrows)
     EXPECT_THROW((void)pes.ConvergeAt(std::nullopt, {R[0]}), std::invalid_argument);
     rmat3d_t box; for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) box(i,j)= i==j ? 20.0 : 0.0;
     EXPECT_THROW((void)pes.ConvergeAt(box, R), std::invalid_argument) << "a molecule has no cell";
+}
+
+// A FORCES REQUEST on HF (every term has its force): the point carries −dE/dR, at the first point and at a carried step, equal to the
+// central difference of the session's own re-converged energies (each a full SCF at MinΔρ/N 1e-9; h = 1e-4 puts the FD's h²/6 |E‴| at
+// ≲ 1e-8, so 2e-6, as the facade's force gate).  One H is pulled 0.15 bohr off the stored water so the force is ~1e-1.
+TEST(MoleculeSession, AForcesRequestOnHFCarriesTheForceAtEveryPoint)
+{
+    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), Tight());
+    std::vector<rvec3_t> R=pes.Reference().R;
+    R[1].y+=0.15;
+    for (int point=0;point<2;point++)
+    {
+        if (point==1) R[2].z-=0.05;   // a carried step
+        auto p=pes.ConvergeAt(std::nullopt, R, {.forces=true});
+        ASSERT_TRUE(p) << p.Error().details;
+        ASSERT_TRUE(p->forces);
+        ASSERT_EQ(p->forces->size(), R.size());
+        rvec3_t sum(0,0,0); for (const auto& f : *p->forces) sum+=f;
+        EXPECT_LT(norm(sum), 1e-8) << "translation invariance";
+        const double h=1e-4;
+        auto E=[&](double s){ auto Rs=R; Rs[1].y+=s; auto q=pes.ConvergeAt(std::nullopt, Rs); EXPECT_TRUE(q); return q ? q->energy : 0.0; };
+        const double fd=(E(h)-E(-h))/(2*h);
+        EXPECT_NEAR((*p->forces)[1].y, -fd, 2e-6*std::max(1.0, std::fabs(fd))) << "point " << point;
+        EXPECT_GT(std::fabs(fd), 1e-2) << "the force is not trivially small";
+    }
 }
 
 // A point whose SCF fails is Why::SCF CARRYING the SCF's own failure (the shared SCFFailure, 2026-10-31), so a driver can see
