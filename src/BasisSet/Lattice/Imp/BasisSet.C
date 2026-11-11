@@ -311,6 +311,14 @@ VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
         lambdas.push_back(lmin);
         if (nDrops==0)
         {
+            // THE RECORD (the caller opened the scope): the verdict a reader judges the basis by -- what went, and lambda_min of
+            // S over the k-mesh before and after (user 2026-11-11, GUI item 27: "what was removed? ... am I good to go?").
+            qchem::report::Set("orthoTol", orthoTol);
+            qchem::report::Set("lambdaMinBefore", lambdas.front().value);
+            qchem::report::Set("lambdaMinBeforeAt", lambdas.front().k);
+            qchem::report::Set("lambdaMinAfter", lambdas.back().value);
+            qchem::report::Set("lambdaMinAfterAt", lambdas.back().k);
+            qchem::report::Set("nShellsRemoved", (long)r.trim.shells.size());
             std::cout << "[basis trim] vet stage: ";
             if (r.trim.empty()) std::cout << "nothing to trim";
             else { std::cout << "trimmed "; r.trim.Write(std::cout); }
@@ -328,6 +336,17 @@ VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
         if (r.trim.Removes(cut->Z, cut->l, cut->exponents))
             throw std::logic_error("VetStageTrim: the trimmed shell is still in the basis (the reader ignored the trim)");
         r.trim.shells.push_back({cut->Z, cut->l, cut->exponents});
+        {
+            qchem::report::Row row("passes");                      // one per pass: why it cut, and the shell it cut
+            std::ostringstream shell; Gaussian::ShellTrim one; one.shells.push_back(r.trim.shells.back()); one.Write(shell);
+            qchem::report::Set("lambdaMin", lmin.value);
+            qchem::report::Set("at", lmin.k);
+            qchem::report::Set("aoDrops", (long)nDrops);
+            qchem::report::Set("removes", shell.str());
+            qchem::report::Set("Z", (long)cut->Z);
+            qchem::report::Set("l", (long)cut->l);
+            qchem::report::Set("alphaMin", cut->alphaMin);
+        }
         std::cout << "[basis trim] vet stage pass " << pass << ": min eig S " << fmtLambda(lmin) << "; " << nDrops
                   << " AO drop(s) over the k-mesh at orthoTol=" << orthoTol << " -> removing ";
         Gaussian::ShellTrim one; one.shells.push_back(r.trim.shells.back()); one.Write(std::cout);

@@ -46,9 +46,11 @@ template <class T> size_t ReportConditioning(const tBasisSet<T>& bs)
             rpt::Set("lambdaMax",  c.lambdaMax);
             rpt::Set("cond",       c.cond);
         }
-        for (size_t idx : PivotedCholeskyDrops<U>(S))   // redundant AOs (empty on a healthy basis)
+        // REDUNDANT AOs, a REPORT: what a pivoted Cholesky would drop (empty on a healthy basis).  Nothing is removed here -- the
+        // trim that removes shells is the vet stage (basis.autoTrim); the key said "removed" once and was read as a removal.
+        for (size_t idx : PivotedCholeskyDrops<U>(S))
         {
-            rpt::Row r("removed");
+            rpt::Row r("redundant");
             rpt::Set("irrep", label);
             rpt::Set("index", (long)idx);
             ++removed;

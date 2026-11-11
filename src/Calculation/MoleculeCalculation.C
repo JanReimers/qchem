@@ -79,7 +79,7 @@ public:
 
     //! \name BUILT, NOT CONVERGED (2026-11-02: the twin of \c SolidCalculation::Prepare -- the GUI's Build -> Run trigger)
     //! Builds the whole graph over \a setup -- the basis, the Hamiltonian with every mesh it quadratures on, the electron
-    //! configuration, the accelerator and the SCF iterator (whose wave-function build files basis.perIrrep / basis.removed) --
+    //! configuration, the accelerator and the SCF iterator (whose wave-function build files basis.perIrrep / basis.redundant) --
     //! INTO THE CALLER'S report run (a facade never opens one -- user ruling D, 2026-11-02: the GUI's Build opens
     //! "<structure ID> build" itself; with no run open the report writes are no-ops), and stops before iteration 1.  So a client
     //! reads the whole setup BEFORE any SCF.  Run it with \c Converge(params): the FIRST Converge reuses this graph (so the
