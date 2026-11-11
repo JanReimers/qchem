@@ -120,6 +120,18 @@ public:
     static double Repulsion4C(const Ω& ab, const Ω& cd,
                               const Polarization& pa, const Polarization& pb,
                               const Polarization& pc, const Polarization& pd);
+    //! The same with the primitive quartet's RNLM table and prefactor \f$\lambda\f$ (\c Lambda4C) handed in: what a SHELL-QUARTET block
+    //! (\c GaussianRF::Repulsion4CBlock) calls once per component quartet, having looked the table up ONCE per primitive quartet.
+    static double Repulsion4C(const Ω& ab, const Ω& cd, const RNLM& rnlm, double lambda,
+                              const Polarization& pa, const Polarization& pb,
+                              const Polarization& pc, const Polarization& pd);
+    //! \f$\lambda=2\pi^{5/2}E_{ab}E_{cd}/(p\,q\sqrt{p+q})\f$ of a primitive quartet (M&D 3.31, 2.25): ONE definition.
+    static double Lambda4C(const Ω& ab, const Ω& cd);
+    //! The same sum with both Hermite expansions TABULATED (\a hab over the Hermite triples of \a Pab = pa + pb, \a hcd over those of
+    //! \a Pcd, each in the (n, l, m) loop order of \c Repulsion4C): what the shell-quartet block calls, its tables built once per primitive
+    //! pair.  The loops, the zero skips and the arithmetic are \c Repulsion4C's, so the value is bit-identical to it.
+    static double Repulsion4CTab(const double* hab, const Polarization& Pab, const double* hcd, const Polarization& Pcd,
+                                 const RNLM& rnlm, double lambda);
 
 private:
     size_t            itsIndex;     // registry index; set first (registry interns on exponent/centre/L)
@@ -248,6 +260,12 @@ public:
     double Overlap3C  (rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
     double Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
     double Repulsion4C(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const; // this is D
+    //! \brief A SHELL QUARTET at once (this is D): \a out[((a*nb+b)*nc+c)*nd+d] = \c Repulsion4C for components pa[a], pb[b], pc[c],
+    //! pd[d] of the four shells (each shell shares its radial).  Per primitive quartet the Ω pair, the RNLM table and \f$\lambda\f$ are
+    //! looked up ONCE (the per-component call looked them up per component quartet: 6⁴ times on a d quartet).  Each component's sum runs
+    //! over the primitive quartets in the per-component call's order with its arithmetic, so the values are BIT-IDENTICAL to it.
+    void   Repulsion4CBlock(rf_t& ra, rf_t& rb, rf_t& rc, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                            const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out) const;
 
     virtual std::ostream& Write(std::ostream&  ) const;
 
