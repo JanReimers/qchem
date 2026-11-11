@@ -15,6 +15,8 @@ target_sources(qcChargeDensity PRIVATE
     Imp/DensitySampler.C                  # the factory (public module's own Imp unit)
     Internal/Imp/DensitySampler_Singles.C
     Internal/Imp/DensitySampler_Pair.C
+    Internal/Imp/DensitySampler_Projected.C   # P rho: the plane-wave ball (V-XC-ONE-TERM step 2)
+    Internal/Imp/DensitySampler_OverlapProjected.C   # P rho: an overlap-metric fit, the molecular A1 (V-XC-ONE-TERM step 3)
 )
 target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     ChargeDensity.C
@@ -36,7 +38,7 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
     Internal/PolarizedDensityMixer.C
     Types.C
     DensitySampler.C                      # abstract face + factory: the whole client surface
-    Internal/DensitySampler.C             # the two concrete strategies
+    Internal/DensitySampler.C             # the three concrete strategies
     Internal/IrrepCD.C
     Internal/TransitionDensity.C          # the AO transition density concrete (friend: the FD oracle)
 )
