@@ -12,12 +12,20 @@
 // cast to tDM_CD and so simply never see this object.  A density fit reaches it through tChargeDensity::Project's
 // default, p.ProjectField(*this): the fitter samples the field in its own metric (V-ONE-OF-N 3c; the old
 // overlap-metric face and GetUnconstrainedFit are gone, and the Dunlap fitter's G^-1 G c0 round trip is the price).
+//
+// ★ IT OWNS ITS QUADRATURE (2026-11-11).  A Coulomb fit has no integration grid (user, doc/Pins.md): its projections are the fit
+// basis's exact operations.  This field is only a function on space (radial tables on log grids), so the integral <g_a|rho> that a
+// Gaussian Coulomb fit needs is the FIELD's to give, on points the field owns (BasisSet::SelfIntegratingField): the run's XC
+// MeshParams, chosen by its factory (MakeSeedDensity) and built under the seed's own report section.  Until then the A1_coul fit
+// basis built a private mesh from the same MeshParams to do it.
 module;
 #include <vector>
 #include <memory>
 #include <cstddef>
 export module qchem.ChargeDensity.NumericCD;
 export import qchem.ChargeDensity;             // tChargeDensity<double>
+export import qchem.BasisSet.PairProjector;    // SelfIntegratingField (the capability a Coulomb fit asks of a field)
+export import qchem.Mesh;                      // qcMesh::Mesh (the quadrature this field owns)
 import qchem.ScalarFunction;                   // ScalarFunction<double>
 import qchem.BasisSet.Orbital_DFT_IBS;                 // rFIT_CD_ABS (the fitter's narrow density-fit-basis face)
 
@@ -26,10 +34,12 @@ export namespace qchem::ChargeDensity
 
 class NumericCD
     : public virtual tChargeDensity<double>
+    , public virtual BasisSet::SelfIntegratingField
 {
 public:
-    //! \a totalCharge is the seed's electron count N (the fit charge constraint).
-    explicit NumericCD(double totalCharge);
+    //! \a totalCharge is the seed's electron count N (the fit charge constraint).  \a quadrature: the points this field integrates
+    //! itself on (\c OverlapWith); required -- THROWS on null.
+    NumericCD(double totalCharge, std::shared_ptr<const qcMesh::Mesh> quadrature);
 
     //! Add one atom's (recentred) real-space density to the superposition.
     void Insert(std::shared_ptr<const ScalarFunction<double>>);
@@ -39,6 +49,8 @@ public:
     virtual rvec3_t Gradient  (const rvec3_t&) const override;
 
     // No matrix, so a fitter asks for the seed's FIELD: tChargeDensity::Project's default, p.ProjectField(*this) (V-ONE-OF-N 3c).
+    //! \copydoc BasisSet::SelfIntegratingField::OverlapWith  (on the quadrature this seed was built with)
+    virtual rvec_t OverlapWith(const VectorFunction<double>& g) const override;
 
     // tChargeDensity -- the matrix-free face (everything a DFT seed needs).
     virtual double GetTotalCharge() const override {return itsScale*itsCharge;}
@@ -47,6 +59,7 @@ public:
 
 private:
     std::vector<std::shared_ptr<const ScalarFunction<double>>> itsDensities;  //!< per-atom rho(r)
+    std::shared_ptr<const qcMesh::Mesh>                        itsQuadrature; //!< where OverlapWith integrates
     double itsCharge;        //!< total electron count N (fit constraint), pre-scale
     double itsScale=1.0;     //!< uniform scale applied by ReScale
     size_t itsVersion;       //!< transient freshness serial (newCD cache check)

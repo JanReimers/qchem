@@ -20,7 +20,6 @@ import qchem.ChargeDensity.NumericCD;// NumericCD (the molecular SAD seed, doubl
 import qchem.ChargeDensity.SeedCD;    // SeedCD (the plane-wave SAD seed, dcmplx only)
 import qchem.ChargeDensity.AtomicDensity;    // GetAtomicDensity, RadialDensity, RecentredAtomicDensity
 import qchem.BasisSet.Orbital_DFT_IBS;           // Orbital_DFT_IBS<dcmplx> (the PW block: CreateCDFitBasisSet for the seed)
-import qchem.Mesh;                            // qcMesh::MeshParams (CreateCDFitBasisSet arg)
 import qchem.Structure;                       // Structure, Atom (atom Z + positions)
 import qchem.Blaze;                           // blazem::zeroH, hmat_t
 import qchem.Types;                           // dcmplx
@@ -71,7 +70,7 @@ std::vector<int> IonicFormalCharges(const std::vector<std::pair<int,int>>& atoms
 static std::shared_ptr<const BasisSet::cFIT_CD_ABS> SeedFit(const BasisSet::tBasisSet<dcmplx>* bs, const Structure* st)
 {
     qchem::report::Scope here("seedDensity");
-    return std::shared_ptr<const BasisSet::cFIT_CD_ABS>(bs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
+    return std::shared_ptr<const BasisSet::cFIT_CD_ABS>(bs->CreateCDFitBasisSet(st));
 }
 
 //! rho(r) = N/V on the first block: the seed both lineages share.
@@ -108,7 +107,7 @@ template <class T> static tChargeDensity<T>* UniformSeed(const BasisSet::tBasisS
 }
 
 tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
-                                        const Structure* st, const ElectronConfiguration* ec)
+                                        const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature)
 {
     assert(bs);
     assert(ec);
@@ -123,8 +122,11 @@ tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSe
     {
         // Superposition of neutral atomic densities.  Drop each atom's recentred radial density (LDA DB) into a NumericCD;
         // FittedVee/FittedVxc consume it (Coulomb projection + rho(r)).
-        assert(st && "SAD seed needs a Structure (atom Z + positions)");
-        auto* cd = new NumericCD(st->GetNumElectrons());
+        if (!st) throw std::logic_error("MakeSeedDensity: the SAD seed needs a Structure (atom Z + positions)");
+        // The seed is only a function on space, so it OWNS the points it integrates itself on (a Coulomb fit has none, doc/Pins.md):
+        // the run's XC mesh, reported one level into the seed's own context.
+        auto mesh=[&]{ qchem::report::Scope here("seedDensity"); return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(quadrature)); }();
+        auto* cd = new NumericCD(st->GetNumElectrons(), std::move(mesh));
         st->ForEachSite([&cd](int Z, const rvec3_t& R, bool)
         {
             auto rad = std::make_shared<const RadialDensity>(GetAtomicDensity(Z));

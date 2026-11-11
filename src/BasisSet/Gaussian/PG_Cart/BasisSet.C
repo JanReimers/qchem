@@ -80,7 +80,7 @@ public:
     Orbital_IBS(const rvec_t& exponents, size_t L, const Structure *);
     Orbital_IBS(const rvec_t& exponents, size_t L);
 
-    virtual rFIT_CD_ABS* CreateCDFitBasisSet(const Structure *, const qcMesh::MeshParams&) const override;
+    virtual rFIT_CD_ABS* CreateCDFitBasisSet(const Structure *) const override;
     virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure *, const qcMesh::MeshParams&) const override;
 
     //! This basis's AO shells in Cartesian-monomial form (delegates to ExtractAoShells on its own PGData).
@@ -156,7 +156,8 @@ class EFit_IBS
 public:
     // A fit set has no matrix-image client: its representation is the identity at E only, refusing any other op (S3).
     //! \a name = the auxiliary set this was read from ("A1_coul"), a fact only the creating factory knows.
-    EFit_IBS(Reader *, const Structure *, const qcMesh::MeshParams&, const std::string& name);
+    EFit_IBS(Reader *, const Structure *, const std::string& name);                            //!< the Coulomb fit: no mesh
+    EFit_IBS(Reader *, const Structure *, const qcMesh::MeshParams&, const std::string& name); //!< the Vxc fit: its projection mesh
 
     //! The run report's name for this fit.  Not the cache identity: \c BasisSetID stays the shells' own.
     virtual std::string Name() const override {return itsName;}

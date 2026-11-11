@@ -94,6 +94,29 @@ TEST(MeshAudit, AFinerMeshMovesOnlyTheMeshBorneTerms)
     }
 }
 
+// THE COULOMB (ρ) FIT IS ANALYTIC: no mesh reaches the Dunlap Hartree term (user 2026-11-11, "The rho fit should be 100% analytic, no
+// grid").  At a fixed D its energy and matrix are BIT-identical on a finer XC mesh, on methane as on water above.  Until 2026-11-11
+// the A1_coul fit took the XC MeshParams and built a private mesh for its normalisation and for projecting the SAD seed; that never
+// reached the Hartree term at a fixed D (this read 0 then too), only the seed's first iterate, which now names its own quadrature.
+TEST(MeshAudit, TheDunlapHartreeIsMeshFreeAtAFixedD)
+{
+    Molecule ch4;
+    const double a=1.186;   // C-H 2.054 bohr
+    ch4.Insert(Site{6, Vector3D<double>(0,0,0)});
+    for (const rvec3_t& h : {rvec3_t(a,a,a), rvec3_t(-a,-a,a), rvec3_t(-a,a,-a), rvec3_t(a,-a,-a)}) ch4.Insert(Site{1, Vector3D<double>(h.x,h.y,h.z)});
+    const auto setup=MoleculeSetup::Resolve(ch4, {.basis="dzvp", .model=Model::LDA});
+    MoleculeCalculation c(setup, Tight());
+    ASSERT_TRUE(c.Result());
+    const GridAuditResult R=c.MeshAudit(Finer(c.SizedSetup()->mesh));
+    bool sawEee=false, sawExc=false;
+    for (const auto& t : R.terms)
+    {
+        if (t.entries=="Eee") {sawEee=true; EXPECT_EQ(t.ΔE, 0.0) << t.label; EXPECT_EQ(t.maxAbsΔH, 0.0) << t.label;}
+        if (t.entries=="Exc") {sawExc=true; EXPECT_GT(t.maxAbsΔH, 0.0) << t.label << ": the finer mesh is a different mesh";}
+    }
+    EXPECT_TRUE(sawEee && sawExc);
+}
+
 TEST(MeshAudit, BeforeAConvergeItThrows)
 {
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA});

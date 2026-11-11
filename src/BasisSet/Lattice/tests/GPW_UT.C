@@ -2354,7 +2354,7 @@ TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
     GPW_IBS bra(cell, N, ivec3_t(2,0,0), mol, /*densityEcut*/6.0);
     const rvec3_t q(1.0/3.0, 0.0, 0.0);
     qcMesh::MeshParams mp;
-    std::unique_ptr<const BasisSet::cFIT_CD_ABS> cd(ket.CreateCDFitBasisSet(&cell, mp));
+    std::unique_ptr<const BasisSet::cFIT_CD_ABS> cd(ket.CreateCDFitBasisSet(&cell));
     std::unique_ptr<const BasisSet::cFIT_SF_ABS> sf(ket.CreateVxcFitBasisSet(&cell, mp));
     const auto& grid=dynamic_cast<const BasisSet::PlaneWave::PW_Grid_Evaluator&>(*cd);   // tests may cheat
     const double Omega=grid.Volume();

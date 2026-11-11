@@ -92,7 +92,7 @@ TEST(M_LibCint, matrix_3C_4C_match_scalar)
     EXPECT_LT(fnorm(lc.ExchangeMatrix(lc), hf.Exchange(ibs)), 1e-10);
 
     // 3-centre (DFT): a real Coulomb-fit basis from the orbital IBS; reference = public Overlap3C/Repulsion3C.
-    auto  cdfit = ibs.CreateCDFitBasisSet(h2o,qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3});
+    auto  cdfit = ibs.CreateCDFitBasisSet(h2o);
     auto vxcfit = ibs.CreateVxcFitBasisSet(h2o,qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3});
     LibCintEval lcdfit(dynamic_cast<const PGData&>(*cdfit), h2o);
     LibCintEval lvxcfit(dynamic_cast<const PGData&>(*vxcfit), h2o);
@@ -201,11 +201,10 @@ TEST(M_LibCint, coulomb_fit_geometry_gradients_match_finite_differences_of_the_M
 {
     Molecule* h2o = MakeWater();
     const rvec_t exps{1.0, 0.25};
-    const qcMesh::MeshParams mp{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};
     auto build=[&](const Structure* st)
     {
         auto ibs=std::make_unique<Orbital_IBS>(exps, 1, st);                 // s + p
-        std::unique_ptr<BasisSet::rFIT_CD_ABS> fit(ibs->CreateCDFitBasisSet(st, mp));
+        std::unique_ptr<BasisSet::rFIT_CD_ABS> fit(ibs->CreateCDFitBasisSet(st));
         return std::pair{std::move(ibs), std::move(fit)};
     };
     auto [ibs, fit]=build(h2o);

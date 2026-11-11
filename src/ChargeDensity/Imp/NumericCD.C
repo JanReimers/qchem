@@ -4,18 +4,26 @@ module;
 #include <vector>
 #include <memory>
 #include <cstddef>
+#include <stdexcept>
 
 module qchem.ChargeDensity.NumericCD;
 import qchem.Blaze;                        // rvec3_t vector arithmetic (Gradient accumulation) + rvec_t
-import qchem.BasisSet.Orbital_DFT_IBS;             // FIT_SF_NonOrtho (the overlap metric-solve face)
+import qchem.Mesh.Quadrature;                   // qcMesh::Overlap (OverlapWith)
 
 namespace qchem::ChargeDensity
 {
 
-NumericCD::NumericCD(double totalCharge)
-    : itsCharge(totalCharge), itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
+NumericCD::NumericCD(double totalCharge, std::shared_ptr<const qcMesh::Mesh> quadrature)
+    : itsQuadrature(std::move(quadrature)), itsCharge(totalCharge), itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
     assert(totalCharge>0);
+    if (!itsQuadrature || itsQuadrature->size()==0)
+        throw std::logic_error("NumericCD: a matrix-free seed needs the quadrature it integrates itself on (it is only a function on space)");
+}
+
+rvec_t NumericCD::OverlapWith(const VectorFunction<double>& g) const
+{
+    return qcMesh::Overlap(*itsQuadrature, g, static_cast<const ScalarFunction<double>&>(*this));
 }
 
 void NumericCD::Insert(std::shared_ptr<const ScalarFunction<double>> d)

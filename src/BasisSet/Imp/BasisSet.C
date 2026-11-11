@@ -56,9 +56,9 @@ template <class T> static const Orbital_DFT_IBS<double>* FirstRealDFT(const tBas
         "recoverable condition.");
 }
 
-template <class T> FIT_CD_ABS<T>* tBasisSet<T>::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+template <class T> FIT_CD_ABS<T>* tBasisSet<T>::CreateCDFitBasisSet(const Structure* cl) const
 {
-    return FirstRealDFT(*this, "tBasisSet::CreateCDFitBasisSet")->CreateCDFitBasisSet(cl,mp);
+    return FirstRealDFT(*this, "tBasisSet::CreateCDFitBasisSet")->CreateCDFitBasisSet(cl);
 }
 template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp,
                                                                     VxcFit fit,
@@ -89,9 +89,9 @@ template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Struc
 // The plane-wave (dcmplx) density-fit basis is created THROUGH the orbital basis's own factory, exactly
 // as the double path delegates to Orbital_DFT_IBS: iterate to the Orbital_DFT_IBS<dcmplx> (the reciprocal-space DFT
 // capability, realized by the plane-wave basis) and let it build its auxiliary cFIT_CD_ABS.
-template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const Structure* cl, const qcMesh::MeshParams& mp) const
+template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const Structure* cl) const
 {
-    return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateCDFitBasisSet(cl,mp);});
+    return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateCDFitBasisSet(cl);});
 }
 FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp, const Symmetry::SymmetryImposition* imp)
 {

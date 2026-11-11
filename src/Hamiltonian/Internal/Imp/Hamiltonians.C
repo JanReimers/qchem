@@ -125,7 +125,7 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
 {
     if (coulomb.fit!=CoulombFit::Delta && coulomb.fit!=CoulombFit::Multipole)
     {
-        Vee_FitDunlap::fbs_t fb=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
+        Vee_FitDunlap::fbs_t fb=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get());});
         // Dunlap needs a Coulomb METRIC, so a δ basis (none) cannot reach it: the route enum picks the fit, and this branch only
         // ever builds the Gaussian one.  Ruling (g)'s "refuse Dunlap on a δ basis" has no deck path to fire on today.
         return new Vee_FitDunlap(Fitting::MakeDunlapDensityFitter(fb), st->GetNumElectrons());
@@ -245,8 +245,8 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
                             VxcFit fit, std::vector<HubbardManifold> hubbard)
 {
     // Build the functionals FIRST: their GridCutoffFactor() sets how dense the fit grid must be (the CP2K
-    // REL_CUTOFF seam).  Exchange and correlation share ONE Vxc fit basis, so it takes the DENSER of the two;
-    // the density (CD) fit grid moves in lockstep (item K).  LDA -> 1.0 -> today's grid, bit-identical.
+    // REL_CUTOFF seam).  Exchange and correlation share ONE Vxc fit basis, so it takes the DENSER of the two.
+    // The density (CD) fit takes no knob: its ball is the exact difference-set cover of rho[D] (2026-11-11).
     auto exch=std::make_shared<SlaterExchange>(2.0/3.0);   // Dirac exchange (alpha = 2/3)
     auto corr=std::make_shared<VWN_Correlation>();         // VWN5 correlation
     qcMesh::MeshParams mp;
@@ -254,14 +254,14 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
 
     // The Hartree (CD) fit basis is created ONCE here from the basis's factory (never assuming orbital==fit),
     // exactly as the molecular DFT ctor builds Vee_FitDunlap's fit basis -- rho is cell-periodic so it is
-    // Gamma (k=0).  A plane-wave fit basis reads only mp.relCutoff.
+    // Gamma (k=0).  Analytic: no mesh (Orbital_DFT_IBS::CreateCDFitBasisSet).
     // ★ 1.1(b): the four phases of this builder each get a bucket, so the ctor's 23 s/call stops being one
     // number.  report::Timed is exclusive, so the Becke mesh build and the Φ tables -- already bucketed
     // deeper down -- stay children of the two fit-basis scopes and are not double-counted here.
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> CFitBasis;   // filled in the bucket below
     {
         qchem::report::Timed timed("setup: Hartree CD fit basis");
-        CFitBasis=BuildTermFit<BasisSet::cFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get(), mp);});
+        CFitBasis=BuildTermFit<BasisSet::cFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get());});
     }
     qchem::report::Timed terms("setup: hamiltonian term ctors (kinetic, PP, Hartree, Ewald)");
     Add(new Kinetic<dcmplx>);

@@ -6,6 +6,7 @@
 
 #include "gtest/gtest.h"
 #include <algorithm>
+#include <cmath>
 #include <cctype>
 #include <filesystem>
 #include <fstream>
@@ -26,7 +27,7 @@ import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Structure;
 import qchem.Types;
 import qchem.PeriodicTable;                      // the element of each header line
-import qchem.Mesh;                               // qcMesh::MeshParams (the fit bases' factories take one)
+import qchem.Mesh;                               // qcMesh::MeshParams (the Vxc fit's factory takes one)
 
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian;
@@ -115,7 +116,7 @@ TEST(Gaussian94Reader, TheFitBasesCarryEveryShellOfTheirFile)
     };
     std::unique_ptr<BasisSet::Real_BS> bs(Factory(BasisSetData::DZVP, &n2));
     const qcMesh::MeshParams mp{};
-    std::unique_ptr<BasisSet::rFIT_CD_ABS> cd(bs->CreateCDFitBasisSet(&n2, mp));
+    std::unique_ptr<BasisSet::rFIT_CD_ABS> cd(bs->CreateCDFitBasisSet(&n2));
     std::unique_ptr<BasisSet::rFIT_SF_ABS> sf(bs->CreateVxcFitBasisSet(&n2, mp));
     EXPECT_EQ(cd->GetNumFunctions(), cartesianCount("A1_coul.bsd")) << "the Coulomb fit basis dropped shells of its file";
     EXPECT_EQ(sf->GetNumFunctions(), cartesianCount("A1_exch.bsd")) << "the Vxc fit basis dropped shells of its file";
@@ -123,6 +124,43 @@ TEST(Gaussian94Reader, TheFitBasesCarryEveryShellOfTheirFile)
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
     size_t nd=0; for (const auto& sh : ReadShells(reader, n2)) for (int l : sh.Ls) if (l==2) ++nd;
     EXPECT_GT(nd, 0u) << "A1_coul N has d shells (on the SP exponents) -- else this test tests nothing";
+}
+
+// THE COULOMB (ρ) FIT IS 100% ANALYTIC (user 2026-11-11, "The rho fit should be 100% analytic, no grid"): its factory takes no mesh,
+// its Norm is the analytic metric diagonal's (1 to roundoff: the shells are analytically normalised), and it has no points to project a
+// field on, so that refuses with a reason.  OverlapDiagonal refuses on any Gaussian fit (R1.0: delete, don't correct).  The Vxc fit
+// keeps its projection mesh and answers <f_a|f> there.
+TEST(Gaussian94Reader, TheCoulombFitIsAnalyticAndOwnsNoMesh)
+{
+    struct One : ScalarFunction<double>
+    {
+        double  operator()(const rvec3_t&) const override {return 1.0;}
+        rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0,0,0);}
+    } one;
+    Molecule n2;
+    n2.Insert(Site{7, Vector3D(-1.03,0.0,0.0)});
+    n2.Insert(Site{7, Vector3D( 1.04,0.0,0.0)});
+    std::unique_ptr<BasisSet::Real_BS> bs(Factory(BasisSetData::DZVP, &n2));
+    std::unique_ptr<BasisSet::rFIT_CD_ABS> cd(bs->CreateCDFitBasisSet(&n2));
+    const auto& asSF=dynamic_cast<const BasisSet::FIT_SF_NonOrtho&>(*cd);   // the Dunlap fitter's overlap-solve face
+    const rvec_t& n=asSF.Norm();
+    const rsmat_t& S=asSF.Overlap();
+    ASSERT_EQ(n.size(), cd->GetNumFunctions());
+    for (size_t a=0; a<n.size(); a++)
+    {
+        EXPECT_EQ(n[a], 1.0/std::sqrt(S(a,a))) << "function " << a << ": the norm is the analytic metric's";
+        EXPECT_NEAR(n[a], 1.0, 1e-12) << "function " << a << ": the shells are analytically normalised";
+    }
+    EXPECT_THROW((void)asSF.Overlap(one), std::logic_error) << "a Coulomb fit owns no mesh to project a field on";
+    EXPECT_THROW((void)asSF.OverlapDiagonal(), std::logic_error) << "R1.0: a non-orthogonal fit refuses a diagonal-only metric";
+    const qcMesh::MeshParams mesh{.radial=qcMesh::RadialKind::MHL, .nRadial=80, .mhl_m=3, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev,
+                                 .angularDegree=29, .beckeOrder=2};   // the molecular entry rung
+    std::unique_ptr<BasisSet::rFIT_SF_ABS> sf(bs->CreateVxcFitBasisSet(&n2, mesh));
+    const rvec_t p=sf->Overlap(one);   // the Vxc fit projects on its own mesh: <f_a|1> by quadrature, against the analytic Charge
+    ASSERT_EQ(p.size(), sf->GetNumFunctions());
+    const rvec_t q=sf->Charge();
+    double worst=0.0; for (size_t a=0; a<p.size(); a++) worst=std::max(worst, std::fabs(p[a]-q[a])/std::max(1.0,std::fabs(q[a])));
+    EXPECT_LT(worst, 1e-4) << "the Vxc fit's projection of 1 is its charge, to the mesh's quadrature error";
 }
 
 TEST(Gaussian94Reader, AnOrbitalBasisLoadsEveryShellOfASharedExponent)

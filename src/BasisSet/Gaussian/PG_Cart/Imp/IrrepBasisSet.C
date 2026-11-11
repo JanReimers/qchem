@@ -256,11 +256,11 @@ Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
 {};
     
-rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
-    return new EFit_IBS(&reader,cl,mp,"A1_coul");
+    return new EFit_IBS(&reader,cl,"A1_coul");
 }
 rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
@@ -398,6 +398,9 @@ size_t Orbital_IBS::StreamFoldOrder() const
 //
 //  Fit PG basis set.
 //
+EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl, const std::string& name)
+: Fit_IBS(), IrrepBasisSet(bsr,cl), itsName(name)
+{};
 EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl, const qcMesh::MeshParams& mp, const std::string& name)
 : Fit_IBS(*cl,mp), IrrepBasisSet(bsr,cl), itsName(name)
 {};

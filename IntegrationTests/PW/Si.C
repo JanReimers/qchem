@@ -170,7 +170,7 @@ TEST(PW_Si, Γ_eqPrototype)
     // a manual Hamiltonian must add it explicitly or it drops V_long entirely.
     ham.Add(new Ven_PP_Long(si, &loc));                                 // electron-ion LONG-range
     {
-        std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}));
+        std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(nullptr));
         ham.Add(new Vee_Fit<dcmplx>(qchem::Fitting::MakeGSpaceDensityFitter(fb), 0.0, fb));   // the periodic Hartree term (V-ONE-OF-N 3b)
     }
     ham.Add(NewPWXC(pw, std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
