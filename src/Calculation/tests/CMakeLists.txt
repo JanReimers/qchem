@@ -10,6 +10,7 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     CalculationFacade.C # the front-end face: the ctor observer, levels, the spin density (lane G)
     MoleculeSession.C   # the molecular potential energy surface: reference == single point, carried step == fresh (step 8)
     MolecularRelaxation.C # REAL relaxations: the optimizer over a MoleculeSession, HF/DZVP, against PySCF minima (OpenWork §2)
+    SolidRelaxation.C   # REAL relaxations: the optimizer over a SolidSession on plane waves, back to the symmetric site (OpenWork §2)
     SolidSetup.C        # the periodic run setup: the frozen basis recipe, provenance without a deck (step 6)
     SolidSession.C      # the solid potential energy surface: reference == single point, carried step == fresh (step 8)
     DegenerateFill.C    # the degenerate-level fill policy beside GDM: the teaching `choose` row, the `warn` row (D-DEGEN-FILL follow-up)

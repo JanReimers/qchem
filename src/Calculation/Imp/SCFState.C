@@ -268,14 +268,15 @@ template <class U> const Orbitals::TOrbitals<U>* Typed(const StateBlock& r)
     return dynamic_cast<const Orbitals::TOrbitals<U>*>(r.orbitals);
 }
 
-// One block's physical D = Σ_i f_i c_i c_i^† exactly as TOrbital::AddDensityMatrix, held complex (a real block's promotes exactly).
-template <class U> mat_t<dcmplx> BlockD(const Orbitals::TOrbitals<U>& os, size_t n)
+// One block's physical D = Σ_i f_i c_i c_i^† exactly as TOrbital::AddDensityMatrix, held complex (a real block's promotes exactly);
+// with \a energyWeighted, W = Σ_i f_i ε_i c_i c_i^† (the force's and the stress's Pulay term).
+template <class U> mat_t<dcmplx> BlockD(const Orbitals::TOrbitals<U>& os, size_t n, bool energyWeighted)
 {
     mat_t<dcmplx> D(n,n);
     for (size_t a=0;a<n;a++) for (size_t b=0;b<n;b++) D(a,b)=dcmplx(0.0);
     for (const auto* o : os.template Iterate<Orbitals::TOrbital<U>>())
     {
-        const double f=o->GetOccupation();
+        const double f=o->GetOccupation()*(energyWeighted ? o->GetEigenEnergy() : 1.0);
         if (f==0.0) continue;
         const vec_t<U>& c=o->GetCoeff();
         if (c.size()!=n) throw std::logic_error("SCFState: an orbital's coefficient count differs from its block's size");
@@ -288,10 +289,10 @@ template <class U> mat_t<dcmplx> BlockD(const Orbitals::TOrbitals<U>& os, size_t
     }
     return D;
 }
-mat_t<dcmplx> BlockD(const StateBlock& r)
+mat_t<dcmplx> BlockD(const StateBlock& r, bool energyWeighted=false)
 {
-    if (const auto* ro=Typed<double>(r); ro && r.real) return BlockD(*ro, r.n());
-    if (const auto* co=Typed<dcmplx>(r); co && r.cplx) return BlockD(*co, r.n());
+    if (const auto* ro=Typed<double>(r); ro && r.real) return BlockD(*ro, r.n(), energyWeighted);
+    if (const auto* co=Typed<dcmplx>(r); co && r.cplx) return BlockD(*co, r.n(), energyWeighted);
     throw std::logic_error("SCFState: a block's orbitals are not of its basis block's scalar");
 }
 
@@ -511,7 +512,7 @@ Outcome<SavedState, RestartRefusal> ReadState(const std::string& path)
 //---------------------------------------------------------------------------------------------------
 //  SNAPSHOT, CARRY, RESTORE CHECKS
 //---------------------------------------------------------------------------------------------------
-SavedState SnapshotState(const std::vector<StateBlock>& blocks, const std::string& kind)
+SavedState SnapshotState(const std::vector<StateBlock>& blocks, const std::string& kind, bool energyWeighted)
 {
     SavedState st;
     st.path="(in memory)";
@@ -524,7 +525,7 @@ SavedState SnapshotState(const std::vector<StateBlock>& blocks, const std::strin
         sb.weight=r.weight;
         sb.real  =r.real!=nullptr;
         sb.extras=r.extras;
-        sb.D     =BlockD(r);
+        sb.D     =BlockD(r, energyWeighted);
         sb.S     =BlockOverlap(r);
         st.blocks.push_back(std::move(sb));
     }

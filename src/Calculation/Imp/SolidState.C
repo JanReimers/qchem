@@ -185,9 +185,9 @@ Outcome<std::vector<std::string>, RestartRefusal> CompareSolidFingerprints(const
     return CompareFingerprints(saved, now, MigrateSolidFingerprint);
 }
 
-SavedState SnapshotState(const BasisSet::Complex_BS& bs, const WaveFunction::cWaveFunction& wf)
+SavedState SnapshotState(const BasisSet::Complex_BS& bs, const WaveFunction::cWaveFunction& wf, bool energyWeighted)
 {
-    return SnapshotState(SolidStateBlocks(bs, wf.GetSpinGroup(), &wf), "solid");
+    return SnapshotState(SolidStateBlocks(bs, wf.GetSpinGroup(), &wf), "solid", energyWeighted);
 }
 
 void LowdinCarry(SavedState& carry, const BasisSet::Complex_BS& bs, SpinGroup g) {LowdinCarry(carry, SolidStateBlocks(bs, g));}

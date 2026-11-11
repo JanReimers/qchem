@@ -107,8 +107,9 @@ StateFingerprint MigrateSolidFingerprint(StateFingerprint saved, const StateFing
 //! \c CompareFingerprints under \c MigrateSolidFingerprint: every solid comparison goes through here, so an old state keeps loading.
 Outcome<std::vector<std::string>, RestartRefusal> CompareSolidFingerprints(const StateFingerprint& saved, const StateFingerprint& now);
 
-//! The solid's in-memory snapshot (\c SnapshotState over \c SolidStateBlocks): the carry a geometry step seeds its next point with.
-SavedState SnapshotState(const BasisSet::Complex_BS& bs, const WaveFunction::cWaveFunction& wf);
+//! The solid's in-memory snapshot (\c SnapshotState over \c SolidStateBlocks): the carry a geometry step seeds its next point with;
+//! with \a energyWeighted, every block's W = Σ f ε c c^† in the D slot (\c RestoreDensity then builds W as it builds D).
+SavedState SnapshotState(const BasisSet::Complex_BS& bs, const WaveFunction::cWaveFunction& wf, bool energyWeighted=false);
 //! \c LowdinCarry over the solid's blocks.
 void LowdinCarry(SavedState& carry, const BasisSet::Complex_BS& bs, SpinGroup g);
 

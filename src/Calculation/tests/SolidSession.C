@@ -332,6 +332,18 @@ TEST(SolidSession, AGeometryRunPairsTheSessionWithAMapThatKeepsItsGroup)
     {
         auto run=MakeSolidGeometryRun(SiSetup(nullptr, /*imposed*/true), stages);
         EXPECT_EQ(run.map->Dimension(), 0u) << "diamond Si: both atoms on the 8a sites, no free Wyckoff parameter";
+        // A CELL relaxation needs the frozen rule's sizing box: this setup states no strain allowance, so the factory refuses it.
+        EXPECT_THROW((void)MakeSolidGeometryRun(SiSetup(nullptr, /*imposed*/true), stages, nullptr, SolidSession::Carry::AO, /*relaxCell*/true),
+                     std::invalid_argument);
+        // With one, the map is the cell map over the SAME group: cubic diamond keeps one strain (the breathing mode) and no Wyckoff
+        // parameter, and every point asks for the stress as well as the forces.
+        SolidCalcOptions o=SiGamma(/*imposed*/true, /*statedRasters*/true); o.cellStrainAllowance=0.02;
+        const auto mat=Materials::Get("Si_diamond");
+        auto cellRun=MakeSolidGeometryRun(SolidSetup::Resolve(Lattice_3D(UnitCell(*mat.cell), ivec3_t(1,1,1)), kSiBasis, o), stages, nullptr,
+                                          SolidSession::Carry::AO, /*relaxCell*/true);
+        EXPECT_EQ(cellRun.map->Dimension(), 1u) << "cubic: the breathing strain only";
+        EXPECT_TRUE(cellRun.map->PointRequest().forces);
+        EXPECT_TRUE(cellRun.map->PointRequest().stress);
     }
     const PESGeometry perfect=SolidSession(SiSetup(), stages).Reference();
     std::vector<rvec3_t> stretched=perfect.R;
@@ -376,6 +388,13 @@ TEST(SolidSession, AForceRequestNamesTheMissingGradientsBeforeAnySCF)
     std::cout << "[Si Γ forces] " << F.Error().details << std::endl;
     EXPECT_EQ(rows, 0u) << "the refusal spent no SCF iteration";
     EXPECT_EQ(run.surface->Current(), nullptr) << "the unconverged point is discarded, never held as a carry";
+    // STRESS, the same way: the GPW terms without a virial (MissingVirials) are named, and no SCF is spent.
+    auto S=run.surface->ConvergeAt(ref.cell, ref.R, {.stress=true});
+    ASSERT_FALSE(S);
+    EXPECT_EQ(S.Error().why, PESFailure::Why::NoGradient);
+    EXPECT_NE(S.Error().details.find("MissingVirials"), std::string::npos) << S.Error().details;
+    EXPECT_EQ(rows, 0u) << "the stress refusal spent no SCF iteration";
+    EXPECT_EQ(run.surface->Current(), nullptr);
 
     ASSERT_TRUE(run.surface->ConvergeAt(ref.cell, ref.R));   // an ENERGY point: held
     const SolidCalculation* held=run.surface->Current();

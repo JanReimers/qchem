@@ -14,6 +14,7 @@
 #include "forward.H"
 import qchem.MoleculeCalculation;
 import qchem.SolidCalculation;        // the GPW gate: a Bloch basis's MissingGradients
+import qchem.SCFState;                // SnapshotState (the shared energy-weighted snapshot)
 import qchem.Materials;
 import qchem.Lattice_3D;
 import qchem.UnitCell;
@@ -119,6 +120,7 @@ public:
         return c.itsHam->MakeTermForces(c.itsBasis, cd.get(), c.itsStructure.get());
     }
     static MoleculeCalculation::Carry EnergyWeighted(const MoleculeCalculation& c) {return {c.MakeEnergyWeightedDensity()};}
+    static std::vector<StateBlock> Blocks(const MoleculeCalculation& c) {return c.StateBlocks(true);}
     //! The whole energy breakdown at structure \a at with \a D frozen: for terms MakeTermEnergies leaves out (the whole-system HF ones).
     static EnergyBreakdown TotalEnergyAt(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, const MoleculeCalculation::Carry& D)
     {
@@ -658,12 +660,20 @@ TEST(HamiltonianStress, OnPlaneWavesEachTermsVirialAtFixedDIsItsEnergysStrainFin
 
 TEST(HamiltonianStress, OnPlaneWavesTheWholeVirialIsTheStrainDerivativeOfTheReconvergedEnergy)
 {
+    // THE SESSION'S STRESS (σ = V/Ω at the converged D and its energy-weighted W) is what is gated; the door's virial on a fresh run of
+    // the same setup is the same sum, so the two must agree to the SCF's floor.
     const auto setup=PWStressSetup();
     SolidCalculation c0(setup, PWStressParams());
     ASSERT_TRUE(c0.Result());
-    const rmat3d_t V=ForceFacadeTests::Virial(c0);
+    const rmat3d_t Vdoor=ForceFacadeTests::Virial(c0);
     SolidSession pes(setup, {SCFStage{PWStressParams(), SCFAccelerators::Type::Auto}});
     const PESGeometry ref=pes.Reference();
+    auto p0=pes.ConvergeAt(ref.cell, ref.R, {.stress=true});
+    ASSERT_TRUE(p0) << p0.Error().details;
+    ASSERT_TRUE(p0->stress);
+    const double Ω=std::fabs(Determinant(*ref.cell));
+    rmat3d_t V; for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) V(i,j)=(*p0->stress)(i,j)*Ω;
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) EXPECT_NEAR(V(i,j), Vdoor(i,j), 1e-8) << "the session's σΩ is the door's virial (" << i << "," << j << ")";
     const double h=5e-4;
     const std::pair<size_t,size_t> comps[]={{1,1},{2,2},{3,3},{1,2},{2,3},{3,1}};
     for (const auto& [i,j] : comps)
@@ -683,6 +693,68 @@ TEST(HamiltonianStress, OnPlaneWavesTheWholeVirialIsTheStrainDerivativeOfTheReco
         // 1e-6 leaves room for both, and a missing term of this cell's size (>= 1e-4 per component) cannot hide in it.
         EXPECT_NEAR(V(i,j), fd, 1e-6) << "(" << i << "," << j << ")";
         EXPECT_NEAR(V(i,j), V(j,i), 1e-7) << "the converged virial is symmetric (" << i << "," << j << ")";
+    }
+}
+
+// THE SESSION'S FORCE ON PLANE WAVES: a forces request on the sheared, distorted Si cell carries −dE/dR at the converged D and its
+// energy-weighted W (the Pulay sum is a plane wave's exact zero, so W runs but contributes nothing here: the molecular gate below checks W
+// itself), against the central difference of the session's own re-converged energies, every atom and axis.  MEASURED 2026-11-11 (h 1e-3,
+// the PW whole-force gate's step): |analytic − FD| <= 1.8e-9 at max|F| 0.032; 2e-8 as that gate.
+TEST(HamiltonianForces, OnPlaneWavesTheSessionsForceIsTheFiniteDifferenceOfItsEnergy)
+{
+    SolidSession pes(PWStressSetup(), {SCFStage{PWStressParams(), SCFAccelerators::Type::Auto}});
+    const PESGeometry ref=pes.Reference();
+    auto p0=pes.ConvergeAt(ref.cell, ref.R, {.forces=true});
+    ASSERT_TRUE(p0) << p0.Error().details;
+    ASSERT_TRUE(p0->forces);
+    const std::vector<rvec3_t>& F=*p0->forces;
+    ASSERT_EQ(F.size(), ref.R.size());
+    // The XC raster is fixed in space, so a rigid translation is not exact (the egg-box): measured |ΣF| 6.4e-8 on this cell.
+    EXPECT_LT(norm(F[0]+F[1]), 1e-6) << "translation invariance, to the raster's egg-box";
+    const double h=1e-3;
+    double largest=0.0;
+    for (size_t A=0;A<F.size();A++) for (int k=0;k<3;k++)
+    {
+        auto E=[&](double s)
+        {
+            auto R=ref.R; (k==0 ? R[A].x : k==1 ? R[A].y : R[A].z)+=s;
+            auto p=pes.ConvergeAt(ref.cell, R);
+            EXPECT_TRUE(p) << p.Error().details;
+            return p ? p->energy : 0.0;
+        };
+        const double fd=-(E(h)-E(-h))/(2*h), an=C(F[A],k);
+        std::cout << "[forces] PW session atom " << A << " axis " << k << ": analytic " << an << "  FD " << fd << "  diff " << an-fd << std::endl;
+        EXPECT_NEAR(an, fd, 2e-8) << "atom " << A << " axis " << k;
+        largest=std::max(largest, std::fabs(fd));
+    }
+    EXPECT_GT(largest, 1e-2) << "the force is not trivially small";
+}
+
+// THE SHARED ENERGY-WEIGHTED SNAPSHOT (qchem.SCFState: SnapshotState(..., energyWeighted), what the solid's W is built from) is the
+// molecular facade's own W, block for block: RHF and UHF water, free and SALC-blocked (several blocks, both spins).
+TEST(ForceFacade, TheSharedEnergyWeightedSnapshotIsTheFacadesW)
+{
+    const std::vector<CalcOptions> cases{{.basis="dzvp"}, {.basis="dzvp", .symmetry=true}, {.basis="dzvp", .spin=SpinGroup::Polarized, .symmetry=true}};
+    for (const auto& o : cases)
+    {
+        MoleculeCalculation c(MoleculeSetup::Resolve(GetMolecule("H2O"), o), Tight());
+        ASSERT_TRUE(c.IsConverged());
+        const auto W=ForceFacadeTests::EnergyWeighted(c);
+        const SavedState snap=SnapshotState(ForceFacadeTests::Blocks(c), "molecule", /*energyWeighted*/true);
+        ASSERT_EQ(snap.blocks.size(), W.D.size());
+        double largest=0.0;
+        for (size_t b=0;b<W.D.size();b++)
+        {
+            const size_t n=W.D[b].rows();
+            ASSERT_EQ(snap.blocks[b].D.rows(), n);
+            for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
+            {
+                EXPECT_NEAR(snap.blocks[b].D(i,j).real(), W.D[b](i,j), 1e-13) << "block " << b;
+                EXPECT_EQ(snap.blocks[b].D(i,j).imag(), 0.0);
+                largest=std::max(largest, std::fabs(W.D[b](i,j)));
+            }
+        }
+        EXPECT_GT(largest, 1.0) << "W is not trivially small";
     }
 }
 
