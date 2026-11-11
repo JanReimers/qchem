@@ -819,3 +819,44 @@ MoleculeCalculation files and the new module, so lane G's `MoleculeSetup.C` edit
 
 **§13 and §14 APPROVED (user 2026-11-07, "All approved"):** the §13 `Forces` surface on the `Hamiltonian` hub (`tHamiltonian::MissingGradients()`, `tHamiltonianAt::Forces(W)`; term faces, the basis `GeometryDerivatives` face and W behind the hub); the §14 molecular-ε design with the controller's answers: (1) replay the banked TeF₆ fixed-D data before building per-species (nR, L); (2) the Coulomb fit set is NUMERICAL (pin 31 lists fit-basis incompleteness as non-model), so a miss WARNs with a policy row until a fit-set ladder exists, which gets its own row; (3) the sizing climb runs by default on energy runs on both facades, the separate post-SCF confirmation audit stays opt-in.  The Enzyme build is approved too.
 
+
+## 15. Real relaxations end to end: the molecules (lane H, 2026-11-11; OpenWork §2 "Real relaxations end to end", step 1)
+
+**Wiring.**  `MoleculeSession::ConvergeAt` used to refuse every forces request ("step 9").  It now answers it:
+- a term without its geometry gradient (LDA's XC today) is refused by name, `NoGradient` listing `Hamiltonian::MissingGradients`, BEFORE
+  any SCF: the held point is asked, or the first point's question goes to a probe built up to its Hamiltonian, in its own report run;
+- otherwise the converged point carries −dE/dR = the terms' forces + the Pulay sum, at the converged D and W
+  (`MoleculeCalculation::MakeForces`, the same `tHamiltonianAt::Forces` the ForceFacade gates check against the re-converged FD);
+- stress is refused (a molecule has no cell).
+So today's real molecular relaxations are **HF** (and E1); LDA waits on the δ XC force (OpenWork §2 "Analytic forces").
+
+**Oracle.**  PySCF 2.14 at the SAME model: RHF, the Cartesian DGauss DZVP read from `BasisSetData/dzvp.bsd`, analytic gradients, scipy
+BFGS to max|g| < 1e-7 Ha/bohr, SCF conv_tol 1e-12.  `~/Code/pyscf-runs/Relax/hf_dzvp_relax.py` and `.out`.  Ours: `GeometryOptimizer`
+over the session, `CartesianMap` (rigid modes out, no symmetry ops), `OptimizerOptions::FromEps(1e-6)` (max|g| 4.5e-5), SCF MinΔρ/N 1e-9.
+Logs `~/Code/qchem6-runs/Relax/`.
+
+| molecule (start) | stepper | steps / evaluations | E ours − PySCF (Ha) | geometry ours vs PySCF |
+|---|---|---|---|---|
+| H₂O (experimental) | BFGS-RFO | 4 / 6 (1 rejected) | +5e-10 | r(OH) 1.788777 vs 1.788807, HOH 106.4791 vs 106.4775 |
+| H₂O (experimental) | L-BFGS | 4 / 6 (1 rejected) | +1e-10 | r(OH) 1.788825, HOH 106.4770 |
+| NH₃ (experimental) | BFGS-RFO | 4 / 5 | 0 (to 1e-10) | r(NH) 1.893998-1.894000 vs 1.893998, HNH 107.4035 vs 107.4040 |
+| H₂O₂ (HOOH 60°, 54° off) | BFGS-RFO | 12 / 13 | −5e-10 | r(OO) 2.636290 vs 2.636291, r(OH) 1.792330 vs 1.792327, OOH 102.7431 vs 102.7434, HOOH 113.709 vs 113.706 |
+
+Every run converged under the ε-derived rule and lands on PySCF's minimum: energy to 5e-10 Ha, bonds to 3e-5 bohr, the soft torsion to
+0.003°.  PySCF's own BFGS took 9 / 10 / 20 evaluations (from the experimental H₂O₂, 21).
+
+**What the runs showed** (each a row in `doc/OpenWork.md`):
+1. **The cost is the ERI4, not the optimizer or the SCF.**  H₂O₂ (34 functions) costs ~11 s a point, ~80 % of it the MnD ERI4 build at
+   the new geometry (`findRNLM`, `Hermite2`, `Repulsion4C`, the `Cache2` std::map lookups; `perf`, 60 s sample).
+2. **The molecular DIIS switches itself OFF near convergence**: its ABSOLUTE singular-value floor (`AcceleratorOptions::svTol` 5e-9) on B,
+   whose scale is |[F,D]|², prunes the history to one entry once [F,D] ≲ 7e-5, and the tail runs on linear mixing at 0.5 (~0.76 per
+   iteration): H₂O₂ cold 13 DIIS iterations + 35 linear, a carried step of 2.5e-4 bohr 30 linear.  Floor off (svTol 1e-20): DIIS keeps a
+   near-singular history and stalls at [F,D] ~4e-8 (cap hit).  The Ladder (DIIS→GDM at ΔE/E < 1e-6, the CLAUDE.md restart rule) halves the
+   points' SCF iterations (Σ 483 → 275) but moves the wall only 150 → 140 s, because of 1.
+3. **The libcint engine has no pullbacks**: a forces request on `.engine=LibCint` is refused by name (Kinetic, Ven: "gives no kinetic /
+   nuclear pullback"), correctly, but a geometry run cannot use the faster engine.
+
+**Tests** (the user's budget, 2026-11-10): `UTCalculation` `MoleculeSession.AForcesRequestOnHFCarriesTheForceAtEveryPoint` (the wiring,
+against the session's own FD at two points), `MoleculeSession.RefusalsAreOutcomesAndAWrongCountThrows` (LDA refused by name with no point
+kept; stress refused); `MolecularRelaxation.HFWaterReachesPySCFsMinimum` (both steppers, 13 s) and the family's one end-to-end
+`MolecularRelaxation.HFPeroxideUnwindsItsTorsionToPySCFsMinimum_Long` (~150 s).  NH₃ is banked here, not gated.
