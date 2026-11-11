@@ -76,6 +76,11 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>& D, const Structure* st) const override;
     virtual bool CanPullbackKinetic() const override;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<double>& D, const Structure* st) const override;
+    //! The virials forward through the same fold (CellHalf_Design §5): the SALC map is geometry- and strain-free.
+    virtual bool CanVirialOverlap() const override;
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeOverlapVirial(const hmat_t<double>& D, const Structure* st) const override;
+    virtual bool CanVirialKinetic() const override;
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeKineticVirial(const hmat_t<double>& D, const Structure* st) const override;
     virtual bool CanPullbackNuclear() const override;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<double>& D, const Structure* st) const override;
     // Species fields (O^T M_raw O), when the raw basis can assemble them.

@@ -12,6 +12,7 @@ module;
 module qchem.AtomCalculation;
 
 import qchem.Hamiltonian.Factory;                   // Factory(...), IsDFT, XCFunctional (XC selector)
+import qchem.XCRhoPolicy;                            // ReportXCRho: the XC ρ-axis policy row
 import qchem.ElectronConfiguration.AtomNR;          // Atom_EC, PseudoAtom_EC
 import qchem.ElectronConfiguration.AtomDirac;       // AtomDirac_EC
 import qchem.PeriodicTable;                          // thePeriodicTable().GetSymbol(Z) (the PP element)
@@ -166,6 +167,8 @@ void AtomCalculation::BuildGraph()
     const bool directmin = (ts=="directmin" || ts=="DirectMin");
     if (directmin) jsacc["EMax"]=1e10;   // GDM always steps; the direct-min loop seeds via diagonalize
     const AType atype = directmin ? AType::GDM : ts=="Ladder" ? AType::Ladder : ts=="GDM" ? AType::GDM : AType::DIIS;
+    if (itsOpts.pseudopotential || itsOpts.xc.has_value() || H::IsDFT(itsOpts.model))   // GDM needs H = dE/dD (pin 32)
+        RefuseGradientConsumers(itsOpts.vxcFit, itsOpts.xcRho, atype==AType::GDM ? "GDM" : atype==AType::Ladder ? "Ladder" : "DIIS");
     // The facade sets the context, the accelerator files what it was built with (THE RUN REPORT): one `accelerators` row per
     // accelerator built in this run (a solid rebuilds one per stage), its Ladder rungs one level further in.
     qchem::SCFAccelerators::SCFAccelerator* accel=nullptr;
@@ -199,12 +202,14 @@ void AtomCalculation::BuildGraph()
     decltype(itsHam.get()) ham=nullptr;
     {
         rpt::Scope hamiltonian("hamiltonian");
+        if (itsOpts.pseudopotential || itsOpts.xc.has_value() || H::IsDFT(itsOpts.model))
+            ReportXCRho(itsOpts.vxcFit, itsOpts.xcRho);   // the ρ axis (user ruling 2026-11-09): warns on the Gaussian x δ cell
         ham = itsOpts.pseudopotential
             ? H::Factory(itsOpts.spin, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis,
-                         itsOpts.vxcFit)
+                         H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho))
             : itsOpts.xc.has_value()
-                ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis, itsOpts.vxcFit)
-                : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha, itsOpts.vxcFit);
+                ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho))
+                : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho));
     }
     {
         rpt::Section basis("basis");

@@ -118,6 +118,8 @@ namespace qchem::BasisSet {
         const hmat_t<T>& Kinetic() const;
         virtual bool CanPullbackKinetic() const=0;
         virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<T>& D, const Structure* st) const=0;
+        virtual bool CanVirialKinetic() const;
+        virtual Outcome<rmat3d_t,AD::NoGradient> MakeKineticVirial(const hmat_t<T>&, const Structure*) const;
     };
     template <class T> class Integrals_Nuclear : public virtual IrrepBasisSet_IDs {
     public:
@@ -236,6 +238,11 @@ namespace qchem::ChargeDensity {
         virtual ~tStatic_PC() = default;
         virtual rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const=0;
     };
+    template <class T> class tStatic_VC {
+    public:
+        virtual ~tStatic_VC() = default;
+        virtual rmat3d_t Virial(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const=0;
+    };
     template <class T> class tDynamic_CC {
     public:
         virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>*,const Spin&,DensityID) const=0;
@@ -282,6 +289,7 @@ namespace qchem::ChargeDensity {
         virtual double DM_Contract(const tStatic_CC<T>*) const=0;
         virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const=0;
         virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>*, const Structure* st) const=0;
+        virtual rmat3d_t DM_Virial(const tStatic_VC<T>*, const Structure* st) const=0;
         virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const=0;
         virtual const BasisSet::WholeSystemFock_IBS<T>* WholeSystemFock() const;
         virtual void AddAODensity(hmat_t<T>& Dao) const;
@@ -433,6 +441,10 @@ namespace qchem::Hamiltonian {
         std::string label, missing;
         rvec3vec_t F;
     };
+    struct TermVirial {
+        std::string label, missing;
+        rmat3d_t V;
+    };
     template <class T> class tHamiltonian;
     template <class T> class tHamiltonianAt {
     public:
@@ -440,6 +452,7 @@ namespace qchem::Hamiltonian {
         hmat_t<double> GetMatrix(const tobs_t<double>* bs, const Spin& s) const requires std::is_same_v<T,dcmplx>;
         EnergyBreakdown GetTotalEnergy() const;
         rvec3vec_t Forces(const tDM_CD<T>* W, const Structure* st) const;
+        rmat3d_t Stress(const tDM_CD<T>* W, const UnitCell& cell) const;
         const DensityID& ID() const;
     private:
         friend class tHamiltonian<T>;
@@ -471,16 +484,20 @@ namespace qchem::Hamiltonian {
         virtual std::unique_ptr<ResponseKernel<T>> MakeResponseKernel(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* D0) const=0;
         virtual std::vector<std::string> MissingGradients(const tbs_t<T>* wholeBasis, const Structure* st) const=0;
         virtual rvec3vec_t MakeForces(const tbs_t<T>* wholeBasis, const tDM_CD<T>* D, const tDM_CD<T>* W, const Structure* st) const=0;
+        virtual std::vector<std::string> MissingVirials(const tbs_t<T>* wholeBasis, const Structure* st) const=0;
+        virtual rmat3d_t MakeVirial(const tbs_t<T>* wholeBasis, const tDM_CD<T>* D, const tDM_CD<T>* W, const Structure* st) const=0;
         virtual void RefreshForDensity(const tbs_t<T>*, const tChargeDensity<T>*) const;
         tHamiltonianAt<T> At(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* cd) const;
         virtual std::vector<TermEnergy> MakeTermEnergies(const tDM_CD<T>*) const;
         virtual std::vector<TermForce> MakeTermForces(const tbs_t<T>*, const tDM_CD<T>*, const Structure*) const;
+        virtual std::vector<TermVirial> MakeTermVirials(const tbs_t<T>*, const tDM_CD<T>*, const Structure*) const;
         virtual std::vector<hmat_t<T>> MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const;
         virtual std::vector<hmat_t<double>> MakeTermMatrices(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const;
     };
     template <class T> hmat_t<T> tHamiltonianAt<T>::GetMatrix(const tobs_t<T>* bs, const Spin& s) const;
     template <class T> hmat_t<double> tHamiltonianAt<T>::GetMatrix(const tobs_t<double>* bs, const Spin& s) const requires std::is_same_v<T,dcmplx>;
     template <class T> rvec3vec_t tHamiltonianAt<T>::Forces(const tDM_CD<T>* W, const Structure* st) const;
+    template <class T> rmat3d_t tHamiltonianAt<T>::Stress(const tDM_CD<T>* W, const UnitCell& cell) const;
     template <class T> EnergyBreakdown tHamiltonianAt<T>::GetTotalEnergy() const;
     using rStatic_HT = tStatic_HT<double>;
     using cStatic_HT = tStatic_HT<dcmplx>;

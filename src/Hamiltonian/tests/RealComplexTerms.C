@@ -591,8 +591,8 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
 
 // ===== THE FORCE WALK ON A MIXED RUN (GeometryOptimizationPlan §13.2; lane B 2026-11-09) =====================================================
 // A real TRIM block inside a complex run is walked through the term's REAL-BLOCK pullback client, tStatic_PC<double>, as DM_Contract reaches
-// tStatic_CC<double>.  The real TRIM blocks a run builds today (tGPW_IBS<double>) give no pullback yet, so the walk's arithmetic is gated on a
-// real block that does: a molecular Gaussian block (MnD, whose pullbacks ride libcint) posing as the real child of a complex-faced basis.  The claim is the WIRING: the mixed walk
+// tStatic_CC<double>.  The walk's arithmetic is gated on a real block whose pullbacks the molecular gates hold (the GPW real TRIM
+// block has its own since 2026-11-10, ARealTRIMGPWBlockGivesKineticAndPulayForceAndVirialAndNamesTheRest): a molecular Gaussian block (MnD, whose pullbacks ride libcint) posing as the real child of a complex-faced basis.  The claim is the WIRING: the mixed walk
 // must equal the same block's walk in an all-real run (whose Kinetic and Pulay pullbacks the molecular gates hold to the finite difference),
 // bit for bit, since it is the same body on the same scalar.
 namespace
@@ -685,22 +685,71 @@ TEST(RealComplexTerms, TheForceWalksARealTRIMBlockThroughItsRealPullbackFace)
                      *pp->MakeProjectorPullback(st.get(), gth.nonlocal, rig.D), "Ven_PP_NonLocal");
 }
 
-TEST(RealComplexTerms, ARealTRIMBlockWithoutAPullbackIsNamedNotThrown)
+// THE GPW ONE-ELECTRON FORCE AND VIRIAL THROUGH BOTH BLOCK SCALARS (GeometryOptimizationPlan §13.2, doc/Records/CellHalf_Design.md §5;
+// lane B 2026-11-10).  The real TRIM block a GPW run builds (tGPW_IBS<double>) now gives the kinetic and overlap pullbacks and virials
+// (libcint per image, gated against the energy's finite difference in UTGaussian_BS M_LatticePullback), so Kinetic and the Pulay sum have
+// their force and virial on it, and on the Bloch block, IDENTICALLY (the real block widens its D onto the same walk at a real phase).  The
+// GPW PP terms still have none: they are NAMED (READY 2), never thrown.
+TEST(RealComplexTerms, ARealTRIMGPWBlockGivesKineticAndPulayForceAndVirialAndNamesTheRest)
 {
-    // The real TRIM block a GPW run builds (tGPW_IBS<double>) has no pullback yet: every face names it, the Pulay check included.
-    Rig rig;
-    const qchem::tests::pw::OneBlockBS<dcmplx> reBS(rig.re.get());
+    UnitCell cell(8.0);
+    cell.AddAtom(14,{0.40,0.50,0.50});
+    cell.AddAtom(14,{0.62,0.55,0.47});
+    const auto st=cell.Clone();
+    namespace M = qchem::BasisSet::Gaussian;
+    std::shared_ptr<const Real_BS> mol(M::Factory(M::BasisSetData::SIPP, &cell, M::Engine::MnD, M::Angular::Cartesian));
+    tGPW_IBS<double> re(cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+    tGPW_IBS<dcmplx> cx(cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+    const size_t n=cx.GetNumFunctions();
+    rsmat_t Dr(n); chmat_t Dc(n);
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<=i;j++) { const double d=std::sin(1.0+i+2.0*j)/(1.0+i+j); Dr(i,j)=Dr(j,i)=d; Dc(j,i)=dcmplx(d,0.0); }
+    using namespace qchem::ChargeDensity;
+    auto cdc=std::make_unique<tComposite_CD<dcmplx>>();
+    cdc->Insert(std::unique_ptr<tDM_CD<dcmplx>>(new PeriodicIrrepCD<dcmplx>(Dc, &cx, cx.GetIrrep(Spin::None))), cx.GetIrrep(Spin::None));
+    auto cdr=std::make_unique<tComposite_CD<dcmplx>>();
+    cdr->Insert(std::unique_ptr<tDM_CD<double>>(new PeriodicIrrepCD<double>(Dr, &re, re.GetIrrep(Spin::None))), re.GetIrrep(Spin::None));
+    const qchem::tests::pw::OneBlockBS<dcmplx> cxBS(&cx), reBS(&re);
+
     const auto gth=Pseudopotential::GetGTH("Si","LDA",4);
     Kinetic<dcmplx> kin;
-    Ven_PP_Short    vs(rig.st, &gth.local);
-    EXPECT_NE(kin.MissingGradient(&reBS, rig.st.get()).find("gives no kinetic pullback"), std::string::npos);
-    EXPECT_NE(vs .MissingGradient(&reBS, rig.st.get()).find("gives no species-field pullback"), std::string::npos);
+    Ven_PP_Short    vs(st, &gth.local);
+    for (const auto* bs : {&cxBS, &reBS})
+    {
+        EXPECT_EQ(kin.MissingGradient(bs, st.get()), "") << "a GPW block has the kinetic pullback";
+        EXPECT_EQ(kin.MissingVirial  (bs, st.get()), "") << "a GPW block has the kinetic virial";
+        EXPECT_NE(vs.MissingGradient(bs, st.get()).find("gives no species-field pullback"), std::string::npos) << "the GPW short PP is named";
+    }
     MixedHam ham; ham.Add(new Kinetic<dcmplx>);
-    const auto missing=ham.MissingGradients(&reBS, rig.st.get());
-    ASSERT_FALSE(missing.empty());
-    bool pulay=false;
-    for (const auto& m : missing) pulay = pulay || m.find("Pulay")!=std::string::npos;
-    EXPECT_TRUE(pulay) << "the Pulay check must walk the real block too";
+    EXPECT_TRUE(ham.MissingGradients(&cxBS, st.get()).empty()) << "Kinetic + Pulay: nothing missing on a Bloch GPW block";
+    EXPECT_TRUE(ham.MissingGradients(&reBS, st.get()).empty()) << "Kinetic + Pulay: nothing missing on a real TRIM GPW block";
+    EXPECT_TRUE(ham.MissingVirials  (&cxBS, st.get()).empty()) << "Kinetic + Pulay virials: nothing missing on a Bloch GPW block";
+    EXPECT_TRUE(ham.MissingVirials  (&reBS, st.get()).empty()) << "Kinetic + Pulay virials: nothing missing on a real TRIM GPW block";
+
+    const rvec3vec_t Fc=ham.MakeForces(&cxBS, cdc.get(), cdc.get(), st.get()), Fr=ham.MakeForces(&reBS, cdr.get(), cdr.get(), st.get());
+    const rmat3d_t   Vc=ham.MakeVirial(&cxBS, cdc.get(), cdc.get(), st.get()), Vr=ham.MakeVirial(&reBS, cdr.get(), cdr.get(), st.get());
+    double bigF=0.0, dF=0.0, bigV=0.0, dV=0.0;
+    for (size_t A=0;A<2;A++)
+    {
+        bigF=std::max({bigF, std::fabs(Fc[A].x), std::fabs(Fc[A].y), std::fabs(Fc[A].z)});
+        dF  =std::max({dF, std::fabs(Fc[A].x-Fr[A].x), std::fabs(Fc[A].y-Fr[A].y), std::fabs(Fc[A].z-Fr[A].z)});
+    }
+    for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) { bigV=std::max(bigV, std::fabs(Vc(a,b))); dV=std::max(dV, std::fabs(Vc(a,b)-Vr(a,b))); }
+    std::printf("  [GPW kinetic + Pulay] max|F| %.3e |F_c - F_r| %.2e   max|V| %.3e |V_c - V_r| %.2e\n", bigF, dF, bigV, dV);
+    ASSERT_GT(bigF, 1e-3) << "a vanishing force cannot show the walk is wired";
+    ASSERT_GT(bigV, 1e-3) << "a vanishing virial cannot show the walk is wired";
+    EXPECT_LT(dF, 1e-12*bigF) << "the real TRIM block and the Bloch block give different kinetic + Pulay forces";
+    EXPECT_LT(dV, 1e-12*bigV) << "the real TRIM block and the Bloch block give different kinetic + Pulay virials";
+
+    // The STRESS is the virial over the cell volume, unsymmetrised (CellHalf_Design §5); with a term that has no virial it REFUSES, naming it.
+    const rmat3d_t σ=ham.At(&cxBS, cdc.get()).Stress(cdc.get(), cell);
+    const double Ω=cell.GetCellVolume();
+    for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) EXPECT_DOUBLE_EQ(σ(a,b), Vc(a,b)/Ω) << "Stress = MakeVirial / Ω, component " << a << b;
+    MixedHam withPP; withPP.Add(new Kinetic<dcmplx>); withPP.Add(new Ven_PP_Short(st, &gth.local));
+    const auto mv=withPP.MissingVirials(&cxBS, st.get());
+    ASSERT_EQ(mv.size(), 1u) << "exactly the short PP has no virial";
+    EXPECT_NE(mv[0].find("no virial"), std::string::npos) << mv[0];
+    try { (void)withPP.At(&cxBS, cdc.get()).Stress(cdc.get(), cell); FAIL() << "a Stress with a missing virial must throw"; }
+    catch (const std::logic_error& e) { EXPECT_NE(std::string(e.what()).find("MissingVirials"), std::string::npos) << e.what(); }
 }
 
 TEST(RealComplexTerms, AClientWithoutARealPullbackFaceThrowsByNameOnARealChild)

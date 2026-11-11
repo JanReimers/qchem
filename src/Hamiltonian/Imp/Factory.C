@@ -109,11 +109,11 @@ namespace qchem::Hamiltonian
     // alpha convenience) funnels through here, so the functional->Hamiltonian mapping lives in ONE place.
     // The functional internals never leak past this switch; if/else returns keep the U/P pointer types clean.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const XCFunctional& xc, const qcMesh::MeshParams& mp, const rbs_t* bs,
-                          VxcFit fit, const CoulombRoute& coulomb)
+                          XCRoute fit, const CoulombRoute& coulomb)
     {
         typedef std::vector<std::shared_ptr<ExFunctional>> parts_t;
-        RequireAdmitted(*st,fit,mp);
-        RequireAdmitted(*st,coulomb,mp,fit);
+        RequireAdmitted(*st,fit.fit,mp);
+        RequireAdmitted(*st,coulomb,mp,fit.fit);
         switch (xc.kind)
         {
             case XC::SlaterXalpha:   // Slater-Dirac exchange, scaled by alpha
@@ -135,7 +135,7 @@ namespace qchem::Hamiltonian
     // delegate to the single build site above -- so the Model token never leaks past here, and the DFT
     // build logic is NOT duplicated between this and the XCFunctional resolver.
     rHamiltonian* Factory(Model m,SpinGroup p,const st_t& st, const qcMesh::MeshParams& mp, const rbs_t* bs, double xalpha,
-                          VxcFit fit, const CoulombRoute& coulomb)
+                          XCRoute fit, const CoulombRoute& coulomb)
     {
         if (!IsDFT(m)) return Factory(m,p,st);                       // non-DFT: mp/bs/xalpha unused
         return Factory(p, st, ModelToXC(m,xalpha), mp, bs, fit, coulomb);    // DFT: Model -> XCFunctional -> Hamiltonian
@@ -149,19 +149,19 @@ namespace qchem::Hamiltonian
 
     // Pseudopotential front door: the all-electron nuclear attraction -> GTH local + KB nonlocal PP, LDA XC.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const std::string& element, int valence,
-                         const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit, const CoulombRoute& coulomb)
+                         const qcMesh::MeshParams& mp, const rbs_t* bs, XCRoute fit, const CoulombRoute& coulomb)
     {
-        RequireAdmitted(*st,fit,mp);
-        RequireAdmitted(*st,coulomb,mp,fit);
+        RequireAdmitted(*st,fit.fit,mp);
+        RequireAdmitted(*st,coulomb,mp,fit.fit);
         return new Ham_PP(st, element, valence, mp, bs, p, fit, coulomb);
     }
 
     // Multi-species pseudopotential front door: per-Z router PP so each atom gets its own GTH pseudopotential.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
-                         const qcMesh::MeshParams& mp, const rbs_t* bs, VxcFit fit, const CoulombRoute& coulomb)
+                         const qcMesh::MeshParams& mp, const rbs_t* bs, XCRoute fit, const CoulombRoute& coulomb)
     {
-        RequireAdmitted(*st,fit,mp);
-        RequireAdmitted(*st,coulomb,mp,fit);
+        RequireAdmitted(*st,fit.fit,mp);
+        RequireAdmitted(*st,coulomb,mp,fit.fit);
         return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, bs, p, fit, coulomb);
     }
 

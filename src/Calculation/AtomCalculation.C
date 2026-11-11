@@ -90,6 +90,8 @@ struct AtomCalcOptions
     //! the δ basis on \c mesh's points; \c Auxiliary = the radial fit set.  The Si pseudo-atom (Slater/Medium) moves 33 -> 5 μHa
     //! from CP2K's ATOM code on δ.  A caller whose result is an INPUT to other runs states its route (\c PseudoAtomOrbital).
     qchem::Hamiltonian::VxcFit vxcFit = qchem::Hamiltonian::VxcFit::Auto;
+    //! \copydoc CalcOptions::xcRho -- the atom path's twin (\c Auxiliary = the radial fit set).
+    qchem::Hamiltonian::XCρ xcRho = qchem::Hamiltonian::XCρ::Exact;
     //! SCF seed.  Default == auto: CoreGuess (atoms never use the molecular SAD seed).
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
 

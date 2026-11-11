@@ -12,6 +12,7 @@ export namespace qchem::Hamiltonian
 {
 
 using ChargeDensity::tStatic_PC;   // the per-block pullback client tDM_CD::DM_Pullback walks (the force twin of tStatic_CC)
+using ChargeDensity::tStatic_VC;   // ... and the virial client tDM_CD::DM_Virial walks (its strain twin)
 
 template <class T> class tGeometryGradient_HT
 {
@@ -27,6 +28,22 @@ public:
     //! no exception.  (A charge-constrained fit whose target Tr(DS) moved with the basis was one until 2026-11-09: the user ruled the
     //! Dunlap target back to the FIXED electron count N, so λ dN/dR = 0 and Vee_DFT_Dunlap carries no left-out piece.)
     virtual void AddForces(rvec3vec_t& F, const tDM_CD<T>* D, const Structure* st) const=0;
+};
+
+//! \brief The TERM face of the strain derivative, beside \c tGeometryGradient_HT (doc/Records/CellHalf_Design.md §5; user ruling §6.2,
+//! 2026-11-10: the per-term virial beside each pullback, and the Hamiltonian's Stress sums them).  A separate face, not two more methods on
+//! the force face: a term can have its force long before its virial (channel B, the explicit cell dependence, is per-term physics), and a
+//! term WITHOUT this face is a MissingVirials() entry, never a silent zero in the Stress.
+template <class T> class tStrainGradient_HT
+{
+public:
+    virtual ~tStrainGradient_HT() = default;
+    //! EMPTY when this term can give its virial on every block of \a bs for \a st; otherwise why not, as "<term>: <what is missing>".
+    virtual std::string MissingVirial(const tbs_t<T>* bs, const Structure* st) const=0;
+    //! V += ∂E_term/∂ε_ab at the FIXED density \a D and fractional k (V_ab = Σ_X (∂E/∂X_a) X_b over every unfolded centre for what rides
+    //! the strain, channel A, plus the term's explicit cell dependence, channel B), with the GRADIENT's sign, in Ha.  The Pulay part, the
+    //! overlap's virial at W, is the Hamiltonian's.  THROWS when a face it needs refuses: MissingVirial said so first.
+    virtual void AddVirial(rmat3d_t& V, const tDM_CD<T>* D, const Structure* st) const=0;
 };
 
 //! Visits every block of \a bs with ITS OWN scalar: a complex set's real TRIM child as \c tobs_t<double>, every other block as
@@ -52,6 +69,16 @@ public:
     virtual rvec3vec_t Pullback(const tobs_t<double>* bs, const Spin& s, const hmat_t<double>& Dm, const Structure* st) const override
     {return static_cast<const D&>(*this).template PullbackBlock<double>(bs, s, Dm, st);}
 };
+//! The virial twin of \c tStatic_PC_RealBlock_Of: a real TRIM block's virial routed to the term's \c template<class U> VirialBlock body.
+template <class D> class tStatic_VC_RealBlock_Of : public virtual tStatic_VC<double>
+{
+public:
+    virtual rmat3d_t Virial(const tobs_t<double>* bs, const Spin& s, const hmat_t<double>& Dm, const Structure* st) const override
+    {return static_cast<const D&>(*this).template VirialBlock<double>(bs, s, Dm, st);}
+};
+struct NoRealVirial {};
+template <class T, class D> using RealVirialBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, tStatic_VC_RealBlock_Of<D>, NoRealVirial>;
 struct NoRealPullback {};
 template <class T, class D> using RealPullbackBase =
     std::conditional_t<std::is_same_v<T,dcmplx>, tStatic_PC_RealBlock_Of<D>, NoRealPullback>;

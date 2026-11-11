@@ -43,6 +43,32 @@ TEST(Deck, DefaultOptionsRoundTripExactlyAndAreComplete)
     SCFParams p; EXPECT_EQ(deck::ToJson([&]{SCFParams q; deck::FromJson(deck::ToJson(p),q); return q;}()), deck::ToJson(p));
 }
 
+// THE XC CHOICES are the run's `xc` object (user ruling 2026-11-09, V-XC-ONE-TERM step 3): `xc.fit` (the Vxc fit basis) and `xc.rho`
+// ("exact" = rho[D], "fit" = the fit's projection P rho) round-trip, `--set xc.rho=fit` reads the same way, the record always states
+// both, and the old flat `solid.vxcFit` is refused BY NAME (never silently ignored), as `basis.vet` was.
+TEST(Deck, TheXCObjectHoldsTheFitAndTheRhoAndTheFlatVxcFitIsRetired)
+{
+    deck::RunSpec def; deck::FromJson(json{{"structure","Si_diamond"}}, def);
+    EXPECT_EQ(deck::ToJson(def).at("xc"), json({{"fit","Auto"},{"rho","exact"}})) << "the record states both, at their defaults";
+    json d={{"structure","Si_diamond"},{"xc",{{"fit","Delta"}}}};
+    deck::ApplySet(d, "xc.rho=fit");
+    deck::RunSpec r; deck::FromJson(d, r);
+    EXPECT_EQ(r.solid.vxcFit, Hamiltonian::VxcFit::Delta);
+    EXPECT_EQ(r.solid.xcRho, Hamiltonian::XCρ::Fit);
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j, back); EXPECT_EQ(deck::ToJson(back), j);
+    EXPECT_FALSE(j.at("solid").contains("vxcFit")) << "the record never writes the retired key";
+    deck::RunSpec bad;
+    EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"xc",{{"rho","projected"}}}}, bad), std::runtime_error) << "rho is exact | fit";
+    EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"xc",{{"fitt","Delta"}}}}, bad), std::runtime_error) << "typo guard";
+    try { deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"vxcFit","Delta"}}}}, bad); FAIL() << "solid.vxcFit is retired, not ignored"; }
+    catch (const std::runtime_error& e)
+    {
+        const std::string w=e.what();
+        EXPECT_NE(w.find("solid.vxcFit"),std::string::npos) << w;
+        EXPECT_NE(w.find("\"xc\": {\"fit\": \"Delta\"}"),std::string::npos) << "the refusal spells the replacement: " << w;
+    }
+}
+
 // SCFParams gates (2026-11-02): an OFF gate is spelled "off" -- in the deck and in the record it writes (the 1e30 sentinel is retired);
 // a number >= 1e30, which every record wrote before, still reads as off; anything else that is not a number is refused.  The step
 // floor minRelaxRo rides the same round trip.

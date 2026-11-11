@@ -36,8 +36,16 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
     // collocation pair (Overlap3C's applyRaw/applyRawAdjoint) exists and the PAIR route is available --
     // and preferred, being the production GPW path.  Anything else can only be contracted through a Phi
     // table: SINGLES.  Note this asks what the basis CAN do, never what it IS.
+    // A ball that holds every orbital pair (a plane-wave orbital basis at >= 4 Ecut) makes P rho = rho[D] exactly: the PROJECTED
+    // strategy is the exact route there, and the pair route would have nothing to collocate (a plane-wave block has no raw pair).
+    // Any other raster ball (GPW) can only reach rho[D] by collocation: PAIR.  (V-XC-ONE-TERM step 2, 2026-11-09: the ball used
+    // to be the pair route's per-call fallback.)
     if (dynamic_cast<const BasisSet::G_RasterTransform*>(fb.get()))
+    {
+        auto* ball=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(fb.get());   // abstract -> abstract
+        if (ball && ball->HoldsEveryOrbitalPair()) return std::make_shared<const ProjectedDensitySampler>(fb);
         return std::make_shared<const PairDensitySampler>(fb);
+    }
     return std::make_shared<const SinglesDensitySampler>(fb, std::move(quad));
 }
 
@@ -45,9 +53,9 @@ std::shared_ptr<const tDensitySampler<double>>
 MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad)
 {
     assert(fb);
-    if (!fb->isOrtho())
-        throw std::logic_error("MakeDensitySampler: a non-orthogonal (A1 auxiliary) Vxc fit has no sampler strategy yet -- an open "
-                               "gap of the Vxc product space (V-XC-ONE-TERM, pin 30)");
+    // A non-orthogonal (A1) fit is a PROJECTION P onto its span, and the projected strategy evaluates P rho on the XC mesh handed in
+    // (V-XC-ONE-TERM step 3).  The caller reaches it only for xc.rho "fit": the "exact" A1 cell is the fitted-v term, not a sampler.
+    if (!fb->isOrtho()) return std::make_shared<const OverlapProjectedDensitySampler>(fb, std::move(quad));
     return std::make_shared<const tSinglesDensitySampler<double>>(fb, std::move(quad));
 }
 

@@ -77,6 +77,10 @@ enum class XCRhoSource
     //! >= 4 Ecut) the fit is Parseval-exact -- \f$\rho[D]\f$ to roundoff.  Legal under pin 28.
     ExactFit,
     Fitted,       //!< an INEXACT fit / projected field (the seed, a bare \f$\tilde\rho_{mix}\f$, a truncated ball) -- legal only for the seed
+    //! \f$P\rho\f$ BY STATED CHOICE (\c xc.rho "fit" on an inexact fit, V-XC-ONE-TERM step 3): the variational projected cell, where XC sees
+    //! the fit's projection of \f$\rho[D]\f$ because the user asked for that functional.  An explicit, reported departure from pin 28 -- so
+    //! it is NOT \c Fitted, which marks a fitted \f$\rho\f$ nobody asked for.
+    Projected,
 };
 //! The short label the SCF trace's "XC ρ" column prints for \a s.
 inline const char* ShortName(XCRhoSource s)
@@ -89,6 +93,7 @@ inline const char* ShortName(XCRhoSource s)
         case XCRhoSource::Shadow:      return "shadow";
         case XCRhoSource::ExactFit:    return "fit=";
         case XCRhoSource::Fitted:      return "fitted";
+        case XCRhoSource::Projected:   return "Pρ";
     }
     assert(false && "ShortName: unhandled XCRhoSource");
     return "?";
@@ -240,8 +245,8 @@ std::shared_ptr<const DensitySampler>
 MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={});
 
 //! \brief The REAL path's strategy (V-XC-ONE-TERM, 2026-10-31): a molecule's or an atom's δ basis -- points and nothing else,
-//! so SINGLES.  A non-orthogonal (A1 Gaussian) fit has no sampler strategy yet: it THROWS, naming the gap -- an open X cell of
-//! the Vxc product space (UTHamiltonian VxcProductSpace), never a silent substitution.
+//! so SINGLES.  A non-orthogonal (A1 Gaussian) fit is a projection: the PROJECTED strategy, \f$P\rho\f$ evaluated on \a quad's mesh
+//! (step 3, 2026-11-10) -- the \c XCρ::Fit cell, which the caller states.
 std::shared_ptr<const tDensitySampler<double>>
 MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad={});
 

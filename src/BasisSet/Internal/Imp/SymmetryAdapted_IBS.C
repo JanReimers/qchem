@@ -209,6 +209,12 @@ Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeOverlapPullback(cons
 {return itsRaw->MakeOverlapPullback(FoldUp(D), st);}
 Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeKineticPullback(const hmat_t<double>& D, const Structure* st) const
 {return itsRaw->MakeKineticPullback(FoldUp(D), st);}
+bool SymmetryAdapted_IBS::CanVirialOverlap() const {return itsRaw->CanVirialOverlap();}
+bool SymmetryAdapted_IBS::CanVirialKinetic() const {return itsRaw->CanVirialKinetic();}
+Outcome<rmat3d_t,AD::NoGradient> SymmetryAdapted_IBS::MakeOverlapVirial(const hmat_t<double>& D, const Structure* st) const
+{return itsRaw->MakeOverlapVirial(FoldUp(D), st);}
+Outcome<rmat3d_t,AD::NoGradient> SymmetryAdapted_IBS::MakeKineticVirial(const hmat_t<double>& D, const Structure* st) const
+{return itsRaw->MakeKineticVirial(FoldUp(D), st);}
 Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeNuclearPullback(const hmat_t<double>& D, const Structure* st) const
 {return itsRaw->MakeNuclearPullback(FoldUp(D), st);}
 

@@ -10,6 +10,7 @@ module qchem.MoleculeSetup;
 
 import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the PP lookup)
 import qchem.Policy;          // policy::Refuse / Report: each policy files its row where it fires
+import qchem.XCRhoPolicy;     // ReportXCRho: the XC ρ-axis decision
 import qchem.ChargeDensity.AtomicDensity;   // HasAtomicDensity: the SAD seed's coverage
 import qchem.BasisSet.Gaussian.Point.Factory; // RegisteredBasis, BasisSetData: which registered files are all-electron
 import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisFileOfName: the basis name's file, for the coverage pre-flight
@@ -124,6 +125,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
             policy::Refuse("AdmitVxc", "the stated Vxc fit and XC mesh on this molecule", a.Error());
         if (const auto a=Hamiltonian::AdmitCoulomb(*point, opts.coulomb, s->mesh, opts.vxcFit); !a)
             policy::Refuse("AdmitCoulomb", "the stated Hartree route on this molecule", a.Error());
+        ReportXCRho(opts.vxcFit, opts.xcRho);   // the ρ axis (user ruling 2026-11-09): warns on the Gaussian x δ cell
     }
 
     using AType = qchem::SCFAccelerators::Type;
@@ -132,6 +134,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
                    : acc.type=="Ladder" ? AType::Ladder
                    : throw std::runtime_error("qchem::MoleculeCalculation: unknown accelerator type \"" + acc.type +
                                               "\" (expected DIIS | GDM | Ladder)");
+    if (dft || !opts.pp.empty()) RefuseGradientConsumers(opts.vxcFit, opts.xcRho, acc.type);   // GDM needs H = dE/dD (pin 32)
     // DFT (and the LSDA pseudopotential) need DIIS engaged from iteration 0: the default Z-scaled EMax gate keeps DIIS off and
     // the SCF limit-cycles to a non-converged snapshot (the "M_Sym layout UB" mechanism, see M_DFT).  So default them to a high
     // EMax ("DIIS from start") unless the caller pinned one.

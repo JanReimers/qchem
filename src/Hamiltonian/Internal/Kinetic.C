@@ -44,6 +44,9 @@ template <class T> class Kinetic
     , public virtual tGeometryGradient_HT<T>             // its force (GeometryOptimizationPlan §13.2), after the private base (the cross-cast trap)
     , public virtual tStatic_PC<T>                       // the per-block pullback client DM_Pullback walks
     , public         RealPullbackBase<T,Kinetic<T>>      // ... and on <dcmplx> the real TRIM block's (§13.2; lane B)
+    , public virtual tStrainGradient_HT<T>               // its virial (CellHalf_Design §5; user ruling §6.2, 2026-11-10)
+    , public virtual tStatic_VC<T>                       // the per-block virial client DM_Virial walks
+    , public         RealVirialBase<T,Kinetic<T>>        // ... and on <dcmplx> the real TRIM block's
 {
 public:
     //! \copydoc HT_BlockOwner::BuildBlocks
@@ -90,6 +93,24 @@ public:
         for (size_t A=0;A<F.size();A++) F[A]-=0.5*g[A];
     }
 
+    // --- the virial (CellHalf_Design §5): E = ½ Tr(D K) at fixed D, so ∂E/∂ε = ½ Σ_blocks MakeKineticVirial(D).  Kinetic carries no explicit
+    // cell dependence beyond its functions' (channel A only: Gaussians keep their shape; a plane-wave block's channel B is its own face's).
+    virtual std::string MissingVirial(const tbs_t<T>* bs, const Structure*) const override
+    {
+        if (!bs) return "Kinetic: no basis to differentiate";
+        std::string why;
+        ForEachBlock(bs, [&](const auto* b)
+            { if (why.empty() && !b->CanVirialKinetic()) why="Kinetic: the basis block "+b->Name()+" gives no kinetic virial"; });
+        return why;
+    }
+    virtual rmat3d_t Virial(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const override
+    {return VirialBlock<T>(bs, s, D, st);}
+    virtual void AddVirial(rmat3d_t& V, const tDM_CD<T>* D, const Structure* st) const override
+    {
+        const rmat3d_t v=D->DM_Virial(this, st);
+        for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) V(a,b)+=0.5*v(a,b);
+    }
+
 private:
     virtual hmat_t<T> MakeMatrix(const tobs_t<T>* bs, const Spin& s) const override {return MakeBlock<T>(bs,s);}
     //! ONE body for both block scalars (V1.35): the native block, and on <dcmplx> the real TRIM block (Static_HT_RealBlock_Of).
@@ -104,8 +125,16 @@ private:
         if (!r) throw std::logic_error("Kinetic::Pullback: "+r.Error().why+" (MissingGradients() names it before a force is asked)");
         return *r;
     }
+    //! ONE virial body for both block scalars, as PullbackBlock.
+    template <class U> rmat3d_t VirialBlock(const tobs_t<U>* bs, const Spin&, const hmat_t<U>& D, const Structure* st) const
+    {
+        const auto r=bs->MakeKineticVirial(D, st);
+        if (!r) throw std::logic_error("Kinetic::Virial: "+r.Error().why+" (MissingVirials() names it before a stress is asked)");
+        return *r;
+    }
     friend class Static_HT_RealBlock_Of<Kinetic<T>>;
     friend class tStatic_PC_RealBlock_Of<Kinetic<T>>;
+    friend class tStatic_VC_RealBlock_Of<Kinetic<T>>;
 };
 
 } //namespace
