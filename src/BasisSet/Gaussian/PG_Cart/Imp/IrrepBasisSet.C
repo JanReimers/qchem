@@ -339,7 +339,7 @@ Gaussian::LatticeSum1E::GeometryPullback Orbital_IBS::LatticePullback(int which,
                                                                       const UnitCell& A, const Structure* st) const
 {
     const LibcintWorkaround::ImageEnumerator images=[&](size_t i, size_t j, const std::function<void(const ivec3_t&, const rvec3_t&)>& cb)
-        { ForImageOffsets(i, j, A, cb); };
+        { ForSeriesImages(which==0 ? SeriesKernel::Overlap : SeriesKernel::Kinetic, i, j, A, cb); };   // the energy series' own list
     return LibcintWorkaround::LatticeOneElectronPullback(which, static_cast<const PGData&>(*this), images, Abar, phase, st);
 }
 Gaussian::LatticeSum1E::GeometryPullback Orbital_IBS::MakeLatticeOverlapPullback(const chmat_t& Abar, const cellphase_t& phase,

@@ -2190,3 +2190,42 @@ A SALC state saved between 2026-11-09 and this commit refuses on the new keys; n
 
 Gate: `M_Calculation.ASymmetryBlockedStateIdentifiesItsBasisByItsShells` (H2O dzvp: the SALC and AO states carry equal shell
 keys; before the fix the SALC state carried none).  Sweep `lane-a-salcid1`: short 1513/1513, long 15/15, 0 anchor moves.
+
+## ✅ The 1E lattice-sum screen drops KINETIC terms up to 4e-8 at screenEps 1e-10: it screens on the overlap prefactor (lane B, 2026-11-10, 04fc3e043)
+
+The row as it stood:
+
+· **The 1E lattice-sum screen drops KINETIC terms up to 4e-8 at screenEps 1e-10: it screens on the overlap prefactor** (lane B 2026-11-10, found by the libcint-vs-MnD image gate).  `PG_Cart_MnD::NR_Evaluator::ForImageOffsets` keeps an image when the pair's product prefactor exp(−μd²) ≥ screenEps, the same list for S, ⟨p²⟩ and V_local.  The kinetic kernel carries an extra ~μ²d² over the overlap's, so on Si SIPP_SR the dropped ⟨p²⟩ terms reach 4.4e-8 (overlap 1.5e-10) -- an ε-convergence miss (pin 1: the magnitude screen is the only truncation, and it must answer for the quantity summed), and a STEP of that size in the screened energy whenever a term crosses the screen as atoms or the cell move (a central difference at h = 1e-3 reads it as a 2e-5 slope; `M_LatticePullback` gates at screenEps 1e-16 for that reason).  **SIZE AT PRODUCTION screenEps 1e-10** (lane B probe 2026-11-10, Γ, eps 1e-10 vs 1e-16, the `M_LatticePullback` fixtures): max|ΔT_ij| Si SIPP_SR 1.1e-7, H3 dzvp 1.7e-9, **MnO VA 1.9e-6 Ha** (overlap: 4.6e-9 / 1.7e-10 / 4.0e-8); Σ_ij|ΔT_ij| Si 2.5e-6, MnO 2.3e-5, so the kinetic-energy BIAS is bounded by ½Σ|ΔT| per unit |D_ij|: Si 1.3e-6, **MnO 1.1e-5 Ha**, ten times a μHa gate on a d-metal oxide.  A strain scan (s_xx ∈ ±0.02, 101 points, |D_ij| ≤ 0.1) measured bias ≤ 1.4e-7 (MnO) and a largest neighbour-to-neighbour STEP of 6.9e-9 (Si, MnO), i.e. ~7e-8 Ha per unit |D_ij|; a converged density's d-block elements are O(1).  So the bias, not the step, sets the urgency: MnO-class energies are biased at the 1e-6..1e-5 Ha level.  **SEQUENCED (user 2026-11-10, re-sequenced the same day: "sure do the kinetic-screen fix now"): lane B, NOW, ahead of the PP forces (which wait on Enzyme #3753); its READY lists every moved anchor with its pin-10 re-judgement.**  Next action: screen each series on its own kernel's bound (the kinetic prefactor times its polynomial in μd²), measure the energy move on the GPW anchors (pin 10: re-judge, never refresh), and keep one image list per series.
+
+**LANDED (lane B 2026-11-10, 04fc3e043).**  Each 1E series screens on its OWN kernel's rigorous bound.  Per axis, x_A = u − (b/p)D and x_B = u + (a/p)D give |∫x_A^l x_B^m e^{−ax_A²−bx_B²}| ≤ e^{−μD²} I_lm(|D|), where I_lm sums the binomial terms against M_k(p) = Γ((k+1)/2) p^{−(k+1)/2}.  The kinetic kernel uses l·m·I_{l−1,m−1} + 2a·m·I_{l+1,m−1} + 2b·l·I_{l−1,m+1} + 4ab·I_{l+1,m+1}.  Both are contracted with |c_p c_q| ns_i ns_j and maximised over the shell pair's components.  The reach is bisected past r* = sqrt((La+Lb+2)/(2μ_min)) and memoised per (kernel, eps, shell-type pair) (`NR_Evaluator::KernelBound` / `SeriesReach` / `ForSeriesImages`).  S and T each sum their own image list, and the libcint pullback seam walks the energy series' list (pin 1: one screen).  The ⟨χ_i|g⟩ and ⟨g|h⟩ series behind the KB projectors and the atom-centred overlaps (`GaussReach`) take the same bound with g in the χ_j slot.  Fixing S without them broke `GPW.AtomCentredOverlap*` (3.5e-8 > 1e-12) and the NaF exact resume (first iterate 1.04e-7 off), since a restart needs B = S columns exactly.  Gates (`UTGaussian_BS LatticeSeries.*`): |K| ≤ bound out to 1.25 × reach and |K| < eps past it (Si, MnO, water), and the screened series against a screenEps-1e-16 basis to 30ε (18.6ε / 8.4ε measured; 400ε / 19000ε before).  The local-Gaussian and nuclear series keep the pair-prefactor list (their own open row: per-term screening cannot converge the short PP's double sum).
+
+**PIN-10 RE-JUDGEMENT.**  anchordiff against main-cfc1c5b2 moves 113 / 1537 short and 12 / 15 long.  Largest: Al Γ +1.76e-6; MnO −3.5e-7 (Saved_CP2K), −3.05e-7 (IonicSAD), −2.2e-7 (Ordering); LiF +1.39e-7; the Si Γ family +3.8e-8; Si k222/k311 +1.7e-8/+1.3e-8; NaF +1.6e-8; Mn2Box −1e-8.  β-MnO₂'s deliberately aliased first iterate (42 kHa, refused, the claim) moves +500 Ha through its ill-conditioned overlap.  The independent route is the same runs with ONLY the S / T / ⟨χ|g⟩ series at screenEps × 1e-6, every other screen unchanged, on 20 representatives.  Every NEW energy is within 2.9e-9 Ha of it; every OLD one is off by the full move (Al 1.77e-6, MnO 3.0-3.5e-7, LiF 1.4e-7, Si Γ 3.9e-8, NaF 1.9e-8).  So the moves are the removed bias.  Re-banked: `GPW_MnO.Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long` (−61.3031131432 → −61.3031134482; reference −61.3031134481) and the `SCFTrace` solid golden (−7.115054455314 → −7.115054417; reference −7.115054416154).  The other anchors hold within their stated tolerances.  `SolidSession.SessionSizesItsRastersOnMatrixElements` goes knownRed: its pilot's re-convergence count is 21 against cap 16 (18 on the reference build too, 9 before), round 3 crawling at E flat to 1e-14 with [F,D] contracting 0.81 per step.  That is the "GDM's line search runs below the energy's noise floor" row; its gate is kept.
+
+
+### ✅ HF's SAD seed Fock mesh broke the molecule's symmetry (lane A, 2026-11-10)
+FIXED (seed half of the §3 row "A stated Shared fill does not guarantee the symmetric state"): an HF run seeded from SAD reaches its
+first D through one LDA (Xα) Fock, built inside `tSCFIterator::Initialize` on `qcMesh::MeshParams{}` -- 30 radial × the 12-direction
+Lebedev rule, an icosahedron with no C4 axis.  The molecular iterator's SeedStrategy constructor now DEMANDS the seed mesh; the
+facades pass the run's resolved mesh (MoleculeCalculation: the entry rung (80, 29) unless stated; AtomCalculation: its own), and
+policy row `HFSeedFockMesh` reports it.  Gates `M_Calculation.OxygenSingletHFStatedSharedFromBothSeeds{Aligned,OffAxis}`.
+
+Measured (O₂ singlet HF/dzvp, stated Shared, π_g at the first fill; a temporary print, never committed):
+
+| arm | first-fill π_g split | final E |
+|---|---|---|
+| HF, SAD seed, old sibling mesh | 13.4 mHa (−0.16389 / −0.15045) | −149.5438874 (broken), 8 iterations |
+| HF, core seed | 0; ≤1e-8 every iteration | −149.2962220, 10 |
+| LDA, SAD seed | 0 | −149.2631697, 6 |
+| HF SAD, sibling degree 7 / 11, aligned | 0 | −149.2962220 |
+| HF SAD, sibling degree 11, grid rotated 0.37 rad | 0.096 mHa | −149.2962220 |
+| HF SAD, sibling degree 29, grid rotated 0.37 rad | 0.002 mHa | −149.2962220 |
+
+Symmetry blocking on or off gave the same numbers.  So the SAD density itself is exact, and the SCF keeps a symmetric start
+symmetric although the shared state is a saddle (the broken one is 0.25 Ha below it): the split was made at the seed only.  The
+REMAINDER (protecting Shared against a split from any other source) stays in the §3 row as optional hardening.
+
+
+Landing sweep against main-40df1233 (`anchordiff --tol 1e-10`): short 1540/1540, long 15/15, the asserts-live RelChecked build
+green.  One anchor moved: `M_HF_U.WaterSADseed`, 10 → 9 iterations, energy unchanged (the finer seed Fock is a better start).
+The three WILL_FAIL cases fail exactly as they do on main.  Panel (`-L "panel|periodic"`, 4 threads): 25/25, no anchor moved,
+the panelRed set identical to main's.

@@ -133,7 +133,7 @@ public:
             throw std::runtime_error("NR_Evaluator::BindTolerances: tolerances changed after this basis computed collocation work "
                                      "(old: "+itsPGTol.Describe()+" ; new: "+t.Describe()+") -- one molecular basis cannot serve two tolerance settings");
         itsPGTol=t;
-        itsBoxTasks.clear(); itsBoxTaskOrder.clear(); itsIntegrateMemos.clear(); itsFieldHistory.clear(); itsSeries.clear();
+        itsBoxTasks.clear(); itsBoxTaskOrder.clear(); itsIntegrateMemos.clear(); itsFieldHistory.clear(); itsSeries.clear(); itsReach.clear();
     }
     //! \brief ⛔ THE TOLERANCE POLICY IS NOT DECIDED HERE ANY MORE (doc/OldPlans/ScreeningPlan.md, 2026-09-04).
     //!
@@ -177,13 +177,15 @@ public:
     //! The Bloch phase of an integer cell offset (== Gaussian::LatticeSum1E::cellphase_t -- the same
     //! std::function type; the k-CONVENTION stays with the lattice-side caller, Gamma = the constant 1).
     using cellphase_t = std::function<dcmplx(const ivec3_t& n)>;
+    //! The 1E series whose image list is screened on its own kernel's bound (ForSeriesImages; the screen's doc at KernelBound).
+    enum class SeriesKernel {Overlap, Kinetic};
     // The series is summed to eps INTERNALLY per shell pair (ForImageOffsets -- the SAME exact-threshold
     // magnitude screen the collocation kernels use): THERE IS NO CUT in r SPACE (doc/Pins.md pin 1).  The caller supplies only the phase oracle + the cell; no radius or translation list exists.
     // Hermitian: fill the upper triangle (the (i,j) Bloch element); the (i,i) enumeration is inversion-
     // symmetric so the diagonal is real (projected explicitly against roundoff).
     // THE PER-k ROUTE: the definition, kept as the reference the R-resolved route is gated against (UTGaussian_BS
     // LatticeSeries.*).  Production phases the cached series below instead.
-    template <class Kernel> chmat_t LatticeSumPerK(const cellphase_t& phase, const UnitCell& A, Kernel K) const
+    template <class Kernel, class Images> chmat_t LatticeSumPerK(const cellphase_t& phase, const UnitCell& A, Kernel K, Images images) const
     {
         chmat_t S(size());
         const bool trace=(qchem::Diagnostics::Enabled("rss_trace"));
@@ -199,7 +201,7 @@ public:
             {
                 const rvec3_t cj=radials[j]->GetCenter();
                 dcmplx s(0.0);
-                ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
+                images(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
                                 { s += phase(n) * K(i, j, radials[j]->AtCenter(cj+Roff)); });
                 s *= ns[i]*ns[j];
                 S(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
@@ -224,7 +226,7 @@ public:
         std::vector<size_t> start;   //!< per (i, j in indices(i)) pair, in LatticeSumPerK's order: its first term; one past the end last
         std::vector<Term>   terms;
     };
-    template <class Kernel> LatticeSeries MakeLatticeSeries(const UnitCell& A, Kernel K) const
+    template <class Kernel, class Images> LatticeSeries MakeLatticeSeries(const UnitCell& A, Kernel K, Images images) const
     {
         LatticeSeries S;
         const GeometryCacheBudget geoBudget;   // as LatticeSumPerK: each image clone is evicted as the next is inserted
@@ -233,7 +235,7 @@ public:
             {
                 S.start.push_back(S.terms.size());
                 const rvec3_t cj=radials[j]->GetCenter();
-                ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
+                images(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
                                 { S.terms.push_back({n, K(i, j, radials[j]->AtCenter(cj+Roff))}); });
             }
         S.start.push_back(S.terms.size());
@@ -283,17 +285,24 @@ public:
     auto KineticKernel() const {return [this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);};}
     auto NuclearKernel(const Structure* cl) const
     {   return [this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}; }
+    // The image lists: S and T each on their OWN kernel's bound (ForSeriesImages, below); the nuclear and local-Gaussian series still on
+    // the pair prefactor (ForImageOffsets) -- the nuclear kernel's 1/r has no bound written yet, and the local Gaussian's double sum
+    // (pair images x operator images) leaves ~1e3 screenEps per element under ANY per-term screen (OpenWork row, lane B 2026-11-10).
+    auto PairImages() const {return [this](size_t i,size_t j,const UnitCell& A,const auto& cb){ForImageOffsets(i,j,A,cb);};}
+    auto KernelImages(SeriesKernel K) const {return [this,K](size_t i,size_t j,const UnitCell& A,const auto& cb){ForSeriesImages(K,i,j,A,cb);};}
     chmat_t MakeOverlap(const cellphase_t& phase, const UnitCell& A) const
-    {   return Phase(GetLatticeSeries("S|"+CellKey(A), [&]{return MakeLatticeSeries(A,OverlapKernel());}), phase); }
+    {   return Phase(GetLatticeSeries("S|"+CellKey(A), [&]{return MakeLatticeSeries(A,OverlapKernel(),KernelImages(SeriesKernel::Overlap));}), phase); }
     chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const
-    {   return Phase(GetLatticeSeries("T|"+CellKey(A), [&]{return MakeLatticeSeries(A,KineticKernel());}), phase); }
+    {   return Phase(GetLatticeSeries("T|"+CellKey(A), [&]{return MakeLatticeSeries(A,KineticKernel(),KernelImages(SeriesKernel::Kinetic));}), phase); }
     chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const
-    {   return Phase(GetLatticeSeries("V|"+CellKey(A)+SitesKey(cl), [&]{return MakeLatticeSeries(A,NuclearKernel(cl));}), phase); }
+    {   return Phase(GetLatticeSeries("V|"+CellKey(A)+SitesKey(cl), [&]{return MakeLatticeSeries(A,NuclearKernel(cl),PairImages());}), phase); }
     // The per-k reference routes (UTGaussian_BS LatticeSeries.*: the gate that the series equals them).
-    chmat_t MakeOverlapPerK(const cellphase_t& phase, const UnitCell& A) const {return LatticeSumPerK(phase,A,OverlapKernel());}
-    chmat_t MakeKineticPerK(const cellphase_t& phase, const UnitCell& A) const {return LatticeSumPerK(phase,A,KineticKernel());}
+    chmat_t MakeOverlapPerK(const cellphase_t& phase, const UnitCell& A) const
+    {   return LatticeSumPerK(phase,A,OverlapKernel(),KernelImages(SeriesKernel::Overlap)); }
+    chmat_t MakeKineticPerK(const cellphase_t& phase, const UnitCell& A) const
+    {   return LatticeSumPerK(phase,A,KineticKernel(),KernelImages(SeriesKernel::Kinetic)); }
     chmat_t MakeNuclearPerK(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const
-    {   return LatticeSumPerK(phase,A,NuclearKernel(cl)); }
+    {   return LatticeSumPerK(phase,A,NuclearKernel(cl),PairImages()); }
 
     // The 3-centre kernel of the periodic local Gaussian operator (the screen is described in MakeLocalGaussian).  Holds \a ops by
     // reference: the series it feeds is built before the caller's ops go out of scope.
@@ -345,14 +354,14 @@ public:
         return Phase(GetLatticeSeries(key, [&]
         {
             const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,&A);   // periodic: operator over its screened images
-            return MakeLatticeSeries(A, LocalGaussianKernel(ops));
+            return MakeLatticeSeries(A, LocalGaussianKernel(ops), PairImages());
         }), phase);
     }
     chmat_t MakeLocalGaussianPerK(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
                                   const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const
     {
         const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,&A);
-        return LatticeSumPerK(phase,A,LocalGaussianKernel(ops));
+        return LatticeSumPerK(phase,A,LocalGaussianKernel(ops),PairImages());
     }
     // The FINITE (home-term-only) <chi_i | Sum_a g_a | chi_j>: the molecule/box limit (no lattice), real symmetric.
     chmat_t MakeLocalGaussian(const Structure* cl,
@@ -384,20 +393,19 @@ public:
     // Cartesian-Gaussian function g -- b_i = Sum_n phase(n) <chi_i | g(.-C-R_n)>.  g stands in the chi_j
     // slot of the 2-centre kernel: each monomial term is a Polarization on an uncontracted GaussianRF, so
     // the sum reuses the analytic M&D Overlap2C verbatim.  The offsets are enumerated INTERNALLY per
-    // (chi_i, g) at the exact pair threshold sqrt(-ln eps (1/alpha_min_i + 1/alpha_g)) -- the same
-    // eps-converged-series contract as the pair sums; chi_i carries ns[i], g is integrated RAW.
+    // (chi_i, g) out to GaussReach: the overlap KernelBound with g in the chi_j slot (its polynomial included; lane B
+    // 2026-11-10 -- the old prefactor reach sqrt(-ln eps (1/alpha_min_i + 1/alpha_g)) dropped overlap terms up to 4e-8);
+    // chi_i carries ns[i], g is integrated RAW.
     cvec_t MakeOverlap(const cellphase_t& phase, const UnitCell& A,
                        const Gaussian::LatticeSum1E::GaussianFunction& g) const
     {
-        const double lne=-std::log(kScreenEps());
         const int Lg=GaussDegree(g);
         cvec_t b(size(), dcmplx(0.0));
         const GeometryCacheBudget geoBudget;   // size-0: g's image clones stay O(1) (see LatticeSum)
+        double rr=0.0;
         for (auto i:indices())
         {
-            double amin=radials[i]->GetExponents()[0];
-            for (double e:radials[i]->GetExponents()) amin=std::min(amin,e);
-            const double rr=std::sqrt(lne*(1.0/amin+1.0/g.alpha));   // exact pair threshold (== ForImageOffsets)
+            if (i==0 || radials[i]!=radials[i-1]) rr=GaussReach(i,g);   // one reach per shell
             const rvec3_t ci=radials[i]->GetCenter();
             const rvec3_t dig=ci-g.center;
             dcmplx s(0.0);
@@ -426,8 +434,18 @@ public:
     dcmplx MakeOverlap(const cellphase_t& phase, const UnitCell& A,
                        const Gaussian::LatticeSum1E::GaussianFunction& g, const Gaussian::LatticeSum1E::GaussianFunction& h) const
     {
-        const double lne=-std::log(kScreenEps());
-        const double rr=std::sqrt(lne*(1.0/g.alpha+1.0/h.alpha));
+        // The reach: the overlap bound of the two raw polynomial Gaussians (KernelBound's axis bound, coefficients |c_g c_h|).
+        auto f=[&](double r)
+        {
+            const double mu=g.alpha*h.alpha/(g.alpha+h.alpha);
+            double v=0.0;
+            for (const auto& tg : g.terms)
+                for (const auto& th : h.terms)
+                    v+=std::abs(tg.c*th.c)*AxisBound(tg.p.n,th.p.n,g.alpha,h.alpha,r)*AxisBound(tg.p.l,th.p.l,g.alpha,h.alpha,r)
+                                          *AxisBound(tg.p.m,th.p.m,g.alpha,h.alpha,r);
+            return v*std::exp(-mu*r*r);
+        };
+        const double rr=ReachOf(f, std::sqrt(double(GaussDegree(g)+GaussDegree(h)+2)*(g.alpha+h.alpha)/(2.0*g.alpha*h.alpha)), kScreenEps());
         const rvec3_t dgh=g.center-h.center;
         dcmplx s(0.0);
         for (const auto& n : LatticePointsInSphere(A, rr+norm(dgh)))
@@ -452,6 +470,34 @@ public:
         for (const auto& tg : g.terms)
             for (const auto& th : h.terms) s += tg.c*th.c*rg.Overlap2C(rh, Polarization(tg.p), Polarization(th.p));
         return s;
+    }
+    //! The reach of the series sum_n <chi_i|g(.-R_n)> for the SHELL of i: past it |ns_c <chi_c|g>| < screenEps for every
+    //! component c of the shell (the overlap KernelBound with the raw g in the chi_j slot, summed over g's terms).
+    double GaussReach(size_t i, const Gaussian::LatticeSum1E::GaussianFunction& g) const
+    {
+        const auto [b,e]=ShellRange(i);
+        const rvec_t ea=radials[i]->GetExponents(); const rvec_t& ca=radials[i]->GetCoeffs();
+        auto f=[&](double r)
+        {
+            double m=0.0;
+            for (size_t c=b;c<e;c++)
+            {
+                double s=0.0;
+                for (size_t p=0;p<ea.size();p++)
+                {
+                    double v=0.0;
+                    for (const auto& t : g.terms)
+                        v+=std::abs(t.c)*AxisBound(pols[c].n,t.p.n,ea[p],g.alpha,r)*AxisBound(pols[c].l,t.p.l,ea[p],g.alpha,r)
+                                        *AxisBound(pols[c].m,t.p.m,ea[p],g.alpha,r);
+                    s+=std::abs(ca[p])*v*std::exp(-ea[p]*g.alpha/(ea[p]+g.alpha)*r*r);
+                }
+                m=std::max(m,ns[c]*s);
+            }
+            return m;
+        };
+        int L=0; for (size_t c=b;c<e;c++) L=std::max(L,pols[c].GetTotalL());
+        const double a=MinExponent(i), mu=a*g.alpha/(a+g.alpha);
+        return ReachOf(f, std::sqrt(double(L+GaussDegree(g)+2)/(2.0*mu)), kScreenEps());
     }
     //! g's max polynomial degree (Hermite table sizing) and one raw \f$\langle\chi_i|g\,\text{at}\,c\rangle\f$
     //! term -- shared by the periodic and finite \c MakeOverlap(g) forms.
@@ -582,6 +628,152 @@ public:
             if (d.x*d.x+d.y*d.y+d.z*d.z <= rr*rr) cb(n, Roff);
         }
     }
+
+    // ---- THE PER-KERNEL 1E SERIES SCREEN (lane B 2026-11-10; doc/Pins.md pin 1) ---------------------------------------------------------
+    // Pin 1: the magnitude screen is the only truncation, and it must answer for the QUANTITY SUMMED.  ForImageOffsets screens on the pair
+    // PREFACTOR exp(-mu d^2) of the most diffuse primitives: right for a collocation box, but blind to the polynomial in d a 1E kernel
+    // carries -- the overlap of l > 0 components, and the kinetic <grad chi_i|grad chi_j>, which carries ~4 mu^2 d^2 more.  At screenEps
+    // 1e-10 it dropped kinetic terms up to 1.9e-6 Ha (overlap 4e-8) on MnO, an energy bias up to 1e-5 Ha.  So the overlap and kinetic
+    // series are screened on a RIGOROUS bound of their own kernel (no calibration: the bound is the screen), with ONE image list per shell
+    // pair and kernel, shared by every component of the pair (the pullback walks shell pairs).  The bound, one Cartesian axis at a time:
+    //
+    //   x_A = x - A, x_B = x - B, D = A - B, p = a + b, mu = ab/p, u = x - P:  x_A = u - (b/p) D, x_B = u + (a/p) D, and
+    //   e^{-a x_A^2 - b x_B^2} = e^{-mu D^2} e^{-p u^2}.  So, with M_k(p) = int |u|^k e^{-p u^2} du = Gamma((k+1)/2) p^{-(k+1)/2},
+    //     |int x_A^l x_B^m e^{-a x_A^2 - b x_B^2} dx|  <=  e^{-mu D^2} I_lm(|D|),
+    //     I_lm(r) = sum_{s<=l, t<=m} C(l,s) C(m,t) (b r/p)^{l-s} (a r/p)^{m-t} M_{s+t}(p).
+    //   |d/dx (x_A^l e^{-a x_A^2})| <= (l |x_A|^{l-1} + 2a |x_A|^{l+1}) e^{-a x_A^2}, so one axis of <grad|grad> is bounded by
+    //     J_lm = l m I_{l-1,m-1} + 2a m I_{l+1,m-1} + 2b l I_{l-1,m+1} + 4ab I_{l+1,m+1}.
+    //   Overlap: e^{-mu d^2} prod_c I_c;  kinetic (Grad2 = <grad|grad>, no 1/2): e^{-mu d^2} sum_c J_c prod_{c' != c} I_c'.
+    // Every coefficient is >= 0 and |D_c| <= |d| = r, so the bound is a function of r alone.  It is contracted with |c_p c_q| ns_i ns_j
+    // (the contraction coefficients carry the primitive norms; ns the component's) and maximised over the shell pair's components.  Each
+    // primitive term P(r) e^{-mu r^2} has degree <= La + Lb + 2 and so DECREASES past r* = sqrt((La+Lb+2)/(2 mu)): the reach -- past which
+    // the bound is below screenEps -- is bisected beyond the largest r*.  Held by UTGaussian_BS LatticeSeries.KernelBound* (bound >= |K|
+    // image by image; screened series within a few eps of the eps -> 0 series).
+private:
+    static double AbsMoment(int k, double p) {return std::tgamma(0.5*(k+1))*std::pow(p,-0.5*(k+1));}
+    static double Binomial(int n, int k) {double r=1.0; for (int t=1;t<=k;t++) r=r*double(n-k+t)/double(t); return r;}
+    static double IntPowD(double x, int n) {double r=1.0; for (int k=0;k<n;k++) r*=x; return r;}
+    //! int (|u|+dA)^l (|u|+dB)^m (|u|+dC)^n e^{-p u^2} du: one axis of the bound on |int x_A^l x_B^m x_C^n e^{..}| when
+    //! |P-A| <= dA, |P-B| <= dB, |P-C| <= dC along that axis (P the product centre).
+    static double AbsAxisIntegral(int l, int m, int n, double dA, double dB, double dC, double p)
+    {
+        if (l<0 || m<0 || n<0) return 0.0;
+        double s=0.0;
+        for (int i=0;i<=l;i++)
+            for (int j=0;j<=m;j++)
+                for (int k=0;k<=n;k++)
+                    s+=Binomial(l,i)*Binomial(m,j)*Binomial(n,k)*IntPowD(dA,l-i)*IntPowD(dB,m-j)*IntPowD(dC,n-k)*AbsMoment(i+j+k,p);
+        return s;
+    }
+    static double AxisBound(int l, int m, double a, double b, double r)   //!< I_lm(r)
+    {
+        const double p=a+b;
+        return AbsAxisIntegral(l,m,0, b/p*r, a/p*r, 0.0, p);
+    }
+    //! The reach of a bound f(r) that DECREASES past rStar: the r past which f < eps (bisection; rStar if f(rStar) < eps already).
+    template <class F> static double ReachOf(F&& f, double rStar, double eps)
+    {
+        double lo=rStar, hi=rStar;
+        if (f(lo)>=eps)
+        {
+            hi=2.0*lo;
+            while (f(hi)>=eps) {lo=hi; hi*=2.0;}
+            for (int it=0;it<80 && hi-lo>1e-9*hi;it++) {const double mid=0.5*(lo+hi); (f(mid)>=eps ? lo : hi)=mid;}
+        }
+        return hi;
+    }
+    static double AxisGradBound(int l, int m, double a, double b, double r)   //!< J_lm(r)
+    {
+        return l*m*AxisBound(l-1,m-1,a,b,r) + 2.0*a*m*AxisBound(l+1,m-1,a,b,r)
+             + 2.0*b*l*AxisBound(l-1,m+1,a,b,r) + 4.0*a*b*AxisBound(l+1,m+1,a,b,r);
+    }
+public:
+    //! A rigorous upper bound on |ns_i ns_j K_ij| for ANY image whose centre separation is r (the screen above; public for its gate).
+    double KernelBound(SeriesKernel K, size_t i, size_t j, double r) const
+    {
+        const Polarization& pa=pols[i]; const Polarization& pb=pols[j];
+        const int la[3]={pa.n,pa.l,pa.m}, lb[3]={pb.n,pb.l,pb.m};
+        const rvec_t ea=radials[i]->GetExponents(), eb=radials[j]->GetExponents();
+        const rvec_t& ca=radials[i]->GetCoeffs(); const rvec_t& cb=radials[j]->GetCoeffs();
+        double s=0.0;
+        for (size_t p=0;p<ea.size();p++)
+            for (size_t q=0;q<eb.size();q++)
+            {
+                const double a=ea[p], b=eb[q], g=std::exp(-a*b/(a+b)*r*r);
+                double I[3];
+                for (int c=0;c<3;c++) I[c]=AxisBound(la[c],lb[c],a,b,r);
+                double t;
+                if (K==SeriesKernel::Overlap) t=I[0]*I[1]*I[2];
+                else
+                {
+                    t=0.0;
+                    for (int c=0;c<3;c++) t+=AxisGradBound(la[c],lb[c],a,b,r)*I[(c+1)%3]*I[(c+2)%3];
+                }
+                s+=std::abs(ca[p]*cb[q])*g*t;
+            }
+        return ns[i]*ns[j]*s;
+    }
+    //! The reach of the shell pair holding (i, j) for kernel \a K: every image whose centre separation exceeds it has
+    //! |ns_i ns_j K| < screenEps for EVERY component pair of the two shells.  Content-memoized (pure in the radials, the
+    //! components and screenEps), so a shell type pair is solved once per basis.
+    double SeriesReach(SeriesKernel K, size_t i, size_t j) const
+    {
+        const double eps=kScreenEps();
+        const auto [bi,ei]=ShellRange(i);
+        const auto [bj,ej]=ShellRange(j);
+        std::string key=(K==SeriesKernel::Overlap ? "S|" : "T|")+KeyOf(eps)+RadialKey(bi,ei)+"#"+RadialKey(bj,ej);
+        {
+            std::lock_guard<std::mutex> lock(itsReachLock.m);
+            if (auto it=itsReach.find(key); it!=itsReach.end()) return it->second;
+        }
+        auto f=[&](double r)
+        {
+            double m=0.0;
+            for (size_t ci=bi;ci<ei;ci++) for (size_t cj=bj;cj<ej;cj++) m=std::max(m,KernelBound(K,ci,cj,r));
+            return m;
+        };
+        int L=0;
+        for (size_t ci=bi;ci<ei;ci++) for (size_t cj=bj;cj<ej;cj++) L=std::max(L,pols[ci].GetTotalL()+pols[cj].GetTotalL());
+        const double muMin=[&]{ double a=MinExponent(i), b=MinExponent(j); return a*b/(a+b); }();
+        const double hi=ReachOf(f, std::sqrt(double(L+2)/(2.0*muMin)), eps);   // r*: past it every primitive term decreases
+        std::lock_guard<std::mutex> lock(itsReachLock.m);
+        itsReach.emplace(key,hi);
+        return hi;
+    }
+    //! The images of the ordered pair (i, j) the \a K series sums: centre separation within SeriesReach (the enumeration as
+    //! ForImageOffsets: sphere centred at Roff = 0, keep test at d_ij, bound rr + |d_ij|).  The energy series and its pullback
+    //! (PG_Cart::Orbital_IBS::LatticePullback) walk this ONE list.
+    template <class F>
+    void ForSeriesImages(SeriesKernel K, size_t i, size_t j, const UnitCell& A, F&& cb) const
+    {
+        const double rr=SeriesReach(K,i,j);
+        const rvec3_t dij=radials[i]->GetCenter()-radials[j]->GetCenter();
+        for (const auto& n : LatticePointsInSphere(A, rr+norm(dij)))
+        {
+            const rvec3_t Roff=A.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
+            const rvec3_t d=dij-Roff;
+            if (d.x*d.x+d.y*d.y+d.z*d.z <= rr*rr) cb(n, Roff);
+        }
+    }
+private:
+    //! The contiguous component run sharing radials[i] (a shell; PGData::Init flattens block by block).
+    std::pair<size_t,size_t> ShellRange(size_t i) const
+    {
+        size_t b=i, e=i+1;
+        while (b>0 && radials[b-1]==radials[i]) b--;
+        while (e<size() && radials[e]==radials[i]) e++;
+        return {b,e};
+    }
+    //! Content key of a shell (exact exponents, coefficients, components): never a pointer.
+    std::string RadialKey(size_t b, size_t e) const
+    {
+        std::string k;
+        const rvec_t ex=radials[b]->GetExponents(); const rvec_t& co=radials[b]->GetCoeffs();
+        for (size_t p=0;p<ex.size();p++) k+=KeyOf(ex[p])+KeyOf(co[p]);
+        for (size_t c=b;c<e;c++) k+=std::to_string(pols[c].n)+std::to_string(pols[c].l)+std::to_string(pols[c].m)+";";
+        return k;
+    }
+public:
     // The pair's TIGHTEST product resolution: per-component tightest primitive (contracted radials carry a range).
     double MaxExponent(size_t i) const
     {
@@ -3218,6 +3410,8 @@ private:
     mutable std::unique_ptr<StreamFold> itsStreamFold;     //!< T3 route (b) (pair, R) orbit fold (null = free run)
     mutable std::map<std::string, std::shared_ptr<const LatticeSeries>> itsSeries;   //!< the R-resolved 1E series (content-keyed)
     qchem::LazyLock                    itsSeriesLock;      //!< filled from concurrent k blocks
+    mutable std::map<std::string, double> itsReach;       //!< SeriesReach per (kernel, eps, shell type pair) (content-keyed)
+    qchem::LazyLock                    itsReachLock;
 };
 
 static_assert(is1E_Evaluator <NR_Evaluator>, "NR_Evaluator must satisfy is1E_Evaluator");

@@ -5,7 +5,7 @@
 // THE USER'S RULING (2026-11-10): "libCint and our own MnD code should not be entangled (outside oracle unit tests).  We should be able to
 // drop one without affecting the other.  Having said all that I don't mind a temporary work around while waiting for the Enzyme fix."  So the
 // entanglement lives HERE and nowhere else: PG_Cart::Orbital_IBS's two LatticeSum1E pullback bodies are its only callers (one line each), and
-// they hand it MnD's OWN screened image enumerator (ForImageOffsets: the energy series' list, never a second screen -- pin 1).  When #3747 is
+// they hand it MnD's OWN screened image enumerator (ForSeriesImages: the energy series' list, never a second screen -- pin 1).  When #3747 is
 // fixed, those two bodies become Enzyme over the MnD kernel and this module is deleted (doc/OpenWork.md row "replace with Enzyme over MnD").
 // The libcint per-image integrals it calls (PG_LibCint::NR_Evaluator::ShellPairImage*) are libcint's own faces and stay.
 // The fix is underway upstream: EnzymeAD/Enzyme PR #3753 addresses #3747 (and #3748).  Once it is merged, ONE Enzyme pin move takes both

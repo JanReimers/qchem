@@ -507,7 +507,11 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long)
     // Then V_loc long's routing from the target (vlocEps eps/10, was a fixed 1e-5): -61.3031714944 -> -61.3031131432 (+58 uHa), 1.1 uHa from
     // this deck's converged reference -61.303112 (the free MnO_AFM2 deck at densityEcut 250 / 320 and vlocEps 1e-7, which agree to 0.75 uHa:
     // ~/Code/qchem6-runs/MnO/lanea_vloc7_e{250,320}) -- toward it, by our own independent route.
-    EXPECT_NEAR(R->Energy(), -61.3031131432, 1e-7) << "the SAD anchor's state (both measured, 2026-11-02)";
+    // RE-JUDGED 2026-11-10 (lane B, the 1E lattice-sum screen on each kernel's own bound, OpenWork history "kinetic screen"):
+    // -61.3031131432 -> -61.3031134482 (-305 nHa).  Pin 10's independent route: the same run with ONLY the S / T / <chi|g> series
+    // screened at screenEps x 1e-6 (every other screen unchanged) gives -61.3031134481, 1e-10 from the new value; the old one carried
+    // the prefactor screen's dropped kinetic images (the -61.303112 reference above was computed under the same old screen).
+    EXPECT_NEAR(R->Energy(), -61.3031134482, 1e-7) << "the SAD anchor's state (measured 2026-11-02, re-judged 2026-11-10)";
     ASSERT_FALSE(trace.rows.empty());
     EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the AFM order survives the ionic seed (measured 4.459, = SAD's)";
 }
