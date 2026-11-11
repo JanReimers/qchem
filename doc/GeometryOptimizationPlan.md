@@ -936,3 +936,31 @@ frozen recipe, as a session step does).  It used to reuse the reference basis, w
 
 **What a GPW stress still lacks:** the three PP terms (lane B, Enzyme #3753) and XC (Becke or raster, with the δ XC force).  Rutile's
 end-to-end cell run needs both.
+
+### 15d. The GPW Hartree pullback and virial on the contracted cube (lane H, 2026-11-11; the forces row's fast-path item)
+
+**Why.**  Measured with the integrate memo defeated: one gather on the contracted cube took Si 0.14 s and MnO 0.42 s.  The jet walk's
+pullback took 2.5 / 7.4 s and its virial 3.0 / 7.9 s, about 18 gathers each.  An SCF point runs 20-30 gathers, so the walk added more
+than half again to every force-and-stress point.
+
+**What.**  A Cartesian Gaussian's gradient is the SAME Gaussian times shifted polynomials:
+∂_x[x^n… e^{−αr²}] = n x^{n−1}… − 2α x^{n+1}….  So a jet is two polarization-shifted pair integrals, and the virial's moment
+d_y ∂_xχ is one shift more.  `CubeJets` builds them from the cube's grid moments:
+- `GatherCube` runs at degree l_p+1 (l_p+2 for the virial), and the moment table `MomentTable` is factored out of `MomentsToPairs`.
+  The arithmetic is the same and the SCF gather calls it unchanged.
+- `ShiftedPair` reads out any power pair.
+- Contracted shells go per primitive pair, each on its own box, as `GatherPrimitivePairs` does.
+- Above the tensor extent (l_p + shift ≥ 9), the caller walks.
+The route is the production gather's policy, `UseContractCube`; its unit-test hook `ContractCubeOverride` forces the walk.
+
+**Gate.**  `UTGaussian_BS` `M_CollocationPullback.TheCubeJetsAreTheWalksJets_{Uncontracted,Contracted,Spherical}` checks the pullback
+and virial on the cube against the jet walk:
+
+| fixture | max \|walk − cube\| | max component | walk | cube |
+|---|---|---|---|---|
+| Si (uncontracted) | 1.8e-15 | 0.10 | 6.5 s | 0.37 s |
+| H₃ (contracted) | 1.9e-11 | 0.064 | 0.41 s | 0.033 s |
+| MnO (spherical view) | 1.3e-14 | 1.5 | 19.3 s | 1.10 s |
+
+The contracted case differs by the primitive boxes' truncation, the gather's own walk-vs-cube tier.  The FD gates (§15c) now run on the
+cube, the default, and still pass.
