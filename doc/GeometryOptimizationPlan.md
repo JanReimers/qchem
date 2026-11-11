@@ -860,3 +860,43 @@ Every run converged under the ε-derived rule and lands on PySCF's minimum: ener
 against the session's own FD at two points), `MoleculeSession.RefusalsAreOutcomesAndAWrongCountThrows` (LDA refused by name with no point
 kept; stress refused); `MolecularRelaxation.HFWaterReachesPySCFsMinimum` (both steppers, 13 s) and the family's one end-to-end
 `MolecularRelaxation.HFPeroxideUnwindsItsTorsionToPySCFsMinimum_Long` (~150 s).  NH₃ is banked here, not gated.
+
+### 15b. The solids on plane waves (lane H, 2026-11-11; OpenWork §2 "Real relaxations end to end", step 2, and the cell half's item (a))
+
+**Wiring.**  `SolidSession::ConvergeAt` used to refuse every forces request (the solid sum over the Bloch blocks had no W) and every stress
+request.  Both are now answered on ONE generic W:
+- `SnapshotState(..., energyWeighted)` (qchem.SCFState) puts W = Σ f ε c c^† in each block's D slot, and `RestoreDensity` builds it into
+  a density weighted and composed exactly as the converged one (block weights, the Shubnikov spin-pair projection).  It does not care
+  what the basis is, so lane B's GPW force and virial terms plug into the same W.  `SolidCalculation::ForceVirial` drops its "Gaussian
+  needs W" refusal.
+- A forces (stress) request is refused by name before any SCF while `MissingGradients` (`MissingVirials`) is not empty.  Otherwise the
+  converged point carries −dE/dR (`tHamiltonianAt::Forces`) and σ (`tHamiltonianAt::Stress` on the point's cell), both at D and W.
+- `MakeSolidGeometryRun(..., relaxCell)` pairs the session with a `CellWyckoffMap` over the same ops (forces and stress per point).  It
+  refuses a setup with no `cellStrainAllowance`.
+
+**Gates** (`UTCalculation`):
+- `ForceFacade.TheSharedEnergyWeightedSnapshotIsTheFacadesW`: the shared W is the molecular facade's own W to 1e-13.  Water RHF, SALC,
+  and UHF SALC.
+- `HamiltonianForces.OnPlaneWavesTheSessionsForceIsTheFiniteDifferenceOfItsEnergy`: the session's force against its own re-converged FD,
+  ≤ 1.8e-9 at max|F| 0.032.  |ΣF| is 6.4e-8, the XC raster's egg-box.
+- `HamiltonianStress.OnPlaneWavesTheWholeVirialIsTheStrainDerivativeOfTheReconvergedEnergy`: now gates the session's σΩ, equal to the
+  door's virial to 1e-8.
+- `SolidSession.AForceRequestNamesTheMissingGradientsBeforeAnySCF`: adds the stress twin on GPW (MissingVirials, 0 SCF iterations).
+- `SolidSession.AGeometryRunPairsTheSessionWithAMapThatKeepsItsGroup`: the `relaxCell` refusal, plus cubic diamond's single strain.
+
+**Relaxations.**  `SolidRelaxation.OnPlaneWavesSiReturnsToTheDiamondSite`: Si₂, PW Ecut 4 Ha, Γ, a free setup (P1, 6 Cartesian
+coordinates, translations held), the second atom started at (0.27, 0.24, 0.26).  3 steps, 4 points, 1 s, back on (¼, ¼, ¼) to 1.1e-5 bohr.
+
+**What did NOT make a test: plane waves are Γ-only so far, and Γ makes the obvious small cells unstable** (model, not code):
+- **NaF** (Na q1 / F q7, the QE-gated Ecut 15 Ha), F started at (0.52, 0.47, 0.51).  It relaxed cleanly (24 steps, max|g| 9e-6) to the
+  TETRAHEDRAL site (¾, ¾, ¾), 77 mHa below rocksalt.  Rocksalt is a saddle here, which is the light-PP "no restoring force" row (§3)
+  seen at Γ.  It took 259 s.
+- **Si₈** (conventional cubic, Γ folds in X).  It is unstable on diamond at Ecut 4 Ha AND at 8 Ha, at a fixed cell: −220 / −195 mHa in
+  12 steps, the atoms leaving their sites.  QE `relax` on the identical start (Ecut 16 Ry, the same GTH q4 UPF, sla+vwn, `K_POINTS
+  gamma`) starts at the same energy (−62.53357068 Ry = −31.26678534 Ha against ours −31.26678557 Ha, 2e-7 Ha) and runs away the same
+  way, its force growing (`~/Code/qe-runs/Si/si8_gamma_relax_e16.{in,out}`, stopped at 25 min).  So it confirms our PW surface
+  independently, and it is not a defect.
+- **Si₂ cell**: the Γ pressure is still +6 GPa at 8 % expansion, with a level crossing near a = 11 bohr, so there is no physical minimum
+  within an allowance.
+So the END-TO-END CELL RELAXATION waits on a k-mesh for plane waves or on the GPW virials (rutile TiO₂, step 3).  Until then the cell
+path is gated at unit level: the σ gates above and `CellWyckoffMap` on model surfaces.
