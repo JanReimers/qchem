@@ -46,9 +46,9 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
 add_subdirectory(tests)
 
 set_property(TARGET qcChargeDensity PROPERTY CXX_STANDARD 20)
-target_include_directories(qcChargeDensity PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze
+target_include_directories(qcChargeDensity PRIVATE ${QCHEM_BLAZE_DIR}
     ${PROJECT_SOURCE_DIR}/src                       # forward.H (the unit-test friend declarations)
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include)
+    ${QCHEM_JSON_INCLUDE})
 target_link_libraries(qcChargeDensity PUBLIC qcFitting qcBasisSet qcSymmetry qcStructure qcMesh qcMath qcCommon)
 target_compile_definitions(qcChargeDensity PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(qcChargeDensity PRIVATE ${ChargeDensityDataPath})

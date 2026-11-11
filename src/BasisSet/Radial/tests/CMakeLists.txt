@@ -22,12 +22,13 @@ target_compile_definitions(UTRadial_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS}
 set_property(TARGET UTRadial_BS PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTRadial_BS PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
-    ${PROJECT_SOURCE_DIR}/submodules/googletest/googlemock/include
-    # ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
+    ${PROJECT_SOURCE_DIR}/src   # forward.H (A_Cache4's unit-test friend)
+    ${QCHEM_BLAZE_DIR}
+    ${QCHEM_JSON_INCLUDE}
+    ${QCHEM_BSPLINE_INCLUDE}
+    ${QCHEM_GTEST_INCLUDE}
+    ${googletest_SOURCE_DIR}/googlemock/include
+    # ${QCHEM_TABULATE_INCLUDE}
 )
 
 target_link_libraries(UTRadial_BS PRIVATE qcRadial_BS qcLASolver gtest)

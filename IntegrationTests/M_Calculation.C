@@ -8,6 +8,7 @@
 #include <unistd.h>    // getpid: per-process temp names (ctest runs cases in parallel)
 #include <cmath>
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -333,6 +334,32 @@ TEST(M_Calculation, WaterLDASymmetryExactResumeStartsAtTheSavedAnswer)
     EXPECT_NEAR(it.E.front(), calc.Energy(), 1e-9) << "the first iterate left the saved answer";
     EXPECT_NEAR((*r)->Energy(), calc.Energy(), 1e-9);
     EXPECT_LE((*r)->IterationCount(), 2u);
+}
+
+// CLAIM (lane A, 2026-11-10): a SALC state identifies its basis by the SHELLS, as an AO state does.  A SALC block is a combination of
+// the shells and cannot report them, so the state used to record only the basis name, irreps and sizes: a .bsd edited under the same
+// name with the same block sizes restarted without a refusal.  Now the facade records its unsymmetrized basis's shells, the very keys
+// that refuse an edited basis on an AO run -- so the two states of one basis carry them EQUAL.
+TEST(M_Calculation, ASymmetryBlockedStateIdentifiesItsBasisByItsShells)
+{
+    const auto shellKeys=[](bool symmetry)
+    {
+        const std::string path=StatePath(symmetry ? "h2o_salc_id.h5" : "h2o_ao_id.h5");
+        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .symmetry = symmetry}));
+        EXPECT_TRUE(calc.Result());
+        calc.SaveState(path);
+        auto st=qchem::ReadState(path);
+        std::filesystem::remove(path);
+        EXPECT_TRUE(st) << (st ? "" : st.Error().details);
+        return st ? st.Value().fingerprint.refuseNum : std::map<std::string, std::vector<double>>{};
+    };
+    const auto salc=shellKeys(true), ao=shellKeys(false);
+    for (const char* key : {"basis.shellL", "basis.shellComponents", "basis.shellPrimitives", "basis.exponents", "basis.coefficients"})
+    {
+        ASSERT_TRUE(salc.contains(key)) << "a SALC state does not record " << key;
+        ASSERT_TRUE(ao.contains(key)) << key;
+        EXPECT_EQ(salc.at(key), ao.at(key)) << key;
+    }
 }
 
 // CLAIM (controller note 1, 2026-11-09, revised on the measurement the same day): POSITIONS ARE WARM.  A restart at a displaced H2O

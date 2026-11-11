@@ -217,10 +217,10 @@ function(qchem_discover_tests target)
             PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" FAIL_REGULAR_EXPRESSION "C\\+\\+ exception with description" LABELS "long\;knownRed" TIMEOUT 3600)
     endif()
 endfunction()
-set(BUILD_GMOCK OFF CACHE BOOL "Disable GoogleMock for this project" FORCE)
-add_subdirectory(./submodules/googletest)
+# THE SOURCE DEPENDENCIES: one pin table (cmake/Dependencies.cmake, doc/SharedDependenciesPlan.md); submodules/ is no longer read (step 3 deletes it).
+include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
 link_directories(${PROJECT_BINARY_DIR}/lib)
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/submodules/blaze/cmake )
+list(APPEND CMAKE_MODULE_PATH ${QCHEM_BLAZE_DIR}/cmake )
 include(Blaze_Import)
 
 add_library(qchem)  
@@ -416,17 +416,8 @@ add_custom_target(allTests
     DEPENDS ITMain UTAD UTCommon UTOptimize UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTGaussian_BS UTLattice_BS UTLASolver UTSCFAccelerator UTSCFIterator UTResponse UTWaveFunction
     COMMENT "Build all unit test executables"
 )
-# Disable embedded submodule tests so ctest only runs this project's tests.
-set(BUILD_TESTING OFF CACHE BOOL "Disable embedded submodule tests" FORCE)
-add_subdirectory(./submodules/libxc)
-# libcint (Apache-2.0): block-oriented Gaussian integral library, used by the PG_LibCint
-# matrix-delivery evaluator.  Build it static with no Fortran interface (we call the C API directly).
-set(ENABLE_STATIC ON CACHE BOOL "Build libcint as a static library" FORCE)
-set(WITH_FORTRAN  OFF CACHE BOOL "libcint Fortran interface (unused)" FORCE)
-add_subdirectory(./submodules/libcint)
-# qcGaussian_BS is a shared library, so the static cint must be position-independent.
-set_property(TARGET cint PROPERTY POSITION_INDEPENDENT_CODE ON)
-set(BUILD_TESTING ON CACHE BOOL "Enable testing for this project" FORCE)
+# libxc and libcint (cmake/Dependencies.cmake), after the project's own targets, their tests off.
+qchem_build_c_dependencies()
 
 Blaze_Import(
    QUIET

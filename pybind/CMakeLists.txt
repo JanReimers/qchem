@@ -26,7 +26,7 @@ target_compile_options    (qchem_bridge PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qchem_bridge PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_include_directories(qchem_bridge PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})   # qcb_api.h
 target_include_directories(qchem_bridge PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include)  # nlohmann/json.hpp (in the GMF)
+    ${QCHEM_JSON_INCLUDE})  # nlohmann/json.hpp (in the GMF)
 # Linking the qchem aggregate pulls every qc* lib AND their CXX_MODULES file-sets.
 target_link_libraries(qchem_bridge PUBLIC qchem)
 

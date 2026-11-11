@@ -19,7 +19,7 @@ target_sources(qcElConfig PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     )
 
 target_compile_definitions(qcElConfig PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_include_directories(qcElConfig PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/submodules/blaze)
+target_include_directories(qcElConfig PRIVATE ${PROJECT_SOURCE_DIR}/src ${QCHEM_BLAZE_DIR})
 # This linker association is required in order for cmake/gcc to find .gcm binaru module  interfact (BMI) files!!!!!
 # The OccupationPolicy reads orbitals through its own OrbitalView DIP face (qcOrbitals sits ABOVE this
 # library and implements it -- V1.11 inc 3, user ruling: invert, never re-point the DAG).  qcMath supplies

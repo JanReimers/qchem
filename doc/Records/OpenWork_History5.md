@@ -2152,6 +2152,45 @@ TiO2 53 > 49, the same on main).  anchordiff against main c70781405 moves only t
 Caveat seen in arm T, not the hand-off's fault, logged beside "An SCF energy can jump with Δρ blind to it": NaF Anchor's cold SCF stopped
 8.9e-7 Ha above arm E's stop, on a GDM step with |ΔE/E| 1.9e-10 while [F,D] was 3e-3.  The restart lands both arms on the same energy to 1.5e-9.
 
+## ✅ Three SCF gate rows, landed 2026-11-02 in d0567558a, closed 2026-11-10 (lane A)
+
+The rows as filed:
+
+| **SCF convergence gates have no real "off": 1e30 is a sentinel** (user via lane G, 2026-11-01: "the real fix is to actually have a proper off flag for each rather than some heuristic guess") | `SCFParams` MinFD / MinΔFD / MinΔE / MinVirial / MinΔρPerElectron use 1e30 for off; `IterationRow` carries it as each column's tolerance, so the GUI draws a gate line at 1e30, and `SCFIterator.C:295` / `RequireLiveGates` / the SCFTrace golden headers test `< 1e30` | lane A: each gate becomes `std::optional<double>` (nullopt = off); the column factories (FDCol etc.) pass it straight to `ColumnData::tolerance`, which already prints no threshold and sends none across the bridge; replace every `< 1e30` test; deck/JSON "off" spelled explicitly; re-bless the SCFTrace headers.  GUI needs no change (no GUI-side filtering -- ruled out as a heuristic).  pybind/ may need a flag to lane G if SCFParams is bound · `src/SCFIterator/SCFParams.C`, `src/SCFIterator/Imp/SCFIterator.C` |
+| **The molecular SCF iteration row still prints Δ[F,D]; it should carry ΔE/E** (user via lane G, 2026-11-01: "delta [F,D] should be replaced by delta E/E for iteration log and SCF graphs") | Δ[F,D] was retired as a default gate (1e0b2069), but the molecular console layout still prints it; the periodic layout already prints ΔE/E.  The GUI plots whatever cells `IterationRow` carries, so it needs no change | lane A, with the 1e30 off-flag row: replace the Δ[F,D] column with ΔE/E in the molecular layout, re-bless the SCFTrace goldens · `src/SCFIterator/Imp/SCFIterator.C`, `src/SCFIterator/tests/SCFTrace.C` |
+| **Linear D-mixing has no floor on α; a stopped SCF must propagate** (user via lane G, 2026-11-01, fighting a benzene SCF: "the max/min mixing factor (alpha)") | `SCFParams` has StartingRelaxRo / MaxRelaxRo (both in the GUI, lane-g 62071c53) but `LinearMixer` multiplies α by 0.8 on every [F,D]-worsening step with no lower bound.  Separately, the GUI Stop button throws a bridge-local exception from the row sink through `Calculation`/`SolidCalculation::Converge`, which today lets it through unchanged | lane A, with the SCF gate rows: `SCFParams::MinRelaxRo` (default 0 = no floor) through `LinearMixerFactory`, clamped where `itsRelax *= 0.8`; deck key `minRelaxRo`; the GUI adds an "α min" row.  Add a UT that an exception thrown from the row sink propagates out of Converge untouched (Converge must never swallow std::exception).  Open question for later: should a user cancel be an Outcome (a legitimate stop) rather than an exception? · `src/ChargeDensity/Internal/LinearMixer.C`, `src/SCFIterator/SCFParams.C` |
+
+**Found done** while picking lane A's next work (2026-11-10): d0567558a ("SCFParams gates become std::optional; ΔE/E on the
+molecular console; MinRelaxRo") did all three.
+- `Gate = std::optional<double>` with `Meets`, and decks spell an off gate "off".
+- ΔE/E is every layout's column.
+- `MinRelaxRo` floors `LinearMixer`'s retraction.
+- A UT checks that an observer exception leaves both facades' Converge untouched.
+
+The rows were never moved.  One leftover was fixed on closing: `FacadeMatrix.C`'s SolidProbe still assigned `1e30` to three Gates,
+which with `std::optional` made them LIVE gates at 1e30 rather than off; they are now `std::nullopt`.
+The third row's open question (should a user cancel be an Outcome?) stays in the live tracker as its remainder.
+
+## ✅ SALC state identity: a molecular SALC state identifies its basis by name, irreps and sizes only (lane A, 2026-11-10, 76bf2f986)
+
+The row as filed:
+
+| **A molecular state identifies a SALC basis by name, irreps and sizes only** (lane A, 2026-11-09, from V-FACADE-STATE) | an AO-blocked molecular basis records its shells (REFUSE), but a symmetry-adapted one records the basis name, the block irrep labels and sizes: a `.bsd` edited under the same name with the same block sizes would restart without a refusal | record the UNSYMMETRIZED basis's shells beside the SALC blocks (the SALC builder holds them) · `MoleculeCalculation::RecordState` |
+
+**Closed.**  `BuildBasis` hands back the raw basis that `PG::SymmetryAdapt` adapts (the shared_ptr the adapted basis already
+keeps alive).  `MoleculeCalculation` holds it as `itsAoBasis`, and `RecordState` records its shells exactly as an AO run's:
+REFUSE `basis.shellL` / `shellComponents` / `shellPrimitives` / `exponents` / `coefficients`, WARM `shellCenters`.  No new
+face on any basis class: a SALC block cannot honestly answer `AoShellSource` (its functions are combinations), so the facade,
+which built both, holds the pair.
+
+Coordination with lane G's `basis.fileChecksum` (basisFile runs): the shells come from the basis the run BUILT, so a stated
+file records that file's shells and the two keys agree.  An edited file is ONE refusal listing both keys (the checksum also
+refuses a comment-only edit the shells cannot see: it is the stricter of the two, never the opposite verdict).
+A SALC state saved between 2026-11-09 and this commit refuses on the new keys; none is vendored.
+
+Gate: `M_Calculation.ASymmetryBlockedStateIdentifiesItsBasisByItsShells` (H2O dzvp: the SALC and AO states carry equal shell
+keys; before the fix the SALC state carried none).  Sweep `lane-a-salcid1`: short 1513/1513, long 15/15, 0 anchor moves.
+
 ## ✅ The 1E lattice-sum screen drops KINETIC terms up to 4e-8 at screenEps 1e-10: it screens on the overlap prefactor (lane B, 2026-11-10, 04fc3e043)
 
 The row as it stood:

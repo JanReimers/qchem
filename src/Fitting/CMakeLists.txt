@@ -14,7 +14,7 @@ target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Types.C
 )
 set_property(TARGET qcFitting PROPERTY CXX_STANDARD 20)
-target_include_directories(qcFitting PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+target_include_directories(qcFitting PRIVATE ${QCHEM_BLAZE_DIR})
 target_link_libraries(qcFitting PUBLIC qcBasisSet qcSymmetry qcStructure qcMesh qcMath qcCommon)
 target_compile_definitions(qcFitting PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 

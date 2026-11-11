@@ -40,12 +40,12 @@ target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
 
     PG_LibCint/Evaluator.C
 )
-target_include_directories(qcGaussian_BS PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+target_include_directories(qcGaussian_BS PRIVATE ${QCHEM_BLAZE_DIR})
 # libcint: the PG_LibCint Imp includes cint_funcs.h (-> generated cint.h in the build tree) and links
 # the static cint target.  PUBLIC link so UTGaussian_BS resolves the libcint symbols transitively.
 target_include_directories(qcGaussian_BS PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/libcint/include
-    ${PROJECT_BINARY_DIR}/submodules/libcint/include)
+    ${QCHEM_LIBCINT_SOURCE}/include
+    ${QCHEM_LIBCINT_BUILD}/include)
 target_link_libraries(qcGaussian_BS PUBLIC cint)
 
 # The Cartesian basis gradient is Enzyme's AD of the inline value leaves (doc/GeometryOptimizationPlan.md, the AD verdict).

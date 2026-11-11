@@ -26,8 +26,8 @@ target_compile_definitions(qcCommon PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(qcCommon PUBLIC ${CommonDataPath})
 
 target_include_directories(qcCommon PRIVATE
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include   # PeriodicTable JSON
-    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include       # Strings (table formatting)
+    ${QCHEM_JSON_INCLUDE}   # PeriodicTable JSON
+    ${QCHEM_TABULATE_INCLUDE}       # Strings (table formatting)
 )
 # openblas: PinBlasToOneThread (qchem.Parallel) calls openblas_set_num_threads.  PRIVATE -- the
 # dependency is one call inside this library, not part of its interface.  Naming the DSO here is
