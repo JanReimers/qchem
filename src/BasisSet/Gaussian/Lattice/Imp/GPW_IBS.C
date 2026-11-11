@@ -90,7 +90,7 @@ template <class T> mat_t<dcmplx> tGPW_IBS<T>::OrbitalImage(const Symmetry::SymOp
 // So a reader sees BOTH bases here, and for LDA both are the one density grid.  (History: a temporary
 // GPW_CDFIT_SCALE knob that forked a SECOND, denser grid is RETIRED -- resolving the product is cutoffFactor's
 // job, one grid.  doc/GPWPlan §0e step 2.)
-template <class T> BasisSet::cFIT_CD_ABS* tGPW_IBS<T>::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
+template <class T> BasisSet::cFIT_CD_ABS* tGPW_IBS<T>::CreateCDFitBasisSet(const Structure*) const
 {
     // {G}_rho = DensityGrid() (cutoffFactor*alpha_max, resolving the density product); no relCutoff on the CD grid.
     return new PlaneWave::PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),

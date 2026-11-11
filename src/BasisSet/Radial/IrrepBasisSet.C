@@ -168,6 +168,10 @@ template <isFit_Evaluator Evaluator> class EFit_IBS
 {
     using IrrepBasisSetImp<Evaluator>::Cast;
 public:
+    //! The Coulomb fit: analytic, no mesh.
+    explicit EFit_IBS(const Evaluator& e)
+        : Fit_IBS(), IrrepBasisSetImp<Evaluator>(Symmetry::YFactory()), Evaluator(e) {};
+    //! The Vxc fit: its projection mesh, built from \a st and \a mp.
     EFit_IBS(const Evaluator& e, const Structure& st, const qcMesh::MeshParams& mp)
         : Fit_IBS(st,mp), IrrepBasisSetImp<Evaluator>(Symmetry::YFactory()), Evaluator(e) {};
     // d/dR (GeometryOptimizationPlan §13.2): a one-centre (atom) fit has no geometry to move.

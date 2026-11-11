@@ -84,6 +84,9 @@ public:
     //! \brief A field's COULOMB projections, the axis \c Forward uses: the field is overlap-fitted first
     //! (\f$c_0=S^{-1}\langle f|\rho\rangle\f$) and then pushed through the Coulomb metric, \f$G\,c_0\f$, so \c DoFit's
     //! \f$G^{-1}\f$ hands back \f$c_0\f$ (a matrix-free seed's honest fit, to roundoff in \f$G\f$'s conditioning).
+    //! A COULOMB FIT HAS NO INTEGRATION GRID (user 2026-11-11, doc/Pins.md): \f$S\f$ and \f$G\f$ are the basis's exact operations,
+    //! and \f$\langle f_a|\rho\rangle\f$ is the FIELD's to give -- a field that is only a function on space owns its quadrature
+    //! and integrates itself (\c BasisSet::SelfIntegratingField).  A field that cannot is refused, never sampled on borrowed points.
     virtual Projections ProjectField(const ScalarFunction<double>&) const override;
 
     // --- DunlapDensityFit

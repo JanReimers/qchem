@@ -65,7 +65,7 @@ namespace
 qchem::Hamiltonian::Vee_Fit<dcmplx>* NewPWHartree(const PlaneWave_IBS& pw)
 {
     // The periodic Hartree term is the first-order fitted term on the plane-wave density fitter (V-ONE-OF-N 3b).
-    std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}));
+    std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(nullptr));
     return new qchem::Hamiltonian::Vee_Fit<dcmplx>(qchem::Fitting::MakeGSpaceDensityFitter(fb), 0.0, fb);
 }
 // The XC term takes a QUADRATURE, and MakeDensitySampler reads off the strategy the fit basis supports --

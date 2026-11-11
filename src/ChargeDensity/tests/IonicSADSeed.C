@@ -16,7 +16,11 @@
 import qchem.ChargeDensity.Seed;            // IonicSADTargets, MagneticDecoration
 import qchem.ChargeDensity.SeedCD;          // SeedCD, PolarizedSeedCD
 import qchem.ChargeDensity.AtomicDensity;   // HasAtomicSpinPair, GetAtomicDensity
-import qchem.ChargeDensity.NumericCD;       // NumericCD (the hand-gradient audit)
+import qchem.ChargeDensity.NumericCD;       // NumericCD (the hand-gradient audit; the SAD seed's own grid)
+import qchem.Fitting.CoulombOperator;       // MakeDunlapDensityFitter / MakeGridDensityFitter (the seed's Coulomb projections)
+import qchem.BasisSet.CoulombDeltaFit_IBS;  // the δ Coulomb fit basis
+import qchem.Mesh.CoulombOperator;          // MakeDirectSumCoulomb
+import qchem.Symmetry.Unit;                 // UnitQN (the δ basis's one-irrep symmetry)
 import qchem.ScalarFunction;
 import qchem.BasisSet.Lattice.BasisSet;     // BasisSet::Lattice::Factory(PW)
 import qchem.Lattice_3D;
@@ -52,11 +56,14 @@ struct Box   // the cell + the cheapest PW block for a seed's density-fit basis
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitCD;
     explicit Box(std::shared_ptr<UnitCell> c) : cell(c), lat(*c, ivec3_t(1,1,1)), st(lat.GetStructure())
         , bs(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, /*Ecut*/2.0))
-        , fitCD(bs->CreateCDFitBasisSet(st.get(), qcMesh::MeshParams{})) {}
+        , fitCD(bs->CreateCDFitBasisSet(st.get())) {}
 };
 
 // The seeds' PP variant: the library holds Mn q7 AND q15, so an unkeyed neutral-Mn lookup is ambiguous (it throws).
 const SeedKey kMnQ7("LDA", {{25,7}});
+//! The molecular SAD seed's own quadrature: the molecular entry rung (80 / 29).
+const qcMesh::MeshParams kSeedMesh{.radial=qcMesh::RadialKind::MHL, .nRadial=80, .mhl_m=3, .mhl_alpha=2.0,
+                                   .angular=qcMesh::AngularKind::Lebedev, .angularDegree=29, .beckeOrder=2};
 int NeutralNval(int Z) { return (int)std::lround(GetAtomicDensity(Z,"LDA","atomic_valence_densities.json",-1,kMnQ7.Q(Z)).Charge()); }
 }
 
@@ -178,7 +185,7 @@ TEST(SeedHandGradient, EachSeedDensitysGradientIsTheFiniteDifferenceOfItsValues)
     };
     {
         auto O=std::make_shared<const RadialDensity>(GetAtomicDensity(8, "LDA"));
-        NumericCD cd(16.0);
+        NumericCD cd(16.0, std::make_shared<const qcMesh::Mesh>(rvec3vec_t{rvec3_t(0,0,0)}, rvec_t(1,1.0)));   // its quadrature is not used here
         cd.Insert(std::make_shared<RecentredAtomicDensity>(O, rvec3_t(0,0,0)));
         cd.Insert(std::make_shared<RecentredAtomicDensity>(O, rvec3_t(0,0,2.3)));
         check(cd, {rvec3_t(0.31,0.22,-0.4), rvec3_t(-0.5,0.7,1.2), rvec3_t(0.9,-0.6,2.8)}, "NumericCD");
@@ -209,7 +216,56 @@ TEST(SADSeed, ItsChargeIsTheElectronCountTheDunlapFitIsConstrainedTo)
     const std::unique_ptr<BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, &oh,
                                                 BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     const Molecule_EC ec(10);
-    const std::unique_ptr<tChargeDensity<double>> seed(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &oh, &ec));
+    const std::unique_ptr<tChargeDensity<double>> seed(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &oh, &ec, kSeedMesh));
     ASSERT_TRUE(seed);
     EXPECT_EQ(seed->GetTotalCharge(), oh.GetNumElectrons());   // bit-equal: the same double the Dunlap term holds
+}
+
+// A COULOMB FIT HAS NO INTEGRATION GRID (user 2026-11-11, doc/Pins.md); THE SAD SEED BRINGS ITS OWN, AND IT IS GONE ONCE THE SEED HAS
+// PROJECTED ("we might need a grid just to get started from SAD ... But the grid should then disappear as soon as iterations start").
+// The seed integrates itself against the A1_coul functions on the quadrature it owns, the Dunlap fitter turns that into Coulomb
+// projections with the basis's exact S and G, and nothing the fitter or the fit basis holds keeps the grid: with the seed destroyed
+// (SCFIterator::Initialize owns it for the first Fock only), the last reference is gone.  A field that cannot integrate itself is
+// refused, not sampled on borrowed points.
+TEST(SADSeed, ItsGridIsItsOwnAndGoneOnceItHasProjected)
+{
+    Molecule h2o;
+    h2o.Insert(Site{8, rvec3_t(0,0,0)});
+    h2o.Insert(Site{1, rvec3_t(0, 1.43, 1.11)});
+    h2o.Insert(Site{1, rvec3_t(0,-1.43, 1.11)});
+    const std::unique_ptr<BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, &h2o,
+                                                BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    // Two Coulomb fits on opposite sides of the face: the analytic Gaussian (Dunlap), which asks the seed to integrate itself, and
+    // the δ basis with the direct-sum operator, whose own points ARE its functions, so it asks the seed only for values there.
+    const std::shared_ptr<const BasisSet::rFIT_CD_ABS> fb(bs->CreateCDFitBasisSet(&h2o));
+    BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(h2o, kSeedMesh, nullptr);
+    const std::shared_ptr<const BasisSet::rFIT_SF_ABS> delta(bs->CreateVxcFitBasisSet(&h2o, kSeedMesh, BasisSet::VxcFit::Delta, &quad));
+    const auto cdelta=std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(delta, qcMesh::MakeDirectSumCoulomb(*quad.GetMesh()), sym_t(new UnitQN));
+    const auto dunlap=Fitting::MakeDunlapDensityFitter(fb);
+    const auto grid  =Fitting::MakeGridDensityFitter(cdelta);
+    for (const BasisSet::PairProjector<double>* fitter : {static_cast<const BasisSet::PairProjector<double>*>(dunlap.get()),
+                                                          static_cast<const BasisSet::PairProjector<double>*>(grid.get())})
+    {
+        std::weak_ptr<const qcMesh::Mesh> own;
+        rvec_t p;
+        {
+            auto mesh=std::make_shared<const qcMesh::Mesh>(h2o.CreateIntegrationMesh(kSeedMesh));
+            own=mesh;
+            NumericCD seed(h2o.GetNumElectrons(), std::move(mesh));
+            h2o.ForEachSite([&seed](int Z, const rvec3_t& R, bool)
+                {seed.Insert(std::make_shared<const RecentredAtomicDensity>(std::make_shared<const RadialDensity>(GetAtomicDensity(Z)), R));});
+            p=seed.Project(*fitter).Vector();
+            EXPECT_FALSE(own.expired()) << "the seed holds its grid while it lives";
+        }
+        EXPECT_TRUE(own.expired()) << "a fitter or a fit basis kept the seed's grid past its projection";
+        ASSERT_EQ(p.size(), fitter->NumCoefficients());
+        double largest=0.0; for (size_t a=0; a<p.size(); a++) largest=std::max(largest, std::fabs(p[a]));
+        EXPECT_GT(largest, 0.0) << "the seed's projections are not trivially zero";
+    }
+    struct NoQuadrature : ScalarFunction<double>   // a field that is only a function on space and brings no points
+    {
+        double  operator()(const rvec3_t&) const override {return 1.0;}
+        rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0,0,0);}
+    } bare;
+    EXPECT_THROW((void)dunlap->ProjectField(bare), std::logic_error) << "a Gaussian Coulomb fit has no grid to sample a field on";
 }

@@ -127,7 +127,7 @@ public:
     // *cached* 3C (now safe -- the integral cache is re-entrant), so the raw 3C is computed once
     // and shared by every irrep.  Fit bases are atom-centred (geometry, not symmetry), so creation
     // delegates to the raw DFT basis.
-    virtual rFIT_CD_ABS* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const;
+    virtual rFIT_CD_ABS* CreateCDFitBasisSet (const Structure*) const;
     virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
 protected:
     virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const;

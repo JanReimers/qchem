@@ -523,8 +523,7 @@ TEST_F(PlaneWaveTests, FitBasisAnswersPoissonKernelAndVolume)
     UnitCell cell(a);
     Lattice_3D lat(cell,ivec3_t(1,1,1));
     PlaneWave_IBS pw(lat.Reciprocal(),ivec3_t(1,1,1),ivec3_t(0,0,0),5.0);
-    qcMesh::MeshParams mp;
-    std::unique_ptr<const BasisSet::cFIT_CD_ABS> fit(pw.CreateCDFitBasisSet(nullptr,mp));
+    std::unique_ptr<const BasisSet::cFIT_CD_ABS> fit(pw.CreateCDFitBasisSet(nullptr));
 
     auto* pk=dynamic_cast<const BasisSet::G_PoissonKernel*>(fit.get());
     ASSERT_TRUE(pk) << "the CD fit basis must carry the Poisson-kernel seam (the plane-wave density fitter asks it)";

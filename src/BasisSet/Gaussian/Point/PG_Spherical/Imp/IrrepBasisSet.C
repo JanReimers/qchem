@@ -113,11 +113,11 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)            : IrrepBasisSet(bsr,cl) {};
 Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl) : IrrepBasisSet(es,L,cl) {};
 
-rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl) const
 {
     // The A1 files support Z=1-54 (H-Te); A2 only to Zn.  Same auxiliary data as PG_Cart, read spherically.
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
-    return new EFit_IBS(&reader,cl,mp,"A1_coul");
+    return new EFit_IBS(&reader,cl,"A1_coul");
 }
 rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
@@ -131,6 +131,8 @@ std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {retur
 //
 //  Fit spherical-Gaussian basis set.
 //
+EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl, const std::string& name)
+    : Fit_IBS(), IrrepBasisSet(bsr,cl), itsName(name) {};
 EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl, const qcMesh::MeshParams& mp, const std::string& name)
     : Fit_IBS(*cl,mp), IrrepBasisSet(bsr,cl), itsName(name) {};
 

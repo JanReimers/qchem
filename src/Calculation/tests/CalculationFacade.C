@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <cmath>
 #include <functional>
+#include <type_traits>
 #include <vector>
 #include <memory>
 #include <string>
@@ -177,7 +178,20 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySC
     const auto& ham=(*build)["hamiltonian"];
     EXPECT_TRUE(ham.contains("xcQuadrature") && ham["xcQuadrature"]["points"].get<long>()>0) << "hamiltonian.xcQuadrature missing from the build run";
     ASSERT_TRUE(ham.contains("Hartree")) << build->dump(1);
-    EXPECT_GT(ham["Hartree"]["auxiliaryFit"]["points"].get<long>(), 0) << "the Hartree fit's mesh files in its term";
+    // A Coulomb fit has no integration grid (doc/Pins.md, user 2026-11-11): the Hartree term files its fit basis and NO mesh; the SAD seed
+    // owns the points it projects itself on, and files them under its own section, never under a term.
+    EXPECT_FALSE(ham["Hartree"].contains("auxiliaryFit")) << "the Hartree term files a mesh: " << ham["Hartree"].dump(1);
+    EXPECT_FALSE(ham.contains("seedDensity")) << "the seed's grid files under the Hamiltonian";
+    std::vector<std::string> seedAt;   // every path at which a "seedDensity" section sits
+    using J=std::remove_cvref_t<decltype(*build)>;
+    std::function<void(const J&, const std::string&)> find=[&](const J& j, const std::string& path)
+    {
+        if (!j.is_object()) return;
+        for (auto it=j.begin(); it!=j.end(); ++it) { if (it.key()=="seedDensity") seedAt.push_back(path+it.key()); find(it.value(), path+it.key()+"."); }
+    };
+    find(*build, "");
+    ASSERT_FALSE(seedAt.empty()) << "the SAD seed's grid is not filed: " << build->dump(1);
+    for (const auto& at : seedAt) EXPECT_EQ(at.find("hamiltonian"), std::string::npos) << at;
     // No SCF ran: no scf header (Converge files it) -- an "scf" key may hold a setup fact the seed build files (xcRhoRoutes)
     EXPECT_FALSE(build->contains("scf") && (*build)["scf"].contains("standard")) << "the build run holds an SCF: " << (*build)["scf"].dump(1);
 
@@ -295,8 +309,10 @@ TEST(CalculationFacade, EachAuxiliaryFitFilesInItsOwnTerm)
         ASSERT_TRUE(ham.contains(term)) << term;
         EXPECT_EQ(ham[term]["fitbasis"].front()["name"].get<std::string>(), name) << term;
         EXPECT_GT(ham[term]["fitbasis"].front()["nFunctions"].get<long>(), 0) << term;
-        EXPECT_GT(ham[term]["auxiliaryFit"]["points"].get<long>(), 0) << term;
     }
+    // The Vxc fit projects v_xc on its own mesh; the Coulomb fit is analytic and files none (doc/Pins.md, user 2026-11-11).
+    EXPECT_GT(ham["Vxc_DFT"]["auxiliaryFit"]["points"].get<long>(), 0);
+    EXPECT_FALSE(ham["Hartree"].contains("auxiliaryFit")) << ham["Hartree"].dump(1);
 }
 
 //! The atom's Build -> Run twin.

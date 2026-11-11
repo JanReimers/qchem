@@ -49,7 +49,11 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const FIT_CD_ABS<TFit>& c, const hmat_t<T>& D, const vec_t<TFit>& a,
                                                                        const Structure* st) const=0;
 
-    virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const=0;
+    //! The Coulomb (rho) fit basis: 100% ANALYTIC, no grid (user 2026-11-11: "The rho fit should be 100% analytic, no grid").  It
+    //! took the XC MeshParams until then, and a Gaussian fit built a PRIVATE mesh from them for its normalisation and for projecting a
+    //! matrix-free field (the SAD seed).  Any Coulomb fit has no INTEGRATION grid (doc/Pins.md): a field that is only a function on space
+    //! integrates itself on points it owns (\c SelfIntegratingField) and releases them once it has projected.
+    virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*) const=0;
     virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;
 
     // NB: there is deliberately NO Repulsion3C(D,c)/Overlap3C(D,c) here -- the density-matrix contraction

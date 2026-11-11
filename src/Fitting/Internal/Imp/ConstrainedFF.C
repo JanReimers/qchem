@@ -75,9 +75,16 @@ template <class T> hmat_t<T> ConstrainedFF<T>::Repulsion(const BasisSet::Orbital
 
 template <class T> Projections ConstrainedFF<T>::ProjectField(const ScalarFunction<double>& f) const
 {
+    // A Coulomb fit has no integration grid (user 2026-11-11): the field integrates itself against the fit functions, on its OWN points.
+    const auto* field=dynamic_cast<const BasisSet::SelfIntegratingField*>(&f);
+    if (!field)
+        throw std::logic_error("ConstrainedFF::ProjectField: a Coulomb fit has no integration grid, and this field cannot integrate itself "
+                               "(BasisSet::SelfIntegratingField): a field that is only a function on space must own its quadrature");
     const auto* sf=dynamic_cast<const BasisSet::FIT_SF_NonOrtho*>(itsBasisSet.get());   // the overlap metric-solve face
     if (!sf) throw std::logic_error("ConstrainedFF::ProjectField: the fit basis has no overlap metric (FIT_SF_NonOrtho face)");
-    const rvec_t c0=sf->InvOverlap()*sf->Overlap(f);                       // S^-1 <f|rho>
+    const auto* values=dynamic_cast<const BasisSet::Evaluatable_IBS<double>*>(itsBasisSet.get());   // f_a(r), to integrate against
+    if (!values) throw std::logic_error("ConstrainedFF::ProjectField: the fit basis cannot be evaluated at a point (Evaluatable_IBS face)");
+    const rvec_t c0=sf->InvOverlap()*field->OverlapWith(*values);          // S^-1 <f|rho>, <f|rho> on the field's own points
     return Projections(rvec_t(itsBasisSet->Repulsion()*c0));          // G c0: the Coulomb projections of that fit
 }
 

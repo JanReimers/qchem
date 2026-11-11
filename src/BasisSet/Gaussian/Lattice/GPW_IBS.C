@@ -152,7 +152,7 @@ public:
     //! \brief The DFT factory seam (Orbital_DFT_IBS<dcmplx>): the auxiliary density/potential fit basis is a plane-wave grid
     //! over GPW's OWN density grid -- so the collocated \f$\tilde\rho\f$'s \f$\{G\}\f$ matches the fitter's.  A
     //! GPW density lives on a plane-wave grid whatever the orbitals are (never orbital==fit).
-    virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
+    virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl) const override;
     virtual BasisSet::cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
 
     //! \brief The species-field integral service (Orbital_PP_IBS<T>): assemble \f$\langle i|v|j\rangle\f$ for a

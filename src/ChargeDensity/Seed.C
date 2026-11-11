@@ -11,6 +11,7 @@ export import qchem.ChargeDensity.AtomicDensity;   // SeedKey (the functional + 
 import qchem.BasisSet;               // tBasisSet<T>, and (re-exported) Structure
 import qchem.ElectronConfiguration;
 import qchem.UnitCell;               // UnitCell (the plane-wave seeds' cell)
+import qchem.Mesh;                   // qcMesh::MeshParams (the molecular SAD seed's own quadrature)
 
 export namespace qchem::ChargeDensity
 {
@@ -74,8 +75,10 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //!
 //! \a key names the functional and, per Z, the pseudopotential variant q whose seed densities the
 //! plane-wave seeds read (the run setup builds it from its \c PseudopotentialSet); the default is unkeyed LDA.
+//! \a quadrature (molecular): the mesh a matrix-free SAD seed integrates itself on -- a Coulomb fit has no grid of its own
+//! (doc/Pins.md), so the field that is only a function on space brings one; the run passes its XC mesh.
 tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
-                                        const Structure* st, const ElectronConfiguration* ec);
+                                        const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature);
 tChargeDensity<dcmplx>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<dcmplx>* bs,
                                         const UnitCell& cell, const ElectronConfiguration* ec,
                                         bool polarized=false, const SeedKey& key=SeedKey{});

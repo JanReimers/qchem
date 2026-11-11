@@ -147,7 +147,7 @@ public:
 
     //! \brief Create this basis's auxiliary plane-wave density-fit basis (a distinct PlaneWaveFit_IBS over
     //! the same \f$\{G\}\f$ grid): the Orbital_DFT_IBS<dcmplx> factory seam a Hartree term obtains its fitter through.
-    virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
+    virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl) const override;
     //! \brief Create this basis's auxiliary plane-wave potential (Vxc) fit basis (the overlap-metric sibling):
     //! a distinct PlaneWaveFit_IBS the XC term obtains its scalar fitter through.
     virtual BasisSet::cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;

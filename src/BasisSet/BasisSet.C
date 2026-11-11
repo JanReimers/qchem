@@ -377,7 +377,7 @@ public:
     virtual size_t   GetNumFunctions() const=0;
     virtual irrepv_t GetIrreps(const Spin& ms) const=0;
 
-    virtual FIT_CD_ABS<T>* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
+    virtual FIT_CD_ABS<T>* CreateCDFitBasisSet(const Structure* cl) const;   //!< analytic: no mesh (Orbital_DFT_IBS::CreateCDFitBasisSet)
     //! \brief The \f$v_{xc}\f$ fit basis for this run: \a fit picks the REPRESENTATION and \a mp the
     //! POINTS, and ONE object comes back carrying both -- because a fit basis is a family of weight vectors
     //! over shared points, so its mesh is constitutive of it, not a sibling return value.

@@ -333,7 +333,7 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
     auto cd  = rig.MakeDensity();       // the complex arm's density (complex child on cx)
     auto cdr = rig.MakeRealDensity();   // the real arm's TWIN (real child on re -- the 3c-3 mixed shape)
 
-    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(rig.cx->CreateCDFitBasisSet(rig.st.get()));
     Vee_Fit<dcmplx> vh(Fitting::MakeGSpaceDensityFitter(fb), 0.0, fb);
     {
         auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&vh);
@@ -487,7 +487,7 @@ TEST(RealComplexTerms, HamiltonianAssemblyServesTheRealBlockBitwise)
     ham.Add(new Ven_PP_Long    (rig.st, &gth.local));
     ham.Add(new Ven_PP_NonLocal(rig.st, &gth.nonlocal));
     {
-        std::shared_ptr<const BasisSet::cFIT_CD_ABS> hfb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+        std::shared_ptr<const BasisSet::cFIT_CD_ABS> hfb(rig.cx->CreateCDFitBasisSet(rig.st.get()));
         ham.Add(new Vee_Fit<dcmplx>(Fitting::MakeGSpaceDensityFitter(hfb), 0.0, hfb));
     }
 
@@ -561,7 +561,7 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
     // DYNAMIC arm: the real block face tDynamic_CC<double>::GetEMatrix, which the periodic Hartree term BUILDS from its refreshed fit (the
     // energy pass builds no blocks, V1.41 stage 3), against the complex one.
     auto cdrun = rig.MakeDensity();   // the run's density (defines V_H)
-    std::shared_ptr<const BasisSet::cFIT_CD_ABS> vfb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> vfb(rig.cx->CreateCDFitBasisSet(rig.st.get()));
     Vee_Fit<dcmplx> vh(Fitting::MakeGSpaceDensityFitter(vfb), 0.0, vfb);
     static_cast<const cDynamic_HT&>(vh).RefreshForDensity(cdrun.get());   // the contract (KAxisPlan P2): the energy pass's refresh
     EXPECT_EQ(mixed.DM_Contract(static_cast<const cDynamic_CC*>(&vh), cdrun.get()),
@@ -790,7 +790,7 @@ TEST(RealComplexTerms, TheGPWHartreeForceWalksBothBlockScalarsAndSumsToTheEggBox
     auto cdr=std::make_unique<tComposite_CD<dcmplx>>();
     cdr->Insert(std::unique_ptr<tDM_CD<double>>(new PeriodicIrrepCD<double>(Dr, &re, re.GetIrrep(Spin::None))), re.GetIrrep(Spin::None));
 
-    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(cx.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(cx.CreateCDFitBasisSet(&cell));
     Vee_Fit<dcmplx> vh(Fitting::MakeGSpaceDensityFitter(fb), 0.0, fb);
     const qchem::tests::pw::OneBlockBS<dcmplx> cxBS(&cx), reBS(&re);
     EXPECT_EQ(vh.MissingGradient(&cxBS, &cell), "") << "a Bloch GPW block has the Hartree force";

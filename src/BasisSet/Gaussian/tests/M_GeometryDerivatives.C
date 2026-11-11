@@ -306,11 +306,10 @@ TEST(GeometryDerivatives, EachCanQueryAgreesWithWhetherItsMethodAnswers)
 TEST(GeometryDerivatives, PG_CartsCoulombFitPullbacksAreTheFiniteDifferenceOfItsOwnIntegralsAndTranslationInvariant)
 {
     const auto h2o=Water();
-    const qcMesh::MeshParams mp{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};
     auto build=[&](const Structure* st)
     {
         auto b=Dzvp(st);
-        std::unique_ptr<BasisSet::rFIT_CD_ABS> f(b->CreateCDFitBasisSet(st, mp));
+        std::unique_ptr<BasisSet::rFIT_CD_ABS> f(b->CreateCDFitBasisSet(st));
         return std::pair{std::move(b), std::move(f)};
     };
     auto [ibs, fit]=build(h2o.get());
@@ -363,13 +362,12 @@ TEST(GeometryDerivatives, PG_CartsCoulombFitPullbacksAreTheFiniteDifferenceOfIts
 TEST(GeometryDerivatives, EachCoulombFitCanQueryAgreesWithWhetherItsMethodAnswers)
 {
     const auto h2o=Water();
-    const qcMesh::MeshParams mp{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};
     BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
     const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(&reader, h2o.get());
     const auto cart=Dzvp(h2o.get());
     for (const BasisSet::Orbital_DFT_IBS<double>* b : {static_cast<const BasisSet::Orbital_DFT_IBS<double>*>(&sph), static_cast<const BasisSet::Orbital_DFT_IBS<double>*>(cart.get())})
     {
-        std::unique_ptr<BasisSet::rFIT_CD_ABS> f(b->CreateCDFitBasisSet(h2o.get(), mp));
+        std::unique_ptr<BasisSet::rFIT_CD_ABS> f(b->CreateCDFitBasisSet(h2o.get()));
         const auto& metric=dynamic_cast<const BasisSet::FIT_CD_NonOrtho&>(*f);
         const auto r3=b->MakeRepulsion3CPullback(*f, hmat_t<double>(b->GetNumFunctions()), rvec_t(f->GetNumFunctions(), 0.0), h2o.get());
         const auto r2=metric.MakeRepulsionPullback(rsmat_t(f->GetNumFunctions()), h2o.get());
@@ -377,7 +375,7 @@ TEST(GeometryDerivatives, EachCoulombFitCanQueryAgreesWithWhetherItsMethodAnswer
         if (!r3) EXPECT_FALSE(r3.Error().why.empty());
         if (!r2) EXPECT_FALSE(r2.Error().why.empty());
     }
-    std::unique_ptr<BasisSet::rFIT_CD_ABS> fc(cart->CreateCDFitBasisSet(h2o.get(), mp)), fs(sph.CreateCDFitBasisSet(h2o.get(), mp));
+    std::unique_ptr<BasisSet::rFIT_CD_ABS> fc(cart->CreateCDFitBasisSet(h2o.get())), fs(sph.CreateCDFitBasisSet(h2o.get()));
     EXPECT_TRUE(cart->CanPullbackRepulsion3C(*fc)) << "PG_Cart with its own fit gives it";
     EXPECT_FALSE(sph.CanPullbackRepulsion3C(*fs)) << "PG_Spherical has no geometry derivative yet";
     EXPECT_FALSE(cart->CanPullbackRepulsion3C(*fs)) << "a fit of another family: refused, not cast";

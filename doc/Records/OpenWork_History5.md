@@ -2332,3 +2332,49 @@ is S and P lines on one exponent list.  Gate `ValenceBasisGen.ASharedSPWindowVal
 s+p window converges, its block lists the window for both l, and `FactoryFromFile` reads back 6 + 6×3 Cartesian functions (every l kept).
 R1.0b (`Records/CleanupHistory2.md`) marked unblocked.  Not done (the row's "then measure"): whether the PG/GPW evaluators exploit shared
 exponents -- that is the §4 superblock row.
+
+### ✅ The Coulomb fit owns no integration grid; the SAD seed owns its own and drops it (lane B, 2026-11-11)
+USER RULINGS (verbatim): "The rho fit should be 100% analytic, no grid."  "The way I think about it any Coulomb fit (to any
+fit basis set) has no *integration* grid.  SOmetimes the fit basis set looks like a grid (PW G ball, delta function) but that
+is a fit basis detail."  "it sounds like we might need a grid just to get started from SAD?  But SAD is on a grid, so we use
+that.  But the grid should then disappear as soon as iterations start."  "Also none of this is Dunlap specific."
+
+Before: `Fit_IBS` (the shared base of the Gaussian `A1_coul` and `A1_exch` fits) owned a private quadrature mesh.  `Norm()` was
+a mesh integral (mesh-keyed in the cache after a 585 ppm drift between two meshes), `Overlap(f)` projected a field on it, and
+`CreateCDFitBasisSet` took a `MeshParams` only to build that mesh.
+
+- **Hub** (protected; ruling above): `CreateCDFitBasisSet(const Structure*)` on `tBasisSet` and `Orbital_DFT_IBS`, the
+  `MeshParams` gone.  `scripts/hub-interfaces.snapshot` regenerated, a two-line diff.
+- **Norm option A, both fits**: N = 1/√S(a,a) from the analytic overlap (≈1, op(r) is analytically normalised).  The Coulomb fit
+  holds no mesh; the Vxc fit keeps its projection mesh (a nonlinear integral needs one, pin 28).  `OverlapDiagonal` throws
+  (R1.0: with the norm analytic its old value would be the all-ones "corrected" answer the row forbids).
+- **A field that integrates itself**: data-free capability `BasisSet::SelfIntegratingField::OverlapWith(g)`, the twin of
+  `AnalyticFourier`.  `NumericCD` (the molecular SAD seed) implements it on a quadrature it OWNS, built by `MakeSeedDensity` from the
+  run's XC `MeshParams` and filed under the report's `seedDensity` scope.  `SCFIterator::Initialize` holds the seed transiently, so
+  the grid dies after its one projection.  The Dunlap fitter's `ProjectField` cross-casts to the capability and throws otherwise.
+- **Route audit** (no fitter or fit basis borrows a mesh for a seed): δ = values × weights at its own points, which ARE the basis;
+  multipole = moments of the δ projection on those same points; PW/GPW = `SeedCD::AnalyticFourier` (radial tables on SAD's own
+  grid).  The PW raster-sampling fallback is the G-ball's own representation and no production seed reaches it.  The PW CD fit
+  is now `4·Ecut` (was `max(4, relCutoff)·Ecut`; `relCutoff` is 1 for every functional).
+- **Gates**: `Gaussian94Reader.TheCoulombFitIsAnalyticAndOwnsNoMesh`; `SADSeed.ItsGridIsItsOwnAndGoneOnceItHasProjected` (Dunlap
+  AND the δ direct-sum route; a weak_ptr to the seed mesh expires); `MeshAudit.TheDunlapHartreeIsMeshFreeAtAFixedD` (CH₄: a finer
+  mesh moves Exc, Eee and H_Hartree by exactly 0); facade report gates (Hartree has no `auxiliaryFit`, `seedDensity` sits outside
+  `hamiltonian`).
+
+Measured: converged totals identical to 12 decimals (CH₄, H₂O; meshes 80/29 and 100/35).  Only the SAD first iterate moved
+(CH₄ 4.6e-5 Ha, H₂O 5e-6): the old mesh-Norm error, too small to explain lane A's 13 mHa seed split (that was the sibling's
+coarse XC mesh, closed above).
+
+**PIN-10 RE-JUDGEMENT** (the `VxcFit::Auxiliary` gates; reference = new code on a (200,59) mesh):
+
+| case | reference | new | old |
+|---|---|---|---|
+| F₂ PP AuxiliaryFit | −48.1970585462 | −48.1970563871 (+2.2e-6) | −48.1970701902 (−1.16e-5) |
+| H₂O LDA AuxiliaryFit | −75.8808321080 | −1.6e-6 | −4.8e-6 |
+| O₂ triplet LDA AuxiliaryFit | −149.3018777556 | −6.0e-6 | −4.7e-6 (inside the 4.2e-6 mesh error) |
+
+F₂'s anchor re-banked to the new value.  Landing sweep against main-202d1cc3 (`anchordiff --tol 1e-10`): short 1554 (moves:
+the three Auxiliary gates above; ValenceBasisGen.PseudoAtomOrbital +1.6e-8; GPW_Si.Γ_U_PseudoAtomic3p −6.1e-9; iteration-only:
+M_Sym water DFT 118→50 / 112→48, OxygenTripletLDA 29→36, its AuxiliaryFit twin 34→29, MeshPilot +1); long 15/15, 0 moved; panel at 4 threads 25/25, the
+panelRed set failing for the same reasons as on main (β-MnO₂ Kerker_Pulay −1.6e-6 is its unconverged 40th iterate at the cap);
+RelChecked allTests green.
