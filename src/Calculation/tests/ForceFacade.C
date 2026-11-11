@@ -15,6 +15,7 @@
 import qchem.MoleculeCalculation;
 import qchem.SolidCalculation;        // the GPW gate: a Bloch basis's MissingGradients
 import qchem.SCFState;                // SnapshotState (the shared energy-weighted snapshot)
+import qchem.SolidState;              // SolidStateBlocks (the k222 gate asserts its blocks are real)
 import qchem.Materials;
 import qchem.Lattice_3D;
 import qchem.UnitCell;
@@ -736,6 +737,71 @@ TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFini
     }
     EXPECT_TRUE(sawHartree) << "the GPW Hartree answers its virial";
     EXPECT_GT(largest, 0.1) << "the terms are stressed (far above the gate, so a sign would show)";
+}
+
+// REAL TRIM BLOCKS ON A k-MESH (lane H 2026-11-11, the forces row's "real TRIM block of a lattice basis"): GPW Si at k222, where every
+// k is a TRIM point and the blocks run REAL (asserted below), each term that answers gives its force and its virial at fixed D equal to
+// the finite difference of its own energy: an atom moved (h 1e-4, three axes) and the cell strained (h 1e-4, six components), D
+// frozen on the remade basis.  The sheared, distorted cell and 2 % allowance of the PW gates.  PP (lane B) and XC (the δ XC) name
+// themselves; the WHOLE force and stress against the re-converged energy wait on them.
+TEST(HamiltonianForces, OnRealTRIMBlocksAtK222EachTermsForceAndVirialAtFixedDAreItsEnergysFiniteDifference)
+{
+    SolidCalcOptions o; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0; o.label="gpw k222"; o.accuracy.eps=0.0;   // stated rasters
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.cellStrainAllowance=kPWStressAllowance;
+    const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(2,2,2)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
+    SCFParams p=PWStressParams(); p.MinΔρPerElectron=1e-6;   // D is frozen: its convergence is not the subject
+    SolidCalculation c0(setup, p);
+    ASSERT_TRUE(c0.Result());
+    const auto blocks=SolidStateBlocks(c0.Basis(), SpinGroup::UnPolarized);
+    ASSERT_FALSE(blocks.empty());
+    for (const auto& b : blocks) EXPECT_NE(b.real, nullptr) << "every k222 block is a REAL TRIM block (the subject)";
+    std::cout << "[k222] " << blocks.size() << " real TRIM blocks" << std::endl;
+    const auto F=ForceFacadeTests::TermForces(c0);
+    const auto V=ForceFacadeTests::TermVirials(c0);
+    ASSERT_EQ(F.size(), V.size());
+    std::vector<rvec3_t> f0; PWStressCell(PWStressA()).ForEachSite([&](int, const rvec3_t& r, bool){ f0.push_back(r); });   // Cartesian
+    const double h=1e-4;
+    auto moved=[&](size_t A, int k, double s)
+    {
+        UnitCell cell=PWStressCell(PWStressA());
+        std::vector<rvec3_t> R=f0; (k==0 ? R[A].x : k==1 ? R[A].y : R[A].z)+=s;
+        cell.MoveSites(R);
+        cell.SetSizingCell((1.0+kPWStressAllowance)*PWStressA());
+        return ForceFacadeTests::FrozenAt(c0, cell);
+    };
+    size_t gated=0; double bigF=0.0, bigV=0.0;
+    // COST (the user's unit-test budget): one atom's three axes and six strain components (the Γ and PW gates take every component);
+    // 18 frozen points, ~25 s under a -j4 sweep.
+    for (size_t A=1;A<2;A++) for (int k=0;k<3;k++)
+    {
+        const auto Ep=moved(A,k,h), Em=moved(A,k,-h);
+        ASSERT_EQ(Ep.size(), F.size()) << "MakeTermForces is MakeTermEnergies' twin, index for index";
+        for (size_t t=0;t<F.size();t++)
+        {
+            if (!F[t].missing.empty()) continue;
+            const double fd=-(Ep[t].E-Em[t].E)/(2*h), an=C(F[t].F[A],k);
+            std::cout << "[forces] k222 " << F[t].label.substr(0,30) << " atom " << A << " axis " << k << ": analytic " << an << "  FD " << fd << "  diff " << an-fd << std::endl;
+            EXPECT_NEAR(an, fd, 1e-6) << F[t].label << " atom " << A << " axis " << k;
+            bigF=std::max(bigF, std::fabs(fd));
+        }
+    }
+    const std::pair<size_t,size_t> comps[]={{1,1},{2,2},{3,3},{1,2},{2,3},{3,1}};
+    for (const auto& [i,j] : comps)
+    {
+        const auto Ep=ForceFacadeTests::FrozenAt(c0, PWStressStrained(i,j, h)), Em=ForceFacadeTests::FrozenAt(c0, PWStressStrained(i,j,-h));
+        for (size_t t=0;t<V.size();t++)
+        {
+            if (!V[t].missing.empty()) continue;
+            const double fd=(Ep[t].E-Em[t].E)/(2*h), an=V[t].V(i,j);
+            std::cout << "[stress] k222 " << V[t].label.substr(0,30) << " (" << i << "," << j << "): analytic " << an << "  FD " << fd << "  diff " << an-fd << std::endl;
+            EXPECT_NEAR(an, fd, 1e-6) << V[t].label << " (" << i << "," << j << ")";
+            bigV=std::max(bigV, std::fabs(fd));
+        }
+    }
+    for (size_t t=0;t<F.size();t++) if (F[t].missing.empty() && V[t].missing.empty()) ++gated;
+    EXPECT_GE(gated, 3u) << "kinetic, the fitted Hartree and the ion-ion answer both on real TRIM blocks";
+    EXPECT_GT(bigF, 1e-2) << "the forces are not trivially small";
+    EXPECT_GT(bigV, 0.1)  << "the terms are stressed";
 }
 
 // THE SESSION'S FORCE ON PLANE WAVES: a forces request on the sheared, distorted Si cell carries −dE/dR at the converged D and its

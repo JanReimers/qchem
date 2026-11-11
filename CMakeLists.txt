@@ -412,8 +412,14 @@ add_subdirectory(src)
 add_subdirectory(./IntegrationTests)
 add_subdirectory(./CLIapps)
 
+# The CLI apps ride every sweep build: a stale rundeck/valgen against a rebuilt libqchem segfaulted (lane G) or silently dropped
+# its report (lane H, 2026-11-11), because no sweep or nightly relinked them.  A new app in CLIapps/ joins this list.
+add_custom_target(allApps
+    DEPENDS scfrun valgen gpwprobe rundeck gth2upf
+    COMMENT "Build all CLI apps"
+)
 add_custom_target(allTests
-    DEPENDS ITMain UTAD UTCommon UTOptimize UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTGaussian_BS UTLattice_BS UTLASolver UTSCFAccelerator UTSCFIterator UTResponse UTWaveFunction
+    DEPENDS allApps ITMain UTAD UTCommon UTOptimize UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTGaussian_BS UTLattice_BS UTLASolver UTSCFAccelerator UTSCFIterator UTResponse UTWaveFunction
     COMMENT "Build all unit test executables"
 )
 # libxc and libcint (cmake/Dependencies.cmake), after the project's own targets, their tests off.

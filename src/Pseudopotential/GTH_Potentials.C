@@ -24,6 +24,10 @@ struct GTH_PP
     int                    zion;
     HGH_LocalPotential     local;
     HGH_SeparablePotential nonlocal;
+    //! The XC functional this potential was FITTED with, as CP2K's primary name spells it: "PADE" (Goedecker-Teter-Hutter Padé LDA) for
+    //! every entry looked up as "LDA", else the lookup key ("PBE", "BLYP", ...).  A run comparing its own functional against the PP's reads
+    //! this (OpenWork §3 "A GTH-PADE pseudopotential runs under VWN5"); the lookup key names only the family.
+    std::string            fitted;
 };
 
 //! \brief Look up a GTH/HGH pseudopotential from the database (Data/gth_potentials.json) by element

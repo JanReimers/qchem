@@ -1475,30 +1475,37 @@ public:
     //! \f$b_{ab}=\sum_g V\chi_i\chi_j\f$ (row-major nI x nJ into \a bOut).  This is the transpose of the
     //! collapse: each Cartesian monomial's grid-index polynomial is contracted against \a W, then the same
     //! per-axis binomials that BUILT the coefficient tensor read it back out.
-    void MomentsToPairs(const BoxGeom& g, const PairPoly& q, const GridPoly& W,
-                        size_t i0, size_t nI, size_t j0, size_t nJ, double* bOut) const
+    //! The Cartesian moments \f$M_{s}=E_{ij}\langle u^s,W\rangle\f$ (\f$u=r-P\f$) of the grid-index moments \a W, to total degree \a deg:
+    //! what \c MomentsToPairs reads its pair integrals out of, and the jet readouts (\c CubeJets) their shifted ones.  ONE definition.
+    using MomentCube=double[kMaxPoly][kMaxPoly][kMaxPoly];
+    void MomentTable(const BoxGeom& g, const PairPoly& q, const GridPoly& W, int deg, MomentCube& M) const
     {
         const double Lx[3]={g.sx.x,g.sy.x,g.sz.x};
         const double Ly[3]={g.sx.y,g.sy.y,g.sz.y};
         const double Lz[3]={g.sx.z,g.sy.z,g.sz.z};
         // M[sx][sy][sz] = Eij * <grid-index polynomial of u^s , W>
-        static thread_local double M[kMaxPoly][kMaxPoly][kMaxPoly];
         GridPoly t;
-        for (int sx=0;sx<=q.lp;sx++)
-            for (int sy=0;sy+sx<=q.lp;sy++)
-                for (int sz=0;sz+sy+sx<=q.lp;sz++)
+        for (int sx=0;sx<=deg;sx++)
+            for (int sy=0;sy+sx<=deg;sy++)
+                for (int sz=0;sz+sy+sx<=deg;sz++)
                 {
                     t.Zero(sx+sy+sz); t.q[0][0][0]=1.0;
-                    int deg=0;
-                    for (int r=0;r<sx;r++) { t.MulLinear(Lx,deg); deg++; }
-                    for (int r=0;r<sy;r++) { t.MulLinear(Ly,deg); deg++; }
-                    for (int r=0;r<sz;r++) { t.MulLinear(Lz,deg); deg++; }
+                    int d=0;
+                    for (int r=0;r<sx;r++) { t.MulLinear(Lx,d); d++; }
+                    for (int r=0;r<sy;r++) { t.MulLinear(Ly,d); d++; }
+                    for (int r=0;r<sz;r++) { t.MulLinear(Lz,d); d++; }
                     double v=0.0;
-                    for (int a=0;a<=deg;a++)
-                        for (int b=0;a+b<=deg;b++)
-                            for (int c=0;a+b+c<=deg;c++) v+=t.q[a][b][c]*W.q[a][b][c];
+                    for (int a=0;a<=d;a++)
+                        for (int b=0;a+b<=d;b++)
+                            for (int c=0;a+b+c<=d;c++) v+=t.q[a][b][c]*W.q[a][b][c];
                     M[sx][sy][sz]=q.Eij*v;
                 }
+    }
+    void MomentsToPairs(const BoxGeom& g, const PairPoly& q, const GridPoly& W,
+                        size_t i0, size_t nI, size_t j0, size_t nJ, double* bOut) const
+    {
+        static thread_local MomentCube M;
+        MomentTable(g,q,W,q.lp,M);
         const rvec3_t PA=q.PA, PB=q.PB;                       // carried on the PairPoly, image offset included
         double ax[kMaxPoly], ay[kMaxPoly], az[kMaxPoly];
         for (size_t a=0;a<nI;a++)
@@ -1569,6 +1576,91 @@ public:
     }
     bool IsContracted(size_t i0, size_t j0) const
     { return radials[i0]->GetExponents().size()!=1 || radials[j0]->GetExponents().size()!=1; }
+    //! One Cartesian pair integral read out of the moments \a M: \f$\int V\,(r-A)^{p_i}(r-B)^{p_j}e^{\ldots}\f$ for the powers \a pi, \a pj
+    //! (unnormalized, \c MomentsToPairs' inner sum); 0 when a power is negative (a jet's n x^{n-1} term at n = 0).
+    double ShiftedPair(const MomentCube& M, const PairPoly& q, const int pi[3], const int pj[3]) const
+    {
+        for (int x=0;x<3;x++) if (pi[x]<0 || pj[x]<0) return 0.0;
+        double ax[kMaxPoly], ay[kMaxPoly], az[kMaxPoly];
+        Binom1D(pi[0],pj[0],q.PA.x,q.PB.x,ax);
+        Binom1D(pi[1],pj[1],q.PA.y,q.PB.y,ay);
+        Binom1D(pi[2],pj[2],q.PA.z,q.PB.z,az);
+        double v=0.0;
+        for (int sx=0;sx<=pi[0]+pj[0];sx++)
+            for (int sy=0;sy<=pi[1]+pj[1];sy++)
+            {
+                const double axy=ax[sx]*ay[sy];
+                if (axy==0.0) continue;
+                for (int sz=0;sz<=pi[2]+pj[2];sz++) v+=axy*az[sz]*M[sx][sy][sz];
+            }
+        return v;
+    }
+    //! \brief THE CONTRACTED-CUBE JETS (the fast path of the jet walk, lane H 2026-11-11): for the kept component pairs (\a ia, \a jb) of
+    //! shell pair (\a i0, \a j0) at \a Roff, accumulate into \a acc what \c WalkShellPairBox's jet arm feeds the pullback and the virial:
+    //! a Cartesian Gaussian's gradient is \f$\partial_x[x^n\ldots e^{-\alpha r^2}]=n\,x^{n-1}\ldots-2\alpha\,x^{n+1}\ldots\f$, the SAME
+    //! Gaussian, so each jet is two polarization-shifted pair integrals of the cube's moments (degree l_p+1), and the virial's moment
+    //! \f$d_b\partial_a\chi\f$ one shift more (l_p+2).  Layout per kept pair: \a virial false, 6 = \f$\sum V\partial\chi_i\chi_j\f$ (3) then
+    //! \f$\sum V\chi_i\partial\chi_j\f$ (3); true, 10 = the moment, row-major (a,b), then \f$\sum V\chi_i\chi_j\f$.  Per PRIMITIVE pair on a
+    //! contracted shell pair, each on its own box (\c GatherPrimitivePairs' boxes), else one box (\c MakeBoxGeom): the production gather's
+    //! truncation.  Returns false -- nothing written -- when l_p plus the shift is beyond the tensor extent (the caller walks).
+    bool CubeJets(size_t i0, size_t j0, const rvec3_t& Roff, const UnitCell& A, const ivec3_t& N, double eps, const rvec_t& V,
+                  const std::vector<size_t>& ia, const std::vector<size_t>& jb, bool virial, double* acc) const
+    {
+        const int extra = virial ? 2 : 1;
+        int lp=0, lpj=0;
+        for (size_t a=0;a<ia.size();a++) lp =std::max(lp , pols[i0+ia[a]].GetTotalL());
+        for (size_t b=0;b<jb.size();b++) lpj=std::max(lpj, pols[j0+jb[b]].GetTotalL());
+        if (lp+lpj+extra>=kMaxPoly) return false;
+        const rvec_t ei=radials[i0]->GetExponents(), ej=radials[j0]->GetExponents();
+        const rvec3_t Ri=radials[i0]->GetCenter(), Rj=radials[j0]->GetCenter()+Roff;
+        const bool contracted=IsContracted(i0,j0);
+        const size_t stride = virial ? 10 : 6;
+        static thread_local MomentCube M;
+        for (size_t ip=0;ip<ei.size();ip++)
+            for (size_t jp=0;jp<ej.size();jp++)
+            {
+                const BoxGeom bg = contracted ? MakeBoxGeomFor(ei[ip], Ri, ej[jp], Rj, A, N, eps) : MakeBoxGeom(i0,j0,Roff,A,N,eps);
+                if (!bg.live) continue;
+                PairPoly pq=MakePrimPairPoly(i0,1,j0,1,Roff,nullptr,ip,jp);
+                pq.lp=lp+lpj+extra;
+                GridPoly W;
+                GatherCube(bg,pq,N,V,W);
+                MomentTable(bg,pq,W,pq.lp,M);
+                const double aI=ei[ip], aJ=ej[jp];
+                for (size_t k=0;k<ia.size();k++)
+                {
+                    const Polarization& Pi=pols[i0+ia[k]];
+                    const Polarization& Pj=pols[j0+jb[k]];
+                    const int pi[3]={Pi.n,Pi.l,Pi.m}, pj[3]={Pj.n,Pj.l,Pj.m};
+                    const double nrm=ns[i0+ia[k]]*ns[j0+jb[k]];
+                    double* o=acc+stride*k;
+                    // the i-side and j-side jets, optionally weighted by one more power along y (the strain's d_y)
+                    auto jetI=[&](int x, int y)
+                    {
+                        int lo[3]={pi[0],pi[1],pi[2]}, hi[3]={pi[0],pi[1],pi[2]};
+                        lo[x]-=1; hi[x]+=1;
+                        if (y>=0) { lo[y]+=1; hi[y]+=1; }
+                        return (pi[x]>0 ? double(pi[x])*ShiftedPair(M,pq,lo,pj) : 0.0) - 2.0*aI*ShiftedPair(M,pq,hi,pj);
+                    };
+                    auto jetJ=[&](int x, int y)
+                    {
+                        int lo[3]={pj[0],pj[1],pj[2]}, hi[3]={pj[0],pj[1],pj[2]};
+                        lo[x]-=1; hi[x]+=1;
+                        if (y>=0) { lo[y]+=1; hi[y]+=1; }
+                        return (pj[x]>0 ? double(pj[x])*ShiftedPair(M,pq,pi,lo) : 0.0) - 2.0*aJ*ShiftedPair(M,pq,pi,hi);
+                    };
+                    if (!virial)
+                        for (int x=0;x<3;x++) { o[x]+=nrm*jetI(x,-1); o[3+x]+=nrm*jetJ(x,-1); }
+                    else
+                    {
+                        for (int x=0;x<3;x++) for (int y=0;y<3;y++) o[3*x+y]+=nrm*(jetI(x,y)+jetJ(x,y));
+                        o[9]+=nrm*ShiftedPair(M,pq,pi,pj);
+                    }
+                }
+            }
+        return true;
+    }
+
 
     //! The COLLOCATION KERNEL, both directions at once (they must agree or the adjoint breaks).  DEFAULT ON
     //! since 2026-08-27: the separable contraction is 3.6-5.0x faster than the walk AND measurably more
@@ -2907,6 +2999,8 @@ public:
                     }
                 if (c.empty()) continue;
                 acc.assign(6*c.size(),0.0);   // per kept pair: ∇ on the i side (3), on the j side (3)
+                // THE FAST PATH (the production gather's policy, UseContractCube): the contracted cube's jets; the walk is the reference
+                if (!(UseContractCube() && CubeJets(si.begin,sj.begin,task.Roff,A,N_L[l],plan.Tolerance(),V,ia,jb,/*virial*/false,acc.data())))
                 ForShellPairBoxJets(si.begin,nIs,sj.begin,nJs,task.Roff,A,N_L[l],
                                     [&](size_t idx, const PointJets& I, const PointJets& J)
                 {
@@ -3009,6 +3103,7 @@ public:
                     }
                 if (c.empty()) continue;
                 acc.assign(10*c.size(),0.0);
+                if (!(UseContractCube() && CubeJets(si.begin,sj.begin,task.Roff,A,N_L[l],plan.Tolerance(),V,ia,jb,/*virial*/true,acc.data())))
                 ForShellPairBoxJets(si.begin,nIs,sj.begin,nJs,task.Roff,A,N_L[l],
                                     [&](size_t idx, const PointJets& I, const PointJets& J)
                 {
@@ -3446,6 +3541,25 @@ public:
         return eD.radials[iD]->Repulsion4C(*radials[iA], *eB.radials[iB], *eC.radials[iC],
                                            pols[iA], eB.pols[iB], eC.pols[iC], eD.pols[iD])
              * ns[iA] * eB.ns[iB] * eC.ns[iC] * eD.ns[iD];
+    }
+    //! The shell partition as half-open function ranges [begin, end): what a shell-blocked ERI loop walks (\c Shells).
+    std::vector<std::pair<size_t,size_t>> ShellRanges() const
+    {
+        std::vector<std::pair<size_t,size_t>> r;
+        for (const Shell& s : Shells()) r.push_back({s.begin, s.end});
+        return r;
+    }
+    //! \brief A SHELL QUARTET of \c FourC at once: \a out[((a*nb+b)*nc+c)*nd+d] = FourC(a0+a, eB, b0+b, eC, c0+c, eD, d0+d), each the
+    //! SAME value FourC gives (\c GaussianRF::Repulsion4CBlock, then the four norms in FourC's order).  The shells start at a0.. and
+    //! hold na.. functions (one radial each).
+    void FourCBlock(size_t a0, size_t na, const NR_Evaluator& eB, size_t b0, size_t nb,
+                    const NR_Evaluator& eC, size_t c0, size_t nc, const NR_Evaluator& eD, size_t d0, size_t nd, double* out) const
+    {
+        eD.radials[d0]->Repulsion4CBlock(*radials[a0], *eB.radials[b0], *eC.radials[c0],
+                                         &pols[a0], na, &eB.pols[b0], nb, &eC.pols[c0], nc, &eD.pols[d0], nd, out);
+        size_t q=0;
+        for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++) for (size_t c=0;c<nc;c++) for (size_t d=0;d<nd;d++,q++)
+            out[q] = out[q] * ns[a0+a] * eB.ns[b0+b] * eC.ns[c0+c] * eD.ns[d0+d];
     }
 
 

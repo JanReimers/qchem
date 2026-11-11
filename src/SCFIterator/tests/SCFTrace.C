@@ -216,12 +216,13 @@ std::string TraceBlock(const std::string& trace)
 // RE-BANKED 2026-11-11 (lane A, the molecular DIIS prune scale-free + no downward mixer move while DIIS extrapolates; user ruling "Yes,
 // both"): iterations 1-9 unchanged; at 10 the old ABSOLUTE prune (svTol 5e-9) purged DIIS and the tail ran Lin 0.50 to 20 iterations,
 // now DIIS keeps extrapolating to 16.  E_tot identical to 1e-13; orbital energies move <= 2e-8 (the gate's level); one [handoff] line.
+// Regenerated on the tree merged with main b621dbf4 (lane H's ERI4 shell-block re-bank): rows 1-9 are main's, byte for byte.
 const char* const kMolecularGolden = R"G(  #               Etotal      [F,D]       ΔE/E     Δ[F,D]      ‖ΔD‖      2+V/K  ρ_mix         accel   svMin    cfg       m_site
                             (1e-06)               (1e-08)   (1e-06)    (1e+02)
 ----------------------------------------------------------------------------------------------------
   1    -150.860672827542   3.70e+00  -1.00e+00  -1.00e+10  2.15e-01   1.60e-01  Lin 0.50      ----    ----                 ----
   2    -149.253865566251   1.21e+00   1.08e-02  -2.49e+00  8.32e-02   5.66e-02  Lin 0.81      ----    ----                 ----
-  3    -149.604239974138   2.96e-01  -2.34e-03  -9.11e-01  2.12e-02   5.55e-04  Lin 0.93      ----    ----                 ----
+  3    -149.604239974139   2.96e-01  -2.34e-03  -9.11e-01  2.12e-02   5.55e-04  Lin 0.93      ----    ----                 ----
 [handoff] iteration 4: Lin adaptive step -> DIIS extrapolation (the Fock accelerator extrapolates: the D mixer's step 0.972136 makes no downward move (no late cap, no retraction); it may grow toward the ceiling 1)
   4    -149.628364092134   7.86e-02  -1.61e-04  -2.17e-01  3.71e-03  -1.89e-03  Lin 0.97      DIIS:2  8.1e-02              ----
   5    -149.629387019536   2.30e-02  -6.84e-06  -5.56e-02  1.56e-03  -4.16e-03  Lin 0.99      DIIS:3  3.6e-03              ----
@@ -230,13 +231,13 @@ const char* const kMolecularGolden = R"G(  #               Etotal      [F,D]    
   8    -149.629546986082   2.67e-04  -1.68e-09  -1.11e-03  1.91e-05  -4.08e-03  Lin 1.00      DIIS:4  3.5e-07              ----
   9    -149.629547021205   8.69e-05  -2.35e-10  -1.80e-04  8.20e-06  -4.08e-03  Lin 1.00      DIIS:4  2.2e-08              ----
  10    -149.629547027600   1.02e-05  -4.27e-11  -7.67e-05  6.94e-07  -4.08e-03  Lin 1.00      DIIS:4  8.6e-10              ----
- 11    -149.629547027645   1.65e-06  -2.97e-13  -8.55e-06  8.18e-08  -4.08e-03  Lin 1.00      DIIS:4  1.4e-11              ----
- 12    -149.629547027645   4.58e-07  -4.94e-15  -1.19e-06  2.57e-08  -4.08e-03  Lin 1.00      DIIS:3  8.1e-13              ----
- 13    -149.629547027645   1.14e-07   3.80e-16  -3.44e-07  5.77e-09  -4.08e-03  Lin 1.00      DIIS:4  3.4e-14              ----
- 14    -149.629547027645   3.63e-08  -5.70e-16  -7.73e-08  1.96e-09  -4.08e-03  Lin 1.00      DIIS:4  4.6e-15              ----
- 15    -149.629547027645   1.13e-08   1.90e-16  -2.50e-08  7.37e-10  -4.08e-03  Lin 1.00      DIIS:4  5.4e-16              ----
- 16    -149.629547027645   2.70e-09   1.90e-16  -8.61e-09  2.02e-10  -4.08e-03  Lin 1.00      DIIS:4  1.1e-17              ----
-[energy] final E_KS[D_out] = -149.6295470276  (the trace's first-order E_T: |E_T - E_KS| = 1.42e-13 Ha, second order)
+ 11    -149.629547027644   1.65e-06  -2.95e-13  -8.55e-06  8.18e-08  -4.08e-03  Lin 1.00      DIIS:4  1.4e-11              ----
+ 12    -149.629547027645   4.58e-07  -5.32e-15  -1.19e-06  2.57e-08  -4.08e-03  Lin 1.00      DIIS:3  8.1e-13              ----
+ 13    -149.629547027645   1.14e-07  -1.14e-15  -3.44e-07  5.77e-09  -4.08e-03  Lin 1.00      DIIS:4  3.4e-14              ----
+ 14    -149.629547027645   3.63e-08   7.60e-16  -7.73e-08  1.96e-09  -4.08e-03  Lin 1.00      DIIS:4  4.6e-15              ----
+ 15    -149.629547027645   1.13e-08  -3.80e-16  -2.50e-08  7.37e-10  -4.08e-03  Lin 1.00      DIIS:4  5.4e-16              ----
+ 16    -149.629547027645   2.70e-09   5.70e-16  -8.61e-09  2.02e-10  -4.08e-03  Lin 1.00      DIIS:4  1.1e-17              ----
+[energy] final E_KS[D_out] = -149.6295470276  (the trace's first-order E_T: |E_T - E_KS| = 1.14e-13 Ha, second order)
 ----------------------------------------------------------------------------------------------------------
 Energy    Breakdown  Total:    -149.629547028  Kinetic:     149.022225360  Potential:    -298.651772387
 Potential Breakdown  Een  :    -410.569585400  Eee    :     100.155759300  Eex      :     -16.283520345

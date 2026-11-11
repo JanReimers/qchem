@@ -3,6 +3,8 @@
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <memory>
+#include <string>
+#include <vector>
 using std::cout;
 using std::endl;
 
@@ -22,6 +24,7 @@ import qchem.VectorFunction;
 import qchem.Symmetry.Factory;
 import qchem.ElectronConfiguration.AtomNR;
 import qchem.Blaze;
+import qchem.Reporting;   // the announced basis.exponents rows (the heat-map gate)
 using namespace qchem;
 
 namespace
@@ -529,5 +532,30 @@ TEST(RadialHandGradient, EveryRadialFamilysGradientIsTheFiniteDifferenceOfItsVal
             }
         }
         EXPECT_GT(largest, 0.1) << js.dump() << ": the derivatives probed are not trivially small";
+    }
+}
+
+// OpenWork §3 "valgen's usage heat map shows Gaussian exponents DOUBLED" (2026-11-02; closed 2026-11-11): the heat map labels its rows
+// from basis.exponents, which each exponential shell ANNOUNCES as it is built.  The announced values must be the exponents the caller
+// stated (alpha in exp(-alpha r^2) / exp(-zeta r)), for every l of a Gaussian and a Slater basis -- so the heat map's labels are the .bsd's.
+TEST(BasisSet_Atom, EachShellAnnouncesTheExponentsItWasGiven)
+{
+    const std::vector<double> given={0.25,0.5,1,2.0,4.0};
+    for (Type t : {Type::Gaussian, Type::Slater})
+    {
+        qchem::report::Begin("announce test");
+        {
+            qchem::report::Scope basis("basis");
+            std::unique_ptr<Real_BS> bs(Factory(nlohmann::json{{"type",t},{"ltrim",0},{"exponents",given}}, size_t{18}));   // Ar: s and p shells
+            const auto& rows=qchem::report::CurrentRunReport().at("basis").at("exponents");
+            size_t n=0;
+            for (const auto& r : rows)
+            {
+                EXPECT_EQ(r.at("values").get<std::vector<double>>(), given) << r.at("irrep").get<std::string>() << " type " << int(t);
+                ++n;
+            }
+            EXPECT_GE(n, 2u) << "an s and a p shell announced";
+        }
+        qchem::report::End();
     }
 }

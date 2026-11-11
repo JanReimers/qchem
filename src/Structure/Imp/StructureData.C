@@ -215,24 +215,19 @@ void RequireLegalName(const std::string& name, const std::string& where)
 std::vector<CellEntry> CellEntries(const std::vector<LibraryFile>& layers)
 {
     std::vector<CellEntry> out;
-    std::map<std::string, std::string> owner;   // name -> the layer + file that holds it
-    for (const auto& n : EntryNames(Database("molecules.json"))) owner[n]="the shipped molecules";
+    const auto molecules=EntryNames(Database("molecules.json"));
     const std::string shipped=(std::filesystem::path(STRUCTURE_DATA_PATH) / "materials.json").string();
     for (const auto& n : EntryNames(Database("materials.json")))
-    {
         out.push_back({n, Layer::Shipped, shipped, Database("materials.json").at(n).dump()});
-        owner[n]=LayerName(Layer::Shipped);
-    }
     for (const auto& [layer, path] : layers)
     {
         if (layer==Layer::Shipped) throw std::runtime_error("StructureData: " + path + ": a library layered on top is a user or workspace one, not shipped");
         const json& db=Library(path);
         for (const auto& n : EntryNames(db))
         {
-            if (auto it=owner.find(n); it!=owner.end())
-                throw std::runtime_error("StructureData: " + path + ": '" + n + "' is already a name in " + it->second
-                                         + " -- one name, one structure: rename it in " + path);
-            owner[n]=LayerName(layer)+" ("+path+")";
+            if (std::find(molecules.begin(), molecules.end(), n)!=molecules.end())
+                throw std::runtime_error("StructureData: " + path + ": '" + n + "' is a shipped molecule name -- rename it in " + path);
+            for (auto& e : out) if (e.name==n) e.shadowed=true;      // this later layer's entry is the one the name finds
             out.push_back({n, layer, path, db.at(n).dump()});
         }
     }
@@ -242,14 +237,13 @@ std::vector<CellEntry> CellEntries(const std::vector<LibraryFile>& layers)
 CellEntry GetCellEntry(const std::string& name, const std::vector<LibraryFile>& layers)
 {
     const auto all=CellEntries(layers);
-    for (const auto& e : all) if (e.name==name) return e;
-    std::string known; for (const auto& e : all) known += (known.empty() ? "" : ", ") + e.name;
+    for (const auto& e : all) if (e.name==name && !e.shadowed) return e;
+    std::string known; for (const auto& e : all) if (!e.shadowed) known += (known.empty() ? "" : ", ") + e.name;
     throw std::runtime_error("StructureData: no material '" + name + "'; known: " + known
                              + (layers.empty() ? " -- a user material must be inlined in the deck (its entry as the structure), never named" : ""));
 }
 
-void SaveMaterial(const LibraryFile& into, const std::string& name, const std::string& entryJson, bool replace,
-                  const std::vector<LibraryFile>& others)
+void SaveMaterial(const LibraryFile& into, const std::string& name, const std::string& entryJson, bool replace)
 {
     if (into.layer==Layer::Shipped)
         throw std::runtime_error("StructureData: the shipped materials are CURATED -- promoting a material into them is a deliberate commit, not a save");
@@ -261,13 +255,9 @@ void SaveMaterial(const LibraryFile& into, const std::string& name, const std::s
     e.erase("name");                                  // the KEY names it
     (void)CellOf(e, name, 0.0);                       // the parser refuses before the file is touched
     if (Has(Database("molecules.json"), name)) throw std::runtime_error("StructureData: '" + name + "' is a shipped molecule name -- choose another");
-    std::vector<LibraryFile> layers=others;
-    layers.push_back(into);
-    for (const auto& c : CellEntries(layers))
-        if (c.name==name && !(c.file==into.path && replace))
-            throw std::runtime_error("StructureData: '" + name + "' is already in " + LayerName(c.layer)
-                                     + (c.file==into.path ? " -- replace it, or choose another name" : " -- choose another name"));
     json db=Library(into.path);
+    if (db.contains(name) && !replace)
+        throw std::runtime_error("StructureData: '" + name + "' is already in " + LayerName(into.layer) + " -- replace it, or choose another name");
     db[name]=e;                                       // ordered: a replaced entry keeps its place, a new one goes last
     const std::filesystem::path p(into.path);
     if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path());

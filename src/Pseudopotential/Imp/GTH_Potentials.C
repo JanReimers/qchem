@@ -63,7 +63,7 @@ GTH_PP GetGTH(const std::string& element, const std::string& functional, int q)
         nonlocal.AddChannel(ch["l"].get<int>(), ch["r"].get<double>(),
                             ch["h"].get<std::vector<std::vector<double>>>());
 
-    return GTH_PP{zion, local, nonlocal};
+    return GTH_PP{zion, local, nonlocal, rec.value("fitted", functional)};   // "fitted": doc/scripts/ParseGTH.py, the primary name's functional
 }
 
 std::vector<int> GetGTHValences(const std::string& element, const std::string& functional)

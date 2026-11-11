@@ -488,15 +488,15 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     if (!S.planeWave)
     {
         qchem::report::Timed timed("setup: vet basis (analytic S) + grids report");
-        size_t nRemoved=0;
+        size_t nRedundant=0;
         {
             qchem::report::Log("vetting basis conditioning");
             qchem::report::Section basis("basis");
             qchem::report::Set("nFunctions", (long)itsImp->bs->GetNumFunctions());
-            nRemoved=BasisSet::ReportConditioning(*itsImp->bs);
+            nRedundant=BasisSet::ReportConditioning(*itsImp->bs);
         }
-        if (nRemoved>0)
-            qchem::report::Log("basis is rank-deficient ("+std::to_string(nRemoved)+" redundant functions, see basis.removed)");
+        if (nRedundant>0)
+            qchem::report::Log("basis is rank-deficient ("+std::to_string(nRedundant)+" redundant functions, see basis.redundant)");
         if (qchem::report::Depth()>0)
         {
             qchem::report::Log("the grid ladder");
@@ -3208,7 +3208,11 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
                 r.trim.shells.insert(r.trim.shells.end(), t.shells.begin(), t.shells.end());
                 return r.Make(*point->cell, S.pp);
             };
-            auto vet=BasisSet::Lattice::VetStageTrim(latR, make, {.images=S.opts.images, .kShift=S.opts.kShift}, S.opts.orthoTol);
+            BasisSet::Lattice::VetTrimResult vet;
+            {
+                qchem::report::Scope here("basisTrim");   // the re-vet files its verdict one level in (as SolidSetup's first vet)
+                vet=BasisSet::Lattice::VetStageTrim(latR, make, {.images=S.opts.images, .kShift=S.opts.kShift}, S.opts.orthoTol);
+            }
             if (!vet.trim.empty())
             {
                 std::ostringstream os; vet.trim.Write(os);

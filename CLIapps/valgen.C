@@ -130,7 +130,7 @@ static void RenderUsageHeatMap()
     }
     if (basis.contains("perIrrep")) for (const auto& pr:basis["perIrrep"])
         if (pr.contains("irrep")&&pr.contains("cond")) shellOf(pr["irrep"].get<string>()).cond=pr["cond"].get<double>();
-    if (basis.contains("removed")) for (const auto& rm:basis["removed"])
+    if (basis.contains("redundant")) for (const auto& rm:basis["redundant"])
         if (rm.contains("irrep")&&rm.contains("index")) shellOf(rm["irrep"].get<string>()).redund.push_back(rm["index"].get<size_t>());
 
     cout << "\nbasis usage - advice  (even-tempered knobs: raise beta = fewer N or wider emin..emax; shift emin for the diffuse end)\n";
