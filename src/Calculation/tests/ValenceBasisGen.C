@@ -17,6 +17,9 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include <unistd.h>
+#include <sstream>
+#include <filesystem>
 #include <stdexcept>
 #include "nlohmann/json.hpp"      // read report::GlobalReport() values (get<double>) across the module boundary
 
@@ -38,8 +41,7 @@ using namespace qchem;
 TEST(ValenceBasisGen, Fluorine_q7)
 {
     // F- (2s^2 2p^6, the ionic state in NaF): validate against 8 valence electrons over an s+p window.
-    // Emit s over the full window; p over a DISJOINT, less-tight window (a p need not reach exp 40, and the
-    // molecular reader would merge any shared exponent -- flagged bug).
+    // Emit s over the full window; p over a less-tight window (a p need not reach exp 40).
     ValenceBasisRecipe r;
     r.element        = "F";
     r.Zion           = 7;
@@ -367,4 +369,37 @@ TEST(ValenceBasisGen, SeedIntoChangesTheEntryAndNoOtherByte)
 
     nlohmann::json noQ=fresh; noQ.erase("q");
     EXPECT_THROW((void)SpliceSeedEntry(lib, noQ.dump()), std::runtime_error) << "an entry without q has no identity";
+}
+
+// OpenWork §3 "Stale 'KEEP EXPONENTS DISJOINT ACROSS l' advice" (2026-11-11): a SHARED window -- s and p on the SAME exponents, an
+// SP-style set (valgen --shell 0,1:N:emin:emax) -- validates, is emitted with both l on the same list, and reads back through the
+// molecular reader with EVERY l's functions (e7cd6cab's KeepEachL; the old rule worked around the reader merging them).
+TEST(ValenceBasisGen, ASharedSPWindowValidatesAndReadsBackWithEveryL)
+{
+    const std::vector<double> w=EvenTemperedWindow(6, 0.04, 4.0);
+    ValenceBasisRecipe al;
+    al.element="Al"; al.Zion=3; al.electrons=3;
+    al.shells={ {0, w}, {1, w} };
+    const GeneratedBasis g=GenerateValenceBasis(al);
+    EXPECT_TRUE(g.converged);
+    EXPECT_GT(g.energy, -2.5) << "not a variational collapse";
+    // the emitted block: each S and each P primitive line carries one of the window's exponents, each exponent once per l
+    std::map<char,std::vector<double>> byL; char cur=0;
+    std::istringstream in(g.block); std::string line;
+    while (std::getline(in,line))
+    {
+        std::istringstream ls(line); std::string a; ls>>a;
+        if (a=="S" || a=="P") { cur=a[0]; continue; }
+        double e; std::istringstream es(a); if (cur && (es>>e)) byL[cur].push_back(e);
+    }
+    ASSERT_EQ(byL['S'].size(), w.size());
+    ASSERT_EQ(byL['P'].size(), w.size());
+    for (size_t i=0; i<w.size(); i++) { EXPECT_NEAR(byL['S'][i], w[i], 1e-6*w[i]); EXPECT_NEAR(byL['P'][i], w[i], 1e-6*w[i]); }
+    // read back: every l of every shared exponent (6 s + 6x3 p Cartesian)
+    const std::string path=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_al_shared_sp.bsd")).string();
+    std::ofstream(path) << AssembleBasisFile("shared SP test", {g.block});
+    Molecule m; m.Insert(Site{13, {0,0,0}});
+    std::unique_ptr<qchem::BasisSet::Real_BS> bs(qchem::BasisSet::Gaussian::FactoryFromFile(path, &m));
+    EXPECT_EQ(bs->GetNumFunctions(), w.size()*(1+3));
+    std::filesystem::remove(path);
 }

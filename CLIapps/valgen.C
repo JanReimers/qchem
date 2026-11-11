@@ -43,22 +43,32 @@ using std::string;
 namespace rpt = qchem::report;
 
 // Parse a "l:N:emin:emax" shell spec into an even-tempered window (l, exponents).  N exponents geometric
-// from emin to emax inclusive.  Exits with a message on a malformed spec.
-static std::pair<int,std::vector<double>> ParseShell(const string& spec)
+// from emin to emax inclusive.  A SHARED window names several l, "0,1:N:emin:emax": every l gets the SAME exponents
+// (an SP-style shell set; the reader keeps every l of a shared exponent since e7cd6cab).  Exits with a message on a
+// malformed spec.
+static std::vector<std::pair<int,std::vector<double>>> ParseShell(const string& spec)
 {
     std::vector<string> f;
     std::stringstream ss(spec); string tok;
     while (std::getline(ss, tok, ':')) f.push_back(tok);
     if (f.size() != 4)
     {
-        cout << "bad --shell \"" << spec << "\" (want l:N:emin:emax, e.g. 0:8:0.12:40)" << endl;
+        cout << "bad --shell \"" << spec << "\" (want l:N:emin:emax or l1,l2:N:emin:emax, e.g. 0:8:0.12:40 or 0,1:6:0.1:10)" << endl;
         exit(1);
     }
-    const int    l    = std::stoi(f[0]);
     const int    N    = std::stoi(f[1]);
     const double emin = std::stod(f[2]);
     const double emax = std::stod(f[3]);
-    return { l, EvenTemperedWindow(N, emin, emax) };
+    const std::vector<double> window=EvenTemperedWindow(N, emin, emax);
+    std::vector<std::pair<int,std::vector<double>>> out;
+    std::stringstream ls(f[0]);
+    while (std::getline(ls, tok, ','))
+    {
+        const int l=std::stoi(tok);
+        for (const auto& [lo,e] : out) if (lo==l) { cout << "bad --shell \"" << spec << "\": l=" << l << " twice" << endl; exit(1); }
+        out.emplace_back(l, window);
+    }
+    return out;
 }
 
 // A monospace heat-bar (ASCII '#') scaled to the largest population, so the eye catches which primitives
@@ -207,7 +217,9 @@ int main(int argc, char** argv)
         "  --functional <fn>  GTH parameter set                          (default LDA)\n"
         "  --shell <spec>     an even-tempered window l:N:emin:emax (REPEATABLE, >=1 required);\n"
         "                       N exponents geometric from emin to emax, e.g. --shell 0:8:0.12:40\n"
-        "                       KEEP EXPONENTS DISJOINT ACROSS l (the reader merges shared exponents)\n"
+        "                       SHARED across l: l1,l2:N:emin:emax gives every listed l the SAME exponents\n"
+        "                       (e.g. 0,1:6:0.1:10, an SP set).  Sharing is supported, and is what the\n"
+        "                       shell-block integrals can exploit (OpenWork §4, shared-exponent superblocks)\n"
         "\n"
         " Seed density (optional):\n"
         "  --seed             also generate the seed valence density (reports charge + <r> diffuseness)\n"
@@ -260,7 +272,7 @@ int main(int argc, char** argv)
         else if (a=="--floor")      floor      = true;
         else if (a=="--electrons")  electrons  = std::stoi(need(i));
         else if (a=="--functional") functional = need(i);
-        else if (a=="--shell")      shells.push_back(ParseShell(need(i)));
+        else if (a=="--shell")      for (auto& sh : ParseShell(need(i))) shells.push_back(std::move(sh));
         else if (a=="--seed")       seed       = true;
         else if (a=="--spin")     { spin       = true; seed = true; }
         else if (a=="--ngrid")      ngrid      = std::stoi(need(i));

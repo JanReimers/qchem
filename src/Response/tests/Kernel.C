@@ -588,7 +588,7 @@ std::unique_ptr<SolidCalculation> ConvergedSiWithD()
     std::string txt=all.str();
     const size_t si=txt.find(" SI "); const size_t end=txt.find(" ****", si);
     EXPECT_NE(si, std::string::npos); EXPECT_NE(end, std::string::npos);
-    txt.insert(end, " D   1  1.00\n      0.55000000      1.00000000\n");   // disjoint from the p exponents (the reader merges shared ones)
+    txt.insert(end, " D   1  1.00\n      0.55000000      1.00000000\n");   // a d shell on its own exponent (sharing a p exponent would be fine too: the reader keeps every l since e7cd6cab)
     const std::string path=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_sipp_sr_plus_d.bsd")).string();
     std::ofstream(path)<<txt;
     FCCUnitCell cell(10.26);
