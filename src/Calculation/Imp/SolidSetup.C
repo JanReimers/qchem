@@ -7,6 +7,7 @@ module;
 #include <sstream>
 #include <iostream>    // the stated-trim line
 #include <memory>
+#include <optional>    // the what-if's recipe
 #include <stdexcept>
 #include <string>
 #include <tuple>       // std::tie (decision 2)
@@ -209,7 +210,7 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, co
         BasisSet::Lattice::VetTrimResult r;
         {
             qchem::report::Scope here("basisTrim");   // the vet stage files its passes and its verdict one level in
-            r=BasisSet::Lattice::VetStageTrim(lat, make, {.images=opts.images, .kShift=opts.kShift}, opts.orthoTol);
+            r=BasisSet::Lattice::VetStageTrim(lat, make, {.images=opts.images, .kShift=opts.kShift, .tol=rec.tolerances}, opts.orthoTol);   // the tolerances make() binds
         }
         frozen.trim=std::move(r.trim);
         frozen.autoTrim=false;
@@ -386,6 +387,32 @@ std::vector<Symmetry::SymOp> SolidSetup::KeptOps(const Lattice_3D& at) const
     std::vector<Symmetry::SymOp> ops;
     for (const auto& op : at.GetSpaceGroup().Ops()) ops.push_back({op.W, op.tau});
     return ops;
+}
+
+//! The recipe with its trim cleared: the basis every what-if question starts from.
+static GaussianBasisRecipe Untrimmed(const std::optional<GaussianBasisRecipe>& recipe, bool planeWave, const char* who)
+{
+    if (planeWave) throw std::invalid_argument(std::string(who)+": a plane-wave setup has no Gaussian shells to trim");
+    if (!recipe)   throw std::invalid_argument(std::string(who)+": a setup from a pre-built basis has no recipe to clear the trim of");
+    GaussianBasisRecipe bare=*recipe;
+    bare.trim={};
+    bare.autoTrim=false;
+    return bare;
+}
+
+std::unique_ptr<BasisSet::Lattice::ShellConditioning> SolidSetup::MakeShellConditioning() const
+{
+    const GaussianBasisRecipe bare=Untrimmed(recipe, planeWave, "SolidSetup::MakeShellConditioning");
+    return std::make_unique<BasisSet::Lattice::ShellConditioning>(reference, bare.Make(*cell, pp),
+                                                                  BasisSet::Lattice::GPWParams{.images=opts.images, .kShift=opts.kShift, .tol=bare.tolerances});
+}
+
+BasisSet::Gaussian::ShellTrim SolidSetup::MakeVetTrim(double orthoTol) const
+{
+    const GaussianBasisRecipe bare=Untrimmed(recipe, planeWave, "SolidSetup::MakeVetTrim");
+    if (!(orthoTol>0.0)) throw std::invalid_argument("SolidSetup::MakeVetTrim: an orthoTol > 0 to trim at -- at 0 it would drop nothing");
+    auto make=[&](const BasisSet::Gaussian::ShellTrim& t){ GaussianBasisRecipe r=bare; r.trim=t; return r.Make(*cell, pp); };
+    return BasisSet::Lattice::VetStageTrim(reference, make, {.images=opts.images, .kShift=opts.kShift, .tol=bare.tolerances}, orthoTol).trim;
 }
 
 } //namespace qchem

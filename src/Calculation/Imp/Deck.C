@@ -29,6 +29,7 @@ import qchem.SCFAccelerator.Factory;        // SCFAccelerators::Type
 import qchem.SCFParams;                     // ResolveMixing: the mixer's admission, run at resolve so --check refuses it too
 import qchem.ChargeDensity.Seed;            // SeedStrategy
 import qchem.LASolver;                      // qchem::Ortho
+import qchem.LASolver.OverlapConditioning;  // ConditioningFloor (MakeBasisShells' default floor)
 import qchem.Types;
 import qchem.Materials;
 import qchem.SolidCalculation;
@@ -1456,6 +1457,29 @@ std::unique_ptr<SolidCalculation> Build(const RunSpec& specIn, SolidCalculation:
     auto R=SolidCalculation::PrepareRestart(r, setup, stages.front().params, std::move(onIteration));
     if (!R) throw std::runtime_error("deck: state.restartFrom "+r+" refused: "+R.Error().details);
     return R.TakeValue();
+}
+
+//=== The shell what-if: the deck's setup, its UNTRIMMED basis, and the shells its trim keeps =======================================
+BasisShells MakeBasisShells(RunSpec spec)
+{
+    const Materials::Material mat=Resolve(spec);
+    spec.solid.orbitalBasis=spec.basis.family; spec.solid.planeWaveEcut=spec.basis.ecut;   // as Build: the basis block names the family
+    BasisShells out;
+    out.setup=SetupOf(spec, mat, ScheduleToRun(spec));
+    out.table=out.setup->MakeShellConditioning();
+    out.floor=spec.solid.orthoTol>0.0 ? spec.solid.orthoTol : ConditioningFloor;
+    out.deckKept=out.table->KeptBy(out.setup->recipe->trim);              // the trim FROZEN in the setup: stated, or autoTrim's choice
+    out.autoTrimKept=out.table->KeptBy(out.setup->MakeVetTrim(out.floor));
+    return out;
+}
+
+BasisSet::Lattice::ShellConditioning::Answer BasisShells::Analyze(std::vector<bool> kept) const
+{
+    if (kept.empty()) kept=deckKept;
+    auto a=table->Analyze(kept, floor);
+    report::Set("deckKept", deckKept);
+    report::Set("autoTrimKept", autoTrimKept);
+    return a;
 }
 
 } // namespace qchem::deck

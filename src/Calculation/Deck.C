@@ -30,6 +30,7 @@ import qchem.Types;                // ivec3_t
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names its accelerator)
 import qchem.Materials;            // Material (the structure section's name resolves to one)
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
+import qchem.BasisSet.Lattice.BasisSet;   // ShellConditioning (BasisShells)
 
 export namespace qchem::deck
 {
@@ -216,6 +217,22 @@ struct VetReport
     std::vector<std::string> notes;     //!< things that are not errors but a run would hit (a restartFrom state that does not exist yet)
 };
 VetReport Vet(RunSpec spec, const std::filesystem::path& outDir);
+
+//! \brief THE SHELL WHAT-IF of a deck's basis (the user 2026-11-11, the GUI's conditioning table): the deck's setup, resolved as
+//! \c Build resolves it, and its UNTRIMMED basis as a \c ShellConditioning (analytic S on the full k-mesh, no grids, no SCF).  THROWS
+//! what \c Build would, and for a plane-wave deck.
+struct BasisShells
+{
+    std::shared_ptr<const SolidSetup>                      setup;
+    std::unique_ptr<BasisSet::Lattice::ShellConditioning> table;
+    std::vector<bool> deckKept;       //!< the shells the deck's trim keeps: its stated basis.trim, or its autoTrim's frozen choice
+    std::vector<bool> autoTrimKept;   //!< the REFERENCE: what the vet-stage trim keeps at \c floor
+    double            floor=0.0;      //!< solid.orthoTol when stated, else the conditioning report's floor
+    //! One question, \a kept a flag per shell (empty: the deck's own trim).  WRITES ITS RECORD one level in -- the driver opens
+    //! the run (the GUI bridge: \c basisTrimAnalysis): the analysis, then \c floor, \c deckKept and the \c autoTrimKept reference.
+    BasisSet::Lattice::ShellConditioning::Answer Analyze(std::vector<bool> kept) const;
+};
+BasisShells MakeBasisShells(RunSpec spec);
 
 //! \brief What a deck run produced.  \c energy is present ONLY for a converged run (a failed run's last iterate is deliberately not
 //! offered as "the energy" -- see \c SCFFailure::lastEnergy).

@@ -375,6 +375,13 @@ struct SolidSetup
     //! \c MakeSolidGeometryRun builds the coordinate map that keeps exactly these.  It is the DETECTED group, not the k-mesh intersection
     //! the density is star-averaged under: the positions keep the whole group, which is what the session checks.
     std::vector<Symmetry::SymOp> KeptOps(const Lattice_3D& at) const;
+    //! \brief THE SHELL WHAT-IF of this setup's basis (the user 2026-11-11, the GUI's conditioning table): its recipe with the trim
+    //! CLEARED, built at the reference geometry and analysed on the full k-mesh (\c ShellConditioning).  THROWS for a plane-wave setup
+    //! (no shells) and for one built from a pre-built basis (no recipe to clear the trim of).
+    std::unique_ptr<BasisSet::Lattice::ShellConditioning> MakeShellConditioning() const;
+    //! \brief What the vet-stage trim removes from the UNTRIMMED recipe at \a orthoTol -- the same loop \c Resolve runs for autoTrim,
+    //! for any tolerance (the what-if's reference: "autoTrim would remove these").  Writes its passes one level in, as in \c Resolve.
+    BasisSet::Gaussian::ShellTrim MakeVetTrim(double orthoTol) const;
     qcMesh::MeshParams xcMesh;     //!< the XC quadrature, \c Auto RESOLVED (the facade's decision 1)
     int nUp = 0, nDown = 0;        //!< the electron counts per spin channel (decision 2: multiplicity -> (nUp, nDown))
     //! \brief The GPW raster demands in \c opts.tolerances are FINAL (C2 step 3): stated (accuracy 0), derived from a stated calibration,

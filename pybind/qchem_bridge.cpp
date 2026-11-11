@@ -50,6 +50,12 @@ extern "C++" struct qcb_calc
     std::string                         id;          // the structure's ID: the name of the report runs the bridge opens
 };
 
+//! A basis what-if: the deck's setup and its untrimmed basis's shell table (deck::MakeBasisShells).
+extern "C++" struct qcb_shells
+{
+    qchem::deck::BasisShells shells;
+};
+
 //! A crystal: the deck as read, and the calculation deck::Build made of it.
 extern "C++" struct qcb_solid
 {
@@ -712,6 +718,55 @@ extern "C" int qcb_basis_import(const char* req, char* out, int outlen)
                         : nlohmann::ordered_json{{"error", got.Error()}}).dump(-1, ' ', false, nlohmann::ordered_json::error_handler_t::replace);
         }
         catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
+        return int(answer.size());
+    }
+    write_error(answer.c_str(), out, outlen);
+    return int(answer.size());
+}
+
+extern "C" qcb_shells* qcb_shells_make(const char* deckJson, char* err, int errlen)
+{
+    const HostLocale host;
+    try
+    {
+        auto h = std::make_unique<qcb_shells>();
+        qchem::deck::RunSpec spec;
+        qchem::deck::FromJson(nlohmann::json::parse(deckJson), spec);        // strict: an unknown key throws, naming it
+        h->shells = qchem::deck::MakeBasisShells(std::move(spec));
+        return h.release();
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return nullptr;
+}
+
+extern "C" void qcb_shells_free(qcb_shells* h) { delete h; }
+
+extern "C" int qcb_shells_query(qcb_shells* h, const char* req, char* out, int outlen)
+{
+    static thread_local std::string answer;
+    if (!out)
+    {
+        using json = nlohmann::ordered_json;
+        try
+        {
+            const json r = json::parse(req && *req ? req : "{}");
+            std::vector<bool> kept;
+            if (r.contains("kept")) for (const auto& b : r.at("kept")) kept.push_back(b.get<bool>());
+            const std::string name = "basisTrimAnalysis";
+            {
+                const qchem::report::Run run(name);           // the driver's bracket; the analysis writes into it
+                h->shells.Analyze(std::move(kept));
+            }
+            // THE RECORD the library filed: the newest "basisTrimAnalysis@<stamp>" (a repeat within one second reuses the key).
+            const json* rec = nullptr;
+            std::string key;
+            for (const auto& [k, v] : qchem::report::GlobalReport().items())
+                if (k.rfind(name + "@", 0) == 0 && k >= key) { key = k; rec = &v; }
+            if (!rec) throw std::logic_error("qcb_shells_query: the analysis filed no " + name + " record");
+            answer = rec->dump(-1, ' ', false, json::error_handler_t::replace);
+        }
+        catch (const std::exception& e) { answer = json{{"error", e.what()}}.dump(); }
         return int(answer.size());
     }
     write_error(answer.c_str(), out, outlen);

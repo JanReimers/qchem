@@ -8,6 +8,8 @@ module;
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
+#include <variant>
 #include <vector>
 export module qchem.BasisSet.Lattice.BasisSet;
 export import qchem.BasisSet;                          // Complex_BS (= tBasisSet<dcmplx>)
@@ -172,6 +174,51 @@ struct VetTrimResult
 VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
                            const std::function<std::shared_ptr<const BasisSet::Real_BS>(const Gaussian::ShellTrim&)>& make,
                            const GPWParams& p, double orthoTol);
+
+//! \brief THE SHELL WHAT-IF (the user 2026-11-11, the GUI's basis-conditioning table): which SHELL to switch off, judged by what
+//! switching it off DOES.  Built once from the UNTRIMMED cell basis: the analytic overlap S of every Bloch block on \a lat's FULL
+//! k-mesh (no fold, no grids -- exactly as \c VetStageTrim sees it, in each block's NATIVE scalar) and, per block, the AO indices of
+//! every shell.  A shell is a basis fact (element, l, exponents; pin 22), so it is switched off at EVERY site of its element and every
+//! k, never one AO.  Switching shells off is deleting their rows and columns of S -- the overlap of the trimmed basis -- so a question
+//! is a handful of factorizations, never a rebuild.  ONE METRIC with the vet stage: lambda_min and cond from S's spectrum, and HEALTHY
+//! = no k-block drops an AO under \c PivotedCholeskyDrops at the floor (the vet stage's own stopping test at its orthoTol).
+class ShellConditioning
+{
+public:
+    struct Shell { int Z; int l; rvec_t exponents; size_t nAO; };   //!< nAO: its functions in ONE k-block (every site of Z)
+    struct Block { std::string k; size_t nFunctions; double lambdaMin, cond; size_t aoDrops; };
+    //! The conditioning of the basis with only the \a kept shells, and per shell what TOGGLING it alone would do.
+    struct Answer
+    {
+        std::vector<Block> blocks;                 //!< per k of the full mesh
+        double             lambdaMin=0, cond=0;    //!< worst over k
+        std::string        worstK;                 //!< where lambdaMin is
+        size_t             aoDrops=0;              //!< PivotedCholeskyDrops at the floor, summed over k: 0 = healthy
+        size_t             nFunctions=0;           //!< per k-block, the kept shells' functions
+        //! Per shell, with this ONE shell toggled (a kept one removed, a removed one restored): lambda_min and cond (worst over k),
+        //! and the AO drops at the floor (summed over k).
+        std::vector<double> lambdaMinToggled, condToggled;
+        std::vector<size_t> aoDropsToggled;
+        //! Per shell: its share of the near-null space at the worst k -- the sum over its AOs of |v|^2 over the eigenvectors under
+        //! the floor (the lowest one when none is), divided by their number: a fraction in [0,1] summing to 1 over the kept shells.
+        std::vector<double> participation;
+        bool Healthy() const {return aoDrops==0;}
+    };
+    ShellConditioning(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> untrimmed, const GPWParams& p);
+    const std::vector<Shell>& Shells() const {return itsShells;}
+    //! \a kept: one flag per \c Shells() entry.  \a floor: the pivot floor (an orthoTol) and the near-null eigenvalue bound.
+    //! WRITES ITS RECORD one level in (the caller opens the scope): the verdict, a \c blocks row per k, a \c shells row per shell.
+    Answer Analyze(const std::vector<bool>& kept, double floor) const;
+    //! The \c Shells() flags a stated \a trim leaves on.
+    std::vector<bool> KeptBy(const Gaussian::ShellTrim& trim) const;
+private:
+    struct Spectrum { double lambdaMin, cond; size_t aoDrops, nFunctions; };
+    Spectrum Measure(size_t block, const std::vector<bool>& kept, double floor) const;
+    std::vector<Shell>                                         itsShells;
+    std::vector<std::string>                                   itsK;      //!< per block
+    std::vector<std::variant<hmat_t<double>,hmat_t<dcmplx>>>   itsS;      //!< per block, its native scalar (real at a real k)
+    std::vector<std::vector<std::vector<size_t>>>              itsAOs;    //!< [block][shell] -> AO indices
+};
 
 } //namespace
 

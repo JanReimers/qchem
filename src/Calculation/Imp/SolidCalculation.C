@@ -3211,7 +3211,7 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
             BasisSet::Lattice::VetTrimResult vet;
             {
                 qchem::report::Scope here("basisTrim");   // the re-vet files its verdict one level in (as SolidSetup's first vet)
-                vet=BasisSet::Lattice::VetStageTrim(latR, make, {.images=S.opts.images, .kShift=S.opts.kShift}, S.opts.orthoTol);
+                vet=BasisSet::Lattice::VetStageTrim(latR, make, {.images=S.opts.images, .kShift=S.opts.kShift, .tol=recipe.tolerances}, S.opts.orthoTol);   // the tolerances make() binds
             }
             if (!vet.trim.empty())
             {
