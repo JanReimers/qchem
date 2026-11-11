@@ -104,6 +104,20 @@ TEST(SolidSetup, TheShellWhatIfNeedsARecipe)
     EXPECT_THROW(setup->MakeVetTrim(1e-4), std::invalid_argument);
 }
 
+// The vet stage and the what-if build their Bloch blocks over a basis the recipe made at the RUN's pair-loop tolerances, so they
+// must ask for those same tolerances: a stated screenEps once made every autoTrim deck throw GPW_Evaluator's mismatch (2026-11-11).
+TEST(SolidSetup, AnAutoTrimAtStatedPairLoopTolerancesResolves)
+{
+    UnitCell cell=TwoNa(5.0);
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    SolidCalcOptions o=kNa2;
+    o.tolerances.screenEps=1e-13;
+    const auto setup=SolidSetup::Resolve(lat, GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_VA, .autoTrim=true}, o);
+    EXPECT_FALSE(setup->recipe->trim.empty());
+    EXPECT_FALSE(setup->MakeShellConditioning()->Shells().empty());
+    EXPECT_EQ(setup->MakeVetTrim(o.orthoTol).shells.size(), setup->recipe->trim.shells.size());
+}
+
 TEST(SolidSetup, AnAutoTrimWithNoOrthoTolIsRefused)
 {
     Lattice_3D lat(TwoNa(5.0), ivec3_t(2,2,2));

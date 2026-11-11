@@ -210,7 +210,7 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, co
         BasisSet::Lattice::VetTrimResult r;
         {
             qchem::report::Scope here("basisTrim");   // the vet stage files its passes and its verdict one level in
-            r=BasisSet::Lattice::VetStageTrim(lat, make, {.images=opts.images, .kShift=opts.kShift}, opts.orthoTol);
+            r=BasisSet::Lattice::VetStageTrim(lat, make, {.images=opts.images, .kShift=opts.kShift, .tol=rec.tolerances}, opts.orthoTol);   // the tolerances make() binds
         }
         frozen.trim=std::move(r.trim);
         frozen.autoTrim=false;
@@ -404,7 +404,7 @@ std::unique_ptr<BasisSet::Lattice::ShellConditioning> SolidSetup::MakeShellCondi
 {
     const GaussianBasisRecipe bare=Untrimmed(recipe, planeWave, "SolidSetup::MakeShellConditioning");
     return std::make_unique<BasisSet::Lattice::ShellConditioning>(reference, bare.Make(*cell, pp),
-                                                                  BasisSet::Lattice::GPWParams{.images=opts.images, .kShift=opts.kShift});
+                                                                  BasisSet::Lattice::GPWParams{.images=opts.images, .kShift=opts.kShift, .tol=bare.tolerances});
 }
 
 BasisSet::Gaussian::ShellTrim SolidSetup::MakeVetTrim(double orthoTol) const
@@ -412,7 +412,7 @@ BasisSet::Gaussian::ShellTrim SolidSetup::MakeVetTrim(double orthoTol) const
     const GaussianBasisRecipe bare=Untrimmed(recipe, planeWave, "SolidSetup::MakeVetTrim");
     if (!(orthoTol>0.0)) throw std::invalid_argument("SolidSetup::MakeVetTrim: an orthoTol > 0 to trim at -- at 0 it would drop nothing");
     auto make=[&](const BasisSet::Gaussian::ShellTrim& t){ GaussianBasisRecipe r=bare; r.trim=t; return r.Make(*cell, pp); };
-    return BasisSet::Lattice::VetStageTrim(reference, make, {.images=opts.images, .kShift=opts.kShift}, orthoTol).trim;
+    return BasisSet::Lattice::VetStageTrim(reference, make, {.images=opts.images, .kShift=opts.kShift, .tol=bare.tolerances}, orthoTol).trim;
 }
 
 } //namespace qchem
