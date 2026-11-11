@@ -45,6 +45,27 @@ export namespace qchem::Hamiltonian
 //! needs to know the run is polarized) and passes the answer to the factory.
 using VxcFit = BasisSet::VxcFit;
 
+//! \brief WHICH \f$\rho\f$ THE XC FUNCTIONAL SEES (user ruling 2026-11-09, V-XC-ONE-TERM; design note `lane-s-v-xc-one-term-design.md` §1).
+//! For a variational code the XC product space has ONE \f$\rho\f$ axis, and this is it; \c VxcFit names the fit BASIS, not a second axis.
+//!  - \c Exact: \f$\rho[D]\f$ pointwise (doc/Pins.md pin 28), the default.  With a NON-orthogonal fit basis (\c VxcFit::Auxiliary) this is
+//!    the Gaussian x \f$\delta\f$ cell: \f$v(\rho[D])\f$ is fitted for \f$H\f$, so \f$H\f$ is not \f$\partial E/\partial D\f$ (pin 32).  It
+//!    RUNS WITH A WARNING (ruling (b): a cheap better-than-SAD start), and whatever needs \f$H=\partial E/\partial D\f$ refuses on it by name.
+//!  - \c Fit: \f$P\rho\f$, the projection of \f$\rho[D]\f$ onto the fit space; \f$E=\int e(P\rho)\f$ and \f$H=\langle ij|P\,v(P\rho)\rangle\f$,
+//!    variational because \f$P\f$ is self-adjoint in its quadrature.  Where \f$P\f$ is exact (a \f$\delta\f$ basis on the XC points; a
+//!    plane-wave ball at >= 4 Ecut) \f$P\rho=\rho[D]\f$ and the two values coincide.
+//! The label names what XC SEES, not the route: a plane-wave run is \c Exact even though its \f$\rho\f$ passes through the ball.
+enum class XCρ {Exact, Fit};
+
+//! \brief The whole XC choice, one value through the molecular / atom factories (the partner of \c CoulombRoute).  Implicit from a bare
+//! \c VxcFit, so a caller that states only the fit basis gets \c XCρ::Exact, as before the axis existed.
+struct XCRoute
+{
+    VxcFit fit = VxcFit::Auto;
+    XCρ    rho = XCρ::Exact;
+    XCRoute() = default;
+    XCRoute(VxcFit f, XCρ r=XCρ::Exact) : fit(f), rho(r) {}
+};
+
 //! \brief WHICH REPRESENTATION carries \f$\rho\f$ for Hartree, the partner of \c VxcFit (user ruling 2026-11-06).
 //!  - \c Auxiliary: the lineage's Gaussian Coulomb fit, analytic \f$(ij|a)\f$, second-order energy.
 //!  - \c Delta: the \f$\delta\f$ basis on a mesh, with a \c CoulombSolver finding \f$v\f$ at its points.  First-order energy; the

@@ -328,6 +328,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         // translation of the whole crystal -- an exact symmetry -- moves the answer by 56 Ha).
         if (qchem::Diagnostics::Enabled("becke_atoms"))
         {
+            report::FormatGuard keep_(std::cout);
             size_t nk=0; double wsum=0.0;
             for (size_t q=0; q<nq; q++) if (keep[q]) { ++nk; wsum+=kwt[q]; }
             std::cout<<"[Becke atom] ia="<<ia<<" R=("<<R[ia].x<<","<<R[ia].y<<","<<R[ia].z<<")"
@@ -369,6 +370,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     {
         const double perPt=tot.live>0 ? double(tot.live) : 1.0;   // per LIVE point: the tail drops do no work
         const size_t calls=tot.retest+tot.final_+tot.bound;
+        report::FormatGuard keep_(std::cout);
         std::cout<<std::setprecision(4)
                  <<"[Becke count] pts="<<tot.pts<<" live="<<tot.live
                  <<" images/pt="<<tot.im/perPt<<" (max "<<tot.imMax<<", shells<="<<tot.shellMax<<")"
@@ -382,8 +384,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
                  <<"\n[Becke count] P-set members ending at P=0: "
                  <<100.0*tot.dead/double(max(tot.pset,size_t(1)))<<"% of members, "
                  <<100.0*tot.deadWork/double(max(tot.final_,size_t(1)))<<"% OF THE FINAL-LOOP WORK => "
-                 <<1.0/(1.0-double(tot.deadWork)/double(max(tot.final_,size_t(1))))<<"x if avoided"
-                 <<std::setprecision(6)<<std::endl;
+                 <<1.0/(1.0-double(tot.deadWork)/double(max(tot.final_,size_t(1))))<<"x if avoided"<<std::endl;
     }
     // ONE LEVEL IN (user ruling 2026-11-02): the CALLER opened a report::Scope naming itself; the builder writes its fields
     // there and picks no key.  Was a root-anchored EmitAt("grids","becke") -- one key, so a second Becke mesh overwrote it.

@@ -109,9 +109,10 @@ template <class T> void Vee_Fit<T>::GetEnergy(EnergyBreakdown& te,const tDM_CD<T
     if (qchem::Diagnostics::Enabled("eh_trace"))
     {
         const double eTrace=0.5*cd->DM_Contract(this,cd);
+        report::FormatGuard keep(std::cout);
         std::cout << "[E_H A/B] first-order=" << std::setprecision(12) << e << " trace=" << eTrace
                   << " diff=" << e-eTrace << " rel=" << (eTrace!=0.0 ? (e-eTrace)/eTrace : 0.0)
-                  << std::setprecision(6) << std::endl;
+                  << std::endl;
     }
 }
 

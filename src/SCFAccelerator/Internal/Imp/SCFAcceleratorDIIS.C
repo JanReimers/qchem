@@ -227,6 +227,7 @@ void SCFAcceleratorDIIS::ShowLabels(std::ostream& os) const
 }
 void SCFAcceleratorDIIS::ShowConvergence(std::ostream& os) const
 {
+    report::FormatGuard keep(os);
     os << std::scientific << std::setw(7) << std::setprecision(1) << itsEn << " ";
     if (HasProjection())
     {

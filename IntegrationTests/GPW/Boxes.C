@@ -510,8 +510,12 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     const rvec_t mu=calc.LastIterateTerms().charge.siteMoments;
     ASSERT_EQ(mu.size(), box.cell->GetNumAtoms()) << "a Becke mesh has one basin per site";
     const double m1=mu[0], m2=mu[1];
-    std::cout << "[Mn2 imposed] after "<<calc.IterationCount()<<" iterations: m1="<<m1<<" m2="<<m2
-              << " m1+m2="<<m1+m2<<" Etot="<<calc.LastIterateTerms().GetTotalEnergy()<<std::endl;
+    {   // its own precision, stated: it read 10 digits only while an earlier print leaked setprecision(10) onto cout
+        const std::streamsize prec=std::cout.precision(10);
+        std::cout << "[Mn2 imposed] after "<<calc.IterationCount()<<" iterations: m1="<<m1<<" m2="<<m2
+                  << " m1+m2="<<m1+m2<<" Etot="<<calc.LastIterateTerms().GetTotalEnergy()<<std::endl;
+        std::cout.precision(prec);
+    }
     EXPECT_GT(std::abs(m1), 2.0) << "the AFM order must SURVIVE the imposed SCF loop";   // measured 3.94 e
     // Measured 2026-11-05 at the 6-iteration cap: m1+m2 = 0 on these moments, and 4e-16 for the D-density
     // integrated on a 2 bohr sphere round each Mn.  The mirror is exact, not merely driven toward.

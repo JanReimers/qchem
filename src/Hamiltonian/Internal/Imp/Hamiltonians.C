@@ -82,14 +82,24 @@ static std::shared_ptr<const qcMesh::SiteMultipoles> MakeSiteMultipoles(const st
 
 //! THE MOLECULAR / ATOM XC TERM (V-XC-ONE-TERM, 2026-10-31): the δ basis runs the ONE XC term the periodic path runs
 //! (\c tVxc_Quadrature<double>: v_xc at the mesh points, E_xc by the same quadrature, the adjoint for H), chosen by the fit
-//! basis's CAPABILITY (an orthogonal fit is a quadrature), never by T.  The non-orthogonal A1 auxiliary fit keeps \c FittedVxc
-//! until it becomes a sampler strategy -- an open X cell of UTHamiltonian VxcProductSpace.
-static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, VxcFit fit,
+//! basis's CAPABILITY (an orthogonal fit is a quadrature), never by T.
+//! THE \f$\rho\f$ AXIS (\c XCρ, user ruling 2026-11-09).  A δ basis on the XC points has an exact \f$P\f$, so both values are the one
+//! singles term.  A non-orthogonal A1 fit splits: \c XCρ::Fit is the PROJECTED strategy through the same term (\f$E=\int e(P\rho)\f$,
+//! \f$H=\partial E/\partial D\f$; V-XC-ONE-TERM step 3), and \c XCρ::Exact is the Gaussian x \f$\delta\f$ cell, \c FittedVxc (\f$v(\rho[D])\f$
+//! fitted for \f$H\f$; not variational, pin 32) -- the policy layer warns on it.  The multipole fit's \c Fit cell is not realized yet (an
+//! X cell of UTHamiltonian VxcProductSpace).
+static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, XCRoute xc,
                                      std::vector<std::shared_ptr<ExFunctional>> parts, SpinGroup g, int lMax)
 {
-    const VxcFit resolved=MolecularVxcFit(fit);
-    BasisSet::FitQuadrature quad;   // only a δ basis is built over one (the auxiliary fit keeps its own private mesh)
-    if (resolved==VxcFit::Delta || resolved==VxcFit::Multipole) quad=BasisSet::MakeXCQuadrature(*st, mp, bs->GetImposition());
+    const VxcFit resolved=MolecularVxcFit(xc.fit);
+    const bool   projected=xc.rho==XCρ::Fit && resolved==VxcFit::Auxiliary;   // the A1 Pρ cell: the projected strategy on the XC mesh
+    if (xc.rho==XCρ::Fit && resolved==VxcFit::Multipole)
+        throw std::logic_error("MolecularVxcTerm: xc.rho \"fit\" with the multipole Vxc fit is not realized yet -- the projected strategy "
+                               "over MultipoleFit_IBS (an open X cell of UTHamiltonian VxcProductSpace, V-XC-ONE-TERM)");
+    // A δ basis is built over the XC quadrature, and the projected A1 strategy integrates on it; the fitted-v A1 term keeps its own
+    // private mesh.
+    BasisSet::FitQuadrature quad;
+    if (resolved==VxcFit::Delta || resolved==VxcFit::Multipole || projected) quad=BasisSet::MakeXCQuadrature(*st, mp, bs->GetImposition());
     if (resolved==VxcFit::Multipole)
     {
         // Through the fit, as the A1 route is: the sampler strategy below is the δ route's own, and its coefficients are point values.
@@ -99,14 +109,14 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMe
             return bs->CreateVxcFitBasisSet(st.get(), mp, VxcFit::Delta, &quad);
         });
         FittedVxc::fbs_t mfb=std::make_shared<BasisSet::MultipoleFit_IBS>(delta, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax), sym_t(new UnitQN));
-        FittedVxc::ex_t  xc(std::make_shared<CompositeExFunctional>(std::move(parts)));
-        return new FittedVxc(mfb, xc, g);
+        FittedVxc::ex_t  fx(std::make_shared<CompositeExFunctional>(std::move(parts)));
+        return new FittedVxc(mfb, fx, g);
     }
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]{return bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad);});
-    if (fb->isOrtho()) return MakeVxcTerm(std::move(parts), fb, g, std::move(quad)).release();
+    if (fb->isOrtho() || projected) return MakeVxcTerm(std::move(parts), fb, g, std::move(quad)).release();
     FittedVxc::fbs_t ffb=fb;
-    FittedVxc::ex_t  xc(std::make_shared<CompositeExFunctional>(std::move(parts)));
-    return new FittedVxc(ffb, xc, g);
+    FittedVxc::ex_t  fx(std::make_shared<CompositeExFunctional>(std::move(parts)));
+    return new FittedVxc(ffb, fx, g);
 }
 
 //! THE MOLECULAR / ATOM HARTREE TERM.  This is where a grid route's fit basis and operator are paired, so nothing below knows
@@ -147,12 +157,12 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
     return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(mfb), st->GetNumElectrons());
 }
 
-Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)
+Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
     : Ham_DFT(st, {std::make_shared<SlaterExchange>(alpha_ex)}, mp, bs, g, fit, coulomb)
 {};
 
 Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> parts,
-                 const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)
+                 const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
@@ -180,7 +190,7 @@ static bool NeedsPPQuadrature(const rbs_t* bs, const BasisSet::SpeciesRadialFiel
 
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
                std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
@@ -206,7 +216,7 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
-               const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)
+               const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
     : Ham_PP(st,
              std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
              std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
@@ -226,7 +236,7 @@ BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species, con
 } //anon
 
 Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, VxcFit fit, const CoulombRoute& coulomb)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
     : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g, fit, coulomb)
 {}
 

@@ -45,12 +45,11 @@ namespace qchem::ChargeDensity
 // construction, role-labeled (user ruling 2026-08-16).
 PairDensitySampler::PairDensitySampler(fbs_t fb)
     : itsFitBasis(std::move(fb))
-    , itsScalarFitter(Fitting::Factory(itsFitBasis))   // the ortho (G-space) scalar fit -- BALL route only
     , itsRhoProjector(BasisSet::MakeGSpaceDensityProjector(itsFitBasis, "xc: rho-tilde IBZ star-average (SymmetrizeGMap)"))
 {
     assert(itsFitBasis);
 }
-PairDensitySampler::~PairDensitySampler() = default;   // itsScalarFitter's abstract type is complete here
+PairDensitySampler::~PairDensitySampler() = default;
 
 
 // rho(r) on the raster for cd -- recomputed only on a new density serial, so the XC pair's two terms and
@@ -253,6 +252,7 @@ void PairDensitySampler::Refresh(const cChargeDensity* cd) const
     // DIAGNOSTIC (env GPW_XCROUTE): which V_xc route fires this iteration -- RAW (applyRawAdjoint, FD-exact/
     // variational; gate GPW.RawXCConsistencyFD) vs BALL (DoFit/Overlap, non-variational on the ball's own raster;
     // gate GPW.XCPotentialConsistencyFD).  Answers whether GDM is fighting the ball non-variationality.
+    report::FormatGuard keep(std::cout);   // the three diagnostics below set precision; restore it for the run's later prints
     if (qchem::Diagnostics::Enabled("xc_route"))
     {
         double rmin=1e300, rmax=-1e300;
@@ -354,21 +354,10 @@ template <class U> hmat_t<U> PairDensitySampler::MatrixT(const tobs_t<U>* bs, co
     // fit axis, 3c-3), so the narrow stays here.
     if (const qcMesh::MatrixAdjoint<dcmplx>* adj=BlockAdjoint(orb))
         return blazem::NarrowExact<U>(adj->Adjoint(v));
-    if constexpr (std::is_same_v<U,dcmplx>)
-    {
-        std::lock_guard<std::mutex> lock(itsScalarFitterLock.m);   // ONE fitter refit per call: concurrent blocks take turns
-        itsScalarFitter->DoFit(SampledField(v, NumPoints()));
-        // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks on a complex fit axis.
-        return itsScalarFitter->Overlap(orb);
-    }
-    else
-        // ⛔ A REAL TRIM BLOCK ON THE BALL FIT IS STILL UNWIRED: the ortho scalar fitter implements FitContraction<dcmplx,dcmplx> and
-        // NOT the <double,dcmplx> face, so this branch cannot contract.  The face is expressible -- FitContraction is templated on
-        // the block scalar -- so this is a hole in the FITTING layer, not a fact about XC.  Whether it is reached depends on
-        // BlockAdjoint at run time, so it stays a named refusal (V1.34); the seed exemption above keeps it unreachable.
-        throw std::logic_error("PairDensitySampler: a real TRIM block on the legacy ball-fit XC route is not "
-                               "wired -- the ortho scalar fitter has no FitContraction<double,dcmplx> face. "
-                               "Use the raw collocated feed (the default) or the delta quadrature");
+    // A block with no raw pair is a plane-wave lineage, and MakeDensitySampler sends that to the PROJECTED strategy (V-XC-ONE-TERM
+    // step 2, 2026-11-09): the ball fit of v that used to answer here lives there now.  Reaching this is a factory defect.
+    throw std::logic_error("PairDensitySampler: this orbital block has no raw collocation adjoint (a plane-wave block?) -- the pair "
+                           "route cannot assemble H_xc for it; MakeDensitySampler should have chosen the projected strategy");
 }
 // MY ADJOINT HALF for one block, or null when this lineage has no raw pair (then the BALL fallback answers).
 //
@@ -404,37 +393,18 @@ PairDensitySampler::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb)
 chmat_t PairDensitySampler::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
 rsmat_t PairDensitySampler::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
 
-// THE DERIVATIVE OF MatrixT at the fixed field v (GeometryOptimizationPlan §13.2): the same route decision, block by block.
-//   RAW  -- the GPW raster gather's jets are not built (its box truncation differs from the G-space integrator's, so the Hartree
-//           jets are not its exact derivative): a named refusal, a MissingGradients() entry.
-//   BALL -- the scalar fitter's own derivative of its contraction at the fit of v (a plane-wave block: an exact zero).
-template <class U> Outcome<rvec3vec_t,AD::NoGradient>
-PairDensitySampler::MatrixPullbackT(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const
+// THE DERIVATIVE OF MatrixT at the fixed field v (GeometryOptimizationPlan §13.2): this strategy is the RAW GPW raster gather, whose
+// jets are not built (its box truncation differs from the G-space integrator's, so the Hartree jets are not its exact derivative): a
+// named refusal, a MissingGradients() entry.  (The ball route's pullback lives on ProjectedDensitySampler.)
+Outcome<rvec3vec_t,AD::NoGradient> PairDensitySampler::MakeMatrixPullback(const cobs_t* bs, const rvec_t&, const chmat_t&, const Structure*) const
 {
-    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws), as MatrixT
-    if (BlockAdjoint(orb))
-        return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the raw raster XC gather has no geometry gradient on the block "+bs->Name()
-                                                         +" (its collocation jets are not built)"});
-    if constexpr (std::is_same_v<U,dcmplx>)
-    {
-        std::lock_guard<std::mutex> lock(itsScalarFitterLock.m);
-        itsScalarFitter->DoFit(SampledField(v, NumPoints()));
-        return itsScalarFitter->MakeOverlapPullback(orb, D, st);
-    }
-    else
-        return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"a real TRIM block on the ball-fit XC route has no contraction, hence no "
-                                                         "geometry gradient, on the block "+bs->Name()});
+    return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the raw raster XC gather has no geometry gradient on the block "+bs->Name()
+                                                     +" (its collocation jets are not built)"});
 }
-// The same decision, without the work: no raw pair, a complex block, and the fitter can.
-bool PairDensitySampler::CanPullbackMatrix(const cobs_t* bs) const
+Outcome<rvec3vec_t,AD::NoGradient> PairDensitySampler::MakeMatrixPullback(const robs_t* bs, const rvec_t&, const hmat_t<double>&, const Structure*) const
 {
-    const auto* orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>*>(bs);
-    return orb && !BlockAdjoint(*orb) && itsScalarFitter->CanPullbackOverlap(*orb);
+    return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the raw raster XC gather has no geometry gradient on the real block "+bs->Name()
+                                                     +" (its collocation jets are not built)"});
 }
-bool PairDensitySampler::CanPullbackMatrix(const robs_t*) const {return false;}   // MatrixPullbackT: a raw real block refuses, a ball one has no contraction
-Outcome<rvec3vec_t,AD::NoGradient> PairDensitySampler::MakeMatrixPullback(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const
-{return MatrixPullbackT<dcmplx>(bs, v, D, st);}
-Outcome<rvec3vec_t,AD::NoGradient> PairDensitySampler::MakeMatrixPullback(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const
-{return MatrixPullbackT<double>(bs, v, D, st);}
 
 } //namespace

@@ -7,6 +7,7 @@ module;
 #include <vector>
 
 module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Hermite;
+import qchem.Reporting;   // FormatGuard
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 
 std::ostream& operator << (std::ostream& os, const std::vector<double>& v)
@@ -70,7 +71,10 @@ inline bool near(double a, double b)
     static double eps=1e-13;
     double err=fabs(a)<1 ? fabs(a-b) : fabs(a-b)/fabs(a) ;
     if (err>=eps)
+    {
+        qchem::report::FormatGuard keep(cout);
         cout << std::setprecision(14) << a << " " << b << " " << err << endl;
+    }
     return err<eps;
 }
 
@@ -199,6 +203,7 @@ double Hermite2::operator()(const Polarization& P,const Polarization& Pa,const P
 
 std::ostream& Hermite2::Write(std::ostream& os) const
 {
+    qchem::report::FormatGuard keep(os);
     os << ": LA=" << LA << ", LB = " << LB << std::endl;
     os.precision(4);
     os.width(8);

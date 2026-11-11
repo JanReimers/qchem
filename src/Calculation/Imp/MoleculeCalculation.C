@@ -18,6 +18,7 @@ module;
 module qchem.MoleculeCalculation;
 
 import qchem.BasisSet.Gaussian.Point.Factory;             // BasisSet::Gaussian::Factory
+import qchem.BasisSet.Gaussian.Point.BasisFiles;          // BasisFileChecksum: a stated basis file's identity (report, fingerprint)
 import qchem.BasisSet.Conditioning;                  // ReportConditioning
 import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
 import qchem.BasisSet.Gaussian.PG_Cart.SymmetryAdapt;   // PG::SymmetryAdapt (the SALC builder)
@@ -70,8 +71,11 @@ static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_
 
     const char* engine  = (opts.engine  == Engine::LibCint) ? "libcint" : "mnd";
     const char* angular = spherical ? "spherical" : "cartesian";
-    BasisSet::Real_BS* raw = BasisSet::Gaussian::Factory(
-        nlohmann::json{{"basis", opts.basis}, {"engine", engine}, {"angular", angular}}, st.get());
+    BasisSet::Real_BS* raw = opts.basisFile.empty()
+        ? BasisSet::Gaussian::Factory(nlohmann::json{{"basis", opts.basis}, {"engine", engine}, {"angular", angular}}, st.get())
+        : BasisSet::Gaussian::FactoryFromFile(opts.basisFile, st.get(),                               // a stated file (CalcOptions::basisFile)
+              opts.engine==Engine::LibCint ? BasisSet::Gaussian::Engine::LibCint : BasisSet::Gaussian::Engine::MnD,
+              spherical ? BasisSet::Gaussian::Angular::Spherical : BasisSet::Gaussian::Angular::Cartesian);
     if (!opts.symmetry) return raw;
     std::shared_ptr<const BasisSet::Real_BS> rawShared(raw);
     return PG::SymmetryAdapt(rawShared, *st, opts.symmetryTol);
@@ -166,6 +170,11 @@ void MoleculeCalculation::BuildGraph()
     {
         rpt::Section basis("basis");
         rpt::Set("name",       opts.basis);
+        if (!opts.basisFile.empty())
+        {
+            rpt::Set("file",     opts.basisFile);
+            rpt::Set("checksum", BasisSet::Gaussian::BasisFileChecksum(opts.basisFile));
+        }
         rpt::Set("engine",     opts.engine  == Engine::LibCint  ? "libcint"   : "mnd");
         rpt::Set("angular",    opts.angular == Angular::Spherical ? "spherical" : "cartesian");
         rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
@@ -380,6 +389,7 @@ MoleculeCalculation::Carry MoleculeCalculation::CarryOntoThisBasis(const Carry& 
     moved<<"structure.positions: the atoms moved by up to "<<std::setprecision(6)<<carry.displacement<<" bohr from the previous point";
     itsRestartedFrom=RestartSummary{.path="(previous geometry point)", .exact=false, .warm={moved.str()},
                                     .maxDisplacement=carry.displacement, .electrons=Electrons(st, now)};
+    report::FormatGuard keep(std::cout);
     std::cout<<"[molecule session] the previous point's density is carried as AO coefficients (atoms moved up to "
              <<std::setprecision(6)<<carry.displacement<<" bohr): "<<std::setprecision(12)<<itsRestartedFrom->electrons
              <<" electrons on this basis"<<std::endl;
@@ -472,8 +482,8 @@ qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const q
 {
     const CalcOptions& opts=itsSetup->opts;
     return itsSetup->pp
-        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, itsBasis, opts.vxcFit, opts.coulomb)
-        : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure, mesh, itsBasis, opts.xalpha, opts.vxcFit, opts.coulomb);
+        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, itsBasis, {opts.vxcFit, opts.xcRho}, opts.coulomb)
+        : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure, mesh, itsBasis, opts.xalpha, {opts.vxcFit, opts.xcRho}, opts.coulomb);
 }
 
 bool MoleculeCalculation::HasXCMesh() const {return qchem::Hamiltonian::IsDFT(itsSetup->opts.model) || itsSetup->pp.has_value();}
@@ -526,6 +536,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
     const qcMesh::MeshParams entry=itsSetup->mesh;
     const std::string tag="[mesh pilot] ";
     const std::streamsize prec0=std::cout.precision();
+    report::FormatGuard keep(std::cout);
     rpt::Section pilot("xcMeshPilot");
     rpt::Set("measure", onE ? "E" : "H"); rpt::Set("target", target); rpt::Set("stated", stated); rpt::Set("entry", MeshName(entry));
     const bool climbHartree=HartreeConvergesWithMesh(itsSetup->opts.coulomb);
@@ -730,6 +741,8 @@ void MoleculeCalculation::RecordState(StateRecord& r, double kT) const
     // ---- REFUSE: the saved D is a matrix over THIS basis's functions ----
     fp.refuseStr["basis.family"] ="gaussian";
     fp.refuseStr["basis.name"]   =o.basis;
+    if (!o.basisFile.empty())   // a stated file: its CONTENTS identify the basis (an edited file refuses; the path may move)
+        fp.refuseStr["basis.fileChecksum"]=BasisSet::Gaussian::BasisFileChecksum(o.basisFile);
     fp.refuseStr["basis.engine"] =o.engine==Engine::LibCint ? "libcint" : "mnd";
     fp.refuseStr["basis.angular"]=o.angular==Angular::Spherical ? "spherical" : "cartesian";
     fp.refuseStr["basis.blocks"] =o.symmetry ? "SALC" : "AO";

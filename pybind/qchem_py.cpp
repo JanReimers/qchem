@@ -94,14 +94,15 @@ public:
                const std::string& accelerator, int meshRadial, int meshAngular, double relaxStart, double relaxMax,
                int diisDepth, double diisSVTol, double diisEngageFD, bool mom, int momStart, double relaxMin,
                double ladderSwitchAt, double gateFD, double gateDrho, double gateDE, double gateDFD,
-               const std::string& mixer, double smearingkT, const std::string& restartFrom, bool buildOnly, nb::object onIteration)
+               const std::string& mixer, double smearingkT, const std::string& restartFrom, bool buildOnly,
+               const std::string& basisFile, nb::object onIteration)
     {
         if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
         const qcb_request req{Z.data(), int(Z.size()), pos.data(), basis.c_str(), model.c_str(), pp.c_str(),
                               accelerator.c_str(), symmetry ? 1 : 0, polarized ? 1 : 0, multiplicity, maxIter,
                               meshRadial, meshAngular, relaxStart, relaxMax, diisDepth, diisSVTol, diisEngageFD,
                               mom ? 1 : 0, momStart, relaxMin, ladderSwitchAt,
-                              gateFD, gateDrho, gateDE, gateDFD, mixer.c_str(), smearingkT};
+                              gateFD, gateDrho, gateDE, gateDFD, mixer.c_str(), smearingkT, basisFile.c_str()};
         qcb_sink sink{onIteration, std::nullopt};
         const bool stream = !onIteration.is_none();
         char err[errlen] = {0};
@@ -284,6 +285,18 @@ public:
         return json_call([&](char* out, int n){ nb::gil_scoped_release nogil; return qcb_solid_judge_state(h, path.c_str(), out, n); });
     }
     nb::object RestartedFrom() const { return json_call([&](char* out, int n){ return qcb_solid_restarted_from(h, out, n); }); }
+    //! The crystal's density (spin: m(r)) on a stated Cartesian box; iterate: the current iterate's (from the row callback only).
+    nb::dict Field(const std::vector<int>& n, const std::vector<double>& origin, const std::vector<double>& spacing, bool spin, bool iterate) const
+    {
+        if (n.size() != 3 || origin.size() != 3 || spacing.size() != 3)
+            throw std::invalid_argument("n, origin and spacing are three numbers each (the box's points and its corner and steps, bohr)");
+        auto arr = make_array({size_t(n[0]), size_t(n[1]), size_t(n[2])});
+        char err[errlen] = {0};
+        int ok;
+        { nb::gil_scoped_release nogil; ok = qcb_solid_field(h, spin ? 1 : 0, iterate ? 1 : 0, n.data(), origin.data(), spacing.data(), arr.data(), err, errlen); }
+        if (!ok) throw std::runtime_error(err);
+        return grid_dict("values", arr, origin.data(), spacing.data());
+    }
     std::string Resolved() const
     {
         std::string out(size_t(qcb_solid_resolved(h, nullptr, 0)) + 1, '\0');
@@ -306,7 +319,7 @@ NB_MODULE(qchem_py, mod)
         .def(nb::init<const std::vector<int>&, const std::vector<double>&, const std::string&, const std::string&,
                       bool, bool, int, int, const std::string&, const std::string&, int, int, double, double,
                       int, double, double, bool, int, double, double, double, double, double, double,
-                      const std::string&, double, const std::string&, bool, nb::object>(),
+                      const std::string&, double, const std::string&, bool, const std::string&, nb::object>(),
              nb::arg("numbers"), nb::arg("positions"), nb::arg("basis") = "dzvp", nb::arg("model") = "HF",
              nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("max_iter") = 100,
              nb::arg("pp") = "", nb::arg("accelerator") = "DIIS", nb::arg("mesh_radial") = 0, nb::arg("mesh_angular") = 0,
@@ -314,7 +327,7 @@ NB_MODULE(qchem_py, mod)
              nb::arg("diis_engage_fd") = 0.0, nb::arg("mom") = false, nb::arg("mom_start") = 0,
              nb::arg("relax_min") = 0.0, nb::arg("ladder_switch_at") = -1.0,
              nb::arg("gate_fd") = -1.0, nb::arg("gate_drho") = -1.0, nb::arg("gate_de") = -1.0, nb::arg("gate_dfd") = -1.0,
-             nb::arg("mixer") = "Auto", nb::arg("smearing_kT") = 0.0, nb::arg("restart_from") = "", nb::arg("build_only") = false,
+             nb::arg("mixer") = "Auto", nb::arg("smearing_kT") = 0.0, nb::arg("restart_from") = "", nb::arg("build_only") = false, nb::arg("basis_file") = "",
              nb::arg("on_iteration") = nb::none(),
              "MoleculeSetup::Resolve + converge.  Atomic numbers + flat 3N bohr positions.  on_iteration(iter, E, cells), "
              "if given, streams the SCF live (the GIL is released during the solve); cells = [(title, value, text, "
@@ -328,7 +341,8 @@ NB_MODULE(qchem_py, mod)
              "Kerker | Pulay; the facade refuses what a molecule cannot mix).  smearing_kT: Fermi-Dirac smearing, Ha (0 = off).  "
              "restart_from: a saved state (save_state's file) to start from (MoleculeCalculation::Restart): an exact resume or a "
              "warm start (restarted_from() says which); a state the facade refuses raises RestartRefused.  build_only: BUILD the whole graph (basis, every mesh, the SCF "
-             "iterator) and stop before iteration 1, filed as the report run '<ID> build'; run_scf then converges on that graph.")
+             "iterator) and stop before iteration 1, filed as the report run '<ID> build'; run_scf then converges on that graph.  basis_file: a .bsd path used instead of the "
+             "shipped file `basis` names (CalcOptions::basisFile; `basis` is then its label).")
         .def("run_scf", &Calculator::RunSCF, nb::arg("on_iteration"), nb::arg("max_iter") = 100,
              "Run the SCF (after build_only: on the built graph; else again from the seed), streaming each iteration; returns converged.")
         .def("save_state", &Calculator::SaveState, nb::arg("path"),
@@ -409,6 +423,17 @@ NB_MODULE(qchem_py, mod)
        "Crystal files and the materials layers (JSON text in, JSON text out; {\"error\": ...} on a refusal): list | import | "
        "export | save | cell -- see qcb_api.h qcb_materials (the caller passes the user / workspace library paths).");
 
+    mod.def("import_basis", [](const std::string& req)
+    {
+        int n;
+        { nb::gil_scoped_release nogil; n = qcb_basis_import(req.c_str(), nullptr, 0); }
+        std::string out(size_t(n) + 1, '\0');
+        out.resize(size_t(qcb_basis_import(nullptr, out.data(), int(out.size()))));
+        return out;
+    }, nb::arg("request"),
+       "A Gaussian94 basis (the Basis Set Exchange's text) translated into the BasisSetData layout: JSON {text, title, provenance} "
+       "in, JSON {bsd, elements, maxL, notes} or {error} out.");
+
     nb::class_<SolidRun>(mod, "SolidRun")
         .def(nb::init<const std::string&>(), nb::arg("deck_json"),
              "deck::Build: parse the input deck (JSON text, schema 1 -- the file rundeck runs) and build its periodic "
@@ -421,6 +446,12 @@ NB_MODULE(qchem_py, mod)
         .def("total_energy", &SolidRun::TotalEnergy, "The converged total energy (hartree); None unless converged.")
         .def("iterations",   &SolidRun::Iterations)
         .def("judge_state",  &SolidRun::JudgeState, nb::arg("path"), "As Calculator.judge_state, for this crystal.")
+        .def("field", &SolidRun::Field, nb::arg("n"), nb::arg("origin"), nb::arg("spacing"), nb::arg("spin") = false,
+             nb::arg("iterate") = false,
+             "The crystal's density (spin=True: m = rho_up - rho_down, zero when unpolarized) on the Cartesian box the caller states: "
+             "n = (n0, n1, n2) points at origin + (i, j, k) * spacing (bohr; the cell's bounding box or a supercell's).  iterate=False: "
+             "the CONVERGED density (raises when the SCF did not converge); iterate=True: the current iterate's -- only from the "
+             "converge callback, or between converges.  {'values', 'origin', 'spacing'}.")
         .def("restarted_from", &SolidRun::RestartedFrom,
              "What the deck's state.restartFrom did (as Calculator.restarted_from); None for a fresh run.")
         .def("resolved",     &SolidRun::Resolved, "The resolved deck (JSON text): every default filled in, what rundeck records.");

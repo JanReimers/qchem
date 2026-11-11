@@ -236,7 +236,7 @@ const char* const kMolecularGolden = R"G(  #               Etotal      [F,D]    
  18    -149.629547027645   4.31e-08   5.70e-16  -1.61e-08  6.12e-09  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
  19    -149.629547027645   3.14e-08  -7.60e-16  -1.17e-08  4.43e-09  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
  20    -149.629547027645   2.29e-08   7.60e-16  -8.47e-09  3.22e-09  -4.08e-03  Lin 0.50      ----    1.0e+00              ----
-[energy] final E_KS[D_out] = -1.496295470276e+02  (the trace's first-order E_T: |E_T - E_KS| = 5.68e-14 Ha, second order)
+[energy] final E_KS[D_out] = -149.6295470276  (the trace's first-order E_T: |E_T - E_KS| = 5.68e-14 Ha, second order)
 ----------------------------------------------------------------------------------------------------------
 Energy    Breakdown  Total:    -149.629547028  Kinetic:     149.022225347  Potential:    -298.651772375
 Potential Breakdown  Een  :    -410.569585387  Eee    :     100.155759296  Eex      :     -16.283520342
@@ -262,7 +262,7 @@ const char* const kSolidGolden = R"G(  #               Etotal      [F,D]       Î
   2      -7.115350767208   1.23e-02   1.17e-04  2.60e-02  -1.02e-09      DM      ----  PulD 0.45     ----    ----          6.83e-02  
   3      -7.115141435234   6.46e-03   2.94e-05  1.34e-02  -1.38e-09      DM      ----  PulD 0.45     ----    ----          6.90e-02  
   4      -7.115088757831   3.97e-03   7.40e-06  7.18e-03  -1.68e-09      DM      ----  PulD 0.45     ----    ----          6.93e-02  
-[energy] final E_KS[D_out] = -7.115054455314e+00  (the trace's first-order E_T: |E_T - E_KS| = 3.43e-05 Ha, second order)
+[energy] final E_KS[D_out] = -7.115054455314  (the trace's first-order E_T: |E_T - E_KS| = 3.43e-05 Ha, second order)
 ----------------------------------------------------------------------------------------------------------
 Energy    Breakdown  Total:  -7.11505445531  Kinetic:   4.36165986768  Potential: -11.47671432300
 Potential Breakdown  Een  :  -1.13823286561  Eee    :   0.90114790101  Eex      :  -2.54427180641

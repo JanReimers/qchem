@@ -11,7 +11,8 @@
 module;
 #include <string>
 #include <cstddef>
-#include <iosfwd>
+#include <ios>
+#include <ostream>
 #include <nlohmann/json.hpp>
 
 export module qchem.Reporting;
@@ -310,5 +311,26 @@ std::string RenderJson(const json& node);
 //============================================================================
 struct FormatHint { std::string unit; int precision; bool fixed = false; };  //!< fixed => decimal places, not sig-figs
 FormatHint HintFor(const std::string& field);
+
+//============================================================================
+// FormatGuard -- a print that changes a stream's format restores it (OpenWork "cout precision leaks between prints",
+// 2026-11-10).  cout's format is GLOBAL state: a setprecision(1) left behind by one diagnostic printed the solid banner's
+// mixing alpha 0.45 as 0.5, and an earlier fold line truncated every later energy to "Etot=-7.1".  Open one at the top of
+// any scope that sends a manipulator (setprecision, fixed, scientific, showpos, setfill) to a shared stream; it puts back
+// the flags, the precision and the fill when the scope ends.  (setw needs none: it resets itself after one item.)
+//============================================================================
+class FormatGuard
+{
+public:
+    explicit FormatGuard(std::ostream& os) : itsOs(os), itsFlags(os.flags()), itsPrecision(os.precision()), itsFill(os.fill()) {}
+    ~FormatGuard() {itsOs.flags(itsFlags); itsOs.precision(itsPrecision); itsOs.fill(itsFill);}
+    FormatGuard(const FormatGuard&) = delete;
+    FormatGuard& operator=(const FormatGuard&) = delete;
+private:
+    std::ostream&           itsOs;
+    std::ios_base::fmtflags itsFlags;
+    std::streamsize         itsPrecision;
+    char                    itsFill;
+};
 
 } // export namespace qchem::report

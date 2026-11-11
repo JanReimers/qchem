@@ -10,6 +10,7 @@ module;
 
 
 export module qchem.PeriodicTable;
+import qchem.Reporting;   // FormatGuard (RelativeError prints)
 // (no math import: the periodic table is pure data -- string/double/json -- so qcCommon stays math-free.)
 
 export
@@ -99,6 +100,7 @@ inline double RelativeError(double E, double Eref, bool quiet = false)
     const double error = (Eref - E) / Eref;
     if (!quiet)
     {
+        report::FormatGuard keep(std::cout);
         std::cout.precision(9);
         std::cout << "E relative error=" << error * 100.0 << "%, ";
         std::cout.precision(2);

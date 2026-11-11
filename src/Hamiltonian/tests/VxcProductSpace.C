@@ -9,8 +9,14 @@
 // equivalence test below).  The raster is a uniform cell mesh sized from ε -- a sizing rule, not a point set
 // (controller ruling 2026-10-31).
 //
-// EVERY CELL HAS ONE OF THREE OUTCOMES (user 2026-10-31):
+// THE ρ AXIS (user ruling 2026-11-09, \c XCρ {Exact, Fit}): which ρ XC sees, ρ[D] or the fit's projection Pρ.  Every cell is
+// listed at Exact (the default); the A1 fit, whose P is not exact, is listed at Fit too.  (δ and the PW ball have an exact P, so
+// their Fit cell IS their Exact cell.)
+//
+// EVERY CELL HAS ONE OF FOUR OUTCOMES (user 2026-10-31; W added 2026-11-09):
 //   A  it ASSEMBLES through the one XC term (\c Vxc_Quadrature);
+//   W  it RUNS WITH A WARNING through the fitted-v term: the Gaussian x δ cell (A1 fit, ρ Exact) -- v(ρ[D]) fitted for H, so H
+//      is not dE/dD (pin 32).  Ruling (b): kept as a cheap better-than-SAD start; the policy layer warns on it;
 //   R  it is REFUSED at the factory: a representation may not impose a symmetry the calculation lacks.  DERIVED, not
 //      listed (doc/Pins.md pin 30): G is the group the calculation imposes on ρ -- O(3) on the atom path, the point
 //      group (C₁ free) on the molecular path, a space group ⊇ T on a solid; H_R is what a representation imposes --
@@ -57,6 +63,7 @@ import qchem.ChargeDensity.Imp.IrrepCD;           // PeriodicIrrepCD
 import qchem.CompositeCD;                         // tComposite_CD<dcmplx>
 import qchem.Streamable;
 import qchem.Types;
+import qchem.Blaze;                                // D + s*Delta, rvec_t *= (the A1 Pρ derivative gate)
 
 using namespace qchem;
 using Hamiltonian::VxcFit;
@@ -66,9 +73,10 @@ namespace
 {
 enum class Kind     {Solid, Molecule, Atom};
 enum class Points   {Becke, Uniform, Radial};
-enum class Target   {A, R};                                   //!< where the cell must end up
+enum class Target   {A, R, W};                                //!< where the cell must end up
 enum class Observed {OneTerm, Refused, OtherTerm, Throws, SilentMesh, NoPointSet};   //!< what it does today
 
+using Hamiltonian::XCρ;
 const char* Name(Kind k)     {return k==Kind::Solid ? "solid" : k==Kind::Molecule ? "molecule" : "atom";}
 const char* Name(VxcFit f)   {return f==VxcFit::Delta ? "δ" : f==VxcFit::Auxiliary ? "A1" : f==VxcFit::PlaneWave ? "PW" : "Auto";}
 const char* Name(Points p)   {return p==Points::Becke ? "Becke" : p==Points::Uniform ? "uniform" : "radial";}
@@ -91,9 +99,10 @@ struct Cell
 {
     Kind kind; VxcFit fit; Points points;
     Target target; Observed today; std::string row;
+    Hamiltonian::XCρ rho=Hamiltonian::XCρ::Exact;
 };
+const char* Name(Hamiltonian::XCρ r) {return r==Hamiltonian::XCρ::Fit ? "Pρ" : "ρ[D]";}
 
-const std::string kOneTerm ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (the A1 fit is not a sampler strategy: the molecular / atom FittedVxc is the other term)";
 const std::string kPin30   ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (pin-30 gap: the factory throws)";
 const std::string kI3      ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (I3: a PW fit on a Becke mesh, the E/H pairing not designed)";
 const std::string kRadial  ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (no radial-only point set: v_xc at radial points, 4πr² dr -- the atom path)";
@@ -105,8 +114,10 @@ const std::vector<Cell> kCells=
     // -- solid (G ⊇ T): every representation but a radial-only one imposes at most T
     {Kind::Solid,    VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Solid,    VxcFit::Delta,     Points::Uniform, Target::A, Observed::OneTerm,    ""},
-    {Kind::Solid,    VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::Throws,     kPin30},
-    {Kind::Solid,    VxcFit::Auxiliary, Points::Uniform, Target::A, Observed::Throws,     kPin30},
+    {Kind::Solid,    VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::Throws,     kPin30},
+    {Kind::Solid,    VxcFit::Auxiliary, Points::Uniform, Target::W, Observed::Throws,     kPin30},
+    {Kind::Solid,    VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::Throws,     kPin30, XCρ::Fit},
+    {Kind::Solid,    VxcFit::Auxiliary, Points::Uniform, Target::A, Observed::Throws,     kPin30, XCρ::Fit},
     {Kind::Solid,    VxcFit::PlaneWave, Points::Becke,   Target::A, Observed::Throws,     kI3},
     {Kind::Solid,    VxcFit::PlaneWave, Points::Uniform, Target::A, Observed::OneTerm,    ""},
     {Kind::Solid,    VxcFit::Delta,     Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
@@ -115,8 +126,10 @@ const std::vector<Cell> kCells=
     // -- molecule (G = the point group): only {e} representations -- a cell mesh / PW impose T, a radial rule O(3)
     {Kind::Molecule, VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Molecule, VxcFit::Delta,     Points::Uniform, Target::R, Observed::Refused,    ""},
-    {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
+    {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::OtherTerm,  ""},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    ""},
+    {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OneTerm,    "", XCρ::Fit},
+    {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    "", XCρ::Fit},
     {Kind::Molecule, VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Refused,    ""},
     {Kind::Molecule, VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Molecule, VxcFit::Delta,     Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
@@ -125,12 +138,14 @@ const std::vector<Cell> kCells=
     // -- atom (G = O(3)): Becke (less symmetry) and radial assemble; a cell mesh or PW impose T
     {Kind::Atom,     VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Atom,     VxcFit::Delta,     Points::Uniform, Target::R, Observed::Refused,    ""},
-    {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OtherTerm,  kOneTerm},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::OtherTerm,  ""},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    ""},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OneTerm,    "", XCρ::Fit},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    "", XCρ::Fit},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Refused,    ""},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Atom,     VxcFit::Delta,     Points::Radial,  Target::A, Observed::NoPointSet, kRadial},
-    {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::A, Observed::NoPointSet, kRadial},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::W, Observed::NoPointSet, kRadial},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
 };
 
@@ -147,9 +162,14 @@ Group H(Kind k, VxcFit f)
     return Group::E;            // δ imposes nothing beyond its points
 }
 bool Leq(Group h, Group g) {return h==Group::E || h==g;}
-Target Derived(const Cell& c) {return Leq(H(c.kind,c.fit),G(c.kind)) && Leq(H(c.points),G(c.kind)) ? Target::A : Target::R;}
-
-bool Reached(const Cell& c) {return c.today==(c.target==Target::A ? Observed::OneTerm : Observed::Refused);}
+//! Pin 30 decides A vs R; inside A, the A1 fit at ρ[D] is the Gaussian x δ cell, W (ruling (b), 2026-11-09).
+Target Derived(const Cell& c)
+{
+    if (!(Leq(H(c.kind,c.fit),G(c.kind)) && Leq(H(c.points),G(c.kind)))) return Target::R;
+    return c.fit==VxcFit::Auxiliary && c.rho==XCρ::Exact ? Target::W : Target::A;
+}
+Observed AtTarget(Target t) {return t==Target::A ? Observed::OneTerm : t==Target::W ? Observed::OtherTerm : Observed::Refused;}
+bool Reached(const Cell& c) {return c.today==AtTarget(c.target);}
 
 //! A small Becke mesh: the cells are classified, not converged.
 qcMesh::MeshParams PointsFor(Points p)
@@ -183,7 +203,7 @@ Observed Observe(const Cell& c)
                 BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
             std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::GPWFactory(lat, mol, {.densityEcut=8.0}));
             std::unique_ptr<Hamiltonian::cHamiltonian> ham(Hamiltonian::Factory(SpinGroup::UnPolarized, lat.GetStructure(), bs.get(),
-                Pseudopotential::PseudopotentialSet::Get("gth-lda-valence"), mesh, c.fit));
+                Pseudopotential::PseudopotentialSet::Get("gth-lda-valence"), mesh, c.fit));   // (the solid door has no ρ axis yet: an A1 cell throws first)
             return HoldsTheOneTerm(*ham) ? Observed::OneTerm : Observed::OtherTerm;
         }
         std::shared_ptr<const Structure> st;
@@ -204,7 +224,7 @@ Observed Observe(const Cell& c)
         }
         if (!Hamiltonian::AdmitVxc(*st, c.fit, mesh)) return Observed::Refused;
         std::unique_ptr<Hamiltonian::rHamiltonian> ham(Hamiltonian::Factory(Hamiltonian::Model::LDA, SpinGroup::UnPolarized,
-                                                                              st, mesh, bs.get(), 0.0, c.fit));
+                                                                              st, mesh, bs.get(), 0.0, Hamiltonian::XCRoute(c.fit, c.rho)));
         // A non-periodic structure has no cell, so a cell mesh it ACCEPTS was substituted, whatever term came back
         if (c.points==Points::Uniform) return Observed::SilentMesh;
         return HoldsTheOneTerm(*ham) ? Observed::OneTerm : Observed::OtherTerm;
@@ -219,21 +239,26 @@ TEST(VxcProductSpace, TheTableIsWellFormed)
 {
     for (const Cell& c : kCells)
     {
-        EXPECT_EQ(c.target, Derived(c)) << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points)
+        EXPECT_EQ(c.target, Derived(c)) << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points) << " x " << Name(c.rho)
             << ": the target must be pin 30's H_R ≤ G answer, not a listed one";
-        EXPECT_EQ(Reached(c), c.row.empty()) << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points)
+        EXPECT_EQ(Reached(c), c.row.empty()) << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points) << " x " << Name(c.rho)
             << ": a cell at its target names no row; an expected failure must name one";
         size_t n=0;
-        for (const Cell& d : kCells) n+= d.kind==c.kind && d.fit==c.fit && d.points==c.points;
-        EXPECT_EQ(n, 1u) << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points) << " is listed more than once";
+        for (const Cell& d : kCells) n+= d.kind==c.kind && d.fit==c.fit && d.points==c.points && d.rho==c.rho;
+        EXPECT_EQ(n, 1u) << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points) << " x " << Name(c.rho) << " is listed more than once";
     }
     for (Kind k : {Kind::Solid, Kind::Molecule, Kind::Atom})
         for (VxcFit f : {VxcFit::Delta, VxcFit::Auxiliary, VxcFit::PlaneWave})
             for (Points p : {Points::Becke, Points::Uniform, Points::Radial})
             {
-                bool listed=false;
-                for (const Cell& c : kCells) listed|= c.kind==k && c.fit==f && c.points==p;
-                EXPECT_TRUE(listed) << Name(k) << " x " << Name(f) << " x " << Name(p) << " is missing from the table";
+                for (XCρ r : {XCρ::Exact, XCρ::Fit})
+                {
+                    // Pρ is its own cell only where P is inexact: the A1 fit, on a point set it can be stated on
+                    if (r==XCρ::Fit && !(f==VxcFit::Auxiliary && p!=Points::Radial)) continue;
+                    bool listed=false;
+                    for (const Cell& c : kCells) listed|= c.kind==k && c.fit==f && c.points==p && c.rho==r;
+                    EXPECT_TRUE(listed) << Name(k) << " x " << Name(f) << " x " << Name(p) << " x " << Name(r) << " is missing from the table";
+                }
             }
 }
 
@@ -243,10 +268,10 @@ TEST(VxcProductSpace, EveryCellDoesWhatTheTableSays)
     for (const Cell& c : kCells)
     {
         const Observed o=Observe(c);
-        std::cout << "[Vxc cell] " << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points) << ": " << Name(o) << std::endl;
-        EXPECT_EQ(o, c.today) << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points) << ": " << Name(o)
+        std::cout << "[Vxc cell] " << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points) << " x " << Name(c.rho) << ": " << Name(o) << std::endl;
+        EXPECT_EQ(o, c.today) << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points) << " x " << Name(c.rho) << ": " << Name(o)
             << ", the table says " << Name(c.today)
-            << (o==(c.target==Target::A ? Observed::OneTerm : Observed::Refused)
+            << (o==AtTarget(c.target)
                 ? " -- it REACHED its target: move the row (and close its defect)" : "")
             << (c.row.empty() ? "" : "  [row: "+c.row+"]");
     }
@@ -350,4 +375,56 @@ TEST(VxcProductSpace, SinglesAndPairSamplersAgreeOnOneUniformMesh)
               << "  int rho^4/3 pair " << s.xPair << " singles " << s.xSing << std::endl;
     EXPECT_NEAR(s.qSing, s.qPair, 1e-9*std::fabs(s.qPair)) << "the charge of one density, two samplers";
     EXPECT_NEAR(s.xSing, s.xPair, 1e-9*std::fabs(s.xPair)) << "an XC-shaped integral of one density, two samplers";
+}
+
+//! THE A1 Pρ CELL IS VARIATIONAL (V-XC-ONE-TERM step 3, 2026-11-10): the overlap-projected sampler's \c Matrix is the exact derivative of
+//! its \c Rho's quadrature energy.  A QUADRATIC test functional, \f$E=\sum_g w_g(P\rho)_g^2\f$ (\f$v=2P\rho\f$), makes the central
+//! difference exact, so the gate isolates the forward/adjoint pairing from the functional: \f$\mathrm{Tr}(H\Delta)=dE/ds\f$ to roundoff.
+//! It is what the Gaussian x δ cell (\c FittedVxc) FAILS by construction (pin 32): its H fits \f$v(\rho[D])\f$ on its own mesh.
+TEST(VxcProductSpace, TheA1ProjectedCellsMatrixIsItsEnergysDerivative)
+{
+    auto n2=std::make_shared<Molecule>();
+    n2->Insert(Site{7, rvec3_t(-1.03,0,0)});
+    n2->Insert(Site{7, rvec3_t( 1.04,0,0)});
+    std::shared_ptr<const Structure> st=n2;
+    std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(),
+                                                BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    const qcMesh::MeshParams mesh=PointsFor(Points::Becke);
+    BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, mesh, bs->GetImposition());
+    std::shared_ptr<const BasisSet::rFIT_SF_ABS> fb(bs->CreateVxcFitBasisSet(st.get(), mesh, VxcFit::Auxiliary, &quad));
+    ASSERT_FALSE(fb->isOrtho()) << "the premise: the molecular A1 fit is non-orthogonal";
+    const auto sampler=ChargeDensity::MakeDensitySampler(fb, quad);
+
+    const BasisSet::Orbital_1E_IBS<double>* orb=nullptr;
+    for (auto ibs : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_OIBS>()) {orb=ibs; break;}
+    ASSERT_TRUE(orb);
+    const size_t n=orb->GetNumFunctions();
+    hmat_t<double> D(n), Delta(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+    {
+        D(i,j)    = i==j ? 14.0/double(n) : 0.004*((3*i+5*j)%7)-0.012;
+        Delta(i,j)= i==j ? 0.01*((5*i)%7)-0.03 : 0.01*((2*i+7*j)%5)-0.02;
+    }
+    const Irrep irr=orb->GetIrrep(Spin::None);
+    auto energy=[&](double s)
+    {
+        const ChargeDensity::FiniteIrrepCD cd(hmat_t<double>(D+s*Delta), orb, irr);
+        rvec_t e=sampler->Rho(&cd);   // a fresh sampler state per density serial (the cache keys on it)
+        for (auto& x : e) x*=x;
+        return sampler->Integrate(e);
+    };
+    const ChargeDensity::FiniteIrrepCD cd0(D, orb, irr);
+    rvec_t v=sampler->Rho(&cd0);
+    v*=2.0;
+    const rsmat_t H=sampler->Matrix(orb, v);
+    double an=0.0;
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) an+=H(i,j)*Delta(j,i);
+    // E is EXACTLY quadratic in s, so the central difference has no truncation error at any step, and a LARGE step is the right one:
+    // E's noise floor is not its ulp but the A1 metric's conditioning -- Pρ comes through S^-1 over 68 Gaussians, which carries ~1e-11 of
+    // roundoff on a ρ of ~40 (measured 2026-11-10: Pρ(+s)+Pρ(-s)-2Pρ(0) = 9e-12), so E(+s)-E(-s) carries ~1e-10 and the difference's
+    // error falls as 1/ds (fd at ds = 1e-3, 1e-2, 1e-1, 1: off by 1e-7, 1e-8, 5e-9, 3e-10 -- noise, not a pairing error).
+    const double ds=1.0, Ep=energy(ds), Em=energy(-ds), fd=(Ep-Em)/(2*ds);
+    std::cout << "[FD A1 Pρ] E(+s)=" << std::setprecision(14) << Ep << " E(-s)=" << Em << " n=" << n << " nFit=" << fb->GetNumFunctions() << " points=" << sampler->NumPoints()
+              << " fd=" << std::setprecision(14) << fd << " Tr(H Delta)=" << an << " rel=" << std::fabs(an-fd)/std::fabs(fd) << std::endl;
+    EXPECT_NEAR(an, fd, 1e-8*std::max(1.0,std::fabs(fd))) << "the A1 metric's roundoff is ~3e-10 here; H off a DIFFERENT quadrature (the FittedVxc mismatch) misses by the mesh's own error";
 }

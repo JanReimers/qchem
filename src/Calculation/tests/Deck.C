@@ -43,6 +43,32 @@ TEST(Deck, DefaultOptionsRoundTripExactlyAndAreComplete)
     SCFParams p; EXPECT_EQ(deck::ToJson([&]{SCFParams q; deck::FromJson(deck::ToJson(p),q); return q;}()), deck::ToJson(p));
 }
 
+// THE XC CHOICES are the run's `xc` object (user ruling 2026-11-09, V-XC-ONE-TERM step 3): `xc.fit` (the Vxc fit basis) and `xc.rho`
+// ("exact" = rho[D], "fit" = the fit's projection P rho) round-trip, `--set xc.rho=fit` reads the same way, the record always states
+// both, and the old flat `solid.vxcFit` is refused BY NAME (never silently ignored), as `basis.vet` was.
+TEST(Deck, TheXCObjectHoldsTheFitAndTheRhoAndTheFlatVxcFitIsRetired)
+{
+    deck::RunSpec def; deck::FromJson(json{{"structure","Si_diamond"}}, def);
+    EXPECT_EQ(deck::ToJson(def).at("xc"), json({{"fit","Auto"},{"rho","exact"}})) << "the record states both, at their defaults";
+    json d={{"structure","Si_diamond"},{"xc",{{"fit","Delta"}}}};
+    deck::ApplySet(d, "xc.rho=fit");
+    deck::RunSpec r; deck::FromJson(d, r);
+    EXPECT_EQ(r.solid.vxcFit, Hamiltonian::VxcFit::Delta);
+    EXPECT_EQ(r.solid.xcRho, Hamiltonian::XCρ::Fit);
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j, back); EXPECT_EQ(deck::ToJson(back), j);
+    EXPECT_FALSE(j.at("solid").contains("vxcFit")) << "the record never writes the retired key";
+    deck::RunSpec bad;
+    EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"xc",{{"rho","projected"}}}}, bad), std::runtime_error) << "rho is exact | fit";
+    EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"xc",{{"fitt","Delta"}}}}, bad), std::runtime_error) << "typo guard";
+    try { deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"vxcFit","Delta"}}}}, bad); FAIL() << "solid.vxcFit is retired, not ignored"; }
+    catch (const std::runtime_error& e)
+    {
+        const std::string w=e.what();
+        EXPECT_NE(w.find("solid.vxcFit"),std::string::npos) << w;
+        EXPECT_NE(w.find("\"xc\": {\"fit\": \"Delta\"}"),std::string::npos) << "the refusal spells the replacement: " << w;
+    }
+}
+
 // SCFParams gates (2026-11-02): an OFF gate is spelled "off" -- in the deck and in the record it writes (the 1e30 sentinel is retired);
 // a number >= 1e30, which every record wrote before, still reads as off; anything else that is not a number is refused.  The step
 // floor minRelaxRo rides the same round trip.
@@ -378,6 +404,50 @@ TEST(Deck, BasisFileOverridesTheRegisteredDataFileAndABadPathFails)
     EXPECT_NE(nfun(reg), nfun(over)) << "the override built a different basis (SR vs VA files)";
     deck::RunSpec bad; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"file","/nonexistent/x.bsd"}}}}, bad);
     EXPECT_ANY_THROW(deck::Vet(bad,std::filesystem::temp_directory_path()));
+}
+
+// A NON-SHIPPED BASIS IS INLINED (user ruling 2026-11-10: "the more self contained the decks are the better"): Resolve turns a
+// basis.file outside BasisSetData into basis.inline -- the preamble (the attribution) and only the blocks of the material's
+// elements -- so the record runs without the file; the build is the same basis; a file AND inline text, or a file missing an
+// element the material uses, is refused.
+TEST(Deck, ANonShippedBasisFileIsInlinedForTheElementsItUsesWithItsAttribution)
+{
+    namespace fs=std::filesystem;
+    const fs::path shipped=fs::path(DECKS_DIR).parent_path()/"BasisSetData"/"valence_lowq_va.bsd";
+    const fs::path dir=fs::path(::testing::TempDir())/"deck_inline_basis";
+    fs::create_directories(dir);
+    const fs::path mine=dir/"mine.bsd";
+    {
+        std::ifstream in(shipped); std::ofstream out(mine);
+        out<<"MY DOWNLOAD (attribution: Basis Set Exchange, version 1, fetched 2026-11-10)\n"<<in.rdbuf();
+    }
+    deck::RunSpec reg, over;
+    deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_VA"}}}}, reg);
+    deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_VA"},{"file",mine.string()}}}}, over);
+    (void)deck::Resolve(over);
+    const json b=deck::ToJson(over)["basis"];
+    EXPECT_FALSE(b.contains("file")) << "the record must not name the per-user file";
+    ASSERT_TRUE(b.contains("inline"));
+    std::string text; for (const auto& l : b["inline"]) text+=l.get<std::string>()+"\n";
+    EXPECT_NE(text.find("attribution: Basis Set Exchange"), std::string::npos) << "the attribution rides along";
+    EXPECT_NE(text.find(" MN   0"), std::string::npos);
+    EXPECT_NE(text.find(" O   0"), std::string::npos);
+    EXPECT_EQ(text.find(" NA   0"), std::string::npos) << "only the elements the deck uses";
+    deck::RunSpec back; deck::FromJson(deck::ToJson(over), back);
+    EXPECT_EQ(deck::ToJson(back), deck::ToJson(over)) << "an inline deck round-trips";
+    fs::remove(mine);                                    // the record runs without the file
+    std::string inl=deck::Vet(back, fs::temp_directory_path()).summary;
+    const auto at=inl.find(" (inline)");
+    ASSERT_NE(at, std::string::npos) << "the summary says the basis is inline: " << inl;
+    EXPECT_EQ(inl.erase(at, 9), deck::Vet(reg, fs::temp_directory_path()).summary)
+        << "the inlined blocks are the same basis as the shipped file's (the same function count)";
+
+    deck::RunSpec both;
+    EXPECT_ANY_THROW(deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"file",shipped.string()},{"inline",json::array({"x"})}}}}, both));
+    { std::ofstream(dir/"h_only.bsd")<<"t\n!\nBASIS=\"t\"\n H   0\n S   1  1.00\n   1.0   1.0\n ****\n"; }
+    deck::RunSpec lacks; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"file",(dir/"h_only.bsd").string()}}}}, lacks);
+    try { (void)deck::Resolve(lacks); FAIL() << "a basis with no Mn block was inlined"; }
+    catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("no block for"), std::string::npos) << e.what(); }
 }
 
 // D-BASIS-REGISTRY: basis.data is a file STEM, any case -- an unregistered file is usable by name; a name that is not in the data
@@ -971,6 +1041,30 @@ TEST(Deck, AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint)
     const auto c=deck::Build(SiDeck(moved));
     auto cmp2=CompareSolidFingerprints(DeckTests::Fingerprint(*a), DeckTests::Fingerprint(*c));
     EXPECT_TRUE(!cmp2 || !cmp2->empty()) << "a moved atom left the fingerprint unchanged";
+}
+
+// THE CURRENT ITERATE OF A CRYSTAL, SAMPLED MID-RUN (lane G 2026-11-10, the twin of the molecular facade's): from the observer,
+// SolidCalculation::MakeIterateDensity builds the latest diagonalisation's density; before any iteration there is none (a refusal);
+// mid-run it is not the answer; after the last iteration it IS the converged Density(), point for point.
+TEST(Deck, ACrystalsCurrentIterateIsSampledFromTheObserverAndEndsAsTheConvergedDensity)
+{
+    deck::RunSpec spec=SiDeck("Si_diamond");
+    const rvec3_t bond(1.2825, 1.2825, 1.2825), interstitial(5.13, 5.13, 5.13);
+    std::vector<double> mid;
+    std::unique_ptr<SolidCalculation> calc;
+    calc=deck::Build(spec, [&](const auto& row)
+    {
+        if (row.iteration==2) { const auto rho=calc->MakeIterateDensity(); mid={(*rho)(bond), (*rho)(interstitial)}; }
+        EXPECT_EQ(calc->MakeIterateSpinDensity()->operator()(bond), 0.0) << "unpolarized: the zero field";
+    });
+    EXPECT_THROW((void)calc->MakeIterateDensity(), std::logic_error) << "no iteration has run: nothing to sample";
+    auto R=calc->Converge(deck::ScheduleToRun(spec));
+    ASSERT_TRUE(R);
+    ASSERT_EQ(mid.size(), 2u);
+    EXPECT_NE(mid[0], R->Density()(bond)) << "a mid-run iterate is not the answer";
+    const auto last=calc->MakeIterateDensity();
+    EXPECT_DOUBLE_EQ((*last)(bond),         R->Density()(bond));
+    EXPECT_DOUBLE_EQ((*last)(interstitial), R->Density()(interstitial));
 }
 
 // deck::Build STOPS BEFORE THE SCF, and Run is Build + Converge: the observer has seen nothing until the caller converges, and the

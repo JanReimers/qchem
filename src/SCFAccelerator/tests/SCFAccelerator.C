@@ -19,6 +19,8 @@
 #include <gtest/gtest.h>
 #include <memory>   // std::unique_ptr (the test ladder's rung vector)
 #include <vector>
+#include <algorithm> // std::min (the scripted stall rung)
+#include <string>
 #include <cmath>    // std::sin (the multi-direction dependent-history rig)
 #include <iostream>
 import qchem.SCFAccelerator;
@@ -470,6 +472,60 @@ TEST(SCFAcceleratorLadder, HandOffIsVetoedAndRetreatsOnANonEngageableRung)
         EXPECT_NE(h->why.find("RETREAT"), std::string::npos);
     }
     delete las;
+}
+
+// ===== The STALL exit: a rung that stops beating its own best error hands off (user ruling 2026-11-10) =========
+// A DIIS LIMIT CYCLE extrapolates every step and goes nowhere: never Exhausted (B is not singular), and the |ΔE/E|
+// tail fires on it only by a lucky tie (GPW_Si.Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel: iteration 66, then the
+// 100 cap).  The stall exit sees it: `stall` steps without a better error, the energy still moving.
+namespace
+{
+//! A first rung whose error follows a SCRIPT, one entry per CalculateProjections (0 = "no orbitals yet").
+struct ScriptedRung : public SCFAcceleratorNull
+{
+    explicit ScriptedRung(std::vector<double> e) : errs(std::move(e)) {}
+    bool   CalculateProjections() override {++calls; return false;}
+    double GetError() const override {return errs[std::min(calls,errs.size())-1];}
+    std::vector<double> errs;
+    size_t              calls=0;
+};
+//! Run the ladder over the script with the energy moving by \a dE per step; the step (1-based) it hands off at, 0 if never.
+size_t StallStep(std::vector<double> errs, double dE)
+{
+    const size_t n=errs.size();
+    std::vector<std::unique_ptr<SCFAccelerator>> rungs;
+    rungs.emplace_back(new ScriptedRung(std::move(errs)));
+    rungs.emplace_back(new SCFAcceleratorNull);
+    SCFAcceleratorLadder lad(std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8, /*switchat*/0.0);  // no tail
+    double E=-10.0;
+    for (size_t k=1;k<=n;k++)
+    {
+        lad.SetEnergy(E); E-=dE;
+        lad.CalculateProjections();
+        if (auto h=lad.TakeHandOff())
+        {
+            EXPECT_NE(h->why.find("stalled"), std::string::npos) << h->why;
+            return k;
+        }
+    }
+    return 0;
+}
+} //anon
+
+TEST(SCFAcceleratorLadder, ALimitCycleHandsOffAfterStallStepsWithoutABetterError)
+{
+    // best 0.02 at step 3, then five steps that never beat it: the 5th of them (step 8) hands off
+    EXPECT_EQ(StallStep({0.0, 0.05, 0.02, 0.04, 0.03, 0.05, 0.025, 0.04, 0.03}, 1e-4), 8u);
+}
+TEST(SCFAcceleratorLadder, AStalledErrorOnASettledEnergyIsAPlateauNotAStall)
+{
+    // the same cycle with |ΔE/E| ~ 1e-13: a converged plateau (design note 1, Xe DHF), never a hand-off
+    EXPECT_EQ(StallStep({0.0, 0.05, 0.02, 0.04, 0.03, 0.05, 0.025, 0.04, 0.03}, 1e-12), 0u);
+}
+TEST(SCFAcceleratorLadder, TheErrorBeforeAnyOrbitalsIsNotABest)
+{
+    // err = 0 before the first orbitals must not seed the best (nothing beats 0): a steadily improving rung never stalls
+    EXPECT_EQ(StallStep({0.0, 0.1, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04}, 1e-4), 0u);
 }
 
 // ===== The RELATIVE conditioning prune (DIISParams::SVTolRel) ==========================================

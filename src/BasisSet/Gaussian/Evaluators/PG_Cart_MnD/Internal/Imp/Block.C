@@ -4,6 +4,7 @@ module;
 #include <iomanip>
 #include <vector>
 module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Block;
+import qchem.Reporting;   // FormatGuard
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 
 namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
@@ -36,6 +37,7 @@ size_t Block::LMax() const
 
 std::ostream& Block::Write(std::ostream& os) const
 {
+    qchem::report::FormatGuard keep(os);
     os << "Block start:" << std::endl;
     os.setf(std::ios::fixed,std::ios::floatfield);
     os << std::setw(5) << std::setprecision(2) << itsRadial->GetCenter() << " "

@@ -131,6 +131,11 @@ struct SolidCalcOptions
     //! WHICH fit basis represents v_xc -- ORTHOGONAL to the grid above.  \c Auto picks Delta whenever the
     //! plane-wave fit cannot serve (Becke grid, or a polarized run).
     Hamiltonian::VxcFit vxcFit = Hamiltonian::VxcFit::Auto;
+    //! WHICH density XC sees (the deck's `xc.rho`, user ruling 2026-11-09): \c Exact = rho[D], \c Fit = the Vxc fit's projection
+    //! P rho.  The two coincide on every cell a solid realizes Fit on: the delta fit, and the plane-wave ball over plane-wave orbitals
+    //! (>= 4 Ecut holds every pair); a stated \c Fit is reported there.  Over GPW orbitals no ball holds rho[D], so Fit on the plane-wave
+    //! fit is REFUSED by name, never run as Exact (\c qchem.XCRhoPolicy, \c ReportSolidXCRho).
+    Hamiltonian::XCρ xcRho = Hamiltonian::XCρ::Exact;
     //! \brief DFT+U manifolds (programme step 5; doc/Pins.md pin 23): one entry per (site, l, U) -- the
     //! manifold is an INPUT, never the transition metal's d shell by assumption.  \c U in HARTREE here as
     //! everywhere inside the library; \c HubbardU(site, l, eV) below converts from the eV the literature

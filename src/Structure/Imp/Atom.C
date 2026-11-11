@@ -3,6 +3,7 @@ module;
 #include <sstream>
 #include <iomanip>
 module qchem.Structure;
+import qchem.Reporting;   // FormatGuard
 import qchem.Vector3D;
 
 namespace qchem {
@@ -57,6 +58,7 @@ std::string SiteID(const Site& s)
 
 std::ostream& WriteSite(std::ostream& os, const Site& s)
 {
+    qchem::report::FormatGuard keep(os);
     os.setf(std::ios::fixed,std::ios::floatfield);
     os << std::setw(4) << s.Z << "    "
     << std::setw(5) << std::setprecision(2) << s.R << "     ";

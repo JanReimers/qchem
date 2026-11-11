@@ -3,10 +3,13 @@
 // the run is unpolarized, never an absence.
 #include <gtest/gtest.h>
 #include <cmath>
+#include <functional>
 #include <vector>
 #include <memory>
 #include <string>
 #include <stdexcept>
+#include <filesystem>
+#include <fstream>
 import qchem.MoleculeCalculation;
 import qchem.AtomCalculation;   // AtomCalculation::Prepare (the atom's Build -> Run)
 import qchem.Structure;         // Atom (the atom's report ID)
@@ -15,6 +18,7 @@ import qchem.SCFParams;
 import qchem.SCFIterator;
 import qchem.Types;
 import qchem.SCFCap;   // BoundedSCF: the failure arm runs a deliberately bounded SCF
+import qchem.BasisSet.Gaussian.Point.BasisFiles;   // BasisFile / BasisFileChecksum (a stated basis file)
 import qchem.Reporting;   // the run report the molecular mesh files itself into
 
 using namespace qchem;
@@ -239,6 +243,45 @@ TEST(CalculationFacade, EveryDefaultBuildsAndAnUnstatedBasisIsRefusedNamingTheBa
 
 //! Two Gaussian auxiliary fits in one run: each files its fit basis and its private mesh in its own term, so neither overwrites the other
 //! (one grids.auxiliaryFit key did, until the terms got scopes; user ruling 2026-11-04).
+//! A STATED BASIS FILE (CalcOptions::basisFile, lane G 2026-11-10: the GUI's Basis Set Exchange downloads): the same file
+//! contents at another path build the same calculation bit for bit; the report states the path and the checksum; a saved state
+//! refuses an EDITED file (the checksum, not the path, identifies it) and a run on the shipped name alone.
+TEST(CalculationFacade, AStatedBasisFileIsItsContentsAndASavedStateRefusesAnEditedOne)
+{
+    namespace fs=std::filesystem;
+    const fs::path dir=fs::temp_directory_path()/"qchem_UT_basisFile";
+    fs::create_directories(dir);
+    const fs::path copy=dir/"mine.bsd", edited=dir/"edited.bsd", state=dir/"water.h5";
+    fs::copy_file(BasisSet::Gaussian::BasisFile("dzvp.bsd"), copy, fs::copy_options::overwrite_existing);
+    fs::copy_file(copy, edited, fs::copy_options::overwrite_existing);
+    std::ofstream(edited, std::ios::app) << "\nan edit after the last block\n";
+
+    MoleculeCalculation named(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
+    std::unique_ptr<MoleculeCalculation> mine;
+    { qchem::report::Run run("H2O basisFile"); mine=std::make_unique<MoleculeCalculation>(
+        MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .basisFile=copy.string()})); }
+    ASSERT_TRUE(named.IsConverged() && mine->IsConverged());
+    EXPECT_DOUBLE_EQ(mine->Energy(), named.Energy()) << "the same contents are the same basis";
+    EXPECT_EQ(mine->IterationCount(), named.IterationCount());
+    const auto* run=FiledRun("H2O basisFile@");
+    ASSERT_NE(run, nullptr);
+    EXPECT_EQ((*run)["basis"]["file"].get<std::string>(), copy.string());
+    EXPECT_EQ((*run)["basis"]["checksum"].get<std::string>(), BasisSet::Gaussian::BasisFileChecksum(copy.string()));
+
+    mine->SaveState(state.string());
+    auto judged=[&](const CalcOptions& o){ return MoleculeCalculation(MoleculeSetup::Resolve(GetMolecule("H2O"), o)).JudgeState(state.string()); };
+    const auto same=judged({.basis="dzvp", .basisFile=copy.string()});
+    ASSERT_TRUE(same) << same.Error().details;
+    EXPECT_TRUE(same->empty()) << "the same file: an exact resume";
+    const auto ed=judged({.basis="dzvp", .basisFile=edited.string()});
+    ASSERT_FALSE(ed) << "an edited file passed as the same basis";
+    EXPECT_NE(ed.Error().details.find("basis.fileChecksum"), std::string::npos) << ed.Error().details;
+    const auto shipped=judged({.basis="dzvp"});
+    ASSERT_FALSE(shipped) << "a state made on a stated file restarted a run on the shipped name";
+    EXPECT_NE(shipped.Error().details.find("basis.fileChecksum"), std::string::npos) << shipped.Error().details;
+    fs::remove_all(dir);
+}
+
 TEST(CalculationFacade, EachAuxiliaryFitFilesInItsOwnTerm)
 {
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary});
@@ -300,4 +343,62 @@ TEST(CalculationFacade, EveryFacadeCarriesTheAccuracyTargetAndSaysWhoConsumesIt)
         EXPECT_EQ(base.Consumes(), ClientConsumes::Energy);
     }
     expectReported("eps molecule", 4e-6);
+}
+
+//! THE XC ρ AXIS'S POLICY (user ruling 2026-11-09, V-XC-ONE-TERM step 3): the Gaussian x δ cell (the A1 Vxc fit at xc.rho exact) RUNS
+//! WITH A WARNING, and what needs H = dE/dD refuses on it by name -- GDM and the Ladder (its GDM rung).  The variational A1 cell
+//! (xc.rho fit) reports its choice and takes GDM.
+TEST(CalculationFacade, TheGaussianDeltaXCCellWarnsAndRefusesGDM)
+{
+    const auto water=GetMolecule("H2O");
+    auto rowsNamed=[](const qchem::report::json& j, const std::string& name)
+    {
+        std::vector<qchem::report::json> out;
+        std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& x)
+        {
+            if (x.is_object())
+                for (auto it=x.begin(); it!=x.end(); ++it)
+                {
+                    if (it.key()=="policy" && it.value().is_array())
+                        for (const auto& r : it.value()) if (r.contains("name") && r["name"]==name) out.push_back(r);
+                    walk(it.value());
+                }
+            else if (x.is_array()) for (const auto& y : x) walk(y);
+        };
+        walk(j);
+        return out;
+    };
+    { qchem::report::Run run("H2O A1 rhoD resolve"); MoleculeSetup::Resolve(water, {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary}); }
+    const auto* warned=FiledRun("H2O A1 rhoD resolve@");
+    ASSERT_NE(warned, nullptr);
+    const auto w=rowsNamed(*warned, "XCRhoFittedPotential");
+    ASSERT_FALSE(w.empty()) << warned->dump(1);
+    for (const auto& r : w)
+    {
+        EXPECT_EQ(r["verdict"].get<std::string>(), "warn");
+        EXPECT_NE(r["reason"].get<std::string>().find("pin 32"), std::string::npos) << "the warning names the pin it departs from";
+    }
+
+    for (const char* type : {"GDM", "Ladder"})
+    {
+        try
+        {
+            MoleculeSetup::Resolve(water, {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary}, {.type=type});
+            ADD_FAILURE() << type << " on the Gaussian x δ cell was not refused";
+        }
+        catch (const std::invalid_argument& e)
+        {
+            EXPECT_NE(std::string(e.what()).find("not dE/dD"), std::string::npos) << e.what();
+        }
+    }
+    // The variational A1 cell takes GDM, and files its choice.
+    { qchem::report::Run run("H2O A1 Prho resolve");
+      EXPECT_NO_THROW(MoleculeSetup::Resolve(water, {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary,
+                                                     .xcRho=Hamiltonian::XCρ::Fit}, {.type="GDM"})); }
+    const auto* chose=FiledRun("H2O A1 Prho resolve@");
+    ASSERT_NE(chose, nullptr);
+    const auto c=rowsNamed(*chose, "XCRhoProjected");
+    ASSERT_FALSE(c.empty()) << chose->dump(1);
+    for (const auto& r : c) EXPECT_EQ(r["verdict"].get<std::string>(), "choose");
+    EXPECT_TRUE(rowsNamed(*chose, "XCRhoFittedPotential").empty()) << "the variational cell is not warned";
 }

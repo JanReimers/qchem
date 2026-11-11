@@ -12,6 +12,7 @@ module;
 module qchem.Response.LittleGroup;
 import qchem.Symmetry.Lattice_3D.Fold;   // RequireClosedGroup
 import qchem.Blaze;
+import qchem.Reporting;   // FormatGuard
 
 namespace qchem::Response
 {
@@ -27,6 +28,7 @@ double MaxAbs(const cmat_t& A)
 
 std::ostream& OrbitalImages::Write(std::ostream& os) const
 {
+    report::FormatGuard keep(os);
     os << "[little group] the ground state keeps " << ops.size() << " of " << tried << " ops (measured on the orbitals: "
        << "eigenvalue, occupation and unitarity residuals <= " << std::scientific << std::setprecision(1) << tol << "; worst kept "
        << std::setprecision(3) << worstKept << ")";
@@ -39,7 +41,7 @@ std::ostream& OrbitalImages::Write(std::ostream& os) const
            << (r.op.sigma==Symmetry::SpinAction::Flip ? " sigma" : "") << "  " << std::scientific << std::setprecision(3) << r.resid
            << " on " << r.test << " (block " << r.block << ")" << std::endl;
     }
-    return os << std::defaultfloat << std::setprecision(6);
+    return os;
 }
 
 LittleGroupReduction::LittleGroupReduction(const Reference& ref, const OrbitalImages& images, const SelectionRule& rule,
@@ -157,8 +159,9 @@ BlockPairs LittleGroupReduction::Unfold(const BlockPairs& onReps) const
 
 std::ostream& LittleGroupReduction::Write(std::ostream& os) const
 {
+    report::FormatGuard keep(os);
     return os << "[little group] " << itsOps.size() << " ops keep q and the perturbation (phase residual "
-              << std::setprecision(3) << itsWorstV << std::setprecision(6) << "): " << itsReps.size() << " of "
+              << std::setprecision(3) << itsWorstV << "): " << itsReps.size() << " of "
               << itsRef.NumBlocks() << " k-blocks solved" << std::endl;
 }
 

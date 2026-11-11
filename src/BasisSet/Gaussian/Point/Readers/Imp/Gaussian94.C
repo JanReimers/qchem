@@ -3,6 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <stdexcept>   // R2.5b: a rejected basis file THROWS -- it no longer takes the process with it
+#include <sstream>
 #include <string>
 #include <memory>
 #include <stdlib.h>
@@ -58,25 +59,6 @@ Gaussian94Reader::~Gaussian94Reader()
     itsStream.close();
 };
 
-//
-//  Move to the start of the first atom in the file.
-//
-void Gaussian94Reader::TopOfFile()
-{
-    itsStream.seekg(0,std::ios::beg);   //Goto top of file.
-    std::string s;
-    do //search for !
-    {
-        itsStream >> ws >> s;
-    }
-    while ((s!=std::string("!")) && !itsStream.eof());
-
-    std::string title;
-    getline(itsStream,title); //read the title.
-    getline(itsStream,title); //read the title.
-    itsStream >> ws;              //Done.
-}
-
 // Trim from the start (in place)
 inline void ltrim(std::string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
@@ -97,39 +79,58 @@ inline void trim(std::string &s) {
     ltrim(s);
 }
 //
-//  Search for an atom
+//  Move to the start of the BODY: the line after BASIS="..." (every BasisSetData file and every import writes one), else -- a
+//  file with no BASIS= line -- the line after the line that follows the first standalone "!" (the historical layout: "!", title).
+//
+//  THE OLD RULE LOST A BLOCK (lane G 2026-11-10, OpenWork §3): it stopped at the first "!" TOKEN anywhere, skipped two lines, and
+//  FindAtom then skipped to the next "****" when what stood there was not a header -- so a preamble that opened with its own "!"
+//  lines (decks/panel/MnO2_control.bsd, MnO2_p5f3_dD.bsd) silently cost the file its FIRST element block (F, unused by their
+//  decks, so no number moved).  Now the body is located by its header line, and a file with neither is refused by name.
+//
+void Gaussian94Reader::TopOfFile()
+{
+    itsStream.clear();
+    itsStream.seekg(0,std::ios::beg);
+    std::string line;
+    std::streampos afterBang=-1;
+    bool bangPending=false;
+    while (std::getline(itsStream,line))
+    {
+        std::string t=line; trim(t);
+        if (t.rfind("BASIS=",0)==0) return;                               // the body starts on the next line
+        if (bangPending) { afterBang=itsStream.tellg(); bangPending=false; }
+        else if (t=="!" && afterBang==std::streampos(-1)) bangPending=true;
+    }
+    if (afterBang!=std::streampos(-1))
+    {
+        itsStream.clear();
+        itsStream.seekg(afterBang);
+        return;
+    }
+    throw std::runtime_error("Gaussian94Reader: '"+itsFilename+"' has no BASIS= line and no \"!\" line, so its element blocks "
+        "cannot be located -- it is not a Gaussian94 basis file in the BasisSetData layout");
+}
+
+//
+//  Search for an atom: the body's header lines "<symbol> 0", line by line (a shell header has three tokens and a primitive
+//  numbers only, so a header cannot be mistaken), case-insensitive.  Leaves the stream at the line after the header.
 //
 void Gaussian94Reader::FindAtom(const Site& theAtom)
 {
-    char atom[3];
-    atom[2]=0;
     std::string sym=thePeriodicTable().GetSymbol(theAtom.Z);
     std::transform(sym.begin(), sym.end(),sym.begin(), ::toupper);
-
-
     TopOfFile();
-
-    itsStream.read(atom,2);
-    std::string s(atom);
-    trim(s);
-    while (s!=sym && !itsStream.eof())                    //Do we have a match?
+    std::string line;
+    while (std::getline(itsStream,line))
     {
-        do
-        {
-            itsStream >> ws >> s;
-        }
-        while (!(s=="****") && !itsStream.eof());     //Skip past this atom.
-        itsStream >> ws;                                                //Next atom symbol.
-        itsStream.read(atom,2);
-        s=atom;
-        trim(s);
+        std::istringstream is(line);
+        std::string a, b, extra;
+        if (!(is >> a >> b) || (is >> extra) || b!="0") continue;
+        std::transform(a.begin(), a.end(), a.begin(), ::toupper);
+        if (a==sym) return;
     }
-
-    if (itsStream.eof())
-        throw std::runtime_error("Gaussian94Reader: element "+thePeriodicTable().GetSymbol(theAtom.Z)+" (Z="
-            +std::to_string(theAtom.Z)+") has no entry in the basis-set data file '"+itsFilename+"'.");
-    int charge;
-    itsStream >> charge; //I think this is the charge?  Anyway we don't need it.
+    throw std::runtime_error("Gaussian94Reader: element "+thePeriodicTable().GetSymbol(theAtom.Z)+" (Z="
+        +std::to_string(theAtom.Z)+") has no entry in the basis-set data file '"+itsFilename+"'.");
 }
 
 
