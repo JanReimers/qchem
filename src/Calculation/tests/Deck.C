@@ -895,6 +895,28 @@ TEST(Deck, AnXCMeshRecipeFieldUnderAutoIsRefusedAtResolve)
     EXPECT_EQ(msg(json::object()),"NO THROW") << "Auto with nothing set";
 }
 
+//! `rundeck --check` once passed a Pulay mixer with no pulayDepth, which the run then refused at its first iteration (OpenWork §3, lane H
+//! 2026-11-03).  Resolve now runs the iterator's own admission (ResolveMixing), so the deck is refused with the run's message, naming the stage.
+TEST(Deck, AMixerTheRunWouldRefuseIsRefusedAtResolve)
+{
+    auto msg=[](json extra)
+    {
+        json d={{"structure","Si_diamond"}}; d.update(extra);
+        deck::RunSpec s; deck::FromJson(d,s);
+        try { deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); }
+        return std::string("NO THROW");
+    };
+    EXPECT_NE(msg({{"scf",{{"mixer","Pulay"}}}}).find("deck: scf.mixer -- SCFParams: Mixing::Pulay needs PulayDepth > 0."),std::string::npos);
+    EXPECT_EQ(msg({{"scf",{{"mixer","Pulay"},{"pulayDepth",8}}}}),"NO THROW") << "the stated recipe";
+    EXPECT_NE(msg({{"scf",{{"mixer","Kerker"}}}}).find("KerkerG0 > 0"),std::string::npos);
+    EXPECT_NE(msg({{"scf",{{"mixer","Pulay"},{"pulayDepth",8}}},{"solid",{{"accelerator","DIIS"}}}}).find("R1.1"),std::string::npos)
+        << "a density history beside a stated Fock history";
+    EXPECT_EQ(msg({{"scf",{{"mixer","Pulay"},{"pulayDepth",8}}},{"solid",{{"accelerator","GDM"}}}}),"NO THROW");
+    EXPECT_NE(msg({{"schedule",{{{"accelerator","Null"},{"scf",{{"mixer","Linear"}}}},{{"accelerator","Null"},{"scf",{{"mixer","Pulay"}}}}}}})
+              .find("deck: schedule.1.scf.mixer -- "),std::string::npos) << "the message names the stage";
+    EXPECT_EQ(msg(json::object()),"NO THROW") << "Auto";
+}
+
 TEST(Deck, PostSCFRunsOnTheConvergedCalculationAndTheRecordKeepsTheResults)
 {
     const fs::path dir=TmpDir("post");

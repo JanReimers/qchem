@@ -26,6 +26,7 @@ module qchem.Deck;
 import qchem.BasisSet.Lattice.BasisSet;    // CellImages, GPWTolerances
 import qchem.Hamiltonian.Factory;           // VxcFit, HubbardManifold
 import qchem.SCFAccelerator.Factory;        // SCFAccelerators::Type
+import qchem.SCFParams;                     // ResolveMixing: the mixer's admission, run at resolve so --check refuses it too
 import qchem.ChargeDensity.Seed;            // SeedStrategy
 import qchem.LASolver;                      // qchem::Ortho
 import qchem.Types;
@@ -953,6 +954,24 @@ Materials::Material Resolve(RunSpec& spec)
     // multiplicity 1 on an odd count once ran a silent doublet).
     try { (void)SpinChannelCounts(spec.solid, spec.solid.Nelec); }
     catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.multiplicity -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
+    // THE MIXER'S OWN ADMISSION (the iterator's ResolveMixing), run here so --check refuses what the run would: Pulay with no pulayDepth,
+    // Kerker with no kerkerG0, a density history beside a STATED Fock extrapolator (DIIS, Ladder).  A deck run is periodic (gSpace).  An
+    // Auto accelerator is judged as the cold-stage policy's Null: on a RESTORED stage the run may pick DIIS / Ladder (MakeAccelerator), and
+    // only the run can say so -- the one case --check leaves to it.
+    {
+        using A=SCFAccelerators::Type;
+        const auto stages=spec.Stages();
+        for (size_t i=0; i<stages.size(); ++i)
+        {
+            const bool fock = stages[i].accelerator==A::DIIS || stages[i].accelerator==A::Ladder;
+            try { (void)qchem::ResolveMixing(stages[i].scf, /*gSpace*/true, fock); }
+            catch (const std::invalid_argument& e)
+            {
+                const std::string where = spec.schedule.empty() ? std::string("scf") : "schedule."+std::to_string(i)+".scf";
+                throw std::runtime_error("deck: "+where+".mixer -- "+e.what());
+            }
+        }
+    }
     return m;
 }
 
