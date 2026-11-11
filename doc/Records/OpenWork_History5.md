@@ -2307,3 +2307,11 @@ not in `allTests`, so a sweep build does not relink it, and the stale one agains
 rebuild `ninja -C build/Release valgen` before judging valgen's output.  No compensation exists in qchem-GUI or pybind/ (the GUI's
 exponent display reads the GPW basis shells, a different source).  Gate: `UTRadial_BS BasisSet_Atom.EachShellAnnouncesTheExponentsItWasGiven`
 (Gaussian and Slater, every l of Ar: the announced values == the stated exponents).
+
+## ✅ The CLI apps ride every sweep build (lane H, 2026-11-11)
+
+The CLI apps (`scfrun`, `valgen`, `gpwprobe`, `rundeck`, `gth2upf`) were not in `allTests`, so a sweep or nightly build never
+relinked them: a stale `rundeck` against a rebuilt libqchem segfaulted (lane G), and a stale `valgen` silently printed no heat map
+(lane H, the doubled-exponent row above).  The root `CMakeLists.txt` now has `allApps` (the five apps) and `allTests` depends on it.
+Gate, measured: after touching `src/Pseudopotential/PseudopotentialSet.C` (a module interface), `ninja -n allTests` relinks all five.
+A new app in `CLIapps/` joins the `allApps` list.  `pybind/`'s target is separate and unchanged.
