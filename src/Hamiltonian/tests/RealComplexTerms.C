@@ -747,7 +747,10 @@ TEST(RealComplexTerms, ARealTRIMGPWBlockGivesKineticAndPulayForceAndVirialAndNam
     MixedHam withPP; withPP.Add(new Kinetic<dcmplx>); withPP.Add(new Ven_PP_Short(st, &gth.local));
     const auto mv=withPP.MissingVirials(&cxBS, st.get());
     ASSERT_EQ(mv.size(), 1u) << "exactly the short PP has no virial";
-    EXPECT_NE(mv[0].find("no virial"), std::string::npos) << mv[0];
+    // It names the term and what it lacks (since lane H's PW virials the term HAS the face, and its GPW block refuses: "...gives no
+    // species-field virial").
+    EXPECT_NE(mv[0].find("Ven_PP_Short"), std::string::npos) << mv[0];
+    EXPECT_NE(mv[0].find("virial"), std::string::npos) << mv[0];
     try { (void)withPP.At(&cxBS, cdc.get()).Stress(cdc.get(), cell); FAIL() << "a Stress with a missing virial must throw"; }
     catch (const std::logic_error& e) { EXPECT_NE(std::string(e.what()).find("MissingVirials"), std::string::npos) << e.what(); }
 }

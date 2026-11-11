@@ -438,6 +438,14 @@ public:
     bool CanPullbackMatrix(const robs_t*) const override {return false;}
     Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const override;
     Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
+    //! The strain derivative (CellHalf_Design §5): my raster is the fit basis's uniform FFT raster, fixed in fractional coordinates with
+    //! weights Ω/N, so the quadrature side is the pure dilation; the orbital side is the scalar fitter's, at the same fit of \a v that
+    //! \c Matrix contracts (a plane-wave block: an exact zero).  A real block refuses, as its pullback does.
+    bool HasDilationVirial() const override {return true;}
+    bool CanVirialMatrix(const cobs_t* bs) const override;
+    bool CanVirialMatrix(const robs_t*) const override {return false;}
+    Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const override;
+    Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
 private:
     const BasisSet::G_RasterTransform& Raster() const;
     //! \f$P\rho\f$ of ONE density object on my raster: its own projection onto the ball, then the inverse FFT.

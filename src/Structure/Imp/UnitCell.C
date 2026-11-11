@@ -840,6 +840,13 @@ rvec3vec_t UnitCell::IonIonForces(const std::function<double(int)>& zionOf) cons
     return F;
 }
 
+rmat3d_t UnitCell::IonIonVirial(const std::function<double(int)>& zionOf) const
+{
+    rvec_t q(GetNumAtoms());
+    for (size_t a=0; a<GetNumAtoms(); a++) q[a]=zionOf(Sites()[a].Z);
+    return EwaldVirial(*this, q);
+}
+
 // The G = 0 background per cell volume (was Structure::SumFormFactors / GetCellVolume, same order of operations).
 double UnitCell::G0Background(const std::function<double(int)>& f) const
 {

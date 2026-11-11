@@ -89,6 +89,20 @@ public:
         return Outcome<rvec3vec_t,AD::NoGradient>::Ok(ContractAdjointPullback(g, [&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);}, D, st));
     }
 
+    //! The orbital side of its strain derivative at my FIXED \f$\tilde v\f$ (CellHalf_Design §5): the same tensor's adjoint virial, the same
+    //! coefficient lookup.  A plane-wave block's is an exact zero.
+    virtual bool CanVirialOverlap(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
+    {return RealisesAdjointVirial(itsFitBasis->Overlap3C(orb));}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeOverlapVirial(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb, const chmat_t& D,
+                                                               const Structure* st) const override
+    {
+        const PairProjection<dcmplx>& g=itsFitBasis->Overlap3C(orb);
+        if (!RealisesAdjointVirial(g))
+            return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the block "+orb.Name()+"'s overlap tensor against the plane-wave fit gives no virial"});
+        const BasisSet::G_RasterTransform& fit=FitRaster();
+        return Outcome<rmat3d_t,AD::NoGradient>::Ok(ContractAdjointVirial(g, [&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);}, D, st));
+    }
+
     virtual void ReScale(double factor) override
     {
         itsVt *= factor;

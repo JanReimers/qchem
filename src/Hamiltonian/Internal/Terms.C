@@ -403,8 +403,18 @@ template <class T> class Vee_Fit
     , public virtual tGeometryGradient_HT<T>            // its force (§13.2; lane B 2026-11-09): Imp/Vee_Fit_Forces.C
     , public virtual tStatic_PC<T>                      // the per-block pullback client DM_Pullback walks
     , public         RealPullbackBase<T,Vee_Fit<T>>     // ... and on <dcmplx> the real TRIM block's
+    , public virtual tStrainGradient_HT<T>              // its virial (CellHalf_Design §5; lane H 2026-11-10): Imp/Vee_Fit_Virials.C
+    , public virtual tStatic_VC<T>                      // the per-block virial client DM_Virial walks
+    , public         RealVirialBase<T,Vee_Fit<T>>       // ... and on <dcmplx> the real TRIM block's
 {
 public:
+    // The virial (CellHalf_Design §5): the fitter's FIT side (MakeHartreeVirial) plus every block's ORBITAL side (MakeRepulsionVirial).
+    virtual std::string MissingVirial(const tbs_t<T>* bs, const Structure* st) const override;
+    virtual void        AddVirial(rmat3d_t& V, const tDM_CD<T>* D, const Structure* st) const override;
+    virtual rmat3d_t    Virial(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const override
+    {return VirialBlock<T>(bs, s, D, st);}
+    //! ONE virial body for both block scalars, as PullbackBlock.  Public for the mixin.
+    template <class U> rmat3d_t VirialBlock(const tobs_t<U>* bs, const Spin&, const hmat_t<U>& D, const Structure* st) const;
     // The force (GeometryOptimizationPlan §13.2; lane B): Imp/Vee_Fit_Forces.C.
     virtual std::string MissingGradient(const tbs_t<T>* bs, const Structure* st) const override;
     virtual void        AddForces(rvec3vec_t& F, const tDM_CD<T>* D, const Structure* st) const override;

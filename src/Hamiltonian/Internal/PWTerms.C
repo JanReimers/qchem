@@ -75,6 +75,8 @@ class Ven_PP_Short
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
     , public virtual tGeometryGradient_HT<dcmplx>, public virtual tStatic_PC<dcmplx>   // its force (§13.2; lane B), after the private base
     , public virtual tStatic_PC<double>   // ... and a real TRIM block's (§13.2; lane B)
+    , public virtual tStrainGradient_HT<dcmplx>, public virtual tStatic_VC<dcmplx>   // its virial (CellHalf_Design §5; user ruling §6.2)
+    , public virtual tStatic_VC<double>   // ... and a real TRIM block's
 {
 public:
     // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
@@ -82,6 +84,11 @@ public:
     virtual void        AddForces(rvec3vec_t& F, const cDM_CD* D, const Structure* st) const override;
     virtual rvec3vec_t  Pullback(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
     virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
+    // The virial (CellHalf_Design §5; lane H): each block's Orbital_PP_IBS virial, plus a local half's G=0 alignment, Imp/PWTerms_PP_Virials.C.
+    virtual std::string MissingVirial(const tbs_t<dcmplx>* bs, const Structure* st) const override;
+    virtual void        AddVirial(rmat3d_t& V, const cDM_CD* D, const Structure* st) const override;
+    virtual rmat3d_t    Virial(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
+    virtual rmat3d_t    Virial(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
@@ -118,6 +125,8 @@ class Ven_PP_NonLocal
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
     , public virtual tGeometryGradient_HT<dcmplx>, public virtual tStatic_PC<dcmplx>   // its force (§13.2; lane B), after the private base
     , public virtual tStatic_PC<double>   // ... and a real TRIM block's (§13.2; lane B)
+    , public virtual tStrainGradient_HT<dcmplx>, public virtual tStatic_VC<dcmplx>   // its virial (CellHalf_Design §5; user ruling §6.2)
+    , public virtual tStatic_VC<double>   // ... and a real TRIM block's
 {
 public:
     // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
@@ -125,6 +134,11 @@ public:
     virtual void        AddForces(rvec3vec_t& F, const cDM_CD* D, const Structure* st) const override;
     virtual rvec3vec_t  Pullback(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
     virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
+    // The virial (CellHalf_Design §5; lane H): each block's Orbital_PP_IBS virial, plus a local half's G=0 alignment, Imp/PWTerms_PP_Virials.C.
+    virtual std::string MissingVirial(const tbs_t<dcmplx>* bs, const Structure* st) const override;
+    virtual void        AddVirial(rmat3d_t& V, const cDM_CD* D, const Structure* st) const override;
+    virtual rmat3d_t    Virial(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
+    virtual rmat3d_t    Virial(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
@@ -172,6 +186,8 @@ class Ven_PP_Long
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
     , public virtual tGeometryGradient_HT<dcmplx>, public virtual tStatic_PC<dcmplx>   // its force (§13.2; lane B), after the private base
     , public virtual tStatic_PC<double>   // ... and a real TRIM block's (§13.2; lane B)
+    , public virtual tStrainGradient_HT<dcmplx>, public virtual tStatic_VC<dcmplx>   // its virial (CellHalf_Design §5; user ruling §6.2)
+    , public virtual tStatic_VC<double>   // ... and a real TRIM block's
 {
 public:
     // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
@@ -179,6 +195,11 @@ public:
     virtual void        AddForces(rvec3vec_t& F, const cDM_CD* D, const Structure* st) const override;
     virtual rvec3vec_t  Pullback(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
     virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
+    // The virial (CellHalf_Design §5; lane H): each block's Orbital_PP_IBS virial, plus a local half's G=0 alignment, Imp/PWTerms_PP_Virials.C.
+    virtual std::string MissingVirial(const tbs_t<dcmplx>* bs, const Structure* st) const override;
+    virtual void        AddVirial(rmat3d_t& V, const cDM_CD* D, const Structure* st) const override;
+    virtual rmat3d_t    Virial(const cobs_t* bs, const Spin& s, const chmat_t& D, const Structure* st) const override;
+    virtual rmat3d_t    Virial(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! \copydoc HT_BlockOwner::BuildBlocks
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
@@ -239,8 +260,22 @@ template <class T> class tVxc_Quadrature
     , public virtual tGeometryGradient_HT<T>           // its force at fixed D (§13.2; lane B 2026-11-09): Imp/Vxc_Forces.C
     , public virtual tStatic_PC<T>                     // the per-block pullback client DM_Pullback walks
     , public         RealPullbackBase<T,tVxc_Quadrature<T>>   // ... and on <dcmplx> the real TRIM block's
+    , public virtual tStrainGradient_HT<T>             // its virial at fixed D (CellHalf_Design §5; lane H 2026-11-10): Imp/Vxc_Virials.C
+    , public virtual tStatic_VC<T>                     // the per-block virial client DM_Virial walks
+    , public         RealVirialBase<T,tVxc_Quadrature<T>>     // ... and on <dcmplx> the real TRIM block's
 {
 public:
+    //! \name THE VIRIAL AT FIXED D (doc/Records/CellHalf_Design.md §5).  The sampler's quadrature side, the pure dilation
+    //! \f$\delta_{ab}(E_{xc}-\sum_\sigma\sum_g w_g v^\sigma_g\rho^\sigma_g)\f$ on the channel rasters the energy integrates (a sampler whose points
+    //! do not stay fractional refuses: \c HasDilationVirial), plus every block's orbital side (\c MakeMatrixVirial at the fixed v the refresh
+    //! built for D; a plane-wave block: an exact zero).
+    //!@{
+    virtual std::string MissingVirial(const tbs_t<T>* bs, const Structure* st) const override;
+    virtual void        AddVirial(rmat3d_t& V, const tDM_CD<T>* D, const Structure* st) const override;
+    virtual rmat3d_t    Virial(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const override
+    {return VirialBlock<T>(bs, s, D, st);}
+    template <class U> rmat3d_t VirialBlock(const tobs_t<U>* bs, const Spin& s, const hmat_t<U>& D, const Structure* st) const;
+    //!@}
     typedef std::shared_ptr<ExFunctional> xc_t;
     //! \name THE FORCE AT FIXED D (doc/GeometryOptimizationPlan.md §13.2).  \f$E_{xc}=\sum_g w_g e(\rho(r_g))\f$ with \f$\rho\f$ the
     //! sampler's \c Rho of D, whose \c Matrix is its exact adjoint; so at fixed D, \f$\partial E_{xc}/\partial R

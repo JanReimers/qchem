@@ -244,6 +244,56 @@ TEST_F(StructureTests, EwaldForcesAreTheFiniteDifferenceOfTheEnergyAndEtaIndepen
     }
 }
 
+// THE ION-ION VIRIAL (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10): EwaldVirial against the central difference of
+// EwaldEnergy under each of the nine strain components ε_ij (A → (1+ε)A, the fractional positions held), on the same distorted Si and CsCl
+// cells; η-independent; symmetric (a rotation moves nothing); and the pair sum's IonIonVirial against the FD of a strained water.
+TEST_F(StructureTests, EwaldVirialIsTheStrainFiniteDifferenceOfTheEnergyAndEtaIndependent)
+{
+    auto strained=[](const Matrix3D<double>& Fm, const UnitCell& cell)
+    {
+        UnitCell s(Fm*cell.GetCellMatrix());
+        cell.ForEachSite([&](int Z, const rvec3_t& r, bool){ s.AddAtom(Z, cell.ToFractional(r)); });
+        return s;
+    };
+    auto check=[&](const UnitCell& cell, const rvec_t& q, const char* what)
+    {
+        const rmat3d_t V=EwaldVirial(cell,q), Vlo=EwaldVirial(cell,q,0.15), Vhi=EwaldVirial(cell,q,0.50);
+        const double h=1e-5; double largest=0.0;
+        for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++)
+        {
+            EXPECT_NEAR(V(i,j), Vlo(i,j), 1e-8) << what << ": η-independence (" << i << "," << j << ")";
+            EXPECT_NEAR(V(i,j), Vhi(i,j), 1e-8) << what << ": η-independence (" << i << "," << j << ")";
+            EXPECT_NEAR(V(i,j), V(j,i), 1e-9) << what << ": symmetric (" << i << "," << j << ")";
+            auto E=[&](double s){ Matrix3D<double> Fm; Fm(i,j)+=s; return EwaldEnergy(strained(Fm,cell),q); };
+            const double fd=(E(h)-E(-h))/(2*h);
+            EXPECT_NEAR(V(i,j), fd, 1e-6*std::max(1.0,std::fabs(fd))) << what << ", component (" << i << "," << j << ")";
+            largest=std::max(largest, std::fabs(fd));
+        }
+        EXPECT_GT(largest, 1e-2) << what << ": the cell is stressed (far above the gate, so a sign would show)";
+    };
+    FCCUnitCell si(10.26);
+    si.AddAtom(14,{0.0,0.0,0.0});
+    si.AddAtom(14,{0.27,0.24,0.26});
+    check(si, rvec_t{4.0,4.0}, "Si");
+    UnitCell cscl(7.0);
+    cscl.AddAtom(55,{0.0,0.0,0.0});
+    cscl.AddAtom(17,{0.53,0.46,0.51});
+    check(cscl, rvec_t{1.0,-1.0}, "CsCl");
+    const rmat3d_t Vsi=si.IonIonVirial([](int){return 4.0;}), Esi=EwaldVirial(si, rvec_t{4.0,4.0});
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) EXPECT_EQ(Vsi(i,j), Esi(i,j)) << "the cell's face routes to the Ewald sum";
+    Molecule m; m.Insert(Site{8,rvec3_t(0,0,0.1)}); m.Insert(Site{1,rvec3_t(0,1.4,-0.9)}); m.Insert(Site{1,rvec3_t(0.2,-1.3,-0.8)});
+    auto zid=[](int Z){return double(Z);};
+    const rmat3d_t Vm=m.IonIonVirial(zid);
+    std::vector<rvec3_t> R; m.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++)
+    {
+        auto E=[&](double s){ Matrix3D<double> Fm; Fm(i,j)+=s; auto Rs=R; for (auto& r : Rs) r=Fm*r;
+                              std::shared_ptr<Structure> c=m.Clone(); c->MoveSites(Rs); return c->IonIonEnergy(zid); };
+        const double h=1e-5, fd=(E(h)-E(-h))/(2*h);
+        EXPECT_NEAR(Vm(i,j), fd, 1e-6*std::max(1.0,std::fabs(fd))) << "the pair sum, component (" << i << "," << j << ")";
+    }
+}
+
 // Absolute anchor against a textbook Madelung constant.  CsCl = a simple-cubic cell with a +1 cation at
 // the origin and a -1 anion at the body centre (an IONIC ±1 lattice; net charge 0 so the background term
 // vanishes -- a clean, convention-free check).  The electrostatic energy per ion is -α q²/R with the CsCl

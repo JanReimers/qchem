@@ -61,6 +61,11 @@ public:
     //     with the G=0 potential), and the short part's moment sum.  Default 0 (a pure Coulomb tail has none). ---
     virtual double FormFactorG0Long (int Z) const {return 0.0;}
     virtual double FormFactorG0Short(int Z) const {return 0.0;}
+    // --- the q-SLOPES of the reciprocal pieces, d v~/d(G^2) (CellHalf_Design §5, the derivative beside each piece).  A model that has
+    //     them says so with \c CanSlopeQ; the short piece's default is the zero slope of its zero default. ---
+    virtual double FormFactorLongSlope (int Z, double G2) const
+    {throw std::logic_error("LocalPotential::FormFactorLongSlope: this model gives no q-slope (CanSlopeQ() says so)");}
+    virtual double FormFactorShortSlope(int Z, double G2) const {return 0.0;}
 
     //! \brief The ION charge this potential's \f$-Z_{ion}/r\f$ tail carries -- what the ion-ion (Ewald) sum
     //! needs.  Default = the (true) nuclear charge \a Z (all-electron: BareCoulomb, Gaussian-smeared); a
@@ -90,6 +95,15 @@ public:
         default:                return FormFactorLong(Z,G2)+FormFactorShort(Z,G2);
         }
     }
+    virtual double SlopeQ(int Z, double G2, FieldRange rng) const override
+    {
+        switch (rng)
+        {
+        case FieldRange::Long:  return FormFactorLongSlope(Z,G2);
+        case FieldRange::Short: return FormFactorShortSlope(Z,G2);
+        default:                return FormFactorLongSlope(Z,G2)+FormFactorShortSlope(Z,G2);
+        }
+    }
     virtual double CellMeanQ(int Z, FieldRange rng) const override
     {
         switch (rng)
@@ -112,6 +126,8 @@ class BareCoulomb : public LocalPotential
 public:
     virtual double FormFactorLong(int Z, double G2) const {return -FourPi*Z/G2;}   // pure Coulomb: all long
     virtual double VlocLong      (int Z, double r)  const {return -double(Z)/r;}    // -Z/r (singular at r=0)
+    virtual bool   CanSlopeQ() const override {return true;}
+    virtual double FormFactorLongSlope(int Z, double G2) const override {return FourPi*Z/(G2*G2);}
 };
 
 //! \brief Gaussian-smeared nucleus (rung-1 "local pseudopotential"): the point charge is spread into a
@@ -129,6 +145,12 @@ public:
     }
     //! \f$v(G)+4\pi Z/G^2 = 4\pi Z(1-e^{-\sigma^2G^2/2})/G^2 \to 2\pi Z\sigma^2\f$ as \f$G\to0\f$.
     virtual double FormFactorG0Long(int Z) const {return 2*Pi*Z*itsSigma*itsSigma;}
+    //! \f$d/dG^2\f$ of \c FormFactorLong: \f$4\pi Z e^{-\sigma^2G^2/2}(\sigma^2/2+1/G^2)/G^2\f$.
+    virtual bool   CanSlopeQ() const override {return true;}
+    virtual double FormFactorLongSlope(int Z, double G2) const override
+    {
+        return FourPi*Z*std::exp(-0.5*itsSigma*itsSigma*G2)*(0.5*itsSigma*itsSigma+1.0/G2)/G2;
+    }
     //! Real space: the point charge smeared into a Gaussian -> \f$V(r)=-Z\,\mathrm{erf}(r/\sqrt2\sigma)/r\f$
     //! (finite \f$-Z\sqrt{2/\pi}/\sigma\f$ at \f$r=0\f$).
     virtual double VlocLong(int Z, double r) const
@@ -181,6 +203,23 @@ public:
         double poly=itsC1 + itsC2*(3-t) + itsC3*(15-10*t+t*t) + itsC4*(105-105*t+21*t*t-t*t*t);
         double twopi32=std::pow(2*Pi, 1.5);
         return twopi32*itsRloc*itsRloc*itsRloc * g * poly;
+    }
+    //! The q-slopes of the two pieces (CellHalf_Design §5), \f$t=G^2r_{loc}^2\f$: LONG \f$4\pi Z_{ion}e^{-t/2}(r_{loc}^2/2+1/G^2)/G^2\f$;
+    //! SHORT \f$(2\pi)^{3/2}r_{loc}^5e^{-t/2}[\mathrm{poly}'(t)-\mathrm{poly}(t)/2]\f$.
+    virtual bool   CanSlopeQ() const override {return true;}
+    virtual double FormFactorLongSlope(int Z, double G2) const override
+    {
+        RequireSpecies(Z);
+        const double r2=itsRloc*itsRloc, t=G2*r2;
+        return FourPi*itsZion*std::exp(-0.5*t)*(0.5*r2+1.0/G2)/G2;
+    }
+    virtual double FormFactorShortSlope(int Z, double G2) const override
+    {
+        RequireSpecies(Z);
+        const double r2=itsRloc*itsRloc, t=G2*r2, g=std::exp(-0.5*t);
+        const double poly =itsC1 + itsC2*(3-t) + itsC3*(15-10*t+t*t) + itsC4*(105-105*t+21*t*t-t*t*t);
+        const double dpoly=-itsC2 + itsC3*(-10+2*t) + itsC4*(-105+42*t-3*t*t);
+        return std::pow(2*Pi, 1.5)*itsRloc*r2*r2*g*(dpoly-0.5*poly);
     }
     // FormFactor == FormFactorLong + FormFactorShort is provided by the base.
     //! Real space, the closed-form inverse FT documented above, in the same two pieces: the LONG part
@@ -271,6 +310,14 @@ public:
     virtual double VlocLong         (int Z, double r)  const override {return Get(Z).VlocLong(Z,r);}
     virtual double VlocShort        (int Z, double r)  const override {return Get(Z).VlocShort(Z,r);}
     virtual double Zion             (int Z)            const override {return Get(Z).Zion(Z);}
+    virtual double FormFactorLongSlope (int Z, double G2) const override {return Get(Z).FormFactorLongSlope(Z,G2);}
+    virtual double FormFactorShortSlope(int Z, double G2) const override {return Get(Z).FormFactorShortSlope(Z,G2);}
+    //! Every registered species model has its slopes (an empty router has nothing to differentiate, vacuously true).
+    virtual bool   CanSlopeQ() const override
+    {
+        for (const auto& [Z,m] : itsByZ) if (!m->CanSlopeQ()) return false;
+        return true;
+    }
     //! The closed-Gaussian view: cross-cast the sub-model to its Gaussian face (sanctioned abstract->abstract)
     //! -- mirrors \c MultiSpecies_SeparablePotential::AsGaussians.
     virtual std::vector<Math::Gaussian> AsGaussians(int Z, FieldRange rng) const override

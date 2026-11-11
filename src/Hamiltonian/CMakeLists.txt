@@ -8,6 +8,7 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/Ven_Forces.C             # Ven's force (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/Vee_FitDunlap_Forces.C   # the Dunlap Hartree force (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/Vee_Fit_Forces.C         # the first-order fitted Hartree force (GeometryOptimizationPlan §13.2; 2026-11-09)
+    Internal/Imp/Vee_Fit_Virials.C        # its virial (CellHalf_Design §5; lane H 2026-11-10)
     Internal/Imp/PP_Forces.C              # the two PP terms' forces (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/HF_Forces.C              # the HF Coulomb and exchange forces (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/Imp/PP_Local.C
@@ -21,8 +22,10 @@ target_sources(qcHamiltonian PRIVATE
     # same shape Internal/Terms.C has always had.  Split 2026-09-08 out of a single 1213-line TU.
     Internal/Imp/PWTerms_PP.C
     Internal/Imp/PWTerms_PP_Forces.C      # the PW PP structure-factor forces (GeometryOptimizationPlan §13.2; 2026-11-08)
+    Internal/Imp/PWTerms_PP_Virials.C     # the PW PP virials (CellHalf_Design §5; lane H 2026-11-10)
     Internal/Imp/PWTerms_XC.C
     Internal/Imp/Vxc_Forces.C             # the XC term's force at fixed D (GeometryOptimizationPlan §13.2; lane B)
+    Internal/Imp/Vxc_Virials.C            # its virial at fixed D (CellHalf_Design §5; lane H 2026-11-10)
     Internal/Imp/Hubbard.C                # DFT+U (programme step 5, 2026-09-19)
     Internal/Imp/ACBN0.C                  # DFT+U increment 3: the ACBN0 (U,J) estimator (2026-09-21)
     # ⚠ THE SAMPLING ENGINE -- its OWN module since 2026-09-08 (qchem.Hamiltonian.Internal.DensitySampler).

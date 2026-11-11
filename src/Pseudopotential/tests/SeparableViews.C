@@ -14,6 +14,7 @@
 #include <initializer_list>
 #include <memory>            // the multi-species router (SharpnessR forwarding)
 #include <algorithm>         // std::max
+#include <tuple>             // the slope test's species table
 
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH, GTH_PP (real HGH parameters)
 import qchem.Mesh.Quadrature;                     // qcMesh::RadialMesh, MakeRadial
@@ -165,4 +166,42 @@ TEST(SingleSpeciesPotentials, RefuseAnotherSpecies)
     EXPECT_NO_THROW(si.nonlocal.Count(14));
     EXPECT_THROW(si.nonlocal.Count(8), std::logic_error);
     EXPECT_THROW(si.nonlocal.RadialQ(8,0,1.0), std::logic_error);
+}
+
+// THE q-SLOPES (doc/Records/CellHalf_Design.md §5): every closed-form slope a plane-wave stress reads is the central difference of its
+// own value -- the local field's dṽ/d(q²) on both ranges, and every KB projector's dβ̃/dq -- over real GTH parameters that carry 1-3
+// projectors per channel up to l = 3 (Cs q9), and the two analytic demonstrators.
+TEST(PseudopotentialSlopes, EveryQSlopeIsTheFiniteDifferenceOfItsValue)
+{
+    using BasisSet::FieldRange;
+    for (const auto& [el, Z, q] : {std::tuple<const char*,int,int>{"Si",14,4}, {"F",9,7}, {"Na",11,9}, {"Cs",55,9}, {"Mn",25,7}})
+    {
+        const GTH_PP pp=GetGTH(el, "LDA", q);
+        EXPECT_TRUE(pp.local.CanSlopeQ()) << el;
+        EXPECT_TRUE(pp.nonlocal.CanSlopeQ()) << el;
+        for (double q2 : {0.3, 1.7, 6.0, 25.0})
+        {
+            const double h=1e-5*q2;
+            for (FieldRange r : {FieldRange::Long, FieldRange::Short, FieldRange::Full})
+            {
+                const double fd=(pp.local.ValueQ(Z,q2+h,r)-pp.local.ValueQ(Z,q2-h,r))/(2*h), an=pp.local.SlopeQ(Z,q2,r);
+                EXPECT_NEAR(an, fd, 1e-6*std::max(1.0,std::fabs(fd))) << el << " local, range " << int(r) << ", q² " << q2;
+            }
+        }
+        for (size_t p=0;p<pp.nonlocal.Count(Z);p++)
+            for (double x : {0.0, 0.4, 1.3, 3.0, 6.0})
+            {
+                const double h=1e-6, lo=std::max(0.0,x-h), fd=(pp.nonlocal.RadialQ(Z,p,x+h)-pp.nonlocal.RadialQ(Z,p,lo))/(x+h-lo);
+                EXPECT_NEAR(pp.nonlocal.RadialQSlope(Z,p,x), fd, 1e-5*std::max(1.0,std::fabs(fd)))
+                    << el << " projector " << p << " (l=" << pp.nonlocal.L(Z,p) << ") at q " << x;
+            }
+    }
+    const GaussianSmearedNucleus g(0.7);  const BareCoulomb c;  const GaussianProjector b(0.6, -1.3, 1);
+    for (double q2 : {0.3, 2.0})
+    {
+        const double h=1e-5*q2;
+        EXPECT_NEAR(g.SlopeQ(3,q2,FieldRange::Full), (g.ValueQ(3,q2+h,FieldRange::Full)-g.ValueQ(3,q2-h,FieldRange::Full))/(2*h), 1e-6);
+        EXPECT_NEAR(c.SlopeQ(3,q2,FieldRange::Full), (c.ValueQ(3,q2+h,FieldRange::Full)-c.ValueQ(3,q2-h,FieldRange::Full))/(2*h), 1e-5);
+        EXPECT_NEAR(b.RadialQSlope(3,0,q2), (b.RadialQ(3,0,q2+h)-b.RadialQ(3,0,q2-h))/(2*h), 1e-7);
+    }
 }

@@ -44,6 +44,18 @@ public:
         rvec3_t G=itsCell.ToCartesian(rvec3_t(m));   // G = B m
         return FourPi/(G*G);
     }
+    //! \brief Its STRAIN derivative (doc/Records/CellHalf_Design.md §5): under \f$A\to(1+\varepsilon)A\f$ with \a m held, \f$G\to(1+\varepsilon)^{-\top}G\f$,
+    //! so \f$\partial|G|^2/\partial\varepsilon_{ab}=-2G_aG_b\f$ and \f$\partial k/\partial\varepsilon_{ab}=2k\,G_aG_b/|G|^2\f$ (\f$m=0\to0\f$).  Matrix3D is 1-based.
+    rmat3d_t CoulombKernelStrain(const ivec3_t& m) const
+    {
+        rmat3d_t d(0,0,0, 0,0,0, 0,0,0);
+        if (m.x==0 && m.y==0 && m.z==0) return d;
+        const rvec3_t G=itsCell.ToCartesian(rvec3_t(m));
+        const double G2=G*G, s=2.0*FourPi/(G2*G2);
+        const double c[3]={G.x,G.y,G.z};
+        for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) d(a,b)=s*c[a-1]*c[b-1];
+        return d;
+    }
     //! \brief The same kernel at a SHIFTED wave vector, \f$4\pi/|G+q|^2\f$ with \f$G+q=B(m+q)\f$ and \a q fractional
     //! -- the Hartree kernel of a Bloch-q density (doc/LinearResponsePlan.md §3d finding 3).  Only \f$G+q=0\f$ is
     //! dropped, so G = 0 is KEPT whenever q != 0; at q = 0 it is \c CoulombKernel(m) exactly (same arithmetic).

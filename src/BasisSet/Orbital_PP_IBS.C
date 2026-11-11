@@ -16,6 +16,8 @@
 // consumer that needs both, and the diamonds this makes are the house style.
 module;
 #include <map>
+#include <stdexcept>
+#include <string>
 #include <vector>
 export module qchem.BasisSet.Orbital_PP_IBS;
 import qchem.Math.Gaussian;                   // Math::Gaussian -- one c r^{2n} e^{-alpha r^2} term (the _Gaussian faces answer in it)
@@ -56,6 +58,15 @@ public:
     //! [v_Z(r)+Z_{ion}/r]\f$ -- the uniform shift a periodic lattice sum drops with its \f$G=0\f$ term and has
     //! to align to (the "\f$\alpha\f$" of a plane-wave total energy).  0 when the range has none.
     virtual double CellMeanQ(int Z, FieldRange) const=0;
+    //! \name THE q-SLOPE beside \c ValueQ (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10, the derivative version beside an
+    //! existing method): \f$d\tilde v_Z/d(q^2)\f$ for the given range, \f$q>0\f$.  CLIENT: a periodic basis's strain derivative of the field's
+    //! matrix (a homogeneous strain moves every \f$|\Delta G|^2\f$).  \c CanSlopeQ is false exactly when \c SlopeQ throws: a field with no
+    //! closed-form slope keeps its matrix, and its stress is a named \c MissingVirials() entry.
+    //!@{
+    virtual bool   CanSlopeQ() const {return false;}
+    virtual double SlopeQ(int, double, FieldRange) const
+    {throw std::logic_error("SpeciesRadialField::SlopeQ: this field gives no q-slope (CanSlopeQ() says so before a stress is asked)");}
+    //!@}
 };
 
 //! \brief CAPABILITY: the field is a finite closed sum of Gaussians, \f$v_Z(r)=\sum_t c_t r^{2n_t}
@@ -101,6 +112,13 @@ public:
     virtual double Weight (int Z, size_t p) const=0;   //!< its weight \f$w_p\f$ [energy]
     //! The reciprocal radial shape \f$\tilde\beta_p(q)\f$, \f$q=|k+G|\f$ (the view a plane-wave basis consumes).
     virtual double RadialQ(int Z, size_t p, double q) const=0;
+    //! \name THE SLOPE beside \c RadialQ (CellHalf_Design §5, as \c SpeciesRadialField::SlopeQ): \f$d\tilde\beta_p/dq\f$.  \c CanSlopeQ is
+    //! false exactly when \c RadialQSlope throws.
+    //!@{
+    virtual bool   CanSlopeQ() const {return false;}
+    virtual double RadialQSlope(int, size_t, double) const
+    {throw std::logic_error("SpeciesProjectorSet::RadialQSlope: this projector set gives no q-slope (CanSlopeQ() says so before a stress is asked)");}
+    //!@}
 };
 
 //! \brief CAPABILITY: the real-space radial shape \f$\beta_p(r)\f$ (the view a real-space quadrature
@@ -160,6 +178,17 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure*, const SpeciesRadialField& field, FieldRange,
                                                                         const hmat_t<T>& D) const=0;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure*, const SpeciesProjectorSet&, const hmat_t<T>& D) const=0;
+    //! THE STRAIN DERIVATIVES beside them (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10): \f$V_{ab}=\partial\,\mathrm{Re}
+    //! \,\mathrm{Tr}(D^\dagger M)/\partial\varepsilon_{ab}\f$ under the homogeneous strain \f$R\to(1+\varepsilon)R\f$, \f$A\to(1+\varepsilon)A\f$ at
+    //! fixed \a D, a GRADIENT in Ha, channel A (the centres) and channel B (the cell's own appearance: \f$\Omega\f$, \f$G\f$) together.
+    //! CLIENT: the PP terms' virials.  Default: a named refusal (a molecule has no cell; a family with no strain derivative yet), and each
+    //! \c Can is false exactly when its \c Make refuses.
+    virtual bool CanVirialSpeciesField(const SpeciesRadialField&)  const {return false;}
+    virtual bool CanVirialProjectors  (const SpeciesProjectorSet&) const {return false;}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeSpeciesFieldVirial(const Structure*, const SpeciesRadialField&, FieldRange, const hmat_t<T>&) const
+    {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"this basis gives no species-field virial"});}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeProjectorVirial(const Structure*, const SpeciesProjectorSet&, const hmat_t<T>&) const
+    {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"this basis gives no projector virial"});}
     //! \brief The PER-ANGULAR-CHANNEL decomposition of \c MakeProjectorMatrix: one matrix per \f$l\f$, summing
     //! exactly to the whole.  DIAGNOSTIC (doc/SphericalLatticePlan.md I0: the MnO ordering campaign reads
     //! \f$E^{(l)}=\mathrm{Tr}(DV^{(l)})\f$ per channel).  Default: the whole lumped under \f$l=-1\f$, so a basis

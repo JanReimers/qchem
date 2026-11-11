@@ -23,6 +23,7 @@ import qchem.Mesh.XCPolicy;            // qcMesh::BeckeXCParams
 import qchem.StructureData;
 import qchem.Structure;
 import qchem.SCFParams;
+import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (the stress gates' session stages)
 import qchem.Types;
 import qchem.BasisSet;
 import qchem.Hamiltonian;
@@ -101,6 +102,12 @@ public:
     //! The solid's: its Hamiltonian's refusals over the Bloch basis (the Pulay sum included), and every term's force or refusal.
     static std::vector<std::string>        MissingGradients(const SolidCalculation& c) {return c.ForceMissingGradients();}
     static std::vector<Hamiltonian::TermForce> TermForces(const SolidCalculation& c) {return c.ForceTermForces();}
+    //! The strain gates' door (CellHalf_Design §5): every term's virial, the whole virial, and every term's energy at a strained cell with
+    //! the converged per-block D frozen.
+    static std::vector<Hamiltonian::TermVirial> TermVirials(const SolidCalculation& c) {return c.ForceTermVirials();}
+    static std::vector<std::string>            MissingVirials(const SolidCalculation& c) {return c.ForceMissingVirials();}
+    static rmat3d_t                            Virial(const SolidCalculation& c) {return c.ForceVirial();}
+    static std::vector<Hamiltonian::TermEnergy> FrozenAt(const SolidCalculation& c, const UnitCell& cell) {return c.FrozenTermEnergiesAt(cell);}
     //! EVERY TERM'S FORCE at structure \a at with \a D frozen (MakeTermEnergies' twin, index for index): TermEnergiesAt's analytic partner.
     static std::vector<Hamiltonian::TermForce> TermForcesAt(std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
                                                             const MoleculeCalculation::Carry& D)
@@ -574,6 +581,175 @@ TEST(HamiltonianForces, OnPlaneWavesTheWholeForceIsTheFiniteDifferenceOfTheRecon
         // Measured 2026-11-09: |an - fd| <= 4.4e-9 at max|F| 0.041, the FD's own h²/6 |E'''| at h = 1e-3; 2e-8 leaves room for it.
         EXPECT_NEAR(an, fd, 2e-8) << "atom " << A << " axis " << k;
     }
+}
+
+// ============================================================================================================================
+// THE PLANE-WAVE STRESS (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10; lane H): every term's virial at fixed D against
+// the strain finite difference of its own energy, and the whole virial against the strain derivative of the RE-CONVERGED energy.  A
+// distorted, sheared two-atom Si cell (Γ, Ecut 4 Ha) so every component is nonzero; the setup carries a 2 % strain allowance, so the
+// strained cells keep the reference's G sets and rasters (the frozen rule) and the energy is a smooth function of the strain.
+namespace
+{
+//! The sheared, distorted Si cell the stress gates run on (fractional atom positions), with its cell matrix \a A.
+UnitCell PWStressCell(const Matrix3D<double>& A)
+{
+    UnitCell cell(A);
+    cell.AddAtom(14,rvec3_t(0.0,0.0,0.0));
+    cell.AddAtom(14,rvec3_t(0.27,0.24,0.26));
+    return cell;
+}
+Matrix3D<double> PWStressA()
+{
+    const double a=10.26, hf=0.5*a;
+    return Matrix3D<double>(1.01,0.02,-0.01,  0.02,0.99,0.015,  -0.01,0.015,1.0)*Matrix3D<double>(0.0,hf,hf,  hf,0.0,hf,  hf,hf,0.0);
+}
+constexpr double kPWStressAllowance=0.02;
+std::shared_ptr<const SolidSetup> PWStressSetup()
+{
+    SolidCalcOptions o; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0; o.label="pw stress";
+    o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0; o.cellStrainAllowance=kPWStressAllowance;
+    return SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
+}
+SCFParams PWStressParams()
+{
+    SCFParams p; p.NMaxIter=60; p.MinΔρPerElectron=1e-8; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
+    return p;
+}
+//! The reference cell strained by 1 + s e_ij, the atoms riding it, carrying the reference's sizing box (what SolidSession's FollowCell does).
+UnitCell PWStressStrained(size_t i, size_t j, double s)
+{
+    Matrix3D<double> F; F(i,j)+=s;
+    UnitCell cell=PWStressCell(F*PWStressA());
+    cell.SetSizingCell((1.0+kPWStressAllowance)*PWStressA());
+    return cell;
+}
+}
+
+TEST(HamiltonianStress, OnPlaneWavesEachTermsVirialAtFixedDIsItsEnergysStrainFiniteDifference)
+{
+    SolidCalculation c0(PWStressSetup(), PWStressParams());
+    ASSERT_TRUE(c0.Result());
+    for (const auto& m : ForceFacadeTests::MissingVirials(c0)) ADD_FAILURE() << "a plane-wave term has no virial: " << m;
+    const auto V=ForceFacadeTests::TermVirials(c0);
+    const double h=1e-4;
+    std::vector<std::vector<Hamiltonian::TermEnergy>> Ep(9), Em(9);
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++)
+    {
+        Ep[3*(i-1)+j-1]=ForceFacadeTests::FrozenAt(c0, PWStressStrained(i,j, h));
+        Em[3*(i-1)+j-1]=ForceFacadeTests::FrozenAt(c0, PWStressStrained(i,j,-h));
+    }
+    ASSERT_EQ(Ep[0].size(), V.size()) << "MakeTermVirials is MakeTermEnergies' twin, index for index";
+    double largest=0.0;
+    for (size_t t=0;t<V.size();t++)
+    {
+        ASSERT_TRUE(V[t].missing.empty()) << V[t].label << ": " << V[t].missing;
+        for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++)
+        {
+            const size_t k=3*(i-1)+j-1;
+            const double fd=(Ep[k][t].E-Em[k][t].E)/(2*h), an=V[t].V(i,j);
+            std::cout << "[stress] PW " << V[t].label << " (" << i << "," << j << "): analytic " << an << "  FD " << fd << "  diff " << an-fd << std::endl;
+            // h²/6 |E‴| at h = 1e-4 is ~1e-7 on terms of a few Ha; the energies are deterministic (D frozen, no SCF).
+            EXPECT_NEAR(an, fd, 1e-6) << V[t].label << " (" << i << "," << j << ")";
+            largest=std::max(largest, std::fabs(fd));
+        }
+    }
+    EXPECT_GT(largest, 0.1) << "the terms are stressed (far above the gate, so a sign would show)";
+}
+
+TEST(HamiltonianStress, OnPlaneWavesTheWholeVirialIsTheStrainDerivativeOfTheReconvergedEnergy)
+{
+    const auto setup=PWStressSetup();
+    SolidCalculation c0(setup, PWStressParams());
+    ASSERT_TRUE(c0.Result());
+    const rmat3d_t V=ForceFacadeTests::Virial(c0);
+    SolidSession pes(setup, {SCFStage{PWStressParams(), SCFAccelerators::Type::Auto}});
+    const PESGeometry ref=pes.Reference();
+    const double h=5e-4;
+    const std::pair<size_t,size_t> comps[]={{1,1},{2,2},{3,3},{1,2},{2,3},{3,1}};
+    for (const auto& [i,j] : comps)
+    {
+        auto E=[&](double s)
+        {
+            Matrix3D<double> F; F(i,j)+=s;
+            std::vector<rvec3_t> R; for (const auto& r : ref.R) R.push_back(F*r);
+            auto p=pes.ConvergeAt(F*(*ref.cell), R);
+            EXPECT_TRUE(p) << p.Error().details;
+            return p ? p->energy : 0.0;
+        };
+        const double fd=(E(h)-E(-h))/(2*h);
+        std::cout << "[stress] PW whole (" << i << "," << j << "): analytic " << V(i,j) << "  FD " << fd << "  diff " << V(i,j)-fd
+                  << "  (V_ji " << V(j,i) << ")" << std::endl;
+        // MEASURED 2026-11-10: |V − FD| <= 2.6e-7 over the six components (h²/6 |E‴| at h = 5e-4 plus the SCF's 1e-8-per-electron floor);
+        // 1e-6 leaves room for both, and a missing term of this cell's size (>= 1e-4 per component) cannot hide in it.
+        EXPECT_NEAR(V(i,j), fd, 1e-6) << "(" << i << "," << j << ")";
+        EXPECT_NEAR(V(i,j), V(j,i), 1e-7) << "the converged virial is symmetric (" << i << "," << j << ")";
+    }
+}
+
+// THE QE ORACLE (channel B, CellHalf_Design §4 step 4): the same sheared, distorted Si cell at Ecut 10 Ha (ecutwfc 20 Ry, the same
+// sphere), density ball 40 Ha (ecutrho 80 Ry), Γ, LDA (sla+vwn), our GTH q4 written as a UPF by CLIapps/gth2upf -- and NO strain allowance,
+// so the G set IS QE's sphere.  QE's analytic stress is the derivative at its fixed G set too (no constant-Ecut Pulay correction on
+// either side).  QE prints −σ (pressure positive); ours is σ = V/Ω, tensile positive.  The deck and output:
+// ~/Code/qe-runs/Si/si_shear_e10.scf.{in,out} (pw.x, mpirun -np 1, 2026-11-10): E = −14.57926517 Ry, P = 373.33 kbar.
+TEST(HamiltonianStress, OnPlaneWavesSisStressIsQEs)
+{
+    SolidCalcOptions o; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=40.0; o.label="pw stress vs QE";
+    o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=10.0;
+    const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
+    SolidCalculation c(setup, PWStressParams());
+    ASSERT_TRUE(c.Result());
+    const double Ry=0.5, Om=PWStressCell(PWStressA()).GetCellVolume();
+    const double Eqe=-14.57926517*Ry;
+    const double Sqe[3][3]={{ 0.00253100, 0.00002719,-0.00023264},   // QE's "total stress" (Ry/bohr³) = −σ
+                            { 0.00002719, 0.00251660, 0.00010460},
+                            {-0.00023264, 0.00010460, 0.00256588}};
+    const rmat3d_t V=ForceFacadeTests::Virial(c);
+    std::cout << std::setprecision(10) << "[stress vs QE] E = " << c.Result()->Energy() << "  QE " << Eqe << "  diff " << c.Result()->Energy()-Eqe << std::endl;
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++)
+    {
+        const double ours=V(i,j)/Om, qe=-Sqe[i-1][j-1]*Ry;
+        std::cout << "[stress vs QE] σ(" << i << "," << j << ") = " << ours << "  QE " << qe << "  diff " << ours-qe
+                  << " Ha/bohr³ (" << (ours-qe)*2.9421015697e5 << " kbar)" << std::endl;
+        // MEASURED 2026-11-10: |Δσ| <= 2.7e-9 Ha/bohr³ (0.0008 kbar) -- QE prints the stress to 1e-8 Ry/bohr³ = 5e-9 Ha/bohr³, so this
+        // IS its print precision.  1e-8 is two of its last digits; a missing term here is >= 1e-5.
+        EXPECT_NEAR(ours, qe, 1e-8) << "σ(" << i << "," << j << ")";
+    }
+    // The energy at the same sphere: 1.7e-7 Ha (the XC rasters differ: ours is sized from the density ball, QE's is its 24³ FFT grid).
+    EXPECT_NEAR(c.Result()->Energy(), Eqe, 1e-6);
+}
+
+// The two-species twin: NaF (Na q1, F q7) on the same shear, rocksalt a = 8.73 bohr with F off its site at (0.52, 0.47, 0.51), Ecut
+// 15 Ha (ecutwfc 30 Ry), density ball 60 Ha (ecutrho 120 Ry), Γ.  ~/Code/qe-runs/NaF/naf_shear_e15.scf.{in,out} (2026-11-10):
+// E = −44.66120417 Ry, P = −1996.64 kbar (the GTH F q7 at this cutoff is far from converged, which is beside the point: both codes
+// differentiate the SAME discretised energy).
+TEST(HamiltonianStress, OnPlaneWavesNaFsStressIsQEs)
+{
+    const double a=8.73, hf=0.5*a;
+    const Matrix3D<double> A=Matrix3D<double>(1.01,0.02,-0.01,  0.02,0.99,0.015,  -0.01,0.015,1.0)*Matrix3D<double>(0.0,hf,hf,  hf,0.0,hf,  hf,hf,0.0);
+    UnitCell cell(A);
+    cell.AddAtom(11,rvec3_t(0.0,0.0,0.0));
+    cell.AddAtom(9, rvec3_t(0.52,0.47,0.51));
+    SolidCalcOptions o; o.Nelec=8; o.species={{"Na",1},{"F",7}}; o.densityEcut=60.0; o.label="pw NaF stress vs QE";
+    o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=15.0;
+    // The Gaussian recipe is unread on a plane-wave basis, but it must still cover both elements.
+    const auto setup=SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::VALENCE_LOWQ}, o);
+    SolidCalculation c(setup, PWStressParams());
+    ASSERT_TRUE(c.Result());
+    const double Ry=0.5, Om=cell.GetCellVolume(), Eqe=-44.66120417*Ry;
+    const double Sqe[3][3]={{-0.01330020, 0.00045062,-0.00024944},   // QE's "total stress" (Ry/bohr³) = −σ
+                            { 0.00045062,-0.01371509, 0.00021505},
+                            {-0.00024944, 0.00021505,-0.01370339}};
+    const rmat3d_t V=ForceFacadeTests::Virial(c);
+    std::cout << std::setprecision(10) << "[stress vs QE] NaF E = " << c.Result()->Energy() << "  QE " << Eqe << "  diff " << c.Result()->Energy()-Eqe << std::endl;
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++)
+    {
+        const double ours=V(i,j)/Om, qe=-Sqe[i-1][j-1]*Ry;
+        std::cout << "[stress vs QE] NaF σ(" << i << "," << j << ") = " << ours << "  QE " << qe << "  diff " << ours-qe
+                  << " Ha/bohr³ (" << (ours-qe)*2.9421015697e5 << " kbar)" << std::endl;
+        // MEASURED 2026-11-10: |Δσ| <= 4.8e-9 Ha/bohr³ (0.0014 kbar), QE's print precision (5e-9), as on Si.
+        EXPECT_NEAR(ours, qe, 1e-8) << "σ(" << i << "," << j << ")";
+    }
+    EXPECT_NEAR(c.Result()->Energy(), Eqe, 1e-6) << "measured 1.0e-7 Ha";
 }
 
 // ============================================================================================================================

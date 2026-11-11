@@ -610,6 +610,14 @@ private:
     friend class ::ForceFacadeTests;
     std::vector<std::string>                ForceMissingGradients() const;
     std::vector<Hamiltonian::TermForce>     ForceTermForces      () const;
+    //! THE STRAIN GATES' DOOR (doc/Records/CellHalf_Design.md §5; lane H 2026-11-10): every term's virial or its refusal at the converged
+    //! density (MakeTermVirials), and its fixed-D partner -- every term's energy at the point \a lat of \a setup with the per-block density
+    //! \a D FROZEN on that point's basis (no SCF): the finite difference of these across a strain is what each term's virial must equal.
+    //! \a cell: this run's cell strained (the atoms at the same fractional positions), carrying the setup's sizing box.
+    std::vector<Hamiltonian::TermVirial>    ForceTermVirials     () const;
+    std::vector<std::string>                ForceMissingVirials  () const;
+    rmat3d_t                                ForceVirial          () const;   //!< MakeVirial at W = the converged density (a plane-wave basis: no Pulay term)
+    std::vector<Hamiltonian::TermEnergy>    FrozenTermEnergiesAt (const UnitCell& cell) const;
     //!@}
     //! \name THE BUILD, in the two halves Restart needs a gap between (the fingerprint is judged against
     //! the BUILT basis, before anything expensive that depends on the seed)

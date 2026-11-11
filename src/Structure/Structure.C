@@ -95,6 +95,11 @@ public:
     //! \brief The FORCE of that energy, \f$-\partial E_{nn}/\partial R_a\f$ per site (GeometryOptimizationPlan §13.2), with the same charges
     //! and the same sum: the pair sum's closed form here, the Ewald sum's on a periodic \c UnitCell.
     virtual rvec3vec_t IonIonForces (const std::function<double(int Z)>& zionOf) const;
+    //! \brief Its STRAIN derivative beside it (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10, "the derivative version of an
+    //! existing method, beside it"): \f$V_{ab}=\partial E_{nn}/\partial\varepsilon_{ab}\f$ under \f$R\to(1+\varepsilon)R\f$ (and a cell's
+    //! \f$A\to(1+\varepsilon)A\f$), a GRADIENT in Ha, so a cell's stress is \f$V/\Omega\f$.  The pair sum's closed form here (well defined
+    //! for a finite site set, but with no cell it is no stress); the Ewald sum's on a periodic \c UnitCell.
+    virtual rmat3d_t   IonIonVirial (const std::function<double(int Z)>& zionOf) const;
 
     //! \brief The G = 0 NEUTRALISING-BACKGROUND term of a per-species form factor \a f: \f$\frac1\Omega\sum_a f(Z_a)\f$
     //! for a periodic structure (the per-volume mean a reciprocal-space term drops from its matrix and carries

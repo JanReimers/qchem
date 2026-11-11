@@ -23,6 +23,23 @@ double Structure::IonIonEnergy(const std::function<double(int)>& zionOf) const
 }
 
 // Its force: -∂/∂R_a of the pair sum, Σ_{b≠a} q_a q_b (R_a - R_b)/|R_a - R_b|³ (coincident sites skipped, as in the energy).
+// Its virial: E = ½ Σ_{a≠b} q_a q_b / r_ab and ∂r/∂ε_ij = d_i d_j / r under R → (1+ε)R, so V_ij = −½ Σ_{a≠b} q_a q_b d_i d_j / r³.
+rmat3d_t Structure::IonIonVirial(const std::function<double(int)>& zionOf) const
+{
+    const auto& S=Sites();
+    rmat3d_t V(0,0,0, 0,0,0, 0,0,0);
+    for (size_t a=0;a<S.size();a++)
+        for (size_t b=0;b<S.size();b++)
+        {
+            const rvec3_t d=S[a].R-S[b].R;
+            if (b==a || d==rvec3_t(0,0,0)) continue;
+            const double r=norm(d), s=-0.5*zionOf(S[a].Z)*zionOf(S[b].Z)/(r*r*r);
+            const double c[3]={d.x,d.y,d.z};
+            for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) V(i,j)+=s*c[i-1]*c[j-1];
+        }
+    return V;
+}
+
 rvec3vec_t Structure::IonIonForces(const std::function<double(int)>& zionOf) const
 {
     const auto& S=Sites();

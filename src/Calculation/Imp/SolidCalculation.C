@@ -2830,6 +2830,41 @@ std::vector<Hamiltonian::TermForce> SolidCalculation::ForceTermForces() const
     itsImp->ham->RefreshForDensity(itsImp->bs.get(), itsImp->cd.get());   // the terms' density state (a post-SCF audit may have moved it)
     return itsImp->ham->MakeTermForces(itsImp->bs.get(), itsImp->cd.get(), itsImp->st.get());
 }
+std::vector<Hamiltonian::TermVirial> SolidCalculation::ForceTermVirials() const
+{
+    if (!itsImp->ham || !itsImp->cd) throw std::logic_error("SolidCalculation::ForceTermVirials: no converged run");
+    itsImp->ham->RefreshForDensity(itsImp->bs.get(), itsImp->cd.get());   // the terms' density state, as ForceTermForces
+    return itsImp->ham->MakeTermVirials(itsImp->bs.get(), itsImp->cd.get(), itsImp->st.get());
+}
+std::vector<std::string> SolidCalculation::ForceMissingVirials() const
+{
+    if (!itsImp->ham) throw std::logic_error("SolidCalculation::ForceMissingVirials: no Hamiltonian yet");
+    return itsImp->ham->MissingVirials(itsImp->bs.get(), itsImp->st.get());
+}
+// The whole virial at the converged density.  W enters only through the overlap's virial (the Pulay term), which a plane-wave basis
+// answers with an exact zero, so the converged density stands in for it here; a Gaussian basis needs the real W (not wired for solids).
+rmat3d_t SolidCalculation::ForceVirial() const
+{
+    if (!itsImp->ham || !itsImp->cd) throw std::logic_error("SolidCalculation::ForceVirial: no converged run");
+    if (!itsImp->setup->planeWave) throw std::logic_error("SolidCalculation::ForceVirial: a Gaussian basis needs the energy-weighted W (not wired for solids)");
+    itsImp->ham->RefreshForDensity(itsImp->bs.get(), itsImp->cd.get());
+    return itsImp->ham->MakeVirial(itsImp->bs.get(), itsImp->cd.get(), itsImp->cd.get(), itsImp->st.get());
+}
+std::vector<Hamiltonian::TermEnergy> SolidCalculation::FrozenTermEnergiesAt(const UnitCell& cell) const
+{
+    const SavedState D=Carry();
+    const Lattice_3D lat(cell, itsImp->setup->reference.GetLimits());
+    std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
+    c->BuildPoint(itsImp->setup, lat, itsImp->mol);
+    const SpinGroup g=c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+    auto seed=RestoreDensity(D, *c->itsImp->bs, g);
+    if (!seed) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: the density does not fit the point: "+seed.Error().details);
+    c->BuildRun(seed.TakeValue(), SCFParams{}, SCFAccelerators::Type::Auto, /*restored*/false, /*exactResume*/false);   // the Hamiltonian
+    auto cd=RestoreDensity(D, *c->itsImp->bs, g);
+    if (!cd) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: the density does not fit the point: "+cd.Error().details);
+    c->itsImp->ham->RefreshForDensity(c->itsImp->bs.get(), cd->get());
+    return c->itsImp->ham->MakeTermEnergies(cd->get());
+}
 const WaveFunction::cWaveFunction& SolidCalculation::ResponseWaveFunction() const
 {
     const auto* wf=itsImp->scf->GetWaveFunction();
@@ -3068,8 +3103,9 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     if (!cell)
         throw std::invalid_argument("SolidSession::ConvergeAt: a solid's geometry has a cell -- pass Reference().cell for a fixed-cell step");
     if (want.stress)
-        return O::Fail({Why::NoGradient, "stress: no term implements its cell gradient yet (doc/CalcNetworkReview.md §3.3, step 9) -- "
-                        "difference ConvergeAt energies at strained setups meanwhile"});
+        return O::Fail({Why::NoGradient, "stress: Hamiltonian::Stress (the plane-wave terms' virials, CellHalf_Design §5) is not wired into "
+                        "SolidSession yet, as the solid force sum is not (it needs W over the Bloch blocks) -- difference ConvergeAt energies "
+                        "at strained cells meanwhile"});
     // FORCES: the point's own Hamiltonian names what it lacks (GeometryOptimizationPlan §13), and NO SCF is spent finding out: the term
     // set is the SETUP's, the same at every point, so a session that already holds a point asks THAT one here; the first point is built
     // up to its Hamiltonian, asked, and discarded unconverged (AtGeometry's needForces) -- MissingGradients needs the built terms and

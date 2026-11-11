@@ -197,6 +197,121 @@ Outcome<rvec3vec_t,AD::NoGradient> PlaneWave_IBS::MakeProjectorPullback(const St
     }));
 }
 
+//------------------------------------------------------------------------------ the strain derivatives (doc/Records/CellHalf_Design.md §5)
+// V_ab = Σ_ij Re(conj(D_ij) ∂M_ij/∂ε_ab) under A → (1+ε)A with the G indices and the fractional positions held.  Cartesian k+G moves as
+// q → (1+ε)^{-T}q, so ∂q_c/∂ε_ab = −δ_cb q_a; Ω → Ω(1 + tr ε).  Matrix3D is 1-based.
+namespace
+{
+double Cmp(const rvec3_t& v, size_t k) {return k==1 ? v.x : k==2 ? v.y : v.z;}
+void AddOuter(rmat3d_t& V, double s, const rvec3_t& a, const rvec3_t& b)
+{for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) V(i,j)+=s*Cmp(a,i)*Cmp(b,j);}
+rmat3d_t Zero3() {return rmat3d_t(0,0,0, 0,0,0, 0,0,0);}
+//! P_l and its derivative in cos γ for the KB channels (l ≤ 3, the tabulated GTH/HGH range).
+double LegendreSlope(int l, double c)
+{
+    switch (l)
+    {
+    case 0: return 0.0;
+    case 1: return 1.0;
+    case 2: return 3.0*c;
+    case 3: return 0.5*(15.0*c*c-3.0);
+    default: throw std::logic_error("PlaneWave_IBS::MakeProjectorVirial: a KB channel l = "+std::to_string(l)+" > 3 has no tabulated P_l slope");
+    }
+}
+} // namespace
+
+Outcome<rmat3d_t,AD::NoGradient> PlaneWave_IBS::MakeKineticVirial(const hmat_t<dcmplx>& D, const Structure*) const
+{
+    const size_t n=GetNumFunctions();
+    if (D.rows()!=n) throw std::invalid_argument("PlaneWave_IBS::MakeKineticVirial: D is "+std::to_string(D.rows())+" square for "+std::to_string(n)+" plane waves");
+    Internal::KPlusG kg(Recip().GetCell(), kFrac(), Gs());
+    rmat3d_t V=Zero3();
+    for (size_t i=0;i<n;i++) AddOuter(V, -2.0*std::real(D(i,i)), kg.K(i), kg.K(i));   // ∂|q_i|²/∂ε_ab = −2 q_a q_b
+    return Outcome<rmat3d_t,AD::NoGradient>::Ok(V);
+}
+
+Outcome<rmat3d_t,AD::NoGradient> PlaneWave_IBS::MakeSpeciesFieldVirial(const Structure* cl, const SpeciesRadialField& f, FieldRange rng,
+                                                                      const chmat_t& D) const
+{
+    if (!cl) throw std::invalid_argument("PlaneWave_IBS: a strain derivative needs the structure");
+    if (!f.CanSlopeQ()) return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the species field gives no q-slope"});
+    const size_t n=GetNumFunctions();
+    if (D.rows()!=n) throw std::invalid_argument("PlaneWave_IBS::MakeSpeciesFieldVirial: D is "+std::to_string(D.rows())+" square for "+std::to_string(n)+" plane waves");
+    const CellGeometry& B=Recip().GetCell();
+    const std::vector<ivec3_t>& G=Gs();
+    const double Om=Volume();
+    rmat3d_t V=Zero3();
+    double trDM=0.0;   // Re Tr(D† M): the −δ_ab M part
+    for (size_t i=0; i<n; i++)
+        for (size_t j=0; j<n; j++)
+        {
+            if (G[i]==G[j]) continue;   // ΔG = 0 is dropped from the matrix (its alignment is the term's)
+            const rvec3_t dG=B.ToCartesian(rvec3_t(G[i]-G[j]));
+            const double g2=dG*dG;
+            dcmplx m(0.0), dm(0.0);
+            for (const Site& a : cl->Sites())
+            {
+                const dcmplx ph=std::exp(dcmplx(0.0,-(dG*a.R)));
+                m +=f.ValueQ(a.Z, g2, rng)*ph;
+                dm+=f.SlopeQ(a.Z, g2, rng)*ph;
+            }
+            const dcmplx cD=std::conj(D(i,j));
+            trDM+=std::real(cD*m)/Om;
+            AddOuter(V, -2.0*std::real(cD*dm)/Om, dG, dG);   // ∂|ΔG|²/∂ε_ab = −2 ΔG_a ΔG_b
+        }
+    for (size_t a=1;a<=3;a++) V(a,a)-=trDM;
+    return Outcome<rmat3d_t,AD::NoGradient>::Ok(V);
+}
+
+// THE KB VIRIAL.  M_ij = (1/Ω) Σ_atoms e^{−iΔG·τ} F_ij with F_ij = Σ_p w_p (2l+1) P_l(c_ij) β_p(|q_i|) β_p(|q_j|), c_ij = q̂_i·q̂_j.  Then
+//   ∂F/∂q_i = Σ_p w_p (2l+1) [P_l β'_p(|q_i|) β_p(|q_j|) q̂_i + P'_l β_p(|q_i|) β_p(|q_j|) (q̂_j − c q̂_i)/|q_i|],
+// and ∂F/∂ε_ab = −q_{i,a} ∂F/∂q_{i,b} − q_{j,a} ∂F/∂q_{j,b}.  A q = 0 wave contributes nothing through its own derivative (its q_a = 0).
+Outcome<rmat3d_t,AD::NoGradient> PlaneWave_IBS::MakeProjectorVirial(const Structure* cl, const SpeciesProjectorSet& v, const chmat_t& D) const
+{
+    if (!cl) throw std::invalid_argument("PlaneWave_IBS: a strain derivative needs the structure");
+    if (!v.CanSlopeQ()) return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the projector set gives no q-slope"});
+    const size_t n=GetNumFunctions();
+    if (D.rows()!=n) throw std::invalid_argument("PlaneWave_IBS::MakeProjectorVirial: D is "+std::to_string(D.rows())+" square for "+std::to_string(n)+" plane waves");
+    const CellGeometry& B=Recip().GetCell();
+    const std::vector<ivec3_t>& G=Gs();
+    Internal::KPlusG kg(B, kFrac(), G);
+    int maxL=0;
+    for (const Site& a : cl->Sites()) for (size_t p=0; p<v.Count(a.Z); p++) maxL=std::max(maxL, v.L(a.Z,p));
+    const double Om=Volume(), tiny=1e-12;
+    rmat3d_t V=Zero3();
+    double trDM=0.0;
+    for (size_t i=0; i<n; i++)
+        for (size_t j=0; j<n; j++)
+        {
+            const dcmplx cD=std::conj(D(i,j));
+            const rvec3_t dG=B.ToCartesian(rvec3_t(G[i]-G[j]));
+            const double qi=kg.Norm(i), qj=kg.Norm(j), c=kg.CosGamma(i,j);
+            const rvec_t P=SpecialFunctions::LegendreP(maxL, c);
+            const rvec3_t ui = qi>tiny ? (1.0/qi)*kg.K(i) : rvec3_t(0,0,0), uj = qj>tiny ? (1.0/qj)*kg.K(j) : rvec3_t(0,0,0);
+            for (const Site& a : cl->Sites())
+            {
+                const dcmplx ph=std::exp(dcmplx(0.0,-(dG*a.R)))/Om;
+                double F=0.0; rvec3_t dFi(0,0,0), dFj(0,0,0);
+                for (size_t p=0; p<v.Count(a.Z); p++)
+                {
+                    const int l=v.L(a.Z,p);
+                    const double w=(2*l+1)*v.Weight(a.Z,p);
+                    const double bi=v.RadialQ(a.Z,p,qi), bj=v.RadialQ(a.Z,p,qj);
+                    F+=w*P[l]*bi*bj;
+                    const double dP=LegendreSlope(l, c);
+                    if (qi>tiny) dFi+=(w*P[l]*v.RadialQSlope(a.Z,p,qi)*bj)*ui + (w*dP*bi*bj/qi)*(uj-c*ui);
+                    if (qj>tiny) dFj+=(w*P[l]*bi*v.RadialQSlope(a.Z,p,qj))*uj + (w*dP*bi*bj/qj)*(ui-c*uj);
+                }
+                const double re=std::real(cD*ph);
+                trDM+=re*F;
+                AddOuter(V, -re, kg.K(i), dFi);
+                AddOuter(V, -re, kg.K(j), dFj);
+            }
+        }
+    for (size_t a=1;a<=3;a++) V(a,a)-=trDM;
+    return Outcome<rmat3d_t,AD::NoGradient>::Ok(V);
+}
+
 //------------------------------------------------------------------------------ the +U projector set (OpenWork PW-3)
 namespace
 {
