@@ -167,6 +167,24 @@ Outcome<rvec3vec_t,AD::NoGradient> ProjectedDensitySampler::MakeMatrixPullback(c
                                                      "geometry gradient, on the block "+bs->Name()});
 }
 
+// THE STRAIN DERIVATIVE's orbital side (CellHalf_Design §5): as MakeMatrixPullback, the fitter's own, at the same fit under the same lock.
+bool ProjectedDensitySampler::CanVirialMatrix(const cobs_t* bs) const
+{
+    const auto* orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>*>(bs);
+    return orb && itsScalarFitter->CanVirialOverlap(*orb);
+}
+Outcome<rmat3d_t,AD::NoGradient> ProjectedDensitySampler::MakeMatrixVirial(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const
+{
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws), as Matrix
+    std::lock_guard<std::mutex> lock(itsScalarFitterLock.m);
+    itsScalarFitter->DoFit(SampledField(v, NumPoints()));
+    return itsScalarFitter->MakeOverlapVirial(orb, D, st);
+}
+Outcome<rmat3d_t,AD::NoGradient> ProjectedDensitySampler::MakeMatrixVirial(const robs_t* bs, const rvec_t&, const hmat_t<double>&, const Structure*) const
+{
+    return Outcome<rmat3d_t,AD::NoGradient>::Fail({"a real TRIM block on the ball-fit XC route has no contraction, hence no virial, on the block "+bs->Name()});
+}
+
 cvec_t ProjectedDensitySampler::Sample(const TransitionDensity<dcmplx>&, const Spin&) const
 {
     throw std::logic_error("ProjectedDensitySampler::Sample: a linear response on the projected XC route is not realized -- a "

@@ -156,7 +156,9 @@ Outcome<SavedState, RestartRefusal> ReadState(const std::string& path);
 
 //! \brief The IN-MEMORY half of \c WriteState: every block's D and S, exactly as a restore reads them.  The fingerprint and summary
 //! are left empty (the caller built both points from one setup, which is the comparison a file's fingerprint stands in for).
-SavedState SnapshotState(const std::vector<StateBlock>& blocks, const std::string& kind);
+//! \a energyWeighted: each block's D slot holds the ENERGY-WEIGHTED density W = Σ f ε c c^† instead (the Pulay term of a force or a
+//! stress), so the same restore path that rebuilds a density from a snapshot rebuilds W on any basis.
+SavedState SnapshotState(const std::vector<StateBlock>& blocks, const std::string& kind, bool energyWeighted=false);
 
 //! \brief THE MOVED-ATOM CARRY, shared by a file restart at moved atoms and a geometry session's step: each block's D goes to
 //! \a blocks' basis (the SAME recipe at moved atoms) AS AO COEFFICIENTS, unchanged -- the AOs follow their atoms -- and the carry

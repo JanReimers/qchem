@@ -57,6 +57,14 @@ public:
     virtual bool CanPullbackKinetic() const override {return true;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<dcmplx>&, const Structure* st) const override {return Zeros(st);}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<dcmplx>&, const Structure* st) const override {return Zeros(st);}
+    // THE STRAIN DERIVATIVES (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10).  Under A → (1+ε)A the plane waves keep
+    // their G INDICES (the frozen rule, CellGeometry's sizing box) and their normalisation 1/√Ω, so they stay orthonormal: S has an EXACT
+    // ZERO virial.  The kinetic block K_ii = |k+G_i|² moves with q → (1+ε)^{-T}q, ∂|q|²/∂ε_ab = −2 q_a q_b (channel B, no centre).
+    virtual bool CanVirialOverlap() const override {return true;}
+    virtual bool CanVirialKinetic() const override {return true;}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeOverlapVirial(const hmat_t<dcmplx>&, const Structure*) const override
+    {return Outcome<rmat3d_t,AD::NoGradient>::Ok(rmat3d_t(0,0,0, 0,0,0, 0,0,0));}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeKineticVirial(const hmat_t<dcmplx>& D, const Structure*) const override;
     //! The bare-Coulomb nuclear block is the structure-factor field f = −4πZ/|ΔG|²: its pullback is the same formula (the nuclei move).
     virtual bool CanPullbackNuclear() const override {return true;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<dcmplx>& D, const Structure* st) const override;
@@ -119,6 +127,12 @@ public:
     virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override {return true;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure* cl, const SpeciesRadialField& f, FieldRange, const chmat_t& D) const override;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure* cl, const SpeciesProjectorSet& v, const chmat_t& D) const override;
+    // THE STRAIN DERIVATIVES of the two assemblies (CellHalf_Design §5): ΔG·τ is strain-invariant (fractional), so only Ω and the Cartesian
+    // k+G move: ∂M/∂ε_ab = −δ_ab M + (1/Ω) Σ_a e^{−iΔG·τ_a} ∂f/∂ε_ab, with ∂f(q)/∂ε_ab = −q_a ∂f/∂q_b.  They need the model's q-slopes.
+    virtual bool CanVirialSpeciesField(const SpeciesRadialField& f)  const override {return f.CanSlopeQ();}
+    virtual bool CanVirialProjectors  (const SpeciesProjectorSet& v) const override {return v.CanSlopeQ();}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeSpeciesFieldVirial(const Structure* cl, const SpeciesRadialField& f, FieldRange, const chmat_t& D) const override;
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeProjectorVirial(const Structure* cl, const SpeciesProjectorSet& v, const chmat_t& D) const override;
 
     //! \brief \f$B_{G,a}=\langle k+G|\chi_a\rangle=\tilde\chi_a(k+G)/\sqrt\Omega\f$, the Bloch sum's Fourier transform: a
     //! set function \f$c\,r^{l+2n}e^{-\alpha r^2}Y(\hat r)\f$ about \f$C\f$ transforms in closed form,

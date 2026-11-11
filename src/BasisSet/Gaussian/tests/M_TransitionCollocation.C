@@ -21,6 +21,8 @@
 import qchem.BasisSet.Gaussian.Point.Factory;     // Factory(BasisSetData, cell, engine, angular)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator::ContractCubeOverride (D-CUBE0)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // LatticeCollocation, TransitionCollocation
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;  // GeometryCacheBudget (the per-kernel screen gate's image clones)
+import qchem.LatticePoints;   // LatticePointsInSphere (the bound gate walks images past the reach)
 import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;  // GeometryOnlyScreener, CollocationEps
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (the GPW_SPHERICAL block)
 import qchem.BasisSet;
@@ -449,3 +451,98 @@ void SeriesEqualsPerK(BasisSetData data, const UnitCell& cell, const char* what)
 
 TEST(LatticeSeries, TheRResolvedRouteEqualsThePerKRoute_Si)  { SeriesEqualsPerK(BasisSetData::SIPP_SR, SiCell(),  "Si SIPP_SR"); }
 TEST(LatticeSeries, TheRResolvedRouteEqualsThePerKRoute_MnO) { SeriesEqualsPerK(BasisSetData::VALENCE_LOWQ_VA, MnOCell(), "MnO valence (d shells)"); }
+
+// ---- THE PER-KERNEL 1E SERIES SCREEN (lane B 2026-11-10; NR_Evaluator::KernelBound, doc/Pins.md pin 1) ---------------------------
+// The overlap and kinetic series used to screen on the pair prefactor exp(-mu d^2) alone, and so dropped kinetic terms up to 1.9e-6 Ha
+// on MnO at screenEps 1e-10.  Each is now screened on a rigorous bound of its own kernel.  Two gates:
+//   1. the bound HOLDS: |ns_i ns_j K_ij(n)| <= KernelBound(r = |d|) for every component pair and every image out to past the reach
+//      (Si sp, MnO with d shells, the contracted water dzvp), and the reach is where the bound falls below screenEps;
+//   2. the screened series at the production screenEps CONVERGES to the eps -> 0 series: every element within 30 screenEps (the
+//      per-term contract's remainder; the measurement is at the gate).
+namespace {
+struct SeriesFixture { std::shared_ptr<const BasisSet::Real_BS> bs; const Evaluators::PG_Cart_MnD::NR_Evaluator* ev=nullptr; };
+SeriesFixture MakeSeries(BasisSetData data, const UnitCell& cell)
+{
+    SeriesFixture f;
+    f.bs.reset(Factory(data, &cell, Engine::MnD, Angular::Cartesian));
+    for (auto ibs : const_cast<BasisSet::Real_BS&>(*f.bs).Iterate<BasisSet::Real_OIBS>())
+    {   f.ev=dynamic_cast<const Evaluators::PG_Cart_MnD::NR_Evaluator*>(ibs); break; }   // unit tests may cast to the concrete
+    return f;
+}
+void KernelBoundHolds(BasisSetData data, const UnitCell& cell, const char* what)
+{
+    using NR=Evaluators::PG_Cart_MnD::NR_Evaluator;
+    const SeriesFixture f=MakeSeries(data, cell);
+    ASSERT_NE(f.ev, nullptr) << what;
+    const NR& ev=*f.ev;
+    const Evaluators::PG_Cart_MnD::GeometryCacheBudget geo;
+    const double eps=ev.Tolerances().screenEps;
+    for (NR::SeriesKernel K : {NR::SeriesKernel::Overlap, NR::SeriesKernel::Kinetic})
+    {
+        const char* kn= K==NR::SeriesKernel::Overlap ? "overlap" : "kinetic";
+        double worst=0.0;      // max |K| / bound (must be <= 1)
+        double maxOut=0.0;     // max |K| beyond the reach (must be < eps)
+        size_t checked=0;
+        for (size_t i=0;i<ev.size();i++)
+            for (size_t j=0;j<ev.size();j++)
+            {
+                const double reach=ev.SeriesReach(K,i,j);
+                EXPECT_LT(ev.KernelBound(K,i,j,reach*(1.0+1e-9)), eps) << what << " " << kn << " (" << i << "," << j << ")";
+                const rvec3_t cj=ev.radials[j]->GetCenter(), dij=ev.radials[i]->GetCenter()-cj;
+                const double rTest=1.25*reach;
+                for (const auto& n : LatticePointsInSphere(cell, rTest+norm(dij)))
+                {
+                    const rvec3_t Roff=cell.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
+                    const double r=norm(dij-Roff);
+                    if (r>rTest) continue;
+                    const auto img=ev.radials[j]->AtCenter(cj+Roff);
+                    const double k=ev.ns[i]*ev.ns[j]*(K==NR::SeriesKernel::Overlap ? ev.radials[i]->Overlap2C(img,ev.pols[i],ev.pols[j])
+                                                                                    : ev.radials[i]->Grad2   (img,ev.pols[i],ev.pols[j]));
+                    const double b=ev.KernelBound(K,i,j,r);
+                    if (std::abs(k)>1e-300) worst=std::max(worst,std::abs(k)/b);
+                    if (r>reach) maxOut=std::max(maxOut,std::abs(k));
+                    checked++;
+                }
+            }
+        EXPECT_GT(checked, ev.size()*ev.size()) << what << " " << kn;
+        EXPECT_LE(worst, 1.0+1e-12) << what << " " << kn << ": |K| exceeded its bound";
+        EXPECT_LT(maxOut, eps) << what << " " << kn << ": an image past the reach is above screenEps";
+        std::printf("[KernelBound] %s %s: %zu images, max |K|/bound %.3g, max |K| past the reach %.3g (eps %.0e)\n",
+                    what, kn, checked, worst, maxOut, eps);
+    }
+}
+void ScreenedSeriesConverges(BasisSetData data, const UnitCell& cell, const char* what)
+{
+    const SeriesFixture prod=MakeSeries(data, cell), exact=MakeSeries(data, cell);
+    ASSERT_NE(prod.ev, nullptr) << what;
+    auto* bind=dynamic_cast<ToleranceBinding*>(const_cast<BasisSet::Real_BS*>(exact.bs.get()));
+    ASSERT_NE(bind, nullptr);
+    GPWTolerances tight; tight.screenEps=1e-16;
+    bind->BindTolerances(tight);
+    const double eps=prod.ev->Tolerances().screenEps;
+    const size_t n=prod.ev->size();
+    for (const rvec3_t& k : {rvec3_t(0,0,0), rvec3_t(0.25,0.0,0.125)})
+    {
+        const auto phase=PhaseOf(k);
+        struct Op { const char* name; chmat_t a, b; };
+        const Op ops[]={{"overlap", prod.ev->MakeOverlap(phase,cell), exact.ev->MakeOverlap(phase,cell)},
+                        {"kinetic", prod.ev->MakeKinetic(phase,cell), exact.ev->MakeKinetic(phase,cell)}};
+        for (const Op& o : ops)
+        {
+            double d=0;
+            for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) d=std::max(d,std::abs(dcmplx(o.a(i,j))-dcmplx(o.b(i,j))));
+            // The screen is PER TERM (each dropped image is below eps), so an element's remainder is the sum of the first dropped
+            // shells' sub-eps terms, which add COHERENTLY at Gamma: measured 18.6 eps (MnO overlap, Gamma), 8.4 eps (MnO kinetic).
+            // The prefactor screen it replaced left 400 eps (overlap) and 19 000 eps (kinetic) on the same MnO cell.
+            EXPECT_LT(d, 30.0*eps) << what << " " << o.name << " at k=(" << k.x << "," << k.y << "," << k.z << ")";
+            std::printf("[KernelBound] %s %s k=(%g,%g,%g): max|M(eps %.0e) - M(1e-16)| = %.3g\n", what, o.name, k.x, k.y, k.z, eps, d);
+        }
+    }
+}
+} // namespace
+
+TEST(LatticeSeries, KernelBoundHolds_Si)    { KernelBoundHolds(BasisSetData::SIPP_SR, SiCell(), "Si SIPP_SR"); }
+TEST(LatticeSeries, KernelBoundHolds_MnO)   { KernelBoundHolds(BasisSetData::VALENCE_LOWQ_VA, MnOCell(), "MnO valence (d shells)"); }
+TEST(LatticeSeries, KernelBoundHolds_Water) { KernelBoundHolds(BasisSetData::DZVP, WaterBox(), "water dzvp (contracted)"); }
+TEST(LatticeSeries, ScreenedSeriesConverges_Si)  { ScreenedSeriesConverges(BasisSetData::SIPP_SR, SiCell(), "Si SIPP_SR"); }
+TEST(LatticeSeries, ScreenedSeriesConverges_MnO) { ScreenedSeriesConverges(BasisSetData::VALENCE_LOWQ_VA, MnOCell(), "MnO valence (d shells)"); }

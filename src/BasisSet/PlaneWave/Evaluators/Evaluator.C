@@ -125,6 +125,9 @@ public:
     PairProjection<dcmplx> Overlap3CTensor() const;
     //! The tensors' applyAdjointPullback: identically zero (a plane wave has no centre).  §13.2, lane B.
     static std::function<rvec3vec_t(const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure*)> ZeroPullback();
+    //! The tensors' applyAdjointVirial: identically zero (the pair counts are fixed by the G indices under the frozen rule).
+    //! CellHalf_Design §5, lane H.
+    static std::function<rmat3d_t(const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure*)> ZeroVirial();
 private:
     //! The tensors' PairProjection<dcmplx>::applyAdjoint (field->matrix backward): \f$\langle i|f|j\rangle=f(m_i-m_j)\f$, the
     //! plane-wave Fourier lookup (== \c OverlapMatrix), self-contained so it survives in the tensor cache.
@@ -180,6 +183,8 @@ public:
     //! \copydoc BasisSet::G_PoissonKernel::CoulombKernel
     //! The lattice metric owns the physics; this is the fit basis's seam onto it.
     double CoulombKernel(const ivec3_t& dm) const override      {return Recip().CoulombKernel(dm);}
+    //! \copydoc BasisSet::G_PoissonKernel::CoulombKernelStrain
+    rmat3d_t CoulombKernelStrain(const ivec3_t& dm) const override {return Recip().CoulombKernelStrain(dm);}
 
     //! Fractional \f$(i/n)\f$ FFT grid (exposed for the direct-grid unit-test oracles).
     std::vector<rvec3_t> UniformGrid(const ivec3_t& n) const {return itsGrid->UniformGrid(n);}

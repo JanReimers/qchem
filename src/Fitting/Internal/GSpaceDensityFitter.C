@@ -99,7 +99,49 @@ public:
                                                              const Structure* st) const override
     {return RepulsionPullbackT(orb, D, st);}
 
+    //! THE FIT SIDE of the virial (CellHalf_Design §5): \f$E_H=\tfrac1{2\Omega}\sum_G k(G)|N_G|^2\f$ with the counts \f$N_G=\Omega\tilde\rho(G)\f$
+    //! held, so \f$\partial E_H/\partial\varepsilon_{ab}=-\delta_{ab}E_H+\tfrac12\Omega\sum_G\partial_{ab}k(G)\,|\tilde\rho(G)|^2\f$.
+    bool CanHartreeVirial() const override {return true;}
+    Outcome<rmat3d_t,AD::NoGradient> MakeHartreeVirial() const override
+    {
+        RequireFit("a Hartree virial");
+        const double E=HartreeEnergy({});
+        rmat3d_t V(0,0,0, 0,0,0, 0,0,0);
+        for (const auto& [dm,r] : itsRho)
+        {
+            const rmat3d_t dk=itsPK->CoulombKernelStrain(dm);
+            const double w=0.5*itsVolume*std::norm(r);
+            for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) V(a,b)+=w*dk(a,b);
+        }
+        for (size_t a=1;a<=3;a++) V(a,a)-=E;
+        return Outcome<rmat3d_t,AD::NoGradient>::Ok(V);
+    }
+    //! THE ORBITAL SIDE (CellHalf_Design §5): the Coulomb tensor's own realization at my fixed ρ̃ (a plane-wave block: exactly zero).
+    bool CanVirialRepulsion(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return RealisesAdjointVirial(orb.Repulsion3C(*itsCD));}
+    bool CanVirialRepulsion(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return RealisesAdjointVirial(orb.Repulsion3C(*itsCD));}
+    Outcome<rmat3d_t,AD::NoGradient> MakeRepulsionVirial(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb, const hmat_t<double>& D,
+                                                         const Structure* st) const override
+    {
+        chmat_t Dc(D.rows());
+        for (size_t i=0;i<D.rows();i++) for (size_t j=i;j<D.rows();j++) Dc(i,j)=dcmplx(D(i,j),0.0);
+        return RepulsionVirialT(orb, Dc, st);
+    }
+    Outcome<rmat3d_t,AD::NoGradient> MakeRepulsionVirial(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb, const hmat_t<dcmplx>& D,
+                                                         const Structure* st) const override
+    {return RepulsionVirialT(orb, D, st);}
+
 private:
+    template <class U> Outcome<rmat3d_t,AD::NoGradient> RepulsionVirialT(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb, const chmat_t& D,
+                                                                         const Structure* st) const
+    {
+        RequireFit("a repulsion virial");
+        const PairProjection<dcmplx>& g=orb.Repulsion3C(*itsCD);
+        if (!RealisesAdjointVirial(g))
+            return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the block "+orb.Name()+"'s Coulomb tensor against the plane-wave fit gives no virial"});
+        const ΔG_Map& rho=itsRho;
+        return Outcome<rmat3d_t,AD::NoGradient>::Ok(ContractAdjointVirial(g, [&rho](const ivec3_t& dm)->dcmplx
+            { auto it=rho.find(dm); return it==rho.end() ? dcmplx(0.0) : it->second; }, D, st));
+    }
     template <class U> Outcome<rvec3vec_t,AD::NoGradient> RepulsionPullbackT(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb, const chmat_t& D,
                                                                              const Structure* st) const
     {

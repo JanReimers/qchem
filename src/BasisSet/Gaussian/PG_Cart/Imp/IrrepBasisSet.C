@@ -339,7 +339,7 @@ Gaussian::LatticeSum1E::GeometryPullback Orbital_IBS::LatticePullback(int which,
                                                                       const UnitCell& A, const Structure* st) const
 {
     const LibcintWorkaround::ImageEnumerator images=[&](size_t i, size_t j, const std::function<void(const ivec3_t&, const rvec3_t&)>& cb)
-        { ForImageOffsets(i, j, A, cb); };
+        { ForSeriesImages(which==0 ? SeriesKernel::Overlap : SeriesKernel::Kinetic, i, j, A, cb); };   // the energy series' own list
     return LibcintWorkaround::LatticeOneElectronPullback(which, static_cast<const PGData&>(*this), images, Abar, phase, st);
 }
 Gaussian::LatticeSum1E::GeometryPullback Orbital_IBS::MakeLatticeOverlapPullback(const chmat_t& Abar, const cellphase_t& phase,
@@ -375,6 +375,11 @@ rvec3vec_t Orbital_IBS::IntegratePotentialPullback(const std::vector<rvec_t>& V_
                                                    const std::vector<double>& ecut_L, const LatticeScreener& screener,
                                                    double relFieldSharp, const Structure* st) const
 {   return NR_Evaluator::IntegratePotentialPullback(V_L,D,phase,A,N_L,ecut_L,screener,relFieldSharp,st); }
+rmat3d_t Orbital_IBS::IntegratePotentialVirial(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
+                                               const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                               const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                               double relFieldSharp) const
+{   return NR_Evaluator::IntegratePotentialVirial(V_L,D,phase,A,N_L,ecut_L,screener,relFieldSharp); }
 std::vector<cvec_t> Orbital_IBS::CollocateTransition(const mat_t<dcmplx>& dD, const cellphase_t& ketPhase, const rvec3_t& q,
                                                      const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                                      const std::vector<double>& ecut_L, double relFieldSharp) const

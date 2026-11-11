@@ -178,6 +178,10 @@ NEXT run's business (pin 31 catch 2).  The final audit at the converged cell rep
      - Not done here: the stress-noise measurement for the ε calibration (it needs rutile's terms); `MakeSolidGeometryRun` still pairs a
        session with the fixed-cell `WyckoffMap` (a cell map needs the point's stress, step 3 on).
 3. **Ewald stress** (closed form): FD and the 1/L scaling.  About 0.5.
+   - ✅ **AS BUILT (lane H, 2026-11-10)**, with the PW proof below: `EwaldVirial` (`qchem.Ewald`) beside `EwaldForces`, at fixed η;
+     `Structure::IonIonVirial` (the pair sum's closed form; the Ewald sum on a `UnitCell`) beside `IonIonForces`; `IonIon` carries the
+     `tStrainGradient_HT` face.  Gate `UTStructure StructureTests.EwaldVirialIsTheStrainFiniteDifferenceOfTheEnergyAndEtaIndependent`
+     (all 9 components, Si and CsCl, three η, symmetric; and the molecule's pair sum).
 4. **The channel-A virial beside every existing fold.**  These are the terms whose forces exist today: molecular-type pullbacks,
    PW structure factor, the Dunlap and GPW Hartree pullback.  Each is gated by its per-term FD and the origin shift.  About 2,
    mostly lane B's loops (§5).
@@ -189,6 +193,36 @@ NEXT run's business (pin 31 catch 2).  The final audit at the converged cell rep
    `CELL_OPT` and QE `vc-relax` (the A6 matched-PP decks).  About 2.
 
 Optional, in parallel: the PW-route stress (textbook channel B) on Si or NaF against QE, as a cheaper first proof of channel B.
+- ✅ **AS BUILT (lane H, 2026-11-10): the PW-route stress, every term, against QE.**  On lane B's `tStrainGradient_HT` face (READY 1).
+  - THE SPLIT for the fitted terms: a homogeneous strain at fixed D moves (i) the FIT side, with the orbital pair counts
+    N_G = Ω ρ̃(G) held (the kernel, Ω, the raster's Ω/N), and (ii) the ORBITAL side, only the pair counts moving.  (i) is the fitter's
+    own: `FirstOrderDensityFit::MakeHartreeVirial` (−δE_H + ½Ω Σ ∂k |ρ̃|², with `G_PoissonKernel::CoulombKernelStrain`) and, for XC,
+    the pure dilation δ_ab(E_xc − Σ_σ ∫v^σρ^σ) on a sampler that says `HasDilationVirial` (points fixed in fractional coordinates).
+    (ii) is a new `PairProjection::applyAdjointVirial` realization beside `applyAdjointPullback`, reached through
+    `FitContraction::MakeOverlapVirial` / `MakeRepulsionVirial` and `tDensitySampler::MakeMatrixVirial`: a plane-wave block's is an
+    EXACT ZERO (its counts are fixed by its G indices under the frozen rule); GPW's is lane B's, unset, so a GPW Hartree or XC term is a
+    named `MissingVirials()` entry.
+  - The basis owns the rest: `PlaneWave_IBS::MakeKineticVirial` (−2 q_a q_b), `MakeOverlapVirial` (exact zero: the waves stay
+    orthonormal), and on `Orbital_PP_IBS` `MakeSpeciesFieldVirial` / `MakeProjectorVirial` (−δ_ab M + the form factors' q-slopes; the KB
+    term through ∂/∂q of (2l+1)P_l(cos γ) β̃(q_i) β̃(q_j)).  The PP models grew closed-form q-slopes beside their values
+    (`SpeciesRadialField::SlopeQ`, `SpeciesProjectorSet::RadialQSlope`, each with `CanSlopeQ`), gated by
+    `UTPseudopotential PseudopotentialSlopes.EveryQSlopeIsTheFiniteDifferenceOfItsValue` (Si, F, Na q9, Cs q9 to l = 3, Mn).  A local
+    half's G = 0 alignment N·α/Ω adds −δ E_α.
+  - No constant-Ecut Pulay correction (agreed with lane B): the fixed-index derivative IS the stress, and so is QE's analytic one.
+  - Hub faces (the "derivative beside" rulings, snapshot regenerated): `G_PoissonKernel::CoulombKernelStrain`,
+    `FitContraction::CanVirialOverlap` / `MakeOverlapVirial`, `Structure::IonIonVirial`.
+  - Gates, `UTCalculation`, a sheared, distorted 2-atom Si cell (Γ, Ecut 4 Ha, 2 % allowance):
+    - `HamiltonianStress.OnPlaneWavesEachTermsVirialAtFixedDIsItsEnergysStrainFiniteDifference`: all 7 terms × 9 components against the
+      strain FD of the term's own energy at the frozen D (`SolidCalculation::FrozenTermEnergiesAt`, a test door), |Δ| ≤ 5e-8 Ha at
+      h = 1e-4 (the h² Taylor term);
+    - `...TheWholeVirialIsTheStrainDerivativeOfTheReconvergedEnergy`: the SolidSession's re-converged E(ε) at ±5e-4 on 6 components,
+      |Δ| ≤ 2.6e-7 Ha, symmetric to 1e-7;
+    - `...SisStressIsQEs` / `...NaFsStressIsQEs`: QE pw.x on the same sheared cells (`~/Code/qe-runs/{Si,NaF}/*_shear_e*.scf.{in,out}`,
+      our GTH as UPFs by `CLIapps/gth2upf`, sla+vwn, Γ, same sphere, no allowance): every σ component within 2.7e-9 (Si, Ecut 10 Ha)
+      and 4.8e-9 Ha/bohr³ (NaF, Ecut 15 Ha), i.e. ≤ 0.0014 kbar -- QE's print precision (1e-8 Ry/bohr³); energies 1.7e-7 / 1.0e-7 Ha.
+  - NOT done: `SolidSession` still refuses a stress (`PESRequest::stress`), as it refuses forces: the solid force sum needs W over the
+    Bloch blocks, unwired (`SolidCalculation::ForceVirial` stands in the converged D, valid for plane waves only, whose overlap virial
+    is zero).  Wiring both is the next step for a PW vc-relax.
 
 Total for the cell half beyond lane B's gaps: about 10 lane-days.
 

@@ -43,6 +43,7 @@ template <class T> class IonIon
     , private        tStatic_HT_Imp<T>
     , public         StaticRealBlockBase<T,IonIon<T>>   // real-block capability on the dcmplx instantiation (Step 3c)
     , public virtual tGeometryGradient_HT<T>            // its force (GeometryOptimizationPlan §13.2), after the private base (the cross-cast trap)
+    , public virtual tStrainGradient_HT<T>              // its virial (CellHalf_Design §5; user ruling §6.2, 2026-11-10)
 {
 public:
     //! \copydoc HT_BlockOwner::BuildBlocks
@@ -98,6 +99,19 @@ public:
         const rvec3vec_t f=st->IonIonForces(itsZionOf);
         if (f.size()!=F.size()) throw std::logic_error("IonIon::AddForces: the force array and the structure differ in atom count");
         for (size_t A=0;A<F.size();A++) F[A]+=f[A];
+    }
+    // --- the virial (CellHalf_Design §5): the structure's own, beside its force (Structure::IonIonVirial) -- the Ewald sum strained term by
+    //     term for a periodic cell -- with the same ion charges.  A finite structure answers the pair sum's (Stress takes a cell, so a
+    //     molecule never reaches a stress through it). ---
+    virtual std::string MissingVirial(const tbs_t<T>*, const Structure* st) const override
+    {
+        return st ? "" : "IonIon: no structure";
+    }
+    virtual void AddVirial(rmat3d_t& V, const tDM_CD<T>*, const Structure* st) const override
+    {
+        if (!st) throw std::logic_error("IonIon::AddVirial: no structure");
+        const rmat3d_t v=st->IonIonVirial(itsZionOf);
+        for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) V(a,b)+=v(a,b);
     }
     virtual std::ostream& Write(std::ostream& os) const override
     {

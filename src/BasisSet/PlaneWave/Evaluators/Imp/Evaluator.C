@@ -248,6 +248,7 @@ PairProjection<dcmplx> PW_Evaluator::Repulsion3CTensor() const
     g.applyAdjoint=[lookup=AdjointLookup(), recip=itsRecip](const std::function<dcmplx(const ivec3_t&)>& f) -> chmat_t
         {return lookup([&](const ivec3_t& dm){return recip.CoulombKernel(dm)*f(dm);});};
     g.applyAdjointPullback=ZeroPullback();
+    g.applyAdjointVirial=ZeroVirial();
     return g;
 }
 
@@ -259,7 +260,16 @@ PairProjection<dcmplx> PW_Evaluator::Overlap3CTensor() const
     g.volume=Volume();
     g.applyAdjoint=AdjointLookup();
     g.applyAdjointPullback=ZeroPullback();
+    g.applyAdjointVirial=ZeroVirial();
     return g;
+}
+
+// The orbital side of the lookup's strain derivative (CellHalf_Design §5; lane H 2026-11-10): IDENTICALLY ZERO.  A plane wave's pair counts
+// N_G = Σ_{G_i−G_j=G} D_ij are fixed by the G indices, which the frozen rule holds under a strain (CellGeometry's sizing box), and every
+// cell dependence of <i|f|j> beyond them is the fit side's (Ω, the kernel): the fitter's own.
+std::function<rmat3d_t(const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure*)> PW_Evaluator::ZeroVirial()
+{
+    return [](const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure*) -> rmat3d_t {return rmat3d_t(0,0,0, 0,0,0, 0,0,0);};
 }
 
 // The pullback of the Fourier lookup (GeometryOptimizationPlan §13.2, lane B 2026-11-09): IDENTICALLY ZERO.  A plane wave has no centre,

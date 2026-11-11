@@ -158,6 +158,10 @@ class G_PoissonKernel
 public:
     virtual ~G_PoissonKernel() = default;
     virtual double CoulombKernel(const ivec3_t& dm) const=0;
+    //! THE STRAIN DERIVATIVE beside it (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10, the derivative version of an existing
+    //! method): \f$\partial k(G)/\partial\varepsilon_{ab}\f$ under \f$A\to(1+\varepsilon)A\f$ with the index \a dm held, so \f$G\to(1+\varepsilon)^{-\top}G\f$
+    //! (the bare kernel's is \f$2k\,G_aG_b/|G|^2\f$; \f$dm=0\to0\f$).  CLIENT: the plane-wave density fitter's Hartree virial (its fit side).
+    virtual rmat3d_t CoulombKernelStrain(const ivec3_t& dm) const=0;
 };
 
 //! \brief Apply an ISOTROPIC spectral multiplier to a real grid field over the FULL FFT box:

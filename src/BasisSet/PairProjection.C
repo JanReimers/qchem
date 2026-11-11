@@ -117,6 +117,14 @@ template <class T> struct PairProjection
     //! a Hartree or XC term whose matrix is \c applyAdjoint(f) with \f$f=\delta E/\delta\tilde\rho\f$ gets its fixed-D force from it.
     //! Set with \ref applyAdjoint by a basis that can differentiate its own gather (GPW); empty otherwise.
     std::function<rvec3vec_t(const std::function<T(const ivec3_t&)>& f, const hmat_t<T>& D, const Structure* st)> applyAdjointPullback;
+    //! THE STRAIN DERIVATIVE of \ref applyAdjoint, beside its pullback (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10):
+    //! its ORBITAL SIDE, \f$V_{ab}=\partial\,\mathrm{Re}\,\mathrm{Tr}(D^\dagger\,\mathrm{applyAdjoint}(f))/\partial\varepsilon_{ab}\f$ under the
+    //! homogeneous strain at FIXED \a f and \a D with the fit functions, the tensor's kernel and \f$\Omega\f$ HELD -- only the orbital
+    //! pair products' Fourier COUNTS \f$N_G=\Omega\,\langle G|\rho_D\rangle\f$ move, as the orbitals do (their centres strained, their
+    //! shapes kept).  The FIT side (the kernel, \f$\Omega\f$, the counts held) is the fitter's own, since it is a function of its
+    //! coefficients alone; the two add to the whole fixed-D strain derivative.  A plane-wave block's counts are fixed by its G
+    //! indices (the frozen rule), so its realization is an EXACT ZERO; GPW's is the jet walk's channel A + B, not built (empty).
+    std::function<rmat3d_t(const std::function<T(const ivec3_t&)>& f, const hmat_t<T>& D, const Structure* st)> applyAdjointVirial;
     //! \brief RAW-RASTER forward (doc/GPWPlan 0.5(f2)): \f$\rho_{DM}(r)\f$ on the tensor's integration
     //! raster -- the D-weighted collocated level densities combined SPECTRALLY (zero-pad, no ball
     //! restriction anywhere), the finest level kept raw.  Because \f$D\f$ is PSD, \f$\rho_{DM}=\phi^T D\phi
@@ -198,6 +206,20 @@ template <class T> rvec3vec_t ContractAdjointPullback(const PairProjection<T>& g
         throw std::logic_error("ContractAdjointPullback: this PairProjection realises no adjoint pullback (applyAdjointPullback); "
                                "RealisesAdjointPullback() says so before a force is asked");
     return g.applyAdjointPullback(f, D, st);
+}
+
+//! Can \ref ContractAdjointVirial answer for \a g?  CLIENT: a fitter's \c CanVirialRepulsion / \c CanVirialOverlap (a MissingVirials() entry).
+template <class T> bool RealisesAdjointVirial(const PairProjection<T>& g) {return bool(g.applyAdjointVirial);}
+//! The orbital side of the strain derivative of \ref ContractAdjoint (\ref PairProjection::applyAdjointVirial).  THROWS when the
+//! realization has none: \ref RealisesAdjointVirial says so first.
+template <class T> rmat3d_t ContractAdjointVirial(const PairProjection<T>& g,
+                                                  const std::type_identity_t<std::function<T(const ivec3_t&)>>& f,
+                                                  const hmat_t<T>& D, const Structure* st)
+{
+    if (!g.applyAdjointVirial)
+        throw std::logic_error("ContractAdjointVirial: this PairProjection realises no adjoint virial (applyAdjointVirial); "
+                               "RealisesAdjointVirial() says so before a stress is asked");
+    return g.applyAdjointVirial(f, D, st);
 }
 
 //! Frobenius distance between two DENSE realizations (test oracle).

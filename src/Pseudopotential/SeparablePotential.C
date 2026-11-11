@@ -57,6 +57,8 @@ public:
     virtual size_t Count  (int) const {return 1;}
     virtual double Weight (int, size_t) const {return itsD;}
     virtual double RadialQ(int, size_t, double q) const {return std::exp(-0.5*itsSigma*itsSigma*q*q);}
+    virtual bool   CanSlopeQ() const override {return true;}
+    virtual double RadialQSlope(int, size_t, double q) const override {return -itsSigma*itsSigma*q*std::exp(-0.5*itsSigma*itsSigma*q*q);}
     virtual int    L      (int, size_t) const {return itsL;}
     //! Real-space s-channel demonstrator: the Gaussian whose j_0 transform is sqrt(4pi) e^{-sigma^2 q^2/2},
     //! i.e. beta(r) = (2 sqrt2 / sigma^3) e^{-r^2/2 sigma^2}.  (Consistent for l=0, the default channel.)
@@ -107,6 +109,16 @@ public:
         const Proj& pr=itsProj[p];
         double s=0.0;                                          // (1/sqrt 4pi) Sum_i v_i projG_i(q)
         for (size_t i=0;i<pr.v.size();i++) s += pr.v[i]*ProjG(q, pr.l, static_cast<int>(i), pr.rl);
+        return s/std::sqrt(FourPi);
+    }
+    //! \f$d\tilde\beta_p/dq\f$, the closed-form slope of \c RadialQ (CellHalf_Design §5): \c ProjGSlope term by term.
+    virtual bool   CanSlopeQ() const override {return true;}
+    virtual double RadialQSlope(int Z, size_t p, double q) const override
+    {
+        RequireSpecies(Z);
+        const Proj& pr=itsProj[p];
+        double s=0.0;
+        for (size_t i=0;i<pr.v.size();i++) s += pr.v[i]*ProjGSlope(q, pr.l, static_cast<int>(i), pr.rl);
         return s/std::sqrt(FourPi);
     }
     //! Real-space radial projector \f$\beta_p(r)=\sum_i v_i\,p_i^l(r)\f$ (the diagonalised KB combination of
@@ -218,6 +230,30 @@ private:
         assert(false && "HGH Q_i^l: channel not tabulated (l<=3 supported)"); return 0.0;
     }
 
+    //! \f$dQ_i^l/dx\f$, the slope of \c Qli (each \f$Q\f$ a polynomial in \f$x^2\f$).
+    static double QliSlope(double x, int l, int i)
+    {
+        using std::sqrt;
+        double x3=x*x*x;
+        if (l==0 && i==0) return 0.0;
+        if (l==0 && i==1) return 8*sqrt(2.0/15)*(-2*x);
+        if (l==0 && i==2) return (16.0/3)*sqrt(2.0/105)*(-20*x+4*x3);
+        if (l==1 && i==0) return 0.0;
+        if (l==1 && i==1) return 16*sqrt(1.0/105)*(-2*x);
+        if (l==1 && i==2) return (32.0/3)*sqrt(1.0/1155)*(-28*x+4*x3);
+        if (l==2 && i==0) return 0.0;
+        if (l==2 && i==1) return (16.0/3)*sqrt(2.0/105)*(-2*x);
+        if (l==3 && i==0) return 0.0;
+        if (l==3 && i==1) return (32.0/3)*sqrt(1.0/1155)*(-2*x);
+        throw std::logic_error("HGH Q_i^l slope: channel not tabulated (l<=3 supported)");
+    }
+    //! \f$d\,\mathrm{projG}_{li}/dq\f$: with \f$x=qr_l\f$, \f$\pi^{5/4}\sqrt{r_l^{2l+3}}e^{-x^2/2}[Q'(x)r_lq^l+Q\,l\,q^{l-1}-Q\,q^l x r_l]\f$.
+    static double ProjGSlope(double q, int l, int i, double rl)
+    {
+        const double x=q*rl, ql=(l==0)?1.0:std::pow(q, static_cast<double>(l)), qlm=(l==0)?0.0:(l==1)?1.0:std::pow(q, static_cast<double>(l-1));
+        const double Q=Qli(x,l,i);
+        return std::pow(Pi,1.25)*std::sqrt(std::pow(rl,2*l+3))*std::exp(-0.5*x*x)*(QliSlope(x,l,i)*rl*ql + Q*l*qlm - Q*ql*x*rl);
+    }
     //! Reciprocal HGH projector projG_li(q) = Q_i^l(q r_l) pi^{5/4} q^l sqrt(r_l^{2l+3}) e^{-(q r_l)^2/2}.
     static double ProjG(double q, int l, int i, double rl)
     {
@@ -250,6 +286,13 @@ public:
     virtual size_t Count  (int Z)            const override {return Get(Z).Count(Z);}
     virtual double Weight (int Z, size_t p)  const override {return Get(Z).Weight(Z,p);}
     virtual double RadialQ(int Z, size_t p, double q) const override {return Get(Z).RadialQ(Z,p,q);}
+    virtual double RadialQSlope(int Z, size_t p, double q) const override {return Get(Z).RadialQSlope(Z,p,q);}
+    //! Every registered species model has its slope (vacuously true when empty).
+    virtual bool   CanSlopeQ() const override
+    {
+        for (const auto& [Z,m] : itsByZ) if (!m->CanSlopeQ()) return false;
+        return true;
+    }
     virtual int    L      (int Z, size_t p)  const override {return Get(Z).L(Z,p);}
     //! The real-space view: cross-cast the sub-model to its real radial leaf (sanctioned abstract->abstract,
     //! via the shared SpeciesProjectorSet core) -- a dual-view model (HGH) is-a SeparablePotential_R too.

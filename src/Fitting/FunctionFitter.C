@@ -164,6 +164,14 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const BasisSet::Orbital_DFT_IBS<U,TFit>& orb, const hmat_t<U>&,
                                                                    const Structure*) const
     {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"this fitter gives no pullback of its contraction against the block "+orb.Name()});}
+    //! THE STRAIN DERIVATIVE beside it (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10): the ORBITAL side of
+    //! \f$\partial\,\mathrm{Re\,Tr}(D\,\mathrm{Overlap}(orb))/\partial\varepsilon_{ab}\f$ at the FIXED fit, the fit functions and \f$\Omega\f$ held, only
+    //! the block's pair counts moving (\c BasisSet::PairProjection::applyAdjointVirial; a plane-wave block: an exact zero).  CLIENT: the XC
+    //! term's virial, through the density sampler's \c MakeMatrixVirial.  The default REFUSES by name.
+    virtual bool CanVirialOverlap(const BasisSet::Orbital_DFT_IBS<U,TFit>&) const {return false;}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeOverlapVirial(const BasisSet::Orbital_DFT_IBS<U,TFit>& orb, const hmat_t<U>&,
+                                                               const Structure*) const
+    {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"this fitter gives no virial of its contraction against the block "+orb.Name()});}
 };
 
 //! \brief A scalar fitter that contracts same-scalar blocks: what \c Factory hands back (OOD V1.34, shape 3, ruled 2026-09-19; surface

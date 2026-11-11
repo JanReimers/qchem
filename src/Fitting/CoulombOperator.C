@@ -71,6 +71,27 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const hmat_t<dcmplx>& D,
                                                                      const Structure* st) const=0;
     //!@}
+    //! \name THE STRAIN DERIVATIVES beside them (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10).  The first-order
+    //! \f$E_H\f$'s fixed-D virial splits in two (\c BasisSet::PairProjection::applyAdjointVirial):
+    //!   - the FIT side, \c MakeHartreeVirial: \f$\partial E_H/\partial\varepsilon\f$ with the pair counts \f$N_G=\Omega\tilde\rho(G)\f$ held --
+    //!     a function of my coefficients, the kernel and \f$\Omega\f$ alone;
+    //!   - the ORBITAL side, \c MakeRepulsionVirial, per block: \f$\partial\,\mathrm{Re\,Tr}(D\,\mathrm{Repulsion}(orb))/\partial\varepsilon\f$ with
+    //!     my fit held and only the block's pair counts moving (a plane-wave block: an exact zero).
+    //! Their sum is the term's whole fixed-D virial.  Each \c Can is false exactly when its \c Make refuses.  CLIENT: Vee_Fit's virial.
+    //! Default: a named refusal (a fit with no strain derivative yet).
+    //!@{
+    virtual bool CanHartreeVirial() const {return false;}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeHartreeVirial() const
+    {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"this density fit gives no Hartree virial"});}
+    virtual bool CanVirialRepulsion(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const {return false;}
+    virtual bool CanVirialRepulsion(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const {return false;}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeRepulsionVirial(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&, const hmat_t<double>&,
+                                                                 const Structure*) const
+    {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"this density fit gives no repulsion virial"});}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeRepulsionVirial(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const hmat_t<dcmplx>&,
+                                                                 const Structure*) const
+    {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"this density fit gives no repulsion virial"});}
+    //!@}
 };
 
 //! \brief THE DUNLAP FITTED HARTREE FACE, GENERIC OVER THE FIT BASIS (V-ONE-OF-N 3b, user ruling 2026-11-08 (g)): what

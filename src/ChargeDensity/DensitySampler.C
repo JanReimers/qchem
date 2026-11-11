@@ -183,6 +183,20 @@ public:
     virtual bool CanPullbackMatrix(const tobs_t<T>*) const {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const tobs_t<T>* bs, const rvec_t&, const hmat_t<T>&, const Structure*) const
     {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the XC quadrature's strategy gives no pullback of its matrix on the block "+bs->Name()});}
+    //! \name THE STRAIN DERIVATIVE beside them (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10).  A local functional's
+    //! \f$E=\sum_g w_g e(\rho_g)\f$ at fixed D splits as the Hartree term's does (\c BasisSet::PairProjection::applyAdjointVirial):
+    //!   - its QUADRATURE side, with the pair counts held: when \c HasDilationVirial, my points are fixed in FRACTIONAL coordinates with
+    //!     weights \f$\Omega/N\f$, so every \f$\rho_g\f$ scales as \f$1/\Omega\f$ and that side is the pure dilation
+    //!     \f$\delta_{ab}(E-\sum_g w_g v_g\rho_g)\f$ -- the term's, which holds e and v (a moving mesh answers false: it refuses);
+    //!   - its ORBITAL side, per block: \c MakeMatrixVirial, \f$\partial\,\mathrm{Re\,Tr}(D\,\mathrm{Matrix}(bs,v))/\partial\varepsilon\f$ at the fixed
+    //!     field and quadrature, only the block's pair counts moving (a plane-wave block: an exact zero).
+    //! CLIENT: the XC term's virial.  Defaults refuse by name; \c CanVirialMatrix is false exactly when \c MakeMatrixVirial refuses.
+    //!@{
+    virtual bool HasDilationVirial() const {return false;}
+    virtual bool CanVirialMatrix(const tobs_t<T>*) const {return false;}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const tobs_t<T>* bs, const rvec_t&, const hmat_t<T>&, const Structure*) const
+    {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the XC quadrature's strategy gives no virial of its matrix on the block "+bs->Name()});}
+    //!@}
     //! \brief Pre-warm this engine's per-density caches for \a cd -- the EAGER REFRESH PHASE
     //! (doc/OpenWork.md item **KP**).  \a polarized picks which shape to warm, because the two are
     //! mutually exclusive on one engine (see the cross-invalidation warning on both implementations: an
@@ -228,6 +242,12 @@ public:
     //! The REAL-BLOCK sibling of \c MakeMatrixPullback (the derivative beside the real \c Matrix).  Default: a named refusal.
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const robs_t* bs, const rvec_t&, const hmat_t<double>&, const Structure*) const
     {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the XC quadrature's strategy gives no pullback of its matrix on the real block "+bs->Name()});}
+    using tDensitySampler<dcmplx>::MakeMatrixVirial;
+    using tDensitySampler<dcmplx>::CanVirialMatrix;
+    //! The REAL-BLOCK sibling of \c MakeMatrixVirial.  Default: a named refusal.
+    virtual bool CanVirialMatrix(const robs_t*) const {return false;}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const robs_t* bs, const rvec_t&, const hmat_t<double>&, const Structure*) const
+    {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the XC quadrature's strategy gives no virial of its matrix on the real block "+bs->Name()});}
 };
 
 //! \brief Pick the assembly strategy for \a fb -- CAPABILITY decides, and the answer is fixed for the run.

@@ -9,10 +9,14 @@
 // the PRODUCTION gather (the contracted cube), the pullback on the walk: the two agree to the walk-vs-cube tier (1e-10 relative,
 // M_TransitionCollocation.WalkAndContractionRoutesAgree), well inside this gate.
 //
+// And the STRAIN TWIN (lane H 2026-11-11): IntegratePotentialVirial against the strain finite difference of the same gather, on the
+// same three fixtures.
+//
 // And TRANSLATION: under a constant field every atom moved together leaves Tr(D h) unchanged up to the raster's egg-box, so the
 // pullbacks sum to (almost) zero while each one is not.
 #include "gtest/gtest.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <complex>
 #include <cstdio>
@@ -21,6 +25,7 @@
 #include <vector>
 
 import qchem.BasisSet.Gaussian.Point.Factory;     // Factory(BasisSetData, cell, engine, angular)
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator::ContractCubeOverride (the cube-vs-walk gate)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // LatticeCollocation
 import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;  // GeometryOnlyScreener, CollocationEps
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView
@@ -155,11 +160,56 @@ Fixture MnO()   // rocksalt, d shells through the spherical view's T
 { return {"MnO VA spherical view", Matrix3D<double>(0.0,4.20,4.20, 4.20,0.0,4.20, 4.20,4.20,0.0), {{25,{0.1,0.1,0.1}},{8,{0.6,0.58,0.62}}},
           BasisSetData::VALENCE_LOWQ_VA, true}; }
 
+//! The fixture's cell strained by F = 1 + s e_ij, the atoms at the SAME fractional positions (they ride the strain).
+UnitCell StrainedOf(const Fixture& x, size_t i, size_t j, double s)
+{
+    Matrix3D<double> F; F(i,j)+=s;   // the identity plus s at (i,j)
+    UnitCell c(F*x.A);
+    for (const Atom& a : x.atoms) c.AddAtom(a.Z, a.f);
+    return c;
+}
+
+//! THE STRAIN TWIN (lane H 2026-11-11): IntegratePotentialVirial against the central difference of the SAME gather on the strained cell,
+//! the level fields held per raster INDEX (Field is index-based) and the phase per image, the basis rebuilt there: the orbital side of a
+//! fitted term's virial, moment + dilation.  Richardson (h, h/2) as the pullback; every component (the virial at fixed D is not symmetric).
+void VirialIsTheFiniteDifference(const Fixture& x)
+{
+    const Ladder L=Two();
+    const GeometryOnlyScreener screen(CollocationEps());
+    const std::vector<rvec_t> V=Field(L,false);
+    const UnitCell cell=CellOf(x);
+    const Block b=Make(x, cell);
+    ASSERT_TRUE(b.lc) << x.what << ": the block realises no collocation face";
+    const chmat_t D=RandomHermitian(b.n, 0x5DEECE66DULL+b.n);
+    const rmat3d_t W=b.lc->IntegratePotentialVirial(V, D, PhaseOf(kNonTRIM), cell, L.N, L.ecut, screen, -1.0);
+    auto E=[&](size_t i, size_t j, double s)
+    {
+        const UnitCell c=StrainedOf(x, i, j, s);
+        const Block bb=Make(x, c);
+        return ReTr(D, bb.lc->IntegratePotential(V, PhaseOf(kNonTRIM), c, L.N, L.ecut, screen));
+    };
+    const double h=1e-4;
+    auto central=[&](size_t i, size_t j, double s){ return (E(i,j,s)-E(i,j,-s))/(2*s); };
+    double big=0.0, worst=0.0;
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++)
+    {
+        const double fd=(4.0*central(i,j,0.5*h)-central(i,j,h))/3.0, an=W(i,j);
+        std::printf("  [gather virial] %-22s (%zu,%zu)  analytic % .10e  FD % .10e  diff %.2e\n", x.what, i, j, an, fd, an-fd);
+        big=std::max(big,std::fabs(fd)); worst=std::max(worst,std::fabs(an-fd));
+    }
+    ASSERT_GT(big, 1e-4) << x.what << ": a vanishing virial cannot show the walk is wired";
+    EXPECT_LT(worst, 1e-6*big) << x.what << ": the gather virial is not the strain finite difference of the gather";
+}
+
 } // namespace
 
 TEST(M_CollocationPullback, TheGatherPullbackIsItsFiniteDifference_Uncontracted) {PullbackIsTheFiniteDifference(Si());}
 TEST(M_CollocationPullback, TheGatherPullbackIsItsFiniteDifference_Contracted)   {PullbackIsTheFiniteDifference(H3());}
 TEST(M_CollocationPullback, TheGatherPullbackIsItsFiniteDifference_Spherical)    {PullbackIsTheFiniteDifference(MnO());}
+
+TEST(M_CollocationPullback, TheGatherVirialIsItsStrainFiniteDifference_Uncontracted) {VirialIsTheFiniteDifference(Si());}
+TEST(M_CollocationPullback, TheGatherVirialIsItsStrainFiniteDifference_Contracted)   {VirialIsTheFiniteDifference(H3());}
+TEST(M_CollocationPullback, TheGatherVirialIsItsStrainFiniteDifference_Spherical)    {VirialIsTheFiniteDifference(MnO());}
 
 TEST(M_CollocationPullback, UnderAConstantFieldThePullbacksSumToTheEggBoxOnly)
 {
@@ -192,4 +242,50 @@ TEST(M_CollocationPullback, RefusesAMisSizedDensityAndAMissingStructure)
                  std::invalid_argument);
     EXPECT_THROW((void)b.lc->IntegratePotentialPullback(V, chmat_t(b.n), PhaseOf(kNonTRIM), cell, L.N, L.ecut, screen, -1.0, nullptr),
                  std::invalid_argument);
+    EXPECT_THROW((void)b.lc->IntegratePotentialVirial(V, chmat_t(b.n+1), PhaseOf(kNonTRIM), cell, L.N, L.ecut, screen, -1.0),
+                 std::invalid_argument);
 }
+
+//! THE FAST PATH IS THE REFERENCE WALK (lane H 2026-11-11): the contracted-cube jets (\c CubeJets, the production gather's policy) against
+//! the jet walk they stand in for, forced through the unit-test hook \c ContractCubeOverride, on the three fixtures: the pullback and the
+//! virial agree to the walk-vs-cube tier of the gather itself (M_TransitionCollocation.WalkAndContractionRoutesAgree: 1e-10 relative), and
+//! the cube is the faster (timed, printed; the FD gates above run on the cube, the default).
+void CubeIsTheWalk(const Fixture& x)
+{
+    using NR=Evaluators::PG_Cart_MnD::NR_Evaluator;
+    const Ladder L=Two();
+    const GeometryOnlyScreener screen(CollocationEps());
+    const std::vector<rvec_t> V=Field(L,false);
+    const UnitCell cell=CellOf(x);
+    const Block b=Make(x, cell);
+    ASSERT_TRUE(b.lc);
+    const chmat_t D=RandomHermitian(b.n, 0x9E3779B97F4A7C15ULL);
+    auto run=[&](bool cube, double& ms)
+    {
+        NR::ContractCubeOverride()=cube;
+        const auto t0=std::chrono::steady_clock::now();
+        const rvec3vec_t G=b.lc->IntegratePotentialPullback(V, D, PhaseOf(kNonTRIM), cell, L.N, L.ecut, screen, -1.0, &cell);
+        const rmat3d_t   W=b.lc->IntegratePotentialVirial  (V, D, PhaseOf(kNonTRIM), cell, L.N, L.ecut, screen, -1.0);
+        ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
+        NR::ContractCubeOverride().reset();
+        return std::make_pair(G, W);
+    };
+    double msWalk=0.0, msCube=0.0;
+    const auto [Gw, Ww]=run(false, msWalk);
+    const auto [Gc, Wc]=run(true,  msCube);
+    double big=0.0, worst=0.0;
+    for (size_t a=0;a<Gw.size();a++)
+        for (int c=0;c<3;c++)
+        {
+            const double w= c==0 ? Gw[a].x : c==1 ? Gw[a].y : Gw[a].z, q= c==0 ? Gc[a].x : c==1 ? Gc[a].y : Gc[a].z;
+            big=std::max(big,std::fabs(w)); worst=std::max(worst,std::fabs(w-q));
+        }
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) { big=std::max(big,std::fabs(Ww(i,j))); worst=std::max(worst,std::fabs(Ww(i,j)-Wc(i,j))); }
+    std::printf("  [cube jets] %-22s max|walk-cube| %.2e of max %.3e   walk %.0f ms  cube %.0f ms\n", x.what, worst, big, msWalk, msCube);
+    ASSERT_GT(big, 1e-4);
+    EXPECT_LT(worst, 1e-9*big) << x.what << ": the contracted-cube jets are not the walk's";
+    EXPECT_LT(msCube, msWalk) << x.what << ": the fast path is not faster";
+}
+TEST(M_CollocationPullback, TheCubeJetsAreTheWalksJets_Uncontracted) {CubeIsTheWalk(Si());}
+TEST(M_CollocationPullback, TheCubeJetsAreTheWalksJets_Contracted)   {CubeIsTheWalk(H3());}
+TEST(M_CollocationPullback, TheCubeJetsAreTheWalksJets_Spherical)    {CubeIsTheWalk(MnO());}

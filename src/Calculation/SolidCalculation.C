@@ -610,6 +610,14 @@ private:
     friend class ::ForceFacadeTests;
     std::vector<std::string>                ForceMissingGradients() const;
     std::vector<Hamiltonian::TermForce>     ForceTermForces      () const;
+    //! THE STRAIN GATES' DOOR (doc/Records/CellHalf_Design.md §5; lane H 2026-11-10): every term's virial or its refusal at the converged
+    //! density (MakeTermVirials), and its fixed-D partner -- every term's energy at the point \a lat of \a setup with the per-block density
+    //! \a D FROZEN on that point's basis (no SCF): the finite difference of these across a strain is what each term's virial must equal.
+    //! \a cell: this run's cell strained (the atoms at the same fractional positions), carrying the setup's sizing box.
+    std::vector<Hamiltonian::TermVirial>    ForceTermVirials     () const;
+    std::vector<std::string>                ForceMissingVirials  () const;
+    rmat3d_t                                ForceVirial          () const;   //!< MakeVirial at the converged D and its energy-weighted W
+    std::vector<Hamiltonian::TermEnergy>    FrozenTermEnergiesAt (const UnitCell& cell) const;
     //!@}
     //! \name THE BUILD, in the two halves Restart needs a gap between (the fingerprint is judged against
     //! the BUILT basis, before anything expensive that depends on the seed)
@@ -637,11 +645,25 @@ private:
     //! \a onIteration: the session's observer, attached before the point's first iteration.
     //! \a needForces: a point whose Hamiltonian names a missing geometry gradient (\c MissingGradients) STOPS after its Hamiltonian is
     //! built and BEFORE its SCF -- unconverged, for the caller to refuse and discard: the term set alone decides it, so no SCF is spent.
+    //! \a needStress: the same for \c MissingVirials.
     static std::unique_ptr<SolidCalculation> AtGeometry(std::shared_ptr<const SolidSetup>, const Lattice_3D& lat,
                                                         std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
                                                         const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration,
-                                                        bool needForces=false);
+                                                        bool needForces=false, bool needStress=false);
     SavedState Carry() const;   //!< the last iterate's per-block D, for the next point
+    //! THE ENERGY-WEIGHTED DENSITY W = Σ f ε c c^† over the Bloch blocks, weighted and composed exactly as the converged density (the
+    //! wave function's orbitals snapshot with f -> f ε, rebuilt by \c RestoreDensity): the Pulay term's input, Tr(W ∂S/∂R) in a force
+    //! and Tr(W ∂S/∂ε) in a stress, on ANY solid basis (a plane wave's overlap derivatives are zero; a Bloch Gaussian's are not).
+    //! THROWS before a converged run.
+    std::unique_ptr<qchem::ChargeDensity::cDM_CD> MakeEnergyWeightedDensity() const;
+    //! THE POINT'S FORCE, −dE/dR (Ha/bohr) in the structure's atom order: every term's force plus the Pulay sum, at the converged D and W
+    //! (\c tHamiltonianAt::Forces).  For the session's forces request.  THROWS (the Hamiltonian's) while \c MissingGradients is not empty.
+    rvec3vec_t MakeForces() const;
+    //! THE POINT'S STRESS σ = V/Ω (Ha/bohr³, tensile positive) at the converged D and W on \a cell, the cell this point was built on
+    //! (\c tHamiltonianAt::Stress).  THROWS (the Hamiltonian's) while \c MissingVirials is not empty.
+    rmat3d_t   MakeStress(const UnitCell& cell) const;
+    //! The point's Hamiltonian's \c MissingVirials over its Bloch basis: the terms (and the overlap) without a cell gradient, each named.
+    std::vector<std::string> MissingVirials() const;
     //! The point's Hamiltonian's \c MissingGradients over its Bloch basis: the terms (and the Pulay sum) that cannot give a geometry
     //! gradient, each named; EMPTY = forces are available.  The session's \c NoGradient refusal lists them.
     std::vector<std::string> MissingGradients() const;
@@ -729,8 +751,9 @@ private:
 //! defect since \c MakeSolidGeometryRun pairs every geometry run with a map that keeps the group): a
 //! basis that, at these positions, would lose functions in the ortho step the trim was decided to avoid (ruling Q3: the frozen
 //! basis left its conditioning window -- checked when the setup states an \c orthoTol); a moved cell on a setup with no strain
-//! allowance, or one stretched beyond it (\c CellChange); stress (no term has its cell gradient yet: step 9); forces while the point's Hamiltonian names a term without its
-//! geometry gradient (\c NoGradient lists them, from the session's current point before any SCF, or the first point once built).  +U is held at the setup's values along the surface (ruling Q5).
+//! allowance, or one stretched beyond it (\c CellChange); forces (stress) while the point's Hamiltonian names a term without its
+//! geometry (cell) gradient (\c NoGradient lists them, \c MissingGradients / \c MissingVirials, from the session's current point before any
+//! SCF, or the first point once built).  Otherwise a converged point carries −dE/dR and σ at its D and energy-weighted W.  +U is held at the setup's values along the surface (ruling Q5).
 class SolidSession : public virtual PotentialEnergySurface
 {
 public:
@@ -777,7 +800,11 @@ struct SolidGeometryRun
 };
 //! The arguments are \c SolidSession's.  THROWS as \c SolidSession and \c WyckoffMap do (a reference not symmetric under its own
 //! group is a broken invariant).
+//! \a relaxCell: the map is a \c CellWyckoffMap over the same ops (q = the free Wyckoff parameters and the free strains; each point asks
+//! for forces AND stress), so the cell relaxes too; THROWS unless the setup states a \c cellStrainAllowance (the session follows a cell
+//! only within it).
 SolidGeometryRun MakeSolidGeometryRun(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule,
-                                      SolidCalculation::Observer onIteration = nullptr, SolidSession::Carry carry = SolidSession::Carry::AO);
+                                      SolidCalculation::Observer onIteration = nullptr, SolidSession::Carry carry = SolidSession::Carry::AO,
+                                      bool relaxCell = false);
 
 } //export namespace qchem

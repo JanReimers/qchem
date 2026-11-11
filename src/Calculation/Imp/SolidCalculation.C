@@ -2830,6 +2830,49 @@ std::vector<Hamiltonian::TermForce> SolidCalculation::ForceTermForces() const
     itsImp->ham->RefreshForDensity(itsImp->bs.get(), itsImp->cd.get());   // the terms' density state (a post-SCF audit may have moved it)
     return itsImp->ham->MakeTermForces(itsImp->bs.get(), itsImp->cd.get(), itsImp->st.get());
 }
+std::vector<Hamiltonian::TermVirial> SolidCalculation::ForceTermVirials() const
+{
+    if (!itsImp->ham || !itsImp->cd) throw std::logic_error("SolidCalculation::ForceTermVirials: no converged run");
+    itsImp->ham->RefreshForDensity(itsImp->bs.get(), itsImp->cd.get());   // the terms' density state, as ForceTermForces
+    return itsImp->ham->MakeTermVirials(itsImp->bs.get(), itsImp->cd.get(), itsImp->st.get());
+}
+std::vector<std::string> SolidCalculation::ForceMissingVirials() const
+{
+    if (!itsImp->ham) throw std::logic_error("SolidCalculation::ForceMissingVirials: no Hamiltonian yet");
+    return itsImp->ham->MissingVirials(itsImp->bs.get(), itsImp->st.get());
+}
+// The whole virial at the converged density and its energy-weighted W (the overlap's virial, the Pulay term, is W's).
+rmat3d_t SolidCalculation::ForceVirial() const
+{
+    if (!itsImp->ham || !itsImp->cd) throw std::logic_error("SolidCalculation::ForceVirial: no converged run");
+    const auto W=MakeEnergyWeightedDensity();
+    itsImp->ham->RefreshForDensity(itsImp->bs.get(), itsImp->cd.get());
+    return itsImp->ham->MakeVirial(itsImp->bs.get(), itsImp->cd.get(), W.get(), itsImp->st.get());
+}
+std::vector<Hamiltonian::TermEnergy> SolidCalculation::FrozenTermEnergiesAt(const UnitCell& cell) const
+{
+    const SavedState D=Carry();
+    const SolidSetup& S=*itsImp->setup;
+    const Lattice_3D lat(cell, S.reference.GetLimits());
+    // The molecular basis AT the strained centres (a Gaussian's centre moves, its shape is kept): the setup's frozen recipe, as a session
+    // step makes it.  A plane-wave basis does not read it.
+    std::shared_ptr<const BasisSet::Real_BS> mol=itsImp->mol;
+    if (!S.planeWave)
+    {
+        if (!S.recipe) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: a Gaussian setup resolved from a pre-built basis cannot follow a strain");
+        mol=S.recipe->Make(*lat.GetStructure(), S.pp);
+    }
+    std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
+    c->BuildPoint(itsImp->setup, lat, mol);
+    const SpinGroup g=c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+    auto seed=RestoreDensity(D, *c->itsImp->bs, g);
+    if (!seed) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: the density does not fit the point: "+seed.Error().details);
+    c->BuildRun(seed.TakeValue(), SCFParams{}, SCFAccelerators::Type::Auto, /*restored*/false, /*exactResume*/false);   // the Hamiltonian
+    auto cd=RestoreDensity(D, *c->itsImp->bs, g);
+    if (!cd) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: the density does not fit the point: "+cd.Error().details);
+    c->itsImp->ham->RefreshForDensity(c->itsImp->bs.get(), cd->get());
+    return c->itsImp->ham->MakeTermEnergies(cd->get());
+}
 const WaveFunction::cWaveFunction& SolidCalculation::ResponseWaveFunction() const
 {
     const auto* wf=itsImp->scf->GetWaveFunction();
@@ -2855,8 +2898,10 @@ const BasisSet::Complex_BS& SolidCalculation::Basis() const { return *itsImp->bs
 std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<const SolidSetup> setup, const Lattice_3D& lat,
                                                                std::shared_ptr<const BasisSet::Real_BS> mol, const SavedState* carry,
                                                                const std::vector<SCFStage>& schedule, bool lowdin, Observer onIteration,
-                                                               bool needForces)
+                                                               bool needForces, bool needStress)
 {
+    // A gradient request the point's Hamiltonian cannot meet stops the point after its Hamiltonian and BEFORE its SCF.
+    auto refused=[&](const SolidCalculation& p){ return (needForces && !p.MissingGradients().empty()) || (needStress && !p.MissingVirials().empty()); };
     if (schedule.empty())
         throw std::runtime_error("SolidCalculation: an EMPTY schedule has no meaning -- pass at least one stage.");
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
@@ -2909,7 +2954,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
         if (!carry)
         {
             c->BuildRun(nullptr, schedule.front().params, schedule.front().accelerator, /*restored*/false, /*exactResume*/false);
-            if (needForces && !c->MissingGradients().empty()) return c;   // refused before any SCF (the caller discards it)
+            if (refused(*c)) return c;   // refused before any SCF (the caller discards it)
             (void)c->Converge(schedule.front().params);
         }
         else
@@ -2924,7 +2969,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
             if (!cd) throw std::logic_error("SolidCalculation::AtGeometry: the carried density does not fit the new point: "+cd.Error().details);
             const SCFStage& last=schedule.back();
             c->BuildRun(cd.TakeValue(), last.params, last.accelerator, /*restored*/false, /*exactResume*/false);
-            if (needForces && !c->MissingGradients().empty()) return c;   // refused before any SCF (the caller discards it)
+            if (refused(*c)) return c;   // refused before any SCF (the caller discards it)
             (void)c->Converge(last.params);
         }
     }
@@ -2937,6 +2982,38 @@ std::vector<std::string> SolidCalculation::MissingGradients() const
 {
     if (!itsImp->ham) throw std::logic_error("SolidCalculation::MissingGradients: no Hamiltonian yet");
     return itsImp->ham->MissingGradients(itsImp->bs.get(), itsImp->st.get());
+}
+
+std::unique_ptr<ChargeDensity::cDM_CD> SolidCalculation::MakeEnergyWeightedDensity() const
+{
+    const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
+    if (!wf || !itsImp->cd) throw std::logic_error("SolidCalculation::MakeEnergyWeightedDensity: no converged run");
+    auto W=RestoreDensity(SnapshotState(*itsImp->bs, *wf, /*energyWeighted*/true), *itsImp->bs, wf->GetSpinGroup());
+    // The snapshot is of this run's own basis, so a refusal is a broken invariant, not a caller's choice.
+    if (!W) throw std::logic_error("SolidCalculation::MakeEnergyWeightedDensity: W does not fit this run's basis: "+W.Error().details);
+    return W.TakeValue();
+}
+
+rvec3vec_t SolidCalculation::MakeForces() const
+{
+    if (!itsImp->ham || !itsImp->cd) throw std::logic_error("SolidCalculation::MakeForces: no converged run");
+    const auto W=MakeEnergyWeightedDensity();
+    itsImp->ham->RefreshForDensity(itsImp->bs.get(), itsImp->cd.get());   // the terms' density state (a post-SCF audit may have moved it)
+    return itsImp->ham->At(itsImp->bs.get(), itsImp->cd.get()).Forces(W.get(), itsImp->st.get());
+}
+
+rmat3d_t SolidCalculation::MakeStress(const UnitCell& cell) const
+{
+    if (!itsImp->ham || !itsImp->cd) throw std::logic_error("SolidCalculation::MakeStress: no converged run");
+    const auto W=MakeEnergyWeightedDensity();
+    itsImp->ham->RefreshForDensity(itsImp->bs.get(), itsImp->cd.get());
+    return itsImp->ham->At(itsImp->bs.get(), itsImp->cd.get()).Stress(W.get(), cell);
+}
+
+std::vector<std::string> SolidCalculation::MissingVirials() const
+{
+    if (!itsImp->ham) throw std::logic_error("SolidCalculation::MissingVirials: no Hamiltonian yet");
+    return itsImp->ham->MissingVirials(itsImp->bs.get(), itsImp->st.get());
 }
 
 SavedState SolidCalculation::Carry() const
@@ -2968,9 +3045,12 @@ SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<
 SolidSession::~SolidSession() = default;
 
 SolidGeometryRun MakeSolidGeometryRun(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule,
-                                      SolidCalculation::Observer onIteration, SolidSession::Carry carry)
+                                      SolidCalculation::Observer onIteration, SolidSession::Carry carry, bool relaxCell)
 {
     if (!setup) throw std::invalid_argument("MakeSolidGeometryRun: no setup");
+    if (relaxCell && !(setup->opts.cellStrainAllowance>0.0))
+        throw std::invalid_argument("MakeSolidGeometryRun: a cell relaxation needs SolidCalcOptions::cellStrainAllowance > 0 -- every size is "
+                                    "frozen on the reference cell grown by it, so the session can follow the cell (CellHalf_Design §3)");
     const std::vector<Symmetry::SymOp> ops=setup->KeptOps(setup->reference);
     SolidGeometryRun run;
     run.surface=std::make_unique<SolidSession>(setup, std::move(schedule), std::move(onIteration), carry);
@@ -2979,7 +3059,8 @@ SolidGeometryRun MakeSolidGeometryRun(std::shared_ptr<const SolidSetup> setup, s
     const PESGeometry ref=run.surface->Reference();
     double aMax=0.0;
     for (size_t j=1;j<=3;j++) aMax=std::max(aMax, std::sqrt((*ref.cell)(1,j)*(*ref.cell)(1,j)+(*ref.cell)(2,j)*(*ref.cell)(2,j)+(*ref.cell)(3,j)*(*ref.cell)(3,j)));
-    run.map=std::make_unique<const WyckoffMap>(ref, ops, 1e-4*aMax);
+    if (relaxCell) run.map=std::make_unique<const CellWyckoffMap>(ref, ops, ElasticModel{}, 1e-4*aMax);
+    else           run.map=std::make_unique<const WyckoffMap>(ref, ops, 1e-4*aMax);
     return run;
 }
 
@@ -3067,9 +3148,6 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
         throw std::invalid_argument("SolidSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
     if (!cell)
         throw std::invalid_argument("SolidSession::ConvergeAt: a solid's geometry has a cell -- pass Reference().cell for a fixed-cell step");
-    if (want.stress)
-        return O::Fail({Why::NoGradient, "stress: no term implements its cell gradient yet (doc/CalcNetworkReview.md §3.3, step 9) -- "
-                        "difference ConvergeAt energies at strained setups meanwhile"});
     // FORCES: the point's own Hamiltonian names what it lacks (GeometryOptimizationPlan §13), and NO SCF is spent finding out: the term
     // set is the SETUP's, the same at every point, so a session that already holds a point asks THAT one here; the first point is built
     // up to its Hamiltonian, asked, and discarded unconverged (AtGeometry's needForces) -- MissingGradients needs the built terms and
@@ -3080,8 +3158,17 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
         for (const auto& m : missing) why+="\n    "+m;
         return O::Fail({Why::NoGradient, why});
     };
+    // STRESS, the same way: the terms' virials (and the overlap's) name what lacks a cell gradient, from the held point before any SCF.
+    auto missingStress=[](const std::vector<std::string>& missing)
+    {
+        std::string why="stress: these cannot give their cell gradient yet (Hamiltonian::MissingVirials):";
+        for (const auto& m : missing) why+="\n    "+m;
+        return O::Fail({Why::NoGradient, why});
+    };
     if (want.forces && itsPoint)
         if (auto missing=itsPoint->calc->MissingGradients(); !missing.empty()) return missingForces(missing);
+    if (want.stress && itsPoint)
+        if (auto missing=itsPoint->calc->MissingVirials(); !missing.empty()) return missingStress(missing);
     // THE POINT'S CELL, under the setup's frozen rule (FollowCell): the reference's, or a strained one within the allowance.
     auto followed=FollowCell(S, *cell, R);
     if (!followed) return O::Fail(followed.Error());
@@ -3143,24 +3230,30 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     if (itsPoint) carry=itsPoint->calc->Carry();
     itsPoint.reset();
     point->calc=SolidCalculation::AtGeometry(itsSetup, latR, point->mol, carry ? &*carry : nullptr, itsSchedule, itsCarry==Carry::Lowdin,
-                                         itsObserver, want.forces);
-    if (want.forces)   // unconverged when it names a gap: never held, so it never seeds the next point
+                                         itsObserver, want.forces, want.stress);
+    // unconverged when it names a gap: never held, so it never seeds the next point
+    if (want.forces)
         if (auto missing=point->calc->MissingGradients(); !missing.empty()) return missingForces(missing);
+    if (want.stress)
+        if (auto missing=point->calc->MissingVirials(); !missing.empty()) return missingStress(missing);
     itsPoint=std::move(point);
 
     auto out=itsPoint->calc->Result();
     if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
-    if (want.forces)
-    {
-        // Every term has its face, but nothing here sums them over the Bloch blocks with W yet: refused by name, not thrown (a deck can
-        // reach it), and the day this fires on a real setup is the day to wire Hamiltonian::Forces here.
-        return O::Fail({Why::NoGradient, "forces: every term names its geometry gradient, but the solid force sum (Hamiltonian::Forces over "
-                        "the Bloch blocks, with W) is not wired into SolidSession yet"});
-    }
     // THE RASTERS ARE FROZEN at the first converged point (C2 step 3): every later point samples on the rasters this one's pilot settled,
     // as it runs on the basis the setup froze -- a raster re-sized per point would make the surface jump.
     if (!itsSetup->rastersResolved) itsSetup=itsPoint->calc->SizedSetup();
-    return O::Ok(PESPoint{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()});
+    PESPoint p{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()};
+    // THE DERIVATIVES at the converged D and its energy-weighted W (SolidCalculation::MakeEnergyWeightedDensity, any solid basis).
+    if (want.forces)
+    {
+        const rvec3vec_t F=itsPoint->calc->MakeForces();
+        std::vector<rvec3_t> f(F.size());
+        for (size_t a=0;a<F.size();a++) f[a]=F[a];
+        p.forces=std::move(f);
+    }
+    if (want.stress) p.stress=itsPoint->calc->MakeStress(cellR);
+    return O::Ok(std::move(p));
 }
 
 } //namespace qchem

@@ -819,3 +819,148 @@ MoleculeCalculation files and the new module, so lane G's `MoleculeSetup.C` edit
 
 **§13 and §14 APPROVED (user 2026-11-07, "All approved"):** the §13 `Forces` surface on the `Hamiltonian` hub (`tHamiltonian::MissingGradients()`, `tHamiltonianAt::Forces(W)`; term faces, the basis `GeometryDerivatives` face and W behind the hub); the §14 molecular-ε design with the controller's answers: (1) replay the banked TeF₆ fixed-D data before building per-species (nR, L); (2) the Coulomb fit set is NUMERICAL (pin 31 lists fit-basis incompleteness as non-model), so a miss WARNs with a policy row until a fit-set ladder exists, which gets its own row; (3) the sizing climb runs by default on energy runs on both facades, the separate post-SCF confirmation audit stays opt-in.  The Enzyme build is approved too.
 
+
+## 15. Real relaxations end to end: the molecules (lane H, 2026-11-11; OpenWork §2 "Real relaxations end to end", step 1)
+
+**Wiring.**  `MoleculeSession::ConvergeAt` used to refuse every forces request ("step 9").  It now answers it:
+- a term without its geometry gradient (LDA's XC today) is refused by name, `NoGradient` listing `Hamiltonian::MissingGradients`, BEFORE
+  any SCF: the held point is asked, or the first point's question goes to a probe built up to its Hamiltonian, in its own report run;
+- otherwise the converged point carries −dE/dR = the terms' forces + the Pulay sum, at the converged D and W
+  (`MoleculeCalculation::MakeForces`, the same `tHamiltonianAt::Forces` the ForceFacade gates check against the re-converged FD);
+- stress is refused (a molecule has no cell).
+So today's real molecular relaxations are **HF** (and E1); LDA waits on the δ XC force (OpenWork §2 "Analytic forces").
+
+**Oracle.**  PySCF 2.14 at the SAME model: RHF, the Cartesian DGauss DZVP read from `BasisSetData/dzvp.bsd`, analytic gradients, scipy
+BFGS to max|g| < 1e-7 Ha/bohr, SCF conv_tol 1e-12.  `~/Code/pyscf-runs/Relax/hf_dzvp_relax.py` and `.out`.  Ours: `GeometryOptimizer`
+over the session, `CartesianMap` (rigid modes out, no symmetry ops), `OptimizerOptions::FromEps(1e-6)` (max|g| 4.5e-5), SCF MinΔρ/N 1e-9.
+Logs `~/Code/qchem6-runs/Relax/`.
+
+| molecule (start) | stepper | steps / evaluations | E ours − PySCF (Ha) | geometry ours vs PySCF |
+|---|---|---|---|---|
+| H₂O (experimental) | BFGS-RFO | 4 / 6 (1 rejected) | +5e-10 | r(OH) 1.788777 vs 1.788807, HOH 106.4791 vs 106.4775 |
+| H₂O (experimental) | L-BFGS | 4 / 6 (1 rejected) | +1e-10 | r(OH) 1.788825, HOH 106.4770 |
+| NH₃ (experimental) | BFGS-RFO | 4 / 5 | 0 (to 1e-10) | r(NH) 1.893998-1.894000 vs 1.893998, HNH 107.4035 vs 107.4040 |
+| H₂O₂ (HOOH 60°, 54° off) | BFGS-RFO | 12 / 13 | −5e-10 | r(OO) 2.636290 vs 2.636291, r(OH) 1.792330 vs 1.792327, OOH 102.7431 vs 102.7434, HOOH 113.709 vs 113.706 |
+
+Every run converged under the ε-derived rule and lands on PySCF's minimum: energy to 5e-10 Ha, bonds to 3e-5 bohr, the soft torsion to
+0.003°.  PySCF's own BFGS took 9 / 10 / 20 evaluations (from the experimental H₂O₂, 21).
+
+**What the runs showed** (each a row in `doc/OpenWork.md`):
+1. **The cost is the ERI4, not the optimizer or the SCF.**  H₂O₂ (34 functions) costs ~11 s a point, ~80 % of it the MnD ERI4 build at
+   the new geometry (`findRNLM`, `Hermite2`, `Repulsion4C`, the `Cache2` std::map lookups; `perf`, 60 s sample).
+2. **The molecular DIIS switches itself OFF near convergence**: its ABSOLUTE singular-value floor (`AcceleratorOptions::svTol` 5e-9) on B,
+   whose scale is |[F,D]|², prunes the history to one entry once [F,D] ≲ 7e-5, and the tail runs on linear mixing at 0.5 (~0.76 per
+   iteration): H₂O₂ cold 13 DIIS iterations + 35 linear, a carried step of 2.5e-4 bohr 30 linear.  Floor off (svTol 1e-20): DIIS keeps a
+   near-singular history and stalls at [F,D] ~4e-8 (cap hit).  The Ladder (DIIS→GDM at ΔE/E < 1e-6, the CLAUDE.md restart rule) halves the
+   points' SCF iterations (Σ 483 → 275) but moves the wall only 150 → 140 s, because of 1.
+3. **The libcint engine has no pullbacks**: a forces request on `.engine=LibCint` is refused by name (Kinetic, Ven: "gives no kinetic /
+   nuclear pullback"), correctly, but a geometry run cannot use the faster engine.
+
+**Tests** (the user's budget, 2026-11-10): `UTCalculation` `MoleculeSession.AForcesRequestOnHFCarriesTheForceAtEveryPoint` (the wiring,
+against the session's own FD at two points), `MoleculeSession.RefusalsAreOutcomesAndAWrongCountThrows` (LDA refused by name with no point
+kept; stress refused); `MolecularRelaxation.HFWaterReachesPySCFsMinimum` (both steppers, 13 s) and the family's one end-to-end
+`MolecularRelaxation.HFPeroxideUnwindsItsTorsionToPySCFsMinimum_Long` (~150 s).  NH₃ is banked here, not gated.
+
+### 15b. The solids on plane waves (lane H, 2026-11-11; OpenWork §2 "Real relaxations end to end", step 2, and the cell half's item (a))
+
+**Wiring.**  `SolidSession::ConvergeAt` used to refuse every forces request (the solid sum over the Bloch blocks had no W) and every stress
+request.  Both are now answered on ONE generic W:
+- `SnapshotState(..., energyWeighted)` (qchem.SCFState) puts W = Σ f ε c c^† in each block's D slot, and `RestoreDensity` builds it into
+  a density weighted and composed exactly as the converged one (block weights, the Shubnikov spin-pair projection).  It does not care
+  what the basis is, so lane B's GPW force and virial terms plug into the same W.  `SolidCalculation::ForceVirial` drops its "Gaussian
+  needs W" refusal.
+- A forces (stress) request is refused by name before any SCF while `MissingGradients` (`MissingVirials`) is not empty.  Otherwise the
+  converged point carries −dE/dR (`tHamiltonianAt::Forces`) and σ (`tHamiltonianAt::Stress` on the point's cell), both at D and W.
+- `MakeSolidGeometryRun(..., relaxCell)` pairs the session with a `CellWyckoffMap` over the same ops (forces and stress per point).  It
+  refuses a setup with no `cellStrainAllowance`.
+
+**Gates** (`UTCalculation`):
+- `ForceFacade.TheSharedEnergyWeightedSnapshotIsTheFacadesW`: the shared W is the molecular facade's own W to 1e-13.  Water RHF, SALC,
+  and UHF SALC.
+- `HamiltonianForces.OnPlaneWavesTheSessionsForceIsTheFiniteDifferenceOfItsEnergy`: the session's force against its own re-converged FD,
+  ≤ 1.8e-9 at max|F| 0.032.  |ΣF| is 6.4e-8, the XC raster's egg-box.
+- `HamiltonianStress.OnPlaneWavesTheWholeVirialIsTheStrainDerivativeOfTheReconvergedEnergy`: now gates the session's σΩ, equal to the
+  door's virial to 1e-8.
+- `SolidSession.AForceRequestNamesTheMissingGradientsBeforeAnySCF`: adds the stress twin on GPW (MissingVirials, 0 SCF iterations).
+- `SolidSession.AGeometryRunPairsTheSessionWithAMapThatKeepsItsGroup`: the `relaxCell` refusal, plus cubic diamond's single strain.
+
+**Relaxations.**  `SolidRelaxation.OnPlaneWavesSiReturnsToTheDiamondSite`: Si₂, PW Ecut 4 Ha, Γ, a free setup (P1, 6 Cartesian
+coordinates, translations held), the second atom started at (0.27, 0.24, 0.26).  3 steps, 4 points, 1 s, back on (¼, ¼, ¼) to 1.1e-5 bohr.
+
+**What did NOT make a test: plane waves are Γ-only so far, and Γ makes the obvious small cells unstable** (model, not code):
+- **NaF** (Na q1 / F q7, the QE-gated Ecut 15 Ha), F started at (0.52, 0.47, 0.51).  It relaxed cleanly (24 steps, max|g| 9e-6) to the
+  TETRAHEDRAL site (¾, ¾, ¾), 77 mHa below rocksalt.  Rocksalt is a saddle here, which is the light-PP "no restoring force" row (§3)
+  seen at Γ.  It took 259 s.
+- **Si₈** (conventional cubic, Γ folds in X).  It is unstable on diamond at Ecut 4 Ha AND at 8 Ha, at a fixed cell: −220 / −195 mHa in
+  12 steps, the atoms leaving their sites.  QE `relax` on the identical start (Ecut 16 Ry, the same GTH q4 UPF, sla+vwn, `K_POINTS
+  gamma`) starts at the same energy (−62.53357068 Ry = −31.26678534 Ha against ours −31.26678557 Ha, 2e-7 Ha) and runs away the same
+  way, its force growing (`~/Code/qe-runs/Si/si8_gamma_relax_e16.{in,out}`, stopped at 25 min).  So it confirms our PW surface
+  independently, and it is not a defect.
+- **Si₂ cell**: the Γ pressure is still +6 GPa at 8 % expansion, with a level crossing near a = 11 bohr, so there is no physical minimum
+  within an allowance.
+So the END-TO-END CELL RELAXATION waits on a k-mesh for plane waves or on the GPW virials (rutile TiO₂, step 3).  Until then the cell
+path is gated at unit level: the σ gates above and `CellWyckoffMap` on model surfaces.
+
+### 15c. The GPW Hartree virial (lane H, 2026-11-11; agreed with lane B the same day)
+
+**The split** (the controller's assignment, lane B's agreement):
+- **Lane H:** the GPW virials that do not wait on Enzyme #3753.
+- **Lane B:** the three PP virials, landing with their PP forces.
+- **Nobody yet:** the Becke-mesh (and raster) XC virial goes with the GPW XC force once the δ XC work unblocks it, and the controller
+  assigns the two together.
+So the one term to build was **Vee_Fit's ORBITAL side** on a Bloch Gaussian block.  Its fit side (`MakeHartreeVirial`, the pair counts
+N_G held) already existed from the PW stress.
+
+**What it is.**  `PairProjection::applyAdjointVirial`'s convention, with the fit functions, the kernel and Ω held and only the pair counts
+N_G = ∫ρ_D e^{iG·r} moving, is the gather `h[V] = IntegratePotential(V_L)` at fixed level fields (per raster index) and fixed D, with the
+centres, image offsets and raster all strained:
+- the MOMENT: Σ c Σ_g V(g) [d_{i,b} ∂_aχ_i χ_j + χ_i d_{j,b} ∂_aχ_j], where d = r − R is each function's argument;
+- the DILATION: δ_ab Re Tr(D h[V]), from the raster weight Ω/N.
+
+`IntegratePotentialVirial` (`PG_Cart_MnD/Evaluator.C`) sits beside lane B's `IntegratePotentialPullback`, on the same task list, levels,
+screens, unit weight and jet walk, never folded.  The walk's `PointJets` gains the displacement `d` it already computed.  That is additive:
+the pullback gates still pass, and the non-jet arm the SCF gather uses is untouched.  The face is forwarded through `LatticeCollocation`,
+the spherical view (through T), `Orbital_IBS` and `GPW_Evaluator::MakeIntegratorVirial`.  `Repulsion3C` (kernel held) and `Overlap3C` now
+set `applyAdjointVirial`.  No libcint and no seam: it is all MnD collocation.
+
+**The fixed-D door** `SolidCalculation::FrozenTermEnergiesAt` now remakes a Gaussian setup's molecular basis at the strained centres (the
+frozen recipe, as a session step does).  It used to reuse the reference basis, which only a plane-wave basis may do.
+
+**Gates:**
+- `UTGaussian_BS` `M_CollocationPullback.TheGatherVirialIsItsStrainFiniteDifference_{Uncontracted,Contracted,Spherical}`: Si SIPP_SR,
+  contracted H₃ dzvp, MnO through the spherical view, at a non-TRIM k, against the Richardson central difference of Re Tr(D h[V]) on the
+  strained cell.  |Δ| ≤ 2.5e-8 at max 0.18, 4e-10, and 7e-9.
+- `UTCalculation` `HamiltonianStress.OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFiniteDifference`: on the sheared, distorted
+  Si cell (2 % allowance), every GPW term that answers is checked against the strain FD of its own energy at fixed D, all 9 components.
+  Fitted Hartree ≤ 1.7e-7, kinetic ≤ 5e-8, ion-ion ≤ 3e-8 (gate 1e-6).  Short-, long-range and KB PP and XC name themselves.
+
+**What a GPW stress still lacks:** the three PP terms (lane B, Enzyme #3753) and XC (Becke or raster, with the δ XC force).  Rutile's
+end-to-end cell run needs both.
+
+### 15d. The GPW Hartree pullback and virial on the contracted cube (lane H, 2026-11-11; the forces row's fast-path item)
+
+**Why.**  Measured with the integrate memo defeated: one gather on the contracted cube took Si 0.14 s and MnO 0.42 s.  The jet walk's
+pullback took 2.5 / 7.4 s and its virial 3.0 / 7.9 s, about 18 gathers each.  An SCF point runs 20-30 gathers, so the walk added more
+than half again to every force-and-stress point.
+
+**What.**  A Cartesian Gaussian's gradient is the SAME Gaussian times shifted polynomials:
+∂_x[x^n… e^{−αr²}] = n x^{n−1}… − 2α x^{n+1}….  So a jet is two polarization-shifted pair integrals, and the virial's moment
+d_y ∂_xχ is one shift more.  `CubeJets` builds them from the cube's grid moments:
+- `GatherCube` runs at degree l_p+1 (l_p+2 for the virial), and the moment table `MomentTable` is factored out of `MomentsToPairs`.
+  The arithmetic is the same and the SCF gather calls it unchanged.
+- `ShiftedPair` reads out any power pair.
+- Contracted shells go per primitive pair, each on its own box, as `GatherPrimitivePairs` does.
+- Above the tensor extent (l_p + shift ≥ 9), the caller walks.
+The route is the production gather's policy, `UseContractCube`; its unit-test hook `ContractCubeOverride` forces the walk.
+
+**Gate.**  `UTGaussian_BS` `M_CollocationPullback.TheCubeJetsAreTheWalksJets_{Uncontracted,Contracted,Spherical}` checks the pullback
+and virial on the cube against the jet walk:
+
+| fixture | max \|walk − cube\| | max component | walk | cube |
+|---|---|---|---|---|
+| Si (uncontracted) | 1.8e-15 | 0.10 | 6.5 s | 0.37 s |
+| H₃ (contracted) | 1.9e-11 | 0.064 | 0.41 s | 0.033 s |
+| MnO (spherical view) | 1.3e-14 | 1.5 | 19.3 s | 1.10 s |
+
+The contracted case differs by the primitive boxes' truncation, the gather's own walk-vs-cube tier.  The FD gates (§15c) now run on the
+cube, the default, and still pass.

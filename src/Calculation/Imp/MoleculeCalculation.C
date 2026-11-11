@@ -191,7 +191,7 @@ void MoleculeCalculation::BuildGraph()
         itsAccel.reset(accel);
         if (itsCarry && itsCarry->moved) itsCarry=std::make_unique<const Carry>(CarryOntoThisBasis(*itsCarry));   // a session step
         if (!itsCarry)
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get());
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsSetup->mesh);   // an HF SAD seed's sibling: the run's mesh
         else
         {
             // THE CARRY (a MoleculeSession step, or a restored state): the D, block for block, onto THIS point's basis -- a
@@ -400,6 +400,20 @@ MoleculeCalculation::Carry MoleculeCalculation::CarryOntoThisBasis(const Carry& 
     return out;
 }
 std::vector<hmat_t<double>> MoleculeCalculation::MakeEnergyWeightedDensity() const {return BlockDensities(true);}
+
+std::vector<std::string> MoleculeCalculation::MissingGradients() const
+{
+    if (!itsHam) throw std::logic_error("MoleculeCalculation::MissingGradients: no Hamiltonian yet (BuildGraph builds it)");
+    return itsHam->MissingGradients(itsBasis, itsStructure.get());
+}
+
+rvec3vec_t MoleculeCalculation::MakeForces() const
+{
+    if (!itsScf || !itsHam) throw std::logic_error("MoleculeCalculation::MakeForces: no converged point yet");
+    const auto D=MakeCarriedDensity(MakeCarry());
+    const auto W=MakeCarriedDensity(Carry{MakeEnergyWeightedDensity()});
+    return itsHam->At(itsBasis, D.get()).Forces(W.get(), itsStructure.get());
+}
 
 std::unique_ptr<qchem::ChargeDensity::rDM_CD> MoleculeCalculation::MakeCarriedDensity(const Carry& carry) const
 {
@@ -888,9 +902,7 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
     const size_t nAtoms=ref.GetNumAtoms();
     if (R.size()!=nAtoms)
         throw std::invalid_argument("MoleculeSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
-    if (want.forces || want.stress)
-        return O::Fail({Why::NoGradient, std::string(want.stress ? "stress" : "forces")+": no term implements its geometry gradient yet "
-                        "(doc/CalcNetworkReview.md §3.3, step 9) -- difference ConvergeAt energies meanwhile"});
+    if (want.stress) return O::Fail({Why::NoGradient, "stress: a molecule has no cell to strain"});
 
     std::shared_ptr<Structure> at=ref.Clone();
     at->MoveSites(R);
@@ -911,6 +923,28 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
                                         +" -- step through a map given the group's operations (CartesianMap), or resolve a new setup without the symmetry");
     }
 
+    // FORCES: the point's own Hamiltonian names what it lacks (GeometryOptimizationPlan §13), and NO SCF is spent finding out (the solid's
+    // rule): the term set is the SETUP's, the same at every point, so a session that holds a point asks THAT one; the first point's
+    // question is put to a probe built up to its Hamiltonian, in a report run of its own, and discarded.
+    if (want.forces)
+    {
+        std::vector<std::string> missing;
+        if (itsPoint) missing=itsPoint->MissingGradients();
+        else
+        {
+            struct Fence { Fence() {report::Begin("forces probe");} ~Fence() {report::End();} } fence;
+            MoleculeCalculation probe(MoleculeCalculation::BuildOnly{}, itsSetup, *at, nullptr, nullptr, /*geometryPoint*/true);
+            probe.BuildGraph();
+            missing=probe.MissingGradients();
+        }
+        if (!missing.empty())
+        {
+            std::string why="forces: these cannot give their geometry gradient yet (Hamiltonian::MissingGradients):";
+            for (const auto& m : missing) why+="\n    "+m;
+            return O::Fail({Why::NoGradient, why});
+        }
+    }
+
     // THE CARRY (lane A, 2026-11-09): the previous point's state, carried onto this point's basis when it is built, by the function a
     // file restart at moved atoms uses (CarryToMovedAtoms: AO coefficients, the measured best first iterate).
     std::unique_ptr<const MoleculeCalculation::Carry> carry;
@@ -927,7 +961,15 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
     auto out=itsPoint->Result();
     if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
     itsSetup=itsPoint->SizedSetup();   // the first point's pilot froze the mesh: every later point steps on it (§2 rule 4)
-    return O::Ok(PESPoint{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()});
+    PESPoint p{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()};
+    if (want.forces)
+    {
+        const rvec3vec_t F=itsPoint->MakeForces();
+        std::vector<rvec3_t> f(F.size());
+        for (size_t a=0;a<F.size();a++) f[a]=F[a];
+        p.forces=std::move(f);
+    }
+    return O::Ok(std::move(p));
 }
 
 double                 MoleculeCalculation::Energy()      const {return itsScf->GetEnergy().GetTotalEnergy();}
