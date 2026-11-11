@@ -42,6 +42,13 @@ struct CalcOptions
     //! unstated basis is refused at \c Resolve (policy BasisUnstated), naming the registered bases that cover the structure -- the
     //! old default "sto-3g" had no file, so a run that relied on it could never build.
     std::string basis;
+    //! A .bsd PATH (it contains a '/'; a bare name means the shipped directory) used INSTEAD of the shipped file \c basis names (\c basis is then only its label) -- the molecular twin of
+    //! \c GaussianBasisRecipe::file (lane G 2026-11-10, controller ruling: parity with the solid side; \c basis stays a NAME, never a
+    //! path).  What the GUI's Basis Set Exchange download points at (~/.solid2/bases/...).  The report states the path and the
+    //! file's checksum, and a saved state refuses a different checksum, so an edited or missing file can never pass as the same
+    //! basis.  Empty (the default) = the shipped file \c basis names, exactly as before.  (V-FACADE-OPTS: the options tree takes it
+    //! beside its solid twin.)
+    std::string basisFile;
     Model       model = Model::HF;   //!< HF (default) | Xalpha | LDA | E1/DE1/DHF (test-only)
     SpinGroup         spin  = SpinGroup::UnPolarized;   //!< the imposed spin subgroup (V1.37)
     //! Spin multiplicity 2S+1.  0 (default) = minimal spin: closed-shell singlet for even Ne, doublet for

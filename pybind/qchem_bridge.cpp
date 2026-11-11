@@ -38,6 +38,7 @@ import qchem.Symmetry.Lattice_3D.SpaceGroup;    // SpaceGroup::Detect
 import qchem.Reporting;                          // report::GlobalReport (the run record the library keeps)
 import qchem.CrystalFiles;                       // CIF / POSCAR / extended xyz <-> one materials.json entry
 import qchem.StructureData;                      // the materials layers (shipped, user, workspace) and CellFromEntry
+import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import;   // a downloaded basis -> the BasisSetData layout
 
 // The opaque handle: the facade plus the request's geometry (for the sampling box).  extern "C++" attaches it to the
 // GLOBAL module, where qcb_api.h (in the GMF) forward-declares it -- a purview definition would be a different entity.
@@ -204,6 +205,7 @@ MoleculeRequest molecule_request(const qcb_request* req)
     r.opts.basis        = req->basis;
     r.opts.model        = parse_model(req->model);
     r.opts.pp           = req->pp ? req->pp : "";
+    r.opts.basisFile    = req->basisFile ? req->basisFile : "";
     r.opts.symmetry     = req->symmetry != 0;
     r.opts.spin         = req->polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;
     r.opts.multiplicity = req->multiplicity;
@@ -511,6 +513,43 @@ int qcb_solid_resolved(const qcb_solid* h, char* out, int outlen)
     return int(s.size());
 }
 
+int qcb_solid_field(const qcb_solid* h, int spin, int iterate, const int* n3, const double* origin, const double* spacing,
+                    double* out, char* err, int errlen)
+{
+    const HostLocale host;
+    try
+    {
+        std::unique_ptr<SolidCalculation::sf_t> owned;
+        const SolidCalculation::sf_t* f = nullptr;
+        std::optional<decltype(h->calc->Result())> proof;   // the Converged proof's lifetime spans the sampling
+        if (iterate)
+        {
+            owned = spin ? h->calc->MakeIterateSpinDensity() : h->calc->MakeIterateDensity();
+            f = owned.get();
+        }
+        else
+        {
+            if (!h->attempted) throw std::runtime_error("no SCF has run: there is no converged density yet");
+            proof.emplace(h->calc->Result());
+            if (!*proof) throw std::runtime_error("the SCF did not converge, so there is no converged density (" + describe(proof->Error())
+                                                  + "); its last iterate can be sampled instead");
+            f = spin ? proof->Value().SpinDensity() : &proof->Value().Density();
+        }
+        size_t idx = 0;
+        for (int i = 0; i < n3[0]; ++i)
+            for (int j = 0; j < n3[1]; ++j)
+                for (int k = 0; k < n3[2]; ++k)
+                {
+                    const rvec3_t r(origin[0]+spacing[0]*i, origin[1]+spacing[1]*j, origin[2]+spacing[2]*k);
+                    out[idx++] = f ? (*f)(r) : 0.0;            // an unpolarized run's converged m(r) is null: the zero field
+                }
+        return 1;
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return 0;
+}
+
 int qcb_solid_judge_state(const qcb_solid* h, const char* path, char* out, int outlen)
 {
     const HostLocale host;
@@ -652,6 +691,26 @@ extern "C" int qcb_materials(const char* req, char* out, int outlen)
     if (!out)
     {
         try { answer=MaterialsAnswer(req ? req : "").dump(); }
+        catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
+        return int(answer.size());
+    }
+    write_error(answer.c_str(), out, outlen);
+    return int(answer.size());
+}
+
+extern "C" int qcb_basis_import(const char* req, char* out, int outlen)
+{
+    static thread_local std::string answer;
+    if (!out)
+    {
+        try
+        {
+            const auto r=nlohmann::json::parse(req ? req : "");
+            const auto got=qchem::BasisSet::Gaussian::ImportGaussian94(r.at("text").get<std::string>(), r.at("title").get<std::string>(),
+                                                                     r.value("provenance", std::vector<std::string>{}));
+            answer=(got ? nlohmann::ordered_json{{"bsd", got->bsd}, {"elements", got->elements}, {"maxL", got->maxL}, {"notes", got->notes}}
+                        : nlohmann::ordered_json{{"error", got.Error()}}).dump(-1, ' ', false, nlohmann::ordered_json::error_handler_t::replace);
+        }
         catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
         return int(answer.size());
     }

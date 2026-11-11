@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unistd.h>
@@ -24,6 +25,7 @@ import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Structure;
 import qchem.Types;
+import qchem.PeriodicTable;                      // the element of each header line
 import qchem.Mesh;                               // qcMesh::MeshParams (the fit bases' factories take one)
 
 using namespace qchem;
@@ -203,4 +205,67 @@ TEST(BasisNames, ABasisIsAFileStemAndEveryHandleNamesOneThatIsThere)
     EXPECT_EQ(BasisFileChecksum("dzvp.bsd"), BasisFileChecksum("dzvp.bsd"));
     EXPECT_NE(BasisFileChecksum("dzvp.bsd"), BasisFileChecksum("dzvp2.bsd"));
     EXPECT_EQ(BasisFileChecksum("dzvp.bsd").size(), 16u);
+}
+
+// THE BODY IS LOCATED BY ITS HEADER (lane G 2026-11-10, OpenWork §3): the reader once stopped at the first "!" TOKEN, skipped two lines
+// and then to the next "****" -- a preamble opening with its own "!" lines silently cost the file its FIRST block (decks/panel/
+// MnO2_control.bsd lost F).  Now the body starts after BASIS=, every block is found, the historical "!"+title layout still reads, and
+// a file with neither is refused by name.
+namespace
+{
+std::filesystem::path Wrote(const std::string& name, const std::string& text)
+{
+    const auto p=std::filesystem::temp_directory_path()/("qchem_UT_Gaussian94Reader_"+name+".bsd");
+    std::ofstream(p) << text;
+    return p;
+}
+size_t Count(const std::filesystem::path& f, int Z)
+{
+    Molecule m; m.Insert(Site{Z, Vector3D(0,0,0)});
+    std::unique_ptr<qchem::BasisSet::tBasisSet<double>> bs(FactoryFromFile(f.string(), &m, Engine::MnD, Angular::Cartesian));
+    return bs->GetNumFunctions();
+}
+const char* kTwoBlocks=" F   0\n S   1  1.00\n   1.0   1.0\n ****\n O   0\n S   1  1.00\n   2.0   1.0\n P   1  1.00\n   1.0   1.0\n ****\n";
+}
+
+TEST(Gaussian94Reader, APreambleThatOpensWithBangLinesLosesNoBlock)
+{
+    const auto f=Wrote("bang_preamble", std::string("!\n! a note\nfree text\n!\nBASIS=\"t\"\n")+kTwoBlocks);
+    EXPECT_EQ(Count(f, 9), 1u) << "the FIRST block (F) is found";
+    EXPECT_EQ(Count(f, 8), 4u);
+}
+
+TEST(Gaussian94Reader, TheHistoricalBangTitleLayoutStillReads)
+{
+    const auto f=Wrote("bang_title", std::string("free text\n!\nA title, no BASIS= line\n")+kTwoBlocks);
+    EXPECT_EQ(Count(f, 9), 1u);
+    EXPECT_EQ(Count(f, 8), 4u);
+}
+
+TEST(Gaussian94Reader, AFileWithNoLocatableBodyIsRefusedByName)
+{
+    const auto f=Wrote("no_body", std::string("<pre>! not a marker\n<p>BASIS=\"t\"\n")+kTwoBlocks);
+    try { (void)Count(f, 8); FAIL() << "a file with no BASIS= line and no \"!\" line was read"; }
+    catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("cannot be located"), std::string::npos) << e.what(); }
+}
+
+TEST(Gaussian94Reader, EveryShippedFileReadsEveryBlockItHolds)
+{
+    for (const std::string& name : BasisNames())
+    {
+        std::ifstream in(BasisFile(name+".bsd"));
+        std::string line; bool body=false;
+        for (; std::getline(in, line);)
+        {
+            std::istringstream is(line); std::string a, b, extra;
+            if (line.find("BASIS=")!=std::string::npos) { body=true; continue; }
+            if (!body || !(is >> a >> b) || (is >> extra) || b!="0") continue;
+            std::string sym=a; for (char& c : sym) c=(char)std::tolower((unsigned char)c);
+            sym[0]=(char)std::toupper((unsigned char)sym[0]);
+            const int Z=int(thePeriodicTable().GetZ(sym));
+            if (Z==0) continue;
+            Gaussian94Reader reader(BasisFile(name+".bsd"));
+            EXPECT_NO_THROW(reader.FindAtom(Site{Z, Vector3D(0,0,0)})) << name << ": " << a;
+        }
+    }
 }

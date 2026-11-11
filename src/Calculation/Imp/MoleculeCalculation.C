@@ -18,6 +18,7 @@ module;
 module qchem.MoleculeCalculation;
 
 import qchem.BasisSet.Gaussian.Point.Factory;             // BasisSet::Gaussian::Factory
+import qchem.BasisSet.Gaussian.Point.BasisFiles;          // BasisFileChecksum: a stated basis file's identity (report, fingerprint)
 import qchem.BasisSet.Conditioning;                  // ReportConditioning
 import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
 import qchem.BasisSet.Gaussian.PG_Cart.SymmetryAdapt;   // PG::SymmetryAdapt (the SALC builder)
@@ -73,8 +74,11 @@ static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_
 
     const char* engine  = (opts.engine  == Engine::LibCint) ? "libcint" : "mnd";
     const char* angular = spherical ? "spherical" : "cartesian";
-    BasisSet::Real_BS* raw = BasisSet::Gaussian::Factory(
-        nlohmann::json{{"basis", opts.basis}, {"engine", engine}, {"angular", angular}}, st.get());
+    BasisSet::Real_BS* raw = opts.basisFile.empty()
+        ? BasisSet::Gaussian::Factory(nlohmann::json{{"basis", opts.basis}, {"engine", engine}, {"angular", angular}}, st.get())
+        : BasisSet::Gaussian::FactoryFromFile(opts.basisFile, st.get(),                               // a stated file (CalcOptions::basisFile)
+              opts.engine==Engine::LibCint ? BasisSet::Gaussian::Engine::LibCint : BasisSet::Gaussian::Engine::MnD,
+              spherical ? BasisSet::Gaussian::Angular::Spherical : BasisSet::Gaussian::Angular::Cartesian);
     if (!opts.symmetry) return raw;
     std::shared_ptr<const BasisSet::Real_BS> rawShared(raw);
     ao=rawShared;
@@ -170,6 +174,11 @@ void MoleculeCalculation::BuildGraph()
     {
         rpt::Section basis("basis");
         rpt::Set("name",       opts.basis);
+        if (!opts.basisFile.empty())
+        {
+            rpt::Set("file",     opts.basisFile);
+            rpt::Set("checksum", BasisSet::Gaussian::BasisFileChecksum(opts.basisFile));
+        }
         rpt::Set("engine",     opts.engine  == Engine::LibCint  ? "libcint"   : "mnd");
         rpt::Set("angular",    opts.angular == Angular::Spherical ? "spherical" : "cartesian");
         rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
@@ -736,6 +745,8 @@ void MoleculeCalculation::RecordState(StateRecord& r, double kT) const
     // ---- REFUSE: the saved D is a matrix over THIS basis's functions ----
     fp.refuseStr["basis.family"] ="gaussian";
     fp.refuseStr["basis.name"]   =o.basis;
+    if (!o.basisFile.empty())   // a stated file: its CONTENTS identify the basis (an edited file refuses; the path may move)
+        fp.refuseStr["basis.fileChecksum"]=BasisSet::Gaussian::BasisFileChecksum(o.basisFile);
     fp.refuseStr["basis.engine"] =o.engine==Engine::LibCint ? "libcint" : "mnd";
     fp.refuseStr["basis.angular"]=o.angular==Angular::Spherical ? "spherical" : "cartesian";
     fp.refuseStr["basis.blocks"] =o.symmetry ? "SALC" : "AO";
