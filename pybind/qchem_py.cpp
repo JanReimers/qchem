@@ -11,6 +11,7 @@
 #include <nanobind/stl/vector.h>
 #include <nanobind/ndarray.h>
 #include <algorithm>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -86,6 +87,20 @@ template <class F> nb::object json_call(F&& f)
 } // namespace
 
 // The Python-facing owner of one bridge handle.
+//! The Python-facing thread scope (qcb_threads): opened on __enter__, closed on __exit__ (or when collected).
+class Threads
+{
+public:
+    Threads(int openmp, int blas) : itsOpenMP(openmp), itsBlas(blas) {}
+    Threads(const Threads&)            = delete;
+    Threads& operator=(const Threads&) = delete;
+    void Open()  { if (!h) h = std::shared_ptr<qcb_threads>(qcb_threads_open(itsOpenMP, itsBlas), qcb_threads_close); }
+    void Close() { h.reset(); }
+private:
+    int itsOpenMP, itsBlas;
+    std::shared_ptr<qcb_threads> h;   //!< open while held; the deleter closes the scope (user 2026-11-12: "When in doubt use shared_ptr")
+};
+
 class Calculator
 {
 public:
@@ -472,6 +487,13 @@ NB_MODULE(qchem_py, mod)
     }, nb::arg("request"),
        "A pseudopotential set's q per element (PseudopotentialSet): JSON {set, elements} in, JSON {set, functional, valence: "
        "{El: q}} or {error} out.");
+
+    nb::class_<Threads>(mod, "Threads")
+        .def(nb::init<int, int>(), nb::arg("openmp") = 0, nb::arg("blas") = 0,
+             "A run's thread counts (0 = the process's own: QCHEM_OPENMP_THREADS / QCHEM_BLAS_THREADS).  Use as a context manager "
+             "around any run, molecule or crystal: `with qchem_py.Threads(openmp=4): ...`; leaving restores both counts")
+        .def("__enter__", [](Threads& t) -> Threads& { t.Open(); return t; }, nb::rv_policy::reference)
+        .def("__exit__", [](Threads& t, nb::args) { t.Close(); });
 
     nb::class_<BasisShells>(mod, "BasisShells")
         .def(nb::init<const std::string&>(), nb::arg("deck_json"),

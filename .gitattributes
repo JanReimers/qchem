@@ -15,3 +15,8 @@
 *.H linguist-language=C++
 *.hpp linguist-language=C++
 *.cpp linguist-language=C++
+
+# The history records are APPEND-ONLY: two lanes that each append a closed item conflict on every
+# merge (three times on 2026-11-12).  `union` keeps both sides' appended lines; it would only
+# interleave text if two branches edited the SAME existing lines, which a history file never sees.
+doc/Records/*History*.md merge=union
