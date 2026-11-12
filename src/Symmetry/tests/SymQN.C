@@ -340,3 +340,25 @@ TEST_F(SymQNTests, SelectionRule_MeshShiftAndInvariant)
     const UnitQN c1;                          // a C1 molecule's one block
     EXPECT_TRUE(inv.Couples(c1,c1));
 }
+
+// An Orbital_QNs key is (block, n) with n UNBOUNDED (lane H, 2026-11-12).  It was the radix pack Irrep*300+(n-1)
+// behind an assert, so a plane-wave block with more than 300 bands made (block I, n 301) the same key as
+// (block I+1, n 1): a silent collision in Release (EnergyLevels' map merged them), an abort under live asserts.
+TEST_F(SymQNTests, OrbitalQNsOrderIsBlockThenNWithNoBoundOnN)
+{
+    const Irrep a(Spin::None, Y(0)), b(Spin::None, Y(1));
+    ASSERT_TRUE(a<b);
+    std::set<Orbital_QNs> keys;
+    for (size_t n : {1ul, 299ul, 300ul, 301ul, 302ul, 5000ul}) {keys.insert(Orbital_QNs(n, a)); keys.insert(Orbital_QNs(n, b));}
+    EXPECT_EQ(keys.size(), 12u) << "every (block, n) is its own key, whatever n is";
+    // Block first, then n: every key of block a precedes every key of block b, and n ascends within a block.
+    const Orbital_QNs* prev=nullptr;
+    for (const Orbital_QNs& q : keys)
+    {
+        if (prev && prev->Irrep::SequenceIndex()==q.Irrep::SequenceIndex()) EXPECT_LT(prev->n, q.n);
+        if (prev) EXPECT_LE(prev->Irrep::SequenceIndex(), q.Irrep::SequenceIndex());
+        prev=&q;
+    }
+    EXPECT_FALSE(Orbital_QNs(301, a)<Orbital_QNs(301, a));
+    EXPECT_TRUE (Orbital_QNs(5000, a)<Orbital_QNs(1, b));
+}

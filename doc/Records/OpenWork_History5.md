@@ -2536,3 +2536,31 @@ seen after earlier tests is gone too.
 - *The Ladder*: no lever.  It costs 63 % more SCF iterations on these molecules and gives no accuracy that matters.
 - *A stall exit*: nothing to catch.  The tail converges steadily (~2.5× per iteration, no plateau), so an exit judged by a fixed rule never
   fires before the gate does.
+
+
+## An orbital key has no bound on n (closed 2026-11-12, lane H)
+
+The row as it stood (verbatim):
+
+| **The PW stress gates abort under live asserts: `Orbital_QNs.C:26` `n-1<n_max`** (lane H, 2026-11-12; lane H's own tests) | `HamiltonianStress.OnPlaneWaves{Si,NaF}sStressIsQEs` (UTCalculation) abort in a `-DQCHEM_RELCHECKED=ON` tree (lane-h c978cd520 and main's nightly 1bfae076 alike); green in every NDEBUG sweep, so a Release run reads past the invariant silently.  Assert-live from the stress landing on: RelChecked was BUILT there, never RUN | find which `Orbital_QNs::SequenceIndex` is asked for an n past its table on the PW stress path: a real out-of-range n (then an Outcome, or a throw at the table's entry point -- never an assert alone if a user can reach it, CLAUDE.md) or the test's basis; queued after the cache-key fix, before PADE · `src/Symmetry/Imp/Orbital_QNs.C`, `src/Calculation/tests` HamiltonianStress |
+
+**What it was.**  `Orbital_QNs::SequenceIndex` packed the key as `Irrep::SequenceIndex()*300 + (n-1)`, and an assert stood guard on
+`n-1 < 300`.  A plane-wave block has as many levels as plane waves (Si and NaF at the stress cutoffs: more than 300 per k-block), and
+`tIrrepWF::FillOrbitals` files every level in `EnergyLevels`' `std::map<Orbital_QNs,…>`.  So under live asserts it aborted.  In
+Release the assert is dead and (block I, n 300+m) became the SAME key as (block I+1, n m):
+- the map silently dropped the second level of each colliding pair;
+- `EigenRows`' spin pairing (`FindOrNull`) then read the wrong level into the eigenvalue table.
+
+It touched the display and report path only; no energy reads that map.  It was user-reachable by any PW run at a production
+cutoff, and silent in every sweep build.
+
+**Fix.**  The radix is gone.  `Orbital_QNs` orders LEXICOGRAPHICALLY (block key first, then n) through its own `operator<`.  For two
+`Orbital_QNs` that operator is an exact match, so it wins over `Irrep`'s.  `SequenceIndex` is `Irrep`'s again, the BLOCK key, which is
+what every caller that compares blocks wants (`EnergyLevels::merge`, `TransitionDensity`, `SelectionRule`).  There is no bound left to
+check, so the CLAUDE.md "check the table bound once and throw" rule has nothing to guard.
+
+**Gates.**
+- UTSymmetry `SymQN.OrbitalQNsOrderIsBlockThenNWithNoBoundOnN`: 12 distinct keys for n up to 5000 in two blocks; block-major order,
+  n ascending within a block.
+- RelChecked: `HamiltonianStress.OnPlaneWaves*`, 4 of 4 green, where they aborted before.
+- Short sweep 1596/0, long 15/0, both 0 moved at 1e-10 against the cache-key state (da67bfd27).
