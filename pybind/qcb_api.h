@@ -216,8 +216,10 @@ int qcb_materials(const char* req, char* out, int outlen);
 int qcb_basis_import(const char* req, char* out, int outlen);
 
 //! A named pseudopotential set's choice (Pseudopotential::PseudopotentialSet, the ONE reader of pseudopotentials.json and its rule):
-//! {"set": S, "elements": [El, ...]} -> {set, functional, valence: {El: q}} -- q per element, the set's exception if it lists one, else
-//! the smallest q the GTH database holds at the set's functional; or {"error"} (an unknown set, an element the database lacks).
+//! {"set": S, "elements": [El, ...]} -> {set, functional, valence: {El: q}, fitted: {El: label}} -- q per element, the set's exception if it lists one, else
+//! the smallest q the GTH database holds at the set's functional; `fitted` the functional each resolved potential was FITTED with
+//! (PseudopotentialSet::FittedFunctional, a display label such as "PADE" -- compare functionals through the library, never by this name);
+//! or {"error"} (an unknown set, an element the database lacks).
 //! The same two calls as qcb_materials.
 int qcb_pseudopotentials(const char* req, char* out, int outlen);
 

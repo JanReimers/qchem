@@ -718,9 +718,13 @@ extern "C" int qcb_pseudopotentials(const char* req, char* out, int outlen)
         {
             const auto r=nlohmann::json::parse(req ? req : "");
             const auto set=qchem::Pseudopotential::PseudopotentialSet::Get(r.at("set").get<std::string>());
-            nlohmann::ordered_json valence=nlohmann::ordered_json::object();
-            for (const auto& [el, q] : set.Species(r.at("elements").get<std::vector<std::string>>())) valence[el]=q;
-            answer=nlohmann::ordered_json{{"set", set.Name()}, {"functional", set.Functional()}, {"valence", valence}}.dump();
+            nlohmann::ordered_json valence=nlohmann::ordered_json::object(), fitted=nlohmann::ordered_json::object();
+            for (const auto& [el, q] : set.Species(r.at("elements").get<std::vector<std::string>>()))
+            {
+                valence[el]=q;
+                fitted[el]=set.FittedFunctional(el);   // the functional the resolved potential was FITTED with (a label, e.g. "PADE")
+            }
+            answer=nlohmann::ordered_json{{"set", set.Name()}, {"functional", set.Functional()}, {"valence", valence}, {"fitted", fitted}}.dump();
         }
         catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
         return int(answer.size());
