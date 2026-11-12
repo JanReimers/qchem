@@ -2444,3 +2444,49 @@ alternative, "relax 1.0 under DIIS" (option A), broke the Si Γ restart and the 
   - RelChecked builds clean, and the WILL_FAIL reasons match main's.
 - The 0.3-beside-DIIS cases in the short tier (Al FCC Γ, the Si atom-in-box Ladder and fold A/B) all pass.  The Si LR panel run is at
   α = 1, so the fix leaves it untouched.
+
+## A cache key is exact (closed 2026-11-12, lane H da67bfd27; found by lane A)
+
+The row as it stood (verbatim):
+
+| **`Structure::ID()` keys integral caches at 6 significant digits** (lane H, 2026-11-10; UNVERIFIED) | `SiteID` (`src/Structure/Imp/Atom.C`) prints R at the stream's default precision, and `Structure::ID()` is the structure half of the process-wide cache key (`theCache` in `Orbital_1E_IBS` Nuclear, `GPW_IBS` LocalPP / SeparablePP).  At |R| ~ 10 bohr that resolves ~1e-4 bohr, so two geometries closer than that (a finite-difference step, a converging optimizer) could share another point's cached integrals.  The cell half fixed the CELL half of the GPW and PW keys (`CellGeometry::KeyFragment`, %.17g); the positions half is this row.  Not yet shown to bite: whether the basis half of the key (`BasisSetID`) already pins the centres at full precision decides it | Next: a unit gate that two structures 1e-7 bohr apart give different Nuclear cache keys; if they collide, print R at %.17g in `SiteID` (it moves no number) · `src/Structure/Imp/Atom.C`, `src/BasisSet/Imp/Orbital_1E_IBS.C` |
+
+**What bit.**  The process-wide integral cache (`IntegralsCache_RAM`) keys every entry on `BasisSetID()` strings, plus `Structure::ID()`
+for the Nuclear / PP matrices and `MeshParams::ID()` for the mesh-keyed ones, and those strings were built by STREAMING doubles
+(`operator<<`, 6 significant digits) or `std::to_string` (6 FIXED decimals).  Lane A: tight SCF on H₂O₂ in a fresh process vs the same
+geometry after a run with one O shifted 3e-6 bohr gave a 2.8e-5 Ha difference, and a BFGS relaxation that revisited within 1e-6 bohr
+took a spurious minimum and collapsed its trust radius.  Reproduced by the new gate before the fix: E(B|A) − E(B) = 3.12e-5 Ha.
+
+**Audit (every string that feeds a cache or an identity).**
+| writer | defect | fix |
+|---|---|---|
+| `PGData::BasisSetID` (MnD Cartesian; libcint wraps it) | streamed centre (6 digits), streamed radial = exponents only, 6 digits, NO coefficients | `TypeID@KeyString(centre):pol` |
+| `SphData::BasisSetID` (MnD spherical) | the same, plus the spherical coefficients streamed | same, coefficients KeyString'd |
+| `GaussianRF::TypeID` (SALC grouping, and now the radial half of the PG keys) | `std::to_string`: exponent < 5e-7 read 0.000000 | KeyString |
+| `SiteID` / `Structure::ID` (Structure_ID_t: Nuclear, LocalPP*, SeparablePP) | streamed R | KeyString (body only: Structure is a hub) |
+| `ExponentialEvaluator::RadialID` (atom BasisSetID) | even-tempered: first and last exponent only, 6 digits | every exponent |
+| BSpline `RadialID` | 4 knots, 6 digits | the whole knot vector |
+| `GPW_Evaluator::IDFragment` / `LocalPPShortIDFragment` | k, dEcut, ladder to_string; tolerances keyed on `Describe()` (banner, 6 digits) | KeyString; new exact `GPWTolerances::KeyFragment` |
+| `PW_Evaluator::IDFragment` | k, Ecut to_string | KeyString |
+| `APW_IBS` / `LAPW_IBS::BasisSetID` | NO k and NO cell in the key; Rmt, Elin, Znuc to_string | k + reciprocal cell + KeyString |
+| `MeshParams::ID` (Mesh_ID_t) | every double to_string (angRot in radians!) | KeyString |
+| `CellGeometry::KeyFragment`, the PG_Cart PP memo (`KeyOf`), primitive interning (Cache2/3) | already exact | -- |
+| `DeltaFit_IBS` / `MultipoleFit_IBS::BasisSetID` | no geometry at all | LATENT: per-instance tables, never a global key today |
+
+**Gates.**  Ulp gates per writer (UTStructure `CacheKeys`, UTGaussian_BS `M_CacheKeys` over MnD/libcint × Cartesian/spherical,
+UTMesh `MeshParamsID`, UTLattice_BS `GPWTolerancesKey`); UTCalculation `CacheKeyExactness`: H₂O₂ HF/DZVP at two geometries 3e-6 bohr
+apart, either order in one process, each equal to its fresh energy (the string-keyed cache cleared between) -- red before, 0.0 after.
+
+**Exposure audit.**  Short + long sweeps against c978cd520: 0 tests moved (energy and iteration count, 1e-10).  The FD gates in the
+collision band did NOT collide: `M_GeometryDerivatives`' h = 1e-6 gate differentiates a closed-form φ (no cache), its h = 1e-5 jet gates
+evaluate basis functions pointwise (no cache); the integral-matrix FDs (`ForceFacade`, `WyckoffMap` strains, the relaxations) step 1e-5
+on coordinates below 10 bohr, which a 6-digit key still separated.  The one test that changed: the `M_GeometryDerivatives` ERI4 cross-pair
+FD called `AccumulateDirect` on a pair that was canonical only by the OLD string order ("Contracted" < "Primative"); it now uses the
+canonical-pair `AccumulateDirectBoth` / `ExchangeBoth`, which order the pair themselves.  No anchor moved, so no pin-10 re-judge.
+
+**Ownership (CLAUDE.md "when a cache needs an awkward key, suspect the LOOP").**  The per-basis matrices are keyed by a string that
+names the whole basis and its geometry, O(N functions) long, compared on every lookup, and they outlive the basis instance that made
+them (a relaxation keeps every geometry's ERI4 until the RAM cap).  The cross-instance reuse they buy is small (a session's reference vs
+single point; the test suite).  Proposal: the per-basis integral matrices live ON the basis instance (no key at all, the collision class
+gone by construction, memory bounded by live bases), while the primitive-level caches (Cache2/3: content-interned, exact keys, real reuse
+across one-atom FD steps) stay global.  A BasisSet hub change: put to the user by the controller, not built here.

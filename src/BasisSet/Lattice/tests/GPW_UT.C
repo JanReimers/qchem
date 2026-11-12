@@ -3018,3 +3018,20 @@ TEST(GPW, RasterDemandIsDelivered)
     }
 }
 
+
+// THE TOLERANCES' CACHE-KEY FRAGMENT IS EXACT (lane H 2026-11-12): the GPW tensors were keyed on Describe(), a banner line at 6
+// significant digits, so two derived vlocEps agreeing there shared every cached tensor.  KeyFragment: equal iff operator==.
+TEST(GPWTolerancesKey, AFieldAnUlpApartKeysApart)
+{
+    GPWTolerances a;
+    a.vlocEps=1.234567891e-6; a.vlocEpsRigorous=4.9e-6; a.vlocRoutingEta=0.25;
+    GPWTolerances b=a;
+    EXPECT_EQ(a.KeyFragment(), b.KeyFragment());
+    b.vlocEps=std::nextafter(a.vlocEps, 1.0);
+    EXPECT_FALSE(a==b);
+    EXPECT_NE(a.KeyFragment(), b.KeyFragment()) << "vlocEps an ulp apart";
+    EXPECT_EQ(a.Describe(), b.Describe()) << "(the banner line cannot tell them apart -- which is why it is not the key)";
+    GPWTolerances c=a; c.mgridEcuts={10.0, std::nextafter(20.0, 0.0)};
+    GPWTolerances d=a; d.mgridEcuts={10.0, 20.0};
+    EXPECT_NE(c.KeyFragment(), d.KeyFragment()) << "mgridEcuts an ulp apart";
+}

@@ -1,6 +1,7 @@
 module;
 #include <cassert>
 #include <sstream>
+#include <string>
 #include <iomanip>
 module qchem.Structure;
 import qchem.Reporting;   // FormatGuard
@@ -51,9 +52,9 @@ std::ostream& Atom::Write  (std::ostream& os) const
 
 std::string SiteID(const Site& s)
 {
-    std::ostringstream os;
-    os << "Z=" << s.Z << " R=" << s.R;
-    return os.str();
+    // EXACT (2026-11-12): this is the Nuclear / PP integral-cache key (Structure::ID); a streamed R printed 6 significant digits, so
+    // geometries 3e-6 bohr apart shared their nuclear-attraction and PP matrices.
+    return "Z="+std::to_string(s.Z)+" R="+KeyString(s.R);
 }
 
 std::ostream& WriteSite(std::ostream& os, const Site& s)

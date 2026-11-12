@@ -2,12 +2,14 @@
 module;
 #include <sstream>   // R1.9: free operator<<(ostream&,const char*) is NOT visible via a module import
 #include <vector>
+#include <string>
 #include <bspline/Core.h>
 #include <cassert>
 
 module qchem.BasisSet.Radial.Evaluators.BSpline.Internal.Common;
 import qchem.BasisSet.Radial.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.Symmetry.Atom.Spherical;
+import qchem.Vector3D;   // KeyString: the exact key form of a double (RadialID)
 
 namespace qchem::BasisSet::Radial::Evaluators::BSpline::Internal
 {
@@ -68,12 +70,11 @@ template <size_t K> void EvaluatorCommon<K>::Register(Grouper* _grouper)
 // We need at least the first three grid points as itsGrid[0]==0.0 and contains no distinguishing info.
 template <size_t K> std::string EvaluatorCommon<K>::RadialID () const
 {
-    std::ostringstream os;
-    os << Name() << " grid: N=" << itsGrid.size() << " {";
-    assert(itsGrid.size()>3);
-    os << itsGrid[0] << "," << itsGrid[1] << "," << itsGrid[2] << " ... " << itsGrid[itsGrid.size()-1];
-    os << "}";
-    return os.str();
+    // EXACT (2026-11-12): the WHOLE knot vector, KeyString'd -- RadialID composes the integral-cache key (BasisSetID).  Four knots at 6
+    // significant digits let two grids that agree there share integrals.
+    std::string id=Name()+" grid: N="+std::to_string(itsGrid.size())+" {";
+    for (size_t i=0; i<itsGrid.size(); ++i) id+=KeyString(itsGrid[i])+",";
+    return id+"}";
 }
 
 // The cache key is just the family name (like SG/SL) -- one Cache4 serves all grids of this order.  The

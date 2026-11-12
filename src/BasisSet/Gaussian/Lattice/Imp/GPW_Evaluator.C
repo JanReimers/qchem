@@ -1338,7 +1338,7 @@ std::string GPW_Evaluator::LocalPPShortIDFragment(const SpeciesRadialField& loc)
 {
     if (!dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc)) return IDFragment();   // the grid fallback reads the rasters
     return "|analytic|mol="+itsOrb->BasisSetID()
-         +"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
+         +"|k="+KeyString(itsk)   // EXACT (2026-11-12): never a printed double
          +"|cell="+itsCell.KeyFragment()
          +(itsHomeOnly?"|home":"")
          +"|screenEps="+std::format("{:.17g}",itsTol.screenEps);
@@ -1357,16 +1357,16 @@ std::string GPW_Evaluator::IDFragment() const
     // run's unfolded closures until this key landed).
     const size_t sfold = itsLat ? itsLat->StreamFoldOrder() : 0;
     return "|mol="+itsOrb->BasisSetID()
-         +"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
+         +"|k="+KeyString(itsk)   // EXACT (2026-11-12): never a printed double
          +"|cell="+itsCell.KeyFragment()
          +(itsHomeOnly?"|home":"")
          +(sfold?"|sfold="+std::to_string(sfold):"")
-         +"|dEcut="+(itsFFT_R_G_Grids?std::to_string(itsFFT_R_G_Grids->Ecut()):std::string("0"))
+         +"|dEcut="+(itsFFT_R_G_Grids?KeyString(itsFFT_R_G_Grids->Ecut()):std::string("0"))
          // The RASTER and the LADDER are grid facts too: two bases differing only in raster sampled V_loc long (and every key-cached grid
          // term) on different rasters, but shared one cache entry -- the grid audit's reference read the run's own V_long (2026-10-31).
          // The raster demands are GPWTolerances (rasterX ...), so the tolerance fragment below carries them.
-         +(itsLadder->LadderFactor()==4.0 ? std::string() : "|ladder="+std::to_string(itsLadder->LadderFactor()))
-         +(itsTol==GPWTolerances{} ? std::string() : "|tol="+itsTol.Describe());   // a non-default tolerance is a different basis for caching
+         +(itsLadder->LadderFactor()==4.0 ? std::string() : "|ladder="+KeyString(itsLadder->LadderFactor()))
+         +(itsTol==GPWTolerances{} ? std::string() : "|tol="+itsTol.KeyFragment());   // a non-default tolerance is a different basis for caching
 }
 
 } //namespace

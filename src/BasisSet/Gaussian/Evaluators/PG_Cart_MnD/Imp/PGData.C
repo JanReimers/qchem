@@ -67,8 +67,10 @@ std::string PGData::BasisSetID() const
     std::ostringstream os;
     os << " PG { ";   // distinct from PG so the global integral cache never serves PG's
                        // matrices to PG (and vice-versa): each tree computes independently.
+    // EXACT (2026-11-12, OpenWork §3): the radial's L, exponents AND coefficients (TypeID) and its centre (KeyString), never a streamed
+    // double -- operator<< printed 6 significant digits and no coefficients, so geometries 3e-6 bohr apart shared every integral.
     for (size_t i=0;i<radials.size();++i)
-        os << *radials[i] << "@" << radials[i]->GetCenter() << ":" << pols[i] << " ";
+        os << radials[i]->TypeID() << "@" << KeyString(radials[i]->GetCenter()) << ":" << pols[i] << " ";
     os << "}";
     return os.str();
 }

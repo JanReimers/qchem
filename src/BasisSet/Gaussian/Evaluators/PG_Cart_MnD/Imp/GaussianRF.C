@@ -670,11 +670,13 @@ double GaussianRF::GetCharge(const Polarization& p) const
 
 // Centre-independent identity (L + per-primitive exponent,coeff): symmetry-equivalent shells on
 // different atoms share it, so the symmetry code can match them without exposing raw exponents.
+// EXACT (2026-11-12): std::to_string writes 6 fixed decimals, so an exponent below 5e-7 read "0.000000" and two radials agreeing to 6
+// decimals shared an identity.  This is the radial half of every PG cache key (PGData / SphData::BasisSetID) and the SALC grouping key.
 std::string GaussianRF::TypeID() const
 {
     std::string key = std::to_string(itsL);
     for (size_t i=0;i<itsPrims.size();++i)
-        key += ":" + std::to_string(itsPrims[i]->GetExponent()) + "," + std::to_string(itsCoeff[i]);
+        key += ":" + KeyString(itsPrims[i]->GetExponent()) + "," + KeyString(itsCoeff[i]);
     return key;
 }
 

@@ -229,16 +229,18 @@ struct MeshParams
     static std::string SciString(double x) { char b[32]; std::snprintf(b, sizeof b, "%.3e", x); return b; }
     std::string ID() const
     {
+        // EXACT (2026-11-12): every double KeyString'd -- this is a cache key (Mesh_ID_t).  to_string printed 6 FIXED decimals (an angRot in
+        // radians, an alpha, a cutoff agreeing there shared cached integrals); the old SciString kept 4 digits of beckeEps.
         using std::to_string;
         return "M{r"  + to_string(static_cast<int>(radial))  + ",nr" + to_string(nRadial)
-             + ",m"   + to_string(mhl_m)    + ",a"  + to_string(mhl_alpha)
-             + ",ls"  + to_string(logStart) + ",le" + to_string(logStop)
+             + ",m"   + to_string(mhl_m)    + ",a"  + KeyString(mhl_alpha)
+             + ",ls"  + KeyString(logStart) + ",le" + KeyString(logStop)
              + ",ang" + to_string(static_cast<int>(angular)) + ",ad" + to_string(angularDegree)
-             + ",ar" + to_string(angRot)
+             + ",ar" + KeyString(angRot)
              + ",bo" + to_string(beckeOrder)
-             + ",nu"  + to_string(nUniform) + ",ec" + to_string(eCut)
-             + ",rc" + to_string(relCutoff) + ",ck" + to_string(static_cast<int>(UnitCellKind(cellKind)))
-             + ",be" + SciString(beckeEps) + "}";   // to_string(1e-7) == "0.000000": a tolerance needs scientific notation
+             + ",nu"  + to_string(nUniform) + ",ec" + KeyString(eCut)
+             + ",rc" + KeyString(relCutoff) + ",ck" + to_string(static_cast<int>(UnitCellKind(cellKind)))
+             + ",be" + KeyString(beckeEps) + "}";
     }
 };
 

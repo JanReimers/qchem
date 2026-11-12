@@ -112,7 +112,9 @@ cvec3vec_t APW_IBS::Gradient(const rvec3_t& r) const
 
 std::string APW_IBS::BasisSetID() const
 {
-    return Name()+"|nG="+std::to_string(itsG.size())+"|Rmt="+std::to_string(itsRmt)
+    // EXACT and COMPLETE (2026-11-12): k and the reciprocal cell were missing (two cells or two k with one nG shared a key), and the
+    // doubles were std::to_string (6 decimals).
+    return Name()+"|k="+KeyString(itsk)+"|B="+itsRecip.GetCell().KeyFragment()+"|nG="+std::to_string(itsG.size())+"|Rmt="+KeyString(itsRmt)
                  +"|lmax="+std::to_string(itsLmax);
 }
 

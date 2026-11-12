@@ -88,6 +88,9 @@ struct GPWTolerances
 
     //! One line naming every value that differs from the default (empty when none) -- what a run banner prints.
     std::string Describe() const;
+    //! The EXACT form of every field (\c KeyString), for a cache key: equal iff \c operator== (2026-11-12).  NOT \c Describe, which prints
+    //! 6 significant digits for a person, so two derived vlocEps agreeing there would share every cached GPW tensor.
+    std::string KeyFragment() const;
     bool operator==(const GPWTolerances&) const = default;
 };
 

@@ -77,10 +77,13 @@ template <class T> tSinglesDensitySampler<T>::tSinglesDensitySampler(fit_t fit, 
 // qcFitting's operation, and this strategy holds a fitter that already owns the fit basis's Phi handles
 // for the adjoint direction (user).  So both directions of the SAME tensor now come off ONE object, which
 // is the invariant this class's own header argues for one level up.
-template <class T> const BasisSet::PairProjector<dcmplx>* tSinglesDensitySampler<T>::MatrixProjector() const
+// CAPABILITY, not T (2026-11-12, lane H): the δ fitter's forward face, asked of the fitter itself.  An abstract -> abstract
+// cross-cast on the real axis (the hub face \c DeltaScalarFit<double> does not name \c PairProjector<double>; the concrete
+// fitter does), an up-cast on the complex one.  The real axis returned null here until then, so a molecule sampled ρ POINTWISE:
+// every basis function at every mesh point on every sampling, 45 % of an LDA single point (OpenWork §4).
+template <class T> const BasisSet::PairProjector<T>* tSinglesDensitySampler<T>::MatrixProjector() const
 {
-    if constexpr (std::is_same_v<T,dcmplx>) return itsScalarFitter.get();   // the periodic δ fitter's
-    else return nullptr;                                                    // none on the real axis
+    return dynamic_cast<const BasisSet::PairProjector<T>*>(itsScalarFitter.get());
 }
 template <class T> const Fitting::FieldProjector& tSinglesDensitySampler<T>::FieldProjection() const
 {
@@ -88,7 +91,7 @@ template <class T> const Fitting::FieldProjector& tSinglesDensitySampler<T>::Fie
 }
 template <class T> rvec_t tSinglesDensitySampler<T>::ProjectDM(const tDM_CD<T>& dm) const
 {
-    if (const BasisSet::PairProjector<dcmplx>* sp=MatrixProjector()) return dm.Project(*sp).Vector();   // the paired sampler: a delta fit's values
+    if (const BasisSet::PairProjector<T>* sp=MatrixProjector()) return dm.Project(*sp).Vector();   // the paired sampler: a delta fit's values
     return FieldProjection().Project(dm);
 }
 

@@ -2,6 +2,8 @@ module;
 #include <cassert>
 #include <iostream>
 #include <iomanip>
+#include <format>
+#include <string>
 
 export module qchem.Vector3D;
 export import qchem.CMath;
@@ -289,5 +291,14 @@ template <class T> std::ostream& operator<<(std::ostream& os,const Vector3D<T>& 
 
 
 inline const Vector3D<double>& conj(const Vector3D<double>& v) {return v;}
+
+//! \brief THE EXACT KEY FORM OF A DOUBLE: a cache key is exact, never a printed double (lane H, 2026-11-12).
+//! \c "%.17g" (max_digits10) round-trips, so two doubles differ iff their key strings differ.  A STREAMED double does not: the
+//! default 6 significant digits made two H₂O₂ geometries 3e-6 bohr apart share every integral-cache key (2.8e-5 Ha wrong, and a BFGS
+//! relaxation that revisited within 1e-6 bohr took a spurious minimum).  Use these in every ID or key built from a double, never
+//! \c operator<< or \c std::to_string (fixed 6 decimals: an exponent below 5e-7 prints "0.000000").  -0.0 and 0.0 key apart: a
+//! harmless cache miss, never a wrong hit.
+inline std::string KeyString(double x) {return std::format("{:.17g}", x);}
+inline std::string KeyString(const Vector3D<double>& v) {return "("+KeyString(v.x)+","+KeyString(v.y)+","+KeyString(v.z)+")";}
 
 } //export block
