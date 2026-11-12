@@ -12,6 +12,7 @@ import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the 
 import qchem.Policy;          // policy::Refuse / Report: each policy files its row where it fires
 import qchem.XCRhoPolicy;     // ReportXCRho: the XC ρ-axis decision
 import qchem.ChargeDensity.AtomicDensity;   // HasAtomicDensity: the SAD seed's coverage
+import qchem.SeedPolicy;      // ResolveSeed: the ONE Auto seed rule (shared with SolidSetup)
 import qchem.BasisSet.Gaussian.Point.Factory; // RegisteredBasis, BasisSetData: which registered files are all-electron
 import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisFileOfName: the basis name's file, for the coverage pre-flight
 import qchem.BasisCoverage;   // RequireBasisCovers: a basis lacking an element is refused before anything is built
@@ -73,22 +74,15 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
                 " electrons -- need 0 <= 2S <= Ne and Ne-2S even.");
     }
 
-    // Seed: an explicit opts.seed wins; otherwise auto -- a DFT run (a pseudopotential one included) from the superposition of
-    // neutral-atom densities (SAD) when the atomic-density library has every element, else from the core guess (Default), as an
-    // HF / 1-e run does.  (Measured 2026-11-07: H2O LDA + GTH on dzvp converges in 9 iterations from SAD, 26 from the core guess,
-    // although the SAD densities are all-electron; Si has no LDA entry, so its PP runs take the core guess.)
+    // Seed: an explicit opts.seed wins; otherwise THE Auto rule both setups share (qchem.SeedPolicy: a model whose iteration-0 Fock reads a
+    // density -- DFT, or any pseudopotential run -- seeds from the SAD superposition when the all-electron library has every element,
+    // neutral here because the structure does not repeat, ionic on a lattice).  (Measured 2026-11-07: H2O LDA + GTH on dzvp converges in 9
+    // iterations from SAD, 26 from the core guess, although the SAD densities are all-electron; Si has no LDA entry, so its PP runs take
+    // the core guess, with a WARN since 2026-11-12.)
     using qchem::ChargeDensity::SeedStrategy;
     const bool dft = qchem::Hamiltonian::IsDFT(opts.model);
-    bool covered = true;
-    point->ForEachSite([&](int Z, const rvec3_t&, bool){ covered = covered && ChargeDensity::HasAtomicDensity(Z); });
-    const bool sad = (dft || !opts.pp.empty()) && covered;
-    s->seed = (opts.seed != SeedStrategy::Default) ? opts.seed : (sad ? SeedStrategy::SAD : SeedStrategy::Default);
-    if (opts.seed == SeedStrategy::Default)
-        policy::Report("AutoSeed", sad ? "seed: SAD, the superposition of neutral-atom densities" : "seed: the core-Hamiltonian guess",
-                       policy::Verdict::Choose,
-                       sad ? "a DFT run, every element in the atomic-density library, and no seed stated"
-                       : (dft || !opts.pp.empty()) ? "a DFT run with an element the atomic-density library lacks, and no seed stated"
-                                                   : "a Hartree-Fock / one-electron run, and no seed stated");
+    s->seed = ResolveSeed(opts.seed, *point, {.densityFock = dft || !opts.pp.empty(), .periodic = point->HasTranslationSymmetry(),
+                                             .chargesStated = false, .covered = [](int Z){ return ChargeDensity::HasAtomicDensity(Z); }});
 
     // THE XC MESH (pin 31; doc/GeometryOptimizationPlan.md §14.1): an axis left at 0 is unstated and takes the entry rung's; a mesh with
     // neither stated climbs from there at the converged D (MoleculeCalculation's pilot), only up.  A stated one is honoured and audited.

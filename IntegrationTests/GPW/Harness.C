@@ -100,7 +100,7 @@ std::shared_ptr<const Real_BS> MakeBasisSR(const Structure& st)
 }
 // The low-q GTH valence basis (valgen-generated; carries Al/Na/F) -- the Al block drives the FCC-Al metal test.
 // The SPAN is a stated argument (VALENCE_LOWQ_SR | _SPH | _VA | _VB: the spans CP2K also holds function-for-function -- VA = 118 functions on the MnO magnetic
-// cell, VB = 128).  The GPW_BASIS_SPAN / GPW_BASIS_SPH / GPW_SPHERICAL environment switches are DELETED (D-ENV 6d.4): a deck says `basis.data` and `basis.spherical`.
+// cell, VB = 128).  The GPW_BASIS_SPAN / GPW_BASIS_SPH / GPW_SPHERICAL environment switches are DELETED (D-ENV 6d.4): a deck says `basis.data` and `basis.angular`.
 //! \a trim: the vet-stage shell trim (doc/Pins.md pin 22, BasisSet::Lattice::VetStageTrim) the file is read
 //! without -- empty = the span as written.
 std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData which=BasisSetData::VALENCE_LOWQ_SR,

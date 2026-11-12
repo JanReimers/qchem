@@ -97,6 +97,34 @@ TEST(GPW_Al, Γ_Imp_Converges)
 }
 
 
+// THE AUTO SEED ON AN UNCOVERED SPECIES (user ruling 2026-11-12, "Core guess + WARN, both"): Al has no valence-library entry, so the
+// default seed resolves to the core-Hamiltonian guess with a WARN row, where until 2026-11-12 it threw at seed time (which is why
+// AlOptions states Uniform).  The claim is that the default RUNS and reaches the same imposed aufbau state as the Uniform-seeded gate above.
+TEST(GPW_Al, Γ_Imp_UncoveredSpeciesSeedsFromTheCoreGuess)
+{
+    using qchem::ChargeDensity::SeedStrategy;
+    const Material al=qchem::Materials::Get("Al_fcc");
+    const Lattice_3D lat=LatticeOf(al);
+    SCFParams par=Gates(40, 1e-8, std::nullopt); par.SmearingkT=0.0;   // tighter than AlGates' 1e-5, so each energy is the state's
+    double E[2]={0,0};
+    const SeedStrategy seeds[2]={SeedStrategy::Uniform, SeedStrategy::Default};   // the stated opt-in, then the Auto rule
+    for (int i=0;i<2;i++)
+    {
+        SolidCalcOptions o=AlOptions(al);
+        o.seed=seeds[i];
+        GpwReport report(std::string("Al ")+(i ? "auto" : "uniform")+" seed "+o.label, par.Verbose);
+        const auto setup=SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o);
+        EXPECT_EQ(setup->opts.seed, i ? SeedStrategy::CoreGuess : SeedStrategy::Uniform);
+        qchem::SolidCalculation calc(setup, par);
+        auto R=calc.Result();
+        ASSERT_TRUE(R) << (i ? "the core guess" : "the Uniform seed") << " must reach the imposed aufbau state";
+        EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);
+        E[i]=R->Energy();
+    }
+    EXPECT_NEAR(E[1], E[0], 1e-8) << "the core guess reaches the state the stated Uniform seed does";
+}
+
+
 // (item 2b) THE CURE + ANNEALING (doc/GPWPlan1.md item 2): a DESCENDING kT schedule (0.02 -> 0.01 -> 0.005 Ha),
 // re-seeding each stage from the previous converged density.  Fermi smearing puts μ in the degenerate manifold
 // so each 3p orbital takes the SAME fractional occupation -- the density is cubic-symmetric and STATIONARY, and
