@@ -29,7 +29,6 @@ export module qchem.bridge;
 import qchem.Types;          // rvec3_t, vec3_t
 import qchem.Structure;      // Molecule, Site
 import qchem.SCFParams;      // SCFParams
-import qchem.ChargeDensity.Seed;   // SeedStrategy (CalcOptions::seed, by name)
 import qchem.SCFIterator;    // IterationRow, IterationCell
 import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, CalcOptions, AcceleratorOptions
 import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
@@ -100,18 +99,6 @@ qchem::Model parse_model(const std::string& m)
     if (m == "LDA")    return Model::LDA;
     if (m == "Xalpha") return Model::Xalpha;
     throw std::invalid_argument("qchem_py: unknown model '" + m + "' (HF | LDA | Xalpha)");
-}
-
-qchem::ChargeDensity::SeedStrategy parse_seed(const char* name)
-{
-    using S = qchem::ChargeDensity::SeedStrategy;
-    const std::string n = name ? name : "";
-    if (n.empty())         return S::Default;
-    if (n == "SAD")        return S::SAD;
-    if (n == "IonicSAD")   return S::IonicSAD;
-    if (n == "CoreGuess")  return S::CoreGuess;
-    if (n == "Uniform")    return S::Uniform;
-    throw std::invalid_argument("qchem_py: unknown seed '" + n + "' (SAD | IonicSAD | CoreGuess | Uniform, or \"\" for the facade's own)");
 }
 
 qchem::SCFParams scf_params(const qcb_request& req)
@@ -226,8 +213,6 @@ MoleculeRequest molecule_request(const qcb_request* req)
     r.opts.model        = parse_model(req->model);
     r.opts.pp           = req->pp ? req->pp : "";
     r.opts.basisFile    = req->basisFile ? req->basisFile : "";
-    r.opts.seed         = parse_seed(req->seed);
-    r.opts.angular      = req->spherical ? qchem::Angular::Spherical : qchem::Angular::Cartesian;
     r.opts.symmetry     = req->symmetry != 0;
     r.opts.spin         = req->polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;
     r.opts.multiplicity = req->multiplicity;

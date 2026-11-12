@@ -82,9 +82,6 @@ typedef struct qcb_request
                                   //!< what a molecule cannot mix (Kerker needs G space)
     double        smearingkT;     //!< Fermi-Dirac smearing kT, Ha (SCFParams::SmearingkT), 0 = off
     const char*   basisFile;      //!< a .bsd path used instead of the shipped file `basis` names (CalcOptions::basisFile); null/"" = none
-    const char*   seed;           //!< the SCF seed (CalcOptions::seed) by name: "SAD" | "IonicSAD" | "CoreGuess" | "Uniform"; null/"" = the
-                                  //!< facade's own choice (DFT: SAD when the atomic-density library has every element, else the core guess)
-    int           spherical;      //!< real solid-harmonic Gaussians (CalcOptions::angular = Spherical); 0 = Cartesian, the default
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
