@@ -221,6 +221,13 @@ int qcb_basis_import(const char* req, char* out, int outlen);
 //! The same two calls as qcb_materials.
 int qcb_pseudopotentials(const char* req, char* out, int outlen);
 
+//! A RUN's thread counts as a scope (qchem::ScopedWorkerThreads; OpenWork §2 "Per-run thread count", user 2026-11-12): while open,
+//! the OpenMP regions run `openmp` threads and the BLAS pool `blas` (each when > 0; 0 = the process's own).  The caller opens it around
+//! any run, molecule or crystal, and closes it after; closing restores both counts.  A deck's own `threads` nests inside it.
+typedef struct qcb_threads qcb_threads;
+qcb_threads* qcb_threads_open(int openmp, int blas);
+void         qcb_threads_close(qcb_threads* h);
+
 //! THE SHELL WHAT-IF of a deck's basis (deck::MakeBasisShells; the GUI's conditioning table, the user 2026-11-11): the cell's
 //! untrimmed basis analysed ONCE (analytic S per k, no grids), then queried per set of kept shells -- each query a few eigensolves.
 typedef struct qcb_shells qcb_shells;

@@ -493,6 +493,8 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
             qchem::report::Log("vetting basis conditioning");
             qchem::report::Section basis("basis");
             qchem::report::Set("nFunctions", (long)itsImp->bs->GetNumFunctions());
+            if (opts.orthoTol>0.0)   // the floor's readers: the trim always, the ortho solver only when it truncates
+                qchem::report::Set("orthoTol", {{"value", opts.orthoTol}, {"solverTruncates", opts.SolverTruncation()>0.0}});
             nRedundant=BasisSet::ReportConditioning(*itsImp->bs);
         }
         if (nRedundant>0)
@@ -642,7 +644,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Timed timed("setup: seed + ortho (iterator ctor)");
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-            itsImp->lat->GetUnitCell(), seed.release(), opts.ortho, opts.orthoTol, seedRole, opts.numBands);   // the iterator consumes it in Init
+            itsImp->lat->GetUnitCell(), seed.release(), opts.ortho, opts.SolverTruncation(), seedRole, opts.numBands);   // the iterator consumes it in Init
     }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
@@ -946,11 +948,11 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
     itsImp->scf = carried
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), carried.release(), itsImp->setup->opts.ortho, itsImp->setup->opts.orthoTol,
+              itsImp->lat->GetUnitCell(), carried.release(), itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(),
               qchem::SCFIterator::SeedRole::WorkingDensity, itsImp->setup->opts.numBands)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, itsImp->setup->opts.ortho, itsImp->setup->opts.orthoTol, itsImp->setup->opts.numBands);
+              itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.numBands);
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
     // survives the fresh wavefunction, exactly as the density does.
@@ -2247,7 +2249,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             const SavedBlock& sb=st.blocks[channel];
             hmat_t<dcmplx> S(sb.S.rows());
             for (size_t a=0;a<S.rows();a++) for (size_t b=a;b<S.rows();b++) S(a,b)=sb.S(a,b);
-            const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(opts.ortho, opts.orthoTol));
+            const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(opts.ortho, opts.SolverTruncation()));
             frame->SetBasisOverlap(S);
             const std::string spin = s==Spin::Up ? "up" : s==Spin::Down ? "down" : "none";
             auto fold=[&](const auto& a, const auto& b)

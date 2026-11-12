@@ -27,6 +27,7 @@ import qchem.SCFParams;            // SCFParams
 import qchem.Mesh;                 // MeshParams
 import qchem.RunPolicy;            // RunPolicySpec
 import qchem.Types;                // ivec3_t
+import qchem.Parallel;             // ThreadCounts (the run's threads key)
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names its accelerator)
 import qchem.Materials;            // Material (the structure section's name resolves to one)
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
@@ -158,6 +159,10 @@ struct RunSpec
     SCFParams        scf;             //!< the single-stage recipe (with \c solid.accelerator) ...
     std::vector<Stage> schedule;      //!< ... OR an annealed one; a deck gives one or the other (never both)
     std::vector<PostAction> postSCF;  //!< post-convergence actions, in order (empty = none)
+    //! The run's thread counts (deck key `threads`: `{"openmp": N, "blas": M}`; OpenWork §2 "Per-run thread count", user 2026-11-12).  Not
+    //! physics: a RESOURCE, so it never enters a state's fingerprint.  0 / absent = the process's own count (QCHEM_OPENMP_THREADS,
+    //! QCHEM_BLAS_THREADS), today's behaviour.  \c Run holds the scope for the whole run; a caller of \c Build holds it per call.
+    ThreadCounts threads;
     //! The stages the run executes: \c schedule, or the one stage (\c scf, \c solid.accelerator).
     std::vector<Stage> Stages() const
     { return schedule.empty() ? std::vector<Stage>{{scf,solid.accelerator}} : schedule; }

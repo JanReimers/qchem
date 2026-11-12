@@ -196,7 +196,15 @@ struct SolidCalcOptions
     //! a missing species THROWS at seed time -- state \c Uniform, or generate the entry (CLIapps/valgen).
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::IonicSAD;
     qchem::Ortho ortho    = qchem::Cholesky;
+    //! THE NEAR-DEPENDENCE FLOOR on S's eigenvalues: what the vet-stage trim trims at (basis autoTrim, and a geometry step's re-vet), and
+    //! the floor a TRUNCATING ortho solver drops directions under -- one quantity (the vet's metric is the truncating solver's own drop
+    //! count at it), two readers.  The solver reads it only when it truncates (\c SolverTruncation); the solid default, Cholesky, does
+    //! not, so there the floor is the trim's alone (OpenWork §3 "solid.orthoTol has two meanings", user feedback 36, 2026-11-12).
     double       orthoTol = 0.0;
+    //! \brief The tolerance handed to the ortho SOLVER: \c orthoTol when \c ortho truncates (Eigen, SVD, CholeskyPivoted), else 0 --
+    //! Cholesky, Auto (it finds its own gap) and Orthonormal take none.
+    double SolverTruncation() const
+    { return (ortho==qchem::Eigen || ortho==qchem::SVD || ortho==qchem::CholeskyPivoted) ? orthoTol : 0.0; }
     //! THE CELL'S STRAIN ALLOWANCE s (linear, a fraction; the cell half's frozen rule, doc/Records/CellHalf_Design.md §3, ruled
     //! 2026-11-10).  0 (default): the cell is fixed -- a geometry session refuses a moved cell (\c PESFailure::CellChange) and every size
     //! is decided on the cell itself, as always.  > 0: every discrete size (G sets, raster and FFT counts, uniform-mesh divisions) is
