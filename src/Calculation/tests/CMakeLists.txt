@@ -20,6 +20,7 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     GeometryOptimizer.C # the geometry optimizer on analytic model surfaces only (doc/GeometryOptimizationPlan.md §1, ruling §12.3)
     MeshAudit.C         # the molecular XC-mesh audit at a fixed D (GeometryOptimizationPlan §14.3)
     CacheKeyExactness.C # two geometries 3e-6 bohr apart, either order, one process: each its fresh energy (2026-11-12)
+    SCFRecipe.C         # the SCF recipe policy: Auto == the pre-B5 policy cell for cell, the named regimes, the deck key (B5)
     FacadeMatrix.C      # the facade PARITY MATRIX: {atom, molecule, solid} x every capability, expected failures named (V-FACADE-MATRIX)
 )
 

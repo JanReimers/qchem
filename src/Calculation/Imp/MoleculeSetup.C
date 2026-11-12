@@ -128,6 +128,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
         ReportXCRho(opts.vxcFit, opts.xcRho);   // the ρ axis (user ruling 2026-11-09): warns on the Gaussian x δ cell
     }
 
+    AdmitRecipe(acc.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
     using AType = qchem::SCFAccelerators::Type;
     s->accelerator = acc.type=="DIIS"   ? AType::DIIS
                    : acc.type=="GDM"    ? AType::GDM

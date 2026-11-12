@@ -24,6 +24,7 @@ export module qchem.Deck;
 
 import qchem.SolidCalculation;     // SolidCalcOptions
 import qchem.SCFParams;            // SCFParams
+import qchem.SCFRecipe;            // SCFRecipe (a stage's `scf.recipe`)
 import qchem.Mesh;                 // MeshParams
 import qchem.RunPolicy;            // RunPolicySpec
 import qchem.Types;                // ivec3_t
@@ -96,7 +97,8 @@ struct RunSpec
     //! stage only (a restart is one stage -- the earlier stages exist to deliver the density the file already holds).
     struct State { std::string save, restartFrom; };
     //! One stage of an annealed recipe: its SCF parameters and its accelerator (\c SCFStage, by name).
-    struct Stage { SCFParams scf; SCFAccelerators::Type accelerator = SCFAccelerators::Type::Auto; };
+    //! \c recipe = the stage's material regime (deck key `scf.recipe`, qchem.SCFRecipe; Auto when absent, so every older deck reads as before).
+    struct Stage { SCFParams scf; SCFAccelerators::Type accelerator = SCFAccelerators::Type::Auto; SCFRecipe recipe = SCFRecipe::Auto; };
 
     //! One post-convergence action, run IN ORDER on the converged calculation (the deck's `postSCF` list; each is `{"name":{params}}`).  Each reports
     //! itself to the console; its result summary goes in the revision record under `results`.  Prerequisites are checked by \c Resolve BEFORE the SCF starts.
@@ -156,11 +158,12 @@ struct RunSpec
     //! `acceleratorOptions`; default = the GPW production recipe (\c SolidAcceleratorOptions).
     SCFAccelerators::SolidAcceleratorOptions accel;
     SCFParams        scf;             //!< the single-stage recipe (with \c solid.accelerator) ...
+    SCFRecipe        scfRecipe = SCFRecipe::Auto;   //!< ... its `scf.recipe` (the material regime; qchem.SCFRecipe) ...
     std::vector<Stage> schedule;      //!< ... OR an annealed one; a deck gives one or the other (never both)
     std::vector<PostAction> postSCF;  //!< post-convergence actions, in order (empty = none)
     //! The stages the run executes: \c schedule, or the one stage (\c scf, \c solid.accelerator).
     std::vector<Stage> Stages() const
-    { return schedule.empty() ? std::vector<Stage>{{scf,solid.accelerator}} : schedule; }
+    { return schedule.empty() ? std::vector<Stage>{{scf,solid.accelerator,scfRecipe}} : schedule; }
 };
 json ToJson(const RunSpec&);
 //! Strict like the other readers: \c structure (a name or an inline object) is required; an unknown top-level key (or any nested one) throws.

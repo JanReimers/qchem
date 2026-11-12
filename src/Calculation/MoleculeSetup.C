@@ -20,6 +20,7 @@ export import qchem.Symmetry.Spin; // SpinGroup -- the imposed spin subgroup, a 
 import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ChargeDensity.Seed;   // SeedStrategy
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (the resolved accelerator)
+export import qchem.SCFRecipe;         // SCFRecipe (AcceleratorOptions::recipe)
 export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the setup's resolved choice
 export import qchem.Accuracy;            // AccuracyTarget -- a CalcOptions field
 
@@ -154,6 +155,10 @@ struct AcceleratorOptions
     //! "Ladder" (auto None->DIIS->GDM).  A hard pseudopotential (open-shell atom, diffuse valence) that
     //! limit-cycles under DIIS often converges under GDM or Ladder.
     std::string type = "DIIS";
+    //! The SCF RECIPE by material regime (qchem.SCFRecipe; doc/SCFRobustnessPlan.md R4.1 as ruled for B5, ruling (c)): a molecule takes
+    //! \c Auto or \c Insulator only -- both are today's molecular recipe (\c type above + linear D-mixing), now printed.  MagneticInsulator
+    //! and Metal are REFUSED at \c Resolve: their Kerker+Pulay mixes in G space.
+    SCFRecipe recipe = SCFRecipe::Auto;
 };
 
 //! The json door's keys for \a acc, with \a eMax the RESOLVED DIIS engage gate (the caller's Z-scaled default when \c acc.eMax <= 0).
