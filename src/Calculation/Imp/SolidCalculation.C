@@ -40,7 +40,7 @@ import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeEntryRun
 import qchem.Mesh.BeckeClimb;                   // ClimbBeckeLadder: the pilot's one-round Becke climb at a fixed D
 import qchem.Policy;                            // policy::Report: a stated grid that misses eps reports itself (StatedDensityEcutMissesEps)
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
-import qchem.SCFCap;                           // SetupSCF -- the seed's atomic solves are not the run's iterations
+import qchem.SCFCap;                           // SetupSCF / AuditSCF -- the seed's atomic solves and the pilot's re-convergence are not the run's iterations
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
 import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
 import qchem.DegenerateFillReport;                   // the `choose` row for a kT = 0 fill that shared a degenerate level
@@ -2066,7 +2066,10 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
         BuildRun(cd.TakeValue(), params, asked, /*restored*/true, /*exactResume*/false);
         itsImp->accOpts.ladderStartOnGDM = itsImp->setup->acc.ladderStartOnGDM;
-        (void)Converge(params);
+        {
+            qchem::AuditSCF audit;   // the pilot's re-convergence: a panel budget prints it apart and does not gate on it (qchem.SCFCap)
+            (void)Converge(params);
+        }
         itsImp->pilotCost.reconvergeIterations+=itsImp->scf->GetIterationCount();
         if (!itsImp->converged)
         {
