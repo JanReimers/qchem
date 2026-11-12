@@ -51,6 +51,9 @@ template <class T> struct LoopContext
     //! diagonalisation), called before installNew supersedes D_in, before the residual, and before Mix replaces D_in.  The iterator forms the first-order energy E_T there (see
     //! tSCFIterator::TaylorEnergy).  Optional: a null callback is skipped.
     std::function<void(const qchem::ChargeDensity::tChargeDensity<T>& in, const qchem::ChargeDensity::tDM_CD<T>& out)> beforeMix;
+    //! THE MIX of a fixed-point step (working D_out, old): the iterator's, which owns both the mixer and the accelerator and so can
+    //! pass D_out through while the Fock accelerator extrapolates (\c tAdaptiveMixer::PassThrough).  Null: \c mixer->Mix.
+    std::function<double(const qchem::ChargeDensity::tDM_CD<T>& working, const qchem::ChargeDensity::tDM_CD<T>& old)> mix;
 };
 
 //! The loop-face: perform one iteration's density update; returns ‖Δρ‖.
@@ -105,7 +108,7 @@ public:
                                      : c.residual(*c.mixer->FockDensity(**c.old), **c.cur);
         }
         qchem::report::Timed timed("scf: density mix (Kerker/linear/Pulay)");
-        const double d = c.mixer->Mix(**c.cur, **c.old);            // density-face: fold rho_out into rho_in
+        const double d = c.mix ? c.mix(**c.cur, **c.old) : c.mixer->Mix(**c.cur, **c.old);   // fold rho_out into rho_in
         SeatDMSource(*c.mixer, *c.cur);
         return d;
     }

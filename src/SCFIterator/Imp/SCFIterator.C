@@ -445,6 +445,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     bool exhaustedStop=false;       // the opt-in ladder-exhaustion stage end (a deliberate early stop, not a cap)
     itsUnphysicalStop.clear();      // set when iteration 1's energy is physically impossible (UnphysicalStop)
     OccupiedConfiguration prevConfig;   // previous occupied configuration (the cfg '*' change flag; item 2)
+    bool extrapolatedSaid=false;        // the one-time hand-off line when DIIS extrapolation takes over the D mixer's step
     for (itsIterationCount=1;
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
         itsIterationCount++)
@@ -480,8 +481,27 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         // THE FIRST-ORDER ENERGY'S INPUT (TaylorEnergy), formed while D_in and D_out are both live and active -- and only when the
         // mixer will NOT hand D_out straight to the next Fock (then E_KS[D_out] is that Fock's refresh, i.e. free).
         std::optional<EnergyBreakdown> taylor;
+        // ONE EXTRAPOLATOR ON A FIXED-POINT STEP (lane A 2026-11-11, user ruling): while the Fock accelerator extrapolates, an adaptive
+        // (linear) D mixer makes no DOWNWARD move -- no late cap, no retraction, no shrink; its step may still grow toward the stated
+        // ceiling (unmixed at the default 1.0): DIIS assumes D_next = diag(F_extrapolated), and a damping that capped and retracted
+        // fought it (tAdaptiveMixer::ExtrapolatedStep has the measurement).  A field mixer (Kerker, Pulay) is not adaptive and mixes as before.  Asked after the diagonalisation, so
+        // Extrapolated() is THIS step's.
+        const auto extrapolated=[this]{ return itsAdaptive && itsAccelerator->Extrapolated(); };
         lc.beforeMix=[&](const tChargeDensity<T>& in, const tDM_CD<T>& out)
         { if (!itsMixer->PassesOutputThrough()) taylor=TaylorEnergy(in, out); };   // null for a field mixer's ρ̃
+        lc.mix=[&](const tDM_CD<T>& working, const tDM_CD<T>& old)
+        {
+            if (!extrapolated()) return itsMixer->Mix(working, old);
+            if (!extrapolatedSaid)   // the switch is visible, once: the adaptive step resumes on a step DIIS does not extrapolate
+            {
+                std::ostringstream why;
+                why<<"the Fock accelerator extrapolates: the D mixer's step "<<itsMixer->GetRelax()
+                   <<" makes no downward move (no late cap, no retraction); it may grow toward the ceiling "<<ipar.MaxRelaxRo;
+                HandOff({std::string(itsMixer->Tag())+" adaptive step", std::string(itsAccelerator->Tag())+" extrapolation", why.str()}, false);
+            }
+            extrapolatedSaid=true;
+            return itsAdaptive->ExtrapolatedStep(working, old);
+        };
         // Direct-min (GDM/OT) OWNS the density update via its geodesic line search, so it must DISABLE the
         // density mixer entirely -- both the per-step Mix() (already: DirectMinDriver never calls it) AND the
         // post-step adaptive re-mix below (an adaptive mixer would otherwise re-mix

@@ -45,7 +45,7 @@ public:
     //! \a relaxMin: the FLOOR a retraction may shrink it to (SCFParams::MinRelaxRo; 0 = none).  Both are deck keys, so a bad
     //! pair is refused with a throw, not an assert (dead under NDEBUG).
     LinearMixer(double relax0, double relaxMax, double relaxMin=0.0)
-        : itsRelax(std::max(std::min(relax0, relaxMax), relaxMin)), itsRelMax(relaxMax), itsRelMin(relaxMin)
+        : itsRelax(std::max(std::min(relax0, relaxMax), relaxMin)), itsRelMax(relaxMax), itsRelMaxStated(relaxMax), itsRelMin(relaxMin)
     {
         assert(relaxMax>0.0 && relaxMax<=1.0);
         if (!(relaxMin>=0.0 && relaxMin<=relaxMax))
@@ -60,11 +60,27 @@ public:
         const cd_t& in=InputFor(old);                                          // the D_in that drove THIS Fock
         double dcd = working.GetChangeFrom(in)/working.GetTotalCharge();       // relative change
         if (dcd<1e-5) itsRelMax=std::max(std::min(itsRelMax, 0.5), itsRelMin);   // the floor outranks the late cap
+        itsExtrapolated=false;
         itsIn=in.MakeCopy();                                                   // Adapt's retraction rebuilds from it
         itsStepRelax=itsRelax;
         if (itsRelax==1.0) { this->itsMixed.reset(); return dcd; }                  // passthrough: the next Fock IS D_out
         auto mixed=working.MakeCopy();
         mixed->MixIn(in, 1.0-itsRelax);                                        // (1−relax)ρ_in + relax ρ_out
+        Install(std::move(mixed), working);
+        return dcd;
+    }
+    //! The accelerator extrapolated this step: a step at my CURRENT α with no late cap, and no retraction can follow (\c Adapt only
+    //! grows α toward the STATED ceiling after such a step).  \c tAdaptiveMixer::ExtrapolatedStep has the measurement.
+    double ExtrapolatedStep(const cd_t& working, const cd_t& old) override
+    {
+        const cd_t& in=InputFor(old);                                          // the D_in that drove THIS Fock
+        const double dcd = working.GetChangeFrom(in)/working.GetTotalCharge();
+        itsIn.reset();                                                         // nothing to retract
+        itsExtrapolated=true;
+        itsStepRelax=itsRelax;
+        if (itsRelax==1.0) { this->itsMixed.reset(); return dcd; }             // the next Fock IS D_out
+        auto mixed=working.MakeCopy();
+        mixed->MixIn(in, 1.0-itsRelax);
         Install(std::move(mixed), working);
         return dcd;
     }
@@ -89,6 +105,13 @@ public:
     bool Adapt(const MixSignals& s, const cd_t& out) override
     {
         bool remixed=false;
+        constexpr double phi=1.6180339887498949;   // (1+sqrt 5)/2
+        if (itsExtrapolated)   // after a step DIIS extrapolated: GROWTH ONLY, toward the stated ceiling -- no retraction, no shrink
+        {
+            if (s.FD<s.FDold) itsRelax = phi*itsRelax<itsRelMaxStated ? phi*itsRelax : itsRelMaxStated-(itsRelMaxStated-itsRelax)/(phi*phi);
+            if (itsRelax>itsRelMaxStated) itsRelax=itsRelMaxStated;
+            return false;
+        }
         const double dFD = s.FD - s.FDold;
         if (s.FD>s.FDold && std::fabs(dFD)>1e-9 && itsRelax>0.0)
         {
@@ -101,7 +124,6 @@ public:
             }
             itsRelax=std::max(0.8*itsRelax, itsRelMin);
         }
-        constexpr double phi=1.6180339887498949;   // (1+sqrt 5)/2
         if (s.FD<s.FDold) itsRelax = phi*itsRelax<itsRelMax ? phi*itsRelax : itsRelMax-(itsRelMax-itsRelax)/(phi*phi);
         if (itsRelax>itsRelMax) itsRelax=itsRelMax;
         return remixed;
@@ -109,6 +131,8 @@ public:
 private:
     double itsRelax;
     double itsRelMax;   //!< the ceiling (SCFParams::MaxRelaxRo; lowered to 0.5 once the density is nearly converged)
+    double itsRelMaxStated;   //!< the ceiling as STATED (the late cap lowers itsRelMax, never this): growth's bound after an extrapolated step
+    bool   itsExtrapolated=false;   //!< the last step was \c ExtrapolatedStep: \c Adapt only grows
     double itsRelMin;   //!< the floor (SCFParams::MinRelaxRo): a retraction never shrinks the step below it
     double itsStepRelax=1.0;                 //!< the α the last Mix used (a retraction quarters THAT step)
     std::unique_ptr<tMixableDensity<T>> itsIn;   //!< the D_in of the last Mix (the retraction's base)

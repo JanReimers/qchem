@@ -102,6 +102,20 @@ public:
     //! step's \a out (the loop's working D_out, which it leaves alone); returns true when it did.  Either way, sets the step for
     //! the NEXT iteration.  The energy is unaffected: it is E[D_out] (2026-11-09).
     virtual bool Adapt(const MixSignals&, const cd_t& out) = 0;
+    //! The Fock accelerator EXTRAPOLATED this step (DIIS diagonalised its extrapolated F): mix at the CURRENT step with no downward move
+    //! -- no late cap here, and the following \c Adapt only GROWS the step toward the stated ceiling (no retraction, no shrink).
+    //! Returns the relative change from the D_in that drove this Fock, as \c Mix does.
+    //! WHY (lane A, 2026-11-11; user ruling "I think we have previously encountered problematic interactions between mixers and DIIS"):
+    //! DIIS assumes D_next = diag(F_extrapolated).  The mixer's DOWNWARD moves -- the late cap to 0.5 once ‖ΔD‖/N < 1e-5, and the
+    //! quarter-step retraction with a 0.8 shrink whenever [F,D] rises (and DIIS's [F,D] is not monotone) -- made the two fight:
+    //! [F,D] wandered 3e-8..2e-6 and never met a 1e-9 gate (HF/DZVP H2O2).  Without them the same point converges in 21 iterations
+    //! instead of 48 (a relaxation: 483 -> 181; H2O 353 -> 141).  doc/Records/SCFStrategyPlan.md §3 had claimed linear damping
+    //! composes with F-DIIS; it does not once the damping can move down.
+    //! WHY NOT "relax 1.0 under DIIS" (the first cut): (1) a restart caps the linear start AND ceiling at 0.3 because DIIS at relax 1.0
+    //! diverged one (Si Γ 2026-09-29; doc/Records/LinearResponsePlan.md finding 5, SCFRobustnessPlan D4); (2) atoms that state a damped
+    //! START (0.1-0.5) diverged when DIIS engaged at [F,D] ~1 and the step jumped to 1.0 (O, Ne, Xe, O_PP_U; 2026-11-11).  Growth from the
+    //! current step keeps both: a 0.3 ceiling stays 0.3, a 0.1 start ramps as it always did.
+    virtual double ExtrapolatedStep(const cd_t& working, const cd_t& old) = 0;
 };
 
 //=========================================================================================================

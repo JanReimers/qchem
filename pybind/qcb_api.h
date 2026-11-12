@@ -215,6 +215,12 @@ int qcb_materials(const char* req, char* out, int outlen);
 //! The same two calls as qcb_materials.
 int qcb_basis_import(const char* req, char* out, int outlen);
 
+//! A named pseudopotential set's choice (Pseudopotential::PseudopotentialSet, the ONE reader of pseudopotentials.json and its rule):
+//! {"set": S, "elements": [El, ...]} -> {set, functional, valence: {El: q}} -- q per element, the set's exception if it lists one, else
+//! the smallest q the GTH database holds at the set's functional; or {"error"} (an unknown set, an element the database lacks).
+//! The same two calls as qcb_materials.
+int qcb_pseudopotentials(const char* req, char* out, int outlen);
+
 //! THE SHELL WHAT-IF of a deck's basis (deck::MakeBasisShells; the GUI's conditioning table, the user 2026-11-11): the cell's
 //! untrimmed basis analysed ONCE (analytic S per k, no grids), then queried per set of kept shells -- each query a few eigensolves.
 typedef struct qcb_shells qcb_shells;

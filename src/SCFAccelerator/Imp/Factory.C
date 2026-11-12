@@ -30,7 +30,8 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
             // field deleted from DIISParams cannot shift the rest: the positional {Nproj,EMax,EMin,SVTol} silently became
             // SVTol=EMin, SVTolRel=SVTol when FDMin went, and moved every molecular DIIS run (Si2_PP_U, A_SL_HF_ion, 2026-10-30).
             double EMax=js["EMax"].template get<double>(),SVTol=js["SVTol"].template get<double>();
-            acc=new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EMax, .SVTol=SVTol});
+            double SVTolRel = js.contains("SVTolRel") ? js["SVTolRel"].template get<double>() : 0.0;   // absent = the old door (off)
+            acc=new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EMax, .SVTol=SVTol, .SVTolRel=SVTolRel});
             break;
         }
         case Type::GDM:
@@ -46,6 +47,7 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
             size_t Nproj = js.contains("NProj") ? js["NProj"].template get<size_t>() : 4;
             double EMax  = js.contains("EMax")  ? js["EMax"].template get<double>()  : 1.0;
             double SVTol = js.contains("SVTol") ? js["SVTol"].template get<double>() : 5e-9;
+            double SVTolRel= js.contains("SVTolRel") ? js["SVTolRel"].template get<double>() : 0.0;
             double Trust   = js.contains("Trust")   ? js["Trust"].template get<double>()   : 0.1;
             double ethresh = js.contains("ethresh") ? js["ethresh"].template get<double>() : 1e-8;
             int    stall   = js.contains("stall")   ? js["stall"].template get<int>()      : 5;
@@ -60,7 +62,7 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
                 else if (sg!="Error") throw std::invalid_argument("SCFAccelerators::Factory: Ladder signal '"+sg+"' is not Error or EnergyChange");
             }
             std::vector<std::unique_ptr<SCFAccelerator>> rungs;
-            { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EMax, .SVTol=SVTol})); }
+            { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EMax, .SVTol=SVTol, .SVTolRel=SVTolRel})); }
             { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorGDM ({.EngageBelowFD=1e10, .Trust=Trust})); } //always steps once it is the active rung
             // "startOnGDM": the seed is a RESTORED state (a molecule's or an atom's exact resume): start on the GDM rung, as the solid
             // door's ladderStartOnGDM does, so DIIS does not step the restored density away (NaF, 2026-10-02).

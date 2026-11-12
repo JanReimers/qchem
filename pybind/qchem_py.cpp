@@ -462,6 +462,17 @@ NB_MODULE(qchem_py, mod)
        "A Gaussian94 basis (the Basis Set Exchange's text) translated into the BasisSetData layout: JSON {text, title, provenance} "
        "in, JSON {bsd, elements, maxL, notes} or {error} out.");
 
+    mod.def("pseudopotentials", [](const std::string& req)
+    {
+        int n;
+        { nb::gil_scoped_release nogil; n = qcb_pseudopotentials(req.c_str(), nullptr, 0); }
+        std::string out(size_t(n) + 1, '\0');
+        out.resize(size_t(qcb_pseudopotentials(nullptr, out.data(), int(out.size()))));
+        return out;
+    }, nb::arg("request"),
+       "A pseudopotential set's q per element (PseudopotentialSet): JSON {set, elements} in, JSON {set, functional, valence: "
+       "{El: q}} or {error} out.");
+
     nb::class_<BasisShells>(mod, "BasisShells")
         .def(nb::init<const std::string&>(), nb::arg("deck_json"),
              "The shell what-if of a deck's basis: the deck's setup resolved as Build does, its untrimmed basis analysed once (analytic S per k, no grids, no SCF)")
