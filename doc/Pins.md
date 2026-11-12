@@ -487,3 +487,16 @@ points because they define the basis, never as a quadrature for something else.
 Earned by `Fit_IBS`: the Gaussian Coulomb fit owned a private quadrature for its `Norm()`, which drifted 585 ppm between two meshes
 (it had to be mesh-keyed in the cache), and for a seed `Overlap(f)`.  So a mesh-free operation silently depended on a grid
 (History5, 2026-11-11).
+
+## 34. A cache key is exact: never a printed double (2026-11-12; found by lane A, fixed by lane H)
+
+A key or identity string built from a double uses the round-trip form (`qchem::KeyString`, `%.17g` = max_digits10), never `operator<<`
+(6 significant digits) or `std::to_string` (6 FIXED decimals: an exponent below 5e-7 prints "0.000000").  Equal keys must mean
+bitwise-equal inputs: a key that rounds is a tolerance, and pin 1 forbids those in identity as in r space.
+- A human-readable describer (`Describe`, `Write`, `operator<<`) is never the key.
+- Every key writer has an ULP gate: two inputs an ulp apart key apart, and equal inputs key equal.
+
+Earned by the integral cache, which keyed every basis and structure on streamed centres.  Two H₂O₂ geometries 3e-6 bohr apart shared
+every integral (2.8e-5 Ha wrong), and a BFGS relaxation revisiting within 1e-6 bohr took a spurious minimum.  The audit also found
+keys with no contraction coefficients, and LAPW keys with no k or cell (History5, "A cache key is exact").  Ownership of the cache,
+where most keys disappear, is the open design in `doc/IntegralCacheOwnershipPlan.md`.
