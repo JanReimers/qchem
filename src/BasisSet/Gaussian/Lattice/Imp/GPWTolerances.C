@@ -8,6 +8,7 @@ module;
 #include <string>
 #include <vector>
 module qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
+import qchem.Vector3D;   // KeyString (the exact key form of a double)
 
 namespace qchem::BasisSet::Gaussian
 {
@@ -31,6 +32,17 @@ std::string GPWTolerances::Describe() const
     if (xcRasterX        != d.xcRasterX)        os << " xcRasterX="        << xcRasterX;
     if (!mgridEcuts.empty()) { os << " mgridEcuts="; for (size_t i=0;i<mgridEcuts.size();++i) os << (i?",":"") << mgridEcuts[i]; }
     return os.str();
+}
+
+std::string GPWTolerances::KeyFragment() const
+{
+    std::string k="vlocEps="+KeyString(vlocEps)+",rig="+KeyString(vlocEpsRigorous)+",etaR="+KeyString(vlocRoutingEta)
+                 +",gateC="+KeyString(rungGateC)+",rcSafety="+KeyString(relCutoffSafety)+",ppRel="+KeyString(localPPRelCutoff)
+                 +",relSharp="+KeyString(relFieldSharp)+",screen="+KeyString(screenEps)+",sharp="+KeyString(fieldSharp)
+                 +",relCut="+KeyString(relCutoff)+",dens="+KeyString(densityEps)+",rX="+KeyString(rasterX)
+                 +",vX="+KeyString(vlocRasterX)+",xX="+KeyString(xcRasterX)+",mgrid=";
+    for (double e : mgridEcuts) k+=KeyString(e)+";";
+    return k;
 }
 
 double AliasTail::Bound(double x) const {return S*std::pow(x,n)*std::exp(-x);}

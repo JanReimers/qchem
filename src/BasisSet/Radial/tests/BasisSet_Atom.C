@@ -322,7 +322,7 @@ TEST_F(BasisSet_SL,IDs)
     for (auto ibs:bs->Iterate<RadialAngularID>())
     {
         EXPECT_EQ(ibs->Name(),"SL");
-        EXPECT_EQ(ibs->RadialID(),"SL N=3 {0.5 ... 2}");
+        EXPECT_EQ(ibs->RadialID(),"SL N=3 {0.5 1 2 }");   // EXACT since 2026-11-12: every exponent, %.17g (a cache key)
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
     }
 }
@@ -438,7 +438,7 @@ TEST_F(BasisSet_SG,IDs)
     for (auto ibs:bs->Iterate<RadialAngularID>())
     {
         EXPECT_EQ(ibs->Name(),"SG");
-        EXPECT_EQ(ibs->RadialID(),"SG N=3 {0.5 ... 2}");
+        EXPECT_EQ(ibs->RadialID(),"SG N=3 {0.5 1 2 }");   // EXACT since 2026-11-12: every exponent, %.17g (a cache key)
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
     }
 }
@@ -475,7 +475,7 @@ TEST_F(BasisSet_BS,IDs)
     {
         // cout << "index=" << index << " ibs=" << *ibs << endl;
         EXPECT_EQ(ibs->Name(),"BSpline<6>");
-        EXPECT_EQ(ibs->RadialID(),"BSpline<6> grid: N=6 {0,0.25,0.5 ... 4}");
+        EXPECT_EQ(ibs->RadialID(),"BSpline<6> grid: N=6 {0,0.25,0.5,1,2,4,}");   // EXACT since 2026-11-12: the whole knot vector (a cache key)
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
     }
 }

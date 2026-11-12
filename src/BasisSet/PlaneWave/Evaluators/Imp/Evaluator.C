@@ -372,8 +372,8 @@ std::string PW_Evaluator::IDFragment() const
     // which pin |G|^2 and Omega exactly.  (Without this the process-wide cache could hand a same-nG neighbour
     // the wrong kernel -- the per-instance member cache this replaces could never collide.)
     // B (and its sizing box) at full precision: a finite-difference strain must never share a neighbour's kernel.
-    return std::string("|k=")+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
-                 +"|Ecut="+std::to_string(itsEcut)
+    return std::string("|k=")+KeyString(itsk)   // EXACT (2026-11-12): never a printed double
+                 +"|Ecut="+KeyString(itsEcut)
                  +"|nG="+std::to_string(itsG.size())
                  +"|B="+itsRecip.GetCell().KeyFragment();
 }

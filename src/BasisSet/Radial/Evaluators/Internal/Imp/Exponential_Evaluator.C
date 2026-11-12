@@ -3,9 +3,11 @@ module;
 #include <cassert>
 #include <iostream>
 #include <sstream>   // the spatial irrep label for Announce
+#include <string>
 #include <nlohmann/json.hpp>
 module qchem.BasisSet.Radial.Evaluators.Internal.ExponentialEvaluator;
 import qchem.Blaze;
+import qchem.Vector3D;   // KeyString: the exact key form of a double (RadialID)
 import qchem.Reporting;   // serialize the exponents into the run report (a report-only sink, never a getter)
 
 namespace qchem::BasisSet::Radial::Evaluators
@@ -40,20 +42,11 @@ void ExponentialEvaluator::Register(Grouper* _grouper)
 
 std::string ExponentialEvaluator::RadialID () const
 {
-    std::ostringstream os;
-    if (isEvenTempered)
-    {
-        os << Name() << " N=" << es.size() << " {";
-        if (es.size()>0) os << es[0];
-        if (es.size()>1) os << " ... " << es[es.size()-1];
-    }
-    else
-    {
-        os << Name() << " {";
-        for (auto e:es) os << e << " ";
-    }
-    os << "}";
-    return os.str();
+    // EXACT (2026-11-12): every exponent, KeyString'd -- this is the atom basis's integral-cache key (BasisSetID = RadialID|AngularID).
+    // The even-tempered form printed the first and last exponent at 6 significant digits, so two sets agreeing there shared integrals.
+    std::string id=Name()+" N="+std::to_string(es.size())+" {";
+    for (auto e:es) id+=KeyString(e)+" ";
+    return id+"}";
 }
 
 bool ExponentialEvaluator::EvenTempered(const rvec_t& es)

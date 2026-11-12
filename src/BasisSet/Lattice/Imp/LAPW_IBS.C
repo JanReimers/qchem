@@ -283,9 +283,11 @@ cvec3vec_t LAPW_IBS::Gradient(const rvec3_t& r) const
 
 std::string LAPW_IBS::BasisSetID() const
 {
-    return Name()+"|nG="+std::to_string(itsG.size())+"|Rmt="+std::to_string(itsRmt)
-                 +"|lmax="+std::to_string(itsLmax)+"|El="+std::to_string(itsElin)
-                 +"|Z="+std::to_string(itsZnuc);
+    // EXACT and COMPLETE (2026-11-12): k and the reciprocal cell were missing (two cells or two k with one nG shared a key), and the
+    // doubles were std::to_string (6 decimals).
+    return Name()+"|k="+KeyString(itsk)+"|B="+itsRecip.GetCell().KeyFragment()+"|nG="+std::to_string(itsG.size())+"|Rmt="+KeyString(itsRmt)
+                 +"|lmax="+std::to_string(itsLmax)+"|El="+KeyString(itsElin)
+                 +"|Z="+KeyString(itsZnuc);
 }
 
 std::ostream& LAPW_IBS::Write(std::ostream& os) const

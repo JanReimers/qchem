@@ -32,8 +32,9 @@ std::string SphData::BasisSetID() const
     os << " PGSph { ";
     for (const auto& c : comps)
     {
-        os << *c.radial << "@" << c.radial->GetCenter() << ":[";
-        for (const auto& t : c.terms) os << t.c << "*" << t.p << " ";
+        // EXACT (2026-11-12): TypeID + KeyString, as PGData::BasisSetID -- never a streamed double.
+        os << c.radial->TypeID() << "@" << KeyString(c.radial->GetCenter()) << ":[";
+        for (const auto& t : c.terms) os << KeyString(t.c) << "*" << t.p << " ";
         os << "] ";
     }
     os << "}";

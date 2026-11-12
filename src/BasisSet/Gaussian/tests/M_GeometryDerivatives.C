@@ -411,7 +411,15 @@ TEST(GeometryDerivatives, PG_CartsERI4PullbacksAreTheFiniteDifferenceOfItsOwnCon
             const BasisSet::Orbital_HF_IBS<double>& A1=*a1;
             const BasisSet::Orbital_HF_IBS<double>& B1=cross ? static_cast<const BasisSet::Orbital_HF_IBS<double>&>(*b1) : A1;
             rsmat_t J(na), K(na);
-            A1.AccumulateDirect(J, Db, &B1); A1.AccumulateExchange(K, Db, &B1);
+            if (!cross) {A1.AccumulateDirect(J, Db, &B1); A1.AccumulateExchange(K, Db, &B1);}
+            else
+            {   // A CROSS PAIR goes through the canonical-pair form, which orders the two blocks by BasisSetID itself (the ERI4 cache
+                // stores only the canonical block).  This test used to call AccumulateDirect(A1,B1) and passed only while the streamed
+                // IDs happened to sort DZVP ("Contracted...") before the even-tempered set ("Primative..."); the exact IDs (2026-11-12)
+                // sort the other way.  Ji += J(A,B)·Db with Di = 0, so the B side collects an exact zero.
+                rsmat_t Jb(nb), Kb(nb); const rsmat_t zero(na);
+                A1.AccumulateDirectBoth(J, Jb, zero, Db, &B1); A1.AccumulateExchangeBoth(K, Kb, zero, Db, &B1);
+            }
             return std::array<double,2>{TrAM(Da, J), TrAM(Da, K)};
         };
         const double h=1e-4;
