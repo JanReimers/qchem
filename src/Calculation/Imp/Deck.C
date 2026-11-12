@@ -699,6 +699,7 @@ json ToJson(const RunSpec& r)
         j["state"]=st;
     }
     if (!r.postSCF.empty()) { json a=json::array(); for (const auto& x : r.postSCF) a.push_back(PostJson(x)); j["postSCF"]=a; }
+    if (r.threads!=ThreadCounts{}) j["threads"]={{"openmp",r.threads.openmp},{"blas",r.threads.blas}};   // stated only: absent = the process's
     if (r.schedule.empty()) j["scf"]=ToJson(r.scf);                      // one stage: the record says it once
     else
     {
@@ -734,6 +735,13 @@ void FromJson(const json& j, RunSpec& r)
     }
     else f.At("state");
     if (j.contains("solid")) FromJson(f.At("solid"),r.solid); else f.At("solid");
+    if (j.contains("threads"))
+    {
+        Fields tf(f.At("threads"),"threads"); tf.Get("openmp",r.threads.openmp); tf.Get("blas",r.threads.blas); tf.Done();
+        if (r.threads.openmp<0 || r.threads.blas<0)
+            throw std::runtime_error("deck: 'threads' counts must be >= 0 (0 = the process's own: QCHEM_OPENMP_THREADS / QCHEM_BLAS_THREADS)");
+    }
+    else f.At("threads");
     // THE ONE ACCURACY TARGET eps is the RUN's (V-FACADE-ACCURACY, user ruling 2026-11-03): the top-level `accuracy` key, copied into the
     // options of the facade the deck builds (today always the solid's).  `solid.accuracy` is its DEPRECATED alias: read, and warned
     // about.  Both stated is refused -- two statements of one number, and the deck would have to pick.
@@ -1170,6 +1178,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     struct Close { ~Close() { qchem::report::ClearConsole(); qchem::report::End(); } };
     // A run is OPEN before anything can refuse, so a refusal files its record (its policy rows) too.  The checks before the
     // revision is claimed (Resolve, the restart) run in "<structure> resolve"; the build and SCF in the revision's own run.
+    const qchem::ScopedWorkerThreads threads(spec.threads);   // the run's thread counts, for the whole run (absent = the process's)
     std::optional<Close> resolving;
     qchem::report::Begin(spec.StructureName()+" resolve");
     qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
