@@ -147,6 +147,7 @@ int    SCFAcceleratorLadder::Count() const { return Active()->Count(); }
 // The rung live NOW is the one whose NextOrbitals made this iterate: a hand-off or retreat happens inside CalculateProjections,
 // BEFORE the per-irrep NextOrbitals, which already delegate to the new rung.
 bool   SCFAcceleratorLadder::Extrapolated() const { return Active()->Extrapolated(); }
+std::vector<std::pair<size_t,double>> SCFAcceleratorLadder::ExtrapolationWeights() const { return Active()->ExtrapolationWeights(); }
 double SCFAcceleratorLadder::MinSV() const { return Active()->MinSV(); }
 
 template class tSCFIrrepAcceleratorLadder<double>;

@@ -117,6 +117,7 @@ public:
     virtual const char* Tag  () const;
     virtual int         Count() const;
     virtual bool        Extrapolated() const;
+    virtual std::vector<std::pair<size_t,double>> ExtrapolationWeights() const;   // the live rung's
     virtual double      MinSV() const;
     virtual void   SetEnergy(double E);
     virtual bool   WantsLineSearch() const; //true once the active rung is a direct minimizer

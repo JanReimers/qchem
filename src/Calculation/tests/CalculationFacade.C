@@ -147,6 +147,20 @@ TEST(CalculationFacade, ConvergeIsAnOutcomeTheAnswersLiveOnTheProof)
     EXPECT_FALSE(F.Error().details.empty());
 }
 
+//! A STATED linear ceiling beside the Fock DIIS converges (lane G's GUI case, 2026-11-11: water LDA dzvp at a stated start 0.2 and
+//! ceiling 0.3 hit the 100-iteration cap on fa324a0b, [F,D] wandering 1e-3 .. 0.7 at Lin 0.30 with DIIS at depth 2-3; unstated it
+//! converges in 8).  A user-reachable combination: it must converge or be refused at Resolve, never cap.
+TEST(CalculationFacade, AStatedLinearCeilingBesideTheFockDIISConverges)
+{
+    SCFParams p; p.StartingRelaxRo=0.2; p.MaxRelaxRo=0.3;
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA}), p);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << R.Error().details;
+    MoleculeCalculation free(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA}));
+    ASSERT_TRUE(free.Result());
+    EXPECT_NEAR(R->Energy(), free.Energy(), 1e-8) << "the ceiling changes the path, never the answer";
+}
+
 namespace
 {
 //! The newest FILED run whose key starts with \a prefix ("<ID> build@<time>"); null when none.

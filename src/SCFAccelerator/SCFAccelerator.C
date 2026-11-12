@@ -4,6 +4,8 @@ module;
 #include <limits>
 #include <optional>
 #include <iosfwd>
+#include <utility>
+#include <vector>
 export module qchem.SCFAccelerator;
 export import qchem.Symmetry.Irrep;
 export import qchem.LASolver;
@@ -81,6 +83,13 @@ public:
     //! the cell read `DIIS` on every pre-engage row).  A direct minimizer's step is the line search, which the iterator tracks
     //! itself, so the default -- no extrapolation -- is right for Null and GDM.  The ladder answers for its live rung.
     virtual bool        Extrapolated() const {return false;}
+    //! \brief THIS step's extrapolation weights as (iterations ago, c), 0 = this step's own Fock, \f$\sum c = 1\f$: the
+    //! extrapolated Fock is \f$\sum_k c_k F(D_{in,k})\f$ over the inputs that many fixed-point steps back.  Empty unless
+    //! \c Extrapolated().  The client is a DAMPED D mixer: F is affine in D (exactly for HF, to first order for DFT), so
+    //! \f$\sum_k c_k F(D_{in,k}) = F(\bar D)\f$ with \f$\bar D=\sum_k c_k D_{in,k}\f$ -- the extrapolation IS the Fock of
+    //! the extrapolated INPUT, and a damped step must start from \f$\bar D\f$.  Starting it from this step's D_in pairs the output of
+    //! one point with the input of another: water LDA at a stated ceiling 0.3 then hit the iteration cap (lane A, 2026-11-11).
+    virtual std::vector<std::pair<size_t,double>> ExtrapolationWeights() const {return {};}
     //! \brief DIIS history CONDITIONING: the smallest singular value of the bordered B matrix, i.e. the
     //! quantity \c SVTol is compared against.  NaN for an accelerator that keeps no history.
     //!

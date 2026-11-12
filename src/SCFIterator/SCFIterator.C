@@ -1,10 +1,12 @@
 // File: SCFIterator/SCFIterator.C  Interface for an object that manages SCF convergence.
 module;
 #include <cassert>   // AdoptMOMReference's OrbitalView cross-cast guard
+#include <deque>
 #include <memory>
 #include <functional>
 #include <string>
 #include <iosfwd>
+#include <utility>
 #include <vector>
 #include <optional>
 #include <string_view>
@@ -408,6 +410,19 @@ private:
     double             itsResidual=0.0;   //!< this iteration's \c tHamiltonian::DeltaRho (the driver writes it)
     std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>> itsMixer;  //!< the density-face concrete for this run
     qchem::ChargeDensity::tAdaptiveMixer<T>* itsAdaptive=nullptr;      //!< its step-adapting face, if it has one (cross-cast once)
+    //! THE INPUT OF EVERY FOCK THE ACCELERATOR WAS FED, newest last (lane A, 2026-11-11): one entry per \c CalculateProjections, i.e.
+    //! per Fock build (the seed's, a carried state's refill, every step's), so an age in \c SCFAccelerator::ExtrapolationWeights indexes
+    //! it (0 = the newest).  A damped step under the Fock DIIS starts from their weighted mean \f$\bar D\f$ (\c ExtrapolatedInput,
+    //! \c tAdaptiveMixer::ExtrapolatedStep has why).  Null = a Fock whose input is no density matrix of this run (a matrix-free seed, the
+    //! core guess, the HF bootstrap's LDA sibling).  The iterator keeps it, not the mixer: the seed's Fock exists before any mixer does.
+    std::deque<std::shared_ptr<const qchem::ChargeDensity::tMixableDensity<T>>> itsFockInputs;
+    void RecordFockInput(std::shared_ptr<const qchem::ChargeDensity::tMixableDensity<T>> in);
+    //! The input of the Fock the next build makes, \c itsMixer->FockDensity(*itsCD): itsCD itself shared, else (a damped linear step's
+    //! mixed density, the mixer's own and replaced next step) a copy; null for a field that is no density matrix (Kerker's ρ̃).
+    void RecordNextFockInput();
+    //! \f$\bar D=\sum_k c_kD_{in,k}\f$ over \a weights (age, c), or null with \a why set when an age reaches a null entry or a Fock
+    //! from before this run (an accelerator shared with an earlier stage).  Trims the history to the oldest age still weighted.
+    std::unique_ptr<qchem::ChargeDensity::tMixableDensity<T>> ExtrapolatedInput(const std::vector<std::pair<size_t,double>>& weights, std::string& why);
     // The two loop-face concretes (stateless).  Iterate selects one per macro-iteration by the accelerator's
     // WantsLineSearch() and dispatches Step() -- virtual dispatch in place of the old mode `if`.
     FixedPointDriver<T> itsFixedDriver;
