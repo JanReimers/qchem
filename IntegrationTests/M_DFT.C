@@ -222,7 +222,10 @@ TEST(M_DFT, F2_PP_AuxiliaryFit)
     MoleculeCalculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .model = Model::LDA, .vxcFit = Hamiltonian::VxcFit::Auxiliary,
                                                        .pp = "gth-lda-valence"}));
     ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -48.1970701902, 1e-5);   // anchor (re-judged with F2_PP above, the same +4.1e-5)
+    // RE-JUDGED 2026-11-11 (pin 10, lane B): the A1 fit's norm went analytic (it was a quadrature on the fit's private mesh), +1.38e-5,
+    // from -48.1970701902.  Independent route: the same run on a (200, 59) mesh, where the old mesh norm is 1 to its quadrature error:
+    // -48.1970585462.  The new value sits 2.2e-6 from it (the (80, 29) mesh's own error), the old one 1.16e-5.
+    EXPECT_NEAR(calc.Energy(), -48.1970563871, 1e-5);   // anchor
     EXPECT_NEAR(calc.Energy(), -48.20187971, 7e-3) << "ORACLE: PySCF A1_coul J-fit route; the gap (+4.8 mHa) is the A1 Vxc fit";
 }
 

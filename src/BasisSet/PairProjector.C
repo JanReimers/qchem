@@ -75,4 +75,22 @@ public:
     virtual ΔG_Map FourierComponents(const cFIT_SF_ABS& onBasis) const=0;
 };
 
+//! \brief A field that INTEGRATES ITSELF against a basis's functions, on points it OWNS -- a generic \c ScalarFunction capability, the
+//! twin of \c AnalyticFourier for a field that is only a function on space (a SAD seed: radial tables on log grids).
+//!
+//! ★ A COULOMB FIT HAS NO INTEGRATION GRID (user 2026-11-11, doc/Pins.md): "any Coulomb fit (to any fit basis set) has no
+//! *integration* grid.  Sometimes the fit basis set looks like a grid (PW G ball, delta function) but that is a fit basis detail."
+//! So a fitter never samples a field on points of its own or its basis's: the field that needs a quadrature brings it, chosen by
+//! its factory and reported under its own section, and a Gaussian projector asks for it with the usual cross-cast between
+//! abstract faces.  (Until 2026-11-11 the Gaussian Coulomb fit built a PRIVATE mesh from the XC MeshParams to project the SAD seed
+//! -- and to normalise its own functions, which earned a mesh-keyed cache after a coarse-mesh norm leaked into a fine run, 585 ppm.)
+//! Data-free.
+class SelfIntegratingField
+{
+public:
+    virtual ~SelfIntegratingField() = default;
+    //! \f$\langle g_a|f\rangle=\int g_a(r)\,f(r)\,d^3r\f$ for every function of \a g, on this field's own quadrature.
+    virtual rvec_t OverlapWith(const VectorFunction<double>& g) const=0;
+};
+
 } // namespace qchem::BasisSet

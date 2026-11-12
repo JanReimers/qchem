@@ -54,9 +54,9 @@ public:
         };
 
 
-        virtual rFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+        virtual rFIT_CD_ABS* CreateCDFitBasisSet(const Structure*) const
         {
-            return new EFit_IBS(Evaluator::Rescale(2.0, this->GetSymt()), *cl, mp);
+            return new EFit_IBS(Evaluator::Rescale(2.0, this->GetSymt()));   // the Coulomb fit: no mesh
         }
         virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
         {

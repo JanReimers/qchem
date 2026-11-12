@@ -451,13 +451,14 @@ chmat_t PlaneWave_IBS::MakeSetOverlap(const AtomCentredSet& set) const
 // cell-periodic, so ITS symmetry is Gamma (k=0), NOT this orbital block's k -- build a k=0 grid engine and
 // label it with a k=0 Bloch irrep.  The electron density rho = psi*psi is EXACTLY band-limited to the
 // difference set {G_i-G_j}: |G_i-G_j| <= 2 max|G|, i.e. 1/2|dG|^2 < 4 Ecut.  So the CD fit basis must cover
-// 4x the orbital cutoff to represent rho -- honestly denser than the orbital {G} (never orbital==fit).  A
-// GGA that wants a still-denser density grid raises it via mp.relCutoff (CP2K REL_CUTOFF); the 4x floor is
-// the exact difference-set cover.  (The rho-tilde support is orbital-intrinsic today, so this is inert for the
-// matrix -- the fitter holds it for the future denser-grid resampling -- but it makes the fit basis correct.)
-BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
+// 4x the orbital cutoff to represent rho -- honestly denser than the orbital {G} (never orbital==fit).  4x is the
+// exact difference-set cover, so a denser CD ball holds nothing rho[D] has: the CD fit is a property of the basis,
+// and it takes no mesh knob (user 2026-11-11, "the rho fit should be 100% analytic, no grid").  It read
+// max(4, mp.relCutoff) until then, and relCutoff is 1 for every functional, so the ball is unchanged.  A GGA's
+// denser grid is the Vxc fit's (CreateVxcFitBasisSet below), where v_xc[rho] is NOT band-limited.
+BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*) const
 {
-    PW_Grid_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*std::max(4.0, mp.relCutoff));
+    PW_Grid_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*4.0);
     return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "densityFit", /*holdsOrbitalPairs*/true);
 }
 

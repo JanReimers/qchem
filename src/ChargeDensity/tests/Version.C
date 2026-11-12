@@ -19,6 +19,7 @@ import qchem.Lattice_3D;                        // UnitCell, Lattice_3D
 import qchem.BasisSet.Lattice.BasisSet;      // L3::Factory(PW,...), Complex_BS
 import qchem.BasisSet.Orbital_DFT_IBS;              // Orbital_DFT_IBS<dcmplx>
 import qchem.Types;                             // rvec3_t, ivec3_t
+import qchem.Mesh;                              // qcMesh::Mesh (a seed's own quadrature; unused here)
 using namespace qchem;
 
 using namespace qchem::ChargeDensity;
@@ -36,13 +37,14 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
     ASSERT_TRUE(ftbs);
 
     // Interleave the three density kinds; record each one's freshness serial in construction order.
+    const auto OnePoint=std::make_shared<const qcMesh::Mesh>(rvec3vec_t{rvec3_t(0,0,0)}, rvec_t(1,1.0));   // a seed's quadrature, never integrated on here
     std::vector<size_t> v;
     FiniteIrrepCD     a;                                          v.push_back(a.Version());
-    NumericCD c1(8.0);                                   v.push_back(c1.Version());
+    NumericCD c1(8.0, OnePoint);                                   v.push_back(c1.Version());
     FiniteIrrepCD     b;                                         v.push_back(b.Version());
-    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(lat.GetStructure().get(), qcMesh::MeshParams{}));
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(lat.GetStructure().get()));
     SeedCD     f(fb, lat.GetUnitCell(), "LDA");    v.push_back(f.Version());
-    NumericCD c2(4.0);                                   v.push_back(c2.Version());
+    NumericCD c2(4.0, OnePoint);                                   v.push_back(c2.Version());
 
     EXPECT_GT(v.front(), 0u) << "0 is the reserved 'no density yet' sentinel";
     for (size_t i=1;i<v.size();++i)

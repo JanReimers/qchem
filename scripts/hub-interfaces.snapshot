@@ -18,7 +18,7 @@ namespace qchem::BasisSet {
         virtual ~tBasisSet();
         virtual size_t GetNumFunctions() const=0;
         virtual irrepv_t GetIrreps(const Spin& ms) const=0;
-        virtual FIT_CD_ABS<T>* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
+        virtual FIT_CD_ABS<T>* CreateCDFitBasisSet(const Structure* cl) const;
         virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&, VxcFit fit=VxcFit::Auto, const FitQuadrature* quad=nullptr) const;
         virtual const Symmetry::SymmetryImposition* GetImposition() const=0;
         Resolution MakeResolution(double eps) const;
@@ -47,7 +47,7 @@ namespace qchem::BasisSet {
         virtual const PairProjection<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
         virtual bool CanPullbackRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
         virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const FIT_CD_ABS<TFit>& c, const hmat_t<T>& D, const vec_t<TFit>& a, const Structure* st) const=0;
-        virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const=0;
+        virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*) const=0;
         virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;
     protected:
         virtual PairProjection<TFit> MakeOverlap3C (const FIT_SF_ABS<TFit>& c) const=0;

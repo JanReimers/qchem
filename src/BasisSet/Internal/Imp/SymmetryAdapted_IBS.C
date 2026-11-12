@@ -104,7 +104,7 @@ PairProjection<double> SymmetryAdapted_IBS::MakeOverlap3C  (const rFIT_SF_ABS& c
 PairProjection<double> SymmetryAdapted_IBS::MakeRepulsion3C(const rFIT_CD_ABS& c) const { return Transform3C(itsRawDFT->Repulsion3C(c)); }
 
 // Fit bases are atom-centred (geometry, not symmetry), so reuse the raw basis's unchanged.
-rFIT_CD_ABS* SymmetryAdapted_IBS::CreateCDFitBasisSet (const Structure* cl, const qcMesh::MeshParams& mp) const { return itsRawDFT->CreateCDFitBasisSet(cl,mp);  }
+rFIT_CD_ABS* SymmetryAdapted_IBS::CreateCDFitBasisSet (const Structure* cl) const { return itsRawDFT->CreateCDFitBasisSet(cl);  }
 rFIT_SF_ABS* SymmetryAdapted_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const { return itsRawDFT->CreateVxcFitBasisSet(cl,mp); }
 
 // Coulomb / exchange are linear in the density, so build the AO matrix from the cd-irrep's

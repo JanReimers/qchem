@@ -221,7 +221,7 @@ struct MnBox
     MnBox() : lat((cell.AddAtom(25, rvec3_t(0.5,0.5,0.5)), cell), ivec3_t(1,1,1))
             , st(lat.GetStructure())
             , bs(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, /*Ecut*/4.0))
-            , fitCD(bs->CreateCDFitBasisSet (st.get(), qcMesh::MeshParams{}))
+            , fitCD(bs->CreateCDFitBasisSet (st.get()))
             , fitSF(bs->CreateVxcFitBasisSet(st.get(), qcMesh::MeshParams{}))
     {}
 };

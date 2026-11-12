@@ -469,3 +469,21 @@ under ij ↔ kl, which holds exactly when the SAME object sits on both pairs.
 
 Earned by the TeF₆ δ measurement (2026-11-06, `doc/Records/HartreeFitConsistency.md`): the one-sided analytic form J^a
 was 15× more accurate in max|ΔJ| than J^b and would have been chosen on accuracy, yet it is the one with no energy.
+
+## 33. A Coulomb fit has no integration grid (user, 2026-11-11)
+
+"The way I think about it any Coulomb fit (to any fit basis set) has no *integration* grid.  SOmetimes the fit basis set looks
+like a grid (PW G ball, delta function) but that is a fit basis detail."  A Coulomb fit's coefficients come from analytic
+integrals: its metric, its normalisation, and its 3-centre elements.  A fit basis that IS a point set (δ, a PW G-ball) uses its
+points because they define the basis, never as a quadrature for something else.
+- **A field that must be projected brings its own integral.**  A seed that lives on a grid (SAD) carries the quadrature it was
+  built on and integrates itself (`BasisSet::SelfIntegratingField`, the twin of `AnalyticFourier`).  The grid belongs to the seed,
+  is filed under the seed's report section, and is gone once iterations start ("the grid should then disappear as soon as
+  iterations start").  No fitter or fit basis owns or borrows a mesh to receive it.
+- **Not Dunlap-specific**: the rule holds for every Coulomb fit route (Dunlap, δ, multipole, PW).
+- **Contrast with pin 28**: a nonlinear term (Vxc) needs an integration mesh for its projection, and that mesh belongs to the Vxc
+  fit, never to the Coulomb fit.
+
+Earned by `Fit_IBS`: the Gaussian Coulomb fit owned a private quadrature for its `Norm()`, which drifted 585 ppm between two meshes
+(it had to be mesh-keyed in the cache), and for a seed `Overlap(f)`.  So a mesh-free operation silently depended on a grid
+(History5, 2026-11-11).
