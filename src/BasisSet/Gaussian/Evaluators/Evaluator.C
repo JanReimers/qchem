@@ -136,6 +136,9 @@ template <class E> concept isShellBlock_HF_Evaluator = isHF_Evaluator<E> && requ
     {e.ShellGroups()} -> std::same_as<const std::vector<std::pair<size_t,size_t>>&>;
     {e.FourCBlock(i, i, e, i, i, e, i, i, e, i, i, out)} -> std::same_as<void>;
     {e.FourCGroupBlock(i, e, i, e, i, e, i, out)} -> std::same_as<void>;
+    // the THREADED fill (OpenWork §3): the group pairs' Ω built serially, a worker-safe block on them, and how many workers may run it
+    {e.FourCGroupBlock(e.MakeGroupPairΩ(), i, i, i, i, out)} -> std::same_as<void>;
+    {E::GroupBlockThreads()} -> std::same_as<int>;
 };
 //! The 3-centre twin: a scalar DFT evaluator that also delivers a general-contraction GROUP TRIPLE of \c RepulsionThreeC / \c OverlapThreeC
 //! at once, each value the per-element kernel's (lane H 2026-11-11).  Additive: the per-element kernels stay (the gates' reference).
@@ -145,6 +148,9 @@ template <class E> concept isShellBlock_DFT_Evaluator = isDFT_Evaluator<E> && re
     {e.ShellGroups()} -> std::same_as<const std::vector<std::pair<size_t,size_t>>&>;
     {e.RepulsionThreeCGroupBlock(i, e, i, e, i, out)} -> std::same_as<void>;
     {e.OverlapThreeCGroupBlock  (i, e, i, e, i, out)} -> std::same_as<void>;
+    // the THREADED fill (OpenWork §3): the orbital group pairs' Ω built serially, a worker-safe repulsion block on them, the worker count
+    {e.RepulsionThreeCGroupBlock(e.MakeGroupPairΩ(), i, i, e, i, out)} -> std::same_as<void>;
+    {E::GroupBlockThreads()} -> std::same_as<int>;
 };
 template <class E> concept isM_HF_Evaluator = std::derived_from<E, Evaluator>
     && requires (const E e, const E partner)

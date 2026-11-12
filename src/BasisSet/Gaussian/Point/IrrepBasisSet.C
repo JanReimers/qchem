@@ -15,6 +15,7 @@
 //  - HF Direct/Exchange use the multi-centre M&D FourC kernel, NOT the atom Cache4/Grouper/Ak design.
 module;
 #include <cmath>
+#include <exception>
 #include <algorithm>
 #include <concepts>
 #include <stdexcept>
@@ -345,7 +346,7 @@ protected:
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).OverlapThreeC_Matrix(dynamic_cast<const E&>(c));
         else if constexpr (Evaluators::isShellBlock_DFT_Evaluator<E>)
-            return Make3CGroups(c, [](const E& aE, size_t ga, size_t gb, const E& cE, size_t gc, double* out)
+            return Make3CGroups(c, false, [](const E& aE, const auto&, size_t ga, size_t gb, const E& cE, size_t gc, double* out)
                                    {aE.OverlapThreeCGroupBlock(ga, aE, gb, cE, gc, out);});
         else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
                                    {return aE.OverlapThreeC(ia, aE, ib, cE, ic);});
@@ -355,8 +356,8 @@ protected:
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).RepulsionThreeC_Matrix(dynamic_cast<const E&>(c));
         else if constexpr (Evaluators::isShellBlock_DFT_Evaluator<E>)
-            return Make3CGroups(c, [](const E& aE, size_t ga, size_t gb, const E& cE, size_t gc, double* out)
-                                   {aE.RepulsionThreeCGroupBlock(ga, aE, gb, cE, gc, out);});
+            return Make3CGroups(c, true, [](const E& aE, const auto& pairΩ, size_t ga, size_t gb, const E& cE, size_t gc, double* out)
+                                   {aE.RepulsionThreeCGroupBlock(pairΩ, ga, gb, cE, gc, out);});
         else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
                                    {return aE.RepulsionThreeC(ia, aE, ib, cE, ic);});
     }
@@ -414,8 +415,11 @@ private:
     //! block against each fit group, every member triple from one \a block call (the primitive integrals once per group triple).  Each
     //! value is the per-element kernel's bit for bit (tests/M_ThreeCBlocks.C), so this is \c Make3C's tensor exactly.  Groups are
     //! consecutive shells, so a member pair sa <= sb visits every function pair ia <= ib once.
+    //! THREADED (QCHEM_OPENMP_THREADS; serial by default): each group triple writes only its own (fit function, function pair) entries, so
+    //! the fill is bit-identical at any thread count; \a block runs on workers and so must touch no global cache -- the orbital group
+    //! pairs' Ω it may need (\a needsΩ) are collected HERE, serially (OpenWork §3).
     template <class Block>
-    PairProjection<double> Make3CGroups(const Real_IBS& _c, Block block) const
+    PairProjection<double> Make3CGroups(const Real_IBS& _c, bool needsΩ, Block block) const
     {
         const E& aE=dynamic_cast<const E&>(*this);
         const E& cE=dynamic_cast<const E&>(_c);
@@ -425,13 +429,17 @@ private:
         const auto SA=aE.ShellRanges(), SC=cE.ShellRanges();
         const auto& GA=aE.ShellGroups(); const auto& GC=cE.ShellGroups();
         auto width=[](const std::vector<std::pair<size_t,size_t>>& S, size_t s){return S[s].second-S[s].first;};
-        std::vector<double> blk;
-        for (size_t gb=0;gb<GA.size();gb++) for (size_t ga=0;ga<=gb;ga++) for (size_t gc=0;gc<GC.size();gc++)
+        struct Task { size_t ga, gb, gc; };
+        std::vector<Task> tasks;
+        for (size_t gb=0;gb<GA.size();gb++) for (size_t ga=0;ga<=gb;ga++) for (size_t gc=0;gc<GC.size();gc++) tasks.push_back({ga,gb,gc});
+        const auto pairΩ = needsΩ ? aE.MakeGroupPairΩ() : decltype(aE.MakeGroupPairΩ()){};
+        auto fill=[&](const Task& t, std::vector<double>& blk)
         {
+            const size_t ga=t.ga, gb=t.gb, gc=t.gc;
             const size_t ma=GA[ga].second-GA[ga].first, mb=GA[gb].second-GA[gb].first, mc=GC[gc].second-GC[gc].first;
             const size_t na=width(SA,GA[ga].first), nb=width(SA,GA[gb].first), nc=width(SC,GC[gc].first), n=na*nb*nc;
             blk.resize(ma*mb*mc*n);
-            block(aE, ga, gb, cE, gc, blk.data());
+            block(aE, pairΩ, ga, gb, cE, gc, blk.data());
             for (size_t ia=0;ia<ma;ia++) for (size_t ib=0;ib<mb;ib++)
             {
                 const size_t sa=GA[ga].first+ia, sb=GA[gb].first+ib;
@@ -447,7 +455,31 @@ private:
                     }
                 }
             }
+        };
+#ifdef QCHEM_OPENMP
+        if (const int nthreads=E::GroupBlockThreads(); nthreads>1)
+        {
+            std::exception_ptr firstEx;
+            #pragma omp parallel num_threads(nthreads)
+            {
+                std::vector<double> blk;   // one scratch per worker
+                #pragma omp for schedule(dynamic,1)
+                for (size_t i=0;i<tasks.size();i++)
+                {
+                    try { fill(tasks[i], blk); }
+                    catch (...)
+                    {
+                        #pragma omp critical (fit3c_fill_throw)
+                        if (!firstEx) firstEx=std::current_exception();
+                    }
+                }
+            }
+            if (firstEx) std::rethrow_exception(firstEx);
+            return s3;
         }
+#endif
+        std::vector<double> blk;
+        for (const Task& t : tasks) fill(t, blk);
         return s3;
     }
 };
@@ -500,25 +532,55 @@ struct UniqueQuartets
             }
         // Fill them a GROUP quartet at a time: one FourCGroupBlock evaluates the primitive integrals once for every member quartet, and each
         // CANONICAL member is copied to its block -- FourC's value there bit for bit (tests/M_ERI4Blocks.C).
-        std::vector<double> blk;
+        // THREADED (QCHEM_OPENMP_THREADS; serial by default): each group quartet writes only its OWN canonical blocks of v, so the fill
+        // needs no reduction and is bit-identical at any thread count.  The workers never meet the global Ω cache: the group pairs' Ω are
+        // collected HERE, serially (MakeGroupPairΩ), and the block reads them (OpenWork §3, "thread-safe only by the serial-phase rule").
+        struct Task { size_t ga, gb, gc, gd; };
+        std::vector<Task> tasks;
         for (size_t gb=0;gb<G.size();gb++) for (size_t ga=0;ga<=gb;ga++)
             for (size_t gd=0;gd<G.size();gd++) for (size_t gc=0;gc<=gd;gc++)
+                if (Pair(gc,gd)>=Pair(ga,gb)) tasks.push_back({ga,gb,gc,gd});
+        const auto pairΩ=e.MakeGroupPairΩ();
+        auto fill=[&](const Task& t, std::vector<double>& blk)
+        {
+            const size_t ma=G[t.ga].second-G[t.ga].first, mb=G[t.gb].second-G[t.gb].first, mc=G[t.gc].second-G[t.gc].first, md=G[t.gd].second-G[t.gd].first;
+            const size_t n=width(G[t.ga].first)*width(G[t.gb].first)*width(G[t.gc].first)*width(G[t.gd].first);
+            blk.resize(ma*mb*mc*md*n);
+            e.FourCGroupBlock(pairΩ, t.ga, t.gb, t.gc, t.gd, blk.data());
+            size_t m=0;
+            for (size_t ia=0;ia<ma;ia++) for (size_t ib=0;ib<mb;ib++) for (size_t ic=0;ic<mc;ic++) for (size_t id=0;id<md;id++,m++)
             {
-                if (Pair(gc,gd)<Pair(ga,gb)) continue;
-                const size_t ma=G[ga].second-G[ga].first, mb=G[gb].second-G[gb].first, mc=G[gc].second-G[gc].first, md=G[gd].second-G[gd].first;
-                const size_t n=width(G[ga].first)*width(G[gb].first)*width(G[gc].first)*width(G[gd].first);
-                blk.resize(ma*mb*mc*md*n);
-                e.FourCGroupBlock(ga, e, gb, e, gc, e, gd, blk.data());
-                size_t m=0;
-                for (size_t ia=0;ia<ma;ia++) for (size_t ib=0;ib<mb;ib++) for (size_t ic=0;ic<mc;ic++) for (size_t id=0;id<md;id++,m++)
+                const size_t sa=G[t.ga].first+ia, sb=G[t.gb].first+ib, sc=G[t.gc].first+ic, sd=G[t.gd].first+id;
+                if (sb<sa || sd<sc) continue;   // the other orientation of a same-group pair
+                const size_t P1=Rank(sa,sb), P2=Rank(sc,sd);
+                if (P2<P1) continue;            // only inside a group quartet whose bra and ket are the same group pair
+                std::copy(&blk[m*n], &blk[m*n]+n, &v[blockOff[P2*(P2+1)/2+P1]]);
+            }
+        };
+#ifdef QCHEM_OPENMP
+        if (const int nthreads=E::GroupBlockThreads(); nthreads>1)
+        {
+            std::exception_ptr firstEx;
+            #pragma omp parallel num_threads(nthreads)
+            {
+                std::vector<double> blk;   // one scratch per worker
+                #pragma omp for schedule(dynamic,1)
+                for (size_t i=0;i<tasks.size();i++)
                 {
-                    const size_t sa=G[ga].first+ia, sb=G[gb].first+ib, sc=G[gc].first+ic, sd=G[gd].first+id;
-                    if (sb<sa || sd<sc) continue;   // the other orientation of a same-group pair
-                    const size_t P1=Rank(sa,sb), P2=Rank(sc,sd);
-                    if (P2<P1) continue;            // only inside a group quartet whose bra and ket are the same group pair
-                    std::copy(&blk[m*n], &blk[m*n]+n, &v[blockOff[P2*(P2+1)/2+P1]]);
+                    try { fill(tasks[i], blk); }
+                    catch (...)
+                    {
+                        #pragma omp critical (eri4_fill_throw)
+                        if (!firstEx) firstEx=std::current_exception();
+                    }
                 }
             }
+            if (firstEx) std::rethrow_exception(firstEx);
+            return;
+        }
+#endif
+        std::vector<double> blk;
+        for (const Task& t : tasks) fill(t, blk);
     }
     double At(size_t ia, size_t ib, size_t ic, size_t id) const
     {

@@ -18,6 +18,8 @@ import qchem.BasisSet;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.Mesh;
 import qchem.Structure;
+import qchem.BasisSet.Internal.DB_Cache_RAM;   // the concrete cache's Clear(I3C) hook (tests may cheat): rebuild the tensor threaded
+import qchem.Parallel;                         // ScopedWorkerThreads (the serial-vs-threaded bit gate)
 import qchem.Types;
 
 using namespace qchem;
@@ -70,7 +72,57 @@ void GroupedIsElementwise(const char* what, const std::string& file, bool expect
     }
 }
 
+//! THE THREADED FILL (OpenWork §3): both fit tensors built at \a workers threads are the serial ones BIT FOR BIT (each group triple
+//! writes its own entries; the workers read Ω from a table built serially and build their RNLM / Hermite3 locally).  The serial tensors
+//! are copied, the cache's I3C entries cleared, and the same tensors rebuilt threaded.
+void ThreadedIsSerial(const char* what, const std::string& file, int workers)
+{
+    Molecule mol;
+    for (const Atom& a : theH2O2) mol.Insert(Site{.Z=a.Z, .R=a.R});
+    std::shared_ptr<const BasisSet::Real_BS> bs(file.empty() ? Factory(BasisSetData::DZVP, &mol, Engine::MnD, Angular::Cartesian)
+                                                             : FactoryFromFile(file, &mol, Engine::MnD, Angular::Cartesian));
+    const qcMesh::MeshParams mesh{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0,
+                                  .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};   // the Vxc fit takes one (and ignores it)
+    auto& ram=dynamic_cast<BasisSet::IntegralsCache_RAM<double>&>(BasisSet::theCache<double>());
+    using I3C=BasisSet::IntegralsCache_Base::I3C;
+    for (auto ibs : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_DFT_OIBS>())
+    {
+        std::unique_ptr<BasisSet::FIT_CD_ABS<double>> cd(ibs->CreateCDFitBasisSet (&mol));
+        std::unique_ptr<BasisSet::FIT_SF_ABS<double>> sf(ibs->CreateVxcFitBasisSet(&mol, mesh));
+        auto build=[&](int n, double& sec)
+        {
+            qchem::ScopedWorkerThreads scope(n);
+            EXPECT_EQ(MnD::GroupBlockThreads(), n) << what << ": the fill would not run at " << n << " workers (a vacuous gate)";
+            ram.Clear(I3C::Repulsion); ram.Clear(I3C::Overlap);   // a MISS: the tensors are built in this scope
+            const auto t0=std::chrono::steady_clock::now();
+            std::pair<std::vector<rsmat_t>,std::vector<rsmat_t>> RO{ibs->Repulsion3C(*cd).dense, ibs->Overlap3C(*sf).dense};   // copies
+            sec=std::chrono::duration<double>(std::chrono::steady_clock::now()-t0).count();
+            return RO;
+        };
+        double t1=0, tn=0;
+        const auto serial=build(1, t1);
+        const auto threaded=build(workers, tn);
+        ASSERT_EQ(serial.first.size(), threaded.first.size()) << what;
+        ASSERT_EQ(serial.second.size(), threaded.second.size()) << what;
+        const size_t N=ibs->GetNumFunctions();
+        size_t differ=0, checked=0;
+        auto cmp=[&](const std::vector<rsmat_t>& a, const std::vector<rsmat_t>& b)
+        {
+            for (size_t c=0;c<a.size();c++) for (size_t i=0;i<N;i++) for (size_t j=i;j<N;j++, ++checked) if (a[c](i,j)!=b[c](i,j)) ++differ;
+        };
+        cmp(serial.first, threaded.first); cmp(serial.second, threaded.second);
+        std::printf("  [3C threads] %-12s %zu entries, %zu differ; both tensors serial %.2f s, %d workers %.2f s\n", what, checked, differ, t1, workers, tn);
+        EXPECT_EQ(differ, 0u) << what << ": the threaded fit tensors are not the serial ones bit for bit";
+        break;
+    }
+}
+
 } // namespace
 
 TEST(M_ThreeCBlocks, TheGroupBlockedFitTensorsAreTheElementwiseOnes_GeneralContraction) {GroupedIsElementwise("H2O2 molopt", "dzvp_molopt_gth.bsd", true);}
 TEST(M_ThreeCBlocks, TheGroupBlockedFitTensorsAreTheElementwiseOnes_Segmented)          {GroupedIsElementwise("H2O2 dzvp", "", false);}
+TEST(M_ThreeCBlocks, TheThreadedFillIsTheSerialOne)
+{
+    ThreadedIsSerial("H2O2 molopt", "dzvp_molopt_gth.bsd", 4);
+    ThreadedIsSerial("H2O2 dzvp", "", 4);
+}

@@ -23,6 +23,7 @@ import qchem.BasisSet;
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;                   // public Direct()/Exchange()
 import qchem.BasisSet.Internal.ERI4;
 import qchem.Structure;
+import qchem.Parallel;                                   // ScopedWorkerThreads (the serial-vs-threaded bit gate)
 import qchem.Types;
 
 using namespace qchem;
@@ -113,6 +114,40 @@ void BlockedIsElementwise(const std::vector<Atom>& atoms, const char* what, cons
     }
 }
 
+//! THE THREADED FILL (OpenWork §3): the unique-quartet fill at \a workers threads gives the serial J and K BIT FOR BIT (each group quartet
+//! writes its own blocks; the workers read Ω from a table built serially, never the global cache).
+void ThreadedIsSerial(const std::vector<Atom>& atoms, const char* what, const std::string& file, int workers)
+{
+    const Molecule mol=Make(atoms);
+    std::shared_ptr<const BasisSet::Real_BS> bs(file.empty() ? Factory(BasisSetData::DZVP, &mol, Engine::MnD, Angular::Cartesian)
+                                                             : FactoryFromFile(file, &mol, Engine::MnD, Angular::Cartesian));
+    for (auto ibs : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_OIBS>())
+    {
+        const auto* hf=dynamic_cast<const BasisSet::Orbital_ERI4_IBS<double>*>(ibs);
+        ASSERT_TRUE(hf) << what;
+        auto run=[&](int n, double& sec)
+        {
+            qchem::ScopedWorkerThreads scope(n);
+            EXPECT_EQ(MnD::GroupBlockThreads(), n) << what << ": the fill would not run at " << n << " workers (a vacuous gate)";
+            const auto t0=std::chrono::steady_clock::now();
+            std::pair<ERI4,ERI4> jk{hf->MakeDirect(*hf), hf->MakeExchange(*hf)};   // uncached: each pair rebuilds the unique quartets
+            sec=std::chrono::duration<double>(std::chrono::steady_clock::now()-t0).count();
+            return jk;
+        };
+        double t1=0, tn=0;
+        auto serial=run(1, t1);
+        auto threaded=run(workers, tn);
+        const size_t N=ibs->GetNumFunctions();
+        size_t differ=0, checked=0;
+        for (size_t a=0;a<N;a++) for (size_t b=a;b<N;b++) for (size_t c=0;c<N;c++) for (size_t d=c;d<N;d++, checked++)
+            if (serial.first(a,b)(c,d)!=threaded.first(a,b)(c,d) || serial.second(a,b)(c,d)!=threaded.second(a,b)(c,d)) ++differ;
+        std::printf("  [ERI4 threads] %-10s N %zu: %zu J and K entries, %zu differ; J+K serial %.2f s, %d workers %.2f s\n",
+                    what, N, checked, differ, t1, workers, tn);
+        EXPECT_EQ(differ, 0u) << what << ": the threaded fill is not the serial one bit for bit";
+        break;
+    }
+}
+
 } // namespace
 
 TEST(M_ERI4Blocks, TheShellBlockedJAndKAreTheElementwiseOnes_H2O2) {BlockedIsElementwise({{8,{-1.322808,0,0}}, {8,{1.322808,0,0}}, {1,{-0.949557,1.520749,0.878005}}, {1,{0.949557,-1.520749,0.878005}}}, "H2O2 dzvp");}
@@ -122,4 +157,11 @@ TEST(M_ERI4Blocks, TheShellBlockedJAndKAreTheElementwiseOnes_ContractedD) {Block
 TEST(M_ERI4Blocks, TheGroupBlockedJAndKAreTheElementwiseOnes_GeneralContraction)
 {
     BlockedIsElementwise({{8,{0,0,0}}, {1,{0,0,1.832}}}, "OH molopt", "dzvp_molopt_gth.bsd", true, /*packing*/false);
+}
+//! The threaded unique-quartet fill IS the serial one, bit for bit: segmented (H2O2 dzvp, one shell per group) and general-contraction
+//! groups (OH DZVP-MOLOPT), at 4 workers.
+TEST(M_ERI4Blocks, TheThreadedFillIsTheSerialOne)
+{
+    ThreadedIsSerial({{8,{-1.322808,0,0}}, {8,{1.322808,0,0}}, {1,{-0.949557,1.520749,0.878005}}, {1,{0.949557,-1.520749,0.878005}}}, "H2O2 dzvp", "", 4);
+    ThreadedIsSerial({{8,{0,0,0}}, {1,{0,0,1.832}}}, "OH molopt", "dzvp_molopt_gth.bsd", 4);
 }

@@ -193,6 +193,16 @@ inline double PrimGaussian::operator()(const rvec3_t& r) const
 
 export namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
 {
+//! \brief ONE RADIAL PAIR'S PRIMITIVE CHARGE DISTRIBUTIONS, OPAQUE: [i*nb+j] = Ω(a_i, b_j), collected through the global cache by
+//! \c GaussianRF::PairTable (SERIAL ONLY) and read back by its table overload of \c Repulsion4CGroupBlock, which touches no cache --
+//! so a threaded fill builds these first and hands them to its workers (OpenWork §3).  Ω stays module-internal: a holder can only pass
+//! the table back.
+class PrimitivePairTable
+{
+    friend class GaussianRF;
+    std::vector<const Ω*> itsΩ;
+};
+
 
 //! \brief Scoped byte budget on the GEOMETRY-KEYED MnD caches (PG.Omega / PG.RNLM / PG.H3).  The caches
 //! key on per-instance primitive IDs, so a LATTICE sum -- which mints fresh image clones per (pair,
@@ -285,6 +295,21 @@ public:
                                       const GaussianRF* const* rc, size_t mc, const GaussianRF* const* rd, size_t md,
                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                                       const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out);
+    //! The same with the two pairs' charge distributions HANDED IN: \a abΩ = \c PairTable of slot a's and slot b's primitives, \a cdΩ
+    //! of slot c's and d's.  This overload touches NO global cache (it builds its RNLMs in a scratch
+    //! and reads only \a abΩ / \a cdΩ), so a THREADED caller may run it on workers once it has built the tables serially (OpenWork §3,
+    //! "thread-safe only by the serial-phase rule").  The overload above builds the tables and calls this: one body, bit for bit.
+    static void Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                      const GaussianRF* const* rc, size_t mc, const GaussianRF* const* rd, size_t md,
+                                      const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                      const Polarization* pc, size_t nc, const Polarization* pd, size_t nd,
+                                      const PrimitivePairTable& abΩ, const PrimitivePairTable& cdΩ, double* out);
+    //! The charge distributions of every primitive pair of \a a and \a b, [i*nb+j] = Ω(a_i, b_j), through the global cache (\c findΩ):
+    //! SERIAL ONLY.  The pointers stay valid while the cache keeps every entry (\c GeometryCachesKeepEverything).
+    static PrimitivePairTable PairTable(const GaussianRF& a, const GaussianRF& b);
+    //! True when the geometry caches evict nothing (the molecular default; a lattice driver's \c GeometryCacheBudget scope makes it
+    //! false): a \c PairTable's pointers then outlive any later lookup, which a threaded caller relies on.
+    static bool GeometryCachesKeepEverything();
     //! The 3-centre <ab|c> twins of \c Repulsion4CGroupBlock (centre C is the third slot): \a out[m*n+q] with m=(ia*mb+ib)*mc+ic and
     //! q=(a*nb+b)*nc+c.  Each member's value is \c Repulsion3C / \c Overlap3C on its three radials BIT FOR BIT (per primitive triple
     //! one Ω and one RNLM lookup, or one Hermite3, instead of one per component triple and per member).
@@ -292,6 +317,14 @@ public:
                                       const GaussianRF* const* rc, size_t mc,
                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                                       const Polarization* pc, size_t nc, double* out);
+    //! The same with the ab pair's charge distributions HANDED IN (\a abΩ = \c PairTable of slot a's and slot b's primitives): touches no
+    //! global cache (the RNLM per triple is a scratch), so a worker may run it.  The overload above builds the table and calls this.
+    static void Repulsion3CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                      const GaussianRF* const* rc, size_t mc,
+                                      const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                      const Polarization* pc, size_t nc, const PrimitivePairTable& abΩ, double* out);
+    //! WORKER-SAFE as it stands: each primitive triple's Hermite3 is built locally (the cold tensor meets each triple once, so the global
+    //! Cache3 would only insert), and nothing else is shared.
     static void Overlap3CGroupBlock  (const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
                                       const GaussianRF* const* rc, size_t mc,
                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,

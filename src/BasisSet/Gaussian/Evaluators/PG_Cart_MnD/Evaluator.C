@@ -3597,15 +3597,36 @@ public:
         const GroupSlot A(*this,gA), B(eB,gB), C(eC,gC), D(eD,gD);
         GaussianRF::Repulsion4CGroupBlock(A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, D.r.data(),D.m,
                                           A.p,A.n, B.p,B.n, C.p,C.n, D.p,D.n, out);
-        const size_t n=A.n*B.n*C.n*D.n;
-        double* o=out;
-        for (size_t ia=0;ia<A.m;ia++) for (size_t ib=0;ib<B.m;ib++) for (size_t ic=0;ic<C.m;ic++) for (size_t id=0;id<D.m;id++, o+=n)
-        {
-            size_t q=0;
-            for (size_t a=0;a<A.n;a++) for (size_t b=0;b<B.n;b++) for (size_t c=0;c<C.n;c++) for (size_t d=0;d<D.n;d++,q++)
-                o[q] = o[q] * ns[A.f0[ia]+a] * eB.ns[B.f0[ib]+b] * eC.ns[C.f0[ic]+c] * eD.ns[D.f0[id]+d];
-        }
+        NormFourC(A, eB, B, eC, C, eD, D, out);
     }
+    //! \brief THE THREADED ERI4 FILL'S INPUT (OpenWork §3 "thread-safe only by the serial-phase rule", lane H 2026-11-11): every group
+    //! pair (gA <= gB) of this evaluator against itself, its primitive pairs' charge distributions, [Pair(gA,gB)][i*nj+j] (\c
+    //! GaussianRF::PairTable).  Built SERIALLY -- it is the only place the threaded fill meets the global Ω cache -- and read by \c
+    //! FourCGroupBlock(table, ...) on the workers.  An uncached compute (a Make): the fill builds it once per UniqueQuartets.
+    using GroupPairΩ=std::vector<PrimitivePairTable>;
+    GroupPairΩ MakeGroupPairΩ() const
+    {
+        const auto& G=ShellGroups();
+        const std::vector<Shell>& sh=Shells();
+        GroupPairΩ t(G.size()*(G.size()+1)/2);
+        for (size_t gb=0;gb<G.size();gb++) for (size_t ga=0;ga<=gb;ga++)
+            t[gb*(gb+1)/2+ga]=GaussianRF::PairTable(*radials[sh[G[ga].first].begin], *radials[sh[G[gb].first].begin]);
+        return t;
+    }
+    //! \c FourCGroupBlock of this evaluator against itself (gA <= gB, gC <= gD) with the Ω read from \a t (\c MakeGroupPairΩ): no global
+    //! cache is touched, so a worker may call it.  The same kernel body as the overload above, so the same bits.
+    void FourCGroupBlock(const GroupPairΩ& t, size_t gA, size_t gB, size_t gC, size_t gD, double* out) const
+    {
+        if (gB<gA || gD<gC) throw std::invalid_argument("NR_Evaluator::FourCGroupBlock(table): a group pair out of order");
+        const GroupSlot A(*this,gA), B(*this,gB), C(*this,gC), D(*this,gD);
+        GaussianRF::Repulsion4CGroupBlock(A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, D.r.data(),D.m,
+                                          A.p,A.n, B.p,B.n, C.p,C.n, D.p,D.n,
+                                          t.at(gB*(gB+1)/2+gA), t.at(gD*(gD+1)/2+gC), out);
+        NormFourC(A, *this, B, *this, C, *this, D, out);
+    }
+    //! The worker count for a group-block fill: \c QCHEM_OPENMP_THREADS (serial by default), and ONE whenever the geometry caches may
+    //! evict (a lattice \c GeometryCacheBudget scope), since the \c MakeGroupPairΩ pointers must outlive the fill.
+    static int GroupBlockThreads() {return GaussianRF::GeometryCachesKeepEverything() ? PairThreads() : 1;}
     //! \brief A GROUP TRIPLE of \c RepulsionThreeC / \c OverlapThreeC at once (this is the A slot, \a eC the fit): \a out[m*n+q] with
     //! m=(ia*mb+ib)*mc+ic and q=(a*nb+b)*nc+c is the per-element kernel's value BIT FOR BIT (the three norms in its order).
     void RepulsionThreeCGroupBlock(size_t gA, const NR_Evaluator& eB, size_t gB, const NR_Evaluator& eC, size_t gC, double* out) const
@@ -3614,6 +3635,16 @@ public:
         GaussianRF::Repulsion3CGroupBlock(A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, A.p,A.n, B.p,B.n, C.p,C.n, out);
         NormThreeC(A, eB, B, eC, C, out);
     }
+    //! \c RepulsionThreeCGroupBlock of this block against itself (gA <= gB) and the fit \a eC, with the ab Ω read from \a t (\c
+    //! MakeGroupPairΩ): no global cache is touched, so a worker may call it.  The same kernel body, so the same bits.
+    void RepulsionThreeCGroupBlock(const GroupPairΩ& t, size_t gA, size_t gB, const NR_Evaluator& eC, size_t gC, double* out) const
+    {
+        if (gB<gA) throw std::invalid_argument("NR_Evaluator::RepulsionThreeCGroupBlock(table): a group pair out of order");
+        const GroupSlot A(*this,gA), B(*this,gB), C(eC,gC);
+        GaussianRF::Repulsion3CGroupBlock(A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, A.p,A.n, B.p,B.n, C.p,C.n, t.at(gB*(gB+1)/2+gA), out);
+        NormThreeC(A, *this, B, eC, C, out);
+    }
+    //! Worker-safe as it stands (its kernel builds each Hermite3 locally).
     void OverlapThreeCGroupBlock(size_t gA, const NR_Evaluator& eB, size_t gB, const NR_Evaluator& eC, size_t gC, double* out) const
     {
         const GroupSlot A(*this,gA), B(eB,gB), C(eC,gC);
@@ -3637,6 +3668,19 @@ private:
             m=r.size(); n=sh[G[g].first].end-sh[G[g].first].begin; p=&e.pols[f0[0]];
         }
     };
+    //! The four norms, in FourC's order, onto a group quartet's block.
+    void NormFourC(const GroupSlot& A, const NR_Evaluator& eB, const GroupSlot& B, const NR_Evaluator& eC, const GroupSlot& C,
+                   const NR_Evaluator& eD, const GroupSlot& D, double* out) const
+    {
+        const size_t n=A.n*B.n*C.n*D.n;
+        double* o=out;
+        for (size_t ia=0;ia<A.m;ia++) for (size_t ib=0;ib<B.m;ib++) for (size_t ic=0;ic<C.m;ic++) for (size_t id=0;id<D.m;id++, o+=n)
+        {
+            size_t q=0;
+            for (size_t a=0;a<A.n;a++) for (size_t b=0;b<B.n;b++) for (size_t c=0;c<C.n;c++) for (size_t d=0;d<D.n;d++,q++)
+                o[q] = o[q] * ns[A.f0[ia]+a] * eB.ns[B.f0[ib]+b] * eC.ns[C.f0[ic]+c] * eD.ns[D.f0[id]+d];
+        }
+    }
     void NormThreeC(const GroupSlot& A, const NR_Evaluator& eB, const GroupSlot& B, const NR_Evaluator& eC, const GroupSlot& C, double* out) const
     {
         const size_t n=A.n*B.n*C.n;

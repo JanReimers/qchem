@@ -870,27 +870,51 @@ void GaussianRF::Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, c
                                        const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out)
 {
     RequireSharedPrimitives(ra,ma,"a"); RequireSharedPrimitives(rb,mb,"b"); RequireSharedPrimitives(rc,mc,"c"); RequireSharedPrimitives(rd,md,"d");
+    // The Ω borrows as Repulsion4C hoists them (the unbounded molecular budget keeps them alive for this call).
+    const PrimitivePairTable abΩ=PairTable(*ra[0], *rb[0]), cdΩ=PairTable(*rc[0], *rd[0]);
+    Repulsion4CGroupBlock(ra,ma, rb,mb, rc,mc, rd,md, pa,na, pb,nb, pc,nc, pd,nd, abΩ, cdΩ, out);
+}
+
+PrimitivePairTable GaussianRF::PairTable(const GaussianRF& a, const GaussianRF& b)
+{
+    PrimitivePairTable p;
+    std::vector<const Ω*>& t=p.itsΩ;
+    t.resize(a.itsPrims.size()*b.itsPrims.size());
+    for (size_t i=0;i<a.itsPrims.size();++i)
+        for (size_t j=0;j<b.itsPrims.size();++j)
+            t[i*b.itsPrims.size()+j] = &findΩ(a.itsPrims[i]->GetGData(), b.itsPrims[j]->GetGData());
+    return p;
+}
+
+bool GaussianRF::GeometryCachesKeepEverything() {return OmegaCache()->GetMaxRAM()==Cache2::kUnbounded;}
+
+void GaussianRF::Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                       const GaussianRF* const* rc, size_t mc, const GaussianRF* const* rd, size_t md,
+                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                       const Polarization* pc, size_t nc, const Polarization* pd, size_t nd,
+                                       const PrimitivePairTable& abT, const PrimitivePairTable& cdT_, double* out)
+{
+    // WORKER-SAFE: no global cache below -- the Ω come in, the RNLM is a scratch, the Hermite tables are locals.
     const GaussianRF &A=*ra[0], &B=*rb[0], &C=*rc[0], &D=*rd[0];   // the primitives, shared by every member of the slot
     const size_t ni=A.itsPrims.size(), nj=B.itsPrims.size(),
                  nk=C.itsPrims.size(), nl=D.itsPrims.size();
+    if (abT.itsΩ.size()!=ni*nj || cdT_.itsΩ.size()!=nk*nl)
+        throw std::invalid_argument("GaussianRF::Repulsion4CGroupBlock: a PrimitivePairTable is not the slots' primitive pairs");
+    const Ω* const* abΩ=abT.itsΩ.data();
+    const Ω* const* cdΩ=cdT_.itsΩ.data();
     const size_t n=na*nb*nc*nd, M=ma*mb*mc*md;
     for (size_t q=0;q<M*n;q++) out[q]=0.0;
-    // The Ω borrows as Repulsion4C hoists them (the unbounded molecular budget keeps them alive for this call).
-    std::vector<const Ω*> cdΩ(nk*nl);
     std::vector<HermiteTable> cdH(nk*nl);   // the cd side's Hermite tables, ONCE per primitive pair (not per ab primitive pair)
     for (size_t k=0;k<nk;++k)
         for (size_t l=0;l<nl;++l)
-        {
-            cdΩ[k*nl+l] = &findΩ(C.itsPrims[k]->GetGData(), D.itsPrims[l]->GetGData());
             BuildHermiteTable(*cdΩ[k*nl+l], pc, nc, pd, nd, cdH[k*nl+l]);
-        }
     HermiteTable abH;
     RNLM rnlm;                  // scratch, rebuilt per primitive quartet: each is met once here, so the global cache would only insert
     std::vector<double> t(n);   // one primitive quartet's integrals, every component quartet: computed ONCE for all members
     for (size_t i=0;i<ni;++i)
         for (size_t j=0;j<nj;++j)
         {
-            const Ω& ab = findΩ(A.itsPrims[i]->GetGData(), B.itsPrims[j]->GetGData());
+            const Ω& ab = *abΩ[i*nj+j];
             BuildHermiteTable(ab, pa, na, pb, nb, abH);   // ONCE per ab primitive pair
             for (size_t k=0;k<nk;++k)
                 for (size_t l=0;l<nl;++l)
@@ -931,19 +955,30 @@ void GaussianRF::Repulsion3CGroupBlock(const GaussianRF* const* ra, size_t ma, c
                                        const Polarization* pc, size_t nc, double* out)
 {
     RequireSharedPrimitives(ra,ma,"a"); RequireSharedPrimitives(rb,mb,"b"); RequireSharedPrimitives(rc,mc,"c");
+    Repulsion3CGroupBlock(ra,ma, rb,mb, rc,mc, pa,na, pb,nb, pc,nc, PairTable(*ra[0], *rb[0]), out);
+}
+void GaussianRF::Repulsion3CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                       const GaussianRF* const* rc, size_t mc,
+                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                       const Polarization* pc, size_t nc, const PrimitivePairTable& abT, double* out)
+{
+    // WORKER-SAFE: the Ω come in, the RNLM is a scratch.
     const GaussianRF &A=*ra[0], &B=*rb[0], &C=*rc[0];
     const size_t ni=A.itsPrims.size(), nj=B.itsPrims.size(), nk=C.itsPrims.size();
+    if (abT.itsΩ.size()!=ni*nj)
+        throw std::invalid_argument("GaussianRF::Repulsion3CGroupBlock: the PrimitivePairTable is not slots a and b's primitive pairs");
     const size_t n=na*nb*nc, M=ma*mb*mc;
     for (size_t q=0;q<M*n;q++) out[q]=0.0;
     std::vector<double> t(n);
+    RNLM R;   // scratch, rebuilt per primitive triple (each is met once here: the global cache would only insert)
     for (size_t i=0;i<ni;++i)
         for (size_t j=0;j<nj;++j)
         {
-            const Ω& ab=findΩ(A.itsPrims[i]->GetGData(), B.itsPrims[j]->GetGData());   // ONCE per ab primitive pair
+            const Ω& ab=*abT.itsΩ[i*nj+j];                                                   // ONCE per ab primitive pair
             for (size_t k=0;k<nk;++k)
             {
                 const PrimGaussian* gc=C.itsPrims[k].get();
-                const RNLM& R=findRNLM(ab.GetGData(), gc->GetGData());                // ONCE per primitive triple
+                BuildRNLM(ab.GetGData(), gc->GetGData(), R);                                 // ONCE per primitive triple
                 size_t q=0;
                 for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++) for (size_t c=0;c<nc;c++,q++)
                     t[q]=PrimGaussian::Repulsion3C(ab, R, gc, pa[a], pb[b], pc[c]);
@@ -971,7 +1006,9 @@ void GaussianRF::Overlap3CGroupBlock(const GaussianRF* const* ra, size_t ma, con
         for (size_t j=0;j<nj;++j)
             for (size_t k=0;k<nk;++k)
             {
-                const Hermite3& H3=findH3(A.itsPrims[i].get(), B.itsPrims[j].get(), C.itsPrims[k].get());   // ONCE per primitive triple
+                // ONCE per primitive triple, built here rather than in the global Cache3 (worker-safe; the same construction, the same bits)
+                const std::unique_ptr<const Hermite3> h3(C.itsPrims[k]->GetH3(*A.itsPrims[i], *B.itsPrims[j]));
+                const Hermite3& H3=*h3;
                 size_t q=0;
                 for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++) for (size_t c=0;c<nc;c++,q++)
                     t[q]=H3(pa[a],pb[b],pc[c]);
