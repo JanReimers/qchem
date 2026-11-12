@@ -2491,6 +2491,52 @@ single point; the test suite).  Proposal: the per-basis integral matrices live O
 gone by construction, memory bounded by live bases), while the primitive-level caches (Cache2/3: content-interned, exact keys, real reuse
 across one-atom FD steps) stay global.  A BasisSet hub change: put to the user by the controller, not built here.
 
+## ✅ The relaxation tests' SCF gate, and the converged-DIIS tail: the default gate is enough, the Ladder and a stall exit buy nothing (lane A, 2026-11-12)
+
+The question (controller, after the D̄ fix): do the molecular relaxation and force tests need their MinΔρ/N 1e-9, and is there a lever
+in the converged DIIS tail (the Ladder, a stall exit)?  Measure only; the probe was never committed.
+
+**Rules, fixed before the run.**  H₂O₂ and H₂O, dzvp on the molecular facade, BFGS under `OptimizerOptions::FromEps(1e-6)` (step
+tolerance max|g| = 4.5e-5 Ha/bohr).  Every path point is also converged by a reference SCF (Δρ/N 1e-11, [F,D] 1e-9).  The slack of a
+gate is max over the path of |F_gate − F_ref| / 4.5e-5.  A gate is ADEQUATE iff (1) slack ≤ 0.1, (2) no SCF hits its cap, (3) end to
+end it reaches the same minimum as the 1e-9 gate to the test's tolerances (r 1e-4 bohr, HOOH 0.5°), and (4) its BFGS step count is
+within 1 of the 1e-9 gate's.
+
+**Table** (main 946a2e59a + the probe; log `~/Code/qchem6-runs/H2O2/laneA_tailprobe_exactkeys_20261112.out`).  All gates use [F,D] 1e-5.
+
+| gate | H₂O₂ path: SCF iters (13 pts) | slack | H₂O path: iters (6 pts) | slack | H₂O₂ end to end | verdict |
+|---|---|---|---|---|---|---|
+| Δρ/N 1e-4 (default) | 103 | 0.032 | 43 | 0.017 | 12 steps, same minimum | ADEQUATE |
+| 1e-6 | 105 | 0.019 | 43 | 0.017 | 12, same | adequate |
+| 1e-7 | 132 | 0.0025 | 53 | 7e-4 | 12, same | adequate |
+| 1e-8 | 159 | 1.6e-4 | 61 | 9e-5 | 12, same | adequate |
+| 1e-9 (the tests until now) | 182 | 1.8e-5 | 72 | 2e-6 | 12, same | reference |
+| Ladder, 1e-9 | 296 | 0.0017 | 113 | 4.6e-4 | 12, same (293 iters) | adequate, +63 % iterations |
+
+No SCF hit a cap; |ΔE| against the reference is ≤ 2.5e-11 Ha at every gate, and every end-to-end minimum is PySCF's to ≤ 1.6e-11 Ha.
+
+**The 1e-7 failure was not the optimizer.**  On the first run (5ad897099) the 1e-7 gate failed rule 3: its path reached the PySCF
+minimum, then climbed 1e-6 Ha over eight steps until the trust radius collapsed.  It was a converged energy that depended on earlier
+runs in the process: the integral cache keyed geometries by printed doubles (6 digits), so a revisit within ~5e-6 bohr of an earlier
+point got that point's integrals (proof: H₂O₂ at R10 alone vs after R10 with one O shifted 3e-6 bohr, 2.8e-5 Ha apart).  Lane H made
+every cache key exact (da67bfd27, "A cache key is exact" above); on that tree the 1e-7 row passes all four rules, and the 1e-9
+end-to-end run, which follows four other relaxations in the same process, lands within 1.5e-11 Ha of PySCF, so the 5e-8 path difference
+seen after earlier tests is gone too.
+
+**Verdicts.**
+- *Loosen the gate*: the default is adequate on both paths with 3 % force slack, so the 1e-9 the tests set was ~3 orders of magnitude more
+  than their claim needs.  Moved (lane A, 2026-11-12): the two `MolecularRelaxation` tests (`RelaxationGate()`), and the seven force tests
+  whose claim holds at ANY density (`AnyD()` in `ForceFacade.C`: a term's analytic force against the finite difference of its energy at
+  frozen D, and the per-term sum identity).  The claims about the RECONVERGED energy or a converged state (`…OfTheReconvergedEnergy`,
+  the symmetry-blocked vs free force, Tr(WS) = Σfε) keep `Tight()`: the default gate's force error, ~1.4e-6 Ha/bohr on H₂O₂, is the size
+  of their 2e-6 tolerance.  Per-test SCF iterations, tight → default: H₂O relaxation (both algorithms) 143 → 87, H₂O₂ 182 → 103,
+  ATermsEnergyAtFixedD 11 → 8, ADSpike AD force 11 → 8, PP fixed-D 12 → 9, Dunlap fixed-D 11 → 8, HF Coulomb/exchange 40 → 31, the two
+  E1 tests 1 → 1.  Wall time barely moves (a point's cost is its setup and its ERI4, not its SCF tail), so this is a claim-honesty change
+  more than a speed one.
+- *The Ladder*: no lever.  It costs 63 % more SCF iterations on these molecules and gives no accuracy that matters.
+- *A stall exit*: nothing to catch.  The tail converges steadily (~2.5× per iteration, no plateau), so an exit judged by a fixed rule never
+  fires before the gate does.
+
 
 ## An orbital key has no bound on n (closed 2026-11-12, lane H)
 

@@ -23,7 +23,13 @@ using namespace qchem;
 
 namespace
 {
-SCFParams Tight() {SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-9; return p;}
+//! The SCF gate is the DEFAULT (MinΔρ/N 1e-4): this file's claims are a geometry and the energy AT it, and a force is first order in the
+//! density error, an energy second order.  Measured on both paths (lane A gate table, 2026-11-12, after the exact cache keys 946a2e59a):
+//! the default gate's worst force error is 3 % of FromEps(1e-6)'s step tolerance 4.5e-5 Ha/bohr (|ΔE| ≤ 2.5e-11 Ha), H2O2 takes the same
+//! 12 BFGS steps to the same minimum as MinΔρ/N 1e-9, and the tests below spend 103 SCF iterations instead of 182 (H2O2) and 87 instead of
+//! 143 (H2O, both algorithms).  Their wall time barely moves: a point's cost is its setup, not its SCF tail.
+//! Record: doc/Records/OpenWork_History5.md, "the relaxation tests' SCF gate".
+SCFParams RelaxationGate() {return SCFParams{};}
 
 struct Atom_ {int Z; rvec3_t R;};
 Molecule Make(const std::vector<Atom_>& atoms)
@@ -50,7 +56,7 @@ double Dihedral(const std::vector<rvec3_t>& R, size_t i, size_t j, size_t k, siz
 //! Relax \a m from its given positions; print the history; hand back the result (asserting it converged).
 OptimizedGeometry Relax(const Molecule& m, OptimizerOptions::Algorithm algorithm, const std::string& what)
 {
-    MoleculeSession pes(MoleculeSetup::Resolve(m, {.basis="dzvp"}), Tight());
+    MoleculeSession pes(MoleculeSetup::Resolve(m, {.basis="dzvp"}), RelaxationGate());
     CartesianMap map(pes.Reference());
     OptimizerOptions o=OptimizerOptions::FromEps(1e-6);
     o.algorithm=algorithm;
