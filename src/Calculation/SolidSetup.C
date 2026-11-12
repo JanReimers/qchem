@@ -246,7 +246,9 @@ struct SolidCalcOptions
     //! EMPTY (the default) = DERIVE it from the seed, which reproduces the historical driver behaviour and
     //! is right for the common case.  SET IT to state a specific ordering: a cell usually admits several
     //! (AFM-I vs AFM-II vs ferrimagnetic), the derived one is only the seed's guess, and comparing orderings
-    //! is the whole point of a magnetic campaign.  Ignored unless \c imposeSymmetry.
+    //! is the whole point of a magnetic campaign.  It is the run's ONE source of the ordering (2026-11-12): the polarized seed
+    //! reads it too (+1 majority up, -1 flipped, 0 no moment), overriding the structure's per-atom spins, which are only the
+    //! default when it is absent.  The imposition reads it only when \c imposeSymmetry.
     //! \note \c greyImposition forces the empty decoration regardless -- that arm is the erasure control.
     std::vector<int> siteSpins = {};
     //! \note MANDATORY for a polarized run that carries a Hubbard manifold (OpenWork §3 "The magnetic decoration is

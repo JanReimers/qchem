@@ -28,6 +28,7 @@ import qchem.UnitCell;
 import qchem.Mesh;
 import qchem.Types;
 import qchem.Structure;                     // Molecule, Site (the SAD seed's charge gate)
+import qchem.Symmetry.Spin;                 // Spin::Up / Down (a channel seed, the SeedSpins gate)
 import qchem.ElectronConfiguration.Molecule;  // Molecule_EC
 import qchem.BasisSet.Gaussian.Point.Factory; // Gaussian::Factory (the block the seed is built against)
 
@@ -106,6 +107,53 @@ TEST(IonicSADSeed, TheDecorationReadsEachSitesOwnTarget)
     const int Z[7]={25,25,25,8,8,8,8};
     for (size_t i=0;i<t.size();i++)
         EXPECT_EQ(std::abs(s[i]), (t[i]>0 && HasAtomicSpinPair(Z[i],"LDA","atomic_valence_densities.json",t[i])) ? 1 : 0) << "site " << i;
+}
+
+// ONE SOURCE FOR THE MAGNETIC ORDERING (OpenWork §3 "One magnetic ordering has TWO sources of truth", 2026-11-12): a STATED
+// siteSpins (SeedKey::siteSpins) is the seed's ordering.  On a cell WITHOUT atom spins it must seed exactly what the same cell
+// WITH the matching atom flips seeds -- channel by channel, to roundoff -- where it once seeded every site +m (and the imposed
+// AFM group then projected the moment to zero).  A stated 0 is a site without a moment: its two channels are alike.
+TEST(SeedSpins, AStatedOrderingOnASpinlessCellSeedsWhatTheStructuresFlipsSeed)
+{
+    ASSERT_TRUE(HasAtomicSpinPair(25,"LDA","atomic_valence_densities.json",NeutralNval(25),7)) << "else no site carries a moment";
+    auto build=[](bool flips)
+    {
+        auto c=std::make_shared<UnitCell>(12.0);
+        for (int i=0;i<3;i++) c->AddAtom(25, kMn[i], flips && i==1);   // Mn1 on the -m sublattice
+        for (const auto& r : kO) c->AddAtom(8, r);
+        return c;
+    };
+    Box flipped(build(true)), spinless(build(false));
+    // Neutral O (2p4) carries a Hund pair too, so the structure's default seeds it +m: the stated twin says +1 there.
+    SeedKey stated=kMnQ7; stated.siteSpins={+1,-1,+1,+1,+1,+1,+1};
+    SeedKey none=kMnQ7;   none.siteSpins={0,0,0,0,0,0,0};
+    auto fitSF=flipped.bs->CreateVxcFitBasisSet(flipped.st.get(), qcMesh::MeshParams{});
+    auto rhoOf=[&](const Box& b, const SeedKey& k, Spin ch)
+    {
+        SeedCD seed(b.fitCD, b.lat.GetUnitCell(), k, {}, ch);
+        return dynamic_cast<const BasisSet::AnalyticFourier&>(seed).FourierComponents(*fitSF);
+    };
+    auto maxDiff=[](const auto& a, const auto& b, double& scale)
+    {
+        double d=0; scale=0;
+        for (const auto& [dm,v] : a)
+        {
+            const auto it=b.find(dm);
+            d=std::max(d, std::abs(v-(it==b.end() ? dcmplx(0) : it->second))); scale=std::max(scale, std::abs(v));
+        }
+        return d;
+    };
+    for (Spin ch : {Spin::Up, Spin::Down})
+    {
+        double scale=0;
+        EXPECT_LT(maxDiff(rhoOf(spinless,stated,ch), rhoOf(flipped,kMnQ7,ch), scale), 1e-12*scale)
+            << "the stated ordering on a spinless cell seeds the flipped cell's channel";
+        EXPECT_GT(maxDiff(rhoOf(spinless,kMnQ7,ch), rhoOf(flipped,kMnQ7,ch), scale), 1e-3*scale)
+            << "unstated, the spinless cell seeds a DIFFERENT (all +m) ordering -- else this test states nothing";
+    }
+    double scale=0;
+    EXPECT_LT(maxDiff(rhoOf(spinless,none,Spin::Up), rhoOf(spinless,none,Spin::Down), scale), 1e-12*scale)
+        << "a stated 0 on every site: no moment anywhere, up == down";
 }
 
 // The seed carries each site's own charge, and its G-space assembly (one sweep per charge-state rank) equals the

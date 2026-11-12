@@ -255,6 +255,31 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     }
     s->seedKey=SeedKeyOf(s->pp, *st);
     s->seedKey.siteCharges=opts.siteCharges;
+    // THE MAGNETIC ORDERING HAS ONE SOURCE (controller ruling 2026-11-12, OpenWork §3 "One magnetic ordering has TWO sources of truth"):
+    // a STATED siteSpins is the run's ordering, and the seed reads it as the imposition does; the structure's per-atom spins are only the
+    // default when siteSpins is absent.  Before, an inline cell without atom spins seeded every site +m, which the imposed AFM Shubnikov
+    // group projected to m = 0 -- silently.  A stated ordering whose flips differ from the structure's is reported as the override it is.
+    s->seedKey.siteSpins=opts.siteSpins;
+    if (!opts.siteSpins.empty())
+    {
+        std::string fromStructure, differs;
+        size_t i=0;
+        st->ForEachSite([&](int Z, const rvec3_t&, bool spinFlip)
+        {
+            const int stated=opts.siteSpins[i++];
+            fromStructure+=spinFlip ? " -" : " +";
+            if ((stated<0)!=spinFlip) differs+=" "+thePeriodicTable().GetSymbol(Z)+std::to_string(i)+(stated<0 ? "(-)" : stated>0 ? "(+)" : "(0)");
+        });
+        if (!differs.empty())
+        {
+            std::string stated;
+            for (int v : opts.siteSpins) stated+=v<0 ? " -" : v>0 ? " +" : " 0";
+            const std::string decided="seed spins: the stated siteSpins ["+stated+" ] override the structure's flips ["+fromStructure+" ] at"+differs;
+            const std::string reason="a stated magnetic ordering is the run's ONE source: the seed reads it, as the imposition does";
+            policy::Report("SeedSpins", decided, policy::Verdict::Choose, reason);
+            std::cout << "[policy] " << decided << " -- " << reason << std::endl;
+        }
+    }
     // THE SEED: a stated one is honoured; Default takes THE Auto rule both setups share (qchem.SeedPolicy) -- a lattice seeds from the
     // valence library's superposition at its formal charges (stated, else derived: its Madelung field holds them), and a species the
     // library lacks takes the core guess with a WARN (it threw at seed time until 2026-11-12).
