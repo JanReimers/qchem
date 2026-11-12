@@ -2612,3 +2612,28 @@ The row as it stood (verbatim):
   - the molecule and solid setups answer the query;
   - the Si pseudo-atom through the facade.
 - `audit-pp-choice` and `HubInterfaceAudit` green.  Short and long sweeps against main-c7716e02: 0 moved (see the landing commit).
+## ✅ Per-run thread count (lane G, 2026-11-12, b49924e25)
+
+The row, verbatim:
+| **Per-run thread count** (user 2026-11-12, GUI feedback 35: "The user should have the ability to select thread count for a run") | `WorkerThreads()` reads `QCHEM_OPENMP_THREADS` ONCE per process (a static), and the BLAS count is pinned when qcCommon loads, so the in-process GUI (qchem_py) cannot choose threads per run; the override hook `ScopedWorkerThreads` is test-only | **lane G**: a run key (`run.threads`) applied as a scope for the run: OpenMP through the existing hook (no longer test-only) AND the BLAS count, both restored on exit.  Gates: one process runs at 1 and at 4 threads and each run report says its count; Etot agrees to 1e-12 (bit identity only where it is gated, the ERI4/3C fills; report any reduction-order difference); an unset key keeps today's behaviour · `src/Common/Parallel.C`, `src/Calculation/Deck.C` |
+
+DONE: `ScopedWorkerThreads` left test-only and scopes BOTH counts -- the OpenMP regions (`WorkerThreads`) and the BLAS pool
+(`openblas_set_num_threads`; `BlasThreads` answers the override) -- restoring both on exit; `qchem::ThreadCounts` (0 = the process's
+own) is a run's statement of them.  The deck reads `threads` {openmp, blas} (stated-only in the record, a negative count refused;
+an old deck reads as before); `deck::Run` holds the scope for the whole run, the bridge per call (build, converge, field);
+`qchem_py.Threads(openmp, blas)` is the same scope as a context manager around ANY run, molecule or crystal (structure-neutral).
+`ReportSCFRecipe` files `advanced.threads` for every facade.  Gate `UTCalculation`
+`Deck.TheRunsThreadsAreScopedReportedAndMoveNoEnergy`: one process, Si Γ at 1 and 4 OpenMP threads (libomp linked), each report files
+its counts, both restore; Etot -7.115067799802988 vs -7.115067799802985 (3.6e-15, reduction order; gate 1e-12).  Short sweep
+1589/0, 0 moved against main-fd643121.  REMAINDER: the GUI's per-run thread picker (lane G, after this lands on main).
+
+## ✅ `solid.orthoTol` reached a Cholesky solver that ignores it (lane G, 2026-11-12, 1c3410f11)
+
+The row, verbatim:
+· **`solid.orthoTol` has two meanings, and the solid default prints a std::cerr warning about it** (user 2026-11-12, GUI feedback 36: "Warning: LASolverCholesky ignores TruncationTolerance (1e-06) ... Is this a concern?").  Harmless to the numbers: the autoTrim floor `orthoTol` is ALSO handed to `LASolver::Factory` (SolidCalculation.C 645/949/953/2250) with the solid default `ortho = Cholesky`, which ignores it and says so on std::cerr, bypassing the run report.  **lane G**: split the two -- the autoTrim floor vs a truncation tolerance for a truncating LASolver, passed only when the stated ortho uses it; remove the cerr line (a genuinely ignored stated tolerance is a report entry).  Gate: the solid default emits no warning; a stated truncating ortho still receives its tolerance · `src/LASolver/Imp/Factory.C`, `src/Calculation/SolidSetup.C`.
+
+DONE: not two meanings after all but ONE floor with two readers -- the vet-stage trim and a TRUNCATING ortho solver (the vet's metric
+is that solver's own drop count at the floor).  `SolidCalcOptions::SolverTruncation()` hands it to Eigen / SVD / CholeskyPivoted only;
+the LASolver factory's std::cerr lines (Cholesky, Auto) are removed; the run report files `basis.orthoTol` {value, solverTruncates}.
+The deck key and its meaning are unchanged.  Gate `Deck.OrthoTolIsTheTrimFloorAndReachesTheSolverOnlyWhenItTruncates`.
+

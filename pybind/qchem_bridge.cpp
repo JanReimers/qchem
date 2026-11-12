@@ -29,6 +29,7 @@ export module qchem.bridge;
 import qchem.Types;          // rvec3_t, vec3_t
 import qchem.Structure;      // Molecule, Site
 import qchem.SCFParams;      // SCFParams
+import qchem.Parallel;       // ScopedWorkerThreads: a run's thread counts (a deck's `threads`, the Python Threads scope)
 import qchem.SCFIterator;    // IterationRow, IterationCell
 import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, CalcOptions, AcceleratorOptions
 import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
@@ -463,6 +464,7 @@ qcb_solid* qcb_solid_make(const char* deckJson, char* err, int errlen)
         const std::string name = st.is_string() ? st.get<std::string>() : st.is_object() ? st.value("name", std::string("inline")) : "deck";
         const qchem::report::Run run(name + " build");
         qchem::deck::FromJson(deck, h->spec);                               // strict: an unknown key throws, naming it
+        const qchem::ScopedWorkerThreads threads(h->spec.threads);          // the deck's threads, per call (absent = the process's)
         h->calc = qchem::deck::Build(h->spec);                              // the observer is attached per Converge
         return h.release();
     }
@@ -481,6 +483,7 @@ int qcb_solid_converge(qcb_solid* h, qcb_row_fn step, qcb_sink* sink, char* err,
         h->calc->OnIteration(step ? forward_to(step, sink) : SolidCalculation::Observer{});
         h->attempted = true;
         const qchem::report::Run run(h->spec.StructureName());
+        const qchem::ScopedWorkerThreads threads(h->spec.threads);
         const auto out = h->calc->Converge(qchem::deck::ScheduleToRun(h->spec));
         h->calc->OnIteration(SolidCalculation::Observer{});      // the sink lives only for this call
         if (out) return 1;
@@ -526,6 +529,7 @@ int qcb_solid_field(const qcb_solid* h, int spin, int iterate, const int* n3, co
     const HostLocale host;
     try
     {
+        const qchem::ScopedWorkerThreads threads(h->spec.threads);
         std::unique_ptr<SolidCalculation::sf_t> owned;
         const SolidCalculation::sf_t* f = nullptr;
         std::optional<decltype(h->calc->Result())> proof;   // the Converged proof's lifetime spans the sampling
@@ -724,6 +728,11 @@ extern "C" int qcb_pseudopotentials(const char* req, char* out, int outlen)
     write_error(answer.c_str(), out, outlen);
     return int(answer.size());
 }
+
+//! A RUN's thread counts as a scope (qchem::ScopedWorkerThreads): opened by the caller around any run, molecule or crystal.
+extern "C++" struct qcb_threads { qchem::ScopedWorkerThreads scope; };
+extern "C" qcb_threads* qcb_threads_open(int openmp, int blas) { return new qcb_threads{qchem::ScopedWorkerThreads(openmp, blas)}; }
+extern "C" void         qcb_threads_close(qcb_threads* h)      { delete h; }
 
 extern "C" int qcb_basis_import(const char* req, char* out, int outlen)
 {

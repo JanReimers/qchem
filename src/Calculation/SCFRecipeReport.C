@@ -11,6 +11,7 @@ export module qchem.SCFRecipeReport;
 export import qchem.SCFParams;
 export import qchem.Reporting;
 export import qchem.Accuracy;   // AccuracyTarget (ReportAccuracy's argument)
+import qchem.Parallel;          // WorkerThreads, BlasThreads: the threads the recipe runs on
 
 export namespace qchem
 {
@@ -44,6 +45,8 @@ void ReportSCFRecipe(const SCFParams& p, const std::string& accelerator, report:
     advanced["momSmearPenalty"] = p.MOMSmearPenalty;
     advanced["guard"]["holePersistence"] = p.Guard.HolePersistence;
     advanced["guard"]["maxReleases"]     = p.Guard.MaxReleases;
+    // the threads this SCF runs on, as the run's scope (ScopedWorkerThreads) or the process set them -- every facade files them here
+    advanced["threads"] = {{"openmp", WorkerThreads()}, {"blas", BlasThreads()}};
 
     rpt::Set("standard", std::move(standard));
     rpt::Set("advanced", std::move(advanced));

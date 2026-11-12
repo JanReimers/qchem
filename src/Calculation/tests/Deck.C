@@ -20,6 +20,7 @@ import qchem.SolidState;          // StateFingerprint, CompareSolidFingerprints
 import qchem.SCFCap;              // BoundedSCF: the vlocRouting test builds the evaluator with one iteration
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // AccuracyCalibration: the vlocRouting test states eta (no pilot)
 import qchem.Reporting;           // the filed run: its grids.audit* rows (the write-only gate)
+import qchem.Parallel;            // ScopedWorkerThreads, WorkerThreads, BlasThreads: the run's threads key
 
 using namespace qchem;
 using qchem::deck::json;
@@ -940,6 +941,73 @@ TEST(Deck, PostSCFRunsOnTheConvergedCalculationAndTheRecordKeepsTheResults)
     EXPECT_TRUE(est[0].contains("Ueff_eV"));
     EXPECT_TRUE(rec.contains("run")) << "the deck part of the record is intact beside the results";
     fs::remove_all(dir);
+}
+
+// THE RUN'S THREADS (OpenWork §2 "Per-run thread count", user 2026-11-12): the deck key `threads` round-trips, is stated-only in the
+// record, refuses a negative count; ONE process runs the same deck at 1 and at 4 OpenMP threads, each run's report files the counts
+// it ran on, the energies agree to 1e-12, and leaving the scope restores the process's counts.
+TEST(Deck, TheRunsThreadsAreScopedReportedAndMoveNoEnergy)
+{
+    {
+        deck::RunSpec r; deck::FromJson({{"structure","Si_diamond"},{"threads",{{"openmp",3},{"blas",2}}}}, r);
+        EXPECT_EQ(r.threads, (ThreadCounts{3,2}));
+        deck::RunSpec back; deck::FromJson(deck::ToJson(r), back);
+        EXPECT_EQ(back.threads, r.threads);
+        deck::RunSpec none; deck::FromJson({{"structure","Si_diamond"}}, none);
+        EXPECT_FALSE(deck::ToJson(none).contains("threads")) << "absent = the process's own counts; the record states only a stated one";
+        EXPECT_THROW({ deck::RunSpec bad; deck::FromJson({{"structure","Si_diamond"},{"threads",{{"openmp",-1}}}}, bad); }, std::runtime_error);
+        EXPECT_THROW({ deck::RunSpec bad; deck::FromJson({{"structure","Si_diamond"},{"threads",{{"cores",4}}}}, bad); }, std::runtime_error);
+    }
+    const int ompBefore=WorkerThreads(), blasBefore=BlasThreads();
+    const json payload={
+        {"structure","Si_diamond"}, {"basis",{{"data","SIPP_SR"}}},
+        {"solid",{{"densityEcut",20.0},{"imposeSymmetry",true}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
+    std::map<int,double> energy;
+    for (int n : {1, 4})
+    {
+        json p=payload; p["threads"]={{"openmp",n},{"blas",1}};
+        deck::RunSpec spec; deck::FromJson(p, spec);
+        const report::Run run("threads"+std::to_string(n));
+        const ScopedWorkerThreads threads(spec.threads);
+        EXPECT_EQ(WorkerThreads(), n);
+        auto calc=deck::Build(spec);
+        ASSERT_TRUE(calc->Converge(deck::ScheduleToRun(spec)));
+        energy[n]=calc->Result()->Energy();
+        const json& rec=report::CurrentRunReport();
+        ASSERT_TRUE(rec.contains("scf")) << rec.dump().substr(0,400);
+        EXPECT_EQ(rec["scf"]["advanced"]["threads"], (json{{"openmp",n},{"blas",1}})) << "each run files the counts it ran on";
+    }
+    EXPECT_EQ(WorkerThreads(), ompBefore) << "leaving the scope restores the process's OpenMP count";
+    EXPECT_EQ(BlasThreads(), blasBefore) << "... and its BLAS count";
+    // 1e-12, not bit identity: a threaded reduction sums in another order (bit identity is gated only for the ERI4 / 3C fills)
+    EXPECT_NEAR(energy[4], energy[1], 1e-12) << "Etot at 4 threads vs 1: " << energy[4]-energy[1];
+    std::printf("[threads] Etot(1) %.15f  Etot(4) %.15f  diff %.3e\n", energy[1], energy[4], energy[4]-energy[1]);
+}
+
+// solid.orthoTol IS ONE FLOOR WITH TWO READERS (OpenWork §3, user feedback 36, 2026-11-12): the trim always, the ortho solver only when it
+// truncates.  The solid default (Cholesky) is handed no tolerance -- so it prints no "ignores TruncationTolerance" warning -- and the
+// report says the solver does not read the floor; a stated truncating ortho still receives it.
+TEST(Deck, OrthoTolIsTheTrimFloorAndReachesTheSolverOnlyWhenItTruncates)
+{
+    SolidCalcOptions o; o.orthoTol=1e-6;
+    EXPECT_EQ(o.SolverTruncation(), 0.0) << "Cholesky (the default) does not truncate";
+    for (Ortho t : {Eigen, SVD, CholeskyPivoted}) { o.ortho=t; EXPECT_EQ(o.SolverTruncation(), 1e-6) << int(t); }
+    for (Ortho t : {Auto, Orthonormal})          { o.ortho=t; EXPECT_EQ(o.SolverTruncation(), 0.0) << int(t); }
+
+    const json payload={
+        {"structure","Si_diamond"}, {"basis",{{"data","SIPP_SR"},{"autoTrim",true}}},
+        {"solid",{{"densityEcut",20.0},{"imposeSymmetry",true},{"orthoTol",1e-6}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
+    deck::RunSpec spec; deck::FromJson(payload, spec);
+    const report::Run run("orthoTol");
+    testing::internal::CaptureStderr();
+    auto calc=deck::Build(spec);
+    const std::string err=testing::internal::GetCapturedStderr();
+    EXPECT_EQ(err.find("ignores TruncationTolerance"), std::string::npos) << err;
+    const json& rec=report::CurrentRunReport();
+    ASSERT_TRUE(rec.contains("basis") && rec["basis"].contains("orthoTol")) << rec.dump().substr(0,400);
+    EXPECT_EQ(rec["basis"]["orthoTol"], (json{{"value",1e-6},{"solverTruncates",false}}));
 }
 
 TEST(Deck, KeysStartingWithAnUnderscoreAreCommentsAndShippedDecksLoad)
