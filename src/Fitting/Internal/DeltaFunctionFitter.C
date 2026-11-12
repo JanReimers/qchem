@@ -40,12 +40,27 @@ import qchem.Parallel;                        // LazyLock -- the per-block cache
 export namespace qchem::Fitting
 {
 
-//! \brief THE PERIODIC FIT AXIS'S EXTRA FACES (2026-10-31), which only a fitter over a COMPLEX (Bloch) \f$\delta\f$ basis has:
-//! the real TRIM block's contraction (3c-3, \c FitContraction<double,dcmplx>) and the FORWARD vendor the periodic density
-//! projects onto (\c BasisSet::PairProjector<dcmplx>, whose faces are the Bloch blocks').  A base that exists only for \c dcmplx (CRTP: the
-//! bodies are the fitter's own), so the real (molecular) instantiation carries no face it cannot serve.
-template <class Self, class T> class DeltaPeriodicFitFaces {};
-template <class Self> class DeltaPeriodicFitFaces<Self,dcmplx>
+//! \brief EACH FIT AXIS'S EXTRA FACES (CRTP: the bodies are the fitter's own), so an instantiation carries exactly the faces it serves.
+//! BOTH axes vend the FORWARD a density projects onto (\c BasisSet::PairProjector<T>): the density contracts its D into the fitter's
+//! held \f$\Phi\f$ handle, \f$\rho_g=\sum_{ij}\Phi_{gi}D_{ij}\Phi_{gj}\f$ as one GEMM over the table the H_xc adjoint already holds.
+//! The complex (Bloch) axis adds the real TRIM block's contraction (3c-3, \c FitContraction<double,dcmplx>) and a real block's forward.
+//! ⚠ The REAL axis had no forward until 2026-11-12 (lane H, OpenWork §4 "rasters ρ point by point"): the molecular sampler then fell
+//! to the pointwise field projection, which evaluated every basis function at every mesh point on every sampling -- 45 % of an LDA
+//! single point, serial.  "Carries no face it cannot serve" was true of the TRIM contraction, never of the forward.
+template <class Self, class T> class DeltaAxisFitFaces;
+template <class Self> class DeltaAxisFitFaces<Self,double>
+    : public virtual BasisSet::PairProjector<double>   // the molecular density's FORWARD, off the same handles the adjoint uses
+{
+public:
+    //! \copydoc BasisSet::PairProjector<double>::Forward
+    const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const override
+        {return Self_().template Integrator<double>(orb);}
+    //! \copydoc BasisSet::PairProjector<double>::ProjectField -- a δ basis's projection of a field is its values at the points.
+    Projections ProjectField(const ScalarFunction<double>& f) const override {return Projections(Self_().Project(f));}
+private:
+    const Self& Self_() const {return static_cast<const Self&>(*this);}
+};
+template <class Self> class DeltaAxisFitFaces<Self,dcmplx>
     : public virtual BasisSet::PairProjector<dcmplx>   // ...the FORWARD direction, off the same handles
     , public virtual FitContraction<double,dcmplx>   // a real TRIM block's quadrature runs in real arithmetic
 {
@@ -68,12 +83,12 @@ private:
 //! \brief Scalar (overlap-metric) fitter on a \f$\delta\f$ fit basis -- the projection IS the fit, up to
 //! the basis's own metric diagonal.  ONE class template on the fit axis's scalar \a T (2026-10-31, as \c DeltaFit_IBS<T>):
 //! \c dcmplx on the periodic path (serving BOTH orbital-block scalars, as a mixed run requires -- the extra faces come from
-//! \c DeltaPeriodicFitFaces), \c double on the molecular one.
+//! \c DeltaAxisFitFaces), \c double on the molecular one (whose extra face is the forward alone).
 template <class T> class DeltaScalarFitter
     : public virtual DeltaScalarFit<T>               // the same-scalar contraction and the field projection, on either fit axis
-    , public         DeltaPeriodicFitFaces<DeltaScalarFitter<T>,T>   // dcmplx only: the real TRIM block + the forward vendor
+    , public         DeltaAxisFitFaces<DeltaScalarFitter<T>,T>   // the forward vendor; dcmplx adds the real TRIM block
 {
-    friend class DeltaPeriodicFitFaces<DeltaScalarFitter<T>,T>;
+    friend class DeltaAxisFitFaces<DeltaScalarFitter<T>,T>;
 public:
     typedef std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> fbs_t;
     explicit DeltaScalarFitter(const fbs_t& fbs) : itsFitBasis(fbs)

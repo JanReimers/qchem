@@ -8,6 +8,7 @@ add_executable(UTChargeDensity ../../Common/tests/gtestmain.C
    KerkerMix.C
    JointPulay.C
    AtomicDensity.C
+   SinglesSampler.C
 )
 
 target_compile_definitions(UTChargeDensity PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

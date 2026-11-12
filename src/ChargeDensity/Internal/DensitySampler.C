@@ -163,12 +163,13 @@ protected:   // the periodic subclass contracts through the same fitter and tabl
     //! \brief MY FITTER'S PROJECTION FACE -- what a density projects itself onto (2026-08-24).
     //! The fitter holds the fit basis's \f$\Phi\f$ handles, so the \f$\rho\f$ FORWARD and the
     //! \f$H_{xc}\f$ ADJOINT come off one object instead of two callers asking the basis separately.
-    const BasisSet::PairProjector<dcmplx>* MatrixProjector() const;
+    //! On EITHER fit axis (the real one since 2026-11-12); null only for a fitter without the forward, which then samples pointwise.
+    const BasisSet::PairProjector<T>* MatrixProjector() const;
     //! The FIELD projection face every δ fitter carries, on either fit axis -- the pointwise route.
     const Fitting::FieldProjector& FieldProjection() const;
     //! \f$\rho\f$ of a density-matrix density over my points: contracted through the fitter's matrix-forward handles when it has
-    //! them (the periodic δ fitter), else evaluated pointwise as a field -- the molecular δ route, which is exactly how
-    //! \c FittedVxc sampled it.  Either way it is \f$\rho[D]\f$ (pin 28).  CAPABILITY decides, never T.
+    //! them (every δ fitter since 2026-11-12), else evaluated pointwise as a field.  Either way it is \f$\rho[D]\f$ (pin 28), equal
+    //! to roundoff (\c UTChargeDensity's \c SinglesSampler gates).  CAPABILITY decides, never T.
     rvec_t ProjectDM(const tDM_CD<T>& dm) const;
 
     // R2.9(i): the four accessors above are CONST and everything they touch is a lazily-built cache, so the
