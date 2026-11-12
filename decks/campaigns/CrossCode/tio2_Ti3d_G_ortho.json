@@ -13,7 +13,7 @@
  "basis": {
   "data": "VALENCE_LOWQ_VA",
   "file": "/home/janr/Code/qchem6/BasisSetData/valence_lowq_tm.bsd",
-  "spherical": true
+  "angular": "spherical"
  },
  "solid": {
   "multiplicity": 0,

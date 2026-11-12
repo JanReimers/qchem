@@ -430,7 +430,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_PilotSizesTheRaster)
 TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
 {
     // (The spherical arm -- GPW_MN_SPHERICAL / GPW_BASIS_SPH environment switches, doc/SphericalLatticePlan.md I1/I3 -- is a CAMPAIGN A/B, not a gate:
-    //  env switches are retired (D-ENV 6d.4), so this gate runs the Cartesian SR arm; the spherical arm is a deck with basis.spherical.)
+    //  env switches are retired (D-ENV 6d.4), so this gate runs the Cartesian SR arm; the spherical arm is a deck with basis.angular "spherical".)
     const bool spherical=false;
     const bool sphBasis =false;
     Molecule mnmol; mnmol.Insert(Site{25, {0,0,0}});

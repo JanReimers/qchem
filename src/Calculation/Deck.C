@@ -31,6 +31,7 @@ import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names i
 import qchem.Materials;            // Material (the structure section's name resolves to one)
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
 import qchem.BasisSet.Lattice.BasisSet;   // ShellConditioning (BasisShells)
+import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSet::Gaussian::Angular (basis.angular)
 
 export namespace qchem::deck
 {
@@ -83,7 +84,9 @@ struct RunSpec
         //! turns a non-shipped \c file into this; a run builds from the text (written once to a content-addressed cache file, so its
         //! checksum is the text's).  Exclusive with \c file.
         std::vector<std::string> inlineBsd;
-        bool spherical=false;
+        //! "angular": "cartesian" (default) | "spherical" -- the ONE angular option both setups share (user, 2026-11-12).  The
+        //! old bool "spherical" is read as its earlier spelling, so a record written before 2026-11-12 still runs.
+        BasisSet::Gaussian::Angular angular=BasisSet::Gaussian::Angular::Cartesian;
         std::vector<Trim> trim;     //!< a STATED trim (built once, no vet loop)
         bool autoTrim=false;        //!< the vet-stage trim at \c solid.orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)
         //! The orbital basis FAMILY ("gaussian" | "planeWave", OpenWork §2 PW-1); copied into \c solid at run time.  A plane-wave run still

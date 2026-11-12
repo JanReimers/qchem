@@ -10,6 +10,7 @@ module;
 #include <algorithm>
 #include <map>
 #include <cmath>
+#include <functional>   // the per-Z valence-count source of the formal-charge rule
 
 module qchem.ChargeDensity.Seed;
 import qchem.PeriodicTable;                   // thePeriodicTable -> GetElectronegativity (the ionic heuristic)
@@ -63,6 +64,48 @@ std::vector<int> IonicFormalCharges(const std::vector<std::pair<int,int>>& atoms
         q[d]+=1; q[a]-=1; giveCap[d]-=1; takeCap[a]-=1;   // donor +charge, acceptor -charge; charge conserved
     }
     return q;
+}
+
+//! THE FORMAL CHARGE ORDER of an ionic seed, the ONE rule every structure shares (user, 2026-11-12: "we should strive to make seeding
+//! ... structure neutral"): \a stated when given, else \c IonicFormalCharges over each site's neutral valence count \a nvalOf(Z).
+//! The structure's TYPE never enters; only which library holds its densities does (the periodic seed reads the valence library, the
+//! molecular one the all-electron library), and each passes its own \a nvalOf.  \a nval receives the per-site valence counts.
+static std::vector<int> SiteFormalCharges(const Structure* st, const std::function<int(int)>& nvalOf, const std::vector<int>& stated,
+                                          std::vector<int>& nval)
+{
+    assert(st);
+    std::vector<std::pair<int,int>> atoms;   // {Z, N_val} per atom
+    std::map<int,int> nvalByZ;
+    st->ForEachSite([&](int Z, const rvec3_t&, bool)
+    {
+        if (!nvalByZ.count(Z)) nvalByZ[Z]=nvalOf(Z);
+        atoms.emplace_back(Z, nvalByZ[Z]);
+    });
+    nval.clear(); for (const auto& a : atoms) nval.push_back(a.second);
+    if (!stated.empty() && stated.size()!=atoms.size())
+        throw std::invalid_argument("SiteFormalCharges: "+std::to_string(stated.size())+" stated charges for "+std::to_string(atoms.size())+" sites");
+    return stated.empty() ? IonicFormalCharges(atoms) : stated;
+}
+
+//! A neutral atom's density AMPLITUDE-SCALED to a charge state the library does not hold (the molecular IonicSAD fallback, the
+//! all-electron twin of \c SeedCD's scaled-neutral class).
+class ScaledAtomicDensity : public virtual ScalarFunction<double>
+{
+public:
+    ScaledAtomicDensity(std::shared_ptr<const ScalarFunction<double>> f, double scale) : itsF(std::move(f)), itsScale(scale) {}
+    virtual double  operator()(const rvec3_t& r) const override {return itsScale*(*itsF)(r);}
+    virtual rvec3_t Gradient  (const rvec3_t& r) const override {return itsScale*itsF->Gradient(r);}
+private:
+    std::shared_ptr<const ScalarFunction<double>> itsF;
+    double itsScale;
+};
+
+//! The neutral valence electron count of \a Z from the periodic table's valence configuration (the all-electron library's twin of
+//! the valence library's neutral charge).
+static int PeriodicValence(int Z)
+{
+    const size_t* vc=thePeriodicTable().GetValanceConfiguration(size_t(Z));
+    return int(vc[0]+vc[1]+vc[2]+vc[3]);
 }
 
 //! The plane-wave seed's own density-fit basis, from the WHOLE-SET fit factory.  It is not the Hamiltonian's: its grid reports one
@@ -135,10 +178,30 @@ tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSe
         return cd;
     }
     case SeedStrategy::IonicSAD:
-        // THROW, not assert: an assert-only arm returns null under -DNDEBUG and SCFIterator silently
-        // runs a core guess instead of the seed the caller asked for (V1.19).
-        throw std::runtime_error("MakeSeedDensity: molecular (AO) IonicSAD is a later phase; "
-                                 "use SAD or the plane-wave path");
+    {
+        // The SAD superposition at each site's FORMAL CHARGE (Li+ F-), the same charge rule as the periodic seed (SiteFormalCharges);
+        // the all-electron library, as the molecular SAD.  A charge state the library lacks is the neutral density amplitude-scaled to
+        // it (SeedCD's fallback); a stripped site (H+) carries nothing.  With every charge zero it IS the SAD seed.  The molecule's own
+        // net charge is not distributed: the fit's charge constraint carries it, as for SAD.
+        if (!st) throw std::logic_error("MakeSeedDensity: the IonicSAD seed needs a Structure (atom Z + positions)");
+        std::vector<int> nval;
+        const std::vector<int> q=SiteFormalCharges(st, PeriodicValence, {}, nval);
+        auto mesh=[&]{ qchem::report::Scope here("seedDensity"); return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(quadrature)); }();
+        auto* cd = new NumericCD(st->GetNumElectrons(), std::move(mesh));
+        size_t i=0;
+        st->ForEachSite([&](int Z, const rvec3_t& R, bool)
+        {
+            const int target=Z-q[i++];   // the site's all-electron count in its charge state
+            if (target<=0) return;
+            if (HasAtomicDensity(Z, "LDA", "atomic_densities.json", target))
+                cd->Insert(std::make_shared<const RecentredAtomicDensity>(
+                    std::make_shared<const RadialDensity>(GetAtomicDensity(Z, "LDA", "atomic_densities.json", target)), R));
+            else
+                cd->Insert(std::make_shared<const ScaledAtomicDensity>(std::make_shared<const RecentredAtomicDensity>(
+                    std::make_shared<const RadialDensity>(GetAtomicDensity(Z)), R), double(target)/double(Z)));
+        });
+        return cd;
+    }
     default:
         throw std::runtime_error("MakeSeedDensity: unknown SeedStrategy");   // see the IonicSAD arm (V1.19)
     }
@@ -191,21 +254,14 @@ tChargeDensity<dcmplx>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSe
 // kept only the LAST atom's target, collapsing a mixed-valence cell onto one charge state.
 std::vector<int> IonicSADTargets(const Structure* st, const SeedKey& key)
 {
-    assert(st);
-    std::vector<std::pair<int,int>> atoms;                      // {Z, N_val} per atom
-    std::map<size_t,int> nvalByZ;
-    st->ForEachSite([&](int Z, const rvec3_t&, bool)
-    {
-        if (!nvalByZ.count(Z))
-            nvalByZ[Z] = (int)std::lround(GetAtomicDensity(Z,key.functional,"atomic_valence_densities.json",-1,key.Q(Z)).Charge());
-        atoms.emplace_back(Z, nvalByZ[Z]);
-    });
     // A STATED charge order (the run's siteCharges, checked at resolve) wins; else the heuristic: Na+1, F-1, charge conserved.
-    assert(key.siteCharges.empty() || key.siteCharges.size()==atoms.size());
-    const std::vector<int> q = key.siteCharges.empty() ? IonicFormalCharges(atoms) : key.siteCharges;
-    std::vector<int> targets(atoms.size());                    // site i -> TARGET valence count N_val-q_i
-    for (size_t i=0;i<atoms.size();i++)
-        targets[i] = atoms[i].second - q[i];
+    std::vector<int> nval;
+    const std::vector<int> q=SiteFormalCharges(st,
+        [&key](int Z){ return (int)std::lround(GetAtomicDensity(Z,key.functional,"atomic_valence_densities.json",-1,key.Q(Z)).Charge()); },
+        key.siteCharges, nval);
+    std::vector<int> targets(nval.size());                    // site i -> TARGET valence count N_val-q_i
+    for (size_t i=0;i<nval.size();i++)
+        targets[i] = nval[i] - q[i];
     return targets;
 }
 
