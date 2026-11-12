@@ -259,6 +259,13 @@ nobody), naming the object that broke it and the iteration.
     row 1 / 4 / 5 is STOPPED and reported, never fixed inside B5.
   - The CLAUDE.md recipe paragraphs (restarts; MnO / TMO Kerker+Pulay) become pointers to this table.  That is the user's edit:
     lane A drafts the text in its READY.
+  - **BUILT 2026-11-12 (lane A, 6634e90c8)**: `src/Calculation/SCFRecipe.C`; gates `UTCalculation` `SCFRecipe.*` (the old-vs-new
+    table over the product space, the named regimes' cells, deviations, the refusals, the deck key); sweep short 1603 / long 15 /
+    panel4t 25 green, `anchordiff` 0 moved, RelChecked built.  Two things the print shows: the raster pilot's restored stage is a
+    STATED Ladder with no 0.3 cap (measured, printed "stated by the raster pilot"); `decks/MnO_AFM2_free.json` states
+    `MagneticInsulator` but KEEPS its knobs, because its pilot restore runs on the stated Null + K+P, not this table's restored
+    column (DIIS + linear) -- whether a named field-mixer regime should restore on its field mixer (row 4's "Pulay from iteration 1")
+    is open, Q-R in lane A's READY.
 
 ### P4a — the regime matrix is the `Auto` spec (§3)
 
@@ -406,7 +413,7 @@ Each step: one commit (or a short series), sweep-green, panel re-run, `anchordif
 | **B2** | **P2 invariants** R2.1–R2.7 (each a throw; R2.1 first — it is E1) | "an IMPOSED polarized run without +U derives its decoration" (S) via R2.5 | each throw has a UT that breaks the invariant on purpose (the `Pin28Throws` pattern); panel unmoved |
 | **B3** | **P1**: R1.1 throw in `ResolveMixing`; R1.3 `HandOff`; R1.4 Kerker as a decorator (D9); ~~R1.5~~ (→ C2, 2026-10-30); delete `DIISParams::FDMin` (D-DIIS-FDMIN); rename `FDMax` → `EngageBelowFD` (V1.24(i)) | D9, V-MIXER-GBALL, D-DIIS-FDMIN, V1.24(i) (S) | bit-identical on the sweep except where a test used an illegal pair (each judged); panel unmoved |
 | **B4** | **R4.2** — a direct-min stage gates on worst-irrep [F,D] | "GDM false-converges" (F) → panel #6 GREEN | #6 within #5's budget at #5's fixed point |
-| **B5** | **P4 / P4a**: the recipe value (R4.1) + `Auto` as the §3 chooser, printed; deck key `scf.recipe`; refuse row 2′ | §2 "`MixingPolicy`" (F); the CLAUDE.md recipe paragraphs become pointers to §3 | panel: every GREEN case ≤ budget under `Auto` |
+| **B5** ✅ 6634e90c8 | **P4 / P4a**: the recipe value (R4.1) + `Auto` as the §3 chooser, printed; deck key `scf.recipe`; refuse row 2′ | §2 "`MixingPolicy`" (F); the CLAUDE.md recipe paragraphs become pointers to §3 | panel: every GREEN case ≤ budget under `Auto` |
 | **B6** | Work the RED cases, one at a time, each judged on the WHOLE panel: (a) GDM crawl — `PCFloor` 1e-2/1e-3 and a line search that extends t (#15); (b) "GDM: should an exhausted line search END the stage?" (after Q3); (c) linear D-mixing re-damp on rising E (#7, G1/G2); (d) K+P overshoot — residual-norm safeguard / Pulay restart on rising E (#16, #18); (e) Na₂ AFM seed (#8); (f) polarized Si jump (#10) | "GDM crawls", "GDM exhausted line search", "Linear D-mixing" remainder, "Kerker+Pulay overshoots", "Na₂ AFM seed", "Polarized Γ Si jumps" (F) | each RED → GREEN with no GREEN case over budget |
 | **B7** | **P3**: `PrecisionNeed` / delivered values, deck pre-flight; fold `kResponseReferenceMinΔρ` and `EigenpairResidual` into it | (prepares C2's raster producer) | the two existing refusals unchanged in behaviour, now pre-flighted |
 | **B8** | Mechanical: D-CALC-DOUBLE-SCF migration; V1.27 `TraceColumns` from what the run IS, with the `ρ_lost/N` dead column (rides V1.27) | D-CALC-DOUBLE-SCF, V1.27, "`ρ_lost/N` dead column" (S) | sweep wall time down (no double SCF), panel unmoved |
