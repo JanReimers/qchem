@@ -37,13 +37,13 @@ void GroupedIsElementwise(const char* what, const std::string& file, bool expect
     std::shared_ptr<const BasisSet::Real_BS> bs(file.empty() ? Factory(BasisSetData::DZVP, &mol, Engine::MnD, Angular::Cartesian)
                                                              : FactoryFromFile(file, &mol, Engine::MnD, Angular::Cartesian));
     const qcMesh::MeshParams mesh{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0,
-                                  .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};   // the fit bases ignore it
+                                  .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};   // the Vxc fit takes one (and ignores it); the Coulomb fit owns no grid (pin 33)
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_DFT_OIBS>())
     {
         const auto* e=dynamic_cast<const MnD*>(ibs);   // a test may cheat: the block IS its evaluator
         ASSERT_TRUE(e) << what;
         if (expectGroups) EXPECT_LT(e->ShellGroups().size(), e->ShellRanges().size()) << what << ": no general contraction to group";
-        std::unique_ptr<BasisSet::FIT_CD_ABS<double>> cd(ibs->CreateCDFitBasisSet (&mol, mesh));
+        std::unique_ptr<BasisSet::FIT_CD_ABS<double>> cd(ibs->CreateCDFitBasisSet (&mol));
         std::unique_ptr<BasisSet::FIT_SF_ABS<double>> sf(ibs->CreateVxcFitBasisSet(&mol, mesh));
         const auto* ecd=dynamic_cast<const MnD*>(cd.get());
         const auto* esf=dynamic_cast<const MnD*>(sf.get());
