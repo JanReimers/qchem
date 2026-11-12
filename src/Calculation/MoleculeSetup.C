@@ -195,6 +195,10 @@ struct MoleculeSetup
     //! The structure a geometry point is built over: \a st's atoms, each carrying its VALENCE charge Z - Zion under a
     //! pseudopotential (so the electron count is the valence count), or \a st as is when all-electron.  Deep-copied.
     std::shared_ptr<const Structure> PointStructure(const Structure& st) const;
+    //! THE PRE-RUN PP / FUNCTIONAL CHECK (user 2026-11-12: track, warn and guide, mostly in the GUI): every element's pseudopotential
+    //! against this setup's model: its fit (CP2K label + libxc ids), match yes/no, and the model to state to match it.  What the run will warn about,
+    //! answered without running, so a GUI reads it here and never recomputes it.  Empty for an all-electron or non-DFT setup.  THROWS on a fit with no libxc mapping.
+    std::vector<Hamiltonian::PPFunctionalCheck> PPFunctionalChecks() const;
 };
 
 } // namespace qchem
