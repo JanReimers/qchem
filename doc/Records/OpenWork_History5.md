@@ -2400,3 +2400,47 @@ the three Auxiliary gates above; ValenceBasisGen.PseudoAtomOrbital +1.6e-8; GPW_
 M_Sym water DFT 118→50 / 112→48, OxygenTripletLDA 29→36, its AuxiliaryFit twin 34→29, MeshPilot +1); long 15/15, 0 moved; panel at 4 threads 25/25, the
 panelRed set failing for the same reasons as on main (β-MnO₂ Kerker_Pulay −1.6e-6 is its unconverged 40th iterate at the cap);
 RelChecked allTests green.
+
+
+## ✅ A stated linear ceiling beside the Fock DIIS hit the cap: the damped step started from the wrong density (lane A, 2026-11-12, 5ad897099)
+
+Found by lane G (GUI test `test_alpha_max_caps_the_linear_mixing_step`): water LDA dzvp on the molecular facade, linear mixing at a
+STATED start 0.2 and ceiling 0.3 beside DIIS, converged on 993e70f2 and hit the 100-iteration cap on fa324a0b, [F,D] spiking to ~1
+every few steps.  It is a regression from (a′) bfb995513, which let the damped step run beside every extrapolation (no late cap, no
+retraction), so the step's base now mattered on every step.
+
+**Diagnosis.**  F is affine in D, so the DIIS Fock F* = Σ c_k F(D_in,k) = F(D̄) with D̄ = Σ c_k D_in,k, and this step's D_out is the
+diagonalisation of F(D̄).  A damped step must therefore be (1−α) D̄ + α D_out.  The code damped from THIS step's own D_in, which pairs
+the output of one point (D̄) with the input of another.  The error is largest when the weights are large and of mixed sign, i.e. at a
+small svMin: those are exactly the spike rows.  At α = 1 the base drops out, which is why default runs never showed it.  So the premise
+in `Records/SCFStrategyPlan.md` §3, that a CONSTANT damping composes with DIIS, holds once the damping is anchored at D̄.  The rejected
+alternative, "relax 1.0 under DIIS" (option A), broke the Si Γ restart and the damped-start atoms O, Ne, Xe and O_PP_U.
+
+**Fix.**
+- `SCFAccelerator::ExtrapolationWeights()` publishes (Focks ago, c) for this step: DIIS stamps each history entry with its
+  `CalculateProjections` count, the Ladder forwards to its active rung, and the other accelerators return none.
+- The ITERATOR records the input of every Fock fed to the accelerator (the seed's, a carried state's refill, each step's), forms D̄,
+  and hands it to `tAdaptiveMixer::ExtrapolatedStep`.
+  - It must be the iterator.  A first version kept the inputs in the mixer and THREW on `GPW_Na.k222s_Imp_Smear_GlobalMu_Anchor` and
+    `GPW_MnBox.Γ_M6_Smear_eqFinite`: a carried smeared restart puts the seed's Fock into the DIIS history (its [F,D] is already below
+    the engage gate) before any mixer exists.
+  - A second version recorded `itsCD` and missed that at α < 1 the Fock is built from the mixer's own mixed density, so it recorded
+    the wrong density.
+  - Field mixers (Kerker, Pulay) record nothing to copy.
+- When D̄ cannot be formed, the step damps from this step's input as before and a `[handoff]` line says why.  That is the case when a
+  weighted Fock's input is no density matrix of this run: a matrix-free or core-guess seed, the HF bootstrap's LDA sibling, or a Fock
+  from an earlier stage.  It fired 0 times in the sweep.
+
+**Measured.**
+- Gate `CalculationFacade.AStatedLinearCeilingBesideTheFockDIISConverges` failed on main (the cap) and now converges in 10 iterations
+  (the free run takes 8), with E equal to the free run's to 1e-8.
+- The SCFTrace molecular golden was re-banked: rows 5–16 move in the 4th digit, still 16 iterations, E_tot identical.
+- Sweep lane-a-dbar2 against main-c8e09cb4:
+  - short 1580/0 passed.  75 tests moved; iterations 2189 → 1987 (61 fewer, 12 more), the worst being PW_NaF.Γ_Anchor 70 → 88.
+    The largest |ΔE| is 3.4e-7 Ha (Slater_Low A_HF_P Z92, 13 → 14 iterations).
+  - long 15/0 passed, 1 moved (MnO2 79 → 65).
+  - panel at 4 threads 25/0 passed, 6 moved, all with fewer iterations.  Its 3.5e-5 Ha is the energy of a knownRed run at its
+    40-iteration cap, failing for the same reason as on main.
+  - RelChecked builds clean, and the WILL_FAIL reasons match main's.
+- The 0.3-beside-DIIS cases in the short tier (Al FCC Γ, the Si atom-in-box Ladder and fold A/B) all pass.  The Si LR panel run is at
+  α = 1, so the fix leaves it untouched.

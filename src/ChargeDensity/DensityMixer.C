@@ -115,7 +115,15 @@ public:
     //! diverged one (Si Γ 2026-09-29; doc/Records/LinearResponsePlan.md finding 5, SCFRobustnessPlan D4); (2) atoms that state a damped
     //! START (0.1-0.5) diverged when DIIS engaged at [F,D] ~1 and the step jumped to 1.0 (O, Ne, Xe, O_PP_U; 2026-11-11).  Growth from the
     //! current step keeps both: a 0.3 ceiling stays 0.3, a 0.1 start ramps as it always did.
-    virtual double ExtrapolatedStep(const cd_t& working, const cd_t& old) = 0;
+    //! THE BASE OF A DAMPED STEP (lane A, 2026-11-11, lane G's GUI case: water LDA dzvp at a stated start 0.2 and ceiling 0.3 hit the
+    //! 100-iteration cap, [F,D] spiking to ~1 every few steps).  F is affine in D, so the extrapolated Fock is \f$F(\bar D)\f$ with
+    //! \f$\bar D=\sum_k c_kD_{in,k}\f$ (the accelerator's weights over the inputs of the Focks it holds), this step's D_out is ITS
+    //! diagonalisation, and the damped step is \f$(1-\alpha)\bar D+\alpha D_{out}\f$.  Damping from this step's own D_in instead mixed
+    //! the output of \f$\bar D\f$ with the input of another point (the cap).  The CALLER forms \a base = \f$\bar D\f$: only it sees
+    //! every Fock the accelerator was fed (the seed's included, before any mixer exists).  Null \a base: \f$\bar D\f$ could not be
+    //! formed, and the step damps from this step's D_in (the caller reports why).  At \f$\alpha=1\f$ the base drops out: the default
+    //! passthrough is unchanged.
+    virtual double ExtrapolatedStep(const cd_t& working, const cd_t& old, const cd_t* base) = 0;
 };
 
 //=========================================================================================================

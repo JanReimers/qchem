@@ -70,17 +70,18 @@ public:
         return dcd;
     }
     //! The accelerator extrapolated this step: a step at my CURRENT α with no late cap, and no retraction can follow (\c Adapt only
-    //! grows α toward the STATED ceiling after such a step).  \c tAdaptiveMixer::ExtrapolatedStep has the measurement.
-    double ExtrapolatedStep(const cd_t& working, const cd_t& old) override
+    //! grows α toward the STATED ceiling after such a step), damped from the EXTRAPOLATED input \f$\bar D=\sum_k c_kD_{in,k}\f$
+    //! (\a base; null: this step's own D_in), the density whose Fock was diagonalised.  \c tAdaptiveMixer::ExtrapolatedStep has the measurement.
+    double ExtrapolatedStep(const cd_t& working, const cd_t& old, const cd_t* base) override
     {
-        const cd_t& in=InputFor(old);                                          // the D_in that drove THIS Fock
+        const cd_t& in=InputFor(old);                                          // the D_in that drove THIS step's own Fock
         const double dcd = working.GetChangeFrom(in)/working.GetTotalCharge();
         itsIn.reset();                                                         // nothing to retract
         itsExtrapolated=true;
         itsStepRelax=itsRelax;
-        if (itsRelax==1.0) { this->itsMixed.reset(); return dcd; }             // the next Fock IS D_out
+        if (itsRelax==1.0) { this->itsMixed.reset(); return dcd; }             // the next Fock IS D_out: the base drops out
         auto mixed=working.MakeCopy();
-        mixed->MixIn(in, 1.0-itsRelax);
+        mixed->MixIn(base ? *base : in, 1.0-itsRelax);                         // (1−α) D̄ + α D_out
         Install(std::move(mixed), working);
         return dcd;
     }

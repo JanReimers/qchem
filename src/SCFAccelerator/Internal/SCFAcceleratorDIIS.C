@@ -2,6 +2,7 @@
 module;
 #include <limits>
 #include <deque>
+#include <utility>
 #include <vector>
 #include <string>
 #include <iostream>
@@ -96,6 +97,7 @@ public:
     virtual bool ExtrapolatesFock() const {return true;}
     virtual int         Count() const {return (int)GetNProj();}   // projection depth = the accel column's number
     virtual bool        Extrapolated() const {return HasProjection();}   // Project() extrapolates exactly when the coefficients exist
+    virtual std::vector<std::pair<size_t,double>> ExtrapolationWeights() const;   // itsCs against each entry's age (itsStamps)
     virtual double      MinSV() const {return itsLastSVMin;}       // conditioning of the bordered B
     // Out of steam: past EngageBelowFD but unable to extrapolate (singular/tiny B) for several steps.
     virtual bool   Exhausted() const {return itsStuckCount>=3;}
@@ -118,6 +120,8 @@ private:
     std::vector<DIIS_Block*> itsIrreps;   // the scalar aggregation face -- children may differ in T
 
     double itsEn=0.0;
+    size_t             itsCalls=0;   //!< CalculateProjections calls: the clock an entry's age is read on (one call per fixed-point step)
+    std::deque<size_t> itsStamps;    //!< the call each history entry was appended on, oldest first (in step with the irreps' deques)
     //! Conditioning of the last bordered B.  NaN until BuildPrunedB has run at least once -- DIIS does not
     //! extrapolate (so does not build B) until [F,D] < EngageBelowFD, and this was previously read UNINITIALISED by
     //! anything that asked early.  Surfaced 2026-08-10 the moment the trace grew an svMin column.
