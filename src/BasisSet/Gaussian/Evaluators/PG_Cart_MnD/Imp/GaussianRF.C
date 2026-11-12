@@ -198,6 +198,14 @@ const RNLM& findRNLM(const GData& ab,const GData& c)
     return static_cast<const RNLM_C2&>(w).rnlm;
 }
 
+//! findRNLM's entry built into \a out instead of the global cache (the same arguments, so the same numbers bit for bit): for a kernel
+//! that meets each primitive quartet ONCE, where the cache is all insert and no hit (OpenWork §4: 99.4 % misses on a cold DZVP ERI4).
+void BuildRNLM(const GData& ab,const GData& c, RNLM& out)
+{
+    double alpha = ab.α*c.α/(ab.α+c.α);
+    out.Build(ab.L+c.L, alpha, ab.R-c.R);
+}
+
 // 3-centre Hermite block, cached by primitive triple.  Now that Ω lives in this module there is no
 // Ω<->radial module cycle, so the block is built inline here (gc is centre C) -- no make-lambda.
 const Hermite3& findH3(const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc)
@@ -764,6 +772,12 @@ double GaussianRF::Repulsion4C(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb,
 double PrimGaussian::Repulsion4CTab(const double* habT, const Polarization& Pab, const double* hcdT, const Polarization& Pcd,
                                     const RNLM& rnlm, double lambda)
 {
+    // rnlm(i,j,k) read through the triangle's layout, its offset built up layer -> row -> element as the loops advance instead of from
+    // scratch per term (that arithmetic was ~19 % of a cold DZVP ERI4, OpenWork §4): the same element, the same order, the same sum.
+    using qchem::BasisSet::Gaussian::Evaluators::Internal::MnD::Triangle3D;
+    const Triangle3D& T=rnlm.Table();
+    const double* R=T.Data();
+    const int N=T.MaxSum();
     double s = 0.0;
     size_t ia=0;
     for (int an=0; an<=Pab.n; ++an)
@@ -774,18 +788,26 @@ double PrimGaussian::Repulsion4CTab(const double* habT, const Polarization& Pab,
           if (hab==0.0) continue;
           size_t ic=0;
           for (int cn=0; cn<=Pcd.n; ++cn)
+          {
+           const int xi=N-(an+cn);                    // the layer's remaining sum
+           const double* Ri=R+Triangle3D::Layer(xi);
            for (int cl=0; cl<=Pcd.l; ++cl)
+           {
+            const int xj=xi-(al+cl);
+            const double* Rij=Ri+Triangle3D::Row(xj);
             for (int cm=0; cm<=Pcd.m; ++cm)
             {
                 const double hcd = hcdT[ic++];
                 if (hcd==0.0) continue;
-                const double r = rnlm(Index3{an+cn, al+cl, am+cm});
+                const double r = Rij[xj-(am+cm)];
                 if (r!=0.0)
                 {
                     const double sign = ((cn+cl+cm)&1) ? -1.0 : 1.0;   // (-1)^(total of the cd term)
                     s += hab*hcd*r*sign;
                 }
             }
+           }
+          }
       }
     return s*lambda;
 }
@@ -863,6 +885,7 @@ void GaussianRF::Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, c
             BuildHermiteTable(*cdΩ[k*nl+l], pc, nc, pd, nd, cdH[k*nl+l]);
         }
     HermiteTable abH;
+    RNLM rnlm;                  // scratch, rebuilt per primitive quartet: each is met once here, so the global cache would only insert
     std::vector<double> t(n);   // one primitive quartet's integrals, every component quartet: computed ONCE for all members
     for (size_t i=0;i<ni;++i)
         for (size_t j=0;j<nj;++j)
@@ -874,7 +897,7 @@ void GaussianRF::Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, c
                 {
                     const Ω& cd=*cdΩ[k*nl+l];
                     const HermiteTable& cdT=cdH[k*nl+l];
-                    const RNLM& rnlm=findRNLM(ab.GetGData(), cd.GetGData());   // ONCE per primitive quartet
+                    BuildRNLM(ab.GetGData(), cd.GetGData(), rnlm);   // ONCE per primitive quartet
                     const double lambda=PrimGaussian::Lambda4C(ab,cd);
                     size_t q=0;
                     for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++)

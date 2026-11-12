@@ -20,6 +20,12 @@ RNLM::RNLM(int Max, double α, const rvec3_t& dR)
     : itsLMax(Max)
     , itsData()
 {
+    Build(Max, α, dR);
+}
+
+void RNLM::Build(int Max, double α, const rvec3_t& dR)
+{
+    itsLMax=Max;
     static Triangle3D theRjs[MAX+1];
     static bool     theRjsInitialized = false;
     if(!theRjsInitialized)
@@ -32,7 +38,8 @@ RNLM::RNLM(int Max, double α, const rvec3_t& dR)
 
     AuxillaryFJ FjCalculator(Max); // throws on Max > thejMax, before theRjs[thejMax-Max] below is indexed
     double T=α*dR*dR;
-    rvec_t Fj(Max+1,0.0);
+    thread_local rvec_t Fj;   // scratch: GetFjAt overwrites every entry, so only its size matters
+    if (Fj.size()!=size_t(Max+1)) Fj.resize(Max+1,false);
     FjCalculator.GetFjAt(T,Fj);
 
 //  cout << "T=" << T << " Max = " << Max << "  Fj=" << Fj << std::endl;
