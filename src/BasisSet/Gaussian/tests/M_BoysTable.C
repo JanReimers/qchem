@@ -9,10 +9,12 @@
 #include <stdexcept>
 import qchem.BasisSet.Gaussian.Evaluators.Internal.Boys.AuxillaryFJ;
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.RNLM;
+import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.Index3;
 import qchem.Types;
 using namespace qchem;
 using BasisSet::Gaussian::Evaluators::Internal::Boys::AuxillaryFJ;
 using BasisSet::Gaussian::Evaluators::Internal::MnD::RNLM;
+using BasisSet::Gaussian::Evaluators::Internal::MnD::Index3;
 
 TEST(M_BoysTable, RefusesJBeyondTheTable)
 {
@@ -46,5 +48,26 @@ TEST(M_BoysTable, ValuesAtTheBound)
         }
         s/=3.0*n;
         EXPECT_NEAR(F[j]/s,1.0,1e-9) << "j=" << j;
+    }
+}
+
+// RNLM::Build re-fills ONE scratch RNLM in place (the cold ERI4 group kernel rebuilds it per primitive quartet instead of caching
+// 3.9 M of them, OpenWork §4).  THE CLAIM: a scratch rebuilt through a sequence of L that grows AND shrinks is, element for element and
+// bit for bit, the RNLM a fresh constructor gives -- no stale storage or reach survives a rebuild.
+TEST(M_BoysTable, ARebuiltScratchRNLMIsAFreshOne)
+{
+    struct Arg {int L; double α; rvec3_t dR;};
+    const Arg args[]={{8,0.7,{0.3,-1.1,0.4}}, {2,13.0,{0.0,0.0,0.0}}, {4,0.05,{2.0,1.5,-3.0}}, {0,1.0,{0.1,0.1,0.1}}, {6,2.5,{-0.4,0.9,0.0}}};
+    RNLM scratch;
+    for (const Arg& a : args)
+    {
+        scratch.Build(a.L, a.α, a.dR);
+        const RNLM fresh(a.L, a.α, a.dR);
+        EXPECT_TRUE (scratch.CheckLMax(a.L));
+        EXPECT_FALSE(scratch.CheckLMax(a.L+1)) << "a rebuild must not keep a larger earlier reach";
+        size_t differ=0;
+        for (int n=0;n<=a.L;n++) for (int l=0;l<=a.L-n;l++) for (int m=0;m<=a.L-n-l;m++)
+            if (scratch(Index3{n,l,m})!=fresh(Index3{n,l,m})) ++differ;
+        EXPECT_EQ(differ, 0u) << "L=" << a.L;
     }
 }

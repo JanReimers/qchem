@@ -115,6 +115,10 @@ public:
                               const Polarization& pa, const Polarization& pb, const Polarization& pc);
     static double Repulsion3C(const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
                               const Polarization& pa, const Polarization& pb, const Polarization& pc);
+    //! The same with the pair's charge distribution \a ab and the triple's RNLM table \a R handed in: what a GROUP block
+    //! (\c GaussianRF::Repulsion3CGroupBlock) calls once per component triple, having looked both up ONCE per primitive triple.
+    static double Repulsion3C(const Ω& ab, const RNLM& R, const PrimGaussian* c,
+                              const Polarization& pa, const Polarization& pb, const Polarization& pc);
     // (ab|cd) given the two charge distributions directly: the caller (GaussianRF::Repulsion4C) hoists the
     // findΩ lookups out of the inner contraction loop, so this hot kernel does no cache descent for Ω.
     static double Repulsion4C(const Ω& ab, const Ω& cd,
@@ -266,6 +270,32 @@ public:
     //! over the primitive quartets in the per-component call's order with its arithmetic, so the values are BIT-IDENTICAL to it.
     void   Repulsion4CBlock(rf_t& ra, rf_t& rb, rf_t& rc, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                             const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out) const;
+
+    //! \brief Whether \a o is built on EXACTLY this radial's primitives (the same centre, L and exponents, in order; the contraction
+    //! coefficients may differ): two shells of one GENERAL CONTRACTION (MOLOPT's two s shells on one exponent set), whose primitive
+    //! integrals are the same numbers.
+    bool SharesPrimitivesWith(const GaussianRF& o) const;
+    //! \brief A GENERAL-CONTRACTION GROUP QUARTET at once (McMurchie-Davidson "evaluation in blocks"; OpenWork §4, lane H 2026-11-11).
+    //! Slot X holds \a mX radials \a rX[0..mX) that share their primitives (\c SharesPrimitivesWith) and one component list \a pX[0..nX).
+    //! Each primitive quartet's integrals are computed ONCE, for every component quartet, and contracted into EVERY member quartet:
+    //! \a out[m*n+q] with m=((ia*mb+ib)*mc+ic)*md+id the member quartet and q=((a*nb+b)*nc+c)*nd+d the component quartet (n=na*nb*nc*nd).
+    //! Each member's value is \c Repulsion4CBlock's on those four radials BIT FOR BIT: the same primitive values, the same coefficient
+    //! products, accumulated in the same primitive order.  \c Repulsion4CBlock IS this with one member per slot.
+    static void Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                      const GaussianRF* const* rc, size_t mc, const GaussianRF* const* rd, size_t md,
+                                      const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                      const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out);
+    //! The 3-centre <ab|c> twins of \c Repulsion4CGroupBlock (centre C is the third slot): \a out[m*n+q] with m=(ia*mb+ib)*mc+ic and
+    //! q=(a*nb+b)*nc+c.  Each member's value is \c Repulsion3C / \c Overlap3C on its three radials BIT FOR BIT (per primitive triple
+    //! one Ω and one RNLM lookup, or one Hermite3, instead of one per component triple and per member).
+    static void Repulsion3CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                      const GaussianRF* const* rc, size_t mc,
+                                      const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                      const Polarization* pc, size_t nc, double* out);
+    static void Overlap3CGroupBlock  (const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                      const GaussianRF* const* rc, size_t mc,
+                                      const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                      const Polarization* pc, size_t nc, double* out);
 
     virtual std::ostream& Write(std::ostream&  ) const;
 

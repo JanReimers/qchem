@@ -22,12 +22,19 @@ public:
     // M&D eq 3.32 α=αₚ*αQ/(αₚ+αQ) to electron repulsion
     //             dR = PQ^2
     RNLM(int Max, double α, const rvec3_t& dR);
+    //! Re-fill this RNLM in place for (Max, α, dR): the constructor's arithmetic exactly, reusing this object's storage.  A kernel that
+    //! visits each primitive quartet once (the cold ERI4 build: 99.4 % of the global RNLM cache's lookups missed, OpenWork §4) holds one
+    //! scratch RNLM and rebuilds it per quartet, with no cache descent, no insert and no heap traffic.
+    void Build(int Max, double α, const rvec3_t& dR);
     bool CheckLMax(int L) const {return L<=itsLMax;}
 
     double operator()(const Index3& p) const
     {
         return itsData(p.n,p.l,p.m);
     }
+
+    //! The Hermite-Coulomb triangle itself, for a kernel that walks its layout (see Triangle3D::Data).
+    const Triangle3D& Table() const {return itsData;}
 
     // Element by element addition to this RNLM.
     void   Add  (const RNLM&, double Scale);

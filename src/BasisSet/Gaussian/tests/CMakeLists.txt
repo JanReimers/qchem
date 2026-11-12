@@ -8,6 +8,7 @@ add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
    M_LatticePullback.C   # the lattice-sum overlap/kinetic pullbacks and virials vs their finite differences (CellHalf_Design §5)
    M_CollocationPullback.C   # the GPW gather's pullback (jet walk) vs its finite difference (GeometryOptimizationPlan §13.2)
    M_ERI4Blocks.C            # the shell-blocked ERI4 (FourCBlock) is the per-element FourC, bit for bit (OpenWork §4)
+   M_ThreeCBlocks.C          # the group-blocked Dunlap <ab|c> tensors are the per-element kernels, bit for bit (OpenWork §4)
    M_LatticeScreener.C
    M_PG_MeshIntegrals.C
    M_Gaussian94Import.C   # an Exchange gaussian94 basis translated, built, and its unrepresentables refused (BSE row, 2026-11-10)
