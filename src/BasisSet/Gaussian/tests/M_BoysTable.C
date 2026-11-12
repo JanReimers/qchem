@@ -7,9 +7,11 @@
 #include "gtest/gtest.h"
 #include <cmath>
 #include <stdexcept>
+#include <vector>
 import qchem.BasisSet.Gaussian.Evaluators.Internal.Boys.AuxillaryFJ;
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.RNLM;
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.Index3;
+import qchem.Parallel;   // OuterFor + ScopedWorkerThreads (the serial-vs-threaded bit gate)
 import qchem.Types;
 using namespace qchem;
 using BasisSet::Gaussian::Evaluators::Internal::Boys::AuxillaryFJ;
@@ -70,4 +72,37 @@ TEST(M_BoysTable, ARebuiltScratchRNLMIsAFreshOne)
             if (scratch(Index3{n,l,m})!=fresh(Index3{n,l,m})) ++differ;
         EXPECT_EQ(differ, 0u) << "L=" << a.L;
     }
+}
+
+// RNLMs BUILT CONCURRENTLY are the serial ones, bit for bit.  The build recurses through a scratch of Triangle3D layers; while that
+// scratch was function-STATIC (shared by every thread) two concurrent builds overwrote each other's layers.  No production path builds an
+// RNLM inside a parallel region today (every MnD integral is built in a serial phase: the cold Fock pass, a refresh; OpenWork §3), so this
+// gate drives the builder directly through qchem::OuterFor at 4 workers against the same list built serially.
+TEST(M_BoysTable, RNLMsBuiltConcurrentlyAreTheSerialOnes)
+{
+    struct Arg {int L; double α; rvec3_t dR;};
+    std::vector<Arg> args;
+    for (int i=0;i<4000;i++)   // every L in [0,8], α across six decades, T = α|dR|² across the table's three Boys branches
+        args.push_back({i%9, std::pow(10.0, -2.0+5.0*((i*37)%101)/100.0), rvec3_t(0.3+0.01*(i%17), -0.2*(i%5), 0.05*(i%23))});
+    auto build=[&](std::vector<std::vector<double>>& out)
+    {
+        out.assign(args.size(), {});
+        qchem::OuterFor(args.size(), [&](size_t i)
+        {
+            const Arg& a=args[i];
+            RNLM r; r.Build(a.L, a.α, a.dR);   // half through Build (the ERI4 scratch), half through the constructor (the cache's entries)
+            const RNLM c(a.L, a.α, a.dR);
+            for (int n=0;n<=a.L;n++) for (int l=0;l<=a.L-n;l++) for (int m=0;m<=a.L-n-l;m++)
+            {
+                out[i].push_back(r(Index3{n,l,m}));
+                out[i].push_back(c(Index3{n,l,m}));
+            }
+        });
+    };
+    std::vector<std::vector<double>> serial, threaded;
+    { qchem::ScopedWorkerThreads one(1);  build(serial);   }
+    { qchem::ScopedWorkerThreads four(4); build(threaded); }
+    size_t differ=0;
+    for (size_t i=0;i<args.size();i++) if (serial[i]!=threaded[i]) ++differ;
+    EXPECT_EQ(differ, 0u) << differ << " of " << args.size() << " RNLMs built at 4 workers differ from the serial ones";
 }
