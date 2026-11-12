@@ -2590,3 +2590,30 @@ is that solver's own drop count at the floor).  `SolidCalcOptions::SolverTruncat
 the LASolver factory's std::cerr lines (Cholesky, Auto) are removed; the run report files `basis.orthoTol` {value, solverTruncates}.
 The deck key and its meaning are unchanged.  Gate `Deck.OrthoTolIsTheTrimFloorAndReachesTheSolverOnlyWhenItTruncates`.
 
+
+## ✅ Structure-neutral seed and Gaussian angular form (lane B, 2026-11-12, bdeabff3e)
+
+The row as it stood (verbatim):
+
+| **Structure-neutral seed and Gaussian angular form** (user 2026-11-12, GUI feedback 31/32: "we should strive to make seeding and spherical/Cartesian options structure neutral"; on landing per-path molecular binding fields meanwhile: "Wait for neutral") | the same choice is held two ways.  ANGULAR: `MoleculeSetup` `CalcOptions.angular` (enum `Angular`) vs `SolidSetup` `GaussianBasisRecipe.spherical` (a bool, the spherical lattice view).  SEED: one `SeedStrategy`, but two Auto rules (molecule `AutoSeed`: SAD for DFT, else the core guess; solid: IonicSAD), and IonicSAD / Uniform are refused for a molecule -- implementation history (V2.2, the periodic valence form factors), not chemistry: `IonicSADTargets` are per-site formal charges, which a molecule has too.  The binding has two front doors (`qcb_request` fields vs the deck), so the GUI offers both choices on crystals only (qchem-GUI 2eb3e92; a molecule that states one is refused) | **lane B**: ONE basis-recipe angular option both setups share; ONE Auto seed rule; IonicSAD for molecules.  The molecular spherical + point-group refusal STAYS until the SALC builder handles spherical shells (`doc/OldPlans/SphericalSALCPlan.md`).  Then lane G wires both binding front doors and drops the GUI's crystals-only guard · `src/Calculation/MoleculeSetup.C`, `src/Calculation/SolidSetup.C`, `src/ChargeDensity/Seed.C` |
+
+**Landed.**
+- **One angular option.** `BasisSet::Gaussian::Angular {Cartesian, Spherical}` is used by both setups: `MoleculeSetup`'s private
+  enum is gone, and the solid's `GaussianBasisRecipe::angular` replaces `bool spherical`.  The deck key is `basis.angular`; the old
+  `basis.spherical` still reads under `// DECK-ALIAS: basis.spherical -> basis.angular (2026-11-12)` and throws only when it disagrees.
+- **One Auto seed rule**, `qchem.SeedPolicy::ResolveSeed`, called by both setups; it files a `policy` row `AutoSeed`.  A stated seed is
+  honoured; otherwise: no density in the iteration-0 Fock gives the core guess; a species the seed library lacks gives the core guess and
+  a WARN (user ruling (a)); charges stated, or a periodic structure, give IonicSAD; otherwise SAD (user ruling (1), "Derived only if
+  periodic").
+- **IonicSAD for molecules**, on the all-electron library.  Measured against SAD it reaches the same state (within 1e-7) but costs
+  iterations: H₂O 8 → 10, LiF 8 → 10, OH⁻ 9 → 10.  That is why isolated structures default to SAD.
+- No default changed.  A solid with an uncovered species, which threw, now runs on the core guess with a WARN (`GPW_Al`).
+
+**Correction to the row.**  "The molecular spherical + point-group refusal STAYS" was never true of the code: the SALC builder has
+handled the in-house MnD spherical basis since S3a/S4 (`doc/OldPlans/SphericalSALCPlan.md`).  The only refusal is libcint-spherical +
+symmetry (`MoleculeCalculation.C`, S3b).  The claim came from a stale comment on `CalcOptions::angular` in `MoleculeSetup.C`, rewritten
+2026-11-12.  Nor is there a C++ refusal of a Uniform seed for a molecule.
+
+**Remainder (other rows).**  Lane G wires both binding front doors to `Angular` and `SeedStrategy::Default`.  The pseudopotential seed
+library is its own row ("A pseudopotential run seeds from the VALENCE library for its q, on every structure").
+
