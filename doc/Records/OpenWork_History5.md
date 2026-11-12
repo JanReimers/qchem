@@ -2230,6 +2230,28 @@ green.  One anchor moved: `M_HF_U.WaterSADseed`, 10 → 9 iterations, energy unc
 The three WILL_FAIL cases fail exactly as they do on main.  Panel (`-L "panel|periodic"`, 4 threads): 25/25, no anchor moved,
 the panelRed set identical to main's.
 
+## ✅ The molecular DIIS switched itself off near convergence; the tail ran on linear mixing at 0.5 (lane A, 2026-11-11, bfb995513)
+
+The row as it stood (verbatim):
+
+· **The molecular DIIS switches itself OFF near convergence; the tail runs on linear mixing at 0.5** (lane H, 2026-11-11, from the real relaxations).  `AcceleratorOptions::svTol` 5e-9 is an ABSOLUTE floor on svMin(B), and B scales as |[F,D]|², so once [F,D] ≲ 7e-5 `BuildPrunedB` purges the history to one entry and DIIS never re-engages (the `DIISParams::SVTolRel` comment already says the absolute gate "really detects the residual got small"; the solid door turns the RELATIVE prune on, the molecular json door cannot reach it).  MEASURED, HF/DZVP H₂O₂: cold 13 DIIS + 35 linear iterations; a carried geometry step of 2.5e-4 bohr, 30 linear from a first iterate at [F,D] 1e-4.  Floor off (svTol 1e-20): the near-singular history stalls at [F,D] ~4e-8 and hits the cap, so deleting the floor is not the fix.  The Ladder (DIIS→GDM at ΔE/E < 1e-6) halves a relaxation's SCF iterations (Σ 483 → 275).  Next action: a ruling on the molecular default: the relative prune on the molecular door (as the solid), and/or a MoleculeSession step entering the Ladder (the CLAUDE.md restart rule; `SolidCalculation::Restart` enters at the GDM rung); it moves every molecular anchor's iteration count, so it lands with the panel · `doc/GeometryOptimizationPlan.md` §15 item 2, `src/SCFAccelerator/Internal/Imp/SCFAcceleratorDIIS.C`
+
+**Fix** (user ruling 2026-11-11, "Yes, both" and "we have previously encountered problematic interactions between mixers and DIIS"):
+the molecular prune is scale-free (`AcceleratorOptions` svTol 0, svTolRel 1e-4, also on the Ladder's DIIS rung), and while the Fock
+accelerator extrapolates the linear D mixer makes no downward move (`tAdaptiveMixer::ExtrapolatedStep`: no late cap, no retraction;
+Adapt growth-only toward the stated ceiling).  The relative prune ALONE made it worse (H₂O₂ 483 → 791): the stall was the mixer's damping
+stacked on DIIS (the late 0.5 cap and the quarter-step retraction), the same fight as SCFStrategyPlan §3 and LinearResponsePlan finding 5.
+Relax 1.0 under DIIS was measured and rejected (the atoms O, Ne, Xe, O_PP_U diverged; the D4 restart).
+
+**Measured**: HF relaxations H₂O 353 → 143, H₂O₂ 483 → 187 summed SCF iterations (lane H's Ladder-for-the-whole-run: 275).
+Landing sweep against main-b9ad1768 (`anchordiff --tol 1e-10`): short 1560/1560, long 16/16, panel 25/25 at 4 threads (vs
+main-202d1cc3_panel4t), RelChecked build green; WILL_FAIL/knownRed sets and reasons identical to main.  No energy moved beyond
+roundoff (largest 2.9e-7 on Slater Z92 HF, a heavy-atom roundoff already seen).  Short-tier summed iterations 6701 → 4264
+(124 tests better, 15 worse, worst U/A_PG_DFT Ne 26 → 33).  Solids: only Linear-beside-DIIS runs change (GPW_Al anneal 15 → 9 in
+its first stage; PW_NaF/PW_Si atom seeds); Kerker/Pulay solid SCFs are untouched (the MnO₂ panel's −44 each is its Mn pseudo-atom
+seeds).  Restarts: the NaF eqExactResume/eqColdStart pair and every SolidState ExactResume case unchanged; GPW_Si U Ladder LR total
+85 → 43, but its two restart SCFs 10 → 13 and 7 → 12 — their path is identical, they start from the cold run's looser endpoint
+(cold 68 → 18 iterations, first iterate [F,D] 2–4× larger), U_SC identical.  SCFTrace molecular golden re-banked 20 → 16.
 
 ## ✅ Li GTH-PADE-q3: 0.64 mHa below CP2K QS on the same basis -- the FUNCTIONAL (lane H, 2026-11-11)
 
