@@ -226,6 +226,11 @@ public:
 namespace
 {
 SCFParams Tight() {SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-9; return p;}
+//! The gate for a claim that holds at ANY density: a term's analytic force against the finite difference of its energy with D frozen, or an
+//! identity among forces at one D.  Such a claim cannot depend on how well the SCF converged, so it takes the DEFAULT gate (MinΔρ/N 1e-4)
+//! instead of Tight's 1e-9 (lane A, 2026-11-12).  A claim about the RECONVERGED energy or the converged state keeps Tight: at the default
+//! gate the force error is ~1e-6 Ha/bohr (H2O2, the lane A gate table), the size of those tests' 2e-6 tolerance.
+SCFParams AnyD() {return SCFParams{};}
 double Entry(const std::vector<Hamiltonian::TermEnergy>& es, const std::string& name)
 {
     double e=0.0; bool found=false;
@@ -253,7 +258,7 @@ TEST(ForceFacade, ATermsEnergyAtFixedDMovesAsItsAnalyticGradientSays)
     // Σ D dV/dR and Σ D dK/dR from libcint.  The finite difference sees the basis centres AND (for Ven) the nuclei move.
     const Molecule h2o=GetMolecule("H2O");
     const auto setup=MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA});
-    MoleculeCalculation c(setup, Tight());
+    MoleculeCalculation c(setup, AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
     // The kinetic TERM's energy is ½ Tr(D <-∇²>) (the project's convention: the matrices carry <-∇²>, the ½ is the Hamiltonian's), so its
@@ -324,7 +329,7 @@ TEST(ADSpike, ItsADForceIsThePerTermFiniteDifferenceAndSumsToZero)
 {
     const Molecule h2o=GetMolecule("H2O");
     const auto setup=MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA});
-    MoleculeCalculation c(setup, Tight());
+    MoleculeCalculation c(setup, AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
     const AD::XCKernelData d=ForceFacadeTests::XCData(c, D);
@@ -424,7 +429,7 @@ TEST(HamiltonianForces, AtFixedDTheTermsForceIsThePerTermFiniteDifference)
 {
     const Molecule h2o=GetMolecule("H2O");
     const auto setup=MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::E1});
-    MoleculeCalculation c(setup, Tight());
+    MoleculeCalculation c(setup, AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
     const rvec3vec_t F=ForceFacadeTests::Forces(c, D, ForceFacadeTests::Zero(D));   // W = 0: the terms' sum alone
@@ -939,7 +944,7 @@ TEST(HamiltonianForces, ThePerTermForcesSumToTheForceWithoutItsPulayTerm)
 {
     // E1 water: every term has its force, so Σ_t F_t is Forces at W = 0, term order is MakeTermEnergies', and nothing is missing.
     const Molecule h2o=GetMolecule("H2O");
-    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::E1}), Tight());
+    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::E1}), AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
     const auto Ft=ForceFacadeTests::TermForcesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
@@ -1008,7 +1013,7 @@ TEST(HamiltonianForces, UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysF
     // frozen (the Dunlap fit re-solved at each point under the FIXED N, so no λ piece: 2026-11-09).  The XC term has no force yet, and is
     // the only term missing one.  Each is smooth in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6.
     const Molecule h2o=GetMolecule("H2O");
-    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}), Tight());
+    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}), AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
     const auto Ft=ForceFacadeTests::TermForcesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
@@ -1050,7 +1055,7 @@ TEST(HamiltonianForces, TheDunlapHartreesForceAtFixedDIsItsEnergysFiniteDifferen
     // the gate this term could not have while the target was Tr(DS), which moved with the basis (2e-4 relative on water then).  Smooth
     // in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6 (relative above 1).
     const Molecule h2o=GetMolecule("H2O");
-    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA}), Tight());
+    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA}), AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
     const auto Ft=ForceFacadeTests::TermForcesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
@@ -1089,7 +1094,7 @@ TEST(HamiltonianForces, TheHFCoulombAndExchangeForcesAtFixedDAreTheirEnergysFini
     const Molecule h2o=GetMolecule("H2O");
     for (SpinGroup spin : {SpinGroup::UnPolarized, SpinGroup::Polarized})
     {
-        MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::HF, .spin=spin}), Tight());
+        MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::HF, .spin=spin}), AnyD());
         ASSERT_TRUE(c.IsConverged());
         EXPECT_TRUE(ForceFacadeTests::MissingGradients(c).empty()) << "every HF term has its force";
         const auto D=ForceFacadeTests::Carry(c);
