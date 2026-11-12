@@ -477,5 +477,12 @@ Performance rows moved from §2 (2026-10-29, C0):
   (same process, same load; bound was ~2.9× on lookups + contraction work, the per-element loop overhead went too); the LDA single point
   (Gaussian Coulomb fit, gth-lda-valence) 3.90e10 → 3.61e10 instructions (×1.08; the 3C build was ~25 % of its CYCLES, memory-bound
   lookups, so instructions understate it: CPU 9.3 s → 5.2 s across differing load), E = −33.052168752243 before and after.  Re-time on
-  a quiet box before quoting absolute seconds.  NOT built: (a) across-l setup sharing (bound ≤ 1.5×).  NEXT (this row): the RNLM / λ cache
-  lookup itself (46 % of DZVP's ERI4 cycles; not re-measured after the groups) · `GaussianRF::Repulsion4CGroupBlock`
+  a quiet box before quoting absolute seconds.  NOT built: (a) across-l setup sharing (bound ≤ 1.5×).  **The RNLM cache lookup BUILT
+  2026-11-11 (lane H):** measured COLD (ten fresh geometries, as a relaxation meets them; a warm repeat hides it 10×), 99.4 % of the
+  `PG.RNLM` lookups on a DZVP H₂O₂ J+K missed -- the unique-quartet kernel meets each primitive quartet once -- and `findRNLM` was 40 % of
+  the instructions (16 points the build, the rest map descent, malloc and insert), while the cache kept all 3.9 M entries.  The group
+  kernel now rebuilds one scratch RNLM per quartet (`RNLM::Build`, `BuildRNLM`), and `Repulsion4CTab` walks the triangle by hoisted
+  offsets (`Triangle3D::Layer/Row`, ~5 % of it).  Bit-identical (`M_ERI4Blocks`, new `M_BoysTable.ARebuiltScratchRNLMIsAFreshOne`).
+  Back to back at load ~4.5: instructions 4.14e10 → 3.07e10 (1.35×), CPU 4.93 → 2.85 s (1.73×), peak RSS 961 → 157 MB.  Still on
+  `findRNLM`: the 3C kernels and the per-element references (measure the 3C hit rate before moving them).  The cold J+K is now the
+  contraction (`Repulsion4CTab`, ~41 %), the RNLM build (~15 %) and `findΩ`'s map (~3 %) · `GaussianRF::Repulsion4CGroupBlock`
