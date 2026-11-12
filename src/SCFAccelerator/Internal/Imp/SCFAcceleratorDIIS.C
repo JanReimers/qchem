@@ -5,6 +5,10 @@ module;
 #include <iomanip>
 #include <algorithm> // std::max (the relative-conditioning scale)
 #include <complex>   // std::real
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.Blaze;
@@ -158,19 +162,30 @@ rsmat_t SCFAcceleratorDIIS::BuildPrunedB(double svmin)
 }
 size_t SCFAcceleratorDIIS::Purge1()
 {
-
     for (auto k:itsIrreps) k->Purge1();
+    itsStamps.pop_front();
     return GetNProj();
 }
 size_t SCFAcceleratorDIIS::Append1()
 {
-
     for (auto k:itsIrreps) k->Append1();
+    itsStamps.push_back(itsCalls);
     return GetNProj();
+}
+std::vector<std::pair<size_t,double>> SCFAcceleratorDIIS::ExtrapolationWeights() const
+{
+    if (!HasProjection()) return {};
+    if (itsCs.size()!=itsStamps.size())
+        throw std::logic_error("SCFAcceleratorDIIS::ExtrapolationWeights: "+std::to_string(itsCs.size())+" coefficients for "
+                               +std::to_string(itsStamps.size())+" history entries");
+    std::vector<std::pair<size_t,double>> w;
+    for (size_t i=0;i<itsCs.size();i++) w.emplace_back(itsCalls-itsStamps[i], itsCs[i]);
+    return w;
 }
 
 bool SCFAcceleratorDIIS::CalculateProjections()
 {
+    ++itsCalls;
     blazem::clear(itsCs);
     itsEn=0.0;
     bailoutReason="            ";

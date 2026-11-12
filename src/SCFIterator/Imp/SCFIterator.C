@@ -211,6 +211,7 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
             std::unique_ptr<H::rHamiltonian> dftSibling=[&]{ qchem::report::Scope here("seedHamiltonian");
                 return std::unique_ptr<H::rHamiltonian>(H::Factory(pol, stView, 2.0/3.0, *itsSeedMesh, bs)); }();   // Dirac exchange (alpha=2/3)
             SetWorkingCD(cd_t(itsWaveFunction->Init(*dftSibling, seed, *itsOccPolicy, 0.0001)));  // D0: a real (matrix-backed) density
+            RecordFockInput(nullptr);   // the sibling's Fock: not this run's F, so no D_in of this run
             assert(itsCD);
             // The sibling filled ITS orbitals under the default (integer) rule; a stated Shared rule refills them at the first
             // Iterate, like any fresh seed, so an HF run that states Shared starts from a symmetric D0 (OpenWork §3, lane A 2026-11-09).
@@ -224,6 +225,11 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     // now, where it used to be an accident of SetSmearing arriving only at Iterate (the D11 charge loss).
     SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, *itsOccPolicy, 0.0001))); //first real (matrix-backed) density
     assert(itsCD);
+    // The seed's Fock is in the accelerator's history (once [F,D] is below its engage gate: a carried state, a good seed), so its input
+    // is too.  A matrix-backed seed is KEPT for that (shared, so a carried one is the same object as itsCarried below).
+    std::shared_ptr<tDM_CD<T>> seedDM;
+    if (auto* dm=dynamic_cast<tDM_CD<T>*>(seed)) { seedOwner.release(); seedDM.reset(dm); }
+    RecordFockInput(seedDM);
     itsFreshSeedFill = role!=SeedRole::WorkingDensity && role!=SeedRole::ExactResume;   // see itsFreshSeedFill
     // A CARRIED seed -- a restored state (Restart), an anneal / +-alpha / U-loop stage; the CALLER says so (SeedRole).  The
     // fill above runs on the policy's DEFAULT (integer aufbau, kT = 0, no MOM: this run's own policy is only set in Iterate),
@@ -236,13 +242,57 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     // lost that first step and limit-cycled once the linear mixer grew relax 0.2 -> 1.0.)
     if (role==SeedRole::WorkingDensity || role==SeedRole::ExactResume)
     {
-        auto* carried=dynamic_cast<tDM_CD<T>*>(seed);
-        if (!carried) throw std::logic_error("SCFIterator: a WorkingDensity seed must be matrix-backed (a converged state of this graph)");
-        seedOwner.release();
-        itsCarried.reset(carried);
+        if (!seedDM) throw std::logic_error("SCFIterator: a WorkingDensity seed must be matrix-backed (a converged state of this graph)");
+        itsCarried=seedDM;
         itsCarriedIsWorking = role==SeedRole::ExactResume;
     }
 }
+// The history behind ExtrapolatedInput (see itsFockInputs).  Bounded: no DIIS depth is near it, and ExtrapolatedInput trims it to the
+// oldest Fock still weighted, so the densities it keeps alive are the ones the accelerator itself still holds.
+template <class T> void tSCFIterator<T>::RecordFockInput(std::shared_ptr<const qchem::ChargeDensity::tMixableDensity<T>> in)
+{
+    constexpr size_t kMaxFockInputs=32;
+    itsFockInputs.push_back(std::move(in));
+    while (itsFockInputs.size()>kMaxFockInputs) itsFockInputs.pop_front();
+}
+template <class T> void tSCFIterator<T>::RecordNextFockInput()
+{
+    const tChargeDensity<T>* fock=itsMixer->FockDensity(*itsCD);
+    if (fock==static_cast<const tChargeDensity<T>*>(itsCD.get())) return RecordFockInput(itsCD);
+    if (!itsAdaptive) return RecordFockInput(nullptr);   // a field mixer never takes an extrapolated step: no copy to pay for
+    const auto* dm=dynamic_cast<const qchem::ChargeDensity::tMixableDensity<T>*>(fock);
+    RecordFockInput(dm ? std::shared_ptr<const qchem::ChargeDensity::tMixableDensity<T>>(dm->MakeCopy()) : nullptr);
+}
+template <class T> std::unique_ptr<qchem::ChargeDensity::tMixableDensity<T>>
+    tSCFIterator<T>::ExtrapolatedInput(const std::vector<std::pair<size_t,double>>& weights, std::string& why)
+{
+    if (weights.empty())
+        throw std::logic_error("tSCFIterator::ExtrapolatedInput: the accelerator extrapolated but published no weights");
+    size_t oldest=0;
+    for (const auto& w : weights) oldest=std::max(oldest, w.first);
+    if (oldest>=itsFockInputs.size())
+    {
+        why="the accelerator weights a Fock "+std::to_string(oldest)+" builds back, before this run's "+std::to_string(itsFockInputs.size())
+           +" (an accelerator shared with an earlier stage, or a history deeper than kept)";
+        return nullptr;
+    }
+    while (itsFockInputs.size()>oldest+1) itsFockInputs.pop_front();   // the accelerator only ever drops its oldest
+    std::unique_ptr<qchem::ChargeDensity::tMixableDensity<T>> base;
+    for (const auto& [ago, c] : weights)
+    {
+        const auto& Dk=itsFockInputs[itsFockInputs.size()-1-ago];
+        if (!Dk)
+        {
+            why="the accelerator weights a Fock "+std::to_string(ago)+" builds back whose input is no density matrix of this run "
+                "(a matrix-free or core-guess seed, or the HF bootstrap's LDA sibling)";
+            return nullptr;
+        }
+        if (!base) { base=Dk->MakeCopy(); base->ReScale(c); }
+        else       base->Axpy(c, *Dk);
+    }
+    return base;
+}
+
 // R2.22: there is nothing left to free by hand.  The Hamiltonian and the accelerator are the CALLER's
 // (this class never made them, so it never deletes them -- the composition root owns both and outlives
 // this); the wave function is a unique_ptr because the ctor's init list DID make it; the densities are
@@ -404,7 +454,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     if (itsCarried)
     {
         if (ipar.SmearingkT>0.0 || ipar.UseMOM)
+        {
             SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, itsCarried.get(), *itsOccPolicy, 0.0001)));
+            RecordFockInput(itsCarried);
+        }
         if (itsCarriedIsWorking) SetWorkingCD(itsCarried);   // EXACT RESUME: the saved state itself drives the first Fock
         itsCarried.reset();
         itsCarriedIsWorking=false;
@@ -445,7 +498,8 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     bool exhaustedStop=false;       // the opt-in ladder-exhaustion stage end (a deliberate early stop, not a cap)
     itsUnphysicalStop.clear();      // set when iteration 1's energy is physically impossible (UnphysicalStop)
     OccupiedConfiguration prevConfig;   // previous occupied configuration (the cfg '*' change flag; item 2)
-    bool extrapolatedSaid=false;        // the one-time hand-off line when DIIS extrapolation takes over the D mixer's step
+    bool extrapolatedSaid=false;
+    bool baseFallbackSaid=false;        // ... and the one when the extrapolated input cannot be formed (ExtrapolatedInput)        // the one-time hand-off line when DIIS extrapolation takes over the D mixer's step
     for (itsIterationCount=1;
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
         itsIterationCount++)
@@ -496,11 +550,18 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
             {
                 std::ostringstream why;
                 why<<"the Fock accelerator extrapolates: the D mixer's step "<<itsMixer->GetRelax()
-                   <<" makes no downward move (no late cap, no retraction); it may grow toward the ceiling "<<ipar.MaxRelaxRo;
+                   <<" makes no downward move (no late cap, no retraction), damped from the extrapolated input; it may grow toward the ceiling "<<ipar.MaxRelaxRo;
                 HandOff({std::string(itsMixer->Tag())+" adaptive step", std::string(itsAccelerator->Tag())+" extrapolation", why.str()}, false);
             }
             extrapolatedSaid=true;
-            return itsAdaptive->ExtrapolatedStep(working, old);
+            std::string why;
+            const auto base=ExtrapolatedInput(itsAccelerator->ExtrapolationWeights(), why);
+            if (!base && !baseFallbackSaid)
+            {
+                HandOff({"damping from the extrapolated input", "damping from this step's input", why}, false);
+                baseFallbackSaid=true;
+            }
+            return itsAdaptive->ExtrapolatedStep(working, old, base.get());
         };
         // Direct-min (GDM/OT) OWNS the density update via its geodesic line search, so it must DISABLE the
         // density mixer entirely -- both the per-step Mix() (already: DirectMinDriver never calls it) AND the
@@ -513,6 +574,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         const tLoopDriver<T>& driver = lineSearch
                                      ? static_cast<const tLoopDriver<T>&>(itsDirectDriver)
                                      : static_cast<const tLoopDriver<T>&>(itsFixedDriver);
+        // The fixed-point step builds ONE Fock, from the mixer's presentation of itsCD (itsCD itself for a D mixer); the direct-min
+        // driver records its own (only its mixed fallback feeds the accelerator).
+        if (!lineSearch)
+            RecordNextFockInput();
         ChargeDensityChange = driver.Step(lc);
         // R1.3: the deciders that cannot act (the accelerator cannot see the mixer) REPORT; the iterator, which owns both, prints.
         if (auto h=itsAccelerator->TakeHandOff()) HandOff(*h, false);
@@ -789,6 +854,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         // running field is still its LAST mix's -- at a restart the restored state -- and a Fock driven from it jumped the run
         // back there (NaF SR2 Γ, GDM from a loose state: +2.6 mHa at [F,D] 3e-7, three times in 60 iterations, silently).
         HandOff({"GDM", "one MIXED fixed-point step from the current D", why}, /*reseat*/true);
+        RecordNextFockInput();
         itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(*itsCD));
         itsWaveFunction->FillOrbitals(*itsOccPolicy, mergeTol);
         cd_t fresh(itsWaveFunction->GetChargeDensity());
