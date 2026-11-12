@@ -38,6 +38,7 @@ import qchem.Symmetry.Lattice_3D.SpaceGroup;    // SpaceGroup::Detect
 import qchem.Reporting;                          // report::GlobalReport (the run record the library keeps)
 import qchem.CrystalFiles;                       // CIF / POSCAR / extended xyz <-> one materials.json entry
 import qchem.StructureData;                      // the materials layers (shipped, user, workspace) and CellFromEntry
+import qchem.Pseudopotential.Set;                // PseudopotentialSet: the q each element resolves to (the one reader of the choice)
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import;   // a downloaded basis -> the BasisSetData layout
 
 // The opaque handle: the facade plus the request's geometry (for the sampling box).  extern "C++" attaches it to the
@@ -697,6 +698,26 @@ extern "C" int qcb_materials(const char* req, char* out, int outlen)
     if (!out)
     {
         try { answer=MaterialsAnswer(req ? req : "").dump(); }
+        catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
+        return int(answer.size());
+    }
+    write_error(answer.c_str(), out, outlen);
+    return int(answer.size());
+}
+
+extern "C" int qcb_pseudopotentials(const char* req, char* out, int outlen)
+{
+    static thread_local std::string answer;
+    if (!out)
+    {
+        try
+        {
+            const auto r=nlohmann::json::parse(req ? req : "");
+            const auto set=qchem::Pseudopotential::PseudopotentialSet::Get(r.at("set").get<std::string>());
+            nlohmann::ordered_json valence=nlohmann::ordered_json::object();
+            for (const auto& [el, q] : set.Species(r.at("elements").get<std::vector<std::string>>())) valence[el]=q;
+            answer=nlohmann::ordered_json{{"set", set.Name()}, {"functional", set.Functional()}, {"valence", valence}}.dump();
+        }
         catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
         return int(answer.size());
     }
