@@ -309,13 +309,13 @@ TEST(SolidSetup, AStatedXCRhoFitOnTheGPWBallIsRefusedByName)
 // core guess with a WARN row, where until 2026-11-12 it threw at seed time (Al has no library entry).  A stated seed is honoured as stated.
 namespace
 {
-std::vector<report::json> AutoSeedRows(const std::string& material, ChargeDensity::SeedStrategy seed, const std::string& tag,
-                                       ChargeDensity::SeedStrategy& resolved)
+std::vector<report::json> AutoSeedRows(const std::string& material, BasisSetData data, ChargeDensity::SeedStrategy seed,
+                                       const std::string& tag, ChargeDensity::SeedStrategy& resolved)
 {
     const auto mat=Materials::Get(material);
     SolidCalcOptions o; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.seed=seed;
     { report::Run run(tag);
-      resolved=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_SR}, o)->opts.seed; }
+      resolved=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=data}, o)->opts.seed; }
     const auto& G=report::GlobalReport();
     const report::json* filed=nullptr;
     for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(tag+"@",0)==0) filed=&it.value();
@@ -341,18 +341,18 @@ TEST(SolidSetup, TheAutoSeedIsIonicOnACoveredLatticeAndTheCoreGuessWithAWarnOnAn
 {
     using ChargeDensity::SeedStrategy;
     SeedStrategy s=SeedStrategy::Default;
-    const auto si=AutoSeedRows("Si_diamond", SeedStrategy::Default, "Si auto seed", s);
+    const auto si=AutoSeedRows("Si_diamond", BasisSetData::DZVP, SeedStrategy::Default, "Si auto seed", s);
     EXPECT_EQ(s, SeedStrategy::IonicSAD) << "a covered lattice";
     ASSERT_EQ(si.size(), 1u);
     EXPECT_EQ(si[0].value("verdict",""), "choose");
     EXPECT_NE(si[0].value("reason","").find("Madelung"), std::string::npos) << si[0].dump();
 
-    const auto al=AutoSeedRows("Al_fcc", SeedStrategy::Default, "Al auto seed", s);
+    const auto al=AutoSeedRows("Al_fcc", BasisSetData::VALENCE_LOWQ_SR, SeedStrategy::Default, "Al auto seed", s);
     EXPECT_EQ(s, SeedStrategy::CoreGuess) << "Al has no valence-library entry: the core guess, not a throw";
     ASSERT_EQ(al.size(), 1u);
     EXPECT_EQ(al[0].value("verdict",""), "warn");
     EXPECT_NE(al[0].value("decided","").find("Al"), std::string::npos) << "the warning names the missing species: " << al[0].dump();
 
-    EXPECT_TRUE(AutoSeedRows("Al_fcc", SeedStrategy::Uniform, "Al stated seed", s).empty()) << "a stated seed files no Auto row";
+    EXPECT_TRUE(AutoSeedRows("Al_fcc", BasisSetData::VALENCE_LOWQ_SR, SeedStrategy::Uniform, "Al stated seed", s).empty()) << "a stated seed files no Auto row";
     EXPECT_EQ(s, SeedStrategy::Uniform);
 }
