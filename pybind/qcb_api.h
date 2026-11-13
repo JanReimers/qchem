@@ -82,6 +82,10 @@ typedef struct qcb_request
                                   //!< what a molecule cannot mix (Kerker needs G space)
     double        smearingkT;     //!< Fermi-Dirac smearing kT, Ha (SCFParams::SmearingkT), 0 = off
     const char*   basisFile;      //!< a .bsd path used instead of the shipped file `basis` names (CalcOptions::basisFile); null/"" = none
+    //! THE STRUCTURE-NEUTRAL options, by the deck's names (a crystal's deck states them as solid.seed / basis.angular):
+    const char*   seed;           //!< SeedStrategy: "Default" (the Auto rule, qchem.SeedPolicy) | "CoreGuess" | "Uniform" | "SAD" | "IonicSAD";
+                                  //!< null/"" = Default
+    const char*   angular;        //!< BasisSet::Gaussian::Angular: "cartesian" | "spherical"; null/"" = cartesian
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).

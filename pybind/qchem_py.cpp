@@ -118,14 +118,15 @@ public:
                int diisDepth, double diisSVTol, double diisEngageFD, bool mom, int momStart, double relaxMin,
                double ladderSwitchAt, double gateFD, double gateDrho, double gateDE, double gateDFD,
                const std::string& mixer, double smearingkT, const std::string& restartFrom, bool buildOnly,
-               const std::string& basisFile, nb::object onIteration)
+               const std::string& basisFile, const std::string& seed, const std::string& angular, nb::object onIteration)
     {
         if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
         const qcb_request req{Z.data(), int(Z.size()), pos.data(), basis.c_str(), model.c_str(), pp.c_str(),
                               accelerator.c_str(), symmetry ? 1 : 0, polarized ? 1 : 0, multiplicity, maxIter,
                               meshRadial, meshAngular, relaxStart, relaxMax, diisDepth, diisSVTol, diisEngageFD,
                               mom ? 1 : 0, momStart, relaxMin, ladderSwitchAt,
-                              gateFD, gateDrho, gateDE, gateDFD, mixer.c_str(), smearingkT, basisFile.c_str()};
+                              gateFD, gateDrho, gateDE, gateDFD, mixer.c_str(), smearingkT, basisFile.c_str(),
+                              seed.c_str(), angular.c_str()};
         qcb_sink sink{onIteration, std::nullopt};
         const bool stream = !onIteration.is_none();
         char err[errlen] = {0};
@@ -357,7 +358,8 @@ NB_MODULE(qchem_py, mod)
         .def(nb::init<const std::vector<int>&, const std::vector<double>&, const std::string&, const std::string&,
                       bool, bool, int, int, const std::string&, const std::string&, int, int, double, double,
                       int, double, double, bool, int, double, double, double, double, double, double,
-                      const std::string&, double, const std::string&, bool, const std::string&, nb::object>(),
+                      const std::string&, double, const std::string&, bool, const std::string&, const std::string&,
+                      const std::string&, nb::object>(),
              nb::arg("numbers"), nb::arg("positions"), nb::arg("basis") = "dzvp", nb::arg("model") = "HF",
              nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("max_iter") = 100,
              nb::arg("pp") = "", nb::arg("accelerator") = "DIIS", nb::arg("mesh_radial") = 0, nb::arg("mesh_angular") = 0,
@@ -366,6 +368,7 @@ NB_MODULE(qchem_py, mod)
              nb::arg("relax_min") = 0.0, nb::arg("ladder_switch_at") = -1.0,
              nb::arg("gate_fd") = -1.0, nb::arg("gate_drho") = -1.0, nb::arg("gate_de") = -1.0, nb::arg("gate_dfd") = -1.0,
              nb::arg("mixer") = "Auto", nb::arg("smearing_kT") = 0.0, nb::arg("restart_from") = "", nb::arg("build_only") = false, nb::arg("basis_file") = "",
+             nb::arg("seed") = "", nb::arg("angular") = "",
              nb::arg("on_iteration") = nb::none(),
              "MoleculeSetup::Resolve + converge.  Atomic numbers + flat 3N bohr positions.  on_iteration(iter, E, cells), "
              "if given, streams the SCF live (the GIL is released during the solve); cells = [(title, value, text, "
@@ -380,7 +383,9 @@ NB_MODULE(qchem_py, mod)
              "restart_from: a saved state (save_state's file) to start from (MoleculeCalculation::Restart): an exact resume or a "
              "warm start (restarted_from() says which); a state the facade refuses raises RestartRefused.  build_only: BUILD the whole graph (basis, every mesh, the SCF "
              "iterator) and stop before iteration 1, filed as the report run '<ID> build'; run_scf then converges on that graph.  basis_file: a .bsd path used instead of the "
-             "shipped file `basis` names (CalcOptions::basisFile; `basis` is then its label).")
+             "shipped file `basis` names (CalcOptions::basisFile; `basis` is then its label).  seed / angular: the STRUCTURE-NEUTRAL "
+             "options by the deck's names (a crystal's deck: solid.seed, basis.angular): seed Default (the Auto rule) | CoreGuess | Uniform | "
+             "SAD | IonicSAD, angular cartesian | spherical ('' = Default / cartesian); the facade refuses a combination it cannot build.")
         .def("run_scf", &Calculator::RunSCF, nb::arg("on_iteration"), nb::arg("max_iter") = 100,
              "Run the SCF (after build_only: on the built graph; else again from the seed), streaming each iteration; returns converged.")
         .def("save_state", &Calculator::SaveState, nb::arg("path"),

@@ -31,6 +31,8 @@ import qchem.Structure;      // Molecule, Site
 import qchem.SCFParams;      // SCFParams
 import qchem.Parallel;       // ScopedWorkerThreads: a run's thread counts (a deck's `threads`, the Python Threads scope)
 import qchem.SCFIterator;    // IterationRow, IterationCell
+import qchem.ChargeDensity.Seed;                 // SeedStrategy (the molecule door's seed, by the deck's names)
+import qchem.BasisSet.Gaussian.Point.Factory;    // BasisSet::Gaussian::Angular (its angular form)
 import qchem.Calculation;    // Calculation::MakeLevels (the structure-neutral levels, either door)
 import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, CalcOptions, AcceleratorOptions
 import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
@@ -101,6 +103,28 @@ qchem::Model parse_model(const std::string& m)
     if (m == "LDA")    return Model::LDA;
     if (m == "Xalpha") return Model::Xalpha;
     throw std::invalid_argument("qchem_py: unknown model '" + m + "' (HF | LDA | Xalpha)");
+}
+
+//! The deck's names for the structure-neutral options (Deck.C kSeed / kAngularForm), so one name means one thing on either door.
+qchem::ChargeDensity::SeedStrategy parse_seed(const char* s)
+{
+    using S = qchem::ChargeDensity::SeedStrategy;
+    const std::string n = s ? s : "";
+    if (n.empty() || n == "Default") return S::Default;
+    if (n == "CoreGuess") return S::CoreGuess;
+    if (n == "Uniform")   return S::Uniform;
+    if (n == "SAD")       return S::SAD;
+    if (n == "IonicSAD")  return S::IonicSAD;
+    throw std::invalid_argument("qchem_py: unknown seed '" + n + "' (Default | CoreGuess | Uniform | SAD | IonicSAD)");
+}
+
+qchem::BasisSet::Gaussian::Angular parse_angular(const char* a)
+{
+    using A = qchem::BasisSet::Gaussian::Angular;
+    const std::string n = a ? a : "";
+    if (n.empty() || n == "cartesian") return A::Cartesian;
+    if (n == "spherical") return A::Spherical;
+    throw std::invalid_argument("qchem_py: unknown angular form '" + n + "' (cartesian | spherical)");
 }
 
 qchem::SCFParams scf_params(const qcb_request& req)
@@ -215,6 +239,8 @@ MoleculeRequest molecule_request(const qcb_request* req)
     r.opts.model        = parse_model(req->model);
     r.opts.pp           = req->pp ? req->pp : "";
     r.opts.basisFile    = req->basisFile ? req->basisFile : "";
+    r.opts.seed         = parse_seed(req->seed);
+    r.opts.angular      = parse_angular(req->angular);
     r.opts.symmetry     = req->symmetry != 0;
     r.opts.spin         = req->polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;
     r.opts.multiplicity = req->multiplicity;
