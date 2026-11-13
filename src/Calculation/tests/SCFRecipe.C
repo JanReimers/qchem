@@ -72,6 +72,16 @@ Choice NewPolicy(SCFRecipe r, T asked, SCFStageKind k, double kT, int numBands, 
     return c;
 }
 
+//! The pre-B5 policy plus the ONE change landed after it on purpose (OpenWork NEAR-TERM, 2026-11-12): a restored Auto stage that
+//! resolves linear caps its CEILING at 0.3 too, not only its start.
+Choice OldPolicyWithRestoredCeiling(T asked, bool restored, double kT, int numBands, const SCFParams& params, bool gSpace)
+{
+    Choice c=OldPolicy(asked, restored, kT, numBands, params, gSpace);
+    if (restored && asked==T::Auto && !c.threw && c.resolved.Mixer==M::Linear)
+        c.resolved.MaxRelaxRo=std::min(c.resolved.MaxRelaxRo, 0.3);
+    return c;
+}
+
 void ExpectSame(const Choice& a, const Choice& b, const std::string& where)
 {
     EXPECT_EQ(a.accel,   b.accel)   << where;
@@ -121,7 +131,7 @@ TEST(SCFRecipe, AutoAndInsulatorAreTheOldPolicyInEveryCell)
         const std::string where=std::string(NameOf(r))+" asked "+Name(asked)+" "+NameOf(k)+" kT "+std::to_string(kT)
                                +" numBands "+std::to_string(numBands)+(gSpace ? " gSpace " : " D-space ")+vname;
         ExpectSame(NewPolicy(r, asked, k, kT, numBands, p, gSpace),
-                   OldPolicy(asked, k==SCFStageKind::Restored, kT, numBands, p, gSpace), where);
+                   OldPolicyWithRestoredCeiling(asked, k==SCFStageKind::Restored, kT, numBands, p, gSpace), where);
         ++cells;
     }
     EXPECT_GT(cells, 0);
@@ -152,6 +162,7 @@ TEST(SCFRecipe, NamedRegimesResolveTheirSection3Cells)
         ASSERT_FALSE(c.threw);
         EXPECT_EQ(c.resolved.Mixer, M::Linear);
         EXPECT_EQ(c.resolved.StartingRelaxRo, 0.3);
+        EXPECT_EQ(c.resolved.MaxRelaxRo,      0.3);   // the CEILING too: "not 1.0!"
     }
 }
 
