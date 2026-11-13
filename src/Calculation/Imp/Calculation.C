@@ -5,6 +5,7 @@ module;
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 module qchem.Calculation;
@@ -52,6 +53,32 @@ void Calculation::ReportResult(const std::string& label, bool converged, size_t 
     }
     std::cout.flags(flags);
     std::cout.precision(prec);
+}
+
+//====================================================================================================
+//  THE LEVELS: one walk over the state blocks, for every kind
+//====================================================================================================
+std::vector<Calculation::LevelOrbital> Calculation::WalkLevels() const
+{
+    std::vector<LevelOrbital> out;
+    for (const StateBlock& b : StateBlocks(true))
+    {
+        if (!b.orbitals) throw std::logic_error("Calculation::WalkLevels: a state block has no orbitals");
+        rvec3_t k(0,0,0);
+        if (auto it=b.extras.find("k"); it!=b.extras.end() && it->second.size()==3) k=rvec3_t(it->second[0], it->second[1], it->second[2]);
+        for (const auto* o : b.orbitals->Iterate())
+            out.push_back({{.e=o->GetEigenEnergy(), .occupation=o->GetOccupation(), .spin=b.irrep.ms, .k=k, .weight=b.weight,
+                            .label=o->GetLabel()}, o});
+    }
+    std::stable_sort(out.begin(), out.end(), [](const LevelOrbital& a, const LevelOrbital& b){ return a.level.e < b.level.e; });
+    return out;
+}
+
+std::vector<Calculation::Level> Calculation::MakeLevels() const
+{
+    std::vector<Level> out;
+    for (auto& l : WalkLevels()) out.push_back(std::move(l.level));
+    return out;
 }
 
 //====================================================================================================

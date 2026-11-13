@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
+import qchem.Calculation;   // Calculation::MakeLevels (the levels cell)
 import qchem.MoleculeCalculation;
 import qchem.AtomCalculation;
 import qchem.SolidCalculation;
@@ -52,7 +53,8 @@ enum class Capability
     ConvergeFilesTheScfHeader,  //!< a converge's run report holds scf.standard (the "what recipe am I running" header)
     AcceleratorKnobsArrive,     //!< every accelerator knob (the Ladder's switchAt included) reaches the accelerator built
     SaveRestartRoundTrips,      //!< a saved state restarts as an EXACT resume (the saved energy, in <= 3 iterations)
-    DeckRoundTrips              //!< a deck naming the structure builds the run, and its json reloads to the same deck
+    DeckRoundTrips,             //!< a deck naming the structure builds the run, and its json reloads to the same deck
+    LevelsAnswerTheState        //!< the structure-neutral levels (Calculation::MakeLevels): ascending, Σ weight·f = N, at the k they belong to
 };
 
 //! THE EXPECTED FAILURES: the row whose work will make the cell hold; nullptr = the cell must hold now.
@@ -67,6 +69,7 @@ const char* ExpectedFailure(Kind k, Capability c)
         case Capability::AcceleratorKnobsArrive:    return nullptr;
         case Capability::SaveRestartRoundTrips:     return nullptr;   // V-FACADE-STATE landed for the atom and the molecule, 2026-11-09
         case Capability::DeckRoundTrips:            return k==Kind::Solid ? nullptr : "V-FACADE-OPTS";
+        case Capability::LevelsAnswerTheState:      return nullptr;
     }
     return nullptr;
 }
@@ -192,6 +195,7 @@ public:
     virtual std::string AcceleratorKnobsArrive()    = 0;
     virtual std::string SaveRestartRoundTrips()     = 0;
     virtual std::string DeckRoundTrips()            = 0;
+    virtual std::string LevelsAnswerTheState()      = 0;
 
     std::string Check(Capability c)
     {
@@ -202,6 +206,7 @@ public:
             case Capability::AcceleratorKnobsArrive:    return AcceleratorKnobsArrive();
             case Capability::SaveRestartRoundTrips:     return SaveRestartRoundTrips();
             case Capability::DeckRoundTrips:            return DeckRoundTrips();
+            case Capability::LevelsAnswerTheState:      return LevelsAnswerTheState();
         }
         return "unknown capability";
     }
@@ -216,6 +221,26 @@ std::string Resumed(bool converged, double E, double Esaved, size_t iters, size_
     else if (!how->exact) { why << "a WARM start, not an exact resume:"; for (const auto& w : how->warm) why << " [" << w << "]"; why << "; "; }
     if (std::fabs(E-Esaved)>1e-8) why << "resumed at " << std::setprecision(12) << E << ", saved " << Esaved << "; ";
     if (iters>3) why << "the resume took " << iters << " iterations (the reference " << itersSaved << ")";
+    return why.str();
+}
+
+//! The levels' claim, for every kind: a non-empty list, ascending in e, holding the run's \a N electrons (Σ weight·f, to 1e-8), every
+//! level at a k the run has (\a gamma: all of them at Γ), and no level holding negative charge.
+std::string LevelsHold(const Calculation& c, double N, bool gamma)
+{
+    const auto levels=c.MakeLevels();
+    std::ostringstream why;
+    if (levels.empty()) return "no levels";
+    double sum=0.0;
+    for (size_t i=0;i<levels.size();i++)
+    {
+        const auto& L=levels[i];
+        if (i>0 && L.e<levels[i-1].e) why << "level " << i << " is below level " << i-1 << "; ";
+        if (L.occupation<-1e-12) why << "level " << i << " holds " << L.occupation << " electrons; ";
+        if (gamma && (L.k.x!=0.0 || L.k.y!=0.0 || L.k.z!=0.0)) why << "level " << i << " is off Γ; ";
+        sum+=L.weight*L.occupation;
+    }
+    if (std::fabs(sum-N)>1e-8) why << "Σ weight·f = " << std::setprecision(12) << sum << ", the run has " << N << " electrons; ";
     return why.str();
 }
 
@@ -260,6 +285,12 @@ public:
                        calc.IterationCount(), (*restarted)->RestartedFrom());
     }
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","B"}});}   // the atom molecules.json carries
+    std::string LevelsAnswerTheState() override
+    {
+        AtomCalculation calc(Z, 0, Options());
+        if (!calc.IsConverged()) return "the O atom did not converge";
+        return LevelsHold(calc, Z, true);
+    }
 };
 
 class MoleculeProbe : public FacadeProbe
@@ -304,6 +335,20 @@ public:
                        saved->IterationCount(), (*restarted)->RestartedFrom());
     }
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","H2O"}});}
+    //! Plus the molecule's own field-carrying list: index i there is index i here (the binding samples orbital i by it).
+    std::string LevelsAnswerTheState() override
+    {
+        MoleculeCalculation calc(Setup());
+        if (!calc.IsConverged()) return "H2O did not converge";
+        std::string why=LevelsHold(calc, 8.0, true);   // GTH: O 6 + 2 H
+        const auto neutral=calc.MakeLevels();
+        const auto& fields=calc.GetLevels();
+        if (fields.size()!=neutral.size()) return why+"GetLevels has "+std::to_string(fields.size())+" levels, MakeLevels "+std::to_string(neutral.size());
+        for (size_t i=0;i<fields.size();i++)
+            if (fields[i].e!=neutral[i].e || fields[i].label!=neutral[i].label || !fields[i].phi)
+                return why+"GetLevels["+std::to_string(i)+"] is not MakeLevels["+std::to_string(i)+"]";
+        return why;
+    }
 };
 
 class SolidProbe : public FacadeProbe
@@ -370,6 +415,12 @@ public:
     {
         return DeckBuilds({{"structure","Si_diamond"}, {"basis",{{"data","SIPP_SR"}}}, {"solid",{{"densityEcut",20.0}}}});
     }
+    std::string LevelsAnswerTheState() override
+    {
+        SolidCalculation calc(Setup(), Params());
+        if (!calc.DidConverge()) return "Si Γ did not converge";
+        return LevelsHold(calc, 8.0, true);   // two Si, 4 valence each
+    }
 };
 
 std::unique_ptr<FacadeProbe> Probe(Kind k)
@@ -393,6 +444,7 @@ const char* Name(Capability c)
         case Capability::AcceleratorKnobsArrive:    return "AcceleratorKnobsArrive";
         case Capability::SaveRestartRoundTrips:     return "SaveRestartRoundTrips";
         case Capability::DeckRoundTrips:            return "DeckRoundTrips";
+        case Capability::LevelsAnswerTheState:      return "LevelsAnswerTheState";
     }
     return "?";
 }
@@ -408,7 +460,7 @@ std::vector<CellId> AllCells()
     std::vector<CellId> cells;
     for (Kind k : {Kind::Atom, Kind::Molecule, Kind::Solid})
         for (Capability c : {Capability::PrepareFilesTheSetup, Capability::ConvergeFilesTheScfHeader, Capability::AcceleratorKnobsArrive,
-                             Capability::SaveRestartRoundTrips, Capability::DeckRoundTrips})
+                             Capability::SaveRestartRoundTrips, Capability::DeckRoundTrips, Capability::LevelsAnswerTheState})
             cells.push_back({k,c});
     return cells;
 }

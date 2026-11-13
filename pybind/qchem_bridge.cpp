@@ -31,6 +31,7 @@ import qchem.Structure;      // Molecule, Site
 import qchem.SCFParams;      // SCFParams
 import qchem.Parallel;       // ScopedWorkerThreads: a run's thread counts (a deck's `threads`, the Python Threads scope)
 import qchem.SCFIterator;    // IterationRow, IterationCell
+import qchem.Calculation;    // Calculation::MakeLevels (the structure-neutral levels, either door)
 import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, CalcOptions, AcceleratorOptions
 import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
 import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
@@ -268,6 +269,22 @@ int write_json(const nlohmann::ordered_json& j, char* out, int outlen)
     return int(s.size());
 }
 
+//! THE LEVELS, for either door (Calculation::MakeLevels): one list, any structure; {"error": why} before the first converge.
+nlohmann::ordered_json levels_json(const qchem::Calculation& c)
+{
+    const HostLocale host;
+    try
+    {
+        nlohmann::ordered_json a = nlohmann::ordered_json::array();
+        for (const auto& L : c.MakeLevels())
+            a.push_back({{"e", L.e}, {"occ", L.occupation},
+                         {"spin", L.spin == qchem::Spin::Up ? 1 : L.spin == qchem::Spin::Down ? -1 : 0},
+                         {"k", {L.k.x, L.k.y, L.k.z}}, {"weight", L.weight}, {"label", L.label}});
+        return a;
+    }
+    catch (const std::exception& e) { return {{"error", e.what()}}; }
+}
+
 } // anon namespace
 
 extern "C" {
@@ -391,19 +408,7 @@ void qcb_atoms(const qcb_calc* h, int* Z_out, double* xyz_out)
     std::memcpy(xyz_out, h->positions.data(), h->positions.size()*sizeof(double));
 }
 
-int qcb_num_levels(const qcb_calc* h) { return int(h->calc->GetLevels().size()); }
-
-void qcb_levels(const qcb_calc* h, double* e, double* occ, int* spin, char* label, int nlabel)
-{
-    const auto& levels = h->calc->GetLevels();
-    for (size_t i = 0; i < levels.size(); ++i)
-    {
-        e[i]    = levels[i].e;
-        occ[i]  = levels[i].occupation;
-        spin[i] = levels[i].spin == qchem::Spin::Up ? 1 : levels[i].spin == qchem::Spin::Down ? -1 : 0;
-        write_error(levels[i].label.c_str(), label + i*nlabel, nlabel);
-    }
-}
+int qcb_levels(const qcb_calc* h, char* out, int outlen) { return write_json(levels_json(*h->calc), out, outlen); }
 
 void qcb_density(const qcb_calc* h, int n, double pad, double* out, double* origin, double* spacing)
 {
@@ -571,6 +576,8 @@ int qcb_solid_restarted_from(const qcb_solid* h, char* out, int outlen)
 {
     return write_json(restarted_json(h->calc->RestartedFrom()), out, outlen);
 }
+
+int qcb_solid_levels(const qcb_solid* h, char* out, int outlen) { return write_json(levels_json(*h->calc), out, outlen); }
 
 // -- the run record ---------------------------------------------------------------------------------------------------
 
