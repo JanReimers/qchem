@@ -197,6 +197,7 @@ struct SCFStage
 {
     SCFParams             params;        //!< this stage's parameters; \c SmearingkT is its temperature
     SCFAccelerators::Type accelerator;   //!< per stage, so a recipe can anneal on DIIS and finish on GDM
+    SCFRecipe             recipe = SCFRecipe::Auto;   //!< per stage: the material regime (qchem.SCFRecipe), so a schedule can anneal under Metal and finish under Insulator
 };
 
 //! \brief A periodic SCF: attempt it, and get back either the ANSWERS or the reason there are none.
@@ -634,7 +635,7 @@ private:
     //! \a accel: the first stage's accelerator, as asked.  \a restored: \a seed is a SAVED state of this same Hamiltonian (Restart);
     //! false for a carried one (a geometry step: the Hamiltonian moved with the atoms) -- the Auto accelerator policy reads it.
     void BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
-                  SCFAccelerators::Type accel, bool restored, bool exactResume);
+                  SCFAccelerators::Type accel, SCFRecipe recipe, bool restored, bool exactResume);
     //! \name THE GEOMETRY POINT a SolidSession steps to (step 8)
     //!@{
     friend class SolidSession;
@@ -669,9 +670,9 @@ private:
     std::vector<std::string> MissingGradients() const;
     //!@}
     //! Point + run + the first Converge (the constructors' common body), and the rest of an annealed schedule.
-    void Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
+    void Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel, SCFRecipe recipe);
     //! Point + run, no SCF: \c Start's build half (and \c Prepare's whole body).
-    void BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel);
+    void BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel, SCFRecipe recipe);
     friend class ::DeckTests;   //!< tests/Deck.C: an inline deck and its named twin build the same fingerprint
     void RunRestOf(const std::vector<SCFStage>& schedule);
     //! This run's saved-state fingerprint, with \a kT the recipe's temperature (the base's record: \c RecordState).
@@ -690,11 +691,11 @@ private:
     //!@}
     //! Stand up one stage's Hamiltonian + accelerator + iterator, seeded from \a carried when given.  \a params are the
     //! stage's (an \c Auto accelerator is resolved against them).
-    void BuildStage(const std::string& why, SCFAccelerators::Type, std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried, const SCFParams& params);
-    //! Build this stage's accelerator: resolve \a asked (\c Auto, see \c SolidCalcOptions::accelerator) for \a params and
-    //! a \a restored (Restart: same Hamiltonian) or seeded / carried start, and record both for the banner and for the stages
-    //! that re-resolve it.
-    void MakeAccelerator(SCFAccelerators::Type asked, const SCFParams& params, bool restored);
+    void BuildStage(const std::string& why, SCFAccelerators::Type, SCFRecipe, std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried, const SCFParams& params);
+    //! Build this stage's accelerator: resolve \a asked (\c Auto, see \c SolidCalcOptions::accelerator) under \a recipe for \a params
+    //! and the stage \a kind (qchem.SCFRecipe: \c ChooseAccelerator), and record them for the banner, the recipe's report and for the
+    //! stages that re-resolve it.  THROWS (policy::Refuse) on a recipe that refuses the stage's kT.
+    void MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe recipe, const SCFParams& params, SCFStageKind kind);
     //! \c Converge(params) after the stage's own adjustment (a restored Auto stage's linear step capped at 0.3).
     Outcome<Converged, SCFFailure> ConvergeStage(const SCFParams& params);
     //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift

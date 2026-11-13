@@ -26,6 +26,7 @@ import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKi
 import qchem.Mesh.XCPolicy;                   // qcMesh::XCMeshDefault (the BeckeXCParams recipe under Auto)
 import qchem.RunPolicy;                       // RunPolicySpec
 import qchem.LASolver;                        // qchem::Ortho
+export import qchem.SCFRecipe;                // SCFRecipe (the stage's material regime, beside its accelerator)
 export import qchem.AuditFootprint;           // AuditFootprintCalibration (the audit RSS policy's expert knob)
 export import qchem.Pseudopotential.Set;      // PseudopotentialSet -- the setup's resolved choice
 
@@ -157,6 +158,10 @@ struct SolidCalcOptions
     //! stage (Restart, same Hamiltonian) at kT = 0 -> the Ladder on its GDM rung, a restored smeared one -> \c DIIS, either
     //! beside a linear step capped at 0.3.
     SCFAccelerators::Type accelerator = SCFAccelerators::Type::Auto;
+    //! The SCF RECIPE by material regime (qchem.SCFRecipe; deck key `scf.recipe`, doc/SCFRobustnessPlan.md R4.1 as ruled for B5):
+    //! \c Auto (default) = the policy above, named and printed; \c MagneticInsulator / \c Metal fill Kerker+Pulay on a cold or carried
+    //! stage and REFUSE kT = 0.  A stated accelerator or mixer knob beside it wins (a deviation, printed).
+    SCFRecipe recipe = SCFRecipe::Auto;
     //! A SMEARED run fills each k-block to its OWN chemical potential -- the non-default (D-FERMI-DEFAULT, user 2026-10-05,
     //! landed 2026-10-21; was \c globalFermi, default false).  A k-point is a label, not a reservoir: per-k μ has no physical
     //! counterpart in a crystal ("a very obscure feature for anyone to want"), and it produced SrVO3's wrong-sign χ0(q≠0) and
@@ -258,7 +263,9 @@ struct SolidCalcOptions
     //! EMPTY (the default) = DERIVE it from the seed, which reproduces the historical driver behaviour and
     //! is right for the common case.  SET IT to state a specific ordering: a cell usually admits several
     //! (AFM-I vs AFM-II vs ferrimagnetic), the derived one is only the seed's guess, and comparing orderings
-    //! is the whole point of a magnetic campaign.  Ignored unless \c imposeSymmetry.
+    //! is the whole point of a magnetic campaign.  It is the run's ONE source of the ordering (2026-11-12): the polarized seed
+    //! reads it too (+1 majority up, -1 flipped, 0 no moment), overriding the structure's per-atom spins, which are only the
+    //! default when it is absent.  The imposition reads it only when \c imposeSymmetry.
     //! \note \c greyImposition forces the empty decoration regardless -- that arm is the erasure control.
     std::vector<int> siteSpins = {};
     //! \note MANDATORY for a polarized run that carries a Hubbard manifold (OpenWork §3 "The magnetic decoration is

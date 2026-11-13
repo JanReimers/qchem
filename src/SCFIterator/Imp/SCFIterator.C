@@ -601,7 +601,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         // E_T STEERS, E_KS JUDGES (controller ruling 2026-11-09).  STEER (read whichever this is): the MinΔE gate (dE), the Ladder's
         // |ΔE/E| hand-off (SetEnergy), the virial gate, the trace row and the observer, and through the rows the run's TREND checks
         // (charge slosh: Eee against its run minimum; order collapse: the site moment below 1 % of its peak, sustained) -- factor-scale
-        // trends of a mixed D_in that follows the D_out's.  JUDGE (exact E_KS[D_out], refreshed where they judge): the iteration-1
+        // trends of a mixed D_in that follows the D_out's.  The site moment itself is D_out's on every route (see the E_T branch).  JUDGE (exact E_KS[D_out], refreshed where they judge): the iteration-1
         // refusal (below), the final E, the saved state's summary and the RelChecked assert (after the loop).  The GDM line search is
         // neither: it measures its own E(t=0).
         const bool useTaylor = !lineSearch && taylor && itsMixer->FockDensity(*itsCD)!=static_cast<const tChargeDensity<T>*>(itsCD.get());
@@ -609,6 +609,12 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         {
             eb=*taylor;
             eb.Add("MinusTS", itsOccPolicy->EntropyTerm(), EnergyRole::Entropy, 0.0);   // as TotalEnergy: -TS of THIS fill
+            // THE SITE MOMENTS ARE THE ITERATE'S (D_out), on every driver.  E_T's breakdown is E[D_in]'s, so its moments were the
+            // MIXED D_in's while a field mixer's row carried D_out's: the same NiO iteration 1 read m_site 2.48 under D-Pulay and
+            // 0.076 under Kerker, with the identical D_out (0.0761) on both -- a reporting split misread as "Kerker erases the
+            // magnetization" (OpenWork §3, 2026-11-12).  FREE: the residual just sampled D_out on the XC mesh, so the sampler's
+            // cache answers it.  An observable, so it is not E_T's to approximate.
+            eb.charge.siteMoments=itsHamiltonian->SiteMoments(itsCD.get());
             if (!energyIsTaylor)
                 qchem::report::Set("energyPerIteration", "E_T = E[D_in] + Re Tr(F[D_in](D_out-D_in)): second order in D_out-D_in "
                                    "(a D-mixer's next Fock is not D_out); the final E is the exact E_KS[D_out]");

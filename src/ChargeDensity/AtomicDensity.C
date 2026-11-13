@@ -32,6 +32,11 @@ struct SeedKey
     //! derived by \c IonicFormalCharges, whose tie-break puts the charge states of symmetry-equivalent sites by ATOM INDEX (a mixed-
     //! valence spinel's Mn3+/Mn4+ order is then a choice nobody made).
     std::vector<int>  siteCharges;
+    //! The polarized seed's per-SITE spins (+1, -1, 0), in atom order, when the run STATES its magnetic ordering
+    //! (\c SolidCalcOptions::siteSpins); EMPTY = the structure's per-atom flip bits.  ONE source with the imposition
+    //! (OpenWork §3 "One magnetic ordering has TWO sources of truth", 2026-11-12): an inline cell without atom spins
+    //! and a stated AFM ordering once seeded ferromagnetic, which the imposed Shubnikov group then projected to m = 0.
+    std::vector<int>  siteSpins;
     SeedKey() = default;
     SeedKey(const char* f) : functional(f) {}
     SeedKey(std::string f, std::map<int,int> qByZ={}) : functional(std::move(f)), q(std::move(qByZ)) {}

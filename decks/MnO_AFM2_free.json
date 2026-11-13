@@ -2,7 +2,10 @@
   "_doc": [
     "MnO AFM-II, FREE (unimposed) at Gamma, converged with Kerker + Pulay density mixing and nothing on the Fock side -- the banked recipe that",
     "holds the AFM-II order (doc/Benchmark.md, the CP2K-LOOP rows; was `gpwprobe mno` with MNO_MOM=0 MNO_ACC=Null MNO_PULAY=8 MNO_PULAY_START=5",
-    "MNO_EPS=1e-6 MNO_SKIP_FM=1).  Run:  rundeck decks/MnO_AFM2_free.json --out $(scripts/rundir qchem6 MnO)"
+    "MNO_EPS=1e-6 MNO_SKIP_FM=1).  Run:  rundeck decks/MnO_AFM2_free.json --out $(scripts/rundir qchem6 MnO)",
+    "scf.recipe MagneticInsulator (B5, 2026-11-12) names the regime: its cold stage IS these knobs (no deviation), and it refuses kT = 0.  The",
+    "knobs and the Null accelerator stay STATED: the raster pilot's restored stage keeps them (Null + K+P), where the recipe's restored column",
+    "would be DIIS + linear -- so this deck stays bit-identical (doc/SCFRobustnessPlan.md R4.1 as ruled for B5)."
   ],
   "structure": "MnO_AFM2",
   "basis": { "data": "VALENCE_LOWQ_SR" },
@@ -15,6 +18,7 @@
     "imposeSymmetry": false
   },
   "scf": {
+    "recipe": "MagneticInsulator",
     "NMaxIter": 200,
     "minDeltaRhoPerElectron": 1e-6,
     "deltaRhoMeasure": "MaxDeltaD",

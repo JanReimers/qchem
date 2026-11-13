@@ -21,6 +21,7 @@ import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration gr
 import qchem.ChargeDensity.Seed;   // SeedStrategy
 import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSet::Gaussian::Angular -- the ONE angular option, shared with SolidSetup
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (the resolved accelerator)
+export import qchem.SCFRecipe;         // SCFRecipe (AcceleratorOptions::recipe)
 export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the setup's resolved choice
 export import qchem.Accuracy;            // AccuracyTarget -- a CalcOptions field
 
@@ -61,8 +62,9 @@ struct CalcOptions
     //! A multiplicity whose parity disagrees with Ne (e.g. a singlet for odd Ne) is rejected.
     int         multiplicity = 0;
     //! Basis construction variants (threaded into BasisSet::Gaussian::Factory).  Defaults reproduce
-    //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry is rejected until
-    //! the Spherical SALC track (doc/OldPlans/SphericalSALCPlan.md) lands -- the SALC builder needs Cartesian PGData.
+    //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry works with the MnD engine (the SALC builder
+    //! handles spherical shells, doc/OldPlans/SphericalSALCPlan.md S3a/S4); only engine LibCint + Spherical + symmetry is
+    //! refused (S3b: libcint's real-harmonic layout is unwired).
     Engine      engine  = Engine::MnD;
     Angular     angular = Angular::Cartesian;
     //! DFT-only knobs (ignored when model is HF/1-e/Dirac).  xalpha: the Slater exchange parameter, used
@@ -157,6 +159,10 @@ struct AcceleratorOptions
     //! "Ladder" (auto None->DIIS->GDM).  A hard pseudopotential (open-shell atom, diffuse valence) that
     //! limit-cycles under DIIS often converges under GDM or Ladder.
     std::string type = "DIIS";
+    //! The SCF RECIPE by material regime (qchem.SCFRecipe; doc/SCFRobustnessPlan.md R4.1 as ruled for B5, ruling (c)): a molecule takes
+    //! \c Auto or \c Insulator only -- both are today's molecular recipe (\c type above + linear D-mixing), now printed.  MagneticInsulator
+    //! and Metal are REFUSED at \c Resolve: their Kerker+Pulay mixes in G space.
+    SCFRecipe recipe = SCFRecipe::Auto;
 };
 
 //! The json door's keys for \a acc, with \a eMax the RESOLVED DIIS engage gate (the caller's Z-scaled default when \c acc.eMax <= 0).

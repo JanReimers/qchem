@@ -52,6 +52,8 @@ public:
     //! (\c Up) / minority (\c Down) component -- swapped on sites with \c Site::spinFlip set (the AFM -m
     //! sublattice) -- and a species without a pair contributes the spin-agnostic half density (rho/2, both
     //! channels alike; the flip is then a no-op).  \c None ignores flips entirely (the total is flip-blind).
+    //! A STATED ordering (\a key's \c siteSpins: +1, -1, 0 per site) replaces the structure's flip bits; a 0 site
+    //! takes the rho/2 split even where the library holds a pair (one source with the imposition, 2026-11-12).
     SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const UnitCell& cell,
                   const SeedKey& key=SeedKey{}, const std::vector<int>& ionicNvalBySite = {},
                   const Spin& channel = Spin::None);
