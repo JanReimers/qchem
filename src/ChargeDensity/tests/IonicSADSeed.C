@@ -264,7 +264,7 @@ TEST(SADSeed, ItsChargeIsTheElectronCountTheDunlapFitIsConstrainedTo)
     const std::unique_ptr<BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, &oh,
                                                 BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     const Molecule_EC ec(10);
-    const std::unique_ptr<tChargeDensity<double>> seed(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &oh, &ec, kSeedMesh));
+    const std::unique_ptr<tChargeDensity<double>> seed(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &oh, &ec, kSeedMesh, SeedKey{}));
     ASSERT_TRUE(seed);
     EXPECT_EQ(seed->GetTotalCharge(), oh.GetNumElectrons());   // bit-equal: the same double the Dunlap term holds
 }

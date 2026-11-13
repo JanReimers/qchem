@@ -30,14 +30,6 @@ import qchem.BasisCoverage;                    // RequireBasisCovers: a basis la
 namespace qchem
 {
 
-//! The seed library key for this run: the set's functional and, for each element of the structure, the
-//! GTH variant q its Hamiltonian uses -- so the seed density is the SAME pseudo-atom as the terms (C4 step 3).
-static ChargeDensity::SeedKey SeedKeyOf(const Pseudopotential::PseudopotentialSet& pp, const Structure& st)
-{
-    ChargeDensity::SeedKey key(pp.Functional());
-    for (const auto& [element, q] : pp.Species(st)) key.q[(int)thePeriodicTable().GetZ(element)] = q;
-    return key;
-}
 
 //---------------------------------------------------------------------------------------------------
 //  The run's SHARPNESS -- an above-SCFIterator decision input.
@@ -292,7 +284,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // valence library's superposition at its formal charges (stated, else derived: its Madelung field holds them), and a species the
     // library lacks takes the core guess with a WARN (it threw at seed time until 2026-11-12).
     s->opts.seed=ResolveSeed(opts.seed, *st, {.densityFock = true, .periodic = st->HasTranslationSymmetry(), .chargesStated = !opts.siteCharges.empty(),
-        .covered = [key=s->seedKey](int Z){ return ChargeDensity::HasAtomicDensity(Z, key.functional, "atomic_valence_densities.json", -1, key.Q(Z)); }});
+        .covered = [key=s->seedKey](int Z){ return SeedLibraryCovers(key, Z); }});
 
     // THE RESOLVED IMPOSITION (doc/OpenWork.md N5, user 2026-08-26).  The caller's flag AND the policy's
     // permission: CP2K parity forbids the capability outright, because CP2K does no symmetry work at all

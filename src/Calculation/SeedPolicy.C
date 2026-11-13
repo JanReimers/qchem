@@ -23,9 +23,26 @@ import qchem.ChargeDensity.Seed;   // SeedStrategy
 import qchem.Structure;            // Structure (its species)
 import qchem.PeriodicTable;        // GetSymbol (the warning names the species)
 import qchem.Policy;
+import qchem.Pseudopotential.Set;  // PseudopotentialSet: the run's pseudo-atoms, which key the seed library
 
 export namespace qchem
 {
+
+//! The seed library key for a run, the same for every structure: the set's functional and, for each element of \a st, the GTH variant q
+//! its Hamiltonian uses -- so the seed density is the SAME pseudo-atom as the terms (C4 step 3; for a molecule, OpenWork §3 "A
+//! pseudopotential run seeds from the VALENCE library for its q, on every structure", 2026-11-12).  An all-electron run has no set and
+//! uses the unkeyed \c SeedKey{} (the all-electron library, \c ChargeDensity::SeedLibrary).
+inline ChargeDensity::SeedKey SeedKeyOf(const Pseudopotential::PseudopotentialSet& pp, const Structure& st)
+{
+    ChargeDensity::SeedKey key(pp.Functional());
+    for (const auto& [element, q] : pp.Species(st)) key.q[(int)thePeriodicTable().GetZ(element)] = q;
+    return key;
+}
+//! Does the run's seed library (\c ChargeDensity::SeedLibrary) hold species \a Z?  The Auto rule's coverage, both setups.
+inline bool SeedLibraryCovers(const ChargeDensity::SeedKey& key, int Z)
+{
+    return ChargeDensity::HasAtomicDensity(Z, key.functional, ChargeDensity::SeedLibrary(key,Z), -1, key.Q(Z));
+}
 
 //! What the Auto rule reads about a run.  Properties, never the structure's type.
 struct SeedFacts

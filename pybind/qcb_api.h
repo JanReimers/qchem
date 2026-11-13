@@ -221,10 +221,12 @@ int qcb_materials(const char* req, char* out, int outlen);
 int qcb_basis_import(const char* req, char* out, int outlen);
 
 //! A named pseudopotential set's choice (Pseudopotential::PseudopotentialSet, the ONE reader of pseudopotentials.json and its rule):
-//! {"set": S, "elements": [El, ...]} -> {set, functional, valence: {El: q}, fitted: {El: label}} -- q per element, the set's exception if it lists one, else
+//! {"set": S, "elements": [El, ...], "model"?: M} -> {set, functional, valence: {El: q}, fitted: {El: label}, checks?} -- q per element, the set's exception if it lists one, else
 //! the smallest q the GTH database holds at the set's functional; `fitted` the functional each resolved potential was FITTED with
 //! (PseudopotentialSet::FittedFunctional, a display label such as "PADE" -- compare functionals through the library, never by this name);
-//! or {"error"} (an unknown set, an element the database lacks).
+//! `checks` (when a model is named, by Hamiltonian::Name): Hamiltonian::PPFunctionalChecks against that model, one per element:
+//! {element, fitted, fittedLibxcIDs, run, runLibxcIDs, match, matchingModel ("" = no model offered matches)} -- compared on the libxc ids;
+//! or {"error"} (an unknown set or model, an element the database lacks, a fit with no libxc mapping).
 //! The same two calls as qcb_materials.
 int qcb_pseudopotentials(const char* req, char* out, int outlen);
 

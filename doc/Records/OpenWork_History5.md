@@ -2653,22 +2653,6 @@ pilot now show their audit too: β-MnO2 dense-d 25 (59) + 22, MnO AFM-II imposed
 1597/0, long 15/0, panel4t 25/0, RelChecked built; `anchordiff` 0 moved (energy and summed iterations) vs main-2eb32dee short/long and
 main-fd643121_panel4t.
 
-## ✅ The restored stage's linear cap unified on the CEILING (lane A, 2026-11-13, 71d0f0f93)
-
-The row (verbatim, from `doc/OpenWork.md`): | **NEAR-TERM: unify the restored stage's linear cap on the CEILING (MaxRelaxRo), measured** (M; lane A 2026-11-12, found building B5; controller ruling) | A restored Auto stage on a linear mixer caps only its START at 0.3 (`SolidCalculation::Converge`); the adaptive step can grow back to 1.0, against CLAUDE.md's "a linear fallback relaxes at 0.2-0.3, not 1.0!".  The ±α FD-LRT path already caps START and CEILING (its comment: capping only the start "let the adaptive step grow back to 1.0").  B5 keeps both as they are and prints which one applies | cap MaxRelaxRo too on the restored stage, inside the B5 recipe chooser; land as its own step WITH the panel, listing every moved restart anchor · `doc/SCFRobustnessPlan.md` §3 row 4 |
-
-Fix: `CapRestoredStep` (`src/Calculation/SCFRecipe.C`) caps `MaxRelaxRo` beside `StartingRelaxRo` at `theRestoredLinearStep` (0.3) on a
-restored Auto stage whose mixer resolves linear, the same as the ±α FD-LRT stages.  The golden table in `UTCalculation`
-`SCFRecipe.AutoAndInsulatorAreTheOldPolicyInEveryCell` now holds the pre-B5 policy plus this one change.
-
-Measured (sweep vs `lane-a-b5_*`): 13 restored stages in 11 tests now print `ceiling 0.3` -- `SolidState.ExactResume_{PlaneWave,
-PlaneWave_PartialEigensolve, Pol_Complex, UnPol_Real}`, `SmearedExactResume_StartsAtTheSavedState`, `WarmStart_OtherGrid_StartsAtTheAnswer`,
-`RealnessCrossesBothWays` (2), `ASizedStateResumesOnItsOwnDensityBall`, `FacadeMatrix Solid_SaveRestartRoundTrips`,
-`GPW_MnBox.Γ_M6_Smear_eqFinite`, `GPW_Na.k222s_Imp_Smear_GlobalMu_Anchor` (2).  **None moved** (energy and iterations at 1e-10): the
-adaptive step never grew past 0.3 in any of them, so the cap is a guard the suite does not yet exercise.  Not capped, by design: a
-STATED accelerator keeps the caller's step (6 stated-Ladder stages at 0.3/1, 5 at 1/1), and the raster pilot's stated Ladder (10 stages)
--- both print as stated.  Sweep: short 1603/0, long 15/0, panel4t 25/0, RelChecked built.
-
 ## ✅ Structure-neutral seed and Gaussian angular form (lane B, 2026-11-12, bdeabff3e)
 
 The row as it stood (verbatim):
@@ -2768,3 +2752,109 @@ What the table shows:
 
 The open question (why ~0.3 e against LDA's ~1.2 μB: Γ-only k sampling first, then the basis) is the OpenWork §3 row "NiO AFM-II moment
 small on VALENCE_LOWQ_VA, Γ-only".  Outputs: `~/Code/qchem6-runs/NiO/laneB-conv-*.out`.
+## ✅ The restored stage's linear cap unified on the CEILING (lane A, 2026-11-13, 71d0f0f93)
+
+The row (verbatim, from `doc/OpenWork.md`): | **NEAR-TERM: unify the restored stage's linear cap on the CEILING (MaxRelaxRo), measured** (M; lane A 2026-11-12, found building B5; controller ruling) | A restored Auto stage on a linear mixer caps only its START at 0.3 (`SolidCalculation::Converge`); the adaptive step can grow back to 1.0, against CLAUDE.md's "a linear fallback relaxes at 0.2-0.3, not 1.0!".  The ±α FD-LRT path already caps START and CEILING (its comment: capping only the start "let the adaptive step grow back to 1.0").  B5 keeps both as they are and prints which one applies | cap MaxRelaxRo too on the restored stage, inside the B5 recipe chooser; land as its own step WITH the panel, listing every moved restart anchor · `doc/SCFRobustnessPlan.md` §3 row 4 |
+
+Fix: `CapRestoredStep` (`src/Calculation/SCFRecipe.C`) caps `MaxRelaxRo` beside `StartingRelaxRo` at `theRestoredLinearStep` (0.3) on a
+restored Auto stage whose mixer resolves linear, the same as the ±α FD-LRT stages.  The golden table in `UTCalculation`
+`SCFRecipe.AutoAndInsulatorAreTheOldPolicyInEveryCell` now holds the pre-B5 policy plus this one change.
+
+Measured (sweep vs `lane-a-b5_*`): 13 restored stages in 11 tests now print `ceiling 0.3` -- `SolidState.ExactResume_{PlaneWave,
+PlaneWave_PartialEigensolve, Pol_Complex, UnPol_Real}`, `SmearedExactResume_StartsAtTheSavedState`, `WarmStart_OtherGrid_StartsAtTheAnswer`,
+`RealnessCrossesBothWays` (2), `ASizedStateResumesOnItsOwnDensityBall`, `FacadeMatrix Solid_SaveRestartRoundTrips`,
+`GPW_MnBox.Γ_M6_Smear_eqFinite`, `GPW_Na.k222s_Imp_Smear_GlobalMu_Anchor` (2).  **None moved** (energy and iterations at 1e-10): the
+adaptive step never grew past 0.3 in any of them, so the cap is a guard the suite does not yet exercise.  Not capped, by design: a
+STATED accelerator keeps the caller's step (6 stated-Ladder stages at 0.3/1, 5 at 1/1), and the raster pilot's stated Ladder (10 stages)
+-- both print as stated.  Sweep: short 1603/0, long 15/0, panel4t 25/0, RelChecked built.
+
+
+## ✅ A spherical molecular PP run dies on its first H at radial meshes of 50 points or more: FIXED AT HEAD, CAUSE UNIDENTIFIED (lane B, 2026-11-12)
+
+Row verbatim:
+
+| **A spherical molecular PP run dies on its first H at radial meshes of 50 points or more; Cartesian on the same mesh is fine** (lane B, 2026-11-05, from the TeF₆ PP rung) | TeF₆, LDA, GTH-LDA Te q6 / F q7, DZVP-MOLOPT-SR-GTH.  `spherical` throws an uncaught `Invalid setup of symmetric matrix` at the first diagonalisation for (nR, Lebedev) = (50,17), (50,29), (80,29), (150,29), (200,35), while spherical (30,17), (30,29), (35,17), (40,17) run and Cartesian runs every rung through (300, GL 65).  gdb puts the throw in `make_hermitian` (`LASolverLapack.C:63`) under DIIS `UseFD`; `make_hermitian` symmetrises first, so the message means a NaN in H (inferred, the matrix was not dumped).  The default SAD seed fails the same way on this run, so the seed is not the cause.  A radial count threshold points at a mesh point very near a nucleus meeting a spherical evaluation, unmeasured.  NOT the PP terms: with them in closed form (lane S, 2026-11-05) no PP mesh exists and it still dies at (50,29) and (80,29) | dump H at (50,17) spherical, find the NaN's term and row, then the mesh point; the fix is a guard or a limit at that point.  Record: this row, run logs `~/Code/qchem6-runs/TeF6/TeF6_pp_n*.log` |
+
+Verdict: closed behind a gate; the cause is not identified.  The controller ruled no bisect: it costs hours of build lock for a cure that
+has no live instance.
+
+**The reproduction at lane-b HEAD** (a1943d0b2 + main):
+- The 2026-11-05 recipe, rebuilt through the facade: TeF6 octahedron (Te-F 1.82 Å), LDA, GTH-LDA Te q6 / F q7, spherical
+  DZVP-MOLOPT-SR-GTH, core seed, DIIS, stated mesh.
+- EVERY rung that crashed converges, each in 11 iterations:
+
+| (nR, Lebedev) | Etot (Ha) |
+|---|---|
+| (50,17) | -153.4149661057 |
+| (50,29) | -153.4146407623 |
+| (80,29) | -153.4141074342 |
+| (150,29) | -153.4140890895 |
+| (200,35) | -153.4140873524 |
+
+**Looking for the quantity that went NaN, on today's code (it finds none):**
+- All 91 spherical orbital functions and 236 A1 Coulomb-fit functions are finite at every XC-mesh point, for nR 30, 40, 50, 80 and 150
+  at Lebedev 17.
+- They are also finite AT and NEAR each nucleus (r = 0, 1e-300, 1e-160, 1e-12, 1e-6 along x, z and the diagonal).
+- The old NUMERICAL Coulomb-fit norm, Σ w f² on the run's mesh, which 6bd09fa3a replaced by the analytic one, is healthy at every nR:
+  min 0.75 at nR 30, 0.98 at nR 50, 0.999 at nR 80 and above, never non-positive.
+
+**Why the 2026-11-05 code cannot be examined:** its snapshot (`~/Code/qchem6-runs/snap/laneb-tef6b-20261105-102648`) holds only the
+executables, and they link today's `.so` files.  The old trace put the throw in `make_hermitian` under DIIS `UseFD`, so the NaN may have
+come from the DIIS extrapolation rather than from a Hamiltonian term.
+
+**Candidate cures in the window, all UNPROVEN:**
+- 6bd09fa3a: the Coulomb fit's norm went analytic; it was a quadrature on the run's mesh.
+- bfb995513: the molecular DIIS prune became scale-free (svTol 5e-9 absolute → 0, svTolRel 1e-4), and an all-zero history is pruned.
+- 5ad897099: a damped step under the Fock DIIS starts from the extrapolated input.
+- e1d5f2327: one Gaussian `Angular` for every structure.
+
+**The gate:** `M_DFT.TeF6_PP_Spherical_Converges_Long`, the crash recipe itself at (50,17), 61 s serial.
+- It asserts convergence, a did-E-move anchor at 1e-5, and the (200,35) value within 2e-3 (the coarse mesh's own error is 0.9 mHa).
+- The Te/F DZVP-MOLOPT-SR-GTH block is shipped as `BasisSetData/dzvp_molopt_sr_gth.bsd`, transcribed by `scripts/cp2k2bsd` from CP2K's
+  BASIS_MOLOPT (`PP-PROVENANCE Te=6 F=7`).
+
+## ✅ A pseudopotential run seeds from the VALENCE library for its q, on every structure (lane B, 2026-11-12)
+
+Row verbatim:
+
+| **A pseudopotential run seeds from the VALENCE library for its q, on every structure** (user ruling 2026-11-12, "Separate item later", deferred from lane B's structure-neutral seed) | The Auto seed rule is now one function for both setups (`qchem.SeedPolicy`), but its LIBRARY still splits by facade: a solid reads `atomic_valence_densities.json` at its PP's q (`SeedKey`), a PP molecule reads the ALL-ELECTRON `atomic_densities.json` (core charge included, constrained to the valence count by the fit) | the molecular seed takes a `SeedKey` from its `PseudopotentialSet` and reads the valence library under a PP (coverage from the same library); re-judge F2_PP, F2_PP_AuxiliaryFit*, the H2O+GTH and the other molecular PP tests (energies hold, iterations and first iterates move) · `src/ChargeDensity/Imp/Seed.C`, `src/Calculation/Imp/MoleculeSetup.C` |
+
+**THE RULE, ONE FUNCTION**: `ChargeDensity::SeedLibrary(key, Z)` picks the library per element.
+- A Z the key gives a pseudopotential q is the run's pseudo-atom, so it reads `atomic_valence_densities.json` at that q.
+- An unkeyed Z (all-electron) reads `atomic_densities.json`.
+
+**WHERE THE KEY COMES FROM**: `SeedKeyOf(pp, structure)`, moved from `SolidSetup.C` into `qchem.SeedPolicy` so both setups share it.
+- `MoleculeSetup::seedKey` is set from the run's `PseudopotentialSet`.
+- The Auto rule's coverage is the same `SeedLibraryCovers(key, Z)` on both setups.
+- The key reaches the molecular `MakeSeedDensity` through the iterator's seed constructor, which now demands it.
+- The atom facade passes a stated SAD seed its own GTH pseudo-atom's key.
+- Both molecular arms read the run's library: SAD, and IonicSAD (whose site count is the pseudo-atom's under a PP).
+
+**THE TELL**: Si has no all-electron LDA entry, so a Si PP molecule took the core guess with a WARN.  Its q4 valence entry exists, so it now
+takes SAD.  Gate: `MoleculeSetup.APseudopotentialRunSeedsFromTheValenceLibraryAtItsQ`.
+
+**RE-JUDGED** (short sweep 1608/1608 and long 16/16; anchordiff against lane-b-3e6bee220 at 1e-10).  EVERY converged energy holds to the
+anchor's 1e-10; only iterations and first iterates moved, and only on molecular PP runs:
+
+| test | iterations old → new | first iterate old → new |
+|---|---|---|
+| M_DFT.F2_PP | 9 → 8 | -42.035752 → -46.321818 (final -48.2019) |
+| M_DFT.F2_PP_AuxiliaryFit | 9 → 8 | -42.032875 → -46.316996 |
+| M_DFT.F2_PP_AuxiliaryFitProjected | 3 → 3 | -42.114339 → -46.468058 |
+| CalculationFacade.APseudopotentialOnAGaussianBasisBuildsNoPPQuadrature (H2O + GTH, dzvp) | 9 → 7 | -13.576376 → -16.927727 (final -17.079) |
+| CalculationFacade.PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySCF | 9,9 → 7,7 | the same H2O start |
+| Facades/FacadeMatrix.Cell/Molecule_ConvergeFilesTheScfHeader | 9 → 7 | the same H2O start |
+| Facades/FacadeMatrix.Cell/Molecule_SaveRestartRoundTrips | 9 → 7 | the same H2O start |
+| HamiltonianForces.UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysFiniteDifference | 9 → 7 | the same H2O start |
+| HamiltonianForces.ASymmetryBlockedRunsForceIsTheUnblockedRunsForce | the PP pair 14,14 → 10,10 (the other 8 runs unchanged) | |
+| GPW_O2Box.Γ_Imp_M3_eqFinite (its molecular O2 + GTH reference only) | 9 → 8 | -26.552308 → -29.820040 |
+| MeshPilot.AnEnergyRunSettlesWhereItsAuditMeetsEps | 13 → 11 on the PP run | -42.035752 → -46.321818 |
+| MeshPilot.AStatedMeshIsKeptAndAMissIsReported | 13 → 11 | the same F2 start |
+| MeshPilot.AGeometryRunRaisesAMeshThatMissesEpsOnMatrixElements | 6 → 8 (WORSE: its pilot re-converge) | the same F2 start |
+| OSi_PP_U.MultiSpeciesRouting | 15 → 16 (WORSE) | +0.784504 → -10.418336 |
+| Si2_PP_U.LargeSeparation | the atom 11 → 11 | -3.720171 → -3.769047 |
+
+On `Si2_PP_U.LargeSeparation`: the -46 mHa anchordiff move is its deliberately BOUNDED 2-iteration dimer iterate (`BoundedSCF`; its comment
+warns anchordiff may flag it).  The dimer now starts from SAD instead of the core guess, and its Enn routing claim holds.
+
+Summed over the movers' converged runs: 170 → 146 iterations (11 tests better, 2 worse, 2 unchanged).

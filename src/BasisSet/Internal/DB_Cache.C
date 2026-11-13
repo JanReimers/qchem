@@ -37,7 +37,6 @@ public:
     enum class I4C  {Direct,Exchange}; // <ab|cd> and <ar|1/r12|cd>
     using IBS_ID_t=std::string;        // internal per-basis key axis = DBCacheClient::BasisSetID()
     using Structure_ID_t=std::string;
-    using Mesh_ID_t=std::string;
     using RadialTypeID_t=std::string;
 
 };
@@ -70,9 +69,6 @@ public:
     // follows the FIT basis, so callers key by TFit (see Imp/Orbital_DFT_IBS.C).
     virtual const PairProjection<T>& Get(I3C,const DBCacheClient*,const DBCacheClient*, std::function<PairProjection<T>()> make)=0; // 3 centre
     virtual const ERI4&      Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()> make)=0; // 4 centre
-    // Numerically integrated variants, keyed also by a mesh ID.
-    virtual const rvec_t&    Get(I1C,const DBCacheClient*,const Mesh_ID_t&,                      std::function<rvec_t()> make)=0; // Norm
-    virtual const rmat_t&    Get(I2x,const DBCacheClient*,const DBCacheClient*,const Mesh_ID_t&, std::function<rmat_t()> make)=0; // mesh overlap
 
     // 4 center radial Slater integrals, Rk for HF calculations
     virtual void Register(Cache4_Client* eval)=0;

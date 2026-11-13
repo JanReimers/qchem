@@ -485,8 +485,9 @@ NB_MODULE(qchem_py, mod)
         out.resize(size_t(qcb_pseudopotentials(nullptr, out.data(), int(out.size()))));
         return out;
     }, nb::arg("request"),
-       "A pseudopotential set's q per element (PseudopotentialSet): JSON {set, elements} in, JSON {set, functional, valence: "
-       "{El: q}} or {error} out.");
+       "A pseudopotential set's q per element (PseudopotentialSet): JSON {set, elements, model?} in, JSON {set, functional, valence: "
+       "{El: q}, fitted: {El: label}, checks? (with a model: Hamiltonian::PPFunctionalChecks, one per element: element, fitted, "
+       "fittedLibxcIDs, run, runLibxcIDs, match, matchingModel)} or {error} out.");
 
     nb::class_<Threads>(mod, "Threads")
         .def(nb::init<int, int>(), nb::arg("openmp") = 0, nb::arg("blas") = 0,

@@ -193,6 +193,8 @@ struct MoleculeSetup
     std::shared_ptr<const Structure> reference;
     int    Ne = 0;             //!< electrons: the VALENCE count under a pseudopotential
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;   //!< \c Default resolved per model
+    //! The seed library's key (\c SeedKeyOf): per element, the pseudopotential q of the run's pseudo-atom; unkeyed all-electron.
+    qchem::ChargeDensity::SeedKey seedKey;
     SCFAccelerators::Type accelerator = SCFAccelerators::Type::DIIS;   //!< \c acc.type, by name
     double eMax = 0.0;         //!< \c acc.eMax, or the model's default when it was left <= 0
     //! THE RUN'S XC MESH: \c opts.mesh with an unstated axis at the entry rung (\c kMolecularMeshEntryRadial / \c kMolecularMeshEntryDegree), or the rung a pilot settled

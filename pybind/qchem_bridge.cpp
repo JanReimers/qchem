@@ -31,6 +31,7 @@ import qchem.Structure;      // Molecule, Site
 import qchem.SCFParams;      // SCFParams
 import qchem.Parallel;       // ScopedWorkerThreads: a run's thread counts (a deck's `threads`, the Python Threads scope)
 import qchem.SCFIterator;    // IterationRow, IterationCell
+import qchem.Hamiltonian.Factory;                // ModelFromName, ModelToXC, PPFunctionalChecks (the PP / functional check)
 import qchem.ChargeDensity.Seed;                 // SeedStrategy (the molecule door's seed, by the deck's names)
 import qchem.BasisSet.Gaussian.Point.Factory;    // BasisSet::Gaussian::Angular (its angular form)
 import qchem.Calculation;    // Calculation::MakeLevels (the structure-neutral levels, either door)
@@ -96,13 +97,11 @@ void write_error(const char* what, char* err, int errlen)
     err[errlen - 1] = '\0';
 }
 
+//! The model by the library's own name (Hamiltonian::ModelFromName: HF, LDA, PADE, Xalpha, ...), never a binding table.
 qchem::Model parse_model(const std::string& m)
 {
-    using qchem::Model;
-    if (m == "HF")     return Model::HF;
-    if (m == "LDA")    return Model::LDA;
-    if (m == "Xalpha") return Model::Xalpha;
-    throw std::invalid_argument("qchem_py: unknown model '" + m + "' (HF | LDA | Xalpha)");
+    if (const auto model = qchem::Hamiltonian::ModelFromName(m)) return *model;
+    throw std::invalid_argument("qchem_py: unknown model '" + m + "' (HF | LDA | PADE | Xalpha)");
 }
 
 //! The deck's names for the structure-neutral options (Deck.C kSeed / kAngularForm), so one name means one thing on either door.
@@ -757,7 +756,22 @@ extern "C" int qcb_pseudopotentials(const char* req, char* out, int outlen)
                 valence[el]=q;
                 fitted[el]=set.FittedFunctional(el);   // the functional the resolved potential was FITTED with (a label, e.g. "PADE")
             }
-            answer=nlohmann::ordered_json{{"set", set.Name()}, {"functional", set.Functional()}, {"valence", valence}, {"fitted", fitted}}.dump();
+            nlohmann::ordered_json a{{"set", set.Name()}, {"functional", set.Functional()}, {"valence", valence}, {"fitted", fitted}};
+            if (r.contains("model"))   // THE PRE-RUN PP / FUNCTIONAL CHECK against the run's model (Hamiltonian::PPFunctionalChecks)
+            {
+                const std::string name=r.at("model").get<std::string>();
+                const auto model=qchem::Hamiltonian::ModelFromName(name);
+                if (!model) throw std::invalid_argument("qchem_py: unknown model '"+name+"'");
+                std::vector<std::pair<std::string,std::string>> elementFitted;
+                for (const auto& [el, f] : fitted.items()) elementFitted.emplace_back(el, f.get<std::string>());
+                nlohmann::ordered_json checks=nlohmann::ordered_json::array();
+                for (const auto& c : qchem::Hamiltonian::PPFunctionalChecks(elementFitted, qchem::Hamiltonian::ModelToXC(*model)))
+                    checks.push_back({{"element", c.element}, {"fitted", c.fittedLabel}, {"fittedLibxcIDs", c.fittedIDs},
+                                      {"run", c.runLabel}, {"runLibxcIDs", c.runIDs}, {"match", c.match},
+                                      {"matchingModel", c.matchingModel}});
+                a["checks"]=checks;
+            }
+            answer=a.dump();
         }
         catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
         return int(answer.size());

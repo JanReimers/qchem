@@ -434,18 +434,3 @@ TEST(Mesh_AngularDegree, LebedevIsCheaperThanGaussLegendreAtEqualDegree)
               << gl.size() << " dirs (" << (100*leb.size())/gl.size() << "%)" << std::endl;
 }
 
-// A MESH ID IS AN EXACT CACHE KEY (Mesh_ID_t; lane H 2026-11-12): std::to_string wrote 6 fixed decimals, so an angRot (radians), an alpha
-// or a cutoff agreeing there shared cached integrals.  Every double field an ulp apart must key apart.
-TEST(MeshParamsID, EveryDoubleFieldAnUlpApartKeysApart)
-{
-    const qcMesh::MeshParams p{.radial=qcMesh::RadialKind::MHL, .nRadial=40, .mhl_m=3, .mhl_alpha=2.0, .angularDegree=29,
-                               .angRot=0.123456789, .eCut=37.5, .relCutoff=1.0, .beckeEps=1e-7};
-    auto bump=[](double x){return std::nextafter(x, 2.0*x+1.0);};
-    EXPECT_EQ(p.ID(), qcMesh::MeshParams(p).ID());
-    {qcMesh::MeshParams q=p; q.mhl_alpha=bump(q.mhl_alpha); EXPECT_NE(p.ID(), q.ID()) << "mhl_alpha";}
-    {qcMesh::MeshParams q=p; q.angRot   =bump(q.angRot);    EXPECT_NE(p.ID(), q.ID()) << "angRot";}
-    {qcMesh::MeshParams q=p; q.eCut     =bump(q.eCut);      EXPECT_NE(p.ID(), q.ID()) << "eCut";}
-    {qcMesh::MeshParams q=p; q.relCutoff=bump(q.relCutoff); EXPECT_NE(p.ID(), q.ID()) << "relCutoff";}
-    {qcMesh::MeshParams q=p; q.beckeEps =bump(q.beckeEps);  EXPECT_NE(p.ID(), q.ID()) << "beckeEps";}
-    {qcMesh::MeshParams q=p; q.logStart =bump(q.logStart);  EXPECT_NE(p.ID(), q.ID()) << "logStart";}
-}
