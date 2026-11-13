@@ -72,7 +72,7 @@
  },
  "basis": {
   "data": "dzvp_molopt_gth",
-  "spherical": true
+  "angular": "spherical"
  },
  "solid": {
   "species": [

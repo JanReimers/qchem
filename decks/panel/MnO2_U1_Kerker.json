@@ -12,7 +12,7 @@
  "basis": {
   "data": "VALENCE_LOWQ_VA",
   "file": "MnO2_control.bsd",
-  "spherical": true,
+  "angular": "spherical",
   "autoTrim": false
  },
  "accuracy": 0.0,

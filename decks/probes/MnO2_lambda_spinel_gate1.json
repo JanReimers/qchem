@@ -12,7 +12,7 @@
   ],
   "basis": {
     "data": "VALENCE_LOWQ_VA",
-    "spherical": true
+    "angular": "spherical"
   },
   "solid": {
     "multiplicity": 13,
