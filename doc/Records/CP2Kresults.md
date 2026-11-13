@@ -233,3 +233,19 @@ runs CP2K's form, and the numbers it banks are below.
 ΔE agrees to 17 mHa and E_U to 22 mHa on a 0.6 Ha effect, with the two codes' absolute energies 100 mHa apart (§5c of `doc/Benchmark.md`) — gate tolerance 50 mHa on both, PASSED 2026-09-20 (773 s, two arms).  The E_U residual is the same population functional of two densities that differ at the 0.1 Ha level; it is not a defect to chase before the absolute offset is named (OpenWork §4a).
 
 ⚠ **The FIRST pass of this gate (same day, 792 s) read ΔE +0.6031 / E_U 0.5798 and PASSED WITH A DEFECT IN THE TERM**: on a polarized Kerker recipe the Fock build sees `PolarizedMixCD`, which carries no D and answers no source face (its channel views do), so the term zeroed the occupations on every Fock build and applied V = U/2·P — a rigid +2 eV shift of the whole d manifold — while the energy pass used the real D_out.  The `[+U]` trace showed it (n=0 on alternate refreshes); the pass was because a rigid shift barely moves the density, so E_U(D_out) ≈ E_U(LDA density) landed within tolerance anyway.  Fix: resolve the DM PER CHANNEL (channel view → `cDM_CD` → else `cDM_Sourced_CD::DMSource()`), and a source-less channel KEEPS its occupations.  The relaxation part ΔE−E_U went 0.0233 → 0.0129 Ha (CP2K 0.0078).  Pinned by `GPW_Si.Γ_U_Imp_Pol_Kerker_eqUnpol` (1 s; fails on the old term at 1e-6, passes on the fixed one).  Lesson: an oracle agreement is not a mechanism check — read the term's own trace.
+
+## Mn–O dimer in a 16-bohr box, kT 0, multiplicity 6 (panel #15) — the 144 Ry figure is GRID-LIMITED (2026-11-13, lane A)
+
+Material `MnO_box16`, VA (Mn VALENCE-LOWQ-VA + O VALENCE-LOWQ-VB: our `valence_lowq_va.bsd`, function for function), GTH-PADE q7/q6,
+LDA, OT (DIIS minimizer, FULL_SINGLE_INVERSE), EPS_SCF 1e-6.  Runs in `~/Code/cp2k-runs/MnO_box16/`.
+
+| run | CUTOFF | E (Ha) | Hirshfeld Mn / O spin |
+|---|---|---|---|
+| `mno_box16_gpw_va_ot` (ATOMIC guess, 79 steps) | 144 Ry (72 Ha) | −30.347899855 | 4.951 / +0.049 |
+| `laneA_mno_box16_ot_c1152` (RESTART from the above, 17 steps) | 1152 Ry (576 Ha, = our auto densityEcut) | **−30.348521124** | 4.966 / +0.034 |
+
+⚠ **Do not read the 144 Ry number against ours.**  Our state B (−30.349147, Becke Mn 4.948 / O +0.052) sat 1.25 mHa below it,
+which looked like a different state.  It is not: at the matched grid the gap is **−0.63 mHa**, the banked one-Mn code offset (the Mn
+atom in this box is −0.71 mHa vs CP2K, `OpenWork_History5.md` "MnO accuracy — name the operator").  The moments agree.  Our other
+state A (−30.342192, Mn 5.35 / O −0.35) is NOT a minimum: GDM slides through it into B (`doc/SCFRobustnessPlan.md` B6(a);
+notes `laneA-gdm-crawl-measured.md`).  Panel #15's target is B (controller ruling 2026-11-13).
