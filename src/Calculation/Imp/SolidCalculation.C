@@ -889,7 +889,8 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe re
     using T=SCFAccelerators::Type;
     // THE Auto POLICY lives in qchem.SCFRecipe (ChooseAccelerator; doc/SCFRobustnessPlan.md §3, R4.1 as ruled for B5): a cold or
     // carried stage -> Null (an Auto mixer then resolves to Pulay on D), a restored kT = 0 stage -> the Ladder on its GDM rung, a
-    // restored smeared or partial-eigensolve stage -> DIIS, the last two beside a linear step whose start is capped at 0.3 (Converge).
+    // restored smeared or partial-eigensolve stage -> DIIS, the last two beside a linear step whose start is capped at 0.3 (Converge);
+    // a NAMED MagneticInsulator / Metal stage -> Null in every column, its restore on K+P from iteration 1 (Q-R ruling (b), 2026-11-13).
     AdmitRecipe(recipe, params.SmearingkT, /*molecule*/false);
     SCFAccelerators::SolidAcceleratorOptions ao=itsImp->accOpts;
     const RecipeAccelerator chosen=ChooseAccelerator(recipe, kind, asked, params.SmearingkT, int(itsImp->setup->opts.numBands));

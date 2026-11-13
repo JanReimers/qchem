@@ -1,0 +1,45 @@
+{
+ "_doc": [
+  "OWNER of the vendored state decks/states/NiO_AFM2_k222_MagneticInsulator.h5 (panel gate GPW_NiO.k222_Pol_Smear_Kerker_Pulay_Null_Saved_RestoresOnItsOwnHistory_Panel_Long).  NiO AFM-II k222 MagneticInsulator COLD from IonicSAD, then the raster pilot's re-convergence; ~1.5 h at 6 threads, 2.7 GB.  Measured 2026-11-13: 18 + 10 iterations, E -106.3514267289 on the first grids, -106.3510571976 after the pilot.",
+  "REFRESH ONLY WHEN THE GATE'S CLAIM REQUIRES IT (controller ruling 2026-11-13), never as routine: every refresh adds the full 6.4 MB to git history.  Run:  rundeck decks/panel/NiO_k222_MagneticInsulator_Cold.json --out $(scripts/rundir qchem6 NiO), re-judge the gate's pins against this run (doc/Pins.md pin 10), then cp the saved file over the vendored one.",
+  "gzip-6 measured 2026-11-13 shrinks the file only 26% (6.39 -> 4.73 MB; shuffle + gzip 5.20 MB): the writer stays uncompressed."
+ ],
+ "structure": "NiO_AFM2",
+ "kmesh": [
+  2,
+  2,
+  2
+ ],
+ "basis": {
+  "data": "VALENCE_LOWQ_VA",
+  "angular": "spherical"
+ },
+ "solid": {
+  "multiplicity": 1,
+  "siteSpins": [
+   1,
+   -1,
+   0,
+   0
+  ],
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "imposeSymmetry": false
+ },
+ "scf": {
+  "recipe": "MagneticInsulator",
+  "NMaxIter": 100,
+  "minDeltaRhoPerElectron": 1e-07,
+  "deltaRhoMeasure": "MaxDeltaD",
+  "minDeltaE": "off",
+  "minDeltaFD": "off",
+  "minVirial": "off",
+  "minFD": "off",
+  "mergeTol": 0.0001,
+  "smearingkT": 0.005
+ },
+ "state": {
+  "save": "NiO_AFM2_k222_MagneticInsulator.h5"
+ }
+}
