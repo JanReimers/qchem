@@ -20,7 +20,8 @@ import qchem.BasisSet.Gaussian.Lattice.RasterLadder;   // ExponentAtCutoff, kRes
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH -> HGH local PP -> alpha_pp
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
-import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::spherical)
+import qchem.SeedPolicy;   // ResolveSeed: the ONE Auto seed rule (shared with MoleculeSetup)
+import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::angular)
 import qchem.Policy;                           // policy::Refuse: each refusal files its row where it fires
 import qchem.Reporting;                         // report::Scope: the vet-stage trim files under basisTrim
 import qchem.XCRhoPolicy;                      // ReportSolidXCRho: the XC rho-axis decision
@@ -111,7 +112,7 @@ void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st
     int sum=0; for (int q : o.siteCharges) sum+=q;
     if (sum!=0) throw std::invalid_argument("SolidCalcOptions: siteCharges sum to "+std::to_string(sum)+", not 0 -- formal charges conserve the"
                                             " cell's charge ("+sites+")");
-    if (o.seed!=ChargeDensity::SeedStrategy::IonicSAD)
+    if (o.seed!=ChargeDensity::SeedStrategy::IonicSAD && o.seed!=ChargeDensity::SeedStrategy::Default)   // Default: the Auto rule takes IonicSAD
         throw std::invalid_argument("SolidCalcOptions: siteCharges is stated but the seed is not IonicSAD -- only the ionic seed reads a"
                                     " charge order, so nothing would consume it");
 }
@@ -126,6 +127,9 @@ void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st
 //  before spending).  The words are the deck's (xc.fit, basis.ecut), with the C++ field beside them.
 static void RefuseUnrealizedRoutes(const SolidCalcOptions& o)
 {
+    if (o.model!=Hamiltonian::Model::LDA && o.model!=Hamiltonian::Model::PADE)
+        policy::Refuse("SolidFunctional", "solid.model "+Hamiltonian::Name(o.model)+" on a periodic cell",
+                       "a periodic run is Kohn-Sham LDA with a pseudopotential; its functionals are LDA (Dirac + VWN5) and PADE -- state one");
     if (o.vxcFit==Hamiltonian::VxcFit::Auxiliary)
         policy::Refuse("VxcProductSpace", "xc.fit Auxiliary (the Dunlap auxiliary fit) on a periodic cell",
                        "the auxiliary Vxc fit is a molecular / atom fit with no periodic realization yet, an open cell of the Vxc "
@@ -172,6 +176,11 @@ Lattice_3D SizedForStrain(const Lattice_3D& lat, const SolidCalcOptions& opts)
     policy::Report("SolidSetup.CellStrainAllowance", "sizing box (1+"+std::to_string(s)+") A_ref", policy::Verdict::Choose, why.str());
     return Lattice_3D(cell, lat.GetLimits());
 }
+}
+
+std::vector<Hamiltonian::PPFunctionalCheck> SolidSetup::PPFunctionalChecks() const
+{
+    return Hamiltonian::PPFunctionalChecks(pp, *cell, Hamiltonian::ModelToXC(opts.model));
 }
 
 std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, std::shared_ptr<const BasisSet::Real_BS> mol,
@@ -254,6 +263,36 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     }
     s->seedKey=SeedKeyOf(s->pp, *st);
     s->seedKey.siteCharges=opts.siteCharges;
+    // THE MAGNETIC ORDERING HAS ONE SOURCE (controller ruling 2026-11-12, OpenWork §3 "One magnetic ordering has TWO sources of truth"):
+    // a STATED siteSpins is the run's ordering, and the seed reads it as the imposition does; the structure's per-atom spins are only the
+    // default when siteSpins is absent.  Before, an inline cell without atom spins seeded every site +m, which the imposed AFM Shubnikov
+    // group projected to m = 0 -- silently.  A stated ordering whose flips differ from the structure's is reported as the override it is.
+    s->seedKey.siteSpins=opts.siteSpins;
+    if (!opts.siteSpins.empty())
+    {
+        std::string fromStructure, differs;
+        size_t i=0;
+        st->ForEachSite([&](int Z, const rvec3_t&, bool spinFlip)
+        {
+            const int stated=opts.siteSpins[i++];
+            fromStructure+=spinFlip ? " -" : " +";
+            if ((stated<0)!=spinFlip) differs+=" "+thePeriodicTable().GetSymbol(Z)+std::to_string(i)+(stated<0 ? "(-)" : stated>0 ? "(+)" : "(0)");
+        });
+        if (!differs.empty())
+        {
+            std::string stated;
+            for (int v : opts.siteSpins) stated+=v<0 ? " -" : v>0 ? " +" : " 0";
+            const std::string decided="seed spins: the stated siteSpins ["+stated+" ] override the structure's flips ["+fromStructure+" ] at"+differs;
+            const std::string reason="a stated magnetic ordering is the run's ONE source: the seed reads it, as the imposition does";
+            policy::Report("SeedSpins", decided, policy::Verdict::Choose, reason);
+            std::cout << "[policy] " << decided << " -- " << reason << std::endl;
+        }
+    }
+    // THE SEED: a stated one is honoured; Default takes THE Auto rule both setups share (qchem.SeedPolicy) -- a lattice seeds from the
+    // valence library's superposition at its formal charges (stated, else derived: its Madelung field holds them), and a species the
+    // library lacks takes the core guess with a WARN (it threw at seed time until 2026-11-12).
+    s->opts.seed=ResolveSeed(opts.seed, *st, {.densityFock = true, .periodic = st->HasTranslationSymmetry(), .chargesStated = !opts.siteCharges.empty(),
+        .covered = [key=s->seedKey](int Z){ return ChargeDensity::HasAtomicDensity(Z, key.functional, "atomic_valence_densities.json", -1, key.Q(Z)); }});
 
     // THE RESOLVED IMPOSITION (doc/OpenWork.md N5, user 2026-08-26).  The caller's flag AND the policy's
     // permission: CP2K parity forbids the capability outright, because CP2K does no symmetry work at all
@@ -376,7 +415,7 @@ std::shared_ptr<const BasisSet::Real_BS> GaussianBasisRecipe::Make(const Structu
     if (!bind) throw std::logic_error("GaussianBasisRecipe::Make: the built basis cannot bind GPW tolerances (not a MnD Cartesian set)");
     bind->BindTolerances(tolerances);
     std::shared_ptr<const BasisSet::Real_BS> b(std::move(built));
-    if (spherical) b=PG_Spherical::MakeSphericalLatticeView(std::move(b));
+    if (angular==Angular::Spherical) b=PG_Spherical::MakeSphericalLatticeView(std::move(b));
     return b;
 }
 

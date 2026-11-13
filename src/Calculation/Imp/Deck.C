@@ -123,6 +123,7 @@ using qcMesh::UnitCellKind; using qcMesh::RadialKind; using qcMesh::AngularKind;
 
 #define NAMES(T,...) std::initializer_list<std::pair<const char*,T>>{__VA_ARGS__}
 const auto kImages = NAMES(CellImages,   {"Periodic",CellImages::Periodic}, {"HomeCellOnly",CellImages::HomeCellOnly});
+const auto kAngularForm = NAMES(BasisSet::Gaussian::Angular, {"cartesian",BasisSet::Gaussian::Angular::Cartesian}, {"spherical",BasisSet::Gaussian::Angular::Spherical});
 const auto kFamily = NAMES(SolidCalcOptions::OrbitalBasis, {"gaussian",SolidCalcOptions::OrbitalBasis::GPW}, {"planeWave",SolidCalcOptions::OrbitalBasis::PlaneWave});
 const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Auto}, {"PlaneWave",Hamiltonian::VxcFit::PlaneWave}, {"Delta",Hamiltonian::VxcFit::Delta}, {"Auxiliary",Hamiltonian::VxcFit::Auxiliary});
 const auto kRho    = NAMES(Hamiltonian::XCρ, {"exact",Hamiltonian::XCρ::Exact}, {"fit",Hamiltonian::XCρ::Fit});
@@ -185,7 +186,7 @@ bool ShippedBasisFile(const std::string& file)
 //! The deck's basis block as the setup's RECIPE (the trim stated, or vetted once by SolidSetup::Resolve).
 GaussianBasisRecipe RecipeOf(const RunSpec::Basis& b)
 {
-    GaussianBasisRecipe r{.file=b.inlineBsd.empty() ? b.file : MaterializedBasis(b.inlineBsd), .autoTrim=b.autoTrim, .spherical=b.spherical};
+    GaussianBasisRecipe r{.file=b.inlineBsd.empty() ? b.file : MaterializedBasis(b.inlineBsd), .autoTrim=b.autoTrim, .angular=b.angular};
     // A REGISTERED name keeps its typed handle; any other stem in the data directory is read as that file.
     if (!BasisSet::Gaussian::RegisteredBasis(b.data, r.data) && r.file.empty()) r.file=BasisSet::Gaussian::BasisFileOfName(b.data);
     for (const auto& t : b.trim) r.trim.shells.push_back({t.Z, t.l, rvec_t(1,t.alpha)});
@@ -397,6 +398,7 @@ json ToJson(const SolidCalcOptions& o)
     json hub=json::array();
     for (const auto& h : o.hubbard) hub.push_back(ToJson(h));
     json out={{"Nelec",o.Nelec},{"charge",o.charge},{"multiplicity",o.multiplicity},{"pp",o.pp},{"species",species},
+            {"model",Hamiltonian::Name(o.model)},
             {"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
             {"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
             {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},
@@ -425,6 +427,13 @@ void FromJson(const json& j, SolidCalcOptions& o)
 {
     Fields f(j,"solid");
     f.Get("Nelec",o.Nelec); f.Get("charge",o.charge); f.Get("multiplicity",o.multiplicity); f.Get("pp",o.pp);
+    {
+        std::string model=Hamiltonian::Name(o.model);
+        f.Get("model",model);
+        const auto m=Hamiltonian::ModelFromName(model);
+        if (!m) throw std::runtime_error("deck: 'solid.model' \""+model+"\" is not a model name (a periodic run takes \"LDA\" or \"PADE\")");
+        o.model=*m;
+    }
     if (j.contains("species"))
     {
         o.species.clear();
@@ -659,7 +668,7 @@ PostAction PostFromJson(const json& j, const std::string& path)
 
 json BasisJson(const RunSpec::Basis& b)
 {
-    json j={{"data",b.data},{"spherical",b.spherical}};
+    json j={{"data",b.data},{"angular",NameOf(b.angular,kAngularForm)}};
     if (!b.file.empty()) j["file"]=b.file;
     if (!b.inlineBsd.empty()) j["inline"]=b.inlineBsd;
     if (b.autoTrim) j["autoTrim"]=true;
@@ -676,7 +685,17 @@ void BasisFromJson(const json& j, RunSpec::Basis& b)
 {
     Fields f(j,"basis");
     f.Get("data",b.data); (void)BasisSet::Gaussian::BasisFileOfName(b.data);   // a name not in the data directory THROWS here, listing the names
-    f.Get("spherical",b.spherical); f.Get("file",b.file); f.Get("inline",b.inlineBsd); f.Get("autoTrim",b.autoTrim);
+    f.GetEnum("angular",b.angular,kAngularForm);
+    // DECK-ALIAS: basis.spherical -> basis.angular (2026-11-12)
+    if (j.contains("spherical"))   // the earlier spelling (a bool, before 2026-11-12): the same option, so a record still runs
+    {
+        bool sph=false; f.Get("spherical",sph);
+        const auto old=sph ? BasisSet::Gaussian::Angular::Spherical : BasisSet::Gaussian::Angular::Cartesian;
+        if (j.contains("angular") && old!=b.angular)
+            throw std::runtime_error("deck: basis.angular and the old basis.spherical disagree -- state basis.angular only");
+        b.angular=old;
+    }
+    f.Get("file",b.file); f.Get("inline",b.inlineBsd); f.Get("autoTrim",b.autoTrim);
     if (!b.file.empty() && !b.inlineBsd.empty())
         throw std::runtime_error("deck: basis.file AND basis.inline -- state one (an inline basis IS the file's text)");
     if (j.contains("vet"))
@@ -715,6 +734,7 @@ json ToJson(const RunSpec& r)
         j["state"]=st;
     }
     if (!r.postSCF.empty()) { json a=json::array(); for (const auto& x : r.postSCF) a.push_back(PostJson(x)); j["postSCF"]=a; }
+    if (r.threads!=ThreadCounts{}) j["threads"]={{"openmp",r.threads.openmp},{"blas",r.threads.blas}};   // stated only: absent = the process's
     if (r.schedule.empty()) j["scf"]=StageScfJson(r.scf,r.scfRecipe);    // one stage: the record says it once
     else
     {
@@ -750,6 +770,13 @@ void FromJson(const json& j, RunSpec& r)
     }
     else f.At("state");
     if (j.contains("solid")) FromJson(f.At("solid"),r.solid); else f.At("solid");
+    if (j.contains("threads"))
+    {
+        Fields tf(f.At("threads"),"threads"); tf.Get("openmp",r.threads.openmp); tf.Get("blas",r.threads.blas); tf.Done();
+        if (r.threads.openmp<0 || r.threads.blas<0)
+            throw std::runtime_error("deck: 'threads' counts must be >= 0 (0 = the process's own: QCHEM_OPENMP_THREADS / QCHEM_BLAS_THREADS)");
+    }
+    else f.At("threads");
     // THE ONE ACCURACY TARGET eps is the RUN's (V-FACADE-ACCURACY, user ruling 2026-11-03): the top-level `accuracy` key, copied into the
     // options of the facade the deck builds (today always the solid's).  `solid.accuracy` is its DEPRECATED alias: read, and warned
     // about.  Both stated is refused -- two statements of one number, and the deck would have to pick.
@@ -847,10 +874,10 @@ Materials::Material Resolve(RunSpec& spec)
         throw std::runtime_error("deck: basis.autoTrim and basis.trim are exclusive (an autoTrim computes the trim; a stated trim is the A/B for it)");
     if (spec.basis.autoTrim && spec.solid.orthoTol<=0.0)
         throw std::runtime_error("deck: basis.autoTrim needs a solid.orthoTol > 0 to trim at -- at 0 it would drop nothing");
-    if (spec.basis.spherical && BasisSet::Gaussian::BasisFileOfName(spec.basis.data)=="valence_lowq_sr.bsd")
+    if (spec.basis.angular==BasisSet::Gaussian::Angular::Spherical && BasisSet::Gaussian::BasisFileOfName(spec.basis.data)=="valence_lowq_sr.bsd")
     {
         bool tm=false; m.cell->ForEachSite([&](int z, const rvec3_t&, bool){ tm = tm || (z>=21 && z<=30); });
-        if (tm) throw std::runtime_error("deck: basis.spherical with VALENCE_LOWQ_SR -- the SR transition-metal block's s span lives in the Cartesian d "
+        if (tm) throw std::runtime_error("deck: basis.angular \"spherical\" with VALENCE_LOWQ_SR -- the SR transition-metal block's s span lives in the Cartesian d "
                                          "contaminants, which the spherical view removes; use VALENCE_LOWQ_VA or VALENCE_LOWQ_SPH");
     }
     // THE MAGNETIC ORDERING IS STATED (OpenWork §3, 2026-10-26): the facade's own check, run here so a deck is refused BEFORE a revision is claimed.
@@ -1131,7 +1158,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
     if (spec.basis.autoTrim) v.notes.push_back("basis.autoTrim: the vet-stage trim loop is NOT run by --check (function count is the untrimmed one)");
     std::ostringstream os;
     os<<spec.StructureName()<<(spec.inlineStructure.is_null() ? "" : " (inline)")<<": "<<mat.cell->GetNumAtoms()<<" atoms, Nelec "<<spec.solid.Nelec<<", multiplicity "<<spec.solid.multiplicity
-      <<", k-mesh "<<spec.kmesh.x<<"x"<<spec.kmesh.y<<"x"<<spec.kmesh.z<<", basis "<<(!spec.basis.inlineBsd.empty() ? spec.basis.data+" (inline)" : spec.basis.file.empty()?spec.basis.data:spec.basis.file)<<(spec.basis.spherical?" (spherical)":"")
+      <<", k-mesh "<<spec.kmesh.x<<"x"<<spec.kmesh.y<<"x"<<spec.kmesh.z<<", basis "<<(!spec.basis.inlineBsd.empty() ? spec.basis.data+" (inline)" : spec.basis.file.empty()?spec.basis.data:spec.basis.file)<<(spec.basis.angular==BasisSet::Gaussian::Angular::Spherical?" (spherical)":"")
       <<" "<<nf<<" functions, "<<spec.Stages().size()<<" SCF stage(s), "<<spec.solid.hubbard.size()<<" Hubbard manifold(s), "<<spec.postSCF.size()<<" postSCF action(s)"
       <<(spec.solid.imposeSymmetry?", symmetry IMPOSED":", symmetry FREE");
     v.summary=os.str();
@@ -1190,6 +1217,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     struct Close { ~Close() { qchem::report::ClearConsole(); qchem::report::End(); } };
     // A run is OPEN before anything can refuse, so a refusal files its record (its policy rows) too.  The checks before the
     // revision is claimed (Resolve, the restart) run in "<structure> resolve"; the build and SCF in the revision's own run.
+    const qchem::ScopedWorkerThreads threads(spec.threads);   // the run's thread counts, for the whole run (absent = the process's)
     std::optional<Close> resolving;
     qchem::report::Begin(spec.StructureName()+" resolve");
     qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);

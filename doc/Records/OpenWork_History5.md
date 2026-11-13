@@ -2537,6 +2537,106 @@ seen after earlier tests is gone too.
 - *A stall exit*: nothing to catch.  The tail converges steadily (~2.5× per iteration, no plateau), so an exit judged by a fixed rule never
   fires before the gate does.
 
+
+## An orbital key has no bound on n (closed 2026-11-12, lane H)
+
+The row as it stood (verbatim):
+
+| **The PW stress gates abort under live asserts: `Orbital_QNs.C:26` `n-1<n_max`** (lane H, 2026-11-12; lane H's own tests) | `HamiltonianStress.OnPlaneWaves{Si,NaF}sStressIsQEs` (UTCalculation) abort in a `-DQCHEM_RELCHECKED=ON` tree (lane-h c978cd520 and main's nightly 1bfae076 alike); green in every NDEBUG sweep, so a Release run reads past the invariant silently.  Assert-live from the stress landing on: RelChecked was BUILT there, never RUN | find which `Orbital_QNs::SequenceIndex` is asked for an n past its table on the PW stress path: a real out-of-range n (then an Outcome, or a throw at the table's entry point -- never an assert alone if a user can reach it, CLAUDE.md) or the test's basis; queued after the cache-key fix, before PADE · `src/Symmetry/Imp/Orbital_QNs.C`, `src/Calculation/tests` HamiltonianStress |
+
+**What it was.**  `Orbital_QNs::SequenceIndex` packed the key as `Irrep::SequenceIndex()*300 + (n-1)`, and an assert stood guard on
+`n-1 < 300`.  A plane-wave block has as many levels as plane waves (Si and NaF at the stress cutoffs: more than 300 per k-block), and
+`tIrrepWF::FillOrbitals` files every level in `EnergyLevels`' `std::map<Orbital_QNs,…>`.  So under live asserts it aborted.  In
+Release the assert is dead and (block I, n 300+m) became the SAME key as (block I+1, n m):
+- the map silently dropped the second level of each colliding pair;
+- `EigenRows`' spin pairing (`FindOrNull`) then read the wrong level into the eigenvalue table.
+
+It touched the display and report path only; no energy reads that map.  It was user-reachable by any PW run at a production
+cutoff, and silent in every sweep build.
+
+**Fix.**  The radix is gone.  `Orbital_QNs` orders LEXICOGRAPHICALLY (block key first, then n) through its own `operator<`.  For two
+`Orbital_QNs` that operator is an exact match, so it wins over `Irrep`'s.  `SequenceIndex` is `Irrep`'s again, the BLOCK key, which is
+what every caller that compares blocks wants (`EnergyLevels::merge`, `TransitionDensity`, `SelectionRule`).  There is no bound left to
+check, so the CLAUDE.md "check the table bound once and throw" rule has nothing to guard.
+
+**Gates.**
+- UTSymmetry `SymQN.OrbitalQNsOrderIsBlockThenNWithNoBoundOnN`: 12 distinct keys for n up to 5000 in two blocks; block-major order,
+  n ascending within a block.
+- RelChecked: `HamiltonianStress.OnPlaneWaves*`, 4 of 4 green, where they aborted before.
+- Short sweep 1596/0, long 15/0, both 0 moved at 1e-10 against the cache-key state (da67bfd27).
+
+
+## PADE, and the PP / functional check (closed 2026-11-12, lane H)
+
+The row as it stood (verbatim):
+
+| **A GTH-PADE pseudopotential runs under VWN5, not the PADE LDA it was fitted with** (lane H, 2026-11-11, from the Li q3 row) | every GTH-PADE PP (the default table) is fitted with the Goedecker-Teter-Hutter Padé LDA; our `Model::LDA` is Dirac + VWN5.  The two differ by 0.6 mHa on the Li q3 atom (89 μHa on q1, opposite sign), all of it in E_xc.  Not a code defect (pin 31: a model choice), but the code can SEE the mismatch: the PP names its functional, now as a query (`PseudopotentialSet::FittedFunctional(el)` / `GTH_PP::fitted`, "PADE" for every LDA entry; lane H 359d0b497) that nothing reads yet | **USER RULING 2026-11-12: option (a)** (*"I agree a."*): OFFER PADE (libxc `LDA_XC_TETER93`, id 20, through `XCFunctional`'s libxc id) as a functional a run STATES, deck/facade spelled like the others, the GUI-facing name through the library only; and WARN AND RUN when a PP's `FittedFunctional` differs from the run's functional, naming both, into the run report (`report::Set` under the caller's `policy` scope) and the console.  No automatic switch (a silent substitution); VWN5 stays the default LDA, so no anchor moves.  Gates: PADE vs CP2K `XC_FUNCTIONAL PADE` on Li q3 (−7.2850821, μHa); the warning fires for GTH-PADE + LDA and is silent for GTH-PADE + PADE.  Owner lane H, queued after the forward-ρ gates · `IntegrationTests/GPW/Li.C` oracle block |
+
+**What landed** (user ruling 2026-11-12, option a, and the user's follow-ups the same day).
+
+- **PADE is a model a run STATES.**
+  - `Hamiltonian::Model::PADE` is libxc `LDA_XC_TETER93` (id 20), built through `XCFunctional`'s libxc id.
+  - Deck spelling: `"model":"PADE"` (molecule) and the new `solid.model` key.  The key is additive: an existing deck without it
+    stays LDA (the user's backwards-compatibility convention).
+  - `Hamiltonian::Name` / `ModelFromName` give the GUI its name through the library.
+  - The solid, molecule and pseudo-atom paths all build it.
+  - VWN5 stays the default LDA.  No automatic switch.
+- **The comparison is on LIBXC IDS, never names across schemes.**
+  - `Hamiltonian::LibxcIDs(XCFunctional)` gives the run's set: Dirac + VWN5 = {1,7}, PADE = {20}.
+  - `LibxcIDsOfFitted(cp2kName)` maps every fitted name in the GTH table: PADE, PBE, BLYP, BP, OLYP, PBESOL, HCTH120, HCTH407.
+  - An unmapped name THROWS by name, never a silent match.
+  - The CP2K name stays the display label.
+- **The pre-run query.**
+  - `Hamiltonian::PPFunctionalChecks` gives, per element: fitted label, fitted ids, run label, run ids, match yes/no, and the model to
+    state to match it.
+  - `MoleculeSetup::PPFunctionalChecks()` and `SolidSetup::PPFunctionalChecks()` answer it without running, so the GUI reads it.
+    Lane G binds this; it does not re-derive the mapping.
+- **The policy** `policy::PPFittedFunctional(checks)` is WARN AND RUN, and says what to do: "state model PADE to match the GTH-PADE
+  fit, or use pseudopotentials fitted for <run>", or, when no model matches, "use pseudopotentials fitted for <run>".
+  - It writes one row (`report::Set` under the caller's scope, detail per element with label and ids) and one console line.
+  - It fires on the molecule (before the `hamiltonian` scope, which holds meshes and terms only), solid and pseudo-atom paths.
+
+**Gates.**
+- `GPW_LiBox.Γ_PADE_M2_CP2K_Long`: Li q3 PADE −7.2850697 against CP2K `XC_FUNCTIONAL PADE` −7.2850821, so +12 μHa (gate 50 μHa).
+  It files no warn row.
+- `GPW_LiBox.Γ_M2_CP2K_Long` (VWN5) files the row once per Hamiltonian build: the solid schedule builds two, so the gate is ≥ 1, not
+  a count pin.
+- UTCalculation `PPFittedFunctional.*`:
+  - the names round-trip;
+  - the libxc id sets;
+  - an unmapped name is refused;
+  - every table name is mapped;
+  - the advice wording;
+  - a PBE fit warns under PADE;
+  - silent on a match;
+  - the molecule and solid setups answer the query;
+  - the Si pseudo-atom through the facade.
+- `audit-pp-choice` and `HubInterfaceAudit` green.  Short and long sweeps against main-c7716e02: 0 moved (see the landing commit).
+## ✅ Per-run thread count (lane G, 2026-11-12, b49924e25)
+
+The row, verbatim:
+| **Per-run thread count** (user 2026-11-12, GUI feedback 35: "The user should have the ability to select thread count for a run") | `WorkerThreads()` reads `QCHEM_OPENMP_THREADS` ONCE per process (a static), and the BLAS count is pinned when qcCommon loads, so the in-process GUI (qchem_py) cannot choose threads per run; the override hook `ScopedWorkerThreads` is test-only | **lane G**: a run key (`run.threads`) applied as a scope for the run: OpenMP through the existing hook (no longer test-only) AND the BLAS count, both restored on exit.  Gates: one process runs at 1 and at 4 threads and each run report says its count; Etot agrees to 1e-12 (bit identity only where it is gated, the ERI4/3C fills; report any reduction-order difference); an unset key keeps today's behaviour · `src/Common/Parallel.C`, `src/Calculation/Deck.C` |
+
+DONE: `ScopedWorkerThreads` left test-only and scopes BOTH counts -- the OpenMP regions (`WorkerThreads`) and the BLAS pool
+(`openblas_set_num_threads`; `BlasThreads` answers the override) -- restoring both on exit; `qchem::ThreadCounts` (0 = the process's
+own) is a run's statement of them.  The deck reads `threads` {openmp, blas} (stated-only in the record, a negative count refused;
+an old deck reads as before); `deck::Run` holds the scope for the whole run, the bridge per call (build, converge, field);
+`qchem_py.Threads(openmp, blas)` is the same scope as a context manager around ANY run, molecule or crystal (structure-neutral).
+`ReportSCFRecipe` files `advanced.threads` for every facade.  Gate `UTCalculation`
+`Deck.TheRunsThreadsAreScopedReportedAndMoveNoEnergy`: one process, Si Γ at 1 and 4 OpenMP threads (libomp linked), each report files
+its counts, both restore; Etot -7.115067799802988 vs -7.115067799802985 (3.6e-15, reduction order; gate 1e-12).  Short sweep
+1589/0, 0 moved against main-fd643121.  REMAINDER: the GUI's per-run thread picker (lane G, after this lands on main).
+
+## ✅ `solid.orthoTol` reached a Cholesky solver that ignores it (lane G, 2026-11-12, 1c3410f11)
+
+The row, verbatim:
+· **`solid.orthoTol` has two meanings, and the solid default prints a std::cerr warning about it** (user 2026-11-12, GUI feedback 36: "Warning: LASolverCholesky ignores TruncationTolerance (1e-06) ... Is this a concern?").  Harmless to the numbers: the autoTrim floor `orthoTol` is ALSO handed to `LASolver::Factory` (SolidCalculation.C 645/949/953/2250) with the solid default `ortho = Cholesky`, which ignores it and says so on std::cerr, bypassing the run report.  **lane G**: split the two -- the autoTrim floor vs a truncation tolerance for a truncating LASolver, passed only when the stated ortho uses it; remove the cerr line (a genuinely ignored stated tolerance is a report entry).  Gate: the solid default emits no warning; a stated truncating ortho still receives its tolerance · `src/LASolver/Imp/Factory.C`, `src/Calculation/SolidSetup.C`.
+
+DONE: not two meanings after all but ONE floor with two readers -- the vet-stage trim and a TRUNCATING ortho solver (the vet's metric
+is that solver's own drop count at the floor).  `SolidCalcOptions::SolverTruncation()` hands it to Eigen / SVD / CholeskyPivoted only;
+the LASolver factory's std::cerr lines (Cholesky, Auto) are removed; the run report files `basis.orthoTol` {value, solverTruncates}.
+The deck key and its meaning are unchanged.  Gate `Deck.OrthoTolIsTheTrimFloorAndReachesTheSolverOnlyWhenItTruncates`.
+
 ## ✅ SCF panel iteration budgets predate the raster pilot (C2 step 3): the pilot's re-convergence is now counted apart (lane A, 2026-11-12, 17ef37e6e)
 
 The row (verbatim, from `doc/OpenWork.md`): `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` ran over its budget of 49
@@ -2569,3 +2669,102 @@ adaptive step never grew past 0.3 in any of them, so the cap is a guard the suit
 STATED accelerator keeps the caller's step (6 stated-Ladder stages at 0.3/1, 5 at 1/1), and the raster pilot's stated Ladder (10 stages)
 -- both print as stated.  Sweep: short 1603/0, long 15/0, panel4t 25/0, RelChecked built.
 
+## ✅ Structure-neutral seed and Gaussian angular form (lane B, 2026-11-12, bdeabff3e)
+
+The row as it stood (verbatim):
+
+| **Structure-neutral seed and Gaussian angular form** (user 2026-11-12, GUI feedback 31/32: "we should strive to make seeding and spherical/Cartesian options structure neutral"; on landing per-path molecular binding fields meanwhile: "Wait for neutral") | the same choice is held two ways.  ANGULAR: `MoleculeSetup` `CalcOptions.angular` (enum `Angular`) vs `SolidSetup` `GaussianBasisRecipe.spherical` (a bool, the spherical lattice view).  SEED: one `SeedStrategy`, but two Auto rules (molecule `AutoSeed`: SAD for DFT, else the core guess; solid: IonicSAD), and IonicSAD / Uniform are refused for a molecule -- implementation history (V2.2, the periodic valence form factors), not chemistry: `IonicSADTargets` are per-site formal charges, which a molecule has too.  The binding has two front doors (`qcb_request` fields vs the deck), so the GUI offers both choices on crystals only (qchem-GUI 2eb3e92; a molecule that states one is refused) | **lane B**: ONE basis-recipe angular option both setups share; ONE Auto seed rule; IonicSAD for molecules.  The molecular spherical + point-group refusal STAYS until the SALC builder handles spherical shells (`doc/OldPlans/SphericalSALCPlan.md`).  Then lane G wires both binding front doors and drops the GUI's crystals-only guard · `src/Calculation/MoleculeSetup.C`, `src/Calculation/SolidSetup.C`, `src/ChargeDensity/Seed.C` |
+
+**Landed.**
+- **One angular option.** `BasisSet::Gaussian::Angular {Cartesian, Spherical}` is used by both setups: `MoleculeSetup`'s private
+  enum is gone, and the solid's `GaussianBasisRecipe::angular` replaces `bool spherical`.  The deck key is `basis.angular`; the old
+  `basis.spherical` still reads under `// DECK-ALIAS: basis.spherical -> basis.angular (2026-11-12)` and throws only when it disagrees.
+- **One Auto seed rule**, `qchem.SeedPolicy::ResolveSeed`, called by both setups; it files a `policy` row `AutoSeed`.  A stated seed is
+  honoured; otherwise: no density in the iteration-0 Fock gives the core guess; a species the seed library lacks gives the core guess and
+  a WARN (user ruling (a)); charges stated, or a periodic structure, give IonicSAD; otherwise SAD (user ruling (1), "Derived only if
+  periodic").
+- **IonicSAD for molecules**, on the all-electron library.  Measured against SAD it reaches the same state (within 1e-7) but costs
+  iterations: H₂O 8 → 10, LiF 8 → 10, OH⁻ 9 → 10.  That is why isolated structures default to SAD.
+- No default changed.  A solid with an uncovered species, which threw, now runs on the core guess with a WARN (`GPW_Al`).
+
+**Correction to the row.**  "The molecular spherical + point-group refusal STAYS" was never true of the code: the SALC builder has
+handled the in-house MnD spherical basis since S3a/S4 (`doc/OldPlans/SphericalSALCPlan.md`).  The only refusal is libcint-spherical +
+symmetry (`MoleculeCalculation.C`, S3b).  The claim came from a stale comment on `CalcOptions::angular` in `MoleculeSetup.C`, rewritten
+2026-11-12.  Nor is there a C++ refusal of a Uniform seed for a molecule.
+
+**Remainder (other rows).**  Lane G wires both binding front doors to `Angular` and `SeedStrategy::Default`.  The pseudopotential seed
+library is its own row ("A pseudopotential run seeds from the VALENCE library for its q, on every structure").
+
+
+
+## ✅ A Kerker-preconditioned mixer ERASES the seed's magnetization: a reporting split (lane B, 2026-11-12, bd4169fae)
+
+The row as it stood (verbatim):
+
+· **A Kerker-preconditioned mixer ERASES the seed's magnetization** (lane G 2026-11-12, from the user's NiO report "the magnetic moments are wasting away"; owner lane B, after its seed READY).  NiO_AFM2 VALENCE_LOWQ_VA, Γ, siteSpins +-00, imposed Shubnikov, IonicSAD (Ni²⁺ moment 2 exists).  Seed probe (`siteMoments mu` before iteration 1): `scf.kerkerG0 1.0` + Pulay gives seed mu ±4.1e-6 and iteration-1 m_site +0.076 (XC ρ 'cusp', the ρ̃ path); no kerkerG0 (Pulay on D), smeared or not, gives seed mu ±3.372 and iteration-1 m_site +2.48.  So under Kerker the run starts non-magnetic: imposed it stays near 0 ("0.00000 from the first iteration"), free it regrows from noise.  SUSPECT: the Kerker path's seed/history is built from the TOTAL fitted density, not spin-resolved (pin 5: spin-native).  NEXT: unit-gate the seed → ρ̃ handoff on a two-site spin pair (seed m in = m out under Kerker), then fix; the B5 `MagneticInsulator` recipe (K+P) depends on it.  Repro decks: lane G's notes `laneG-nio-kerker-spin/{nio_ker_nosmear.json, nio_smear_only.json}`, 1 iteration each, ~8 min at QCHEM_OPENMP_THREADS=0.  SMALLER, same report: on the untrimmed VA basis (λmin(S) 5.6e-8) the refused first iterate (+2515 Ha, raster pilot restarts on x=16.7) prints site moments of exactly 0.0000 in its summary; the restart is right, the zero line misleads (print "refused" instead of moments).
+
+**The diagnosis: no erasure.  The `m_site` column meant two different densities.**
+- A D-mixer's row carries the first-order energy E_T, whose breakdown is E[D_in]'s, and its site moments came with it: the MIXED
+  D_in's.  A field mixer (Kerker, Pulay on ρ̃) has no E_T, so its row is E_KS[D_out] and its moments were D_out's.
+- On the row's NiO deck both routes produce the SAME iteration-1 D_out: E_KS -96.99726, site moments 0.0761 (the result lines).
+  D-Pulay's row read D_in (2.48), Kerker's read D_out (0.076).  The "seed mu" row is that same iteration-1 breakdown, root-anchored
+  above the table (and on the refused pilot pass, the broken D_out: 4e-6 vs D_in 3.372).
+- Controls (`~/Code/qchem6-runs/NiO/laneB-kerker-*.json`): without kerkerG0 the split vanishes; smearing changes nothing.
+- Over 8 iterations (`laneB-k8-{kerker,dpulay}.json`) Kerker+Pulay regrows the moment (0.73, 0.77, 0.70, ... 0.58, E settling at
+  -106.281) while D-Pulay oscillates (E_T ±0.4 Ha).  Kerker keeps the magnetization at least as well.
+- The suspect (the Kerker history built from the TOTAL density) was wrong: the polarized mixer is per channel, its star-average uses
+  the σ=None subgroup (fixed 2026-08-11), and the mixer's field carries D's moment.
+
+**Fixed (bd4169fae).**  The row takes its moments from D_out on every driver (free: the residual just sampled D_out on the XC mesh).
+Gate `GPW_Mn2Box.Γ_Becke_Shub_Pol_Smear_RowMomentsAreTheIterates` (Pulay on D and Kerker+Pulay): the last row's moments equal the final
+E_KS[D_out] to 1e-10; it fails with the fix removed.  Iteration 1 of that gate now reads m_site 3.884579 on both mixers.
+
+**The smaller item, fixed too.**  A refused first iterate (UnphysicalStop) printed its broken density's site moments (exactly 0.0000 on
+NiO's untrimmed basis); the result line now says the iterate was refused and its moments are not measured.
+
+**Remainder (a live row).**  The first diagonalization takes D0's 3.37 e to 0.076 e on every mixer and the moment regrows only to ~0.6:
+"NiO AFM-II moment small on VALENCE_LOWQ_VA" in `doc/OpenWork.md` §3.
+
+## ✅ `CheckPPProvenance` resolves a basis named WITHOUT `.bsd` differently from the reader: STALE, one resolution already (lane B, 2026-11-12)
+
+Row verbatim:
+
+| **`CheckPPProvenance` resolves a basis named WITHOUT `.bsd` differently from the reader** (lane B, 2026-10-31) | a SolidSetup UT naming `valence_lowq_sr2_naq9` (no extension) failed the provenance check while the basis itself loaded; with `.bsd` it passes | make the check resolve the name through the reader's own lookup (one resolution, not two) · `src/Calculation/Imp/SolidSetup.C` |
+
+Verdict: not reproducible from the code, so no change was made.
+- Both paths take the stated file through the same `BasisSet::Gaussian::BasisFile(name)`:
+  - the check: `CheckPPProvenance(file, species)` → `DeclaredPPProvenance(BasisFile(file))`;
+  - the build: `FactoryFromFile(file, …)` → `Gaussian94Reader(BasisFile(file))`.
+- `GaussianBasisRecipe::Make` (`src/Calculation/Imp/SolidSetup.C`) hands the same `file` to the check, to `RequireBasisCovers`, and to the factory.
+- The reader's constructor (a plain `ifstream`, no extension added) is unchanged since cfdd1e04d, the commit that wrote the row.
+- So a recipe file named WITHOUT `.bsd` fails to OPEN on both paths. The check runs first, so it is the one that names the missing file.
+- A deck never reaches this: a basis NAME goes to `basis.data`, which `BasisFileOfName` turns into `<stem>.bsd`, and a stated `basis.file` that is not shipped is opened and refused by the deck itself ("cannot be read").
+- The 2026-10-31 observation was most likely the UT expecting the provenance mismatch and meeting the open failure instead. The basis never loaded without its extension.
+
+### Kerker erasure: REOPENED and re-closed by converged runs (lane B, 2026-11-12)
+
+The user, in the GUI: "Kerker G_0=1.0 causes the magnetic moment wither away to nothing".  That is a multi-iteration observation, so the
+controller withdrew the "no erasure" verdict until it was measured to convergence.
+
+The decks:
+- The user's GUI deck as lane G regenerated it (`gui-user-run03{6,7}-kerker.json`): Γ only, the 4-atom NiO AFM-II cell, accuracy 1e-3,
+  spherical VALENCE_LOWQ_VA trimmed at Ni s 0.06 and d 0.18, siteSpins + − 0 0, accelerator Null, Pulay depth 8 at relax 0.45.
+- Each deck was run as `kerkerG0 1.0` + Pulay, and as the SAME deck without `kerkerG0` (Pulay on D), to convergence.  The resolved policy
+  row reads `policy.mixRhoM=on*` on every run: ρ carries G0, m is LINEAR (G0 = 0), and there is ONE joint Pulay history.
+
+| variant | mixer | iterations | Etot (Ha) | final site moment |
+|---|---|---|---|---|
+| Ni s+d trim, free | Kerker+Pulay | 18 | -106.2422879919 | 0.389 e |
+| Ni s+d trim, free | Pulay on D | 22 | -106.2422879929 | 0.389 e |
+| Ni s+d trim, imposed | Kerker+Pulay | 18 | -106.2422217516 | 0.389 e |
+| Ni s+d trim, imposed | Pulay on D | 21 | -106.2422217516 | 0.389 e |
+| Ni s trim only, free (= the user's run041) | Kerker+Pulay | 19 | -106.2820424128 | 0.256 e |
+| Ni s trim only, free (= the user's run041) | Pulay on D | 29 | -106.2820424127 | 0.256 e |
+
+What the table shows:
+- Both mixers reach the same state to 1e-9 Ha on every variant.
+- The Pulay-on-D trace decays as well: 0.78 → 0.39 over iterations 6-22.
+- Kerker does not erase the moment.  This model's converged moment is small, and a run the user stopped mid-way shows that decay.
+
+The open question (why ~0.3 e against LDA's ~1.2 μB: Γ-only k sampling first, then the basis) is the OpenWork §3 row "NiO AFM-II moment
+small on VALENCE_LOWQ_VA, Γ-only".  Outputs: `~/Code/qchem6-runs/NiO/laneB-conv-*.out`.

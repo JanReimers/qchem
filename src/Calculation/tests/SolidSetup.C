@@ -22,6 +22,7 @@ import qchem.Materials;   // Si_diamond (the xc.rho policy case)
 import qchem.Mesh;        // UnitCellKind
 import qchem.Mesh.XCPolicy;   // BeckeXCParams
 import qchem.Reporting;   // the policy rows the setup files
+import qchem.ChargeDensity.Seed;   // SeedStrategy (the Auto seed rule)
 
 using namespace qchem;
 using BasisSet::Gaussian::BasisSetData;
@@ -301,4 +302,88 @@ TEST(SolidSetup, AStatedXCRhoFitOnTheGPWBallIsRefusedByName)
         EXPECT_NE(what.find("xc.rho fit on the plane-wave Vxc fit over Gaussian (GPW) orbitals"), std::string::npos) << what;
         EXPECT_NE(what.find("state xc.rho exact"), std::string::npos) << what;
     }
+}
+
+// THE AUTO SEED RULE ON A LATTICE (user rulings 2026-11-12, qchem.SeedPolicy): the default seed is resolved into the setup -- a lattice whose
+// species the valence library holds takes IonicSAD (its Madelung field holds the ionic charge states); a species the library lacks takes the
+// core guess with a WARN row, where until 2026-11-12 it threw at seed time (Al has no library entry).  A stated seed is honoured as stated.
+namespace
+{
+//! The \a name policy rows a run \a tag filed (anywhere under it).
+std::vector<report::json> PolicyRows(const std::string& tag, const std::string& name)
+{
+    const auto& G=report::GlobalReport();
+    const report::json* filed=nullptr;
+    for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(tag+"@",0)==0) filed=&it.value();
+    if (!filed) throw std::logic_error(tag+" was not filed");
+    std::vector<report::json> out;
+    std::function<void(const report::json&)> walk=[&](const report::json& x)
+    {
+        if (x.is_object())
+            for (auto it=x.begin(); it!=x.end(); ++it)
+            {
+                if (it.key()=="policy" && it.value().is_array())
+                    for (const auto& r : it.value()) if (r.value("name","")==name) out.push_back(r);
+                walk(it.value());
+            }
+        else if (x.is_array()) for (const auto& y : x) walk(y);
+    };
+    walk(*filed);
+    return out;
+}
+
+std::vector<report::json> AutoSeedRows(const std::string& material, BasisSetData data, ChargeDensity::SeedStrategy seed,
+                                       const std::string& tag, ChargeDensity::SeedStrategy& resolved)
+{
+    const auto mat=Materials::Get(material);
+    SolidCalcOptions o; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.seed=seed;
+    { report::Run run(tag);
+      resolved=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=data}, o)->opts.seed; }
+    return PolicyRows(tag, "AutoSeed");
+}
+} // namespace
+
+// ONE SOURCE FOR THE MAGNETIC ORDERING (OpenWork §3, 2026-11-12): a stated siteSpins is what the seed reads (the seed key carries
+// it), and where its flips differ from the structure's -- an inline cell sent without atom spins -- the setup reports the override.
+TEST(SolidSetup, AStatedMagneticOrderingIsTheSeedsAndOverridesTheStructuresSpins)
+{
+    const auto mno=Materials::Get("MnO_AFM2");
+    UnitCell spinless(mno.cell->GetCellMatrix());
+    for (Site s : mno.cell->Sites()) { s.spinFlip=false; spinless.Insert(s); }
+    auto resolve=[](const UnitCell& cell, std::vector<int> spins, const std::string& tag)
+    {
+        SolidCalcOptions o; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+        o.multiplicity=1; o.imposeSymmetry=true; o.siteSpins=std::move(spins);
+        report::Run run(tag);
+        return SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_SR}, o)->seedKey.siteSpins;
+    };
+    const std::vector<int> afm{+1,-1,0,0};
+    EXPECT_EQ(resolve(spinless, afm, "MnO spinless stated"), afm) << "the seed key carries the stated ordering";
+    const auto rows=PolicyRows("MnO spinless stated", "SeedSpins");
+    ASSERT_EQ(rows.size(), 1u) << "a stated ordering whose flips differ from the structure's is reported";
+    EXPECT_NE(rows[0].value("decided","").find("override"), std::string::npos) << rows[0].dump();
+    EXPECT_NE(rows[0].value("decided","").find("Mn2(-)"), std::string::npos) << "it names the site that differs: " << rows[0].dump();
+
+    EXPECT_EQ(resolve(*mno.cell, afm, "MnO named stated"), afm);
+    EXPECT_TRUE(PolicyRows("MnO named stated", "SeedSpins").empty()) << "the material's own spins agree: nothing to report";
+}
+
+TEST(SolidSetup, TheAutoSeedIsIonicOnACoveredLatticeAndTheCoreGuessWithAWarnOnAnUncoveredOne)
+{
+    using ChargeDensity::SeedStrategy;
+    SeedStrategy s=SeedStrategy::Default;
+    const auto si=AutoSeedRows("Si_diamond", BasisSetData::DZVP, SeedStrategy::Default, "Si auto seed", s);
+    EXPECT_EQ(s, SeedStrategy::IonicSAD) << "a covered lattice";
+    ASSERT_EQ(si.size(), 1u);
+    EXPECT_EQ(si[0].value("verdict",""), "choose");
+    EXPECT_NE(si[0].value("reason","").find("Madelung"), std::string::npos) << si[0].dump();
+
+    const auto al=AutoSeedRows("Al_fcc", BasisSetData::VALENCE_LOWQ_SR, SeedStrategy::Default, "Al auto seed", s);
+    EXPECT_EQ(s, SeedStrategy::CoreGuess) << "Al has no valence-library entry: the core guess, not a throw";
+    ASSERT_EQ(al.size(), 1u);
+    EXPECT_EQ(al[0].value("verdict",""), "warn");
+    EXPECT_NE(al[0].value("decided","").find("Al"), std::string::npos) << "the warning names the missing species: " << al[0].dump();
+
+    EXPECT_TRUE(AutoSeedRows("Al_fcc", BasisSetData::VALENCE_LOWQ_SR, SeedStrategy::Uniform, "Al stated seed", s).empty()) << "a stated seed files no Auto row";
+    EXPECT_EQ(s, SeedStrategy::Uniform);
 }

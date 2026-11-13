@@ -35,6 +35,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     GridAudit.C
     BasisCoverage.C
     XCRhoPolicy.C
+    SeedPolicy.C
     AuditFootprint.C
 )
 target_include_directories(qchem PRIVATE

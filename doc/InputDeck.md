@@ -44,11 +44,12 @@ cd build/Release && ninja rundeck                                  # the one CLI
   "kmesh": [2,2,2],
   "basis": { "data": "VALENCE_LOWQ_VA",   // a BasisSetData name: SIPP_SR, VALENCE_LOWQ_{SR,SR2,SPH,VA,VB}, DZVP, ...
              "file": "/path/x.bsd",         // OVERRIDE: a .bsd path used instead of the file "data" names (no registry entry, no rebuild); `--set basis.file=...`
-             "spherical": true,           // the spherical lattice view (contaminant-free d/f); refused with VALENCE_LOWQ_SR on a transition-metal cell
+             "angular": "spherical",      // "cartesian" (default) | "spherical": the spherical lattice view (contaminant-free d/f); refused with VALENCE_LOWQ_SR on a transition-metal cell; the old bool "spherical": true still reads (2026-11-12)
              "trim": [{"Z":28,"l":0,"alpha":0.06}],   // a STATED shell trim (exclusive with autoTrim)
              "autoTrim": true },           // the pin-22 vet-stage trim at solid.orthoTol (needs it > 0; orthoTol alone never trims)
   "solid": {                              // SolidCalcOptions -- every field; Nelec/species/multiplicity default from the material
     "Nelec": 0, "charge": 0,              // Nelec 0 = derived (Σ species valence - charge); a stated Nelec must equal that or the run is REFUSED
+    "model": "LDA",                       // the XC functional: LDA (Dirac + VWN5, default) | PADE (libxc LDA_XC_TETER93 = CP2K's PADE, the GTH-PADE PPs' own); a PP fitted with another functional = a warn-and-run policy row
     "multiplicity": 1, "seed": "IonicSAD", "ortho": "CholeskyPivoted", "orthoTol": 1e-4, "accelerator": "Null",   // Auto (default; = DIIS today) | DIIS | GDM | Ladder | Null
     "imposeSymmetry": false, "forceComplex": false, "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
     "xcMeshSymmetric": true,              // FREE run: XC mesh invariant under the group detected at THIS geometry; false = the plain atom-centred mesh (a displacement path needs false)

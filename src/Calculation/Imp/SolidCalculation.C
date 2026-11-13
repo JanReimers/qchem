@@ -487,6 +487,8 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
             qchem::report::Log("vetting basis conditioning");
             qchem::report::Section basis("basis");
             qchem::report::Set("nFunctions", (long)itsImp->bs->GetNumFunctions());
+            if (opts.orthoTol>0.0)   // the floor's readers: the trim always, the ortho solver only when it truncates
+                qchem::report::Set("orthoTol", {{"value", opts.orthoTol}, {"solverTruncates", opts.SolverTruncation()>0.0}});
             nRedundant=BasisSet::ReportConditioning(*itsImp->bs);
         }
         if (nRedundant>0)
@@ -555,6 +557,9 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     {
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
         qchem::report::Scope hamiltonian("hamiltonian");   // its meshes and terms report one level in (user rulings 2026-11-02, 2026-11-04)
+        // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn, guide and run, never switch
+        policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(itsImp->setup->pp, *itsImp->st,
+                                                                              qchem::Hamiltonian::ModelToXC(opts.model)));
         // THE ACCURACY a Fourier series sampled on the XC quadrature must meet (the rho-tilde sampler, step 2; pin 31): the run's
         // target for what its client consumes, the density gate its sampled residual is judged on, and the two GPW calibrations.
         // The XC term derives the one tolerance tau from it on the seed.  No target (eps 0) leaves it unset: the step-1 fixed width.
@@ -586,7 +591,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         }
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->setup->pp, xc, opts.vxcFit, hubbard));
+            itsImp->st, itsImp->bs.get(), itsImp->setup->pp, xc, opts.vxcFit, hubbard, qchem::Hamiltonian::ModelToXC(opts.model)));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -636,7 +641,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Timed timed("setup: seed + ortho (iterator ctor)");
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-            itsImp->lat->GetUnitCell(), seed.release(), opts.ortho, opts.orthoTol, seedRole, opts.numBands);   // the iterator consumes it in Init
+            itsImp->lat->GetUnitCell(), seed.release(), opts.ortho, opts.SolverTruncation(), seedRole, opts.numBands);   // the iterator consumes it in Init
     }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
@@ -936,11 +941,11 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
     itsImp->scf = carried
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), carried.release(), itsImp->setup->opts.ortho, itsImp->setup->opts.orthoTol,
+              itsImp->lat->GetUnitCell(), carried.release(), itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(),
               qchem::SCFIterator::SeedRole::WorkingDensity, itsImp->setup->opts.numBands)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, itsImp->setup->opts.ortho, itsImp->setup->opts.orthoTol, itsImp->setup->opts.numBands);
+              itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.numBands);
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
     // survives the fresh wavefunction, exactly as the density does.
@@ -1228,7 +1233,12 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
         // rho_dn) per site -- never a point sample (doc/ feedback_integrated_observables).  A polarized run on an
         // atom-centred mesh that has NO site blocks is a DEFECT and is said so; on a uniform mesh the partition does not
         // exist, which is a configuration, said once.
-        if (polarizedRun)
+        // A REFUSED first iterate (UnphysicalStop) has a broken Hamiltonian, so its moments are not a measurement: say so instead
+        // of printing them (NiO on an untrimmed basis read exactly 0.0000 per site there, a number that reads like a lost order).
+        if (polarizedRun && !itsImp->scf->UnphysicalStop().empty())
+            std::cout<<"["<<itsImp->setup->opts.label<<"] site moments: not measured -- the first iterate was REFUSED (its "
+                       "Hamiltonian is broken), so its density is no observable"<<std::endl;
+        else if (polarizedRun)
         {
             const rvec_t& mu=E.charge.siteMoments;
             double absSum=0.0, net=0.0; for (size_t a=0;a<mu.size();a++) { absSum+=std::fabs(mu[a]); net+=mu[a]; }
@@ -1323,7 +1333,7 @@ const std::optional<RestartSummary>& SolidCalculation::RestartedFrom() const {re
 Calculation::StateIdentity SolidCalculation::MakeStateIdentity() const
 {
     const auto& o=itsImp->setup->opts;
-    return {.Nelec=o.Nelec, .spin=StateSpin(), .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .kT=itsImp->lastkT};
+    return {.Nelec=o.Nelec, .spin=StateSpin(), .multiplicity=o.multiplicity, .functional=qchem::Hamiltonian::Name(o.model), .kT=itsImp->lastkT};   // the model's name, LDA or PADE (it was the PP set's functional)
 }
 std::vector<StateBlock> SolidCalculation::StateBlocks(bool withOrbitals) const
 {
@@ -2207,7 +2217,8 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition);
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard));
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard,
+                                                 qchem::Hamiltonian::ModelToXC(opts.model)));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);
     auto cdRef=RestoreDensity(st, *bsRef, g);
@@ -2246,7 +2257,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             const SavedBlock& sb=st.blocks[channel];
             hmat_t<dcmplx> S(sb.S.rows());
             for (size_t a=0;a<S.rows();a++) for (size_t b=a;b<S.rows();b++) S(a,b)=sb.S(a,b);
-            const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(opts.ortho, opts.orthoTol));
+            const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(opts.ortho, opts.SolverTruncation()));
             frame->SetBasisOverlap(S);
             const std::string spin = s==Spin::Up ? "up" : s==Spin::Down ? "down" : "none";
             auto fold=[&](const auto& a, const auto& b)

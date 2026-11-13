@@ -2,7 +2,6 @@
 module;
 #include <cassert>
 #include <stdexcept>
-#include <iostream>
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -77,11 +76,8 @@ template <class T> LASolver<T>* LASolver<T>::
     switch (ortho)
     {
     case qchem::Cholesky:
-        if (TruncationTolerance != 0)
-        {
-            std::cerr << "Warning: LASolverCholesky ignores TruncationTolerance ("
-                      << TruncationTolerance << "); Cholesky does not truncate.\n";
-        }
+        // Cholesky does not truncate: a tolerance is not ITS input.  The callers pass one only to a truncating solver
+        // (SolidCalcOptions::SolverTruncation); the floor a user states is the trim's, reported by the facade (OpenWork §3, 2026-11-12).
         ret = new LASolverCholesky<T>();
         break;
     case qchem::Eigen:   ret = new LASolverEigen<T>(TruncationTolerance); break;
@@ -89,10 +85,7 @@ template <class T> LASolver<T>* LASolver<T>::
     case qchem::CholeskyPivoted: ret = new LASolverCholeskyPivoted<T>(TruncationTolerance); break;
     case qchem::Orthonormal: ret = new LASolverOrthonormal<T>(numBands); break;
     case qchem::Auto:
-        if (TruncationTolerance != 0)
-            std::cerr << "Warning: LASolverAuto ignores TruncationTolerance (" << TruncationTolerance
-                      << "); Auto derives its own (gap detection).\n";
-        ret = new LASolverAuto<T>();
+        ret = new LASolverAuto<T>();                 // Auto derives its own floor (gap detection): no tolerance is its input
         break;
     }
     assert(ret);

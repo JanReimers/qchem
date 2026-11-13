@@ -55,7 +55,7 @@ inline int ParseThreadCount(const char* s, int dflt, int autoCount)
 //! ONE rule for every region (2026-10-02, user): the Becke-mesh build used to default to ALL cores while the others
 //! defaulted to 1, which made a "serial" run show 500% CPU.  The old name \c GPW_OMP_THREADS (it had nothing to do
 //! with basis sets) is still read as a DEPRECATED ALIAS when \c QCHEM_OPENMP_THREADS is absent.
-namespace detail { inline int g_workerOverride=0; }   //!< >0: a test's ScopedWorkerThreads (see below)
+namespace detail { inline int g_workerOverride=0; inline int g_blasOverride=0; }   //!< >0: a ScopedWorkerThreads' counts (see below)
 inline int WorkerThreads()
 {
     if (detail::g_workerOverride>0) return detail::g_workerOverride;
@@ -120,17 +120,30 @@ template <class F> void OuterFor(size_t n, F&& f)
     }
     if (first) std::rethrow_exception(first);
 }
-//! \brief TEST-ONLY: \c WorkerThreads() answers \a n for this scope (restored on destruction) -- so ONE process can run the same
-//! computation serial and threaded and compare the bits (KAxisPlan P1's gate).  Set and cleared on the main thread, outside
-//! any parallel region, like \c Diagnostics::Scoped.  A production run never constructs one: its count is the environment's.
+//! \brief A RUN's thread counts (deck key `threads`, the binding's thread scope; OpenWork §2 "Per-run thread count", user 2026-11-12:
+//! "The user should have the ability to select thread count for a run").  0 = the PROCESS's own count (QCHEM_OPENMP_THREADS /
+//! QCHEM_BLAS_THREADS, read once), so an unstated count keeps today's behaviour.  Structure-neutral: a molecule, an atom and a crystal
+//! run all read the same two numbers.
+struct ThreadCounts
+{
+    int openmp = 0;   //!< the OpenMP worker regions (\c WorkerThreads()); 0 = the process's
+    int blas   = 0;   //!< the BLAS pool (\c BlasThreads(), set on OpenBLAS); 0 = the process's
+    bool operator==(const ThreadCounts&) const = default;
+};
+//! \brief For this scope, \c WorkerThreads() answers \a openmp and the BLAS pool runs \a blas threads (each when > 0); both are
+//! restored on destruction.  A RUN opens one around its work (a deck's `threads`, the binding's per-run scope), and tests use it to
+//! run the same computation serial and threaded in ONE process and compare the bits (KAxisPlan P1's gate).  Set and cleared on the
+//! calling thread, outside any parallel region, like \c Diagnostics::Scoped; the counts are process-global, so two runs in one
+//! process at once share them (the GUI runs one computation at a time).
 struct ScopedWorkerThreads
 {
-    explicit ScopedWorkerThreads(int n) : itsOld(detail::g_workerOverride) {detail::g_workerOverride=n;}
-    ~ScopedWorkerThreads() {detail::g_workerOverride=itsOld;}
+    explicit ScopedWorkerThreads(int openmp, int blas=0);
+    explicit ScopedWorkerThreads(const ThreadCounts& c) : ScopedWorkerThreads(c.openmp, c.blas) {}
+    ~ScopedWorkerThreads();
     ScopedWorkerThreads(const ScopedWorkerThreads&)=delete;
     ScopedWorkerThreads& operator=(const ScopedWorkerThreads&)=delete;
 private:
-    int itsOld;
+    int itsOld, itsOldBlasOverride, itsOldBlasPool;
 };
 //! \brief A mutex for a LAZY cache that an outer-loop worker may fill (\c std::lock_guard on \c m).  Copying the owner
 //! gives the copy a FRESH lock -- a copied cache is a different cache, so it never shares the original's mutex.

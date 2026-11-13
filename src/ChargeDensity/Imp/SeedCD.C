@@ -34,12 +34,18 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Unit
 {
     assert(fitBasis);
     assert(ionicNvalBySite.empty() || ionicNvalBySite.size()==cell.GetNumAtoms());
+    if (!seedKey.siteSpins.empty() && seedKey.siteSpins.size()!=cell.GetNumAtoms())   // checked at resolve; a broken invariant here
+        throw std::invalid_argument("SeedCD: "+std::to_string(seedKey.siteSpins.size())+" stated site spins for "
+                                    +std::to_string(cell.GetNumAtoms())+" sites");
     const bool chan = IsPolarized(channel);   // Up/Down = one channel of the polarized seed
     const std::string db = "atomic_valence_densities.json";
-    // One RADIAL CLASS per (Z, target, flipped-in-this-channel): its channel radial and multiplier, built once.
+    // One RADIAL CLASS per (Z, target, site spin in this channel): its channel radial and multiplier, built once.
     // Per SITE targets (OpenWork §3, 2026-10-26): two atoms of one element with different IonicSAD charge states
     // (LiMn2O4's Mn3+ / Mn4+) are two classes -- a per-species key kept only the LAST atom's target.
-    using Class = std::tuple<size_t,int,bool>;
+    // The SITE SPIN (+1 majority up, -1 the flipped -m sublattice, 0 no moment) is the run's STATED ordering when it
+    // states one (SeedKey::siteSpins, ONE source with the imposition: OpenWork §3 "One magnetic ordering has TWO sources
+    // of truth", 2026-11-12), else the structure's flip bit (+1 / -1; a pairless species is non-magnetic either way).
+    using Class = std::tuple<size_t,int,int>;
     struct Radial { std::shared_ptr<const RadialDensity> rad; double scale; };
     std::map<Class,Radial> classes;
     std::vector<Class> classOfAtom;
@@ -64,24 +70,26 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Unit
         // ionicNvalBySite entry (default: neutral, i.e. no charge transfer).
         const int  neutralNval = neutralNvalByZ.at(Z);
         const int  target = ionicNvalBySite.empty() ? neutralNval : ionicNvalBySite[classOfAtom.size()];
-        const bool flip   = chan && spinFlip;                          // None: the total is flip-blind
-        const Class key{Z, target, flip};
+        const size_t site = classOfAtom.size();
+        const int  spin   = !chan ? +1                                 // None: the total is spin-blind
+                          : seedKey.siteSpins.empty() ? (spinFlip ? -1 : +1) : seedKey.siteSpins[site];
+        const Class key{Z, target, spin};
         if (!classes.count(key))
         {
             Radial c;
             if (target<=0)                                                          // stripped cation -> nothing
                 { c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z, functional, db, -1, qz)); c.scale=0.0; }
-            else if (chan && HasAtomicSpinPair((int)Z, functional, db, target, qz))     // the Hund (majority, minority) pair
+            else if (chan && spin!=0 && HasAtomicSpinPair((int)Z, functional, db, target, qz))   // the Hund (majority, minority) pair
             {
                 auto [maj,min] = GetAtomicSpinPair((int)Z, functional, db, target, qz);
                 // unflipped: up = majority; flipped (-m site): the pair swapped
-                const bool takeMaj = (channel==Spin::Up)!=flip;
+                const bool takeMaj = (channel==Spin::Up)!=(spin<0);
                 c.rad   = std::make_shared<const RadialDensity>(takeMaj ? std::move(maj) : std::move(min));
                 c.scale = 1.0;
             }
             else if (HasAtomicDensity((int)Z, functional, db, target, qz))              // library has the charge state
                 { c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z,functional,db,target,qz));
-                  c.scale = chan ? 0.5 : 1.0; }                                     // pairless channel: rho/2
+                  c.scale = chan ? 0.5 : 1.0; }                                     // pairless (or spin-0) channel: rho/2
             else                                                                    // fall back: amplitude-scale neutral
                 { c.scale = (chan ? 0.5 : 1.0)*double(target)/double(neutralNval);
                   c.rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z, functional, db, -1, qz)); }
@@ -93,17 +101,18 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Unit
         itsRecentred.emplace_back(c.rad, R);                          // for real-space op(r), flip-aware
         itsScalePerAtom.push_back(c.scale);                           // parallel table: op(r) never re-asks the structure
     });
-    // THE G-ASSEMBLY GROUPS (see Group): rank each species' classes -- unflipped before flipped, then by target
-    // (std::map order on (flip, target)) -- and put class rank k in group k.  One group needs no sub-cell.
-    std::map<size_t,std::map<std::pair<bool,int>,size_t>> rankOf;   // Z -> (flip, target) -> rank
-    for (const auto& [key,c] : classes) rankOf[std::get<0>(key)][{std::get<2>(key), std::get<1>(key)}];
+    // THE G-ASSEMBLY GROUPS (see Group): rank each species' classes -- up before spin-0 before flipped, then by target
+    // (std::map order on (SpinRank, target)) -- and put class rank k in group k.  One group needs no sub-cell.
+    auto SpinRank = [](int spin){ return spin>0 ? 0 : spin==0 ? 1 : 2; };
+    std::map<size_t,std::map<std::pair<int,int>,size_t>> rankOf;   // Z -> (spin rank, target) -> rank
+    for (const auto& [key,c] : classes) rankOf[std::get<0>(key)][{SpinRank(std::get<2>(key)), std::get<1>(key)}];
     size_t nGroups=1;
     for (auto& [Z,ranks] : rankOf) { size_t k=0; for (auto& [ft,r] : ranks) r=k++; nGroups=std::max(nGroups,k); }
     itsGroups.resize(nGroups);
     for (const auto& [key,c] : classes)
     {
-        const auto& [Z,target,flip] = key;
-        Group& g=itsGroups[rankOf.at(Z).at({flip,target})];
+        const auto& [Z,target,spin] = key;
+        Group& g=itsGroups[rankOf.at(Z).at({SpinRank(spin),target})];
         g.radByZ[Z]=c.rad; g.scaleByZ[Z]=c.scale;
     }
     if (nGroups>1)
@@ -111,8 +120,8 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Unit
         for (Group& g : itsGroups) g.cell=std::make_shared<UnitCell>(cell.GetCellMatrix());
         for (size_t i=0;i<cell.GetNumAtoms();i++)
         {
-            const auto& [Z,target,flip] = classOfAtom[i];
-            itsGroups[rankOf.at(Z).at({flip,target})].cell->Insert(cell.Sites()[i]);
+            const auto& [Z,target,spin] = classOfAtom[i];
+            itsGroups[rankOf.at(Z).at({SpinRank(spin),target})].cell->Insert(cell.Sites()[i]);
         }
     }
     assert(itsCharge >= 0);

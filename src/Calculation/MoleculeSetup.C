@@ -19,6 +19,7 @@ import qchem.Hamiltonian.Factory;  // Hamiltonian::Model
 export import qchem.Symmetry.Spin; // SpinGroup -- the imposed spin subgroup, a CalcOptions field
 import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ChargeDensity.Seed;   // SeedStrategy
+import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSet::Gaussian::Angular -- the ONE angular option, shared with SolidSetup
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (the resolved accelerator)
 export import qchem.SCFRecipe;         // SCFRecipe (AcceleratorOptions::recipe)
 export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the setup's resolved choice
@@ -31,8 +32,10 @@ using Hamiltonian::Model;          // {E1, HF, DE1, DHF}
 
 //! Orbital-integral engine: the in-house MnD recursion (default) or the libcint foreign engine.
 enum class Engine  { MnD, LibCint };
-//! Angular basis convention: Cartesian Gaussians (default) or real solid-harmonic (spherical).
-enum class Angular { Cartesian, Spherical };
+//! Angular basis convention: Cartesian Gaussians (default) or real solid-harmonic (spherical).  THE library's own axis, shared by the
+//! molecular \c CalcOptions::angular and the periodic \c GaussianBasisRecipe::angular (user, 2026-11-12: "we should strive to make
+//! seeding and spherical/Cartesian options structure neutral"), so one option means one thing on every structure.
+using BasisSet::Gaussian::Angular;
 
 //! How to set up the calculation.  Designated-initializer friendly:
 //!     MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.basis="dzvp"}));
@@ -59,8 +62,9 @@ struct CalcOptions
     //! A multiplicity whose parity disagrees with Ne (e.g. a singlet for odd Ne) is rejected.
     int         multiplicity = 0;
     //! Basis construction variants (threaded into BasisSet::Gaussian::Factory).  Defaults reproduce
-    //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry is rejected until
-    //! the Spherical SALC track (doc/OldPlans/SphericalSALCPlan.md) lands -- the SALC builder needs Cartesian PGData.
+    //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry works with the MnD engine (the SALC builder
+    //! handles spherical shells, doc/OldPlans/SphericalSALCPlan.md S3a/S4); only engine LibCint + Spherical + symmetry is
+    //! refused (S3b: libcint's real-harmonic layout is unwired).
     Engine      engine  = Engine::MnD;
     Angular     angular = Angular::Cartesian;
     //! DFT-only knobs (ignored when model is HF/1-e/Dirac).  xalpha: the Slater exchange parameter, used
@@ -200,6 +204,10 @@ struct MoleculeSetup
     //! The structure a geometry point is built over: \a st's atoms, each carrying its VALENCE charge Z - Zion under a
     //! pseudopotential (so the electron count is the valence count), or \a st as is when all-electron.  Deep-copied.
     std::shared_ptr<const Structure> PointStructure(const Structure& st) const;
+    //! THE PRE-RUN PP / FUNCTIONAL CHECK (user 2026-11-12: track, warn and guide, mostly in the GUI): every element's pseudopotential
+    //! against this setup's model: its fit (CP2K label + libxc ids), match yes/no, and the model to state to match it.  What the run will warn about,
+    //! answered without running, so a GUI reads it here and never recomputes it.  Empty for an all-electron or non-DFT setup.  THROWS on a fit with no libxc mapping.
+    std::vector<Hamiltonian::PPFunctionalCheck> PPFunctionalChecks() const;
 };
 
 } // namespace qchem

@@ -28,10 +28,12 @@ import qchem.SCFRecipe;            // SCFRecipe (a stage's `scf.recipe`)
 import qchem.Mesh;                 // MeshParams
 import qchem.RunPolicy;            // RunPolicySpec
 import qchem.Types;                // ivec3_t
+import qchem.Parallel;             // ThreadCounts (the run's threads key)
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names its accelerator)
 import qchem.Materials;            // Material (the structure section's name resolves to one)
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
 import qchem.BasisSet.Lattice.BasisSet;   // ShellConditioning (BasisShells)
+import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSet::Gaussian::Angular (basis.angular)
 
 export namespace qchem::deck
 {
@@ -84,7 +86,9 @@ struct RunSpec
         //! turns a non-shipped \c file into this; a run builds from the text (written once to a content-addressed cache file, so its
         //! checksum is the text's).  Exclusive with \c file.
         std::vector<std::string> inlineBsd;
-        bool spherical=false;
+        //! "angular": "cartesian" (default) | "spherical" -- the ONE angular option both setups share (user, 2026-11-12).  The
+        //! old bool "spherical" is read as its earlier spelling, so a record written before 2026-11-12 still runs.
+        BasisSet::Gaussian::Angular angular=BasisSet::Gaussian::Angular::Cartesian;
         std::vector<Trim> trim;     //!< a STATED trim (built once, no vet loop)
         bool autoTrim=false;        //!< the vet-stage trim at \c solid.orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)
         //! The orbital basis FAMILY ("gaussian" | "planeWave", OpenWork §2 PW-1); copied into \c solid at run time.  A plane-wave run still
@@ -161,6 +165,10 @@ struct RunSpec
     SCFRecipe        scfRecipe = SCFRecipe::Auto;   //!< ... its `scf.recipe` (the material regime; qchem.SCFRecipe) ...
     std::vector<Stage> schedule;      //!< ... OR an annealed one; a deck gives one or the other (never both)
     std::vector<PostAction> postSCF;  //!< post-convergence actions, in order (empty = none)
+    //! The run's thread counts (deck key `threads`: `{"openmp": N, "blas": M}`; OpenWork §2 "Per-run thread count", user 2026-11-12).  Not
+    //! physics: a RESOURCE, so it never enters a state's fingerprint.  0 / absent = the process's own count (QCHEM_OPENMP_THREADS,
+    //! QCHEM_BLAS_THREADS), today's behaviour.  \c Run holds the scope for the whole run; a caller of \c Build holds it per call.
+    ThreadCounts threads;
     //! The stages the run executes: \c schedule, or the one stage (\c scf, \c solid.accelerator).
     std::vector<Stage> Stages() const
     { return schedule.empty() ? std::vector<Stage>{{scf,solid.accelerator,scfRecipe}} : schedule; }

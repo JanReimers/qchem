@@ -7,7 +7,7 @@
  "structure": "MnO_box16",
  "basis": {
   "data": "VALENCE_LOWQ_VA",
-  "spherical": true
+  "angular": "spherical"
  },
  "solid": {
   "multiplicity": 6,

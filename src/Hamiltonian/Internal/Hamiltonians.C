@@ -70,13 +70,16 @@ public:
 class Ham_PP : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
+    //! \a xc: the functional's parts (\c Hamiltonian::Factory's MakeXCParts); EMPTY = Dirac + VWN5, the default LDA.
     Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
            std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-           const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, XCRoute fit={}, const CoulombRoute& coulomb={});
+           const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, XCRoute fit={}, const CoulombRoute& coulomb={},
+           std::vector<std::shared_ptr<ExFunctional>> xc={});
     Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const rbs_t* bs,
-           SpinGroup g, XCRoute fit={}, const CoulombRoute& coulomb={});
+           SpinGroup g, XCRoute fit={}, const CoulombRoute& coulomb={}, std::vector<std::shared_ptr<ExFunctional>> xc={});
     Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-           const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, XCRoute fit={}, const CoulombRoute& coulomb={});
+           const qcMesh::MeshParams&, const rbs_t* bs, SpinGroup g, XCRoute fit={}, const CoulombRoute& coulomb={},
+           std::vector<std::shared_ptr<ExFunctional>> xc={});
 };
 
 //
@@ -125,16 +128,19 @@ public:
     Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={},
                VxcFit fit=VxcFit::Auto, SpinGroup g=SpinGroup::UnPolarized,
-               std::vector<HubbardManifold> hubbard={});
+               std::vector<HubbardManifold> hubbard={}, std::vector<std::shared_ptr<ExFunctional>> xc={});
 private:
+    //! \a xc: the functional's parts; EMPTY = Dirac + VWN5, the default LDA (every ctor but the facade's leaves it so).
     void BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                     const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
-                    VxcFit fit=VxcFit::Auto, std::vector<HubbardManifold> hubbard={});
+                    VxcFit fit=VxcFit::Auto, std::vector<HubbardManifold> hubbard={},
+                    std::vector<std::shared_ptr<ExFunctional>> xc={});
     //! Look up each (element, valence) from the GTH database, build + OWN the (per-Z router) local +
     //! separable models, and assemble the terms against them.  The single-species ctor is the 1-species case.
     void BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
                       const std::string& functional, const qcMesh::MeshParams& xcMesh,
-                      VxcFit fit=VxcFit::Auto, std::vector<HubbardManifold> hubbard={});
+                      VxcFit fit=VxcFit::Auto, std::vector<HubbardManifold> hubbard={},
+                      std::vector<std::shared_ptr<ExFunctional>> xc={});
     std::shared_ptr<const Pseudopotential::LocalPotential>     itsOwnedLocal;  //!< owned model (convenience ctors); null for explicit
     std::shared_ptr<const Pseudopotential::SeparablePotential> itsOwnedSep;
 };

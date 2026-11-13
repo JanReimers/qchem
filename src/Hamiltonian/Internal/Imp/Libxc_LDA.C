@@ -2,6 +2,8 @@
 module;
 #include <ostream>
 #include <cassert>
+#include <stdexcept>
+#include <string>
 #include <src/xc.h>
 module qchem.Hamiltonian.Internal.Libxc_LDA;
 
@@ -12,12 +14,23 @@ namespace qchem::Hamiltonian
 // XC_POLARIZED (see the header).
 Libxc_LDA::Libxc_LDA(int id)
 {
-    int ok = xc_func_init(&itsFunc, id, XC_UNPOLARIZED);
-    assert(ok==0);
-    ok = xc_func_init(&itsPol, id, XC_POLARIZED);
-    assert(ok==0);
+    // THROWS, not an assert: the id is user-reachable (XCFunctional::libxcId), and an assert is dead in Release.
+    if (xc_func_init(&itsFunc, id, XC_UNPOLARIZED)!=0)
+        throw std::invalid_argument("Libxc_LDA: libxc has no functional with id "+std::to_string(id));
+    if (xc_func_init(&itsPol, id, XC_POLARIZED)!=0)
+    {
+        xc_func_end(&itsFunc);
+        throw std::invalid_argument("Libxc_LDA: libxc cannot initialise functional id "+std::to_string(id)+" spin-polarized");
+    }
+    if (itsFunc.info->family!=XC_FAMILY_LDA)
+    {
+        xc_func_end(&itsFunc); xc_func_end(&itsPol);
+        throw std::invalid_argument("Libxc_LDA: libxc functional id "+std::to_string(id)+" is not an LDA (this term evaluates rho alone)");
+    }
     itsSeparable = itsFunc.info->kind==XC_EXCHANGE;
 }
+
+bool Libxc_LDA::IsExchangeCorrelation() const {return itsFunc.info->kind==XC_EXCHANGE_CORRELATION;}
 
 Libxc_LDA::~Libxc_LDA()
 {

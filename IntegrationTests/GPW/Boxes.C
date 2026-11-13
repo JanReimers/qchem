@@ -13,6 +13,7 @@
 //   GPW_O2Box.Γ_Imp_M3_Pulay_Anchor
 //   GPW_MnBox.Γ_M6_Smear_eqFinite
 //   GPW_Mn2Box.Γ_Becke_Shub_Pol_Smear_KeepsOrder
+//   GPW_Mn2Box.Γ_Becke_Shub_Pol_Smear_RowMomentsAreTheIterates
 //   GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows
 
 #include "gtest/gtest.h"
@@ -430,7 +431,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_PilotSizesTheRaster)
 TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
 {
     // (The spherical arm -- GPW_MN_SPHERICAL / GPW_BASIS_SPH environment switches, doc/SphericalLatticePlan.md I1/I3 -- is a CAMPAIGN A/B, not a gate:
-    //  env switches are retired (D-ENV 6d.4), so this gate runs the Cartesian SR arm; the spherical arm is a deck with basis.spherical.)
+    //  env switches are retired (D-ENV 6d.4), so this gate runs the Cartesian SR arm; the spherical arm is a deck with basis.angular "spherical".)
     const bool spherical=false;
     const bool sphBasis =false;
     Molecule mnmol; mnmol.Insert(Site{25, {0,0,0}});
@@ -522,6 +523,45 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     EXPECT_NEAR(m1+m2, 0.0, 1e-8*std::abs(m1))
         << "the imposed SCF must keep the sublattice mirror";
     EXPECT_NEAR(pol->GetTotalSpin(), 0.0, 1e-8) << "an imposed AFM pair carries zero net moment";
+}
+
+// THE ROW'S SITE MOMENTS ARE THE ITERATE'S, ON EVERY MIXER (OpenWork §3, 2026-11-12).  A D-mixer's row carries the first-order
+// energy E_T, whose breakdown is E[D_in]'s, and its moments used to come with it: the MIXED D_in's, while a field mixer's row read
+// D_out's.  NiO iteration 1 then read m_site 2.48 under D-Pulay and 0.076 under Kerker from the SAME D_out (0.0761 on both), which
+// was reported as "Kerker erases the magnetization".  The claim: on D-space Pulay and on Kerker+Pulay alike, the last row's
+// moments are exactly the final iterate's (the facade's exact E_KS[D_out] refresh).  Bounded: a reporting gate, not convergence.
+TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_RowMomentsAreTheIterates)
+{
+    const Material box=qchem::Materials::Get("Mn2_box7");
+    const Lattice_3D lat=LatticeOf(box);
+    for (const bool kerker : {false, true})
+    {
+        SolidCalcOptions o=OptionsFor(box, kerker ? "Mn2 rows, Kerker+Pulay" : "Mn2 rows, Pulay on D");
+        o.multiplicity=1;
+        o.siteSpins={+1,-1};
+        o.seed=qchem::ChargeDensity::SeedStrategy::SAD;
+        o.imposeSymmetry=true;
+        o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+        o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);
+        o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+        SCFParams par=Gates(3, 1e-9, std::nullopt);
+        par.SmearingkT=5e-3;
+        par.StartingRelaxRo=0.45;
+        par.Mixer=SCFParams::Mixing::Pulay; par.KerkerG0=kerker ? 1.0 : 0.0;   // G0 = 0: the D-space Pulay (an E_T row)
+        par.PulayDepth=8; par.PulayStart=2;                                     // the history engages inside the 3 rows
+        GpwReport report("Mn "+o.label, par.Verbose);
+        qchem::BoundedSCF bounded("a reporting gate on the rows (3 iterations), not convergence");
+        std::vector<rvec_t> rows;
+        qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par,
+                                     [&rows](const qchem::SCFIterator::IterationRow& p){ rows.push_back(p.eb.charge.siteMoments); });
+        ASSERT_FALSE(rows.empty());
+        const rvec_t last=rows.back(), final=calc.LastIterateTerms().charge.siteMoments;
+        ASSERT_EQ(last.size(), box.cell->GetNumAtoms()) << o.label << ": a Becke mesh has one basin per site";
+        ASSERT_EQ(final.size(), last.size());
+        EXPECT_GT(std::abs(final[0]), 0.1) << o.label << ": the instrument -- an order to report";
+        for (size_t a=0;a<last.size();a++)
+            EXPECT_NEAR(last[a], final[a], 1e-10*std::abs(final[0])) << o.label << ": site " << a << " -- the row must report D_out";
+    }
 }
 
 

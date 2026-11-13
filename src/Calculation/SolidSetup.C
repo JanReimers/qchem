@@ -82,6 +82,10 @@ struct SolidCalcOptions
     //! semicore Mn q15 run) or adds it.  Empty (default) = the set as is.  Multi-species is the norm for a compound; a per-Z
     //! router PP is built over the elements of the structure so each atom gets its own GTH entry.
     std::vector<std::pair<std::string,int>> species;
+    //! The XC FUNCTIONAL (deck \c solid.model): LDA (Dirac + VWN5, the default) or PADE (the Goedecker-Teter-Hutter Padé LDA, libxc
+    //! LDA_XC_TETER93 = CP2K's XC_FUNCTIONAL PADE, the functional every GTH-PADE PP was fitted with; user ruling 2026-11-12).  STATED,
+    //! never switched for you: a PP fitted with another functional than this one is a warn-and-run row (\c PPFittedFunctional).
+    Hamiltonian::Model model = Hamiltonian::Model::LDA;
     //!@}
 
     //! \name The orbital basis FAMILY (doc/OpenWork.md §2 PW-1)
@@ -191,17 +195,27 @@ struct SolidCalcOptions
     //! (OpenWork, X): a session invariant under the group the WHOLE session keeps (a symmetry-preserving relaxation keeps its space
     //! group), so one mesh serves both.
     bool xcMeshSymmetric = true;
-    //! The SCF seed.  Default \c IonicSAD (V2.2, 2026-09-14): a superposition of the library's per-species
+    //! The SCF seed.  \c Default = THE Auto rule both setups share (\c qchem.SeedPolicy, user 2026-11-12): on a lattice that is
+    //! \c IonicSAD (V2.2, 2026-09-14), a superposition of the library's per-species
     //! valence densities at their formal charges (Na+ F-, Mn2+ O2-; an elemental solid is the neutral SAD).
     //! \c Uniform (\f$\rho=N/V\f$, the old default) is an explicit OPT-IN, because it has a STABLE WRONG
     //! BASIN for electron-sparse systems: the Na-doublet campaign converged a lone-electron doublet 72 mHa
     //! high from it with every health metric green (doc/CleanupCandidates.md V2.2).  The molecular facade
     //! already defaults DFT to SAD for the same reason.
-    //! \note IonicSAD needs every species in \c atomic_valence_densities.json (today: O, F, Na q1, Si, Mn);
-    //! a missing species THROWS at seed time -- state \c Uniform, or generate the entry (CLIapps/valgen).
-    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    //! \note IonicSAD needs every species in \c atomic_valence_densities.json; under \c Default a missing species takes the core guess
+    //! with a WARN (ruling 2026-11-12); a STATED IonicSAD with a missing species still THROWS at seed time.  Resolved into the setup's
+    //! \c opts.seed, so everything downstream reads the seed that runs.
+    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
     qchem::Ortho ortho    = qchem::Cholesky;
+    //! THE NEAR-DEPENDENCE FLOOR on S's eigenvalues: what the vet-stage trim trims at (basis autoTrim, and a geometry step's re-vet), and
+    //! the floor a TRUNCATING ortho solver drops directions under -- one quantity (the vet's metric is the truncating solver's own drop
+    //! count at it), two readers.  The solver reads it only when it truncates (\c SolverTruncation); the solid default, Cholesky, does
+    //! not, so there the floor is the trim's alone (OpenWork §3 "solid.orthoTol has two meanings", user feedback 36, 2026-11-12).
     double       orthoTol = 0.0;
+    //! \brief The tolerance handed to the ortho SOLVER: \c orthoTol when \c ortho truncates (Eigen, SVD, CholeskyPivoted), else 0 --
+    //! Cholesky, Auto (it finds its own gap) and Orthonormal take none.
+    double SolverTruncation() const
+    { return (ortho==qchem::Eigen || ortho==qchem::SVD || ortho==qchem::CholeskyPivoted) ? orthoTol : 0.0; }
     //! THE CELL'S STRAIN ALLOWANCE s (linear, a fraction; the cell half's frozen rule, doc/Records/CellHalf_Design.md §3, ruled
     //! 2026-11-10).  0 (default): the cell is fixed -- a geometry session refuses a moved cell (\c PESFailure::CellChange) and every size
     //! is decided on the cell itself, as always.  > 0: every discrete size (G sets, raster and FFT counts, uniform-mesh divisions) is
@@ -249,7 +263,9 @@ struct SolidCalcOptions
     //! EMPTY (the default) = DERIVE it from the seed, which reproduces the historical driver behaviour and
     //! is right for the common case.  SET IT to state a specific ordering: a cell usually admits several
     //! (AFM-I vs AFM-II vs ferrimagnetic), the derived one is only the seed's guess, and comparing orderings
-    //! is the whole point of a magnetic campaign.  Ignored unless \c imposeSymmetry.
+    //! is the whole point of a magnetic campaign.  It is the run's ONE source of the ordering (2026-11-12): the polarized seed
+    //! reads it too (+1 majority up, -1 flipped, 0 no moment), overriding the structure's per-atom spins, which are only the
+    //! default when it is absent.  The imposition reads it only when \c imposeSymmetry.
     //! \note \c greyImposition forces the empty decoration regardless -- that arm is the erasure control.
     std::vector<int> siteSpins = {};
     //! \note MANDATORY for a polarized run that carries a Hubbard manifold (OpenWork §3 "The magnetic decoration is
@@ -313,7 +329,9 @@ struct GaussianBasisRecipe
     //! stated \c trim.  \c SolidSetup::Resolve runs it once and stores the frozen result (\c autoTrim false, \c trim filled).
     //! Needs an \c orthoTol > 0, which it trims at; \c orthoTol alone never trims (user ruling 2026-11-04).
     bool                              autoTrim = false;
-    bool                              spherical = false;   //!< wrap in the spherical lattice view (contaminant-free d/f)
+    //! The angular form, the SAME option as the molecular \c CalcOptions::angular (user, 2026-11-12, structure-neutral options).
+    //! \c Spherical wraps the MnD Cartesian lattice basis in the spherical lattice view (contaminant-free d/f).
+    BasisSet::Gaussian::Angular       angular = BasisSet::Gaussian::Angular::Cartesian;
     //! The pair-loop tolerances \c Make BINDS on the basis it builds (D-ENV-TOL option A, 2026-10-31): set by \c SolidSetup::Resolve
     //! from \c SolidCalcOptions::tolerances (the one source -- a caller's value here is replaced), frozen with the trim so a geometry
     //! step's basis computes at the same setting.  The GPW evaluator checks them; it no longer sets them.
@@ -352,8 +370,12 @@ struct SolidSetup
     static std::shared_ptr<const SolidSetup> Resolve(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
                                                      const SolidCalcOptions& opts,
                                                      const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+    //! THE PRE-RUN PP / FUNCTIONAL CHECK (user 2026-11-12: track, warn and guide, mostly in the GUI): every element of the reference
+    //! cell, its pseudopotential's fit (CP2K label + libxc ids) against \c opts.model, match yes/no, and the model to state to match it.  What the
+    //! run will warn about, answered without running; a GUI reads it here and never recomputes it.  THROWS on a fit with no libxc mapping.
+    std::vector<Hamiltonian::PPFunctionalCheck> PPFunctionalChecks() const;
 
-    SolidCalcOptions                         opts;   //!< as asked, except \c ortho: a plane-wave run's default Cholesky becomes Orthonormal
+    SolidCalcOptions                         opts;   //!< as asked, except \c ortho (a plane-wave run's default Cholesky becomes Orthonormal) and a \c Default seed (resolved)
     SCFAccelerators::SolidAcceleratorOptions acc;    //!< as asked; a stage derives its own from it (a restored stage's Ladder rung)
     Pseudopotential::PseudopotentialSet      pp;     //!< \c opts.pp with the \c opts.species overrides applied
     //! The REFERENCE geometry: the lattice the setup was resolved at (the trim vetted, the imposed group detected), and its
