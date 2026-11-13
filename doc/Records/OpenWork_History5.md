@@ -2662,3 +2662,31 @@ Verdict: not reproducible from the code, so no change was made.
 - So a recipe file named WITHOUT `.bsd` fails to OPEN on both paths. The check runs first, so it is the one that names the missing file.
 - A deck never reaches this: a basis NAME goes to `basis.data`, which `BasisFileOfName` turns into `<stem>.bsd`, and a stated `basis.file` that is not shipped is opened and refused by the deck itself ("cannot be read").
 - The 2026-10-31 observation was most likely the UT expecting the provenance mismatch and meeting the open failure instead. The basis never loaded without its extension.
+
+### Kerker erasure: REOPENED and re-closed by converged runs (lane B, 2026-11-12)
+
+The user, in the GUI: "Kerker G_0=1.0 causes the magnetic moment wither away to nothing".  That is a multi-iteration observation, so the
+controller withdrew the "no erasure" verdict until it was measured to convergence.
+
+The decks:
+- The user's GUI deck as lane G regenerated it (`gui-user-run03{6,7}-kerker.json`): Γ only, the 4-atom NiO AFM-II cell, accuracy 1e-3,
+  spherical VALENCE_LOWQ_VA trimmed at Ni s 0.06 and d 0.18, siteSpins + − 0 0, accelerator Null, Pulay depth 8 at relax 0.45.
+- Each deck was run as `kerkerG0 1.0` + Pulay, and as the SAME deck without `kerkerG0` (Pulay on D), to convergence.  The resolved policy
+  row reads `policy.mixRhoM=on*` on every run: ρ carries G0, m is LINEAR (G0 = 0), and there is ONE joint Pulay history.
+
+| variant | mixer | iterations | Etot (Ha) | final site moment |
+|---|---|---|---|---|
+| Ni s+d trim, free | Kerker+Pulay | 18 | -106.2422879919 | 0.389 e |
+| Ni s+d trim, free | Pulay on D | 22 | -106.2422879929 | 0.389 e |
+| Ni s+d trim, imposed | Kerker+Pulay | 18 | -106.2422217516 | 0.389 e |
+| Ni s+d trim, imposed | Pulay on D | 21 | -106.2422217516 | 0.389 e |
+| Ni s trim only, free (= the user's run041) | Kerker+Pulay | 19 | -106.2820424128 | 0.256 e |
+| Ni s trim only, free (= the user's run041) | Pulay on D | 29 | -106.2820424127 | 0.256 e |
+
+What the table shows:
+- Both mixers reach the same state to 1e-9 Ha on every variant.
+- The Pulay-on-D trace decays as well: 0.78 → 0.39 over iterations 6-22.
+- Kerker does not erase the moment.  This model's converged moment is small, and a run the user stopped mid-way shows that decay.
+
+The open question (why ~0.3 e against LDA's ~1.2 μB: Γ-only k sampling first, then the basis) is the OpenWork §3 row "NiO AFM-II moment
+small on VALENCE_LOWQ_VA, Γ-only".  Outputs: `~/Code/qchem6-runs/NiO/laneB-conv-*.out`.
