@@ -3015,3 +3015,14 @@ The row as it stood, verbatim:
   The "tuple wrapper zeroes the gradient" item is RETRACTED (it was A in another shape).  Both defects REPRODUCE unchanged on Enzyme `main`
   871de19f (⊇ v0.0.308, 2026-11-08; record §6).  Next action: when either issue reports a fix (the user gets GitHub's emails), re-run both
   repros on the fixing commit, then move the pin; drop the per-file `-mprefer-vector-width=128` flags only once B is fixed.
+## ✅ `SolidSession.SessionSizesItsRastersOnMatrixElements` out of `knownRed`: the GDM line minimum closes it (lane A, 2026-11-13)
+The second case of OpenWork §3 "GDM's line search runs below the energy's noise floor" (lane B 2026-11-10, verbatim): *at Δρ/N 1e-7: once
+the kinetic screen moved its start (04fc3e043), round 3 of the geometry pilot (cutoffFactor 8 → 16) starts at Δρ 1.0e-6 and crawls 13 GDM
+steps with E flat to 1e-14 and [F,D] contracting 0.81 per step: 21 re-convergence iterations against cap 16 (18 on the ε→0 reference
+build, 9 before), no stall.  Its gate is kept; it leaves `knownRed` when this row's fix lands.*
+
+With the parabolic line minimum (1c3ec5b81, SCFRobustnessPlan B6(a)) the geometry pilot re-converges in 5 + 3 + 3 = **11** (was 5 + 3 + 13 = 21):
+the cap-16 gate passes unchanged.  The same run exposed the energy pilot's cap (line 146, 4) as calibrated on a FALSE convergence: main's
+"2 iterations" met Δρ 7.6e-8 while ‖[F,D]‖ was 4.8e-4, E 5.0e-8 Ha above the minimum; it now converges honestly in **8** ([F,D] 9.4e-8,
+E −7.240056928901), and the cap is 8 (controller ruling 2026-11-13).  The test passes whole and left `knownRed`.  The false stop itself is
+a new OpenWork §3 row, "A Δρ-only stop certifies an unconverged iterate".  The noise-floor row's first case (its user-stated 1e-8 gate) stays open.

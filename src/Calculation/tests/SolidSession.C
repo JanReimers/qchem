@@ -142,8 +142,10 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     // What the pilot costs (reported and gated, not hidden): the energy run raises the density raster once from the ball's.
     EXPECT_TRUE(single.PilotCost().settled);
     EXPECT_EQ(single.PilotCost().rounds, 2);
-    // 2 measured 2026-11-10 at Δρ/N 1e-7, serial and 4 threads alike (39-54 at 1e-8, GDM's tail into the noise floor).
-    EXPECT_LE(single.PilotCost().reconvergeIterations, 4u);
+    // 8 measured 2026-11-13 with GDM's parabolic line minimum (1c3ec5b81): an HONEST convergence, [F,D] 9.4e-8 at E -7.240056928901.
+    // The earlier "2" (2026-11-10, cap 4) was a FALSE convergence: iteration 2 met the Δρ gate (7.6e-8) while [F,D] was still 4.8e-4,
+    // E 5.0e-8 Ha above the minimum (doc/OpenWork.md §3 "A Δρ-only stop certifies an unconverged iterate").
+    EXPECT_LE(single.PilotCost().reconvergeIterations, 8u);
 
     SolidSession pes(setup, {SCFStage{Tight(1e-7), SCFAccelerators::Type::Auto}});
     const PESGeometry ref=pes.Reference();
