@@ -564,6 +564,66 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_RowMomentsAreTheIterates)
     }
 }
 
+// THE SUPERCELL IDENTITY with d shells, two spin channels and k-phases (lane B, 2026-11-13; the instrument that cleared the NiO "k-step"
+// suspicion -- OpenWork §3 NiO row): the primitive cell on a [2,1,1] k-mesh and its 2x1x1 supercell at Γ are the SAME infinite crystal
+// sampled the same way, so the supercell's energy is exactly twice the primitive's -- at EVERY iterate, not just the fixed point: the
+// supercell's seed is the primitive's replicated, its spectrum is the union of the primitive's k = 0 and k = 1/2 spectra (one μ over k
+// either way, the smeared default), and its extra G-vectors carry no density.  So the gate is BOUNDED (3 iterations; the free AFM dimer
+// does not converge on any recipe tried, measured: 150 iterations of Kerker+Pulay) and compares the last iterates.  Si's gates never put
+// d shells or a polarized density through this identity.  EXACT by construction: FREE (no imposition, so no group-dependent mesh), the
+// PLAIN Becke mesh (xcMeshSymmetric=false: the supercell's atom-centred mesh is the primitive's replicated,
+// BeckeMesh.FreeSupercellMeshIsThePrimitiveMeshReplicated), the same stated recipe on both sides, and a CONVERGED density grid: the
+// supercell's raster is not the primitive's replicated (an isotropic N from the longest edge), and at the auto 72 Ha the two cells'
+// discretizations differ by 1.4 mHa -- which is all the 0.35 mHa NiO supercell gap of 2026-11-13 was.
+TEST(GPW_Mn2Box, k211_Becke_Pol_Smear_EqualsItsSupercellAtGamma_Long)   // ~4.5 min serial, 2.8 GB (the 288 Ha rasters)
+{
+    const Material box=qchem::Materials::Get("Mn2_box7");     // Mn +m at 0, Mn -m at 1/2 (B2 AFM), a=7
+    auto recipe=[&](const std::string& label, std::vector<int> spins, int nelec)
+    {
+        SolidCalcOptions o=OptionsFor(box, label);
+        o.Nelec=nelec;
+        o.multiplicity=1;
+        o.siteSpins=std::move(spins);
+        o.seed=qchem::ChargeDensity::SeedStrategy::SAD;
+        o.imposeSymmetry=false;
+        o.xcMeshSymmetric=false;                              // the plain mesh: replicated exactly in the supercell
+        o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+        o.accelerator=qchem::SCFAccelerators::Type::Null;
+        o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);
+        o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+        o.densityEcut=288.0;   // the two cells' rasters are NOT replicas (isotropic N from the longest edge: (27)^3 vs (54)^3), so the identity
+                               // holds only as the density grid converges -- MEASURED at iteration 1: auto 72 Ha 1.4e-3, 144 Ha 5.8e-6, 288 Ha 7.7e-8
+        return o;
+    };
+    SCFParams par=Gates(3, 1e-12, std::nullopt);
+    par.Mixer=SCFParams::Mixing::Pulay; par.KerkerG0=1.0; par.PulayDepth=8; par.PulayStart=2;
+    par.SmearingkT=5e-3; par.StartingRelaxRo=0.45; par.UseMOM=false;
+    qchem::BoundedSCF bounded("the identity holds at every iterate; 3 suffice to carry the k = 1/2 block through Fock, fill and mix");
+
+    const SolidCalcOptions op=recipe("Mn2 B2 AFM primitive k211", {+1,-1}, box.Nelec());
+    qchem::SolidCalculation prim(SolidSetup::Resolve(LatticeOf(box, ivec3_t(2,1,1)), MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), op), par);
+    const UnitCell super=qchem::Supercell(*box.cell, ivec3_t(2,1,1));   // replica-major: Mn+ Mn- Mn+ Mn-
+    const SolidCalcOptions os=recipe("Mn2 B2 AFM 2x1x1 supercell Γ", {+1,-1,+1,-1}, 2*box.Nelec());
+    qchem::SolidCalculation sup(SolidSetup::Resolve(Lattice_3D(super, ivec3_t(1,1,1)), MakeBasisLowQ(super, BasisSetData::VALENCE_LOWQ_SR), os), par);
+    ASSERT_EQ(prim.IterationCount(), sup.IterationCount());
+    const double Ep=prim.LastIterateTerms().GetTotalEnergy(), Es=sup.LastIterateTerms().GetTotalEnergy();
+    {
+        const std::streamsize prec=std::cout.precision(12);
+        std::cout << "[Mn2 supercell identity] after " << prim.IterationCount() << " iterations: primitive k211 " << Ep
+                  << "  supercell Γ / 2 " << Es/2 << "  diff " << Es/2-Ep << std::endl;
+        std::cout.precision(prec);
+    }
+    EXPECT_NEAR(Es/2, Ep, 1e-6) << "the supercell is the same crystal: E(2x1x1, Γ) = 2 E(prim, k211), iterate by iterate";
+    const rvec_t mp=prim.LastIterateTerms().charge.siteMoments, ms=sup.LastIterateTerms().charge.siteMoments;
+    ASSERT_EQ(ms.size(), 2*mp.size());
+    for (size_t i=0;i<mp.size();i++)
+    {
+        EXPECT_NEAR(ms[i],           mp[i], 1e-6) << "site " << i << ": the supercell's first replica carries the primitive's moment";
+        EXPECT_NEAR(ms[i+mp.size()], mp[i], 1e-6) << "site " << i << ": and so does its second";
+    }
+    EXPECT_GT(std::abs(mp[0]), 2.0) << "the AFM order must be alive (else the identity is trivial)";
+}
+
 
 // ★ T2's POSITIVE PATH (doc/OpenWork.md N1/T2, built 2026-08-26).  The OrderLost postcondition shipped
 // with only its negative side exercised: every order-losing run measured on 2026-08-25 ALSO ran out of

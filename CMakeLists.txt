@@ -163,6 +163,7 @@ list(JOIN _qchemKnownRedFast ":" _qchemKnownRedFast)
 list(JOIN _qchemKnownRedLong ":" _qchemKnownRedLong)
 set(QCHEM_PERIODIC
     "GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long"                                   # twin: GPW_MnO.Γ_U_Shub_Pol_Smear_Saved_CP2K_Long (vendored states)
+    "GPW_MnO.k222_Shub_Pol_Smear_CP2K_Long"                                  # cold k-mesh oracle (~2 h serial); twin: GPW_Mn2Box.k211_Becke_Pol_Smear_EqualsItsSupercellAtGamma_Long (the k-phase identity)
     "ResponseLittleGroup.GPW_Si_k222_q222_Becke_ReducedEqualsFull_Long"     # twin: ResponseLittleGroup.GPW_Si_k222_q211_Becke_ReducedEqualsFull
     "ResponseLittleGroup.GPW_Si_k222_q211_ReducedEqualsFull_Long"           # (uniform raster) same twin: the cost is per q per solve
 )

@@ -171,6 +171,14 @@ our `ivec3_t(2,2,2)`).  CP2K 2026.1, OMP 8, 70–500 s each.
   AFM−FM) is the defect-localization instrument; the qchem FM determinant leg is run 41.
 - k-convergence: both orderings drop ~217 mHa from Γ to 2×2×2 — the 2-f.u. cell is far from
   k-converged, but the ORDERING is stable.
+  ⚠ **NOTE (lane B, 2026-11-13): do NOT read a qchem k-defect from this −217 mHa step.**  These decks run the SR file the way
+  CP2K always does, SPHERICAL, which removes the Cartesian-d contaminants that carry the SR Mn block's s span -- a different span
+  from qchem's Cartesian SR (qchem refuses SR as spherical for exactly that reason).  On the VA span both codes hold function for
+  function, the same-basis k-mesh oracle reads Γ −61.3033252 / k222 −61.3329544 (CP2K) against −61.3030146 / −61.3325317 (qchem,
+  the DELIVERED energies after the raster pilot's doubled density ball; the first SCF read −61.3031650 / −61.3326541):
+  a Γ→k222 step of −29.63 vs −29.52 mHa (`~/Code/cp2k-runs/MnO/laneB_mno_afm2_gpw_va_222g.inp`; gate
+  `GPW_MnO.k222_Shub_Pol_Smear_CP2K_Long`).  The size of a Γ→k222 step on these Gaussian valence bases is a property of the BASIS
+  (QE's complete-basis NiO step is ~5x qchem-VA's), measured in OpenWork §3's NiO row.
 - **Mn q7 SEXTET atom oracle (2026-08-12, `mn_atom_q7_pol.inp`)**: the CP2K ATOM code does UKS via
   `ELECTRON_CONFIGURATION (6) CORE 4s2 3d5` + `METHOD_TYPE UKS` — E = **−14.674425** (kin 24.7834,
   loc −33.6994, **NL −16.0432**, Coul 13.7232, XC −3.4384; terms sum exactly, no confinement).  This
