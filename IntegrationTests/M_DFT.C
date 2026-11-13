@@ -191,6 +191,34 @@ static Molecule MakeF2()   // ~/Code/cp2k-runs/F2 geometry (bohr)
     return m;
 }
 
+// TeF6 SPHERICAL under a pseudopotential -- the case the OpenWork row "a spherical molecular PP run dies on its first H at radial
+// meshes of 50 points or more" was filed on (lane B, 2026-11-05: "Invalid setup of symmetric matrix" at the first diagonalisation for
+// (50,17) (50,29) (80,29) (150,29) (200,35); (30..40,17) ran, Cartesian ran every rung).  FIXED AT HEAD, CAUSE UNIDENTIFIED (lane B,
+// 2026-11-12, doc/Records/OpenWork_History5.md): every rung converges in 11 iterations, and no spherical orbital or A1 fit function is
+// non-finite at any mesh point or at a nucleus.  This is the crash recipe itself: the core seed, DIIS, the first failing mesh, stated.
+static Molecule MakeTeF6()   // octahedron, Te-F 1.82 Angstrom (the 2026-11-05 runs' geometry)
+{
+    const double d=1.82/0.529177210903;
+    Molecule m;
+    m.Insert(Site{52, Vector3D<double>(0,0,0)});
+    for (const Vector3D<double>& r : {Vector3D<double>(d,0,0), Vector3D<double>(-d,0,0), Vector3D<double>(0,d,0), Vector3D<double>(0,-d,0),
+                                      Vector3D<double>(0,0,d), Vector3D<double>(0,0,-d)})
+        m.Insert(Site{9, r});
+    return m;
+}
+TEST(M_DFT, TeF6_PP_Spherical_Converges_Long)
+{
+    CalcOptions o{.basis = "dzvp_molopt_sr_gth", .model = Model::LDA, .pp = "gth-lda-valence"};
+    o.ppOverride = {{"Te", 6}};                                    // the basis's Te block is q6 (its PP-PROVENANCE line)
+    o.angular    = Angular::Spherical;
+    o.seed       = ChargeDensity::SeedStrategy::CoreGuess;
+    o.mesh.nRadial = 50; o.mesh.angularDegree = 17;                // the first rung that died
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeTeF6(), o));
+    ASSERT_TRUE(calc.Result()) << "the 2026-11-05 crash recipe must converge";
+    EXPECT_NEAR(calc.Energy(), -153.4149661057, 1e-5);             // anchor at the stated (50,17)
+    EXPECT_NEAR(calc.Energy(), -153.4140873524, 2e-3) << "the (200,35) value: (50,17) is 0.9 mHa off it, the coarse mesh's own error";
+}
+
 TEST(M_DFT, WaterLDA_AuxiliaryFit)
 {
     MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
