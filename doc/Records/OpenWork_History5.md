@@ -2617,3 +2617,32 @@ symmetry (`MoleculeCalculation.C`, S3b).  The claim came from a stale comment on
 **Remainder (other rows).**  Lane G wires both binding front doors to `Angular` and `SeedStrategy::Default`.  The pseudopotential seed
 library is its own row ("A pseudopotential run seeds from the VALENCE library for its q, on every structure").
 
+
+
+## ✅ A Kerker-preconditioned mixer ERASES the seed's magnetization: a reporting split (lane B, 2026-11-12, bd4169fae)
+
+The row as it stood (verbatim):
+
+· **A Kerker-preconditioned mixer ERASES the seed's magnetization** (lane G 2026-11-12, from the user's NiO report "the magnetic moments are wasting away"; owner lane B, after its seed READY).  NiO_AFM2 VALENCE_LOWQ_VA, Γ, siteSpins +-00, imposed Shubnikov, IonicSAD (Ni²⁺ moment 2 exists).  Seed probe (`siteMoments mu` before iteration 1): `scf.kerkerG0 1.0` + Pulay gives seed mu ±4.1e-6 and iteration-1 m_site +0.076 (XC ρ 'cusp', the ρ̃ path); no kerkerG0 (Pulay on D), smeared or not, gives seed mu ±3.372 and iteration-1 m_site +2.48.  So under Kerker the run starts non-magnetic: imposed it stays near 0 ("0.00000 from the first iteration"), free it regrows from noise.  SUSPECT: the Kerker path's seed/history is built from the TOTAL fitted density, not spin-resolved (pin 5: spin-native).  NEXT: unit-gate the seed → ρ̃ handoff on a two-site spin pair (seed m in = m out under Kerker), then fix; the B5 `MagneticInsulator` recipe (K+P) depends on it.  Repro decks: lane G's notes `laneG-nio-kerker-spin/{nio_ker_nosmear.json, nio_smear_only.json}`, 1 iteration each, ~8 min at QCHEM_OPENMP_THREADS=0.  SMALLER, same report: on the untrimmed VA basis (λmin(S) 5.6e-8) the refused first iterate (+2515 Ha, raster pilot restarts on x=16.7) prints site moments of exactly 0.0000 in its summary; the restart is right, the zero line misleads (print "refused" instead of moments).
+
+**The diagnosis: no erasure.  The `m_site` column meant two different densities.**
+- A D-mixer's row carries the first-order energy E_T, whose breakdown is E[D_in]'s, and its site moments came with it: the MIXED
+  D_in's.  A field mixer (Kerker, Pulay on ρ̃) has no E_T, so its row is E_KS[D_out] and its moments were D_out's.
+- On the row's NiO deck both routes produce the SAME iteration-1 D_out: E_KS -96.99726, site moments 0.0761 (the result lines).
+  D-Pulay's row read D_in (2.48), Kerker's read D_out (0.076).  The "seed mu" row is that same iteration-1 breakdown, root-anchored
+  above the table (and on the refused pilot pass, the broken D_out: 4e-6 vs D_in 3.372).
+- Controls (`~/Code/qchem6-runs/NiO/laneB-kerker-*.json`): without kerkerG0 the split vanishes; smearing changes nothing.
+- Over 8 iterations (`laneB-k8-{kerker,dpulay}.json`) Kerker+Pulay regrows the moment (0.73, 0.77, 0.70, ... 0.58, E settling at
+  -106.281) while D-Pulay oscillates (E_T ±0.4 Ha).  Kerker keeps the magnetization at least as well.
+- The suspect (the Kerker history built from the TOTAL density) was wrong: the polarized mixer is per channel, its star-average uses
+  the σ=None subgroup (fixed 2026-08-11), and the mixer's field carries D's moment.
+
+**Fixed (bd4169fae).**  The row takes its moments from D_out on every driver (free: the residual just sampled D_out on the XC mesh).
+Gate `GPW_Mn2Box.Γ_Becke_Shub_Pol_Smear_RowMomentsAreTheIterates` (Pulay on D and Kerker+Pulay): the last row's moments equal the final
+E_KS[D_out] to 1e-10; it fails with the fix removed.  Iteration 1 of that gate now reads m_site 3.884579 on both mixers.
+
+**The smaller item, fixed too.**  A refused first iterate (UnphysicalStop) printed its broken density's site moments (exactly 0.0000 on
+NiO's untrimmed basis); the result line now says the iterate was refused and its moments are not measured.
+
+**Remainder (a live row).**  The first diagonalization takes D0's 3.37 e to 0.076 e on every mixer and the moment regrows only to ~0.6:
+"NiO AFM-II moment small on VALENCE_LOWQ_VA" in `doc/OpenWork.md` §3.
