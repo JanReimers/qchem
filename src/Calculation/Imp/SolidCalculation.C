@@ -1237,7 +1237,12 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
         // rho_dn) per site -- never a point sample (doc/ feedback_integrated_observables).  A polarized run on an
         // atom-centred mesh that has NO site blocks is a DEFECT and is said so; on a uniform mesh the partition does not
         // exist, which is a configuration, said once.
-        if (polarizedRun)
+        // A REFUSED first iterate (UnphysicalStop) has a broken Hamiltonian, so its moments are not a measurement: say so instead
+        // of printing them (NiO on an untrimmed basis read exactly 0.0000 per site there, a number that reads like a lost order).
+        if (polarizedRun && !itsImp->scf->UnphysicalStop().empty())
+            std::cout<<"["<<itsImp->setup->opts.label<<"] site moments: not measured -- the first iterate was REFUSED (its "
+                       "Hamiltonian is broken), so its density is no observable"<<std::endl;
+        else if (polarizedRun)
         {
             const rvec_t& mu=E.charge.siteMoments;
             double absSum=0.0, net=0.0; for (size_t a=0;a<mu.size();a++) { absSum+=std::fabs(mu[a]); net+=mu[a]; }
