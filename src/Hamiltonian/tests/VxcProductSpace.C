@@ -202,7 +202,8 @@ Observed Observe(const Cell& c)
             std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(
                 BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
             std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::GPWFactory(lat, mol, {.densityEcut=8.0}));
-            std::unique_ptr<Hamiltonian::cHamiltonian> ham(Hamiltonian::Factory(SpinGroup::UnPolarized, lat.GetStructure(), bs.get(),
+            Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;
+            std::unique_ptr<Hamiltonian::cHamiltonian> ham(Hamiltonian::Factory(SpinGroup::UnPolarized, lat.GetStructure(), bs.get(), coulombFit,
                 Pseudopotential::PseudopotentialSet::Get("gth-lda-valence"), mesh, c.fit));   // (the solid door has no ρ axis yet: an A1 cell throws first)
             return HoldsTheOneTerm(*ham) ? Observed::OneTerm : Observed::OtherTerm;
         }
@@ -223,8 +224,9 @@ Observed Observe(const Cell& c)
             bs.reset(BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low, BasisSet::Radial::Type::Gaussian, 7));
         }
         if (!Hamiltonian::AdmitVxc(*st, c.fit, mesh)) return Observed::Refused;
+        Hamiltonian::CoulombFitSlot<double> coulombFit;
         std::unique_ptr<Hamiltonian::rHamiltonian> ham(Hamiltonian::Factory(Hamiltonian::Model::LDA, SpinGroup::UnPolarized,
-                                                                              st, mesh, bs.get(), 0.0, Hamiltonian::XCRoute(c.fit, c.rho)));
+                                                                              st, mesh, bs.get(), coulombFit, 0.0, Hamiltonian::XCRoute(c.fit, c.rho)));
         // A non-periodic structure has no cell, so a cell mesh it ACCEPTS was substituted, whatever term came back
         if (c.points==Points::Uniform) return Observed::SilentMesh;
         return HoldsTheOneTerm(*ham) ? Observed::OneTerm : Observed::OtherTerm;
@@ -296,8 +298,9 @@ TEST(VxcProductSpace, ARefusalNamesBothGroupsAndTheFactoryRefusesTheSame)
         EXPECT_NE(a.Error().find("G"), std::string::npos) << a.Error();
         try
         {
+            Hamiltonian::CoulombFitSlot<double> coulombFit;
             std::unique_ptr<Hamiltonian::rHamiltonian> ham(Hamiltonian::Factory(Hamiltonian::Model::LDA, SpinGroup::UnPolarized,
-                                                                                  st, PointsFor(points), bs.get(), 0.0, fit));
+                                                                                  st, PointsFor(points), bs.get(), coulombFit, 0.0, fit));
             ADD_FAILURE() << Name(fit) << " x " << Name(points) << ": the factory built a refused cell";
         }
         catch (const std::invalid_argument& e)

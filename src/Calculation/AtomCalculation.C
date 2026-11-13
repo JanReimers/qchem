@@ -222,6 +222,9 @@ private:
     std::shared_ptr<const Structure>     itsStructure;   //!< the single atom (Hamiltonian shares it)
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
+    //! The run's Coulomb-fit slot (doc/IntegralCacheOwnershipPlan.md S2b): every Hamiltonian builder demands one, and an atom builds one
+    //! Hamiltonian on its basis, so this slot is filled once.
+    Hamiltonian::CoulombFitSlot<double>  itsCoulombFit;
     //! R2.22: the iterator no longer deletes what it is handed, so this facade owns the Hamiltonian and
     //! the accelerator.  Both are still REBUILT per Converge() -- a molecular Hamiltonian is cheap, so
     //! that stays as it was; assigning here frees the previous pair at exactly the old moment.  Declared

@@ -208,8 +208,9 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
             if (!itsSeedMesh)
                 throw std::logic_error("tSCFIterator: an HF/DHF run handed a matrix-free seed needs the mesh its LDA seed sibling is built on "
                                        "(the SeedStrategy constructor's seedMesh); the explicit-seed constructor takes a matrix-backed seed");
+            H::CoulombFitSlot<double> seedFit;   // the sibling's own Coulomb fit: it lives as long as the sibling, and an HF run has no fit to share
             std::unique_ptr<H::rHamiltonian> dftSibling=[&]{ qchem::report::Scope here("seedHamiltonian");
-                return std::unique_ptr<H::rHamiltonian>(H::Factory(pol, stView, 2.0/3.0, *itsSeedMesh, bs)); }();   // Dirac exchange (alpha=2/3)
+                return std::unique_ptr<H::rHamiltonian>(H::Factory(pol, stView, 2.0/3.0, *itsSeedMesh, bs, seedFit)); }();   // Dirac exchange (alpha=2/3)
             SetWorkingCD(cd_t(itsWaveFunction->Init(*dftSibling, seed, *itsOccPolicy, 0.0001)));  // D0: a real (matrix-backed) density
             RecordFockInput(nullptr);   // the sibling's Fock: not this run's F, so no D_in of this run
             assert(itsCD);

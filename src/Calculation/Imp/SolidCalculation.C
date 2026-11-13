@@ -596,8 +596,8 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         }
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->setup->pp, xc, opts.vxcFit, hubbard, qchem::Hamiltonian::ModelToXC(opts.model),
-            &itsImp->coulombFit));
+            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, itsImp->setup->pp, xc, opts.vxcFit, hubbard,
+            qchem::Hamiltonian::ModelToXC(opts.model)));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -2220,6 +2220,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
 
     const SavedState st=SnapshotState(*itsImp->bs, *wf);
     std::unique_ptr<BasisSet::Complex_BS> bsRef;
+    qchem::Hamiltonian::CoulombFitSlot<dcmplx> coulombFitRef;   // the reference basis's own Coulomb fit (S2b): not the run's, a different basis
     std::shared_ptr<const BasisSet::Gaussian::GpwRasterLadder> ladderRef;
     std::unique_ptr<qchem::Hamiltonian::cHamiltonian> hamRef;
     // FENCED from here to the fold: the reference basis and Hamiltonian report their grids (and grid audits) as they BUILD AND FIRST
@@ -2260,7 +2261,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition);
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard,
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard,
                                                  qchem::Hamiltonian::ModelToXC(opts.model)));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);
