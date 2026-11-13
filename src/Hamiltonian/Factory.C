@@ -1,6 +1,7 @@
 // File: Hamiltonian/Factory.C Construct and return various Hamiltonian types.
 module;
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <utility>
@@ -29,7 +30,10 @@ export namespace qchem::Hamiltonian
     //!
     //! This is the FRIENDLY front token.  Its DFT members are a shorthand that resolves to an XCFunctional
     //! (below); for finer control -- a specific libxc id, a non-default alpha -- pass an XCFunctional directly.
-    enum class Model {E1,HF,DE1,DHF, Xalpha,LDA};
+    //! PADE (2026-11-12, user ruling on the OpenWork PADE row, option a): the Goedecker-Teter-Hutter Padé LDA (libxc
+    //! LDA_XC_TETER93, id 20; CP2K's XC_FUNCTIONAL PADE), the functional every GTH-PADE pseudopotential was fitted with.  A run
+    //! STATES it; LDA (Dirac + VWN5) stays the default, and a PP fitted with another functional than the run's is a WARN AND RUN.
+    enum class Model {E1,HF,DE1,DHF, Xalpha,LDA,PADE};
     // (The Hamiltonian's polarization is qchem::SpinGroup -- the imposed spin subgroup, one currency for the
     //  Hamiltonian, the wave function and the density, V1.37.  The old Pol enum is gone.)
 
@@ -56,6 +60,46 @@ export namespace qchem::Hamiltonian
         double alpha   = 2.0/3.0;   //!< exchange scaling, XC::SlaterXalpha only
         int    libxcId = 1;         //!< libxc functional id, XC::LibXC only (1 = LDA_X / Slater)
     };
+
+    //! The DFT \a m as its functional (LDA -> DiracVWN, PADE -> libxc 20, Xalpha -> SlaterXalpha at \a xalpha).  THROWS for a non-DFT model.
+    XCFunctional ModelToXC(Model m, double xalpha=2.0/3.0);
+    //! The model's NAME, as decks, the facades' reports, saved states and a GUI spell it ("LDA", "PADE", "Xalpha", "HF", ...).
+    std::string Name(Model);
+    //! The inverse of \c Name (exact spelling); empty for a name no model has -- the caller refuses it, naming the choices.
+    std::optional<Model> ModelFromName(const std::string&);
+    //! The functional in words, for a report or a warning ("Dirac + VWN5", "PADE (libxc LDA_XC_TETER93)", ...).
+    std::string Describe(const XCFunctional&);
+    //! The name a GTH table entry uses for the functional it was fitted with (\c GTH_PP::fitted, CP2K's vocabulary: "PADE"), or empty
+    //! when no GTH entry names \a xc.  What the PP/functional mismatch policy compares, so the comparison has ONE definition.
+    std::string GTHFittedName(const XCFunctional&);
+    //! THE CANONICAL IDENTITY OF A FUNCTIONAL: its libxc ids, sorted (user 2026-11-12: never compare names across naming schemes).  The
+    //! run's: Dirac + VWN5 = {LDA_X 1, LDA_C_VWN 7}; PADE = {LDA_XC_TETER93 20}; Xα = {1} at alpha 2/3 (pure Dirac), else {1, LDA_C_XALPHA 6};
+    //! a libxc correlation id c = {1, c} (Dirac exchange added, as \c MakeXCParts builds it), an exchange-correlation id = {id}.
+    std::vector<int> LibxcIDs(const XCFunctional&);
+    //! The libxc ids of a functional a pseudopotential was FITTED with, from its CP2K name (\c GTH_PP::fitted): PADE {20}, PBE {101,130},
+    //! BLYP {106,131}, BP {106,132} (B88 + P86), OLYP {110,131} (OPTX + LYP), PBESOL {116,133}, HCTH120 {162}, HCTH407 {164}.  THROWS for a
+    //! name not in the map, naming it: an unmapped fit is a gap in this table, never a silent match.
+    std::vector<int> LibxcIDsOfFitted(const std::string& fitted);
+    //! The model a run STATES to match a PP fitted with \a fitted (the model whose \c LibxcIDs equal the fit's): "PADE" -> PADE.  Empty when
+    //! no model this code offers matches it (a GTH-PBE PP until GGA lands): the guidance is then "use PPs fitted for the run's functional".
+    std::optional<Model> ModelForGTHFitted(const std::string& fitted);
+    //! One element's PP against the run's functional (user 2026-11-12: most users do not know a PP is tuned to a functional, so the code
+    //! tracks it, warns and guides; the GUI shows this record).  The CP2K name is the display LABEL; the comparison is on the libxc ids.
+    struct PPFunctionalCheck
+    {
+        std::string      element;
+        std::string      fittedLabel;     //!< the PP's fit as CP2K names it ("PADE")
+        std::vector<int> fittedIDs;       //!< its libxc ids, sorted
+        std::string      runLabel;        //!< the run's functional in words ("Dirac + VWN5")
+        std::vector<int> runIDs;          //!< the run's libxc ids, sorted
+        bool             match=false;     //!< fittedIDs == runIDs
+        std::string      matchingModel;   //!< the model NAME to state to match the fit; empty when none is offered
+    };
+    //! THE PRE-RUN QUERY: every element's check, in the given order (matches included, \c match says which).  PURE (no report, no console):
+    //! what a setup answers before a run, so a GUI reads it and never computes it.  THROWS on an unmapped fitted name (\c LibxcIDsOfFitted).
+    std::vector<PPFunctionalCheck> PPFunctionalChecks(const std::vector<std::pair<std::string,std::string>>& elementFitted, const XCFunctional& run);
+    //! The same for every species of \a st under the PP set \a pp.
+    std::vector<PPFunctionalCheck> PPFunctionalChecks(const Pseudopotential::PseudopotentialSet& pp, const Structure& st, const XCFunctional& run);
 
     //=== Hubbard +U manifolds (programme step 5; doc/Pins.md pin 23) ===============================
     //! \brief ONE Hubbard manifold: the \f$2l+1\f$ functions of shell \a l on atom \a site of the cell, and
@@ -176,13 +220,17 @@ export namespace qchem::Hamiltonian
     //! pseudopotential, with LSDA exchange-correlation.  \a pol selects spin-native (open-shell) vs the
     //! unpolarized collapse.  The public front door to Ham_PP.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const std::string& element, int valence,
-                         const qcMesh::MeshParams&, const rbs_t*, XCRoute fit={}, const CoulombRoute& coulomb={});
+                         const qcMesh::MeshParams&, const rbs_t*, XCRoute fit={}, const CoulombRoute& coulomb={},
+                         const XCFunctional& xc={});
 
     //! Pseudopotential Hamiltonian from the run's CHOSEN \a pp set (doc/CalcNetworkReview.md §4): a per-Z router PP is built over the
     //! distinct elements of \a st, each with the set's valence variant for the set's functional.  The set is handed in, never
     //! re-derived here -- every other consumer of the run's pseudopotential choice holds the same value.
+    //! \a xc: the run's STATED functional (default LDA = Dirac + VWN5); the set's PP is fitted with its own (\c FittedFunctional), and a
+    //! mismatch is the facade's warn-and-run policy, never a substitution here.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
-                         const qcMesh::MeshParams&, const rbs_t*, XCRoute fit={}, const CoulombRoute& coulomb={});
+                         const qcMesh::MeshParams&, const rbs_t*, XCRoute fit={}, const CoulombRoute& coulomb={},
+                         const XCFunctional& xc={});
 
     //=== The SOLID (periodic, dcmplx) front door ======================================================
     //! \brief The periodic Kohn-Sham Hamiltonian for a lattice run: kinetic + the range-split local PP
@@ -202,6 +250,6 @@ export namespace qchem::Hamiltonian
     //! \a hubbard: the DFT+U manifold list (empty = no Hubbard term).
     cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs,
                           const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh,
-                          VxcFit fit = VxcFit::Auto, std::vector<HubbardManifold> hubbard = {});
+                          VxcFit fit = VxcFit::Auto, std::vector<HubbardManifold> hubbard = {}, const XCFunctional& xc = {});
 
 } // namespace

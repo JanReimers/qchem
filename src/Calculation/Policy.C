@@ -9,11 +9,15 @@
 // policy picked because the caller stated none.  A refusal writes its row and then throws: the driver has opened the run before
 // any refusal can fire, so the record of a refused run carries it.  Outside a run the row is inert (the report's own rule).
 module;
+#include <iostream>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 export module qchem.Policy;
 import qchem.Reporting;
+import qchem.Hamiltonian.Factory;   // PPFunctionalCheck (PPFittedFunctional's input, the pre-run query's record)
 
 export namespace qchem::policy
 {
@@ -67,6 +71,42 @@ inline void Report(const std::string& name, const std::string& decided, Verdict 
 {
     Report(name, decided, Verdict::Refuse, reason);
     throw std::invalid_argument(decided + " -- " + reason);
+}
+
+//! \brief A PSEUDOPOTENTIAL FITTED WITH ANOTHER FUNCTIONAL THAN THE RUN'S: WARN AND GUIDE, AND RUN (user rulings 2026-11-12: OpenWork PADE
+//! row option a; and "most users ... will not know PPs well enough to be aware they are tuned for a particular exchange-correlation
+//! functional ... the lib code should be independently user friendly and spit warnings as well").  A model choice the code can SEE
+//! (pin 31: exempt from eps, so it warns and never substitutes): GTH-PADE under Dirac + VWN5 is ~0.6 mHa on the Li q3 atom, all E_xc.
+//! \a checks: \c Hamiltonian::PPFunctionalChecks, the same records a GUI reads before the run; the comparison is on libxc ids, the CP2K
+//! name only labels it.  Silent when every element matches; else ONE row at the cursor naming the run's functional, every mismatched
+//! element with its fit (label and ids), and what to do; the same on the console.
+inline void PPFittedFunctional(const std::vector<Hamiltonian::PPFunctionalCheck>& checks)
+{
+    std::vector<Hamiltonian::PPFunctionalCheck> mismatches;
+    for (const auto& c : checks) if (!c.match) mismatches.push_back(c);
+    if (mismatches.empty()) return;
+    qchem::report::json detail=qchem::report::json::object();
+    std::string list, advice;
+    std::vector<std::string> advised;   // one piece of advice per distinct fit
+    for (const auto& m : mismatches)
+    {
+        detail[m.element]={{"fitted",m.fittedLabel},{"fittedLibxcIDs",m.fittedIDs},{"runLibxcIDs",m.runIDs},{"matchingModel",m.matchingModel}};
+        list+=(list.empty() ? "" : ", ")+m.element+" (fitted with "+m.fittedLabel+")";
+        bool seen=false;
+        for (const auto& f : advised) seen = seen || f==m.fittedLabel;
+        if (seen) continue;
+        advised.push_back(m.fittedLabel);
+        advice+=(advice.empty() ? "" : "; ")+(m.matchingModel.empty()
+            ? "no model offered matches "+m.fittedLabel+": use pseudopotentials fitted for "+m.runLabel
+            : "state model "+m.matchingModel+" to match the GTH-"+m.fittedLabel+" fit, or use pseudopotentials fitted for "+m.runLabel);
+    }
+    const std::string& run=mismatches.front().runLabel;
+    const std::string decided="run "+run+" with pseudopotentials fitted with another functional: "+list;
+    const std::string reason ="a GTH pseudopotential is fitted with one exchange-correlation functional and is most accurate under it; this run "
+                              "states "+run+" (Li q3: PADE vs Dirac + VWN5 is 0.6 mHa, all of it E_xc).  The answer is the stated model's, "
+                              "solved to eps.  To match: "+advice;
+    Report("PPFittedFunctional", decided, Verdict::Warn, reason, std::nullopt, detail);
+    std::cout << "[policy] WARN PPFittedFunctional: " << decided << " -- " << advice << std::endl;
 }
 
 } // namespace qchem::policy

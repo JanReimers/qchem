@@ -20,6 +20,7 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     GeometryOptimizer.C # the geometry optimizer on analytic model surfaces only (doc/GeometryOptimizationPlan.md §1, ruling §12.3)
     MeshAudit.C         # the molecular XC-mesh audit at a fixed D (GeometryOptimizationPlan §14.3)
     CacheKeyExactness.C # two geometries 3e-6 bohr apart, either order, one process: each its fresh energy (2026-11-12)
+    PPFittedFunctional.C # PADE as a stated functional; the PP / functional match policy (user ruling 2026-11-12)
     FacadeMatrix.C      # the facade PARITY MATRIX: {atom, molecule, solid} x every capability, expected failures named (V-FACADE-MATRIX)
 )
 

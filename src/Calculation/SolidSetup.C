@@ -81,6 +81,10 @@ struct SolidCalcOptions
     //! semicore Mn q15 run) or adds it.  Empty (default) = the set as is.  Multi-species is the norm for a compound; a per-Z
     //! router PP is built over the elements of the structure so each atom gets its own GTH entry.
     std::vector<std::pair<std::string,int>> species;
+    //! The XC FUNCTIONAL (deck \c solid.model): LDA (Dirac + VWN5, the default) or PADE (the Goedecker-Teter-Hutter Padé LDA, libxc
+    //! LDA_XC_TETER93 = CP2K's XC_FUNCTIONAL PADE, the functional every GTH-PADE PP was fitted with; user ruling 2026-11-12).  STATED,
+    //! never switched for you: a PP fitted with another functional than this one is a warn-and-run row (\c PPFittedFunctional).
+    Hamiltonian::Model model = Hamiltonian::Model::LDA;
     //!@}
 
     //! \name The orbital basis FAMILY (doc/OpenWork.md §2 PW-1)
@@ -359,6 +363,10 @@ struct SolidSetup
     static std::shared_ptr<const SolidSetup> Resolve(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
                                                      const SolidCalcOptions& opts,
                                                      const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+    //! THE PRE-RUN PP / FUNCTIONAL CHECK (user 2026-11-12: track, warn and guide, mostly in the GUI): every element of the reference
+    //! cell, its pseudopotential's fit (CP2K label + libxc ids) against \c opts.model, match yes/no, and the model to state to match it.  What the
+    //! run will warn about, answered without running; a GUI reads it here and never recomputes it.  THROWS on a fit with no libxc mapping.
+    std::vector<Hamiltonian::PPFunctionalCheck> PPFunctionalChecks() const;
 
     SolidCalcOptions                         opts;   //!< as asked, except \c ortho (a plane-wave run's default Cholesky becomes Orthonormal) and a \c Default seed (resolved)
     SCFAccelerators::SolidAcceleratorOptions acc;    //!< as asked; a stage derives its own from it (a restored stage's Ladder rung)
