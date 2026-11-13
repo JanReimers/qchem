@@ -2990,17 +2990,6 @@ The row (verbatim, from `doc/OpenWork.md`):
 | **Fields from a saved state, cheaply, on the structure-neutral face** (user 2026-11-12: a reopened run must "come back just the way they left it") | BUILT lane G 2026-11-13 (design accepted by the controller the same day): `qchem::StateView` (`src/Calculation/StateView.C`), built by each facade's `ViewState` (atom, molecule, solid; `deck::View` for a deck) from the basis alone and the saved D, C, eps, f -- no Hamiltonian, grids or SCF; judged by `Calculation::JudgeView` (the restart's refusals plus ANY moved atom, named with its remedy); `ReadState` now reads C, eps, f back.  Gate `FacadeMatrix.Cell/<Kind>_ViewMatchesTheLiveState` (rho, m, levels, orbitals equal the live run's; the refusals are Outcomes; an inline deck's positions round-trip bit-exactly).  Binding `qcb_view_*` / `qchem_py.StateView`; the GUI redraws a reopened run from its state file, says so when it is gone, and keeps each run's view (field, representation, iso, slice, camera) in the workspace | REMAINDER: a complex Bloch orbital is refused by the view (the crystal-orbital row above decides what it plots); move this row to History5 at landing · `src/Calculation/StateView.C`, `pybind/` |
 
 Landed with lane B's k-gates: short 1629/0, long 18/0, 0 moved vs main-febe0b1a (new: 3 FacadeMatrix ViewMatchesTheLiveState cells).
-## ✅ `SolidSession.SessionSizesItsRastersOnMatrixElements` out of `knownRed`: the GDM line minimum closes it (lane A, 2026-11-13)
-The second case of OpenWork §3 "GDM's line search runs below the energy's noise floor" (lane B 2026-11-10, verbatim): *at Δρ/N 1e-7: once
-the kinetic screen moved its start (04fc3e043), round 3 of the geometry pilot (cutoffFactor 8 → 16) starts at Δρ 1.0e-6 and crawls 13 GDM
-steps with E flat to 1e-14 and [F,D] contracting 0.81 per step: 21 re-convergence iterations against cap 16 (18 on the ε→0 reference
-build, 9 before), no stall.  Its gate is kept; it leaves `knownRed` when this row's fix lands.*
-
-With the parabolic line minimum (1c3ec5b81, SCFRobustnessPlan B6(a)) the geometry pilot re-converges in 5 + 3 + 3 = **11** (was 5 + 3 + 13 = 21):
-the cap-16 gate passes unchanged.  The same run exposed the energy pilot's cap (line 146, 4) as calibrated on a FALSE convergence: main's
-"2 iterations" met Δρ 7.6e-8 while ‖[F,D]‖ was 4.8e-4, E 5.0e-8 Ha above the minimum; it now converges honestly in **8** ([F,D] 9.4e-8,
-E −7.240056928901), and the cap is 8 (controller ruling 2026-11-13).  The test passes whole and left `knownRed`.  The false stop itself is
-a new OpenWork §3 row, "A Δρ-only stop certifies an unconverged iterate".  The noise-floor row's first case (its user-stated 1e-8 gate) stays open.
 
 ## ✅ Enzyme's silent failures, #3747 and #3748: both FIXED upstream, the pin moved to cdd0d1c2 (lane B, 2026-11-13)
 
@@ -3026,3 +3015,44 @@ The row as it stood, verbatim:
   The "tuple wrapper zeroes the gradient" item is RETRACTED (it was A in another shape).  Both defects REPRODUCE unchanged on Enzyme `main`
   871de19f (⊇ v0.0.308, 2026-11-08; record §6).  Next action: when either issue reports a fix (the user gets GitHub's emails), re-run both
   repros on the fixing commit, then move the pin; drop the per-file `-mprefer-vector-width=128` flags only once B is fixed.
+## ✅ `SolidSession.SessionSizesItsRastersOnMatrixElements` out of `knownRed`: the GDM line minimum closes it (lane A, 2026-11-13)
+The second case of OpenWork §3 "GDM's line search runs below the energy's noise floor" (lane B 2026-11-10, verbatim): *at Δρ/N 1e-7: once
+the kinetic screen moved its start (04fc3e043), round 3 of the geometry pilot (cutoffFactor 8 → 16) starts at Δρ 1.0e-6 and crawls 13 GDM
+steps with E flat to 1e-14 and [F,D] contracting 0.81 per step: 21 re-convergence iterations against cap 16 (18 on the ε→0 reference
+build, 9 before), no stall.  Its gate is kept; it leaves `knownRed` when this row's fix lands.*
+
+With the parabolic line minimum (1c3ec5b81, SCFRobustnessPlan B6(a)) the geometry pilot re-converges in 5 + 3 + 3 = **11** (was 5 + 3 + 13 = 21):
+the cap-16 gate passes unchanged.  The same run exposed the energy pilot's cap (line 146, 4) as calibrated on a FALSE convergence: main's
+"2 iterations" met Δρ 7.6e-8 while ‖[F,D]‖ was 4.8e-4, E 5.0e-8 Ha above the minimum; it now converges honestly in **8** ([F,D] 9.4e-8,
+E −7.240056928901), and the cap is 8 (controller ruling 2026-11-13).  The test passes whole and left `knownRed`.  The false stop itself is
+a new OpenWork §3 row, "A Δρ-only stop certifies an unconverged iterate".  The noise-floor row's first case (its user-stated 1e-8 gate) stays open.
+
+## ✅ The GPW (MnD) lattice-sum overlap/kinetic derivatives are Enzyme over MnD; the libcint seam is deleted (lane B, 2026-11-13)
+
+The user's 2026-11-10 ruling ("libCint and our own MnD code should not be entangled (outside oracle unit tests) ... I don't mind a temporary
+work around while waiting for the Enzyme fix") is now met for the lattice sums: with the pin on cdd0d1c2 (#3747 fixed),
+`qchem.BasisSet.Gaussian.Lattice.LibcintPullbackWorkaround` is deleted, and so is the libcint face it alone used
+(`PG_LibCint::ShellPairImageGradient`).  What replaced it:
+- `GaussianRF::KetGradient` (Imp/GaussianRF_AD.C): Enzyme reverse mode over a CACHE-FREE twin of the 2-centre kernels, per shell pair and
+  weight set, d/dB Σ W_pq K_pq.  Per primitive pair it BUILDS the Gaussian product and the Hermite2 block from the exponents and the two
+  centres (the cached path reads them from the global Ω cache, keyed by primitive ids, which AD would see as constants).  The formulas are ONE
+  definition each, shared with the cached kernels: `PairOverlap` / `PairGrad2`, inline in the GaussianRF interface; Hermite2's constructor and
+  evaluator moved inline into its interface (Enzyme sees only bodies in its TU) and lost a pointless vtable; Polarization's arithmetic and
+  GaussProduct's constructor became explicitly inline.
+- `NR_Evaluator::LatticeOneElectronPullback` (PG_Cart_MnD): the MnD block owns its S/T pullback, walking the energy series' own image list
+  (`ForSeriesImages`) per ordered shell pair; `PG_Cart::Orbital_IBS::MakeLattice{Overlap,Kinetic}Pullback` forward to it.  The site map is
+  shared with the gather pullback (`ComponentSites`).
+- ONE DEFECT FOUND ON THE WAY, the value branch: the cached ⟨p²⟩ kernel ended `h!=0 ? f*h : 0.0`.  Where the value vanishes by symmetry
+  (Si diamond images on an axis through the bra) AD differentiated the branch and read a zero derivative that is not zero: the lattice
+  gradients passed and the OFF-DIAGONAL kinetic virial failed by up to 7e-3 (Si) and 2.5e-2 (MnO).  The branch is gone (the prefactor is
+  finite, so the value is the same 0 there).  The overlap had no branch and passed throughout.
+- Gates: `M_LatticePullback` (FD of the energy path: every atom along every axis, all nine virial components, on uncontracted Si SIPP_SR,
+  contracted H3 dzvp and MnO d through the spherical view, at a non-TRIM k) passes; the attribution gate (libcint's value vs MnD's per image)
+  stays as an ORACLE test.  New: `KetGradient.IsTheFiniteDifferenceOfTheCachedKernelForEveryShellPairThroughD` (Enzyme's derivative vs the
+  FD of the cached kernels, S and ⟨p²⟩, La,Lb ≤ 2, contracted and not, at a generic, an on-axis and an on-plane ket: worst 3.0e-11).
+  This is EnzymeAD/Enzyme#3747's fix exercised on the real lattice-sum kernel: Hermite2 is its trigger shape (a loop-local allocation filled
+  through inner loops with data-dependent trip counts).
+
+The row as it stood, verbatim:
+
+· **⚠ TEMPORARY: the GPW (MnD) lattice-sum overlap/kinetic derivatives come from libcint; replace with Enzyme over MnD when EnzymeAD/Enzyme#3747 is fixed** (lane B 2026-11-10; user ruling 2026-11-10: *"libCint and our own MnD code should not be entangled (outside oracle unit tests).  We should be able to drop one without affecting the other.  Having said all that I don't mind a temporary work around while waiting for the Enzyme fix."*).  The one seam is `qchem.BasisSet.Gaussian.Lattice.LibcintPullbackWorkaround` (libcint's ip integrals per shell pair and image over MnD's own screened image list, contracted against MnD's energy series); its only callers are `PG_Cart::Orbital_IBS::MakeLattice{Overlap,Kinetic}Pullback`.  Held by `UTGaussian_BS M_LatticePullback` (FD of the MnD energy path; libcint vs MnD image by image).  The fix is underway upstream: EnzymeAD/Enzyme PR #3753 (wsmoses, "Fix rematerialization of allocations with in-loop lifetime.start", "Fixes #3747"; OPEN 2026-11-10).  **User ruling 2026-11-10: WAIT for #3753 to merge upstream (no build of the PR head); then ONE pin move covering #3747 and #3748, both repros run on the new pin first.**  Next action, once #3753 is merged and the pin moves (one move for #3747 and #3748 together; #3748 alone if #3753 stalls more than a few days): write the two bodies as Enzyme reverse mode over the MnD Overlap2C / Grad2 kernels w.r.t. the ket centre, keep both gates, delete the seam module.  Same principle, pre-existing and NOT yet isolated: the MOLECULAR PG_Cart pullbacks (`Gaussian::EOrbital_1E_IBS` / `EOrbital_PP_IBS`, `Point/IrrepBasisSet.C`) and the Dunlap fit pullbacks also take libcint's derivatives against MnD's energy -- the same move, or a seam like this one, once #3747 allows.

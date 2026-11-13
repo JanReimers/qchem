@@ -494,7 +494,7 @@ TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
 TEST(HamiltonianForces, OnAGPWBlockEveryTermWithoutAPullbackNamesItself)
 {
     // The terms whose force a GPW block cannot spoil, by label prefix: the GPW Hartree (c3516017d, GPW_Force: 3e-7 of the FD of E_H), the
-    // ion-ion (Ewald) sum, which depends on the structure alone, and the kinetic energy (libcint per image, 2026-11-10: M_LatticePullback).
+    // ion-ion (Ewald) sum, which depends on the structure alone, and the kinetic energy (Enzyme over MnD per image, 2026-11-13: M_LatticePullback).
     const std::vector<std::string> kGated={"Fitted Hartree", "Ion-Ion", "Kinetic"};
     auto gated=[&](const std::string& label){ for (const auto& g : kGated) if (label.rfind(g,0)==0) return true; return false; };
     const auto mat=Materials::Get("Si_diamond");
