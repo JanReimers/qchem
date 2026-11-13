@@ -226,7 +226,7 @@ template <class Comp> rvec3vec_t Composite_HFSystem<Comp>::PairPullback(const St
 template <class Comp> rvec3vec_t Composite_HFSystem<Comp>::DirectPullback  (const Structure* st) const {return PairPullback(st, false);}
 template <class Comp> rvec3vec_t Composite_HFSystem<Comp>::ExchangePullback(const Structure* st) const {return PairPullback(st, true);}
 
-template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>& blocks) const
+template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<Irrep,hmat_t<T>>& blocks) const
 {
     double ret=0.0;
     for (const Block& b:itsBlocks) ret+=SameT<T>(b.cd).DM_ContractBlocks(blocks);

@@ -163,10 +163,10 @@ private:
     st_t theStructure;
     const Pseudopotential::SeparablePotential* itsSep;   //!< KB nonlocal model (non-owning).
     //! GPW_NL_PER_L=1 diagnostic (doc/SphericalLatticePlan.md I0): the per-angular-channel KB blocks,
-    //! l -> (BasisSetID -> block), filled lazily by MakeMatrix and contracted per l in GetEnergy so the
+    //! l -> (block Irrep -> block), filled lazily by MakeMatrix and contracted per l in GetEnergy so the
     //! \f$E_{NL}^{(l)}\f$ decomposition prints beside the lumped \c EenNL.  Empty when the knob is off.
-    mutable std::map<int,std::map<std::string,chmat_t>> itsByL;
-    mutable std::set<std::string>                       itsByLSeen;   //!< irrep blocks already decomposed
+    mutable std::map<int,std::map<Irrep,chmat_t>> itsByL;
+    mutable std::set<Irrep>                             itsByLSeen;   //!< irrep blocks already decomposed
     qchem::LazyLock                                     itsByLLock;   //!< the bank is filled from concurrent Fock blocks
 };
 

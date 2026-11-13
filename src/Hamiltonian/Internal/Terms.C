@@ -218,30 +218,31 @@ protected:
     const rDM_CD*  DensityFor(const rChargeDensity* cd, const Spin& s) const;
     //! The blocks the refresh built for \a cd and spin \a s (a CacheSpin): a READ, for \c GetMatrix and \c GetEnergy.  THROWS if
     //! the refresh never saw \a cd (a caller that skipped \c RefreshForDensity).
-    const std::map<std::string,rsmat_t>& RefreshedBlocks(DensityID id, const Spin& s) const;
+    const std::map<Irrep,rsmat_t>& RefreshedBlocks(DensityID id, const Spin& s) const;
 
     mutable const rbs_t* itsWholeBasis=nullptr;    //!< whole basis (latched by the first Fock refresh; stable across the run)
     //! The J (Coulomb) or K (exchange) per-irrep blocks of ONE spin: accumulated (over irreps) and contracted
-    //! (over that spin's D) for the density ID'd by \c version.  Keyed by ab-basis BasisSetID, already scaled.
+    //! (over that spin's D) for the density ID'd by \c version.  Keyed by the block's spatial Irrep
+    //! (\c GetIrrep(Spin::None)), already scaled.
     struct Blocks
     {
         size_t version=size_t(-1);   //!< the operand's serial (a ground-state density, or a transition density for the response)
         DensityID id=DensityID(static_cast<const rChargeDensity*>(nullptr));   //!< a ground-state density's identity (GetMatrix's check)
-        std::map<std::string,rsmat_t> jk;
+        std::map<Irrep,rsmat_t> jk;
     };
     mutable std::map<Spin,Blocks> itsJKs;          //!< one Blocks per CacheSpin this run asks for
 private:
     //! Latch the composite basis on first use; THROW on a changed one, or on a null one before any latch.
     void LatchWholeBasis(const rbs_t* wholeBasis) const;
     //! Contract \a cd into the whole-system blocks for spin \a s (a CacheSpin) if stale for this density (the refresh's body).
-    const std::map<std::string,rsmat_t>& ContractAll(const rChargeDensity* cd, const Spin& s) const;
+    const std::map<Irrep,rsmat_t>& ContractAll(const rChargeDensity* cd, const Spin& s) const;
     //! The response blocks of CacheSpin \a s for \a delta (its \a s channel through the HF sweep face).
-    const std::map<std::string,rsmat_t>& ContractResponse(const ChargeDensity::TransitionDensity<double>& delta,
+    const std::map<Irrep,rsmat_t>& ContractResponse(const ChargeDensity::TransitionDensity<double>& delta,
                                                           const Spin& s) const;
     mutable std::map<Spin,Blocks> itsResponseJKs;   //!< the response twin of itsJKs, keyed on δ's serial
     //! THE ONE CONTRACTION BODY: scatter \a sweep (identified by \a version) into \a slot for spin \a s, unless
     //! \a slot already holds that version.  Every entry -- the Fock build, the energy, a response -- comes here.
-    const std::map<std::string,rsmat_t>& Contract(Blocks& slot, const ChargeDensity::tHF_System_CD<double>& sweep,
+    const std::map<Irrep,rsmat_t>& Contract(Blocks& slot, const ChargeDensity::tHF_System_CD<double>& sweep,
                                                   size_t version, const Spin& s) const;
 };
 

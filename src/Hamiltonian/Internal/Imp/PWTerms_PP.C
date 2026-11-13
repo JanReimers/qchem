@@ -111,7 +111,7 @@ chmat_t Ven_PP_NonLocal::MakeMatrix(const cobs_t* bs, const Spin& s) const
         // Complex path only -- the itsByL bank is chmat_t; extend if the diagnostic ever needs real blocks.
         auto pw=dynamic_cast<const BasisSet::Orbital_PP_IBS<dcmplx>*>(bs);
         assert(pw);
-        const std::string id=bs->BasisSetID();
+        const Irrep id=bs->GetIrrep(Spin::None);
         std::lock_guard<std::mutex> lock(itsByLLock.m);
         if (itsByLSeen.insert(id).second)
             for (auto& lH : pw->MakeProjectorMatrixByL(&*theStructure, *itsSep))

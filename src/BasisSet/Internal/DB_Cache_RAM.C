@@ -35,8 +35,6 @@ public:
     virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()>) override;
     virtual const PairProjection<T>& Get(I3C,const DBCacheClient*,const DBCacheClient*, std::function<PairProjection<T>()>) override;
     virtual const ERI4     & Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()>) override;
-    virtual const rvec_t&    Get(I1C,const DBCacheClient*,const Mesh_ID_t&,                      std::function<rvec_t()>) override;
-    virtual const rmat_t&    Get(I2x,const DBCacheClient*,const DBCacheClient*,const Mesh_ID_t&, std::function<rmat_t()>) override;
 
     virtual void Register(Cache4_Client* eval) override;
     virtual const Cache4* GetCache4(const RadialTypeID_t& type) const override;
@@ -56,10 +54,10 @@ public:
     // bug class this caught.  The registry caches (Cache2/3/4) are NOT clearable here: clients (GaussianRF)
     // memoise them by raw pointer, so freeing them mid-process would dangle.  Bodies compile out when
     // kCacheTestHooks is false (see the Imp TU).
-    void Clear(I1C op);   //!< itsVecs + itsmVecs (the mesh-keyed variant)
+    void Clear(I1C op);   //!< itsVecs
     void Clear(I2C op);   //!< itsSMats
     void Clear(I2n op);   //!< itsNMats (one operator -> whole map)
-    void Clear(I2x op);   //!< itsMats + itsmMats (the mesh-keyed variant)
+    void Clear(I2x op);   //!< itsMats
     void Clear(I3C op);   //!< its3Cs
     void Clear(I4C op);   //!< Jac (Direct) / Kab (Exchange)
 
@@ -70,8 +68,6 @@ private:
     using keyn_t=std::tuple<I2n,IBS_ID_t,Structure_ID_t>; //Key for structure-dependent 1E mats (Nuclear + PP).
     using key3_t=std::tuple<I3C,IBS_ID_t,IBS_ID_t>; //Integral key for 3 center ERI integrals between 2 IBSs.
 
-    using key1m_t=std::tuple<I1C,IBS_ID_t,Mesh_ID_t>; //Integral key for one IBS and a mesh, 1 centers.
-    using key2xm_t=std::tuple<I2x,IBS_ID_t,IBS_ID_t,Mesh_ID_t>; //Integral key for one IBS and a mesh, 1 centers.
 
     using map1_t=std::map<key1_t ,rvec_t   >;
     using map2_t=std::map<key2_t ,hmat_t<T>>;
@@ -80,8 +76,6 @@ private:
     using map3_t=std::map<key3_t , PairProjection<T>>;   // 3-centre tensors, every realization (V1.1)
     using map4_t=std::map<IBS_ID_t,std::map<IBS_ID_t,ERI4>>;
 
-    using map1m_t =std::map<key1m_t  ,rvec_t>;
-    using map2xm_t=std::map<key2xm_t ,rmat_t>;
 
     // using time_t=std::chrono::sys_seconds;
     using time_t=decltype(std::chrono::system_clock::now());
@@ -109,8 +103,6 @@ private:
     map3_t its3Cs;   //3 center, 2 IBS projection tensors <ab|c> for DFT (dense, delta or matrix-free).
     map4_t Jac,Kab;  //4 center, 2 IBS ERI integrals for HF.
 
-    map1m_t  itsmVecs; //Numerically integrated
-    map2xm_t itsmMats;  //Numerically integrated
 
     cach4_t itsCache4s; //4 index Radial integral caches.  String identifies IBS type {Slater,BSpline<K>,POlGaussian,etc}
     cach2_t itsCache2s; //2 index charge-distribution caches (molecular Omega_ab), keyed by RadialType
