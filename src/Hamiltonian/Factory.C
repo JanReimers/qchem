@@ -12,6 +12,7 @@ export import qchem.Symmetry.Spin;   // SpinGroup -- the imposed spin subgroup e
 import qchem.Mesh;
 import qchem.Structure;
 import qchem.Types;                  // rmat3d_t (the site rotations)
+export import qchem.SlotMap;         // OnceSlot: CoulombFitSlot
 export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the PP factories take the run's chosen set
 export import qchem.Math.Gaussian;   // Math::Gaussian (a pseudo-atomic +U projector's radial)
 export import qchem.Outcome;         // AdmitVxc's answer
@@ -191,6 +192,17 @@ export namespace qchem::Hamiltonian
     //! The Hartree partner of \c AdmitVxc.  Refuses a multipole fit on a periodic structure, on the direct sum, and past its \f$l\f$ bound.
     Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure&, const CoulombRoute&, const qcMesh::MeshParams&, VxcFit=VxcFit::Auto);
 
+    //=== The Coulomb fit basis: ONE per run, shared by every Hamiltonian built on the run's basis ======================================
+    //! \brief The run's slot for its Hartree (Coulomb) fit basis.  That fit owns no mesh, so every Hamiltonian a run builds on one orbital
+    //! basis (a molecule's pilot-ladder rungs and final build, a solid's stages) can share it, and with it its metric, its inverse, and
+    //! the orbital basis's ⟨ij|f⟩ keyed by it (doc/IntegralCacheOwnershipPlan.md S2b).  The CALCULATION owns the slot (it owns the run's
+    //! basis); the Hartree term FILLS it on the first build, inside its own report scope, and reads it on every later one.  A null slot
+    //! means "build your own" (a caller that builds one Hamiltonian).  Structure neutral: \a T is the fit's scalar (double for a
+    //! molecule or an atom, dcmplx for a solid).
+    template <class T> using CoulombFitSlot=OnceSlot<std::shared_ptr<const BasisSet::FIT_CD_ABS<T>>>;
+    //! Does \a coulomb's Hartree route use a Coulomb fit basis?  (Not the grid routes: a δ or multipole fit carries its own operator.)
+    bool UsesCoulombFitBasis(const CoulombRoute& coulomb);
+
     //=== The resolvers ===============================================================================
     //! Non-DFT Hamiltonians (HF / 1-electron / Dirac).  DFT Models route through the DFT resolver below.
     rHamiltonian* Factory(Model,SpinGroup,const st_t& st);
@@ -202,13 +214,13 @@ export namespace qchem::Hamiltonian
     //! \c Auxiliary = the lineage's own fitted auxiliary basis, A1 on a molecule).
     //! \a coulomb: the Hartree fit (\c CoulombRoute), on the molecular / atom path.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const rbs_t*,
-                          XCRoute fit={}, const CoulombRoute& coulomb={});
+                          XCRoute fit={}, const CoulombRoute& coulomb={}, const CoulombFitSlot<double>* coulombFit=nullptr);
 
     //! Unified one-call resolver: turn a Model token into the concrete polymorphic Hamiltonian.  HF/1-e/
     //! Dirac ignore mesh/basis/xalpha; the DFT members map to an XCFunctional and delegate to the resolver
     //! above.  The compact "default Hamiltonian" entry the unit tests want -- no manual functional assembly.
     rHamiltonian* Factory(Model,SpinGroup,const st_t& st, const qcMesh::MeshParams&, const rbs_t*, double xalpha,
-                          XCRoute fit={}, const CoulombRoute& coulomb={});
+                          XCRoute fit={}, const CoulombRoute& coulomb={}, const CoulombFitSlot<double>* coulombFit=nullptr);
 
     //! Convenience for the most common DFT functional: Slater-Dirac exchange scaled by \a alpha (alpha=2/3
     //! is pure Dirac).  Equivalent to the XCFunctional resolver with XC::SlaterXalpha.
@@ -221,7 +233,7 @@ export namespace qchem::Hamiltonian
     //! unpolarized collapse.  The public front door to Ham_PP.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const std::string& element, int valence,
                          const qcMesh::MeshParams&, const rbs_t*, XCRoute fit={}, const CoulombRoute& coulomb={},
-                         const XCFunctional& xc={});
+                         const XCFunctional& xc={}, const CoulombFitSlot<double>* coulombFit=nullptr);
 
     //! Pseudopotential Hamiltonian from the run's CHOSEN \a pp set (doc/CalcNetworkReview.md §4): a per-Z router PP is built over the
     //! distinct elements of \a st, each with the set's valence variant for the set's functional.  The set is handed in, never
@@ -230,7 +242,7 @@ export namespace qchem::Hamiltonian
     //! mismatch is the facade's warn-and-run policy, never a substitution here.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
                          const qcMesh::MeshParams&, const rbs_t*, XCRoute fit={}, const CoulombRoute& coulomb={},
-                         const XCFunctional& xc={});
+                         const XCFunctional& xc={}, const CoulombFitSlot<double>* coulombFit=nullptr);
 
     //=== The SOLID (periodic, dcmplx) front door ======================================================
     //! \brief The periodic Kohn-Sham Hamiltonian for a lattice run: kinetic + the range-split local PP
@@ -250,6 +262,7 @@ export namespace qchem::Hamiltonian
     //! \a hubbard: the DFT+U manifold list (empty = no Hubbard term).
     cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs,
                           const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh,
-                          VxcFit fit = VxcFit::Auto, std::vector<HubbardManifold> hubbard = {}, const XCFunctional& xc = {});
+                          VxcFit fit = VxcFit::Auto, std::vector<HubbardManifold> hubbard = {}, const XCFunctional& xc = {},
+                          const CoulombFitSlot<dcmplx>* coulombFit = nullptr);
 
 } // namespace
