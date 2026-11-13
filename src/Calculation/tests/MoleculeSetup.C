@@ -8,6 +8,7 @@ import qchem.MoleculeCalculation;
 import qchem.Structure;
 import qchem.Types;
 import qchem.ChargeDensity.Seed;   // SeedStrategy, SeedLibrary (via AtomicDensity)
+import qchem.SeedPolicy;           // SeedLibraryCovers: the Auto rule's coverage
 
 using namespace qchem;
 
@@ -56,6 +57,18 @@ TEST(MoleculeSetup, APseudopotentialRunSeedsFromTheValenceLibraryAtItsQ)
     const auto ae=MoleculeSetup::Resolve(OneAtom(8), {.basis="dzvp", .model=Model::LDA});
     EXPECT_EQ(ae->seedKey.Q(8), -1) << "an all-electron run is unkeyed";
     EXPECT_EQ(ChargeDensity::SeedLibrary(ae->seedKey, 8), "atomic_densities.json");
+}
+
+// An ALL-ELECTRON molecule past neon seeds from SAD (OpenWork §3 "The default SAD seed stops at Ne", lane B 2026-11-13): the all-electron
+// library held Z 1-10 only, so TeF6 on dzvp took the core guess with a WARN (before 3afed2228 it died on an uncaught throw).  It now holds
+// every element NIST tabulates, so the Auto rule's coverage holds through uranium and the Te atom's setup picks SAD.
+TEST(MoleculeSetup, AnAllElectronMoleculePastNeonSeedsFromSAD)
+{
+    const ChargeDensity::SeedKey unkeyed("LDA");
+    for (int Z=1; Z<=92; Z++) EXPECT_TRUE(SeedLibraryCovers(unkeyed, Z)) << "Z=" << Z;
+    const auto te=MoleculeSetup::Resolve(OneAtom(52), {.basis="dzvp", .model=Model::LDA});
+    EXPECT_EQ(ChargeDensity::SeedLibrary(te->seedKey, 52), "atomic_densities.json") << "an all-electron run reads the all-electron library";
+    EXPECT_EQ(te->seed, ChargeDensity::SeedStrategy::SAD) << "the library holds Te, so the Auto rule seeds from SAD";
 }
 
 TEST(MoleculeSetup, ABasisWithoutAnElementIsRefusedAtResolveNamingTheBasesThatCoverIt)

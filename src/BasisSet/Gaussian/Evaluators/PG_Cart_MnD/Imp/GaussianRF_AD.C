@@ -5,8 +5,9 @@
 // PrimGaussian::operator() and Polarization::operator() of the module interfaces.  This unit carries the plugin
 // (qchem_enzyme_sources in ../../CMakeLists.txt), so the integral kernels in GaussianRF.C keep the tree's flags.
 //
-// While EnzymeAD/Enzyme#3747 (a silently wrong reverse-mode gradient) is open the derivative keeps its finite-difference gates
-// (tests/M_GeometryDerivatives.C: every shell type, near and far, on and off the axes through the centre).  Its trigger, a callee
+// The derivative keeps its finite-difference gates, as every Enzyme derivative does (EnzymeAD/Enzyme#3747, a silently wrong
+// reverse-mode gradient, was fixed only at the cdd0d1c2 pin): tests/M_GeometryDerivatives.C, every shell type, near and far, on and off
+// the axes through the centre.  #3747's trigger, a callee
 // filling a loop-local array through an inner loop with a data-dependent trip count, is absent here: both loops accumulate a scalar.
 module;
 #include <enzyme/enzyme>

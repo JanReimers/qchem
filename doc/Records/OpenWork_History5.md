@@ -2859,6 +2859,131 @@ warns anchordiff may flag it).  The dimer now starts from SAD instead of the cor
 
 Summed over the movers' converged runs: 170 → 146 iterations (11 tests better, 2 worse, 2 unchanged).
 
+## ✅ The default SAD seed stops at Ne: the all-electron library holds every element NIST tabulates (lane B, 2026-11-13)
+
+**The row (verbatim, 2026-11-05):** "The default SAD seed stops at Ne (user 2026-11-06: want SAD data for the whole periodic table, and ions
+too): an all-electron DFT molecule with any atom past Z = 10 cannot start on defaults.  `Data/atomic_densities.json` holds LDA densities for
+Z = 1-10 only, and `MoleculeSetup::Resolve` picks SAD for every DFT model.  What a user sees (TeF₆, LDA, DZVP): ... `scfrun` dies 1.4 s in on
+an uncaught `AtomicDensity: no entry for Z=52` ..."  The crash itself was gone since 3afed2228 (the Auto rule's coverage falls back to the
+core guess with a WARN); what remained was the DATA.
+
+**THE CHOICE: a wider table, judged on NIST**, not an atom run at the run's own basis (a table is free at run time, and the NIST tables the
+repo already vendors -- `src/Common/Data/nistLDA.json` / `nistLSD.json`, `doc/GSData/NIST-dftdata-tar.gz` -- are an independent oracle for
+every neutral Z 1-92).  `scripts/gen-ae-seeds` runs the atom facade (`scfrun --model LDA`, the spherical radial solver) per element:
+- **configuration** = NIST's (`dftdata/configurations`); it is the periodic table's Saito configuration for every Z 1-92 (checked, 0
+  differ), which is what `Atom_EC` occupies.  The generator reads each run's occupation table back and requires it to equal NIST's;
+- **spin**: an open shell runs POLARIZED (the Hund LSD atom; `scfrun --pol P` now reaches the LDA path) and its entry carries the
+  up-majority pair `rho_up`/`rho_dn` + `moment` that the IonicSAD seed reads, as the valence library's open shells do; a closed shell runs
+  unpolarized (LSD = LDA there);
+- **energy** vs NIST LSD (polarized) / LDA (closed) to 1e-5 relative, and CONVERGED.  Two routes per element, Slater High and Gaussian
+  High; the passing run nearest NIST is written.  Cu fails on Slater (unconverged, +1.9 Ha) and passes on Gaussian;
+- the entry is written by `scfrun --out` itself (it round-trips the existing entries byte for byte), stamped with `config`, `basis`,
+  `oracle`, `deltaE`, `Etot`, `converged`.
+
+**THE ANOMALOUS GROUND STATES** (NIST's configuration departs from the Madelung filling; the generator flags them by computing aufbau, not
+from a list): Cr, Cu, Nb, Mo, Ru, Rh, Pd, Ag, La, Ce, Gd, Pt, Au, Ac, Th, Pa, U.  Every one ran in NIST's configuration.
+
+**GATES**: `AtomicDensity.EveryElementThroughUraniumHasANeutralAllElectronSeed`, `...EveryAllElectronEntryHoldsItsChargeAndItsSpinPairItsHundMoment`
+(charge = Nelec to 1e-3; ρ↑+ρ↓ = ρ; moment = the stated configuration's Hund 2S to 1e-2), `...EveryStampedAllElectronEntryIsNISTsAtomToTenPpm`
+(re-reads NIST's tables, independent of the generator); `MoleculeSetup.AnAllElectronMoleculePastNeonSeedsFromSAD` (coverage through U,
+Te on dzvp resolves SAD); `M_DFT.H2S_AllElectron_SADSeed_eqCoreGuess` (2.4 s: SAD 7 iterations, core guess 10, the same E -397.9588529013)
+and `M_DFT.TeF6_AllElectron_SADSeed_eqCoreGuess_Long` (143 s, 3.3 GB: first SCF SAD 10 iterations, core guess 27, both -7194.6828193234
+before the mesh pilot, the same -7194.6827796679 after its re-converge).
+
+**SIZE**: `atomic_densities.json` 95 KB → 2.15 MB (92 entries: 82 new, 68 of them with a spin pair; 400-point log grid, the existing format).
+
+**LEFT AS THEY WERE**: the Z 1-10 entries (unstamped, no spin pairs) -- regenerating them would move every all-electron molecular SAD anchor
+for no seed gain today (the molecular SAD reads ρ only).  Remainders, each an OpenWork §3 row: ion entries (an all-electron cation is solved in
+its isoelectronic neutral's configuration, so they need a stated configuration first); the valence library's 15 elements; the atom facade's
+±2.5 mHa vs NIST past Z ≈ 50.
+
+**RE-JUDGED**: short 1630/1630, anchordiff against main-febe0b1a at 1e-10: **0 of 1625 moved** -- no existing test runs an all-electron DFT
+molecule past Ne on the Auto seed (hence the two new SCF gates).
+
+| Z | el | configuration (NIST = run) | spin | route | E (Ha) | ΔE vs NIST | moment | iters | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 11 | Na | [Ne] 3s^1 | P | Slater | -161.447615 | +9.90e-06 | 1.0004 | 18 |  |
+| 12 | Mg | [Ne] 3s^2 | U | Slater | -199.139391 | +1.50e-05 |  | 18 |  |
+| 13 | Al | [Ne] 3s^2 3p^1 | P | Slater | -241.321148 | +8.10e-06 | 1.0004 | 10 |  |
+| 14 | Si | [Ne] 3s^2 3p^2 | P | Slater | -288.222929 | +1.65e-05 | 2.0007 | 10 |  |
+| 15 | P | [Ne] 3s^2 3p^3 | P | Slater | -340.005772 | +2.20e-05 | 3.0011 | 10 |  |
+| 16 | S | [Ne] 3s^2 3p^4 | P | Slater | -396.743924 | +2.43e-05 | 2.0007 | 8 |  |
+| 17 | Cl | [Ne] 3s^2 3p^5 | P | Slater | -458.671449 | +1.42e-05 | 1.0004 | 8 |  |
+| 18 | Ar | [Ne] 3s^2 3p^6 | U | Slater | -525.946180 | +1.54e-05 |  | 9 |  |
+| 19 | K | [Ar] 4s^1 | P | Slater | -598.205998 | +3.35e-05 | 1.0003 | 8 |  |
+| 20 | Ca | [Ar] 4s^2 | U | Slater | -675.742270 | +1.26e-05 |  | 9 |  |
+| 21 | Sc | [Ar] 3d^1 4s^2 | P | Slater | -758.685223 | +2.46e-05 | 1.0004 | 9 |  |
+| 22 | Ti | [Ar] 3d^2 4s^2 | P | Slater | -847.303409 | +5.40e-05 | 2.0007 | 8 |  |
+| 23 | V | [Ar] 3d^3 4s^2 | P | Slater | -941.742168 | +3.59e-05 | 3.0011 | 9 |  |
+| 24 | Cr | [Ar] 3d^5 4s^1 | P | Slater | -1042.218340 | +8.00e-06 | 6.0021 | 30 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^4 4s^2) |
+| 25 | Mn | [Ar] 3d^5 4s^2 | P | Slater | -1148.644090 | +3.00e-06 | 5.0018 | 9 |  |
+| 26 | Fe | [Ar] 3d^6 4s^2 | P | Slater | -1261.223251 | +4.00e-05 | 4.0014 | 9 |  |
+| 27 | Co | [Ar] 3d^7 4s^2 | P | Slater | -1380.167244 | +5.50e-05 | 3.0011 | 10 |  |
+| 28 | Ni | [Ar] 3d^8 4s^2 | P | Slater | -1505.615061 | +4.50e-05 | 2.0007 | 14 |  |
+| 29 | Cu | [Ar] 3d^10 4s^1 | P | Gaussian | -1637.790443 | +2.91e-03 | 1.0004 | 19 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^9 4s^2); Slater unconverged, ΔE +1.91e+00 |
+| 30 | Zn | [Ar] 3d^10 4s^2 | U | Slater | -1776.573789 | +6.10e-05 |  | 31 |  |
+| 31 | Ga | [Ar] 3d^10 4s^2 4p^1 | P | Slater | -1921.851839 | +8.50e-05 | 1.0004 | 12 |  |
+| 32 | Ge | [Ar] 3d^10 4s^2 4p^2 | P | Slater | -2073.829766 | +9.40e-05 | 2.0007 | 22 |  |
+| 33 | As | [Ar] 3d^10 4s^2 4p^3 | P | Slater | -2232.587109 | +4.50e-05 | 3.0011 | 27 |  |
+| 34 | Se | [Ar] 3d^10 4s^2 4p^4 | P | Slater | -2398.134903 | +2.70e-05 | 2.0007 | 21 |  |
+| 35 | Br | [Ar] 3d^10 4s^2 4p^5 | P | Slater | -2570.626635 | +1.60e-05 | 1.0004 | 29 |  |
+| 36 | Kr | [Ar] 3d^10 4s^2 4p^6 | U | Slater | -2750.147921 | +1.90e-05 |  | 14 |  |
+| 37 | Rb | [Kr] 5s^1 | P | Slater | -2936.342100 | +6.00e-05 | 1.0003 | 18 |  |
+| 38 | Sr | [Kr] 5s^2 | U | Slater | -3129.453043 | +1.18e-04 |  | 23 |  |
+| 39 | Y | [Kr] 4d^1 5s^2 | P | Slater | -3329.525003 | +1.39e-04 | 1.0004 | 10 |  |
+| 40 | Zr | [Kr] 4d^2 5s^2 | P | Slater | -3536.757118 | +1.09e-04 | 2.0007 | 11 |  |
+| 41 | Nb | [Kr] 4d^4 5s^1 | P | Slater | -3751.295531 | +8.70e-05 | 5.0018 | 23 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^3 5s^2) |
+| 42 | Mo | [Kr] 4d^5 5s^1 | P | Slater | -3973.162550 | +4.50e-05 | 6.0021 | 25 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^4 5s^2) |
+| 43 | Tc | [Kr] 4d^5 5s^2 | P | Slater | -4202.325499 | +1.12e-04 | 5.0018 | 25 |  |
+| 44 | Ru | [Kr] 4d^7 5s^1 | P | Slater | -4439.044456 | +1.51e-04 | 4.0014 | 24 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^6 5s^2) |
+| 45 | Rh | [Kr] 4d^8 5s^1 | P | Slater | -4683.334830 | +9.50e-05 | 3.0011 | 16 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^7 5s^2) |
+| 46 | Pd | [Kr] 4d^10 | U | Slater | -4935.368414 | -8.00e-06 |  | 28 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^8 5s^2) |
+| 47 | Ag | [Kr] 4d^10 5s^1 | P | Slater | -5195.037425 | -7.40e-05 | 1.0004 | 13 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^9 5s^2) |
+| 48 | Cd | [Kr] 4d^10 5s^2 | U | Slater | -5462.391012 | -3.00e-05 |  | 19 |  |
+| 49 | In | [Kr] 4d^10 5s^2 5p^1 | P | Slater | -5737.313743 | +6.60e-05 | 1.0004 | 13 |  |
+| 50 | Sn | [Kr] 4d^10 5s^2 5p^2 | P | Slater | -6019.972289 | +5.60e-05 | 2.0007 | 17 |  |
+| 51 | Sb | [Kr] 4d^10 5s^2 5p^3 | P | Slater | -6310.419491 | -1.65e-04 | 3.0011 | 24 |  |
+| 52 | Te | [Kr] 4d^10 5s^2 5p^4 | P | Slater | -6608.651003 | -5.27e-04 | 2.0007 | 27 |  |
+| 53 | I | [Kr] 4d^10 5s^2 5p^5 | P | Slater | -6914.778785 | -9.28e-04 | 1.0004 | 22 |  |
+| 54 | Xe | [Kr] 4d^10 5s^2 5p^6 | U | Slater | -7228.857239 | -1.13e-03 |  | 27 |  |
+| 55 | Cs | [Xe] 6s^1 | P | Slater | -7550.562853 | -9.87e-04 | 1.0003 | 11 |  |
+| 56 | Ba | [Xe] 6s^2 | U | Slater | -7880.112041 | -4.63e-04 |  | 13 |  |
+| 57 | La | [Xe] 5d^1 6s^2 | P | Slater | -8217.579073 | +2.25e-04 | 1.0004 | 10 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^1 5s^2 5p^6 6s^2) |
+| 58 | Ce | [Xe] 4f^1 5d^1 6s^2 | P | Slater | -8563.372127 | +8.68e-04 | 2.0007 | 11 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^2 5s^2 5p^6 6s^2) |
+| 59 | Pr | [Xe] 4f^3 6s^2 | P | Slater | -8917.714667 | +1.11e-03 | 3.0011 | 17 |  |
+| 60 | Nd | [Xe] 4f^4 6s^2 | P | Slater | -9280.404768 | +9.02e-04 | 4.0014 | 16 |  |
+| 61 | Pm | [Xe] 4f^5 6s^2 | P | Slater | -9651.635988 | +3.31e-04 | 5.0018 | 17 |  |
+| 62 | Sm | [Xe] 4f^6 6s^2 | P | Slater | -10031.484180 | -4.84e-04 | 6.0021 | 14 |  |
+| 63 | Eu | [Xe] 4f^7 6s^2 | P | Slater | -10420.024410 | -1.26e-03 | 7.0025 | 14 |  |
+| 64 | Gd | [Xe] 4f^7 5d^1 6s^2 | P | Gaussian | -10817.014140 | +1.45e-03 | 8.0028 | 26 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^8 5s^2 5p^6 6s^2) |
+| 65 | Tb | [Xe] 4f^9 6s^2 | P | Gaussian | -11223.106110 | +1.93e-03 | 5.0018 | 14 |  |
+| 66 | Dy | [Xe] 4f^10 6s^2 | P | Gaussian | -11637.975320 | +2.46e-03 | 4.0014 | 14 |  |
+| 67 | Ho | [Xe] 4f^11 6s^2 | P | Slater | -12061.834820 | -2.50e-03 | 3.0011 | 14 |  |
+| 68 | Er | [Xe] 4f^12 6s^2 | P | Slater | -12494.748470 | -2.32e-03 | 2.0007 | 14 |  |
+| 69 | Tm | [Xe] 4f^13 6s^2 | P | Slater | -12936.795620 | -2.07e-03 | 1.0004 | 14 |  |
+| 70 | Yb | [Xe] 4f^14 6s^2 | U | Slater | -13388.050400 | -1.81e-03 |  | 14 |  |
+| 71 | Lu | [Xe] 4f^14 5d^1 6s^2 | P | Slater | -13848.236430 | -1.66e-03 | 1.0004 | 15 |  |
+| 72 | Hf | [Xe] 4f^14 5d^2 6s^2 | P | Slater | -14317.513790 | -1.58e-03 | 2.0007 | 14 |  |
+| 73 | Ta | [Xe] 4f^14 5d^3 6s^2 | P | Slater | -14795.928670 | -1.54e-03 | 3.0011 | 14 |  |
+| 74 | W | [Xe] 4f^14 5d^4 6s^2 | P | Gaussian | -15283.525530 | +1.34e-03 | 4.0014 | 14 |  |
+| 75 | Re | [Xe] 4f^14 5d^5 6s^2 | P | Slater | -15780.361330 | -1.19e-03 | 5.0018 | 14 |  |
+| 76 | Os | [Xe] 4f^14 5d^6 6s^2 | P | Slater | -16286.376400 | -9.08e-04 | 4.0014 | 15 |  |
+| 77 | Ir | [Xe] 4f^14 5d^7 6s^2 | P | Slater | -16801.723340 | -4.79e-04 | 3.0011 | 15 |  |
+| 78 | Pt | [Xe] 4f^14 5d^9 6s^1 | P | Slater | -17326.590040 | +7.00e-05 | 2.0007 | 25 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^8 6s^2) |
+| 79 | Au | [Xe] 4f^14 5d^10 6s^1 | P | Slater | -17860.795940 | +6.33e-04 | 1.0004 | 15 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^9 6s^2) |
+| 80 | Hg | [Xe] 4f^14 5d^10 6s^2 | U | Gaussian | -18404.274810 | -5.90e-04 |  | 13 |  |
+| 81 | Tl | [Xe] 4f^14 5d^10 6s^2 6p^1 | P | Gaussian | -18956.962010 | +9.20e-05 | 1.0004 | 10 |  |
+| 82 | Pb | [Xe] 4f^14 5d^10 6s^2 6p^2 | P | Gaussian | -19519.010100 | +6.73e-04 | 2.0007 | 10 |  |
+| 83 | Bi | [Xe] 4f^14 5d^10 6s^2 6p^3 | P | Slater | -20090.453650 | +2.93e-04 | 3.0011 | 10 |  |
+| 84 | Po | [Xe] 4f^14 5d^10 6s^2 6p^4 | P | Slater | -20671.275060 | -1.21e-03 | 2.0007 | 10 |  |
+| 85 | At | [Xe] 4f^14 5d^10 6s^2 6p^5 | P | Gaussian | -21261.558400 | +1.11e-03 | 1.0004 | 10 |  |
+| 86 | Rn | [Xe] 4f^14 5d^10 6s^2 6p^6 | U | Gaussian | -21861.346000 | +8.69e-04 |  | 20 |  |
+| 87 | Fr | [Rn] 7s^1 | P | Gaussian | -22470.321090 | +2.43e-03 | 1.0004 | 10 |  |
+| 88 | Ra | [Rn] 7s^2 | U | Gaussian | -23088.686700 | +1.38e-03 |  | 11 |  |
+| 89 | Ac | [Rn] 6d^1 7s^2 | P | Gaussian | -23716.499910 | +7.52e-04 | 1.0004 | 10 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^1 6s^2 6p^6 7s^2) |
+| 90 | Th | [Rn] 6d^2 7s^2 | P | Gaussian | -24353.849540 | -2.18e-03 | 2.0007 | 10 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^2 6s^2 6p^6 7s^2) |
+| 91 | Pa | [Rn] 5f^2 6d^1 7s^2 | P | Gaussian | -25001.322470 | -2.23e-03 | 3.0011 | 10 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^3 6s^2 6p^6 7s^2) |
+| 92 | U | [Rn] 5f^3 6d^1 7s^2 | P | Gaussian | -25658.476910 | -2.39e-03 | 4.0014 | 16 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^4 6s^2 6p^6 7s^2) |
 ## ✅ Fields from a saved state, cheaply, on the structure-neutral face (lane G, landed 2026-11-13, merge 7c6e7597)
 
 The row (verbatim, from `doc/OpenWork.md`):
@@ -2876,3 +3001,28 @@ the cap-16 gate passes unchanged.  The same run exposed the energy pilot's cap (
 "2 iterations" met Δρ 7.6e-8 while ‖[F,D]‖ was 4.8e-4, E 5.0e-8 Ha above the minimum; it now converges honestly in **8** ([F,D] 9.4e-8,
 E −7.240056928901), and the cap is 8 (controller ruling 2026-11-13).  The test passes whole and left `knownRed`.  The false stop itself is
 a new OpenWork §3 row, "A Δρ-only stop certifies an unconverged iterate".  The noise-floor row's first case (its user-stated 1e-8 gate) stays open.
+
+## ✅ Enzyme's silent failures, #3747 and #3748: both FIXED upstream, the pin moved to cdd0d1c2 (lane B, 2026-11-13)
+
+#3748 closed 2026-11-10 by d0cc6f5f (#3754, cache-store alignment); #3747 closed 2026-11-12 by cdd0d1c2 (#3810, "Cache whole allocations per
+iteration of their lifetime loop"; NOT the PR #3753 the row had named).  Both filed repros re-run side by side on 871de19f and cdd0d1c2
+(`doc/Records/EnzymeSpike.md` §6): on cdd0d1c2 A is exact at every flag set, and B is exact at -O2, -O3 and -march=native (871de19f: A wrong,
+B wrong at -O3, segfault at -O2 -march=native).  The pin moved to cdd0d1c2 in ONE move (user ruling 2026-11-10); both per-file
+workarounds, `-mprefer-vector-width=128` and `-O2`, are dropped (controller ruling 2026-11-13: they existed only for these defects), so the
+Enzyme TUs compile at the tree's `-O3 -march=native`; every Enzyme derivative keeps its FD gate.  Same ruling: the default checkout is
+NAMED FOR THE PIN (`~/Code/Enzyme-cdd0d1c2`, built in its own git worktree; `~/Code/Enzyme-main` is left at 871de19f), so a tree still
+cached on the old one fails the pin check loudly instead of compiling against a swapped plugin; and the plugin `.so` is an
+`OBJECT_DEPENDS` of every Enzyme TU, so a rebuilt plugin recompiles them.
+
+The row as it stood, verbatim:
+
+· **Enzyme's silent failures: FILED upstream, waiting on fixes** (lane B 2026-11-08; filed by the user 2026-11-09 as
+  [EnzymeAD/Enzyme#3747](https://github.com/EnzymeAD/Enzyme/issues/3747) (A) and [#3748](https://github.com/EnzymeAD/Enzyme/issues/3748) (B);
+  `doc/Records/EnzymeSpike.md` §6).  Two defects, each with a self-contained repro:
+  - (A) a wrong reverse-mode gradient, silent, at any `-O`: a loop-local array filled through an inner loop with a data-dependent trip
+    count, `enzyme_loopcache_repro.cpp`, 30 lines;
+  - (B) a segfault at `-O2 -march=native`, AVX2, `enzyme_flags_repro.cpp`.
+
+  The "tuple wrapper zeroes the gradient" item is RETRACTED (it was A in another shape).  Both defects REPRODUCE unchanged on Enzyme `main`
+  871de19f (⊇ v0.0.308, 2026-11-08; record §6).  Next action: when either issue reports a fix (the user gets GitHub's emails), re-run both
+  repros on the fixing commit, then move the pin; drop the per-file `-mprefer-vector-width=128` flags only once B is fixed.

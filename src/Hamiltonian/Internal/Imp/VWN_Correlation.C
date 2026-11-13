@@ -3,9 +3,9 @@
 // The functional is written once, as the value e_c(rho_up, rho_down) = rho eps_c(r_s, zeta).  The potential and the
 // kernel are Enzyme's derivatives of it (the OpenWork "Enzyme REQUIRED" row, family 2, 2026-11-09): v^sigma by reverse
 // mode, f^{sigma sigma'} by forward mode over that.  This unit carries the plugin (qchem_enzyme_sources in
-// ../../CMakeLists.txt).  While EnzymeAD/Enzyme#3747 (a silently wrong reverse-mode gradient) is open the derivatives keep
-// their finite-difference gates (tests/LDA_XC.C: v against the FD of e, f against the FD of v, f^ud = f^du, the zeta = 0
-// collapse, libxc pointwise).  Its trigger, a loop-local array filled through an inner loop with a data-dependent trip
+// ../../CMakeLists.txt).  The derivatives keep their finite-difference gates, as every Enzyme derivative does (EnzymeAD/Enzyme#3747,
+// a silently wrong reverse-mode gradient, was fixed only at the cdd0d1c2 pin) (tests/LDA_XC.C: v against the FD of e, f against the FD of v, f^ud = f^du, the zeta = 0
+// collapse, libxc pointwise).  #3747's trigger, a loop-local array filled through an inner loop with a data-dependent trip
 // count, is absent: the value is straight-line scalar code.
 module;
 #include <cmath>

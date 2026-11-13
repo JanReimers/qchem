@@ -28,6 +28,7 @@ import qchem.Math;                        // Pi
 import qchem.Types;                       // rvec3_t
 import qchem.ScalarFunction;              // ScalarFunction<double> (density / orbital evaluation)
 import qchem.Mesh.Quadrature;             // qcMesh::RadialMesh, MakeRadial, Integrate (radial quadrature)
+import qchem.ChargeDensity;               // rSpinResolved_CD, rChargeDensity: a polarized atom's Up/Down channels
 using namespace qchem;
 
 using std::cout;
@@ -72,9 +73,12 @@ static ValenceDensity BuildValenceDensity(const AtomCalculation& t, int Nval)
 // the element's entry into the JSON database at `out` (saito.json-style array, one object per element x
 // functional).  Prints the integral 4*pi*int r^2 rho dr as a charge sanity check.  `extra` adds fields to
 // the entry (e.g. kind=valence).
+//! A POLARIZED run (\a up, \a dn both set) also writes the spin pair the IonicSAD seed reads: rho_up / rho_dn in the UP-MAJORITY
+//! convention of atomic_valence_densities.json (doc/SCFSeedingPlan.md sec 10; rho stays the spin SUM) and moment = 4pi int r^2 (rho_up-rho_dn).
 static void DumpRadialDensity(const ScalarFunction<double>& cd, int Z, int Nelec, const string& functional,
                               const string& out, double rmin, double rmax, int ngrid,
-                              const nlohmann::json& extra = nlohmann::json::object())
+                              const nlohmann::json& extra = nlohmann::json::object(),
+                              const ScalarFunction<double>* up=nullptr, const ScalarFunction<double>* dn=nullptr)
 {
     // 26 directions (cube faces+edges+corners), normalized -> a cheap spherical average.
     std::vector<rvec3_t> dirs;
@@ -88,14 +92,20 @@ static void DumpRadialDensity(const ScalarFunction<double>& cd, int Z, int Nelec
     qcMesh::RadialMesh mesh = qcMesh::MakeRadial({.radial=qcMesh::RadialKind::Log, .nRadial=ngrid,
                                                   .logStart=rmin, .logStop=rmax});
     const rvec_t& R=mesh.R();
-    std::vector<double> rho(ngrid);
-    for (int i=0;i<ngrid;i++)
+    auto sample=[&](const ScalarFunction<double>& f)
     {
-        double avg=0;
-        for (const auto& u:dirs) avg += cd(u*R[i]);
-        rho[i]=avg/dirs.size();
-    }
-    double charge = 4.0*Pi*qcMesh::Integrate(mesh, rvec_t(rho.size(), rho.data()));  // 4*pi*int r^2 rho dr
+        std::vector<double> v(ngrid);
+        for (int i=0;i<ngrid;i++)
+        {
+            double avg=0;
+            for (const auto& u:dirs) avg += f(u*R[i]);
+            v[i]=avg/dirs.size();
+        }
+        return v;
+    };
+    auto integral=[&](const std::vector<double>& v){ return 4.0*Pi*qcMesh::Integrate(mesh, rvec_t(v.size(), v.data())); };   // 4*pi*int r^2 v dr
+    std::vector<double> rho=sample(cd);
+    double charge = integral(rho);
 
     nlohmann::json entry = {
         {"Z", Z}, {"symbol", thePeriodicTable().GetSymbol(Z)}, {"Nelec", Nelec},
@@ -104,6 +114,15 @@ static void DumpRadialDensity(const ScalarFunction<double>& cd, int Z, int Nelec
         {"charge", charge},          // 4*pi*int r^2 rho dr (~ Nelec)
         {"rho", rho},
     };
+    if (up && dn)
+    {
+        std::vector<double> ru=sample(*up), rd=sample(*dn);
+        double moment=integral(ru)-integral(rd);
+        if (moment<0.0) { std::swap(ru,rd); moment=-moment; }   // which channel the SCF polarized is a label: store the majority as up
+        entry["moment"]=moment;
+        entry["rho_up"]=ru;
+        entry["rho_dn"]=rd;
+    }
     for (const auto& [k,v] : extra.items()) entry[k]=v;
 
     nlohmann::json db = nlohmann::json::array();
@@ -154,6 +173,7 @@ static int Main(int argc, char** argv)
     double kerkerG0=0.0; int pulayDepth=0, pulayStart=0;  // periodic ρ̃ mixing (no-op on the atomic path)
     // SAD atomic-density generation (DFT models only): dump rho(r) on a log grid to a JSON database.
     string out=""; double rmin=1e-4, rmax=20.0, alpha=-1; int ngrid=400;
+    nlohmann::json entryTags=nlohmann::json::object();   // --entry key=value: provenance strings stamped on the --out entry
     int valence=0;   // >0: dump only the outermost `valence` electrons' density (pseudo-VALENCE for PW SAD)
 
     // ---- help text ----
@@ -210,6 +230,7 @@ static int Main(int argc, char** argv)
         "  --rmin <float>     log-grid inner radius (bohr)            (default 1e-4)\n"
         "  --rmax <float>     log-grid outer radius (bohr)            (default 20)\n"
         "  --ngrid <int>      number of log-grid points               (default 400)\n"
+        "  --entry key=value  stamp a provenance string on the --out entry (repeatable; e.g. config=\"[Ar] 3d^5 4s^1\")\n"
         "  --valence <int>    dump only the outermost <n> electrons' density (pseudo-valence\n"
         "                       for the plane-wave SAD seed); 0 => full all-electron (default 0)\n"
         "\n"
@@ -263,6 +284,12 @@ static int Main(int argc, char** argv)
         else if (a=="--rmax")    rmax=std::stod(need(i));
         else if (a=="--ngrid")   ngrid=std::stoi(need(i));
         else if (a=="--valence") valence=std::stoi(need(i));
+        else if (a=="--entry")
+        {
+            const string kv=need(i); const auto e2=kv.find('=');
+            if (e2==string::npos || e2==0) { cout<<"--entry wants key=value, got \""<<kv<<"\""<<endl; return 1; }
+            entryTags[kv.substr(0,e2)]=kv.substr(e2+1);
+        }
         else { cout<<"unknown option "<<argv[i]<<endl; usage(cout); return 1; }
     }
     // Dogfood the reporting framework: render each run's report sections (today: the scf
@@ -347,7 +374,7 @@ static int Main(int argc, char** argv)
     }
     else if (dft)
     {
-        opts.spin = SpinGroup::UnPolarized;
+        opts.spin = pp;   // --pol P: the Hund (LSD) atom, whose --out entry carries the spin pair; default U as before
         if (model=="Xalpha") { opts.model=Model::Xalpha; opts.xalpha = alpha>0 ? alpha : thePeriodicTable().GetSlaterAlpha(Z); }
         else                   opts.model=Model::LDA;    // real LSDA: Dirac exchange + VWN5
     }
@@ -381,8 +408,15 @@ static int Main(int argc, char** argv)
             ValenceDensity vd = BuildValenceDensity(calc, valence);
             DumpRadialDensity(vd, Z, valence, functional, out, rmin, rmax, ngrid, {{"kind","valence"}});
         }
-        else                     // full all-electron density (for the molecular SAD seed)
-            DumpRadialDensity(calc.Density(), Z, Z-q, functional, out, rmin, rmax, ngrid);
+        else                     // full all-electron density (for the molecular SAD seed); a polarized run adds its spin pair
+        {
+            const auto* sr = dynamic_cast<const ChargeDensity::rSpinResolved_CD*>(&calc.Density());
+            const ChargeDensity::rChargeDensity* chUp = sr ? sr->GetChannel(Spin::Up  ) : nullptr;
+            const ChargeDensity::rChargeDensity* chDn = sr ? sr->GetChannel(Spin::Down) : nullptr;
+            if (pp==SpinGroup::Polarized && !(chUp && chDn)) { cout<<"scfrun: a polarized atom yielded no spin-resolved density"<<endl; return 1; }
+            DumpRadialDensity(calc.Density(), Z, Z-q, functional, out, rmin, rmax, ngrid,
+                              [&]{ nlohmann::json x=entryTags; x["Etot"]=E; x["converged"]=calc.IsConverged(); return x; }(), chUp, chDn);
+        }
     }
     return 0;
 }
