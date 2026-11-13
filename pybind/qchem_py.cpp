@@ -84,6 +84,14 @@ template <class F> nb::object json_call(F&& f)
     return nb::module_::import_("json").attr("loads")(nb::str(out.c_str(), out.size()));
 }
 
+//! A levels call for either door: the list, or RuntimeError with the facade's reason (no converged state yet).
+template <class F> nb::object levels_call(F&& f)
+{
+    nb::object j = json_call(std::forward<F>(f));
+    if (nb::isinstance<nb::dict>(j)) throw std::runtime_error(nb::cast<std::string>(j["error"]));
+    return j;
+}
+
 } // namespace
 
 // The Python-facing owner of one bridge handle.
@@ -110,14 +118,15 @@ public:
                int diisDepth, double diisSVTol, double diisEngageFD, bool mom, int momStart, double relaxMin,
                double ladderSwitchAt, double gateFD, double gateDrho, double gateDE, double gateDFD,
                const std::string& mixer, double smearingkT, const std::string& restartFrom, bool buildOnly,
-               const std::string& basisFile, nb::object onIteration)
+               const std::string& basisFile, const std::string& seed, const std::string& angular, nb::object onIteration)
     {
         if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
         const qcb_request req{Z.data(), int(Z.size()), pos.data(), basis.c_str(), model.c_str(), pp.c_str(),
                               accelerator.c_str(), symmetry ? 1 : 0, polarized ? 1 : 0, multiplicity, maxIter,
                               meshRadial, meshAngular, relaxStart, relaxMax, diisDepth, diisSVTol, diisEngageFD,
                               mom ? 1 : 0, momStart, relaxMin, ladderSwitchAt,
-                              gateFD, gateDrho, gateDE, gateDFD, mixer.c_str(), smearingkT, basisFile.c_str()};
+                              gateFD, gateDrho, gateDE, gateDFD, mixer.c_str(), smearingkT, basisFile.c_str(),
+                              seed.c_str(), angular.c_str()};
         qcb_sink sink{onIteration, std::nullopt};
         const bool stream = !onIteration.is_none();
         char err[errlen] = {0};
@@ -182,22 +191,8 @@ public:
         nb::dict d; d["numbers"] = Z; d["positions"] = xyz; return d;
     }
 
-    //! Every MO, lowest first: a list of {"e", "occ", "spin" (-1/0/+1), "label"}.
-    nb::list Levels() const
-    {
-        constexpr int nlabel = 64;
-        const int n = qcb_num_levels(h);
-        std::vector<double> e(n), occ(n); std::vector<int> spin(n); std::vector<char> label(size_t(n)*nlabel, '\0');
-        qcb_levels(h, e.data(), occ.data(), spin.data(), label.data(), nlabel);
-        nb::list out;
-        for (int i = 0; i < n; ++i)
-        {
-            nb::dict d; d["e"] = e[i]; d["occ"] = occ[i]; d["spin"] = spin[i];
-            d["label"] = std::string(label.data() + size_t(i)*nlabel);
-            out.append(d);
-        }
-        return out;
-    }
+    //! Every level, lowest first (the structure-neutral Calculation::MakeLevels): [{"e","occ","spin","k","weight","label"}].
+    nb::object Levels() const { return levels_call([&](char* out, int n){ return qcb_levels(h, out, n); }); }
 
     nb::dict Density(int n, double pad) const
     {
@@ -328,6 +323,7 @@ public:
         return json_call([&](char* out, int n){ nb::gil_scoped_release nogil; return qcb_solid_judge_state(h, path.c_str(), out, n); });
     }
     nb::object RestartedFrom() const { return json_call([&](char* out, int n){ return qcb_solid_restarted_from(h, out, n); }); }
+    nb::object Levels() const { return levels_call([&](char* out, int n){ return qcb_solid_levels(h, out, n); }); }
     //! The crystal's density (spin: m(r)) on a stated Cartesian box; iterate: the current iterate's (from the row callback only).
     nb::dict Field(const std::vector<int>& n, const std::vector<double>& origin, const std::vector<double>& spacing, bool spin, bool iterate) const
     {
@@ -362,7 +358,8 @@ NB_MODULE(qchem_py, mod)
         .def(nb::init<const std::vector<int>&, const std::vector<double>&, const std::string&, const std::string&,
                       bool, bool, int, int, const std::string&, const std::string&, int, int, double, double,
                       int, double, double, bool, int, double, double, double, double, double, double,
-                      const std::string&, double, const std::string&, bool, const std::string&, nb::object>(),
+                      const std::string&, double, const std::string&, bool, const std::string&, const std::string&,
+                      const std::string&, nb::object>(),
              nb::arg("numbers"), nb::arg("positions"), nb::arg("basis") = "dzvp", nb::arg("model") = "HF",
              nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("max_iter") = 100,
              nb::arg("pp") = "", nb::arg("accelerator") = "DIIS", nb::arg("mesh_radial") = 0, nb::arg("mesh_angular") = 0,
@@ -371,6 +368,7 @@ NB_MODULE(qchem_py, mod)
              nb::arg("relax_min") = 0.0, nb::arg("ladder_switch_at") = -1.0,
              nb::arg("gate_fd") = -1.0, nb::arg("gate_drho") = -1.0, nb::arg("gate_de") = -1.0, nb::arg("gate_dfd") = -1.0,
              nb::arg("mixer") = "Auto", nb::arg("smearing_kT") = 0.0, nb::arg("restart_from") = "", nb::arg("build_only") = false, nb::arg("basis_file") = "",
+             nb::arg("seed") = "", nb::arg("angular") = "",
              nb::arg("on_iteration") = nb::none(),
              "MoleculeSetup::Resolve + converge.  Atomic numbers + flat 3N bohr positions.  on_iteration(iter, E, cells), "
              "if given, streams the SCF live (the GIL is released during the solve); cells = [(title, value, text, "
@@ -385,7 +383,9 @@ NB_MODULE(qchem_py, mod)
              "restart_from: a saved state (save_state's file) to start from (MoleculeCalculation::Restart): an exact resume or a "
              "warm start (restarted_from() says which); a state the facade refuses raises RestartRefused.  build_only: BUILD the whole graph (basis, every mesh, the SCF "
              "iterator) and stop before iteration 1, filed as the report run '<ID> build'; run_scf then converges on that graph.  basis_file: a .bsd path used instead of the "
-             "shipped file `basis` names (CalcOptions::basisFile; `basis` is then its label).")
+             "shipped file `basis` names (CalcOptions::basisFile; `basis` is then its label).  seed / angular: the STRUCTURE-NEUTRAL "
+             "options by the deck's names (a crystal's deck: solid.seed, basis.angular): seed Default (the Auto rule) | CoreGuess | Uniform | "
+             "SAD | IonicSAD, angular cartesian | spherical ('' = Default / cartesian); the facade refuses a combination it cannot build.")
         .def("run_scf", &Calculator::RunSCF, nb::arg("on_iteration"), nb::arg("max_iter") = 100,
              "Run the SCF (after build_only: on the built graph; else again from the seed), streaming each iteration; returns converged.")
         .def("save_state", &Calculator::SaveState, nb::arg("path"),
@@ -401,7 +401,7 @@ NB_MODULE(qchem_py, mod)
              "details); None when it converged.")
         .def("iterations",   &Calculator::Iterations)
         .def("structure",    &Calculator::Structure)
-        .def("levels",       &Calculator::Levels, "Every MO, lowest first: [{'e','occ','spin','label'}].")
+        .def("levels",       &Calculator::Levels, "Every level, lowest first: [{'e','occ','spin','k','weight','label'}] (k fractional, Γ here).")
         .def("density",      &Calculator::Density,     nb::arg("n") = 64, nb::arg("pad") = 5.0)
         .def("spin_density", &Calculator::SpinDensity, nb::arg("n") = 64, nb::arg("pad") = 5.0,
              "m(r) = rho_up - rho_down; the zero field for an unpolarized run.")
@@ -515,6 +515,8 @@ NB_MODULE(qchem_py, mod)
         .def("total_energy", &SolidRun::TotalEnergy, "The converged total energy (hartree); None unless converged.")
         .def("iterations",   &SolidRun::Iterations)
         .def("judge_state",  &SolidRun::JudgeState, nb::arg("path"), "As Calculator.judge_state, for this crystal.")
+        .def("levels",       &SolidRun::Levels, "As Calculator.levels: every level of every k-block, lowest first (k fractional; "
+             "weight is the k-point's BZ weight, so sum(weight*occ) = N).")
         .def("field", &SolidRun::Field, nb::arg("n"), nb::arg("origin"), nb::arg("spacing"), nb::arg("spin") = false,
              nb::arg("iterate") = false,
              "The crystal's density (spin=True: m = rho_up - rho_down, zero when unpolarized) on the Cartesian box the caller states: "

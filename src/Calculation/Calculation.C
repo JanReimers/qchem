@@ -20,7 +20,9 @@ export import qchem.Accuracy;   // ClientConsumes (Consumes' answer)
 export import qchem.Energy;     // EnergyBreakdown (ReportResult's argument)
 export import qchem.SCFState;   // the shared saved-state half (RestartRefusal: every Restart's failure)
 import qchem.Structure;
-import qchem.Symmetry.Spin;     // SpinGroup
+import qchem.Types;             // rvec3_t (a level's k)
+import qchem.Orbitals;          // Orbital (the level walk's handle)
+import qchem.Symmetry.Spin;     // SpinGroup, Spin
 
 export namespace qchem
 {
@@ -54,7 +56,36 @@ public:
     virtual const std::optional<RestartSummary>& RestartedFrom() const = 0;
     //!@}
 
+    //! \name THE LEVELS (structure-neutral; OpenWork §2 "Levels on the Calculation face", lane G 2026-11-12)
+    //!@{
+    //! One eigenlevel of the converged state: what a Levels table and an MO diagram list, for ANY structure.
+    struct Level
+    {
+        double      e = 0.0;           //!< eigen-energy (hartree)
+        double      occupation = 0.0;  //!< electrons in it, PHYSICAL (a solid's BZ weight is \c weight, never folded in), a degenerate
+                                       //!< level's partners included (an atom's p shell holds up to 6); 0 for a virtual
+        Spin        spin = Spin::None; //!< Up / Down for a polarized run, None for an unpolarized one
+        rvec3_t     k{0,0,0};          //!< the Bloch vector it belongs to, FRACTIONAL (reciprocal-lattice units); Γ for a molecule or an atom
+        double      weight = 1.0;      //!< its k-point's BZ weight (1 for a molecule or an atom): Σ weight·occupation = N
+        std::string label;             //!< the orbital's QN label (its irrep under symmetry)
+    };
+    //! \brief EVERY level of the converged state, virtuals included, ascending in energy (spin channels and k-points interleaved;
+    //! ties keep the saved state's block order: spin outer, basis blocks inner).  Built by THIS base from the facade's state blocks
+    //! (\c StateBlocks), so every kind answers it the same way.  An owned list (a \c Make: it walks the wave function on each call).
+    //! THROWS before the first Converge (no wave function).
+    std::vector<Level> MakeLevels() const;
+    //!@}
+
 protected:
+    //! A level and the orbital it is, in \c MakeLevels' order: what a facade that also SAMPLES orbitals builds its own list from, so
+    //! its indices are the neutral list's (the molecule's \c GetLevels).  The orbital is BORROWED from the wave function.
+    struct LevelOrbital
+    {
+        Level                     level;
+        const Orbitals::Orbital*  orbital = nullptr;
+    };
+    std::vector<LevelOrbital> WalkLevels() const;
+
     //! \brief THE RESULT LINE: a run reports its own outcome, contemporaneously, as one \c "[label] CONVERGED iters= charge= Eelec=
     //! Etot= (terms)" console line and a \c result section of the run report.  Each facade calls it where its SCF ends, from what
     //! every facade has; a solid's site moments follow as its own lines.  Rendered at Verbose only, since the line already says it.

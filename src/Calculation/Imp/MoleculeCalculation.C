@@ -335,14 +335,13 @@ void MoleculeCalculation::RebuildSampling()
               [](const occ_t& a, const occ_t& b){ return a.first < b.first; });   // ascending energy
 
     itsLevels.clear();
-    for (const Irrep& irr : wf->GetQNs())
-        for (const auto* o : wf->GetOrbitals(irr)->Iterate())
-        {
-            const auto* phi = dynamic_cast<const sf_t*>(o);   // abstract -> abstract, as above
-            assert(phi);
-            itsLevels.push_back({o->GetEigenEnergy(), o->GetOccupation(), irr.ms, o->GetLabel(), phi});
-        }
-    std::stable_sort(itsLevels.begin(), itsLevels.end(), [](const Level& a, const Level& b){ return a.e < b.e; });
+    for (const auto& lo : WalkLevels())   // the neutral walk: this list's index i is MakeLevels' index i
+    {
+        const auto* phi = dynamic_cast<const sf_t*>(lo.orbital);   // abstract -> abstract, as above
+        if (!phi) throw std::logic_error("qchem::MoleculeCalculation: an orbital is not a scalar field");
+        Level L; static_cast<Calculation::Level&>(L)=lo.level; L.phi=phi;
+        itsLevels.push_back(std::move(L));
+    }
 
     if (wf->GetSpinGroup()==SpinGroup::Polarized)
         itsSpinDensity = wf->GetSpinDensity();

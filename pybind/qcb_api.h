@@ -82,6 +82,10 @@ typedef struct qcb_request
                                   //!< what a molecule cannot mix (Kerker needs G space)
     double        smearingkT;     //!< Fermi-Dirac smearing kT, Ha (SCFParams::SmearingkT), 0 = off
     const char*   basisFile;      //!< a .bsd path used instead of the shipped file `basis` names (CalcOptions::basisFile); null/"" = none
+    //! THE STRUCTURE-NEUTRAL options, by the deck's names (a crystal's deck states them as solid.seed / basis.angular):
+    const char*   seed;           //!< SeedStrategy: "Default" (the Auto rule, qchem.SeedPolicy) | "CoreGuess" | "Uniform" | "SAD" | "IonicSAD";
+                                  //!< null/"" = Default
+    const char*   angular;        //!< BasisSet::Gaussian::Angular: "cartesian" | "spherical"; null/"" = cartesian
 } qcb_request;
 
 //! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
@@ -119,10 +123,10 @@ int    qcb_iterations(const qcb_calc* h);
 int    qcb_natoms    (const qcb_calc* h);
 void   qcb_atoms     (const qcb_calc* h, int* Z_out, double* xyz_out);   // Z_out[nat], xyz_out[3*nat]
 
-//! Every MO, virtuals included, ascending in energy: n = qcb_num_levels of them.  spin: -1 down, 0 none, +1 up.
-//! `label` is nlabel chars per level.
-int    qcb_num_levels(const qcb_calc* h);
-void   qcb_levels(const qcb_calc* h, double* e, double* occ, int* spin, char* label, int nlabel);
+//! EVERY LEVEL, virtuals included, ascending in energy (Calculation::MakeLevels, the structure-neutral face; qcb_solid_levels is
+//! the crystal's door to the SAME call): JSON [{"e","occ","spin" (-1/0/+1),"k" (fractional),"weight","label"}], or
+//! {"error": why} before the first converge.  Returns the JSON's length (call with outlen 0 to size it).
+int    qcb_levels(const qcb_calc* h, char* out, int outlen);
 
 // Sample fields on an n^3 grid padded `pad` bohr past the atoms. The caller preallocates `out` (n*n*n for
 // scalars, n*n*n*3 for the vector field, C-order) plus origin[3] and spacing[3].  `index` is a LEVEL index
@@ -171,6 +175,7 @@ int        qcb_solid_field(const qcb_solid* h, int spin, int iterate, const int*
 //! As qcb_judge_state / qcb_restarted_from, for a crystal (the deck saves and restarts through state.save / state.restartFrom).
 int        qcb_solid_judge_state(const qcb_solid* h, const char* path, char* out, int outlen);
 int        qcb_solid_restarted_from(const qcb_solid* h, char* out, int outlen);
+int        qcb_solid_levels(const qcb_solid* h, char* out, int outlen);   //!< as qcb_levels
 
 // -- symmetry DETECTED from a structure (the lib's own detectors; nothing is imposed here) -------------------------------
 

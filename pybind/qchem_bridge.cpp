@@ -31,6 +31,9 @@ import qchem.Structure;      // Molecule, Site
 import qchem.SCFParams;      // SCFParams
 import qchem.Parallel;       // ScopedWorkerThreads: a run's thread counts (a deck's `threads`, the Python Threads scope)
 import qchem.SCFIterator;    // IterationRow, IterationCell
+import qchem.ChargeDensity.Seed;                 // SeedStrategy (the molecule door's seed, by the deck's names)
+import qchem.BasisSet.Gaussian.Point.Factory;    // BasisSet::Gaussian::Angular (its angular form)
+import qchem.Calculation;    // Calculation::MakeLevels (the structure-neutral levels, either door)
 import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, CalcOptions, AcceleratorOptions
 import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
 import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
@@ -100,6 +103,28 @@ qchem::Model parse_model(const std::string& m)
     if (m == "LDA")    return Model::LDA;
     if (m == "Xalpha") return Model::Xalpha;
     throw std::invalid_argument("qchem_py: unknown model '" + m + "' (HF | LDA | Xalpha)");
+}
+
+//! The deck's names for the structure-neutral options (Deck.C kSeed / kAngularForm), so one name means one thing on either door.
+qchem::ChargeDensity::SeedStrategy parse_seed(const char* s)
+{
+    using S = qchem::ChargeDensity::SeedStrategy;
+    const std::string n = s ? s : "";
+    if (n.empty() || n == "Default") return S::Default;
+    if (n == "CoreGuess") return S::CoreGuess;
+    if (n == "Uniform")   return S::Uniform;
+    if (n == "SAD")       return S::SAD;
+    if (n == "IonicSAD")  return S::IonicSAD;
+    throw std::invalid_argument("qchem_py: unknown seed '" + n + "' (Default | CoreGuess | Uniform | SAD | IonicSAD)");
+}
+
+qchem::BasisSet::Gaussian::Angular parse_angular(const char* a)
+{
+    using A = qchem::BasisSet::Gaussian::Angular;
+    const std::string n = a ? a : "";
+    if (n.empty() || n == "cartesian") return A::Cartesian;
+    if (n == "spherical") return A::Spherical;
+    throw std::invalid_argument("qchem_py: unknown angular form '" + n + "' (cartesian | spherical)");
 }
 
 qchem::SCFParams scf_params(const qcb_request& req)
@@ -214,6 +239,8 @@ MoleculeRequest molecule_request(const qcb_request* req)
     r.opts.model        = parse_model(req->model);
     r.opts.pp           = req->pp ? req->pp : "";
     r.opts.basisFile    = req->basisFile ? req->basisFile : "";
+    r.opts.seed         = parse_seed(req->seed);
+    r.opts.angular      = parse_angular(req->angular);
     r.opts.symmetry     = req->symmetry != 0;
     r.opts.spin         = req->polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;
     r.opts.multiplicity = req->multiplicity;
@@ -266,6 +293,22 @@ int write_json(const nlohmann::ordered_json& j, char* out, int outlen)
     const std::string s = j.dump(-1, ' ', false, nlohmann::ordered_json::error_handler_t::replace);
     write_error(s.c_str(), out, outlen);
     return int(s.size());
+}
+
+//! THE LEVELS, for either door (Calculation::MakeLevels): one list, any structure; {"error": why} before the first converge.
+nlohmann::ordered_json levels_json(const qchem::Calculation& c)
+{
+    const HostLocale host;
+    try
+    {
+        nlohmann::ordered_json a = nlohmann::ordered_json::array();
+        for (const auto& L : c.MakeLevels())
+            a.push_back({{"e", L.e}, {"occ", L.occupation},
+                         {"spin", L.spin == qchem::Spin::Up ? 1 : L.spin == qchem::Spin::Down ? -1 : 0},
+                         {"k", {L.k.x, L.k.y, L.k.z}}, {"weight", L.weight}, {"label", L.label}});
+        return a;
+    }
+    catch (const std::exception& e) { return {{"error", e.what()}}; }
 }
 
 } // anon namespace
@@ -391,19 +434,7 @@ void qcb_atoms(const qcb_calc* h, int* Z_out, double* xyz_out)
     std::memcpy(xyz_out, h->positions.data(), h->positions.size()*sizeof(double));
 }
 
-int qcb_num_levels(const qcb_calc* h) { return int(h->calc->GetLevels().size()); }
-
-void qcb_levels(const qcb_calc* h, double* e, double* occ, int* spin, char* label, int nlabel)
-{
-    const auto& levels = h->calc->GetLevels();
-    for (size_t i = 0; i < levels.size(); ++i)
-    {
-        e[i]    = levels[i].e;
-        occ[i]  = levels[i].occupation;
-        spin[i] = levels[i].spin == qchem::Spin::Up ? 1 : levels[i].spin == qchem::Spin::Down ? -1 : 0;
-        write_error(levels[i].label.c_str(), label + i*nlabel, nlabel);
-    }
-}
+int qcb_levels(const qcb_calc* h, char* out, int outlen) { return write_json(levels_json(*h->calc), out, outlen); }
 
 void qcb_density(const qcb_calc* h, int n, double pad, double* out, double* origin, double* spacing)
 {
@@ -571,6 +602,8 @@ int qcb_solid_restarted_from(const qcb_solid* h, char* out, int outlen)
 {
     return write_json(restarted_json(h->calc->RestartedFrom()), out, outlen);
 }
+
+int qcb_solid_levels(const qcb_solid* h, char* out, int outlen) { return write_json(levels_json(*h->calc), out, outlen); }
 
 // -- the run record ---------------------------------------------------------------------------------------------------
 
