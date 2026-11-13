@@ -9,7 +9,7 @@
 //   regime \ stage      COLD (seeded)                  CARRIED (anneal, U loop, +-alpha, geometry)   RESTORED (same Hamiltonian, row 4)
 //   Insulator (row 1)   Null + Pulay-D (0.45, 8, 5)    Null + Pulay-D, fresh history (row 5)          kT 0: Ladder@GDM; kT > 0 or a partial
 //   MagneticInsulator   Null + K+P (G0 1, 0.45, 8, 5)  Null + K+P, fresh history                        eigensolve: DIIS.  Either beside LINEAR
-//     (row 2)                                                                                           D-mixing, its START <= 0.3
+//     (row 2)                                                                                           D-mixing, step AND ceiling <= 0.3
 //   Metal (row 3)       Null + K+P (G0 1, PROVISIONAL) Null + K+P, fresh history
 //
 // AUTO, in B5, IS TODAY'S POLICY NAMED AND PRINTED, and nothing else: it resolves every stage to the Insulator column, which is exactly what
@@ -80,8 +80,9 @@ inline const char* NameOf(SCFStageKind k)
 //! value, UNMEASURED on a large metallic cell (§3 row 3) until Q4's Al measurement (Pulay-D vs K+P).
 inline constexpr MixingRecipe theKerkerPulayRecipe{.relax=0.45, .G0=1.0, .depth=8, .start=5};
 //! Row 4's linear step on a restored density: a converged density wants a restart's step, not the ground state's (relax 1.0 diverged a
-//! restart, Si Γ 2026-09-29; CLAUDE.md "a linear fallback relaxes at 0.2-0.3").  ⚠ Applied to the START only, as before B5; OpenWork's
-//! NEAR-TERM row "unify the restored stage's linear cap on the CEILING" lands that as its own measured step.
+//! restart, Si Γ 2026-09-29; CLAUDE.md "a linear fallback relaxes at 0.2-0.3", "not 1.0!").  It caps the START and the CEILING
+//! (\c SCFParams::MaxRelaxRo): capping the start alone let the adaptive step grow back to 1.0 (OpenWork NEAR-TERM row, landed
+//! 2026-11-12 after B5; the ±α FD-LRT stages already capped both).
 inline constexpr double theRestoredLinearStep=0.3;
 
 //! The regime the policy RUNS: Auto resolves to Insulator in B5 (see the file comment).
@@ -161,14 +162,17 @@ inline RecipeKnobs FillRecipeKnobs(SCFRecipe r, SCFStageKind k, const SCFParams&
     return out;
 }
 
-//! \brief ROW 4's STEP: an Auto accelerator on a RESTORED density pairs with a LINEAR mixer (beside its Fock history), whose START is
-//! capped at \c theRestoredLinearStep.  \a resolvesLinear = the stage's mixer resolves to linear (the iterator's \c ResolveMixing).
+//! \brief ROW 4's STEP: an Auto accelerator on a RESTORED density pairs with a LINEAR mixer (beside its Fock history), whose START
+//! and CEILING are capped at \c theRestoredLinearStep.  \a resolvesLinear = the stage's mixer resolves to linear (the iterator's \c ResolveMixing).
 //! A stated accelerator keeps the caller's step.
 inline SCFParams CapRestoredStep(SCFStageKind k, SCFAccelerators::Type asked, const SCFParams& p, bool resolvesLinear)
 {
     SCFParams q=p;
     if (k==SCFStageKind::Restored && asked==SCFAccelerators::Type::Auto && resolvesLinear)
+    {
         q.StartingRelaxRo=std::min(q.StartingRelaxRo, theRestoredLinearStep);
+        q.MaxRelaxRo     =std::min(q.MaxRelaxRo,      theRestoredLinearStep);
+    }
     return q;
 }
 
