@@ -2734,3 +2734,49 @@ come from the DIIS extrapolation rather than from a Hamiltonian term.
 - It asserts convergence, a did-E-move anchor at 1e-5, and the (200,35) value within 2e-3 (the coarse mesh's own error is 0.9 mHa).
 - The Te/F DZVP-MOLOPT-SR-GTH block is shipped as `BasisSetData/dzvp_molopt_sr_gth.bsd`, transcribed by `scripts/cp2k2bsd` from CP2K's
   BASIS_MOLOPT (`PP-PROVENANCE Te=6 F=7`).
+
+## ✅ A pseudopotential run seeds from the VALENCE library for its q, on every structure (lane B, 2026-11-12)
+
+Row verbatim:
+
+| **A pseudopotential run seeds from the VALENCE library for its q, on every structure** (user ruling 2026-11-12, "Separate item later", deferred from lane B's structure-neutral seed) | The Auto seed rule is now one function for both setups (`qchem.SeedPolicy`), but its LIBRARY still splits by facade: a solid reads `atomic_valence_densities.json` at its PP's q (`SeedKey`), a PP molecule reads the ALL-ELECTRON `atomic_densities.json` (core charge included, constrained to the valence count by the fit) | the molecular seed takes a `SeedKey` from its `PseudopotentialSet` and reads the valence library under a PP (coverage from the same library); re-judge F2_PP, F2_PP_AuxiliaryFit*, the H2O+GTH and the other molecular PP tests (energies hold, iterations and first iterates move) · `src/ChargeDensity/Imp/Seed.C`, `src/Calculation/Imp/MoleculeSetup.C` |
+
+**THE RULE, ONE FUNCTION**: `ChargeDensity::SeedLibrary(key, Z)` picks the library per element.
+- A Z the key gives a pseudopotential q is the run's pseudo-atom, so it reads `atomic_valence_densities.json` at that q.
+- An unkeyed Z (all-electron) reads `atomic_densities.json`.
+
+**WHERE THE KEY COMES FROM**: `SeedKeyOf(pp, structure)`, moved from `SolidSetup.C` into `qchem.SeedPolicy` so both setups share it.
+- `MoleculeSetup::seedKey` is set from the run's `PseudopotentialSet`.
+- The Auto rule's coverage is the same `SeedLibraryCovers(key, Z)` on both setups.
+- The key reaches the molecular `MakeSeedDensity` through the iterator's seed constructor, which now demands it.
+- The atom facade passes a stated SAD seed its own GTH pseudo-atom's key.
+- Both molecular arms read the run's library: SAD, and IonicSAD (whose site count is the pseudo-atom's under a PP).
+
+**THE TELL**: Si has no all-electron LDA entry, so a Si PP molecule took the core guess with a WARN.  Its q4 valence entry exists, so it now
+takes SAD.  Gate: `MoleculeSetup.APseudopotentialRunSeedsFromTheValenceLibraryAtItsQ`.
+
+**RE-JUDGED** (short sweep 1608/1608 and long 16/16; anchordiff against lane-b-3e6bee220 at 1e-10).  EVERY converged energy holds to the
+anchor's 1e-10; only iterations and first iterates moved, and only on molecular PP runs:
+
+| test | iterations old → new | first iterate old → new |
+|---|---|---|
+| M_DFT.F2_PP | 9 → 8 | -42.035752 → -46.321818 (final -48.2019) |
+| M_DFT.F2_PP_AuxiliaryFit | 9 → 8 | -42.032875 → -46.316996 |
+| M_DFT.F2_PP_AuxiliaryFitProjected | 3 → 3 | -42.114339 → -46.468058 |
+| CalculationFacade.APseudopotentialOnAGaussianBasisBuildsNoPPQuadrature (H2O + GTH, dzvp) | 9 → 7 | -13.576376 → -16.927727 (final -17.079) |
+| CalculationFacade.PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySCF | 9,9 → 7,7 | the same H2O start |
+| Facades/FacadeMatrix.Cell/Molecule_ConvergeFilesTheScfHeader | 9 → 7 | the same H2O start |
+| Facades/FacadeMatrix.Cell/Molecule_SaveRestartRoundTrips | 9 → 7 | the same H2O start |
+| HamiltonianForces.UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysFiniteDifference | 9 → 7 | the same H2O start |
+| HamiltonianForces.ASymmetryBlockedRunsForceIsTheUnblockedRunsForce | the PP pair 14,14 → 10,10 (the other 8 runs unchanged) | |
+| GPW_O2Box.Γ_Imp_M3_eqFinite (its molecular O2 + GTH reference only) | 9 → 8 | -26.552308 → -29.820040 |
+| MeshPilot.AnEnergyRunSettlesWhereItsAuditMeetsEps | 13 → 11 on the PP run | -42.035752 → -46.321818 |
+| MeshPilot.AStatedMeshIsKeptAndAMissIsReported | 13 → 11 | the same F2 start |
+| MeshPilot.AGeometryRunRaisesAMeshThatMissesEpsOnMatrixElements | 6 → 8 (WORSE: its pilot re-converge) | the same F2 start |
+| OSi_PP_U.MultiSpeciesRouting | 15 → 16 (WORSE) | +0.784504 → -10.418336 |
+| Si2_PP_U.LargeSeparation | the atom 11 → 11 | -3.720171 → -3.769047 |
+
+On `Si2_PP_U.LargeSeparation`: the -46 mHa anchordiff move is its deliberately BOUNDED 2-iteration dimer iterate (`BoundedSCF`; its comment
+warns anchordiff may flag it).  The dimer now starts from SAD instead of the core guess, and its Enn routing claim holds.
+
+Summed over the movers' converged runs: 170 → 146 iterations (11 tests better, 2 worse, 2 unchanged).
