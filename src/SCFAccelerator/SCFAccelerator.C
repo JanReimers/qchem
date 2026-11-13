@@ -108,6 +108,9 @@ public:
     // Should the SCF iterator run its direct-minimization loop (geodesic line search, no
     // density mixing)?  True for a GDM-style minimizer; the ladder reports its active rung's.
     virtual bool WantsLineSearch() const {return false;}
+    //! MAY this accelerator ever run the direct-min loop in this run (any rung of a ladder, not only the active one)?  Asked once,
+    //! when the iterator lays out its trace: a run that may line-search shows the line search's t column.  Default false.
+    virtual bool MayLineSearch() const {return WantsLineSearch();}
     //! Does this accelerator EXTRAPOLATE the Fock matrix over a history (DIIS)?  Asked by the density-mixer policy
     //! (\c SCFParams::Mixing::Auto): a density history (Pulay) beside a Fock history fights -- measured 2026-10-22,
     //! free Si k222 stalls and Si Γ diverges -- so Auto mixes linearly beside one.  A ladder answers for ANY rung it

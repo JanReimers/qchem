@@ -50,6 +50,17 @@ bool& ReportBandGap();
 //! reproduces its seed bit for bit at iteration 1 (measured 2026-10-30: 13 atom tests).
 void RequireLiveGates(double FD, const Gate& minFD, size_t iteration);
 
+//! \brief The line minimum a halving line search has bracketed (lane A 2026-11-13; doc/SCFRobustnessPlan.md B6(a)).
+struct LineMinimum
+{
+    double t;    //!< the parabola's vertex t*
+    bool   ok;   //!< the parabola is convex and t* lies inside the bracket (0, 2t); false = keep the halving t (the FALLBACK)
+};
+//! \brief The vertex of the parabola through (0, \a E0), (\a t, \a Et), (2\a t, \a E2t): a halving search that rejected 2t and
+//! accepted t has E0 > Et < E2t, which brackets a minimum.  Not \c ok when the three points are not convex (curvature <= 0) or the
+//! vertex falls outside (0, 2t); the caller then keeps t.  A pure function, exported for the unit test.
+LineMinimum ParabolicLineMinimum(double E0, double t, double Et, double E2t);
+
 //! \brief ONE CELL of the SCF iteration row: one column of the trace, as the console prints it AND as a plot wants it.
 struct IterationCell
 {
@@ -107,6 +118,8 @@ struct IterationTrace
     double dE;               //!< relative total-energy change ΔE/|E|
     size_t idealVirial;      //!< 2 (non-relativistic) or 1 (relativistic): the virial column shows GetVirial()+idealVirial
     bool   configChanged;    //!< did the occupied configuration change since the previous iteration? (the cfg '*')
+    double lineT=std::numeric_limits<double>::quiet_NaN();   //!< the geodesic step's t (fraction of the model step); NaN off a geodesic
+    bool   lineFallback=false;   //!< the line minimum's safeguard fired: the halving t was kept (the t_ls cell's 'h')
     bool   lineSearch;       //!< a committed GEODESIC step (GDM/OT) produced this iterate: NO density mixing -> ρ_mix shows "----"
                              //!< (a direct-min iteration that fell back to a mixed step is false: it mixed)
     double gridLostRel;      //!< signed grid-charge leak per electron, (∫ρ̃ − Tr(DS))/N (solids; 0 with no grid)
@@ -392,6 +405,8 @@ private:
     bool            itsConverged;
     bool            itsDeclinedRelaxApplied=false;   //!< the declined-GDM linear ceiling (SCFParams::DeclinedDirectMinRelax) is in force
     bool            itsGeodesicTaken=false;   //!< the last \c DirectMinStep committed a geodesic (else it fell back to a MIXED step)
+    double          itsLineT=std::numeric_limits<double>::quiet_NaN();   //!< that geodesic's t (NaN when none was committed)
+    bool            itsLineFallback=false;    //!< ...and whether the line minimum's safeguard kept the halving t
     std::string     itsUnphysicalStop;   //!< \c UnphysicalStop: empty unless the last Iterate refused its first energy
     std::shared_ptr<tDM_CD<T>> itsCarried;   //!< a WorkingDensity / ExactResume seed, held to the first Iterate (see SeedRole)
     bool            itsCarriedIsWorking=false;   //!< ExactResume: the carried D becomes the working density there

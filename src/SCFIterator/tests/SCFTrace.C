@@ -455,6 +455,62 @@ TEST(SCFTrace, AMolecularLadderHandsOffToGDMBelowTheEnergyTail)
     for (size_t i=0; i<below; i++) EXPECT_EQ(accel(rows[i]).rfind("GDM",0), std::string::npos) << "row " << i+1 << " is GDM before the tail";
 }
 
+// THE LINE MINIMUM (doc/SCFRobustnessPlan.md B6(a), lane A 2026-11-13).  A halving line search that rejected 2t and accepted t holds
+// three energies E(0) > E(t) < E(2t); the parabola through them names the line minimum t*.  Exact on a parabola; refused (the caller
+// keeps t) when the points are not convex or the vertex is outside the bracket (0, 2t).
+TEST(SCFTrace, ParabolicLineMinimumNamesTheVertexOfABracket)
+{
+    auto E=[](double t){ return 3.0*(t-0.37)*(t-0.37) - 30.0; };   // a line minimum at t* = 0.37
+    const SCFIterator::LineMinimum m=SCFIterator::ParabolicLineMinimum(E(0.0), 0.5, E(0.5), E(1.0));
+    EXPECT_TRUE(m.ok);
+    EXPECT_NEAR(m.t, 0.37, 1e-12);
+    // the same bracket one halving deeper (t = 0.25, 2t = 0.5): t* = 0.37 is still inside (0, 0.5)
+    const SCFIterator::LineMinimum d=SCFIterator::ParabolicLineMinimum(E(0.0), 0.25, E(0.25), E(0.5));
+    EXPECT_TRUE(d.ok);
+    EXPECT_NEAR(d.t, 0.37, 1e-12);
+    // NOT CONVEX (curvature <= 0): no minimum to name
+    EXPECT_FALSE(SCFIterator::ParabolicLineMinimum(0.0, 0.5, -1.0, -3.0).ok);
+    EXPECT_FALSE(SCFIterator::ParabolicLineMinimum(0.0, 0.5, -1.0, -2.0).ok);   // collinear
+    // OUTSIDE THE BRACKET: E rises from t = 0, so the vertex sits at t < 0
+    auto R=[](double t){ return (t+0.5)*(t+0.5); };
+    EXPECT_FALSE(SCFIterator::ParabolicLineMinimum(R(0.0), 0.5, R(0.5), R(1.0)).ok);
+    // a degenerate bracket
+    EXPECT_FALSE(SCFIterator::ParabolicLineMinimum(1.0, 0.0, 0.5, 2.0).ok);
+}
+
+// ...and the trace SHOWS it: a run that may line-search has a t_ls column; every committed geodesic row carries its t in (0, 1]
+// (a fallback 'h' is a halving t, also in (0, 1]), and every other row reads "----" (no number).
+TEST(SCFTrace, ALineSearchingRunShowsEachGeodesicStepsT)
+{
+    std::vector<SCFIterator::IterationRow> rows;
+    (void)CapturedTrace([&rows]{
+        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = qchem::Model::LDA}, {.type = "Ladder"}),
+                         {.NMaxIter = 80, .Verbose = true},
+                         [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
+        (void)calc.Result();
+    });
+    ASSERT_FALSE(rows.empty());
+    auto text=[](const SCFIterator::IterationRow& r, const char* title)
+    {
+        for (const auto& c : r.cells) if (c.title==title) return c.text;
+        return std::string("<no column>");
+    };
+    size_t geodesic=0;
+    for (size_t i=0; i<rows.size(); i++)
+    {
+        ASSERT_NE(text(rows[i],"t_ls"), "<no column>") << "a Ladder may line-search, so its rows carry t_ls";
+        const double t=rows[i].ValueOf("t_ls");
+        if (text(rows[i],"accel").rfind("GDM",0)==0)
+        {
+            ++geodesic;
+            EXPECT_GT(t, 0.0) << "row " << i+1;
+            EXPECT_LE(t, 1.0) << "row " << i+1;
+        }
+        else EXPECT_TRUE(std::isnan(t)) << "row " << i+1 << " took no geodesic but shows t " << t;
+    }
+    EXPECT_GT(geodesic, 0u) << "the Ladder never took a geodesic step";
+}
+
 // ...and on a SYMMETRY-BLOCKED molecule whose electrons span several irreps (OpenWork, user 2026-11-03): CH4 C2v HF, a1 holding 3
 // occupied orbitals, b1 and b2 one each, a2 none -- of ONE 10-electron reservoir.  GDM used to expect the reservoir's 5 orbitals in every
 // block and declined everywhere (retreating to DIIS); then its trials refilled every block with all 10 electrons.  Now: it engages
