@@ -16,7 +16,7 @@ take dE/dD by AD and check it against the term's H (pin 32).  The verdict is in 
      libxml2 only for COFF manifests.  The build passes `--ld-path=<shim>/ld.lld` in the three `CMAKE_*_LINKER_FLAGS`.  Nothing system-wide changed.
 - **In qchem** the path was `-DQCHEM_ENZYME=ON -DQCHEM_ENZYME_PLUGIN=…/ClangEnzyme-21.so -DQCHEM_ENZYME_INCLUDE=…/enzyme/include`, default
   OFF, and then every AD gradient refused with `NoGradient`.  **Superseded 2026-11-09: Enzyme is REQUIRED** (user ruling).  `QCHEM_ENZYME`
-  is retired; configure finds `~/Code/Enzyme-main` (871de19f, ⊇ v0.0.308, the same build recipe) by default, checks the pin and runs a
+  is retired; configure finds `~/Code/Enzyme-<pin>` by default (`~/Code/Enzyme-main` at 871de19f until 2026-11-13; §6), checks the pin and runs a
   smoke derivative (root `CMakeLists.txt`, `cmake/EnzymeSmoke.cpp`).  The plugin flags ride `qcAD` and the files named by
   `qchem_enzyme_sources` (e.g. `BeckePartition.C`), nothing else.  Toggling the old option rebuilt `qcAD` and
   nothing else: `ninja -n` claims ~600 objects, but that is a dry-run artifact of the dyndep step.
@@ -157,6 +157,31 @@ The spike's own checks also pass on 871de19f (`qcAD` and `BeckePartition.C` buil
 - `UTAD` 3/3, and `UTMesh BeckePartition*` 3/3: the in-place Becke leaf equals the hand oracle to 1e-13.
 
 The pin can move to 871de19f whenever useful.  Nothing in the tree depends on the difference.
+
+**BOTH FIXED upstream; the pin moved to cdd0d1c2 (lane B, 2026-11-13).**  #3748 was closed 2026-11-10 by d0cc6f5f ("Use getCacheAlignment for
+loop-invariant cache stores and memcpys", #3754: a power-of-two cache store got `align bsize`, so the backend emitted 32-byte AVX2 stores
+to 16-byte aligned heap).  #3747 was closed 2026-11-12 by cdd0d1c2 itself ("Cache whole allocations per iteration of their lifetime loop",
+#3810; not the PR #3753 the tracker had named).  cdd0d1c2 = v0.0.309-23, built in its own worktree `~/Code/Enzyme-cdd0d1c2` with the §1
+recipe (the shared `~/Code/Enzyme-main` plugin, which every lane's tree compiles against, left at 871de19f until the landing).  Both repros,
+same box, same LLVM 21.1.6, re-run side by side:
+
+| repro | flags | 871de19f (re-run 2026-11-13) | cdd0d1c2 |
+|---|---|---|---|
+| A | `-O1`, `-O2`, `-O3`, `-O2 -march=native`, `-O3 -march=native` | AD 0.8510516320, FD 4.5709930… | **AD 4.5709930494**, FD 4.5709930507 / …498 |
+| B | `-O2` | exact (D_1 −0.1044484299) | exact |
+| B | `-O3` | AD −0.0909661704 vs FD −0.1044484298 (wrong) | **exact** |
+| B | `-O2 -march=native` | SEGFAULT (rc 139) | **exact** |
+| B | `-O3 -march=native` | wrong, as `-O3` | **exact** |
+| B | `-O2 -march=native -mprefer-vector-width=128` | exact | exact |
+
+So BOTH per-file workarounds are dropped, `-mprefer-vector-width=128` and `-O2` (controller ruling 2026-11-13: they existed only for these
+defects, and the user's 2026-11-10 ruling was one move); the Enzyme TUs compile at the tree's codegen (`-O3 -march=native`).  Every Enzyme
+derivative keeps its FD gate.  Two build changes ride the move (same ruling):
+- the default checkout is NAMED FOR THE PIN, `~/Code/Enzyme-<pin>` (now `~/Code/Enzyme-cdd0d1c2`), so a pin move never swaps a plugin under
+  a tree: a tree whose cache still names `~/Code/Enzyme-main` fails the pin check loudly, and `-UQCHEM_ENZYME_PLUGIN -UQCHEM_ENZYME_INCLUDE`
+  on its reconfigure finds the new one;
+- every Enzyme TU carries the plugin `.so` as an `OBJECT_DEPENDS` (`qchem_enzyme_sources`, which `src/AD` now uses too), so a rebuilt
+  plugin recompiles them; ninja did not see a `-fplugin=` path as an input before.
 
 **Environment block for both issues** (paste-ready, no local paths; 2026-11-09):
 

@@ -254,8 +254,8 @@ TEST_F(LDA_XC, SpinNativeCollapsesToScalarFace)
 //=====================================================================================================
 //  THE XC POTENTIAL AND KERNEL ARE DERIVATIVES (doc/LinearResponsePlan.md H3; Enzyme since 2026-11-09).
 //  Slater and VWN write only their energy; v = de/drho_sigma is Enzyme's reverse mode, f = dv/drho_sigma'
-//  forward mode over it.  These are the finite-difference gates every Enzyme derivative keeps while
-//  EnzymeAD/Enzyme#3747 (a SILENTLY wrong reverse-mode gradient) is open: v against the FD of e, f against
+//  forward mode over it.  These are the finite-difference gates every Enzyme derivative keeps (EnzymeAD/
+//  Enzyme#3747, a SILENTLY wrong reverse-mode gradient, was fixed only at the cdd0d1c2 pin): v against the FD of e, f against
 //  the FD of v.  (The base class's own default kernel is a four-point difference of v, for libxc.)
 //=====================================================================================================
 namespace {

@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <iomanip>
+#include <string>
 
 import qchem.MoleculeCalculation;            // MoleculeCalculation, CalcOptions, Model, Angular
 import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
@@ -218,6 +219,32 @@ TEST(M_DFT, TeF6_PP_Spherical_Converges_Long)
     EXPECT_NEAR(calc.Energy(), -153.4149661057, 1e-5);             // anchor at the stated (50,17)
     EXPECT_NEAR(calc.Energy(), -153.4140873524, 2e-3) << "the (200,35) value: (50,17) is 0.9 mHa off it, the coarse mesh's own error";
 }
+
+// AN ALL-ELECTRON MOLECULE PAST NEON STARTS FROM SAD (OpenWork §3 "The default SAD seed stops at Ne", lane B 2026-11-13): the all-electron
+// seed library held Z 1-10 only, so these took the core guess with a WARN (before 3afed2228 they died on an uncaught throw).  The library
+// now holds every element NIST tabulates (scripts/gen-ae-seeds), and the Auto seed reads it: the SAD start reaches the SAME converged
+// state as the core guess -- a seed changes the path, never the answer.
+static Molecule MakeH2S()   // C2v, S-H 1.336 Angstrom, H-S-H 92.1 degrees (experimental)
+{
+    const double r=1.336/0.529177210903, h=0.5*92.1*3.14159265358979323846/180.0;
+    Molecule m;
+    m.Insert(Site{16, Vector3D<double>(0,0,0)});
+    m.Insert(Site{1, Vector3D<double>(0, r*std::sin(h), r*std::cos(h))});
+    m.Insert(Site{1, Vector3D<double>(0,-r*std::sin(h), r*std::cos(h))});
+    return m;
+}
+static void ExpectSADMatchesCoreGuess(const Molecule& mol, const std::string& basis, double tol)
+{
+    const auto sad=MoleculeSetup::Resolve(mol, {.basis=basis, .model=Model::LDA});
+    ASSERT_EQ(sad->seed, ChargeDensity::SeedStrategy::SAD) << "every element is in the all-electron library, so the Auto rule seeds from SAD";
+    MoleculeCalculation a(sad);
+    MoleculeCalculation b(MoleculeSetup::Resolve(mol, {.basis=basis, .model=Model::LDA, .seed=ChargeDensity::SeedStrategy::CoreGuess}));
+    ASSERT_TRUE(a.Result()) << "the SAD start converges";
+    ASSERT_TRUE(b.Result()) << "the core-guess start converges";
+    EXPECT_NEAR(a.Energy(), b.Energy(), tol) << "one converged state from either start";
+}
+TEST(M_DFT, H2S_AllElectron_SADSeed_eqCoreGuess)    { ExpectSADMatchesCoreGuess(MakeH2S(),  "dzvp", 1e-6); }
+TEST(M_DFT, TeF6_AllElectron_SADSeed_eqCoreGuess_Long) { ExpectSADMatchesCoreGuess(MakeTeF6(), "dzvp", 1e-6); }
 
 TEST(M_DFT, WaterLDA_AuxiliaryFit)
 {

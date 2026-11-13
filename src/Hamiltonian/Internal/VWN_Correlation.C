@@ -20,7 +20,7 @@ export namespace qchem::Hamiltonian
 //! \f$v_c^\sigma=\partial e_c/\partial\rho_\sigma\f$ is its reverse-mode derivative and the kernel
 //! \f$f_c^{\sigma\sigma'}=\partial v_c^\sigma/\partial\rho_{\sigma'}\f$ the forward-mode derivative of that.  The
 //! hand \f$dG/dx\f$, \f$f'(\zeta)\f$ and \f$(r_s,\zeta)\f$ partials are gone, and so is the base class's
-//! finite-difference kernel for VWN.  The FD gates stay (tests/LDA_XC.C) while EnzymeAD/Enzyme#3747 is open.
+//! finite-difference kernel for VWN.  The FD gates stay (tests/LDA_XC.C), as for every Enzyme derivative.
 //!
 //! Validated pointwise against libxc LDA_C_VWN (see LDA_XC_UT), both XC_UNPOLARIZED and XC_POLARIZED.
 //! Provides BOTH the potential \f$v_c\f$ and the energy density \f$\varepsilon_c\f$ -- the latter is
