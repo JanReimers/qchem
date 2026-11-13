@@ -2990,3 +2990,28 @@ The row (verbatim, from `doc/OpenWork.md`):
 | **Fields from a saved state, cheaply, on the structure-neutral face** (user 2026-11-12: a reopened run must "come back just the way they left it") | BUILT lane G 2026-11-13 (design accepted by the controller the same day): `qchem::StateView` (`src/Calculation/StateView.C`), built by each facade's `ViewState` (atom, molecule, solid; `deck::View` for a deck) from the basis alone and the saved D, C, eps, f -- no Hamiltonian, grids or SCF; judged by `Calculation::JudgeView` (the restart's refusals plus ANY moved atom, named with its remedy); `ReadState` now reads C, eps, f back.  Gate `FacadeMatrix.Cell/<Kind>_ViewMatchesTheLiveState` (rho, m, levels, orbitals equal the live run's; the refusals are Outcomes; an inline deck's positions round-trip bit-exactly).  Binding `qcb_view_*` / `qchem_py.StateView`; the GUI redraws a reopened run from its state file, says so when it is gone, and keeps each run's view (field, representation, iso, slice, camera) in the workspace | REMAINDER: a complex Bloch orbital is refused by the view (the crystal-orbital row above decides what it plots); move this row to History5 at landing · `src/Calculation/StateView.C`, `pybind/` |
 
 Landed with lane B's k-gates: short 1629/0, long 18/0, 0 moved vs main-febe0b1a (new: 3 FacadeMatrix ViewMatchesTheLiveState cells).
+
+## ✅ Enzyme's silent failures, #3747 and #3748: both FIXED upstream, the pin moved to cdd0d1c2 (lane B, 2026-11-13)
+
+#3748 closed 2026-11-10 by d0cc6f5f (#3754, cache-store alignment); #3747 closed 2026-11-12 by cdd0d1c2 (#3810, "Cache whole allocations per
+iteration of their lifetime loop"; NOT the PR #3753 the row had named).  Both filed repros re-run side by side on 871de19f and cdd0d1c2
+(`doc/Records/EnzymeSpike.md` §6): on cdd0d1c2 A is exact at every flag set, and B is exact at -O2, -O3 and -march=native (871de19f: A wrong,
+B wrong at -O3, segfault at -O2 -march=native).  The pin moved to cdd0d1c2 in ONE move (user ruling 2026-11-10); both per-file
+workarounds, `-mprefer-vector-width=128` and `-O2`, are dropped (controller ruling 2026-11-13: they existed only for these defects), so the
+Enzyme TUs compile at the tree's `-O3 -march=native`; every Enzyme derivative keeps its FD gate.  Same ruling: the default checkout is
+NAMED FOR THE PIN (`~/Code/Enzyme-cdd0d1c2`, built in its own git worktree; `~/Code/Enzyme-main` is left at 871de19f), so a tree still
+cached on the old one fails the pin check loudly instead of compiling against a swapped plugin; and the plugin `.so` is an
+`OBJECT_DEPENDS` of every Enzyme TU, so a rebuilt plugin recompiles them.
+
+The row as it stood, verbatim:
+
+· **Enzyme's silent failures: FILED upstream, waiting on fixes** (lane B 2026-11-08; filed by the user 2026-11-09 as
+  [EnzymeAD/Enzyme#3747](https://github.com/EnzymeAD/Enzyme/issues/3747) (A) and [#3748](https://github.com/EnzymeAD/Enzyme/issues/3748) (B);
+  `doc/Records/EnzymeSpike.md` §6).  Two defects, each with a self-contained repro:
+  - (A) a wrong reverse-mode gradient, silent, at any `-O`: a loop-local array filled through an inner loop with a data-dependent trip
+    count, `enzyme_loopcache_repro.cpp`, 30 lines;
+  - (B) a segfault at `-O2 -march=native`, AVX2, `enzyme_flags_repro.cpp`.
+
+  The "tuple wrapper zeroes the gradient" item is RETRACTED (it was A in another shape).  Both defects REPRODUCE unchanged on Enzyme `main`
+  871de19f (⊇ v0.0.308, 2026-11-08; record §6).  Next action: when either issue reports a fix (the user gets GitHub's emails), re-run both
+  repros on the fixing commit, then move the pin; drop the per-file `-mprefer-vector-width=128` flags only once B is fixed.

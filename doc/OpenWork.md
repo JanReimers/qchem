@@ -318,10 +318,10 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
   verdict).  **RULED 2026-11-09 (user, on the audit's 5 of ~30): Enzyme is REQUIRED** -- *"Seems like a small burden for a lot of
   functionality."*  Work in this order: (1) configure FAILS, with a clear message, when the plugin is missing (no OFF build); every tree
   (Release, RelChecked, the lane trees, the GUI's) gets configured with it -- **DONE (lane B 4c65d826)**: root `CMakeLists.txt` finds
-  `~/Code/Enzyme-main` by default, checks the pin 871de19f and runs a smoke derivative; a tree with an empty plugin cache finds it on
+  `~/Code/Enzyme-main` by default, checks the pin (871de19f then; cdd0d1c2 since 2026-11-13) and runs a smoke derivative; a tree with an empty plugin cache finds it on
   reconfigure; (2) the hand derivatives below move to in-place AD registrations, one family per commit, each behind its existing FD gate;
-  the hand version is deleted.  While EnzymeAD/Enzyme#3747 (a SILENT wrong reverse-mode gradient) is open, every Enzyme derivative keeps
-  its FD gate.  The principle is one derivative method for all derivatives, Enzyme.
+  the hand version is deleted.  Every Enzyme derivative keeps its FD gate (EnzymeAD/Enzyme#3747, a SILENT wrong reverse-mode gradient, was
+  fixed only at the cdd0d1c2 pin, 2026-11-13; the gates stay, controller ruling).  The principle is one derivative method for all derivatives, Enzyme.
   - **DONE (lane B bafecbbb)**: the basis `Gradient(r)` faces (`PrimGaussian`, `GaussianRF`, `Polarization`; PG_Cart, PG_LibCint,
     PG_Spherical consume it), Enzyme's in `GaussianRF_AD.C`; the FD gates gained a permanent on-axis point.
   - **DONE (lane B 6a95ce87f)**: our LDA functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`): each states its energy
@@ -331,8 +331,8 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
     default remains for libxc's functionals only.  No hand derivative family is left in the list.
 
   New force derivatives are Enzyme only.  Both listed families are moved (in-place AD registrations beside their values, one family per
-  commit, behind their FD gates, the hand versions deleted); next action: none on the energy path, a new hand derivative found later moves the same way.  While EnzymeAD/Enzyme#3747 is open every Enzyme
-  derivative keeps its FD gate; its trigger (a callee filling a loop-local array through an inner loop with a data-dependent trip count) is
+  commit, behind their FD gates, the hand versions deleted); next action: none on the energy path, a new hand derivative found later moves the same way.  Every Enzyme
+  derivative keeps its FD gate; #3747's trigger (fixed at the cdd0d1c2 pin) (a callee filling a loop-local array through an inner loop with a data-dependent trip count) is
   common in `Gradient(r)` contraction loops.  **TRIGGER (user 2026-11-08):** if the per-face FD gates of the force work
   (lane B, §13.2) turn up a lot of testing and fixing in these hand gradient functions, that is the signal to make Enzyme non-optional NOW
   and use it consistently everywhere, rather than keep repairing hand derivatives.  The lane that hits it reports the count (gates failed,
@@ -353,16 +353,7 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
   All four new ones are in the atom (radial) families, which the ⟨∇φ|∇φ⟩ kinetic gates cannot see.  None was on an energy path.  Six
   silent zero-gradient stubs now throw by name, and `HalfDensity` is exact.  XC `GetVxc`/`GetFxc` were already gated (vs libxc; FD
   kernels).
-· **Enzyme's silent failures: FILED upstream, waiting on fixes** (lane B 2026-11-08; filed by the user 2026-11-09 as
-  [EnzymeAD/Enzyme#3747](https://github.com/EnzymeAD/Enzyme/issues/3747) (A) and [#3748](https://github.com/EnzymeAD/Enzyme/issues/3748) (B);
-  `doc/Records/EnzymeSpike.md` §6).  Two defects, each with a self-contained repro:
-  - (A) a wrong reverse-mode gradient, silent, at any `-O`: a loop-local array filled through an inner loop with a data-dependent trip
-    count, `enzyme_loopcache_repro.cpp`, 30 lines;
-  - (B) a segfault at `-O2 -march=native`, AVX2, `enzyme_flags_repro.cpp`.
-
-  The "tuple wrapper zeroes the gradient" item is RETRACTED (it was A in another shape).  Both defects REPRODUCE unchanged on Enzyme `main`
-  871de19f (⊇ v0.0.308, 2026-11-08; record §6).  Next action: when either issue reports a fix (the user gets GitHub's emails), re-run both
-  repros on the fixing commit, then move the pin; drop the per-file `-mprefer-vector-width=128` flags only once B is fixed.
+· ✅ **Enzyme's silent failures (#3747, #3748): both FIXED upstream; pin moved to cdd0d1c2** (lane B 2026-11-13; full text `doc/Records/OpenWork_History5.md`, repros `doc/Records/EnzymeSpike.md` §6).  Both per-file workarounds (`-O2 -mprefer-vector-width=128`) dropped; every FD gate stays; the default checkout is named for the pin (`~/Code/Enzyme-cdd0d1c2`) and the plugin is an `OBJECT_DEPENDS` of every Enzyme TU.
 · **densityEcut reads source "floor" when the pilot chose its cutoffFactor** (lane G 2026-11-08).  When the pilot doubles cutoffFactor, `grids.densityEcut` is the floor at a factor the PILOT picked, but the ladder that writes the key doesn't know that; only the Calculation does.  Next action: the ladder takes the factor's source as an input (or a `cutoffFactorSource`), so the report reads "floor at the pilot's factor".  RasterLadder (lane B's area).
 · **GDM's line search runs below the energy's noise floor when a Δρ gate asks for more than E can see** (controller 2026-11-10, lane S bisect).  GDM descends E, which resolves a density change δ only as δ²·E: at Δρ/N 1e-8 on Si Γ (E 7.1 Ha) that is ~1e-15 Ha, the roundoff floor.  `SolidSession.GeometryRunPicksAndSizesTheBeckeMesh_Long` re-converging from an already-converged D compared energies 0-16 ulps apart, STALLED (7 times), reset its history on each forced mixed step, and the count went 20/24/30/52 across bit-only changes (main already 3 stalls); it ended only on a lucky backtracked step with [F,D] still 2.8e-7.  The TEST is fixed (user ruling: Δρ/N 1e-7 there, cap tightened 35 → 28 at 24 measured, 0 stalls).  What stays open is GDM's own behaviour when a USER states such a gate.  Next action: GDM accepts a step within a noise slack (~64 ulp(E)), or switches acceptance to the [F,D] decrease once E is at its floor, and reports the floor rather than burning iterations; gate on the 1e-8 variant of that test (0 stalls).  Touches GDM: run `-L "panel|periodic"`.  Note: lane S, `~/.config/Claude/side-session-notes/local_109cdf85-cf35-41e9-9234-ea550716526f/lane-s-pilotcost-52-verdict.md`.  **Second case (lane B 2026-11-10, knownRed):** `SolidSession.SessionSizesItsRastersOnMatrixElements` at Δρ/N 1e-7: once the kinetic screen moved its start (04fc3e043), round 3 of the geometry pilot (cutoffFactor 8 → 16) starts at Δρ 1.0e-6 and crawls 13 GDM steps with E flat to 1e-14 and [F,D] contracting 0.81 per step: 21 re-convergence iterations against cap 16 (18 on the ε→0 reference build, 9 before), no stall.  Its gate is kept; it leaves `knownRed` when this row's fix lands.
 · **The multipole Vxc fit has no Pρ cell: `xc.rho fit` with `VxcFit::Multipole` throws `logic_error` ("not realized yet")** (lane S 2026-11-10, V-XC-ONE-TERM step 3).  The ρ axis is realized for A1 (`OverlapProjectedDensitySampler`) and δ (exact); the multipole fit's projection is a different metric (its moments).  Next action: realize it as a projected-sampler strategy over the multipole fit's own forward/adjoint, gated by the FD H = dE/dD test `VxcProductSpace.TheA1ProjectedCellsMatrixIsItsEnergysDerivative` extended to it; until then the throw becomes an Outcome refusal by name · `src/Hamiltonian/Internal/Imp/Hamiltonians.C` (`MolecularVxcTerm`), `src/ChargeDensity/Internal/Imp/DensitySampler_OverlapProjected.C`
