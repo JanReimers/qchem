@@ -36,7 +36,7 @@ or dcmplx, `src/BasisSet/Internal/DB_Cache*.C`).  The primitive caches (Cache2/3
 | `I2C::RestMass` | `Orbital_DHF_IBS` | one block | the block |
 | `I2x::Kinetic` (RKB L/S cross) | `Orbital_DHF_IBS` | the large block and its own small-component partner | the DHF block (it owns the partner) |
 | `I2n::Nuclear` | `Orbital_1E_IBS::Nuclear(cl)` | block × the nuclear potential of `cl` | **the Ven TERM.**  It already caches its matrix per irrep (`tStatic_HT_Imp`); the basis-side copy is a second copy |
-| `I2n::LocalPP` / `LocalPPLong` / `LocalPPShort` / `SeparablePP` | `GPW_IBS` (k-block) | k-block × PP species × structure | **the Ven_PP terms**, which also cache their blocks already.  `LocalPPShort` is keyed WITHOUT the grid on purpose, so a rebuilt basis (a grid ladder stage) reuses it.  Owned locally, that reuse becomes an explicit hand-over, if a measurement says it is worth one (§7, M2) |
+| `I2n::LocalPP` / `LocalPPLong` / `LocalPPShort` / `SeparablePP` | `GPW_IBS` (k-block) | k-block × PP species × structure | **the Ven_PP terms**, which also cache their blocks already.  `LocalPPShort` is keyed WITHOUT the grid on purpose, so a rebuilt basis reuses it.  M2 measured that reuse at 0.2 % of a run, so it is dropped (§7) |
 | `I1C::Charge`, `I1C::Normalization`, `I2C::Repulsion`, `I2C::InvOverlap`, `I2C::InvRepulsion` | `Fit_IBS` | the fit basis alone | **the fit basis** (members of `Fit_IBS`, an Internal class) |
 | `I2x::Repulsion` (fit × fit) | `Fit_IBS::Repulsion(b)`; today only `ConstrainedFF` with b = itself | two fit bases | the fit basis (the cross with itself is a one-block entry) |
 | `I3C::Overlap`, `I3C::Repulsion` (⟨ab\|c⟩) | `Orbital_DFT_IBS::Overlap3C/Repulsion3C(fit)`, cached in `theCache<TFit>` | orbital block × fit basis | **the orbital parent**, keyed by (block, the fit's INSTANCE ID).  ⟨ij\|f⟩ = ⟨f\|ij⟩ is stored once (§2, the user's rule) |
@@ -84,7 +84,7 @@ ij do not."*
 
 **No residual key needs geometry.**  Every geometry dependence is carried by the owner: a new geometry is a new BasisSet, so it is
 a new cache.  The one entry that WANTS to cross owners is `LocalPPShort` across a grid ladder.  That becomes an explicit hand-over,
-if measurement M2 (§7) says it is worth one, never a key.
+if measurement M2 (§7) says it is worth one, never a key.  M2 says it is not.
 
 The δ and multipole fits carry no geometry in their `BasisSetID` today.  Under instance IDs that stops mattering.  We do NOT put a
 δ fit's point set in any key: the user, *"we don't want that, the key would be huge!!"*.  Two δ fits paired with one orbital basis
@@ -228,11 +228,11 @@ No number may move.  A moved number is a bug in the stage, not roundoff.
 
 | stage | what | hub? |
 |---|---|---|
-| **S0** | Delete the dead mesh-keyed overloads.  Key `HF_HT`'s J/K blocks and `PWTerms_PP`'s by `Irrep`, not the `BasisSetID` string.  Measure M2 (§7) | no |
+| **S0** ✅ 9f4038061 | Delete the dead mesh-keyed overloads.  Key `HF_HT`'s J/K blocks and `PWTerms_PP`'s by `Irrep`, not the `BasisSetID` string.  Measure M2 (§7) | no |
 | **S1** | The framework: `SlotMap<Key,V>` (Common, beside `LazyLock`).  It holds find-or-create under a lock, a per-slot once-fill, a byte count for the report, and a REFRESH discipline for density-dependent slots (`Clear` + rebuild in `RefreshForDensity`; the block read stays pure, V1.41).  Unit tests: a threaded fill is the serial one, nested fills do not deadlock, a refresh slot is never filled lazily.  Then `tHT_Common::itsCache` moves onto it | no (Hamiltonian internals) |
 | **S2** | `Fit_IBS`'s own entries (Charge, Norm, Repulsion, InvOverlap, InvRepulsion, self fit × fit) become members of the fit basis | no (Internal) |
 | **S3** | **Hub.**  `IrrepBasisSet_IDs : DBCacheClient` becomes a cache-client face: `BasisSetID()` and `CacheDim()` retire, replaced by the block's index in its parent.  Every concrete block constructor DEMANDS a `shared_ptr<BasisCache>`, which the parent's factory makes and a test harness holds (§3).  A partner basis (a fit) owns an `InstanceToken` (§3b).  The bodies of `Overlap()`, `Kinetic()`, `RestMass`, the RKB cross, `Direct`/`Exchange` and `Overlap3C`/`Repulsion3C` switch to the cache.  **The accessors keep their signatures**: only the base face changes.  Gates: the §3b dead-partner and address-reuse gate, and the threaded once-fill.  `HubInterfaceAudit` snapshot in a commit citing the ruling | **YES**: `qchem.BasisSet` (IrrepBasisSet), `Orbital_DFT_IBS` |
-| **S4** | **Hub.**  Nuclear and PP leave the basis: `Orbital_1E_IBS::Nuclear(cl)` (the cached accessor) and the cached PP face of `GPW_IBS` go.  The Ven/Ven_PP terms call the uncached `Make*`, and their existing static cache is the one copy.  This also fixes a naming defect: `tGPW_IBS::MakeSpeciesFieldMatrix` / `MakeProjectorMatrix` are `Make`s that CACHE (CLAUDE.md: Get caches, Make computes).  If M2 says the ladder reuse matters, an EXPLICIT hand-over of the short-PP blocks from one stage's term to the next, a named phase (pin 11) | **YES**: `Orbital_1E_IBS` |
+| **S4** | **Hub.**  Nuclear and PP leave the basis: `Orbital_1E_IBS::Nuclear(cl)` (the cached accessor) and the cached PP face of `GPW_IBS` go.  The Ven/Ven_PP terms call the uncached `Make*`, and their existing static cache is the one copy.  This also fixes a naming defect: `tGPW_IBS::MakeSpeciesFieldMatrix` / `MakeProjectorMatrix` are `Make`s that CACHE (CLAUDE.md: Get caches, Make computes).  M2 (§7) found the cross-basis reuse of the short PP worth 0.2 % of a run: dropped, no hand-over | **YES**: `Orbital_1E_IBS` |
 | **S5** | Cache2/3/4 and the primitive registry move into the parent store.  The MnD kernels take the cache from the fill that calls them, instead of from `GaussianRF.C`'s static memo.  A lattice driver's image loop owns a scratch primitive cache, and `GeometryCacheBudget` is deleted | no (BasisSet internals) |
 | **S6** | Delete `IntegralsCache_RAM`, `theCache<T>`, `qchem.BasisSet.Internal.DB_Cache` and the ERI4 GC.  Each store reports its bytes under the CALLER's report scope (the basis section): the callee writes one level in, replacing the global `EmitIntegralsCacheReport` snapshot.  The ERI4 RAM cap becomes a setup policy (predicted bytes; WARN AND RUN / REFUSE ON RESOURCES, reported under `policy`) | the report face only |
 
@@ -262,9 +262,22 @@ The solid path does the same.  `SolidCalculation`'s geometry session builds each
 - **A cache keyed by a string inside a term**: `HF_HT` (`RefreshedBlocks(...).at(bs->BasisSetID())`) and `PWTerms_PP` (S0).
 - **`Make` that caches**: `tGPW_IBS::MakeSpeciesFieldMatrix` / `MakeProjectorMatrix` (S4).
 - **ERI4 canonical order by string**: `min(BasisSetID)`.  It becomes the block index (S3).
-- **M2 (to measure at S0): the grid-ladder reuse of `LocalPPShort`.**  It is keyed without the grid so a later stage's rebuilt basis
-  hits it.  Cost of the short PP against a stage's setup on NaF and MnO.  If it is small, S4 drops it; if it is large, S4 adds the
-  explicit hand-over.
+- **M2, MEASURED 2026-11-12 (S0): the cross-basis reuse of `LocalPPShort` is worth nothing.**  It is keyed without the grid, so a
+  rebuilt basis hits it.  The ledger's "setup: local-PP SHORT" bucket runs only on a miss.
+  - Li q3 box (`GPW_LiBox`): built ONCE, 0.019 s, of 52 s setup.
+  - NaF SR2 Γ (`decks/bench/NaF_SR2_Gamma_parity.json`): built ONCE, 0.105 s, over 4 GPW basis builds and 12 Hamiltonian builds, of
+    a run of about 200 s.  Per owner it would be rebuilt with each basis, about 0.4 s (0.2 %).
+  - So S4 drops the reuse, with NO hand-over.
+  - Seen beside it: the LONG local PP is REBUILT for every Hamiltonian build (Li 6 × 0.89 s = 5.3 s, 10 % of setup; NaF 12 × 0.55 s =
+    6.5 s).  Its key carries the grid, and the grid-audit reference builds are new grids.  That is a run-sequence cost (why 12 builds
+    in a 4-stage run), not a caching question: an OpenWork §4 row.
+- **A third local cache keyed by a content string**: `tGPW_IBS` keeps its own 3C tensors in `its3Cs`, keyed by `"O|"+fit.BasisSetID()`
+  (`GPW_IBS.C` ~213).  At S3 it becomes the orbital parent's 3C slot, keyed by the fit's instance token.
+- **The string key crosses a PROTECTED hub**: `tChargeDensity<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&)`
+  (`ChargeDensity.C`).  It is how Vee_HF, Vxc_HF and the NL per-l diagnostic take their energy from their own blocks; `IrrepCD` looks
+  up its block by `itsBasisSet->BasisSetID()`.  So rekeying `HF_HT` and `PWTerms_PP` (S0) needs that face to take an `Irrep`-keyed
+  map.  That is a ChargeDensity hub change, which ruling 5 does not cover: put to the user 2026-11-12, who ruled "Yes, key by Irrep"
+  (ruling 7, §8).  DONE in S0: the map is keyed by each block's `GetIrrep(Spin::None)`.
 - **The never-freed primitive registry** and the never-clearable Cache2/3: the root of the "trail of dead geometries", gone at S5.
 
 ## 8. The user's rulings (2026-11-12, relayed verbatim by the controller)
@@ -279,6 +292,8 @@ These are the user's selected answers to the six questions this section posed.
 5. **The S3 and S4 hub changes**: *"Approve S3 and S4 (Recommended)"*.  This is the design-discussion ruling for the `BasisSet`
    hub, to be cited in the commit that regenerates `scripts/hub-interfaces.snapshot`.
 6. **The ERI4 cap**: *"Setup policy (Recommended)"*: WARN AND RUN / REFUSE ON RESOURCES at setup, not a silent GC.
+7. **The ChargeDensity hub key** (asked during S0): *"Yes, key by Irrep (Recommended)"*: `DM_ContractBlocks` takes
+   `std::map<Irrep,hmat_t<T>>`; no other member of that hub changes.
 
 The §7 findings fall into the stages:
 - S0: the dead mesh-keyed `Get`s, and the `HF_HT` / `PWTerms_PP` string keys.

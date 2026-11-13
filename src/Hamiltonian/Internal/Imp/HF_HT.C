@@ -26,7 +26,7 @@ const rsmat_t& Dynamic_HF_HT_Imp::GetMatrix(const robs_t* bs,const Spin& s,Densi
     if (!wholeBasis || wholeBasis!=itsWholeBasis)
         throw std::runtime_error("HF term: GetMatrix's composite basis is not the one the refresh latched (a null one, or "
                                  "RefreshForDensity(wholeBasis, cd) was skipped).");
-    return RefreshedBlocks(id, CacheSpin(s)).at(bs->BasisSetID());
+    return RefreshedBlocks(id, CacheSpin(s)).at(bs->GetIrrep(Spin::None));
 }
 
 // THE GROUND-STATE REFRESH (V1.41 stage 2, ruling 2026-11-07): every block GetMatrix and GetEnergy will read, built here.  The spin
@@ -38,7 +38,7 @@ void Dynamic_HF_HT_Imp::RefreshForDensity(const rbs_t* wholeBasis, const rCharge
     for (const Spin& s : ChargeDensity::SpinIrrepsOf(cd)) ContractAll(cd, CacheSpin(s));
 }
 
-const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::RefreshedBlocks(DensityID id, const Spin& s) const
+const std::map<Irrep,rsmat_t>& Dynamic_HF_HT_Imp::RefreshedBlocks(DensityID id, const Spin& s) const
 {
     auto it=itsJKs.find(s);
     if (id.IsNone() || it==itsJKs.end() || !(it->second.id==id) || it->second.jk.empty())
@@ -58,7 +58,7 @@ void Dynamic_HF_HT_Imp::LatchWholeBasis(const rbs_t* wholeBasis) const
     else if (itsWholeBasis!=wholeBasis)
         throw std::runtime_error("HF term: the whole-system (composite) basis changed mid-run.  This term "
                                  "latched a different basis on its first Fock build, and its per-irrep "
-                                 "blocks (itsJKs) are keyed by BasisSetID against THAT basis -- serving them "
+                                 "blocks (itsJKs) are keyed by Irrep against THAT basis -- serving them "
                                  "for a different composite would silently mix cross-irrep views.  A term "
                                  "belongs to one wavefunction; do not share it across two.");
 }
@@ -80,10 +80,10 @@ rmat_t Dynamic_HF_HT_Imp::GetMatrix(const robs_t* bra, const robs_t* ket, const 
     if (bra->BasisSetID()!=ket->BasisSetID())
         throw std::logic_error("HF term: a response on a (bra != ket) block pair -- q != 0 / symmetry-lowering "
                                "HF response is not implemented (doc/LinearResponsePlan.md: R1 is q = 0)");
-    return rmat_t(ContractResponse(delta, CacheSpin(s)).at(bra->BasisSetID()));
+    return rmat_t(ContractResponse(delta, CacheSpin(s)).at(bra->GetIrrep(Spin::None)));
 }
 
-const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::ContractResponse(const ChargeDensity::TransitionDensity<double>& delta,
+const std::map<Irrep,rsmat_t>& Dynamic_HF_HT_Imp::ContractResponse(const ChargeDensity::TransitionDensity<double>& delta,
                                                                          const Spin& s) const
 {
     assert(itsWholeBasis && "HF term: a response before RefreshForDensity latched the composite basis");
@@ -99,7 +99,7 @@ const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::ContractResponse(const C
 // One (density, spin) contraction: the density's CacheSpin channel, presented through its HF sweep face.
 // \a s is a CacheSpin: None for a spin-blind operator (one set of blocks for the run), Up/Down for a
 // per-channel one -- so a polarized exchange keeps K_up and K_dn side by side under one density serial.
-const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::ContractAll(const rChargeDensity* cd, const Spin& s) const
+const std::map<Irrep,rsmat_t>& Dynamic_HF_HT_Imp::ContractAll(const rChargeDensity* cd, const Spin& s) const
 {
     Blocks& b=itsJKs[s];
     if (cd->Version()==b.version && !b.jk.empty()) return b.jk;   // already current: skip the channel lookup too
@@ -114,7 +114,7 @@ const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::ContractAll(const rCharg
     return jk;
 }
 
-const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::Contract(Blocks& b, const ChargeDensity::tHF_System_CD<double>& sweep,
+const std::map<Irrep,rsmat_t>& Dynamic_HF_HT_Imp::Contract(Blocks& b, const ChargeDensity::tHF_System_CD<double>& sweep,
                                                                  size_t version, const Spin& s) const
 {
     assert(itsWholeBasis);
@@ -132,7 +132,8 @@ const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::Contract(Blocks& b, cons
     for (size_t k=0;k<obs.size();++k)
     {
         if (w!=1.0) X[k]*=w;                                // no-op multiply skipped for Coulomb (w==1)
-        b.jk[obs[k]->BasisSetID()]=std::move(X[k]);
+        if (!b.jk.emplace(obs[k]->GetIrrep(Spin::None), std::move(X[k])).second)
+            throw std::logic_error("HF term: two blocks of the whole basis carry the same Irrep -- the per-irrep J/K map cannot key them");
     }
     b.version=version;
     return b.jk;

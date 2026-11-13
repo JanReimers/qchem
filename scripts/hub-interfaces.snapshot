@@ -291,7 +291,7 @@ namespace qchem::ChargeDensity {
         virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const=0;
         virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>*, const Structure* st) const=0;
         virtual rmat3d_t DM_Virial(const tStatic_VC<T>*, const Structure* st) const=0;
-        virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const=0;
+        virtual double DM_ContractBlocks(const std::map<Irrep,hmat_t<T>>&) const=0;
         virtual const BasisSet::WholeSystemFock_IBS<T>* WholeSystemFock() const;
         virtual void AddAODensity(hmat_t<T>& Dao) const;
     };

@@ -2752,6 +2752,22 @@ What the table shows:
 
 The open question (why ~0.3 e against LDA's ~1.2 μB: Γ-only k sampling first, then the basis) is the OpenWork §3 row "NiO AFM-II moment
 small on VALENCE_LOWQ_VA, Γ-only".  Outputs: `~/Code/qchem6-runs/NiO/laneB-conv-*.out`.
+## ✅ The restored stage's linear cap unified on the CEILING (lane A, 2026-11-13, 71d0f0f93)
+
+The row (verbatim, from `doc/OpenWork.md`): | **NEAR-TERM: unify the restored stage's linear cap on the CEILING (MaxRelaxRo), measured** (M; lane A 2026-11-12, found building B5; controller ruling) | A restored Auto stage on a linear mixer caps only its START at 0.3 (`SolidCalculation::Converge`); the adaptive step can grow back to 1.0, against CLAUDE.md's "a linear fallback relaxes at 0.2-0.3, not 1.0!".  The ±α FD-LRT path already caps START and CEILING (its comment: capping only the start "let the adaptive step grow back to 1.0").  B5 keeps both as they are and prints which one applies | cap MaxRelaxRo too on the restored stage, inside the B5 recipe chooser; land as its own step WITH the panel, listing every moved restart anchor · `doc/SCFRobustnessPlan.md` §3 row 4 |
+
+Fix: `CapRestoredStep` (`src/Calculation/SCFRecipe.C`) caps `MaxRelaxRo` beside `StartingRelaxRo` at `theRestoredLinearStep` (0.3) on a
+restored Auto stage whose mixer resolves linear, the same as the ±α FD-LRT stages.  The golden table in `UTCalculation`
+`SCFRecipe.AutoAndInsulatorAreTheOldPolicyInEveryCell` now holds the pre-B5 policy plus this one change.
+
+Measured (sweep vs `lane-a-b5_*`): 13 restored stages in 11 tests now print `ceiling 0.3` -- `SolidState.ExactResume_{PlaneWave,
+PlaneWave_PartialEigensolve, Pol_Complex, UnPol_Real}`, `SmearedExactResume_StartsAtTheSavedState`, `WarmStart_OtherGrid_StartsAtTheAnswer`,
+`RealnessCrossesBothWays` (2), `ASizedStateResumesOnItsOwnDensityBall`, `FacadeMatrix Solid_SaveRestartRoundTrips`,
+`GPW_MnBox.Γ_M6_Smear_eqFinite`, `GPW_Na.k222s_Imp_Smear_GlobalMu_Anchor` (2).  **None moved** (energy and iterations at 1e-10): the
+adaptive step never grew past 0.3 in any of them, so the cap is a guard the suite does not yet exercise.  Not capped, by design: a
+STATED accelerator keeps the caller's step (6 stated-Ladder stages at 0.3/1, 5 at 1/1), and the raster pilot's stated Ladder (10 stages)
+-- both print as stated.  Sweep: short 1603/0, long 15/0, panel4t 25/0, RelChecked built.
+
 
 ## ✅ A spherical molecular PP run dies on its first H at radial meshes of 50 points or more: FIXED AT HEAD, CAUSE UNIDENTIFIED (lane B, 2026-11-12)
 

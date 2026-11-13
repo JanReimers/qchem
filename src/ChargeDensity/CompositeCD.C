@@ -129,7 +129,7 @@ public:
     // for an operation the periodic path never has (Ham_PW_DFT adds Vee_Hartree, never exact exchange).
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
-    virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;   // sum over irrep blocks
+    virtual double DM_ContractBlocks(const std::map<Irrep,hmat_t<T>>&) const;   // sum over irrep blocks
     virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>*, const Structure* st) const;   // sum over irrep blocks (§13.2)
     virtual rmat3d_t   DM_Virial  (const tStatic_VC<T>*, const Structure* st) const;   // sum over irrep blocks (CellHalf_Design §5)
     //! \copydoc tDM_CD::ProjectOnto

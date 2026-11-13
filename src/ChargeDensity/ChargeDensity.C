@@ -375,12 +375,13 @@ public:
     //! d/dε beside it (CellHalf_Design §5; user ruling §6.2): Σ over this density's blocks of the client's per-block virial.  For E = Tr(D M)
     //! at fixed D this IS ∂E/∂ε (channel A); for W and the overlap it is the Pulay term's.
     virtual rmat3d_t DM_Virial(const tStatic_VC<T>*, const Structure* st) const=0;
-    //! Energy contraction of THIS density against a per-irrep Fock-block map (keyed by BasisSetID):
+    //! Energy contraction of THIS density against a per-irrep Fock-block map (keyed by each block's spatial
+    //! \c Irrep, i.e. \c GetIrrep(Spin::None); user ruling 2026-11-12):
     //! \f$\sum_i \mathrm{sum}(D_i \odot B_i^\mathsf{T}) = \mathrm{Tr}(D\,B)\f$.  The whole-system DUAL of
     //! AccumulateDirectAll -- lets a whole-system term (HF Coulomb/exchange) take its energy from its own
     //! cached blocks WITHOUT a per-irrep GetMatrix round-trip through DM_Contract.  Every density
     //! implements it, including the periodic path (PW_Hartree contracts its long-range blocks here).
-    virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const=0;
+    virtual double DM_ContractBlocks(const std::map<Irrep,hmat_t<T>>&) const=0;
 
     // The exact-exchange (HF) accumulators are NOT here any more -- see tHF_System_CD / tHF_Pair_CD
     // below (V1.6).  They were four asserting defaults on this general face, which every concrete family

@@ -353,30 +353,6 @@ template <class T> const ERI4& IntegralsCache_RAM<T>::Get(I4C i4c,const DBCacheC
     return it->second;
 }
 
-template <class T> const rvec_t& IntegralsCache_RAM<T>::Get(I1C i1c,const DBCacheClient* bs,const Mesh_ID_t& mid,std::function<rvec_t()> make)
-{
-    IBS_ID_t id=bs->BasisSetID();
-    key1m_t key(i1c,id,mid);
-    if (auto i=itsmVecs.find(key); i!=itsmVecs.end()) return i->second;
-    if (itsMakeLog) itsLogger << "1Cm " << std::format("{:<12}",i1c) << " compute a=" << id << " mesh=" << mid << std::endl;
-    auto v=make();
-    const auto [it,ok]=itsmVecs.insert({key,std::move(v)});
-    assert(ok);
-    return it->second;
-}
-
-template <class T> const rmat_t& IntegralsCache_RAM<T>::Get(I2x i2x,const DBCacheClient* a,const DBCacheClient* b,const Mesh_ID_t& mid,std::function<rmat_t()> make)
-{
-    IBS_ID_t ida=a->BasisSetID(), idb=b->BasisSetID();
-    key2xm_t key(i2x,ida,idb,mid);
-    if (auto i=itsmMats.find(key); i!=itsmMats.end()) return i->second;
-    if (itsMakeLog) itsLogger << "2xm " << std::format("{:<12}",i2x) << " compute a=" << ida << " b=" << idb << " mesh=" << mid << std::endl;
-    auto v=make();
-    const auto [it,ok]=itsmMats.insert({key,std::move(v)});
-    assert(ok);
-    return it->second;
-}
-
 // --- Troubleshooting / DBCache-unit-test Clear() hooks (see the declarations in the interface partition).
 // kCacheTestHooks is the compile-time switch -- the constexpr-bool idiom, NO preprocessor.  Default true so the DBCache unit tests run in the normal Release UTMain; flip to false
 // to drop the bodies from a hardened production build (they are unreachable from production code anyway,
@@ -389,7 +365,6 @@ template <class T> void IntegralsCache_RAM<T>::Clear(I1C op)
     if constexpr (kCacheTestHooks)
     {
         std::erase_if(itsVecs,  [&](const auto& kv){ return std::get<0>(kv.first)==op; });
-        std::erase_if(itsmVecs, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
     }
 }
 template <class T> void IntegralsCache_RAM<T>::Clear(I2C op)
@@ -409,7 +384,6 @@ template <class T> void IntegralsCache_RAM<T>::Clear(I2x op)
     if constexpr (kCacheTestHooks)
     {
         std::erase_if(itsMats,  [&](const auto& kv){ return std::get<0>(kv.first)==op; });
-        std::erase_if(itsmMats, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
     }
 }
 template <class T> void IntegralsCache_RAM<T>::Clear(I3C op)
