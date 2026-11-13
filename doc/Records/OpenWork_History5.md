@@ -2690,3 +2690,47 @@ What the table shows:
 
 The open question (why ~0.3 e against LDA's ~1.2 μB: Γ-only k sampling first, then the basis) is the OpenWork §3 row "NiO AFM-II moment
 small on VALENCE_LOWQ_VA, Γ-only".  Outputs: `~/Code/qchem6-runs/NiO/laneB-conv-*.out`.
+
+## ✅ A spherical molecular PP run dies on its first H at radial meshes of 50 points or more: FIXED AT HEAD, CAUSE UNIDENTIFIED (lane B, 2026-11-12)
+
+Row verbatim:
+
+| **A spherical molecular PP run dies on its first H at radial meshes of 50 points or more; Cartesian on the same mesh is fine** (lane B, 2026-11-05, from the TeF₆ PP rung) | TeF₆, LDA, GTH-LDA Te q6 / F q7, DZVP-MOLOPT-SR-GTH.  `spherical` throws an uncaught `Invalid setup of symmetric matrix` at the first diagonalisation for (nR, Lebedev) = (50,17), (50,29), (80,29), (150,29), (200,35), while spherical (30,17), (30,29), (35,17), (40,17) run and Cartesian runs every rung through (300, GL 65).  gdb puts the throw in `make_hermitian` (`LASolverLapack.C:63`) under DIIS `UseFD`; `make_hermitian` symmetrises first, so the message means a NaN in H (inferred, the matrix was not dumped).  The default SAD seed fails the same way on this run, so the seed is not the cause.  A radial count threshold points at a mesh point very near a nucleus meeting a spherical evaluation, unmeasured.  NOT the PP terms: with them in closed form (lane S, 2026-11-05) no PP mesh exists and it still dies at (50,29) and (80,29) | dump H at (50,17) spherical, find the NaN's term and row, then the mesh point; the fix is a guard or a limit at that point.  Record: this row, run logs `~/Code/qchem6-runs/TeF6/TeF6_pp_n*.log` |
+
+Verdict: closed behind a gate; the cause is not identified.  The controller ruled no bisect: it costs hours of build lock for a cure that
+has no live instance.
+
+**The reproduction at lane-b HEAD** (a1943d0b2 + main):
+- The 2026-11-05 recipe, rebuilt through the facade: TeF6 octahedron (Te-F 1.82 Å), LDA, GTH-LDA Te q6 / F q7, spherical
+  DZVP-MOLOPT-SR-GTH, core seed, DIIS, stated mesh.
+- EVERY rung that crashed converges, each in 11 iterations:
+
+| (nR, Lebedev) | Etot (Ha) |
+|---|---|
+| (50,17) | -153.4149661057 |
+| (50,29) | -153.4146407623 |
+| (80,29) | -153.4141074342 |
+| (150,29) | -153.4140890895 |
+| (200,35) | -153.4140873524 |
+
+**Looking for the quantity that went NaN, on today's code (it finds none):**
+- All 91 spherical orbital functions and 236 A1 Coulomb-fit functions are finite at every XC-mesh point, for nR 30, 40, 50, 80 and 150
+  at Lebedev 17.
+- They are also finite AT and NEAR each nucleus (r = 0, 1e-300, 1e-160, 1e-12, 1e-6 along x, z and the diagonal).
+- The old NUMERICAL Coulomb-fit norm, Σ w f² on the run's mesh, which 6bd09fa3a replaced by the analytic one, is healthy at every nR:
+  min 0.75 at nR 30, 0.98 at nR 50, 0.999 at nR 80 and above, never non-positive.
+
+**Why the 2026-11-05 code cannot be examined:** its snapshot (`~/Code/qchem6-runs/snap/laneb-tef6b-20261105-102648`) holds only the
+executables, and they link today's `.so` files.  The old trace put the throw in `make_hermitian` under DIIS `UseFD`, so the NaN may have
+come from the DIIS extrapolation rather than from a Hamiltonian term.
+
+**Candidate cures in the window, all UNPROVEN:**
+- 6bd09fa3a: the Coulomb fit's norm went analytic; it was a quadrature on the run's mesh.
+- bfb995513: the molecular DIIS prune became scale-free (svTol 5e-9 absolute → 0, svTolRel 1e-4), and an all-zero history is pruned.
+- 5ad897099: a damped step under the Fock DIIS starts from the extrapolated input.
+- e1d5f2327: one Gaussian `Angular` for every structure.
+
+**The gate:** `M_DFT.TeF6_PP_Spherical_Converges_Long`, the crash recipe itself at (50,17), 61 s serial.
+- It asserts convergence, a did-E-move anchor at 1e-5, and the (200,35) value within 2e-3 (the coarse mesh's own error is 0.9 mHa).
+- The Te/F DZVP-MOLOPT-SR-GTH block is shipped as `BasisSetData/dzvp_molopt_sr_gth.bsd`, transcribed by `scripts/cp2k2bsd` from CP2K's
+  BASIS_MOLOPT (`PP-PROVENANCE Te=6 F=7`).
