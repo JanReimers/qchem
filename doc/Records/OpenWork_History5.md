@@ -2646,3 +2646,19 @@ NiO's untrimmed basis); the result line now says the iterate was refused and its
 
 **Remainder (a live row).**  The first diagonalization takes D0's 3.37 e to 0.076 e on every mixer and the moment regrows only to ~0.6:
 "NiO AFM-II moment small on VALENCE_LOWQ_VA" in `doc/OpenWork.md` §3.
+
+## ✅ `CheckPPProvenance` resolves a basis named WITHOUT `.bsd` differently from the reader: STALE, one resolution already (lane B, 2026-11-12)
+
+Row verbatim:
+
+| **`CheckPPProvenance` resolves a basis named WITHOUT `.bsd` differently from the reader** (lane B, 2026-10-31) | a SolidSetup UT naming `valence_lowq_sr2_naq9` (no extension) failed the provenance check while the basis itself loaded; with `.bsd` it passes | make the check resolve the name through the reader's own lookup (one resolution, not two) · `src/Calculation/Imp/SolidSetup.C` |
+
+Verdict: not reproducible from the code, so no change was made.
+- Both paths take the stated file through the same `BasisSet::Gaussian::BasisFile(name)`:
+  - the check: `CheckPPProvenance(file, species)` → `DeclaredPPProvenance(BasisFile(file))`;
+  - the build: `FactoryFromFile(file, …)` → `Gaussian94Reader(BasisFile(file))`.
+- `GaussianBasisRecipe::Make` (`src/Calculation/Imp/SolidSetup.C`) hands the same `file` to the check, to `RequireBasisCovers`, and to the factory.
+- The reader's constructor (a plain `ifstream`, no extension added) is unchanged since cfdd1e04d, the commit that wrote the row.
+- So a recipe file named WITHOUT `.bsd` fails to OPEN on both paths. The check runs first, so it is the one that names the missing file.
+- A deck never reaches this: a basis NAME goes to `basis.data`, which `BasisFileOfName` turns into `<stem>.bsd`, and a stated `basis.file` that is not shipped is opened and refused by the deck itself ("cannot be read").
+- The 2026-10-31 observation was most likely the UT expecting the provenance mismatch and meeting the open failure instead. The basis never loaded without its extension.
