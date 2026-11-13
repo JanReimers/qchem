@@ -347,6 +347,75 @@ private:
     qcb_solid* h = nullptr;
 };
 
+//! A SAVED STATE, DRAWN (qcb_view): a reopened run's fields and levels, from its spec and its state file, with no live calculation.
+class StateView
+{
+public:
+    //! A molecule's: the structure and the options that identify its basis (the SCF knobs play no part).
+    static StateView* Molecule(const std::vector<int>& Z, const std::vector<double>& pos, const std::string& basis, const std::string& model,
+                               bool symmetry, bool polarized, int multiplicity, const std::string& pp, const std::string& basisFile,
+                               const std::string& angular, const std::string& path)
+    {
+        if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
+        const qcb_request req{Z.data(), int(Z.size()), pos.data(), basis.c_str(), model.c_str(), pp.c_str(), "DIIS",
+                              symmetry ? 1 : 0, polarized ? 1 : 0, multiplicity, 1, 0, 0, 0.0, 0.0, 0, 0.0, 0.0, 0, 0, 0.0, -1.0,
+                              0.0, 0.0, 0.0, 0.0, "", 0.0, basisFile.c_str(), "Default", angular.c_str()};
+        return Open([&](int* refused, char* err){ return qcb_view_molecule(&req, path.c_str(), refused, err, errlen); });
+    }
+    //! A crystal's: its deck (the run's resolved deck, or the deck it ran).
+    static StateView* Crystal(const std::string& deckJson, const std::string& path)
+    {
+        return Open([&](int* refused, char* err){ return qcb_view_solid(deckJson.c_str(), path.c_str(), refused, err, errlen); });
+    }
+    ~StateView() { qcb_view_free(h); }
+    StateView(const StateView&)            = delete;
+    StateView& operator=(const StateView&) = delete;
+
+    nb::object Levels()  const { return json_call([&](char* out, int n){ return qcb_view_levels(h, out, n); }); }
+    nb::object Summary() const { return json_call([&](char* out, int n){ return qcb_view_summary(h, out, n); }); }
+    //! A molecule's field on the box padded `pad` past its atoms (field: 0 density, 1 spin density, 2 orbital `index`).
+    nb::dict Padded(int field, int index, int n, double pad) const
+    {
+        auto arr = make_array({size_t(n), size_t(n), size_t(n)});
+        double o[3], s[3];
+        char err[errlen] = {0};
+        int ok;
+        { nb::gil_scoped_release nogil; ok = qcb_view_padded(h, field, index, n, pad, arr.data(), o, s, err, errlen); }
+        if (!ok) throw std::runtime_error(err);
+        nb::dict d = grid_dict("values", arr, o, s);
+        if (field == 2) d["signed"] = true;
+        return d;
+    }
+    //! The field on the caller's box (a crystal's cell or supercell; a molecule's too).
+    nb::dict Field(int field, int index, const std::vector<int>& n, const std::vector<double>& origin, const std::vector<double>& spacing) const
+    {
+        if (n.size() != 3 || origin.size() != 3 || spacing.size() != 3)
+            throw std::invalid_argument("n, origin and spacing are three numbers each (the box's points and its corner and steps, bohr)");
+        auto arr = make_array({size_t(n[0]), size_t(n[1]), size_t(n[2])});
+        char err[errlen] = {0};
+        int ok;
+        { nb::gil_scoped_release nogil; ok = qcb_view_field(h, field, index, n.data(), origin.data(), spacing.data(), arr.data(), err, errlen); }
+        if (!ok) throw std::runtime_error(err);
+        nb::dict d = grid_dict("values", arr, origin.data(), spacing.data());
+        if (field == 2) d["signed"] = true;
+        return d;
+    }
+
+private:
+    explicit StateView(qcb_view* v) : h(v) {}
+    template <class F> static StateView* Open(F&& open)
+    {
+        char err[errlen] = {0};
+        int refused = 0;
+        qcb_view* v;
+        { nb::gil_scoped_release nogil; v = open(&refused, err); }
+        if (!v && refused) throw RestartRefused(err);
+        if (!v) throw std::runtime_error(err);
+        return new StateView(v);
+    }
+    qcb_view* h = nullptr;
+};
+
 NB_MODULE(qchem_py, mod)
 {
     mod.doc() = "qchem -> Python bridge: a molecular SCF (qchem::MoleculeCalculation, fields sampled onto grids) and a periodic one "
@@ -503,6 +572,26 @@ NB_MODULE(qchem_py, mod)
              "JSON {\"kept\": [bool per shell]} (absent: the deck's own trim) in; out: the library's basisTrimAnalysis record -- "
              "the verdict (healthy, lambdaMin, worstK, cond, aoDrops at the floor), a row per k, a row per shell (lambdaMinToggled, "
              "condToggled, aoDropsToggled, participation), deckKept and the autoTrimKept reference");
+
+    nb::class_<StateView>(mod, "StateView", "A saved state, DRAWN: a reopened run's fields and levels from its spec and its state file -- "
+                          "the run's basis and the saved D, C, eps, f; no Hamiltonian, no grids, no SCF.  Built by molecule() / crystal(); "
+                          "a state that is not the spec's (another kind / basis / electrons, ANY moved atom, a missing file) raises RestartRefused.")
+        .def_static("molecule", &StateView::Molecule, nb::arg("numbers"), nb::arg("positions"), nb::arg("basis"), nb::arg("model") = "HF",
+                    nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("pp") = "",
+                    nb::arg("basis_file") = "", nb::arg("angular") = "cartesian", nb::arg("path"), nb::rv_policy::take_ownership)
+        .def_static("crystal", &StateView::Crystal, nb::arg("deck"), nb::arg("path"), nb::rv_policy::take_ownership)
+        .def("levels",  &StateView::Levels,  "As Calculator.levels: the saved state's every level, in the live run's order.")
+        .def("summary", &StateView::Summary, "{'path','label','converged','iterations','energy','exact','warm','electrons'}: what is drawn.")
+        .def("density",      [](const StateView& v, int n, double pad){ return v.Padded(0, 0, n, pad); }, nb::arg("n") = 64, nb::arg("pad") = 5.0)
+        .def("spin_density", [](const StateView& v, int n, double pad){ return v.Padded(1, 0, n, pad); }, nb::arg("n") = 64, nb::arg("pad") = 5.0)
+        .def("orbital", [](const StateView& v, int index, int n, double pad){ return v.Padded(2, index, n, pad); },
+             nb::arg("index") = 0, nb::arg("n") = 64, nb::arg("pad") = 5.0, "Level `index`'s orbital (signed); RuntimeError with the reason "
+             "when the state saved none or it is a complex Bloch orbital.")
+        .def("field", [](const StateView& v, const std::vector<int>& n, const std::vector<double>& origin, const std::vector<double>& spacing,
+                         bool spin, int orbital)
+             { return v.Field(orbital >= 0 ? 2 : spin ? 1 : 0, orbital, n, origin, spacing); },
+             nb::arg("n"), nb::arg("origin"), nb::arg("spacing"), nb::arg("spin") = false, nb::arg("orbital") = -1,
+             "As SolidRun.field, on the caller's box: the density, its spin density (spin=True) or level `orbital`'s orbital.");
 
     nb::class_<SolidRun>(mod, "SolidRun")
         .def(nb::init<const std::string&>(), nb::arg("deck_json"),

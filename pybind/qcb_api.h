@@ -22,6 +22,7 @@ extern "C" {
 typedef struct qcb_calc qcb_calc;   //!< a converged molecular calculation (bridge-owned)
 typedef struct qcb_sink qcb_sink;   //!< the caller's per-iteration sink (nanobind-owned)
 typedef struct qcb_solid qcb_solid; //!< a periodic calculation built from a deck (bridge-owned)
+typedef struct qcb_view  qcb_view;  //!< a saved state, drawn: a reopened run's fields with no live calculation (bridge-owned)
 
 //! One cell of an SCF iteration row: one column of the console trace (qchem::SCFIterator::IterationCell), GENERIC -- a
 //! column the lib adds to a layout reaches Python with no ABI change.  The strings are UTF-8 ("Δρ") and, like the
@@ -176,6 +177,30 @@ int        qcb_solid_field(const qcb_solid* h, int spin, int iterate, const int*
 int        qcb_solid_judge_state(const qcb_solid* h, const char* path, char* out, int outlen);
 int        qcb_solid_restarted_from(const qcb_solid* h, char* out, int outlen);
 int        qcb_solid_levels(const qcb_solid* h, char* out, int outlen);   //!< as qcb_levels
+
+// -- a SAVED STATE, DRAWN (qchem::StateView): a reopened run's 3D view and levels with no live calculation -- the run's basis and
+//    its saved D, C, eps, f; no Hamiltonian, no grids, no SCF.  A view whose state does not belong to the spec is REFUSED: another
+//    kind, another basis / electrons / blocks, ANY moved atom (the spec was edited: reopen the run's own spec, or continue from the
+//    run), a missing or foreign file.  The warm differences (functional, meshes, U, policy) are accepted and listed (qcb_view_summary).
+
+//! A molecule's view: `req` states the molecule and the options that identify its basis (Z, positions, basis / basisFile, model, pp,
+//! symmetry, polarized, multiplicity, angular; the SCF knobs are ignored).  A crystal's: its deck.  Null on a refusal (*refused = 1,
+//! "view refused (<why>): <details>" in `err`) or a failure (*refused = 0).  Files the run "<structure> view", its "view" section.
+qcb_view* qcb_view_molecule(const qcb_request* req, const char* path, int* refused, char* err, int errlen);
+qcb_view* qcb_view_solid(const char* deckJson, const char* path, int* refused, char* err, int errlen);
+void      qcb_view_free(qcb_view* h);
+//! As qcb_levels: the saved state's every level, in the live run's order (empty for a state that saved no orbitals).
+int       qcb_view_levels(const qcb_view* h, char* out, int outlen);
+//! What is drawn: {"path","label","converged","iterations","energy","exact","warm":[...],"electrons"} (the saving run's summary,
+//! and the view's judgement: exact = nothing differs, warm = each accepted difference).
+int       qcb_view_summary(const qcb_view* h, char* out, int outlen);
+//! field 0 = the density, 1 = the spin density (zero when unpolarized), 2 = level `index`'s orbital (0 with the reason when the
+//! state saved no orbitals or the level is a complex Bloch orbital).  qcb_view_padded: a molecule's n^3 box padded `pad` past its
+//! atoms, as qcb_density; qcb_view_field: the caller's box, as qcb_solid_field.  1 on success, 0 with `err`.
+int       qcb_view_padded(const qcb_view* h, int field, int index, int n, double pad, double* out, double* origin, double* spacing,
+                          char* err, int errlen);
+int       qcb_view_field(const qcb_view* h, int field, int index, const int* n3, const double* origin, const double* spacing, double* out,
+                         char* err, int errlen);
 
 // -- symmetry DETECTED from a structure (the lib's own detectors; nothing is imposed here) -------------------------------
 

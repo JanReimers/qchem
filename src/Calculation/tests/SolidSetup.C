@@ -23,6 +23,7 @@ import qchem.Mesh;        // UnitCellKind
 import qchem.Mesh.XCPolicy;   // BeckeXCParams
 import qchem.Reporting;   // the policy rows the setup files
 import qchem.ChargeDensity.Seed;   // SeedStrategy (the Auto seed rule)
+import qchem.CMath;                // Pi (the k-point spacing)
 
 using namespace qchem;
 using BasisSet::Gaussian::BasisSetData;
@@ -386,4 +387,34 @@ TEST(SolidSetup, TheAutoSeedIsIonicOnACoveredLatticeAndTheCoreGuessWithAWarnOnAn
 
     EXPECT_TRUE(AutoSeedRows("Al_fcc", BasisSetData::VALENCE_LOWQ_SR, SeedStrategy::Uniform, "Al stated seed", s).empty()) << "a stated seed files no Auto row";
     EXPECT_EQ(s, SeedStrategy::Uniform);
+}
+
+// THE k-SAMPLING POLICY (controller ruling 2026-11-13, from the NiO GUI report): every solid run files ONE `KSampling` row stating the mesh's
+// spacing (rigorous: max_i |b_i|/N_i) and the calibrated threshold; a coarser mesh is a WARN naming the mesh that meets the threshold.
+// Si's FCC primitive cell: |b_i| = 2π√3/a = 1.0607 bohr^-1 at a = 10.26, so Γ (1.061) and 2x2x2 (0.530) are coarse, 3x3x3 (0.354) is not.
+TEST(SolidSetup, AKMeshCoarserThanTheCalibratedSpacingIsWarnedNamingTheMeshThatMeetsIt)
+{
+    const auto si=Materials::Get("Si_diamond");
+    auto rows=[&](const ivec3_t& k, const std::string& tag)
+    {
+        SolidCalcOptions o; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+        { report::Run run(tag); (void)SolidSetup::Resolve(Lattice_3D(*si.cell, k), GaussianBasisRecipe{.data=BasisSetData::SIPP}, o); }
+        return PolicyRows(tag, "KSampling");
+    };
+    const auto g=rows(ivec3_t(1,1,1), "Si k111");
+    ASSERT_EQ(g.size(), 1u) << "one KSampling row per run";
+    EXPECT_EQ(g[0].value("verdict",""), "warn");
+    const double b=2*Pi*si.cell->InverseInterplanarSpacings().x;
+    EXPECT_NEAR(g[0]["detail"]["spacing"].get<double>(), b, 1e-12) << "Γ only: the spacing is |b| itself";
+    EXPECT_GT(g[0]["detail"]["threshold"].get<double>(), 0.0);
+    EXPECT_NE(g[0].value("decided","").find("a 3x3x3 mesh meets it"), std::string::npos) << g[0].dump();
+
+    const auto k2=rows(ivec3_t(2,2,2), "Si k222");
+    ASSERT_EQ(k2.size(), 1u);
+    EXPECT_EQ(k2[0].value("verdict",""), "warn") << k2[0].dump();
+    EXPECT_NEAR(k2[0]["detail"]["spacing"].get<double>(), b/2, 1e-12);
+
+    const auto k3=rows(ivec3_t(3,3,3), "Si k333");
+    ASSERT_EQ(k3.size(), 1u);
+    EXPECT_EQ(k3[0].value("verdict",""), "choose") << "a mesh within the threshold is reported, not warned: " << k3[0].dump();
 }

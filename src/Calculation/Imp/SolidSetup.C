@@ -24,6 +24,7 @@ import qchem.SeedPolicy;   // ResolveSeed: the ONE Auto seed rule (shared with M
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::angular)
 import qchem.Policy;                           // policy::Refuse: each refusal files its row where it fires
 import qchem.Reporting;                         // report::Scope: the vet-stage trim files under basisTrim
+import qchem.CMath;                             // Pi (the k-point spacing: B = 2π A^-T)
 import qchem.XCRhoPolicy;                      // ReportSolidXCRho: the XC rho-axis decision
 import qchem.BasisCoverage;                    // RequireBasisCovers: a basis lacking an element is refused before the build
 
@@ -228,6 +229,68 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, co
     return s;
 }
 
+//---------------------------------------------------------------------------------------------------
+//  THE k-SAMPLING POLICY (controller ruling 2026-11-13, from the NiO GUI report: a Γ-only 4-atom AFM cell "withered" the moment to
+//  0.26 μB).  The RIGOROUS half is a definition, no constant in it; the EMPIRICAL half is a named calibration with its measurement
+//  record; the policy below combines them in one visible comparison and reports all three numbers (CLAUDE.md, rigorous vs empirical).
+//---------------------------------------------------------------------------------------------------
+
+//! THE k-POINT SPACING of the run's mesh, bohr^-1 (the 2π included, as in B = 2π A^-T): the largest distance between neighbouring
+//! mesh points along a reciprocal axis, \f$\Delta k=\max_i |b_i|/N_i\f$ with \f$|b_i| = 2\pi\sqrt{(M^{-1})_{ii}}\f$, M the cell
+//! metric.  A shift moves the points, not their spacing.  Structure-neutral: it reads the cell and the mesh, never the material.
+static double KPointSpacing(const Lattice_3D& lat, ivec3_t& meshMeeting, double threshold)
+{
+    const rvec3_t inv=lat.GetUnitCell().InverseInterplanarSpacings();   // |b_i| / 2π
+    const ivec3_t N=lat.GetLimits();
+    const double b[3]={2*Pi*inv.x, 2*Pi*inv.y, 2*Pi*inv.z};
+    const int    n[3]={N.x, N.y, N.z};
+    double dk=0.0;
+    int meet[3];
+    for (int i=0;i<3;i++)
+    {
+        dk=std::max(dk, b[i]/n[i]);
+        meet[i]=std::max(n[i], int(std::ceil(b[i]/threshold - 1e-12)));   // the smallest mesh along this axis at or under the threshold
+    }
+    meshMeeting=ivec3_t(meet[0],meet[1],meet[2]);
+    return dk;
+}
+
+//! THE CALIBRATED k-SPACING (empirical, a named expert calibration): a run whose mesh is coarser than this is WARNED, and runs.
+//! MEASURED 2026-11-13 (lane B; NiO AFM-II, the 4-atom rhombohedral cell, |b_i| = 1.322 bohr^-1; the complete-basis route QE pw.x,
+//! GTH-PZ Ni q10 / O q6, 160 Ry, ~/Code/qe-runs/NiO/laneB-NiO-lda-k*.out), against the 3x3x3 mesh:
+//!   Δk 1.322 (Γ only)  E +182 mHa (45 mHa/atom), Ni moment 0.42 against 1.55 μB -- the GUI user's collapsed moment;
+//!   Δk 0.661 (2x2x2)   E  +17 mHa (4 mHa/atom),  moment 1.49 (4 % low);
+//!   Δk 0.441 (3x3x3)   the reference.
+//! 0.5 bohr^-1 sits between the 2x2x2 and the 3x3x3 on that cell.  ONE gapped magnetic insulator: a metal needs a denser mesh, an
+//! isolated molecule in a box none (its bands are flat, and Γ is exact) -- re-calibrate as more systems are measured.  NOT the energy
+//! of a Gaussian basis: on VALENCE_LOWQ_VA the basis error is itself k-dependent (OpenWork §3 NiO row), so this was calibrated on QE.
+constexpr double kKSpacingWarnCalibrated = 0.5;
+
+//! Report the mesh against the calibration, one `policy` row per run (KSampling): Choose when it meets it, WARN (and a console line)
+//! when coarser, with the mesh that would meet it -- the burden is on the code to say what to change, not on the user to know.
+static void ReportKSampling(const Lattice_3D& lat)
+{
+    ivec3_t meet;
+    const double dk=KPointSpacing(lat, meet, kKSpacingWarnCalibrated);
+    const ivec3_t N=lat.GetLimits();
+    std::ostringstream mesh, suggest, numbers;
+    mesh<<N.x<<"x"<<N.y<<"x"<<N.z; suggest<<meet.x<<"x"<<meet.y<<"x"<<meet.z;
+    numbers<<std::setprecision(3)<<"spacing "<<dk<<" bohr^-1 (rigorous: max_i |b_i|/N_i), threshold "<<kKSpacingWarnCalibrated
+           <<" bohr^-1 (calibrated: NiO AFM-II vs QE, 2026-11-13)";
+    const qchem::report::json detail={{"spacing",dk},{"threshold",kKSpacingWarnCalibrated},{"mesh",{N.x,N.y,N.z}},{"meetsAt",{meet.x,meet.y,meet.z}}};
+    if (dk<=kKSpacingWarnCalibrated)
+    {
+        policy::Report("KSampling", "k mesh "+mesh.str()+": "+numbers.str()+" -- within it", policy::Verdict::Choose,
+                       "the k-point spacing meets the calibrated threshold", std::nullopt, detail);
+        return;
+    }
+    const std::string decided="k mesh "+mesh.str()+" is COARSE: "+numbers.str()+"; a "+suggest.str()+" mesh meets it";
+    const std::string reason="a coarse mesh mis-samples the Brillouin zone: on NiO a Γ-only cell lost 3/4 of the Ni moment and 45 mHa/atom; "
+                             "the run goes on as stated (ignore this for an isolated molecule in a box, whose bands are flat)";
+    policy::Report("KSampling", decided, policy::Verdict::Warn, reason, std::nullopt, detail);
+    std::cout << "[policy] WARNING " << decided << " -- " << reason << std::endl;
+}
+
 std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                                                const SolidCalcOptions& opts,
                                                const SCFAccelerators::SolidAcceleratorOptions& acc)
@@ -285,6 +348,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // library lacks takes the core guess with a WARN (it threw at seed time until 2026-11-12).
     s->opts.seed=ResolveSeed(opts.seed, *st, {.densityFock = true, .periodic = st->HasTranslationSymmetry(), .chargesStated = !opts.siteCharges.empty(),
         .covered = [key=s->seedKey](int Z){ return SeedLibraryCovers(key, Z); }});
+    ReportKSampling(lat);   // the k mesh against the calibrated spacing: a WARN names the mesh that meets it
 
     // THE RESOLVED IMPOSITION (doc/OpenWork.md N5, user 2026-08-26).  The caller's flag AND the policy's
     // permission: CP2K parity forbids the capability outright, because CP2K does no symmetry work at all
