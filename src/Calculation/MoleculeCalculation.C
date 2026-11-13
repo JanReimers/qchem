@@ -26,6 +26,7 @@ export import qchem.MoleculeSetup; // CalcOptions + the resolved MoleculeSetup a
 export import qchem.PotentialEnergySurface;   // the face MoleculeSession implements (step 8)
 export import qchem.SCFFailure;               // SCFFailure: the failure half of the Outcome door (shared with the solid facade)
 export import qchem.Calculation;              // the abstract base of the three facades
+export import qchem.StateView;                // ViewState's answer: a saved state, drawn
 import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ElectronConfiguration;// ElectronConfiguration
 import qchem.SCFIterator;          // SCFIterator, SCFParams, IterationRow, EnergyBreakdown
@@ -109,6 +110,12 @@ public:
     //! point)", warm, its displacement and the electrons the carried D holds there); empty for a fresh run.
     const std::optional<RestartSummary>& RestartedFrom() const override;
     //!@}
+
+    //! \brief A SAVED STATE, DRAWN (\c StateView, lane G 2026-11-13): the state at \a path on THIS setup's basis -- the basis built
+    //! exactly as \c PrepareRestart builds it, then the saved D, C, eps, f; NO Hamiltonian, mesh or fit, no SCF.  REFUSED as
+    //! \c Calculation::JudgeView refuses (another kind, a refuse-class difference, ANY moved atom), never thrown.  Writes its
+    //! report one level in, under the scope its caller opened (a \c report::Section "view").
+    static Outcome<std::unique_ptr<StateView>, RestartRefusal> ViewState(const std::string& path, std::shared_ptr<const MoleculeSetup> setup);
 
     //! Re-run the SCF (e.g. with tighter tolerances) and hand back the ANSWERS or the REASON (it was a bool until 2026-10-31).
     //! Invalidates references previously handed out by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is rebuilt --

@@ -500,6 +500,21 @@ Outcome<SavedState, RestartRefusal> ReadState(const std::string& path)
         };
         sb.D=square("D");
         if (g.Has("S")) sb.S=square("S");
+        if (g.Has("C"))   // the orbitals WriteOrbitals wrote: C (n x nmo, C order), eps, f -- read as written, nothing derived
+        {
+            const std::vector<size_t> shape=g.Shape("C");
+            if (shape.size()!=2 || shape[0]!=n)
+                throw std::runtime_error("ReadState ("+path+"): block "+std::to_string(b)+" C is not n x nmo");
+            const size_t nmo=shape[1];
+            const std::vector<dcmplx> v=g.ReadComplex("C");
+            sb.C=mat_t<dcmplx>(n,nmo);
+            for (size_t a=0;a<n;a++) for (size_t i=0;i<nmo;i++) sb.C(a,i)=v[a*nmo+i];
+            sb.eps=g.ReadReal("eps");
+            sb.f  =g.ReadReal("f");
+            if (sb.eps.size()!=nmo || sb.f.size()!=nmo)
+                throw std::runtime_error("ReadState ("+path+"): block "+std::to_string(b)+" holds "+std::to_string(nmo)
+                                         +" orbitals but "+std::to_string(sb.eps.size())+" energies and "+std::to_string(sb.f.size())+" occupations");
+        }
         st.blocks.push_back(std::move(sb));
     }
     if (st.fingerprint.refuseNum.count("blocks.n") && st.fingerprint.refuseNum["blocks.n"].size()!=st.blocks.size())

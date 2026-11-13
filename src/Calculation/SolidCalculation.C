@@ -58,6 +58,7 @@ export import qchem.PotentialEnergySurface;   // the face SolidSession implement
 export import qchem.WyckoffMap;               // WyckoffMap, CoordinateMap: the map MakeSolidGeometryRun pairs with a session
 export import qchem.SCFFailure;               // SCFFailure: why an attempt has no answer (shared with the molecular facade)
 export import qchem.Calculation;              // the abstract base of the three facades
+export import qchem.StateView;                // ViewState's answer: a saved state, drawn
 
 export namespace qchem
 {
@@ -304,6 +305,13 @@ public:
         PrepareRestart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {},
                        Observer onIteration = nullptr);
     //!@}
+
+    //! \brief A SAVED STATE, DRAWN (\c StateView, lane G 2026-11-13): the state at \a path on THIS setup's Bloch basis -- the point
+    //! built as \c PrepareRestart builds it (lattice, trimmed basis, electron configuration: \c BuildPoint), the saved density
+    //! restored (\c RestoreDensity), and the saved C, eps, f; NO Hamiltonian, GPW grids or pseudopotential terms, no SCF.  REFUSED as
+    //! \c Calculation::JudgeView refuses (another kind, a refuse-class difference, ANY moved atom), never thrown.  The point's own
+    //! basis report, and the view's, land one level in, under the scope its caller opened (a \c report::Section "view").
+    static Outcome<std::unique_ptr<StateView>, RestartRefusal> ViewState(const std::string& path, std::shared_ptr<const SolidSetup> setup);
 
     const std::optional<RestartSummary>& RestartedFrom() const override;   //!< \c PrepareRestart's judgement; empty for a fresh run
     //! SaveState(path) and JudgeState(path) are the base's (\c Calculation, V-FACADE-STATE): the LAST ITERATE's state -- every (k,σ)

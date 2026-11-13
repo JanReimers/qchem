@@ -7,6 +7,7 @@ module;
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 module qchem.Calculation;
 import qchem.Reporting;
@@ -118,6 +119,40 @@ Outcome<std::vector<std::string>, RestartRefusal> Calculation::JudgeState(const 
     StateRecord now;
     RecordState(now, -1.0);
     return CompareFingerprints(saved->fingerprint, now.fp, StateMigration());
+}
+
+Outcome<RestartSummary, RestartRefusal> Calculation::JudgeView(const SavedState& saved) const
+{
+    using O=Outcome<RestartSummary, RestartRefusal>;
+    if (saved.kind!=StateKind())
+        return O::Fail({RestartRefusal::Why::Kind, "'"+saved.path+"' holds a "+saved.kind+" state; this is a "+StateKind()+" spec"});
+    StateRecord now;
+    RecordState(now, -1.0);
+    const FingerprintMigration migrate=StateMigration();
+    auto warm=CompareFingerprints(saved.fingerprint, now.fp, migrate);
+    if (!warm) return O::Fail(warm.Error());
+    // MOVED ATOMS: refused, never carried.  Name the atom that moved most, by how much, and what to do.
+    const StateFingerprint fp=migrate ? migrate(saved.fingerprint, now.fp) : saved.fingerprint;
+    const auto sp=fp.warmNum.find("structure.positions");
+    const auto np=std::as_const(now.fp).warmNum.find("structure.positions");
+    double worst=0.0;
+    size_t atom=0;
+    if (sp!=fp.warmNum.end() && np!=now.fp.warmNum.end() && sp->second.size()==np->second.size())
+        for (size_t a=0;3*a+2<sp->second.size();a++)
+        {
+            const double dx=sp->second[3*a]-np->second[3*a], dy=sp->second[3*a+1]-np->second[3*a+1], dz=sp->second[3*a+2]-np->second[3*a+2];
+            const double d=std::sqrt(dx*dx+dy*dy+dz*dz);
+            if (d>worst) {worst=d; atom=a;}
+        }
+    if (worst>kViewMoveTol)
+    {
+        std::ostringstream why;
+        why<<std::setprecision(6)<<"atom "<<atom<<" is "<<worst<<" bohr from where the saved state has it (the largest move): the spec "
+              "was edited since this state was saved; reopen the run's own spec, or continue from this run";
+        return O::Fail({RestartRefusal::Why::Mismatch, why.str()});
+    }
+    return O::Ok(RestartSummary{.path=saved.path, .exact=warm->empty(), .warm=std::move(*warm), .maxDisplacement=worst,
+                                .electrons=Electrons(saved, now.blocks)});
 }
 
 Outcome<RestartSummary, RestartRefusal> Calculation::JudgeRestart(SavedState& saved, double kT, const std::string& tag) const
