@@ -382,6 +382,7 @@ json ToJson(const SolidCalcOptions& o)
     json hub=json::array();
     for (const auto& h : o.hubbard) hub.push_back(ToJson(h));
     json out={{"Nelec",o.Nelec},{"charge",o.charge},{"multiplicity",o.multiplicity},{"pp",o.pp},{"species",species},
+            {"model",Hamiltonian::Name(o.model)},
             {"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
             {"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
             {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},
@@ -410,6 +411,13 @@ void FromJson(const json& j, SolidCalcOptions& o)
 {
     Fields f(j,"solid");
     f.Get("Nelec",o.Nelec); f.Get("charge",o.charge); f.Get("multiplicity",o.multiplicity); f.Get("pp",o.pp);
+    {
+        std::string model=Hamiltonian::Name(o.model);
+        f.Get("model",model);
+        const auto m=Hamiltonian::ModelFromName(model);
+        if (!m) throw std::runtime_error("deck: 'solid.model' \""+model+"\" is not a model name (a periodic run takes \"LDA\" or \"PADE\")");
+        o.model=*m;
+    }
     if (j.contains("species"))
     {
         o.species.clear();

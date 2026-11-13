@@ -49,6 +49,7 @@ cd build/Release && ninja rundeck                                  # the one CLI
              "autoTrim": true },           // the pin-22 vet-stage trim at solid.orthoTol (needs it > 0; orthoTol alone never trims)
   "solid": {                              // SolidCalcOptions -- every field; Nelec/species/multiplicity default from the material
     "Nelec": 0, "charge": 0,              // Nelec 0 = derived (Σ species valence - charge); a stated Nelec must equal that or the run is REFUSED
+    "model": "LDA",                       // the XC functional: LDA (Dirac + VWN5, default) | PADE (libxc LDA_XC_TETER93 = CP2K's PADE, the GTH-PADE PPs' own); a PP fitted with another functional = a warn-and-run policy row
     "multiplicity": 1, "seed": "IonicSAD", "ortho": "CholeskyPivoted", "orthoTol": 1e-4, "accelerator": "Null",   // Auto (default; = DIIS today) | DIIS | GDM | Ladder | Null
     "imposeSymmetry": false, "forceComplex": false, "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
     "xcMeshSymmetric": true,              // FREE run: XC mesh invariant under the group detected at THIS geometry; false = the plain atom-centred mesh (a displacement path needs false)

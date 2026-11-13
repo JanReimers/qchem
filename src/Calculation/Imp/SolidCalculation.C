@@ -563,6 +563,9 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     {
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
         qchem::report::Scope hamiltonian("hamiltonian");   // its meshes and terms report one level in (user rulings 2026-11-02, 2026-11-04)
+        // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn, guide and run, never switch
+        policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(itsImp->setup->pp, *itsImp->st,
+                                                                              qchem::Hamiltonian::ModelToXC(opts.model)));
         // THE ACCURACY a Fourier series sampled on the XC quadrature must meet (the rho-tilde sampler, step 2; pin 31): the run's
         // target for what its client consumes, the density gate its sampled residual is judged on, and the two GPW calibrations.
         // The XC term derives the one tolerance tau from it on the seed.  No target (eps 0) leaves it unset: the step-1 fixed width.
@@ -594,7 +597,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         }
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->setup->pp, xc, opts.vxcFit, hubbard));
+            itsImp->st, itsImp->bs.get(), itsImp->setup->pp, xc, opts.vxcFit, hubbard, qchem::Hamiltonian::ModelToXC(opts.model)));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -1332,7 +1335,7 @@ const std::optional<RestartSummary>& SolidCalculation::RestartedFrom() const {re
 Calculation::StateIdentity SolidCalculation::MakeStateIdentity() const
 {
     const auto& o=itsImp->setup->opts;
-    return {.Nelec=o.Nelec, .spin=StateSpin(), .multiplicity=o.multiplicity, .functional=itsImp->setup->pp.Functional(), .kT=itsImp->lastkT};
+    return {.Nelec=o.Nelec, .spin=StateSpin(), .multiplicity=o.multiplicity, .functional=qchem::Hamiltonian::Name(o.model), .kT=itsImp->lastkT};   // the model's name, LDA or PADE (it was the PP set's functional)
 }
 std::vector<StateBlock> SolidCalculation::StateBlocks(bool withOrbitals) const
 {
@@ -2210,7 +2213,8 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition);
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard));
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard,
+                                                 qchem::Hamiltonian::ModelToXC(opts.model)));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);
     auto cdRef=RestoreDensity(st, *bsRef, g);

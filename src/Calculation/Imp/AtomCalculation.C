@@ -12,6 +12,8 @@ module;
 module qchem.AtomCalculation;
 
 import qchem.Hamiltonian.Factory;                   // Factory(...), IsDFT, XCFunctional (XC selector)
+import qchem.Policy;                                  // policy::PPFittedFunctional (the PP / functional match)
+import qchem.Pseudopotential.GTH_Potentials;          // GetGTH(...).fitted: the functional the pseudo-atom's PP was fitted with
 import qchem.XCRhoPolicy;                            // ReportXCRho: the XC ρ-axis policy row
 import qchem.ElectronConfiguration.AtomNR;          // Atom_EC, PseudoAtom_EC
 import qchem.ElectronConfiguration.AtomDirac;       // AtomDirac_EC
@@ -36,15 +38,14 @@ using SCFIter = qchem::SCFIterator::MolecularSCFIterator;   // item 2: the atom/
 static bool IsDirac(Model m) {return m == Model::DE1 || m == Model::DHF;}
 
 // Human-readable model tag for the run report's `scf` section (a PP run reports "PP" -- it bypasses the Model enum).
-static std::string ModelName(Model m)
+static std::string ModelName(Model m) {return qchem::Hamiltonian::Name(m);}
+
+//! A pseudo-atom's functional: an \c xc override when stated, PADE when the model says so (the GTH-PADE PPs' own, 2026-11-12), else the
+//! historical LDA (Dirac + VWN5) -- a PP atom has always ignored any other model, and still does (its tests leave model at HF).
+static qchem::Hamiltonian::XCFunctional PseudoAtomXC(const AtomCalcOptions& o)
 {
-    switch (m)
-    {
-        case Model::HF:     return "HF";     case Model::E1:  return "E1";
-        case Model::DHF:    return "DHF";    case Model::DE1: return "DE1";
-        case Model::Xalpha: return "Xalpha"; case Model::LDA: return "LDA";
-    }
-    return "?";
+    if (o.xc) return *o.xc;
+    return o.model==Model::PADE ? qchem::Hamiltonian::ModelToXC(Model::PADE) : qchem::Hamiltonian::XCFunctional{};
 }
 
 // Atomic-basis family tag for the report (mirrors the scfrun --basis names).
@@ -204,9 +205,15 @@ void AtomCalculation::BuildGraph()
         rpt::Scope hamiltonian("hamiltonian");
         if (itsOpts.pseudopotential || itsOpts.xc.has_value() || H::IsDFT(itsOpts.model))
             ReportXCRho(itsOpts.vxcFit, itsOpts.xcRho);   // the ρ axis (user ruling 2026-11-09): warns on the Gaussian x δ cell
+        if (itsOpts.pseudopotential)   // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn and run, never switch
+        {
+            const std::string el=thePeriodicTable().GetSymbol(itsZ);
+            const auto xcRun=PseudoAtomXC(itsOpts);
+            policy::PPFittedFunctional(H::PPFunctionalChecks({{el, Pseudopotential::GetGTH(el, "LDA", PPZion(itsOpts,itsNe)).fitted}}, xcRun));
+        }
         ham = itsOpts.pseudopotential
             ? H::Factory(itsOpts.spin, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis,
-                         H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho))
+                         H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho), {}, PseudoAtomXC(itsOpts))
             : itsOpts.xc.has_value()
                 ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho))
                 : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho));
@@ -322,7 +329,8 @@ Calculation::StateIdentity AtomCalculation::MakeStateIdentity() const
 
 std::string AtomCalculation::FunctionalName() const
 {
-    if (itsOpts.pseudopotential) return "LDA";   // the PP front door is LSDA
+    if (itsOpts.pseudopotential)   // the PP front door: LDA (Dirac + VWN5), or PADE when stated
+        return itsOpts.xc ? "LDA (xc override)" : itsOpts.model==Model::PADE ? "PADE" : "LDA";
     return ModelName(itsOpts.model)+(itsOpts.xc ? " (xc override)" : "");
 }
 

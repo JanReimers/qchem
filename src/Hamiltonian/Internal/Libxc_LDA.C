@@ -40,6 +40,9 @@ public:
     virtual double  GetEpsXc(double up, double dn, const Spin& s) const override;
 
     virtual std::ostream& Write(std::ostream&) const;
+    //! Is this id a WHOLE exchange-correlation functional (libxc kind XC_EXCHANGE_CORRELATION: PADE / LDA_XC_TETER93), rather than an
+    //! exchange or a correlation part?  The factory adds Dirac exchange to a correlation id, and must not to an XC one.
+    bool IsExchangeCorrelation() const;
 
 private:
     //! libxc at one (up, dn) point: eps per particle and (v_up, v_dn).  Clamps a negative channel to 0.
