@@ -23,6 +23,7 @@ module;
 export module qchem.Deck;
 
 import qchem.SolidCalculation;     // SolidCalcOptions
+export import qchem.StateView;     // View's answer: a deck run's saved state, drawn
 import qchem.SCFParams;            // SCFParams
 import qchem.SCFRecipe;            // SCFRecipe (a stage's `scf.recipe`)
 import qchem.Mesh;                 // MeshParams
@@ -269,6 +270,11 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
 //! when the caller states a path, is the facade's).  \c state.restartFrom must be a PATH here (a revision stem needs \c Run's
 //! outDir); a refused restart THROWS, as in \c Run -- a deck never silently re-seeds.
 std::unique_ptr<SolidCalculation> Build(const RunSpec& spec, SolidCalculation::Observer onIteration = nullptr);
+//! \brief A DECK RUN'S SAVED STATE, DRAWN (lane G 2026-11-13): \a spec's setup resolved exactly as \c Build resolves it, then
+//! \c SolidCalculation::ViewState(\a statePath) -- the basis and the saved state, no Hamiltonian, no SCF.  The GUI's door for a
+//! reopened run: its revision's spec and its \c states/ file.  Refused (an Outcome) as \c Calculation::JudgeView refuses; a spec
+//! that does not resolve THROWS, as in \c Build.
+Outcome<std::unique_ptr<StateView>, RestartRefusal> View(const RunSpec& spec, const std::string& statePath);
 //! The stages a \c Build calculation converges: the deck's whole schedule, or its FINAL stage alone for a restart (the earlier
 //! stages exist to deliver the density the saved state already holds).
 std::vector<SCFStage> ScheduleToRun(const RunSpec& spec);

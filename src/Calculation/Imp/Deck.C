@@ -1507,6 +1507,15 @@ std::unique_ptr<SolidCalculation> Build(const RunSpec& specIn, SolidCalculation:
     return R.TakeValue();
 }
 
+Outcome<std::unique_ptr<StateView>, RestartRefusal> View(const RunSpec& specIn, const std::string& statePath)
+{
+    RunSpec spec=specIn;
+    const Materials::Material mat=Resolve(spec);
+    spec.solid.orbitalBasis=spec.basis.family; spec.solid.planeWaveEcut=spec.basis.ecut;   // as Build
+    spec.solid.saveStateTo.clear();   // a view saves nothing
+    return SolidCalculation::ViewState(statePath, SetupOf(spec, mat, ScheduleToRun(spec)));
+}
+
 //=== The shell what-if: the deck's setup, its UNTRIMMED basis, and the shells its trim keeps =======================================
 BasisShells MakeBasisShells(RunSpec spec)
 {

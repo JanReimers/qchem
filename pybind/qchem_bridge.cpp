@@ -35,6 +35,8 @@ import qchem.Hamiltonian.Factory;                // ModelFromName, ModelToXC, PP
 import qchem.ChargeDensity.Seed;                 // SeedStrategy (the molecule door's seed, by the deck's names)
 import qchem.BasisSet.Gaussian.Point.Factory;    // BasisSet::Gaussian::Angular (its angular form)
 import qchem.Calculation;    // Calculation::MakeLevels (the structure-neutral levels, either door)
+import qchem.StateView;      // StateView: a saved state, drawn (qcb_view)
+import qchem.ScalarFunction; // the one field face every sampler reads
 import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, CalcOptions, AcceleratorOptions
 import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
 import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
@@ -68,6 +70,13 @@ extern "C++" struct qcb_solid
     qchem::deck::RunSpec                       spec;
     std::unique_ptr<qchem::SolidCalculation>   calc;
     bool                                       attempted = false;   // Result() before any Converge has nothing to say
+};
+
+//! A saved state, DRAWN (qchem::StateView): no live calculation -- the run's basis and its saved D, C, eps, f.
+extern "C++" struct qcb_view
+{
+    std::unique_ptr<qchem::StateView> view;
+    std::vector<double>               positions;   // flat 3N bohr, the molecular box's atoms (empty for a crystal: its box is the caller's)
 };
 
 namespace {
@@ -203,9 +212,9 @@ void bbox(const std::vector<double>& pos, double pad, rvec3_t& lo, rvec3_t& hi)
 }
 
 //! Visit the n^3 grid points of the padded box (C-order, k fastest); write origin/spacing.
-template <class F> void for_grid(const qcb_calc* h, int n, double pad, double* origin, double* spacing, F&& f)
+template <class F> void for_grid(const std::vector<double>& positions, int n, double pad, double* origin, double* spacing, F&& f)
 {
-    rvec3_t lo, hi; bbox(h->positions, pad, lo, hi);
+    rvec3_t lo, hi; bbox(positions, pad, lo, hi);
     const rvec3_t sp((hi.x-lo.x)/(n-1), (hi.y-lo.y)/(n-1), (hi.z-lo.z)/(n-1));
     origin[0]=lo.x;  origin[1]=lo.y;  origin[2]=lo.z;
     spacing[0]=sp.x; spacing[1]=sp.y; spacing[2]=sp.z;
@@ -215,10 +224,24 @@ template <class F> void for_grid(const qcb_calc* h, int n, double pad, double* o
                 f(rvec3_t(lo.x+sp.x*i, lo.y+sp.y*j, lo.z+sp.z*k));
 }
 
-void sample(const qcb_calc* h, const MoleculeCalculation::sf_t& f, int n, double pad, double* out, double* origin, double* spacing)
+//! THE ONE MOLECULAR SAMPLER, for a live run and a view alike: \a f on the n^3 box padded \a pad past \a positions.
+void sample(const std::vector<double>& positions, const qchem::ScalarFunction<double>& f, int n, double pad, double* out, double* origin,
+            double* spacing)
 {
     size_t idx = 0;
-    for_grid(h, n, pad, origin, spacing, [&](const rvec3_t& r){ out[idx++] = f(r); });
+    for_grid(positions, n, pad, origin, spacing, [&](const rvec3_t& r){ out[idx++] = f(r); });
+}
+//! THE ONE STATED-BOX SAMPLER, for a live crystal and a view alike: n3 points at origin + (i,j,k) * spacing, C-order (the last fastest).
+void sample_box(const qchem::ScalarFunction<double>* f, const int* n3, const double* origin, const double* spacing, double* out)
+{
+    size_t idx = 0;
+    for (int i = 0; i < n3[0]; ++i)
+        for (int j = 0; j < n3[1]; ++j)
+            for (int k = 0; k < n3[2]; ++k)
+            {
+                const rvec3_t r(origin[0]+spacing[0]*i, origin[1]+spacing[1]*j, origin[2]+spacing[2]*k);
+                out[idx++] = f ? (*f)(r) : 0.0;            // a null field is the zero field (an unpolarized run's converged m)
+            }
 }
 
 //! What a molecular request resolves to: the molecule and the facade's options, as qcb_make and qcb_restart both build them.
@@ -295,19 +318,39 @@ int write_json(const nlohmann::ordered_json& j, char* out, int outlen)
 }
 
 //! THE LEVELS, for either door (Calculation::MakeLevels): one list, any structure; {"error": why} before the first converge.
+nlohmann::ordered_json levels_json(const std::vector<qchem::Calculation::Level>& levels)
+{
+    nlohmann::ordered_json a = nlohmann::ordered_json::array();
+    for (const auto& L : levels)
+        a.push_back({{"e", L.e}, {"occ", L.occupation},
+                     {"spin", L.spin == qchem::Spin::Up ? 1 : L.spin == qchem::Spin::Down ? -1 : 0},
+                     {"k", {L.k.x, L.k.y, L.k.z}}, {"weight", L.weight}, {"label", L.label}});
+    return a;
+}
 nlohmann::ordered_json levels_json(const qchem::Calculation& c)
 {
     const HostLocale host;
-    try
-    {
-        nlohmann::ordered_json a = nlohmann::ordered_json::array();
-        for (const auto& L : c.MakeLevels())
-            a.push_back({{"e", L.e}, {"occ", L.occupation},
-                         {"spin", L.spin == qchem::Spin::Up ? 1 : L.spin == qchem::Spin::Down ? -1 : 0},
-                         {"k", {L.k.x, L.k.y, L.k.z}}, {"weight", L.weight}, {"label", L.label}});
-        return a;
-    }
+    try { return levels_json(c.MakeLevels()); }
     catch (const std::exception& e) { return {{"error", e.what()}}; }
+}
+
+//! A refused view: *refused = 1 and "view refused (<why>): <details>" -- told apart from a failure, as a refused restart is.
+void view_refused(const qchem::RestartRefusal& r, int* refused, char* err, int errlen)
+{
+    if (refused) *refused = 1;
+    write_error(("view refused (" + std::string(why_name(r.why)) + "): " + r.details).c_str(), err, errlen);
+}
+
+//! The view's field: 0 = rho, 1 = m, 2 = level \a index's orbital (refused with the reason: no orbitals saved, a complex one).
+const qchem::ScalarFunction<double>& view_field(const qcb_view* h, int field, int index)
+{
+    if (field == 0) return h->view->Density();
+    if (field == 1) return h->view->SpinDensity();
+    if (field != 2) throw std::invalid_argument("qcb_view: field is 0 (density), 1 (spin density) or 2 (an orbital)");
+    if (index < 0) throw std::out_of_range("orbital index " + std::to_string(index) + " is not a level");
+    auto o = h->view->Orbital(size_t(index));
+    if (!o) throw std::runtime_error(o.Error().details);
+    return **o;
 }
 
 } // anon namespace
@@ -437,7 +480,7 @@ int qcb_levels(const qcb_calc* h, char* out, int outlen) { return write_json(lev
 
 void qcb_density(const qcb_calc* h, int n, double pad, double* out, double* origin, double* spacing)
 {
-    sample(h, h->calc->Density(), n, pad, out, origin, spacing);
+    sample(h->positions, h->calc->Density(), n, pad, out, origin, spacing);
 }
 
 int qcb_iterate_density(const qcb_calc* h, int spin, int n, double pad, double* out, double* origin, double* spacing,
@@ -447,7 +490,7 @@ int qcb_iterate_density(const qcb_calc* h, int spin, int n, double pad, double* 
     try
     {
         const auto f = spin ? h->calc->MakeIterateSpinDensity() : h->calc->MakeIterateDensity();
-        sample(h, *f, n, pad, out, origin, spacing);
+        sample(h->positions, *f, n, pad, out, origin, spacing);
         return 1;
     }
     catch (const std::exception& e) { write_error(e.what(), err, errlen); }
@@ -457,14 +500,14 @@ int qcb_iterate_density(const qcb_calc* h, int spin, int n, double pad, double* 
 
 void qcb_spin_density(const qcb_calc* h, int n, double pad, double* out, double* origin, double* spacing)
 {
-    sample(h, h->calc->GetSpinDensity(), n, pad, out, origin, spacing);
+    sample(h->positions, h->calc->GetSpinDensity(), n, pad, out, origin, spacing);
 }
 
 int qcb_orbital(const qcb_calc* h, int index, int n, double pad, double* out, double* origin, double* spacing)
 {
     const auto& levels = h->calc->GetLevels();
     if (index < 0 || size_t(index) >= levels.size()) return 0;
-    sample(h, *levels[size_t(index)].phi, n, pad, out, origin, spacing);
+    sample(h->positions, *levels[size_t(index)].phi, n, pad, out, origin, spacing);
     return 1;
 }
 
@@ -472,7 +515,7 @@ void qcb_gradient(const qcb_calc* h, int n, double pad, double* out, double* ori
 {
     const auto& rho = h->calc->Density();
     size_t idx = 0;
-    for_grid(h, n, pad, origin, spacing, [&](const rvec3_t& r)
+    for_grid(h->positions, n, pad, origin, spacing, [&](const rvec3_t& r)
     {
         const vec3_t<double> g = rho.Gradient(r);
         out[idx++] = g.x; out[idx++] = g.y; out[idx++] = g.z;
@@ -576,14 +619,7 @@ int qcb_solid_field(const qcb_solid* h, int spin, int iterate, const int* n3, co
                                                   + "); its last iterate can be sampled instead");
             f = spin ? proof->Value().SpinDensity() : &proof->Value().Density();
         }
-        size_t idx = 0;
-        for (int i = 0; i < n3[0]; ++i)
-            for (int j = 0; j < n3[1]; ++j)
-                for (int k = 0; k < n3[2]; ++k)
-                {
-                    const rvec3_t r(origin[0]+spacing[0]*i, origin[1]+spacing[1]*j, origin[2]+spacing[2]*k);
-                    out[idx++] = f ? (*f)(r) : 0.0;            // an unpolarized run's converged m(r) is null: the zero field
-                }
+        sample_box(f, n3, origin, spacing, out);
         return 1;
     }
     catch (const std::exception& e) { write_error(e.what(), err, errlen); }
@@ -603,6 +639,102 @@ int qcb_solid_restarted_from(const qcb_solid* h, char* out, int outlen)
 }
 
 int qcb_solid_levels(const qcb_solid* h, char* out, int outlen) { return write_json(levels_json(*h->calc), out, outlen); }
+
+// -- a saved state, DRAWN (qchem::StateView): the GUI's door for a reopened run -----------------------------------------------
+
+qcb_view* qcb_view_molecule(const qcb_request* req, const char* path, int* refused, char* err, int errlen)
+{
+    const HostLocale host;
+    if (refused) *refused = 0;
+    try
+    {
+        auto h = std::make_unique<qcb_view>();
+        h->positions.assign(req->pos3, req->pos3 + 3*req->nat);
+        auto r = molecule_request(req);
+        // The bridge is the DRIVER: it opens the run, and the "view" section the view reports into (one level in).
+        const qchem::report::Run     run(r.mol.ID() + " view");
+        const qchem::report::Section section("view");
+        auto V = MoleculeCalculation::ViewState(path ? path : "", qchem::MoleculeSetup::Resolve(r.mol, r.opts, r.acc));
+        if (!V) { view_refused(V.Error(), refused, err, errlen); return nullptr; }
+        h->view = V.TakeValue();
+        return h.release();
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return nullptr;
+}
+
+qcb_view* qcb_view_solid(const char* deckJson, const char* path, int* refused, char* err, int errlen)
+{
+    const HostLocale host;
+    if (refused) *refused = 0;
+    try
+    {
+        auto h = std::make_unique<qcb_view>();
+        const auto deck = nlohmann::json::parse(deckJson);
+        const auto& st = deck.contains("structure") ? deck["structure"] : nlohmann::json();
+        const std::string name = st.is_string() ? st.get<std::string>() : st.is_object() ? st.value("name", std::string("inline")) : "deck";
+        const qchem::report::Run     run(name + " view");
+        const qchem::report::Section section("view");
+        qchem::deck::RunSpec spec;
+        qchem::deck::FromJson(deck, spec);
+        const qchem::ScopedWorkerThreads threads(spec.threads);
+        auto V = qchem::deck::View(spec, path ? path : "");
+        if (!V) { view_refused(V.Error(), refused, err, errlen); return nullptr; }
+        h->view = V.TakeValue();
+        return h.release();
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return nullptr;
+}
+
+void qcb_view_free(qcb_view* h) { delete h; }
+
+int qcb_view_levels(const qcb_view* h, char* out, int outlen)
+{
+    const HostLocale host;
+    return write_json(levels_json(h->view->GetLevels()), out, outlen);
+}
+
+int qcb_view_summary(const qcb_view* h, char* out, int outlen)
+{
+    const HostLocale host;
+    const qchem::StateSummary&   s = h->view->Summary();
+    const qchem::RestartSummary& j = h->view->Judgement();
+    return write_json({{"path", j.path}, {"label", s.label}, {"converged", s.converged}, {"iterations", s.iterations},
+                       {"energy", s.energy}, {"exact", j.exact}, {"warm", j.warm}, {"electrons", j.electrons}}, out, outlen);
+}
+
+
+int qcb_view_padded(const qcb_view* h, int field, int index, int n, double pad, double* out, double* origin, double* spacing,
+                    char* err, int errlen)
+{
+    const HostLocale host;
+    try
+    {
+        if (h->positions.empty()) throw std::logic_error("a crystal's view has no padded box: state the box (qcb_view_field)");
+        sample(h->positions, view_field(h, field, index), n, pad, out, origin, spacing);
+        return 1;
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return 0;
+}
+
+int qcb_view_field(const qcb_view* h, int field, int index, const int* n3, const double* origin, const double* spacing, double* out,
+                   char* err, int errlen)
+{
+    const HostLocale host;
+    try
+    {
+        sample_box(&view_field(h, field, index), n3, origin, spacing, out);
+        return 1;
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return 0;
+}
 
 // -- the run record ---------------------------------------------------------------------------------------------------
 

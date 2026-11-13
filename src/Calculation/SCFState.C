@@ -104,6 +104,14 @@ struct SavedBlock
     //! The SAVING basis's overlap: in a 2.0 file, and in an in-memory snapshot.  EMPTY from a solid 1.x file -- \c LowdinCarry
     //! cannot move such a block (\c CarryToMovedAtoms can).
     mat_t<dcmplx>         S;
+    //! \name THE ORBITALS AS SAVED (read back since lane G 2026-11-13, for \c StateView: a level's orbital and the levels list of a
+    //! state with no live run).  Every orbital, occupied and virtual, in the saving block's order: C is n x nmo (AO coefficients,
+    //! column i = orbital i, promoted to complex as D is), \c eps and \c f its energies and PHYSICAL occupations.  ALL EMPTY when the
+    //! file holds none (an in-memory snapshot, which needs only D); nmo may be below n (a truncated orthonormal basis).
+    //!@{
+    mat_t<dcmplx>         C;
+    std::vector<double>   eps, f;
+    //!@}
 };
 
 //! A state read from disk (or snapshot in memory).
